@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Survivor — build not dropped yet</title>
+  <style>
+    /*
+     * Placeholder page for the Survivor game slot.
+     * WHY this file exists: the hub lists Survivor before its WebGL build is in
+     * the repo; without this the card would 404. A real Unity WebGL build
+     * OVERWRITES this index.html (and adds Build/, TemplateData/), after which
+     * the card just launches the game.
+     * SEE: docs/patches/phase-5.1-patch-1-web-game-hub.md
+     */
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: #0f1115; color: #e7e9ee;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      padding: 24px;
+    }
+    .box {
+      max-width: 620px; width: 100%;
+      background: #191c22; border: 1px solid #2a2f3a; border-radius: 16px;
+      padding: 32px;
+    }
+    h1 { margin: 0 0 4px; font-size: 24px; }
+    .sub { color: #9aa1ad; margin: 0 0 20px; }
+    ol { padding-left: 20px; line-height: 1.7; }
+    code {
+      background: #0f1115; border: 1px solid #2a2f3a; border-radius: 5px;
+      padding: 1px 6px; font-size: 13px;
+    }
+    a.back {
+      display: inline-block; margin-top: 24px; color: #6ea8fe;
+      text-decoration: none; font-weight: 600;
+    }
+    a.back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Survivor — WebGL build not dropped yet</h1>
+    <p class="sub">This slot is wired up in the hub, but the game build is not here yet.</p>
+    <ol>
+      <li>In Unity, build the project for <strong>WebGL</strong>.</li>
+      <li>Copy the build output (its <code>index.html</code>, <code>Build/</code>,
+          <code>TemplateData/</code>, etc.) into <code>web-hub/games/survivor/</code>,
+          replacing this placeholder file.</li>
+      <li>In <code>web-hub/data/games.js</code>, change the Survivor entry's
+          <code>status</code> from <code>"build-pending"</code> to
+          <code>"available"</code>.</li>
+    </ol>
+    <a class="back" href="../../index.html">&larr; Back to hub</a>
+  </div>
+</body>
+</html>

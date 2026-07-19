@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Game Hub</title>
+  <meta name="description" content="A local, no-backend web game hub. Pick a game and play — everything runs in your browser." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner">
+      <h1 class="hub-title">Game Hub</h1>
+      <p class="hub-subtitle">Pick a game — everything runs locally in your browser. No login, no ads.</p>
+    </div>
+  </header>
+
+  <main class="hub-main">
+    <!-- Cards are rendered here by js/hub.js from window.HUB_GAMES (data/games.js). -->
+    <section id="game-grid" class="game-grid" aria-label="Available games"></section>
+  </main>
+
+  <footer class="hub-footer">
+    <p>Local web game hub &middot; no backend &middot; add a game by editing <code>data/games.js</code></p>
+  </footer>
+
+  <!-- Registry is loaded as a plain script (sets window.HUB_GAMES) rather than fetched, so the
+       page also works when opened directly via file:// where fetch() of local files is blocked. -->
+  <script src="data/games.js"></script>
+  <script src="js/hub.js"></script>
+</body>
+</html>
