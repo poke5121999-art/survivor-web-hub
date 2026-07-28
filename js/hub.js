@@ -86,7 +86,44 @@
     grid.appendChild(msg);
   }
 
+  // ---- Account chip ---------------------------------------------------------
+  // Shows who is signed in (member name or "Khách") + a sign-out control. Guests
+  // additionally get a hint that their progress is local-only. Reads the session
+  // through HubSession so the real account service can swap in without changing UI.
+  function renderAccount() {
+    var slot = document.getElementById("hub-account");
+    if (!slot || !window.HubSession) return;
+    var session = window.HubSession.get();
+    if (!session) return;
+
+    var isGuest = session.kind === "guest";
+    var name = session.name || (isGuest ? "Khách" : "Người chơi");
+
+    var chip = el("div", "hub-account__chip");
+    var avatar = el("span", "hub-account__avatar", name.charAt(0).toUpperCase());
+    var info = el("div", "hub-account__info");
+    info.appendChild(el("span", "hub-account__name", name));
+    info.appendChild(el("span", "hub-account__role", isGuest ? "Khách — lưu cục bộ" : "Đã đăng nhập"));
+    chip.appendChild(avatar);
+    chip.appendChild(info);
+
+    var action = el("button", "auth-btn auth-btn--ghost hub-account__action",
+      isGuest ? "Đăng nhập" : "Đăng xuất");
+    action.type = "button";
+    action.addEventListener("click", function () {
+      // Guest → go sign in (keeps guest session until they actually sign in).
+      // Member → clear session and return to the login gate.
+      if (!isGuest) window.HubSession.clear();
+      location.href = "login.html";
+    });
+
+    slot.appendChild(chip);
+    slot.appendChild(action);
+  }
+
   function init() {
+    renderAccount();
+
     var grid = document.getElementById("game-grid");
     if (!grid) return;
 

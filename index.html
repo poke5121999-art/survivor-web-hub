@@ -7,12 +7,27 @@
   <meta name="description" content="A local, no-backend web game hub. Pick a game and play — everything runs in your browser." />
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+
+  <!-- Entry gate: no session (neither member nor guest) → bounce to the login
+       screen BEFORE the hub renders, so a signed-out visitor never sees the grid
+       flash by. Guest counts as a session, so the guest path is not blocked. -->
+  <script src="js/session.js"></script>
+  <script>
+    if (window.HubSession && !window.HubSession.isSignedIn()) {
+      location.replace("login.html");
+    }
+  </script>
 </head>
 <body>
   <header class="hub-header">
-    <div class="hub-header__inner">
-      <h1 class="hub-title">Game Hub</h1>
-      <p class="hub-subtitle">Pick a game — everything runs locally in your browser. No login, no ads.</p>
+    <div class="hub-header__inner hub-header__inner--account">
+      <div>
+        <h1 class="hub-title">Game Hub</h1>
+        <p class="hub-subtitle">Pick a game — everything runs locally in your browser. No ads.</p>
+      </div>
+      <!-- Account chip: filled by hub.js from the current session. -->
+      <div class="hub-account" id="hub-account"></div>
     </div>
   </header>
 
