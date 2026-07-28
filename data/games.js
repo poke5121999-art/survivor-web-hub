@@ -21,8 +21,17 @@
  *     tags:      string[]
  *   }
  *
- * To add a game: append an entry below, create web-hub/games/<id>/, drop its
- * WebGL build (or an index.html), add a thumbnail. No code change needed.
+ * status controls WHO sees the game:
+ *   - "available"     → shown on the public hub (index.html). Use ONLY when a real
+ *                       build is present in games/<id>/. This is the flag a player sees.
+ *   - "build-pending" → hidden from players; visible to the dev on admin.html.
+ *                       The game is listed but its build has not been dropped in yet.
+ *   - "coming-soon"   → hidden from players; a teaser tracked on admin.html.
+ *
+ * To add a game: append an entry below (or use the "Add game" form on admin.html
+ * and Export), create web-hub/games/<id>/, drop its WebGL build, add a thumbnail,
+ * then flip status to "available". Publish = commit + push to the survivor-web-hub
+ * repo's main branch (GitHub Pages rebuilds automatically). No code change needed.
  */
 window.HUB_GAMES = [
   {

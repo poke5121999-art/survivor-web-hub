@@ -8,6 +8,14 @@
  *   card launches the build, launches a "drop your build here" placeholder, or is
  *   shown as a disabled "coming soon" tile — so there is never a broken link.
  * SEE: docs/patches/phase-5.1-patch-1-web-game-hub.md (Chosen Approach)
+ *
+ * WHY the user hub renders ONLY status "available":
+ * ROOT-CAUSE: players must never land on a dead/placeholder card. A game sits in
+ *   the registry while its WebGL build is still missing ("build-pending") or as a
+ *   teaser ("coming-soon"); both are dev-facing states, not player-facing. The
+ *   public hub filters to "available" so a card appears only once a real build is
+ *   present. Every status stays visible to the dev on admin.html instead.
+ * SEE: admin dashboard addition 2026-07-28
  */
 (function () {
   "use strict";
@@ -88,7 +96,17 @@
       return;
     }
 
-    games.forEach(function (game) {
+    // Public hub shows only games with a real build. build-pending / coming-soon
+    // are dev-only states and stay hidden here (visible on admin.html).
+    var visible = games.filter(function (game) {
+      return game.status === "available";
+    });
+    if (visible.length === 0) {
+      renderEmpty(grid);
+      return;
+    }
+
+    visible.forEach(function (game) {
       grid.appendChild(renderCard(game));
     });
   }

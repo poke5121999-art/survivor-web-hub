@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Game Hub — Admin</title>
+  <meta name="description" content="Dev-only dashboard: manage the game registry, check builds, export data/games.js." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+  <header class="hub-header">
+    <div class="hub-header__inner admin-header__inner">
+      <div>
+        <h1 class="hub-title">Admin — Game Hub</h1>
+        <p class="hub-subtitle">Quản lý danh sách game, kiểm tra build, xuất <code>data/games.js</code>. Chỉ dev dùng.</p>
+      </div>
+      <a class="btn btn--ghost" href="index.html">← Về trang chơi</a>
+    </div>
+  </header>
+
+  <main class="hub-main admin-main">
+
+    <!-- Publish workflow reminder: this page cannot write files (static, no backend).
+         Publishing a build = git push. This banner states the exact loop. -->
+    <section class="admin-note" aria-label="How publishing works">
+      <h2 class="admin-note__title">Cách đưa build lên (git-based)</h2>
+      <ol class="admin-note__steps">
+        <li>Bỏ thư mục build WebGL vào <code>games/&lt;id&gt;/</code> (có <code>index.html</code>).</li>
+        <li>Ở bảng dưới, đổi trạng thái game đó sang <strong>available</strong> (hoặc dùng form thêm game mới).</li>
+        <li>Bấm <strong>Export data/games.js</strong> → Copy → dán đè vào file <code>data/games.js</code>.</li>
+        <li>Commit &amp; <code>git push</code> lên nhánh <code>main</code> của repo <code>survivor-web-hub</code>. GitHub Pages tự build lại (~1 phút).</li>
+      </ol>
+      <p class="admin-note__warn">
+        Trang admin này <strong>không có bảo mật thật</strong> (web tĩnh, không server) — ai có link đều xem được.
+        Đừng đưa thông tin nhạy cảm vào đây.
+      </p>
+    </section>
+
+    <!-- Registry table: every game, every status. Rendered by js/admin.js. -->
+    <section aria-label="Game registry">
+      <div class="admin-section__head">
+        <h2 class="admin-h2">Danh sách game <span id="game-count" class="admin-count"></span></h2>
+        <button id="btn-recheck" class="btn btn--ghost" type="button">↻ Kiểm tra lại build</button>
+      </div>
+      <div class="admin-table__wrap">
+        <table class="admin-table" id="registry-table">
+          <thead>
+            <tr>
+              <th>Game</th>
+              <th>ID</th>
+              <th>Trạng thái</th>
+              <th>Build thật?</th>
+              <th>Hiện với player?</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="registry-body"><!-- rows injected here --></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Add-game form: builds a new registry entry in-memory; committed via Export. -->
+    <section class="admin-card" aria-label="Add a game">
+      <h2 class="admin-h2">Thêm game mới</h2>
+      <form id="add-form" class="admin-form" autocomplete="off">
+        <div class="admin-form__row">
+          <label class="admin-field">
+            <span>ID (slug, = tên thư mục trong games/)</span>
+            <input type="text" name="id" placeholder="vd: my-game" required pattern="[a-z0-9\-]+" />
+          </label>
+          <label class="admin-field">
+            <span>Tên hiển thị</span>
+            <input type="text" name="title" placeholder="My Game" required />
+          </label>
+        </div>
+        <label class="admin-field">
+          <span>Mô tả ngắn (tagline)</span>
+          <input type="text" name="tagline" placeholder="Một câu giới thiệu game" />
+        </label>
+        <div class="admin-form__row">
+          <label class="admin-field">
+            <span>Ảnh thumbnail (đường dẫn tương đối)</span>
+            <input type="text" name="thumbnail" placeholder="assets/thumbnails/my-game.svg" />
+          </label>
+          <label class="admin-field">
+            <span>Tags (cách nhau bởi dấu phẩy)</span>
+            <input type="text" name="tags" placeholder="Action, Solo" />
+          </label>
+        </div>
+        <div class="admin-form__row">
+          <label class="admin-field">
+            <span>Trạng thái ban đầu</span>
+            <select name="status">
+              <option value="build-pending" selected>build-pending (chưa có build)</option>
+              <option value="available">available (đã có build)</option>
+              <option value="coming-soon">coming-soon (teaser)</option>
+            </select>
+          </label>
+          <div class="admin-field admin-field--action">
+            <span>&nbsp;</span>
+            <button type="submit" class="btn btn--primary">+ Thêm vào danh sách</button>
+          </div>
+        </div>
+        <p class="admin-hint">
+          Đường dẫn chạy sẽ tự đặt là <code>games/&lt;id&gt;/index.html</code>.
+          Thêm xong nhớ Export để lưu.
+        </p>
+      </form>
+    </section>
+
+    <!-- Export: serialize the working registry back into a full data/games.js file. -->
+    <section class="admin-card" aria-label="Export registry">
+      <div class="admin-section__head">
+        <h2 class="admin-h2">Export <code>data/games.js</code></h2>
+        <div class="admin-actions">
+          <button id="btn-export" class="btn btn--primary" type="button">Tạo nội dung file</button>
+          <button id="btn-copy" class="btn btn--ghost" type="button" disabled>Copy</button>
+        </div>
+      </div>
+      <p class="admin-hint">
+        Bấm <strong>Tạo nội dung file</strong>, rồi <strong>Copy</strong>, mở <code>data/games.js</code>
+        và dán đè toàn bộ. Commit &amp; push để lên web.
+      </p>
+      <textarea id="export-out" class="admin-export" readonly spellcheck="false"
+        placeholder="Nội dung data/games.js sẽ hiện ở đây..."></textarea>
+    </section>
+
+  </main>
+
+  <footer class="hub-footer">
+    <p>Admin dashboard &middot; static, no backend &middot; publish = git push to <code>main</code></p>
+  </footer>
+
+  <!-- Same registry the public hub loads; admin edits an in-memory copy of it. -->
+  <script src="data/games.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
