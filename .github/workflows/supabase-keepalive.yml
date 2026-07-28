@@ -1,0 +1,52 @@
+name: Supabase keep-alive
+
+# WHY: Supabase free-tier projects pause after 7 days with no DATABASE activity
+#   (dashboard visits and API-less traffic do NOT count). A paused project makes the
+#   hub's account layer unreachable. This runs one tiny query twice a week so the
+#   inactivity timer never elapses. No third-party service, no cost.
+# SEE: https://supabase.com/docs/guides/platform/free-project-pausing
+#
+# NOTE: This workflow must live at the REPOSITORY ROOT of the published hub repo
+#   (survivor-web-hub) as .github/workflows/supabase-keepalive.yml. It is stored here
+#   under web-hub/.github/ so it travels with the rest of the hub when web-hub/ is
+#   synced to that repo.
+# NOTE: GitHub disables scheduled workflows after 60 days with no repo activity — a
+#   push or a manual run resets that. Keep the repo minimally active, or run this
+#   workflow manually now and then.
+
+on:
+  schedule:
+    # Twice weekly — Mon & Thu at 06:00 UTC. Longest gap is 4 days, well under the
+    # 7-day pause window (leaves margin for GitHub's cron delays under load).
+    - cron: '0 6 * * 1,4'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the database via the REST API
+        # Uses the PUBLIC anon key (safe to expose; RLS still applies to it). NEVER put
+        # the service_role key here — it bypasses RLS. A select that RLS filters down to
+        # 0 rows still EXECUTES against Postgres, which is what resets the inactivity timer.
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_ANON_KEY}" ]; then
+            echo "Missing repo secret SUPABASE_URL and/or SUPABASE_ANON_KEY."
+            echo "Set them in: repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "${SUPABASE_URL}/rest/v1/profiles?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          echo "REST status: ${code}"
+          # Any HTTP response means the request reached PostgREST and hit the DB (a
+          # 200 with 0 RLS-filtered rows is expected for anon). Only a network failure
+          # (000) means the ping did not land.
+          if [ "${code}" = "000" ]; then
+            echo "Network failure — keep-alive ping did not reach Supabase."
+            exit 1
+          fi

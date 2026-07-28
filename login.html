@@ -9,11 +9,12 @@
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/auth.css" />
 
-  <!-- Reverse gate: if already signed in (member OR guest), skip the login screen
-       and go straight to the hub. Runs before render so there is no flash. -->
+  <!-- Reverse gate: a signed-in MEMBER skips the login screen and goes straight to the
+       hub. A guest is NOT skipped — a guest may open this page to upgrade to a real
+       account. Runs before render so there is no flash. -->
   <script src="js/session.js"></script>
   <script>
-    if (window.HubSession && window.HubSession.isSignedIn()) {
+    if (window.HubSession && window.HubSession.isSignedIn() && !window.HubSession.isGuest()) {
       location.replace("index.html");
     }
   </script>
@@ -124,15 +125,19 @@
 
       </div>
 
-      <!-- Honest scaffold notice: this is UI only, no real account server yet. -->
+      <!-- Sign-in is real when the account service is configured; otherwise the page
+           falls back to guest-only (see js/supabase-config.js). -->
       <p class="auth-demo-note">
-        Bản dựng giao diện — phần đăng nhập chưa nối máy chủ thật. Mọi thông tin nhập vào
-        chỉ được giữ tạm trong trình duyệt này để dựng luồng màn hình.
+        Đăng nhập nối cơ sở dữ liệu dùng chung của hub. Nếu dịch vụ tài khoản chưa được
+        cấu hình, bạn vẫn vào chơi được với tư cách khách.
       </p>
     </section>
 
   </main>
 
+  <!-- Config + auth layer must load before auth.js wires the forms. -->
+  <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-auth.js"></script>
   <script src="js/auth.js"></script>
 </body>
 </html>

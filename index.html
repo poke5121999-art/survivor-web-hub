@@ -13,6 +13,14 @@
        screen BEFORE the hub renders, so a signed-out visitor never sees the grid
        flash by. Guest counts as a session, so the guest path is not blocked. -->
   <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/supabase-auth.js"></script>
+  <!-- Game-side save contract (window.HubSave). Loaded here so it is available to the hub
+       itself (a future "last played" surface) and console-testable; game pages load it
+       from this same origin. See web-hub/games/BRIDGE.md. -->
+  <script src="js/save-sync.js"></script>
+  <!-- Shared player profile + per-game "last played" surfaced on the hub (window.HubProfile). -->
+  <script src="js/hub-profile.js"></script>
   <script>
     if (window.HubSession && !window.HubSession.isSignedIn()) {
       location.replace("login.html");

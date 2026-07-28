@@ -9,6 +9,22 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/admin.css" />
+
+  <!-- Sign-in gate: once the account service is configured, admin requires a signed-in
+       member (and, if adminEmails is set, one of those emails). When NOT configured it
+       degrades to "unlisted only" so the owner can still use admin before provisioning. -->
+  <script src="js/session.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script>
+    (function () {
+      var c = window.SUPABASE_CONFIG || {};
+      if (!(c.url && c.anonKey)) return;  // not configured yet → no auth to gate with
+      var s = window.HubSession && window.HubSession.get();
+      if (!s || s.kind !== "member") { location.replace("login.html"); return; }
+      var allow = c.adminEmails || [];
+      if (allow.length && allow.indexOf(s.email) === -1) { location.replace("index.html"); }
+    })();
+  </script>
 </head>
 <body>
   <header class="hub-header">
@@ -34,8 +50,9 @@
         <li>Commit &amp; <code>git push</code> lên nhánh <code>main</code> của repo <code>survivor-web-hub</code>. GitHub Pages tự build lại (~1 phút).</li>
       </ol>
       <p class="admin-note__warn">
-        Trang admin này <strong>không có bảo mật thật</strong> (web tĩnh, không server) — ai có link đều xem được.
-        Đừng đưa thông tin nhạy cảm vào đây.
+        Khi đã cấu hình dịch vụ tài khoản, trang này yêu cầu <strong>đăng nhập</strong> (và chỉ các email khai
+        trong <code>adminEmails</code> nếu bạn đặt). Khi chưa cấu hình, trang vẫn mở theo kiểu link kín —
+        đừng đưa thông tin nhạy cảm vào đây.
       </p>
     </section>
 

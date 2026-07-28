@@ -44,5 +44,18 @@ window.HUB_GAMES = [
     // web-hub/games/survivor/ yet. Flip to "available" once the build is present.
     status: "build-pending",
     tags: ["Action", "Roguelite", "Solo"]
+  },
+  {
+    id: "kingfall",
+    title: "Kingfall: The Last Citadel TD",
+    tagline: "Tower-defense siege: raise the citadel, place your defenders, and hold the last gate against waves of mobs and bosses.",
+    thumbnail: "assets/thumbnails/kingfall.svg",
+    path: "games/kingfall/index.html",
+    // build-pending: source lives in the thronefall-client submodule, but no WebGL
+    // build has been dropped in web-hub/games/kingfall/ yet. It also still carries
+    // its original online stack (cloud save / ads / IAP), so it is not offline-ready.
+    // Flip to "available" only once a real, standalone build is present.
+    status: "build-pending",
+    tags: ["Tower Defense", "Strategy", "Solo"]
   }
 ];

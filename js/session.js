@@ -1,18 +1,16 @@
 /*
  * Hub session — the single source of truth for "who is signed in", shared by the
- * login screen (auth.js) and the hub (index.html gate + hub.js account chip).
+ * login screen (auth.js), the hub (index.html gate + hub.js), and admin.html.
  *
- * SCAFFOLD ONLY: this persists a local session object; it does NOT authenticate
- * against any server yet. When the real account service lands (one hosted
- * per-player database, per the hub account gate decision), replace how a session
- * is CREATED (in auth.js) — every screen reads "who am I" through this same
- * interface, so the rest of the UI does not change.
+ * A session is either a real member (created by supabase-auth.js — carries the
+ * Supabase JWT + refresh token + expiry) or a guest (the offline/degrade path). Every
+ * screen reads "who am I" through this one interface, so swapping the auth source never
+ * touches the gate or the chip.
  *
  * WHY a tiny head-loadable module with no DOM dependency:
- * ROOT-CAUSE: index.html must decide "signed in, or redirect to login" BEFORE the
- *   hub markup renders, otherwise a signed-out visitor sees a flash of the games
- *   grid before being bounced. A pure-state module can run in <head>, ahead of
- *   any DOM.
+ * ROOT-CAUSE: index.html and admin.html must decide "signed in, or redirect" BEFORE
+ *   markup renders, otherwise a signed-out visitor sees a flash of protected content
+ *   before being bounced. A pure-state module can run in <head>, ahead of any DOM.
  * SEE: hub account gate — sign-in on entry + guest fallback (architecture, 2026-07-28)
  */
 (function () {
@@ -46,10 +44,19 @@
     get: read,
     set: function (session) { write(session); },
     clear: function () { write(null); },
+    // A stored session (member OR guest) counts as signed-in for gate purposes. An
+    // expired member token does NOT bounce the gate — hub.js refreshes it on load and
+    // only then clears + redirects if the refresh fails (avoids a redirect loop).
     isSignedIn: function () { return !!read(); },
     isGuest: function () {
       var s = read();
       return !!s && s.kind === "guest";
+    },
+    // True when a member's access token is past (or within 60s of) its expiry.
+    isExpired: function () {
+      var s = read();
+      if (!s || s.kind !== "member" || !s.expiresAt) return false;
+      return Date.now() > (s.expiresAt - 60000);
     }
   };
 })();

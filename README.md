@@ -16,9 +16,18 @@ web-hub/
 │   ├── favicon.svg
 │   └── thumbnails/         # one committed image per game (no external URLs)
 └── games/
-    └── survivor/           # each game's own build lives in its own folder
-        └── index.html      # placeholder until the real WebGL build is dropped
+    ├── survivor/           # each game's own build lives in its own folder
+    │   └── index.html      # placeholder until the real WebGL build is dropped
+    └── kingfall/
+        └── index.html      # placeholder (source: thronefall-client submodule)
 ```
+
+## Games in the registry
+
+| id | Title | Source module | Status |
+|----|-------|---------------|--------|
+| `survivor` | Survivor | `client-survivor/` | `build-pending` — offline conversion in progress |
+| `kingfall` | Kingfall: The Last Citadel TD | `thronefall-client/` | `build-pending` — still on its original online stack |
 
 ## Run locally
 

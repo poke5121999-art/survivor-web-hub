@@ -56,6 +56,9 @@
     } else {
       card.setAttribute("aria-disabled", "true");
     }
+    // Tag the card with its stable id so hydrateLastPlayed() can find it after the async
+    // profile fetch returns (cards render synchronously; last-played arrives later).
+    if (game.id) card.setAttribute("data-game-id", game.id);
 
     var thumb = el("div", "card__thumb");
     if (game.thumbnail) {
@@ -74,9 +77,43 @@
     body.appendChild(el("h2", "card__title", game.title));
     body.appendChild(el("p", "card__tagline", game.tagline));
     body.appendChild(renderTags(game.tags));
+    // "Last played" line — hidden until hydrateLastPlayed() fills it for a signed-in member
+    // who has a cloud save for this game. Guests / unconfigured hubs never populate it.
+    var last = el("p", "card__lastplayed");
+    last.hidden = true;
+    body.appendChild(last);
     card.appendChild(body);
 
     return card;
+  }
+
+  // "5 phút trước" style relative time in Vietnamese. null for a falsy timestamp.
+  function timeAgoVi(ms) {
+    if (!ms) return null;
+    var s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    if (s < 60) return "vừa xong";
+    var m = Math.floor(s / 60); if (m < 60) return m + " phút trước";
+    var h = Math.floor(m / 60); if (h < 24) return h + " giờ trước";
+    var d = Math.floor(h / 24); if (d < 30) return d + " ngày trước";
+    var mo = Math.floor(d / 30); if (mo < 12) return mo + " tháng trước";
+    return Math.floor(mo / 12) + " năm trước";
+  }
+
+  // After the cards render, ask the shared DB when this player last saved each game and stamp
+  // the matching card. A game the player has never saved (or that isn't shown on this hub) is
+  // simply left without a last-played line — no row, no stamp. No-op for guests / unconfigured.
+  function hydrateLastPlayed() {
+    if (!window.HubProfile || !window.HubProfile.isAvailable()) return;
+    window.HubProfile.listLastPlayed().then(function (r) {
+      if (!r || !r.ok || !r.map) return;
+      Object.keys(r.map).forEach(function (gameId) {
+        var card = document.querySelector('[data-game-id="' + gameId + '"]');
+        if (!card) return;
+        var line = card.querySelector(".card__lastplayed");
+        var label = timeAgoVi(r.map[gameId]);
+        if (line && label) { line.textContent = "Chơi lần cuối " + label; line.hidden = false; }
+      });
+    });
   }
 
   function renderEmpty(grid) {
@@ -102,18 +139,46 @@
     var chip = el("div", "hub-account__chip");
     var avatar = el("span", "hub-account__avatar", name.charAt(0).toUpperCase());
     var info = el("div", "hub-account__info");
-    info.appendChild(el("span", "hub-account__name", name));
+    var nameSpan = el("span", "hub-account__name", name);
+    info.appendChild(nameSpan);
     info.appendChild(el("span", "hub-account__role", isGuest ? "Khách — lưu cục bộ" : "Đã đăng nhập"));
     chip.appendChild(avatar);
     chip.appendChild(info);
+
+    // For a signed-in member, replace the JWT-derived name with the authoritative shared-profile
+    // name (the one that follows them across devices), and let a click rename them everywhere.
+    // Enrichment only — if the service is unconfigured/unreachable the chip keeps the session name.
+    if (!isGuest && window.HubProfile && window.HubProfile.isAvailable()) {
+      var applyName = function (n) {
+        if (!n) return;
+        nameSpan.textContent = n;
+        avatar.textContent = n.charAt(0).toUpperCase();
+      };
+      window.HubProfile.getProfile().then(function (p) {
+        if (p && p.ok) applyName(p.displayName);
+      });
+      nameSpan.classList.add("hub-account__name--editable");
+      nameSpan.title = "Đổi tên hiển thị";
+      nameSpan.addEventListener("click", function () {
+        var next = window.prompt("Tên hiển thị mới:", nameSpan.textContent);
+        if (next == null) return; // cancelled
+        window.HubProfile.updateDisplayName(next).then(function (r) {
+          if (r && r.ok) applyName(r.displayName);
+          else if (r && r.reason === "unreachable") window.alert("Không kết nối được dịch vụ tài khoản. Thử lại sau.");
+        });
+      });
+    }
 
     var action = el("button", "auth-btn auth-btn--ghost hub-account__action",
       isGuest ? "Đăng nhập" : "Đăng xuất");
     action.type = "button";
     action.addEventListener("click", function () {
       // Guest → go sign in (keeps guest session until they actually sign in).
-      // Member → clear session and return to the login gate.
-      if (!isGuest) window.HubSession.clear();
+      // Member → revoke server-side (best-effort), clear the local session, return to login.
+      if (!isGuest) {
+        if (window.HubAuth) window.HubAuth.signOut(session);
+        window.HubSession.clear();
+      }
       location.href = "login.html";
     });
 
@@ -146,11 +211,30 @@
     visible.forEach(function (game) {
       grid.appendChild(renderCard(game));
     });
+
+    // Cloud "last played" arrives asynchronously and stamps whichever visible cards match.
+    hydrateLastPlayed();
+  }
+
+  // Refresh an expired member token on load; if the refresh fails (invalid/expired
+  // refresh token) clear the session and return to the login gate. If the service is
+  // merely unreachable, keep showing the hub (offline-friendly) rather than bouncing.
+  function boot() {
+    var s = window.HubSession && window.HubSession.get();
+    if (!s || s.kind !== "member" || !window.HubAuth || !window.HubSession.isExpired()) {
+      init();
+      return;
+    }
+    window.HubAuth.refresh(s).then(function (r) {
+      if (r && r.ok) { window.HubSession.set(r.session); init(); }
+      else if (r && r.unreachable) { init(); }
+      else { window.HubSession.clear(); location.replace("login.html"); }
+    });
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", boot);
   } else {
-    init();
+    boot();
   }
 })();

@@ -254,6 +254,8 @@
 }
 .hub-account__info { display: flex; flex-direction: column; line-height: 1.2; }
 .hub-account__name { font-size: 14px; font-weight: 700; color: var(--text); }
+/* Member name doubles as a rename control (click → prompt → syncs to the shared profile). */
+.hub-account__name--editable { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
 .hub-account__role { font-size: 11px; color: var(--text-dim); }
 .hub-account__action { width: auto; padding: 8px 14px; font-size: 13px; }
 
