@@ -1,10 +1,37 @@
 # Game-side save bridge — contract
 
-> Phase 5.3, unit C3. How a hub game reaches the shared cloud save.
-> The JS half (`web-hub/js/save-sync.js`, `window.HubSave`) is **implemented and shippable now**.
-> The Unity half (`.jslib` + C# `SaveBridge`) below is a **reference spec** to finalize when the
-> Survivor WebGL build actually lands in `web-hub/games/survivor/` (Phase 5.4) — there is no build
-> to compile it against yet, so treat the C#/`.jslib` code as a template, not a tested artifact.
+> Phase 5.3, units C3 + C5. How a hub game reaches the shared cloud save.
+> The JS half (`web-hub/js/save-sync.js`, `window.HubSave`) is **implemented and shippable**.
+> The Unity half is **built and shipped as of 2026-07-30** (phase-5.3-patch-5) in `client-survivor`.
+> This document is no longer a reference spec: Layers 2 and 3 below point at the shipped code and
+> record the three places the original spec was wrong.
+
+## What changed when the spec met a real Unity 6 build
+
+The Layer 2/3 code originally sketched here was written before any WebGL build existed. Finalizing it
+against Unity 6000.0.59f2 corrected three things — each of which would have shipped as a silent
+runtime failure:
+
+1. **`.jslib` helpers need per-function dependency declarations.** `FnName__deps: ['$stringToUTF8',
+   '$lengthBytesUTF8', '$UTF8ToString']`, with the `$` prefix. Without them Emscripten strips the
+   helpers and the call fails at runtime with `lengthBytesUTF8 is undefined`. Unity's own library
+   sources use exactly this form (`PlaybackEngines/WebGLSupport/BuildTools/lib/WebRequest.js`).
+2. **`window.unityInstance` does not exist by default.** Unity's stock `Default` template keeps the
+   instance as a closure-local inside its `.then()` callback, so `SendMessage` from a `.jslib` has
+   nothing to reach. A **project template** must publish it — see Layer 0 below.
+3. **The winner is decided by save version, not by timestamp.** The cloud row's `updated_at` is
+   stamped by the database server while the local time comes from the player's device; comparing two
+   unsynchronised clocks lets a device with a slow clock revert a newer save. The shipped rule is
+   version-first, with the timestamp only as a tiebreak *within* one version.
+
+## Layer 0 — the web template (required, not optional)
+
+A Unity build **overwrites** `games/<id>/index.html` wholesale, so the four hub `<script>` tags below
+cannot be hand-added to the generated page — the next build silently drops them and the game goes
+local-only again with no error anywhere. They belong in a project template
+(`Assets/WebGLTemplates/<name>/index.html`), which the build reproduces every time. Survivor ships
+`Assets/WebGLTemplates/HubGame/`, a copy of Unity's `Default` template plus exactly two additions:
+the four script tags, and `window.unityInstance = unityInstance;` inside the loader's `.then()`.
 
 ## The one invariant
 
@@ -15,9 +42,14 @@ its local save exactly as it does today. Nothing here may throw, block, or gate 
 
 Consequences:
 - The local save stays the single owner during play ([local-save-single-owner](../../docs/memory/local-save-single-owner.md)).
-- Cloud is pulled at sign-in / game start, and pushed at run end, on leaving the game, and when the
-  tab is hidden. When local and cloud disagree, the newer one wins; the ambiguous both-sides-changed
-  case is a visible "keep this device / keep cloud" prompt — decided by `HubSave.reconcile(...)`.
+- Cloud is pulled once at game start and pushed after every local save (debounced), plus immediately
+  when the tab is hidden or the app quits. When local and cloud disagree, the **higher save version**
+  wins; at equal versions the newer timestamp breaks the tie.
+- **No conflict prompt ships yet.** `HubSave.reconcile(local, cloud, base)` can return `conflict` when
+  given a base descriptor, but the shipped Unity side does not track a base and never asks — it
+  decides. The mitigation is `LocalSaveStore.AdoptCloudSave`, which copies the save it is about to
+  replace into a one-slot rollback key (`LocalDataPlayerPreAdopt`) so a wrong automatic verdict is
+  recoverable. A visible "keep this device / keep cloud" prompt remains a Phase 5.3 open item.
 
 ## Why the game can see the hub's session at all
 
@@ -37,10 +69,6 @@ Load order on the game page (all from the hub root, one origin):
 <script src="../../js/save-sync.js"></script>
 ```
 
-> A Unity WebGL build **overwrites** `games/survivor/index.html` with its own generated page, so these
-> four tags belong in the **WebGL template** (`Assets/WebGLTemplates/<name>/index.html` in the Unity
-> project) so the build reproduces them — not hand-added to the generated file each build.
-
 API (every async method resolves a plain object, never rejects):
 
 | Call | Resolves |
@@ -55,97 +83,56 @@ Notes:
 - `gameId` is the same string used as the registry key and the `game_saves.game_id` column (e.g. `"survivor"`).
 - `version` is a **caller-owned monotonic counter** — the game increments its own local save version and
   passes it; the contract does not invent one (default `1`).
+- `payload` crosses as a JSON **object**, not a string: the shim parses the C# side's serialized save
+  before handing it over, and re-serializes the whole result before sending it back.
 - Payload ceiling is ~100 KB (the DB caps `pg_column_size(payload) <= 102400`; `storeSave` pre-checks the
-  raw byte size and also maps the DB's 400 back to `reason:"too-large"`).
+  raw byte size and also maps the DB's 400 back to `reason:"too-large"`). Survivor's save measures
+  ~1.5 KB at mid-progression, so the cap is not a practical constraint for this game.
 - Reads/writes run as the signed-in player (JWT `Authorization: Bearer`), so Supabase Row Level Security
   restricts every row to its owner — the client cannot read or write another player's save even if it tries.
 
-## Layer 2 — the Unity `.jslib` shim (reference, finalize at wiring time)
+## Layer 2 — the Unity `.jslib` shim (shipped)
 
-Goes in the Unity project at `Assets/Plugins/WebGL/HubSave.jslib`. It is the only place C# and the hub's
-JS meet. Async results come back through `SendMessage(gameObject, method, jsonString)`, so the WebGL
-template must expose the loaded instance as `window.unityInstance`.
+`client-survivor/survivor/Assets/Plugins/WebGL/HubSave.jslib` — the only place C# and the hub's JS
+meet. Three entry points (`HubSave_WhoAmI`, `HubSave_LoadSave`, `HubSave_StoreSave`) plus one internal
+`$hubSaveSend` helper that resolves `window.unityInstance` and retries briefly, because a result can
+resolve before the page has finished publishing the instance and a dropped result leaves the C# side
+waiting for its timeout.
 
-```javascript
-mergeInto(LibraryManager.library, {
-  // Synchronous identity — returns a malloc'd UTF8 JSON string Unity marshals to `string`.
-  HubSave_WhoAmI: function () {
-    var who = (typeof window !== "undefined" && window.HubSave)
-      ? window.HubSave.whoAmI() : { signedIn: false };
-    var json = JSON.stringify(who);
-    var size = lengthBytesUTF8(json) + 1;
-    var buf = _malloc(size);
-    stringToUTF8(json, buf, size);
-    return buf;
-  },
+Read the file for the current shape rather than copying from here — the shipped code is the contract.
+The three rules it must keep:
 
-  // Async load — result delivered via SendMessage(go, cb, json).
-  HubSave_LoadSave: function (gameIdPtr, goPtr, cbPtr) {
-    var gameId = UTF8ToString(gameIdPtr), go = UTF8ToString(goPtr), cb = UTF8ToString(cbPtr);
-    var send = function (json) { try { window.unityInstance.SendMessage(go, cb, json); } catch (e) {} };
-    if (typeof window === "undefined" || !window.HubSave) { send(JSON.stringify({ ok: false, reason: "no-bridge" })); return; }
-    window.HubSave.loadSave(gameId).then(function (r) { send(JSON.stringify(r)); });
-  },
+- **Declare dependencies per function.** `HubSave_WhoAmI__deps: ['$stringToUTF8', '$lengthBytesUTF8']`,
+  `HubSave_LoadSave__deps: ['$UTF8ToString', '$hubSaveSend']`, and likewise for the store call.
+  `_malloc` needs no declaration (it is a C export that is always present).
+- **Never throw across the boundary.** Every path — missing `window.HubSave`, a rejected promise, an
+  unparseable payload — ends in a `{"ok":false,"reason":…}` result delivered through `SendMessage`.
+- **Answer every call.** A call that neither resolves nor reports leaves C# to time out, which is a
+  worse failure than a clean `no-bridge`.
 
-  // Async store — payloadJson is the save blob already serialized on the C# side.
-  HubSave_StoreSave: function (gameIdPtr, payloadPtr, version, goPtr, cbPtr) {
-    var gameId = UTF8ToString(gameIdPtr), go = UTF8ToString(goPtr), cb = UTF8ToString(cbPtr);
-    var payload; try { payload = JSON.parse(UTF8ToString(payloadPtr)); } catch (e) { payload = {}; }
-    var send = function (json) { try { window.unityInstance.SendMessage(go, cb, json); } catch (e) {} };
-    if (typeof window === "undefined" || !window.HubSave) { send(JSON.stringify({ ok: false, reason: "no-bridge" })); return; }
-    window.HubSave.storeSave(gameId, payload, { version: version }).then(function (r) { send(JSON.stringify(r)); });
-  }
-});
-```
+## Layer 3 — the C# side (shipped)
 
-## Layer 3 — the C# side (reference, finalize at wiring time)
+Three pieces in `client-survivor`, deliberately split so the only part that can be wrong *quietly* is
+the only part that is unit-tested:
 
-A single `MonoBehaviour` under the existing local save owner. `#if UNITY_WEBGL && !UNITY_EDITOR` guards
-the `__Internal` imports so the Editor and every non-WebGL target compile with a no-op that reports
-"no bridge" — i.e. the game stays local-only everywhere except an actual hub-hosted WebGL build.
+| File | Role |
+|---|---|
+| `Assets/Scripts/Managers/Offline/HubSaveBridge.cs` | Dumb transport: the `[DllImport("__Internal")]` entry points, the `SendMessage` callbacks, and managed stubs for every non-WebGL target so the whole layer compiles and runs inert in the Editor. |
+| `Assets/Scripts/Managers/Offline/CloudSaveSync.cs` | Policy: boot pull behind a hard timeout, debounced push, flush on focus-loss/quit, adopt path. |
+| `Assets/Scripts/Offline.Core/CloudSyncDecision.cs` | The pure verdict (`UseLocal` / `UseCloud` / `Nothing`) — no Unity, no I/O, covered by `Assets/Tests/EditMode/CloudSyncDecisionTests.cs`. |
 
-```csharp
-using System;
-using System.Runtime.InteropServices;
-using UnityEngine;
+Wiring rules that hold the invariant up:
 
-public class SaveBridge : MonoBehaviour
-{
-    const string GameId = "survivor";
-
-#if UNITY_WEBGL && !UNITY_EDITOR
-    [DllImport("__Internal")] static extern string HubSave_WhoAmI();
-    [DllImport("__Internal")] static extern void HubSave_LoadSave(string gameId, string go, string cb);
-    [DllImport("__Internal")] static extern void HubSave_StoreSave(string gameId, string payloadJson, int version, string go, string cb);
-#else
-    static string HubSave_WhoAmI() => "{\"signedIn\":false}";
-    static void HubSave_LoadSave(string g, string go, string cb) => GameObject.Find(go)?.SendMessage(cb, "{\"ok\":false,\"reason\":\"no-bridge\"}");
-    static void HubSave_StoreSave(string g, string p, int v, string go, string cb) => GameObject.Find(go)?.SendMessage(cb, "{\"ok\":false,\"reason\":\"no-bridge\"}");
-#endif
-
-    Action<string> _onLoaded, _onStored;
-
-    public bool IsSignedIn() => HubSave_WhoAmI().Contains("\"signedIn\":true");
-
-    public void LoadCloud(Action<string> onResultJson)
-    {
-        _onLoaded = onResultJson;
-        HubSave_LoadSave(GameId, gameObject.name, nameof(OnLoadResult));
-    }
-    void OnLoadResult(string json) => _onLoaded?.Invoke(json);
-
-    public void StoreCloud(string payloadJson, int version, Action<string> onResultJson)
-    {
-        _onStored = onResultJson;
-        HubSave_StoreSave(GameId, payloadJson, version, gameObject.name, nameof(OnStoreResult));
-    }
-    void OnStoreResult(string json) => _onStored?.Invoke(json);
-}
-```
-
-Wiring rule: the cloud layer sits **under** the local save owner. Pull on start and reconcile with the
-local save (newer wins; conflict → prompt); push on run end / leaving / tab hidden. If any call returns
-`ok:false` for any reason, do nothing extra — the local save already holds the truth.
+- **One push trigger, not a list.** `LocalSaveStore.Save` raises `OnSaved`; `CloudSaveSync` is the only
+  subscriber. A new save site cannot forget to sync, because it cannot save without passing through
+  the store. Do *not* re-introduce per-site push calls.
+- **Pull before the boot's first local read.** Adopting a cloud save later would overwrite a save the
+  running game already holds a reference to — two live owners of one blob, which is the dual-owner
+  divergence that reverted live progress in phase-2.2-patch-1.
+- **Re-point the game's reference when adopting.** `AdoptCloudSave` swaps the store's cached instance;
+  the caller must set `GameManager.LocalData = LocalSaveStore.Instance.Load()` in the same step.
+- **Never block play.** The boot pull is capped (8 s) and returns false on every failure; a push
+  failure is logged once and dropped, with no retry loop.
 
 ## Absence / degrade matrix
 
@@ -153,6 +140,8 @@ local save (newer wins; conflict → prompt); push on run end / leaving / tab hi
 |---|---|---|---|
 | Hub not provisioned (empty config) | `false` | `{ok:false, reason:"no-account"}` | local-only |
 | Signed in as guest | `false` | `{ok:false, reason:"no-account"}` | local-only |
-| Signed-in member, service down | `true` | `{ok:false, reason:"unreachable"}` | local-only this session, retry later |
+| Signed-in member, service down | `true` | `{ok:false, reason:"unreachable"}` | local-only this session, retry on next save |
+| Signed-in member, service hangs | `true` | never resolves | boot continues after the 8 s cap, local-only this session |
 | Not hosted on the hub (no `HubSave`) | n/a (`.jslib` sends `no-bridge`) | `{ok:false, reason:"no-bridge"}` | local-only |
+| Editor / any non-WebGL build | n/a (managed stub) | `{ok:false, reason:"no-bridge"}` | local-only |
 | Signed-in member, service up | `true` | real data | cloud sync active |

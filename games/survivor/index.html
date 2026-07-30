@@ -6,6 +6,26 @@
     <title>Unity Web Player | Last Survivor</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
+    <!--
+      Web-hub account layer. These four files live at the hub root; this page is served from
+      <hub>/games/survivor/, so they resolve two levels up. They are what makes window.HubSave exist,
+      which is the only thing the game's save bridge talks to.
+
+      WHY they are declared here, in a project template, rather than added to the generated page after
+      each build: a Unity build OVERWRITES games/survivor/index.html wholesale, so a hand-edited page
+      silently loses the account layer on the very next build and the game quietly goes local-only
+      again. Putting them in the template makes every future build reproduce them.
+      ROOT-CAUSE: the generated page is build output, not a source file.
+      SEE: patch phase-5.3-patch-5; web-hub/games/BRIDGE.md; Assets/Plugins/WebGL/HubSave.jslib.
+
+      Opened OUTSIDE the hub these four requests 404, window.HubSave stays undefined, and the shim
+      answers every call with "no-bridge" — the game then behaves exactly as a standalone build.
+      That degrade is intentional; the console 404s are the only symptom.
+    -->
+    <script src="../../js/session.js"></script>
+    <script src="../../js/supabase-config.js"></script>
+    <script src="../../js/supabase-auth.js"></script>
+    <script src="../../js/save-sync.js"></script>
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -116,6 +136,14 @@
         createUnityInstance(canvas, config, (progress) => {
           document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
               }).then((unityInstance) => {
+                // WHY: the save bridge delivers async results back into C# with
+                // unityInstance.SendMessage(...), and the shim can only reach the instance through the
+                // global scope. Unity's stock template keeps this value as a local inside this
+                // callback, so without this line every cloud load/store result is silently dropped and
+                // the C# side just times out.
+                // ROOT-CAUSE: createUnityInstance resolves to a closure-local, never a global.
+                // SEE: patch phase-5.3-patch-5; Assets/Plugins/WebGL/HubSave.jslib ($hubSaveSend).
+                window.unityInstance = unityInstance;
                 document.querySelector("#unity-loading-bar").style.display = "none";
                 document.querySelector("#unity-fullscreen-button").onclick = () => {
                   unityInstance.SetFullscreen(1);
