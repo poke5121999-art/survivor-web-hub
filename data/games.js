@@ -40,9 +40,10 @@ window.HUB_GAMES = [
     tagline: "Vampire-Survivors-style auto-shooter. Move to dodge, weapons fire themselves, survive escalating waves.",
     thumbnail: "assets/thumbnails/survivor.svg",
     path: "games/survivor/index.html",
-    // build-pending: the game exists but its WebGL build has not been dropped in
-    // web-hub/games/survivor/ yet. Flip to "available" once the build is present.
-    status: "build-pending",
+    // available since 2026-07-30: a real WebGL build (68 MB) lives in
+    // web-hub/games/survivor/ and was play-tested end-to-end in a browser with no
+    // backend. See docs/plans/roadmap.md Phase 1.1 / 5.2.
+    status: "available",
     tags: ["Action", "Roguelite", "Solo"]
   },
   {
