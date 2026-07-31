@@ -26,10 +26,48 @@
     <script src="../../js/supabase-config.js"></script>
     <script src="../../js/supabase-auth.js"></script>
     <script src="../../js/save-sync.js"></script>
+    <style>
+      /*
+        WHY: the game's UI is authored for a 1080x1920 PHONE canvas and its scaler matches on WIDTH, so a
+        landscape canvas blows every element up and pushes the bottom of the screen out of view. Unity's
+        stock template sizes the desktop canvas to a fixed landscape box, which is exactly the wrong shape.
+        This locks the canvas to the authored 9:16 and letterboxes it, so a browser window of any shape
+        shows the same layout a phone does.
+        ROOT-CAUSE: a portrait mobile UI shipped through a template written for landscape desktop games.
+        SEE: patch phase-2.3-patch-3; ProjectSettings defaultScreenWidthWeb/HeightWeb (540x960).
+        Phones are untouched: the mobile branch below still fills the device screen, which is already 9:16-ish.
+      */
+      html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+
+      #unity-container.unity-desktop {
+        position: fixed;
+        left: 0; top: 0; right: 0; bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: none;   /* the stock stylesheet centres via translate; flex does it here */
+      }
+
+      #unity-container.unity-desktop #unity-canvas {
+        /* Tallest box that fits and still measures 9:16. The second pair caps it on short-and-wide windows. */
+        height: 100vh;
+        width: calc(100vh * 9 / 16);
+        max-width: 100vw;
+        max-height: calc(100vw * 16 / 9);
+        background: #000;
+      }
+
+      #unity-container.unity-desktop #unity-footer {
+        position: fixed;
+        right: 12px;
+        bottom: 8px;
+        width: auto;
+      }
+    </style>
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
-      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <canvas id="unity-canvas" width=540 height=960 tabindex="-1"></canvas>
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>
         <div id="unity-progress-bar-empty">
@@ -123,9 +161,9 @@
 
 
       } else {
-        // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
+        // Desktop: sizing is owned by the stylesheet above, which keeps the canvas at the authored 9:16
+        // and letterboxes the rest. Setting a pixel size here would pin it to one window size and
+        // reintroduce the wrong shape, so this branch deliberately does nothing.
       }
 
       document.querySelector("#unity-loading-bar").style.display = "block";
