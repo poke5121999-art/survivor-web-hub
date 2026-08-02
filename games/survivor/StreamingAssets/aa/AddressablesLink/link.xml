@@ -45,6 +45,9 @@
     <type fullname="Coffee.UIExtensions.UIShiny" preserve="all" />
     <type fullname="ColorTabGroup" preserve="all" />
     <type fullname="ConfigSettingGamePlay" preserve="all" />
+    <type fullname="CoopMenuEntry" preserve="all" />
+    <type fullname="CoopPartySlotCell" preserve="all" />
+    <type fullname="CoopRoomRowCell" preserve="all" />
     <type fullname="DailyDiscountCell" preserve="all" />
     <type fullname="DailyDiscountSceneController" preserve="all" />
     <type fullname="DailyDiscountView" preserve="all" />
@@ -131,6 +134,7 @@
     <type fullname="OpenBoxInGamePopup" preserve="all" />
     <type fullname="OpenBoxPopup" preserve="all" />
     <type fullname="OpenSpecialBoxPopup" preserve="all" />
+    <type fullname="PartySlotsController" preserve="all" />
     <type fullname="PatrolPopup" preserve="all" />
     <type fullname="PatrolQuickClaimPopup" preserve="all" />
     <type fullname="PauseItemData" preserve="all" />
@@ -163,6 +167,7 @@
     <type fullname="RewardItemCell" preserve="all" />
     <type fullname="RewardPeekPopup" preserve="all" />
     <type fullname="RewardPopup" preserve="all" />
+    <type fullname="RoomPanelController" preserve="all" />
     <type fullname="Rotate" preserve="all" />
     <type fullname="SBoxInfoPopup" preserve="all" />
     <type fullname="ScrollPattern" preserve="all" />
