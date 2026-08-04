@@ -52,11 +52,14 @@ window.HUB_GAMES = [
     tagline: "Tower-defense siege: raise the citadel, place your defenders, and hold the last gate against waves of mobs and bosses.",
     thumbnail: "assets/thumbnails/kingfall.svg",
     path: "games/kingfall/index.html",
-    // build-pending: source lives in the thronefall-client submodule, but no WebGL
-    // build has been dropped in web-hub/games/kingfall/ yet. It also still carries
-    // its original online stack (cloud save / ads / IAP), so it is not offline-ready.
-    // Flip to "available" only once a real, standalone build is present.
-    status: "build-pending",
+    // available since 2026-08-05: a real WebGL build sits in web-hub/games/kingfall/
+    // (68 MB, Unity 6000.0.59f2) with its Addressables content bundles, and the online
+    // stack it shipped with — Firebase cloud save, LevelPlay ads, real-money purchasing,
+    // platform sign-in — is compiled out. Progress follows the hub account through the
+    // same save contract Survivor uses. See docs/plans/roadmap.md Milestone 7.
+    // NOT yet eyes-on verified: the two-generation editor jump can break rendering
+    // (shaders, particles, lighting) without breaking the build.
+    status: "available",
     tags: ["Tower Defense", "Strategy", "Solo"]
   }
 ];

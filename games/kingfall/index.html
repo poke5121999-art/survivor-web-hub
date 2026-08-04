@@ -1,71 +1,199 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Kingfall — build not dropped yet</title>
-  <style>
-    /*
-     * Placeholder page for the Kingfall game slot.
-     * WHY this file exists: the hub lists Kingfall before its WebGL build is in
-     * the repo; without this the card would 404. A real Unity WebGL build
-     * OVERWRITES this index.html (and adds Build/, TemplateData/), after which
-     * the card just launches the game.
-     * ROOT-CAUSE: registry entry and build artifact are added in separate steps,
-     *   so the slot is always referencable before it is populated.
-     * SEE: web-hub/README.md "Add a game"; games/survivor/index.html (same shape)
-     */
-    :root { color-scheme: light dark; }
-    body {
-      margin: 0; min-height: 100vh;
-      display: flex; align-items: center; justify-content: center;
-      background: #0f1115; color: #e7e9ee;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      padding: 24px;
-    }
-    .box {
-      max-width: 620px; width: 100%;
-      background: #191c22; border: 1px solid #2a2f3a; border-radius: 16px;
-      padding: 32px;
-    }
-    h1 { margin: 0 0 4px; font-size: 24px; }
-    .sub { color: #9aa1ad; margin: 0 0 20px; }
-    ol { padding-left: 20px; line-height: 1.7; }
-    code {
-      background: #0f1115; border: 1px solid #2a2f3a; border-radius: 5px;
-      padding: 1px 6px; font-size: 13px;
-    }
-    .note {
-      margin-top: 20px; padding: 12px 14px; border-radius: 10px;
-      background: #14171d; border: 1px solid #2a2f3a; color: #9aa1ad; font-size: 14px;
-    }
-    a.back {
-      display: inline-block; margin-top: 24px; color: #6ea8fe;
-      text-decoration: none; font-weight: 600;
-    }
-    a.back:hover { text-decoration: underline; }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <h1>Kingfall — WebGL build not dropped yet</h1>
-    <p class="sub">This slot is wired up in the hub, but the game build is not here yet.</p>
-    <ol>
-      <li>In Unity, open <code>thronefall-client/</code> and build the project for
-          <strong>WebGL</strong>.</li>
-      <li>Copy the build output (its <code>index.html</code>, <code>Build/</code>,
-          <code>TemplateData/</code>, etc.) into <code>web-hub/games/kingfall/</code>,
-          replacing this placeholder file.</li>
-      <li>In <code>web-hub/data/games.js</code>, change the Kingfall entry's
-          <code>status</code> from <code>"build-pending"</code> to
-          <code>"available"</code>.</li>
-    </ol>
-    <p class="note">
-      Kingfall still ships the online stack it was built with (cloud save, ads, purchases,
-      Google Play sign-in). It has not gone through the offline conversion Survivor did, so a
-      WebGL build made today is not expected to run standalone yet.
-    </p>
-    <a class="back" href="../../index.html">&larr; Back to hub</a>
-  </div>
-</body>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity Web Player | Kingfall</title>
+    <link rel="shortcut icon" href="TemplateData/favicon.ico">
+    <link rel="stylesheet" href="TemplateData/style.css">
+    <!--
+      Web-hub account layer. These four files live at the hub root; this page is served from
+      <hub>/games/survivor/, so they resolve two levels up. They are what makes window.HubSave exist,
+      which is the only thing the game's save bridge talks to.
+
+      WHY they are declared here, in a project template, rather than added to the generated page after
+      each build: a Unity build OVERWRITES games/survivor/index.html wholesale, so a hand-edited page
+      silently loses the account layer on the very next build and the game quietly goes local-only
+      again. Putting them in the template makes every future build reproduce them.
+      ROOT-CAUSE: the generated page is build output, not a source file.
+      SEE: patch phase-5.3-patch-5; web-hub/games/BRIDGE.md; Assets/Plugins/WebGL/HubSave.jslib.
+
+      Opened OUTSIDE the hub these four requests 404, window.HubSave stays undefined, and the shim
+      answers every call with "no-bridge" — the game then behaves exactly as a standalone build.
+      That degrade is intentional; the console 404s are the only symptom.
+    -->
+    <script src="../../js/session.js"></script>
+    <script src="../../js/supabase-config.js"></script>
+    <script src="../../js/supabase-auth.js"></script>
+    <script src="../../js/save-sync.js"></script>
+    <style>
+      /*
+        WHY: the game's UI is authored for a 1080x1920 PHONE canvas and its scaler matches on WIDTH, so a
+        landscape canvas blows every element up and pushes the bottom of the screen out of view. Unity's
+        stock template sizes the desktop canvas to a fixed landscape box, which is exactly the wrong shape.
+        This locks the canvas to the authored 9:16 and letterboxes it, so a browser window of any shape
+        shows the same layout a phone does.
+        ROOT-CAUSE: a portrait mobile UI shipped through a template written for landscape desktop games.
+        SEE: patch phase-2.3-patch-3; ProjectSettings defaultScreenWidthWeb/HeightWeb (540x960).
+        Phones are untouched: the mobile branch below still fills the device screen, which is already 9:16-ish.
+      */
+      html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
+
+      #unity-container.unity-desktop {
+        position: fixed;
+        left: 0; top: 0; right: 0; bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: none;   /* the stock stylesheet centres via translate; flex does it here */
+      }
+
+      #unity-container.unity-desktop #unity-canvas {
+        /* Tallest box that fits and still measures 9:16. The second pair caps it on short-and-wide windows. */
+        height: 100vh;
+        width: calc(100vh * 9 / 16);
+        max-width: 100vw;
+        max-height: calc(100vw * 16 / 9);
+        background: #000;
+      }
+
+      #unity-container.unity-desktop #unity-footer {
+        position: fixed;
+        right: 12px;
+        bottom: 8px;
+        width: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="unity-container" class="unity-desktop">
+      <canvas id="unity-canvas" width=960 height=600 tabindex="-1"></canvas>
+      <div id="unity-loading-bar">
+        <div id="unity-logo"></div>
+        <div id="unity-progress-bar-empty">
+          <div id="unity-progress-bar-full"></div>
+        </div>
+      </div>
+      <div id="unity-warning"> </div>
+      <div id="unity-footer">
+        <div id="unity-logo-title-footer"></div>
+        <div id="unity-fullscreen-button"></div>
+        <div id="unity-build-title">Kingfall</div>
+      </div>
+    </div>
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+
+      // Shows a temporary message banner/ribbon for a few seconds, or
+      // a permanent error message on top of the canvas if type=='error'.
+      // If type=='warning', a yellow highlight color is used.
+      // Modify or remove this function to customize the visually presented
+      // way that non-critical warnings and error messages are presented to the
+      // user.
+      function unityShowBanner(msg, type) {
+        var warningBanner = document.querySelector("#unity-warning");
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/kingfall.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/kingfall.data.unityweb",
+        frameworkUrl: buildUrl + "/kingfall.framework.js.unityweb",
+        codeUrl: buildUrl + "/kingfall.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Kingfall: The Last Citadel TD",
+        productName: "Kingfall",
+        productVersion: "0.1.5",
+        showBanner: unityShowBanner,
+        // errorHandler: function(err, url, line) {
+        //    alert("error " + err + " occurred at line " + line);
+        //    // Return 'true' if you handled this error and don't want Unity
+        //    // to process it further, 'false' otherwise.
+        //    return true;
+        // },
+      };
+
+      // By default, Unity keeps WebGL canvas render target size matched with
+      // the DOM size of the canvas element (scaled by window.devicePixelRatio)
+      // Set this to false if you want to decouple this synchronization from
+      // happening inside the engine, and you would instead like to size up
+      // the canvas DOM size and WebGL render target sizes yourself.
+      // config.matchWebGLToCanvasSize = false;
+
+      // If you would like all file writes inside Unity Application.persistentDataPath
+      // directory to automatically persist so that the contents are remembered when
+      // the user revisits the site the next time, uncomment the following line:
+      // config.autoSyncPersistentDataPath = true;
+      // This autosyncing is currently not the default behavior to avoid regressing
+      // existing user projects that might rely on the earlier manual
+      // JS_FileSystem_Sync() behavior, but in future Unity version, this will be
+      // expected to change.
+
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+        document.querySelector("#unity-container").className = "unity-mobile";
+        canvas.className = "unity-mobile";
+
+        // To lower canvas resolution on mobile devices to gain some
+        // performance, uncomment the following line:
+        // config.devicePixelRatio = 1;
+
+
+      } else {
+        // Desktop: sizing is owned by the stylesheet above, which keeps the canvas at the authored 9:16
+        // and letterboxes the rest. Setting a pixel size here would pin it to one window size and
+        // reintroduce the wrong shape, so this branch deliberately does nothing.
+      }
+
+      document.querySelector("#unity-loading-bar").style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+              }).then((unityInstance) => {
+                // WHY: the save bridge delivers async results back into C# with
+                // unityInstance.SendMessage(...), and the shim can only reach the instance through the
+                // global scope. Unity's stock template keeps this value as a local inside this
+                // callback, so without this line every cloud load/store result is silently dropped and
+                // the C# side just times out.
+                // ROOT-CAUSE: createUnityInstance resolves to a closure-local, never a global.
+                // SEE: patch phase-5.3-patch-5; Assets/Plugins/WebGL/HubSave.jslib ($hubSaveSend).
+                window.unityInstance = unityInstance;
+                document.querySelector("#unity-loading-bar").style.display = "none";
+                document.querySelector("#unity-fullscreen-button").onclick = () => {
+                  unityInstance.SetFullscreen(1);
+                };
+
+              }).catch((message) => {
+                alert(message);
+              });
+            };
+
+      document.body.appendChild(script);
+
+    </script>
+  </body>
 </html>
