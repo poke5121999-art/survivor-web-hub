@@ -264,6 +264,21 @@
     <type fullname="X2SpeedController" preserve="all" />
     <type fullname="XylarAnimController" preserve="all" />
     <type fullname="XylarPositionController" preserve="all" />
+    <type fullname="AttackData" preserve="nothing" serialized="true" />
+    <type fullname="AttackState" preserve="nothing" serialized="true" />
+    <type fullname="BossCastSkillPositionData" preserve="nothing" serialized="true" />
+    <type fullname="BuildingWithLevelData" preserve="nothing" serialized="true" />
+    <type fullname="EffectData" preserve="nothing" serialized="true" />
+    <type fullname="MobData" preserve="nothing" serialized="true" />
+    <type fullname="MobDataService" preserve="nothing" serialized="true" />
+    <type fullname="MobPerk" preserve="nothing" serialized="true" />
+    <type fullname="MobSkillUseMatchWithHp" preserve="nothing" serialized="true" />
+    <type fullname="NotPlayerData" preserve="nothing" serialized="true" />
+    <type fullname="ProjectileState" preserve="nothing" serialized="true" />
+    <type fullname="SortLayerData" preserve="nothing" serialized="true" />
+    <type fullname="SpriteBuildingWithAllyData" preserve="nothing" serialized="true" />
+    <type fullname="TimeUpgradeConfig" preserve="nothing" serialized="true" />
+    <type fullname="XylarPositionData" preserve="nothing" serialized="true" />
     <type fullname="ButtonBackgroundMatchWithRarity" preserve="nothing" serialized="true" />
     <type fullname="CurrencyFlyToData" preserve="nothing" serialized="true" />
     <type fullname="CurrencyItemView/CurrencyItemBg" preserve="nothing" serialized="true" />
@@ -273,46 +288,27 @@
     <type fullname="RandomCurrencyRewardView/RandomCurrencyRewardColorSetting" preserve="nothing" serialized="true" />
     <type fullname="ShopViewData" preserve="nothing" serialized="true" />
     <type fullname="ShowCardDataMatchWithLevelButtonData" preserve="nothing" serialized="true" />
+    <type fullname="AllyFlagData" preserve="nothing" serialized="true" />
+    <type fullname="CameraFollowData" preserve="nothing" serialized="true" />
+    <type fullname="GamePlaySavedData" preserve="nothing" serialized="true" />
+    <type fullname="PlayerInGameData" preserve="nothing" serialized="true" />
+    <type fullname="PlayerWeaponData" preserve="nothing" serialized="true" />
+    <type fullname="SerializableDictionary`1" preserve="nothing" serialized="true" />
+    <type fullname="SerializableDictionary`1/KeyValueEntry" preserve="nothing" serialized="true" />
+    <type fullname="UnlockFeatureItemData" preserve="nothing" serialized="true" />
+    <type fullname="WaypointData" preserve="nothing" serialized="true" />
     <type fullname="BossInfoMap" preserve="nothing" serialized="true" />
     <type fullname="ForcePerkItemData" preserve="nothing" serialized="true" />
     <type fullname="GameStageData" preserve="nothing" serialized="true" />
     <type fullname="GrantedCurrency" preserve="nothing" serialized="true" />
     <type fullname="GrantedItemsResult" preserve="nothing" serialized="true" />
     <type fullname="MapItemData" preserve="nothing" serialized="true" />
-    <type fullname="AllyFlagData" preserve="nothing" serialized="true" />
-    <type fullname="AttackData" preserve="nothing" serialized="true" />
-    <type fullname="AttackState" preserve="nothing" serialized="true" />
-    <type fullname="BossCastSkillPositionData" preserve="nothing" serialized="true" />
-    <type fullname="BuildingWithLevelData" preserve="nothing" serialized="true" />
-    <type fullname="CameraFollowData" preserve="nothing" serialized="true" />
-    <type fullname="GamePlaySavedData" preserve="nothing" serialized="true" />
-    <type fullname="MobData" preserve="nothing" serialized="true" />
-    <type fullname="MobDataService" preserve="nothing" serialized="true" />
-    <type fullname="MobPerk" preserve="nothing" serialized="true" />
-    <type fullname="NotPlayerData" preserve="nothing" serialized="true" />
-    <type fullname="PlayerInGameData" preserve="nothing" serialized="true" />
-    <type fullname="PlayerWeaponData" preserve="nothing" serialized="true" />
-    <type fullname="ProjectileState" preserve="nothing" serialized="true" />
-    <type fullname="SerializableDictionary`1" preserve="nothing" serialized="true" />
-    <type fullname="SerializableDictionary`1/KeyValueEntry" preserve="nothing" serialized="true" />
-    <type fullname="SortLayerData" preserve="nothing" serialized="true" />
-    <type fullname="TimeUpgradeConfig" preserve="nothing" serialized="true" />
-    <type fullname="UnlockFeatureItemData" preserve="nothing" serialized="true" />
-    <type fullname="WaypointData" preserve="nothing" serialized="true" />
-    <type fullname="XylarPositionData" preserve="nothing" serialized="true" />
-    <type fullname="EffectData" preserve="nothing" serialized="true" />
-    <type fullname="MobSkillUseMatchWithHp" preserve="nothing" serialized="true" />
-    <type fullname="SpriteBuildingWithAllyData" preserve="nothing" serialized="true" />
   </assembly>
   <assembly fullname="AstarPathfindingProject, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
     <type fullname="AstarPath" preserve="all" />
     <type fullname="Pathfinding.DynamicGridObstacle" preserve="all" />
     <type fullname="Pathfinding.FollowerEntity" preserve="all" />
     <type fullname="Pathfinding.RVO.RVOSimulator" preserve="all" />
-    <type fullname="Pathfinding.AstarColor" preserve="nothing" serialized="true" />
-    <type fullname="Pathfinding.AstarData" preserve="nothing" serialized="true" />
-    <type fullname="Pathfinding.Graphs.Navmesh.NavmeshUpdates" preserve="nothing" serialized="true" />
-    <type fullname="Pathfinding.Graphs.Util.EuclideanEmbedding" preserve="nothing" serialized="true" />
     <type fullname="Pathfinding.AutoRepathPolicy" preserve="nothing" serialized="true" />
     <type fullname="Pathfinding.ECS.AgentCylinderShape" preserve="nothing" serialized="true" />
     <type fullname="Pathfinding.ECS.AutoRepathPolicy" preserve="nothing" serialized="true" />
@@ -322,6 +318,10 @@
     <type fullname="Pathfinding.GraphMask" preserve="nothing" serialized="true" />
     <type fullname="Pathfinding.PID.PIDMovement" preserve="nothing" serialized="true" />
     <type fullname="Pathfinding.PathRequestSettings" preserve="nothing" serialized="true" />
+    <type fullname="Pathfinding.AstarColor" preserve="nothing" serialized="true" />
+    <type fullname="Pathfinding.AstarData" preserve="nothing" serialized="true" />
+    <type fullname="Pathfinding.Graphs.Navmesh.NavmeshUpdates" preserve="nothing" serialized="true" />
+    <type fullname="Pathfinding.Graphs.Util.EuclideanEmbedding" preserve="nothing" serialized="true" />
   </assembly>
   <assembly fullname="Coffee, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
     <type fullname="Coffee.UIExtensions.UIEffect" preserve="all" />
@@ -344,9 +344,9 @@
     <type fullname="Spine.Unity.SkeletonUtilityBone" preserve="all" />
     <type fullname="Spine.Unity.SpineAtlasAsset" preserve="all" />
     <type fullname="Spine.Unity.BlendModeMaterials" preserve="nothing" serialized="true" />
+    <type fullname="Spine.Unity.SkeletonRenderer/SpriteMaskInteractionMaterials" preserve="nothing" serialized="true" />
     <type fullname="Spine.Unity.MeshGenerator" preserve="nothing" serialized="true" />
     <type fullname="Spine.Unity.MeshGenerator/Settings" preserve="nothing" serialized="true" />
-    <type fullname="Spine.Unity.SkeletonRenderer/SpriteMaskInteractionMaterials" preserve="nothing" serialized="true" />
   </assembly>
   <assembly fullname="Unity.Addressables, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" preserve="all">
     <type fullname="UnityEngine.AddressableAssets.Addressables" preserve="all" />
@@ -368,20 +368,20 @@
     <type fullname="TMPro.TMP_FontAsset" preserve="all" />
     <type fullname="TMPro.TMP_InputField" preserve="all" />
     <type fullname="TMPro.VertexGradient" preserve="nothing" serialized="true" />
-    <type fullname="TMPro.TMP_InputField/OnChangeEvent" preserve="nothing" serialized="true" />
-    <type fullname="TMPro.TMP_InputField/SelectionEvent" preserve="nothing" serialized="true" />
-    <type fullname="TMPro.TMP_InputField/SubmitEvent" preserve="nothing" serialized="true" />
-    <type fullname="TMPro.TMP_InputField/TextSelectionEvent" preserve="nothing" serialized="true" />
-    <type fullname="TMPro.TMP_InputField/TouchScreenKeyboardEvent" preserve="nothing" serialized="true" />
-    <type fullname="TMPro.TMP_Dropdown/DropdownEvent" preserve="nothing" serialized="true" />
-    <type fullname="TMPro.TMP_Dropdown/OptionData" preserve="nothing" serialized="true" />
-    <type fullname="TMPro.TMP_Dropdown/OptionDataList" preserve="nothing" serialized="true" />
     <type fullname="TMPro.FaceInfo_Legacy" preserve="nothing" serialized="true" />
     <type fullname="TMPro.FontAssetCreationSettings" preserve="nothing" serialized="true" />
     <type fullname="TMPro.KerningTable" preserve="nothing" serialized="true" />
     <type fullname="TMPro.TMP_Character" preserve="nothing" serialized="true" />
     <type fullname="TMPro.TMP_FontFeatureTable" preserve="nothing" serialized="true" />
     <type fullname="TMPro.TMP_FontWeightPair" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_Dropdown/DropdownEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_Dropdown/OptionData" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_Dropdown/OptionDataList" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/OnChangeEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/SelectionEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/SubmitEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/TextSelectionEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/TouchScreenKeyboardEvent" preserve="nothing" serialized="true" />
   </assembly>
   <assembly fullname="UnityEngine.AIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
     <type fullname="UnityEngine.AI.NavMeshAgent" preserve="all" />
@@ -460,10 +460,10 @@
     <type fullname="UnityEngine.UI.ColorBlock" preserve="nothing" serialized="true" />
     <type fullname="UnityEngine.UI.MaskableGraphic/CullStateChangedEvent" preserve="nothing" serialized="true" />
     <type fullname="UnityEngine.UI.Navigation" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.SpriteState" preserve="nothing" serialized="true" />
     <type fullname="UnityEngine.UI.ScrollRect/ScrollRectEvent" preserve="nothing" serialized="true" />
     <type fullname="UnityEngine.UI.Scrollbar/ScrollEvent" preserve="nothing" serialized="true" />
     <type fullname="UnityEngine.UI.Slider/SliderEvent" preserve="nothing" serialized="true" />
-    <type fullname="UnityEngine.UI.SpriteState" preserve="nothing" serialized="true" />
     <type fullname="UnityEngine.UI.Toggle/ToggleEvent" preserve="nothing" serialized="true" />
   </assembly>
   <assembly fullname="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
