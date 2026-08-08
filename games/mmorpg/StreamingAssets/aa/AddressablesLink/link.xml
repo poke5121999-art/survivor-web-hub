@@ -1,0 +1,375 @@
+<linker>
+  <assembly fullname="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="AdvancementCell" preserve="all" />
+    <type fullname="AdvancementSceneController" preserve="all" />
+    <type fullname="AdvancementViewController" preserve="all" />
+    <type fullname="AnimationRect" preserve="all" />
+    <type fullname="BagCell" preserve="all" />
+    <type fullname="BagCellGroup" preserve="all" />
+    <type fullname="BagMenu" preserve="all" />
+    <type fullname="BagPopup" preserve="all" />
+    <type fullname="BattlePassCell" preserve="all" />
+    <type fullname="BattlePassItemCell" preserve="all" />
+    <type fullname="BattlePassSceneController" preserve="all" />
+    <type fullname="BattlePassTitleCellGroup" preserve="all" />
+    <type fullname="BattlePassViewCell" preserve="all" />
+    <type fullname="BattlePassViewController" preserve="all" />
+    <type fullname="BenefitViewer" preserve="all" />
+    <type fullname="BoxBattlePassCell" preserve="all" />
+    <type fullname="BoxSmallCell" preserve="all" />
+    <type fullname="BoxSpecialCellView" preserve="all" />
+    <type fullname="BoxSpecialCellViewGroup" preserve="all" />
+    <type fullname="BuyBattlePassViewPopup" preserve="all" />
+    <type fullname="BuyEnergyPopup" preserve="all" />
+    <type fullname="BuyInventoryItemPopup" preserve="all" />
+    <type fullname="BuyItemPopup" preserve="all" />
+    <type fullname="BuyTicketEventCenterPopup" preserve="all" />
+    <type fullname="ChapterInfoSettings" preserve="all" />
+    <type fullname="ChapterPackCell" preserve="all" />
+    <type fullname="ChapterPackItem" preserve="all" />
+    <type fullname="ChapterRewardData" preserve="all" />
+    <type fullname="ChapterSelectCell" preserve="all" />
+    <type fullname="ChapterSelectSceneController" preserve="all" />
+    <type fullname="ChapterSelectSceneInstaller" preserve="all" />
+    <type fullname="ChapterSelectView" preserve="all" />
+    <type fullname="ChapterUnlockCell" preserve="all" />
+    <type fullname="ChapterUnlockSceneController" preserve="all" />
+    <type fullname="ChapterUnlockView" preserve="all" />
+    <type fullname="CharacterData" preserve="all" />
+    <type fullname="CheatMenu" preserve="all" />
+    <type fullname="CheatViewController" preserve="all" />
+    <type fullname="CheckinDayCell" preserve="all" />
+    <type fullname="CheckinEventPopup" preserve="all" />
+    <type fullname="ChooseSkillsUpgradeLevelPopup" preserve="all" />
+    <type fullname="ClaimableItemRewardView" preserve="all" />
+    <type fullname="Coffee.UIExtensions.UIShiny" preserve="all" />
+    <type fullname="ColorTabGroup" preserve="all" />
+    <type fullname="ConfigSettingGamePlay" preserve="all" />
+    <type fullname="CoopMenuEntry" preserve="all" />
+    <type fullname="CoopPartySlotCell" preserve="all" />
+    <type fullname="CoopRoomRowCell" preserve="all" />
+    <type fullname="DailyDiscountCell" preserve="all" />
+    <type fullname="DailyDiscountSceneController" preserve="all" />
+    <type fullname="DailyDiscountView" preserve="all" />
+    <type fullname="DailyLoginItemReward" preserve="all" />
+    <type fullname="DailyLoginPopup" preserve="all" />
+    <type fullname="DanielLochner.Assets.SimpleScrollSnap.SimpleScrollSnap" preserve="all" />
+    <type fullname="DesignCell" preserve="all" />
+    <type fullname="DesignCellGroup" preserve="all" />
+    <type fullname="DisableAfterSeconds" preserve="all" />
+    <type fullname="DoScaleY" preserve="all" />
+    <type fullname="DropRateData" preserve="all" />
+    <type fullname="DynamicLockableTabGroup" preserve="all" />
+    <type fullname="DynamicTabGroup" preserve="all" />
+    <type fullname="DynamicTextTabCell" preserve="all" />
+    <type fullname="EquipmentCell" preserve="all" />
+    <type fullname="EquipmentViewCellGroup" preserve="all" />
+    <type fullname="EventCenterPopup" preserve="all" />
+    <type fullname="EventGiftCode" preserve="all" />
+    <type fullname="EvolveCell" preserve="all" />
+    <type fullname="EvolveInfoPopup" preserve="all" />
+    <type fullname="EvolveViewController" preserve="all" />
+    <type fullname="ExpDataGroup" preserve="all" />
+    <type fullname="FadeAlphaImage" preserve="all" />
+    <type fullname="FeatureUnlockPopup" preserve="all" />
+    <type fullname="FusionCell" preserve="all" />
+    <type fullname="FusionCellGroup" preserve="all" />
+    <type fullname="FusionMaterialCell" preserve="all" />
+    <type fullname="FusionResultController" preserve="all" />
+    <type fullname="FusionSceneController" preserve="all" />
+    <type fullname="FusionViewController" preserve="all" />
+    <type fullname="GameSceneController" preserve="all" />
+    <type fullname="GoToConfigData" preserve="all" />
+    <type fullname="IAPEventCenterCell" preserve="all" />
+    <type fullname="IAPEventCenterPopup" preserve="all" />
+    <type fullname="InfoSpecialBoxPopup" preserve="all" />
+    <type fullname="InventoryCell" preserve="all" />
+    <type fullname="InventoryCellGroup" preserve="all" />
+    <type fullname="InventoryItemInfoPopup" preserve="all" />
+    <type fullname="InventoryItemSmallInfoPopup" preserve="all" />
+    <type fullname="InventoryViewController" preserve="all" />
+    <type fullname="ItemInfoRewardView" preserve="all" />
+    <type fullname="ItemLevelDownPopup" preserve="all" />
+    <type fullname="ItemRewardLuckyTrainView" preserve="all" />
+    <type fullname="ItemSpinLuckyTrainView" preserve="all" />
+    <type fullname="ItemUpgrade" preserve="all" />
+    <type fullname="LanguageSelectCell" preserve="all" />
+    <type fullname="LanguageSelectPopup" preserve="all" />
+    <type fullname="LevelUpUserPopup" preserve="all" />
+    <type fullname="LockUserPopup" preserve="all" />
+    <type fullname="LoginCellView" preserve="all" />
+    <type fullname="LoginEventMenu" preserve="all" />
+    <type fullname="MainViewController" preserve="all" />
+    <type fullname="MapDataGroup" preserve="all" />
+    <type fullname="MenuButton" preserve="all" />
+    <type fullname="MenuSceneController" preserve="all" />
+    <type fullname="MenuSceneInstaller" preserve="all" />
+    <type fullname="MenuSideLayout" preserve="all" />
+    <type fullname="MenuTabCell" preserve="all" />
+    <type fullname="MenuTabController" preserve="all" />
+    <type fullname="MenuTabGroup" preserve="all" />
+    <type fullname="MiniItemCell" preserve="all" />
+    <type fullname="MissionCellView" preserve="all" />
+    <type fullname="MissionCenterPopup" preserve="all" />
+    <type fullname="MissionEventMenu" preserve="all" />
+    <type fullname="MonsterCameraGroup" preserve="all" />
+    <type fullname="MonsterDataGroup" preserve="all" />
+    <type fullname="MonsterSkillSpawn" preserve="all" />
+    <type fullname="MonsterSpawn" preserve="all" />
+    <type fullname="MonsterSpawnGroup" preserve="all" />
+    <type fullname="MonsterStage" preserve="all" />
+    <type fullname="MonthlyCardRewardViewer" preserve="all" />
+    <type fullname="MonthlyCardSceneController" preserve="all" />
+    <type fullname="MonthlyCardSceneViewer" preserve="all" />
+    <type fullname="MonthlyCardViewer" preserve="all" />
+    <type fullname="MoveUpDownYoyo" preserve="all" />
+    <type fullname="MyButton" preserve="all" />
+    <type fullname="MyButtonNotPlaySound" preserve="all" />
+    <type fullname="NewChapterUnlockPopup" preserve="all" />
+    <type fullname="NewsMenu" preserve="all" />
+    <type fullname="NormalShopCell" preserve="all" />
+    <type fullname="NotEnoughCurrencyPopup" preserve="all" />
+    <type fullname="NoticePopup" preserve="all" />
+    <type fullname="OpenBoxDataConfig" preserve="all" />
+    <type fullname="OpenBoxInGamePopup" preserve="all" />
+    <type fullname="OpenBoxPopup" preserve="all" />
+    <type fullname="OpenSpecialBoxPopup" preserve="all" />
+    <type fullname="PartySlotsController" preserve="all" />
+    <type fullname="PatrolPopup" preserve="all" />
+    <type fullname="PatrolQuickClaimPopup" preserve="all" />
+    <type fullname="PauseItemData" preserve="all" />
+    <type fullname="PauseItemMain" preserve="all" />
+    <type fullname="PiggyBankPopup" preserve="all" />
+    <type fullname="PopupAlert" preserve="all" />
+    <type fullname="PopupConfirm" preserve="all" />
+    <type fullname="PopupConfirmUnlockBattlePass" preserve="all" />
+    <type fullname="PopupContinue" preserve="all" />
+    <type fullname="PopupDataWeapon" preserve="all" />
+    <type fullname="PopupDynamicTabCell" preserve="all" />
+    <type fullname="PopupEndGame" preserve="all" />
+    <type fullname="PopupPauseGame" preserve="all" />
+    <type fullname="PopupRevive" preserve="all" />
+    <type fullname="PopupTabCell" preserve="all" />
+    <type fullname="PopupTrialDataInGame" preserve="all" />
+    <type fullname="PopupTrialItemInGame" preserve="all" />
+    <type fullname="PressButton" preserve="all" />
+    <type fullname="ProcessBarView" preserve="all" />
+    <type fullname="Quest7DayDataMenu" preserve="all" />
+    <type fullname="Quest7DayPopup" preserve="all" />
+    <type fullname="Quest7DayRewardController" preserve="all" />
+    <type fullname="Quest7DayView" preserve="all" />
+    <type fullname="QuestCellView" preserve="all" />
+    <type fullname="QuestChestRewardView" preserve="all" />
+    <type fullname="QuestItemRewardView" preserve="all" />
+    <type fullname="RaritySkillRow" preserve="all" />
+    <type fullname="RewardBattlePassPeekPopup" preserve="all" />
+    <type fullname="RewardEndGameItem" preserve="all" />
+    <type fullname="RewardItemCell" preserve="all" />
+    <type fullname="RewardPeekPopup" preserve="all" />
+    <type fullname="RewardPopup" preserve="all" />
+    <type fullname="RoomPanelController" preserve="all" />
+    <type fullname="Rotate" preserve="all" />
+    <type fullname="SBoxInfoPopup" preserve="all" />
+    <type fullname="ScrollPattern" preserve="all" />
+    <type fullname="SettingsPopup" preserve="all" />
+    <type fullname="ShopBoxCell" preserve="all" />
+    <type fullname="ShopCellGroup" preserve="all" />
+    <type fullname="ShopItemCell" preserve="all" />
+    <type fullname="ShopSBannerPopup" preserve="all" />
+    <type fullname="ShopSCell" preserve="all" />
+    <type fullname="ShopViewController" preserve="all" />
+    <type fullname="ShowEquipmentInfoPopup" preserve="all" />
+    <type fullname="SkillInGameData" preserve="all" />
+    <type fullname="SkillNextLevelConfig" preserve="all" />
+    <type fullname="SpawnerSkillGroup" preserve="all" />
+    <type fullname="Spiner" preserve="all" />
+    <type fullname="SpinEventItem" preserve="all" />
+    <type fullname="SpinEventMenu" preserve="all" />
+    <type fullname="TabCell" preserve="all" />
+    <type fullname="TabGroup" preserve="all" />
+    <type fullname="TestToolView" preserve="all" />
+    <type fullname="ToggleButton" preserve="all" />
+    <type fullname="TradeCellView" preserve="all" />
+    <type fullname="TradeEventMenu" preserve="all" />
+    <type fullname="TrialCellView" preserve="all" />
+    <type fullname="TrialDataGroup" preserve="all" />
+    <type fullname="TrialDataMenu" preserve="all" />
+    <type fullname="TrialEffectDescriptionView" preserve="all" />
+    <type fullname="TrialInfoPopupView" preserve="all" />
+    <type fullname="TrialMonsterGroup" preserve="all" />
+    <type fullname="TrialSceneController" preserve="all" />
+    <type fullname="TrialView" preserve="all" />
+    <type fullname="TutorialChapterUnlock" preserve="all" />
+    <type fullname="TutorialEvolve" preserve="all" />
+    <type fullname="TutorialInventory" preserve="all" />
+    <type fullname="TutorialOpenBox" preserve="all" />
+    <type fullname="WeaponInGameData" preserve="all" />
+    <type fullname="ChapterInfoSettingsData" preserve="nothing" serialized="true" />
+    <type fullname="Coffee.UIExtensions.EffectPlayer" preserve="nothing" serialized="true" />
+    <type fullname="MapData" preserve="nothing" serialized="true" />
+    <type fullname="MonthlyCardDataResponse" preserve="nothing" serialized="true" />
+    <type fullname="MonthlyCardSceneModel" preserve="nothing" serialized="true" />
+    <type fullname="MonthlyCardSpriteCategory" preserve="nothing" serialized="true" />
+    <type fullname="MonthlyCardSpritePallet" preserve="nothing" serialized="true" />
+    <type fullname="TrialBattleData" preserve="nothing" serialized="true" />
+    <type fullname="TrialBattleInfo" preserve="nothing" serialized="true" />
+    <type fullname="TrialProcessDataResponse" preserve="nothing" serialized="true" />
+    <type fullname="TrialReward" preserve="nothing" serialized="true" />
+    <type fullname="TrialSprite" preserve="nothing" serialized="true" />
+    <type fullname="TrialSpritePallet" preserve="nothing" serialized="true" />
+    <type fullname="ChapterReward" preserve="nothing" serialized="true" />
+    <type fullname="DropItem" preserve="nothing" serialized="true" />
+    <type fullname="DropRate" preserve="nothing" serialized="true" />
+    <type fullname="ExpData" preserve="nothing" serialized="true" />
+    <type fullname="GroupMonsterDataNormal" preserve="nothing" serialized="true" />
+    <type fullname="LevelSkill" preserve="nothing" serialized="true" />
+    <type fullname="LevelWeapon" preserve="nothing" serialized="true" />
+    <type fullname="MonsterCameraData" preserve="nothing" serialized="true" />
+    <type fullname="MonsterData" preserve="nothing" serialized="true" />
+    <type fullname="MonsterDataNormal" preserve="nothing" serialized="true" />
+    <type fullname="OpenBoxDataConfig/OpenBoxData" preserve="nothing" serialized="true" />
+    <type fullname="RateWeaponData" preserve="nothing" serialized="true" />
+    <type fullname="SkillItemData" preserve="nothing" serialized="true" />
+    <type fullname="SkillNextLevelData" preserve="nothing" serialized="true" />
+    <type fullname="SpawnMonsterSKillData" preserve="nothing" serialized="true" />
+    <type fullname="WeaponItemData" preserve="nothing" serialized="true" />
+    <type fullname="GoToConfigSetting" preserve="nothing" serialized="true" />
+    <type fullname="PlayerQuestContainerData" preserve="nothing" serialized="true" />
+    <type fullname="PlayerQuestData" preserve="nothing" serialized="true" />
+    <type fullname="Quest7DayMenuData" preserve="nothing" serialized="true" />
+    <type fullname="QuestDescription" preserve="nothing" serialized="true" />
+    <type fullname="QuestStatusData" preserve="nothing" serialized="true" />
+    <type fullname="RewardItemData" preserve="nothing" serialized="true" />
+    <type fullname="TrialData" preserve="nothing" serialized="true" />
+    <type fullname="TrialMenuData" preserve="nothing" serialized="true" />
+    <type fullname="TrialMonsterData" preserve="nothing" serialized="true" />
+  </assembly>
+  <assembly fullname="EnhancedScroller, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="EnhancedUI.EnhancedScroller.EnhancedScroller" preserve="all" />
+    <type fullname="EnhancedUI.EnhancedScroller.EnhancedScrollerCellView" preserve="all" />
+  </assembly>
+  <assembly fullname="Helios, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="Helios.Framework.Asset.SO.AssetGroupInfo" preserve="all" />
+    <type fullname="Helios.Framework.UI.UITextLocalizer" preserve="all" />
+  </assembly>
+  <assembly fullname="spine-unity, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="Spine.Unity.SkeletonAnimation" preserve="all" />
+    <type fullname="Spine.Unity.SkeletonDataAsset" preserve="all" />
+    <type fullname="Spine.Unity.SpineAtlasAsset" preserve="all" />
+    <type fullname="Spine.Unity.BlendModeMaterials" preserve="nothing" serialized="true" />
+    <type fullname="Spine.Unity.SkeletonRenderer/SpriteMaskInteractionMaterials" preserve="nothing" serialized="true" />
+  </assembly>
+  <assembly fullname="Unity.Addressables, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" preserve="all">
+    <type fullname="UnityEngine.AddressableAssets.Addressables" preserve="all" />
+  </assembly>
+  <assembly fullname="Unity.ResourceManager, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" preserve="all">
+    <type fullname="UnityEngine.ResourceManagement.ResourceProviders.AssetBundleProvider" preserve="all" />
+    <type fullname="UnityEngine.ResourceManagement.ResourceProviders.AtlasSpriteProvider" preserve="all" />
+    <type fullname="UnityEngine.ResourceManagement.ResourceProviders.BundledAssetProvider" preserve="all" />
+    <type fullname="UnityEngine.ResourceManagement.ResourceProviders.InstanceProvider" preserve="all" />
+    <type fullname="UnityEngine.ResourceManagement.ResourceProviders.SceneProvider" preserve="all" />
+  </assembly>
+  <assembly fullname="Unity.TextMeshPro, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="TMPro.TextMeshProUGUI" preserve="all" />
+    <type fullname="TMPro.TMP_Dropdown" preserve="all" />
+    <type fullname="TMPro.TMP_FontAsset" preserve="all" />
+    <type fullname="TMPro.TMP_InputField" preserve="all" />
+    <type fullname="TMPro.VertexGradient" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.FaceInfo_Legacy" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.FontAssetCreationSettings" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.KerningTable" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_Character" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_FontFeatureTable" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_FontWeightPair" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/OnChangeEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/SelectionEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/SubmitEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/TextSelectionEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_InputField/TouchScreenKeyboardEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_Dropdown/DropdownEvent" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_Dropdown/OptionData" preserve="nothing" serialized="true" />
+    <type fullname="TMPro.TMP_Dropdown/OptionDataList" preserve="nothing" serialized="true" />
+  </assembly>
+  <assembly fullname="UnityEngine.AnimationModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="UnityEngine.Animation" preserve="all" />
+    <type fullname="UnityEngine.AnimationClip" preserve="all" />
+    <type fullname="UnityEngine.Animations.RotationConstraint" preserve="all" />
+    <type fullname="UnityEngine.Animator" preserve="all" />
+    <type fullname="UnityEngine.RuntimeAnimatorController" preserve="all" />
+  </assembly>
+  <assembly fullname="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="UnityEngine.GameObject" preserve="all" />
+    <type fullname="UnityEngine.Material" preserve="all" />
+    <type fullname="UnityEngine.Mesh" preserve="all" />
+    <type fullname="UnityEngine.MeshFilter" preserve="all" />
+    <type fullname="UnityEngine.MeshRenderer" preserve="all" />
+    <type fullname="UnityEngine.Object" preserve="all" />
+    <type fullname="UnityEngine.RectTransform" preserve="all" />
+    <type fullname="UnityEngine.Shader" preserve="all" />
+    <type fullname="UnityEngine.Sprite" preserve="all" />
+    <type fullname="UnityEngine.TextAsset" preserve="all" />
+    <type fullname="UnityEngine.Texture2D" preserve="all" />
+    <type fullname="UnityEngine.Transform" preserve="all" />
+    <type fullname="UnityEngine.U2D.SpriteAtlas" preserve="all" />
+    <type fullname="UnityEngine.Events.PersistentCallGroup" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.RectOffset" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.Events.UnityEvent" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.Events.ArgumentCache" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.Events.PersistentListenerMode" preserve="nothing" serialized="true" />
+  </assembly>
+  <assembly fullname="UnityEngine.ParticleSystemModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="UnityEngine.ParticleSystem" preserve="all" />
+    <type fullname="UnityEngine.ParticleSystemRenderer" preserve="all" />
+  </assembly>
+  <assembly fullname="UnityEngine.TextRenderingModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="UnityEngine.Font" preserve="all" />
+  </assembly>
+  <assembly fullname="UnityEngine.UI, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="UnityEngine.UI.Button" preserve="all" />
+    <type fullname="UnityEngine.UI.ContentSizeFitter" preserve="all" />
+    <type fullname="UnityEngine.UI.GraphicRaycaster" preserve="all" />
+    <type fullname="UnityEngine.UI.GridLayoutGroup" preserve="all" />
+    <type fullname="UnityEngine.UI.HorizontalLayoutGroup" preserve="all" />
+    <type fullname="UnityEngine.UI.Image" preserve="all" />
+    <type fullname="UnityEngine.UI.LayoutElement" preserve="all" />
+    <type fullname="UnityEngine.UI.Mask" preserve="all" />
+    <type fullname="UnityEngine.UI.Outline" preserve="all" />
+    <type fullname="UnityEngine.UI.RawImage" preserve="all" />
+    <type fullname="UnityEngine.UI.RectMask2D" preserve="all" />
+    <type fullname="UnityEngine.UI.Scrollbar" preserve="all" />
+    <type fullname="UnityEngine.UI.ScrollRect" preserve="all" />
+    <type fullname="UnityEngine.UI.Shadow" preserve="all" />
+    <type fullname="UnityEngine.UI.Slider" preserve="all" />
+    <type fullname="UnityEngine.UI.Toggle" preserve="all" />
+    <type fullname="UnityEngine.UI.ToggleGroup" preserve="all" />
+    <type fullname="UnityEngine.UI.VerticalLayoutGroup" preserve="all" />
+    <type fullname="UnityEngine.UI.MaskableGraphic/CullStateChangedEvent" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.AnimationTriggers" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.Button/ButtonClickedEvent" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.ColorBlock" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.Navigation" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.ScrollRect/ScrollRectEvent" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.SpriteState" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.Slider/SliderEvent" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.Toggle/ToggleEvent" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.UI.Scrollbar/ScrollEvent" preserve="nothing" serialized="true" />
+  </assembly>
+  <assembly fullname="UnityEngine.UIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="UnityEngine.Canvas" preserve="all" />
+    <type fullname="UnityEngine.CanvasGroup" preserve="all" />
+    <type fullname="UnityEngine.CanvasRenderer" preserve="all" />
+  </assembly>
+  <assembly fullname="Zenject, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+    <type fullname="Zenject.GameObjectContext" preserve="all" />
+    <type fullname="Zenject.ZenjectStateMachineBehaviourAutoInjecter" preserve="all" />
+  </assembly>
+  <assembly fullname="UnityEngine.TextCoreFontEngineModule">
+    <type fullname="UnityEngine.TextCore.FaceInfo" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.TextCore.Glyph" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.TextCore.GlyphMetrics" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.TextCore.GlyphRect" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.TextCore.LowLevel.GlyphAdjustmentRecord" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.TextCore.LowLevel.GlyphPairAdjustmentRecord" preserve="nothing" serialized="true" />
+    <type fullname="UnityEngine.TextCore.LowLevel.GlyphValueRecord" preserve="nothing" serialized="true" />
+  </assembly>
+</linker>

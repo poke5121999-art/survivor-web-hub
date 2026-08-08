@@ -61,5 +61,24 @@ window.HUB_GAMES = [
     // (shaders, particles, lighting) without breaking the build.
     status: "available",
     tags: ["Tower Defense", "Strategy", "Solo"]
+  },
+  {
+    id: "mmorpg",
+    // WORKING TITLE — the owner has not named this game yet; only the folder name
+    // (mmorpg_survivor) is settled. Change `title` here when they do; `id` is the
+    // folder under games/ and should stay put.
+    title: "Survivor MMO",
+    tagline: "A persistent world with the same auto-shooter combat: walk up an arena corridor, clear mob camps that hold their ground and respawn on their own timers, and leave whenever you have farmed enough.",
+    thumbnail: "assets/thumbnails/mmorpg.svg",
+    path: "games/mmorpg/index.html",
+    // available since 2026-08-08: a real WebGL build (69 MB, Unity 6000.0.59f2) built from
+    // the mmorpg_survivor fork at f0751d008. No match clock, no win/lose, no level-up skill
+    // choice, no co-op; a level grants +1 ATK / +1 HP; gear drops from kills with its own
+    // rolled stats. Progress uses the same hub-account save contract as the other two games.
+    // NOT yet eyes-on verified: nobody has played a match. Everything claimed above is a
+    // green compile plus 905 passing unit tests, which is exactly the evidence that has
+    // missed build-only breakage on this hub before (see Kingfall, patch-16).
+    status: "available",
+    tags: ["MMORPG", "Action", "Solo"]
   }
 ];

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Survivor MMO">
+  <defs>
+    <linearGradient id="mm-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12283a"/>
+      <stop offset="1" stop-color="#080d14"/>
+    </linearGradient>
+    <radialGradient id="mm-glow" cx="0.5" cy="0.28" r="0.6">
+      <stop offset="0" stop-color="#4fd6c8" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#4fd6c8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="320" height="180" fill="url(#mm-bg)"/>
+  <ellipse cx="160" cy="50" rx="120" ry="66" fill="url(#mm-glow)"/>
+
+  <!--
+    The thumbnail states what this game IS, so a player can tell it apart from Survivor on the same page:
+    a vertical corridor with mob camps up it and one player entering from the bottom. Portrait corridor,
+    camps that stay put, no wave rushing in — the three things that differ from game #1.
+  -->
+
+  <!-- the corridor: a narrow vertical lane, since arenas are 9:16 -->
+  <path d="M118 180 L128 24 L192 24 L202 180 Z" fill="#0f3247" opacity="0.85"/>
+  <path d="M118 180 L128 24" stroke="#2d6b86" stroke-width="2" fill="none"/>
+  <path d="M202 180 L192 24" stroke="#2d6b86" stroke-width="2" fill="none"/>
+
+  <!-- mob camps: rings of occupants standing at their posts, climbing the corridor -->
+  <g fill="#ff7a6b">
+    <circle cx="146" cy="118" r="4"/><circle cx="158" cy="112" r="4"/><circle cx="170" cy="118" r="4"/>
+    <circle cx="140" cy="86" r="4"/><circle cx="152" cy="80" r="4"/><circle cx="164" cy="86" r="4"/>
+    <circle cx="150" cy="54" r="5"/><circle cx="166" cy="52" r="5"/>
+  </g>
+  <!-- the camp boss at the far end -->
+  <circle cx="159" cy="32" r="7" fill="#ffd166"/>
+
+  <!-- aggro rings: the camps react on proximity rather than charging -->
+  <g fill="none" stroke="#ff7a6b" stroke-opacity="0.3" stroke-width="1.5">
+    <circle cx="158" cy="116" r="18"/>
+    <circle cx="152" cy="84" r="18"/>
+  </g>
+
+  <!-- the player, entering at the fixed coordinate at the bottom -->
+  <circle cx="160" cy="160" r="7" fill="#4fd6c8"/>
+  <path d="M160 150 L160 140" stroke="#4fd6c8" stroke-width="2"/>
+  <path d="M154 144 L160 138 L166 144" fill="none" stroke="#4fd6c8" stroke-width="2"/>
+</svg>
