@@ -72,7 +72,7 @@ window.HUB_GAMES = [
     thumbnail: "assets/thumbnails/mmorpg.svg",
     path: "games/mmorpg/index.html",
     // available since 2026-08-08: a real WebGL build (69 MB, Unity 6000.0.59f2) built from
-    // the mmorpg_survivor fork at e28c7001a. No match clock, no win/lose, no level-up skill
+    // the mmorpg_survivor fork at 6fdac67a0. No match clock, no win/lose, no level-up skill
     // choice, no co-op; a level grants +1 ATK / +1 HP; gear drops from kills with its own
     // rolled stats. Progress uses the same hub-account save contract as the other two games.
     // NOT yet eyes-on verified: nobody has played a match. Everything claimed above is a
