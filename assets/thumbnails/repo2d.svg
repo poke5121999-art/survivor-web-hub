@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Ca Trực Đêm">
+  <defs>
+    <linearGradient id="r2-bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#141210"/>
+      <stop offset="1" stop-color="#070807"/>
+    </linearGradient>
+    <radialGradient id="r2-torch" cx="0.5" cy="1" r="1">
+      <stop offset="0" stop-color="#ffe6ae" stop-opacity="0.40"/>
+      <stop offset="0.6" stop-color="#d8a758" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#8a6a2c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="r2-pad" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5ecf95" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#2f6b4e" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="r2-clip"><rect width="320" height="180"/></clipPath>
+  </defs>
+
+  <!--
+    States what this game IS, so it reads apart from the other four on the hub: a figure
+    hauling something heavy and worth money, lit only by the cone in front of it, walking
+    toward a marked drop-off while something else stands in the dark. Money, weight and
+    a thing you cannot see — the three ideas the whole design turns on.
+  -->
+
+  <rect width="320" height="180" fill="url(#r2-bg)"/>
+
+  <g clip-path="url(#r2-clip)">
+    <!-- the extraction pad, the only friendly light in the building -->
+    <circle cx="262" cy="58" r="42" fill="url(#r2-pad)"/>
+    <rect x="242" y="38" width="40" height="40" fill="none" stroke="#5ecf95" stroke-width="2"/>
+    <rect x="242" y="38" width="40" height="40" fill="#5ecf95" fill-opacity="0.10"/>
+
+    <!-- the cone: everything else in the house is dark -->
+    <path d="M118 116 L6 22 A140 140 0 0 1 236 6 Z" fill="url(#r2-torch)"/>
+
+    <!-- furniture the haul has to squeeze past — the thing that breaks it -->
+    <g fill="#2b2721">
+      <rect x="150" y="30" width="26" height="26"/>
+      <rect x="60" y="52" width="22" height="22"/>
+      <rect x="186" y="96" width="30" height="20"/>
+    </g>
+
+    <!-- the valuable, cracked already, with its price still on it -->
+    <g>
+      <ellipse cx="146" cy="118" rx="15" ry="7" fill="#000" fill-opacity="0.45"/>
+      <circle cx="146" cy="110" r="15" fill="#cfd8dc"/>
+      <circle cx="146" cy="110" r="15" fill="none" stroke="#8fa2ab" stroke-width="2"/>
+      <path d="M139 100 L149 116" stroke="#1a1a1a" stroke-opacity="0.6" stroke-width="1.6" fill="none"/>
+      <path d="M152 102 L146 112" stroke="#1a1a1a" stroke-opacity="0.5" stroke-width="1.4" fill="none"/>
+    </g>
+    <text x="146" y="88" font-family="ui-monospace, monospace" font-size="12" font-weight="700"
+          fill="#e0b64a" text-anchor="middle">$2,400</text>
+
+    <!-- the hauler -->
+    <circle cx="118" cy="122" r="8" fill="#cfcbb9"/>
+    <circle cx="118" cy="122" r="8" fill="none" stroke="#1a1c18" stroke-width="1.4"/>
+    <circle cx="123" cy="120" r="4" fill="#8d8873"/>
+
+    <!-- and something in the dark that has not been noticed yet -->
+    <path d="M44 152 L47 132 L53 126 L59 132 L62 152 Z" fill="#1c1516"/>
+    <rect x="49.5" y="132" width="2.4" height="2.4" fill="#8c3a2c"/>
+    <rect x="54.5" y="132" width="2.4" height="2.4" fill="#8c3a2c"/>
+  </g>
+
+  <rect width="320" height="180" fill="none" stroke="#000" stroke-opacity="0.5" stroke-width="10"/>
+</svg>

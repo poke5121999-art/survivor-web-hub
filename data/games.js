@@ -97,5 +97,22 @@ window.HUB_GAMES = [
     // damage and death work. It stores nothing, so it does not use the hub save bridge.
     status: "available",
     tags: ["Kinh dị", "Sinh tồn", "Solo", "Prototype"]
+  },
+  {
+    id: "repo2d",
+    title: "Ca Trực Đêm",
+    tagline: "Vào nhà, khuân đồ giá trị ra bệ giao hàng cho đủ chỉ tiêu, rồi tìm bệ tiếp theo. Càng nặng càng đắt, và càng dễ vỡ khi bạn đâm vào tường — trong đó có thứ khác đang đi lại.",
+    thumbnail: "assets/thumbnails/repo2d.svg",
+    path: "games/repo2d/index.html",
+    // available since 2026-08-16. Plain canvas/JS, no engine, ~100 KB across three files.
+    // This is the playable build of docs/proposals/repo-2d-topdown.md: quota derived from
+    // scattered loot value, extraction pads, impulse-based loot breakage, sight- and
+    // sound-based monsters, weight that costs speed and vision, and a between-level shop.
+    // SINGLE PLAYER on purpose — the doc targets 1-6, but co-carry and object authority
+    // belong on a server (realm-server/), not in a page.
+    // Ships with an in-game bot that plays the whole loop; docs/tests/browser/test_repo2d.py
+    // drives it at 8x and asserts the level actually completes (32 checks, 0 console errors).
+    status: "available",
+    tags: ["Kinh dị", "Co-op", "Khuân đồ", "Prototype"]
   }
 ];
