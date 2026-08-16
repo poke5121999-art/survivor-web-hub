@@ -24,13 +24,13 @@ const bot = {
   path: null, pathT: 0, target: null, targetKind: null,
   lastX: 0, lastY: 0, stuckT: 0, replanT: 0,
   fleeT: 0, shootCd: 0, dropCd: 0, lastWanted: false, unstickT: 0, unstickA: 0,
-  moved: 0, window: 0,
+  moved: 0, window: 0, freezeT: 0, creepT: 0, lootLock: null, lockT: 0,
   stats: { picked: 0, dropped: 0, broken: 0, shots: 0, replans: 0, stucks: 0 },
 
   reset(){
     this.state = ST.IDLE; this.path = null; this.target = null; this.targetKind = null;
     this.stuckT = 0; this.replanT = 0; this.fleeT = 0; this.shootCd = 0; this.dropCd = 0; this.lastWanted = false;
-    this.moved = 0; this.window = 0; this.stuckWhere = [];
+    this.moved = 0; this.window = 0; this.stuckWhere = []; this.freezeT = 0; this.creepT = 0; this.lootLock = null; this.lockT = 0;
     this.stats = { picked:0, dropped:0, broken:0, shots:0, replans:0, stucks:0 };
   },
 
@@ -216,7 +216,21 @@ const bot = {
         Math.hypot(m2.x-p.x, m2.y-p.y) < 5*A.TILE && m2.type !== 'listen');
       if (th.m.type === 'listen' && !watched){
         this.state = ST.FLEE; this.path = null;
-        return { vx:0, vy:0, push:0, look };
+        this.freezeT += dt;
+        if (this.freezeT < 3.0) return { vx:0, vy:0, push:0, look };
+        this.creepT = 2.0; this.freezeT = 0;
+      }
+      if (this.creepT > 0 && th.m.type === 'listen'){
+        this.creepT -= dt;
+        const ax = p.x-th.m.x, ay = p.y-th.m.y, am = Math.hypot(ax,ay)||1;
+        let bestA = Math.atan2(ay,ax), bestScore = -1;
+        for (let i=-3;i<=3;i++){
+          const a = Math.atan2(ay,ax) + i*0.42;
+          const clear = this.clearWalk(p.x,p.y,p.x+Math.cos(a)*A.TILE*2.5,p.y+Math.sin(a)*A.TILE*2.5);
+          const sc = (clear?10:0) - Math.abs(i)*0.5;
+          if (sc > bestScore){ bestScore = sc; bestA = a; }
+        }
+        return { vx:Math.cos(bestA), vy:Math.sin(bestA), push:0.3, look };   // sneak, stays quiet
       }
       // Loot is worth less than the run. A loaded player cannot outrun anything.
       if (th.d < 2.6*A.TILE && p.held && p.held.mass > 20){
@@ -234,9 +248,12 @@ const bot = {
           const score = (ok?10:0) - Math.abs(i)*0.5;
           if (score > bestClear){ bestClear = score; bestA = a; }
         }
-        return { vx:Math.cos(bestA), vy:Math.sin(bestA), push: th.m.type==='listen' ? 0.3 : 1, look };
+        const quiet = th.m.type === 'listen' && th.d > 2.2*A.TILE;
+        return { vx:Math.cos(bestA), vy:Math.sin(bestA), push: quiet ? 0.3 : 1, look };
       }
     }
+
+    this.freezeT = Math.max(0, this.freezeT - dt*0.5);
 
     // ---- goal selection
     let goal = null, kind = null;
@@ -249,10 +266,14 @@ const bot = {
         this.state = ST.WAIT;
         return { vx:0, vy:0, push:0, look:p.dir + dt*0.8 };
       }
-      if (p.held){ goal = pad; kind = 'pad'; }
+      if (p.held){ goal = pad; kind = 'pad'; this.lootLock = null; }
       else {
-        const l = this.bestLoot();
-        if (!l){ this.state = ST.IDLE; return { vx:0, vy:0, push:0 }; }
+        const locked = this.lootLock;
+        const stillGood = locked && !locked.gone && !locked.held && !locked.onPad && this.lockT < 8;
+        const l = stillGood ? locked : this.bestLoot();
+        if (!l){ this.state = ST.IDLE; this.lootLock = null; return { vx:0, vy:0, push:0 }; }
+        if (l !== this.lootLock){ this.lootLock = l; this.lockT = 0; }
+        this.lockT += dt;
         goal = l; kind = 'loot';
       }
     }
