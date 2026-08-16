@@ -92,6 +92,8 @@
   }
   .ctl:hover{color:var(--ink);border-color:#3a453f;}
   .ctl[aria-pressed="true"]{color:#120d06;background:var(--amber);border-color:var(--amber);}
+  /* Test switches read differently from the in-game torch: they change the rules, not the world. */
+  .ctl--test[aria-pressed="true"]{color:#0a1014;background:#6c86a8;border-color:#6c86a8;}
   .ctl:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
 
   @media (max-width:760px){
@@ -125,6 +127,7 @@
       <p id="veilBody">Bạn chỉ nhìn thấy thứ trước mặt. Tường và cây chặn tầm nhìn. Đêm xuống thì thứ duy nhất còn lại là cái đèn pin &mdash; và nó thu hút chúng.</p>
       <p style="font-family:var(--mono);font-size:12px;color:var(--ink-faint)">
         <kbd>W A S D</kbd> đi &nbsp;&middot;&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;&middot;&nbsp; <kbd>F</kbd> đèn pin &nbsp;&middot;&nbsp; <kbd>R</kbd> thế giới mới<br>
+        <kbd>Q</kbd> bật/tắt quái &nbsp;&middot;&nbsp; <kbd>N</kbd> khóa/mở ban đêm<br>
         <span style="opacity:.75">Trên điện thoại: giữ và kéo một ngón để vừa đi vừa nhìn.</span>
       </p>
       <button class="btn" id="veilBtn">Vào rừng</button>
@@ -133,10 +136,11 @@
 
   <footer class="foot">
     <button class="ctl" id="torchBtn" aria-pressed="false">Đèn pin</button>
+    <button class="ctl ctl--test" id="foeBtn" aria-pressed="true">Tắt quái</button>
+    <button class="ctl ctl--test" id="nightBtn" aria-pressed="true">Khóa đêm</button>
     <button class="ctl" id="newBtn">Thế giới mới</button>
     <span><b>Đốm vàng</b> &mdash; pin</span>
     <span><b>Đốm đỏ</b> &mdash; băng gạc</span>
-    <span class="hide-sm"><b>Viền đỏ</b> &mdash; có thứ gì đó gần mà bạn chưa nhìn thấy</span>
     <span class="grow"></span>
     <span class="hide-sm">Xanh mờ &mdash; chỗ đã đi qua, nhớ lại chứ không nhìn thấy</span>
   </footer>
@@ -162,14 +166,32 @@
   const PLAYER_SPEED   = 132;
   const DAY_SECONDS    = 150;      // one full 24h cycle
   const START_HOUR     = 15.5;
+  const LOCKED_HOUR    = 23;       // where the clock parks while night is locked
+
+  // Temporary test defaults — flip either from the buttons under the screen (or Q / N).
+  let noFoes    = true;
+  let lockNight = true;
 
   const LOS_R          = 15 * TILE;   // master line-of-sight radius
-  const CONE_R         = 7.6 * TILE;
+  // THE RULE: you see the cone in front of you, and a little around your feet. Nothing else,
+  // ever. Daylight stretches those two numbers a bit — it does NOT hand out a lit circle of
+  // map, which is what an earlier revision did (a 19-tile daylight pool) and it made the
+  // whole game readable at a glance the moment it loaded.
+  const CONE_R_NIGHT   = 5.6 * TILE;
+  const CONE_R_DAY     = 7.2 * TILE;
   const CONE_HALF      = 0.62;
   const TORCH_R        = 12.5 * TILE;
   const TORCH_HALF     = 0.38;
-  const PERIPH_R       = 2.2 * TILE;
-  const DAY_R          = 19 * TILE;
+  const PERIPH_R_NIGHT = 2.2 * TILE;
+  const PERIPH_R_DAY   = 3.2 * TILE;
+
+  const mix = (a, b, t) => a + (b - a) * t;
+  // Single source of truth for "how far can I see right now" — the light pass and the
+  // explored-tile pass must never disagree, or the map remembers rooms you never saw.
+  function sight(){
+    const d = daylight();
+    return { day: d, cone: mix(CONE_R_NIGHT, CONE_R_DAY, d), periph: mix(PERIPH_R_NIGHT, PERIPH_R_DAY, d) };
+  }
 
   // ================= authored room tiles =================
   const TEMPLATES = [
@@ -371,7 +393,7 @@
     player.x = (sxT + 0.5) * TILE;
     player.y = (syT + 0.5) * TILE;
     player.hp = 100; player.battery = 100; player.torch = false; player.hurt = 0;
-    dayT = START_HOUR / 24;
+    dayT = (lockNight ? LOCKED_HOUR : START_HOUR) / 24;
     dread = 0;
 
     lamps = []; items = []; foes = [];
@@ -380,7 +402,7 @@
       const px = (m.gx+0.5)*TILE, py = (m.gy+0.5)*TILE;
       if (m.ch === 'L') lamps.push({ x:px, y:py, r: 5.4*TILE, poly:null, flick:rnd()*6 });
       else if (m.ch === 'i') items.push({ x:px, y:py, kind: rnd() < 0.55 ? 'battery' : 'bandage', bob: rnd()*6 });
-      else if (m.ch === 'E') foes.push(makeFoe(px, py, rnd));
+      else if (m.ch === 'E' && !noFoes) foes.push(makeFoe(px, py, rnd));
     }
 
     segs = buildSegments();
@@ -582,8 +604,10 @@
 
   addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
-    if (['w','a','s','d','f','r',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+    if (['w','a','s','d','f','r','q','n',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
     if (k === 'r'){ newWorld(); return; }
+    if (k === 'q'){ setFoes(!noFoes); return; }
+    if (k === 'n'){ setNight(!lockNight); return; }
     if (k === 'f' && running && !dead && player.battery > 0) player.torch = !player.torch;
     keys.add(k);
   });
@@ -613,6 +637,26 @@
   const endTouch = e => { if (e.pointerType === 'touch') touchMove = null; };
   cv.addEventListener('pointerup', endTouch);
   cv.addEventListener('pointercancel', endTouch);
+
+  const foeBtn = document.getElementById('foeBtn');
+  const nightBtn = document.getElementById('nightBtn');
+
+  function setFoes(off){
+    noFoes = off;
+    if (off){ foes.length = 0; dread = 0; }
+    // `grid` guard: this runs once at wiring time, before the first world is built.
+    else if (grid) for (let i = 0; i < 8; i++) spawnFoe();
+    if (foeBtn) foeBtn.setAttribute('aria-pressed', off ? 'true' : 'false');
+  }
+  function setNight(on){
+    lockNight = on;
+    if (on) dayT = LOCKED_HOUR / 24;
+    if (nightBtn) nightBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  if (foeBtn) foeBtn.addEventListener('click', () => setFoes(!noFoes));
+  if (nightBtn) nightBtn.addEventListener('click', () => setNight(!lockNight));
+  setFoes(noFoes);
+  setNight(lockNight);
 
   const torchBtn = document.getElementById('torchBtn');
   if (torchBtn) torchBtn.addEventListener('click', () => {
@@ -667,8 +711,12 @@
   }
 
   function update(dt){
-    dayT = (dayT + dt / DAY_SECONDS) % 1;
+    // Two test switches, both currently ON by default so the sight rules can be judged
+    // on their own: the clock is pinned to the middle of the night, and nothing hunts you.
+    if (lockNight) dayT = LOCKED_HOUR / 24;
+    else dayT = (dayT + dt / DAY_SECONDS) % 1;
     const night = 1 - daylight();
+    const coneNow = sight().cone;
 
     // player
     let vx = 0, vy = 0;
@@ -746,14 +794,14 @@
       }
       // dread: close but outside the cone
       const ang = Math.abs(angDiff(Math.atan2(f.y-player.y, f.x-player.x), player.dir));
-      const visible = d < CONE_R && ang < CONE_HALF && losClear(player.x, player.y, f.x, f.y);
+      const visible = d < coneNow && ang < CONE_HALF && losClear(player.x, player.y, f.x, f.y);
       if (!visible && d < 5.5*TILE) nearestUnseen = Math.min(nearestUnseen, d);
     }
     const targetDread = nearestUnseen < 5.5*TILE ? clamp(1 - nearestUnseen/(5.5*TILE), 0, 1) : 0;
     dread += (targetDread - dread) * Math.min(1, dt*4);
 
     // night spawns
-    if (night > 0.6 && foes.length < 16 && Math.random() < dt*0.55) spawnFoe();
+    if (!noFoes && night > 0.6 && foes.length < 16 && Math.random() < dt*0.55) spawnFoe();
 
     markExplored();
     updateHud();
@@ -774,8 +822,8 @@
   }
 
   function markExplored(){
-    const day = daylight();
-    const seeR = Math.max(CONE_R, player.torch ? TORCH_R : 0, day > 0.15 ? DAY_R*day : 0);
+    const S = sight();
+    const seeR = Math.max(S.cone, S.periph, player.torch ? TORCH_R : 0);
     const rt = Math.ceil(seeR / TILE) + 1;
     const gx0 = ((player.x/TILE)|0), gy0 = ((player.y/TILE)|0);
     for (let gy = gy0-rt; gy <= gy0+rt; gy++){
@@ -788,10 +836,9 @@
         const d = Math.hypot(px-player.x, py-player.y);
         if (d > seeR) continue;
         const ang = Math.abs(angDiff(Math.atan2(py-player.y, px-player.x), player.dir));
-        const inCone = d < CONE_R && ang < CONE_HALF*1.15;
+        const inCone = d < S.cone && ang < CONE_HALF*1.15;
         const inBeam = player.torch && d < TORCH_R && ang < TORCH_HALF*1.4;
-        const inDay  = day > 0.15 && d < DAY_R*day;
-        if (!(inCone || inBeam || inDay || d < PERIPH_R)) continue;
+        if (!(inCone || inBeam || d < S.periph)) continue;
         if (!losClear(player.x, player.y, px, py)) continue;
         explored[i] = 1;
       }
@@ -876,25 +923,20 @@
     pathPoly(c, master);
     c.clip();
 
-    const day = daylight();
-    if (day > 0.02){
-      const r = DAY_R * (0.32 + day*0.68);
-      const g = c.createRadialGradient(player.x, player.y, TILE*0.5, player.x, player.y, r);
-      const a = 0.94 * day;
-      g.addColorStop(0,   `rgba(204,214,220,${a})`);
-      g.addColorStop(0.55,`rgba(164,180,192,${a*0.80})`);
-      g.addColorStop(0.85,`rgba(120,138,154,${a*0.36})`);
-      g.addColorStop(1,   'rgba(90,106,120,0)');
-      c.fillStyle = g;
-      c.fillRect(player.x-r, player.y-r, r*2, r*2);
-    }
+    const S = sight();
 
     // lamps in range
+    // WHY: a lamp two rooms away used to paint a lit strip clear across the screen through a
+    // doorway, which reads as "I can see far" — the exact thing sight is supposed to deny.
+    // A lamp is something you walk up to; past LAMP_FAR it contributes nothing at all.
+    const LAMP_NEAR = 7 * TILE, LAMP_FAR = 10 * TILE;
     for (const L of lamps){
       const d = Math.hypot(L.x-player.x, L.y-player.y);
-      if (d > LOS_R + L.r) continue;
+      if (d > LAMP_FAR + L.r) continue;
+      const prox = d <= LAMP_NEAR ? 1 : Math.max(0, 1 - (d - LAMP_NEAR) / (LAMP_FAR - LAMP_NEAR));
+      if (prox < 0.02) continue;
       L.flick += 0.18;
-      const flick = 0.88 + Math.sin(L.flick)*0.05 + Math.sin(L.flick*2.7)*0.03;
+      const flick = (0.88 + Math.sin(L.flick)*0.05 + Math.sin(L.flick*2.7)*0.03) * prox;
       const poly = visPoly(L.x, L.y, L.r, 44);
       c.save();
       pathPoly(c, poly); c.clip();
@@ -908,19 +950,23 @@
     }
 
     // peripheral awareness
-    let g = c.createRadialGradient(player.x, player.y, 2, player.x, player.y, PERIPH_R);
-    g.addColorStop(0,  'rgba(168,178,172,0.34)');
+    const pr = S.periph;
+    let g = c.createRadialGradient(player.x, player.y, 2, player.x, player.y, pr);
+    g.addColorStop(0,  `rgba(172,182,178,${mix(0.30, 0.46, S.day)})`);
+    g.addColorStop(0.6,`rgba(140,152,150,${mix(0.14, 0.24, S.day)})`);
     g.addColorStop(1,  'rgba(100,112,106,0)');
     c.fillStyle = g;
-    c.fillRect(player.x-PERIPH_R, player.y-PERIPH_R, PERIPH_R*2, PERIPH_R*2);
+    c.fillRect(player.x-pr, player.y-pr, pr*2, pr*2);
 
     // Natural sight is cold, the torch is warm — the floor is green, so the two light
     // sources only read apart if they are pushed to opposite ends of the temperature.
     // With the torch lit, bare sight steps back so the beam is what the player reads by.
-    const k = player.torch ? 0.5 : 1;
-    coneLight(c, CONE_R*1.06, CONE_HALF*1.35, 0.18*k, [162,190,214]);
-    coneLight(c, CONE_R,      CONE_HALF*1.12, 0.30*k, [174,200,220]);
-    coneLight(c, CONE_R*0.94, CONE_HALF,      0.58*k, [184,208,226]);
+    const k = (player.torch ? 0.5 : 1) * mix(1, 1.22, S.day);
+    const cr = S.cone;
+    const cc = [Math.round(mix(158,208,S.day)), Math.round(mix(188,218,S.day)), Math.round(mix(214,220,S.day))];
+    coneLight(c, cr*1.06, CONE_HALF*1.35, 0.18*k, cc);
+    coneLight(c, cr,      CONE_HALF*1.12, 0.30*k, cc);
+    coneLight(c, cr*0.94, CONE_HALF,      0.58*k, cc);
 
     if (player.torch){
       coneLight(c, TORCH_R*1.02, TORCH_HALF*1.8, 0.26, [255,198,112]);
@@ -1063,7 +1109,18 @@
       cam.x = clamp(bx - vwW/2, 0, Math.max(0, WPX - vwW));
       cam.y = clamp(by - vwH/2, 0, Math.max(0, HPX - vwH));
     },
-    state(){ return { hp: player.hp, battery: player.battery, torch: player.torch, foes: foes.length, dread }; }
+    state(){ return { hp: player.hp, battery: player.battery, torch: player.torch, foes: foes.length, dread, noFoes, lockNight, hour: dayT*24 }; },
+    // Fraction of the frame that is actually lit — the number that decides whether sight
+    // is "a cone and a little around me" or "the whole room".
+    litFraction(){
+      const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      let lit = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4 * 37){   // stride-sample, plenty for a ratio
+        n++;
+        if (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114 > 26) lit++;
+      }
+      return lit / n;
+    }
   };
 
   resize();
