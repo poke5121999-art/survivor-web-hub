@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Rừng Tối">
+  <defs>
+    <linearGradient id="rt-bg" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#0d1512"/>
+      <stop offset="1" stop-color="#050807"/>
+    </linearGradient>
+    <radialGradient id="rt-cone" cx="0.5" cy="1" r="1">
+      <stop offset="0" stop-color="#c6d8e4" stop-opacity="0.34"/>
+      <stop offset="0.55" stop-color="#a8c2d4" stop-opacity="0.17"/>
+      <stop offset="1" stop-color="#7d99ad" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rt-torch" cx="0.5" cy="1" r="1">
+      <stop offset="0" stop-color="#ffd68c" stop-opacity="0.42"/>
+      <stop offset="0.6" stop-color="#e6a758" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#a56f2c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rt-lamp" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffc978" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#c08034" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="rt-clip"><rect width="320" height="180"/></clipPath>
+  </defs>
+
+  <!--
+    The thumbnail states what this game IS, so a player can tell it apart from the three
+    Unity games on the same page: one figure at the bottom, a cone of sight in front of it,
+    and trees inside that cone throwing hard shadow wedges away from the viewer. Not a
+    circle of light around a character — a cone with real occlusion behind every obstacle,
+    which is the single mechanic the whole game is built on.
+  -->
+
+  <rect width="320" height="180" fill="url(#rt-bg)"/>
+
+  <g clip-path="url(#rt-clip)">
+    <!-- natural sight: a wide, cold cone from the player -->
+    <path d="M160 150 L26 37.5 A175 175 0 0 1 294 37.5 Z" fill="url(#rt-cone)"/>
+    <!-- the torch: a narrow, warm beam inside it -->
+    <path d="M160 150 L105.9 -16.4 A175 175 0 0 1 214.1 -16.4 Z" fill="url(#rt-torch)"/>
+
+    <!-- what the trees hide: shadow wedges cast away from the player, not around the trees -->
+    <g fill="#05080a" fill-opacity="0.93">
+      <path d="M125.9 89.9 L27.7 -36.3 L11.9 -24.1 L110.1 102.1 Z"/>
+      <path d="M203.1 109.5 L301.7 -16.4 L287.5 -27.4 L188.9 98.5 Z"/>
+      <path d="M157.9 61.1 L144.3 -58.1 L128.5 -56.3 L142.1 62.9 Z"/>
+    </g>
+
+    <!-- a lamp burning somewhere else in the woods -->
+    <circle cx="44" cy="140" r="34" fill="url(#rt-lamp)"/>
+    <circle cx="44" cy="140" r="3.5" fill="#ffd189"/>
+
+    <!-- the trees themselves, lit only where the cone reaches them -->
+    <g>
+      <circle cx="118" cy="96" r="10" fill="#20351f"/>
+      <circle cx="115" cy="93" r="6" fill="#3d6337"/>
+      <circle cx="196" cy="104" r="9" fill="#1d3020"/>
+      <circle cx="193" cy="101" r="5.5" fill="#375c33"/>
+      <circle cx="150" cy="62" r="8" fill="#1b2c1d"/>
+      <circle cx="147" cy="59" r="5" fill="#31522f"/>
+    </g>
+
+    <!-- something standing at the far edge of the beam, only just visible -->
+    <path d="M232 74 L234 60 L238 56 L242 60 L244 74 Z" fill="#241a1b"/>
+    <rect x="235.4" y="60" width="1.8" height="1.8" fill="#b84a38"/>
+    <rect x="238.8" y="60" width="1.8" height="1.8" fill="#b84a38"/>
+
+    <!-- the player -->
+    <circle cx="160" cy="150" r="7" fill="#d2cfbd"/>
+    <circle cx="163" cy="147" r="3.6" fill="#8d8873"/>
+    <rect x="164" y="141" width="5" height="2.6" fill="#ffd98a" transform="rotate(-35 164 141)"/>
+  </g>
+
+  <!-- the frame closes in, the way the game's own vignette does -->
+  <rect width="320" height="180" fill="none" stroke="#000" stroke-opacity="0.5" stroke-width="10"/>
+</svg>

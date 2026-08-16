@@ -80,5 +80,22 @@ window.HUB_GAMES = [
     // missed build-only breakage on this hub before (see Kingfall, patch-16).
     status: "available",
     tags: ["MMORPG", "Action", "Solo"]
+  },
+  {
+    id: "rung-toi",
+    title: "Rừng Tối",
+    tagline: "Kinh dị sinh tồn nhìn từ trên xuống: bạn chỉ thấy thứ trước mặt, tường và cây chặn tầm nhìn, và đêm xuống thì cái đèn pin vừa cứu vừa bán đứng bạn.",
+    thumbnail: "assets/thumbnails/rung-toi.svg",
+    path: "games/rung-toi/index.html",
+    // available since 2026-08-16. NOT a Unity build — a single 41 KB HTML page of plain
+    // canvas/JS, so unlike the other three it loads instantly, runs from file:// as well as
+    // over HTTP, and carries no Addressables content. It is a PROTOTYPE built to answer
+    // "can we do a Darkwood-style game": raycast visibility polygons for the sight cone,
+    // hand-authored room tiles shuffled into a 3x3 grid per run, a day/night clock, and a
+    // torch that trades sight radius against the radius at which enemies notice you.
+    // Verified in real Chrome before publishing: 0 console errors, 60 fps, world reseeds,
+    // damage and death work. It stores nothing, so it does not use the hub save bridge.
+    status: "available",
+    tags: ["Kinh dị", "Sinh tồn", "Solo", "Prototype"]
   }
 ];
