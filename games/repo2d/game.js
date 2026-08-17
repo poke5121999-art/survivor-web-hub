@@ -402,24 +402,8 @@ function buildLevel(seed){
   }
   for (let i=0;i<S.grid.length;i++) if (S.grid[i]===FLOOR && !reach[i]) S.grid[i] = WALL;
 
-  // --- loot. Doc B2 correction: scatter the loot FIRST, then derive the quota from what
-  // was actually scattered. Fixing the quota first can produce a level you cannot clear.
-  const spots = lootSpots.filter(s => reach[s.gy*MW+s.gx]);
-  for (let i=spots.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [spots[i],spots[j]]=[spots[j],spots[i]]; }
-  const want = Math.min(spots.length, 12 + S.level*2);
-  for (let i=0;i<want;i++){
-    const sp = spots[i];
-    const roll = rnd();
-    const size = SIZES[ roll < 0.45 ? 0 : roll < 0.82 ? 1 : 2 ];
-    const mat  = MATERIALS[ (rnd()*MATERIALS.length)|0 ];
-    const v0   = Math.round(mix(size.vmin, size.vmax, rnd()) / 50) * 50;
-    S.loot.push(makeLoot((sp.gx+0.5)*TILE, (sp.gy+0.5)*TILE, size, mat, v0));
-  }
-
-  const totalValue = S.loot.reduce((a,l)=>a+l.value0, 0);
-  S.quotaTotal = Math.round(totalValue * QUOTA_FACTOR * difficultyCurve(S.level));
-
-  // --- extraction pads.
+  // --- extraction pads, chosen BEFORE the loot is scattered.
+  //
   // CORRECTION to this file's own earlier reading of doc A2-2: the source game does NOT
   // scatter every pad. The first Extraction Point spawns in the room the truck lands in and
   // never moves, so you always know where the first haul goes; only the LATER ones "generate
@@ -427,6 +411,14 @@ function buildLevel(seed){
   // SEE: repo-2025horror.fandom.com/wiki/Extraction_Point, escapistmagazine.com/how-to-extract-items-in-repo
   // This build puts pad #1 in a room NEXT DOOR to the truck rather than in the truck's own
   // room: the truck room is the hub (locker, cart) and needs the floor space.
+  //
+  // WHY pads are placed first even though doc B2 says loot comes first: B2 is about the
+  // QUOTA, which still derives from the value actually scattered (below). Pad POSITIONS never
+  // depended on the loot — only on which rooms exist and are reachable — and they have to be
+  // known before scattering, because loot is not allowed in the truck room or in a pad's room.
+  // ROOT-CAUSE this fixes: loot spawned in the truck room was free money you could bank
+  // without entering the house, and loot spawned in a pad's room turned that pad's quota into
+  // a walk of three metres. Both hollow out the haul the whole game is built on.
   const padCount = padsForLevel(S.level);
   const roomAt = (cx,cy) => (cx<0||cy<0||cx>=GX||cy>=GY) ? -1 : cy*GX+cx;
   const roomPoint = ri => {
@@ -454,11 +446,35 @@ function buildLevel(seed){
   } else {
     chosen = pickSpread(cand, padCount, rnd, []);
   }
-  const per = Math.round(S.quotaTotal / Math.max(1, chosen.length));
   chosen.forEach((c,i) => S.pads.push({
-    x:c.x, y:c.y, ri:c.ri, quota: per, placed: [], value: 0,
+    x:c.x, y:c.y, ri:c.ri, quota: 0, placed: [], value: 0,
     active: i===0, done:false, index:i
   }));
+
+  // --- loot. Doc B2: scatter the loot FIRST, then derive the quota from what was actually
+  // scattered. Fixing the quota first can produce a level you cannot clear.
+  // The truck's room and every pad's room are off limits — see the pad block above.
+  const banned = new Set([carRoom].concat(S.pads.map(p => p.ri)));
+  const open = lootSpots.filter(s => reach[s.gy*MW+s.gx]);
+  let spots = open.filter(s => !banned.has(s.ri));
+  // Safety valve: with enough pads every room could end up banned, and a level with no loot
+  // has no quota and cannot be finished. The truck's room stays banned regardless.
+  if (!spots.length) spots = open.filter(s => s.ri !== carRoom);
+  for (let i=spots.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [spots[i],spots[j]]=[spots[j],spots[i]]; }
+  const want = Math.min(spots.length, 12 + S.level*2);
+  for (let i=0;i<want;i++){
+    const sp = spots[i];
+    const roll = rnd();
+    const size = SIZES[ roll < 0.45 ? 0 : roll < 0.82 ? 1 : 2 ];
+    const mat  = MATERIALS[ (rnd()*MATERIALS.length)|0 ];
+    const v0   = Math.round(mix(size.vmin, size.vmax, rnd()) / 50) * 50;
+    S.loot.push(makeLoot((sp.gx+0.5)*TILE, (sp.gy+0.5)*TILE, size, mat, v0));
+  }
+
+  const totalValue = S.loot.reduce((a,l)=>a+l.value0, 0);
+  S.quotaTotal = Math.round(totalValue * QUOTA_FACTOR * difficultyCurve(S.level));
+  const per = Math.round(S.quotaTotal / Math.max(1, S.pads.length));
+  S.pads.forEach(p => { p.quota = per; });
 
   // --- monsters
   const pool = LEVEL_MONSTERS[Math.min(LEVEL_MONSTERS.length-1, S.level-1)];
