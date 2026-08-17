@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Void Diver</title>
+<meta name="description" content="Lặn xuống vực: càng sâu đồ càng ngon, nhưng đèn thì cạn, đầu thì nhiễm, và muốn rút lên là phải trả tiền.">
+<link rel="icon" href="../../assets/favicon.svg">
+<style>
+  :root{
+    --void:#05060a;
+    --panel:#0d1018;
+    --panel-2:#131824;
+    --line:#1f2634;
+    --ink:#c8cede;
+    --ink-dim:#7d879c;
+    --ink-faint:#4d566a;
+    --amber:#e0a049;
+    --blood:#a3382f;
+    --madness:#c600ff;      /* src: UnitStatusVisualData -> "Madness" outer colour */
+    --deep:#2f7f8f;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    /* WHY: most ui-serif defaults carry no Vietnamese glyphs, so the browser
+       synthesises them and diacritics render detached.
+       SEE: the same fix in games/rung-toi/index.html. */
+    --display: Cambria, "Times New Roman", "Liberation Serif", "Noto Serif", serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;background:var(--void);color:var(--ink);font-family:var(--body);
+       overflow:hidden;-webkit-font-smoothing:antialiased;}
+  .shell{display:flex;flex-direction:column;height:100%;}
+
+  .bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:9px 14px;
+       background:var(--panel);border-bottom:1px solid var(--line);
+       font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;
+       font-variant-numeric:tabular-nums;color:var(--ink-dim);flex:0 0 auto;}
+  .bar .back{color:var(--ink-dim);text-decoration:none;border:1px solid var(--line);
+             padding:4px 10px;border-radius:2px;white-space:nowrap;}
+  .bar .back:hover{color:var(--ink);border-color:#39435a;}
+  .bar .back:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+  .bar .name{font-family:var(--display);font-size:17px;color:#e8ecf5;letter-spacing:0;}
+  .bar .k{color:var(--ink-faint);text-transform:uppercase;letter-spacing:.14em;
+          font-size:10px;margin-right:6px;}
+  .bar .v{color:var(--ink);}
+  .bar .grow{flex:1 1 auto;}
+  .meter{display:inline-block;width:64px;height:6px;background:#080a10;
+         border:1px solid var(--line);vertical-align:middle;}
+  .meter i{display:block;height:100%;width:100%;transition:width .12s linear;}
+  #hpBar i{background:var(--blood);}
+  #fuelBar i{background:var(--amber);}
+  #corrBar i{background:var(--madness);}
+  #stamBar i{background:var(--deep);}
+
+  .screen{position:relative;flex:1 1 auto;min-height:0;background:#000;}
+  canvas#game{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;}
+
+  .panel{position:absolute;inset:0;display:none;place-items:center;
+         background:rgba(4,5,9,.86);backdrop-filter:blur(2px);z-index:5;}
+  .panel.on{display:grid;}
+  .card{width:min(620px,92vw);max-height:88%;overflow:auto;background:var(--panel);
+        border:1px solid var(--line);border-radius:3px;padding:22px 24px;}
+  .card h2{font-family:var(--display);font-size:24px;margin:0 0 6px;color:#eef1f7;font-weight:500;}
+  .card p{margin:0 0 14px;color:var(--ink-dim);font-size:13.5px;line-height:1.62;}
+  .card .lead{color:var(--ink);}
+  .btn{font-family:var(--mono);font-size:12px;letter-spacing:.06em;background:var(--panel-2);
+       color:var(--ink);border:1px solid var(--line);padding:9px 15px;border-radius:2px;
+       cursor:pointer;margin:0 8px 8px 0;}
+  .btn:hover:not(:disabled){border-color:#4a5570;color:#fff;}
+  .btn:disabled{opacity:.38;cursor:not-allowed;}
+  .btn.go{border-color:#4d6a3f;color:#b9d9a4;}
+  .btn.warn{border-color:#6a4038;color:#e0a79e;}
+  .row{display:flex;justify-content:space-between;gap:12px;align-items:center;
+       padding:7px 0;border-bottom:1px solid #161b26;font-size:13px;}
+  .row:last-child{border-bottom:0;}
+  .row .lbl{color:var(--ink);}
+  .row .sub{color:var(--ink-faint);font-size:11.5px;font-family:var(--mono);}
+  .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+       border:1px solid #4a2f5a;color:#c9a0d8;padding:2px 7px;border-radius:2px;margin:0 6px 6px 0;}
+  .gold{color:var(--amber);font-family:var(--mono);font-variant-numeric:tabular-nums;}
+  .hint{font-family:var(--mono);font-size:11px;color:var(--ink-faint);line-height:1.8;}
+  .logbox{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);
+          border-left:2px solid var(--line);padding-left:10px;margin:12px 0;line-height:1.75;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="bar">
+    <a class="back" href="../../index.html">← Hub</a>
+    <span class="name">Void Diver</span>
+    <span><span class="k">Tầng</span><span class="v" id="depth">1</span></span>
+    <span><span class="k">Máu</span><span class="meter" id="hpBar"><i></i></span></span>
+    <span><span class="k">Đèn</span><span class="meter" id="fuelBar"><i></i></span> <span class="v" id="lampMode">SÁNG</span></span>
+    <span><span class="k">Nhiễm</span><span class="meter" id="corrBar"><i></i></span> <span class="v" id="corrState">0</span></span>
+    <span><span class="k">Sức</span><span class="meter" id="stamBar"><i></i></span></span>
+    <span class="grow"></span>
+    <span><span class="k">Mang</span><span class="v gold" id="carried">0</span></span>
+    <span><span class="k">Kho</span><span class="v gold" id="gold">0</span></span>
+  </div>
+
+  <div class="screen">
+    <canvas id="game"></canvas>
+
+    <!-- menu -->
+    <div class="panel on" id="pMenu"><div class="card">
+      <h2>Void Diver</h2>
+      <p class="lead">Xuống vực, nhặt di vật, rồi tự quyết định: xuống sâu thêm một tầng, hay trả phí để rút lên với chỗ đồ đang mang.</p>
+      <p>Đèn của bạn vừa cứu vừa bán đứng bạn — bật sáng thì nhìn xa nhưng tốn nhiên liệu và quái phát hiện bạn từ xa hơn. Đứng trong bóng tối thì độ <b style="color:var(--madness)">nhiễm</b> dâng lên, và khi nhiễm đủ cao thì màn hình bắt đầu nói dối bạn.</p>
+      <p>Chết là mất sạch đồ đang mang và dính một <b>nghịch lý</b> theo bạn sang những ván sau.</p>
+      <div class="hint">
+        WASD / phím mũi tên — di chuyển &nbsp;·&nbsp; chuột — hướng đánh &nbsp;·&nbsp; chuột trái — chém<br>
+        Space — lăn né &nbsp;·&nbsp; F — đổi chế độ đèn (tắt / mờ / sáng) &nbsp;·&nbsp; Esc — tạm dừng
+      </div>
+      <p style="margin-top:16px"><button class="btn go" id="bStart">Bắt đầu lặn</button>
+      <button class="btn" id="bShopFromMenu">Cửa hàng BALUSHA</button></p>
+    </div></div>
+
+    <!-- exit prompt -->
+    <div class="panel" id="pExit"><div class="card">
+      <h2>Lối lên</h2>
+      <p class="lead">Bạn đang ở <b>tầng <span id="eDepth">1</span></b>, mang theo <span class="gold" id="eCarried">0</span> vàng đồ.</p>
+      <div class="row"><span class="lbl">Phí rút lên</span><span class="gold" id="eCost">0</span></div>
+      <div class="row"><span class="lbl">Còn lại nếu rút</span><span class="gold" id="eNet">0</span></div>
+      <p style="margin-top:14px" id="eWarn"></p>
+      <p><button class="btn go" id="bExtract">Rút lên</button>
+      <button class="btn warn" id="bDescend">Xuống sâu thêm</button></p>
+      <div class="hint">Xuống sâu thì đồ giá trị hơn và quái mạnh hơn — và độ nhiễm cộng thêm ngay khi bạn bước xuống. Phí rút lên cũng tăng theo tầng, nên lặn quá sâu mà không đủ đồ thì không mua nổi đường về.</div>
+    </div></div>
+
+    <!-- shop -->
+    <div class="panel" id="pShop"><div class="card">
+      <h2>BALUSHA</h2>
+      <p class="lead">Tiệm đồ cổ. Bán chỗ di vật mang về, rồi tiêu vàng vào thứ theo bạn sang ván sau.</p>
+      <div class="logbox" id="sLog"></div>
+      <div class="row"><span class="lbl">Vàng</span><span class="gold" id="sGold">0</span></div>
+      <div id="sParadox"></div>
+      <div id="sUpgrades" style="margin-top:12px"></div>
+      <p style="margin-top:16px"><button class="btn go" id="bDive">Lặn tiếp</button></p>
+    </div></div>
+
+    <!-- death -->
+    <div class="panel" id="pDead"><div class="card">
+      <h2>Bạn không lên được</h2>
+      <p class="lead" id="dText"></p>
+      <div class="logbox" id="dLog"></div>
+      <p><button class="btn" id="bDeadShop">Về BALUSHA</button></p>
+    </div></div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+<script src="bot.js"></script>
+<script>
+(function(){
+  'use strict';
+  const cv = document.getElementById('game');
+  const ctx = cv.getContext('2d');
+  const T = VD.TUNE.tile;
+  let W = 0, H = 0, DPR = 1;
+
+  // offscreen buffer — the stress effect needs the finished frame to distort
+  const off = document.createElement('canvas');
+  const octx = off.getContext('2d');
+
+  function resize(){
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+    off.width = cv.width; off.height = cv.height;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    octx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  // ------------------------------------------------------------------ input
+  const keys = {};
+  const IN = VD.input;
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'Space'){ IN.dodge = true; e.preventDefault(); }
+    if (e.code === 'KeyF' && VD.S.player){
+      const p = VD.S.player;
+      p.lamp = (p.lamp + 1) % 3;
+      if (p.fuel <= 0) p.lamp = 0;
+    }
+    if (e.code === 'Escape' && VD.S.phase === 'dive'){ VD.setPhase('menu'); show('pMenu'); }
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+  cv.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect();
+    const sx = e.clientX - r.left, sy = e.clientY - r.top;
+    IN.mx = VD.S.cam.x + (sx - W/2);
+    IN.my = VD.S.cam.y + (sy - H/2);
+    IN.aimed = true;
+  });
+  cv.addEventListener('mousedown', e => { if (e.button === 0) IN.attack = true; });
+
+  function pollKeys(){
+    if (VD.bot && VD.bot.on) return;      // the bot writes VD.input itself
+    IN.up    = (keys['KeyW']||keys['ArrowUp'])   ? 1 : 0;
+    IN.down  = (keys['KeyS']||keys['ArrowDown']) ? 1 : 0;
+    IN.left  = (keys['KeyA']||keys['ArrowLeft']) ? 1 : 0;
+    IN.right = (keys['KeyD']||keys['ArrowRight'])? 1 : 0;
+  }
+
+  // ----------------------------------------------------------------- panels
+  const panels = ['pMenu','pExit','pShop','pDead'];
+  function show(id){
+    panels.forEach(p => document.getElementById(p).classList.toggle('on', p === id));
+  }
+  function hideAll(){ panels.forEach(p => document.getElementById(p).classList.remove('on')); }
+
+  document.getElementById('bStart').onclick = () => { VD.newRun(); hideAll(); };
+  document.getElementById('bShopFromMenu').onclick = () => { VD.setPhase('shop'); renderShop(); show('pShop'); };
+  document.getElementById('bDive').onclick = () => { VD.newRun(); hideAll(); };
+  document.getElementById('bDeadShop').onclick = () => { VD.setPhase('shop'); renderShop(); show('pShop'); };
+  document.getElementById('bExtract').onclick = () => { if (VD.extract()){ renderShop(); show('pShop'); } };
+  document.getElementById('bDescend').onclick = () => { VD.descend(); hideAll(); };
+
+  function renderExit(){
+    const s = VD.state();
+    document.getElementById('eDepth').textContent = s.depth;
+    document.getElementById('eCarried').textContent = s.carried;
+    document.getElementById('eCost').textContent = s.exitCost;
+    document.getElementById('eNet').textContent = Math.max(0, s.carried - s.exitCost);
+    document.getElementById('eWarn').innerHTML = s.canExtract
+      ? ''
+      : '<span style="color:var(--blood)">Chưa đủ đồ để trả phí rút lên. Phải nhặt thêm, hoặc xuống sâu hơn và hy vọng gỡ lại.</span>';
+    document.getElementById('bExtract').disabled = !s.canExtract;
+  }
+
+  function renderShop(){
+    const s = VD.state();
+    document.getElementById('sGold').textContent = s.gold;
+    document.getElementById('sLog').innerHTML = s.log.length
+      ? s.log.map(l => '· ' + l).join('<br>') : '· Chưa có chuyến nào.';
+
+    const px = document.getElementById('sParadox');
+    if (s.paradoxes.length){
+      const names = s.paradoxes.map(id => {
+        const p = VD.PARADOX.find(x => x.id === id);
+        return '<span class="tag">' + p.name + ' — ' + p.desc + '</span>';
+      }).join('');
+      px.innerHTML = '<div style="margin-top:12px"><div class="sub" style="margin-bottom:6px">NGHỊCH LÝ ĐANG DÍNH</div>' + names +
+        '<div class="row"><span class="lbl">Gỡ một nghịch lý</span>' +
+        '<button class="btn" id="bCure"' + (s.gold < VD.cureCost() ? ' disabled' : '') + '>' + VD.cureCost() + ' vàng</button></div></div>';
+      const bc = document.getElementById('bCure');
+      if (bc) bc.onclick = () => { VD.cure(); renderShop(); };
+    } else px.innerHTML = '';
+
+    document.getElementById('sUpgrades').innerHTML =
+      '<div class="sub" style="margin-bottom:6px">NÂNG CẤP</div>' +
+      VD.UPGRADES.map(u => {
+        const lvl = s.upgrades[u.id] || 0;
+        const cost = VD.upgradeCost(u.id);
+        return '<div class="row"><span class="lbl">' + u.name +
+          ' <span class="sub">' + u.step + ' · bậc ' + lvl + '</span></span>' +
+          '<button class="btn" data-up="' + u.id + '"' + (s.gold < cost ? ' disabled' : '') + '>' + cost + '</button></div>';
+      }).join('');
+    document.querySelectorAll('[data-up]').forEach(b => {
+      b.onclick = () => { VD.buy(b.getAttribute('data-up')); renderShop(); };
+    });
+  }
+
+  function renderDead(){
+    const s = VD.state();
+    document.getElementById('dText').textContent =
+      'Vực giữ lại chỗ đồ bạn đang mang. Sâu nhất từng tới: tầng ' + s.best + '.';
+    document.getElementById('dLog').innerHTML = s.log.map(l => '· ' + l).join('<br>');
+  }
+
+  // -------------------------------------------------------------------- HUD
+  function setMeter(id, v, max){
+    document.querySelector('#' + id + ' i').style.width = Math.max(0, Math.min(100, v/max*100)) + '%';
+  }
+  function hud(){
+    const s = VD.state();
+    document.getElementById('depth').textContent = s.depth;
+    document.getElementById('carried').textContent = s.carried;
+    document.getElementById('gold').textContent = s.gold;
+    document.getElementById('lampMode').textContent = s.lampName;
+    document.getElementById('corrState').textContent = s.corruptionState;
+    setMeter('hpBar', s.hp, s.hpMax);
+    setMeter('fuelBar', s.fuel, s.fuelMax);
+    setMeter('corrBar', s.corruption, s.corrMax);
+    setMeter('stamBar', s.stamina, s.staminaMax);
+  }
+
+  // ------------------------------------------------------------------ render
+  function draw(){
+    const g = octx;
+    g.setTransform(DPR,0,0,DPR,0,0);
+    g.fillStyle = '#05060a'; g.fillRect(0,0,W,H);
+    if (!VD.S.player || !VD.S.grid){ blit(0); return; }
+
+    const S = VD.S, p = S.player, G = S.grid;
+    const camX = S.cam.x - W/2, camY = S.cam.y - H/2;
+    g.save(); g.translate(-camX, -camY);
+
+    // --- remembered geometry, drawn dim. This is what makes the map feel like
+    // it is yours: you keep what you saw, and at high corruption you lose it.
+    const t0 = Math.max(0, Math.floor(camX/T)), t1 = Math.min(G.W-1, Math.ceil((camX+W)/T));
+    const s0 = Math.max(0, Math.floor(camY/T)), s1 = Math.min(G.H-1, Math.ceil((camY+H)/T));
+    for (let y = s0; y <= s1; y++) for (let x = t0; x <= t1; x++){
+      if (!S.explored[y*G.W+x]) continue;
+      g.fillStyle = G.g[y*G.W+x] ? '#0f1219' : '#0a0d13';
+      g.fillRect(x*T, y*T, T, T);
+    }
+
+    // --- the lit region
+    const lamp = VD.TUNE.lantern[p.lamp];
+    const sight = p.fuel > 0 || p.lamp === 0 ? lamp.sight : VD.TUNE.lantern[0].sight;
+    const poly = VD.visPoly(p.x, p.y, sight);
+    g.save();
+    g.beginPath();
+    g.moveTo(poly[0][0], poly[0][1]);
+    for (let i = 1; i < poly.length; i++) g.lineTo(poly[i][0], poly[i][1]);
+    g.closePath(); g.clip();
+
+    // floor + walls inside the light
+    for (let y = s0; y <= s1; y++) for (let x = t0; x <= t1; x++){
+      const wall = G.g[y*G.W+x];
+      g.fillStyle = wall ? '#3d4963' : '#1d2634';
+      g.fillRect(x*T, y*T, T, T);
+      if (wall){
+        // lip on the side that faces open floor, so a wall reads as a wall
+        if (!G.g[(y+1)*G.W+x]){ g.fillStyle = '#55648a'; g.fillRect(x*T, y*T+T-4, T, 4); }
+      } else if ((x*7+y*13) % 11 === 0){
+        g.fillStyle = '#26313f'; g.fillRect(x*T+6, y*T+9, 5, 3);
+      }
+    }
+    // warm falloff from the lamp
+    const grd = g.createRadialGradient(p.x, p.y, 8, p.x, p.y, sight);
+    grd.addColorStop(0, 'rgba(226,168,86,' + (0.26*lamp.warm) + ')');
+    grd.addColorStop(0.55, 'rgba(226,168,86,' + (0.10*lamp.warm) + ')');
+    grd.addColorStop(1, 'rgba(0,0,0,0.34)');
+    g.fillStyle = grd; g.fillRect(camX, camY, W, H);
+
+    drawWorld(g, sight);
+    g.restore();
+
+    // exit is always faintly readable, even unlit — it is the decision point
+    if (S.exit){
+      const e = S.exit;
+      g.strokeStyle = 'rgba(90,200,180,.55)'; g.lineWidth = 2;
+      g.beginPath(); g.arc(e.x, e.y, e.r, 0, 7); g.stroke();
+      g.fillStyle = 'rgba(90,200,180,.10)'; g.fill();
+      g.fillStyle = 'rgba(140,230,210,.8)';
+      g.font = '10px ui-monospace, monospace'; g.textAlign = 'center';
+      g.fillText('LỐI LÊN', e.x, e.y - e.r - 7);
+    }
+
+    drawPlayer(g, p);
+    g.restore();
+
+    vignette(g, p);
+    blit(VD.S.fx.intensity);
+  }
+
+  function drawWorld(g, sight){
+    const S = VD.S, p = S.player;
+    // loot
+    for (const l of S.loot){
+      if (l.gone) continue;
+      const tw = ['#6b7280','#8b8172','#c7c2b6','#8fd0c4','#c9a0d8','#e0a049'][l.tier] || '#c7c2b6';
+      g.save(); g.translate(l.x, l.y);
+      g.rotate(Math.sin(S.t*1.6 + l.x*0.01) * 0.25);
+      g.fillStyle = tw; g.globalAlpha = .9;
+      g.fillRect(-5,-5,10,10);
+      g.globalAlpha = .25; g.fillRect(-8,-8,16,16);
+      g.restore();
+    }
+    // monsters
+    for (const m of S.mobs){
+      if (m.hp <= 0) continue;
+      if (!VD.losClear(p.x, p.y, m.x, m.y)) continue;
+      g.save(); g.translate(m.x, m.y);
+      g.fillStyle = m.hurt > 0 ? '#ffffff' : m.col;
+      g.beginPath(); g.arc(0,0,m.r,0,7); g.fill();
+      // facing wedge — needed to read where the weak point is
+      g.fillStyle = 'rgba(0,0,0,.45)';
+      g.beginPath(); g.moveTo(0,0);
+      g.arc(0,0,m.r, m.face-0.5, m.face+0.5); g.closePath(); g.fill();
+      if (m.boss){
+        g.strokeStyle = '#c600ff'; g.lineWidth = 2;
+        g.beginPath(); g.arc(0,0,m.r+4,0,7); g.stroke();
+      }
+      if (m.hp < m.hpMax){
+        g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(-m.r, -m.r-8, m.r*2, 3);
+        g.fillStyle = '#a3382f'; g.fillRect(-m.r, -m.r-8, m.r*2*(m.hp/m.hpMax), 3);
+      }
+      g.restore();
+    }
+    // the stalker only resolves when it is genuinely in your light
+    if (S.stalker){
+      const st = S.stalker;
+      if (VD.losClear(p.x, p.y, st.x, st.y) &&
+          Math.hypot(st.x-p.x, st.y-p.y) < sight){
+        g.save(); g.translate(st.x, st.y);
+        g.fillStyle = 'rgba(10,0,16,.92)';
+        g.beginPath(); g.arc(0,0,st.r,0,7); g.fill();
+        g.strokeStyle = '#c600ff'; g.lineWidth = 1.5;
+        g.beginPath(); g.arc(0,0,st.r+3,0,7); g.stroke();
+        g.restore();
+      }
+    }
+  }
+
+  function drawPlayer(g, p){
+    g.save(); g.translate(p.x, p.y);
+    if (p.iframe > 0){ g.globalAlpha = 0.55; }
+    g.fillStyle = p.hurt > 0 ? '#ffd8d2' : '#dfe4ee';
+    g.beginPath(); g.arc(0,0,p.r,0,7); g.fill();
+    // swing arc
+    if (p.swing > VD.TUNE.SwingCooldown*0.55){
+      const k = (p.swing - VD.TUNE.SwingCooldown*0.55) / (VD.TUNE.SwingCooldown*0.45);
+      g.strokeStyle = 'rgba(255,238,210,' + (0.75*k) + ')';
+      g.lineWidth = p.combo === 3 ? 5 : 3;
+      g.beginPath();
+      g.arc(0,0, VD.TUNE.AttackRange*0.82,
+            p.face - VD.TUNE.AttackArc/2, p.face + VD.TUNE.AttackArc/2);
+      g.stroke();
+    }
+    g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0,0);
+    g.lineTo(Math.cos(p.face)*(p.r+7), Math.sin(p.face)*(p.r+7)); g.stroke();
+    g.restore();
+  }
+
+  function vignette(g, p){
+    const v = g.createRadialGradient(W/2,H/2, Math.min(W,H)*0.28, W/2,H/2, Math.max(W,H)*0.72);
+    v.addColorStop(0,'rgba(0,0,0,0)');
+    v.addColorStop(1,'rgba(0,0,0,.60)');
+    g.fillStyle = v; g.fillRect(0,0,W,H);
+    // madness tint rides the corruption meter, using the demo's own colour
+    const s = VD.state();
+    const c = s.corruption / s.corrMax;
+    if (c > 0.25){
+      const m = g.createRadialGradient(W/2,H/2, Math.min(W,H)*0.15, W/2,H/2, Math.max(W,H)*0.7);
+      m.addColorStop(0,'rgba(0,0,0,0)');
+      m.addColorStop(1,'rgba(198,0,255,' + (0.30*(c-0.25)/0.75) + ')');
+      g.fillStyle = m; g.fillRect(0,0,W,H);
+    }
+  }
+
+  // The stress screen effect. Every factor below is the demo's own value from
+  // StressPostProcessingScriptableData, scaled by the current burst intensity.
+  function blit(intensity){
+    const F = VD.TUNE.fx;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,cv.width,cv.height);
+    if (intensity < 0.02){ ctx.drawImage(off,0,0); return; }
+
+    const k = intensity;
+    const t = VD.S.t;
+    const rot = Math.sin(t/F.MotionSickRotationDuration*Math.PI*2) * F.MotionSickRotationAngle * Math.PI/180 * k;
+    const zoom = 1 + Math.sin(t/F.MotionSickPulseDuration*Math.PI*2) * F.MotionSickPulseDegree * k;
+    const shake = F.MotionSickShakeDegree * k * cv.width;
+
+    ctx.save();
+    ctx.translate(cv.width/2 + (Math.random()-0.5)*shake*40,
+                  cv.height/2 + (Math.random()-0.5)*shake*40);
+    ctx.rotate(rot); ctx.scale(zoom, zoom);
+    ctx.translate(-cv.width/2, -cv.height/2);
+    ctx.drawImage(off,0,0);
+
+    // chromatic split — two offset copies screened over the base
+    const sp = F.RGBSplitDegree * k * cv.width * 0.5;
+    if (sp > 0.4){
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.42;
+      ctx.drawImage(off, -sp, 0);
+      ctx.drawImage(off,  sp, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.restore();
+
+    // glitch bands, gated by the demo's own step cutoffs
+    if (Math.random() < F.GlitchPulseStepCutoff * k){
+      const bands = 2 + Math.floor(Math.random()*4);
+      for (let i = 0; i < bands; i++){
+        const by = Math.random()*cv.height;
+        const bh = 4 + Math.random()*F.GlitchPulseScale*k;
+        const dx = (Math.random()-0.5) * F.GlitchPulseDegree * cv.width * 8 * k;
+        ctx.drawImage(off, 0, by, cv.width, bh, dx, by, cv.width, bh);
+      }
+    }
+    if (Math.random() < F.GlitchPulseFlickerStepCutoff * k * 6){
+      ctx.fillStyle = 'rgba(198,0,255,.06)';
+      ctx.fillRect(0,0,cv.width,cv.height);
+    }
+    // posterise pass
+    if (k > 0.5){
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.fillStyle = 'rgba(120,0,160,' + (F.PsycheDiveOffset*k*3) + ')';
+      ctx.fillRect(0,0,cv.width,cv.height);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  // -------------------------------------------------------------------- loop
+  let last = performance.now(), acc = 0;
+  const FIXED = 1/60;
+  function frame(now){
+    let dt = Math.min(0.25, (now - last)/1000); last = now;
+    pollKeys();
+    if (VD.bot && VD.bot.on) VD.bot.think(dt);
+    acc += dt * (VD.S.speed || 1);
+    let guard = 0;
+    while (acc >= FIXED && guard++ < 300){ VD.step(FIXED); acc -= FIXED; }
+
+    // panel transitions driven by phase
+    const ph = VD.S.phase;
+    if (ph === 'exit' && !document.getElementById('pExit').classList.contains('on')){ renderExit(); show('pExit'); }
+    if (ph === 'dead' && !document.getElementById('pDead').classList.contains('on')){ renderDead(); show('pDead'); }
+    if (ph === 'dive') hideAll();
+
+    hud(); draw();
+    requestAnimationFrame(frame);
+  }
+
+  resize();
+  requestAnimationFrame(frame);
+
+  // expose for the agent test
+  window.VDUI = { show, hideAll, renderShop, renderExit };
+})();
+</script>
+</body>
+</html>

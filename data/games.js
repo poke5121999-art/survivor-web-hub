@@ -114,5 +114,27 @@ window.HUB_GAMES = [
     // drives it at 8x and asserts the level actually completes (32 checks, 0 console errors).
     status: "available",
     tags: ["Kinh dị", "Co-op", "Khuân đồ", "Prototype"]
+  },
+  {
+    id: "voiddiver",
+    title: "Void Diver",
+    tagline: "Lặn xuống vực nhặt di vật. Càng sâu đồ càng ngon, nhưng đèn thì cạn dần, đứng trong tối lâu thì đầu bắt đầu nhiễm — và muốn rút lên là phải trả tiền bằng chính chỗ đồ đang mang.",
+    thumbnail: "assets/thumbnails/voiddiver.svg",
+    path: "games/voiddiver/index.html",
+    // available since 2026-08-17. Plain canvas/JS, no engine, ~85 KB across three
+    // files. Built from the systems of the VOID DIVER: Escape from the Abyss demo
+    // (Steam appid 4347080) — an extraction RPG. NO asset of that game is used or
+    // shipped here: everything is drawn in code. What was taken is design data read
+    // out of the installed build — the stat schema (CurrentDepth / CurrentLightFuel /
+    // Corruption), the four-state corruption sequence table, the stress screen-effect
+    // factors, and the table schema (ExitCostTable, DropRewardTable, ArtifactPrefix...).
+    // Line-of-sight rendering follows rung-toi's approach; the light-as-a-liability
+    // idea is Darkwood's, applied to a stat the original game already tracks.
+    // Ships with an in-game bot that plays the whole loop; the agent test at
+    // docs/tests/browser/test_voiddiver.py drives it at 8x and asserts the run closes
+    // (49 checks, 0 console errors). Progress is local only — it does not use the hub
+    // save bridge yet.
+    status: "available",
+    tags: ["Kinh dị", "Roguelite", "Solo", "Prototype"]
   }
 ];
