@@ -72,12 +72,16 @@
   /* shop */
   .shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--line);
         border:1px solid var(--line);max-width:760px;width:100%;}
-  .up{background:var(--panel);padding:13px 14px;display:flex;flex-direction:column;gap:5px;text-align:left;cursor:pointer;border:none;color:inherit;font:inherit;}
-  .up:hover{background:#171c23;}
-  .up:disabled{opacity:.4;cursor:not-allowed;}
-  .up .t{font-size:13.5px;font-weight:600;color:var(--ink);}
-  .up .d{font-size:12px;color:var(--ink-dim);line-height:1.5;}
+  .up,.gear{background:var(--panel);padding:13px 14px;display:flex;flex-direction:column;gap:5px;text-align:left;cursor:pointer;border:none;color:inherit;font:inherit;}
+  .up:hover,.gear:hover{background:#171c23;}
+  .up:disabled,.gear:disabled{opacity:.4;cursor:not-allowed;}
+  .up .t,.gear .t{font-size:13.5px;font-weight:600;color:var(--ink);}
+  .up .d,.gear .d{font-size:12px;color:var(--ink-dim);line-height:1.5;}
   .up .p{font-family:var(--mono);font-size:11.5px;color:var(--amber);letter-spacing:.05em;}
+  .gear .p{font-family:var(--mono);font-size:11.5px;color:var(--teal);letter-spacing:.05em;}
+  .shop .empty{background:var(--panel);padding:13px 14px;font-size:12px;color:var(--ink-faint);grid-column:1/-1;}
+  .seg{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+       color:var(--ink-faint);max-width:760px;width:100%;text-align:left;margin-top:6px;}
   .wallet{font-family:var(--mono);font-size:13px;color:var(--amber);letter-spacing:.06em;}
 
   .foot{
@@ -124,9 +128,11 @@
       <h2 id="veilTitle">Ca Trực Đêm</h2>
       <p id="veilBody">Vào nhà, khuân đồ giá trị ra bệ giao hàng cho đủ chỉ tiêu, rồi tìm bệ tiếp theo. Đồ càng nặng càng đắt, và càng dễ vỡ khi bạn đâm vào tường. Trong đó có thứ khác đang đi lại.</p>
       <p style="font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)" id="veilKeys">
-        <kbd>W A S D</kbd> đi &nbsp;·&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;·&nbsp; <kbd>Shift</kbd> chạy &nbsp;·&nbsp; <kbd>E</kbd> nhặt/thả<br>
-        <kbd>1 2 3</kbd> dùng đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>R</kbd> chơi lại<br>
-        <span style="opacity:.8">Điện thoại: hai cần gạt — trái đi, phải nhìn. Đẩy hết cần trái để chạy.</span>
+        <kbd>W A S D</kbd> đi &nbsp;·&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;·&nbsp; <kbd>Shift</kbd> chạy &nbsp;·&nbsp; <kbd>E</kbd> nhặt/thả/đẩy xe<br>
+        <kbd>F</kbd> tủ đồ trên xe &nbsp;·&nbsp; <kbd>1 2 3</kbd> dùng đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>R</kbd> chơi lại<br>
+        <span style="opacity:.8">Ba ô trên tay bắt đầu ca nào cũng rỗng — lấy đồ từ tủ trên xe trước khi đi.
+        Xe đẩy nằm sẵn cạnh xe tải: chở được 6 món nhỏ/vừa, đẩy thẳng lên bệ là dỡ cả xe.</span><br>
+        <span style="opacity:.8">Điện thoại: hai cần gạt — trái đi, phải nhìn. Đẩy hết cần trái để chạy, nhấn đúp để lướt.</span>
       </p>
       <div id="veilExtra"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">

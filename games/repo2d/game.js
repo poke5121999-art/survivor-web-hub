@@ -19,6 +19,11 @@ const ZOOM = 1.55;
 
 const FLOOR = 0, WALL = 1, PROP = 2;
 
+// prop kinds — solid either way; the code only changes how the tile is painted
+const P_BLOCK = 1, P_TABLE = 2, P_SHELF = 3, P_CRATE = 4, P_PLANT = 5;
+const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_PLANT };
+const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3 };
+
 const PLAYER_BASE_SPEED = 132;
 const SPEED_FLOOR = 0.35;        // never fully immobilised, however heavy the haul
 const TURN_FLOOR  = 0.40;        // heavy loot slows how fast the look stick can swing
@@ -56,102 +61,145 @@ const money = n => '$' + Math.round(n).toLocaleString('en-US');
 
 // ============================================================ authored rooms
 // Doc: "Các phòng được tạo sẵn dưới dạng prefab", connected through door points.
-// '#' wall  '.' floor  'x' prop (blocks sight+movement)  'L' loot spot  'M' monster post
+//
+// These read as rooms in a house, the way the source game's maps do: furniture pushed
+// against the walls, a clear middle to haul through, and the four doorways left open.
+// Every prop still blocks sight and movement — what the letter changes is only how it is
+// drawn, which is what makes a kitchen look like a kitchen from above.
+//
+//  '#' wall   '.' floor   'L' loot spot   'M' monster post
+//  'T' table / counter / bed   'S' shelf, cabinet, bookcase   'C' crate, box, appliance
+//  'P' planter, barrel, potted plant       'x' plain block (kept for older layouts)
+//
+// Layout rule: doors are carved at the middle of every shared edge, so rows 6-8 must stay
+// clear near the left and right walls, and columns 9-11 near the top and bottom ones.
 const ROOMS = [
-  { name:'Phòng khách', rows:[
+  { name:'Phòng khách', floor:'carpet', rows:[
     '#####################',
+    '#P...S.........S...P#',
+    '#....S.........S....#',
+    '#..TT...........TT..#',
+    '#..T.L.........L.T..#',
     '#...................#',
-    '#..xxxx.......xxxx..#',
-    '#..x..L.......L..x..#',
-    '#..x.............x..#',
-    '#..xxx....M....xxx..#',
+    '#.........M.........#',
     '#...................#',
-    '#...................#',
-    '#..xxx.........xxx..#',
-    '#..x.L.........L.x..#',
-    '#..x.............x..#',
-    '#..xxxx.......xxxx..#',
+    '#..T.L.........L.T..#',
+    '#..TT...........TT..#',
+    '#....S.........S....#',
+    '#P...S.........S...P#',
     '#...................#',
     '#...................#',
     '#####################' ]},
-  { name:'Nhà kho', rows:[
+  { name:'Nhà kho', floor:'concrete', rows:[
     '#####################',
-    '#...................#',
-    '#.xxx.xxx...xxx.xxx.#',
-    '#.xL....x...x....Lx.#',
-    '#.x.....x...x.....x.#',
-    '#.......................',
+    '#.C.C.........C.C..P#',
+    '#.SSS.SSS...SSS.SSS.#',
+    '#.SL....S...S....LS.#',
+    '#.S.....S...S.....S.#',
+    '#.SSS...S...S...SSS.#',
     '#.......M...........#',
     '#...................#',
-    '#.x.....x...x.....x.#',
-    '#.xL....x...x....Lx.#',
-    '#.xxx.xxx...xxx.xxx.#',
     '#...................#',
-    '#........L..........#',
-    '#...................#',
-    '#####################' ]},
-  { name:'Bếp', rows:[
-    '#####################',
-    '#...................#',
-    '#.xxxxxxx...xxxxxxx.#',
-    '#.L.....x...x.....L.#',
-    '#.......x...x.......#',
-    '#.xxxx..x...x..xxxx.#',
-    '#....x.........x....#',
-    '#....x...M.....x....#',
-    '#....x.........x....#',
-    '#.xxxx..x...x..xxxx.#',
-    '#.......x...x.......#',
-    '#.L.....x...x.....L.#',
-    '#.xxxxxxx...xxxxxxx.#',
+    '#.SSS...S...S...SSS.#',
+    '#.SL....S...S....LS.#',
+    '#.SSS.SSS...SSS.SSS.#',
+    '#.C.C....L....C.C..P#',
     '#...................#',
     '#####################' ]},
-  { name:'Hành lang', rows:[
+  { name:'Bếp', floor:'tile', rows:[
     '#####################',
+    '#.TTTTT.....TTTTT...#',
+    '#.L...T.....T...L...#',
+    '#.....T.....T.......#',
+    '#.TTTTT.....TTTTT...#',
+    '#...................#',
+    '#....CCC.M.CCC......#',
     '#...................#',
     '#...................#',
-    '#.xxxxxxxxxxxxxxxxx.#',
-    '#.x...............x.#',
-    '#.x.L...........L.x.#',
-    '#.x...............x.#',
-    '#.........M.........#',
-    '#.x...............x.#',
-    '#.x.L...........L.x.#',
-    '#.x...............x.#',
-    '#.xxxxxxxxxxxxxxxxx.#',
-    '#...................#',
+    '#.TTTTT.....TTTTT...#',
+    '#.....T.....T.......#',
+    '#.L...T.....T...L...#',
+    '#.TTTTT.....TTTTT...#',
     '#...................#',
     '#####################' ]},
-  { name:'Thư phòng', rows:[
+  { name:'Hành lang', floor:'wood', rows:[
     '#####################',
-    '#...................#',
-    '#.x.x.x.x.x.x.x.x.x.#',
+    '#.SS.SS.....SS.SS...#',
     '#...................#',
     '#.L...............L.#',
-    '#.x.x.x.x.x.x.x.x.x.#',
     '#...................#',
-    '#........M..........#',
+    '#.SSSSSSS...SSSSSSS.#',
+    '#.........M.........#',
     '#...................#',
-    '#.x.x.x.x.x.x.x.x.x.#',
+    '#...................#',
+    '#.SSSSSSS...SSSSSSS.#',
+    '#...................#',
     '#.L...............L.#',
     '#...................#',
-    '#.x.x.x.x.x.x.x.x.x.#',
+    '#.SS.SS.....SS.SS...#',
+    '#####################' ]},
+  { name:'Thư phòng', floor:'wood', rows:[
+    '#####################',
+    '#.S.S.S.....S.S.S...#',
+    '#...................#',
+    '#.L...............L.#',
+    '#.S.S.S.....S.S.S...#',
+    '#...................#',
+    '#.........M.........#',
+    '#...................#',
+    '#...................#',
+    '#.S.S.S.....S.S.S...#',
+    '#.L...............L.#',
+    '#...................#',
+    '#.S.S.S.....S.S.S...#',
     '#...................#',
     '#####################' ]},
-  { name:'Sân trong', rows:[
+  { name:'Sân trong', floor:'concrete', rows:[
     '#####################',
     '#...................#',
-    '#....xxxxxxxxx......#',
-    '#....x.......x......#',
-    '#....x..L.L..x......#',
-    '#....x.......x......#',
-    '#....xxx...xxx......#',
+    '#...PPPPP...PPPPP...#',
+    '#...P...........P...#',
+    '#...P...L.L.....P...#',
+    '#...P...........P...#',
+    '#...P...........P...#',
     '#.........M.........#',
-    '#....xxx...xxx......#',
-    '#....x.......x......#',
-    '#....x..L.L..x......#',
-    '#....x.......x......#',
-    '#....xxxxxxxxx......#',
+    '#...P...........P...#',
+    '#...P...........P...#',
+    '#...P...L.L.....P...#',
+    '#...P...........P...#',
+    '#...PPPPP...PPPPP...#',
+    '#...................#',
+    '#####################' ]},
+  { name:'Phòng ngủ', floor:'carpet', rows:[
+    '#####################',
+    '#.SS...........SS...#',
+    '#.TTT.........TTT...#',
+    '#.TTT.L.....L.TTT...#',
+    '#.TTT.........TTT...#',
+    '#...................#',
+    '#.........M.........#',
+    '#...................#',
+    '#...................#',
+    '#.TTT.........TTT...#',
+    '#.TTT.L.....L.TTT...#',
+    '#.TTT.........TTT...#',
+    '#.SS...........SS...#',
+    '#...................#',
+    '#####################' ]},
+  { name:'Phòng tắm', floor:'tile', rows:[
+    '#####################',
+    '#.TT.TT.....TT.TT...#',
+    '#.T..T......T..T....#',
+    '#.L..L......L..L....#',
+    '#...................#',
+    '#...................#',
+    '#.........M.........#',
+    '#...................#',
+    '#...................#',
+    '#.T..T......T..T....#',
+    '#.TT.TT.....TT.TT...#',
+    '#...................#',
+    '#...................#',
     '#...................#',
     '#####################' ]}
 ];
@@ -189,14 +237,58 @@ const LEVEL_MONSTERS = [
 ];
 
 // ============================================================ shop
+// The source game's Service Station rolls a DIFFERENT stock every visit, split into two
+// separate sets: Upgrades (permanent, buyer-only, price climbs per purchase) and Items
+// (consumables/tools you keep). Doc B5 holds the upgrade table this is built from.
+//
+// Anything the doc proposed that would need a FOURTH input is not here: C2 fixed the
+// control scheme at two sticks + grab + three slots, and "a phase proposing a fourth
+// input defaults to no". Dash is the one exception and it costs no button — it fires on
+// a double-tap of the run input, which already exists.
+const UPGRADE_MAX_SPAWNS = 3;      // an upgrade may be ROLLED into the shop at most 3 times
+const SHOP_UPGRADE_SLOTS = 3;
+const SHOP_GEAR_SLOTS    = 3;
+
 const UPGRADES = [
-  { key:'hp',     name:'Nâng máu',      desc:'+20 máu tối đa, và hồi đầy ngay.',                  base: 6000 },
-  { key:'stam',   name:'Nâng thể lực',  desc:'+10 thể lực, chạy được lâu hơn.',                   base: 2000 },
-  { key:'str',    name:'Nâng sức',      desc:'+10 sức. Cùng món đồ đó sẽ nhẹ đi tương đối.',       base: 6000 },
-  { key:'range',  name:'Nâng tầm với',  desc:'Nhặt được đồ từ xa hơn.',                           base: 4500 },
-  { key:'light',  name:'Nâng đèn',      desc:'Nón nhìn dài và rộng hơn.',                         base: 5000 },
-  { key:'grip',   name:'Găng chống sốc',desc:'Đồ bạn đang vác chịu va đập tốt hơn 25%.',          base: 7000 }
+  { key:'hp',     name:'Nâng máu',        desc:'+20 máu tối đa, và hồi đầy ngay.',                     base: 6000 },
+  { key:'stam',   name:'Nâng thể lực',    desc:'+10 thể lực, chạy được lâu hơn.',                      base: 2000 },
+  { key:'str',    name:'Nâng sức',        desc:'+10 sức. Cùng món đồ đó sẽ nhẹ đi tương đối.',          base: 6000 },
+  { key:'range',  name:'Nâng tầm với',    desc:'Nhặt được đồ từ xa hơn.',                              base: 6000 },
+  { key:'sprint', name:'Nâng tốc độ chạy',desc:'Chạy nhanh hơn 20%. Chỉ có tác dụng khi đang chạy.',    base: 6000 },
+  { key:'dash',   name:'Lướt né',         desc:'Nhấn đúp hướng chạy để lướt một đoạn. Tốn thể lực.',    base: 12000 },
+  { key:'push',   name:'Đẩy',             desc:'Va vào quái thì hất nó ra thay vì đứng chịu trận.',     base: 4500 },
+  { key:'regen',  name:'Hồi thể lực nhanh',desc:'Đứng im hồi thể lực nhanh hơn hẳn.',                   base: 3000 },
+  { key:'light',  name:'Nâng đèn',        desc:'Nón nhìn dài và rộng hơn.',                            base: 5000 },
+  { key:'grip',   name:'Găng chống sốc',  desc:'Đồ bạn đang vác chịu va đập tốt hơn 25%.',             base: 7000 }
 ];
+
+// Gear = the source game's "Items". Bought gear goes into the TRUCK STASH, not straight
+// into your hands, and survives every later level until it is used up. `stock` is how many
+// times it may be bought in one run; at that point it stops being offered at all.
+const GEAR = [
+  { key:'gun',     name:'Súng lục',        short:'Súng', desc:'Bắn thẳng theo hướng kéo. 6 viên.',                    uses:6, price: 9000,  stock:4 },
+  { key:'tranq',   name:'Súng gây mê',     short:'Mê',   desc:'Không giết, nhưng ru con quái trúng đạn ngủ 12 giây.', uses:3, price: 12000, stock:3 },
+  { key:'bomb',    name:'Lựu đạn',         short:'Bom',  desc:'Ném ra, nổ sau 1,4 giây. Nổ gần đồ là mất tiền.',      uses:2, price: 7000,  stock:5 },
+  { key:'heal',    name:'Băng cứu thương', short:'Máu',  desc:'Hồi 45 máu ngay lập tức.',                             uses:2, price: 4500,  stock:6 },
+  { key:'tracker', name:'Máy dò bệ',       short:'Dò',   desc:'Vẽ đường tới bệ đang mở, và hiện cả những bệ chưa mở.',uses:1, price: 6000,  stock:2, passive:true },
+  { key:'float',   name:'Bình phản trọng lực', short:'Nhẹ', desc:'20 giây món đang vác nhẹ như không.',               uses:2, price: 10000, stock:3 },
+  { key:'shield',  name:'Keo bọc chống vỡ',short:'Bọc',  desc:'25 giây món đang vác không mất giá trị dù va đập.',    uses:2, price: 11000, stock:3 }
+];
+const GEAR_BY_KEY = {};
+for (const g of GEAR) GEAR_BY_KEY[g.key] = g;
+
+// ============================================================ cart
+// Source game: a wheeled platform that holds several small-to-medium valuables, shows the
+// money total on its front face, and reappears at the start of every level without having
+// to be brought back. Grabbing the front (the money side) is STRONG, any other side WEAK.
+const CART_R          = 20;
+const CART_SLOTS      = 6;
+const CART_MASS       = 40;        // the cart's own weight, before anything is loaded
+const CART_EFFICIENCY = 3.4;       // wheels: loaded mass costs this much less than carrying
+const CART_WEAK_MUL   = 0.55;      // pushing from the wrong side
+const CART_HANDLE_ARC = 1.05;      // how wide the "front" is, in radians either side
+const CART_IMPACT_ABSORB = 0.45;   // a slam into a wall reaches the contents this much reduced
+const CART_MAX_SIZE   = 1;         // index into SIZES: 'to' (2) will not fit on the cart
 
 // ============================================================ state
 const S = {
@@ -204,23 +296,37 @@ const S = {
   grid: null, rooms: [], segs: [], explored: null,
   worldCv: null,
   loot: [], monsters: [], pads: [], bullets: [], bombs: [], corpses: [],
-  car: { x:0, y:0 },
+  car: { x:0, y:0 }, cart: null,
   quotaTotal: 0, padIndex: 0,
   countdown: 0, countdownActive: false,
   player: null,
-  upg: { hp:0, stam:0, str:0, range:0, light:0, grip:0 },
+  upg: newUpgrades(),
+  upgSpawned: {},                  // how many times each upgrade has been ROLLED into a shop
+  gearBought: {},                  // how many times each gear has been bought this run
+  stash: [],                       // the shared locker on the truck; bought gear lands here
+  offer: null,                     // the stock this shop visit rolled, held so it cannot re-roll
+  stashOpen: false,
   running: false, dead: false, levelDone: false, noFoes: false,
   time: 0, message: '', messageT: 0,
   bigMap: false
 };
+function newUpgrades(){
+  const u = {};
+  for (const x of UPGRADES) u[x.key] = 0;
+  return u;
+}
 
 function newPlayer(){
   return {
     x:0, y:0, dir:0, hp: 100 + S.upg.hp*20, hpMax: 100 + S.upg.hp*20,
     stam: STAM_MAX + S.upg.stam*10, stamMax: STAM_MAX + S.upg.stam*10,
     str: 30 + S.upg.str*10, held: null, hurt: 0, noise: 0, speedScale: 1,
-    inv: [ {kind:'gun', uses:6}, {kind:'heal', uses:2}, {kind:'bomb', uses:2} ],
-    aimSlot: -1, aimX: 0, aimY: 0, cooldown: 0
+    // The hands start EMPTY, like the source game: everything you carry into a house was
+    // bought at the station and taken out of the truck's locker first.
+    inv: [ null, null, null ],
+    aimSlot: -1, aimX: 0, aimY: 0, cooldown: 0,
+    pushing: false, dashT: 0, dashCd: 0, runTapT: 0, wasRun: false,
+    floatT: 0, shieldT: 0
   };
 }
 
@@ -241,18 +347,23 @@ function buildLevel(seed){
   const order = ROOMS.map((_,i)=>i);
   for (let i = order.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [order[i],order[j]]=[order[j],order[i]]; }
 
+  S.deco = new Uint8Array(MW*MH);
+  S.roomStyle = new Uint8Array(GX*GY);
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
     const ri = cy*GX+cx;
     const t = ROOMS[order[ri % order.length]];
     const fx = rnd()<0.5, fy = rnd()<0.5;
     S.rooms.push({ name:t.name, cx, cy, seen:false });
+    S.roomStyle[ri] = FLOOR_STYLE[t.floor || 'wood'];
     for (let y=0; y<RH; y++) for (let x=0; x<RW; x++){
       const sx = fx ? RW-1-x : x, sy = fy ? RH-1-y : y;
       const ch = (t.rows[sy] || '')[sx] || '.';
       const gx = cx*RW+x, gy = cy*RH+y;
-      let v = ch === '#' ? WALL : ch === 'x' ? PROP : FLOOR;
+      const prop = PROP_CH[ch] || 0;
+      let v = ch === '#' ? WALL : prop ? PROP : FLOOR;
       if (x===0||y===0||x===RW-1||y===RH-1) v = WALL;      // room shell is always closed
       S.grid[gy*MW+gx] = v;
+      if (v === PROP) S.deco[gy*MW+gx] = prop;
       if (v === FLOOR && ch === 'L') lootSpots.push({gx,gy,ri});
       if (v === FLOOR && ch === 'M') monSpots.push({gx,gy,ri});
     }
@@ -308,17 +419,41 @@ function buildLevel(seed){
   const totalValue = S.loot.reduce((a,l)=>a+l.value0, 0);
   S.quotaTotal = Math.round(totalValue * QUOTA_FACTOR * difficultyCurve(S.level));
 
-  // --- extraction pads. Doc A2-2: pads are scattered, the car is NOT one of them.
+  // --- extraction pads.
+  // CORRECTION to this file's own earlier reading of doc A2-2: the source game does NOT
+  // scatter every pad. The first Extraction Point spawns in the room the truck lands in and
+  // never moves, so you always know where the first haul goes; only the LATER ones "generate
+  // the farthest possible into the map, each as far from the others as possible".
+  // SEE: repo-2025horror.fandom.com/wiki/Extraction_Point, escapistmagazine.com/how-to-extract-items-in-repo
+  // This build puts pad #1 in a room NEXT DOOR to the truck rather than in the truck's own
+  // room: the truck room is the hub (locker, cart) and needs the floor space.
   const padCount = padsForLevel(S.level);
+  const roomAt = (cx,cy) => (cx<0||cy<0||cx>=GX||cy>=GY) ? -1 : cy*GX+cx;
+  const roomPoint = ri => {
+    const r = S.rooms[ri];
+    const gx = r.cx*RW + (RW>>1), gy = r.cy*RH + (RH>>1);
+    return reach[gy*MW+gx] ? { ri, x:(gx+0.5)*TILE, y:(gy+0.5)*TILE } : null;
+  };
+  const carCx = carRoom % GX, carCy = (carRoom/GX)|0;
+  const neighbours = [[1,0],[0,1],[-1,0],[0,-1]]
+    .map(([dx,dy]) => roomAt(carCx+dx, carCy+dy))
+    .filter(ri => ri >= 0)
+    .map(roomPoint)
+    .filter(Boolean);
   const cand = [];
   for (let ri=0; ri<S.rooms.length; ri++){
     if (ri === carRoom) continue;
-    const r = S.rooms[ri];
-    const gx = r.cx*RW + (RW>>1), gy = r.cy*RH + (RH>>1);
-    if (!reach[gy*MW+gx]) continue;
-    cand.push({ ri, x:(gx+0.5)*TILE, y:(gy+0.5)*TILE });
+    const pt = roomPoint(ri);
+    if (pt) cand.push(pt);
   }
-  const chosen = pickSpread(cand, padCount, rnd);
+  let chosen;
+  if (neighbours.length){
+    const first = neighbours[(rnd()*neighbours.length)|0];
+    const rest = cand.filter(c => c.ri !== first.ri);
+    chosen = [first].concat(pickSpread(rest, padCount-1, rnd, [first]));
+  } else {
+    chosen = pickSpread(cand, padCount, rnd, []);
+  }
   const per = Math.round(S.quotaTotal / Math.max(1, chosen.length));
   chosen.forEach((c,i) => S.pads.push({
     x:c.x, y:c.y, ri:c.ri, quota: per, placed: [], value: 0,
@@ -344,9 +479,17 @@ function buildLevel(seed){
   S.player.str = 30 + S.upg.str*10;
   S.player.hp = S.player.hpMax; S.player.stam = S.player.stamMax;
   S.player.held = null; S.player.aimSlot = -1;
+  S.player.pushing = false; S.player.floatT = 0; S.player.shieldT = 0;
+  S.player.dashT = 0; S.player.dashCd = 0; S.player.runTapT = 0; S.player.wasRun = false;
+  S.stashOpen = false;
+
+  // The cart is not something you buy and not something you bring home: the source game
+  // respawns one at the truck at the start of every level, and it never has to come back.
+  S.cart = makeCart(S.car.x + TILE*2.6, S.car.y + TILE*0.4);
 
   S.segs = buildSegments();
   prerenderWorld(mulberry32(seed ^ 0x9e3779b9));
+  prerenderMinimap();
   S.time = 0;
   toast('Màn ' + S.level + ' — cần ' + money(S.quotaTotal) + ' qua ' + S.pads.length + ' bệ');
 }
@@ -365,22 +508,25 @@ function padsForLevel(lv){
   if (lv <= 14) return 4;
   return 5;
 }
-function pickSpread(cand, n, rnd){
-  // Doc A2-3: score every candidate and relax the threshold, never loop until it fits.
+function pickSpread(cand, n, rnd, seeds){
+  // Source game: every extraction after the first "generates the farthest possible into the
+  // map, with every extraction trying to spawn as far from other existing points as possible".
+  // So this is a plain farthest-point walk — score everything, take the best, repeat.
+  // Doc A2-3 still holds: it terminates by construction, it never loops until a rule fits.
   const out = [];
+  const anchors = (seeds || []).slice();
   const pool = cand.slice();
-  let minD = 22 * TILE;
   while (out.length < n && pool.length){
-    let best = -1, bestScore = -1;
+    let best = 0, bestScore = -1;
     for (let i=0;i<pool.length;i++){
       const c = pool[i];
       let d = Math.hypot(c.x-S.car.x, c.y-S.car.y);
-      for (const o of out) d = Math.min(d, Math.hypot(c.x-o.x, c.y-o.y));
+      for (const o of anchors) d = Math.min(d, Math.hypot(c.x-o.x, c.y-o.y));
       const score = d + rnd()*TILE*3;
-      if (d >= minD && score > bestScore){ bestScore = score; best = i; }
+      if (score > bestScore){ bestScore = score; best = i; }
     }
-    if (best < 0){ minD *= 0.8; if (minD < 3*TILE){ out.push(pool.shift()); } continue; }
-    out.push(pool.splice(best,1)[0]);
+    const pick = pool.splice(best,1)[0];
+    out.push(pick); anchors.push(pick);
   }
   return out;
 }
@@ -403,14 +549,25 @@ function flood(sx, sy){
 }
 
 function makeLoot(x,y,size,mat,v0){
-  return { x, y, vx:0, vy:0, r:size.r, mass:size.mass, size:size.key,
+  return { x, y, vx:0, vy:0, r:size.r, mass:size.mass, size:size.key, sizeIdx:SIZES.indexOf(size),
            mat, value0:v0, value:v0, held:false, invuln:0, grace:0,
-           onPad:null, cracks:0, gone:false, bob: Math.random()*6 };
+           onPad:null, inCart:false, cracks:0, gone:false, bob: Math.random()*6,
+           freeX:x, freeY:y, holdD:0 };
 }
 function makeMonster(type,x,y){
   const d = MONSTERS[type];
   return { type, x, y, hp:d.hp, dmg:d.dmg, speed:d.speed, dir:0,
-           state:'patrol', tx:x, ty:y, think:0, alert:0, hit:0, home:{x,y}, wob:Math.random()*7 };
+           state:'patrol', tx:x, ty:y, think:0, alert:0, hit:0, home:{x,y}, wob:Math.random()*7,
+           sleep:0, kx:0, ky:0 };
+}
+function makeCart(x,y){
+  return { x, y, r:CART_R, items:[], held:false, mode:'strong',
+           freeX:x, freeY:y, holdD:0, face:0 };
+}
+function cartLoad(cart){ return cart.items.reduce((a,l)=> a + (l.gone?0:l.mass), 0); }
+function cartValue(cart){ return cart.items.reduce((a,l)=> a + (l.gone?0:l.value), 0); }
+function cartFits(cart, l){
+  return cart.items.length < CART_SLOTS && l.sizeIdx <= CART_MAX_SIZE;
 }
 
 // ---- wall segments (merged runs) for the visibility polygon
@@ -448,31 +605,149 @@ function seg(x1,y1,x2,y2){
   return { x1,y1,x2,y2, minX:Math.min(x1,x2), maxX:Math.max(x1,x2), minY:Math.min(y1,y2), maxY:Math.max(y1,y2) };
 }
 
+// Floors are painted per room, not per map: a kitchen reads as a kitchen from above because
+// it is tiled, and the storeroom reads as one because it is bare concrete. It is the cheapest
+// way to make a shuffled grid of prefabs feel like one house instead of one texture.
+// The light pass MULTIPLIES over this, so everything here is painted bright — anything dark
+// here ends up black once the sight cone lands on it.
+const FLOORS = [
+  { base:[112,96,74],  alt:[122,104,80] },   // 0 wood
+  { base:[126,128,124],alt:[136,138,134] },  // 1 tile
+  { base:[108,108,106],alt:[114,114,112] },  // 2 concrete
+  { base:[104,84,80],  alt:[112,92,86] }     // 3 carpet
+];
+const WALLS = [
+  [86,74,62],    // 0 wood room  — papered
+  [78,86,86],    // 1 tiled room — cold
+  [74,74,72],    // 2 concrete   — bare
+  [88,68,66]     // 3 carpeted   — dark red paper
+];
 function prerenderWorld(rnd){
   if (!S.worldCv){ S.worldCv = document.createElement('canvas'); S.worldCv.width = WPX; S.worldCv.height = HPX; }
   const c = S.worldCv.getContext('2d');
   c.setTransform(1,0,0,1,0,0);
   c.fillStyle = '#0a0b0c'; c.fillRect(0,0,WPX,HPX);
   for (let gy=0; gy<MH; gy++) for (let gx=0; gx<MW; gx++){
-    const v = S.grid[gy*MW+gx], x = gx*TILE, y = gy*TILE, n = rnd();
-    // The light pass only multiplies this down, so paint it bright or every lit surface is black.
+    const i = gy*MW+gx, v = S.grid[i], x = gx*TILE, y = gy*TILE, n = rnd();
     if (v === FLOOR){
-      const b = 118 + n*14;
-      c.fillStyle = `rgb(${(b*0.96)|0},${(b*0.94)|0},${(b*0.88)|0})`;
-      c.fillRect(x,y,TILE,TILE);
-      if (n > 0.8){ c.fillStyle = `rgba(${(b*1.2)|0},${(b*1.18)|0},${(b*1.1)|0},0.5)`; c.fillRect(x+(n*89%16), y+(n*53%16), 3, 2); }
+      const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
+      const st = FLOORS[S.roomStyle ? S.roomStyle[ri] : 0] || FLOORS[0];
+      paintFloor(c, x, y, st, gx, gy, n);
     } else if (v === WALL){
-      c.fillStyle = `rgb(${(74+n*12)|0},${(70+n*11)|0},${(66+n*10)|0})`;
+      // wallpaper follows the room, so a wall tells you which room you are looking into
+      const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
+      const w = WALLS[S.roomStyle ? S.roomStyle[ri] : 0] || WALLS[0];
+      c.fillStyle = `rgb(${(w[0]+n*12)|0},${(w[1]+n*11)|0},${(w[2]+n*10)|0})`;
       c.fillRect(x,y,TILE,TILE);
       c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(x,y+TILE-4,TILE,4);
       c.fillStyle = 'rgba(255,246,226,0.10)'; c.fillRect(x,y,TILE,2);
+      if (((gx ^ gy) & 3) === 0){ c.fillStyle = 'rgba(0,0,0,0.07)'; c.fillRect(x+2, y+2, TILE-4, 1); }
     } else {
-      c.fillStyle = `rgb(${(112+n*12)|0},${(104+n*10)|0},${(92+n*9)|0})`;
-      c.fillRect(x+1,y+1,TILE-2,TILE-2);
-      c.fillStyle = 'rgba(0,0,0,0.30)'; c.fillRect(x+1,y+TILE-5,TILE-2,4);
-      c.fillStyle = 'rgba(255,240,210,0.09)'; c.fillRect(x+1,y+1,TILE-2,2);
+      const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
+      const st = FLOORS[S.roomStyle ? S.roomStyle[ri] : 0] || FLOORS[0];
+      paintFloor(c, x, y, st, gx, gy, n);                 // furniture stands ON the floor
+      paintProp(c, x, y, S.deco ? S.deco[i] : P_BLOCK, n);
     }
   }
+  paintDoorFrames(c);
+}
+function paintFloor(c, x, y, st, gx, gy, n){
+  // The pattern has to come from the GRID, not from the random stream. Tinting each tile at
+  // random turned a floor into camouflage: the eye read the blotches as objects and the room
+  // as clutter. Planks run in rows, tiles checker, and the randomness is demoted to a faint
+  // wear jitter you only notice up close.
+  let swap;
+  if (st === FLOORS[1])      swap = (gx + gy) & 1;        // tile: checkerboard
+  else if (st === FLOORS[0]) swap = ((gy >> 1) & 1);      // wood: two-tile plank rows
+  else                       swap = 0;                     // carpet, concrete: one tone
+  const col = swap ? st.alt : st.base;
+  const j = ((n*4)|0) - 1;
+  c.fillStyle = `rgb(${col[0]+j},${col[1]+j},${col[2]+j})`;
+  c.fillRect(x,y,TILE,TILE);
+  if (st === FLOORS[0]){                                   // wood: plank seams + board ends
+    c.fillStyle = 'rgba(0,0,0,0.20)'; c.fillRect(x, y+TILE-1, TILE, 1);
+    if (((gx + (gy>>1)*2) & 3) === 0){ c.fillStyle = 'rgba(0,0,0,0.14)'; c.fillRect(x, y, 1, TILE); }
+  } else if (st === FLOORS[1]){                            // tile: grout
+    c.fillStyle = 'rgba(0,0,0,0.22)';
+    c.fillRect(x, y+TILE-1, TILE, 1); c.fillRect(x+TILE-1, y, 1, TILE);
+  } else if (st === FLOORS[3]){                            // carpet: dense fleck, low contrast
+    if (n > 0.45){ c.fillStyle = 'rgba(0,0,0,0.055)'; c.fillRect(x+((n*67)%20), y+((n*41)%20), 2, 2); }
+    if (n < 0.2){ c.fillStyle = 'rgba(255,230,210,0.045)'; c.fillRect(x+((n*97)%20), y+((n*57)%20), 2, 2); }
+  } else if (n > 0.9){                                     // concrete: the odd stain
+    c.fillStyle = 'rgba(0,0,0,0.10)'; c.fillRect(x+((n*53)%16), y+((n*29)%16), 6, 3);
+  }
+}
+function paintProp(c, x, y, kind, n){
+  const T = TILE;
+  const box = (ix,iy,w,h,top,side,edge) => {
+    c.fillStyle = side; c.fillRect(x+ix, y+iy, w, h);
+    c.fillStyle = top;  c.fillRect(x+ix, y+iy, w, Math.max(2, h*0.62));
+    c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(x+ix, y+iy+h-3, w, 3);
+    if (edge){ c.strokeStyle = edge; c.lineWidth = 1; c.strokeRect(x+ix+0.5, y+iy+0.5, w-1, h-1); }
+  };
+  if (kind === P_TABLE){            // table / counter / bed — low, warm wood
+    box(1, 2, T-2, T-4, '#8e6b45', '#6d4f32', 'rgba(0,0,0,0.35)');
+    c.fillStyle = 'rgba(255,236,200,0.10)'; c.fillRect(x+2, y+3, T-4, 2);
+  } else if (kind === P_SHELF){     // shelf / cabinet / bookcase — tall, dark, with shelves
+    box(1, 0, T-2, T, '#5c4a3a', '#41352a', 'rgba(0,0,0,0.45)');
+    c.fillStyle = 'rgba(0,0,0,0.30)';
+    c.fillRect(x+2, y+7, T-4, 2); c.fillRect(x+2, y+15, T-4, 2);
+    if (n > 0.5){ c.fillStyle = 'rgba(190,160,120,0.30)'; c.fillRect(x+3, y+2, T-6, 4); }
+  } else if (kind === P_CRATE){     // crate / appliance — pale box with a cross brace
+    box(2, 2, T-4, T-4, '#b9ac92', '#8f8470', 'rgba(0,0,0,0.40)');
+    c.strokeStyle = 'rgba(80,68,50,0.55)'; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(x+3, y+3); c.lineTo(x+T-3, y+T-3);
+    c.moveTo(x+T-3, y+3); c.lineTo(x+3, y+T-3); c.stroke();
+  } else if (kind === P_PLANT){     // planter / barrel — round, greener
+    c.fillStyle = '#6b5a44';
+    c.beginPath(); c.arc(x+T/2, y+T/2, T*0.42, 0, Math.PI*2); c.fill();
+    c.fillStyle = '#4f6b45';
+    c.beginPath(); c.arc(x+T/2, y+T/2-1, T*0.30, 0, Math.PI*2); c.fill();
+    c.fillStyle = 'rgba(0,0,0,0.30)';
+    c.beginPath(); c.ellipse(x+T/2, y+T*0.82, T*0.36, T*0.14, 0, 0, Math.PI*2); c.fill();
+  } else {                          // plain block, the old 'x'
+    c.fillStyle = `rgb(${(112+n*12)|0},${(104+n*10)|0},${(92+n*9)|0})`;
+    c.fillRect(x+1,y+1,TILE-2,TILE-2);
+    c.fillStyle = 'rgba(0,0,0,0.30)'; c.fillRect(x+1,y+TILE-5,TILE-2,4);
+    c.fillStyle = 'rgba(255,240,210,0.09)'; c.fillRect(x+1,y+1,TILE-2,2);
+  }
+}
+// A gap in a wall reads as a hole; a gap with posts either side reads as a door, which is
+// what every room in the source game is joined by.
+function paintDoorFrames(c){
+  for (let gy=1; gy<MH-1; gy++) for (let gx=1; gx<MW-1; gx++){
+    if (S.grid[gy*MW+gx] !== FLOOR) continue;
+    const onCol = (gx % RW) === 0 || (gx % RW) === RW-1;
+    const onRow = (gy % RH) === 0 || (gy % RH) === RH-1;
+    if (!onCol && !onRow) continue;
+    const x = gx*TILE, y = gy*TILE;
+    c.fillStyle = 'rgba(30,24,18,0.55)';
+    if (onCol){ c.fillRect(x, y, 3, TILE); c.fillRect(x+TILE-3, y, 3, TILE); }
+    else      { c.fillRect(x, y, TILE, 3); c.fillRect(x, y+TILE-3, TILE, 3); }
+    c.fillStyle = 'rgba(226,200,150,0.10)';
+    c.fillRect(x+3, y+3, TILE-6, TILE-6);
+  }
+}
+
+// One pixel per tile, painted once per level. The minimap then blits the rooms the player
+// has actually walked into, so the map shows the real WALLS of a room — its shell, its
+// doorways and the furniture blocks inside it — instead of a flat rectangle that tells you
+// a room exists but nothing about how to move through it.
+function prerenderMinimap(){
+  if (!S.mapCv){ S.mapCv = document.createElement('canvas'); }
+  S.mapCv.width = MW; S.mapCv.height = MH;
+  const c = S.mapCv.getContext('2d');
+  const img = c.createImageData(MW, MH);
+  const d = img.data;
+  for (let i=0;i<MW*MH;i++){
+    const v = S.grid[i], o = i*4;
+    // wall: bright and solid, it is the thing you are reading the map for
+    // prop: dimmer block — it stops you but it is not the room's shape
+    // floor: dark blue-grey, the space you can walk
+    const col = v === WALL ? [150,170,200] : v === PROP ? [96,110,132] : [34,46,64];
+    d[o] = col[0]; d[o+1] = col[1]; d[o+2] = col[2]; d[o+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
 }
 
 // ============================================================ visibility
@@ -543,7 +818,16 @@ function moveEnt(e, dx, dy, r){
   return blocked;
 }
 
-function carriedWeight(p){ return p.held ? p.held.mass : 0; }
+function carriedWeight(p){
+  if (p.floatT > 0) return 0;                       // anti-gravity flask: weightless, briefly
+  if (p.pushing && S.cart){
+    // Wheels are the whole point of a cart: the same mass costs a fraction of what it costs
+    // in your arms, which is what makes a full cart better than four trips.
+    const w = (CART_MASS + cartLoad(S.cart)) / CART_EFFICIENCY;
+    return S.cart.mode === 'weak' ? w / CART_WEAK_MUL : w;
+  }
+  return p.held ? p.held.mass : 0;
+}
 function playerSpeed(p){
   // Doc A2-1: weight belongs in the DENOMINATOR. The original formula multiplied by it,
   // which made an empty-handed player stand still and a loaded one sprint.
@@ -567,6 +851,7 @@ function grabRange(p){ return (1.9 + S.upg.range*0.55) * TILE; }
 function damageLoot(l, impulse){
   if (l.gone) return 0;
   if (S.time < l.invuln || S.time < l.grace) return 0;
+  if (l.held && S.player.shieldT > 0) return 0;     // wrapping tape: nothing gets through
   const thresh = l.mat.thresh * (l.held ? (1 + S.upg.grip*0.25) : 1);
   if (impulse <= thresh) return 0;
   const loss = l.value0 * l.mat.frag * DMG_SCALE * DMG_MULT * (impulse - thresh) / thresh;
@@ -579,20 +864,51 @@ function damageLoot(l, impulse){
   return before - l.value;
 }
 
+// Carried things — loot in your hands, or the cart you are pushing — are PINNED to the ray
+// straight in front of the player. They never trail behind, never swing out to the side, and
+// never end up somewhere the sight cone is not pointing.
+//
+// WHY: a damped spring (what this used to be) lags by design, so a loot ball drifted behind
+// the shoulder whenever the player turned or walked, and the thing you were carrying was
+// outside the only lit part of the screen.
+// ROOT-CAUSE: the hold point was a spring TARGET, not a constraint, so "in front" was
+// something the simulation converged toward instead of something that was always true.
+// SEE: user report 2026-08-17 "loot lúc nhặt lên luôn phải nằm phía trước mặt player".
+//
+// Breakage survives the change because doc C3-2's rule is about STOPPING SUDDENLY, and that
+// is measured here as the gap between where the hold point wanted to go this frame and where
+// geometry actually let the object go. Walk into a wall and that gap is your walking speed;
+// stand still against a wall and it is zero, which is the case a spring got wrong.
+function holdInFront(o, dt, wantD, radius){
+  const p = S.player;
+  const cs = Math.cos(p.dir), sn = Math.sin(p.dir);
+  const fx = p.x + cs*wantD, fy = p.y + sn*wantD;      // the unobstructed hold point
+  let d = wantD, blocked = false;
+  while (d > radius*0.4){
+    if (!hitsSolid(p.x + cs*d, p.y + sn*d, radius*0.7)) break;
+    d -= 2; blocked = true;
+  }
+  const ox = o.x, oy = o.y;
+  o.x = p.x + cs*d; o.y = p.y + sn*d;
+  o.holdD = d;
+  const wvx = (fx - o.freeX)/dt, wvy = (fy - o.freeY)/dt;   // how fast the hold point moved
+  const avx = (o.x - ox)/dt,     avy = (o.y - oy)/dt;       // how fast the object really moved
+  o.freeX = fx; o.freeY = fy;
+  o.vx = avx; o.vy = avy;
+  return blocked ? Math.hypot(wvx-avx, wvy-avy) : 0;
+}
+
 function stepLoot(l, dt){
   if (l.gone) return;
+  if (l.inCart) return;                                 // the cart carries it; see stepCart
   if (l.held){
-    // spring toward the hold point; the spring is what turns a wall into a sudden stop
-    const p = S.player;
-    const hx = p.x + Math.cos(p.dir) * (l.r + 12), hy = p.y + Math.sin(p.dir) * (l.r + 12);
-    const k = 26, damp = 9;
-    l.vx += ((hx - l.x) * k - l.vx * damp) * dt;
-    l.vy += ((hy - l.y) * k - l.vy * damp) * dt;
-  } else {
-    l.vx *= Math.pow(0.02, dt); l.vy *= Math.pow(0.02, dt);
-    if (Math.abs(l.vx) < 1) l.vx = 0;
-    if (Math.abs(l.vy) < 1) l.vy = 0;
+    const impulse = holdInFront(l, dt, l.r + 12, l.r);
+    if (impulse > 0) damageLoot(l, impulse);
+    return;
   }
+  l.vx *= Math.pow(0.02, dt); l.vy *= Math.pow(0.02, dt);
+  if (Math.abs(l.vx) < 1) l.vx = 0;
+  if (Math.abs(l.vy) < 1) l.vy = 0;
   const pvx = l.vx, pvy = l.vy;
   let hitWall = false;
   if (hitsSolid(l.x + l.vx*dt, l.y, l.r*0.7)){ l.vx = -l.vx*0.25; hitWall = true; } else l.x += l.vx*dt;
@@ -604,18 +920,78 @@ function stepLoot(l, dt){
   l.invuln = Math.max(l.invuln, 0);
 }
 
+function stepCart(dt){
+  const cart = S.cart, p = S.player;
+  if (!cart) return;
+  if (cart.held){
+    const impulse = holdInFront(cart, dt, cart.r + 16, cart.r);
+    // A cart absorbs part of a crash, but it does not make the load safe — running a full
+    // cart into a doorframe still costs money, which is what keeps it a trade-off.
+    if (impulse > 0){
+      const reach = impulse * CART_IMPACT_ABSORB * (cart.mode === 'weak' ? 1.35 : 1);
+      for (const l of cart.items) damageLoot(l, reach);
+    }
+  }
+  // contents ride on the cart, laid out in a little grid so the stack reads at a glance
+  for (let i=0;i<cart.items.length;i++){
+    const l = cart.items[i];
+    if (l.gone) continue;
+    const col = i % 3, row = (i/3)|0;
+    l.x = cart.x + (col-1)*11; l.y = cart.y + (row-0.5)*11;
+    l.vx = l.vy = 0;
+  }
+  cart.items = cart.items.filter(l => !l.gone);
+}
+
+// STRONG vs WEAK, from the source game: grabbing the front of the cart — the face with the
+// money total on it — pushes properly; grabbing any other side is the awkward one.
+function cartGrabMode(p, cart){
+  const toPlayer = Math.atan2(p.y-cart.y, p.x-cart.x);
+  return Math.abs(angDiff(toPlayer, cart.face)) < CART_HANDLE_ARC ? 'strong' : 'weak';
+}
+function grabCart(p){
+  const cart = S.cart;
+  if (!cart || p.held) return false;
+  if (Math.hypot(cart.x-p.x, cart.y-p.y) > cart.r + grabRange(p)) return false;
+  cart.mode = cartGrabMode(p, cart);
+  cart.held = true; p.pushing = true;
+  cart.freeX = cart.x; cart.freeY = cart.y;
+  toast(cart.mode === 'strong' ? 'Đẩy xe — nắm đúng mặt trước' : 'Đẩy xe — nắm sai mặt, nặng hơn hẳn');
+  return true;
+}
+function releaseCart(p){
+  const cart = S.cart;
+  if (!cart || !cart.held) return;
+  cart.held = false; p.pushing = false;
+  cart.face = p.dir + Math.PI;                 // the handle ends up where you left it
+  cart.vx = cart.vy = 0;
+  // Parking a loaded cart on the open pad unloads the whole thing at once.
+  const pad = S.pads[S.padIndex];
+  if (pad && pad.active && !pad.done && cart.items.length &&
+      Math.abs(cart.x-pad.x) < TILE*2.4 && Math.abs(cart.y-pad.y) < TILE*2.4){
+    const n = cart.items.length, v = cartValue(cart);
+    for (const l of cart.items){ l.inCart = false; l.onPad = pad; pad.placed.push(l); }
+    cart.items = [];
+    recomputePad(pad);
+    toast('Dỡ ' + n + ' món lên bệ: ' + money(v));
+  }
+}
+
 function pickUp(p){
+  if (p.pushing){ releaseCart(p); return true; }
   if (p.held){ dropHeld(p); return true; }
   let best = null, bd = grabRange(p);
   for (const l of S.loot){
-    if (l.gone || l.held || l.onPad) continue;
+    if (l.gone || l.held || l.onPad || l.inCart) continue;
     const d = Math.hypot(l.x-p.x, l.y-p.y);
     if (d < bd){ bd = d; best = l; }          // doc: nearest within range wins
   }
-  if (!best) return false;
+  if (!best) return grabCart(p);              // nothing to pick up: take the cart handle
   best.held = true;
   best.grace = S.time + GRACE_AFTER_PICKUP;   // C3-5: no damage in the first second after pickup
   best.vx = best.vy = 0;
+  best.freeX = p.x + Math.cos(p.dir)*(best.r+12);
+  best.freeY = p.y + Math.sin(p.dir)*(best.r+12);
   p.held = best;
   return true;
 }
@@ -625,6 +1001,16 @@ function dropHeld(p){
   l.held = false; l.vx *= 0.3; l.vy *= 0.3;
   l.grace = S.time + 0.35;
   p.held = null;
+  // onto the cart first — you walk up to the cart to load it, so it must win over the floor
+  const cart = S.cart;
+  if (cart && Math.hypot(l.x-cart.x, l.y-cart.y) < cart.r + TILE*1.4){
+    if (cartFits(cart, l)){
+      l.inCart = true; cart.items.push(l);
+      toast('Chất lên xe: ' + money(l.value) + ' (' + cart.items.length + '/' + CART_SLOTS + ')');
+      return;
+    }
+    toast(l.sizeIdx > CART_MAX_SIZE ? 'Món to quá, xe không chở được' : 'Xe đầy rồi');
+  }
   const pad = S.pads[S.padIndex];
   if (pad && pad.active && !pad.done &&
       Math.abs(l.x-pad.x) < TILE*1.9 && Math.abs(l.y-pad.y) < TILE*1.9){
@@ -644,6 +1030,32 @@ function stepMonsters(dt){
     const d = MONSTERS[m.type];
     m.wob += dt*4; m.hit = Math.max(0, m.hit - dt);
     const dist = Math.hypot(p.x-m.x, p.y-m.y);
+
+    // knockback decays wherever it came from — a tranq dart, a bomb, or a shove
+    if (m.kx || m.ky){
+      moveEnt(m, m.kx*dt, m.ky*dt, 9);
+      m.kx *= Math.pow(0.02, dt); m.ky *= Math.pow(0.02, dt);
+      if (Math.abs(m.kx) < 2) m.kx = 0;
+      if (Math.abs(m.ky) < 2) m.ky = 0;
+    }
+    m.shoveCd = Math.max(0, (m.shoveCd || 0) - dt);
+    if (m.sleep > 0){
+      m.sleep -= dt; m.alert = 0; m.state = 'sleep';
+      continue;                       // tranquillised: it neither hunts nor hits
+    }
+
+    // Đẩy: walking into something shoves it away instead of standing there being chewed.
+    // WHY the cooldown and the ASSIGNMENT: this first added to the knockback every frame
+    // while in contact, which at 60 fps compounds against a 0.94/frame decay and settles
+    // near 1900 px/s — the shove launched monsters clean across the map.
+    // ROOT-CAUSE: a per-contact impulse was written as a per-frame force.
+    if (S.upg.push > 0 && dist < 26 && m.shoveCd <= 0){
+      const a = Math.atan2(m.y-p.y, m.x-p.x);
+      const shove = 150 + 90 * S.upg.push;
+      m.kx = Math.cos(a) * shove;
+      m.ky = Math.sin(a) * shove;
+      m.shoveCd = 0.5;
+    }
 
     let detects = false;
     if (d.sight > 0 && dist < d.sight*TILE && losClear(m.x,m.y,p.x,p.y)){
@@ -702,10 +1114,15 @@ function killMonster(m){
 function useSlot(p, i, aimed){
   const it = p.inv[i];
   if (!it || it.uses <= 0 || p.cooldown > 0 || S.dead) return false;
+  const def = GEAR_BY_KEY[it.kind];
+  if (def && def.passive) return false;          // the tracker works by being equipped
   const ang = aimed !== undefined ? aimed : p.dir;
   if (it.kind === 'gun'){
-    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9 });
+    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun' });
     it.uses--; p.cooldown = 0.45;
+  } else if (it.kind === 'tranq'){
+    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*520, vy:Math.sin(ang)*520, life:1.0, kind:'tranq' });
+    it.uses--; p.cooldown = 0.6;
   } else if (it.kind === 'heal'){
     p.hp = Math.min(p.hpMax, p.hp + 45); it.uses--; p.cooldown = 0.4;
     toast('Hồi máu');
@@ -713,8 +1130,18 @@ function useSlot(p, i, aimed){
     S.bombs.push({ x:p.x + Math.cos(ang)*30, y:p.y + Math.sin(ang)*30,
                    vx:Math.cos(ang)*300, vy:Math.sin(ang)*300, t:0, fuse:1.4, r:TILE*3.4, done:false, owner:'player' });
     it.uses--; p.cooldown = 0.5;
-  }
+  } else if (it.kind === 'float'){
+    p.floatT = 20; it.uses--; p.cooldown = 0.4;
+    toast('Phản trọng lực — 20 giây');
+  } else if (it.kind === 'shield'){
+    p.shieldT = 25; it.uses--; p.cooldown = 0.4;
+    toast('Bọc chống vỡ — 25 giây');
+  } else return false;
+  if (it.uses <= 0) p.inv[i] = null;              // used up, and the slot frees for the locker
   return true;
+}
+function hasGear(p, key){
+  return p.inv.some(it => it && it.kind === key && it.uses > 0);
 }
 function stepProjectiles(dt){
   for (let i=S.bullets.length-1;i>=0;i--){
@@ -725,9 +1152,15 @@ function stepProjectiles(dt){
     b.x = nx; b.y = ny;
     for (const m of S.monsters){
       if (Math.hypot(m.x-b.x, m.y-b.y) < 13){
-        m.hp -= 25; m.alert = 3;
+        if (b.kind === 'tranq'){
+          // Source game's Tranq Gun: non-lethal, it just takes the thing out of the fight.
+          m.sleep = 12; m.alert = 0; m.state = 'sleep';
+          toast(MONSTERS[m.type].name + ' ngủ rồi');
+        } else {
+          m.hp -= 25; m.alert = 3;
+          if (m.hp <= 0) killMonster(m);
+        }
         S.bullets.splice(i,1);
-        if (m.hp <= 0) killMonster(m);
         break;
       }
     }
@@ -807,10 +1240,24 @@ function die(){
   S.corpses.push({ x:S.player.x, y:S.player.y });
   showVeil('Ca trực kết thúc',
     'Bạn gục ở màn ' + S.level + '. Trong bản nhiều người, đồng đội có thể vác đầu bạn về bệ để hồi sinh — bản một người này thì mất cả ca.',
-    'Làm lại từ màn 1', () => { S.level = 1; S.wallet = 0; S.upg = {hp:0,stam:0,str:0,range:0,light:0,grip:0}; S.player = newPlayer(); startLevel(); });
+    'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
+}
+// Doc B4: losing a run costs everything — money, upgrades, and the locker. That is what
+// gives the quota weight; if a loss only cost one level nobody would fear it.
+function resetRun(){
+  S.level = 1; S.wallet = 0;
+  S.upg = newUpgrades();
+  S.upgSpawned = {}; S.gearBought = {};
+  S.stash = []; S.offer = null;
+  // Reset the player IN PLACE. buildLevel, the bot and the test hooks all hold a reference
+  // to this object; swapping it for a new one silently detaches every one of them, and the
+  // detached copy keeps answering questions with stale values instead of failing loudly.
+  const fresh = newPlayer();
+  if (S.player) Object.assign(S.player, fresh); else S.player = fresh;
 }
 function finishLevel(){
   S.running = false;
+  S.offer = null;              // a fresh visit rolls fresh stock
   showShop();
 }
 function startLevel(seed){
@@ -832,10 +1279,11 @@ function setupInput(){
   const cv = CV();
   addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
-    if (['w','a','s','d','e','r','1','2','3','shift','tab',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
-    if (k === 'r'){ S.level = 1; S.wallet = 0; startLevel(); return; }
+    if (['w','a','s','d','e','f','r','1','2','3','shift','tab',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+    if (k === 'r'){ resetRun(); startLevel(); return; }
     if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
     if (k === 'e'){ pickUp(S.player); return; }
+    if (k === 'f'){ toggleStash(); return; }
     if (k === '1' || k === '2' || k === '3'){ useSlot(S.player, +k - 1); return; }
     keys.add(k);
   });
@@ -845,6 +1293,18 @@ function setupInput(){
     cv.setPointerCapture(e.pointerId);
     const p = canvasPoint(e);
     const hud = hudLayout();
+    // The two left-hand buttons are real touch targets, not decoration.
+    // WHY: they were drawn but never hit-tested, so on a phone — the platform this design
+    // is for — the grab button did nothing and a touch there was read as a movement stick.
+    // ROOT-CAUSE: pointerdown split the screen in half before testing any button.
+    // SEE: doc C2-4, which moved the grab button to the left thumb precisely so it is used.
+    if (S.player && Math.hypot(p.x-hud.grab.x, p.y-hud.grab.y) < hud.grab.r*1.25){
+      pickUp(S.player); return;
+    }
+    if (S.player && nearTruck(S.player) &&
+        Math.hypot(p.x-hud.stash.x, p.y-hud.stash.y) < hud.stash.r*1.25){
+      toggleStash(); return;
+    }
     // item slots first: a drag that STARTS on a slot is aiming, not looking (doc C2-5)
     for (let i=0;i<3;i++){
       const s = hud.slots[i];
@@ -924,17 +1384,27 @@ function hudLayout(){
   });
   // pickup moves to the LEFT of the screen (doc C2-4) — grabbing needs no aim
   const grab = { x: left.x + stickR_*0.15, y: left.y - stickR_*1.75, r: sr*1.06 };
-  return { w, h, left, right, slots, grab, pad };
+  // the locker button sits above the grab button, on the same thumb, and only appears
+  // when the truck is within reach — it is a start-room action, not a field one
+  const stash = { x: grab.x + sr*1.9, y: grab.y - sr*1.5, r: sr*1.06 };
+  return { w, h, left, right, slots, grab, stash, pad };
 }
+function nearTruck(p){ return Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*3.2; }
 
 // ============================================================ step
 function step(dt){
   S.time += dt;
+  S.ticks = (S.ticks || 0) + 1;   // the fixed-step counter; a render frame may run 0, 1 or 2
   S.messageT = Math.max(0, S.messageT - dt);
   const p = S.player;
   if (!p) return;
   p.cooldown = Math.max(0, p.cooldown - dt);
   p.hurt = Math.max(0, p.hurt - dt);
+  p.dashT = Math.max(0, p.dashT - dt);
+  p.dashCd = Math.max(0, p.dashCd - dt);
+  p.runTapT = Math.max(0, p.runTapT - dt);
+  p.floatT = Math.max(0, p.floatT - dt);
+  p.shieldT = Math.max(0, p.shieldT - dt);
 
   // ---- movement intent
   let vx = 0, vy = 0, push = 0;
@@ -959,11 +1429,30 @@ function step(dt){
   if (push > 0.85) tier = 2; else if (push > 0.35) tier = 1;
   if (tier === 2 && p.stam <= 0) tier = 1;
   const moving = !!(vx || vy);
-  p.noise = !moving ? 0 : tier === 2 ? 2 : tier === 1 ? 1 : 0.25;
+
+  // Lướt né: no new button, because C2 fixed the control scheme. A double-tap of the
+  // input that already means "run" — the stick hitting its rim, or Shift — is the gesture.
+  const runNow = tier === 2 && moving;
+  if (runNow && !p.wasRun){
+    if (p.runTapT > 0 && S.upg.dash > 0 && p.dashCd <= 0 && p.stam > 18){
+      p.dashT = 0.18; p.dashCd = 2.4 - Math.min(1.2, S.upg.dash*0.4);
+      p.stam = Math.max(0, p.stam - 18);
+      p.runTapT = 0;
+    } else p.runTapT = 0.35;
+  }
+  p.wasRun = runNow;
+
+  p.noise = !moving ? 0 : p.dashT > 0 ? 2.4 : tier === 2 ? 2 : tier === 1 ? 1 : 0.25;
   if (S.noiseOverride != null) p.noise = S.noiseOverride;
-  const tierMul = tier === 2 ? 1.5 : tier === 1 ? 1.0 : 0.5;
+  let tierMul = tier === 2 ? 1.5 * (1 + S.upg.sprint*0.20) : tier === 1 ? 1.0 : 0.5;
+  if (p.dashT > 0) tierMul *= 3.2;
   if (tier === 2){ p.stam = Math.max(0, p.stam - STAM_DRAIN*dt); }
-  else { p.stam = Math.min(p.stamMax, p.stam + STAM_REGEN*dt*(tier===0?1.4:1)); }
+  else {
+    // Hồi thể lực nhanh: standing still is already the fastest recovery; the upgrade
+    // widens that gap, so holding position near a blind hunter pays twice.
+    const idle = !moving || tier === 0;
+    p.stam = Math.min(p.stamMax, p.stam + STAM_REGEN*dt*(tier===0?1.4:1)*(idle ? 1 + S.upg.regen*0.5 : 1));
+  }
 
   if (vx || vy){
     const sp = playerSpeed(p) * tierMul;
@@ -988,6 +1477,7 @@ function step(dt){
   }
 
   for (const l of S.loot) stepLoot(l, dt);
+  stepCart(dt);
   if (!S.noFoes) stepMonsters(dt);
   stepProjectiles(dt);
   stepExtraction(dt);
@@ -1036,7 +1526,7 @@ function draw(){
 
   worldTransform(c);
   c.drawImage(S.worldCv, 0, 0);
-  drawPads(c); drawLoot(c); drawCar(c); drawMonsters(c); drawProjectiles(c); drawPlayer(c);
+  drawPads(c); drawCart(c); drawLoot(c); drawCar(c); drawMonsters(c); drawProjectiles(c); drawPlayer(c);
 
   buildLight();
   c.setTransform(1,0,0,1,0,0);
@@ -1118,6 +1608,30 @@ function drawCar(c){
   c.strokeStyle = 'rgba(200,220,235,0.35)'; c.lineWidth = 1.5;
   c.strokeRect(x-TILE*1.5, y-TILE, TILE*3, TILE*2);
 }
+function drawCart(c){
+  const cart = S.cart;
+  if (!cart) return;
+  const r = cart.r;
+  c.save(); c.translate(cart.x, cart.y);
+  c.fillStyle = 'rgba(0,0,0,0.45)';
+  c.beginPath(); c.ellipse(0, r*0.75, r*1.05, r*0.45, 0, 0, Math.PI*2); c.fill();
+  c.fillStyle = '#4a525c'; c.fillRect(-r, -r*0.8, r*2, r*1.6);
+  c.strokeStyle = cart.held ? '#d0a253' : '#79838f'; c.lineWidth = 2.4;
+  c.strokeRect(-r, -r*0.8, r*2, r*1.6);
+  c.fillStyle = '#2b3138';
+  c.fillRect(-r*0.85, r*0.62, r*0.5, r*0.34); c.fillRect(r*0.35, r*0.62, r*0.5, r*0.34);
+  // the handle bar marks the front — the face you must grab for STRONG mode
+  c.rotate(cart.face);
+  c.strokeStyle = cart.mode === 'weak' && cart.held ? '#b8544a' : '#e0c07a';
+  c.lineWidth = 3;
+  c.beginPath(); c.moveTo(r*0.95, -r*0.5); c.lineTo(r*0.95, r*0.5); c.stroke();
+  c.restore();
+  // the money total, on the front face, exactly like the source game
+  c.font = '700 11px ui-monospace, monospace'; c.textAlign = 'center';
+  c.fillStyle = cart.items.length ? '#e0c07a' : '#8b939d';
+  c.fillText(money(cartValue(cart)) + '  ' + cart.items.length + '/' + CART_SLOTS, cart.x, cart.y - r - 6);
+  c.textAlign = 'left';
+}
 function drawPads(c){
   for (const pad of S.pads){
     const col = pad.done ? '#3a4a42' : pad.active ? '#4fa87a' : '#5a6570';
@@ -1166,8 +1680,15 @@ function drawMonsters(c){
     c.beginPath();
     c.moveTo(-9,10); c.lineTo(-7,-9+s); c.lineTo(0,-14); c.lineTo(7,-9-s); c.lineTo(9,10);
     c.closePath(); c.fill();
-    c.fillStyle = m.state === 'chase' ? d.eye : 'rgba(120,100,90,0.8)';
-    c.fillRect(-4,-9,2.4,2.4); c.fillRect(1.6,-9,2.4,2.4);
+    if (m.sleep > 0){
+      c.strokeStyle = 'rgba(150,190,220,0.9)'; c.lineWidth = 1.4;
+      c.beginPath(); c.moveTo(-4,-9); c.lineTo(-1.6,-9); c.moveTo(1.6,-9); c.lineTo(4,-9); c.stroke();
+      c.font = '600 10px ui-monospace, monospace'; c.fillStyle = 'rgba(160,200,230,0.9)';
+      c.fillText('z', 6, -14);
+    } else {
+      c.fillStyle = m.state === 'chase' ? d.eye : 'rgba(120,100,90,0.8)';
+      c.fillRect(-4,-9,2.4,2.4); c.fillRect(1.6,-9,2.4,2.4);
+    }
     c.restore();
   }
 }
@@ -1256,7 +1777,7 @@ function drawHud(c){
     ring(c, s.x, s.y, s.r, usable ? 'rgba(200,70,60,0.85)' : 'rgba(90,70,68,0.5)');
     c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = usable ? '#e6ebee' : '#6a6f74';
-    const label = it ? ({gun:'Súng', heal:'Máu', bomb:'Bom', sword:'Kiếm'})[it.kind] : '—';
+    const label = it ? (GEAR_BY_KEY[it.kind] ? GEAR_BY_KEY[it.kind].short : it.kind) : '—';
     c.fillText(label, s.x, s.y+3);
     if (it) c.fillText('x'+it.uses, s.x, s.y+s.r*0.78);
     c.textAlign = 'left';
@@ -1268,13 +1789,37 @@ function drawHud(c){
 
   // grab button, left side
   const near = nearestLoot(p);
-  ring(c, hud.grab.x, hud.grab.y, hud.grab.r, near || p.held ? 'rgba(80,190,120,0.9)' : 'rgba(70,90,78,0.45)');
+  const grabLit = near || p.held || p.pushing || nearCart(p);
+  ring(c, hud.grab.x, hud.grab.y, hud.grab.r, grabLit ? 'rgba(80,190,120,0.9)' : 'rgba(70,90,78,0.45)');
   c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
-  c.fillStyle = near || p.held ? '#e6ebee' : '#6a6f74';
-  c.fillText(p.held ? 'Thả' : 'Nhặt', hud.grab.x, hud.grab.y+4);
+  c.fillStyle = grabLit ? '#e6ebee' : '#6a6f74';
+  const grabLabel = p.pushing ? 'Buông' : p.held ? 'Thả' : nearCart(p) && !near ? 'Đẩy xe' : 'Nhặt';
+  c.fillText(grabLabel, hud.grab.x, hud.grab.y+4);
+
+  // locker button — only while you are standing at the truck
+  if (nearTruck(p)){
+    ring(c, hud.stash.x, hud.stash.y, hud.stash.r, 'rgba(120,160,215,0.9)');
+    c.fillStyle = '#dbe6f2';
+    c.fillText('Tủ đồ', hud.stash.x, hud.stash.y+4);
+  }
   c.textAlign = 'left';
 
+  // what is currently running on you, in one line — a buff you cannot see is a buff you
+  // cannot plan around, and both of these are bought with real money
+  const badges = [];
+  if (p.floatT > 0)  badges.push('Nhẹ ' + p.floatT.toFixed(0) + 's');
+  if (p.shieldT > 0) badges.push('Bọc ' + p.shieldT.toFixed(0) + 's');
+  if (S.upg.dash > 0 && p.dashCd > 0) badges.push('Lướt ' + p.dashCd.toFixed(1) + 's');
+  if (badges.length){
+    c.font = '600 11px ui-monospace, monospace';
+    c.fillStyle = '#8fd0b4';
+    c.fillText(badges.join('   '), 14, 52);
+  }
+
   c.restore();
+}
+function nearCart(p){
+  return S.cart && Math.hypot(S.cart.x-p.x, S.cart.y-p.y) < S.cart.r + grabRange(p);
 }
 function ring(c,x,y,r,col){ c.beginPath(); c.strokeStyle = col; c.lineWidth = 2.5; c.arc(x,y,r,0,Math.PI*2); c.stroke(); }
 function dot(c,x,y,r,col){ c.beginPath(); c.fillStyle = col; c.arc(x,y,r,0,Math.PI*2); c.fill(); }
@@ -1292,13 +1837,17 @@ function drawMinimap(c, hud){
   c.fillStyle = 'rgba(8,10,13,0.82)'; c.fillRect(x-3,y-3,w+6,h+6);
   c.strokeStyle = 'rgba(90,120,170,0.7)'; c.lineWidth = 1.5; c.strokeRect(x-3,y-3,w+6,h+6);
   const sx = w/MW, sy = h/MH;
-  for (let ri=0; ri<S.rooms.length; ri++){
-    const r = S.rooms[ri];
-    if (!r.seen) continue;
-    c.fillStyle = 'rgba(70,92,120,0.34)';
-    c.fillRect(x + r.cx*RW*sx, y + r.cy*RH*sy, RW*sx, RH*sy);
-    c.strokeStyle = 'rgba(120,150,190,0.45)'; c.lineWidth = 1;
-    c.strokeRect(x + r.cx*RW*sx, y + r.cy*RH*sy, RW*sx, RH*sy);
+  // blit the real tile layout of every room already entered, walls and all
+  if (S.mapCv){
+    const smooth = c.imageSmoothingEnabled;
+    c.imageSmoothingEnabled = false;
+    for (let ri=0; ri<S.rooms.length; ri++){
+      const r = S.rooms[ri];
+      if (!r.seen) continue;
+      c.drawImage(S.mapCv, r.cx*RW, r.cy*RH, RW, RH,
+                  x + r.cx*RW*sx, y + r.cy*RH*sy, RW*sx, RH*sy);
+    }
+    c.imageSmoothingEnabled = smooth;
   }
   // doc: minimap shows found loot, the active pad, and the way back to the car
   for (const l of S.loot){
@@ -1308,18 +1857,30 @@ function drawMinimap(c, hud){
     c.fillStyle = l.isBag ? '#e0b64a' : '#cfd8dc';
     c.fillRect(x + l.x/TILE*sx - 1.2, y + l.y/TILE*sy - 1.2, 2.4, 2.4);
   }
+  // The Extraction Tracker is a bought tool in the source game ("tells you where to escape"),
+  // so route-finding is what you pay for — not the objective itself. The pad you are working
+  // on is always marked; the ones you have not opened yet, and the line that walks you there,
+  // are the tracker's job.
+  const tracked = hasGear(S.player, 'tracker');
   for (const pad of S.pads){
+    if (!tracked && !pad.active && !pad.done && !(S.rooms[pad.ri] && S.rooms[pad.ri].seen)) continue;
     c.fillStyle = pad.done ? '#3d5a4c' : pad.active ? '#5ecf95' : '#6a747f';
     c.fillRect(x + pad.x/TILE*sx - 3, y + pad.y/TILE*sy - 3, 6, 6);
+  }
+  if (S.cart){
+    c.fillStyle = '#d0a253';
+    c.fillRect(x + S.cart.x/TILE*sx - 2.5, y + S.cart.y/TILE*sy - 2.5, 5, 5);
   }
   c.fillStyle = '#7fb6e0';
   c.fillRect(x + S.car.x/TILE*sx - 3.5, y + S.car.y/TILE*sy - 3.5, 7, 7);
   const target = S.levelDone ? S.car : (S.pads[S.padIndex] || S.car);
-  c.strokeStyle = 'rgba(120,220,170,0.5)'; c.lineWidth = 1.2;
-  c.beginPath();
-  c.moveTo(x + S.player.x/TILE*sx, y + S.player.y/TILE*sy);
-  c.lineTo(x + target.x/TILE*sx, y + target.y/TILE*sy);
-  c.stroke();
+  if (S.levelDone || tracked){
+    c.strokeStyle = 'rgba(120,220,170,0.5)'; c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(x + S.player.x/TILE*sx, y + S.player.y/TILE*sy);
+    c.lineTo(x + target.x/TILE*sx, y + target.y/TILE*sy);
+    c.stroke();
+  }
   c.fillStyle = '#ffd98a';
   c.fillRect(x + S.player.x/TILE*sx - 2, y + S.player.y/TILE*sy - 2, 4, 4);
 }
@@ -1331,6 +1892,10 @@ function showVeil(title, body, btnText, onClick, extraHtml){
   el('veilBody').textContent = body;
   el('veilExtra').innerHTML = extraHtml || '';
   el('veilKeys').style.display = extraHtml ? 'none' : '';
+  // "let the bot play" belongs to the title screen. On the shop or the locker it would hand
+  // the run to the agent while a panel is still open, and the panel's state goes stale.
+  const b2 = el('veilBtn2');
+  if (b2) b2.hidden = !!extraHtml;
   const b = el('veilBtn');
   b.textContent = btnText;
   b.onclick = onClick;
@@ -1338,30 +1903,151 @@ function showVeil(title, body, btnText, onClick, extraHtml){
 }
 function hideVeil(){ el('veil').hidden = true; }
 
+// The station rolls fresh stock every visit, in two separate sets.
+//   Upgrades — permanent, buyer-only, price climbs per purchase. Each one may be ROLLED at
+//              most UPGRADE_MAX_SPAWNS times in a run; after that it is gone for good, so a
+//              skipped offer is a real decision and not a thing you can wait out.
+//   Gear     — goes to the truck's locker, not to your hands, and survives every later level.
+//              Each has a per-run stock; once bought that many times it stops appearing.
+function rollShop(){
+  const rnd = mulberry32((S.seed ^ (S.level*2654435761)) >>> 0);
+  const pick = (pool, n) => {
+    const p = pool.slice();
+    for (let i=p.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [p[i],p[j]]=[p[j],p[i]]; }
+    return p.slice(0, n);
+  };
+  const upPool = UPGRADES.filter(u => (S.upgSpawned[u.key]||0) < UPGRADE_MAX_SPAWNS);
+  const gePool = GEAR.filter(g => (S.gearBought[g.key]||0) < g.stock);
+  const upgrades = pick(upPool, SHOP_UPGRADE_SLOTS);
+  // rolling it IS spawning it — this is the counter that retires an upgrade
+  for (const u of upgrades) S.upgSpawned[u.key] = (S.upgSpawned[u.key]||0) + 1;
+  return { upgrades, gear: pick(gePool, SHOP_GEAR_SLOTS) };
+}
+function upgradePrice(u){ return Math.round(u.base * Math.pow(1.6, S.upg[u.key])); }
+
 function showShop(){
-  const rows = UPGRADES.map(u => {
-    const lv = S.upg[u.key];
-    const price = Math.round(u.base * Math.pow(1.6, lv));
-    const can = S.wallet >= price;
-    return `<button class="up" data-key="${u.key}" data-price="${price}" ${can?'':'disabled'}>
+  if (!S.offer) S.offer = rollShop();
+  const o = S.offer;
+
+  const upRows = o.upgrades.map(u => {
+    const lv = S.upg[u.key], price = upgradePrice(u);
+    const left = UPGRADE_MAX_SPAWNS - (S.upgSpawned[u.key]||0);
+    return `<button class="up" data-key="${u.key}" data-price="${price}" ${S.wallet>=price?'':'disabled'}>
       <span class="t">${u.name} <span style="opacity:.6;font-weight:400">Lv ${lv}</span></span>
       <span class="d">${u.desc}</span>
-      <span class="p">${money(price)}</span></button>`;
-  }).join('');
+      <span class="p">${money(price)} <span style="opacity:.55">· còn ${left} lần xuất hiện</span></span>
+    </button>`;
+  }).join('') || `<div class="empty">Hết nâng cấp để bán — mỗi loại chỉ xuất hiện ${UPGRADE_MAX_SPAWNS} lần trong một ca.</div>`;
+
+  const geRows = o.gear.map(g => {
+    const left = g.stock - (S.gearBought[g.key]||0);
+    return `<button class="gear" data-key="${g.key}" data-price="${g.price}" ${S.wallet>=g.price?'':'disabled'}>
+      <span class="t">${g.name}</span>
+      <span class="d">${g.desc}</span>
+      <span class="p">${money(g.price)} <span style="opacity:.55">· ${g.passive?'trang bị là chạy':'x'+g.uses+' lượt'} · còn ${left}</span></span>
+    </button>`;
+  }).join('') || `<div class="empty">Hết đồ để bán trong ca này.</div>`;
+
   showVeil('Trạm dịch vụ — hết màn ' + S.level,
-    'Chỉ tiêu đã xong. Tiêu tiền trước khi vào ca sau; giá tăng mỗi lần mua cùng một thứ.',
+    'Chỉ tiêu đã xong. Nâng cấp ăn thẳng vào chỉ số của bạn; đồ mua về nằm trong tủ trên xe, ra ca sau tự lấy ở đó.',
     'Vào màn ' + (S.level+1),
-    () => { S.level++; startLevel(); },
-    `<div class="wallet">Ví: ${money(S.wallet)}</div><div class="shop">${rows}</div>`);
+    () => { S.level++; S.offer = null; startLevel(); },
+    `<div class="wallet">Ví: ${money(S.wallet)} &nbsp;·&nbsp; Tủ đồ: ${S.stash.length} món</div>
+     <div class="seg">Nâng cấp — vĩnh viễn, chỉ cho bạn</div><div class="shop">${upRows}</div>
+     <div class="seg">Đồ — cất vào tủ trên xe</div><div class="shop">${geRows}</div>`);
+
   el('veilExtra').querySelectorAll('.up').forEach(btn => {
     btn.addEventListener('click', () => {
       const key = btn.dataset.key, price = +btn.dataset.price;
       if (S.wallet < price) return;
       S.wallet -= price; S.upg[key]++;
-      if (key === 'hp'){ S.player.hpMax = 100 + S.upg.hp*20; S.player.hp = S.player.hpMax; }
-      if (key === 'stam'){ S.player.stamMax = STAM_MAX + S.upg.stam*10; S.player.stam = S.player.stamMax; }
-      if (key === 'str') S.player.str = 30 + S.upg.str*10;
+      applyUpgrades();
       showShop();
+    });
+  });
+  el('veilExtra').querySelectorAll('.gear').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.key, price = +btn.dataset.price;
+      if (S.wallet < price) return;
+      const def = GEAR_BY_KEY[key];
+      if ((S.gearBought[key]||0) >= def.stock) return;
+      S.wallet -= price;
+      S.gearBought[key] = (S.gearBought[key]||0) + 1;
+      S.stash.push({ kind:key, uses:def.uses });
+      // sold out now? drop it from this visit's stock so the row cannot be clicked again
+      if ((S.gearBought[key]||0) >= def.stock) S.offer.gear = S.offer.gear.filter(g => g.key !== key);
+      showShop();
+    });
+  });
+}
+function applyUpgrades(){
+  const p = S.player;
+  if (!p) return;
+  p.hpMax = 100 + S.upg.hp*20;   p.hp = p.hpMax;          // "+20 máu tối đa, và hồi đầy ngay"
+  p.stamMax = STAM_MAX + S.upg.stam*10; p.stam = p.stamMax;
+  p.str = 30 + S.upg.str*10;
+}
+
+// ---------- the truck locker
+// Doc/user requirement: gear bought at the station lands in a shared locker on the truck,
+// and the start room needs a button to open it. Nothing is carried automatically — you walk
+// to the truck and choose what goes in your three slots, and whatever you leave behind is
+// still there next level.
+function toggleStash(){
+  if (S.stashOpen){ closeStash(); return; }
+  if (!S.player || S.dead || !S.running) return;   // never over the shop or the intro veil
+  if (!nearTruck(S.player)){ toast('Phải đứng cạnh xe mới mở được tủ đồ'); return; }
+  S.stashOpen = true;
+  S.running = false;
+  showStash();
+}
+function closeStash(){
+  S.stashOpen = false;
+  hideVeil();
+  if (!S.dead) S.running = true;
+}
+function showStash(){
+  const p = S.player;
+  const slotRows = [0,1,2].map(i => {
+    const it = p.inv[i];
+    const def = it ? GEAR_BY_KEY[it.kind] : null;
+    return `<button class="up" data-slot="${i}" ${it?'':'disabled'}>
+      <span class="t">Ô ${i+1} — ${def ? def.name : 'trống'}</span>
+      <span class="d">${def ? def.desc : 'Chọn một món bên dưới để đưa vào ô này.'}</span>
+      <span class="p">${it ? 'x'+it.uses+' · bấm để trả lại tủ' : '—'}</span>
+    </button>`;
+  }).join('');
+  const stashRows = S.stash.map((it,i) => {
+    const def = GEAR_BY_KEY[it.kind];
+    return `<button class="gear" data-stash="${i}">
+      <span class="t">${def.name}</span>
+      <span class="d">${def.desc}</span>
+      <span class="p">x${it.uses} · bấm để cầm lên</span>
+    </button>`;
+  }).join('') || `<div class="empty">Tủ trống. Đồ mua ở trạm dịch vụ sẽ nằm ở đây.</div>`;
+
+  showVeil('Tủ đồ trên xe',
+    'Ba ô trên tay bắt đầu ca nào cũng rỗng. Lấy đồ ra khỏi tủ trước khi vào nhà; thứ để lại vẫn còn nguyên cho ca sau.',
+    'Đóng tủ', closeStash,
+    `<div class="wallet">Ví: ${money(S.wallet)}</div>
+     <div class="seg">Ba ô trên tay</div><div class="shop">${slotRows}</div>
+     <div class="seg">Trong tủ (${S.stash.length})</div><div class="shop">${stashRows}</div>`);
+
+  el('veilExtra').querySelectorAll('[data-slot]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = +btn.dataset.slot;
+      if (!p.inv[i]) return;
+      S.stash.push(p.inv[i]); p.inv[i] = null;
+      showStash();
+    });
+  });
+  el('veilExtra').querySelectorAll('[data-stash]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = +btn.dataset.stash;
+      const free = p.inv.indexOf(null);
+      if (free < 0){ toast('Ba ô đã đầy'); return; }
+      p.inv[free] = S.stash.splice(i,1)[0];
+      showStash();
     });
   });
 }
@@ -1373,7 +2059,11 @@ function updateBar(){
   if (S.levelDone){ q.textContent = 'xong — về xe'; q.classList.add('met'); }
   else if (pad){ q.textContent = money(pad.value) + ' / ' + money(pad.quota); q.classList.toggle('met', pad.value >= pad.quota); }
   el('hWallet').textContent = money(S.wallet);
-  el('hCarry').textContent = S.player && S.player.held ? (S.player.held.size + ' · ' + money(S.player.held.value)) : '—';
+  const p = S.player;
+  el('hCarry').textContent =
+    p && p.pushing && S.cart ? ('xe đẩy · ' + S.cart.items.length + '/' + CART_SLOTS + ' · ' + money(cartValue(S.cart)))
+    : p && p.held ? (p.held.size + ' · ' + money(p.held.value))
+    : '—';
   el('hPads').textContent = S.pads.filter(p=>p.done).length + '/' + S.pads.length;
   el('hSeed').textContent = String(S.seed).padStart(6,'0');
 }
@@ -1406,7 +2096,7 @@ window.__boot = function(){
   el('veilBtn').onclick = () => { S.running = true; hideVeil(); };
   el('veilBtn2').hidden = false;
   el('veilBtn2').onclick = () => { S.running = true; hideVeil(); setBot(true); };
-  el('newBtn').onclick = () => { S.level = 1; S.wallet = 0; startLevel(); };
+  el('newBtn').onclick = () => { resetRun(); startLevel(); };
   el('foeBtn').onclick = () => {
     S.noFoes = !S.noFoes;
     el('foeBtn').setAttribute('aria-pressed', S.noFoes ? 'true' : 'false');
@@ -1429,8 +2119,23 @@ window.REPO = {
   S, TILE, MW, MH, RW, RH, GX, GY, WPX, HPX,
   solidAt, losClear, hitsSolid, money, clamp, angDiff,
   pickUp, dropHeld, useSlot, playerSpeed, grabRange, nearestLoot,
-  startLevel, setBot,
+  startLevel, setBot, resetRun,
   damageLoot,
+  UPGRADES, GEAR, GEAR_BY_KEY, UPGRADE_MAX_SPAWNS, CART_SLOTS, CART_MAX_SIZE,
+  grabCart, releaseCart, cartValue, cartLoad, cartFits, nearTruck, hasGear,
+  toggleStash, rollShop,
+  giveGear(key, n){
+    const def = GEAR_BY_KEY[key];
+    for (let i=0;i<(n||1);i++) S.stash.push({ kind:key, uses:def.uses });
+    return S.stash.length;
+  },
+  equip(key){
+    const i = S.stash.findIndex(it => it.kind === key);
+    const free = S.player.inv.indexOf(null);
+    if (i < 0 || free < 0) return false;
+    S.player.inv[free] = S.stash.splice(i,1)[0];
+    return true;
+  },
   get timeScale(){ return timeScale; },
   set timeScale(v){ timeScale = clamp(v, 0.1, 12); },
   get dmgMult(){ return DMG_MULT; },
@@ -1452,13 +2157,22 @@ window.REPO = {
       hp:p?p.hp:0, hpMax:p?p.hpMax:0, stam:p?p.stam:0, str:p?p.str:0,
       x:p?p.x:0, y:p?p.y:0, dir:p?p.dir:0, noise:p?p.noise:0,
       held: p&&p.held ? { size:p.held.size, value:p.held.value, value0:p.held.value0, mat:p.held.mat.key } : null,
+      inv: p ? p.inv.map(it => it ? { kind:it.kind, uses:it.uses } : null) : [],
+      stash: S.stash.map(it => ({ kind:it.kind, uses:it.uses })),
+      pushing: !!(p && p.pushing),
+      cart: S.cart ? { x:S.cart.x, y:S.cart.y, items:S.cart.items.length, value:cartValue(S.cart),
+                       held:S.cart.held, mode:S.cart.mode } : null,
+      upgSpawned: Object.assign({}, S.upgSpawned),
+      gearBought: Object.assign({}, S.gearBought),
+      offer: S.offer ? { upgrades:S.offer.upgrades.map(u=>u.key), gear:S.offer.gear.map(g=>g.key) } : null,
       loot: S.loot.filter(l=>!l.gone).length,
       lootTotal: S.loot.length,
       lootValue: S.loot.reduce((a,l)=>a+(l.gone?0:l.value),0),
       lootValue0: S.loot.reduce((a,l)=>a+l.value0,0),
       monsters: S.monsters.length,
       chasing: S.monsters.filter(m=>m.state==='chase').length,
-      pads: S.pads.map(q=>({ quota:q.quota, value:q.value, done:q.done, active:q.active })),
+      pads: S.pads.map(q=>({ quota:q.quota, value:q.value, done:q.done, active:q.active, ri:q.ri })),
+      carRoom: 0, GX, GY,
       padIndex: S.padIndex,
       quotaTotal: S.quotaTotal,
       countdown: S.countdown,
