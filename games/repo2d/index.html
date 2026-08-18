@@ -49,8 +49,30 @@
   .quota{color:var(--amber);}
   .quota.met{color:#6fbf73;}
 
-  .screen{position:relative;flex:1 1 auto;min-height:0;background:#000;}
+  /* The page already asks for the full screen with viewport-fit=cover, so the canvas can run
+     under a notch or the home indicator. This game draws its two thumb sticks and its item slots
+     into the canvas corners, and it is meant to be played on a phone held sideways — where the
+     cutout eats exactly those corners. Inset the play area by the safe insets and let the black
+     page show through instead. */
+  .screen{
+    position:relative;flex:1 1 auto;min-height:0;background:#000;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right)
+            env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .bar{padding-left:calc(13px + env(safe-area-inset-left));padding-right:calc(13px + env(safe-area-inset-right));}
   canvas#game{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair;}
+
+  /* Held upright, this game is unplayable: both thumbs need a bottom corner each, and the house
+     is drawn wider than it is tall. Say so instead of letting the player wonder. */
+  .rotate{display:none;}
+  @media (orientation:portrait) and (max-height:820px) and (pointer:coarse){
+    .rotate{
+      display:flex;position:absolute;inset:0;z-index:5;flex-direction:column;
+      align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;
+      background:rgba(6,7,9,.97);color:var(--ink-dim);font-size:14px;line-height:1.6;
+    }
+    .rotate .glyph{font-size:34px;color:var(--amber);}
+  }
 
   .veil{
     position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -123,6 +145,11 @@
 
   <div class="screen">
     <canvas id="game" width="1280" height="720" aria-label="Trò chơi khuân đồ nhìn từ trên xuống"></canvas>
+
+    <div class="rotate" aria-hidden="true">
+      <div class="glyph">⟳</div>
+      <div>Xoay ngang máy để chơi.<br>Hai ngón cái cần hai góc dưới màn hình.</div>
+    </div>
 
     <div class="veil" id="veil">
       <h2 id="veilTitle">Ca Trực Đêm</h2>

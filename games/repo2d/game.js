@@ -15,7 +15,29 @@ const RW = 21, RH = 15;          // room size in tiles
 const GX = 3,  GY = 3;           // rooms per level
 const MW = RW * GX, MH = RH * GY;
 const WPX = MW * TILE, HPX = MH * TILE;
-const ZOOM = 1.55;
+const ZOOM = 1.55;               // authored at 1280x720; zoom() scales it to keep the view honest
+// How much HOUSE fits on screen must not depend on how big the screen is. The Unity build's
+// camera fixes its world height and lets the width follow the aspect; this build multiplied a
+// fixed zoom by whatever the canvas happened to be, so a phone in landscape (about 380 CSS px
+// tall) showed barely half the world a desktop did — on the platform the control scheme was
+// designed for. Now both builds show the same 464 world px of height on any screen.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+const VIEW_H_WORLD = 720 / ZOOM;   // 464 px of house, top to bottom, everywhere
+const zoom = () => viewH / VIEW_H_WORLD;
+
+// A corridor the generator carves to repair a walled-off room. Doors are already 3 tiles wide;
+// this is the same width, so a repaired room is a room the cart can still be pushed into.
+// WHY: the cart is 40 px across and a tile is 24, so a one-tile corridor is a corridor only the
+// player fits through — the repair pass was quietly building rooms the whole haul loop excludes.
+// ROOT-CAUSE: corridor width was a hard-coded 1 chosen for reachability, and reachability was
+// only ever tested with the player's 15 px box.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+const REPAIR_CORRIDOR_TILES = 3;
+
+// The route on the minimap is drawn for everyone, not only for the owner of the Extraction
+// Tracker. Set false to put the route back behind that purchase, which is what the design doc
+// originally sold. SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+const MINIMAP_ROUTE_ALWAYS = true;
 
 const FLOOR = 0, WALL = 1, PROP = 2;
 
@@ -83,8 +105,8 @@ const ROOMS = [
     '#...................#',
     '#.........M.........#',
     '#...................#',
-    '#..T.L.........L.T..#',
-    '#..TT...........TT..#',
+    '#....L.........L....#',
+    '#.TTT...........TTT.#',
     '#....S.........S....#',
     '#P...S.........S...P#',
     '#...................#',
@@ -112,8 +134,8 @@ const ROOMS = [
     '#.L...T.....T...L...#',
     '#.....T.....T.......#',
     '#.TTTTT.....TTTTT...#',
-    '#...................#',
-    '#....CCC.M.CCC......#',
+    '#...CCC.....CCC.....#',
+    '#........M..........#',
     '#...................#',
     '#...................#',
     '#.TTTTT.....TTTTT...#',
@@ -160,11 +182,11 @@ const ROOMS = [
     '#...PPPPP...PPPPP...#',
     '#...P...........P...#',
     '#...P...L.L.....P...#',
-    '#...P...........P...#',
-    '#...P...........P...#',
+    '#..PP..........PP...#',
+    '#...................#',
     '#.........M.........#',
-    '#...P...........P...#',
-    '#...P...........P...#',
+    '#...................#',
+    '#..PP..........PP...#',
     '#...P...L.L.....P...#',
     '#...P...........P...#',
     '#...PPPPP...PPPPP...#',
@@ -185,6 +207,22 @@ const ROOMS = [
     '#.TTT.........TTT...#',
     '#.SS...........SS...#',
     '#...................#',
+    '#####################' ]},
+  { name:'Phòng ăn', floor:'wood', rows:[
+    '#####################',
+    '#.S.....T...TT....S.#',
+    '#.S...TTT...T.....S.#',
+    '#.....T.T...TT......#',
+    '#.L...T.T...T.....L.#',
+    '#.....TTT...T.......#',
+    '#.........M.........#',
+    '#...................#',
+    '#...................#',
+    '#.....TTT...TT......#',
+    '#.L...T.T...TT....L.#',
+    '#.....T.T...T.......#',
+    '#.S...TTT...T.....S.#',
+    '#.S.....T...T.....S.#',
     '#####################' ]},
   { name:'Phòng tắm', floor:'tile', rows:[
     '#####################',
@@ -270,7 +308,7 @@ const GEAR = [
   { key:'tranq',   name:'Súng gây mê',     short:'Mê',   desc:'Không giết, nhưng ru con quái trúng đạn ngủ 12 giây.', uses:3, price: 12000, stock:3 },
   { key:'bomb',    name:'Lựu đạn',         short:'Bom',  desc:'Ném ra, nổ sau 1,4 giây. Nổ gần đồ là mất tiền.',      uses:2, price: 7000,  stock:5 },
   { key:'heal',    name:'Băng cứu thương', short:'Máu',  desc:'Hồi 45 máu ngay lập tức.',                             uses:2, price: 4500,  stock:6 },
-  { key:'tracker', name:'Máy dò bệ',       short:'Dò',   desc:'Vẽ đường tới bệ đang mở, và hiện cả những bệ chưa mở.',uses:1, price: 6000,  stock:2, passive:true },
+  { key:'tracker', name:'Máy dò bệ',       short:'Dò',   desc:'Hiện những bệ bạn chưa tìm ra, và vẽ đường tới chúng.',uses:1, price: 6000,  stock:2, passive:true },
   { key:'float',   name:'Bình phản trọng lực', short:'Nhẹ', desc:'20 giây món đang vác nhẹ như không.',               uses:2, price: 10000, stock:3 },
   { key:'shield',  name:'Keo bọc chống vỡ',short:'Bọc',  desc:'25 giây món đang vác không mất giá trị dù va đập.',    uses:2, price: 11000, stock:3 }
 ];
@@ -287,7 +325,17 @@ const CART_MASS       = 40;        // the cart's own weight, before anything is 
 const CART_EFFICIENCY = 3.4;       // wheels: loaded mass costs this much less than carrying
 const CART_WEAK_MUL   = 0.55;      // pushing from the wrong side
 const CART_HANDLE_ARC = 1.05;      // how wide the "front" is, in radians either side
-const CART_IMPACT_ABSORB = 0.45;   // a slam into a wall reaches the contents this much reduced
+// 0 = the load rides protected: a slam costs you the wall, never the contents. That is the source
+// game's rule — a mod exists (RemoveCartProtection) whose entire job is to undo it. Raise this
+// above 0 and the fraction of a crash that reaches the load comes back.
+// WHY: the cart is the only way to move six things in one trip, and charging money for using it
+// correctly made bare hands the better play.
+// ROOT-CAUSE: impact damage was applied to whatever was in reach of the collision, and being in
+// the cart was never treated as a state that changes what a collision means.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+const CART_IMPACT_ABSORB = 0;
+const CART_TURN_PENALTY  = 0.5;    // the cart's share of the turn penalty — the one place its mass still tells
+const CART_WEAK_SPEED_MUL = 0.7;   // wrong-side grab: a choice you pay for in speed, not in weight
 const CART_MAX_SIZE   = 1;         // index into SIZES: 'to' (2) will not fit on the cart
 
 // ============================================================ state
@@ -335,13 +383,14 @@ const solidAt = (gx,gy) => (gx<0||gy<0||gx>=MW||gy>=MH) ? true : S.grid[gy*MW+gx
 // ============================================================ world generation
 function buildLevel(seed){
   S.seed = seed;
+  S.buildId = (S.buildId || 0) + 1;      // every rebuild invalidates the cached minimap route
   const rnd = mulberry32(seed);
   S.grid = new Uint8Array(MW*MH);
   S.explored = new Uint8Array(MW*MH);
   S.rooms = []; S.loot = []; S.monsters = []; S.pads = [];
   S.bullets = []; S.bombs = []; S.corpses = [];
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
-  S.levelDone = false; S.dead = false; S.hurtLog = [];
+  S.levelDone = false; S.dead = false; S.hurtLog = []; S.shiftLost = false;
 
   const lootSpots = [], monSpots = [];
   const order = ROOMS.map((_,i)=>i);
@@ -371,7 +420,7 @@ function buildLevel(seed){
 
   // Doc: rooms meet at authored door points; unused doors get sealed. Here every shared
   // edge gets one 3-wide door, which is what "connected by door points" comes to on a grid.
-  const carve = (gx,gy) => { if (gx>0&&gy>0&&gx<MW-1&&gy<MH-1) S.grid[gy*MW+gx] = FLOOR; };
+  const carve = carveTile;                              // never the map border; see carveTile
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
     const my = cy*RH + (RH>>1), mx = cx*RW + (RW>>1);
     if (cx < GX-1){ const col=(cx+1)*RW; for(let d=-1;d<=1;d++) for(let o=-2;o<=1;o++) carve(col+o, my+d); }
@@ -383,6 +432,9 @@ function buildLevel(seed){
   const cgx = (carRoom%GX)*RW + (RW>>1), cgy = ((carRoom/GX)|0)*RH + (RH>>1);
   for (let y=cgy-2; y<=cgy+2; y++) for (let x=cgx-2; x<=cgx+2; x++) carve(x,y);
   S.car.x = (cgx+0.5)*TILE; S.car.y = (cgy+0.5)*TILE;
+  // Where the cart will be parked, needed before it exists: the passability post-condition below
+  // has to know the tile it starts on. Same numbers makeCart is called with, kept in one place.
+  const cartSpawnX = S.car.x + TILE*2.6, cartSpawnY = S.car.y + TILE*0.4;
 
   let reach = flood(cgx, cgy);
   for (let pass=0; pass<2; pass++){
@@ -392,9 +444,13 @@ function buildLevel(seed){
       for (let y=cy*RH; y<(cy+1)*RH; y++) for (let x=cx*RW; x<(cx+1)*RW; x++) if (reach[y*MW+x]) n++;
       if (n < 14){
         repaired = true;
+        // REPAIR_CORRIDOR_TILES wide, centred on the room's middle row and column. A one-tile
+        // corridor reconnected the room for the player and left it sealed for the cart.
+        // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
         const my = cy*RH+(RH>>1), mx = cx*RW+(RW>>1);
-        for (let x=cx*RW+1; x<(cx+1)*RW-1; x++) carve(x,my);
-        for (let y=cy*RH+1; y<(cy+1)*RH-1; y++) carve(mx,y);
+        const lo = -((REPAIR_CORRIDOR_TILES-1)>>1), hi = lo + REPAIR_CORRIDOR_TILES - 1;
+        for (let x=cx*RW+1; x<(cx+1)*RW-1; x++) for (let d=lo; d<=hi; d++) carve(x, my+d);
+        for (let y=cy*RH+1; y<(cy+1)*RH-1; y++) for (let d=lo; d<=hi; d++) carve(mx+d, y);
       }
     }
     if (!repaired) break;
@@ -451,6 +507,19 @@ function buildLevel(seed){
     active: i===0, done:false, index:i
   }));
 
+  // --- passability is a post-condition, not a hope. Every pad and the cart's parking spot must
+  // be reachable from the truck through space the CART fits in, not just space the player fits in.
+  // WHY: the generator only ever checked reachability with the player's 15 px box, so it could
+  // ship a level whose quota sat behind a gap the 40 px cart cannot enter — the haul loop's one
+  // tool locked out of the half of the map that needs it.
+  // ROOT-CAUSE: "connected" was defined by the flood fill's own neighbour test (a single floor
+  // tile), and nothing in generation ever expressed how wide the widest mover is.
+  // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+  // Runs AFTER the unreachable-floor seal above, so the corridors it opens survive.
+  ensureCartRoutes(cgx, cgy,
+    S.pads.map(p => ({ gx:(p.x/TILE)|0, gy:(p.y/TILE)|0 }))
+          .concat([{ gx:(cartSpawnX/TILE)|0, gy:(cartSpawnY/TILE)|0 }]));
+
   // --- loot. Doc B2: scatter the loot FIRST, then derive the quota from what was actually
   // scattered. Fixing the quota first can produce a level you cannot clear.
   // The truck's room and every pad's room are off limits — see the pad block above.
@@ -501,7 +570,7 @@ function buildLevel(seed){
 
   // The cart is not something you buy and not something you bring home: the source game
   // respawns one at the truck at the start of every level, and it never has to come back.
-  S.cart = makeCart(S.car.x + TILE*2.6, S.car.y + TILE*0.4);
+  S.cart = makeCart(cartSpawnX, cartSpawnY);
 
   S.segs = buildSegments();
   prerenderWorld(mulberry32(seed ^ 0x9e3779b9));
@@ -562,6 +631,146 @@ function flood(sx, sy){
     }
   }
   return seen;
+}
+
+// The map border is the outer shell of the whole level and is never carved: a hole in it opens
+// onto nothing and the flood fill would walk off the map.
+function carveTile(gx,gy){ if (gx>0&&gy>0&&gx<MW-1&&gy<MH-1) S.grid[gy*MW+gx] = FLOOR; }
+
+// A tile the CART can stand on: the whole 3x3 block around it is floor, i.e. 72 px of clearance,
+// the same width an authored door is carved to. The player only needs the tile itself.
+function cartPassable(gx,gy){
+  for (let y=gy-1; y<=gy+1; y++) for (let x=gx-1; x<=gx+1; x++){
+    if (x<0||y<0||x>=MW||y>=MH) return false;
+    if (S.grid[y*MW+x] !== FLOOR) return false;
+  }
+  return true;
+}
+
+// flood(), but stepping only through tiles the cart fits in — which is what "connected" has to
+// mean for anything the haul loop needs to reach.
+function floodCart(sx, sy){
+  const seen = new Uint8Array(MW*MH);
+  if (!cartPassable(sx,sy)) return seen;
+  const q = [sy*MW+sx]; seen[sy*MW+sx] = 1;
+  while (q.length){
+    const i = q.pop(), x = i%MW, y = (i/MW)|0;
+    for (const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){
+      if (nx<0||ny<0||nx>=MW||ny>=MH) continue;
+      const j = ny*MW+nx;
+      if (seen[j] || !cartPassable(nx,ny)) continue;
+      seen[j] = 1; q.push(j);
+    }
+  }
+  return seen;
+}
+
+// Shortest tile path over plain floor, 4-neighbour, from (sx,sy) to the first tile `accept` says
+// yes to. Returns [[x,y], ...] starting at the source, or null when nothing acceptable is
+// reachable. Used both to widen a route for the cart and to draw one on the minimap.
+// `inset` keeps the search away from the map shell. The widening pass needs it: carveTile refuses
+// the outer border, so a path that hugs the shell gets its 3x3 blocks clipped, never becomes wide
+// enough, and the pass spends its whole budget re-carving the same useless corridor. The minimap
+// route must NOT be insetted — the player can stand next to the wall.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md (the Unity build guards the same
+// way in StepFloor; this side had dropped it, which is a difference in a place no seed reaches yet)
+function bfsPath(sx, sy, accept, inset){
+  inset = inset || 0;
+  if (sx<0||sy<0||sx>=MW||sy>=MH) return null;
+  if (S.grid[sy*MW+sx] !== FLOOR) return null;
+  const start = sy*MW+sx;
+  const prev = new Int32Array(MW*MH).fill(-2);
+  prev[start] = -1;
+  const q = [start];
+  for (let head=0; head<q.length; head++){
+    const i = q[head], x = i%MW, y = (i/MW)|0;
+    if (accept(x,y)){
+      const out = [];
+      for (let j=i; j !== -1; j = prev[j]) out.push([j%MW, (j/MW)|0]);
+      return out.reverse();
+    }
+    for (const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){
+      if (nx<inset||ny<inset||nx>=MW-inset||ny>=MH-inset) continue;
+      const j = ny*MW+nx;
+      if (prev[j] !== -2 || S.grid[j] !== FLOOR) continue;
+      prev[j] = i; q.push(j);
+    }
+  }
+  return null;
+}
+
+// The generator's post-condition: from the truck, every target listed must be reachable through
+// cart-passable space. Where one is not, the plain-floor path to the nearest cart-passable tile
+// is widened to REPAIR_CORRIDOR_TILES and the flood is run again.
+//
+// Bounded at four passes on purpose: each pass only ever turns wall into floor, so it converges,
+// but a map with a target the player cannot even walk to must end the loop rather than spin.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+function ensureCartRoutes(cgx, cgy, targets){
+  const lo = -((REPAIR_CORRIDOR_TILES-1)>>1), hi = lo + REPAIR_CORRIDOR_TILES - 1;
+  const widen = (x,y) => { for (let dy=lo; dy<=hi; dy++) for (let dx=lo; dx<=hi; dx++) carveTile(x+dx, y+dy); };
+  for (let pass=0; pass<4; pass++){
+    if (!cartPassable(cgx,cgy)){ widen(cgx,cgy); continue; }   // the truck's own parking space
+    const comp = floodCart(cgx,cgy);
+    let carved = false;
+    for (const t of targets){
+      if (t.gx<0||t.gy<0||t.gx>=MW||t.gy>=MH) continue;
+      if (comp[t.gy*MW+t.gx]) continue;
+      const path = bfsPath(t.gx, t.gy, (x,y) => comp[y*MW+x] === 1, 2);
+      if (!path) continue;                    // no walkable path at all: nothing to widen
+      for (const [x,y] of path) widen(x,y);
+      carved = true;
+    }
+    if (!carved) break;
+  }
+}
+
+// The way to the objective, as tiles. Doc: the minimap tells you where to go; a straight line
+// through three walls tells you where the pad is and not how to reach it.
+// WHY: the old minimap drew player -> pad as one segment, which points into a wall as often as
+// not, and a map that lies is worse than a map that says nothing.
+// ROOT-CAUSE: the target was known in world space and the walls only ever existed in the grid,
+// so nothing in the draw path had a reason to consult them.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+//
+// Cached: this is a full breadth-first search over the map and the answer only changes when the
+// player steps into a new tile, the objective moves, or the level is rebuilt. The walls are
+// folded into the cache key rather than assumed constant — a stale route is a wrong route, and
+// this is the one number a test that walls the player in has no way to tell the cache about.
+let routeCache = { key:'', pts:[] };
+function gridStamp(){
+  let h = 2166136261 >>> 0;
+  const g = S.grid;
+  for (let i=0;i<g.length;i++){ h = Math.imul(h ^ g[i], 16777619); }
+  return h >>> 0;
+}
+// How much of the route the player is ALLOWED to see: it stops at the first tile they have not
+// explored. This is a rule, not a drawing detail, which is why it lives here and has its own test —
+// found by a soak run that measured 380 of 380 waypoints sitting in rooms nobody had opened yet.
+function visibleRoute(){
+  const route = routeToObjective();
+  let cut = 0;
+  while (cut < route.length){
+    const gi = (((route[cut].y/TILE)|0)*MW + ((route[cut].x/TILE)|0));
+    if (!S.explored[gi]) break;
+    cut++;
+  }
+  return route.slice(0, cut);
+}
+
+function routeToObjective(){
+  const p = S.player;
+  if (!p || !S.grid) return [];
+  const target = S.levelDone ? S.car : (S.pads[S.padIndex] || S.car);
+  if (!target) return [];
+  const pgx = (p.x/TILE)|0, pgy = (p.y/TILE)|0;
+  const tgx = (target.x/TILE)|0, tgy = (target.y/TILE)|0;
+  const key = (S.buildId||0)+':'+gridStamp()+':'+pgx+':'+pgy+':'+tgx+':'+tgy;
+  if (routeCache.key === key) return routeCache.pts;
+  const path = bfsPath(pgx, pgy, (x,y) => x === tgx && y === tgy);
+  const pts = path ? path.map(([x,y]) => ({ x:(x+0.5)*TILE, y:(y+0.5)*TILE })) : [];
+  routeCache = { key, pts };
+  return pts;
 }
 
 function makeLoot(x,y,size,mat,v0){
@@ -834,29 +1043,47 @@ function moveEnt(e, dx, dy, r){
   return blocked;
 }
 
-function carriedWeight(p){
+// Weight is two numbers, not one: what is in your arms, and what is on the wheels. They are
+// separated because they buy different things — arms cost you speed and sight, wheels cost you
+// only the swing of a turn.
+// WHY: pushing an EMPTY cart used to slow the player by a third and pull the sight cone toward
+// its floor, so the tool the whole haul loop is built around made the game darker and slower
+// than walking with nothing.
+// ROOT-CAUSE: the cart fed the same single carried-weight number that speed and cone radius
+// read, so every future change to cart mass silently became a change to how far you can see.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+function handWeight(p){
   if (p.floatT > 0) return 0;                       // anti-gravity flask: weightless, briefly
-  if (p.pushing && S.cart){
-    // Wheels are the whole point of a cart: the same mass costs a fraction of what it costs
-    // in your arms, which is what makes a full cart better than four trips.
-    const w = (CART_MASS + cartLoad(S.cart)) / CART_EFFICIENCY;
-    return S.cart.mode === 'weak' ? w / CART_WEAK_MUL : w;
-  }
   return p.held ? p.held.mass : 0;
 }
+function pushWeight(p){
+  if (p.floatT > 0) return 0;
+  if (!p.pushing || !S.cart) return 0;
+  // Wheels are the whole point of a cart: the same mass costs a fraction of what it costs
+  // in your arms, which is what makes a full cart better than four trips.
+  const w = (CART_MASS + cartLoad(S.cart)) / CART_EFFICIENCY;
+  return S.cart.mode === 'weak' ? w / CART_WEAK_MUL : w;
+}
+// Kept as the old name so nothing that asks "how heavy am I" has to know about the split.
+function carriedWeight(p){ return handWeight(p); }
 function playerSpeed(p){
   // Doc A2-1: weight belongs in the DENOMINATOR. The original formula multiplied by it,
   // which made an empty-handed player stand still and a loaded one sprint.
-  const s = PLAYER_BASE_SPEED / (1 + carriedWeight(p) / p.str);
-  return Math.max(s, PLAYER_BASE_SPEED * SPEED_FLOOR);
+  const s = PLAYER_BASE_SPEED / (1 + handWeight(p) / Math.max(1, p.str));
+  const base = Math.max(s, PLAYER_BASE_SPEED * SPEED_FLOOR);
+  // A wrong-side grab still costs, but as a flat multiplier: the player chose the handle they
+  // grabbed, and letting go and taking the front is always available.
+  return (p.pushing && S.cart && S.cart.mode === 'weak') ? base * CART_WEAK_SPEED_MUL : base;
 }
 function turnRate(p){
-  const t = 1 / (1 + carriedWeight(p) / (p.str*1.1));
+  // The only place a loaded cart is still felt: it swings wide.
+  const t = 1 / (1 + (handWeight(p) + pushWeight(p)*CART_TURN_PENALTY) / Math.max(1, p.str*1.1));
   return Math.max(t, TURN_FLOOR);
 }
 function coneRadius(p){
   const base = CONE_R * (1 + S.upg.light*0.16);
-  return base * Math.max(0.42, 1 - carriedWeight(p) / (p.str*1.6));
+  // Hand weight only — a cart never takes light away.
+  return base * Math.max(0.42, 1 - handWeight(p) / Math.max(1, p.str*1.6));
 }
 function coneHalf(p){ return CONE_HALF * (1 + S.upg.light*0.08); }
 function grabRange(p){ return (1.9 + S.upg.range*0.55) * TILE; }
@@ -866,6 +1093,15 @@ function grabRange(p){ return (1.9 + S.upg.range*0.55) * TILE; }
 // The input is the change in velocity, so dragging along a wall is free and slamming into one is not.
 function damageLoot(l, impulse){
   if (l.gone) return 0;
+  // Being in the cart is a STATE of the loot, not a property of the collision that happened to
+  // it, so the guard sits at the damage entry point: a bomb blast or a monster swipe cannot
+  // re-open the hole later the way a check inside stepCart could.
+  // WHY: loaded carts lost money on every doorframe, which made the cart worse than four trips
+  // by hand — the opposite of what it exists for.
+  // ROOT-CAUSE: cart contents were damaged through the same path as hand-held loot, with only a
+  // multiplier between them, so "protected" was never expressible.
+  // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+  if (l.inCart && CART_IMPACT_ABSORB <= 0) return 0;
   if (S.time < l.invuln || S.time < l.grace) return 0;
   if (l.held && S.player.shieldT > 0) return 0;     // wrapping tape: nothing gets through
   const thresh = l.mat.thresh * (l.held ? (1 + S.upg.grip*0.25) : 1);
@@ -876,7 +1112,7 @@ function damageLoot(l, impulse){
   l.invuln = S.time + INVULN_AFTER_HIT;
   l.cracks = Math.min(3, l.cracks + 1);
   if (l.mat.shatter && l.value <= l.value0 * 0.12) l.value = 0;   // C3-3: some things shatter
-  if (l.value <= 0){ l.gone = true; l.held = false; if (S.player.held === l) S.player.held = null; toast('Vỡ mất ' + money(before)); }
+  if (l.value <= 0){ l.gone = true; lootJustDestroyed = true; l.held = false; if (S.player.held === l) S.player.held = null; toast('Vỡ mất ' + money(before)); }
   return before - l.value;
 }
 
@@ -941,9 +1177,10 @@ function stepCart(dt){
   if (!cart) return;
   if (cart.held){
     const impulse = holdInFront(cart, dt, cart.r + 16, cart.r);
-    // A cart absorbs part of a crash, but it does not make the load safe — running a full
-    // cart into a doorframe still costs money, which is what keeps it a trade-off.
-    if (impulse > 0){
+    // With CART_IMPACT_ABSORB at 0 the load is protected and this loop has nothing to do; the
+    // loop is kept so raising that knob brings the trade-off back without a code change.
+    // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+    if (impulse > 0 && CART_IMPACT_ABSORB > 0){
       const reach = impulse * CART_IMPACT_ABSORB * (cart.mode === 'weak' ? 1.35 : 1);
       for (const l of cart.items) damageLoot(l, reach);
     }
@@ -996,12 +1233,7 @@ function releaseCart(p){
 function pickUp(p){
   if (p.pushing){ releaseCart(p); return true; }
   if (p.held){ dropHeld(p); return true; }
-  let best = null, bd = grabRange(p);
-  for (const l of S.loot){
-    if (l.gone || l.held || l.onPad || l.inCart) continue;
-    const d = Math.hypot(l.x-p.x, l.y-p.y);
-    if (d < bd){ bd = d; best = l; }          // doc: nearest within range wins
-  }
+  const best = nearestLoot(p);
   if (!best) return grabCart(p);              // nothing to pick up: take the cart handle
   best.held = true;
   best.grace = S.time + GRACE_AFTER_PICKUP;   // C3-5: no damage in the first second after pickup
@@ -1250,6 +1482,34 @@ function completePad(pad){
 }
 
 // ============================================================ lifecycle
+// Doc B1 makes the level a haul against a quota, but nothing ever checked whether the quota was
+// still reachable. A soak run found seed 6378 (level 3): every valuable collected, hauled, and
+// broken along the way — $8,411 of a $9,523 quota with nothing left on the map to fetch. The truck
+// only ends a level once every pad is done, so the player stood in a house with nothing to do and
+// no way out, and the only button on screen wiped the whole run. The game punished them for a
+// board IT made unwinnable, exactly as harshly as for dying.
+// This names the moment instead: the shift is called, and the truck becomes the way out.
+let lootJustDestroyed = false;
+function recoverableValue(){
+  let v = 0;
+  for (const pad of S.pads) v += pad.value || 0;      // value already standing on a pad counts
+  for (const l of S.loot) if (!l.gone && !l.onPad) v += l.value;
+  return v;
+}
+function checkShiftLost(){
+  if (!S.running || S.levelDone || S.dead || S.shiftLost) return;
+  if (recoverableValue() + 0.5 >= S.quotaTotal) return;
+  S.shiftLost = true;
+  toast('Không còn đủ đồ để đạt chỉ tiêu. Về xe để kết thúc ca.');
+}
+function endLostShift(){
+  if (!S.shiftLost || S.dead) return;
+  S.dead = true; S.running = false;
+  showVeil('Ca này hỏng rồi',
+    'Số đồ còn lại trong nhà không đủ để đạt chỉ tiêu màn ' + S.level + ' nữa, nên ca này coi như trượt. ' +
+    'Doc B4: trượt chỉ tiêu là mất cả run — tiền, nâng cấp và tủ đồ.',
+    'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
+}
 function die(){
   if (S.dead) return;
   S.dead = true; S.running = false;
@@ -1358,7 +1618,7 @@ function setupInput(){
   cv.addEventListener('mousemove', e => {
     if (e.pointerType === 'touch') return;
     const p = canvasPoint(e);
-    mouseWorld = { x: cam.x + p.x/ZOOM, y: cam.y + p.y/ZOOM };
+    mouseWorld = { x: cam.x + p.x/zoom(), y: cam.y + p.y/zoom() };
   });
 }
 let mouseWorld = null;
@@ -1380,10 +1640,10 @@ function resize(){
   lightCv.width = cv.width; lightCv.height = cv.height;
 }
 function worldTransform(c){
-  const k = dpr*ZOOM;
+  const k = dpr*zoom();
   c.setTransform(k,0,0,k, -cam.x*k, -cam.y*k);
 }
-const vwW = () => viewW/ZOOM, vwH = () => viewH/ZOOM;
+const vwW = () => viewW/zoom(), vwH = () => viewH/zoom();
 
 // ============================================================ HUD layout
 function hudLayout(){
@@ -1500,6 +1760,8 @@ function step(dt){
 
   // reaching the car after the last pad ends the level
   if (S.levelDone && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ finishLevel(); return; }
+  if (S.shiftLost && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ endLostShift(); return; }
+  if (lootJustDestroyed){ lootJustDestroyed = false; checkShiftLost(); }
 
   markExplored();
 
@@ -1839,10 +2101,22 @@ function nearCart(p){
 }
 function ring(c,x,y,r,col){ c.beginPath(); c.strokeStyle = col; c.lineWidth = 2.5; c.arc(x,y,r,0,Math.PI*2); c.stroke(); }
 function dot(c,x,y,r,col){ c.beginPath(); c.fillStyle = col; c.arc(x,y,r,0,Math.PI*2); c.fill(); }
+// The ONE answer to "what would I pick up right now": the grab button's label reads it, and the
+// grab itself takes it. They used to be two loops with two different filters — the label lit up
+// for loot riding on your own cart, and neither of them asked whether a wall was in the way.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
 function nearestLoot(p){
   let best = null, bd = grabRange(p);
-  for (const l of S.loot){ if (l.gone||l.held||l.onPad) continue;
-    const d = Math.hypot(l.x-p.x,l.y-p.y); if (d<bd){ bd=d; best=l; } }
+  for (const l of S.loot){
+    if (l.gone || l.held || l.onPad || l.inCart) continue;
+    const d = Math.hypot(l.x-p.x, l.y-p.y);
+    // Sight is required only BEYOND arm's length. A wall is 24 px thick, so anything on its far
+    // side is at least ~38 px from the player's centre; inside one tile you are in the same room as
+    // the thing you are grabbing. Demanding sight at every distance broke normal play instead of
+    // the exploit: loot resting against a wall stopped being pickable from some angles, and the bot
+    // spent a whole 130 s level stuck in the "picking up" state.
+    if (d < bd && (d <= TILE * 1.1 || losClear(p.x, p.y, l.x, l.y))){ bd = d; best = l; }
+  }
   return best;
 }
 function drawMinimap(c, hud){
@@ -1873,10 +2147,10 @@ function drawMinimap(c, hud){
     c.fillStyle = l.isBag ? '#e0b64a' : '#cfd8dc';
     c.fillRect(x + l.x/TILE*sx - 1.2, y + l.y/TILE*sy - 1.2, 2.4, 2.4);
   }
-  // The Extraction Tracker is a bought tool in the source game ("tells you where to escape"),
-  // so route-finding is what you pay for — not the objective itself. The pad you are working
-  // on is always marked; the ones you have not opened yet, and the line that walks you there,
-  // are the tracker's job.
+  // The Extraction Tracker is a bought tool in the source game ("tells you where to escape").
+  // What it sells here is DISCOVERY: the pads you have not opened yet. The way to the pad you
+  // are already working on is not for sale — see MINIMAP_ROUTE_ALWAYS, which puts it back behind
+  // the purchase if that is wanted.
   const tracked = hasGear(S.player, 'tracker');
   for (const pad of S.pads){
     if (!tracked && !pad.active && !pad.done && !(S.rooms[pad.ri] && S.rooms[pad.ri].seen)) continue;
@@ -1889,13 +2163,31 @@ function drawMinimap(c, hud){
   }
   c.fillStyle = '#7fb6e0';
   c.fillRect(x + S.car.x/TILE*sx - 3.5, y + S.car.y/TILE*sy - 3.5, 7, 7);
-  const target = S.levelDone ? S.car : (S.pads[S.padIndex] || S.car);
-  if (S.levelDone || tracked){
-    c.strokeStyle = 'rgba(120,220,170,0.5)'; c.lineWidth = 1.2;
-    c.beginPath();
-    c.moveTo(x + S.player.x/TILE*sx, y + S.player.y/TILE*sy);
-    c.lineTo(x + target.x/TILE*sx, y + target.y/TILE*sy);
-    c.stroke();
+  // The real path, walked tile by tile around the walls — never a straight line through them.
+  // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+  if (MINIMAP_ROUTE_ALWAYS || tracked || S.levelDone){
+    // The route is drawn only as far as the player has actually been. Everything else on this map
+    // already obeys that — rooms blit on `seen`, loot dots on `explored` — and a line that carries
+    // on into rooms nobody has opened maps the house for you from the first frame of the level, in
+    // a game whose whole tension is not knowing what the next door opens onto.
+    // WHY it is cut rather than hidden: the part you have walked is still the useful part, and it
+    // is the part you are entitled to.
+    // ROOT-CAUSE: the route was drawn from simulation truth, while every other marker beside it is
+    // drawn from player knowledge.
+    // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+    const route = visibleRoute();
+    if (route.length > 1){
+      const dash = c.getLineDash ? c.getLineDash() : null;
+      c.setLineDash([3,3]);
+      c.strokeStyle = 'rgba(120,220,170,0.75)'; c.lineWidth = 1.4;
+      c.beginPath();
+      for (let i=0;i<route.length;i++){
+        const px = x + route[i].x/TILE*sx, py = y + route[i].y/TILE*sy;
+        if (i === 0) c.moveTo(px,py); else c.lineTo(px,py);
+      }
+      c.stroke();
+      c.setLineDash(dash || []);
+    }
   }
   c.fillStyle = '#ffd98a';
   c.fillRect(x + S.player.x/TILE*sx - 2, y + S.player.y/TILE*sy - 2, 4, 4);
@@ -2140,6 +2432,14 @@ window.REPO = {
   UPGRADES, GEAR, GEAR_BY_KEY, UPGRADE_MAX_SPAWNS, CART_SLOTS, CART_MAX_SIZE,
   grabCart, releaseCart, cartValue, cartLoad, cartFits, nearTruck, hasGear,
   toggleStash, rollShop,
+  // turnRate / coneRadius take the player, like playerSpeed above; handWeight / pushWeight are
+  // the zero-argument hooks the patch's contract names, and read the current player.
+  cartPassable, routeToObjective, turnRate, coneRadius, carriedWeight,
+  route(){ return routeToObjective(); },
+  visibleRoute(){ return visibleRoute(); },
+  checkShiftLost, endLostShift, recoverableValue,
+  handWeight(){ return S.player ? handWeight(S.player) : 0; },
+  pushWeight(){ return S.player ? pushWeight(S.player) : 0; },
   giveGear(key, n){
     const def = GEAR_BY_KEY[key];
     for (let i=0;i<(n||1);i++) S.stash.push({ kind:key, uses:def.uses });
