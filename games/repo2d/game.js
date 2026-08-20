@@ -2247,6 +2247,10 @@ function setupInput(){
     if (e.pointerType === 'touch') touchSeen = true;
     if (skipCut()) return;
     cv.setPointerCapture(e.pointerId);
+    // Claimed unconditionally, and released in exactly one place. Claiming per-branch would be more
+    // precise and is exactly the kind of thing the next branch forgets to do — which is how this bug
+    // existed in the first place. A press on the play surface is a hand on the game, never a gaze.
+    claimPointer(e.pointerId);
     const p = canvasPoint(e);
     const hud = hudLayout();
     // The two left-hand buttons are real touch targets, not decoration.
@@ -2306,6 +2310,7 @@ function setupInput(){
     if (stickR && stickR.id === e.pointerId){ stickR.x = p.x; stickR.y = p.y; }
   });
   const up = e => {
+    releasePointer(e.pointerId);
     const p = canvasPoint(e);
     const pl = S.player;
     if (pl && pl.aimSlot >= 0 && pl.aimId === e.pointerId){
@@ -2340,6 +2345,7 @@ function setupInput(){
   // ROOT-CAUSE: a mouse-only input was read from an event that a touchscreen also sends.
   cv.addEventListener('pointermove', e => {
     if (touchSeen || e.pointerType !== 'mouse') return;
+    if (heldPointers.has(e.pointerId)) return;   // this hand is on a control, not looking anywhere
     mouseScreen = canvasPoint(e);
     mouseMovedAt = performance.now();
   });
@@ -2365,6 +2371,31 @@ function aimAngle(p, hud){
 // ROOT-CAUSE: a screen-space input was stored in world space, so camera motion became input.
 // It got worse the moment the camera stopped being clamped to the map and started following.
 let mouseScreen = null, mouseMovedAt = -1e9, touchSeen = false;
+
+// WHICH POINTERS ARE A HAND ON A CONTROL. A pointer in here is holding a stick or a button, and
+// must never ALSO be read as a gaze.
+//
+// WHY this exists: this game has three input roles — move, look, act — and a desktop player has one
+// mouse. A press assigned that mouse to a control (the code even calls setPointerCapture on it and
+// stores its id on the stick), but the look reader went on reading every mouse move over the canvas
+// regardless. So dragging the on-screen MOVE stick with the mouse also aimed the look at the cursor
+// — which is sitting on the stick, in the bottom-left corner — and the character faced down-left
+// the entire time it was being driven. Measured: pushed in eight directions around the ring, the
+// facing stayed within 107-119 degrees the whole way round, and jittered as the cursor circled.
+// Whatever was being carried hung down-left too, because a carried object is pinned to the facing.
+// ROOT-CAUSE: a pointer had no OWNER. Ownership was an unwritten convention that each consumer of
+// pointer input had to remember, and the look consumer never did.
+// SEE: this is the bug behind BOTH "dragging loot gets pulled down" and "it keeps rotating with the
+// move joystick"; present since the first playable build (verified against commit 21c0ad0).
+const heldPointers = new Set();
+function claimPointer(id){
+  heldPointers.add(id);
+  // The look device has just been taken away to do something else. Doc C2-2: the facing then
+  // FREEZES where it is. Without this the last cursor position keeps aiming for another second,
+  // which is the same bug with a shorter tail.
+  mouseMovedAt = -1e9;
+}
+function releasePointer(id){ heldPointers.delete(id); }
 // Real time, not simulation time: how long ago the player physically moved the mouse.
 const mouseFresh = () => (performance.now() - mouseMovedAt) < LOOK_IDLE*1000;
 const mouseWorldNow = () => mouseScreen &&
@@ -3650,6 +3681,7 @@ window.REPO = {
                     worldW:vwW(), worldH:vwH() }; },
   stick(){ return stickL ? { ox:stickL.ox, oy:stickL.oy, x:stickL.x, y:stickL.y } : null; },
   lookStick(){ return stickR ? { ox:stickR.ox, oy:stickR.oy, x:stickR.x, y:stickR.y } : null; },
+  heldPointers(){ return heldPointers.size; },
   hud(){ return hudLayout(); },
   lastUse(){ return S.lastUse || null; },
   aiming(){ const p = S.player; return p && p.aimSlot >= 0
