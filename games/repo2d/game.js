@@ -15,15 +15,17 @@ const RW = 21, RH = 15;          // room size in tiles
 const GX = 3,  GY = 3;           // rooms per level
 const MW = RW * GX, MH = RH * GY;
 const WPX = MW * TILE, HPX = MH * TILE;
-const ZOOM = 1.55;               // authored at 1280x720; zoom() scales it to keep the view honest
-// How much HOUSE fits on screen must not depend on how big the screen is. The Unity build's
-// camera fixes its world height and lets the width follow the aspect; this build multiplied a
-// fixed zoom by whatever the canvas happened to be, so a phone in landscape (about 380 CSS px
-// tall) showed barely half the world a desktop did — on the platform the control scheme was
-// designed for. Now both builds show the same 464 world px of height on any screen.
-// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
-const VIEW_H_WORLD = 720 / ZOOM;   // 464 px of house, top to bottom, everywhere
-const zoom = () => viewH / VIEW_H_WORLD;
+// How much HOUSE fits on screen must not depend on how big the screen is, and since the page now
+// letterboxes the canvas to a fixed 9:16 column (index.html `.screen`, sized by fitCanvas below),
+// that is ONE number rather than two: the world WIDTH the frame spans. Height follows the aspect.
+// It is one room plus a tile of margin, so a room's two side walls and both its side doors are on
+// screen together — which is what you need in order to read a room and aim a cart at a door.
+// WHY a fixed number at all: the build used to multiply a fixed zoom by whatever the canvas happened
+// to be, so a small screen showed barely half the world a desktop did.
+// ROOT-CAUSE: view scale was expressed in screen pixels, and screens differ.
+// SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md (the landscape form of this rule)
+const VIEW_W_WORLD = (RW + 1) * TILE;   // 528 px of house, left to right, on every screen
+const zoom = () => viewW / VIEW_W_WORLD;
 
 // A corridor the generator carves to repair a walled-off room. Doors are already 3 tiles wide;
 // this is the same width, so a repaired room is a room the cart can still be pushed into.
@@ -38,6 +40,11 @@ const REPAIR_CORRIDOR_TILES = 3;
 // Tracker. Set false to put the route back behind that purchase, which is what the design doc
 // originally sold. SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
 const MINIMAP_ROUTE_ALWAYS = true;
+
+// How far down the minimap fades while the player is standing under it. Not to zero: a map you
+// cannot see at all is worse than one you have to squint past, and the route line is the one thing
+// that matters in exactly that moment.
+const MINIMAP_FADED_ALPHA = 0.16;
 
 const FLOOR = 0, WALL = 1, PROP = 2;
 
@@ -66,6 +73,178 @@ const QUOTA_FACTOR = 0.7;        // you may leave 30% of the value behind
 const EXTRACT_COUNTDOWN = 5;
 
 const STAM_MAX = 100, STAM_DRAIN = 22, STAM_REGEN = 16;
+
+// Deadzone as a FRACTION of the stick's radius, not a pixel count: the radius is derived from the
+// screen, so a flat 4 px was a real deadzone on a tablet and none at all on a phone.
+const STICK_DEAD = 0.14;
+
+// Nước rút. Keep the run input held and the character winds up into a sprint on its own.
+// WHY it is time-based and not a gesture: the thing it replaced fired on a double-tap of the run
+// input — a stick hitting its own rim twice — and could not be aimed at a moment on purpose.
+const RUSH_DELAY  = 1.0;    // seconds of unbroken running before the sprint kicks in
+const RUSH_GAIN   = 0.28;   // extra top speed per upgrade level
+const RUSH_STAM   = 1.7;    // stamina burns this much faster while sprinting
+const RUSH_NOISE  = 3.0;    // and you are this loud, which is what the blind hunter listens for
+
+
+// ============================================================ sound
+// The source game's tension is carried by AUDIO more than by anything on screen — a thing you
+// cannot see breathing in the next room is the whole genre. This build had none at all, so the
+// dread had nothing to work with.
+//
+// It is synthesised, not sampled: every sound here is an oscillator or a burst of filtered noise.
+// WHY no files: this game ships as three text files inside a static hub with no build step, and a
+// sound pack would be larger than the entire game and would have to be licensed.
+// A browser refuses to start audio before the player has touched the page, so the context is
+// opened lazily on the first press — see SFX.wake() in setupInput and in the veil button.
+const SFX = (() => {
+  let ac = null, master = null, nb = null, on = true;
+
+  function ready(){
+    if (!on) return null;
+    if (!ac){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      try { ac = new AC(); } catch (e) { on = false; return null; }
+      master = ac.createGain(); master.gain.value = 0.55; master.connect(ac.destination);
+    }
+    if (ac.state === 'suspended'){ const r = ac.resume(); if (r && r.catch) r.catch(()=>{}); }
+    return ac;
+  }
+  function noiseBuffer(){
+    if (nb) return nb;
+    const n = Math.floor(ac.sampleRate * 1.0);
+    nb = ac.createBuffer(1, n, ac.sampleRate);
+    const d = nb.getChannelData(0);
+    for (let i=0;i<n;i++) d[i] = Math.random()*2-1;
+    return nb;
+  }
+  // One envelope shape for everything: a fast attack to `peak`, then an exponential tail.
+  function env(t0, a, d, peak){
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t0 + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + a + d);
+    g.connect(master);
+    return g;
+  }
+  function tone(freq, a, d, peak, type, sweepTo, when){
+    if (!ready()) return;
+    const t0 = ac.currentTime + (when || 0);
+    const o = ac.createOscillator();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(freq, t0);
+    if (sweepTo) o.frequency.exponentialRampToValueAtTime(sweepTo, t0 + a + d);
+    o.connect(env(t0, a, d, peak));
+    o.start(t0); o.stop(t0 + a + d + 0.03);
+  }
+  function noise(dur, peak, type, freq, q, when){
+    if (!ready()) return;
+    const t0 = ac.currentTime + (when || 0);
+    const src = ac.createBufferSource(); src.buffer = noiseBuffer();
+    const f = ac.createBiquadFilter();
+    f.type = type || 'bandpass'; f.frequency.value = freq || 1200; f.Q.value = q || 1;
+    src.connect(f); f.connect(env(t0, 0.006, dur, peak));
+    src.start(t0, Math.random()*0.5, dur + 0.05);
+  }
+
+  return {
+    wake(){ ready(); },
+    get on(){ return on; },
+    setOn(v){ on = v; if (!v && ac && master) master.gain.value = 0; else if (master) master.gain.value = 0.55; },
+    // two thumps, the second softer — a heart, not a drum
+    heart(k){ tone(56, 0.010, 0.15, 0.22*k, 'sine', 32);
+              tone(52, 0.010, 0.13, 0.13*k, 'sine', 30, 0.20); },
+    hit(n){ noise(0.20, 0.45, 'lowpass', 900, 1);
+            tone(130, 0.006, 0.22, 0.30, 'triangle', 46);
+            if (n >= 30) tone(90, 0.01, 0.4, 0.18, 'sawtooth', 40); },
+    crack(){ noise(0.09, 0.32, 'bandpass', 2600, 3.5); },
+    shatter(){ noise(0.45, 0.42, 'highpass', 1700, 0.7);
+               noise(0.14, 0.28, 'bandpass', 3600, 4, 0.03);
+               tone(300, 0.005, 0.35, 0.12, 'triangle', 90); },
+    // the moment something notices you: a short swell of two notes a semitone apart
+    sting(){ tone(196, 0.02, 0.55, 0.16, 'sawtooth');
+             tone(208, 0.02, 0.55, 0.14, 'sawtooth'); },
+    tick(i){ tone(620 + i*70, 0.004, 0.07, 0.20, 'square'); },
+    chime(){ tone(523, 0.01, 0.30, 0.20, 'sine');
+             tone(659, 0.01, 0.32, 0.18, 'sine', null, 0.09);
+             tone(784, 0.01, 0.50, 0.20, 'sine', null, 0.18); },
+    thud(){ noise(0.30, 0.35, 'lowpass', 240, 1); tone(70, 0.01, 0.35, 0.22, 'sine', 38); },
+  };
+})();
+
+// ============================================================ feel
+// Everything in here is presentation, and none of it is allowed to change a rule: the numbers it
+// reads are already decided by the simulation. It exists because three different things — a
+// monster closing in, taking a hit, and watching money break — all produced the same output
+// before, which was a number quietly changing somewhere on the HUD.
+const DREAD_R = 10*TILE;         // how close something has to be before you feel it
+const FX = {
+  dread: 0, beat: 0, beatPulse: 0,
+  shake: 0, hitstop: 0,
+  flash: 0, flashCol: '255,255,255',
+  hurtT: 0, hurtDir: 0,
+  tickPulse: 0, lastTick: -1,
+  pops: []                        // world-anchored numbers that rise and fade
+};
+let shakeX = 0, shakeY = 0;
+
+function fxReset(){
+  FX.dread = FX.beat = FX.beatPulse = FX.shake = FX.hitstop = 0;
+  FX.flash = FX.hurtT = FX.tickPulse = 0; FX.lastTick = -1;
+  FX.pops.length = 0;
+}
+function fxShake(n){ FX.shake = Math.min(14, Math.max(FX.shake, n)); }
+function fxFlash(a, col){ if (a > FX.flash){ FX.flash = a; FX.flashCol = col; } }
+function fxPop(x, y, text, col, size){
+  FX.pops.push({ x, y, t:0, life:1.4, text, col, size: size || 13 });
+  if (FX.pops.length > 24) FX.pops.shift();
+}
+
+// How frightened the screen should look right now: the nearest awake monster, made worse if it
+// is actually hunting you. Sleeping ones do not count — a tranquillised thing is not a threat.
+function threatLevel(){
+  const p = S.player;
+  if (!p || S.dead) return 0;
+  let best = 0;
+  for (const m of S.monsters){
+    if (m.sleep > 0) continue;
+    const d = Math.hypot(p.x-m.x, p.y-m.y);
+    if (d > DREAD_R) continue;
+    let t = 1 - d/DREAD_R;
+    if (m.state === 'chase') t = Math.min(1, t*1.3 + 0.32);
+    if (t > best) best = t;
+  }
+  return best;
+}
+
+function stepFx(dt){
+  const want = threatLevel();
+  // Rises fast and falls slow, like the feeling does. A dread that drained as quickly as it
+  // filled would flicker every time a patrol stepped behind a wall.
+  FX.dread = mix(FX.dread, want, Math.min(1, dt * (want > FX.dread ? 3.4 : 1.0)));
+
+  if (FX.dread > 0.06){
+    const interval = mix(1.25, 0.40, FX.dread);      // 48 bpm at the edge of hearing, 150 in a chase
+    FX.beat += dt;
+    if (FX.beat >= interval){
+      FX.beat = 0; FX.beatPulse = 1;
+      SFX.heart(clamp(FX.dread, 0.25, 1));
+    }
+  } else { FX.beat = 0; }
+
+  FX.beatPulse = Math.max(0, FX.beatPulse - dt*2.6);
+  FX.shake     = Math.max(0, FX.shake - dt*16);
+  FX.flash     = Math.max(0, FX.flash - dt*3.4);
+  FX.hurtT     = Math.max(0, FX.hurtT - dt*1.6);
+  FX.tickPulse = Math.max(0, FX.tickPulse - dt*3.2);
+
+  for (let i=FX.pops.length-1;i>=0;i--){
+    const q = FX.pops[i];
+    q.t += dt; q.y -= dt*26;
+    if (q.t >= q.life) FX.pops.splice(i,1);
+  }
+}
 
 // ============================================================ util
 function mulberry32(a){
@@ -266,6 +445,36 @@ const MONSTERS = {
   bomber:  { name:'Kẻ nổ',      hp: 30,  dmg:14,  cd:0.9, speed: 62, sight:6.5, hear:3.0, col:'#3d3222', eye:'#e0a03c' },
   heavy:   { name:'Kẻ nặng',    hp:300,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#22282a', eye:'#d04a3a' }
 };
+// How many of them are in the house. The old curve was 1 + ceil(level/2) and it flattened almost
+// immediately against the number of authored monster posts, so a level 12 house held the same five
+// things a level 6 house did and the difficulty curve stopped being felt anywhere but the quota.
+// Counted from level 1 rather than from zero, so the first two levels hold exactly what they held
+// before this changed. Those two are where a player learns the loop, and a house that kills them
+// there teaches nothing; the growth belongs later, where the quota is already asking for it.
+const FOES_BASE = 2, FOES_PER_LEVEL = 0.9, FOES_MAX = 12;
+function foesForLevel(lv){ return Math.min(FOES_MAX, FOES_BASE + Math.floor((lv-1)*FOES_PER_LEVEL)); }
+
+// A monster that has not found you in this long gives up on where it is and moves to a room near
+// you. WHY it exists: without it the counter-play to every monster in the game is "walk the other
+// way and never come back", and a house you can empty by avoiding it is not a house you fear.
+// It never lands anywhere you can see — see relocateFoe.
+// These three numbers are the difference between a house that keeps finding you and a house that
+// ambushes you. Measured with a bot soak: at 25 s / 10 tiles / a 7-tile landing ring, something was
+// being dropped next to the player roughly every 25 seconds, and level 1 — two slow patrols — went
+// from a walkover to a coin flip. It is a nudge toward the player's half of the map, not a spawn.
+const RELOCATE_AFTER = 40;      // seconds since it last detected the player
+const RELOCATE_MIN_D = 16*TILE; // and it has to be genuinely on the other side of the house
+const RELOCATE_NEAR  = [9*TILE, 15*TILE];   // a room or two away, never the next doorway
+
+// Finishing an extraction is loud. The source game's whole endgame is that banking the haul tells
+// the house exactly where you are standing.
+const EXTRACT_NOISE_R = 30*TILE;
+
+// Once the last pad is done the only thing left in the level is the truck, so that is where they
+// go. They spread around it on a ring rather than piling onto it, which is what leaves a gap to
+// thread — the point is a squeeze, not a wall.
+const TRUCK_GUARD_R = 3.8*TILE;
+
 const LEVEL_MONSTERS = [
   ['patrol'],
   ['patrol','listen'],
@@ -281,8 +490,10 @@ const LEVEL_MONSTERS = [
 //
 // Anything the doc proposed that would need a FOURTH input is not here: C2 fixed the
 // control scheme at two sticks + grab + three slots, and "a phase proposing a fourth
-// input defaults to no". Dash is the one exception and it costs no button — it fires on
-// a double-tap of the run input, which already exists.
+// input defaults to no". That rule also killed the dash: it needed no new button, but it
+// needed a double-tap on the rim of a moving stick, which is a gesture nobody can hit on
+// purpose while a monster is chasing them. What replaced it asks for no gesture at all —
+// keep running and you break into a sprint.
 const UPGRADE_MAX_SPAWNS = 3;      // an upgrade may be ROLLED into the shop at most 3 times
 const SHOP_UPGRADE_SLOTS = 3;
 const SHOP_GEAR_SLOTS    = 3;
@@ -293,7 +504,7 @@ const UPGRADES = [
   { key:'str',    name:'Nâng sức',        desc:'+10 sức. Cùng món đồ đó sẽ nhẹ đi tương đối.',          base: 6000 },
   { key:'range',  name:'Nâng tầm với',    desc:'Nhặt được đồ từ xa hơn.',                              base: 6000 },
   { key:'sprint', name:'Nâng tốc độ chạy',desc:'Chạy nhanh hơn 20%. Chỉ có tác dụng khi đang chạy.',    base: 6000 },
-  { key:'dash',   name:'Lướt né',         desc:'Nhấn đúp hướng chạy để lướt một đoạn. Tốn thể lực.',    base: 12000 },
+  { key:'rush',   name:'Nước rút',        desc:'Chạy liền hơn 1 giây là bứt tốc. Nhanh hơn hẳn, nhưng tốn thể lực và ồn hơn.', base: 12000 },
   { key:'push',   name:'Đẩy',             desc:'Va vào quái thì hất nó ra thay vì đứng chịu trận.',     base: 4500 },
   { key:'regen',  name:'Hồi thể lực nhanh',desc:'Đứng im hồi thể lực nhanh hơn hẳn.',                   base: 3000 },
   { key:'light',  name:'Nâng đèn',        desc:'Nón nhìn dài và rộng hơn.',                            base: 5000 },
@@ -303,10 +514,13 @@ const UPGRADES = [
 // Gear = the source game's "Items". Bought gear goes into the TRUCK STASH, not straight
 // into your hands, and survives every later level until it is used up. `stock` is how many
 // times it may be bought in one run; at that point it stops being offered at all.
+// `aim` decides what a press on the slot DOES. A thing that leaves your hand has to be pointed,
+// so holding its slot raises a joystick and letting go throws it; a thing that happens to you has
+// nowhere to point, so its slot is a plain button and a tap is the whole interaction.
 const GEAR = [
-  { key:'gun',     name:'Súng lục',        short:'Súng', desc:'Bắn thẳng theo hướng kéo. 6 viên.',                    uses:6, price: 9000,  stock:4 },
-  { key:'tranq',   name:'Súng gây mê',     short:'Mê',   desc:'Không giết, nhưng ru con quái trúng đạn ngủ 12 giây.', uses:3, price: 12000, stock:3 },
-  { key:'bomb',    name:'Lựu đạn',         short:'Bom',  desc:'Ném ra, nổ sau 1,4 giây. Nổ gần đồ là mất tiền.',      uses:2, price: 7000,  stock:5 },
+  { key:'gun',     name:'Súng lục',        short:'Súng', desc:'Bắn thẳng theo hướng kéo. 6 viên.',                    uses:6, price: 9000,  stock:4, aim:true },
+  { key:'tranq',   name:'Súng gây mê',     short:'Mê',   desc:'Không giết, nhưng ru con quái trúng đạn ngủ 12 giây.', uses:3, price: 12000, stock:3, aim:true },
+  { key:'bomb',    name:'Lựu đạn',         short:'Bom',  desc:'Ném ra, nổ sau 1,4 giây. Nổ gần đồ là mất tiền.',      uses:2, price: 7000,  stock:5, aim:true },
   { key:'heal',    name:'Băng cứu thương', short:'Máu',  desc:'Hồi 45 máu ngay lập tức.',                             uses:2, price: 4500,  stock:6 },
   { key:'tracker', name:'Máy dò bệ',       short:'Dò',   desc:'Hiện những bệ bạn chưa tìm ra, và vẽ đường tới chúng.',uses:1, price: 6000,  stock:2, passive:true },
   { key:'float',   name:'Bình phản trọng lực', short:'Nhẹ', desc:'20 giây món đang vác nhẹ như không.',               uses:2, price: 10000, stock:3 },
@@ -355,6 +569,8 @@ const S = {
   offer: null,                     // the stock this shop visit rolled, held so it cannot re-roll
   stashOpen: false,
   running: false, dead: false, levelDone: false, noFoes: false,
+  shopMode: false, pay: { active:false, t:0 }, onButton: false, shopCanLeave: false,
+  button: { x:0, y:0, r:0 }, cut: null,
   time: 0, message: '', messageT: 0,
   bigMap: false
 };
@@ -372,8 +588,8 @@ function newPlayer(){
     // The hands start EMPTY, like the source game: everything you carry into a house was
     // bought at the station and taken out of the truck's locker first.
     inv: [ null, null, null ],
-    aimSlot: -1, aimX: 0, aimY: 0, cooldown: 0,
-    pushing: false, dashT: 0, dashCd: 0, runTapT: 0, wasRun: false,
+    aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0,
+    pushing: false, runT: 0, rushing: false,
     floatT: 0, shieldT: 0
   };
 }
@@ -548,12 +764,22 @@ function buildLevel(seed){
   // --- monsters
   const pool = LEVEL_MONSTERS[Math.min(LEVEL_MONSTERS.length-1, S.level-1)];
   if (!S.noFoes){
-    const ms = monSpots.filter(s => reach[s.gy*MW+s.gx] && Math.hypot((s.gx+0.5)*TILE-S.car.x,(s.gy+0.5)*TILE-S.car.y) > 12*TILE);
+    const farFromTruck = (gx,gy) => Math.hypot((gx+0.5)*TILE-S.car.x,(gy+0.5)*TILE-S.car.y) > 12*TILE;
+    const ms = monSpots.filter(s => reach[s.gy*MW+s.gx] && farFromTruck(s.gx, s.gy));
     for (let i=ms.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [ms[i],ms[j]]=[ms[j],ms[i]]; }
-    const n = Math.min(ms.length, 1 + Math.ceil(S.level/2));
+    // The authored posts run out at nine — one per room — long before the count does, so past that
+    // the rest stand on any reachable floor tile far enough from the truck. Without this the whole
+    // difficulty curve silently capped itself on the level layout.
+    const spare = [];
+    for (let gy=1; gy<MH-1; gy++) for (let gx=1; gx<MW-1; gx++){
+      if (S.grid[gy*MW+gx] === FLOOR && reach[gy*MW+gx] && farFromTruck(gx,gy)) spare.push({gx,gy});
+    }
+    for (let i=spare.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [spare[i],spare[j]]=[spare[j],spare[i]]; }
+    const n = Math.min(ms.length + spare.length, foesForLevel(S.level));
     for (let i=0;i<n;i++){
+      const sp = i < ms.length ? ms[i] : spare[i - ms.length];
       const type = pool[(rnd()*pool.length)|0];
-      S.monsters.push(makeMonster(type, (ms[i].gx+0.5)*TILE, (ms[i].gy+0.5)*TILE));
+      S.monsters.push(makeMonster(type, (sp.gx+0.5)*TILE, (sp.gy+0.5)*TILE));
     }
   }
 
@@ -563,15 +789,16 @@ function buildLevel(seed){
   S.player.stamMax = STAM_MAX + S.upg.stam*10;
   S.player.str = 30 + S.upg.str*10;
   S.player.hp = S.player.hpMax; S.player.stam = S.player.stamMax;
-  S.player.held = null; S.player.aimSlot = -1;
+  S.player.held = null; S.player.aimSlot = -1; S.player.aimId = -1;
   S.player.pushing = false; S.player.floatT = 0; S.player.shieldT = 0;
-  S.player.dashT = 0; S.player.dashCd = 0; S.player.runTapT = 0; S.player.wasRun = false;
+  S.player.runT = 0; S.player.rushing = false;
   S.stashOpen = false;
 
   // The cart is not something you buy and not something you bring home: the source game
   // respawns one at the truck at the start of every level, and it never has to come back.
   S.cart = makeCart(cartSpawnX, cartSpawnY);
 
+  fxReset();
   S.segs = buildSegments();
   prerenderWorld(mulberry32(seed ^ 0x9e3779b9));
   prerenderMinimap();
@@ -783,7 +1010,9 @@ function makeMonster(type,x,y){
   const d = MONSTERS[type];
   return { type, x, y, hp:d.hp, dmg:d.dmg, speed:d.speed, dir:0,
            state:'patrol', tx:x, ty:y, think:0, alert:0, hit:0, home:{x,y}, wob:Math.random()*7,
-           sleep:0, kx:0, ky:0 };
+           sleep:0, kx:0, ky:0,
+           lost: 0,                              // seconds since it last had the player
+           guardA: Math.random()*Math.PI*2 };    // its own place on the ring around the truck
 }
 function makeCart(x,y){
   return { x, y, r:CART_R, items:[], held:false, mode:'strong',
@@ -1093,6 +1322,7 @@ function grabRange(p){ return (1.9 + S.upg.range*0.55) * TILE; }
 // The input is the change in velocity, so dragging along a wall is free and slamming into one is not.
 function damageLoot(l, impulse){
   if (l.gone) return 0;
+  if (l.shopGoods) return 0;         // stock on a shop floor is not yours to break yet
   // Being in the cart is a STATE of the loot, not a property of the collision that happened to
   // it, so the guard sits at the damage entry point: a bomb blast or a monster swipe cannot
   // re-open the hole later the way a check inside stepCart could.
@@ -1112,8 +1342,23 @@ function damageLoot(l, impulse){
   l.invuln = S.time + INVULN_AFTER_HIT;
   l.cracks = Math.min(3, l.cracks + 1);
   if (l.mat.shatter && l.value <= l.value0 * 0.12) l.value = 0;   // C3-3: some things shatter
-  if (l.value <= 0){ l.gone = true; lootJustDestroyed = true; l.held = false; if (S.player.held === l) S.player.held = null; toast('Vỡ mất ' + money(before)); }
-  return before - l.value;
+  const lost = before - l.value;
+  // C3-8 again, one step further: the number on the item already drops, but a number dropping is
+  // not a feeling. What the source game sells here is the wince — so the money leaves the object
+  // visibly, the screen jolts by however much it was worth, and glass sounds like glass.
+  if (lost > 0.5){
+    fxPop(l.x, l.y - l.r, '-' + money(lost), l.value <= 0 ? '255,120,100' : '236,150,120',
+          l.value <= 0 ? 17 : 13);
+    fxShake(Math.min(7, 1.6 + lost/900));
+  }
+  if (l.value <= 0){
+    l.gone = true; lootJustDestroyed = true; l.held = false;
+    if (S.player.held === l) S.player.held = null;
+    fxFlash(0.30, '255,225,215'); fxShake(Math.min(11, 5 + before/700));
+    SFX.shatter();
+    toast('Vỡ mất ' + money(before));
+  } else if (lost > 0.5) SFX.crack();
+  return lost;
 }
 
 // Carried things — loot in your hands, or the cart you are pushing — are PINNED to the ray
@@ -1235,6 +1480,14 @@ function pickUp(p){
   if (p.held){ dropHeld(p); return true; }
   const best = nearestLoot(p);
   if (!best) return grabCart(p);              // nothing to pick up: take the cart handle
+  if (best.onPad){                            // shop only — lifting a good back off the checkout
+    const pad = best.onPad;
+    const i = pad.placed.indexOf(best);
+    if (i >= 0) pad.placed.splice(i,1);
+    best.onPad = null;
+    recomputePad(pad);
+    if (S.pay.active){ S.pay.active = false; S.countdownActive = false; S.countdown = 0; }
+  }
   best.held = true;
   best.grace = S.time + GRACE_AFTER_PICKUP;   // C3-5: no damage in the first second after pickup
   best.vx = best.vy = 0;
@@ -1272,6 +1525,40 @@ function recomputePad(pad){
 }
 
 // ============================================================ monsters
+// A sound in the house. Anything close enough turns and comes to look at the SPOT — not at the
+// player, who may well have moved on by the time it arrives. That distinction is the whole reason
+// this is a position and not a "go get him" flag.
+function makeNoise(x, y, radius, strength){
+  for (const m of S.monsters){
+    if (m.sleep > 0) continue;
+    if (Math.hypot(m.x-x, m.y-y) > radius) continue;
+    m.tx = x; m.ty = y;
+    m.alert = Math.max(m.alert, strength);
+    m.lost = 0;                       // it has somewhere to be; the give-up clock restarts
+  }
+}
+
+// Move a monster that has lost the player into a room near them. It NEVER appears anywhere the
+// player can see: every candidate tile has to be out of line of sight, which on this map means
+// behind a wall or in the next room. A monster that blinks into view is a bug the player can see.
+function relocateFoe(m, rnd){
+  const p = S.player;
+  const [lo, hi] = RELOCATE_NEAR;
+  for (let attempt = 0; attempt < 40; attempt++){
+    const a = rnd()*Math.PI*2, r = mix(lo, hi, rnd());
+    const x = p.x + Math.cos(a)*r, y = p.y + Math.sin(a)*r;
+    const gx = (x/TILE)|0, gy = (y/TILE)|0;
+    if (gx < 1 || gy < 1 || gx >= MW-1 || gy >= MH-1) continue;
+    if (S.grid[gy*MW+gx] !== FLOOR) continue;
+    if (hitsSolid(x, y, 9)) continue;
+    if (losClear(p.x, p.y, x, y)) continue;        // in sight — never here
+    m.x = x; m.y = y; m.home = { x, y };
+    m.tx = x; m.ty = y; m.lost = 0; m.alert = 0; m.state = 'patrol';
+    return true;
+  }
+  return false;
+}
+
 function stepMonsters(dt){
   const p = S.player;
   for (const m of S.monsters){
@@ -1313,10 +1600,31 @@ function stepMonsters(dt){
     // the listener: blind, but noise carries. Running is what gets you caught.
     if (!detects && d.hear > 0 && p.noise > 0 && dist < d.hear*TILE*p.noise*0.6) detects = true;
 
-    if (detects){ m.alert = 2.6; m.tx = p.x; m.ty = p.y; }   // target updates ONLY on detection
-    else m.alert = Math.max(0, m.alert - dt);
+    if (detects){
+      // The moment it turns onto you is the moment worth hearing. Only the FIRST frame of it —
+      // an alert that keeps refreshing while it chases you would fire this every step.
+      if (m.alert <= 0){ SFX.sting(); fxShake(2.2); }
+      m.alert = 2.6; m.tx = p.x; m.ty = p.y;                 // target updates ONLY on detection
+      m.lost = 0;
+    }
+    else { m.alert = Math.max(0, m.alert - dt); m.lost += dt; }
+
+    // Given up on where it is standing: move to a room near the player, out of sight.
+    if (m.lost >= RELOCATE_AFTER && dist > RELOCATE_MIN_D && !S.levelDone && !S.dead){
+      if (relocateFoe(m, Math.random)) SFX.thud();          // something moved, somewhere behind you
+      else m.lost = RELOCATE_AFTER * 0.5;                   // nowhere to go; try again shortly
+    }
 
     if (m.alert > 0){ m.state = 'chase'; }
+    else if (S.levelDone || S.shiftLost){
+      // The shift is over and there is exactly one thing left in the house worth standing near.
+      // They ring the truck rather than pile onto it, which is what leaves a gap to thread.
+      m.state = 'hunt';
+      m.tx = S.car.x + Math.cos(m.guardA)*TRUCK_GUARD_R;
+      m.ty = S.car.y + Math.sin(m.guardA)*TRUCK_GUARD_R;
+      m.think -= dt;
+      if (m.think <= 0){ m.think = 3.5 + Math.random()*3; m.guardA += (Math.random()-0.5)*1.2; }
+    }
     else {
       m.state = 'patrol';
       m.think -= dt;
@@ -1333,22 +1641,28 @@ function stepMonsters(dt){
     }
     const ax = m.tx-m.x, ay = m.ty-m.y, am = Math.hypot(ax,ay) || 1;
     m.dir = Math.atan2(ay,ax);
-    const spd = m.speed * (m.state === 'chase' ? 1.25 : 0.7);
+    const spd = m.speed * (m.state === 'chase' ? 1.25 : m.state === 'hunt' ? 1.0 : 0.7);
     moveEnt(m, ax/am*spd*dt, ay/am*spd*dt, 9);
 
     if (dist < 22 && m.hit <= 0 && !S.dead && m.alert > 0){
       m.hit = d.cd || 0.9;
-      hurtPlayer(m.dmg, m.type);
+      hurtPlayer(m.dmg, m.type, m.x, m.y);
       // a monster hitting you also hits what you are carrying
       if (p.held) damageLoot(p.held, m.dmg * 4);
     }
   }
 }
-function hurtPlayer(n, src){
+function hurtPlayer(n, src, fromX, fromY){
   const p = S.player;
   (S.hurtLog = S.hurtLog || []).push({ t:+S.time.toFixed(1), n, src: src || '?', hp: Math.round(p.hp - n) });
   p.hp -= n; p.hurt = 0.45;
-  if (p.hp <= 0){ p.hp = 0; die(); }
+  // Three things at once, because one of them alone reads as a HUD number changing: the screen
+  // jumps, the world stalls for a frame or two, and the blood comes in from the side it came from.
+  fxShake(3 + Math.min(9, n*0.14));
+  FX.hitstop = Math.max(FX.hitstop, n >= 25 ? 0.11 : 0.07);
+  FX.hurtT = 1; FX.hurtDir = (fromX === undefined) ? p.dir : Math.atan2(fromY-p.y, fromX-p.x);
+  SFX.hit(n);
+  if (p.hp <= 0){ p.hp = 0; SFX.thud(); die(); }
 }
 function killMonster(m){
   const i = S.monsters.indexOf(m);
@@ -1434,7 +1748,8 @@ function stepProjectiles(dt){
         if (d < b.r) damageLoot(l, 420 * (1 - d/b.r));
       }
       const dp = Math.hypot(S.player.x-b.x, S.player.y-b.y);
-      if (dp < b.r) hurtPlayer(Math.round(55 * (1 - dp/b.r)), 'bomb');
+      if (dp < b.r) hurtPlayer(Math.round(55 * (1 - dp/b.r)), 'bomb', b.x, b.y);
+      fxShake(9); fxFlash(0.35, '255,170,90');
     }
     if (b.t > b.fuse + 0.6) S.bombs.splice(i,1);
   }
@@ -1449,14 +1764,25 @@ function stepExtraction(dt){
     pad.countdown = (pad.countdown || 0) + dt;
     S.countdownActive = true;
     S.countdown = Math.max(0, EXTRACT_COUNTDOWN - pad.countdown);
+    // One beat per whole second, rising in pitch. A countdown you can hear is a countdown you can
+    // stand away from and still trust, which is the point of standing away from it.
+    const whole = Math.ceil(S.countdown);
+    if (whole !== FX.lastTick){
+      FX.lastTick = whole; FX.tickPulse = 1;
+      if (whole > 0) SFX.tick(EXTRACT_COUNTDOWN - whole);
+    }
     if (pad.countdown >= EXTRACT_COUNTDOWN) completePad(pad);
   } else {
-    pad.countdown = 0; S.countdownActive = false; S.countdown = 0;
+    pad.countdown = 0; S.countdownActive = false; S.countdown = 0; FX.lastTick = -1;
   }
 }
 function completePad(pad){
   pad.done = true; pad.active = false;
-  S.countdownActive = false; S.countdown = 0;
+  S.countdownActive = false; S.countdown = 0; FX.lastTick = -1;
+  fxFlash(0.42, '150,255,190'); fxShake(3.5); SFX.chime();
+  // Banking the haul tells the house exactly where you are standing. Everything within earshot
+  // comes to look at the PAD — which by then is usually the spot you most want to leave.
+  makeNoise(pad.x, pad.y, EXTRACT_NOISE_R, 2.2);
   const taken = pad.value;
   S.wallet += taken;
   const surplus = taken - pad.quota;
@@ -1532,14 +1858,334 @@ function resetRun(){
   if (S.player) Object.assign(S.player, fresh); else S.player = fresh;
 }
 function finishLevel(){
-  S.running = false;
-  S.offer = null;              // a fresh visit rolls fresh stock
-  showShop();
+  // The shift's own record, kept because the station REPLACES the house — its pads and its loot
+  // become the checkout and the stock, so after this call there is nothing left to ask about how
+  // the level went.
+  S.lastLevel = { level:S.level, wallet:S.wallet,
+                  pads:S.pads.map(q => ({ done:q.done, quota:q.quota, value:q.value })) };
+  // Doors, then the van pulls out, then the station — the shift ends on screen rather than in a
+  // scene change. startShop is what actually builds the next place; this only delays it.
+  startCut('depart', '', '', () => startShop());
 }
 function startLevel(seed){
+  S.shopMode = false;
   buildLevel(seed === undefined ? (Math.random()*999999)|0 : seed);
   S.running = true; S.dead = false;
   hideVeil();
+  startCut('arrive', 'Màn ' + S.level, 'Chỉ tiêu ' + money(S.quotaTotal));
+}
+
+
+// ============================================================ the service station, as a room
+// The station used to be a panel of buttons over a frozen game. In the source game it is a PLACE:
+// a room off the truck with the night's stock standing on the floor, a checkout you carry things
+// onto, and a button by the till you stand on to pay. Everything a shop needs was already in this
+// file — a room, loot you can carry, a cart, a pad that adds up what is standing on it, and a
+// countdown — so the shop is a level rather than a screen, and reuses all of it.
+//
+// The one rule that differs from a house: on the checkout pad you may take things BACK OFF. In a
+// house that would let you cancel an extraction after banking it; here it is just changing your
+// mind, which is the entire point of a shop.
+const PAY_COUNTDOWN = 3;          // how long the till takes, and how long you have to change your mind
+
+// The station is a HALL, not a room: one room wide and the height of the whole map, because the
+// frame is 9:16 and a 21x15 room inside it is a stripe of floor with black above and below it.
+// Laid out the way you walk it — stock at the top, the checkout in the middle, the truck at the
+// bottom — so a visit is a walk down it rather than a circuit of a box.
+const SHOP_COL = 1;               // which column of rooms is carved out
+// Interior height in tiles. Deliberately SHORTER than the frame can show: the bottom band of a
+// portrait frame belongs to the two thumb sticks and the grab button, and a truck drawn under them
+// is a truck you cannot see yourself walking into.
+const SHOP_ROWS = 30;
+const SHOP_CX = (SHOP_COL*RW + RW/2) * TILE;
+const SHOP_CY = ((SHOP_ROWS+1)/2) * TILE;
+
+function shopTile(tx, ty){        // hall-local tile -> world centre
+  return { x: ((SHOP_COL*RW + tx) + 0.5) * TILE, y: (ty + 0.5) * TILE };
+}
+
+function makeGood(kind, key, name, price, x, y){
+  // A good is a piece of loot with a price where its value would be. That is not a trick: it means
+  // it can be carried, dropped, loaded onto the cart and totted up by the pad with no new code, and
+  // the cart is exactly as useful for a six-item shopping trip as it is for a haul.
+  const l = makeLoot(x, y, SIZES[0], MATERIALS[2], price);
+  l.good = { kind, key, name };
+  l.shopGoods = true;             // and nothing in a shop breaks — see damageLoot
+  return l;
+}
+
+function buildShop(){
+  S.shopMode = true;
+  S.buildId = (S.buildId || 0) + 1;
+  S.grid = new Uint8Array(MW*MH).fill(WALL);
+  S.deco = new Uint8Array(MW*MH);
+  S.explored = new Uint8Array(MW*MH);
+  S.roomStyle = new Uint8Array(GX*GY).fill(FLOOR_STYLE.tile);
+  S.rooms = [];
+  for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++)
+    S.rooms.push({ name:'Trạm dịch vụ', cx, cy, seen: cx===SHOP_COL });
+  S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = [];
+  S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
+  S.levelDone = false; S.dead = false; S.shiftLost = false; S.hurtLog = [];
+  S.quotaTotal = 0;
+  S.pay = { active:false, t:0 };
+  S.onButton = false; S.shopCanLeave = false;
+
+  const gx0 = SHOP_COL*RW;
+  for (let y=1; y<=SHOP_ROWS; y++) for (let x=1; x<RW-1; x++){
+    const i = y*MW + gx0+x;
+    S.grid[i] = FLOOR; S.explored[i] = 1;
+  }
+  // shelving behind each row of stock, so the goods are standing in front of something. Kept clear
+  // of the top of the frame, where the health bar and the minimap are drawn over the world.
+  for (const y of [7, 13]) for (const x of [2,3, 9,10,11, 17,18]){
+    const i = y*MW + gx0+x;
+    S.grid[i] = PROP; S.deco[i] = P_SHELF;
+  }
+
+  if (!S.offer) S.offer = rollShop();
+  const cols = [4, 10, 16];
+  S.offer.upgrades.forEach((u, i) => {
+    const t = shopTile(cols[i % cols.length], 9);
+    S.loot.push(makeGood('up', u.key, u.name, upgradePrice(u), t.x, t.y));
+  });
+  S.offer.gear.forEach((g, i) => {
+    const t = shopTile(cols[i % cols.length], 15);
+    S.loot.push(makeGood('gear', g.key, g.name, g.price, t.x, t.y));
+  });
+
+  const padT = shopTile(10, 21);
+  S.pads.push({ x:padT.x, y:padT.y, ri:GX+SHOP_COL, quota:0, placed:[], value:0,
+                active:true, done:false, index:0, shop:true });
+  const btn = shopTile(15, 21);
+  S.button = { x:btn.x, y:btn.y, r:TILE*1.05 };
+
+  const truck = shopTile(10, 27);
+  S.car.x = truck.x; S.car.y = truck.y;
+  S.cart = makeCart(truck.x + TILE*3.2, truck.y - TILE*0.4);
+
+  S.player = S.player || newPlayer();
+  S.player.x = truck.x - TILE*4.2; S.player.y = truck.y - TILE*0.2;
+  S.player.held = null; S.player.aimSlot = -1; S.player.aimId = -1;
+  S.player.pushing = false; S.player.runT = 0; S.player.rushing = false;
+  S.player.hp = S.player.hpMax; S.player.stam = S.player.stamMax;
+  S.stashOpen = false;
+
+  fxReset();
+  S.segs = buildSegments();
+  prerenderWorld(mulberry32((S.seed ^ 0x5bf03635) >>> 0));
+  prerenderMinimap();
+  S.time = 0;
+  S.running = true;
+  startCut('arrive', 'Trạm dịch vụ', 'Ví ' + money(S.wallet));
+  toast('Trạm dịch vụ — mang đồ lên bệ, đạp nút bên cạnh để trả tiền.');
+}
+
+function startShop(){
+  S.offer = null;                 // a fresh visit rolls fresh stock, like the source game
+  buildShop();
+  hideVeil();
+}
+function leaveShop(){
+  startCut('depart', '', '', () => {
+    S.shopMode = false;
+    S.level++;
+    S.offer = null;
+    startLevel();
+  });
+}
+
+function togglePay(){
+  const pad = S.pads[0];
+  if (!pad) return;
+  if (S.pay.active){
+    S.pay.active = false; S.pay.t = 0;
+    S.countdownActive = false; S.countdown = 0; FX.lastTick = -1;
+    toast('Đã hủy thanh toán'); SFX.thud();
+    return;
+  }
+  const live = pad.placed.filter(l => !l.gone);
+  if (!live.length){ toast('Chưa có món nào trên bệ'); return; }
+  if (pad.value > S.wallet){
+    toast('Không đủ tiền: ' + money(pad.value) + ' — ví có ' + money(S.wallet));
+    SFX.thud();
+    return;
+  }
+  S.pay.active = true; S.pay.t = 0; FX.lastTick = -1;
+  toast('Đang thanh toán ' + money(pad.value) + '…');
+}
+
+function completePurchase(pad){
+  const live = pad.placed.filter(l => !l.gone);
+  const total = live.reduce((a,l) => a + l.value, 0);
+  if (total > S.wallet){ S.pay.active = false; return; }   // it changed under us; charge nothing
+  S.wallet -= total;
+  let ups = 0, gears = 0;
+  for (const l of live){
+    if (l.good.kind === 'up'){ S.upg[l.good.key]++; ups++; }
+    else {
+      const def = GEAR_BY_KEY[l.good.key];
+      S.stash.push({ kind:l.good.key, uses:def.uses });
+      S.gearBought[l.good.key] = (S.gearBought[l.good.key]||0) + 1;
+      gears++;
+    }
+    l.gone = true; l.onPad = null;
+  }
+  pad.placed.length = 0; pad.value = 0;
+  S.pay.active = false; S.countdownActive = false; S.countdown = 0; FX.lastTick = -1;
+  applyUpgrades();
+  fxFlash(0.4, '150,255,190'); fxShake(3); SFX.chime();
+  toast('Đã mua ' + (ups ? ups + ' nâng cấp' : '') + (ups && gears ? ' và ' : '') +
+        (gears ? gears + ' món (đã vào tủ trên xe)' : '') + ' — ' + money(total));
+}
+
+function stepShop(dt){
+  const p = S.player, pad = S.pads[0];
+  if (!pad) return;
+  recomputePad(pad);
+
+  // The floor button. It toggles on the step ON — you have to step off and back on to change your
+  // mind again, which is what makes "đạp lại" a deliberate second action and not a wobble.
+  const on = Math.hypot(p.x-S.button.x, p.y-S.button.y) < S.button.r + 9;
+  if (on && !S.onButton) togglePay();
+  S.onButton = on;
+
+  if (S.pay.active){
+    if (!pad.placed.some(l => !l.gone)){
+      S.pay.active = false; S.countdownActive = false; S.countdown = 0;
+    } else {
+      S.pay.t += dt;
+      S.countdownActive = true;
+      S.countdown = Math.max(0, PAY_COUNTDOWN - S.pay.t);
+      const whole = Math.ceil(S.countdown);
+      if (whole !== FX.lastTick){
+        FX.lastTick = whole; FX.tickPulse = 1;
+        if (whole > 0) SFX.tick(PAY_COUNTDOWN - whole);
+      }
+      if (S.pay.t >= PAY_COUNTDOWN) completePurchase(pad);
+    }
+  } else if (S.countdownActive){ S.countdownActive = false; S.countdown = 0; FX.lastTick = -1; }
+
+  // The truck is the exit, but the player is standing next to it when the room opens, so it only
+  // becomes an exit once they have walked away from it once.
+  const d = Math.hypot(p.x-S.car.x, p.y-S.car.y);
+  if (!S.shopCanLeave && d > TILE*4.5) S.shopCanLeave = true;
+  if (S.shopCanLeave && d < TILE*2.2) leaveShop();
+}
+
+
+// ============================================================ arriving and leaving
+// The truck was a blue rectangle that existed before the level did. In the source game it is how
+// the shift STARTS: the name of the place, the van coming in hard enough to rock the camera, the
+// back doors opening, and you stepping out of it. Leaving is the same sentence backwards.
+//
+// These run on REAL time, not on the fixed simulation step, and the simulation does not advance
+// while one is playing — see frame(). That is deliberate: a cutscene the monsters get to walk
+// around during is a cutscene that can kill you.
+const CUT_ARRIVE = 3.0, CUT_DEPART = 2.1;
+const CUT_IN_START = 1.05, CUT_IN_HIT = 1.85;   // when the van starts moving, and when it lands
+const CUT_DOOR_OPEN = [1.95, 2.55];             // the back doors
+const CUT_STEP_OUT  = [2.30, 2.95];             // and you, walking out of them
+const CUT_DOOR_SHUT = [0.10, 0.60];             // leaving: doors first
+const CUT_DRIVE_OFF = [0.60, 1.75];             // then the van
+
+// Off by default for nobody, but switchable: an automated run drives the game through hundreds of
+// level starts and should not sit through three seconds of van for each of them.
+let cutscenesOn = true;
+function setCutscenes(on){
+  cutscenesOn = !!on;
+  if (!on && S.cut){ const f = S.cut.then; S.cut = null; if (f) f(); }
+}
+function startCut(kind, label, sub, then){
+  if (!cutscenesOn){ if (then) then(); return; }
+  S.cut = { kind, t:0, label:label||'', sub:sub||'', then:then||null, banged:false, shut:false };
+}
+// Any input skips it. An intro you have already seen twelve times is an intro you are trying to
+// get past, and a game that will not let you is a game you stop starting.
+function skipCut(){
+  if (!S.cut) return false;
+  const f = S.cut.then; S.cut = null; if (f) f();
+  return true;
+}
+function stepCut(dt){
+  const c = S.cut;
+  if (!c) return;
+  c.t += dt;
+  if (c.kind === 'arrive'){
+    if (!c.banged && c.t >= CUT_IN_HIT){ c.banged = true; fxShake(13); SFX.thud(); }
+    if (c.t >= CUT_ARRIVE){ const f = c.then; S.cut = null; if (f) f(); }
+  } else {
+    if (!c.shut && c.t >= CUT_DOOR_SHUT[1]){ c.shut = true; SFX.thud(); }
+    if (c.t >= CUT_DEPART){ const f = c.then; S.cut = null; if (f) f(); }
+  }
+}
+const ease = t => t <= 0 ? 0 : t >= 1 ? 1 : 1 - Math.pow(1-t, 3);
+const span = (t, a, b) => clamp((t-a)/(b-a), 0, 1);
+
+// Where the van is DRAWN. Its real position never moves — every nearTruck test in the game reads
+// that — so the whole animation lives in this one offset.
+function carDrawOffset(){
+  const c = S.cut;
+  if (!c) return { dx:0, dy:0, door:1, alpha:1 };
+  const run = Math.max(vwW(), 600) * 1.25;
+  if (c.kind === 'arrive'){
+    const k = ease(span(c.t, CUT_IN_START, CUT_IN_HIT));
+    return { dx: -run*(1-k), dy:0, door: span(c.t, CUT_DOOR_OPEN[0], CUT_DOOR_OPEN[1]),
+             alpha: c.t < CUT_IN_START ? 0 : 1 };
+  }
+  const k = ease(span(c.t, CUT_DRIVE_OFF[0], CUT_DRIVE_OFF[1]));
+  return { dx: run*k, dy:0, door: 1 - span(c.t, CUT_DOOR_SHUT[0], CUT_DOOR_SHUT[1]), alpha:1 };
+}
+// And where the PLAYER is drawn: stepping out of the back on the way in, climbing in on the way
+// out. Returns null when they are inside the van and should not be drawn at all.
+function playerDrawPos(){
+  const p = S.player, c = S.cut;
+  if (!c) return { x:p.x, y:p.y, alpha:1 };
+  const off = carDrawOffset();
+  const cx = S.car.x + off.dx, cy = S.car.y + off.dy;
+  if (c.kind === 'arrive'){
+    if (c.t < CUT_STEP_OUT[0]) return null;
+    const k = ease(span(c.t, CUT_STEP_OUT[0], CUT_STEP_OUT[1]));
+    return { x: mix(cx, p.x, k), y: mix(cy, p.y, k), alpha: Math.min(1, k*2.2) };
+  }
+  const k = ease(span(c.t, 0, CUT_DOOR_SHUT[0] + 0.18));
+  if (k >= 1) return null;
+  return { x: mix(p.x, cx, k), y: mix(p.y, cy, k), alpha: 1 - k*0.4 };
+}
+
+// The card. Name of the place first, because knowing where you have been dropped is the one thing
+// the old build never said out loud.
+function drawCutscene(c, hud){
+  const cut = S.cut;
+  if (!cut) return;
+  const w = hud.w, h = hud.h;
+  let veil = 0, text = 0;
+  if (cut.kind === 'arrive'){
+    veil = 1 - span(cut.t, 0.75, CUT_IN_START + 0.35);
+    text = Math.min(span(cut.t, 0.10, 0.55), 1 - span(cut.t, 1.55, 2.15));
+  } else {
+    veil = span(cut.t, CUT_DRIVE_OFF[1] - 0.25, CUT_DEPART);
+    text = 0;
+  }
+  if (veil > 0.002){ c.fillStyle = `rgba(6,7,9,${veil})`; c.fillRect(0,0,w,h); }
+  if (text > 0.002 && cut.label){
+    c.textAlign = 'center';
+    c.font = `400 ${Math.round(Math.min(w*0.11, 46))}px Cambria, "Times New Roman", serif`;
+    c.fillStyle = `rgba(232,235,238,${text})`;
+    c.fillText(cut.label, w/2, h*0.44);
+    if (cut.sub){
+      c.font = `600 ${Math.round(Math.min(w*0.035, 14))}px ui-monospace, monospace`;
+      c.fillStyle = `rgba(208,138,52,${text*0.95})`;
+      c.fillText(cut.sub, w/2, h*0.44 + Math.min(w*0.075, 32));
+    }
+    // a hairline under the name, which is what makes it read as a card and not as a toast
+    c.strokeStyle = `rgba(140,150,160,${text*0.5})`; c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(w*0.5 - w*0.16, h*0.44 + Math.min(w*0.115, 50));
+    c.lineTo(w*0.5 + w*0.16, h*0.44 + Math.min(w*0.115, 50));
+    c.stroke();
+    c.textAlign = 'left';
+  }
 }
 
 // ============================================================ toast
@@ -1556,6 +2202,7 @@ function setupInput(){
   addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
     if (['w','a','s','d','e','f','r','1','2','3','shift','tab',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+    if (skipCut()) return;
     if (k === 'r'){ resetRun(); startLevel(); return; }
     if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
     if (k === 'e'){ pickUp(S.player); return; }
@@ -1566,6 +2213,8 @@ function setupInput(){
   addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 
   cv.addEventListener('pointerdown', e => {
+    SFX.wake();                       // browsers refuse to start audio outside a user gesture
+    if (skipCut()) return;
     cv.setPointerCapture(e.pointerId);
     const p = canvasPoint(e);
     const hud = hudLayout();
@@ -1581,11 +2230,18 @@ function setupInput(){
         Math.hypot(p.x-hud.stash.x, p.y-hud.stash.y) < hud.stash.r*1.25){
       toggleStash(); return;
     }
-    // item slots first: a drag that STARTS on a slot is aiming, not looking (doc C2-5)
+    // item slots first: a press that STARTS on a slot is aiming, not looking (doc C2-5)
     for (let i=0;i<3;i++){
       const s = hud.slots[i];
-      if (Math.hypot(p.x-s.x, p.y-s.y) < s.r*1.15){
-        S.player.aimSlot = i; S.player.aimX = p.x; S.player.aimY = p.y;
+      if (Math.hypot(p.x-s.x, p.y-s.y) < s.r*1.6){
+        const it = S.player.inv[i];
+        const def = it && GEAR_BY_KEY[it.kind];
+        if (!it || it.uses <= 0) return;
+        if (def && def.passive) return;                 // the tracker works by being carried
+        // A thing that happens to you has nowhere to point: its slot is a plain button.
+        if (!def || !def.aim){ useSlot(S.player, i); return; }
+        S.player.aimSlot = i; S.player.aimId = e.pointerId;
+        S.player.aimX = p.x; S.player.aimY = p.y;
         stickR = null;
         return;
       }
@@ -1595,19 +2251,27 @@ function setupInput(){
   });
   cv.addEventListener('pointermove', e => {
     const p = canvasPoint(e);
-    if (S.player && S.player.aimSlot >= 0){ S.player.aimX = p.x; S.player.aimY = p.y; return; }
+    if (S.player && S.player.aimSlot >= 0 && S.player.aimId === e.pointerId){
+      S.player.aimX = p.x; S.player.aimY = p.y; return;
+    }
     if (stickL && stickL.id === e.pointerId){ stickL.x = p.x; stickL.y = p.y; }
     if (stickR && stickR.id === e.pointerId){ stickR.x = p.x; stickR.y = p.y; }
   });
   const up = e => {
     const p = canvasPoint(e);
     const pl = S.player;
-    if (pl && pl.aimSlot >= 0){
+    if (pl && pl.aimSlot >= 0 && pl.aimId === e.pointerId){
       const hud = hudLayout(), s = hud.slots[pl.aimSlot];
       const dx = p.x - s.x, dy = p.y - s.y;
-      // doc C2-5: releasing back over the slot is the cancel gesture
-      if (Math.hypot(dx,dy) > s.r*1.3) useSlot(pl, pl.aimSlot, Math.atan2(dy,dx));
-      pl.aimSlot = -1;
+      // Letting go USES it — that is the whole point of holding it. The one way out is the X in the
+      // top corner, which is what a mobile MOBA trains the thumb to look for. Releasing without
+      // having dragged anywhere throws it along the way you are already facing rather than eating
+      // the press, because a press that does nothing is indistinguishable from a broken button.
+      if (!overCancel(hud, p)){
+        const far = Math.hypot(dx,dy) > hud.aimR*STICK_DEAD;
+        useSlot(pl, pl.aimSlot, far ? Math.atan2(dy,dx) : pl.dir);
+      }
+      pl.aimSlot = -1; pl.aimId = -1;
       return;
     }
     if (stickL && stickL.id === e.pointerId) stickL = null;
@@ -1621,6 +2285,14 @@ function setupInput(){
     mouseWorld = { x: cam.x + p.x/zoom(), y: cam.y + p.y/zoom() };
   });
 }
+function overCancel(hud, p){
+  return Math.hypot(p.x-hud.cancel.x, p.y-hud.cancel.y) < hud.cancel.r*1.25;
+}
+function aimAngle(p, hud){
+  const s = hud.slots[p.aimSlot];
+  const dx = p.aimX - s.x, dy = p.aimY - s.y;
+  return Math.hypot(dx,dy) > hud.aimR*STICK_DEAD ? Math.atan2(dy,dx) : p.dir;
+}
 let mouseWorld = null;
 function canvasPoint(e){
   const cv = CV(), r = cv.getBoundingClientRect();
@@ -1630,7 +2302,26 @@ function canvasPoint(e){
 // ============================================================ camera / sizing
 const cam = { x:0, y:0 };
 let viewW = 1280, viewH = 720, dpr = 1, lightCv = null;
+// The game is locked to a PORTRAIT frame. On a phone held upright that is the whole screen; on a
+// desktop it is a 9:16 column with black either side — the shape every other game on the hub uses.
+// WHY this is JavaScript and not one CSS declaration: an `aspect-ratio` box has to be clamped by
+// max-width on a narrow screen and by max-height on a wide one, and whichever clamp fires breaks the
+// ratio instead of preserving it. Fitting it explicitly is exact on both.
+const FRAME_W = 9, FRAME_H = 16;
+function fitCanvas(){
+  const cv = CV(), box = cv.parentElement;
+  if (!box) return;
+  // clientWidth/Height INCLUDE padding, and the surround holds back the notch insets as padding.
+  const cs = getComputedStyle(box);
+  const aw = box.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const ah = box.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
+  if (!(aw > 0) || !(ah > 0)) return;
+  const k = Math.min(aw/FRAME_W, ah/FRAME_H);
+  cv.style.width  = Math.round(k*FRAME_W) + 'px';
+  cv.style.height = Math.round(k*FRAME_H) + 'px';
+}
 function resize(){
+  fitCanvas();
   const cv = CV(), r = cv.getBoundingClientRect();
   if (!r.width) return;
   dpr = Math.min(devicePixelRatio || 1, 2);
@@ -1641,8 +2332,13 @@ function resize(){
 }
 function worldTransform(c){
   const k = dpr*zoom();
-  c.setTransform(k,0,0,k, -cam.x*k, -cam.y*k);
+  c.setTransform(k,0,0,k, (-cam.x+shakeX)*k, (-cam.y+shakeY)*k);
 }
+// World point -> a point in the HUD's coordinate space, shake included. Anything drawn on top of
+// the darkness (aim lines, floating numbers) has to go through these or it detaches from the world
+// the instant the screen is hit.
+const scrX = x => (x - cam.x + shakeX)*zoom();
+const scrY = y => (y - cam.y + shakeY)*zoom();
 const vwW = () => viewW/zoom(), vwH = () => viewH/zoom();
 
 // ============================================================ HUD layout
@@ -1653,17 +2349,25 @@ function hudLayout(){
   const left  = { x: pad + stickR_, y: h - pad - stickR_, r: stickR_ };
   const right = { x: w - pad - stickR_, y: h - pad - stickR_, r: stickR_ };
   const sr = stickR_ * 0.42;
-  // three slots arc around the right stick, matching the doc's own mockup
+  // Three slots arc around the right stick, matching the doc's own mockup. Clamped inside the
+  // frame afterwards: the arc was authored against a 16:9 canvas and the outermost slot hangs off
+  // the right edge of a 9:16 one, where a slot half off-screen is a slot half untappable.
   const slots = [0,1,2].map(i => {
     const a = -Math.PI*0.86 + i*(Math.PI*0.30);
-    return { x: right.x + Math.cos(a)*(stickR_+sr*1.45), y: right.y + Math.sin(a)*(stickR_+sr*1.45), r: sr, i };
+    const R = stickR_ + sr*1.45;
+    return { x: clamp(right.x + Math.cos(a)*R, sr+3, w-sr-3),
+             y: clamp(right.y + Math.sin(a)*R, sr+3, h-sr-3), r: sr, i };
   });
   // pickup moves to the LEFT of the screen (doc C2-4) — grabbing needs no aim
   const grab = { x: left.x + stickR_*0.15, y: left.y - stickR_*1.75, r: sr*1.06 };
   // the locker button sits above the grab button, on the same thumb, and only appears
   // when the truck is within reach — it is a start-room action, not a field one
   const stash = { x: grab.x + sr*1.9, y: grab.y - sr*1.5, r: sr*1.06 };
-  return { w, h, left, right, slots, grab, stash, pad };
+  // Where a raised item goes to be put back down. Top-right corner, the way a mobile MOBA does it:
+  // it is the furthest point from the thumb that raised it, so you cannot reach it by accident, and
+  // it is on the way to nowhere else.
+  const cancel = { x: w - pad - sr*1.5, y: pad + sr*1.5, r: sr*1.5 };
+  return { w, h, left, right, slots, grab, stash, cancel, pad, aimR: stickR_ };
 }
 function nearTruck(p){ return Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*3.2; }
 
@@ -1676,15 +2380,15 @@ function step(dt){
   if (!p) return;
   p.cooldown = Math.max(0, p.cooldown - dt);
   p.hurt = Math.max(0, p.hurt - dt);
-  p.dashT = Math.max(0, p.dashT - dt);
-  p.dashCd = Math.max(0, p.dashCd - dt);
-  p.runTapT = Math.max(0, p.runTapT - dt);
+
   p.floatT = Math.max(0, p.floatT - dt);
   p.shieldT = Math.max(0, p.shieldT - dt);
 
   // ---- movement intent
   let vx = 0, vy = 0, push = 0;
-  if (window.__botActive && window.BOT) { const b = window.BOT.think(dt); vx = b.vx; vy = b.vy; push = b.push; if (b.look !== undefined) p.dir = b.look; }
+  // The bot plays houses, not shops: it reasons about quotas and pads to extract, neither of which
+  // a service station has. In the station it stands still and the run waits for a human.
+  if (window.__botActive && window.BOT && !S.shopMode) { const b = window.BOT.think(dt); vx = b.vx; vy = b.vy; push = b.push; if (b.look !== undefined) p.dir = b.look; }
   else {
     if (keys.has('w')||keys.has('arrowup')) vy -= 1;
     if (keys.has('s')||keys.has('arrowdown')) vy += 1;
@@ -1693,9 +2397,22 @@ function step(dt){
     const m = Math.hypot(vx,vy);
     if (m > 0){ vx/=m; vy/=m; push = keys.has('shift') ? 1 : 0.6; }
     if (stickL){
-      const dx = stickL.x-stickL.ox, dy = stickL.y-stickL.oy;
-      const d = Math.hypot(dx,dy), maxD = hudLayout().left.r;
-      if (d > 4){ vx = dx/d; vy = dy/d; push = clamp(d/maxD, 0, 1); }
+      // The origin TRAILS the thumb: once the thumb is further out than the stick's own radius, the
+      // origin is dragged along behind it so it stays exactly that far back.
+      // WHY: the origin used to be frozen wherever the thumb first landed, forever. After a long drag
+      // the thumb sits hundreds of px out, so a correction of a few dozen px barely moves the angle —
+      // measured, a 40 px push straight up after a 200 px drag right steered 65 degrees off intent.
+      // A thumb's natural arc sags downward, so in the hand that reads as a gravity dragging the
+      // character down whenever you are already moving.
+      // ROOT-CAUSE: a floating-origin stick was implemented as a fixed-origin one placed late.
+      const maxD = hudLayout().left.r;
+      let dx = stickL.x-stickL.ox, dy = stickL.y-stickL.oy;
+      let d = Math.hypot(dx,dy);
+      if (d > maxD){
+        stickL.ox += dx/d*(d-maxD); stickL.oy += dy/d*(d-maxD);
+        dx = stickL.x-stickL.ox; dy = stickL.y-stickL.oy; d = maxD;
+      }
+      if (d > maxD*STICK_DEAD){ vx = dx/d; vy = dy/d; push = clamp(d/maxD, 0, 1); }
     }
   }
 
@@ -1706,23 +2423,17 @@ function step(dt){
   if (tier === 2 && p.stam <= 0) tier = 1;
   const moving = !!(vx || vy);
 
-  // Lướt né: no new button, because C2 fixed the control scheme. A double-tap of the
-  // input that already means "run" — the stick hitting its rim, or Shift — is the gesture.
+  // Nước rút: hold the run input and the character winds up into a sprint by itself. No gesture,
+  // no cooldown, no button — the cost is stamina and being heard.
   const runNow = tier === 2 && moving;
-  if (runNow && !p.wasRun){
-    if (p.runTapT > 0 && S.upg.dash > 0 && p.dashCd <= 0 && p.stam > 18){
-      p.dashT = 0.18; p.dashCd = 2.4 - Math.min(1.2, S.upg.dash*0.4);
-      p.stam = Math.max(0, p.stam - 18);
-      p.runTapT = 0;
-    } else p.runTapT = 0.35;
-  }
-  p.wasRun = runNow;
+  p.runT = runNow ? p.runT + dt : 0;
+  p.rushing = runNow && S.upg.rush > 0 && p.runT >= RUSH_DELAY && p.stam > 0;
 
-  p.noise = !moving ? 0 : p.dashT > 0 ? 2.4 : tier === 2 ? 2 : tier === 1 ? 1 : 0.25;
+  p.noise = !moving ? 0 : p.rushing ? RUSH_NOISE : tier === 2 ? 2 : tier === 1 ? 1 : 0.25;
   if (S.noiseOverride != null) p.noise = S.noiseOverride;
   let tierMul = tier === 2 ? 1.5 * (1 + S.upg.sprint*0.20) : tier === 1 ? 1.0 : 0.5;
-  if (p.dashT > 0) tierMul *= 3.2;
-  if (tier === 2){ p.stam = Math.max(0, p.stam - STAM_DRAIN*dt); }
+  if (p.rushing) tierMul *= 1 + RUSH_GAIN*S.upg.rush;
+  if (tier === 2){ p.stam = Math.max(0, p.stam - STAM_DRAIN*dt*(p.rushing ? RUSH_STAM : 1)); }
   else {
     // Hồi thể lực nhanh: standing still is already the fastest recovery; the upgrade
     // widens that gap, so holding position near a blind hunter pays twice.
@@ -1730,6 +2441,7 @@ function step(dt){
     p.stam = Math.min(p.stamMax, p.stam + STAM_REGEN*dt*(tier===0?1.4:1)*(idle ? 1 + S.upg.regen*0.5 : 1));
   }
 
+  p.speedMul = tierMul;        // the tier multiplier, kept so a test can read what running is worth
   if (vx || vy){
     const sp = playerSpeed(p) * tierMul;
     moveEnt(p, vx*sp*dt, vy*sp*dt, 7.5);
@@ -1738,10 +2450,15 @@ function step(dt){
   // ---- look
   if (!window.__botActive){
     let want = null;
-    if (stickR){
+    // Aiming outranks looking: while an item is raised, the character turns to face where it is
+    // about to be thrown, so the light cone shows you what you are shooting at.
+    if (p.aimSlot >= 0){
+      want = aimAngle(p, hudLayout());
+    } else if (stickR){
       const dx = stickR.x-stickR.ox, dy = stickR.y-stickR.oy;
       if (Math.hypot(dx,dy) > 8) want = Math.atan2(dy,dx);
-    } else if (mouseWorld){
+    }
+    if (want === null && mouseWorld && p.aimSlot < 0){
       want = Math.atan2(mouseWorld.y-p.y, mouseWorld.x-p.x);
     }
     // Doc C2-2: releasing the look stick FREEZES the facing. It never resets and never
@@ -1752,21 +2469,30 @@ function step(dt){
     }
   }
 
+  stepFx(dt);
   for (const l of S.loot) stepLoot(l, dt);
   stepCart(dt);
-  if (!S.noFoes) stepMonsters(dt);
-  stepProjectiles(dt);
-  stepExtraction(dt);
+  if (S.shopMode){
+    stepShop(dt);
+    if (!S.shopMode) return;                  // the truck took us to the next level mid-step
+  } else {
+    if (!S.noFoes) stepMonsters(dt);
+    stepProjectiles(dt);
+    stepExtraction(dt);
 
-  // reaching the car after the last pad ends the level
-  if (S.levelDone && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ finishLevel(); return; }
-  if (S.shiftLost && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ endLostShift(); return; }
-  if (lootJustDestroyed){ lootJustDestroyed = false; checkShiftLost(); }
+    // reaching the car after the last pad ends the level
+    if (S.levelDone && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ finishLevel(); return; }
+    if (S.shiftLost && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ endLostShift(); return; }
+    if (lootJustDestroyed){ lootJustDestroyed = false; checkShiftLost(); }
 
-  markExplored();
+    markExplored();
+  }
 
-  const tx = clamp(p.x - vwW()/2, 0, Math.max(0, WPX - vwW()));
-  const ty = clamp(p.y - vwH()/2, 0, Math.max(0, HPX - vwH()));
+  // In the station the camera holds the HALL still: the whole thing fits in the frame, and a
+  // camera that slides while you walk between three shelves reads as drift, not as motion.
+  const fx = S.shopMode ? SHOP_CX : p.x, fy = S.shopMode ? SHOP_CY : p.y;
+  const tx = clamp(fx - vwW()/2, 0, Math.max(0, WPX - vwW()));
+  const ty = clamp(fy - vwH()/2, 0, Math.max(0, HPX - vwH()));
   cam.x += (tx-cam.x) * Math.min(1, dt*8);
   cam.y += (ty-cam.y) * Math.min(1, dt*8);
 }
@@ -1797,6 +2523,10 @@ function markExplored(){
 // ============================================================ render
 function draw(){
   const cv = CV(), c = cv.getContext('2d');
+  if (FX.shake > 0.05){
+    const a = Math.random()*Math.PI*2;
+    shakeX = Math.cos(a)*FX.shake; shakeY = Math.sin(a)*FX.shake;
+  } else { shakeX = shakeY = 0; }
   c.setTransform(1,0,0,1,0,0);
   c.globalCompositeOperation = 'source-over';
   c.fillStyle = '#000'; c.fillRect(0,0,cv.width,cv.height);
@@ -1804,7 +2534,7 @@ function draw(){
 
   worldTransform(c);
   c.drawImage(S.worldCv, 0, 0);
-  drawPads(c); drawCart(c); drawLoot(c); drawCar(c); drawMonsters(c); drawProjectiles(c); drawPlayer(c);
+  drawPads(c); drawButton(c); drawCart(c); drawLoot(c); drawCar(c); drawMonsters(c); drawProjectiles(c); drawPlayer(c);
 
   buildLight();
   c.setTransform(1,0,0,1,0,0);
@@ -1825,6 +2555,17 @@ function buildLight(){
   const c = lightCv.getContext('2d'), p = S.player;
   c.setTransform(1,0,0,1,0,0);
   c.globalCompositeOperation = 'source-over';
+  // The station has its lights on. It is the one place in this game that is not a dark house, and
+  // making the player hunt for the price of a bandage with a torch would be a joke at their expense.
+  if (S.shopMode){
+    // Lit, but only inside the four walls. Lighting the whole canvas showed the solid rock the room
+    // is carved out of as a grey field twice the size of the shop, which read as a bug.
+    c.fillStyle = 'rgb(4,5,7)'; c.fillRect(0,0,lightCv.width,lightCv.height);
+    worldTransform(c);
+    c.fillStyle = 'rgb(198,194,186)';
+    c.fillRect(SHOP_COL*RW*TILE, 0, RW*TILE, (SHOP_ROWS+1)*TILE);
+    return;
+  }
   c.fillStyle = 'rgb(6,7,9)'; c.fillRect(0,0,lightCv.width,lightCv.height);
   worldTransform(c);
   c.globalCompositeOperation = 'lighter';
@@ -1879,12 +2620,33 @@ function drawMemory(c){
   }
 }
 function drawCar(c){
-  const x = S.car.x, y = S.car.y;
+  const off = carDrawOffset();
+  if (off.alpha <= 0.001) return;
+  const x = S.car.x + off.dx, y = S.car.y + off.dy;
+  const a = c.globalAlpha;
+  c.globalAlpha = a * off.alpha;
+
   c.fillStyle = '#2c3540'; c.fillRect(x-TILE*1.5, y-TILE, TILE*3, TILE*2);
   c.fillStyle = '#3f4c5a'; c.fillRect(x-TILE*1.2, y-TILE*0.7, TILE*2.4, TILE*1.4);
   c.fillStyle = '#89a6b8'; c.fillRect(x-TILE*0.5, y-TILE*0.35, TILE, TILE*0.7);
+
+  // The back of the van: a dark opening, and one door swinging off the near edge of it. `door` is
+  // 0 shut, 1 wide open, and it is the same number the arrival and the departure read in opposite
+  // directions — which is why leaving looks like arriving played backwards.
+  const bx = x - TILE*1.5, by = y - TILE, bw = TILE*0.85, bh = TILE*2;
+  c.fillStyle = `rgba(6,8,10,${0.35 + off.door*0.6})`;
+  c.fillRect(bx, by, bw, bh);
+  c.save();
+  c.translate(bx, by);
+  c.rotate(-off.door*1.15);
+  c.fillStyle = '#39434f'; c.fillRect(0, 0, bw*0.55, bh);
+  c.strokeStyle = 'rgba(190,205,220,0.4)'; c.lineWidth = 1.2;
+  c.strokeRect(0, 0, bw*0.55, bh);
+  c.restore();
+
   c.strokeStyle = 'rgba(200,220,235,0.35)'; c.lineWidth = 1.5;
   c.strokeRect(x-TILE*1.5, y-TILE, TILE*3, TILE*2);
+  c.globalAlpha = a;
 }
 function drawCart(c){
   const cart = S.cart;
@@ -1910,6 +2672,23 @@ function drawCart(c){
   c.fillText(money(cartValue(cart)) + '  ' + cart.items.length + '/' + CART_SLOTS, cart.x, cart.y - r - 6);
   c.textAlign = 'left';
 }
+// The till button, painted on the floor beside the checkout. Green while it is counting, because
+// the thing it is counting down to is money leaving your wallet.
+function drawButton(c){
+  if (!S.shopMode || !S.button.r) return;
+  const b = S.button, live = S.pay.active;
+  c.beginPath();
+  c.fillStyle = live ? 'rgba(40,110,80,0.55)' : 'rgba(60,66,74,0.45)';
+  c.arc(b.x, b.y, b.r, 0, Math.PI*2); c.fill();
+  c.beginPath();
+  c.strokeStyle = live ? '#6fd8a4' : S.onButton ? '#d0a253' : '#7d8794';
+  c.lineWidth = 3;
+  c.arc(b.x, b.y, b.r, 0, Math.PI*2); c.stroke();
+  c.font = '700 10px ui-monospace, monospace'; c.textAlign = 'center';
+  c.fillStyle = live ? '#d8fff0' : '#c3ccd6';
+  c.fillText(live ? 'HỦY' : 'TRẢ TIỀN', b.x, b.y + 3.5);
+  c.textAlign = 'left';
+}
 function drawPads(c){
   for (const pad of S.pads){
     const col = pad.done ? '#3a4a42' : pad.active ? '#4fa87a' : '#5a6570';
@@ -1919,7 +2698,9 @@ function drawPads(c){
     c.fillRect(pad.x-TILE*1.8, pad.y-TILE*1.8, TILE*3.6, TILE*3.6);
     if (!pad.done){
       c.fillStyle = '#dfe6ea'; c.font = '600 13px ui-monospace, monospace'; c.textAlign = 'center';
-      c.fillText(money(pad.value) + ' / ' + money(pad.quota), pad.x, pad.y - TILE*2.1);
+      c.fillText(pad.shop ? money(pad.value) + '  ·  ví ' + money(S.wallet)
+                          : money(pad.value) + ' / ' + money(pad.quota),
+                 pad.x, pad.y - TILE*2.1);
       c.textAlign = 'left';
     }
   }
@@ -1930,9 +2711,18 @@ function drawLoot(c){
     const y = l.held ? l.y : l.y + Math.sin(S.time*2.4 + l.bob)*1.2;
     c.beginPath(); c.fillStyle = 'rgba(0,0,0,0.4)';
     c.ellipse(l.x, y + l.r*0.7, l.r*0.9, l.r*0.42, 0, 0, Math.PI*2); c.fill();
-    c.beginPath(); c.fillStyle = l.isBag ? '#c8a33c' : l.mat.col;
+    c.beginPath();
+    c.fillStyle = l.good ? (l.good.kind === 'up' ? '#d3a04a' : '#5aa3ab') : l.isBag ? '#c8a33c' : l.mat.col;
     c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
-    c.lineWidth = 2; c.strokeStyle = l.isBag ? '#8a6d1e' : l.mat.edge; c.stroke();
+    c.lineWidth = 2;
+    c.strokeStyle = l.good ? (l.good.kind === 'up' ? '#8a6222' : '#2f6a71') : l.isBag ? '#8a6d1e' : l.mat.edge;
+    c.stroke();
+    if (l.good){
+      // A price with no name on it is a number, not an offer.
+      c.font = '600 10px ui-sans-serif, system-ui'; c.textAlign = 'center';
+      c.fillStyle = '#dfe6ea';
+      c.fillText(l.good.name, l.x, y + l.r + 12);
+    }
     for (let i=0;i<l.cracks;i++){
       c.beginPath(); c.strokeStyle = 'rgba(20,20,20,0.6)'; c.lineWidth = 1.2;
       const a = i*2.1 + l.bob;
@@ -1986,7 +2776,11 @@ function drawProjectiles(c){
 }
 function drawPlayer(c){
   const p = S.player;
-  c.save(); c.translate(p.x,p.y);
+  const at = playerDrawPos();
+  if (!at) return;                       // inside the van
+  const a0 = c.globalAlpha;
+  c.globalAlpha = a0 * at.alpha;
+  c.save(); c.translate(at.x, at.y);
   c.fillStyle = 'rgba(0,0,0,0.5)';
   c.beginPath(); c.ellipse(0,8,10,4.5,0,0,Math.PI*2); c.fill();
   c.rotate(p.dir);
@@ -1995,19 +2789,61 @@ function drawPlayer(c){
   c.fillStyle = '#8d8873'; c.beginPath(); c.arc(3.6,0,3.3,0,Math.PI*2); c.fill();
   c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,5,3);
   c.restore();
+  c.globalAlpha = a0;
 }
 function drawVignette(c){
   const w = c.canvas.width, h = c.canvas.height;
-  const g = c.createRadialGradient(w/2,h/2,Math.min(w,h)*0.22,w/2,h/2,Math.max(w,h)*0.86);
+  const R = Math.max(w,h);
+
+  // The dread layer. It does two things a static vignette cannot: it CLOSES IN as something gets
+  // near — the lit hole in the middle shrinks — and it BREATHES, once per heartbeat, in time with
+  // the sound. Neither is information the player did not have; both are information they were
+  // reading off a monster's eye colour two rooms away instead of feeling.
+  const dread = FX.dread, beat = FX.beatPulse;
+  const inner = Math.min(w,h) * (0.22 - dread*0.11 - beat*dread*0.035);
+  const g = c.createRadialGradient(w/2,h/2,Math.max(4,inner),w/2,h/2,R*0.86);
   g.addColorStop(0,'rgba(0,0,0,0)');
-  g.addColorStop(0.6,'rgba(0,0,0,0.13)');
-  g.addColorStop(1,'rgba(0,0,0,0.5)');
+  g.addColorStop(0.6,`rgba(0,0,0,${0.13 + dread*0.16})`);
+  g.addColorStop(1,`rgba(${dread > 0.02 ? '26,4,4' : '0,0,0'},${0.5 + dread*0.34})`);
   c.fillStyle = g; c.fillRect(0,0,w,h);
-  if (S.player && S.player.hurt > 0){
-    const hg = c.createRadialGradient(w/2,h/2,Math.max(w,h)*0.2,w/2,h/2,Math.max(w,h)*0.72);
+
+  if (dread > 0.05 && beat > 0){
+    const bg = c.createRadialGradient(w/2,h/2,R*0.30,w/2,h/2,R*0.78);
+    bg.addColorStop(0,'rgba(120,10,10,0)');
+    bg.addColorStop(1,`rgba(130,14,12,${beat*dread*0.30})`);
+    c.fillStyle = bg; c.fillRect(0,0,w,h);
+  }
+
+  // Pain, and the side it came from. A wedge on the edge you were hit from is the difference
+  // between "I am hurt" and "it is behind me".
+  if (S.player && (S.player.hurt > 0 || FX.hurtT > 0)){
+    const k = Math.max(S.player.hurt/0.45, FX.hurtT);
+    const hg = c.createRadialGradient(w/2,h/2,R*0.2,w/2,h/2,R*0.72);
     hg.addColorStop(0,'rgba(150,26,20,0)');
-    hg.addColorStop(1,`rgba(160,28,20,${S.player.hurt*0.7})`);
+    hg.addColorStop(1,`rgba(160,28,20,${k*0.6})`);
     c.fillStyle = hg; c.fillRect(0,0,w,h);
+
+    const a = FX.hurtDir - S.player.dir;      // where it came from, relative to where you face
+    const ex = w/2 + Math.cos(a)*w*0.62, ey = h/2 + Math.sin(a)*h*0.62;
+    const wg = c.createRadialGradient(ex,ey,0,ex,ey,Math.min(w,h)*0.72);
+    wg.addColorStop(0,`rgba(190,30,24,${FX.hurtT*0.55})`);
+    wg.addColorStop(1,'rgba(190,30,24,0)');
+    c.fillStyle = wg; c.fillRect(0,0,w,h);
+  }
+
+  // The extraction glow: the frame itself goes green while the money is being counted, so the
+  // countdown is legible from anywhere on screen and not only where the number is.
+  if (S.countdownActive){
+    const k = 0.20 + FX.tickPulse*0.30;
+    const eg = c.createRadialGradient(w/2,h/2,Math.min(w,h)*0.34,w/2,h/2,R*0.80);
+    eg.addColorStop(0,'rgba(70,200,140,0)');
+    eg.addColorStop(1,`rgba(70,210,145,${k*0.55})`);
+    c.fillStyle = eg; c.fillRect(0,0,w,h);
+  }
+
+  if (FX.flash > 0.002){
+    c.fillStyle = `rgba(${FX.flashCol},${Math.min(0.6, FX.flash)})`;
+    c.fillRect(0,0,w,h);
   }
 }
 
@@ -2015,9 +2851,11 @@ function drawVignette(c){
 function drawHud(c){
   const p = S.player, hud = hudLayout(), k = dpr;
   c.save(); c.scale(k,k);
+  // Nothing to steer during a cutscene, so nothing that steers is drawn.
+  if (S.cut){ drawCutscene(c, hud); c.restore(); return; }
 
   // health + stamina, top-left (matches the doc's mockup)
-  const bx = 14, by = 14, bw = 168, bh = 9;
+  const bx = 14, by = 14, bw = Math.min(168, hud.w*0.40), bh = 9;
   c.fillStyle = 'rgba(10,12,14,0.72)'; c.fillRect(bx-3,by-3,bw+6,bh*2+9);
   c.fillStyle = '#3a1f1c'; c.fillRect(bx,by,bw,bh);
   c.fillStyle = '#b8433a'; c.fillRect(bx,by,bw*clamp(p.hp/p.hpMax,0,1),bh);
@@ -2026,23 +2864,22 @@ function drawHud(c){
 
   drawMinimap(c, hud);
 
-  if (S.countdownActive){
-    c.font = '700 30px ui-monospace, monospace'; c.textAlign = 'center';
-    c.fillStyle = '#7fd6a0';
-    c.fillText('GIAO HÀNG ' + S.countdown.toFixed(1) + 's', hud.w/2, 52);
-    c.textAlign = 'left';
-  }
+  drawPops(c);
+  if (S.countdownActive) drawCountdown(c, hud);
   if (S.messageT > 0){
+    // Above the thumb sticks, not under them: the sticks own the bottom band of a portrait frame.
     c.font = '600 14px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = `rgba(226,232,236,${Math.min(1,S.messageT)})`;
-    c.fillText(S.message, hud.w/2, hud.h - hud.pad*0.55);
+    c.fillText(S.message, hud.w/2, hud.left.y - hud.left.r - 18);
     c.textAlign = 'left';
   }
 
-  // sticks
-  ring(c, hud.left.x, hud.left.y, hud.left.r, 'rgba(210,140,50,0.55)');
+  // sticks. The left one is drawn AT THE THUMB, not in the corner: it floats and its origin trails,
+  // so a ring painted anywhere else is a ring that lies about which way "up" is.
+  const lo = stickL ? { x:stickL.ox, y:stickL.oy } : hud.left;
+  ring(c, lo.x, lo.y, hud.left.r, stickL ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
   const lk = stickL ? { x:clamp(stickL.x-stickL.ox,-hud.left.r,hud.left.r), y:clamp(stickL.y-stickL.oy,-hud.left.r,hud.left.r) } : {x:0,y:0};
-  dot(c, hud.left.x+lk.x, hud.left.y+lk.y, hud.left.r*0.3, 'rgba(210,140,50,0.8)');
+  dot(c, lo.x+lk.x, lo.y+lk.y, hud.left.r*0.3, stickL ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
   ring(c, hud.right.x, hud.right.y, hud.right.r, 'rgba(210,140,50,0.55)');
   const rk = stickR ? { x:clamp(stickR.x-stickR.ox,-hud.right.r,hud.right.r), y:clamp(stickR.y-stickR.oy,-hud.right.r,hud.right.r) }
                     : { x:Math.cos(p.dir)*hud.right.r*0.55, y:Math.sin(p.dir)*hud.right.r*0.55 };
@@ -2059,11 +2896,8 @@ function drawHud(c){
     c.fillText(label, s.x, s.y+3);
     if (it) c.fillText('x'+it.uses, s.x, s.y+s.r*0.78);
     c.textAlign = 'left';
-    if (p.aimSlot === i){
-      c.strokeStyle = 'rgba(255,220,150,0.8)'; c.lineWidth = 2;
-      c.beginPath(); c.moveTo(s.x,s.y); c.lineTo(p.aimX,p.aimY); c.stroke();
-    }
   }
+  if (p.aimSlot >= 0) drawAim(c, hud, p);
 
   // grab button, left side
   const near = nearestLoot(p);
@@ -2087,13 +2921,108 @@ function drawHud(c){
   const badges = [];
   if (p.floatT > 0)  badges.push('Nhẹ ' + p.floatT.toFixed(0) + 's');
   if (p.shieldT > 0) badges.push('Bọc ' + p.shieldT.toFixed(0) + 's');
-  if (S.upg.dash > 0 && p.dashCd > 0) badges.push('Lướt ' + p.dashCd.toFixed(1) + 's');
+  if (p.rushing) badges.push('Nước rút');
   if (badges.length){
     c.font = '600 11px ui-monospace, monospace';
     c.fillStyle = '#8fd0b4';
     c.fillText(badges.join('   '), 14, 52);
   }
 
+  c.restore();
+}
+// A raised item, drawn the way a mobile MOBA draws a raised skill: a stick under the thumb that
+// says which way, a line out of the CHARACTER that says where it lands, and one target in the far
+// corner that says how to put it down again.
+function drawAim(c, hud, p){
+  const s = hud.slots[p.aimSlot];
+  const R = hud.aimR;
+  let dx = p.aimX - s.x, dy = p.aimY - s.y;
+  const d = Math.hypot(dx,dy) || 1;
+  const live = d > R*STICK_DEAD;
+  const k = Math.min(1, R/d);
+  const cancelling = overCancel(hud, { x:p.aimX, y:p.aimY });
+
+  // the throw line, out of the character rather than out of the button
+  if (live && !cancelling){
+    const a = Math.atan2(dy,dx);
+    const px = scrX(p.x), py = scrY(p.y);
+    const reach = Math.max(hud.w, hud.h);
+    const g = c.createLinearGradient(px, py, px+Math.cos(a)*reach, py+Math.sin(a)*reach);
+    g.addColorStop(0, 'rgba(255,214,150,0.55)');
+    g.addColorStop(1, 'rgba(255,214,150,0)');
+    c.strokeStyle = g; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(px,py); c.lineTo(px+Math.cos(a)*reach, py+Math.sin(a)*reach); c.stroke();
+    ring(c, px+Math.cos(a)*R*2.2, py+Math.sin(a)*R*2.2, 7, 'rgba(255,214,150,0.75)');
+  }
+
+  // the stick itself, centred on the slot that raised it
+  ring(c, s.x, s.y, R, cancelling ? 'rgba(190,80,70,0.75)' : 'rgba(255,214,150,0.6)');
+  dot(c, s.x + dx*k, s.y + dy*k, R*0.26, cancelling ? 'rgba(200,90,78,0.9)' : 'rgba(255,214,150,0.9)');
+
+  // the way out
+  const cn = hud.cancel;
+  c.fillStyle = cancelling ? 'rgba(150,42,34,0.85)' : 'rgba(20,14,14,0.7)';
+  c.beginPath(); c.arc(cn.x, cn.y, cn.r, 0, Math.PI*2); c.fill();
+  ring(c, cn.x, cn.y, cn.r, cancelling ? 'rgba(255,150,140,0.95)' : 'rgba(190,110,100,0.7)');
+  c.strokeStyle = cancelling ? '#ffe2de' : '#c8918a'; c.lineWidth = 2.6;
+  const q = cn.r*0.42;
+  c.beginPath();
+  c.moveTo(cn.x-q, cn.y-q); c.lineTo(cn.x+q, cn.y+q);
+  c.moveTo(cn.x+q, cn.y-q); c.lineTo(cn.x-q, cn.y+q);
+  c.stroke();
+}
+// Money leaving an object, drawn where the object is. The old build changed a number on the item
+// and printed one line of text at the bottom of the screen; neither is something a player looking
+// at the thing they just dropped will see.
+function drawPops(c){
+  for (const q of FX.pops){
+    const k = q.t / q.life;
+    const a = k < 0.12 ? k/0.12 : 1 - Math.pow((k-0.12)/0.88, 2);
+    c.font = `700 ${q.size}px ui-monospace, monospace`;
+    c.textAlign = 'center';
+    c.fillStyle = `rgba(10,8,8,${a*0.55})`;
+    c.fillText(q.text, scrX(q.x)+1, scrY(q.y)+1);
+    c.fillStyle = `rgba(${q.col},${a})`;
+    c.fillText(q.text, scrX(q.x), scrY(q.y));
+    c.textAlign = 'left';
+  }
+}
+
+// The countdown used to be one line of green text at the top of the screen, which is exactly where
+// nobody looks while a monster is walking toward the pad they are standing on. This is a ring that
+// empties, a number that punches on every second, and the frame going green around all of it.
+function drawCountdown(c, hud){
+  const r = Math.min(hud.w, hud.h) * 0.135;
+  const cx = hud.w/2, cy = hud.h * 0.24;
+  const k = clamp(S.countdown / EXTRACT_COUNTDOWN, 0, 1);
+  const pop = FX.tickPulse;
+
+  c.save();
+  c.translate(cx, cy);
+  c.scale(1 + pop*0.12, 1 + pop*0.12);
+
+  c.beginPath(); c.fillStyle = `rgba(6,20,14,${0.55 + pop*0.2})`;
+  c.arc(0, 0, r*1.02, 0, Math.PI*2); c.fill();
+
+  c.beginPath(); c.strokeStyle = 'rgba(70,120,95,0.45)'; c.lineWidth = r*0.15;
+  c.arc(0, 0, r, 0, Math.PI*2); c.stroke();
+
+  // the arc drains clockwise from the top, so "nearly gone" is a shape and not a decimal
+  c.beginPath();
+  c.strokeStyle = `rgba(${pop > 0.5 ? '190,255,215' : '110,225,160'},0.95)`;
+  c.lineWidth = r*0.15; c.lineCap = 'round';
+  c.arc(0, 0, r, -Math.PI/2, -Math.PI/2 + Math.PI*2*k);
+  c.stroke();
+  c.lineCap = 'butt';
+
+  c.textAlign = 'center';
+  c.font = `700 ${Math.round(r*0.92)}px ui-monospace, monospace`;
+  c.fillStyle = '#e6fff1';
+  c.fillText(String(Math.ceil(S.countdown)), 0, r*0.33);
+  c.font = `600 ${Math.round(r*0.26)}px ui-sans-serif, system-ui`;
+  c.fillStyle = 'rgba(150,220,185,0.9)';
+  c.fillText('GIAO HÀNG', 0, -r*0.42);
+  c.textAlign = 'left';
   c.restore();
 }
 function nearCart(p){
@@ -2108,7 +3037,11 @@ function dot(c,x,y,r,col){ c.beginPath(); c.fillStyle = col; c.arc(x,y,r,0,Math.
 function nearestLoot(p){
   let best = null, bd = grabRange(p);
   for (const l of S.loot){
-    if (l.gone || l.held || l.onPad || l.inCart) continue;
+    // On a SHOP checkout you may take something back off — that is changing your mind, and it is
+    // the whole point of a shop. On a house's extraction pad you may not, because that would be
+    // un-banking a haul the level has already paid you for.
+    if (l.gone || l.held || l.inCart) continue;
+    if (l.onPad && !S.shopMode) continue;
     const d = Math.hypot(l.x-p.x, l.y-p.y);
     // Sight is required only BEYOND arm's length. A wall is 24 px thick, so anything on its far
     // side is at least ~38 px from the player's centre; inside one tile you are in the same room as
@@ -2121,9 +3054,26 @@ function nearestLoot(p){
 }
 function drawMinimap(c, hud){
   const big = S.bigMap;
-  const w = big ? Math.min(hud.w*0.6, 460) : Math.min(hud.w*0.26, 210);
+  const w = big ? Math.min(hud.w*0.6, 460) : Math.min(hud.w*0.34, 210);
   const h = w * (MH/MW);
   const x = big ? (hud.w-w)/2 : hud.w - w - 14, y = big ? (hud.h-h)/2 : 14;
+
+  // The minimap sits in a corner the player walks into. Rather than move it — every corner is
+  // somebody's corner — it gets out of the way: while the player's own body is under it, or close
+  // enough that it would cover what they are walking toward, it fades to a ghost and back.
+  // The fade is eased rather than switched, because a panel that blinks reads as a glitch.
+  const pl = S.player;
+  let want = 0;
+  if (!big && pl && pl.aimSlot >= 0) want = 1;   // the cancel target shares this corner
+  else if (!big && pl){
+    const px = scrX(pl.x), py = scrY(pl.y);
+    const m = TILE*1.4*zoom();          // a tile and a bit of look-ahead around the panel
+    if (px > x-3-m && px < x+w+3+m && py > y-3-m && py < y+h+3+m) want = 1;
+  }
+  S.mapFade = mix(S.mapFade || 0, want, 0.12);
+  const alpha0 = c.globalAlpha;
+  c.globalAlpha = alpha0 * (big ? 1 : mix(1, MINIMAP_FADED_ALPHA, S.mapFade));
+
   c.fillStyle = 'rgba(8,10,13,0.82)'; c.fillRect(x-3,y-3,w+6,h+6);
   c.strokeStyle = 'rgba(90,120,170,0.7)'; c.lineWidth = 1.5; c.strokeRect(x-3,y-3,w+6,h+6);
   const sx = w/MW, sy = h/MH;
@@ -2191,6 +3141,7 @@ function drawMinimap(c, hud){
   }
   c.fillStyle = '#ffd98a';
   c.fillRect(x + S.player.x/TILE*sx - 2, y + S.player.y/TILE*sy - 2, 4, 4);
+  c.globalAlpha = alpha0;
 }
 
 // ============================================================ DOM ui
@@ -2211,7 +3162,8 @@ function showVeil(title, body, btnText, onClick, extraHtml){
 }
 function hideVeil(){ el('veil').hidden = true; }
 
-// The station rolls fresh stock every visit, in two separate sets.
+// What the station has in stock tonight, rolled fresh every visit, in two separate sets. Where it
+// is LAID OUT is buildShop's job; this only decides what is on the floor.
 //   Upgrades — permanent, buyer-only, price climbs per purchase. Each one may be ROLLED at
 //              most UPGRADE_MAX_SPAWNS times in a run; after that it is gone for good, so a
 //              skipped offer is a real decision and not a thing you can wait out.
@@ -2233,61 +3185,6 @@ function rollShop(){
 }
 function upgradePrice(u){ return Math.round(u.base * Math.pow(1.6, S.upg[u.key])); }
 
-function showShop(){
-  if (!S.offer) S.offer = rollShop();
-  const o = S.offer;
-
-  const upRows = o.upgrades.map(u => {
-    const lv = S.upg[u.key], price = upgradePrice(u);
-    const left = UPGRADE_MAX_SPAWNS - (S.upgSpawned[u.key]||0);
-    return `<button class="up" data-key="${u.key}" data-price="${price}" ${S.wallet>=price?'':'disabled'}>
-      <span class="t">${u.name} <span style="opacity:.6;font-weight:400">Lv ${lv}</span></span>
-      <span class="d">${u.desc}</span>
-      <span class="p">${money(price)} <span style="opacity:.55">· còn ${left} lần xuất hiện</span></span>
-    </button>`;
-  }).join('') || `<div class="empty">Hết nâng cấp để bán — mỗi loại chỉ xuất hiện ${UPGRADE_MAX_SPAWNS} lần trong một ca.</div>`;
-
-  const geRows = o.gear.map(g => {
-    const left = g.stock - (S.gearBought[g.key]||0);
-    return `<button class="gear" data-key="${g.key}" data-price="${g.price}" ${S.wallet>=g.price?'':'disabled'}>
-      <span class="t">${g.name}</span>
-      <span class="d">${g.desc}</span>
-      <span class="p">${money(g.price)} <span style="opacity:.55">· ${g.passive?'trang bị là chạy':'x'+g.uses+' lượt'} · còn ${left}</span></span>
-    </button>`;
-  }).join('') || `<div class="empty">Hết đồ để bán trong ca này.</div>`;
-
-  showVeil('Trạm dịch vụ — hết màn ' + S.level,
-    'Chỉ tiêu đã xong. Nâng cấp ăn thẳng vào chỉ số của bạn; đồ mua về nằm trong tủ trên xe, ra ca sau tự lấy ở đó.',
-    'Vào màn ' + (S.level+1),
-    () => { S.level++; S.offer = null; startLevel(); },
-    `<div class="wallet">Ví: ${money(S.wallet)} &nbsp;·&nbsp; Tủ đồ: ${S.stash.length} món</div>
-     <div class="seg">Nâng cấp — vĩnh viễn, chỉ cho bạn</div><div class="shop">${upRows}</div>
-     <div class="seg">Đồ — cất vào tủ trên xe</div><div class="shop">${geRows}</div>`);
-
-  el('veilExtra').querySelectorAll('.up').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.key, price = +btn.dataset.price;
-      if (S.wallet < price) return;
-      S.wallet -= price; S.upg[key]++;
-      applyUpgrades();
-      showShop();
-    });
-  });
-  el('veilExtra').querySelectorAll('.gear').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.key, price = +btn.dataset.price;
-      if (S.wallet < price) return;
-      const def = GEAR_BY_KEY[key];
-      if ((S.gearBought[key]||0) >= def.stock) return;
-      S.wallet -= price;
-      S.gearBought[key] = (S.gearBought[key]||0) + 1;
-      S.stash.push({ kind:key, uses:def.uses });
-      // sold out now? drop it from this visit's stock so the row cannot be clicked again
-      if ((S.gearBought[key]||0) >= def.stock) S.offer.gear = S.offer.gear.filter(g => g.key !== key);
-      showShop();
-    });
-  });
-}
 function applyUpgrades(){
   const p = S.player;
   if (!p) return;
@@ -2361,10 +3258,14 @@ function showStash(){
 }
 
 function updateBar(){
-  el('hLevel').textContent = S.level;
+  el('hLevel').textContent = S.shopMode ? 'Trạm' : S.level;
   const pad = S.pads[S.padIndex];
   const q = el('hQuota');
-  if (S.levelDone){ q.textContent = 'xong — về xe'; q.classList.add('met'); }
+  if (S.shopMode){
+    q.textContent = pad ? 'trên bệ ' + money(pad.value) : '—';
+    q.classList.toggle('met', !!pad && pad.value > 0 && pad.value <= S.wallet);
+  }
+  else if (S.levelDone){ q.textContent = 'xong — về xe'; q.classList.add('met'); }
   else if (pad){ q.textContent = money(pad.value) + ' / ' + money(pad.quota); q.classList.toggle('met', pad.value >= pad.quota); }
   el('hWallet').textContent = money(S.wallet);
   const p = S.player;
@@ -2382,11 +3283,18 @@ let acc = 0, last = 0, timeScale = 1;
 function frame(now){
   const dt = Math.min(0.25, (now-last)/1000); last = now;
   const cv = CV();
-  if (cv.width !== Math.round(cv.getBoundingClientRect().width * dpr)) resize();
-  if (S.running && !S.dead){
-    acc += dt * timeScale;
+  const rr = cv.getBoundingClientRect();
+  if (cv.width !== Math.round(rr.width*dpr) || cv.height !== Math.round(rr.height*dpr)) resize();
+  stepCut(dt);                     // real time: a cutscene is not part of the simulation
+  if (S.running && !S.dead && !S.cut){
+    // Hitstop: the world stalls for a fraction of a second on a heavy impact, which is what makes
+    // the impact land. It is counted down in REAL time so it lasts the same however slow the world
+    // has been made, and it never stops the clock outright — a frozen game reads as a hang.
+    let ts = timeScale;
+    if (FX.hitstop > 0){ FX.hitstop = Math.max(0, FX.hitstop - dt); ts *= 0.14; }
+    acc += dt * ts;
     let steps = 0;
-    while (acc >= FIXED && steps < 240){ step(FIXED); acc -= FIXED; steps++; if (!S.running) break; }
+    while (acc >= FIXED && steps < 240){ step(FIXED); acc -= FIXED; steps++; if (!S.running || S.cut) break; }
   }
   draw();
   updateBar();
@@ -2398,10 +3306,24 @@ window.__boot = function(){
   setupInput();
   resize();
   addEventListener('resize', resize);
+  // The frame's height changes when the page chrome wraps, and that fires no window resize event.
+  if (window.ResizeObserver){
+    const box = CV().parentElement;
+    if (box) new ResizeObserver(() => resize()).observe(box);
+  }
   buildLevel((Math.random()*999999)|0);
   S.running = false;
 
-  el('veilBtn').onclick = () => { S.running = true; hideVeil(); };
+  el('veilBtn').onclick = () => {
+    SFX.wake(); S.running = true; hideVeil();
+    startCut('arrive', 'Màn ' + S.level, 'Chỉ tiêu ' + money(S.quotaTotal));
+  };
+  el('sndBtn').onclick = () => {
+    const on = !SFX.on;
+    SFX.setOn(on); SFX.wake();
+    el('sndBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
+    el('sndBtn').textContent = on ? 'Âm thanh' : 'Tắt tiếng';
+  };
   el('veilBtn2').hidden = false;
   el('veilBtn2').onclick = () => { S.running = true; hideVeil(); setBot(true); };
   el('newBtn').onclick = () => { resetRun(); startLevel(); };
@@ -2431,7 +3353,21 @@ window.REPO = {
   damageLoot,
   UPGRADES, GEAR, GEAR_BY_KEY, UPGRADE_MAX_SPAWNS, CART_SLOTS, CART_MAX_SIZE,
   grabCart, releaseCart, cartValue, cartLoad, cartFits, nearTruck, hasGear,
-  toggleStash, rollShop,
+  toggleStash, rollShop, startShop, leaveShop, togglePay,
+  shop(){
+    if (!S.shopMode) return null;
+    const pad = S.pads[0];
+    return {
+      goods: S.loot.filter(l => l.good && !l.gone).map(l => ({
+        kind:l.good.kind, key:l.good.key, name:l.good.name, price:l.value,
+        x:l.x, y:l.y, onPad: !!l.onPad, held: !!l.held })),
+      pad: pad ? { x:pad.x, y:pad.y, value:pad.value, count:pad.placed.filter(l=>!l.gone).length } : null,
+      button: { x:S.button.x, y:S.button.y, r:S.button.r },
+      truck: { x:S.car.x, y:S.car.y },
+      paying: S.pay.active, countdown: S.countdown,
+      canLeave: S.shopCanLeave, wallet: S.wallet
+    };
+  },
   // turnRate / coneRadius take the player, like playerSpeed above; handWeight / pushWeight are
   // the zero-argument hooks the patch's contract names, and read the current player.
   cartPassable, routeToObjective, turnRate, coneRadius, carriedWeight,
@@ -2452,6 +3388,24 @@ window.REPO = {
     S.player.inv[free] = S.stash.splice(i,1)[0];
     return true;
   },
+  cut(){ return S.cut ? { kind:S.cut.kind, t:S.cut.t, label:S.cut.label } : null; },
+  skipCut, setCutscenes,
+  carDrawOffset, playerDrawPos,
+  frame(){ const cv = CV(), r = cv.getBoundingClientRect();
+           return { w:r.width, h:r.height, aspect:r.width/r.height, zoom:zoom(),
+                    worldW:vwW(), worldH:vwH() }; },
+  stick(){ return stickL ? { ox:stickL.ox, oy:stickL.oy, x:stickL.x, y:stickL.y } : null; },
+  hud(){ return hudLayout(); },
+  aiming(){ const p = S.player; return p && p.aimSlot >= 0
+              ? { slot:p.aimSlot, x:p.aimX, y:p.aimY, angle:aimAngle(p, hudLayout()) } : null; },
+  rushing(){ return !!(S.player && S.player.rushing); },
+  fx(){ return { dread:FX.dread, shake:FX.shake, hitstop:FX.hitstop, flash:FX.flash,
+                 hurtT:FX.hurtT, tickPulse:FX.tickPulse, pops:FX.pops.map(q=>q.text) }; },
+  threat(){ return threatLevel(); },
+  foesForLevel, makeNoise,
+  relocateFoe(i){ return relocateFoe(S.monsters[i||0], Math.random); },
+  soundOn(){ return SFX.on; },
+  mapFade(){ return S.mapFade || 0; },
   get timeScale(){ return timeScale; },
   set timeScale(v){ timeScale = clamp(v, 0.1, 12); },
   get dmgMult(){ return DMG_MULT; },
@@ -2469,6 +3423,8 @@ window.REPO = {
     const pad = S.pads[S.padIndex];
     return {
       level:S.level, wallet:S.wallet, seed:S.seed, running:S.running, dead:S.dead,
+      shopMode:S.shopMode, paying:S.pay.active, cut: S.cut ? S.cut.kind : null,
+      lastLevel: S.lastLevel || null,
       levelDone:S.levelDone, noFoes:S.noFoes,
       hp:p?p.hp:0, hpMax:p?p.hpMax:0, stam:p?p.stam:0, str:p?p.str:0,
       x:p?p.x:0, y:p?p.y:0, dir:p?p.dir:0, noise:p?p.noise:0,
@@ -2476,6 +3432,7 @@ window.REPO = {
       inv: p ? p.inv.map(it => it ? { kind:it.kind, uses:it.uses } : null) : [],
       stash: S.stash.map(it => ({ kind:it.kind, uses:it.uses })),
       pushing: !!(p && p.pushing),
+      rushing: !!(p && p.rushing), speedMul: p ? (p.speedMul || 0) : 0, runT: p ? (p.runT || 0) : 0,
       cart: S.cart ? { x:S.cart.x, y:S.cart.y, items:S.cart.items.length, value:cartValue(S.cart),
                        held:S.cart.held, mode:S.cart.mode } : null,
       upgSpawned: Object.assign({}, S.upgSpawned),
@@ -2487,6 +3444,9 @@ window.REPO = {
       lootValue0: S.loot.reduce((a,l)=>a+l.value0,0),
       monsters: S.monsters.length,
       chasing: S.monsters.filter(m=>m.state==='chase').length,
+      hunting: S.monsters.filter(m=>m.state==='hunt').length,
+      foes: S.monsters.map(m=>({ type:m.type, x:m.x, y:m.y, state:m.state,
+                                 alert:m.alert, lost:m.lost, tx:m.tx, ty:m.ty })),
       pads: S.pads.map(q=>({ quota:q.quota, value:q.value, done:q.done, active:q.active, ri:q.ri })),
       carRoom: 0, GX, GY,
       padIndex: S.padIndex,
