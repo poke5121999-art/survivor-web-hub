@@ -131,7 +131,7 @@ const bot = {
     const need = pad.quota - pad.value;
     let best = null, bestScore = -1e9;
     for (const l of S.loot){
-      if (l.gone || l.held || l.onPad) continue;
+      if (l.gone || l.held || l.onPad || l.inCart) continue;
       const dPlayer = Math.hypot(l.x-p.x, l.y-p.y);
       const dPad = Math.hypot(l.x-pad.x, l.y-pad.y);
       // value per unit of hauling, with a nudge toward whatever finishes the quota
@@ -158,6 +158,17 @@ const bot = {
   // ---------------------------------------------------------------- main
   think(dt){
     const r = this._think(dt) || { vx:0, vy:0, push:0 };
+    // An AEngel cannot be shot, outrun or ignored — the only counter in the game is to point the
+    // torch at it until it fills up and leaves. So whatever the agent was about to look at, this
+    // outranks it. Done HERE rather than inside _think because _think returns a `look` from eight
+    // different places, and a rule that has to be remembered at eight sites is a rule that gets
+    // forgotten at one of them.
+    const A = R();
+    const a = A && A.S && A.S.angel;
+    if (a && a.phase === 'stand' && a.t >= (A.ANGEL ? A.ANGEL.SETTLE : 3)){
+      const p = A.S.player;
+      if (p) r.look = Math.atan2(a.y - p.y, a.x - p.x);
+    }
     this.lastWanted = !!(r.vx || r.vy);
     return r;
   },
@@ -168,6 +179,8 @@ const bot = {
     if (!p || !S.running || S.dead) return { vx:0, vy:0, push:0 };
 
     this.replanT -= dt; this.shootCd -= dt; this.fleeT -= dt; this.dropCd -= dt;
+
+    if (p.pushing) A.releaseCart(p);        // the agent hauls by hand; never leave it on the cart
 
     // stuck watchdog — without this a wedged bot hangs the whole test
     this.moved += Math.hypot(p.x-this.lastX, p.y-this.lastY);
@@ -269,7 +282,7 @@ const bot = {
       if (p.held){ goal = pad; kind = 'pad'; this.lootLock = null; }
       else {
         const locked = this.lootLock;
-        const stillGood = locked && !locked.gone && !locked.held && !locked.onPad && this.lockT < 8;
+        const stillGood = locked && !locked.gone && !locked.held && !locked.onPad && !locked.inCart && this.lockT < 8;
         const l = stillGood ? locked : this.bestLoot();
         if (!l){ this.state = ST.IDLE; this.lootLock = null; return { vx:0, vy:0, push:0 }; }
         if (l !== this.lootLock){ this.lootLock = l; this.lockT = 0; }
@@ -282,7 +295,10 @@ const bot = {
     const gd = Math.hypot(goal.x-p.x, goal.y-p.y);
     if (kind === 'loot' && gd < A.grabRange(p)*0.8 && this.dropCd <= 0){
       const before = p.held;
-      if (!p.held) A.pickUp(p);        // pickUp() toggles, so never call it while holding
+      // pickUp() toggles AND falls through to the cart handle when nothing is in reach, so
+      // only call it when there really is loot to take — otherwise the bot grabs the cart
+      // it never learned to drive and spends the level pushing it in circles.
+      if (!p.held && !p.pushing && A.nearestLoot(p)) A.pickUp(p);
       if (!before && p.held){ this.stats.picked++; this.path = null; this.target = null; }
       this.state = ST.GRAB;
       return { vx:0, vy:0, push:0, look: Math.atan2(goal.y-p.y, goal.x-p.x) };
