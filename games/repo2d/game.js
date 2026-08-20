@@ -2137,7 +2137,12 @@ function buildShop(){
 
   const truck = shopTile(10, 27);
   S.car.x = truck.x; S.car.y = truck.y;
-  S.cart = makeCart(truck.x + TILE*1.6, truck.y + TILE*2.0);
+  // NO CART in the station. It is not a convenience here, it is a trap: dropHeld puts a carried
+  // thing on the cart in preference to the floor, so a good let go anywhere near it went INTO the
+  // cart — and a good in the cart is skipped by the grab search, which left a player who had put
+  // more on the checkout than they could afford with no way to take any of it back off.
+  // Shopping is six items across a twelve-tile hall; it never needed wheels.
+  S.cart = null;
 
   S.player = S.player || newPlayer();
   S.player.x = truck.x - TILE*1.0; S.player.y = truck.y + TILE*2.0;
@@ -3351,6 +3356,9 @@ function drawPads(c){
     c.fillRect(pad.x-TILE*1.8, pad.y-TILE*1.8, TILE*3.6, TILE*3.6);
     if (!pad.done){
       c.fillStyle = '#dfe6ea'; c.font = '600 13px ui-monospace, monospace'; c.textAlign = 'center';
+      // On a checkout the number is red once it is past what the wallet holds — otherwise the till
+      // simply refuses and the player is left guessing which part it objected to.
+      if (pad.shop && pad.value > S.wallet) c.fillStyle = '#e8776a';
       c.fillText(pad.shop ? money(pad.value) : money(pad.value) + ' / ' + money(pad.quota),
                  pad.x, pad.y - TILE*2.1);
       c.textAlign = 'left';
