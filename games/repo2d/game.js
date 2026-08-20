@@ -86,14 +86,11 @@ const STAM_MAX = 100, STAM_DRAIN = 22, STAM_REGEN = 16;
 // screen, so a flat 4 px was a real deadzone on a tablet and none at all on a phone.
 const STICK_DEAD = 0.14;
 
-// How long the facing keeps pointing where it was last AIMED once nothing is aiming it any more.
-// Doc C2-2 freezes the facing when the look stick is released, so a thumb can leave to tap an item
-// and come back; that is what this window protects. Past it, walking turns you.
-// WHY it is not simply forever: the thing you are carrying is pinned to the facing, and the mouse
-// (or a released thumb) is usually left BELOW the character — so a frozen facing meant every load
-// you picked up hung underneath you and trailed there whichever way you walked. That is what the
-// report "dragging loot keeps getting pulled down, is that gravity?" was describing. It is not
-// gravity; there is none in this game. It was a stale aim.
+// A cursor that has not moved for this long has stopped aiming — the desktop equivalent of taking
+// a thumb off the look stick. Per doc C2-2 the facing then FREEZES where it was; it does not reset
+// and it does not follow your feet.
+// WHY it is not simply forever: a cursor left lying below the character would hold the facing (and
+// the load pinned to it) pointing down for as long as nobody touched the mouse.
 const LOOK_IDLE = 1.1;
 
 // How far from the character the cursor has to be before it counts as pointing at anything.
@@ -615,7 +612,7 @@ function newPlayer(){
     // The hands start EMPTY, like the source game: everything you carry into a house was
     // bought at the station and taken out of the truck's locker first.
     inv: [ null, null, null ],
-    aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0, lookIdle: 0,
+    aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0,
     pushing: false, runT: 0, rushing: false,
     floatT: 0, shieldT: 0
   };
@@ -2283,7 +2280,14 @@ function setupInput(){
     // A stick is only born in the thumb band. Above it the screen is buttons and world, and a
     // touch that misses a button there does nothing rather than yanking the character sideways.
     if (p.y > hud.thumbY){
-      if (p.x < hud.w*0.5){ stickL = { id:e.pointerId, ox:p.x, oy:p.y, x:p.x, y:p.y }; }
+      // The MOVE stick does not move. Its origin is the middle of the ring that is painted in the
+      // corner — the same one, every time — so what you push against is a thing you can see, and
+      // the ring never wanders across the buttons above it.
+      // WHY it is not the floating stick it briefly was: floating fixed the steering (an origin
+      // frozen at the first touch ignores late corrections), but it fixed it by putting the ring
+      // wherever the thumb happened to land, which covered the HUD. A ring that is FIXED and VISIBLE
+      // has neither problem: corrections are measured from a point the player is looking at.
+      if (p.x < hud.w*0.5){ stickL = { id:e.pointerId, ox:hud.left.x, oy:hud.left.y, x:p.x, y:p.y }; }
       // The look stick FLOATS, exactly like the move stick: its origin is where the thumb landed.
       // WHY: its origin used to be pinned to the middle of its painted ring, so putting a thumb
       // down anywhere below that middle — which is most of the band, and where a thumb naturally
@@ -2484,21 +2488,12 @@ function step(dt){
     const m = Math.hypot(vx,vy);
     if (m > 0){ vx/=m; vy/=m; push = keys.has('shift') ? 1 : 0.6; }
     if (stickL){
-      // The origin TRAILS the thumb: once the thumb is further out than the stick's own radius, the
-      // origin is dragged along behind it so it stays exactly that far back.
-      // WHY: the origin used to be frozen wherever the thumb first landed, forever. After a long drag
-      // the thumb sits hundreds of px out, so a correction of a few dozen px barely moves the angle —
-      // measured, a 40 px push straight up after a 200 px drag right steered 65 degrees off intent.
-      // A thumb's natural arc sags downward, so in the hand that reads as a gravity dragging the
-      // character down whenever you are already moving.
-      // ROOT-CAUSE: a floating-origin stick was implemented as a fixed-origin one placed late.
+      // Measured from the middle of the painted ring, every frame. No trailing and no memory of
+      // where the thumb first landed: the reference point is on screen, so a correction is exactly
+      // as big as it looks.
       const maxD = hudLayout().left.r;
-      let dx = stickL.x-stickL.ox, dy = stickL.y-stickL.oy;
-      let d = Math.hypot(dx,dy);
-      if (d > maxD){
-        stickL.ox += dx/d*(d-maxD); stickL.oy += dy/d*(d-maxD);
-        dx = stickL.x-stickL.ox; dy = stickL.y-stickL.oy; d = maxD;
-      }
+      const dx = stickL.x-stickL.ox, dy = stickL.y-stickL.oy;
+      const d = Math.hypot(dx,dy);
       if (d > maxD*STICK_DEAD){ vx = dx/d; vy = dy/d; push = clamp(d/maxD, 0, 1); }
     }
   }
@@ -2536,11 +2531,11 @@ function step(dt){
 
   // ---- look
   if (!window.__botActive){
-    let want = null, aimed = false;
+    let want = null;
     // Aiming outranks looking: while an item is raised, the character turns to face where it is
     // about to be thrown, so the light cone shows you what you are shooting at.
     if (p.aimSlot >= 0){
-      want = aimAngle(p, hudLayout()); aimed = true;
+      want = aimAngle(p, hudLayout());
     } else if (stickR){
       const maxD = hudLayout().right.r;
       let dx = stickR.x-stickR.ox, dy = stickR.y-stickR.oy;
@@ -2549,7 +2544,7 @@ function step(dt){
         stickR.ox += dx/d*(d-maxD); stickR.oy += dy/d*(d-maxD);
         dx = stickR.x-stickR.ox; dy = stickR.y-stickR.oy; d = maxD;
       }
-      if (d > maxD*STICK_DEAD){ want = Math.atan2(dy,dx); aimed = true; }
+      if (d > maxD*STICK_DEAD) want = Math.atan2(dy,dx);
     }
     // A mouse that has not moved is not looking anywhere — it is just lying there. Honouring a
     // parked cursor is what pinned the facing (and the load in your arms) below the character.
@@ -2558,17 +2553,18 @@ function step(dt){
     // player now, which puts the middle of the screen exactly where that happens.
     const mw = mouseFresh() && mouseWorldNow();
     if (want === null && mw && Math.hypot(mw.x-p.x, mw.y-p.y) > MOUSE_LOOK_MIN){
-      want = Math.atan2(mw.y-p.y, mw.x-p.x); aimed = true;
+      want = Math.atan2(mw.y-p.y, mw.x-p.x);
     }
-    p.lookIdle = aimed ? 0 : p.lookIdle + dt;
-    // Nothing has aimed the look for a moment and you are walking: face where you are going. The
-    // sight cone leads, and whatever you are carrying is carried ahead of you rather than dragged.
-    // ...and only on a REAL push. The move vector is normalised, so a thumb sitting a few pixels
-    // off its origin still reports a full-length direction whose ANGLE is thumb-noise; facing that
-    // would swing the load in your arms for no reason at all.
-    if (want === null && moving && push > 0.30 && p.lookIdle > LOOK_IDLE) want = Math.atan2(vy, vx);
-    // Doc C2-2: releasing the look stick FREEZES the facing. It never resets and never
-    // snaps to the movement direction — that is what lets a thumb leave to tap an item.
+    // Nothing else may turn you. Doc C2-2: the two sticks are INDEPENDENT — the left one moves you,
+    // the right one aims you, and letting go of the right one FREEZES the facing where it was. It
+    // never resets and never snaps to the direction you are walking.
+    //
+    // WHY this note is here: a version of this file did make walking turn you, added while chasing
+    // the "the load I am carrying gets dragged downward" report. That was a real defect but this was
+    // not its cause — the causes were a touchscreen's ghost mouse events and a cursor stored in world
+    // space, both fixed above. Facing-follows-movement papered over them AND quietly replaced the
+    // control scheme with a single-stick one. The owner caught it. If it ever looks tempting again,
+    // it is the same mistake twice: measure what is moving `want`, do not add another writer.
     if (want !== null){
       const rate = 7.5 * turnRate(p);
       p.dir += clamp(angDiff(want, p.dir), -rate*dt, rate*dt);
@@ -2655,6 +2651,7 @@ function draw(){
   c.globalCompositeOperation = 'lighter';
   worldTransform(c);
   drawMemory(c);
+  drawHighlights(c);
 
   c.setTransform(1,0,0,1,0,0);
   c.globalCompositeOperation = 'source-over';
@@ -2718,6 +2715,74 @@ function cone(c,p,r,half,alpha,rgb){
   g.addColorStop(1,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
   c.fillStyle = g;
   c.beginPath(); c.moveTo(p.x,p.y); c.arc(p.x,p.y,r,p.dir-half,p.dir+half); c.closePath(); c.fill();
+}
+
+// ============================================================ highlights
+// What the torch has actually found. The sight cone lights a wedge of floor, but a small dark vase
+// standing on a dark carpet inside that wedge is still something a player walks past — and the
+// whole game is picking those up. Same for the two objects the loop is built around: the cart, and
+// the truck you open the locker at.
+//
+// Drawn in the ADDITIVE pass, after the darkness has been multiplied over the world, so a highlight
+// is never dimmed by the room it is standing in.
+const HL_LOOT   = [232, 196, 120];   // warm gold — the colour of money in this game
+const HL_CART   = [224, 192, 122];
+const HL_TRUCK  = [140, 190, 230];
+const HL_TARGET = [150, 230, 170];   // green: the one thing the grab button would actually take
+
+// Is this point inside the light the player is casting right now?
+function inSight(x, y){
+  const p = S.player;
+  const dx = x-p.x, dy = y-p.y;
+  const d = Math.hypot(dx, dy);
+  if (d > Math.max(coneRadius(p), PERIPH_R)) return false;
+  if (d > PERIPH_R && Math.abs(angDiff(Math.atan2(dy,dx), p.dir)) > coneHalf(p)*1.05) return false;
+  return losClear(p.x, p.y, x, y);
+}
+
+function glowRing(c, x, y, r, rgb, a, lw){
+  const g = c.createRadialGradient(x, y, r*0.55, x, y, r*1.85);
+  g.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a*0.30})`);
+  g.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  c.fillStyle = g;
+  c.fillRect(x-r*1.85, y-r*1.85, r*3.7, r*3.7);
+  c.beginPath();
+  c.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
+  c.lineWidth = lw || 2;
+  c.arc(x, y, r, 0, Math.PI*2);
+  c.stroke();
+}
+
+function drawHighlights(c){
+  const p = S.player;
+  if (!p || S.dead) return;
+  const target = nearestLoot(p);
+  const beat = 0.62 + 0.38*Math.sin(S.time*3.2);
+
+  for (const l of S.loot){
+    if (l.gone || l.held || l.inCart || l.onPad) continue;
+    if (!inSight(l.x, l.y)) continue;
+    const isT = l === target;
+    // The one the grab button would take is called out in a different colour and a wider ring, so
+    // "there is loot over there" and "this is the one I am about to pick up" are not the same signal.
+    glowRing(c, l.x, l.y, l.r + (isT ? 7 + beat*2.5 : 4.5),
+             isT ? HL_TARGET : (l.isBag ? [235,205,110] : HL_LOOT),
+             isT ? 0.55 + beat*0.35 : 0.30, isT ? 2.4 : 1.6);
+  }
+
+  // The cart: found from across the room, and unmistakable once you are in reach of the handle.
+  if (S.cart && !p.pushing && inSight(S.cart.x, S.cart.y)){
+    const near = nearCart(p);
+    glowRing(c, S.cart.x, S.cart.y, S.cart.r*1.25 + (near ? beat*2.5 : 0),
+             HL_CART, near ? 0.5 + beat*0.3 : 0.26, near ? 2.4 : 1.6);
+  }
+  // The truck: the locker lives on it, and the locker button only appears when you are close, so
+  // the truck has to say "come here" from further away than the button does.
+  if (inSight(S.car.x, S.car.y)){
+    const near = nearTruck(p);
+    glowRing(c, S.car.x, S.car.y, TILE*1.9 + (near ? beat*3 : 0),
+             HL_TRUCK, near ? 0.5 + beat*0.3 : 0.24, near ? 2.6 : 1.6);
+  }
 }
 function drawMemory(c){
   const gx0 = Math.max(0,(cam.x/TILE)|0), gy0 = Math.max(0,(cam.y/TILE)|0);
@@ -3000,20 +3065,16 @@ function drawHud(c){
     c.textAlign = 'left';
   }
 
-  // sticks. The left one is drawn AT THE THUMB, not in the corner: it floats and its origin trails,
-  // so a ring painted anywhere else is a ring that lies about which way "up" is.
-  const lo = stickL ? { x:stickL.ox, y:stickL.oy } : hud.left;
-  ring(c, lo.x, lo.y, hud.left.r, stickL ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
+  // Both rings are painted where they LIVE and stay there. The left one is the move stick's actual
+  // origin; the right one is a home marker for a stick that works on drag, and its knob shows which
+  // way the character is currently facing while nobody is dragging it.
+  ring(c, hud.left.x, hud.left.y, hud.left.r, stickL ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
   const lk = stickL ? { x:clamp(stickL.x-stickL.ox,-hud.left.r,hud.left.r), y:clamp(stickL.y-stickL.oy,-hud.left.r,hud.left.r) } : {x:0,y:0};
-  dot(c, lo.x+lk.x, lo.y+lk.y, hud.left.r*0.3, stickL ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
-  // Drawn at the thumb for the same reason as the left one: a ring painted anywhere else is a ring
-  // that lies about where the middle is. At rest it sits in its corner and its knob shows the way
-  // the character is currently facing.
-  const ro = stickR ? { x:stickR.ox, y:stickR.oy } : hud.right;
-  ring(c, ro.x, ro.y, hud.right.r, stickR ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
+  dot(c, hud.left.x+lk.x, hud.left.y+lk.y, hud.left.r*0.3, stickL ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
+  ring(c, hud.right.x, hud.right.y, hud.right.r, stickR ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
   const rk = stickR ? { x:clamp(stickR.x-stickR.ox,-hud.right.r,hud.right.r), y:clamp(stickR.y-stickR.oy,-hud.right.r,hud.right.r) }
                     : { x:Math.cos(p.dir)*hud.right.r*0.55, y:Math.sin(p.dir)*hud.right.r*0.55 };
-  dot(c, ro.x+rk.x, ro.y+rk.y, hud.right.r*0.3, stickR ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
+  dot(c, hud.right.x+rk.x, hud.right.y+rk.y, hud.right.r*0.3, stickR ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
 
   // item slots
   for (let i=0;i<3;i++){
@@ -3597,6 +3658,15 @@ window.REPO = {
   fx(){ return { dread:FX.dread, shake:FX.shake, hitstop:FX.hitstop, flash:FX.flash,
                  hurtT:FX.hurtT, tickPulse:FX.tickPulse, pops:FX.pops.map(q=>q.text) }; },
   threat(){ return threatLevel(); },
+  inSight, highlighted(){
+    const p = S.player;
+    return {
+      loot: S.loot.filter(l => !l.gone && !l.held && !l.inCart && !l.onPad && inSight(l.x, l.y))
+                  .map(l => ({ x:l.x, y:l.y, target: l === nearestLoot(p) })),
+      cart: !!(S.cart && !p.pushing && inSight(S.cart.x, S.cart.y)),
+      truck: inSight(S.car.x, S.car.y)
+    };
+  },
   heart(){ const hud = hudLayout();
            return { rate: FX.rate, bpm: Math.round(60/FX.rate), pulse: FX.beatPulse,
                     danger: Math.max(FX.dread, FX.hurtT*0.8),
@@ -3607,7 +3677,6 @@ window.REPO = {
   soundOn(){ return SFX.on; },
   mapFade(){ return S.mapFade || 0; },
   mapAlpha(){ return mix(MINIMAP_IDLE_ALPHA, MINIMAP_FADED_ALPHA, S.mapFade || 0); },
-  lookIdle(){ return S.player ? S.player.lookIdle : 0; },
   get timeScale(){ return timeScale; },
   set timeScale(v){ timeScale = clamp(v, 0.1, 12); },
   get dmgMult(){ return DMG_MULT; },
