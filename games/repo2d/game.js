@@ -96,6 +96,9 @@ const STICK_DEAD = 0.14;
 // gravity; there is none in this game. It was a stale aim.
 const LOOK_IDLE = 1.1;
 
+// How far from the character the cursor has to be before it counts as pointing at anything.
+const MOUSE_LOOK_MIN = 2.2 * TILE;
+
 // Nước rút. Keep the run input held and the character winds up into a sprint on its own.
 // WHY it is time-based and not a gesture: the thing it replaced fired on a double-tap of the run
 // input — a stick hitting its own rim twice — and could not be aimed at a moment on purpose.
@@ -2243,6 +2246,8 @@ function setupInput(){
 
   cv.addEventListener('pointerdown', e => {
     SFX.wake();                       // browsers refuse to start audio outside a user gesture
+    // One finger is enough: this device is a touchscreen, and its mouse events are ghosts.
+    if (e.pointerType === 'touch') touchSeen = true;
     if (skipCut()) return;
     cv.setPointerCapture(e.pointerId);
     const p = canvasPoint(e);
@@ -2279,7 +2284,13 @@ function setupInput(){
     // touch that misses a button there does nothing rather than yanking the character sideways.
     if (p.y > hud.thumbY){
       if (p.x < hud.w*0.5){ stickL = { id:e.pointerId, ox:p.x, oy:p.y, x:p.x, y:p.y }; }
-      else { stickR = { id:e.pointerId, ox:hud.right.x, oy:hud.right.y, x:p.x, y:p.y }; lookHeld = true; }
+      // The look stick FLOATS, exactly like the move stick: its origin is where the thumb landed.
+      // WHY: its origin used to be pinned to the middle of its painted ring, so putting a thumb
+      // down anywhere below that middle — which is most of the band, and where a thumb naturally
+      // rests — read as "push down" and swung the character to face the floor and stay there.
+      // Resting a thumb is now worth nothing; you turn by DRAGGING, which is the only motion that
+      // was ever meant to mean anything.
+      else { stickR = { id:e.pointerId, ox:p.x, oy:p.y, x:p.x, y:p.y }; lookHeld = true; }
     }
   });
   cv.addEventListener('pointermove', e => {
@@ -2312,14 +2323,24 @@ function setupInput(){
   };
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointercancel', up);
-  cv.addEventListener('mousemove', e => {
-    if (e.pointerType === 'touch') return;
-    const p = canvasPoint(e);
-    mouseWorld = { x: cam.x + p.x/zoom(), y: cam.y + p.y/zoom() };
+  // MOUSE-look is read from a POINTER event filtered on `pointerType`, and is switched off for good
+  // the first time a finger touches the screen.
+  //
+  // WHY, and this is the whole "the rotate joystick keeps turning me downward" bug: a touchscreen
+  // fires COMPATIBILITY mouse events after every tap — a mousemove at the point the finger lifted
+  // from. Those arrive as plain MouseEvents, whose `pointerType` is undefined, so the old guard
+  // (`if (e.pointerType === 'touch') return`) let every one of them through. Lifting a thumb off the
+  // look stick therefore planted a phantom cursor at the BOTTOM of the screen, and for the next
+  // second the character turned to face it. Measured: 65 degrees of unasked-for rotation, every
+  // time a thumb came off, in the corner of the screen where a thumb always is.
+  // ROOT-CAUSE: a mouse-only input was read from an event that a touchscreen also sends.
+  cv.addEventListener('pointermove', e => {
+    if (touchSeen || e.pointerType !== 'mouse') return;
+    mouseScreen = canvasPoint(e);
     mouseMovedAt = performance.now();
   });
   // A cursor that leaves the play area has stopped looking at anything.
-  cv.addEventListener('mouseleave', () => { mouseWorld = null; });
+  cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouseScreen = null; });
 }
 function overCancel(hud, p){
   return Math.hypot(p.x-hud.cancel.x, p.y-hud.cancel.y) < hud.cancel.r*1.25;
@@ -2329,9 +2350,21 @@ function aimAngle(p, hud){
   const dx = p.aimX - s.x, dy = p.aimY - s.y;
   return Math.hypot(dx,dy) > hud.aimR*STICK_DEAD ? Math.atan2(dy,dx) : p.dir;
 }
-let mouseWorld = null, mouseMovedAt = -1e9;
+// The cursor is remembered in SCREEN space and converted to a world point fresh every frame.
+//
+// WHY: it used to be converted ONCE, at the moment the mouse moved, and stored as a fixed point in
+// the house. Walking then swung the facing through that point like a compass needle passing a
+// magnet — and since whatever you are carrying is pinned to the facing, the load swung around you.
+// Measured on a straight walk with the cursor left sitting still: the facing travelled 229 degrees
+// in two and a half seconds, and 479 with a hand resting on the mouse. That is the "dragging an
+// item makes it rotate randomly" report. Nothing was random about it; it was parallax.
+// ROOT-CAUSE: a screen-space input was stored in world space, so camera motion became input.
+// It got worse the moment the camera stopped being clamped to the map and started following.
+let mouseScreen = null, mouseMovedAt = -1e9, touchSeen = false;
 // Real time, not simulation time: how long ago the player physically moved the mouse.
 const mouseFresh = () => (performance.now() - mouseMovedAt) < LOOK_IDLE*1000;
+const mouseWorldNow = () => mouseScreen &&
+  { x: cam.x + mouseScreen.x/zoom(), y: cam.y + mouseScreen.y/zoom() };
 function canvasPoint(e){
   const cv = CV(), r = cv.getBoundingClientRect();
   return { x:(e.clientX-r.left)/r.width*viewW, y:(e.clientY-r.top)/r.height*viewH };
@@ -2417,7 +2450,11 @@ function hudLayout(){
   // Where a raised item goes to be put back down: the top-right corner, the way a mobile MOBA does
   // it. It is the furthest point from the thumb that raised it, and on the way to nowhere else.
   const cancel = { x: w - pad - sr*1.6, y: pad + sr*1.6, r: sr*1.6 };
-  return { w, h, left, right, slots, grab, stash, cancel, pad, thumbY, aimR: R };
+  // The heart belongs WITH the controls, not tucked in a corner beside the health bar where nobody
+  // found it. Centre-bottom, just above the thumb band: between the two sticks, clear of every
+  // button, and squarely in the middle of where the eyes already are.
+  const heart = { x: w/2, y: thumbY - Math.min(w,h)*0.075 - 8, r: Math.min(w,h)*0.075 };
+  return { w, h, left, right, slots, grab, stash, cancel, heart, pad, thumbY, aimR: R };
 }
 function nearTruck(p){ return Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*3.2; }
 
@@ -2505,18 +2542,31 @@ function step(dt){
     if (p.aimSlot >= 0){
       want = aimAngle(p, hudLayout()); aimed = true;
     } else if (stickR){
-      const dx = stickR.x-stickR.ox, dy = stickR.y-stickR.oy;
-      if (Math.hypot(dx,dy) > 8){ want = Math.atan2(dy,dx); aimed = true; }
+      const maxD = hudLayout().right.r;
+      let dx = stickR.x-stickR.ox, dy = stickR.y-stickR.oy;
+      let d = Math.hypot(dx,dy);
+      if (d > maxD){                       // the origin trails the thumb, same as the move stick
+        stickR.ox += dx/d*(d-maxD); stickR.oy += dy/d*(d-maxD);
+        dx = stickR.x-stickR.ox; dy = stickR.y-stickR.oy; d = maxD;
+      }
+      if (d > maxD*STICK_DEAD){ want = Math.atan2(dy,dx); aimed = true; }
     }
     // A mouse that has not moved is not looking anywhere — it is just lying there. Honouring a
     // parked cursor is what pinned the facing (and the load in your arms) below the character.
-    if (want === null && mouseWorld && mouseFresh()){
-      want = Math.atan2(mouseWorld.y-p.y, mouseWorld.x-p.x); aimed = true;
+    // A cursor sitting ON the character points nowhere: the vector is a couple of pixels long and
+    // its ANGLE is noise, so a hand resting on the mouse span the facing. The camera centres the
+    // player now, which puts the middle of the screen exactly where that happens.
+    const mw = mouseFresh() && mouseWorldNow();
+    if (want === null && mw && Math.hypot(mw.x-p.x, mw.y-p.y) > MOUSE_LOOK_MIN){
+      want = Math.atan2(mw.y-p.y, mw.x-p.x); aimed = true;
     }
     p.lookIdle = aimed ? 0 : p.lookIdle + dt;
     // Nothing has aimed the look for a moment and you are walking: face where you are going. The
     // sight cone leads, and whatever you are carrying is carried ahead of you rather than dragged.
-    if (want === null && moving && p.lookIdle > LOOK_IDLE) want = Math.atan2(vy, vx);
+    // ...and only on a REAL push. The move vector is normalised, so a thumb sitting a few pixels
+    // off its origin still reports a full-length direction whose ANGLE is thumb-noise; facing that
+    // would swing the load in your arms for no reason at all.
+    if (want === null && moving && push > 0.30 && p.lookIdle > LOOK_IDLE) want = Math.atan2(vy, vx);
     // Doc C2-2: releasing the look stick FREEZES the facing. It never resets and never
     // snaps to the movement direction — that is what lets a thumb leave to tap an item.
     if (want !== null){
@@ -2929,13 +2979,8 @@ function drawHud(c){
   // Nothing to steer during a cutscene, so nothing that steers is drawn.
   if (S.cut){ drawCutscene(c, hud); c.restore(); return; }
 
-  // The heart, and then health + stamina beside it. The heart is the DISTANCE read-out: its rate is
-  // the whole message, so it sits where the eye already goes for the health bar rather than in a
-  // corner of its own.
-  const hr = Math.max(11, Math.min(15, hud.w*0.036));
-  drawHeart(c, 14 + hr, 15 + hr, hr);
-
-  const bx = 14 + hr*2 + 9, by = 14, bw = Math.min(168, hud.w - bx - 14), bh = 9;
+  // health + stamina, top-left. The heart is NOT here any more — see the controls, below.
+  const bx = 14, by = 14, bw = Math.min(168, hud.w*0.42), bh = 9;
   c.fillStyle = 'rgba(10,12,14,0.72)'; c.fillRect(bx-3,by-3,bw+6,bh*2+9);
   c.fillStyle = '#3a1f1c'; c.fillRect(bx,by,bw,bh);
   c.fillStyle = '#b8433a'; c.fillRect(bx,by,bw*clamp(p.hp/p.hpMax,0,1),bh);
@@ -2950,7 +2995,8 @@ function drawHud(c){
     // Above the thumb sticks, not under them: the sticks own the bottom band of a portrait frame.
     c.font = '600 14px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = `rgba(226,232,236,${Math.min(1,S.messageT)})`;
-    c.fillText(S.message, hud.w/2, hud.stash.y - hud.stash.r - 14);
+    c.fillText(S.message, hud.w/2,
+               Math.min(hud.stash.y - hud.stash.r, hud.heart.y - hud.heart.r) - 14);
     c.textAlign = 'left';
   }
 
@@ -2960,10 +3006,14 @@ function drawHud(c){
   ring(c, lo.x, lo.y, hud.left.r, stickL ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
   const lk = stickL ? { x:clamp(stickL.x-stickL.ox,-hud.left.r,hud.left.r), y:clamp(stickL.y-stickL.oy,-hud.left.r,hud.left.r) } : {x:0,y:0};
   dot(c, lo.x+lk.x, lo.y+lk.y, hud.left.r*0.3, stickL ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
-  ring(c, hud.right.x, hud.right.y, hud.right.r, 'rgba(210,140,50,0.55)');
+  // Drawn at the thumb for the same reason as the left one: a ring painted anywhere else is a ring
+  // that lies about where the middle is. At rest it sits in its corner and its knob shows the way
+  // the character is currently facing.
+  const ro = stickR ? { x:stickR.ox, y:stickR.oy } : hud.right;
+  ring(c, ro.x, ro.y, hud.right.r, stickR ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
   const rk = stickR ? { x:clamp(stickR.x-stickR.ox,-hud.right.r,hud.right.r), y:clamp(stickR.y-stickR.oy,-hud.right.r,hud.right.r) }
                     : { x:Math.cos(p.dir)*hud.right.r*0.55, y:Math.sin(p.dir)*hud.right.r*0.55 };
-  dot(c, hud.right.x+rk.x, hud.right.y+rk.y, hud.right.r*0.3, 'rgba(210,140,50,0.8)');
+  dot(c, ro.x+rk.x, ro.y+rk.y, hud.right.r*0.3, stickR ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
 
   // item slots
   for (let i=0;i<3;i++){
@@ -2986,6 +3036,10 @@ function drawHud(c){
     c.textAlign = 'left';
   }
   if (p.aimSlot >= 0) drawAim(c, hud, p);
+
+  // The heart. Big, low, and in the middle: it is the DISTANCE read-out and its rate is the whole
+  // message, so it is worth more room than a status icon.
+  drawHeart(c, hud.heart.x, hud.heart.y, hud.heart.r);
 
   // grab button, left side
   const near = nearestLoot(p);
@@ -3125,7 +3179,7 @@ function drawCountdown(c, hud){
 function drawHeart(c, cx, cy, r){
   const k = FX.beatPulse;
   const danger = Math.max(FX.dread, FX.hurtT*0.8);
-  const s = r * (1 + k*0.26);
+  const s = r * (1 + k*0.22);
   // calm slate-red -> alarmed blood-red, with the beat itself brightening it
   const lo = [96, 52, 56], hi = [214, 44, 38];
   const t = clamp(danger + k*0.22, 0, 1);
@@ -3133,12 +3187,19 @@ function drawHeart(c, cx, cy, r){
 
   c.save();
   c.translate(cx, cy);
-  // a soft aura, so a fast beat is visible out of the corner of the eye
-  if (danger > 0.05){
-    const g = c.createRadialGradient(0,0,r*0.4,0,0,r*2.2);
-    g.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${0.30*danger + 0.25*k*danger})`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    c.fillStyle = g; c.fillRect(-r*2.2,-r*2.2,r*4.4,r*4.4);
+  // A soft aura, so a fast beat is visible out of the corner of the eye — and a ring that expands
+  // and fades on each beat, which is what carries the RATE at a glance.
+  const aura = 0.22 + 0.32*danger;
+  const g = c.createRadialGradient(0,0,r*0.35,0,0,r*2.0);
+  g.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${aura*(0.45 + 0.55*k)})`);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = g; c.fillRect(-r*2,-r*2,r*4,r*4);
+  if (k > 0.02){
+    c.beginPath();
+    c.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${0.55*k})`;
+    c.lineWidth = Math.max(1.5, r*0.10*k);
+    c.arc(0, 0, r*(1.15 + (1-k)*0.75), 0, Math.PI*2);
+    c.stroke();
   }
   c.scale(s/r, s/r);
   c.beginPath();
@@ -3527,6 +3588,7 @@ window.REPO = {
            return { w:r.width, h:r.height, aspect:r.width/r.height, zoom:zoom(),
                     worldW:vwW(), worldH:vwH() }; },
   stick(){ return stickL ? { ox:stickL.ox, oy:stickL.oy, x:stickL.x, y:stickL.y } : null; },
+  lookStick(){ return stickR ? { ox:stickR.ox, oy:stickR.oy, x:stickR.x, y:stickR.y } : null; },
   hud(){ return hudLayout(); },
   lastUse(){ return S.lastUse || null; },
   aiming(){ const p = S.player; return p && p.aimSlot >= 0
@@ -3535,8 +3597,11 @@ window.REPO = {
   fx(){ return { dread:FX.dread, shake:FX.shake, hitstop:FX.hitstop, flash:FX.flash,
                  hurtT:FX.hurtT, tickPulse:FX.tickPulse, pops:FX.pops.map(q=>q.text) }; },
   threat(){ return threatLevel(); },
-  heart(){ return { rate: FX.rate, bpm: Math.round(60/FX.rate), pulse: FX.beatPulse,
-                    danger: Math.max(FX.dread, FX.hurtT*0.8) }; },
+  heart(){ const hud = hudLayout();
+           return { rate: FX.rate, bpm: Math.round(60/FX.rate), pulse: FX.beatPulse,
+                    danger: Math.max(FX.dread, FX.hurtT*0.8),
+                    x: hud.heart.x, y: hud.heart.y, r: hud.heart.r }; },
+  mouseLook(){ return mouseFresh() ? mouseWorldNow() : null; },
   foesForLevel, makeNoise,
   relocateFoe(i){ return relocateFoe(S.monsters[i||0], Math.random); },
   soundOn(){ return SFX.on; },
