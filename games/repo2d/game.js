@@ -198,7 +198,7 @@ const SFX = (() => {
 // before, which was a number quietly changing somewhere on the HUD.
 const DREAD_R = 10*TILE;         // how close something has to be before you feel it
 const FX = {
-  dread: 0, beat: 0, beatPulse: 0,
+  dread: 0, beat: 0, beat2: false, beatPulse: 0, rate: 1.15,
   shake: 0, hitstop: 0,
   flash: 0, flashCol: '255,255,255',
   hurtT: 0, hurtDir: 0,
@@ -209,6 +209,7 @@ let shakeX = 0, shakeY = 0;
 
 function fxReset(){
   FX.dread = FX.beat = FX.beatPulse = FX.shake = FX.hitstop = 0;
+  FX.beat2 = false; FX.rate = 1.15;
   FX.flash = FX.hurtT = FX.tickPulse = 0; FX.lastTick = -1;
   FX.pops.length = 0;
 }
@@ -242,14 +243,19 @@ function stepFx(dt){
   // filled would flicker every time a patrol stepped behind a wall.
   FX.dread = mix(FX.dread, want, Math.min(1, dt * (want > FX.dread ? 3.4 : 1.0)));
 
-  if (FX.dread > 0.06){
-    const interval = mix(1.25, 0.40, FX.dread);      // 48 bpm at the edge of hearing, 150 in a chase
-    FX.beat += dt;
-    if (FX.beat >= interval){
-      FX.beat = 0; FX.beatPulse = 1;
-      SFX.heart(clamp(FX.dread, 0.25, 1));
-    }
-  } else { FX.beat = 0; }
+  // The heart runs ALWAYS, because it is drawn on the HUD and a heart that stops is a dead one.
+  // What changes with the danger is the RATE — about 52 beats a minute standing in an empty room,
+  // about 176 with something on top of you — and whether you can hear it. Being hit spikes it too.
+  const alarm = Math.max(FX.dread, FX.hurtT*0.8);
+  FX.rate = mix(1.15, 0.34, alarm);                  // seconds between beats
+  FX.beat += dt;
+  if (FX.beat >= FX.rate){
+    FX.beat = 0; FX.beatPulse = 1; FX.beat2 = false;
+    if (FX.dread > 0.06) SFX.heart(clamp(FX.dread, 0.25, 1));
+  } else if (!FX.beat2 && FX.beat >= FX.rate*0.22){
+    // the second, softer thump of the pair — a heart is lub-DUB, not a metronome
+    FX.beat2 = true; FX.beatPulse = Math.max(FX.beatPulse, 0.5);
+  }
 
   FX.beatPulse = Math.max(0, FX.beatPulse - dt*2.6);
   FX.shake     = Math.max(0, FX.shake - dt*16);
@@ -2269,8 +2275,12 @@ function setupInput(){
         return;
       }
     }
-    if (p.x < hud.w*0.5){ stickL = { id:e.pointerId, ox:p.x, oy:p.y, x:p.x, y:p.y }; }
-    else { stickR = { id:e.pointerId, ox:hud.right.x, oy:hud.right.y, x:p.x, y:p.y }; lookHeld = true; }
+    // A stick is only born in the thumb band. Above it the screen is buttons and world, and a
+    // touch that misses a button there does nothing rather than yanking the character sideways.
+    if (p.y > hud.thumbY){
+      if (p.x < hud.w*0.5){ stickL = { id:e.pointerId, ox:p.x, oy:p.y, x:p.x, y:p.y }; }
+      else { stickR = { id:e.pointerId, ox:hud.right.x, oy:hud.right.y, x:p.x, y:p.y }; lookHeld = true; }
+    }
   });
   cv.addEventListener('pointermove', e => {
     const p = canvasPoint(e);
@@ -2370,32 +2380,44 @@ const scrY = y => (y - cam.y + shakeY)*zoom();
 const vwW = () => viewW/zoom(), vwH = () => viewH/zoom();
 
 // ============================================================ HUD layout
+// Laid out around two thumbs on a phone held upright, and around one rule: NOTHING a thumb presses
+// may sit where a thumb STEERS. The sticks own a band across the bottom of the frame; every button
+// lives above that band, and a touch inside the band can only ever be a stick.
+//
+// WHY the rule exists: the left stick floats — it appears wherever the thumb lands — and the grab
+// button used to sit directly above it with a touch radius that overlapped its travel. Reaching to
+// move sometimes grabbed instead, and the stick's ring was drawn over the buttons while dragging.
+// The three item slots had the mirror problem: they were arced around the right stick close enough
+// to be clipped by the frame edge, and the aim ring raised from one covered the other two.
 function hudLayout(){
   const w = viewW, h = viewH;
-  const pad = Math.min(w,h) * 0.055;
-  const stickR_ = Math.min(w,h) * 0.105;
-  const left  = { x: pad + stickR_, y: h - pad - stickR_, r: stickR_ };
-  const right = { x: w - pad - stickR_, y: h - pad - stickR_, r: stickR_ };
-  const sr = stickR_ * 0.42;
-  // Three slots arc around the right stick, matching the doc's own mockup. Clamped inside the
-  // frame afterwards: the arc was authored against a 16:9 canvas and the outermost slot hangs off
-  // the right edge of a 9:16 one, where a slot half off-screen is a slot half untappable.
-  const slots = [0,1,2].map(i => {
-    const a = -Math.PI*0.86 + i*(Math.PI*0.30);
-    const R = stickR_ + sr*1.45;
-    return { x: clamp(right.x + Math.cos(a)*R, sr+3, w-sr-3),
-             y: clamp(right.y + Math.sin(a)*R, sr+3, h-sr-3), r: sr, i };
-  });
-  // pickup moves to the LEFT of the screen (doc C2-4) — grabbing needs no aim
-  const grab = { x: left.x + stickR_*0.15, y: left.y - stickR_*1.75, r: sr*1.06 };
-  // the locker button sits above the grab button, on the same thumb, and only appears
-  // when the truck is within reach — it is a start-room action, not a field one
-  const stash = { x: grab.x + sr*1.9, y: grab.y - sr*1.5, r: sr*1.06 };
-  // Where a raised item goes to be put back down. Top-right corner, the way a mobile MOBA does it:
-  // it is the furthest point from the thumb that raised it, so you cannot reach it by accident, and
-  // it is on the way to nowhere else.
-  const cancel = { x: w - pad - sr*1.5, y: pad + sr*1.5, r: sr*1.5 };
-  return { w, h, left, right, slots, grab, stash, cancel, pad, aimR: stickR_ };
+  const pad = Math.min(w,h) * 0.05;
+  const R   = Math.min(w,h) * 0.115;      // stick radius — a thumb's comfortable throw
+  const sr  = R * 0.44;                   // button radius
+  const left  = { x: pad + R, y: h - pad - R, r: R };
+  const right = { x: w - pad - R, y: h - pad - R, r: R };
+
+  // Everything below this line belongs to the sticks. Buttons start above it.
+  const thumbY = h - (pad + 2*R + 10);
+
+  // The three slots run UP THE RIGHT EDGE in a column rather than on an arc. A column cannot be
+  // clipped by the frame, its spacing does not change with the aspect, and a raised aim stick on
+  // one of them covers empty screen rather than the other two.
+  const slots = [0,1,2].map(i => ({
+    x: w - pad - sr,
+    y: thumbY - sr*1.5 - i*(sr*2.45),
+    r: sr, i
+  }));
+  // Grab sits on the LEFT thumb (doc C2-4 — grabbing needs no aim), up and IN from the corner the
+  // move thumb rests in, so reaching for it is a deliberate move away from the stick.
+  const grab  = { x: pad + R + sr*1.6, y: thumbY - sr*1.35, r: sr*1.25 };
+  // The locker sits above it, on the same thumb, and only appears when the truck is within reach —
+  // it is a start-room action, not a field one.
+  const stash = { x: grab.x, y: grab.y - sr*2.8, r: sr*1.25 };
+  // Where a raised item goes to be put back down: the top-right corner, the way a mobile MOBA does
+  // it. It is the furthest point from the thumb that raised it, and on the way to nowhere else.
+  const cancel = { x: w - pad - sr*1.6, y: pad + sr*1.6, r: sr*1.6 };
+  return { w, h, left, right, slots, grab, stash, cancel, pad, thumbY, aimR: R };
 }
 function nearTruck(p){ return Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*3.2; }
 
@@ -2867,6 +2889,21 @@ function drawVignette(c){
     wg.addColorStop(0,`rgba(190,30,24,${FX.hurtT*0.55})`);
     wg.addColorStop(1,'rgba(190,30,24,0)');
     c.fillStyle = wg; c.fillRect(0,0,w,h);
+
+    // And a hard red RIM around the whole frame. The radial wash above says which side it came
+    // from; this says, unmissably, that it happened at all — a centred gradient on a portrait
+    // frame is easy to read as atmosphere rather than as damage.
+    const band = Math.min(w,h)*0.16, aRim = Math.min(0.85, FX.hurtT*0.9);
+    const edge = (x0,y0,x1,y1,rx,ry,rw,rh) => {
+      const g2 = c.createLinearGradient(x0,y0,x1,y1);
+      g2.addColorStop(0,`rgba(176,26,20,${aRim})`);
+      g2.addColorStop(1,'rgba(176,26,20,0)');
+      c.fillStyle = g2; c.fillRect(rx,ry,rw,rh);
+    };
+    edge(0,0,0,band, 0,0,w,band);              // top
+    edge(0,h,0,h-band, 0,h-band,w,band);       // bottom
+    edge(0,0,band,0, 0,0,band,h);              // left
+    edge(w,0,w-band,0, w-band,0,band,h);       // right
   }
 
   // The extraction glow: the frame itself goes green while the money is being counted, so the
@@ -2892,8 +2929,13 @@ function drawHud(c){
   // Nothing to steer during a cutscene, so nothing that steers is drawn.
   if (S.cut){ drawCutscene(c, hud); c.restore(); return; }
 
-  // health + stamina, top-left (matches the doc's mockup)
-  const bx = 14, by = 14, bw = Math.min(168, hud.w*0.40), bh = 9;
+  // The heart, and then health + stamina beside it. The heart is the DISTANCE read-out: its rate is
+  // the whole message, so it sits where the eye already goes for the health bar rather than in a
+  // corner of its own.
+  const hr = Math.max(11, Math.min(15, hud.w*0.036));
+  drawHeart(c, 14 + hr, 15 + hr, hr);
+
+  const bx = 14 + hr*2 + 9, by = 14, bw = Math.min(168, hud.w - bx - 14), bh = 9;
   c.fillStyle = 'rgba(10,12,14,0.72)'; c.fillRect(bx-3,by-3,bw+6,bh*2+9);
   c.fillStyle = '#3a1f1c'; c.fillRect(bx,by,bw,bh);
   c.fillStyle = '#b8433a'; c.fillRect(bx,by,bw*clamp(p.hp/p.hpMax,0,1),bh);
@@ -2908,7 +2950,7 @@ function drawHud(c){
     // Above the thumb sticks, not under them: the sticks own the bottom band of a portrait frame.
     c.font = '600 14px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = `rgba(226,232,236,${Math.min(1,S.messageT)})`;
-    c.fillText(S.message, hud.w/2, hud.left.y - hud.left.r - 18);
+    c.fillText(S.message, hud.w/2, hud.stash.y - hud.stash.r - 14);
     c.textAlign = 'left';
   }
 
@@ -2927,12 +2969,20 @@ function drawHud(c){
   for (let i=0;i<3;i++){
     const s = hud.slots[i], it = p.inv[i];
     const usable = it && it.uses > 0;
+    // A filled disc behind it: a ring alone over a dark room is hard to find with a thumb, and
+    // these are the only three buttons that ever hold something worth finding in a hurry.
+    c.beginPath();
+    c.fillStyle = usable ? 'rgba(38,16,15,0.72)' : 'rgba(16,18,20,0.55)';
+    c.arc(s.x, s.y, s.r, 0, Math.PI*2); c.fill();
     ring(c, s.x, s.y, s.r, usable ? 'rgba(200,70,60,0.85)' : 'rgba(90,70,68,0.5)');
     c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = usable ? '#e6ebee' : '#6a6f74';
     const label = it ? (GEAR_BY_KEY[it.kind] ? GEAR_BY_KEY[it.kind].short : it.kind) : '—';
-    c.fillText(label, s.x, s.y+3);
-    if (it) c.fillText('x'+it.uses, s.x, s.y+s.r*0.78);
+    c.fillText(label, s.x, s.y - 1);
+    if (it){
+      c.font = '600 9.5px ui-monospace, monospace';
+      c.fillText('x'+it.uses, s.x, s.y + s.r*0.62);
+    }
     c.textAlign = 'left';
   }
   if (p.aimSlot >= 0) drawAim(c, hud, p);
@@ -2940,6 +2990,9 @@ function drawHud(c){
   // grab button, left side
   const near = nearestLoot(p);
   const grabLit = near || p.held || p.pushing || nearCart(p);
+  c.beginPath();
+  c.fillStyle = grabLit ? 'rgba(14,34,24,0.72)' : 'rgba(16,18,20,0.55)';
+  c.arc(hud.grab.x, hud.grab.y, hud.grab.r, 0, Math.PI*2); c.fill();
   ring(c, hud.grab.x, hud.grab.y, hud.grab.r, grabLit ? 'rgba(80,190,120,0.9)' : 'rgba(70,90,78,0.45)');
   c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
   c.fillStyle = grabLit ? '#e6ebee' : '#6a6f74';
@@ -2948,6 +3001,9 @@ function drawHud(c){
 
   // locker button — only while you are standing at the truck
   if (nearTruck(p)){
+    c.beginPath();
+    c.fillStyle = 'rgba(14,24,38,0.72)';
+    c.arc(hud.stash.x, hud.stash.y, hud.stash.r, 0, Math.PI*2); c.fill();
     ring(c, hud.stash.x, hud.stash.y, hud.stash.r, 'rgba(120,160,215,0.9)');
     c.fillStyle = '#dbe6f2';
     c.fillText('Tủ đồ', hud.stash.x, hud.stash.y+4);
@@ -3061,6 +3117,41 @@ function drawCountdown(c, hud){
   c.fillStyle = 'rgba(150,220,185,0.9)';
   c.fillText('GIAO HÀNG', 0, -r*0.42);
   c.textAlign = 'left';
+  c.restore();
+}
+// A heart that beats faster the closer the thing is. It is the one piece of HUD that answers a
+// question the sight cone cannot: something is near, and it is THIS near. The rate carries that on
+// its own, so nothing here prints a number.
+function drawHeart(c, cx, cy, r){
+  const k = FX.beatPulse;
+  const danger = Math.max(FX.dread, FX.hurtT*0.8);
+  const s = r * (1 + k*0.26);
+  // calm slate-red -> alarmed blood-red, with the beat itself brightening it
+  const lo = [96, 52, 56], hi = [214, 44, 38];
+  const t = clamp(danger + k*0.22, 0, 1);
+  const col = lo.map((v,i) => Math.round(mix(v, hi[i], t)));
+
+  c.save();
+  c.translate(cx, cy);
+  // a soft aura, so a fast beat is visible out of the corner of the eye
+  if (danger > 0.05){
+    const g = c.createRadialGradient(0,0,r*0.4,0,0,r*2.2);
+    g.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${0.30*danger + 0.25*k*danger})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.fillRect(-r*2.2,-r*2.2,r*4.4,r*4.4);
+  }
+  c.scale(s/r, s/r);
+  c.beginPath();
+  // two lobes and a point — drawn rather than typed, so it scales cleanly at any dpr
+  c.moveTo(0, r*0.92);
+  c.bezierCurveTo(-r*1.15, r*0.10, -r*0.62, -r*0.92, 0, -r*0.28);
+  c.bezierCurveTo(r*0.62, -r*0.92, r*1.15, r*0.10, 0, r*0.92);
+  c.closePath();
+  c.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+  c.fill();
+  c.lineWidth = 1.6;
+  c.strokeStyle = `rgba(10,8,10,0.75)`;
+  c.stroke();
   c.restore();
 }
 function nearCart(p){
@@ -3444,6 +3535,8 @@ window.REPO = {
   fx(){ return { dread:FX.dread, shake:FX.shake, hitstop:FX.hitstop, flash:FX.flash,
                  hurtT:FX.hurtT, tickPulse:FX.tickPulse, pops:FX.pops.map(q=>q.text) }; },
   threat(){ return threatLevel(); },
+  heart(){ return { rate: FX.rate, bpm: Math.round(60/FX.rate), pulse: FX.beatPulse,
+                    danger: Math.max(FX.dread, FX.hurtT*0.8) }; },
   foesForLevel, makeNoise,
   relocateFoe(i){ return relocateFoe(S.monsters[i||0], Math.random); },
   soundOn(){ return SFX.on; },
