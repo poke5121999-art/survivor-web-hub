@@ -24,7 +24,11 @@ const WPX = MW * TILE, HPX = MH * TILE;
 // to be, so a small screen showed barely half the world a desktop did.
 // ROOT-CAUSE: view scale was expressed in screen pixels, and screens differ.
 // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md (the landscape form of this rule)
-const VIEW_W_WORLD = (RW + 1) * TILE;   // 528 px of house, left to right, on every screen
+// 14 tiles across. It was 22 — a whole room plus a tile — which is a good number for reading a room
+// and a bad one for reading a PERSON: on a 390 px phone that drew a tile at 17 px and the player
+// eleven px across. Closer in costs you the far wall of a wide room; the minimap is what that wall
+// was for. One number, so it is one edit to change your mind.
+const VIEW_W_WORLD = 14 * TILE;
 const zoom = () => viewW / VIEW_W_WORLD;
 
 // A corridor the generator carves to repair a walled-off room. Doors are already 3 tiles wide;
@@ -41,9 +45,13 @@ const REPAIR_CORRIDOR_TILES = 3;
 // originally sold. SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
 const MINIMAP_ROUTE_ALWAYS = true;
 
-// How far down the minimap fades while the player is standing under it. Not to zero: a map you
-// cannot see at all is worse than one you have to squint past, and the route line is the one thing
-// that matters in exactly that moment.
+// The minimap is see-through ALWAYS, and nearly gone when something that can hurt you is behind it.
+// It used to be solid, and to fade only while the player walked under it — which stopped being
+// possible the moment the camera started centring the player, because then the player is never in
+// that corner. What the panel still hides is the top-right of the WORLD, so the thing worth hiding
+// for is a monster, not the player.
+// Not to zero either way: a map you cannot see at all is worse than one you squint past.
+const MINIMAP_IDLE_ALPHA  = 0.60;
 const MINIMAP_FADED_ALPHA = 0.16;
 
 const FLOOR = 0, WALL = 1, PROP = 2;
@@ -77,6 +85,16 @@ const STAM_MAX = 100, STAM_DRAIN = 22, STAM_REGEN = 16;
 // Deadzone as a FRACTION of the stick's radius, not a pixel count: the radius is derived from the
 // screen, so a flat 4 px was a real deadzone on a tablet and none at all on a phone.
 const STICK_DEAD = 0.14;
+
+// How long the facing keeps pointing where it was last AIMED once nothing is aiming it any more.
+// Doc C2-2 freezes the facing when the look stick is released, so a thumb can leave to tap an item
+// and come back; that is what this window protects. Past it, walking turns you.
+// WHY it is not simply forever: the thing you are carrying is pinned to the facing, and the mouse
+// (or a released thumb) is usually left BELOW the character — so a frozen facing meant every load
+// you picked up hung underneath you and trailed there whichever way you walked. That is what the
+// report "dragging loot keeps getting pulled down, is that gravity?" was describing. It is not
+// gravity; there is none in this game. It was a stale aim.
+const LOOK_IDLE = 1.1;
 
 // Nước rút. Keep the run input held and the character winds up into a sprint on its own.
 // WHY it is time-based and not a gesture: the thing it replaced fired on a double-tap of the run
@@ -588,7 +606,7 @@ function newPlayer(){
     // The hands start EMPTY, like the source game: everything you carry into a house was
     // bought at the station and taken out of the truck's locker first.
     inv: [ null, null, null ],
-    aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0,
+    aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0, lookIdle: 0,
     pushing: false, runT: 0, rushing: false,
     floatT: 0, shieldT: 0
   };
@@ -1699,6 +1717,7 @@ function useSlot(p, i, aimed){
     p.shieldT = 25; it.uses--; p.cooldown = 0.4;
     toast('Bọc chống vỡ — 25 giây');
   } else return false;
+  S.lastUse = { kind: it.kind, angle: ang, t: S.time };   // a bullet can hit a wall within one frame
   if (it.uses <= 0) p.inv[i] = null;              // used up, and the slot frees for the locker
   return true;
 }
@@ -1893,12 +1912,15 @@ const PAY_COUNTDOWN = 3;          // how long the till takes, and how long you h
 // Laid out the way you walk it — stock at the top, the checkout in the middle, the truck at the
 // bottom — so a visit is a walk down it rather than a circuit of a box.
 const SHOP_COL = 1;               // which column of rooms is carved out
+// The hall's interior is TWELVE tiles across, which with its two walls is exactly the 14 the frame
+// shows. Cut down from 19 when the camera zoomed in: a shop you cannot see both sides of is a shop
+// you have to walk the length of to find out what is in it.
+const SHOP_X0 = 4, SHOP_X1 = 15;
+const SHOP_CX = ((SHOP_COL*RW + SHOP_X0 - 1) + (SHOP_COL*RW + SHOP_X1 + 1) + 1) / 2 * TILE;
 // Interior height in tiles. Deliberately SHORTER than the frame can show: the bottom band of a
 // portrait frame belongs to the two thumb sticks and the grab button, and a truck drawn under them
 // is a truck you cannot see yourself walking into.
 const SHOP_ROWS = 30;
-const SHOP_CX = (SHOP_COL*RW + RW/2) * TILE;
-const SHOP_CY = ((SHOP_ROWS+1)/2) * TILE;
 
 function shopTile(tx, ty){        // hall-local tile -> world centre
   return { x: ((SHOP_COL*RW + tx) + 0.5) * TILE, y: (ty + 0.5) * TILE };
@@ -1932,19 +1954,20 @@ function buildShop(){
   S.onButton = false; S.shopCanLeave = false;
 
   const gx0 = SHOP_COL*RW;
-  for (let y=1; y<=SHOP_ROWS; y++) for (let x=1; x<RW-1; x++){
+  for (let y=1; y<=SHOP_ROWS; y++) for (let x=SHOP_X0; x<=SHOP_X1; x++){
     const i = y*MW + gx0+x;
     S.grid[i] = FLOOR; S.explored[i] = 1;
   }
   // shelving behind each row of stock, so the goods are standing in front of something. Kept clear
   // of the top of the frame, where the health bar and the minimap are drawn over the world.
-  for (const y of [7, 13]) for (const x of [2,3, 9,10,11, 17,18]){
+  for (const y of [7, 13]) for (const x of [4,5, 9,10, 14,15]){
     const i = y*MW + gx0+x;
     S.grid[i] = PROP; S.deco[i] = P_SHELF;
   }
 
   if (!S.offer) S.offer = rollShop();
-  const cols = [4, 10, 16];
+  // Three columns inside a twelve-tile hall.
+  const cols = [6, 10, 14];
   S.offer.upgrades.forEach((u, i) => {
     const t = shopTile(cols[i % cols.length], 9);
     S.loot.push(makeGood('up', u.key, u.name, upgradePrice(u), t.x, t.y));
@@ -1957,15 +1980,15 @@ function buildShop(){
   const padT = shopTile(10, 21);
   S.pads.push({ x:padT.x, y:padT.y, ri:GX+SHOP_COL, quota:0, placed:[], value:0,
                 active:true, done:false, index:0, shop:true });
-  const btn = shopTile(15, 21);
+  const btn = shopTile(13, 21);      // beside the checkout, not behind it
   S.button = { x:btn.x, y:btn.y, r:TILE*1.05 };
 
   const truck = shopTile(10, 27);
   S.car.x = truck.x; S.car.y = truck.y;
-  S.cart = makeCart(truck.x + TILE*3.2, truck.y - TILE*0.4);
+  S.cart = makeCart(truck.x + TILE*2.8, truck.y - TILE*0.4);
 
   S.player = S.player || newPlayer();
-  S.player.x = truck.x - TILE*4.2; S.player.y = truck.y - TILE*0.2;
+  S.player.x = truck.x - TILE*2.8; S.player.y = truck.y - TILE*0.2;
   S.player.held = null; S.player.aimSlot = -1; S.player.aimId = -1;
   S.player.pushing = false; S.player.runT = 0; S.player.rushing = false;
   S.player.hp = S.player.hpMax; S.player.stam = S.player.stamMax;
@@ -2283,7 +2306,10 @@ function setupInput(){
     if (e.pointerType === 'touch') return;
     const p = canvasPoint(e);
     mouseWorld = { x: cam.x + p.x/zoom(), y: cam.y + p.y/zoom() };
+    mouseMovedAt = performance.now();
   });
+  // A cursor that leaves the play area has stopped looking at anything.
+  cv.addEventListener('mouseleave', () => { mouseWorld = null; });
 }
 function overCancel(hud, p){
   return Math.hypot(p.x-hud.cancel.x, p.y-hud.cancel.y) < hud.cancel.r*1.25;
@@ -2293,7 +2319,9 @@ function aimAngle(p, hud){
   const dx = p.aimX - s.x, dy = p.aimY - s.y;
   return Math.hypot(dx,dy) > hud.aimR*STICK_DEAD ? Math.atan2(dy,dx) : p.dir;
 }
-let mouseWorld = null;
+let mouseWorld = null, mouseMovedAt = -1e9;
+// Real time, not simulation time: how long ago the player physically moved the mouse.
+const mouseFresh = () => (performance.now() - mouseMovedAt) < LOOK_IDLE*1000;
 function canvasPoint(e){
   const cv = CV(), r = cv.getBoundingClientRect();
   return { x:(e.clientX-r.left)/r.width*viewW, y:(e.clientY-r.top)/r.height*viewH };
@@ -2449,18 +2477,24 @@ function step(dt){
 
   // ---- look
   if (!window.__botActive){
-    let want = null;
+    let want = null, aimed = false;
     // Aiming outranks looking: while an item is raised, the character turns to face where it is
     // about to be thrown, so the light cone shows you what you are shooting at.
     if (p.aimSlot >= 0){
-      want = aimAngle(p, hudLayout());
+      want = aimAngle(p, hudLayout()); aimed = true;
     } else if (stickR){
       const dx = stickR.x-stickR.ox, dy = stickR.y-stickR.oy;
-      if (Math.hypot(dx,dy) > 8) want = Math.atan2(dy,dx);
+      if (Math.hypot(dx,dy) > 8){ want = Math.atan2(dy,dx); aimed = true; }
     }
-    if (want === null && mouseWorld && p.aimSlot < 0){
-      want = Math.atan2(mouseWorld.y-p.y, mouseWorld.x-p.x);
+    // A mouse that has not moved is not looking anywhere — it is just lying there. Honouring a
+    // parked cursor is what pinned the facing (and the load in your arms) below the character.
+    if (want === null && mouseWorld && mouseFresh()){
+      want = Math.atan2(mouseWorld.y-p.y, mouseWorld.x-p.x); aimed = true;
     }
+    p.lookIdle = aimed ? 0 : p.lookIdle + dt;
+    // Nothing has aimed the look for a moment and you are walking: face where you are going. The
+    // sight cone leads, and whatever you are carrying is carried ahead of you rather than dragged.
+    if (want === null && moving && p.lookIdle > LOOK_IDLE) want = Math.atan2(vy, vx);
     // Doc C2-2: releasing the look stick FREEZES the facing. It never resets and never
     // snaps to the movement direction — that is what lets a thumb leave to tap an item.
     if (want !== null){
@@ -2488,11 +2522,16 @@ function step(dt){
     markExplored();
   }
 
-  // In the station the camera holds the HALL still: the whole thing fits in the frame, and a
-  // camera that slides while you walk between three shelves reads as drift, not as motion.
-  const fx = S.shopMode ? SHOP_CX : p.x, fy = S.shopMode ? SHOP_CY : p.y;
-  const tx = clamp(fx - vwW()/2, 0, Math.max(0, WPX - vwW()));
-  const ty = clamp(fy - vwH()/2, 0, Math.max(0, HPX - vwH()));
+  // The player is ALWAYS in the middle of the frame, including at the edges of the map. The camera
+  // used to be clamped to the map's bounds, so near the top rows — which is where the truck and the
+  // first room are — the character was pushed to about a third of the way down the screen and the
+  // whole picture sat high. Past the wall there is nothing to protect: the border is solid wall,
+  // drawn near-black, under a vignette. Letting the view run past it costs a strip of darkness and
+  // buys a frame that is composed the same way everywhere.
+  // In the station the hall is exactly as wide as the frame, so the camera holds it still across and
+  // only follows the player down its length.
+  const tx = (S.shopMode ? SHOP_CX : p.x) - vwW()/2;
+  const ty = p.y - vwH()/2;
   cam.x += (tx-cam.x) * Math.min(1, dt*8);
   cam.y += (ty-cam.y) * Math.min(1, dt*8);
 }
@@ -2698,8 +2737,7 @@ function drawPads(c){
     c.fillRect(pad.x-TILE*1.8, pad.y-TILE*1.8, TILE*3.6, TILE*3.6);
     if (!pad.done){
       c.fillStyle = '#dfe6ea'; c.font = '600 13px ui-monospace, monospace'; c.textAlign = 'center';
-      c.fillText(pad.shop ? money(pad.value) + '  ·  ví ' + money(S.wallet)
-                          : money(pad.value) + ' / ' + money(pad.quota),
+      c.fillText(pad.shop ? money(pad.value) : money(pad.value) + ' / ' + money(pad.quota),
                  pad.x, pad.y - TILE*2.1);
       c.textAlign = 'left';
     }
@@ -3058,21 +3096,24 @@ function drawMinimap(c, hud){
   const h = w * (MH/MW);
   const x = big ? (hud.w-w)/2 : hud.w - w - 14, y = big ? (hud.h-h)/2 : 14;
 
-  // The minimap sits in a corner the player walks into. Rather than move it — every corner is
-  // somebody's corner — it gets out of the way: while the player's own body is under it, or close
-  // enough that it would cover what they are walking toward, it fades to a ghost and back.
+  // Rather than move it — every corner is somebody's corner — it gets out of the way: while
+  // something that can hurt you is drawn behind it, it drops to a ghost and back.
   // The fade is eased rather than switched, because a panel that blinks reads as a glitch.
   const pl = S.player;
+  const m = TILE*1.4*zoom();            // a tile and a bit of margin around the panel
+  const behind = (wx, wy) => {
+    const sx0 = scrX(wx), sy0 = scrY(wy);
+    return sx0 > x-3-m && sx0 < x+w+3+m && sy0 > y-3-m && sy0 < y+h+3+m;
+  };
   let want = 0;
-  if (!big && pl && pl.aimSlot >= 0) want = 1;   // the cancel target shares this corner
-  else if (!big && pl){
-    const px = scrX(pl.x), py = scrY(pl.y);
-    const m = TILE*1.4*zoom();          // a tile and a bit of look-ahead around the panel
-    if (px > x-3-m && px < x+w+3+m && py > y-3-m && py < y+h+3+m) want = 1;
+  if (!big && pl){
+    if (pl.aimSlot >= 0) want = 1;                       // the cancel target shares this corner
+    else if (behind(pl.x, pl.y)) want = 1;               // only reachable when the camera is pinned
+    else for (const mo of S.monsters){ if (mo.sleep <= 0 && behind(mo.x, mo.y)){ want = 1; break; } }
   }
   S.mapFade = mix(S.mapFade || 0, want, 0.12);
   const alpha0 = c.globalAlpha;
-  c.globalAlpha = alpha0 * (big ? 1 : mix(1, MINIMAP_FADED_ALPHA, S.mapFade));
+  c.globalAlpha = alpha0 * (big ? 1 : mix(MINIMAP_IDLE_ALPHA, MINIMAP_FADED_ALPHA, S.mapFade));
 
   c.fillStyle = 'rgba(8,10,13,0.82)'; c.fillRect(x-3,y-3,w+6,h+6);
   c.strokeStyle = 'rgba(90,120,170,0.7)'; c.lineWidth = 1.5; c.strokeRect(x-3,y-3,w+6,h+6);
@@ -3396,6 +3437,7 @@ window.REPO = {
                     worldW:vwW(), worldH:vwH() }; },
   stick(){ return stickL ? { ox:stickL.ox, oy:stickL.oy, x:stickL.x, y:stickL.y } : null; },
   hud(){ return hudLayout(); },
+  lastUse(){ return S.lastUse || null; },
   aiming(){ const p = S.player; return p && p.aimSlot >= 0
               ? { slot:p.aimSlot, x:p.aimX, y:p.aimY, angle:aimAngle(p, hudLayout()) } : null; },
   rushing(){ return !!(S.player && S.player.rushing); },
@@ -3406,12 +3448,14 @@ window.REPO = {
   relocateFoe(i){ return relocateFoe(S.monsters[i||0], Math.random); },
   soundOn(){ return SFX.on; },
   mapFade(){ return S.mapFade || 0; },
+  mapAlpha(){ return mix(MINIMAP_IDLE_ALPHA, MINIMAP_FADED_ALPHA, S.mapFade || 0); },
+  lookIdle(){ return S.player ? S.player.lookIdle : 0; },
   get timeScale(){ return timeScale; },
   set timeScale(v){ timeScale = clamp(v, 0.1, 12); },
   get dmgMult(){ return DMG_MULT; },
   set dmgMult(v){ DMG_MULT = v; },
   setNoise(v){ S.noiseOverride = v; },
-  warp(x,y){ S.player.x = x; S.player.y = y; cam.x = clamp(x-vwW()/2,0,Math.max(0,WPX-vwW())); cam.y = clamp(y-vwH()/2,0,Math.max(0,HPX-vwH())); },
+  warp(x,y){ S.player.x = x; S.player.y = y; cam.x = x-vwW()/2; cam.y = y-vwH()/2; },
   spawnFoe(type, dx, dy){
     const m = makeMonster(type, S.player.x + (dx||0), S.player.y + (dy||0));
     S.monsters.push(m); return m;
