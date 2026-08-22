@@ -64,8 +64,12 @@
 
   /* Applied wherever a price is computed. Kept in one place so the numbers are
    * auditable instead of scattered through the UI. */
-  function priceMultiplier(sim, cat) {
+  var ANIMAL_PRODUCE = /egg|milk|wool|truffle|mayonnaise|cheese|cloth/i;
+  var METAL_BAR = / bar$/i;
+
+  function priceMultiplier(sim, cat, name) {
     var m = 1;
+    name = name || '';
     if (cat === 'crop' || cat === 'fruit') { if (has(sim, 'Tiller')) m *= 1.1; }
     if (cat === 'artisan') { if (has(sim, 'Artisan')) m *= 1.4; }
     if (cat === 'fish') {
@@ -73,7 +77,13 @@
       else if (has(sim, 'Fisher')) m *= 1.25;
     }
     if (cat === 'mineral' && has(sim, 'Gemologist')) m *= 1.3;
-    if (cat === 'resource' && has(sim, 'Blacksmith')) m *= 1.5;
+    /* WHY these two changed: Blacksmith keyed on cat 'resource', which also
+     * holds Egg, Milk, Wool, Truffle, Wood and Stone - it was quietly the
+     * strongest economic profession in the game. Rancher had no branch at all,
+     * so the animal path it advertises did nothing. */
+    if (has(sim, 'Blacksmith') && METAL_BAR.test(name)) m *= 1.5;
+    if (has(sim, 'Rancher') && ANIMAL_PRODUCE.test(name)) m *= 1.2;
+    if (has(sim, 'Tapper') && /syrup|resin|sap/i.test(name)) m *= 1.25;
     return m;
   }
 
@@ -172,15 +182,32 @@
     var raw = baseSell.call(this, name, quality);
     var info = this.itemInfo(name);
     if (!info) return raw;
-    return Math.floor(raw * priceMultiplier(this, info.cat));
+    return Math.floor(raw * priceMultiplier(this, info.cat, info.name));
   };
 
   /* Levelling to 5 or 10 opens a choice that cannot be skipped silently. */
   var baseAddXp = global.SDV_SIM.Sim.prototype.addXp;
   global.SDV_SIM.Sim.prototype.addXp = function (skill, n) {
+    var before = this.skills[skill];
     var lvl = baseAddXp.call(this, skill, n);
-    if (lvl === 5 || lvl === 10) {
-      this.pendingProfession = { skill: skill, level: lvl };
+    /* WHY a queue and a range test: the old check was `lvl === 5 || lvl === 10`
+     * on the level actually reached, so one big xp award that jumped 0 -> 6
+     * skipped the choice forever, and two milestones in one day overwrote each
+     * other and both were lost. */
+    if (lvl != null && lvl > before) {
+      this.professionQueue = this.professionQueue || [];
+      var self = this;
+      [5, 10].forEach(function (mile) {
+        if (before < mile && lvl >= mile) {
+          var already = self.professionQueue.some(function (q) {
+            return q.skill === skill && q.level === mile;
+          });
+          if (!already) self.professionQueue.push({ skill: skill, level: mile });
+        }
+      });
+      if (!this.pendingProfession && this.professionQueue.length) {
+        this.pendingProfession = this.professionQueue[0];
+      }
     }
     return lvl;
   };
@@ -191,7 +218,16 @@
     if (level === 10) {
       opts = opts.filter(function (o) { return !o.needs || has(s, o.needs); });
     }
-    if (!opts.length) { s.pendingProfession = null; return; }
+    if (!opts.length) {
+      /* No level-10 branch is available yet because its level-5 parent has not
+       * been chosen. Keep it queued and offer the level-5 choice first. */
+      s.professionQueue = (s.professionQueue || []).filter(function (q) {
+        return !(q.skill === skill && q.level === level);
+      });
+      if (level === 10) s.professionQueue.unshift({ skill: skill, level: 5 });
+      s.pendingProfession = s.professionQueue[0] || null;
+      return;
+    }
     var body = el('div', 'sdv-body');
     body.appendChild(el('div', 'sdv-sub',
       SKILL_VN[skill] + ' đạt cấp ' + level + ' — chọn một hướng. Chọn rồi không đổi được.'));
@@ -201,7 +237,10 @@
       b.appendChild(el('small', 'sdv-cost', o.text));
       b.addEventListener('click', function () {
         s.professions[o.id] = true;
-        s.pendingProfession = null;
+        s.professionQueue = (s.professionQueue || []).filter(function (q) {
+          return !(q.skill === skill && q.level === level);
+        });
+        s.pendingProfession = s.professionQueue[0] || null;
         if (o.id === 'Defender') { s.maxHealth += 25; s.health += 25; }
         self.game.toast('Đã chọn nghề ' + o.id);
         self.close();

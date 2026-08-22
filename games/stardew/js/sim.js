@@ -13,7 +13,8 @@
 
   var SEASONS = ['Spring', 'Summer', 'Fall', 'Winter'];
   var SEASON_VN = { Spring: 'Xuân', Summer: 'Hạ', Fall: 'Thu', Winter: 'Đông' };
-  var DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  // Spring 1 of Year 1 is a MONDAY in the original, so day 1 -> T2.
+  var DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   var DAY_START = 6 * 60;      // 6:00 AM
   var DAY_END = 26 * 60;       // 2:00 AM next day
   var STEP = 10;               // minutes per tick
@@ -23,6 +24,12 @@
   var POINTS_PER_HEART = 250;
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  /* Snow only in winter; rain never in winter. */
+  function weatherAllowed(season, w) {
+    if (season === 'Winter') return w === 'snow' || w === 'sun' || w === 'wind';
+    return w !== 'snow';
+  }
 
   function Sim(data) {
     this.data = data;
@@ -68,6 +75,8 @@
     this.professions = {};
     this.hasBoat = false;
     this.spouse = null;
+    this.dating = {};        // must persist: losing it re-charged the bouquet
+    this.sluggish = false;
   };
 
   // ------------------------------------------------------------ time
@@ -96,12 +105,14 @@
   };
 
   // ------------------------------------------------------------ weather + luck
-  Sim.prototype.rollWeather = function () {
-    var s = this.season(), r = this.rand();
+  Sim.prototype.rollWeather = function (seasonIndex, day) {
+    var si = seasonIndex == null ? this.seasonIndex : seasonIndex;
+    var dy = day == null ? this.day : day;
+    var s = SEASONS[si], r = this.rand();
     // Year 1 spring is scripted so the opening days are predictable.
-    if (this.year === 1 && this.seasonIndex === 0) {
-      if ([1, 2, 4, 5].indexOf(this.day) >= 0) return 'sun';
-      if (this.day === 3) return 'rain';
+    if (this.year === 1 && si === 0) {
+      if ([1, 2, 4, 5].indexOf(dy) >= 0) return 'sun';
+      if (dy === 3) return 'rain';
     }
     if (s === 'Winter') return r < 0.63 ? 'snow' : 'sun';   // never rains in winter
     if (s === 'Spring') return r < 0.18 ? 'rain' : (r < 0.24 ? 'wind' : 'sun');
@@ -181,7 +192,8 @@
     this.energy -= n;
     if (this.energy <= 0) {
       this.energy = 0;
-      this.exhausted = true;
+      this.exhausted = true;      // costs half tonight's rest
+      this.sluggish = true;       // and slows you until you eat
     }
     return this.energy > 0;
   };
@@ -193,7 +205,9 @@
     var gain = Math.round(info.energy * QUALITY_MULT[it.quality || 0]);
     this.energy = clamp(this.energy + gain, 0, this.maxEnergy);
     this.health = clamp(this.health + Math.round(gain * 0.45), 0, this.maxHealth);
-    if (this.energy > 0) this.exhausted = false;
+    /* Eating gets you moving again but does NOT undo the night's penalty - a
+     * single parsnip used to cancel a whole day of over-exertion. */
+    if (this.energy > 0) this.sluggish = false;
     this.take(it.name, 1);
     return gain;
   };
@@ -213,7 +227,11 @@
    * Mirrors the shape of the game's formula (gold first, then silver). */
   Sim.prototype.rollQuality = function (fert) {
     var lvl = this.skills.farming, f = fert || 0;
-    var gold = 0.2 * (f / 3) + 0.2 * lvl * ((f + 2) / 12) + 0.01;
+    /* WHY: the two variables were transposed in BOTH terms. At farming 10 the
+     * gold+silver chance summed past 1.0, so a base-quality crop became
+     * mathematically impossible and every harvest was worth 1.34x forever.
+     * The real formula is level/10 in the first term, fert level in the second. */
+    var gold = 0.2 * (lvl / 10) + 0.2 * f * ((lvl + 2) / 12) + 0.01;
     var silver = Math.min(0.75, gold * 2);
     var r = this.rand();
     if (f >= 3 && r < gold / 2) return 3;
@@ -232,11 +250,30 @@
   Sim.prototype.hearts = function (name) {
     return Math.floor(this.friend(name).points / POINTS_PER_HEART);
   };
+  /* WHY this lives here: the 8-heart courtship gate was implemented only inside
+   * giveGift, so talking (+20/day), quest turn-ins (+150) and the Sunday bonus
+   * walked straight past it and a player could reach 10 hearts without ever
+   * buying a bouquet. Every write to friendship goes through this now. */
+  Sim.prototype.friendCap = function (name) {
+    var v = (this.data.villagers || []).filter(function (x) {
+      return x.name === name;
+    })[0];
+    this.dating = this.dating || {};
+    if (v && v.marriable && !this.dating[name] && this.spouse !== name) {
+      return 8 * POINTS_PER_HEART;
+    }
+    return 10 * POINTS_PER_HEART;
+  };
+  Sim.prototype.addFriendship = function (name, pts) {
+    var f = this.friend(name);
+    f.points = clamp(f.points + pts, 0, this.friendCap(name));
+    return f.points;
+  };
   Sim.prototype.talkTo = function (name) {
     var f = this.friend(name);
     if (f.talkedDay === this.dayIndex()) return false;
     f.talkedDay = this.dayIndex();
-    f.points = clamp(f.points + 20, 0, 2500);
+    this.addFriendship(name, 20);
     return true;
   };
   Sim.prototype.giftTaste = function (villager, item) {
@@ -262,10 +299,13 @@
     var f = this.friend(villager);
     if (f.giftDay === this.dayIndex()) return { refused: 'day' };
     if (f.week >= 2) return { refused: 'week' };
+    /* Ownership is checked HERE rather than in the panel, so no future caller
+     * can hand out friendship for an item the player never had. */
+    if (!this.count(item)) return { refused: 'missing' };
     var taste = this.giftTaste(villager, item);
     var pts = GIFT_POINTS[taste];
     if (this.isBirthday(villager)) pts *= 8;
-    f.points = clamp(f.points + pts, 0, 2500);
+    this.addFriendship(villager, pts);
     f.giftDay = this.dayIndex();
     f.week++;
     return { taste: taste, points: pts };
@@ -299,13 +339,13 @@
     for (var j = 0; j < allCrops.length; j++) {
       var o = allCrops[j][0];
       var ownerArea = allCrops[j][1];
+      if (o.dead) continue;                 // already gone; do not re-count it
       if (seasonEnds && !ownerArea.season) {
         var nextSeason = SEASONS[(this.seasonIndex + 1) % 4];
         if (o.seasons && o.seasons.indexOf(nextSeason) < 0) {
           o.dead = true; report.died++; continue;
         }
       }
-      if (o.dead) continue;
       if (o.watered || wasRain) {
         if (o.harvested && o.regrow) {
           o.regrowLeft--;
@@ -336,16 +376,7 @@
       }
     });
 
-    // machines finish overnight
-    world.forEachArea(function (area) {
-      for (var k = 0; k < area.objs.length; k++) {
-        var m = area.objs[k];
-        if (m.kind === 'machine' && m.busyUntil != null) {
-          m.busyUntil -= 24 * 60;
-          if (m.busyUntil <= 0) { m.busyUntil = null; m.ready = true; }
-        }
-      }
-    });
+    // machines are advanced by machineui.js, which knows about slots
 
     // roll the calendar over
     this.day++;
@@ -356,7 +387,7 @@
     }
     if (this.dayOfWeek() === 'CN') {
       for (var nm in this.friendship) {
-        if (this.friendship[nm].week >= 2) this.friendship[nm].points += 10;
+        if (this.friendship[nm].week >= 2) this.addFriendship(nm, 10);
         this.friendship[nm].week = 0;
       }
     }
@@ -369,7 +400,19 @@
     }
 
     this.weather = this.tomorrowWeather;
-    this.tomorrowWeather = this.rollWeather();
+    /* A forecast rolled under the old season can survive the rollover, which is
+     * how winter rained and spring snowed. Rain auto-waters crops, so this was
+     * mechanical, not cosmetic. Re-roll anything impossible where it lands. */
+    if (!weatherAllowed(this.season(), this.weather)) {
+      this.weather = this.rollWeather(this.seasonIndex, this.day);
+    }
+    /* WHY: the roll happened after the date advanced but was evaluated against
+     * TODAY's season, then applied the day after - so the first day of winter
+     * rained and the first day of spring snowed, and rain auto-waters crops. */
+    this.tomorrowWeather = this.rollWeather(this.day + 1 > 28
+                                            ? (this.seasonIndex + 1) % 4
+                                            : this.seasonIndex,
+                                            this.day + 1 > 28 ? 1 : this.day + 1);
     this.rollLuck();
     this.time = DAY_START;
 
@@ -397,13 +440,26 @@
       seedRng: this.seedRng, deepestMine: this.deepestMine,
       weapon: this.weapon, armor: this.armor, toolTier: this.toolTier,
       toolPower: this.toolPower, professions: this.professions,
-      hasBoat: this.hasBoat, spouse: this.spouse,
+      hasBoat: this.hasBoat, spouse: this.spouse, dating: this.dating,
+      machines: this.machines,
+      /* WHY these four: a save made anywhere but the farm loaded the player to
+       * the farmhouse door, which is out of bounds or solid in 47 of 54 areas -
+       * every indoor save was dead. chestSize and maxHealth were bought with
+       * gold and silently reverted, and an open profession choice vanished. */
+      playerX: this.playerX, playerY: this.playerY,
+      chestSize: this.chestSize, maxHealth: this.maxHealth,
+      pendingProfession: this.pendingProfession,
+      professionQueue: this.professionQueue,
       farmlife: world && world.game ? world.game.farm.serialize() : null,
       events: world && world.game ? world.game.events.serialize() : null,
       world: world ? world.serialize() : null
     };
   };
   Sim.prototype.save = function (world) {
+    if (world && world.game && world.game.player) {
+      this.playerX = world.game.player.x;
+      this.playerY = world.game.player.y;
+    }
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(this.toJSON(world)));
       return true;
@@ -422,10 +478,19 @@
      'totalEarnings', 'skills', 'skillXp', 'friendship', 'museum', 'bundlesDone',
      'crafted', 'flags', 'seedRng', 'deepestMine', 'weapon', 'armor',
      'toolTier', 'toolPower', 'professions', 'hasBoat',
-     'spouse'].forEach(function (k) {
+     'spouse', 'dating', 'machines', 'playerX', 'playerY', 'chestSize',
+     'maxHealth', 'pendingProfession', 'professionQueue'].forEach(function (k) {
       if (s[k] != null) self[k] = s[k];
     });
     if (s.world && world) world.deserialize(s.world);
+    if (world && world.game && world.game.player && this.playerX != null) {
+      var pg = world.game;
+      var ar = pg.world.area();
+      // land somewhere standable even if the map changed under the save
+      var spot = ar.nearestFree(Math.floor(this.playerX), Math.floor(this.playerY), 20);
+      pg.player.x = spot.x + 0.5;
+      pg.player.y = spot.y + 0.5;
+    }
     if (world && world.game) {
       if (s.farmlife) world.game.farm.deserialize(s.farmlife);
       if (s.events) world.game.events.deserialize(s.events);

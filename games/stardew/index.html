@@ -151,6 +151,28 @@
   .sdv-fprog{width:80%;height:12px;margin:8px auto;background:rgba(0,0,0,.45);
     border:2px solid #6b5a3c;border-radius:8px;overflow:hidden}
   .sdv-fprog i{display:block;height:100%;background:linear-gradient(90deg,#8fd44a,#4e9c2e)}
+  .sdv-castmsg{font-size:19px;font-weight:800;text-align:center;margin:10px 0;
+    letter-spacing:.3px}
+  .sdv-bite{color:#ff6a5a;font-size:24px;animation:sdvpulse .45s infinite alternate}
+  @keyframes sdvpulse{from{transform:scale(1)}to{transform:scale(1.09)}}
+  .sdv-flash{box-shadow:0 0 0 4px rgba(255,90,70,.75),0 12px 40px rgba(0,0,0,.6);
+    border-color:#ff6a5a}
+  .sdv-fmark{background:#8fd8ff;border:2px solid #fff;border-radius:5px;height:16px}
+  .sdv-slotrow{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+  .sdv-mslot{position:relative;width:58px;height:58px;border-radius:10px;
+    background:rgba(0,0,0,.32);border:2px dashed #6b5a3c;display:flex;
+    flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+  .sdv-mslot.busy{border-style:solid;border-color:#c9a24a}
+  .sdv-mslot.ready{border-style:solid;border-color:#8fd44a;
+    background:rgba(143,212,74,.18)}
+  .sdv-mslot canvas{width:34px;height:34px;image-rendering:pixelated}
+  .sdv-mslot small{font-size:8px;opacity:.8;max-width:54px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .sdv-mempty{font-size:22px;opacity:.45}
+  .sdv-mwait{font-size:20px}
+  .sdv-fishpad{margin:14px auto 4px;max-width:230px;text-align:center;font-size:15px;
+    font-weight:800;color:#241a10;background:var(--accent);border-radius:14px;
+    padding:14px 10px;box-shadow:0 4px 0 #8a5c1e}
 
   .sdv-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin:6px 0}
   .sdv-calday{position:relative;aspect-ratio:1;background:rgba(0,0,0,.28);
@@ -186,6 +208,7 @@
 <script src="data/maps.js"></script>
 <script src="js/sprites.js"></script>
 <script src="js/world.js"></script>
+<script src="js/machines.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/mine.js"></script>
 <script src="js/farmlife.js"></script>
@@ -193,6 +216,7 @@
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/panels.js"></script>
+<script src="js/machineui.js"></script>
 <script src="js/progress.js"></script>
 <script src="js/social.js"></script>
 <script src="js/bot.js"></script>
@@ -226,20 +250,36 @@
     document.getElementById('boot').style.display = 'none';
     game = new SDV_GAME.Game(canvas, window.SDV_DATA);
     fit();
-    if (load) game.sim.load(game.world);
+    var loaded = load ? game.sim.load(game.world) : false;
     ui = new SDV_UI.UI(game, stage);
-    game.events.onNewDay();          // letters, quests, cart, festival
-    SDV_PROGRESS.spawnForage(game);  // seasonal forage on the ground
+    /* WHY only on a fresh game: replaying the start-of-day pass on every load
+     * restocked the traveling cart and re-rolled the quest board, so a player
+     * could reload until a lucrative quest appeared and shop the cart forever. */
+    if (!loaded) {
+      game.events.onNewDay();        // letters, quests, cart, festival
+      SDV_PROGRESS.spawnForage(game);
+    }
     window.SDV = { game: game, ui: ui };   // handle for the test harness
     SDV.bot = new SDV_BOT.Bot(game, ui);   // the agent test drives this
     var last = performance.now();
+    /* WHY the try/catch: requestAnimationFrame was the last statement, so any
+     * throw inside update stopped the loop permanently and the whole game
+     * froze - a single bad frame used to require a page reload. */
     (function loop(now){
       var dt = Math.min(0.05, (now - last) / 1000);
       last = now;
-      game.update(dt);
-      game.render();
-      ui.updateHud();
-      ui.updateQuick();
+      try {
+        game.update(dt);
+        game.render();
+        ui.updateHud();
+        ui.updateQuick();
+      } catch (e) {
+        if (!window.__sdvErrShown) {
+          window.__sdvErrShown = true;
+          try { game.toast('Lỗi: ' + (e && e.message || e)); } catch (e2) {}
+        }
+        console.error(e);
+      }
       requestAnimationFrame(loop);
     })(last);
     setInterval(function(){ game.sim.save(game.world); }, 30000);

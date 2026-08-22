@@ -17,6 +17,7 @@
   UI.prototype.openObject = function (o, x, y) {
     switch (o.kind) {
       case 'ladder':          return this.game.mine.descend();
+      case 'mineExit':        return this.leaveMine(o);
       case 'mineEntrance':    return this.enterMine('mine');
       case 'skullEntrance':   return this.enterMine('skull');
       case 'volcanoEntrance': return this.enterMine('volcano');
@@ -75,6 +76,23 @@
     }
     body.appendChild(list);
     this.openPanel(kind === 'skull' ? 'Hang Sọ' : kind === 'volcano' ? 'Núi lửa' : 'Hầm mỏ', body);
+  };
+
+  /* Walking back up out of a cave. */
+  UI.prototype.leaveMine = function (o) {
+    var self = this, g = this.game;
+    var body = el('div', 'sdv-body');
+    body.appendChild(el('div', 'sdv-sub', 'Lối lên khỏi hang.'));
+    var b = el('button', 'sdv-mbtn', '⬆ Lên khỏi hang');
+    b.addEventListener('click', function () {
+      self.close();
+      g.mine.leave();
+    });
+    body.appendChild(b);
+    var d = el('button', 'sdv-mbtn', '⛏ Ở lại đào tiếp');
+    d.addEventListener('click', function () { self.close(); });
+    body.appendChild(d);
+    this.openPanel('Tầng ' + (o.depth || '?'), body);
   };
 
   // ------------------------------------------------------------------ mail
@@ -144,7 +162,8 @@
   UI.prototype.openMuseum = function () {
     var self = this, s = this.sim, ev = this.game.events;
     var body = el('div', 'sdv-body');
-    body.appendChild(el('div', 'sdv-big', s.museum.length + ' / 95'));
+    body.appendChild(el('div', 'sdv-big',
+      s.museum.length + ' / ' + ev.museumTotal()));
     body.appendChild(el('div', 'sdv-sub',
       'Bảo tàng nhận khoáng vật và cổ vật, mỗi món một lần.'));
     var can = s.inventory.filter(function (it) { return ev.canDonate(it.name); });
@@ -332,11 +351,15 @@
       self.close();
       self.game.toast('Chạm vào ô muốn dời tới');
     });
+    var dmWarn = self.game.farm.occupants(o.buildingId).length;
     menu.appendChild(mv);
     var dm = el('button', 'sdv-mbtn', '🗑 Phá bỏ');
     dm.addEventListener('click', function () {
-      fl.demolish(o);
-      self.game.toast('Đã phá ' + o.farmBuilding);
+      var r = fl.demolish(o) || {};
+      var msg = 'Đã phá ' + o.farmBuilding;
+      if (r.moved) msg += ' — ' + r.moved + ' con vật dọn sang chuồng khác';
+      if (r.lost) msg += ' — mất ' + r.lost + ' con vì hết chỗ';
+      self.game.toast(msg);
       self.close();
     });
     menu.appendChild(dm);
@@ -374,7 +397,7 @@
   UI.prototype.openCart = function (island) {
     var self = this, s = this.sim, ev = this.game.events;
     var body = el('div', 'sdv-body');
-    var stock = ev.cartStock;
+    var stock = island ? (ev.islandStock || []) : ev.cartStock;
     if (!island && !stock.length) {
       body.appendChild(el('div', 'sdv-sub',
         'Xe hàng chỉ ghé vào thứ Sáu và Chủ Nhật.'));
@@ -391,7 +414,7 @@
         row.appendChild(col);
         row.appendChild(el('span', 'sdv-price', it.price + 'g'));
         row.addEventListener('click', function () {
-          if (it.sold || it.qty <= 0) return;
+          if (it.sold || it.qty <= 0) return self.game.toast('Hết hàng rồi');
           if (s.gold < it.price) return self.game.toast('Không đủ tiền');
           if (!s.hasSpace()) return self.game.toast('Túi đầy');
           s.gold -= it.price;
@@ -475,6 +498,44 @@
       body.appendChild(box);
     });
     this.openPanel('Bảng tin nhiệm vụ', body);
+  };
+
+  /* Two items the quick-use row already listed but nothing implemented. */
+  UI.prototype.useStaircase = function (idx) {
+    var g = this.game, s = this.sim;
+    var a = g.world.area();
+    if (!a.depth) return g.toast('Chỉ dùng được trong hang');
+    var it = s.inventory[idx];
+    if (!it || !s.take(it.name, 1)) return g.toast('Không có thang');
+    g.mine.enter((a.depth || 0) + 1, a.mineKind || 'mine');
+    g.toast('Đặt thang, xuống thẳng tầng dưới');
+  };
+
+  UI.prototype.useBomb = function (idx, name) {
+    var g = this.game, s = this.sim;
+    var a = g.world.area();
+    if (!a.depth) return g.toast('Chỉ dùng được trong hang');
+    var it = s.inventory[idx];
+    if (!it || !s.take(it.name, 1)) return g.toast('Không có bom');
+    var r = /mega/i.test(name) ? 4 : /cherry/i.test(name) ? 2 : 3;
+    var px = Math.floor(g.player.x), py = Math.floor(g.player.y);
+    var broke = 0;
+    a.objs.slice().forEach(function (o) {
+      if (o.kind !== 'rock' && o.kind !== 'oreRock') return;
+      if (Math.hypot(o.x - px, o.y - py) > r) return;
+      if (o.ore && s.give(o.ore, 1 + Math.floor(Math.random() * 3))) {}
+      g.world.removeObj(o, a);
+      broke++;
+    });
+    g.mine.monsters.forEach(function (m) {
+      if (Math.hypot(m.x - px, m.y - py) > r) return;
+      m.hp -= 30;
+      if (m.hp <= 0) g.mine.kill(m);
+    });
+    for (var i = 0; i < 14; i++) g.spark(px + (Math.random() * r * 2 - r),
+                                         py + (Math.random() * r * 2 - r));
+    if (broke) g.mine.maybeDropLadder(px, py, false);
+    g.toast('Bom nổ — vỡ ' + broke + ' tảng đá');
   };
 
   // ------------------------------------------------------------------ misc
@@ -570,7 +631,8 @@
       return;
     }
     if (this.moveMode && g.world.current === 'farm') {
-      g.farm.move(this.moveMode, x, y);
+      var err2 = g.farm.move(this.moveMode, x, y);
+      if (err2) { g.toast(err2); return; }      // keep the mode armed, try again
       g.toast('Đã dời ' + this.moveMode.farmBuilding);
       this.moveMode = null;
       return;

@@ -124,7 +124,8 @@
     this.paused = false;
     this.onOpen = null;               // set by ui.js
     this.hover = null;                // the interactable currently highlighted
-    this.warpLock = 0;
+    this.cameFrom = null;             // area we just came from - its door is inert
+    this.arrivedX = 0; this.arrivedY = 0;   // until we walk clear of the landing
     this.fishSpot = null;
     this.npcs = [];
     this.world.game = this;             // modules reach back through the world
@@ -134,6 +135,11 @@
     this.initNpcs();
     this.sim.rollLuck();
     this.sim.tomorrowWeather = this.sim.rollWeather();
+    // make sure craftable-but-untabled items have a price row
+    var extra = (global.SDV_MACHINES || {}).EXTRA_ITEMS || {};
+    for (var xn in extra) {
+      if (!this.data.items[xn.toLowerCase()]) this.data.items[xn.toLowerCase()] = extra[xn];
+    }
     this.giveStarterKit();
   }
 
@@ -332,7 +338,8 @@
     var len = Math.hypot(i.dx, i.dy);
     if (len < 0.08) { p.frame = 0; return; }
     var nx = i.dx / len, ny = i.dy / len;
-    var sp = p.speed * (this.sim.exhausted ? 0.55 : 1) * dt * Math.min(1, len);
+    var slow = this.sim.sluggish || (this.sim.energy <= 0);
+    var sp = p.speed * (slow ? 0.55 : 1) * dt * Math.min(1, len);
     var tryX = p.x + nx * sp, tryY = p.y + ny * sp;
     if (this.canStand(tryX, p.y)) p.x = tryX;
     if (this.canStand(p.x, tryY)) p.y = tryY;
@@ -345,16 +352,31 @@
 
   Game.prototype.checkWarp = function () {
     var a = this.world.area(), p = this.player;
-    /* A short lock-out after arriving: without it the destination tile is often
-     * inside the return warp's radius and the player ping-pongs between rooms. */
-    if (this.warpLock > 0) return;
+    /* WHY: doors are 3-4 tiles wide, and you land ON the band that leads back.
+     * Blocking only the exact arrival tile was not enough - one step sideways
+     * hit the next tile of the SAME door and bounced you home, which is what
+     * "stuck at the exit" was. So: after arriving from area X, every warp back
+     * to X is inert until you have walked clear of the landing spot. */
+    if (this.cameFrom) {
+      var dist = Math.hypot(p.x - this.arrivedX, p.y - this.arrivedY);
+      if (dist > 2.2) this.cameFrom = null;
+    }
     for (var i = 0; i < a.warps.length; i++) {
       var w = a.warps[i];
       if (!w.to) continue;
+      if (this.cameFrom && w.to === this.cameFrom) continue;
       if (Math.abs(p.x - (w.x + 0.5)) < 0.45 && Math.abs(p.y - (w.y + 0.5)) < 0.45) {
+        var dest = this.world.areas[w.to];
+        if (!dest) continue;
+        /* A landing tile inside a wall is the other half of "I got stuck".
+         * Snap to the nearest tile that can actually be stood on. */
+        var spot = dest.nearestFree
+          ? dest.nearestFree(w.tx, w.ty, 10) : { x: w.tx, y: w.ty };
+        var origin = this.world.current;
         this.world.current = w.to;
-        p.x = w.tx + 0.5; p.y = w.ty + 0.5;
-        this.warpLock = 0.6;
+        p.x = spot.x + 0.5; p.y = spot.y + 0.5;
+        this.cameFrom = origin;
+        this.arrivedX = p.x; this.arrivedY = p.y;
         this.toast('→ ' + this.world.area().name);
         var fest = this.events && this.events.festivalToday;
         if (fest && fest.where === w.to && this.ui && this.ui.openFestival) {
@@ -515,7 +537,6 @@
     if (this.paused) return;
     var p = this.player;
     if (p.actCooldown > 0) p.actCooldown -= dt;
-    if (this.warpLock > 0) this.warpLock -= dt;
     this.movePlayer(dt);
     this.updateNpcs(dt);
     this.mine.update(dt);
@@ -535,6 +556,7 @@
     this.acc += dt;
     while (this.acc >= SIM.SEC_PER_STEP) {
       this.acc -= SIM.SEC_PER_STEP;
+      if (global.SDV_MACHINEUI) global.SDV_MACHINEUI.machinesTick(this, SIM.STEP);
       if (this.sim.tick()) this.collapse();
     }
   };
@@ -553,6 +575,8 @@
     report.today = this.events.onNewDay();
     report.forage = global.SDV_PROGRESS ? global.SDV_PROGRESS.spawnForage(this) : 0;
     report.pots = global.SDV_SOCIAL ? global.SDV_SOCIAL.crabPotOvernight(this) : 0;
+    report.machines = global.SDV_MACHINEUI
+      ? global.SDV_MACHINEUI.machinesOvernight(this) : 0;
     this.mine.monsters = [];
     this.player.x = 64.5; this.player.y = 17.5;
     this.world.current = 'farm';
@@ -693,6 +717,7 @@
     calendarBoard: '\u{1F4C5}', museumDesk: '\u{1F3DB}', display: '\u{1F5FF}',
     toolUpgrade: '\u{1F527}', geodeCrusher: '\u{1F48E}', animalShop: '\u{1F404}',
     buildMenu: '\u{1F3D7}', caveChoice: '\u{1F344}', greenhouseShell: '\u{1F3E1}',
+    workshop: '\u{1F6E0}',
     counter: '\u{1F9FE}', bundleBoard: '\u{1F4DC}', sewerGrate: '\u{1F573}',
     guildDoor: '\u2694'
   };
@@ -746,6 +771,20 @@
           ctx.fillStyle = '#e8c357';
           ctx.fillRect(sx + ts * 0.4, sy - ts * 0.35, ts * 0.2, ts * 0.25);
         }
+        break;
+      }
+      case 'mineExit': {
+        ctx.fillStyle = '#2a2018';
+        ctx.fillRect(sx + ts * 0.2, sy + ts * 0.1, ts * 0.6, ts * 0.8);
+        ctx.fillStyle = '#8fd8ff';
+        for (var ur = 0; ur < 4; ur++) {
+          ctx.fillRect(sx + ts * 0.22, sy + ts * (0.18 + ur * 0.18), ts * 0.56, ts * 0.06);
+        }
+        ctx.font = Math.round(ts * 0.5) + 'px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('↑', sx + ts / 2, sy - 2);
+        ctx.textAlign = 'left';
         break;
       }
       case 'ladder': {
@@ -892,7 +931,8 @@
       case 'boatTicket': case 'kitchen': case 'mailbox': case 'calendarBoard':
       case 'museumDesk': case 'display': case 'toolUpgrade': case 'geodeCrusher':
       case 'animalShop': case 'buildMenu': case 'caveChoice':
-      case 'greenhouseShell': case 'counter': case 'bundleBoard': {
+      case 'greenhouseShell': case 'counter': case 'bundleBoard':
+      case 'workshop': {
         var col = S.iconColors(o.kind, 'crafted');
         ctx.fillStyle = col.dark;
         ctx.fillRect(sx + ts * 0.08, sy + ts * 0.2, ts * 0.84, ts * 0.7);

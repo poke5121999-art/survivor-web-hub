@@ -187,7 +187,7 @@
     this.bagBtn = el('button', 'sdv-btn sdv-small', '🎒');
     this.bagBtn.addEventListener('click', function () { self.openBag(); });
     this.craftBtn = el('button', 'sdv-btn sdv-small', '🔨');
-    this.craftBtn.addEventListener('click', function () { self.openCraft(); });
+    this.craftBtn.addEventListener('click', function () { self.openCraftHub(); });
     wrap.appendChild(this.craftBtn);
     wrap.appendChild(this.bagBtn);
     wrap.appendChild(this.actBtn);
@@ -233,8 +233,14 @@
       b.appendChild(el('span', 'sdv-qty', String(it.qty)));
       b.addEventListener('click', function () {
         var idx = self.sim.inventory.indexOf(it);
+        /* WHY: this row admits bombs and staircases by name but only ever
+         * called eat(), which returns null for anything with no energy - so
+         * the bomb button was completely inert. */
+        if (/staircase/i.test(it.name)) return self.useStaircase(idx);
+        if (/bomb/i.test(it.name)) return self.useBomb(idx, it.name);
         var gain = self.sim.eat(idx);
         if (gain) self.game.toast('+' + gain + ' sức lực');
+        else self.game.toast('Món này không ăn được');
       });
       self.quick.appendChild(b);
     });
@@ -242,6 +248,15 @@
 
   // ------------------------------------------------------------------ panels
   UI.prototype.close = function () {
+    /* WHY: the fishing panel arms window-level listeners and two timers. Closing
+     * without tearing them down left a dead minigame stealing every tap. */
+    if (this._fishStop) { this._fishStop(); this._fishStop = null; }
+    if (this._fishState) {
+      clearTimeout(this._fishState.timer);
+      clearTimeout(this._fishState.escape);
+      if (this._fishState.cleanup) this._fishState.cleanup();
+      this._fishState = null;
+    }
     if (this.panel) { this.panel.remove(); this.panel = null; }
     this.game.paused = false;
   };
@@ -339,15 +354,21 @@
     };
     this.renderGrid();
     var p = this.openPanel('Túi đồ', body);
-    // dropping outside the panel drops the item on the ground
     p.addEventListener('dragover', function (e) { e.preventDefault(); });
-    this.layer.addEventListener('drop', function onDrop(e) {
-      if (!self.dragging) return;
-      if (p.contains(e.target)) return;
-      self.dropOnGround(self.dragging);
-      self.dragging = null;
-      self.refreshPanel();
-    });
+    /* WHY registered once: this used to be added on EVERY openBag, and each
+     * stale copy closed over its own detached panel, so its
+     * "was it dropped inside?" guard never fired again - from the second bag
+     * open onward, letting go of an item anywhere threw it on the ground. */
+    if (!this._groundDropBound) {
+      this._groundDropBound = true;
+      this.layer.addEventListener('drop', function (e) {
+        if (!self.dragging) return;
+        if (self.panel && self.panel.contains(e.target)) return;
+        self.dropOnGround(self.dragging);
+        self.dragging = null;
+        if (self.refreshPanel) self.refreshPanel();
+      });
+    }
     this.refreshPanel = function () { self.renderGrid(); };
   };
 
@@ -364,6 +385,18 @@
     var g = this.game, a = g.world.area();
     var p = g.player;
     if (Math.hypot(x + 0.5 - p.x, y + 0.5 - p.y) > 3.2) return;
+    if (this.moveCrop) {
+      var t0 = a.name_of(x, y);
+      if ((t0 !== 'tilled' && t0 !== 'watered') || g.world.objAt(x, y, a)) {
+        g.toast('Phải là ô đất đã cuốc và còn trống');
+      } else {
+        this.moveCrop.x = x; this.moveCrop.y = y;
+        this.moveCrop.watered = (t0 === 'watered');
+        g.toast('Đã dời cây');
+      }
+      this.moveCrop = null;
+      return;
+    }
     var o = g.world.objAt(x, y);
     if (o) return this.openObject(o, x, y);
     var t = a.name_of(x, y);
@@ -417,8 +450,12 @@
     } else {
       list.appendChild(el('div', 'sdv-sub', 'Không có hạt giống trong túi'));
     }
-    var wbtn = el('button', 'sdv-mbtn', '💧 Tưới nước');
+    var alreadyWet = a.name_of(x, y) === 'watered';
+    var wbtn = el('button', 'sdv-mbtn' + (alreadyWet ? ' sdv-off' : ''),
+                  alreadyWet ? '💧 Ô này đã tưới rồi' : '💧 Tưới nước');
     wbtn.addEventListener('click', function () {
+      // charging energy to water an already-wet tile is pure loss
+      if (a.name_of(x, y) === 'watered') return self.game.toast('Ô này đã tưới rồi');
       if (self.sim.energy <= 0) return self.game.toast('Hết sức');
       self.sim.spend(2);
       a.set(x, y, 'watered');
@@ -427,14 +464,34 @@
       self.close();
     });
     list.appendChild(wbtn);
-    var fbtn = el('button', 'sdv-mbtn', '🧪 Bón phân');
-    fbtn.addEventListener('click', function () {
-      if (!self.sim.take('Basic Fertilizer', 1)) return self.game.toast('Không có phân bón');
-      var c = g.world.objAt(x, y);
-      if (c) c.fert = 1;
-      self.close();
+    /* WHY: fertiliser was only offered on bare soil and stored nowhere, so it
+     * was consumed and lost - every crop in the game was permanently fert 0 and
+     * Quality/Deluxe fertiliser had no code path at all. It now lives on the
+     * TILE and is inherited by whatever is planted there afterwards. */
+    var FERT = [['Basic Fertilizer', 1], ['Quality Fertilizer', 2],
+                ['Deluxe Fertilizer', 3]];
+    a.fert = a.fert || {};
+    var already = a.fert[x + ',' + y] || 0;
+    if (already) {
+      list.appendChild(el('div', 'sdv-sub',
+        'Đã bón: ' + FERT[already - 1][0]));
+    }
+    FERT.forEach(function (f) {
+      var have = self.sim.count(f[0]);
+      var fb = el('button', 'sdv-mbtn' + (have ? '' : ' sdv-off'));
+      fb.appendChild(el('span', null, '🧪 Bón ' + f[0]));
+      fb.appendChild(el('small', 'sdv-cost', 'đang có ' + have));
+      fb.addEventListener('click', function () {
+        if (!self.sim.take(f[0], 1)) return self.game.toast('Không có ' + f[0]);
+        a.fert = a.fert || {};
+        a.fert[x + ',' + y] = f[1];
+        var c2 = g.world.objAt(x, y);
+        if (c2 && c2.kind === 'crop') c2.fert = f[1];
+        self.game.toast('Đã bón ' + f[0]);
+        self.close();
+      });
+      list.appendChild(fb);
     });
-    list.appendChild(fbtn);
     var dbtn = el('button', 'sdv-mbtn', '🗑 Phá luống');
     dbtn.addEventListener('click', function () {
       a.set(x, y, 'dirt');
@@ -464,13 +521,21 @@
     if (g.world.objAt(x, y)) { this.game.toast('Ô này đã có cây'); return; }
     this.sim.take(seedStack.name, 1);
     var stageDays = (def.stages && def.stages.length) ? def.stages.slice() : [1, 1, 1, 1];
+    a.fert = a.fert || {};
+    /* WHY watered is inherited: watering the soil BEFORE sowing used to be
+     * silently thrown away - the tile looked wet, the seed went in dry, and the
+     * player lost a day and 2 energy with visual confirmation it had worked. */
     a.objs.push({
       x: x, y: y, kind: 'crop', crop: def.name, stage: 0, days: 0,
       stageDays: stageDays, maxStage: stageDays.length,
       growth: def.growth || stageDays.reduce(function (s2, d) { return s2 + d; }, 0),
       regrow: def.regrow || null, regrowLeft: 0, harvested: false,
-      seasons: def.seasons, watered: false, fert: 0
+      seasons: def.seasons, trellis: !!def.trellis,
+      minHarvest: def.minHarvest || 1, maxHarvest: def.maxHarvest || 1,
+      watered: a.name_of(x, y) === 'watered',
+      fert: a.fert[x + ',' + y] || 0
     });
+    if (a.name_of(x, y) === 'dirt') a.set(x, y, 'tilled');
     this.close();
     this.game.toast('Đã gieo ' + def.name);
   };
@@ -496,8 +561,42 @@
       });
       list.appendChild(w);
     }
-    var d = el('button', 'sdv-mbtn', '🗑 Nhổ bỏ');
-    d.addEventListener('click', function () { g.world.removeObj(o); self.close(); });
+    if (!o.dead) {
+      /* Fertiliser has to be reachable from the CROP too - the player plants
+       * first and thinks about quality afterwards. */
+      [['Basic Fertilizer', 1], ['Quality Fertilizer', 2],
+       ['Deluxe Fertilizer', 3]].forEach(function (f) {
+        var have = self.sim.count(f[0]);
+        var fb = el('button', 'sdv-mbtn' + (have ? '' : ' sdv-off'));
+        fb.appendChild(el('span', null, '🧪 Bón ' + f[0]
+          + (o.fert === f[1] ? ' (đã bón)' : '')));
+        fb.appendChild(el('small', 'sdv-cost', 'đang có ' + have));
+        fb.addEventListener('click', function () {
+          if (!self.sim.take(f[0], 1)) return self.game.toast('Không có ' + f[0]);
+          o.fert = f[1];
+          var ar = g.world.area();
+          ar.fert = ar.fert || {};
+          ar.fert[o.x + ',' + o.y] = f[1];
+          self.game.toast('Đã bón ' + f[0]);
+          self.close();
+        });
+        list.appendChild(fb);
+      });
+      var mv = el('button', 'sdv-mbtn', '↔ Dời cây sang ô khác');
+      mv.addEventListener('click', function () {
+        self.moveCrop = o;
+        self.close();
+        self.game.toast('Chạm vào ô đất muốn dời cây tới');
+      });
+      list.appendChild(mv);
+    }
+    var d = el('button', 'sdv-mbtn',
+               o.dead ? '🗑 Dọn cây chết' : '🗑 Nhổ bỏ');
+    d.addEventListener('click', function () {
+      g.world.removeObj(o);
+      if (o.dead) self.game.toast('Đã dọn cây chết');
+      self.close();
+    });
     list.appendChild(d);
     body.appendChild(list);
     this.openPanel(o.crop, body);
@@ -506,11 +605,20 @@
   UI.prototype.harvest = function (o) {
     var g = this.game, def = g.cropDef(o.crop);
     var q = this.sim.rollQuality(o.fert || 0);
-    if (!this.sim.give(o.crop, 1, q)) { g.toast('Túi đầy!'); return; }
-    var lvl = this.sim.addXp('farming', Math.round(6 + (def && def.sell ? def.sell / 8 : 2)));
+    /* WHY: the data carries minHarvest/maxHarvest (Blueberry 3, Cranberries 5)
+     * and nothing read it, so every money crop paid a third of what it should. */
+    var lo = o.minHarvest || (def && def.minHarvest) || 1;
+    var hi = Math.max(lo, o.maxHarvest || (def && def.maxHarvest) || lo);
+    var n = lo + Math.floor(Math.random() * (hi - lo + 1));
+    if (!this.sim.give(o.crop, n, q)) { g.toast('Túi đầy!'); return; }
+    /* XP follows the game's own curve rather than price/8, which handed out
+     * 99 XP for a Starfruit and pushed farming to level 10 inside six weeks. */
+    var price = (def && def.sell) || 20;
+    var lvl = this.sim.addXp('farming',
+      Math.max(3, Math.round(16 * Math.log(0.018 * price + 1))));
     if (lvl) g.toast('Nông nghiệp lên cấp ' + lvl + '!');
     var qn = ['', ' (bạc)', ' (vàng)', ' (iridium)'][q];
-    g.toast('Thu hoạch ' + o.crop + qn);
+    g.toast('Thu hoạch ' + o.crop + (n > 1 ? ' ×' + n : '') + qn);
     if (o.regrow) { o.harvested = true; o.regrowLeft = o.regrow; }
     else g.world.removeObj(o);
   };
@@ -523,9 +631,8 @@
     var opts = [
       { label: '🌱 Cuốc thành luống', cost: {}, act: function () { a.set(x, y, 'tilled'); self.sim.spend(2); } },
       { label: '📦 Rương gỗ', cost: { Wood: 50 }, act: function () { a.objs.push({ x: x, y: y, kind: 'chest' }); } },
-      { label: '🔥 Lò nung', cost: { Stone: 25, 'Copper Ore': 20 }, act: function () { a.objs.push({ x: x, y: y, kind: 'machine', machine: 'Furnace' }); } },
-      { label: '🍯 Hũ ngâm', cost: { Wood: 50, Stone: 40, Coal: 8 }, act: function () { a.objs.push({ x: x, y: y, kind: 'machine', machine: 'Preserves Jar' }); } },
-      { label: '🍷 Thùng ủ rượu', cost: { Wood: 30, 'Copper Bar': 1, 'Iron Bar': 1 }, act: function () { a.objs.push({ x: x, y: y, kind: 'machine', machine: 'Keg' }); } },
+      { label: '🔨 Xem máy móc trên nông trại…', cost: {}, act: function () {
+          setTimeout(function () { self.openMachineList(); }, 0); } },
       { label: '💧 Vòi tưới', cost: { 'Copper Bar': 1, 'Iron Bar': 1 }, act: function () { a.objs.push({ x: x, y: y, kind: 'sprinkler' }); } }
     ];
     opts.forEach(function (op) {
@@ -726,23 +833,92 @@
   };
 
   // ---- shop --------------------------------------------------------------
+  /* Does a shop row's condition hold today? The data carries the game's own
+   * condition strings; anything we do not understand is allowed through rather
+   * than hidden, so a parser gap never empties a shop. */
+  UI.prototype.shopRowAvailable = function (when) {
+    if (!when) return true;
+    var s = this.sim;
+    var txt = String(when);
+    var ok = true;
+    txt.split(',').forEach(function (clause) {
+      var t = clause.trim();
+      if (!t) return;
+      var m;
+      if ((m = t.match(/^SEASON\s+(.+)$/i))) {
+        var want = m[1].toLowerCase().split(/\s+/);
+        if (want.indexOf(s.season().toLowerCase()) < 0) ok = false;
+      } else if ((m = t.match(/^YEAR\s+(\d+)/i))) {
+        if (s.year < parseInt(m[1], 10)) ok = false;
+      } else if ((m = t.match(/^DAYS_PLAYED\s+(\d+)/i))) {
+        if (s.dayIndex() + 1 < parseInt(m[1], 10)) ok = false;
+      } else if ((m = t.match(/^DAY_OF_WEEK\s+(.+)$/i))) {
+        var map = { sunday: 'CN', monday: 'T2', tuesday: 'T3', wednesday: 'T4',
+                    thursday: 'T5', friday: 'T6', saturday: 'T7' };
+        var days = m[1].toLowerCase().split(/\s+/).map(function (d) { return map[d]; });
+        if (days.indexOf(s.dayOfWeek()) < 0) ok = false;
+      }
+    });
+    return ok;
+  };
+
+  /* Seeds are the whole economy, and the extracted shop tables list almost
+   * none of them - 45 of 50 crops had no purchasable seed anywhere, so the
+   * core loop (buy -> grow -> sell -> buy more) could not start. Pierre and
+   * JojaMart stock this season's seeds, priced from the crop table. */
+  UI.prototype.seasonalSeedRows = function (stockKey) {
+    var s = this.sim;
+    if (!/Pierre|Joja/i.test(stockKey || '')) return [];
+    var markup = /Joja/i.test(stockKey) ? 1.25 : 1;   // Joja charges more
+    var season = s.season();
+    var rows = [];
+    (this.game.data.crops || []).forEach(function (c) {
+      if (!c.seed || !c.seedPrice || c.seedPrice <= 0) return;
+      if (!c.seasons || c.seasons.indexOf(season) < 0) return;
+      if (/Ancient|Rare|Qi /i.test(c.seed)) return;    // those stay special
+      rows.push({ item: c.seed, price: Math.round(c.seedPrice * markup),
+                  when: '', seed: true });
+    });
+    return rows;
+  };
+
   UI.prototype.openShop = function (stockKey, keeper) {
     var self = this;
-    var stock = (this.game.data.shops[stockKey] || []).slice(0, 120);
+    var raw = (this.game.data.shops[stockKey] || []);
+    var stock = this.seasonalSeedRows(stockKey).concat(raw)
+      .filter(function (r) { return self.shopRowAvailable(r.when); })
+      .map(function (r) {
+        /* WHY: several shop rows were priced BELOW what the bin pays for the
+         * same item (Pizza 150 -> 300), which is an infinite money press with
+         * unlimited stock. Nothing may be bought for less than it sells for. */
+        var sell = self.sim.sellPrice(r.item, 0);
+        var price = r.price;
+        if (sell && price < sell * 1.2) price = Math.ceil(sell * 1.2);
+        return { item: r.item, price: price, when: r.when, seed: r.seed };
+      })
+      .slice(0, 140);
     var body = el('div', 'sdv-body');
-    var sell = el('div', 'sdv-drop', 'Kéo vào đây để BÁN ngay');
-    sell.addEventListener('dragover', function (e) { e.preventDefault(); });
-    sell.addEventListener('drop', function (e) {
-      e.preventDefault();
-      if (!self.dragging) return;
+    var sell = el('div', 'sdv-drop', 'Chạm món trong túi rồi chạm vào đây để BÁN');
+    /* WHY a click handler too: HTML5 drag-and-drop never fires on touch, so on
+     * a phone there was no way at all to sell to a shopkeeper. The shipping bin
+     * and the gift slot both accept tap-then-tap; this now matches them. */
+    function doSell() {
+      if (!self.dragging) return self.game.toast('Chạm một món trong túi trước');
       var d = self.dragging;
+      var info = self.sim.itemInfo(d.it.name);
+      self.dragging = null;
+      // an item with no price used to be swallowed for 0 gold
+      if (!info || !info.sell) return self.game.toast('Món này không bán được');
       var price = self.sim.sellPrice(d.it.name, d.it.quality) * d.it.qty;
       self.sim.gold += price;
       d.list.splice(d.index, 1);
-      self.dragging = null;
       self.game.toast('Bán được ' + price + 'g');
+      self.updateHud();
       self.openShop(stockKey, keeper);
-    });
+    }
+    sell.addEventListener('dragover', function (e) { e.preventDefault(); });
+    sell.addEventListener('drop', function (e) { e.preventDefault(); doSell(); });
+    sell.addEventListener('click', doSell);
     body.appendChild(sell);
     var list = el('div', 'sdv-list');
     stock.forEach(function (s) {
@@ -753,9 +929,10 @@
       row.appendChild(el('span', 'sdv-price', s.price + 'g'));
       row.addEventListener('click', function () {
         if (self.sim.gold < s.price) return self.game.toast('Không đủ tiền');
-        if (!self.sim.hasSpace()) return self.game.toast('Túi đầy');
+        /* Ask give() rather than counting slots: a full bag can still absorb
+         * an item that stacks onto something already in it. */
+        if (!self.sim.give(s.item, 1)) return self.game.toast('Túi đầy');
         self.sim.gold -= s.price;
-        self.sim.give(s.item, 1);
         self.game.toast('Mua ' + s.item);
         self.updateHud();
       });
@@ -764,9 +941,14 @@
     body.appendChild(list);
     var grid = el('div', 'sdv-grid');
     for (var i = 0; i < this.sim.invSize; i++) {
-      grid.appendChild(this.slotEl(this.sim.inventory[i], this.sim.inventory, i, {}));
+      grid.appendChild(this.slotEl(this.sim.inventory[i], this.sim.inventory, i, {
+        onClick: function (it, idx) {
+          self.dragging = { it: it, list: self.sim.inventory, index: idx };
+          self.game.toast('Đã chọn ' + it.name + ' — chạm ô bán ở trên');
+        }
+      }));
     }
-    body.appendChild(el('div', 'sdv-sub', 'Túi đồ — kéo lên ô bán ở trên'));
+    body.appendChild(el('div', 'sdv-sub', 'Túi đồ — chạm một món rồi chạm ô bán'));
     body.appendChild(grid);
     this.openPanel(keeper || 'Cửa hàng', body);
   };
@@ -849,7 +1031,9 @@
       if (b.reward) box.appendChild(el('div', 'sdv-sub', 'Thưởng: ' + b.reward));
       var btn = el('button', 'sdv-mbtn', 'Nộp bundle');
       btn.addEventListener('click', function () {
-        if (self.sim.bundlesDone[b.name]) return;
+        if (self.sim.bundlesDone[b.name]) {
+          return self.game.toast('Bundle này đã nộp xong rồi');
+        }
         if (b.gold) {
           if (self.sim.gold < b.gold) return self.game.toast('Không đủ tiền');
           self.sim.gold -= b.gold;
@@ -911,6 +1095,21 @@
     this.openPanel('Chế tạo', body);
   };
 
+  /* One place to reach both kinds of making: items, and the machines that
+   * have to be crafted before they can be placed. */
+  UI.prototype.openCraftHub = function () {
+    var self = this;
+    var body = el('div', 'sdv-body');
+    var a = el('button', 'sdv-mbtn', '🔧 Chế tạo vật phẩm');
+    a.addEventListener('click', function () { self.openCraft(); });
+    var b = el('button', 'sdv-mbtn', '⚙️ Xem máy móc trên nông trại');
+    b.addEventListener('click', function () { self.openMachineList(); });
+    var c = el('button', 'sdv-mbtn', '🍳 Nấu ăn');
+    c.addEventListener('click', function () { self.openKitchen(); });
+    body.appendChild(a); body.appendChild(b); body.appendChild(c);
+    this.openPanel('Chế tạo', body);
+  };
+
   // ---- tv / sleep --------------------------------------------------------
   UI.prototype.openTv = function () {
     var s = this.sim;
@@ -956,118 +1155,224 @@
   };
 
   // ---- fishing -----------------------------------------------------------
+  /* Two things the first version got wrong, both reported by the player:
+   *  - the bite window was 1.4s and announced in small text, so a tap that
+   *    felt instant had already missed it. It is now 3.2s, the whole panel
+   *    flashes, and the prompt is the biggest thing on screen.
+   *  - the catch minigame only understood HOLD. A tap moved the bar by one
+   *    frame of acceleration, which reads as "the controls do nothing". A tap
+   *    now gives a real upward kick, and holding still lifts continuously.
+   * Both listen on the window, so a touch anywhere counts. */
   UI.prototype.openFishing = function () {
     var self = this, g = this.game, sim = this.sim;
     if (sim.exhausted) return g.toast('Kiệt sức, không quăng cần được');
     var pool = this.fishPool();
     if (!pool.length) return g.toast('Chỗ này giờ không có cá');
     var target = pool[Math.floor(Math.random() * pool.length)];
+    /* A legendary is a once-in-a-while event, not a 1-in-12 cast. */
+    var legends = this.game.data.fish.filter(function (f) {
+      return (f.kind === 'legendary')
+        && f.locations && f.locations.indexOf(g.world.current) >= 0
+        && (!f.seasons.length || f.seasons.indexOf(sim.season()) >= 0)
+        && sim.skills.fishing >= 6
+        && !(sim.caughtLegend || {})[f.name];
+    });
+    if (legends.length && Math.random() < 0.02) {
+      target = legends[Math.floor(Math.random() * legends.length)];
+      target._legend = true;
+    }
     sim.spend(4);
 
     var body = el('div', 'sdv-body sdv-fish');
-    var wait = el('div', 'sdv-speech', 'Đang chờ cá cắn câu…');
+    var wait = el('div', 'sdv-castmsg', 'Đang chờ cá cắn câu…');
     body.appendChild(wait);
-    var p = this.openPanel('Câu cá', body, { live: false });
-    var bite = 600 + Math.random() * 4200;
+    body.appendChild(el('div', 'sdv-hint',
+      'Khi chữ đỏ hiện lên thì chạm vào màn hình để giật cần.'));
+    var p = this.openPanel('Câu cá', body);
     var st = { phase: 'wait' };
-    setTimeout(function () {
+    var biteAt = 600 + Math.random() * 3600;
+
+    function cleanup() {
+      window.removeEventListener('pointerdown', hook, true);
+      window.removeEventListener('touchstart', hook, true);
+    }
+    function hook(ev) {
+      if (st.phase !== 'bite') return;
+      if (ev && ev.cancelable) ev.preventDefault();
+      if (ev) ev.stopPropagation();
+      st.phase = 'game';
+      clearTimeout(st.escape);
+      cleanup();
+      self.fishMinigame(p, body, target);
+    }
+    st.cleanup = cleanup;
+
+    st.timer = setTimeout(function () {
       if (!self.panel || self.panel !== p) return;
       st.phase = 'bite';
-      wait.textContent = '❗ Cá cắn câu! Chạm nhanh!';
+      wait.textContent = '❗ CÁ CẮN CÂU — CHẠM NGAY!';
       wait.classList.add('sdv-bite');
-      var gone = setTimeout(function () {
-        if (st.phase === 'bite') { self.close(); g.toast('Cá thoát mất'); }
-      }, 1400);
-      p.addEventListener('click', function once() {
+      p.classList.add('sdv-flash');
+      window.addEventListener('pointerdown', hook, true);
+      window.addEventListener('touchstart', hook, true);
+      st.escape = setTimeout(function () {
         if (st.phase !== 'bite') return;
-        clearTimeout(gone);
-        st.phase = 'game';
-        self.fishMinigame(p, body, target);
-      });
-    }, bite);
+        cleanup();
+        self.close();
+        g.toast('Chậm tay, cá thoát mất');
+      }, 3200);
+    }, biteAt);
+
+    this._fishState = st;
   };
 
   UI.prototype.fishPool = function () {
     var sim = this.sim, area = this.game.world.current;
-    var locMap = { beach: /ocean|beach/i, mountain: /mountain lake|lake/i,
-                   town: /river|town/i, forest: /river|forest|pond/i,
-                   farm: /pond|farm/i, mine: /mine/i };
-    var re = locMap[area] || /./;
     return this.game.data.fish.filter(function (f) {
       if (f.kind === 'crab_pot') return false;
-      if (f.seasons.length && f.seasons.indexOf(sim.season()) < 0) return false;
-      if (f.locations.length && !f.locations.some(function (l) { return re.test(l); })) return false;
-      if (f.windows.length && !f.windows.some(function (w) {
+      if (f.seasons && f.seasons.length
+          && f.seasons.indexOf(sim.season()) < 0) return false;
+      /* Location now comes from the game's own Locations.json, so it names our
+       * area ids directly - no more guessing from prose. */
+      /* WHY an empty list is now a refusal: five fish ship with no location
+       * at all (Void Salmon, Stingray, and the mine-only Stonefish / Ice Pip /
+       * Lava Eel), and "no restriction" made them catchable in every puddle in
+       * the valley from day one. */
+      if (!f.locations || !f.locations.length) return false;
+      /* The game's own tables also use two generic waters - "ocean" and
+       * "freshwater" - which map to several of our areas. Without this the
+       * farm pond had no fish at all and the sea lost seven species. */
+      var ok = f.locations.indexOf(area) >= 0;
+      if (!ok && f.locations.indexOf('ocean') >= 0) {
+        ok = (area === 'beach' || area === 'island' || area === 'islandwest');
+      }
+      if (!ok && f.locations.indexOf('freshwater') >= 0) {
+        ok = (area === 'town' || area === 'forest' || area === 'mountain'
+              || area === 'farm');
+      }
+      // the farm pond runs on the valley's ordinary river stock
+      if (!ok && area === 'farm') {
+        ok = f.locations.indexOf('forest') >= 0 || f.locations.indexOf('town') >= 0;
+      }
+      if (!ok) return false;
+      // legendaries are not ordinary stock; they get their own rare roll below
+      if (f.kind === 'legendary' || f.kind === 'legendary_family') return false;
+      if (f.kind === 'night_market' && !(sim.season() === 'Winter'
+          && sim.day >= 15 && sim.day <= 17)) return false;
+      if (f.weather && f.weather.length) {
+        var wet = sim.weather === 'rain' || sim.weather === 'storm';
+        if (f.weather.indexOf(wet ? 'rain' : 'sun') < 0) return false;
+      }
+      if (f.windows && f.windows.length && !f.windows.some(function (w) {
         return sim.time >= w[0] && sim.time <= Math.max(w[1], w[0] + 60);
       })) return false;
+      if (f.minLevel && sim.skills.fishing < f.minLevel) return false;
       return true;
     });
   };
 
-  /* Keep the marker inside the moving bar until the catch meter fills.
-   * Bar height follows the wiki rule: 96px at level 0, +8 per fishing level. */
+  /* Keep the lit band over the fish until the meter fills.
+   * Band height follows the game's rule: 96px at level 0, +8 per level. */
   UI.prototype.fishMinigame = function (panel, body, fish) {
     var self = this, sim = this.sim, g = this.game;
+    panel.classList.remove('sdv-flash');
     body.innerHTML = '';
-    body.appendChild(el('div', 'sdv-sub', 'Giữ ô sáng trùm lên con cá'));
+    body.appendChild(el('div', 'sdv-castmsg', fish.name));
+    body.appendChild(el('div', 'sdv-sub',
+      'CHẠM để nảy lên · GIỮ để kéo lên đều. Giữ ô sáng trùm con cá.'));
     var track = el('div', 'sdv-track');
     var bar = el('div', 'sdv-fbar');
     var mark = el('div', 'sdv-fmark');
     var prog = el('div', 'sdv-fprog');
     var progFill = el('i');
     prog.appendChild(progFill);
-    track.appendChild(bar); track.appendChild(mark);
-    body.appendChild(track); body.appendChild(prog);
-    var H = 260;
-    var barH = (96 + sim.skills.fishing * 8) / 568 * H;
-    bar.style.height = barH + 'px';
-    var barY = H / 2, barV = 0, held = false;
-    var fy = H * 0.5, fv = 0, progress = 0.35;
-    var diff = fish.difficulty || 50;
-    var behavior = fish.behavior || 'mixed';
-    var t0 = performance.now(), timer;
+    track.appendChild(bar);
+    track.appendChild(mark);
+    body.appendChild(track);
+    body.appendChild(prog);
+    body.appendChild(el('div', 'sdv-fishpad', '👆 CHẠM hoặc GIỮ'));
 
-    function down() { held = true; }
+    var H = 260;
+    var barH = Math.min(H - 20, (96 + sim.skills.fishing * 8) / 568 * H);
+    bar.style.height = barH + 'px';
+    var barY = (H - barH) / 2, barV = 0, held = false;
+    var fy = H * 0.5, fv = 0, progress = 0.4;
+    var diff = Math.max(15, fish.difficulty || 50);
+    var behavior = String(fish.behavior || 'mixed').toLowerCase();
+    var last = performance.now(), t0 = last, timer, over = false;
+
+    function down(ev) {
+      held = true;
+      // a tap is a kick, not merely the start of a hold - this is the bit that
+      // made the controls feel dead
+      /* Measured: the old kick was worth about 1.6px against a gravity of
+       * 0.62/frame, so a single tap read as no response at all. */
+      barV = Math.min(barV, 0) - 9;
+      if (ev && ev.cancelable) ev.preventDefault();
+    }
     function up() { held = false; }
-    panel.addEventListener('touchstart', down, { passive: true });
-    panel.addEventListener('touchend', up);
-    panel.addEventListener('mousedown', down);
-    panel.addEventListener('mouseup', up);
+    window.addEventListener('pointerdown', down, true);
+    window.addEventListener('pointerup', up, true);
+    window.addEventListener('touchstart', down, { capture: true, passive: false });
+    window.addEventListener('touchend', up, true);
+
+    function stop() {
+      if (over) return;
+      over = true;
+      clearInterval(timer);
+      window.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointerup', up, true);
+      window.removeEventListener('touchstart', down, true);
+      window.removeEventListener('touchend', up, true);
+    }
+    this._fishStop = stop;
 
     timer = setInterval(function () {
-      var dt = 0.03;
-      barV += (held ? -0.55 : 0.42);
-      barV *= 0.86;
-      barY += barV;
-      barY = Math.max(0, Math.min(H - barH, barY));
+      var now = performance.now();
+      var dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      var k = dt * 60;
 
-      var wob = behavior === 'dart' ? 0.9 : behavior === 'floater' ? 0.25 : 0.5;
-      if (Math.random() < wob * 0.12) fv = (Math.random() - 0.5) * diff * 0.5;
-      fv *= 0.93;
+      barV += (held ? -0.85 : 0.62) * k;
+      barV *= Math.pow(0.87, k);
+      barY += barV * k;
+      if (barY < 0) { barY = 0; barV = 0; }
+      if (barY > H - barH) { barY = H - barH; barV = 0; }
+
+      var jump = behavior === 'dart' ? 0.16 : behavior === 'floater' ? 0.05 : 0.09;
+      if (Math.random() < jump * k) fv = (Math.random() - 0.5) * diff * 0.9;
+      fv *= Math.pow(0.92, k);
       fy += fv * dt;
-      fy = Math.max(0, Math.min(H - 14, fy));
+      if (fy < 0) { fy = 0; fv = -fv; }
+      if (fy > H - 16) { fy = H - 16; fv = -fv; }
 
-      var inside = fy + 7 >= barY && fy + 7 <= barY + barH;
-      progress += inside ? 0.010 : -0.008;
+      var inside = fy + 8 >= barY && fy + 8 <= barY + barH;
+      progress += (inside ? 0.011 : -0.0085) * k;
       progress = Math.max(0, Math.min(1, progress));
 
       bar.style.top = barY + 'px';
       mark.style.top = fy + 'px';
       progFill.style.width = (progress * 100) + '%';
+      progFill.style.background = inside
+        ? 'linear-gradient(90deg,#8fd44a,#4e9c2e)'
+        : 'linear-gradient(90deg,#e8a13c,#c0453b)';
 
-      if (progress >= 1) { finish(true); }
-      else if (progress <= 0) { finish(false); }
-      else if (performance.now() - t0 > 45000) { finish(false); }
-    }, 30);
+      if (progress >= 1) finish(true);
+      else if (progress <= 0) finish(false);
+      else if (now - t0 > 60000) finish(false);
+    }, 16);
 
     function finish(win) {
-      clearInterval(timer);
-      panel.removeEventListener('mousedown', down);
-      panel.removeEventListener('mouseup', up);
+      stop();
       if (win) {
         var q = sim.rollQuality(0);
         if (sim.give(fish.name, 1, q)) {
-          var lvl = sim.addXp('fishing', fish.xp || 10);
+          if (fish._legend) {
+            sim.caughtLegend = sim.caughtLegend || {};
+            sim.caughtLegend[fish.name] = true;   // one of each, ever
+          }
+          var xp = Math.max(5, Math.round((fish.difficulty || 20) / 2));
+          var lvl = sim.addXp('fishing', xp);
           g.toast('Câu được ' + fish.name + '!');
           if (lvl) g.toast('Câu cá lên cấp ' + lvl + '!');
         } else g.toast('Túi đầy!');

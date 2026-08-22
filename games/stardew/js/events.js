@@ -76,7 +76,7 @@
 
   Events.prototype.serialize = function () {
     return { mail: this.mail, pending: this.pending, quests: this.quests,
-             cartStock: this.cartStock };
+             cartStock: this.cartStock, islandStock: this.islandStock };
   };
   Events.prototype.deserialize = function (s) {
     if (!s) return;
@@ -84,6 +84,7 @@
     this.pending = s.pending || [];
     this.quests = s.quests || [];
     this.cartStock = s.cartStock || [];
+    this.islandStock = s.islandStock || [];
   };
 
   // ------------------------------------------------------------------ daily
@@ -103,6 +104,7 @@
     });
 
     this.rollQuests();
+    this.rollIslandStock();
     var dow = s.dayOfWeek();
     if (dow === 'T6' || dow === 'CN') this.rollCart();
     else this.cartStock = [];
@@ -146,10 +148,15 @@
           text: who.name + ' nhờ diệt quái trong hầm mỏ.'
         });
       } else {
+        /* 'resource' also holds rings and equipment, which produced quests
+         * like "Jodi needs 1 Soul Sapper Ring". Ask only for things that can
+         * actually be grown, caught, foraged or mined. */
+        var GATHERABLE = { crop: 1, fish: 1, forage: 1, mineral: 1, fruit: 1 };
         var pool = Object.keys(data.items).filter(function (k) {
           var it = data.items[k];
-          return it.cat === 'crop' || it.cat === 'fish' || it.cat === 'resource'
-                 || it.cat === 'mineral';
+          if (!GATHERABLE[it.cat]) return false;
+          if (/ring|boots|sword|blade|hat |trophy/i.test(it.name)) return false;
+          return true;
         });
         var key = pool[Math.floor(s.rand() * pool.length)];
         var item = data.items[key];
@@ -190,6 +197,30 @@
   // ------------------------------------------------------------------ cart
   /* The cart's whole appeal is that it sells things you cannot buy anywhere
    * else, at prices that are usually a rip-off. Both halves matter. */
+  /* The island trader used to read the mainland cart's stock, so it was empty
+   * five days a week and sold identical goods on the other two. */
+  Events.prototype.rollIslandStock = function () {
+    var s = this.game.sim, data = this.game.data;
+    var keys = Object.keys(data.items);
+    this.islandStock = [];
+    for (var i = 0; i < 8; i++) {
+      var it = data.items[keys[Math.floor(s.rand() * keys.length)]];
+      if (!it || !it.sell) continue;
+      this.islandStock.push({
+        item: it.name,
+        price: Math.max(200, Math.round(it.sell * (2 + s.rand() * 2) / 10) * 10),
+        qty: 1 + Math.floor(s.rand() * 3)
+      });
+    }
+    ['Banana Sapling', 'Mango Sapling', 'Pineapple Seeds', 'Taro Tuber',
+     'Cinder Shard'].forEach(function (n) {
+      if (data.items[n.toLowerCase()]) {
+        this.islandStock.push({ item: n, price: 600, qty: 5, rare: true });
+      }
+    }, this);
+    return this.islandStock;
+  };
+
   Events.prototype.rollCart = function () {
     var s = this.game.sim, data = this.game.data;
     var keys = Object.keys(data.items);
@@ -220,6 +251,20 @@
     return this.game.sim.museum.indexOf(name) < 0;
   };
 
+  /* WHY counted rather than hardcoded: the panel asked for 95 and the item
+   * table holds 94, so the collection could never be completed and the top
+   * reward was unreachable. */
+  Events.prototype.museumTotal = function () {
+    if (this._museumTotal) return this._museumTotal;
+    var items = this.game.data.items || {};
+    var n = 0;
+    for (var k in items) {
+      if (items[k].cat === 'mineral' || items[k].cat === 'artifact') n++;
+    }
+    this._museumTotal = n;
+    return n;
+  };
+
   Events.prototype.donate = function (name) {
     var s = this.game.sim;
     if (!this.canDonate(name)) return 'Bảo tàng không nhận món này';
@@ -227,7 +272,8 @@
     s.museum.push(name);
     var n = s.museum.length;
     var rewards = { 5: 300, 15: 800, 25: 1500, 35: 2500, 40: 3500,
-                    50: 5000, 60: 7000, 70: 9000, 80: 12000, 90: 16000, 95: 25000 };
+                    50: 5000, 60: 7000, 70: 9000, 80: 12000, 90: 16000 };
+    rewards[this.museumTotal()] = 25000;      // the final one, wherever it lands
     if (rewards[n]) {
       s.gold += rewards[n];
       this.game.toast('Gunther thưởng ' + rewards[n] + 'g cho mốc ' + n + ' món!');

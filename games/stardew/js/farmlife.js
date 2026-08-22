@@ -70,22 +70,36 @@
     if (!b) return 'Không có công trình này';
     if (!this.canAfford(name)) return 'Chưa đủ tiền hoặc nguyên liệu';
     var farm = g.world.areas.farm;
+    x = Math.floor(x); y = Math.floor(y);
+    if (x < 0 || y < 0 || x + b.w > farm.w || y + b.h > farm.h) {
+      return 'Ra ngoài rìa nông trại rồi';
+    }
+    var px = Math.floor(g.player.x), py = Math.floor(g.player.y);
     for (var j = 0; j < b.h; j++) {
       for (var i = 0; i < b.w; i++) {
         if (farm.solid(x + i, y + j)) return 'Chỗ này bị vướng';
         if (g.world.objAt(x + i, y + j, farm)) return 'Chỗ này đã có thứ khác';
+        /* WHY: building over your own feet walls you in, and waking up
+         * respawns you on that exact tile - the save was unrecoverable. */
+        if (g.world.current === 'farm' && x + i === px && y + j === py) {
+          return 'Bạn đang đứng ở đó, lùi ra rồi xây';
+        }
       }
     }
     s.gold -= b.gold;
     for (var k in b.mats) s.take(k, b.mats[k]);
     var id = 'bld' + (this.nextId++);
+    var under = [];
+    for (var jy = 0; jy < b.h; jy++) {
+      for (var ix = 0; ix < b.w; ix++) under.push(farm.name_of(x + ix, y + jy));
+    }
     farm.rect(x, y, b.w, b.h, 'wall');
     farm.set(x + (b.w >> 1), y + b.h - 1, 'floor');
     farm.objs.push({
       x: x, y: y, w: b.w, h: b.h, kind: 'building', farmBuilding: name,
       buildingId: id, label: name, color: '#a8653c', roof: '#7c472a',
       doorX: x + (b.w >> 1), doorY: y + b.h - 1,
-      slots: b.slots || 0, feed: 0
+      slots: b.slots || 0, feed: 0, under: under
     });
     return null;
   };
@@ -104,20 +118,77 @@
     return null;
   };
 
-  FarmLife.prototype.demolish = function (obj) {
-    var g = this.game, farm = g.world.areas.farm;
-    this.animals = this.animals.filter(function (a) { return a.buildingId !== obj.buildingId; });
-    farm.rect(obj.x, obj.y, obj.w, obj.h, 'grass');
-    g.world.removeObj(obj, farm);
+  /* Put back what the building covered instead of painting grass over a path
+   * or a pond, and rehome the animals rather than deleting them. */
+  FarmLife.prototype.restoreGround = function (obj) {
+    var farm = this.game.world.areas.farm;
+    var k = 0;
+    for (var j = 0; j < obj.h; j++) {
+      for (var i = 0; i < obj.w; i++) {
+        farm.set(obj.x + i, obj.y + j,
+                 (obj.under && obj.under[k]) || 'grass');
+        farm.block(obj.x + i, obj.y + j, false);
+        k++;
+      }
+    }
   };
 
+  FarmLife.prototype.demolish = function (obj) {
+    var g = this.game, farm = g.world.areas.farm;
+    var self = this;
+    var homeless = this.occupants(obj.buildingId);
+    this.restoreGround(obj);
+    g.world.removeObj(obj, farm);
+    // move the animals somewhere with room before anything is lost
+    var moved = 0, lost = 0;
+    homeless.forEach(function (a) {
+      var def = ANIMAL_KINDS[a.kind];
+      var homes = self.buildingsOfType(def.home).filter(function (h) {
+        return self.occupants(h.buildingId).length < (BUILDINGS[h.farmBuilding].slots || 0);
+      });
+      if (homes.length) { a.buildingId = homes[0].buildingId; moved++; }
+      else {
+        self.animals = self.animals.filter(function (x) { return x !== a; });
+        lost++;
+      }
+    });
+    return { moved: moved, lost: lost };
+  };
+
+  /* WHY this grew checks: move had NONE - it would happily drop a coop off the
+   * map edge, on top of another building, or onto a pond, turning water into
+   * permanent wall. It now runs exactly what build runs. */
   FarmLife.prototype.move = function (obj, x, y) {
     var g = this.game, farm = g.world.areas.farm;
-    farm.rect(obj.x, obj.y, obj.w, obj.h, 'grass');
-    obj.x = x; obj.y = y;
+    x = Math.floor(x); y = Math.floor(y);
+    if (x < 0 || y < 0 || x + obj.w > farm.w || y + obj.h > farm.h) {
+      return 'Ra ngoài rìa nông trại rồi';
+    }
+    var px = Math.floor(g.player.x), py = Math.floor(g.player.y);
+    for (var j = 0; j < obj.h; j++) {
+      for (var i = 0; i < obj.w; i++) {
+        var tx = x + i, ty = y + j;
+        var insideOld = tx >= obj.x && tx < obj.x + obj.w
+                     && ty >= obj.y && ty < obj.y + obj.h;
+        if (insideOld) continue;
+        if (farm.solid(tx, ty)) return 'Chỗ này bị vướng';
+        var other = g.world.objAt(tx, ty, farm);
+        if (other && other !== obj) return 'Chỗ này đã có thứ khác';
+        if (g.world.current === 'farm' && tx === px && ty === py) {
+          return 'Bạn đang đứng ở đó, lùi ra đã';
+        }
+      }
+    }
+    this.restoreGround(obj);
+    var under = [];
+    for (var jy = 0; jy < obj.h; jy++) {
+      for (var ix = 0; ix < obj.w; ix++) under.push(farm.name_of(x + ix, y + jy));
+    }
+    obj.x = x; obj.y = y; obj.under = under;
     farm.rect(x, y, obj.w, obj.h, 'wall');
     farm.set(x + (obj.w >> 1), y + obj.h - 1, 'floor');
     obj.doorX = x + (obj.w >> 1); obj.doorY = y + obj.h - 1;
+    return null;
   };
 
   // ------------------------------------------------------------------ animals
@@ -152,6 +223,24 @@
     this.animals.push({
       id: 'a' + (this.nextId++), kind: kind, name: name || kind,
       buildingId: home.buildingId, age: 0, friendship: 0,
+      fed: false, petted: false, ready: false, sinceProduce: 0
+    });
+    return null;
+  };
+
+  /* Hatching is not buying: no gold changes hands, and the caller is told
+   * why it failed instead of the egg vanishing in silence. */
+  FarmLife.prototype.hatch = function (kind) {
+    var def = ANIMAL_KINDS[kind];
+    if (!def) return 'Không ấp được loại này';
+    var self = this;
+    var homes = this.buildingsOfType(def.home).filter(function (h) {
+      return self.occupants(h.buildingId).length < (BUILDINGS[h.farmBuilding].slots || 0);
+    });
+    if (!homes.length) return 'Chuồng đã đầy, chưa nở được';
+    this.animals.push({
+      id: 'a' + (this.nextId++), kind: kind, name: kind,
+      buildingId: homes[0].buildingId, age: 0, friendship: 0,
       fed: false, petted: false, ready: false, sinceProduce: 0
     });
     return null;

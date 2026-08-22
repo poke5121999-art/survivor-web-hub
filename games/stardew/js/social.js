@@ -31,18 +31,8 @@
     { name: 'Space Boots',   armor: 7, gold: 12000 }
   ];
 
-  /* The candidate's meter is capped until a bouquet is accepted - that cap is
-   * the whole reason courtship reads as a decision rather than a grind. */
-  var baseGift = SIM.Sim.prototype.giveGift;
-  SIM.Sim.prototype.giveGift = function (villager, item) {
-    var res = baseGift.call(this, villager, item);
-    var v = this.data.villagers.filter(function (x) { return x.name === villager; })[0];
-    if (v && v.marriable && !(this.dating || {})[villager]) {
-      var f = this.friend(villager);
-      if (f.points > 8 * 250) f.points = 8 * 250;
-    }
-    return res;
-  };
+  /* The cap now lives in Sim.friendCap / Sim.addFriendship, which every write
+   * goes through - a gift-only wrapper let talking and quests walk past it. */
 
   UI.prototype.openRomance = function (npc) {
     var self = this, s = this.sim, g = this.game;
@@ -88,17 +78,19 @@
       pd.appendChild(el('small', 'sdv-cost',
         can ? 'Cần Mermaid\'s Pendant (mua ' + PENDANT_COST + 'g)' : 'Cần đủ 10 tim'));
       pd.addEventListener('click', function () {
+        /* WHY the order changed: payment used to happen BEFORE the
+         * already-married check, and the failure branch left the button live -
+         * so tapping it four times burned 20,000g and married nobody. */
+        if (s.spouse) return g.toast('Bạn đã có gia đình rồi.');
         if (!can) return g.toast('Chưa đủ 10 tim');
         if (!s.take("Mermaid's Pendant", 1)) {
           if (s.gold < PENDANT_COST) return g.toast('Cần vòng cổ hoặc ' + PENDANT_COST + 'g');
           s.gold -= PENDANT_COST;
         }
-        if (s.spouse) {
-          g.toast('Bạn đã có gia đình rồi.');
-          return;
-        }
         s.spouse = npc.name;
-        s.friend(npc.name).points = Math.max(s.friend(npc.name).points, 14 * 250);
+        // 10 hearts is the ceiling everywhere else; 14 drew a 14-heart meter
+        // into a 10-slot row and printed "14/10".
+        s.friend(npc.name).points = Math.max(s.friend(npc.name).points, 10 * 250);
         g.toast('🎉 ' + npc.name + ' đồng ý! Hai người đã cưới.');
         self.openRomance(npc);
       });

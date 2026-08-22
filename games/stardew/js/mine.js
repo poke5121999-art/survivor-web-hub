@@ -20,7 +20,10 @@
       ore: ['Copper Ore', 'Stone', 'Coal'], name: 'Tầng đá' },
     { from: 40, to: 79,  floor: 'ice',      wall: 'darkrock',
       ore: ['Iron Ore', 'Stone', 'Coal', 'Frozen Tear'], name: 'Tầng băng' },
-    { from: 80, to: 120, floor: 'darkrock', wall: 'rock',
+    /* WHY not darkrock: that tile is declared solid, so carving the rooms out
+     * of it produced floors with ZERO walkable tiles - 41 of the 120 floors and
+     * the whole volcano spawned the player sealed in rock. */
+    { from: 80, to: 120, floor: 'sand', wall: 'darkrock',
       ore: ['Gold Ore', 'Fire Quartz', 'Coal', 'Stone'], name: 'Tầng dung nham' }
   ];
 
@@ -86,7 +89,7 @@
     var th = this.kind === 'skull'
       ? { floor: 'sand', wall: 'darkrock', ore: ['Iridium Ore', 'Gold Ore', 'Coal'] }
       : this.kind === 'volcano'
-        ? { floor: 'darkrock', wall: 'rock', ore: ['Gold Ore', 'Iridium Ore'] }
+        ? { floor: 'stone', wall: 'darkrock', ore: ['Gold Ore', 'Iridium Ore'] }
         : themeFor(depth);
     var w = 22 + Math.floor(rng() * 10), h = 20 + Math.floor(rng() * 8);
     var name = (this.kind === 'skull' ? 'Hang Sọ' :
@@ -109,7 +112,15 @@
       a.vpath(q.x, p.y, q.y, th.floor, 2);
     }
     var start = rooms[0];
-    a.warps.push({ x: start.x, y: start.y, to: null, up: true });
+    /* An actual exit. The up-marker used to carry `to: null`, which checkWarp
+     * skips, so once you were underground the only ways out were dying or
+     * collapsing at 2am. */
+    var back = this.kind === 'skull' ? 'skullentry'
+             : this.kind === 'volcano' ? 'islandnorth' : 'mineentry';
+    var backAt = this.kind === 'skull' ? [9, 8]
+               : this.kind === 'volcano' ? [30, 22] : [17, 10];
+    a.objs.push({ x: start.x, y: start.y, kind: 'mineExit', to: back,
+                  tx: backAt[0], ty: backAt[1], depth: depth });
 
     // ore and stone to break
     var oreCount = 8 + Math.floor(rng() * 10) + Math.floor(depth / 20);
@@ -156,7 +167,15 @@
       this.monsters.push(this.spawn(pick, r.x + (built.rng() * 4 - 2),
                                           r.y + (built.rng() * 4 - 2)));
     }
-    if (depth > g.sim.deepestMine) g.sim.deepestMine = depth;
+    /* Skull Cavern used to write the MINE's lift progress, so the lift offered
+     * floors of the mine that had never been visited. */
+    if (this.kind === 'mine') {
+      if (depth > g.sim.deepestMine) g.sim.deepestMine = depth;
+    } else {
+      g.sim.deepestByKind = g.sim.deepestByKind || {};
+      var d0 = g.sim.deepestByKind[this.kind] || 0;
+      if (depth > d0) g.sim.deepestByKind[this.kind] = depth;
+    }
     g.sim.mineDepth = depth;
     g.toast(a.name + (a.infested ? ' — quái tràn!' : ''));
     return a;
@@ -201,8 +220,15 @@
     if (a.infested && this.monsters.some(function (m) { return !m.dead; })) return;
     var chance = fromKill ? 0.14 : 0.09;
     if (a.infested) chance = 1;
+    /* WHY luck now scales instead of subtracting: raw addition of a [-0.1,0.1]
+     * value made the rock roll a strict impossibility on unlucky days - 67% of
+     * floors ended with no ladder at all, and there was no other way out. */
     var luck = this.game.sim.luck || 0;
-    if (Math.random() < chance + luck) {
+    chance = Math.max(0.03, chance * (1 + luck * 5));
+    a.breaks = (a.breaks || 0) + 1;
+    // and a floor always gives in eventually, however bad the day
+    if (a.breaks >= 12) chance = 1;
+    if (Math.random() < chance) {
       a.ladder = { x: x, y: y };
       a.objs.push({ x: x, y: y, kind: 'ladder' });
       this.game.toast('Có thang xuống tầng dưới!');
@@ -211,7 +237,12 @@
 
   Mine.prototype.descend = function () {
     var a = this.game.world.area();
-    this.enter((a.depth || 0) + 1, this.kind);
+    var next = (a.depth || 0) + 1;
+    // the mine bottoms out at 120; Skull Cavern and the volcano do not
+    if (this.kind === 'mine' && next > 120) {
+      return this.game.toast('Đây là đáy hầm mỏ rồi');
+    }
+    this.enter(next, this.kind);
   };
 
   // ------------------------------------------------------------------ combat
@@ -249,6 +280,9 @@
   Mine.prototype.kill = function (m) {
     var g = this.game, s = g.sim;
     m.dead = true;
+    // WHY: this call was missing entirely, so every slay quest was impossible
+    // and about a third of the help-wanted board could never be completed.
+    if (g.events && g.events.onMonsterKilled) g.events.onMonsterKilled(m.name);
     var lvl = s.addXp('combat', m.xp);
     if (lvl) g.toast('Chiến đấu lên cấp ' + lvl + '!');
     (m.def.drops || []).forEach(function (d) {
@@ -268,9 +302,19 @@
     var g = this.game, p = g.player, s = g.sim;
     var a = g.world.area();
     if (!a.depth) return;
-    for (var i = this.monsters.length - 1; i >= 0; i--) {
-      var m = this.monsters[i];
-      if (m.dead) { this.monsters.splice(i, 1); continue; }
+    /* WHY the snapshot: playerDies() empties this.monsters mid-loop, and the
+     * next iteration then read off the end of the NEW array and threw. The
+     * throw escaped requestAnimationFrame and killed the game for good. */
+    var list = this.monsters.slice();
+    for (var i = list.length - 1; i >= 0; i--) {
+      var m = list[i];
+      if (!m) continue;
+      if (m.dead) {
+        var at = this.monsters.indexOf(m);
+        if (at >= 0) this.monsters.splice(at, 1);
+        continue;
+      }
+      if (this.dying) return;          // the run already ended this frame
       if (m.hurt > 0) m.hurt -= dt;
       var dx = p.x - m.x, dy = p.y - m.y;
       var d = Math.hypot(dx, dy);
@@ -294,6 +338,8 @@
   };
 
   Mine.prototype.playerDies = function () {
+    if (this.dying) return;
+    this.dying = true;
     var g = this.game, s = g.sim;
     var lost = Math.min(s.gold, Math.floor(s.gold * 0.15) + 100);
     s.gold -= lost;
@@ -303,6 +349,7 @@
     s.energy = Math.max(10, Math.floor(s.maxEnergy * 0.2));
     this.monsters = [];
     this.leave();
+    this.dying = false;
     g.toast('Bạn gục trong hầm mỏ. Mất ' + lost + 'g.');
   };
 

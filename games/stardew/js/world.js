@@ -90,14 +90,20 @@
     return this;
   };
   Area.prototype.obj = function (o) { this.objs.push(o); return this; };
-  Area.prototype.warp = function (x, y, to, tx, ty) {
-    this.warps.push({ x: x, y: y, to: to, tx: tx, ty: ty });
+  Area.prototype.warp = function (x, y, to, tx, ty, needsLanding) {
+    this.warps.push({ x: x, y: y, to: to, tx: tx, ty: ty,
+                      needsLanding: !!needsLanding });
     return this;
   };
   /* Nearest walkable tile to (x,y) - so a spawned object or an NPC never ends
    * up inside a wall when the real map disagrees with a guessed coordinate. */
   Area.prototype.nearestFree = function (x, y, maxR) {
     maxR = maxR || 12;
+    // clamp first: a landing tile can be outside the map entirely (the cellar
+    // pointed at (19,34) of a room that is not that tall), and a ring search
+    // around a point off the map finds nothing.
+    x = Math.max(0, Math.min(this.w - 1, x | 0));
+    y = Math.max(0, Math.min(this.h - 1, y | 0));
     if (!this.solid(x, y)) return { x: x, y: y };
     for (var r = 1; r <= maxR; r++) {
       for (var dy = -r; dy <= r; dy++) {
@@ -106,6 +112,13 @@
           var nx = x + dx, ny = y + dy;
           if (!this.solid(nx, ny)) return { x: nx, y: ny };
         }
+      }
+    }
+    // last resort: the first standable tile anywhere. Better a long walk than
+    // a player sealed inside a wall.
+    for (var sy = 0; sy < this.h; sy++) {
+      for (var sx = 0; sx < this.w; sx++) {
+        if (!this.solid(sx, sy)) return { x: sx, y: sy };
       }
     }
     return { x: x, y: y };
@@ -238,13 +251,79 @@
       if (!target) return;
       var to = MAP_ID[target];
       if (!to) return;
-      a.doors.push({ x: act.x, y: act.y, to: to, target: target });
-      a.warp(act.x, act.y, to, tx, ty);
+      /* WHY: 'Door X' and 'WarpCommunityCenter' carry no destination tile, and
+       * defaulting to (0,0) walked the player into the corner wall of every
+       * such building. Leave it unset; resolveDoors() fills it in from the
+       * target's own way out, which is by definition standing room. */
+      a.doors.push({ x: act.x, y: act.y, to: to, target: target,
+                     needsLanding: !m2 });
+      a.warp(act.x, act.y, to, tx, ty, !m2);
       a.obj({ x: act.x, y: act.y, kind: 'doorway', to: to,
               label: labelled[to] ? null : (AREA_NAME_VN[to] || target) });
       labelled[to] = true;
     });
     return a;
+  }
+
+  /* Fill in every landing tile that the map data did not supply, and make sure
+   * none of them drops the player into a wall or straight back out again. */
+  function resolveDoors(A) {
+    for (var key in A) {
+      var a = A[key];
+      if (!a || !a.warps) continue;
+      a.warps.forEach(function (w) {
+        var dest = A[w.to];
+        if (!dest) return;
+        /* WHY: the original puts a warp on the row JUST OUTSIDE the walkable
+         * area - the farmhouse's way out sits at y=12 of a 12-tall room, and
+         * map-edge warps sit at -1. You walk into them there. Here the player
+         * cannot occupy an out-of-bounds tile, so the farmhouse had no exit at
+         * all and the player was sealed in. Pull every warp tile inside the
+         * map, then onto ground they can actually stand on. */
+        var cx = Math.max(0, Math.min(a.w - 1, w.x));
+        var cy = Math.max(0, Math.min(a.h - 1, w.y));
+        if (a.solid(cx, cy)) {
+          var stand = a.nearestFree(cx, cy, 4);
+          cx = stand.x; cy = stand.y;
+        }
+        w.x = cx; w.y = cy;
+        if (w.needsLanding || w.tx == null || w.ty == null
+            || (w.tx === 0 && w.ty === 0)) {
+          // land just inside the target's own way back to us
+          var back = (dest.warps || []).filter(function (v) { return v.to === key; })[0];
+          if (back) {
+            var inward = dest.nearestFree(back.x, Math.max(0, back.y - 1), 6);
+            w.tx = inward.x; w.ty = inward.y;
+          } else {
+            var c = dest.nearestFree(Math.floor(dest.w / 2),
+                                     Math.floor(dest.h * 0.6), 20);
+            w.tx = c.x; w.ty = c.y;
+          }
+        }
+        var free = dest.nearestFree(w.tx, w.ty, 12);
+        w.tx = free.x; w.ty = free.y;
+      });
+    }
+    /* Every interior needs a way out. One really had none in the data. */
+    for (var k2 in A) {
+      var ar = A[k2];
+      if (!ar || ar.outdoor) continue;
+      var hasExit = (ar.warps || []).some(function (v) { return !!v.to; });
+      if (hasExit) continue;
+      var fallback = A.town ? 'town' : 'farm';
+      for (var other in A) {
+        var o = A[other];
+        if (!o || !o.warps) continue;
+        var into = o.warps.filter(function (v) { return v.to === k2; })[0];
+        if (into) { fallback = other; break; }
+      }
+      var spot = ar.nearestFree(Math.floor(ar.w / 2), ar.h - 2, 12);
+      var land = A[fallback].nearestFree(Math.floor(A[fallback].w / 2),
+                                         Math.floor(A[fallback].h / 2), 20);
+      ar.warp(spot.x, spot.y, fallback, land.x, land.y);
+      ar.obj({ x: spot.x, y: spot.y, kind: 'doorway', to: fallback,
+               label: 'Lối ra' });
+    }
   }
 
   /* An interior's door is the anchor for anything that belongs to it: shop
@@ -306,7 +385,8 @@
     if (house) {
       place(house, 9, 4, { kind: 'bed' });
       place(house, 3, 4, { kind: 'tv' });
-      place(house, 5, 4, { kind: 'machine', machine: 'Furnace', slots: 1 });
+      place(house, 5, 4, { kind: 'machine', machine: 'Furnace',
+                           built: true, slots: 1, jobs: [] });
       place(house, 7, 4, { kind: 'chest' });
       place(house, 11, 4, { kind: 'kitchen' });
       place(house, 2, 8, { kind: 'calendarBoard' });
@@ -374,6 +454,13 @@
       scatter(A.island, 'forageIsland', 8, rng);
     }
     if (A.farmcave) place(A.farmcave, 6, 6, { kind: 'caveChoice' });
+
+    /* WHY one workbench instead of fourteen machines on the ground: the brief
+     * says these already exist and only need building, but a sprite per machine
+     * scattered over the farm is clutter on a phone - the owner's words were
+     * "tren mobile spam ra rac lam". One bench opens a list; each machine keeps
+     * its own built state, slots and jobs. */
+    if (house) place(house, 3, 4, { kind: 'workshop' });
     // anything placed is solid where it should be
     var SOLID_KINDS = { bin: 1, sign: 1, bed: 1, tv: 1, chest: 1, machine: 1,
                         kitchen: 1, calendarBoard: 1, mailbox: 1, counter: 1,
@@ -411,7 +498,14 @@
     A.skull = caveStub('skull', 'Hang Sọ', 'desert', 32, 12);
     A.volcano = caveStub('volcano', 'Núi lửa', 'islandnorth', 30, 22);
     if (A.greenhouse) A.greenhouse.season = 'Spring';
+    /* Ginger Island grows anything year-round, same as the greenhouse - the
+     * design doc lists both. Without this the island plot killed every crop at
+     * the season rollover and refused out-of-season planting. */
+    ['island', 'islandwest', 'islandnorth', 'islandeast'].forEach(function (k) {
+      if (A[k]) A[k].season = 'Summer';
+    });
     furnish(A, rng);
+    resolveDoors(A);
     return A;
   }
 
@@ -440,7 +534,7 @@
     TILE: TILE, TILE_IDS: TILE_IDS, TID: TID, MAP_ID: MAP_ID,
     AREA_NAME_VN: AREA_NAME_VN,
     Area: Area, buildAll: buildAll, buildFallback: buildFallback,
-    indexDoors: indexDoors,
+    indexDoors: indexDoors, resolveDoors: resolveDoors,
     mulberry32: mulberry32, scatter: scatter, place: place
   };
 })(window);
