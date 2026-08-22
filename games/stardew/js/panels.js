@@ -34,6 +34,8 @@
       case 'boat': case 'boatTicket': return this.openBoat();
       case 'caveChoice':      return this.openCaveChoice();
       case 'sign':            return this.openQuestBoard();
+      case 'bus':             return this.openBus();
+      case 'sewerGrate':      return this.openSewer();
       case 'fruitTree':       return this.openFruitTree(o);
       case 'sprinkler':       return this.game.toast('Vòi tưới sẽ tưới 4 ô quanh nó mỗi đêm');
       case 'greenhouseShell': return this.game.toast('Nhà kính còn hỏng — hoàn thành Pantry để sửa');
@@ -536,6 +538,57 @@
                                          py + (Math.random() * r * 2 - r));
     if (broke) g.mine.maybeDropLadder(px, py, false);
     g.toast('Bom nổ — vỡ ' + broke + ' tảng đá');
+  };
+
+  /* Two doors the valley needs: the bus out to the desert (repaired by the
+   * Vault bundles) and the grate down to the sewer (Krobus keeps the key until
+   * the museum has seen enough of the valley). */
+  UI.prototype.openBus = function () {
+    var self = this, s = this.sim, g = this.game;
+    var body = el('div', 'sdv-body');
+    if (!s.flags.busFixed) {
+      body.appendChild(el('div', 'sdv-speech',
+        'Xe buýt hỏng. Hoàn thành phòng Vault ở nhà văn hoá thì Pam sẽ chạy lại tuyến sa mạc.'));
+    } else {
+      var b = el('button', 'sdv-mbtn', '🚌 Đi sa mạc Calico (500g)');
+      b.addEventListener('click', function () {
+        if (s.gold < 500) return g.toast('Vé 500g, chưa đủ tiền');
+        s.gold -= 500;
+        self.close();
+        var d = g.world.areas.desert;
+        var spot = d.nearestFree(Math.floor(d.w / 2), d.h - 6, 20);
+        g.world.current = 'desert';
+        g.player.x = spot.x + 0.5; g.player.y = spot.y + 0.5;
+        g.cameFrom = null;
+        g.toast('→ Sa mạc Calico');
+      });
+      body.appendChild(b);
+    }
+    this.openPanel('Bến xe buýt', body);
+  };
+
+  UI.prototype.openSewer = function () {
+    var self = this, s = this.sim, g = this.game;
+    var body = el('div', 'sdv-body');
+    var need = 20;
+    if ((s.museum || []).length < need) {
+      body.appendChild(el('div', 'sdv-speech',
+        'Nắp cống khoá. Quyên góp đủ ' + need + ' món cho bảo tàng thì Gunther '
+        + 'sẽ đưa bạn chiếc chìa gỉ (đang có ' + (s.museum || []).length + ').'));
+    } else {
+      var b = el('button', 'sdv-mbtn', '🕳 Xuống cống');
+      b.addEventListener('click', function () {
+        self.close();
+        var d = g.world.areas.sewer;
+        var spot = d.nearestFree(Math.floor(d.w / 2), Math.floor(d.h / 2), 20);
+        g.world.current = 'sewer';
+        g.player.x = spot.x + 0.5; g.player.y = spot.y + 0.5;
+        g.cameFrom = null;
+        g.toast('→ Cống ngầm');
+      });
+      body.appendChild(b);
+    }
+    this.openPanel('Nắp cống', body);
   };
 
   // ------------------------------------------------------------------ misc

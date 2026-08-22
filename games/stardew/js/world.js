@@ -124,6 +124,93 @@
     return { x: x, y: y };
   };
 
+  /* Walkable tiles reachable from (sx,sy). Used to prove the player can
+   * actually GET to a door or a shop counter, not merely that one exists. */
+  function reachable(area, sx, sy) {
+    var seen = {}, q = [[sx, sy]];
+    if (area.solid(sx, sy)) return seen;
+    seen[sx + ',' + sy] = 1;
+    while (q.length) {
+      var c = q.pop(), x = c[0], y = c[1];
+      var n = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]];
+      for (var i = 0; i < 4; i++) {
+        var nx = n[i][0], ny = n[i][1];
+        if (nx < 0 || ny < 0 || nx >= area.w || ny >= area.h) continue;
+        if (area.solid(nx, ny)) continue;
+        var k = nx + ',' + ny;
+        if (seen[k]) continue;
+        seen[k] = 1;
+        q.push([nx, ny]);
+      }
+    }
+    return seen;
+  }
+
+  /* Open the shortest blocked span that joins (fx,fy) to (tx,ty).
+   *
+   * WHY this exists: the extracted collision is stricter than the original's -
+   * a bridge or a ledge whose tiles sit on the Buildings layer reads as wall
+   * here. That walled the mine entrance off behind the mountain lake and cut 22
+   * areas out of the game. Rather than hand-editing coordinates per map, find
+   * the narrowest wall between the two and carve it, the way the beach bridge
+   * was found. */
+  function carvePath(area, fx, fy, tx, ty, maxSpan) {
+    maxSpan = maxSpan || 6;
+    var from = reachable(area, fx, fy);
+    if (from[tx + ',' + ty]) return 0;
+    var to = reachable(area, tx, ty);
+    var best = null;
+    // horizontal runs
+    for (var y = 0; y < area.h; y++) {
+      var x = 0;
+      while (x < area.w) {
+        if (!area.solid(x, y)) { x++; continue; }
+        var st = x;
+        while (x < area.w && area.solid(x, y)) x++;
+        var en = x - 1, span = en - st + 1;
+        if (span > maxSpan) continue;
+        var lk = (st - 1) + ',' + y, rk = (en + 1) + ',' + y;
+        if ((from[lk] && to[rk]) || (to[lk] && from[rk])) {
+          if (!best || span < best.span) {
+            best = { span: span, horiz: true, y: y, a: st, b: en };
+          }
+        }
+      }
+    }
+    // vertical runs
+    for (var x2 = 0; x2 < area.w; x2++) {
+      var y2 = 0;
+      while (y2 < area.h) {
+        if (!area.solid(x2, y2)) { y2++; continue; }
+        var st2 = y2;
+        while (y2 < area.h && area.solid(x2, y2)) y2++;
+        var en2 = y2 - 1, span2 = en2 - st2 + 1;
+        if (span2 > maxSpan) continue;
+        var uk = x2 + ',' + (st2 - 1), dk = x2 + ',' + (en2 + 1);
+        if ((from[uk] && to[dk]) || (to[uk] && from[dk])) {
+          if (!best || span2 < best.span) {
+            best = { span: span2, horiz: false, x: x2, a: st2, b: en2 };
+          }
+        }
+      }
+    }
+    if (!best) return 0;
+    /* Some walls are meant to stay shut until the player earns them - the beach
+     * bridge is repaired by the Crafts Room bundles, and auto-carving it opened
+     * the tide pools on day one. */
+    if (area.noCarve) {
+      for (var pi = best.a; pi <= best.b; pi++) {
+        var pk = best.horiz ? (pi + ',' + best.y) : (best.x + ',' + pi);
+        if (area.noCarve[pk]) return 0;
+      }
+    }
+    for (var i = best.a; i <= best.b; i++) {
+      if (best.horiz) { area.set(i, best.y, 'wood'); area.block(i, best.y, false); }
+      else { area.set(best.x, i, 'wood'); area.block(best.x, i, false); }
+    }
+    return best.span;
+  }
+
   function mulberry32(a) {
     return function () {
       a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -304,6 +391,33 @@
         w.tx = free.x; w.ty = free.y;
       });
     }
+    /* Every door must be REACHABLE, not merely present. The mine entrance sat
+     * across the mountain lake with no path, which cut 22 areas out of the
+     * game. Carve the narrowest crossing wherever a door is stranded. */
+    for (var ck in A) {
+      var ca = A[ck];
+      if (!ca || !ca.outdoor || !ca.warps.length) continue;
+      var anchor = null;
+      // start from a door we know the player can arrive through
+      for (var oi in A) {
+        var oa = A[oi];
+        if (!oa || !oa.warps) continue;
+        var inw = oa.warps.filter(function (v) { return v.to === ck; })[0];
+        if (inw) { anchor = { x: inw.tx, y: inw.ty }; break; }
+      }
+      if (!anchor) anchor = ca.nearestFree(Math.floor(ca.w / 2), Math.floor(ca.h / 2), 30);
+      ca.warps.forEach(function (w) {
+        if (!w.to) return;
+        carvePath(ca, anchor.x, anchor.y, w.x, w.y, 8);
+      });
+      // and the things the player must be able to stand next to
+      ca.objs.forEach(function (o) {
+        if (!MUST_REACH[o.kind]) return;
+        var spot = ca.nearestFree(o.x, o.y + 1, 3);
+        carvePath(ca, anchor.x, anchor.y, spot.x, spot.y, 8);
+      });
+    }
+
     /* Every interior needs a way out. One really had none in the data. */
     for (var k2 in A) {
       var ar = A[k2];
@@ -343,6 +457,16 @@
   /* What the original spawns in code rather than storing in the map. Positions
    * are snapped to the nearest walkable tile, so a wrong guess degrades into a
    * slightly-moved object instead of an unreachable one. */
+  /* Objects a player has to be able to walk up to. */
+  var MUST_REACH = {
+    mineEntrance: 1, skullEntrance: 1, volcanoEntrance: 1, bin: 1,
+    travelingCart: 1, islandTrader: 1, sign: 1, caveChoice: 1,
+    /* 'boat' is deliberately absent: it sits past the broken bridge, and
+     * auto-carving a path to it opened the very crossing the Crafts Room
+     * bundles are supposed to repair. */
+    bus: 1, sewerGrate: 1, workshop: 1, mailbox: 1, kitchen: 1, bed: 1
+  };
+
   var INTERIOR_COUNTERS = {
     pierre: { keeper: 'Pierre', stock: "Pierre's General Store" },
     saloon: { keeper: 'Gus', stock: 'Stardrop Saloon' },
@@ -360,6 +484,35 @@
   function place(area, x, y, obj) {
     var f = area.nearestFree(x, y, 8);
     obj.x = f.x; obj.y = f.y;
+    area.obj(obj);
+    return obj;
+  }
+
+  /* Put something where the player can actually reach it: a free tile that is
+   * in the same walkable region as the door, with standing room beside it.
+   *
+   * WHY: counters were dropped at a guessed coordinate and snapped to the
+   * nearest non-solid tile - which in Pierre's shop (24 disconnected regions)
+   * landed behind the interior walls. You could walk in and never reach the
+   * shopkeeper. Eleven stations were unusable. */
+  function placeReachable(area, fromX, fromY, obj, preferX, preferY) {
+    var reach = reachable(area, fromX, fromY);
+    var best = null, bestD = 1e9;
+    for (var y = 0; y < area.h; y++) {
+      for (var x = 0; x < area.w; x++) {
+        if (area.solid(x, y)) continue;
+        if (area.objs.some(function (o) { return o.x === x && o.y === y; })) continue;
+        // the player stands below it, so that tile must be reachable
+        var below = x + ',' + (y + 1);
+        var side = (x - 1) + ',' + y;
+        var side2 = (x + 1) + ',' + y;
+        if (!reach[below] && !reach[side] && !reach[side2]) continue;
+        var d = Math.hypot(x - preferX, y - preferY);
+        if (d < bestD) { bestD = d; best = { x: x, y: y }; }
+      }
+    }
+    if (!best) return place(area, preferX, preferY, obj);
+    obj.x = best.x; obj.y = best.y;
     area.obj(obj);
     return obj;
   }
@@ -392,21 +545,40 @@
       place(house, 2, 8, { kind: 'calendarBoard' });
       place(house, 4, 8, { kind: 'mailbox' });
     }
+    /* Where the player arrives in each interior, so stations can be put within
+     * walking distance of it rather than at a guessed coordinate. */
+    function doorSpot(id) {
+      var ia = A[id];
+      for (var ok in A) {
+        var oa = A[ok];
+        if (!oa || !oa.warps) continue;
+        var w = oa.warps.filter(function (v) { return v.to === id; })[0];
+        if (w) return ia.nearestFree(w.tx, w.ty, 10);
+      }
+      return ia.nearestFree(Math.floor(ia.w / 2), ia.h - 3, 12);
+    }
+
     for (var id in INTERIOR_COUNTERS) {
       var a = A[id];
       if (!a) continue;
       var c = INTERIOR_COUNTERS[id];
-      place(a, Math.floor(a.w / 2), Math.max(2, Math.floor(a.h * 0.3)),
-            { kind: 'counter', keeper: c.keeper, stock: c.stock });
+      var d0 = doorSpot(id);
+      placeReachable(a, d0.x, d0.y,
+                     { kind: 'counter', keeper: c.keeper, stock: c.stock },
+                     Math.floor(a.w / 2), Math.max(2, Math.floor(a.h * 0.3)));
     }
-    if (A.blacksmith) {
-      place(A.blacksmith, 3, 5, { kind: 'toolUpgrade' });
-      place(A.blacksmith, 10, 5, { kind: 'geodeCrusher' });
+    function station(id, kind, px, py) {
+      var ar = A[id];
+      if (!ar) return;
+      var d = doorSpot(id);
+      placeReachable(ar, d.x, d.y, { kind: kind }, px, py);
     }
-    if (A.carpenter) place(A.carpenter, 10, 5, { kind: 'buildMenu' });
-    if (A.marnie) place(A.marnie, 10, 5, { kind: 'animalShop' });
-    if (A.museum) place(A.museum, 8, 5, { kind: 'museumDesk' });
-    if (A.fishshop) place(A.fishshop, 9, 5, { kind: 'boatTicket' });
+    station('blacksmith', 'toolUpgrade', 3, 5);
+    station('blacksmith', 'geodeCrusher', 10, 5);
+    station('carpenter', 'buildMenu', 10, 5);
+    station('marnie', 'animalShop', 10, 5);
+    station('museum', 'museumDesk', 8, 5);
+    station('fishshop', 'boatTicket', 9, 5);
     if (A.cc) {
       ['Crafts Room', 'Pantry', 'Fish Tank', 'Boiler Room', 'Bulletin Board', 'Vault']
         .forEach(function (room, i) {
@@ -443,9 +615,14 @@
       place(A.town, 42, 57, { kind: 'sign' });          // the help-wanted board
     }
     if (A.beach) {
-      place(A.beach, 82, 34, { kind: 'boat' });
+      // Willy's side of the beach, not across the broken bridge
+      place(A.beach, 34, 36, { kind: 'boat' });
       // the broken bridge to the tide pools - the span the Crafts Room repairs
       A.beach.obj({ x: 58, y: 13, kind: 'brokenBridge', w: 4 });
+      A.beach.noCarve = {};
+      for (var bxx = 56; bxx <= 63; bxx++) {
+        for (var byy = 11; byy <= 15; byy++) A.beach.noCarve[bxx + ',' + byy] = 1;
+      }
       scatter(A.beach, 'forageBeach', 8, rng);
     }
     if (A.island) {
@@ -454,6 +631,12 @@
       scatter(A.island, 'forageIsland', 8, rng);
     }
     if (A.farmcave) place(A.farmcave, 6, 6, { kind: 'caveChoice' });
+
+    /* The bus to the desert and the grate down to the sewer. Both were lost
+     * when the hand-made maps were replaced by the extracted ones, which left
+     * the desert, the oasis and Skull Cavern with no entrance at all. */
+    if (A.busstop) place(A.busstop, 12, 10, { kind: 'bus' });
+    if (A.town) place(A.town, 96, 100, { kind: 'sewerGrate' });
 
     /* WHY one workbench instead of fourteen machines on the ground: the brief
      * says these already exist and only need building, but a sprite per machine
@@ -535,6 +718,7 @@
     AREA_NAME_VN: AREA_NAME_VN,
     Area: Area, buildAll: buildAll, buildFallback: buildFallback,
     indexDoors: indexDoors, resolveDoors: resolveDoors,
+    reachable: reachable, carvePath: carvePath, placeReachable: placeReachable,
     mulberry32: mulberry32, scatter: scatter, place: place
   };
 })(window);

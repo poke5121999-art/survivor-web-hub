@@ -357,9 +357,21 @@
      * hit the next tile of the SAME door and bounced you home, which is what
      * "stuck at the exit" was. So: after arriving from area X, every warp back
      * to X is inert until you have walked clear of the landing spot. */
+    /* WHY not a distance: map-edge doors are 3-5 tiles wide, so a player who
+     * had walked the 2.2 tiles that lifted the guard was usually still standing
+     * inside the same band, and it fired and threw them back. The guard now
+     * lifts only once they are off EVERY tile of the door they came through. */
     if (this.cameFrom) {
-      var dist = Math.hypot(p.x - this.arrivedX, p.y - this.arrivedY);
-      if (dist > 2.2) this.cameFrom = null;
+      var stillOnBand = false;
+      for (var wi = 0; wi < a.warps.length; wi++) {
+        var wv = a.warps[wi];
+        if (wv.to !== this.cameFrom) continue;
+        if (Math.abs(p.x - (wv.x + 0.5)) < 1.5 && Math.abs(p.y - (wv.y + 0.5)) < 1.5) {
+          stillOnBand = true;
+          break;
+        }
+      }
+      if (!stillOnBand) this.cameFrom = null;
     }
     for (var i = 0; i < a.warps.length; i++) {
       var w = a.warps[i];
@@ -372,6 +384,26 @@
          * Snap to the nearest tile that can actually be stood on. */
         var spot = dest.nearestFree
           ? dest.nearestFree(w.tx, w.ty, 10) : { x: w.tx, y: w.ty };
+        /* WHY step inward: several doors land you ON a tile that is itself a
+         * door back the way you came - the bus stop drops you onto the farm's
+         * own gate band - and the two then trade the player back and forth.
+         * Walk the landing spot away from any return door before arriving. */
+        var backHere = (dest.warps || []).filter(function (v) {
+          return v.to === this.world.current;
+        }, this);
+        for (var tries = 0; tries < 4; tries++) {
+          var onDoor = backHere.filter(function (v) {
+            return Math.abs(v.x - spot.x) <= 1 && Math.abs(v.y - spot.y) <= 1;
+          })[0];
+          if (!onDoor) break;
+          var ax = spot.x + (spot.x >= onDoor.x ? 2 : -2);
+          var ay = spot.y + (spot.y >= onDoor.y ? 0 : 0);
+          var alt = dest.nearestFree(ax, ay, 6);
+          if (alt.x === spot.x && alt.y === spot.y) {
+            alt = dest.nearestFree(spot.x, spot.y + 2, 6);
+          }
+          spot = alt;
+        }
         var origin = this.world.current;
         this.world.current = w.to;
         p.x = spot.x + 0.5; p.y = spot.y + 0.5;
