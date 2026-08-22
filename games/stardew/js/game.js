@@ -26,7 +26,14 @@
   }
   World.prototype.area = function () { return this.areas[this.current]; };
   World.prototype.forEachArea = function (fn) {
-    for (var k in this.areas) fn(this.areas[k], k);
+    // WHY: a lookup table once got stored beside the areas and every
+    // per-area pass (save, overnight machines) crashed on it. Only walk
+    // things that really are Areas.
+    for (var k in this.areas) {
+      var a = this.areas[k];
+      if (!a || !a.objs || !a.tiles) continue;
+      fn(a, k);
+    }
   };
   World.prototype.serialize = function () {
     var out = { current: this.current, areas: {} };
@@ -81,6 +88,7 @@
     sewerGrate: true, guildDoor: true, skullEntrance: true, palm: true,
     volcanoEntrance: true, farmCave: true, greenhouseShell: true,
     caveChoice: true, fruitTree: true
+    // 'doorway' is deliberately absent: standing on a door is how you use it
     // crabPot is deliberately absent: it sits in water, which is already solid
   };
 
@@ -89,7 +97,8 @@
     /* WHY: (8,10) sat inside the farmhouse door's warp radius, so the very first
      * step teleported the player indoors before they could move. Start clear of
      * every warp tile. */
-    this.x = 11.5; this.y = 11.5;     // tile coords, float
+    // just below the farmhouse door on the real Farm map
+    this.x = 64.5; this.y = 17.5;     // tile coords, float
     this.face = 'down';
     this.frame = 0; this.animT = 0;
     this.speed = 4.2;                 // tiles per second
@@ -135,20 +144,25 @@
   };
 
   // ---- villagers ---------------------------------------------------------
+  /* Every villager stands at the door of the building they actually live in.
+   * These are the real door tiles read out of the extracted maps - Pierre's
+   * shop really is at Town (43,56), the saloon at (45,70), and so on. */
   var NPC_HOME = {
-    Abigail: ['town', 10, 12], Pierre: ['town', 12, 12], Caroline: ['town', 8, 12],
-    Lewis: ['town', 26, 20], Gus: ['town', 10, 30], Emily: ['town', 20, 22],
-    Haley: ['town', 22, 22], Alex: ['town', 30, 22], George: ['town', 32, 22],
-    Evelyn: ['town', 34, 22], Jodi: ['town', 16, 28], Sam: ['town', 18, 28],
-    Vincent: ['town', 20, 28], Kent: ['town', 14, 28], Harvey: ['town', 41, 26],
-    Maru: ['mountain', 28, 16], Robin: ['mountain', 26, 16],
-    Demetrius: ['mountain', 30, 16], Sebastian: ['mountain', 27, 18],
-    Linus: ['mountain', 8, 12], Marnie: ['forest', 29, 14], Shane: ['forest', 31, 14],
-    Jas: ['forest', 27, 14], Leah: ['forest', 12, 12], Elliott: ['beach', 8, 10],
-    Willy: ['beach', 33, 9], Penny: ['town', 6, 20], Pam: ['town', 6, 22],
-    Clint: ['town', 40, 12], Wizard: ['forest', 4, 6], Dwarf: ['mountain', 36, 8],
-    Krobus: ['town', 44, 34], Sandy: ['town', 46, 12], Marlon: ['mountain', 20, 6],
-    Gunther: ['town', 34, 32], Morris: ['town', 46, 20], Leo: ['beach', 40, 8]
+    Abigail: ['town', 43, 57], Pierre: ['town', 44, 57], Caroline: ['town', 42, 57],
+    Lewis: ['town', 58, 86], Gus: ['town', 45, 71], Emily: ['town', 20, 89],
+    Haley: ['town', 21, 89], Alex: ['town', 57, 64], George: ['town', 58, 64],
+    Evelyn: ['town', 56, 64], Jodi: ['town', 10, 86], Sam: ['town', 11, 86],
+    Vincent: ['town', 9, 86], Kent: ['town', 12, 86], Harvey: ['town', 36, 56],
+    Penny: ['town', 72, 69], Pam: ['town', 73, 69],
+    Clint: ['town', 94, 82], Gunther: ['town', 101, 90], Morris: ['town', 95, 51],
+    Maru: ['mountain', 9, 21], Robin: ['mountain', 8, 21],
+    Demetrius: ['mountain', 10, 21], Sebastian: ['mountain', 7, 21],
+    Linus: ['mountain', 29, 7], Marlon: ['mountain', 76, 9],
+    Dwarf: ['mountain', 54, 5],
+    Marnie: ['forest', 90, 16], Shane: ['forest', 91, 16], Jas: ['forest', 89, 16],
+    Leah: ['forest', 104, 33], Wizard: ['forest', 5, 27],
+    Elliott: ['beach', 49, 11], Willy: ['beach', 30, 34],
+    Krobus: ['sewer', 16, 12], Sandy: ['oasis', 6, 6], Leo: ['island', 20, 20]
   };
 
   Game.prototype.initNpcs = function () {
@@ -228,27 +242,34 @@
    * coordinates: a villager walks to a spot near their home, their workplace,
    * or the town square, and stays put at night. That is enough to make the town
    * read as alive without inventing a coordinate for 3,069 prose lines. */
+  /* Prose destination -> a real tile. Every coordinate here is a door or a
+   * landmark read out of the extracted maps, so a villager who "goes to the
+   * saloon" walks to the saloon's actual doorstep. */
   var PLACE_HINTS = [
-    [/saloon|stardrop|bar\b/i, ['town', 10, 30]],
-    [/general store|pierre's/i, ['town', 10, 14]],
-    [/joja/i, ['town', 46, 20]],
-    [/clinic|hospital|harvey/i, ['town', 41, 26]],
-    [/museum|library|gunther/i, ['town', 34, 32]],
-    [/community cent/i, ['town', 34, 12]],
-    [/graveyard|cemetery/i, ['town', 40, 32]],
-    [/playground|park|fountain/i, ['town', 22, 18]],
-    [/blacksmith|clint/i, ['town', 40, 14]],
-    [/beach|ocean|pier|dock|tide ?pool/i, ['beach', 20, 10]],
-    [/willy|fish shop/i, ['beach', 33, 10]],
-    [/mountain|carpenter|robin's|science|adventurer/i, ['mountain', 24, 18]],
-    [/lake/i, ['mountain', 10, 22]],
-    [/mine|quarry/i, ['mountain', 34, 8]],
-    [/forest|ranch|marnie's|wizard|tower/i, ['forest', 26, 15]],
-    [/leah|cottage/i, ['forest', 12, 13]],
-    [/bus stop|bus\b/i, ['busstop', 12, 13]],
-    [/river|bridge/i, ['town', 26, 34]],
-    [/town|square|plaza|street|road|path/i, ['town', 24, 20]],
-    [/farm\b/i, ['farm', 20, 18]]
+    [/saloon|stardrop|bar\b/i, ['town', 45, 72]],
+    [/general store|pierre's/i, ['town', 43, 58]],
+    [/joja/i, ['town', 95, 52]],
+    [/clinic|hospital|harvey/i, ['town', 36, 57]],
+    [/museum|library|gunther/i, ['town', 101, 91]],
+    [/community cent/i, ['town', 52, 21]],
+    [/graveyard|cemetery/i, ['town', 63, 74]],
+    [/playground|park|fountain|square|plaza/i, ['town', 47, 63]],
+    [/blacksmith|clint/i, ['town', 94, 83]],
+    [/beach|ocean|pier|dock|tide ?pool/i, ['beach', 40, 25]],
+    [/willy|fish shop/i, ['beach', 30, 35]],
+    [/carpenter|robin's|science|maru|demetrius/i, ['mountain', 8, 22]],
+    [/adventurer|guild|marlon/i, ['mountain', 76, 10]],
+    [/lake/i, ['mountain', 40, 25]],
+    [/mine|quarry/i, ['mountain', 54, 6]],
+    [/mountain/i, ['mountain', 30, 20]],
+    [/ranch|marnie's/i, ['forest', 90, 17]],
+    [/wizard|tower/i, ['forest', 5, 28]],
+    [/leah|cottage/i, ['forest', 104, 34]],
+    [/forest/i, ['forest', 60, 40]],
+    [/bus stop|bus\b/i, ['busstop', 20, 20]],
+    [/river|bridge/i, ['town', 34, 78]],
+    [/town|street|road|path/i, ['town', 47, 63]],
+    [/farm\b/i, ['farm', 64, 20]]
   ];
   // Phrases that mean "indoors, where they live" - the villager holds position.
   var STAY_HOME = /\b(in|inside|at) (her|his|their) (room|house|home|bed)|goes to bed|sleep|kitchen|living room|stays home/i;
@@ -533,7 +554,7 @@
     report.forage = global.SDV_PROGRESS ? global.SDV_PROGRESS.spawnForage(this) : 0;
     report.pots = global.SDV_SOCIAL ? global.SDV_SOCIAL.crabPotOvernight(this) : 0;
     this.mine.monsters = [];
-    this.player.x = 11.5; this.player.y = 11.5;
+    this.player.x = 64.5; this.player.y = 17.5;
     this.world.current = 'farm';
     this.sim.save(this.world);
     if (this.onDayEnd) this.onDayEnd(report, collapsed);
@@ -567,6 +588,30 @@
         var sx = Math.round(x * ts - camX), sy = Math.round(y * ts - camY);
         ctx.fillStyle = ((x + y) & 1) ? def.c : (def.c2 || def.c);
         ctx.fillRect(sx, sy, ts + 1, ts + 1);
+        /* WHY: the real maps keep walls, cliffs and every building on a
+         * separate collision layer whose ART we do not take. Drawing only the
+         * ground left the farmhouse and the whole of town looking like empty
+         * grass you mysteriously could not walk on. Blocked tiles get a solid
+         * body derived from the ground under them, so a house reads as a
+         * house and a cliff reads as rock. */
+        var bcls = a.blocked ? a.blocked[y * a.w + x] : 0;
+        if (bcls && !def.water) {
+          var top = y > 0 && a.blocked[(y - 1) * a.w + x] === bcls;
+          var pal = bcls === 2 ? BLOCK_BUILDING
+                  : bcls === 3 ? BLOCK_FENCE
+                  : (BLOCK_TERRAIN[name] || BLOCK_TERRAIN.grass);
+          ctx.fillStyle = pal.body;
+          ctx.fillRect(sx, sy, ts + 1, ts + 1);
+          if (!top) {
+            ctx.fillStyle = pal.top;
+            ctx.fillRect(sx, sy, ts + 1, Math.max(2, ts * 0.3));
+          }
+          if (bcls === 1 && ((x * 7 + y * 13) % 5 === 0)) {
+            ctx.fillStyle = pal.fleck;
+            ctx.fillRect(sx + ts * 0.3, sy + ts * 0.5, Math.max(2, ts * 0.18),
+                         Math.max(2, ts * 0.14));
+          }
+        }
         if (name === 'water' || name === 'deep') {
           ctx.fillStyle = 'rgba(255,255,255,0.07)';
           var wob = Math.sin((Date.now() / 420) + x * 0.7 + y * 0.4);
@@ -613,6 +658,27 @@
 
   // How wide each world object should read, measured in tiles. A tree is not
   // the same size as a weed, and the art files are authored at different widths.
+  /* Colours for the collision layer, keyed on the ground beneath: a wall on
+   * grass is a wooden building, a wall on stone is a cliff. */
+  /* Terrain that blocks (cliff faces, boulders, tree walls) takes its colour
+   * from the ground it rises out of; buildings and fences get their own. */
+  var BLOCK_TERRAIN = {
+    grass: { body: '#3f6b34', top: '#598c46', fleck: '#2e5227' },
+    dirt:  { body: '#6b4a30', top: '#8a6340', fleck: '#523725' },
+    path:  { body: '#8a7452', top: '#a68f68', fleck: '#6d5b40' },
+    sand:  { body: '#b9a173', top: '#d0b98c', fleck: '#9c854f' },
+    stone: { body: '#5f5f6a', top: '#7c7c87', fleck: '#4a4a54' },
+    floor: { body: '#6b5140', top: '#84654f', fleck: '#523d30' },
+    wood:  { body: '#6b4a2c', top: '#87603b', fleck: '#523821' },
+    jungle:{ body: '#2c5f3c', top: '#3f7d50', fleck: '#204a2d' },
+    snow:  { body: '#9fb0be', top: '#c3d2dd', fleck: '#8496a4' },
+    ice:   { body: '#8fb2c8', top: '#b2cfe0', fleck: '#7699ad' },
+    darkrock: { body: '#42424b', top: '#585863', fleck: '#33333a' },
+    rock:  { body: '#54545e', top: '#6e6e78', fleck: '#42424b' }
+  };
+  var BLOCK_BUILDING = { body: '#8a5a3c', top: '#b0603a', fleck: '#6d452c' };
+  var BLOCK_FENCE = { body: '#8b6b4a', top: '#a8875f', fleck: '#6f5439' };
+
   var OBJ_TILES = {
     tree: 2.2, stump: 1.0, rock: 1.0, oreRock: 1.0, grassTuft: 0.9,
     weed: 0.8, stick: 0.8, chest: 1.0, furnace: 1.1, bin: 1.5, sign: 0.9,
@@ -732,6 +798,24 @@
           ctx.beginPath();
           ctx.arc(sx + ts * 0.5, sy + ts * 0.22, ts * 0.12, 0, 6.3);
           ctx.fill();
+        }
+        break;
+      }
+      case 'doorway': {
+        ctx.fillStyle = 'rgba(20,16,22,0.55)';
+        ctx.fillRect(sx + ts * 0.18, sy + ts * 0.1, ts * 0.64, ts * 0.8);
+        ctx.fillStyle = '#e8c357';
+        ctx.fillRect(sx + ts * 0.66, sy + ts * 0.48, Math.max(2, ts * 0.08),
+                     Math.max(2, ts * 0.08));
+        if (o.label) {
+          ctx.font = Math.round(ts * 0.34) + 'px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          var tw = ctx.measureText(o.label).width;
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          ctx.fillRect(sx + ts / 2 - tw / 2 - 4, sy - ts * 0.62, tw + 8, ts * 0.46);
+          ctx.fillStyle = '#f4ecd8';
+          ctx.fillText(o.label, sx + ts / 2, sy - ts * 0.28);
+          ctx.textAlign = 'left';
         }
         break;
       }
@@ -967,8 +1051,13 @@
     ctx.fillRect(x, y, w, h);
     for (var j = 0; j < a.h; j += 1) {
       for (var i = 0; i < a.w; i += 1) {
-        var def = W.TILE[a.name_of(i, j)];
-        ctx.fillStyle = def.c;
+        var nm = a.name_of(i, j);
+        var def = W.TILE[nm];
+        var bc = a.blocked ? a.blocked[j * a.w + i] : 0;
+        ctx.fillStyle = (bc && !def.water)
+          ? (bc === 2 ? BLOCK_BUILDING.body
+             : (BLOCK_TERRAIN[nm] || BLOCK_TERRAIN.grass).body)
+          : def.c;
         ctx.fillRect(x + i * sx, y + j * sy, Math.ceil(sx), Math.ceil(sy));
       }
     }

@@ -167,7 +167,7 @@
 
   Bot.prototype.diveMine = function (floors) {
     var g = this.game, s = this.sim;
-    if (s.energy < 80 || s.health < 50) return 0;
+    if (s.energy < 45 || s.health < 40) return 0;
     var start = Math.max(1, Math.min(s.deepestMine || 1, 40));
     g.mine.enter(start, 'mine');
     var done = 0;
@@ -207,7 +207,7 @@
                                             Math.floor(g.player.y), true);
       if (a.ladder) { g.mine.descend(); done++; }
       else break;
-      if (s.energy < 40 || s.health < 40) break;
+      if (s.energy < 25 || s.health < 30) break;
     }
     g.mine.leave();
     return done;
@@ -242,12 +242,15 @@
   // --------------------------------------------------------------- one day
   Bot.prototype.playDay = function () {
     var g = this.game, s = this.sim;
+    /* Order matters: the farm and the woodcutting drain the whole bar, so a
+     * bot that did those first never had the energy left to go underground and
+     * the mine looked broken when it was only starved. Dive while fresh. */
     this.workFarm();
     this.gatherForage();
     this.eatIfTired();
-    if (s.energy > 120) this.chopAndMine();
+    if (s.day % 2 === 0 && s.energy > 60) this.diveMine(4);
     this.eatIfTired();
-    if (s.energy > 90 && s.day % 3 === 0) this.diveMine(3);
+    if (s.energy > 100) this.chopAndMine();
     this.shipAll();
     // a profession choice would block the loop; take the first offer
     if (s.pendingProfession && this.ui.openProfession) {

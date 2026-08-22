@@ -184,8 +184,11 @@
     this.monsters = [];
     this.depth = 0;
     g.sim.mineDepth = 0;
-    var back = this.kind === 'skull' ? 'desert' : this.kind === 'volcano' ? 'island' : 'mountain';
-    var at = this.kind === 'skull' ? [23, 9] : this.kind === 'volcano' ? [24, 8] : [39, 9];
+    // back to the entrance ROOM, which is where the lift is in the original
+    var back = this.kind === 'skull' ? 'skullentry'
+             : this.kind === 'volcano' ? 'islandnorth' : 'mineentry';
+    var at = this.kind === 'skull' ? [9, 8]
+           : this.kind === 'volcano' ? [30, 22] : [17, 10];
     g.world.current = back;
     g.player.x = at[0] + 0.5; g.player.y = at[1] + 0.5;
   };

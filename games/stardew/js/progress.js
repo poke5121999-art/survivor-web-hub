@@ -88,7 +88,11 @@
 
   function spawnForage(game) {
     var sim = game.sim;
-    var pool = FORAGE[sim.season()] || [];
+    /* The game files list exactly what each season spawns; prefer that over
+     * the hand-written list, which was only ever a stand-in. */
+    var real = game.data && game.data.forage;
+    var pool = (real && real[sim.season()] && real[sim.season()].length)
+      ? real[sim.season()] : (FORAGE[sim.season()] || []);
     var made = 0;
     FORAGE_AREAS.forEach(function (key) {
       var a = game.world.areas[key];
@@ -131,15 +135,29 @@
     if (s.flags[r.flag]) return null;
     s.flags[r.flag] = true;
     if (r.flag === 'bridgeFixed') {
+      /* The real Beach map splits into two walkable regions; the ONLY 4-tile
+       * span that joins them is (58..61, 13) - found by flood-filling the
+       * extracted map, not guessed. Repairing the bridge unblocks exactly it. */
       var beach = game.world.areas.beach;
-      beach.objs = beach.objs.filter(function (o) { return o.kind !== 'brokenBridge'; });
-      beach.rect(13, 14, 9, 2, 'sand');
+      if (beach) {
+        beach.objs = beach.objs.filter(function (o) { return o.kind !== 'brokenBridge'; });
+        for (var bx = 58; bx <= 61; bx++) {
+          beach.set(bx, 13, 'wood');
+          beach.block(bx, 13, false);
+        }
+      }
     }
     if (r.flag === 'greenhouse') {
+      // The greenhouse stands on the real farm; opening it is a warp, not a
+      // building we draw - the map already has the shell.
       var farm = game.world.areas.farm;
-      farm.objs = farm.objs.filter(function (o) { return o.kind !== 'greenhouseShell'; });
-      farm.building(35, 29, 6, 4, { label: 'Nhà kính', color: '#cfe4d0', roof: '#7fae86',
-                                    to: 'greenhouse', tx: 8, ty: 12 });
+      if (farm) {
+        farm.objs = farm.objs.filter(function (o) { return o.kind !== 'greenhouseShell'; });
+        var f = farm.nearestFree(25, 14, 10);
+        farm.warp(f.x, f.y, 'greenhouse', 10, 20);
+        farm.obj({ x: f.x, y: f.y, kind: 'doorway', to: 'greenhouse',
+                   label: 'Nhà kính' });
+      }
     }
     if (r.flag === 'friendship') {
       for (var n in s.friendship) s.friendship[n].points += 250;
