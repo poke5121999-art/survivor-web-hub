@@ -61,9 +61,26 @@ const P_BLOCK = 1, P_TABLE = 2, P_SHELF = 3, P_CRATE = 4, P_PLANT = 5;
 const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_PLANT };
 const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3 };
 
-const PLAYER_BASE_SPEED = 132;
+// WHY 92 and not the 132 this shipped with: at 132 a walking player outran every chasing monster
+// in the game (the fastest chase in MONSTERS is 74*1.25 = 92.5 px/s), so being seen cost nothing —
+// you turned around and left, and stamina was a bar that never emptied. The base speed is now set
+// just under the fastest chase, which makes "it has seen me" a problem you have to spend something
+// to solve. What you spend is stamina, through the sprint button.
+// ROOT-CAUSE: the escape speed and the pursuit speed were tuned independently and never compared.
+// SEE: docs/proposals/repo-2d-topdown.md C2-3.
+const PLAYER_BASE_SPEED = 92;
 const SPEED_FLOOR = 0.35;        // never fully immobilised, however heavy the haul
 const TURN_FLOOR  = 0.40;        // heavy loot slows how fast the look stick can swing
+
+// The three stick tiers. Running is now the TOP of what the stick alone gives you — it is free,
+// silent-ish and permanent, and it is not fast enough to break away from anything that has
+// already seen you. The extra gear above it is the sprint button, and that one costs stamina.
+// The ladder these three make, measured against the chase speeds in MONSTERS (speed x 1.25):
+//   sneak 46  - everything catches you, which is the price of being quiet
+//   walk  78  - outpaces the patrol (72) and the heavy (50); the bomber (77) is a dead heat
+//   run   92  - outpaces all of them except the blind listener (92), who is built to be fast
+//   sprint 143 (run x SPRINT_MUL) - outpaces everything, for as long as the bar lasts
+const TIER_MUL = [0.5, 0.85, 1.0];   // sneak, walk, run
 
 const LOS_R      = 14 * TILE;
 const CONE_HALF  = 0.62;
@@ -81,6 +98,20 @@ const QUOTA_FACTOR = 0.7;        // you may leave 30% of the value behind
 const EXTRACT_COUNTDOWN = 5;
 
 const STAM_MAX = 100, STAM_DRAIN = 22, STAM_REGEN = 16;
+
+// Chạy nước rút — the sprint button. A fourth input, and the doc's "a phase proposing a fourth
+// input defaults to no" was overridden deliberately by the owner: with the base speed lowered to
+// under a chase, the player needs one control that says "spend stamina, get away", and the tier
+// stick cannot say it — stick deflection is already fully spent on sneak/walk/run.
+// It is a TOGGLE, not a hold: both thumbs are on sticks while you are being chased, so a button
+// that must be held is a button that cannot be used at the only moment it matters.
+const SPRINT_MUL   = 1.55;   // top speed while sprinting, over the run tier
+const SPRINT_NOISE = 2.6;    // louder than a run, quieter than a rush
+const SPRINT_MIN   = 8;      // stamina needed to START one, so a tap on an empty bar does nothing
+// Stop running and the toggle lets go by itself. WHY: a toggle that survives you stopping would
+// re-engage silently the next time the stick hit its rim, and drain a bar the player thought they
+// were saving. Long enough that a wobble on the stick's edge mid-chase does not cancel it.
+const SPRINT_RELEASE = 0.4;  // seconds off the run tier before the toggle drops
 
 // Deadzone as a FRACTION of the stick's radius, not a pixel count: the radius is derived from the
 // screen, so a flat 4 px was a real deadzone on a tablet and none at all on a phone.
@@ -104,7 +135,10 @@ const MOUSE_LOOK_MIN = 2.2 * TILE;
 // Nước rút. Keep the run input held and the character winds up into a sprint on its own.
 // WHY it is time-based and not a gesture: the thing it replaced fired on a double-tap of the run
 // input — a stick hitting its own rim twice — and could not be aimed at a moment on purpose.
-const RUSH_DELAY  = 1.0;    // seconds of unbroken running before the sprint kicks in
+// It now rides ON the sprint button rather than replacing it: hold the sprint for a second and
+// the upgrade turns it into a full bolt. Before the button existed this fired on its own, which
+// meant the player never chose to spend the stamina.
+const RUSH_DELAY  = 1.0;    // seconds of unbroken sprinting before the bolt kicks in
 const RUSH_GAIN   = 0.28;   // extra top speed per upgrade level
 const RUSH_STAM   = 1.7;    // stamina burns this much faster while sprinting
 const RUSH_NOISE  = 3.0;    // and you are this loud, which is what the blind hunter listens for
@@ -240,7 +274,9 @@ function threatLevel(){
   // A statue standing in front of you, running out of patience, outranks anything with legs.
   const a = S.angel;
   if (a && a.phase === 'stand' && a.t >= ANGEL_SETTLE)
-    best = 0.45 + 0.5 * clamp(a.unlitT / ANGEL_PATIENCE, 0, 1);
+    // Unarmed it is a presence, not a threat — its clock has not started. Half the dread, and flat,
+    // so a room you have not pointed a torch at yet does not sit at chase-level tension forever.
+    best = a.armed ? 0.45 + 0.5 * clamp(a.unlitT / ANGEL_PATIENCE, 0, 1) : 0.32;
   for (const m of S.monsters){
     if (m.sleep > 0) continue;
     const d = Math.hypot(p.x-m.x, p.y-m.y);
@@ -485,7 +521,11 @@ const MONSTERS = {
   listen:  { name:'Kẻ nghe',    hp:120,  dmg:32,  cd:1.6, speed: 74, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6' },
   stalk:   { name:'Kẻ bám',     hp: 60,  dmg:30,  cd:1.1, speed: 66, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6' },
   bomber:  { name:'Kẻ nổ',      hp: 30,  dmg:14,  cd:0.9, speed: 62, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8' },
-  heavy:   { name:'Kẻ nặng',    hp:300,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8' }
+  heavy:   { name:'Kẻ nặng',    hp:300,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8' },
+  // Kẻ húc. It does not chase and it does not touch you while walking: its whole threat is one
+  // straight line, announced three seconds before it is fired. Everything about it is built so the
+  // counter-play is a step sideways and a wall between you, never a health bar.
+  rook:    { name:'Kẻ húc',     hp:170,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
@@ -526,8 +566,8 @@ const LEVEL_MONSTERS = [
   ['patrol'],
   ['patrol','listen'],
   ['patrol','listen','bomber'],
-  ['patrol','listen','bomber','stalk'],
-  ['patrol','listen','bomber','stalk','heavy']
+  ['patrol','listen','bomber','stalk','rook'],
+  ['patrol','listen','bomber','stalk','heavy','rook']
 ];
 
 // ============================================================ shop
@@ -621,6 +661,8 @@ const S = {
   shopMode: false, pay: { active:false, t:0 }, onButton: false, shopCanLeave: false,
   button: { x:0, y:0, r:0 }, cut: null,
   angel: null, angelTimer: 0, angelFx: null, lightZones: [],
+  mirror: null, mirrorTimer: 0, mirrorFx: null,
+  mates: [], crewOn: true, spectate: -1,
   time: 0, message: '', messageT: 0,
   bigMap: false
 };
@@ -640,7 +682,11 @@ function newPlayer(){
     inv: [ null, null, null ],
     aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0,
     pushing: false, runT: 0, rushing: false, blindT: 0, slowT: 0, kx: 0, ky: 0,
-    floatT: 0, shieldT: 0
+    floatT: 0, shieldT: 0,
+    sprint: false, sprinting: false, sprintOffT: 0, stunT: 0,
+    // `down` is one worker on the floor; `S.dead` is the whole crew. They used to be the same
+    // flag, which is exactly why dying ended the shift.
+    down: false
   };
 }
 
@@ -659,6 +705,7 @@ function buildLevel(seed){
   S.levelDone = false; S.dead = false; S.hurtLog = []; S.shiftLost = false;
   S.restocks = 0;
   S.angel = null; S.angelFx = null; S.lightZones = []; S.angelTimer = angelNextIn();
+  S.mirror = null; S.mirrorFx = null; S.mirrorTimer = mirrorNextIn();
 
   const lootSpots = [], monSpots = [];
   const order = ROOMS.map((_,i)=>i);
@@ -848,6 +895,11 @@ function buildLevel(seed){
   S.player.runT = 0; S.player.rushing = false;
   S.player.blindT = 0; S.player.slowT = 0;
   S.player.kx = 0; S.player.ky = 0;
+  S.player.down = false; S.player.stunT = 0; S.spectate = -1;
+  // The crew is placed around the player, so it has to come AFTER the player has a position.
+  // It used to sit up with the AEngel reset, which runs before the truck exists — spawnCrew read
+  // x off a null player and took the whole level build down with it.
+  spawnCrew();
   S.stashOpen = false;
 
   // The cart is not something you buy and not something you bring home: the source game
@@ -1068,6 +1120,10 @@ function makeMonster(type,x,y){
            state:'patrol', tx:x, ty:y, think:0, alert:0, hit:0, home:{x,y}, wob:Math.random()*7,
            sleep:0, kx:0, ky:0,
            lost: 0,                              // seconds since it last had the player
+           reveal: 0,                            // fade-in of "this thing has seen you", 0..1
+           rook: type === 'rook' ? 'walk' : null, // the rook's own state machine
+           goal: null, path: null, pi: 0, pathT: 0, windT: 0, dashLeft: 0,
+           stun: 0, charging: false, rammed: null, linger: 0,
            guardA: Math.random()*Math.PI*2 };    // its own place on the ring around the truck
 }
 function makeCart(x,y){
@@ -1367,12 +1423,15 @@ function turnRate(p){
   return Math.max(t, TURN_FLOOR);
 }
 function coneRadius(p){
+  if (!p) return 0;
   if (p.blindT > 0) return 0;          // AEngel took the torch; only the pool at your feet is left
+  // A colleague's torch is a worklight, not your upgraded one.
+  if (p.mate) return CONE_R * 0.62;
   const base = CONE_R * (1 + S.upg.light*0.16);
   // Hand weight only — a cart never takes light away.
   return base * Math.max(0.42, 1 - handWeight(p) / Math.max(1, p.str*1.6));
 }
-function coneHalf(p){ return CONE_HALF * (1 + S.upg.light*0.08); }
+function coneHalf(p){ return p && p.mate ? CONE_HALF : CONE_HALF * (1 + S.upg.light*0.08); }
 function grabRange(p){ return (1.9 + S.upg.range*0.55) * TILE; }
 
 // ============================================================ loot damage
@@ -1380,6 +1439,7 @@ function grabRange(p){ return (1.9 + S.upg.range*0.55) * TILE; }
 // The input is the change in velocity, so dragging along a wall is free and slamming into one is not.
 function damageLoot(l, impulse){
   if (l.gone) return 0;
+  if (l.isHead) return 0;            // a colleague does not lose value by being dropped
   if (l.shopGoods) return 0;         // stock on a shop floor is not yours to break yet
   // Being in the cart is a STATE of the loot, not a property of the collision that happened to
   // it, so the guard sits at the damage entry point: a bomb blast or a monster swipe cannot
@@ -1391,7 +1451,7 @@ function damageLoot(l, impulse){
   // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
   if (l.inCart && CART_IMPACT_ABSORB <= 0) return 0;
   if (S.time < l.invuln || S.time < l.grace) return 0;
-  if (l.held && S.player.shieldT > 0) return 0;     // wrapping tape: nothing gets through
+  if (l.held && (l.holder || S.player).shieldT > 0) return 0;   // wrapping tape: nothing gets through
   const thresh = l.mat.thresh * (l.held ? (1 + S.upg.grip*0.25) : 1);
   if (impulse <= thresh) return 0;
   const loss = l.value0 * l.mat.frag * DMG_SCALE * DMG_MULT * (impulse - thresh) / thresh;
@@ -1435,7 +1495,9 @@ function damageLoot(l, impulse){
 // geometry actually let the object go. Walk into a wall and that gap is your walking speed;
 // stand still against a wall and it is zero, which is the case a spring got wrong.
 function holdInFront(o, dt, wantD, radius){
-  const p = S.player;
+  // Whoever is carrying it. Defaulting to the player is what keeps the cart (which has no holder)
+  // and every pre-crew call site working unchanged.
+  const p = o.holder || S.player;
   const cs = Math.cos(p.dir), sn = Math.sin(p.dir);
   const fx = p.x + cs*wantD, fy = p.y + sn*wantD;      // the unobstructed hold point
   let d = wantD, blocked = false;
@@ -1534,6 +1596,7 @@ function releaseCart(p){
 }
 
 function pickUp(p){
+  if (p.down) return cycleSpectate();  // a head on the floor has nothing to grab with — it watches
   if (p.pushing){ releaseCart(p); return true; }
   if (p.held){ dropHeld(p); return true; }
   const best = nearestLoot(p);
@@ -1546,7 +1609,7 @@ function pickUp(p){
     recomputePad(pad);
     if (S.pay.active){ S.pay.active = false; S.countdownActive = false; S.countdown = 0; }
   }
-  best.held = true;
+  best.held = true; best.holder = p;
   best.grace = S.time + GRACE_AFTER_PICKUP;   // C3-5: no damage in the first second after pickup
   best.vx = best.vy = 0;
   best.freeX = p.x + Math.cos(p.dir)*(best.r+12);
@@ -1554,10 +1617,21 @@ function pickUp(p){
   p.held = best;
   return true;
 }
+// The sprint toggle. Kept here with the other things a thumb does to the character, and the ONE
+// place the flag is set from — the HUD button, the keyboard and the tests all come through it.
+function toggleSprint(){
+  const p = S.player;
+  if (!p || S.dead || S.shopMode || p.down) return false;
+  if (p.sprint){ p.sprint = false; return false; }
+  if (p.stam < SPRINT_MIN){ toast('Chưa đủ thể lực để rút.'); return false; }
+  p.sprint = true; p.sprintOffT = 0;
+  return true;
+}
+
 function dropHeld(p){
   if (!p.held) return;
   const l = p.held;
-  l.held = false; l.vx *= 0.3; l.vy *= 0.3;
+  l.held = false; l.holder = null; l.vx *= 0.3; l.vy *= 0.3;
   l.grace = S.time + 0.35;
   p.held = null;
   // onto the cart first — you walk up to the cart to load it, so it must win over the floor
@@ -1600,7 +1674,7 @@ function makeNoise(x, y, radius, strength){
 // player can see: every candidate tile has to be out of line of sight, which on this map means
 // behind a wall or in the next room. A monster that blinks into view is a bug the player can see.
 function relocateFoe(m, rnd){
-  const p = S.player;
+  const p = (m.target && !m.target.down) ? m.target : S.player;
   const [lo, hi] = RELOCATE_NEAR;
   for (let attempt = 0; attempt < 40; attempt++){
     const a = rnd()*Math.PI*2, r = mix(lo, hi, rnd());
@@ -1617,12 +1691,54 @@ function relocateFoe(m, rnd){
   return false;
 }
 
+// Who a given monster is currently interested in. It used to be "the player", unconditionally,
+// which would have left three colleagues walking through the house as furniture.
+// Sight picks the nearest living body it can actually see; hearing picks the loudest thing within
+// earshot, weighted by distance, which is what lets a mate's clumsy running pull a listener off you.
+function foeTarget(m){
+  const d = MONSTERS[m.type];
+  const live = crewAlive();
+  if (!live.length) return S.player;
+  let seen = null, sd = 1e9;
+  for (const a of live){
+    const dist = Math.hypot(a.x-m.x, a.y-m.y);
+    if (d.sight > 0 && dist < d.sight*TILE && losClear(m.x, m.y, a.x, a.y)){
+      const off = Math.abs(angDiff(Math.atan2(a.y-m.y, a.x-m.x), m.dir));
+      if ((off < 1.1 || dist < 3*TILE) && dist < sd){ sd = dist; seen = a; }
+    }
+  }
+  if (seen) return seen;
+  if (d.hear > 0){
+    let heard = null, best = 0;
+    for (const a of live){
+      const noise = (a === S.player) ? (a.noise || 0) : (a.noise || 0);
+      if (noise <= 0) continue;
+      const dist = Math.hypot(a.x-m.x, a.y-m.y);
+      const reach = d.hear*TILE*noise*0.6;
+      if (dist >= reach) continue;
+      const score = reach - dist;
+      if (score > best){ best = score; heard = a; }
+    }
+    if (heard) return heard;
+  }
+  // Nobody detected: it keeps facing whoever is nearest, so patrols still drift toward the crew.
+  let near = live[0], nd = 1e9;
+  for (const a of live){
+    const dist = Math.hypot(a.x-m.x, a.y-m.y);
+    if (dist < nd){ nd = dist; near = a; }
+  }
+  return near;
+}
+
 function stepMonsters(dt){
-  const p = S.player;
   for (const m of S.monsters){
     const d = MONSTERS[m.type];
     m.wob += dt*4; m.hit = Math.max(0, m.hit - dt);
+    const p = foeTarget(m);
+    m.target = p;
     const dist = Math.hypot(p.x-m.x, p.y-m.y);
+    const want = foeRevealed(m) ? 1 : 0;
+    m.reveal = clamp((m.reveal || 0) + (want ? dt/REVEAL_FADE : -dt/REVEAL_FADE), 0, 1);
 
     // knockback decays wherever it came from — a tranq dart, a bomb, or a shove
     if (m.kx || m.ky){
@@ -1642,13 +1758,16 @@ function stepMonsters(dt){
     // while in contact, which at 60 fps compounds against a 0.94/frame decay and settles
     // near 1900 px/s — the shove launched monsters clean across the map.
     // ROOT-CAUSE: a per-contact impulse was written as a per-frame force.
-    if (S.upg.push > 0 && dist < 26 && m.shoveCd <= 0){
+    if (S.upg.push > 0 && p === S.player && dist < 26 && m.shoveCd <= 0){
       const a = Math.atan2(m.y-p.y, m.x-p.x);
       const shove = 150 + 90 * S.upg.push;
       m.kx = Math.cos(a) * shove;
       m.ky = Math.sin(a) * shove;
       m.shoveCd = 0.5;
     }
+
+    // Kẻ húc runs its own head: no chase, no contact damage, one straight line at a time.
+    if (m.type === 'rook'){ stepRook(m, dt, dist); continue; }
 
     let detects = false;
     if (d.sight > 0 && dist < d.sight*TILE && losClear(m.x,m.y,p.x,p.y)){
@@ -1702,14 +1821,213 @@ function stepMonsters(dt){
     const spd = m.speed * (m.state === 'chase' ? 1.25 : m.state === 'hunt' ? 1.0 : 0.7);
     moveEnt(m, ax/am*spd*dt, ay/am*spd*dt, 9);
 
-    if (dist < 22 && m.hit <= 0 && !S.dead && m.alert > 0){
+    if (dist < 22 && m.hit <= 0 && !S.dead && !p.down && m.alert > 0){
       m.hit = d.cd || 0.9;
-      hurtPlayer(m.dmg, m.type, m.x, m.y);
+      hurtActor(p, m.dmg, m.type, m.x, m.y);
       // a monster hitting you also hits what you are carrying
       if (p.held) damageLoot(p.held, m.dmg * 4);
     }
   }
 }
+
+// ============================================================ Kẻ húc (the rook)
+// A monster with no chase in it. It walks a route across the house, and if it catches sight of you
+// on the way it stops, winds up for three seconds in plain view, and fires itself down one straight
+// line - far past where you were standing, because it cannot steer once it is moving.
+//
+// WHY it is built out of a wind-up and an overshoot rather than out of speed: every other monster
+// here is answered by distance, which makes "walk backwards" the whole game. This one is answered
+// by a SIDESTEP and by geometry - a corner, a doorway, another monster in the lane - and it hurts
+// most in the open rooms where the other four are easiest.
+const ROOK_WIND        = 3.0;      // seconds of telegraph before the dash. Long on purpose.
+const ROOK_DASH_SPEED  = 430;
+const ROOK_OVERSHOOT   = [1.5, 2.0];  // it travels this multiple of the distance it aimed at
+const ROOK_SELF_STUN   = 6.0;      // what hitting anything solid costs it
+const ROOK_LINGER      = 10.0;     // milling about once it reaches its chosen spot
+const ROOK_MILL_R      = 1.5*TILE;
+const ROOK_PLAYER_STUN = 2.0;      // if it puts you into a wall
+const ROOK_WALL_DMG    = 0.6;      // extra damage on that, as a fraction of the ram
+const ROOK_KNOCK       = 560;
+const ROOK_FOE_DMG     = 0.5;      // what it does to another monster in the lane - and it keeps going
+const ROOK_HIT_R       = 22;
+const ROOK_REPATH      = 1.2;      // seconds between route recalculations while walking
+
+function rookSees(m, dist){
+  const p = m.target || S.player;
+  if (S.dead || p.down) return false;
+  if (dist > MONSTERS.rook.sight*TILE) return false;
+  if (!losClear(m.x, m.y, p.x, p.y)) return false;
+  const a = Math.abs(angDiff(Math.atan2(p.y-m.y, p.x-m.x), m.dir));
+  return a < 1.2 || dist < 3*TILE;
+}
+
+// A spot in some room that is NOT the start room — the truck's room is the one place in the house
+// the player has to be able to stand still in.
+function rookPickGoal(m){
+  for (let i = 0; i < 90; i++){
+    const ri = 1 + ((Math.random()*(GX*GY-1))|0);
+    const r = S.rooms[ri];
+    if (!r) continue;
+    const gx = r.cx*RW + 1 + ((Math.random()*(RW-2))|0);
+    const gy = r.cy*RH + 1 + ((Math.random()*(RH-2))|0);
+    if (S.grid[gy*MW+gx] !== FLOOR) continue;
+    const x = (gx+0.5)*TILE, y = (gy+0.5)*TILE;
+    if (hitsSolid(x, y, 9)) continue;
+    m.goal = { x, y, gx, gy, ri };
+    m.path = null; m.pathT = 0;
+    return true;
+  }
+  return false;
+}
+
+// Shortest floor path to the goal, walked waypoint by waypoint. Recomputed on a timer rather than
+// every frame: the grid does not move, and a BFS per monster per frame is the one thing in this
+// file that would actually cost a phone anything.
+function rookRepath(m){
+  m.pathT = ROOK_REPATH;
+  if (!m.goal) return;
+  const sx = clamp((m.x/TILE)|0, 0, MW-1), sy = clamp((m.y/TILE)|0, 0, MH-1);
+  const tgx = m.goal.gx, tgy = m.goal.gy;
+  const path = bfsPath(sx, sy, (x,y) => x === tgx && y === tgy);
+  m.path = path ? path.map(([x,y]) => ({ x:(x+0.5)*TILE, y:(y+0.5)*TILE })) : null;
+  m.pi = m.path ? Math.min(1, m.path.length-1) : 0;
+}
+
+function rookCrash(m, what){
+  m.rook = 'stun'; m.stun = ROOK_SELF_STUN;
+  m.charging = false; m.state = 'patrol'; m.alert = 0;
+  m.path = null; m.rammed = null;
+  fxShake(what === 'wall' ? 9 : 6); SFX.thud();
+}
+
+function rookSlam(m, who){
+  const p = who || S.player;
+  const a = m.dir;
+  hurtActor(p, m.dmg, 'rook', m.x, m.y);
+  // Into a wall? Probed along the direction it threw you, one and a bit tiles out - the distance
+  // the knockback actually covers before it decays. A hit in the open is a hit; a hit with a wall
+  // behind you is the expensive one, and the player can see which they are standing in.
+  const probe = 1.35*TILE;
+  const walled = hitsSolid(p.x + Math.cos(a)*probe, p.y + Math.sin(a)*probe, 7.5);
+  if (walled && !S.dead && !p.down){
+    hurtActor(p, Math.round(m.dmg*ROOK_WALL_DMG), 'rook-wall', m.x, m.y);
+    p.stunT = ROOK_PLAYER_STUN;
+    fxFlash(0.42, '190,60,50');
+    toast('Bị húc dập vào tường — choáng ' + ROOK_PLAYER_STUN + ' giây.');
+  }
+  p.kx = Math.cos(a)*ROOK_KNOCK; p.ky = Math.sin(a)*ROOK_KNOCK;
+  rookCrash(m, 'player');
+}
+
+function stepRook(m, dt, dist){
+  const p = m.target || S.player;
+  m.rook = m.rook || 'walk';
+  m.windT = m.windT || 0;
+
+  if (m.rook === 'stun'){
+    m.stun -= dt;
+    m.state = 'patrol'; m.charging = false;
+    if (m.stun <= 0){ m.rook = 'walk'; m.path = null; }
+    return;
+  }
+
+  // The dash. Nothing steers it: the angle was locked when it fired.
+  if (m.rook === 'dash'){
+    m.state = 'chase'; m.charging = true; m.alert = 1.2;
+    const stepLen = ROOK_DASH_SPEED*dt;
+    const nx = m.x + Math.cos(m.dir)*stepLen, ny = m.y + Math.sin(m.dir)*stepLen;
+
+    // it will run over ANYONE in the lane, colleague or not
+    let struck = null;
+    for (const a of crewAlive()) if (Math.hypot(a.x-nx, a.y-ny) < ROOK_HIT_R + 8){ struck = a; break; }
+    if (!S.dead && struck){ rookSlam(m, struck); return; }
+
+    // Another monster in the lane takes half of what you would have taken, and the rook does NOT
+    // stop for it. One per dash each, so a body it is standing on is not hit sixty times a second.
+    for (const o of S.monsters.slice()){
+      if (o === m || o.sleep > 0) continue;
+      if (m.rammed && m.rammed.has(o)) continue;
+      if (Math.hypot(o.x-nx, o.y-ny) > 20) continue;
+      if (m.rammed) m.rammed.add(o);
+      o.hp -= m.dmg*ROOK_FOE_DMG; o.alert = Math.max(o.alert, 3);
+      o.kx = Math.cos(m.dir)*300; o.ky = Math.sin(m.dir)*300;
+      if (o.hp <= 0) killMonster(o);
+      fxShake(4); SFX.thud();
+    }
+
+    const bx = m.x, by = m.y;
+    moveEnt(m, Math.cos(m.dir)*stepLen, Math.sin(m.dir)*stepLen, 9);
+    const moved = Math.hypot(m.x-bx, m.y-by);
+    m.dashLeft -= moved;
+    if (moved < stepLen*0.5){ rookCrash(m, 'wall'); return; }   // it met a wall
+    if (m.dashLeft <= 0){ m.rook = 'walk'; m.charging = false; m.state = 'patrol'; m.rammed = null; m.path = null; }
+    return;
+  }
+
+  // Winding up. It tracks you while it winds - that is what makes the three seconds a decision
+  // and not a coin flip - and locks the angle at the instant it fires.
+  if (m.rook === 'wind'){
+    m.state = 'chase'; m.charging = true; m.alert = 1.2;
+    if (!rookSees(m, dist)){
+      // Lost you mid-wind: it goes back to where it was walking, per the spec. The wind-up is
+      // spent, which is the reward for breaking line of sight.
+      m.rook = 'walk'; m.charging = false; m.state = 'patrol'; m.windT = 0; m.alert = 0;
+      return;
+    }
+    const want = Math.atan2(p.y-m.y, p.x-m.x);
+    m.dir += clamp(angDiff(want, m.dir), -2.6*dt, 2.6*dt);
+    m.windT += dt;
+    if (m.windT >= ROOK_WIND){
+      m.windT = 0;
+      m.dir = want;
+      m.dashLeft = dist * mix(ROOK_OVERSHOOT[0], ROOK_OVERSHOOT[1], Math.random());
+      m.dashSpan = m.dashLeft;   // what it committed to, kept because dashLeft is spent as it flies
+      m.dashAim  = dist;
+      m.rammed = new Set();
+      m.rook = 'dash';
+      SFX.sting(); fxShake(3);
+    }
+    return;
+  }
+
+  // Milling about at the spot it chose.
+  if (m.rook === 'linger'){
+    m.state = 'patrol'; m.charging = false;
+    m.linger -= dt;
+    if (rookSees(m, dist)){ m.rook = 'wind'; m.windT = 0; return; }
+    m.think -= dt;
+    if (m.think <= 0 || Math.hypot(m.tx-m.x, m.ty-m.y) < 10){
+      m.think = 1.2 + Math.random()*1.6;
+      const a = Math.random()*Math.PI*2, r = Math.random()*ROOK_MILL_R;
+      m.tx = m.goal.x + Math.cos(a)*r; m.ty = m.goal.y + Math.sin(a)*r;
+    }
+    const ax = m.tx-m.x, ay = m.ty-m.y, am = Math.hypot(ax,ay) || 1;
+    m.dir = Math.atan2(ay,ax);
+    moveEnt(m, ax/am*m.speed*0.45*dt, ay/am*m.speed*0.45*dt, 9);
+    if (m.linger <= 0){ m.rook = 'walk'; m.goal = null; m.path = null; }
+    return;
+  }
+
+  // Walking its route.
+  m.state = 'patrol'; m.charging = false;
+  if (rookSees(m, dist)){ m.rook = 'wind'; m.windT = 0; return; }
+  if (!m.goal && !rookPickGoal(m)) return;
+  m.pathT -= dt;
+  if (!m.path || m.pathT <= 0) rookRepath(m);
+  if (!m.path){ m.goal = null; return; }              // nothing reachable; choose again next tick
+  while (m.pi < m.path.length && Math.hypot(m.path[m.pi].x-m.x, m.path[m.pi].y-m.y) < 10) m.pi++;
+  if (m.pi >= m.path.length){
+    m.rook = 'linger'; m.linger = ROOK_LINGER; m.think = 0;
+    m.tx = m.goal.x; m.ty = m.goal.y;
+    return;
+  }
+  const wp = m.path[m.pi];
+  const ax = wp.x-m.x, ay = wp.y-m.y, am = Math.hypot(ax,ay) || 1;
+  m.dir = Math.atan2(ay,ax);
+  m.tx = wp.x; m.ty = wp.y;
+  moveEnt(m, ax/am*m.speed*dt, ay/am*m.speed*dt, 9);
+}
+
 function hurtPlayer(n, src, fromX, fromY){
   const p = S.player;
   (S.hurtLog = S.hurtLog || []).push({ t:+S.time.toFixed(1), n, src: src || '?', hp: Math.round(p.hp - n) });
@@ -1740,7 +2058,7 @@ function killMonster(m){
 // ============================================================ items
 function useSlot(p, i, aimed){
   const it = p.inv[i];
-  if (!it || it.uses <= 0 || p.cooldown > 0 || S.dead) return false;
+  if (!it || it.uses <= 0 || p.cooldown > 0 || S.dead || p.down) return false;
   const def = GEAR_BY_KEY[it.kind];
   if (def && def.passive) return false;          // the tracker works by being equipped
   const ang = aimed !== undefined ? aimed : p.dir;
@@ -1802,6 +2120,8 @@ function stepProjectiles(dt){
     const nx = b.x + b.vx*dt, ny = b.y + b.vy*dt;
     if (b.life <= 0 || solidAt((nx/TILE)|0,(ny/TILE)|0)){ S.bullets.splice(i,1); continue; }
     b.x = nx; b.y = ny;
+    // Glass is the one thing in this game a tranq dart is as good as a bullet on.
+    if (damageMirror(b.x, b.y, 25)){ S.bullets.splice(i,1); continue; }
     for (const m of S.monsters){
       if (Math.hypot(m.x-b.x, m.y-b.y) < 13){
         if (b.kind === 'tranq'){
@@ -1830,6 +2150,12 @@ function stepProjectiles(dt){
       for (const m of S.monsters.slice()){
         const d = Math.hypot(m.x-b.x, m.y-b.y);
         if (d < b.r){ m.hp -= 90 * (1 - d/b.r); if (m.hp <= 0) killMonster(m); }
+      }
+      if (S.mirror){
+        for (const pane of [S.mirror.a, S.mirror.b]){
+          const dm = Math.hypot(pane.x-b.x, pane.y-b.y);
+          if (dm < b.r){ damageMirror(pane.x, pane.y, 90 * (1 - dm/b.r)); break; }
+        }
       }
       // the funniest and most expensive source of damage in the source game: your own bomb
       for (const l of S.loot){
@@ -1867,6 +2193,9 @@ function stepExtraction(dt){
   }
 }
 function completePad(pad){
+  // Heads first: the extraction firing is what puts them back on their feet, and they must be out
+  // of `placed` before the money is counted so a head never reads as a zero-value haul item.
+  reviveFromPad(pad);
   pad.done = true; pad.active = false;
   S.countdownActive = false; S.countdown = 0; FX.lastTick = -1;
   fxFlash(0.42, '150,255,190'); fxShake(3.5); SFX.chime();
@@ -2007,13 +2336,12 @@ function endLostShift(){
     'Doc B4: trượt chỉ tiêu là mất cả run — tiền, nâng cấp và tủ đồ.',
     'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
 }
+// Going down. WHY this is no longer `S.dead = true`: the shift now belongs to a crew of four,
+// and one of them hitting zero pops their head off rather than closing the level. The shift is
+// only lost when there is nobody left standing to pick a head up — see crewWiped().
 function die(){
-  if (S.dead) return;
-  S.dead = true; S.running = false;
-  S.corpses.push({ x:S.player.x, y:S.player.y });
-  showVeil('Ca trực kết thúc',
-    'Bạn gục ở màn ' + S.level + '. Trong bản nhiều người, đồng đội có thể vác đầu bạn về bệ để hồi sinh — bản một người này thì mất cả ca.',
-    'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
+  if (S.dead || !S.player || S.player.down) return;
+  downActor(S.player);
 }
 // Doc B4: losing a run costs everything — money, upgrades, and the locker. That is what
 // gives the quota weight; if a loss only cost one level nobody would fear it.
@@ -2027,6 +2355,8 @@ function resetRun(){
   // detached copy keeps answering questions with stale values instead of failing loudly.
   const fresh = newPlayer();
   if (S.player) Object.assign(S.player, fresh); else S.player = fresh;
+  S.player.down = false;
+  S.mates = [];
 }
 function finishLevel(){
   // The shift's own record, kept because the station REPLACES the house — its pads and its loot
@@ -2089,6 +2419,7 @@ function makeGood(kind, key, name, price, x, y){
 }
 
 function buildShop(){
+  S.mates = [];                     // the station is not a job; nobody follows you in
   S.shopMode = true;
   S.buildId = (S.buildId || 0) + 1;
   S.grid = new Uint8Array(MW*MH).fill(WALL);
@@ -2368,6 +2699,774 @@ function drawCutscene(c, hud){
   }
 }
 
+
+// ============================================================ Kẻ soi gương (the Mirror Master)
+// Not a monster in the S.monsters sense, for the same reason the AEngel is not one: it takes no
+// damage from anything, ever, and keeping it out of that array makes that true by construction
+// rather than by a flag every damage site has to remember to check.
+//
+// The shape of it: every 30–45 seconds two mirrors appear — one near you, one in another room —
+// and two seconds later something walks out of the near one and comes for you. It cannot be shot.
+// The mirrors can. Break either one and the thing that came out of it dies and drops what it was
+// carrying; fail to, and it reaches you and puts you through the far mirror instead of hurting you.
+//
+// WHY the mirrors and not the creature (the doc offered both, "tùy theo mức độ khả thi"): making
+// the creature itself shootable turns it into a sixth monster with a bigger health bar, and this
+// game already has five of those. Making the MIRROR the target means the counter-play is a thing
+// you have to look for and reach, the torch keeps its job (light it and it slows down), and a
+// player with no gun still has an answer — walk away from mirror A, because the further it gets
+// from the glass it came out of, the slower it moves.
+const MIRROR_EVERY      = [30, 45];   // seconds between visits
+const MIRROR_EMERGE     = 2.0;        // the glass stands there this long before anything comes out
+const MIRROR_SPEED      = 58;
+const MIRROR_FAR        = 12*TILE;    // distance from mirror A at which it is at its slowest
+const MIRROR_SLOW_FLOOR = 0.32;       // and that slowest is this much of its speed
+const MIRROR_TORCH_MUL  = 0.42;       // hold the beam on it and it wades
+const MIRROR_HP         = 70;         // per mirror — about three pistol rounds
+const MIRROR_NEAR       = [4, 7];     // how far from you mirror A lands, in tiles
+const MIRROR_GRAB_R     = 20;         // how close it has to get to put you through the far one
+const MIRROR_LOOT       = [1500, 3200];
+const MIRROR_REPATH     = 0.8;
+const MIRROR_R          = 15;         // the pane's own radius, for shots and for drawing
+
+function mirrorNextIn(){ return mix(MIRROR_EVERY[0], MIRROR_EVERY[1], Math.random()); }
+
+// A floor tile inside a given room that nothing is standing in.
+function mirrorSpotInRoom(ri){
+  const r = S.rooms[ri];
+  if (!r) return null;
+  for (let i = 0; i < 60; i++){
+    const gx = r.cx*RW + 1 + ((Math.random()*(RW-2))|0);
+    const gy = r.cy*RH + 1 + ((Math.random()*(RH-2))|0);
+    if (S.grid[gy*MW+gx] !== FLOOR) continue;
+    const x = (gx+0.5)*TILE, y = (gy+0.5)*TILE;
+    if (hitsSolid(x, y, 11)) continue;
+    return { x, y, gx, gy, ri };
+  }
+  return null;
+}
+function roomOf(x, y){
+  const gx = clamp((x/TILE)|0, 0, MW-1), gy = clamp((y/TILE)|0, 0, MH-1);
+  return ((gy/RH)|0)*GX + ((gx/RW)|0);
+}
+
+function spawnMirrors(){
+  const p = S.player;
+  // A: near you, and in sight, because the whole beat is that a mirror was not there a moment ago.
+  let a = null;
+  for (let i = 0; i < 70; i++){
+    const ang = Math.random()*Math.PI*2;
+    const d = mix(MIRROR_NEAR[0], MIRROR_NEAR[1], Math.random()) * TILE;
+    const x = p.x + Math.cos(ang)*d, y = p.y + Math.sin(ang)*d;
+    const gx = (x/TILE)|0, gy = (y/TILE)|0;
+    if (gx < 1 || gy < 1 || gx >= MW-1 || gy >= MH-1) continue;
+    if (S.grid[gy*MW+gx] !== FLOOR) continue;
+    if (hitsSolid(x, y, 11)) continue;
+    if (i < 50 && !losClear(p.x, p.y, x, y)) continue;
+    a = { x, y, gx, gy, ri: roomOf(x, y) };
+    break;
+  }
+  if (!a){ S.mirrorTimer = 4; return false; }
+
+  // B: any other room, the start room included — the doc is explicit that being thrown back to
+  // the truck is a legal outcome, and it is not always a kind one.
+  let b = null;
+  const order = [];
+  for (let ri = 0; ri < GX*GY; ri++) if (ri !== a.ri) order.push(ri);
+  for (let i = order.length-1; i > 0; i--){ const j = (Math.random()*(i+1))|0; const t = order[i]; order[i] = order[j]; order[j] = t; }
+  for (const ri of order){ b = mirrorSpotInRoom(ri); if (b) break; }
+  if (!b){ S.mirrorTimer = 4; return false; }
+
+  a.hp = MIRROR_HP; a.hpMax = MIRROR_HP;
+  b.hp = MIRROR_HP; b.hpMax = MIRROR_HP;
+  S.mirror = { t: 0, phase: 'wait', a, b, m: null };
+  SFX.warp();
+  toast('Có gương trong nhà. Đập vỡ một cái là xong.');
+  return true;
+}
+
+// The creature dies with its glass: break either pane and whatever came out of the other one has
+// nothing holding it here.
+function breakMirror(which){
+  const mr = S.mirror;
+  if (!mr) return;
+  const at = mr.m || mr.a;
+  const value = Math.round(mix(MIRROR_LOOT[0], MIRROR_LOOT[1], Math.random()) / 50) * 50;
+  const bag = makeLoot(at.x, at.y, SIZES[0], MATERIALS[2], value);
+  bag.isBag = true;
+  bag.grace = S.time + 3;
+  S.loot.push(bag);
+  S.mirrorFx = { x: which.x, y: which.y, t: 0, kind: 'break' };
+  S.mirror = null;
+  S.mirrorTimer = mirrorNextIn();
+  fxShake(9); fxFlash(0.35, '210,230,255'); SFX.chime();
+  toast('Gương vỡ — nó tan theo, để lại ' + money(value) + '.');
+}
+
+function damageMirror(x, y, n){
+  const mr = S.mirror;
+  if (!mr) return false;
+  for (const pane of [mr.a, mr.b]){
+    if (Math.hypot(pane.x-x, pane.y-y) > MIRROR_R + 4) continue;
+    pane.hp -= n;
+    fxShake(3);
+    if (pane.hp <= 0) breakMirror(pane);
+    return true;
+  }
+  return false;
+}
+
+// It reached you. No damage — it puts you through the far pane and starts over.
+function mirrorTake(mr, who){
+  const p = who || S.player;
+  const to = mr.b;
+  p.x = to.x; p.y = to.y;
+  p.kx = 0; p.ky = 0;
+  if (p === S.player){ cam.x = p.x - vwW()/2; cam.y = p.y - vwH()/2; }
+  else { p.path = null; p.target = null; p.job = 'idle'; }
+  S.mirrorFx = { x: to.x, y: to.y, t: 0, kind: 'warp' };
+  S.mirror = null;
+  S.mirrorTimer = mirrorNextIn();
+  fxShake(p === S.player ? 12 : 5); fxFlash(0.45, '190,215,255'); SFX.warp();
+  toast(p === S.player ? 'Nó đẩy bạn qua gương bên kia.'
+                       : 'Nó đẩy ' + p.name + ' qua gương bên kia.');
+}
+
+function stepMirror(dt){
+  if (S.mirrorFx){ S.mirrorFx.t += dt; if (S.mirrorFx.t > 0.9) S.mirrorFx = null; }
+  if (S.shopMode || S.noFoes || S.dead || S.levelDone || S.shiftLost){ S.mirror = null; return; }
+
+  if (!S.mirror){
+    S.mirrorTimer -= dt;
+    if (S.mirrorTimer <= 0) spawnMirrors();
+    return;
+  }
+  const mr = S.mirror, p = S.player;
+  mr.t += dt;
+
+  if (mr.phase === 'wait'){
+    if (mr.t < MIRROR_EMERGE) return;
+    mr.phase = 'out';
+    mr.m = { x: mr.a.x, y: mr.a.y, dir: Math.atan2(p.y-mr.a.y, p.x-mr.a.x),
+             reveal: 0, lit: false, path: null, pi: 0, pathT: 0, born: 0 };
+    fxShake(4); SFX.sting();
+    return;
+  }
+
+  const m = mr.m;
+  m.born += dt;
+  m.lit = litByTorch(m.x, m.y);
+  // it walks at whoever is nearest and standing; a downed body is not a target
+  const live = crewAlive();
+  const quarry = live.length
+    ? live.reduce((b, a) => Math.hypot(a.x-m.x, a.y-m.y) < Math.hypot(b.x-m.x, b.y-m.y) ? a : b)
+    : p;
+  const seen = Math.hypot(p.x-m.x, p.y-m.y) < REVEAL_R && losClear(p.x, p.y, m.x, m.y);
+  m.reveal = clamp(m.reveal + (seen ? dt/REVEAL_FADE : -dt/REVEAL_FADE), 0, 1);
+
+  // The leash: the further it gets from the glass it walked out of, the less of it there is.
+  const away = Math.hypot(m.x-mr.a.x, m.y-mr.a.y);
+  const falloff = mix(1, MIRROR_SLOW_FLOOR, clamp(away/MIRROR_FAR, 0, 1));
+  const spd = MIRROR_SPEED * falloff * (m.lit ? MIRROR_TORCH_MUL : 1);
+
+  // Route to the player, recomputed on a timer.
+  m.pathT -= dt;
+  if (!m.path || m.pathT <= 0){
+    m.pathT = MIRROR_REPATH;
+    const sx = clamp((m.x/TILE)|0, 0, MW-1), sy = clamp((m.y/TILE)|0, 0, MH-1);
+    const tgx = clamp((quarry.x/TILE)|0, 0, MW-1), tgy = clamp((quarry.y/TILE)|0, 0, MH-1);
+    const path = bfsPath(sx, sy, (x,y) => x === tgx && y === tgy);
+    m.path = path ? path.map(([x,y]) => ({ x:(x+0.5)*TILE, y:(y+0.5)*TILE })) : null;
+    m.pi = m.path ? Math.min(1, m.path.length-1) : 0;
+  }
+  let tx = quarry.x, ty = quarry.y;
+  if (m.path){
+    while (m.pi < m.path.length && Math.hypot(m.path[m.pi].x-m.x, m.path[m.pi].y-m.y) < 10) m.pi++;
+    if (m.pi < m.path.length){ tx = m.path[m.pi].x; ty = m.path[m.pi].y; }
+  }
+  const ax = tx-m.x, ay = ty-m.y, am = Math.hypot(ax,ay) || 1;
+  m.dir = Math.atan2(ay, ax);
+  moveEnt(m, ax/am*spd*dt, ay/am*spd*dt, 9);
+
+  if (Math.hypot(quarry.x-m.x, quarry.y-m.y) < MIRROR_GRAB_R) mirrorTake(mr, quarry);
+}
+
+// The panes in the world pass: a dark frame and a pale sheet. The BRIGHT half of them is drawn in
+// the additive pass instead (drawMirrorGlow), which is what makes them "sáng hơn hẳn bóng tối của
+// scene nhưng không phát lighting" — they read out of the dark without lighting the floor they
+// stand on, because nothing in buildLight ever knows they exist.
+function drawMirrors(c){
+  const mr = S.mirror;
+  if (!mr) return;
+  for (const pane of [mr.a, mr.b]){
+    const hurt = 1 - clamp(pane.hp/pane.hpMax, 0, 1);
+    c.save(); c.translate(pane.x, pane.y);
+    c.fillStyle = 'rgba(0,0,0,0.45)';
+    c.beginPath(); c.ellipse(0, 13, 13, 4.5, 0, 0, Math.PI*2); c.fill();
+    c.fillStyle = '#2b2f3a';
+    c.fillRect(-12, -20, 24, 34);                    // the frame
+    c.fillStyle = '#c9d7e6';
+    c.fillRect(-9, -17, 18, 28);                     // the glass
+    if (hurt > 0.02){
+      c.strokeStyle = `rgba(40,46,58,${0.5 + hurt*0.5})`; c.lineWidth = 1.2;
+      c.beginPath();
+      c.moveTo(-9, -17 + 28*hurt); c.lineTo(2, -6); c.lineTo(-4, 4); c.lineTo(9, 11);
+      c.stroke();
+    }
+    c.restore();
+  }
+  const m = mr.m;
+  if (!m) return;
+  c.save(); c.translate(m.x, m.y);
+  c.fillStyle = 'rgba(0,0,0,0.45)';
+  c.beginPath(); c.ellipse(0, 9, 10, 4.5, 0, 0, Math.PI*2); c.fill();
+  c.fillStyle = m.lit ? '#7d8ba0' : '#59617a';
+  c.beginPath();
+  c.moveTo(-8, 11); c.lineTo(-6, -12); c.lineTo(0, -17); c.lineTo(6, -12); c.lineTo(8, 11);
+  c.closePath(); c.fill();
+  c.strokeStyle = '#cfe0f0'; c.lineWidth = 1.5; c.globalAlpha = 0.8; c.stroke(); c.globalAlpha = 1;
+  c.fillStyle = '#dff0ff';
+  c.fillRect(-4.4, -11.4, 3.2, 3.2); c.fillRect(1.4, -11.4, 3.2, 3.2);
+  c.restore();
+}
+
+// The additive half: the panes glow, the creature that came out of one is legible in the dark, and
+// neither of them puts a single lumen on the floor.
+function drawMirrorGlow(c){
+  const mr = S.mirror;
+  if (!mr) return;
+  const p = S.player;
+  const beat = 0.62 + 0.38*Math.sin(S.time*3.2);
+  for (const pane of [mr.a, mr.b]){
+    if (!losClear(p.x, p.y, pane.x, pane.y)) continue;
+    const k = clamp(pane.hp/pane.hpMax, 0, 1);
+    const g = c.createLinearGradient(0, pane.y-17, 0, pane.y+11);
+    g.addColorStop(0, `rgba(150,190,235,${0.30*k})`);
+    g.addColorStop(1, `rgba(110,150,200,${0.14*k})`);
+    c.fillStyle = g; c.fillRect(pane.x-9, pane.y-17, 18, 28);
+    glowRing(c, pane.x, pane.y, 17 + beat*2, [150,195,240], 0.42 + beat*0.2, 2.2);
+  }
+  const m = mr.m;
+  if (m && m.reveal > 0.02){
+    glowRing(c, m.x, m.y, 15 + beat*3, [190,215,255], (0.5 + beat*0.25)*m.reveal, 2.6);
+  }
+  const fx = S.mirrorFx;
+  if (fx){
+    const t = fx.t/0.9;
+    c.strokeStyle = `rgba(200,225,255,${(1-t)*0.8})`; c.lineWidth = 2;
+    c.beginPath(); c.arc(fx.x, fx.y, 8 + t*52, 0, Math.PI*2); c.stroke();
+  }
+}
+
+
+// ============================================================ tổ ba người (the crew)
+// Three co-workers who walk into the house with you. They are DELIBERATELY not very good — the
+// owner asked for "3 con bot ngu ngu", and the reason that is the right ask rather than a
+// concession is that a competent partner would play the level for you. What they are for is the
+// feeling that the house is being worked by a crew: someone else's torch swinging in the next
+// room, someone else screaming, someone else's head on the floor.
+//
+// The whole reason they exist mechanically is the rule underneath them: dying is no longer the end
+// of the shift. It pops your head off, and somebody has to come and get it.
+const MATE_COUNT     = 3;
+const MATE_HP        = 80;
+const MATE_SPEED     = 84;        // a shade under the player's run, so they never lead the way
+const MATE_STR       = 34;
+// These four numbers are the difference between "a crew" and "three players who finish the level
+// for you". Measured with the player standing still and the house empty: at the first numbers
+// (react 0.5-1.5, dither 0.18, no distance cap, no fumbling) the crew alone filled 47%, 109% and
+// 0% of the quota across three seeds in 48 seconds — a level they can close out on their own is a
+// level you watch. Retuned to leave roughly two thirds of the haul on the floor for the player.
+const MATE_REACT     = [0.8, 2.2]; // how long before one of them notices anything has changed
+const MATE_DITHER    = 0.30;      // odds that a decision comes out as "stand there for a moment"
+const MATE_FLEE_R    = 4.2*TILE;  // they only look up when something is nearly on them
+const MATE_REPATH    = 1.0;
+const MATE_FOLLOW_R  = [2.5*TILE, 6*TILE];  // how close they hang around you with nothing to do
+const MATE_GRAB_R    = 1.9*TILE;
+const MATE_LOOT_R    = 8*TILE;    // they work the rooms they are in; the far half of the house is yours
+const MATE_FUMBLE    = 0.05;      // per second, while carrying: they put it down and forget why
+const MATE_BREATHER  = [0.8, 2.4]; // and they stand about after every delivery
+const MATE_NAMES     = ['Tổ 2', 'Tổ 3', 'Tổ 4'];
+const MATE_COLS      = [
+  { body:'#5c6f8a', rim:'#b9cbe0', torch:'#ffe0a0' },
+  { body:'#6b5c7d', rim:'#cdbdda', torch:'#ffd9c0' },
+  { body:'#4f7060', rim:'#b4d6c3', torch:'#e6ffd8' }
+];
+
+// Doc B4 said a lost run costs everything. It still does — but only once EVERY head is on the
+// floor. This is the R.E.P.O. rule: the body goes, the head stays, and an extraction that
+// completes with a head standing in it puts that worker back on their feet with one point of
+// health. See docs/proposals/repo-2d-topdown.md F12 and the wiki cited there.
+const HEAD_MASS      = 9;
+const HEAD_R         = 9;
+const REVIVE_HP      = 1;         // exactly what the source game gives back
+const TRUCK_PATCH_HP = 25;        // and what the truck tops you up to at the end of the shift
+
+function makeMate(i, x, y){
+  return {
+    mate: true, id: i, name: MATE_NAMES[i] || ('Tổ ' + (i+2)), col: MATE_COLS[i % MATE_COLS.length],
+    x, y, dir: Math.random()*Math.PI*2,
+    hp: MATE_HP, hpMax: MATE_HP, str: MATE_STR, speed: MATE_SPEED,
+    held: null, down: false, hurt: 0, hit: 0, kx: 0, ky: 0, wob: Math.random()*7,
+    // "ngu ngu", in four numbers: a reaction delay, a chance of dithering, a plan that is only
+    // re-checked once a second, and a target chosen from whatever is nearest rather than whatever
+    // is worth the most.
+    react: mix(MATE_REACT[0], MATE_REACT[1], Math.random()),
+    job: 'idle', target: null, roamTo: null, path: null, pi: 0, pathT: 0, think: 0, idleT: 0,
+    fleeA: 0, fleeT: 0, noise: 0, sayT: 0
+  };
+}
+
+// Everyone in the house who is on your side, dead or alive. The player is always index 0, so a
+// caller that only wants "somebody living" can take the first hit and get the human by preference.
+function crew(){ return S.player ? [S.player].concat(S.mates || []) : (S.mates || []); }
+function crewAlive(){ return crew().filter(a => a && !a.down); }
+function isDown(a){ return !a || !!a.down; }
+
+function spawnCrew(){
+  S.mates = [];
+  if (!S.crewOn) return;
+  const p = S.player;
+  for (let i = 0; i < MATE_COUNT; i++){
+    let x = p.x, y = p.y;
+    for (let k = 0; k < 60; k++){
+      const a = Math.random()*Math.PI*2, r = mix(TILE*1.6, TILE*4, Math.random());
+      const nx = p.x + Math.cos(a)*r, ny = p.y + Math.sin(a)*r;
+      if (hitsSolid(nx, ny, 9)) continue;
+      x = nx; y = ny; break;
+    }
+    S.mates.push(makeMate(i, x, y));
+  }
+}
+
+// ---------------------------------------------------------------- damage, death, heads
+// One damage path for everyone. hurtPlayer stays as the player's door into it because a dozen
+// call sites and every test already know that name.
+function hurtActor(a, n, src, fromX, fromY){
+  if (!a || a.down) return;
+  if (a === S.player){ hurtPlayer(n, src, fromX, fromY); return; }
+  a.hp -= n; a.hurt = 0.45;
+  if (fromX !== undefined){
+    const away = Math.atan2(a.y-fromY, a.x-fromX);
+    const k = Math.min(HIT_KNOCK_MAX, HIT_KNOCK_BASE + n*HIT_KNOCK_PER_DMG);
+    a.kx = Math.cos(away)*k; a.ky = Math.sin(away)*k;
+  }
+  // You hear it happen somewhere in the house even when you cannot see it — that is most of what
+  // makes three walking state machines feel like people.
+  const far = Math.hypot(a.x-S.player.x, a.y-S.player.y);
+  if (far < 16*TILE){ SFX.hit(Math.min(n, 20)); if (far < 8*TILE) fxShake(2); }
+  if (a.hp <= 0){ a.hp = 0; downActor(a); }
+}
+
+// The head. It is a loot item on purpose: carrying, dropping, loading onto the cart and standing
+// on a pad are four systems that already work, and a head has to do all four. Its value is zero,
+// so it moves through the quota arithmetic without ever changing it.
+function makeHead(a){
+  const h = makeLoot(a.x, a.y, SIZES[0], MATERIALS[2], 0);
+  h.isHead = true;
+  h.who = (a === S.player) ? -1 : a.id;
+  h.whoName = (a === S.player) ? 'bạn' : a.name;
+  h.mass = HEAD_MASS; h.r = HEAD_R;
+  h.value = 0; h.value0 = 0;
+  h.grace = S.time + 3;
+  h.bob = Math.random()*6;
+  return h;
+}
+
+function downActor(a){
+  if (!a || a.down) return;
+  if (a.held) dropHeld(a);
+  if (a === S.player && a.pushing) releaseCart(a);
+  a.down = true; a.hp = 0;
+  a.sprint = false; a.sprinting = false;
+  S.loot.push(makeHead(a));
+  S.corpses.push({ x:a.x, y:a.y });
+  fxShake(a === S.player ? 14 : 6);
+  SFX.screech();
+  if (a === S.player){
+    fxFlash(0.5, '150,20,30');
+    toast('Bạn gục rồi. Đầu bạn còn nằm đó — đồng đội phải vác nó tới bệ.');
+  } else {
+    toast(a.name + ' gục rồi. Đầu nằm lại đó.');
+  }
+  if (!crewAlive().length) crewWiped();
+}
+
+function crewWiped(){
+  if (S.dead) return;
+  S.dead = true; S.running = false;
+  showVeil('Ca trực kết thúc',
+    'Cả tổ gục ở màn ' + S.level + '. Còn một người đứng là còn cứu được — hết cả tổ thì mất cả ca.',
+    'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
+}
+
+// An extraction that completes with a head standing in it puts that worker back up. One point of
+// health, which is the source game's number and is meant to feel like a reprieve rather than a
+// reset — see the wiki link in the proposal.
+function reviveFromPad(pad){
+  let n = 0;
+  for (const l of pad.placed.slice()){
+    if (!l.isHead || l.gone) continue;
+    const a = (l.who === -1) ? S.player : (S.mates || []).find(m => m.id === l.who);
+    l.gone = true;
+    const i = pad.placed.indexOf(l); if (i >= 0) pad.placed.splice(i, 1);
+    if (!a || !a.down) continue;
+    a.down = false; a.hp = REVIVE_HP; a.hurt = 0;
+    if (a === S.player) S.spectate = -1;
+    a.x = pad.x + (Math.random()-0.5)*TILE; a.y = pad.y + (Math.random()-0.5)*TILE;
+    a.kx = a.ky = 0;
+    if (a === S.player){ a.stam = a.stamMax; a.blindT = 0; a.slowT = 0; a.stunT = 0; }
+    n++;
+    toast((a === S.player ? 'Bạn' : a.name) + ' đứng dậy — còn ' + REVIVE_HP + ' máu.');
+  }
+  if (n) { fxFlash(0.4, '180,230,255'); SFX.chime(); }
+  return n;
+}
+
+// The truck at the end of the shift patches everyone up to a number you can walk on. Anyone still
+// on the floor when the doors close stays down until the next house.
+function truckPatchUp(){
+  for (const a of crew()){
+    if (!a) continue;
+    if (a.down){ a.down = false; a.hp = TRUCK_PATCH_HP; }
+    else if (a.hp < TRUCK_PATCH_HP) a.hp = TRUCK_PATCH_HP;
+  }
+}
+
+// ---------------------------------------------------------------- the crew's own heads
+function looseHeads(){
+  return S.loot.filter(l => l.isHead && !l.gone && !l.held && !l.inCart && !l.onPad);
+}
+function headBeingCarried(){
+  return S.loot.filter(l => l.isHead && !l.gone && (l.held || l.inCart));
+}
+
+// ---------------------------------------------------------------- the AI
+function mateThreat(a){
+  let worst = null, wd = 1e9;
+  for (const m of S.monsters){
+    if (m.sleep > 0) continue;
+    const d = Math.hypot(m.x-a.x, m.y-a.y);
+    if (m.state !== 'chase' && d > 3*TILE) continue;
+    if (d < wd){ wd = d; worst = m; }
+  }
+  const mr = S.mirror;
+  if (mr && mr.m){
+    const d = Math.hypot(mr.m.x-a.x, mr.m.y-a.y);
+    if (d < wd && d < MATE_FLEE_R){ wd = d; worst = mr.m; }
+  }
+  return worst ? { m:worst, d:wd } : null;
+}
+
+function matePath(a, tx, ty){
+  a.pathT = MATE_REPATH;
+  const sx = clamp((a.x/TILE)|0, 0, MW-1), sy = clamp((a.y/TILE)|0, 0, MH-1);
+  const gx = clamp((tx/TILE)|0, 0, MW-1), gy = clamp((ty/TILE)|0, 0, MH-1);
+  const path = bfsPath(sx, sy, (x,y) => x === gx && y === gy);
+  a.path = path ? path.map(([x,y]) => ({ x:(x+0.5)*TILE, y:(y+0.5)*TILE })) : null;
+  a.pi = a.path ? Math.min(1, a.path.length-1) : 0;
+  return !!a.path;
+}
+
+// Walk the current path. Returns true while there is still somewhere to go.
+function mateWalk(a, dt, spd){
+  if (!a.path) return false;
+  while (a.pi < a.path.length && Math.hypot(a.path[a.pi].x-a.x, a.path[a.pi].y-a.y) < 12) a.pi++;
+  if (a.pi >= a.path.length){ a.path = null; return false; }
+  const wp = a.path[a.pi];
+  const dx = wp.x-a.x, dy = wp.y-a.y, d = Math.hypot(dx,dy) || 1;
+  a.dir = Math.atan2(dy, dx);
+  const before = { x:a.x, y:a.y };
+  moveEnt(a, dx/d*spd*dt, dy/d*spd*dt, 8);
+  if (Math.hypot(a.x-before.x, a.y-before.y) < spd*dt*0.25){
+    a.stuck = (a.stuck || 0) + dt;
+    if (a.stuck > 0.8){ a.stuck = 0; a.path = null; a.pathT = 0; }   // wedged: think again
+  } else a.stuck = 0;
+  return true;
+}
+
+function mateSpeed(a){
+  const w = a.held ? a.held.mass : 0;
+  return Math.max(a.speed * 0.4, a.speed / (1 + w / Math.max(1, a.str)));
+}
+
+function mateSay(a, msg){
+  if (a.sayT > 0) return;
+  a.sayT = 6;
+  if (Math.hypot(a.x-S.player.x, a.y-S.player.y) < 18*TILE) toast(a.name + ': ' + msg);
+}
+
+function stepMates(dt){
+  if (S.shopMode || !S.mates || !S.mates.length) return;
+  for (const a of S.mates){
+    a.wob += dt*4;
+    a.hurt = Math.max(0, a.hurt - dt);
+    a.hit = Math.max(0, a.hit - dt);
+    a.sayT = Math.max(0, a.sayT - dt);
+    if (a.kx || a.ky){
+      moveEnt(a, a.kx*dt, a.ky*dt, 8);
+      a.kx *= Math.pow(0.02, dt); a.ky *= Math.pow(0.02, dt);
+      if (Math.abs(a.kx) < 2) a.kx = 0;
+      if (Math.abs(a.ky) < 2) a.ky = 0;
+    }
+    if (a.down){ a.noise = 0; continue; }
+    if (S.levelDone || S.shiftLost){
+      // Shift over: they head for the truck like everyone else.
+      a.job = 'truck';
+    }
+    a.react = Math.max(0, a.react - dt);
+    a.pathT -= dt;
+    a.idleT = Math.max(0, a.idleT - dt);
+
+    // ---- 1. something is on them. This is the only thing that outranks the job.
+    const th = mateThreat(a);
+    if (th && th.d < MATE_FLEE_R){
+      a.job = 'flee'; a.path = null;
+      a.noise = 2;
+      // Drop anything heavy — except a head. They will not leave a colleague on the floor, which
+      // is the one thing about them that is not dumb.
+      if (a.held && !a.held.isHead && a.held.mass > 20) dropHeld(a);
+      a.fleeT -= dt;
+      if (a.fleeT <= 0){
+        const base = Math.atan2(a.y-th.m.y, a.x-th.m.x);
+        let best = base, bestScore = -1;
+        for (let i = -3; i <= 3; i++){
+          const ang = base + i*0.42;
+          let clear = true;
+          for (let t = 0.2; t <= 1.001; t += 0.2)
+            if (hitsSolid(a.x + Math.cos(ang)*3.5*TILE*t, a.y + Math.sin(ang)*3.5*TILE*t, 9)){ clear = false; break; }
+          const sc = (clear ? 10 : 0) - Math.abs(i)*0.5;
+          if (sc > bestScore){ bestScore = sc; best = ang; }
+        }
+        a.fleeA = best; a.fleeT = 0.7;
+        mateSay(a, 'chạy!');
+      }
+      a.dir = a.fleeA;
+      const sp = mateSpeed(a) * 1.15;
+      moveEnt(a, Math.cos(a.fleeA)*sp*dt, Math.sin(a.fleeA)*sp*dt, 8);
+      continue;
+    }
+
+    // ---- 1b. butterfingers. Never a head — they will not put a colleague down to scratch.
+    if (a.held && !a.held.isHead && Math.random() < MATE_FUMBLE*dt){
+      dropHeld(a);
+      a.job = 'idle'; a.target = null; a.path = null;
+      a.idleT = 0.5 + Math.random();
+      mateSay(a, 'ơ, rơi mất');
+    }
+
+    // ---- 2. dithering. A third of their decisions come out as standing still looking at a wall.
+    if (a.idleT > 0){ a.noise = 0; continue; }
+
+    // ---- 3. pick a job, but only when they get round to it
+    if (a.react <= 0 && (!a.path || a.pathT <= 0 || !a.target)){
+      a.react = mix(MATE_REACT[0], MATE_REACT[1], Math.random());
+      if (Math.random() < MATE_DITHER){ a.idleT = 0.6 + Math.random()*1.2; a.path = null; continue; }
+      mateChooseJob(a);
+    }
+
+    // ---- 4. do it
+    const pad = S.pads[S.padIndex];
+    const spd = mateSpeed(a);
+    a.noise = 1;
+    if (a.job === 'head' && a.target){
+      const h = a.target;
+      if (h.gone || h.held || h.onPad){ a.target = null; a.path = null; a.job = 'idle'; continue; }
+      if (Math.hypot(h.x-a.x, h.y-a.y) < MATE_GRAB_R){
+        if (!a.held){ mateTake(a, h); mateSay(a, 'có đầu ' + (h.whoName || '') + ' rồi'); }
+        a.target = null; a.path = null; a.job = 'idle';
+        continue;
+      }
+      if (!a.path && !matePath(a, h.x, h.y)){ a.target = null; a.job = 'idle'; continue; }
+      mateWalk(a, dt, spd);
+      continue;
+    }
+    if (a.job === 'deliver' && pad && !pad.done){
+      if (Math.abs(a.x-pad.x) < TILE*1.5 && Math.abs(a.y-pad.y) < TILE*1.5){
+        if (a.held) mateDrop(a, pad);
+        a.job = 'idle'; a.path = null; a.target = null;
+        a.idleT = mix(MATE_BREATHER[0], MATE_BREATHER[1], Math.random());   // a breather, every time
+        continue;
+      }
+      if (!a.path && !matePath(a, pad.x, pad.y)){ a.job = 'idle'; continue; }
+      mateWalk(a, dt, spd);
+      continue;
+    }
+    if (a.job === 'loot' && a.target){
+      const l = a.target;
+      if (l.gone || l.held || l.inCart || l.onPad){ a.target = null; a.job = 'idle'; continue; }
+      if (Math.hypot(l.x-a.x, l.y-a.y) < MATE_GRAB_R){
+        if (!a.held) mateTake(a, l);
+        a.target = null; a.path = null; a.job = 'idle';
+        continue;
+      }
+      if (!a.path && !matePath(a, l.x, l.y)){ a.target = null; a.job = 'idle'; continue; }
+      mateWalk(a, dt, spd);
+      continue;
+    }
+    if (a.job === 'roam' && a.roamTo){
+      if (Math.hypot(a.roamTo.x-a.x, a.roamTo.y-a.y) < TILE*1.2){
+        a.job = 'idle'; a.roamTo = null; a.path = null; continue;
+      }
+      if (!a.path && !matePath(a, a.roamTo.x, a.roamTo.y)){ a.job = 'idle'; a.roamTo = null; continue; }
+      mateWalk(a, dt, spd);
+      continue;
+    }
+    if (a.job === 'truck'){
+      if (Math.hypot(a.x-S.car.x, a.y-S.car.y) < TILE*2.2){ a.noise = 0; continue; }
+      if (!a.path && !matePath(a, S.car.x, S.car.y)) { a.noise = 0; continue; }
+      mateWalk(a, dt, spd);
+      continue;
+    }
+    // ---- 5. nothing to do: hang around the player, badly
+    const p = S.player;
+    const d = Math.hypot(a.x-p.x, a.y-p.y);
+    if (d > MATE_FOLLOW_R[1]){
+      if (!a.path) matePath(a, p.x, p.y);
+      mateWalk(a, dt, spd);
+    } else if (d > MATE_FOLLOW_R[0]){
+      const ang = Math.atan2(p.y-a.y, p.x-a.x);
+      a.dir = ang;
+      moveEnt(a, Math.cos(ang)*spd*0.6*dt, Math.sin(ang)*spd*0.6*dt, 8);
+      a.noise = 0.6;
+    } else {
+      a.noise = 0.25;
+      a.think -= dt;
+      if (a.think <= 0){ a.think = 1.2 + Math.random()*2; a.dir = Math.random()*Math.PI*2; }
+    }
+  }
+}
+
+// What a mate decides to do next. The order is the whole personality: a colleague on the floor
+// first, then whatever is in their hands, then the nearest shiny thing — never the most valuable
+// one, because working that out is exactly the kind of thinking they do not do.
+function mateChooseJob(a){
+  const pad = S.pads[S.padIndex];
+  if (S.levelDone || S.shiftLost){ a.job = 'truck'; a.path = null; return; }
+
+  if (a.held){ a.job = 'deliver'; a.path = null; a.target = null; return; }
+
+  const heads = looseHeads();
+  if (heads.length){
+    // whoever is closest to it claims it, so all three do not stampede the same head
+    let best = null, bd = 1e9;
+    for (const h of heads){
+      const mine = Math.hypot(h.x-a.x, h.y-a.y);
+      let closer = false;
+      for (const o of S.mates){
+        if (o === a || o.down) continue;
+        if (o.target === h && Math.hypot(h.x-o.x, h.y-o.y) <= mine){ closer = true; break; }
+      }
+      if (closer) continue;
+      if (mine < bd){ bd = mine; best = h; }
+    }
+    if (best){ a.job = 'head'; a.target = best; a.path = null; return; }
+  }
+
+  if (!pad || pad.done){ a.job = 'idle'; a.target = null; a.path = null; return; }
+  let best = null, bd = MATE_LOOT_R;
+  for (const l of S.loot){
+    if (l.gone || l.held || l.inCart || l.onPad || l.isHead) continue;
+    if (l.sizeIdx >= SIZES.length-1 && Math.random() < 0.5) continue;   // big ones look like work
+    const d = Math.hypot(l.x-a.x, l.y-a.y);
+    if (d < bd){ bd = d; best = l; }
+  }
+  if (best){ a.job = 'loot'; a.target = best; a.path = null; return; }
+
+  // Nothing worth walking to from here. They do NOT stand in the start room waiting for loot to
+  // come to them — capping how far they will fetch (MATE_LOOT_R) without this made them freeze
+  // solid the moment the room they woke up in was empty, and a crew that delivers nothing is not
+  // a crew. They pick a room and go and have a look, which is what puts loot back in range.
+  a.job = 'roam'; a.target = null; a.path = null;
+  for (let i = 0; i < 30; i++){
+    const ri = (Math.random()*(GX*GY))|0;
+    const r = S.rooms[ri];
+    if (!r) continue;
+    const gx = r.cx*RW + 1 + ((Math.random()*(RW-2))|0);
+    const gy = r.cy*RH + 1 + ((Math.random()*(RH-2))|0);
+    if (S.grid[gy*MW+gx] !== FLOOR) continue;
+    const x = (gx+0.5)*TILE, y = (gy+0.5)*TILE;
+    if (hitsSolid(x, y, 9)) continue;
+    a.roamTo = { x, y };
+    return;
+  }
+  a.job = 'idle';
+}
+
+function mateTake(a, l){
+  l.held = true; l.holder = a;
+  l.grace = S.time + GRACE_AFTER_PICKUP;
+  l.vx = l.vy = 0;
+  l.freeX = a.x + Math.cos(a.dir)*(l.r+12);
+  l.freeY = a.y + Math.sin(a.dir)*(l.r+12);
+  a.held = l;
+}
+function mateDrop(a, pad){
+  const l = a.held;
+  if (!l) return;
+  l.held = false; l.holder = null; l.vx = l.vy = 0;
+  l.grace = S.time + 0.35;
+  a.held = null;
+  if (pad && pad.active && !pad.done &&
+      Math.abs(l.x-pad.x) < TILE*1.9 && Math.abs(l.y-pad.y) < TILE*1.9){
+    l.onPad = pad; pad.placed.push(l); recomputePad(pad);
+    if (l.isHead) toast(a.name + ' đặt đầu ' + (l.whoName||'') + ' lên bệ.');
+    else if (l.value > 0) toast(a.name + ' đặt ' + money(l.value) + ' lên bệ.');
+  }
+}
+
+// ---------------------------------------------------------------- drawing
+function drawMates(c){
+  if (S.shopMode || !S.mates) return;
+  for (const a of S.mates){
+    if (a.down) continue;
+    c.save(); c.translate(a.x, a.y);
+    c.fillStyle = 'rgba(0,0,0,0.45)';
+    c.beginPath(); c.ellipse(0, 8, 9, 4, 0, 0, Math.PI*2); c.fill();
+    c.rotate(a.dir);
+    c.fillStyle = a.hurt > 0 ? '#c86a60' : a.col.body;
+    c.beginPath(); c.arc(0, 0, 6.4, 0, Math.PI*2); c.fill();
+    c.strokeStyle = a.col.rim; c.lineWidth = 1.2; c.stroke();
+    c.fillStyle = a.col.torch; c.fillRect(5.5, -1.4, 4.5, 2.8);
+    c.restore();
+  }
+}
+
+// Their torches. Small, warm and cheap: a mate is a light source you can see two rooms away, which
+// is most of what makes the house feel occupied. Drawn INSIDE the player's own visibility clip in
+// buildLight, so a wall still stops it.
+function mateLights(c){
+  if (S.shopMode || !S.mates) return;
+  for (const a of S.mates){
+    if (a.down) continue;
+    if (Math.hypot(a.x-S.player.x, a.y-S.player.y) > LOS_R*1.1) continue;
+    const r = 3.2*TILE;
+    const g = c.createRadialGradient(a.x, a.y, 2, a.x, a.y, r);
+    g.addColorStop(0, 'rgba(226,214,180,0.34)');
+    g.addColorStop(1, 'rgba(226,214,180,0)');
+    c.fillStyle = g; c.fillRect(a.x-r, a.y-r, r*2, r*2);
+  }
+}
+
+// A head on the floor is the single most important thing on the screen when there is one, and it
+// is by definition somewhere you are not. So: it glows through the dark like an aggro'd monster
+// does, and it gets a dot on the minimap.
+function drawHeadGlow(c){
+  if (S.shopMode) return;
+  const beat = 0.62 + 0.38*Math.sin(S.time*3.2);
+  const eye = viewer() || S.player;
+  for (const h of S.loot){
+    if (!h.isHead || h.gone || h.inCart) continue;
+    if (!losClear(eye.x, eye.y, h.x, h.y)) continue;
+    glowRing(c, h.x, h.y, 12 + beat*3, [235,120,120], 0.5 + beat*0.28, 2.4);
+  }
+  for (const a of (S.mates || [])){
+    if (a.down) continue;
+    if (!inSight(a.x, a.y)) continue;
+    glowRing(c, a.x, a.y, 13, [150,200,235], 0.28, 1.6);
+  }
+}
+
 // ============================================================ toast
 function toast(msg){ S.message = msg; S.messageT = 3.2; }
 
@@ -2387,6 +3486,7 @@ function setupInput(){
     if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
     if (k === 'e'){ pickUp(S.player); return; }
     if (k === 'f'){ toggleStash(); return; }
+    if (k === ' '){ toggleSprint(); return; }
     if (k === '1' || k === '2' || k === '3'){ useSlot(S.player, +k - 1); return; }
     keys.add(k);
   });
@@ -2411,6 +3511,10 @@ function setupInput(){
     // SEE: doc C2-4, which moved the grab button to the left thumb precisely so it is used.
     if (S.player && Math.hypot(p.x-hud.grab.x, p.y-hud.grab.y) < hud.grab.r*1.25){
       pickUp(S.player); return;
+    }
+    if (S.player && !S.shopMode &&
+        Math.hypot(p.x-hud.sprint.x, p.y-hud.sprint.y) < hud.sprint.r*1.25){
+      toggleSprint(); return;
     }
     if (S.player && nearTruck(S.player) &&
         Math.hypot(p.x-hud.stash.x, p.y-hud.stash.y) < hud.stash.r*1.25){
@@ -2639,9 +3743,13 @@ function hudLayout(){
   // Grab sits on the LEFT thumb (doc C2-4 — grabbing needs no aim), up and IN from the corner the
   // move thumb rests in, so reaching for it is a deliberate move away from the stick.
   const grab  = { x: pad + R + sr*1.6, y: thumbY - sr*1.35, r: sr*1.25 };
-  // The locker sits above it, on the same thumb, and only appears when the truck is within reach —
+  // Chạy nước rút sits directly above grab, on the same thumb. It is a MOVEMENT control, so it
+  // belongs to the thumb that moves; and it is a toggle, so the press is a tap the move thumb can
+  // make on its way back to the stick rather than something it has to hold.
+  const sprint = { x: grab.x, y: grab.y - sr*3.2, r: sr*1.25 };
+  // The locker sits above both, on the same thumb, and only appears when the truck is within reach —
   // it is a start-room action, not a field one.
-  const stash = { x: grab.x, y: grab.y - sr*2.8, r: sr*1.25 };
+  const stash = { x: grab.x, y: grab.y - sr*6.4, r: sr*1.25 };
   // Where a raised item goes to be put back down: the top-right corner, the way a mobile MOBA does
   // it. It is the furthest point from the thumb that raised it, and on the way to nowhere else.
   const cancel = { x: w - pad - sr*1.6, y: pad + sr*1.6, r: sr*1.6 };
@@ -2649,7 +3757,7 @@ function hudLayout(){
   // found it. Centre-bottom, just above the thumb band: between the two sticks, clear of every
   // button, and squarely in the middle of where the eyes already are.
   const heart = { x: w/2, y: thumbY - Math.min(w,h)*0.075 - 8, r: Math.min(w,h)*0.075 };
-  return { w, h, left, right, slots, grab, stash, cancel, heart, test, pad, thumbY, aimR: R };
+  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, pad, thumbY, aimR: R };
 }
 // Scaled with the truck: the locker button appears when you are standing AT it, and "at it" got
 // bigger when the thing itself did.
@@ -2693,24 +3801,42 @@ function step(dt){
     }
   }
 
-  // Doc C2-3: stick deflection IS the run/walk/sneak control. No extra button, and it gives
-  // the sound-hunting monster something real to hunt.
+  // Rook's slam pins you where you landed. Nothing you press moves you while it lasts.
+  p.stunT = Math.max(0, (p.stunT || 0) - dt);
+  if (p.stunT > 0){ vx = 0; vy = 0; push = 0; p.sprint = false; }
+  // And a head on the floor steers nothing at all. The run keeps going without you.
+  if (p.down){ vx = 0; vy = 0; push = 0; p.sprint = false; p.held = null; }
+
+  // Doc C2-3: stick deflection IS the run/walk/sneak control, and running is the top of it.
   let tier = 0;               // 0 sneak, 1 walk, 2 run
   if (push > 0.85) tier = 2; else if (push > 0.35) tier = 1;
-  if (tier === 2 && p.stam <= 0) tier = 1;
   const moving = !!(vx || vy);
 
-  // Nước rút: hold the run input and the character winds up into a sprint by itself. No gesture,
-  // no cooldown, no button — the cost is stamina and being heard.
-  const runNow = tier === 2 && moving;
-  p.runT = runNow ? p.runT + dt : 0;
-  p.rushing = runNow && S.upg.rush > 0 && p.runT >= RUSH_DELAY && p.stam > 0;
+  // Chạy nước rút: the button. It only does anything while you are actually running, it eats
+  // stamina the whole time it is on, and an empty bar drops you back to a plain run rather than
+  // stopping you — "khi hết thể lực thì thành chạy bình thường".
+  const wantRun = tier === 2 && moving;
+  if (p.sprint && p.stam <= 0){ p.sprint = false; toast('Hết thể lực — về chạy thường.'); }
+  if (!wantRun){
+    p.sprintOffT = (p.sprintOffT || 0) + dt;
+    if (p.sprintOffT > SPRINT_RELEASE) p.sprint = false;
+  } else p.sprintOffT = 0;
+  const sprinting = !!p.sprint && wantRun;
+  p.sprinting = sprinting;
 
-  p.noise = !moving ? 0 : p.rushing ? RUSH_NOISE : tier === 2 ? 2 : tier === 1 ? 1 : 0.25;
+  // Nước rút (the upgrade) is now a second gear ON the sprint, not a thing that happens to you.
+  p.runT = sprinting ? p.runT + dt : 0;
+  p.rushing = sprinting && S.upg.rush > 0 && p.runT >= RUSH_DELAY;
+
+  p.noise = !moving ? 0 : p.rushing ? RUSH_NOISE : sprinting ? SPRINT_NOISE
+          : tier === 2 ? 2 : tier === 1 ? 1 : 0.25;
   if (S.noiseOverride != null) p.noise = S.noiseOverride;
-  let tierMul = tier === 2 ? 1.5 * (1 + S.upg.sprint*0.20) : tier === 1 ? 1.0 : 0.5;
-  if (p.rushing) tierMul *= 1 + RUSH_GAIN*S.upg.rush;
-  if (tier === 2){ p.stam = Math.max(0, p.stam - STAM_DRAIN*dt*(p.rushing ? RUSH_STAM : 1)); }
+  let tierMul = TIER_MUL[tier];
+  if (sprinting){
+    tierMul *= SPRINT_MUL * (1 + S.upg.sprint*0.20);
+    if (p.rushing) tierMul *= 1 + RUSH_GAIN*S.upg.rush;
+  }
+  if (sprinting){ p.stam = Math.max(0, p.stam - STAM_DRAIN*dt*(p.rushing ? RUSH_STAM : 1)); }
   else {
     // Hồi thể lực nhanh: standing still is already the fastest recovery; the upgrade
     // widens that gap, so holding position near a blind hunter pays twice.
@@ -2783,14 +3909,26 @@ function step(dt){
     stepShop(dt);
     if (!S.shopMode) return;                  // the truck took us to the next level mid-step
   } else {
+    stepMates(dt);
     if (!S.noFoes) stepMonsters(dt);
     stepAngel(dt);
+    stepMirror(dt);
     stepProjectiles(dt);
     stepExtraction(dt);
 
     // reaching the car after the last pad ends the level
-    if (S.levelDone && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ finishLevel(); return; }
-    if (S.shiftLost && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ endLostShift(); return; }
+    if (S.levelDone && !p.down && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ truckPatchUp(); finishLevel(); return; }
+    // Down when the last pad closed out? A colleague standing at the truck drives it home for you.
+    if (S.levelDone && p.down && (S.mates||[]).some(a => !a.down && Math.hypot(a.x-S.car.x, a.y-S.car.y) < TILE*2.4)){
+      truckPatchUp(); finishLevel(); return;
+    }
+    // Same for a shift that can no longer be paid: a colleague at the truck calls it. Without
+    // this, being down when the quota became unreachable was a run with NO exit at all — the
+    // player cannot walk to the truck, and the crew's own arrival did nothing.
+    if (S.shiftLost && !p.down && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ endLostShift(); return; }
+    if (S.shiftLost && p.down && (S.mates||[]).some(a => !a.down && Math.hypot(a.x-S.car.x, a.y-S.car.y) < TILE*2.4)){
+      endLostShift(); return;
+    }
     if (lootJustDestroyed){ lootJustDestroyed = false; checkShiftLost(); }
 
     markExplored();
@@ -2804,8 +3942,11 @@ function step(dt){
   // buys a frame that is composed the same way everywhere.
   // In the station the hall is exactly as wide as the frame, so the camera holds it still across and
   // only follows the player down its length.
-  const tx = (S.shopMode ? SHOP_CX : p.x) - vwW()/2;
-  const ty = p.y - vwH()/2;
+  // Down: the camera rides whoever is still working. A screen locked to your own head on the
+  // floor tells you nothing about whether anybody is coming for it.
+  const eye = viewer() || p;
+  const tx = (S.shopMode ? SHOP_CX : eye.x) - vwW()/2;
+  const ty = eye.y - vwH()/2;
   cam.x += (tx-cam.x) * Math.min(1, dt*8);
   cam.y += (ty-cam.y) * Math.min(1, dt*8);
 }
@@ -2847,7 +3988,7 @@ function draw(){
 
   worldTransform(c);
   c.drawImage(S.worldCv, 0, 0);
-  drawPads(c); drawButton(c); drawCart(c); drawLoot(c); drawCar(c); drawMonsters(c); drawAngel(c); drawProjectiles(c); drawPlayer(c);
+  drawPads(c); drawButton(c); drawCart(c); drawLoot(c); drawCar(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawProjectiles(c); drawPlayer(c);
 
   buildLight();
   c.setTransform(1,0,0,1,0,0);
@@ -2866,7 +4007,10 @@ function draw(){
 }
 
 function buildLight(){
-  const c = lightCv.getContext('2d'), p = S.player;
+  const c = lightCv.getContext('2d');
+  // Same rule as the camera: while you are down, the room you can see is the room your colleague
+  // is standing in. Their torch is small, which is most of the horror of being the head.
+  const p = viewer();
   c.setTransform(1,0,0,1,0,0);
   c.globalCompositeOperation = 'source-over';
   // The station has its lights on. It is the one place in this game that is not a dark house, and
@@ -2925,6 +4069,21 @@ function buildLight(){
     c.fillStyle = ag; c.fillRect(an.x-r, an.y-r, r*2, r*2);
     c.restore();
   }
+
+  // Anything that has locked onto the player gets a small pool of its own, which is what lets the
+  // silhouette read through the darkness multiply. It is deliberately colder and dimmer than the
+  // torch: enough to see a shape coming, never enough to light the room it is coming through.
+  for (const m of S.monsters){
+    const k = m.reveal || 0;
+    if (k <= 0.02) continue;
+    const r = TILE*2.2;
+    const mg = c.createRadialGradient(m.x,m.y,2,m.x,m.y,r);
+    mg.addColorStop(0, `rgba(196,176,190,${0.62*k})`);
+    mg.addColorStop(1, 'rgba(196,176,190,0)');
+    c.fillStyle = mg; c.fillRect(m.x-r, m.y-r, r*2, r*2);
+  }
+
+  mateLights(c);
 
   // pads glow so a player can find the active one
   for (const pad of S.pads){
@@ -3000,7 +4159,7 @@ function spawnAngel(){
     if (S.grid[gy*MW+gx] !== FLOOR) continue;
     if (hitsSolid(x, y, 12)) continue;
     if (!losClear(p.x, p.y, x, y)) continue;
-    S.angel = { x, y, t:0, charge:0, marked:false, unlitT:0, phase:'stand', rise:0,
+    S.angel = { x, y, t:0, charge:0, marked:false, armed:false, unlitT:0, phase:'stand', rise:0,
                 face: Math.atan2(p.y-y, p.x-x) };   // it is looking at you
     S.angelFx = { x, y, t:0 };
     fxShake(5); SFX.warp();
@@ -3070,8 +4229,26 @@ function stepAngel(dt){
   a.face = Math.atan2(S.player.y-a.y, S.player.x-a.x);   // always looking at you
   if (a.t < ANGEL_SETTLE) return;                        // the grace: it is only standing there
 
-  if (litByTorch(a.x, a.y)){
-    if (!a.marked){ a.marked = true; toast('Nó vừa nhìn thấy bạn. Giờ nó nhớ mặt.'); }
+  const lit = litByTorch(a.x, a.y);
+
+  // It stands there. Indefinitely. The clock that ends in a swipe does not start until the player
+  // has PUT A TORCH ON IT once — after that, and only after that, darkness counts against them.
+  // WHY: before this the timer started on its own three seconds after it appeared, so a thing that
+  // teleported in behind you clawed you for a mistake you were never shown. Now the punishment is
+  // only ever for looking away from something you had already looked at, which is a decision the
+  // player made rather than one the spawn made for them.
+  // ROOT-CAUSE: the patience clock was keyed to time-since-spawn instead of to the interaction
+  // that gives the player the information the clock is about.
+  // SEE: owner feedback 2026-08-22 — "cho nó xuất hiện xong rồi đứng luôn ở đó cho tới khi có
+  // người rọi đèn vào thì nó mới đếm cái thời gian bị tối".
+  if (!a.armed){
+    if (!lit) return;
+    a.armed = true;
+    a.marked = true;
+    toast('Nó vừa nhìn thấy bạn. Giờ nó nhớ mặt — đừng rời đèn khỏi nó.');
+  }
+
+  if (lit){
     a.unlitT = 0;
     a.charge = Math.min(1, a.charge + dt/ANGEL_CHARGE);
     if (a.charge >= 1) angelRise(a);
@@ -3166,8 +4343,53 @@ const HL_TRUCK  = [140, 190, 230];
 const HL_TARGET = [150, 230, 170];   // green: the one thing the grab button would actually take
 
 // Is this point inside the light the player is casting right now?
-function inSight(x, y){
+// Whose eyes the frame is drawn from. The player, unless the player is a head on the floor, in
+// which case it is the colleague nearest to that head. Every sight test in the draw pass reads
+// this rather than S.player, so "what is lit" and "what the camera shows" can never disagree.
+function viewer(){
   const p = S.player;
+  if (!p || !p.down) return p;
+  const live = (S.mates || []).filter(a => !a.down);
+  if (!live.length) return p;
+  // Whoever the player has chosen to watch, if they are still up; otherwise the one nearest the
+  // head, because that is the one whose progress the player actually cares about.
+  const pick = live.find(a => a.id === S.spectate);
+  if (pick) return pick;
+  const head = S.loot.find(l => l.isHead && !l.gone && l.who === -1);
+  const at = head || p;
+  return live.reduce((b, a) =>
+    Math.hypot(a.x-at.x, a.y-at.y) < Math.hypot(b.x-at.x, b.y-at.y) ? a : b);
+}
+// The one thing a head on the floor can still do: look somewhere else.
+function cycleSpectate(){
+  const live = (S.mates || []).filter(a => !a.down);
+  if (!S.player || !S.player.down || !live.length) return false;
+  const cur = live.findIndex(a => a.id === S.spectate);
+  S.spectate = live[(cur + 1) % live.length].id;
+  toast('Đang xem ' + live[(cur + 1) % live.length].name);
+  return true;
+}
+
+// A monster that has locked onto you is DRAWN, beam or no beam. Doc B3's darkness rule was
+// "outside the beam it stays invisible", and that is still true of everything that has not seen
+// you — but a thing already running at you is information the player has earned by being caught,
+// and hiding it turned every chase into damage arriving from an empty screen.
+// Line of sight still applies: a wall hides it, exactly as a wall hides everything else.
+// SEE: owner feedback 2026-08-22 — "cho quái hiện hình chuẩn luôn khi agro player".
+const REVEAL_R    = 11 * TILE;   // as far as an aggro'd thing shows from
+const REVEAL_FADE = 0.28;        // seconds to fade in, so it resolves out of the dark rather than popping
+function foeRevealed(m){
+  if (m.sleep > 0) return false;
+  if (m.state !== 'chase' && !m.charging) return false;
+  const p = S.player;
+  if (Math.hypot(p.x-m.x, p.y-m.y) > REVEAL_R) return false;
+  return losClear(p.x, p.y, m.x, m.y);
+}
+// What the draw passes actually read: the fade-in, stepped once per frame in stepMonsters.
+function foeVisible(m){ return inSight(m.x, m.y) || (m.reveal || 0) > 0.02; }
+
+function inSight(x, y){
+  const p = viewer();
   const dx = x-p.x, dy = y-p.y;
   const d = Math.hypot(dx, dy);
   if (d > Math.max(coneRadius(p), PERIPH_R)) return false;
@@ -3215,9 +4437,9 @@ function drawHighlights(c){
   // "there is something in front of me" is the one piece of information this game must never make
   // you squint for. Outside the beam it stays invisible — that half is the point of the game.
   for (const m of S.monsters){
-    if (!inSight(m.x, m.y)) continue;
+    if (!foeVisible(m)) continue;
     const d = MONSTERS[m.type];
-    const hunting = m.state === 'chase';
+    const hunting = m.state === 'chase' || m.charging;
     if (m.sleep > 0){
       glowRing(c, m.x, m.y, 15, [130,170,200], 0.30, 1.6);
     } else {
@@ -3225,6 +4447,31 @@ function drawHighlights(c){
                hunting ? 0.62 + beat*0.3 : 0.36, hunting ? 2.8 : 1.8);
     }
   }
+
+  // The rook's wind-up, drawn as the LANE it is about to occupy. Three seconds of warning are
+  // worth nothing if the warning does not say where — the counter-play to this monster is one step
+  // sideways, and a step sideways needs a line to step out of.
+  for (const m of S.monsters){
+    if (m.type !== 'rook' || !foeVisible(m)) continue;
+    if (m.rook === 'wind'){
+      const k = clamp(m.windT/ROOK_WIND, 0, 1);
+      const len = Math.max(4*TILE, Math.hypot(p.x-m.x, p.y-m.y) * ROOK_OVERSHOOT[0]);
+      c.save();
+      c.strokeStyle = `rgba(255,201,78,${0.10 + k*0.34})`;
+      c.lineWidth = 2 + k*10;
+      c.beginPath();
+      c.moveTo(m.x + Math.cos(m.dir)*16, m.y + Math.sin(m.dir)*16);
+      c.lineTo(m.x + Math.cos(m.dir)*len, m.y + Math.sin(m.dir)*len);
+      c.stroke();
+      c.restore();
+      glowRing(c, m.x, m.y, 16 + (1-k)*16, [255,201,78], 0.30 + k*0.5, 2.4);
+    } else if (m.rook === 'stun'){
+      glowRing(c, m.x, m.y, 15, [230,200,120], 0.24, 1.6);
+    }
+  }
+
+  drawHeadGlow(c);
+  drawMirrorGlow(c);
 
   // The truck: the locker lives on it, and the locker button only appears when you are close, so
   // the truck has to say "come here" from further away than the button does.
@@ -3369,6 +4616,24 @@ function drawLoot(c){
   for (const l of S.loot){
     if (l.gone) continue;
     const y = l.held ? l.y : l.y + Math.sin(S.time*2.4 + l.bob)*1.2;
+    // A colleague's head. It goes through the loot pipeline because it has to be carried, dropped,
+    // loaded and stood on a pad — but it must never LOOK like something you sell.
+    if (l.isHead){
+      c.beginPath(); c.fillStyle = 'rgba(0,0,0,0.45)';
+      c.ellipse(l.x, y + l.r*0.7, l.r*0.9, l.r*0.42, 0, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.fillStyle = '#cfcbb9';
+      c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
+      c.lineWidth = 1.6; c.strokeStyle = '#7d4a46'; c.stroke();
+      c.fillStyle = '#3a2f2c';
+      c.fillRect(l.x-4.2, y-2.4, 2.6, 2.6); c.fillRect(l.x+1.6, y-2.4, 2.6, 2.6);
+      c.strokeStyle = 'rgba(58,47,44,0.9)'; c.lineWidth = 1.1;
+      c.beginPath(); c.moveTo(l.x-3, y+4); c.lineTo(l.x+3, y+4); c.stroke();
+      c.font = '600 10px ui-sans-serif, system-ui'; c.textAlign = 'center';
+      c.fillStyle = '#e6b8b0';
+      c.fillText('Đầu ' + (l.whoName || ''), l.x, y - l.r - 5);
+      c.textAlign = 'left';
+      continue;
+    }
     c.beginPath(); c.fillStyle = 'rgba(0,0,0,0.4)';
     c.ellipse(l.x, y + l.r*0.7, l.r*0.9, l.r*0.42, 0, 0, Math.PI*2); c.fill();
     c.beginPath();
@@ -3405,6 +4670,27 @@ function drawMonsters(c){
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0,9,10,4.5,0,0,Math.PI*2); c.fill();
     c.fillStyle = d.col;
+    if (m.type === 'rook'){
+      // Bulk, and a nose. It is the only thing in the house whose FACING is a threat on its own,
+      // so the silhouette has to say which way it is pointed from across a dark room.
+      c.rotate(m.dir);
+      const wind = m.rook === 'wind' ? clamp(m.windT/ROOK_WIND, 0, 1) : 0;
+      c.translate(-wind*4, 0);                       // it rocks backwards as it loads
+      c.beginPath();
+      c.moveTo(14,0); c.lineTo(2,-11); c.lineTo(-11,-9); c.lineTo(-11,9); c.lineTo(2,11);
+      c.closePath(); c.fill();
+      c.strokeStyle = d.rim; c.lineWidth = 1.6; c.globalAlpha = 0.8; c.stroke(); c.globalAlpha = 1;
+      if (m.rook === 'stun'){
+        c.rotate(-m.dir);
+        c.strokeStyle = 'rgba(230,200,120,0.9)'; c.lineWidth = 1.4;
+        c.beginPath(); c.arc(0,-15,4.5, 0, Math.PI*2); c.stroke();
+      } else {
+        c.fillStyle = m.rook === 'wind' || m.rook === 'dash' ? d.eye : 'rgba(190,170,150,0.9)';
+        c.fillRect(4,-4.6,3.4,3.2); c.fillRect(4,1.4,3.4,3.2);
+      }
+      c.restore();
+      continue;
+    }
     c.beginPath();
     c.moveTo(-9,10); c.lineTo(-7,-9+s); c.lineTo(0,-14); c.lineTo(7,-9-s); c.lineTo(9,10);
     c.closePath(); c.fill();
@@ -3439,6 +4725,7 @@ function drawProjectiles(c){
 }
 function drawPlayer(c){
   const p = S.player;
+  if (p.down) return;                    // your head is on the floor, drawn with the loot
   const at = playerDrawPos();
   if (!at) return;                       // inside the van
   const a0 = c.globalAlpha;
@@ -3541,6 +4828,7 @@ function drawHud(c){
   c.fillStyle = '#4c8f96'; c.fillRect(bx,by+bh+4,bw*clamp(p.stam/p.stamMax,0,1),bh-3);
 
   drawMinimap(c, hud);
+  drawCrewStrip(c, hud);
 
   drawPops(c);
   if (S.countdownActive) drawCountdown(c, hud);
@@ -3605,16 +4893,39 @@ function drawHud(c){
   drawHeart(c, hud.heart.x, hud.heart.y, hud.heart.r);
 
   // grab button, left side
-  const near = nearestLoot(p);
-  const grabLit = near || p.held || p.pushing || nearCart(p);
+  const near = p.down ? null : nearestLoot(p);
+  const grabLit = p.down ? (S.mates || []).some(a => !a.down)
+                        : !!(near || p.held || p.pushing || nearCart(p));
   c.beginPath();
   c.fillStyle = grabLit ? 'rgba(14,34,24,0.72)' : 'rgba(16,18,20,0.55)';
   c.arc(hud.grab.x, hud.grab.y, hud.grab.r, 0, Math.PI*2); c.fill();
   ring(c, hud.grab.x, hud.grab.y, hud.grab.r, grabLit ? 'rgba(80,190,120,0.9)' : 'rgba(70,90,78,0.45)');
   c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
   c.fillStyle = grabLit ? '#e6ebee' : '#6a6f74';
-  const grabLabel = p.pushing ? 'Buông' : p.held ? 'Thả' : nearCart(p) && !near ? 'Đẩy xe' : 'Nhặt';
+  const grabLabel = p.down ? 'Xem' : p.pushing ? 'Buông' : p.held ? 'Thả'
+                   : nearCart(p) && !near ? 'Đẩy xe' : 'Nhặt';
   c.fillText(grabLabel, hud.grab.x, hud.grab.y+4);
+
+  // sprint button. Three states worth telling apart at a glance while something is chasing you:
+  // off, on-and-burning, and empty (the bar ran out and you are back to a plain run).
+  if (!S.shopMode){
+    const sp = hud.sprint;
+    const empty = p.stam < SPRINT_MIN;
+    const live = p.sprinting;
+    c.beginPath();
+    c.fillStyle = live ? 'rgba(46,30,10,0.8)' : empty ? 'rgba(16,18,20,0.55)' : 'rgba(30,28,16,0.7)';
+    c.arc(sp.x, sp.y, sp.r, 0, Math.PI*2); c.fill();
+    // the stamina bar wrapped around the button itself — the number that decides whether pressing
+    // it does anything, drawn on the thing you press
+    c.beginPath(); c.strokeStyle = 'rgba(76,143,150,0.85)'; c.lineWidth = 3;
+    c.arc(sp.x, sp.y, sp.r + 3, -Math.PI/2, -Math.PI/2 + Math.PI*2*clamp(p.stam/p.stamMax,0,1));
+    c.stroke();
+    ring(c, sp.x, sp.y, sp.r, live ? 'rgba(240,190,70,0.95)'
+                             : empty ? 'rgba(90,84,66,0.45)' : 'rgba(190,160,70,0.7)');
+    c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
+    c.fillStyle = live ? '#ffe6a8' : empty ? '#6a6f74' : '#d8cfa8';
+    c.fillText(p.sprint ? 'Đang rút' : 'Rút', sp.x, sp.y+4);
+  }
 
   // locker button — only while you are standing at the truck
   if (nearTruck(p)){
@@ -3641,6 +4952,47 @@ function drawHud(c){
 
   c.restore();
 }
+// Three small bars under your own, one per colleague. WHY it is worth the space: the whole point
+// of the crew is that the level is being worked by four people, and a teammate you cannot check on
+// is a teammate you will not notice dying. A downed one shows a head instead of a bar, and the
+// banner underneath is the only place the game explains what being dead now means.
+function drawCrewStrip(c, hud){
+  if (S.shopMode || !S.mates || !S.mates.length) return;
+  const x = 14, y0 = 40, w = Math.min(120, hud.w*0.30), h = 5;
+  c.font = '600 9px ui-monospace, monospace';
+  for (let i = 0; i < S.mates.length; i++){
+    const a = S.mates[i], y = y0 + i*11;
+    c.fillStyle = 'rgba(10,12,14,0.6)'; c.fillRect(x-3, y-3, w+34, h+5);
+    c.fillStyle = a.down ? '#5a3030' : '#24303c';
+    c.fillRect(x, y, w, h);
+    if (!a.down){
+      c.fillStyle = a.col.rim;
+      c.fillRect(x, y, w*clamp(a.hp/a.hpMax, 0, 1), h);
+    }
+    c.fillStyle = a.down ? '#e08a8a' : '#9fb2c4';
+    c.fillText(a.down ? a.name + ' ✝' : a.name, x + w + 5, y + h);
+  }
+  const p = S.player;
+  if (p.down){
+    const carried = S.loot.some(l => l.isHead && !l.gone && l.who === -1 && (l.held || l.inCart));
+    const onPad   = S.loot.some(l => l.isHead && !l.gone && l.who === -1 && l.onPad);
+    const msg = onPad   ? 'Đầu bạn đã ở trên bệ — bệ giao xong là bạn đứng dậy.'
+              : carried ? 'Đồng đội đang vác đầu bạn tới bệ.'
+                        : 'Bạn gục rồi. Chờ đồng đội tới nhặt đầu bạn mang ra bệ.';
+    const watching = viewer();
+    c.font = '600 13px ui-sans-serif, system-ui'; c.textAlign = 'center';
+    c.fillStyle = 'rgba(8,10,13,0.72)';
+    c.fillRect(0, hud.h*0.32, hud.w, 46);
+    c.fillStyle = '#e6b8b0';
+    c.fillText(msg, hud.w/2, hud.h*0.32 + 20);
+    if (watching && watching !== p){
+      c.font = '600 11px ui-monospace, monospace'; c.fillStyle = '#9fb2c4';
+      c.fillText('đang xem ' + watching.name + ' — bấm Xem để đổi', hud.w/2, hud.h*0.32 + 38);
+    }
+    c.textAlign = 'left';
+  }
+}
+
 // A raised item, drawn the way a mobile MOBA draws a raised skill: a stick under the thumb that
 // says which way, a line out of the CHARACTER that says where it lands, and one target in the far
 // corner that says how to put it down again.
@@ -3869,6 +5221,21 @@ function drawMinimap(c, hud){
   }
   c.fillStyle = '#7fb6e0';
   c.fillRect(x + S.car.x/TILE*sx - 3.5, y + S.car.y/TILE*sy - 3.5, 7, 7);
+
+  // The crew. Heads are drawn ALWAYS, explored or not, and they pulse: this is the R.E.P.O. rule
+  // that a dead colleague shows on the map as a red dot, and it is the only way a player who has
+  // just watched a mate die two rooms away can find what is left of them.
+  const pulse = 0.55 + 0.45*Math.sin(S.time*4);
+  for (const a of (S.mates || [])){
+    if (a.down) continue;
+    c.fillStyle = a.col.rim;
+    c.fillRect(x + a.x/TILE*sx - 2, y + a.y/TILE*sy - 2, 4, 4);
+  }
+  for (const l of S.loot){
+    if (!l.isHead || l.gone) continue;
+    c.fillStyle = `rgba(240,90,90,${0.55 + pulse*0.45})`;
+    c.fillRect(x + l.x/TILE*sx - 3, y + l.y/TILE*sy - 3, 6, 6);
+  }
   // The real path, walked tile by tile around the walls — never a straight line through them.
   // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
   if (MINIMAP_ROUTE_ALWAYS || tracked || S.levelDone){
@@ -3956,7 +5323,7 @@ function applyUpgrades(){
 // still there next level.
 function toggleStash(){
   if (S.stashOpen){ closeStash(); return; }
-  if (!S.player || S.dead || !S.running) return;   // never over the shop or the intro veil
+  if (!S.player || S.dead || S.player.down || !S.running) return;   // never over the shop or the intro veil
   if (!nearTruck(S.player)){ toast('Phải đứng cạnh xe mới mở được tủ đồ'); return; }
   S.stashOpen = true;
   S.running = false;
@@ -4167,8 +5534,50 @@ window.REPO = {
                  hurtT:FX.hurtT, tickPulse:FX.tickPulse, pops:FX.pops.map(q=>q.text) }; },
   threat(){ return threatLevel(); },
   spawnAngel, litByTorch,
+  // tổ ba người
+  crew, crewAlive, downActor, reviveFromPad, truckPatchUp, spawnCrew, viewer, cycleSpectate,
+  CREW: { COUNT:MATE_COUNT, HP:MATE_HP, SPEED:MATE_SPEED, FLEE_R:MATE_FLEE_R,
+          REVIVE_HP:REVIVE_HP, TRUCK_HP:TRUCK_PATCH_HP, HEAD_MASS:HEAD_MASS },
+  mates(){ return (S.mates || []).map(a => ({ id:a.id, name:a.name, x:a.x, y:a.y, hp:a.hp,
+             hpMax:a.hpMax, down:a.down, job:a.job, held: a.held ? (a.held.isHead ? 'head' : 'loot') : null,
+             target: a.target ? { x:a.target.x, y:a.target.y, isHead: !!a.target.isHead } : null })); },
+  heads(){ return S.loot.filter(l => l.isHead && !l.gone).map(l => ({
+             who:l.who, whoName:l.whoName, x:l.x, y:l.y, held:!!l.held,
+             onPad:!!l.onPad, inCart:!!l.inCart, value:l.value })); },
+  setCrew(on){ S.crewOn = !!on; if (!on) S.mates = []; else if (!S.mates.length) spawnCrew(); },
+  killMate(i){ const a = (S.mates||[])[i]; if (a) downActor(a); return !!a; },
+  killPlayer(){ downActor(S.player); return true; },
+  toggleSprint,
+  SPRINT: { MUL:SPRINT_MUL, NOISE:SPRINT_NOISE, MIN:SPRINT_MIN, RELEASE:SPRINT_RELEASE,
+            BASE:PLAYER_BASE_SPEED, TIER:TIER_MUL, DRAIN:STAM_DRAIN, REGEN:STAM_REGEN },
+  // Kẻ soi gương
+  spawnMirrors, damageMirror,
+  MIRROR: { EVERY:MIRROR_EVERY, EMERGE:MIRROR_EMERGE, SPEED:MIRROR_SPEED, FAR:MIRROR_FAR,
+            SLOW_FLOOR:MIRROR_SLOW_FLOOR, TORCH_MUL:MIRROR_TORCH_MUL, HP:MIRROR_HP,
+            GRAB_R:MIRROR_GRAB_R, NEAR:MIRROR_NEAR, R:MIRROR_R },
+  mirror(){
+    const mr = S.mirror;
+    if (!mr) return null;
+    const pane = q => ({ x:q.x, y:q.y, hp:q.hp, hpMax:q.hpMax, ri:q.ri });
+    return { phase:mr.phase, t:mr.t, a:pane(mr.a), b:pane(mr.b),
+             master: mr.m ? { x:mr.m.x, y:mr.m.y, lit:mr.m.lit, reveal:mr.m.reveal,
+                              away: Math.hypot(mr.m.x-mr.a.x, mr.m.y-mr.a.y) } : null };
+  },
+  mirrorTimer(){ return S.mirrorTimer; },
+  // Kẻ húc
+  ROOK: { WIND:ROOK_WIND, DASH_SPEED:ROOK_DASH_SPEED, OVERSHOOT:ROOK_OVERSHOOT,
+          SELF_STUN:ROOK_SELF_STUN, LINGER:ROOK_LINGER, PLAYER_STUN:ROOK_PLAYER_STUN,
+          WALL_DMG:ROOK_WALL_DMG, FOE_DMG:ROOK_FOE_DMG, HIT_R:ROOK_HIT_R, SIGHT:MONSTERS.rook.sight },
+  rooks(){ return S.monsters.filter(m => m.type === 'rook').map(m => ({
+             x:m.x, y:m.y, dir:m.dir, phase:m.rook, windT:m.windT, stun:m.stun,
+             dashLeft:m.dashLeft, dashSpan:m.dashSpan || 0, dashAim:m.dashAim || 0,
+             goal:m.goal ? { x:m.goal.x, y:m.goal.y, ri:m.goal.ri } : null,
+             linger:m.linger, hp:m.hp })); },
+  foeRevealed(i){ return foeRevealed(S.monsters[i||0]); },
+  revealed(){ return S.monsters.map(m => m.reveal || 0); },
+  MONSTERS, LEVEL_MONSTERS,
   angel(){ const a = S.angel;
-           return a ? { x:a.x, y:a.y, t:a.t, charge:a.charge, marked:a.marked,
+           return a ? { x:a.x, y:a.y, t:a.t, charge:a.charge, marked:a.marked, armed:!!a.armed,
                         unlitT:a.unlitT, phase:a.phase } : null; },
   lightZones(){ return S.lightZones.map(z => ({ x:z.x, y:z.y, r:z.r, t:z.t })); },
   angelTimer(){ return S.angelTimer; },
@@ -4220,6 +5629,11 @@ window.REPO = {
       stash: S.stash.map(it => ({ kind:it.kind, uses:it.uses })),
       pushing: !!(p && p.pushing),
       rushing: !!(p && p.rushing), speedMul: p ? (p.speedMul || 0) : 0, runT: p ? (p.runT || 0) : 0,
+      sprint: !!(p && p.sprint), sprinting: !!(p && p.sprinting), stunT: p ? (p.stunT || 0) : 0,
+      down: !!(p && p.down),
+      crew: (S.mates || []).map(a => ({ name:a.name, hp:a.hp, down:a.down, job:a.job })),
+      crewAlive: crewAlive().length,
+      heads: S.loot.filter(l => l.isHead && !l.gone).length,
       blindT: p ? (p.blindT || 0) : 0, slowT: p ? (p.slowT || 0) : 0,
       knock: p ? Math.hypot(p.kx || 0, p.ky || 0) : 0,
       cart: S.cart ? { x:S.cart.x, y:S.cart.y, items:S.cart.items.length, value:cartValue(S.cart),
@@ -4235,7 +5649,8 @@ window.REPO = {
       chasing: S.monsters.filter(m=>m.state==='chase').length,
       hunting: S.monsters.filter(m=>m.state==='hunt').length,
       foes: S.monsters.map(m=>({ type:m.type, x:m.x, y:m.y, state:m.state,
-                                 alert:m.alert, lost:m.lost, tx:m.tx, ty:m.ty })),
+                                 alert:m.alert, lost:m.lost, tx:m.tx, ty:m.ty,
+                                 reveal:m.reveal || 0, rook:m.rook || null })),
       pads: S.pads.map(q=>({ quota:q.quota, value:q.value, done:q.done, active:q.active, ri:q.ri })),
       carRoom: 0, GX, GY,
       padIndex: S.padIndex,

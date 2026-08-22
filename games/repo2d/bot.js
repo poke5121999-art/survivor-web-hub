@@ -23,13 +23,13 @@ const bot = {
   state: ST.IDLE,
   path: null, pathT: 0, target: null, targetKind: null,
   lastX: 0, lastY: 0, stuckT: 0, replanT: 0,
-  fleeT: 0, shootCd: 0, dropCd: 0, lastWanted: false, unstickT: 0, unstickA: 0,
+  fleeT: 0, fleeA: undefined, shootCd: 0, dropCd: 0, lastWanted: false, unstickT: 0, unstickA: 0,
   moved: 0, window: 0, freezeT: 0, creepT: 0, lootLock: null, lockT: 0,
   stats: { picked: 0, dropped: 0, broken: 0, shots: 0, replans: 0, stucks: 0 },
 
   reset(){
     this.state = ST.IDLE; this.path = null; this.target = null; this.targetKind = null;
-    this.stuckT = 0; this.replanT = 0; this.fleeT = 0; this.shootCd = 0; this.dropCd = 0; this.lastWanted = false;
+    this.stuckT = 0; this.replanT = 0; this.fleeT = 0; this.fleeA = undefined; this.shootCd = 0; this.dropCd = 0; this.lastWanted = false;
     this.moved = 0; this.window = 0; this.stuckWhere = []; this.freezeT = 0; this.creepT = 0; this.lootLock = null; this.lockT = 0;
     this.stats = { picked:0, dropped:0, broken:0, shots:0, replans:0, stucks:0 };
   },
@@ -165,9 +165,38 @@ const bot = {
     // forgotten at one of them.
     const A = R();
     const a = A && A.S && A.S.angel;
-    if (a && a.phase === 'stand' && a.t >= (A.ANGEL ? A.ANGEL.SETTLE : 3)){
+    if (a && a.phase === 'stand' && a.t >= (A.ANGEL ? A.ANGEL.SETTLE : 3) && A.S.player){
       const p = A.S.player;
-      if (p) r.look = Math.atan2(a.y - p.y, a.x - p.x);
+      r.look = Math.atan2(a.y - p.y, a.x - p.x);
+      // Looking at it is not the same as LIGHTING it. The agent used to keep the facing on the
+      // AEngel while its feet carried it out of torch range, which fills nothing and — now that
+      // the clock only starts once the beam has touched it once — is the exact way to arm the
+      // thing with a glance and then be clawed for walking off. So: close to inside the beam's
+      // reach, then STAND THERE until it fills. The only thing that outranks this is a monster
+      // already on you, because a statue cannot kill you and a patrol can.
+      const d = Math.hypot(a.x - p.x, a.y - p.y);
+      const cone = A.coneRadius(p);
+      const th = this.threat();
+      if ((!th || th.d > 4.2*A.TILE) && A.losClear(p.x, p.y, a.x, a.y)){
+        if (d > cone*0.8){ r.vx = Math.cos(r.look); r.vy = Math.sin(r.look); r.push = 0.6; }
+        else { r.vx = 0; r.vy = 0; r.push = 0; }
+      }
+    }
+    // The sprint button, driven the way a player drives it: on when something is on you and you
+    // are running flat out, off the rest of the time so the bar refills. Done HERE for the same
+    // reason the AEngel rule is — _think returns from eight places and this rule must hold at all
+    // of them. WHY it exists at all: with the base speed set under a chase, a bot that never
+    // presses this can no longer escape anything, and the whole soak run dies inside a minute.
+    if (A && A.toggleSprint && A.S && A.S.player){
+      const p = A.S.player;
+      const th = this.threat();
+      // Anything within six tiles and the agent stops strolling. WHY: the walk tier is now barely
+      // faster than a patrol's chase, so ambling toward a pad with something two rooms away and
+      // closing is how the agent used to get chewed from behind while its own state machine still
+      // said "tới bệ".
+      if (th && th.d < 6*A.TILE && (r.vx || r.vy)) r.push = 1;
+      const want = !!((r.vx || r.vy) && (r.push || 0) > 0.85 && th && p.stam > (A.SPRINT ? A.SPRINT.MIN : 8));
+      if (want !== !!p.sprint) A.toggleSprint();
     }
     this.lastWanted = !!(r.vx || r.vy);
     return r;
@@ -176,7 +205,8 @@ const bot = {
   _think(dt){
     const A = R(); if (!A) return { vx:0, vy:0, push:0 };
     const S = A.S, p = S.player;
-    if (!p || !S.running || S.dead) return { vx:0, vy:0, push:0 };
+    // A head on the floor drives nothing. The crew's own AI takes it from here — see stepMates.
+    if (!p || !S.running || S.dead || p.down) return { vx:0, vy:0, push:0 };
 
     this.replanT -= dt; this.shootCd -= dt; this.fleeT -= dt; this.dropCd -= dt;
 
@@ -246,23 +276,62 @@ const bot = {
         return { vx:Math.cos(bestA), vy:Math.sin(bestA), push:0.3, look };   // sneak, stays quiet
       }
       // Loot is worth less than the run. A loaded player cannot outrun anything.
-      if (th.d < 2.6*A.TILE && p.held && p.held.mass > 20){
+      // The two radii below were 2.6 and 3.4 tiles, set when the player ran at 132 px/s and could
+      // stroll away from anything in the house. At 92 the walk tier is a dead heat with a patrol's
+      // chase, so a threat noticed at three tiles is a threat already on you: both moved out.
+      if (th.d < 4.0*A.TILE && p.held && p.held.mass > 20){
         A.dropHeld(p); this.dropCd = 0.6; this.path = null; this.target = null;
       }
-      if (th.d < 3.4*A.TILE){
-        this.state = ST.FLEE; this.fleeT = 0.8; this.path = null;
-        const ax = p.x-th.m.x, ay = p.y-th.m.y, am = Math.hypot(ax,ay)||1;
-        // pick the clearest escape near "directly away", so fleeing does not mean
-        // reversing into a wall and standing there being hit
-        let bestA = Math.atan2(ay,ax), bestClear = -1;
-        for (let i=-3;i<=3;i++){
-          const a = Math.atan2(ay,ax) + i*0.42;
-          const ok = this.clearWalk(p.x, p.y, p.x+Math.cos(a)*A.TILE*2.5, p.y+Math.sin(a)*A.TILE*2.5);
-          const score = (ok?10:0) - Math.abs(i)*0.5;
-          if (score > bestClear){ bestClear = score; bestA = a; }
+      if (th.d < 5.2*A.TILE){
+        this.state = ST.FLEE;
+        const ax = p.x-th.m.x, ay = p.y-th.m.y;
+        // COMMIT to an escape heading and hold it. `fleeT` was set here and never read, so the
+        // heading was re-chosen from scratch every frame; each frame's winner differed by a few
+        // degrees, the agent oscillated on the spot, and it gained no ground at all. Measured on
+        // a soak after the base speed dropped to 92: thirteen seconds of sprinting with the
+        // chaser parked at 100-125 px the entire time, which is a monster that never has to be
+        // faster than you to kill you. It re-picks only when the committed lane stops being clear.
+        // ROOT-CAUSE: a decision meant to last was recomputed at the tick rate.
+        // First choice: an actual ROUTE to somewhere ten tiles away on the far side of the house,
+        // walked with the same path-follower the agent uses for loot. A raycast heading can only
+        // see as far as it casts, which is how the agent used to sprint into the corner of the room
+        // it was already in and stand there being hit while its distance read-out never moved.
+        if (this.fleeT <= 0 || !this.path){
+          const base = Math.atan2(ay, ax);
+          let planned = false;
+          for (const off of [0, 0.5, -0.5, 1.0, -1.0, 1.7, -1.7, 2.5, -2.5]){
+            const a2 = base + off;
+            const x = p.x + Math.cos(a2)*10*A.TILE, y = p.y + Math.sin(a2)*10*A.TILE;
+            if (x < A.TILE || y < A.TILE || x > (A.MW-1)*A.TILE || y > (A.MH-1)*A.TILE) continue;
+            if (A.hitsSolid(x, y, 9)) continue;
+            if (this.planTo(x, y)){ planned = true; break; }
+          }
+          this.fleeT = planned ? 1.1 : 0.25;
+        }
+        const route = this.follow(dt);
+        if (route){
+          const quietRun = th.m.type === 'listen' && th.d > 2.2*A.TILE;
+          return { vx:route.x, vy:route.y, push: quietRun ? 0.3 : 1, look };
+        }
+        // No route out: fall back to the old "pick the clearest lane and commit to it".
+        const stale = this.fleeT <= 0 || this.fleeA === undefined ||
+              !this.clearWalk(p.x, p.y, p.x+Math.cos(this.fleeA)*A.TILE*3.5,
+                                        p.y+Math.sin(this.fleeA)*A.TILE*3.5);
+        if (stale){
+          // Look FURTHER than the old 2.5 tiles: a lane that is clear for two tiles and walled at
+          // three is the lane that gets you cornered.
+          let bestA = Math.atan2(ay,ax), bestClear = -1;
+          for (let i=-4;i<=4;i++){
+            const a = Math.atan2(ay,ax) + i*0.38;
+            const far  = this.clearWalk(p.x, p.y, p.x+Math.cos(a)*A.TILE*4.5, p.y+Math.sin(a)*A.TILE*4.5);
+            const near = this.clearWalk(p.x, p.y, p.x+Math.cos(a)*A.TILE*2.0, p.y+Math.sin(a)*A.TILE*2.0);
+            const score = (far?10:0) + (near?4:0) - Math.abs(i)*0.5;
+            if (score > bestClear){ bestClear = score; bestA = a; }
+          }
+          this.fleeA = bestA; this.fleeT = 0.8;
         }
         const quiet = th.m.type === 'listen' && th.d > 2.2*A.TILE;
-        return { vx:Math.cos(bestA), vy:Math.sin(bestA), push: quiet ? 0.3 : 1, look };
+        return { vx:Math.cos(this.fleeA), vy:Math.sin(this.fleeA), push: quiet ? 0.3 : 1, look };
       }
     }
 
