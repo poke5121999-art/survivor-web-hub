@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Ca Trực Đêm — Online">
+  <defs>
+    <linearGradient id="ru-bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#10131a"/>
+      <stop offset="1" stop-color="#060709"/>
+    </linearGradient>
+    <radialGradient id="ru-torch" cx="0.32" cy="0.62" r="0.7">
+      <stop offset="0" stop-color="#ffe6ae" stop-opacity="0.42"/>
+      <stop offset="0.55" stop-color="#d8a758" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ru-torch2" cx="0.7" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#a8d8c0" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="320" height="180" fill="url(#ru-bg)"/>
+
+  <!-- the house, as a floor plan: three rooms across, doorways between them -->
+  <g stroke="#2a323e" stroke-width="2" fill="none">
+    <rect x="24" y="30" width="82" height="56"/>
+    <rect x="118" y="30" width="82" height="56"/>
+    <rect x="212" y="30" width="84" height="56"/>
+    <rect x="24" y="98" width="82" height="52"/>
+    <rect x="118" y="98" width="82" height="52"/>
+    <rect x="212" y="98" width="84" height="52"/>
+  </g>
+  <!-- the door leaves, one per opening, half swung -->
+  <g stroke="#5a4632" stroke-width="3" stroke-linecap="round">
+    <line x1="106" y1="58" x2="116" y2="50"/>
+    <line x1="200" y1="58" x2="210" y2="66"/>
+    <line x1="106" y1="124" x2="116" y2="116"/>
+    <line x1="200" y1="124" x2="210" y2="132"/>
+    <line x1="65" y1="86"  x2="73"  y2="96"/>
+    <line x1="159" y1="86" x2="167" y2="96"/>
+    <line x1="254" y1="86" x2="262" y2="96"/>
+  </g>
+
+  <rect width="320" height="180" fill="url(#ru-torch)"/>
+  <rect width="320" height="180" fill="url(#ru-torch2)"/>
+
+  <!-- two workers, two torches: the whole point of this build -->
+  <g>
+    <circle cx="88" cy="112" r="7" fill="#cfcbb9"/>
+    <circle cx="96" cy="110" r="2.6" fill="#ffe6a8"/>
+    <circle cx="214" cy="70" r="7" fill="#9ac8a0"/>
+    <circle cx="222" cy="68" r="2.6" fill="#ffe6a8"/>
+  </g>
+  <!-- and something in the dark corner that is not either of them -->
+  <g opacity="0.9">
+    <path d="M262 128 l7 -16 l7 16 z" fill="#5b4a30"/>
+    <circle cx="266" cy="124" r="1.4" fill="#ffc94e"/>
+    <circle cx="272" cy="124" r="1.4" fill="#ffc94e"/>
+  </g>
+
+  <text x="20" y="168" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13"
+        font-weight="600" fill="#dbe6f2">Ca Trực Đêm</text>
+  <text x="118" y="168" font-family="ui-monospace, monospace" font-size="11"
+        fill="#7fb6e0">ONLINE · Unity</text>
+</svg>

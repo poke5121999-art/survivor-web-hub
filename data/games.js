@@ -116,6 +116,23 @@ window.HUB_GAMES = [
     tags: ["Kinh dị", "Co-op", "Khuân đồ", "Prototype"]
   },
   {
+    id: "repo2d-unity",
+    title: "Ca Trực Đêm — Online",
+    tagline: "Cùng một ca trực, nhưng có người khác trong nhà với bạn. Mở phòng, đọc mã cho bạn bè, rồi cả tổ cùng khuân đồ ra bệ trong bóng tối.",
+    thumbnail: "assets/thumbnails/repo2d-unity.svg",
+    path: "games/repo2d-unity/index.html",
+    // The UNITY build of the same design, kept BESIDE the plain-JS one rather than replacing it:
+    // the owner asked for the existing web build not to be overwritten, and the two are meant to
+    // stay comparable anyway — a rule changed in one and not the other is a rule nobody can trust.
+    // What this build has that the JS one does not: a menu, and a room you can open and share.
+    // Co-op is a MIRRORED simulation (Unity Netcode + the multiplayer service, the same stack
+    // client-survivor runs): every member builds the same house from the same seed and runs its own
+    // monsters, and what crosses the wire is where the other workers are standing.
+    // SEE: docs/proposals/repo-2d-topdown.md F15.
+    status: "available",
+    tags: ["Kinh dị", "Co-op", "Online", "Unity", "Prototype"]
+  },
+  {
     id: "voiddiver",
     title: "Void Diver",
     tagline: "Lặn xuống vực nhặt di vật. Càng sâu đồ càng ngon, nhưng đèn thì cạn dần, đứng trong tối lâu thì đầu bắt đầu nhiễm — và muốn rút lên là phải trả tiền bằng chính chỗ đồ đang mang.",
