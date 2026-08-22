@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Thung Lũng Sao Rơi">
+  <defs>
+    <linearGradient id="sd-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f6c98a"/>
+      <stop offset="0.55" stop-color="#8fc4d8"/>
+      <stop offset="1" stop-color="#cfe3c4"/>
+    </linearGradient>
+    <linearGradient id="sd-field" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5aa04a"/>
+      <stop offset="1" stop-color="#3c7a34"/>
+    </linearGradient>
+    <linearGradient id="sd-soil" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7a5636"/>
+      <stop offset="1" stop-color="#5b3f26"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="320" height="180" fill="url(#sd-sky)"/>
+
+  <!-- distant hills -->
+  <path d="M0 78 Q46 52 92 74 Q128 58 168 76 Q214 54 262 74 Q292 62 320 76 L320 100 L0 100 Z"
+        fill="#6d9a6a" opacity="0.75"/>
+  <path d="M0 88 Q54 70 104 86 Q158 70 210 88 Q262 72 320 88 L320 108 L0 108 Z"
+        fill="#588a54" opacity="0.85"/>
+
+  <!-- sun -->
+  <circle cx="262" cy="38" r="17" fill="#ffe6a4" opacity="0.9"/>
+  <circle cx="262" cy="38" r="10" fill="#ffd36b"/>
+
+  <!-- fields -->
+  <rect x="0" y="100" width="320" height="80" fill="url(#sd-field)"/>
+
+  <!-- tilled rows with crops at different stages -->
+  <g>
+    <rect x="18" y="120" width="128" height="12" rx="2" fill="url(#sd-soil)"/>
+    <rect x="18" y="140" width="128" height="12" rx="2" fill="url(#sd-soil)"/>
+    <rect x="18" y="160" width="128" height="12" rx="2" fill="url(#sd-soil)"/>
+    <g fill="#3f8a3a">
+      <rect x="26" y="115" width="3" height="7"/><rect x="46" y="113" width="3" height="9"/>
+      <rect x="66" y="111" width="3" height="11"/><rect x="86" y="110" width="3" height="12"/>
+      <rect x="106" y="109" width="3" height="13"/><rect x="126" y="108" width="3" height="14"/>
+      <rect x="26" y="135" width="3" height="7"/><rect x="46" y="133" width="3" height="9"/>
+      <rect x="66" y="131" width="3" height="11"/><rect x="86" y="130" width="3" height="12"/>
+      <rect x="106" y="129" width="3" height="13"/><rect x="126" y="128" width="3" height="14"/>
+    </g>
+    <g fill="#e8b13c">
+      <circle cx="87" cy="108" r="3.4"/><circle cx="107" cy="107" r="3.4"/>
+      <circle cx="127" cy="106" r="3.6"/>
+      <circle cx="107" cy="127" r="3.4"/><circle cx="127" cy="126" r="3.6"/>
+    </g>
+    <g fill="#c0453b">
+      <circle cx="47" cy="111" r="3"/><circle cx="67" cy="109" r="3.2"/>
+      <circle cx="67" cy="129" r="3.2"/>
+    </g>
+  </g>
+
+  <!-- farmhouse -->
+  <g transform="translate(196,86)">
+    <rect x="4" y="20" width="66" height="34" fill="#b7563f"/>
+    <path d="M-4 22 L37 -2 L78 22 Z" fill="#8a3b2c"/>
+    <rect x="28" y="34" width="17" height="20" fill="#3a2b33"/>
+    <circle cx="41" cy="45" r="1.8" fill="#e8c357"/>
+    <rect x="12" y="28" width="12" height="10" fill="#f2e2b8"/>
+    <rect x="50" y="28" width="12" height="10" fill="#f2e2b8"/>
+    <rect x="56" y="-6" width="8" height="16" fill="#7a4a2b"/>
+  </g>
+
+  <!-- tree -->
+  <g transform="translate(160,96)">
+    <rect x="-3" y="14" width="6" height="20" fill="#5e4630"/>
+    <circle cx="0" cy="8" r="15" fill="#3d7a38"/>
+    <circle cx="-8" cy="14" r="10" fill="#4e8f3f"/>
+    <circle cx="9" cy="13" r="9" fill="#4e8f3f"/>
+  </g>
+
+  <!-- the farmer -->
+  <g transform="translate(78,132)">
+    <ellipse cx="0" cy="24" rx="8" ry="3" fill="#000" opacity="0.2"/>
+    <rect x="-6" y="-14" width="12" height="6" fill="#7a4a2b"/>
+    <rect x="-5" y="-8" width="10" height="7" fill="#e8b08a"/>
+    <rect x="-3" y="-6" width="2" height="2" fill="#20161c"/>
+    <rect x="1" y="-6" width="2" height="2" fill="#20161c"/>
+    <rect x="-6" y="-1" width="12" height="11" fill="#3f6fb5"/>
+    <rect x="-6" y="10" width="5" height="12" fill="#28497d"/>
+    <rect x="1" y="10" width="5" height="12" fill="#28497d"/>
+    <rect x="7" y="-10" width="2" height="24" fill="#8b6b4a"/>
+    <rect x="5" y="-13" width="7" height="4" fill="#9aa1ab"/>
+  </g>
+
+  <text x="16" y="34" font-family="Georgia, 'Times New Roman', serif" font-size="21"
+        font-weight="bold" fill="#3b2a18" opacity="0.9">Thung Lũng</text>
+  <text x="16" y="56" font-family="Georgia, 'Times New Roman', serif" font-size="21"
+        font-weight="bold" fill="#3b2a18" opacity="0.9">Sao Rơi</text>
+</svg>

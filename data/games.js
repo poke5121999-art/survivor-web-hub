@@ -133,6 +133,33 @@ window.HUB_GAMES = [
     tags: ["Kinh dị", "Co-op", "Online", "Unity", "Prototype"]
   },
   {
+    id: "stardew",
+    title: "Thung Lũng Sao Rơi",
+    tagline: "Nông trại ông để lại, một thung lũng đầy người quen chưa gặp. Trồng theo mùa, câu cá theo giờ, xuống mỏ khi đủ gan, và nhớ ngày sinh nhật của hàng xóm.",
+    thumbnail: "assets/thumbnails/stardew.svg",
+    path: "games/stardew/index.html",
+    // available since 2026-08-23. Plain canvas/JS, no engine: ~9 files plus one
+    // 764 KB data bundle. The data is the point — 222 pages of the official
+    // wiki were pulled as raw source and extracted into 23 tables, then
+    // compiled into the bundle the page loads: 46 crops with per-stage growth
+    // days and the four-tier price ladder, 77 fish keyed on
+    // location x season x hour x weather, 145 dishes, 151 crafting recipes,
+    // 37 villagers carrying 623 schedule blocks / 3,069 movement steps /
+    // 3,346 spoken lines / 1,137 gift entries, 31 bundles across all seven
+    // rooms, 939 shop lines, 39 monsters with drop tables.
+    // Controls depart from the original on purpose, per the brief: ONE tool
+    // that decides its job from whatever is in front of you, every
+    // interactable outlined with a floating icon, gifting and selling as
+    // drop targets beside the bag, a build menu on every farm tile.
+    // Ships with an in-game bot; docs/tests/browser/test_stardew.py drives it
+    // through a full 112-day year and asserts the run survives (98 checks,
+    // 0 console errors). Crop growth times are asserted against the wiki's
+    // own numbers — Parsnip 4 days, Starfruit 13.
+    // NOT yet eyes-on verified by a human across a long session.
+    status: "available",
+    tags: ["Nông trại", "Mô phỏng", "Solo", "RPG"]
+  },
+  {
     id: "voiddiver",
     title: "Void Diver",
     tagline: "Lặn xuống vực nhặt di vật. Càng sâu đồ càng ngon, nhưng đèn thì cạn dần, đứng trong tối lâu thì đầu bắt đầu nhiễm — và muốn rút lên là phải trả tiền bằng chính chỗ đồ đang mang.",
