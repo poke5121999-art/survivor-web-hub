@@ -75,12 +75,14 @@ const TURN_FLOOR  = 0.40;        // heavy loot slows how fast the look stick can
 // The three stick tiers. Running is now the TOP of what the stick alone gives you — it is free,
 // silent-ish and permanent, and it is not fast enough to break away from anything that has
 // already seen you. The extra gear above it is the sprint button, and that one costs stamina.
-// The ladder these three make, measured against the chase speeds in MONSTERS (speed x 1.25):
+// Two things the stick says, and one the button says. Measured against the chase speeds in
+// MONSTERS (speed x 1.25):
 //   sneak 46  - everything catches you, which is the price of being quiet
 //   walk  78  - outpaces the patrol (72) and the heavy (50); the bomber (77) is a dead heat
-//   run   92  - outpaces all of them except the blind listener (92), who is built to be fast
-//   sprint 143 (run x SPRINT_MUL) - outpaces everything, for as long as the bar lasts
-const TIER_MUL = [0.5, 0.85, 1.0];   // sneak, walk, run
+//   RUN  143  - outpaces everything, for as long as the bar lasts. The button, not the stick.
+// The old middle rung (a free 92 from a full stick) is gone on purpose: it was a third speed the
+// player could not see they were in, and it made the run button look like it did nothing.
+const TIER_MUL = [0.5, 0.85];        // sneak, walk — the only two the stick gives
 
 const LOS_R      = 14 * TILE;
 const CONE_HALF  = 0.62;
@@ -94,24 +96,54 @@ const DMG_SCALE     = 0.35;      // fraction of original value lost at 2x thresh
 const INVULN_AFTER_HIT = 0.8;    // doc C3-5: longer than the source game's ~0.5s, this is mobile
 const GRACE_AFTER_PICKUP = 1.0;
 
+// How much a house is allowed to hold. The source game caps BOTH the number of valuables of each
+// size and the total value, grows both with the level, and freezes them at level 20 — with a hard
+// ceiling of 50 valuables however far you get. That last number is the game's own.
+// WHY a cap at all, when the quota is derived from whatever happened to scatter: without one the
+// level's whole economy is an accident of how many floor tiles the generator found. The cap makes
+// "level 7" mean a definite amount of money and a definite amount of walking, and it is the knob
+// that says how long a house takes.
+// SEE: https://repo-2025horror.fandom.com/wiki/Valuables — "the maximum number of valuables of each
+// size and the maximum total value ... depend on the current level. From level 20 onward, these
+// characteristics no longer change. The total number of valuables cannot exceed 50."
+const LOOT_CAP_LEVEL = 20;                  // past this nothing grows, exactly as in the source game
+const LOOT_CAP_VALUE = [46000, 150000];     // total scattered value, level 1 -> level 20
+const LOOT_CAP_COUNT = [14, 50];            // and how many pieces it may be split into
+const LOOT_CAP_BIG   = [2, 12];             // per size, so a house cannot be all wardrobes...
+const LOOT_CAP_MED   = [5, 22];             // ...nor all trinkets
+function lootCap(lv){
+  const k = clamp((lv - 1) / (LOOT_CAP_LEVEL - 1), 0, 1);
+  return {
+    value: Math.round(mix(LOOT_CAP_VALUE[0], LOOT_CAP_VALUE[1], k)),
+    count: Math.round(mix(LOOT_CAP_COUNT[0], LOOT_CAP_COUNT[1], k)),
+    big:   Math.round(mix(LOOT_CAP_BIG[0],   LOOT_CAP_BIG[1],   k)),
+    med:   Math.round(mix(LOOT_CAP_MED[0],   LOOT_CAP_MED[1],   k))
+  };
+}
+
 const QUOTA_FACTOR = 0.7;        // you may leave 30% of the value behind
 const EXTRACT_COUNTDOWN = 5;
 
 const STAM_MAX = 100, STAM_DRAIN = 22, STAM_REGEN = 16;
 
-// Chạy nước rút — the sprint button. A fourth input, and the doc's "a phase proposing a fourth
-// input defaults to no" was overridden deliberately by the owner: with the base speed lowered to
-// under a chase, the player needs one control that says "spend stamina, get away", and the tier
-// stick cannot say it — stick deflection is already fully spent on sneak/walk/run.
-// It is a TOGGLE, not a hold: both thumbs are on sticks while you are being chased, so a button
-// that must be held is a button that cannot be used at the only moment it matters.
-const SPRINT_MUL   = 1.55;   // top speed while sprinting, over the run tier
-const SPRINT_NOISE = 2.6;    // louder than a run, quieter than a rush
-const SPRINT_MIN   = 8;      // stamina needed to START one, so a tap on an empty bar does nothing
-// Stop running and the toggle lets go by itself. WHY: a toggle that survives you stopping would
-// re-engage silently the next time the stick hit its rim, and drain a bar the player thought they
-// were saving. Long enough that a wobble on the stick's edge mid-chase does not cancel it.
-const SPRINT_RELEASE = 0.4;  // seconds off the run tier before the toggle drops
+// Chạy — the run button. A fourth input, and the doc's "a phase proposing a fourth input defaults
+// to no" was overridden deliberately by the owner: with the base speed lowered to under a chase,
+// the player needs one control that says "spend stamina, get away".
+//
+// It is a MODE, not a modifier. One tap puts the character into a run that costs stamina; another
+// tap puts them back to walking. WHY it changed from the first version: that one only did anything
+// while the stick was ALSO at its rim, so the button and the stick were arguing about the same
+// decision and the owner could not tell what the button was for — "cái nút rút là gì vậy". A mode
+// the player switches is a thing they can name; a modifier on a tier they cannot see is not.
+//
+// It does NOT let go when you stop moving. A mode that switched itself off would be the same
+// invisible rule again, in the other direction.
+// 1.85 x the walk tier = 145 px/s, which clears the fastest chase in the house (92) with room to
+// spare. It was 1.55 while the run rode on top of a middle rung that no longer exists; leaving it
+// there would have quietly made running 121 and cost the escape a third of its margin.
+const RUN_MUL      = 1.85;   // the run form's speed, over the walk tier
+const RUN_NOISE    = 2.6;    // louder than a walk, quieter than a bolt
+const RUN_MIN_STAM = 8;      // stamina needed to START running, so a tap on an empty bar does nothing
 
 // Deadzone as a FRACTION of the stick's radius, not a pixel count: the radius is derived from the
 // screen, so a flat 4 px was a real deadzone on a tablet and none at all on a phone.
@@ -641,6 +673,85 @@ const CART_TURN_PENALTY  = 0.5;    // the cart's share of the turn penalty — t
 const CART_WEAK_SPEED_MUL = 0.7;   // wrong-side grab: a choice you pay for in speed, not in weight
 const CART_MAX_SIZE   = 1;         // index into SIZES: 'to' (2) will not fit on the cart
 
+// ============================================================ cửa giữa các phòng
+// A door leaf in every opening between two rooms.
+//
+// It blocks SIGHT and nothing else. That is the whole design: a closed door means the next room is
+// a black rectangle you have to commit to walking into, which is most of what a house full of
+// doorways was missing — before this every room was visible from the room before it, and the map
+// was one big lit space with walls in it.
+//
+// WHY it does not block MOVEMENT: the grid is what pathing, the cart's route validator and the
+// level generator all read, and a door that edits the grid would have to be open at build time and
+// closed at play time — two truths about the same tile. Sight is the one thing that can be layered
+// on top without any of them knowing.
+//
+// It swings open on its own when anything alive is close. Nobody has to press anything: the source
+// game's doors are pushed through, and a button to open a door is a fifth input.
+const DOOR_OPEN_R   = 1.8*TILE;   // anything alive this close pushes it open
+const DOOR_OPEN_T   = 0.22;       // seconds to swing open
+const DOOR_SHUT_T   = 1.1;        // and it takes longer to fall shut, so you are not fighting it
+const DOOR_SEE_AT   = 0.55;       // open past this and it stops blocking sight
+
+function makeDoor(gx, gy, vertical){
+  return { gx, gy, x:(gx+0.5)*TILE, y:(gy+0.5)*TILE, vertical, open:0, side: Math.random() < 0.5 ? 1 : -1 };
+}
+
+// Every floor tile sitting on a room boundary is a doorway. Only the middle tile of each opening
+// gets a leaf — the openings are carved three wide, and three doors in one gap is a wall.
+function buildDoors(){
+  S.doors = [];
+  for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
+    const my = cy*RH + (RH>>1), mx = cx*RW + (RW>>1);
+    if (cx < GX-1){
+      const col = (cx+1)*RW;
+      if (S.grid[my*MW+col] === FLOOR) S.doors.push(makeDoor(col, my, true));
+    }
+    if (cy < GY-1){
+      const row = (cy+1)*RH;
+      if (S.grid[row*MW+mx] === FLOOR) S.doors.push(makeDoor(mx, row, false));
+    }
+  }
+}
+
+function stepDoors(dt){
+  if (!S.doors) return;
+  const bodies = S.shopMode ? [] : crewAlive().concat(S.monsters);
+  for (const d of S.doors){
+    let near = false;
+    for (const b of bodies){
+      if (Math.abs(b.x-d.x) > DOOR_OPEN_R || Math.abs(b.y-d.y) > DOOR_OPEN_R) continue;
+      near = true; break;
+    }
+    const was = d.open;
+    d.open = clamp(d.open + (near ? dt/DOOR_OPEN_T : -dt/DOOR_SHUT_T), 0, 1);
+    // the clack, once, and only where you can hear it
+    if (was < DOOR_SEE_AT && d.open >= DOOR_SEE_AT &&
+        Math.hypot(d.x-S.player.x, d.y-S.player.y) < 10*TILE) SFX.thud();
+  }
+}
+
+// A closed door is a wall as far as any sightline is concerned — the player's torch, a monster's
+// eyes, the AEngel's beam check, all of them, because they all come through losClear.
+function doorBlocks(x0, y0, x1, y1){
+  if (!S.doors) return false;
+  for (const d of S.doors){
+    if (d.open >= DOOR_SEE_AT) continue;
+    // the leaf spans the tile across the opening
+    const half = TILE*0.5;
+    const ax = d.vertical ? d.x : d.x - half, ay = d.vertical ? d.y - half : d.y;
+    const bx = d.vertical ? d.x : d.x + half, by = d.vertical ? d.y + half : d.y;
+    const dx = x1-x0, dy = y1-y0, ex = bx-ax, ey = by-ay;
+    const den = dx*ey - dy*ex;
+    if (Math.abs(den) < 1e-9) continue;
+    const px = ax-x0, py = ay-y0;
+    const t = (px*ey - py*ex) / den;
+    const u = (px*dy - py*dx) / den;
+    if (t > 0 && t < 1 && u >= 0 && u <= 1) return true;
+  }
+  return false;
+}
+
 // ============================================================ state
 const S = {
   seed: 0, level: 1, wallet: 0,
@@ -663,6 +774,7 @@ const S = {
   angel: null, angelTimer: 0, angelFx: null, lightZones: [],
   mirror: null, mirrorTimer: 0, mirrorFx: null,
   mates: [], crewOn: true, spectate: -1,
+  doors: [],
   time: 0, message: '', messageT: 0,
   bigMap: false
 };
@@ -847,13 +959,51 @@ function buildLevel(seed){
   // has no quota and cannot be finished. The truck's room stays banned regardless.
   if (!spots.length) spots = open.filter(s => s.ri !== carRoom);
   for (let i=spots.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [spots[i],spots[j]]=[spots[j],spots[i]]; }
-  const want = Math.min(spots.length, 12 + S.level*2);
+  const cap = lootCap(S.level);
+  // The authored 'L' marks run out long before the cap does — nine rooms hold about fourteen of
+  // them, so a level-20 house was still scattering a level-2 house's worth of money and the cap
+  // was a number that never bit. Top up from open floor instead, away from the truck and the pads,
+  // which is exactly what the restock pass already does when a level runs short mid-shift.
+  if (spots.length < cap.count){
+    const extra = [];
+    for (let gy=1; gy<MH-1; gy++) for (let gx=1; gx<MW-1; gx++){
+      const i = gy*MW+gx;
+      if (S.grid[i] !== FLOOR || !reach[i]) continue;
+      const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
+      if (banned.has(ri)) continue;
+      const x = (gx+0.5)*TILE, y = (gy+0.5)*TILE;
+      if (hitsSolid(x, y, 16)) continue;                       // room for the biggest piece
+      if (Math.hypot(x-S.car.x, y-S.car.y) < 6*TILE) continue; // never in the truck's lap
+      if (spots.some(sp => Math.abs(sp.gx-gx) + Math.abs(sp.gy-gy) < 3)) continue;
+      extra.push({ gx, gy, ri });
+    }
+    for (let i=extra.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [extra[i],extra[j]]=[extra[j],extra[i]]; }
+    // spread them out: take every Nth of the shuffled list rather than a clump
+    for (const e of extra){
+      if (spots.length >= cap.count) break;
+      if (spots.some(sp => Math.abs(sp.gx-e.gx) + Math.abs(sp.gy-e.gy) < 3)) continue;
+      spots.push(e);
+    }
+  }
+  const want = Math.min(spots.length, cap.count);
+  let capValue = 0, capBig = 0, capMed = 0;
   for (let i=0;i<want;i++){
     const sp = spots[i];
     const roll = rnd();
-    const size = SIZES[ roll < 0.45 ? 0 : roll < 0.82 ? 1 : 2 ];
+    let sizeIdx = roll < 0.45 ? 0 : roll < 0.82 ? 1 : 2;
+    // Per-size ceilings, applied by DEMOTING rather than by skipping: a house that ran out of big
+    // pieces should still put something on that spot, or the far rooms end up empty and the level
+    // gets shorter instead of cheaper.
+    if (sizeIdx === 2 && capBig >= cap.big) sizeIdx = 1;
+    if (sizeIdx === 1 && capMed >= cap.med) sizeIdx = 0;
+    const size = SIZES[sizeIdx];
     const mat  = MATERIALS[ (rnd()*MATERIALS.length)|0 ];
     const v0   = Math.round(mix(size.vmin, size.vmax, rnd()) / 50) * 50;
+    // The value ceiling stops the level dead — the last piece is allowed to cross it, so a house
+    // is never one crate short of its own cap on a rounding accident.
+    if (capValue >= cap.value) break;
+    capValue += v0;
+    if (sizeIdx === 2) capBig++; else if (sizeIdx === 1) capMed++;
     S.loot.push(makeLoot((sp.gx+0.5)*TILE, (sp.gy+0.5)*TILE, size, mat, v0));
   }
 
@@ -908,6 +1058,7 @@ function buildLevel(seed){
 
   fxReset();
   S.segs = buildSegments();
+  buildDoors();
   prerenderWorld(mulberry32(seed ^ 0x9e3779b9));
   prerenderMinimap();
   S.time = 0;
@@ -1319,7 +1470,17 @@ function prerenderMinimap(){
 // ============================================================ visibility
 function visPoly(ox,oy,R,uniform){
   const local = [];
-  for (const s of S.segs){
+  // Closed doors join the wall list for this frame. Without this the lighting would pour straight
+  // through a shut door while every sight TEST said it was blocked — the rule would be real and
+  // invisible, which is the same as not shipping it.
+  const shut = [];
+  if (S.doors) for (const d of S.doors){
+    if (d.open >= DOOR_SEE_AT) continue;
+    const half = TILE*0.5;
+    shut.push(d.vertical ? seg(d.x, d.y-half, d.x, d.y+half)
+                         : seg(d.x-half, d.y, d.x+half, d.y));
+  }
+  for (const s of S.segs.concat(shut)){
     if (s.minX>ox+R || s.maxX<ox-R || s.minY>oy+R || s.maxY<oy-R) continue;
     local.push(s);
   }
@@ -1368,7 +1529,7 @@ function losClear(x0,y0,x1,y1){
     const t = i/steps;
     if (solidAt(((x0+dx*t)/TILE)|0, ((y0+dy*t)/TILE)|0)) return false;
   }
-  return true;
+  return !doorBlocks(x0, y0, x1, y1);
 }
 
 // ============================================================ movement helpers
@@ -1622,9 +1783,10 @@ function pickUp(p){
 function toggleSprint(){
   const p = S.player;
   if (!p || S.dead || S.shopMode || p.down) return false;
-  if (p.sprint){ p.sprint = false; return false; }
-  if (p.stam < SPRINT_MIN){ toast('Chưa đủ thể lực để rút.'); return false; }
+  if (p.sprint){ p.sprint = false; toast('Đi bộ.'); return false; }
+  if (p.stam < RUN_MIN_STAM){ toast('Chưa đủ thể lực để chạy.'); return false; }
   p.sprint = true; p.sprintOffT = 0;
+  toast('Chạy — tốn thể lực.');
   return true;
 }
 
@@ -2420,6 +2582,7 @@ function makeGood(kind, key, name, price, x, y){
 
 function buildShop(){
   S.mates = [];                     // the station is not a job; nobody follows you in
+  S.doors = [];                     // and it is one lit hall, not a house of doorways
   S.shopMode = true;
   S.buildId = (S.buildId || 0) + 1;
   S.grid = new Uint8Array(MW*MH).fill(WALL);
@@ -2484,6 +2647,7 @@ function buildShop(){
 
   fxReset();
   S.segs = buildSegments();
+  buildDoors();
   prerenderWorld(mulberry32((S.seed ^ 0x5bf03635) >>> 0));
   prerenderMinimap();
   S.time = 0;
@@ -2977,16 +3141,38 @@ const MATE_STR       = 34;
 // (react 0.5-1.5, dither 0.18, no distance cap, no fumbling) the crew alone filled 47%, 109% and
 // 0% of the quota across three seeds in 48 seconds — a level they can close out on their own is a
 // level you watch. Retuned to leave roughly two thirds of the haul on the floor for the player.
-const MATE_REACT     = [0.8, 2.2]; // how long before one of them notices anything has changed
-const MATE_DITHER    = 0.30;      // odds that a decision comes out as "stand there for a moment"
+const MATE_REACT     = [1.2, 3.0]; // how long before one of them notices anything has changed
+const MATE_DITHER    = 0.42;      // odds that a decision comes out as "stand there for a moment"
 const MATE_FLEE_R    = 4.2*TILE;  // they only look up when something is nearly on them
 const MATE_REPATH    = 1.0;
 const MATE_FOLLOW_R  = [2.5*TILE, 6*TILE];  // how close they hang around you with nothing to do
 const MATE_GRAB_R    = 1.9*TILE;
-const MATE_LOOT_R    = 8*TILE;    // they work the rooms they are in; the far half of the house is yours
-const MATE_FUMBLE    = 0.05;      // per second, while carrying: they put it down and forget why
-const MATE_BREATHER  = [0.8, 2.4]; // and they stand about after every delivery
+const MATE_LOOT_R    = 6.5*TILE;  // they work the rooms they are in; the far half of the house is yours
+const MATE_FUMBLE    = 0.09;      // per second, while carrying: they put it down and forget why
+const MATE_BREATHER  = [1.6, 4.0]; // and they stand about after every delivery
 const MATE_NAMES     = ['Tổ 2', 'Tổ 3', 'Tổ 4'];
+
+// What they say, drawn as a speech bubble over their head rather than as a toast.
+//
+// WHY a bubble and not the message line: the message line is where the GAME talks to you — a pad
+// opening, a quota met, an AEngel arriving — and burying that under three co-workers chattering
+// would cost the player the one channel that carries rules. A bubble is attached to a body, fades
+// on its own, and is ignorable, which is exactly what idle chatter should be.
+//
+// Half of these are pure noise on purpose. A crew that only ever announced useful facts would be a
+// HUD in three hats; what makes them read as people is that most of what they say does not matter.
+const MATE_CHAT_EVERY = [7, 18];    // seconds between one of them piping up
+const MATE_BUBBLE_T   = 2.6;        // and how long it hangs over their head
+const MATE_CHAT = {
+  idle:   ['🙂', '🥱', '🎵', '🤔', 'ê', 'chán ghê', 'ở đây tối thật', '🚬', 'mai lãnh lương chưa ta',
+           'hôm nay ca dài quá', '👀', 'nghe gì không', 'hình như có tiếng', '🫠'],
+  loot:   ['💰', '🤑', 'cái này bán được', 'ngon', '👌', 'để tui', 'nặng vãi', '😤'],
+  deliver:['📦', 'đem ra bệ đây', 'xong món này', '🏃', 'đi đây đi đây'],
+  flee:   ['😱', 'chạy!', '💀', 'ối', 'nó tới kìa', '🏃‍♂️💨', 'không không không'],
+  head:   ['🪦', 'còn cái đầu nè', 'chờ tí, tui tới', '😰', 'đừng chết nha'],
+  drop:   ['😵', 'ơ, rơi mất', '🙃', 'tay tui sao vậy'],
+  hurt:   ['🤕', 'đau!', '😖', 'ai đánh tui vậy']
+};
 const MATE_COLS      = [
   { body:'#5c6f8a', rim:'#b9cbe0', torch:'#ffe0a0' },
   { body:'#6b5c7d', rim:'#cdbdda', torch:'#ffd9c0' },
@@ -3013,7 +3199,9 @@ function makeMate(i, x, y){
     // is worth the most.
     react: mix(MATE_REACT[0], MATE_REACT[1], Math.random()),
     job: 'idle', target: null, roamTo: null, path: null, pi: 0, pathT: 0, think: 0, idleT: 0,
-    fleeA: 0, fleeT: 0, noise: 0, sayT: 0
+    fleeA: 0, fleeT: 0, noise: 0, sayT: 0,
+    bubble: '', bubbleT: 0,
+    chatT: mix(MATE_CHAT_EVERY[0], MATE_CHAT_EVERY[1], Math.random())
   };
 }
 
@@ -3055,6 +3243,7 @@ function hurtActor(a, n, src, fromX, fromY){
   // makes three walking state machines feel like people.
   const far = Math.hypot(a.x-S.player.x, a.y-S.player.y);
   if (far < 16*TILE){ SFX.hit(Math.min(n, 20)); if (far < 8*TILE) fxShake(2); }
+  mateChat(a, 'hurt');
   if (a.hp <= 0){ a.hp = 0; downActor(a); }
 }
 
@@ -3190,10 +3379,17 @@ function mateSpeed(a){
   return Math.max(a.speed * 0.4, a.speed / (1 + w / Math.max(1, a.str)));
 }
 
-function mateSay(a, msg){
-  if (a.sayT > 0) return;
-  a.sayT = 6;
-  if (Math.hypot(a.x-S.player.x, a.y-S.player.y) < 18*TILE) toast(a.name + ': ' + msg);
+// One bubble at a time per worker. `force` is for the things that are actually happening to them
+// (a scream, a dropped crate) — those jump the idle queue but still cannot stack.
+function mateSay(a, msg, force){
+  if (!force && a.sayT > 0) return;
+  a.sayT = 3.5;
+  a.bubble = msg;
+  a.bubbleT = MATE_BUBBLE_T;
+}
+function mateChat(a, kind){
+  const lines = MATE_CHAT[kind] || MATE_CHAT.idle;
+  mateSay(a, lines[(Math.random()*lines.length)|0], kind !== 'idle');
 }
 
 function stepMates(dt){
@@ -3203,13 +3399,25 @@ function stepMates(dt){
     a.hurt = Math.max(0, a.hurt - dt);
     a.hit = Math.max(0, a.hit - dt);
     a.sayT = Math.max(0, a.sayT - dt);
+    a.bubbleT = Math.max(0, a.bubbleT - dt);
+    if (a.bubbleT <= 0) a.bubble = '';
     if (a.kx || a.ky){
       moveEnt(a, a.kx*dt, a.ky*dt, 8);
       a.kx *= Math.pow(0.02, dt); a.ky *= Math.pow(0.02, dt);
       if (Math.abs(a.kx) < 2) a.kx = 0;
       if (Math.abs(a.ky) < 2) a.ky = 0;
     }
-    if (a.down){ a.noise = 0; continue; }
+    if (a.down){ a.noise = 0; a.bubble = ''; continue; }
+    // Idle chatter, on its own clock. It says nothing useful most of the time, which is the point.
+    a.chatT -= dt;
+    if (a.chatT <= 0){
+      a.chatT = mix(MATE_CHAT_EVERY[0], MATE_CHAT_EVERY[1], Math.random());
+      const kind = a.job === 'flee' ? 'flee'
+                 : a.held && a.held.isHead ? 'head'
+                 : a.held ? 'deliver'
+                 : a.job === 'loot' ? 'loot' : 'idle';
+      mateChat(a, kind);
+    }
     if (S.levelDone || S.shiftLost){
       // Shift over: they head for the truck like everyone else.
       a.job = 'truck';
@@ -3239,7 +3447,7 @@ function stepMates(dt){
           if (sc > bestScore){ bestScore = sc; best = ang; }
         }
         a.fleeA = best; a.fleeT = 0.7;
-        mateSay(a, 'chạy!');
+        mateChat(a, 'flee');
       }
       a.dir = a.fleeA;
       const sp = mateSpeed(a) * 1.15;
@@ -3252,7 +3460,7 @@ function stepMates(dt){
       dropHeld(a);
       a.job = 'idle'; a.target = null; a.path = null;
       a.idleT = 0.5 + Math.random();
-      mateSay(a, 'ơ, rơi mất');
+      mateChat(a, 'drop');
     }
 
     // ---- 2. dithering. A third of their decisions come out as standing still looking at a wall.
@@ -3273,7 +3481,7 @@ function stepMates(dt){
       const h = a.target;
       if (h.gone || h.held || h.onPad){ a.target = null; a.path = null; a.job = 'idle'; continue; }
       if (Math.hypot(h.x-a.x, h.y-a.y) < MATE_GRAB_R){
-        if (!a.held){ mateTake(a, h); mateSay(a, 'có đầu ' + (h.whoName || '') + ' rồi'); }
+        if (!a.held){ mateTake(a, h); mateChat(a, 'head'); }
         a.target = null; a.path = null; a.job = 'idle';
         continue;
       }
@@ -3420,6 +3628,18 @@ function drawMates(c){
   if (S.shopMode || !S.mates) return;
   for (const a of S.mates){
     if (a.down) continue;
+    if (a.bubble && a.bubbleT > 0){
+      // Drawn in the WORLD pass, so a colleague chattering two rooms away in the dark is a sound
+      // you do not get to read. You have to be near them, or have a light on them.
+      const fade = Math.min(1, a.bubbleT/0.6);
+      c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
+      const w = c.measureText(a.bubble).width + 12;
+      c.fillStyle = `rgba(18,20,24,${0.72*fade})`;
+      c.fillRect(a.x - w/2, a.y - 30, w, 16);
+      c.fillStyle = `rgba(226,232,236,${fade})`;
+      c.fillText(a.bubble, a.x, a.y - 18);
+      c.textAlign = 'left';
+    }
     c.save(); c.translate(a.x, a.y);
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0, 8, 9, 4, 0, 0, Math.PI*2); c.fill();
@@ -3526,8 +3746,16 @@ function setupInput(){
       return;
     }
     // item slots first: a press that STARTS on a slot is aiming, not looking (doc C2-5)
-    for (let i=0;i<3;i++){
+    // WHY the guard: hudLayout returns NO slots in the station — they are a house control — and
+    // this loop read hud.slots[i] anyway. The throw happened before the stick could be created, so
+    // in the station every touch died on the way in and the player could not move at all. A
+    // keyboard still worked, which is exactly why it survived: the desktop path never runs this.
+    // ROOT-CAUSE: a control list that is legitimately empty in one mode was iterated by a fixed
+    // count instead of by its own length.
+    // SEE: docs/proposals/repo-2d-topdown.md F14-1.
+    for (let i=0;i<hud.slots.length;i++){
       const s = hud.slots[i];
+      if (!s) continue;
       if (Math.hypot(p.x-s.x, p.y-s.y) < s.r*1.6){
         const it = S.player.inv[i];
         const def = it && GEAR_BY_KEY[it.kind];
@@ -3807,33 +4035,28 @@ function step(dt){
   // And a head on the floor steers nothing at all. The run keeps going without you.
   if (p.down){ vx = 0; vy = 0; push = 0; p.sprint = false; p.held = null; }
 
-  // Doc C2-3: stick deflection IS the run/walk/sneak control, and running is the top of it.
-  let tier = 0;               // 0 sneak, 1 walk, 2 run
-  if (push > 0.85) tier = 2; else if (push > 0.35) tier = 1;
+  // Doc C2-3: stick deflection is the sneak/walk control. What it no longer decides is RUNNING —
+  // that is the button's job now, and one decision belongs to one control.
+  let tier = push > 0.35 ? 1 : 0;    // 0 sneak, 1 walk
   const moving = !!(vx || vy);
 
   // Chạy nước rút: the button. It only does anything while you are actually running, it eats
   // stamina the whole time it is on, and an empty bar drops you back to a plain run rather than
   // stopping you — "khi hết thể lực thì thành chạy bình thường".
-  const wantRun = tier === 2 && moving;
-  if (p.sprint && p.stam <= 0){ p.sprint = false; toast('Hết thể lực — về chạy thường.'); }
-  if (!wantRun){
-    p.sprintOffT = (p.sprintOffT || 0) + dt;
-    if (p.sprintOffT > SPRINT_RELEASE) p.sprint = false;
-  } else p.sprintOffT = 0;
-  const sprinting = !!p.sprint && wantRun;
+  if (p.sprint && p.stam <= 0){ p.sprint = false; toast('Hết thể lực — chuyển sang đi bộ.'); }
+  const sprinting = !!p.sprint && moving;
   p.sprinting = sprinting;
 
   // Nước rút (the upgrade) is now a second gear ON the sprint, not a thing that happens to you.
   p.runT = sprinting ? p.runT + dt : 0;
   p.rushing = sprinting && S.upg.rush > 0 && p.runT >= RUSH_DELAY;
 
-  p.noise = !moving ? 0 : p.rushing ? RUSH_NOISE : sprinting ? SPRINT_NOISE
-          : tier === 2 ? 2 : tier === 1 ? 1 : 0.25;
+  p.noise = !moving ? 0 : p.rushing ? RUSH_NOISE : sprinting ? RUN_NOISE
+          : tier === 1 ? 1 : 0.25;
   if (S.noiseOverride != null) p.noise = S.noiseOverride;
   let tierMul = TIER_MUL[tier];
   if (sprinting){
-    tierMul *= SPRINT_MUL * (1 + S.upg.sprint*0.20);
+    tierMul = TIER_MUL[1] * RUN_MUL * (1 + S.upg.sprint*0.20);
     if (p.rushing) tierMul *= 1 + RUSH_GAIN*S.upg.rush;
   }
   if (sprinting){ p.stam = Math.max(0, p.stam - STAM_DRAIN*dt*(p.rushing ? RUSH_STAM : 1)); }
@@ -3909,6 +4132,7 @@ function step(dt){
     stepShop(dt);
     if (!S.shopMode) return;                  // the truck took us to the next level mid-step
   } else {
+    stepDoors(dt);
     stepMates(dt);
     if (!S.noFoes) stepMonsters(dt);
     stepAngel(dt);
@@ -3988,7 +4212,7 @@ function draw(){
 
   worldTransform(c);
   c.drawImage(S.worldCv, 0, 0);
-  drawPads(c); drawButton(c); drawCart(c); drawLoot(c); drawCar(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawProjectiles(c); drawPlayer(c);
+  drawPads(c); drawButton(c); drawCart(c); drawLoot(c); drawCar(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawDoors(c); drawProjectiles(c); drawPlayer(c);
 
   buildLight();
   c.setTransform(1,0,0,1,0,0);
@@ -4364,9 +4588,15 @@ function viewer(){
 function cycleSpectate(){
   const live = (S.mates || []).filter(a => !a.down);
   if (!S.player || !S.player.down || !live.length) return false;
-  const cur = live.findIndex(a => a.id === S.spectate);
-  S.spectate = live[(cur + 1) % live.length].id;
-  toast('Đang xem ' + live[(cur + 1) % live.length].name);
+  // Start from whoever is ON SCREEN, not from -1. With nothing selected the viewer is already the
+  // one nearest the head, and cycling from -1 lands on live[0] — which is that same colleague about
+  // a third of the time, so the button did nothing.
+  const shown = viewer();
+  let cur = live.findIndex(a => a.id === S.spectate);
+  if (cur < 0) cur = live.findIndex(a => a === shown);
+  const next = live[(cur + 1 + live.length) % live.length];
+  S.spectate = next.id;
+  toast('Đang xem ' + next.name);
   return true;
 }
 
@@ -4709,6 +4939,33 @@ function drawMonsters(c){
     c.restore();
   }
 }
+// The leaf. It swings on a hinge at one edge, and the ANGLE is the information: a door standing
+// across a doorway reads as shut from any distance, and one flat against the wall reads as open.
+// A colour change would not — half the game is played in the dark, where colour is the first thing
+// to go.
+function drawDoors(c){
+  if (!S.doors) return;
+  for (const d of S.doors){
+    const half = TILE*0.5;
+    const a = d.open * (Math.PI/2) * d.side;      // 0 = across the gap, 90 deg = flat to the wall
+    c.save();
+    // the hinge sits at one end of the opening
+    const hx = d.vertical ? d.x : d.x - half*d.side;
+    const hy = d.vertical ? d.y - half*d.side : d.y;
+    c.translate(hx, hy);
+    c.rotate((d.vertical ? Math.PI/2 : 0) + a);
+    const len = TILE, th = 4.5;
+    c.fillStyle = '#4a3a2a';
+    c.fillRect(0, -th*0.5, len*d.side, th);
+    c.fillStyle = 'rgba(226,200,150,0.16)';
+    c.fillRect(0, -th*0.5, len*d.side, 1.4);
+    // the handle, so the leaf has a near edge and a far edge
+    c.fillStyle = '#c8a86a';
+    c.fillRect(len*d.side - 3*d.side, -1.6, 2.4*d.side, 3.2);
+    c.restore();
+  }
+}
+
 function drawProjectiles(c){
   c.fillStyle = '#ffe9a8';
   for (const b of S.bullets){ c.beginPath(); c.arc(b.x,b.y,2.6,0,Math.PI*2); c.fill(); }
@@ -4910,7 +5167,7 @@ function drawHud(c){
   // off, on-and-burning, and empty (the bar ran out and you are back to a plain run).
   if (!S.shopMode){
     const sp = hud.sprint;
-    const empty = p.stam < SPRINT_MIN;
+    const empty = p.stam < RUN_MIN_STAM;
     const live = p.sprinting;
     c.beginPath();
     c.fillStyle = live ? 'rgba(46,30,10,0.8)' : empty ? 'rgba(16,18,20,0.55)' : 'rgba(30,28,16,0.7)';
@@ -4924,7 +5181,7 @@ function drawHud(c){
                              : empty ? 'rgba(90,84,66,0.45)' : 'rgba(190,160,70,0.7)');
     c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = live ? '#ffe6a8' : empty ? '#6a6f74' : '#d8cfa8';
-    c.fillText(p.sprint ? 'Đang rút' : 'Rút', sp.x, sp.y+4);
+    c.fillText(p.sprint ? 'Đang chạy' : 'Chạy', sp.x, sp.y+4);
   }
 
   // locker button — only while you are standing at the truck
@@ -5538,6 +5795,8 @@ window.REPO = {
   crew, crewAlive, downActor, reviveFromPad, truckPatchUp, spawnCrew, viewer, cycleSpectate,
   CREW: { COUNT:MATE_COUNT, HP:MATE_HP, SPEED:MATE_SPEED, FLEE_R:MATE_FLEE_R,
           REVIVE_HP:REVIVE_HP, TRUCK_HP:TRUCK_PATCH_HP, HEAD_MASS:HEAD_MASS },
+  chatter(){ return (S.mates || []).filter(a => a.bubble)
+                                   .map(a => ({ id:a.id, name:a.name, say:a.bubble })); },
   mates(){ return (S.mates || []).map(a => ({ id:a.id, name:a.name, x:a.x, y:a.y, hp:a.hp,
              hpMax:a.hpMax, down:a.down, job:a.job, held: a.held ? (a.held.isHead ? 'head' : 'loot') : null,
              target: a.target ? { x:a.target.x, y:a.target.y, isHead: !!a.target.isHead } : null })); },
@@ -5548,8 +5807,9 @@ window.REPO = {
   killMate(i){ const a = (S.mates||[])[i]; if (a) downActor(a); return !!a; },
   killPlayer(){ downActor(S.player); return true; },
   toggleSprint,
-  SPRINT: { MUL:SPRINT_MUL, NOISE:SPRINT_NOISE, MIN:SPRINT_MIN, RELEASE:SPRINT_RELEASE,
-            BASE:PLAYER_BASE_SPEED, TIER:TIER_MUL, DRAIN:STAM_DRAIN, REGEN:STAM_REGEN },
+  SPRINT: { MUL:RUN_MUL, NOISE:RUN_NOISE, MIN:RUN_MIN_STAM,
+            BASE:PLAYER_BASE_SPEED, TIER:TIER_MUL, DRAIN:STAM_DRAIN, REGEN:STAM_REGEN,
+            WALK: PLAYER_BASE_SPEED*TIER_MUL[1], RUN: PLAYER_BASE_SPEED*TIER_MUL[1]*RUN_MUL },
   // Kẻ soi gương
   spawnMirrors, damageMirror,
   MIRROR: { EVERY:MIRROR_EVERY, EMERGE:MIRROR_EMERGE, SPEED:MIRROR_SPEED, FAR:MIRROR_FAR,
@@ -5597,7 +5857,11 @@ window.REPO = {
                     danger: Math.max(FX.dread, FX.hurtT*0.8),
                     x: hud.heart.x, y: hud.heart.y, r: hud.heart.r }; },
   mouseLook(){ return mouseFresh() ? mouseWorldNow() : null; },
-  foesForLevel, makeNoise,
+  foesForLevel, makeNoise, lootCap,
+  doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, open:d.open, vertical:d.vertical })); },
+  DOOR: { OPEN_R:DOOR_OPEN_R, OPEN_T:DOOR_OPEN_T, SHUT_T:DOOR_SHUT_T, SEE_AT:DOOR_SEE_AT },
+  LOOT_CAP: { LEVEL:LOOT_CAP_LEVEL, VALUE:LOOT_CAP_VALUE, COUNT:LOOT_CAP_COUNT,
+              BIG:LOOT_CAP_BIG, MED:LOOT_CAP_MED },
   relocateFoe(i){ return relocateFoe(S.monsters[i||0], Math.random); },
   soundOn(){ return SFX.on; },
   mapFade(){ return S.mapFade || 0; },
