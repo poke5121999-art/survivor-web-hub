@@ -354,15 +354,27 @@
       a.tiles[i] = TID[k] != null ? TID[k] : TID.grass;
       a.blocked[i] = solid[i] | 0;      // 0 free, 1 terrain, 2 building, 3 fence
     }
-    // deep water in the middle of a body, so the shore reads differently
+    /* Deep water in the middle of a body, so the shore reads differently.
+     *
+     * WHY the two passes: the first version tested `a.name_of` while writing
+     * to the same array, so the moment one tile became deep its neighbours no
+     * longer had four water neighbours - and the sea came out as a CHECKERBOARD
+     * of water and deep, one tile apart, all the way to the horizon. It was
+     * invisible until the shoreline work started drawing a lighter edge at
+     * every change of tile type and lit up the whole bay in stripes. Decide
+     * from a snapshot, then write. */
+    var deepen = [];
     for (var y = 1; y < m.h - 1; y++) {
       for (var x = 1; x < m.w - 1; x++) {
         if (a.name_of(x, y) !== 'water') continue;
         if (a.name_of(x - 1, y) === 'water' && a.name_of(x + 1, y) === 'water'
             && a.name_of(x, y - 1) === 'water' && a.name_of(x, y + 1) === 'water') {
-          a.set(x, y, 'deep');
+          deepen.push(x, y);
         }
       }
+    }
+    for (var di = 0; di < deepen.length; di += 2) {
+      a.set(deepen[di], deepen[di + 1], 'deep');
     }
     m.warps.forEach(function (w) {
       var to = MAP_ID[w.to];

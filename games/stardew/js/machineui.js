@@ -45,6 +45,9 @@
     b.appendChild(el('small', 'sdv-cost',
       (gold ? gold.toLocaleString('vi-VN') + 'g · ' : '') + costLine(s, mats)));
     b.addEventListener('click', function () {
+      /* The click that ends a press-and-hold lands here too, and it used to
+       * spend the materials the player was only trying to carry past. */
+      if (self.swallowClick && self.swallowClick()) return;
       if (!canPay(s, mats, gold)) return self.game.toast('Chưa đủ nguyên liệu');
       pay(s, mats, gold);
       onOk();
@@ -160,6 +163,7 @@
           cell.appendChild(el('span', 'sdv-mwait', '🐣'));
           cell.appendChild(el('small', null, job.out));
           cell.addEventListener('click', function () {
+            if (self.swallowClick()) return;
             g.toast(job.out + ' đã vào chuồng rồi');
             o.jobs[idx] = null;
             self.openMachine(o);
@@ -168,6 +172,7 @@
           cell.appendChild(icon(job.out, job.cat || 'artisan', 34));
           cell.appendChild(el('span', 'sdv-qty', '✓'));
           cell.addEventListener('click', function () {
+            if (self.swallowClick()) return;
             if (!s.give(job.out, job.qty || 1, job.quality || 0)) {
               return g.toast('Túi đầy');
             }
@@ -193,16 +198,38 @@
           cell.appendChild(el('small', null, job.out));
         } else {
           cell.appendChild(el('span', 'sdv-mempty', '+'));
+          cell.addEventListener('click', function () {
+            if (self.swallowClick()) return;
+            var d = self.heldItem();
+            if (d) self.feedMachine(o, d.it, idx, d.list);
+            else g.toast('Chạm một món trong túi để bỏ vào máy');
+          });
         }
-        cell.addEventListener('dragover', function (e) { e.preventDefault(); });
+        /* A machine slot is a drop target for touch too. WHY __sdvDrop: the
+         * HTML5 drop event below never fires on a phone, so "kéo hoặc chạm đồ
+         * để bỏ vào" only ever half worked - the drag half did nothing at all. */
+        cell.classList.add('sdv-dz');
+        cell.__sdvDrop = function (d) { self.feedMachine(o, d.it, idx, d.list); };
+        cell.addEventListener('dragover', function (e) {
+          e.preventDefault(); cell.classList.add('sdv-dzover');
+        });
+        cell.addEventListener('dragleave', function () {
+          cell.classList.remove('sdv-dzover');
+        });
         cell.addEventListener('drop', function (e) {
           e.preventDefault();
-          if (self.dragging) self.feedMachine(o, self.dragging.it, idx);
+          cell.classList.remove('sdv-dzover');
+          var d = self.heldItem();
+          /* By identity, not by `dragging.it` straight off a stale record:
+           * the held stack may have left the bag since it was picked up. */
+          if (d) self.feedMachine(o, d.it, idx, d.list);
+          else g.toast('Chưa cầm món nào');
         });
         slotRow.appendChild(cell);
       })(i);
     }
-    body.appendChild(el('div', 'sdv-sub', 'Ô của máy — kéo hoặc chạm đồ để bỏ vào'));
+    body.appendChild(el('div', 'sdv-sub',
+      'Ô của máy — chạm một món trong túi, hoặc chạm giữ rồi kéo thả vào ô'));
     body.appendChild(slotRow);
 
     // ---- upgrade ----
@@ -223,22 +250,29 @@
       grid.appendChild(this.slotEl(s.inventory[k], s.inventory, k, {
         onClick: function (it) {
           if (!it) return g.toast('Ô này trống');
-          self.feedMachine(o, it);
+          self.feedMachine(o, it, null, s.inventory);
         }
       }));
     }
     body.appendChild(el('div', 'sdv-sub', 'Túi đồ — chạm một món để bỏ vào máy'));
     body.appendChild(grid);
     var back = el('button', 'sdv-mbtn', '\u2190 Về danh sách máy');
-    back.addEventListener('click', function () { self.openMachineList(); });
+    back.addEventListener('click', function () {
+      if (self.swallowClick()) return;
+      self.openMachineList();
+    });
     body.appendChild(back);
     this.openPanel(M.label(name), body);
+    /* Without a refresh hook, dropping a stack between the bag and a machine
+     * slot redrew nothing: the panel kept showing the item in both places. */
+    this.refreshPanel = function () { self.openMachine(o); };
   };
 
-  UI.prototype.feedMachine = function (o, item, slotIdx) {
+  UI.prototype.feedMachine = function (o, item, slotIdx, list) {
     var self = this, s = this.sim, g = this.game;
     // an empty bag slot is a tap on nothing, not a crash
-    if (!item || !item.name) { this.dragging = null; return; }
+    if (!item || !item.name) { this.clearHeld(); return; }
+    list = list || s.inventory;
     var name = o.machine || 'Furnace';
     o.jobs = o.jobs || [];
     var free = slotIdx;
@@ -249,17 +283,33 @@
       }
     }
     var res = M.tryAccept(name, item, s, free >= 0);
-    if (res.error) { this.dragging = null; return g.toast(res.error); }
+    if (res.error) { this.clearHeld(); return g.toast(res.error); }
     var r = res.recipe;
-    s.take(item.name, r.need);
+    /* WHY the exact stack is consumed rather than sim.take(name, n): take()
+     * matches on NAME alone and works from the end of the bag, so tapping a
+     * plain Copper Ore fed the iridium-grade stack sitting further down - the
+     * good ore vanished and the plain one stayed put. tryAccept counts across
+     * grades for the same reason, so the amount is re-checked here on the one
+     * stack the player actually pointed at. */
+    var idx = list.indexOf(item);
+    if (idx < 0 || item.qty < r.need) {
+      this.clearHeld();
+      return g.toast('Cần ' + r.need + ' ' + item.name + ' cùng loại trong một ô');
+    }
+    if (r.fuel && s.count(r.fuel) < (r.fuelQty || 1)) {
+      this.clearHeld();
+      return g.toast('Thiếu ' + r.fuel);
+    }
+    item.qty -= r.need;
+    if (item.qty <= 0) list.splice(idx, 1);
     if (r.fuel) s.take(r.fuel, r.fuelQty || 1);
     o.jobs[free] = {
       out: r.out, qty: r.qty || 1, mins: r.mins, left: r.mins,
       price: r.price, cat: r.cat, quality: r.quality, hatch: r.hatch,
       repeat: r.repeat, source: item.name, ready: false
     };
-    this.dragging = null;
-    g.toast('Đã bỏ ' + item.name + ' vào ' + M.label(name));
+    this.clearHeld();
+    g.toast('Đã bỏ ' + r.need + ' ' + item.name + ' vào ' + M.label(name));
     this.openMachine(o);
   };
 
@@ -273,7 +323,10 @@
     if (!body) return;
     /* "cũng cần nâng cấp để thêm slot (thêm nhiều slot 1 lần nâng)" - the chest
      * grows in blocks of 12, unlike the furnace's one-at-a-time. */
-    var tier = Math.round((s.chestSize - 18) / 12);
+    /* Floor, not round: a chest grown by anything other than a clean multiple
+     * of 12 (an older save, a future bonus) rounded UP a tier and quietly
+     * charged for an upgrade the player had not reached. */
+    var tier = Math.max(0, Math.floor((s.chestSize - 18) / 12));
     var mats = { Wood: 100 + tier * 100, 'Iron Bar': 2 + tier * 2 };
     var gold = 1000 * (tier + 1);
     var btn = this.requirementButton(

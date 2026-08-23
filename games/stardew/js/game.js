@@ -489,8 +489,15 @@
 
   Game.prototype.sleep = function (collapsed) {
     this.sfx('sleep');
-    this.farm.overnight({});
+    /* WHY the return value is kept: the overnight pass counts how many animals
+     * produced, and that number was computed every single night and thrown on
+     * the floor - the morning summary never had it to show. Everything the
+     * night produced now arrives in one report. */
+    var overnight = {};
+    this.farm.overnight(overnight);
     var report = this.sim.endDay(this.world);
+    report.animalProduce = overnight.animalProduce || 0;
+
     report.today = this.events.onNewDay();
     report.forage = global.SDV_PROGRESS ? global.SDV_PROGRESS.spawnForage(this) : 0;
     report.pots = global.SDV_SOCIAL ? global.SDV_SOCIAL.crabPotOvernight(this) : 0;
@@ -556,6 +563,7 @@
         var def = W.TILE[name];
         var sx = Math.round(x * ts - camX), sy = Math.round(y * ts - camY);
         T.paintGround(ctx, name, def, sx, sy, ts, x, y, now);
+        T.paintBlend(ctx, a, x, y, sx, sy, ts, W.TILE, W.TILE_IDS);
         var idx = y * a.w + x;
         var bcls = a.blocked ? a.blocked[idx] : 0;
         if (!bcls || def.water) continue;
@@ -593,6 +601,14 @@
       }
     }
 
+    /* Contact shadows, drawn under everything before anything is drawn on top.
+     *
+     * WHY they matter more than any sprite: a tree with no shadow is a sticker
+     * on a flat field. One soft ellipse per object, offset the way the light
+     * falls, is the whole difference between tiles and a place - and it is what
+     * the two games the owner pointed at spend most of their frame doing. */
+    this.drawShadows(a, camX, camY, ts, x0, y0, x1, y1);
+
     // objects + actors sorted so nearer things draw in front
     var drawables = [];
     for (var i = 0; i < a.objs.length; i++) {
@@ -625,9 +641,15 @@
 
     this.mine.draw(ctx, camX, camY, ts);
     this.fx.draw(ctx, camX, camY, ts);
+    /* WHY the light pass sits here, before the highlight and the weather: it
+     * is what everything in the WORLD is lit by, and the cursor outline and
+     * the rain are read on top of the lit frame, not dimmed with it. The flat
+     * blue rectangle that used to be drawn over the whole screen at dusk is
+     * gone - it darkened the interface along with the field and made lamps
+     * impossible. */
+    if (global.SDV_LIGHT) global.SDV_LIGHT.apply(this, ctx, vw, vh, this.cam);
     this.drawHighlight(camX, camY, ts);
     this.drawWeather(vw, vh);
-    this.drawNightTint(vw, vh);
   };
 
   /* Which structure a building tile belongs to. Cached per area the first time
@@ -706,6 +728,69 @@
     guildDoor: '\u2694'
   };
 
+  /* How much shade a thing casts, as a share of a tile. Absent = no shadow,
+   * which is right for anything flat on the ground. */
+  var SHADOW = {
+    tree: 1.5, palm: 1.5, stump: 0.7, rock: 0.7, oreRock: 0.7, chest: 0.7,
+    bin: 1.0, sign: 0.5, bed: 1.2, tv: 0.8, machine: 0.7, counter: 0.9,
+    kitchen: 0.8, workshop: 0.9, mailbox: 0.5, calendarBoard: 0.6,
+    bundleBoard: 0.8, travelingCart: 1.3, boat: 1.3, bus: 1.6,
+    toolUpgrade: 0.7, geodeCrusher: 0.7, animalShop: 0.7, buildMenu: 0.7,
+    museumDesk: 0.8, islandTrader: 0.9, crop: 0.4, fruitTree: 1.4,
+    weed: 0.3, grassTuft: 0.3, stick: 0.3, forage: 0.35, dropped: 0.35
+  };
+
+  Game.prototype.drawShadows = function (a, camX, camY, ts, x0, y0, x1, y1) {
+    var ctx = this.ctx;
+    var L = global.SDV_LIGHT;
+    var dark = L ? L.darkness(this) : 0;
+    /* Shadows soften and spread as the sun drops, and go away entirely once
+     * the only light left is the lamp you are carrying. */
+    var alpha = 0.26 * (1 - dark * 0.75);
+    if (alpha <= 0.01) return;
+    var off = ts * (0.05 + 0.14 * dark);
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+
+    // buildings first: a long soft slab off the base of the wall
+    if (a.buildings) {
+      for (var b = 0; b < a.buildings.length; b++) {
+        var bd = a.buildings[b];
+        if (bd.x > x1 + 4 || bd.y > y1 + 4
+            || bd.x + bd.w < x0 - 4 || bd.y + bd.h < y0 - 4) continue;
+        var bx = Math.round(bd.x * ts - camX);
+        var by = Math.round((bd.y + bd.h) * ts - camY);
+        var bw = bd.w * ts;
+        var grd = ctx.createLinearGradient(0, by, 0, by + ts * 1.1);
+        grd.addColorStop(0, 'rgba(40,34,44,' + (alpha * 0.9).toFixed(3) + ')');
+        grd.addColorStop(1, 'rgba(40,34,44,0)');
+        ctx.fillStyle = grd;
+        ctx.fillRect(bx + off, by, bw, ts * 1.1);
+      }
+    }
+
+    for (var i = 0; i < a.objs.length; i++) {
+      var o = a.objs[i];
+      var sc = SHADOW[o.kind];
+      if (!sc) continue;
+      if (o.x < x0 - 3 || o.x > x1 + 3 || o.y < y0 - 3 || o.y > y1 + 3) continue;
+      var cx = (o.x + 0.5) * ts - camX + off;
+      var cy = (o.y + 0.9) * ts - camY;
+      // three stacked ellipses instead of a blur filter: same soft edge, and
+      // canvas blur costs far more than three fills on a phone
+      for (var r = 0; r < 3; r++) {
+        var k = 1 + r * 0.45;
+        ctx.fillStyle = 'rgba(38,32,42,'
+          + (alpha * (0.5 - r * 0.14)).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, ts * 0.42 * sc * k, ts * 0.17 * sc * k, 0, 0, 6.3);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
   Game.prototype.drawObj = function (o, camX, camY, ts) {
     var ctx = this.ctx, z = this.zoom;
     var sx = Math.round(o.x * ts - camX), sy = Math.round(o.y * ts - camY);
@@ -741,11 +826,25 @@
         var crop = this.cropDef(o.crop);
         var col = S.iconColors(o.crop, 'crop');
         if (o.dead) {
-          ctx.fillStyle = '#6b5a3c';
-          ctx.fillRect(sx + ts * 0.35, sy + ts * 0.3, ts * 0.3, ts * 0.6);
+          // a withered stalk, bent over, rather than a brown post
+          ctx.strokeStyle = '#6b5a3c';
+          ctx.lineCap = 'round';
+          ctx.lineWidth = Math.max(1, ts * 0.07);
+          ctx.beginPath();
+          ctx.moveTo(sx + ts * 0.5, sy + ts * 0.92);
+          ctx.quadraticCurveTo(sx + ts * 0.52, sy + ts * 0.55,
+                               sx + ts * 0.74, sy + ts * 0.48);
+          ctx.stroke();
+          ctx.lineWidth = Math.max(1, ts * 0.05);
+          ctx.beginPath();
+          ctx.moveTo(sx + ts * 0.5, sy + ts * 0.7);
+          ctx.lineTo(sx + ts * 0.3, sy + ts * 0.62);
+          ctx.stroke();
+          ctx.lineCap = 'butt';
         } else {
           S.drawCrop(ctx, sx, sy, ts / 12, o.stage, o.maxStage + 1,
-                     col.main, col.light, crop && crop.trellis);
+                     col.main, col.light, crop && crop.trellis,
+                     (o.x * 7 + o.y * 13));
         }
         break;
       }
@@ -973,6 +1072,109 @@
         ctx.textAlign = 'left';
         break;
       }
+      /* Trees and rocks are drawn as shaded FORMS rather than as flat sprite
+       * grids.
+       *
+       * WHY: they are the two things the player looks at most, and a flat
+       * green lozenge with a brown stick under it is what "đồ họa khá xấu"
+       * actually meant. A canopy with a lit side, a dark underside and a few
+       * broken clumps reads as a tree from a metre away; the same shape flat
+       * reads as a sticker. Everything here is still drawn in code. */
+      case 'tree': case 'fruitTree': {
+        var th = ts * 2.2;
+        var tx = sx + ts * 0.5, ty = sy + ts;
+        // trunk, tapered and lit from the upper left
+        var tg = ctx.createLinearGradient(tx - ts * 0.16, 0, tx + ts * 0.16, 0);
+        tg.addColorStop(0, '#6b4a2c');
+        tg.addColorStop(0.4, '#4e3520');
+        tg.addColorStop(1, '#33220f');
+        ctx.fillStyle = tg;
+        ctx.beginPath();
+        ctx.moveTo(tx - ts * 0.19, ty);
+        ctx.lineTo(tx - ts * 0.11, ty - ts * 0.85);
+        ctx.lineTo(tx + ts * 0.11, ty - ts * 0.85);
+        ctx.lineTo(tx + ts * 0.19, ty);
+        ctx.closePath(); ctx.fill();
+
+        var cy2 = ty - ts * 1.15, cr = ts * 0.86;
+        var ripe = (o.kind === 'fruitTree' && o.fruit > 0);
+        var deep = o.kind === 'fruitTree' ? '#25562c' : '#1f4a25';
+        var mid = o.kind === 'fruitTree' ? '#3d7c3f' : '#356b32';
+        var lit = o.kind === 'fruitTree' ? '#63a75c' : '#5a9450';
+        // canopy: three overlapping lobes so the outline is not a circle
+        var lobes = [[0, 0, 1], [-0.55, 0.22, 0.72], [0.55, 0.22, 0.72],
+                     [-0.28, -0.34, 0.62], [0.3, -0.3, 0.6]];
+        for (var lb = 0; lb < lobes.length; lb++) {
+          var lx = tx + lobes[lb][0] * cr, ly = cy2 + lobes[lb][1] * cr;
+          var lr = cr * lobes[lb][2];
+          var g2 = ctx.createRadialGradient(lx - lr * 0.35, ly - lr * 0.4, lr * 0.1,
+                                            lx, ly, lr);
+          g2.addColorStop(0, lit);
+          g2.addColorStop(0.55, mid);
+          g2.addColorStop(1, deep);
+          ctx.fillStyle = g2;
+          ctx.beginPath();
+          ctx.arc(lx, ly, lr, 0, 6.3);
+          ctx.fill();
+        }
+        // a few broken highlights, seeded off the tile so they never shimmer
+        var hn = global.SDV_TILES ? global.SDV_TILES.noise : function () { return 0.5; };
+        ctx.fillStyle = 'rgba(150,205,130,0.5)';
+        for (var hl = 0; hl < 5; hl++) {
+          var ha = hn(o.x * 7 + hl, o.y * 3) * 6.28;
+          var hd = hn(o.x, o.y * 7 + hl) * cr * 0.7;
+          ctx.beginPath();
+          ctx.arc(tx + Math.cos(ha) * hd - cr * 0.15,
+                  cy2 + Math.sin(ha) * hd - cr * 0.2,
+                  ts * 0.09, 0, 6.3);
+          ctx.fill();
+        }
+        if (ripe) {
+          ctx.fillStyle = '#e0603c';
+          for (var fr = 0; fr < Math.min(4, o.fruit); fr++) {
+            var fa = 1.1 + fr * 1.4;
+            ctx.beginPath();
+            ctx.arc(tx + Math.cos(fa) * cr * 0.62, cy2 + Math.sin(fa) * cr * 0.55,
+                    ts * 0.13, 0, 6.3);
+            ctx.fill();
+          }
+        }
+        break;
+      }
+      case 'rock': case 'oreRock': {
+        var rx = sx + ts * 0.5, ry = sy + ts * 0.82, rr = ts * 0.42;
+        var body = ctx.createLinearGradient(rx - rr, ry - rr, rx + rr * 0.6, ry + rr * 0.4);
+        body.addColorStop(0, '#8f8f9c');
+        body.addColorStop(0.5, '#5e5e6a');
+        body.addColorStop(1, '#3b3b45');
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        // an angular boulder, not a circle: five points around the centre
+        var pts = [[-1, 0.05], [-0.62, -0.75], [0.18, -1], [0.92, -0.4], [0.8, 0.35]];
+        ctx.moveTo(rx + pts[0][0] * rr, ry + pts[0][1] * rr);
+        for (var pi = 1; pi < pts.length; pi++) {
+          ctx.lineTo(rx + pts[pi][0] * rr, ry + pts[pi][1] * rr);
+        }
+        ctx.closePath(); ctx.fill();
+        // one lit facet so it has a direction
+        ctx.fillStyle = 'rgba(215,220,235,0.30)';
+        ctx.beginPath();
+        ctx.moveTo(rx - rr * 0.62, ry - rr * 0.75);
+        ctx.lineTo(rx + rr * 0.18, ry - rr);
+        ctx.lineTo(rx - rr * 0.1, ry - rr * 0.25);
+        ctx.closePath(); ctx.fill();
+        if (o.kind === 'oreRock' || o.ore) {
+          var oc = o.ore ? S.iconColors(o.ore, 'mineral') : null;
+          ctx.fillStyle = oc ? oc.main : '#d8813c';
+          for (var ov = 0; ov < 3; ov++) {
+            ctx.beginPath();
+            ctx.arc(rx + (ov - 1) * rr * 0.42, ry - rr * (0.30 + (ov % 2) * 0.3),
+                    ts * 0.075, 0, 6.3);
+            ctx.fill();
+          }
+        }
+        break;
+      }
       default: {
         var sp = S.SP[o.kind];
         if (sp) {
@@ -998,11 +1200,36 @@
     var px = ts / 12;
     var sx = Math.round(act.x * ts - camX - img.w * px / 2);
     var sy = Math.round(act.y * ts - camY - img.h * px + ts * 0.5);
-    ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.beginPath();
-    ctx.ellipse(Math.round(act.x * ts - camX), Math.round(act.y * ts - camY + ts * 0.35),
-                ts * 0.3, ts * 0.14, 0, 0, 6.3);
-    ctx.fill();
+    /* A soft body shadow rather than a hard ellipse - stacked like the object
+     * shadows so a person is planted on the ground instead of pasted onto it. */
+    var bcx = Math.round(act.x * ts - camX);
+    var bcy = Math.round(act.y * ts - camY + ts * 0.35);
+    for (var sh = 0; sh < 3; sh++) {
+      ctx.fillStyle = 'rgba(24,20,28,' + (0.16 - sh * 0.045).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.ellipse(bcx, bcy, ts * (0.28 + sh * 0.09), ts * (0.13 + sh * 0.04),
+                  0, 0, 6.3);
+      ctx.fill();
+    }
+    /* A rim of light down one side once it is dark.
+     *
+     * WHY: against the near-black the light pass leaves behind, a flat sprite
+     * loses its outline entirely - which is the one thing the reference games
+     * never let happen to a character. The rim is drawn as the same sprite,
+     * offset a pixel and tinted, under the real one. */
+    var LT = global.SDV_LIGHT;
+    var rim = LT ? LT.darkness(this) : 0;
+    if (rim > 0.15) {
+      ctx.save();
+      ctx.globalAlpha = 0.32 * rim;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,214,150,1)';
+      ctx.beginPath();
+      ctx.ellipse(bcx, Math.round(act.y * ts - camY) - ts * 0.35,
+                  ts * 0.42, ts * 0.62, 0, 0, 6.3);
+      ctx.fill();
+      ctx.restore();
+    }
     S.blit(ctx, img, sx, sy, px, act.face === 'left');
     if (isNpc) {
       var cx = Math.round(act.x * ts - camX);
@@ -1131,50 +1358,128 @@
     }
   };
 
+  /* Weather, in layers.
+   *
+   * WHY layers: one field of identical streaks reads as a screen effect laid
+   * over the picture. Rain that falls at two speeds and two sizes, with drops
+   * bursting on the ground, reads as weather the world is standing in - which
+   * is the difference the owner was pointing at. The blue wash this used to
+   * paint is gone: the light pass already pulls a rainy day down and towards
+   * grey, and doing it twice flattened the whole frame.
+   */
   Game.prototype.drawWeather = function (vw, vh) {
     var ctx = this.ctx, w = this.sim.weather;
+    var t = Date.now();
     if (w === 'rain' || w === 'storm') {
-      ctx.strokeStyle = 'rgba(150,190,230,0.45)';
-      ctx.lineWidth = 1;
-      var t = Date.now() / 90;
-      for (var i = 0; i < 90; i++) {
-        var x = (i * 79 + t * 9) % vw;
-        var y = (i * 137 + t * 26) % vh;
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 3, y + 12); ctx.stroke();
+      var heavy = w === 'storm';
+      var layers = heavy ? [[70, 1.6, 0.42, 30], [110, 1.0, 0.24, 20]]
+                         : [[46, 1.3, 0.34, 22], [80, 0.8, 0.18, 15]];
+      for (var L = 0; L < layers.length; L++) {
+        var n = layers[L][0], lw = layers[L][1], al = layers[L][2], len = layers[L][3];
+        ctx.strokeStyle = 'rgba(178,206,236,' + al + ')';
+        ctx.lineWidth = lw;
+        var sp = t / (L ? 130 : 78);
+        ctx.beginPath();
+        for (var i = 0; i < n; i++) {
+          var x = (i * 97 + sp * 11) % (vw + 40) - 20;
+          var y = (i * 151 + sp * 34) % (vh + 60) - 30;
+          ctx.moveTo(x, y);
+          ctx.lineTo(x - len * 0.28, y + len);
+        }
+        ctx.stroke();
       }
-      ctx.fillStyle = 'rgba(30,50,80,0.16)';
-      ctx.fillRect(0, 0, vw, vh);
-      if (w === 'storm' && Math.random() < 0.004) {
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      /* Drops landing. They sit on a slow cycle keyed off the drop's own index
+       * so each one bursts at a different moment. */
+      ctx.strokeStyle = 'rgba(198,224,250,0.30)';
+      ctx.lineWidth = 1;
+      for (var d = 0; d < (heavy ? 26 : 16); d++) {
+        var ph = ((t / 620) + d * 0.37) % 1;
+        var rx = (d * 313 + 61) % vw;
+        var ry = (d * 197 + 113) % vh;
+        var rr = 2 + ph * (heavy ? 13 : 9);
+        ctx.globalAlpha = (1 - ph) * 0.5;
+        ctx.beginPath();
+        ctx.ellipse(rx, ry, rr, rr * 0.36, 0, 0, 6.3);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      if (heavy && Math.random() < 0.004) {
+        ctx.fillStyle = 'rgba(226,238,255,0.55)';
         ctx.fillRect(0, 0, vw, vh);
       }
     } else if (w === 'snow') {
-      ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      var s = Date.now() / 700;
-      for (var j = 0; j < 70; j++) {
-        var sx = (j * 113 + Math.sin(s + j) * 24) % vw;
-        var sy = (j * 71 + s * 26) % vh;
-        ctx.fillRect(sx, sy, 3, 3);
+      var ss = t / 900;
+      for (var j = 0; j < 90; j++) {
+        var depth = (j % 3) + 1;                 // 1 near, 3 far
+        var fx2 = (j * 113 + Math.sin(ss * (0.6 + depth * 0.2) + j) * (30 / depth)) % vw;
+        var fy2 = (j * 71 + ss * (34 / depth) * 26) % vh;
+        var size = 4 - depth;
+        ctx.fillStyle = 'rgba(240,246,255,' + (0.85 - depth * 0.2).toFixed(2) + ')';
+        ctx.fillRect(fx2, fy2, size, size);
       }
     } else if (w === 'wind') {
-      ctx.fillStyle = 'rgba(200,180,120,0.18)';
-      var k = Date.now() / 120;
-      for (var m = 0; m < 24; m++) {
-        var wx = (m * 211 + k * 32) % (vw + 60) - 30;
-        var wy = (m * 97) % vh;
-        ctx.fillRect(wx, wy, 14, 2);
+      var k = t / 120;
+      for (var m = 0; m < 26; m++) {
+        var lyr = m % 2;
+        ctx.fillStyle = lyr ? 'rgba(206,186,132,0.14)' : 'rgba(224,204,150,0.22)';
+        var wx = (m * 211 + k * (lyr ? 22 : 38)) % (vw + 80) - 40;
+        var wy = (m * 97 + Math.sin(k / 40 + m) * 14) % vh;
+        ctx.save();
+        ctx.translate(wx, wy);
+        ctx.rotate(0.5 + Math.sin(k / 30 + m) * 0.5);
+        ctx.fillRect(0, 0, lyr ? 5 : 8, lyr ? 3 : 4);
+        ctx.restore();
       }
     }
+    this.drawMotes(vw, vh);
   };
 
-  Game.prototype.drawNightTint = function (vw, vh) {
-    var t = this.sim.time, ctx = this.ctx;
-    var a = 0;
-    if (t > 17 * 60) a = Math.min(0.55, (t - 17 * 60) / (7 * 60) * 0.62);
-    if (!this.world.area().outdoor) a = Math.max(a, 0.12);
-    if (a <= 0) return;
-    ctx.fillStyle = 'rgba(18,22,48,' + a.toFixed(2) + ')';
-    ctx.fillRect(0, 0, vw, vh);
+  /* The specks in the air.
+   *
+   * Nothing in the simulation depends on these; they exist because a still
+   * frame of an empty field is what "flat" looks like. Pollen drifting in a
+   * shaft of afternoon light, and fireflies once it is dark, cost one loop and
+   * do more for the picture than any amount of extra tile detail. */
+  Game.prototype.drawMotes = function (vw, vh) {
+    var area = this.world.area();
+    if (area.depth) return;
+    var ctx = this.ctx;
+    var LT = global.SDV_LIGHT;
+    var dark = LT ? LT.darkness(this) : 0;
+    var t = Date.now() / 1000;
+    var night = dark > 0.55 && area.outdoor;
+    var n = night ? 14 : 22;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (var i = 0; i < n; i++) {
+      var seed = i * 2.399963;
+      var drift = night ? 0.10 : 0.16;
+      var mx = ((Math.sin(seed) * 0.5 + 0.5) * vw
+                + Math.sin(t * drift + i) * vw * 0.14 + t * (night ? 3 : 7)) % vw;
+      var my = ((Math.cos(seed * 1.7) * 0.5 + 0.5) * vh
+                + Math.cos(t * drift * 0.8 + i * 1.3) * vh * 0.10) % vh;
+      if (night) {
+        // fireflies pulse; pollen does not
+        var pulse = 0.35 + 0.65 * Math.pow(Math.abs(Math.sin(t * 1.6 + i)), 3);
+        ctx.fillStyle = 'rgba(180,255,140,' + (0.5 * pulse).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.arc(mx, my, 2.4, 0, 6.3);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(180,255,140,' + (0.10 * pulse).toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.arc(mx, my, 7, 0, 6.3);
+        ctx.fill();
+      } else {
+        var a2 = (0.10 + 0.10 * Math.sin(t * 0.7 + i)) * (1 - dark);
+        if (a2 <= 0.005) continue;
+        ctx.fillStyle = 'rgba(255,246,214,' + a2.toFixed(3) + ')';
+        ctx.beginPath();
+        ctx.arc(mx, my, 1.6, 0, 6.3);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
   };
 
   Game.prototype.cropDef = function (name) {

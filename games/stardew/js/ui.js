@@ -261,6 +261,13 @@
       this._fishState = null;
     }
     if (this.panel) { this.panel.remove(); this.panel = null; }
+    /* WHY the hold is dropped here: `dragging` used to survive the panel that
+     * created it, so an item picked up in the chest was still "held" when the
+     * shipping bin opened, and the bin acted on it. The refresh hook goes with
+     * it - a stale one re-opened a panel the player had just closed. */
+    this.closeSheet();
+    this.clearHeld();
+    this.refreshPanel = null;
     this.game.paused = false;
   };
   UI.prototype.openPanel = function (title, bodyEl, opts) {
@@ -281,60 +288,405 @@
     return p;
   };
 
+  // ---- the held item, and the gestures that move it ----------------------
+  /*
+   * ONE item is held at a time, recorded as {it, list, index}. The index is a
+   * hint only: heldItem() re-finds the stack by identity before anything acts
+   * on it, and gives up if it has since left that list.
+   *
+   * WHY that indirection exists: the old code trusted the index it wrote down
+   * at pick-up time, and three separate paths then acted on whatever had slid
+   * into that slot since. The shipping bin read sim.inventory[index] for an
+   * item picked up in the CHEST and posted a stack the player never touched;
+   * the shopkeeper's sell box paid diamond money and deleted the wood beside
+   * it; and the chest's quick-sort button turned one stack into two, because
+   * moveStack pushed the held item and then spliced a different one out.
+   */
+  var HOLD_MS = 240;      // long enough that a flick to scroll is not a grab
+  var SLOP = 12;          // px of finger travel that still counts as "still"
+  var QUAL_VN = ['Thường', 'Bạc', 'Vàng', 'Iridi'];
+
+  UI.prototype.heldItem = function () {
+    var d = this.dragging;
+    if (!d || !d.it || !d.list) return null;
+    var i = d.list.indexOf(d.it);
+    if (i < 0) { this.clearHeld(); return null; }
+    d.index = i;
+    return d;
+  };
+  UI.prototype.pickUp = function (it, list, index, node) {
+    this.clearHeld();
+    this.dragging = { it: it, list: list, index: index };
+    if (node) { node.classList.add('sdv-picked'); this._pickedEl = node; }
+    this.game.sfx('pickup');
+  };
+  UI.prototype.clearHeld = function () {
+    this.dragging = null;
+    this._pickedEl = null;
+    this._hoverDz = null;
+    /* Sweeping the highlight off the whole layer rather than off one remembered
+     * node: a panel that re-rendered mid-hold left an orphan outline that never
+     * came off, so the player was looking at an item the game was not holding. */
+    var lit = this.layer.querySelectorAll('.sdv-picked, .sdv-dzover, .sdv-dzhot');
+    for (var i = 0; i < lit.length; i++) {
+      lit[i].classList.remove('sdv-picked');
+      lit[i].classList.remove('sdv-dzover');
+      lit[i].classList.remove('sdv-dzhot');
+    }
+    this.ghostHide();
+  };
+
+  /* A click always follows the touchend that ends a long press, and it lands on
+   * whatever the finger was over - so without swallowing it, every touch drop
+   * ran twice (sold, then tried to sell again). */
+  UI.prototype.eatNextClick = function () { this._eatClickAt = Date.now(); };
+  UI.prototype.swallowClick = function () {
+    if (this._eatClickAt && Date.now() - this._eatClickAt < 700) {
+      this._eatClickAt = 0; return true;
+    }
+    return false;
+  };
+
+  /* The held item follows the finger. WHY: `.sdv-picked` was added on
+   * touchstart and never removed, so "am I carrying something, and what" was a
+   * question the screen could not answer. */
+  UI.prototype.ghostShow = function (it, x, y) {
+    this.ghostHide();
+    var g = el('div', 'sdv-ghost');
+    var info = this.sim.itemInfo(it.name);
+    g.appendChild(icon(it.name, info ? info.cat : 'crop', 40));
+    if (it.qty > 1) g.appendChild(el('span', 'sdv-qty', String(it.qty)));
+    this.layer.appendChild(g);
+    this._ghost = g;
+    this.ghostMove(x, y);
+  };
+  UI.prototype.ghostMove = function (x, y) {
+    if (!this._ghost) return;
+    var r = this.layer.getBoundingClientRect();
+    this._ghost.style.left = (x - r.left) + 'px';
+    this._ghost.style.top = (y - r.top) + 'px';
+  };
+  UI.prototype.ghostHide = function () {
+    if (this._ghost) { this._ghost.remove(); this._ghost = null; }
+  };
+
+  UI.prototype.dropNodeAt = function (x, y) {
+    var n = document.elementFromPoint(x, y);
+    while (n && !n.__sdvDrop) n = n.parentElement;
+    return n;
+  };
+  UI.prototype.hoverDropZone = function (x, y) {
+    var n = this.dropNodeAt(x, y);
+    if (n === this._hoverDz) return;
+    if (this._hoverDz) this._hoverDz.classList.remove('sdv-dzover');
+    this._hoverDz = n;
+    if (n) n.classList.add('sdv-dzover');
+  };
+  UI.prototype.markDropZones = function (on) {
+    var z = this.layer.querySelectorAll('.sdv-dz');
+    for (var i = 0; i < z.length; i++) {
+      if (on) z[i].classList.add('sdv-dzhot');
+      else z[i].classList.remove('sdv-dzhot');
+    }
+  };
+  /* Releasing a touch-drag. WHY it hit-tests the point under the finger instead
+   * of relying on drop events: HTML5 drag-and-drop never fires on a phone,
+   * which is why "kéo vật phẩm vào đây" was an instruction the owner could not
+   * follow - there was no touch path into the bin at all. */
+  UI.prototype.releaseAt = function (x, y) {
+    var d = this.heldItem();
+    this.ghostHide();
+    this.markDropZones(false);
+    if (!d) { this.clearHeld(); return; }
+    var node = this.dropNodeAt(x, y);
+    this.eatNextClick();
+    if (node) { node.__sdvDrop(d); return; }
+    /* An invalid drop says why. It used to do nothing whatsoever, which reads
+     * as a broken control rather than as a miss. */
+    this.game.sfx('error');
+    this.game.toast('Thả vào ô bán, ô của máy hoặc một ô túi khác');
+    this.clearHeld();
+  };
+
+  /* One place that makes something a drop target, with all three doors open:
+   * the desktop drop event, a tap while an item is held, and a touch-drag
+   * released on top of it (which arrives through __sdvDrop). */
+  UI.prototype.dropZone = function (node, handler, emptyMsg) {
+    var self = this;
+    node.classList.add('sdv-dz');
+    node.__sdvDrop = handler;
+    node.addEventListener('dragover', function (e) {
+      e.preventDefault(); node.classList.add('sdv-dzover');
+    });
+    node.addEventListener('dragleave', function () {
+      node.classList.remove('sdv-dzover');
+    });
+    node.addEventListener('drop', function (e) {
+      e.preventDefault();
+      node.classList.remove('sdv-dzover');
+      var d = self.heldItem();
+      if (!d) return self.game.toast(emptyMsg || 'Chưa cầm món nào');
+      handler(d);
+    });
+    node.addEventListener('click', function () {
+      if (self.swallowClick()) return;
+      var d = self.heldItem();
+      if (!d) return self.game.toast(emptyMsg || 'Chưa cầm món nào');
+      handler(d);
+    });
+    return node;
+  };
+
   // ---- bag ---------------------------------------------------------------
   UI.prototype.slotEl = function (it, list, index, opts) {
     var self = this;
     var s = el('div', 'sdv-slot');
+    /* Even an empty slot takes a drop - it is how a stack moves into the other
+     * container, and a square that silently refuses reads as "drag is broken",
+     * which is what the owner reported. */
+    s.__sdvDrop = function (d) { self.dropOnSlot(d, list, index); };
+    s.addEventListener('dragover', function (e) { e.preventDefault(); });
+    s.addEventListener('drop', function (e) {
+      e.preventDefault();
+      var d = self.heldItem();
+      if (d) self.dropOnSlot(d, list, index);
+    });
     if (!it) { s.classList.add('sdv-empty'); return s; }
     var info = this.sim.itemInfo(it.name);
     s.appendChild(icon(it.name, info ? info.cat : 'crop', 34));
     if (it.qty > 1) s.appendChild(el('span', 'sdv-qty', String(it.qty)));
-    if (it.quality) s.appendChild(el('span', 'sdv-q' + it.quality, ''));
-    s.title = it.name + (info ? ' · ' + info.sell + 'g' : '');
+    /* The grade badge was a 7px empty dot, on a phone - which is how "định
+     * quality để bán" became impossible: three grades of one crop looked the
+     * same, and plain quality had no mark at all. It carries its initial now,
+     * and the tooltip prices THAT grade instead of the base item. */
+    var q = it.quality || 0;
+    if (q) s.appendChild(el('span', 'sdv-q' + q + ' sdv-qbadge', QUAL_VN[q].charAt(0)));
+    s.title = it.name + ' · ' + QUAL_VN[q] + ' · ' + this.sim.sellPrice(it.name, q) + 'g';
     s.draggable = true;
     s.addEventListener('dragstart', function (e) {
-      self.dragging = { it: it, list: list, index: index };
+      self.pickUp(it, list, index, s);
+      self.markDropZones(true);
       e.dataTransfer.setData('text/plain', it.name);
     });
-    s.addEventListener('dragover', function (e) { e.preventDefault(); });
-    s.addEventListener('drop', function (e) {
-      e.preventDefault();
-      if (!self.dragging) return;
-      var d = self.dragging;
-      if (d.list === list && d.index !== index) {
-        var tmp = list[index]; list[index] = list[d.index]; list[d.index] = tmp;
-      } else if (d.list !== list) {
-        self.moveStack(d, list);
-      }
-      self.dragging = null;
-      self.refreshPanel();
-    });
-    // touch drag: press and hold to pick up, tap a target to drop
-    s.addEventListener('touchstart', function () {
-      self.dragging = { it: it, list: list, index: index };
-      s.classList.add('sdv-picked');
+    s.addEventListener('dragend', function () { self.markDropZones(false); });
+
+    /* Touch: press-and-hold picks the item up, a quick tap runs the panel's own
+     * action. WHY the timer: touchstart used to grab the item the instant a
+     * finger landed, so flicking the bag to scroll picked up whatever was under
+     * the first frame of the swipe and left it held - and the next tap on the
+     * shipping bin then sold that item instead of the one aimed at. The comment
+     * here already claimed "press and hold"; there was no timer anywhere. */
+    var hold = null, sx = 0, sy = 0;
+    function stopHold() { if (hold) { clearTimeout(hold); hold = null; } }
+    s.addEventListener('touchstart', function (e) {
+      var t = e.touches[0];
+      sx = t.clientX; sy = t.clientY;
+      stopHold();
+      hold = setTimeout(function () {
+        hold = null;
+        self.pickUp(it, list, index, s);
+        self.ghostShow(it, sx, sy);
+        self.markDropZones(true);
+        self.game.toast('Đang cầm ' + it.name + ' — kéo tới ô đích rồi thả');
+      }, HOLD_MS);
     }, { passive: true });
+    s.addEventListener('touchmove', function (e) {
+      var t = e.touches[0];
+      if (!self._ghost) {
+        if (Math.abs(t.clientX - sx) > SLOP || Math.abs(t.clientY - sy) > SLOP) stopHold();
+        return;
+      }
+      e.preventDefault();          // the gesture is a drag now, not a scroll
+      self.ghostMove(t.clientX, t.clientY);
+      self.hoverDropZone(t.clientX, t.clientY);
+    }, { passive: false });
+    s.addEventListener('touchend', function (e) {
+      stopHold();
+      if (!self._ghost) return;    // an ordinary tap: let the click handler run
+      var t = e.changedTouches[0];
+      self.releaseAt(t.clientX, t.clientY);
+    });
+    s.addEventListener('touchcancel', function () { stopHold(); self.clearHeld(); });
+
     s.addEventListener('click', function () {
+      if (self.swallowClick()) return;
       if (opts && opts.onClick) opts.onClick(it, index);
     });
     return s;
   };
 
+  /* Dropping onto a slot. Inside one container this REORDERS rather than swaps:
+   * assigning into a square past the end of the list left an `undefined` hole
+   * in the array, and dropping onto an empty square is the obvious way to move
+   * a stack to the end. */
+  UI.prototype.dropOnSlot = function (d, list, index) {
+    var from = d.list.indexOf(d.it);
+    if (from < 0) { this.clearHeld(); return; }
+    if (d.list === list) {
+      var to = Math.min(index, list.length - 1);
+      if (to !== from) list.splice(to, 0, list.splice(from, 1)[0]);
+      this.game.sfx('tap');
+    } else if (this.moveStack(d, list)) {
+      this.game.sfx('tap');
+    }
+    this.clearHeld();
+    if (this.refreshPanel) this.refreshPanel();
+  };
+
   UI.prototype.moveStack = function (d, target) {
+    if (target === d.list) return false;
     var cap = target === this.sim.chest ? this.sim.chestSize : this.sim.invSize;
     var it = d.it;
+    /* Found by identity, never by the index recorded at pick-up: sorting the
+     * chest between pick-up and drop used to splice a NEIGHBOUR out and leave
+     * the moved stack sitting in both containers at once. */
+    var from = d.list.indexOf(it);
+    if (from < 0) { this.game.toast('Món đó không còn ở chỗ cũ'); return false; }
     for (var i = 0; i < target.length; i++) {
       if (target[i] && target[i].name === it.name
           && (target[i].quality || 0) === (it.quality || 0)) {
         target[i].qty += it.qty;
-        d.list.splice(d.index, 1);
+        d.list.splice(from, 1);
         return true;
       }
     }
     if (target.length >= cap) { this.game.toast('Chỗ chứa đã đầy'); return false; }
     target.push(it);
-    d.list.splice(d.index, 1);
+    d.list.splice(from, 1);
     return true;
+  };
+
+  // ---- choosing how many -------------------------------------------------
+  /*
+   * WHY this sheet exists: the owner could not sell what they meant to -
+   * "tui không drag đồ muốn và định quality để bán đồ đc". One tap in the
+   * shipping bin posted the ENTIRE stack, of whichever grade happened to be
+   * under the finger, with no price on screen and nothing to take it back.
+   * Every sale goes through this now: it names the grade, prices THAT grade,
+   * and moves the number the player picks.
+   */
+  UI.prototype.amountSheet = function (o) {
+    var self = this;
+    this.closeSheet();
+    var it = o.item, q = it.quality || 0;
+    var n = Math.max(1, Math.min(o.start == null ? o.max : o.start, o.max));
+    var info = this.sim.itemInfo(it.name);
+
+    var wrap = el('div', 'sdv-sheet');
+    var card = el('div', 'sdv-sheetcard');
+    var head = el('div', 'sdv-sheethead');
+    head.appendChild(icon(it.name, info ? info.cat : 'crop', 40));
+    var col = el('div', 'sdv-col');
+    col.appendChild(el('div', 'sdv-sheetname', it.name));
+    col.appendChild(el('div', 'sdv-qchip sdv-qc' + q, 'Chất lượng: ' + QUAL_VN[q]));
+    head.appendChild(col);
+    card.appendChild(head);
+    card.appendChild(el('div', 'sdv-sub',
+      'Đơn giá ' + o.unit + 'g mỗi món · đang có ' + o.max));
+
+    var row = el('div', 'sdv-amtrow');
+    var minus = el('button', 'sdv-amtbtn', '−');
+    var num = el('div', 'sdv-amtnum', String(n));
+    var plus = el('button', 'sdv-amtbtn', '+');
+    row.appendChild(minus); row.appendChild(num); row.appendChild(plus);
+    card.appendChild(row);
+
+    var quick = el('div', 'sdv-amtquick');
+    [['1', 1], ['10', 10], ['Nửa', Math.max(1, Math.floor(o.max / 2))],
+     ['Tất cả', o.max]].forEach(function (p) {
+      var b = el('button', 'sdv-chipbtn', p[0]);
+      b.addEventListener('click', function () { set(p[1]); });
+      quick.appendChild(b);
+    });
+    card.appendChild(quick);
+
+    var total = el('div', 'sdv-amttotal', '');
+    card.appendChild(total);
+    if (o.note) card.appendChild(el('div', 'sdv-sub', o.note));
+
+    var okBtn = el('button', 'sdv-mbtn sdv-okbtn', '');
+    var cancel = el('button', 'sdv-mbtn sdv-cancelbtn', 'Huỷ');
+    card.appendChild(okBtn); card.appendChild(cancel);
+
+    function set(v) {
+      n = Math.max(1, Math.min(Math.round(v), o.max));
+      num.textContent = String(n);
+      total.innerHTML = 'Tổng: <b>' + (o.unit * n) + 'g</b>';
+      okBtn.textContent = o.confirm + ' ' + n + ' món — ' + (o.unit * n) + 'g';
+    }
+    minus.addEventListener('click', function () { set(n - 1); });
+    plus.addEventListener('click', function () { set(n + 1); });
+    okBtn.addEventListener('click', function () {
+      var take = n;
+      self.closeSheet();
+      o.onConfirm(take);
+    });
+    cancel.addEventListener('click', function () { self.closeSheet(); });
+    // tapping the dim area backs out, the way every phone sheet does
+    wrap.addEventListener('click', function (e) {
+      if (e.target === wrap) self.closeSheet();
+    });
+    set(n);
+    wrap.appendChild(card);
+    this.layer.appendChild(wrap);
+    this._sheet = wrap;
+    if (global.SDV_AUDIO) global.SDV_AUDIO.play('open');
+    return wrap;
+  };
+  UI.prototype.closeSheet = function () {
+    if (this._sheet) { this._sheet.remove(); this._sheet = null; }
+  };
+
+  /* Selling, wherever it happens. `mode` is 'bin' (pays tomorrow morning) or
+   * 'shop' (pays now). Both go through the amount sheet, so a partial sale is
+   * possible for the first time - before this, every route sold the lot. */
+  UI.prototype.sellSheet = function (d, mode) {
+    var self = this, s = this.sim;
+    var it = d.it, list = d.list;
+    this.clearHeld();
+    if (!it || !list || list.indexOf(it) < 0) {
+      return this.game.toast('Món đó không còn ở đó nữa');
+    }
+    var info = s.itemInfo(it.name);
+    /* WHY the price is checked and not just the item table row: 55 rows in that
+     * table are worth nothing (Weeds, Trash, Driftwood...). The bin used to
+     * swallow them, report success and pay 0g - the item was simply gone. */
+    if (!info || !info.sell) {
+      this.game.sfx('error');
+      return this.game.toast(it.name + ' không bán được');
+    }
+    var q = it.quality || 0;
+    var unit = s.sellPrice(it.name, q);
+    function refresh() { if (self.refreshPanel) self.refreshPanel(); }
+    this.amountSheet({
+      item: it, unit: unit, max: it.qty,
+      confirm: mode === 'bin' ? 'Bỏ vào thùng' : 'Bán',
+      note: mode === 'bin'
+        ? 'Tiền vào sáng hôm sau. Bỏ nhầm thì bấm ↩ ở danh sách bên dưới để lấy lại.'
+        : 'Nhận tiền ngay.',
+      onConfirm: function (want) {
+        /* Re-checked at the moment of the sale, not at the moment the sheet
+         * opened: the bag can change while the sheet is up. */
+        var i = list.indexOf(it);
+        if (i < 0) { self.game.toast('Món đó không còn trong túi'); return refresh(); }
+        var n = Math.max(1, Math.min(want, it.qty));
+        if (mode === 'bin') {
+          s.shipped.push({ name: it.name, qty: n, quality: q });
+          self.game.sfx('tap');
+          self.game.toast('Đã bỏ vào thùng ' + n + ' ' + it.name
+                          + ' (' + QUAL_VN[q] + ') — ' + (unit * n) + 'g');
+        } else {
+          s.gold += unit * n;
+          self.updateHud();
+          self.game.sfx('coin');
+          self.game.toast('Bán ' + n + ' ' + it.name + ' (' + QUAL_VN[q] + ') được '
+                          + (unit * n) + 'g');
+        }
+        it.qty -= n;
+        if (it.qty <= 0) list.splice(i, 1);
+        refresh();
+      }
+    });
   };
 
   UI.prototype.openBag = function () {
@@ -343,7 +695,8 @@
     var grid = el('div', 'sdv-grid');
     body.appendChild(grid);
     var hint = el('div', 'sdv-hint',
-      'Kéo vật phẩm ra ngoài khung để vứt xuống đất. Chạm để ăn (nếu ăn được).');
+      'Chạm để ăn (nếu ăn được). Chạm giữ một món để cầm lên, rồi kéo thả sang '
+      + 'ô khác. Trên máy tính, kéo ra ngoài khung là vứt xuống đất.');
     body.appendChild(hint);
     this.renderGrid = function () {
       grid.innerHTML = '';
@@ -351,7 +704,11 @@
         grid.appendChild(self.slotEl(self.sim.inventory[i], self.sim.inventory, i, {
           onClick: function (it, idx) {
             var gain = self.sim.eat(idx);
-            if (gain != null) { self.game.toast('+' + gain + ' sức lực'); self.refreshPanel(); }
+            if (gain != null) {
+              self.game.toast('+' + gain + ' sức lực');
+              // close() clears the hook, so every caller has to check for it
+              if (self.refreshPanel) self.refreshPanel();
+            }
           }
         }));
       }
@@ -366,10 +723,11 @@
     if (!this._groundDropBound) {
       this._groundDropBound = true;
       this.layer.addEventListener('drop', function (e) {
-        if (!self.dragging) return;
+        var d = self.heldItem();
+        if (!d) return;
         if (self.panel && self.panel.contains(e.target)) return;
-        self.dropOnGround(self.dragging);
-        self.dragging = null;
+        self.dropOnGround(d);
+        self.clearHeld();
         if (self.refreshPanel) self.refreshPanel();
       });
     }
@@ -378,9 +736,13 @@
 
   UI.prototype.dropOnGround = function (d) {
     var g = this.game, a = g.world.area();
+    /* By identity again: splicing the remembered index dropped one item on the
+     * ground and deleted a different one from the bag. */
+    var i = d.list.indexOf(d.it);
+    if (i < 0) return;
     var x = Math.floor(g.player.x), y = Math.floor(g.player.y);
     a.objs.push({ x: x, y: y, kind: 'dropped', item: d.it });
-    d.list.splice(d.index, 1);
+    d.list.splice(i, 1);
     g.toast('Đã vứt ' + d.it.name + ' xuống đất');
   };
 
@@ -442,6 +804,7 @@
       return /seeds?$/i.test(it.name) || /starter$/i.test(it.name);
     });
     var list = el('div', 'sdv-menu');
+    this.saplingOptions(x, y, list);
     if (seeds.length) {
       list.appendChild(el('div', 'sdv-sub', 'Gieo hạt'));
       seeds.forEach(function (sd) {
@@ -508,6 +871,57 @@
     list.appendChild(dbtn);
     body.appendChild(list);
     this.openPanel('Ô đất (' + x + ',' + y + ')', body);
+  };
+
+  /* Fruit-tree saplings, offered from the same two tile menus as seeds.
+   *
+   * WHY this exists: Pierre stocks six saplings at 1,000-3,000g each and the
+   * traveling cart can roll any of them, but there was no way to put one in the
+   * ground. The tile menu's seed list only admitted names ending in "Seeds" or
+   * "Starter", and plant() only searches the CROP table, so every sapling
+   * answered "Hạt này chưa trồng được" on every tile in the game - several
+   * thousand gold with nothing at the end of it. Everything downstream (the
+   * planting rules, the drawing, the harvest panel) already existed; the only
+   * missing piece was this door. */
+  UI.prototype.saplingOptions = function (x, y, list) {
+    var self = this, g = this.game, a = g.world.area();
+    var saplings = this.sim.inventory.filter(function (it) {
+      return /sapling$/i.test(it.name);
+    });
+    if (!saplings.length) return;
+    /* Only on the farm: plantFruitTree writes into the farm area whatever room
+     * the player is standing in, so offering it in the greenhouse would put the
+     * tree somewhere the player cannot see. */
+    if (a.id !== 'farm') {
+      list.appendChild(el('div', 'sdv-sub', 'Cây ăn quả chỉ trồng được ngoài nông trại'));
+      return;
+    }
+    list.appendChild(el('div', 'sdv-sub', 'Trồng cây ăn quả'));
+    saplings.forEach(function (sp) {
+      var b = el('button', 'sdv-mbtn');
+      b.appendChild(icon(sp.name, 'seed', 26));
+      b.appendChild(el('span', null, '\ud83c\udf33 ' + sp.name + ' ×' + sp.qty));
+      b.appendChild(el('small', 'sdv-cost', 'Mất vài ngày mới ra quả, sau đó ra mãi'));
+      b.addEventListener('click', function () {
+        if (self.swallowClick()) return;
+        self.plantTree(x, y, sp);
+      });
+      list.appendChild(b);
+    });
+  };
+  UI.prototype.plantTree = function (x, y, stack) {
+    var g = this.game;
+    if (!g.farm || !g.farm.plantFruitTree) return g.toast('Chưa trồng cây ăn quả được');
+    // plantFruitTree owns the rules and takes the sapling; it returns a reason or null
+    var err = g.farm.plantFruitTree(x, y, stack.name);
+    if (err) { g.sfx('error'); return g.toast(err); }
+    /* The furrow goes back to plain ground: a tree stands on the tile now, and
+     * leaving it looking like workable soil invites the player to water it. */
+    var a = g.world.areas.farm;
+    if (a.name_of(x, y) === 'tilled' || a.name_of(x, y) === 'watered') a.set(x, y, 'dirt');
+    g.sfx('plant');
+    g.toast('Đã trồng ' + stack.name);
+    this.close();
   };
 
   UI.prototype.plant = function (x, y, seedStack) {
@@ -636,6 +1050,8 @@
     var self = this, g = this.game, a = g.world.area();
     var body = el('div', 'sdv-body');
     var list = el('div', 'sdv-menu');
+    // bare ground is the natural place for a tree, so the door is on both menus
+    this.saplingOptions(x, y, list);
     var opts = [
       { label: '🌱 Cuốc thành luống', cost: {}, act: function () { a.set(x, y, 'tilled'); self.sim.spend(2); } },
       { label: '📦 Rương gỗ', cost: { Wood: 50 }, act: function () { a.objs.push({ x: x, y: y, kind: 'chest' }); } },
@@ -685,49 +1101,88 @@
 
   // ---- shipping ----------------------------------------------------------
   UI.prototype.openShipping = function () {
-    var self = this;
+    var self = this, s = this.sim;
     var body = el('div', 'sdv-body');
-    var drop = el('div', 'sdv-drop', 'Kéo vật phẩm vào đây để bán<br><small>Tiền vào sáng hôm sau</small>');
-    drop.addEventListener('dragover', function (e) { e.preventDefault(); });
-    drop.addEventListener('drop', function (e) {
-      e.preventDefault(); self.shipDragged();
-    });
-    drop.addEventListener('click', function () { self.shipDragged(); });
+    var drop = el('div', 'sdv-drop',
+      'Chạm một món trong túi để chọn số lượng bán'
+      + '<br><small>hoặc chạm giữ món rồi kéo thả vào đây · tiền vào sáng hôm sau</small>');
+    this.dropZone(drop, function (d) { self.sellSheet(d, 'bin'); },
+                  'Chạm một món trong túi trước');
     body.appendChild(drop);
-    var pending = el('div', 'sdv-list');
+
     var total = 0;
-    this.sim.shipped.forEach(function (s) {
-      total += self.sim.sellPrice(s.name, s.quality) * s.qty;
-      pending.appendChild(el('div', 'sdv-row',
-        s.name + ' ×' + s.qty + ' — ' + (self.sim.sellPrice(s.name, s.quality) * s.qty) + 'g'));
-    });
+    s.shipped.forEach(function (r) { total += s.sellPrice(r.name, r.quality) * r.qty; });
     body.appendChild(el('div', 'sdv-sub', 'Đang chờ bán: ' + total + 'g'));
+    var pending = el('div', 'sdv-list');
+    s.shipped.forEach(function (r) {
+      var q = r.quality || 0;
+      var row = el('div', 'sdv-row');
+      row.appendChild(el('span', 'sdv-name',
+        r.name + ' (' + QUAL_VN[q] + ') ×' + r.qty));
+      row.appendChild(el('span', 'sdv-price', (s.sellPrice(r.name, q) * r.qty) + 'g'));
+      /* Taking a stack back out of the bin. WHY: the bin was one-way until
+       * morning, so a mis-tap that posted a 20-stack could not be undone at
+       * all - and a mis-tap was the normal outcome, because a tap sold. */
+      var undo = el('button', 'sdv-undo', '↩');
+      undo.title = 'Lấy lại';
+      undo.addEventListener('click', function () {
+        if (self.swallowClick()) return;
+        if (!s.give(r.name, r.qty, q)) return self.game.toast('Túi đầy');
+        var i = s.shipped.indexOf(r);
+        if (i >= 0) s.shipped.splice(i, 1);
+        self.game.sfx('pickup');
+        self.game.toast('Đã lấy lại ' + r.name);
+        self.openShipping();
+      });
+      row.appendChild(undo);
+      pending.appendChild(row);
+    });
     body.appendChild(pending);
+
     var grid = el('div', 'sdv-grid');
-    for (var i = 0; i < this.sim.invSize; i++) {
-      grid.appendChild(this.slotEl(this.sim.inventory[i], this.sim.inventory, i, {
-        onClick: function (it, idx) { self.ship(idx); }
+    for (var i = 0; i < s.invSize; i++) {
+      grid.appendChild(this.slotEl(s.inventory[i], s.inventory, i, {
+        onClick: function (it, idx) {
+          self.sellSheet({ it: it, list: s.inventory, index: idx }, 'bin');
+        }
       }));
     }
-    body.appendChild(el('div', 'sdv-sub', 'Túi đồ (chạm để bán)'));
+    body.appendChild(el('div', 'sdv-sub', 'Túi đồ — chạm một món để chọn số lượng'));
     body.appendChild(grid);
     this.openPanel('Thùng giao hàng', body);
     this.refreshPanel = function () { self.openShipping(); };
   };
+
   UI.prototype.shipDragged = function () {
-    if (!this.dragging) return;
-    this.ship(this.dragging.index);
-    this.dragging = null;
+    /* WHY this no longer passes an index to ship(): it used to hand over the
+     * index of an item held in the CHEST, and ship() read sim.inventory at that
+     * index - so dropping a chest item on the bin sold an unrelated bag stack
+     * and left the chest item exactly where it was. */
+    var d = this.heldItem();
+    if (!d) return this.game.toast('Chưa cầm món nào');
+    this.sellSheet(d, 'bin');
   };
+
+  /* "Post this whole stack" - kept as the plain programmatic helper. */
   UI.prototype.ship = function (idx) {
-    var it = this.sim.inventory[idx];
-    if (!it) return;
+    return this.shipStack(this.sim.inventory, idx);
+  };
+  UI.prototype.shipStack = function (list, idx, n) {
+    var it = list[idx];
+    if (!it) return false;
     var info = this.sim.itemInfo(it.name);
-    if (!info) { this.game.toast('Món này không bán được'); return; }
-    this.sim.shipped.push({ name: it.name, qty: it.qty, quality: it.quality || 0 });
-    this.sim.inventory.splice(idx, 1);
-    this.game.toast('Đã bỏ vào thùng: ' + it.name);
-    this.openShipping();
+    // an item worth nothing used to be swallowed for 0g and reported as sold
+    if (!info || !info.sell) {
+      this.game.toast(it.name + ' không bán được');
+      return false;
+    }
+    n = Math.max(1, Math.min(n == null ? it.qty : n, it.qty));
+    this.sim.shipped.push({ name: it.name, qty: n, quality: it.quality || 0 });
+    it.qty -= n;
+    if (it.qty <= 0) list.splice(idx, 1);
+    this.game.toast('Đã bỏ vào thùng: ' + it.name + ' ×' + n);
+    if (this.refreshPanel) this.refreshPanel();
+    return true;
   };
 
   // ---- chest -------------------------------------------------------------
@@ -753,7 +1208,13 @@
     search.addEventListener('input', function () { state.q = search.value; render(); });
     var sort = el('button', 'sdv-mbtn sdv-inline', '⇅ Sắp xếp nhanh');
     sort.addEventListener('click', function () {
-      self.sim.chest.sort(function (a, b) { return a.name.localeCompare(b.name); });
+      /* Sorting moves the stacks a held item was indexed against, so the hold is
+       * dropped first; and grades land next to each other rather than in
+       * arrival order, which is the point of sorting a chest full of one crop. */
+      self.clearHeld();
+      self.sim.chest.sort(function (a, b) {
+        return a.name.localeCompare(b.name) || (a.quality || 0) - (b.quality || 0);
+      });
       render();
     });
     tools.appendChild(search); tools.appendChild(sort);
@@ -865,6 +1326,24 @@
                     thursday: 'T5', friday: 'T6', saturday: 'T7' };
         var days = m[1].toLowerCase().split(/\s+/).map(function (d) { return map[d]; });
         if (days.indexOf(s.dayOfWeek()) < 0) ok = false;
+      /* Three more conditions the tables actually use, which were being ignored
+       * - and an ignored condition reads as "no condition", so gated stock sat
+       * on the shelf from day one. Willy was offering every hook and bobber at
+       * fishing level 0, Marlon's rings ignored how deep the player had been,
+       * and Marnie was asking 100,000g for a Golden Egg whose real condition is
+       * a letter that this game never sends. */
+      } else if ((m = t.match(/^PLAYER_BASE_(\w+)_LEVEL\s+\S+\s+(\d+)/i))) {
+        var sk = m[1].toLowerCase();
+        if ((s.skills[sk] || 0) < parseInt(m[2], 10)) ok = false;
+      } else if ((m = t.match(/^MINE_LOWEST_LEVEL_REACHED\s+(\d+)/i))) {
+        if ((s.deepestMine || 0) < parseInt(m[1], 10)) ok = false;
+      } else if (/^PLAYER_HAS_MAIL\b/i.test(t)) {
+        /* Fail closed on this one only. Every mail flag in the tables gates an
+         * end-of-game reward this clone has no way to award, so treating it as
+         * "no condition" put the most expensive item in the game on sale on the
+         * first morning. Anything ELSE unrecognised still passes, so a new
+         * condition keyword cannot silently empty a shop. */
+        ok = false;
       }
     });
     return ok;
@@ -890,11 +1369,77 @@
     return rows;
   };
 
+  /* Can the game actually DO anything with this item?
+   *
+   * WHY the shops need asking: the stock tables come straight out of the real
+   * game's data, and this clone implements a fraction of it. Pierre was selling
+   * Grass Starter (nothing plants grass), four soil products the tile menu has
+   * no button for, and a 5,000g Dehydrator no code mentions; Robin's counter was
+   * nine floor tiles and a Big Chest, not one of which any screen can place;
+   * Marnie was asking 100,000g for a Golden Egg that does nothing. Money spent
+   * on those is money burnt with no message, which is the worst kind of loss -
+   * the player assumes they missed the button. A row nothing can use is not
+   * offered.
+   *
+   * The test is deliberately generous: anything plantable, edible, buildable
+   * with, feedable to a machine, or on the short list of things other systems
+   * consume stays on the shelf. Only what nothing at all references goes. */
+  /* Everything another screen consumes by name, gathered by reading those
+   * screens rather than guessing: hay is fed to animals in the barn panel, the
+   * crab pot is placed on water and re-baited, the bouquet and the pendant are
+   * the two courtship items, and the quick-use row understands staircases,
+   * bombs and geodes by pattern. Miss one of these and a real item disappears
+   * from a shelf, so the list is deliberately wider than it needs to be. */
+  var OTHER_USES = ['Hay', 'Crab Pot', 'Bait', 'Bouquet', "Mermaid's Pendant"];
+  var OTHER_USE_RE = /(^|\s)(staircase|bomb|geode)$|geode$/i;
+  var TILE_FERTS = ['Basic Fertilizer', 'Quality Fertilizer', 'Deluxe Fertilizer'];
+  UI.prototype.shopItemUsable = function (name) {
+    var g = this.game, s = this.sim;
+    if (OTHER_USES.indexOf(name) >= 0) return true;
+    if (OTHER_USE_RE.test(name)) return true;
+    if (TILE_FERTS.indexOf(name) >= 0) return true;
+    if ((g.data.fruitTrees || []).some(function (t) { return t.sapling === name; })) return true;
+    // plantable: exactly the test plant() applies, so the two cannot drift apart
+    var cropName = String(name).replace(/\s*Seeds?$/i, '').replace(/\s*Starter$/i, '');
+    if ((g.data.crops || []).some(function (c) {
+      return c.seed === name || c.name === cropName;
+    })) return true;
+    var info = s.itemInfo(name);
+    if (info && info.energy != null) return true;              // it can be eaten
+    var M = global.SDV_MACHINES;
+    if (M && M.MACHINES) {
+      var keys = Object.keys(M.MACHINES);
+      for (var i = 0; i < keys.length; i++) {
+        var d = M.MACHINES[keys[i]];
+        if (d.craft && d.craft[name]) return true;             // builds a machine
+        try {
+          if (d.accept && d.accept({ name: name, qty: 99, quality: 0 }, s)) return true;
+        } catch (e) { /* a recipe that throws on an unknown item is a "no" */ }
+      }
+    }
+    return false;
+  };
+
   UI.prototype.openShop = function (stockKey, keeper) {
     var self = this;
     var raw = (this.game.data.shops[stockKey] || []);
-    var stock = this.seasonalSeedRows(stockKey).concat(raw)
+    /* One row per item, at the LOWER price. The tables list some items twice -
+     * Pierre had Grass Starter at 100 AND at 1,000, the Blacksmith had every ore
+     * twice - and two identical-looking rows at different prices is a trap:
+     * whichever the player taps, they cannot tell they were overcharged.
+     * The winners are collected into a fresh array rather than flagged on the
+     * rows, because those rows ARE `game.data.shops` and writing to them would
+     * make the filtering permanent for the rest of the session. */
+    var best = {}, order = [];
+    this.seasonalSeedRows(stockKey).concat(raw)
       .filter(function (r) { return self.shopRowAvailable(r.when); })
+      .filter(function (r) { return self.shopItemUsable(r.item); })
+      .forEach(function (r) {
+        var prev = best[r.item];
+        if (!prev) { order.push(r.item); best[r.item] = r; return; }
+        if (r.price < prev.price) best[r.item] = r;
+      });
+    var stock = order.map(function (name) { return best[name]; })
       .map(function (r) {
         /* WHY: several shop rows were priced BELOW what the bin pays for the
          * same item (Pizza 150 -> 300), which is an infinite money press with
@@ -906,28 +1451,51 @@
       })
       .slice(0, 140);
     var body = el('div', 'sdv-body');
-    var sell = el('div', 'sdv-drop', 'Chạm món trong túi rồi chạm vào đây để BÁN');
-    /* WHY a click handler too: HTML5 drag-and-drop never fires on touch, so on
-     * a phone there was no way at all to sell to a shopkeeper. The shipping bin
-     * and the gift slot both accept tap-then-tap; this now matches them. */
-    function doSell() {
-      if (!self.dragging) return self.game.toast('Chạm một món trong túi trước');
-      var d = self.dragging;
-      var info = self.sim.itemInfo(d.it.name);
-      self.dragging = null;
-      // an item with no price used to be swallowed for 0 gold
-      if (!info || !info.sell) return self.game.toast('Món này không bán được');
-      var price = self.sim.sellPrice(d.it.name, d.it.quality) * d.it.qty;
-      self.sim.gold += price;
-      d.list.splice(d.index, 1);
-      self.game.toast('Bán được ' + price + 'g');
-      self.updateHud();
-      self.openShop(stockKey, keeper);
-    }
-    sell.addEventListener('dragover', function (e) { e.preventDefault(); });
-    sell.addEventListener('drop', function (e) { e.preventDefault(); doSell(); });
-    sell.addEventListener('click', doSell);
+    var sell = el('div', 'sdv-drop',
+      'Chạm một món trong túi để BÁN'
+      + '<br><small>chọn được số lượng · hoặc chạm giữ món rồi kéo thả vào đây</small>');
+    /* WHY it goes through the amount sheet: this box used to sell the WHOLE
+     * stack of whatever `dragging` pointed at, splicing by a remembered index -
+     * so a bag that had changed since meant it credited one item's price and
+     * deleted a different item. And there was never a way to sell only some. */
+    this.dropZone(sell, function (d) { self.sellSheet(d, 'shop'); },
+                  'Chạm một món trong túi trước');
     body.appendChild(sell);
+
+    /* The bag goes directly under the sell box, ABOVE the stock list. WHY: the
+     * stock runs to 140 rows, so "chạm một món trong túi" meant scrolling past
+     * every seed in the shop before the bag was even on screen - which is a
+     * good part of why selling to a shopkeeper felt impossible. */
+    var grid = el('div', 'sdv-grid');
+    for (var i = 0; i < this.sim.invSize; i++) {
+      grid.appendChild(this.slotEl(this.sim.inventory[i], this.sim.inventory, i, {
+        onClick: function (it, idx) {
+          self.sellSheet({ it: it, list: self.sim.inventory, index: idx }, 'shop');
+        }
+      }));
+    }
+    body.appendChild(el('div', 'sdv-sub',
+      'Túi đồ — chạm một món để chọn số lượng bán'));
+    body.appendChild(grid);
+
+    /* An empty stock list used to be a heading with nothing under it, which
+     * reads as a broken screen. Robin's counter is the one that lands here -
+     * everything she sells is scenery this game cannot place - and what the
+     * player actually wants from her is the building menu, so say so and open
+     * it from here. */
+    if (!stock.length) {
+      body.appendChild(el('div', 'sdv-sub', 'Hôm nay quầy này không bán gì.'));
+      if (this.openCarpenter && /Carpenter/i.test(stockKey || '')) {
+        var cb = el('button', 'sdv-mbtn', '\ud83c\udfd7 Xem công trình xây dựng');
+        cb.addEventListener('click', function () {
+          if (self.swallowClick()) return;
+          self.openCarpenter();
+        });
+        body.appendChild(cb);
+      }
+    } else {
+      body.appendChild(el('div', 'sdv-sub', 'Hàng bán trong tiệm'));
+    }
     var list = el('div', 'sdv-list');
     stock.forEach(function (s) {
       var row = el('div', 'sdv-row sdv-buy');
@@ -936,29 +1504,25 @@
       row.appendChild(el('span', 'sdv-name', s.item));
       row.appendChild(el('span', 'sdv-price', s.price + 'g'));
       row.addEventListener('click', function () {
+        if (self.swallowClick()) return;
         if (self.sim.gold < s.price) return self.game.toast('Không đủ tiền');
         /* Ask give() rather than counting slots: a full bag can still absorb
          * an item that stacks onto something already in it. */
         if (!self.sim.give(s.item, 1)) return self.game.toast('Túi đầy');
         self.sim.gold -= s.price;
+        self.game.sfx('coin');
         self.game.toast('Mua ' + s.item);
         self.updateHud();
+        /* The bag under the stock list is stale the moment something is bought;
+         * it used to keep showing the old contents until the panel was
+         * re-opened, so a bought seed looked like it had gone nowhere. */
+        if (self.refreshPanel) self.refreshPanel();
       });
       list.appendChild(row);
     });
     body.appendChild(list);
-    var grid = el('div', 'sdv-grid');
-    for (var i = 0; i < this.sim.invSize; i++) {
-      grid.appendChild(this.slotEl(this.sim.inventory[i], this.sim.inventory, i, {
-        onClick: function (it, idx) {
-          self.dragging = { it: it, list: self.sim.inventory, index: idx };
-          self.game.toast('Đã chọn ' + it.name + ' — chạm ô bán ở trên');
-        }
-      }));
-    }
-    body.appendChild(el('div', 'sdv-sub', 'Túi đồ — chạm một món rồi chạm ô bán'));
-    body.appendChild(grid);
     this.openPanel(keeper || 'Cửa hàng', body);
+    this.refreshPanel = function () { self.openShop(stockKey, keeper); };
   };
 
   // ---- villager ----------------------------------------------------------
@@ -1031,8 +1595,8 @@
     var giftWrap = el('div', 'sdv-giftwrap');
     var slot = el('div', 'sdv-drop sdv-giftslot',
                   '🎁 Chạm một món bên dưới để tặng');
-    slot.addEventListener('dragover', function (e) { e.preventDefault(); });
-    slot.addEventListener('drop', function (e) { e.preventDefault(); self.doGift(npc); });
+    this.dropZone(slot, function (d) { self.doGift(npc, d); },
+                  'Chạm một món trong túi trước');
     giftWrap.appendChild(slot);
     body.appendChild(giftWrap);
 
@@ -1040,8 +1604,7 @@
     for (var i = 0; i < s.invSize; i++) {
       grid.appendChild(this.slotEl(s.inventory[i], s.inventory, i, {
         onClick: function (it, idx) {
-          self.dragging = { it: it, list: s.inventory, index: idx };
-          self.doGift(npc);
+          self.doGift(npc, { it: it, list: s.inventory, index: idx });
         }
       }));
     }
@@ -1065,16 +1628,19 @@
     this.openPanel(npc.name, body);
   };
 
-  UI.prototype.doGift = function (npc) {
-    if (!this.dragging) return;
-    var d = this.dragging;
+  UI.prototype.doGift = function (npc, d) {
+    d = d || this.heldItem();
+    if (!d) return this.game.toast('Chạm một món trong túi trước');
+    this.clearHeld();
     var res = this.sim.giveGift(npc.name, d.it.name);
-    this.dragging = null;
     if (res.refused === 'day') return this.game.toast('Hôm nay đã tặng rồi');
     if (res.refused === 'week') return this.game.toast('Tuần này đã tặng đủ 2 món');
     if (res.refused === 'missing') return this.game.toast('Không còn món đó trong túi');
+    /* The emptied stack is removed by identity: splicing the index recorded at
+     * pick-up time threw away whichever stack had slid into that position. */
+    var i = d.list.indexOf(d.it);
     d.it.qty--;
-    if (d.it.qty <= 0) d.list.splice(d.index, 1);
+    if (d.it.qty <= 0 && i >= 0) d.list.splice(i, 1);
     var msg = { love: 'rất thích!', like: 'thích', neutral: 'bình thường',
                 dislike: 'không thích', hate: 'ghét' }[res.taste];
     this.game.sfx(res.points > 0 ? 'harvest' : 'error');
@@ -1272,6 +1838,24 @@
     }
     body.appendChild(el('div', 'sdv-sub',
       'Cây lớn thêm: ' + report.grew + (report.died ? ' · chết: ' + report.died : '')));
+    /* Everything else the night produced.
+     *
+     * WHY it is here: the night already counted all of this and handed it over,
+     * and this screen threw every number on the floor. A player who had built a
+     * coop, set a crab pot and started a keg was told none of it had happened
+     * and had to walk round the farm checking by hand - and the morning summary
+     * is the reward screen of a farming game. Only non-zero lines are shown, so
+     * a quiet night still reads as a quiet night rather than a wall of zeros.
+     * report.today is deliberately not touched here: the festival / post /
+     * cart / train notes are added by the panels layer on top of this. */
+    [['\ud83e\udd5a', report.animalProduce, 'con vật cho sản phẩm'],
+     ['\u2699\ufe0f', report.machines, 'máy làm xong đồ, ra lấy được'],
+     ['\ud83e\udd90', report.pots, 'lồng cua có đồ'],
+     ['\ud83c\udf3f', report.forage, 'chỗ mọc đồ hái mới ngoài đồ']
+    ].forEach(function (row) {
+      if (!row[1]) return;
+      body.appendChild(el('div', 'sdv-sub', row[0] + ' ' + row[1] + ' ' + row[2]));
+    });
     body.appendChild(el('div', 'sdv-sub', 'Vận may: ' + this.sim.luckText()));
     var b = el('button', 'sdv-mbtn', 'Bắt đầu ngày mới');
     b.addEventListener('click', function () { self.close(); });
@@ -1294,7 +1878,14 @@
     var pool = this.fishPool();
     if (!pool.length) return g.toast('Chỗ này giờ không có cá');
     var target = pool[Math.floor(Math.random() * pool.length)];
-    /* A legendary is a once-in-a-while event, not a 1-in-12 cast. */
+    /* A legendary is a once-in-a-while event, not a 1-in-12 cast.
+     *
+     * The hour and weather gates are deliberately NOT applied here, unlike the
+     * ordinary pool below. Each of these can be caught once per save, behind
+     * the right season, the right water and fishing level 6, at a 2% roll; also
+     * demanding that the weather and the clock line up on the same visit makes
+     * the rarest fish in the game a matter of luck about luck. Season and
+     * location still hold, so each one still belongs to its own place. */
     var legends = this.game.data.fish.filter(function (f) {
       return (f.kind === 'legendary')
         && f.locations && f.locations.indexOf(g.world.current) >= 0
@@ -1388,6 +1979,12 @@
         var wet = sim.weather === 'rain' || sim.weather === 'storm';
         if (f.weather.indexOf(wet ? 'rain' : 'sun') < 0) return false;
       }
+      /* The `w[0] + 60` floor is a guard, not a widening: the clock moves in
+       * 10-minute steps, so a window narrower than one step could be stepped
+       * clean over and the fish would never be catchable at all. Measured on
+       * the shipped table (2026-08-23): 66 windows, the narrowest 240 minutes,
+       * so the floor changes nothing today and only protects a future entry.
+       * Do not "simplify" it away. */
       if (f.windows && f.windows.length && !f.windows.some(function (w) {
         return sim.time >= w[0] && sim.time <= Math.max(w[1], w[0] + 60);
       })) return false;
@@ -1490,7 +2087,11 @@
     function finish(win) {
       stop();
       if (win) {
-        var q = sim.rollQuality(0);
+        /* WHY the skill is named: rollQuality defaults to FARMING, so the
+         * grade of a fish came off the player's farming level - a level-10
+         * angler who had never planted anything pulled up plain fish for ever,
+         * and a farmer who had never cast a line pulled up gold ones. */
+        var q = sim.rollQuality(0, 'fishing');
         if (sim.give(fish.name, 1, q)) {
           if (fish._legend) {
             sim.caughtLegend = sim.caughtLegend || {};

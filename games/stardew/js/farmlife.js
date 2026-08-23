@@ -266,16 +266,35 @@
   };
 
   // ------------------------------------------------------------------ trees
-  FarmLife.prototype.plantFruitTree = function (x, y, sapling) {
-    var g = this.game, farm = g.world.areas.farm;
+  /* Which seasons a standing tree bears in, for trees planted before the
+   * seasons were written onto the object itself. */
+  function treeSeasons(game, o) {
+    var def = (game.data.fruitTrees || []).filter(function (t) {
+      return t.sapling === o.sapling || t.fruit === o.fruit;
+    })[0];
+    return def ? def.seasons : null;
+  }
+
+  /* `where` is the area the player is standing in. It used to be hardcoded to
+   * the farm, so planting a sapling in the greenhouse or on the island would
+   * have taken the sapling and grown the tree somewhere the player was not -
+   * the caller had to gate itself to the farm to work around it. */
+  FarmLife.prototype.plantFruitTree = function (x, y, sapling, where) {
+    var g = this.game;
+    var farm = where || g.world.area() || g.world.areas.farm;
     if (g.world.objAt(x, y, farm)) return 'Ô này đã có thứ khác';
+    if (farm.solid(x, y)) return 'Chỗ này bị vướng';
     var def = (g.data.fruitTrees || []).filter(function (t) {
       return t.sapling === sapling;
     })[0];
     if (!def) return 'Không trồng được cây này';
+    /* WHY the sapling is taken here: nothing else took it. The only reason that
+     * never cost anybody a tree is that no screen can reach this function yet -
+     * whichever one wires it up would otherwise have planted for free. */
+    if (!g.sim.take(sapling, 1)) return 'Không có ' + sapling + ' trong túi';
     farm.objs.push({
       x: x, y: y, kind: 'fruitTree', sapling: sapling,
-      fruit: def.fruit, age: 0, fruits: 0
+      fruit: def.fruit, seasons: def.seasons || [], age: 0, fruits: 0
     });
     return null;
   };
@@ -286,22 +305,31 @@
   FarmLife.prototype.overnight = function (report) {
     var g = this.game, s = g.sim, farm = g.world.areas.farm;
     var self = this;
+    var profs = s.professions || {};
     var silos = farm.objs.filter(function (o) { return o.farmBuilding === 'Silo'; }).length;
     var hayAvailable = silos * 240;
 
     // sprinklers water their neighbours BEFORE crops are grown by sim.endDay
-    farm.objs.forEach(function (o) {
-      if (o.kind !== 'sprinkler') return;
-      for (var dy = -1; dy <= 1; dy++) {
-        for (var dx = -1; dx <= 1; dx++) {
-          if (dx && dy) continue;                 // plus-shape, like the basic one
-          var t = farm.name_of(o.x + dx, o.y + dy);
-          if (t === 'tilled') farm.set(o.x + dx, o.y + dy, 'watered');
-          var c = g.world.objAt(o.x + dx, o.y + dy, farm);
-          if (c && c.kind === 'crop') c.watered = true;
-        }
-      }
-    });
+    /* WHY every planting area and not just the home farm: soil can be worked in
+     * the greenhouse and on the island too, and the build menu offers a
+     * sprinkler on any of them. This pass only ever looked at the farm, so a
+     * sprinkler placed under glass cost a Copper Bar and an Iron Bar and then
+     * watered nothing, for ever, with no way to tell it apart from one working. */
+    [g.world.areas.farm, g.world.areas.greenhouse, g.world.areas.island]
+      .filter(Boolean).forEach(function (ar) {
+        ar.objs.forEach(function (o) {
+          if (o.kind !== 'sprinkler') return;
+          for (var dy = -1; dy <= 1; dy++) {
+            for (var dx = -1; dx <= 1; dx++) {
+              if (dx && dy) continue;             // plus-shape, like the basic one
+              var t = ar.name_of(o.x + dx, o.y + dy);
+              if (t === 'tilled') ar.set(o.x + dx, o.y + dy, 'watered');
+              var c = g.world.objAt(o.x + dx, o.y + dy, ar);
+              if (c && c.kind === 'crop') c.watered = true;
+            }
+          }
+        });
+      });
 
     var produced = [];
     this.animals.forEach(function (a) {
@@ -310,7 +338,13 @@
       var autoFed = hayAvailable > 0;
       if (autoFed) hayAvailable--;
       var fedToday = a.fed || autoFed;
-      if (fedToday) a.friendship = Math.min(1000, a.friendship + 8);
+      /* Coopmaster and Shepherd both promise "thân thiết nhanh hơn" and neither
+       * was read anywhere in the game - a player who spent their level-10 pick
+       * on one of them bought exactly nothing. Half again on the daily feeding
+       * gain is what "faster" buys, and each applies only to its own barnyard. */
+      var faster = (def.home === 'coop' && profs.Coopmaster)
+                || (def.home === 'barn' && profs.Shepherd);
+      if (fedToday) a.friendship = Math.min(1000, a.friendship + (faster ? 12 : 8));
       else a.friendship = Math.max(0, a.friendship - 20);
       if (!a.petted) a.friendship = Math.max(0, a.friendship - 5);
       a.fed = false; a.petted = false;
@@ -322,10 +356,16 @@
     });
     report.animalProduce = produced.length;
 
+    /* WHY the season is checked: a tree bore fruit every night of the year, so
+     * an apple tree paid out through winter. The seasons ride on the tree so an
+     * older save without them falls back to the table rather than going barren. */
     farm.objs.forEach(function (o) {
       if (o.kind !== 'fruitTree') return;
       o.age++;
-      if (o.age >= FRUIT_TREE_DAYS && o.fruits < 3) o.fruits++;
+      var seasons = o.seasons || treeSeasons(g, o);
+      var inSeason = !seasons || !seasons.length
+                     || seasons.indexOf(s.season()) >= 0;
+      if (o.age >= FRUIT_TREE_DAYS && inSeason && o.fruits < 3) o.fruits++;
     });
 
     // grass spreads back so the farm never becomes bare

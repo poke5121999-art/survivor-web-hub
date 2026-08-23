@@ -126,13 +126,24 @@
         break;
       }
       case 'water': {
+        /* Two crossing ripple bands plus a slow caustic sparkle. Flat blue
+         * with one wobbling line read as a painted rectangle; water has to
+         * move in more than one direction to look wet. */
         var wob = Math.sin(t / 520 + x * 0.7 + y * 0.45);
-        ctx.fillStyle = 'rgba(255,255,255,0.10)';
-        ctx.fillRect(sx, sy + ts * 0.32 + wob * ts * 0.09, ts + 1,
-                     Math.max(1, ts * 0.09));
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        ctx.fillRect(sx, sy + ts * 0.72 - wob * ts * 0.07, ts + 1,
-                     Math.max(1, ts * 0.07));
+        var wob2 = Math.sin(t / 810 - x * 0.4 + y * 0.9);
+        ctx.fillStyle = 'rgba(190,225,245,0.11)';
+        ctx.fillRect(sx, sy + ts * 0.30 + wob * ts * 0.10, ts + 1,
+                     Math.max(1, ts * 0.08));
+        ctx.fillStyle = 'rgba(150,200,230,0.08)';
+        ctx.fillRect(sx, sy + ts * 0.70 - wob2 * ts * 0.08, ts + 1,
+                     Math.max(1, ts * 0.06));
+        var spark = Math.sin(t / 300 + (x * 13 + y * 7));
+        if (spark > 0.86) {
+          ctx.fillStyle = 'rgba(230,246,255,' + ((spark - 0.86) * 3).toFixed(2) + ')';
+          ctx.fillRect(sx + ((noise(x, y) * 11 + 2) | 0) * u,
+                       sy + ((noise(y, x) * 11 + 2) | 0) * u,
+                       Math.max(1, u * 2), Math.max(1, u));
+        }
         break;
       }
       case 'lava': {
@@ -143,6 +154,88 @@
       }
       default: break;
     }
+  }
+
+  /* Soften the seam where one ground type meets another.
+   *
+   * WHY: the extracted maps store one type per tile, so a path through grass
+   * came out as a staircase of hard squares - the single biggest reason the
+   * ground read as a spreadsheet rather than as terrain. For each edge whose
+   * neighbour is a different type, the neighbour's colour is feathered a few
+   * pixels into this tile, with the depth wobbled per tile so the resulting
+   * line is irregular instead of a ruled border. */
+  function mid(hex) {
+    var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',0.45)';
+  }
+
+  function paintBlend(ctx, area, x, y, sx, sy, ts, TILE, TILE_IDS) {
+    var here = area.at(x, y);
+    // shallow meeting deep is still water; it gets no shoreline and no feather
+    var hereDef = TILE[TILE_IDS[here]];
+    var hereWet = !!(hereDef && hereDef.water);
+    var u = ts / 16;
+    var sides = [[0, -1, 'top'], [0, 1, 'bottom'], [-1, 0, 'left'], [1, 0, 'right']];
+    for (var i = 0; i < 4; i++) {
+      var nx = x + sides[i][0], ny = y + sides[i][1];
+      if (nx < 0 || ny < 0 || nx >= area.w || ny >= area.h) continue;
+      var there = area.at(nx, ny);
+      if (there === here) continue;
+      /* One-sided, always. Feathering BOTH tiles into each other drew the
+       * neighbour's colour on both sides of every seam, so each patch of soil
+       * came out ringed in green and the farm read as a circuit board. Only
+       * the lower tile id bleeds into the higher, so a boundary gets exactly
+       * one soft edge. */
+      if (there > here) continue;
+      var def = TILE[TILE_IDS[there]];
+      /* Water does not feather - it breaks. Where it meets land it gets a
+       * moving line of foam instead, which is what a shore looks like and what
+       * a soft gradient never manages. */
+      if (def && def.water) {
+        if (!hereWet) shoreLine(ctx, x, y, sx, sy, ts, side);
+        continue;
+      }
+      if (hereWet) { shoreLine(ctx, x, y, sx, sy, ts, side); continue; }
+      if (!def) continue;
+      var depth = (2 + Math.floor(noise(x * 3 + i, y * 5) * 3)) * u;
+      var g, side = sides[i][2];
+      if (side === 'top') {
+        g = ctx.createLinearGradient(0, sy, 0, sy + depth);
+        g.addColorStop(0, def.c); g.addColorStop(0.45, mid(def.c));
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(sx, sy, ts + 1, depth);
+      } else if (side === 'bottom') {
+        g = ctx.createLinearGradient(0, sy + ts, 0, sy + ts - depth);
+        g.addColorStop(0, def.c); g.addColorStop(0.45, mid(def.c));
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(sx, sy + ts - depth, ts + 1, depth + 1);
+      } else if (side === 'left') {
+        g = ctx.createLinearGradient(sx, 0, sx + depth, 0);
+        g.addColorStop(0, def.c); g.addColorStop(0.45, mid(def.c));
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(sx, sy, depth, ts + 1);
+      } else {
+        g = ctx.createLinearGradient(sx + ts, 0, sx + ts - depth, 0);
+        g.addColorStop(0, def.c); g.addColorStop(0.45, mid(def.c));
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g; ctx.fillRect(sx + ts - depth, sy, depth + 1, ts + 1);
+      }
+    }
+  }
+
+  /* The bright edge where a wave meets the bank. Keyed off the tile and the
+   * clock so it travels along the shore instead of blinking in place. */
+  function shoreLine(ctx, x, y, sx, sy, ts, side) {
+    var u = ts / 16;
+    var t = Date.now() / 900;
+    var swell = 0.5 + 0.5 * Math.sin(t + x * 0.6 + y * 0.4);
+    var th = Math.max(1, u * (1.2 + swell * 1.6));
+    ctx.fillStyle = 'rgba(206,232,246,' + (0.20 + swell * 0.22).toFixed(3) + ')';
+    if (side === 'top') ctx.fillRect(sx, sy, ts + 1, th);
+    else if (side === 'bottom') ctx.fillRect(sx, sy + ts - th, ts + 1, th);
+    else if (side === 'left') ctx.fillRect(sx, sy, th, ts + 1);
+    else ctx.fillRect(sx + ts - th, sy, th, ts + 1);
   }
 
   /* ------------------------------------------------------------ buildings */
@@ -284,7 +377,7 @@
 
   global.SDV_TILES = {
     noise: noise, shade: shade,
-    paintGround: paintGround, paintBlocked: paintBlocked,
+    paintGround: paintGround, paintBlend: paintBlend, paintBlocked: paintBlocked,
     paintBuilding: paintBuilding, paintDoor: paintDoor, paintSign: paintSign,
     BLOCK_TERRAIN: BLOCK_TERRAIN
   };

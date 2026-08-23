@@ -118,6 +118,16 @@
   Events.prototype.readMail = function (index) {
     var m = this.pending[index];
     if (!m) return null;
+    /* WHY the letter stays in the box when the gift will not fit: it used to be
+     * filed away as read regardless, and "Túi đầy - quà chưa lấy được" was a lie
+     * - a letter is delivered exactly once, so the parsnip seeds that start the
+     * whole game, or Willy's fishing rod, were gone for good with no second
+     * chance to collect them. An unopenable letter waits; it is not lost. */
+    if (m.gift && !this.game.sim.hasSpace()
+        && !this.game.sim.count(m.gift.item)) {
+      this.game.toast('Túi đầy — dọn chỗ rồi mở thư');
+      return null;
+    }
     this.pending.splice(index, 1);
     m.read = true;
     this.mail.push(m);
@@ -130,16 +140,41 @@
   };
 
   // ------------------------------------------------------------------ quests
+  /* The monsters a player can actually meet by walking into the mine. The
+   * table also carries farm critters and island-only monsters, and a slay
+   * quest naming one of those can never be turned in. */
+  Events.prototype.mineMonsters = function () {
+    if (this._mineMonsters) return this._mineMonsters;
+    var all = this.game.data.monsters || [];
+    var list = all.filter(function (m) { return /mines/i.test(m.spawnsIn || ''); });
+    this._mineMonsters = list.length ? list : all;
+    return this._mineMonsters;
+  };
+
   Events.prototype.rollQuests = function () {
     var s = this.game.sim, data = this.game.data;
-    this.quests = this.quests.filter(function (q) { return q.accepted && !q.done; });
+    /* WHY `accepted` finally has something setting it: the filter was already
+     * here, but no code path ever raised the flag, so every posting on the board
+     * was swept away at six the next morning. A slay request for seven monsters
+     * had to be found, fought and handed in inside a single day or it silently
+     * vanished. Taking a quest now keeps it for two more days. */
+    var today = s.dayIndex();
+    this.quests = this.quests.filter(function (q) {
+      return q.accepted && !q.done && (q.expires == null || q.expires >= today);
+    });
     var n = 1 + Math.floor(s.rand() * 2);
     var villagers = data.villagers.filter(function (v) { return v.birthday; });
     for (var i = 0; i < n; i++) {
       var who = villagers[Math.floor(s.rand() * villagers.length)];
       var kind = QUEST_KINDS[Math.floor(s.rand() * QUEST_KINDS.length)];
       if (kind === 'slay') {
-        var mon = data.monsters[Math.floor(s.rand() * data.monsters.length)];
+        /* WHY the pool is filtered: the board drew from every monster in the
+         * table, including the four that never appear in the mines at all - a
+         * Crow, a Cat, a Frog, the volcano's Fireball - and about one slay quest
+         * in eleven asked for three kills that the player had no way on earth to
+         * make. An unfinishable request sits on the board and pays nothing. */
+        var slayable = this.mineMonsters();
+        var mon = slayable[Math.floor(s.rand() * slayable.length)];
         if (!mon) continue;
         this.quests.push({
           id: 'q' + s.dayIndex() + '_' + i, kind: 'slay', who: who.name,
@@ -172,6 +207,14 @@
     }
   };
 
+  /* Taking a request off the board. Two more days to finish it, which is what
+   * makes a "kill seven of these" request possible at all. */
+  Events.prototype.accept = function (q) {
+    if (q.accepted) return;
+    q.accepted = true;
+    q.expires = this.game.sim.dayIndex() + 2;
+  };
+
   Events.prototype.turnIn = function (q) {
     var s = this.game.sim;
     if (q.kind === 'gather') {
@@ -181,8 +224,13 @@
       if (q.have < q.need) return 'Chưa diệt đủ';
     }
     s.gold += q.gold;
-    var f = s.friend(q.who);
-    f.points = Math.min(2500, f.points + 150);
+    /* WHY this goes through addFriendship instead of writing the points itself:
+     * a marriage candidate's heart meter is meant to stop at 8 until they have
+     * been given a bouquet, and that ceiling lives in Sim.friendCap. Writing
+     * `f.points` straight to a flat 2500 walked past it, so handing in a few
+     * board quests carried Abigail to 10 hearts with no bouquet ever bought and
+     * the courtship step skipped entirely. */
+    s.addFriendship(q.who, 150);
     q.done = true;
     this.quests = this.quests.filter(function (x) { return x !== q; });
     return null;
@@ -212,10 +260,20 @@
         qty: 1 + Math.floor(s.rand() * 3)
       });
     }
+    /* WHY the flat 600g is gone: a Banana Sapling and a Mango Sapling both sell
+     * for 850g, so the trader was buying them back for more than she charged.
+     * Five of each, every single day, was 2,500g of pure profit for walking to
+     * the beach and tapping twice - the shipping bin turned into a money
+     * printer. Every price on this stall now sits above what the item fetches,
+     * which is the whole point of a rip-off merchant. */
     ['Banana Sapling', 'Mango Sapling', 'Pineapple Seeds', 'Taro Tuber',
      'Cinder Shard'].forEach(function (n) {
-      if (data.items[n.toLowerCase()]) {
-        this.islandStock.push({ item: n, price: 600, qty: 5, rare: true });
+      var it = data.items[n.toLowerCase()];
+      if (it) {
+        this.islandStock.push({
+          item: n, qty: 5, rare: true,
+          price: Math.max(600, Math.round((it.sell || 0) * 2.5 / 10) * 10)
+        });
       }
     }, this);
     return this.islandStock;

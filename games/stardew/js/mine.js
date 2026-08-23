@@ -209,7 +209,23 @@
     var at = this.kind === 'skull' ? [9, 8]
            : this.kind === 'volcano' ? [30, 22] : [17, 10];
     g.world.current = back;
-    g.player.x = at[0] + 0.5; g.player.y = at[1] + 0.5;
+    /* WHY nearestFree rather than the raw coordinate: these three landing spots
+     * were written by hand against maps that have since moved, and two of them
+     * are now inside a wall - (9,8) of the Skull Cavern entrance is solid stone
+     * with only one free neighbour diagonally, so climbing out of Skull Cavern
+     * (or dying in it) sealed the player inside rock with no direction left to
+     * walk and no way out short of reloading the page. Land on the nearest tile
+     * that can actually be stood on. */
+    var dest = g.world.areas[back];
+    var spot = dest ? dest.nearestFree(at[0], at[1], 12) : { x: at[0], y: at[1] };
+    g.player.x = spot.x + 0.5; g.player.y = spot.y + 0.5;
+    /* WHY the arrival is marked as coming from the cave: the island's volcano
+     * door is a real warp tile, and the spot you climb out onto is that very
+     * tile - so the first step in any direction dragged the player straight
+     * back inside, over and over, and the volcano could not be left at all.
+     * This is the same guard the ordinary doors use: a warp leading back where
+     * you just came from stays inert until you have walked off its band. */
+    g.cameFrom = this.kind;
   };
 
   /* Called whenever a rock is broken or a monster dies - that is when the
@@ -228,6 +244,22 @@
     a.breaks = (a.breaks || 0) + 1;
     // and a floor always gives in eventually, however bad the day
     if (a.breaks >= 12) chance = 1;
+    /* WHY the last-chance clause: the 12-break guarantee assumes a floor HAS
+     * twelve things to break. A small floor carries as few as nine rocks and
+     * monsters put together, so on an unlucky day (luck scales the roll down to
+     * about 5%) it ran out of rocks with no ladder at all - measured at 34% of
+     * floors - and the only way on was to climb all the way out and walk back
+     * down. When nothing breakable and nothing alive is left, the floor has no
+     * roll of the dice remaining, so it must hand over the ladder now. */
+    if (chance < 1) {
+      var alive = this.monsters.some(function (m) { return !m.dead; });
+      var rocksLeft = 0;
+      for (var i = 0; i < a.objs.length; i++) {
+        var o = a.objs[i];
+        if (o.kind === 'rock' || o.kind === 'oreRock') rocksLeft++;
+      }
+      if (!alive && rocksLeft <= 1) chance = 1;
+    }
     if (Math.random() < chance) {
       a.ladder = { x: x, y: y };
       a.objs.push({ x: x, y: y, kind: 'ladder' });

@@ -62,6 +62,11 @@
                     : 'Cần đủ 8 tim trước'));
       bq.addEventListener('click', function () {
         if (hearts < 8) return g.toast('Chưa đủ 8 tim');
+        /* WHY this guard mirrors the proposal's: the panel is rebuilt inside the
+         * handler, but the button that was tapped still exists and still fires,
+         * so a repeated tap ran the purchase again and took another 200g for a
+         * bouquet already handed over. One bouquet per courtship, one payment. */
+        if (s.dating[npc.name]) return;
         if (!s.take('Bouquet', 1)) {
           if (s.gold < BOUQUET_COST) return g.toast('Không có bó hoa và không đủ tiền');
           s.gold -= BOUQUET_COST;
@@ -132,6 +137,14 @@
       row.appendChild(el('span', 'sdv-price', owned ? 'đang dùng' : w.gold + 'g'));
       row.addEventListener('click', function () {
         if (owned) return;
+        /* WHY a downgrade is refused, the same way the boots below refuse one:
+         * there is exactly one weapon slot, so buying a weaker blade paid Marlon
+         * and then overwrote the better weapon out of existence - 250g to turn a
+         * 90-damage Galaxy Sword into an 8-damage stick, with nothing to undo
+         * it. Nobody means to do that. */
+        if (s.weapon && s.weapon.dmg >= w.dmg) {
+          return g.toast('Vũ khí đang dùng đã mạnh hơn');
+        }
         if (s.gold < w.gold) return g.toast('Không đủ tiền');
         s.gold -= w.gold;
         s.weapon = { name: w.name, dmg: w.dmg };
@@ -192,18 +205,38 @@
     } else {
       var bb = el('button', 'sdv-mbtn', '🪱 Bỏ mồi');
       bb.addEventListener('click', function () {
-        if (!s.take('Bait', 1) && !s.professions.Luremaster) {
-          return g.toast('Không có mồi');
+        /* WHY the profession is tested first: `take` runs before the `&&` gives
+         * up, so a Luremaster - whose whole perk is that crab pots no longer
+         * need bait - was still charged a worm every single time. Ask for the
+         * bait only when the player is actually meant to pay it. */
+        /* WHY any bait, not just the plain kind: Willy sells Deluxe Bait at
+         * fishing level 4, and this only ever consumed the item literally
+         * named 'Bait' - so a player who had upgraded could not bait a pot at
+         * all, and the better bait was unusable in the one place bait is
+         * spent. Spend the plainest one in the bag first, so the good stuff is
+         * kept for the rod. */
+        var BAITS = ['Bait', 'Magnet', 'Wild Bait', 'Deluxe Bait'];
+        var used = null;
+        if (!s.professions.Luremaster) {
+          for (var bi = 0; bi < BAITS.length && !used; bi++) {
+            if (s.count(BAITS[bi]) > 0 && s.take(BAITS[bi], 1)) used = BAITS[bi];
+          }
+          if (!used) return g.toast('Không có mồi');
         }
         o.baited = true;
-        g.toast('Đã bỏ mồi');
+        o.bait = used;
+        g.toast(used ? 'Đã bỏ mồi (' + used + ')' : 'Đã bỏ mồi');
         self.close();
       });
       body.appendChild(bb);
     }
     var rm = el('button', 'sdv-mbtn', '🗑 Nhặt lồng về');
     rm.addEventListener('click', function () {
-      s.give('Crab Pot', 1);
+      /* WHY the pot only leaves the water once it is safely in the bag: the
+       * return value was thrown away, so picking a pot up with a full bag took
+       * it off the map and put it nowhere - the pot was destroyed, and a crab
+       * pot cannot be crafted back cheaply. Leave it in the water instead. */
+      if (!s.give('Crab Pot', 1)) return g.toast('Túi đầy — chưa nhặt lồng lên được');
       g.world.removeObj(o);
       self.close();
     });

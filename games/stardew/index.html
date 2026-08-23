@@ -136,6 +136,15 @@
   .sdv-introskip{position:absolute;top:12px;right:14px;background:none;border:0;
     color:#c9b48c;font-size:12px;text-decoration:underline;cursor:pointer}
 
+  /* the link back to the hub, matching the chrome of the other games there */
+  .sdv-back{position:fixed;left:10px;top:8px;z-index:80;
+    font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+    letter-spacing:.08em;color:#c9b48c;text-decoration:none;
+    border:1px solid #4a3a2a;border-radius:3px;padding:5px 9px;
+    background:rgba(18,13,9,.72);white-space:nowrap}
+  .sdv-back:hover{color:#f0e3c2;border-color:#6b5a3c}
+  .sdv-back:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
   .sdv-drop{border:2px dashed var(--accent);border-radius:12px;padding:16px;
     text-align:center;font-size:13px;background:rgba(232,161,60,.1);cursor:pointer}
   .sdv-giftslot{margin:10px auto;max-width:180px;font-size:22px}
@@ -221,9 +230,82 @@
     font-size:15px;font-weight:700;padding:12px 26px;box-shadow:0 4px 0 #8a5c1e;cursor:pointer}
   #boot .alt{background:rgba(255,255,255,.14);color:#f4ecd8;box-shadow:0 4px 0 rgba(0,0,0,.4);
     font-size:13px;padding:9px 18px}
+
+  /* ===== inventory gestures + sell sheet (appended block - ui.js/machineui.js) =====
+     Everything below belongs to the drag/hold/tap rework of the bag, the
+     shipping bin and the shopkeeper's sell box. Nothing above this line was
+     changed. */
+  /* a long press must pick the item up, not raise the OS text/callout menu */
+  .sdv-slot{transition:transform .10s ease,box-shadow .14s ease,border-color .14s ease;
+    -webkit-touch-callout:none}
+  .sdv-slot:active{transform:scale(.94)}
+  /* the held item pulses, so "I am carrying this" survives a glance away */
+  .sdv-picked{outline:2px solid var(--accent);
+    box-shadow:0 0 0 3px rgba(232,161,60,.25);animation:sdv-pulse 1s ease-in-out infinite}
+  @keyframes sdv-pulse{0%,100%{box-shadow:0 0 0 3px rgba(232,161,60,.25)}
+    50%{box-shadow:0 0 0 6px rgba(232,161,60,.10)}}
+  /* the grade badge: a bare 7px dot told the player nothing on a phone */
+  .sdv-qbadge{width:15px;height:15px;border-radius:50%;font-size:9px;font-weight:800;
+    line-height:15px;text-align:center;color:#1b2027;border:1px solid rgba(0,0,0,.45)}
+
+  /* a target that will accept what is being carried, and the one under the finger */
+  .sdv-dz{transition:border-color .14s ease,background .14s ease,transform .10s ease}
+  .sdv-dzhot{border-color:var(--good)!important;background:rgba(95,168,85,.14)}
+  .sdv-dzover{border-color:#ffd870!important;background:rgba(255,216,112,.24)!important;
+    transform:scale(1.03)}
+  .sdv-mslot.sdv-dzhot{outline:2px dashed var(--good);outline-offset:2px}
+
+  /* the item under the finger while it is being dragged */
+  .sdv-ghost{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;
+    z-index:80;pointer-events:none;display:flex;align-items:center;justify-content:center;
+    background:rgba(20,26,34,.86);border:2px solid var(--accent);border-radius:10px;
+    box-shadow:0 6px 18px rgba(0,0,0,.55)}
+  .sdv-ghost canvas{width:76%;height:76%;image-rendering:pixelated}
+
+  /* the how-many sheet */
+  .sdv-sheet{position:absolute;inset:0;z-index:70;pointer-events:auto;
+    display:flex;align-items:flex-end;justify-content:center;padding:10px;
+    background:rgba(8,11,15,.62);animation:sdv-fade .14s ease}
+  @keyframes sdv-fade{from{opacity:0}to{opacity:1}}
+  .sdv-sheetcard{width:100%;max-width:400px;display:flex;flex-direction:column;gap:7px;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:3px solid #6b5a3c;border-radius:16px;padding:12px;
+    box-shadow:0 -8px 30px rgba(0,0,0,.55);animation:sdv-rise .16s ease}
+  @keyframes sdv-rise{from{transform:translateY(22px)}to{transform:translateY(0)}}
+  .sdv-sheethead{display:flex;align-items:center;gap:10px}
+  .sdv-sheethead canvas{image-rendering:pixelated}
+  .sdv-sheetname{font-size:15px;font-weight:700}
+  .sdv-qchip{align-self:flex-start;margin-top:3px;font-size:11px;font-weight:700;
+    padding:2px 8px;border-radius:999px;color:#1b2027;background:#cdbfa4}
+  .sdv-qc1{background:#c9d4dd}.sdv-qc2{background:#ffd257}.sdv-qc3{background:#a56cff}
+  .sdv-amtrow{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:2px}
+  .sdv-amtbtn{width:54px;height:44px;font-size:22px;font-weight:800;color:#f4ecd8;
+    background:rgba(255,255,255,.10);border:2px solid #6b5a3c;border-radius:10px;cursor:pointer;
+    transition:background .12s ease,transform .08s ease}
+  .sdv-amtbtn:active{background:rgba(255,255,255,.22);transform:scale(.94)}
+  .sdv-amtnum{flex:1;text-align:center;font-size:26px;font-weight:800;color:#ffd870}
+  .sdv-amtquick{display:flex;gap:6px}
+  .sdv-chipbtn{flex:1;padding:9px 0;font-size:13px;color:#f4ecd8;
+    background:rgba(255,255,255,.08);border:2px solid #6b5a3c;border-radius:10px;cursor:pointer;
+    transition:background .12s ease,transform .08s ease}
+  .sdv-chipbtn:active{background:rgba(255,255,255,.20);transform:scale(.96)}
+  .sdv-amttotal{text-align:center;font-size:15px;margin-top:2px}
+  .sdv-amttotal b{color:#ffd870;font-size:19px}
+  .sdv-okbtn{align-items:center;justify-content:center;background:rgba(95,168,85,.30);
+    border-color:var(--good);font-weight:700}
+  .sdv-cancelbtn{align-items:center;justify-content:center;opacity:.8}
+  /* taking a stack back out of the shipping bin */
+  .sdv-undo{margin-left:6px;width:32px;height:28px;border-radius:8px;cursor:pointer;
+    color:#f4ecd8;background:rgba(255,255,255,.12);border:1px solid #6b5a3c;font-size:13px;
+    pointer-events:auto;transition:background .12s ease}
+  .sdv-undo:active{background:rgba(255,255,255,.26)}
 </style>
 </head>
 <body>
+<!-- The way back. Both of the other games on this hub carry one; this one had
+     no exit at all, so a player who opened it was stuck with the browser's
+     back button. Same markup and the same place on the screen as theirs. -->
+<a class="sdv-back" href="../../index.html">&larr; Hub</a>
 <div id="frame"><div id="stage"><canvas id="view"></canvas></div></div>
 
 <div id="boot">
@@ -240,6 +322,7 @@
 <script src="js/sprites.js"></script>
 <script src="js/world.js"></script>
 <script src="js/tiles.js"></script>
+<script src="js/light.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/machines.js"></script>
@@ -276,7 +359,8 @@
     ['SDV_DATA', 'data/gamedata.js'], ['SDV_MAPS', 'data/maps.js'],
     ['SDV_NPCS', 'data/npcs.js'], ['SDV_SPRITES', 'js/sprites.js'],
     ['SDV_WORLD', 'js/world.js'], ['SDV_TILES', 'js/tiles.js'],
-    ['SDV_FX', 'js/fx.js'], ['SDV_AUDIO', 'js/audio.js'],
+    ['SDV_FX', 'js/fx.js'], ['SDV_LIGHT', 'js/light.js'],
+    ['SDV_AUDIO', 'js/audio.js'],
     ['SDV_MACHINES', 'js/machines.js'], ['SDV_SIM', 'js/sim.js'],
     ['SDV_MINE', 'js/mine.js'], ['SDV_FARMLIFE', 'js/farmlife.js'],
     ['SDV_EVENTS', 'js/events.js'], ['SDV_NPC', 'js/npc.js'],

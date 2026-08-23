@@ -139,9 +139,26 @@
         var JUNK = ['Trash', 'Driftwood', 'Broken Glasses', 'Broken CD',
                     'Soggy Newspaper', 'Joja Cola'];
         if (JUNK.indexOf(it.name) < 0) return null;
-        var pick = ['Stone', 'Wood', 'Coal', 'Iron Ore', 'Cloth', 'Torch'];
-        return { out: pick[Math.floor(Math.random() * pick.length)],
-                 need: 1, mins: 60 };
+        /* WHY this table is weighted rather than uniform: Joja Cola is sold
+         * at 75g and every one of these six outputs was equally likely, so the
+         * expected return on a bought cola was well over its price - Cloth
+         * alone ships for 470g. Buy cola, recycle, sell, repeat: an infinite
+         * money press with no cap. Cloth stays reachable, because a recycler
+         * that never gives you the good thing is not worth building; it is
+         * simply rare enough that the machine can no longer be farmed.
+         *
+         * Weights are shares out of 100. Expected value at these odds is about
+         * 45g per item, comfortably under the 75g the cola costs. */
+        var TABLE = [
+          ['Stone', 34], ['Wood', 30], ['Coal', 16],
+          ['Iron Ore', 12], ['Torch', 6], ['Cloth', 2]
+        ];
+        var roll = Math.random() * 100, acc = 0, out = 'Stone';
+        for (var t = 0; t < TABLE.length; t++) {
+          acc += TABLE[t][1];
+          if (roll < acc) { out = TABLE[t][0]; break; }
+        }
+        return { out: out, need: 1, mins: 60 };
       }
     },
     'Incubator': {
@@ -150,10 +167,16 @@
       hint: 'Bỏ trứng vào, vài ngày sau nở ra con non trong chuồng còn chỗ.',
       // the hatched animal is placed in a coop, never handed over as an item
       hatchOnly: true,
+      /* WHY there is no Ostrich here: nothing in the farm's animal table is an
+       * ostrich, so the hatch failed every night, the incubator re-armed itself
+       * for another day and never finished - the slot was jammed for good and
+       * the 600g egg (the traveling cart does sell them) was already eaten. A
+       * machine that cannot produce the animal must refuse the egg at the door
+       * rather than swallow it. Add Ostrich to ANIMAL_KINDS to bring it back. */
       accept: function (it) {
         var T = { 'Egg': 'Chicken', 'Large Egg': 'Chicken',
                   'Duck Egg': 'Duck', 'Dinosaur Egg': 'Dinosaur',
-                  'Void Egg': 'Chicken', 'Ostrich Egg': 'Ostrich' };
+                  'Void Egg': 'Chicken' };
         if (!T[it.name]) return null;
         return { out: T[it.name], need: 1, mins: 4 * 24 * 60, hatch: T[it.name] };
       }

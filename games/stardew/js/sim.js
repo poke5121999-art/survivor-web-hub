@@ -157,7 +157,11 @@
     qty = qty == null ? 1 : qty;
     quality = quality || 0;
     var inv = list || this.inventory;
-    var cap = list ? this.chestSize : this.invSize;
+    /* WHY the cap is chosen by which list this actually is, not by whether an
+     * argument was passed: a caller that spelled out `give(name, n, q,
+     * sim.inventory)` got the chest's 18-slot cap applied to a 24-slot bag, so
+     * the last six slots silently refused items and the caller dropped them. */
+    var cap = inv === this.chest ? this.chestSize : this.invSize;
     for (var i = 0; i < inv.length; i++) {
       if (sameStack(inv[i], name, quality)) { inv[i].qty += qty; return true; }
     }
@@ -208,7 +212,13 @@
     /* Eating gets you moving again but does NOT undo the night's penalty - a
      * single parsnip used to cancel a whole day of over-exertion. */
     if (this.energy > 0) this.sluggish = false;
-    this.take(it.name, 1);
+    /* WHY the chosen slot is decremented instead of take(name, 1): quality
+     * splits one item into several stacks, and take() removes from the LAST
+     * stack with that name. Eating the plain parsnip in slot 0 therefore ate
+     * the gold-quality one sitting behind it - the player was charged the
+     * dearer item and kept the cheap one, for the energy of the cheap one. */
+    it.qty -= 1;
+    if (it.qty <= 0) this.inventory.splice(slot, 1);
     return gain;
   };
 
@@ -225,8 +235,12 @@
 
   /* Crop quality: higher farming level and better fertilizer push the roll up.
    * Mirrors the shape of the game's formula (gold first, then silver). */
-  Sim.prototype.rollQuality = function (fert) {
-    var lvl = this.skills.farming, f = fert || 0;
+  /* `skill` names which skill drives the roll and defaults to farming, which is
+   * right for a harvest and wrong for anything else: forage picked off the
+   * ground was rolled against the FARMING level, so a level-10 forager who had
+   * never planted anything got plain-quality leeks for ever. */
+  Sim.prototype.rollQuality = function (fert, skill) {
+    var lvl = this.skills[skill || 'farming'] || 0, f = fert || 0;
     /* WHY: the two variables were transposed in BOTH terms. At farming 10 the
      * gold+silver chance summed past 1.0, so a base-quality crop became
      * mathematically impossible and every harvest was worth 1.34x forever.
@@ -346,7 +360,13 @@
           o.dead = true; report.died++; continue;
         }
       }
-      if (o.watered || wasRain) {
+      /* WHY the rain only counts outdoors: `wasRain` is the valley's weather,
+       * and it was applied to every growing area including the greenhouse. A
+       * rainy day therefore watered crops standing under glass, which is both
+       * wrong and free - roughly one day in five the greenhouse and its
+       * sprinklers cost nothing at all. */
+      var rained = wasRain && ownerArea.outdoor !== false;
+      if (o.watered || rained) {
         if (o.harvested && o.regrow) {
           o.regrowLeft--;
           if (o.regrowLeft <= 0) { o.harvested = false; o.regrowLeft = 0; }
@@ -355,11 +375,18 @@
            * per night ripened Starfruit in 5 nights instead of 13 days and blew
            * the whole economy open - the bot banked 400k in a month. */
           o.days = (o.days || 0) + 1;
+          /* Agriculturist advertises "cây lớn nhanh hơn 10%" and did nothing at
+           * all - nothing anywhere read the profession. A tenth off the growing
+           * time is the same thing as counting each night as 10/9 of a day, and
+           * doing it that way leaves short crops alone (a tenth of four days
+           * rounds to nothing) instead of shaving a night off everything. */
+          var grown = (this.professions && this.professions.Agriculturist)
+            ? o.days * 10 / 9 : o.days;
           var boundaries = o.stageDays || [];
           var acc = 0, st = 0;
           for (var bi = 0; bi < boundaries.length; bi++) {
             acc += boundaries[bi];
-            if (o.days >= acc) st = bi + 1;
+            if (grown >= acc - 1e-9) st = bi + 1;
           }
           var newStage = Math.min(o.maxStage, st);
           if (newStage > o.stage) { o.stage = newStage; report.grew++; }
@@ -420,6 +447,11 @@
     if (this.exhausted) restore = Math.round(this.maxEnergy * 0.5);
     this.energy = restore;
     this.exhausted = false;
+    /* WHY sleeping clears it: `sluggish` is the slow walk you earn by working
+     * yourself to zero, and only eating cleared it. A player who ran the bar
+     * out on Spring 2 woke every morning after with a full bar and a half-speed
+     * farmer, with nothing on screen saying why, until they happened to eat. */
+    this.sluggish = false;
     this.health = this.maxHealth;
     report.luck = this.luck;
     return report;
@@ -427,6 +459,13 @@
 
   // ------------------------------------------------------------ save
   var SAVE_KEY = 'sdv-web-save-v1';
+
+  function collectFert(world) {
+    if (!world || !world.forEachArea) return null;
+    var out = {};
+    world.forEachArea(function (a, k) { if (a.fert) out[k] = a.fert; });
+    return out;
+  }
   Sim.prototype.toJSON = function (world) {
     return {
       v: 1, year: this.year, seasonIndex: this.seasonIndex, day: this.day,
@@ -452,6 +491,12 @@
       professionQueue: this.professionQueue,
       farmlife: world && world.game ? world.game.farm.serialize() : null,
       events: world && world.game ? world.game.events.serialize() : null,
+      /* WHY the fertiliser maps travel separately: the world only writes tiles
+       * and objects, and fertiliser spread on bare tilled soil lives in
+       * `area.fert` until something is sown there. Reloading threw it away, so
+       * a player who fertilised in the evening and planted next morning had
+       * paid for a Deluxe Fertilizer that no longer existed. */
+      fert: collectFert(world),
       world: world ? world.serialize() : null
     };
   };
@@ -491,9 +536,21 @@
       pg.player.x = spot.x + 0.5;
       pg.player.y = spot.y + 0.5;
     }
+    if (s.fert && world && world.forEachArea) {
+      world.forEachArea(function (a, k) { if (s.fert[k]) a.fert = s.fert[k]; });
+    }
     if (world && world.game) {
       if (s.farmlife) world.game.farm.deserialize(s.farmlife);
       if (s.events) world.game.events.deserialize(s.events);
+      /* WHY the finished Community Centre rooms are re-applied here: what they
+       * change is the collision mask and the warp list, and the world writes
+       * neither to the save. Reloading put the beach back in two halves with
+       * the repaired bridge solid again, and left the greenhouse door standing
+       * on the farm leading nowhere - six bundles' worth of reward undone, and
+       * unrecoverable, because the flag was already set so nothing re-ran. */
+      if (global.SDV_PROGRESS && global.SDV_PROGRESS.reapplyRewards) {
+        global.SDV_PROGRESS.reapplyRewards(world.game);
+      }
     }
     return true;
   };

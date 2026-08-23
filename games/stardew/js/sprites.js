@@ -376,32 +376,107 @@
   // ---------------------------------------------------------------- crops
   // Crop stages are generated from the crop's own colour so all 46 read alike
   // but stay distinguishable, and adding a crop needs no new art.
-  function drawCrop(ctx, x, y, px, stage, stages, color, ripeColor, trellis) {
+  /* A crop, at whatever stage it has reached.
+   *
+   * WHY it is drawn with curves and shading rather than as stacked rectangles:
+   * the field is what the player looks at for most of an hour, and a row of
+   * two-pixel green sticks with a coloured brick on top is exactly the "đồ hoạ
+   * khá xấu" the owner meant. A stem that bends, leaves that fan out from it,
+   * and fruit with a highlight all come from the same three numbers the old
+   * version had - stage, colour, trellis - so no caller changes and no crop
+   * needs its own art.
+   *
+   * `seed` keeps a given tile's wobble fixed, so a field does not shimmer as
+   * the camera moves over it. */
+  function drawCrop(ctx, x, y, px, stage, stages, color, ripeColor, trellis,
+                    seed) {
     var t = stages <= 1 ? 1 : stage / (stages - 1);
-    var h = Math.max(1, Math.round(2 + t * 6));
-    ctx.fillStyle = '#3d7a38';
+    var ripe = stage >= stages - 1;
+    var h = (2.5 + t * 7.5) * px;             // height in screen pixels
+    var cx = x + 6 * px, base = y + 11 * px;
+    var sway = ((seed || 0) % 7 - 3) * 0.12;  // which way this plant leans
+
+    var dark = '#24541f', mid = '#357a2f', lit = '#4f9e42';
+
     if (trellis) {
-      ctx.fillStyle = '#8b6b4a';
-      ctx.fillRect(x + 3 * px, y + (10 - h) * px, px, h * px);
-      ctx.fillRect(x + 8 * px, y + (10 - h) * px, px, h * px);
-      ctx.fillStyle = '#3d7a38';
-      for (var i = 0; i < h; i += 2) {
-        ctx.fillRect(x + 3 * px, y + (10 - h + i) * px, 6 * px, px);
+      // two poles and the crossbars, drawn as the vine climbing them
+      ctx.strokeStyle = '#6b4a2c';
+      ctx.lineWidth = Math.max(1, px * 0.9);
+      ctx.beginPath();
+      ctx.moveTo(cx - 3 * px, base); ctx.lineTo(cx - 3 * px, base - h);
+      ctx.moveTo(cx + 3 * px, base); ctx.lineTo(cx + 3 * px, base - h);
+      ctx.stroke();
+      ctx.strokeStyle = mid;
+      ctx.lineWidth = Math.max(1, px * 0.8);
+      for (var r = 1; r * 3 * px < h; r++) {
+        var ry = base - r * 3 * px;
+        ctx.beginPath();
+        ctx.moveTo(cx - 3 * px, ry);
+        ctx.quadraticCurveTo(cx, ry - px * 1.2, cx + 3 * px, ry);
+        ctx.stroke();
       }
     } else {
-      ctx.fillRect(x + 5 * px, y + (10 - h) * px, 2 * px, h * px);
-      for (var j = 1; j < h; j += 2) {
-        ctx.fillRect(x + 3 * px, y + (10 - j) * px, 2 * px, px);
-        ctx.fillRect(x + 7 * px, y + (10 - j) * px, 2 * px, px);
+      // stem: a bent line, thicker at the bottom
+      ctx.strokeStyle = mid;
+      ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(1, px * (0.7 + t * 0.6));
+      ctx.beginPath();
+      ctx.moveTo(cx, base);
+      ctx.quadraticCurveTo(cx + sway * h, base - h * 0.55,
+                           cx + sway * h * 1.6, base - h);
+      ctx.stroke();
+
+      // leaves, in pairs up the stem, opening wider as the plant grows
+      var pairs = Math.max(1, Math.round(1 + t * 2.4));
+      for (var i = 0; i < pairs; i++) {
+        var f = (i + 1) / (pairs + 0.6);
+        var ly = base - h * f;
+        var lx = cx + sway * h * f * 1.3;
+        var len = px * (1.6 + t * 2.6) * (1 - f * 0.35);
+        for (var sgn = -1; sgn <= 1; sgn += 2) {
+          ctx.fillStyle = sgn < 0 ? mid : lit;
+          ctx.beginPath();
+          ctx.moveTo(lx, ly);
+          ctx.quadraticCurveTo(lx + sgn * len, ly - len * 0.75,
+                               lx + sgn * len * 1.5, ly - len * 0.1);
+          ctx.quadraticCurveTo(lx + sgn * len * 0.7, ly + len * 0.35, lx, ly);
+          ctx.fill();
+        }
       }
+      ctx.lineCap = 'butt';
     }
-    if (stage >= stages - 1) {
-      ctx.fillStyle = ripeColor || color;
-      ctx.fillRect(x + 4 * px, y + (9 - h) * px, 4 * px, 3 * px);
-      ctx.fillRect(x + 3 * px, y + (8 - h) * px, 6 * px, px);
-    } else if (t > 0.5) {
-      ctx.fillStyle = color;
-      ctx.fillRect(x + 5 * px, y + (9 - h) * px, 2 * px, 2 * px);
+
+    var topX = cx + sway * h * 1.6, topY = base - h;
+    if (ripe) {
+      // the fruit, with a lit shoulder so it is not a flat disc
+      var rc = ripeColor || color;
+      var rr = px * 2.5;
+      var g = ctx.createRadialGradient(topX - rr * 0.35, topY - rr * 0.4,
+                                       rr * 0.15, topX, topY, rr);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.28, rc);
+      g.addColorStop(1, shadeHex(rc, 0.55));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(topX, topY, rr, 0, 6.3);
+      ctx.fill();
+      // a small dark calyx where it joins the stem
+      ctx.fillStyle = dark;
+      ctx.beginPath();
+      ctx.ellipse(topX, topY + rr * 0.75, rr * 0.5, rr * 0.3, 0, 0, 6.3);
+      ctx.fill();
+    } else if (t > 0.45) {
+      // a bud: the same shape, smaller and paler, so growth is legible
+      ctx.fillStyle = shadeHex(color, 0.75);
+      ctx.beginPath();
+      ctx.ellipse(topX, topY, px * 1.1, px * 1.5, sway, 0, 6.3);
+      ctx.fill();
+    } else {
+      // a sprout, just two tips
+      ctx.fillStyle = lit;
+      ctx.beginPath();
+      ctx.arc(topX, topY, px * 0.8, 0, 6.3);
+      ctx.fill();
     }
   }
 

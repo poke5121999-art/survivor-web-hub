@@ -82,7 +82,12 @@
      * strongest economic profession in the game. Rancher had no branch at all,
      * so the animal path it advertises did nothing. */
     if (has(sim, 'Blacksmith') && METAL_BAR.test(name)) m *= 1.5;
-    if (has(sim, 'Rancher') && ANIMAL_PRODUCE.test(name)) m *= 1.2;
+    /* WHY the artisan shelf is excluded: Rancher pays for animal produce - the
+     * egg, the milk, the wool, the truffle. Cheese, Mayonnaise, Cloth and
+     * Truffle Oil are what a machine made out of those, they already carry
+     * Artisan's +40%, and matching them by name stacked a second +20% on top.
+     * Truffle Oil sold for 1789g where its two professions allow 1491g. */
+    if (has(sim, 'Rancher') && cat !== 'artisan' && ANIMAL_PRODUCE.test(name)) m *= 1.2;
     if (has(sim, 'Tapper') && /syrup|resin|sap/i.test(name)) m *= 1.25;
     return m;
   }
@@ -138,13 +143,15 @@
     'Vault':          { flag: 'busFixed',     text: 'Xe buýt đi sa mạc đã sửa xong.' }
   };
 
-  function applyRoomReward(game, room) {
-    var r = ROOM_REWARDS[room];
-    if (!r) return null;
-    var s = game.sim;
-    if (s.flags[r.flag]) return null;
-    s.flags[r.flag] = true;
-    if (r.flag === 'bridgeFixed') {
+  /* The part of a finished room that changes the MAP, split out from the
+   * one-off rewards so it can be run again. WHY it has to be re-runnable: what
+   * it edits is the area's collision mask and its warp list, and the save file
+   * carries neither - so a reload put the beach back in two halves and left the
+   * greenhouse door leading nowhere, with the flag already set so the reward
+   * could never be granted a second time. Sim.load calls reapplyRewards below.
+   * Every branch here must therefore be safe to run twice. */
+  function applyRoomMap(game, flag) {
+    if (flag === 'bridgeFixed') {
       /* The real Beach map splits into two walkable regions; the ONLY 4-tile
        * span that joins them is (58..61, 13) - found by flood-filling the
        * extracted map, not guessed. Repairing the bridge unblocks exactly it. */
@@ -157,20 +164,60 @@
         }
       }
     }
-    if (r.flag === 'greenhouse') {
+    if (flag === 'greenhouse') {
       // The greenhouse stands on the real farm; opening it is a warp, not a
       // building we draw - the map already has the shell.
       var farm = game.world.areas.farm;
-      if (farm) {
-        farm.objs = farm.objs.filter(function (o) { return o.kind !== 'greenhouseShell'; });
+      if (!farm) return;
+      farm.objs = farm.objs.filter(function (o) { return o.kind !== 'greenhouseShell'; });
+      // The doorway survives a reload inside the area's objects; the warp under
+      // it does not. Re-use the door that is already drawn rather than adding a
+      // second one somewhere else on the farm.
+      var door = farm.objs.filter(function (o) {
+        return o.kind === 'doorway' && o.to === 'greenhouse';
+      })[0];
+      var dx, dy;
+      if (door) { dx = door.x; dy = door.y; }
+      else {
         var f = farm.nearestFree(25, 14, 10);
-        farm.warp(f.x, f.y, 'greenhouse', 10, 20);
-        farm.obj({ x: f.x, y: f.y, kind: 'doorway', to: 'greenhouse',
+        dx = f.x; dy = f.y;
+        farm.obj({ x: dx, y: dy, kind: 'doorway', to: 'greenhouse',
                    label: 'Nhà kính' });
       }
+      var wired = (farm.warps || []).filter(function (w) {
+        return w.to === 'greenhouse' && w.x === dx && w.y === dy;
+      }).length > 0;
+      if (!wired) farm.warp(dx, dy, 'greenhouse', 10, 20);
     }
+  }
+
+  /* Re-run the map half of every room the player has already finished. Called
+   * from Sim.load; deliberately does NOT touch the one-off rewards, because
+   * handing out the Bulletin Board's friendship again on every load would pay
+   * it once per reload. */
+  function reapplyRewards(game) {
+    var s = game.sim;
+    if (!s || !s.flags) return;
+    for (var room in ROOM_REWARDS) {
+      var f = ROOM_REWARDS[room].flag;
+      if (s.flags[f]) applyRoomMap(game, f);
+    }
+  }
+
+  function applyRoomReward(game, room) {
+    var r = ROOM_REWARDS[room];
+    if (!r) return null;
+    var s = game.sim;
+    if (s.flags[r.flag]) return null;
+    s.flags[r.flag] = true;
+    applyRoomMap(game, r.flag);
     if (r.flag === 'friendship') {
-      for (var n in s.friendship) s.friendship[n].points += 250;
+      /* WHY this goes through addFriendship: writing `points` straight walked
+       * past Sim.friendCap, which is what holds a marriage candidate at 8
+       * hearts until they have been given a bouquet, and past the 10-heart
+       * ceiling as well. Finishing the Bulletin Board used to push a candidate
+       * to 9.2 hearts with no courtship at all. */
+      for (var n in s.friendship) s.addFriendship(n, 250);
     }
     return r.text;
   }
@@ -224,7 +271,14 @@
       s.professionQueue = (s.professionQueue || []).filter(function (q) {
         return !(q.skill === skill && q.level === level);
       });
-      if (level === 10) s.professionQueue.unshift({ skill: skill, level: 5 });
+      /* WHY the level-10 choice goes back on the queue behind the level-5 one:
+       * it was filtered out and replaced by the level-5 offer, so a player who
+       * had skipped the level-5 panel and then hit level 10 lost the second
+       * profession outright - it never came back, at any point, ever. */
+      if (level === 10) {
+        s.professionQueue.unshift({ skill: skill, level: 10 });
+        s.professionQueue.unshift({ skill: skill, level: 5 });
+      }
       s.pendingProfession = s.professionQueue[0] || null;
       return;
     }
@@ -256,7 +310,7 @@
   UI.prototype.openObject = function (o, x, y) {
     if (o.kind === 'forage') {
       var s = this.sim;
-      var q = has(s, 'Botanist') ? 3 : s.rollQuality(0);
+      var q = has(s, 'Botanist') ? 3 : s.rollQuality(0, 'foraging');
       var n = has(s, 'Gatherer') && Math.random() < 0.2 ? 2 : 1;
       if (!s.give(o.item, n, q)) return this.game.toast('Túi đầy!');
       var lvl = s.addXp('foraging', 7);
@@ -306,13 +360,17 @@
           s.give(fest.reward.item, fest.reward.qty || 1);
           g.toast('Nhận ' + fest.reward.item);
         }
-        // everyone at the festival warms to you a little
-        Object.keys(s.friendship).forEach(function (n) {
-          s.friendship[n].points = Math.min(2500, s.friendship[n].points + 25);
-        });
-        g.data.villagers.slice(0, 12).forEach(function (v) {
-          s.friend(v.name).points = Math.min(2500, s.friend(v.name).points + 25);
-        });
+        /* Everyone at the festival warms to you a little - once each. WHY the
+         * two lists are merged first: the second loop ran over villagers the
+         * first loop had already raised, so the twelve townsfolk the player is
+         * most likely to know got +50 while everyone else got +25. And both
+         * wrote `points` straight, which walked past the 8-heart courtship
+         * ceiling in Sim.friendCap - attending festivals alone could carry a
+         * marriage candidate past it without a bouquet ever being bought. */
+        var atFestival = {};
+        Object.keys(s.friendship).forEach(function (n) { atFestival[n] = true; });
+        g.data.villagers.slice(0, 12).forEach(function (v) { atFestival[v.name] = true; });
+        Object.keys(atFestival).forEach(function (n) { s.addFriendship(n, 25); });
         self.close();
       });
       body.appendChild(b);
@@ -323,6 +381,7 @@
   global.SDV_PROGRESS = {
     PROFESSIONS: PROFESSIONS, FORAGE: FORAGE, ROOM_REWARDS: ROOM_REWARDS,
     spawnForage: spawnForage, priceMultiplier: priceMultiplier,
-    applyRoomReward: applyRoomReward, SKILL_VN: SKILL_VN
+    applyRoomReward: applyRoomReward, reapplyRewards: reapplyRewards,
+    SKILL_VN: SKILL_VN
   };
 })(window);

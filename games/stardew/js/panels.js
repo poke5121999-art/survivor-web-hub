@@ -240,7 +240,18 @@
           return self.game.data.items[k].cat === 'mineral';
         });
         var got = self.game.data.items[minerals[Math.floor(Math.random() * minerals.length)]];
-        if (got && s.give(got.name, 1)) self.game.toast('Bên trong có ' + got.name + '!');
+        /* WHY the failed hand-over is undone: Clint took the 25g and the geode,
+         * then offered the mineral to a bag with no room for it and it was
+         * simply gone - fee paid, geode destroyed, nothing to show. The geode is
+         * spent first (which may itself free the slot it occupied), and if the
+         * stone still has nowhere to go the whole trade is put back. */
+        if (got && s.give(got.name, 1)) {
+          self.game.toast('Bên trong có ' + got.name + '!');
+        } else {
+          s.gold += 25;
+          s.give(it.name, 1);
+          self.game.toast('Túi đầy — dọn chỗ rồi quay lại');
+        }
         self.openGeode();
       });
       body.appendChild(b);
@@ -488,7 +499,21 @@
       box.appendChild(el('div', 'sdv-speech', q.text));
       var have = q.kind === 'gather' ? self.sim.count(q.target) : q.have;
       box.appendChild(el('div', 'sdv-sub',
-        'Tiến độ: ' + have + '/' + q.need + ' · thưởng ' + q.gold + 'g + thân thiết'));
+        'Tiến độ: ' + have + '/' + q.need + ' · thưởng ' + q.gold + 'g + thân thiết'
+        + (q.accepted ? ' · đã nhận' : '')));
+      /* WHY an accept button exists now: a request the player has not taken is
+       * cleared off the board overnight, so anything that cannot be finished
+       * between sunrise and bedtime - a kill count in particular - disappeared
+       * before it could be handed in. Taking it holds it for two more days. */
+      if (!q.accepted) {
+        var acc = el('button', 'sdv-mbtn', '📋 Nhận việc (giữ 2 ngày)');
+        acc.addEventListener('click', function () {
+          ev.accept(q);
+          self.game.toast('Đã nhận việc của ' + q.who);
+          self.openQuestBoard();
+        });
+        box.appendChild(acc);
+      }
       var b = el('button', 'sdv-mbtn', 'Nộp');
       b.addEventListener('click', function () {
         var err = ev.turnIn(q);
@@ -507,9 +532,18 @@
     var g = this.game, s = this.sim;
     var a = g.world.area();
     if (!a.depth) return g.toast('Chỉ dùng được trong hang');
+    /* WHY the floor is checked BEFORE the staircase is spent: the mine stops at
+     * 120 and `descend` says so, but the staircase went straight past it into a
+     * floor 121 that the lift can never offer again, and left `deepestMine` at
+     * 121 - a depth the game elsewhere treats as impossible. Skull Cavern and
+     * the volcano really are bottomless, so only the mine is capped. */
+    var kind = a.mineKind || 'mine';
+    if (kind === 'mine' && (a.depth || 0) + 1 > 120) {
+      return g.toast('Đây là đáy hầm mỏ rồi');
+    }
     var it = s.inventory[idx];
     if (!it || !s.take(it.name, 1)) return g.toast('Không có thang');
-    g.mine.enter((a.depth || 0) + 1, a.mineKind || 'mine');
+    g.mine.enter((a.depth || 0) + 1, kind);
     g.toast('Đặt thang, xuống thẳng tầng dưới');
   };
 
@@ -525,11 +559,29 @@
     a.objs.slice().forEach(function (o) {
       if (o.kind !== 'rock' && o.kind !== 'oreRock') return;
       if (Math.hypot(o.x - px, o.y - py) > r) return;
-      if (o.ore && s.give(o.ore, 1 + Math.floor(Math.random() * 3))) {}
+      /* WHY the ore falls on the floor when it will not fit: a bomb can open a
+       * dozen rocks at once, so it is exactly the tool most likely to overflow
+       * the bag - and the return value was thrown away, which quietly deleted
+       * every stone and every ore past the last free slot. Anything that has
+       * nowhere to go now lies on the tile it came from, the way a monster's
+       * drop already does, and waits to be picked up. */
+      if (o.ore) {
+        var n = 1 + Math.floor(Math.random() * 3);
+        if (!s.give(o.ore, n)) {
+          a.objs.push({ x: o.x, y: o.y, kind: 'dropped',
+                        item: { name: o.ore, qty: n, quality: 0 } });
+        }
+      }
       g.world.removeObj(o, a);
       broke++;
     });
     g.mine.monsters.forEach(function (m) {
+      /* WHY the dead are skipped: a corpse stays in the monster list until the
+       * next frame tidies it away, so a second bomb thrown into the same smoke
+       * drove its health lower still and ran kill() on it again - a second roll
+       * of its drop table, a second helping of combat experience, and a second
+       * tick on any slay quest naming it. One monster, counted twice. */
+      if (m.dead) return;
       if (Math.hypot(m.x - px, m.y - py) > r) return;
       m.hp -= 30;
       if (m.hp <= 0) g.mine.kill(m);
