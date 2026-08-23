@@ -181,6 +181,8 @@
     this.npcs = [];
     this.world.game = this;             // modules reach back through the world
     this.mine = new global.SDV_MINE.Mine(this);
+    this.loot = [];
+    this.watchXp();
     this.farm = new global.SDV_FARMLIFE.FarmLife(this);
     this.events = new global.SDV_EVENTS.Events(this);
     this.initNpcs();
@@ -662,28 +664,116 @@
 
   /* Nearest thing worth highlighting - what the tool would hit, or what a tap
    * would open. Searched in a small ring so the player never has to line up. */
+  /* What the tool would act on: the tile being FACED first, then whatever is
+   * next to the player - and nothing further away than that.
+   *
+   * WHY the tight ring: it used to search two tiles out and pick the nearest,
+   * so the highlight regularly sat on a tree behind the player while they
+   * stood in front of a rock, and the button hit the tree. The owner asked for
+   * the tile in the facing direction to be highlighted and for only adjacent
+   * things to be reachable. That is also how the original works - a tool acts
+   * on the tile in front of the farmer, and anything further away is reached
+   * by walking to it first, which the tap-to-walk route already does.
+   * SEE: stardewvalleywiki.com/Mobile_Controls - "Tap on items to action them".
+   */
   Game.prototype.findInteractable = function () {
-    var p = this.player, a = this.world.area(), best = null, bestD = 99;
-    for (var dy = -2; dy <= 2; dy++) {
-      for (var dx = -2; dx <= 2; dx++) {
-        var x = Math.floor(p.x) + dx, y = Math.floor(p.y) + dy;
-        var o = this.world.objAt(x, y);
+    var p = this.player;
+    var px = Math.floor(p.x), py = Math.floor(p.y);
+
+    // an NPC within arm's reach outranks scenery - talking is what is wanted
+    var here = this.npcsHere();
+    for (var i = 0; i < here.length; i++) {
+      var n = here[i];
+      if (Math.hypot(n.x - p.x, n.y - p.y) < 1.8) {
+        return { kind: 'npc', npc: n, x: Math.floor(n.x), y: Math.floor(n.y) };
+      }
+    }
+
+    // the faced tile wins outright, whatever else is around
+    var f = this.facingTile();
+    var faced = this.world.objAt(f.x, f.y);
+    if (faced) return faced;
+
+    /* Then the eight neighbours and the tile underfoot, nearest first. A
+     * building is measured at its doorstep, not its centre, because that is
+     * the tile the player actually stands on to use it. */
+    var best = null, bestD = 99;
+    for (var dy = -1; dy <= 1; dy++) {
+      for (var dx = -1; dx <= 1; dx++) {
+        var o = this.world.objAt(px + dx, py + dy);
         if (!o) continue;
         var ox = (o.kind === 'building' ? o.doorX : o.x) + 0.5;
         var oy = (o.kind === 'building' ? o.doorY : o.y) + 0.5;
         var d = Math.hypot(ox - p.x, oy - p.y);
-        if (d > 2.2 || d >= bestD) continue;
+        if (d > 1.6 || d >= bestD) continue;
         bestD = d; best = o;
       }
     }
-    // an NPC standing close beats scenery - talking is what the player wants
-    var here = this.npcsHere();
-    for (var i = 0; i < here.length; i++) {
-      var n = here[i];
-      var dn = Math.hypot(n.x - p.x, n.y - p.y);
-      if (dn < 1.8 && dn < bestD + 0.6) { bestD = dn; best = { kind: 'npc', npc: n, x: Math.floor(n.x), y: Math.floor(n.y) }; }
-    }
     return best;
+  };
+
+  /* Everything a single tool destroys by hitting it. Kept as its own list
+   * because it is the closed set the auto-swing is allowed to touch: tilling,
+   * watering, opening a chest and walking into a shop must all stay deliberate
+   * acts, or standing still becomes destructive. */
+  var AUTO_BREAK = { tree: 1, stump: 1, rock: 1, oreRock: 1,
+                     weed: 1, stick: 1, grassTuft: 1 };
+
+  /* The one rule the design asks for that the game never had: walk up close
+   * and the action happens - up to a tree and you chop it, up to a rock and
+   * you break it, up to a monster and you swing at it. The original does the
+   * same on a phone: it turns to face what is in range and keeps hitting it
+   * until it is gone.
+   * SEE: stardewvalleywiki.com/Mobile_Controls - Auto-attack.
+   *
+   * Bounded deliberately: only things that break, only within arm's reach,
+   * never while a tapped route is walking somewhere else (the trip is the
+   * player's instruction and stopping to chop every tree on the way is not
+   * what they asked for - the original refuses for the same reason), and never
+   * once energy is out. */
+  Game.prototype.autoAct = function () {
+    if (this.autoActOff || this.paused || this.player.route) return;
+    var p = this.player;
+    if (p.actCooldown > 0) return;
+    if (this.fishing || this.cutscene) return;
+
+    // monsters first: being unable to fight back while cornered is unforgivable
+    if (this.mine.monsters.length) {
+      var near = null, nd = 99;
+      for (var i = 0; i < this.mine.monsters.length; i++) {
+        var m = this.mine.monsters[i];
+        if (m.dead) continue;
+        var d = Math.hypot(m.x - p.x, m.y - p.y);
+        if (d < nd) { nd = d; near = m; }
+      }
+      if (near && nd <= 1.6) {
+        // turn to face it, exactly as the original does, then swing
+        var ax = near.x - p.x, ay = near.y - p.y;
+        p.face = Math.abs(ax) > Math.abs(ay) ? (ax < 0 ? 'left' : 'right')
+                                             : (ay < 0 ? 'up' : 'down');
+        this.useTool();
+        return;
+      }
+    }
+
+    var o = this.hover;
+    if (!o || !AUTO_BREAK[o.kind]) return;
+    if (this.sim.energy <= 0) {
+      // say it once, not sixty times a second
+      if (!this.autoTired) {
+        this.autoTired = 1;
+        this.toast('Hết sức rồi, phải đi ngủ');
+      }
+      return;
+    }
+    this.autoTired = 0;
+    // face what is about to be hit, so the swing arc points the right way
+    var dx2 = o.x + 0.5 - p.x, dy2 = o.y + 0.5 - p.y;
+    if (Math.abs(dx2) > 0.55 || Math.abs(dy2) > 0.55) {
+      p.face = Math.abs(dx2) > Math.abs(dy2) ? (dx2 < 0 ? 'left' : 'right')
+                                             : (dy2 < 0 ? 'up' : 'down');
+    }
+    this.useTool();
   };
 
   Game.prototype.findFishSpot = function () {
@@ -759,12 +849,18 @@
     }
     if (drop) {
       var n = 1 + Math.floor(Math.random() * drop[1]);
+      /* The bag is filled here, the instant the thing breaks - the flying
+       * tokens are the picture of it, never the bookkeeping, so a page that
+       * closes mid-flight cannot cost the player anything. The "+N" text is
+       * raised when a token lands on them, so it appears where they are
+       * looking; only the bag-full refusal has to be said immediately. */
       if (!this.sim.give(drop[0], n)) this.toast('Túi đầy!');
-      else this.toast('+' + n + ' ' + drop[0]);
+      else this.spawnLoot(target.x, target.y, drop[0], n,
+                           job.skill === 'mining' ? 'mineral' : 'forage');
     }
     if (this.world.area().depth) this.mine.maybeDropLadder(target.x, target.y, false);
     var lvl = this.sim.addXp(job.skill, job.xp);
-    if (lvl) { this.toast('Kỹ năng ' + job.skill + ' lên cấp ' + lvl + '!');
+    if (lvl) { this.toast('Kỹ năng ' + SKILL_VN[job.skill] + ' lên cấp ' + lvl + '!');
                this.sfx('levelup'); }
     if (job.becomes) { target.kind = job.becomes; target.hp = null; }
     else this.world.removeObj(target);
@@ -806,6 +902,147 @@
     this.messages.push({ text: text, t: 2.6 });
     if (this.messages.length > 4) this.messages.shift();
   };
+  /* Loot that is worth watching.
+   *
+   * WHY this exists: the item went straight into the bag and a line of text
+   * said so, which the owner described as loot that never lands. The bag is
+   * still filled the instant the thing breaks, so no rule changed and nothing
+   * can be lost in flight; what follows is the picture of it. The token is
+   * thrown out on an arc, bounces once, sits for a beat, then homes in on the
+   * player faster and faster and pops when it arrives. The "+2 Wood" text
+   * appears at the END of that flight, where the player is looking, instead of
+   * at the start where they are not. */
+  /* Skill names in the player's language, and a colour each so a gain is
+   * recognisable before the word is read. */
+  var SKILL_VN = { farming: 'Nông nghiệp', mining: 'Khai thác',
+                   foraging: 'Hái lượm', fishing: 'Câu cá', combat: 'Chiến đấu' };
+  var SKILL_COL = { farming: '#8ede76', mining: '#9fb6ff', foraging: '#ffd36b',
+                    fishing: '#7fd9ff', combat: '#ff8b7a' };
+
+  /* Every point of experience is shown, wherever it came from.
+   *
+   * WHY it wraps the counter instead of sitting in useTool: experience is
+   * awarded from a dozen places - breaking rocks, harvesting, landing a fish,
+   * shipping, killing - and the owner's note was that none of them showed
+   * anything. Wrapping the one function they all call is the only version of
+   * this that cannot be forgotten by the next thing that grants experience. */
+  Game.prototype.watchXp = function () {
+    var self = this;
+    var base = this.sim.addXp.bind(this.sim);
+    this.sim.addXp = function (skill, n) {
+      var lvl = base(skill, n);
+      if (n > 0 && SKILL_VN[skill]) {
+        var p = self.player;
+        // stagger, so three grants in one swing do not print on top of each other
+        var lift = 0.9 + (self.xpStack = ((self.xpStack || 0) + 1) % 3) * 0.42;
+        self.fx.float(p.x, p.y - lift, '+' + n + ' ' + SKILL_VN[skill],
+                      SKILL_COL[skill]);
+      }
+      return lvl;
+    };
+  };
+
+  Game.prototype.spawnLoot = function (x, y, item, n, cat) {
+    if (!this.loot) this.loot = [];
+    var col = '#e8c357';
+    try {
+      col = global.SDV_SPRITES.iconColors(item, cat || 'crop').main;
+    } catch (e) { /* an unknown item still gets a token, just a default gold */ }
+    var many = Math.min(n, 4);                 // four tokens is already a shower
+    for (var i = 0; i < many; i++) {
+      var ang = (Math.PI * 2 * i) / many + Math.random() * 0.7;
+      this.loot.push({
+        x: x + 0.5, y: y + 0.5, z: 0.35,
+        vx: Math.cos(ang) * 1.5, vy: Math.sin(ang) * 1.1, vz: 3.4,
+        c: col, item: item, n: (i === many - 1 ? n : 0),
+        wait: 0.22 + i * 0.05, phase: 'toss', spin: Math.random() * 6.3
+      });
+    }
+  };
+
+  Game.prototype.stepLoot = function (dt) {
+    if (!this.loot || !this.loot.length) return;
+    var p = this.player;
+    for (var i = this.loot.length - 1; i >= 0; i--) {
+      var L = this.loot[i];
+      L.spin += dt * 5;
+      if (L.phase === 'toss') {
+        L.x += L.vx * dt; L.y += L.vy * dt;
+        L.vx *= 0.90; L.vy *= 0.90;
+        L.z += L.vz * dt; L.vz -= 16 * dt;
+        if (L.z <= 0) {
+          L.z = 0;
+          /* Exactly ONE bounce, counted - not "bounce while still fast enough".
+           * The speed test alone never settles: gravity and the damping can sit
+           * either side of the threshold forever, so the token hovers a pixel
+           * off the ground and never flies home. Counting is the only version
+           * of this that is guaranteed to end. */
+          if (!L.bounced && L.vz < -1.6) { L.bounced = 1; L.vz = -L.vz * 0.34; }
+          else { L.vz = 0; L.phase = 'rest'; }
+        }
+      } else if (L.phase === 'rest') {
+        L.wait -= dt;
+        if (L.wait <= 0) { L.phase = 'fly'; L.sp = 3; }
+      } else {
+        // homing, and getting quicker - that acceleration is the whole feel
+        var dx = p.x - L.x, dy = p.y - L.y - 0.25;
+        var d = Math.hypot(dx, dy) || 1;
+        L.sp = Math.min(L.sp + dt * 26, 17);
+        L.x += (dx / d) * L.sp * dt;
+        L.y += (dy / d) * L.sp * dt;
+        L.z += (0.45 - L.z) * Math.min(1, dt * 9);
+        if (d < 0.42) {
+          this.loot.splice(i, 1);
+          this.sfx('pickup');
+          for (var s = 0; s < 4; s++) {
+            this.particles.push({
+              x: p.x, y: p.y - 0.25,
+              vx: (Math.random() - 0.5) * 2.4, vy: -Math.random() * 2 - 0.4,
+              t: 0.28, c: L.c
+            });
+          }
+          if (L.n > 0) this.fx.float(p.x, p.y - 0.9, '+' + L.n + ' ' + L.item, L.c);
+        }
+      }
+    }
+  };
+
+  Game.prototype.drawLoot = function (camX, camY, ts) {
+    if (!this.loot || !this.loot.length) return;
+    var ctx = this.ctx;
+    for (var i = 0; i < this.loot.length; i++) {
+      var L = this.loot[i];
+      var sx = L.x * ts - camX, sy = L.y * ts - camY;
+      var r = ts * 0.17;
+      // the shadow is what sells the height - it shrinks as the token rises
+      var sh = Math.max(0.15, 1 - L.z * 0.8);
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, r * sh, r * sh * 0.45, 0, 0, 6.3);
+      ctx.fill();
+      var yy = sy - L.z * ts;
+      ctx.save();
+      ctx.translate(sx, yy);
+      ctx.rotate(Math.sin(L.spin) * 0.35);
+      var g = ctx.createLinearGradient(-r, -r, r, r);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.35, L.c);
+      g.addColorStop(1, 'rgba(0,0,0,0.35)');
+      ctx.fillStyle = g;
+      ctx.strokeStyle = 'rgba(28,24,32,0.6)';
+      ctx.lineWidth = Math.max(1, ts * 0.035);
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.lineTo(r * 0.92, 0);
+      ctx.lineTo(0, r);
+      ctx.lineTo(-r * 0.92, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
   Game.prototype.spark = function (x, y) {
     for (var i = 0; i < 6; i++) {
       this.particles.push({
@@ -828,6 +1065,8 @@
     this.mine.update(dt);
     this.hover = this.findInteractable();
     this.fishSpot = this.findFishSpot();
+    this.autoAct();
+    this.stepLoot(dt);
 
     for (var i = this.messages.length - 1; i >= 0; i--) {
       this.messages[i].t -= dt;
@@ -900,11 +1139,22 @@
     var a = this.world.area(), p = this.player;
     var z = this.zoom, ts = TS * z;
     var vw = cv.width, vh = cv.height;
-    var camX = p.x * ts - vw / 2, camY = p.y * ts - vh / 2;
+    /* The farmer does NOT sit in the middle of the screen.
+     *
+     * WHY: the joystick lives at the bottom-left and the thumb rests on it, so
+     * a character centred vertically is as far from that thumb as the layout
+     * allows - the owner's note was "cho nhân vật gần lại joystick hơn để dễ
+     * điều khiển". Dropping the camera puts them at roughly two thirds down,
+     * which also gives more of the screen to what is AHEAD of them, which is
+     * the direction anyone walking actually wants to see. */
+    var CAM_DROP = 0.16;                       // share of the screen height
+    var camX = p.x * ts - vw / 2;
+    var camY = p.y * ts - vh * (0.5 - CAM_DROP);
     camX = Math.max(0, Math.min(camX, a.w * ts - vw));
     camY = Math.max(0, Math.min(camY, a.h * ts - vh));
     if (a.w * ts < vw) camX = (a.w * ts - vw) / 2;
     if (a.h * ts < vh) camY = (a.h * ts - vh) / 2;
+    this.camDrop = CAM_DROP;
     this.cam = { x: camX, y: camY, ts: ts };
 
     ctx.fillStyle = '#1b2027';
@@ -936,36 +1186,36 @@
         var bcls = a.blocked ? a.blocked[idx] : 0;
         if (!bcls || def.water) continue;
         var part = a.bpart ? a.bpart[idx] : 0;
-        if (part) {
-          T.paintBuilding(ctx, part, this.buildingAt(a, x, y), sx, sy, ts,
-                          x, y, night);
-        } else {
-          T.paintBlocked(ctx, bcls, name, sx, sy, ts, x, y, a, indoor);
-        }
+        /* A building is no longer painted one tile at a time. Its tiles are
+         * skipped here and the whole structure is drawn below, at building
+         * scale - painting a shingle pattern per 16-pixel tile is what made it
+         * read as pixel art whatever colours it used. */
+        if (!part) T.paintBlocked(ctx, bcls, name, sx, sy, ts, x, y, a, indoor);
       }
     }
-    // doors and signs sit on top of the wall they are cut into
-    if (a.buildings) {
+    /* Whole buildings, drawn as buildings. See js/art.js for why this stopped
+     * being a per-tile pattern. */
+    var ART = global.SDV_ART;
+    if (a.buildings && ART) {
       for (var bi = 0; bi < a.buildings.length; bi++) {
         var bd = a.buildings[bi];
+        if (bd.x > x1 + 6 || bd.y > y1 + 6
+            || bd.x + bd.w < x0 - 6 || bd.y + bd.h < y0 - 6) continue;
+        var bsx = Math.round(bd.x * ts - camX);
+        var bsy = Math.round(bd.y * ts - camY);
+        ART.building(ctx, bd, bsx, bsy, ts, night);
         if (!bd.door) continue;
-        if (bd.door.x < x0 - 4 || bd.door.x > x1 + 4
-            || bd.door.y < y0 - 4 || bd.door.y > y1 + 6) continue;
         var dsx = Math.round(bd.door.x * ts - camX);
-        /* WHY the door can sit one tile up: the maps put the door ACTION on
-         * the doorstep, which is the walkable tile in front of the house, not
-         * on the wall. Painted there the farmhouse door floated in the grass
-         * with the cottage a row behind it. Paint it on the wall when the tile
-         * above the doorstep belongs to this building. */
+        /* The maps put the door ACTION on the doorstep - the walkable tile in
+         * front of the house, not on the wall. Draw it on the wall when the
+         * tile above the doorstep belongs to this building. */
         var wallY = bd.door.y;
         var above = (bd.door.y - 1) * a.w + bd.door.x;
         if (a.bpart && a.bpart[above]) wallY = bd.door.y - 1;
         var dsy = Math.round(wallY * ts - camY);
         var isOpen = this.doorIsOpen(a, bd.door.x, bd.door.y);
-        T.paintDoor(ctx, bd, dsx, dsy, ts, isOpen, night);
-        if (bd.sign) {
-          T.paintSign(ctx, bd.sign, dsx + ts / 2, dsy, ts, isOpen);
-        }
+        ART.door(ctx, bd, dsx, dsy, ts, isOpen, night);
+        if (bd.sign) ART.sign(ctx, bd.sign, dsx + ts / 2, dsy, ts, isOpen);
       }
     }
 
@@ -1008,6 +1258,7 @@
     }
 
     this.mine.draw(ctx, camX, camY, ts);
+    this.drawLoot(camX, camY, ts);
     this.fx.draw(ctx, camX, camY, ts);
     /* WHY the light pass sits here, before the highlight and the weather: it
      * is what everything in the WORLD is lit by, and the cursor outline and
@@ -1160,6 +1411,12 @@
     ctx.globalCompositeOperation = 'source-over';
   };
 
+  /* Is it dark enough for a screen or a window to read as lit? */
+  function night2(g) {
+    var L = global.SDV_LIGHT;
+    return L ? L.darkness(g) > 0.4 : false;
+  }
+
   Game.prototype.drawObj = function (o, camX, camY, ts) {
     var ctx = this.ctx, z = this.zoom;
     var sx = Math.round(o.x * ts - camX), sy = Math.round(o.y * ts - camY);
@@ -1221,8 +1478,37 @@
         /* State lives in the save, not on the object, so read it back to know
          * whether this thing is running and whether anything is ready. */
         var mst = (this.sim.machines || {})[o.machine || 'Furnace'];
-        S.blit(ctx, S.machine(o.machine || 'Furnace'), sx, sy, ts / 10);
-        var jobs = (mst && mst.jobs) || [];
+        var mjobs0 = (mst && mst.jobs) || [];
+        /* A machine that has not been built yet is a PLOT, and has to look
+         * like one. Every machine in the house stands there from the first
+         * morning so the player can see what the farm can become; drawn
+         * identically to a built one, that turns into a room full of machines
+         * that mysteriously refuse to work. Dimmed, with a hammer over it, the
+         * difference is readable at a glance and the tap that opens the
+         * requirement list is the obvious next move. */
+        /* The same test js/machineui.js uses, deliberately copied rather than
+         * approximated: the furnace is there from the first morning unless the
+         * save says otherwise, every other machine only once it is built. Two
+         * slightly different answers to "is this built" would show as a machine
+         * that looks ready and refuses, or a plot that looks ready and is. */
+        var mname = o.machine || 'Furnace';
+        var built = mname === 'Furnace' ? (!mst || mst.built !== false)
+                                        : !!(mst && mst.built);
+        ctx.save();
+        if (!built) ctx.globalAlpha = 0.42;
+        global.SDV_ART.prop(ctx, 'machine', sx, sy, ts, {
+          colour: S.iconColors(o.machine || 'Furnace', 'crafted').main,
+          busy: built && mjobs0.some(function (j) { return j && !j.ready; }),
+          ready: built && mjobs0.some(function (j) { return j && j.ready; })
+        });
+        ctx.restore();
+        if (!built) {
+          ctx.font = Math.round(ts * 0.52) + 'px system-ui';
+          ctx.textAlign = 'center';
+          ctx.fillText('🔨', sx + ts / 2, sy + ts * 0.66);
+          ctx.textAlign = 'left';
+        }
+        var jobs = mjobs0;
         var anyReady = jobs.some(function (j) { return j && j.ready; });
         var anyBusy = jobs.some(function (j) { return j && !j.ready; });
         if (anyReady || o.ready) {
@@ -1406,15 +1692,9 @@
        * of a coloured chip with an emoji on it: the cottage was a row of blue
        * squares, which is a large part of why the art read as unfinished. */
       case 'kitchen': case 'workshop': case 'calendarBoard':
-      case 'mailbox': case 'counter': {
-        var FURN = { kitchen: ['stove', 1.15], workshop: ['bench', 1.35],
-                     calendarBoard: ['calendar', 0.95], mailbox: ['postbox', 0.9],
-                     counter: ['bench', 1.35] };
-        var fdef = FURN[o.kind];
-        var fsp = S.SP[fdef[0]];
-        var fpx = (ts * fdef[1]) / fsp.w;
-        S.blit(ctx, fsp, sx + (ts - fsp.w * fpx) / 2,
-               sy + ts - fsp.h * fpx + ts * 0.12, fpx);
+      case 'mailbox': case 'counter': case 'chest': case 'bed': case 'tv':
+      case 'bin': case 'sign': {
+        global.SDV_ART.prop(ctx, o.kind, sx, sy, ts, { night: night2(this) });
         if (o.kind === 'counter' && o.keeper) {
           ctx.font = Math.round(ts * 0.3) + 'px system-ui, sans-serif';
           ctx.textAlign = 'center';
@@ -1450,98 +1730,20 @@
        * broken clumps reads as a tree from a metre away; the same shape flat
        * reads as a sticker. Everything here is still drawn in code. */
       case 'tree': case 'fruitTree': {
-        var th = ts * 2.2;
-        var tx = sx + ts * 0.5, ty = sy + ts;
-        // trunk, tapered and lit from the upper left
-        var tg = ctx.createLinearGradient(tx - ts * 0.16, 0, tx + ts * 0.16, 0);
-        tg.addColorStop(0, '#6b4a2c');
-        tg.addColorStop(0.4, '#4e3520');
-        tg.addColorStop(1, '#33220f');
-        ctx.fillStyle = tg;
-        ctx.beginPath();
-        ctx.moveTo(tx - ts * 0.19, ty);
-        ctx.lineTo(tx - ts * 0.11, ty - ts * 0.85);
-        ctx.lineTo(tx + ts * 0.11, ty - ts * 0.85);
-        ctx.lineTo(tx + ts * 0.19, ty);
-        ctx.closePath(); ctx.fill();
-
-        var cy2 = ty - ts * 1.15, cr = ts * 0.86;
-        var ripe = (o.kind === 'fruitTree' && o.fruit > 0);
-        var deep = o.kind === 'fruitTree' ? '#25562c' : '#1f4a25';
-        var mid = o.kind === 'fruitTree' ? '#3d7c3f' : '#356b32';
-        var lit = o.kind === 'fruitTree' ? '#63a75c' : '#5a9450';
-        // canopy: three overlapping lobes so the outline is not a circle
-        var lobes = [[0, 0, 1], [-0.55, 0.22, 0.72], [0.55, 0.22, 0.72],
-                     [-0.28, -0.34, 0.62], [0.3, -0.3, 0.6]];
-        for (var lb = 0; lb < lobes.length; lb++) {
-          var lx = tx + lobes[lb][0] * cr, ly = cy2 + lobes[lb][1] * cr;
-          var lr = cr * lobes[lb][2];
-          var g2 = ctx.createRadialGradient(lx - lr * 0.35, ly - lr * 0.4, lr * 0.1,
-                                            lx, ly, lr);
-          g2.addColorStop(0, lit);
-          g2.addColorStop(0.55, mid);
-          g2.addColorStop(1, deep);
-          ctx.fillStyle = g2;
-          ctx.beginPath();
-          ctx.arc(lx, ly, lr, 0, 6.3);
-          ctx.fill();
-        }
-        // a few broken highlights, seeded off the tile so they never shimmer
-        var hn = global.SDV_TILES ? global.SDV_TILES.noise : function () { return 0.5; };
-        ctx.fillStyle = 'rgba(150,205,130,0.5)';
-        for (var hl = 0; hl < 5; hl++) {
-          var ha = hn(o.x * 7 + hl, o.y * 3) * 6.28;
-          var hd = hn(o.x, o.y * 7 + hl) * cr * 0.7;
-          ctx.beginPath();
-          ctx.arc(tx + Math.cos(ha) * hd - cr * 0.15,
-                  cy2 + Math.sin(ha) * hd - cr * 0.2,
-                  ts * 0.09, 0, 6.3);
-          ctx.fill();
-        }
-        if (ripe) {
-          ctx.fillStyle = '#e0603c';
-          for (var fr = 0; fr < Math.min(4, o.fruit); fr++) {
-            var fa = 1.1 + fr * 1.4;
-            ctx.beginPath();
-            ctx.arc(tx + Math.cos(fa) * cr * 0.62, cy2 + Math.sin(fa) * cr * 0.55,
-                    ts * 0.13, 0, 6.3);
-            ctx.fill();
-          }
-        }
+        global.SDV_ART.tree(ctx, sx + ts * 0.5, sy + ts, ts, o.x * 7 + o.y, {
+          leaf: o.kind === 'fruitTree' ? '#4a8a44' : '#3f7f38',
+          fruit: o.fruit || 0
+        });
         break;
       }
       case 'rock': case 'oreRock': {
-        var rx = sx + ts * 0.5, ry = sy + ts * 0.82, rr = ts * 0.42;
-        var body = ctx.createLinearGradient(rx - rr, ry - rr, rx + rr * 0.6, ry + rr * 0.4);
-        body.addColorStop(0, '#8f8f9c');
-        body.addColorStop(0.5, '#5e5e6a');
-        body.addColorStop(1, '#3b3b45');
-        ctx.fillStyle = body;
-        ctx.beginPath();
-        // an angular boulder, not a circle: five points around the centre
-        var pts = [[-1, 0.05], [-0.62, -0.75], [0.18, -1], [0.92, -0.4], [0.8, 0.35]];
-        ctx.moveTo(rx + pts[0][0] * rr, ry + pts[0][1] * rr);
-        for (var pi = 1; pi < pts.length; pi++) {
-          ctx.lineTo(rx + pts[pi][0] * rr, ry + pts[pi][1] * rr);
-        }
-        ctx.closePath(); ctx.fill();
-        // one lit facet so it has a direction
-        ctx.fillStyle = 'rgba(215,220,235,0.30)';
-        ctx.beginPath();
-        ctx.moveTo(rx - rr * 0.62, ry - rr * 0.75);
-        ctx.lineTo(rx + rr * 0.18, ry - rr);
-        ctx.lineTo(rx - rr * 0.1, ry - rr * 0.25);
-        ctx.closePath(); ctx.fill();
-        if (o.kind === 'oreRock' || o.ore) {
-          var oc = o.ore ? S.iconColors(o.ore, 'mineral') : null;
-          ctx.fillStyle = oc ? oc.main : '#d8813c';
-          for (var ov = 0; ov < 3; ov++) {
-            ctx.beginPath();
-            ctx.arc(rx + (ov - 1) * rr * 0.42, ry - rr * (0.30 + (ov % 2) * 0.3),
-                    ts * 0.075, 0, 6.3);
-            ctx.fill();
-          }
-        }
+        var oc = o.ore ? S.iconColors(o.ore, 'mineral').main
+                       : (o.kind === 'oreRock' ? '#d8813c' : null);
+        global.SDV_ART.rock(ctx, sx + ts * 0.5, sy + ts * 0.95, ts, oc);
+        break;
+      }
+      case 'stump': {
+        global.SDV_ART.rock(ctx, sx + ts * 0.5, sy + ts * 0.95, ts * 0.8, null);
         break;
       }
       default: {
@@ -1564,11 +1766,10 @@
 
   Game.prototype.drawActor = function (act, camX, camY, ts, isNpc) {
     var ctx = this.ctx;
-    var sp = act.sprite[act.face] || act.sprite.down;
-    var img = sp[act.frame % sp.length];
+    var ART = global.SDV_ART;
     var px = ts / 12;
-    var sx = Math.round(act.x * ts - camX - img.w * px / 2);
-    var sy = Math.round(act.y * ts - camY - img.h * px + ts * 0.5);
+    var sx = Math.round(act.x * ts - camX - ts * 0.5);
+    var sy = Math.round(act.y * ts - camY - ts * 1.05);
     /* A soft body shadow rather than a hard ellipse - stacked like the object
      * shadows so a person is planted on the ground instead of pasted onto it. */
     var bcx = Math.round(act.x * ts - camX);
@@ -1599,7 +1800,15 @@
       ctx.fill();
       ctx.restore();
     }
-    S.blit(ctx, img, sx, sy, px, act.face === 'left');
+    /* Drawn from circles and capsules now, not blitted from a pixel grid -
+     * "nhân vật kiểu tròn tròn". The palette is still the four colours read
+     * out of that character's own sprite in the game files, so everybody stays
+     * recognisable. */
+    var pal = (act.real && act.real.pal) || act.pal || {};
+    var drew = ART.person(ctx, Math.round(act.x * ts - camX),
+                          Math.round(act.y * ts - camY + ts * 0.34),
+                          ts, pal, act.face, act.frame % 2);
+    sy = drew.headY;
     if (isNpc) {
       var cx = Math.round(act.x * ts - camX);
       /* Somebody standing at the water's edge for three hours is fishing, and
@@ -1691,6 +1900,34 @@
    * brief calls this out explicitly: the player must never have to guess. */
   Game.prototype.drawHighlight = function (camX, camY, ts) {
     var ctx = this.ctx;
+
+    /* The tile in front of the farmer, always drawn.
+     *
+     * WHY always: the highlight only ever appeared when something happened to
+     * be standing there, so on open ground the player had no idea which tile
+     * the hoe was about to turn over and had to guess from the sprite. The
+     * original solves this with a cursor square under the mouse; on a phone
+     * there is no cursor, so the facing tile IS the cursor. It sits above the
+     * light pass with the rest of the interface, so it stays readable at
+     * midnight in the mine - a cursor that goes dark exactly when aiming is
+     * hardest would be worse than none. */
+    var ft = this.facingTile();
+    if (!this.paused) {
+      var fsx = Math.round(ft.x * ts - camX), fsy = Math.round(ft.y * ts - camY);
+      var hit = this.hover && this.hover.x === ft.x && this.hover.y === ft.y;
+      ctx.save();
+      ctx.lineWidth = Math.max(1.5, ts * 0.06);
+      ctx.strokeStyle = hit ? 'rgba(255,236,150,0.85)' : 'rgba(255,255,255,0.34)';
+      ctx.fillStyle = hit ? 'rgba(255,236,150,0.13)' : 'rgba(255,255,255,0.07)';
+      var r = ts * 0.22, i = ts * 0.10;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(fsx + i, fsy + i, ts - i * 2, ts - i * 2, r);
+      else ctx.rect(fsx + i, fsy + i, ts - i * 2, ts - i * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
     if (this.hover) {
       var o = this.hover;
       var hx = (o.kind === 'building' ? o.doorX : o.x);

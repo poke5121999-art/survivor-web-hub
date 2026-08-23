@@ -50,7 +50,16 @@
     this.weather = 'sun';
     this.tomorrowWeather = 'sun';
     this.inventory = [];
-    this.invSize = 24;
+    /* The backpack starts small and is bought bigger, which is how the
+     * original works and what was asked for. Official wiki, Tools page, read
+     * 2026-08-23: "Backpack (12 slots) ... You start with one. It can hold 12
+     * stacks of items, but it can be upgraded"; "Large Pack (24 slots)",
+     * 2,000g, "Purchased from Pierre's General Store at the start of the
+     * game"; "Deluxe Pack (36 slots)", 10,000g, "Purchased from Pierre's
+     * General Store after buying 24 Size Backpack". It was a flat 24 here,
+     * so the first upgrade in the game had already been given away and the
+     * second did not exist. */
+    this.invSize = 12;
     this.chest = [];
     this.chestSize = 18;
     this.shipped = [];
@@ -149,6 +158,14 @@
     return Math.floor(it.sell * QUALITY_MULT[quality || 0]);
   };
 
+  /* Items whose "the player has held one of these at least once" matters to
+   * something else. Clint mails the Furnace recipe the morning after the first
+   * copper ore is picked up, and by the time the crafting screen is opened
+   * that ore has usually been smelted - so it cannot be read off the bag and
+   * has to be latched when it arrives. Deliberately a short list: latching
+   * every item name would grow the save file for nothing. */
+  var HELD_LATCH = { 'Copper Ore': 1 };
+
   function sameStack(a, name, quality) {
     return a && a.name === name && (a.quality || 0) === (quality || 0);
   }
@@ -162,6 +179,11 @@
      * sim.inventory)` got the chest's 18-slot cap applied to a 24-slot bag, so
      * the last six slots silently refused items and the caller dropped them. */
     var cap = inv === this.chest ? this.chestSize : this.invSize;
+    if (HELD_LATCH[name]) {
+      this.flags = this.flags || {};
+      this.flags.held = this.flags.held || {};
+      this.flags.held[name] = 1;
+    }
     for (var i = 0; i < inv.length; i++) {
       if (sameStack(inv[i], name, quality)) { inv[i].qty += qty; return true; }
     }
@@ -487,6 +509,10 @@
        * gold and silently reverted, and an open profession choice vanished. */
       playerX: this.playerX, playerY: this.playerY,
       chestSize: this.chestSize, maxHealth: this.maxHealth, hay: this.hay,
+      /* invSize was never saved, so a bought backpack silently reverted to
+       * the default on the next load - which did not show while the default
+       * WAS the maximum, and would have quietly eaten two purchases now. */
+      invSize: this.invSize,
       pendingProfession: this.pendingProfession,
       professionQueue: this.professionQueue,
       farmlife: world && world.game ? world.game.farm.serialize() : null,
@@ -524,7 +550,8 @@
      'crafted', 'flags', 'seedRng', 'deepestMine', 'weapon', 'armor',
      'toolTier', 'toolPower', 'professions', 'hasBoat',
      'spouse', 'dating', 'machines', 'playerX', 'playerY', 'chestSize',
-     'maxHealth', 'pendingProfession', 'professionQueue', 'hay'].forEach(function (k) {
+     'maxHealth', 'pendingProfession', 'professionQueue', 'hay',
+     'invSize'].forEach(function (k) {
       if (s[k] != null) self[k] = s[k];
     });
     /* A save written before hay was a real resource has no `hay` field, and
@@ -536,6 +563,16 @@
     if (s.hay == null && world && world.game && world.game.farm) {
       this.hay = world.game.farm.hayCap();
     }
+    /* MIGRATION, and it must never lose anything. A save written when the bag
+     * was a flat 24 slots has no invSize, and would otherwise load into a
+     * 12-slot bag while already carrying more than that - every slot past the
+     * twelfth would become unreachable and the next give() would refuse. So
+     * the bag is never smaller than what it is already holding, rounded up to
+     * a whole row. A save carrying 20 items keeps 24 slots; one carrying 5
+     * still steps down to 12 and can buy its way back up, which is the point
+     * of the change. Nothing is ever dropped. */
+    var rows = Math.ceil((this.inventory || []).length / 12) * 12;
+    if (rows > this.invSize) this.invSize = Math.min(36, rows);
     if (s.world && world) world.deserialize(s.world);
     if (world && world.game && world.game.player && this.playerX != null) {
       var pg = world.game;

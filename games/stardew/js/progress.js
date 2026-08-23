@@ -57,7 +57,7 @@
     }
   };
 
-  var SKILL_VN = { farming: 'Nông nghiệp', mining: 'Khai khoáng',
+  var SKILL_VN = { farming: 'Nông nghiệp', mining: 'Khai thác',
                    foraging: 'Hái lượm', fishing: 'Câu cá', combat: 'Chiến đấu' };
 
   function has(sim, id) { return !!sim.professions[id]; }
@@ -232,8 +232,14 @@
     return Math.floor(raw * priceMultiplier(this, info.cat, info.name));
   };
 
-  /* Levelling to 5 or 10 opens a choice that cannot be skipped silently. */
+  /* Levelling to 5 or 10 opens a choice that cannot be skipped silently.
+   *
+   * Guarded against being wrapped twice for the same reason js/machineui.js is:
+   * index.html's boot guard re-fetches a script whose global is missing, so
+   * this file can run more than once, and a doubly-wrapped counter would award
+   * every point of experience twice. */
   var baseAddXp = global.SDV_SIM.Sim.prototype.addXp;
+  if (!baseAddXp.__sdvProfWrapped) {
   global.SDV_SIM.Sim.prototype.addXp = function (skill, n) {
     var before = this.skills[skill];
     var lvl = baseAddXp.call(this, skill, n);
@@ -258,6 +264,8 @@
     }
     return lvl;
   };
+  global.SDV_SIM.Sim.prototype.addXp.__sdvProfWrapped = 1;
+  }
 
   UI.prototype.openProfession = function (skill, level) {
     var self = this, s = this.sim;

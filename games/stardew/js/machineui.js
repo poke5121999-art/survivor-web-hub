@@ -25,6 +25,20 @@
       return k + ' ' + sim.count(k) + '/' + mats[k];
     }).join(' · ');
   }
+  /* What is still missing, named. "Chưa đủ nguyên liệu" tells the player they
+   * cannot build it; it does not tell them what to go and fetch, which is the
+   * only thing they wanted to know. */
+  function missingLine(sim, mats, gold) {
+    var out = [];
+    if (gold && sim.gold < gold) {
+      out.push((gold - sim.gold).toLocaleString('vi-VN') + 'g');
+    }
+    for (var k in mats) {
+      var short = mats[k] - sim.count(k);
+      if (short > 0) out.push(k + ' ×' + short);
+    }
+    return out.join(', ');
+  }
   function canPay(sim, mats, gold) {
     if (gold && sim.gold < gold) return false;
     for (var k in mats) if (sim.count(k) < mats[k]) return false;
@@ -42,18 +56,95 @@
     var ok = canPay(s, mats, gold);
     var b = el('button', 'sdv-mbtn' + (ok ? '' : ' sdv-off'));
     b.appendChild(el('span', null, label));
-    b.appendChild(el('small', 'sdv-cost',
-      (gold ? gold.toLocaleString('vi-VN') + 'g · ' : '') + costLine(s, mats)));
+    var cost = el('small', 'sdv-cost',
+      (gold ? gold.toLocaleString('vi-VN') + 'g · ' : '') + costLine(s, mats));
+    b.appendChild(cost);
     b.addEventListener('click', function () {
       /* The click that ends a press-and-hold lands here too, and it used to
        * spend the materials the player was only trying to carry past. */
       if (self.swallowClick && self.swallowClick()) return;
-      if (!canPay(s, mats, gold)) return self.game.toast('Chưa đủ nguyên liệu');
+      if (!canPay(s, mats, gold)) {
+        /* The refusal is written INTO the button as well as toasted.
+         *
+         * WHY both: when the owner reported "cũng không thấy toast thông báo
+         * cho user" the toast box was a plain child of the HUD layer with no
+         * z-index, and every panel is appended after it - so a message raised
+         * while a panel was open was painted underneath that panel and the
+         * player saw nothing at all. Toasts have since been lifted onto their
+         * own top layer, but this line stays: the answer to "why can I not
+         * build this" belongs next to the button that refused, not in a strip
+         * that fades after two seconds. */
+        cost.textContent = 'Còn thiếu: ' + missingLine(s, mats, gold);
+        cost.style.color = '#ff9a8a';
+        self.game.sfx('error');
+        return self.game.toast('Còn thiếu: ' + missingLine(s, mats, gold));
+      }
       pay(s, mats, gold);
       onOk();
     });
     return b;
   };
+
+  /* ------------------------------------------------------------- the bank
+   *
+   * The cottage holds every machine from day one, laid out in one bank beside
+   * the furnace and the chest (see world.js). What changes as the player
+   * builds one is the name printed under it: a plot carries a hammer, a built
+   * machine does not.
+   *
+   * WHY this has to be pushed rather than read: the renderer reads a plain
+   * string off the machine table and has no idea which machines this player
+   * owns - that lives in the save. Somebody has to tell it, and this file is
+   * the one that owns the answer. */
+  function bankBuiltKey(sim) {
+    var m = sim.machines || {}, out = '';
+    M.CRAFTABLE.forEach(function (n) {
+      out += (n === 'Furnace' ? (!m[n] || m[n].built !== false) : !!(m[n] && m[n].built))
+        ? '1' : '0';
+    });
+    return out;
+  }
+  /* The renderer is the thing that has to be in step, so the check hangs off
+   * the renderer. It was first hung off the ten-minute simulation tick and
+   * that is seven real seconds - long enough that a player walking into the
+   * cottage saw the whole bank claiming to be built, then watched the hammers
+   * appear. The check itself is one string compare against the previous
+   * answer; the work behind it only runs when a machine has actually
+   * changed hands. */
+  /* Wrapping a shared method has to be safe to do TWICE.
+   *
+   * WHY: index.html's boot guard re-fetches any script whose global is missing,
+   * so a file here can legitimately execute more than once - that is the whole
+   * point of the guard, and it is what stands between a flaky fetch and a black
+   * screen. An unguarded wrap turns that into a wrapper calling a wrapper, and
+   * it showed up as `RangeError: Maximum call stack size exceeded` inside the
+   * render loop: fifty-odd broken frames, and a save-and-reload check failing
+   * for a reason nowhere near the code it was testing. The stamp is on the
+   * function, so it survives however many times this file runs. */
+  var GAME = global.SDV_GAME;
+  if (GAME && GAME.Game && GAME.Game.prototype.render
+      && !GAME.Game.prototype.render.__sdvBankWrapped) {
+    var baseRender = GAME.Game.prototype.render;
+    GAME.Game.prototype.render = function () {
+      syncBank(this);
+      return baseRender.apply(this, arguments);
+    };
+    GAME.Game.prototype.render.__sdvBankWrapped = 1;
+  }
+
+  var lastBankKey = null;
+  function syncBank(game) {
+    if (!game || !game.sim) return;
+    var sim = game.sim, key = bankBuiltKey(sim);
+    if (key === lastBankKey) return;
+    lastBankKey = key;
+    var m = sim.machines || {};
+    M.CRAFTABLE.forEach(function (n) {
+      var built = n === 'Furnace' ? (!m[n] || m[n].built !== false)
+                                  : !!(m[n] && m[n].built);
+      if (M.markBuilt) M.markBuilt(n, built);
+    });
+  }
 
   /* Every machine's state in one place, so it saves with everything else and
    * the workbench can list them without hunting the map for objects. */
@@ -109,6 +200,33 @@
     this.openPanel('Xưởng', body);
   };
 
+  /* ------------------------------------------------- slots that tell the truth
+   *
+   * Picking anything up used to light EVERY drop zone green, machine slots
+   * included, because `markDropZones` in ui.js has no idea what a machine
+   * takes. The owner's report was exactly that: "drag cái gì lên lò nung slot
+   * cũng xanh lên mà kéo vào thì không đc, cũng không thấy toast". A square
+   * that goes green and then refuses on release is worse than no highlight -
+   * it made a promise.
+   *
+   * A machine slot now answers for itself through `cell.__sdvAccepts`, which
+   * runs the SAME `tryAccept` the drop runs, so the colour and the outcome
+   * cannot disagree. Refusal is painted with inline styles rather than a class
+   * because the stylesheet lives in index.html, which this file does not own.
+   */
+  function hasRoom(o, idx) {
+    o.jobs = o.jobs || [];
+    if (idx != null && !o.jobs[idx]) return true;
+    for (var i = 0; i < M.slotCount(o); i++) if (!o.jobs[i]) return true;
+    return false;
+  }
+  /* Painting a refusing slot is `markDropZones` in js/ui.js now: it asks every
+   * target's own `__sdvAccepts` before it lights anything, so there is one
+   * answer to "will this square take what I am holding" instead of a generic
+   * green with a correction layered on top of it here. What stays in this file
+   * is the answer itself - `__sdvAccepts` runs the same `tryAccept` the drop
+   * runs, so the colour and the outcome cannot disagree. */
+
   // ------------------------------------------------------------------ machine
   UI.prototype.openMachine = function (o) {
     var self = this, s = this.sim, g = this.game;
@@ -121,6 +239,23 @@
 
     body.appendChild(el('div', 'sdv-sub', (d ? d.hint : '')));
 
+    /* What this machine said last, printed inside the panel.
+     *
+     * WHY it is not left to the toast: measured while chasing "cũng không thấy
+     * toast thông báo cho user", the toast element was laid out at y=618 with
+     * no z-index and `elementFromPoint` there returned the panel body - the
+     * refusal was being said, underneath the panel the player was looking at.
+     * Toasts sit on their own top layer now, but a machine that refuses
+     * something should still say so where the slots are, and keep saying it
+     * until the player does something else. A toast that has already faded
+     * cannot answer "wait, why did that not work". */
+    if (this._mNote && this._mNote.machine === name) {
+      var note = el('div', 'sdv-speech', this._mNote.text);
+      note.style.setProperty('border-color', this._mNote.bad ? '#c0503f' : '#6ba85a');
+      note.style.setProperty('color', this._mNote.bad ? '#ffb4a6' : '#d8f0cc');
+      body.appendChild(note);
+    }
+
     /* Not built yet: show what it needs, exactly like the broken bridge.
      * WHY: these machines are placed in the world from the start; the player
      * repairs/erects them in place rather than crafting a portable copy. */
@@ -130,15 +265,16 @@
       body.appendChild(this.requirementButton(
         '🔨 Dựng ' + M.label(name), d.craft, 0, function () {
           o.built = true;
-          /* WHY it is put in the room: with everything behind one bench the
-             house never changed however much you built, and the owner read
-             that as "cảm giác không phát triển". A built machine now stands
-             on its own tile, spread across the cottage. */
+          /* The machine was already standing in the bank as an empty plot, so
+             building it does not move anything - it lights the plot up. The
+             call is kept because it is also the repair path for a save made
+             back when machines were scattered and one of them is missing. */
           var W2 = global.SDV_WORLD;
           if (W2 && W2.placeMachine) {
             W2.placeMachine(g.world.areas.house, name);
           }
-          g.toast('Đã dựng xong ' + M.label(name) + ' — đặt trong nhà');
+          syncBank(g);
+          g.toast('Đã dựng xong ' + M.label(name) + ' — trong dàn máy ở nhà');
           self.openMachine(o);
         }));
       var back0 = el('button', 'sdv-mbtn', '\u2190 Về danh sách máy');
@@ -209,9 +345,18 @@
          * HTML5 drop event below never fires on a phone, so "kéo hoặc chạm đồ
          * để bỏ vào" only ever half worked - the drag half did nothing at all. */
         cell.classList.add('sdv-dz');
+        /* The one question the highlight and the drop both ask. */
+        cell.__sdvAccepts = function (it) {
+          if (!it || !it.name) return false;
+          return !M.tryAccept(name, it, s, hasRoom(o, idx)).error;
+        };
         cell.__sdvDrop = function (d) { self.feedMachine(o, d.it, idx, d.list); };
         cell.addEventListener('dragover', function (e) {
-          e.preventDefault(); cell.classList.add('sdv-dzover');
+          e.preventDefault();
+          // a slot that will not take this must not light up for it
+          if (cell.__sdvAccepts((self.dragging || {}).it)) {
+            cell.classList.add('sdv-dzover');
+          }
         });
         cell.addEventListener('dragleave', function () {
           cell.classList.remove('sdv-dzover');
@@ -268,8 +413,18 @@
     this.refreshPanel = function () { self.openMachine(o); };
   };
 
+  /* Say something about a machine so the player actually sees it: in the panel
+   * they are looking at, and as a toast for when the panel is not open. */
+  UI.prototype.machineSay = function (o, text, bad) {
+    this._mNote = { machine: o.machine || 'Furnace', text: text, bad: !!bad };
+    if (bad) this.game.sfx('error');
+    this.game.toast(text);
+    this.openMachine(o);
+  };
+
   UI.prototype.feedMachine = function (o, item, slotIdx, list) {
     var self = this, s = this.sim, g = this.game;
+    o = resolve(s, o);
     // an empty bag slot is a tap on nothing, not a crash
     if (!item || !item.name) { this.clearHeld(); return; }
     list = list || s.inventory;
@@ -283,7 +438,10 @@
       }
     }
     var res = M.tryAccept(name, item, s, free >= 0);
-    if (res.error) { this.clearHeld(); return g.toast(res.error); }
+    if (res.error) {
+      this.clearHeld();
+      return this.machineSay(o, res.error, true);
+    }
     var r = res.recipe;
     /* WHY the exact stack is consumed rather than sim.take(name, n): take()
      * matches on NAME alone and works from the end of the bag, so tapping a
@@ -294,11 +452,13 @@
     var idx = list.indexOf(item);
     if (idx < 0 || item.qty < r.need) {
       this.clearHeld();
-      return g.toast('Cần ' + r.need + ' ' + item.name + ' cùng loại trong một ô');
+      return this.machineSay(o, 'Cần ' + r.need + ' ' + item.name
+        + ' cùng loại trong một ô (ô này có ' + (item.qty || 0) + ')', true);
     }
     if (r.fuel && s.count(r.fuel) < (r.fuelQty || 1)) {
       this.clearHeld();
-      return g.toast('Thiếu ' + r.fuel);
+      return this.machineSay(o, 'Thiếu ' + r.fuel + ' — cần '
+        + (r.fuelQty || 1) + ', đang có ' + s.count(r.fuel), true);
     }
     item.qty -= r.need;
     if (item.qty <= 0) list.splice(idx, 1);
@@ -309,8 +469,8 @@
       repeat: r.repeat, source: item.name, ready: false
     };
     this.clearHeld();
-    g.toast('Đã bỏ ' + r.need + ' ' + item.name + ' vào ' + M.label(name));
-    this.openMachine(o);
+    this.machineSay(o, '✅ Đã bỏ ' + r.need + ' ' + item.name + ' vào '
+      + M.label(name) + ' — ra ' + r.out, false);
   };
 
   // ------------------------------------------------------------------ storage
@@ -385,6 +545,11 @@
    * decorative and nothing could finish inside a day. */
   function machinesTick(game, minutes) {
     var s = game.sim, made = 0;
+    /* The cheapest place to notice that the save has changed under us - a
+     * restored game arrives with machines already built and nothing has told
+     * the map or the labels yet. syncBank costs a string compare when nothing
+     * moved, which is every tick but the handful that matter. */
+    syncBank(game);
     var list = [];
     for (var mn in (s.machines || {})) list.push(s.machines[mn]);
     list.forEach(function (o) {

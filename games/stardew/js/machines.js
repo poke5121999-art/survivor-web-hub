@@ -28,7 +28,7 @@
    * accept(item, sim) -> null, or {out, qty, mins, price, extra} */
   var MACHINES = {
     'Furnace': {
-      vn: 'Lò nung', emoji: '🔥', slotsAtStart: 1, upgradable: true,
+      vnFull: 'Lò nung', vnShort: 'Lò nung', emoji: '🔥', slotsAtStart: 1, upgradable: true,
       craft: { Stone: 25, 'Copper Ore': 20 },
       needs: 'Coal',
       hint: 'Bỏ quặng vào (kèm 1 than) để ra thanh kim loại.',
@@ -45,7 +45,7 @@
       }
     },
     'Keg': {
-      vn: 'Thùng ủ rượu', emoji: '🍷',
+      vnFull: 'Thùng ủ rượu', vnShort: 'Ủ rượu', emoji: '🍷',
       craft: { Wood: 30, 'Copper Bar': 1, 'Iron Bar': 1, 'Oak Resin': 1 },
       hint: 'Quả thành rượu vang (giá ×3), rau thành nước ép (×2,25).',
       accept: function (it, sim) {
@@ -70,7 +70,7 @@
       }
     },
     'Preserves Jar': {
-      vn: 'Hũ ngâm', emoji: '🍯',
+      vnFull: 'Hũ ngâm', vnShort: 'Hũ ngâm', emoji: '🍯',
       craft: { Wood: 50, Stone: 40, Coal: 8 },
       hint: 'Quả thành mứt, rau thành dưa muối (giá = 2× gốc + 50).',
       accept: function (it, sim) {
@@ -89,7 +89,7 @@
       }
     },
     'Mayonnaise Machine': {
-      vn: 'Máy làm mayonnaise', emoji: '🥚',
+      vnFull: 'Máy làm mayonnaise', vnShort: 'Mayo', emoji: '🥚',
       craft: { Wood: 15, Stone: 15, 'Copper Bar': 1 },
       hint: 'Bỏ trứng vào.',
       accept: function (it, sim) {
@@ -101,7 +101,7 @@
       }
     },
     'Cheese Press': {
-      vn: 'Máy ép phô mai', emoji: '🧀',
+      vnFull: 'Máy ép phô mai', vnShort: 'Phô mai', emoji: '🧀',
       craft: { Wood: 45, Stone: 45, Hardwood: 10, 'Copper Bar': 1 },
       hint: 'Bỏ sữa vào.',
       accept: function (it) {
@@ -112,7 +112,7 @@
       }
     },
     'Loom': {
-      vn: 'Máy dệt', emoji: '🧵',
+      vnFull: 'Máy dệt', vnShort: 'Dệt vải', emoji: '🧵',
       craft: { Wood: 60, Fiber: 30, 'Pine Tar': 1 },
       hint: 'Bỏ lông cừu vào để dệt thành vải.',
       accept: function (it) {
@@ -121,7 +121,7 @@
       }
     },
     'Oil Maker': {
-      vn: 'Máy ép dầu', emoji: '🫒',
+      vnFull: 'Máy ép dầu', vnShort: 'Ép dầu', emoji: '🫒',
       craft: { Hardwood: 20, 'Gold Bar': 1, 'Slime': 50 },
       hint: 'Nấm truffle, hạt hướng dương hoặc bắp.',
       accept: function (it) {
@@ -132,7 +132,7 @@
       }
     },
     'Recycling Machine': {
-      vn: 'Máy tái chế', emoji: '♻️',
+      vnFull: 'Máy tái chế', vnShort: 'Tái chế', emoji: '♻️',
       craft: { Wood: 25, Stone: 25, 'Iron Bar': 1 },
       hint: 'Bỏ rác câu được vào để lấy lại nguyên liệu.',
       accept: function (it, sim) {
@@ -162,7 +162,7 @@
       }
     },
     'Incubator': {
-      vn: 'Máy ấp trứng', emoji: '🐣',
+      vnFull: 'Máy ấp trứng', vnShort: 'Ấp trứng', emoji: '🐣',
       craft: { Wood: 40, Stone: 20, 'Copper Bar': 1 },
       hint: 'Bỏ trứng vào, vài ngày sau nở ra con non trong chuồng còn chỗ.',
       // the hatched animal is placed in a coop, never handed over as an item
@@ -182,7 +182,7 @@
       }
     },
     'Crystalarium': {
-      vn: 'Máy nhân quặng', emoji: '💎',
+      vnFull: 'Máy nhân quặng', vnShort: 'Nhân đá', emoji: '💎',
       craft: { Stone: 99, 'Gold Bar': 5, 'Iridium Bar': 2, 'Battery Pack': 1 },
       hint: 'Bỏ một viên đá quý vào, máy nhân bản nó mãi mãi.',
       accept: function (it, sim) {
@@ -195,21 +195,21 @@
       }
     },
     'Lightning Rod': {
-      vn: 'Cột thu lôi', emoji: '⚡',
+      vnFull: 'Cột thu lôi', vnShort: 'Thu lôi', emoji: '⚡',
       craft: { 'Iron Bar': 1, 'Refined Quartz': 1, 'Bat Wing': 5 },
       hint: 'Không cần bỏ gì. Đêm có bão thì sáng ra có pin.',
       passive: 'storm', passiveOut: 'Battery Pack', upgradable: false,
       accept: function () { return null; }
     },
     'Bee House': {
-      vn: 'Tổ ong', emoji: '🐝',
+      vnFull: 'Tổ ong', vnShort: 'Tổ ong', emoji: '🐝',
       craft: { Wood: 40, Coal: 8, 'Iron Bar': 1, 'Maple Syrup': 1 },
       hint: 'Không cần bỏ gì, cứ 4 ngày cho một hũ mật.',
       passive: 'always', passiveOut: 'Honey', passiveDays: 4, upgradable: false,
       accept: function () { return null; }
     },
     'Charcoal Kiln': {
-      vn: 'Lò than', emoji: '🪵',
+      vnFull: 'Lò than', vnShort: 'Lò than', emoji: '🪵',
       craft: { Wood: 20, 'Copper Bar': 2 },
       hint: 'Bỏ 10 gỗ vào để ra than.',
       accept: function (it) {
@@ -218,7 +218,7 @@
       }
     },
     'Seed Maker': {
-      vn: 'Máy làm hạt giống', emoji: '🌱',
+      vnFull: 'Máy làm hạt giống', vnShort: 'Làm hạt', emoji: '🌱',
       craft: { Wood: 25, 'Gold Bar': 1, Coal: 10 },
       hint: 'Bỏ nông sản vào để lấy lại hạt giống của nó.',
       accept: function (it, sim) {
@@ -230,7 +230,7 @@
       }
     },
     'Cask': {
-      vn: 'Thùng gỗ ủ', emoji: '🛢',
+      vnFull: 'Thùng gỗ ủ', vnShort: 'Thùng gỗ', emoji: '🛢',
       craft: { Wood: 20, Hardwood: 1 },
       hint: 'Rượu và phô mai để trong đây sẽ lên phẩm cấp.',
       accept: function (it, sim) {
@@ -249,11 +249,42 @@
                    'Incubator', 'Crystalarium', 'Lightning Rod', 'Bee House',
                    'Charcoal Kiln', 'Seed Maker', 'Cask'];
 
+  /* Two names per machine, and they are not the same job.
+   *
+   *   vnFull  - what a panel title calls it ("Máy làm mayonnaise").
+   *   vnShort - what the WORLD prints under it, in a tile 33 pixels wide.
+   *   vn      - the string the world actually draws, which is vnShort plus a
+   *             hammer while the machine is still a plot.
+   *
+   * WHY the split exists: the machines now stand in one bank in the cottage
+   * and each one prints its name on the floor beneath it. At the full names
+   * the labels of neighbouring machines ran straight through each other and
+   * the whole row was unreadable - the owner asked for machines "có tên", not
+   * for eight overlapping words.
+   *
+   * WHY `vn` is rewritten rather than computed on the spot: the renderer reads
+   * a plain field 15 times a frame and has no idea which machines the player
+   * has built - that lives in the save, and machineui.js owns it. It calls
+   * markBuilt() whenever the answer changes. */
+  Object.keys(MACHINES).forEach(function (k) {
+    var d = MACHINES[k];
+    d.vnShort = d.vnShort || d.vnFull;
+    d.vn = d.vnShort;
+  });
+
+  var UNBUILT_MARK = ' \u{1F528}';       // 🔨 - "this one is still a plot"
+
+  function markBuilt(name, built) {
+    var d = MACHINES[name];
+    if (!d) return;
+    d.vn = built ? d.vnShort : d.vnShort + UNBUILT_MARK;
+  }
+
   function def(name) { return MACHINES[name] || null; }
 
   function label(name) {
     var d = MACHINES[name];
-    return d ? (d.emoji + ' ' + d.vn) : name;
+    return d ? (d.emoji + ' ' + (d.vnFull || d.vnShort)) : name;
   }
 
   /* Can this machine take that stack right now? Returns the recipe or a
@@ -293,7 +324,7 @@
 
   global.SDV_MACHINES = { EXTRA_ITEMS: EXTRA_ITEMS,
     MACHINES: MACHINES, CRAFTABLE: CRAFTABLE, CAT: CAT,
-    def: def, label: label, tryAccept: tryAccept,
+    def: def, label: label, tryAccept: tryAccept, markBuilt: markBuilt,
     slotCount: slotCount, upgradeCost: upgradeCost
   };
 })(window);

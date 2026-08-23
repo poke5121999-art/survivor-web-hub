@@ -251,7 +251,13 @@
   /* a target that will accept what is being carried, and the one under the finger */
   .sdv-dz{transition:border-color .14s ease,background .14s ease,transform .10s ease}
   .sdv-dzhot{border-color:var(--good)!important;background:rgba(95,168,85,.14)}
-  .sdv-dzover{border-color:#ffd870!important;background:rgba(255,216,112,.24)!important;
+
+/* A drop target that will REFUSE what is being carried. It has to be as loud as
+   the green one: a square that simply fails to light up reads as "the drag is
+   not working", which is what it was mistaken for. */
+.sdv-dzno { border-color: #c0503f !important;
+            background: rgba(192,80,63,0.16) !important;
+            opacity: .55; }  .sdv-dzover{border-color:#ffd870!important;background:rgba(255,216,112,.24)!important;
     transform:scale(1.03)}
   .sdv-mslot.sdv-dzhot{outline:2px dashed var(--good);outline-offset:2px}
 
@@ -299,6 +305,109 @@
     color:#f4ecd8;background:rgba(255,255,255,.12);border:1px solid #6b5a3c;font-size:13px;
     pointer-events:auto;transition:background .12s ease}
   .sdv-undo:active{background:rgba(255,255,255,.26)}
+
+  /* ===================== appended by the fishing / HUD pass (2026-08-23) =====
+     One block, appended only. Everything above this line is untouched.
+     Plain flat shapes with rounded corners on purpose: the art is moving away
+     from pixel decoration, and HUD chrome that draws its own texture would be
+     the one thing left looking like a different game. */
+
+  /* ---- fishing minigame ---- */
+  .sdv-fstage{display:flex;gap:12px;justify-content:center;align-items:stretch;
+    margin:10px auto 4px}
+  .sdv-fish .sdv-track{position:relative;width:76px;height:340px;margin:0;
+    background:linear-gradient(180deg,#123047,#0a1a28);border:2px solid #6b5a3c;
+    border-radius:12px;overflow:hidden}
+  .sdv-fish .sdv-fbar{position:absolute;left:4px;right:4px;
+    background:rgba(143,212,74,.34);border:2px solid rgba(143,212,74,.85);
+    border-radius:8px}
+  .sdv-fish .sdv-fmark{position:absolute;left:50%;width:26px;margin-left:-13px;
+    background:#8fd8ff;border:2px solid #fff;border-radius:7px;
+    box-shadow:0 0 8px rgba(140,216,255,.7)}
+  .sdv-fish .sdv-fmark.sdv-fin{background:#ffe27a;border-color:#fff6cf;
+    box-shadow:0 0 12px rgba(255,226,122,.9)}
+  .sdv-fchest{position:absolute;left:50%;width:28px;height:28px;margin-left:-14px;
+    font-size:20px;line-height:28px;text-align:center}
+  /* the meter stands upright beside the track, the way the original does */
+  .sdv-fprogv{position:relative;width:20px;background:rgba(0,0,0,.5);
+    border:2px solid #6b5a3c;border-radius:10px;overflow:hidden}
+  .sdv-fprogv i{position:absolute;left:0;bottom:0;width:100%;display:block;height:30%}
+  .sdv-fishpad{margin:10px auto 4px;max-width:240px;text-align:center;font-size:15px;
+    padding:12px 10px;border-radius:14px;background:rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.22)}
+  .sdv-fishpad.sdv-padon{background:rgba(143,212,74,.28);
+    border-color:rgba(143,212,74,.6)}
+  /* something has to move while the line is in the water; the wait is the
+     original's own 0.45-22s and a frozen screen for that long reads as a hang */
+  .sdv-pond{position:relative;width:150px;height:64px;margin:12px auto;
+    border-radius:32px;background:linear-gradient(180deg,#17435f,#0c2334);
+    border:2px solid #6b5a3c;overflow:hidden}
+  .sdv-bob{position:absolute;left:50%;top:22px;width:14px;height:14px;
+    margin-left:-7px;border-radius:50%;background:#e8635b;border:2px solid #fff;
+    animation:sdv-bobbing 1.6s ease-in-out infinite}
+  @keyframes sdv-bobbing{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+
+  /* ---- HUD: the bottom band is the joystick's, everything else moved ---- */
+  /* One menu button under the minimap: clear of the notch, clear of the status
+     line, clear of the minimap, and reachable without crossing the screen. */
+  .sdv-menubtn{position:absolute;left:10px;top:144px;width:46px;height:46px;
+    font-size:20px;background:rgba(244,236,216,.92);box-shadow:0 4px 0 #8a7c5e}
+  /* The action button keeps a thumb position but leaves the bottom band. The
+     joystick occupies 22..140px from the bottom, so this starts above it. */
+  .sdv-actions{position:absolute;right:14px;bottom:150px;display:flex;
+    align-items:flex-end;gap:10px}
+  .sdv-act{width:72px;height:72px;font-size:28px}
+  /* Underground quick-use: a column above the action button. It used to be a
+     row at bottom-left, lying across the joystick. */
+  .sdv-quick{position:absolute;right:20px;bottom:232px;left:auto;
+    flex-direction:column;gap:6px}
+
+  /* ---- toasts: topmost, rising, fading ---- */
+  /* Not inside .sdv-layer any more - panels are appended to that layer after
+     the toast box and painted straight over it. */
+  /* Kept clear of the right edge and lifted above the action button: at
+     bottom:160 and full width the messages ran underneath it, and the one
+     control that must never be ambiguous was sitting under moving text. */
+  .sdv-toasts{position:absolute;left:8px;right:96px;bottom:236px;z-index:9999;
+    display:flex;flex-direction:column-reverse;align-items:center;gap:5px;
+    pointer-events:none}
+  .sdv-toast{background:rgba(12,16,22,.92);border:1px solid rgba(255,255,255,.28);
+    border-radius:16px;padding:7px 14px;font-size:13px;max-width:86%;
+    color:#f6f1e4;text-align:center;
+    /* readable over a bright summer field and over a black mine alike: an
+       opaque dark plate, a light rim, and a hard shadow under the glyphs */
+    text-shadow:0 1px 3px rgba(0,0,0,.95);
+    box-shadow:0 6px 18px rgba(0,0,0,.55);
+    animation:sdv-toastrise 2.6s ease-out forwards}
+  @keyframes sdv-toastrise{
+    0%{opacity:0;transform:translateY(26px) scale(.96)}
+    12%{opacity:1;transform:translateY(0) scale(1)}
+    70%{opacity:1;transform:translateY(-6px)}
+    100%{opacity:0;transform:translateY(-22px)}}
+
+  /* ---- skills screen ---- */
+  .sdv-skill{background:rgba(0,0,0,.28);border:1px solid #6b5a3c;border-radius:12px;
+    padding:9px 11px;margin:0 0 8px}
+  .sdv-skillhead{display:flex;align-items:baseline;gap:8px}
+  .sdv-skillname{font-weight:700;font-size:14px;flex:1}
+  .sdv-skilllvl{font-size:13px;color:#ffd870;font-weight:700}
+  .sdv-xpbar{position:relative;height:9px;margin:7px 0 4px;border-radius:6px;
+    background:rgba(0,0,0,.5);overflow:hidden}
+  .sdv-xpbar i{display:block;height:100%;background:linear-gradient(90deg,#8fd44a,#4e9c2e)}
+  .sdv-prof{display:block;color:#ffd870;margin-top:3px}
+
+  /* ---- locked recipes ---- */
+  /* Greyed, never hidden: the locked dish IS the goal, and a list that hides
+     what the player has not earned tells them there is nothing to earn. */
+  .sdv-row.sdv-locked{opacity:.72}
+  .sdv-row.sdv-locked .sdv-name{color:#cfc6b4}
+  .sdv-need{display:block;color:#ffd870;font-size:11px;line-height:1.3}
+  /* NB: NOT .sdv-mini - that is the minimap canvas near the top of this file
+     and reusing the name blanked it. */
+  .sdv-learnbtn{border:1px solid #6b5a3c;background:rgba(232,161,60,.9);
+    color:#241a10;font-weight:700;font-size:12px;border-radius:9px;
+    padding:5px 10px;margin-left:auto;cursor:pointer;pointer-events:auto}
+  .sdv-learnbtn.sdv-off{opacity:.45}
 </style>
 </head>
 <body>
@@ -316,29 +425,31 @@
   <p id="boot-warn" style="display:none;color:#e8a13c;font-size:13px;max-width:300px"></p>
 </div>
 
-<script src="data/gamedata.js?v=20260823f"></script>
-<script src="data/maps.js?v=20260823f"></script>
-<script src="data/npcs.js?v=20260823f"></script>
-<script src="js/sprites.js?v=20260823f"></script>
-<script src="js/world.js?v=20260823f"></script>
-<script src="js/tiles.js?v=20260823f"></script>
-<script src="js/light.js?v=20260823f"></script>
-<script src="js/fx.js?v=20260823f"></script>
-<script src="js/audio.js?v=20260823f"></script>
-<script src="js/machines.js?v=20260823f"></script>
-<script src="js/sim.js?v=20260823f"></script>
-<script src="js/mine.js?v=20260823f"></script>
-<script src="js/farmlife.js?v=20260823f"></script>
-<script src="js/events.js?v=20260823f"></script>
-<script src="js/npc.js?v=20260823f"></script>
-<script src="js/game.js?v=20260823f"></script>
-<script src="js/ui.js?v=20260823f"></script>
-<script src="js/panels.js?v=20260823f"></script>
-<script src="js/machineui.js?v=20260823f"></script>
-<script src="js/progress.js?v=20260823f"></script>
-<script src="js/social.js?v=20260823f"></script>
-<script src="js/intro.js?v=20260823f"></script>
-<script src="js/bot.js?v=20260823f"></script>
+<script src="data/gamedata.js?v=20260823g"></script>
+<script src="data/maps.js?v=20260823g"></script>
+<script src="data/npcs.js?v=20260823g"></script>
+<script src="data/recipes_unlock.js?v=20260823g"></script>
+<script src="js/sprites.js?v=20260823g"></script>
+<script src="js/world.js?v=20260823g"></script>
+<script src="js/tiles.js?v=20260823g"></script>
+<script src="js/art.js?v=20260823g"></script>
+<script src="js/light.js?v=20260823g"></script>
+<script src="js/fx.js?v=20260823g"></script>
+<script src="js/audio.js?v=20260823g"></script>
+<script src="js/machines.js?v=20260823g"></script>
+<script src="js/sim.js?v=20260823g"></script>
+<script src="js/mine.js?v=20260823g"></script>
+<script src="js/farmlife.js?v=20260823g"></script>
+<script src="js/events.js?v=20260823g"></script>
+<script src="js/npc.js?v=20260823g"></script>
+<script src="js/game.js?v=20260823g"></script>
+<script src="js/ui.js?v=20260823g"></script>
+<script src="js/panels.js?v=20260823g"></script>
+<script src="js/machineui.js?v=20260823g"></script>
+<script src="js/progress.js?v=20260823g"></script>
+<script src="js/social.js?v=20260823g"></script>
+<script src="js/intro.js?v=20260823g"></script>
+<script src="js/bot.js?v=20260823g"></script>
 <script>
 (function(){
   'use strict';
@@ -357,9 +468,12 @@
    * still is not there, say so and offer a retry instead of a black screen. */
   var NEEDS = [
     ['SDV_DATA', 'data/gamedata.js'], ['SDV_MAPS', 'data/maps.js'],
-    ['SDV_NPCS', 'data/npcs.js'], ['SDV_SPRITES', 'js/sprites.js'],
+    ['SDV_NPCS', 'data/npcs.js'],
+    ['SDV_RECIPE_UNLOCK', 'data/recipes_unlock.js'],
+    ['SDV_SPRITES', 'js/sprites.js'],
     ['SDV_WORLD', 'js/world.js'], ['SDV_TILES', 'js/tiles.js'],
     ['SDV_FX', 'js/fx.js'], ['SDV_LIGHT', 'js/light.js'],
+    ['SDV_ART', 'js/art.js'],
     ['SDV_AUDIO', 'js/audio.js'],
     ['SDV_MACHINES', 'js/machines.js'], ['SDV_SIM', 'js/sim.js'],
     ['SDV_MINE', 'js/mine.js'], ['SDV_FARMLIFE', 'js/farmlife.js'],
@@ -377,7 +491,7 @@
      bit us: GitHub Pages caches each file for ten minutes independently, the
      tags carried no version at all, and a returning player got last week's
      renderer with this week's page and reported that nothing had changed. */
-  var BUILD = '20260823f';
+  var BUILD = '20260823g';
   function refetch(list, done){
     var left = list.length;
     if (!left) return done();
@@ -422,9 +536,11 @@
     var dpr = Math.min(2, window.devicePixelRatio || 1);
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    // ~13 tiles across the short edge: close enough to read faces, wide
-    // enough to see where you are walking.
-    if (game) game.zoom = Math.max(2, canvas.width / (13 * 16));
+    /* ~9 tiles across instead of 13. WHY: the owner's note was "camera gần vô
+       lại, xa quá trên mobile không phù hợp" - at thirteen tiles a character is
+       thirty pixels tall on a phone and everything reads as a smudge. Nine is
+       close enough to see a face and still see where you are walking. */
+    if (game) game.zoom = Math.max(2, canvas.width / (9.2 * 16));
   }
   window.addEventListener('resize', fit);
   fit();

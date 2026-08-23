@@ -447,47 +447,11 @@
   };
 
   // ------------------------------------------------------------------ kitchen
-  UI.prototype.openKitchen = function () {
-    var self = this, s = this.sim;
-    var body = el('div', 'sdv-body');
-    var search = el('input', 'sdv-search');
-    search.placeholder = 'Tìm món…';
-    body.appendChild(search);
-    var list = el('div', 'sdv-list');
-    body.appendChild(list);
-    function render() {
-      list.innerHTML = '';
-      var q = search.value.toLowerCase();
-      self.game.data.recipes.cooking
-        .filter(function (r) { return !q || r.name.toLowerCase().indexOf(q) >= 0; })
-        .slice(0, 70)
-        .forEach(function (r) {
-          var ok = r['in'].length && r['in'].every(function (i) {
-            return s.count(i.item) >= i.qty;
-          });
-          var row = el('div', 'sdv-row sdv-buy' + (ok ? '' : ' sdv-off'));
-          row.appendChild(icon(r.name, 'cooked', 26));
-          var col = el('div', 'sdv-col');
-          col.appendChild(el('span', 'sdv-name', r.name));
-          col.appendChild(el('small', 'sdv-cost', r['in'].map(function (i) {
-            return i.item + ' ' + s.count(i.item) + '/' + i.qty;
-          }).join(' · ') + (r.energy ? ' · +' + r.energy + ' sức' : '')));
-          row.appendChild(col);
-          row.addEventListener('click', function () {
-            if (!ok) return self.game.toast('Thiếu nguyên liệu');
-            if (!s.hasSpace()) return self.game.toast('Túi đầy');
-            r['in'].forEach(function (i) { s.take(i.item, i.qty); });
-            s.give(r.name, 1);
-            self.game.toast('Nấu xong ' + r.name);
-            render();
-          });
-          list.appendChild(row);
-        });
-    }
-    search.addEventListener('input', render);
-    render();
-    this.openPanel('Bếp', body);
-  };
+  /* The cooking screen lives in js/ui.js now, behind the recipe-unlock
+   * gate. It used to be defined HERE as well, and because this file loads
+   * after ui.js the ungated copy quietly won - every recipe in the game was
+   * available on the first morning and the gate looked broken rather than
+   * absent. Two definitions of one screen is the bug; there is now one. */
 
   // ------------------------------------------------------------------ quests
   UI.prototype.openQuestBoard = function () {

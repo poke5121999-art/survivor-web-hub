@@ -32,7 +32,12 @@
     stone:   { c: '#5a5a63', c2: '#4f4f57', t: 'cobble' },
     floor:   { c: '#6b4c30', c2: '#5e422a', t: 'plank' },
     wood:    { c: '#4e3826', c2: '#43301f', t: 'plank' },
-    rug:     { c: '#6e3f4e', c2: '#603646', t: 'weave' },
+    /* A rug in a wooden cottage, not a magenta beach towel. The first colour
+     * here was #6e3f4e, which carries enough blue to read as bright mauve over
+     * warm brown floorboards and was the loudest thing on the screen once the
+     * workshop mat covered half the living room. Deep clay-red sits in the
+     * same family as the timber and lets the machines stay the subject. */
+    rug:     { c: '#5c342c', c2: '#4e2c26', t: 'weave' },
     sand:    { c: '#a89268', c2: '#9c875f', t: 'grain' },
     water:   { c: '#1f4a63', c2: '#1b4058', solid: true, water: true, t: 'water' },
     deep:    { c: '#143349', c2: '#112c3f', solid: true, water: true, t: 'water' },
@@ -396,6 +401,77 @@
       for (var k = 0; k < n; k++) out[i++] = v;
     }
     return out;
+  }
+
+  /* ---------------------------------------------------------- ground noise
+   *
+   * WHY the grass-and-dirt split is re-decided after the map is read:
+   * measured on the extracted farm, 29% of neighbouring ground tiles differ
+   * and 44% of its horizontal runs are a SINGLE tile long. That is noise at
+   * tile frequency. The original hides it under hand-drawn tile art; here
+   * every tile is a flat colour, so the same data reads as a checkerboard at
+   * any zoom, and that is most of what still looks like pixel soup outdoors.
+   *
+   * The fix belongs in the data rather than in the painter, which can only
+   * blur a checkerboard into a soft checkerboard. The same two tile types are
+   * laid out from smooth low-frequency value noise instead, so grass comes out
+   * in large coherent patches with a few big clearings - the shape the real
+   * farm has when you look at it rather than at its tile grid.
+   *
+   * Three things this must not do:
+   *   - touch any tile that is not already grass or dirt. Paths, stone, water,
+   *     wood and void are authored layout, and hoeing accepts nothing but dirt
+   *     and grass on farmland - putting anything else there would make a patch
+   *     of the field quietly untillable.
+   *   - move the boundary of the walkable area. Only tile TYPE changes here;
+   *     `blocked` is never touched.
+   *   - change the RATIO. The threshold is taken at the quantile that
+   *     reproduces the map's own grass-to-dirt split, so the farm stays mostly
+   *     bare earth with grass through it and the town stays mostly lawn.
+   */
+  function hash2(seed, x, y) {
+    var h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263)
+          + Math.imul(seed | 0, 1274126177);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+  function valueNoise(seed, x, y, period) {
+    var fx = x / period, fy = y / period;
+    var x0 = Math.floor(fx), y0 = Math.floor(fy);
+    var tx = fx - x0, ty = fy - y0;
+    // smoothstep, so the lattice does not show as diamonds
+    tx = tx * tx * (3 - 2 * tx);
+    ty = ty * ty * (3 - 2 * ty);
+    var v00 = hash2(seed, x0, y0), v10 = hash2(seed, x0 + 1, y0);
+    var v01 = hash2(seed, x0, y0 + 1), v11 = hash2(seed, x0 + 1, y0 + 1);
+    return (v00 * (1 - tx) + v10 * tx) * (1 - ty)
+         + (v01 * (1 - tx) + v11 * tx) * ty;
+  }
+  function smoothGround(a, seed) {
+    if (!a) return;
+    var G = TID.grass, D = TID.dirt;
+    var idxs = [], vals = [], dirtCount = 0;
+    for (var y = 0; y < a.h; y++) {
+      for (var x = 0; x < a.w; x++) {
+        var i = y * a.w + x, t = a.tiles[i];
+        if (t !== G && t !== D) continue;
+        if (t === D) dirtCount++;
+        idxs.push(i);
+        /* Two octaves: a broad one that decides where the clearings are, and a
+         * smaller one that keeps their edges from looking drawn with a
+         * compass. Anything finer than about five tiles puts the checkerboard
+         * straight back. */
+        vals.push(0.72 * valueNoise(seed, x, y, 11)
+                + 0.28 * valueNoise(seed + 977, x, y, 5));
+      }
+    }
+    if (!idxs.length) return;
+    var sorted = vals.slice().sort(function (p, q) { return p - q; });
+    var at = Math.floor(dirtCount / idxs.length * sorted.length);
+    var cut = sorted[Math.max(0, Math.min(sorted.length - 1, at))];
+    for (var k = 0; k < idxs.length; k++) {
+      a.tiles[idxs[k]] = vals[k] < cut ? D : G;
+    }
   }
 
   function areaFromMap(id, m) {
@@ -818,33 +894,24 @@
       scatter(farm, 'grassTuft', 40, rng);
     }
     if (house) {
-      /* The cottage is the upgraded 30x12 farmhouse, and everything in it is
-       * placed with a gap around it.
+      /* The cottage is the upgraded 30x12 farmhouse. The left room (x 2..17)
+       * is the working half, the right room (x 20..28) is the bedroom, and the
+       * ONLY way between them is row 9 at x=18,19 - nothing may ever stand
+       * there or the bed is sealed off.
        *
-       * WHY they are spread out: the first version stood every machine on one
-       * wall of a 12x12 room, and the owner's read of that was the right one -
-       * "dồn 1 cục... tạo cảm giác không phát triển". A room that fills up as
-       * you build is the whole reward for building. Each station gets its own
-       * corner, and MACHINE_SPOTS below reserves a free tile per machine so a
-       * newly-built one appears somewhere the player has not been standing. */
+       * The stations that are not machines keep their own corners; the
+       * machines themselves are laid out by buildMachineBank() below. */
       place(house, 25, 5, { kind: 'bed' });               // bedroom, far room
-      place(house, 27, 9, { kind: 'chest' });
       place(house, 3, 5, { kind: 'kitchen' });            // by the map's stove
       place(house, 1, 9, { kind: 'tv' });
-      // a marker only: the furnace's slots and jobs live in the save, so the
-      // one on the floor and the one in the workbench list are the same object
-      place(house, 8, 5, { kind: 'machine', machine: 'Furnace' });
       place(house, 16, 5, { kind: 'workshop' });          // the build menu
       place(house, 12, 10, { kind: 'calendarBoard' });
       place(house, 16, 10, { kind: 'mailbox' });
-      /* A rug under the middle of the living room and one at the bedside. The
-       * cottage was one unbroken field of floorboards, which is a big room
-       * with nothing in it - the eye needs somewhere to land. */
-      for (var ry = 7; ry <= 9; ry++) {
-        for (var rx = 6; rx <= 12; rx++) {
-          if (!house.solid(rx, ry)) house.set(rx, ry, 'rug');
-        }
-      }
+      buildMachineBank(house);          // the furnace, the chest and the rest
+      /* A rug at the bedside. The cottage was one unbroken field of
+       * floorboards, which is a big room with nothing in it - the eye needs
+       * somewhere to land. The living room's rug is now the workshop mat the
+       * bank stands on, laid down by buildMachineBank(). */
       for (var by = 6; by <= 8; by++) {
         for (var bx = 23; bx <= 26; bx++) {
           if (!house.solid(bx, by)) house.set(bx, by, 'rug');
@@ -971,52 +1038,139 @@
     }
   }
 
-  /* Where a machine goes when the player builds it. Reserved tiles, spread
-   * across both rooms of the cottage, so the house visibly fills up as the
-   * farm grows instead of hiding every machine behind one bench. */
-  /* Ordered so consecutive builds land far apart - the first three machines
-   * are what the player sees for a long time, and three in a row on one wall
-   * is the clump this was supposed to break up.
+  /* ------------------------------------------------------------ the bank
    *
-   * (18,9) and (19,9) are deliberately absent: row 9 is the ONLY doorway
-   * between the two rooms of the cottage, and a machine standing in it would
-   * seal the bedroom off. */
-  var MACHINE_SPOTS = [
-    [11, 5], [4, 10], [22, 4], [8, 10], [14, 5], [24, 10],
-    [6, 5], [27, 5], [2, 10], [17, 4], [21, 10], [27, 10],
-    [9, 4], [13, 4], [10, 10], [26, 4]
+   * Every machine stands in ONE production line beside the furnace and the
+   * chest - three rows of five on a rug that marks out the workshop floor.
+   *
+   * WHY it is laid out and not scattered: the previous pass put each machine
+   * in a different corner of the cottage, and the owner could not find them -
+   * "chưa thấy các máy khác, đáng lý ra phải dàn kế bên lò, chest... đừng có
+   * nằm tùm lum". The complaint before THAT one was the opposite-looking
+   * "dồn 1 cục... tạo cảm giác không phát triển", but the two agree: the
+   * problem then was that machines were HIDDEN behind a single bench button,
+   * not that they were near each other. A named row that fills in as you build
+   * is visible AND tidy, so both readings are satisfied by grouping them and
+   * leaving every one of them on the floor with its name under it.
+   *
+   * The geometry is deliberate, not incidental:
+   *   - three rows, y = 4, 6 and 8, with the odd rows left empty. The world
+   *     draws each machine's name in the tile BELOW it, so a machine directly
+   *     under another would have that name printed across its face.
+   *   - one blank column between machines (x = 7, 9, 11, 13, 15). Measured on
+   *     a 430px phone a tile is 33px and the name is about 45px, so shoulder
+   *     to shoulder the row was one smear of overlapping words. Two tiles of
+   *     room per name is what makes "có tên" actually readable.
+   *   - row 9 is untouched from end to end. It is the ONLY doorway between the
+   *     cottage's two rooms (x=18,19), and anything standing in it seals the
+   *     bedroom off for good.
+   *   - the odd rows and the gap columns stay walkable, so every machine can
+   *     be reached from the tile beside or below it.
+   */
+  var BANK_ROWS = [
+    { y: 4, x0: 7, n: 5, step: 2 },
+    { y: 6, x0: 7, n: 5, step: 2 },
+    { y: 8, x0: 7, n: 5, step: 2 }
   ];
+  var BANK_MAT = { x0: 6, x1: 16, y0: 4, y1: 8 };
+  var BANK_CHEST = { x: 5, y: 6 };
 
-  /* Put a just-built machine somewhere the player can walk up to. Returns the
-   * object that now stands in the house, or null if there is nowhere left. */
+  function bankSlots() {
+    var out = [];
+    BANK_ROWS.forEach(function (r) {
+      for (var i = 0; i < r.n; i++) out.push({ x: r.x0 + i * (r.step || 1), y: r.y });
+    });
+    return out;
+  }
+  /* The order the machines read in, which is the order they occupy the bank.
+   * Taken from machines.js at CALL time, not load time: world.js is parsed
+   * before it, and deriving it means a machine added there gets a slot here
+   * without anybody remembering to add one. */
+  function bankOrder() {
+    return (global.SDV_MACHINES && global.SDV_MACHINES.CRAFTABLE) || ['Furnace'];
+  }
+  function bankSlotFor(name) {
+    var i = bankOrder().indexOf(name);
+    return i < 0 ? null : (bankSlots()[i] || null);
+  }
+
+  /* Kept under its old name because it is exported: the reserved tiles of the
+   * bank, in order, as [x, y] pairs. */
+  var MACHINE_SPOTS = bankSlots().map(function (s) { return [s.x, s.y]; });
+
+  /* Lay the whole production line down at world-build time.
+   *
+   * WHY every machine is placed even before it is built: the brief puts them
+   * in the house from day one - "máy ấp trứng + máy tái chế + máy dệt + cột
+   * điện + máy duplicate quặng cũng tương tự nhưng cần phải craft trước". They
+   * are stations the player repairs in place, not portable objects that appear
+   * out of nowhere, so an unbuilt one is an empty plot you can walk up to and
+   * ask the price of. */
+  function buildMachineBank(house) {
+    if (!house) return;
+    for (var y = BANK_MAT.y0; y <= BANK_MAT.y1; y++) {
+      for (var x = BANK_MAT.x0; x <= BANK_MAT.x1; x++) {
+        if (!house.solid(x, y)) house.set(x, y, 'rug');
+      }
+    }
+    var slots = bankSlots();
+    bankOrder().forEach(function (name, i) {
+      var s = slots[i];
+      if (!s || house.solid(s.x, s.y)) return;
+      house.obj({ x: s.x, y: s.y, kind: 'machine', machine: name });
+      house.block(s.x, s.y, true);
+    });
+    /* The chest anchors the near end of the line. It used to live in the
+     * bedroom, two rooms away from the furnace it feeds - which is the other
+     * half of "phải dàn kế bên lò, chest". */
+    place(house, BANK_CHEST.x, BANK_CHEST.y, { kind: 'chest' });
+  }
+
+  /* An earlier pass marked an unbuilt slot by painting a different FLOOR tile
+   * under it. Measured in the browser, that tile drew exactly zero pixels: the
+   * machine's own body covers its whole tile, plot or not. What tells the two
+   * apart is the name printed under it, which carries a hammer while the
+   * machine is still a plot - see markBuilt() in machines.js.
+   */
+
+  /* Make sure a just-built machine is standing in its slot, and light its
+   * floor up. Returns the object in the house, or null if there is nowhere
+   * left. Idempotent: the bank is normally already complete, so this usually
+   * only flips the tile. */
   function placeMachine(house, name) {
     if (!house) return null;
     var existing = null;
     house.objs.forEach(function (o) {
       if (o.kind === 'machine' && o.machine === name) existing = o;
     });
-    if (existing) return existing;
-    var taken = {};
-    house.objs.forEach(function (o) { taken[o.x + ',' + o.y] = 1; });
-    var spot = null;
-    for (var i = 0; i < MACHINE_SPOTS.length && !spot; i++) {
-      var s = MACHINE_SPOTS[i];
-      if (!house.solid(s[0], s[1]) && !taken[s[0] + ',' + s[1]]) {
-        spot = { x: s[0], y: s[1] };
-      }
-    }
-    if (!spot) {
-      for (var y = 4; y < house.h - 1 && !spot; y++) {
-        for (var x = 1; x < house.w - 1 && !spot; x++) {
-          if (!house.solid(x, y) && !taken[x + ',' + y]) spot = { x: x, y: y };
+    if (!existing) {
+      var taken = {};
+      house.objs.forEach(function (o) { taken[o.x + ',' + o.y] = 1; });
+      var spot = bankSlotFor(name);
+      if (!spot || house.solid(spot.x, spot.y) || taken[spot.x + ',' + spot.y]) {
+        spot = null;
+        var free = bankSlots();
+        for (var i = 0; i < free.length && !spot; i++) {
+          var f = free[i];
+          if (!house.solid(f.x, f.y) && !taken[f.x + ',' + f.y]) spot = f;
         }
       }
+      /* Last resort, for a house layout that has changed under an old save:
+       * anywhere walkable that is not the corridor row between the two rooms. */
+      if (!spot) {
+        for (var y = 4; y < house.h - 1 && !spot; y++) {
+          for (var x = 1; x < house.w - 1 && !spot; x++) {
+            if (y === 9 && x >= 17) continue;
+            if (!house.solid(x, y) && !taken[x + ',' + y]) spot = { x: x, y: y };
+          }
+        }
+      }
+      if (!spot) return null;
+      existing = { x: spot.x, y: spot.y, kind: 'machine', machine: name };
+      house.obj(existing);
+      house.block(spot.x, spot.y, true);
     }
-    if (!spot) return null;
-    var obj = { x: spot.x, y: spot.y, kind: 'machine', machine: name };
-    house.obj(obj);
-    house.block(spot.x, spot.y, true);
-    return obj;
+    return existing;
   }
 
   // ------------------------------------------------------------------ caves
@@ -1037,6 +1191,13 @@
       if (id === 'cc_done') continue;         // the restored centre is a later state
       A[id] = areaFromMap(id, maps[id]);
     }
+    /* The two maps whose ground is genuinely noisy at tile frequency. Measured
+     * before touching anything: farm 29.3% of neighbours differ (mean run 3.3
+     * tiles), town 11.4%. The forest and the mountain come in under 8% and
+     * 12% with big authored shapes, so they are left exactly as extracted. */
+    ['farm', 'town'].forEach(function (k, i) {
+      if (A[k]) smoothGround(A[k], 20260823 + i * 7919);
+    });
     A.mine = caveStub('mine', 'Hầm mỏ', 'mountain', 54, 8);
     A.skull = caveStub('skull', 'Hang Sọ', 'desert', 32, 12);
     A.volcano = caveStub('volcano', 'Núi lửa', 'islandnorth', 30, 22);
@@ -1088,8 +1249,12 @@
     indexDoors: indexDoors, resolveDoors: resolveDoors,
     reachable: reachable, carvePath: carvePath, placeReachable: placeReachable,
     mulberry32: mulberry32, scatter: scatter, place: place,
+    smoothGround: smoothGround, valueNoise: valueNoise,
     markBuildings: markBuildings, placeMachine: placeMachine,
     stampBuilding: stampBuilding,
+    buildMachineBank: buildMachineBank,
+    bankSlots: bankSlots, bankSlotFor: bankSlotFor,
+    BANK_ROWS: BANK_ROWS, BANK_MAT: BANK_MAT, BANK_CHEST: BANK_CHEST,
     MACHINE_SPOTS: MACHINE_SPOTS, BUILDING_LOOK: BUILDING_LOOK
   };
 })(window);

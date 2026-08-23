@@ -42,200 +42,281 @@
   }
 
   /* ------------------------------------------------------------ ground */
-  function paintGround(ctx, kind, def, sx, sy, ts, x, y, t) {
+  /* Ground, drawn as organic patches rather than as a grid of squares.
+   *
+   * The maps store one type per tile, so grass meeting soil came out as a
+   * staircase of hard squares - the single most pixel-looking thing left after
+   * the sprites went. The fix is not a texture: it is the SHAPE. A tile whose
+   * neighbours all match keeps square edges, so a field stays one continuous
+   * field; a tile with differing neighbours has those corners carved away with
+   * the neighbour's colour, so an isolated patch becomes a rounded blob and a
+   * coastline becomes a curve. Four quarter-discs per tile, at most.
+   *
+   * The old per-pixel speckle is gone with it. Texture now means a couple of
+   * soft, large, low-contrast marks - visible as material, invisible as pixels.
+   */
+  function paintGround(ctx, kind, def, sx, sy, ts, x, y, t, area) {
     var n = noise(x, y);
-    // base, varied a little per tile so a field is not one solid rectangle
     ctx.fillStyle = n < 0.5 ? def.c : (def.c2 || def.c);
     ctx.fillRect(sx, sy, ts + 1, ts + 1);
-    var u = ts / 16;                 // one "pixel" of the 16x16 tile
-    var dark = shade(def.c, 0.78), light = shade(def.c, 1.22);
+
+    var dark = shade(def.c, 0.80), light = shade(def.c, 1.20);
+    var u = ts / 16;
 
     switch (def.t) {
       case 'grass': {
-        ctx.fillStyle = light;
+        /* Tufts, drawn as little curved blades rather than as pixels. */
+        ctx.strokeStyle = light;
+        ctx.lineCap = 'round';
+        ctx.lineWidth = Math.max(1, ts * 0.045);
         for (var g = 0; g < 3; g++) {
-          var gx = sx + ((noise(x * 3 + g, y) * 14) | 0) * u;
-          var gy = sy + ((noise(x, y * 3 + g) * 13) | 0) * u;
-          ctx.fillRect(gx, gy, Math.max(1, u), Math.max(2, u * 2));
+          var gx = sx + noise(x * 3 + g, y) * ts * 0.86 + ts * 0.07;
+          var gy = sy + noise(x, y * 3 + g) * ts * 0.80 + ts * 0.14;
+          var lean = (noise(x + g, y + g) - 0.5) * ts * 0.16;
+          ctx.beginPath();
+          ctx.moveTo(gx, gy);
+          ctx.quadraticCurveTo(gx + lean, gy - ts * 0.10,
+                               gx + lean * 1.7, gy - ts * 0.19);
+          ctx.stroke();
         }
-        ctx.fillStyle = dark;
-        ctx.fillRect(sx + ((n * 12) | 0) * u, sy + ((noise(y, x) * 12) | 0) * u,
-                     Math.max(1, u * 2), Math.max(1, u));
+        ctx.lineCap = 'butt';
         break;
       }
       case 'soil': {
-        /* Broken clods, not stripes: a full-width line every few pixels made
-         * the fields read as floorboards laid outdoors. */
         ctx.fillStyle = dark;
-        for (var cl = 0; cl < 4; cl++) {
-          ctx.fillRect(sx + ((noise(x * 7 + cl, y) * 12) | 0) * u,
-                       sy + ((noise(x, y * 7 + cl) * 14) | 0) * u,
-                       Math.max(1, u * 3), Math.max(1, u));
+        for (var cl = 0; cl < 3; cl++) {
+          var ox = sx + noise(x * 7 + cl, y) * ts * 0.76 + ts * 0.10;
+          var oy = sy + noise(x, y * 7 + cl) * ts * 0.76 + ts * 0.10;
+          ctx.beginPath();
+          ctx.ellipse(ox, oy, ts * 0.10, ts * 0.055,
+                      noise(x + cl, y) * 3, 0, 6.3);
+          ctx.fill();
         }
-        ctx.fillStyle = light;
-        ctx.fillRect(sx + ((n * 12) | 0) * u, sy + ((noise(x + 5, y) * 12) | 0) * u,
-                     Math.max(1, u * 2), Math.max(1, u));
         break;
       }
       case 'furrow': {
-        // tilled soil DOES have rows - that is what tilling looks like
-        ctx.fillStyle = dark;
-        for (var fr = 3; fr < 16; fr += 5) {
-          ctx.fillRect(sx, sy + fr * u, ts + 1, Math.max(1, u * 2));
+        // tilled soil really does have rows - that is what tilling looks like
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = Math.max(1.5, ts * 0.09);
+        for (var fr = 1; fr <= 3; fr++) {
+          var fy = sy + ts * (fr / 4);
+          ctx.beginPath();
+          ctx.moveTo(sx, fy);
+          ctx.quadraticCurveTo(sx + ts / 2, fy + ts * 0.03, sx + ts, fy);
+          ctx.stroke();
         }
-        ctx.fillStyle = light;
-        ctx.fillRect(sx, sy + 1 * u, ts + 1, Math.max(1, u));
         break;
       }
       case 'cobble': {
-        ctx.fillStyle = dark;
-        ctx.fillRect(sx, sy + 7 * u, ts + 1, Math.max(1, u));
-        var off = (y & 1) ? 8 : 0;
-        ctx.fillRect(sx + ((off) % 16) * u, sy, Math.max(1, u), 7 * u);
-        ctx.fillRect(sx + ((off + 8) % 16) * u, sy + 8 * u, Math.max(1, u), 8 * u);
-        ctx.fillStyle = light;
-        ctx.fillRect(sx + 2 * u, sy + 2 * u, Math.max(1, u * 2), Math.max(1, u));
+        /* Cobbles laid out from the tile's world position, not from a fixed
+         * pattern inside the tile.
+         *
+         * Two versions of this failed the same way: four stones at the same
+         * four anchors in every tile, so however much each one was jittered,
+         * the 2x2 lattice still read through and the path looked like bubble
+         * wrap. What breaks it is moving the whole arrangement per tile - the
+         * row is staggered by half a stone on alternate rows, the group is
+         * shifted by a per-tile amount, and the count itself varies - so no
+         * two tiles put a stone in the same place. */
+        var stagger = (y & 1) ? 0.5 : 0;
+        var shiftX = (noise(x * 17, y * 5) - 0.5) * 0.30;
+        var shiftY = (noise(x * 5, y * 17) - 0.5) * 0.30;
+        var cnt = 3 + (noise(x * 31, y * 29) > 0.55 ? 1 : 0);
+        for (var k = 0; k < cnt; k++) {
+          var col = k % 2, row = (k / 2) | 0;
+          var u2 = 0.27 + col * 0.46 + stagger * 0.46 + shiftX
+                 + (noise(x * 11 + k, y * 7) - 0.5) * 0.20;
+          var v2 = 0.28 + row * 0.44 + shiftY
+                 + (noise(x * 7, y * 11 + k) - 0.5) * 0.20;
+          var rr = ts * (0.14 + noise(x + k * 3, y + k * 5) * 0.09);
+          ctx.fillStyle = shade(def.c, 1.02 + noise(x * 3 + k, y * 3 + k) * 0.28);
+          ctx.beginPath();
+          ctx.ellipse(sx + ts * u2, sy + ts * v2, rr, rr * (0.72 + noise(x + k, y) * 0.26),
+                      noise(x + k, y + k) * 3, 0, 6.3);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+          ctx.lineWidth = Math.max(1, ts * 0.03);
+          ctx.stroke();
+        }
         break;
       }
       case 'plank': {
-        ctx.fillStyle = dark;
-        ctx.fillRect(sx, sy + 5 * u, ts + 1, Math.max(1, u));
-        ctx.fillRect(sx, sy + 12 * u, ts + 1, Math.max(1, u));
-        ctx.fillStyle = light;
-        ctx.fillRect(sx + 3 * u, sy + 2 * u, Math.max(1, u * 6), Math.max(1, u));
-        ctx.fillRect(sx + 6 * u, sy + 9 * u, Math.max(1, u * 5), Math.max(1, u));
-        // nail heads on the seam, which is what makes it read as planking
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.fillRect(sx + 2 * u, sy + 5 * u, Math.max(1, u), Math.max(1, u));
-        ctx.fillRect(sx + 12 * u, sy + 12 * u, Math.max(1, u), Math.max(1, u));
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = Math.max(1, ts * 0.045);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + ts * 0.34); ctx.lineTo(sx + ts, sy + ts * 0.34);
+        ctx.moveTo(sx, sy + ts * 0.76); ctx.lineTo(sx + ts, sy + ts * 0.76);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fillRect(sx, sy + ts * 0.36, ts + 1, ts * 0.14);
         break;
       }
       case 'grain': {
         ctx.fillStyle = light;
-        for (var s = 0; s < 4; s++) {
-          ctx.fillRect(sx + ((noise(x * 5 + s, y) * 15) | 0) * u,
-                       sy + ((noise(x, y * 5 + s) * 15) | 0) * u,
-                       Math.max(1, u), Math.max(1, u));
+        for (var sgr = 0; sgr < 4; sgr++) {
+          ctx.beginPath();
+          ctx.arc(sx + noise(x * 5 + sgr, y) * ts * 0.9 + ts * 0.05,
+                  sy + noise(x, y * 5 + sgr) * ts * 0.9 + ts * 0.05,
+                  ts * 0.035, 0, 6.3);
+          ctx.fill();
         }
         break;
       }
       case 'weave': {
-        ctx.fillStyle = light;
-        ctx.fillRect(sx, sy + 4 * u, ts + 1, Math.max(1, u));
-        ctx.fillRect(sx + 4 * u, sy, Math.max(1, u), ts + 1);
+        /* A rug, not graph paper. Soft pile with a lit edge, and a border only
+         * where the rug actually ends - the hard cross on every tile turned the
+         * workshop floor into a spreadsheet. */
+        var vg = ctx.createRadialGradient(sx + ts * 0.35, sy + ts * 0.3, ts * 0.1,
+                                          sx + ts * 0.5, sy + ts * 0.5, ts * 0.95);
+        vg.addColorStop(0, shade(def.c, 1.12));
+        vg.addColorStop(1, shade(def.c, 0.90));
+        ctx.fillStyle = vg;
+        ctx.fillRect(sx, sy, ts + 1, ts + 1);
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = Math.max(1, ts * 0.04);
+        for (var wv = 0; wv < 2; wv++) {
+          var wy = sy + ts * (0.32 + wv * 0.4);
+          ctx.beginPath();
+          ctx.moveTo(sx, wy);
+          ctx.quadraticCurveTo(sx + ts / 2, wy + ts * 0.05, sx + ts, wy);
+          ctx.stroke();
+        }
         break;
       }
       case 'water': {
-        /* Two crossing ripple bands plus a slow caustic sparkle. Flat blue
-         * with one wobbling line read as a painted rectangle; water has to
-         * move in more than one direction to look wet. */
         var wob = Math.sin(t / 520 + x * 0.7 + y * 0.45);
         var wob2 = Math.sin(t / 810 - x * 0.4 + y * 0.9);
-        ctx.fillStyle = 'rgba(190,225,245,0.11)';
-        ctx.fillRect(sx, sy + ts * 0.30 + wob * ts * 0.10, ts + 1,
-                     Math.max(1, ts * 0.08));
-        ctx.fillStyle = 'rgba(150,200,230,0.08)';
-        ctx.fillRect(sx, sy + ts * 0.70 - wob2 * ts * 0.08, ts + 1,
-                     Math.max(1, ts * 0.06));
+        ctx.strokeStyle = 'rgba(190,225,245,0.16)';
+        ctx.lineWidth = Math.max(1.5, ts * 0.07);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + ts * 0.32 + wob * ts * 0.10);
+        ctx.quadraticCurveTo(sx + ts / 2, sy + ts * 0.24 + wob * ts * 0.10,
+                             sx + ts, sy + ts * 0.32 + wob * ts * 0.10);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(150,200,230,0.11)';
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + ts * 0.72 - wob2 * ts * 0.08);
+        ctx.quadraticCurveTo(sx + ts / 2, sy + ts * 0.80 - wob2 * ts * 0.08,
+                             sx + ts, sy + ts * 0.72 - wob2 * ts * 0.08);
+        ctx.stroke();
         var spark = Math.sin(t / 300 + (x * 13 + y * 7));
         if (spark > 0.86) {
           ctx.fillStyle = 'rgba(230,246,255,' + ((spark - 0.86) * 3).toFixed(2) + ')';
-          ctx.fillRect(sx + ((noise(x, y) * 11 + 2) | 0) * u,
-                       sy + ((noise(y, x) * 11 + 2) | 0) * u,
-                       Math.max(1, u * 2), Math.max(1, u));
+          ctx.beginPath();
+          ctx.ellipse(sx + noise(x, y) * ts * 0.7 + ts * 0.15,
+                      sy + noise(y, x) * ts * 0.7 + ts * 0.15,
+                      ts * 0.09, ts * 0.035, 0, 0, 6.3);
+          ctx.fill();
         }
         break;
       }
       case 'lava': {
-        var lw = Math.sin(t / 300 + x + y);
-        ctx.fillStyle = 'rgba(255,190,90,' + (0.25 + lw * 0.15) + ')';
-        ctx.fillRect(sx, sy + ts * 0.4, ts + 1, Math.max(2, ts * 0.2));
+        var lw2 = Math.sin(t / 300 + x + y);
+        ctx.fillStyle = 'rgba(255,190,90,' + (0.25 + lw2 * 0.15) + ')';
+        ctx.beginPath();
+        ctx.ellipse(sx + ts / 2, sy + ts / 2, ts * 0.42, ts * 0.20, 0, 0, 6.3);
+        ctx.fill();
         break;
       }
       default: break;
     }
   }
 
-  /* Soften the seam where one ground type meets another.
-   *
-   * WHY: the extracted maps store one type per tile, so a path through grass
-   * came out as a staircase of hard squares - the single biggest reason the
-   * ground read as a spreadsheet rather than as terrain. For each edge whose
-   * neighbour is a different type, the neighbour's colour is feathered a few
-   * pixels into this tile, with the depth wobbled per tile so the resulting
-   * line is irregular instead of a ruled border. */
-  function mid(hex) {
-    var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16);
-    var b = parseInt(hex.slice(5, 7), 16);
-    return 'rgba(' + r + ',' + g + ',' + b + ',0.45)';
+  /* Where land meets water: a bright lip that breathes, drawn on the LAND
+   * side. A shore is a break, not a blend - feathering the two colours into
+   * each other made every pond look like it was evaporating. */
+  function shoreLine(ctx, x, y, sx, sy, ts, side) {
+    var t = Date.now() / 700;
+    var swell = 0.5 + 0.5 * Math.sin(t + x * 0.6 + y * 0.4);
+    var d = ts * (0.10 + swell * 0.07);
+    ctx.save();
+    ctx.fillStyle = 'rgba(226,214,178,' + (0.30 + swell * 0.28).toFixed(2) + ')';
+    ctx.beginPath();
+    if (side === 'top') {
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(sx + ts / 2, sy + d * 1.6, sx + ts, sy);
+      ctx.lineTo(sx + ts, sy - 1); ctx.lineTo(sx, sy - 1);
+    } else if (side === 'bottom') {
+      ctx.moveTo(sx, sy + ts);
+      ctx.quadraticCurveTo(sx + ts / 2, sy + ts - d * 1.6, sx + ts, sy + ts);
+      ctx.lineTo(sx + ts, sy + ts + 1); ctx.lineTo(sx, sy + ts + 1);
+    } else if (side === 'left') {
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(sx + d * 1.6, sy + ts / 2, sx, sy + ts);
+      ctx.lineTo(sx - 1, sy + ts); ctx.lineTo(sx - 1, sy);
+    } else {
+      ctx.moveTo(sx + ts, sy);
+      ctx.quadraticCurveTo(sx + ts - d * 1.6, sy + ts / 2, sx + ts, sy + ts);
+      ctx.lineTo(sx + ts + 1, sy + ts); ctx.lineTo(sx + ts + 1, sy);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 
+  /* Carve the corners where this tile's neighbours differ, using the
+   * neighbour's own colour. That is what turns the tile grid into shapes.
+   * Water keeps a hard edge and gets a moving line of foam instead - a shore
+   * is a break, not a blend. */
   function paintBlend(ctx, area, x, y, sx, sy, ts, TILE, TILE_IDS) {
     var here = area.at(x, y);
-    // shallow meeting deep is still water; it gets no shoreline and no feather
     var hereDef = TILE[TILE_IDS[here]];
     var hereWet = !!(hereDef && hereDef.water);
-    var u = ts / 16;
-    var sides = [[0, -1, 'top'], [0, 1, 'bottom'], [-1, 0, 'left'], [1, 0, 'right']];
-    for (var i = 0; i < 4; i++) {
-      var nx = x + sides[i][0], ny = y + sides[i][1];
-      if (nx < 0 || ny < 0 || nx >= area.w || ny >= area.h) continue;
-      var there = area.at(nx, ny);
-      if (there === here) continue;
-      /* One-sided, always. Feathering BOTH tiles into each other drew the
-       * neighbour's colour on both sides of every seam, so each patch of soil
-       * came out ringed in green and the farm read as a circuit board. Only
-       * the lower tile id bleeds into the higher, so a boundary gets exactly
-       * one soft edge. */
-      if (there > here) continue;
-      var def = TILE[TILE_IDS[there]];
-      /* Water does not feather - it breaks. Where it meets land it gets a
-       * moving line of foam instead, which is what a shore looks like and what
-       * a soft gradient never manages. */
-      if (def && def.water) {
-        if (!hereWet) shoreLine(ctx, x, y, sx, sy, ts, side);
-        continue;
-      }
-      if (hereWet) { shoreLine(ctx, x, y, sx, sy, ts, side); continue; }
-      if (!def) continue;
-      var depth = (2 + Math.floor(noise(x * 3 + i, y * 5) * 3)) * u;
-      var g, side = sides[i][2];
-      if (side === 'top') {
-        g = ctx.createLinearGradient(0, sy, 0, sy + depth);
-        g.addColorStop(0, def.c); g.addColorStop(0.45, mid(def.c));
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g; ctx.fillRect(sx, sy, ts + 1, depth);
-      } else if (side === 'bottom') {
-        g = ctx.createLinearGradient(0, sy + ts, 0, sy + ts - depth);
-        g.addColorStop(0, def.c); g.addColorStop(0.45, mid(def.c));
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g; ctx.fillRect(sx, sy + ts - depth, ts + 1, depth + 1);
-      } else if (side === 'left') {
-        g = ctx.createLinearGradient(sx, 0, sx + depth, 0);
-        g.addColorStop(0, def.c); g.addColorStop(0.45, mid(def.c));
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g; ctx.fillRect(sx, sy, depth, ts + 1);
-      } else {
-        g = ctx.createLinearGradient(sx + ts, 0, sx + ts - depth, 0);
-        g.addColorStop(0, def.c); g.addColorStop(0.45, mid(def.c));
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g; ctx.fillRect(sx + ts - depth, sy, depth + 1, ts + 1);
-      }
-    }
-  }
 
-  /* The bright edge where a wave meets the bank. Keyed off the tile and the
-   * clock so it travels along the shore instead of blinking in place. */
-  function shoreLine(ctx, x, y, sx, sy, ts, side) {
-    var u = ts / 16;
-    var t = Date.now() / 900;
-    var swell = 0.5 + 0.5 * Math.sin(t + x * 0.6 + y * 0.4);
-    var th = Math.max(1, u * (1.2 + swell * 1.6));
-    ctx.fillStyle = 'rgba(206,232,246,' + (0.20 + swell * 0.22).toFixed(3) + ')';
-    if (side === 'top') ctx.fillRect(sx, sy, ts + 1, th);
-    else if (side === 'bottom') ctx.fillRect(sx, sy + ts - th, ts + 1, th);
-    else if (side === 'left') ctx.fillRect(sx, sy, th, ts + 1);
-    else ctx.fillRect(sx + ts - th, sy, th, ts + 1);
+    var N = area.at(x, y - 1), S = area.at(x, y + 1);
+    var W = area.at(x - 1, y), E = area.at(x + 1, y);
+    var dN = N !== here, dS = S !== here, dW = W !== here, dE = E !== here;
+    if (!dN && !dS && !dW && !dE) return;
+
+    function def(id) { return TILE[TILE_IDS[id]]; }
+    function wet(id) { var d = def(id); return !!(d && d.water); }
+
+    // shoreline: a bright moving lip where land meets water
+    if (!hereWet) {
+      if (dN && wet(N)) shoreLine(ctx, x, y, sx, sy, ts, 'top');
+      if (dS && wet(S)) shoreLine(ctx, x, y, sx, sy, ts, 'bottom');
+      if (dW && wet(W)) shoreLine(ctx, x, y, sx, sy, ts, 'left');
+      if (dE && wet(E)) shoreLine(ctx, x, y, sx, sy, ts, 'right');
+    }
+
+    /* Soft mutual bleed, not a cut edge.
+     *
+     * The first attempt carved each tile's corners with its neighbour's colour.
+     * On a map where grass and soil are genuinely mixed tile by tile, that
+     * turned every single tile into a rounded square and the farm read as a
+     * tile puzzle - worse than the squares it replaced. What actually removes
+     * a grid is width: a bleed most of a tile across, at low opacity, so a
+     * boundary becomes a gradient a finger wide instead of a step. Each tile
+     * bleeds onto the neighbours already painted before it, so every boundary
+     * gets exactly one bleed and the two colours meet in the middle.
+     *
+     * Only NATURAL ground bleeds. Tilled rows, paths, floorboards and water
+     * keep their edges: a path that melts into the grass stops reading as a
+     * path, and a shoreline is a break by definition. */
+    var SOFT = { grass: 1, soil: 1 };
+    if (!SOFT[hereDef && hereDef.t]) return;
+    var soft = false;
+    for (var k = 0; k < 4; k++) {
+      var nid = [N, S, W, E][k];
+      if (nid === here) continue;
+      var nd2 = def(nid);
+      if (nd2 && SOFT[nd2.t]) { soft = true; break; }
+    }
+    if (!soft) return;
+
+    var cx = sx + ts / 2, cy = sy + ts / 2;
+    var rad = ts * 1.05;
+    var bg = ctx.createRadialGradient(cx, cy, ts * 0.20, cx, cy, rad);
+    bg.addColorStop(0, hereDef.c);
+    bg.addColorStop(0.45, hereDef.c);
+    bg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.globalAlpha = 0.72;
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rad, 0, 6.3);
+    ctx.fill();
+    ctx.restore();
   }
 
   /* ------------------------------------------------------------ buildings */
@@ -269,18 +350,21 @@
             : (BLOCK_TERRAIN[kind] || BLOCK_TERRAIN.grass);
     ctx.fillStyle = pal.body;
     ctx.fillRect(sx, sy, ts + 1, ts + 1);
-    if (!top) {
-      ctx.fillStyle = pal.top;
-      ctx.fillRect(sx, sy, ts + 1, Math.max(2, ts * 0.28));
-    }
+
     if (indoor || cls === 3) {
-      // vertical timbers, so an interior wall reads as panelling not as mud
+      /* Indoors a wall is panelling: a lit cap along the top, vertical timbers,
+       * and a skirting board where it meets the floor so the room has an edge. */
+      if (!top) {
+        ctx.fillStyle = pal.top;
+        ctx.fillRect(sx, sy, ts + 1, Math.max(2, ts * 0.28));
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.fillRect(sx, sy, ts + 1, Math.max(1, ts * 0.05));
+      }
       ctx.fillStyle = 'rgba(0,0,0,0.28)';
       ctx.fillRect(sx + 4 * u, sy, Math.max(1, u), ts + 1);
       ctx.fillRect(sx + 11 * u, sy, Math.max(1, u), ts + 1);
       ctx.fillStyle = 'rgba(255,255,255,0.06)';
       ctx.fillRect(sx + 5 * u, sy, Math.max(1, u), ts + 1);
-      // skirting board where the wall meets the floor, so the room has an edge
       var open = y + 1 < area.h && !area.blocked[(y + 1) * area.w + x];
       if (open) {
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -288,11 +372,49 @@
         ctx.fillStyle = 'rgba(255,255,255,0.10)';
         ctx.fillRect(sx, sy + 13 * u, ts + 1, Math.max(1, u));
       }
-    } else if (noise(x, y) > 0.66) {
+      return;
+    }
+
+    /* Outdoors and underground a wall is ROCK, so it is drawn as rock: two or
+     * three rounded boulders keyed off the tile's position, each with its own
+     * lit side. The flat block with one square fleck on it was the last thing
+     * in the mine that still looked like a tile map, and in a cave the walls
+     * are most of what is on the screen. */
+    var lipH = Math.max(2, ts * 0.26);
+    if (!top) {
+      var lg = ctx.createLinearGradient(0, sy, 0, sy + lipH);
+      lg.addColorStop(0, pal.top);
+      lg.addColorStop(1, pal.body);
+      ctx.fillStyle = lg;
+      ctx.fillRect(sx, sy, ts + 1, lipH);
+    }
+    var lumps = 2 + (noise(x * 23, y * 19) > 0.5 ? 1 : 0);
+    for (var k = 0; k < lumps; k++) {
+      var bx = sx + ts * (0.22 + noise(x * 13 + k, y * 5) * 0.58);
+      var by = sy + ts * (0.26 + noise(x * 5, y * 13 + k) * 0.56);
+      var br = ts * (0.19 + noise(x + k * 7, y + k * 3) * 0.13);
+      var rg = ctx.createRadialGradient(bx - br * 0.35, by - br * 0.4, br * 0.1,
+                                        bx, by, br * 1.25);
+      rg.addColorStop(0, pal.top);
+      rg.addColorStop(0.55, pal.body);
+      rg.addColorStop(1, 'rgba(0,0,0,0.32)');
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.ellipse(bx, by, br, br * (0.74 + noise(x + k, y) * 0.3),
+                  noise(x + k * 2, y + k) * 3, 0, 6.3);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.24)';
+      ctx.lineWidth = Math.max(1, ts * 0.03);
+      ctx.stroke();
+    }
+    if (pal.fleck && noise(x, y) > 0.72) {
+      // the odd glint of something in the rock, so a wall is not uniform
       ctx.fillStyle = pal.fleck;
-      ctx.fillRect(sx + ((noise(x, y * 2) * 10 + 2) | 0) * u,
-                   sy + ((noise(x * 2, y) * 9 + 4) | 0) * u,
-                   Math.max(2, u * 3), Math.max(2, u * 2));
+      ctx.beginPath();
+      ctx.arc(sx + ts * (0.2 + noise(x, y * 2) * 0.6),
+              sy + ts * (0.25 + noise(x * 2, y) * 0.55),
+              ts * 0.05, 0, 6.3);
+      ctx.fill();
     }
   }
 
