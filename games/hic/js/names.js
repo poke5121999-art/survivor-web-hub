@@ -312,6 +312,57 @@
     return t.replace(/\{(\d+)\}/g, function (_, d) { return String(parseInt(d, 10) * s.m); });
   };
 
+  /* Cẩm nang: mỗi loại địa điểm trên bản đồ là gì, cho gì, và có mất đi không.
+     WHY: người chơi mở bản đồ ra thấy mười hai loại ô khác nhau và không có chỗ
+     nào tra được chúng là gì. Một cơ chế không tra được thì bằng không có. */
+  global.HIC_PLACE_INFO = {
+    chest: { name: 'Rương gỗ', icon: 'chest',
+      what: 'Ba món đồ thường, chọn lấy một.',
+      gone: 'Mở ra là hết — mở chính là lấy.' },
+    jewelrybox: { name: 'Hộp trang sức', icon: 'jewel',
+      what: 'Ba món trang sức, chọn lấy một. Nhẫn, khuyên, vương miện, đá quý.',
+      gone: 'Mở ra là hết.' },
+    grave: { name: 'Nấm mồ', icon: 'grave',
+      what: 'Ba món cấp anh hùng — thứ mạnh nhất nhặt được ngoài đường.',
+      gone: 'Mở ra là hết.' },
+    anvil: { name: 'Đe rèn', icon: 'anvil',
+      what: 'Mài một lưỡi lên vũ khí: thêm một hiệu ứng nổ mỗi khi bạn đánh trúng. Chỉ giữ được một lưỡi.',
+      gone: 'Mài rồi mới mất; xem mà không mài thì vẫn còn đó.' },
+    oil: { name: 'Lọ dầu', icon: 'oil',
+      what: 'Bôi lên vũ khí, cộng thẳng một điểm công, giáp hoặc tốc. Tối đa ba lọ.',
+      gone: 'Bôi rồi mới mất.' },
+    merchant: { name: 'Lái buôn', icon: 'merchant',
+      what: 'Ba món hiếm bán lấy vàng. Vàng kiếm được từ việc giết quái.',
+      gone: 'Chỉ đi khi bán được hàng — chưa đủ tiền thì quay lại sau.' },
+    campfire: { name: 'Đống lửa', icon: 'fire',
+      what: 'Nghỉ để hồi 10 máu.',
+      gone: 'Nghỉ thì đẩy thẳng tới sáng hôm sau — mất phần thời gian còn lại của hôm nay.' },
+    house: { name: 'Căn nhà', icon: 'house',
+      what: 'Ngủ một giấc, máu đầy lại.',
+      gone: 'Cũng đẩy tới sáng hôm sau như đống lửa.' },
+    golem: { name: 'Golem thợ rèn', icon: 'golem',
+      what: 'Ghép hai món GIỐNG HỆT nhau thành bản mạ vàng (hiệu ứng nhân đôi). Hai bản mạ vàng thành kim cương (nhân bốn).',
+      gone: 'Ghép rồi mới mất. Ghép xong hai ô đồ dồn lại còn một.' },
+    cauldron: { name: 'Vạc nấu', icon: 'cauldron',
+      what: 'Nấu hai món ăn thành một món mới mạnh hơn cả hai.',
+      gone: 'Nấu rồi mới mất.' },
+    tower: { name: 'Chòi canh', icon: 'tower',
+      what: 'Leo lên là thấy toàn bộ vùng này — biết luôn chỗ nào có gì.',
+      gone: 'Leo một lần là hết.' },
+    well: { name: 'Giếng ước', icon: 'well',
+      what: 'Thả 20 vàng xuống để đổi lấy một món hiếm, hoặc 5 lượt đổi hàng ở lái buôn.',
+      gone: 'Ước rồi mới mất.' }
+  };
+
+  global.HIC_TERRAIN_INFO = [
+    { ground: 'grass', overlay: null, name: 'Cỏ', what: 'Đi qua được.' },
+    { ground: 'dirt', overlay: null, name: 'Đất trống', what: 'Đi qua được.' },
+    { ground: 'grass', overlay: 'tree', name: 'Cây', what: 'Chặn đường.' },
+    { ground: 'grass', overlay: 'rock', name: 'Đá', what: 'Chặn đường.' },
+    { ground: 'water', overlay: null, name: 'Nước', what: 'Chặn đường.' },
+    { ground: 'grass', overlay: 'flower', name: 'Hoa', what: 'Chỉ để nhìn.' }
+  ];
+
   global.HIC_RARITY_VN = {
     common: 'Thường', rare: 'Hiếm', heroic: 'Anh hùng',
     golden: 'Mạ vàng', diamond: 'Kim cương', cauldron: 'Món nấu'

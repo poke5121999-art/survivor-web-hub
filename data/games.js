@@ -165,8 +165,10 @@ window.HUB_GAMES = [
     tagline: "Ba ngày để nhặt đồ, rồi hắn tới. Bạn không bấm được gì trong trận — thắng hay thua đã nằm trong đống đồ bạn chọn lúc còn sáng.",
     thumbnail: "assets/thumbnails/hic.svg",
     path: "games/hic/index.html",
-    // available since 2026-08-23. Plain canvas/JS, no engine: 8 files plus one
-    // 29 KB data bundle. A clone of "He is Coming" (Chronocle / Hooded Horse) —
+    // available since 2026-08-23. Plain canvas/JS, no engine: 9 files plus one
+    // 29 KB data bundle. All graphics are VECTOR drawn in code (curves, rounded
+    // polygons, anti-aliased) — an earlier pixel-art pass was dropped because
+    // the owner found it hard on the eyes. A clone of "He is Coming" (Chronocle / Hooded Horse) —
     // a roguelite auto-battler where the player never acts during a fight.
     // NO asset of that game is used or shipped here: every sprite is drawn in
     // code on an 8x8 grid. What was taken is DESIGN DATA, from the community
@@ -185,7 +187,7 @@ window.HUB_GAMES = [
     // 9:16 frame.
     // Ships with an in-game bot; docs/tests/browser/test_hic.py drives it
     // through whole runs and also asserts the combat rules directly against the
-    // original's (57 checks, 0 console errors).
+    // original's (67 checks, 0 console errors).
     // Art/UX pass 2026-08-23 after the first play-test: ground and objects are
     // two layers with outlines and drop shadows, every interactable tile carries
     // a lit pedestal and a bobbing arrow, each item has its own code-drawn icon

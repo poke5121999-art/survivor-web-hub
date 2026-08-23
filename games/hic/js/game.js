@@ -286,6 +286,47 @@
     return true;
   };
 
+  /* Thử một phép đổi đồ mà KHÔNG đụng vào túi thật, để màn hình "hết ô" nói
+     được "đổi món này thì công +2, giáp -3" thay vì bắt người chơi tự nhẩm.
+     WHY: ô đồ ít là cái khó cố ý của game này; nhưng bắt chọn trong mù mờ thì
+     không phải cái khó, chỉ là thiếu thông tin. */
+  Run.prototype.previewStats = function (addItem, dropUid) {
+    var items = this.inv.items.filter(function (i) { return i.uid !== dropUid; });
+    if (addItem) {
+      if (addItem.weapon) {
+        items = [addItem].concat(items.filter(function (i) { return !i.weapon; }));
+      } else {
+        items = items.concat([addItem]);
+      }
+    }
+    var edge = this.inv.edge;
+    var tmp = {
+      items: items, oils: this.inv.oils, edge: edge,
+      maxItems: this.inv.maxItems,
+      sets: resolveSets(items, edge),
+      emptySlots: Math.max(0, this.inv.maxItems - items.length),
+      tagCount: function (tag) {
+        return items.filter(function (i) { return hasTag(i, tag); }).length;
+      }
+    };
+    return resolveStats(tmp, this.lostHp);
+  };
+
+  /* Mọi phép ghép đang làm được, gộp cả golem lẫn vạc nấu vào một danh sách —
+     để màn hình trang bị nói được "bạn ghép được cái này, đi tìm chỗ ghép". */
+  Run.prototype.availableMerges = function () {
+    var out = [];
+    this.golemPairs().forEach(function (p) {
+      out.push({ kind: 'golem', from: [p.from, p.from], to: p.to, pair: p,
+        where: 'Golem thợ rèn' });
+    });
+    this.cauldronRecipes().forEach(function (dish) {
+      out.push({ kind: 'cauldron', from: dish.parts.slice(), to: dish.name, dish: dish,
+        where: 'Vạc nấu' });
+    });
+    return out;
+  };
+
   Run.prototype.drop = function (uid) {
     var idx = this.inv.items.findIndex(function (x) { return x.uid === uid; });
     if (idx <= 0) return false;    // ô 0 là vũ khí, không bỏ trống được

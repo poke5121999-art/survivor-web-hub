@@ -68,6 +68,9 @@
     var bar = $('#hic-hpbar');
     bar.style.width = Math.max(0, Math.round(100 * run.hp() / s.maxHp)) + '%';
     document.body.classList.toggle('night', world.isNight());
+    // Chấm sáng trên nút túi khi có phép ghép đang làm được — nếu không người
+    // chơi sẽ không bao giờ mở màn hình đó ra đúng lúc cần.
+    $('#hic-bag').classList.toggle('has', run.availableMerges().length > 0);
     $('#hic-bossbtn').textContent = world.bossDue() ? 'HẮN ĐÃ TỚI' : 'Gọi trùm sớm';
     $('#hic-bossbtn').classList.toggle('due', world.bossDue());
   }
@@ -84,7 +87,7 @@
     rows = Math.max(9, Math.floor(mapH / tileSize));
     cv.style.width = w + 'px';
     cv.style.height = h + 'px';
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
   }
 
   function camera() {
@@ -172,15 +175,20 @@
         if (!world.inside(x, y)) continue;
         i = world.idx(x, y);
         px = ox + c * tileSize; py = mapTop + r * tileSize;
+        /* Lớp phủ sương mù dùng ĐÚNG khung ô, không cộng thêm một pixel.
+           WHY: các ô phủ trong suốt mà chồng mép lên nhau thì chỗ chồng đậm gấp
+           đôi, và cả bản đồ hiện lên một lưới kẻ ô mà không ai vẽ ra cả. */
+        var fx0 = Math.round(px), fy0 = Math.round(py);
+        var fw = Math.round(px + tileSize) - fx0, fh = Math.round(py + tileSize) - fy0;
         if (!world.explored[i]) {
           ctx.fillStyle = '#05080c';
-          ctx.fillRect(px, py, tileSize + 1, tileSize + 1);
+          ctx.fillRect(fx0, fy0, fw, fh);
         } else if (!world.visible(x, y)) {
           ctx.fillStyle = night ? 'rgba(4,7,12,.74)' : 'rgba(6,12,20,.52)';
-          ctx.fillRect(px, py, tileSize + 1, tileSize + 1);
+          ctx.fillRect(fx0, fy0, fw, fh);
         } else if (night) {
           ctx.fillStyle = 'rgba(6,12,24,.28)';
-          ctx.fillRect(px, py, tileSize + 1, tileSize + 1);
+          ctx.fillRect(fx0, fy0, fw, fh);
         }
       }
     }
@@ -364,20 +372,67 @@
     return card;
   }
 
+  /* Một dòng ghép đồ: [hình] + [hình] → [hình], kèm chữ và chỗ ghép được.
+     WHY: ghép đồ VẪN LUÔN có trong game, nhưng nó nằm khuất sau ô Golem trên bản
+     đồ và không chỗ nào nói ra, nên với người chơi thì nó bằng không tồn tại.
+     Một cơ chế không nhìn thấy được là một cơ chế chưa làm. */
+  function mergeRow(m, opts) {
+    opts = opts || {};
+    var row = el('div', 'hic-card r-' + (m.kind === 'golem' ? 'golden' : 'cauldron'));
+    var line = el('div', 'hic-mergeline');
+    m.from.forEach(function (nm, k) {
+      if (k) line.appendChild(el('span', 'hic-mergeop', '+'));
+      var def = global.HIC_itemDef(nm) || { name: nm };
+      var ic = global.HIC_iconCanvas('item', def, 30,
+        { frame: global.HIC_ART.RARITY_COLOR[def.rarity] || '#8fa3b5' });
+      ic.className = 'hic-mergeicon';
+      line.appendChild(ic);
+    });
+    line.appendChild(el('span', 'hic-mergeop', '→'));
+    var made = global.HIC_itemDef(m.to) || { name: m.to };
+    var out = global.HIC_iconCanvas('item', made, 38,
+      { frame: global.HIC_ART.RARITY_COLOR[made.rarity] || '#f2d24b' });
+    out.className = 'hic-mergeicon big';
+    line.appendChild(out);
+    row.appendChild(line);
+
+    row.appendChild(el('div', 'hic-mergename', global.HIC_vnName(m.to)));
+    var st = statLine(made);
+    if (st) row.appendChild(el('div', 'hic-stats', st));
+    var fx = global.HIC_vnEffect(m.to, 'item');
+    if (fx) row.appendChild(el('div', 'hic-fx', fx));
+    if (opts.showWhere) row.appendChild(el('div', 'hic-where', 'Ghép tại: ' + m.where));
+    if (opts.onPick) {
+      row.classList.add('pickable');
+      row.onclick = function () { opts.onPick(m); };
+    }
+    return row;
+  }
+
   /* ---------------------------------------------------- lắp đồ / thay đồ */
 
   function takeItem(it, after) {
     if (run.canEquip(it)) {
+      var before = run.availableMerges().length;
       run.equip(it);
       toast('Đã lắp ' + global.HIC_vnName(it.name), 'good');
+      var now = run.availableMerges();
+      if (now.length > before) {
+        toast('Ghép được: ' + global.HIC_vnName(now[now.length - 1].to) +
+          ' — tìm ' + now[now.length - 1].where, 'good');
+      }
       if (after) after();
       return;
     }
-    // Hết ô: bắt chọn món để bỏ ra.
-    var body = panel('Hết ô đồ', 'Chọn món muốn bỏ để lấy ' + global.HIC_vnName(it.name));
+    // Hết ô: bắt chọn món để bỏ ra, và nói rõ đổi thì được gì mất gì.
+    var body = panel('Hết ô đồ', 'Bỏ một món để lấy ' + global.HIC_vnName(it.name));
+    var incoming = itemCard(it);
+    incoming.classList.add('incoming');
+    body.appendChild(incoming);
+    body.appendChild(el('div', 'hic-sechead', 'Bỏ món nào?'));
     run.inv.items.forEach(function (cur, i) {
       if (i === 0) return;    // ô vũ khí không bỏ trống được
-      body.appendChild(itemCard(cur, {
+      var card = itemCard(cur, {
         onPick: function () {
           run.drop(cur.uid);
           run.equip(it);
@@ -385,7 +440,9 @@
           closePanel();
           if (after) after();
         }
-      }));
+      });
+      card.appendChild(deltaLine(run.previewStats(it, cur.uid)));
+      body.appendChild(card);
     });
     var skip = el('button', 'hic-btn wide', 'Bỏ qua món này');
     skip.onclick = function () { closePanel(); if (after) after(); };
@@ -539,9 +596,30 @@
     body.appendChild(leave);
   }
 
+  /* Chênh lệch chỉ số nếu đổi: xanh là được thêm, đỏ là mất đi. */
+  function deltaLine(after) {
+    var now = run.stats();
+    var keys = [['attack', 'công'], ['armor', 'giáp'], ['speed', 'tốc'], ['maxHp', 'máu']];
+    var box = el('div', 'hic-delta');
+    var any = false;
+    keys.forEach(function (k) {
+      var d = after[k[0]] - now[k[0]];
+      if (!d) return;
+      any = true;
+      box.appendChild(el('span', d > 0 ? 'up' : 'down',
+        (d > 0 ? '+' : '') + d + ' ' + k[1]));
+    });
+    if (!any) box.appendChild(el('span', 'flat', 'chỉ số không đổi'));
+    return box;
+  }
+
   function takeItemPaid(it, ev, out) {
     if (run.gold < it.price) { toast('Không đủ vàng', 'bad'); return; }
     var body = panel('Hết ô đồ', 'Bỏ một món để mua ' + global.HIC_vnName(it.name));
+    var inc = itemCard(it);
+    inc.classList.add('incoming');
+    body.appendChild(inc);
+    body.appendChild(el('div', 'hic-sechead', 'Bỏ món nào?'));
     run.inv.items.forEach(function (cur, i) {
       if (i === 0) return;
       body.appendChild(itemCard(cur, {
@@ -563,20 +641,23 @@
   function showGolem(ev) {
     var pairs = run.golemPairs();
     var body = panel('Golem thợ rèn', pairs.length
-      ? 'Ghép hai món giống hệt nhau thành bản mạnh gấp đôi'
-      : 'Bạn không có hai món nào giống hệt nhau.');
+      ? 'Hai món giống hệt nhau ghép thành một bản mạnh gấp đôi. Hai ô đồ dồn thành một.'
+      : 'Ghép cần hai món GIỐNG HỆT nhau — bạn chưa có cặp nào.');
     pairs.forEach(function (p) {
-      var card = el('div', 'hic-card r-golden pickable');
-      card.appendChild(el('b', null, '2× ' + global.HIC_vnName(p.from) + '  →  ' + global.HIC_vnName(p.to)));
-      card.appendChild(el('div', 'hic-fx', global.HIC_vnEffect(p.to, 'item')));
-      card.onclick = function () {
-        var made = run.golemCombine(p, ev);
-        if (made) toast('Rèn ra ' + global.HIC_vnName(made.name), 'good');
-        closePanel();
-      };
-      body.appendChild(card);
+      body.appendChild(mergeRow(
+        { kind: 'golem', from: [p.from, p.from], to: p.to, where: 'Golem thợ rèn' },
+        { onPick: function () {
+            var made = run.golemCombine(p, ev);
+            if (made) toast('Rèn ra ' + global.HIC_vnName(made.name), 'good');
+            closePanel();
+          } }));
     });
-    var out = el('button', 'hic-btn wide ghost', 'Đi tiếp');
+    if (!pairs.length) {
+      body.appendChild(el('div', 'hic-note',
+        'Bản mạ vàng nhân đôi hiệu ứng của món gốc, bản kim cương nhân bốn. ' +
+        'Hai bản mạ vàng giống nhau lại ghép được thành kim cương.'));
+    }
+    var out = el('button', 'hic-btn wide ' + (pairs.length ? 'ghost' : 'primary'), 'Đi tiếp');
     out.onclick = closePanel;
     body.appendChild(out);
   }
@@ -584,22 +665,29 @@
   function showCauldron(ev) {
     var recipes = run.cauldronRecipes();
     var body = panel('Vạc nấu', recipes.length
-      ? 'Nấu hai món ăn thành một món mạnh hơn'
+      ? 'Hai món ăn nấu thành một món mới, mạnh hơn cả hai.'
       : 'Bạn chưa có đủ nguyên liệu cho công thức nào.');
     recipes.forEach(function (dish) {
-      var card = el('div', 'hic-card r-cauldron pickable');
-      card.appendChild(el('b', null, global.HIC_vnName(dish.name)));
-      card.appendChild(el('div', 'hic-tags', dish.parts.map(global.HIC_vnName).join(' + ')));
-      var fx = global.HIC_vnEffect(dish.name, 'item');
-      if (fx) card.appendChild(el('div', 'hic-fx', fx));
-      card.onclick = function () {
-        var made = run.cauldronCook(dish, ev);
-        if (made) toast('Nấu xong ' + global.HIC_vnName(made.name), 'good');
-        closePanel();
-      };
-      body.appendChild(card);
+      body.appendChild(mergeRow(
+        { kind: 'cauldron', from: dish.parts.slice(), to: dish.name, where: 'Vạc nấu' },
+        { onPick: function () {
+            var made = run.cauldronCook(dish, ev);
+            if (made) toast('Nấu xong ' + global.HIC_vnName(made.name), 'good');
+            closePanel();
+          } }));
     });
-    var out = el('button', 'hic-btn wide ghost', 'Đi tiếp');
+    if (!recipes.length) {
+      // Cho xem trước vài công thức, để biết cần đi nhặt món ăn nào.
+      body.appendChild(el('div', 'hic-note', 'Vài công thức có trong vùng này:'));
+      global.HIC_POOL.cauldron.slice(0, 4).forEach(function (dish) {
+        if (!dish.parts || dish.parts.length !== 2) return;
+        var r = mergeRow({ kind: 'cauldron', from: dish.parts.slice(), to: dish.name,
+          where: 'Vạc nấu' }, {});
+        r.classList.add('dim');
+        body.appendChild(r);
+      });
+    }
+    var out = el('button', 'hic-btn wide ' + (recipes.length ? 'ghost' : 'primary'), 'Đi tiếp');
     out.onclick = closePanel;
     body.appendChild(out);
   }
@@ -717,6 +805,21 @@
     showDetail(run.inv.items[1] || null);
     body.appendChild(detail);
 
+    // --- ghép đồ
+    var merges = run.availableMerges();
+    body.appendChild(el('div', 'hic-sechead',
+      'Ghép đồ' + (merges.length ? ' — ' + merges.length + ' phép ghép đang làm được' : '')));
+    if (merges.length) {
+      merges.forEach(function (m) {
+        body.appendChild(mergeRow(m, { showWhere: true }));
+      });
+    } else {
+      body.appendChild(el('div', 'hic-note',
+        'Hai món GIỐNG HỆT nhau ghép được thành bản mạ vàng (hiệu ứng nhân đôi) tại ' +
+        'Golem thợ rèn, và hai bản mạ vàng lại thành kim cương (nhân bốn). ' +
+        'Hai món ăn nấu thành món mới tại Vạc nấu. Ghép xong hai ô đồ dồn lại còn một.'));
+    }
+
     // --- bộ đồ
     body.appendChild(el('div', 'hic-sechead', 'Bộ đồ'));
     var have = {};
@@ -751,6 +854,91 @@
         'Đủ mọi món trong một bộ thì bộ đó cộng thêm. Bản mạ vàng và kim cương vẫn tính là món gốc.');
       body.appendChild(none);
     }
+
+    var out = el('button', 'hic-btn wide ghost', 'Đóng');
+    out.onclick = closePanel;
+    body.appendChild(out);
+  }
+
+  /* Cẩm nang: mọi loại ô trên bản đồ là gì, mọi luật của thế giới và của trận
+     đánh, gom vào một chỗ tra được bất cứ lúc nào.
+     WHY: game này có mười hai loại địa điểm, một đồng hồ chạy theo bước chân và
+     một bộ luật trận đánh mà người chơi không can thiệp được. Không có chỗ tra
+     thì tất cả những thứ đó chỉ là hình vẽ lạ. */
+  function showGuide() {
+    if (busy) return;
+    var body = panel('Cẩm nang', 'Mọi thứ trên bản đồ nghĩa là gì');
+    body.parentNode.classList.add('gear');
+
+    body.appendChild(el('div', 'hic-sechead', 'Địa điểm — chạm vào để ghé'));
+    var P = global.HIC_PLACE_INFO;
+    global.HIC_WORLD_CONST.EVENTS.forEach(function (e) {
+      var info = P[e.id];
+      if (!info) return;
+      var row = el('div', 'hic-guide');
+      var ic = global.HIC_iconCanvas('event', info.icon, 44, { frame: '#f2d24b' });
+      ic.className = 'hic-guideicon';
+      row.appendChild(ic);
+      var bodyCol = el('div', 'hic-guidebody');
+      bodyCol.appendChild(el('b', null, info.name));
+      bodyCol.appendChild(el('div', 'hic-fx', info.what));
+      bodyCol.appendChild(el('div', 'hic-where', info.gone));
+      row.appendChild(bodyCol);
+      body.appendChild(row);
+    });
+
+    body.appendChild(el('div', 'hic-sechead', 'Địa hình'));
+    var grid = el('div', 'hic-terrain');
+    global.HIC_TERRAIN_INFO.forEach(function (tr) {
+      var cell = el('div', 'hic-tcell');
+      var ic = global.HIC_iconCanvas('terrain', tr, 40, {});
+      cell.appendChild(ic);
+      cell.appendChild(el('b', null, tr.name));
+      cell.appendChild(el('span', null, tr.what));
+      grid.appendChild(cell);
+    });
+    body.appendChild(grid);
+
+    body.appendChild(el('div', 'hic-sechead', 'Quái'));
+    var mrow = el('div', 'hic-guide');
+    var mi = global.HIC_iconCanvas('mob', 'Wolf Level 1', 44, { frame: '#c34141' });
+    mi.className = 'hic-guideicon';
+    mrow.appendChild(mi);
+    var mb = el('div', 'hic-guidebody');
+    mb.appendChild(el('b', null, 'Quái đi lang thang'));
+    mb.appendChild(el('div', 'hic-fx',
+      'Ban ngày chúng đứng yên, kể cả khi nhìn thấy bạn. Ban đêm, thấy là đuổi — ' +
+      'chấm đỏ trên đầu nghĩa là nó đã thấy bạn. Chạm vào con đứng cạnh để đánh; ' +
+      'đánh nhau không tốn bước chân.'));
+    mb.appendChild(el('div', 'hic-where', 'Giết quái được vàng. Máu mất đi thì không tự hồi.'));
+    mrow.appendChild(mb);
+    body.appendChild(mrow);
+
+    body.appendChild(el('div', 'hic-sechead', 'Thời gian'));
+    body.appendChild(el('div', 'hic-note',
+      'Một tuần có 3 ngày và 3 đêm, rồi con trùm tới. Ngày dài 50 bước, đêm dài 30 bước. ' +
+      'Thời gian CHỈ trôi khi bạn bước — đứng nghĩ bao lâu cũng được. ' +
+      'Ban ngày nhìn xa 5 ô, ban đêm còn 3 ô. ' +
+      'Hạ được trùm thì sang tuần sau và được thêm 2 ô đồ: 5 → 7 → 9.'));
+
+    body.appendChild(el('div', 'hic-sechead', 'Trận đánh'));
+    body.appendChild(el('div', 'hic-note',
+      'Bạn không bấm gì trong trận. Ai có tốc cao hơn đánh trước, hoà thì bạn đi trước. ' +
+      'Sát thương ăn hết giáp rồi mới vào máu. Giáp hồi lại sau mỗi trận, máu thì không. ' +
+      'Gai đánh ngược lại người vừa đánh bạn rồi biến mất. ' +
+      '"Mất sạch giáp" và "dưới nửa máu" mỗi trận chỉ kích một lần.'));
+
+    body.appendChild(el('div', 'hic-sechead', 'Ghép đồ'));
+    body.appendChild(el('div', 'hic-note',
+      'Hai món GIỐNG HỆT nhau ghép được thành bản mạ vàng — hiệu ứng nhân đôi — tại Golem thợ rèn. ' +
+      'Hai bản mạ vàng lại thành kim cương, nhân bốn. Hai món ăn nấu thành món mới tại Vạc nấu. ' +
+      'Ghép xong hai ô đồ dồn lại còn một, nên đó cũng là cách dọn chỗ.'));
+
+    body.appendChild(el('div', 'hic-sechead', 'Ô đồ'));
+    body.appendChild(el('div', 'hic-note',
+      'Không có túi chứa riêng: thứ gì bạn mang theo đều đang mặc trên người. ' +
+      'Đó là chỗ khó cố ý của game — mỗi món nhặt lên là một lựa chọn bỏ đi món khác. ' +
+      'Một ô luôn dành cho vũ khí và không bỏ trống được.'));
 
     var out = el('button', 'hic-btn wide ghost', 'Đóng');
     out.onclick = closePanel;
@@ -980,6 +1168,7 @@
     });
 
     $('#hic-bag').onclick = showInventory;
+    $('#hic-help').onclick = showGuide;
     $('#hic-bossbtn').onclick = showBossPreview;
     $('#hic-wait').onclick = function () {
       if (busy || run.over) return;
@@ -993,6 +1182,7 @@
       var m = map[e.key];
       if (m) { walkQueue = []; tryStep(m[0], m[1]); e.preventDefault(); }
       if (e.key === 'i') showInventory();
+      if (e.key === '?' || e.key === 'h') showGuide();
     });
 
     window.addEventListener('resize', function () { fitCanvas(); });
@@ -1032,7 +1222,7 @@
 
   global.HIC_UI = {
     newRun: newRun, toast: toast, walkTo: walkTo, tryStep: tryStep, openHere: openHere,
-    showInventory: showInventory, closePanel: closePanel,
+    showInventory: showInventory, showGuide: showGuide, closePanel: closePanel,
     isBusy: function () { return busy; },
     get run() { return run; },
     get world() { return world; }

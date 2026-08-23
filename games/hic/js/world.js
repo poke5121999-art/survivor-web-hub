@@ -124,8 +124,9 @@ var W = 28, H = 28;
         }
       }
     }
-    // Vài bụi hoa cho đỡ trống.
-    for (i = 0; i < 90; i++) {
+    // Vài bụi hoa cho đỡ trống. Ít thôi — rải dày thì chúng thành nhiễu đỏ
+    // khắp bản đồ và mắt nhầm chúng với thứ cần chú ý.
+    for (i = 0; i < 22; i++) {
       x = r.int(this.w); y = r.int(this.h);
       if (this.tiles[this.idx(x, y)] === TILE.GRASS) this.tiles[this.idx(x, y)] = TILE.FLOWER;
     }

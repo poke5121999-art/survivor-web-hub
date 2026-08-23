@@ -21,7 +21,7 @@
   #frame{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
   #hic-stage{position:relative;background:var(--bg);overflow:hidden;
     box-shadow:0 0 0 2px #22303d,0 18px 60px rgba(0,0,0,.7)}
-  canvas#hic-view{display:block;width:100%;height:100%;image-rendering:pixelated}
+  canvas#hic-view{display:block;width:100%;height:100%}
   .layer{position:absolute;inset:0;pointer-events:none}
   .layer button,.hic-panel,.hic-battle,.hic-card{pointer-events:auto}
 
@@ -104,7 +104,7 @@
   .hic-tags{font-size:10px;margin-top:4px;opacity:.55}
   .hic-price{font-size:12px;margin-top:5px;color:var(--gold);font-weight:700}
   .hic-note{font-size:13px;line-height:1.45;opacity:.9;margin:2px 0 6px}
-  .hic-bossicon{display:block;image-rendering:pixelated;margin-bottom:6px}
+  .hic-bossicon{display:block;margin-bottom:6px}
 
   .hic-btn{border:1px solid var(--line);background:rgba(230,238,245,.12);
     color:var(--ink);border-radius:11px;padding:11px 14px;font-size:13px;font-weight:600}
@@ -116,7 +116,7 @@
   /* ---------------- trận đánh ---------------- */
   .hic-battle{position:absolute;inset:0;display:none;flex-direction:column;
     background:#05080c;padding:0}
-  .hic-scene{flex:1;display:block;width:100%;image-rendering:pixelated}
+  .hic-scene{flex:1;display:block;width:100%}
   .hic-ticker{height:74px;padding:6px 12px;display:flex;flex-direction:column;
     justify-content:flex-end;gap:2px;font-size:12px;line-height:1.35;
     background:linear-gradient(0deg,rgba(5,8,12,1),rgba(5,8,12,.2))}
@@ -133,8 +133,40 @@
 
   /* ---------------- thẻ vật phẩm có hình ---------------- */
   .hic-cardrow{display:flex;gap:10px;align-items:flex-start}
-  .hic-cardicon{flex:0 0 auto;image-rendering:pixelated;border-radius:9px}
+  .hic-cardicon{flex:0 0 auto;border-radius:9px}
   .hic-cardbody{flex:1;min-width:0}
+
+  /* ---------------- nút cẩm nang ---------------- */
+  #hic-help{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);
+    background:rgba(230,238,245,.14);color:var(--ink);font-size:12px;font-weight:700;
+    line-height:1;padding:0}
+  #hic-help:active{background:var(--gold);color:#1a1405}
+
+  /* ---------------- ghép đồ ---------------- */
+  .hic-mergeline{display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .hic-mergeicon{border-radius:8px}
+  .hic-mergeicon.big{margin-left:2px}
+  .hic-mergeop{opacity:.6;font-size:14px}
+  .hic-mergename{font-size:13px;font-weight:700}
+  .hic-where{font-size:11px;opacity:.6;margin-top:4px}
+  .hic-card.incoming{border-left-color:var(--gold);background:rgba(242,210,75,.10)}
+  .hic-delta{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:12px;font-weight:700}
+  .hic-delta .up{color:#8ac878}
+  .hic-delta .down{color:#e8735a}
+  .hic-delta .flat{color:#8fa3b5;font-weight:500}
+
+  /* ---------------- cẩm nang ---------------- */
+  .hic-guide{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);
+    border-radius:11px;padding:8px 10px;background:rgba(0,0,0,.24)}
+  .hic-guideicon{flex:0 0 auto;border-radius:9px}
+  .hic-guidebody{flex:1;min-width:0}
+  .hic-guidebody b{font-size:13px}
+  .hic-terrain{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .hic-tcell{border:1px solid var(--line);border-radius:10px;padding:7px 4px;
+    text-align:center;background:rgba(0,0,0,.24)}
+  .hic-tcell canvas{border-radius:7px}
+  .hic-tcell b{display:block;font-size:11px;margin-top:4px}
+  .hic-tcell span{display:block;font-size:10px;opacity:.6}
 
   /* ---------------- màn hình trang bị ---------------- */
   .hic-statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -153,7 +185,7 @@
   .hic-slot{aspect-ratio:1;border:2px solid var(--line);border-radius:12px;
     background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;
     padding:0;cursor:pointer}
-  .hic-slot canvas{image-rendering:pixelated;width:80%;height:80%}
+  .hic-slot canvas{width:80%;height:80%}
   .hic-slot.sel{box-shadow:0 0 0 2px var(--gold) inset}
   .hic-slot.empty{border-style:dashed;opacity:.5}
   .hic-slotplus{font-size:20px;opacity:.5;color:var(--ink)}
@@ -165,7 +197,7 @@
   .hic-setname b{flex:1}
   .hic-setname span{font-size:11px;opacity:.7}
   .hic-setparts{display:flex;gap:5px;margin:6px 0 2px}
-  .hic-setpiece{image-rendering:pixelated;border-radius:7px}
+  .hic-setpiece{border-radius:7px}
   .hic-setpiece.miss{opacity:.34;filter:grayscale(1)}
 
   #hic-boot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -185,6 +217,7 @@
           <span class="hic-chip" id="hic-steps">50 bước</span>
           <span style="flex:1"></span>
           <span class="hic-chip hic-gold"><span id="hic-gold">0</span> vàng</span>
+          <button id="hic-help" title="Cẩm nang">?</button>
         </div>
         <div class="hic-hpwrap"><i id="hic-hpbar" style="width:100%"></i></div>
         <div class="hic-line2">
@@ -225,7 +258,7 @@
    ghép một trang mới với một script cũ trong cache — đó đúng là kiểu lỗi mà
    người chơi báo "vẫn y như cũ" trong khi bản vá đã lên rồi. */
 (function () {
-  var STAMP = '20260823b';
+  var STAMP = '20260823c';
   var FILES = [
     ['data/gamedata.js', 'HIC_DATA'],
     ['js/names.js', 'HIC_vnName'],

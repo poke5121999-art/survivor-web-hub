@@ -49,20 +49,20 @@
     this.cv.width = Math.round(this.w * dpr);
     this.cv.height = Math.round(this.h * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.imageSmoothingEnabled = true;
   };
 
   /* ------------------------------------------------------------- hiệu ứng */
 
   Fight.prototype.addFloat = function (who, text, color, big) {
     this.fx.push({ kind: 'float', who: who, text: text, color: color, t: 0,
-      dur: big ? 1100 : 850, big: !!big, ox: (Math.random() - 0.5) * 26 });
+      dur: big ? 1400 : 1050, big: !!big, ox: (Math.random() - 0.5) * 26 });
   };
   Fight.prototype.addLunge = function (who) {
-    this.fx.push({ kind: 'lunge', who: who, t: 0, dur: 300 });
+    this.fx.push({ kind: 'lunge', who: who, t: 0, dur: 420 });
   };
   Fight.prototype.addFlash = function (who) {
-    this.fx.push({ kind: 'flash', who: who, t: 0, dur: 240 });
+    this.fx.push({ kind: 'flash', who: who, t: 0, dur: 340 });
   };
   Fight.prototype.addSpark = function (who, color, n) {
     for (var i = 0; i < (n || 8); i++) {
@@ -76,12 +76,16 @@
     if (this.idx >= this.lines.length) { this.finish(); return 0; }
     var ln = this.lines[this.idx++];
     this.snap = ln;
-    var hold = 300;
+    /* Nhịp cơ bản. Bản trước chạy 300ms một dòng và người chơi nói "nhanh quá
+       chưa thấy gì" — một trận thường chỉ có mươi dòng, tức là hết trong ba
+       giây. Cả màn hình này tồn tại để được NHÌN, nên nó phải chậm hơn mức
+       "đủ chạy". Ai sốt ruột thì đã có nút x2 / x4 và nút bỏ qua. */
+    var hold = 520;
 
     switch (ln.k) {
       case 'strike':
         if (ln.by != null) this.addLunge(ln.by);
-        hold = 260;
+        hold = 460;
         break;
       case 'dmg': {
         var victim = ln.i;
@@ -98,7 +102,7 @@
           this.addSpark(victim, '#ff6a52', big ? 14 : 8);
           this.shake = Math.min(14, (big ? 9 : 4) + ln.hp * 0.2);
         }
-        hold = ln.strike ? 420 : 300;
+        hold = ln.strike ? 780 : 520;
         break;
       }
       case 'heal':
@@ -121,15 +125,15 @@
         break;
       case 'stun':
         this.addFloat(ln.i, 'choáng', '#f5d24b');
-        hold = 380;
+        hold = 640;
         break;
       case 'death':
         this.addSpark(ln.i, '#ff6a52', 20);
         this.shake = 16;
-        hold = 700;
+        hold = 1100;
         break;
       default:
-        hold = 240;
+        hold = 420;
     }
     return hold;
   };
@@ -374,6 +378,8 @@
     var self = this;
     this.onDone = onDone;
     this.fit();
+    // Một nhịp đứng yên trước khi đánh, để kịp nhìn xem mình đang đấu với ai.
+    this.acc = 900;
     var last = 0;
     function frame(ts) {
       if (self.stopped) return;
