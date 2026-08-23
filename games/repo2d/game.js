@@ -797,19 +797,25 @@ const SIZES = [
 // ============================================================ monsters
 // Doc B3: each monster is four properties — how it detects, how it moves, what it does,
 // and what the player can do about it.
+// HOW MANY ROUNDS EACH ONE TAKES is the number that matters, not the health. A pistol round is
+// 25, and the owner's expectation — stated twice — is that a monster normally goes down in one to
+// three. So: patrol 40 (2), bomber 30 (2), stalk 60 (3), Kẻ nghe 75 (3), Kẻ húc 75 (3).
+// Kẻ nặng is the deliberate exception at 300 (12): it is the thing you are supposed to run from,
+// and a house where everything dies to three rounds has nothing left to be frightened of.
+// SEE: docs/proposals/repo-2d-topdown.md F22-2.
 const MONSTERS = {
   // `col` was near-black on all five, which is atmospheric and unreadable: a thing standing in your
   // own torch beam has to be a SHAPE, not a suggestion. Lifted enough to read against a lit floor,
   // still dark enough to vanish outside the beam — which is where the fear lives.
   patrol:  { name:'Kẻ đi tuần', hp: 40,  dmg:10,  cd:0.9, speed: 58, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad' },
-  listen:  { name:'Kẻ nghe',    hp:120,  dmg:32,  cd:1.6, speed: 74, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6' },
+  listen:  { name:'Kẻ nghe',    hp: 75,  dmg:32,  cd:1.6, speed: 74, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6' },
   stalk:   { name:'Kẻ bám',     hp: 60,  dmg:30,  cd:1.1, speed: 66, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6' },
   bomber:  { name:'Kẻ nổ',      hp: 30,  dmg:14,  cd:0.9, speed: 62, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8' },
   heavy:   { name:'Kẻ nặng',    hp:300,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8' },
   // Kẻ húc. It does not chase and it does not touch you while walking: its whole threat is one
   // straight line, announced three seconds before it is fired. Everything about it is built so the
   // counter-play is a step sideways and a wall between you, never a health bar.
-  rook:    { name:'Kẻ húc',     hp:100,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' }
+  rook:    { name:'Kẻ húc',     hp: 75,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
@@ -828,7 +834,13 @@ for (const k in MONSTERS){
 // a pad is has learned nothing.
 // It is a DEFAULT, not a rule: pressing the monster button on level 1 still lets them in.
 const FOES_FROM_LEVEL = 2;
-const FOES_BASE = 2, FOES_PER_LEVEL = 0.9, FOES_MAX = 12;
+// THREE. Owner's call, 2026-08-23: "đông như quân Nguyên" — a level 12 house held twelve of them
+// and the fight stopped being a fight you could read. WHY a hard cap rather than a gentler curve:
+// six pistol rounds is 150 damage, and past three bodies no amount of ammunition is the answer, so
+// a crowd does not raise the difficulty — it removes the option of fighting at all and leaves
+// running as the only verb. The curve below still shapes the early levels (2, 2, 3); the cap is
+// what stops it becoming a mob.
+const FOES_BASE = 2, FOES_PER_LEVEL = 0.9, FOES_MAX = 3;
 function foesForLevel(lv){ return Math.min(FOES_MAX, FOES_BASE + Math.floor((lv-1)*FOES_PER_LEVEL)); }
 
 // Two monsters used to be able to stand on the exact same pixel, and a chasing one ran THROUGH
@@ -893,6 +905,8 @@ function foeSeparation(m){
 // ambushes you. Measured with a bot soak: at 25 s / 10 tiles / a 7-tile landing ring, something was
 // being dropped next to the player roughly every 25 seconds, and level 1 — two slow patrols — went
 // from a walkover to a coin flip. It is a nudge toward the player's half of the map, not a spawn.
+// Strictly inside the 22 px a monster must be within to strike — see the note at the shove itself.
+const PUSH_R = 20;
 const RELOCATE_AFTER = 40;      // seconds since it last detected the player
 const RELOCATE_MIN_D = 16*TILE; // and it has to be genuinely on the other side of the house
 const RELOCATE_NEAR  = [9*TILE, 15*TILE];   // a room or two away, never the next doorway
@@ -951,7 +965,11 @@ const UPGRADES = [
 const GEAR = [
   // `test` = you may try it on the shop floor before buying. Only things that SHOOT something you
   // can watch fly: a bandage tests nothing you could see, and a grenade tests the shop.
-  { key:'gun',     name:'Súng lục',        short:'Súng', desc:'Bắn thẳng theo hướng kéo. 6 viên.',                    uses:6, price: 9000,  stock:4, aim:true, test:true },
+  // TWENTY rounds, not six. Owner's call, 2026-08-23: "bắn hay bom gì cũng không xi nhê". Six is
+  // 150 damage, which does not kill Kẻ nặng (300) and barely dents a pair of anything, so the
+  // pistol read as a toy whatever you did with it. Twenty is 500 — enough that a gun is a decision
+  // about whether to spend it rather than a thing that never works.
+  { key:'gun',     name:'Súng lục',        short:'Súng', desc:'Bắn thẳng theo hướng kéo. 20 viên.',                   uses:20, price: 9000,  stock:4, aim:true, test:true },
   { key:'tranq',   name:'Súng gây mê',     short:'Mê',   desc:'Không giết, nhưng ru con quái trúng đạn ngủ 12 giây.', uses:3, price: 12000, stock:3, aim:true, test:true },
   { key:'bomb',    name:'Lựu đạn',         short:'Bom',  desc:'Ném ra, nổ sau 1,4 giây. Nổ gần đồ là mất tiền.',      uses:2, price: 7000,  stock:5, aim:true },
   { key:'heal',    name:'Băng cứu thương', short:'Máu',  desc:'Hồi 45 máu ngay lập tức.',                             uses:2, price: 4500,  stock:6 },
@@ -2490,7 +2508,17 @@ function stepMonsters(dt){
     // while in contact, which at 60 fps compounds against a 0.94/frame decay and settles
     // near 1900 px/s — the shove launched monsters clean across the map.
     // ROOT-CAUSE: a per-contact impulse was written as a per-frame force.
-    if (S.upg.push > 0 && p === S.player && dist < 26 && m.shoveCd <= 0){
+    //
+    // WHY THE RADIUS IS SMALLER THAN THE STRIKE RANGE, and this is the whole rule: it used to be
+    // 26 against a strike range of 22, so a monster was thrown back BEFORE it could ever reach the
+    // distance at which it is allowed to hit you. Measured: with the upgrade bought, a patrol shoved
+    // at a standing player for ten seconds and did ZERO damage, oscillating between 27 and 46 px and
+    // never once crossing 26. That is not "buys you room", that is immunity, and it is what the
+    // owner saw as "quái ủi ủi vào người mà không gây sát thương, cứ tự knockback ngược lại".
+    // At 20 the monster has to get inside its own strike range first: it lands the blow, THEN it is
+    // thrown off. The upgrade lowers the rate you are hit at instead of setting it to nothing.
+    // SEE: docs/proposals/repo-2d-topdown.md F22-1.
+    if (S.upg.push > 0 && p === S.player && dist < PUSH_R && m.shoveCd <= 0){
       const a = Math.atan2(m.y-p.y, m.x-p.x);
       const shove = 150 + 90 * S.upg.push;
       m.kx = Math.cos(a) * shove;
@@ -2865,7 +2893,12 @@ function stepProjectiles(dt){
     const b = S.bullets[i];
     b.life -= dt;
     const nx = b.x + b.vx*dt, ny = b.y + b.vy*dt;
-    if (b.life <= 0 || solidAt((nx/TILE)|0,(ny/TILE)|0)){ S.bullets.splice(i,1); continue; }
+    // A jammed door is boards nailed across a doorway. It stops your body and it stops your eyes;
+    // it has to stop a pistol round too. WHY this needs saying: bullets read the GRID, and a jammed
+    // door deliberately does not touch the grid — so without this line it is the one thing in the
+    // house you can shoot through but not see through, which is a rule nobody could ever guess.
+    // SEE: docs/proposals/repo-2d-topdown.md F22-3.
+    if (b.life <= 0 || solidAt((nx/TILE)|0,(ny/TILE)|0) || doorHits(nx, ny, 2)){ S.bullets.splice(i,1); continue; }
     b.x = nx; b.y = ny;
     // Glass is the one thing in this game a tranq dart is as good as a bullet on.
     if (damageMirror(b.x, b.y, 25)){ S.bullets.splice(i,1); continue; }
@@ -6540,7 +6573,7 @@ window.REPO = {
                     x: hud.heart.x, y: hud.heart.y, r: hud.heart.r }; },
   mouseLook(){ return mouseFresh() ? mouseWorldNow() : null; },
   foesForLevel, makeNoise, lootCap, foeSeparation, separateFoes, populateFoes,
-  FOES_FROM_LEVEL,
+  FOES_FROM_LEVEL, FOES_MAX, PUSH_R,
   FOE: { STANDOFF:FOE_STANDOFF, SEP_R:FOE_SEP_R, SEP_PUSH:FOE_SEP_PUSH, BODY:FOE_BODY },
   doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, gx:d.gx, gy:d.gy, open:d.open,
                                               vertical:d.vertical, locked:!!d.locked,
