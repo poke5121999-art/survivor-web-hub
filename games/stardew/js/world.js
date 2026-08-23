@@ -996,6 +996,13 @@
     furnish(A, rng);
     resolveDoors(A);
     markBuildings(A);
+    /* Everything standing here now came out of this build, not out of a save.
+     * Marking it is what lets a restore tell the world's own furniture apart
+     * from the crops and chests the player put down - see World.deserialize. */
+    for (var mk in A) {
+      if (!A[mk] || !A[mk].objs) continue;
+      A[mk].objs.forEach(function (o) { o.gen = 1; });
+    }
     return A;
   }
 

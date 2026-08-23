@@ -43,18 +43,73 @@
     });
     return out;
   };
+  /* Restoring a save used to overwrite the whole world with the saved copy of
+   * it - every object and every tile of every area.
+   *
+   * WHY that is wrong: only some of the world belongs to the PLAYER. Crops,
+   * chests, crab pots, dropped goods and the soil they tilled are theirs and
+   * must come back exactly. Doorways, shop counters, the furniture in the
+   * cottage, the scenery - those belong to the BUILD, and a save written last
+   * week pinned them to last week's layout. A returning player got the old
+   * house, the old shop counters and none of the new furniture, and reasonably
+   * concluded that nothing had been updated at all.
+   *
+   * So: keep what the world just generated, add back only what the player put
+   * there, and take from the saved tiles only the two kinds a player can make
+   * - tilled soil and watered soil. */
+  var PLAYER_TILES = { tilled: 1, watered: 1 };
+
+  /* The fixtures: things this BUILD decides the position of, and that a player
+   * can never move or destroy. On a restore these are taken fresh, and the
+   * saved copies of them are thrown away - that is what lets a change to the
+   * cottage layout or a new shop counter reach somebody who already has a save.
+   *
+   * Everything NOT on this list comes back from the save instead, and that
+   * distinction is the whole point: trees, rocks, weeds and driftwood are also
+   * placed by the world generator, but the player CHOPS them. Rebuilding those
+   * would regrow every tree they ever felled, on every single load. */
+  var FIXTURE = {
+    doorway: 1, counter: 1, bed: 1, tv: 1, kitchen: 1, chest: 1, workshop: 1,
+    calendarBoard: 1, mailbox: 1, bin: 1, sign: 1, bundleBoard: 1, machine: 1,
+    toolUpgrade: 1, geodeCrusher: 1, buildMenu: 1, animalShop: 1,
+    museumDesk: 1, boatTicket: 1, mineEntrance: 1, skullEntrance: 1,
+    volcanoEntrance: 1, travelingCart: 1, islandTrader: 1, boat: 1,
+    caveChoice: 1, bus: 1, sewerGrate: 1, guildDoor: 1, display: 1,
+    greenhouseShell: 1
+    /* `brokenBridge` is deliberately absent: repairing it REMOVES the object,
+     * and rebuilding it would un-repair the Crafts Room reward every load. */
+  };
+
   World.prototype.deserialize = function (s) {
     if (!s) return;
     this.current = s.current || 'farm';
-    var self = this;
     for (var k in s.areas) {
       var a = this.areas[k];
       if (!a) continue;
       var d = s.areas[k];
-      if (d.tiles && d.tiles.length === a.tiles.length) a.tiles = Uint8Array.from(d.tiles);
-      if (d.objs) a.objs = d.objs;
+      if (d.tiles && d.tiles.length === a.tiles.length) {
+        for (var i = 0; i < d.tiles.length; i++) {
+          var name = W.TILE_IDS[d.tiles[i]];
+          if (PLAYER_TILES[name]) a.tiles[i] = d.tiles[i];
+        }
+      }
+      if (!d.objs) continue;
+      var fresh = a.objs.filter(function (o) { return FIXTURE[o.kind]; });
+      var taken = {};
+      fresh.forEach(function (o) { taken[o.x + ',' + o.y] = 1; });
+      var mine = d.objs.filter(function (o) {
+        // a saved fixture is last build's copy of a thing we just rebuilt
+        if (FIXTURE[o.kind]) return false;
+        // and nothing of the player's may land on top of a rebuilt fixture
+        return !taken[o.x + ',' + o.y];
+      });
+      a.objs = fresh.concat(mine);
+      a.objs.forEach(function (o) {
+        if (SOLID_OBJ[o.kind]) a.block(o.x, o.y, true);
+      });
     }
   };
+
   World.prototype.objAt = function (x, y, area) {
     area = area || this.area();
     for (var i = 0; i < area.objs.length; i++) {
@@ -197,8 +252,49 @@
     this.checkWarp();
   };
 
+  /* Go through a door the player tapped, from wherever they are standing.
+   *
+   * The walk-in path below still exists and still works; this is the one a
+   * finger uses. It runs the same shut-door rule, so tapping a closed shop
+   * outside its hours is refused with the hours, exactly like walking into it. */
+  Game.prototype.enterDoor = function (o) {
+    if (!o || !o.to) return;
+    var a = this.world.area();
+    var w = (a.warps || []).filter(function (v) {
+      return v.to === o.to && Math.abs(v.x - o.x) <= 1 && Math.abs(v.y - o.y) <= 1;
+    })[0];
+    if (!w) return;
+    var dest = this.world.areas[w.to];
+    if (!dest) return;
+    var NPCM = global.SDV_NPC;
+    if (NPCM && !NPCM.doorOpen(w, this.sim.time)) {
+      this.sfx('error');
+      return this.toast('Cửa đang đóng · mở ' + NPCM.hhmm(w.open)
+                        + ' – ' + NPCM.hhmm(w.close));
+    }
+    var spot = dest.nearestFree(w.tx, w.ty, 10);
+    var origin = this.world.current;
+    this.world.current = w.to;
+    this.player.x = spot.x + 0.5;
+    this.player.y = spot.y + 0.5;
+    this.cameFrom = origin;
+    this.arrivedX = this.player.x;
+    this.arrivedY = this.player.y;
+    this.sfx(dest.outdoor ? 'warp' : 'door');
+    this.toast('→ ' + this.world.area().name);
+  };
+
   Game.prototype.checkWarp = function () {
     var a = this.world.area(), p = this.player;
+    /* Which warps belong to an actual door, so only those get the roomy
+     * trigger. Built once per area and cached on it. */
+    if (!a._doorWarps) {
+      a._doorWarps = {};
+      (a.objs || []).forEach(function (o) {
+        if (o.kind === 'doorway') a._doorWarps[o.x + ',' + o.y] = 1;
+      });
+    }
+    var doorWarps = a._doorWarps;
     /* WHY: doors are 3-4 tiles wide, and you land ON the band that leads back.
      * Blocking only the exact arrival tile was not enough - one step sideways
      * hit the next tile of the SAME door and bounced you home, which is what
@@ -224,7 +320,21 @@
       var w = a.warps[i];
       if (!w.to) continue;
       if (this.cameFrom && w.to === this.cameFrom) continue;
-      if (Math.abs(p.x - (w.x + 0.5)) < 0.45 && Math.abs(p.y - (w.y + 0.5)) < 0.45) {
+      /* A door you have to hit dead centre is a door you miss.
+       *
+       * The box used to be under half a tile square, so on a touch joystick
+       * you slid past the farmhouse again and again. A doorway is now
+       * generous sideways - you are aiming at a door, not threading a gap -
+       * and generous BELOW it, because you approach a door from the doorstep
+       * and the doorstep is the tile the map marks. Map-edge warps keep the
+       * tight box: those you want to cross deliberately, not fall through. */
+      var isDoor = doorWarps[w.x + ',' + w.y];
+      var padX = isDoor ? 0.85 : 0.45;
+      var padUp = isDoor ? 0.55 : 0.45;
+      var padDown = isDoor ? 1.15 : 0.45;
+      var dyw = p.y - (w.y + 0.5);
+      if (Math.abs(p.x - (w.x + 0.5)) < padX
+          && dyw > -padUp && dyw < padDown) {
         var dest = this.world.areas[w.to];
         if (!dest) continue;
         /* Shops keep the hours the map itself records. Walking into a shut

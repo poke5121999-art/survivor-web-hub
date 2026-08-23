@@ -792,6 +792,11 @@
         return;
       }
       case 'brokenBridge': return this.repairMenu(o);
+      /* WHY a door is on this list now: it never was, so a tap on a doorway
+       * did NOTHING. The only way in was to walk the joystick onto one exact
+       * tile and stop inside a box less than half a tile wide - which on a
+       * phone is why the owner's report was simply "nhà khó vô quá". */
+      case 'doorway': return this.game.enterDoor(o);
       default: return;
     }
   };
