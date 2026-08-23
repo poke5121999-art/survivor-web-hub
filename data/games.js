@@ -160,6 +160,37 @@ window.HUB_GAMES = [
     tags: ["Nông trại", "Mô phỏng", "Solo", "RPG"]
   },
   {
+    id: "hic",
+    title: "Hắn Đang Tới",
+    tagline: "Ba ngày để nhặt đồ, rồi hắn tới. Bạn không bấm được gì trong trận — thắng hay thua đã nằm trong đống đồ bạn chọn lúc còn sáng.",
+    thumbnail: "assets/thumbnails/hic.svg",
+    path: "games/hic/index.html",
+    // available since 2026-08-23. Plain canvas/JS, no engine: 7 files plus one
+    // 29 KB data bundle. A clone of "He is Coming" (Chronocle / Hooded Horse) —
+    // a roguelite auto-battler where the player never acts during a fight.
+    // NO asset of that game is used or shipped here: every sprite is drawn in
+    // code on an 8x8 grid. What was taken is DESIGN DATA, from the community
+    // simulator github.com/eseidel/he_is_coming (demo build 0.3.5): 181 items
+    // with their stats and effect text, 32 creatures across three tiers plus
+    // 12 bosses, 9 weapon edges, 3 oils, 6 item sets — and, more importantly,
+    // its combat resolution order, which this build re-implements trigger for
+    // trigger (Battle Start / Initiative / turn / on-hit / exposed / wounded /
+    // thorns / stun, armor absorbing before health, higher speed striking first
+    // with ties going to the player). The overworld numbers come from the
+    // published game: 50 steps a day, 30 a night, sight 5 then 3, three days
+    // and three nights to a boss, item slots 5 -> 7 -> 9.
+    // Controls depart from the original on purpose, since it is a PC game:
+    // tap a tile to walk there, tap an adjacent monster to fight it, one d-pad
+    // for single steps, everything else is a full-width button in a portrait
+    // 9:16 frame.
+    // Ships with an in-game bot; docs/tests/browser/test_hic.py drives it
+    // through whole runs and also asserts the combat rules directly against the
+    // original's (35 checks, 0 console errors).
+    // NOT yet eyes-on verified by a human across a long session.
+    status: "available",
+    tags: ["Roguelite", "Auto-battler", "Chiến thuật", "Solo"]
+  },
+  {
     id: "voiddiver",
     title: "Void Diver",
     tagline: "Lặn xuống vực nhặt di vật. Càng sâu đồ càng ngon, nhưng đèn thì cạn dần, đứng trong tối lâu thì đầu bắt đầu nhiễm — và muốn rút lên là phải trả tiền bằng chính chỗ đồ đang mang.",

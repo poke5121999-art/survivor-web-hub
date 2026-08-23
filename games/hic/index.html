@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Hắn Đang Tới</title>
+<!-- WHY: thiếu favicon thì trình duyệt gọi /favicon.ico mỗi lần tải và ghi một
+     lỗi 404, che mất lỗi thật trong console. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ctext y=%2726%27 font-size=%2726%27%3E%F0%9F%97%A1%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#e6eef5; --bg:#0b0f14; --panel:#151d27; --panel2:#1d2733;
+    --line:#3a4a5c; --gold:#f2d24b; --good:#5aa15c; --bad:#c34141;
+    --common:#8fa3b5; --rare:#5b8fd6; --heroic:#b06fd0;
+    --golden:#f2d24b; --diamond:#7fe3f0; --cauldron:#e08a3c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:#05080c;overflow:hidden;color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    user-select:none;-webkit-user-select:none;touch-action:none}
+  #frame{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #hic-stage{position:relative;background:var(--bg);overflow:hidden;
+    box-shadow:0 0 0 2px #22303d,0 18px 60px rgba(0,0,0,.7)}
+  canvas#hic-view{display:block;width:100%;height:100%;image-rendering:pixelated}
+  .layer{position:absolute;inset:0;pointer-events:none}
+  .layer button,.hic-panel,.hic-battle,.hic-card{pointer-events:auto}
+
+  /* ---------------- HUD ---------------- */
+  .hic-hud{position:absolute;top:0;left:0;right:0;padding:8px 10px;
+    background:linear-gradient(180deg,rgba(5,8,12,.92),rgba(5,8,12,.25))}
+  .hic-line1{display:flex;align-items:center;gap:8px;font-size:12px}
+  .hic-line1 b{font-size:13px}
+  .hic-chip{background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:8px;
+    padding:2px 7px;font-size:11px}
+  .hic-gold{color:var(--gold);font-weight:700}
+  .hic-hpwrap{margin-top:6px;height:9px;background:rgba(0,0,0,.55);
+    border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .hic-hpwrap i{display:block;height:100%;background:linear-gradient(90deg,#c34141,#e8735a)}
+  .hic-line2{display:flex;gap:10px;margin-top:5px;font-size:12px;align-items:center}
+  .hic-line2 span{opacity:.92}
+
+  /* ---------------- điều khiển ---------------- */
+  .hic-ctrls{position:absolute;left:0;right:0;bottom:0;padding:10px 14px 18px;
+    display:flex;align-items:flex-end;justify-content:space-between;
+    background:linear-gradient(0deg,rgba(5,8,12,.95),rgba(5,8,12,0))}
+  .hic-dpad{position:relative;width:132px;height:132px}
+  .hic-dpad button{position:absolute;width:44px;height:44px;border:none;border-radius:10px;
+    background:rgba(230,238,245,.14);color:var(--ink);font-size:18px;
+    border:1px solid rgba(230,238,245,.22)}
+  .hic-dpad button:active{background:rgba(242,210,75,.4)}
+  #hic-up{left:44px;top:0}#hic-down{left:44px;top:88px}
+  #hic-left{left:0;top:44px}#hic-right{left:88px;top:44px}
+  #hic-wait{left:44px;top:44px;font-size:12px}
+  .hic-side{display:flex;flex-direction:column;gap:9px;align-items:flex-end}
+  .hic-round{width:62px;height:62px;border-radius:50%;border:none;font-size:12px;
+    font-weight:700;background:rgba(230,238,245,.14);color:var(--ink);
+    border:1px solid rgba(230,238,245,.22);line-height:1.15}
+  .hic-round:active{transform:translateY(2px)}
+  #hic-bossbtn{width:96px;height:44px;border-radius:12px;font-size:11px;
+    background:rgba(195,65,65,.28);border:1px solid #7d2f2f;color:#ffd3cb}
+  #hic-bossbtn.due{background:#c34141;color:#fff;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+
+  /* ---------------- toast ---------------- */
+  .hic-toasts{position:absolute;left:0;right:0;bottom:190px;display:flex;
+    flex-direction:column;align-items:center;gap:4px}
+  .hic-toast{background:rgba(11,15,20,.92);border:1px solid var(--line);
+    border-radius:14px;padding:5px 12px;font-size:12px;max-width:88%;text-align:center}
+  .hic-toast.good{border-color:var(--good);color:#cdf0c8}
+  .hic-toast.bad{border-color:var(--bad);color:#ffcfc8}
+
+  /* ---------------- bảng ---------------- */
+  .hic-panel{position:absolute;left:8px;right:8px;top:8px;bottom:8px;display:none;
+    flex-direction:column;background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:2px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:0 14px 44px rgba(0,0,0,.7)}
+  .hic-phead{display:flex;align-items:center;padding:10px 12px;
+    border-bottom:1px solid var(--line);background:rgba(0,0,0,.3)}
+  .hic-phead h3{margin:0;font-size:15px;flex:1}
+  .hic-x{border:none;background:rgba(255,255,255,.1);color:var(--ink);
+    width:28px;height:28px;border-radius:8px;font-size:14px}
+  .hic-hint{padding:8px 12px 0;font-size:12px;opacity:.8}
+  .hic-pbody{flex:1;overflow-y:auto;padding:10px 12px 16px;display:flex;
+    flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch}
+  .hic-panel.over .hic-phead{background:rgba(195,65,65,.35)}
+  .hic-panel.win .hic-phead{background:rgba(90,161,92,.35)}
+
+  .hic-card{border:1px solid var(--line);border-left:4px solid var(--common);
+    border-radius:11px;padding:9px 11px;background:rgba(0,0,0,.28)}
+  .hic-card.pickable:active{background:rgba(242,210,75,.16)}
+  .hic-card.dim{opacity:.42}
+  .hic-card.weapon{box-shadow:inset 0 0 0 1px rgba(242,210,75,.4)}
+  .hic-card.r-common{border-left-color:var(--common)}
+  .hic-card.r-rare{border-left-color:var(--rare)}
+  .hic-card.r-heroic{border-left-color:var(--heroic)}
+  .hic-card.r-golden{border-left-color:var(--golden)}
+  .hic-card.r-diamond{border-left-color:var(--diamond)}
+  .hic-card.r-cauldron{border-left-color:var(--cauldron)}
+  .hic-cardtop{display:flex;align-items:baseline;gap:8px}
+  .hic-cardtop b{font-size:13px;flex:1}
+  .hic-rar{font-size:10px;opacity:.65}
+  .hic-stats{font-size:12px;margin-top:3px;color:#cfe0ee}
+  .hic-fx{font-size:12px;margin-top:4px;opacity:.88;line-height:1.35}
+  .hic-tags{font-size:10px;margin-top:4px;opacity:.55}
+  .hic-price{font-size:12px;margin-top:5px;color:var(--gold);font-weight:700}
+  .hic-note{font-size:13px;line-height:1.45;opacity:.9;margin:2px 0 6px}
+  .hic-bossicon{display:block;image-rendering:pixelated;margin-bottom:6px}
+
+  .hic-btn{border:1px solid var(--line);background:rgba(230,238,245,.12);
+    color:var(--ink);border-radius:11px;padding:11px 14px;font-size:13px;font-weight:600}
+  .hic-btn.wide{width:100%}
+  .hic-btn.ghost{background:transparent;opacity:.75}
+  .hic-btn.primary{background:var(--gold);color:#1a1405;border-color:#9a821f}
+  .hic-btn:active{transform:translateY(1px)}
+
+  /* ---------------- trận đánh ---------------- */
+  .hic-battle{position:absolute;inset:0;display:none;flex-direction:column;
+    background:rgba(5,8,12,.96);padding:12px}
+  .hic-bhead{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+  .hic-fighter{flex:1;text-align:center;font-size:12px}
+  .hic-fighter canvas{image-rendering:pixelated;display:block;margin:0 auto 4px}
+  .hic-vs{align-self:center;opacity:.5;font-size:12px;padding-top:22px}
+  .hic-bar{height:9px;background:rgba(0,0,0,.6);border:1px solid var(--line);
+    border-radius:6px;overflow:hidden;margin-top:5px}
+  .hic-bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#c34141,#e8735a)}
+  .hic-fighter.me .hic-bar i{background:linear-gradient(90deg,#3f7a48,#8ac878)}
+  .hic-bnum{font-size:11px;opacity:.85;margin-top:3px}
+  .hic-blog{flex:1;overflow-y:auto;background:rgba(0,0,0,.4);border:1px solid var(--line);
+    border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.5;
+    -webkit-overflow-scrolling:touch}
+  .hic-bline{opacity:.9;padding:1px 0}
+  .hic-bline.result{margin-top:6px;font-weight:700;font-size:14px}
+  .hic-bline.result.win{color:#8ac878}
+  .hic-bline.result.lose{color:#e8735a}
+  .hic-bfoot{display:flex;gap:8px;margin-top:8px}
+  .hic-bfoot .hic-btn{flex:1}
+
+  #hic-boot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:#05080c;color:#8fa3b5;font-size:13px;text-align:center;padding:24px;z-index:50}
+</style>
+</head>
+<body>
+<div id="frame">
+  <div id="hic-stage">
+    <canvas id="hic-view"></canvas>
+
+    <div class="layer">
+      <div class="hic-hud">
+        <div class="hic-line1">
+          <b id="hic-week">Tuần 1</b>
+          <span class="hic-chip" id="hic-phase">Ngày 1</span>
+          <span class="hic-chip" id="hic-steps">50 bước</span>
+          <span style="flex:1"></span>
+          <span class="hic-chip hic-gold"><span id="hic-gold">0</span> vàng</span>
+        </div>
+        <div class="hic-hpwrap"><i id="hic-hpbar" style="width:100%"></i></div>
+        <div class="hic-line2">
+          <span>Máu <b id="hic-hp">10/10</b></span>
+          <span>Công <b id="hic-attack">1</b></span>
+          <span>Giáp <b id="hic-armor">0</b></span>
+          <span>Tốc <b id="hic-speed">0</b></span>
+          <span style="flex:1"></span>
+          <span class="hic-chip">Ô đồ <b id="hic-slots">1/5</b></span>
+        </div>
+      </div>
+
+      <div class="hic-toasts" id="hic-toasts"></div>
+
+      <div class="hic-ctrls">
+        <div class="hic-dpad">
+          <button id="hic-up">▲</button>
+          <button id="hic-left">◀</button>
+          <button id="hic-wait">chờ</button>
+          <button id="hic-right">▶</button>
+          <button id="hic-down">▼</button>
+        </div>
+        <div class="hic-side">
+          <button id="hic-bossbtn">Gọi trùm sớm</button>
+          <button class="hic-round" id="hic-bag">Túi<br>đồ</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hic-panel" id="hic-panel"></div>
+    <div class="hic-battle" id="hic-battle"></div>
+    <div id="hic-boot">Đang tải…</div>
+  </div>
+</div>
+
+<script>
+/* Mỗi script được xin kèm một dấu build (?v=...), để trình duyệt không bao giờ
+   ghép một trang mới với một script cũ trong cache — đó đúng là kiểu lỗi mà
+   người chơi báo "vẫn y như cũ" trong khi bản vá đã lên rồi. */
+(function () {
+  var STAMP = '20260823a';
+  var FILES = [
+    ['data/gamedata.js', 'HIC_DATA'],
+    ['js/names.js', 'HIC_vnName'],
+    ['js/battle.js', 'HIC_Battle'],
+    ['js/effects.js', 'HIC_EFFECTS'],
+    ['js/world.js', 'HIC_World'],
+    ['js/game.js', 'HIC_Run'],
+    ['js/art.js', 'HIC_ART'],
+    ['js/ui.js', 'HIC_boot'],
+    ['js/bot.js', 'HIC_BOT']
+  ];
+  var boot = document.getElementById('hic-boot');
+  var i = 0;
+
+  function fail(msg) {
+    boot.style.color = '#e8735a';
+    boot.textContent = msg;
+    console.error('[hic] ' + msg);
+  }
+
+  function next() {
+    if (i >= FILES.length) { start(); return; }
+    var f = FILES[i++];
+    var s = document.createElement('script');
+    s.src = f[0] + '?v=' + STAMP;
+    s.onload = function () {
+      if (f[1] && !window[f[1]]) { fail('Nạp được ' + f[0] + ' nhưng thiếu ' + f[1]); return; }
+      next();
+    };
+    s.onerror = function () { fail('Không tải được ' + f[0]); };
+    document.head.appendChild(s);
+  }
+
+  function fit() {
+    var stage = document.getElementById('hic-stage');
+    var vw = window.innerWidth, vh = window.innerHeight, w, h;
+    if (vw / vh > 9 / 16) { h = vh; w = Math.round(h * 9 / 16); }
+    else {
+      w = vw; h = Math.round(w * 16 / 9);
+      if (h > vh) { h = vh; w = Math.round(h * 9 / 16); }
+    }
+    stage.style.width = w + 'px';
+    stage.style.height = h + 'px';
+  }
+
+  function start() {
+    fit();
+    try {
+      window.HIC_boot();
+      boot.style.display = 'none';
+    } catch (e) {
+      fail('Lỗi khi khởi động: ' + e.message);
+      throw e;
+    }
+  }
+
+  window.addEventListener('resize', fit);
+  fit();
+  next();
+})();
+</script>
+<!-- Cầu nối tài khoản của hub. Nếu trang được mở lẻ (không qua hub) thì các
+     tệp này không tồn tại và game vẫn chạy bình thường bằng bộ nhớ máy. -->
+<script src="../../js/supabase-config.js" onerror="void 0"></script>
+<script src="../../js/session.js" onerror="void 0"></script>
+<script src="../../js/save-sync.js" onerror="void 0"></script>
+</body>
+</html>

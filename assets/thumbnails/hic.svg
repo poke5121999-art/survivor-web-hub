@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Hắn Đang Tới">
+  <defs>
+    <linearGradient id="hic-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141d2b"/>
+      <stop offset="0.6" stop-color="#0d1420"/>
+      <stop offset="1" stop-color="#080c12"/>
+    </linearGradient>
+    <linearGradient id="hic-ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f5d3a"/>
+      <stop offset="1" stop-color="#1b3524"/>
+    </linearGradient>
+    <radialGradient id="hic-lamp" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f2d24b" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#f2d24b" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="hic-eyes" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#c34141" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#c34141" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="320" height="180" fill="url(#hic-sky)"/>
+
+  <!-- vầng trăng -->
+  <circle cx="262" cy="36" r="17" fill="#e6eef5" opacity="0.85"/>
+  <circle cx="255" cy="31" r="15" fill="#0d1420" opacity="0.9"/>
+
+  <!-- mặt đất -->
+  <path d="M0 108 L320 96 L320 180 L0 180 Z" fill="url(#hic-ground)"/>
+
+  <!-- lưới ô, nhắc rằng đây là game đi theo ô -->
+  <g stroke="#0b1a12" stroke-width="1" opacity="0.5">
+    <path d="M0 122 L320 112 M0 138 L320 130 M0 156 L320 150"/>
+    <path d="M40 104 L36 180 M80 103 L78 180 M120 102 L120 180 M160 101 L162 180
+             M200 100 L204 180 M240 99 L246 180 M280 98 L288 180"/>
+  </g>
+
+  <!-- rừng phía sau -->
+  <g fill="#1f3d29">
+    <path d="M18 108 l12 -26 l12 26 Z"/><path d="M46 106 l10 -20 l10 20 Z"/>
+    <path d="M74 108 l13 -28 l13 28 Z"/><path d="M108 104 l9 -18 l9 18 Z"/>
+    <path d="M206 102 l11 -22 l11 22 Z"/><path d="M236 101 l13 -26 l13 26 Z"/>
+    <path d="M272 100 l10 -20 l10 20 Z"/>
+  </g>
+
+  <!-- quầng đèn của người chơi -->
+  <ellipse cx="104" cy="140" rx="62" ry="40" fill="url(#hic-lamp)"/>
+
+  <!-- người chơi, vẽ theo lưới điểm ảnh -->
+  <g shape-rendering="crispEdges">
+    <rect x="98" y="120" width="14" height="4" fill="#c8a227"/>
+    <rect x="98" y="124" width="14" height="10" fill="#f0d6b8"/>
+    <rect x="101" y="127" width="3" height="3" fill="#0d1117"/>
+    <rect x="107" y="127" width="3" height="3" fill="#0d1117"/>
+    <rect x="95" y="134" width="20" height="12" fill="#8c2f2f"/>
+    <rect x="103" y="136" width="4" height="8" fill="#e6eef5"/>
+    <rect x="97" y="146" width="6" height="8" fill="#7d5334"/>
+    <rect x="107" y="146" width="6" height="8" fill="#7d5334"/>
+    <!-- thanh kiếm -->
+    <rect x="117" y="118" width="3" height="24" fill="#9db3c4"/>
+    <rect x="113" y="140" width="11" height="3" fill="#7d5334"/>
+  </g>
+
+  <!-- hắn, ngoài rìa vùng sáng: chỉ thấy đôi mắt -->
+  <ellipse cx="243" cy="126" rx="46" ry="30" fill="url(#hic-eyes)"/>
+  <g shape-rendering="crispEdges" opacity="0.92">
+    <rect x="228" y="112" width="32" height="34" fill="#0a0e14"/>
+    <rect x="224" y="118" width="4" height="20" fill="#0a0e14"/>
+    <rect x="260" y="118" width="4" height="20" fill="#0a0e14"/>
+    <rect x="234" y="122" width="7" height="5" fill="#e8735a"/>
+    <rect x="247" y="122" width="7" height="5" fill="#e8735a"/>
+    <rect x="234" y="146" width="9" height="10" fill="#0a0e14"/>
+    <rect x="245" y="146" width="9" height="10" fill="#0a0e14"/>
+  </g>
+
+  <!-- đồng hồ ba ngày -->
+  <g shape-rendering="crispEdges">
+    <rect x="12" y="12" width="86" height="20" fill="#0b0f14" opacity="0.85"/>
+    <rect x="12" y="12" width="86" height="20" fill="none" stroke="#3a4a5c" stroke-width="1"/>
+    <rect x="18" y="18" width="22" height="8" fill="#f2d24b"/>
+    <rect x="44" y="18" width="22" height="8" fill="#f2d24b"/>
+    <rect x="70" y="18" width="22" height="8" fill="#3a4a5c"/>
+  </g>
+</svg>
