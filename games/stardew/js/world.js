@@ -99,6 +99,60 @@
     return this;
   };
   Area.prototype.obj = function (o) { this.objs.push(o); return this; };
+
+  /* ---------------------------------------------------------------- lookup
+   * Which object is standing on a tile.
+   *
+   * WHY an index and not the scan it replaces: `World.objAt` walked the whole
+   * object list, and `findInteractable` alone calls it twenty-five times a
+   * frame. That is free on a new farm and ruinous on an old one - a bot year
+   * left 1242 objects on the farm, which is 31,000 comparisons per frame for
+   * the highlight alone. It is the worst shape of performance bug, because it
+   * never reproduces on a fresh save; the game just gets slower the longer
+   * somebody plays it.
+   *
+   * The index is rebuilt whenever the list LENGTH changes, which covers every
+   * push, splice and reassignment in the codebase. The one mutation that does
+   * not change the length is moving an object to another tile (the "dời cây"
+   * button); that site calls reindex() explicitly, and a hit whose coordinates
+   * no longer match the key it was found under rebuilds on the spot as a
+   * second line of defence. */
+  Area.prototype.reindex = function () { this._idx = null; };
+
+  Area.prototype.index = function () {
+    if (this._idx && this._idxLen === this.objs.length) return this._idx;
+    var idx = {};
+    for (var i = 0; i < this.objs.length; i++) {
+      var o = this.objs[i];
+      if (o.kind === 'building' && o.w && o.h) {
+        for (var dy = 0; dy < o.h; dy++) {
+          for (var dx = 0; dx < o.w; dx++) {
+            var bk = (o.x + dx) + ',' + (o.y + dy);
+            if (idx[bk] === undefined) idx[bk] = o;
+          }
+        }
+      } else {
+        var k = o.x + ',' + o.y;
+        // first one wins, exactly as the linear scan it replaces did
+        if (idx[k] === undefined) idx[k] = o;
+      }
+    }
+    this._idx = idx;
+    this._idxLen = this.objs.length;
+    return idx;
+  };
+
+  Area.prototype.objAt = function (x, y) {
+    var hit = this.index()[x + ',' + y];
+    if (hit === undefined) return null;
+    var still = (hit.kind === 'building' && hit.w && hit.h)
+      ? (x >= hit.x && x < hit.x + hit.w && y >= hit.y && y < hit.y + hit.h)
+      : (hit.x === x && hit.y === y);
+    if (still) return hit;
+    this.reindex();
+    var again = this.index()[x + ',' + y];
+    return again === undefined ? null : again;
+  };
   Area.prototype.warp = function (x, y, to, tx, ty, needsLanding, open, close) {
     this.warps.push({ x: x, y: y, to: to, tx: tx, ty: ty,
                       needsLanding: !!needsLanding,

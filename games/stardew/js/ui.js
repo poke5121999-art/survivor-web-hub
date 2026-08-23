@@ -272,6 +272,9 @@
   };
   UI.prototype.openPanel = function (title, bodyEl, opts) {
     this.close();
+    // reading a panel is not walking; a route that outlived it would carry the
+    // farmer off the moment the panel shut
+    if (this.game && this.game.cancelRoute) this.game.cancelRoute('panel');
     if (global.SDV_AUDIO) global.SDV_AUDIO.play('open');
     this.game.paused = !(opts && opts.live);
     var p = el('div', 'sdv-panel');
@@ -747,16 +750,95 @@
   };
 
   // ---- tapping a tile ----------------------------------------------------
+  /* What tapping this object should do once the farmer is standing next to it.
+   *
+   * Two families: things a TOOL acts on (a tree, a rock, a weed - `openObject`
+   * has no case for those, because in-reach they are handled by the action
+   * button), and things that OPEN something. Getting this split wrong would
+   * mean walking all the way to a tree and then doing nothing. */
+  UI.prototype.arrivalActionFor = function (o, x, y) {
+    var self = this, g = this.game;
+    var jobs = (global.SDV_GAME && global.SDV_GAME.TOOL_JOBS) || {};
+    var isTool = !!jobs[o.kind];
+    return function () {
+      // it may have been chopped, picked up or harvested during the walk
+      if (g.world.objAt(x, y) !== o) return;
+      if (isTool) {
+        g.hover = o;
+        g.player.actCooldown = 0;
+        return g.useTool();
+      }
+      self.openObject(o, x, y);
+    };
+  };
+
+  /* And what tapping bare ground should do once we are standing on it - the
+   * same two menus the in-reach path opens, and nothing when neither applies
+   * (walking there was the whole request). */
+  UI.prototype.arrivalActionForTile = function (x, y) {
+    var self = this, g = this.game;
+    return function () {
+      var a = g.world.area();
+      var t = a.name_of(x, y);
+      var farmable = a.id === 'farm' || a.id === 'greenhouse' || a.id === 'island';
+      if (!farmable) return;
+      if (t === 'tilled' || t === 'watered') return self.tileMenu(x, y);
+      /* Bare ground deliberately opens NOTHING at the end of a walk.
+       *
+       * The in-reach tap opens the build menu on dirt and grass, because in
+       * reach that is the only way to reach it. At the end of a JOURNEY it is
+       * wrong: the player tapped the far side of the field to go there, and
+       * being handed a "what would you like to build here?" modal the moment
+       * they arrive is a menu they did not ask for - and it pauses the game,
+       * which is how this was found (a probe walked the farmer onto bare soil
+       * and every later step silently did nothing because the world was
+       * paused behind a panel nobody had opened on purpose). */
+      return;
+    };
+  };
+
+  /* REACH is the distance within which a tap acts immediately, and it is the
+   * same 3.2 tiles this function has always used. Everything inside it behaves
+   * EXACTLY as before - that is what keeps hoeing, watering, planting and
+   * chopping untouched. What changed is what happens outside it: that used to
+   * be `return`, silently, and is now a walk. */
+  var REACH = 3.2;
+
   UI.prototype.tapTile = function (x, y) {
     var g = this.game, a = g.world.area();
-    var p = g.player;
-    if (Math.hypot(x + 0.5 - p.x, y + 0.5 - p.y) > 3.2) return;
+    var p = g.player, self = this;
+    var far = Math.hypot(x + 0.5 - p.x, y + 0.5 - p.y) > REACH;
+
+    if (far && !this.moveCrop && !this.buildMode && !this.placeMode) {
+      /* Out of reach: walk there and do it on arrival. Placement modes are
+       * excluded on purpose - those aim at a tile rather than travel to it,
+       * and walking first would move the farmer out from under the cursor. */
+      var oFar = g.world.objAt(x, y);
+      var actFar = oFar
+        ? this.arrivalActionFor(oFar, x, y)
+        : this.arrivalActionForTile(x, y);
+      var doorFar = oFar && oFar.kind === 'doorway';
+      var goal = { x: x, y: y };
+      if (g.solidForWalk(x, y)) {
+        var beside = g.besideTile(x, y);
+        if (!beside) return g.refuseRoute(x, y, 'Không tới gần được chỗ đó');
+        goal = beside;
+      }
+      /* Stepping onto a doorway warps you, so the arrival action would fire in
+       * the wrong area. The walk itself is the whole interaction. */
+      return g.walkTo(goal.x, goal.y, doorFar ? null : actFar,
+                      { face: { x: x, y: y } });
+    }
+
     if (this.moveCrop) {
       var t0 = a.name_of(x, y);
       if ((t0 !== 'tilled' && t0 !== 'watered') || g.world.objAt(x, y, a)) {
         g.toast('Phải là ô đất đã cuốc và còn trống');
       } else {
+        /* The one mutation that moves an object without changing the list
+         * length, so the tile index cannot notice it on its own. */
         this.moveCrop.x = x; this.moveCrop.y = y;
+        a.reindex();
         this.moveCrop.watered = (t0 === 'watered');
         g.toast('Đã dời cây');
       }

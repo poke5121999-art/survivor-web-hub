@@ -110,15 +110,10 @@
     }
   };
 
+  /* Delegates to the area's tile index - see Area.index in world.js for why
+   * the linear scan this replaced could not stay. */
   World.prototype.objAt = function (x, y, area) {
-    area = area || this.area();
-    for (var i = 0; i < area.objs.length; i++) {
-      var o = area.objs[i];
-      if (o.kind === 'building') {
-        if (x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h) return o;
-      } else if (o.x === x && o.y === y) return o;
-    }
-    return null;
+    return (area || this.area()).objAt(x, y);
   };
   World.prototype.removeObj = function (o, area) {
     area = area || this.area();
@@ -225,6 +220,229 @@
     return this.npcs.filter(function (n) { return n.area === cur; });
   };
 
+  // ---- walking there yourself -------------------------------------------
+  /* Tap-to-walk.
+   *
+   * WHY this exists at all: `UI.tapTile` opened with `if (dist > 3.2) return;`
+   * — a tap further than three tiles away did nothing, and said nothing. On a
+   * 430x860 phone showing about 13x26 tiles, that left nine tenths of what the
+   * player could see inert on touch, and it is the whole of the owner's report
+   * that the house was hard to get into. The doorstep is a single tile and the
+   * only way onto it was to steer a virtual stick.
+   *
+   * This is the scheme the game's own mobile port ships as its default: tap
+   * anywhere and the farmer walks there; tap a thing and the farmer walks to it
+   * and does the obvious thing to it. The stick stays for anyone who prefers to
+   * steer, and touching it cancels the walk.
+   *
+   * The design is deliberately ADDITIVE: with no route set, not one line of
+   * movement behaves differently from before. Everything inside the old 3.2-tile
+   * reach still acts immediately, exactly as it did; only the range that used to
+   * be silence now walks.
+   */
+  var ROUTE_BUDGET = 30000;      // one search per tap, not one per frame
+
+  /* Every reason a route ends, in one place. A farmer that keeps walking after
+   * the player has changed their mind is worse than one that never walked. */
+  Game.prototype.cancelRoute = function (why) {
+    if (!this.player.route) return false;
+    this.player.route = null;
+    this.player.routeWhy = why || 'cancelled';
+    this.player.frame = 0;
+    return true;
+  };
+
+  /* Say no out loud. The silent refusal is the bug being fixed here, so a
+   * request that cannot be satisfied leaves a mark on the map and a line of
+   * text - never nothing. */
+  Game.prototype.refuseRoute = function (x, y, msg) {
+    this.refused = { x: x, y: y, t: Date.now() };
+    this.sfx('error');
+    this.toast(msg || 'Không đi tới đó được');
+    return false;
+  };
+
+  /* A free tile orthogonally beside (x,y) that the player could act from. */
+  Game.prototype.besideTile = function (x, y) {
+    var a = this.world.area(), p = this.player, best = null, bd = 1e9;
+    var n = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]];
+    for (var i = 0; i < 4; i++) {
+      var nx = n[i][0], ny = n[i][1];
+      if (nx < 0 || ny < 0 || nx >= a.w || ny >= a.h) continue;
+      if (this.solidForWalk(nx, ny)) continue;
+      var d = Math.hypot(nx + 0.5 - p.x, ny + 0.5 - p.y);
+      if (d < bd) { bd = d; best = { x: nx, y: ny }; }
+    }
+    return best;
+  };
+
+  /* Walkability for routing. Terrain plus the objects that block, which is
+   * exactly what `World.solidAt` answers for the CURRENT area. */
+  Game.prototype.solidForWalk = function (x, y) {
+    return this.world.solidAt(x, y);
+  };
+
+  /* Set a route to (gx,gy), optionally with something to do on arrival.
+   * Returns false and says why when the goal cannot be walked to. */
+  Game.prototype.walkTo = function (gx, gy, action, opt) {
+    opt = opt || {};
+    var NPC = global.SDV_NPC, p = this.player, a = this.world.area();
+    var sx = Math.floor(p.x), sy = Math.floor(p.y);
+    if (sx === gx && sy === gy) {
+      this.cancelRoute('already-there');
+      if (action) action();
+      return true;
+    }
+    if (!NPC || !NPC.findPath) return false;
+    if (this.solidForWalk(gx, gy)) {
+      return this.refuseRoute(gx, gy, opt.why || 'Chỗ đó đi không được');
+    }
+    var path = NPC.findPath(a, sx, sy, gx, gy, ROUTE_BUDGET);
+    var last = path.length ? path[path.length - 1] : null;
+    /* findPath falls back to the CLOSEST reachable tile when the goal is walled
+     * off. For a villager that is the right answer; for a tap it is not - the
+     * player asked to go somewhere, and stopping halfway without a word is the
+     * behaviour being replaced. */
+    if (!last || last.x !== gx || last.y !== gy) {
+      return this.refuseRoute(gx, gy, opt.why || 'Không có đường tới đó');
+    }
+    p.route = { path: path, i: 0, gx: gx, gy: gy,
+                action: action || null, face: opt.face || null,
+                repathed: false };
+    this.refused = null;
+    return true;
+  };
+
+  /* This frame's movement vector, taken from the route. Null means the route
+   * ended (arrived, or cancelled by one of the rules below). */
+  Game.prototype.stepRoute = function (dt) {
+    var p = this.player, r = p.route;
+    if (!r) return null;
+    /* Never auto-walk into a fight. Underground the same button is the sword,
+     * and a farmer strolling toward a tapped rock past a slime is a death the
+     * player did not choose. */
+    var mobs = this.mine.monsters;
+    for (var m = 0; m < mobs.length; m++) {
+      if (Math.hypot(mobs[m].x - p.x, mobs[m].y - p.y) < 2.4) {
+        this.cancelRoute('monster');
+        return null;
+      }
+    }
+    if (this.sim.energy <= 0) { this.cancelRoute('exhausted'); return null; }
+
+    var step = r.path[r.i];
+    while (step && Math.hypot(step.x + 0.5 - p.x, step.y + 0.5 - p.y) < 0.14) {
+      r.i++;
+      step = r.path[r.i];
+    }
+    if (!step) return this.arriveRoute();
+
+    if (this.solidForWalk(step.x, step.y)) {
+      /* Something moved into the way. The original's own mobile port documents
+       * what NOT to do here - when a path is blocked by a moving character it
+       * "may suddenly stop, try a different path, or head off in a random
+       * direction (very likely a bug)". So: re-path exactly once, then stop and
+       * say so. Never improvise. */
+      if (r.repathed) {
+        this.cancelRoute('blocked');
+        this.toast('Đường bị chặn');
+        return null;
+      }
+      r.repathed = true;
+      var again = global.SDV_NPC.findPath(this.world.area(), Math.floor(p.x),
+                                          Math.floor(p.y), r.gx, r.gy,
+                                          ROUTE_BUDGET);
+      var lastA = again.length ? again[again.length - 1] : null;
+      if (!lastA || lastA.x !== r.gx || lastA.y !== r.gy) {
+        this.cancelRoute('blocked');
+        this.toast('Đường bị chặn');
+        return null;
+      }
+      r.path = again; r.i = 0;
+      step = again[0];
+      if (!step) return this.arriveRoute();
+    }
+
+    var dx = step.x + 0.5 - p.x, dy = step.y + 0.5 - p.y;
+    var d = Math.hypot(dx, dy);
+    if (d < 1e-6) return null;
+    var slow = this.sim.sluggish || (this.sim.energy <= 0);
+    return { x: dx / d, y: dy / d, sp: p.speed * (slow ? 0.55 : 1) * dt };
+  };
+
+  /* Arrived: face what was tapped, then do the thing that was queued. */
+  Game.prototype.arriveRoute = function () {
+    var p = this.player, r = p.route;
+    p.route = null;
+    p.routeWhy = 'arrived';
+    p.frame = 0;
+    if (!r) return null;
+    if (r.face) {
+      var fx = r.face.x + 0.5 - p.x, fy = r.face.y + 0.5 - p.y;
+      if (Math.abs(fx) > 0.2 || Math.abs(fy) > 0.2) {
+        p.face = Math.abs(fx) > Math.abs(fy) ? (fx > 0 ? 'right' : 'left')
+                                             : (fy > 0 ? 'down' : 'up');
+      }
+    }
+    if (r.action) {
+      try { r.action(); } catch (e) { console.error(e); }
+    }
+    return null;
+  };
+
+  /* The route, drawn. A walk the player cannot see the shape of is a walk they
+   * cannot tell apart from the game ignoring them - which is the failure this
+   * whole feature exists to end. */
+  Game.prototype.drawRoute = function (camX, camY, ts) {
+    var ctx = this.ctx, p = this.player;
+    var now = Date.now();
+    if (this.refused && now - this.refused.t < 1400) {
+      var k = (now - this.refused.t) / 1400;
+      var rx = this.refused.x * ts - camX + ts / 2;
+      var ry = this.refused.y * ts - camY + ts / 2;
+      ctx.save();
+      ctx.globalAlpha = 1 - k;
+      ctx.strokeStyle = '#e0563c';
+      ctx.lineWidth = Math.max(2, ts * 0.09);
+      ctx.beginPath();
+      ctx.arc(rx, ry, ts * (0.32 + k * 0.25), 0, 6.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(rx - ts * 0.2, ry - ts * 0.2);
+      ctx.lineTo(rx + ts * 0.2, ry + ts * 0.2);
+      ctx.moveTo(rx + ts * 0.2, ry - ts * 0.2);
+      ctx.lineTo(rx - ts * 0.2, ry + ts * 0.2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    var r = p.route;
+    if (!r) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (var i = r.i; i < r.path.length; i++) {
+      var t = r.path[i];
+      var a = 0.30 - (i - r.i) * 0.006;
+      if (a <= 0.03) break;
+      ctx.fillStyle = 'rgba(255,236,180,' + a.toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.arc(t.x * ts - camX + ts / 2, t.y * ts - camY + ts / 2,
+              Math.max(1.5, ts * 0.07), 0, 6.3);
+      ctx.fill();
+    }
+    ctx.restore();
+    var g = r.path[r.path.length - 1];
+    if (!g) return;
+    var pulse = 0.55 + 0.45 * Math.sin(now / 220);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,226,150,' + pulse.toFixed(2) + ')';
+    ctx.lineWidth = Math.max(2, ts * 0.07);
+    ctx.beginPath();
+    ctx.arc(g.x * ts - camX + ts / 2, g.y * ts - camY + ts / 2,
+            ts * 0.30, 0, 6.3);
+    ctx.stroke();
+    ctx.restore();
+  };
+
   // ---- movement ----------------------------------------------------------
   Game.prototype.canStand = function (x, y) {
     var a = this.world.area();
@@ -236,10 +454,22 @@
   Game.prototype.movePlayer = function (dt) {
     var p = this.player, i = this.input;
     var len = Math.hypot(i.dx, i.dy);
-    if (len < 0.08) { p.frame = 0; return; }
-    var nx = i.dx / len, ny = i.dy / len;
-    var slow = this.sim.sluggish || (this.sim.energy <= 0);
-    var sp = p.speed * (slow ? 0.55 : 1) * dt * Math.min(1, len);
+    var nx, ny, sp;
+    if (len >= 0.08) {
+      /* The stick always wins. Touching it is the player saying "I'll steer",
+       * and it is the first and most important of the cancel rules. */
+      this.cancelRoute('stick');
+      nx = i.dx / len; ny = i.dy / len;
+      var slowS = this.sim.sluggish || (this.sim.energy <= 0);
+      sp = p.speed * (slowS ? 0.55 : 1) * dt * Math.min(1, len);
+    } else if (p.route) {
+      var v = this.stepRoute(dt);
+      if (!v) { p.frame = 0; return; }
+      nx = v.x; ny = v.y; sp = v.sp;
+    } else {
+      p.frame = 0;
+      return;
+    }
     var tryX = p.x + nx * sp, tryY = p.y + ny * sp;
     // where we stood before this step, so a shut door can put us back there
     this.lastOpenX = p.x; this.lastOpenY = p.y;
@@ -259,6 +489,15 @@
    * outside its hours is refused with the hours, exactly like walking into it. */
   Game.prototype.enterDoor = function (o) {
     if (!o || !o.to) return;
+    /* WHY the distance check: this used to teleport the farmer through a door
+     * from anywhere on the map, which was a patch for the silent tap gate, not
+     * a design. Tap-to-walk replaced it - a distant tap now WALKS to the door
+     * and steps through it. What is left here is the in-range case, where
+     * "teleport" means moving one tile and is indistinguishable from stepping
+     * through the doorway. */
+    if (Math.hypot(o.x + 0.5 - this.player.x, o.y + 0.5 - this.player.y) > 2.4) {
+      return this.walkTo(o.x, o.y, null, { why: 'Không có đường tới cửa đó' });
+    }
     var a = this.world.area();
     var w = (a.warps || []).filter(function (v) {
       return v.to === o.to && Math.abs(v.x - o.x) <= 1 && Math.abs(v.y - o.y) <= 1;
@@ -381,6 +620,8 @@
         p.x = spot.x + 0.5; p.y = spot.y + 0.5;
         this.cameFrom = origin;
         this.arrivedX = p.x; this.arrivedY = p.y;
+        // the route's tiles belong to the area we just left
+        this.cancelRoute('area');
         this.sfx(dest.outdoor ? 'warp' : 'door');
         this.toast('→ ' + this.world.area().name);
         var fest = this.events && this.events.festivalToday;
@@ -462,6 +703,8 @@
   Game.prototype.useTool = function () {
     var p = this.player;
     if (p.actCooldown > 0) return;
+    // pressing the action button is the player taking over
+    this.cancelRoute('action');
     /* In the mine the same button is the sword: a monster in reach outranks
      * every rock, because being unable to fight back while cornered is the one
      * failure the single-tool scheme must never produce. */
@@ -499,6 +742,21 @@
     this.sfx(job.fx === 'chop' ? 'fell' : job.fx === 'smash' ? 'smash' : 'pickup');
     var drop = job.drop;
     if (target.ore) drop = [target.ore, 3];      // mine rocks carry their own ore
+    /* Cut grass goes into the silos when the farm has any, and only into the
+     * bag when it does not. This is the INPUT side of the hay economy: without
+     * it a silo would be a cap on nothing, and animals would starve the moment
+     * the free hay stopped. */
+    if (target.kind === 'grassTuft' && this.farm && this.farm.hayCap() > 0) {
+      var cut = 1 + Math.floor(Math.random() * 2);
+      var put = this.farm.storeHay(cut);
+      if (put > 0) {
+        drop = null;                       // it went to the silo, not the bag
+        this.toast('+' + put + ' cỏ khô vào kho ('
+                   + this.sim.hay + '/' + this.farm.hayCap() + ')');
+      } else {
+        this.toast('Kho cỏ đã đầy — cỏ vào túi');
+      }
+    }
     if (drop) {
       var n = 1 + Math.floor(Math.random() * drop[1]);
       if (!this.sim.give(drop[0], n)) this.toast('Túi đầy!');
@@ -758,6 +1016,7 @@
      * gone - it darkened the interface along with the field and made lamps
      * impossible. */
     if (global.SDV_LIGHT) global.SDV_LIGHT.apply(this, ctx, vw, vh, this.cam);
+    this.drawRoute(camX, camY, ts);
     this.drawHighlight(camX, camY, ts);
     this.drawWeather(vw, vh);
   };

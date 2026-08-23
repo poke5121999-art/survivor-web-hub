@@ -486,7 +486,7 @@
        * every indoor save was dead. chestSize and maxHealth were bought with
        * gold and silently reverted, and an open profession choice vanished. */
       playerX: this.playerX, playerY: this.playerY,
-      chestSize: this.chestSize, maxHealth: this.maxHealth,
+      chestSize: this.chestSize, maxHealth: this.maxHealth, hay: this.hay,
       pendingProfession: this.pendingProfession,
       professionQueue: this.professionQueue,
       farmlife: world && world.game ? world.game.farm.serialize() : null,
@@ -524,9 +524,18 @@
      'crafted', 'flags', 'seedRng', 'deepestMine', 'weapon', 'armor',
      'toolTier', 'toolPower', 'professions', 'hasBoat',
      'spouse', 'dating', 'machines', 'playerX', 'playerY', 'chestSize',
-     'maxHealth', 'pendingProfession', 'professionQueue'].forEach(function (k) {
+     'maxHealth', 'pendingProfession', 'professionQueue', 'hay'].forEach(function (k) {
       if (s[k] != null) self[k] = s[k];
     });
+    /* A save written before hay was a real resource has no `hay` field, and
+     * animals now eat from that store. Seeding it to what the player's silos
+     * can hold means somebody who already owned silos does not wake up to a
+     * barn full of starving animals because the rules changed under them.
+     * A player with no silo seeds to zero, which is correct - they were never
+     * storing anything. */
+    if (s.hay == null && world && world.game && world.game.farm) {
+      this.hay = world.game.farm.hayCap();
+    }
     if (s.world && world) world.deserialize(s.world);
     if (world && world.game && world.game.player && this.playerX != null) {
       var pg = world.game;

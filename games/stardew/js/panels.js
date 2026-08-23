@@ -369,9 +369,12 @@
     var dm = el('button', 'sdv-mbtn', '🗑 Phá bỏ');
     dm.addEventListener('click', function () {
       var r = fl.demolish(o) || {};
+      /* A refusal is not a failure to report politely - it is the building
+       * still standing and the animals still alive. Say why, and leave the
+       * panel open so the player can act on it. */
+      if (r.refused) return self.game.toast('⚠️ ' + r.error);
       var msg = 'Đã phá ' + o.farmBuilding;
       if (r.moved) msg += ' — ' + r.moved + ' con vật dọn sang chuồng khác';
-      if (r.lost) msg += ' — mất ' + r.lost + ' con vì hết chỗ';
       self.game.toast(msg);
       self.close();
     });

@@ -133,26 +133,129 @@
     }
   };
 
+  /* ------------------------------------------------------------------ hay
+   * The barn economy, both ends of it.
+   *
+   * WHY this had to be built rather than merely capped: `overnight` used to
+   * compute `hayAvailable = silos * 240` FRESH every night and decrement a
+   * local variable. Nothing was stored and nothing was ever consumed, so one
+   * 100g Silo removed feeding from the game permanently. The previous pass
+   * found that and deliberately left it, on the grounds that making the hay
+   * finite with no way to EARN hay would simply starve the animals - which was
+   * the right call at the time and the reason this change is bigger than a cap.
+   *
+   * So: cutting grass fills the silos, animals eat from them overnight, and
+   * grass grows back outside winter. Winter is the pressure - nothing grows, so
+   * the autumn stockpile is what carries the barn, which is exactly the loop
+   * the silo exists to serve.
+   */
+  FarmLife.prototype.silos = function () {
+    var farm = this.game.world.areas.farm;
+    if (!farm) return 0;
+    return farm.objs.filter(function (o) {
+      return o.farmBuilding === 'Silo';
+    }).length;
+  };
+
+  FarmLife.prototype.hayCap = function () { return this.silos() * 240; };
+
+  /* Put cut grass into the silos. Returns how much actually fitted, so the
+   * caller can tell the player when the store is full rather than silently
+   * swallowing the cut. */
+  FarmLife.prototype.storeHay = function (n) {
+    var s = this.game.sim;
+    var cap = this.hayCap();
+    if (cap <= 0) return 0;
+    if (s.hay == null) s.hay = 0;
+    var room = Math.max(0, cap - s.hay);
+    var put = Math.min(room, n);
+    s.hay += put;
+    return put;
+  };
+
+  /* Spend hay: the silos first, then anything the player is carrying, because
+   * hand-feeding out of the bag is what you do before you own a silo. */
+  FarmLife.prototype.takeHay = function (n) {
+    var s = this.game.sim;
+    if (s.hay == null) s.hay = 0;
+    var got = Math.min(s.hay, n);
+    s.hay -= got;
+    if (got < n) {
+      var want = n - got;
+      var have = s.count('Hay');
+      var fromBag = Math.min(have, want);
+      if (fromBag > 0 && s.take('Hay', fromBag)) got += fromBag;
+    }
+    return got;
+  };
+
+  /* Grass grows back, and only when the season allows it. Winter is bare on
+   * purpose - it is the whole reason to stockpile. */
+  FarmLife.prototype.regrowGrass = function () {
+    var g = this.game, farm = g.world.areas.farm;
+    if (!farm) return 0;
+    if (g.sim.season() === 'Winter') return 0;
+    var have = farm.objs.filter(function (o) {
+      return o.kind === 'grassTuft';
+    }).length;
+    /* Capped so the farm does not silently fill with objects - the same
+     * unbounded-list problem the tile index was built for. */
+    var CAP = 90;
+    if (have >= CAP) return 0;
+    var want = Math.min(CAP - have, 3 + Math.floor(Math.random() * 4));
+    var made = 0, tries = want * 8;
+    while (made < want && tries-- > 0) {
+      var x = 2 + Math.floor(Math.random() * (farm.w - 4));
+      var y = 2 + Math.floor(Math.random() * (farm.h - 4));
+      if (farm.name_of(x, y) !== 'grass') continue;
+      if (farm.solid(x, y) || g.world.objAt(x, y, farm)) continue;
+      farm.obj({ x: x, y: y, kind: 'grassTuft' });
+      made++;
+    }
+    return made;
+  };
+
+  /* Pull down a building - but never at the cost of the animals inside it.
+   *
+   * WHY it refuses instead of reporting a loss: this used to move whoever it
+   * could and DELETE the rest, then report it as an ordinary outcome ("mất N
+   * con vì hết chỗ"). Measured at four chickens and 3,200g, with no refund, no
+   * confirmation and no undo. A destructive default dressed up as a status
+   * line is the worst kind: the player reads it after the fact. Now the plan is
+   * checked first and the whole demolition is refused if anybody would be left
+   * without a home, naming how many need space. */
   FarmLife.prototype.demolish = function (obj) {
     var g = this.game, farm = g.world.areas.farm;
     var self = this;
     var homeless = this.occupants(obj.buildingId);
-    this.restoreGround(obj);
-    g.world.removeObj(obj, farm);
-    // move the animals somewhere with room before anything is lost
-    var moved = 0, lost = 0;
+
+    // work out where everyone would go BEFORE touching the building
+    var plan = [], stranded = 0;
+    var taken = {};
     homeless.forEach(function (a) {
       var def = ANIMAL_KINDS[a.kind];
       var homes = self.buildingsOfType(def.home).filter(function (h) {
-        return self.occupants(h.buildingId).length < (BUILDINGS[h.farmBuilding].slots || 0);
+        if (h.buildingId === obj.buildingId) return false;
+        var used = self.occupants(h.buildingId).length + (taken[h.buildingId] || 0);
+        return used < (BUILDINGS[h.farmBuilding].slots || 0);
       });
-      if (homes.length) { a.buildingId = homes[0].buildingId; moved++; }
-      else {
-        self.animals = self.animals.filter(function (x) { return x !== a; });
-        lost++;
+      if (homes.length) {
+        taken[homes[0].buildingId] = (taken[homes[0].buildingId] || 0) + 1;
+        plan.push({ animal: a, to: homes[0].buildingId });
+      } else {
+        stranded++;
       }
     });
-    return { moved: moved, lost: lost };
+    if (stranded > 0) {
+      return { refused: true, stranded: stranded,
+               error: 'Còn ' + stranded + ' con vật không có chỗ ở. '
+                    + 'Xây thêm chuồng hoặc bán bớt rồi hãy phá.' };
+    }
+
+    this.restoreGround(obj);
+    g.world.removeObj(obj, farm);
+    plan.forEach(function (m) { m.animal.buildingId = m.to; });
+    return { moved: plan.length, lost: 0 };
   };
 
   /* WHY this grew checks: move had NONE - it would happily drop a coop off the
@@ -306,8 +409,9 @@
     var g = this.game, s = g.sim, farm = g.world.areas.farm;
     var self = this;
     var profs = s.professions || {};
-    var silos = farm.objs.filter(function (o) { return o.farmBuilding === 'Silo'; }).length;
-    var hayAvailable = silos * 240;
+    // hay comes out of the store the player filled, not out of thin air
+    if (s.hay == null) s.hay = this.hayCap();
+    s.hay = Math.min(s.hay, this.hayCap());
 
     // sprinklers water their neighbours BEFORE crops are grown by sim.endDay
     /* WHY every planting area and not just the home farm: soil can be worked in
@@ -335,8 +439,7 @@
     this.animals.forEach(function (a) {
       var def = ANIMAL_KINDS[a.kind];
       a.age++;
-      var autoFed = hayAvailable > 0;
-      if (autoFed) hayAvailable--;
+      var autoFed = a.fed ? false : (self.takeHay(1) > 0);
       var fedToday = a.fed || autoFed;
       /* Coopmaster and Shepherd both promise "thân thiết nhanh hơn" and neither
        * was read anywhere in the game - a player who spent their level-10 pick
@@ -368,18 +471,11 @@
       if (o.age >= FRUIT_TREE_DAYS && inSeason && o.fruits < 3) o.fruits++;
     });
 
-    // grass spreads back so the farm never becomes bare
-    if (Math.random() < 0.6) {
-      var tries = 6;
-      while (tries--) {
-        var x = 2 + Math.floor(Math.random() * (farm.w - 4));
-        var y = 2 + Math.floor(Math.random() * (farm.h - 4));
-        if (farm.name_of(x, y) === 'grass' && !g.world.objAt(x, y, farm)) {
-          farm.objs.push({ x: x, y: y, kind: 'grassTuft' });
-          break;
-        }
-      }
-    }
+    /* Grass grows back - the renewable end of the hay economy. It replaces a
+     * trickle of at most one tuft a night, which was scenery; now it is the
+     * supply line that keeps a barn alive, and it stops in winter. */
+    report.grass = this.regrowGrass();
+    report.hay = s.hay;
     return report;
   };
 
