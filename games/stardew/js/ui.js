@@ -461,6 +461,7 @@
       a.set(x, y, 'watered');
       var c = g.world.objAt(x, y);
       if (c && c.kind === 'crop') c.watered = true;
+      g.fx.hit('water', x, y, g.player.face);
       self.close();
     });
     list.appendChild(wbtn);
@@ -557,6 +558,7 @@
         if (self.sim.energy <= 0) return self.game.toast('Hết sức');
         self.sim.spend(2); o.watered = true;
         g.world.area().set(o.x, o.y, 'watered');
+        g.fx.hit('water', o.x, o.y, g.player.face);
         self.close();
       });
       list.appendChild(w);
@@ -954,44 +956,106 @@
   };
 
   // ---- villager ----------------------------------------------------------
+  /* The villager panel.
+   *
+   * WHY it was rebuilt: the owner played it and came away not knowing whether
+   * presents were even a thing - "không biết có tặng quà để tăng thiện cảm được
+   * không". The old panel showed ten empty hearts, a line of dialogue and a
+   * grey drop-box, and never said what a gift does, what this person likes, or
+   * how many gifts are left this week. All four are on the panel now.
+   */
   UI.prototype.openNpc = function (npc) {
     var self = this;
     var v = npc.data;
+    var s = this.sim;
     var body = el('div', 'sdv-body');
-    var hearts = this.sim.hearts(npc.name);
+    var hearts = s.hearts(npc.name);
+    var f = s.friend(npc.name);
+    var cap = s.friendCap(npc.name) / 250;
+
     var head = el('div', 'sdv-npchead');
     head.appendChild(el('div', 'sdv-hearts',
       '❤️'.repeat(hearts) + '🤍'.repeat(Math.max(0, 10 - hearts))));
+    head.appendChild(el('div', 'sdv-sub',
+      'Thân thiết ' + hearts + '/' + cap + ' tim'
+      + (cap < 10 ? ' (cần bó hoa để đi tiếp)' : '')));
     if (v.birthday) {
-      var isB = this.sim.isBirthday(npc.name);
+      var isB = s.isBirthday(npc.name);
       head.appendChild(el('div', 'sdv-sub',
-        'Sinh nhật: ' + SIM.SEASON_VN[v.birthday.season] + ' ' + v.birthday.day
-        + (isB ? '  🎂 HÔM NAY!' : '')));
+        'Sinh nhật: ' + (SIM.SEASON_VN[v.birthday.season] || v.birthday.season)
+        + ' ' + v.birthday.day + (isB ? '  🎂 HÔM NAY! Quà hôm nay ăn 8 lần điểm' : '')));
     }
     body.appendChild(head);
 
-    var said = this.sim.talkTo(npc.name);
+    var said = s.talkTo(npc.name);
     var pool = (v.lines && (v.lines.Regular || v.lines.Events)) || [];
     var line = pool.length ? pool[Math.floor(Math.random() * pool.length)].line : '...';
     body.appendChild(el('div', 'sdv-speech', line));
-    if (said) body.appendChild(el('div', 'sdv-sub', '+20 thân thiết'));
+    body.appendChild(el('div', 'sdv-sub',
+      said ? '💬 Nói chuyện hôm nay: +20 thân thiết'
+           : '💬 Hôm nay đã nói chuyện rồi (mỗi ngày một lần)'));
+
+    /* What a gift is worth, said in plain numbers, plus how many are left.
+     * Two a week is the original's rule and the panel now shows the count. */
+    var left = Math.max(0, 2 - (f.week || 0));
+    var giftedToday = f.giftDay === s.dayIndex();
+    body.appendChild(el('div', 'sdv-giftinfo',
+      '🎁 Tặng quà: món họ THÍCH +45, RẤT THÍCH +80, ghét thì trừ điểm. '
+      + 'Mỗi tuần tặng được 2 món.'));
+    body.appendChild(el('div', 'sdv-sub',
+      giftedToday ? 'Hôm nay đã tặng rồi — mai quay lại.'
+                  : 'Tuần này còn ' + left + ' lượt tặng.'));
+
+    /* Their tastes, straight out of the game's own gift table. Showing them is
+     * a deliberate departure from the original, which makes you learn by
+     * trial: on a phone, with no wiki open, hidden tastes just mean nobody
+     * ever gives anyone anything. */
+    var taste = v.gifts || {};
+    function tasteRow(label, list, cls) {
+      if (!list || !list.length) return;
+      var row = el('div', 'sdv-tasterow ' + (cls || ''));
+      row.appendChild(el('span', 'sdv-tastelabel', label));
+      row.appendChild(el('span', null, list.slice(0, 6).join(', ')));
+      body.appendChild(row);
+    }
+    tasteRow('Rất thích', taste.love, 'love');
+    tasteRow('Thích', taste.like, 'like');
+    tasteRow('Ghét', taste.hate, 'hate');
 
     var giftWrap = el('div', 'sdv-giftwrap');
-    var slot = el('div', 'sdv-drop sdv-giftslot', '🎁<br><small>Kéo quà vào đây</small>');
+    var slot = el('div', 'sdv-drop sdv-giftslot',
+                  '🎁 Chạm một món bên dưới để tặng');
     slot.addEventListener('dragover', function (e) { e.preventDefault(); });
     slot.addEventListener('drop', function (e) { e.preventDefault(); self.doGift(npc); });
-    slot.addEventListener('click', function () { self.doGift(npc); });
     giftWrap.appendChild(slot);
     body.appendChild(giftWrap);
 
     var grid = el('div', 'sdv-grid');
-    for (var i = 0; i < this.sim.invSize; i++) {
-      grid.appendChild(this.slotEl(this.sim.inventory[i], this.sim.inventory, i, {
-        onClick: function (it, idx) { self.dragging = { it: it, list: self.sim.inventory, index: idx }; self.doGift(npc); }
+    for (var i = 0; i < s.invSize; i++) {
+      grid.appendChild(this.slotEl(s.inventory[i], s.inventory, i, {
+        onClick: function (it, idx) {
+          self.dragging = { it: it, list: s.inventory, index: idx };
+          self.doGift(npc);
+        }
       }));
     }
-    body.appendChild(el('div', 'sdv-sub', 'Chạm một món để tặng'));
     body.appendChild(grid);
+
+    /* Where they will be later - the schedule is real now, so it is worth
+     * telling the player where to find someone. */
+    var NPCM = global.SDV_NPC;
+    if (NPCM && npc.real && npc.real.sched) {
+      var blk = NPCM.scheduleFor(npc, s);
+      if (blk && blk.steps && blk.steps.length) {
+        var names = global.SDV_WORLD.AREA_NAME_VN || {};
+        var route = blk.steps.filter(function (st) { return st.m; })
+          .slice(0, 4).map(function (st) {
+            var ar = NPCM.areaOf(st.m);
+            return Math.floor(st.t / 100) + 'h → ' + (names[ar] || st.m);
+          }).join('  ·  ');
+        if (route) body.appendChild(el('div', 'sdv-sub', 'Lịch hôm nay: ' + route));
+      }
+    }
     this.openPanel(npc.name, body);
   };
 
@@ -1002,6 +1066,7 @@
     this.dragging = null;
     if (res.refused === 'day') return this.game.toast('Hôm nay đã tặng rồi');
     if (res.refused === 'week') return this.game.toast('Tuần này đã tặng đủ 2 món');
+    if (res.refused === 'missing') return this.game.toast('Không còn món đó trong túi');
     d.it.qty--;
     if (d.it.qty <= 0) d.list.splice(d.index, 1);
     var msg = { love: 'rất thích!', like: 'thích', neutral: 'bình thường',

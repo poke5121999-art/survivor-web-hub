@@ -33,6 +33,16 @@
     t: '#4e8f3f'                  // grass
   };
 
+  function shadeHex(hex, mul) {
+    if (!hex || hex[0] !== '#' || hex.length < 7) return hex;
+    var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16);
+    var b = parseInt(hex.slice(5, 7), 16);
+    function f(v) { return Math.max(0, Math.min(255, Math.round(v * mul))); }
+    return '#' + [f(r), f(g), f(b)].map(function (v) {
+      return (v < 16 ? '0' : '') + v.toString(16);
+    }).join('');
+  }
+
   function grid(rows, extra) {
     var pal = PAL;
     if (extra) { pal = Object.create(PAL); for (var k in extra) pal[k] = extra[k]; }
@@ -56,8 +66,21 @@
 
   // ---------------------------------------------------------------- people
   // 12x16 body, four facing directions, two walk frames each.
-  function person(hair, shirt, hair2, shirtDark) {
+  /* A villager, drawn from four colours read out of that villager's own
+   * sprite in the game files (see build_npcs_real.py). Hair, top, trousers and
+   * skin are enough for the player to tell Abigail from Haley across a street,
+   * which is the whole point - before this every villager was the same body in
+   * a hue-rotated shirt.
+   *
+   * The shoe rows use their own palette slot rather than the outline black
+   * they used to share with the eyes: overriding one recoloured the other, and
+   * pink boots gave the villager pink eyes. */
+  function person(hair, shirt, hair2, shirtDark, opt) {
+    opt = opt || {};
     var ex = { '1': hair, '2': hair2 || hair, '3': shirt, '4': shirtDark || shirt };
+    if (opt.pants) { ex.B = opt.pants; }
+    if (opt.skin) { ex.s = opt.skin; ex.S = shadeHex(opt.skin, 0.82); }
+    ex['5'] = opt.shoes || PAL.k;
     var down0 = grid([
       '....1111....',
       '...111111...',
@@ -73,8 +96,8 @@
       '...333333...',
       '...BB..BB...',
       '...BB..BB...',
-      '...kk..kk...',
-      '...kk..kk...'], ex);
+      '...55..55...',
+      '...55..55...'], ex);
     var down1 = grid([
       '....1111....',
       '...111111...',
@@ -90,8 +113,8 @@
       '...333333...',
       '..BB....BB..',
       '..BB....BB..',
-      '..kk....kk..',
-      '...kk..kk...'], ex);
+      '..55....55..',
+      '...55..55...'], ex);
     var up0 = grid([
       '....1111....',
       '...111111...',
@@ -107,8 +130,8 @@
       '...333333...',
       '...BB..BB...',
       '...BB..BB...',
-      '...kk..kk...',
-      '...kk..kk...'], ex);
+      '...55..55...',
+      '...55..55...'], ex);
     var up1 = grid([
       '....1111....',
       '...111111...',
@@ -124,8 +147,8 @@
       '...333333...',
       '..BB....BB..',
       '..BB....BB..',
-      '..kk....kk..',
-      '...kk..kk...'], ex);
+      '..55....55..',
+      '...55..55...'], ex);
     var side0 = grid([
       '....1111....',
       '...111111...',
@@ -141,8 +164,8 @@
       '....3333....',
       '....BBB.....',
       '....BBB.....',
-      '....kkk.....',
-      '...kkkk.....'], ex);
+      '....555.....',
+      '...5555.....'], ex);
     var side1 = grid([
       '....1111....',
       '...111111...',
@@ -158,8 +181,8 @@
       '....3333....',
       '...BB.BB....',
       '...BB.BB....',
-      '...kk.kk....',
-      '..kkk..kk...'], ex);
+      '...55.55....',
+      '..555..55...'], ex);
     return {
       down: [down0, down1], up: [up0, up1],
       left: [side0, side1], right: [side0, side1]
@@ -257,6 +280,51 @@
       'rRrrrrrrRr',
       'rrrrrrrrrr',
       'HHHHHHHHHH'], {}),
+    stove: grid([
+      'kmmmmmmmmk',
+      'mMMMMMMMMm',
+      'mMrrrrrrMm',
+      'mMroooorMm',
+      'mMroooorMm',
+      'mMrrrrrrMm',
+      'mMMMMMMMMm',
+      'kmmmmmmmmk'], {}),
+    bench: grid([
+      '..HHHHHHHH..',
+      '.HnnnnnnnnH.',
+      'HnnmmnnmmnnH',
+      'HnnnnnnnnnnH',
+      'HHHHHHHHHHHH',
+      '.H........H.',
+      '.H........H.',
+      '.HH......HH.'], {}),
+    calendar: grid([
+      'HHHHHHHH',
+      'HwwwwwwH',
+      'HwrrrrwH',
+      'HwwwwwwH',
+      'HwkwkwwH',
+      'HwwwkwwH',
+      'HwwwwwwH',
+      'HHHHHHHH'], {}),
+    postbox: grid([
+      '..bbbbbb..',
+      '.bBbbbbBb.',
+      'bbbbbbbbbb',
+      'bbwwwwwwbb',
+      'bbbbbbbbbb',
+      '.bBbbbbBb.',
+      '....HH....',
+      '....HH....',
+      '....HH....'], {}),
+    shelf: grid([
+      'HHHHHHHHHH',
+      'HrrHggHbbH',
+      'HrrHggHbbH',
+      'HHHHHHHHHH',
+      'HyyHppHccH',
+      'HyyHppHccH',
+      'HHHHHHHHHH'], {}),
     tv: grid([
       'kkkkkkkkkk',
       'kccccccccK',
@@ -265,6 +333,45 @@
       'kkkkkkkkkk',
       '..k....k..'], {})
   };
+
+  /* A machine, in that machine's own colours.
+   *
+   * WHY it is parameterised: once the workbench was replaced by real objects
+   * standing in the cottage, seven different machines were seven copies of the
+   * same furnace sprite in a row, told apart only by the caption under them.
+   * Body and glow come from the machine's name, so a keg and a cheese press
+   * are different things at a glance and adding a machine needs no new art. */
+  var MACHINE_ART = {};
+  function machine(name) {
+    if (MACHINE_ART[name]) return MACHINE_ART[name];
+    /* A handful are pinned rather than hashed: a furnace has to look like a
+     * forge and a keg like a barrel, or the colour is just noise. */
+    var FIXED = {
+      Furnace: [22, 28], Keg: [30, 42], 'Preserves Jar': [340, 20],
+      'Cheese Press': [48, 52], Loom: [200, 190],
+      'Mayonnaise Machine': [50, 54], 'Recycling Machine': [150, 160],
+      'Oil Maker': [60, 44], 'Bee House': [45, 50], Crystalarium: [280, 300],
+      Furnace2: [22, 28]
+    };
+    var h = hash(name || 'Furnace');
+    var pin = FIXED[name];
+    var hue = pin ? pin[0] : h % 360;
+    var hue2 = pin ? pin[1] : (hue + 40) % 360;
+    var ex = {
+      m: 'hsl(' + hue + ',18%,46%)', M: 'hsl(' + hue + ',20%,32%)',
+      r: 'hsl(' + hue2 + ',45%,30%)',
+      o: 'hsl(' + hue2 + ',70%,55%)'
+    };
+    MACHINE_ART[name] = grid([
+      '..mmmmmm..',
+      '.mMmmmmMm.',
+      'mmmrrrrmmm',
+      'mmroooormm',
+      'mmroooormm',
+      'mmmrrrrmmm',
+      '.mMmmmmMm.'], ex);
+    return MACHINE_ART[name];
+  }
 
   // ---------------------------------------------------------------- crops
   // Crop stages are generated from the crop's own colour so all 46 read alike
@@ -412,6 +519,7 @@
 
   global.SDV_SPRITES = {
     PAL: PAL, grid: grid, blit: blit, person: person, SP: SP,
+    machine: machine,
     drawCrop: drawCrop, drawIcon: drawIcon, iconColors: iconColors, hash: hash
   };
 })(window);

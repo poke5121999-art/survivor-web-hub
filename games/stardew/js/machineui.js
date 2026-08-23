@@ -68,6 +68,21 @@
     return sim.machines[name];
   }
 
+  /* WHY every machine standing in the world is only a MARKER: a machine used
+   * to exist twice - once as `sim.machines[name]` behind the workbench, once
+   * as an object on the floor with its own jobs array - so the furnace you
+   * tapped and the furnace in the list were different furnaces, and the
+   * overnight pass ticked both. The object now carries nothing but the name;
+   * the one copy of the state lives in the save. */
+  function resolve(sim, o) {
+    if (!o) return null;
+    if (o.kind === 'machine' || o.kind === 'furnace') {
+      return stateOf(sim, o.machine || 'Furnace');
+    }
+    return o;
+  }
+  UI.prototype.machineState = function (o) { return resolve(this.sim, o); };
+
   /* The workbench: one tap, then every machine with its state. */
   UI.prototype.openMachineList = function () {
     var self = this, s = this.sim;
@@ -94,6 +109,7 @@
   // ------------------------------------------------------------------ machine
   UI.prototype.openMachine = function (o) {
     var self = this, s = this.sim, g = this.game;
+    o = resolve(s, o);
     var name = o.machine || 'Furnace';
     var d = M.def(name);
     var body = el('div', 'sdv-body');
@@ -111,7 +127,15 @@
       body.appendChild(this.requirementButton(
         '🔨 Dựng ' + M.label(name), d.craft, 0, function () {
           o.built = true;
-          g.toast('Đã dựng xong ' + M.label(name));
+          /* WHY it is put in the room: with everything behind one bench the
+             house never changed however much you built, and the owner read
+             that as "cảm giác không phát triển". A built machine now stands
+             on its own tile, spread across the cottage. */
+          var W2 = global.SDV_WORLD;
+          if (W2 && W2.placeMachine) {
+            W2.placeMachine(g.world.areas.house, name);
+          }
+          g.toast('Đã dựng xong ' + M.label(name) + ' — đặt trong nhà');
           self.openMachine(o);
         }));
       var back0 = el('button', 'sdv-mbtn', '\u2190 Về danh sách máy');
@@ -197,7 +221,10 @@
     var grid = el('div', 'sdv-grid');
     for (var k = 0; k < s.invSize; k++) {
       grid.appendChild(this.slotEl(s.inventory[k], s.inventory, k, {
-        onClick: function (it) { self.feedMachine(o, it); }
+        onClick: function (it) {
+          if (!it) return g.toast('Ô này trống');
+          self.feedMachine(o, it);
+        }
       }));
     }
     body.appendChild(el('div', 'sdv-sub', 'Túi đồ — chạm một món để bỏ vào máy'));
@@ -210,6 +237,8 @@
 
   UI.prototype.feedMachine = function (o, item, slotIdx) {
     var self = this, s = this.sim, g = this.game;
+    // an empty bag slot is a tap on nothing, not a crash
+    if (!item || !item.name) { this.dragging = null; return; }
     var name = o.machine || 'Furnace';
     o.jobs = o.jobs || [];
     var free = slotIdx;
@@ -305,9 +334,6 @@
     var s = game.sim, made = 0;
     var list = [];
     for (var mn in (s.machines || {})) list.push(s.machines[mn]);
-    game.world.forEachArea(function (a) {
-      a.objs.forEach(function (o) { if (o.kind === 'machine') list.push(o); });
-    });
     list.forEach(function (o) {
       if (o.built === false) return;
       (o.jobs || []).forEach(function (j) {
@@ -324,9 +350,6 @@
     var stormy = s.weather === 'storm';
     var list = [];
     for (var mn in (s.machines || {})) list.push(s.machines[mn]);
-    game.world.forEachArea(function (a) {
-      a.objs.forEach(function (o) { if (o.kind === 'machine') list.push(o); });
-    });
     (function (objs) {
       objs.forEach(function (o) {
         if (o.built === false) return;

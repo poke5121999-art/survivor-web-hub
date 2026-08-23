@@ -240,7 +240,15 @@
     if (!d) return { error: 'Máy này chưa dùng được' };
     if (!slotsFree) return { error: 'Hết ô, cần nâng cấp thêm ô' };
     var r = d.accept(item, sim);
-    if (!r) return { error: d.hint || 'Máy này không nhận món đó' };
+    /* WHY the message names the item and the machine: the rejection used to
+     * echo the machine's HINT ("Bỏ quặng vào..."), which reads as an
+     * instruction rather than a refusal - the owner dropped things into the
+     * furnace and could not tell whether it had worked. Say what was refused,
+     * by what, and what it does take. */
+    if (!r) {
+      return { error: '❌ ' + label(machineName) + ' không nhận '
+                      + item.name + (d.hint ? ' · ' + d.hint : '') };
+    }
     if (sim.count(item.name) < r.need) {
       return { error: 'Cần ' + r.need + ' ' + item.name };
     }

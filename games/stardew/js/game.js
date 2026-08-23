@@ -121,6 +121,7 @@
     this.input = { dx: 0, dy: 0, act: false };
     this.messages = [];
     this.particles = [];
+    this.fx = new global.SDV_FX.FX();
     this.paused = false;
     this.onOpen = null;               // set by ui.js
     this.hover = null;                // the interactable currently highlighted
@@ -150,174 +151,18 @@
   };
 
   // ---- villagers ---------------------------------------------------------
-  /* Every villager stands at the door of the building they actually live in.
-   * These are the real door tiles read out of the extracted maps - Pierre's
-   * shop really is at Town (43,56), the saloon at (45,70), and so on. */
-  var NPC_HOME = {
-    Abigail: ['town', 43, 57], Pierre: ['town', 44, 57], Caroline: ['town', 42, 57],
-    Lewis: ['town', 58, 86], Gus: ['town', 45, 71], Emily: ['town', 20, 89],
-    Haley: ['town', 21, 89], Alex: ['town', 57, 64], George: ['town', 58, 64],
-    Evelyn: ['town', 56, 64], Jodi: ['town', 10, 86], Sam: ['town', 11, 86],
-    Vincent: ['town', 9, 86], Kent: ['town', 12, 86], Harvey: ['town', 36, 56],
-    Penny: ['town', 72, 69], Pam: ['town', 73, 69],
-    Clint: ['town', 94, 82], Gunther: ['town', 101, 90], Morris: ['town', 95, 51],
-    Maru: ['mountain', 9, 21], Robin: ['mountain', 8, 21],
-    Demetrius: ['mountain', 10, 21], Sebastian: ['mountain', 7, 21],
-    Linus: ['mountain', 29, 7], Marlon: ['mountain', 76, 9],
-    Dwarf: ['mountain', 54, 5],
-    Marnie: ['forest', 90, 16], Shane: ['forest', 91, 16], Jas: ['forest', 89, 16],
-    Leah: ['forest', 104, 33], Wizard: ['forest', 5, 27],
-    Elliott: ['beach', 49, 11], Willy: ['beach', 30, 34],
-    Krobus: ['sewer', 16, 12], Sandy: ['oasis', 6, 6], Leo: ['island', 20, 20]
-  };
-
+  /* The people of the valley live in npc.js now. It reads the game's own
+   * schedule files - real map, real tile, real facing - instead of the keyword
+   * table that used to guess a destination out of a sentence and leave most of
+   * the cast standing on one tile all day. */
   Game.prototype.initNpcs = function () {
-    var self = this;
-    this.npcs = [];
-    this.data.villagers.forEach(function (v, i) {
-      var home = NPC_HOME[v.name];
-      if (!home) return;
-      var hue = (S.hash(v.name) % 360);
-      self.npcs.push({
-        name: v.name,
-        area: home[0], x: home[1], y: home[2],
-        homeArea: home[0], hx: home[1], hy: home[2],
-        tx: home[1], ty: home[2],
-        face: 'down', frame: 0, animT: 0,
-        sprite: S.person('hsl(' + hue + ',45%,32%)',
-                         'hsl(' + ((hue + 140) % 360) + ',50%,48%)',
-                         'hsl(' + hue + ',45%,22%)',
-                         'hsl(' + ((hue + 140) % 360) + ',50%,34%)'),
-        data: v
-      });
-    });
+    this.villagers = new global.SDV_NPC.Villagers(this);
+    this.npcs = this.villagers.list;
+    return this.npcs;
   };
-
-  /* Pick the schedule block that matches today, then the step whose time has
-   * passed. Blocks are ordered most-specific first on the wiki, so the first
-   * match wins - which is also how the original resolves them. */
-  Game.prototype.scheduleTarget = function (npc) {
-    var sim = this.sim;
-    var sched = npc.data.schedule || {};
-    /* WHY: villagers whose wiki page does not split the schedule by season keep
-     * it all under one "All" heading (Gus, Robin...). Reading only
-     * schedule[season] left those characters standing on one tile forever. */
-    var blocks = sched[sim.season()];
-    if (!blocks || !blocks.length) blocks = sched.All;
-    if (!blocks || !blocks.length) {
-      for (var s in sched) { if (s !== 'Marriage' && sched[s].length) { blocks = sched[s]; break; } }
-    }
-    if (!blocks || !blocks.length) return null;
-    var dow = sim.dayOfWeek();
-    var dowName = { CN: 'sunday', T2: 'monday', T3: 'tuesday', T4: 'wednesday',
-                    T5: 'thursday', T6: 'friday', T7: 'saturday' }[dow];
-    var raining = sim.weather === 'rain' || sim.weather === 'storm';
-    var chosen = null;
-    for (var i = 0; i < blocks.length; i++) {
-      var w = (blocks[i].when || '').toLowerCase();
-      var dayMatch = new RegExp(sim.season().toLowerCase() + '\\s+' + sim.day + '\\b');
-      if (dayMatch.test(w)) { chosen = blocks[i]; break; }
-      if (raining && w.indexOf('rain') >= 0) { chosen = blocks[i]; break; }
-      if (dowName && w.indexOf(dowName) >= 0) { chosen = blocks[i]; break; }
-    }
-    if (!chosen) {
-      var w2;
-      chosen = blocks.filter(function (b) {
-        w2 = (b.when || '').toLowerCase();
-        return w2.indexOf('regular') >= 0 || w2.indexOf('default') >= 0;
-      })[0];
-      /* A festival or a dated one-off is the WRONG thing to fall back on - it
-       * would park the villager at a booth every ordinary day of the year. */
-      if (!chosen) {
-        chosen = blocks.filter(function (b) {
-          w2 = (b.when || '').toLowerCase();
-          return !/festival|\b(spring|summer|fall|winter)\s+\d|bus service|night market/.test(w2);
-        })[0];
-      }
-      if (!chosen) chosen = blocks[blocks.length - 1];
-    }
-    var step = null;
-    for (var j = 0; j < chosen.steps.length; j++) {
-      if (sim.time >= chosen.steps[j].t) step = chosen.steps[j];
-    }
-    return step ? { block: chosen, step: step } : null;
-  };
-
-  /* The wiki writes locations as prose ("Leaves her room to stand in Pierre's
-   * General Store"), so movement is derived from keywords rather than
-   * coordinates: a villager walks to a spot near their home, their workplace,
-   * or the town square, and stays put at night. That is enough to make the town
-   * read as alive without inventing a coordinate for 3,069 prose lines. */
-  /* Prose destination -> a real tile. Every coordinate here is a door or a
-   * landmark read out of the extracted maps, so a villager who "goes to the
-   * saloon" walks to the saloon's actual doorstep. */
-  var PLACE_HINTS = [
-    [/saloon|stardrop|bar\b/i, ['town', 45, 72]],
-    [/general store|pierre's/i, ['town', 43, 58]],
-    [/joja/i, ['town', 95, 52]],
-    [/clinic|hospital|harvey/i, ['town', 36, 57]],
-    [/museum|library|gunther/i, ['town', 101, 91]],
-    [/community cent/i, ['town', 52, 21]],
-    [/graveyard|cemetery/i, ['town', 63, 74]],
-    [/playground|park|fountain|square|plaza/i, ['town', 47, 63]],
-    [/blacksmith|clint/i, ['town', 94, 83]],
-    [/beach|ocean|pier|dock|tide ?pool/i, ['beach', 40, 25]],
-    [/willy|fish shop/i, ['beach', 30, 35]],
-    [/carpenter|robin's|science|maru|demetrius/i, ['mountain', 8, 22]],
-    [/adventurer|guild|marlon/i, ['mountain', 76, 10]],
-    [/lake/i, ['mountain', 40, 25]],
-    [/mine|quarry/i, ['mountain', 54, 6]],
-    [/mountain/i, ['mountain', 30, 20]],
-    [/ranch|marnie's/i, ['forest', 90, 17]],
-    [/wizard|tower/i, ['forest', 5, 28]],
-    [/leah|cottage/i, ['forest', 104, 34]],
-    [/forest/i, ['forest', 60, 40]],
-    [/bus stop|bus\b/i, ['busstop', 20, 20]],
-    [/river|bridge/i, ['town', 34, 78]],
-    [/town|street|road|path/i, ['town', 47, 63]],
-    [/farm\b/i, ['farm', 64, 20]]
-  ];
-  // Phrases that mean "indoors, where they live" - the villager holds position.
-  var STAY_HOME = /\b(in|inside|at) (her|his|their) (room|house|home|bed)|goes to bed|sleep|kitchen|living room|stays home/i;
-  // Prose that describes leaving without naming a destination we can map.
-  var LEAVING = /^(leaves|walks|heads|goes|exits|steps|travels|returns)/i;
 
   Game.prototype.updateNpcs = function (dt) {
-    var self = this;
-    this.npcs.forEach(function (n) {
-      var t = self.scheduleTarget(n);
-      var dest = null;
-      var where = t ? (t.step.where || '') : '';
-      if (where && !STAY_HOME.test(where)) {
-        for (var i = 0; i < PLACE_HINTS.length; i++) {
-          if (PLACE_HINTS[i][0].test(where)) { dest = PLACE_HINTS[i][1]; break; }
-        }
-        /* WHY: the wiki writes destinations as prose, and most steps name a place
-         * this game has no coordinate for ("into Caroline and Pierre's room").
-         * Sending every unmapped step home made villagers stand still all day,
-         * which reads as a broken town. A step that clearly describes LEAVING
-         * moves them to a spot outside their door instead. */
-        if (!dest && LEAVING.test(where)) {
-          dest = [n.homeArea, n.hx + ((S.hash(where) % 5) - 2), n.hy + 2 + (S.hash(n.name) % 3)];
-        }
-      }
-      if (!dest) dest = [n.homeArea, n.hx, n.hy];
-      if (dest[0] !== n.area) { n.area = dest[0]; n.x = dest[1]; n.y = dest[2]; }
-      n.tx = dest[1]; n.ty = dest[2];
-      var dx = n.tx - n.x, dy = n.ty - n.y;
-      var d = Math.hypot(dx, dy);
-      if (d > 0.12) {
-        var sp = 1.7 * dt;
-        n.x += dx / d * Math.min(sp, d);
-        n.y += dy / d * Math.min(sp, d);
-        n.face = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left')
-                                             : (dy > 0 ? 'down' : 'up');
-        n.animT += dt;
-        if (n.animT > 0.22) { n.animT = 0; n.frame ^= 1; }
-      } else {
-        n.frame = 0;
-      }
-    });
+    if (this.villagers) this.villagers.update(dt);
   };
 
   Game.prototype.npcsHere = function () {
@@ -341,6 +186,8 @@
     var slow = this.sim.sluggish || (this.sim.energy <= 0);
     var sp = p.speed * (slow ? 0.55 : 1) * dt * Math.min(1, len);
     var tryX = p.x + nx * sp, tryY = p.y + ny * sp;
+    // where we stood before this step, so a shut door can put us back there
+    this.lastOpenX = p.x; this.lastOpenY = p.y;
     if (this.canStand(tryX, p.y)) p.x = tryX;
     if (this.canStand(p.x, tryY)) p.y = tryY;
     p.face = Math.abs(nx) > Math.abs(ny) ? (nx > 0 ? 'right' : 'left')
@@ -380,6 +227,20 @@
       if (Math.abs(p.x - (w.x + 0.5)) < 0.45 && Math.abs(p.y - (w.y + 0.5)) < 0.45) {
         var dest = this.world.areas[w.to];
         if (!dest) continue;
+        /* Shops keep the hours the map itself records. Walking into a shut
+         * door bounces you off it with the hours, instead of the shop being
+         * open at three in the morning. */
+        var NPCM = global.SDV_NPC;
+        if (NPCM && !NPCM.doorOpen(w, this.sim.time)) {
+          p.x = this.lastOpenX == null ? p.x : this.lastOpenX;
+          p.y = this.lastOpenY == null ? p.y : this.lastOpenY;
+          if (!this.shutToastAt || Date.now() - this.shutToastAt > 2500) {
+            this.shutToastAt = Date.now();
+            this.toast('Cửa đang đóng · mở ' + NPCM.hhmm(w.open)
+                       + ' – ' + NPCM.hhmm(w.close));
+          }
+          return;
+        }
         /* A landing tile inside a wall is the other half of "I got stuck".
          * Snap to the nearest tile that can actually be stood on. */
         var spot = dest.nearestFree
@@ -422,19 +283,19 @@
   // ---- the one tool ------------------------------------------------------
   var TOOL_JOBS = {
     tree:   { hits: 5, energy: 4, skill: 'foraging', xp: 12, drop: ['Wood', 8],
-              label: 'Chặt cây', becomes: 'stump' },
+              label: 'Chặt cây', becomes: 'stump', fx: 'chop' },
     stump:  { hits: 3, energy: 4, skill: 'foraging', xp: 8, drop: ['Hardwood', 2],
-              label: 'Nhổ gốc' },
+              label: 'Nhổ gốc', fx: 'chop' },
     rock:   { hits: 3, energy: 3, skill: 'mining', xp: 6, drop: ['Stone', 3],
-              label: 'Đập đá' },
+              label: 'Đập đá', fx: 'smash' },
     oreRock:{ hits: 4, energy: 3, skill: 'mining', xp: 12, drop: ['Copper Ore', 2],
-              label: 'Đào quặng' },
+              label: 'Đào quặng', fx: 'smash' },
     weed:   { hits: 1, energy: 1, skill: 'foraging', xp: 2, drop: ['Fiber', 1],
-              label: 'Dọn cỏ' },
+              label: 'Dọn cỏ', fx: 'weed' },
     grassTuft: { hits: 1, energy: 1, skill: 'foraging', xp: 1, drop: ['Hay', 1],
-                 label: 'Cắt cỏ' },
+                 label: 'Cắt cỏ', fx: 'weed' },
     stick:  { hits: 1, energy: 1, skill: 'foraging', xp: 2, drop: ['Wood', 2],
-              label: 'Nhặt cành' },
+              label: 'Nhặt cành', fx: 'chop' },
     brokenBridge: { hits: 0, energy: 0, label: 'Sửa cầu', build: true }
   };
 
@@ -494,6 +355,8 @@
      * failure the single-tool scheme must never produce. */
     if (this.mine.monsters.length) {
       p.actCooldown = 0.3;
+      var f0 = this.facingTile();
+      this.fx.hit('slash', f0.x, f0.y, p.face);
       if (this.mine.playerAttack() > 0) return;
     }
     var target = this.hover;
@@ -510,6 +373,12 @@
     p.actCooldown = 0.34;
     this.sim.spend(job.energy);
     target.hp = (target.hp == null ? job.hits : target.hp) - 1;
+    /* WHY the effect and not just the particles: before this, chopping a tree
+     * showed six identical sparks and then the tree was gone, so the player
+     * could not tell a hit that landed from one that did nothing. Each tool
+     * job now names its own effect - wood chips for the axe, stone shards for
+     * the pick - and the arc shows which way the swing went. */
+    if (job.fx) this.fx.hit(job.fx, target.x, target.y, p.face);
     this.spark(target.x, target.y);
     if (target.hp > 0) return;
     var drop = job.drop;
@@ -546,6 +415,7 @@
     this.sim.spend(2);
     a.set(x, y, 'tilled');
     this.player.actCooldown = 0.28;
+    this.fx.hit('hoe', x, y, this.player.face);
     this.spark(x, y);
   };
 
@@ -571,6 +441,7 @@
     if (p.actCooldown > 0) p.actCooldown -= dt;
     this.movePlayer(dt);
     this.updateNpcs(dt);
+    this.fx.update(dt);
     this.mine.update(dt);
     this.hover = this.findInteractable();
     this.fishSpot = this.findFishSpot();
@@ -637,41 +508,55 @@
     var y1 = Math.min(a.h - 1, Math.ceil((camY + vh) / ts));
 
     // tiles
+    /* WHY this is not a checkerboard any more: the whole valley was two flat
+     * colours alternating on (x+y)&1, which is why the owner's read of the art
+     * was "khá xấu". tiles.js paints a real texture per ground type and a real
+     * building - roof, wall, window, door, sign - out of the collision classes
+     * the extracted maps already carry. */
+    var T = global.SDV_TILES;
+    var now = Date.now();
+    // sim.time counts minutes from midnight, so dusk is 18*60, not 1800
+    var night = this.sim.time >= 18 * 60 || this.sim.time < 6 * 60;
+    var indoor = !a.outdoor;
     for (var y = y0; y <= y1; y++) {
       for (var x = x0; x <= x1; x++) {
         var name = a.name_of(x, y);
         var def = W.TILE[name];
         var sx = Math.round(x * ts - camX), sy = Math.round(y * ts - camY);
-        ctx.fillStyle = ((x + y) & 1) ? def.c : (def.c2 || def.c);
-        ctx.fillRect(sx, sy, ts + 1, ts + 1);
-        /* WHY: the real maps keep walls, cliffs and every building on a
-         * separate collision layer whose ART we do not take. Drawing only the
-         * ground left the farmhouse and the whole of town looking like empty
-         * grass you mysteriously could not walk on. Blocked tiles get a solid
-         * body derived from the ground under them, so a house reads as a
-         * house and a cliff reads as rock. */
-        var bcls = a.blocked ? a.blocked[y * a.w + x] : 0;
-        if (bcls && !def.water) {
-          var top = y > 0 && a.blocked[(y - 1) * a.w + x] === bcls;
-          var pal = bcls === 2 ? BLOCK_BUILDING
-                  : bcls === 3 ? BLOCK_FENCE
-                  : (BLOCK_TERRAIN[name] || BLOCK_TERRAIN.grass);
-          ctx.fillStyle = pal.body;
-          ctx.fillRect(sx, sy, ts + 1, ts + 1);
-          if (!top) {
-            ctx.fillStyle = pal.top;
-            ctx.fillRect(sx, sy, ts + 1, Math.max(2, ts * 0.3));
-          }
-          if (bcls === 1 && ((x * 7 + y * 13) % 5 === 0)) {
-            ctx.fillStyle = pal.fleck;
-            ctx.fillRect(sx + ts * 0.3, sy + ts * 0.5, Math.max(2, ts * 0.18),
-                         Math.max(2, ts * 0.14));
-          }
+        T.paintGround(ctx, name, def, sx, sy, ts, x, y, now);
+        var idx = y * a.w + x;
+        var bcls = a.blocked ? a.blocked[idx] : 0;
+        if (!bcls || def.water) continue;
+        var part = a.bpart ? a.bpart[idx] : 0;
+        if (part) {
+          T.paintBuilding(ctx, part, this.buildingAt(a, x, y), sx, sy, ts,
+                          x, y, night);
+        } else {
+          T.paintBlocked(ctx, bcls, name, sx, sy, ts, x, y, a, indoor);
         }
-        if (name === 'water' || name === 'deep') {
-          ctx.fillStyle = 'rgba(255,255,255,0.07)';
-          var wob = Math.sin((Date.now() / 420) + x * 0.7 + y * 0.4);
-          ctx.fillRect(sx, sy + ts * 0.3 + wob * 2, ts, 2);
+      }
+    }
+    // doors and signs sit on top of the wall they are cut into
+    if (a.buildings) {
+      for (var bi = 0; bi < a.buildings.length; bi++) {
+        var bd = a.buildings[bi];
+        if (!bd.door) continue;
+        if (bd.door.x < x0 - 4 || bd.door.x > x1 + 4
+            || bd.door.y < y0 - 4 || bd.door.y > y1 + 6) continue;
+        var dsx = Math.round(bd.door.x * ts - camX);
+        /* WHY the door can sit one tile up: the maps put the door ACTION on
+         * the doorstep, which is the walkable tile in front of the house, not
+         * on the wall. Painted there the farmhouse door floated in the grass
+         * with the cottage a row behind it. Paint it on the wall when the tile
+         * above the doorstep belongs to this building. */
+        var wallY = bd.door.y;
+        var above = (bd.door.y - 1) * a.w + bd.door.x;
+        if (a.bpart && a.bpart[above]) wallY = bd.door.y - 1;
+        var dsy = Math.round(wallY * ts - camY);
+        var isOpen = this.doorIsOpen(a, bd.door.x, bd.door.y);
+        T.paintDoor(ctx, bd, dsx, dsy, ts, isOpen, night);
+        if (bd.sign) {
+          T.paintSign(ctx, bd.sign, dsx + ts / 2, dsy, ts, isOpen);
         }
       }
     }
@@ -707,9 +592,44 @@
     }
 
     this.mine.draw(ctx, camX, camY, ts);
+    this.fx.draw(ctx, camX, camY, ts);
     this.drawHighlight(camX, camY, ts);
     this.drawWeather(vw, vh);
     this.drawNightTint(vw, vh);
+  };
+
+  /* Which structure a building tile belongs to. Cached per area the first time
+   * it is asked, because the render loop asks once per visible tile. */
+  /* The structure whose front door stands on this tile, if any. */
+  Game.prototype.doorOwner = function (a, x, y) {
+    var list = a.buildings || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].door && list[i].door.x === x && list[i].door.y === y) {
+        return list[i];
+      }
+    }
+    return null;
+  };
+
+  Game.prototype.buildingAt = function (a, x, y) {
+    if (!a._bmap) {
+      a._bmap = {};
+      (a.buildings || []).forEach(function (b) {
+        b.cells.forEach(function (i) { a._bmap[i] = b; });
+      });
+    }
+    return a._bmap[y * a.w + x] || { roof: '#6a4a3a', wall: '#5f452e', y: y };
+  };
+
+  /* A shop door is shut outside its hours - the hours come straight off the
+   * map's own LockedDoorWarp entry. */
+  Game.prototype.doorIsOpen = function (a, x, y) {
+    var NPC = global.SDV_NPC;
+    var w = (a.warps || []).filter(function (v) {
+      return v.x === x && v.y === y;
+    })[0];
+    if (!w) return true;
+    return NPC ? NPC.doorOpen(w, this.sim.time) : true;
   };
 
   // How wide each world object should read, measured in tiles. A tree is not
@@ -798,11 +718,29 @@
         break;
       }
       case 'machine': {
-        S.blit(ctx, S.SP.furnace, sx, sy, ts / 10);
-        if (o.ready) {
+        /* State lives in the save, not on the object, so read it back to know
+         * whether this thing is running and whether anything is ready. */
+        var mst = (this.sim.machines || {})[o.machine || 'Furnace'];
+        S.blit(ctx, S.machine(o.machine || 'Furnace'), sx, sy, ts / 10);
+        var jobs = (mst && mst.jobs) || [];
+        var anyReady = jobs.some(function (j) { return j && j.ready; });
+        var anyBusy = jobs.some(function (j) { return j && !j.ready; });
+        if (anyReady || o.ready) {
           ctx.fillStyle = '#e8c357';
           ctx.fillRect(sx + ts * 0.4, sy - ts * 0.35, ts * 0.2, ts * 0.25);
+        } else if (anyBusy) {
+          // a wisp of smoke, so a working machine reads as working
+          var pf = (Date.now() / 300 + o.x * 3) % 6;
+          ctx.fillStyle = 'rgba(220,215,210,' + (0.34 - pf * 0.05).toFixed(2) + ')';
+          ctx.fillRect(sx + ts * 0.45, sy - pf * ts * 0.12, Math.max(2, ts * 0.12),
+                       Math.max(2, ts * 0.12));
         }
+        ctx.font = Math.round(ts * 0.3) + 'px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(240,227,194,0.85)';
+        var mlab = (global.SDV_MACHINES && global.SDV_MACHINES.def(o.machine));
+        if (mlab && mlab.vn) ctx.fillText(mlab.vn, sx + ts / 2, sy + ts * 1.25);
+        ctx.textAlign = 'left';
         break;
       }
       case 'mineExit': {
@@ -873,6 +811,11 @@
         break;
       }
       case 'doorway': {
+        /* A door that belongs to a drawn building already has a door and a
+         * signboard painted on the wall; drawing this one too gave every shop
+         * two entrances and two names stacked on each other. */
+        var owner = this.doorOwner(this.world.area(), o.x, o.y);
+        if (owner) break;
         ctx.fillStyle = 'rgba(20,16,22,0.55)';
         ctx.fillRect(sx + ts * 0.18, sy + ts * 0.1, ts * 0.64, ts * 0.8);
         ctx.fillStyle = '#e8c357';
@@ -959,12 +902,33 @@
         ctx.textAlign = 'left';
         break;
       }
+      /* The things the player lives with every day get real furniture instead
+       * of a coloured chip with an emoji on it: the cottage was a row of blue
+       * squares, which is a large part of why the art read as unfinished. */
+      case 'kitchen': case 'workshop': case 'calendarBoard':
+      case 'mailbox': case 'counter': {
+        var FURN = { kitchen: ['stove', 1.15], workshop: ['bench', 1.35],
+                     calendarBoard: ['calendar', 0.95], mailbox: ['postbox', 0.9],
+                     counter: ['bench', 1.35] };
+        var fdef = FURN[o.kind];
+        var fsp = S.SP[fdef[0]];
+        var fpx = (ts * fdef[1]) / fsp.w;
+        S.blit(ctx, fsp, sx + (ts - fsp.w * fpx) / 2,
+               sy + ts - fsp.h * fpx + ts * 0.12, fpx);
+        if (o.kind === 'counter' && o.keeper) {
+          ctx.font = Math.round(ts * 0.3) + 'px system-ui, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = 'rgba(240,227,194,0.9)';
+          ctx.fillText(o.keeper, sx + ts * 0.5, sy + ts * 1.28);
+          ctx.textAlign = 'left';
+        }
+        break;
+      }
       case 'travelingCart': case 'islandTrader': case 'boat':
-      case 'boatTicket': case 'kitchen': case 'mailbox': case 'calendarBoard':
+      case 'boatTicket':
       case 'museumDesk': case 'display': case 'toolUpgrade': case 'geodeCrusher':
       case 'animalShop': case 'buildMenu': case 'caveChoice':
-      case 'greenhouseShell': case 'counter': case 'bundleBoard':
-      case 'workshop': {
+      case 'greenhouseShell': case 'bundleBoard': {
         var col = S.iconColors(o.kind, 'crafted');
         ctx.fillStyle = col.dark;
         ctx.fillRect(sx + ts * 0.08, sy + ts * 0.2, ts * 0.84, ts * 0.7);
@@ -1009,13 +973,40 @@
     ctx.fill();
     S.blit(ctx, img, sx, sy, px, act.face === 'left');
     if (isNpc) {
+      var cx = Math.round(act.x * ts - camX);
       ctx.font = '11px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
       var tw = ctx.measureText(act.name).width;
-      ctx.fillRect(Math.round(act.x * ts - camX) - tw / 2 - 4, sy - 16, tw + 8, 14);
+      ctx.fillRect(cx - tw / 2 - 4, sy - 16, tw + 8, 14);
       ctx.fillStyle = '#f4f0e6';
-      ctx.fillText(act.name, Math.round(act.x * ts - camX), sy - 5);
+      ctx.fillText(act.name, cx, sy - 5);
+      /* Hearts and a present marker over the head.
+       *
+       * WHY: the owner played a whole session without discovering that gifts
+       * existed. A villager who can still be given something today wears a
+       * present; how well you know them is readable without opening a panel. */
+      var fr = this.sim.friendship && this.sim.friendship[act.name];
+      var hearts = this.sim.hearts(act.name);
+      var canGift = !fr || (fr.giftDay !== this.sim.dayIndex()
+                            && (fr.week || 0) < 2);
+      if (hearts > 0 || canGift) {
+        var pips = Math.min(5, hearts);
+        var wpx = pips * 6 + (canGift ? 12 : 0);
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(cx - wpx / 2 - 3, sy - 30, wpx + 6, 13);
+        var px0 = cx - wpx / 2;
+        ctx.textAlign = 'left';
+        ctx.font = '9px system-ui, sans-serif';
+        ctx.fillStyle = '#ff8fae';
+        for (var hp = 0; hp < pips; hp++) {
+          ctx.fillText('\u2665', px0 + hp * 6, sy - 20);
+        }
+        if (canGift) {
+          ctx.font = '10px system-ui, sans-serif';
+          ctx.fillText('\uD83C\uDF81', px0 + pips * 6, sy - 20);
+        }
+      }
       ctx.textAlign = 'left';
     }
   };
@@ -1151,5 +1142,5 @@
   };
 
   global.SDV_GAME = { Game: Game, World: World, Player: Player, TS: TS,
-                      TOOL_JOBS: TOOL_JOBS, NPC_HOME: NPC_HOME };
+                      TOOL_JOBS: TOOL_JOBS };
 })(window);
