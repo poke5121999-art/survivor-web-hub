@@ -87,87 +87,90 @@
    * game files (hair / skin / shirt / pants), so everyone stays recognisable
    * even though nothing is drawn from a sheet any more.
    */
+  /* A person is a HEAD.
+   *
+   * The owner's call, and it is the right one for this camera: "player + npc
+   * không cần có body đâu, có cái đầu tạm đc r". At roughly nine tiles across a
+   * phone screen a torso is about six pixels of shirt with two arms that read
+   * as smudges - detail nobody can see, paid for in silhouette. Dropping it
+   * makes every character a big clear circle, which is the shape a player can
+   * pick out of a crowd at a glance, and it hands the whole colour budget to
+   * hair and skin, which is what actually tells two villagers apart.
+   *
+   * What has to survive without a body:
+   *  - WHICH WAY THEY FACE. The hair cap slides against the skull and the eyes
+   *    move with it, so a head seen from behind is all hair and no face.
+   *  - THAT THEY ARE WALKING. There are no legs to swing, so the head bobs and
+   *    tilts a little, and the shadow under it squashes in time.
+   *  - WHERE THEY STAND. A head floating with nothing under it has no position
+   *    on the ground, so the shadow is not decoration here - it IS the feet.
+   */
   function person(ctx, cx, cy, ts, pal, face, frame, opts) {
     opts = opts || {};
     pal = pal || {};
     var hair = pal.hair || '#7a4a2b';
     var skin = pal.skin || '#e8b08a';
     var shirt = pal.shirt || '#3f6fb5';
-    var pants = pal.pants || '#3a3f52';
-    var shoes = pal.shoes || '#2b2129';
 
-    var H = ts * 1.55;                       // total height
-    var headR = ts * 0.32;
-    var bodyW = ts * 0.52, bodyH = ts * 0.52;
-    var bob = frame ? ts * 0.045 : 0;        // the walk lift
-    var lw = Math.max(1, ts * 0.035);
-
-    var footY = cy;
-    var bodyY = footY - ts * 0.30 - bodyH - bob;
-    var headY = bodyY - headR * 0.78 - bob * 0.3;
+    var headR = ts * 0.46;                   // far bigger than it was
+    var lw = Math.max(1.2, ts * 0.045);
+    var bob = frame ? ts * 0.055 : 0;
+    var tilt = frame ? 0.07 : 0;
+    var headY = cy - headR - ts * 0.10 - bob;
 
     ctx.save();
     ctx.lineJoin = 'round';
 
-    // legs — two little capsules, swinging with the frame
-    var legSwing = frame ? ts * 0.10 : 0;
-    for (var l = 0; l < 2; l++) {
-      var lx = cx + (l ? 1 : -1) * ts * 0.14 + (l ? legSwing : -legSwing) * 0.5;
-      roundRect(ctx, lx - ts * 0.085, bodyY + bodyH - ts * 0.04,
-                ts * 0.17, ts * 0.36, ts * 0.085);
-      solid(ctx, pants, lx - ts * 0.085, bodyY + bodyH, ts * 0.17, ts * 0.36, lw);
-      // shoe
-      roundRect(ctx, lx - ts * 0.10, footY - ts * 0.10, ts * 0.20, ts * 0.11,
-                ts * 0.05);
-      solid(ctx, shoes, lx - ts * 0.10, footY - ts * 0.10, ts * 0.20,
-            ts * 0.11, lw);
-    }
+    /* The shadow stands in for the feet. Without it the head hovers and there
+     * is no telling which tile the character is on - which matters more here
+     * than it ever did with legs, because the reach rules are per tile. */
+    var sq = frame ? 0.88 : 1;
+    ctx.fillStyle = 'rgba(0,0,0,0.30)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - ts * 0.02, headR * 0.72 * sq, headR * 0.30, 0, 0, 6.3);
+    ctx.fill();
 
-    // body — a capsule, slightly wider at the shoulders
-    roundRect(ctx, cx - bodyW / 2, bodyY, bodyW, bodyH, ts * 0.20);
-    solid(ctx, shirt, cx - bodyW / 2, bodyY, bodyW, bodyH, lw);
+    ctx.translate(cx, headY);
+    ctx.rotate(frame ? tilt * (frame % 2 ? 1 : -1) : 0);
+    ctx.translate(-cx, -headY);
 
-    // arms
-    var armSwing = frame ? ts * 0.07 : 0;
-    for (var a = 0; a < 2; a++) {
-      var side = a ? 1 : -1;
-      if (face === 'left' && side > 0) continue;    // the far arm hides
-      if (face === 'right' && side < 0) continue;
-      var ax = cx + side * (bodyW / 2 + ts * 0.02);
-      var ay = bodyY + ts * 0.10 + (a ? armSwing : -armSwing);
-      roundRect(ctx, ax - ts * 0.075, ay, ts * 0.15, ts * 0.30, ts * 0.075);
-      solid(ctx, shade(shirt, 0.88), ax - ts * 0.075, ay, ts * 0.15,
-            ts * 0.30, lw);
-      // hand
-      ctx.beginPath();
-      ctx.arc(ax, ay + ts * 0.30, ts * 0.075, 0, 6.3);
-      ctx.fillStyle = ballGradient(ctx, ax, ay + ts * 0.30, ts * 0.075, skin);
-      ctx.fill();
-      ctx.strokeStyle = OUTLINE; ctx.lineWidth = lw; ctx.stroke();
-    }
+    /* A collar, under the chin - the ONLY thing left of the clothes.
+     *
+     * It is here because dropping the body nearly cost the game something it
+     * had already been asked for: villagers telling each other apart. With a
+     * torso they had four colours of identity; head-only leaves hair and skin,
+     * and half this cast has brown hair. The collar puts the shirt colour back
+     * on screen in the one place it still reads, and costs one arc. */
+    ctx.beginPath();
+    /* Sitting BELOW the chin on purpose: the skull is painted after this, so
+     * anything tucked inside its circle is simply covered up - the first
+     * version drew the collar and then hid it. */
+    ctx.ellipse(cx, headY + headR * 1.04, headR * 0.60, headR * 0.24, 0, 0, 6.3);
+    ctx.fillStyle = shirt;
+    ctx.fill();
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = lw; ctx.stroke();
 
-    // head — the roundest thing on screen, on purpose
+    // the skull
     ctx.beginPath();
     ctx.arc(cx, headY, headR, 0, 6.3);
     ctx.fillStyle = ballGradient(ctx, cx, headY, headR, skin);
     ctx.fill();
     ctx.strokeStyle = OUTLINE; ctx.lineWidth = lw; ctx.stroke();
 
-    // hair — a cap over the skull; how much of the face it leaves depends on
-    // which way they are looking
+    // hair, clipped to the skull so it is a cap and not a hat
     ctx.save();
     ctx.beginPath();
     ctx.arc(cx, headY, headR * 1.02, 0, 6.3);
     ctx.clip();
     ctx.beginPath();
     if (face === 'up') {
-      ctx.arc(cx, headY, headR * 1.02, 0, 6.3);          // all hair
+      ctx.arc(cx, headY, headR * 1.02, 0, 6.3);          // all hair, no face
     } else if (face === 'left' || face === 'right') {
       var dir = face === 'left' ? -1 : 1;
-      ctx.arc(cx - dir * headR * 0.22, headY - headR * 0.10,
+      ctx.arc(cx - dir * headR * 0.26, headY - headR * 0.12,
               headR * 1.02, 0, 6.3);
     } else {
-      ctx.ellipse(cx, headY - headR * 0.42, headR * 1.05, headR * 0.85,
+      ctx.ellipse(cx, headY - headR * 0.46, headR * 1.06, headR * 0.82,
                   0, 0, 6.3);
     }
     ctx.fillStyle = ballGradient(ctx, cx, headY - headR * 0.4, headR, hair);
@@ -177,23 +180,36 @@
     ctx.arc(cx, headY, headR, 0, 6.3);
     ctx.strokeStyle = OUTLINE; ctx.lineWidth = lw; ctx.stroke();
 
-    // eyes, only when there is a face to see
     if (face !== 'up') {
+      var eyeY = headY + headR * 0.16;
+      var er = Math.max(1.2, headR * 0.115);
       ctx.fillStyle = '#20161c';
-      var eyeY = headY + headR * 0.14;
-      var er = Math.max(1, headR * 0.115);
       if (face === 'left' || face === 'right') {
-        var ex = cx + (face === 'right' ? headR * 0.36 : -headR * 0.36);
+        var ex = cx + (face === 'right' ? headR * 0.34 : -headR * 0.34);
         ctx.beginPath(); ctx.arc(ex, eyeY, er, 0, 6.3); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(ex - (face === 'right' ? headR * 0.30 : -headR * 0.30),
+                eyeY, er * 0.72, 0, 6.3);
+        ctx.fill();
       } else {
         ctx.beginPath();
-        ctx.arc(cx - headR * 0.28, eyeY, er, 0, 6.3); ctx.fill();
+        ctx.arc(cx - headR * 0.27, eyeY, er, 0, 6.3); ctx.fill();
         ctx.beginPath();
-        ctx.arc(cx + headR * 0.28, eyeY, er, 0, 6.3); ctx.fill();
+        ctx.arc(cx + headR * 0.27, eyeY, er, 0, 6.3); ctx.fill();
+        // a mouth only from the front, and only a hint of one
+        ctx.strokeStyle = 'rgba(32,22,28,0.55)';
+        ctx.lineWidth = Math.max(1, headR * 0.06);
+        ctx.beginPath();
+        ctx.arc(cx, eyeY + headR * 0.22, headR * 0.20, 0.5, Math.PI - 0.5);
+        ctx.stroke();
       }
     }
+
     ctx.restore();
-    return { headY: headY - headR, height: H };
+    /* headY is what the caller hangs a name-plate or a mood bubble off, so it
+     * still means "the top of the character" - the number moved, the contract
+     * did not. */
+    return { headY: headY - headR, height: headR * 2 + ts * 0.10 };
   }
 
   // ------------------------------------------------------------- buildings
@@ -590,7 +606,60 @@
     ctx.restore();
   }
 
+  /* The small things that grow on the ground: tufts, weeds, twigs, saplings.
+   *
+   * These were the last pixel grids left outdoors, and they showed - little
+   * green plus-signs sitting on ground that had stopped being pixellated
+   * around them. Drawn as blades and stems they cost about the same and stop
+   * contradicting everything else on the screen. */
+  function plant(ctx, kind, sx, sy, ts, seed) {
+    var K = {
+      grassTuft: { n: 6, col: '#5f9e46', h: 0.46, lean: 0.20, w: 0.055 },
+      weed:      { n: 4, col: '#6f8b4a', h: 0.40, lean: 0.34, w: 0.05, head: '#93a95e' },
+      stick:     { n: 3, col: '#7a5a38', h: 0.30, lean: 0.55, w: 0.075 },
+      sapling:   { n: 3, col: '#4d8a42', h: 0.62, lean: 0.10, w: 0.06, head: '#5fa050' }
+    };
+    var d = K[kind] || K.grassTuft;
+    var cx = sx + ts * 0.5, base = sy + ts * 0.90;
+
+    // contact shadow: without it a plant hovers, however well it is drawn
+    ctx.fillStyle = 'rgba(0,0,0,0.20)';
+    ctx.beginPath();
+    ctx.ellipse(cx, base, ts * 0.26, ts * 0.09, 0, 0, 6.3);
+    ctx.fill();
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (var i = 0; i < d.n; i++) {
+      var r1 = rnd(seed + i * 7), r2 = rnd(seed * 3 + i * 13);
+      var bx = cx + (r1 - 0.5) * ts * 0.46;
+      var hh = ts * d.h * (0.7 + r2 * 0.55);
+      var lean = (r2 - 0.5) * ts * d.lean * 2;
+      ctx.strokeStyle = shade(d.col, 0.82 + r1 * 0.42);
+      ctx.lineWidth = Math.max(1.2, ts * d.w);
+      ctx.beginPath();
+      ctx.moveTo(bx, base);
+      ctx.quadraticCurveTo(bx + lean * 0.4, base - hh * 0.6,
+                           bx + lean, base - hh);
+      ctx.stroke();
+      if (d.head) {
+        ctx.fillStyle = shade(d.head, 0.9 + r1 * 0.3);
+        ctx.beginPath();
+        ctx.arc(bx + lean, base - hh, ts * 0.055, 0, 6.3);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function rnd(n) {
+    var h = (n * 374761393) | 0;
+    h = (h ^ (h >> 13)) * 1274126177;
+    return ((h ^ (h >> 16)) >>> 0) / 4294967296;
+  }
+
   global.SDV_ART = {
+    plant: plant,
     person: person, building: building, door: door, sign: sign,
     tree: tree, rock: rock, prop: prop, label: label,
     roundRect: roundRect, shade: shade, solid: solid, OUTLINE: OUTLINE

@@ -34,6 +34,39 @@
     return ((h ^ (h >> 16)) >>> 0) / 4294967296;
   }
 
+  /* Smooth low-frequency variation, anchored to the world.
+   *
+   * WHY this exists: measured, 79% of a midday farm frame was ONE colour - a
+   * single flat brown filling four fifths of the screen. That is what reads as
+   * cheap, and no amount of colour grading touches it, because there is nothing
+   * in the frame to grade apart. Real ground is never one value: it is lighter
+   * where it is dry and worn, darker where it holds water, in patches many
+   * paces across.
+   *
+   * Deliberately LOW frequency, and interpolated. Per-tile randomness was tried
+   * first and it just adds noise - the eye reads static, not terrain. Patches
+   * about seven tiles across are big enough to look like ground and small
+   * enough that a phone screen holds two or three of them. */
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function smoothNoise(x, y, period) {
+    var fx = x / period, fy = y / period;
+    var x0 = Math.floor(fx), y0 = Math.floor(fy);
+    var tx = fx - x0, ty = fy - y0;
+    tx = tx * tx * (3 - 2 * tx);                 // ease, or the patches are diamonds
+    ty = ty * ty * (3 - 2 * ty);
+    return lerp(lerp(noise(x0, y0), noise(x0 + 1, y0), tx),
+                lerp(noise(x0, y0 + 1), noise(x0 + 1, y0 + 1), tx), ty);
+  }
+  function dapple(x, y) {
+    // two octaves: broad patches, plus a gentler ripple so they are not blobs
+    var a = smoothNoise(x, y, 7.0);
+    var b = smoothNoise(x + 37, y - 19, 2.6);
+    /* The range was half this to start with and it was too polite to see -
+     * measured, it moved the flat-area figure but the frame still read as one
+     * colour. Ground varies more than we think it does. */
+    return 0.84 + (a * 0.76 + b * 0.24) * 0.34;   // 0.84 .. 1.18
+  }
+
   function shade(hex, mul) {
     var r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16);
     var b = parseInt(hex.slice(5, 7), 16);
@@ -57,7 +90,13 @@
    */
   function paintGround(ctx, kind, def, sx, sy, ts, x, y, t, area) {
     var n = noise(x, y);
-    ctx.fillStyle = n < 0.5 ? def.c : (def.c2 || def.c);
+    var base = n < 0.5 ? def.c : (def.c2 || def.c);
+    /* Structured ground keeps its exact colour - a floorboard or a flagstone is
+     * manufactured and being uniform is the point. Only what grew or eroded
+     * gets the variation. */
+    var natural = def.t === 'grass' || def.t === 'soil' || def.t === 'furrow'
+               || def.t === 'grain';
+    ctx.fillStyle = natural ? shade(base, dapple(x, y)) : base;
     ctx.fillRect(sx, sy, ts + 1, ts + 1);
 
     var dark = shade(def.c, 0.80), light = shade(def.c, 1.20);
@@ -307,8 +346,9 @@
     var cx = sx + ts / 2, cy = sy + ts / 2;
     var rad = ts * 1.05;
     var bg = ctx.createRadialGradient(cx, cy, ts * 0.20, cx, cy, rad);
-    bg.addColorStop(0, hereDef.c);
-    bg.addColorStop(0.45, hereDef.c);
+    var bc = shade(hereDef.c, dapple(x, y));
+    bg.addColorStop(0, bc);
+    bg.addColorStop(0.45, bc);
     bg.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.save();
     ctx.globalAlpha = 0.72;

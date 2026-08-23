@@ -238,12 +238,30 @@
     this.menuBtn.addEventListener('click', function () { self.openMenu(); });
     this.layer.appendChild(this.menuBtn);
 
-    // right edge, above the bottom band: the one control used in a hurry
+    /* No action button. Walking up to something swings at it, and tapping
+     * something within reach swings at it on purpose - which is also how the
+     * original works on a phone ("Tap on items to action them"). The element is
+     * still created, hidden, because the underground quick-use strip and two
+     * suites position themselves relative to it. */
     var wrap = el('div', 'sdv-actions');
     this.actBtn = el('button', 'sdv-btn sdv-act', '⛏');
     this.actBtn.addEventListener('click', function () { g.useTool(); });
     wrap.appendChild(this.actBtn);
     this.layer.appendChild(wrap);
+
+    /* One button for "do the thing in front of me", and it only exists when
+     * there IS a thing in front. A permanent button had to be ignored most of
+     * the time; this one answers a question the player is already asking, and
+     * it names what it will do so the answer is never a guess. */
+    this.handBtn = el('button', 'sdv-btn sdv-hand');
+    this.handBtn.addEventListener('click', function () { self.handAct(); });
+    this.layer.appendChild(this.handBtn);
+
+    // says which seed a tap on soil will plant, and disarms it when tapped
+    this.seedChip = el('button', 'sdv-seedchip');
+    this.seedChip.style.display = 'none';
+    this.seedChip.addEventListener('click', function () { self.armSeed(null); });
+    this.layer.appendChild(this.seedChip);
 
     // quick-use, underground only: a vertical strip above the action button
     this.quick = el('div', 'sdv-quick');
@@ -349,6 +367,73 @@
       'Kinh nghiệm lên từ việc làm: trồng và thu hoạch, đập đá, nhặt đồ rừng, '
       + 'câu cá, đánh quái.'));
     this.openPanel('Kỹ năng', body);
+  };
+
+  /* What the hand would do right now, or null when it would do nothing.
+   * Deliberately reads the SAME `game.hover` the highlight draws, so the button
+   * and the outlined tile can never disagree about the target. */
+  UI.prototype.handTarget = function () {
+    var g = this.game;
+    if (g.paused || g.fishing || g.cutscene) return null;
+    var o = g.hover;
+    if (o) {
+      if (o.kind === 'npc') return { o: o, icon: '✋', label: 'Nói chuyện' };
+      if (g.canHit(o)) {
+        var job = g.toolJob(o.kind);
+        return { o: o, icon: '✋', label: (job && job.label) || 'Làm' };
+      }
+      return { o: o, icon: '✋', label: this.objectVerb(o) };
+    }
+    // bare soil in front is worth a button too - hoeing is the commonest act
+    var f = g.facingTile(), a = g.world.area();
+    if (a.id === 'farm' || a.id === 'greenhouse' || a.id === 'island') {
+      var t = a.name_of(f.x, f.y);
+      if (t === 'dirt' || t === 'grass') {
+        return { tile: f, icon: '✋', label: 'Cuốc đất' };
+      }
+      if (t === 'tilled' || t === 'watered') {
+        var armed = this.quickSeedItem();
+        return { tile: f, icon: '✋',
+                 label: armed ? 'Gieo ' + armed.name : 'Gieo hạt' };
+      }
+    }
+    return null;
+  };
+
+  /* A short verb for whatever kind of thing this is, for the button caption. */
+  UI.prototype.objectVerb = function (o) {
+    var V = { doorway: 'Vào trong', chest: 'Mở rương', bin: 'Bán đồ',
+              machine: 'Xem máy', counter: 'Mua bán', bed: 'Đi ngủ',
+              kitchen: 'Nấu ăn', workshop: 'Chế tạo', crop: 'Xem cây',
+              calendarBoard: 'Xem lịch', mailbox: 'Xem thư', tv: 'Xem tivi',
+              brokenBridge: 'Sửa cầu', sign: 'Đọc bảng' };
+    return V[o.kind] || 'Mở';
+  };
+
+  UI.prototype.handAct = function () {
+    var t = this.handTarget();
+    if (!t) return;
+    var g = this.game;
+    g.cancelRoute('action');              // the button is the player taking over
+    if (t.o) {
+      if (g.canHit(t.o)) return g.hit(t.o);
+      return this.openObject(t.o, t.o.x, t.o.y);
+    }
+    return this.tapTile(t.tile.x, t.tile.y);
+  };
+
+  UI.prototype.updateHand = function () {
+    var t = this.handTarget();
+    var key = t ? (t.icon + t.label) : '';
+    if (this.handBtn.dataset.key !== key) {
+      this.handBtn.dataset.key = key;
+      this.handBtn.innerHTML = '';
+      if (t) {
+        this.handBtn.appendChild(el('span', null, t.icon));
+        this.handBtn.appendChild(el('small', null, t.label));
+      }
+    }
+    this.handBtn.classList.toggle('sdv-on', !!t);
   };
 
   UI.prototype.updateQuick = function () {
@@ -1009,11 +1094,28 @@
     /* WHY: gating on a.id === 'farm' meant the greenhouse and the island plot
      * were decorative - you could stand on soil and not be allowed to plant. */
     var farmable = a.id === 'farm' || a.id === 'greenhouse' || a.id === 'island';
-    if (farmable && (t === 'tilled' || t === 'watered')) return this.tileMenu(x, y);
+    if (farmable && (t === 'tilled' || t === 'watered')) {
+      /* Quick-sow. With a seed armed, a tap on empty soil plants it outright -
+       * the menu is skipped because choosing the seed IS the menu, and it was
+       * already answered. A tap that cannot plant (wrong season, bag empty)
+       * falls through to the full menu rather than failing in silence. */
+      var armed = this.quickSeedItem();
+      if (armed && this.plant(x, y, armed)) return;
+      return this.tileMenu(x, y);
+    }
     if (farmable && (t === 'dirt' || t === 'grass')) return this.buildMenu(x, y);
   };
 
   UI.prototype.openObject = function (o, x, y) {
+    /* Something that breaks, within reach, is HIT rather than opened.
+     *
+     * WHY this is here and not on a button: it used to do nothing at all - the
+     * switch below fell through to `default: return`, so tapping a rock was
+     * silence and the only way to break one was the action button. That button
+     * is gone, and this is what replaces it. It matters most below the stamina
+     * reserve, where the auto-swing deliberately stops: the player can still
+     * spend their last point, they just cannot lose it by standing still. */
+    if (this.game.canHit(o)) return this.game.hit(o);
     switch (o.kind) {
       case 'npc': return this.openNpc(o.npc);
       case 'crop': return this.cropMenu(o);
@@ -1051,14 +1153,27 @@
     var list = el('div', 'sdv-menu');
     this.saplingOptions(x, y, list);
     if (seeds.length) {
-      list.appendChild(el('div', 'sdv-sub', 'Gieo hạt'));
+      list.appendChild(el('div', 'sdv-sub',
+        'Gieo hạt — chạm để gieo ô này, giữ ⚡ để gieo nhanh mọi ô sau đó'));
       seeds.forEach(function (sd) {
         var b = el('button', 'sdv-mbtn');
         b.appendChild(icon(sd.name, 'seed', 26));
         b.appendChild(el('span', null, sd.name + ' ×' + sd.qty));
+        /* Arm this seed, and every later tap on bare soil plants it with no
+         * menu at all. That is the "gieo hạt nhanh (chọn loại hạt trước)" the
+         * owner asked for: the choice is made ONCE, then sowing a field is one
+         * tap per tile instead of three. */
+        var q = el('span', 'sdv-quickarm', self.quickSeed === sd.name ? '⚡ đang bật' : '⚡');
+        q.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          self.armSeed(self.quickSeed === sd.name ? null : sd.name);
+          self.close();
+        });
+        b.appendChild(q);
         b.addEventListener('click', function () { self.plant(x, y, sd); });
         list.appendChild(b);
       });
+      this.bulkOption(list, 'sow', x, y);
     } else {
       list.appendChild(el('div', 'sdv-sub', 'Không có hạt giống trong túi'));
     }
@@ -1171,7 +1286,10 @@
     this.close();
   };
 
-  UI.prototype.plant = function (x, y, seedStack) {
+  /* `quiet` is for the bulk sweep: it plants the same way but leaves the
+   * message, the sound and the panel-closing to the caller, so filling nine
+   * tiles is one line of feedback instead of nine. */
+  UI.prototype.plant = function (x, y, seedStack, quiet) {
     var g = this.game, a = g.world.area();
     var cropName = seedStack.name.replace(/\s*Seeds?$/i, '').replace(/\s*Starter$/i, '');
     var def = null;
@@ -1179,13 +1297,15 @@
       var c = this.game.data.crops[i];
       if (c.seed === seedStack.name || c.name === cropName) { def = c; break; }
     }
-    if (!def) { this.game.toast('Hạt này chưa trồng được'); return; }
+    if (!def) { if (!quiet) this.game.toast('Hạt này chưa trồng được'); return false; }
     var indoors = g.world.area().season;    // greenhouse pins its own season
     if (!indoors && def.seasons.length && def.seasons.indexOf(this.sim.season()) < 0) {
-      this.game.toast(def.name + ' không trồng được mùa ' + this.sim.seasonVN());
-      return;
+      if (!quiet) {
+        this.game.toast(def.name + ' không trồng được mùa ' + this.sim.seasonVN());
+      }
+      return false;
     }
-    if (g.world.objAt(x, y)) { this.game.toast('Ô này đã có cây'); return; }
+    if (g.world.objAt(x, y)) { if (!quiet) this.game.toast('Ô này đã có cây'); return false; }
     this.sim.take(seedStack.name, 1);
     var stageDays = (def.stages && def.stages.length) ? def.stages.slice() : [1, 1, 1, 1];
     a.fert = a.fert || {};
@@ -1203,8 +1323,11 @@
       fert: a.fert[x + ',' + y] || 0
     });
     if (a.name_of(x, y) === 'dirt') a.set(x, y, 'tilled');
+    a.reindex();                       // the crop has to be findable by tile
+    if (quiet) return true;
     this.close();
     this.game.toast('Đã gieo ' + def.name);
+    return true;
   };
 
   UI.prototype.cropMenu = function (o) {
@@ -1320,6 +1443,15 @@
       label: '💧 Tưới cả vùng quanh đây',
       none: 'Quanh đây không có ô nào đang khát',
       done: function (n) { return 'Đã tưới ' + n + ' ô'; }
+    },
+    /* Sowing costs no stamina in this game, so the limit on this one is the
+     * SEEDS in the bag - which is why bulkTargets has to trim the list to what
+     * can actually be paid for, or the button promises a patch it cannot fill. */
+    sow: {
+      r: 2, shape: 'disc', cost: 0,
+      label: '🌱 Gieo cả vùng quanh đây',
+      none: 'Quanh đây không có ô đất trống nào để gieo',
+      done: function (n) { return 'Đã gieo ' + n + ' ô'; }
     }
   };
 
@@ -1329,6 +1461,15 @@
   UI.prototype.bulkTargets = function (mode, cx, cy) {
     var g = this.game, a = g.world.area(), spec = BULK[mode], out = [];
     if (a.id !== 'farm' && a.id !== 'greenhouse' && a.id !== 'island') return out;
+    /* Sowing is limited by SEEDS, not by stamina, so the count has to be capped
+     * at what is in the bag. Without this the button offers to sow twenty-one
+     * tiles on the strength of three seeds. */
+    var seedLeft = -1;
+    if (mode === 'sow') {
+      var arm = this.quickSeedItem();
+      if (!arm) return out;
+      seedLeft = arm.qty;
+    }
     var r = spec.r;
     for (var dy = -r; dy <= r; dy++) {
       for (var dx = -r; dx <= r; dx++) {
@@ -1348,6 +1489,9 @@
           var dry = (t === 'tilled') || (o && o.kind === 'crop' && !o.watered);
           if (!dry) continue;
         }
+        if (mode === 'sow') {
+          if (out.length >= seedLeft) continue;
+        }
         out.push({ x: x, y: y });
       }
     }
@@ -1361,6 +1505,15 @@
       var t = tiles[i];
       // stop the moment the purse is empty rather than going negative
       if (s.energy < spec.cost) break;
+      if (mode === 'sow') {
+        var sd = this.quickSeedItem();
+        if (!sd) break;
+        // the single-tile call owns the seed, the crop record and the message
+        var before = a.objs.length;
+        this.plant(t.x, t.y, sd, true);
+        if (a.objs.length > before) done++;
+        continue;
+      }
       if (mode === 'hoe') {
         // the single-tile call owns the cost, the tile write, the dust and the
         // sound; re-implementing any of that here is how the two drift apart
@@ -1377,8 +1530,9 @@
     if (done) {
       /* One splash and one sound for the whole sweep. Nine of each at once is
        * an unreadable smear and nine overlapping samples is a click. */
-      g.fx.hit(mode === 'hoe' ? 'hoe' : 'water', cx, cy, g.player.face);
-      g.sfx(mode === 'hoe' ? 'hoe' : 'water');
+      g.fx.hit(mode === 'hoe' ? 'hoe' : mode === 'sow' ? 'weed' : 'water',
+               cx, cy, g.player.face);
+      g.sfx(mode === 'hoe' ? 'hoe' : mode === 'sow' ? 'pickup' : 'water');
       g.toast(spec.done(done));
     }
     return done;
@@ -1387,6 +1541,34 @@
   /* The button itself. Appends nothing when there is no work to do nearby -
    * an option that is permanently greyed for a reason the player cannot see is
    * just noise in the menu. */
+  /* Arm (or disarm) the seed that a tap on bare soil will plant. */
+  UI.prototype.armSeed = function (name) {
+    this.quickSeed = name || null;
+    var chip = this.seedChip;
+    if (!chip) return;
+    if (!name) {
+      chip.style.display = 'none';
+      if (this.game) this.game.toast('Đã tắt gieo nhanh');
+      return;
+    }
+    chip.innerHTML = '';
+    chip.appendChild(icon(name, 'seed', 20));
+    chip.appendChild(el('span', null, name));
+    chip.appendChild(el('small', null, '· chạm để tắt'));
+    chip.style.display = '';
+    if (this.game) this.game.toast('Gieo nhanh: ' + name + ' — chạm ô đất là gieo');
+  };
+
+  /* How many of the armed seed are actually in the bag. */
+  UI.prototype.quickSeedItem = function () {
+    if (!this.quickSeed) return null;
+    var inv = this.sim.inventory;
+    for (var i = 0; i < inv.length; i++) {
+      if (inv[i] && inv[i].name === this.quickSeed && inv[i].qty > 0) return inv[i];
+    }
+    return null;
+  };
+
   UI.prototype.bulkOption = function (list, mode, cx, cy) {
     var self = this, spec = BULK[mode];
     var tiles = this.bulkTargets(mode, cx, cy);
@@ -1424,9 +1606,26 @@
      * tap, the button is visibly dead when the player cannot pay it, and the
      * charge is per tile ACTUALLY turned - tiles already tilled, occupied or
      * off the farm are skipped and cost nothing. */
+    /* One tile or nine, offered together and priced together. They were on
+     * the menu already but read as two unrelated things - "cuốc thành luống"
+     * with no price next to a 3x3 sweep with one. The owner asked for the
+     * choice to be explicit, so both now say what they cost and sit next to
+     * each other. */
+    list.appendChild(el('div', 'sdv-sub', 'Cuốc đất'));
+    var oneCan = this.sim.energy >= 2 && !g.world.objAt(x, y);
+    var one = el('button', 'sdv-mbtn' + (oneCan ? '' : ' sdv-off'));
+    one.appendChild(el('span', null, '⛏ Cuốc 1 ô'));
+    one.appendChild(el('small', 'sdv-cost',
+      'Tốn 2 sức · đang có ' + Math.round(this.sim.energy)
+      + (oneCan ? '' : (g.world.objAt(x, y) ? ' — ô này có vật cản' : ' — không đủ'))));
+    one.addEventListener('click', function () {
+      if (!oneCan) return self.game.toast('Không cuốc được ô này');
+      g.hoeTile(x, y);
+      self.close();
+    });
+    list.appendChild(one);
     this.bulkOption(list, 'hoe', x, y);
     var opts = [
-      { label: '🌱 Cuốc thành luống', cost: {}, act: function () { a.set(x, y, 'tilled'); self.sim.spend(2); } },
       { label: '📦 Rương gỗ', cost: { Wood: 50 }, act: function () { a.objs.push({ x: x, y: y, kind: 'chest' }); } },
       { label: '🔨 Xem máy móc trên nông trại…', cost: {}, act: function () {
           setTimeout(function () { self.openMachineList(); }, 0); } },
@@ -3090,7 +3289,8 @@
           var xp = Math.floor((q + 1) * 3 + (fish.difficulty || 20) / 3);
           if (s.perfect) xp = Math.floor(xp * 2.4);
           var lvl = sim.addXp('fishing', xp);
-          g.toast('Câu được ' + fish.name + (s.perfect ? ' — HOÀN HẢO!' : '!'));
+          var caught = self.rollFishSize(fish, s.perfect);
+          self.showCatch(fish, caught, q, s.perfect, xp, s.chestCaught);
           if (s.chestCaught) self.fishTreasure();
           if (lvl) g.toast('Câu cá lên cấp ' + lvl + '!');
         } else g.toast('Túi đầy!');
@@ -3100,6 +3300,108 @@
       }
       self.close();
     }
+  };
+
+  /* How long the fish is, by the original's own formula.
+   *
+   * The wiki: a size factor is rolled from how far the bobber landed, the
+   * angler's level and a random roll, and the length is
+   *     floor(minSize + (maxSize - minSize) * factor + 1)   inches
+   * There is no distance-from-land in this build - casting is a panel, not an
+   * arc across the water - so that term is replaced by how well the catch
+   * itself went, which is the thing the player actually controls here. A
+   * perfect catch is worth a real amount of it, which is what makes hanging on
+   * to the bar mean something beyond the grade.
+   *
+   * NOTE ON WEIGHT: the owner asked for weight. The original does not have
+   * one - it tracks LENGTH, in inches, and keeps a record per species. That is
+   * the number with real data behind it, so that is what this shows.
+   */
+  UI.prototype.rollFishSize = function (fish, perfect) {
+    var T = global.SDV_FISH_SIZE || {};
+    var d = T[fish.name];
+    if (!d) return null;
+    var lvl = this.sim.skills.fishing || 0;
+    var factor = ((lvl + 2) / 12) * (0.55 + Math.random() * 0.45);
+    if (perfect) factor = Math.min(1, factor + 0.28);
+    factor = Math.max(0, Math.min(1, factor));
+    var inches = Math.floor(d.min + (d.max - d.min) * factor + 1);
+    inches = Math.max(d.min, Math.min(d.max, inches));
+
+    /* The record is the point. A number on its own is trivia; the same number
+     * next to "your best was 31" is a reason to cast again - and the original
+     * keeps exactly this, per species, in the collections screen. */
+    this.sim.fishRecord = this.sim.fishRecord || {};
+    var prev = this.sim.fishRecord[fish.name] || 0;
+    var best = inches > prev;
+    if (best) this.sim.fishRecord[fish.name] = inches;
+    return { inches: inches, prev: prev, best: best,
+             tier: d.t, colour: d.c, rarity: d.r, min: d.min, max: d.max };
+  };
+
+  var QUALITY_VN = ['Thường', 'Bạc', 'Vàng', 'Iridi'];
+  var QUALITY_COL = ['#cfc3ad', '#c9d4de', '#ffd45c', '#b98cff'];
+
+  /* The screen that makes a catch land.
+   *
+   * It used to be one line of toast that scrolled away in two seconds. What is
+   * on it is all real: the length comes from the original's formula, the tier
+   * comes from how restricted the fish actually is (season, weather, time
+   * window, how many places it lives, difficulty - see
+   * docs/research/stardew/tools/build_fish_size.py), and the record is the
+   * player's own previous best for that species. */
+  UI.prototype.showCatch = function (fish, size, q, perfect, xp, chest) {
+    var self = this;
+    var body = el('div', 'sdv-body sdv-catch');
+
+    if (perfect) {
+      var pf = el('div', 'sdv-perfect', 'HOÀN HẢO');
+      body.appendChild(pf);
+    }
+    var art = el('div', 'sdv-catchart');
+    art.appendChild(icon(fish.name, 'fish', 96));
+    body.appendChild(art);
+
+    var nm = el('div', 'sdv-catchname', fish.name);
+    body.appendChild(nm);
+
+    if (size) {
+      var tag = el('div', 'sdv-catchtier', size.tier);
+      tag.style.color = size.colour;
+      tag.style.borderColor = size.colour;
+      body.appendChild(tag);
+    }
+
+    var rows = el('div', 'sdv-catchrows');
+    function row(k, v, col) {
+      var r = el('div', 'sdv-catchrow');
+      r.appendChild(el('span', null, k));
+      var val = el('b', null, v);
+      if (col) val.style.color = col;
+      r.appendChild(val);
+      rows.appendChild(r);
+    }
+    if (size) {
+      row('Chiều dài', size.inches + '"',
+          size.best ? '#8ede76' : null);
+      row(size.best ? 'Kỷ lục cũ' : 'Kỷ lục của bạn',
+          (size.prev ? size.prev + '"' : 'chưa có'), null);
+    }
+    row('Chất lượng', QUALITY_VN[q] || QUALITY_VN[0], QUALITY_COL[q]);
+    row('Kinh nghiệm', '+' + xp);
+    row('Bán được', this.sim.sellPrice(fish.name, q) + 'g');
+    body.appendChild(rows);
+
+    if (size && size.best) {
+      body.appendChild(el('div', 'sdv-catchrec',
+        size.prev ? '🏆 Kỷ lục mới!' : '🏆 Con đầu tiên!'));
+    }
+    if (chest) body.appendChild(el('div', 'sdv-sub', '🎁 Kèm một rương kho báu'));
+
+    var ok = el('button', 'sdv-mbtn', 'Tuyệt!');
+    ok.addEventListener('click', function () { self.close(); });
+    body.appendChild(ok);
+    this.openPanel('Câu được!', body);
   };
 
   /* Treasure-chest loot. The wiki's contents table is long and half of it is

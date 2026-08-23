@@ -257,7 +257,12 @@
     ctx.globalCompositeOperation = 'source-over';
     var vg = ctx.createRadialGradient(vw / 2, vh * 0.52, Math.min(vw, vh) * 0.30,
                                       vw / 2, vh * 0.52, Math.max(vw, vh) * 0.78);
-    var vStrength = 0.30 + 0.34 * dark + (area.depth ? 0.22 : 0);
+    /* Heavier in daylight than it was. A vignette is not just a night-time
+     * effect: it is what gives a bright frame somewhere dark to be, and this
+     * picture had NO true darks at all - measured, a midday farm lived entirely
+     * between 0.165 and 0.322 lightness, which is why it looked printed rather
+     * than lit. */
+    var vStrength = 0.44 + 0.30 * dark + (area.depth ? 0.20 : 0);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
     vg.addColorStop(0.62, 'rgba(0,0,0,' + (vStrength * 0.28).toFixed(3) + ')');
     vg.addColorStop(1, 'rgba(0,0,0,' + vStrength.toFixed(3) + ')');

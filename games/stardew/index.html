@@ -20,7 +20,31 @@
   #frame{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
   #stage{position:relative;background:#12161c;overflow:hidden;
     box-shadow:0 0 0 2px #2a323d,0 18px 60px rgba(0,0,0,.6)}
-  canvas#view{display:block;width:100%;height:100%;image-rendering:pixelated}
+  /* The colour grade.
+   *
+   * Measured against Ca Truc Dem, which is the look the owner is comparing this
+   * to: that game's frame sits at 0.147 saturation across a 0.402 tonal range;
+   * this one was at 0.413 across 0.227. Three times the colour in half the
+   * range is not a style, it is mud - every surface a mid-value brown, nothing
+   * properly dark, nothing properly bright, which is exactly what "nhin van do
+   * lam" describes.
+   *
+   * Grading here rather than repainting forty tile colours: this is one line,
+   * runs on the GPU, applies to everything the world draws INCLUDING anything
+   * added later, and cannot drift out of step with itself the way a hand-tuned
+   * palette does. It is on the canvas only, so the interface keeps its own
+   * colours and stays legible.
+   *
+   * `image-rendering` is gone with it - there is nothing pixellated left to
+   * preserve, and it was hardening the edge of every gradient.
+   *
+   * The order matters and the first attempt got it wrong: raising contrast
+   * pushes the colour channels apart, so it RE-SATURATES what saturate() just
+   * pulled in. Measured, saturate(.74) with contrast(1.16) came out MORE
+   * colourful than no grade at all. The desaturation has to be cut deep enough
+   * to survive the contrast that follows it. */
+  canvas#view{display:block;width:100%;height:100%;
+    filter:saturate(.62) contrast(1.24) brightness(1.05)}
   .sdv-layer{position:absolute;inset:0;pointer-events:none}
   .sdv-layer button,.sdv-layer input,.sdv-panel,.sdv-stick,.sdv-mini,
   .sdv-quick,.sdv-slot,.sdv-drop,.sdv-row,.sdv-chip{pointer-events:auto}
@@ -52,14 +76,30 @@
     border-radius:14px;padding:5px 12px;font-size:12px;max-width:86%}
 
   /* ---------- controls ---------- */
-  .sdv-stick{position:absolute;left:16px;bottom:22px;width:118px;height:118px;
+  .sdv-stick{position:absolute;left:50%;transform:translateX(-50%);
+    bottom:22px;width:118px;height:118px;
     border-radius:50%;background:rgba(20,26,34,.45);border:2px solid rgba(255,255,255,.16)}
   .sdv-knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;
     border-radius:50%;background:rgba(244,236,216,.55);border:2px solid rgba(255,255,255,.5)}
-  .sdv-actions{position:absolute;right:16px;bottom:22px;display:flex;align-items:flex-end;gap:10px}
+  .sdv-actions{display:none}
   .sdv-btn{border:none;border-radius:50%;background:rgba(232,161,60,.92);color:#241a10;
     font-weight:700;box-shadow:0 4px 0 #8a5c1e;cursor:pointer}
   .sdv-act{width:78px;height:78px;font-size:30px}
+  /* The hand: one contextual button for the tile in front, hidden whenever
+     there is nothing in front to act on.
+     Right side, just ABOVE the bottom band. Two of the owner's instructions
+     meet here - "chi nen co joystick o duoi cung" and "dat o vi tri thuan tay
+     bam" - and they both hold at this height: the joystick keeps the band to
+     itself, and on a 430x860 screen 150px up is still well inside the arc a
+     right thumb sweeps without moving the hand. Sitting it IN the band was
+     tried first and broke the first rule, which a suite caught. */
+  .sdv-hand{position:absolute;right:18px;bottom:150px;width:82px;height:82px;
+    font-size:34px;display:none;align-items:center;justify-content:center;
+    flex-direction:column;line-height:1;gap:2px;
+    background:rgba(244,236,216,.95);box-shadow:0 5px 0 #8a7c5e}
+  .sdv-hand small{font-size:11px;font-weight:700;opacity:.75;letter-spacing:.2px}
+  .sdv-hand.sdv-on{display:flex}
+  .sdv-hand:active{transform:translateY(3px);box-shadow:0 2px 0 #8a7c5e}
   .sdv-small{width:50px;height:50px;font-size:20px;background:rgba(244,236,216,.9);
     box-shadow:0 4px 0 #8a7c5e}
   .sdv-btn:active{transform:translateY(3px);box-shadow:none}
@@ -347,22 +387,60 @@
     animation:sdv-bobbing 1.6s ease-in-out infinite}
   @keyframes sdv-bobbing{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
 
-  /* ---- HUD: the bottom band is the joystick's, everything else moved ---- */
+  /* ---- HUD: the bottom band is the joystick's, everything else moved ----
+     The joystick sits CENTRED. It was bottom-left, which is where a joystick
+     goes when there are buttons on the right to balance it; with the buttons
+     gone that left the whole right half of the band empty and the stick out on
+     a corner. Centred, it is the same distance from either thumb, which is what
+     the owner asked for. */
   /* One menu button under the minimap: clear of the notch, clear of the status
      line, clear of the minimap, and reachable without crossing the screen. */
   .sdv-menubtn{position:absolute;left:10px;top:144px;width:46px;height:46px;
     font-size:20px;background:rgba(244,236,216,.92);box-shadow:0 4px 0 #8a7c5e}
-  /* The action button keeps a thumb position but leaves the bottom band. The
-     joystick occupies 22..140px from the bottom, so this starts above it. */
-  .sdv-actions{position:absolute;right:14px;bottom:150px;display:flex;
-    align-items:flex-end;gap:10px}
-  .sdv-act{width:72px;height:72px;font-size:28px}
+  /* The action button is GONE.
+     Walking up to something now performs the action on its own, and tapping
+     something adjacent does it deliberately, so a permanent button existed to
+     duplicate two things the player already had. The owner's read was the same:
+     "nút hình pickaxe chắc không cần xài nữa". The rule kept from it is the one
+     that matters - there is always a way to swing on purpose, because the
+     auto-swing stops short of collapsing and the manual path must not. */
+  .sdv-actions{display:none}
   /* Underground quick-use: a column above the action button. It used to be a
      row at bottom-left, lying across the joystick. */
-  .sdv-quick{position:absolute;right:20px;bottom:232px;left:auto;
+  .sdv-quick{position:absolute;right:20px;bottom:244px;left:auto;
     flex-direction:column;gap:6px}
 
-  /* ---- toasts: topmost, rising, fading ---- */
+  /* The catch screen. Deliberately quiet chrome - the fish is the loud thing on
+   it, and a border round every row would compete with the one number that
+   matters. */
+.sdv-catch{text-align:center;padding-top:4px}
+.sdv-perfect{display:inline-block;padding:3px 12px;border-radius:12px;
+  font-size:12px;font-weight:800;letter-spacing:2px;color:#2a1f10;
+  background:linear-gradient(180deg,#ffe07a,#f0b93c);margin-bottom:6px}
+.sdv-catchart{display:flex;justify-content:center;align-items:center;
+  height:104px;margin:2px 0 6px}
+.sdv-catchart canvas{width:96px;height:96px}
+.sdv-catchname{font-size:20px;font-weight:800;letter-spacing:.3px}
+.sdv-catchtier{display:inline-block;margin:6px 0 10px;padding:2px 10px;
+  border:1px solid;border-radius:11px;font-size:12px;font-weight:700;
+  letter-spacing:1.2px;text-transform:uppercase}
+.sdv-catchrows{margin:2px 0 10px}
+.sdv-catchrow{display:flex;justify-content:space-between;align-items:baseline;
+  padding:5px 4px;font-size:14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sdv-catchrow span{opacity:.7}
+.sdv-catchrow b{font-variant-numeric:tabular-nums}
+.sdv-catchrec{margin:2px 0 10px;font-size:15px;font-weight:800;color:#ffd45c}
+
+/* The armed seed. Quick-sow means a tap on soil plants without a menu, so
+   something has to say WHAT it will plant - an invisible mode that spends seeds
+   is worse than the menu it replaced. Tapping the chip disarms it. */
+.sdv-seedchip{position:absolute;left:10px;top:200px;display:flex;align-items:center;
+  gap:6px;padding:6px 10px;border-radius:14px;font-size:13px;font-weight:700;
+  background:rgba(244,236,216,.94);color:#3a2d1c;box-shadow:0 3px 0 #8a7c5e;
+  border:0;max-width:44vw}
+.sdv-seedchip small{font-weight:600;opacity:.7}
+
+/* ---- toasts: topmost, rising, fading ---- */
   /* Not inside .sdv-layer any more - panels are appended to that layer after
      the toast box and painted straight over it. */
   /* Kept clear of the right edge and lifted above the action button: at
@@ -425,31 +503,32 @@
   <p id="boot-warn" style="display:none;color:#e8a13c;font-size:13px;max-width:300px"></p>
 </div>
 
-<script src="data/gamedata.js?v=20260823g"></script>
-<script src="data/maps.js?v=20260823g"></script>
-<script src="data/npcs.js?v=20260823g"></script>
-<script src="data/recipes_unlock.js?v=20260823g"></script>
-<script src="js/sprites.js?v=20260823g"></script>
-<script src="js/world.js?v=20260823g"></script>
-<script src="js/tiles.js?v=20260823g"></script>
-<script src="js/art.js?v=20260823g"></script>
-<script src="js/light.js?v=20260823g"></script>
-<script src="js/fx.js?v=20260823g"></script>
-<script src="js/audio.js?v=20260823g"></script>
-<script src="js/machines.js?v=20260823g"></script>
-<script src="js/sim.js?v=20260823g"></script>
-<script src="js/mine.js?v=20260823g"></script>
-<script src="js/farmlife.js?v=20260823g"></script>
-<script src="js/events.js?v=20260823g"></script>
-<script src="js/npc.js?v=20260823g"></script>
-<script src="js/game.js?v=20260823g"></script>
-<script src="js/ui.js?v=20260823g"></script>
-<script src="js/panels.js?v=20260823g"></script>
-<script src="js/machineui.js?v=20260823g"></script>
-<script src="js/progress.js?v=20260823g"></script>
-<script src="js/social.js?v=20260823g"></script>
-<script src="js/intro.js?v=20260823g"></script>
-<script src="js/bot.js?v=20260823g"></script>
+<script src="data/gamedata.js?v=20260823h"></script>
+<script src="data/maps.js?v=20260823h"></script>
+<script src="data/npcs.js?v=20260823h"></script>
+<script src="data/recipes_unlock.js?v=20260823h"></script>
+<script src="data/fish_size.js?v=20260823h"></script>
+<script src="js/sprites.js?v=20260823h"></script>
+<script src="js/world.js?v=20260823h"></script>
+<script src="js/tiles.js?v=20260823h"></script>
+<script src="js/art.js?v=20260823h"></script>
+<script src="js/light.js?v=20260823h"></script>
+<script src="js/fx.js?v=20260823h"></script>
+<script src="js/audio.js?v=20260823h"></script>
+<script src="js/machines.js?v=20260823h"></script>
+<script src="js/sim.js?v=20260823h"></script>
+<script src="js/mine.js?v=20260823h"></script>
+<script src="js/farmlife.js?v=20260823h"></script>
+<script src="js/events.js?v=20260823h"></script>
+<script src="js/npc.js?v=20260823h"></script>
+<script src="js/game.js?v=20260823h"></script>
+<script src="js/ui.js?v=20260823h"></script>
+<script src="js/panels.js?v=20260823h"></script>
+<script src="js/machineui.js?v=20260823h"></script>
+<script src="js/progress.js?v=20260823h"></script>
+<script src="js/social.js?v=20260823h"></script>
+<script src="js/intro.js?v=20260823h"></script>
+<script src="js/bot.js?v=20260823h"></script>
 <script>
 (function(){
   'use strict';
@@ -470,6 +549,7 @@
     ['SDV_DATA', 'data/gamedata.js'], ['SDV_MAPS', 'data/maps.js'],
     ['SDV_NPCS', 'data/npcs.js'],
     ['SDV_RECIPE_UNLOCK', 'data/recipes_unlock.js'],
+    ['SDV_FISH_SIZE', 'data/fish_size.js'],
     ['SDV_SPRITES', 'js/sprites.js'],
     ['SDV_WORLD', 'js/world.js'], ['SDV_TILES', 'js/tiles.js'],
     ['SDV_FX', 'js/fx.js'], ['SDV_LIGHT', 'js/light.js'],
@@ -491,7 +571,7 @@
      bit us: GitHub Pages caches each file for ten minutes independently, the
      tags carried no version at all, and a returning player got last week's
      renderer with this week's page and reported that nothing had changed. */
-  var BUILD = '20260823g';
+  var BUILD = '20260823h';
   function refetch(list, done){
     var left = list.length;
     if (!left) return done();
@@ -586,6 +666,7 @@
         game.render();
         ui.updateHud();
         ui.updateQuick();
+        ui.updateHand();
       } catch (e) {
         /* One bad frame must not stop the loop - but a frame that fails over
            and over is a broken build, not a hiccup, and saying so once is
