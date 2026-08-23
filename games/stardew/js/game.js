@@ -419,28 +419,54 @@
     }
     var r = p.route;
     if (!r) return;
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    for (var i = r.i; i < r.path.length; i++) {
-      var t = r.path[i];
-      var a = 0.30 - (i - r.i) * 0.006;
-      if (a <= 0.03) break;
-      ctx.fillStyle = 'rgba(255,236,180,' + a.toFixed(3) + ')';
-      ctx.beginPath();
-      ctx.arc(t.x * ts - camX + ts / 2, t.y * ts - camY + ts / 2,
-              Math.max(1.5, ts * 0.07), 0, 6.3);
-      ctx.fill();
-    }
-    ctx.restore();
     var g = r.path[r.path.length - 1];
     if (!g) return;
-    var pulse = 0.55 + 0.45 * Math.sin(now / 220);
+
+    /* Where you are GOING, not the line you will take to get there.
+     *
+     * It used to draw one glowing dot per tile of the path, added on top of
+     * the frame - which at this zoom is a fat luminous snake winding across
+     * town, and the owner's word for it was "kì". The route is also the least
+     * interesting half of the information: the player chose the destination
+     * and already knows roughly where they are; what they want confirmed is
+     * that the tap landed, and on WHAT.
+     *
+     * So: a flat ring on the ground at the target, drawn squashed like a decal
+     * lying on the tile rather than a circle hanging in the air, and a chevron
+     * bobbing above it. Nothing along the way. */
+    var gx = g.x * ts - camX + ts / 2;
+    var gy = g.y * ts - camY + ts / 2;
+    var beat = (now % 1200) / 1200;               // one slow pulse a second-ish
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,226,150,' + pulse.toFixed(2) + ')';
-    ctx.lineWidth = Math.max(2, ts * 0.07);
+
+    // the decal: two rings, the outer one expanding and fading
+    ctx.strokeStyle = 'rgba(255,228,150,' + (0.55 * (1 - beat)).toFixed(3) + ')';
+    ctx.lineWidth = Math.max(1.5, ts * 0.05);
     ctx.beginPath();
-    ctx.arc(g.x * ts - camX + ts / 2, g.y * ts - camY + ts / 2,
-            ts * 0.30, 0, 6.3);
+    ctx.ellipse(gx, gy, ts * (0.26 + beat * 0.30), ts * (0.11 + beat * 0.13),
+                0, 0, 6.3);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,228,150,0.82)';
+    ctx.lineWidth = Math.max(2, ts * 0.065);
+    ctx.beginPath();
+    ctx.ellipse(gx, gy, ts * 0.26, ts * 0.11, 0, 0, 6.3);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,228,150,0.16)';
+    ctx.fill();
+
+    // the chevron, bobbing - it says "here" from across the screen
+    var bob = Math.sin(now / 320) * ts * 0.07;
+    var cy = gy - ts * 0.52 + bob;
+    ctx.fillStyle = 'rgba(255,228,150,0.95)';
+    ctx.strokeStyle = 'rgba(60,44,20,0.55)';
+    ctx.lineWidth = Math.max(1, ts * 0.03);
+    ctx.beginPath();
+    ctx.moveTo(gx, cy + ts * 0.17);
+    ctx.lineTo(gx - ts * 0.15, cy - ts * 0.10);
+    ctx.lineTo(gx + ts * 0.15, cy - ts * 0.10);
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
     ctx.restore();
   };
@@ -1255,7 +1281,7 @@
             || bd.x + bd.w < x0 - 6 || bd.y + bd.h < y0 - 6) continue;
         var bsx = Math.round(bd.x * ts - camX);
         var bsy = Math.round(bd.y * ts - camY);
-        ART.building(ctx, bd, bsx, bsy, ts, night);
+        var built = ART.building(ctx, bd, bsx, bsy, ts, night);
         if (!bd.door) continue;
         var dsx = Math.round(bd.door.x * ts - camX);
         /* The maps put the door ACTION on the doorstep - the walkable tile in
@@ -1266,8 +1292,14 @@
         if (a.bpart && a.bpart[above]) wallY = bd.door.y - 1;
         var dsy = Math.round(wallY * ts - camY);
         var isOpen = this.doorIsOpen(a, bd.door.x, bd.door.y);
-        ART.door(ctx, bd, dsx, dsy, ts, isOpen, night);
-        if (bd.sign) ART.sign(ctx, bd.sign, dsx + ts / 2, dsy, ts, isOpen);
+        /* The door's foot is the building's foot - see js/art.js. Deriving it
+         * from the door TILE is what put doors halfway up the wall. */
+        var footY = Math.round((bd.y + bd.h) * ts - camY);
+        ART.door(ctx, bd, dsx, dsy, ts, isOpen, night, footY);
+        if (bd.sign) {
+          ART.sign(ctx, bd.sign, dsx + ts / 2,
+                   footY - ts * 1.55, ts, isOpen);
+        }
       }
     }
 
@@ -1821,6 +1853,14 @@
       }
       case 'stump': {
         global.SDV_ART.rock(ctx, sx + ts * 0.5, sy + ts * 0.95, ts * 0.8, null);
+        break;
+      }
+      case 'shelf': case 'crate': case 'table': case 'wallLamp': {
+        var fcol = null;
+        if (o.good) {
+          try { fcol = S.iconColors(o.good, 'crop').main; } catch (e) { fcol = null; }
+        }
+        global.SDV_ART.fitting(ctx, o.kind, sx, sy, ts, { colour: fcol });
         break;
       }
       case 'grassTuft': case 'weed': case 'stick': case 'sapling': {

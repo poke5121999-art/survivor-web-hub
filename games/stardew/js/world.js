@@ -801,6 +801,134 @@
     bus: 1, sewerGrate: 1, workshop: 1, mailbox: 1, kitchen: 1, bed: 1
   };
 
+  /* Shop interiors, built as ROOMS.
+   *
+   * WHY this exists at all: measured, Pierre's interior was 48x32 tiles, every
+   * single one of them plain floor, holding exactly two objects - a doorway and
+   * a counter. The real map's walls and every stick of its furniture were lost
+   * in extraction, so walking in put the player in an empty warehouse the size
+   * of the farm with a till floating in it. The owner's word was "ghê".
+   *
+   * The honest fix is not to fake the original's floor plan, which we do not
+   * have: it is to build a room that behaves like a shop. Walls close it down
+   * to a size a shop is, the counter goes at the back with standing room in
+   * front, shelves line the walls with stock on them, and a couple of lamps
+   * give it the warm interior the rest of this hub's games have. Everything
+   * outside the room stays solid, so the warehouse is simply not reachable.
+   */
+  var SHOP_ROOM = {
+    pierre:     { w: 15, h: 11, shelves: 'produce', crates: 3 },
+    saloon:     { w: 15, h: 10, shelves: 'bottles', crates: 2, tables: 3 },
+    blacksmith: { w: 13, h: 10, shelves: 'ore', crates: 3 },
+    joja:       { w: 15, h: 11, shelves: 'produce', crates: 4 },
+    carpenter:  { w: 13, h: 10, shelves: 'wood', crates: 3 },
+    marnie:     { w: 13, h: 10, shelves: 'produce', crates: 2 },
+    fishshop:   { w: 11, h: 9,  shelves: 'fish', crates: 2 },
+    clinic:     { w: 13, h: 10, shelves: 'bottles', crates: 1 },
+    museum:     { w: 15, h: 11, shelves: 'ore', crates: 1 },
+    guild:      { w: 12, h: 9,  shelves: 'ore', crates: 2 },
+    oasis:      { w: 12, h: 9,  shelves: 'produce', crates: 2 }
+  };
+
+  var SHELF_GOODS = {
+    produce: ['Parsnip', 'Potato', 'Cauliflower', 'Melon', 'Pumpkin', 'Corn'],
+    bottles: ['Beer', 'Wine', 'Juice', 'Pale Ale', 'Coffee', 'Salad'],
+    ore:     ['Copper Ore', 'Iron Ore', 'Gold Ore', 'Coal', 'Quartz', 'Geode'],
+    wood:    ['Wood', 'Hardwood', 'Stone', 'Clay', 'Fiber', 'Sap'],
+    fish:    ['Sardine', 'Anchovy', 'Tuna', 'Halibut', 'Bait', 'Crab']
+  };
+
+  /* Close an interior down to one room around its front door.
+   *
+   * The door has to stay ON the room's edge and stay reachable, so the room is
+   * positioned from the door rather than from the middle of the map: the door
+   * sits in the bottom wall and the room grows up and out from it, clamped
+   * inside the map. */
+  function shopRoom(area, spec) {
+    var door = (area.objs || []).filter(function (o) {
+      return o.kind === 'doorway';
+    })[0];
+    var dx = door ? door.x : Math.floor(area.w / 2);
+    var dy = door ? door.y : area.h - 2;
+
+    var w = Math.min(spec.w, area.w - 2), h = Math.min(spec.h, area.h - 2);
+    var x0 = Math.max(1, Math.min(dx - Math.floor(w / 2), area.w - w - 1));
+    var y0 = Math.max(1, Math.min(dy - h + 1, area.h - h - 1));
+    var x1 = x0 + w - 1, y1 = y0 + h - 1;
+
+    // everything is wall; the room is carved out of it
+    for (var y = 0; y < area.h; y++) {
+      for (var x = 0; x < area.w; x++) {
+        var inside = x > x0 && x < x1 && y > y0 && y < y1;
+        area.set(x, y, inside ? 'floor' : 'wall');
+        area.blocked[y * area.w + x] = inside ? 0 : 1;
+      }
+    }
+    // the doorway itself is a hole in the wall, wherever the map put it
+    if (door) {
+      area.set(door.x, door.y, 'floor');
+      area.blocked[door.y * area.w + door.x] = 0;
+      // and the tile above it, so stepping in does not land in the wall
+      area.set(door.x, Math.max(0, door.y - 1), 'floor');
+      area.blocked[Math.max(0, door.y - 1) * area.w + door.x] = 0;
+    }
+    area.reindex();
+    return { x0: x0, y0: y0, x1: x1, y1: y1, doorX: dx, doorY: dy };
+  }
+
+  /* Fill the room: shelves round the back and sides, stock on them, a couple
+   * of crates, a rug down the middle and lamps on the walls. */
+  function furnishShop(area, spec, r) {
+    var goods = SHELF_GOODS[spec.shelves] || SHELF_GOODS.produce;
+    var taken = {};
+    (area.objs || []).forEach(function (o) { taken[o.x + ',' + o.y] = 1; });
+    function free(x, y) {
+      return !taken[x + ',' + y] && !area.solid(x, y);
+    }
+    function put(o) {
+      if (!free(o.x, o.y)) return null;
+      taken[o.x + ',' + o.y] = 1;
+      area.obj(o);
+      return o;
+    }
+
+    /* Lamps go down FIRST.
+     * Placed after the shelves they had no tile left to stand on and were
+     * silently dropped - the room was built, furnished, and lit by nothing. */
+    put({ x: r.x0 + 2, y: r.y0 + 1, kind: 'wallLamp' });
+    put({ x: r.x1 - 2, y: r.y0 + 1, kind: 'wallLamp' });
+
+    var gi = 0;
+    // back wall: a run of shelves, leaving the middle clear for the counter
+    for (var x = r.x0 + 1; x <= r.x1 - 1; x++) {
+      if (Math.abs(x - Math.round((r.x0 + r.x1) / 2)) <= 1) continue;
+      put({ x: x, y: r.y0 + 1, kind: 'shelf',
+            good: goods[gi++ % goods.length] });
+    }
+    // side walls: shelves down both, stopping short of the door end
+    for (var y = r.y0 + 2; y <= r.y1 - 2; y++) {
+      put({ x: r.x0 + 1, y: y, kind: 'shelf', good: goods[gi++ % goods.length] });
+      put({ x: r.x1 - 1, y: y, kind: 'shelf', good: goods[gi++ % goods.length] });
+    }
+    // crates near the door end, where a delivery would be stacked
+    for (var ci = 0; ci < (spec.crates || 0); ci++) {
+      put({ x: r.x0 + 2 + ci, y: r.y1 - 1, kind: 'crate' });
+    }
+    // tables, for a room that wants them
+    for (var ti = 0; ti < (spec.tables || 0); ti++) {
+      put({ x: r.x0 + 3 + ti * 3, y: r.y0 + 4, kind: 'table' });
+    }
+
+    // a rug down the middle, so the floor is not one flat sheet
+    var mx = Math.round((r.x0 + r.x1) / 2), my = Math.round((r.y0 + r.y1) / 2);
+    for (var ry = my - 1; ry <= my + 1; ry++) {
+      for (var rx = mx - 2; rx <= mx + 2; rx++) {
+        if (!area.solid(rx, ry)) area.set(rx, ry, 'rug');
+      }
+    }
+    area.reindex();
+  }
+
   var INTERIOR_COUNTERS = {
     pierre: { keeper: 'Pierre', stock: "Pierre's General Store" },
     saloon: { keeper: 'Gus', stock: 'Stardrop Saloon' },
@@ -931,14 +1059,29 @@
       return ia.nearestFree(Math.floor(ia.w / 2), ia.h - 3, 12);
     }
 
+    /* Close each shop down to a room BEFORE anything is placed in it, or the
+     * counter gets positioned against the old warehouse and ends up outside
+     * the new walls. */
+    var shopRooms = {};
+    for (var sid in SHOP_ROOM) {
+      if (!A[sid]) continue;
+      shopRooms[sid] = shopRoom(A[sid], SHOP_ROOM[sid]);
+    }
+
     for (var id in INTERIOR_COUNTERS) {
       var a = A[id];
       if (!a) continue;
       var c = INTERIOR_COUNTERS[id];
       var d0 = doorSpot(id);
+      var rm = shopRooms[id];
+      /* The counter belongs at the BACK of the room with room to stand in
+       * front of it - that is what a shop counter is. Aiming it at a third of
+       * the map's height was a guess made when the interior was a warehouse. */
+      var cx0 = rm ? Math.round((rm.x0 + rm.x1) / 2) : Math.floor(a.w / 2);
+      var cy0 = rm ? rm.y0 + 2 : Math.max(2, Math.floor(a.h * 0.3));
       placeReachable(a, d0.x, d0.y,
                      { kind: 'counter', keeper: c.keeper, stock: c.stock },
-                     Math.floor(a.w / 2), Math.max(2, Math.floor(a.h * 0.3)));
+                     cx0, cy0);
     }
     function station(id, kind, px, py) {
       var ar = A[id];
@@ -946,12 +1089,18 @@
       var d = doorSpot(id);
       placeReachable(ar, d.x, d.y, { kind: kind }, px, py);
     }
+    /* Furnish AFTER the counter and the stations, so nothing is buried under a
+     * shelf and the room's own fittings fill what is left. */
     station('blacksmith', 'toolUpgrade', 3, 5);
     station('blacksmith', 'geodeCrusher', 10, 5);
     station('carpenter', 'buildMenu', 10, 5);
     station('marnie', 'animalShop', 10, 5);
     station('museum', 'museumDesk', 8, 5);
     station('fishshop', 'boatTicket', 9, 5);
+    for (var fid in shopRooms) {
+      furnishShop(A[fid], SHOP_ROOM[fid], shopRooms[fid]);
+    }
+
     if (A.cc) {
       ['Crafts Room', 'Pantry', 'Fish Tank', 'Boiler Room', 'Bulletin Board', 'Vault']
         .forEach(function (room, i) {

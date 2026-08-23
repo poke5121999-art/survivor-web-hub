@@ -121,6 +121,13 @@
       var px = sx(o.x + 0.5), py = sy(o.y + 0.5);
       if (px < -ts * 8 || py < -ts * 8 || px > vw + ts * 8 || py > vh + ts * 8) continue;
       switch (o.kind) {
+        /* A shop lamp is a real light, not a picture of one. The fittings draw
+         * their own little glow, but that is paint - it gets multiplied down
+         * with everything else by the pass below, so a lit room came out as
+         * dark as an unlit one. This is what actually lights the shop. */
+        case 'wallLamp':
+          out.push([px, py, ts * 5.2, LAMP_WARM, 0.52]);
+          break;
         case 'doorway':
           // a lantern over every door, brighter once it is dark out
           out.push([px, py - ts * 0.4, ts * 3.4, LAMP_WARM, 0.20 + 0.42 * dark]);
@@ -195,7 +202,11 @@
   function darkness(game) {
     var sim = game.sim, area = game.world.area();
     if (area.depth) return 0.85;
-    if (!area.outdoor) return 0.45;
+    /* Indoors is dim, not dark, and it does not care what time it is outside:
+     * a shop with the lights on at six in the morning looks like a shop with
+     * the lights on. It was 0.45 flat, which with the vignette on top made a
+     * furnished room read as an unlit cellar. */
+    if (!area.outdoor) return 0.26;
     var t = sim.time;
     if (t >= 8 * 60 && t < 16 * 60) return 0;
     if (t < 5 * 60 || t >= 21 * 60) return 1;

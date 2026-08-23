@@ -224,7 +224,11 @@
    */
   function building(ctx, b, sx, sy, ts, night, sunk) {
     var w = b.w * ts, h = b.h * ts;
-    var wallH = Math.min(h * 0.52, ts * 2.6);
+    /* The wall has to be at least as tall as a door plus its lintel, or a door
+     * standing on the ground pokes out through the roof - which is what a
+     * short, wide building (a shop front is 8x4) produced. */
+    var wallH = Math.max(ts * 1.62, Math.min(h * 0.52, ts * 2.6));
+    if (wallH > h - ts * 0.55) wallH = Math.max(ts * 1.55, h - ts * 0.55);
     var roofH = h - wallH;
     var wall = b.wall || '#6b4a30';
     var roof = b.roof || '#8a4a3a';
@@ -293,7 +297,11 @@
     // ---- windows, spaced by proportion
     var winCount = Math.max(1, Math.min(4, Math.round(b.w / 3.2)));
     var winW = ts * 0.78, winH = ts * 0.66;
-    var winY = sy + roofH + wallH * 0.34 - winH / 2;
+    /* Windows sit in the UPPER half of the wall. They were centred at 0.34 of
+     * the wall height, which on a short wall put them level with the middle of
+     * the door and made the front of every shop read as three identical
+     * rectangles in a row. */
+    var winY = sy + roofH + wallH * 0.30 - winH / 2;
     var doorX = b.door ? (b.door.x - b.x + 0.5) * ts : w * 0.5;
     for (var i = 0; i < winCount; i++) {
       var frac = (i + 0.5) / winCount;
@@ -323,9 +331,19 @@
 
   /* The door, and the sign over it. Drawn after the building so nothing
    * paints across them. */
-  function door(ctx, b, sx, sy, ts, open, night) {
+  /* A door stands ON THE GROUND.
+   *
+   * WHY this takes a base line instead of a tile: it used to be drawn at the
+   * row its tile sits on, and the door tile is not the bottom row of the
+   * building - so the door hung a tile up the wall with blank plaster beneath
+   * it. The owner's words were "bên cửa thì bay tuốt lên trời". A door is the
+   * one part of a building whose position is not a matter of taste: its
+   * threshold is where the wall meets the ground, and nowhere else. `baseY` is
+   * that line, handed in by the caller that drew the wall. */
+  function door(ctx, b, sx, sy, ts, open, night, baseY) {
     var dw = ts * 0.86, dh = ts * 1.30;
-    var x = sx + (ts - dw) / 2, y = sy + ts - dh;
+    var foot = (baseY == null) ? sy + ts : baseY;
+    var x = sx + (ts - dw) / 2, y = foot - dh;
     var lw = Math.max(1.2, ts * 0.055);
     ctx.save();
     ctx.lineJoin = 'round';
@@ -342,6 +360,16 @@
     ctx.arc(x + dw * 0.78, y + dh * 0.55, ts * 0.055, 0, 6.3);
     ctx.fillStyle = '#e0c069';
     ctx.fill();
+    // a doorstep, so the threshold reads as meeting the ground
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(sx + ts / 2, foot + ts * 0.03, dw * 0.72, ts * 0.10, 0, 0, 6.3);
+    ctx.fill();
+    roundRect(ctx, x - ts * 0.12, foot - ts * 0.09, dw + ts * 0.24, ts * 0.13,
+              ts * 0.05);
+    solid(ctx, shade(b.wall || '#6b4a30', 0.72), x - ts * 0.12,
+          foot - ts * 0.09, dw + ts * 0.24, ts * 0.13, lw);
+
     // lantern
     var lx = sx + ts * 1.02, ly = y - ts * 0.12;
     roundRect(ctx, lx, ly, ts * 0.26, ts * 0.30, ts * 0.06);
@@ -658,7 +686,93 @@
     return ((h ^ (h >> 16)) >>> 0) / 4294967296;
   }
 
+  /* Shop fittings.
+   *
+   * A shop interior was 1,536 tiles of bare floor with a till in it. These are
+   * what turn that into a room: a shelf with stock actually visible on it, a
+   * crate, a table, and a lamp on the wall. The stock is drawn from the item's
+   * own icon colour, so a fish shop's shelves are not the same colour as a
+   * blacksmith's - the room tells you what it sells before the sign does. */
+  function fitting(ctx, kind, sx, sy, ts, opt) {
+    opt = opt || {};
+    var lw = Math.max(1, ts * 0.045);
+    var wood = '#6b4a30', dark = shade(wood, 0.68), lit = shade(wood, 1.24);
+
+    if (kind === 'shelf') {
+      var x = sx + ts * 0.06, y = sy + ts * 0.02;
+      var w = ts * 0.88, h = ts * 0.96;
+      roundRect(ctx, x, y, w, h, ts * 0.07);
+      solid(ctx, dark, x, y, w, h, lw);
+      // two boards, with goods standing on each
+      for (var b = 0; b < 2; b++) {
+        var by = y + h * (0.34 + b * 0.36);
+        ctx.fillStyle = lit;
+        ctx.fillRect(x + ts * 0.03, by, w - ts * 0.06, Math.max(1.5, ts * 0.06));
+        var col = opt.colour || '#c8a06a';
+        for (var g = 0; g < 3; g++) {
+          var gx = x + w * (0.22 + g * 0.28);
+          var gh = ts * (0.16 + ((g + b) % 2) * 0.05);
+          ctx.fillStyle = shade(col, 0.86 + g * 0.16);
+          roundRect(ctx, gx - ts * 0.07, by - gh, ts * 0.14, gh, ts * 0.04);
+          ctx.fill();
+          ctx.strokeStyle = OUTLINE;
+          ctx.lineWidth = Math.max(1, ts * 0.025);
+          ctx.stroke();
+        }
+      }
+      return;
+    }
+
+    if (kind === 'crate') {
+      var cx2 = sx + ts * 0.12, cy2 = sy + ts * 0.26;
+      var cw = ts * 0.76, ch = ts * 0.68;
+      roundRect(ctx, cx2, cy2, cw, ch, ts * 0.06);
+      solid(ctx, wood, cx2, cy2, cw, ch, lw);
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = Math.max(1.2, ts * 0.05);
+      ctx.beginPath();
+      ctx.moveTo(cx2, cy2 + ch * 0.34); ctx.lineTo(cx2 + cw, cy2 + ch * 0.34);
+      ctx.moveTo(cx2 + cw * 0.5, cy2); ctx.lineTo(cx2 + cw * 0.5, cy2 + ch);
+      ctx.stroke();
+      return;
+    }
+
+    if (kind === 'table') {
+      var tx = sx + ts * 0.06, ty = sy + ts * 0.30;
+      var tw = ts * 0.88, th = ts * 0.44;
+      ctx.fillStyle = 'rgba(0,0,0,0.24)';
+      ctx.beginPath();
+      ctx.ellipse(sx + ts * 0.5, sy + ts * 0.88, tw * 0.44, ts * 0.10, 0, 0, 6.3);
+      ctx.fill();
+      roundRect(ctx, tx, ty, tw, th, ts * 0.10);
+      solid(ctx, shade(wood, 1.08), tx, ty, tw, th, lw);
+      ctx.fillStyle = 'rgba(255,255,255,0.09)';
+      ctx.fillRect(tx + ts * 0.05, ty + ts * 0.05, tw - ts * 0.10, ts * 0.07);
+      return;
+    }
+
+    if (kind === 'wallLamp') {
+      var lx = sx + ts * 0.5, ly = sy + ts * 0.46;
+      // the glow is the point of it - the room is lit BY these
+      var gr = ctx.createRadialGradient(lx, ly, ts * 0.04, lx, ly, ts * 0.9);
+      gr.addColorStop(0, 'rgba(255,214,140,0.55)');
+      gr.addColorStop(1, 'rgba(255,214,140,0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath();
+      ctx.arc(lx, ly, ts * 0.9, 0, 6.3);
+      ctx.fill();
+      roundRect(ctx, lx - ts * 0.15, ly - ts * 0.20, ts * 0.30, ts * 0.36,
+                ts * 0.10);
+      solid(ctx, '#ffd68c', lx - ts * 0.15, ly - ts * 0.20, ts * 0.30,
+            ts * 0.36, Math.max(1, ts * 0.03));
+      ctx.fillStyle = shade(wood, 0.6);
+      ctx.fillRect(lx - ts * 0.05, ly - ts * 0.34, ts * 0.10, ts * 0.16);
+      return;
+    }
+  }
+
   global.SDV_ART = {
+    fitting: fitting,
     plant: plant,
     person: person, building: building, door: door, sign: sign,
     tree: tree, rock: rock, prop: prop, label: label,

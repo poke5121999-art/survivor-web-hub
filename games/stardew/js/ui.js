@@ -832,7 +832,12 @@
 
     var row = el('div', 'sdv-amtrow');
     var minus = el('button', 'sdv-amtbtn', '−');
-    var num = el('div', 'sdv-amtnum', String(n));
+    var num = el('input', 'sdv-amtnum');
+    num.type = 'number';
+    num.inputMode = 'numeric';
+    num.min = '1';
+    num.max = String(o.max);
+    num.value = String(n);
     var plus = el('button', 'sdv-amtbtn', '+');
     row.appendChild(minus); row.appendChild(num); row.appendChild(plus);
     card.appendChild(row);
@@ -854,15 +859,36 @@
     var cancel = el('button', 'sdv-mbtn sdv-cancelbtn', 'Huỷ');
     card.appendChild(okBtn); card.appendChild(cancel);
 
-    function set(v) {
-      n = Math.max(1, Math.min(Math.round(v), o.max));
-      num.textContent = String(n);
-      total.innerHTML = 'Tổng: <b>' + (o.unit * n) + 'g</b>';
-      okBtn.textContent = o.confirm + ' ' + n + ' món — ' + (o.unit * n) + 'g';
+    /* `typing` is true while the player is mid-edit. Without it, clamping on
+     * every keystroke fights them: typing "12" into a field capped at 30 has to
+     * pass through "1", and rewriting the box each time makes a second digit
+     * impossible to enter. The value is only forced back into range when the
+     * field loses focus or the sheet is confirmed. */
+    function set(v, typing) {
+      n = Math.max(1, Math.min(Math.round(v) || 1, o.max));
+      if (!typing) num.value = String(n);
+      if (o.summary) {
+        total.innerHTML = o.summary(n);
+        okBtn.textContent = o.confirm + ' ' + n;
+      } else {
+        total.innerHTML = 'Tổng: <b>' + (o.unit * n) + 'g</b>';
+        okBtn.textContent = o.confirm + ' ' + n + ' món — ' + (o.unit * n) + 'g';
+      }
     }
     minus.addEventListener('click', function () { set(n - 1); });
     plus.addEventListener('click', function () { set(n + 1); });
+    num.addEventListener('input', function () {
+      if (num.value === '') { set(1, true); return; }
+      set(parseInt(num.value, 10), true);
+    });
+    num.addEventListener('blur', function () { set(n); });
+    num.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { num.blur(); okBtn.click(); }
+    });
+    // a tap on the field is for editing, never for dismissing the sheet
+    num.addEventListener('click', function (e) { e.stopPropagation(); });
     okBtn.addEventListener('click', function () {
+      set(n);                       // pull a half-typed number back into range
       var take = n;
       self.closeSheet();
       o.onConfirm(take);
@@ -879,6 +905,72 @@
     if (global.SDV_AUDIO) global.SDV_AUDIO.play('open');
     return wrap;
   };
+  /* The tiles a sowing of `want` seeds would actually fill, nearest first.
+   *
+   * Nearest-first matters: the player tapped a particular square, so the patch
+   * has to grow out from THAT square, not from wherever the scan happens to
+   * start. Anything already planted, unturned, or off the farm is skipped, so
+   * the number on the button is a number of seeds that will really go in. */
+  UI.prototype.sowTargets = function (cx, cy, want) {
+    var g = this.game, a = g.world.area(), out = [];
+    if (a.id !== 'farm' && a.id !== 'greenhouse' && a.id !== 'island') return out;
+    var R = 12;                       // far enough for any realistic handful
+    var ring = [];
+    for (var dy = -R; dy <= R; dy++) {
+      for (var dx = -R; dx <= R; dx++) {
+        ring.push([dx, dy, dx * dx + dy * dy]);
+      }
+    }
+    ring.sort(function (p, q) { return p[2] - q[2]; });
+    for (var i = 0; i < ring.length && out.length < want; i++) {
+      var x = cx + ring[i][0], y = cy + ring[i][1];
+      var t = a.name_of(x, y);
+      if (t !== 'tilled' && t !== 'watered') continue;
+      if (g.world.objAt(x, y)) continue;
+      out.push({ x: x, y: y });
+    }
+    return out;
+  };
+
+  /* "Bấm vào gieo hạt, xong hiện ra input field để nhập số lượng."
+   *
+   * The count is capped at whichever runs out first - the seeds in the bag or
+   * the turned soil within reach - and both numbers are on screen, because a
+   * box that lets you ask for forty and quietly plants nine is worse than one
+   * that says nine from the start. */
+  UI.prototype.sowSheet = function (sd, x, y) {
+    var self = this;
+    var soil = this.sowTargets(x, y, 999).length;
+    var most = Math.min(sd.qty, soil);
+    if (!soil) return this.game.toast('Quanh đây không còn ô đất nào trống');
+
+    this.amountSheet({
+      item: sd,
+      max: most,
+      start: Math.min(most, 9),
+      confirm: 'Gieo',
+      note: 'Có ' + sd.qty + ' hạt · ' + soil + ' ô đất trống quanh đây'
+            + (most < sd.qty ? ' — gieo được nhiều nhất ' + most : ''),
+      summary: function (k) {
+        return 'Gieo <b>' + k + '</b> ô · còn lại <b>' + (sd.qty - k) + '</b> hạt';
+      },
+      onConfirm: function (k) {
+        var tiles = self.sowTargets(x, y, k), done = 0;
+        for (var i = 0; i < tiles.length; i++) {
+          var have = self.sim.count(sd.name);
+          if (have <= 0) break;
+          if (self.plant(tiles[i].x, tiles[i].y, sd, true)) done++;
+        }
+        self.close();
+        if (!done) return self.game.toast('Không gieo được ô nào');
+        self.game.fx.hit('weed', x, y, self.game.player.face);
+        self.game.sfx('pickup');
+        self.game.toast('Đã gieo ' + done + ' ô '
+                        + sd.name.replace(/\s*Seeds?$/i, ''));
+      }
+    });
+  };
+
   UI.prototype.closeSheet = function () {
     if (this._sheet) { this._sheet.remove(); this._sheet = null; }
   };
@@ -1170,7 +1262,11 @@
           self.close();
         });
         b.appendChild(q);
-        b.addEventListener('click', function () { self.plant(x, y, sd); });
+        /* Tapping the seed asks HOW MANY rather than planting one. Sowing one
+         * square at a time was the commonest repeated action left in the game
+         * after hoeing got its 3x3. The armed-seed lightning bolt beside it is
+         * still there for anyone who would rather tap tile by tile. */
+        b.addEventListener('click', function () { self.sowSheet(sd, x, y); });
         list.appendChild(b);
       });
       this.bulkOption(list, 'sow', x, y);
@@ -3193,6 +3289,11 @@
     var treasure = caught > 1
       && Math.random() < 0.15 + (sim.luck || 0) / 2;
 
+    /* Exposed for the browser suite. It drives a catch by pushing this
+     * state's progress the way holding the button would, so the finish path,
+     * the panel closing and the catch screen are all exercised for real - a
+     * test that called showCatch() directly was green while the screen was
+     * being destroyed a tick after it opened. */
     var s = UI.newFishState(fish.difficulty, fish.behavior,
                             sim.skills.fishing || 0, treasure);
     this._fishModel = s;
@@ -3267,6 +3368,7 @@
 
     function finish(win) {
       stop();
+      var show = null;
       if (win) {
         /* WHY the skill is named: rollQuality defaults to FARMING, so the
          * grade of a fish came off the player's farming level - a level-10
@@ -3289,8 +3391,17 @@
           var xp = Math.floor((q + 1) * 3 + (fish.difficulty || 20) / 3);
           if (s.perfect) xp = Math.floor(xp * 2.4);
           var lvl = sim.addXp('fishing', xp);
-          var caught = self.rollFishSize(fish, s.perfect);
-          self.showCatch(fish, caught, q, s.perfect, xp, s.chestCaught);
+          /* The screen is REMEMBERED here and raised after the panel below
+           * closes, not opened here.
+           *
+           * WHY: `self.close()` at the end of this function shuts whatever
+           * panel is open, and it does not care that the panel is now the
+           * catch screen rather than the fishing minigame. Opened in place, it
+           * appeared and was destroyed in the same tick - the owner's report
+           * was "cá lên nhưng vẫn không show nhận đc cá gì cả", and they were
+           * exactly right. */
+          show = { size: self.rollFishSize(fish, s.perfect), q: q,
+                   perfect: s.perfect, xp: xp, chest: s.chestCaught };
           if (s.chestCaught) self.fishTreasure();
           if (lvl) g.toast('Câu cá lên cấp ' + lvl + '!');
         } else g.toast('Túi đầy!');
@@ -3299,6 +3410,9 @@
         g.toast(s.chestCaught ? 'Cá sổng mất — mất luôn rương!' : 'Cá sổng mất');
       }
       self.close();
+      if (show) {
+        self.showCatch(fish, show.size, show.q, show.perfect, show.xp, show.chest);
+      }
     }
   };
 
