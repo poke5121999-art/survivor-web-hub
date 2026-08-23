@@ -991,20 +991,33 @@
       var canGift = !fr || (fr.giftDay !== this.sim.dayIndex()
                             && (fr.week || 0) < 2);
       if (hearts > 0 || canGift) {
+        /* Drawn, not typed: an emoji present renders as a tofu box on any
+         * device whose font does not carry it, and this badge has to stay
+         * legible at six pixels tall on a phone. */
         var pips = Math.min(5, hearts);
-        var wpx = pips * 6 + (canGift ? 12 : 0);
-        ctx.fillStyle = 'rgba(0,0,0,0.45)';
-        ctx.fillRect(cx - wpx / 2 - 3, sy - 30, wpx + 6, 13);
+        var wpx = pips * 7 + (canGift ? 9 : 0);
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(cx - wpx / 2 - 3, sy - 29, wpx + 6, 11);
         var px0 = cx - wpx / 2;
-        ctx.textAlign = 'left';
-        ctx.font = '9px system-ui, sans-serif';
-        ctx.fillStyle = '#ff8fae';
         for (var hp = 0; hp < pips; hp++) {
-          ctx.fillText('\u2665', px0 + hp * 6, sy - 20);
+          var hx = px0 + hp * 7, hy = sy - 27;
+          ctx.fillStyle = '#ff7fa6';
+          ctx.fillRect(hx, hy + 1, 2, 3);
+          ctx.fillRect(hx + 3, hy + 1, 2, 3);
+          ctx.fillRect(hx, hy + 3, 5, 2);
+          ctx.fillRect(hx + 1, hy + 5, 3, 1);
+          ctx.fillRect(hx + 2, hy + 6, 1, 1);
         }
         if (canGift) {
-          ctx.font = '10px system-ui, sans-serif';
-          ctx.fillText('\uD83C\uDF81', px0 + pips * 6, sy - 20);
+          var gx = px0 + pips * 7, gy = sy - 27;
+          ctx.fillStyle = '#d9634f';
+          ctx.fillRect(gx, gy + 2, 7, 5);
+          ctx.fillStyle = '#f0e3c2';
+          ctx.fillRect(gx + 3, gy + 2, 1, 5);
+          ctx.fillRect(gx, gy + 3, 7, 1);
+          ctx.fillStyle = '#e8c357';
+          ctx.fillRect(gx + 1, gy, 2, 2);
+          ctx.fillRect(gx + 4, gy, 2, 2);
         }
       }
       ctx.textAlign = 'left';
