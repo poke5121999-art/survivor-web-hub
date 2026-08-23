@@ -822,6 +822,12 @@ for (const k in MONSTERS){
 // Counted from level 1 rather than from zero, so the first two levels hold exactly what they held
 // before this changed. Those two are where a player learns the loop, and a house that kills them
 // there teaches nothing; the growth belongs later, where the quota is already asking for it.
+// The FIRST shift is empty. Owner's call, 2026-08-23: the house is quiet for one level and then
+// it is a horror game again. The same shape as the jammed doors, which also start at level 2 - the
+// first shift is where the loop is learned, and a player who dies to a patrol before they know what
+// a pad is has learned nothing.
+// It is a DEFAULT, not a rule: pressing the monster button on level 1 still lets them in.
+const FOES_FROM_LEVEL = 2;
 const FOES_BASE = 2, FOES_PER_LEVEL = 0.9, FOES_MAX = 12;
 function foesForLevel(lv){ return Math.min(FOES_MAX, FOES_BASE + Math.floor((lv-1)*FOES_PER_LEVEL)); }
 
@@ -1273,10 +1279,7 @@ const S = {
   stash: [],                       // the shared locker on the truck; bought gear lands here
   offer: null,                     // the stock this shop visit rolled, held so it cannot re-roll
   stashOpen: false,
-  // Monsters start OFF and the house is quiet until the button is pressed. Owner's call,
-  // 2026-08-23. Everything else about the house is unchanged - the toggle only decides
-  // whether buildLevel populates the monster posts.
-  running: false, dead: false, levelDone: false, noFoes: true,
+  running: false, dead: false, levelDone: false, noFoes: false,
   shopMode: false, pay: { active:false, t:0 }, onButton: false, shopCanLeave: false,
   button: { x:0, y:0, r:0 }, cut: null,
   angel: null, angelTimer: 0, angelFx: null, lightZones: [],
@@ -1530,7 +1533,7 @@ function buildLevel(seed){
 
   // --- monsters
   const pool = LEVEL_MONSTERS[Math.min(LEVEL_MONSTERS.length-1, S.level-1)];
-  if (!S.noFoes){
+  if (!S.noFoes && S.level >= FOES_FROM_LEVEL){
     const farFromTruck = (gx,gy) => Math.hypot((gx+0.5)*TILE-S.car.x,(gy+0.5)*TILE-S.car.y) > 12*TILE;
     const ms = monSpots.filter(s => reach[s.gy*MW+s.gx] && farFromTruck(s.gx, s.gy));
     for (let i=ms.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [ms[i],ms[j]]=[ms[j],ms[i]]; }
@@ -5758,8 +5761,22 @@ function drawHud(c){
   const lk = stickL ? { x:clamp(stickL.x-stickL.ox,-hud.left.r,hud.left.r), y:clamp(stickL.y-stickL.oy,-hud.left.r,hud.left.r) } : {x:0,y:0};
   dot(c, hud.left.x+lk.x, hud.left.y+lk.y, hud.left.r*0.3, stickL ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
   ring(c, hud.right.x, hud.right.y, hud.right.r, stickR ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
+  // The knob goes HOME when you let go, like every other joystick anybody has ever used.
+  // WHY it did not, and why that was wrong: the facing FREEZES where you left it (doc C2-2), and
+  // the idle knob used to lean that way so something on screen said where the frozen facing
+  // pointed. It read as a stick that was stuck rather than as a needle - the owner asked why it
+  // would not centre, which is the whole answer. The information was worth keeping; the disguise
+  // was not. It is a TICK on the rim now: unmistakably a readout, unmistakably not the thumb.
+  // SEE: docs/proposals/repo-2d-topdown.md F21-1.
   const rk = stickR ? { x:clamp(stickR.x-stickR.ox,-hud.right.r,hud.right.r), y:clamp(stickR.y-stickR.oy,-hud.right.r,hud.right.r) }
-                    : { x:Math.cos(p.dir)*hud.right.r*0.55, y:Math.sin(p.dir)*hud.right.r*0.55 };
+                    : { x:0, y:0 };
+  const fa = Math.cos(p.dir), fb = Math.sin(p.dir);
+  c.strokeStyle = stickR ? 'rgba(230,160,60,0.85)' : 'rgba(210,140,50,0.6)';
+  c.lineWidth = 2.4;
+  c.beginPath();
+  c.moveTo(hud.right.x + fa*hud.right.r*0.80, hud.right.y + fb*hud.right.r*0.80);
+  c.lineTo(hud.right.x + fa*hud.right.r*1.06, hud.right.y + fb*hud.right.r*1.06);
+  c.stroke();
   dot(c, hud.right.x+rk.x, hud.right.y+rk.y, hud.right.r*0.3, stickR ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
 
   if (S.shopMode){
@@ -6370,7 +6387,11 @@ window.__boot = function(){
     S.noFoes = !S.noFoes;
     paintFoeBtn();
     if (S.noFoes){ S.monsters.length = 0; toast('Nhà trống — không còn con nào'); }
-    else { const n = populateFoes(); toast(n ? 'Có ' + n + ' con vừa vào nhà' : 'Bật quái'); }
+    else {
+      // An explicit press outranks the quiet-first-shift default: you asked for them.
+      const n = populateFoes();
+      toast(n ? 'Có ' + n + ' con vừa vào nhà' : 'Bật quái');
+    }
   };
   paintFoeBtn();
   el('botBtn').onclick = () => setBot(!window.__botActive);
@@ -6519,6 +6540,7 @@ window.REPO = {
                     x: hud.heart.x, y: hud.heart.y, r: hud.heart.r }; },
   mouseLook(){ return mouseFresh() ? mouseWorldNow() : null; },
   foesForLevel, makeNoise, lootCap, foeSeparation, separateFoes, populateFoes,
+  FOES_FROM_LEVEL,
   FOE: { STANDOFF:FOE_STANDOFF, SEP_R:FOE_SEP_R, SEP_PUSH:FOE_SEP_PUSH, BODY:FOE_BODY },
   doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, gx:d.gx, gy:d.gy, open:d.open,
                                               vertical:d.vertical, locked:!!d.locked,
