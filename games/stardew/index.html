@@ -231,6 +231,7 @@
   <p>Nông trại của ông bạn để lại. Trồng trọt, câu cá, xuống mỏ, và làm quen với cả thị trấn.</p>
   <button id="btn-new">Bắt đầu</button>
   <button id="btn-load" class="alt" style="display:none">Chơi tiếp</button>
+  <p id="boot-warn" style="display:none;color:#e8a13c;font-size:13px;max-width:300px"></p>
 </div>
 
 <script src="data/gamedata.js"></script>
@@ -258,6 +259,63 @@
 <script>
 (function(){
   'use strict';
+
+  /* Every script this page needs, and the global each one is supposed to leave
+   * behind.
+   *
+   * WHY this guard exists: GitHub Pages served one 503 for js/tiles.js during a
+   * check, the page carried on booting without it, and the very first frame
+   * threw on SDV_TILES.paintGround - and kept throwing, once per frame, behind
+   * a black canvas. The loop's try/catch turned a hard failure into a silent
+   * one. A player would see a dead screen with no idea it was a bad download.
+   *
+   * So: after the tags have run, check what actually arrived, fetch anything
+   * that did not exactly once more, and only then let the game start. If it
+   * still is not there, say so and offer a retry instead of a black screen. */
+  var NEEDS = [
+    ['SDV_DATA', 'data/gamedata.js'], ['SDV_MAPS', 'data/maps.js'],
+    ['SDV_NPCS', 'data/npcs.js'], ['SDV_SPRITES', 'js/sprites.js'],
+    ['SDV_WORLD', 'js/world.js'], ['SDV_TILES', 'js/tiles.js'],
+    ['SDV_FX', 'js/fx.js'], ['SDV_AUDIO', 'js/audio.js'],
+    ['SDV_MACHINES', 'js/machines.js'], ['SDV_SIM', 'js/sim.js'],
+    ['SDV_MINE', 'js/mine.js'], ['SDV_FARMLIFE', 'js/farmlife.js'],
+    ['SDV_EVENTS', 'js/events.js'], ['SDV_NPC', 'js/npc.js'],
+    ['SDV_GAME', 'js/game.js'], ['SDV_UI', 'js/ui.js'],
+    ['SDV_MACHINEUI', 'js/machineui.js'], ['SDV_PROGRESS', 'js/progress.js'],
+    ['SDV_SOCIAL', 'js/social.js'], ['SDV_INTRO', 'js/intro.js'],
+    ['SDV_BOT', 'js/bot.js']
+  ];
+  function missing(){
+    return NEEDS.filter(function(n){ return !window[n[0]]; });
+  }
+  function refetch(list, done){
+    var left = list.length;
+    if (!left) return done();
+    list.forEach(function(n){
+      var el = document.createElement('script');
+      el.src = n[1] + '?retry=' + Date.now();
+      el.onload = el.onerror = function(){ if (--left === 0) done(); };
+      document.head.appendChild(el);
+    });
+  }
+  var warn = document.getElementById('boot-warn');
+  var newBtn = document.getElementById('btn-new');
+  function gate(after){
+    var gone = missing();
+    if (!gone.length) return after();
+    newBtn.disabled = true;
+    warn.style.display = '';
+    warn.textContent = 'Đang tải lại ' + gone.length + ' phần bị lỡ…';
+    refetch(gone, function(){
+      var still = missing();
+      newBtn.disabled = false;
+      if (!still.length) { warn.style.display = 'none'; return after(); }
+      warn.textContent = 'Tải thiếu ' + still.map(function(n){ return n[1]; }).join(', ')
+        + '. Mạng chập chờn — thử tải lại trang.';
+      newBtn.disabled = true;
+    });
+  }
+
   var stage = document.getElementById('stage');
   var canvas = document.getElementById('view');
   var game, ui;
@@ -323,9 +381,23 @@
         ui.updateHud();
         ui.updateQuick();
       } catch (e) {
+        /* One bad frame must not stop the loop - but a frame that fails over
+           and over is a broken build, not a hiccup, and saying so once is
+           better than a black screen that never explains itself. */
+        window.__sdvErrs = (window.__sdvErrs || 0) + 1;
         if (!window.__sdvErrShown) {
           window.__sdvErrShown = true;
           try { game.toast('Lỗi: ' + (e && e.message || e)); } catch (e2) {}
+        }
+        if (window.__sdvErrs === 60) {
+          var w = document.getElementById('boot-warn');
+          var boot = document.getElementById('boot');
+          if (w && boot) {
+            boot.style.display = '';
+            w.style.display = '';
+            w.textContent = 'Bản dựng tải bị lỗi (' + (e && e.message || e)
+              + '). Thử tải lại trang.';
+          }
         }
         console.error(e);
       }
@@ -335,7 +407,8 @@
     window.addEventListener('pagehide', function(){ game.sim.save(game.world); });
   }
 
-  document.getElementById('btn-new').addEventListener('click', function(){
+  newBtn.addEventListener('click', function(){
+    if (missing().length) return gate(function(){});
     SDV_SIM.Sim.clearSave();
     boot(false);
     /* The arrival scene runs over the live game rather than before it, so the
@@ -344,8 +417,11 @@
       SDV_INTRO.play(stage, function(){ SDV_INTRO.applyStart(game); });
     }
   });
+  // check the download before the player can press anything
+  gate(function(){});
+
   var lb = document.getElementById('btn-load');
-  if (SDV_SIM.Sim.hasSave()) {
+  if (window.SDV_SIM && SDV_SIM.Sim.hasSave()) {
     lb.style.display = '';
     lb.addEventListener('click', function(){ boot(true); });
   }
