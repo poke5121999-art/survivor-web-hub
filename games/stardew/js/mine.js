@@ -395,11 +395,33 @@
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.beginPath();
       ctx.ellipse(sx, sy + ts * 0.3, r, r * 0.4, 0, 0, 6.3); ctx.fill();
-      ctx.fillStyle = m.hurt > 0 ? '#ffffff' : m.color;
-      ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.3); ctx.fill();
-      ctx.fillStyle = m.color2;
-      ctx.fillRect(sx - r * 0.45, sy - r * 0.25, r * 0.28, r * 0.28);
-      ctx.fillRect(sx + r * 0.17, sy - r * 0.25, r * 0.28, r * 0.28);
+      /* A real sprite when there is one, the old circle-with-eyes when there
+       * is not. Two sheets cover the whole bestiary between them: anything
+       * gelatinous uses the slime, everything else walks, so it uses the
+       * skeleton. Each monster keeps the colour it already had, laid over the
+       * sprite - that colour is derived from its NAME, so a Green Slime and a
+       * Frost Jelly stay as different from each other as they were before. */
+      var SHm = global.SDV_SHEETS;
+      var drewFoe = false;
+      if (SHm) {
+        var gooey = /slime|jelly|sludge|ooze/i.test(m.name || '');
+        var sheet = gooey ? 'foe_slime' : 'foe_skeleton';
+        if (SHm.has(sheet)) {
+          var w = ts * 1.9;
+          var fr = Math.floor((Date.now() / 180) + i) % (gooey ? 4 : 3);
+          drewFoe = SHm.tintedCell(
+            ctx, sheet, m.hurt > 0 ? '#ffffff' : m.color, 32, 32,
+            fr, gooey ? 0 : 1,
+            Math.round(sx - w / 2), Math.round(sy - w * 0.62), w, w, false);
+        }
+      }
+      if (!drewFoe) {
+        ctx.fillStyle = m.hurt > 0 ? '#ffffff' : m.color;
+        ctx.beginPath(); ctx.arc(sx, sy, r, 0, 6.3); ctx.fill();
+        ctx.fillStyle = m.color2;
+        ctx.fillRect(sx - r * 0.45, sy - r * 0.25, r * 0.28, r * 0.28);
+        ctx.fillRect(sx + r * 0.17, sy - r * 0.25, r * 0.28, r * 0.28);
+      }
       // health pip
       var w = ts * 0.7, hp = Math.max(0, m.hp / m.maxHp);
       ctx.fillStyle = 'rgba(0,0,0,0.55)';

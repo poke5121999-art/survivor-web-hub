@@ -1276,8 +1276,10 @@
         var name = a.name_of(x, y);
         var def = W.TILE[name];
         var sx = Math.round(x * ts - camX), sy = Math.round(y * ts - camY);
-        T.paintGround(ctx, name, def, sx, sy, ts, x, y, now);
-        T.paintBlend(ctx, a, x, y, sx, sy, ts, W.TILE, W.TILE_IDS);
+        /* `a` was never being passed, so the tile painter could not look at
+         * its neighbours - which is everything an autotile needs to know. */
+        var bySheet = T.paintGround(ctx, name, def, sx, sy, ts, x, y, now, a);
+        if (!bySheet) T.paintBlend(ctx, a, x, y, sx, sy, ts, W.TILE, W.TILE_IDS);
         var idx = y * a.w + x;
         var bcls = a.blocked ? a.blocked[idx] : 0;
         if (!bcls || def.water) continue;
@@ -1816,8 +1818,18 @@
       /* The things the player lives with every day get real furniture instead
        * of a coloured chip with an emoji on it: the cottage was a row of blue
        * squares, which is a large part of why the art read as unfinished. */
+      case 'chest': {
+        var SHc = global.SDV_SHEETS;
+        if (SHc && SHc.has('chest')) {
+          SHc.whole(ctx, 'chest', Math.round(sx + ts * 0.10),
+                    Math.round(sy + ts * 0.12), ts * 0.80, ts * 0.80);
+          break;
+        }
+        global.SDV_ART.prop(ctx, 'chest', sx, sy, ts, { night: night2(this) });
+        break;
+      }
       case 'kitchen': case 'workshop': case 'calendarBoard':
-      case 'mailbox': case 'counter': case 'chest': case 'bed': case 'tv':
+      case 'mailbox': case 'counter': case 'bed': case 'tv':
       case 'bin': case 'sign': {
         global.SDV_ART.prop(ctx, o.kind, sx, sy, ts, { night: night2(this) });
         if (o.kind === 'counter' && o.keeper) {

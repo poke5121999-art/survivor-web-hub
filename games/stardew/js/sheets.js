@@ -169,7 +169,57 @@
                       col, row, dx, dy, w, h, face === 'left');
   }
 
+  /* ------------------------------------------------------- autotiling
+   *
+   * The tilesets are 3x3 blocks: the middle cell is the inside of the
+   * material, the eight around it are its edges and corners against whatever
+   * lies outside. Which of the nine a tile gets is decided by its four
+   * neighbours - no neighbour on the left means this is a left edge, and so on.
+   *
+   *     0,0  1,0  2,0        corner  top     corner
+   *     0,1  1,1  2,1        left    inside  right
+   *     0,2  1,2  2,2        corner  bottom  corner
+   *
+   * Measured off the sheets rather than assumed: `tile_water_edge` and
+   * `tile_path_edge` are 3 wide by 6 tall, where rows 0-2 are that block and
+   * the rows below are the inverse block plus loose detail tiles. Only the top
+   * block is used here; the inner corners the lower rows provide would need a
+   * neighbour test per DIAGONAL, and at this zoom nobody can see the difference
+   * between a rounded inner corner and a square one.
+   */
+  var TILE_PX = 16;
+  function autoCell(sameW, sameE, sameN, sameS) {
+    var col = sameW ? (sameE ? 1 : 2) : 0;
+    var row = sameN ? (sameS ? 1 : 2) : 0;
+    return { col: col, row: row };
+  }
+
+  /* One ground tile from a sheet. `same` is a function the caller supplies that
+   * answers "is the tile at (x,y) the same material as this one" - the caller
+   * owns the map, this file owns the picture. */
+  function ground(ctx, name, x, y, dx, dy, size, same) {
+    if (!img[name]) return false;
+    var a = autoCell(same(x - 1, y), same(x + 1, y),
+                     same(x, y - 1), same(x, y + 1));
+    /* +1 on the destination size, and rounded coordinates: without it a
+     * fractional tile size leaves hairline gaps between tiles that flicker as
+     * the camera moves, which is the single most obvious way tiled ground
+     * looks broken. */
+    return cell(ctx, name, TILE_PX, TILE_PX, a.col, a.row,
+                Math.round(dx), Math.round(dy),
+                Math.ceil(size) + 1, Math.ceil(size) + 1, false);
+  }
+
+  /* A plain fill from a one-tile sheet (grass, path centre, water centre). */
+  function fill(ctx, name, dx, dy, size) {
+    if (!img[name]) return false;
+    return cell(ctx, name, TILE_PX, TILE_PX, 0, 0,
+                Math.round(dx), Math.round(dy),
+                Math.ceil(size) + 1, Math.ceil(size) + 1, false);
+  }
+
   global.SDV_SHEETS = {
+    ground: ground, fill: fill, autoCell: autoCell,
     load: load, has: has, status: status, cell: cell, whole: whole,
     size: size, person: person, tint: tint, tintedCell: tintedCell,
     FILES: FILES

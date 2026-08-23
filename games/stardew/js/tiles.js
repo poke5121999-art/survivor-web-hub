@@ -88,7 +88,133 @@
    * The old per-pixel speckle is gone with it. Texture now means a couple of
    * soft, large, low-contrast marks - visible as material, invisible as pixels.
    */
+  /* Which sheet, if any, draws this kind of ground.
+   *
+   * Everything not listed keeps the painted version - there is no sheet for a
+   * ship's deck or a mine floor, and inventing one by stretching a grass tile
+   * would look worse than the paint it replaced. */
+  var GROUND_SHEET = {
+    grass:   { fill: 'tile_grass', detail: null },
+    /* Bare earth is TINTED. The pack's path tileset is sand, which is right for
+     * a town path and wrong for a farm - a whole farm of pale sand reads as a
+     * beach. The tiles keep their shape and their edges and take a brown over
+     * them, which is far better than having no edges at all. */
+    dirt:    { over: 'tile_path_edge', tint: 'rgba(96,58,26,0.46)' },
+    stone:   { over: 'tile_path_edge', tint: 'rgba(70,70,78,0.34)' },
+    path:    { over: 'tile_path_edge' },
+    tilled:  { over: 'tile_farmland' },
+    watered: { over: 'tile_farmland', dark: 0.22 },
+    water:   { over: 'tile_water_edge' },
+    deep:    { over: 'tile_water_edge', dark: 0.20 },
+    sand:    { fill: 'tile_path' }
+  };
+
+  /* Draw a ground tile from the tilesets, or say no and let the painter run.
+   *
+   * The autotile blocks are drawn OVER grass, because that is what their edges
+   * are cut against - a path tile's corner has grass painted into it. So grass
+   * goes down first everywhere outdoors and the material is laid on top; miss
+   * that and every path is ringed with transparent notches. */
+  /* Indoor floors, from the interior tileset.
+   *
+   * Cells picked off the sheet by eye after indexing it: rows 5-7 are floors in
+   * four materials, rows 1-4 are wall faces, row 0 is the cap that sits on top
+   * of a wall. Deliberately fixed cells rather than autotiled - an interior
+   * floor is laid, not grown, and a plank floor with eroded edges would look
+   * wrong in a way the outdoor ground does not. */
+  var INDOOR_CELL = {
+    floor:   [2, 6],      // warm planks
+    wood:    [6, 6],      // pale planks
+    rug:     [14, 6],     // red-orange brick, which is what a shop mat reads as
+    stone:   [10, 6],
+    plank:   [2, 6]
+  };
+
+  function sheetIndoor(ctx, kindName, sx, sy, ts, x, y, area) {
+    var SH = global.SDV_SHEETS;
+    if (!SH || !SH.has('in_floorwall')) return false;
+    var cellxy = INDOOR_CELL[kindName];
+    if (!cellxy) return false;
+    return SH.cell(ctx, 'in_floorwall', 16, 16, cellxy[0], cellxy[1],
+                   Math.round(sx), Math.round(sy),
+                   Math.ceil(ts) + 1, Math.ceil(ts) + 1, false);
+  }
+
+  function sheetGround(ctx, kindName, sx, sy, ts, x, y, area) {
+    var SH = global.SDV_SHEETS;
+    if (!SH || !area) return false;
+    if (!area.outdoor) return sheetIndoor(ctx, kindName, sx, sy, ts, x, y, area);
+    var spec = GROUND_SHEET[kindName];
+    if (!spec) return false;
+    if (spec.fill) return SH.fill(ctx, spec.fill, sx, sy, ts);
+    if (!SH.has('tile_grass') || !SH.has(spec.over)) return false;
+    SH.fill(ctx, 'tile_grass', sx, sy, ts);
+    var same = function (nx, ny) {
+      var n = area.name_of(nx, ny);
+      if (n === kindName) return true;
+      // water and deep water are one material as far as the shoreline cares
+      if ((kindName === 'water' || kindName === 'deep')
+          && (n === 'water' || n === 'deep')) return true;
+      if ((kindName === 'tilled' || kindName === 'watered')
+          && (n === 'tilled' || n === 'watered')) return true;
+      if ((kindName === 'dirt' || kindName === 'stone' || kindName === 'path')
+          && (n === 'dirt' || n === 'stone' || n === 'path')) return true;
+      return false;
+    };
+    var ok = SH.ground(ctx, spec.over, x, y, sx, sy, ts, same);
+    if (!ok) return false;
+
+    /* The detail tiles the sheet ships with, scattered thinly on tiles that are
+     * fully inside the material. The bottom row of the path and water sheets is
+     * loose pebbles and ripples, and it exists exactly for this - the centre
+     * tile of any tileset is flat by design, and a whole field of it is the
+     * "one flat colour" problem all over again, just in a nicer colour. */
+    var inside = same(x - 1, y) && same(x + 1, y)
+              && same(x, y - 1) && same(x, y + 1);
+    if (inside && spec.over !== 'tile_farmland') {
+      var r = noise(x * 13, y * 7);
+      if (r > 0.86) {
+        SH.cell(ctx, spec.over, 16, 16, Math.floor(noise(x, y * 3) * 3), 5,
+                Math.round(sx), Math.round(sy),
+                Math.ceil(ts) + 1, Math.ceil(ts) + 1, false);
+      }
+    }
+    if (spec.tint) {
+      ctx.save();
+      ctx.fillStyle = spec.tint;
+      ctx.fillRect(sx, sy, Math.ceil(ts) + 1, Math.ceil(ts) + 1);
+      ctx.restore();
+    }
+    if (spec.dark) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(20,40,90,' + spec.dark + ')';
+      ctx.fillRect(sx, sy, Math.ceil(ts) + 1, Math.ceil(ts) + 1);
+      ctx.restore();
+    }
+    /* And the broad light-and-dark variation that was measured into this file
+     * earlier: 79% of a midday frame used to be a single flat colour, and a
+     * tileset does not fix that on its own - it just makes the flat colour a
+     * nicer one. Kept very light here, because the tiles already carry detail
+     * the painted ground did not. */
+    var dp = dapple(x, y);
+    if (dp < 0.99 || dp > 1.01) {
+      ctx.save();
+      ctx.globalCompositeOperation = dp < 1 ? 'multiply' : 'lighter';
+      var k = Math.min(0.20, Math.abs(dp - 1) * 0.9);
+      ctx.fillStyle = (dp < 1 ? 'rgba(120,110,95,' : 'rgba(255,246,225,')
+                    + k.toFixed(3) + ')';
+      ctx.fillRect(sx, sy, Math.ceil(ts) + 1, Math.ceil(ts) + 1);
+      ctx.restore();
+    }
+    return ok;
+  }
+
+  /* Returns true when a tileset drew this tile. The caller uses that to skip
+   * the hand-painted blending pass: the tilesets carry their own edges, and
+   * feathering a second set of edges over them is how tiled ground ends up
+   * looking smeared. */
   function paintGround(ctx, kind, def, sx, sy, ts, x, y, t, area) {
+    if (sheetGround(ctx, kind, sx, sy, ts, x, y, area)) return true;
     var n = noise(x, y);
     var base = n < 0.5 ? def.c : (def.c2 || def.c);
     /* Structured ground keeps its exact colour - a floorboard or a flagstone is
@@ -383,6 +509,22 @@
   var INDOOR_WALL = { body: '#2a1d14', top: '#4a3626', fleck: '#1e150f' };
 
   function paintBlocked(ctx, cls, kind, sx, sy, ts, x, y, area, indoor) {
+    /* An interior wall from the tileset: the face, plus the cap on top when the
+     * tile above is not itself wall. That cap is what makes a room read as
+     * having height instead of being a hole in the floor. */
+    var SHw = global.SDV_SHEETS;
+    if (indoor && SHw && SHw.has('in_floorwall')) {
+      var above = y > 0 && area.blocked[(y - 1) * area.w + x];
+      var s2 = Math.ceil(ts) + 1;
+      SHw.cell(ctx, 'in_floorwall', 16, 16, 6, above ? 3 : 2,
+               Math.round(sx), Math.round(sy), s2, s2, false);
+      if (!above) {
+        SHw.cell(ctx, 'in_floorwall', 16, 16, 6, 0,
+                 Math.round(sx), Math.round(sy - ts * 0.62), s2,
+                 Math.ceil(ts * 0.66) + 1, false);
+      }
+      return;
+    }
     var u = ts / 16;
     var top = y > 0 && area.blocked[(y - 1) * area.w + x] === cls;
     var pal = cls === 3 ? BLOCK_FENCE
