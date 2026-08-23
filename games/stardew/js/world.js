@@ -876,6 +876,127 @@
     return { x0: x0, y0: y0, x1: x1, y1: y1, doorX: dx, doorY: dy };
   }
 
+  /* Where somebody coming through the front door should be STANDING.
+   *
+   * Not on the doormat: one step inside it. Closing these interiors down to a
+   * room took away every free tile the old landing point used to snap to, so
+   * `nearestFree` found the only opening left - the doorway itself - and put
+   * the player on the very warp they had just used. The next frame sent them
+   * straight back out, or the engine's anti-bounce nudge shoved them somewhere
+   * neither of us intended. That is the whole of "vô cửa nhưng toàn bị tele đi
+   * đâu không à", and it is why a landing tile can never be left to a search.
+   *
+   * The door can be in any wall, so the step is taken toward the middle of the
+   * room rather than assumed to be downward. */
+  function insideSpot(area, room, wx, wy) {
+    var cx = (room.x0 + room.x1) / 2, cy = (room.y0 + room.y1) / 2;
+    var dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+    // nearest to the room centre first
+    dirs.sort(function (a, b) {
+      var da = Math.hypot(wx + a[0] - cx, wy + a[1] - cy);
+      var db = Math.hypot(wx + b[0] - cx, wy + b[1] - cy);
+      return da - db;
+    });
+    var warpAt = {};
+    (area.warps || []).forEach(function (v) { warpAt[v.x + ',' + v.y] = 1; });
+    for (var i = 0; i < dirs.length; i++) {
+      var nx = wx + dirs[i][0], ny = wy + dirs[i][1];
+      if (nx < 0 || ny < 0 || nx >= area.w || ny >= area.h) continue;
+      /* Deliberately NOT "strictly inside the room rectangle": a door sits in
+       * the wall, so the tile that connects it to the room is often exactly on
+       * the boundary line, and excluding it sent every arrival to the fallback
+       * in the middle of the shop instead of just inside the door. Walkable and
+       * not another door is the whole requirement. */
+      if (area.solid(nx, ny)) continue;
+      if (warpAt[nx + ',' + ny]) continue;      // never onto another door
+      return { x: nx, y: ny };
+    }
+    // nothing beside the door: the middle of the room always works
+    return { x: Math.round(cx), y: Math.round(cy) };
+  }
+
+  /* No door may drop the player onto ANOTHER door that leads somewhere else.
+   *
+   * Doors have a deliberately generous trigger box - you are aiming at a door
+   * on a touchscreen, not threading a gap - and that generosity is exactly what
+   * makes a carelessly placed landing tile dangerous: arrive inside one, and
+   * the game moves you on again before you have touched anything. Sebastian's
+   * room was doing it, landing you a tile from the way back to the carpenter's.
+   *
+   * A door back the way you CAME is left alone: that case is already handled,
+   * by the anti-bounce walk in checkWarp. What this fixes is being thrown
+   * somewhere the player never chose.
+   *
+   * Runs last, over every warp in the game, because a landing tile is decided
+   * in three different places and only the final value matters. */
+  function clearLandingsOffDoors(areas) {
+    function inBox(px, py, v) {
+      var dyw = py - (v.y + 0.5);
+      return Math.abs(px - (v.x + 0.5)) < 0.95
+          && dyw > -0.65 && dyw < 1.25;          // a hair wider than checkWarp
+    }
+    for (var ok in areas) {
+      var oa = areas[ok];
+      if (!oa || !oa.warps) continue;
+      for (var i = 0; i < oa.warps.length; i++) {
+        var w = oa.warps[i];
+        var dest = areas[w.to];
+        if (!dest) continue;
+        var others = (dest.warps || []).filter(function (v) { return v.to !== ok; });
+        if (!others.length) continue;
+        var spot = dest.nearestFree(w.tx, w.ty, 10);
+        var clash = others.filter(function (v) {
+          return inBox(spot.x + 0.5, spot.y + 0.5, v);
+        })[0];
+        if (!clash) continue;
+        // step outward until clear of every other door, nearest first
+        var best = null;
+        for (var r = 1; r <= 6 && !best; r++) {
+          for (var dy = -r; dy <= r && !best; dy++) {
+            for (var dx = -r; dx <= r && !best; dx++) {
+              if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+              var nx = spot.x + dx, ny = spot.y + dy;
+              if (nx < 0 || ny < 0 || nx >= dest.w || ny >= dest.h) continue;
+              if (dest.solid(nx, ny)) continue;
+              var still = others.some(function (v) {
+                return inBox(nx + 0.5, ny + 0.5, v);
+              });
+              if (!still) best = { x: nx, y: ny };
+            }
+          }
+        }
+        if (best) { w.tx = best.x; w.ty = best.y; }
+      }
+    }
+  }
+
+  /* Point every door that leads INTO this shop at a tile inside the room. */
+  function fixShopLandings(areas, id, area, room) {
+    var moved = 0;
+    /* Aim from the shop's OWN front door, not from whatever landing point the
+     * map data happened to carry. Those two used to be the same tile, which is
+     * how the search ended up with nothing beside it to choose and fell back to
+     * the middle of the room - and the middle of the clinic is a step from
+     * Harvey's bedroom door. */
+    var front = (area.warps || []).filter(function (v) {
+      var d = areas[v.to];
+      return d && d.outdoor;
+    })[0];
+    for (var k in areas) {
+      var oa = areas[k];
+      if (!oa || !oa.warps) continue;
+      for (var i = 0; i < oa.warps.length; i++) {
+        var w = oa.warps[i];
+        if (w.to !== id) continue;
+        var spot = insideSpot(area, room,
+                              front ? front.x : w.tx, front ? front.y : w.ty);
+        w.tx = spot.x; w.ty = spot.y;
+        moved++;
+      }
+    }
+    return moved;
+  }
+
   /* Fill the room: shelves round the back and sides, stock on them, a couple
    * of crates, a rug down the middle and lamps on the walls. */
   function furnishShop(area, spec, r) {
@@ -1066,6 +1187,7 @@
     for (var sid in SHOP_ROOM) {
       if (!A[sid]) continue;
       shopRooms[sid] = shopRoom(A[sid], SHOP_ROOM[sid]);
+      A[sid]._shopRoom = shopRooms[sid];
     }
 
     for (var id in INTERIOR_COUNTERS) {
@@ -1359,6 +1481,20 @@
     });
     furnish(A, rng);
     resolveDoors(A);
+    /* AFTER resolveDoors, and that ordering is the whole point.
+     *
+     * `resolveDoors` recomputes every landing tile from the target's own way
+     * out, so a landing set before it is simply overwritten. That is what
+     * happened the first time this was fixed: the code was right, the result
+     * never changed, and two rounds of measurement went into a value that was
+     * being thrown away a thousand lines later. Anything that decides where a
+     * door puts you has to run last. */
+    for (var lid in SHOP_ROOM) {
+      if (A[lid] && A[lid]._shopRoom) {
+        fixShopLandings(A, lid, A[lid], A[lid]._shopRoom);
+      }
+    }
+    clearLandingsOffDoors(A);
     markBuildings(A);
     /* Everything standing here now came out of this build, not out of a save.
      * Marking it is what lets a restore tell the world's own furniture apart

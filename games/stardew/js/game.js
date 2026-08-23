@@ -595,6 +595,24 @@
        * and generous BELOW it, because you approach a door from the doorstep
        * and the doorstep is the tile the map marks. Map-edge warps keep the
        * tight box: those you want to cross deliberately, not fall through. */
+      /* Walk clear of where you landed before ANY door will take you again.
+       *
+       * `arrivedX/arrivedY` has been recorded since the beginning with the
+       * comment "until we walk clear of the landing" - and never read. Nothing
+       * enforced it, so a landing tile that happened to sit near another door
+       * threw the player straight through it. The clinic was the worst case:
+       * you arrived at (9,6) with a door to Harvey's room at (9,5), one tile
+       * away and well inside its own hit box, so entering the clinic put you
+       * in Harvey's bedroom every single time. Doors are deliberately generous
+       * to hit; that generosity is exactly what makes this necessary.
+       *
+       * Measured against the landing, not a timer: a timer would either be too
+       * short on a slow frame or steal a deliberate second door from a fast
+       * player. Once they have moved a tile, they meant it. */
+      if (this.arrivedX != null) {
+        var moved = Math.hypot(p.x - this.arrivedX, p.y - this.arrivedY);
+        if (moved < 1.25) continue;
+      }
       var isDoor = doorWarps[w.x + ',' + w.y];
       var padX = isDoor ? 0.85 : 0.45;
       var padUp = isDoor ? 0.55 : 0.45;
@@ -1838,6 +1856,17 @@
        * reads as a sticker. Everything here is still drawn in code. */
       case 'tree': case 'fruitTree': {
         contact(ctx, sx + ts * 0.5, sy + ts * 0.96, ts * 0.46, ts * 0.16);
+        var SHt = global.SDV_SHEETS;
+        /* The tree sheet is one picture, not a grid, and it is drawn ROOTED:
+         * its base sits on the bottom of the tile and the canopy grows up out
+         * of the frame, which is what stops a tree standing on its own leaves. */
+        if (SHt && SHt.has('tree')) {
+          var tsz = SHt.size('tree');
+          var tw = ts * 2.2, th = tw * (tsz.h / tsz.w);
+          SHt.whole(ctx, 'tree', Math.round(sx + ts * 0.5 - tw / 2),
+                    Math.round(sy + ts - th + ts * 0.10), tw, th);
+          break;
+        }
         global.SDV_ART.tree(ctx, sx + ts * 0.5, sy + ts, ts, o.x * 7 + o.y, {
           leaf: o.kind === 'fruitTree' ? '#4a8a44' : '#3f7f38',
           fruit: o.fruit || 0
@@ -1926,10 +1955,31 @@
      * out of that character's own sprite in the game files, so everybody stays
      * recognisable. */
     var pal = (act.real && act.real.pal) || act.pal || {};
-    var drew = ART.person(ctx, Math.round(act.x * ts - camX),
-                          Math.round(act.y * ts - camY + ts * 0.34),
-                          ts, pal, act.face, act.frame % 2);
-    sy = drew.headY;
+    /* Real sprite if the sheet is here, shapes if it is not.
+     *
+     * The fallback is not decoration: images load over the network and one that
+     * never arrives must not empty the screen of people. The shape version is
+     * the same code that drew the whole game until the art landed, so the game
+     * is playable either way and the switch is invisible in the save.
+     *
+     * The tint is what keeps forty villagers apart now that they share one
+     * body - it comes from the four colours already read out of each
+     * character's own sprite in the game files. */
+    var SH = global.SDV_SHEETS;
+    var pcx = Math.round(act.x * ts - camX);
+    var pcy = Math.round(act.y * ts - camY + ts * 0.34);
+    var drewSprite = SH && SH.person(ctx, pcx, pcy, ts, {
+      face: act.face,
+      moving: !!act.moving,
+      frame: (act.frame || 0),
+      colour: isNpc ? (pal.shirt || pal.hair || null) : null
+    });
+    if (drewSprite) {
+      sy = pcy - ts * 1.55;
+    } else {
+      var drew = ART.person(ctx, pcx, pcy, ts, pal, act.face, act.frame % 2);
+      sy = drew.headY;
+    }
     if (isNpc) {
       var cx = Math.round(act.x * ts - camX);
       /* Somebody standing at the water's edge for three hours is fishing, and

@@ -1142,7 +1142,32 @@
   UI.prototype.tapTile = function (x, y) {
     var g = this.game, a = g.world.area();
     var p = g.player, self = this;
-    var far = Math.hypot(x + 0.5 - p.x, y + 0.5 - p.y) > REACH;
+    var d0 = Math.hypot(x + 0.5 - p.x, y + 0.5 - p.y);
+    /* A door has a SHORTER direct reach than anything else, and that is not a
+     * detail - it closes a gap two range checks left between them.
+     *
+     * `tapTile` treated anything within 3.2 tiles as "act on it here", while
+     * `Game.enterDoor` refuses to open a door from further than 2.4 and hands
+     * back to a walk that does not always find a route. So a tap between those
+     * two numbers went down the direct path, was refused at the far end, and
+     * did nothing at all - no walk, no door, no message. Routing every door tap
+     * past 2.2 through the walk branch, which is the reliable one, means the
+     * two gates can no longer disagree. */
+    var tapped = g.world.objAt(x, y);
+    /* The DOORSTEP counts as the door.
+     *
+     * The doorway object sits on the wall; the tile that actually warps you is
+     * the step in front of it, one row down, and it carries no object at all.
+     * A tap there fell through every branch below - no object, not farmland -
+     * and did nothing: no walk, no door, not even a refusal. It is the most
+     * natural place on the whole building to aim at, which is why "vô cửa"
+     * failed so often and so silently. */
+    var stepWarp = (a.warps || []).filter(function (v) {
+      return v.x === x && v.y === y;
+    })[0];
+    var isDoor = (tapped && tapped.kind === 'doorway') || !!stepWarp;
+    var reach = isDoor ? 2.2 : REACH;
+    var far = d0 > reach;
 
     if (far && !this.moveCrop && !this.buildMode && !this.placeMode) {
       /* Out of reach: walk there and do it on arrival. Placement modes are
@@ -1182,6 +1207,9 @@
     }
     var o = g.world.objAt(x, y);
     if (o) return this.openObject(o, x, y);
+    /* Close enough to step onto the doorstep: walk onto it, and the warp does
+     * the rest - the same thing that happens when you walk there yourself. */
+    if (stepWarp) return g.walkTo(x, y, null, { face: { x: x, y: y } });
     var t = a.name_of(x, y);
     /* WHY: gating on a.id === 'farm' meant the greenhouse and the island plot
      * were decorative - you could stand on soil and not be allowed to plant. */

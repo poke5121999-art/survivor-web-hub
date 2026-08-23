@@ -1,0 +1,21 @@
+Art used by this game, and where it came from.
+
+  Cute Fantasy (free version)
+      player.png, player_actions.png, tree*.png, chest.png, fences.png,
+      decor.png, house.png, tile_*.png, animal_*.png, foe_*.png
+      Free version: non-commercial use, modification allowed,
+      redistribution not allowed.
+
+  Top-Down Retro Interior
+      in_floorwall.png, in_doors.png, in_furniture.png, in_small.png
+
+  Tiny Wonder Farm (free version)
+      farm_objects.png, farm_plants.png, farm_inside.png
+
+  Item icons (crops, cooking, minerals, forage, artisan goods, artifacts)
+      drawn by the project owner.
+
+Character variety: there is one character sheet and forty villagers, so each
+villager is drawn from it with their own colour laid over it. The colours come
+from that character's own sprite in the game's data files, which is how they
+stayed recognisable when everybody started sharing one body.
