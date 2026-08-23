@@ -39,12 +39,19 @@ const bot = {
 
   bfs(sx,sy,tx,ty){
     const A = R(), MW = A.MW, MH = A.MH;
-    if (A.solidAt(tx,ty)){
+    // A jammed door is a wall to the route planner too. The bot has no pry bar, and it never
+    // needs one: a door is only allowed to jam where the house stays fully walkable around it.
+    // WHY it is not A.solidAt: solidAt reads the grid, and a jammed door deliberately does not
+    // touch the grid - so a bot planning on solidAt walks a route it cannot take and calls it a
+    // stuck.
+    // SEE: door rework, 2026-08-23
+    const blocked = A.walkBlocked || A.solidAt;
+    if (blocked(tx,ty)){
       // target sits inside geometry — walk to the closest open tile beside it
       let best = null, bd = 1e9;
       for (let dy=-2; dy<=2; dy++) for (let dx=-2; dx<=2; dx++){
         const nx = tx+dx, ny = ty+dy;
-        if (nx<0||ny<0||nx>=MW||ny>=MH || A.solidAt(nx,ny)) continue;
+        if (nx<0||ny<0||nx>=MW||ny>=MH || blocked(nx,ny)) continue;
         const d = dx*dx+dy*dy;
         if (d < bd){ bd = d; best = {nx,ny}; }
       }
@@ -65,7 +72,7 @@ const bot = {
       for (const [nx,ny] of nb){
         if (nx<0||ny<0||nx>=MW||ny>=MH) continue;
         const j = ny*MW+nx;
-        if (seen[j] || A.solidAt(nx,ny)) continue;
+        if (seen[j] || blocked(nx,ny)) continue;
         seen[j] = 1; prev[j] = i; q.push(j);
       }
     }

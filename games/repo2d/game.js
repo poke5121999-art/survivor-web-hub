@@ -557,7 +557,7 @@ const MONSTERS = {
   // Kẻ húc. It does not chase and it does not touch you while walking: its whole threat is one
   // straight line, announced three seconds before it is fired. Everything about it is built so the
   // counter-play is a step sideways and a wall between you, never a health bar.
-  rook:    { name:'Kẻ húc',     hp:170,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' }
+  rook:    { name:'Kẻ húc',     hp:100,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
@@ -645,7 +645,10 @@ const GEAR = [
   { key:'heal',    name:'Băng cứu thương', short:'Máu',  desc:'Hồi 45 máu ngay lập tức.',                             uses:2, price: 4500,  stock:6 },
   { key:'tracker', name:'Máy dò bệ',       short:'Dò',   desc:'Hiện những bệ bạn chưa tìm ra, và vẽ đường tới chúng.',uses:1, price: 6000,  stock:2, passive:true },
   { key:'float',   name:'Bình phản trọng lực', short:'Nhẹ', desc:'20 giây món đang vác nhẹ như không.',               uses:2, price: 10000, stock:3 },
-  { key:'shield',  name:'Keo bọc chống vỡ',short:'Bọc',  desc:'25 giây món đang vác không mất giá trị dù va đập.',    uses:2, price: 11000, stock:3 }
+  { key:'shield',  name:'Keo bọc chống vỡ',short:'Bọc',  desc:'25 giây món đang vác không mất giá trị dù va đập.',    uses:2, price: 11000, stock:3 },
+  // The answer to a jammed door. Cheap on purpose: a door you cannot open is a detour, not a
+  // paywall, and the bar is worth buying for the SECONDS it saves you while something is coming.
+  { key:'pry',     name:'Xà beng',         short:'Phá',  desc:'Phá cánh cửa bị kẹt ngay trước mặt. Ồn.',              uses:3, price: 5000,  stock:4 }
 ];
 const GEAR_BY_KEY = {};
 for (const g of GEAR) GEAR_BY_KEY[g.key] = g;
@@ -671,6 +674,7 @@ const CART_HANDLE_ARC = 1.05;      // how wide the "front" is, in radians either
 const CART_IMPACT_ABSORB = 0;
 const CART_TURN_PENALTY  = 0.5;    // the cart's share of the turn penalty — the one place its mass still tells
 const CART_WEAK_SPEED_MUL = 0.7;   // wrong-side grab: a choice you pay for in speed, not in weight
+const PRY_REACH = 2.2*TILE;   // how far in front of you the bar reaches for a jammed door
 const CART_MAX_SIZE   = 1;         // index into SIZES: 'to' (2) will not fit on the cart
 
 // ============================================================ cửa giữa các phòng
@@ -693,13 +697,41 @@ const DOOR_OPEN_T   = 0.22;       // seconds to swing open
 const DOOR_SHUT_T   = 1.1;        // and it takes longer to fall shut, so you are not fighting it
 const DOOR_SEE_AT   = 0.55;       // open past this and it stops blocking sight
 
+// The opening is carved THREE tiles wide and the leaf was one tile of it, hinged in the middle.
+// So "a shut door hides the next room" was only true head-on: step a tile off the centre line and
+// you read the whole room through the two thirds of the gap nothing was covering. A door is now a
+// PAIR of leaves hinged at the two jambs, meeting in the middle, covering the opening end to end.
+// WHY it matters more than it sounds: the tension in this house is walking into a black rectangle,
+// and a door that only covers its middle third quietly gives that away every time.
+// ROOT-CAUSE: the leaf was drawn and sight-tested at one tile because that is the tile the door
+// record sits on, not because that is the width of the hole it is closing.
+// SEE: door rework, 2026-08-23
+const DOOR_SPAN     = 3*TILE;     // the width of the opening the pair has to cover
+const DOOR_LEAF     = DOOR_SPAN/2;
+const DOOR_THICK    = 6;          // how far a shut pair sticks out of the doorway, for collision
+
+// Some doors are JAMMED. A jammed door does not swing for you: it blocks the WAY as well as the
+// sight, and the ways past it are the pry bar, a grenade, or something big enough to shoulder it
+// down. It is the one door in the house you have to make a decision about.
+//
+// WHY it can never make a level unwinnable: a door is only allowed to jam if every floor tile the
+// house could reach with it open can still be reached with it shut (see lockDoors). A jam always
+// costs a detour and never the run - which is also why the cart route validator, the pad placer
+// and the level generator do not need to know jammed doors exist.
+const DOOR_LOCK_FRAC  = 0.25;     // at most this share of the doors in one house
+const DOOR_LOCK_LEVEL = 2;        // level 1 teaches the loop with every door working
+const DOOR_BASH_T     = 1.6;      // seconds a body with shoulders spends forcing one
+const DOOR_BASH_R     = 1.2*TILE;
+const DOOR_BREAK_NOISE = 11*TILE; // splintering wood is loud, and the house hears it
+
 function makeDoor(gx, gy, vertical){
-  return { gx, gy, x:(gx+0.5)*TILE, y:(gy+0.5)*TILE, vertical, open:0, side: Math.random() < 0.5 ? 1 : -1 };
+  return { gx, gy, x:(gx+0.5)*TILE, y:(gy+0.5)*TILE, vertical, side:1,
+           open:0, locked:false, broken:false, bash:0, splint:0, warned:0 };
 }
 
 // Every floor tile sitting on a room boundary is a doorway. Only the middle tile of each opening
-// gets a leaf — the openings are carved three wide, and three doors in one gap is a wall.
-function buildDoors(){
+// carries the pair - the openings are carved three wide, and the pair spans all three.
+function buildDoors(rnd){
   S.doors = [];
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
     const my = cy*RH + (RH>>1), mx = cx*RW + (RW>>1);
@@ -712,12 +744,148 @@ function buildDoors(){
       if (S.grid[row*MW+mx] === FLOOR) S.doors.push(makeDoor(mx, row, false));
     }
   }
+  const r = rnd || Math.random;
+  for (const d of S.doors) d.side = r() < 0.5 ? 1 : -1;   // which room the pair swings into
+  lockDoors(r);
+}
+
+// The three floor tiles a shut pair stands on.
+function doorTiles(d){
+  return d.vertical ? [[d.gx, d.gy-1], [d.gx, d.gy], [d.gx, d.gy+1]]
+                    : [[d.gx-1, d.gy], [d.gx, d.gy], [d.gx+1, d.gy]];
+}
+
+function doorBlockMask(){
+  const m = new Uint8Array(MW*MH);
+  if (S.doors) for (const d of S.doors){
+    if (!d.locked || d.broken) continue;
+    for (const t of doorTiles(d)) if (t[0]>=0 && t[1]>=0 && t[0]<MW && t[1]<MH) m[t[1]*MW+t[0]] = 1;
+  }
+  return m;
+}
+
+// Flood the walkable house from the truck, optionally refusing the tiles jammed doors stand on.
+function floodWalk(mask){
+  const seen = new Uint8Array(MW*MH);
+  if (!S.car) return seen;
+  const sx = clamp((S.car.x/TILE)|0, 0, MW-1), sy = clamp((S.car.y/TILE)|0, 0, MH-1);
+  const start = sy*MW+sx;
+  if (S.grid[start] !== FLOOR || (mask && mask[start])) return seen;
+  seen[start] = 1;
+  const q = [start];
+  for (let head=0; head<q.length; head++){
+    const i = q[head], x = i%MW, y = (i/MW)|0;
+    for (const nb of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){
+      const nx = nb[0], ny = nb[1];
+      if (nx<0||ny<0||nx>=MW||ny>=MH) continue;
+      const j = ny*MW+nx;
+      if (seen[j] || S.grid[j] !== FLOOR || (mask && mask[j])) continue;
+      seen[j] = 1; q.push(j);
+    }
+  }
+  return seen;
+}
+
+// Jam a few doors, and prove each one before keeping it: with the door shut, every floor tile the
+// house could reach without it must STILL be reachable. A door that fails that test is un-jammed
+// again. That is the whole safety net - no pad, no piece of loot and no corner of the map can end
+// up behind a door the player has no tool for.
+// Where the truck parks and where the pads are, in tiles - the set the cart has to keep reaching.
+function cartTargets(){
+  const t = [];
+  if (S.car) t.push([clamp((S.car.x/TILE)|0, 0, MW-1), clamp((S.car.y/TILE)|0, 0, MH-1)]);
+  for (const pad of (S.pads || [])) t.push([clamp((pad.x/TILE)|0, 0, MW-1), clamp((pad.y/TILE)|0, 0, MH-1)]);
+  return t;
+}
+
+function lockDoors(rnd){
+  if (!S.doors.length || S.shopMode || S.level < DOOR_LOCK_LEVEL) return;
+  const base = floodWalk(null);
+  // The cart needs three tiles of clearance and a jam takes all three, so a jam cuts a doorway
+  // for the CART even where a person can still squeeze past. Checking only walkability would let
+  // a house pass that quietly turns the whole haul into hand trips.
+  const cgx = S.car ? clamp((S.car.x/TILE)|0, 0, MW-1) : 0;
+  const cgy = S.car ? clamp((S.car.y/TILE)|0, 0, MH-1) : 0;
+  const baseCart = floodCart(cgx, cgy, null);
+  const targets = cartTargets();
+  const budget = Math.max(1, Math.round(S.doors.length * DOOR_LOCK_FRAC));
+  const order = S.doors.map(function(_, i){ return i; });
+  for (let i=order.length-1; i>0; i--){ const j = (rnd()*(i+1))|0; const t = order[i]; order[i] = order[j]; order[j] = t; }
+  let locked = 0;
+  for (const i of order){
+    if (locked >= budget) break;
+    const d = S.doors[i];
+    d.locked = true;
+    const mask = doorBlockMask(), now = floodWalk(mask);
+    let ok = true;
+    for (let k=0; k<base.length; k++) if (base[k] && !mask[k] && !now[k]){ ok = false; break; }
+    if (ok){
+      const nowCart = floodCart(cgx, cgy, mask);
+      for (const t of targets){
+        const k = t[1]*MW + t[0];
+        if (baseCart[k] && !nowCart[k]){ ok = false; break; }
+      }
+    }
+    if (ok) locked++; else d.locked = false;
+  }
+}
+
+// One way out of a jammed door, wherever the force came from.
+function breakDoor(d, how){
+  if (!d || d.broken) return false;
+  d.broken = true; d.locked = false; d.open = 1; d.bash = 0; d.splint = 1;
+  SFX.thud(); fxShake(how === 'bash' ? 8 : 6);
+  if (!S.shopMode) makeNoise(d.x, d.y, DOOR_BREAK_NOISE, 2);
+  return true;
+}
+
+// The jammed door nearest to a point, within `r`.
+function nearestLockedDoor(x, y, r){
+  let best = null, bd = r;
+  if (S.doors) for (const d of S.doors){
+    if (!d.locked || d.broken) continue;
+    const dd = Math.hypot(d.x-x, d.y-y);
+    if (dd < bd){ bd = dd; best = d; }
+  }
+  return best;
+}
+function breakDoorsNear(x, y, r){
+  let n = 0;
+  if (S.doors) for (const d of S.doors){
+    if (!d.locked || d.broken) continue;
+    if (Math.hypot(d.x-x, d.y-y) < r && breakDoor(d, 'blast')) n++;
+  }
+  return n;
 }
 
 function stepDoors(dt){
   if (!S.doors) return;
   const bodies = S.shopMode ? [] : crewAlive().concat(S.monsters);
   for (const d of S.doors){
+    if (d.splint > 0) d.splint = Math.max(0, d.splint - dt*0.6);
+    if (d.warned > 0) d.warned = Math.max(0, d.warned - dt);
+    if (d.locked && !d.broken){
+      d.open = 0;
+      // Anything with shoulders forces it eventually - and that is deliberately everything except
+      // YOU. A jammed door that opened if the player leaned on it long enough would make the pry
+      // bar a thing nobody ever has a reason to buy, and being the one body in the house that
+      // cannot kick a door in is exactly why you carry tools.
+      let bashing = false;
+      for (const b of bodies){
+        if (b === S.player) continue;
+        if (Math.abs(b.x-d.x) > DOOR_BASH_R || Math.abs(b.y-d.y) > DOOR_BASH_R) continue;
+        // A monster only forces a door it WANTS through. Without this every jam in the house
+        // dissolves in the first minute, because five things wandering their patrol routes brush
+        // past twelve doorways and the rule quietly deletes itself.
+        const mate = S.mates && S.mates.indexOf(b) >= 0;
+        if (!mate && !(b.alert > 0)) continue;
+        bashing = true; break;
+      }
+      d.bash = bashing ? d.bash + dt : Math.max(0, d.bash - dt*0.5);
+      if (d.bash >= DOOR_BASH_T) breakDoor(d, 'bash');
+      continue;
+    }
+    if (d.broken){ d.open = 1; continue; }        // a broken door is a hole, for good
     let near = false;
     for (const b of bodies){
       if (Math.abs(b.x-d.x) > DOOR_OPEN_R || Math.abs(b.y-d.y) > DOOR_OPEN_R) continue;
@@ -731,14 +899,15 @@ function stepDoors(dt){
   }
 }
 
-// A closed door is a wall as far as any sightline is concerned — the player's torch, a monster's
+// A closed door is a wall as far as any sightline is concerned - the player's torch, a monster's
 // eyes, the AEngel's beam check, all of them, because they all come through losClear.
 function doorBlocks(x0, y0, x1, y1){
   if (!S.doors) return false;
   for (const d of S.doors){
-    if (d.open >= DOOR_SEE_AT) continue;
-    // the leaf spans the tile across the opening
-    const half = TILE*0.5;
+    if (d.broken) continue;
+    if (!d.locked && d.open >= DOOR_SEE_AT) continue;
+    // the pair spans the whole opening, not just its middle tile
+    const half = DOOR_LEAF;
     const ax = d.vertical ? d.x : d.x - half, ay = d.vertical ? d.y - half : d.y;
     const bx = d.vertical ? d.x : d.x + half, by = d.vertical ? d.y + half : d.y;
     const dx = x1-x0, dy = y1-y0, ex = bx-ax, ey = by-ay;
@@ -748,6 +917,30 @@ function doorBlocks(x0, y0, x1, y1){
     const t = (px*ey - py*ex) / den;
     const u = (px*dy - py*dx) / den;
     if (t > 0 && t < 1 && u >= 0 && u <= 1) return true;
+  }
+  return false;
+}
+
+// A JAMMED door is solid. A working one is not, on purpose: sight is the one thing that could be
+// layered on top of the grid without the pathing, the cart route validator and the generator each
+// needing a second truth about the same tile, and a leaf that swung bodies around would undo that.
+// A jammed door is safe to make solid because it never moves and never opens on its own.
+function doorHits(x, y, r){
+  if (!S.doors) return false;
+  for (const d of S.doors){
+    if (!d.locked || d.broken) continue;
+    const hx = d.vertical ? DOOR_THICK*0.5 : DOOR_LEAF;
+    const hy = d.vertical ? DOOR_LEAF : DOOR_THICK*0.5;
+    if (Math.abs(x-d.x) < hx + r && Math.abs(y-d.y) < hy + r) return true;
+  }
+  return false;
+}
+// Same question in tiles, for anything that plans a route rather than walks one.
+function doorBlockedTile(gx, gy){
+  if (!S.doors) return false;
+  for (const d of S.doors){
+    if (!d.locked || d.broken) continue;
+    for (const t of doorTiles(d)) if (t[0] === gx && t[1] === gy) return true;
   }
   return false;
 }
@@ -813,6 +1006,14 @@ function buildLevel(seed){
   S.explored = new Uint8Array(MW*MH);
   S.rooms = []; S.loot = []; S.monsters = []; S.pads = [];
   S.bullets = []; S.bombs = []; S.corpses = [];
+  // WHY: the doors of the PREVIOUS house survived until buildDoors ran at the very end of this
+  // function, and everything in between - loot placement, monster posts, the cart route repair -
+  // asks whether a point is clear. A jammed door from the last level answering that question is a
+  // wall in a house it was never in.
+  // ROOT-CAUSE: doors were built last but never cleared first, so S.doors was stale for one whole
+  // level build.
+  // SEE: door rework, 2026-08-23
+  S.doors = [];
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
   S.levelDone = false; S.dead = false; S.hurtLog = []; S.shiftLost = false;
   S.restocks = 0;
@@ -1058,7 +1259,7 @@ function buildLevel(seed){
 
   fxReset();
   S.segs = buildSegments();
-  buildDoors();
+  buildDoors(mulberry32(seed ^ 0x5bf03635));
   prerenderWorld(mulberry32(seed ^ 0x9e3779b9));
   prerenderMinimap();
   S.time = 0;
@@ -1125,26 +1326,27 @@ function carveTile(gx,gy){ if (gx>0&&gy>0&&gx<MW-1&&gy<MH-1) S.grid[gy*MW+gx] = 
 
 // A tile the CART can stand on: the whole 3x3 block around it is floor, i.e. 72 px of clearance,
 // the same width an authored door is carved to. The player only needs the tile itself.
-function cartPassable(gx,gy){
+function cartPassable(gx,gy,mask){
   for (let y=gy-1; y<=gy+1; y++) for (let x=gx-1; x<=gx+1; x++){
     if (x<0||y<0||x>=MW||y>=MH) return false;
     if (S.grid[y*MW+x] !== FLOOR) return false;
+    if (mask && mask[y*MW+x]) return false;      // a jammed door, for the callers that care
   }
   return true;
 }
 
 // flood(), but stepping only through tiles the cart fits in — which is what "connected" has to
 // mean for anything the haul loop needs to reach.
-function floodCart(sx, sy){
+function floodCart(sx, sy, mask){
   const seen = new Uint8Array(MW*MH);
-  if (!cartPassable(sx,sy)) return seen;
+  if (!cartPassable(sx,sy,mask)) return seen;
   const q = [sy*MW+sx]; seen[sy*MW+sx] = 1;
   while (q.length){
     const i = q.pop(), x = i%MW, y = (i/MW)|0;
     for (const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){
       if (nx<0||ny<0||nx>=MW||ny>=MH) continue;
       const j = ny*MW+nx;
-      if (seen[j] || !cartPassable(nx,ny)) continue;
+      if (seen[j] || !cartPassable(nx,ny,mask)) continue;
       seen[j] = 1; q.push(j);
     }
   }
@@ -1164,6 +1366,9 @@ function bfsPath(sx, sy, accept, inset){
   inset = inset || 0;
   if (sx<0||sy<0||sx>=MW||sy>=MH) return null;
   if (S.grid[sy*MW+sx] !== FLOOR) return null;
+  // A route drawn through a jammed door is a route the player cannot walk. During generation
+  // there are no doors yet, so this costs the cart-route repair nothing.
+  const jam = (S.doors && S.doors.length) ? doorBlockMask() : null;
   const start = sy*MW+sx;
   const prev = new Int32Array(MW*MH).fill(-2);
   prev[start] = -1;
@@ -1178,7 +1383,7 @@ function bfsPath(sx, sy, accept, inset){
     for (const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){
       if (nx<inset||ny<inset||nx>=MW-inset||ny>=MH-inset) continue;
       const j = ny*MW+nx;
-      if (prev[j] !== -2 || S.grid[j] !== FLOOR) continue;
+      if (prev[j] !== -2 || S.grid[j] !== FLOOR || (jam && jam[j])) continue;
       prev[j] = i; q.push(j);
     }
   }
@@ -1475,8 +1680,8 @@ function visPoly(ox,oy,R,uniform){
   // invisible, which is the same as not shipping it.
   const shut = [];
   if (S.doors) for (const d of S.doors){
-    if (d.open >= DOOR_SEE_AT) continue;
-    const half = TILE*0.5;
+    if (d.broken || (!d.locked && d.open >= DOOR_SEE_AT)) continue;
+    const half = DOOR_LEAF;
     shut.push(d.vertical ? seg(d.x, d.y-half, d.x, d.y+half)
                          : seg(d.x-half, d.y, d.x+half, d.y));
   }
@@ -1536,7 +1741,7 @@ function losClear(x0,y0,x1,y1){
 function hitsSolid(x,y,r){
   for (const [ox,oy] of [[-r,-r],[r,-r],[-r,r],[r,r],[0,0]])
     if (solidAt(((x+ox)/TILE)|0, ((y+oy)/TILE)|0)) return true;
-  return false;
+  return doorHits(x, y, r);          // a jammed door is a wall until something breaks it
 }
 function moveEnt(e, dx, dy, r){
   let blocked = false;
@@ -2243,6 +2448,15 @@ function useSlot(p, i, aimed){
   } else if (it.kind === 'shield'){
     p.shieldT = 25; it.uses--; p.cooldown = 0.4;
     toast('Bọc chống vỡ — 25 giây');
+  } else if (it.kind === 'pry'){
+    // It only spends a use when there is something to spend it ON. Pressing a slot and losing a
+    // charge to empty air is the kind of thing a player never forgives a shop item for.
+    const d = nearestLockedDoor(p.x + Math.cos(ang)*PRY_REACH*0.6,
+                                p.y + Math.sin(ang)*PRY_REACH*0.6, PRY_REACH);
+    if (!d){ toast('Không có cửa kẹt trong tầm với'); return false; }
+    breakDoor(d, 'pry');
+    it.uses--; p.cooldown = 0.6;
+    toast('Phá được cửa');
   } else return false;
   S.lastUse = { kind: it.kind, angle: ang, t: S.time };   // a bullet can hit a wall within one frame
   if (it.uses <= 0) p.inv[i] = null;              // used up, and the slot frees for the locker
@@ -2319,6 +2533,8 @@ function stepProjectiles(dt){
           if (dm < b.r){ damageMirror(pane.x, pane.y, 90 * (1 - dm/b.r)); break; }
         }
       }
+      // A blast that can throw a monster across a room takes a jammed door off its hinges too.
+      breakDoorsNear(b.x, b.y, b.r);
       // the funniest and most expensive source of damage in the source game: your own bomb
       for (const l of S.loot){
         if (l.gone) continue;
@@ -4070,7 +4286,13 @@ function step(dt){
   p.speedMul = tierMul;        // the tier multiplier, kept so a test can read what running is worth
   if (vx || vy){
     const sp = playerSpeed(p) * tierMul;
-    moveEnt(p, vx*sp*dt, vy*sp*dt, 7.5);
+    const stopped = moveEnt(p, vx*sp*dt, vy*sp*dt, 7.5);
+    // Walking into a jammed door has to SAY it is jammed. Without this it reads as the wall being
+    // in the wrong place, which is the bug report you get instead of the design landing.
+    if (stopped){
+      const d = nearestLockedDoor(p.x + vx*TILE, p.y + vy*TILE, 1.6*TILE);
+      if (d && d.warned <= 0){ d.warned = 3; toast('Cửa bị kẹt — cần xà beng hoặc bom'); }
+    }
   }
 
   // The shove from being hit, applied on top of whatever you were doing. Same decay curve the
@@ -4939,31 +5161,87 @@ function drawMonsters(c){
     c.restore();
   }
 }
-// The leaf. It swings on a hinge at one edge, and the ANGLE is the information: a door standing
-// across a doorway reads as shut from any distance, and one flat against the wall reads as open.
-// A colour change would not — half the game is played in the dark, where colour is the first thing
-// to go.
+// The leaves. They swing on hinges at the two JAMBS and meet in the middle, and the ANGLE is the
+// information: a pair standing across a doorway reads as shut from any distance, and two leaves
+// flat against the wall read as open. A colour change would not - half the game is played in the
+// dark, where colour is the first thing to go.
+// A JAMMED pair never moves, and says so with boards nailed across it.
 function drawDoors(c){
   if (!S.doors) return;
   for (const d of S.doors){
-    const half = TILE*0.5;
-    const a = d.open * (Math.PI/2) * d.side;      // 0 = across the gap, 90 deg = flat to the wall
-    c.save();
-    // the hinge sits at one end of the opening
-    const hx = d.vertical ? d.x : d.x - half*d.side;
-    const hy = d.vertical ? d.y - half*d.side : d.y;
-    c.translate(hx, hy);
-    c.rotate((d.vertical ? Math.PI/2 : 0) + a);
-    const len = TILE, th = 4.5;
-    c.fillStyle = '#4a3a2a';
-    c.fillRect(0, -th*0.5, len*d.side, th);
-    c.fillStyle = 'rgba(226,200,150,0.16)';
-    c.fillRect(0, -th*0.5, len*d.side, 1.4);
-    // the handle, so the leaf has a near edge and a far edge
-    c.fillStyle = '#c8a86a';
-    c.fillRect(len*d.side - 3*d.side, -1.6, 2.4*d.side, 3.2);
+    if (d.broken){ drawDoorWreck(c, d); continue; }
+    const jam = d.locked;
+    for (const k of [-1, 1]){
+      const hx = d.vertical ? d.x : d.x + k*DOOR_LEAF;
+      const hy = d.vertical ? d.y + k*DOOR_LEAF : d.y;
+      // shut = the leaf lies along the opening, reaching from its jamb to the middle
+      const shut = d.vertical ? -k*(Math.PI/2) : (k > 0 ? Math.PI : 0);
+      const a = shut + (jam ? 0 : -k*d.side*(Math.PI/2)*d.open);
+      c.save();
+      c.translate(hx, hy);
+      c.rotate(a);
+      const len = DOOR_LEAF, th = jam ? 6 : 5;
+      c.fillStyle = jam ? '#3a2c22' : '#4a3a2a';
+      c.fillRect(0, -th*0.5, len, th);
+      c.fillStyle = 'rgba(226,200,150,0.16)';
+      c.fillRect(0, -th*0.5, len, 1.4);
+      // the handle at the free edge, so a leaf has a near end and a far end
+      c.fillStyle = jam ? '#7a6a55' : '#c8a86a';
+      c.fillRect(len - 3.4, -1.6, 2.6, 3.2);
+      c.restore();
+    }
+    if (jam) drawDoorJam(c, d);
+  }
+}
+
+// Boards across the pair, and a glow that builds while something on the other side leans on it.
+function drawDoorJam(c, d){
+  const half = DOOR_LEAF;
+  c.save();
+  c.translate(d.x, d.y);
+  if (d.vertical) c.rotate(Math.PI/2);
+  c.fillStyle = '#5a4632';
+  for (const o of [-8, 8]){
+    c.save(); c.translate(0, o); c.rotate(o > 0 ? 0.16 : -0.16);
+    c.fillRect(-half*0.92, -3, half*1.84, 6);
     c.restore();
   }
+  c.fillStyle = 'rgba(226,206,168,0.45)';
+  for (const x of [-half*0.66, 0, half*0.66]){ c.fillRect(x-1, -11, 2, 2); c.fillRect(x-1, 9, 2, 2); }
+  c.restore();
+  if (d.bash > 0){
+    const k = clamp(d.bash/DOOR_BASH_T, 0, 1);
+    c.save();
+    c.globalAlpha = 0.2 + k*0.55;
+    c.strokeStyle = '#e0b070'; c.lineWidth = 1 + k*2.2;
+    c.beginPath();
+    if (d.vertical){ c.moveTo(d.x, d.y-half); c.lineTo(d.x, d.y+half); }
+    else { c.moveTo(d.x-half, d.y); c.lineTo(d.x+half, d.y); }
+    c.stroke();
+    c.restore();
+  }
+}
+
+// What is left once a pair comes off its hinges: planks on the floor and an empty doorway. It
+// stays for the rest of the level, because a door you paid a charge for should still be open the
+// next time you come through carrying something.
+function drawDoorWreck(c, d){
+  const half = DOOR_LEAF;
+  c.save();
+  c.translate(d.x, d.y);
+  if (d.vertical) c.rotate(Math.PI/2);
+  c.fillStyle = 'rgba(52,40,30,0.9)';
+  const bits = [[-half*0.78, -4, 13, 3.4, 0.5], [-half*0.42, 5, 9, 3, -0.42],
+                [half*0.5, -5, 11, 3.2, 0.34], [half*0.84, 4, 8, 3, -0.6]];
+  for (const b of bits){
+    c.save(); c.translate(b[0], b[1]); c.rotate(b[4]); c.fillRect(-b[2]/2, -b[3]/2, b[2], b[3]); c.restore();
+  }
+  if (d.splint > 0){
+    c.globalAlpha = d.splint*0.5;
+    c.fillStyle = '#d8c19a';
+    for (const b of bits){ c.fillRect(b[0]-1, b[1]-1, 2, 2); }
+  }
+  c.restore();
 }
 
 function drawProjectiles(c){
@@ -5751,7 +6029,7 @@ window.REPO = {
   },
   // turnRate / coneRadius take the player, like playerSpeed above; handWeight / pushWeight are
   // the zero-argument hooks the patch's contract names, and read the current player.
-  cartPassable, routeToObjective, turnRate, coneRadius, carriedWeight,
+  cartPassable, floodCart, routeToObjective, turnRate, coneRadius, carriedWeight,
   route(){ return routeToObjective(); },
   visibleRoute(){ return visibleRoute(); },
   checkShiftLost, endLostShift, recoverableValue, restockForQuota, restockSpots,
@@ -5858,8 +6136,15 @@ window.REPO = {
                     x: hud.heart.x, y: hud.heart.y, r: hud.heart.r }; },
   mouseLook(){ return mouseFresh() ? mouseWorldNow() : null; },
   foesForLevel, makeNoise, lootCap,
-  doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, open:d.open, vertical:d.vertical })); },
-  DOOR: { OPEN_R:DOOR_OPEN_R, OPEN_T:DOOR_OPEN_T, SHUT_T:DOOR_SHUT_T, SEE_AT:DOOR_SEE_AT },
+  doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, gx:d.gx, gy:d.gy, open:d.open,
+                                              vertical:d.vertical, locked:!!d.locked,
+                                              broken:!!d.broken, bash:d.bash })); },
+  DOOR: { OPEN_R:DOOR_OPEN_R, OPEN_T:DOOR_OPEN_T, SHUT_T:DOOR_SHUT_T, SEE_AT:DOOR_SEE_AT,
+          SPAN:DOOR_SPAN, LEAF:DOOR_LEAF, LOCK_FRAC:DOOR_LOCK_FRAC, LOCK_LEVEL:DOOR_LOCK_LEVEL,
+          BASH_T:DOOR_BASH_T, PRY_REACH:PRY_REACH },
+  doorHits, doorBlockedTile, doorBlocks, floodWalk, doorBlockMask,
+  breakDoor(i){ return breakDoor(S.doors[i|0], 'test'); },
+  walkBlocked(gx, gy){ return solidAt(gx, gy) || doorBlockedTile(gx, gy); },
   LOOT_CAP: { LEVEL:LOOT_CAP_LEVEL, VALUE:LOOT_CAP_VALUE, COUNT:LOOT_CAP_COUNT,
               BIG:LOOT_CAP_BIG, MED:LOOT_CAP_MED },
   relocateFoe(i){ return relocateFoe(S.monsters[i||0], Math.random); },
