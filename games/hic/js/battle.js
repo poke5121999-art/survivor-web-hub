@@ -115,7 +115,8 @@
   Ctx.prototype.healToFull = function () { this.restoreHealth(this.lostHp()); };
   Ctx.prototype.loseHealth = function (hp) {
     this.my.hp -= hp;
-    this.b.log(this.b.disp(this.src) + ': ' + this.b.name(this.i) + ' -' + hp + ' máu');
+    this.b.log(this.b.disp(this.src) + ': ' + this.b.name(this.i) + ' -' + hp + ' máu',
+      { k: 'dmg', i: this.i, v: hp, hp: hp, ar: 0 });
     this.b.checkDeath();
   };
   Ctx.prototype.dealDamage = function (d) { this.b.dealDamage(d, this.e, this.src, { dealer: this.i, weapon: false }); };
@@ -164,13 +165,18 @@
     return global.HIC_vnName ? global.HIC_vnName(name) : name;
   };
 
-  Battle.prototype.log = function (m) {
+  Battle.prototype.log = function (m, meta) {
     if (!this.verbose) return;
     var a = this.stats[0], b = this.stats[1];
     this.lines.push({
       t: m,
-      a: { hp: Math.max(0, a.hp), maxHp: a.maxHp, armor: a.armor, attack: a.attack, speed: a.speed, thorns: a.thorns },
-      b: { hp: Math.max(0, b.hp), maxHp: b.maxHp, armor: b.armor, attack: b.attack, speed: b.speed, thorns: b.thorns }
+      k: (meta && meta.k) || 'info',      // loai su kien, cho man hinh tran danh
+      i: meta && meta.i,                  // ai chiu
+      by: meta && meta.by,                // ai gay ra
+      v: meta && meta.v,                  // bao nhieu
+      hp: meta && meta.hp, ar: meta && meta.ar, strike: meta && meta.strike,
+      a: { hp: Math.max(0, a.hp), maxHp: a.maxHp, armor: a.armor, attack: a.attack, speed: a.speed, thorns: a.thorns, stun: a.stunCount },
+      b: { hp: Math.max(0, b.hp), maxHp: b.maxHp, armor: b.armor, attack: b.attack, speed: b.speed, thorns: b.thorns, stun: b.stunCount }
     });
   };
   Battle.prototype.turnNumber = function () { return ((this.turnsTaken / 2) | 0) + 1; };
@@ -230,22 +236,26 @@
   Battle.prototype.adjustArmor = function (delta, i, src) {
     if (delta === 0) return;
     this.stats[i].armor += delta;
-    this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' giáp (' + this.disp(src) + ')');
+    this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' giáp (' + this.disp(src) + ')',
+      { k: delta > 0 ? 'armor' : 'armorloss', i: i, v: delta });
     if (delta > 0) this.fire(T.onGainArmor, i, src, delta);
   };
   Battle.prototype.adjustThorns = function (delta, i, src) {
     if (delta === 0) return;
     this.stats[i].thorns = Math.max(0, this.stats[i].thorns + delta);
-    this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' gai (' + this.disp(src) + ')');
+    this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' gai (' + this.disp(src) + ')',
+      { k: 'thorns', i: i, v: delta });
     this.fire(delta > 0 ? T.onGainThorns : T.onLoseThorns, i, src, delta);
   };
   Battle.prototype.adjustAttack = function (delta, i, src) {
     this.stats[i].attack = Math.max(0, this.stats[i].attack + delta);
-    this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' công (' + this.disp(src) + ')');
+    this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' công (' + this.disp(src) + ')',
+      { k: 'atk', i: i, v: delta });
   };
   Battle.prototype.adjustSpeed = function (delta, i, src) {
     this.stats[i].speed += delta;
-    this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' tốc (' + this.disp(src) + ')');
+    this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' tốc (' + this.disp(src) + ')',
+      { k: 'spd', i: i, v: delta });
   };
 
   Battle.prototype.restoreHealth = function (hp, i, src) {
@@ -254,7 +264,8 @@
     var restored = newHp - s.hp, over = hp - restored;
     s.hp = newHp;
     if (restored > 0) {
-      this.log(this.disp(src) + ': ' + this.name(i) + ' hồi ' + restored + ' máu');
+      this.log(this.disp(src) + ': ' + this.name(i) + ' hồi ' + restored + ' máu',
+        { k: 'heal', i: i, v: restored });
       this.fire(T.onRestoreHealth, i, src, restored);
       this.fire(T.onHpChanged, i, src, restored);
     }
@@ -291,7 +302,9 @@
     s.armor -= armorHit;
     s.hp -= hpHit;
     this.log(this.disp(src) + ' gây ' + damage + ' lên ' + this.name(target) +
-      ' (' + Math.max(0, s.hp) + '/' + s.maxHp + ' máu, ' + s.armor + ' giáp)');
+      ' (' + Math.max(0, s.hp) + '/' + s.maxHp + ' máu, ' + s.armor + ' giáp)',
+      { k: 'dmg', i: target, by: dealer, v: damage, hp: hpHit, ar: armorHit,
+        strike: !!opts.weapon });
     s.damageThisTurn++;
     this.checkDeath();
 
@@ -413,7 +426,13 @@
       var take = Math.min(def.gold, damage);
       def.gold -= take;
       atk.gold += take;
-      this.log(this.name(a) + ' cướp ' + take + ' vàng thay vì gây sát thương');
+      this.log(this.name(a) + ' cướp ' + take + ' vàng thay vì gây sát thương',
+        { k: 'strike', by: a, i: d });
+    } else if (damage <= 0) {
+      // Vung mà không gây gì vẫn phải có một dòng, nếu không màn hình trận đánh
+      // sẽ đứng im trong khi nhân vật đang thật sự đánh.
+      this.log(this.name(a) + ' vung hụt', { k: 'strike', by: a, i: d });
+      this.lastStrikeHpDamage = 0;
     } else {
       var res = this.dealDamage(damage, d, this.name(a) + ' đánh', {
         dealer: a, weapon: true,
@@ -437,7 +456,8 @@
       this.stats[this.attackerIndex].damageThisTurn = 0;
       if (this.stats[this.attackerIndex].stunCount < 1) break;
       this.stats[this.attackerIndex].stunCount--;
-      this.log(this.name(this.attackerIndex) + ' đang choáng, bỏ lượt');
+      this.log(this.name(this.attackerIndex) + ' đang choáng, bỏ lượt',
+        { k: 'stun', i: this.attackerIndex });
     }
   };
 
@@ -468,7 +488,7 @@
     } catch (err) {
       if (!(err instanceof Death)) throw err;
       winner = err.index === 0 ? 1 : 0;
-      this.log(this.name(err.index) + ' gục ngã');
+      this.log(this.name(err.index) + ' gục ngã', { k: 'death', i: err.index });
     }
     if (winner == null) winner = this.stats[0].hp > 0 ? 0 : 1;
     return {

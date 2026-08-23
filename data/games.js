@@ -165,7 +165,7 @@ window.HUB_GAMES = [
     tagline: "Ba ngày để nhặt đồ, rồi hắn tới. Bạn không bấm được gì trong trận — thắng hay thua đã nằm trong đống đồ bạn chọn lúc còn sáng.",
     thumbnail: "assets/thumbnails/hic.svg",
     path: "games/hic/index.html",
-    // available since 2026-08-23. Plain canvas/JS, no engine: 7 files plus one
+    // available since 2026-08-23. Plain canvas/JS, no engine: 8 files plus one
     // 29 KB data bundle. A clone of "He is Coming" (Chronocle / Hooded Horse) —
     // a roguelite auto-battler where the player never acts during a fight.
     // NO asset of that game is used or shipped here: every sprite is drawn in
@@ -185,7 +185,15 @@ window.HUB_GAMES = [
     // 9:16 frame.
     // Ships with an in-game bot; docs/tests/browser/test_hic.py drives it
     // through whole runs and also asserts the combat rules directly against the
-    // original's (35 checks, 0 console errors).
+    // original's (57 checks, 0 console errors).
+    // Art/UX pass 2026-08-23 after the first play-test: ground and objects are
+    // two layers with outlines and drop shadows, every interactable tile carries
+    // a lit pedestal and a bobbing arrow, each item has its own code-drawn icon
+    // (22 shapes across 123 base items), the equipment screen is an icon grid
+    // with live set progress, map events survive being declined and only open on
+    // arrival rather than when walked over, and the battle is an animated scene
+    // (lunges, shaped hit flashes, floating numbers, screen shake) instead of a
+    // text log.
     // NOT yet eyes-on verified by a human across a long session.
     status: "available",
     tags: ["Roguelite", "Auto-battler", "Chiến thuật", "Solo"]

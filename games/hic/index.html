@@ -115,25 +115,58 @@
 
   /* ---------------- trận đánh ---------------- */
   .hic-battle{position:absolute;inset:0;display:none;flex-direction:column;
-    background:rgba(5,8,12,.96);padding:12px}
-  .hic-bhead{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
-  .hic-fighter{flex:1;text-align:center;font-size:12px}
-  .hic-fighter canvas{image-rendering:pixelated;display:block;margin:0 auto 4px}
-  .hic-vs{align-self:center;opacity:.5;font-size:12px;padding-top:22px}
-  .hic-bar{height:9px;background:rgba(0,0,0,.6);border:1px solid var(--line);
-    border-radius:6px;overflow:hidden;margin-top:5px}
-  .hic-bar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#c34141,#e8735a)}
-  .hic-fighter.me .hic-bar i{background:linear-gradient(90deg,#3f7a48,#8ac878)}
-  .hic-bnum{font-size:11px;opacity:.85;margin-top:3px}
-  .hic-blog{flex:1;overflow-y:auto;background:rgba(0,0,0,.4);border:1px solid var(--line);
-    border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.5;
-    -webkit-overflow-scrolling:touch}
-  .hic-bline{opacity:.9;padding:1px 0}
-  .hic-bline.result{margin-top:6px;font-weight:700;font-size:14px}
+    background:#05080c;padding:0}
+  .hic-scene{flex:1;display:block;width:100%;image-rendering:pixelated}
+  .hic-ticker{height:74px;padding:6px 12px;display:flex;flex-direction:column;
+    justify-content:flex-end;gap:2px;font-size:12px;line-height:1.35;
+    background:linear-gradient(0deg,rgba(5,8,12,1),rgba(5,8,12,.2))}
+  .hic-tline{opacity:.82;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hic-tline:last-child{opacity:1}
+  .hic-result{font-weight:800;font-size:16px;letter-spacing:.02em}
+  .hic-result.win{color:#8ac878}
+  .hic-result.lose{color:#e8735a}
   .hic-bline.result.win{color:#8ac878}
   .hic-bline.result.lose{color:#e8735a}
-  .hic-bfoot{display:flex;gap:8px;margin-top:8px}
+  .hic-bfoot{display:flex;gap:8px;padding:0 12px 16px}
   .hic-bfoot .hic-btn{flex:1}
+  .hic-bfoot .hic-btn:first-child{flex:0 0 62px}
+
+  /* ---------------- thẻ vật phẩm có hình ---------------- */
+  .hic-cardrow{display:flex;gap:10px;align-items:flex-start}
+  .hic-cardicon{flex:0 0 auto;image-rendering:pixelated;border-radius:9px}
+  .hic-cardbody{flex:1;min-width:0}
+
+  /* ---------------- màn hình trang bị ---------------- */
+  .hic-statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .hic-statbox{background:rgba(0,0,0,.35);border:1px solid var(--line);
+    border-radius:10px;padding:6px 4px;text-align:center}
+  .hic-statbox b{display:block;font-size:18px;line-height:1.1}
+  .hic-statbox span{font-size:10px;opacity:.65}
+  .hic-statbox.hp b{color:#e8735a}
+  .hic-statbox.atk b{color:#f2d24b}
+  .hic-statbox.arm b{color:#9fc4f5}
+  .hic-statbox.spd b{color:#b57ad6}
+  .hic-sechead{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+    opacity:.55;margin:6px 0 -2px}
+  .hic-hint{white-space:pre-line}
+  .hic-gear{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+  .hic-slot{aspect-ratio:1;border:2px solid var(--line);border-radius:12px;
+    background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;
+    padding:0;cursor:pointer}
+  .hic-slot canvas{image-rendering:pixelated;width:80%;height:80%}
+  .hic-slot.sel{box-shadow:0 0 0 2px var(--gold) inset}
+  .hic-slot.empty{border-style:dashed;opacity:.5}
+  .hic-slotplus{font-size:20px;opacity:.5;color:var(--ink)}
+  .hic-detail{min-height:76px}
+  .hic-setrow{border:1px solid var(--line);border-left:4px solid #3a4a5c;
+    border-radius:11px;padding:8px 11px;background:rgba(0,0,0,.24)}
+  .hic-setrow.done{border-left-color:var(--good);background:rgba(90,161,92,.12)}
+  .hic-setname{display:flex;align-items:baseline;gap:8px;font-size:13px}
+  .hic-setname b{flex:1}
+  .hic-setname span{font-size:11px;opacity:.7}
+  .hic-setparts{display:flex;gap:5px;margin:6px 0 2px}
+  .hic-setpiece{image-rendering:pixelated;border-radius:7px}
+  .hic-setpiece.miss{opacity:.34;filter:grayscale(1)}
 
   #hic-boot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     background:#05080c;color:#8fa3b5;font-size:13px;text-align:center;padding:24px;z-index:50}
@@ -192,7 +225,7 @@
    ghép một trang mới với một script cũ trong cache — đó đúng là kiểu lỗi mà
    người chơi báo "vẫn y như cũ" trong khi bản vá đã lên rồi. */
 (function () {
-  var STAMP = '20260823a';
+  var STAMP = '20260823b';
   var FILES = [
     ['data/gamedata.js', 'HIC_DATA'],
     ['js/names.js', 'HIC_vnName'],
@@ -201,6 +234,7 @@
     ['js/world.js', 'HIC_World'],
     ['js/game.js', 'HIC_Run'],
     ['js/art.js', 'HIC_ART'],
+    ['js/fight.js', 'HIC_Fight'],
     ['js/ui.js', 'HIC_boot'],
     ['js/bot.js', 'HIC_BOT']
   ];

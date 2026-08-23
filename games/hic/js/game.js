@@ -296,16 +296,21 @@
 
   /* ------------------------------------------------------------- sự kiện ô */
 
-  /* Mỗi ô sự kiện chỉ dùng được MỘT lần, kể cả lái buôn, golem, vạc nấu và
-     giếng ước.
-     WHY: nếu ô còn "sống" thì mỗi lần đi ngang qua nó lại bật bảng lên — người
-     chơi đang đi tới chỗ khác bị chặn lại giữa đường, và con bot thử nghiệm thì
-     đi tới đi lui ngay trên ô đó cho tới hết ván.
-     ROOT-CAUSE: ban đầu tôi cho vài loại ô "dùng lại được" vì nghĩ ghé lại lái
-     buôn là tiện; nhưng cái mở bảng là BƯỚC CHÂN, không phải ý định. */
+  /* "Đã xem" và "đã dùng hết" là HAI chuyện khác nhau.
+     - `seen`  : đã mở bảng một lần. Ô thôi tự bật lên khi đi ngang, nhưng vẫn
+                 nằm trên bản đồ (vẽ mờ đi) và chạm vào là mở lại được.
+     - `used`  : đã lấy được thứ trong đó. Ô biến mất.
+     WHY: gộp hai thứ này làm một khiến lái buôn biến mất chỉ vì người chơi ghé
+     qua mà chưa đủ tiền — lấy mất một lựa chọn của họ để sửa một lỗi của tôi.
+     Rương, mồ và hộp trang sức thì mở ra là hết, vì mở CHÍNH LÀ lấy. */
+  var CONSUMED_ON_OPEN = { chest: 1, jewelrybox: 1, grave: 1, tower: 1 };
+
   Run.prototype.openEvent = function (ev) {
     var r = this.rng;
-    if (ev) ev.used = true;
+    if (ev) {
+      ev.seen = true;
+      if (CONSUMED_ON_OPEN[ev.id]) ev.used = true;
+    }
     switch (ev.id) {
       case 'chest':
         return { type: 'pick', title: 'Rương gỗ', hint: 'Chọn một món', offers: this.pickFrom(POOL.common, 3) };
@@ -338,7 +343,6 @@
         };
       case 'tower':
         this.world.revealAll();
-        ev.used = true;
         return { type: 'info', title: 'Chòi canh', text: 'Bạn nhìn thấy toàn bộ vùng này.' };
       case 'golem':
         return { type: 'golem', title: 'Golem thợ rèn', hint: 'Ghép hai món giống hệt nhau thành bản mạ vàng' };
@@ -351,10 +355,11 @@
     }
   };
 
-  Run.prototype.rest = function (kind) {
+  Run.prototype.rest = function (kind, ev) {
     if (kind === 'house') this.lostHp = 0;
     else this.lostHp = Math.max(0, this.lostHp - 10);
     this.world.skipToMorning();
+    if (ev) ev.used = true;      // nghỉ rồi thì đống lửa tàn / căn nhà đã dùng
   };
 
   Run.prototype.pickEdges = function (n) {
@@ -373,22 +378,27 @@
     });
   };
 
-  Run.prototype.buy = function (it) {
+  /* Lái buôn chỉ biến mất khi đã bán được hàng. Chưa mua thì ông ta còn đó,
+     và người chơi quay lại lúc đủ tiền. */
+  Run.prototype.buy = function (it, ev) {
     if (this.gold < it.price) return { ok: false, why: 'Không đủ vàng' };
     if (!this.canEquip(it)) return { ok: false, why: 'Hết ô đồ' };
     this.gold -= it.price;
     this.equip(it);
+    if (ev) ev.used = true;
     return { ok: true };
   };
 
-  Run.prototype.applyEdge = function (edgeDef) {
+  Run.prototype.applyEdge = function (edgeDef, ev) {
     this.inv.edge = edgeDef;
     this.inv.refreshSets();
+    if (ev) ev.used = true;
   };
 
-  Run.prototype.applyOil = function (oilDef) {
+  Run.prototype.applyOil = function (oilDef, ev) {
     if (this.inv.oils.length >= 3) return false;
     this.inv.oils.push(oilDef);
+    if (ev) ev.used = true;
     return true;
   };
 
@@ -406,7 +416,7 @@
     return out;
   };
 
-  Run.prototype.golemCombine = function (pair) {
+  Run.prototype.golemCombine = function (pair, ev) {
     var removed = 0;
     for (var i = this.inv.items.length - 1; i >= 0 && removed < 2; i--) {
       if (this.inv.items[i].name === pair.from) { this.inv.items.splice(i, 1); removed++; }
@@ -415,6 +425,7 @@
     var made = instance(byName[pair.to]);
     if (made.weapon) this.inv.items.unshift(made); else this.inv.items.push(made);
     this.inv.refreshSets();
+    if (ev) ev.used = true;
     return made;
   };
 
@@ -430,7 +441,7 @@
     });
   };
 
-  Run.prototype.cauldronCook = function (dish) {
+  Run.prototype.cauldronCook = function (dish, ev) {
     var self = this, ok = true;
     dish.parts.forEach(function (p) {
       var i = self.inv.items.findIndex(function (x) { return x.name === p; });
@@ -441,12 +452,14 @@
     var made = instance(byName[dish.name]);
     this.inv.items.push(made);
     this.inv.refreshSets();
+    if (ev) ev.used = true;
     return made;
   };
 
-  Run.prototype.wellWish = function (choice) {
+  Run.prototype.wellWish = function (choice, ev) {
     if (this.gold < 20) return null;
     this.gold -= 20;
+    if (ev) ev.used = true;
     if (choice === 'rerolls') {
       this.rerolls = (this.rerolls || 0) + 5;
       return { type: 'info', title: 'Giếng ước', text: 'Bạn được 5 lượt đổi hàng ở lái buôn.' };
