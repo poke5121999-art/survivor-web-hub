@@ -188,6 +188,9 @@
     this.bagBtn.addEventListener('click', function () { self.openBag(); });
     this.craftBtn = el('button', 'sdv-btn sdv-small', '🔨');
     this.craftBtn.addEventListener('click', function () { self.openCraftHub(); });
+    this.sndBtn = el('button', 'sdv-btn sdv-small sdv-snd', '🔊');
+    this.sndBtn.addEventListener('click', function () { self.openSound(); });
+    wrap.appendChild(this.sndBtn);
     wrap.appendChild(this.craftBtn);
     wrap.appendChild(this.bagBtn);
     wrap.appendChild(this.actBtn);
@@ -262,6 +265,7 @@
   };
   UI.prototype.openPanel = function (title, bodyEl, opts) {
     this.close();
+    if (global.SDV_AUDIO) global.SDV_AUDIO.play('open');
     this.game.paused = !(opts && opts.live);
     var p = el('div', 'sdv-panel');
     var head = el('div', 'sdv-phead');
@@ -462,6 +466,7 @@
       var c = g.world.objAt(x, y);
       if (c && c.kind === 'crop') c.watered = true;
       g.fx.hit('water', x, y, g.player.face);
+      g.sfx('water');
       self.close();
     });
     list.appendChild(wbtn);
@@ -559,6 +564,7 @@
         self.sim.spend(2); o.watered = true;
         g.world.area().set(o.x, o.y, 'watered');
         g.fx.hit('water', o.x, o.y, g.player.face);
+        g.sfx('water');
         self.close();
       });
       list.appendChild(w);
@@ -1071,6 +1077,7 @@
     if (d.it.qty <= 0) d.list.splice(d.index, 1);
     var msg = { love: 'rất thích!', like: 'thích', neutral: 'bình thường',
                 dislike: 'không thích', hate: 'ghét' }[res.taste];
+    this.game.sfx(res.points > 0 ? 'harvest' : 'error');
     this.game.toast(npc.name + ' ' + msg + ' (' + (res.points > 0 ? '+' : '') + res.points + ')');
     this.openNpc(npc);
   };
@@ -1108,6 +1115,7 @@
           b.items.forEach(function (i) { self.sim.take(i.item, i.qty); });
         }
         self.sim.bundlesDone[b.name] = true;
+        self.game.sfx('bundle');
         self.game.toast('Hoàn thành ' + b.name + '!');
         self.openBundles(room);
       });
@@ -1173,6 +1181,58 @@
     c.addEventListener('click', function () { self.openKitchen(); });
     body.appendChild(a); body.appendChild(b); body.appendChild(c);
     this.openPanel('Chế tạo', body);
+  };
+
+  // ---- sound -------------------------------------------------------------
+  /* Three sliders and a mute, because the three layers want different levels:
+   * a player who finds the tune repetitive after an hour should be able to
+   * turn it off and keep the birds and the axe. Settings are remembered. */
+  UI.prototype.openSound = function () {
+    var self = this, AU = global.SDV_AUDIO;
+    var body = el('div', 'sdv-body');
+    if (!AU) {
+      body.appendChild(el('div', 'sdv-sub', 'Trình duyệt này không phát được âm thanh.'));
+      return this.openPanel('Âm thanh', body);
+    }
+    body.appendChild(el('div', 'sdv-sub',
+      'Nhạc, tiếng nền và tiếng động đều được tạo bằng mã lúc chạy — '
+      + 'không có tệp âm thanh nào trong game.'));
+
+    var mute = el('button', 'sdv-mbtn',
+                  AU.settings.muted ? '🔇 Đang tắt tiếng — bật lại' : '🔊 Tắt tiếng');
+    mute.addEventListener('click', function () {
+      AU.setMuted(!AU.settings.muted);
+      self.openSound();
+    });
+    body.appendChild(mute);
+
+    [['music', '🎵 Nhạc nền'], ['amb', '🌿 Tiếng thiên nhiên'],
+     ['sfx', '🔨 Tiếng động']].forEach(function (row) {
+      var wrap = el('div', 'sdv-sndrow');
+      wrap.appendChild(el('span', 'sdv-sndlabel', row[1]));
+      var inp = document.createElement('input');
+      inp.type = 'range'; inp.min = '0'; inp.max = '100';
+      inp.value = String(Math.round(AU.settings[row[0]] * 100));
+      inp.className = 'sdv-slider';
+      var val = el('span', 'sdv-sndval', inp.value + '%');
+      inp.addEventListener('input', function () {
+        AU.setLevel(row[0], +inp.value / 100);
+        val.textContent = inp.value + '%';
+        if (row[0] === 'sfx') AU.play('tap');
+      });
+      wrap.appendChild(inp);
+      wrap.appendChild(val);
+      body.appendChild(wrap);
+    });
+
+    var test = el('button', 'sdv-mbtn', '▶ Nghe thử tiếng động');
+    test.addEventListener('click', function () {
+      ['chop', 'smash', 'water', 'coin', 'levelup'].forEach(function (n, i) {
+        setTimeout(function () { AU.play(n); }, i * 320);
+      });
+    });
+    body.appendChild(test);
+    this.openPanel('Âm thanh', body);
   };
 
   // ---- tv / sleep --------------------------------------------------------

@@ -236,6 +236,7 @@
           p.y = this.lastOpenY == null ? p.y : this.lastOpenY;
           if (!this.shutToastAt || Date.now() - this.shutToastAt > 2500) {
             this.shutToastAt = Date.now();
+            this.sfx('error');
             this.toast('Cửa đang đóng · mở ' + NPCM.hhmm(w.open)
                        + ' – ' + NPCM.hhmm(w.close));
           }
@@ -270,6 +271,7 @@
         p.x = spot.x + 0.5; p.y = spot.y + 0.5;
         this.cameFrom = origin;
         this.arrivedX = p.x; this.arrivedY = p.y;
+        this.sfx(dest.outdoor ? 'warp' : 'door');
         this.toast('→ ' + this.world.area().name);
         var fest = this.events && this.events.festivalToday;
         if (fest && fest.where === w.to && this.ui && this.ui.openFestival) {
@@ -357,6 +359,7 @@
       p.actCooldown = 0.3;
       var f0 = this.facingTile();
       this.fx.hit('slash', f0.x, f0.y, p.face);
+      this.sfx('slash');
       if (this.mine.playerAttack() > 0) return;
     }
     var target = this.hover;
@@ -379,8 +382,11 @@
      * job now names its own effect - wood chips for the axe, stone shards for
      * the pick - and the arc shows which way the swing went. */
     if (job.fx) this.fx.hit(job.fx, target.x, target.y, p.face);
+    this.sfx(job.fx === 'chop' ? 'chop' : job.fx === 'smash' ? 'smash' : 'weed');
     this.spark(target.x, target.y);
     if (target.hp > 0) return;
+    // it came down: a longer, heavier sound than the blows that got it there
+    this.sfx(job.fx === 'chop' ? 'fell' : job.fx === 'smash' ? 'smash' : 'pickup');
     var drop = job.drop;
     if (target.ore) drop = [target.ore, 3];      // mine rocks carry their own ore
     if (drop) {
@@ -390,7 +396,8 @@
     }
     if (this.world.area().depth) this.mine.maybeDropLadder(target.x, target.y, false);
     var lvl = this.sim.addXp(job.skill, job.xp);
-    if (lvl) this.toast('Kỹ năng ' + job.skill + ' lên cấp ' + lvl + '!');
+    if (lvl) { this.toast('Kỹ năng ' + job.skill + ' lên cấp ' + lvl + '!');
+               this.sfx('levelup'); }
     if (job.becomes) { target.kind = job.becomes; target.hp = null; }
     else this.world.removeObj(target);
   };
@@ -416,10 +423,17 @@
     a.set(x, y, 'tilled');
     this.player.actCooldown = 0.28;
     this.fx.hit('hoe', x, y, this.player.face);
+    this.sfx('hoe');
     this.spark(x, y);
   };
 
   // ---- feedback ----------------------------------------------------------
+  /* One word at the call site, and silence rather than a crash if the audio
+   * engine never started (a browser that blocks it, or a headless test). */
+  Game.prototype.sfx = function (name) {
+    if (global.SDV_AUDIO) global.SDV_AUDIO.play(name);
+  };
+
   Game.prototype.toast = function (text) {
     this.messages.push({ text: text, t: 2.6 });
     if (this.messages.length > 4) this.messages.shift();
@@ -442,6 +456,7 @@
     this.movePlayer(dt);
     this.updateNpcs(dt);
     this.fx.update(dt);
+    this.audioTick(dt);
     this.mine.update(dt);
     this.hover = this.findInteractable();
     this.fishSpot = this.findFishSpot();
@@ -473,6 +488,7 @@
   };
 
   Game.prototype.sleep = function (collapsed) {
+    this.sfx('sleep');
     this.farm.overnight({});
     var report = this.sim.endDay(this.world);
     report.today = this.events.onNewDay();
@@ -485,6 +501,22 @@
     this.world.current = 'farm';
     this.sim.save(this.world);
     if (this.onDayEnd) this.onDayEnd(report, collapsed);
+  };
+
+  /* Keep the music and the ambience matched to where the player is, and put a
+   * footstep under them while they walk. Re-checked once a second rather than
+   * every frame: both setters ignore a repeat, but the checks themselves cost
+   * a world lookup. */
+  Game.prototype.audioTick = function (dt) {
+    var AU = global.SDV_AUDIO;
+    if (!AU || !AU.isStarted()) return;
+    this._audioAt = (this._audioAt || 0) - dt;
+    if (this._audioAt <= 0) { this._audioAt = 1; AU.follow(this); }
+    AU.tick(this, dt);
+    var moving = Math.hypot(this.input.dx, this.input.dy) > 0.2;
+    this._stepAt = (this._stepAt || 0) - dt;
+    if (moving && this._stepAt <= 0) { this._stepAt = 0.34; AU.play('step'); }
+    if (!moving) this._stepAt = 0;
   };
 
   // ---- render ------------------------------------------------------------
@@ -974,6 +1006,28 @@
     S.blit(ctx, img, sx, sy, px, act.face === 'left');
     if (isNpc) {
       var cx = Math.round(act.x * ts - camX);
+      /* Somebody standing at the water's edge for three hours is fishing, and
+       * the schedules really do send Willy and Elliott to the pier. A rod and
+       * a line say so; without it they read as a person stuck on a rock. */
+      var NPCF = global.SDV_NPC;
+      var areaNow = this.world.area();
+      if (!act.moving && NPCF && areaNow.outdoor
+          && NPCF.atWater(areaNow, act.x, act.y)) {
+        var rx = cx + (act.face === 'left' ? -ts * 0.45 : ts * 0.45);
+        ctx.strokeStyle = '#c9a45e';
+        ctx.lineWidth = Math.max(1, ts * 0.045);
+        ctx.beginPath();
+        ctx.moveTo(cx, Math.round(act.y * ts - camY) - ts * 0.2);
+        ctx.lineTo(rx, Math.round(act.y * ts - camY) - ts * 0.95);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(240,240,255,0.6)';
+        ctx.lineWidth = Math.max(1, ts * 0.03);
+        ctx.beginPath();
+        ctx.moveTo(rx, Math.round(act.y * ts - camY) - ts * 0.95);
+        ctx.lineTo(rx + (act.face === 'left' ? -ts * 0.5 : ts * 0.5),
+                   Math.round(act.y * ts - camY) + ts * 0.25);
+        ctx.stroke();
+      }
       ctx.font = '11px system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -981,6 +1035,19 @@
       ctx.fillRect(cx - tw / 2 - 4, sy - 16, tw + 8, 14);
       ctx.fillStyle = '#f4f0e6';
       ctx.fillText(act.name, cx, sy - 5);
+      /* Where they are off to, so a villager crossing the screen reads as a
+       * journey rather than as a person wandering out of frame. */
+      if (act.travellingTo) {
+        var names = W.AREA_NAME_VN || {};
+        var dest = names[act.travellingTo] || act.travellingTo;
+        ctx.font = '9px system-ui, sans-serif';
+        var dw = ctx.measureText('→ ' + dest).width;
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(cx - dw / 2 - 3, sy + 1, dw + 6, 11);
+        ctx.fillStyle = '#c9b48c';
+        ctx.fillText('→ ' + dest, cx, sy + 9);
+        ctx.font = '11px system-ui, sans-serif';
+      }
       /* Hearts and a present marker over the head.
        *
        * WHY: the owner played a whole session without discovering that gifts

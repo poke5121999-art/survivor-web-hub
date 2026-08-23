@@ -115,6 +115,12 @@
   .sdv-tasterow.like .sdv-tastelabel{color:#a8d97a}
   .sdv-tasterow.hate .sdv-tastelabel{color:#e08a7a}
 
+  .sdv-snd{font-size:17px}
+  .sdv-sndrow{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .sdv-sndlabel{flex:0 0 118px;font-size:12px}
+  .sdv-sndval{flex:0 0 38px;text-align:right;font-size:11px;opacity:.8}
+  .sdv-slider{flex:1;accent-color:var(--accent);height:22px}
+
   /* the arrival scene: a letterboxed panel over the live game */
   .sdv-intro{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:10px;padding:18px;
@@ -234,6 +240,7 @@
 <script src="js/world.js"></script>
 <script src="js/tiles.js"></script>
 <script src="js/fx.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/machines.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/mine.js"></script>
@@ -298,6 +305,9 @@
       game.events.onNewDay();        // letters, quests, cart, festival
       SDV_PROGRESS.spawnForage(game);
     }
+    /* Browsers refuse to make a sound before the player has touched the page,
+       so the engine arms itself and starts on the first tap. */
+    if (window.SDV_AUDIO) SDV_AUDIO.armGesture(game);
     window.SDV = { game: game, ui: ui };   // handle for the test harness
     SDV.bot = new SDV_BOT.Bot(game, ui);   // the agent test drives this
     var last = performance.now();

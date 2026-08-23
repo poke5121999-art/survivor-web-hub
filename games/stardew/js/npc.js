@@ -68,7 +68,12 @@
   }
 
   var FACE = ['up', 'right', 'down', 'left'];
-  var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  /* Spring 1 is a MONDAY in Stardew, and this simulation agrees - its own
+   * clock prints T2 for day 1. The first version of this array started at
+   * Sunday, so every villager spent the year running the wrong day's
+   * schedule: Sunday routines on Monday, and several of them stay indoors on
+   * a Sunday, which is a large part of why the town looked asleep. */
+  var DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   // ------------------------------------------------------------ area graph
   /* Which door leads from area A towards area B. Built once from the warps the
@@ -160,8 +165,7 @@
     if (!sched) return null;
     var season = String(sim.season()).toLowerCase();
     var day = sim.day;
-    var dowIdx = ((sim.dayIndex ? sim.dayIndex() : day) % 7);
-    var dow = DOW[dowIdx % 7];
+    var dow = DOW[((day - 1) % 7 + 7) % 7];
     var raining = sim.weather === 'rain' || sim.weather === 'storm';
     var keys = [
       season + '_' + day,
@@ -197,16 +201,19 @@
                      y: (home && home.y) || npc.hy, d: 2 };
     var block = scheduleFor(npc, sim);
     if (!block) return fallback;
-    var step = null;
+    var step = null, nextAt = null;
     for (var i = 0; i < block.steps.length; i++) {
-      if (sim.time >= toMin(block.steps[i].t)) step = block.steps[i];
+      var at = toMin(block.steps[i].t);
+      if (sim.time >= at) step = block.steps[i];
+      else if (nextAt == null) nextAt = at;
     }
     /* Before the first entry of the day they are still asleep at home, and
      * after a 'bed' entry they have gone back to it. */
+    fallback.nextAt = nextAt;
     if (!step || step.bed) return fallback;
     var ar = areaOf(step.m);
     if (!ar) return fallback;
-    return { area: ar, x: step.x, y: step.y, d: step.d };
+    return { area: ar, x: step.x, y: step.y, d: step.d, nextAt: nextAt };
   }
 
   // ------------------------------------------------------------ shop hours
@@ -319,6 +326,43 @@
                     { skin: p.skin, pants: p.pants, shoes: p.shoes });
   }
 
+  var WALK = 2.2;                  // tiles per second, villager and player alike
+
+  /* Wandering while they wait.
+   *
+   * WHY it exists: the schedule parks somebody on a tile at 13:00 and does not
+   * move them again until 16:00, so a villager stood dead still for three
+   * hours of game time. The original does not do that - people drift about the
+   * square, stand at the pier, stop and look at things. This picks a tile a
+   * few steps from where the schedule put them, walks there, waits, and picks
+   * another, always coming back within a short radius so they never leave the
+   * scene the schedule sent them to. */
+  function loiterSpot(area, cx, cy, seed) {
+    var r = 2 + (seed % 3);
+    for (var tries = 0; tries < 8; tries++) {
+      var a = ((seed * 2654435761 + tries * 40503) % 360) * Math.PI / 180;
+      var nx = Math.round(cx + Math.cos(a) * r);
+      var ny = Math.round(cy + Math.sin(a) * r);
+      if (nx < 1 || ny < 1 || nx >= area.w - 1 || ny >= area.h - 1) continue;
+      if (area.solid(nx, ny)) continue;
+      return { x: nx, y: ny };
+    }
+    return null;
+  }
+
+  /* Is this villager standing at the water's edge? Used only to decide whether
+   * to draw a fishing rod, which is what somebody standing on the pier for
+   * three hours is obviously doing. */
+  function atWater(area, x, y) {
+    for (var dy = -1; dy <= 1; dy++) {
+      for (var dx = -1; dx <= 1; dx++) {
+        var t = area.name_of(Math.round(x) + dx, Math.round(y) + dy);
+        if (t === 'water' || t === 'deep') return true;
+      }
+    }
+    return false;
+  }
+
   Villagers.prototype.update = function (dt) {
     var game = this.game, sim = game.sim;
     var here = game.world.current;
@@ -328,49 +372,92 @@
      * about two thousand string comparisons a second for nothing. */
     var clock = sim.time;
     this.list.forEach(function (n) {
-      if (n._schedAt !== clock) { n._schedAt = clock; n._want = targetFor(n, sim); }
+      if (n._schedAt !== clock) {
+        n._schedAt = clock;
+        var next = targetFor(n, sim);
+        var moved = !n._want || n._want.area !== next.area
+                    || n._want.x !== next.x || n._want.y !== next.y;
+        n._want = next;
+        if (moved) { n.loiter = null; n.loiterAt = 0; n.want = null; n.path = null; }
+      }
       var want = n._want;
-      if (!want.area || !game.world.areas[want.area]) return;
+      if (!want || !want.area || !game.world.areas[want.area]) return;
 
-      /* Rule 1: nobody the player cannot see needs to walk anywhere. Snapping
-       * them costs one assignment instead of a path search, and the player
-       * finds them exactly where the schedule says when they arrive. */
-      if (n.area !== here && want.area !== here) {
-        var far = game.world.areas[want.area].nearestFree(want.x, want.y, 10);
-        n.area = want.area; n.x = far.x; n.y = far.y;
-        n.face = FACE[want.d] || 'down';
-        n.path = null; n.want = null;
-        return;
-      }
-      /* Walking in from off-screen: put them ON the door the player would
-       * have seen them come through, not on the tile they are heading for.
-       *
-       * WHY: landing them at the destination is invisible teleporting - the
-       * owner's read of the town was "npc không thấy đi chuyển", and this was
-       * half the reason. Villagers now appear at the doorway and walk the rest
-       * of the way in front of you. */
-      if (n.area !== here && want.area === here) {
-        var back = firstHop(self.adj, here, n.area);
-        var into = null;
-        if (back && back.warp) {
-          into = game.world.areas[here].nearestFree(back.warp.x, back.warp.y, 8);
-        }
-        if (!into) into = game.world.areas[here].nearestFree(want.x, want.y, 12);
-        n.area = here; n.x = into.x; n.y = into.y;
-        n.path = null; n.want = null;
-      }
-
+      var visible = (n.area === here);
       var area = game.world.areas[n.area];
+
+      /* Where they are trying to get to right now: the schedule's tile, the
+       * door on the way to it, or the little detour they are taking while they
+       * wait for the next entry. */
       var goalX = want.x, goalY = want.y, hopWarp = null;
       if (want.area !== n.area) {
         var hop = firstHop(self.adj, n.area, want.area);
-        if (!hop) {
-          // no route we know: hold position rather than teleport across town
-          n.path = null;
-          return;
-        }
+        if (!hop) { n.path = null; return; }
         hopWarp = hop.warp;
         goalX = hopWarp.x; goalY = hopWarp.y;
+        n.travellingTo = want.area;
+      } else {
+        n.travellingTo = null;
+        if (n.loiter) { goalX = n.loiter.x; goalY = n.loiter.y; }
+      }
+
+      /* WHY everybody walks, not only the people on screen: snapping the rest
+       * straight to their destination meant the player never once saw anybody
+       * set off or arrive - walk into town at any hour and the whole cast was
+       * already parked. The owner's read was exactly that: "đến giờ thì cũng
+       * phải di chuyển chứ, ví dụ đi dạo, câu cá, về nhà".
+       *
+       * Off screen it is a straight line with no collision and no path search,
+       * which costs two multiplications a villager a frame. On screen it is a
+       * real path around the furniture. Same speed either way, so a journey
+       * takes the same amount of the day whether or not it is being watched,
+       * and walking into a street can catch somebody halfway down it. */
+      if (!visible) {
+        /* A clock that jumps - a new day, a festival, a test driving the
+         * simulation forward - is not a walk. Put everyone where the schedule
+         * says and start again from there, the way the original places its
+         * cast at the start of a day. */
+        if (n._clock == null || Math.abs(clock - n._clock) > 30) {
+          var jump = game.world.areas[want.area].nearestFree(want.x, want.y, 10);
+          n.area = want.area; n.x = jump.x; n.y = jump.y;
+          n.face = FACE[want.d] || 'down';
+          n._clock = clock; n.path = null; n.want = null; n.moving = false;
+          return;
+        }
+        n._clock = clock;
+        var free0 = area.nearestFree(goalX, goalY, 6);
+        var tx = free0.x, ty = free0.y;
+        var ddx = tx - n.x, ddy = ty - n.y;
+        var dd = Math.hypot(ddx, ddy);
+        if (dd > 0.1) {
+          var st = WALK * dt;
+          n.x += ddx / dd * Math.min(st, dd);
+          n.y += ddy / dd * Math.min(st, dd);
+          n.face = Math.abs(ddx) > Math.abs(ddy) ? (ddx > 0 ? 'right' : 'left')
+                                                 : (ddy > 0 ? 'down' : 'up');
+          n.moving = true;
+        } else {
+          /* Standing still off screen is the one case where walking through
+           * walls would be visible later: a villager parked inside a wall is
+           * found there the moment the player arrives. Travelling through one
+           * for a few seconds unseen costs nothing. */
+          var rest = area.nearestFree(Math.round(n.x), Math.round(n.y), 6);
+          n.x = rest.x; n.y = rest.y;
+          n.moving = false;
+          self.arrive(n, want, hopWarp, area, sim);
+        }
+        n.path = null; n.want = null;
+        return;
+      }
+      n._clock = clock;
+
+      /* Just came into view: the straight line may have left them a step
+       * inside a wall, so put them on the nearest tile they could stand on
+       * before asking for a path. */
+      if (!n._wasVisible) {
+        var okTile = area.nearestFree(Math.round(n.x), Math.round(n.y), 6);
+        n.x = okTile.x; n.y = okTile.y;
+        n.want = null; n.path = null;
       }
 
       var key = n.area + ':' + goalX + ',' + goalY;
@@ -390,7 +477,7 @@
           n.x = step.x; n.y = step.y;
           n.pathI++;
         } else {
-          var sp = 2.2 * dt;
+          var sp = WALK * dt;
           n.x += dx / d * Math.min(sp, d);
           n.y += dy / d * Math.min(sp, d);
           n.face = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left')
@@ -398,22 +485,54 @@
           n.animT += dt;
           if (n.animT > 0.2) { n.animT = 0; n.frame ^= 1; }
         }
+        n.moving = true;
       } else {
         n.frame = 0;
-        if (hopWarp && Math.abs(n.x - hopWarp.x) < 1.2
-            && Math.abs(n.y - hopWarp.y) < 1.2) {
-          // arrived at the door: go through it
-          var dest = game.world.areas[hopWarp.to];
-          if (dest) {
-            var land = dest.nearestFree(hopWarp.tx, hopWarp.ty, 10);
-            n.area = hopWarp.to; n.x = land.x; n.y = land.y;
-            n.path = null; n.want = null;
-          }
-        } else if (want.area === n.area) {
-          n.face = FACE[want.d] || n.face;
-        }
+        n.moving = false;
+        self.arrive(n, want, hopWarp, area, sim);
       }
     });
+
+    // remember who was on screen, so next frame knows who has just walked in
+    var cur = game.world.current;
+    this.list.forEach(function (n) { n._wasVisible = (n.area === cur); });
+  };
+
+  /* What happens when a villager runs out of path: step through the door they
+   * were heading for, face the way the schedule says, or start a stroll. */
+  Villagers.prototype.arrive = function (n, want, hopWarp, area, sim) {
+    var game = this.game;
+    if (hopWarp && Math.abs(n.x - hopWarp.x) < 1.4
+        && Math.abs(n.y - hopWarp.y) < 1.4) {
+      var dest = game.world.areas[hopWarp.to];
+      if (dest) {
+        var land = dest.nearestFree(hopWarp.tx, hopWarp.ty, 10);
+        n.area = hopWarp.to; n.x = land.x; n.y = land.y;
+        n.path = null; n.want = null; n._wasVisible = false;
+      }
+      return;
+    }
+    if (want.area !== n.area) return;
+
+    if (n.loiter) {
+      // reached the end of a stroll: stand a moment before the next one
+      n.loiter = null;
+      n.loiterAt = sim.time + 20 + (S.hash(n.name) % 30);
+      n.face = FACE[want.d] || n.face;
+      return;
+    }
+    n.face = FACE[want.d] || n.face;
+    /* Only stroll when there is time to kill and somewhere to do it. Indoors
+     * they mill about their own room; the radius is small either way so they
+     * stay where the schedule put them. */
+    // no time for a stroll if the next entry is minutes away
+    var nextAt = want.nextAt == null ? sim.time + 999 : want.nextAt;
+    if (nextAt - sim.time < 40) return;
+    if (sim.time < (n.loiterAt || 0)) return;
+    var spot = loiterSpot(area, want.x, want.y,
+                          S.hash(n.name) + Math.floor(sim.time / 10));
+    if (spot) { n.loiter = spot; n.want = null; n.path = null; }
+    n.loiterAt = sim.time + 30;
   };
 
   Villagers.prototype.here = function () {
@@ -438,6 +557,7 @@
   global.SDV_NPC = {
     Villagers: Villagers, areaOf: areaOf, doorOpen: doorOpen, hhmm: hhmm,
     tasteOf: tasteOf, findPath: findPath, scheduleFor: scheduleFor, toMin: toMin,
+    atWater: atWater, WALK: WALK,
     targetFor: targetFor, personSprite: personSprite
   };
 })(window);
