@@ -23,12 +23,67 @@
     if (html != null) e.innerHTML = html;
     return e;
   }
+  /* A real drawn icon when there is one for this item, the shape version when
+   * there is not.
+   *
+   * Only the cooking set is mapped, and that is a limit on purpose. The icon
+   * files are numbered rather than named, so which picture belongs to which
+   * item had to be worked out by rendering every sheet and looking at it.
+   * Cooking lines up with the game table exactly and is certain; the other five
+   * categories match no ordering available here, and a guess would put a
+   * pumpkin on a parsnip - worse than the drawn icon it replaces. */
+  var ICON_SHEET = null;
+  var ICON_PENDING = [];
+  function iconSheet() {
+    if (ICON_SHEET === null) {
+      ICON_SHEET = false;
+      if (global.SDV_ICON_MAP && typeof Image !== 'undefined') {
+        var im = new Image();
+        im.onload = function () {
+          ICON_SHEET = im;
+          /* Repaint what was already drawn.
+           *
+           * An icon is painted ONCE into its own little canvas and then lives
+           * in the page, so a sheet that arrives a moment later changes
+           * nothing - every screen opened before it landed keeps the fallback
+           * art for as long as it stays open. That is exactly what happened
+           * the first time: the kitchen list showed eighty drawn icons and the
+           * real ones never appeared. Anything mapped is remembered and redrawn
+           * the instant the picture is here. */
+          var q = ICON_PENDING; ICON_PENDING = [];
+          for (var i = 0; i < q.length; i++) paintIcon(q[i].c, q[i].n, q[i].cat);
+        };
+        im.onerror = function () { ICON_SHEET = false; ICON_PENDING = []; };
+        im.src = 'art/icons_cooking.png';
+      }
+    }
+    return ICON_SHEET;
+  }
+
+  function paintIcon(c, name, cat) {
+    var ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, c.width, c.height);
+    var M = global.SDV_ICON_MAP;
+    var sheet = iconSheet();
+    var idx = M && M.map ? M.map[name] : undefined;
+    if (idx != null) {
+      if (sheet) {
+        var col = idx % M.cols, row = Math.floor(idx / M.cols);
+        ctx.drawImage(sheet, col * M.cell, row * M.cell, M.cell, M.cell,
+                      0, 0, c.width, c.height);
+        return;
+      }
+      // mapped, but the picture is not here yet - draw the fallback and queue
+      if (ICON_PENDING.length < 4000) ICON_PENDING.push({ c: c, n: name, cat: cat });
+    }
+    S.drawIcon(ctx, name, cat || 'crop', 0, 0, c.width);
+  }
+
   function icon(name, cat, size) {
     var c = document.createElement('canvas');
     c.width = c.height = size || 32;
-    var ctx = c.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    S.drawIcon(ctx, name, cat || 'crop', 0, 0, c.width);
+    paintIcon(c, name, cat);
     return c;
   }
 
