@@ -26,6 +26,70 @@
     return e;
   };
 
+  /* -------------------------------------------------------- chống chạm lặp */
+  /* Một cú chạm đang kích HAI lần, và có ba đường khác nhau dẫn tới chuyện đó:
+     1. Chạm lên bản đồ mở một bảng ra. Trình duyệt vẫn còn nợ một sự kiện
+        `click` sau khi nhấc ngón (sự kiện chuột giả lập cho cảm ứng), và cú
+        click đó rơi trúng cái nút vừa hiện ra NGAY DƯỚI ngón tay. Người chơi
+        chạm một lần, game làm hai việc.
+     2. Ngón tay rung: hai cú chạm cách nhau 40-80ms lên cùng một thẻ đồ, xảy ra
+        trước khi bảng kịp đóng, nên món đồ bị lấy hai lần.
+     3. Bấm nhanh sang thẻ khác trong lúc bảng cũ đang đóng dở.
+
+     Cả ba đều được chặn ở ĐÂY, ngay tầng bắt sự kiện của hai khung bảng, thay vì
+     đi vá từng nút một — vì nút thì còn thêm mãi, còn ba đường trên thì không.
+     ROOT-CAUSE: mỗi nút tự lo lấy việc chống lặp là mô hình sai; chống lặp là
+     tính chất của TẦNG NHẬP LIỆU. */
+  var armedUntil = 0;      // cú chạm vừa mở bảng còn nợ một click — nuốt nó
+  var lastPass = 0, lastNode = null;
+  var guard = { swallowed: 0, passed: 0 };
+
+  /* Ba ngưỡng, ba mục đích khác nhau. Đặt chung một con số là hỏng: quá ngắn thì
+     không chặn được gì, quá dài thì nuốt cả cú bấm người ta thật sự muốn. */
+  var ARM_MS = 150;        // click giả lập luôn tới ngay sau cú chạm, không lâu hơn
+  var GLOBAL_MS = 140;     // không ai bấm CỐ Ý hai nút khác nhau trong 140ms
+  var SAME_MS = 400;       // rung tay thường dưới 250ms; 400 đủ chặn mà vẫn bấm lại được
+
+  function armInput(ms) { armedUntil = Date.now() + (ms || ARM_MS); }
+
+  /* Lớp chặn thứ hai, ở tầng người xử lý thay vì tầng sự kiện.
+     WHY: lớp chặn ở trên bắt sự kiện khi nó đi qua khung bảng — nhưng cú bấm
+     thứ hai có thể rơi vào một nút ĐÃ BỊ GỠ khỏi trang (bảng vừa đóng xong),
+     và sự kiện của một nút đã gỡ thì không đi qua đâu cả. Nên mỗi bảng mang một
+     số thứ tự, và mỗi số thứ tự chỉ tiêu được đúng một hành động. */
+  var panelGen = 0;
+  function once(fn) {
+    var gen = panelGen;
+    return function () {
+      if (gen !== panelGen) return;
+      panelGen++;
+      return fn.apply(this, arguments);
+    };
+  }
+
+  function guardContainer(node) {
+    ['pointerdown', 'pointerup', 'click'].forEach(function (type) {
+      node.addEventListener(type, function (e) {
+        var now = Date.now();
+        var same = e.target === lastNode || (lastNode && lastNode.contains && lastNode.contains(e.target));
+        var tooSoon = now < armedUntil ||
+          (now - lastPass < GLOBAL_MS) ||
+          (same && now - lastPass < SAME_MS);
+        if (tooSoon) {
+          if (type === 'click') guard.swallowed++;
+          e.stopPropagation();
+          e.preventDefault();
+          return;
+        }
+        if (type === 'click') {
+          lastPass = now;
+          lastNode = e.target;
+          guard.passed++;
+        }
+      }, true);   // tầng bắt: chặn trước khi tới nút
+    });
+  }
+
   /* ---------------------------------------------------------------- toasts */
 
   /* Tối đa 3 dòng thông báo cùng lúc.
@@ -292,6 +356,9 @@
 
   function panel(title, hint) {
     busy = true;
+    panelGen++;
+    // Cú chạm vừa mở bảng này còn nợ một `click`; nuốt nó đi.
+    armInput();
     var wrap = $('#hic-panel');
     wrap.innerHTML = '';
     // Xoá sạch lớp của bảng trước; nếu không thì màu của màn hình kết thúc
@@ -367,7 +434,7 @@
 
     if (opts.onPick) {
       card.classList.add('pickable');
-      card.onclick = function () { opts.onPick(it); };
+      card.onclick = once(function () { opts.onPick(it); });
     }
     return card;
   }
@@ -404,7 +471,7 @@
     if (opts.showWhere) row.appendChild(el('div', 'hic-where', 'Ghép tại: ' + m.where));
     if (opts.onPick) {
       row.classList.add('pickable');
-      row.onclick = function () { opts.onPick(m); };
+      row.onclick = once(function () { opts.onPick(m); });
     }
     return row;
   }
@@ -475,11 +542,11 @@
         '   ·   còn ' + world.stepsLeft + ' bước trong ' + phaseLabel().toLowerCase()));
       var yes = el('button', 'hic-btn wide primary hic-rest-yes',
         out.kind === 'house' ? 'Ngủ tới sáng (máu đầy)' : 'Nghỉ tới sáng (+10 máu)');
-      yes.onclick = function () {
+      yes.onclick = once(function () {
         run.rest(out.kind, ev);
         toast(out.kind === 'house' ? 'Bạn ngủ một giấc. Máu đầy.' : 'Bạn sưởi ấm và chợp mắt.', 'good');
         closePanel();
-      };
+      });
       var no = el('button', 'hic-btn wide ghost hic-rest-no', 'Đi tiếp, chưa nghỉ');
       no.onclick = closePanel;
       rb.appendChild(yes);
@@ -509,11 +576,11 @@
         var card = el('div', 'hic-card r-rare pickable');
         card.appendChild(el('b', null, global.HIC_vnName(edge.name)));
         card.appendChild(el('div', 'hic-fx', global.HIC_vnEffect(edge.name, 'edge')));
-        card.onclick = function () {
+        card.onclick = once(function () {
           run.applyEdge(edge, ev);
           toast('Vũ khí đã được mài: ' + global.HIC_vnName(edge.name), 'good');
           closePanel();
-        };
+        });
         eb.appendChild(card);
       });
       var s2 = el('button', 'hic-btn wide ghost', 'Bỏ qua');
@@ -534,11 +601,11 @@
         card.appendChild(el('b', null, global.HIC_vnName(oil.name)));
         card.appendChild(el('div', 'hic-stats', statLine(oil)));
         if (!full) {
-          card.onclick = function () {
+          card.onclick = once(function () {
             run.applyOil(oil, ev);
             toast('Đã bôi ' + global.HIC_vnName(oil.name), 'good');
             closePanel();
-          };
+          });
         }
         ob.appendChild(card);
       });
@@ -584,11 +651,11 @@
     });
     if (run.rerolls > 0) {
       var rr = el('button', 'hic-btn wide', 'Đổi hàng khác (' + run.rerolls + ')');
-      rr.onclick = function () {
+      rr.onclick = once(function () {
         run.rerolls--;
         closePanel();
         showShop({ title: out.title, offers: run.shopStock(3) }, ev);
-      };
+      });
       body.appendChild(rr);
     }
     var leave = el('button', 'hic-btn wide ghost', 'Đi tiếp');
@@ -702,12 +769,12 @@
     function wish(label, choice) {
       var b = el('button', 'hic-btn wide' + (canWish ? '' : ' ghost'), label);
       if (!canWish) { b.disabled = true; b.style.opacity = '.4'; return b; }
-      b.onclick = function () {
+      b.onclick = once(function () {
         var out = run.wellWish(choice, ev);
         if (!out) return;
         closePanel();
         showEventResult(out, ev);
-      };
+      });
       return b;
     }
     body.appendChild(wish('Xin một món hiếm', 'chest'));
@@ -963,7 +1030,7 @@
 
     if (world.bossDue()) {
       var face = el('button', 'hic-btn wide primary', 'Ra đối mặt');
-      face.onclick = function () { closePanel(); startBattle({ def: def, boss: true }); };
+      face.onclick = once(function () { closePanel(); startBattle({ def: def, boss: true }); });
       body.appendChild(face);
       return;
     }
@@ -976,7 +1043,7 @@
     body.appendChild(el('div', 'hic-note',
       'Gọi hắn tới sớm thì bỏ luôn phần thời gian còn lại của tuần — bạn không kịp nhặt thêm gì nữa.'));
     var early = el('button', 'hic-btn wide ghost', 'Gọi hắn tới sớm');
-    early.onclick = function () { closePanel(); startBattle({ def: def, boss: true }); };
+    early.onclick = once(function () { closePanel(); startBattle({ def: def, boss: true }); });
     body.appendChild(early);
   }
 
@@ -994,6 +1061,8 @@
      một bảng nhật ký. Xem `js/fight.js` để biết vì sao. */
   function playBattle(res, def, target) {
     var wrap = $('#hic-battle');
+    panelGen++;
+    armInput();
     wrap.style.display = 'flex';
     wrap.innerHTML = '';
 
@@ -1049,14 +1118,14 @@
       speedBtn.textContent = 'x' + speeds[si];
     };
     skip.onclick = function () { fight.skip(); };
-    done.onclick = function () {
+    done.onclick = once(function () {
       fight.stop();
       clearInterval(pump);
       wrap.style.display = 'none';
       wrap.innerHTML = '';
       busy = false;
       afterBattle(res, def);
-    };
+    });
 
     // Chờ một khung hình để canvas có kích thước thật rồi mới dựng cảnh.
     requestAnimationFrame(function () { fight.run(finish); });
@@ -1080,7 +1149,7 @@
     busy = true;
     var body = panel('Hết ba ngày', 'Hắn đã tới. Không còn chỗ nào để trốn.');
     var go = el('button', 'hic-btn wide', 'Ra đối mặt');
-    go.onclick = function () { closePanel(); startBattle({ def: run.boss, boss: true }); };
+    go.onclick = once(function () { closePanel(); startBattle({ def: run.boss, boss: true }); });
     body.appendChild(go);
   }
 
@@ -1101,7 +1170,7 @@
       'Tuần ' + run.week + '  ·  ' + run.bossesKilled + ' trùm  ·  ' +
       run.kills + ' quái  ·  ' + run.gold + ' vàng'));
     var again = el('button', 'hic-btn wide primary', 'Ván mới');
-    again.onclick = function () { newRun(); };
+    again.onclick = once(function () { newRun(); });
     body.appendChild(again);
     wrap.appendChild(body);
   }
@@ -1141,8 +1210,18 @@
     showBossPreview();
   }
 
+  var lastMapTap = 0, lastPadTap = 0;
+
   function bindInput() {
+    guardContainer($('#hic-panel'));
+    guardContainer($('#hic-battle'));
     cv.addEventListener('pointerdown', function (e) {
+      // Chặn sự kiện chuột giả lập mà trình duyệt phát sau mỗi cú chạm — đó
+      // chính là cú "click ma" rơi trúng nút vừa hiện ra dưới ngón tay.
+      e.preventDefault();
+      var now = Date.now();
+      if (now - lastMapTap < 140) return;    // ngón tay rung
+      lastMapTap = now;
       if (busy || run.over) return;
       var rect = cv.getBoundingClientRect();
       var mx = e.clientX - rect.left, my = e.clientY - rect.top;
@@ -1162,6 +1241,9 @@
       var b = $('#hic-' + d[0]);
       b.addEventListener('pointerdown', function (e) {
         e.preventDefault();
+        var now = Date.now();
+        if (now - lastPadTap < 120) return;   // một cú bấm là một bước, không phải hai
+        lastPadTap = now;
         walkQueue = [];
         tryStep(d[1], d[2]);
       });
@@ -1223,6 +1305,10 @@
   global.HIC_UI = {
     newRun: newRun, toast: toast, walkTo: walkTo, tryStep: tryStep, openHere: openHere,
     showInventory: showInventory, showGuide: showGuide, closePanel: closePanel,
+    guardStats: function () { return { swallowed: guard.swallowed, passed: guard.passed }; },
+    // Mở một ô sự kiện y như khi dẫm phải nó — dùng cho bài kiểm tra chống chạm lặp.
+    openEventForTest: function (ev) { openEvent(ev); },
+    armInput: armInput,
     isBusy: function () { return busy; },
     get run() { return run; },
     get world() { return world; }

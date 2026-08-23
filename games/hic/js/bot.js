@@ -63,10 +63,18 @@
     }
   }
 
+  /* Bot phải bấm CHẬM như người, vì tầng nhập liệu giờ chặn chạm lặp.
+     WHY: bot tick mỗi 10ms; nếu nó bấm mỗi tick thì mọi cú bấm đều rơi vào cửa
+     sổ chống rung tay và bị nuốt, và bài kiểm tra sẽ báo "bảng bấm mãi không
+     thoát" trong khi thứ hỏng là con bot chứ không phải cái bảng. */
+  var nextClickAt = 0;
+  function canClick() { return Date.now() >= nextClickAt; }
+  function didClick() { nextClickAt = Date.now() + 240; }
+
   function clickFirst(list) {
     for (var i = 0; i < list.length; i++) {
       var e = document.querySelector(list[i]);
-      if (e) { e.click(); return true; }
+      if (e) { e.click(); didClick(); return true; }
     }
     return false;
   }
@@ -106,6 +114,7 @@
       if (dropping ? v < bestScore : v > bestScore) { bestScore = v; best = cards[i]; }
     }
     (best || plain || cards[0]).click();
+    didClick();
     return true;
   }
 
@@ -119,6 +128,7 @@
        thúc — và bài kiểm tra sẽ báo "game treo" trong khi game vẫn đúng. */
     if (visible('#hic-battle')) {
       stats.battles++;
+      if (!canClick()) return;
       if (!clickFirst(['#hic-battle .hic-btn.primary'])) {
         clickFirst(['#hic-battle .hic-btn']);
       }
@@ -132,6 +142,7 @@
     if (visible('#hic-panel')) {
       stats.panels++;
       if (UI.world) stats.visited[UI.world.px + ',' + UI.world.py] = 1;
+      if (!canClick()) return;
 
       /* Cửa thoát hiểm: nếu cùng một bảng đứng yên quá lâu thì bấm nút CUỐI —
          theo bố cục thì nút cuối luôn là nút rời đi. Không có nó thì một bảng
@@ -141,11 +152,11 @@
         document.querySelectorAll('#hic-panel .hic-card').length;
       if (sig === stats.lastPanel) stats.samePanel++;
       else { stats.lastPanel = sig; stats.samePanel = 0; }
-      if (stats.samePanel > 25) {
+      if (stats.samePanel > 90) {
         stats.stuckPanels = (stats.stuckPanels || 0) + 1;
         stats.lastStuck = sig;
         var btns = document.querySelectorAll('#hic-panel .hic-btn');
-        if (btns.length) btns[btns.length - 1].click();
+        if (btns.length) { btns[btns.length - 1].click(); didClick(); }
         else clickFirst(['#hic-panel .hic-x']);
         stats.samePanel = 0;
         return;
@@ -158,6 +169,7 @@
         var r0 = UI.run;
         var f = r0.hp() / Math.max(1, r0.stats().maxHp);
         (f < 0.55 ? rest : document.querySelector('#hic-panel .hic-rest-no')).click();
+        didClick();
         return;
       }
 

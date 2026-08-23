@@ -187,7 +187,7 @@ window.HUB_GAMES = [
     // 9:16 frame.
     // Ships with an in-game bot; docs/tests/browser/test_hic.py drives it
     // through whole runs and also asserts the combat rules directly against the
-    // original's (67 checks, 0 console errors).
+    // original's (73 checks, 0 console errors).
     // Art/UX pass 2026-08-23 after the first play-test: ground and objects are
     // two layers with outlines and drop shadows, every interactable tile carries
     // a lit pedestal and a bobbing arrow, each item has its own code-drawn icon
@@ -203,22 +203,24 @@ window.HUB_GAMES = [
   {
     id: "voiddiver",
     title: "Void Diver",
-    tagline: "Lặn xuống vực nhặt di vật. Càng sâu đồ càng ngon, nhưng đèn thì cạn dần, đứng trong tối lâu thì đầu bắt đầu nhiễm — và muốn rút lên là phải trả tiền bằng chính chỗ đồ đang mang.",
+    tagline: "Lặn xuống vực nhặt cổ vật rồi mang lên bán. Vấn đề: chính chỗ đồ bạn đang vác mới là thứ làm bạn phát điên — càng quý càng nhanh loạn. Mang thêm một món nữa, hay rút lên bây giờ?",
     thumbnail: "assets/thumbnails/voiddiver.svg",
     path: "games/voiddiver/index.html",
-    // available since 2026-08-17. Plain canvas/JS, no engine, ~85 KB across three
-    // files. Built from the systems of the VOID DIVER: Escape from the Abyss demo
-    // (Steam appid 4347080) — an extraction RPG. NO asset of that game is used or
-    // shipped here: everything is drawn in code. What was taken is design data read
-    // out of the installed build — the stat schema (CurrentDepth / CurrentLightFuel /
-    // Corruption), the four-state corruption sequence table, the stress screen-effect
-    // factors, and the table schema (ExitCostTable, DropRewardTable, ArtifactPrefix...).
-    // Line-of-sight rendering follows rung-toi's approach; the light-as-a-liability
-    // idea is Darkwood's, applied to a stat the original game already tracks.
-    // Ships with an in-game bot that plays the whole loop; the agent test at
-    // docs/tests/browser/test_voiddiver.py drives it at 8x and asserts the run closes
-    // (49 checks, 0 console errors). Progress is local only — it does not use the hub
-    // save bridge yet.
+    // available since 2026-08-17, rebuilt 2026-08-23 (patch-28). Plain canvas/JS, no engine, no
+    // build step, opens from file://. Built from the systems of VOID DIVER: Escape from the Abyss
+    // (STUDIO NEMO, Steam demo appid 4347080) — a 2.5D co-op extraction RPG crossed with a shop
+    // sim. NO art, audio or animation of that game is used or shipped here: everything on screen
+    // is drawn in code. What was taken is design data read out of the installed build and written
+    // up in docs/research/voiddiver/: the control scheme from its shipped InputActionAsset, the
+    // stat and status vocabulary, the shipped sight-cone and stress post-processing tuning, and
+    // 81 real dungeon rooms with the designer's own spawn points and subset-spawn rules. The
+    // balance numbers are ours — the original's tables ship encrypted and are unreadable.
+    // The rule that makes it the same game: corruption is the sum of the artifacts in your bag,
+    // recomputed every time the bag changes, and it drives the stress that distorts the screen.
+    // Darkness is a separate gauge (Brightness) that amplifies damage taken.
+    // Single-player; the original's 1-3 player co-op is deliberately not implemented.
+    // Ships with an in-game bot that plays the whole loop; docs/tests/browser/test_voiddiver.py
+    // drives it and asserts the rules. Progress is local only - no hub save bridge yet.
     status: "available",
     tags: ["Kinh dị", "Roguelite", "Solo", "Prototype"]
   }
