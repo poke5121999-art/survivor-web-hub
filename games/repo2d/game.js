@@ -187,7 +187,7 @@ const RUSH_NOISE  = 3.0;    // and you are this loud, which is what the blind hu
 // A browser refuses to start audio before the player has touched the page, so the context is
 // opened lazily on the first press — see SFX.wake() in setupInput and in the veil button.
 const SFX = (() => {
-  let ac = null, master = null, nb = null, on = true;
+  let ac = null, master = null, nb = null, on = true, an = null;
 
   function ready(){
     if (!on) return null;
@@ -237,9 +237,145 @@ const SFX = (() => {
     src.start(t0, Math.random()*0.5, dur + 0.05);
   }
 
+  // ================================================================ the score
+  // Three states, crossfaded, never cut: the HOUSE on its own, the DRONE that says something is
+  // in it with you, and the CLUSTER that says the something has seen you. Vertical layering - all
+  // three run the whole time and only their gain moves, because a layer that STARTS on a cue
+  // announces the cue, and the point is that you feel it before you know it.
+  //
+  // Everything is synthesised, and not to save bytes - the hub could carry a few MB of audio.
+  // A drone only works if it is genuinely CONTINUOUS, and a looped file has a seam you hear on
+  // every lap. Oscillators have no lap.
+  //
+  // What the layers are made of, and why:
+  //   room     - lowpassed noise, filter drifting on a slow LFO. A room is never silent.
+  //   drone    - two sines a fraction of a hertz apart, ~46 Hz. The detune makes them BEAT
+  //              against each other about once a second, which is the unease; the pitch is as
+  //              low as a laptop speaker can still deliver.
+  //   shimmer  - a whisper of bandpassed noise at 4 kHz, kept below where you notice it.
+  //   cluster  - two saws a MINOR SECOND apart. The most dissonant interval there is, and the
+  //              stand-in for the atonal string cluster a real horror score would use here.
+  //   pursuit  - a TRITONE above the cluster's root. It only exists while something is chasing.
+  //
+  // Sources: "drones of dread" (Game Developer), the safe/alert/pursuit split and "the stinger is
+  // the shock, the silence after it is the creep" (Mowjera), vertical layering (The Game Audio Co).
+  let mus = null;
+  const MUS_LEVEL = { room: 0.055, drone: 0.115, shimmer: 0.020, cluster: 0.085, pursuit: 0.095 };
+
+  function lfo(rate, depth, target){
+    const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = rate;
+    const g = ac.createGain(); g.gain.value = depth;
+    o.connect(g); g.connect(target); o.start();
+    return o;
+  }
+  function layerGain(bus){ const g = ac.createGain(); g.gain.value = 0.0001; g.connect(bus); return g; }
+  function osc(type, freq, to){
+    const o = ac.createOscillator(); o.type = type; o.frequency.value = freq;
+    o.connect(to); o.start(); return o;
+  }
+  // A SEPARATE, long noise buffer for the continuous layers. The one-shots share a 1-second
+  // buffer and read it from a random offset, which is fine for a 60 ms crack. Loop that same
+  // second forever and the ear finds the seam: a lowpassed drone on a 1 s loop is a 1 Hz pulse,
+  // and once you hear it you cannot stop hearing it.
+  let lb = null;
+  function loopBuffer(){
+    if (lb) return lb;
+    const n = Math.floor(ac.sampleRate * 7.3);        // an odd length, so it lines up with nothing
+    lb = ac.createBuffer(1, n, ac.sampleRate);
+    const d = lb.getChannelData(0);
+    for (let i=0;i<n;i++) d[i] = Math.random()*2-1;
+    return lb;
+  }
+  function loop(filterType, freq, q, to){
+    const src = ac.createBufferSource(); src.buffer = loopBuffer(); src.loop = true;
+    const f = ac.createBiquadFilter(); f.type = filterType; f.frequency.value = freq; f.Q.value = q;
+    src.connect(f); f.connect(to); src.start();
+    return f;
+  }
+
+  function buildScore(){
+    const bus = ac.createGain(); bus.gain.value = 1; bus.connect(master);
+    const duck = ac.createGain(); duck.gain.value = 1; duck.connect(bus);
+
+    const room = layerGain(duck);
+    const roomF = loop('lowpass', 170, 0.7, room);
+    lfo(0.05, 60, roomF.frequency);              // the house breathing, once every twenty seconds
+
+    const drone = layerGain(duck);
+    const droneF = ac.createBiquadFilter(); droneF.type = 'lowpass'; droneF.frequency.value = 220;
+    droneF.connect(drone);
+    // 0.6 Hz apart, so the pair beats against each other about once a second.
+    osc('sine', 46, droneF);
+    osc('sine', 46.6, droneF);
+    // WHY the two harmonics above it: 46 Hz is below what a laptop or phone speaker can move, so
+    // on the machines this game is actually played on the whole drone would be a rule nobody can
+    // hear. The octave and the fifth above carry it onto small speakers; on anything with bass
+    // they sit under the fundamental and are not heard as separate notes.
+    const partial = (f, lvl) => {
+      const g = ac.createGain(); g.gain.value = lvl; g.connect(droneF);
+      osc('sine', f, g);
+    };
+    partial(92, 0.42); partial(92.9, 0.42);
+    partial(138, 0.16);
+    const shimmer = layerGain(duck);
+    loop('bandpass', 4200, 9, shimmer);
+
+    const cluster = layerGain(duck);
+    const clusterF = ac.createBiquadFilter(); clusterF.type = 'lowpass'; clusterF.frequency.value = 420;
+    clusterF.Q.value = 2; clusterF.connect(cluster);
+    osc('sawtooth', 116.5, clusterF);
+    osc('sawtooth', 123.5, clusterF);            // a minor second: the interval that will not settle
+    lfo(0.11, 90, clusterF.frequency);
+
+    const pursuit = layerGain(duck);
+    const pursuitF = ac.createBiquadFilter(); pursuitF.type = 'lowpass'; pursuitF.frequency.value = 700;
+    pursuitF.connect(pursuit);
+    osc('sawtooth', 164.8, pursuitF);            // tritone above 116.5 - the devil's interval
+    osc('sawtooth', 82.4, pursuitF);
+
+    return { bus, duck, room, drone, shimmer, cluster, pursuit,
+             at: { room:0, drone:0, shimmer:0, cluster:0, pursuit:0 },
+             hushT: 0, duckT: 0 };
+  }
+
+  // Only write a gain when it has actually moved. setTargetAtTime once a frame per layer would
+  // pile up sixty scheduled events a second on each parameter for no audible gain.
+  function ramp(node, key, want, tau){
+    if (Math.abs(mus.at[key] - want) < 0.004) return;
+    mus.at[key] = want;
+    node.gain.setTargetAtTime(Math.max(0.0001, want), ac.currentTime, tau || 0.25);
+  }
+
   return {
     wake(){ ready(); },
     get on(){ return on; },
+    // The score, driven once a frame off the dread the game already computes for the screen.
+    // `chased` is the harder fact: something has actually seen you and is coming.
+    score(dread, chased, dt, quiet){
+      if (!ready()) return;
+      if (!mus) mus = buildScore();
+      mus.duckT = Math.max(0, mus.duckT - dt);
+      mus.hushT = Math.max(0, mus.hushT - dt);
+      // Silence is a layer too. After a chase breaks, everything drops out for a moment before
+      // the house comes back - the release the whole build-up was for.
+      const open = mus.hushT > 0 ? 0 : 1;
+      const d = quiet ? 0 : clamp(dread, 0, 1);
+      ramp(mus.room,    'room',    open * MUS_LEVEL.room * (quiet ? 0.6 : 1), 0.6);
+      ramp(mus.drone,   'drone',   open * MUS_LEVEL.drone   * clamp(d/0.35, 0, 1), 0.5);
+      ramp(mus.shimmer, 'shimmer', open * MUS_LEVEL.shimmer * clamp((d-0.2)/0.5, 0, 1), 0.7);
+      ramp(mus.cluster, 'cluster', open * MUS_LEVEL.cluster * clamp((d-0.45)/0.45, 0, 1), 0.35);
+      ramp(mus.pursuit, 'pursuit', open * MUS_LEVEL.pursuit * (chased ? clamp((d-0.5)/0.4, 0, 1) : 0), 0.3);
+      const want = mus.duckT > 0 ? 0.25 : 1;
+      if (Math.abs((mus.duckAt || 1) - want) > 0.01){
+        mus.duckAt = want;
+        mus.duck.gain.setTargetAtTime(want, ac.currentTime, want < 1 ? 0.02 : 0.35);
+      }
+    },
+    // Pull the score down under a cue so the cue lands. A stinger buried in its own soundtrack
+    // is a stinger nobody hears.
+    duckScore(t){ if (mus) mus.duckT = Math.max(mus.duckT, t || 0.8); },
+    // Everything out, for real, for a moment.
+    hush(t){ if (mus) mus.hushT = Math.max(mus.hushT, t || 1.2); },
     setOn(v){ on = v; if (!v && ac && master) master.gain.value = 0; else if (master) master.gain.value = 0.55; },
     // two thumps, the second softer — a heart, not a drum
     heart(k){ tone(56, 0.010, 0.15, 0.22*k, 'sine', 32);
@@ -252,7 +388,8 @@ const SFX = (() => {
                noise(0.14, 0.28, 'bandpass', 3600, 4, 0.03);
                tone(300, 0.005, 0.35, 0.12, 'triangle', 90); },
     // the moment something notices you: a short swell of two notes a semitone apart
-    sting(){ tone(196, 0.02, 0.55, 0.16, 'sawtooth');
+    sting(){ if (mus) mus.duckT = Math.max(mus.duckT, 0.9);   // the score gets out of its way
+             tone(196, 0.02, 0.55, 0.16, 'sawtooth');
              tone(208, 0.02, 0.55, 0.14, 'sawtooth'); },
     tick(i){ tone(620 + i*70, 0.004, 0.07, 0.20, 'square'); },
     chime(){ tone(523, 0.01, 0.30, 0.20, 'sine');
@@ -262,11 +399,94 @@ const SFX = (() => {
     // the AEngel arriving: a short bright warp, falling away
     warp(){ noise(0.22, 0.34, 'bandpass', 2200, 2); tone(880, 0.005, 0.30, 0.16, 'triangle', 180); },
     // and taking its swipe
-    screech(){ noise(0.42, 0.5, 'highpass', 1400, 0.8);
+    screech(){ if (mus) mus.duckT = Math.max(mus.duckT, 1.0);
+               noise(0.42, 0.5, 'highpass', 1400, 0.8);
                tone(520, 0.01, 0.45, 0.22, 'sawtooth', 110);
                tone(300, 0.01, 0.5, 0.16, 'square', 70, 0.04); },
+
+    // ---------------------------------------------------------------- the house, and you in it
+    // ONE RULE holds this whole set together, and breaking it would make the game unreadable:
+    // anything the HOUSE does is short, dry and HIGH; anything a MONSTER does is long and LOW.
+    // The house is allowed to lie to you about whether you are alone - that is most of the fear -
+    // but it is never allowed to sound like the thing that would actually kill you.
+
+    // Your own boots. `k` is the noise the simulation says you are making, which is the same
+    // number the blind hunter listens to - so what you hear IS what it hears.
+    step(k){ const v = 0.05 + 0.16*clamp(k/3, 0, 1);
+             noise(0.055 + 0.02*k, v, 'bandpass', 300 + Math.random()*140, 1.4);
+             if (k >= 2.4) tone(70, 0.004, 0.07, v*0.5, 'sine', 44); },
+
+    // The house settling: a joist, a pipe, a board. Short, dry, high - never mistakable for legs.
+    creak(){ const f = 900 + Math.random()*1400;
+             tone(f, 0.012, 0.10 + Math.random()*0.12, 0.045, 'triangle', f*0.72);
+             noise(0.06, 0.05, 'bandpass', f*1.6, 6); },
+    drip(){ tone(1500 + Math.random()*600, 0.003, 0.055, 0.05, 'sine', 420); },
+
+    // A door on its hinge. Rising while it swings open, falling as it falls shut.
+    hinge(opening){ const a = opening ? 420 : 300, b = opening ? 660 : 190;
+                    tone(a, 0.02, 0.30, 0.055, 'sawtooth', b);
+                    noise(0.22, 0.05, 'bandpass', 1500, 7); },
+    // Wood under load, then wood giving up.
+    strain(){ tone(150, 0.03, 0.42, 0.13, 'sawtooth', 96); noise(0.3, 0.10, 'lowpass', 500, 1); },
+    splinter(){ if (mus) mus.duckT = Math.max(mus.duckT, 0.7);
+                noise(0.40, 0.42, 'highpass', 900, 0.7);
+                noise(0.13, 0.30, 'bandpass', 2200, 5, 0.04);
+                tone(120, 0.006, 0.40, 0.26, 'square', 44); },
+
+    // Something moving in a room your torch is not pointed at. LOW and dragged, per the rule
+    // above - this is the one cue that is allowed to mean "it is close and you cannot see it".
+    shuffle(k){ noise(0.20 + Math.random()*0.12, 0.05 + 0.13*k, 'lowpass', 380, 0.9);
+                if (Math.random() < 0.35) tone(58, 0.02, 0.26, 0.05*k, 'sine', 38); },
+    // and the breath of the thing, when it is very close and still out of sight
+    breath(k){ noise(0.55, 0.05 + 0.10*k, 'bandpass', 520, 1.2); },
+
+    // What the score is doing right now, and how many times each cue has fired. Audio is the one
+    // system where "it works" normally means a human listening, and a check a human has to run is
+    // a check that stops being run. These two make every rule above assertable by a machine; what
+    // no machine can judge is whether the result is FRIGHTENING, and that stays a listen.
+    // The actual signal coming out of the mix, not what we asked for. Everything else about this
+    // system is checkable by reading intent; this is the one hook that proves the oscillators are
+    // really making a sound and not a graph of silent nodes wired to nothing.
+    level(){
+      if (!ready() || !master) return null;
+      if (!an){ an = ac.createAnalyser(); an.fftSize = 2048; master.connect(an); }
+      const buf = new Float32Array(an.fftSize);
+      an.getFloatTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) sum += buf[i]*buf[i];
+      return Math.sqrt(sum/buf.length);
+    },
+    // Average magnitude between two frequencies, in dB. Used to prove the drone survives on a
+    // speaker that cannot move 46 Hz: if all its energy sat under 80 Hz it would be a rule that
+    // only exists on hardware nobody is playing this on.
+    band(lo, hi){
+      if (!ready() || !master) return null;
+      if (!an){ an = ac.createAnalyser(); an.fftSize = 2048; master.connect(an); }
+      const bins = new Float32Array(an.frequencyBinCount);
+      an.getFloatFrequencyData(bins);
+      const per = ac.sampleRate / an.fftSize;
+      let sum = 0, n = 0;
+      for (let i = 0; i < bins.length; i++){
+        const f = i*per;
+        if (f < lo || f > hi) continue;
+        sum += bins[i]; n++;
+      }
+      return n ? sum/n : null;
+    },
+    scoreState(){ return mus ? { room:mus.at.room, drone:mus.at.drone, shimmer:mus.at.shimmer,
+                                 cluster:mus.at.cluster, pursuit:mus.at.pursuit,
+                                 hush:mus.hushT, duck:mus.duckAt === undefined ? 1 : mus.duckAt,
+                                 running: !!ac && ac.state === 'running' } : null; },
+    fired: {},
   };
 })();
+// Wrap every cue so calling it is counted. Done out here rather than inside each one because a
+// counter you have to remember to add is a counter that is missing from the cue you needed it on.
+for (const k in SFX){
+  if (typeof SFX[k] !== 'function' || k === 'scoreState' || k === 'setOn' || k === 'wake') continue;
+  const fn = SFX[k];
+  SFX[k] = function(){ SFX.fired[k] = (SFX.fired[k] || 0) + 1; return fn.apply(SFX, arguments); };
+}
 
 // ============================================================ feel
 // Everything in here is presentation, and none of it is allowed to change a rule: the numbers it
@@ -274,8 +494,14 @@ const SFX = (() => {
 // monster closing in, taking a hit, and watching money break — all produced the same output
 // before, which was a number quietly changing somewhere on the HUD.
 const DREAD_R = 10*TILE;         // how close something has to be before you feel it
+const HOUSE_GAP  = [7, 18];      // seconds between one creak of the house and the next
+const HUSH_FROM  = 0.65;         // dread it has to have reached...
+const HUSH_TO    = 0.35;         // ...and fallen back through, for the drop-to-silence to fire
+const FOE_HEARD_R  = 7*TILE;     // how close something has to be before you hear it move
+const FOE_BREATH_R = 3.2*TILE;   // and before you hear it breathe
 const FX = {
   dread: 0, beat: 0, beat2: false, beatPulse: 0, rate: 1.15,
+  houseT: 4, peak: 0, foeSnd: 0,
   shake: 0, hitstop: 0,
   flash: 0, flashCol: '255,255,255',
   hurtT: 0, hurtDir: 0,
@@ -285,6 +511,7 @@ const FX = {
 let shakeX = 0, shakeY = 0;
 
 function fxReset(){
+  FX.houseT = 4; FX.peak = 0; FX.foeSnd = 0;
   FX.dread = FX.beat = FX.beatPulse = FX.shake = FX.hitstop = 0;
   FX.beat2 = false; FX.rate = 1.15;
   FX.flash = FX.hurtT = FX.tickPulse = 0; FX.lastTick = -1;
@@ -338,6 +565,31 @@ function stepFx(dt){
   } else if (!FX.beat2 && FX.beat >= FX.rate*0.22){
     // the second, softer thump of the pair — a heart is lub-DUB, not a metronome
     FX.beat2 = true; FX.beatPulse = Math.max(FX.beatPulse, 0.5);
+  }
+
+  // ---- the score. Nothing here decides anything; it reads what the simulation already decided.
+  // `chased` is deliberately stricter than dread: dread rises for a thing standing near you in the
+  // dark, and that thing deserves the drone. The tritone is for a thing that has SEEN you.
+  const chased = !!S.player && !S.shopMode && !S.dead && (
+    S.monsters.some(m => m.sleep <= 0 && m.state === 'chase' && m.alert > 0 &&
+                         Math.hypot(S.player.x-m.x, S.player.y-m.y) < DREAD_R*1.4) ||
+    !!(S.angel && S.angel.armed && S.angel.phase === 'stand'));
+  // Silence, used as a layer. A chase that breaks drops EVERYTHING for a beat before the house
+  // comes back - the release is what the build-up was for, and an ambience that simply resumes
+  // throws it away.
+  FX.peak = Math.max(FX.peak, FX.dread);
+  if (FX.peak > HUSH_FROM && FX.dread < HUSH_TO){ FX.peak = 0; SFX.hush(1.1); }
+  if (FX.dread < 0.05) FX.peak = 0;
+  SFX.score(FX.dread, chased, dt, S.shopMode || !S.running);
+
+  // The house talking to itself. Short, dry and high, and only while nothing else is happening -
+  // a creak on top of a chase is noise on the one channel that has to stay readable.
+  if (!S.shopMode && S.running && !S.dead){
+    FX.houseT -= dt;
+    if (FX.houseT <= 0){
+      FX.houseT = HOUSE_GAP[0] + Math.random()*(HOUSE_GAP[1]-HOUSE_GAP[0]);
+      if (FX.dread < 0.3){ if (Math.random() < 0.7) SFX.creak(); else SFX.drip(); }
+    }
   }
 
   FX.beatPulse = Math.max(0, FX.beatPulse - dt*2.6);
@@ -572,6 +824,60 @@ for (const k in MONSTERS){
 // there teaches nothing; the growth belongs later, where the quota is already asking for it.
 const FOES_BASE = 2, FOES_PER_LEVEL = 0.9, FOES_MAX = 12;
 function foesForLevel(lv){ return Math.min(FOES_MAX, FOES_BASE + Math.floor((lv-1)*FOES_PER_LEVEL)); }
+
+// Two monsters used to be able to stand on the exact same pixel, and a chasing one ran THROUGH
+// the spot it was aiming at and turned round again - measured at 0.8 px apart and ~12 direction
+// reversals a second with four of them on one standing player. On screen that is a monster
+// vibrating, and a pile of them vibrating against each other.
+//
+// Two separate causes, so two separate numbers:
+//   * the stand-off: a chase target is the tile you are standing on, so a monster that walks all
+//     the way to it must overshoot. It stops a body short instead - still inside its own 22 px
+//     strike range, so nothing about how hard it hits changes.
+//   * the separation: a gentle sideways drift out of anything it is overlapping. A drift, not an
+//     impulse - a bounce is what we are removing, so pushing them apart hard would be the same
+//     defect wearing the opposite sign.
+// SEE: owner feedback 2026-08-23 "đừng cho quái chạm vào nhau, nó cứ nảy nảy"
+const FOE_STANDOFF = 18;     // how far short of its target a chasing monster stops
+const FOE_SEP_R    = 20;     // two bodies (radius 9) plus a little air
+const FOE_SEP_PUSH = 26;     // px/s of drift out of an overlap - a third of walking speed
+
+// The guarantee, as opposed to the steering above: after everything has moved, no two bodies are
+// left overlapping. It is a POSITION correction with no velocity in it, which is what keeps it
+// from turning into the bounce it exists to remove - each body is moved half the overlap, once,
+// and next frame there is nothing left to correct.
+const FOE_BODY = 9;          // the radius every monster already moves with
+
+function separateFoes(){
+  const ms = S.monsters, want = FOE_BODY*2;
+  for (let i=0; i<ms.length; i++) for (let j=i+1; j<ms.length; j++){
+    const a = ms[i], b = ms[j];
+    // A rook mid-dash cannot steer and does not stop for bodies - it rams them. Nudging it here
+    // would bend the one straight line its whole design is built on.
+    if (a.rook === 'dash' || b.rook === 'dash') continue;
+    let dx = b.x-a.x, dy = b.y-a.y, d = Math.hypot(dx, dy);
+    if (d >= want) continue;
+    if (d < 0.01){ dx = (i & 1) ? 1 : 0; dy = (i & 1) ? 0 : 1; d = 1; }
+    const push = (want-d)*0.5, ux = dx/d*push, uy = dy/d*push;
+    moveEnt(a, -ux, -uy, FOE_BODY);
+    moveEnt(b,  ux,  uy, FOE_BODY);
+  }
+}
+
+function foeSeparation(m){
+  let sx = 0, sy = 0;
+  for (const o of S.monsters){
+    if (o === m) continue;
+    const dx = m.x-o.x, dy = m.y-o.y;
+    const d = Math.hypot(dx, dy);
+    if (d >= FOE_SEP_R) continue;
+    if (d < 0.01){ sx += 1; continue; }        // exactly on top: any direction beats none
+    const k = (FOE_SEP_R - d)/FOE_SEP_R;
+    sx += dx/d*k; sy += dy/d*k;
+  }
+  const l = Math.hypot(sx, sy);
+  return l < 1e-6 ? null : { x: sx/l, y: sy/l };
+}
 
 // A monster that has not found you in this long gives up on where it is and moves to a room near
 // you. WHY it exists: without it the counter-play to every monster in the game is "walk the other
@@ -834,7 +1140,7 @@ function lockDoors(rnd){
 function breakDoor(d, how){
   if (!d || d.broken) return false;
   d.broken = true; d.locked = false; d.open = 1; d.bash = 0; d.splint = 1;
-  SFX.thud(); fxShake(how === 'bash' ? 8 : 6);
+  SFX.splinter(); fxShake(how === 'bash' ? 8 : 6);
   if (!S.shopMode) makeNoise(d.x, d.y, DOOR_BREAK_NOISE, 2);
   return true;
 }
@@ -881,7 +1187,11 @@ function stepDoors(dt){
         if (!mate && !(b.alert > 0)) continue;
         bashing = true; break;
       }
+      const was = d.bash;
       d.bash = bashing ? d.bash + dt : Math.max(0, d.bash - dt*0.5);
+      // wood under load, once a beat, so you can hear it coming through before it does
+      if (bashing && Math.floor(was/0.45) !== Math.floor(d.bash/0.45) &&
+          Math.hypot(d.x-S.player.x, d.y-S.player.y) < 14*TILE) SFX.strain();
       if (d.bash >= DOOR_BASH_T) breakDoor(d, 'bash');
       continue;
     }
@@ -893,9 +1203,11 @@ function stepDoors(dt){
     }
     const was = d.open;
     d.open = clamp(d.open + (near ? dt/DOOR_OPEN_T : -dt/DOOR_SHUT_T), 0, 1);
-    // the clack, once, and only where you can hear it
-    if (was < DOOR_SEE_AT && d.open >= DOOR_SEE_AT &&
-        Math.hypot(d.x-S.player.x, d.y-S.player.y) < 10*TILE) SFX.thud();
+    const heard = Math.hypot(d.x-S.player.x, d.y-S.player.y) < 10*TILE;
+    // the hinge as it starts to move, either way, and the clack when it passes the middle
+    if (heard && was < 0.02 && d.open >= 0.02) SFX.hinge(true);
+    if (heard && was > 0.98 && d.open <= 0.98) SFX.hinge(false);
+    if (was < DOOR_SEE_AT && d.open >= DOOR_SEE_AT && heard) SFX.thud();
   }
 }
 
@@ -961,7 +1273,10 @@ const S = {
   stash: [],                       // the shared locker on the truck; bought gear lands here
   offer: null,                     // the stock this shop visit rolled, held so it cannot re-roll
   stashOpen: false,
-  running: false, dead: false, levelDone: false, noFoes: false,
+  // Monsters start OFF and the house is quiet until the button is pressed. Owner's call,
+  // 2026-08-23. Everything else about the house is unchanged - the toggle only decides
+  // whether buildLevel populates the monster posts.
+  running: false, dead: false, levelDone: false, noFoes: true,
   shopMode: false, pay: { active:false, t:0 }, onButton: false, shopCanLeave: false,
   button: { x:0, y:0, r:0 }, cut: null,
   angel: null, angelTimer: 0, angelFx: null, lightZones: [],
@@ -2097,6 +2412,53 @@ function foeTarget(m){
   return near;
 }
 
+// The one cue in the game that is allowed to mean "it is close and you cannot see it". Only the
+// NEAREST unseen thing gets a voice: five monsters each dragging a foot is a wall of noise, and a
+// wall of noise carries no information at all.
+// It deliberately does NOT fire for something you can already see - the torch has told you.
+// Turning the monsters ON in the middle of a level.
+// WHY it is not just startLevel(): rebuilding the house would throw away everything you had
+// already hauled onto the pads, which makes the toggle punish you for pressing it. They walk in
+// instead - never on top of the truck, never next to you, and never anywhere you could watch one
+// appear out of nothing, which is the same rule the mid-shift restock already follows.
+function populateFoes(){
+  if (S.shopMode || !S.grid || !S.car) return 0;
+  const pool = LEVEL_MONSTERS[Math.min(LEVEL_MONSTERS.length-1, S.level-1)];
+  const want = foesForLevel(S.level) - S.monsters.length;
+  let made = 0;
+  for (let i = 0; i < want; i++){
+    for (let tries = 0; tries < 240; tries++){
+      const gx = 1 + ((Math.random()*(MW-2))|0), gy = 1 + ((Math.random()*(MH-2))|0);
+      if (S.grid[gy*MW+gx] !== FLOOR) continue;
+      const x = (gx+0.5)*TILE, y = (gy+0.5)*TILE;
+      if (hitsSolid(x, y, 11)) continue;
+      if (Math.hypot(x-S.car.x, y-S.car.y) < 12*TILE) continue;
+      if (S.player && Math.hypot(x-S.player.x, y-S.player.y) < 9*TILE) continue;
+      if (S.player && inSight(x, y)) continue;
+      S.monsters.push(makeMonster(pool[(Math.random()*pool.length)|0], x, y));
+      made++; break;
+    }
+  }
+  return made;
+}
+
+function stepFoeSound(dt){
+  const p = S.player;
+  if (!p || S.dead || S.shopMode) return;
+  FX.foeSnd -= dt;
+  if (FX.foeSnd > 0) return;
+  let near = null, nd = FOE_HEARD_R;
+  for (const m of S.monsters){
+    if (m.sleep > 0) continue;
+    const d = Math.hypot(p.x-m.x, p.y-m.y);
+    if (d < nd && !inSight(m.x, m.y)){ nd = d; near = m; }
+  }
+  if (!near){ FX.foeSnd = 0.4; return; }
+  const k = 1 - nd/FOE_HEARD_R;
+  if (nd < FOE_BREATH_R && Math.random() < 0.4) SFX.breath(k); else SFX.shuffle(k);
+  FX.foeSnd = 0.55 + Math.random()*0.9;
+}
+
 function stepMonsters(dt){
   for (const m of S.monsters){
     const d = MONSTERS[m.type];
@@ -2186,7 +2548,13 @@ function stepMonsters(dt){
     const ax = m.tx-m.x, ay = m.ty-m.y, am = Math.hypot(ax,ay) || 1;
     m.dir = Math.atan2(ay,ax);
     const spd = m.speed * (m.state === 'chase' ? 1.25 : m.state === 'hunt' ? 1.0 : 0.7);
-    moveEnt(m, ax/am*spd*dt, ay/am*spd*dt, 9);
+    // Never step PAST the thing being walked to, and stop a body short of a live target.
+    const standOff = m.state === 'chase' ? FOE_STANDOFF : 0;
+    const step = Math.max(0, Math.min(spd*dt, am - standOff));
+    let mx = ax/am*step, my = ay/am*step;
+    const sep = foeSeparation(m);
+    if (sep){ mx += sep.x*FOE_SEP_PUSH*dt; my += sep.y*FOE_SEP_PUSH*dt; }
+    if (mx || my) moveEnt(m, mx, my, 9);
 
     if (dist < 22 && m.hit <= 0 && !S.dead && !p.down && m.alert > 0){
       m.hit = d.cd || 0.9;
@@ -4286,7 +4654,14 @@ function step(dt){
   p.speedMul = tierMul;        // the tier multiplier, kept so a test can read what running is worth
   if (vx || vy){
     const sp = playerSpeed(p) * tierMul;
+    const bx = p.x, by = p.y;
     const stopped = moveEnt(p, vx*sp*dt, vy*sp*dt, 7.5);
+    // Footsteps, spaced by distance travelled rather than by a timer, so a slow walk gives slow
+    // steps for free. The volume is p.noise - the SAME number the blind hunter listens to - so
+    // what you hear is exactly what it hears. That is the stealth rule made audible; before this
+    // the loudest thing you could do in the game had no sound of its own.
+    p.stepD = (p.stepD || 0) + Math.hypot(p.x-bx, p.y-by);
+    if (p.stepD > 30){ p.stepD = 0; if (!p.down) SFX.step(p.noise); }
     // Walking into a jammed door has to SAY it is jammed. Without this it reads as the wall being
     // in the wrong place, which is the bug report you get instead of the design landing.
     if (stopped){
@@ -4356,7 +4731,7 @@ function step(dt){
   } else {
     stepDoors(dt);
     stepMates(dt);
-    if (!S.noFoes) stepMonsters(dt);
+    if (!S.noFoes){ stepMonsters(dt); separateFoes(); stepFoeSound(dt); }
     stepAngel(dt);
     stepMirror(dt);
     stepProjectiles(dt);
@@ -5985,11 +6360,19 @@ window.__boot = function(){
   el('veilBtn2').hidden = false;
   el('veilBtn2').onclick = () => { S.running = true; hideVeil(); setBot(true); };
   el('newBtn').onclick = () => { resetRun(); startLevel(); };
+  // The label says what a press WILL DO, because the button is the only thing on screen that
+  // tells you whether the house has anything in it - and it now starts with the house empty.
+  const paintFoeBtn = () => {
+    el('foeBtn').setAttribute('aria-pressed', S.noFoes ? 'true' : 'false');
+    el('foeBtn').textContent = S.noFoes ? 'Bật quái' : 'Tắt quái';
+  };
   el('foeBtn').onclick = () => {
     S.noFoes = !S.noFoes;
-    el('foeBtn').setAttribute('aria-pressed', S.noFoes ? 'true' : 'false');
-    if (S.noFoes) S.monsters.length = 0;
+    paintFoeBtn();
+    if (S.noFoes){ S.monsters.length = 0; toast('Nhà trống — không còn con nào'); }
+    else { const n = populateFoes(); toast(n ? 'Có ' + n + ' con vừa vào nhà' : 'Bật quái'); }
   };
+  paintFoeBtn();
   el('botBtn').onclick = () => setBot(!window.__botActive);
 
   last = performance.now();
@@ -6135,7 +6518,8 @@ window.REPO = {
                     danger: Math.max(FX.dread, FX.hurtT*0.8),
                     x: hud.heart.x, y: hud.heart.y, r: hud.heart.r }; },
   mouseLook(){ return mouseFresh() ? mouseWorldNow() : null; },
-  foesForLevel, makeNoise, lootCap,
+  foesForLevel, makeNoise, lootCap, foeSeparation, separateFoes, populateFoes,
+  FOE: { STANDOFF:FOE_STANDOFF, SEP_R:FOE_SEP_R, SEP_PUSH:FOE_SEP_PUSH, BODY:FOE_BODY },
   doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, gx:d.gx, gy:d.gy, open:d.open,
                                               vertical:d.vertical, locked:!!d.locked,
                                               broken:!!d.broken, bash:d.bash })); },
@@ -6149,6 +6533,13 @@ window.REPO = {
               BIG:LOOT_CAP_BIG, MED:LOOT_CAP_MED },
   relocateFoe(i){ return relocateFoe(S.monsters[i||0], Math.random); },
   soundOn(){ return SFX.on; },
+  audio(){ return SFX.scoreState(); },
+  audioLevel(){ return SFX.level(); },
+  audioBand(lo, hi){ return SFX.band(lo, hi); },
+  audioFired(){ return Object.assign({}, SFX.fired); },
+  audioReset(){ for (const k in SFX.fired) delete SFX.fired[k]; },
+  setHouseTimer(t){ FX.houseT = t; },
+  AUDIO: { HOUSE_GAP, HUSH_FROM, HUSH_TO, HEARD_R:FOE_HEARD_R, BREATH_R:FOE_BREATH_R },
   mapFade(){ return S.mapFade || 0; },
   mapAlpha(){ return mix(MINIMAP_IDLE_ALPHA, MINIMAP_FADED_ALPHA, S.mapFade || 0); },
   get timeScale(){ return timeScale; },
