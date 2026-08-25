@@ -833,14 +833,22 @@ for (const k in MONSTERS){
 // first shift is where the loop is learned, and a player who dies to a patrol before they know what
 // a pad is has learned nothing.
 // It is a DEFAULT, not a rule: pressing the monster button on level 1 still lets them in.
-const FOES_FROM_LEVEL = 2;
+const FOES_FROM_LEVEL = 1;   // the first shift is no longer the empty one
+// How soon the AEngel and the mirrors turn up for the FIRST time in a house. Short enough that
+// a shift cannot end without meeting them; long enough that neither is standing there while you
+// are still reading the room you walked into.
+const FIRST_VISIT = [8, 16];
 // THREE. Owner's call, 2026-08-23: "đông như quân Nguyên" — a level 12 house held twelve of them
 // and the fight stopped being a fight you could read. WHY a hard cap rather than a gentler curve:
 // six pistol rounds is 150 damage, and past three bodies no amount of ammunition is the answer, so
 // a crowd does not raise the difficulty — it removes the option of fighting at all and leaves
 // running as the only verb. The curve below still shapes the early levels (2, 2, 3); the cap is
 // what stops it becoming a mob.
-const FOES_BASE = 2, FOES_PER_LEVEL = 0.9, FOES_MAX = 3;
+// Three in every house, first shift included — the owner's call, 2026-08-26. It used to open
+// with two and climb to three by the third house, and the first house opened with none at all
+// so the loop could be learned in quiet. Both are gone: the house is the same size every time
+// now, so what a player learns in the first one is what the rest of them are.
+const FOES_BASE = 3, FOES_PER_LEVEL = 0, FOES_MAX = 3;
 function foesForLevel(lv){ return Math.min(FOES_MAX, FOES_BASE + Math.floor((lv-1)*FOES_PER_LEVEL)); }
 
 // Two monsters used to be able to stand on the exact same pixel, and a chasing one ran THROUGH
@@ -927,6 +935,30 @@ const LEVEL_MONSTERS = [
   ['patrol','listen','bomber','stalk','rook'],
   ['patrol','listen','bomber','stalk','heavy','rook']
 ];
+
+// What actually gets stocked, which is no longer the table above.
+//
+// The owner's call, 2026-08-26: every house holds THREE, they are three DIFFERENT kinds, the plain
+// patroller is not one of them, and one of them is always a Rook. The table above ramped the roster
+// by house number, which meant the interesting monsters were something you had to grind four houses
+// to meet — and with only three bodies in a house, a random draw from a ramped pool served the same
+// patroller three times over. The table stays because other code still reads it, and because it
+// records the order these things were meant to arrive in.
+//
+// WHY a Rook is guaranteed rather than merely possible: it is the only one that changes how a ROOM
+// is read — a corridor with a Rook in it is a lane you do not stand in — and one that turns up in
+// one house out of five is a rule nobody learns.
+const STOCK_ALWAYS = 'rook';
+const STOCK_NEVER  = 'patrol';
+function stockKinds(rnd){
+  const rest = Object.keys(MONSTERS).filter(k => k !== STOCK_ALWAYS && k !== STOCK_NEVER);
+  for (let i = rest.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [rest[i],rest[j]] = [rest[j],rest[i]]; }
+  const picked = [STOCK_ALWAYS].concat(rest).slice(0, FOES_MAX);
+  // Shuffled again so the Rook is not always the one on the first authored post, which is the post
+  // nearest the way in.
+  for (let i = picked.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [picked[i],picked[j]] = [picked[j],picked[i]]; }
+  return picked;
+}
 
 // ============================================================ shop
 // The source game's Service Station rolls a DIFFERENT stock every visit, split into two
@@ -1353,8 +1385,13 @@ function buildLevel(seed){
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
   S.levelDone = false; S.dead = false; S.hurtLog = []; S.shiftLost = false;
   S.restocks = 0;
-  S.angel = null; S.angelFx = null; S.lightZones = []; S.angelTimer = angelNextIn();
-  S.mirror = null; S.mirrorFx = null; S.mirrorTimer = mirrorNextIn();
+  // FIRST visit of a house, not a routine one. WHY the two are separated: both were on a 30-60
+  // second dice roll from the moment you walked in, so whether a house contained an AEngel or a pair
+  // of mirrors at all depended on how long you took in it — a fast shift met neither, and the owner
+  // asked for every house to hold all three of the things worth meeting. After the first, the
+  // ordinary interval takes over and nothing about their pacing changes.
+  S.angel = null; S.angelFx = null; S.lightZones = []; S.angelTimer = mix(FIRST_VISIT[0], FIRST_VISIT[1], Math.random());
+  S.mirror = null; S.mirrorFx = null; S.mirrorTimer = mix(FIRST_VISIT[0], FIRST_VISIT[1], Math.random());
 
   const lootSpots = [], monSpots = [];
   const order = ROOMS.map((_,i)=>i);
@@ -1564,9 +1601,10 @@ function buildLevel(seed){
     }
     for (let i=spare.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [spare[i],spare[j]]=[spare[j],spare[i]]; }
     const n = Math.min(ms.length + spare.length, foesForLevel(S.level));
+    const kinds = stockKinds(rnd);
     for (let i=0;i<n;i++){
       const sp = i < ms.length ? ms[i] : spare[i - ms.length];
-      const type = pool[(rnd()*pool.length)|0];
+      const type = kinds[i % kinds.length];
       S.monsters.push(makeMonster(type, (sp.gx+0.5)*TILE, (sp.gy+0.5)*TILE));
     }
   }
@@ -2444,7 +2482,11 @@ function foeTarget(m){
 // appear out of nothing, which is the same rule the mid-shift restock already follows.
 function populateFoes(){
   if (S.shopMode || !S.grid || !S.car) return 0;
-  const pool = LEVEL_MONSTERS[Math.min(LEVEL_MONSTERS.length-1, S.level-1)];
+  // Walking them in mid-shift obeys the same rule as building the house: three kinds, all different,
+  // Rook among them. It fills the kinds that are MISSING rather than drawing fresh, so pressing the
+  // toggle after two have died puts back the two that died and not two more of the survivor.
+  const here = S.monsters.map(m => m.type);
+  const pool = stockKinds(Math.random).filter(k => !here.includes(k));
   const want = foesForLevel(S.level) - S.monsters.length;
   let made = 0;
   for (let i = 0; i < want; i++){
@@ -2456,7 +2498,7 @@ function populateFoes(){
       if (Math.hypot(x-S.car.x, y-S.car.y) < 12*TILE) continue;
       if (S.player && Math.hypot(x-S.player.x, y-S.player.y) < 9*TILE) continue;
       if (S.player && inSight(x, y)) continue;
-      S.monsters.push(makeMonster(pool[(Math.random()*pool.length)|0], x, y));
+      S.monsters.push(makeMonster(pool[made % Math.max(1, pool.length)] || STOCK_ALWAYS, x, y));
       made++; break;
     }
   }
