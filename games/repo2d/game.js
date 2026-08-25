@@ -4576,35 +4576,45 @@ function hudLayout(){
   // Everything below this line belongs to the sticks. Buttons start above it.
   const thumbY = h - (pad + 2*R + 10);
 
-  // The three slots run UP THE RIGHT EDGE in a column rather than on an arc. A column cannot be
-  // clipped by the frame, its spacing does not change with the aspect, and a raised aim stick on
-  // one of them covers empty screen rather than the other two.
+  // ------------------------------------------------------------------ hand-placed controls
+  // The block below was ARRANGED BY HAND in the Unity build's layout tool and copied here, so the
+  // two builds put the same control in the same place. The numbers are measured against the 540-wide
+  // frame the interface is designed for, and K scales them to whatever frame is actually on screen —
+  // the same way pad and R already scale, so nothing here is pinned to one phone.
+  // Where they came from: repo2d-unity/Assets/Resources/UI/Layout.asset.
+  //
+  // What the code used to decide, and no longer does: the slots ran up the right edge in a column
+  // and the three buttons stacked above the left stick. Both are now wherever the owner put them.
+  // The reasoning those positions were chosen FOR is kept below, because it is still the reason a
+  // future change should be argued about rather than the reason these numbers are what they are.
+  const K = Math.min(w,h) / 540;
+
   // The three hand slots are a HOUSE control: in the station you are shopping, not fighting, and
   // three dead buttons on the edge of the screen are three things in the way. They are replaced by
   // one button that fires whatever you have picked up off the shelf.
+  // Hand-placed: an arc sweeping up and left out of the bottom-right corner, rather than a column.
+  const SLOT_AT = [ {x:-55, y:196}, {x:-120, y:184}, {x:-173, y:144} ];   // x is inset from the RIGHT
   const slots = S.shopMode ? [] : [0,1,2].map(i => ({
-    x: w - pad - sr,
-    y: thumbY - sr*1.5 - i*(sr*2.45),
+    x: w + SLOT_AT[i].x*K,
+    y: h - SLOT_AT[i].y*K,
     r: sr, i
   }));
-  const test = { x: w - pad - sr*1.3, y: thumbY - sr*1.6, r: sr*1.3 };
-  // Grab sits on the LEFT thumb (doc C2-4 — grabbing needs no aim), up and IN from the corner the
-  // move thumb rests in, so reaching for it is a deliberate move away from the stick.
-  const grab  = { x: pad + R + sr*1.6, y: thumbY - sr*1.35, r: sr*1.25 };
-  // Chạy nước rút sits directly above grab, on the same thumb. It is a MOVEMENT control, so it
-  // belongs to the thumb that moves; and it is a toggle, so the press is a tap the move thumb can
-  // make on its way back to the stick rather than something it has to hold.
-  const sprint = { x: grab.x, y: grab.y - sr*3.2, r: sr*1.25 };
-  // The locker sits above both, on the same thumb, and only appears when the truck is within reach —
-  // it is a start-room action, not a field one.
-  const stash = { x: grab.x, y: grab.y - sr*6.4, r: sr*1.25 };
+  const test = { x: 299*K, y: h - 228*K, r: sr*1.3 };
+  // Grab is on the thumb that grabs (doc C2-4 — grabbing needs no aim). It used to sit up and in
+  // from the LEFT corner, so reaching for it was a deliberate move away from the move stick.
+  const grab  = { x: 298*K, y: h - 152*K, r: sr*1.25 };
+  // Chạy nước rút is a MOVEMENT control and a toggle, so the press is a tap a thumb can make on its
+  // way back to the stick rather than something it has to hold.
+  const sprint = { x: 295*K, y: h - 58*K, r: sr*1.25 };
+  // The locker only appears when the truck is within reach — it is a start-room action, not a field one.
+  const stash = { x: 300*K, y: h - 227*K, r: sr*1.25 };
   // Where a raised item goes to be put back down: the top-right corner, the way a mobile MOBA does
   // it. It is the furthest point from the thumb that raised it, and on the way to nowhere else.
   const cancel = { x: w - pad - sr*1.6, y: pad + sr*1.6, r: sr*1.6 };
   // The heart belongs WITH the controls, not tucked in a corner beside the health bar where nobody
   // found it. Centre-bottom, just above the thumb band: between the two sticks, clear of every
   // button, and squarely in the middle of where the eyes already are.
-  const heart = { x: w/2, y: thumbY - Math.min(w,h)*0.075 - 8, r: Math.min(w,h)*0.075 };
+  const heart = { x: w/2, y: h - 319*K, r: Math.min(w,h)*0.075 };
   return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, pad, thumbY, aimR: R };
 }
 // Scaled with the truck: the locker button appears when you are standing AT it, and "at it" got
