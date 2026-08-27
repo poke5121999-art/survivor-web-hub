@@ -60,6 +60,14 @@ async function repo2dSuite(b) {
   check('số bot mặc định không đổi', st.mates === st.mateCountConst,
     st.mates + ' bot, hằng số ' + st.mateCountConst);
   check('cả tổ = người chơi + bot', st.crew === st.mates + 1, st.crew + ' người');
+  // Cân bằng của repo2d KHÔNG được dịch vì thay đổi làm cho game kia.
+  const qm = await p.evaluate(() => ({
+    crewOn: REPO.S.crewOn, mates: (REPO.S.mates || []).length,
+    quota: REPO.S.quotaTotal
+  }));
+  check('tổ mặc định của repo2d cho hệ số chỉ tiêu đúng 1.0',
+    Math.abs((0.4 + 0.15 * Math.min(1 + qm.mates, 4)) - 1.0) < 1e-9,
+    'tổ ' + (1 + qm.mates) + ' người → ' + (0.4 + 0.15 * Math.min(1 + qm.mates, 4)));
 
   // --- khung ngang ---
   const fr = await p.evaluate(() => {
@@ -182,11 +190,15 @@ async function repoSquadSuite(b) {
     // --- meta còn nguyên ---
     const m = await p.evaluate(() => ({
       chars: Object.keys(SQ.M.chars).length, lead: SQ.M.squad.lead,
-      mateCount: REPO.hooks.mateCount, land: document.body.classList.contains('landscape')
+      // mateCount là HÀM: nó phải đổi theo tổ, không phải một con số đặt cứng lúc nạp trang
+      mateCountLaHam: typeof REPO.hooks.mateCount === 'function',
+      mateCount: typeof REPO.hooks.mateCount === 'function' ? REPO.hooks.mateCount() : REPO.hooks.mateCount,
+      land: document.body.classList.contains('landscape')
     }));
     check('[' + ten + '] acc mới đúng một xác', m.chars === 1, m.chars + ' xác');
     check('[' + ten + '] ô BẠN CẦM không rỗng', !!m.lead);
-    check('[' + ten + '] tổ cấu hình 4 bot', m.mateCount === 4, String(m.mateCount));
+    check('[' + ten + '] số bot tính theo tổ chứ không đặt cứng', m.mateCountLaHam);
+    check('[' + ten + '] acc một xác thì không có bot nào', m.mateCount === 0, String(m.mateCount));
     check('[' + ten + '] cờ landscape đúng', m.land === (vp.width > vp.height));
 
     // --- đội hình ---
@@ -238,6 +250,41 @@ async function repoSquadSuite(b) {
 
     const errs3 = errs.filter(e => !/favicon/.test(e));
     check('[' + ten + '] không lỗi console', errs3.length === 0, errs3.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // --- số bot phải KHỚP số người thật trong tổ ---
+  // Lỗi đã gặp: H.mateCount đặt cứng 4 nên tài khoản mới chỉ có một xác vẫn thấy
+  // bốn con "Tổ 2..5" vô danh đi theo. Chốt lại bằng phép kiểm này.
+  {
+    const { ctx, p, errs } = await openGame(b, SQ, { width: 844, height: 390 });
+    await p.waitForTimeout(500);
+    const rows = [];
+    for (const n of [0, 1, 2, 4]) {
+      rows.push(await p.evaluate(nMate => {
+        SQ.M.chars = { bao: { lv:1, shard:0, equip:{} } };
+        ['hue','tam','ky','linh'].slice(0, nMate)
+          .forEach(id => { SQ.M.chars[id] = { lv:1, shard:0, equip:{} }; });
+        SQ.M.squad = { lead:'bao', mates:[null,null,null,null] };
+        SQ.autoFill();
+        SQ.squad.enter('k3');
+        REPO.S.cut = null; REPO.S.running = true;
+        return { meta: SQ.squadList().length, bot: (REPO.S.mates || []).length,
+                 ten: (REPO.S.mates || []).map(m => m.name),
+                 chiTieu: REPO.S.quotaTotal };
+      }, n));
+    }
+    check('số bot khớp số người thật trong tổ',
+      rows.every(r => r.bot === r.meta - 1),
+      rows.map(r => r.meta + '→' + r.bot).join('  '));
+    check('không đẻ ra bot vô danh "Tổ N"',
+      rows.every(r => r.ten.every(t => !/^Tổ \d/.test(t))),
+      rows.map(r => '[' + (r.ten.join(',') || '—') + ']').join(' '));
+    check('chỉ tiêu co theo số người',
+      rows[0].chiTieu < rows[3].chiTieu,
+      'một mình $' + rows[0].chiTieu + ' · đủ tổ $' + rows[3].chiTieu);
+    const e0 = errs.filter(e => !/favicon/.test(e));
+    check('tổ thiếu người: không lỗi console', e0.length === 0, e0.slice(0, 2).join(' | '));
     await ctx.close();
   }
 

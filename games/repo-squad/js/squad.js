@@ -47,7 +47,9 @@
       speed: Math.round(BASE.speed * m.stats.spd)
     };
   }
-  H.mateCount = 4;
+  // Số bot = số người ĐANG THẬT SỰ trong tổ, trừ xác bạn cầm. Không đặt cứng 4:
+  // tài khoản mới chỉ có một xác, và tổ dài ra dần theo số xác quay được.
+  H.mateCount = () => Math.max(0, SQ.squadList().length - 1);
   H.mateInfo = i => statsOf(SQ.squadList()[i + 1]);
   H.playerInfo = () => statsOf(SQ.squadList()[0]);
 

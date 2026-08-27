@@ -1648,7 +1648,15 @@ function buildLevel(seed){
   }
 
   const totalValue = S.loot.reduce((a,l)=>a+l.value0, 0);
-  S.quotaTotal = Math.round(totalValue * QUOTA_FACTOR * difficultyCurve(S.level));
+  // Chỉ tiêu co theo SỐ NGƯỜI thật sự đi ca, không phải một con số cứng.
+  // WHY: QUOTA_FACTOR được cân cho tổ đủ bốn người. Đi một mình — bật/tắt tổ ở
+  //   repo2d, hoặc tài khoản Biệt Đội mới chỉ có một xác — mà vẫn phải khuân đủ
+  //   chỉ tiêu của bốn người thì không ai xong nổi.
+  // Co DƯỚI mức tuyến tính (1 người = 55%, 4 người = 100%) nên đi đủ tổ vẫn lợi
+  // hơn hẳn: ba người kia còn mang thêm tay khuân và chia lửa với quái.
+  const crewN = clamp(1 + (S.crewOn ? hookMateCount() : 0), 1, 8);
+  const crewMul = 0.4 + 0.15 * Math.min(crewN, 4);
+  S.quotaTotal = Math.round(totalValue * QUOTA_FACTOR * difficultyCurve(S.level) * crewMul);
   const per = Math.round(S.quotaTotal / Math.max(1, S.pads.length));
   S.pads.forEach(p => { p.quota = per; });
 
@@ -4159,7 +4167,12 @@ const HOOKS = {
   levelIndex: null,     // ()  -> số, ép độ khó của tầng sắp dựng (map hữu hạn tự tính)
   skill: null           // { label(), ready(), cool(), use() } — nút kỹ năng trong HUD
 };
-function hookMateCount(){ return HOOKS.mateCount == null ? MATE_COUNT : HOOKS.mateCount; }
+// Nhận cả số lẫn HÀM: bản Biệt Đội có tổ đổi theo từng ván (quay được thêm xác thì
+// tổ dài ra), nên một con số đặt cứng lúc nạp trang là sai ngay từ ván thứ hai.
+function hookMateCount(){
+  const v = typeof HOOKS.mateCount === 'function' ? HOOKS.mateCount() : HOOKS.mateCount;
+  return v == null ? MATE_COUNT : Math.max(0, v | 0);
+}
 
 function crew(){ return S.player ? [S.player].concat(S.mates || []) : (S.mates || []); }
 function crewAlive(){ return crew().filter(a => a && !a.down); }
@@ -4177,9 +4190,13 @@ function spawnCrew(){
       if (hitsSolid(nx, ny, 9)) continue;
       x = nx; y = ny; break;
     }
+    // Lớp meta quyết định bot này là XÁC NÀO. Nó trả về rỗng nghĩa là ô đó TRỐNG —
+    // không đẻ ra một cái bóng vô danh đứng thế chỗ.
+    // ROOT-CAUSE: bản đầu vẫn push mate rồi mới hỏi info, nên một tài khoản mới chỉ
+    //   có đúng một xác vẫn thấy bốn con "Tổ 2..5" đi theo trong ca.
+    const info = HOOKS.mateInfo ? HOOKS.mateInfo(i) : null;
+    if (HOOKS.mateInfo && !info) continue;
     const m = makeMate(i, x, y);
-    // Lớp meta quyết định bot này là XÁC NÀO và khoẻ tới đâu.
-    const info = HOOKS.mateInfo && HOOKS.mateInfo(i);
     if (info){
       if (info.name)  m.name = info.name;
       if (info.col)   m.col = info.col;
