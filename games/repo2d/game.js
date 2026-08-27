@@ -37,7 +37,7 @@ const VIEW_W_WORLD = 14 * TILE;
 // cạnh ngắn thì gần như không đổi. Nằm ngang kéo gần thêm một nấc (11 thay vì 14) đúng
 // kiểu camera MOBA trên điện thoại — cạnh ngắn lúc nằm ngang vốn ngắn hơn lúc cầm dọc,
 // giữ nguyên con số thì người bé đi thấy rõ.
-const VIEW_W_WORLD_LAND = 11 * TILE;
+const VIEW_W_WORLD_LAND = 9.5 * TILE;
 const zoom = () => Math.min(viewW, viewH) /
   (viewW > viewH ? VIEW_W_WORLD_LAND : VIEW_W_WORLD);
 
@@ -4816,10 +4816,10 @@ function fitCanvas(){
   let w, h;
   if (land) {
     // Tràn hết chỗ trống, không ép 16:9 — hai vệt đen hai bên là bề ngang bị vứt đi,
-    // mà nằm ngang thì bề ngang là thứ duy nhất đang dư. Chặn 2.8:1 cho màn siêu rộng;
-    // điện thoại nằm ngang cao nhất cũng chỉ tới ~2.6 nên không chạm tới mức chặn.
+    // mà nằm ngang thì bề ngang là thứ duy nhất đang dư. Không chặn tỉ lệ: rộng bao
+    // nhiêu ăn bấy nhiêu. Zoom neo theo cạnh ngắn nên màn càng rộng chỉ càng nhìn xa
+    // sang hai bên, người vẫn giữ nguyên cỡ.
     w = aw; h = ah;
-    if (w / h > 2.8) w = h * 2.8;
   } else {
     const k = Math.min(aw/FRAME_W, ah/FRAME_H);
     w = k*FRAME_W; h = k*FRAME_H;

@@ -65,22 +65,28 @@
   .bar{padding-left:calc(13px + env(safe-area-inset-left));padding-right:calc(13px + env(safe-area-inset-right));}
   canvas#game{display:block;touch-action:none;cursor:crosshair;background:#000;}
 
-  /* Held sideways there is no room left for the frame: a 9:16 column inside a short landscape
-     window shrinks to a strip a thumb cannot work. Say so instead of letting the player wonder. */
-  .rotate{display:none;}
-  @media (orientation:landscape) and (max-height:560px) and (pointer:coarse){
-    .rotate{
-      display:flex;position:absolute;inset:0;z-index:5;flex-direction:column;
-      align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;
-      background:rgba(6,7,9,.97);color:var(--ink-dim);font-size:14px;line-height:1.6;
-    }
-    .rotate .glyph{font-size:34px;color:var(--amber);}
-  }
+  /* Tấm chắn "xoay dọc máy" đã BỎ. Lý do nó từng có: khung 9:16 nhét vào một cửa sổ
+     nằm ngang thấp thì teo lại thành một dải hẹp không bấm nổi — đúng, nhưng đó là hệ
+     quả của việc ÉP 9:16, không phải của màn hình ngang. Từ khi khung ngang tràn hết
+     chỗ trống và zoom neo theo cạnh ngắn, nằm ngang cho ô TO HƠN cầm dọc (29,9 so với
+     27,9 px mỗi ô, đo trên 844x390), nên không còn gì để chắn. */
 
-  /* Máy nằm ngang: khung game đã là 16:9, nên hai thanh chữ ngoài khung phải nhường
-     chiều cao lại cho nó — mỗi pixel bớt ở đây là một pixel khung game to thêm. */
-  body.landscape .bar,body.landscape .foot{padding-top:3px;padding-bottom:3px;font-size:9.5px}
+  /* Máy nằm ngang: hai thanh chữ ngoài khung nhường chiều cao lại cho khung game —
+     mỗi pixel bớt ở đây là một pixel khung to thêm. */
+  body.landscape .bar,body.landscape .foot{padding-top:1px;padding-bottom:1px;font-size:9px;gap:6px;min-height:0}
+  body.landscape .bar .btn,body.landscape .foot .ctl{padding:1px 6px;font-size:8.5px}
+  body.landscape #footHint,body.landscape .bar .grow~span{display:none}
   body.landscape .hide-land{display:none}
+  /* Nằm ngang chỉ còn ~330px chiều cao cho bảng phủ, mà bài mở đầu dài hơn thế — nút
+     "Vào ca" bị đẩy khỏi màn hình và người chơi tưởng game treo. Bó chữ lại, và ghim
+     hàng nút xuống đáy để nó luôn nằm trong tầm ngón tay dù bài có dài bao nhiêu. */
+  body.landscape .veil{padding:8px 12px 0;gap:5px;line-height:1.4}
+  body.landscape .veil h2{font-size:18px}
+  body.landscape .veil p{font-size:11px;max-width:60ch}
+  body.landscape #veilKeys{font-size:9.5px}
+  body.landscape .veil kbd{font-size:9px;padding:1px 4px}
+  body.landscape .veil-acts{position:sticky;bottom:0;width:100%;padding:6px 0 10px;
+    background:linear-gradient(180deg,rgba(6,7,9,0),rgba(6,7,9,.97) 30%)}
 
   .veil{
     position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
@@ -170,11 +176,6 @@
   <div class="screen">
     <canvas id="game" width="1280" height="720" aria-label="Trò chơi khuân đồ nhìn từ trên xuống"></canvas>
 
-    <div class="rotate" aria-hidden="true">
-      <div class="glyph">⟳</div>
-      <div>Xoay dọc máy để chơi.<br>Trò này chạy ở màn hình dọc.</div>
-    </div>
-
     <div class="veil" id="veil">
       <h2 id="veilTitle">Ca Trực Đêm</h2>
       <p id="veilBody">Vào nhà, khuân đồ giá trị ra bệ giao hàng cho đủ chỉ tiêu, rồi tìm bệ tiếp theo. Đồ càng nặng càng đắt, và càng dễ vỡ khi bạn đâm vào tường. Trong đó có thứ khác đang đi lại.</p>
@@ -186,10 +187,10 @@
         Xe đẩy nằm sẵn cạnh xe tải: chở được 6 món nhỏ/vừa, đẩy thẳng lên bệ là dỡ cả xe.</span><br>
         <span style="opacity:.8">Hết màn là vào trạm dịch vụ: nhặt món muốn mua đặt lên bệ, đứng lên nút cạnh bệ
         để trả tiền, đứng lại lần nữa để hủy. Xong thì bước vào xe tải để đi màn sau.</span><br>
-        <span style="opacity:.8">Điện thoại: cầm dọc máy. Hai cần gạt — trái đi, phải nhìn. Cần trái hiện ra ngay chỗ ngón cái chạm; đẩy hết cần để chạy.</span>
+        <span style="opacity:.8">Điện thoại: cầm dọc hay nằm ngang đều chơi được — nằm ngang thì khung ăn trọn màn hình. Hai cần gạt — trái đi, phải nhìn. Cần trái hiện ra ngay chỗ ngón cái chạm; đẩy hết cần để chạy.</span>
       </p>
       <div id="veilExtra"></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <div class="veil-acts" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
         <button class="btn" id="veilBtn">Vào ca</button>
         <button class="btn ghost" id="veilBtn2" hidden>Để bot chơi</button>
       </div>
@@ -209,8 +210,8 @@
 
 <!-- ?v=... la dau build: GitHub Pages tra Cache-Control: max-age=600, khong co dau nay
      thi sau khi deploy trinh duyet con chay JS cu toi 10 phut. Doi STAMP moi lan deploy. -->
-<script src="game.js?v=20260827c"></script>
-<script src="bot.js?v=20260827c"></script>
+<script src="game.js?v=20260827d"></script>
+<script src="bot.js?v=20260827d"></script>
 <script>window.__boot && window.__boot();</script>
 </body>
 </html>

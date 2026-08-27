@@ -18,7 +18,7 @@
   // thoại: cạnh ngắn của máy nằm ngang vốn ngắn hơn cạnh ngắn lúc cầm dọc, giữ
   // nguyên con số thì người và quái bé đi thấy rõ.
   const VIEW_TILES = 15;                 // cạnh ngắn, khung DỌC
-  const VIEW_TILES_LAND = 12;            // cạnh ngắn, khung NGANG
+  const VIEW_TILES_LAND = 10;            // cạnh ngắn, khung NGANG
 
   function camFor(R, viewW, viewH) {
     const land = viewW > viewH;

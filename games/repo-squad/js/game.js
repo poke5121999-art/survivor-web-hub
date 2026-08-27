@@ -33,10 +33,10 @@
       // WHY: ép 16:9 để lại hai vệt đen hai bên, mà chiều cao máy nằm ngang vốn đã
       //   ngắn — mất luôn bề ngang nữa thì ô còn nhỏ hơn cả lúc cầm dọc. Game MOBA
       //   trên điện thoại (Liên Quân) không chừa vệt nào: khung ăn trọn màn hình.
-      // Chặn ở 2.8:1 để màn siêu rộng của máy bàn không thành một dải quá dẹt. Điện
-      // thoại nằm ngang cao nhất cũng chỉ tới ~2.6 sau khi trừ hai thanh, nên không chạm.
+      // Không chặn tỉ lệ: khung lấy trọn chỗ trống, rộng bao nhiêu ăn bấy nhiêu.
+      // Zoom neo theo cạnh ngắn nên màn càng rộng chỉ càng nhìn xa sang hai bên,
+      // người và ô vẫn giữ nguyên cỡ — không có vệt đen nào ở bất kỳ tỉ lệ nào.
       w = availW; h = availH;
-      if (w / h > 2.8) w = h * 2.8;
     } else {
       w = availW; h = w * 16 / 9;
       if (h > availH) { h = availH; w = h * 9 / 16; }
