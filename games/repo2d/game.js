@@ -3512,6 +3512,16 @@ function buildShop(){
   S.cart = null;
 
   S.player = S.player || newPlayer();
+  // Xe về tới trạm thì ba ô trên tay TRẢ HẾT về tủ — đúng câu ghi trong bảng tủ đồ
+  // ("ba ô trên tay bắt đầu ca nào cũng rỗng") và đúng chú thích ở newPlayer().
+  // ROOT-CAUSE: trước bản này inv chỉ bị dọn ở resetRun(), tức là chỉ khi bắt đầu
+  //   một run mới. Đồ cầm từ ca 1 nằm lại trong tay mãi, nên tới ca 3 là đủ ba ô;
+  //   lúc đó bấm món trong tủ chỉ chạy vào nhánh `free < 0` rồi im lặng thoát ra —
+  //   người chơi thấy "mua đồ xong không trang bị được, đồ kẹt luôn trong tủ".
+  // Không mất gì: đồ về tủ, và tủ giữ nguyên qua mọi ca.
+  for (let i = 0; i < S.player.inv.length; i++) {
+    if (S.player.inv[i]) { S.stash.push(S.player.inv[i]); S.player.inv[i] = null; }
+  }
   S.player.x = truck.x - TILE*1.0; S.player.y = truck.y + TILE*2.0;
   S.player.held = null; S.player.aimSlot = -1; S.player.aimId = -1;
   S.player.pushing = false; S.player.runT = 0; S.player.rushing = false;
@@ -6831,15 +6841,16 @@ function closeStash(){
   hideVeil();
   if (!S.dead) S.running = true;
 }
-function showStash(){
+function showStash(warn){
   const p = S.player;
+  const full = p.inv.every(it => it);
   const slotRows = [0,1,2].map(i => {
     const it = p.inv[i];
     const def = it ? GEAR_BY_KEY[it.kind] : null;
     return `<button class="up" data-slot="${i}" ${it?'':'disabled'}>
       <span class="t">Ô ${i+1} — ${def ? def.name : 'trống'}</span>
       <span class="d">${def ? def.desc : 'Chọn một món bên dưới để đưa vào ô này.'}</span>
-      <span class="p">${it ? 'x'+it.uses+' · bấm để trả lại tủ' : '—'}</span>
+      <span class="p">${it ? 'x'+it.uses+' · bấm để TRẢ LẠI TỦ' : 'còn trống'}</span>
     </button>`;
   }).join('');
   const stashRows = S.stash.map((it,i) => {
@@ -6847,15 +6858,21 @@ function showStash(){
     return `<button class="gear" data-stash="${i}">
       <span class="t">${def.name}</span>
       <span class="d">${def.desc}</span>
-      <span class="p">x${it.uses} · bấm để cầm lên</span>
+      <span class="p">x${it.uses} · ${full ? 'hết ô — trả một món ở trên xuống trước' : 'bấm để cầm lên'}</span>
     </button>`;
   }).join('') || `<div class="empty">Tủ trống. Đồ mua ở trạm dịch vụ sẽ nằm ở đây.</div>`;
 
+  // Lời nhắc phải nằm TRONG bảng. toast() vẽ lên canvas, mà bảng này là một lớp phủ
+  // đục 94% trùm kín canvas, nên mọi câu báo lỗi gửi qua toast đều rơi vào hư không.
+  const warnRow = warn
+    ? `<div class="empty" style="color:#e0a35a;border-color:#5a4320">⚠ ${warn}</div>` : '';
+
   showVeil('Tủ đồ trên xe',
-    'Ba ô trên tay bắt đầu ca nào cũng rỗng. Lấy đồ ra khỏi tủ trước khi vào nhà; thứ để lại vẫn còn nguyên cho ca sau.',
+    'Về tới trạm là ba ô trên tay tự trả hết về tủ. Lấy lại đồ trước khi vào nhà; thứ để lại vẫn còn nguyên cho ca sau.',
     'Đóng tủ', closeStash,
     `<div class="wallet">Ví: ${money(S.wallet)}</div>
-     <div class="seg">Ba ô trên tay</div><div class="shop">${slotRows}</div>
+     ${warnRow}
+     <div class="seg">Ba ô trên tay${full ? ' — ĐÃ ĐẦY' : ''}</div><div class="shop">${slotRows}</div>
      <div class="seg">Trong tủ (${S.stash.length})</div><div class="shop">${stashRows}</div>`);
 
   el('veilExtra').querySelectorAll('[data-slot]').forEach(btn => {
@@ -6869,8 +6886,8 @@ function showStash(){
   el('veilExtra').querySelectorAll('[data-stash]').forEach(btn => {
     btn.addEventListener('click', () => {
       const i = +btn.dataset.stash;
-      const free = p.inv.indexOf(null);
-      if (free < 0){ toast('Ba ô đã đầy'); return; }
+      const free = p.inv.findIndex(it => !it);
+      if (free < 0){ showStash('Ba ô trên tay đã đầy — bấm một ô ở trên để trả món đó về tủ, rồi lấy món này.'); return; }
       p.inv[free] = S.stash.splice(i,1)[0];
       showStash();
     });
@@ -7020,7 +7037,7 @@ window.REPO = {
   },
   equip(key){
     const i = S.stash.findIndex(it => it.kind === key);
-    const free = S.player.inv.indexOf(null);
+    const free = S.player.inv.findIndex(it => !it);
     if (i < 0 || free < 0) return false;
     S.player.inv[free] = S.stash.splice(i,1)[0];
     return true;
