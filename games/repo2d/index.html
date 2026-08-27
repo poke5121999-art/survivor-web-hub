@@ -2,6 +2,8 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ca Trực Đêm</title>
 <meta name="description" content="Vào nhà, khuân đồ giá trị về bệ giao hàng cho đủ chỉ tiêu, đừng làm vỡ, và đừng để thứ trong đó nghe thấy bạn.">
@@ -210,8 +212,36 @@
 
 <!-- ?v=... la dau build: GitHub Pages tra Cache-Control: max-age=600, khong co dau nay
      thi sau khi deploy trinh duyet con chay JS cu toi 10 phut. Doi STAMP moi lan deploy. -->
-<script src="game.js?v=20260827d"></script>
-<script src="bot.js?v=20260827d"></script>
+
+<script>
+// Xoay ngang thì XIN TOÀN MÀN HÌNH để nuốt luôn thanh địa chỉ của trình duyệt.
+// WHY: nằm ngang chiều cao là thứ hiếm nhất, mà thanh địa chỉ Chrome/Safari ăn
+//   ~56px trong số ~390px — gần một phần bảy khung game, đúng cái làm nó "bé xíu".
+// Fullscreen API bắt buộc phải gọi TRONG một thao tác của người dùng, nên móc vào
+// cú chạm đầu tiên; vào rồi thì lần gọi sau là no-op. Safari trên iPhone không cho
+// phần tử vào toàn màn hình — ở đó lệnh này ném lỗi và bị nuốt, game vẫn chạy.
+(function () {
+  var want = function () {
+    return matchMedia('(pointer:coarse)').matches && innerWidth > innerHeight;
+  };
+  var inFS = function () {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  };
+  function go() {
+    if (!want() || inFS()) return;
+    var el = document.documentElement;
+    var fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!fn) return;
+    try { var r = fn.call(el, { navigationUI: 'hide' }); if (r && r.catch) r.catch(function () {}); }
+    catch (e) { /* trình duyệt không cho thì thôi, không được chặn game */ }
+  }
+  addEventListener('pointerdown', go, { passive: true });
+  addEventListener('orientationchange', function () { setTimeout(go, 300); });
+})();
+</script>
+
+<script src="game.js?v=20260827e"></script>
+<script src="bot.js?v=20260827e"></script>
 <script>window.__boot && window.__boot();</script>
 </body>
 </html>

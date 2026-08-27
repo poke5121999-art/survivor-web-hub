@@ -2,6 +2,8 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Ca Trực Đêm: Biệt Đội</title>
 <meta name="description" content="Một tổ năm người: bạn cầm một xác, bốn xác còn lại chạy theo chiến thuật bạn giao. Khuân đồ cho đủ chỉ tiêu qua từng tầng, hết tầng là phá đảo map.">
@@ -491,10 +493,19 @@
      nếu để dọc như cũ thì năm thẻ tràn khỏi đáy khung. */
   body.landscape .h-squad{flex-direction:row;left:8px;right:auto;top:52px}
   body.landscape .h-msg{left:8px;right:auto;top:106px;max-width:52%;text-align:left}
-  body.landscape .h-ctl{padding:8px 14px 12px}
-  body.landscape .h-stick{width:88px;height:88px}
-  body.landscape .h-stick i{width:36px;height:36px;margin:-18px 0 0 -18px}
-  body.landscape .h-skill{width:70px;height:70px}
+  /* Nút to hẳn ra và dạt sát hai góc dưới, giữa màn hình để trống — cách game di
+     động màn ngang bày phím. Bản trước để nguyên cỡ của khung dọc nên trên khung
+     ngang (chỉ cao ~324px) nút teo lại và dồn vào nhau, ngón cái bấm nhầm liên tục. */
+  body.landscape .h-ctl{padding:10px 20px 16px}
+  body.landscape .h-stick{width:118px;height:118px}
+  body.landscape .h-stick i{width:48px;height:48px;margin:-24px 0 0 -24px}
+  body.landscape .h-skill{width:96px;height:96px}
+  body.landscape .hs-i{font-size:27px}
+  body.landscape .hs-n{font-size:9.5px}
+  body.landscape .hu{width:46px}
+  body.landscape .hu-f{font-size:16px}
+  body.landscape .hu-n{font-size:8.5px}
+  body.landscape .h-x{width:32px;height:32px;font-size:15px}
 
   /* ---------------- modal / toast ---------------- */
   .modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
@@ -574,6 +585,34 @@
 </div>
 
 <!-- cầu nối tài khoản hub: có thì tiến độ theo tài khoản, không có thì chơi vẫn chạy -->
+
+<script>
+// Xoay ngang thì XIN TOÀN MÀN HÌNH để nuốt luôn thanh địa chỉ của trình duyệt.
+// WHY: nằm ngang chiều cao là thứ hiếm nhất, mà thanh địa chỉ Chrome/Safari ăn
+//   ~56px trong số ~390px — gần một phần bảy khung game, đúng cái làm nó "bé xíu".
+// Fullscreen API bắt buộc phải gọi TRONG một thao tác của người dùng, nên móc vào
+// cú chạm đầu tiên; vào rồi thì lần gọi sau là no-op. Safari trên iPhone không cho
+// phần tử vào toàn màn hình — ở đó lệnh này ném lỗi và bị nuốt, game vẫn chạy.
+(function () {
+  var want = function () {
+    return matchMedia('(pointer:coarse)').matches && innerWidth > innerHeight;
+  };
+  var inFS = function () {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  };
+  function go() {
+    if (!want() || inFS()) return;
+    var el = document.documentElement;
+    var fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!fn) return;
+    try { var r = fn.call(el, { navigationUI: 'hide' }); if (r && r.catch) r.catch(function () {}); }
+    catch (e) { /* trình duyệt không cho thì thôi, không được chặn game */ }
+  }
+  addEventListener('pointerdown', go, { passive: true });
+  addEventListener('orientationchange', function () { setTimeout(go, 300); });
+})();
+</script>
+
 <script src="../../js/session.js"></script>
 <script src="../../js/supabase-config.js"></script>
 <script src="../../js/supabase-auth.js"></script>
@@ -581,14 +620,14 @@
 
 <!-- ?v=... la dau build: GitHub Pages tra Cache-Control: max-age=600, khong co dau nay
      thi sau khi deploy trinh duyet con chay JS cu toi 10 phut. Doi STAMP moi lan deploy. -->
-<script src="data/content.js?v=20260827d"></script>
-<script src="js/meta.js?v=20260827d"></script>
-<script src="js/world.js?v=20260827d"></script>
-<script src="js/sim.js?v=20260827d"></script>
-<script src="js/render.js?v=20260827d"></script>
-<script src="js/ui.js?v=20260827d"></script>
-<script src="js/bot.js?v=20260827d"></script>
-<script src="js/game.js?v=20260827d"></script>
+<script src="data/content.js?v=20260827e"></script>
+<script src="js/meta.js?v=20260827e"></script>
+<script src="js/world.js?v=20260827e"></script>
+<script src="js/sim.js?v=20260827e"></script>
+<script src="js/render.js?v=20260827e"></script>
+<script src="js/ui.js?v=20260827e"></script>
+<script src="js/bot.js?v=20260827e"></script>
+<script src="js/game.js?v=20260827e"></script>
 <script>window.__boot && window.__boot();</script>
 </body>
 </html>

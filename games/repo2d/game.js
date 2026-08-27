@@ -3085,6 +3085,33 @@ function killMonster(m){
 }
 
 // ============================================================ items
+// TỰ NGẮM. Chạm nhanh một ô đồ là bắn thẳng vào con gần nhất; muốn tự chọn hướng thì
+// vẫn giữ ô rồi kéo như cũ — kéo quá vạch chết là quyền tự ngắm trả lại cho ngón tay.
+// WHY: trên điện thoại nằm ngang, ngón cái phải giữ ô đồ VÀ xoay hướng cùng lúc trong
+//   khi con quái đang chạy tới. Game bắn/MOBA di động không bắt ai làm thế: chạm là
+//   trúng, giữ mới là ngắm tay. Trước bản này, một cú chạm không kéo bắn theo p.dir —
+//   tức là theo hướng người đang QUAY, gần như không bao giờ trùng hướng con quái.
+const AUTO_AIM_RANGE = TILE * 11;      // xa hơn thế thì đạn cũng chưa chắc tới
+function autoAimAngle(p, kind, fallback){
+  // Chỉ mấy món BẮN/NÉM mới cần ngắm; băng, keo, bình nhẹ thì hướng nào cũng vậy.
+  if (kind !== 'gun' && kind !== 'tranq' && kind !== 'bomb') return fallback;
+  let best = null, bestScore = Infinity;
+  for (const m of S.monsters){
+    if (m.hp <= 0) continue;
+    if (m.sleep > 0) continue;                       // đang ngủ thì để dành đạn
+    const d = Math.hypot(m.x - p.x, m.y - p.y);
+    if (d > AUTO_AIM_RANGE) continue;
+    // Nhìn thấy được thì ưu tiên hẳn: bắn vào tường không giúp được ai.
+    const blocked = !losClear(p.x, p.y, m.x, m.y);
+    if (blocked && kind !== 'bomb') continue;        // bom còn nảy, đạn thì không
+    // Gần nhất thắng, nhưng con đang lao vào mình được cộng điểm — nó mới là con giết mình.
+    const chasing = m.state === 'chase' && m.alert > 0;
+    const score = d * (chasing ? 0.65 : 1) * (blocked ? 1.6 : 1);
+    if (score < bestScore){ bestScore = score; best = m; }
+  }
+  return best ? Math.atan2(best.y - p.y, best.x - p.x) : fallback;
+}
+
 function useSlot(p, i, aimed){
   const it = p.inv[i];
   if (!it || it.uses <= 0 || p.cooldown > 0 || S.dead || p.down) return false;
@@ -4709,7 +4736,10 @@ function setupInput(){
       // the press, because a press that does nothing is indistinguishable from a broken button.
       if (!overCancel(hud, p)){
         const far = Math.hypot(dx,dy) > hud.aimR*STICK_DEAD;
-        useSlot(pl, pl.aimSlot, far ? Math.atan2(dy,dx) : pl.dir);
+        const it = pl.inv[pl.aimSlot];
+        // Kéo đi đâu thì bắn đi đó. Chạm nhanh không kéo thì để máy ngắm hộ.
+        useSlot(pl, pl.aimSlot,
+          far ? Math.atan2(dy,dx) : autoAimAngle(pl, it && it.kind, pl.dir));
       }
       pl.aimSlot = -1; pl.aimId = -1;
       return;
@@ -4861,6 +4891,7 @@ const vwW = () => viewW/zoom(), vwH = () => viewH/zoom();
 // to be clipped by the frame edge, and the aim ring raised from one covered the other two.
 function hudLayout(){
   const w = viewW, h = viewH;
+  if (w > h) return hudLayoutLandscape(w, h);
   const pad = Math.min(w,h) * 0.05;
   const R   = Math.min(w,h) * 0.115;      // stick radius — a thumb's comfortable throw
   const sr  = R * 0.44;                   // button radius
@@ -4909,7 +4940,49 @@ function hudLayout(){
   // found it. Centre-bottom, just above the thumb band: between the two sticks, clear of every
   // button, and squarely in the middle of where the eyes already are.
   const heart = { x: w/2, y: h - 319*K, r: Math.min(w,h)*0.075 };
-  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, pad, thumbY, aimR: R };
+  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, pad, thumbY, aimR: R,
+           msgY: Math.min(stash.y - stash.r, heart.y - heart.r) - 14 };
+}
+
+// Bố cục riêng cho MÁY NẰM NGANG, dựng theo cách game di động màn ngang làm
+// (Liên Quân, PUBG Mobile): cần gạt ở hai góc dưới, cụm nút vòng cung hất lên
+// và vào trong quanh cần phải, mọi thứ khác dạt hết ra mép — và GIỮA MÀN HÌNH
+// KHÔNG CÓ GÌ.
+// ROOT-CAUSE của bản trước: nó dùng chung bố cục dọc, mà bố cục dọc lấy
+//   K = min(w,h)/540 và neo mọi nút theo K. Nằm ngang thì min(w,h) là CHIỀU CAO
+//   (~320px thay vì ~690px), nên K tụt gần một nửa: nút teo lại còn ~32px và cả
+//   bốn nút dồn về cùng một cột x≈176 vì hoành độ của chúng cũng nhân K. Bề ngang
+//   dư ra 500px thì không ai dùng. Trái tim thì đặt ở y = h - 319*K, dọc thì nằm
+//   sát đáy, ngang thì rơi đúng giữa màn hình và che mặt người chơi.
+function hudLayoutLandscape(w, h){
+  const pad = h * 0.05;
+  const R   = h * 0.17;                   // cần gạt to hơn hẳn: ngón cái cần chỗ để quăng
+  const sr  = R * 0.44;
+  const left  = { x: pad + R, y: h - pad - R, r: R };
+  const right = { x: w - pad - R, y: h - pad - R, r: R };
+  const thumbY = h - (pad + 2*R + 10);
+
+  // Cụm bên phải: ba ô đồ hất lên và vào trong quanh cần phải, cách nhau đủ một
+  // đốt ngón tay — đúng hình cụm chiêu của game MOBA màn ngang.
+  const slots = S.shopMode ? [] : [
+    { x: w - pad - R*2.60, y: h - pad - R*0.55, r: sr*1.15, i: 0 },
+    { x: w - pad - R*2.50, y: h - pad - R*1.90, r: sr*1.15, i: 1 },
+    { x: w - pad - R*1.60, y: h - pad - R*2.70, r: sr*1.15, i: 2 }
+  ];
+  // Cụm bên trái: chạy nước rút ngay trên cần trái (nó là nút DI CHUYỂN), nhặt và
+  // tủ đồ hất vào trong để ngón cái với tới mà không rời cần.
+  const sprint = { x: pad + R*0.50, y: h - pad - R*2.55, r: sr*1.25 };
+  const grab   = { x: pad + R*3.05, y: h - pad - R*1.30, r: sr*1.25 };
+  const stash  = { x: pad + R*2.55, y: h - pad - R*2.75, r: sr*1.25 };
+  const test   = { x: pad + R*2.55, y: h - pad - R*2.75, r: sr*1.30 };
+  // Chỗ bỏ món đang giơ: mép TRÊN giữa màn — xa nhất khỏi ngón vừa giơ nó lên,
+  // và không đụng thanh máu (trên trái) lẫn bản đồ nhỏ (trên phải).
+  const cancel = { x: w * 0.5, y: pad + sr*1.7, r: sr*1.7 };
+  // Trái tim xuống MÉP DƯỚI giữa hai cần gạt. Vẫn nằm trong tầm mắt như chủ ý cũ,
+  // nhưng không còn đứng chắn giữa màn chơi.
+  const heart = { x: w * 0.5, y: h - pad - h*0.075, r: h*0.062 };
+  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, pad, thumbY, aimR: R,
+           msgY: heart.y - heart.r - 12 };
 }
 // Scaled with the truck: the locker button appears when you are standing AT it, and "at it" got
 // bigger when the thing itself did.
@@ -6279,8 +6352,7 @@ function drawHud(c){
     // Above the thumb sticks, not under them: the sticks own the bottom band of a portrait frame.
     c.font = '600 14px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = `rgba(226,232,236,${Math.min(1,S.messageT)})`;
-    c.fillText(S.message, hud.w/2,
-               Math.min(hud.stash.y - hud.stash.r, hud.heart.y - hud.heart.r) - 14);
+    c.fillText(S.message, hud.w/2, hud.msgY);
     c.textAlign = 'left';
   }
 
@@ -6691,8 +6763,12 @@ function nearestLoot(p){
 }
 function drawMinimap(c, hud){
   const big = S.bigMap;
-  const w = big ? Math.min(hud.w*0.6, 460) : Math.min(hud.w*0.34, 210);
-  const h = w * (MH/MW);
+  let w = big ? Math.min(hud.w*0.6, 460) : Math.min(hud.w*0.34, 210);
+  let h = w * (MH/MW);
+  // Nằm ngang thì khung chỉ cao ~320px, mà bản đồ nhỏ vuông 210px ăn hai phần ba
+  // chiều cao đó và đè lên cụm nút bên phải. Chặn theo CHIỀU CAO chứ không chỉ bề ngang.
+  const capH = hud.h * (big ? 0.8 : 0.34);
+  if (h > capH) { h = capH; w = h * (MW/MH); }
   const x = big ? (hud.w-w)/2 : hud.w - w - 14, y = big ? (hud.h-h)/2 : 14;
 
   // Rather than move it — every corner is somebody's corner — it gets out of the way: while
