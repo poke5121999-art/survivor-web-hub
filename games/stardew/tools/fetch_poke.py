@@ -19,6 +19,59 @@ def get(url):
             if attempt == 3: raise
             time.sleep(1.5*(attempt+1))
 
+
+# --------------------------------------------------------------- Gen 3 rollback
+# PokeAPI serves CURRENT values. This build is FireRed, so every move has to be
+# rolled back to what it was in Generation 3, and the API already carries what
+# is needed: `past_values[i]` states what a field was in every generation
+# BEFORE `version_group`. So the Gen 3 value of a field is the earliest
+# past_value entry belonging to gen 4 or later that actually names that field;
+# if nothing does, the move never changed and the current value is right.
+VG_GEN = {
+ 'red-blue':1,'yellow':1,
+ 'gold-silver':2,'crystal':2,
+ 'ruby-sapphire':3,'emerald':3,'firered-leafgreen':3,'colosseum':3,'xd':3,
+ 'diamond-pearl':4,'platinum':4,'heartgold-soulsilver':4,
+ 'black-white':5,'black-2-white-2':5,
+ 'x-y':6,'omega-ruby-alpha-sapphire':6,
+ 'sun-moon':7,'ultra-sun-ultra-moon':7,'lets-go-pikachu-lets-go-eevee':7,
+ 'sword-shield':8,'brilliant-diamond-and-shining-pearl':8,'legends-arceus':8,
+ 'scarlet-violet':9,
+}
+
+def gen3(m, field):
+    best_gen, best_val = 99, None
+    for pv in m.get('past_values') or []:
+        g = VG_GEN.get(pv['version_group']['name'], 99)
+        if g < 4:                       # describes gen 1-2 values, not ours
+            continue
+        v = pv.get(field)
+        if v is None:
+            continue
+        if g < best_gen:
+            best_gen, best_val = g, v
+    v = best_val if best_val is not None else m.get(field)
+    # `type` is an object at both ends; every other field is a plain number.
+    if isinstance(v, dict):
+        return v.get('name')
+    return v
+
+# Generation 6 raised the base stats of a number of Kanto Pokemon. There is no
+# API field for a past base stat, so the revisions are listed and reversed.
+# id -> {stat index into [hp, atk, def, spa, spd, spe]: the Gen 3 value}
+GEN3_BASE = {
+ 12:{3:80}, 15:{1:80}, 18:{5:91}, 25:{2:30,4:40}, 26:{4:80},
+ 31:{1:82}, 34:{1:92}, 36:{3:85}, 40:{3:75}, 45:{3:100},
+ 62:{1:85}, 65:{4:85}, 71:{4:60}, 76:{1:110}, 103:{4:65},
+}
+
+# Two moves whose stat_changes themselves changed after Gen 3. past_values does
+# not carry stat_changes, so they are named.
+GEN3_STATCH = {
+ 'Growth': [['special-attack', 1]],     # Gen 5 made it raise Attack too
+ 'Crunch': [['special-defense', -1]],   # Gen 4 switched it from SpD to Def
+}
+
 STAT = {'hp':0,'attack':1,'defense':2,'special-attack':3,'special-defense':4,'speed':5}
 GROWTH = {'slow':0,'medium':1,'fast':2,'medium-slow':3,'slow-then-very-fast':4,'fast-then-very-slow':5}
 
@@ -31,6 +84,8 @@ for i in range(1, 152):
     for st in p['stats']:
         k = STAT[st['stat']['name']]
         base[k] = st['base_stat']; eff[k] = st['effort']
+    for idx, val in (GEN3_BASE.get(i) or {}).items():
+        base[idx] = val
     # level-up learnset for firered-leafgreen, fall back to red-blue
     learn = {}
     for m in p['moves']:
@@ -95,11 +150,13 @@ for mid in sorted(moveids):
     for n in m['names']:
         if n['language']['name'] == 'en': nm = n['name']
     ail = m['meta']['ailment']['name'] if m.get('meta') else 'none'
+    cat = (m['meta']['category']['name'] if m.get('meta') else '') or ''
+    tgt = m['target']['name']
     moves[mid] = {
-        'id': mid, 'name': nm, 'type': m['type']['name'],
+        'id': mid, 'name': nm, 'type': gen3(m, 'type') or m['type']['name'],
         'cls': DC.get(m['damage_class']['name'], 2),
-        'power': m['power'] or 0, 'acc': m['accuracy'] or 0,
-        'pp': m['pp'] or 5, 'pri': m['priority'],
+        'power': gen3(m, 'power') or 0, 'acc': gen3(m, 'accuracy') or 0,
+        'pp': gen3(m, 'pp') or 5, 'pri': m['priority'],
         'ail': ail if ail != 'none' else None,
         'ailc': (m['meta']['ailment_chance'] if m.get('meta') else 0) or 0,
         'crit': (m['meta']['crit_rate'] if m.get('meta') else 0) or 0,
@@ -107,8 +164,24 @@ for mid in sorted(moveids):
         'heal': (m['meta']['healing'] if m.get('meta') else 0) or 0,
         'hits': [m['meta']['min_hits'], m['meta']['max_hits']] if (m.get('meta') and m['meta']['min_hits']) else None,
         'flinch': (m['meta']['flinch_chance'] if m.get('meta') else 0) or 0,
-        'statch': [[c['stat']['name'], c['change']] for c in m.get('stat_changes', [])],
+        'statch': GEN3_STATCH.get(nm,
+                    [[c['stat']['name'], c['change']] for c in m.get('stat_changes', [])]),
         'statch_c': m['meta']['stat_chance'] if m.get('meta') else 0,
+        # WHERE a stat change lands. "damage-raise" is PokeAPI's name for a
+        # damaging move whose stat changes hit the USER (Superpower drops its
+        # own Atk and Def); "damage-lower" hits the target (Crunch, Acid); a
+        # pure stat move follows its own target field, except the swagger-likes
+        # which always hit the opponent. The engine used to guess from the SIGN
+        # of the change, which handed Superpower's drawback to the opponent and
+        # Swagger's +2 Attack to the user.
+        'selfstat': 1 if (cat == 'damage-raise' or
+                          (cat != 'swagger' and tgt in ('user', 'users-field'))) else 0,
+        # A power of 0 on a DAMAGING move means the power is not a number:
+        # fixed damage, level damage, an OHKO, or something computed. The
+        # engine has to be told, or it treats them as status moves that do
+        # nothing at all - which is what happened to Night Shade, Seismic Toss,
+        # Dragon Rage, Sonic Boom, Super Fang and twelve others.
+        'cat': cat,
     }
     print('move', mid, flush=True)
 

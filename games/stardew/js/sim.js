@@ -86,10 +86,101 @@
     this.spouse = null;
     this.dating = {};        // must persist: losing it re-charged the bouquet
     this.sluggish = false;
+
+    /* ---------------------------------------------------------- the islands
+     * `owned` is the whole progression state of the archipelago: which land
+     * you have bought. world.js rebuilds collision and bridges from it, so
+     * restoring a save is "replay the purchases", never "restore the map".
+     * The home island is not bought and cannot be sold. */
+    this.owned = { home: 1 };
+    this.rank = 1;
+    this.rankXp = 0;
+
+    /* -------------------------------------------------------- the Pokemon
+     * Party is at most six and is what pokework and battles read. Boxes are
+     * unbounded storage on the PC. `dex` is two bitmaps in one object: 1 seen,
+     * 2 caught, so the Pokedex screen needs no second structure. Trainer IDs
+     * are rolled once and never again - every shiny in the save is defined
+     * against them, and regenerating them would un-shiny a shiny. */
+    this.party = [];
+    this.boxes = [];
+    this.daycare = [];
+    this.dex = {};
+    this.tid = null;
+    this.sid = null;
+    this.pokeSeen = 0;
+    this.pokeCaught = 0;
+
+    /* Tutorial pages already shown, and the handbook archive that lets a
+     * player re-read one. Both keyed by step id. */
+    this.taught = {};
+    this.handbook = [];
+
+    /* Daily order board - see farmqol.js. Regenerated every morning. */
+    this.orders = [];
+  };
+
+  /* --------------------------------------------------------------- rank
+   * Island Rank is the gate on buying land, and it is fed by EVERYTHING the
+   * player does - harvesting, selling, catching, mining, fishing, quests - so
+   * that no single activity is the only road forward. A player who only wants
+   * to fish still reaches Đảo Cỏ Xanh, just later.
+   *
+   * The curve is authored rather than computed: ranks 1-10 arrive fast enough
+   * that the first afternoon opens two islands, and the back half deliberately
+   * slows so the last islands are a season's work rather than an evening's. */
+  var RANK_XP = [0, 120, 300, 560, 920, 1400, 2050, 2900, 4000, 5400,
+                 7200, 9400, 12000, 15200, 19000, 23500, 28800, 35000, 42200, 50600,
+                 60400, 71800, 85000, 100200, 117800, 138000, 161200, 187800, 218200, 253000,
+                 292600, 337600, 388600, 446400, 511800, 585600, 668800, 762400, 867400, 985000];
+
+  /* WHY the index is clamped instead of `|| last`: RANK_XP[0] is 0, which is
+   * falsy, so the `||` handed back the LAST entry - 985000 - as the bar it
+   * takes to leave rank 1. rankProgress then had lo above hi, returned 1, and
+   * the first thing a new player ever saw was a full progress bar that did
+   * not move until rank 2. */
+  Sim.prototype.rankNeed = function (r) {
+    if (r < 0) return 0;
+    return RANK_XP[Math.min(RANK_XP.length - 1, r)];
+  };
+  Sim.prototype.rankProgress = function () {
+    var lo = this.rankNeed(this.rank - 1), hi = this.rankNeed(this.rank);
+    if (hi <= lo) return 1;
+    return clamp((this.rankXp - lo) / (hi - lo), 0, 1);
+  };
+  /* Returns the new rank when one is reached, else null - the caller turns
+   * that into the level-up banner and the "new island available" check. */
+  Sim.prototype.addRankXp = function (n) {
+    if (!n || this.rank >= RANK_XP.length) return null;
+    this.rankXp += n;
+    var got = null;
+    while (this.rank < RANK_XP.length && this.rankXp >= this.rankNeed(this.rank)) {
+      this.rank++;
+      got = this.rank;
+    }
+    return got;
+  };
+
+  // ------------------------------------------------------------- pokedex
+  Sim.prototype.dexSee = function (id) {
+    var was = this.dex[id] || 0;
+    if (!(was & 1)) { this.dex[id] = was | 1; this.pokeSeen++; }
+  };
+  Sim.prototype.dexCatch = function (id) {
+    var was = this.dex[id] || 0;
+    if (!(was & 1)) this.pokeSeen++;
+    if (!(was & 2)) this.pokeCaught++;
+    this.dex[id] = was | 3;
   };
 
   // ------------------------------------------------------------ time
   Sim.prototype.season = function () { return SEASONS[this.seasonIndex]; };
+  /* What season it will be TOMORROW. Anything that promises the player
+   * something about tomorrow's weather has to ask this instead of season(),
+   * or the promise breaks on the 28th of every month. */
+  Sim.prototype.seasonTomorrow = function () {
+    return SEASONS[this.day + 1 > 28 ? (this.seasonIndex + 1) % 4 : this.seasonIndex];
+  };
   Sim.prototype.seasonVN = function () { return SEASON_VN[this.season()]; };
   Sim.prototype.dayOfWeek = function () {
     return DAYS[((this.day - 1) % 7 + 7) % 7];
@@ -170,6 +261,17 @@
     return a && a.name === name && (a.quality || 0) === (quality || 0);
   }
 
+  /* One place decides how many slots a list has, because give() and canGive()
+   * disagreeing about it is a silent item-eater. The shipping bin is not a
+   * container the player carries and gets no cap - it inherited the BAG's,
+   * and give()'s return value was ignored at the call site, so the thirteenth
+   * kind of item shipped in a day was deleted and paid nothing. */
+  Sim.prototype.capFor = function (inv) {
+    if (inv === this.shipped) return 1e9;
+    if (inv === this.chest) return this.chestSize;
+    return this.invSize;
+  };
+
   Sim.prototype.give = function (name, qty, quality, list) {
     qty = qty == null ? 1 : qty;
     quality = quality || 0;
@@ -178,7 +280,7 @@
      * argument was passed: a caller that spelled out `give(name, n, q,
      * sim.inventory)` got the chest's 18-slot cap applied to a 24-slot bag, so
      * the last six slots silently refused items and the caller dropped them. */
-    var cap = inv === this.chest ? this.chestSize : this.invSize;
+    var cap = this.capFor(inv);
     if (HELD_LATCH[name]) {
       this.flags = this.flags || {};
       this.flags.held = this.flags.held || {};
@@ -211,9 +313,51 @@
     return true;
   };
 
+  /* WHY takeStack exists: take() selects by NAME and walks backwards, so any
+   * give(name, qty, quality) / take(name, qty) pair could operate on two
+   * different stacks. Quality splits one item into several stacks, so selling
+   * the iridium row paid the iridium price and removed a plain one - gold out
+   * of nothing, every tap. Every caller that is holding the stack the player
+   * actually touched must remove from THAT stack, not from a name. */
+  Sim.prototype.takeStack = function (stack, qty, list) {
+    var inv = list || this.inventory;
+    var i = inv.indexOf(stack);
+    if (i < 0) return 0;                       // already spliced out by an earlier pass
+    qty = qty == null ? 1 : qty;
+    var d = Math.min(qty, inv[i].qty);
+    inv[i].qty -= d;
+    if (inv[i].qty <= 0) inv.splice(i, 1);
+    return d;
+  };
+
+  /* Whether give() would succeed, asked WITHOUT giving. hasSpace() alone is
+   * not the answer: give() merges only into a stack of the same name AND the
+   * same quality, so a full bag holding a plain parsnip still refuses a gold
+   * one. Callers that removed the item from the world before checking were
+   * destroying it. */
+  Sim.prototype.canGive = function (name, quality, list) {
+    var inv = list || this.inventory;
+    var cap = this.capFor(inv);
+    for (var i = 0; i < inv.length; i++) {
+      if (sameStack(inv[i], name, quality)) return true;
+    }
+    return inv.length < cap;
+  };
+
   Sim.prototype.hasSpace = function () { return this.inventory.length < this.invSize; };
 
   // ------------------------------------------------------------ energy
+  /* GOLD, not energy. These two were one method called `spend` and the island
+   * purchase path called it with a price - so buying land drained the player's
+   * stamina, took no money at all, and reported failure the moment they were
+   * tired. Nothing threw and nothing on screen said why. Two names, because
+   * one name for two currencies is a bug waiting to be written again. */
+  Sim.prototype.spendGold = function (n) {
+    if (this.gold < n) return false;
+    this.gold -= n;
+    return true;
+  };
+
   Sim.prototype.spend = function (n) {
     this.energy -= n;
     if (this.energy <= 0) {
@@ -290,10 +434,24 @@
    * giveGift, so talking (+20/day), quest turn-ins (+150) and the Sunday bonus
    * walked straight past it and a player could reach 10 hearts without ever
    * buying a bouquet. Every write to friendship goes through this now. */
+  /* The cast lives in data/npcs.js now, not in the Stardew villager dump that
+   * data/gamedata.js still carries. Looking a person up has to go through the
+   * island roster first or every villager in this game is a stranger to the
+   * friendship system - which is exactly what happened: `isBirthday` never
+   * fired and the courtship cap never applied, so anybody could be taken to
+   * ten hearts without ever buying a bouquet. */
+  function villagerDef(sim, name) {
+    var b = global.ISL_NPCS;
+    if (b) {
+      for (var k in b.npcs) if (b.npcs[k].name === name) return b.npcs[k];
+    }
+    var list = (sim.data && sim.data.villagers) || [];
+    for (var i = 0; i < list.length; i++) if (list[i].name === name) return list[i];
+    return null;
+  }
+
   Sim.prototype.friendCap = function (name) {
-    var v = (this.data.villagers || []).filter(function (x) {
-      return x.name === name;
-    })[0];
+    var v = villagerDef(this, name);
     this.dating = this.dating || {};
     if (v && v.marriable && !this.dating[name] && this.spouse !== name) {
       return 8 * POINTS_PER_HEART;
@@ -313,7 +471,13 @@
     return true;
   };
   Sim.prototype.giftTaste = function (villager, item) {
-    var v = this.data.villagers.find(function (x) { return x.name === villager; });
+    var v = villagerDef(this, villager);
+    /* Island villagers carry flat love/like/hate arrays; the old Stardew dump
+     * nests them under `gifts`. Accept both shapes rather than reformat one -
+     * the gamedata file is generated and will be regenerated. */
+    if (v && !v.gifts && (v.love || v.like || v.hate)) {
+      v = { gifts: { love: v.love || [], like: v.like || [], hate: v.hate || [] } };
+    }
     if (!v || !v.gifts) return 'neutral';
     var lower = String(item).toLowerCase();
     var tiers = ['love', 'like', 'dislike', 'hate', 'neutral'];
@@ -326,7 +490,7 @@
     return 'neutral';
   };
   Sim.prototype.isBirthday = function (villager) {
-    var v = this.data.villagers.find(function (x) { return x.name === villager; });
+    var v = villagerDef(this, villager);
     return !!(v && v.birthday && v.birthday.season === this.season()
               && v.birthday.day === this.day);
   };
@@ -364,10 +528,19 @@
     var wasRain = this.weather === 'rain' || this.weather === 'storm';
     var seasonEnds = this.day === 28;
 
-    // grow crops - in EVERY area that can hold them, not just the home farm
-    var growAreas = [world.areas.farm, world.areas.greenhouse, world.areas.island]
-      .filter(Boolean);
-    var farm = world.areas.farm;
+    /* Grow every crop in the world, wherever it stands.
+     *
+     * The build this replaces listed three named maps here - farm, greenhouse,
+     * island - because those were the only three that could hold a crop. There
+     * is one map now and a crop can be sown on any island with tillable soil,
+     * so naming maps is exactly the wrong shape: a new island would silently
+     * grow nothing and there would be no error anywhere to find.
+     *
+     * The per-crop `season` override comes from the ISLAND the crop stands on,
+     * not from the area - that is what lets Đảo Vườn Kính ignore the calendar
+     * while the field ten tiles away does not. */
+    var growAreas = [];
+    world.forEachArea(function (ar) { growAreas.push(ar); });
     var allCrops = [];
     growAreas.forEach(function (ar) {
       ar.objs.forEach(function (o) { if (o.kind === 'crop') allCrops.push([o, ar]); });
@@ -376,7 +549,11 @@
       var o = allCrops[j][0];
       var ownerArea = allCrops[j][1];
       if (o.dead) continue;                 // already gone; do not re-count it
-      if (seasonEnds && !ownerArea.season) {
+      /* Which island is this crop standing on, and does that island have its
+       * own permanent season? `o.season` is stamped when the crop is sown, so
+       * this costs nothing per night and survives the island moving. */
+      var pinned = o.season || ownerArea.season;
+      if (seasonEnds && !pinned) {
         var nextSeason = SEASONS[(this.seasonIndex + 1) % 4];
         if (o.seasons && o.seasons.indexOf(nextSeason) < 0) {
           o.dead = true; report.died++; continue;
@@ -387,7 +564,10 @@
        * rainy day therefore watered crops standing under glass, which is both
        * wrong and free - roughly one day in five the greenhouse and its
        * sprinklers cost nothing at all. */
-      var rained = wasRain && ownerArea.outdoor !== false;
+      /* Rain waters what is outdoors and under the sky. A crop pinned to a
+       * season is under glass, and glass does not let the weather in - a rainy
+       * day used to water the greenhouse, which is both wrong and free. */
+      var rained = wasRain && ownerArea.outdoor !== false && !o.season;
       if (o.watered || rained) {
         if (o.harvested && o.regrow) {
           o.regrowLeft--;
@@ -475,12 +655,41 @@
      * farmer, with nothing on screen saying why, until they happened to eat. */
     this.sluggish = false;
     this.health = this.maxHealth;
+
+    /* Work Points come back with the sunrise, not at midnight. Tying them to
+     * the clock meant a player who mined until 1am got a second full day of
+     * Pokemon labour before going to bed - the budget is meant to be per
+     * SLEEP, which is the only thing that ends a day here. */
+    if (global.ISL_POKEWORK) {
+      global.ISL_POKEWORK.resetDay(this.party, this.boxes);
+    }
+    /* A night's rest heals the party a little, the way an animal recovers on
+     * its own. Not a full heal - that is what the heal stones on Poké Mart and
+     * Đảo Cỏ Xanh are for, and making sleep free would make them pointless. */
+    if (global.ISL_POKE) {
+      var PK = global.ISL_POKE;
+      this.party.forEach(function (p) {
+        if (p.hp <= 0) { p.hp = Math.max(1, Math.floor(p.stats[0] * 0.25)); p.status = null; }
+        else p.hp = Math.min(p.stats[0], p.hp + Math.ceil(p.stats[0] * 0.35));
+        p.moves.forEach(function (m) { m.pp = Math.min(m.ppMax, m.pp + 3); });
+        PK.addHappy(p, 1);
+      });
+    }
+    if (global.ISL_FARMQOL) global.ISL_FARMQOL.rollOrders(this);
+
     report.luck = this.luck;
     return report;
   };
 
   // ------------------------------------------------------------ save
-  var SAVE_KEY = 'sdv-web-save-v1';
+  /* A NEW key, deliberately. The world under this save is not the valley the
+   * old key's saves were written against - there is no `farm` map, no `town`,
+   * no warp table, and a crop's coordinates mean something completely
+   * different. Reusing the key would let a v1 save half-load into a world that
+   * cannot hold it, and the failure mode of that is a player standing in the
+   * sea with an inventory and no explanation. A different key means the old
+   * save is simply not found, and the new game starts clean. */
+  var SAVE_KEY = 'isl-save-v1';
 
   function collectFert(world) {
     if (!world || !world.forEachArea) return null;
@@ -524,13 +733,46 @@
        * a player who fertilised in the evening and planted next morning had
        * paid for a Deluxe Fertilizer that no longer existed. */
       fert: collectFert(world),
+
+      /* --- island layer ---
+       * Pokemon are packed by poke.js into short arrays rather than written as
+       * objects: a full box of 300 is 300 records, and the object form is
+       * about six times the bytes for exactly the same information. Stats,
+       * gender and shininess are all recomputed on load from (id, level, pid,
+       * IVs, EVs), so writing them would only give the save a way to
+       * contradict itself. */
+      owned: this.owned, rank: this.rank, rankXp: this.rankXp,
+      tid: this.tid, sid: this.sid, dex: this.dex,
+      pokeSeen: this.pokeSeen, pokeCaught: this.pokeCaught,
+      party: (this.party || []).map(global.ISL_POKE ? global.ISL_POKE.pack : function (p) { return p; }),
+      boxes: (this.boxes || []).map(global.ISL_POKE ? global.ISL_POKE.pack : function (p) { return p; }),
+      /* The day-care was never written, and sleeping is exactly when the save
+       * is taken - so depositing a Pokemon and going to bed destroyed it. */
+      daycare: (this.daycare || []).map(global.ISL_POKE ? global.ISL_POKE.pack : function (p) { return p; }),
+      taught: this.taught, handbook: this.handbook, orders: this.orders,
+
       world: world ? world.serialize() : null
     };
   };
   Sim.prototype.save = function (world) {
     if (world && world.game && world.game.player) {
-      this.playerX = world.game.player.x;
-      this.playerY = world.game.player.y;
+      /* A save taken UNDERGROUND must not record mine coordinates as though
+       * they were archipelago ones. The mine is generated per visit and is not
+       * serialised, so a reload puts the player on the sea - and the saved
+       * 17,15 of a mine floor is the middle of open water somewhere. The
+       * visibilitychange handler fires this on any tab switch, so it happens
+       * to anyone who takes a phone call. Surface them at the mine entrance
+       * instead, which is where leaving the mine normally puts them. */
+      if (world.current !== 'sea') {
+        var ent = null;
+        var sea = world.areas && world.areas.sea;
+        if (sea) sea.objs.forEach(function (o) { if (o.kind === 'mineEntrance') ent = o; });
+        this.playerX = ent ? ent.x + 0.5 : world.game.player.x;
+        this.playerY = ent ? ent.y + 1.5 : world.game.player.y;
+      } else {
+        this.playerX = world.game.player.x;
+        this.playerY = world.game.player.y;
+      }
     }
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(this.toJSON(world)));
@@ -553,9 +795,34 @@
      'toolTier', 'toolPower', 'professions', 'hasBoat',
      'spouse', 'dating', 'machines', 'playerX', 'playerY', 'chestSize',
      'maxHealth', 'pendingProfession', 'professionQueue', 'hay',
-     'invSize'].forEach(function (k) {
+     'invSize',
+     'owned', 'rank', 'rankXp', 'tid', 'sid', 'dex', 'pokeSeen', 'pokeCaught',
+     'taught', 'handbook', 'orders'].forEach(function (k) {
       if (s[k] != null) self[k] = s[k];
     });
+    /* The trainer IDs have to be restored into poke.js BEFORE any Pokemon is
+     * unpacked, because shininess is recomputed against them. Unpacking first
+     * and setting them after was the first version, and it made every shiny in
+     * a save stop being shiny the moment it was reloaded. */
+    if (global.ISL_POKE) {
+      if (this.tid == null) this.tid = global.ISL_POKE.randInt(65536);
+      if (this.sid == null) this.sid = global.ISL_POKE.randInt(65536);
+      global.ISL_POKE.setIds(this.tid, this.sid);
+      this.party = (s.party || []).map(function (a) {
+        return global.ISL_POKE.unpack(a, self.tid, self.sid);
+      });
+      this.boxes = (s.boxes || []).map(function (a) {
+        return global.ISL_POKE.unpack(a, self.tid, self.sid);
+      });
+      this.daycare = (s.daycare || []).map(function (a) {
+        return global.ISL_POKE.unpack(a, self.tid, self.sid);
+      });
+    }
+    /* The home island is never for sale and must always be owned. A save
+     * written by a build that did not have it, or corrupted, would otherwise
+     * load the player onto blocked land with nowhere to walk. */
+    this.owned = this.owned || {};
+    this.owned.home = 1;
     /* A save written before hay was a real resource has no `hay` field, and
      * animals now eat from that store. Seeding it to what the player's silos
      * can hold means somebody who already owned silos does not wake up to a

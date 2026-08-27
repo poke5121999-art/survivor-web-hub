@@ -1,21 +1,60 @@
-Art used by this game, and where it came from.
+ART IN THIS BUILD IS PLACEHOLDER. NONE OF IT IS OURS.
+=====================================================
 
-  Cute Fantasy (free version)
-      player.png, player_actions.png, tree*.png, chest.png, fences.png,
-      decor.png, house.png, tile_*.png, animal_*.png, foe_*.png
-      Free version: non-commercial use, modification allowed,
-      redistribution not allowed.
+Both sheets below are stand-ins so the game can be PLAYED and judged while the
+real art is drawn. They are here to answer "does this feel right", not to ship.
+Replacing them is a one-file job at each end - see "How to replace" below.
 
-  Top-Down Retro Interior
-      in_floorwall.png, in_doors.png, in_furniture.png, in_small.png
 
-  Tiny Wonder Farm (free version)
-      farm_objects.png, farm_plants.png, farm_inside.png
+art/pki/  - pki_0.png, pki_1.png, pki.json     (1,178 frames, 336 KB)
+-----------------------------------------------------------------------
+  Sprites extracted from a retail build of **Pickaxe King Island**
+  (com.rogueuniongames.pickaxekingisland, Rogue Union Games), taken from the
+  APK the project owner downloaded, using tools/export_pki.py and packed by
+  tools/pack_pki.py.
 
-  Item icons (crops, cooking, minerals, forage, artisan goods, artifacts)
-      drawn by the project owner.
+  This is the whole visual identity of the game right now: the ground panels,
+  the trees and rocks, every villager, the shop fronts, the UI frames. It is
+  copyrighted work belonging to Rogue Union Games and it CANNOT SHIP. It is in
+  the repository because the owner asked for a playable feel-test built on it
+  and intends to draw a replacement set.
 
-Character variety: there is one character sheet and forty villagers, so each
-villager is drawn from it with their own colour laid over it. The colours come
-from that character's own sprite in the game's data files, which is how they
-stayed recognisable when everybody started sharing one body.
+
+art/poke/ - poke_0.png, poke_1.png, poke.json  (604 frames, 916 KB)
+-----------------------------------------------------------------------
+  Pokemon FireRed / LeafGreen battle sprites - front, back, shiny front, shiny
+  back, for the 151 Kanto species - fetched from the PokeAPI sprite archive
+  (github.com/PokeAPI/sprites) by tools/get_pokesprites.py and packed by
+  tools/pack_poke.py.
+
+  Pokemon and the sprites are © Nintendo / Creatures Inc. / GAME FREAK. Same
+  situation: playable placeholder, cannot ship.
+
+
+data/pokedata.js
+-----------------------------------------------------------------------
+  Species stats, learnsets and move data pulled from PokeAPI, which is a
+  community database rather than a game rip. The NUMBERS are facts about the
+  games; they are what make the Gen 3 formulas in js/poke.js come out right.
+
+
+Item icons
+-----------------------------------------------------------------------
+  Most of the 717 items have no frame in either atlas. js/itemart.js draws
+  those procedurally: the item's name is hashed into a stable colour and a
+  small shape is drawn for its category. It is not beautiful and it is not
+  meant to be - it is what lets every item in the game have a consistent
+  picture today.
+
+
+How to replace
+-----------------------------------------------------------------------
+  ISLAND ART.  Put the new sprites in a folder as loose PNGs named after the
+  frame names the game asks for (run `node tools/check_art.js` for the list),
+  then `python tools/pack_pki.py <folder> art/pki`. Nothing in js/ changes.
+  Frame names live in data/islands.js, data/npcs.js, js/game.js OBJ_ART and
+  js/itemart.js MAP.
+
+  POKEMON ART.  Drop replacements into front/ back/ sfront/ sback/ as <id>.png
+  and run `python tools/pack_poke.py <folder> art/poke`. js/pokeart.js reads
+  the atlas by id and never names a species.

@@ -69,7 +69,7 @@
     var b = BUILDINGS[name], g = this.game, s = g.sim;
     if (!b) return 'Không có công trình này';
     if (!this.canAfford(name)) return 'Chưa đủ tiền hoặc nguyên liệu';
-    var farm = g.world.areas.farm;
+    var farm = g.area();
     x = Math.floor(x); y = Math.floor(y);
     if (x < 0 || y < 0 || x + b.w > farm.w || y + b.h > farm.h) {
       return 'Ra ngoài rìa nông trại rồi';
@@ -121,7 +121,7 @@
   /* Put back what the building covered instead of painting grass over a path
    * or a pond, and rehome the animals rather than deleting them. */
   FarmLife.prototype.restoreGround = function (obj) {
-    var farm = this.game.world.areas.farm;
+    var farm = this.game.area();
     var k = 0;
     for (var j = 0; j < obj.h; j++) {
       for (var i = 0; i < obj.w; i++) {
@@ -150,7 +150,7 @@
    * the silo exists to serve.
    */
   FarmLife.prototype.silos = function () {
-    var farm = this.game.world.areas.farm;
+    var farm = this.game.area();
     if (!farm) return 0;
     return farm.objs.filter(function (o) {
       return o.farmBuilding === 'Silo';
@@ -192,7 +192,7 @@
   /* Grass grows back, and only when the season allows it. Winter is bare on
    * purpose - it is the whole reason to stockpile. */
   FarmLife.prototype.regrowGrass = function () {
-    var g = this.game, farm = g.world.areas.farm;
+    var g = this.game, farm = g.area();
     if (!farm) return 0;
     if (g.sim.season() === 'Winter') return 0;
     var have = farm.objs.filter(function (o) {
@@ -225,7 +225,7 @@
    * checked first and the whole demolition is refused if anybody would be left
    * without a home, naming how many need space. */
   FarmLife.prototype.demolish = function (obj) {
-    var g = this.game, farm = g.world.areas.farm;
+    var g = this.game, farm = g.area();
     var self = this;
     var homeless = this.occupants(obj.buildingId);
 
@@ -262,7 +262,7 @@
    * map edge, on top of another building, or onto a pond, turning water into
    * permanent wall. It now runs exactly what build runs. */
   FarmLife.prototype.move = function (obj, x, y) {
-    var g = this.game, farm = g.world.areas.farm;
+    var g = this.game, farm = g.area();
     x = Math.floor(x); y = Math.floor(y);
     if (x < 0 || y < 0 || x + obj.w > farm.w || y + obj.h > farm.h) {
       return 'Ra ngoài rìa nông trại rồi';
@@ -296,7 +296,7 @@
 
   // ------------------------------------------------------------------ animals
   FarmLife.prototype.buildingsOfType = function (type) {
-    var farm = this.game.world.areas.farm;
+    var farm = this.game.area();
     return farm.objs.filter(function (o) {
       return o.farmBuilding && (BUILDINGS[o.farmBuilding] || {}).slots
         && (type === 'coop' ? /Coop/.test(o.farmBuilding) : /Barn/.test(o.farmBuilding));
@@ -384,7 +384,7 @@
    * the caller had to gate itself to the farm to work around it. */
   FarmLife.prototype.plantFruitTree = function (x, y, sapling, where) {
     var g = this.game;
-    var farm = where || g.world.area() || g.world.areas.farm;
+    var farm = where || g.area();
     if (g.world.objAt(x, y, farm)) return 'Ô này đã có thứ khác';
     if (farm.solid(x, y)) return 'Chỗ này bị vướng';
     var def = (g.data.fruitTrees || []).filter(function (t) {
@@ -406,34 +406,20 @@
   /* Runs while the player sleeps: feed, age, produce, grow trees, water from
    * sprinklers. Anything that "happens overnight" belongs here. */
   FarmLife.prototype.overnight = function (report) {
-    var g = this.game, s = g.sim, farm = g.world.areas.farm;
+    var g = this.game, s = g.sim, farm = g.area();
     var self = this;
     var profs = s.professions || {};
     // hay comes out of the store the player filled, not out of thin air
     if (s.hay == null) s.hay = this.hayCap();
     s.hay = Math.min(s.hay, this.hayCap());
 
-    // sprinklers water their neighbours BEFORE crops are grown by sim.endDay
-    /* WHY every planting area and not just the home farm: soil can be worked in
-     * the greenhouse and on the island too, and the build menu offers a
-     * sprinkler on any of them. This pass only ever looked at the farm, so a
-     * sprinkler placed under glass cost a Copper Bar and an Iron Bar and then
-     * watered nothing, for ever, with no way to tell it apart from one working. */
-    [g.world.areas.farm, g.world.areas.greenhouse, g.world.areas.island]
-      .filter(Boolean).forEach(function (ar) {
-        ar.objs.forEach(function (o) {
-          if (o.kind !== 'sprinkler') return;
-          for (var dy = -1; dy <= 1; dy++) {
-            for (var dx = -1; dx <= 1; dx++) {
-              if (dx && dy) continue;             // plus-shape, like the basic one
-              var t = ar.name_of(o.x + dx, o.y + dy);
-              if (t === 'tilled') ar.set(o.x + dx, o.y + dy, 'watered');
-              var c = g.world.objAt(o.x + dx, o.y + dy, ar);
-              if (c && c.kind === 'crop') c.watered = true;
-            }
-          }
-        });
-      });
+    /* The sprinkler pass used to live here and it is GONE ON PURPOSE.
+     * game.js `growSprinklers` owns it now, because there are three tiers with
+     * three radii and the copy here only ever knew about the plus-shaped one -
+     * a Quality Sprinkler watered a 3x3 and an Iridium watered a 3x3, which is
+     * an expensive purchase doing nothing extra with nothing on screen to say
+     * so. One implementation, in the same place as the rest of the overnight
+     * pass. */
 
     var produced = [];
     this.animals.forEach(function (a) {
@@ -479,8 +465,42 @@
     return report;
   };
 
+  /* ------------------------------------------------------- bulk husbandry
+   * Feeding and petting are per-animal and there can be a dozen of them; a
+   * Harvest Town player would expect one button, and a Pokemon of the right
+   * type is meant to be able to do the whole barnyard in one job. Both callers
+   * want the same thing, so it is one method.
+   *
+   * Returns how many animals it actually touched, which is what the caller
+   * turns into "chăm 6 con vật" or "đàn đã được chăm hôm nay". */
+  FarmLife.prototype.feedAll = function () {
+    var n = 0, self = this;
+    this.animals.forEach(function (a) {
+      var did = false;
+      if (!a.fed && self.takeHay(1) > 0) { a.fed = true; did = true; }
+      if (!a.petted) { self.pet(a); did = true; }
+      if (did) n++;
+    });
+    return n;
+  };
+
+  /* Everything ready to give, collected in one pass. Stops on a full bag
+   * rather than silently dropping produce on the floor. */
+  FarmLife.prototype.collectAll = function () {
+    var out = [], self = this;
+    this.animals.forEach(function (a) {
+      if (!a.ready) return;
+      var got = self.collect(a);
+      if (got) out.push(got);
+    });
+    return out;
+  };
+
+  FarmLife.prototype.isAnimal = function (name) { return !!ANIMAL_KINDS[name]; };
+  FarmLife.prototype.kinds = function () { return ANIMAL_KINDS; };
+
   global.SDV_FARMLIFE = {
-    FarmLife: FarmLife, ANIMAL_KINDS: ANIMAL_KINDS, BUILDINGS: BUILDINGS,
+    FarmLife: FarmLife, Farm: FarmLife, ANIMAL_KINDS: ANIMAL_KINDS, BUILDINGS: BUILDINGS,
     FRUIT_TREE_DAYS: FRUIT_TREE_DAYS
   };
 })(window);

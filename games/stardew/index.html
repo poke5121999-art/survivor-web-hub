@@ -3,743 +3,477 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Thung Lũng Sao Rơi</title>
-<!-- WHY: without a favicon the browser requests /favicon.ico on every load
-     and logs a 404, which buries real errors in the console. -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ctext y=%2726%27 font-size=%2726%27%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E">
+<title>Quần Đảo Sao Rơi</title>
+<!-- WHY a data-URI favicon: without one the browser requests /favicon.ico on
+     every load and logs a 404, which buries real errors in the console. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ctext y=%2726%27 font-size=%2726%27%3E%F0%9F%8F%9D%3C/text%3E%3C/svg%3E">
+<!-- Collect every uncaught error from the very first script onward. A game
+     that draws to a canvas swallows its own failures silently - the screen
+     just stops updating - so having the list somewhere readable is the
+     difference between "it froze" and a stack trace. Read window.__errs. -->
+<script>
+window.__errs = [];
+window.addEventListener('error', function (e) {
+  window.__errs.push((e.message || 'error') + ' @ ' +
+    (e.filename || '?').split('/').pop() + ':' + (e.lineno || 0));
+});
+window.addEventListener('unhandledrejection', function (e) {
+  window.__errs.push('unhandled promise: ' + (e.reason && e.reason.message || e.reason));
+});
+</script>
 <style>
   :root{
-    --ink:#1b2027; --paper:#f4ecd8; --line:#8a6a4a;
-    --accent:#e8a13c; --good:#5fa855; --bad:#c0453b;
-    --panel:#2a2018; --panel2:#3a2c20;
+    --ink:#1b2027; --paper:#f4ecd8; --line:#c9924a;
+    --accent:#e8a13c; --good:#5fa855; --bad:#c0453b; --warn:#e8c33c;
+    --panel:#2c2218; --panel2:#3b2d20;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%;background:#12161c;overflow:hidden;
+  html,body{margin:0;height:100%;background:#0b1016;overflow:hidden;
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#f4ecd8;
     user-select:none;-webkit-user-select:none;touch-action:none}
   #frame{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
-  #stage{position:relative;background:#12161c;overflow:hidden;
+  #stage{position:relative;background:#0b1016;overflow:hidden;
     box-shadow:0 0 0 2px #2a323d,0 18px 60px rgba(0,0,0,.6)}
-  /* The colour grade.
-   *
-   * Measured against Ca Truc Dem, which is the look the owner is comparing this
-   * to: that game's frame sits at 0.147 saturation across a 0.402 tonal range;
-   * this one was at 0.413 across 0.227. Three times the colour in half the
-   * range is not a style, it is mud - every surface a mid-value brown, nothing
-   * properly dark, nothing properly bright, which is exactly what "nhin van do
-   * lam" describes.
-   *
-   * Grading here rather than repainting forty tile colours: this is one line,
-   * runs on the GPU, applies to everything the world draws INCLUDING anything
-   * added later, and cannot drift out of step with itself the way a hand-tuned
-   * palette does. It is on the canvas only, so the interface keeps its own
-   * colours and stays legible.
-   *
-   * `image-rendering` is gone with it - there is nothing pixellated left to
-   * preserve, and it was hardening the edge of every gradient.
-   *
-   * The order matters and the first attempt got it wrong: raising contrast
-   * pushes the colour channels apart, so it RE-SATURATES what saturate() just
-   * pulled in. Measured, saturate(.74) with contrast(1.16) came out MORE
-   * colourful than no grade at all. The desaturation has to be cut deep enough
-   * to survive the contrast that follows it.
-   *
-   * AND THEN IT WAS PULLED MOSTLY BACK OUT. Those numbers were tuned against
-   * art drawn from flat shapes, where heavy grading did real work. Over proper
-   * pixel art it does the opposite: an artist already chose those colours and
-   * their relationships, and grinding a third of the saturation out of them
-   * only makes the sheet look faded. What is left is a light touch - enough to
-   * sit the sheets in the same air as each other, not enough to argue with
-   * them. `image-rendering` is back for the same reason: there ARE pixels to
-   * preserve now, and smoothing them is what makes pixel art look cheap. */
+  /* The art is pixel art and it is drawn at whole-pixel scale; smoothing it is
+     exactly what makes pixel art look cheap. A very light grade sits the
+     sprite sheets in the same air as the code-drawn overlays without arguing
+     with colours an artist already chose. */
   canvas#view{display:block;width:100%;height:100%;
-    filter:saturate(.94) contrast(1.06) brightness(1.02);
+    filter:saturate(1.02) contrast(1.03);
     image-rendering:pixelated}
-  .sdv-layer{position:absolute;inset:0;pointer-events:none}
-  .sdv-layer button,.sdv-layer input,.sdv-panel,.sdv-stick,.sdv-mini,
-  .sdv-quick,.sdv-slot,.sdv-drop,.sdv-row,.sdv-chip{pointer-events:auto}
+  #layer{position:absolute;inset:0;pointer-events:none}
+  #layer button,#layer input,#layer canvas,.isl-panel,.isl-stick,.isl-mini,
+  .isl-quick,.isl-slot,.isl-chip{pointer-events:auto}
 
-  /* ---------- HUD ---------- */
-  .sdv-hud{position:absolute;top:0;left:0;right:0;padding:8px 10px 0;
-    background:linear-gradient(180deg,rgba(10,14,20,.78),rgba(10,14,20,0))}
-  .sdv-topline{display:flex;align-items:center;gap:8px;font-size:13px}
-  .sdv-date{display:flex;flex-direction:column;line-height:1.15}
-  .sdv-date b{font-size:13px}
-  .sdv-date span{font-size:11px;opacity:.8}
-  .sdv-wx{font-size:18px;margin-left:auto}
-  .sdv-gold{background:rgba(0,0,0,.45);border:1px solid #6b5a3c;border-radius:9px;
+  /* ------------------------------------------------------------------ HUD */
+  .isl-hud{position:absolute;top:0;left:0;right:0;padding:8px 10px 0;
+    background:linear-gradient(180deg,rgba(10,14,20,.8),rgba(10,14,20,0))}
+  .isl-topline{display:flex;align-items:center;gap:8px;font-size:13px}
+  .isl-date{display:flex;flex-direction:column;line-height:1.15}
+  .isl-date b{font-size:13px}
+  .isl-date span{font-size:11px;opacity:.82}
+  .isl-wx{font-size:19px;margin-left:auto}
+  .isl-gold{background:rgba(0,0,0,.5);border:1px solid #6b5a3c;border-radius:9px;
     padding:3px 8px;font-weight:700;color:#ffd870;font-size:12px}
-  .sdv-bars{position:absolute;top:52px;right:10px;display:flex;gap:6px}
-  .sdv-bar{position:relative;width:20px;height:110px;background:rgba(0,0,0,.5);
+  .isl-rankwrap{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:10px}
+  .isl-rankwrap b{color:#ffd870;font-size:11px;white-space:nowrap}
+  .isl-rankbar{flex:1;height:5px;background:rgba(0,0,0,.5);border-radius:3px;overflow:hidden;
+    border:1px solid #4a3a2a}
+  .isl-rankbar i{display:block;height:100%;background:linear-gradient(90deg,#e8a13c,#ffd870)}
+  .isl-islandname{font-size:10px;opacity:.7;margin-top:3px;letter-spacing:.04em}
+
+  .isl-bars{position:absolute;top:76px;right:10px;display:flex;gap:6px}
+  .isl-bar{position:relative;width:20px;height:104px;background:rgba(0,0,0,.55);
     border:2px solid #6b5a3c;border-radius:10px;overflow:hidden}
-  .sdv-bar i{position:absolute;left:0;bottom:0;width:100%;display:block}
-  .sdv-energy i{background:linear-gradient(180deg,#8fd44a,#4e9c2e)}
-  .sdv-health i{background:linear-gradient(180deg,#e8635b,#a8302a)}
-  .sdv-bar span{position:absolute;bottom:-1px;left:0;right:0;text-align:center;
+  .isl-bar i{position:absolute;left:0;bottom:0;width:100%;display:block}
+  .isl-energy i{background:linear-gradient(180deg,#8fd44a,#4e9c2e)}
+  .isl-health i{background:linear-gradient(180deg,#e8635b,#a8302a)}
+  .isl-bar span{position:absolute;bottom:-1px;left:0;right:0;text-align:center;
     font-size:9px;text-shadow:0 1px 2px #000}
-  .sdv-mini{position:absolute;top:52px;left:10px;border-radius:8px;
-    border:2px solid #6b5a3c;background:#0a0e14;width:104px;height:84px}
+  .isl-mini{position:absolute;top:76px;left:10px;border-radius:8px;
+    border:2px solid #6b5a3c;background:#0a0e14;width:104px;height:84px;
+    image-rendering:pixelated}
 
-  .sdv-toasts{position:absolute;left:0;right:0;bottom:150px;display:flex;
-    flex-direction:column;align-items:center;gap:4px}
-  .sdv-toast{background:rgba(15,20,28,.88);border:1px solid #6b5a3c;
-    border-radius:14px;padding:5px 12px;font-size:12px;max-width:86%}
+  .isl-toasts{position:absolute;left:0;right:0;bottom:154px;display:flex;
+    flex-direction:column;align-items:center;gap:4px;pointer-events:none}
+  .isl-toast{background:rgba(15,20,28,.9);border:1px solid #6b5a3c;
+    border-radius:14px;padding:5px 12px;font-size:12px;max-width:88%;
+    text-align:center;line-height:1.35}
 
-  /* ---------- controls ---------- */
-  .sdv-stick{position:absolute;left:50%;transform:translateX(-50%);
+  /* -------------------------------------------------------------- controls
+     The stick owns the bottom band alone. The hand button sits 150px up on
+     the right, which on a 430x860 screen is well inside the arc a right thumb
+     sweeps without the hand moving. Putting it IN the band was tried first and
+     the two fought for the same pixels. */
+  .isl-stick{position:absolute;left:50%;transform:translateX(-50%);
     bottom:22px;width:118px;height:118px;
     border-radius:50%;background:rgba(20,26,34,.45);border:2px solid rgba(255,255,255,.16)}
-  .sdv-knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;
+  .isl-knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;
     border-radius:50%;background:rgba(244,236,216,.55);border:2px solid rgba(255,255,255,.5)}
-  .sdv-actions{display:none}
-  .sdv-btn{border:none;border-radius:50%;background:rgba(232,161,60,.92);color:#241a10;
-    font-weight:700;box-shadow:0 4px 0 #8a5c1e;cursor:pointer}
-  .sdv-act{width:78px;height:78px;font-size:30px}
-  /* The hand: one contextual button for the tile in front, hidden whenever
-     there is nothing in front to act on.
-     Right side, just ABOVE the bottom band. Two of the owner's instructions
-     meet here - "chi nen co joystick o duoi cung" and "dat o vi tri thuan tay
-     bam" - and they both hold at this height: the joystick keeps the band to
-     itself, and on a 430x860 screen 150px up is still well inside the arc a
-     right thumb sweeps without moving the hand. Sitting it IN the band was
-     tried first and broke the first rule, which a suite caught. */
-  .sdv-hand{position:absolute;right:18px;bottom:150px;width:82px;height:82px;
-    font-size:34px;display:none;align-items:center;justify-content:center;
-    flex-direction:column;line-height:1;gap:2px;
-    background:rgba(244,236,216,.95);box-shadow:0 5px 0 #8a7c5e}
-  .sdv-hand small{font-size:11px;font-weight:700;opacity:.75;letter-spacing:.2px}
-  .sdv-hand.sdv-on{display:flex}
-  .sdv-hand:active{transform:translateY(3px);box-shadow:0 2px 0 #8a7c5e}
-  .sdv-small{width:50px;height:50px;font-size:20px;background:rgba(244,236,216,.9);
-    box-shadow:0 4px 0 #8a7c5e}
-  .sdv-btn:active{transform:translateY(3px);box-shadow:none}
-  .sdv-quick{position:absolute;left:16px;bottom:150px;display:none;gap:6px}
-  .sdv-qbtn{position:relative;width:44px;height:44px;border-radius:10px;
-    background:rgba(20,26,34,.8);border:2px solid #6b5a3c;padding:0;cursor:pointer}
-  .sdv-qbtn canvas{width:28px;height:28px;image-rendering:pixelated}
+  .isl-hand{position:absolute;right:18px;bottom:150px;width:84px;height:84px;
+    border:none;border-radius:50%;display:none;align-items:center;justify-content:center;
+    flex-direction:column;line-height:1;gap:2px;font-size:32px;cursor:pointer;
+    background:rgba(244,236,216,.95);color:#241a10;box-shadow:0 5px 0 #8a7c5e}
+  .isl-hand small{font-size:10px;font-weight:700;opacity:.78;letter-spacing:.2px}
+  .isl-hand.isl-on{display:flex}
+  .isl-hand:active{transform:translateY(3px);box-shadow:0 2px 0 #8a7c5e}
+  .isl-quick{position:absolute;left:12px;bottom:150px;display:flex;flex-direction:column;gap:8px}
+  .isl-qbtn{width:48px;height:48px;border-radius:12px;border:2px solid #6b5a3c;
+    background:rgba(20,26,34,.82);color:#f4ecd8;font-size:20px;cursor:pointer;padding:0}
+  .isl-qbtn:active{transform:translateY(2px)}
 
-  /* ---------- panels ---------- */
-  .sdv-panel{position:absolute;left:8px;right:8px;top:8px;bottom:8px;
+  /* ---------------------------------------------------------------- panels */
+  .isl-panel{position:absolute;left:8px;right:8px;top:8px;bottom:8px;z-index:100;
     background:linear-gradient(180deg,var(--panel),var(--panel2));
     border:3px solid #6b5a3c;border-radius:16px;display:flex;flex-direction:column;
-    box-shadow:0 12px 40px rgba(0,0,0,.6);overflow:hidden}
-  .sdv-phead{display:flex;align-items:center;padding:10px 12px;
+    box-shadow:0 12px 40px rgba(0,0,0,.65);overflow:hidden}
+  .isl-phead{display:flex;align-items:center;gap:8px;padding:10px 12px;
     border-bottom:2px solid #6b5a3c;background:rgba(0,0,0,.25)}
-  .sdv-phead h3{margin:0;font-size:15px;flex:1}
-  .sdv-x{border:none;background:rgba(255,255,255,.12);color:#f4ecd8;
-    width:30px;height:30px;border-radius:8px;font-size:15px;cursor:pointer}
-  .sdv-body{padding:10px 12px 16px;overflow-y:auto;flex:1;
+  .isl-phead h3{margin:0;font-size:15px;flex:1;color:#ffd870}
+  .isl-psub{font-size:11px;opacity:.75}
+  .isl-x{border:none;background:rgba(255,255,255,.12);color:#f4ecd8;
+    width:32px;height:32px;border-radius:9px;font-size:15px;cursor:pointer}
+  .isl-pbody{padding:10px 12px 18px;overflow-y:auto;flex:1;
     -webkit-overflow-scrolling:touch}
-  .sdv-sub{font-size:12px;opacity:.82;margin:8px 0 5px}
-  .sdv-big{font-size:30px;font-weight:800;color:#ffd870;text-align:center;margin:10px 0}
-  .sdv-hint{font-size:11px;opacity:.6;margin-top:10px;line-height:1.5}
 
-  .sdv-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
-  .sdv-slot{position:relative;aspect-ratio:1;background:rgba(0,0,0,.32);
-    border:2px solid #5a4a34;border-radius:8px;display:flex;align-items:center;
-    justify-content:center;cursor:pointer}
-  .sdv-slot canvas{width:78%;height:78%;image-rendering:pixelated}
-  .sdv-empty{opacity:.4}
-  .sdv-picked{outline:2px solid var(--accent)}
-  .sdv-qty{position:absolute;right:2px;bottom:1px;font-size:10px;font-weight:700;
-    text-shadow:0 1px 2px #000}
-  .sdv-q1,.sdv-q2,.sdv-q3{position:absolute;left:2px;top:2px;width:7px;height:7px;
-    border-radius:50%}
-  .sdv-q1{background:#c9d4dd}.sdv-q2{background:#ffd257}.sdv-q3{background:#a56cff}
+  .isl-sub{font-size:11px;opacity:.72;margin:11px 0 5px;letter-spacing:.05em}
+  .isl-hint{font-size:11px;opacity:.62;margin-top:10px;line-height:1.55;white-space:pre-line}
+  .isl-big{font-size:30px;font-weight:800;color:#ffd870;text-align:center;margin:8px 0}
+  .isl-big2{font-size:16px;font-weight:700}
+  .isl-cost{font-size:10.5px;opacity:.74;line-height:1.45}
+  .isl-good{font-size:11px;color:#8fd44a;font-weight:700}
+  .isl-say{background:rgba(0,0,0,.24);border-left:3px solid var(--accent);
+    border-radius:0 8px 8px 0;padding:9px 11px;font-size:13px;line-height:1.55;
+    white-space:pre-line;margin:6px 0}
+  .isl-tip{margin-top:8px;padding:8px 10px;font-size:11.5px;line-height:1.5;
+    background:rgba(232,161,60,.14);border-left:3px solid #e8a13c;border-radius:0 8px 8px 0}
 
-  .sdv-menu{display:flex;flex-direction:column;gap:6px}
-  .sdv-mbtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
-    background:rgba(255,255,255,.08);border:2px solid #6b5a3c;border-radius:10px;
+  .isl-menu{display:flex;flex-direction:column;gap:6px}
+  .isl-mbtn{display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+    background:rgba(255,255,255,.07);border:2px solid #6b5a3c;border-radius:11px;
     color:#f4ecd8;padding:9px 12px;font-size:13px;text-align:left;cursor:pointer;width:100%}
-  .sdv-mbtn:active{background:rgba(255,255,255,.16)}
-  .sdv-mbtn canvas{image-rendering:pixelated}
-  .sdv-inline{width:auto;flex-direction:row;align-items:center}
-  .sdv-off{opacity:.45}
-  .sdv-cost{font-size:10px;opacity:.72}
+  .isl-mbtn:active{background:rgba(255,255,255,.15)}
+  .isl-inline{flex-direction:row;align-items:center;gap:9px}
+  .isl-inline canvas{image-rendering:pixelated;flex:0 0 auto}
+  .isl-grow{flex:1;min-width:0}
+  .isl-off{opacity:.42}
+  .isl-bad{border-color:#7a3a34;color:#ffb3ab}
+  .isl-primary{background:var(--accent);color:#241a10;font-weight:700;
+    align-items:center;box-shadow:0 3px 0 #8a5c1e}
+  .isl-mrow{display:flex;align-items:baseline;gap:8px;width:100%}
+  .isl-mrow b{flex:1;min-width:0}
 
-  .sdv-giftinfo{background:rgba(232,161,60,.12);border:1px solid #6b5a3c;
-    border-radius:8px;padding:7px 9px;font-size:12px;line-height:1.5;margin-top:6px}
-  .sdv-tasterow{display:flex;gap:6px;font-size:11px;margin-top:3px;line-height:1.45}
-  .sdv-tastelabel{flex:0 0 62px;font-weight:700;opacity:.9}
-  .sdv-tasterow.love .sdv-tastelabel{color:#ff9ec4}
-  .sdv-tasterow.like .sdv-tastelabel{color:#a8d97a}
-  .sdv-tasterow.hate .sdv-tastelabel{color:#e08a7a}
+  .isl-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+  .isl-slot{position:relative;aspect-ratio:1;background:rgba(0,0,0,.32);
+    border:2px solid #5a4a34;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;cursor:pointer;padding:0}
+  .isl-slot canvas{width:80%;height:80%;image-rendering:pixelated}
+  .isl-empty{opacity:.35}
+  .isl-qty{position:absolute;right:2px;bottom:1px;font-size:10px;font-weight:700;
+    text-shadow:0 1px 2px #000;color:#fff}
+  .isl-q1,.isl-q2,.isl-q3{position:absolute;left:2px;top:2px;width:7px;height:7px;border-radius:50%}
+  .isl-q1{background:#c9d4dd}.isl-q2{background:#ffd257}.isl-q3{background:#a56cff}
 
-  .sdv-snd{font-size:17px}
-  .sdv-sndrow{display:flex;align-items:center;gap:8px;margin-top:8px}
-  .sdv-sndlabel{flex:0 0 118px;font-size:12px}
-  .sdv-sndval{flex:0 0 38px;text-align:right;font-size:11px;opacity:.8}
-  .sdv-slider{flex:1;accent-color:var(--accent);height:22px}
+  .isl-inforow{display:flex;gap:11px;align-items:flex-start;margin:4px 0 8px}
+  .isl-inforow canvas{image-rendering:pixelated;flex:0 0 auto;
+    background:rgba(0,0,0,.22);border-radius:9px}
+  .isl-chips{display:flex;flex-wrap:wrap;gap:5px}
+  .isl-chip{display:inline-block;background:rgba(255,255,255,.09);
+    border:1px solid #6b5a3c;border-radius:8px;padding:4px 9px;font-size:11px;
+    color:#f4ecd8;cursor:pointer}
+  .isl-tabs{display:flex;gap:6px;margin-bottom:8px}
+  .isl-tab{flex:1;border:2px solid #6b5a3c;background:rgba(255,255,255,.06);
+    color:#f4ecd8;border-radius:10px;padding:8px;font-size:12px;font-weight:700;cursor:pointer}
+  .isl-tab.isl-on{background:var(--accent);color:#241a10;border-color:var(--accent)}
 
-  /* the arrival scene: a letterboxed panel over the live game */
-  .sdv-intro{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:10px;padding:18px;
-    background:linear-gradient(180deg,#120d09 0%,#1b1410 60%,#120d09 100%);
-    color:#f0e3c2;font-size:14px}
-  .sdv-introart{width:min(88%,340px);height:auto;image-rendering:pixelated;
-    border:3px solid #4a382b;border-radius:6px;box-shadow:0 6px 22px rgba(0,0,0,.6)}
-  .sdv-introwho{font-weight:700;color:#e8c357;letter-spacing:.4px;font-size:15px}
-  .sdv-introtext{white-space:pre-line;line-height:1.55;text-align:center;
-    max-width:340px;min-height:96px}
-  .sdv-introdots{font-size:11px;opacity:.55}
-  .sdv-intro .sdv-mbtn{max-width:220px;align-items:center;justify-content:center}
-  .sdv-introskip{position:absolute;top:12px;right:14px;background:none;border:0;
-    color:#c9b48c;font-size:12px;text-decoration:underline;cursor:pointer}
+  .isl-hearts{font-size:14px;color:#ff8fb0;letter-spacing:1px}
+  .isl-t-love{color:#ff9ec4}.isl-t-like{color:#a8d97a}
+  .isl-t-hate{color:#e08a7a}.isl-t-dislike{color:#c9b48c}
+
+  .isl-skillrow{display:flex;align-items:center;gap:8px;font-size:12px;margin:6px 0}
+  .isl-skillrow b{flex:0 0 92px}
+  .isl-skillrow span{flex:0 0 52px;font-size:11px;opacity:.8}
+  .isl-bar2{flex:1;height:6px;background:rgba(0,0,0,.45);border-radius:4px;
+    overflow:hidden;border:1px solid #4a3a2a;min-width:40px}
+  .isl-bar2 i{display:block;height:100%;background:linear-gradient(90deg,#e8a13c,#ffd870)}
+
+  .isl-mapwrap{display:flex;justify-content:center;margin-bottom:10px}
+  .isl-mapcanvas{border:2px solid #6b5a3c;border-radius:10px;background:#0d2b40;
+    image-rendering:pixelated;width:100%;max-width:280px;height:auto}
+
+  .isl-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .isl-calday{aspect-ratio:1;background:rgba(0,0,0,.28);border:1px solid #4a3a2a;
+    border-radius:7px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;font-size:10px;gap:1px}
+  .isl-calday canvas{image-rendering:pixelated}
+  .isl-today{border-color:var(--accent);background:rgba(232,161,60,.2)}
+
+  .isl-fishtrack{position:relative;height:26px;background:rgba(0,0,0,.4);
+    border:2px solid #6b5a3c;border-radius:13px;margin:12px 0;overflow:hidden}
+  .isl-fishzone{position:absolute;top:0;bottom:0;background:rgba(232,161,60,.55)}
+  .isl-fishmark{position:absolute;top:0;bottom:0;width:4px;background:#fff;border-radius:2px}
+
+  .isl-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:6px 0}
+  .isl-stat{background:rgba(0,0,0,.28);border:1px solid #4a3a2a;border-radius:9px;
+    padding:8px 6px;text-align:center}
+  .isl-stat b{display:block;font-size:19px;color:#ffd870}
+  .isl-stat span{font-size:9.5px;opacity:.75;line-height:1.25;display:block}
+  .isl-stat.isl-good b{color:#8fd44a}
+  .isl-stat.isl-warn b{color:#e8c33c}
+  .isl-stat.isl-bad b{color:#e08a7a}
+
+  /* ------------------------------------------------------------- pokemon */
+  .isl-hpbar{height:6px;background:rgba(0,0,0,.45);border-radius:4px;overflow:hidden;
+    border:1px solid #4a3a2a;margin:3px 0}
+  .isl-hpbar i{display:block;height:100%}
+  .isl-types{display:flex;gap:4px;margin-top:3px}
+  .isl-type{font-size:9px;font-weight:700;color:#1b2027;border-radius:5px;
+    padding:1px 6px;letter-spacing:.02em}
+  .isl-pokebig{display:block;margin:0 auto;image-rendering:pixelated;
+    background:rgba(0,0,0,.2);border-radius:12px}
+  .isl-stattbl{display:flex;flex-direction:column;gap:3px;margin:4px 0}
+  .isl-statrow{display:flex;align-items:center;gap:8px;font-size:11.5px}
+  .isl-statrow>span,.isl-statrow>b{flex:0 0 46px;text-align:right}
+  .isl-statname{flex:0 0 40px!important;text-align:left!important;opacity:.8}
+  .isl-stathead{font-size:9.5px;opacity:.6}
+  .isl-up{color:#8fd44a}.isl-down{color:#e08a7a}
+  .isl-perfect{color:#ffd870;font-weight:700}
+
+  .isl-battle{padding-top:6px}
+  .isl-scene{display:block;width:100%;height:auto;border:2px solid #6b5a3c;
+    border-radius:11px;image-rendering:pixelated;background:#8fd0e8}
+  .isl-log{height:64px;overflow-y:auto;margin:8px 0;padding:6px 9px;font-size:12px;
+    line-height:1.5;background:rgba(0,0,0,.3);border:1px solid #4a3a2a;border-radius:9px}
+  .isl-logline{opacity:.9}
+  .isl-actions2{display:flex;flex-direction:column;gap:6px}
+  .isl-arow{display:flex;gap:5px}
+  .isl-abtn{flex:1;border:2px solid #6b5a3c;background:rgba(255,255,255,.08);
+    color:#f4ecd8;border-radius:10px;padding:11px 2px;font-size:11.5px;
+    font-weight:700;cursor:pointer}
+  .isl-abtn:active{background:rgba(255,255,255,.18)}
+
+  .isl-boxgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .isl-boxcell{background:rgba(0,0,0,.3);border:2px solid #5a4a34;border-radius:10px;
+    padding:5px 3px;display:flex;flex-direction:column;align-items:center;gap:1px;
+    color:#f4ecd8;cursor:pointer}
+  .isl-boxcell canvas{image-rendering:pixelated}
+  .isl-boxcell span{font-size:9.5px;text-align:center;line-height:1.15}
+  .isl-boxcell i{font-size:9px;opacity:.7;font-style:normal}
+  .isl-dexgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+  .isl-dexcell{background:rgba(0,0,0,.3);border:1px solid #4a3a2a;border-radius:8px;
+    padding:4px 2px;display:flex;flex-direction:column;align-items:center;
+    color:#f4ecd8;cursor:pointer}
+  .isl-dexcell canvas{image-rendering:pixelated}
+  .isl-dexcell i{font-size:8.5px;opacity:.6;font-style:normal}
+  .isl-dexq{font-size:20px;opacity:.3;height:36px;line-height:36px}
 
   /* the link back to the hub, matching the chrome of the other games there */
-  .sdv-back{position:fixed;left:10px;top:8px;z-index:80;
+  /* Bottom-left, not top-left: the top-left corner is the date and the season,
+     which is the one piece of HUD a farming game needs readable at a glance,
+     and a fixed link was sitting straight on top of it. */
+  /* z-index 30 puts it UNDER every panel and tutorial card and over nothing
+     but the world. At 130 it floated above the panel layer as a ~62x22 hit
+     area in the bottom-left corner of every open shop and bag - and it leaves
+     the game, so one mis-tap on the last row of a scrolled list threw away
+     everything since the last sleep. */
+  .isl-back{position:fixed;left:10px;bottom:8px;z-index:30;
     font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
     letter-spacing:.08em;color:#c9b48c;text-decoration:none;
     border:1px solid #4a3a2a;border-radius:3px;padding:5px 9px;
     background:rgba(18,13,9,.72);white-space:nowrap}
-  .sdv-back:hover{color:#f0e3c2;border-color:#6b5a3c}
-  .sdv-back:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .isl-back:hover{color:#f0e3c2;border-color:#6b5a3c}
 
-  .sdv-drop{border:2px dashed var(--accent);border-radius:12px;padding:16px;
-    text-align:center;font-size:13px;background:rgba(232,161,60,.1);cursor:pointer}
-  .sdv-giftslot{margin:10px auto;max-width:180px;font-size:22px}
-  .sdv-list{display:flex;flex-direction:column;gap:4px;margin-top:6px}
-  .sdv-row{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.24);
-    border-radius:8px;padding:6px 9px;font-size:12px}
-  .sdv-buy{cursor:pointer}
-  .sdv-buy:active{background:rgba(255,255,255,.14)}
-  .sdv-row canvas{image-rendering:pixelated}
-  .sdv-name{flex:1}
-  .sdv-price{color:#ffd870;font-weight:700}
-  .sdv-col{display:flex;flex-direction:column;flex:1}
-
-  .sdv-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
-  .sdv-tab{background:rgba(255,255,255,.08);border:1px solid #6b5a3c;border-radius:14px;
-    color:#f4ecd8;padding:4px 10px;font-size:11px;cursor:pointer}
-  .sdv-tab.on{background:var(--accent);color:#241a10;font-weight:700}
-  .sdv-tools{display:flex;gap:6px;margin-bottom:8px}
-  .sdv-search{flex:1;background:rgba(0,0,0,.35);border:2px solid #6b5a3c;
-    border-radius:9px;color:#f4ecd8;padding:7px 10px;font-size:12px;outline:none}
-
-  .sdv-speech{background:rgba(255,255,255,.1);border-left:4px solid var(--accent);
-    border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.5;margin:8px 0}
-  .sdv-bite{background:rgba(232,80,60,.35);border-left-color:#ff6a5a;font-weight:700}
-  .sdv-hearts{font-size:14px;letter-spacing:1px}
-  .sdv-npchead{margin-bottom:6px}
-
-  .sdv-bundle{background:rgba(0,0,0,.26);border:2px solid #6b5a3c;border-radius:12px;
-    padding:10px;margin-bottom:10px}
-  .sdv-bundle h4{margin:0 0 6px;font-size:13px}
-  .sdv-brow{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
-  .sdv-chip{background:rgba(255,255,255,.09);border:1px solid #6b5a3c;border-radius:12px;
-    padding:3px 8px;font-size:10px}
-  .sdv-chip.ok{background:rgba(95,168,85,.4);border-color:#5fa855}
-
-  .sdv-fish .sdv-track{position:relative;width:64px;height:260px;margin:10px auto;
-    background:rgba(0,0,0,.45);border:2px solid #6b5a3c;border-radius:12px;overflow:hidden}
-  .sdv-fbar{position:absolute;left:4px;right:4px;background:rgba(232,161,60,.45);
-    border:2px solid var(--accent);border-radius:8px}
-  .sdv-fmark{position:absolute;left:50%;width:16px;height:14px;margin-left:-8px;
-    background:#8fd8ff;border-radius:4px}
-  .sdv-fprog{width:80%;height:12px;margin:8px auto;background:rgba(0,0,0,.45);
-    border:2px solid #6b5a3c;border-radius:8px;overflow:hidden}
-  .sdv-fprog i{display:block;height:100%;background:linear-gradient(90deg,#8fd44a,#4e9c2e)}
-  .sdv-castmsg{font-size:19px;font-weight:800;text-align:center;margin:10px 0;
-    letter-spacing:.3px}
-  .sdv-bite{color:#ff6a5a;font-size:24px;animation:sdvpulse .45s infinite alternate}
-  @keyframes sdvpulse{from{transform:scale(1)}to{transform:scale(1.09)}}
-  .sdv-flash{box-shadow:0 0 0 4px rgba(255,90,70,.75),0 12px 40px rgba(0,0,0,.6);
-    border-color:#ff6a5a}
-  .sdv-fmark{background:#8fd8ff;border:2px solid #fff;border-radius:5px;height:16px}
-  .sdv-slotrow{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
-  .sdv-mslot{position:relative;width:58px;height:58px;border-radius:10px;
-    background:rgba(0,0,0,.32);border:2px dashed #6b5a3c;display:flex;
-    flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
-  .sdv-mslot.busy{border-style:solid;border-color:#c9a24a}
-  .sdv-mslot.ready{border-style:solid;border-color:#8fd44a;
-    background:rgba(143,212,74,.18)}
-  .sdv-mslot canvas{width:34px;height:34px;image-rendering:pixelated}
-  .sdv-mslot small{font-size:8px;opacity:.8;max-width:54px;overflow:hidden;
-    text-overflow:ellipsis;white-space:nowrap}
-  .sdv-mempty{font-size:22px;opacity:.45}
-  .sdv-mwait{font-size:20px}
-  .sdv-fishpad{margin:14px auto 4px;max-width:230px;text-align:center;font-size:15px;
-    font-weight:800;color:#241a10;background:var(--accent);border-radius:14px;
-    padding:14px 10px;box-shadow:0 4px 0 #8a5c1e}
-
-  .sdv-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin:6px 0}
-  .sdv-calday{position:relative;aspect-ratio:1;background:rgba(0,0,0,.28);
-    border:1px solid #5a4a34;border-radius:6px;display:flex;align-items:center;
-    justify-content:center;font-size:11px}
-  .sdv-calday.today{border-color:var(--accent);background:rgba(232,161,60,.28);font-weight:800}
-  .sdv-fest{position:absolute;top:0;right:1px;font-size:9px}
-  .sdv-bday{position:absolute;bottom:0;right:1px;font-size:9px}
-
-  /* ---------- boot ---------- */
-  #boot{position:absolute;inset:0;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:14px;background:#141a22;z-index:50;
-    text-align:center;padding:24px}
-  #boot h1{margin:0;font-size:26px;color:#ffd870;letter-spacing:.5px}
-  #boot p{margin:0;font-size:13px;opacity:.75;max-width:280px;line-height:1.6}
-  #boot button{border:none;border-radius:12px;background:var(--accent);color:#241a10;
-    font-size:15px;font-weight:700;padding:12px 26px;box-shadow:0 4px 0 #8a5c1e;cursor:pointer}
-  #boot .alt{background:rgba(255,255,255,.14);color:#f4ecd8;box-shadow:0 4px 0 rgba(0,0,0,.4);
-    font-size:13px;padding:9px 18px}
-
-  /* ===== inventory gestures + sell sheet (appended block - ui.js/machineui.js) =====
-     Everything below belongs to the drag/hold/tap rework of the bag, the
-     shipping bin and the shopkeeper's sell box. Nothing above this line was
-     changed. */
-  /* a long press must pick the item up, not raise the OS text/callout menu */
-  .sdv-slot{transition:transform .10s ease,box-shadow .14s ease,border-color .14s ease;
-    -webkit-touch-callout:none}
-  .sdv-slot:active{transform:scale(.94)}
-  /* the held item pulses, so "I am carrying this" survives a glance away */
-  .sdv-picked{outline:2px solid var(--accent);
-    box-shadow:0 0 0 3px rgba(232,161,60,.25);animation:sdv-pulse 1s ease-in-out infinite}
-  @keyframes sdv-pulse{0%,100%{box-shadow:0 0 0 3px rgba(232,161,60,.25)}
-    50%{box-shadow:0 0 0 6px rgba(232,161,60,.10)}}
-  /* the grade badge: a bare 7px dot told the player nothing on a phone */
-  .sdv-qbadge{width:15px;height:15px;border-radius:50%;font-size:9px;font-weight:800;
-    line-height:15px;text-align:center;color:#1b2027;border:1px solid rgba(0,0,0,.45)}
-
-  /* a target that will accept what is being carried, and the one under the finger */
-  .sdv-dz{transition:border-color .14s ease,background .14s ease,transform .10s ease}
-  .sdv-dzhot{border-color:var(--good)!important;background:rgba(95,168,85,.14)}
-
-/* A drop target that will REFUSE what is being carried. It has to be as loud as
-   the green one: a square that simply fails to light up reads as "the drag is
-   not working", which is what it was mistaken for. */
-.sdv-dzno { border-color: #c0503f !important;
-            background: rgba(192,80,63,0.16) !important;
-            opacity: .55; }  .sdv-dzover{border-color:#ffd870!important;background:rgba(255,216,112,.24)!important;
-    transform:scale(1.03)}
-  .sdv-mslot.sdv-dzhot{outline:2px dashed var(--good);outline-offset:2px}
-
-  /* the item under the finger while it is being dragged */
-  .sdv-ghost{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;
-    z-index:80;pointer-events:none;display:flex;align-items:center;justify-content:center;
-    background:rgba(20,26,34,.86);border:2px solid var(--accent);border-radius:10px;
-    box-shadow:0 6px 18px rgba(0,0,0,.55)}
-  .sdv-ghost canvas{width:76%;height:76%;image-rendering:pixelated}
-
-  /* the how-many sheet */
-  .sdv-sheet{position:absolute;inset:0;z-index:70;pointer-events:auto;
-    display:flex;align-items:flex-end;justify-content:center;padding:10px;
-    background:rgba(8,11,15,.62);animation:sdv-fade .14s ease}
-  @keyframes sdv-fade{from{opacity:0}to{opacity:1}}
-  .sdv-sheetcard{width:100%;max-width:400px;display:flex;flex-direction:column;gap:7px;
-    background:linear-gradient(180deg,var(--panel),var(--panel2));
-    border:3px solid #6b5a3c;border-radius:16px;padding:12px;
-    box-shadow:0 -8px 30px rgba(0,0,0,.55);animation:sdv-rise .16s ease}
-  @keyframes sdv-rise{from{transform:translateY(22px)}to{transform:translateY(0)}}
-  .sdv-sheethead{display:flex;align-items:center;gap:10px}
-  .sdv-sheethead canvas{image-rendering:pixelated}
-  .sdv-sheetname{font-size:15px;font-weight:700}
-  .sdv-qchip{align-self:flex-start;margin-top:3px;font-size:11px;font-weight:700;
-    padding:2px 8px;border-radius:999px;color:#1b2027;background:#cdbfa4}
-  .sdv-qc1{background:#c9d4dd}.sdv-qc2{background:#ffd257}.sdv-qc3{background:#a56cff}
-  .sdv-amtrow{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:2px}
-  .sdv-amtbtn{width:54px;height:44px;font-size:22px;font-weight:800;color:#f4ecd8;
-    background:rgba(255,255,255,.10);border:2px solid #6b5a3c;border-radius:10px;cursor:pointer;
-    transition:background .12s ease,transform .08s ease}
-  .sdv-amtbtn:active{background:rgba(255,255,255,.22);transform:scale(.94)}
-  /* A number you can TYPE, not only step to.
-     Stepping is fine for three; the owner asked for a field because sowing a
-     field is thirty, and thirty taps on "+" is not an interface. It keeps the
-     same size and colour it had as a label, so the sheet looks unchanged until
-     you touch it. `inputmode=numeric` is what brings up a number pad rather
-     than a full keyboard on a phone. */
-  .sdv-amtnum{flex:1;min-width:0;text-align:center;font-size:26px;font-weight:800;
-    color:#ffd870;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.14);
-    border-radius:10px;padding:6px 4px;font-family:inherit;-moz-appearance:textfield}
-  .sdv-amtnum::-webkit-outer-spin-button,
-  .sdv-amtnum::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-  .sdv-amtnum:focus{outline:none;border-color:#ffd870;background:rgba(0,0,0,.35)}
-  .sdv-amtquick{display:flex;gap:6px}
-  .sdv-chipbtn{flex:1;padding:9px 0;font-size:13px;color:#f4ecd8;
-    background:rgba(255,255,255,.08);border:2px solid #6b5a3c;border-radius:10px;cursor:pointer;
-    transition:background .12s ease,transform .08s ease}
-  .sdv-chipbtn:active{background:rgba(255,255,255,.20);transform:scale(.96)}
-  .sdv-amttotal{text-align:center;font-size:15px;margin-top:2px}
-  .sdv-amttotal b{color:#ffd870;font-size:19px}
-  .sdv-okbtn{align-items:center;justify-content:center;background:rgba(95,168,85,.30);
-    border-color:var(--good);font-weight:700}
-  .sdv-cancelbtn{align-items:center;justify-content:center;opacity:.8}
-  /* taking a stack back out of the shipping bin */
-  .sdv-undo{margin-left:6px;width:32px;height:28px;border-radius:8px;cursor:pointer;
-    color:#f4ecd8;background:rgba(255,255,255,.12);border:1px solid #6b5a3c;font-size:13px;
-    pointer-events:auto;transition:background .12s ease}
-  .sdv-undo:active{background:rgba(255,255,255,.26)}
-
-  /* ===================== appended by the fishing / HUD pass (2026-08-23) =====
-     One block, appended only. Everything above this line is untouched.
-     Plain flat shapes with rounded corners on purpose: the art is moving away
-     from pixel decoration, and HUD chrome that draws its own texture would be
-     the one thing left looking like a different game. */
-
-  /* ---- fishing minigame ---- */
-  .sdv-fstage{display:flex;gap:12px;justify-content:center;align-items:stretch;
-    margin:10px auto 4px}
-  .sdv-fish .sdv-track{position:relative;width:76px;height:340px;margin:0;
-    background:linear-gradient(180deg,#123047,#0a1a28);border:2px solid #6b5a3c;
-    border-radius:12px;overflow:hidden}
-  .sdv-fish .sdv-fbar{position:absolute;left:4px;right:4px;
-    background:rgba(143,212,74,.34);border:2px solid rgba(143,212,74,.85);
-    border-radius:8px}
-  .sdv-fish .sdv-fmark{position:absolute;left:50%;width:26px;margin-left:-13px;
-    background:#8fd8ff;border:2px solid #fff;border-radius:7px;
-    box-shadow:0 0 8px rgba(140,216,255,.7)}
-  .sdv-fish .sdv-fmark.sdv-fin{background:#ffe27a;border-color:#fff6cf;
-    box-shadow:0 0 12px rgba(255,226,122,.9)}
-  .sdv-fchest{position:absolute;left:50%;width:28px;height:28px;margin-left:-14px;
-    font-size:20px;line-height:28px;text-align:center}
-  /* the meter stands upright beside the track, the way the original does */
-  .sdv-fprogv{position:relative;width:20px;background:rgba(0,0,0,.5);
-    border:2px solid #6b5a3c;border-radius:10px;overflow:hidden}
-  .sdv-fprogv i{position:absolute;left:0;bottom:0;width:100%;display:block;height:30%}
-  .sdv-fishpad{margin:10px auto 4px;max-width:240px;text-align:center;font-size:15px;
-    padding:12px 10px;border-radius:14px;background:rgba(255,255,255,.10);
-    border:1px solid rgba(255,255,255,.22)}
-  .sdv-fishpad.sdv-padon{background:rgba(143,212,74,.28);
-    border-color:rgba(143,212,74,.6)}
-  /* something has to move while the line is in the water; the wait is the
-     original's own 0.45-22s and a frozen screen for that long reads as a hang */
-  .sdv-pond{position:relative;width:150px;height:64px;margin:12px auto;
-    border-radius:32px;background:linear-gradient(180deg,#17435f,#0c2334);
-    border:2px solid #6b5a3c;overflow:hidden}
-  .sdv-bob{position:absolute;left:50%;top:22px;width:14px;height:14px;
-    margin-left:-7px;border-radius:50%;background:#e8635b;border:2px solid #fff;
-    animation:sdv-bobbing 1.6s ease-in-out infinite}
-  @keyframes sdv-bobbing{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
-
-  /* ---- HUD: the bottom band is the joystick's, everything else moved ----
-     The joystick sits CENTRED. It was bottom-left, which is where a joystick
-     goes when there are buttons on the right to balance it; with the buttons
-     gone that left the whole right half of the band empty and the stick out on
-     a corner. Centred, it is the same distance from either thumb, which is what
-     the owner asked for. */
-  /* One menu button under the minimap: clear of the notch, clear of the status
-     line, clear of the minimap, and reachable without crossing the screen. */
-  .sdv-menubtn{position:absolute;left:10px;top:144px;width:46px;height:46px;
-    font-size:20px;background:rgba(244,236,216,.92);box-shadow:0 4px 0 #8a7c5e}
-  /* The action button is GONE.
-     Walking up to something now performs the action on its own, and tapping
-     something adjacent does it deliberately, so a permanent button existed to
-     duplicate two things the player already had. The owner's read was the same:
-     "nút hình pickaxe chắc không cần xài nữa". The rule kept from it is the one
-     that matters - there is always a way to swing on purpose, because the
-     auto-swing stops short of collapsing and the manual path must not. */
-  .sdv-actions{display:none}
-  /* Underground quick-use: a column above the action button. It used to be a
-     row at bottom-left, lying across the joystick. */
-  .sdv-quick{position:absolute;right:20px;bottom:244px;left:auto;
-    flex-direction:column;gap:6px}
-
-  /* The catch screen. Deliberately quiet chrome - the fish is the loud thing on
-   it, and a border round every row would compete with the one number that
-   matters. */
-.sdv-catch{text-align:center;padding-top:4px}
-.sdv-perfect{display:inline-block;padding:3px 12px;border-radius:12px;
-  font-size:12px;font-weight:800;letter-spacing:2px;color:#2a1f10;
-  background:linear-gradient(180deg,#ffe07a,#f0b93c);margin-bottom:6px}
-.sdv-catchart{display:flex;justify-content:center;align-items:center;
-  height:104px;margin:2px 0 6px}
-.sdv-catchart canvas{width:96px;height:96px}
-.sdv-catchname{font-size:20px;font-weight:800;letter-spacing:.3px}
-.sdv-catchtier{display:inline-block;margin:6px 0 10px;padding:2px 10px;
-  border:1px solid;border-radius:11px;font-size:12px;font-weight:700;
-  letter-spacing:1.2px;text-transform:uppercase}
-.sdv-catchrows{margin:2px 0 10px}
-.sdv-catchrow{display:flex;justify-content:space-between;align-items:baseline;
-  padding:5px 4px;font-size:14px;border-bottom:1px solid rgba(255,255,255,.07)}
-.sdv-catchrow span{opacity:.7}
-.sdv-catchrow b{font-variant-numeric:tabular-nums}
-.sdv-catchrec{margin:2px 0 10px;font-size:15px;font-weight:800;color:#ffd45c}
-
-/* The armed seed. Quick-sow means a tap on soil plants without a menu, so
-   something has to say WHAT it will plant - an invisible mode that spends seeds
-   is worse than the menu it replaced. Tapping the chip disarms it. */
-.sdv-seedchip{position:absolute;left:10px;top:200px;display:flex;align-items:center;
-  gap:6px;padding:6px 10px;border-radius:14px;font-size:13px;font-weight:700;
-  background:rgba(244,236,216,.94);color:#3a2d1c;box-shadow:0 3px 0 #8a7c5e;
-  border:0;max-width:44vw}
-.sdv-seedchip small{font-weight:600;opacity:.7}
-
-/* ---- toasts: topmost, rising, fading ---- */
-  /* Not inside .sdv-layer any more - panels are appended to that layer after
-     the toast box and painted straight over it. */
-  /* Kept clear of the right edge and lifted above the action button: at
-     bottom:160 and full width the messages ran underneath it, and the one
-     control that must never be ambiguous was sitting under moving text. */
-  .sdv-toasts{position:absolute;left:8px;right:96px;bottom:236px;z-index:9999;
-    display:flex;flex-direction:column-reverse;align-items:center;gap:5px;
-    pointer-events:none}
-  .sdv-toast{background:rgba(12,16,22,.92);border:1px solid rgba(255,255,255,.28);
-    border-radius:16px;padding:7px 14px;font-size:13px;max-width:86%;
-    color:#f6f1e4;text-align:center;
-    /* readable over a bright summer field and over a black mine alike: an
-       opaque dark plate, a light rim, and a hard shadow under the glyphs */
-    text-shadow:0 1px 3px rgba(0,0,0,.95);
-    box-shadow:0 6px 18px rgba(0,0,0,.55);
-    animation:sdv-toastrise 2.6s ease-out forwards}
-  @keyframes sdv-toastrise{
-    0%{opacity:0;transform:translateY(26px) scale(.96)}
-    12%{opacity:1;transform:translateY(0) scale(1)}
-    70%{opacity:1;transform:translateY(-6px)}
-    100%{opacity:0;transform:translateY(-22px)}}
-
-  /* ---- skills screen ---- */
-  .sdv-skill{background:rgba(0,0,0,.28);border:1px solid #6b5a3c;border-radius:12px;
-    padding:9px 11px;margin:0 0 8px}
-  .sdv-skillhead{display:flex;align-items:baseline;gap:8px}
-  .sdv-skillname{font-weight:700;font-size:14px;flex:1}
-  .sdv-skilllvl{font-size:13px;color:#ffd870;font-weight:700}
-  .sdv-xpbar{position:relative;height:9px;margin:7px 0 4px;border-radius:6px;
-    background:rgba(0,0,0,.5);overflow:hidden}
-  .sdv-xpbar i{display:block;height:100%;background:linear-gradient(90deg,#8fd44a,#4e9c2e)}
-  .sdv-prof{display:block;color:#ffd870;margin-top:3px}
-
-  /* ---- locked recipes ---- */
-  /* Greyed, never hidden: the locked dish IS the goal, and a list that hides
-     what the player has not earned tells them there is nothing to earn. */
-  .sdv-row.sdv-locked{opacity:.72}
-  .sdv-row.sdv-locked .sdv-name{color:#cfc6b4}
-  .sdv-need{display:block;color:#ffd870;font-size:11px;line-height:1.3}
-  /* NB: NOT .sdv-mini - that is the minimap canvas near the top of this file
-     and reusing the name blanked it. */
-  .sdv-learnbtn{border:1px solid #6b5a3c;background:rgba(232,161,60,.9);
-    color:#241a10;font-weight:700;font-size:12px;border-radius:9px;
-    padding:5px 10px;margin-left:auto;cursor:pointer;pointer-events:auto}
-  .sdv-learnbtn.sdv-off{opacity:.45}
+  .isl-boot{position:absolute;inset:0;z-index:200;display:flex;align-items:center;
+    justify-content:center;flex-direction:column;gap:14px;padding:22px;
+    background:linear-gradient(180deg,#0f1a24,#132230 60%,#0f1a24);text-align:center}
+  .isl-boot h1{margin:0;font-size:23px;color:#ffd870;letter-spacing:.02em}
+  .isl-boot p{margin:0;font-size:12.5px;opacity:.78;line-height:1.6;max-width:300px}
+  .isl-boot button{border:none;border-radius:12px;background:var(--accent);
+    color:#241a10;font-weight:700;font-size:14px;padding:12px 26px;cursor:pointer;
+    box-shadow:0 4px 0 #8a5c1e}
+  .isl-boot button:active{transform:translateY(3px);box-shadow:none}
+  .isl-bootsmall{border:2px solid #6b5a3c!important;background:rgba(255,255,255,.08)!important;
+    color:#f4ecd8!important;box-shadow:none!important;font-size:12px!important;
+    padding:9px 18px!important}
 </style>
 </head>
 <body>
-<!-- The way back. Both of the other games on this hub carry one; this one had
-     no exit at all, so a player who opened it was stuck with the browser's
-     back button. Same markup and the same place on the screen as theirs. -->
-<a class="sdv-back" href="../../index.html">&larr; Hub</a>
-<div id="frame"><div id="stage"><canvas id="view"></canvas></div></div>
+<a class="isl-back" href="../../index.html">&larr; HUB</a>
+<div id="frame"><div id="stage">
+  <canvas id="view"></canvas>
+  <div id="layer">
+    <div class="isl-hud">
+      <div class="isl-topline">
+        <div class="isl-date">
+          <b id="hud-date">Xuân 1 · Năm 1</b>
+          <span id="hud-day">T2  6:00 AM</span>
+        </div>
+        <div class="isl-wx" id="hud-wx">☀</div>
+        <div class="isl-gold" id="hud-gold">500v</div>
+      </div>
+      <div class="isl-rankwrap">
+        <b id="hud-rank">Cấp 1</b>
+        <div class="isl-rankbar"><i id="hud-rankbar" style="width:0%"></i></div>
+      </div>
+      <div class="isl-islandname" id="hud-island">Đảo Nhà</div>
+    </div>
 
-<div id="boot">
-  <h1>Thung Lũng Sao Rơi</h1>
-  <p>Nông trại của ông bạn để lại. Trồng trọt, câu cá, xuống mỏ, và làm quen với cả thị trấn.</p>
-  <button id="btn-new">Bắt đầu</button>
-  <button id="btn-load" class="alt" style="display:none">Chơi tiếp</button>
-  <p id="boot-warn" style="display:none;color:#e8a13c;font-size:13px;max-width:300px"></p>
-</div>
+    <!-- width/height are the BACKING STORE and must be set here: a canvas with
+         only CSS size defaults to 300x150 and draws at the wrong scale. -->
+    <canvas class="isl-mini" id="hud-mini" width="104" height="84"></canvas>
 
-<script src="data/gamedata.js?v=20260824a"></script>
-<script src="data/maps.js?v=20260824a"></script>
-<script src="data/npcs.js?v=20260824a"></script>
-<script src="data/recipes_unlock.js?v=20260824a"></script>
-<script src="data/fish_size.js?v=20260824a"></script>
-<script src="data/icon_map.js?v=20260824a"></script>
-<script src="js/sprites.js?v=20260824a"></script>
-<script src="js/world.js?v=20260824a"></script>
-<script src="js/tiles.js?v=20260824a"></script>
-<script src="js/art.js?v=20260824a"></script>
-<script src="js/sheets.js?v=20260824a"></script>
-<script src="js/light.js?v=20260824a"></script>
-<script src="js/fx.js?v=20260824a"></script>
-<script src="js/audio.js?v=20260824a"></script>
-<script src="js/machines.js?v=20260824a"></script>
-<script src="js/sim.js?v=20260824a"></script>
-<script src="js/mine.js?v=20260824a"></script>
-<script src="js/farmlife.js?v=20260824a"></script>
-<script src="js/events.js?v=20260824a"></script>
-<script src="js/npc.js?v=20260824a"></script>
-<script src="js/game.js?v=20260824a"></script>
-<script src="js/ui.js?v=20260824a"></script>
-<script src="js/panels.js?v=20260824a"></script>
-<script src="js/machineui.js?v=20260824a"></script>
-<script src="js/progress.js?v=20260824a"></script>
-<script src="js/social.js?v=20260824a"></script>
-<script src="js/intro.js?v=20260824a"></script>
-<script src="js/bot.js?v=20260824a"></script>
+    <div class="isl-bars">
+      <div class="isl-bar isl-energy"><i id="hud-energy" style="height:100%"></i><span id="hud-energyn">270</span></div>
+      <div class="isl-bar isl-health"><i id="hud-health" style="height:100%"></i><span id="hud-healthn">100</span></div>
+    </div>
+
+    <div class="isl-toasts" id="hud-toasts"></div>
+
+    <div class="isl-quick">
+      <button class="isl-qbtn" id="btn-bag" title="Túi đồ">🎒</button>
+      <button class="isl-qbtn" id="btn-poke" title="Pokémon">🔴</button>
+      <button class="isl-qbtn" id="btn-map" title="Bản đồ">🗺</button>
+      <button class="isl-qbtn" id="btn-menu" title="Menu">☰</button>
+    </div>
+
+    <button class="isl-hand" id="hud-hand">
+      <span id="hud-handicon">✋</span>
+      <small id="hud-handtext">Làm</small>
+    </button>
+
+    <div class="isl-stick" id="stick"><div class="isl-knob" id="knob"></div></div>
+  </div>
+
+  <div class="isl-boot" id="boot">
+    <h1>Quần Đảo Sao Rơi</h1>
+    <p id="boot-text">Đang tải…</p>
+    <div id="boot-actions"></div>
+  </div>
+</div></div>
+
+<script src="data/gamedata.js?v=20260827a"></script>
+<script src="data/pokedata.js?v=20260827a"></script>
+<script src="data/islands.js?v=20260827a"></script>
+<script src="data/npcs.js?v=20260827a"></script>
+<script src="data/tutorial.js?v=20260827a"></script>
+<script src="data/fish_size.js?v=20260827a"></script>
+<script src="data/recipes_unlock.js?v=20260827a"></script>
+<script src="data/icon_map.js?v=20260827a"></script>
+
+<script src="js/atlas.js?v=20260827a"></script>
+<script src="js/pokeart.js?v=20260827a"></script>
+<script src="js/sprites.js?v=20260827a"></script>
+<script src="js/itemart.js?v=20260827a"></script>
+<script src="js/fx.js?v=20260827a"></script>
+<script src="js/audio.js?v=20260827a"></script>
+<script src="js/machines.js?v=20260827a"></script>
+<script src="js/world.js?v=20260827a"></script>
+<script src="js/sim.js?v=20260827a"></script>
+<script src="js/poke.js?v=20260827a"></script>
+<script src="js/pokebattle.js?v=20260827a"></script>
+<script src="js/pokework.js?v=20260827a"></script>
+<script src="js/farmlife.js?v=20260827a"></script>
+<script src="js/events.js?v=20260827a"></script>
+<script src="js/npc.js?v=20260827a"></script>
+<script src="js/game.js?v=20260827a"></script>
+<script src="js/ui.js?v=20260827a"></script>
+<script src="js/pokeui.js?v=20260827a"></script>
+<script src="js/mine.js?v=20260827a"></script>
+<script src="js/places.js?v=20260827a"></script>
+<script src="js/farmqol.js?v=20260827a"></script>
+<script src="js/tutorial.js?v=20260827a"></script>
+
 <script>
-(function(){
+/* Boot.
+ *
+ * Order matters and is not obvious, so it is spelled out:
+ *   1. size the stage to the device before anything measures it
+ *   2. load the island atlas - nothing can draw until it is up
+ *   3. build the game, then RESTORE, then start
+ *
+ * Restoring before start() is what lets `start(fresh)` know whether to hand
+ * out the seed packet and fire the opening tutorial. Doing it the other way
+ * round gave a returning player fifteen parsnip seeds every single load. */
+(function () {
   'use strict';
-
-  /* Every script this page needs, and the global each one is supposed to leave
-   * behind.
-   *
-   * WHY this guard exists: GitHub Pages served one 503 for js/tiles.js during a
-   * check, the page carried on booting without it, and the very first frame
-   * threw on SDV_TILES.paintGround - and kept throwing, once per frame, behind
-   * a black canvas. The loop's try/catch turned a hard failure into a silent
-   * one. A player would see a dead screen with no idea it was a bad download.
-   *
-   * So: after the tags have run, check what actually arrived, fetch anything
-   * that did not exactly once more, and only then let the game start. If it
-   * still is not there, say so and offer a retry instead of a black screen. */
-  var NEEDS = [
-    ['SDV_DATA', 'data/gamedata.js'], ['SDV_MAPS', 'data/maps.js'],
-    ['SDV_NPCS', 'data/npcs.js'],
-    ['SDV_RECIPE_UNLOCK', 'data/recipes_unlock.js'],
-    ['SDV_FISH_SIZE', 'data/fish_size.js'],
-    ['SDV_ICON_MAP', 'data/icon_map.js'],
-    ['SDV_SPRITES', 'js/sprites.js'],
-    ['SDV_WORLD', 'js/world.js'], ['SDV_TILES', 'js/tiles.js'],
-    ['SDV_FX', 'js/fx.js'], ['SDV_LIGHT', 'js/light.js'],
-    ['SDV_ART', 'js/art.js'], ['SDV_SHEETS', 'js/sheets.js'],
-    ['SDV_AUDIO', 'js/audio.js'],
-    ['SDV_MACHINES', 'js/machines.js'], ['SDV_SIM', 'js/sim.js'],
-    ['SDV_MINE', 'js/mine.js'], ['SDV_FARMLIFE', 'js/farmlife.js'],
-    ['SDV_EVENTS', 'js/events.js'], ['SDV_NPC', 'js/npc.js'],
-    ['SDV_GAME', 'js/game.js'], ['SDV_UI', 'js/ui.js'],
-    ['SDV_MACHINEUI', 'js/machineui.js'], ['SDV_PROGRESS', 'js/progress.js'],
-    ['SDV_SOCIAL', 'js/social.js'], ['SDV_INTRO', 'js/intro.js'],
-    ['SDV_BOT', 'js/bot.js']
-  ];
-  function missing(){
-    return NEEDS.filter(function(n){ return !window[n[0]]; });
-  }
-  /* Every script is requested with a build stamp (?v=...), so a browser can
-     never serve a MIX of a new page and an old script - which is exactly what
-     bit us: GitHub Pages caches each file for ten minutes independently, the
-     tags carried no version at all, and a returning player got last week's
-     renderer with this week's page and reported that nothing had changed. */
-  var BUILD = '20260824a';
-  /* The sheets are images, not scripts: they load in parallel with the
-     boot and the game simply draws its shape fallback for any that has
-     not arrived yet, so nothing waits and nothing breaks. */
-  if (window.SDV_SHEETS) window.SDV_SHEETS.load(BUILD);
-  function refetch(list, done){
-    var left = list.length;
-    if (!left) return done();
-    list.forEach(function(n){
-      var el = document.createElement('script');
-      el.src = n[1] + '?v=' + BUILD + '&retry=' + Date.now();
-      el.onload = el.onerror = function(){ if (--left === 0) done(); };
-      document.head.appendChild(el);
-    });
-  }
-  var warn = document.getElementById('boot-warn');
-  var newBtn = document.getElementById('btn-new');
-  function gate(after){
-    var gone = missing();
-    if (!gone.length) return after();
-    newBtn.disabled = true;
-    warn.style.display = '';
-    warn.textContent = 'Đang tải lại ' + gone.length + ' phần bị lỡ…';
-    refetch(gone, function(){
-      var still = missing();
-      newBtn.disabled = false;
-      if (!still.length) { warn.style.display = 'none'; return after(); }
-      warn.textContent = 'Tải thiếu ' + still.map(function(n){ return n[1]; }).join(', ')
-        + '. Mạng chập chờn — thử tải lại trang.';
-      newBtn.disabled = true;
-    });
-  }
-
   var stage = document.getElementById('stage');
-  var canvas = document.getElementById('view');
-  var game, ui;
+  var view = document.getElementById('view');
+  var boot = document.getElementById('boot');
+  var bootText = document.getElementById('boot-text');
+  var bootActions = document.getElementById('boot-actions');
 
-  /* Portrait 9:16 frame: on a phone it fills the screen, on a desktop it sits
-     letterboxed in the middle so the game is authored for ONE shape. */
-  function fit(){
-    var vw = window.innerWidth, vh = window.innerHeight;
-    var w = vw, h = vh;
-    if (vw / vh > 9/16) { h = vh; w = Math.round(h * 9/16); }
-    else { w = vw; h = Math.round(w * 16/9); if (h > vh) { h = vh; w = Math.round(h*9/16); } }
+  function fit() {
+    /* A phone-shaped viewport on a desktop, so the layout that was designed
+     * for a thumb is the layout being tested. 9:19.5 is a modern handset. */
+    var W = window.innerWidth, H = window.innerHeight;
+    var w = W, h = H;
+    if (W / H > 9 / 19.5) { h = H; w = Math.round(h * 9 / 19.5); }
     stage.style.width = w + 'px';
     stage.style.height = h + 'px';
     var dpr = Math.min(2, window.devicePixelRatio || 1);
-    canvas.width = Math.round(w * dpr);
-    canvas.height = Math.round(h * dpr);
-    /* ~9 tiles across instead of 13. WHY: the owner's note was "camera gần vô
-       lại, xa quá trên mobile không phù hợp" - at thirteen tiles a character is
-       thirty pixels tall on a phone and everything reads as a smudge. Nine is
-       close enough to see a face and still see where you are walking. */
-    if (game) game.zoom = Math.max(2, canvas.width / (9.2 * 16));
+    view.width = Math.round(w * dpr);
+    view.height = Math.round(h * dpr);
+    view.style.width = w + 'px';
+    view.style.height = h + 'px';
   }
-  window.addEventListener('resize', fit);
   fit();
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', function () { setTimeout(fit, 120); });
 
-  function boot(load){
-    document.getElementById('boot').style.display = 'none';
-    game = new SDV_GAME.Game(canvas, window.SDV_DATA);
-    fit();
-    var loaded = load ? game.sim.load(game.world) : false;
-    /* Machines built in an earlier session have to reappear on the floor of the
-       cottage, or a returning player sees an empty house and the progress they
-       paid for is invisible. */
-    if (SDV_WORLD.placeMachine) {
-      var built = game.sim.machines || {};
-      for (var mk in built) {
-        if (built[mk] && built[mk].built) {
-          SDV_WORLD.placeMachine(game.world.areas.house, mk);
-        }
-      }
+  window.ISL_ATLAS.load('art/pki/', function (err) {
+    if (err) {
+      bootText.textContent = 'Không tải được bộ ảnh (art/pki/). ' +
+        'Trang này phải chạy qua http, không mở trực tiếp bằng file://.';
+      return;
     }
-    ui = new SDV_UI.UI(game, stage);
-    /* WHY only on a fresh game: replaying the start-of-day pass on every load
-     * restocked the traveling cart and re-rolled the quest board, so a player
-     * could reload until a lucrative quest appeared and shop the cart forever. */
-    if (!loaded) {
-      game.events.onNewDay();        // letters, quests, cart, festival
-      SDV_PROGRESS.spawnForage(game);
-    }
-    /* Browsers refuse to make a sound before the player has touched the page,
-       so the engine arms itself and starts on the first tap. */
-    if (window.SDV_AUDIO) SDV_AUDIO.armGesture(game);
-    window.SDV = { game: game, ui: ui };   // handle for the test harness
-    SDV.bot = new SDV_BOT.Bot(game, ui);   // the agent test drives this
-    var last = performance.now();
-    /* WHY the try/catch: requestAnimationFrame was the last statement, so any
-     * throw inside update stopped the loop permanently and the whole game
-     * froze - a single bad frame used to require a page reload. */
-    (function loop(now){
-      var dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      try {
-        game.update(dt);
-        game.render();
-        ui.updateHud();
-        ui.updateQuick();
-        ui.updateHand();
-      } catch (e) {
-        /* One bad frame must not stop the loop - but a frame that fails over
-           and over is a broken build, not a hiccup, and saying so once is
-           better than a black screen that never explains itself. */
-        window.__sdvErrs = (window.__sdvErrs || 0) + 1;
-        if (!window.__sdvErrShown) {
-          window.__sdvErrShown = true;
-          try { game.toast('Lỗi: ' + (e && e.message || e)); } catch (e2) {}
-        }
-        if (window.__sdvErrs === 60) {
-          var w = document.getElementById('boot-warn');
-          var boot = document.getElementById('boot');
-          if (w && boot) {
-            boot.style.display = '';
-            w.style.display = '';
-            w.textContent = 'Bản dựng tải bị lỗi (' + (e && e.message || e)
-              + '). Thử tải lại trang.';
-          }
-        }
-        console.error(e);
-      }
-      requestAnimationFrame(loop);
-    })(last);
-    setInterval(function(){ game.sim.save(game.world); }, 30000);
-    window.addEventListener('pagehide', function(){ game.sim.save(game.world); });
-  }
+    var game = new window.SDV_GAME.Game(view);
+    /* farmqol reaches back for the game when it rolls the daily orders inside
+     * sim.endDay, which only has the sim. One back-reference beats threading
+     * the game through the whole day-end path. */
+    game.sim._game = game;
+    window.GAME = game;
+    window.ISL_UI.build(game);
 
-  newBtn.addEventListener('click', function(){
-    if (missing().length) return gate(function(){});
-    SDV_SIM.Sim.clearSave();
-    boot(false);
-    /* The arrival scene runs over the live game rather than before it, so the
-       valley is already built behind it and "Bắt đầu" costs no extra load. */
-    if (window.SDV_INTRO) {
-      SDV_INTRO.play(stage, function(){ SDV_INTRO.applyStart(game); });
+    /* `?new=1` boots straight into a fresh save with no title screen. It is
+     * there for screenshots and for automated checks, which otherwise cannot
+     * get past a button that has to be tapped - and it is harmless in play,
+     * because reaching it requires typing it. */
+    if (/[?&]new=1/.test(location.search)) { begin(true); return; }
+
+    var had = window.SDV_SIM.Sim.hasSave();
+    if (had) {
+      bootText.textContent = 'Có bản lưu. Chơi tiếp hay bắt đầu lại?';
+      bootActions.innerHTML = '';
+      var go = document.createElement('button');
+      go.textContent = 'Chơi tiếp';
+      go.onclick = function () { begin(false); };
+      var again = document.createElement('button');
+      again.textContent = 'Chơi lại từ đầu';
+      again.className = 'isl-bootsmall';
+      again.style.marginLeft = '8px';
+      again.onclick = function () {
+        if (confirm('Xoá bản lưu và bắt đầu lại?')) {
+          window.SDV_SIM.Sim.clearSave();
+          begin(true);
+        }
+      };
+      bootActions.appendChild(go);
+      bootActions.appendChild(again);
+    } else {
+      bootText.textContent =
+        'Ông ngoại để lại cho bạn một hòn đảo. Biển quanh đây còn hai mươi bốn hòn nữa.';
+      bootActions.innerHTML = '';
+      var start = document.createElement('button');
+      start.textContent = 'Bắt đầu';
+      start.onclick = function () { begin(true); };
+      bootActions.appendChild(start);
+    }
+
+    function begin(fresh) {
+      boot.style.display = 'none';
+      if (!fresh) game.sim.load(game.world);
+      game.start(fresh);
+      /* Re-apply after the load: ownership decides collision and bridges, and
+       * a restored `owned` map has to be pushed into the world before the
+       * player is placed or they can end up standing on locked land. */
+      window.SDV_WORLD.applyOwnership(game.area(), game.sim.owned);
+      if (window.ISL_NPC) window.ISL_NPC.build(game);
+      if (!fresh && game.sim.playerX != null) {
+        var spot = game.area().nearestFree(Math.floor(game.sim.playerX),
+                                           Math.floor(game.sim.playerY), 30);
+        game.player.x = spot.x + 0.5;
+        game.player.y = spot.y + 0.5;
+        game.recenter(true);
+      }
+      /* Save on the way out. A phone backgrounding the tab is the most common
+       * way a session ends, and `visibilitychange` is the only event that
+       * reliably fires for it - `beforeunload` does not on iOS. */
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') game.sim.save(game.world);
+      });
+      window.addEventListener('pagehide', function () { game.sim.save(game.world); });
     }
   });
-  // check the download before the player can press anything
-  gate(function(){});
-
-  var lb = document.getElementById('btn-load');
-  if (window.SDV_SIM && SDV_SIM.Sim.hasSave()) {
-    lb.style.display = '';
-    lb.addEventListener('click', function(){ boot(true); });
-  }
 })();
 </script>
 </body>

@@ -159,30 +159,54 @@ window.HUB_GAMES = [
   },
   {
     id: "stardew",
-    title: "Thung Lũng Sao Rơi",
-    tagline: "Nông trại ông để lại, một thung lũng đầy người quen chưa gặp. Trồng theo mùa, câu cá theo giờ, xuống mỏ khi đủ gan, và nhớ ngày sinh nhật của hàng xóm.",
+    title: "Quần Đảo Sao Rơi",
+    tagline: "Ông ngoại để lại một hòn đảo. Biển quanh đây còn hai mươi bốn hòn nữa — mua từng hòn một, và trong đám cỏ cao trên vài hòn có thứ đang trốn.",
     thumbnail: "assets/thumbnails/stardew.svg",
     path: "games/stardew/index.html",
-    // available since 2026-08-23. Plain canvas/JS, no engine: ~9 files plus one
-    // 764 KB data bundle. The data is the point — 222 pages of the official
-    // wiki were pulled as raw source and extracted into 23 tables, then
-    // compiled into the bundle the page loads: 46 crops with per-stage growth
-    // days and the four-tier price ladder, 77 fish keyed on
-    // location x season x hour x weather, 145 dishes, 151 crafting recipes,
-    // 37 villagers carrying 623 schedule blocks / 3,069 movement steps /
-    // 3,346 spoken lines / 1,137 gift entries, 31 bundles across all seven
-    // rooms, 939 shop lines, 39 monsters with drop tables.
-    // Controls depart from the original on purpose, per the brief: ONE tool
-    // that decides its job from whatever is in front of you, every
-    // interactable outlined with a floating icon, gifting and selling as
-    // drop targets beside the bag, a build menu on every farm tile.
-    // Ships with an in-game bot; docs/tests/browser/test_stardew.py drives it
-    // through a full 112-day year and asserts the run survives (98 checks,
-    // 0 console errors). Crop growth times are asserted against the wiki's
-    // own numbers — Parsnip 4 days, Starfruit 13.
-    // NOT yet eyes-on verified by a human across a long session.
+    // REBUILT 2026-08-27, and it replaces the valley build that used to live
+    // here rather than sitting beside it. Three things changed and each one
+    // was the owner's call:
+    //
+    //  1. NO INTERIORS. The old build carried 52 extracted Stardew maps and a
+    //     warp table, and put a load screen between the player and every shop
+    //     counter. There is ONE map now - a 160x126 sea with 25 islands on it -
+    //     and a shop is not a door, it is an island. Nothing in the game is
+    //     entered; it is walked to.
+    //  2. LAND IS BOUGHT, one island at a time, gated on an Island Rank fed by
+    //     every activity in the game plus a price, and only ever adjacent to
+    //     land already owned. The complaint that produced this was exact:
+    //     "vô unlock full làng làm ngợp".
+    //  3. POKEMON ARE FARM LABOUR. Ten of the islands have tall grass with real
+    //     encounter tables; a caught Pokemon does chores - waters a field,
+    //     tills a plot, harvests, hauls - and those cost the POKEMON's daily
+    //     Work Points, not the player's energy. Type decides the job, so team
+    //     building is a farming decision.
+    //
+    // The Pokemon layer is Generation 3 arithmetic, not a nod at it: 32-bit
+    // personality values driving nature/gender/shininess, IVs 0-31, EVs to the
+    // 510 cap, the real damage formula with STAB and the 17-type Gen 3 chart,
+    // and the real four-shake capture maths. 151 species and 273 moves pulled
+    // from PokeAPI's FireRed/LeafGreen tables.
+    //
+    // Art is PLACEHOLDER and cannot ship - island sprites extracted from a
+    // retail Pickaxe King Island APK, Pokemon sprites from the PokeAPI archive.
+    // See games/stardew/art/CREDITS.txt for what has to be replaced and how.
+    //
+    // FOUR headless suites, all green: tools/smoke.js drives a full playthrough
+    // (a farm cycle, all 24 island purchases, twelve mine floors, a capture,
+    // Pokemon labour, a save round trip); tools/uicrawl.js taps all 407 buttons
+    // in all 40 panels and reports every gold/item/party delta, which is how an
+    // item-duplication bug shows itself; tools/regress.js holds one assertion
+    // per bug found and fixed; tools/check_art.js resolves every atlas frame
+    // name. A bug-hunt pass over the whole codebase found and fixed 36 real
+    // defects, including five separate gold-duplication paths that all came
+    // from one line, a battle panel whose X permanently soft-locked the game,
+    // and a 12,000v island whose only building had no verb wired to it. The
+    // Pokemon tables were also rolled back from PokeAPI's modern values to the
+    // real Generation 3 ones. NOT yet eyes-on verified by a human across a long
+    // session.
     status: "available",
-    tags: ["Nông trại", "Mô phỏng", "Solo", "RPG"]
+    tags: ["Nông trại", "Bắt quái", "Khám phá", "Mô phỏng", "Solo"]
   },
   {
     id: "hic",

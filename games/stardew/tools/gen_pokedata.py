@@ -102,6 +102,14 @@ for k, mv in src['moves'].items():
     if mv['statch']:
         r['sc'] = [[STATK.get(s[0], 0), s[1]] for s in mv['statch']]
         r['scc'] = mv['statch_c'] or 100
+        # ss: the stat change hits the USER, not the target. Guessing from the
+        # sign of the change was wrong for Superpower, Swagger and Flatter.
+        if mv.get('selfstat'):
+            r['ss'] = 1
+    # `mc` is the move's mechanic when its power is not a plain number.
+    if mv.get('cat') in ('ohko', 'force-switch', 'whole-field-effect',
+                         'field-effect', 'unique', 'swagger'):
+        r['mc'] = mv['cat']
     moves[i] = r
 
 hdr = (
