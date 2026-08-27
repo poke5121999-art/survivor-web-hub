@@ -4970,24 +4970,30 @@ function hudLayoutLandscape(w, h){
   //   chết. Game bắn/MOBA di động không ai bày như thế.
   // Cả cụm nằm TRÊN vạch thumbY: dải dưới cùng là của hai cần gạt, không ai được
   // đặt nút vào đó.
-  // Xếp thành hình QUẠT hất lên và ra ngoài từ cần phải, chứ không thành hàng ngang
-  // trên đỉnh: khung ngang chỉ cao ~360px, một hàng nút sát mép trên là nằm đúng
-  // chỗ bản đồ nhỏ. Quạt bám theo đường ngón cái phải quét — cùng hình với cụm
-  // chiêu của game MOBA di động.
+  // Gom thành KHỐI HAI CỘT sát góc phải dưới, không toả hình quạt vào giữa màn.
+  // WHY: quạt trải rộng tới 64% bề ngang, tức là nút nằm chình ình giữa chỗ đang
+  //   chơi. PUBG/Liên Quân màn ngang gom hết vào một dải mép phải chừng một phần ba
+  //   bề ngang — giữa màn tuyệt đối trống. Khối này chiếm 31%.
+  // Nút cũng nhỏ lại một nấc (đường kính ~53px thay vì ~60px): khung ngang chỉ cao
+  // ~320px nên nút 60px ăn gần một phần năm chiều cao, to hơn cả nút thật của PUBG
+  // tính theo tỉ lệ. 53px vẫn thừa cho đầu ngón cái.
   const cx = w - pad - R, cy = h - pad - R;
+  const colA = cx - R*1.75;               // cột trong, gần cần phải
+  const colB = cx - R*3.10;               // cột ngoài
+  const rowA = h - pad - sr*1.35;         // hàng dưới, sát đáy
+  const rowB = rowA - sr*3.10;
+  const rowC = rowA - sr*6.20;            // hàng trên, vẫn lọt dưới bản đồ nhỏ
   const slots = S.shopMode ? [] : [
-    { x: cx - R*3.05, y: cy - R*1.35, r: sr*1.15, i: 0 },
-    { x: cx - R*2.35, y: cy - R*2.55, r: sr*1.15, i: 1 },
-    { x: cx - R*3.55, y: cy - R*3.10, r: sr*1.15, i: 2 }
+    { x: colB, y: rowA, r: sr*1.10, i: 0 },
+    { x: colB, y: rowB, r: sr*1.10, i: 1 },
+    { x: colB, y: rowC, r: sr*1.10, i: 2 }
   ];
-  const grab   = { x: cx - R*2.00, y: cy - R*0.55, r: sr*1.25 };
-  const sprint = { x: cx - R*1.00, y: cy - R*1.85, r: sr*1.25 };
-  // Tủ đồ và Bắn thử nối tiếp vào ĐẦU NGOÀI của quạt — cùng bên phải nốt, để bên
-  // trái không còn nút nào cả. Hai nút này loại trừ nhau (tủ đồ chỉ hiện cạnh xe
-  // tải, bắn thử chỉ hiện trong trạm dịch vụ, mà trong trạm thì ba ô đồ rỗng) nên
-  // dùng chung được một chỗ mà không bao giờ chồng nhau.
-  const stash  = { x: cx - R*4.30, y: cy - R*1.95, r: sr*1.25 };
-  const test   = { x: cx - R*4.30, y: cy - R*1.95, r: sr*1.30 };
+  // Gần cần phải nhất là nút bấm nhiều nhất.
+  const grab   = { x: colA, y: rowA, r: sr*1.15 };
+  const sprint = { x: colA, y: rowB, r: sr*1.15 };
+  // Tủ đồ và Bắn thử loại trừ nhau nên dùng chung ô trên cùng của cột trong.
+  const stash  = { x: colA, y: rowC, r: sr*1.15 };
+  const test   = { x: colA, y: rowC, r: sr*1.20 };
   // Chỗ bỏ món đang giơ: mép TRÊN giữa màn — xa nhất khỏi ngón vừa giơ nó lên,
   // và không đụng thanh máu (trên trái) lẫn bản đồ nhỏ (trên phải).
   const cancel = { x: w * 0.5, y: pad + sr*1.7, r: sr*1.7 };
