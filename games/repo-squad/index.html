@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Ca Trực Đêm: Biệt Đội</title>
 <meta name="description" content="Vào nhà, khuân đồ giá trị về bệ giao hàng cho đủ chỉ tiêu, đừng làm vỡ, và đừng để thứ trong đó nghe thấy bạn.">
 <link rel="icon" href="../../assets/favicon.svg">
@@ -27,6 +27,13 @@
     --display: Cambria, "Times New Roman", "Liberation Serif", "Noto Serif", serif;
   }
   *{box-sizing:border-box;}
+  /* iPhone: hai cú chạm nhanh liên tiếp là lệnh PHÓNG TO của Safari. Mà bắn tự
+     ngắm chính là chạm nhanh liên tiếp — nên đang đánh nhau thì màn hình nhảy
+     zoom. touch-action đặt trên canvas thôi chưa đủ: Safari quyết định có cho
+     phóng to hay không ở cấp TRANG, nên phải nói ở cả html và body. */
+  html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;}
+  html{-webkit-touch-callout:none;}
+
   html,body{height:100%;}
   body{
     margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);
@@ -34,6 +41,33 @@
     user-select:none;-webkit-user-select:none;
   }
   .shell{display:flex;flex-direction:column;height:100%;}
+
+
+  /* ---- XOAY TAY ----------------------------------------------------------
+     iPhone khoá xoay trong Trung tâm điều khiển thì trang KHÔNG BAO GIỜ nằm ngang
+     được, và Safari không cho gọi screen.orientation.lock() — nên không có cách nào
+     xoay màn hình bằng lệnh. Cách chạy được ở mọi máy: quay chính cái vỏ game 90 độ
+     bằng CSS. Khung layout khi đó rộng hơn cao THẬT, nên fitCanvas() và hudLayout()
+     tự chuyển sang bố cục ngang mà không phải biết gì về chuyện này.
+     Vì sao dùng width:100vh / height:100vw: sau phép quay, bề rộng của vỏ nằm dọc
+     theo chiều cao màn hình và ngược lại. dvh/dvw chính xác hơn trên di động (trừ
+     luôn thanh địa chỉ) nên ưu tiên khi trình duyệt có. */
+  .rot{
+    display:none;flex:0 0 auto;background:var(--panel);border:1px solid var(--line);
+    color:var(--ink-dim);border-radius:6px;padding:3px 8px;font-size:14px;line-height:1.1;
+    cursor:pointer;font-family:inherit;
+  }
+  .rot:active{transform:translateY(1px)}
+  .rot[aria-pressed="true"]{color:var(--amber);border-color:var(--amber)}
+  /* Chỉ máy cảm ứng mới cần: chuột thì kéo cửa sổ là xong. */
+  @media (pointer:coarse){ .rot{display:inline-block} }
+  body.force-land .shell{
+    position:fixed;top:0;left:0;width:100vh;height:100vw;
+    transform-origin:0 0;transform:rotate(90deg) translate(0,-100%);
+  }
+  @supports (width:100dvh){
+    body.force-land .shell{width:100dvh;height:100dvw}
+  }
 
   .bar{
     display:flex;align-items:center;gap:16px;flex-wrap:wrap;
@@ -87,8 +121,20 @@
   body.landscape .veil p{font-size:11px;max-width:60ch}
   body.landscape #veilKeys{font-size:9.5px}
   body.landscape .veil kbd{font-size:9px;padding:1px 4px}
-  body.landscape .veil-acts{position:sticky;bottom:0;width:100%;padding:6px 0 10px;
-    background:linear-gradient(180deg,rgba(6,7,9,0),rgba(6,7,9,.97) 30%)}
+  /* Hang nut cua tam man phu DINH DAY, o CA HAI huong man hinh.
+     ROOT-CAUSE cua bug "toi man 3 mo tu la stuck": tu do la mot tam man phu cuon
+     duoc, va den man 3 thi tu da co 7-8 mon. Do thuc o khung 390x844: bang cao
+     873px trong cho trong 757px, nen nut "Dong tu" roi xuong y=876 - NAM DUOI DAY
+     MAN HINH. Mo tu ra la khong con duong thoat, va mon cuoi trong tu thi bi hang
+     nut dev che. Chi tam man ngang moi duoc dinh day, con man doc - dung cai ma
+     nguoi choi dien thoai dung - thi khong.
+     Dinh day thi du danh sach dai bao nhieu, loi ra van luon o duoi ngon tay. */
+  .veil-acts{position:sticky;bottom:0;width:100%;padding:8px 0 4px;z-index:2;
+    background:linear-gradient(180deg,rgba(6,7,9,0),rgba(6,7,9,.97) 35%)}
+  /* Chua cho hang nut dev o duoi: no nam NGOAI tam man phu nen tam phu khong biet
+     no ton tai, va hang cuoi cung cua danh sach chui xuong duoi no. */
+  .veil{padding-bottom:22px}
+  body.landscape .veil-acts{padding:6px 0 10px}
 
   .veil{
     position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
@@ -660,6 +706,7 @@
 
   <header class="bar">
     <a class="back" href="../../index.html">&larr; Hub</a>
+    <button class="rot" id="rotBtn" type="button" aria-pressed="false" title="Xoay ngang">⟳</button>
     <span class="name">Ca Trực Đêm: Biệt Đội</span>
     <span><span class="k">Màn</span><span class="v" id="hLevel">1</span></span>
     <span><span class="k">Chỉ tiêu</span><span class="v quota" id="hQuota">$0 / $0</span></span>
@@ -709,6 +756,52 @@
 
 </div>
 
+<script>
+// Nút xoay tay: bật/tắt lớp force-land rồi báo cho game đo lại khung.
+// WHY không dùng screen.orientation.lock(): Safari trên iPhone không cài đặt nó, và
+//   trên Android nó chỉ chạy khi đang toàn màn hình. Người bị kẹt nhất — iPhone bật
+//   khoá xoay — lại đúng là người API đó không giúp được.
+(function () {
+  var b = document.getElementById('rotBtn');
+  if (!b) return;
+  b.addEventListener('click', function () {
+    var on = document.body.classList.toggle('force-land');
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.title = on ? 'Về màn hình dọc' : 'Xoay ngang';
+    // Hai nhịp: một ngay lập tức, một sau khi trình duyệt vẽ xong phép quay —
+    // clientWidth đọc ngay trong cùng khung hình vẫn còn là số của bố cục cũ.
+    dispatchEvent(new Event('resize'));
+    setTimeout(function () { dispatchEvent(new Event('resize')); }, 60);
+  });
+})();
+</script>
+
+<script>
+// Chặn phóng to trên iPhone.
+// WHY cần cả hai lớp: touch-action:none trên canvas chặn được cuộn và pinch bên
+//   TRONG canvas, nhưng cú chạm-đúp-để-phóng-to của Safari được quyết ở cấp trang
+//   và vẫn lọt. Bắn tự ngắm là chạm nhanh liên tiếp, tức là đúng cử chỉ Safari hiểu
+//   là "phóng to" — đang chạy trốn thì màn hình nhảy zoom.
+// Chỉ chặn khi cú chạm rơi TRÊN CANVAS: nút bấm trong menu vẫn cần cú click bình
+// thường, và nuốt touchend của chúng là nuốt luôn nút.
+(function () {
+  var last = 0;
+  document.addEventListener('touchend', function (e) {
+    var t = e.target;
+    var tren = t && t.closest && t.closest('canvas');
+    if (!tren) { last = 0; return; }
+    var now = e.timeStamp || Date.now();
+    if (now - last <= 350) e.preventDefault();
+    last = now;
+  }, { passive: false });
+  // Pinch: trong game không có gì để phóng to, và một ngón cái trượt nhầm thành
+  // hai ngón là mất luôn khung hình.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (n) {
+    document.addEventListener(n, function (e) { e.preventDefault(); }, { passive: false });
+  });
+})();
+</script>
+
 <!-- ?v=... la dau build: GitHub Pages tra Cache-Control: max-age=600, khong co dau nay
      thi sau khi deploy trinh duyet con chay JS cu toi 10 phut. Doi STAMP moi lan deploy. -->
 
@@ -719,14 +812,14 @@
 <script src="../../js/save-sync.js"></script>
 
 <!-- BỘ MÁY: dùng CHUNG với games/repo2d. Không có bản sao thứ hai của luật chơi. -->
-<script src="../repo2d/game.js?v=20260827k"></script>
-<script src="../repo2d/bot.js?v=20260827k"></script>
+<script src="../repo2d/game.js?v=20260827m"></script>
+<script src="../repo2d/bot.js?v=20260827m"></script>
 
 <!-- TẦNG META của Biệt Đội: gacha, trang bị, tiến hoá, tổ năm người, kỹ năng -->
-<script src="data/content.js?v=20260827k"></script>
-<script src="js/meta.js?v=20260827k"></script>
-<script src="js/ui.js?v=20260827k"></script>
-<script src="js/squad.js?v=20260827k"></script>
+<script src="data/content.js?v=20260827m"></script>
+<script src="js/meta.js?v=20260827m"></script>
+<script src="js/ui.js?v=20260827m"></script>
+<script src="js/squad.js?v=20260827m"></script>
 
 <script>
   window.__boot && window.__boot();          // bộ máy dựng khung, gắn phím, gắn chạm

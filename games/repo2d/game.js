@@ -4942,6 +4942,16 @@ const mouseWorldNow = () => mouseScreen &&
   { x: cam.x + mouseScreen.x/zoom(), y: cam.y + mouseScreen.y/zoom() };
 function canvasPoint(e){
   const cv = CV(), r = cv.getBoundingClientRect();
+  // Che do XOAY TAY: cả vỏ game bị CSS quay 90 độ theo chiều kim đồng hồ. clientX/Y
+  // là toạ độ trên MÀN HÌNH, còn getBoundingClientRect() trả về hộp bao đã xoay —
+  // nên phải quay ngược cú chạm lại, nếu không ngón tay bấm một nơi mà game hiểu
+  // một nẻo (và nó lệch đúng 90 độ, tức là cần gạt trái thành cần gạt phải).
+  // Sau khi quay 90 độ, góc trên-trái của khung nằm ở góc trên-PHẢI của hộp bao,
+  // và bề rộng/bề cao của khung đổi chỗ cho nhau.
+  if (document.body.classList.contains('force-land')){
+    return { x: (e.clientY - r.top) / r.height * viewW,
+             y: (r.width - (e.clientX - r.left)) / r.width * viewH };
+  }
   return { x:(e.clientX-r.left)/r.width*viewW, y:(e.clientY-r.top)/r.height*viewH };
 }
 
@@ -4983,10 +4993,17 @@ function fitCanvas(){
 }
 function resize(){
   fitCanvas();
-  const cv = CV(), r = cv.getBoundingClientRect();
-  if (!r.width) return;
+  const cv = CV();
+  // offsetWidth/Height, KHONG phai getBoundingClientRect(): cai sau tra ve hop BAO
+  // cua phan tu sau khi da bien hinh, nen o che do xoay tay no doi chieu rong voi
+  // chieu cao. Doc nham cai do thi khung 844x347 bao lai la 347x844 va game van
+  // dung bo cuc DOC trong khi hinh da nam ngang - hai can gat chong len nhau o mot
+  // goc. offsetWidth la kich thuoc BO CUC, khong bi transform dung toi.
+  const w0 = cv.offsetWidth || cv.getBoundingClientRect().width;
+  const h0 = cv.offsetHeight || cv.getBoundingClientRect().height;
+  if (!w0) return;
   dpr = Math.min(devicePixelRatio || 1, 2);
-  viewW = Math.round(r.width); viewH = Math.round(r.height);
+  viewW = Math.round(w0); viewH = Math.round(h0);
   cv.width = Math.round(viewW*dpr); cv.height = Math.round(viewH*dpr);
   if (!lightCv) lightCv = document.createElement('canvas');
   lightCv.width = cv.width; lightCv.height = cv.height;
@@ -7161,6 +7178,11 @@ function closeStash(){
 }
 function showStash(warn){
   const p = S.player;
+  // Moi lan lay mot mon la ca bang duoc dung lai tu dau, va cho cuon nhay ve dinh.
+  // Voi mot tu 8 mon thi lay mon thu bay nghia la cuon xuong lai bay lan. Nho lay
+  // cho cuon truoc khi ve, tra lai sau khi ve xong.
+  const veil = el('veil');
+  const scr = (veil && S.stashOpen) ? veil.scrollTop : 0;
   const full = p.inv.every(it => it);
   const slotRows = [0,1,2].map(i => {
     const it = p.inv[i];
@@ -7193,6 +7215,7 @@ function showStash(warn){
      <div class="seg">Ba ô trên tay${full ? ' — ĐÃ ĐẦY' : ''}</div><div class="shop">${slotRows}</div>
      <div class="seg">Trong tủ (${S.stash.length})</div><div class="shop">${stashRows}</div>`);
 
+  if (veil && scr) veil.scrollTop = scr;
   el('veilExtra').querySelectorAll('[data-slot]').forEach(btn => {
     btn.addEventListener('click', () => {
       const i = +btn.dataset.slot;

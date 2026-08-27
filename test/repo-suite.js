@@ -355,6 +355,208 @@ async function repoSquadSuite(b) {
 }
 
 // =====================================================================
+// TỦ ĐỒ KHI ĐÃ NHIỀU MÓN — đúng tình huống người chơi báo: "đến màn 3 mở tủ là
+// stuck luôn, không lấy đồ được".
+// ROOT-CAUSE đo được: bảng tủ là một tấm màn phủ CUỘN ĐƯỢC, và tới màn 3 thì tủ đã
+//   có 7-8 món. Ở khung 390×844, bảng cao 873px trong chỗ trống 757px, nên nút
+//   "Đóng tủ" rơi xuống y=876 — NẰM DƯỚI ĐÁY MÀN HÌNH. Mở tủ ra là không còn đường
+//   thoát. Chỉ tấm màn ngang mới được ghim đáy, còn màn dọc thì không.
+// Vì sao bộ test cũ không bắt được: nó mở tủ với tủ RỖNG (hoặc 2 món), lúc đó bảng
+//   vừa khít màn hình. Lỗi này chỉ hiện ra khi danh sách đủ dài.
+async function stashSuite(b) {
+  results.push('\n── tủ đồ khi đã nhiều món ──');
+  for (const [ten, url] of [['repo2d', R2D], ['repo-squad', SQ]]) {
+    const { ctx, p, errs } = await openGame(b, url, { width: 390, height: 844 });
+    if (url === SQ) {
+      await p.evaluate(() => {
+        SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+        SQ.autoFill(); SQ.squad.enter('k3');
+      });
+    } else {
+      await p.click('#veilBtn');
+    }
+    await p.waitForTimeout(300);
+
+    // Tủ như sau ba ca mua sắm: tám món.
+    await p.evaluate(() => {
+      const S = REPO.S;
+      S.level = 3;
+      S.stash = ['gun', 'bomb', 'tranq', 'heal', 'pry', 'tracker', 'gun', 'heal']
+        .map(k => ({ kind: k, uses: 3 }));
+      S.player.inv = [null, null, null];
+      REPO.warp(S.car.x, S.car.y);
+      REPO.toggleStash();
+    });
+    await p.waitForTimeout(250);
+
+    const mo = await p.evaluate(() => {
+      const v = document.getElementById('veil');
+      const a = document.querySelector('.veil-acts').getBoundingClientRect();
+      return { moTu: !!REPO.S.stashOpen, daiHonMan: v.scrollHeight > v.clientHeight,
+               nutDongY: Math.round(a.top), nutDongTrongMan: a.bottom <= innerHeight,
+               so: document.querySelectorAll('[data-stash]').length };
+    });
+    check('[' + ten + '] tủ 8 món thì bảng dài hơn màn hình', mo.moTu && mo.daiHonMan && mo.so === 8,
+      mo.so + ' món');
+    check('[' + ten + '] nút "Đóng tủ" LUÔN nằm trong màn hình', mo.nutDongTrongMan,
+      'y=' + mo.nutDongY + ' / màn 844');
+
+    // Cuộn xuống đáy: mọi món phải với tới được, không món nào bị che.
+    const che = await p.evaluate(() => {
+      const v = document.getElementById('veil');
+      v.scrollTop = v.scrollHeight;
+      const out = [];
+      [...document.querySelectorAll('[data-stash]')].forEach((n, i) => {
+        const r = n.getBoundingClientRect();
+        const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        const nhin = r.top >= 0 && r.bottom <= innerHeight;
+        if (!nhin || !(t && n.contains(t))) out.push(String(i));
+      });
+      return out;
+    });
+    check('[' + ten + '] cuộn tới đáy thì không món nào bị che', che.length === 0,
+      che.length ? 'món ' + che.join(', ') : '');
+
+    // Lấy một món bằng cú CHẠM thật, và chỗ cuộn phải giữ nguyên.
+    const lay = await p.evaluate(() => {
+      const v = document.getElementById('veil');
+      const n = document.querySelector('[data-stash="5"]');
+      const r = n.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2, scr: v.scrollTop,
+               inv: REPO.S.player.inv.map(x => x && x.kind), so: REPO.S.stash.length };
+    });
+    await p.touchscreen.tap(lay.x, lay.y);
+    await p.waitForTimeout(250);
+    const sau = await p.evaluate(() => ({
+      inv: REPO.S.player.inv.map(x => x && x.kind), so: REPO.S.stash.length,
+      scr: document.getElementById('veil').scrollTop
+    }));
+    check('[' + ten + '] chạm một món ở giữa danh sách thì lấy được',
+      sau.so === lay.so - 1 && sau.inv.filter(Boolean).length === 1,
+      lay.so + ' → ' + sau.so + ' món, trên tay: ' + sau.inv.filter(Boolean).join(','));
+    // Trôi tối đa MỘT DÒNG (~56px) là đúng: danh sách vừa ngắn đi một món nên mức
+    // cuộn tối đa cũng tụt đúng bằng đó, trình duyệt kẹp lại. Nhảy hẳn về 0 mới sai.
+    check('[' + ten + '] lấy xong không bị nhảy về đầu danh sách',
+      sau.scr > 0 && lay.scr - sau.scr <= 60,
+      'cuộn ' + Math.round(lay.scr) + ' → ' + Math.round(sau.scr));
+
+    // Và đóng được tủ bằng cú chạm thật.
+    const dong = await p.evaluate(() => {
+      const r = document.getElementById('veilBtn').getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await p.touchscreen.tap(dong.x, dong.y);
+    await p.waitForTimeout(250);
+    const daDong = await p.evaluate(() => ({ mo: !!REPO.S.stashOpen, chay: !!REPO.S.running }));
+    check('[' + ten + '] đóng được tủ và chơi tiếp', !daDong.mo && daDong.chay);
+
+    const e = errs.filter(x => !/favicon/.test(x));
+    check('[' + ten + '] tủ đồ: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+}
+
+// =====================================================================
+// NÚT XOAY TAY — iPhone bật khoá xoay thì trang không bao giờ nằm ngang được, và
+// Safari không có screen.orientation.lock(). Nên vỏ game tự quay 90 độ bằng CSS.
+// Phép đo QUAN TRỌNG NHẤT ở đây là cú chạm: quay hình mà quên quay toạ độ thì ngón
+// tay bấm một nơi game hiểu một nẻo, lệch đúng 90 độ — cần gạt trái thành cần phải.
+async function rotateSuite(b) {
+  results.push('\n── nút xoay tay (cho iPhone khoá xoay) ──');
+  for (const [ten, url] of [['repo2d', R2D], ['repo-squad', SQ]]) {
+    // Khung DỌC: đây mới là tình huống nút này sinh ra để giải quyết.
+    const { ctx, p, errs } = await openGame(b, url, { width: 390, height: 844 });
+    if (url === SQ) {
+      await p.evaluate(() => {
+        SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+        SQ.autoFill(); SQ.squad.enter('k3');
+      });
+    } else {
+      // repo2d mo ra la tam man gioi thieu dang phu len canvas. Khong bam "Vao ca"
+      // thi moi cu cham trong bai do nay roi vao tam man do chu khong vao canvas.
+      await p.click('#veilBtn');
+    }
+    await p.evaluate(() => { REPO.S.cut = null; REPO.S.running = true; });
+    await p.waitForTimeout(300);
+
+    const truoc = await p.evaluate(() => {
+      const h = REPO.hudLayout();
+      return { ngang: h.w > h.h, w: Math.round(h.w), h: Math.round(h.h),
+               nut: !!document.getElementById('rotBtn'),
+               hien: getComputedStyle(document.getElementById('rotBtn')).display };
+    });
+    check('[' + ten + '] có nút xoay trên thanh trên', truoc.nut);
+    check('[' + ten + '] máy cảm ứng thì nút hiện ra', truoc.hien !== 'none', truoc.hien);
+    check('[' + ten + '] chưa bấm thì khung vẫn dọc', !truoc.ngang, truoc.w + '×' + truoc.h);
+
+    await p.click('#rotBtn');
+    await p.waitForTimeout(400);
+
+    const sau = await p.evaluate(() => {
+      const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+      const r = cv.getBoundingClientRect();
+      return { ngang: h.w > h.h, w: Math.round(h.w), h: Math.round(h.h),
+               cls: document.body.classList.contains('force-land'),
+               land: document.body.classList.contains('landscape'),
+               // Hộp bao của canvas đã xoay phải nằm gọn trong màn hình dọc.
+               tran: r.left < -1 || r.top < -1 ||
+                     r.right > innerWidth + 1 || r.bottom > innerHeight + 1,
+               phu: Math.round(r.width) + '×' + Math.round(r.height),
+               man: innerWidth + '×' + innerHeight };
+    });
+    check('[' + ten + '] bấm xong thì game chuyển sang bố cục NGANG', sau.ngang && sau.land,
+      sau.w + '×' + sau.h);
+    check('[' + ten + '] vỏ xoay rồi vẫn nằm gọn trong màn hình', !sau.tran,
+      'canvas ' + sau.phu + ' trong màn ' + sau.man);
+
+    // Chạm thật vào tâm ba nút HUD trong lúc đang xoay: phải đúng nút đó ăn.
+    const nut = await p.evaluate(() => {
+      const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+      const r = cv.getBoundingClientRect();
+      // Nghịch đảo của phép quay 90 độ: khung-(lx,ly) -> màn-(left + W - ly, top + lx)
+      const q = o => o ? { x: r.left + r.width - (o.y / h.h * r.width),
+                           y: r.top + (o.x / h.w * r.height) } : null;
+      return { sprint: q(h.sprint), grab: q(h.grab), stash: q(h.stash),
+               car: { x: REPO.S.car.x, y: REPO.S.car.y } };
+    });
+    await p.evaluate(c => { REPO.warp(c.x, c.y); }, nut.car);   // đứng cạnh xe -> tủ đồ sống
+    await p.waitForTimeout(120);
+
+    const bam = async diem => {
+      await p.evaluate(() => {
+        window.__d = { stash: !!REPO.S.stashOpen, sprint: !!REPO.S.player.sprint };
+      });
+      await p.touchscreen.tap(diem.x, diem.y);
+      await p.waitForTimeout(160);
+      return p.evaluate(() => ({
+        stash: !!REPO.S.stashOpen !== window.__d.stash,
+        sprint: !!REPO.S.player.sprint !== window.__d.sprint
+      }));
+    };
+    const rCh = await bam(nut.sprint);
+    check('[' + ten + '] đang xoay: chạm nút Chạy thì đúng nút Chạy ăn', rCh.sprint && !rCh.stash);
+    const rTu = await bam(nut.stash);
+    check('[' + ten + '] đang xoay: chạm nút Tủ đồ thì đúng nút Tủ đồ ăn', rTu.stash && !rTu.sprint);
+    await p.evaluate(() => { if (REPO.S.stashOpen) REPO.toggleStash(); REPO.S.running = true; });
+
+    // Bấm lần nữa thì phải về đúng như cũ.
+    await p.click('#rotBtn');
+    await p.waitForTimeout(400);
+    const ve = await p.evaluate(() => {
+      const h = REPO.hudLayout();
+      return { ngang: h.w > h.h, cls: document.body.classList.contains('force-land'),
+               w: Math.round(h.w), h: Math.round(h.h) };
+    });
+    check('[' + ten + '] bấm lần nữa thì về lại màn dọc', !ve.ngang && !ve.cls,
+      ve.w + '×' + ve.h);
+
+    const e = errs.filter(x => !/favicon/.test(x));
+    check('[' + ten + '] xoay tay: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+}
+
+// =====================================================================
 // HÌNH HỌC CỦA HUD — chạy trên repo-squad, nơi CÓ nút kỹ năng.
 // WHY ở đây chứ không ở bộ repo2d: nút kỹ năng chỉ tồn tại khi HOOKS.skill khác
 //   null, nên mọi lỗi đè nút / tràn khung của nó đều vô hình với bộ test repo2d.
@@ -757,6 +959,8 @@ async function metaRulesSuite(b) {
   const b = await chromium.launch();
   try { await repo2dSuite(b); } catch (e) { check('repo2d: bộ test chạy trọn', false, e.message); }
   try { await repoSquadSuite(b); } catch (e) { check('repo-squad: bộ test chạy trọn', false, e.message); }
+  try { await stashSuite(b); } catch (e) { check('tủ đồ: bộ test chạy trọn', false, e.message); }
+  try { await rotateSuite(b); } catch (e) { check('nút xoay tay: bộ test chạy trọn', false, e.message); }
   try { await hudGeomSuite(b); } catch (e) { check('hình học HUD: bộ test chạy trọn', false, e.message); }
   try { await skillEffectSuite(b); } catch (e) { check('hiệu ứng kỹ năng: bộ test chạy trọn', false, e.message); }
   try { await metaRulesSuite(b); } catch (e) { check('sổ sách & luật ván: bộ test chạy trọn', false, e.message); }
