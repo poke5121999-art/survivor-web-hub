@@ -23,9 +23,13 @@
     const stage = $('#stage');
     const pad = 0;
     const availW = stage.clientWidth - pad, availH = stage.clientHeight - pad;
-    // khung dọc 9:16, giống mọi game khác trên hub
-    let w = availW, h = w * 16 / 9;
-    if (h > availH) { h = availH; w = h * 9 / 16; }
+    // Khung dọc 9:16 khi chỗ trống cao hơn rộng; xoay máy ngang thì khung cũng nằm
+    // ngang 16:9 để chơi được thật, chứ không phải nhìn một dải dọc hẹp giữa màn hình.
+    const land = availW > availH;
+    document.body.classList.toggle('landscape', land);
+    const fw = land ? 16 : 9, fh = land ? 9 : 16;
+    let w = availW, h = w * fh / fw;
+    if (h > availH) { h = availH; w = h * fw / fh; }
     const dpr = Math.min(2, root.devicePixelRatio || 1);
     cv.style.width = w + 'px'; cv.style.height = h + 'px';
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);

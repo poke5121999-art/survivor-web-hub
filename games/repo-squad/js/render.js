@@ -10,10 +10,16 @@
   const SQ = root.SQ;
   const TILE = SQ.TILE;
 
-  const VIEW_TILES = 15;                 // bề ngang khung nhìn, tính bằng ô
+  const VIEW_TILES = 15;                 // bề ngang khung nhìn ở khung DỌC, tính bằng ô
+  // Máy nằm ngang phải thấy CÙNG MỘT LƯỢNG thế giới, chỉ là rộng hơn và thấp hơn.
+  // Neo zoom theo diện tích thay vì theo bề ngang: khung dọc 9:16 ra đúng 15 ô ngang
+  // như cũ, khung ngang 16:9 ra đúng ảnh dọc xoay 90° — không ai thấy xa hơn ai.
+  // ROOT-CAUSE nếu để nguyên viewW/15: ở khung ngang bề ngang lớn gấp ~3 lần nên mỗi ô
+  //   bị phóng to gấp ba, người chơi chỉ còn thấy đúng một góc phòng.
+  const VIEW_AREA = (VIEW_TILES * TILE) * (VIEW_TILES * TILE * 16 / 9);
 
   function camFor(R, viewW, viewH) {
-    const z = viewW / (VIEW_TILES * TILE);
+    const z = Math.sqrt((viewW * viewH) / VIEW_AREA);
     const p = R.units[0];
     return {
       z: z,

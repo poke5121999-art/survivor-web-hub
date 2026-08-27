@@ -388,7 +388,7 @@
   .h-squad{position:absolute;left:6px;top:66px;display:flex;flex-direction:column;gap:4px}
   .hu{width:40px;background:rgba(10,13,18,.72);border:1px solid var(--line);border-radius:5px;
       padding:3px 2px;text-align:center}
-  .hu.me{border-color:var(--gold)}
+  .hu.is-me{border-color:var(--gold)}
   .hu.down{border-color:var(--blood);opacity:.85}
   .hu.out{opacity:.35}
   .hu.carry{box-shadow:0 0 0 1px var(--teal) inset}
@@ -417,6 +417,48 @@
   .hs-cd{position:absolute;inset:-2px;transform:rotate(-90deg)}
   .hs-cd circle{fill:none;stroke:rgba(220,230,240,.35);stroke-width:5}
   .hs-t{position:absolute;font-family:var(--mono);font-size:16px;color:#fff;text-shadow:0 1px 3px #000}
+
+
+  /* ---------------- MÁY NẰM NGANG ----------------
+     Khung 16:9 chỉ cao bằng nửa khung dọc, nên sảnh xếp thành HAI CỘT: xác đứng bên
+     trái, đội hình + chọn map + nút vào ca bên phải. Các màn khác giữ nguyên một cột
+     nhưng bó lại giữa khung cho khỏi kéo dài hết bề ngang. */
+  body.landscape .stage.is-home{
+    display:grid;grid-template-columns:1fr 1.15fr;gap:8px;align-content:stretch;padding:8px}
+  body.landscape .stage.is-home>.showcase{grid-row:1 / span 4;min-height:0;padding:10px 52px}
+  body.landscape .sc-face{font-size:52px}
+  body.landscape .sc-name{font-size:18px}
+  body.landscape .sc-skill{font-size:9.5px;margin-top:3px;padding-top:4px}
+  /* Khung ngang chỉ rộng chứ không cao, mà cột phím tắt bên phải nằm đè lên hàng năm
+     người của cột phải. Dồn cả hai cột về mép TRÁI — một cột neo trên, một cột neo
+     dưới — vì cột trái là sân khấu, vốn đã chừa sẵn 52px lề hai bên. */
+  body.landscape .rail{top:auto;bottom:4px;right:auto;left:4px}
+  body.landscape .rail.left{top:4px;bottom:auto;left:4px}
+  body.landscape .rail-b{width:40px;padding:3px 2px}
+  body.landscape .rb-i{font-size:15px}
+  body.landscape .rb-n{font-size:7px}
+  body.landscape .stage.is-home>.lineup{grid-column:2;align-self:end}
+  body.landscape .stage.is-home>.chapter{grid-column:2;margin-top:0}
+  body.landscape .stage.is-home>.b.cta{grid-column:2;padding:11px;font-size:15px}
+  body.landscape .stage.is-home>.foot-note{grid-column:2;align-self:start}
+  body.landscape .sheet-b{max-width:640px;width:100%;margin:0 auto}
+  body.landscape .char-grid{grid-template-columns:repeat(7,1fr)}
+  body.landscape .evo-grid{grid-template-columns:repeat(5,1fr)}
+  body.landscape .pack-grid{grid-template-columns:repeat(3,1fr)}
+  body.landscape .inv-grid{grid-template-columns:repeat(8,1fr)}
+  body.landscape .tabbar{padding:3px 5px calc(4px + env(safe-area-inset-bottom))}
+  body.landscape .tb-i{font-size:16px}
+  body.landscape .tb.mid{margin-top:-12px}
+  body.landscape .tb.mid .tb-i{font-size:19px}
+
+  /* HUD trong trận: khung thấp nên cột năm người nằm NGANG dưới thanh chỉ tiêu,
+     nếu để dọc như cũ thì năm thẻ tràn khỏi đáy khung. */
+  body.landscape .h-squad{flex-direction:row;left:8px;right:auto;top:52px}
+  body.landscape .h-msg{left:8px;right:auto;top:106px;max-width:52%;text-align:left}
+  body.landscape .h-ctl{padding:8px 14px 12px}
+  body.landscape .h-stick{width:88px;height:88px}
+  body.landscape .h-stick i{width:36px;height:36px;margin:-18px 0 0 -18px}
+  body.landscape .h-skill{width:70px;height:70px}
 
   /* ---------------- modal / toast ---------------- */
   .modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
@@ -503,14 +545,14 @@
 
 <!-- ?v=... la dau build: GitHub Pages tra Cache-Control: max-age=600, khong co dau nay
      thi sau khi deploy trinh duyet con chay JS cu toi 10 phut. Doi STAMP moi lan deploy. -->
-<script src="data/content.js?v=20260827a"></script>
-<script src="js/meta.js?v=20260827a"></script>
-<script src="js/world.js?v=20260827a"></script>
-<script src="js/sim.js?v=20260827a"></script>
-<script src="js/render.js?v=20260827a"></script>
-<script src="js/ui.js?v=20260827a"></script>
-<script src="js/bot.js?v=20260827a"></script>
-<script src="js/game.js?v=20260827a"></script>
+<script src="data/content.js?v=20260827b"></script>
+<script src="js/meta.js?v=20260827b"></script>
+<script src="js/world.js?v=20260827b"></script>
+<script src="js/sim.js?v=20260827b"></script>
+<script src="js/render.js?v=20260827b"></script>
+<script src="js/ui.js?v=20260827b"></script>
+<script src="js/bot.js?v=20260827b"></script>
+<script src="js/game.js?v=20260827b"></script>
 <script>window.__boot && window.__boot();</script>
 </body>
 </html>

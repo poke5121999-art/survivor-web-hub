@@ -923,7 +923,7 @@
     }
     R.units.forEach((u, i) => {
       const d = sq.children[i];
-      d.className = 'hu' + (u.player ? ' me' : '') + (u.down ? ' down' : '') + (u.out ? ' out' : '');
+      d.className = 'hu' + (u.player ? ' is-me' : '') + (u.down ? ' down' : '') + (u.out ? ' out' : '');
       d.querySelector('.hu-b i').style.width = Math.max(0, u.hp / u.hpMax * 100) + '%';
       d.querySelector('.hu-n').textContent = u.player ? u.def.name : (u.tactic ? SQ.TACTIC_BY_ID[u.tactic].icon : '');
       const cd = d.querySelector('.hu-cd');

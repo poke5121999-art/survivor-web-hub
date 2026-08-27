@@ -29,7 +29,12 @@ const WPX = MW * TILE, HPX = MH * TILE;
 // eleven px across. Closer in costs you the far wall of a wide room; the minimap is what that wall
 // was for. One number, so it is one edit to change your mind.
 const VIEW_W_WORLD = 14 * TILE;
-const zoom = () => viewW / VIEW_W_WORLD;
+// Khung 9:16 nhìn thấy đúng chừng này thế giới. Máy nằm ngang phải thấy CÙNG MỘT
+// LƯỢNG thế giới, chỉ là rộng hơn và thấp hơn — nếu không thì xoay ngang vừa là ăn
+// gian (thấy xa hơn) vừa vỡ hình (viewW/14 ô làm ô to gấp rưỡi).
+// Neo theo diện tích: dọc 9:16 ra đúng con số cũ, ngang 16:9 ra đúng ảnh dọc xoay 90°.
+const VIEW_AREA_WORLD = VIEW_W_WORLD * (VIEW_W_WORLD * 16 / 9);
+const zoom = () => Math.sqrt((viewW * viewH) / VIEW_AREA_WORLD);
 
 // A corridor the generator carves to repair a walled-off room. Doors are already 3 tiles wide;
 // this is the same width, so a repaired room is a room the cart can still be pushed into.
@@ -4790,7 +4795,10 @@ let viewW = 1280, viewH = 720, dpr = 1, lightCv = null;
 // WHY this is JavaScript and not one CSS declaration: an `aspect-ratio` box has to be clamped by
 // max-width on a narrow screen and by max-height on a wide one, and whichever clamp fires breaks the
 // ratio instead of preserving it. Fitting it explicitly is exact on both.
+// Khung dọc 9:16 khi chỗ trống cao hơn rộng, và 16:9 khi ngược lại — người chơi xoay
+// máy ngang thì được chơi ngang thật, chứ không phải nhìn một dải dọc hẹp giữa màn hình.
 const FRAME_W = 9, FRAME_H = 16;
+function frameAspect(aw, ah){ return aw > ah ? [FRAME_H, FRAME_W] : [FRAME_W, FRAME_H]; }
 function fitCanvas(){
   const cv = CV(), box = cv.parentElement;
   if (!box) return;
@@ -4799,9 +4807,11 @@ function fitCanvas(){
   const aw = box.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const ah = box.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
   if (!(aw > 0) || !(ah > 0)) return;
-  const k = Math.min(aw/FRAME_W, ah/FRAME_H);
-  cv.style.width  = Math.round(k*FRAME_W) + 'px';
-  cv.style.height = Math.round(k*FRAME_H) + 'px';
+  const [fw, fh] = frameAspect(aw, ah);
+  const k = Math.min(aw/fw, ah/fh);
+  cv.style.width  = Math.round(k*fw) + 'px';
+  cv.style.height = Math.round(k*fh) + 'px';
+  document.body.classList.toggle('landscape', aw > ah);
 }
 function resize(){
   fitCanvas();
