@@ -180,7 +180,15 @@
   .menu{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;
         background:radial-gradient(120% 70% at 50% -8%,#1b2433 0%,#0b0e14 55%,#06070a 100%)}
   body.in-run .menu{display:none}
-  body:not(.in-run) .hud{display:none}
+  /* Hang nut dev cua repo2d (BOT / TAT QUAI / CA MOI / AM THANH) chi co nghia trong
+     ca. De no o menu thi no nam DUOI thanh tab nam o, day thanh tab len khoi day
+     man hinh va an mat 31px o doc / 17px o ngang. */
+  body:not(.in-run) .foot{display:none}
+  /* Nut Bo ca: chi trong ca moi co gi de bo. */
+  .quit-run{background:#2a1a18;border:1px solid #6b3a34;color:#e8b9b2;border-radius:5px;
+            padding:3px 9px;font-size:11px;cursor:pointer;font-family:inherit}
+  .quit-run:active{transform:translateY(1px)}
+  body:not(.in-run) .quit-run{display:none}
 
   /* --- thanh trên: hồ sơ + ví tiền --- */
   .topbar{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:7px 8px;
@@ -286,12 +294,15 @@
   .tb-i{font-size:19px;line-height:1.15;filter:grayscale(.55) opacity(.75)}
   .tb.on .tb-i{filter:none}
   .tb-n{font-size:8px;letter-spacing:.02em;line-height:1.2}
-  .tb.mid{margin-top:-18px;padding:9px 1px 5px;border-radius:12px;color:#062010;
+  /* .tabbar la grid voi align-items:end, nen item neo day va margin-top am khong
+     nhac no len duoc mot pixel nao. translateY moi that su nhac. */
+  .tb.mid{transform:translateY(-12px);margin-top:-12px;padding:9px 1px 5px;border-radius:12px;color:#062010;
           background:linear-gradient(180deg,#8fd88a,#3f9a4d);
           box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 3px 0 #1f5c2b}
   .tb.mid .tb-i{filter:none;font-size:23px}
   .tb.mid .tb-n{font-weight:700;font-size:8.5px;letter-spacing:.08em}
   .tb:active{transform:translateY(1px)}
+  .tb.mid:active{transform:translateY(-11px)}
 
   /* ---------------- các khối dùng chung ---------------- */
   h2{font-family:var(--display);font-weight:400;font-size:21px;margin:2px 0 0;color:#eef1f4}
@@ -367,8 +378,11 @@
   .slot.empty{opacity:.75;border-style:dashed}
   .slot-l{font-family:var(--mono);font-size:7px;letter-spacing:.06em;color:var(--faint)}
   .slot-f{font-size:20px} .slot-n{font-size:11px;font-weight:700}
-  .slot .tac{width:100%;font-size:9px;background:#0c0f14;color:var(--ink);border:1px solid var(--line);
-             border-radius:4px;padding:2px;margin-top:3px}
+  /* Muoi tam pixel cua mui ten native cua <select> khong tinh vao font-size, nen o
+     rong 62,8px voi chu 9px van bi cat thanh "Khuâ". Bo padding ngang va thu chu lai
+     mot nac de chu du cho. */
+  .slot .tac{width:100%;font-size:8px;background:#0c0f14;color:var(--ink);border:1px solid var(--line);
+             border-radius:4px;padding:2px 0;margin-top:3px;text-align:center}
   .tac-d{font-size:8px;color:var(--faint);line-height:1.3;margin-top:3px;min-height:20px}
   .slot-acts{display:flex;flex-direction:column;gap:3px;margin-top:4px}
   .slot-acts .b{width:100%;padding:4px 2px;font-size:8px;letter-spacing:.02em}
@@ -415,8 +429,10 @@
   .setline{font-size:10.5px;color:var(--teal);line-height:1.5}
   .filters{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px}
   .inv-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+  /* padding-top chua cho dai sao neo tuyet doi o tren cung; khong chua thi hop emoji
+     19px bat dau ngay y=5 va nam de len hang sao (y 2..11). */
   .inv{position:relative;overflow:hidden;background:#10141a;border:1px solid var(--line);
-        border-radius:8px;padding:4px 2px 3px;text-align:center;cursor:pointer;min-height:56px}
+        border-radius:8px;padding:11px 2px 3px;text-align:center;cursor:pointer;min-height:60px}
   .inv:before{content:'';position:absolute;inset:0;opacity:.16;background:var(--rc,transparent)}
   .inv>*{position:relative}
   .inv.sel{box-shadow:0 0 0 2px var(--gold)}
@@ -500,7 +516,10 @@
   .q-ok{color:var(--good);font-size:16px}
 
   /* ---------------- modal / toast ---------------- */
-  .modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  /* fixed chu khong absolute: .modal nam trong .screen, ma .screen chi la phan giua.
+     De absolute thi thanh tren (Hub / chi tieu) va thanh duoi (nut dev) khong bi lam
+     toi va van bam duoc trong luc popup dang mo. */
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
          background:rgba(4,5,8,.86);padding:14px;z-index:20;overflow-y:auto}
   .modal.show{display:flex}
   .mcard{width:100%;max-width:340px;background:#111620;border:1px solid var(--line2);
@@ -520,15 +539,20 @@
   .pi-m{font-size:12px;color:var(--dim);margin-top:2px}
   .pi-m b{font-family:var(--mono);color:var(--ink)}
   .pi-set{font-size:10px;color:var(--teal);margin-top:2px}
+  /* h3 dung chung co mot vach ke keo dai ra het be ngang. Tieu de trong the popup
+     khong duoc thua cai vach do - no cat ngang giua the. */
   .mcard h3{font-family:var(--display);font-size:19px;letter-spacing:0;text-transform:none;
-            color:#f2e8d2;margin:0 0 8px}
+            color:#f2e8d2;margin:0 0 8px;display:block}
+  .mcard h3:after{content:none}
   .mline{font-size:12px;color:var(--dim);line-height:1.6}
+  .mcard .b{margin-top:9px}
   .mline b{color:var(--ink)}
   .modal.win .mcard{border-color:#3f6b45} .modal.lose .mcard{border-color:#6b3a34}
   .pull-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:8px 0}
   .pcard{background:#0e1218;border:1px solid var(--line);border-radius:4px;padding:4px 2px;text-align:center}
   .pcard.s5{background:linear-gradient(160deg,#3a2c10,#0e1218)}
   .pcard.s4{background:linear-gradient(160deg,#2a1f3a,#0e1218)}
+  .pcard.s3{background:linear-gradient(160deg,#1b232c,#0e1218)}
   .pc-f{font-size:16px} .pc-n{font-size:8.5px;line-height:1.15}
   .pc-s{font-size:8px;color:var(--gold)} .pc-t{font-size:7.5px;color:var(--dim);line-height:1.2}
   .pc-t .new{color:var(--good)}
@@ -642,6 +666,7 @@
     <span><span class="k">Ví</span><span class="v" id="hWallet">$0</span></span>
     <span class="hide-sm"><span class="k">Đang vác</span><span class="v" id="hCarry">—</span></span>
     <span class="grow"></span>
+    <button class="quit-run" id="btnQuitRun" type="button">Bỏ ca</button>
     <span class="hide-sm"><span class="k">Bệ</span><span class="v" id="hPads">0/0</span></span>
     <span class="hide-sm"><span class="k">Hạt giống</span><span class="v" id="hSeed">—</span></span>
   </header>
@@ -694,14 +719,14 @@
 <script src="../../js/save-sync.js"></script>
 
 <!-- BỘ MÁY: dùng CHUNG với games/repo2d. Không có bản sao thứ hai của luật chơi. -->
-<script src="../repo2d/game.js?v=20260827j"></script>
-<script src="../repo2d/bot.js?v=20260827j"></script>
+<script src="../repo2d/game.js?v=20260827k"></script>
+<script src="../repo2d/bot.js?v=20260827k"></script>
 
 <!-- TẦNG META của Biệt Đội: gacha, trang bị, tiến hoá, tổ năm người, kỹ năng -->
-<script src="data/content.js?v=20260827j"></script>
-<script src="js/meta.js?v=20260827j"></script>
-<script src="js/ui.js?v=20260827j"></script>
-<script src="js/squad.js?v=20260827j"></script>
+<script src="data/content.js?v=20260827k"></script>
+<script src="js/meta.js?v=20260827k"></script>
+<script src="js/ui.js?v=20260827k"></script>
+<script src="js/squad.js?v=20260827k"></script>
 
 <script>
   window.__boot && window.__boot();          // bộ máy dựng khung, gắn phím, gắn chạm

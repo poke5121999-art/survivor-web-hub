@@ -90,8 +90,13 @@
   UI.render = function () {
     const wrap = $('#menu');
     if (!wrap) return;
+    // Giu cho cuon CHI KHI ve lai dung man cu. render() cung chay khi DOI man, nen
+    // giu vo dieu kien la do vi tri cuon cua man truoc sang man moi: dang o cuoi
+    // danh sach map roi bam Nhiem Vu thi Nhiem Vu mo ra o day - hang tab va nut
+    // NHAN TAT CA nam ngoai man hinh. Chi thay ro o man ngang, vi o man doc phan
+    // lon man vua khit nen trinh duyet kep ve 0.
     const keep = wrap.querySelector('.stage');
-    const scrollTop = keep ? keep.scrollTop : 0;
+    const scrollTop = (keep && keep.dataset.scr === screenName) ? keep.scrollTop : 0;
     clear(wrap);
 
     wrap.appendChild(topBar());
@@ -114,6 +119,7 @@
     }
 
     wrap.appendChild(tabBar());
+    stage.dataset.scr = screenName;
     if (scrollTop) stage.scrollTop = scrollTop;
   };
 
@@ -891,6 +897,7 @@
 
   // Bảng kết ca — phá đảo map, hoặc bỏ ca giữa chừng.
   UI.showRunEnd = function (how, map, reward) {
+    document.body.classList.remove('in-run');   // tu phong ho: goi tu dau cung phai ve duoc menu
     const ov = $('#modal');
     clear(ov);
     ov.className = 'modal show ' + (how === 'win' ? 'win' : 'lose');
@@ -906,6 +913,19 @@
     }
     card.appendChild(btn('Về sảnh', 'big', () => { ov.className = 'modal'; UI.go('home'); }));
     ov.appendChild(card);
+  };
+
+  // Nut BO CA tren thanh tren. SD.quit() truoc day khong co MOT cho goi nao: vao ca
+  // roi thi duong ra duy nhat la choi het map hoac chet ca to - va ca to chet thi
+  // bo may lai moi "Lam lai tu man 1" ngay tai tang do.
+  const quitBtn = $('#btnQuitRun');
+  if (quitBtn) quitBtn.onclick = () => {
+    if (!SQ.squad || !SQ.squad.run()) return;
+    UI.popup('Bỏ ca giữa chừng?', b => {
+      b.appendChild(el('div', 'mline', 'Ra sớm thì chỉ giữ được phần đã giao lên bệ. Phần đang vác trên tay và trên xe đẩy mất hết.'));
+      b.appendChild(btn('Bỏ ca', 'big', () => { UI.closePopup(); SQ.squad.quit(); }));
+      b.appendChild(btn('Chơi tiếp', 'ghost', () => UI.closePopup()));
+    });
   };
 
   UI.el = el; UI.btn = btn; UI.faceOf = faceOf;

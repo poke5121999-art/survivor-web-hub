@@ -1685,9 +1685,7 @@ function buildLevel(seed){
 
   S.player = S.player ? Object.assign(S.player, { x:S.car.x, y:S.car.y+TILE*2, held:null, hurt:0 }) : newPlayer();
   S.player.x = S.car.x; S.player.y = S.car.y + TILE*2;
-  S.player.hpMax = 100 + S.upg.hp*20;
-  S.player.stamMax = STAM_MAX + S.upg.stam*10;
-  S.player.str = 30 + S.upg.str*10;
+  applyPlayerStats();
   S.player.hp = S.player.hpMax; S.player.stam = S.player.stamMax;
   S.player.held = null; S.player.aimSlot = -1; S.player.aimId = -1;
   S.player.pushing = false; S.player.floatT = 0; S.player.shieldT = 0;
@@ -2230,7 +2228,10 @@ function playerSpeed(p){
   // A wrong-side grab still costs, but as a flat multiplier: the player chose the handle they
   // grabbed, and letting go and taking the front is always available.
   const s2 = (p.pushing && S.cart && S.cart.mode === 'weak') ? base * CART_WEAK_SPEED_MUL : base;
-  return p.slowT > 0 ? s2 * 0.55 : s2;
+  const s3 = p.slowT > 0 ? s2 * 0.55 : s2;
+  // speedScale: chi so spd cua xac + giay + ky nang tang toc. Truong nay da duoc khai
+  // o makeActor tu dau nhung chua noi nao doc - day la noi no co tac dung.
+  return s3 * (p.speedScale || 1) * ((p.hasteT || 0) > 0 ? HASTE_MUL : 1);
 }
 function turnRate(p){
   // The only place a loaded cart is still felt: it swings wide.
@@ -2242,7 +2243,8 @@ function coneRadius(p){
   if (p.blindT > 0) return 0;          // AEngel took the torch; only the pool at your feet is left
   // A colleague's torch is a worklight, not your upgraded one.
   if (p.mate) return CONE_R * 0.62;
-  const base = CONE_R * (1 + S.upg.light*0.16);
+  // sightMul: he so tam nhin cua lop ky nang (Thau Thi cho ca to nhin xa gap ruoi).
+  const base = CONE_R * (1 + S.upg.light*0.16) * (p.sightMul || 1);
   // Hand weight only — a cart never takes light away.
   return base * Math.max(0.42, 1 - handWeight(p) / Math.max(1, p.str*1.6));
 }
@@ -2479,6 +2481,7 @@ function recomputePad(pad){
 function makeNoise(x, y, radius, strength){
   for (const m of S.monsters){
     if (m.sleep > 0) continue;
+    if ((m.deafT || 0) > 0) continue;    // vua bi Choi Loa thi may giay sau con u tai
     if (Math.hypot(m.x-x, m.y-y) > radius) continue;
     m.tx = x; m.ty = y;
     m.alert = Math.max(m.alert, strength);
@@ -2517,6 +2520,7 @@ function foeTarget(m){
   if (!live.length) return S.player;
   let seen = null, sd = 1e9;
   for (const a of live){
+    if ((a.invisT || 0) > 0) continue;   // tang hinh: khong ai nhin thay, khong ai duoi
     const dist = Math.hypot(a.x-m.x, a.y-m.y);
     if (d.sight > 0 && dist < d.sight*TILE && losClear(m.x, m.y, a.x, a.y)){
       const off = Math.abs(angDiff(Math.atan2(a.y-m.y, a.x-m.x), m.dir));
@@ -2756,6 +2760,9 @@ function stepMonsters(dt){
       if (Math.abs(m.ky) < 2) m.ky = 0;
     }
     m.shoveCd = Math.max(0, (m.shoveCd || 0) - dt);
+    m.slowT   = Math.max(0, (m.slowT || 0) - dt);
+    m.vulnT   = Math.max(0, (m.vulnT || 0) - dt);
+    m.deafT   = Math.max(0, (m.deafT || 0) - dt);
     if (m.sleep > 0){
       m.sleep -= dt; m.alert = 0; m.state = 'sleep';
       continue;                       // tranquillised: it neither hunts nor hits
@@ -2836,7 +2843,10 @@ function stepMonsters(dt){
     }
     const ax = m.tx-m.x, ay = m.ty-m.y, am = Math.hypot(ax,ay) || 1;
     m.dir = Math.atan2(ay,ax);
-    const spd = m.speed * (m.state === 'chase' ? 1.25 : m.state === 'hunt' ? 1.0 : 0.7);
+    // slowT: Dong Bang lam quai le chan. Day la cho DUY NHAT toc do quai duoc quyet,
+    // nen mot truong "slow" gan tu ngoai vao ma khong sua dong nay la truong chet.
+    const slowMul = (m.slowT || 0) > 0 ? FREEZE_SLOW_MUL : 1;
+    const spd = m.speed * slowMul * (m.state === 'chase' ? 1.25 : m.state === 'hunt' ? 1.0 : 0.7);
     // Never step PAST the thing being walked to, and stop a body short of a live target.
     const standOff = m.state === 'chase' ? FOE_STANDOFF : 0;
     const step = Math.max(0, Math.min(spd*dt, am - standOff));
@@ -2845,7 +2855,11 @@ function stepMonsters(dt){
     if (sep){ mx += sep.x*FOE_SEP_PUSH*dt; my += sep.y*FOE_SEP_PUSH*dt; }
     if (mx || my) moveEnt(m, mx, my, 9);
 
-    if (dist < 22 && m.hit <= 0 && !S.dead && !p.down && m.alert > 0){
+    // Tang hinh chan CA CU DANH, khong chi chan viec nhin thay. foeTarget() bo qua
+    // nguoi dang tang hinh, nhung mot con dang o giua co CHASE thi van giu m.target
+    // cu va van vung tay trong tam 22px - do thuc: 30 mau mot giay ruoi vao mot
+    // nguoi dang "vo hinh". Cai minh khong thay thi khong danh trung duoc.
+    if (dist < 22 && m.hit <= 0 && !S.dead && !p.down && m.alert > 0 && !((p.invisT || 0) > 0)){
       m.hit = d.cd || 0.9;
       hurtActor(p, m.dmg, m.type, m.x, m.y);
       // a monster hitting you also hits what you are carrying
@@ -3054,6 +3068,9 @@ function stepRook(m, dt, dist){
 
 function hurtPlayer(n, src, fromX, fromY){
   const p = S.player;
+  // hurtActor da chan, nhung hurtPlayer con duoc goi THANG o nhieu cho (bom, nga,
+  // Ke Huc), nen la chan phai dung o ca hai cua chu khong chi mot.
+  if ((p.invulnT || 0) > 0) return;
   (S.hurtLog = S.hurtLog || []).push({ t:+S.time.toFixed(1), n, src: src || '?', hp: Math.round(p.hp - n) });
   p.hp -= n; p.hurt = 0.45;
   // Away from whatever hit you. Decays like the monsters' own knockback does, and moves through
@@ -3071,7 +3088,15 @@ function hurtPlayer(n, src, fromX, fromY){
   SFX.hit(n);
   if (p.hp <= 0){ p.hp = 0; SFX.thud(); die(); }
 }
+// Cua DUY NHAT cho sat thuong len quai, de he so "dang bi dong bang thi an them 50%"
+// chi phai viet mot lan thay vi rai o ba cho roi quen mat mot cho.
+function foeDamage(m, n){
+  if (!m || m.hp <= 0) return false;
+  m.hp -= n * ((m.vulnT || 0) > 0 ? FREEZE_VULN_MUL : 1);
+  return m.hp <= 0;
+}
 function killMonster(m){
+  S.kills = (S.kills || 0) + 1;
   const i = S.monsters.indexOf(m);
   if (i >= 0) S.monsters.splice(i,1);
   if (m.type === 'bomber'){
@@ -3099,6 +3124,9 @@ function killMonster(m){
 //   khi con quái đang chạy tới. Game bắn/MOBA di động không bắt ai làm thế: chạm là
 //   trúng, giữ mới là ngắm tay. Trước bản này, một cú chạm không kéo bắn theo p.dir —
 //   tức là theo hướng người đang QUAY, gần như không bao giờ trùng hướng con quái.
+const FREEZE_SLOW_MUL = 0.35;   // Dong Bang: quai le chan con hon mot phan ba
+const FREEZE_VULN_MUL = 1.5;    // ...va an them 50% sat thuong khi dang dong cung
+const HASTE_MUL       = 1.3;    // Gong: +30% toc do nhu mo ta ky nang hua
 const AUTO_AIM_RANGE = TILE * 11;      // xa hơn thế thì đạn cũng chưa chắc tới
 function autoAimAngle(p, kind, fallback){
   // Chỉ mấy món BẮN/NÉM mới cần ngắm; băng, keo, bình nhẹ thì hướng nào cũng vậy.
@@ -3207,7 +3235,7 @@ function stepProjectiles(dt){
           m.sleep = 12; m.alert = 0; m.state = 'sleep';
           toast(MONSTERS[m.type].name + ' ngủ rồi');
         } else {
-          m.hp -= 25; m.alert = 3;
+          foeDamage(m, 25); m.alert = 3;
           if (m.hp <= 0) killMonster(m);
         }
         S.bullets.splice(i,1);
@@ -3227,7 +3255,7 @@ function stepProjectiles(dt){
       b.done = true;
       for (const m of S.monsters.slice()){
         const d = Math.hypot(m.x-b.x, m.y-b.y);
-        if (d < b.r){ m.hp -= 90 * (1 - d/b.r); if (m.hp <= 0) killMonster(m); }
+        if (d < b.r){ if (foeDamage(m, 90 * (1 - d/b.r))) killMonster(m); }
       }
       if (S.mirror){
         for (const pane of [S.mirror.a, S.mirror.b]){
@@ -3428,6 +3456,9 @@ function die(){
 // gives the quota weight; if a loss only cost one level nobody would fear it.
 function resetRun(){
   S.level = 1; S.wallet = 0;
+  // So cong CA CA VAN (khong phai tung tang): lop ngoai can no de tinh thuong va
+  // dem nhiem vu. Dat o day chu khong o buildLevel vi buildLevel chay moi tang.
+  S.kills = 0; S.revives = 0;
   S.upg = newUpgrades();
   S.upgSpawned = {}; S.gearBought = {};
   S.stash = []; S.offer = null;
@@ -4165,6 +4196,9 @@ const HOOKS = {
   onLevelClear: null,   // ()  -> true nếu lớp ngoài tự lo phần sau (chặn vào trạm)
   onPayout: null,       // (soTien, laBeCuoi) -> void, mỗi lần giao xong một bệ
   levelIndex: null,     // ()  -> số, ép độ khó của tầng sắp dựng (map hữu hạn tự tính)
+  onCrewWiped: null,    // ()  -> true nếu lớp ngoài tự lo phần thua (cả tổ gục)
+  menuMode: null,       // ()  -> true khi đang ở menu ngoài ca: khoá bàn phím của bộ máy
+  onTick: null,         // (dt) -> hiệu ứng kéo dài của lớp ngoài, chạy cuối mỗi bước
   skill: null           // { label(), ready(), cool(), use() } — nút kỹ năng trong HUD
 };
 // Nhận cả số lẫn HÀM: bản Biệt Đội có tổ đổi theo từng ván (quay được thêm xác thì
@@ -4214,6 +4248,7 @@ function spawnCrew(){
 // call sites and every test already know that name.
 function hurtActor(a, n, src, fromX, fromY){
   if (!a || a.down) return;
+  if ((a.invulnT || 0) > 0) return;      // "khong the chet" cua Thien Than / Buoc Hut
   if (a === S.player){ hurtPlayer(n, src, fromX, fromY); return; }
   a.hp -= n; a.hurt = 0.45;
   if (fromX !== undefined){
@@ -4244,6 +4279,22 @@ function makeHead(a){
   return h;
 }
 
+// Go cai dau cua mot nguoi ra khoi the gioi, du no dang nam dau: tren san, trong tay
+// dong doi, tren xe day, hay dang dung tren be. reviveFromPad da lam viec nay cho
+// duong ve chinh thuc; moi duong do day khac (Keo Ve, Thien Than) cung phai lam.
+function clearHeadOf(a){
+  const who = (a === S.player) ? -1 : a.id;
+  for (const l of S.loot){
+    if (!l.isHead || l.gone || l.who !== who) continue;
+    l.gone = true;
+    for (const b of crew()) if (b && b.held === l) b.held = null;
+    if (l.inCart && S.cart){ const i = S.cart.items.indexOf(l); if (i >= 0) S.cart.items.splice(i,1); }
+    if (l.onPad){ const P = l.onPad; const i = P.placed.indexOf(l); if (i >= 0) P.placed.splice(i,1);
+                  l.onPad = null; recomputePad(P); }
+    l.inCart = false;
+  }
+}
+
 function downActor(a){
   if (!a || a.down) return;
   if (a.held) dropHeld(a);
@@ -4265,6 +4316,12 @@ function downActor(a){
 
 function crewWiped(){
   if (S.dead) return;
+  // Ban Biet Doi tu lo phan thua: ra khoi ca, ve menu, tinh cong. Tra true thi bo may
+  // khong dung bang "Lam lai tu man 1" nua.
+  // ROOT-CAUSE: khong co moc nay thi nut do chay resetRun() roi startLevel(), ma
+  //   startLevel() lai bi HOOKS.levelIndex() ep ve DUNG TANG VUA CHET - thua khong
+  //   mat gi, cay lai duoc vo han ngay tai cho.
+  if (HOOKS.onCrewWiped && HOOKS.onCrewWiped() === true){ S.dead = true; S.running = false; return; }
   S.dead = true; S.running = false;
   showVeil('Ca trực kết thúc',
     'Cả tổ gục ở màn ' + S.level + '. Còn một người đứng là còn cứu được — hết cả tổ thì mất cả ca.',
@@ -4283,6 +4340,7 @@ function reviveFromPad(pad){
     const i = pad.placed.indexOf(l); if (i >= 0) pad.placed.splice(i, 1);
     if (!a || !a.down) continue;
     a.down = false; a.hp = REVIVE_HP; a.hurt = 0;
+    S.revives = (S.revives || 0) + 1;
     if (a === S.player) S.spectate = -1;
     a.x = pad.x + (Math.random()-0.5)*TILE; a.y = pad.y + (Math.random()-0.5)*TILE;
     a.kx = a.ky = 0;
@@ -4681,6 +4739,10 @@ const CV = () => document.getElementById('game');
 function setupInput(){
   const cv = CV();
   addEventListener('keydown', e => {
+    // O MENU thi ban phim cua bo may phai cam. Ban Biet Doi dung ngoai ca voi menu
+    // phu len tren; khong chan thi bam `r` o man chon map la dung luon mot can nha
+    // roi cho no chay sau lung nguoi choi.
+    if (HOOKS.menuMode && HOOKS.menuMode()) return;
     const k = e.key.toLowerCase();
     if (['w','a','s','d','e','f','r','1','2','3','shift','tab',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
     if (skipCut()) return;
@@ -4706,45 +4768,40 @@ function setupInput(){
     claimPointer(e.pointerId);
     const p = canvasPoint(e);
     const hud = hudLayout();
-    // The two left-hand buttons are real touch targets, not decoration.
-    // WHY: they were drawn but never hit-tested, so on a phone — the platform this design
-    // is for — the grab button did nothing and a touch there was read as a movement stick.
-    // ROOT-CAUSE: pointerdown split the screen in half before testing any button.
-    // SEE: doc C2-4, which moved the grab button to the left thumb precisely so it is used.
-    if (S.player && Math.hypot(p.x-hud.grab.x, p.y-hud.grab.y) < hud.grab.r*1.25){
-      pickUp(S.player); return;
-    }
-    if (S.player && !S.shopMode &&
-        Math.hypot(p.x-hud.sprint.x, p.y-hud.sprint.y) < hud.sprint.r*1.25){
-      toggleSprint(); return;
-    }
-    if (hud.skill && S.player && !S.shopMode &&
-        Math.hypot(p.x-hud.skill.x, p.y-hud.skill.y) < hud.skill.r*1.25){
+    // ------------------------------------------------------------------ nút
+    // NÚT GẦN NHẤT THẮNG, không phải nút đứng đầu danh sách.
+    // ROOT-CAUSE của cách cũ: đây là một chuỗi `if ... return` nên khi hai vùng bắt
+    //   chạm chồng nhau, cú chạm luôn rơi vào nút được HỎI TRƯỚC — bất kể ngón tay
+    //   đặt gần nút nào hơn. Đo thật ở khung dọc bản Biệt Đội: nút kỹ năng cách nút
+    //   Tủ đồ 9px trong khi tổng hai bán kính là 53px, và vì kỹ năng đứng trước nên
+    //   NGƯỜI CHƠI KHÔNG MỞ ĐƯỢC TỦ ĐỒ. Đổi thứ tự chỉ đẩy lỗi sang nút khác; cái
+    //   phải sửa là luật chọn.
+    // Vùng bắt chạm là r*1,25 (ô đồ rộng hơn: 1,6 vì chúng còn là cần ngắm), và
+    // khoảng cách được CHIA CHO bán kính trước khi so, nên "gần" nghĩa là gần theo
+    // tỉ lệ của chính nút đó — nút to không hút mất cú chạm của nút nhỏ bên cạnh.
+    const btns = [];
+    const add = (o, mul, ok, run) => {
+      if (!o || !ok) return;
+      const d = Math.hypot(p.x-o.x, p.y-o.y) / (o.r*mul);
+      if (d < 1) btns.push({ d: d, run: run });
+    };
+    add(hud.grab,   1.25, !!S.player,                       () => pickUp(S.player));
+    add(hud.sprint, 1.25, S.player && !S.shopMode,          () => toggleSprint());
+    add(hud.stash,  1.25, S.player && nearTruck(S.player),  () => toggleStash());
+    add(hud.test,   1.25, S.shopMode && !!S.player,         () => {
+      if (!testHeld(S.player)) toast('Cầm một khẩu súng lên rồi bấm thử.');
+    });
+    add(hud.skill,  1.25, hud.skill && S.player && !S.shopMode, () => {
       if (HOOKS.skill.ready && !HOOKS.skill.ready()) { toast('Kỹ năng chưa hồi xong'); return; }
       HOOKS.skill.use();
-      return;
-    }
-    if (S.player && nearTruck(S.player) &&
-        Math.hypot(p.x-hud.stash.x, p.y-hud.stash.y) < hud.stash.r*1.25){
-      toggleStash(); return;
-    }
-    if (S.shopMode && S.player &&
-        Math.hypot(p.x-hud.test.x, p.y-hud.test.y) < hud.test.r*1.25){
-      if (!testHeld(S.player)) toast('Cầm một khẩu súng lên rồi bấm thử.');
-      return;
-    }
-    // item slots first: a press that STARTS on a slot is aiming, not looking (doc C2-5)
-    // WHY the guard: hudLayout returns NO slots in the station — they are a house control — and
-    // this loop read hud.slots[i] anyway. The throw happened before the stick could be created, so
-    // in the station every touch died on the way in and the player could not move at all. A
-    // keyboard still worked, which is exactly why it survived: the desktop path never runs this.
-    // ROOT-CAUSE: a control list that is legitimately empty in one mode was iterated by a fixed
-    // count instead of by its own length.
+    });
+    // Ba ô đồ: một cú chạm BẮT ĐẦU trên ô đồ là đang ngắm, không phải đang nhìn
+    // (doc C2-5). Danh sách này rỗng hẳn khi ở trạm dịch vụ — chúng là nút của
+    // căn nhà — nên phải duyệt theo độ dài của nó chứ không theo một con số cứng.
     // SEE: docs/proposals/repo-2d-topdown.md F14-1.
-    for (let i=0;i<hud.slots.length;i++){
-      const s = hud.slots[i];
-      if (!s) continue;
-      if (Math.hypot(p.x-s.x, p.y-s.y) < s.r*1.6){
+    for (let i = 0; i < hud.slots.length; i++){
+      const sl = hud.slots[i];
+      add(sl, 1.6, !!S.player, () => {
         const it = S.player.inv[i];
         const def = it && GEAR_BY_KEY[it.kind];
         if (!it || it.uses <= 0) return;
@@ -4754,8 +4811,12 @@ function setupInput(){
         S.player.aimSlot = i; S.player.aimId = e.pointerId;
         S.player.aimX = p.x; S.player.aimY = p.y;
         stickR = null;
-        return;
-      }
+      });
+    }
+    if (btns.length){
+      btns.sort((x, y) => x.d - y.d);
+      btns[0].run();
+      return;
     }
     // A stick is only born in the thumb band. Above it the screen is buttons and world, and a
     // touch that misses a button there does nothing rather than yanking the character sideways.
@@ -5002,9 +5063,14 @@ function hudLayout(){
   // found it. Centre-bottom, just above the thumb band: between the two sticks, clear of every
   // button, and squarely in the middle of where the eyes already are.
   const heart = { x: w/2, y: h - 319*K, r: Math.min(w,h)*0.075 };
-  // Nút kỹ năng chỉ có ở bản Biệt Đội. Nó là nút bấm NHIỀU NHẤT sau nhặt đồ nên
-  // ngồi ngay trên nút nhặt, cùng cột, cùng ngón.
-  const skill = HOOKS.skill ? { x: grab.x, y: grab.y - sr*3.2, r: sr*1.45 } : null;
+  // Nút kỹ năng chỉ có ở bản Biệt Đội: ngồi TRÊN vòng cung ba ô đồ, lệch sang phải
+  // khỏi cột nhặt/tủ đồ và khỏi trái tim.
+  // ROOT-CAUSE của chỗ cũ (grab.y - sr*3.2): nó rơi vào y = h - 173*K trong khi Tủ
+  //   đồ và Bắn thử nằm ở h - 227*K — cách nhau 9px trong khi tổng hai bán kính là
+  //   53px. Và vì vòng bắt chạm hỏi hud.skill TRƯỚC hud.stash, nút kỹ năng nuốt luôn
+  //   cú chạm: ở màn dọc, bản Biệt Đội KHÔNG mở được tủ đồ. Thứ tự hỏi giờ cũng đã
+  //   đổi cho tủ đồ đứng trước, nên kể cả có đè cũng không cướp được nữa.
+  const skill = HOOKS.skill ? { x: w - 120*K, y: h - 265*K, r: sr*1.45 } : null;
   return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: Math.min(stash.y - stash.r, heart.y - heart.r) - 14 };
 }
@@ -5052,12 +5118,22 @@ function hudLayoutLandscape(w, h){
     Object.assign(at(100, sr*1.10), { i: 2 })
   ];
   const rowY = h * 0.37;                  // trên vòng cung, dưới bản đồ nhỏ
-  const rx   = n => w - pad - sr*1.15 - n * sr*2.65;
-  const grab   = { x: rx(0), y: rowY, r: sr*1.15 };   // nhặt: bấm nhiều nhất -> sát lề nhất
-  const sprint = { x: rx(1), y: rowY, r: sr*1.15 };
+  // Giãn từ 2,65 lên 3,0 lần bán kính nút: vùng BẮT CHẠM là r*1,25 chứ không phải r,
+  // nên ở mức 2,65 hai nút cạnh nhau đã chồng vùng chạm 6px — nút bên phải luôn
+  // thắng và nút bên trái thỉnh thoảng bấm không ăn.
+  const rx   = n => w - pad - sr*1.15 - n * sr*3.0;
+  // Nút kỹ năng (chỉ bản Biệt Đội) đứng ĐẦU HÀNG, sát lề phải nhất, vì sau nút nhặt
+  // thì nó là nút bấm nhiều nhất; ba nút kia lùi sang trái một ô.
+  // ROOT-CAUSE của chỗ cũ, at(60°) trên cùng vòng cung với ba ô đồ: tâm cần gạt phải
+  //   chỉ cách lề phải 76px, nên bất cứ điểm nào của vòng cung có cos dương đều lòi
+  //   ra ngoài khung — đo được 11px hình vẽ và 20px vùng chạm nằm ngoài màn hình.
+  const n0 = HOOKS.skill ? 1 : 0;
+  const skill  = HOOKS.skill ? { x: rx(0), y: rowY, r: sr*1.25 } : null;
+  const grab   = { x: rx(n0),     y: rowY, r: sr*1.15 };
+  const sprint = { x: rx(n0 + 1), y: rowY, r: sr*1.15 };
   // Tủ đồ và Bắn thử loại trừ nhau nên dùng chung ô ngoài cùng bên trái của hàng.
-  const stash  = { x: rx(2), y: rowY, r: sr*1.15 };
-  const test   = { x: rx(2), y: rowY, r: sr*1.20 };
+  const stash  = { x: rx(n0 + 2), y: rowY, r: sr*1.15 };
+  const test   = { x: rx(n0 + 2), y: rowY, r: sr*1.20 };
   // Chỗ bỏ món đang giơ: mép TRÊN giữa màn — xa nhất khỏi ngón vừa giơ nó lên,
   // và không đụng thanh máu (trên trái) lẫn bản đồ nhỏ (trên phải).
   const cancel = { x: w * 0.5, y: pad + sr*1.7, r: sr*1.7 };
@@ -5066,7 +5142,7 @@ function hudLayoutLandscape(w, h){
   const heart = { x: w * 0.5, y: h - pad - h*0.075, r: h*0.062 };
   // Nút kỹ năng nối vào ĐẦU TRONG của vòng cung, sát cần phải nhất — nó là nút bấm
   // nhiều nhất của bản Biệt Đội nên phải nằm chỗ ngón cái với gần nhất.
-  const skill = HOOKS.skill ? Object.assign(at(60, sr*1.45), {}) : null;
+
   return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: heart.y - heart.r - 12 };
 }
@@ -5077,7 +5153,15 @@ function nearTruck(p){ return Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*3.6; }
 // ============================================================ step
 function step(dt){
   S.time += dt;
-  S.ticks = (S.ticks || 0) + 1;   // the fixed-step counter; a render frame may run 0, 1 or 2
+  S.ticks = (S.ticks || 0) + 1;
+  // Bo dem cua ky nang, cho CA TO chu khong rieng nguoi choi: bot cung duoc Thien
+  // Than che, cung duoc Tang Hinh giau.
+  for (const a of crew()){
+    if (!a) continue;
+    a.invisT  = Math.max(0, (a.invisT  || 0) - dt);
+    a.invulnT = Math.max(0, (a.invulnT || 0) - dt);
+    a.hasteT  = Math.max(0, (a.hasteT  || 0) - dt);
+  }   // the fixed-step counter; a render frame may run 0, 1 or 2
   S.messageT = Math.max(0, S.messageT - dt);
   const p = S.player;
   if (!p) return;
@@ -5252,6 +5336,10 @@ function step(dt){
     if (lootJustDestroyed){ lootJustDestroyed = false; checkShiftLost(); }
 
     markExplored();
+    // Hieu ung KEO DAI cua lop ky nang (vong hoi, long sat, moi nhu, thau thi) chay
+    // SAU khi quai da di xong trong khung nay, de mot cai long chan duoc con quai
+    // vua buoc vao chu khong cham mot nhip.
+    if (HOOKS.onTick) HOOKS.onTick(dt);
   }
 
   // The player is ALWAYS in the middle of the frame, including at the edges of the map. The camera
@@ -7026,20 +7114,31 @@ function rollShop(){
 }
 function upgradePrice(u){ return Math.round(u.base * Math.pow(1.6, S.upg[u.key])); }
 
+// Chi so nguoi choi = NEN cua lop meta CONG phan nang cap mua trong ca.
+// ROOT-CAUSE cua ban dau: hook chi duoc doc trong applyUpgrades(), ma ham do chi chay
+//   dung MOT cho - quay thu ngan cua tram dich vu. buildLevel() thi moi tang dat lai
+//   hpMax/str tu S.upg va khong hoi hook. Ket qua: xac nguoi choi luon la 100 mau /
+//   30 suc bat ke cap, trang bi, tien hoa - yeu nhat trong chinh to cua minh, trong
+//   khi bon con bot nhan du chi so meta.
+// Va no GHI DE chu khong cong, nen nang cap mua trong ca bi xoa sach ngay sau do.
+// Toc do di vao bang p.speedScale vi playerSpeed() tinh tu hang PLAYER_BASE_SPEED,
+// khong bao gio doc p.speed - gan p.speed la gan vao hu khong.
+function applyPlayerStats(){
+  const p = S.player;
+  if (!p) return;
+  const info = (HOOKS.playerInfo && HOOKS.playerInfo()) || null;
+  p.hpMax      = (info && info.hp  ? info.hp  : 100) + S.upg.hp*20;
+  p.str        = (info && info.str ? info.str : 30)  + S.upg.str*10;
+  p.stamMax    = STAM_MAX + S.upg.stam*10;
+  p.speedScale = info && info.speed ? info.speed / PLAYER_BASE_SPEED : 1;
+  if (info && info.charId) p.charId = info.charId;
+  if (p.hp > p.hpMax) p.hp = p.hpMax;
+}
 function applyUpgrades(){
   const p = S.player;
   if (!p) return;
-  p.hpMax = 100 + S.upg.hp*20;   p.hp = p.hpMax;          // "+20 máu tối đa, và hồi đầy ngay"
-  p.stamMax = STAM_MAX + S.upg.stam*10; p.stam = p.stamMax;
-  p.str = 30 + S.upg.str*10;
-  // Lớp meta cộng tiếp lên trên phần nâng cấp trong run: cấp xác, trang bị, tiến hoá.
-  const info = HOOKS.playerInfo && HOOKS.playerInfo();
-  if (info){
-    if (info.hp)    { p.hpMax = info.hp; p.hp = p.hpMax; }
-    if (info.str)   p.str = info.str;
-    if (info.speed) p.speed = info.speed;
-    if (info.charId) p.charId = info.charId;
-  }
+  applyPlayerStats();
+  p.hp = p.hpMax; p.stam = p.stamMax;          // "+20 mau toi da, va hoi day ngay"
 }
 
 // ---------- the truck locker
@@ -7298,14 +7397,52 @@ window.REPO = {
   toast, makeNoise, hitsSolid, killMonster,
   // Mấy hàm dưới đây là những nguyên thuỷ mà tầng kỹ năng của bản Biệt Đội cần.
   // Đặt tên theo đúng việc chúng làm, thay vì bắt lớp ngoài chọc vào ruột bộ máy.
-  hurtFoe(m, n){ if (!m || m.hp <= 0) return false; m.hp -= n; m.alert = 3;
+  hurtFoe(m, n){ if (!m || m.hp <= 0) return false; foeDamage(m, n); m.alert = 3;
                  if (m.hp <= 0){ killMonster(m); return true; } return false; },
-  reviveActor(a){ if (!a || !a.down) return false;
-                  a.down = false; a.hp = REVIVE_HP; a.hurt = 0;
-                  if (a === S.player) S.spectate = -1; return true; },
+  reviveActor(a){
+    if (!a || !a.down) return false;
+    // Do day thi CAI DAU phai bien mat khoi san, y nhu reviveFromPad lam.
+    // ROOT-CAUSE: ban dau chi go co `down`. Dau van nam trong S.loot, ma
+    //   mateChooseJob() xep dau la uu tien so MOT - nen sau mot lan Keo Ve hoac
+    //   Thien Than, ca to bot bo chi tieu di khuan dau cua nguoi dang dung canh minh.
+    clearHeadOf(a);
+    a.down = false; a.hp = REVIVE_HP; a.hurt = 0;
+    S.revives = (S.revives || 0) + 1;
+    if (a === S.player) S.spectate = -1;
+    return true;
+  },
+  // Cac cong tac cua BO MAY cho lop ky nang dung. Truoc day squad.js tu gan m.stun /
+  // m.slow / p.invisT - toan truong bia, khong ai doc. Hieu ung phai do chinh bo may
+  // dinh nghia thi moi co that.
+  foeSleep(m, t){ if (!m || m.hp <= 0) return false;
+                  m.sleep = Math.max(m.sleep || 0, t); m.alert = 0; m.state = 'sleep';
+                  m.tx = null; m.ty = null; return true; },
+  foeSlow(m, t){ if (!m || m.hp <= 0) return false;
+                 m.slowT = Math.max(m.slowT || 0, t); m.vulnT = Math.max(m.vulnT || 0, t);
+                 return true; },
+  foeDeafen(m, t){ if (!m || m.hp <= 0) return false;
+                   m.deafT = Math.max(m.deafT || 0, t); return true; },
+  foeKnock(m, ang, force){ if (!m || m.hp <= 0) return false;
+                           m.kx = (m.kx || 0) + Math.cos(ang) * force;
+                           m.ky = (m.ky || 0) + Math.sin(ang) * force; return true; },
+  deliverLoot(l, pad){
+    // Giao mot mon LEN BE that su: vao danh sach cua be va tinh lai gia tri.
+    // Chi doi toa do mon do (nhu ban dau cua Keo Do lam) thi chi tieu khong nhuc nhich.
+    if (!l || l.gone || l.onPad) return false;
+    const P = pad || S.pads[S.padIndex];
+    if (!P) return false;
+    if (l.inCart){ const i = S.cart ? S.cart.items.indexOf(l) : -1; if (i >= 0) S.cart.items.splice(i,1); l.inCart = false; }
+    for (const a of crew()) if (a && a.held === l) a.held = null;
+    l.x = P.x + (Math.random()-0.5) * TILE * 0.8;
+    l.y = P.y + (Math.random()-0.5) * TILE * 0.8;
+    l.onPad = P; P.placed.push(l); recomputePad(P);
+    return true;
+  },
   breakDoorAt(d){ return d ? breakDoor(d, 'skill') : false; },
   revealAll(){ for (let i = 0; i < S.explored.length; i++) S.explored[i] = 1;
                prerenderMinimap(); },
+  padOpen(){ return S.pads[S.padIndex] || null; },
+  moveFoe(m, dx, dy){ if (m) moveEnt(m, dx, dy, 9); },
   killMate(i){ const a = (S.mates||[])[i]; if (a) downActor(a); return !!a; },
   killPlayer(){ downActor(S.player); return true; },
   toggleSprint,
