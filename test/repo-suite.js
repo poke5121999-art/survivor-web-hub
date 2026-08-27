@@ -398,7 +398,7 @@ async function meleeSuite(b) {
 
   const hut = await p.evaluate(() => {
     const S = REPO.S, pl = S.player;
-    S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0;
+    S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.stam = pl.stamMax;
     const sau = REPO.spawnFoe('listen', -30, 0);     // ngay SAU lưng
     const xa  = REPO.spawnFoe('listen', 90, 0);      // trước mặt nhưng ngoài tầm
     sau.hp = 400; xa.hp = 400;
@@ -421,7 +421,7 @@ async function meleeSuite(b) {
 
   await p.evaluate(() => {
     const S = REPO.S, pl = S.player;
-    S.monsters.length = 0; pl.swingCd = 0;
+    S.monsters.length = 0; pl.swingCd = 0; pl.stam = pl.stamMax;
     pl.dir = Math.PI;                                 // đang quay LƯNG lại phía nó
     const m = REPO.spawnFoe('listen', 34, 0);         // nó ở bên phải mình
     // Ghim nó đứng yên: thế giới vẫn đang chạy, và một con quái đi lang thang trong
@@ -442,7 +442,7 @@ async function meleeSuite(b) {
   // KÉO cần gạt phải thì vẫn là NHÌN, không được thành đòn đánh.
   await p.evaluate(() => {
     const S = REPO.S, pl = S.player;
-    S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0;
+    S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.stam = pl.stamMax;
     const m = REPO.spawnFoe('listen', 34, 0); m.hp = 400;
   });
   await p.mouse.move(canGat.x, canGat.y);
@@ -461,7 +461,7 @@ async function meleeSuite(b) {
   const suc = await p.evaluate(() => {
     const S = REPO.S, pl = S.player, out = {};
     [30, 53].forEach(v => {
-      S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.str = v;
+      S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.str = v; pl.stam = pl.stamMax;
       const m = REPO.spawnFoe('listen', 30, 0); m.hp = 400;
       REPO.meleeSwing(pl, null);
       out[v] = 400 - m.hp;
@@ -471,6 +471,64 @@ async function meleeSuite(b) {
   });
   check('xác khoẻ hơn thì đập đau hơn', suc[53] > suc[30],
     'sức 30 → ' + suc[30] + ' · sức 53 → ' + suc[53]);
+
+  // ---- vung đèn pin TỐN THỂ LỰC ----
+  const tl = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.dir = 0; pl.str = 30;
+    pl.stam = pl.stamMax; pl.swingCd = 0;
+    const truoc = pl.stam;
+    REPO.meleeSwing(pl, null);
+    return { truoc: truoc, sau: pl.stam, gia: REPO.MELEE.STAM };
+  });
+  check('vung đèn pin thì hao thể lực', tl.truoc - tl.sau === tl.gia,
+    Math.round(tl.truoc) + ' -> ' + Math.round(tl.sau) + ' (giá ' + tl.gia + ')');
+
+  const duoi = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.dir = 0; pl.str = 30;
+    // đầy thể lực
+    pl.stam = pl.stamMax; pl.swingCd = 0;
+    let m = REPO.spawnFoe('listen', 30, 0); m.hp = 400;
+    REPO.meleeSwing(pl, null);
+    const khoe = { mat: 400 - m.hp, cd: pl.swingCd };
+    // cạn thể lực
+    S.monsters.length = 0; pl.stam = 0; pl.swingCd = 0;
+    m = REPO.spawnFoe('listen', 30, 0); m.hp = 400;
+    REPO.meleeSwing(pl, null);
+    return { khoe: khoe, met: { mat: 400 - m.hp, cd: pl.swingCd } };
+  });
+  check('cạn thể lực thì VẪN đánh được, không bị cấm',
+    duoi.met.mat > 0, duoi.met.mat + ' sát thương');
+  check('nhưng đánh nhẹ hẳn', duoi.met.mat < duoi.khoe.mat,
+    duoi.khoe.mat + ' -> ' + duoi.met.mat);
+  check('và lâu tay hẳn', duoi.met.cd > duoi.khoe.cd + 0.1,
+    duoi.khoe.cd.toFixed(2) + 's -> ' + duoi.met.cd.toFixed(2) + 's');
+
+  // ---- phang được vào GƯƠNG ----
+  const guong = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0;
+    S.mirror = null;
+    REPO.spawnMirrors();
+    for (let i = 0; i < 40 && !S.mirror; i++) await new Promise(r => setTimeout(r, 50));
+    if (!S.mirror) return { bo: true };
+    const pane = S.mirror.a;
+    const goc = pane.hp;
+    let nhat = 0;
+    for (let i = 0; i < 8 && pane.hp > 0 && S.mirror; i++){
+      pl.x = pane.x - 26; pl.y = pane.y; pl.dir = 0;
+      pl.swingCd = 0; pl.stam = pl.stamMax;
+      REPO.meleeSwing(pl, null);
+      nhat++;
+    }
+    const con = S.mirror ? S.mirror.a.hp : 0;
+    return { goc: goc, con: con, nhat: nhat, vo: !S.mirror || S.mirror.a.hp <= 0 };
+  });
+  check('phang đèn pin làm VỠ được gương', guong.bo || guong.vo,
+    guong.bo ? 'không dựng được gương' : guong.nhat + ' nhát / ' + guong.goc + ' máu');
+  check('vỡ gương phải mất vài nhát, không phải một', guong.bo || guong.nhat >= 2,
+    guong.bo ? '' : guong.nhat + ' nhát');
 
   // Bom: giết gọn con dày máu nhất khi nổ sát chân nó.
   const bom = await p.evaluate(async () => {
@@ -976,8 +1034,17 @@ async function skillEffectSuite(b) {
   // vế đều bằng 0 — xanh mà không chứng minh được gì.
   const putFoes = (n, r) => p.evaluate(({ n, r }) => {
     const S = REPO.S, pl = S.player, out = [];
+    // Chỉ đặt vào những hướng NHÌN THÔNG. Chói Loà cố tình không xuyên tường, nên
+    // một con nấp sau vách vẫn đi tiếp là ĐÚNG — nhưng nó làm tổng quãng đường đo
+    // được khác 0 và phép đo đỏ vì một lý do không liên quan tới cái đang đo.
+    const goc = [];
+    for (let k = 0; k < 32 && goc.length < n; k++) {
+      const a = k / 32 * Math.PI * 2;
+      const x = pl.x + Math.cos(a) * r * REPO.TILE, y = pl.y + Math.sin(a) * r * REPO.TILE;
+      if (REPO.losClear(pl.x, pl.y, x, y) && !REPO.hitsSolid(x, y, 9)) goc.push(a);
+    }
     for (let i = 0; i < n; i++) {
-      const a = i / n * Math.PI * 2;
+      const a = goc.length ? goc[i % goc.length] : i / n * Math.PI * 2;
       const m = REPO.spawnFoe('stalk', Math.cos(a) * r * REPO.TILE, Math.sin(a) * r * REPO.TILE);
       m.hp = 400; m.state = 'chase'; m.alert = 3; m.lost = 0;
       m.tx = pl.x; m.ty = pl.y; m.seen = true; m.reveal = 1; m.hit = 0;

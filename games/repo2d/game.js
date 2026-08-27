@@ -3175,6 +3175,16 @@ const MELEE_STR    = 0.9;     // sat thuong = suc * he so. Suc 30 -> 27 sat thuo
 // Rong hon tam voi that, vi luc bi duoi thi ngon tay khong con thi gio ngam.
 const MELEE_SNAP_R = 78;
 const MELEE_GHOST_BLIND = 1.2;   // dam den pin vao mat con ma guong: no dung mot nhip
+// Vung den pin TON THE LUC. 12 the luc moi nhat, chia cho 0,55 giay hoi chieu la
+// ~22/giay - dung bang muc tieu hao cua chay nuoc rut. Con so do la co y: phang lien
+// tay met dung bang chay lien tay, nen "danh hay chay" thanh mot lua chon that su
+// chu khong phai "danh VA chay".
+const MELEE_STAM      = 12;
+// Het the luc thi KHONG cam danh, ma danh yeu di va lau tay hon. Cung mot luat voi
+// chay nuoc rut ("het the luc thi thanh chay binh thuong"): chan hang mot nut giua
+// luc con quai dang ap mat la cach chac chan nhat de bien mot co che thanh mot cai bay.
+const MELEE_TIRED_DMG = 0.5;
+const MELEE_TIRED_CD  = 1.7;
 
 // Con quai dang nen quay sang nhat khi nguoi choi cham nhe can gat phai.
 // Gan nhat truoc, nhung con dang lao vao minh duoc cong diem - no moi la con giet
@@ -3206,12 +3216,18 @@ function meleeSwing(p, ang){
   if ((p.swingCd || 0) > 0) return false;
   if ((p.stunT || 0) > 0) return false;
   if (ang != null) p.dir = ang;
-  p.swingCd = MELEE_CD;
+  const duoi = (p.stam || 0) < MELEE_STAM;          // duoi tay: van danh, nhung yeu va cham
+  p.stam = Math.max(0, (p.stam || 0) - MELEE_STAM);
+  p.swingCd = MELEE_CD * (duoi ? MELEE_TIRED_CD : 1);
   p.swingT  = MELEE_T;
   p.swingDir = p.dir;
+  if (duoi && S.time - (p.tiredMsgT || -9) > 5){
+    p.tiredMsgT = S.time;
+    toast('Đuối tay — đánh nhẹ và chậm hẳn. Đứng thở một nhịp đã.');
+  }
   // Vung den pin thi den quet theo, nen tieng dong va anh sang deu bao vi tri minh.
   makeNoise(p.x, p.y, TILE * 4.5, MELEE_NOISE);
-  const dmg = Math.max(6, Math.round((p.str || 30) * MELEE_STR));
+  const dmg = Math.max(3, Math.round((p.str || 30) * MELEE_STR * (duoi ? MELEE_TIRED_DMG : 1)));
   let trung = 0;
   for (const m of foesAll()){
     if (m.hp <= 0) continue;
@@ -3234,6 +3250,25 @@ function meleeSwing(p, ang){
     }
     trung++;
   }
+  // GUONG. Bom pha duoc guong tu dau, con den pin thi khong - ma guong lai la thu
+  // DUY NHAT dut duoc con ma di theo minh. Nghia la gap guong ma trong tay khong co
+  // bom hay sung thi khong con duong nao, va do la mot the co khong loi thoat chu
+  // khong phai mot the kho. MIRROR_HP = 70, mot nhat 27, tuc la ba nhat mot tam -
+  // dung bang "ba vien dan" ma chu thich cua MIRROR_HP da noi.
+  if (S.mirror){
+    for (const pane of [S.mirror.a, S.mirror.b]){
+      if (!pane || pane.hp <= 0) continue;
+      const dx = pane.x - p.x, dy = pane.y - p.y;
+      if (Math.hypot(dx, dy) > MELEE_R + MIRROR_R) continue;
+      if (Math.abs(angDiff(Math.atan2(dy, dx), p.dir)) > MELEE_HALF) continue;
+      if (!losClear(p.x, p.y, pane.x, pane.y)) continue;
+      damageMirror(pane.x, pane.y, dmg);
+      SFX.crack();
+      trung++;
+      break;                                    // mot nhat vao mot tam, khong an ca hai
+    }
+  }
+
   // Cua ket trong tam vung thi an mot nhat. Khong can nham chinh xac: dung truoc cua
   // ma vung la trung, vi cai nguoi choi dang lam la "pha cai cua nay", khong phai
   // "ngam vao mot diem tren canh cua".
@@ -7700,7 +7735,8 @@ window.REPO = {
   foesAll,
   mirrorFoe(){ return (S.mirror && S.mirror.m) || null; },
   MELEE: { R: MELEE_R, HALF: MELEE_HALF, CD: MELEE_CD, KNOCK: MELEE_KNOCK,
-           STR: MELEE_STR, SNAP: MELEE_SNAP_R },
+           STR: MELEE_STR, SNAP: MELEE_SNAP_R, STAM: MELEE_STAM,
+           TIRED_DMG: MELEE_TIRED_DMG, TIRED_CD: MELEE_TIRED_CD },
   SPRINT: { MUL:RUN_MUL, NOISE:RUN_NOISE, MIN:RUN_MIN_STAM,
             BASE:PLAYER_BASE_SPEED, TIER:TIER_MUL, DRAIN:STAM_DRAIN, REGEN:STAM_REGEN,
             WALK: PLAYER_BASE_SPEED*TIER_MUL[1], RUN: PLAYER_BASE_SPEED*TIER_MUL[1]*RUN_MUL },
