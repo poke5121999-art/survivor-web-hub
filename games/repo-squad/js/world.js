@@ -179,12 +179,14 @@
       const rm = far[Math.floor(R() * far.length)];
       const spot = freeSpot(rm);
       const x = spot[0], y = spot[1];
-      const scale = 1 + (map.tier - 1) * 0.45 + (floor - 1) * 0.12;
+      // WHY: đo bằng bộ chạy nhanh — một tổ đồ 5★ full (≈23k lực chiến) phá đảo được CẢ map
+      // cuối với hệ số cũ, tức là cày thêm chẳng để làm gì. Dốc lên cho vòng sau có nghĩa.
+      const scale = 1 + (map.tier - 1) * 0.58 + (floor - 1) * 0.12;
       foes.push({
         id: 'F' + i, kind: kind.id, name: kind.name,
         x: (x + 0.5) * TILE, y: (y + 0.5) * TILE, a: R() * Math.PI * 2,
         hp: Math.round(kind.hp * scale), hpMax: Math.round(kind.hp * scale),
-        dmg: kind.dmg * (1 + (map.tier - 1) * 0.30 + (floor - 1) * 0.08),
+        dmg: kind.dmg * (1 + (map.tier - 1) * 0.38 + (floor - 1) * 0.06),
         spd: kind.spd, sight: kind.sight, hear: kind.hear, color: kind.color,
         alert: kind.alert || 0, hidden: kind.hidden || 0, stunProof: kind.stunProof || 0,
         target: null, lastSeen: null, stun: 0, freeze: 0, slow: 0, lure: null,

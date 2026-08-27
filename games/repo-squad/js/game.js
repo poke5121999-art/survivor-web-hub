@@ -69,6 +69,7 @@
     frames++;
     if (!paused) {
       const n = Math.min(8, Math.max(1, Math.round(speed)));
+      R.autoplay = botOn;
       for (let i = 0; i < n; i++) {
         if (botOn) botDrive(dt);
         SQ.stepRun(R, dt, input);

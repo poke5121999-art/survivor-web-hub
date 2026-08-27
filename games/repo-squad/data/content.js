@@ -294,14 +294,14 @@
     // ---------------- VÒNG 1 — học nghề ----------------
     {
       id: 'k3', name: 'Khu Tập Thể K3', cycle: 1, floors: 3, power: 0, tier: 1,
-      quotaBase: 4200, quotaStep: 0.35, foes: ['rook'], foeBase: 2, foePer: 1,
+      quotaBase: 4200, quotaStep: 0.35, foes: ['rook'], foeBase: 2, foePer: 0.5,
       pal: { floor: '#14161a', wall: '#343c48', accent: '#4b5768' },
       desc: 'Ba tầng nhà cũ, đèn hành lang chập chờn. Chỗ dạy nghề.',
       first: { gold: 3000, gem: 300, ticketX: 1 },
       clear: { gold: 900, gem: 20 }
     },
     {
-      id: 'cho', name: 'Chợ Đêm Bến Cũ', cycle: 1, floors: 4, power: 900, tier: 2,
+      id: 'cho', name: 'Chợ Đêm Bến Cũ', cycle: 1, floors: 4, power: 4000, tier: 2,
       quotaBase: 7000, quotaStep: 0.34, foes: ['rook', 'patrol'], foeBase: 3, foePer: 1,
       pal: { floor: '#17150f', wall: '#3d3527', accent: '#5c4e37' },
       desc: 'Sạp gỗ, thùng cá, và một thứ đi lại giữa các quầy.',
@@ -309,7 +309,7 @@
       clear: { gold: 1800, gem: 30 }
     },
     {
-      id: 'bv', name: 'Bệnh Viện Bỏ Hoang', cycle: 1, floors: 5, power: 2600, tier: 3,
+      id: 'bv', name: 'Bệnh Viện Bỏ Hoang', cycle: 1, floors: 5, power: 8000, tier: 3,
       quotaBase: 11000, quotaStep: 0.33, foes: ['rook', 'patrol', 'angel'], foeBase: 3, foePer: 1,
       pal: { floor: '#121818', wall: '#2f3f3c', accent: '#456158' },
       desc: 'Hành lang trắng. Đừng quay lưng lại con đứng yên.',
@@ -319,7 +319,7 @@
 
     // ---------------- VÒNG 2 — quái khoẻ hơn, thêm Thợ Săn rồi Nhện ----------------
     {
-      id: 'det', name: 'Nhà Máy Dệt', cycle: 2, floors: 3, power: 5200, tier: 4,
+      id: 'det', name: 'Nhà Máy Dệt', cycle: 2, floors: 3, power: 10000, tier: 4,
       quotaBase: 17000, quotaStep: 0.32, foes: ['patrol', 'angel', 'hunter'], foeBase: 4, foePer: 1,
       pal: { floor: '#161113', wall: '#3f303a', accent: '#5c4250' },
       desc: 'Vòng hai bắt đầu lại từ ba tầng — nhưng thứ trong nhà thì không quay lại như cũ. Thợ Săn nghe được cả tiếng bạn thở.',
@@ -327,7 +327,7 @@
       clear: { gold: 5200, gem: 60 }
     },
     {
-      id: 'kho', name: 'Kho Lạnh Bến Xe', cycle: 2, floors: 4, power: 9000, tier: 5,
+      id: 'kho', name: 'Kho Lạnh Bến Xe', cycle: 2, floors: 4, power: 13000, tier: 5,
       quotaBase: 24000, quotaStep: 0.31, foes: ['hunter', 'angel', 'nhen'], foeBase: 4, foePer: 1,
       pal: { floor: '#111419', wall: '#2b3a50', accent: '#3d5474' },
       desc: 'Trần thấp, ống lạnh chạy dọc. Nhện Trần rơi xuống đúng lúc bạn ngẩng lên.',
@@ -335,7 +335,7 @@
       clear: { gold: 7000, gem: 75 }
     },
     {
-      id: 'bt', name: 'Biệt Thự Đồi Sương', cycle: 2, floors: 5, power: 14000, tier: 6,
+      id: 'bt', name: 'Biệt Thự Đồi Sương', cycle: 2, floors: 5, power: 17000, tier: 6,
       quotaBase: 33000, quotaStep: 0.30, foes: ['angel', 'hunter', 'nhen', 'patrol'], foeBase: 5, foePer: 1,
       pal: { floor: '#141020', wall: '#37304f', accent: '#4e4270' },
       desc: 'Đồ ở đây đắt gấp đôi chỗ khác. Có lý do cả.',
@@ -345,7 +345,7 @@
 
     // ---------------- VÒNG 3 — thêm Quản Ca rồi Bóng Đen ----------------
     {
-      id: 'ga', name: 'Ga Hàng Cũ', cycle: 3, floors: 3, power: 21000, tier: 7,
+      id: 'ga', name: 'Ga Hàng Cũ', cycle: 3, floors: 3, power: 20000, tier: 7,
       quotaBase: 44000, quotaStep: 0.30, foes: ['hunter', 'nhen', 'quanca'], foeBase: 5, foePer: 1,
       pal: { floor: '#14110d', wall: '#3a3428', accent: '#564936' },
       desc: 'Lại ba tầng, lại từ đầu. Quản Ca thấy bạn một cái là cả nhà biết bạn ở đâu.',
@@ -353,7 +353,7 @@
       clear: { gold: 15000, gem: 120 }
     },
     {
-      id: 'tau', name: 'Xưởng Đóng Tàu', cycle: 3, floors: 4, power: 30000, tier: 8,
+      id: 'tau', name: 'Xưởng Đóng Tàu', cycle: 3, floors: 4, power: 23000, tier: 8,
       quotaBase: 58000, quotaStep: 0.29, foes: ['quanca', 'hunter', 'nhen', 'bongden'], foeBase: 5, foePer: 1,
       pal: { floor: '#0f1518', wall: '#2a4049', accent: '#3b5c68' },
       desc: 'Vỏ tàu dựng đứng trong bóng tối. Bóng Đen chỉ hiện ra khi đã sát mặt.',
@@ -361,7 +361,7 @@
       clear: { gold: 21000, gem: 150 }
     },
     {
-      id: 'hh', name: 'Tầng Hầm Không Tên', cycle: 3, floors: 5, power: 42000, tier: 9,
+      id: 'hh', name: 'Tầng Hầm Không Tên', cycle: 3, floors: 5, power: 26000, tier: 9,
       quotaBase: 76000, quotaStep: 0.28, foes: ['bongden', 'quanca', 'angel', 'nhen', 'hunter'], foeBase: 6, foePer: 1,
       pal: { floor: '#0e0e11', wall: '#2c2c34', accent: '#41414e' },
       desc: 'Không có trên bản đồ nào. Xe tải đỗ ở đây thì tắt máy chờ.',
@@ -376,9 +376,9 @@
   // QUÁI. hp/dmg nhân theo tier của map.
   // ---------------------------------------------------------------------------
   SQ.FOES = {
-    rook:   { id: 'rook',   name: 'Con Ngồi',  hp: 70,  dmg: 16, spd: 62,  sight: 0,   hear: 9,  color: '#8a6b4f',
+    rook:   { id: 'rook',   name: 'Con Ngồi',  hp: 70,  dmg: 9, spd: 62,  sight: 0,   hear: 9,  color: '#8a6b4f',
               desc: 'Mù. Chỉ nghe. Đứng im thì nó đi qua.' },
-    patrol: { id: 'patrol', name: 'Kẻ Tuần',   hp: 95,  dmg: 20, spd: 74,  sight: 8.5, hear: 6,  color: '#6f7d99',
+    patrol: { id: 'patrol', name: 'Kẻ Tuần',   hp: 95,  dmg: 16, spd: 74,  sight: 8.5, hear: 6,  color: '#6f7d99',
               desc: 'Đi theo tuyến. Thấy là đuổi, đuổi lâu.' },
     angel:  { id: 'angel',  name: 'Tượng',     hp: 150, dmg: 30, spd: 130, sight: 12,  hear: 3,  color: '#b9b3a6',
               desc: 'Đứng yên khi có người nhìn. Quay lưng đi là nó tới.' },

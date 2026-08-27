@@ -14,9 +14,9 @@
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
   const REVIVE_T = 3.0;          // giây đứng cạnh để đỡ một người dậy
-  const BLEED_T = 50;            // gục quá lâu thì hết ca này không dậy nữa
+  const BLEED_T = 100;           // gục quá lâu thì hết ca này không dậy nữa
   const PAD_HOLD = 0.35;         // đứng trên bệ bao lâu thì đồ được tính
-  const FOE_ATK_CD = 1.15;
+  const FOE_ATK_CD = 1.35;
   const FOE_REACH = 1.0 * TILE;
   const UNIT_R = 8;
   const FOE_R = 9;
@@ -185,11 +185,12 @@
     if (!tryingToMove) { u.stuckT = 0; u.lx = u.x; u.ly = u.y; return; }
     const moved = Math.hypot(u.x - (u.lx || 0), u.y - (u.ly || 0));
     u.lx = u.x; u.ly = u.y;
-    if (moved > 0.35) { u.stuckT = 0; return; }
+    if (moved > 0.35) { u.stuckT = 0; u.stuckN = 0; return; }
     u.stuckT = (u.stuckT || 0) + dt;
     if (u.stuckT < 0.4) return;
     u.stuckT = 0;
     u.path = null; u.want = null; u.pathT = 0;
+    u.stuckN = (u.stuckN || 0) + 1;
     // lùi về tâm ô đang đứng — gần như lúc nào cũng gỡ được cái kẹt ở góc
     const cx = (Math.floor(u.x / TILE) + 0.5) * TILE, cy = (Math.floor(u.y / TILE) + 0.5) * TILE;
     const n = norm(cx - u.x, cy - u.y);
@@ -197,6 +198,12 @@
     // vẫn ở nguyên chỗ cũ thì lách ngang một nhịp
     const a = Math.random() * Math.PI * 2;
     SQ.moveBody(R.W, u, Math.cos(a) * 8, Math.sin(a) * 8, UNIT_R);
+    // đẩy ba lần vẫn không nhúc nhích: nhấc hẳn về tâm ô trống gần nhất.
+    // WHY: cái kẹt tệ nhất là kẹt trong một góc mà mọi hướng đẩy đều đâm vào tường.
+    if (u.stuckN >= 3) {
+      u.stuckN = 0;
+      snapToFreeTile(R, u);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -228,6 +235,7 @@
       u.haste = Math.max(0, u.haste - dt);
       u.hitFx = Math.max(0, u.hitFx - dt);
       u.useFx = Math.max(0, u.useFx - dt);
+      u.forcePad = Math.max(0, (u.forcePad || 0) - dt);
       if (u.out) return;
 
       if (u.down) {
@@ -275,6 +283,9 @@
     // --- sương mù / ánh sáng ---
     updateVision(R, dt);
 
+    // --- chốt chặn: ván chơi không được phép đứng im ---
+    watchdog(R, dt);
+
     // --- điều kiện kết thúc tầng ---
     if (W.pad.delivered >= W.quota && R.state === 'play') {
       R.state = 'floorclear';
@@ -289,9 +300,64 @@
     return R;
   }
 
+  // WHY: bộ đếm này CHỈ nhìn số tiền đã giao. Bản đầu tiên có cộng cả số món đang cầm,
+  // và thế là hai bot cứ nhặt lên đặt xuống là chốt chặn không bao giờ nổ — trong khi
+  // chỉ tiêu đứng im suốt ba phút.
+  const JAM_AFTER = 40;          // giây không giao được gì thì coi là kẹt
+  function progressSig(R) { return R.W.pad.delivered; }
+  function snapToFreeTile(R, u) {
+    const gx = Math.floor(u.x / TILE), gy = Math.floor(u.y / TILE);
+    for (let r = 0; r <= 3; r++) {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (SQ.solidAt(R.W, gx + dx, gy + dy)) continue;
+        if (SQ.doorBlocks(R.W, (gx + dx + 0.5) * TILE, (gy + dy + 0.5) * TILE, UNIT_R)) continue;
+        u.x = (gx + dx + 0.5) * TILE; u.y = (gy + dy + 0.5) * TILE;
+        u.path = null; u.want = null; u.pathT = 0;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function watchdog(R, dt) {
+    const sig = progressSig(R);
+    if (sig !== R.jamSig) { R.jamSig = sig; R.jamT = 0; R.jamN = 0; return; }
+    R.jamT = (R.jamT || 0) + dt;
+    if (R.jamT < JAM_AFTER) return;
+    R.jamT = 0;
+    R.jamN = (R.jamN || 0) + 1;
+    // Ván chơi PHẢI kết thúc. Người chơi đã nằm hẳn, hoặc đang để bot chơi hộ, mà mấy phút
+    // liền không giao được đồng nào thì đó là ca hỏng — kết nó lại thay vì treo mãi.
+    // WHY: một mình một bot còn sống thì không bao giờ đủ chỉ tiêu; và một nguyên nhân kẹt
+    // chưa biết cũng không được phép giết ván chơi bằng cách để nó chạy vô tận.
+    // Khi người thật đang cầm máy (bot tắt, người chơi còn sống) thì KHÔNG áp luật này —
+    // họ có quyền đi lang thang, và có sẵn nút ✕ để bỏ ca.
+    const playerGone = R.units[0].out;
+    if (playerGone && R.jamN >= 3) {
+      R.state = 'lose';
+      say(R, 'Không còn ai kéo nổi ca này.');
+      return;
+    }
+    if (R.autoplay && R.jamN >= 7) {         // ~280 giây bot chơi mà không giao được gì
+      R.state = 'lose';
+      say(R, 'Bot không kéo nổi ca này.');
+      return;
+    }
+    // 1. trả lại mọi món đã "nhận" cho cả nhà
+    R.claims = {};
+    // 2. quên hết đường đi cũ
+    R.units.forEach(u => { u.path = null; u.want = null; u.pathT = 0; });
+    // 3. ai đang ôm đồ thì về bệ ngay, ai tay không thì đi tìm món khác
+    R.units.forEach(u => { if (u.bag.length) u.forcePad = 8; });
+    // 4. ai đang mắc kẹt trong một góc thì đẩy về tâm ô gần nhất còn trống
+    R.units.forEach(u => { if (!u.down && !u.out) snapToFreeTile(R, u); });
+    say(R, 'Cả tổ khựng lại — chỉnh lại đội hình.');
+  }
+
   function revive(R, u, frac) {
     u.down = false; u.downT = 0; u.reviveT = 0;
     u.hp = Math.max(1, u.hpMax * frac);
+    u.invul = Math.max(u.invul, 2);        // hai giây để chạy khỏi chỗ vừa gục
     R.stats.revives++;
     R.fx.push({ kind: 'ring', x: u.x, y: u.y, r: 26, t: 0.5, max: 0.5, color: '#7fdc8a' });
   }
@@ -769,6 +835,34 @@
       return;
     }
 
+    if (u.forcePad > 0 && u.bag.length) {          // chốt chặn vừa gỡ kẹt: về bệ đã
+      const dirP = steer(R, u, W.pad.x, W.pad.y, dt);
+      const dP = Math.hypot(W.pad.x - u.x, W.pad.y - u.y);
+      if (dP > TILE * 0.7) {
+        const spP = speedOf(R, u);
+        SQ.moveBody(W, u, dirP.x * spP * dt, dirP.y * spP * dt, UNIT_R);
+        u.a = Math.atan2(dirP.y, dirP.x);
+      }
+      unstick(R, u, dt, dP > TILE * 0.7);
+      return;
+    }
+
+    // Máu thấp mà quái ngay bên cạnh thì lùi ra đã — vai gì cũng vậy.
+    if (u.hp < u.hpMax * 0.38 && foesNear.length) {
+      const f0 = foesNear[0];
+      if (Math.hypot(f0.x - u.x, f0.y - u.y) < 5 * TILE) {
+        const g = away(u, f0, 7 * TILE);
+        const dirF = steer(R, u, g.x, g.y, dt);
+        const spF = speedOf(R, u);
+        SQ.moveBody(W, u, dirF.x * spF * dt, dirF.y * spF * dt, UNIT_R);
+        u.a = Math.atan2(dirF.y, dirF.x);
+        u.noise = NOISE_WALK;
+        unstick(R, u, dt, true);
+        botSkill(R, u, downed, foesNear);
+        return;
+      }
+    }
+
     switch (tac) {
       case 'loot':
         goal = full ? padPoint(W) : (bestLoot(R, u, 999) || padPoint(W));
@@ -776,7 +870,7 @@
       case 'thu': {
         if (full) goal = padPoint(W);
         else {
-          const l = bestLoot(R, u, 9 * TILE);
+          const l = bestLoot(R, u, 14 * TILE);
           const f = nearestFoe(W, W.pad.x, W.pad.y, 9 * TILE);
           goal = f ? { x: f.x, y: f.y } : (l || { x: W.pad.x + 1.6 * TILE, y: W.pad.y });
         }
@@ -821,6 +915,13 @@
       }
     }
     if (!goal) goal = u.bag.length ? padPoint(W) : { x: p.x, y: p.y };
+
+    // Hết việc của vai mình mà nhà còn đồ thì đi khuân — không ai được đứng không.
+    if (!full && u.bag.length === 0 && lootLeft > 0 &&
+        Math.hypot(goal.x - u.x, goal.y - u.y) < 2.5 * TILE) {
+      const alt = bestLoot(R, u, 999);
+      if (alt) goal = alt;
+    }
 
     const dir = steer(R, u, goal.x, goal.y, dt);
     const dist = Math.hypot(goal.x - u.x, goal.y - u.y);
@@ -889,9 +990,12 @@
       if (lightOnly && l.mass > 20) return;
       // đừng đi tới thứ mình không nhấc nổi — đó là cách một bot đứng im tới hết ca
       if (u.bag.length && mass + l.mass > u.stats.carry) return;
+      if (SQ.solidPx(R.W, l.x, l.y)) return;      // món rơi lọt vào tường: bỏ qua
       const d = Math.hypot(l.x - u.x, l.y - u.y);
       if (d > maxD) return;
-      const score = l.value / (d + 60);
+      let score = l.value / (d + 60);
+      const c = R.claims[l.id];
+      if (c && c.i === u.idx) score *= 1.8;         // món mình đã nhắm thì cứ thế mà đi
       if (score > bs) { bs = score; best = l; }
     });
     if (best) claimIt(R, u, best);

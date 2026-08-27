@@ -13,8 +13,11 @@
   // Món đã đứng lên mà không nhặt được thì tạm bỏ qua.
   // WHY: nếu không, bot đứng trên một món của người khác đã nhận và không bao giờ đi tiếp.
   let skip = {}, stallOn = null, stallT = 0;
+  // Mục tiêu phải BÁM, không đổi mỗi khung hình: hai món giá xấp xỉ nhau ở hai hướng
+  // ngược nhau sẽ làm bot đi tới đi lui giữa chúng cho tới hết ca.
+  let targetId = null, targetT = 0;
 
-  B.reset = function () { path = null; repath = 0; want = null; skip = {}; stallOn = null; stallT = 0; };
+  B.reset = function () { path = null; repath = 0; want = null; skip = {}; stallOn = null; stallT = 0; targetId = null; targetT = 0; };
 
   B.drive = function (R, input, dt) {
     const SQ = root.SQ, TILE = SQ.TILE;
@@ -35,18 +38,26 @@
     const left = W.loot.filter(l => !l.done && l.held == null);
     const canTake = left.some(l => mass + l.mass <= u.stats.carry);
     const full = u.bag.length >= 6 || (u.bag.length > 0 && (!canTake || left.length === 0)) ||
-                 mass >= u.stats.carry * 0.72;
-    if (hurtMate) { goal = { x: hurtMate.x, y: hurtMate.y }; mode = 'rescue'; }
+                 mass >= u.stats.carry * 0.60;
+    if (u.forcePad > 0 && u.bag.length) { goal = { x: W.pad.x, y: W.pad.y }; mode = 'deliver'; }
+    else if (hurtMate) { goal = { x: hurtMate.x, y: hurtMate.y }; mode = 'rescue'; }
     else if (full) { goal = { x: W.pad.x, y: W.pad.y }; mode = 'deliver'; }
     else {
       let best = null, bs = -1;
-      left.forEach(l => {
-        if (u.bag.length && mass + l.mass > u.stats.carry) return;   // đầy tay thì bỏ qua món nặng
-        if (skip[l.id] && skip[l.id] > R.t) return;
-        const d = Math.hypot(l.x - u.x, l.y - u.y);
-        const s = l.value / (d + 80);
-        if (s > bs) { bs = s; best = l; }
-      });
+      // đang bám một món và nó còn đó thì cứ đi tiếp, chỉ xét lại sau mỗi 6 giây
+      const held = left.find(l => l.id === targetId);
+      if (held && R.t - targetT < 6 && !(u.bag.length && mass + held.mass > u.stats.carry)) {
+        best = held;
+      } else {
+        left.forEach(l => {
+          if (u.bag.length && mass + l.mass > u.stats.carry) return;   // đầy tay thì bỏ qua món nặng
+          if (skip[l.id] && skip[l.id] > R.t) return;
+          const d = Math.hypot(l.x - u.x, l.y - u.y);
+          const s = l.value / (d + 80);
+          if (s > bs) { bs = s; best = l; }
+        });
+        if (best && best.id !== targetId) { targetId = best.id; targetT = R.t; }
+      }
       if (best) {
         goal = { x: best.x, y: best.y }; mode = 'loot';
         // đứng ngay trên nó mà mãi không vào túi -> có người khác đã nhận, bỏ qua 15 giây
