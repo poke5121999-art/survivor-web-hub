@@ -133,6 +133,31 @@ window.HUB_GAMES = [
     tags: ["Kinh dị", "Co-op", "Online", "Unity", "Prototype"]
   },
   {
+    id: "repo-squad",
+    title: "Ca Trực Đêm: Biệt Đội",
+    tagline: "Bản REPO thứ hai, làm cho người thích nạp: một tổ năm người — bạn cầm một xác, bốn xác còn lại chạy theo chiến thuật bạn giao. Mỗi xác một kỹ năng bấm tay, và cả một tầng gacha phía sau.",
+    thumbnail: "assets/thumbnails/repo-squad.svg",
+    path: "games/repo-squad/index.html",
+    // available since 2026-08-27. KHÔNG đè lên games/repo2d — bản cũ giữ nguyên, đây là
+    // một game riêng dùng lại luật khuân đồ của nó. Plain canvas/JS, 8 file, không engine,
+    // mở được từ file://.
+    // Khác bản cũ ở chỗ: một ca là NĂM người (1 người chơi + 4 bot), mỗi bot chạy một trong
+    // 8 chiến thuật (khuân đồ / thủ bệ / soi map / bảo kê / giải cứu / nhử mồi / săn quái /
+    // tiếp tế); 14 xác, mỗi xác đúng một kỹ năng chủ động có hồi chiêu (chớp, vòng hồi,
+    // tàng hình, xung chấn, mồi nhử, lồng sắt, đóng băng, thấu thị, kéo đồ, thiên thần...);
+    // meta đầy đủ kiểu game gacha: vàng + ngọc, tiến hoá (nâng chỉ số cho CẢ TỔ), trang bị
+    // sáu ô lắp cho từng xác kèm bộ đồ 2/4 món, hai băng gacha (xác + trang bị) có bảo hiểm,
+    // cửa hàng nạp GIẢ (bấm là có ngọc, không có cổng thanh toán), nhiệm vụ ngày/tuần/thành tựu.
+    // Map lớn KHÔNG lặp vô hạn: 9 map, số tầng chạy vòng 3 → 4 → 5 rồi lặp lại từ 3 với quái
+    // khoẻ hơn và thêm giống quái mới (Nhện Trần, Quản Ca, Bóng Đen). Hết tầng cuối là phá đảo.
+    // Ships with an in-game bot; docs/tests/browser/test_repo_squad.py lái nó qua đúng cử chỉ
+    // người chơi (kéo cần gạt, bấm nút kỹ năng, bấm nút trong menu) và kiểm luật — 50 checks,
+    // 0 console errors, có một ván phá đảo trọn vẹn map 3 tầng.
+    // CHƯA có người thật ngồi chơi lâu.
+    status: "available",
+    tags: ["Kinh dị", "Gacha", "Biệt đội", "Khuân đồ", "Solo"]
+  },
+  {
     id: "stardew",
     title: "Thung Lũng Sao Rơi",
     tagline: "Nông trại ông để lại, một thung lũng đầy người quen chưa gặp. Trồng theo mùa, câu cá theo giờ, xuống mỏ khi đủ gan, và nhớ ngày sinh nhật của hàng xóm.",
