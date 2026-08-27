@@ -33,8 +33,13 @@ const VIEW_W_WORLD = 14 * TILE;
 // LƯỢNG thế giới, chỉ là rộng hơn và thấp hơn — nếu không thì xoay ngang vừa là ăn
 // gian (thấy xa hơn) vừa vỡ hình (viewW/14 ô làm ô to gấp rưỡi).
 // Neo theo diện tích: dọc 9:16 ra đúng con số cũ, ngang 16:9 ra đúng ảnh dọc xoay 90°.
-const VIEW_AREA_WORLD = VIEW_W_WORLD * (VIEW_W_WORLD * 16 / 9);
-const zoom = () => Math.sqrt((viewW * viewH) / VIEW_AREA_WORLD);
+// Đo theo CẠNH NGẮN của khung, không theo bề ngang: bề ngang đổi gấp ba khi xoay máy,
+// cạnh ngắn thì gần như không đổi. Nằm ngang kéo gần thêm một nấc (11 thay vì 14) đúng
+// kiểu camera MOBA trên điện thoại — cạnh ngắn lúc nằm ngang vốn ngắn hơn lúc cầm dọc,
+// giữ nguyên con số thì người bé đi thấy rõ.
+const VIEW_W_WORLD_LAND = 11 * TILE;
+const zoom = () => Math.min(viewW, viewH) /
+  (viewW > viewH ? VIEW_W_WORLD_LAND : VIEW_W_WORLD);
 
 // A corridor the generator carves to repair a walled-off room. Doors are already 3 tiles wide;
 // this is the same width, so a repaired room is a room the cart can still be pushed into.
@@ -4807,11 +4812,21 @@ function fitCanvas(){
   const aw = box.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const ah = box.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
   if (!(aw > 0) || !(ah > 0)) return;
-  const [fw, fh] = frameAspect(aw, ah);
-  const k = Math.min(aw/fw, ah/fh);
-  cv.style.width  = Math.round(k*fw) + 'px';
-  cv.style.height = Math.round(k*fh) + 'px';
-  document.body.classList.toggle('landscape', aw > ah);
+  const land = aw > ah;
+  let w, h;
+  if (land) {
+    // Tràn hết chỗ trống, không ép 16:9 — hai vệt đen hai bên là bề ngang bị vứt đi,
+    // mà nằm ngang thì bề ngang là thứ duy nhất đang dư. Chặn 2.8:1 cho màn siêu rộng;
+    // điện thoại nằm ngang cao nhất cũng chỉ tới ~2.6 nên không chạm tới mức chặn.
+    w = aw; h = ah;
+    if (w / h > 2.8) w = h * 2.8;
+  } else {
+    const k = Math.min(aw/FRAME_W, ah/FRAME_H);
+    w = k*FRAME_W; h = k*FRAME_H;
+  }
+  cv.style.width  = Math.round(w) + 'px';
+  cv.style.height = Math.round(h) + 'px';
+  document.body.classList.toggle('landscape', land);
 }
 function resize(){
   fitCanvas();

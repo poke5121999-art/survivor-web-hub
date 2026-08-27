@@ -419,12 +419,34 @@
   .hs-t{position:absolute;font-family:var(--mono);font-size:16px;color:#fff;text-shadow:0 1px 3px #000}
 
 
+  /* Nằm ngang: hai thanh chữ ngoài khung nhường chiều cao lại cho game — mỗi pixel
+     bớt ở đây là một pixel khung to thêm, mà chiều cao là thứ hiếm nhất khi nằm ngang. */
+  body.landscape .bar{padding:2px 10px;font-size:9.5px;gap:8px}
+  body.landscape .bar .name{font-size:12px}
+  body.landscape .bar a.back{padding:2px 7px}
+  body.landscape .foot{padding:2px 10px;gap:6px}
+  body.landscape .foot button{padding:3px 8px;font-size:9px}
+  body.landscape .hide-land{display:none}
+
   /* ---------------- MÁY NẰM NGANG ----------------
      Khung 16:9 chỉ cao bằng nửa khung dọc, nên sảnh xếp thành HAI CỘT: xác đứng bên
      trái, đội hình + chọn map + nút vào ca bên phải. Các màn khác giữ nguyên một cột
      nhưng bó lại giữa khung cho khỏi kéo dài hết bề ngang. */
+  /* Hàng co theo nội dung và dồn lên trên: khung ngang trên điện thoại chỉ còn ~260px
+     chiều cao cho vùng cuộn, để hàng dãn đều thì thẻ chọn map phình ra và nút ĐI CA
+     bị thanh tab dưới cắn mất. */
   body.landscape .stage.is-home{
-    display:grid;grid-template-columns:1fr 1.15fr;gap:8px;align-content:stretch;padding:8px}
+    display:grid;grid-template-columns:1fr 1.15fr;grid-template-rows:auto auto auto 1fr;
+    gap:6px;align-content:start;padding:6px}
+  body.landscape .chapter{padding:5px}
+  body.landscape .ch-n{font-size:14px}
+  body.landscape .ch-s{font-size:9px}
+  body.landscape .ch-f{font-size:8px}
+  body.landscape .ch-bar{margin:4px 0 2px}
+  body.landscape .lu{padding:3px 2px}
+  body.landscape .lu-f{font-size:17px}
+  body.landscape .lu-n{font-size:9px}
+  body.landscape .foot-note{font-size:8.5px}
   body.landscape .stage.is-home>.showcase{grid-row:1 / span 4;min-height:0;padding:10px 52px}
   body.landscape .sc-face{font-size:52px}
   body.landscape .sc-name{font-size:18px}
@@ -441,7 +463,21 @@
   body.landscape .stage.is-home>.chapter{grid-column:2;margin-top:0}
   body.landscape .stage.is-home>.b.cta{grid-column:2;padding:11px;font-size:15px}
   body.landscape .stage.is-home>.foot-note{grid-column:2;align-self:start}
-  body.landscape .sheet-b{max-width:640px;width:100%;margin:0 auto}
+  /* Vùng cuộn khi nằm ngang chỉ còn ~260px, nên tiêu đề tấm và giàn đồ phải gọn lại,
+     nếu không thì mở màn Trang Bị ra đã phải cuộn mới thấy được cái ô đầu tiên. */
+  body.landscape .sheet-b{max-width:660px;width:100%;margin:0 auto;padding:6px 8px 12px;gap:6px}
+  body.landscape .sheet-h{padding:4px 8px}
+  body.landscape .sheet-t{font-size:15px}
+  body.landscape .sheet-h .b.chev{width:24px;height:24px;font-size:14px}
+  body.landscape .eq-body{padding:5px 4px}
+  body.landscape .eb-f{font-size:34px}
+  body.landscape .eb-n{font-size:13px}
+  body.landscape .eqs{min-height:46px;padding:3px 2px}
+  body.landscape .eqs-i{font-size:14px}
+  body.landscape .sb{padding:2px}
+  body.landscape .chip{padding:4px 8px;font-size:10px}
+  body.landscape .slot .tac{font-size:8px}
+  body.landscape .tac-d{min-height:16px}
   body.landscape .char-grid{grid-template-columns:repeat(7,1fr)}
   body.landscape .evo-grid{grid-template-columns:repeat(5,1fr)}
   body.landscape .pack-grid{grid-template-columns:repeat(3,1fr)}
@@ -545,14 +581,14 @@
 
 <!-- ?v=... la dau build: GitHub Pages tra Cache-Control: max-age=600, khong co dau nay
      thi sau khi deploy trinh duyet con chay JS cu toi 10 phut. Doi STAMP moi lan deploy. -->
-<script src="data/content.js?v=20260827b"></script>
-<script src="js/meta.js?v=20260827b"></script>
-<script src="js/world.js?v=20260827b"></script>
-<script src="js/sim.js?v=20260827b"></script>
-<script src="js/render.js?v=20260827b"></script>
-<script src="js/ui.js?v=20260827b"></script>
-<script src="js/bot.js?v=20260827b"></script>
-<script src="js/game.js?v=20260827b"></script>
+<script src="data/content.js?v=20260827c"></script>
+<script src="js/meta.js?v=20260827c"></script>
+<script src="js/world.js?v=20260827c"></script>
+<script src="js/sim.js?v=20260827c"></script>
+<script src="js/render.js?v=20260827c"></script>
+<script src="js/ui.js?v=20260827c"></script>
+<script src="js/bot.js?v=20260827c"></script>
+<script src="js/game.js?v=20260827c"></script>
 <script>window.__boot && window.__boot();</script>
 </body>
 </html>

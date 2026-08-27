@@ -27,9 +27,20 @@
     // ngang 16:9 để chơi được thật, chứ không phải nhìn một dải dọc hẹp giữa màn hình.
     const land = availW > availH;
     document.body.classList.toggle('landscape', land);
-    const fw = land ? 16 : 9, fh = land ? 9 : 16;
-    let w = availW, h = w * fh / fw;
-    if (h > availH) { h = availH; w = h * fw / fh; }
+    let w, h;
+    if (land) {
+      // Nằm ngang thì TRÀN HẾT chỗ trống, không ép về 16:9.
+      // WHY: ép 16:9 để lại hai vệt đen hai bên, mà chiều cao máy nằm ngang vốn đã
+      //   ngắn — mất luôn bề ngang nữa thì ô còn nhỏ hơn cả lúc cầm dọc. Game MOBA
+      //   trên điện thoại (Liên Quân) không chừa vệt nào: khung ăn trọn màn hình.
+      // Chặn ở 2.8:1 để màn siêu rộng của máy bàn không thành một dải quá dẹt. Điện
+      // thoại nằm ngang cao nhất cũng chỉ tới ~2.6 sau khi trừ hai thanh, nên không chạm.
+      w = availW; h = availH;
+      if (w / h > 2.8) w = h * 2.8;
+    } else {
+      w = availW; h = w * 16 / 9;
+      if (h > availH) { h = availH; w = h * 9 / 16; }
+    }
     const dpr = Math.min(2, root.devicePixelRatio || 1);
     cv.style.width = w + 'px'; cv.style.height = h + 'px';
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);

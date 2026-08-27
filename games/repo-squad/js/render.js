@@ -10,16 +10,19 @@
   const SQ = root.SQ;
   const TILE = SQ.TILE;
 
-  const VIEW_TILES = 15;                 // bề ngang khung nhìn ở khung DỌC, tính bằng ô
-  // Máy nằm ngang phải thấy CÙNG MỘT LƯỢNG thế giới, chỉ là rộng hơn và thấp hơn.
-  // Neo zoom theo diện tích thay vì theo bề ngang: khung dọc 9:16 ra đúng 15 ô ngang
-  // như cũ, khung ngang 16:9 ra đúng ảnh dọc xoay 90° — không ai thấy xa hơn ai.
-  // ROOT-CAUSE nếu để nguyên viewW/15: ở khung ngang bề ngang lớn gấp ~3 lần nên mỗi ô
-  //   bị phóng to gấp ba, người chơi chỉ còn thấy đúng một góc phòng.
-  const VIEW_AREA = (VIEW_TILES * TILE) * (VIEW_TILES * TILE * 16 / 9);
+  // Khung nhìn đo theo CẠNH NGẮN của khung, không theo bề ngang.
+  // WHY: bề ngang đổi gấp ba khi xoay máy, cạnh ngắn thì gần như không đổi — neo vào
+  //   nó thì ô giữ nguyên cỡ dù cầm dọc hay nằm ngang, chỉ khác là nằm ngang nhìn
+  //   được xa hơn sang hai bên.
+  // Nằm ngang kéo gần lại một nấc (12 thay vì 15) đúng kiểu camera MOBA trên điện
+  // thoại: cạnh ngắn của máy nằm ngang vốn ngắn hơn cạnh ngắn lúc cầm dọc, giữ
+  // nguyên con số thì người và quái bé đi thấy rõ.
+  const VIEW_TILES = 15;                 // cạnh ngắn, khung DỌC
+  const VIEW_TILES_LAND = 12;            // cạnh ngắn, khung NGANG
 
   function camFor(R, viewW, viewH) {
-    const z = Math.sqrt((viewW * viewH) / VIEW_AREA);
+    const land = viewW > viewH;
+    const z = Math.min(viewW, viewH) / ((land ? VIEW_TILES_LAND : VIEW_TILES) * TILE);
     const p = R.units[0];
     return {
       z: z,
