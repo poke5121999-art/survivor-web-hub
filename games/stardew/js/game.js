@@ -244,10 +244,13 @@
     }
     this.recenter(false);
     this.focus = this.findFocus();
+    this.autoWork(dt);
+    this.autoLoot(dt);
     this.checkGrass();
     if (global.ISL_NPC) global.ISL_NPC.step(this, dt);
     if (global.ISL_MINE) global.ISL_MINE.step(this, dt);
     if (this.fx) this.fx.update(dt);
+    this.flushLoot();
     for (var i = this.toasts.length - 1; i >= 0; i--) {
       this.toasts[i].life -= dt;
       if (this.toasts[i].life <= 0) this.toasts.splice(i, 1);
@@ -633,6 +636,121 @@
     weed:    { hp: 1, energy: 1, skill: 'foraging', xp: 1, drop: ['Fiber', 1, 2] }
   };
 
+  /* ------------------------------------------------------- working by itself
+   * Pickaxe King Island does not ask for one tap per swing, and neither should
+   * this: a tree is three swings and a boulder is five, so clearing one corner
+   * of an island is fifteen taps on a phone.
+   *
+   * TWO RULES keep it feeling like help rather than like the game playing
+   * itself:
+   *
+   *   1. It only swings while the player is STANDING STILL. Walking past a
+   *      tree must not fell it - otherwise crossing Dao Rung once strips it,
+   *      and the energy is gone before the player notices a bar move.
+   *   2. It stops BEFORE the last of the energy, not after. Auto work that
+   *      runs someone to zero is a trap: the price is half a night's rest and
+   *      nothing on screen asked first.
+   */
+  var AUTO_REACH = 1.5;         // tiles, centre to centre - one step around you
+  var AUTO_PERIOD = 0.5;        // seconds between swings at tool power 1
+  var AUTO_ENERGY_FLOOR = 12;   // stop here, not at zero
+
+  Game.prototype.nearestBreakable = function (r) {
+    var a = this.area(), p = this.player;
+    var best = null, bestD = r * r;
+    for (var y = Math.floor(p.y - r); y <= Math.floor(p.y + r); y++) {
+      for (var x = Math.floor(p.x - r); x <= Math.floor(p.x + r); x++) {
+        var o = a.objAt(x, y);
+        if (!o || !BREAK[o.kind]) continue;
+        var dx = (o.x + 0.5) - p.x, dy = (o.y + 0.5) - p.y;
+        var d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = o; }
+      }
+    }
+    return best;
+  };
+
+  Game.prototype.autoWork = function (dt) {
+    if (this.sim.autoWork === false) return;
+    var p = this.player;
+    /* Reset the beat while moving, so stopping next to a rock costs a full
+     * swing rather than landing a free hit the instant you arrive. */
+    if (p.moving) { this._swing = 0; return; }
+    var o = this.nearestBreakable(AUTO_REACH);
+    if (!o) { this._swing = 0; return; }
+    var rule = BREAK[o.kind];
+    if (this.sim.energy <= Math.max(AUTO_ENERGY_FLOOR, rule.energy)) {
+      if (this.time - (this._autoTired || -9e9) > 60000) {
+        this._autoTired = this.time;
+        this.toast('Het suc de lam tiep - an gi do hoac di ngu.');
+        if (global.ISL_TUTORIAL) global.ISL_TUTORIAL.fire('lowEnergy');
+      }
+      return;
+    }
+    this._swing = (this._swing || 0) + dt;
+    var period = Math.max(0.26, AUTO_PERIOD - 0.045 * ((this.sim.toolPower || 1) - 1));
+    if (this._swing < period) return;
+    this._swing = 0;
+    var ddx = (o.x + 0.5) - p.x, ddy = (o.y + 0.5) - p.y;
+    p.dir = Math.abs(ddx) > Math.abs(ddy) ? (ddx > 0 ? 'right' : 'left')
+                                          : (ddy > 0 ? 'down' : 'up');
+    this.breakObject(o);
+  };
+
+  /* Loot walks to you. Everything the player knocked loose is already theirs;
+   * making them stand on each splinter of wood is busywork, not a decision. */
+  var LOOT_REACH = 1.7;
+  var LOOT_KINDS = { drop: 1, forage: 1, shell: 1, driftwood: 1 };
+
+  Game.prototype.autoLoot = function (dt) {
+    if (this.sim.autoLoot === false) return;
+    var a = this.area(), p = this.player;
+    var r = LOOT_REACH, got = null;
+    for (var y = Math.floor(p.y - r); y <= Math.floor(p.y + r); y++) {
+      for (var x = Math.floor(p.x - r); x <= Math.floor(p.x + r); x++) {
+        var o = a.objAt(x, y);
+        if (!o || !LOOT_KINDS[o.kind]) continue;
+        var dx = (o.x + 0.5) - p.x, dy = (o.y + 0.5) - p.y;
+        if (dx * dx + dy * dy > r * r) continue;
+        /* Not lootable the instant it lands, or the pickup never animates and
+         * items appear to teleport straight out of the rock. */
+        if (o.kind === 'drop' && this.time - (o.born || 0) < 250) continue;
+        var name = o.item || o.forage || 'Wood';
+        if (o.kind === 'shell') name = 'Clam';
+        if (o.kind === 'driftwood') name = 'Driftwood';
+        if (!this.sim.canGive(name, o.quality || 0)) {
+          if (this.time - (this._autoFull || -9e9) > 60000) {
+            this._autoFull = this.time;
+            this.toast('Tui day - nhat tay de chon mon.');
+            if (global.ISL_TUTORIAL) global.ISL_TUTORIAL.fire('bagFull');
+          }
+          continue;
+        }
+        var qty = o.qty || 1;
+        if (this.pickUp(o, { silent: true })) {
+          got = got || {};
+          got[name] = (got[name] || 0) + qty;
+          if (this.fx) this.fx.float(o.x, o.y, '+' + qty, '#ffe08a');
+        }
+      }
+    }
+    if (!got) return;
+    this._lootBag = this._lootBag || {};
+    for (var k in got) this._lootBag[k] = (this._lootBag[k] || 0) + got[k];
+    this._lootAt = this.time;
+  };
+
+  /* Flushed a beat after the last pickup, so one felled tree reads as
+   * "+6 Wood" instead of three separate lines shoving each other off screen. */
+  Game.prototype.flushLoot = function () {
+    if (!this._lootBag) return;
+    if (this.time - (this._lootAt || 0) < 400) return;
+    var parts = [];
+    for (var k in this._lootBag) parts.push('+' + this._lootBag[k] + ' ' + k);
+    this._lootBag = null;
+    if (parts.length) this.toast(parts.join('   '));
+  };
+
   Game.prototype.breakObject = function (o, opt) {
     var rule = BREAK[o.kind];
     if (!rule) return false;
@@ -671,13 +789,16 @@
             quality: quality || 0, born: this.time });
   };
 
-  Game.prototype.pickUp = function (o) {
+  Game.prototype.pickUp = function (o, opt) {
+    opt = opt || {};
     var name = o.item || o.forage || 'Wood';
     if (o.kind === 'shell') name = 'Clam';
     if (o.kind === 'driftwood') name = 'Driftwood';
     if (!this.sim.canGive(name, o.quality || 0)) {
-      this.toast('Túi đầy.');
-      if (global.ISL_TUTORIAL) global.ISL_TUTORIAL.fire('bagFull');
+      if (!opt.silent) {
+        this.toast('Túi đầy.');
+        if (global.ISL_TUTORIAL) global.ISL_TUTORIAL.fire('bagFull');
+      }
       return false;
     }
     this.sim.give(name, o.qty || 1, o.quality || 0);
@@ -687,7 +808,7 @@
       this.addRank(4);
     }
     this.area().remove(o);
-    this.toast('+' + (o.qty || 1) + ' ' + name);
+    if (!opt.silent) this.toast('+' + (o.qty || 1) + ' ' + name);
     return true;
   };
 

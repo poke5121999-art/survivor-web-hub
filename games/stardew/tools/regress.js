@@ -263,6 +263,119 @@ function run() {
     return mute.length ? 'no verb for: ' + mute.join(', ') : null;
   });
 
+  /* Each auto-work case needs a clean patch of ground and a rested player.
+     Without this they read each other's leftovers - the felled tree from one
+     case drops Wood that the next case's loot check then finds. */
+  function clearAround(r) {
+    /* Dismiss any card first. A tutorial card freezes the world - Game.busy()
+     * is true while one is up, so step() never runs - and the low-energy card
+     * that the previous case deliberately triggers would silently freeze every
+     * case after it, making them all pass by doing nothing. */
+    while (window.ISL_TUTORIAL.isOpen()) window.ISL_TUTORIAL.dismiss();
+    window.ISL_UI.closeAll();
+    const a = G.area();
+    const px = Math.floor(G.player.x), py = Math.floor(G.player.y);
+    a.objs.slice().forEach(o => {
+      if (Math.abs(o.x - px) <= r && Math.abs(o.y - py) <= r) a.remove(o);
+    });
+    s.energy = s.maxEnergy;
+    s.exhausted = false;
+    s.sluggish = false;
+    G.stick.dx = 0; G.stick.dy = 0;
+    return { px, py, a };
+  }
+
+  console.log('\n--- lam viec tu dong ---');
+
+  /* Standing next to a tree has to fell it without a single tap, the way
+     Pickaxe King Island does. Three swings for a tree, five for a boulder -
+     fifteen taps to clear one corner of an island is what this replaces. */
+  check('standing next to a tree fells it with no input', () => {
+    const { px, py, a } = clearAround(4);
+    s.autoWork = true;
+    const tree = { x: px + 1, y: py, kind: 'tree', hp: 3 };
+    a.obj(tree);
+    for (let i = 0; i < 200; i++) G.frame(G.time + 16);   // ~3.2 seconds
+    return a.objs.indexOf(tree) < 0 ? null
+      : 'still standing after 3 seconds, on ' + tree.hp + ' hp';
+  });
+
+  /* ...but walking past one must NOT. Otherwise crossing Dao Rung once strips
+     it and the energy is gone before the player sees a bar move. */
+  check('walking past a tree leaves it alone', () => {
+    const { px, py, a } = clearAround(4);
+    s.autoWork = true;
+    const tree = { x: px + 2, y: py, kind: 'tree', hp: 3 };
+    a.obj(tree);
+    G.stick.dx = 1; G.stick.dy = 0;
+    for (let i = 0; i < 40; i++) G.frame(G.time + 16);
+    G.stick.dx = 0; G.stick.dy = 0;
+    const survived = tree.hp === 3;
+    a.remove(tree);
+    return survived ? null : 'a tree lost ' + (3 - tree.hp) + ' hp to someone walking past';
+  });
+
+  /* Auto work must stop with energy left, not at zero: the price of hitting
+     zero is half a night's rest and nothing on screen asked first. */
+  check('auto work stops before the energy runs out', () => {
+    const { px, py, a } = clearAround(4);
+    s.autoWork = true;
+    s.energy = 40;
+    /* One tile can only hold one object, so refill it as each tree falls -
+       the point is to keep swinging, not to model a forest. */
+    a.obj({ x: px + 1, y: py, kind: 'tree', hp: 3 });
+    for (let i = 0; i < 900; i++) {
+      if (!a.objAt(px + 1, py)) a.obj({ x: px + 1, y: py, kind: 'tree', hp: 3 });
+      G.frame(G.time + 16);
+    }
+    const left = s.energy, spent = s.exhausted;
+    clearAround(4);
+    if (left <= 0) return 'it ran the player to zero';
+    if (spent) return 'it left the player exhausted';
+    return null;
+  });
+
+  /* Everything the player knocked loose is already theirs. */
+  check('loot within reach walks into the bag', () => {
+    const { px, py, a } = clearAround(4);
+    s.autoLoot = true; s.autoWork = false; s.invSize = 24;
+    s.inventory.length = 0;
+    const drop = { x: px + 1, y: py, kind: 'drop', item: 'Wood', qty: 4,
+                   quality: 0, born: 0 };
+    a.obj(drop);
+    for (let i = 0; i < 30; i++) G.frame(G.time + 16);
+    s.autoWork = true;
+    if (a.objs.indexOf(drop) >= 0) return 'the drop is still on the ground';
+    if (s.count('Wood') !== 4) return 'bag has ' + s.count('Wood') + ' Wood, want 4';
+    return null;
+  });
+
+  /* A full bag must not delete what it cannot hold. */
+  check('auto loot leaves what it cannot carry', () => {
+    const { px, py, a } = clearAround(4);
+    s.autoLoot = true; s.autoWork = false; s.invSize = 1;
+    s.inventory.length = 0;
+    s.give('Stone', 1, 0);
+    const drop = { x: px + 1, y: py, kind: 'drop', item: 'Wood', qty: 4,
+                   quality: 0, born: 0 };
+    a.obj(drop);
+    for (let i = 0; i < 30; i++) G.frame(G.time + 16);
+    const still = a.objs.indexOf(drop) >= 0;
+    a.remove(drop);
+    s.invSize = 24; s.autoWork = true;
+    return still ? null : 'a full bag made the drop disappear';
+  });
+
+  /* Both switches have to survive a reload, or the player turns them off and
+     finds them back on tomorrow morning. */
+  check('the auto switches are saved', () => {
+    s.autoWork = false; s.autoLoot = false;
+    const blob = JSON.parse(JSON.stringify(s.toJSON(G.world)));
+    if (blob.autoWork !== false || blob.autoLoot !== false) return 'not written to the save';
+    s.autoWork = true; s.autoLoot = true;
+    return null;
+  });
+
   console.log('\n--- Pokemon: Generation 3 arithmetic ---');
 
   /* Recoil is a NEGATIVE drain percentage, and Math.max(1, -35) is 1 - so

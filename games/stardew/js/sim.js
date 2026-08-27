@@ -81,6 +81,13 @@
     this.invuln = 0;
     this.toolTier = 0;
     this.toolPower = 1;
+    /* Auto work and auto loot are ON by default. They are the single biggest
+     * difference between this and a desktop farming game: a tree is three
+     * swings and a boulder is five, and tapping once per swing on a phone is
+     * what makes a session feel like work. Both are togglable because a player
+     * who wants to place every swing themselves should be able to. */
+    this.autoWork = true;
+    this.autoLoot = true;
     this.professions = {};
     this.hasBoat = false;
     this.spouse = null;
@@ -711,6 +718,7 @@
       seedRng: this.seedRng, deepestMine: this.deepestMine,
       weapon: this.weapon, armor: this.armor, toolTier: this.toolTier,
       toolPower: this.toolPower, professions: this.professions,
+      autoWork: this.autoWork, autoLoot: this.autoLoot,
       hasBoat: this.hasBoat, spouse: this.spouse, dating: this.dating,
       machines: this.machines,
       /* WHY these four: a save made anywhere but the farm loaded the player to
@@ -795,7 +803,7 @@
      'toolTier', 'toolPower', 'professions', 'hasBoat',
      'spouse', 'dating', 'machines', 'playerX', 'playerY', 'chestSize',
      'maxHealth', 'pendingProfession', 'professionQueue', 'hay',
-     'invSize',
+     'invSize', 'autoWork', 'autoLoot',
      'owned', 'rank', 'rankXp', 'tid', 'sid', 'dex', 'pokeSeen', 'pokeCaught',
      'taught', 'handbook', 'orders'].forEach(function (k) {
       if (s[k] != null) self[k] = s[k];

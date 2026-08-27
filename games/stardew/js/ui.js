@@ -985,6 +985,29 @@
   }
 
   // ------------------------------------------------------------------- menu
+  /* A row that reads its own state, because a switch that does not show
+   * whether it is on is not a switch. */
+  function toggleRow(g, key, label, hint) {
+    var r = el('button', 'isl-mbtn');
+    function paint() {
+      r.innerHTML = '';
+      var on = g.sim[key] !== false;
+      var h = el('div', 'isl-mrow');
+      h.appendChild(el('b', null, label));
+      h.appendChild(el('span', on ? 'isl-good' : 'isl-cost', on ? 'BẬT' : 'TẮT'));
+      r.appendChild(h);
+      r.appendChild(el('div', 'isl-cost', hint));
+      r.className = 'isl-mbtn' + (on ? '' : ' isl-off');
+    }
+    r.onclick = function () {
+      g.sim[key] = g.sim[key] === false;
+      paint();
+      g.toast(label + (g.sim[key] ? ': BẬT' : ': TẮT'));
+    };
+    paint();
+    return r;
+  }
+
   function openMenu(g) {
     panel('Bảng điều khiển', function (b) {
       var m = el('div', 'isl-menu');
@@ -995,6 +1018,13 @@
         close();
         if (global.ISL_FARMQOL) global.ISL_FARMQOL.openPanel(g);
       }));
+      /* WHY these sit in the menu and not in a settings screen nobody opens:
+       * they change how the game FEELS more than anything else here, and a
+       * player who dislikes them needs to find the switch on the first day. */
+      m.appendChild(toggleRow(g, 'autoWork', '🪓 Tự động chặt/đập',
+        'Đứng yên cạnh cây hoặc đá là tự làm. Đi ngang qua thì không.'));
+      m.appendChild(toggleRow(g, 'autoLoot', '🧲 Tự động nhặt',
+        'Đồ rơi quanh bạn tự vào túi.'));
       m.appendChild(btn('💾 Lưu game', function () {
         g.sim.save(g.world) ? g.toast('Đã lưu.') : g.toast('Không lưu được.');
       }));

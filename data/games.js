@@ -165,7 +165,7 @@ window.HUB_GAMES = [
     path: "games/stardew/index.html",
     // Bumped on every redeploy. js/hub.js appends it to the card's href so the
     // browser cannot serve a stale index.html out of the ten-minute Pages cache.
-    rev: "20260827b",
+    rev: "20260827c",
     // REBUILT 2026-08-27, and it replaces the valley build that used to live
     // here rather than sitting beside it. Three things changed and each one
     // was the owner's call:
