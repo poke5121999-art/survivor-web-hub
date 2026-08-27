@@ -483,6 +483,8 @@
   ];
 
   // Xác cho không lúc mới vào — đủ một tổ 5 người để chơi ngay.
-  SQ.STARTER_CHARS = ['bao', 'hue', 'tam', 'ky', 'linh'];
+  // Tài khoản mới CHỈ có đúng một xác. Bốn ô bot mở ra bằng Gacha Xác — vốn ban đầu
+  // (1.200 ngọc + 3 vé xác) đủ khoảng mười lượt quay, thừa để ra con thứ hai.
+  SQ.STARTER_CHARS = ['bao'];
 
 })(window);

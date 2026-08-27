@@ -55,11 +55,11 @@
     SQ.MAPS.forEach(m => { M.maps[m.id] = { floor: 0, cleared: false, best: 0 }; });
     SQ.STARTER_CHARS.forEach(id => { M.chars[id] = { lv: 1, shard: 0, equip: {} }; });
     M.squad.lead = SQ.STARTER_CHARS[0];
+    // Bốn ô bot để trống: quay được xác nào thì xếp xác đó vào. Chiến thuật mặc định
+    // do setMate()/autoFill() gán khi xác thật sự vào tổ.
     M.squad.mates = SQ.STARTER_CHARS.slice(1, 5);
-    M.tactics[SQ.STARTER_CHARS[1]] = 'loot';
-    M.tactics[SQ.STARTER_CHARS[2]] = 'thu';
-    M.tactics[SQ.STARTER_CHARS[3]] = 'soi';
-    M.tactics[SQ.STARTER_CHARS[4]] = 'baoke';
+    while (M.squad.mates.length < 4) M.squad.mates.push(null);
+    M.squad.mates.forEach((id, i) => { if (id) M.tactics[id] = ['loot', 'thu', 'soi', 'baoke'][i]; });
     return M;
   }
 

@@ -141,7 +141,14 @@
 
     // --- đồ ăn tiền ---
     // Tổng giá trị rải ra = chỉ tiêu / 0,7 — được phép bỏ lại 30%.
-    const quota = Math.round(map.quotaBase * Math.pow(1 + map.quotaStep, floor - 1));
+    // Chỉ tiêu co theo SỐ NGƯỜI đang đi ca, không phải con số cứng.
+    // WHY: quotaBase được cân cho tổ đủ năm người. Từ bản "mới vô một xác", ván đầu
+    //      chạy một mình mà vẫn phải khuân đủ chỉ tiêu của năm người thì không xong nổi.
+    // Co dưới mức tuyến tính (1 người = 52%, 5 người = 100%) nên đi đủ tổ vẫn lợi hơn
+    // hẳn: bốn người kia còn mang thêm kỹ năng và chia lửa với quái.
+    const crew = SQ.clamp(SQ.squadList().length || 1, 1, 5);
+    const crewMul = 0.4 + 0.12 * crew;
+    const quota = Math.round(map.quotaBase * Math.pow(1 + map.quotaStep, floor - 1) * crewMul);
     const totalValue = Math.round(quota / 0.7);
     const count = Math.min(34, 9 + floor * 2 + map.tier * 2);   // ít món hơn, mỗi món đáng đi hơn
     const loot = [];
