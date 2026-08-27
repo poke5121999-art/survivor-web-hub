@@ -4956,8 +4956,8 @@ function hudLayout(){
 //   sát đáy, ngang thì rơi đúng giữa màn hình và che mặt người chơi.
 function hudLayoutLandscape(w, h){
   const pad = h * 0.05;
-  const R   = h * 0.17;                   // cần gạt to hơn hẳn: ngón cái cần chỗ để quăng
-  const sr  = R * 0.44;
+  const R   = h * 0.145;                  // cần gạt: to đủ quăng, nhưng khung ngang thấp nên đừng quá
+  const sr  = R * 0.46;
   const left  = { x: pad + R, y: h - pad - R, r: R };
   const right = { x: w - pad - R, y: h - pad - R, r: R };
   const thumbY = h - (pad + 2*R + 10);
@@ -4970,30 +4970,29 @@ function hudLayoutLandscape(w, h){
   //   chết. Game bắn/MOBA di động không ai bày như thế.
   // Cả cụm nằm TRÊN vạch thumbY: dải dưới cùng là của hai cần gạt, không ai được
   // đặt nút vào đó.
-  // Gom thành KHỐI HAI CỘT sát góc phải dưới, không toả hình quạt vào giữa màn.
-  // WHY: quạt trải rộng tới 64% bề ngang, tức là nút nằm chình ình giữa chỗ đang
-  //   chơi. PUBG/Liên Quân màn ngang gom hết vào một dải mép phải chừng một phần ba
-  //   bề ngang — giữa màn tuyệt đối trống. Khối này chiếm 31%.
-  // Nút cũng nhỏ lại một nấc (đường kính ~53px thay vì ~60px): khung ngang chỉ cao
-  // ~320px nên nút 60px ăn gần một phần năm chiều cao, to hơn cả nút thật của PUBG
-  // tính theo tỉ lệ. 53px vẫn thừa cho đầu ngón cái.
+  // Ba ô đồ BO THÀNH VÒNG CUNG ôm lấy cần phải, đúng hình vòng chiêu của game MOBA:
+  // ngón cái phải quét một cung tròn quanh chỗ nó đang đặt, nên nút xếp theo đúng
+  // cung đó là gần tay nhất mà không cần rời cần.
+  // Ba nút còn lại thành MỘT HÀNG NGANG sát lề phải rồi đi dần ra trái, nhích lên
+  // phía trên vòng cung — không lên tận góc, chỉ đủ để không đè lên nhau.
+  // WHY cả cụm bám mép phải: khối hai cột trước đó ăn 31% bề ngang, vẫn thò vào chỗ
+  //   đang chơi. Cách này gọn còn ~19%, giữa màn trống hẳn.
   const cx = w - pad - R, cy = h - pad - R;
-  const colA = cx - R*1.75;               // cột trong, gần cần phải
-  const colB = cx - R*3.10;               // cột ngoài
-  const rowA = h - pad - sr*1.35;         // hàng dưới, sát đáy
-  const rowB = rowA - sr*3.10;
-  const rowC = rowA - sr*6.20;            // hàng trên, vẫn lọt dưới bản đồ nhỏ
+  const ring = R * 1.80;                  // bán kính vòng cung, đủ hở khỏi mép cần gạt
+  const at = (deg, r) => ({ x: cx + ring*Math.cos(deg*Math.PI/180),
+                            y: cy - ring*Math.sin(deg*Math.PI/180), r: r });
   const slots = S.shopMode ? [] : [
-    { x: colB, y: rowA, r: sr*1.10, i: 0 },
-    { x: colB, y: rowB, r: sr*1.10, i: 1 },
-    { x: colB, y: rowC, r: sr*1.10, i: 2 }
+    Object.assign(at(180, sr*1.10), { i: 0 }),
+    Object.assign(at(140, sr*1.10), { i: 1 }),
+    Object.assign(at(100, sr*1.10), { i: 2 })
   ];
-  // Gần cần phải nhất là nút bấm nhiều nhất.
-  const grab   = { x: colA, y: rowA, r: sr*1.15 };
-  const sprint = { x: colA, y: rowB, r: sr*1.15 };
-  // Tủ đồ và Bắn thử loại trừ nhau nên dùng chung ô trên cùng của cột trong.
-  const stash  = { x: colA, y: rowC, r: sr*1.15 };
-  const test   = { x: colA, y: rowC, r: sr*1.20 };
+  const rowY = h * 0.37;                  // trên vòng cung, dưới bản đồ nhỏ
+  const rx   = n => w - pad - sr*1.15 - n * sr*2.65;
+  const grab   = { x: rx(0), y: rowY, r: sr*1.15 };   // nhặt: bấm nhiều nhất -> sát lề nhất
+  const sprint = { x: rx(1), y: rowY, r: sr*1.15 };
+  // Tủ đồ và Bắn thử loại trừ nhau nên dùng chung ô ngoài cùng bên trái của hàng.
+  const stash  = { x: rx(2), y: rowY, r: sr*1.15 };
+  const test   = { x: rx(2), y: rowY, r: sr*1.20 };
   // Chỗ bỏ món đang giơ: mép TRÊN giữa màn — xa nhất khỏi ngón vừa giơ nó lên,
   // và không đụng thanh máu (trên trái) lẫn bản đồ nhỏ (trên phải).
   const cancel = { x: w * 0.5, y: pad + sr*1.7, r: sr*1.7 };
@@ -6786,7 +6785,7 @@ function drawMinimap(c, hud){
   let h = w * (MH/MW);
   // Nằm ngang thì khung chỉ cao ~320px, mà bản đồ nhỏ vuông 210px ăn hai phần ba
   // chiều cao đó và đè lên cụm nút bên phải. Chặn theo CHIỀU CAO chứ không chỉ bề ngang.
-  const capH = hud.h * (big ? 0.8 : (hud.w > hud.h ? 0.26 : 0.34));
+  const capH = hud.h * (big ? 0.8 : (hud.w > hud.h ? 0.22 : 0.34));
   if (h > capH) { h = capH; w = h * (MW/MH); }
   const x = big ? (hud.w-w)/2 : hud.w - w - 14, y = big ? (hud.h-h)/2 : 14;
 
