@@ -506,6 +506,9 @@ const FX = {
   flash: 0, flashCol: '255,255,255',
   hurtT: 0, hurtDir: 0,
   tickPulse: 0, lastTick: -1,
+  // The jolt of SEEING one. It is its own channel rather than a nudge to dread, because dread is
+  // recomputed every frame from how near the thing is and would swallow a one-frame bump whole.
+  spotT: 0,
   pops: []                        // world-anchored numbers that rise and fade
 };
 let shakeX = 0, shakeY = 0;
@@ -514,7 +517,7 @@ function fxReset(){
   FX.houseT = 4; FX.peak = 0; FX.foeSnd = 0;
   FX.dread = FX.beat = FX.beatPulse = FX.shake = FX.hitstop = 0;
   FX.beat2 = false; FX.rate = 1.15;
-  FX.flash = FX.hurtT = FX.tickPulse = 0; FX.lastTick = -1;
+  FX.flash = FX.hurtT = FX.tickPulse = FX.spotT = 0; FX.lastTick = -1;
   FX.pops.length = 0;
 }
 function fxShake(n){ FX.shake = Math.min(14, Math.max(FX.shake, n)); }
@@ -556,7 +559,7 @@ function stepFx(dt){
   // The heart runs ALWAYS, because it is drawn on the HUD and a heart that stops is a dead one.
   // What changes with the danger is the RATE — about 52 beats a minute standing in an empty room,
   // about 176 with something on top of you — and whether you can hear it. Being hit spikes it too.
-  const alarm = Math.max(FX.dread, FX.hurtT*0.8);
+  const alarm = Math.max(FX.dread, FX.hurtT*0.8, FX.spotT*0.75);
   FX.rate = mix(1.15, 0.34, alarm);                  // seconds between beats
   FX.beat += dt;
   if (FX.beat >= FX.rate){
@@ -597,6 +600,7 @@ function stepFx(dt){
   FX.flash     = Math.max(0, FX.flash - dt*3.4);
   FX.hurtT     = Math.max(0, FX.hurtT - dt*1.6);
   FX.tickPulse = Math.max(0, FX.tickPulse - dt*3.2);
+  FX.spotT     = Math.max(0, FX.spotT - dt*1.5);
 
   for (let i=FX.pops.length-1;i>=0;i--){
     const q = FX.pops[i];
@@ -849,7 +853,15 @@ const FIRST_VISIT = [8, 16];
 // so the loop could be learned in quiet. Both are gone: the house is the same size every time
 // now, so what a player learns in the first one is what the rest of them are.
 const FOES_BASE = 3, FOES_PER_LEVEL = 0, FOES_MAX = 3;
-function foesForLevel(lv){ return Math.min(FOES_MAX, FOES_BASE + Math.floor((lv-1)*FOES_PER_LEVEL)); }
+// How many BODIES a house holds - which since 2026-08-27 is no longer the same as how many
+// MONSTERS it holds. The roster below is three things; the statue and the pair of mirrors are two
+// of them that never stand in S.monsters. Asked about the level currently being played it reads
+// that house's own roster, so the number and the house can never disagree; asked about a
+// hypothetical level it rolls one.
+function foesForLevel(lv){
+  const r = (S.roster && S.level === lv) ? S.roster : rosterForLevel(lv, Math.random);
+  return bodyKinds(r).length;
+}
 
 // Two monsters used to be able to stand on the exact same pixel, and a chasing one ran THROUGH
 // the spot it was aiming at and turned round again - measured at 0.8 px apart and ~12 direction
@@ -950,8 +962,19 @@ const LEVEL_MONSTERS = [
 // one house out of five is a rule nobody learns.
 const STOCK_ALWAYS = 'rook';
 const STOCK_NEVER  = 'patrol';
-function stockKinds(rnd){
-  const rest = Object.keys(MONSTERS).filter(k => k !== STOCK_ALWAYS && k !== STOCK_NEVER);
+// The AEngel and the pair of mirrors COUNT AS MONSTERS - the owner's call, 2026-08-27. Both were
+// built as house events, each on a clock of its own, so both arrived in every house whatever else
+// was already in it: "how dangerous is this house" was answered by three bodies, and then two more
+// things turned up regardless. A house now holds three THINGS, and a statue that takes your torch
+// off you is allowed to be one of them.
+// They are not in MONSTERS and never will be - neither has health and neither can be shot, which
+// is a property held by KEEPING THEM OUT of S.monsters rather than by a flag every damage site has
+// to remember to check. So they are kind names the roster understands and the body list does not.
+const ANGEL_KIND  = 'angel';
+const MIRROR_KIND = 'mirror';
+const EVENT_KINDS = [ANGEL_KIND, MIRROR_KIND];
+function stockFrom(pool, rnd){
+  const rest = pool.filter(k => k !== STOCK_ALWAYS && k !== STOCK_NEVER);
   for (let i = rest.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [rest[i],rest[j]] = [rest[j],rest[i]]; }
   const picked = [STOCK_ALWAYS].concat(rest).slice(0, FOES_MAX);
   // Shuffled again so the Rook is not always the one on the first authored post, which is the post
@@ -959,6 +982,30 @@ function stockKinds(rnd){
   for (let i = picked.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [picked[i],picked[j]] = [picked[j],picked[i]]; }
   return picked;
 }
+// What a house past the authored three is stocked with: three out of everything, the statue and
+// the mirrors included.
+function stockKinds(rnd){ return stockFrom(Object.keys(MONSTERS).concat(EVENT_KINDS), rnd); }
+// Bodies only. The one caller is the monster button, on a house whose roster holds no bodies.
+function stockBodies(rnd){ return stockFrom(Object.keys(MONSTERS), rnd); }
+
+// The first three houses are AUTHORED rather than rolled, so the game hands over one answer at a
+// time instead of three at once: the statue you answer with the torch, then the glass you answer by
+// breaking it, then the charge you answer with a step sideways. From the fourth house on it is a
+// random three out of the pool above - which means a house can be one Rook and two events, or
+// three bodies and no light left behind at all.
+// It is a DEFAULT, not a rule: the monster button still walks bodies into house one.
+const SCRIPTED_ROSTER = [
+  [ANGEL_KIND],
+  [ANGEL_KIND, MIRROR_KIND],
+  [ANGEL_KIND, MIRROR_KIND, STOCK_ALWAYS]
+];
+function rosterForLevel(lv, rnd){
+  if (lv >= 1 && lv <= SCRIPTED_ROSTER.length) return SCRIPTED_ROSTER[lv-1].slice();
+  return stockKinds(rnd || Math.random);
+}
+function rosterHas(kind){ return (S.roster || []).indexOf(kind) >= 0; }
+// The roster minus the two things that are not bodies: what actually gets built into S.monsters.
+function bodyKinds(roster){ return (roster || []).filter(k => !!MONSTERS[k]); }
 
 // ============================================================ shop
 // The source game's Service Station rolls a DIFFERENT stock every visit, split into two
@@ -1392,6 +1439,15 @@ function buildLevel(seed){
   // ordinary interval takes over and nothing about their pacing changes.
   S.angel = null; S.angelFx = null; S.lightZones = []; S.angelTimer = mix(FIRST_VISIT[0], FIRST_VISIT[1], Math.random());
   S.mirror = null; S.mirrorFx = null; S.mirrorTimer = mix(FIRST_VISIT[0], FIRST_VISIT[1], Math.random());
+  S.angelGone = false; S.mirrorGone = false;
+  // The house's roster, rolled ONCE and read by everything after: which bodies stand on the
+  // authored posts, whether a statue is coming, whether there is glass in the house.
+  // WHY it draws from a stream of its own rather than from `rnd`: `rnd` lays out this whole house,
+  // and taking three numbers out of the front of it would move every wall, every valuable and every
+  // door in every seeded house the tests pin.
+  S.roster = rosterForLevel(S.level, mulberry32(seed ^ 0x2f7a1c3d));
+  S.respawns = [];        // bodies the house owes you back, each with its own clock
+  S.foeDrops = 0;         // how many times something has dropped money in this house
 
   const lootSpots = [], monSpots = [];
   const order = ROOMS.map((_,i)=>i);
@@ -1588,7 +1644,8 @@ function buildLevel(seed){
 
   // --- monsters
   const pool = LEVEL_MONSTERS[Math.min(LEVEL_MONSTERS.length-1, S.level-1)];
-  if (!S.noFoes && S.level >= FOES_FROM_LEVEL){
+  const kinds = bodyKinds(S.roster);
+  if (!S.noFoes && kinds.length){
     const farFromTruck = (gx,gy) => Math.hypot((gx+0.5)*TILE-S.car.x,(gy+0.5)*TILE-S.car.y) > 12*TILE;
     const ms = monSpots.filter(s => reach[s.gy*MW+s.gx] && farFromTruck(s.gx, s.gy));
     for (let i=ms.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [ms[i],ms[j]]=[ms[j],ms[i]]; }
@@ -1600,8 +1657,7 @@ function buildLevel(seed){
       if (S.grid[gy*MW+gx] === FLOOR && reach[gy*MW+gx] && farFromTruck(gx,gy)) spare.push({gx,gy});
     }
     for (let i=spare.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [spare[i],spare[j]]=[spare[j],spare[i]]; }
-    const n = Math.min(ms.length + spare.length, foesForLevel(S.level));
-    const kinds = stockKinds(rnd);
+    const n = Math.min(ms.length + spare.length, kinds.length);
     for (let i=0;i<n;i++){
       const sp = i < ms.length ? ms[i] : spare[i - ms.length];
       const type = kinds[i % kinds.length];
@@ -1851,6 +1907,7 @@ function makeMonster(type,x,y){
            sleep:0, kx:0, ky:0,
            lost: 0,                              // seconds since it last had the player
            reveal: 0,                            // fade-in of "this thing has seen you", 0..1
+           seen: false, spotT: 0, unseenT: 0,    // the player's side: have I laid eyes on this one
            rook: type === 'rook' ? 'walk' : null, // the rook's own state machine
            goal: null, path: null, pi: 0, pathT: 0, windT: 0, dashLeft: 0,
            stun: 0, charging: false, rammed: null, linger: 0,
@@ -2486,8 +2543,13 @@ function populateFoes(){
   // Rook among them. It fills the kinds that are MISSING rather than drawing fresh, so pressing the
   // toggle after two have died puts back the two that died and not two more of the survivor.
   const here = S.monsters.map(m => m.type);
-  const pool = stockKinds(Math.random).filter(k => !here.includes(k));
-  const want = foesForLevel(S.level) - S.monsters.length;
+  // The roster's own bodies first. The first two houses have none — their roster is the statue and
+  // the glass — and an explicit press outranks that: a button that visibly does nothing reads as
+  // broken, so on those it draws a full set of bodies from the ordinary pool instead.
+  const mine = bodyKinds(S.roster);
+  const kinds = mine.length ? mine : stockBodies(Math.random);
+  const pool = kinds.filter(k => !here.includes(k));
+  const want = kinds.length - S.monsters.length;
   let made = 0;
   for (let i = 0; i < want; i++){
     for (let tries = 0; tries < 240; tries++){
@@ -2503,6 +2565,106 @@ function populateFoes(){
     }
   }
   return made;
+}
+
+// ============================================================ what a body leaves, and when it comes back
+// Two rules the owner asked for together on 2026-08-27, and they only work as a pair.
+//
+// A monster that dies drops money, and how much is HOW HARD IT WAS. Derived rather than authored,
+// so retuning a monster's health or its hit retunes what it drops and the two can never drift
+// apart. The weights put the plain patroller at about the price of a small vase and the heavy at
+// about the price of the biggest thing in the house - which is the whole point of the heavy:
+// twelve pistol rounds is an investment, and until now it had no payout at all.
+const FOE_LOOT_PER_HP  = 9;
+const FOE_LOOT_PER_DMG = 60;
+const FOE_LOOT_SPREAD  = 0.18;      // plus or minus, so one kind is not one fixed number
+// And the ceiling, which is the half that keeps the first rule honest. WHY there is one: bodies
+// come BACK now (below), so with no cap the house is a farm - stand in a doorway, shoot whatever
+// walks into it, meet the quota without ever touching a valuable. Three drops is a bonus; an
+// unlimited number of them is a different game.
+const FOE_DROP_MAX = 3;
+// A body is gone for a COUNTDOWN, not for the shift. Without it a house with a gun in it empties
+// out and the back half of every shift is a walk; with it, killing something buys you a window you
+// can measure rather than a room you own. The statue and the mirrors already worked exactly this
+// way - both have always come back on a clock - so this is that same rule finally reaching the
+// things that can actually be killed.
+const FOE_RESPAWN = 45;
+
+function foeLootValue(type){
+  const d = MONSTERS[type];
+  if (!d) return 0;
+  return Math.round((d.hp*FOE_LOOT_PER_HP + d.dmg*FOE_LOOT_PER_DMG) / 50) * 50;
+}
+// One bag, if the house has any drops left in it. Everything that drops money on death goes
+// through here - a shot monster, a broken mirror - so the cap is one number in one place.
+function dropBag(x, y, value){
+  if ((S.foeDrops || 0) >= FOE_DROP_MAX) return null;
+  const bag = makeLoot(x, y, SIZES[0], MATERIALS[2], value);
+  bag.isBag = true;
+  bag.grace = S.time + 3;          // it lands in the middle of a fight; three seconds before it can break
+  S.loot.push(bag);
+  S.foeDrops = (S.foeDrops || 0) + 1;
+  return bag;
+}
+function foeDropsLeft(){ return Math.max(0, FOE_DROP_MAX - (S.foeDrops || 0)); }
+function dropFoeLoot(x, y, type){
+  const base = foeLootValue(type);
+  if (base <= 0) return null;
+  const v = Math.round(base * mix(1-FOE_LOOT_SPREAD, 1+FOE_LOOT_SPREAD, Math.random()) / 50) * 50;
+  const bag = dropBag(x, y, v);
+  if (!bag) return null;
+  fxPop(x, y, '+' + money(v), '#e0b64a', 13);
+  return bag;
+}
+
+function queueRespawn(type){
+  if (S.shopMode || S.levelDone || S.shiftLost || S.noFoes) return false;
+  (S.respawns = S.respawns || []).push({ type, t: FOE_RESPAWN });
+  return true;
+}
+// Somewhere reachable, well away from the truck, never within nine tiles of anybody alive, and
+// never anywhere the player is looking - the same rule the mid-shift restock follows, because a
+// monster that blinks into view is a bug the player can see.
+function respawnSpot(){
+  for (let tries = 0; tries < 300; tries++){
+    const gx = 1 + ((Math.random()*(MW-2))|0), gy = 1 + ((Math.random()*(MH-2))|0);
+    if (S.grid[gy*MW+gx] !== FLOOR) continue;
+    const x = (gx+0.5)*TILE, y = (gy+0.5)*TILE;
+    if (hitsSolid(x, y, 11)) continue;
+    if (S.car && Math.hypot(x-S.car.x, y-S.car.y) < 12*TILE) continue;
+    if (crewAlive().some(a => Math.hypot(x-a.x, y-a.y) < 9*TILE)) continue;
+    if (inSight(x, y)) continue;
+    return { x, y };
+  }
+  return null;
+}
+function stepRespawns(dt){
+  const q = S.respawns;
+  if (!q || !q.length) return;
+  for (let i = q.length-1; i >= 0; i--){
+    const e = q[i];
+    e.t -= dt;
+    if (e.t > 0) continue;
+    // The shift is over, one way or the other: nothing else walks in.
+    if (S.levelDone || S.shiftLost || S.dead){ q.splice(i,1); continue; }
+    const at = respawnSpot();
+    if (!at){ e.t = 3; continue; }       // nowhere out of sight right now - try again shortly
+    S.monsters.push(makeMonster(e.type, at.x, at.y));
+    q.splice(i, 1);
+    SFX.thud();                          // something moved, somewhere behind you
+    toast(MONSTERS[e.type].name + ' vừa vào nhà');
+  }
+}
+// Everything the house owes you the return of, as ONE list: the bodies you killed, the statue you
+// filled or that clawed you, the glass you broke. All three were always countdowns; this is the
+// first time any of them is a number the player can read.
+// The FIRST arrival of the statue or the mirrors is deliberately not in here - that one is meant
+// to be a surprise, and a countdown to it would hand the surprise away.
+function pendingReturns(){
+  const out = (S.respawns || []).map(r => ({ name: MONSTERS[r.type].name, t: r.t }));
+  if (S.angelGone  && !S.angel  && rosterHas(ANGEL_KIND))  out.push({ name:'AEngel', t: S.angelTimer });
+  if (S.mirrorGone && !S.mirror && rosterHas(MIRROR_KIND)) out.push({ name:'Gương',  t: S.mirrorTimer });
+  return out.filter(r => r.t > 0).sort((a,b) => a.t - b.t);
 }
 
 function stepFoeSound(dt){
@@ -2522,6 +2684,28 @@ function stepFoeSound(dt){
   FX.foeSnd = 0.55 + Math.random()*0.9;
 }
 
+// The player's own side of "seen": the frame a body resolves out of the dark for THEM. It latches,
+// and it only unlatches after a couple of seconds fully out of view, because a danger cue that
+// re-fires every time something crosses the edge of the torch beam is a strobe and not a warning.
+const SPOT_FX_T   = 0.55;     // how long the ring that says "there it is" lives
+const SPOT_FORGET = 2.5;      // out of sight for this long, and the next look is a fresh sighting
+function stepFoeSpotted(m, dt){
+  m.spotT = Math.max(0, (m.spotT || 0) - dt);
+  if (m.sleep > 0) return;
+  const vis = inSight(m.x, m.y) || (m.reveal || 0) > 0.02;
+  if (vis){
+    m.unseenT = 0;
+    if (!m.seen){
+      m.seen = true; m.spotT = SPOT_FX_T;
+      FX.spotT = 1;               // the screen jolts with the eye - see the alarm term in stepFx
+      fxShake(1.6);
+    }
+  } else {
+    m.unseenT = (m.unseenT || 0) + dt;
+    if (m.unseenT > SPOT_FORGET) m.seen = false;
+  }
+}
+
 function stepMonsters(dt){
   for (const m of S.monsters){
     const d = MONSTERS[m.type];
@@ -2531,6 +2715,7 @@ function stepMonsters(dt){
     const dist = Math.hypot(p.x-m.x, p.y-m.y);
     const want = foeRevealed(m) ? 1 : 0;
     m.reveal = clamp((m.reveal || 0) + (want ? dt/REVEAL_FADE : -dt/REVEAL_FADE), 0, 1);
+    stepFoeSpotted(m, dt);
 
     // knockback decays wherever it came from — a tranq dart, a bomb, or a shove
     if (m.kx || m.ky){
@@ -2861,6 +3046,18 @@ function killMonster(m){
   if (m.type === 'bomber'){
     S.bombs.push({ x:m.x, y:m.y, t:0, fuse:0, r:TILE*3.2, done:false, owner:'foe' });
   }
+  // The drop goes down BEFORE the bomber's own blast (queued above) resolves, which is what the
+  // bag's three-second grace is for: the thing that killed it is allowed to be standing on it.
+  const bag = dropFoeLoot(m.x, m.y, m.type);
+  const back = queueRespawn(m.type);
+  // ONE line for one event. Two toast() calls in a row is one message overwriting the other before
+  // anybody has read it, and the one that would lose here is the one that says you were paid.
+  // Kept SHORT because the toast is one centred line on a 390-wide phone frame: past about
+  // forty-five characters it runs off both edges. How many drops are left is the part that gets
+  // cut, because the strip at the top of the screen is already showing the clock this mentions.
+  const name = MONSTERS[m.type].name;
+  toast(name + (bag ? ' chết — rơi ' + money(bag.value0) : ' chết — hết đồ rơi')
+             + (back ? ', quay lại sau ' + FOE_RESPAWN + 's' : ''));
 }
 
 // ============================================================ items
@@ -3618,15 +3815,17 @@ function breakMirror(which){
   if (!mr) return;
   const at = mr.m || mr.a;
   const value = Math.round(mix(MIRROR_LOOT[0], MIRROR_LOOT[1], Math.random()) / 50) * 50;
-  const bag = makeLoot(at.x, at.y, SIZES[0], MATERIALS[2], value);
-  bag.isBag = true;
-  bag.grace = S.time + 3;
-  S.loot.push(bag);
+  // The glass is a monster now, so its bag is counted against the same three the bodies share.
+  // A house where you shot three patrols and then broke a mirror pays for three of those things,
+  // not four - otherwise the cap says one number and the house pays another.
+  const bag = dropBag(at.x, at.y, value);
   S.mirrorFx = { x: which.x, y: which.y, t: 0, kind: 'break' };
   S.mirror = null;
   S.mirrorTimer = mirrorNextIn();
+  S.mirrorGone = true;
   fxShake(9); fxFlash(0.35, '210,230,255'); SFX.chime();
-  toast('Gương vỡ — nó tan theo, để lại ' + money(value) + '.');
+  toast(bag ? 'Gương vỡ - nó tan theo, để lại ' + money(value) + '.'
+            : 'Gương vỡ - nó tan theo, nhưng nhà này hết đồ rơi rồi.');
 }
 
 function damageMirror(x, y, n){
@@ -3653,6 +3852,7 @@ function mirrorTake(mr, who){
   S.mirrorFx = { x: to.x, y: to.y, t: 0, kind: 'warp' };
   S.mirror = null;
   S.mirrorTimer = mirrorNextIn();
+  S.mirrorGone = true;
   fxShake(p === S.player ? 12 : 5); fxFlash(0.45, '190,215,255'); SFX.warp();
   toast(p === S.player ? 'Nó đẩy bạn qua gương bên kia.'
                        : 'Nó đẩy ' + p.name + ' qua gương bên kia.');
@@ -3663,6 +3863,7 @@ function stepMirror(dt){
   if (S.shopMode || S.noFoes || S.dead || S.levelDone || S.shiftLost){ S.mirror = null; return; }
 
   if (!S.mirror){
+    if (!rosterHas(MIRROR_KIND)) return;      // same rule as the statue - the arrival is gated, not the thing
     S.mirrorTimer -= dt;
     if (S.mirrorTimer <= 0) spawnMirrors();
     return;
@@ -4819,7 +5020,7 @@ function step(dt){
   } else {
     stepDoors(dt);
     stepMates(dt);
-    if (!S.noFoes){ stepMonsters(dt); separateFoes(); stepFoeSound(dt); }
+    if (!S.noFoes){ stepMonsters(dt); separateFoes(); stepFoeSound(dt); stepRespawns(dt); }
     stepAngel(dt);
     stepMirror(dt);
     stepProjectiles(dt);
@@ -5094,6 +5295,7 @@ function angelRise(a){
     if (S.rooms[ri]) S.rooms[ri].seen = true;
   }
   S.angelTimer = angelNextIn();
+  S.angelGone = true;
   fxFlash(0.45, '255,246,216'); SFX.chime();
   toast('Nó no ánh sáng rồi — bay đi, để lại một vùng sáng.');
 }
@@ -5110,6 +5312,7 @@ function angelClaw(a){
   SFX.screech();
   S.angel = null;
   S.angelTimer = angelNextIn();
+  S.angelGone = true;
   toast('Nó cào một phát rồi biến mất. Đèn tắt ' + ANGEL_PUNISH + ' giây.');
 }
 
@@ -5124,6 +5327,9 @@ function stepAngel(dt){
   if (S.shopMode || S.noFoes || S.dead || S.levelDone){ S.angel = null; return; }
 
   if (!S.angel){
+    // Not on this house's roster: nothing arrives. This gates the ARRIVAL, not the thing - one
+    // forced in by hand (the debug hook, a test) still runs its whole lifecycle.
+    if (!rosterHas(ANGEL_KIND)) return;
     S.angelTimer -= dt;
     if (S.angelTimer <= 0) spawnAngel();
     return;
@@ -5247,6 +5453,13 @@ function drawAngel(c){
 // Drawn in the ADDITIVE pass, after the darkness has been multiplied over the world, so a highlight
 // is never dimmed by the room it is standing in.
 const HL_LOOT   = [232, 196, 120];   // warm gold — the colour of money in this game
+// Danger has ONE colour. Owner's call, 2026-08-27: the highlight used to be each monster's own eye
+// colour, which was a taxonomy — it said WHICH thing was in the room, a thing the silhouette
+// already says — and it spent the one colour the eye reacts to without being asked. Everything
+// that can hurt you is red now, and the only thing the shade varies with is whether it has you.
+const HL_FOE    = [214, 62, 52];    // seen
+const HL_HUNT   = [255, 66, 50];    // seen, and coming
+const HL_ASLEEP = [130, 170, 200];  // tranquillised: not a danger, so not the danger colour
 const HL_CART   = [224, 192, 122];
 const HL_TRUCK  = [140, 190, 230];
 const HL_TARGET = [150, 230, 170];   // green: the one thing the grab button would actually take
@@ -5325,11 +5538,138 @@ function glowRing(c, x, y, r, rgb, a, lw){
   c.stroke();
 }
 
+// ---- what THEY can see
+// Owner's call, 2026-08-27. Every monster in this game is answered by geometry — a wall, a corner,
+// one step sideways — and until now the geometry was invisible: the player was asked to guess at a
+// cone they had never once been shown. It is drawn only for something they can already see, and
+// clipped to the same walls the detection test uses, because a cone glowing through a wall would
+// hand the house over for free.
+//
+// The colour carries the whole message: amber while it is looking, RED the moment it has you.
+const FOE_CONE_HALF  = 1.1;      // the same number stepMonsters detects with
+const ROOK_CONE_HALF = 1.2;      // and the rook's own, which is wider
+const FOE_NEAR_R     = 3*TILE;   // inside this, which way it is facing stops mattering
+function foeAlerted(m){
+  if (!m || m.sleep > 0) return false;
+  if (m.type === 'rook') return m.rook === 'wind' || m.rook === 'dash';
+  return m.state === 'chase' && m.alert > 0;
+}
+function foeConeHalf(m){ return m.type === 'rook' ? ROOK_CONE_HALF : FOE_CONE_HALF; }
+// A hearing radius is exactly as big as the noise being made and no bigger. Drawing it at its
+// maximum would be a lie every time the player stood still, and the sneak tier's entire reason to
+// exist is that this circle collapses when you slow down.
+function foeHearR(m){
+  const d = MONSTERS[m.type];
+  if (!d || !d.hear) return 0;
+  const p = viewer() || S.player;
+  return d.hear*TILE*((p && p.noise) || 0)*0.6;
+}
+function drawFoeVision(c){
+  for (const m of S.monsters){
+    if (m.sleep > 0 || !foeVisible(m)) continue;
+    const d = MONSTERS[m.type];
+    const hot = foeAlerted(m);
+    const rgb = hot ? '236,52,40' : '224,168,74';
+    const a   = hot ? 0.16 : 0.075;
+    if (d.sight > 0){
+      const R = d.sight*TILE, half = foeConeHalf(m);
+      c.save();
+      pathPoly(c, visPoly(m.x, m.y, R, 36)); c.clip();
+      // Weighted toward the monster rather than spread evenly: a cone lit flat across eight tiles
+      // is a wash, and the half of it that matters is the half you are about to walk into.
+      const g = c.createRadialGradient(m.x, m.y, 6, m.x, m.y, R);
+      g.addColorStop(0,    `rgba(${rgb},${a*2.6})`);
+      g.addColorStop(0.5,  `rgba(${rgb},${a*1.1})`);
+      g.addColorStop(1,    `rgba(${rgb},0)`);
+      c.fillStyle = g;
+      c.beginPath(); c.moveTo(m.x, m.y); c.arc(m.x, m.y, R, m.dir-half, m.dir+half); c.closePath();
+      c.fill();
+      // The edges, so it is a line you can step over rather than a haze you guess at. Kept THIN
+      // and dim on purpose: at full length these are two straight lines across the whole screen,
+      // and any brighter they stop reading as the sides of a wedge and start reading as lasers.
+      c.strokeStyle = `rgba(${rgb},${a*1.7})`; c.lineWidth = 1.1; c.stroke();
+      // and the blind circle it does not have to be facing you to use
+      c.beginPath();
+      c.strokeStyle = `rgba(${rgb},${a*2.0})`;
+      c.arc(m.x, m.y, FOE_NEAR_R, 0, Math.PI*2); c.stroke();
+      c.restore();
+    }
+    const hr = foeHearR(m);
+    if (hr > 8){
+      c.save();
+      pathPoly(c, visPoly(m.x, m.y, hr, 28)); c.clip();
+      c.beginPath();
+      c.setLineDash([7, 7]);
+      c.strokeStyle = `rgba(${rgb},${a*4.0})`; c.lineWidth = 1.6;
+      c.arc(m.x, m.y, hr, 0, Math.PI*2); c.stroke();
+      c.setLineDash([]);
+      c.restore();
+    }
+  }
+}
+// The ring that fires once, on the frame a thing resolves out of the dark. Deliberately wider than
+// the highlight and gone in half a second: the highlight says "it is there", this says "it just
+// became there", and only one of those is worth flinching at.
+function spotFx(c, x, y, t){
+  if (t <= 0) return;
+  const k = 1 - t/SPOT_FX_T;
+  c.save();
+  c.strokeStyle = `rgba(255,80,64,${(1-k)*0.85})`;
+  c.lineWidth = 1.5 + (1-k)*3;
+  c.beginPath(); c.arc(x, y, 14 + k*38, 0, Math.PI*2); c.stroke();
+  c.restore();
+}
+// "!" over the head of anything that has decided about you. The cone going red says it CAN see
+// you; this says it is already coming, which is a different sentence and the one you act on.
+// Two passes rather than an outline: this whole layer is drawn additively, where a dark outline
+// adds nothing at all, so the readability has to come from a halo under a hot core.
+function alertMark(c, x, y){
+  const bob = Math.sin(S.time*9);
+  c.save();
+  c.translate(x, y - 36 - bob*2);
+  c.textAlign = 'center';
+  // The halo is red and the core is nearly white. WHY not red on red: the mark sits INSIDE the
+  // thing's own red highlight, and a red glyph on a red bloom is a smudge — the core has to be the
+  // brightest and least saturated thing in that patch of screen or it does not read at all.
+  c.font = '900 30px ui-sans-serif, system-ui';
+  c.fillStyle = 'rgba(255,48,34,0.34)';
+  c.fillText('!', 0, 2);
+  c.font = '900 22px ui-sans-serif, system-ui';
+  c.fillStyle = `rgba(255,228,220,${0.82 + 0.18*bob})`;
+  c.fillText('!', 0, 0);
+  c.textAlign = 'left';
+  c.restore();
+}
+// The two monsters that are not bodies. Both are on the roster now, so both answer to the same
+// red as everything else — the colour means "this can hurt you", and both of these can.
+function drawEventFoeGlow(c){
+  const p = S.player;
+  const beat = 0.62 + 0.38*Math.sin(S.time*3.2);
+  const an = S.angel;
+  if (an && an.phase === 'stand' && an.t >= ANGEL_SETTLE && losClear(p.x, p.y, an.x, an.y)){
+    // Armed AND in the dark is the state that ends in a swipe. That is the one that earns the
+    // hunting red and the mark — and it is the one the player can still do something about.
+    const hot = an.armed && !litByTorch(an.x, an.y);
+    glowRing(c, an.x, an.y, 17 + (hot ? beat*3.5 : 0), hot ? HL_HUNT : HL_FOE,
+             hot ? 0.70 + beat*0.3 : 0.40, hot ? 3.0 : 2.0);
+    if (hot) alertMark(c, an.x, an.y - 6);
+  }
+  const mr = S.mirror, mm = mr && mr.m;
+  if (mm && (inSight(mm.x, mm.y) || (mm.reveal || 0) > 0.02)){
+    // It has no detection to draw and no state to be in: from the moment it is out of the glass it
+    // is walking at somebody. So it is always the hunting red, and it always wears the mark.
+    glowRing(c, mm.x, mm.y, 15 + beat*3.5, HL_HUNT, 0.70 + beat*0.3, 3.0);
+    alertMark(c, mm.x, mm.y);
+  }
+}
+
 function drawHighlights(c){
   const p = S.player;
   if (!p || S.dead) return;
   const target = nearestLoot(p);
   const beat = 0.62 + 0.38*Math.sin(S.time*3.2);
+  // First, so every ring below sits on top of it rather than inside it.
+  drawFoeVision(c);
 
   for (const l of S.loot){
     if (l.gone || l.held || l.inCart || l.onPad) continue;
@@ -5351,15 +5691,17 @@ function drawHighlights(c){
   // Anything alive that the beam is actually on. It gets the same treatment as the loot, because
   // "there is something in front of me" is the one piece of information this game must never make
   // you squint for. Outside the beam it stays invisible — that half is the point of the game.
+  // The colour is red for all of them now — see HL_FOE.
   for (const m of S.monsters){
     if (!foeVisible(m)) continue;
-    const d = MONSTERS[m.type];
-    const hunting = m.state === 'chase' || m.charging;
+    const hunting = foeAlerted(m);
     if (m.sleep > 0){
-      glowRing(c, m.x, m.y, 15, [130,170,200], 0.30, 1.6);
+      glowRing(c, m.x, m.y, 15, HL_ASLEEP, 0.30, 1.6);
     } else {
-      glowRing(c, m.x, m.y, 15 + (hunting ? beat*3.5 : 0), d.eyeRgb,
-               hunting ? 0.62 + beat*0.3 : 0.36, hunting ? 2.8 : 1.8);
+      glowRing(c, m.x, m.y, 15 + (hunting ? beat*3.5 : 0), hunting ? HL_HUNT : HL_FOE,
+               hunting ? 0.72 + beat*0.3 : 0.44, hunting ? 3.0 : 2.0);
+      spotFx(c, m.x, m.y, m.spotT || 0);
+      if (hunting) alertMark(c, m.x, m.y);
     }
   }
 
@@ -5387,6 +5729,7 @@ function drawHighlights(c){
 
   drawHeadGlow(c);
   drawMirrorGlow(c);
+  drawEventFoeGlow(c);
 
   // The truck: the locker lives on it, and the locker button only appears when you are close, so
   // the truck has to say "come here" from further away than the button does.
@@ -5827,6 +6170,7 @@ function drawHud(c){
 
   drawMinimap(c, hud);
   drawCrewStrip(c, hud);
+  drawReturnStrip(c, hud);
 
   drawPops(c);
   if (S.countdownActive) drawCountdown(c, hud);
@@ -6003,6 +6347,27 @@ function drawCrewStrip(c, hud){
     }
     c.textAlign = 'left';
   }
+}
+
+// The countdown a dealt-with monster leaves behind. WHY it is on screen at all: a respawn the
+// player cannot see is indistinguishable from a monster that happened to walk in, and the entire
+// reason killing something is worth doing is that it buys a KNOWN window. The number IS the window.
+// It reddens as the nearest one runs out, because this is a warning and not a scoreboard.
+function drawReturnStrip(c, hud){
+  if (S.shopMode || S.cut) return;
+  const list = pendingReturns();
+  if (!list.length) return;
+  const y = 92;
+  c.font = '600 10px ui-monospace, monospace';
+  c.textAlign = 'center';
+  const line = '↻ ' + list.slice(0, 3).map(r => r.name + ' ' + Math.ceil(r.t) + 's').join('   ');
+  const w = c.measureText(line).width + 18;
+  c.fillStyle = 'rgba(10,12,14,0.62)';
+  c.fillRect(hud.w/2 - w/2, y - 11, w, 16);
+  const k = clamp(1 - list[0].t/FOE_RESPAWN, 0, 1);
+  c.fillStyle = `rgb(${Math.round(mix(150,232,k))},${Math.round(mix(162,86,k))},${Math.round(mix(172,74,k))})`;
+  c.fillText(line, hud.w/2, y);
+  c.textAlign = 'left';
 }
 
 // A raised item, drawn the way a mobile MOBA draws a raised skill: a stick under the thumb that
@@ -6555,7 +6920,8 @@ window.REPO = {
               ? { slot:p.aimSlot, x:p.aimX, y:p.aimY, angle:aimAngle(p, hudLayout()) } : null; },
   rushing(){ return !!(S.player && S.player.rushing); },
   fx(){ return { dread:FX.dread, shake:FX.shake, hitstop:FX.hitstop, flash:FX.flash,
-                 hurtT:FX.hurtT, tickPulse:FX.tickPulse, pops:FX.pops.map(q=>q.text) }; },
+                 hurtT:FX.hurtT, tickPulse:FX.tickPulse, spotT:FX.spotT,
+                 pops:FX.pops.map(q=>q.text) }; },
   threat(){ return threatLevel(); },
   spawnAngel, litByTorch,
   // tổ ba người
@@ -6603,6 +6969,35 @@ window.REPO = {
   foeRevealed(i){ return foeRevealed(S.monsters[i||0]); },
   revealed(){ return S.monsters.map(m => m.reveal || 0); },
   MONSTERS, LEVEL_MONSTERS,
+  // ---- the roster: three THINGS per house, and two of them are not bodies
+  ROSTER: { SIZE:FOES_MAX, SCRIPTED:SCRIPTED_ROSTER, ANGEL:ANGEL_KIND, MIRROR:MIRROR_KIND,
+            EVENTS:EVENT_KINDS, ALWAYS:STOCK_ALWAYS, NEVER:STOCK_NEVER },
+  roster(){ return (S.roster || []).slice(); },
+  rosterAt(lv){ return rosterForLevel(lv, Math.random); },
+  rosterHas, bodyKinds, stockKinds, stockBodies,
+  // ---- what a body leaves behind, and when it comes back
+  FOE_LOOT: { PER_HP:FOE_LOOT_PER_HP, PER_DMG:FOE_LOOT_PER_DMG, SPREAD:FOE_LOOT_SPREAD,
+              MAX:FOE_DROP_MAX, RESPAWN:FOE_RESPAWN },
+  foeLootValue,
+  drops(){ return { used: S.foeDrops || 0, left: foeDropsLeft(), max: FOE_DROP_MAX,
+                    bags: S.loot.filter(l => l.isBag && !l.gone)
+                                .map(l => ({ x:l.x, y:l.y, value:l.value })) }; },
+  killFoe(i){ const m = S.monsters[i|0]; if (!m) return null;
+              const t = m.type; killMonster(m); return t; },
+  respawns(){ return (S.respawns || []).map(r => ({ type:r.type, t:r.t })); },
+  returns(){ return pendingReturns(); },
+  // ---- what the player is shown about a monster
+  foeAlerted(i){ return foeAlerted(S.monsters[i|0]); },
+  foeVision(i){
+    const m = S.monsters[i|0];
+    if (!m) return null;
+    const d = MONSTERS[m.type];
+    return { type:m.type, dir:m.dir, alerted:foeAlerted(m), drawn:foeVisible(m),
+             sightR: d.sight*TILE, coneHalf: foeConeHalf(m), nearR: FOE_NEAR_R,
+             hearR: foeHearR(m), hearMax: d.hear*TILE };
+  },
+  spotted(){ return S.monsters.map(m => ({ seen:!!m.seen, spotT:m.spotT || 0 })); },
+  HL: { FOE:HL_FOE, HUNT:HL_HUNT, ASLEEP:HL_ASLEEP },
   angel(){ const a = S.angel;
            return a ? { x:a.x, y:a.y, t:a.t, charge:a.charge, marked:a.marked, armed:!!a.armed,
                         unlitT:a.unlitT, phase:a.phase } : null; },
@@ -6693,6 +7088,9 @@ window.REPO = {
       lootValue: S.loot.reduce((a,l)=>a+(l.gone?0:l.value),0),
       lootValue0: S.loot.reduce((a,l)=>a+l.value0,0),
       monsters: S.monsters.length,
+      roster: (S.roster || []).slice(),
+      foeDrops: S.foeDrops || 0,
+      pendingReturns: pendingReturns().length,
       chasing: S.monsters.filter(m=>m.state==='chase').length,
       hunting: S.monsters.filter(m=>m.state==='hunt').length,
       foes: S.monsters.map(m=>({ type:m.type, x:m.x, y:m.y, state:m.state,
