@@ -88,6 +88,7 @@
      * who wants to place every swing themselves should be able to. */
     this.autoWork = true;
     this.autoLoot = true;
+    this.autoFight = true;
     this.professions = {};
     this.hasBoat = false;
     this.spouse = null;
@@ -718,7 +719,7 @@
       seedRng: this.seedRng, deepestMine: this.deepestMine,
       weapon: this.weapon, armor: this.armor, toolTier: this.toolTier,
       toolPower: this.toolPower, professions: this.professions,
-      autoWork: this.autoWork, autoLoot: this.autoLoot,
+      autoWork: this.autoWork, autoLoot: this.autoLoot, autoFight: this.autoFight,
       hasBoat: this.hasBoat, spouse: this.spouse, dating: this.dating,
       machines: this.machines,
       /* WHY these four: a save made anywhere but the farm loaded the player to
@@ -803,7 +804,7 @@
      'toolTier', 'toolPower', 'professions', 'hasBoat',
      'spouse', 'dating', 'machines', 'playerX', 'playerY', 'chestSize',
      'maxHealth', 'pendingProfession', 'professionQueue', 'hay',
-     'invSize', 'autoWork', 'autoLoot',
+     'invSize', 'autoWork', 'autoLoot', 'autoFight',
      'owned', 'rank', 'rankXp', 'tid', 'sid', 'dex', 'pokeSeen', 'pokeCaught',
      'taught', 'handbook', 'orders'].forEach(function (k) {
       if (s[k] != null) self[k] = s[k];

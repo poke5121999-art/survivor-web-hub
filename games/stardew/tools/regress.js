@@ -376,6 +376,62 @@ function run() {
     return null;
   });
 
+  /* Monsters in the mine used the same tap-per-swing as everything else. They
+     are also the one case where standing still is not free: a foe within one
+     tile takes health every 1.1 seconds whether or not you swing back. */
+  check('standing next to a monster kills it with no input', () => {
+    window.ISL_MINE.enter(G);
+    while (window.ISL_TUTORIAL.isOpen()) window.ISL_TUTORIAL.dismiss();
+    window.ISL_UI.closeAll();
+    const a = G.area();
+    s.autoFight = true;
+    s.energy = s.maxEnergy;
+    s.health = s.maxHealth;
+    const px = Math.floor(G.player.x), py = Math.floor(G.player.y);
+    a.objs.slice().forEach(o => {
+      if (Math.abs(o.x - px) <= 3 && Math.abs(o.y - py) <= 3) a.remove(o);
+    });
+    const foe = { x: px + 1, y: py, kind: 'foe', name: 'Slime', hp: 20, dmg: 3 };
+    a.obj(foe);
+    G.stick.dx = 0; G.stick.dy = 0;
+    for (let i = 0; i < 300; i++) G.frame(G.time + 16);
+    const dead = a.objs.indexOf(foe) < 0;
+    a.objs.slice().forEach(o => { if (o.kind === 'foe') a.remove(o); });
+    window.ISL_MINE.leave(G);
+    while (window.ISL_TUTORIAL.isOpen()) window.ISL_TUTORIAL.dismiss();
+    window.ISL_UI.closeAll();
+    return dead ? null : 'the monster is still alive on ' + foe.hp + ' hp';
+  });
+
+  /* Fainting costs ten percent of the player's gold. An auto-attack that
+     fights to the last hit point is a trap nobody agreed to. */
+  check('auto fight stops while there is still health left', () => {
+    window.ISL_MINE.enter(G);
+    while (window.ISL_TUTORIAL.isOpen()) window.ISL_TUTORIAL.dismiss();
+    window.ISL_UI.closeAll();
+    const a = G.area();
+    s.autoFight = true;
+    s.energy = s.maxEnergy;
+    s.health = Math.round(s.maxHealth * 0.25);   // already under the floor
+    const before = s.health;
+    const px = Math.floor(G.player.x), py = Math.floor(G.player.y);
+    a.objs.slice().forEach(o => {
+      if (Math.abs(o.x - px) <= 3 && Math.abs(o.y - py) <= 3) a.remove(o);
+    });
+    const foe = { x: px + 1, y: py, kind: 'foe', name: 'Slime', hp: 9999, dmg: 0 };
+    a.obj(foe);
+    G.stick.dx = 0; G.stick.dy = 0;
+    for (let i = 0; i < 200; i++) G.frame(G.time + 16);
+    const hit = foe.hp < 9999;
+    a.objs.slice().forEach(o => { if (o.kind === 'foe') a.remove(o); });
+    window.ISL_MINE.leave(G);
+    while (window.ISL_TUTORIAL.isOpen()) window.ISL_TUTORIAL.dismiss();
+    window.ISL_UI.closeAll();
+    s.health = s.maxHealth;
+    if (hit) return 'it kept swinging at ' + before + ' health';
+    return null;
+  });
+
   console.log('\n--- Pokemon: Generation 3 arithmetic ---');
 
   /* Recoil is a NEGATIVE drain percentage, and Math.max(1, -35) is 1 - so

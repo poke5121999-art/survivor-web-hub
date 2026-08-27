@@ -1025,6 +1025,8 @@
         'Đứng yên cạnh cây hoặc đá là tự làm. Đi ngang qua thì không.'));
       m.appendChild(toggleRow(g, 'autoLoot', '🧲 Tự động nhặt',
         'Đồ rơi quanh bạn tự vào túi.'));
+      m.appendChild(toggleRow(g, 'autoFight', '⚔ Tự động đánh quái',
+        'Dưới hầm mỏ. Tự dừng khi máu còn dưới 30% — quái vẫn đánh bạn.'));
       m.appendChild(btn('💾 Lưu game', function () {
         g.sim.save(g.world) ? g.toast('Đã lưu.') : g.toast('Không lưu được.');
       }));

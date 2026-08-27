@@ -670,12 +670,56 @@
     return best;
   };
 
+  /* A monster within reach. Foes are checked BEFORE rocks: standing next to
+   * one already costs health every 1.1 seconds whether you swing or not, so
+   * mining the wall beside it is never the right move. */
+  Game.prototype.nearestFoe = function (r) {
+    var a = this.area(), p = this.player;
+    var best = null, bestD = r * r;
+    for (var y = Math.floor(p.y - r); y <= Math.floor(p.y + r); y++) {
+      for (var x = Math.floor(p.x - r); x <= Math.floor(p.x + r); x++) {
+        var o = a.objAt(x, y);
+        if (!o || o.kind !== 'foe') continue;
+        var dx = (o.x + 0.5) - p.x, dy = (o.y + 0.5) - p.y;
+        var d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = o; }
+      }
+    }
+    return best;
+  };
+
+  /* The health equivalent of AUTO_ENERGY_FLOOR, and it exists for the same
+   * reason: fainting in the mine costs ten percent of the player's gold, and
+   * an auto-attack that fights to the last hit point is a trap the player
+   * never agreed to. Below this it stops swinging and says so - the monster
+   * still hits back, so the message has to be the one that makes them run. */
+  var AUTO_HEALTH_FLOOR = 0.3;
+
   Game.prototype.autoWork = function (dt) {
-    if (this.sim.autoWork === false) return;
     var p = this.player;
-    /* Reset the beat while moving, so stopping next to a rock costs a full
-     * swing rather than landing a free hit the instant you arrive. */
     if (p.moving) { this._swing = 0; return; }
+
+    if (this.sim.autoFight !== false) {
+      var foe = this.nearestFoe(AUTO_REACH);
+      if (foe) {
+        if (this.sim.health <= this.sim.maxHealth * AUTO_HEALTH_FLOOR) {
+          if (this.time - (this._autoHurt || -9e9) > 8000) {
+            this._autoHurt = this.time;
+            this.toast('Máu thấp — chạy đi, hoặc đánh tay.');
+          }
+          return;
+        }
+        if (this.sim.energy <= 2) return;
+        this._swing = (this._swing || 0) + dt;
+        if (this._swing < swingPeriod(this)) return;
+        this._swing = 0;
+        faceToward(p, foe);
+        this.fight(foe);
+        return;
+      }
+    }
+
+    if (this.sim.autoWork === false) { this._swing = 0; return; }
     var o = this.nearestBreakable(AUTO_REACH);
     if (!o) { this._swing = 0; return; }
     var rule = BREAK[o.kind];
@@ -688,14 +732,22 @@
       return;
     }
     this._swing = (this._swing || 0) + dt;
-    var period = Math.max(0.26, AUTO_PERIOD - 0.045 * ((this.sim.toolPower || 1) - 1));
-    if (this._swing < period) return;
+    if (this._swing < swingPeriod(this)) return;
     this._swing = 0;
-    var ddx = (o.x + 0.5) - p.x, ddy = (o.y + 0.5) - p.y;
-    p.dir = Math.abs(ddx) > Math.abs(ddy) ? (ddx > 0 ? 'right' : 'left')
-                                          : (ddy > 0 ? 'down' : 'up');
+    faceToward(p, o);
     this.breakObject(o);
   };
+
+  /* Better tools swing faster. One place computes it so a swing at a monster
+   * and a swing at a boulder cannot drift apart. */
+  function swingPeriod(g) {
+    return Math.max(0.26, AUTO_PERIOD - 0.045 * ((g.sim.toolPower || 1) - 1));
+  }
+  function faceToward(p, o) {
+    var dx = (o.x + 0.5) - p.x, dy = (o.y + 0.5) - p.y;
+    p.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left')
+                                        : (dy > 0 ? 'down' : 'up');
+  }
 
   /* Loot walks to you. Everything the player knocked loose is already theirs;
    * making them stand on each splinter of wood is busywork, not a decision. */
