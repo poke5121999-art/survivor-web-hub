@@ -220,7 +220,7 @@
       const m = list[i];
       if (m) {
         const c = SQ.CHAR_BY_ID[m.id];
-        const d = el('div', 'lu' + (m.player ? ' me' : ''));
+        const d = el('div', 'lu' + (m.player ? ' is-me' : ''));
         d.style.setProperty('--hue', c.hue);
         d.style.borderColor = SQ.RARITY[c.star].color;
         d.innerHTML = '<div class="lu-f">' + faceOf(c) + '</div><div class="lu-n">' + c.name + '</div>' +

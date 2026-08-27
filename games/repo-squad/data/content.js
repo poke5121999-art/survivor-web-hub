@@ -48,7 +48,7 @@
   SQ.CHARS = [
     // ---- 3★ : có sẵn / rơi nhiều ----
     {
-      id: 'bao', name: 'Quang', epithet: 'Đèn Pin', star: 3, hue: 48,
+      id: 'bao', name: 'Flare', epithet: 'Đèn Pin', star: 3, hue: 48,
       hp: 105, atk: 9, spd: 1.00, carry: 32, grit: 0, atkR: 1.9, atkCd: 0.85,
       passive: { name: 'Quen Đường', desc: 'Vùng đã đi qua sáng lâu hơn 40%.' },
       skill: {
@@ -57,7 +57,7 @@
       }
     },
     {
-      id: 'hue', name: 'An', epithet: 'Y Tá Ca Ba', star: 3, hue: 140,
+      id: 'hue', name: 'Halo', epithet: 'Y Tá Ca Ba', star: 3, hue: 140,
       hp: 120, atk: 7, spd: 0.97, carry: 28, grit: 0.05, atkR: 1.8, atkCd: 0.95,
       passive: { name: 'Băng Gạc', desc: 'Đồng đội đứng cạnh hồi 1 máu mỗi giây.' },
       skill: {
@@ -66,7 +66,7 @@
       }
     },
     {
-      id: 'tam', name: 'Cường', epithet: 'Cửu Vạn', star: 3, hue: 25,
+      id: 'tam', name: 'Atlas', epithet: 'Cửu Vạn', star: 3, hue: 25,
       hp: 135, atk: 8, spd: 0.94, carry: 46, grit: 0.10, atkR: 1.7, atkCd: 1.0,
       passive: { name: 'Vai U', desc: 'Đồ nặng chỉ ăn 70% mức phạt tốc độ.' },
       skill: {
@@ -75,7 +75,7 @@
       }
     },
     {
-      id: 'ky', name: 'Khai', epithet: 'Thợ Khoá', star: 3, hue: 200,
+      id: 'ky', name: 'Pick', epithet: 'Thợ Khoá', star: 3, hue: 200,
       hp: 100, atk: 10, spd: 1.02, carry: 30, grit: 0, atkR: 2.0, atkCd: 0.8,
       passive: { name: 'Tay Nghề', desc: 'Cạy cửa kẹt nhanh gấp đôi.' },
       skill: {
@@ -86,7 +86,7 @@
 
     // ---- 4★ ----
     {
-      id: 'linh', name: 'Dạ', epithet: 'Bóng Đêm', star: 4, hue: 275,
+      id: 'linh', name: 'Shade', epithet: 'Bóng Đêm', star: 4, hue: 275,
       hp: 96, atk: 12, spd: 1.08, carry: 30, grit: 0, atkR: 1.9, atkCd: 0.7,
       passive: { name: 'Chân Mèo', desc: 'Tiếng động phát ra chỉ bằng một nửa.' },
       skill: {
@@ -95,7 +95,7 @@
       }
     },
     {
-      id: 'dung', name: 'Chấn', epithet: 'Xà Beng', star: 4, hue: 8,
+      id: 'dung', name: 'Quake', epithet: 'Xà Beng', star: 4, hue: 8,
       hp: 150, atk: 16, spd: 0.95, carry: 40, grit: 0.14, atkR: 2.1, atkCd: 1.05,
       passive: { name: 'Lì Đòn', desc: 'Bị đánh không rơi đồ đang vác.' },
       skill: {
@@ -104,7 +104,7 @@
       }
     },
     {
-      id: 'mai', name: 'Chiêu', epithet: 'Tay Nhử', star: 4, hue: 320,
+      id: 'mai', name: 'Lure', epithet: 'Tay Nhử', star: 4, hue: 320,
       hp: 104, atk: 11, spd: 1.05, carry: 30, grit: 0, atkR: 2.2, atkCd: 0.75,
       passive: { name: 'Tai Thính', desc: 'Thấy quái trên bản đồ nhỏ xa hơn 50%.' },
       skill: {
@@ -113,7 +113,7 @@
       }
     },
     {
-      id: 'phuc', name: 'Nghĩa', epithet: 'Cứu Hộ', star: 4, hue: 96,
+      id: 'phuc', name: 'Hook', epithet: 'Cứu Hộ', star: 4, hue: 96,
       hp: 128, atk: 10, spd: 1.02, carry: 34, grit: 0.08, atkR: 1.8, atkCd: 0.9,
       passive: { name: 'Kéo Lê', desc: 'Đỡ đồng đội dậy nhanh gấp đôi.' },
       skill: {
@@ -122,7 +122,7 @@
       }
     },
     {
-      id: 'son', name: 'Vi', epithet: 'Kẽm Gai', star: 4, hue: 178,
+      id: 'son', name: 'Barb', epithet: 'Kẽm Gai', star: 4, hue: 178,
       hp: 140, atk: 9, spd: 0.96, carry: 36, grit: 0.16, atkR: 1.7, atkCd: 1.0,
       passive: { name: 'Chắn', desc: 'Giảm thêm 8% sát thương cho cả tổ đứng cạnh.' },
       skill: {
@@ -133,7 +133,7 @@
 
     // ---- 5★ ----
     {
-      id: 'nga', name: 'Lôi', epithet: 'Chớp Giật', star: 5, hue: 190,
+      id: 'nga', name: 'Blink', epithet: 'Chớp Giật', star: 5, hue: 190,
       hp: 112, atk: 18, spd: 1.12, carry: 34, grit: 0.05, atkR: 2.2, atkCd: 0.62,
       passive: { name: 'Bước Hụt', desc: 'Sau khi dịch chuyển, 2 giây đầu không ăn sát thương.' },
       skill: {
@@ -142,7 +142,7 @@
       }
     },
     {
-      id: 'khoi', name: 'Minh', epithet: 'Mắt Thần', star: 5, hue: 55,
+      id: 'khoi', name: 'Oracle', epithet: 'Mắt Thần', star: 5, hue: 55,
       hp: 108, atk: 15, spd: 1.04, carry: 32, grit: 0.05, atkR: 2.6, atkCd: 0.72,
       passive: { name: 'Đo Đạc', desc: 'Cả tổ nhìn xa thêm 15%.' },
       skill: {
@@ -151,7 +151,7 @@
       }
     },
     {
-      id: 'van', name: 'Băng', epithet: 'Kho Lạnh', star: 5, hue: 205,
+      id: 'van', name: 'Frost', epithet: 'Kho Lạnh', star: 5, hue: 205,
       hp: 116, atk: 17, spd: 1.03, carry: 32, grit: 0.06, atkR: 2.4, atkCd: 0.75,
       passive: { name: 'Hơi Lạnh', desc: 'Quái bị bạn đánh chậm đi 25% trong 2 giây.' },
       skill: {
@@ -160,7 +160,7 @@
       }
     },
     {
-      id: 'hai', name: 'Từ', epithet: 'Từ Trường', star: 5, hue: 285,
+      id: 'hai', name: 'Magnet', epithet: 'Từ Trường', star: 5, hue: 285,
       hp: 110, atk: 14, spd: 1.02, carry: 44, grit: 0.05, atkR: 2.3, atkCd: 0.8,
       passive: { name: 'Hút Nhẹ', desc: 'Đồ nhỏ trong 2 ô tự bay vào tay.' },
       skill: {
@@ -169,7 +169,7 @@
       }
     },
     {
-      id: 'tuyet', name: 'Thiên', epithet: 'Bất Tử', star: 5, hue: 350,
+      id: 'tuyet', name: 'Seraph', epithet: 'Bất Tử', star: 5, hue: 350,
       hp: 125, atk: 16, spd: 1.05, carry: 34, grit: 0.10, atkR: 2.2, atkCd: 0.78,
       passive: { name: 'Rọi Sáng', desc: 'Đồng đội gục cạnh bạn không mất máu tối đa.' },
       skill: {
