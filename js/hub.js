@@ -51,7 +51,17 @@
       : el("div", "card card--disabled");
 
     if (meta.launchable) {
-      card.href = game.path;
+      /* WHY the revision rides on the URL: GitHub Pages serves every file with
+       * Cache-Control: max-age=600, and nothing busts a game's index.html. A
+       * player who opened a game shortly before a deploy keeps getting the old
+       * HTML - and the old HTML pulls the old scripts, so they can be playing a
+       * build that no longer exists on the server for up to ten minutes, with
+       * no way to tell. Tapping the card with ?v=<rev> asks for a URL the
+       * browser has never seen, so the fresh HTML arrives on the first tap.
+       * Bump `rev` in data/games.js whenever a game is redeployed. */
+      card.href = game.rev
+        ? game.path + (game.path.indexOf("?") < 0 ? "?" : "&") + "v=" + game.rev
+        : game.path;
       card.setAttribute("aria-label", "Play " + game.title);
     } else {
       card.setAttribute("aria-disabled", "true");
