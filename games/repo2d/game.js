@@ -2595,26 +2595,39 @@ function foeLootValue(type){
   if (!d) return 0;
   return Math.round((d.hp*FOE_LOOT_PER_HP + d.dmg*FOE_LOOT_PER_DMG) / 50) * 50;
 }
-// One bag, if the house has any drops left in it. Everything that drops money on death goes
-// through here - a shot monster, a broken mirror - so the cap is one number in one place.
-function dropBag(x, y, value){
+// A monster does not PAY you. It drops a thing on the floor, and that thing is an ordinary
+// valuable in every respect: it has weight that slows you down, it is made of something that can
+// crack, and it only becomes money the way every other value in this house does - carried to a pad
+// without being dropped down a doorway on the way.
+// WHY this is worth spelling out: the first cut of this made a money bag and a floating "+$8,700",
+// and even though the thing on the floor was always an object, a rising money number IS a payout as
+// far as the player is concerned. Owner's call, 2026-08-27: "rớt loot ra chứ không phải là cho tiền
+// trực tiếp". So no pop, no bag - a piece of loot, sized by what it is worth.
+//
+// The size comes out of the VALUE rather than being rolled: the house's own size table already says
+// what a $950 thing looks like and what an $8,700 thing looks like, and using it means the heavy -
+// the one you spent twelve rounds on - drops something genuinely heavy to carry home.
+function sizeForValue(v){
+  for (let i = 0; i < SIZES.length; i++) if (v <= SIZES[i].vmax) return i;
+  return SIZES.length - 1;
+}
+function dropFoeItem(x, y, value){
   if ((S.foeDrops || 0) >= FOE_DROP_MAX) return null;
-  const bag = makeLoot(x, y, SIZES[0], MATERIALS[2], value);
-  bag.isBag = true;
-  bag.grace = S.time + 3;          // it lands in the middle of a fight; three seconds before it can break
-  S.loot.push(bag);
+  const size = SIZES[sizeForValue(value)];
+  const mat  = MATERIALS[(Math.random()*MATERIALS.length)|0];
+  const l = makeLoot(x, y, size, mat, value);
+  l.fromFoe = true;
+  l.grace = S.time + 3;          // it lands in the middle of a fight; three seconds before it can break
+  S.loot.push(l);
   S.foeDrops = (S.foeDrops || 0) + 1;
-  return bag;
+  return l;
 }
 function foeDropsLeft(){ return Math.max(0, FOE_DROP_MAX - (S.foeDrops || 0)); }
 function dropFoeLoot(x, y, type){
   const base = foeLootValue(type);
   if (base <= 0) return null;
   const v = Math.round(base * mix(1-FOE_LOOT_SPREAD, 1+FOE_LOOT_SPREAD, Math.random()) / 50) * 50;
-  const bag = dropBag(x, y, v);
-  if (!bag) return null;
-  fxPop(x, y, '+' + money(v), '#e0b64a', 13);
-  return bag;
+  return dropFoeItem(x, y, v);
 }
 
 function queueRespawn(type){
@@ -3053,10 +3066,11 @@ function killMonster(m){
   // ONE line for one event. Two toast() calls in a row is one message overwriting the other before
   // anybody has read it, and the one that would lose here is the one that says you were paid.
   // Kept SHORT because the toast is one centred line on a 390-wide phone frame: past about
-  // forty-five characters it runs off both edges. How many drops are left is the part that gets
-  // cut, because the strip at the top of the screen is already showing the clock this mentions.
+  // forty-five characters it runs off both edges. It names WHAT fell rather than what it is worth —
+  // the money is not yours until the thing is standing on a pad, and saying a number here is the
+  // same lie the floating "+$" was.
   const name = MONSTERS[m.type].name;
-  toast(name + (bag ? ' chết — rơi ' + money(bag.value0) : ' chết — hết đồ rơi')
+  toast(name + (bag ? ' chết — rơi món ' + bag.size : ' chết — hết đồ rơi')
              + (back ? ', quay lại sau ' + FOE_RESPAWN + 's' : ''));
 }
 
@@ -3815,16 +3829,17 @@ function breakMirror(which){
   if (!mr) return;
   const at = mr.m || mr.a;
   const value = Math.round(mix(MIRROR_LOOT[0], MIRROR_LOOT[1], Math.random()) / 50) * 50;
-  // The glass is a monster now, so its bag is counted against the same three the bodies share.
+  // The glass is a monster now, so what it leaves is counted against the same three the bodies
+  // share, and it is a piece of loot rather than a bag of money for the same reason theirs is.
   // A house where you shot three patrols and then broke a mirror pays for three of those things,
   // not four - otherwise the cap says one number and the house pays another.
-  const bag = dropBag(at.x, at.y, value);
+  const bag = dropFoeItem(at.x, at.y, value);
   S.mirrorFx = { x: which.x, y: which.y, t: 0, kind: 'break' };
   S.mirror = null;
   S.mirrorTimer = mirrorNextIn();
   S.mirrorGone = true;
   fxShake(9); fxFlash(0.35, '210,230,255'); SFX.chime();
-  toast(bag ? 'Gương vỡ - nó tan theo, để lại ' + money(value) + '.'
+  toast(bag ? 'Gương vỡ - nó tan theo, để lại một món ' + bag.size + '.'
             : 'Gương vỡ - nó tan theo, nhưng nhà này hết đồ rơi rồi.');
 }
 
@@ -3875,13 +3890,14 @@ function stepMirror(dt){
     if (mr.t < MIRROR_EMERGE) return;
     mr.phase = 'out';
     mr.m = { x: mr.a.x, y: mr.a.y, dir: Math.atan2(p.y-mr.a.y, p.x-mr.a.x),
-             reveal: 0, lit: false, path: null, pi: 0, pathT: 0, born: 0 };
-    fxShake(4); SFX.sting();
+             reveal: 0, lit: false, path: null, pi: 0, pathT: 0, born: 0, spotT: SPOT_FX_T };
+    fxShake(4); FX.spotT = 1; SFX.sting();
     return;
   }
 
   const m = mr.m;
   m.born += dt;
+  m.spotT = Math.max(0, (m.spotT || 0) - dt);
   m.lit = litByTorch(m.x, m.y);
   // it walks at whoever is nearest and standing; a downed body is not a target
   const live = crewAlive();
@@ -5154,6 +5170,41 @@ function buildLight(){
     cone(c, p, cr*0.94, ch,      0.66, [255,238,198]);
   }
 
+  // The monsters carry lights too — the owner's words were "kiểu như đèn pin gắn vào mắt quái".
+  // WHY it is a real light and not the faint overlay it shipped as: drawn additively on top of the
+  // dark it was nearly invisible against an unlit floor and completely invisible against a lit one,
+  // and the owner reported simply not seeing it. Painted HERE it lands on the floor the way a torch
+  // does, and a beam sweeping a dark room is legible from across the house.
+  //
+  // It cannot give the house away, and that is not a judgement call: everything in this function is
+  // already clipped to the polygon the PLAYER can see, so a monster's beam only ever shows where
+  // the player could have seen that floor anyway. What it buys is what was missing — you can watch
+  // a light sweep a room before you can see the thing carrying it.
+  //
+  // Amber while it is looking, RED the moment it has you. That is the same pair the ring over its
+  // head uses, so the two never say different things about the same monster.
+  for (const m of S.monsters){
+    const md = MONSTERS[m.type];
+    if (m.sleep > 0 || !md.sight) continue;
+    const R = md.sight*TILE;
+    if (Math.hypot(m.x-p.x, m.y-p.y) > LOS_R + R) continue;
+    const half = foeConeHalf(m), mp = { x:m.x, y:m.y, dir:m.dir };
+    c.save(); pathPoly(c, visPoly(m.x, m.y, R, 40)); c.clip();
+    if (foeAlerted(m)){
+      cone(c, mp, R*1.04, half*1.26, 0.20, [255,116,92]);
+      cone(c, mp, R,      half,      0.44, [255, 74, 56]);
+      cone(c, mp, R*0.58, half*0.86, 0.30, [255,156,128]);
+    } else {
+      // Deliberately ORANGE rather than the warm white the player's torch is. Both are torches, and
+      // the one question the picture has to answer at a glance is WHOSE light that is — two beams
+      // the same colour crossing a room is a puzzle, not information.
+      cone(c, mp, R*1.04, half*1.26, 0.12, [255,150, 56]);
+      cone(c, mp, R,      half,      0.28, [255,164, 66]);
+      cone(c, mp, R*0.52, half*0.86, 0.20, [255,190,108]);
+    }
+    c.restore();
+  }
+
   // What a filled AEngel left behind: a room that stays lit on its own for half a minute.
   for (const z of S.lightZones){
     const fade = Math.min(1, z.t/2.5);            // gutters out at the end rather than snapping off
@@ -5270,9 +5321,10 @@ function spawnAngel(){
     if (hitsSolid(x, y, 12)) continue;
     if (!losClear(p.x, p.y, x, y)) continue;
     S.angel = { x, y, t:0, charge:0, marked:false, armed:false, unlitT:0, phase:'stand', rise:0,
+                spotT: SPOT_FX_T,                   // the same "there it is" ring a body gets
                 face: Math.atan2(p.y-y, p.x-x) };   // it is looking at you
     S.angelFx = { x, y, t:0 };
-    fxShake(5); SFX.warp();
+    fxShake(5); FX.spotT = 1; SFX.warp();
     return true;
   }
   S.angelTimer = 3;                                // nowhere to stand; try again shortly
@@ -5336,6 +5388,7 @@ function stepAngel(dt){
   }
   const a = S.angel;
   a.t += dt;
+  a.spotT = Math.max(0, (a.spotT || 0) - dt);
   if (a.phase === 'rise'){
     a.rise += dt;
     if (a.rise > 1.2) S.angel = null;
@@ -5571,26 +5624,15 @@ function drawFoeVision(c){
     const hot = foeAlerted(m);
     const rgb = hot ? '236,52,40' : '224,168,74';
     const a   = hot ? 0.16 : 0.075;
+    // The CONE is not drawn here any more — it is a real light now (see buildLight), which is the
+    // only version of it the owner could actually see. What is left in this pass is the two things
+    // a beam cannot say: the circle it does not need to be facing you to use, and how far its
+    // hearing currently reaches.
     if (d.sight > 0){
-      const R = d.sight*TILE, half = foeConeHalf(m);
       c.save();
-      pathPoly(c, visPoly(m.x, m.y, R, 36)); c.clip();
-      // Weighted toward the monster rather than spread evenly: a cone lit flat across eight tiles
-      // is a wash, and the half of it that matters is the half you are about to walk into.
-      const g = c.createRadialGradient(m.x, m.y, 6, m.x, m.y, R);
-      g.addColorStop(0,    `rgba(${rgb},${a*2.6})`);
-      g.addColorStop(0.5,  `rgba(${rgb},${a*1.1})`);
-      g.addColorStop(1,    `rgba(${rgb},0)`);
-      c.fillStyle = g;
-      c.beginPath(); c.moveTo(m.x, m.y); c.arc(m.x, m.y, R, m.dir-half, m.dir+half); c.closePath();
-      c.fill();
-      // The edges, so it is a line you can step over rather than a haze you guess at. Kept THIN
-      // and dim on purpose: at full length these are two straight lines across the whole screen,
-      // and any brighter they stop reading as the sides of a wedge and start reading as lasers.
-      c.strokeStyle = `rgba(${rgb},${a*1.7})`; c.lineWidth = 1.1; c.stroke();
-      // and the blind circle it does not have to be facing you to use
+      pathPoly(c, visPoly(m.x, m.y, FOE_NEAR_R, 24)); c.clip();
       c.beginPath();
-      c.strokeStyle = `rgba(${rgb},${a*2.0})`;
+      c.strokeStyle = `rgba(${rgb},${a*2.4})`; c.lineWidth = 1.3;
       c.arc(m.x, m.y, FOE_NEAR_R, 0, Math.PI*2); c.stroke();
       c.restore();
     }
@@ -5640,18 +5682,40 @@ function alertMark(c, x, y){
   c.textAlign = 'left';
   c.restore();
 }
+// Whether the statue is currently marked, and whether it is marked as COMING. One expression, read
+// by the draw below and by the test hook, so a check can never pass against a rule the picture is
+// not using.
+function angelDanger(){
+  const a = S.angel, p = S.player;
+  if (!a || a.phase !== 'stand' || !p) return null;
+  if (!losClear(p.x, p.y, a.x, a.y)) return null;
+  return { marked: true,
+           hot: a.t < ANGEL_SETTLE || (a.armed && !litByTorch(a.x, a.y)),
+           spotT: a.spotT || 0, t: a.t };
+}
+
 // The two monsters that are not bodies. Both are on the roster now, so both answer to the same
 // red as everything else — the colour means "this can hurt you", and both of these can.
 function drawEventFoeGlow(c){
   const p = S.player;
   const beat = 0.62 + 0.38*Math.sin(S.time*3.2);
   const an = S.angel;
-  if (an && an.phase === 'stand' && an.t >= ANGEL_SETTLE && losClear(p.x, p.y, an.x, an.y)){
-    // Armed AND in the dark is the state that ends in a swipe. That is the one that earns the
-    // hunting red and the mark — and it is the one the player can still do something about.
-    const hot = an.armed && !litByTorch(an.x, an.y);
+  if (an && an.phase === 'stand' && losClear(p.x, p.y, an.x, an.y)){
+    // Marked on the frame it ARRIVES, not three seconds later. It used to wait out the settle
+    // window first — but that window exists so the player is not punished for a spawn they were
+    // never shown, and it says nothing about whether the thing is dangerous. A statue that
+    // materialises a metre in front of you wearing no marking at all is exactly the moment the
+    // marking is for.
+    // SEE: owner feedback 2026-08-27 — "ngay khi vừa xuất hiện trước mắt là phải có vòng tròn đỏ
+    // + cảnh báo nguy hiểm liền, chứ không phải delay".
+    //
+    // Two states get the hunting red and the mark: the arrival, and armed-and-in-the-dark, which is
+    // the state that ends in a swipe. In between — lit and filling — it is being handled, and a
+    // thing being handled does not need shouting about.
+    const hot = angelDanger().hot;
     glowRing(c, an.x, an.y, 17 + (hot ? beat*3.5 : 0), hot ? HL_HUNT : HL_FOE,
              hot ? 0.70 + beat*0.3 : 0.40, hot ? 3.0 : 2.0);
+    spotFx(c, an.x, an.y, an.spotT || 0);
     if (hot) alertMark(c, an.x, an.y - 6);
   }
   const mr = S.mirror, mm = mr && mr.m;
@@ -5659,6 +5723,7 @@ function drawEventFoeGlow(c){
     // It has no detection to draw and no state to be in: from the moment it is out of the glass it
     // is walking at somebody. So it is always the hunting red, and it always wears the mark.
     glowRing(c, mm.x, mm.y, 15 + beat*3.5, HL_HUNT, 0.70 + beat*0.3, 3.0);
+    spotFx(c, mm.x, mm.y, mm.spotT || 0);
     alertMark(c, mm.x, mm.y);
   }
 }
@@ -6170,6 +6235,7 @@ function drawHud(c){
 
   drawMinimap(c, hud);
   drawCrewStrip(c, hud);
+  drawExtractBar(c, hud);
   drawReturnStrip(c, hud);
 
   drawPops(c);
@@ -6349,6 +6415,60 @@ function drawCrewStrip(c, hud){
   }
 }
 
+// How far through the shift you are, as a bar. WHY the game needed one at all: the thing an entire
+// shift is FOR had exactly two readouts — a number in the page header, which is outside the canvas
+// and off the phone frame, and a countdown circle that only appears for the last five seconds.
+// Between walking into a house and meeting the quota — which is nearly the whole shift — nothing on
+// screen said how far along you were. Owner's call, 2026-08-27.
+//
+// It spans the WHOLE shift rather than the current pad: the notches are the pads, the fill runs
+// through them, and the pair of numbers beside it is the pad being worked. A bar that showed only
+// the current pad would read as "almost done" on the second of four.
+function drawExtractBar(c, hud){
+  if (S.shopMode || S.cut || !S.pads || !S.pads.length) return;
+  const x = 14, y = 84, w = Math.min(200, hud.w*0.52), h = 9;
+  const n = S.pads.length;
+  const done = S.pads.filter(q => q.done).length;
+  const pad = S.pads[S.padIndex];
+  const frac = (pad && !pad.done) ? clamp(pad.value / Math.max(1, pad.quota), 0, 1) : 0;
+  const k = clamp((done + frac) / n, 0, 1);
+  const tick = FX.tickPulse > 0.5;
+
+  c.fillStyle = 'rgba(10,12,14,0.72)';
+  c.fillRect(x-3, y-14, w+6, h+20);
+
+  c.font = '600 9px ui-monospace, monospace';
+  let head, col;
+  if (S.shiftLost)            { head = 'CA HỎNG — VỀ XE';  col = 'rgba(226,140,130,0.95)'; }
+  else if (S.levelDone)       { head = 'XONG — VỀ XE';      col = 'rgba(150,225,190,0.95)'; }
+  else if (S.countdownActive) { head = 'ĐANG GIAO ' + Math.ceil(S.countdown) + 's';
+                                col = tick ? '#d6ffe8' : 'rgba(150,230,190,0.95)'; }
+  else                        { head = 'BỆ ' + Math.min(done+1, n) + '/' + n;
+                                col = 'rgba(150,190,170,0.95)'; }
+  c.fillStyle = col;
+  c.fillText(head, x, y - 5);
+
+  // The two numbers are the PAD's, not the shift's: what you have put down against what this one
+  // is asking for, which is the number you act on when deciding whether to go back out.
+  if (pad && !pad.done && !S.shiftLost){
+    c.textAlign = 'right';
+    c.fillStyle = 'rgba(140,172,192,0.9)';
+    c.fillText(money(pad.value) + ' / ' + money(pad.quota), x + w, y - 5);
+    c.textAlign = 'left';
+  }
+
+  c.fillStyle = '#1b2a26'; c.fillRect(x, y, w, h);
+  c.fillStyle = S.shiftLost ? '#7a4440'
+              : S.countdownActive ? (tick ? '#d6ffe8' : '#8ef0b4')
+              : frac >= 1 ? '#8ef0b4' : '#4c9a76';
+  c.fillRect(x, y, w*k, h);
+  // One notch per pad, so "two of four banked" is a shape rather than a number to read.
+  c.fillStyle = 'rgba(10,12,14,0.9)';
+  for (let i = 1; i < n; i++) c.fillRect(x + Math.round(w*i/n) - 1, y, 2, h);
+  c.strokeStyle = 'rgba(120,160,140,0.32)'; c.lineWidth = 1;
+  c.strokeRect(x+0.5, y+0.5, w-1, h-1);
+}
+
 // The countdown a dealt-with monster leaves behind. WHY it is on screen at all: a respawn the
 // player cannot see is indistinguishable from a monster that happened to walk in, and the entire
 // reason killing something is worth doing is that it buys a KNOWN window. The number IS the window.
@@ -6357,7 +6477,7 @@ function drawReturnStrip(c, hud){
   if (S.shopMode || S.cut) return;
   const list = pendingReturns();
   if (!list.length) return;
-  const y = 92;
+  const y = 120;        // clear of the extraction bar above it and the minimap to its right
   c.font = '600 10px ui-monospace, monospace';
   c.textAlign = 'center';
   const line = '↻ ' + list.slice(0, 3).map(r => r.name + ' ' + Math.ceil(r.t) + 's').join('   ');
@@ -6980,8 +7100,22 @@ window.REPO = {
               MAX:FOE_DROP_MAX, RESPAWN:FOE_RESPAWN },
   foeLootValue,
   drops(){ return { used: S.foeDrops || 0, left: foeDropsLeft(), max: FOE_DROP_MAX,
-                    bags: S.loot.filter(l => l.isBag && !l.gone)
-                                .map(l => ({ x:l.x, y:l.y, value:l.value })) }; },
+                    bags: S.loot.filter(l => l.fromFoe && !l.gone)
+                                .map(l => ({ x:l.x, y:l.y, value:l.value, value0:l.value0,
+                                             size:l.size, sizeIdx:l.sizeIdx, mat:l.mat.key,
+                                             mass:l.mass, isBag: !!l.isBag })) }; },
+  sizeForValue(v){ return sizeForValue(v); },
+  SIZES, MATERIALS,
+  extract(){
+    const n = S.pads.length, done = S.pads.filter(q => q.done).length;
+    const pad = S.pads[S.padIndex];
+    const frac = (pad && !pad.done) ? clamp(pad.value / Math.max(1, pad.quota), 0, 1) : 0;
+    return { pads:n, done, index:S.padIndex,
+             value: pad ? pad.value : 0, quota: pad ? pad.quota : 0,
+             padFrac: frac, shift: clamp((done + frac)/Math.max(1,n), 0, 1),
+             counting: !!S.countdownActive, countdown: S.countdown,
+             levelDone: !!S.levelDone, shiftLost: !!S.shiftLost };
+  },
   killFoe(i){ const m = S.monsters[i|0]; if (!m) return null;
               const t = m.type; killMonster(m); return t; },
   respawns(){ return (S.respawns || []).map(r => ({ type:r.type, t:r.t })); },
@@ -6997,6 +7131,18 @@ window.REPO = {
              hearR: foeHearR(m), hearMax: d.hear*TILE };
   },
   spotted(){ return S.monsters.map(m => ({ seen:!!m.seen, spotT:m.spotT || 0 })); },
+  angelDanger,
+  // The average colour of the frame that is currently on screen. It exists so a check can ask
+  // "is there more light on the floor now" without knowing where anything is in screen space —
+  // reading a canvas back is slow, so this is a hook and nothing in the game ever calls it.
+  frameAvg(){
+    const cv = CV(), c = cv.getContext('2d');
+    const d = c.getImageData(0, 0, cv.width, cv.height).data;
+    let r = 0, g = 0, b = 0;
+    for (let i = 0; i < d.length; i += 16){ r += d[i]; g += d[i+1]; b += d[i+2]; }
+    const n = d.length/16;
+    return { r:r/n, g:g/n, b:b/n, lum:(r*0.299 + g*0.587 + b*0.114)/n };
+  },
   HL: { FOE:HL_FOE, HUNT:HL_HUNT, ASLEEP:HL_ASLEEP },
   angel(){ const a = S.angel;
            return a ? { x:a.x, y:a.y, t:a.t, charge:a.charge, marked:a.marked, armed:!!a.armed,
