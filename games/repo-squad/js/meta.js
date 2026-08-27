@@ -98,6 +98,7 @@
       const n = parseInt(String(it.id).slice(1), 10);
       if (n >= nextId) nextId = n + 1;
     });
+    repairSquad();
     rollQuests();
     return M;
   }
@@ -270,15 +271,78 @@
     return true;
   };
   SQ.setMate = function (slot, id) {
+    if (!(slot >= 0 && slot < M.squad.mates.length)) return false;
     if (id && !M.chars[id]) return false;
-    if (id && M.squad.lead === id) { M.squad.lead = M.squad.mates[slot]; }
+    const cur = M.squad.mates[slot];
+    // ROOT-CAUSE: bản cũ cho phép hạ chính xác ĐANG CẦM xuống một ô bot TRỐNG.
+    //   Khi đó lead nhận giá trị của ô trống (null) và cả tổ mất người điều khiển:
+    //   squadList() còn đúng một người, và màn Trang Bị lấy lead = null nên vỡ.
+    //   Ô BẠN CẦM giờ chỉ được ĐỔI CHỖ, không bao giờ được để trống.
+    if (id && M.squad.lead === id) {
+      if (!cur) return false;
+      M.squad.lead = cur;
+      M.squad.mates[slot] = id;
+      if (!M.tactics[id]) M.tactics[id] = 'loot';
+      save();
+      return true;
+    }
     const i = M.squad.mates.indexOf(id);
-    if (id && i >= 0 && i !== slot) M.squad.mates[i] = M.squad.mates[slot];
+    if (id && i >= 0 && i !== slot) M.squad.mates[i] = cur;   // đổi chỗ, không nhân bản
     M.squad.mates[slot] = id;
     if (id && !M.tactics[id]) M.tactics[id] = 'loot';
     save();
     return true;
   };
+
+  // Xếp nốt những xác đang rảnh vào các ô bot còn trống. Trả về số ô vừa lấp.
+  SQ.autoFill = function () {
+    let n = 0;
+    const used = {};
+    if (M.squad.lead) used[M.squad.lead] = 1;
+    M.squad.mates.forEach(id => { if (id) used[id] = 1; });
+    const free = SQ.CHARS.map(c => c.id).filter(id => M.chars[id] && !used[id]);
+    for (let s = 0; s < M.squad.mates.length && free.length; s++) {
+      if (M.squad.mates[s]) continue;
+      const id = free.shift();
+      M.squad.mates[s] = id;
+      if (!M.tactics[id]) M.tactics[id] = 'loot';
+      n++;
+    }
+    if (n) save();
+    return n;
+  };
+
+  // Dọn lại đội hình sau khi đọc save: bỏ id không còn sở hữu, bỏ trùng lặp,
+  // và bảo đảm ô BẠN CẦM luôn có người khi vẫn còn ít nhất một xác.
+  // WHY: những save tạo ra trước bản vá setMate ở trên có thể đang mang lead = null.
+  function repairSquad() {
+    if (!M.squad || typeof M.squad !== 'object') M.squad = { lead: null, mates: [null, null, null, null] };
+    const src = Array.isArray(M.squad.mates) ? M.squad.mates : [];
+    const mates = [null, null, null, null];
+    const seen = {};
+    if (M.squad.lead && !M.chars[M.squad.lead]) M.squad.lead = null;
+    if (M.squad.lead) seen[M.squad.lead] = 1;
+    for (let i = 0; i < 4; i++) {
+      const id = src[i];
+      if (!id || !M.chars[id] || seen[id]) continue;
+      seen[id] = 1;
+      mates[i] = id;
+    }
+    M.squad.mates = mates;
+    if (!M.squad.lead) {
+      // Save này do lỗi cũ làm rỗng ô BẠN CẦM. Dựng lại đội hình đầy đủ luôn,
+      // vì người chơi không cố ý ra trận một mình.
+      const i = mates.findIndex(x => x);
+      if (i >= 0) { M.squad.lead = mates[i]; mates[i] = null; }
+      else {
+        const own = SQ.CHARS.map(c => c.id).filter(id => M.chars[id]);
+        if (own.length) M.squad.lead = own[0];
+      }
+      if (M.squad.lead) SQ.autoFill();
+    }
+    M.squad.mates.forEach(id => { if (id && !M.tactics[id]) M.tactics[id] = 'loot'; });
+  }
+  SQ.repairSquad = repairSquad;
   SQ.setTactic = function (id, tid) {
     if (!M.chars[id] || !SQ.TACTIC_BY_ID[tid]) return false;
     M.tactics[id] = tid; save(); return true;

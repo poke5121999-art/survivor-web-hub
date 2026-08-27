@@ -246,7 +246,7 @@
       if (u.player) stepPlayer(R, u, dt, input);
       else stepBot(R, u, dt);
 
-      // hồi máu bị động của Huệ: ai đứng cạnh cũng được băng
+      // hồi máu bị động của An: ai đứng cạnh cũng được băng
       if (u.def.id === 'hue') {
         R.units.forEach(o => {
           if (o === u || o.down || o.out) return;
@@ -480,7 +480,7 @@
       u.hp = 0; u.down = true; u.downT = 0; u.reviveT = 0;
       dropHeld(R, u);
       unclaimAll(R, u);                 // ai nằm xuống thì nhả đồ đã nhận cho người khác lấy
-      // "Rọi Sáng" của Tuyết: gục cạnh cô ấy thì không mất máu tối đa
+      // "Rọi Sáng" của Thiên: gục cạnh người này thì không mất máu tối đa
       say(R, u.def.name + ' gục rồi!');
     }
   }

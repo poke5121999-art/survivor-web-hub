@@ -28,8 +28,27 @@
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
 
   let screenName = 'home';
-  let sel = { char: null, slot: null, item: null, banner: 'char', questTab: 'daily' };
+  let sel = { char: null, slot: null, item: null, map: null, banner: 'char', questTab: 'daily' };
   let toastT = 0;
+
+  // Cửa sổ chi tiết dùng chung cho trang bị / tiến hoá — thay cho khối chi tiết
+  // chèn giữa danh sách, vì chèn giữa làm cả trang nhảy mỗi lần bấm.
+  UI.popup = function (title, build) {
+    const ov = $('#modal');
+    clear(ov);
+    ov.className = 'modal show';
+    const card = el('div', 'mcard');
+    const h = el('div', 'pop-h');
+    h.appendChild(el('div', 'pop-t', title));
+    h.appendChild(btn('✕', 'chev', () => UI.closePopup()));
+    card.appendChild(h);
+    const body = el('div', 'pop-b');
+    card.appendChild(body);
+    build(body);
+    ov.appendChild(card);
+    on(ov, 'click', e => { if (e.target === ov) UI.closePopup(); });
+  };
+  UI.closePopup = function () { const ov = $('#modal'); if (ov) ov.className = 'modal'; };
 
   UI.toast = function (text, good) {
     const t = $('#toast');
@@ -46,82 +65,203 @@
   };
   UI.current = () => screenName;
 
+  // Khung menu dựng theo kiểu game sinh tồn di động: một thanh trên cố định,
+  // đúng MỘT vùng cuộn ở giữa, và một thanh tab dưới cùng luôn nhìn thấy.
+  // WHY: bản cũ mỗi màn tự vẽ lại ví tiền + nút "về sảnh" nên không màn nào
+  //      giống màn nào, và người chơi phải cuộn mới thấy nút đi tiếp.
+  const SCREENS = {
+    home: scrHome, maps: scrMaps, squad: scrSquad, equip: scrEquip,
+    evol: scrEvol, gacha: scrGacha, shop: scrShop, quest: scrQuest
+  };
+  // id, biểu tượng, nhãn — ô giữa nổi lên như nút vào trận
+  // Cùng hình dạng với thanh tab của bản Unity tham chiếu: Shop · Kho đồ · SẢNH · Đội · Tiến hoá
+  const TABS = [
+    ['shop',  '🏪', 'Cửa Hàng'],
+    ['equip', '🎒', 'Trang Bị'],
+    ['home',  '⚔️', 'ĐI CA'],
+    ['squad', '👥', 'Biệt Đội'],
+    ['evol',  '🧬', 'Tiến Hoá']
+  ];
+  const SHEET_TITLE = {
+    maps: 'Chọn map', squad: 'Biệt đội', equip: 'Trang bị', evol: 'Tiến hoá',
+    gacha: 'Gacha', shop: 'Cửa hàng', quest: 'Nhiệm vụ'
+  };
+
   UI.render = function () {
-    const M = SQ.M;
     const wrap = $('#menu');
     if (!wrap) return;
+    const keep = wrap.querySelector('.stage');
+    const scrollTop = keep ? keep.scrollTop : 0;
     clear(wrap);
 
-    // ví tiền — luôn hiện
-    const bar = el('div', 'wallet');
-    SQ.WALLET_KEYS.forEach(k => {
-      const c = el('span', 'w', '<i>' + SQ.WALLET_ICON[k] + '</i>' + money(M[k] || 0));
-      c.title = SQ.WALLET_LABEL[k];
-      bar.appendChild(c);
-    });
-    wrap.appendChild(bar);
+    wrap.appendChild(topBar());
 
-    const body = el('div', 'screen-body');
-    wrap.appendChild(body);
+    const stage = el('div', 'stage' + (screenName === 'home' ? ' is-home' : ''));
+    wrap.appendChild(stage);
 
-    if (screenName !== 'home') {
-      const back = btn('← Về sảnh', 'ghost small back', () => UI.go('home'));
-      body.appendChild(back);
+    if (screenName === 'home') {
+      scrHome(stage);
+    } else {
+      const sheet = el('div', 'sheet');
+      const head = el('div', 'sheet-h');
+      head.appendChild(btn('←', 'chev', () => UI.go('home')));
+      head.appendChild(el('div', 'sheet-t', SHEET_TITLE[screenName] || ''));
+      sheet.appendChild(head);
+      const body = el('div', 'sheet-b');
+      sheet.appendChild(body);
+      stage.appendChild(sheet);
+      (SCREENS[screenName] || scrHome)(body);
     }
 
-    ({
-      home: scrHome, maps: scrMaps, squad: scrSquad, equip: scrEquip,
-      evol: scrEvol, gacha: scrGacha, shop: scrShop, quest: scrQuest
-    }[screenName] || scrHome)(body);
+    wrap.appendChild(tabBar());
+    if (scrollTop) stage.scrollTop = scrollTop;
   };
+
+  function questPending() {
+    const q = SQ.questList();
+    return q.daily.concat(q.weekly, q.ach).filter(x => x.done && !x.claimed).length;
+  }
+
+  function topBar() {
+    const M = SQ.M;
+    const t = el('div', 'topbar');
+    const lead = (M.squad.lead && SQ.CHAR_BY_ID[M.squad.lead]) || null;
+    const me = el('div', 'me');
+    me.innerHTML =
+      '<div class="me-av">' + (lead ? faceOf(lead) : '👤') + '</div>' +
+      '<div class="me-b"><div class="me-n">' + (lead ? lead.name : 'Tổ trưởng') + '</div>' +
+      '<div class="me-p">⚡ ' + money(SQ.squadPower()) + '</div></div>';
+    on(me, 'click', () => UI.go('squad'));
+    t.appendChild(me);
+
+    const purse = el('div', 'purse');
+    ['gold', 'gem', 'core'].forEach(k => {
+      const c = el('div', 'coin');
+      c.title = SQ.WALLET_LABEL[k];
+      c.innerHTML = '<i>' + SQ.WALLET_ICON[k] + '</i><b>' + money(M[k] || 0) + '</b><s>+</s>';
+      on(c, 'click', () => UI.go('shop'));
+      purse.appendChild(c);
+    });
+    t.appendChild(purse);
+    return t;
+  }
+
+  function tabBar() {
+    const n = el('nav', 'tabbar');
+    const badge = { quest: questPending() };
+    TABS.forEach(([id, icon, label], i) => {
+      const mid = i === 2;
+      const active = mid ? (screenName === 'home' || screenName === 'maps') : screenName === id;
+      const d = el('div', 'tb' + (mid ? ' mid' : '') + (active ? ' on' : ''));
+      d.innerHTML = '<div class="tb-i">' + icon + '</div><div class="tb-n">' + label + '</div>';
+      if (badge[id]) d.appendChild(el('span', 'dot', String(badge[id])));
+      on(d, 'click', () => UI.go(id));
+      n.appendChild(d);
+    });
+    return n;
+  }
 
   // ---------------------------------------------------------------------------
   // SẢNH
   // ---------------------------------------------------------------------------
+  // Map đang chọn ở sảnh. Mặc định là map còn mở gần nhất mà chưa phá đảo.
+  function defaultMap() {
+    const open = SQ.MAPS.filter(m => SQ.mapUnlocked(m.id));
+    const next = open.find(m => !SQ.M.maps[m.id].cleared);
+    return (next || open[open.length - 1] || SQ.MAPS[0]).id;
+  }
+  function curMap() {
+    if (!sel.map || !SQ.MAP_BY_ID[sel.map] || !SQ.mapUnlocked(sel.map)) sel.map = defaultMap();
+    return SQ.MAP_BY_ID[sel.map];
+  }
+  UI.pickMap = function (id) { sel.map = id; UI.go('home'); };
+
   function scrHome(b) {
+    const M = SQ.M;
     const list = SQ.squadList();
-    const power = SQ.squadPower();
+    const lead = list.find(m => m.player) || list[0] || null;
+    const leadDef = lead ? SQ.CHAR_BY_ID[lead.id] : null;
 
-    const head = el('div', 'hero');
-    head.appendChild(el('div', 'hero-t', 'Ca Trực Đêm: <b>Biệt Đội</b>'));
-    head.appendChild(el('div', 'hero-p', 'Một người cầm lái, bốn cái xác đi theo. Khuân cho đủ chỉ tiêu rồi ra.'));
-    const pw = el('div', 'power', '⚡ Lực chiến <b>' + money(power) + '</b>');
-    head.appendChild(pw);
-    b.appendChild(head);
-
-    const strip = el('div', 'squad-strip');
-    list.forEach(m => strip.appendChild(charCard(m.id, m.player, m.tactic, () => UI.go('squad'))));
-    for (let i = list.length; i < 5; i++) {
-      const e = el('div', 'cc empty', '<div class="cc-plus">+</div><div class="cc-n">trống</div>');
-      on(e, 'click', () => UI.go('squad'));
-      strip.appendChild(e);
-    }
-    b.appendChild(strip);
-
-    const go = btn('▶ ĐI CA', 'big', () => UI.go('maps'));
-    b.appendChild(go);
-
-    const q = SQ.questList();
-    const pending = q.daily.concat(q.weekly, q.ach).filter(x => x.done && !x.claimed).length;
-
-    const grid = el('div', 'menu-grid');
-    [
-      ['squad', '👥', 'Biệt Đội', 'Xếp tổ, đổi chiến thuật'],
-      ['equip', '🎒', 'Trang Bị', 'Lắp đồ cho từng xác'],
-      ['evol', '🧬', 'Tiến Hoá', 'Nâng chỉ số cho cả tổ'],
-      ['gacha', '🎰', 'Gacha', 'Quay xác và trang bị'],
-      ['shop', '🏪', 'Cửa Hàng', 'Nạp ngọc, đổi vàng'],
-      ['quest', '📜', 'Nhiệm Vụ', pending ? pending + ' phần chưa nhận' : 'Ngày / tuần / thành tựu']
-    ].forEach(([id, icon, name, sub]) => {
-      const c = el('div', 'mtile', '<div class="mi">' + icon + '</div><div class="mn">' + name + '</div><div class="ms">' + sub + '</div>');
-      if (id === 'quest' && pending) c.appendChild(el('span', 'dot', String(pending)));
-      on(c, 'click', () => UI.go(id));
-      grid.appendChild(c);
+    // — hai cột phím tắt hai bên, đúng chỗ nhóm trái/phải của bản tham chiếu —
+    const railL = el('div', 'rail left');
+    const railR = el('div', 'rail');
+    [['gacha', '🎰', 'Gacha', 0, railL],
+     ['maps', '🗺️', 'Map', 0, railL],
+     ['quest', '📜', 'Nhiệm Vụ', questPending(), railR],
+     ['shop', '🏪', 'Cửa Hàng', 0, railR]].forEach(function (r) {
+      const d = el('div', 'rail-b', '<div class="rb-i">' + r[1] + '</div><div class="rb-n">' + r[2] + '</div>');
+      if (r[3]) d.appendChild(el('span', 'dot', String(r[3])));
+      on(d, 'click', () => UI.go(r[0]));
+      r[4].appendChild(d);
     });
-    b.appendChild(grid);
+    b.appendChild(railL);
+    b.appendChild(railR);
+
+    // — sân khấu: xác đang cầm đứng giữa —
+    const show = el('div', 'showcase');
+    if (leadDef) {
+      show.style.setProperty('--hue', leadDef.hue);
+      show.style.borderColor = SQ.RARITY[leadDef.star].color;
+      show.innerHTML =
+        '<div class="sc-glow"></div>' +
+        '<div class="sc-face">' + faceOf(leadDef) + '</div>' +
+        '<div class="sc-name">' + leadDef.name + '<span class="sc-ep"> · ' + leadDef.epithet + '</span></div>' +
+        '<div class="sc-star">' + '★'.repeat(leadDef.star) + '</div>' +
+        '<div class="sc-skill"><b>' + leadDef.skill.name + '</b> — ' + leadDef.skill.desc + '</div>';
+    } else {
+      show.innerHTML = '<div class="sc-face">👤</div><div class="sc-name">Chưa có xác nào</div>';
+    }
+    on(show, 'click', () => UI.go('squad'));
+    b.appendChild(show);
+
+    // — hàng năm người —
+    const line = el('div', 'lineup');
+    for (let i = 0; i < 5; i++) {
+      const m = list[i];
+      if (m) {
+        const c = SQ.CHAR_BY_ID[m.id];
+        const d = el('div', 'lu' + (m.player ? ' me' : ''));
+        d.style.setProperty('--hue', c.hue);
+        d.style.borderColor = SQ.RARITY[c.star].color;
+        d.innerHTML = '<div class="lu-f">' + faceOf(c) + '</div><div class="lu-n">' + c.name + '</div>' +
+          '<div class="lu-t">' + (m.player ? 'BẠN CẦM' : SQ.TACTIC_BY_ID[m.tactic].icon + ' ' + SQ.TACTIC_BY_ID[m.tactic].name) + '</div>';
+        on(d, 'click', () => UI.go('squad'));
+        line.appendChild(d);
+      } else {
+        const d = el('div', 'lu empty', '<div class="lu-f">＋</div><div class="lu-n">trống</div><div class="lu-t">xếp thêm</div>');
+        on(d, 'click', () => UI.go('squad'));
+        line.appendChild(d);
+      }
+    }
+    b.appendChild(line);
+
+    // — thanh chọn map, kiểu chọn chương —
+    const map = curMap();
+    const st = M.maps[map.id];
+    const open = SQ.MAPS.filter(m => SQ.mapUnlocked(m.id));
+    const at = open.findIndex(m => m.id === map.id);
+    const pick = el('div', 'chapter');
+    const prev = btn('‹', 'chev', () => { sel.map = open[Math.max(0, at - 1)].id; UI.render(); });
+    const next = btn('›', 'chev', () => { sel.map = open[Math.min(open.length - 1, at + 1)].id; UI.render(); });
+    if (at <= 0) prev.disabled = true;
+    if (at >= open.length - 1) next.disabled = true;
+    const mid = el('div', 'ch-b');
+    const power = SQ.squadPower();
+    mid.innerHTML =
+      '<div class="ch-n">' + map.name + (st.cleared ? ' <span class="ch-ok">✔</span>' : '') + '</div>' +
+      '<div class="ch-s">' + map.floors + ' tầng · ⚡ khuyên ' + money(map.power) +
+        (power >= map.power ? '' : ' <span class="bad">· tổ còn yếu</span>') + '</div>' +
+      '<div class="ch-bar"><i style="width:' + Math.min(100, st.floor / map.floors * 100) + '%"></i></div>' +
+      '<div class="ch-f">Xa nhất: tầng ' + st.floor + '/' + map.floors + ' · bấm để xem hết map</div>';
+    on(mid, 'click', () => UI.go('maps'));
+    pick.appendChild(prev); pick.appendChild(mid); pick.appendChild(next);
+    b.appendChild(pick);
+
+    // — nút vào trận —
+    b.appendChild(btn('▶ ĐI CA', 'cta', () => SQ.game.enter(map.id)));
 
     const foot = el('div', 'foot-note');
-    foot.appendChild(el('span', '', 'Tiến độ lưu ngay trên máy bạn.'));
+    foot.appendChild(el('span', '', 'Tiến độ lưu trên máy bạn.'));
     const rs = btn('Xoá dữ liệu', 'ghost tiny', () => {
       if (!confirm('Xoá sạch tài khoản trong game này? Không lấy lại được.')) return;
       SQ.hardReset(); UI.go('home'); UI.toast('Đã xoá. Bắt đầu lại.');
@@ -157,14 +297,14 @@
   // CHỌN MAP LỚN
   // ---------------------------------------------------------------------------
   function scrMaps(b) {
-    b.appendChild(el('h2', '', 'Map lớn'));
     b.appendChild(el('p', 'hint', 'Mỗi map có số tầng cố định. Hết tầng cuối là phá đảo — không có vòng lặp vô tận. Thua giữa chừng vẫn giữ phần đã giao.'));
     const power = SQ.squadPower();
 
     SQ.MAPS.forEach(m => {
       const st = SQ.M.maps[m.id];
       const unlocked = SQ.mapUnlocked(m.id);
-      const row = el('div', 'map' + (unlocked ? '' : ' locked') + (st.cleared ? ' done' : ''));
+      const row = el('div', 'map' + (unlocked ? '' : ' locked') + (st.cleared ? ' done' : '') +
+        (sel.map === m.id ? ' cur' : ''));
       row.innerHTML =
         '<div class="map-h"><b>' + m.name + '</b><span class="map-f">' + m.floors + ' tầng</span></div>' +
         '<div class="map-d">' + m.desc + '</div>' +
@@ -178,7 +318,10 @@
       else if (st.floor > 0) row.appendChild(el('div', 'map-badge dim', 'Xa nhất: tầng ' + st.floor));
 
       if (unlocked) {
-        row.appendChild(btn('Vào ca', '', () => SQ.game.enter(m.id)));
+        const acts = el('div', 'row');
+        acts.appendChild(btn('Chọn map này', 'ghost', () => UI.pickMap(m.id)));
+        acts.appendChild(btn('Vào ca ngay', '', () => SQ.game.enter(m.id)));
+        row.appendChild(acts);
       } else {
         row.appendChild(el('div', 'lockmsg', '🔒 Phá đảo map trước để mở'));
       }
@@ -194,7 +337,6 @@
   // BIỆT ĐỘI
   // ---------------------------------------------------------------------------
   function scrSquad(b) {
-    b.appendChild(el('h2', '', 'Biệt đội'));
     b.appendChild(el('p', 'hint', 'Ô đầu là xác BẠN cầm — kỹ năng của nó nằm dưới nút bấm trong trận. Bốn ô còn lại là bot; mỗi bot chạy theo chiến thuật bạn giao.'));
 
     const M = SQ.M;
@@ -202,6 +344,17 @@
     slots.appendChild(slotBox('lead', M.squad.lead, true));
     M.squad.mates.forEach((id, i) => slots.appendChild(slotBox(i, id, false)));
     b.appendChild(slots);
+
+    const inSquadCount = SQ.squadList().length;
+    if (inSquadCount < 5 && Object.keys(M.chars).length > inSquadCount) {
+      const fill = el('div', 'row');
+      fill.appendChild(btn('Xếp tự động cho đủ tổ', '', () => {
+        const n = SQ.autoFill();
+        UI.toast(n ? 'Đã xếp thêm ' + n + ' xác vào tổ.' : 'Không còn xác rảnh.', n > 0);
+        UI.render();
+      }));
+      b.appendChild(fill);
+    }
 
     if (sel.char && M.chars[sel.char]) b.appendChild(charDetail(sel.char));
 
@@ -259,7 +412,8 @@
         const acts = el('div', 'slot-acts');
         if (sel.char && sel.char !== id) {
           acts.appendChild(btn('Đặt vào đây', 'tiny', () => {
-            if (isLead) SQ.setLead(sel.char); else SQ.setMate(which, sel.char);
+            const ok = isLead ? SQ.setLead(sel.char) : SQ.setMate(which, sel.char);
+            if (!ok) return UI.toast('Không xếp được xác này vào ô đó.');
             UI.render();
           }));
         }
@@ -267,8 +421,18 @@
         box.appendChild(acts);
       } else {
         box.appendChild(el('div', 'slot-f dim', '＋'));
-        if (sel.char) box.appendChild(btn('Đặt vào đây', 'tiny', () => { SQ.setMate(which, sel.char); UI.render(); }));
-        else box.appendChild(el('div', 'tac-d', 'Chọn một xác bên dưới rồi bấm vào đây.'));
+        if (sel.char) {
+          const acts = el('div', 'slot-acts');
+          acts.appendChild(btn('Đặt vào đây', 'tiny', () => {
+            if (!SQ.setMate(which, sel.char)) {
+              return UI.toast('Xác này đang ở ô BẠN CẦM. Chọn xác khác, hoặc đổi chỗ với một bot đã có.');
+            }
+            UI.render();
+          }));
+          box.appendChild(acts);
+        } else {
+          box.appendChild(el('div', 'tac-d', 'Chọn một xác bên dưới rồi bấm vào đây.'));
+        }
       }
       return box;
     }
@@ -308,141 +472,245 @@
   // ---------------------------------------------------------------------------
   function scrEquip(b) {
     const M = SQ.M;
-    if (!sel.char || !M.chars[sel.char]) sel.char = M.squad.lead;
-    b.appendChild(el('h2', '', 'Trang bị'));
-    b.appendChild(el('p', 'hint', 'Chọn xác, rồi lắp đủ sáu ô. Đủ 2 hoặc 4 món cùng bộ thì có thưởng bộ.'));
+    if (!sel.char || !M.chars[sel.char]) {
+      sel.char = (M.squad.lead && M.chars[M.squad.lead]) ? M.squad.lead : Object.keys(M.chars)[0] || null;
+    }
+    if (!sel.char) {
+      b.appendChild(el('p', 'hint', 'Chưa có xác nào — quay ở Gacha Xác trước đã.'));
+      return;
+    }
 
+    // — chọn xác —
     const pickRow = el('div', 'char-strip');
-    Object.keys(M.chars).forEach(id => {
-      const c = SQ.CHAR_BY_ID[id];
-      const t = el('div', 'chip' + (sel.char === id ? ' on' : ''), faceOf(c) + ' ' + c.name);
+    SQ.CHARS.forEach(c => {
+      if (!M.chars[c.id]) return;
+      const t = el('div', 'chip' + (sel.char === c.id ? ' on' : ''), faceOf(c) + ' ' + c.name);
       t.style.borderColor = SQ.RARITY[c.star].color;
-      on(t, 'click', () => { sel.char = id; sel.item = null; UI.render(); });
+      on(t, 'click', () => { sel.char = c.id; UI.render(); });
       pickRow.appendChild(t);
     });
     b.appendChild(pickRow);
 
+    const def = SQ.CHAR_BY_ID[sel.char];
     const own = M.chars[sel.char];
     const st = SQ.charStats(sel.char, M.tactics[sel.char]);
-    b.appendChild(el('div', 'eq-power', '⚡ Lực chiến xác này: <b>' + money(st.power) + '</b>'));
 
-    const slots = el('div', 'eq-slots');
-    SQ.SLOTS.forEach(s => {
-      const instId = own.equip && own.equip[s.id];
+    // — giàn đồ: ba ô trái · xác · ba ô phải —
+    const rig = el('div', 'eq-rig');
+    const colL = el('div', 'eq-col'), colR = el('div', 'eq-col');
+    const body = el('div', 'eq-body');
+    body.style.setProperty('--hue', def.hue);
+    body.style.borderColor = SQ.RARITY[def.star].color;
+    body.innerHTML =
+      '<div class="eb-f">' + faceOf(def) + '</div>' +
+      '<div class="eb-n">' + def.name + '</div>' +
+      '<div class="eb-s">' + '★'.repeat(def.star) + ' · Lv' + own.lv + '</div>' +
+      '<div class="eb-p">⚡ ' + money(st.power) + '</div>';
+    on(body, 'click', () => { sel.char2 = null; UI.go('squad'); });
+
+    SQ.SLOTS.forEach((sl, i) => {
+      const instId = own.equip && own.equip[sl.id];
       const it = instId ? SQ.itemById(instId) : null;
-      const box = el('div', 'eqs' + (it ? ' has s' + it.star : ''));
-      box.innerHTML = '<div class="eqs-i">' + s.icon + '</div><div class="eqs-n">' + s.name + '</div>' +
-        (it ? '<div class="eqs-t">' + it.name + '</div><div class="eqs-v">+' + SQ.fmtStat(it.main, SQ.mainValue(it)).slice(1) + ' ' + SQ.STATS[it.main].short + '</div><div class="eqs-l">Lv' + it.lv + '</div>'
-            : '<div class="eqs-t dim">trống</div>');
+      const box = el('div', 'eqs' + (it ? '' : ' empty') + (sel.slot === sl.id ? ' sel' : ''));
+      if (it) box.style.setProperty('--rc', SQ.RARITY[it.star].color);
+      box.innerHTML =
+        '<div class="eqs-i">' + sl.icon + '</div>' +
+        (it ? '<div class="eqs-t">' + it.name + '</div>' +
+              '<div class="eqs-v">' + SQ.STATS[it.main].short + ' ' + SQ.fmtStat(it.main, SQ.mainValue(it)) + '</div>' +
+              '<div class="eqs-l">Lv' + it.lv + '</div>'
+            : '<div class="eqs-n">' + sl.name + '</div><div class="eqs-t dim">trống</div>');
       if (it) box.style.borderColor = SQ.RARITY[it.star].color;
-      on(box, 'click', () => { sel.slot = s.id; sel.item = instId || null; UI.render(); });
-      slots.appendChild(box);
+      on(box, 'click', () => {
+        sel.slot = sl.id;
+        if (it) showItem(it.id); else UI.render();
+      });
+      (i < 3 ? colL : colR).appendChild(box);
     });
-    b.appendChild(slots);
+    rig.appendChild(colL); rig.appendChild(body); rig.appendChild(colR);
+    b.appendChild(rig);
 
-    // thưởng bộ đang có
+    // — bảng chỉ số gọn —
+    const bar = el('div', 'stat-bar');
+    [['❤️', 'Máu', Math.round(st.hp)], ['⚔️', 'Sát thương', st.atk.toFixed(1)],
+     ['📦', 'Sức mang', st.carry.toFixed(0) + 'kg'], ['🛡️', 'Giáp', (st.grit * 100).toFixed(0) + '%']]
+      .forEach(([ic, name, v]) => {
+        bar.appendChild(el('div', 'sb', '<i>' + ic + '</i><b>' + v + '</b><span>' + name + '</span>'));
+      });
+    b.appendChild(bar);
+
     if (st.sets.length) {
       const sb = el('div', 'setbox');
-      st.sets.forEach(s => {
-        const def = SQ.SET_BY_ID[s.id];
-        sb.appendChild(el('div', 'setline', '<b>' + def.name + ' ' + s.n + ' món</b> — ' + (s.n === 2 ? def.d2 : def.d4)));
+      st.sets.forEach(x => {
+        const d = SQ.SET_BY_ID[x.id];
+        sb.appendChild(el('div', 'setline', '<b>' + d.name + ' ' + x.n + ' món</b> — ' + (x.n === 2 ? d.d2 : d.d4)));
       });
       b.appendChild(sb);
     }
 
-    if (sel.slot) {
-      b.appendChild(el('h3', '', 'Kho ' + SQ.SLOT_BY_ID[sel.slot].name + ' (' + SQ.M.inv.filter(i => i.slot === sel.slot).length + ')'));
-      if (sel.item) {
-        const it = SQ.itemById(sel.item);
-        if (it) b.appendChild(itemDetail(it));
-      }
-      const list = el('div', 'inv-grid');
-      const items = M.inv.filter(i => i.slot === sel.slot)
-        .sort((a, z) => (z.star - a.star) || (z.lv - a.lv));
-      if (!items.length) list.appendChild(el('div', 'hint', 'Chưa có món nào ở ô này — quay Gacha Trang Bị.'));
-      items.forEach(it => {
-        const wearer = SQ.equippedBy(it.id);
-        const card = el('div', 'inv s' + it.star + (sel.item === it.id ? ' sel' : ''));
-        card.style.borderColor = SQ.RARITY[it.star].color;
-        card.innerHTML =
-          '<div class="inv-h">' + SQ.SLOT_BY_ID[it.slot].icon + ' <b>' + it.name + '</b></div>' +
-          '<div class="inv-s">' + '★'.repeat(it.star) + ' · Lv' + it.lv + ' · ' + SQ.SET_BY_ID[it.set].name + '</div>' +
-          '<div class="inv-m">' + SQ.STATS[it.main].name + ' ' + SQ.fmtStat(it.main, SQ.mainValue(it)) + '</div>' +
-          '<div class="inv-sub">' + it.subs.filter(s => s.on).map(s => SQ.STATS[s.k].short + ' ' + SQ.fmtStat(s.k, s.v)).join(' · ') + '</div>' +
-          (wearer ? '<div class="inv-w">đang đeo: ' + SQ.CHAR_BY_ID[wearer].name + '</div>' : '');
-        on(card, 'click', () => { sel.item = it.id; UI.render(); });
-        list.appendChild(card);
-      });
-      b.appendChild(list);
+    // — kho đồ: lọc theo ô, xếp năm món mỗi hàng —
+    const filters = el('div', 'filters');
+    const all = el('div', 'chip' + (sel.slot ? '' : ' on'), 'Tất cả (' + M.inv.length + ')');
+    on(all, 'click', () => { sel.slot = null; UI.render(); });
+    filters.appendChild(all);
+    SQ.SLOTS.forEach(sl => {
+      const n = M.inv.filter(i => i.slot === sl.id).length;
+      const c = el('div', 'chip' + (sel.slot === sl.id ? ' on' : ''), sl.icon + ' ' + sl.name + ' ' + n);
+      on(c, 'click', () => { sel.slot = sl.id; UI.render(); });
+      filters.appendChild(c);
+    });
+    b.appendChild(filters);
+
+    const items = M.inv.filter(i => !sel.slot || i.slot === sel.slot)
+      .sort((a, z) => (z.star - a.star) || (z.lv - a.lv) || (a.slot < z.slot ? -1 : 1));
+    b.appendChild(el('h3', '', 'Kho đồ (' + items.length + ')'));
+    if (!items.length) {
+      b.appendChild(el('p', 'hint', 'Chưa có món nào ở đây — quay Gacha Trang Bị hoặc đi ca để nhặt.'));
+      return;
     }
+    const grid = el('div', 'inv-grid');
+    items.forEach(it => {
+      const wearer = SQ.equippedBy(it.id);
+      const card = el('div', 'inv');
+      card.style.setProperty('--rc', SQ.RARITY[it.star].color);
+      card.style.borderColor = SQ.RARITY[it.star].color;
+      card.innerHTML =
+        '<div class="inv-star">' + '★'.repeat(it.star) + '</div>' +
+        '<div class="inv-i">' + SQ.SLOT_BY_ID[it.slot].icon + '</div>' +
+        '<div class="inv-n">' + it.name + '</div>' +
+        '<div class="inv-lv">Lv' + it.lv + '</div>' +
+        (it.lock ? '<div class="inv-lock">🔒</div>' : '') +
+        (wearer ? '<div class="inv-on">' + faceOf(SQ.CHAR_BY_ID[wearer]) + '</div>' : '');
+      on(card, 'click', () => showItem(it.id));
+      grid.appendChild(card);
+    });
+    b.appendChild(grid);
   }
 
-  function itemDetail(it) {
-    const d = el('div', 'detail');
-    const cost = SQ.upgradeCost(it);
-    const wearer = SQ.equippedBy(it.id);
-    d.innerHTML =
-      '<div class="det-h"><b>' + it.name + '</b> <span class="stars">' + '★'.repeat(it.star) + '</span> · Lv' + it.lv + '/' + SQ.EQUIP_MAX_LV + '</div>' +
-      '<div class="det-sk">' + SQ.STATS[it.main].name + ' <b>' + SQ.fmtStat(it.main, SQ.mainValue(it)) + '</b> · Bộ ' + SQ.SET_BY_ID[it.set].name + '</div>' +
-      '<div class="subs">' + it.subs.map(s =>
-        '<div class="sub' + (s.on ? '' : ' off') + '">' + SQ.STATS[s.k].name + ' ' + (s.on ? SQ.fmtStat(s.k, s.v) : '<span class="dim">khoá</span>') + '</div>').join('') + '</div>' +
-      '<div class="det-lv">Nâng cấp: ' + SQ.WALLET_ICON.gold + money(cost.gold) + ' + ' + SQ.WALLET_ICON.core + cost.core +
-        ' · mở thêm dòng phụ ở cấp ' + SQ.SUB_UNLOCK_AT.join(', ') + '</div>';
-    const row = el('div', 'row');
-    row.appendChild(btn('Nâng cấp', '', () => {
-      const r = SQ.upgradeItem(it.id);
-      if (!r.ok) return UI.toast(r.why);
-      UI.toast('Lên Lv' + r.lv + (r.unlocked ? ' · ' + SQ.STATS[r.unlocked.k].name + ' ' + SQ.fmtStat(r.unlocked.k, r.unlocked.v) : ''), true);
-      UI.render();
-    }));
-    row.appendChild(btn('Nâng tối đa', 'ghost', () => {
-      let n = 0;
-      while (SQ.upgradeItem(it.id).ok) n++;
-      UI.toast(n ? 'Nâng ' + n + ' cấp.' : 'Không đủ tài nguyên.', n > 0);
-      UI.render();
-    }));
-    if (wearer === sel.char) {
-      row.appendChild(btn('Tháo ra', 'ghost', () => { SQ.unequip(sel.char, it.slot); UI.render(); }));
-    } else {
-      row.appendChild(btn('Lắp cho ' + SQ.CHAR_BY_ID[sel.char].name, '', () => {
-        SQ.equipItem(sel.char, it.id); UI.toast('Đã lắp.', true); UI.render();
+  // Cửa sổ chi tiết một món đồ: nâng cấp / lắp / tháo / khoá / phân rã.
+  function showItem(instId) {
+    const it = SQ.itemById(instId);
+    if (!it) return;
+    sel.item = instId;
+    UI.popup(it.name, function (d) {
+      const cost = SQ.upgradeCost(it);
+      const wearer = SQ.equippedBy(it.id);
+      const head = el('div', 'pop-item');
+      head.style.setProperty('--rc', SQ.RARITY[it.star].color);
+      head.style.borderColor = SQ.RARITY[it.star].color;
+      head.innerHTML =
+        '<div class="pi-i">' + SQ.SLOT_BY_ID[it.slot].icon + '</div>' +
+        '<div class="pi-b"><div class="pi-s">' + '★'.repeat(it.star) + ' · ' + SQ.SLOT_BY_ID[it.slot].name +
+          ' · Lv' + it.lv + '/' + SQ.EQUIP_MAX_LV + '</div>' +
+        '<div class="pi-m">' + SQ.STATS[it.main].name + ' <b>' + SQ.fmtStat(it.main, SQ.mainValue(it)) + '</b></div>' +
+        '<div class="pi-set">Bộ ' + SQ.SET_BY_ID[it.set].name + '</div></div>';
+      d.appendChild(head);
+
+      const subs = el('div', 'subs');
+      it.subs.forEach(x => {
+        subs.appendChild(el('div', 'sub' + (x.on ? '' : ' off'),
+          SQ.STATS[x.k].name + ' ' + (x.on ? SQ.fmtStat(x.k, x.v) : '<span class="dim">khoá</span>')));
+      });
+      d.appendChild(subs);
+      d.appendChild(el('div', 'det-lv', 'Nâng cấp: ' + SQ.WALLET_ICON.gold + money(cost.gold) + ' + ' +
+        SQ.WALLET_ICON.core + cost.core + ' · mở dòng phụ ở cấp ' + SQ.SUB_UNLOCK_AT.join(', ')));
+
+      const r1 = el('div', 'row');
+      r1.appendChild(btn('Nâng cấp', '', () => {
+        const r = SQ.upgradeItem(it.id);
+        if (!r.ok) return UI.toast(r.why);
+        UI.toast('Lên Lv' + r.lv + (r.unlocked ? ' · ' + SQ.STATS[r.unlocked.k].name + ' ' + SQ.fmtStat(r.unlocked.k, r.unlocked.v) : ''), true);
+        showItem(instId); UI.render();
       }));
-    }
-    row.appendChild(btn(it.lock ? '🔒 Bỏ khoá' : '🔓 Khoá', 'ghost tiny', () => { it.lock = !it.lock; SQ.save(); UI.render(); }));
-    row.appendChild(btn('Phân rã', 'ghost tiny danger', () => {
-      const r = SQ.dismantle(it.id);
-      if (!r.ok) return UI.toast(r.why || 'Không phân rã được.');
-      UI.toast('Được ' + SQ.WALLET_ICON.core + r.core + ' và ' + SQ.WALLET_ICON.gold + money(r.gold), true);
-      sel.item = null; UI.render();
-    }));
-    d.appendChild(row);
-    return d;
+      r1.appendChild(btn('Nâng tối đa', 'ghost', () => {
+        let n = 0;
+        while (SQ.upgradeItem(it.id).ok) n++;
+        UI.toast(n ? 'Nâng ' + n + ' cấp.' : 'Không đủ tài nguyên.', n > 0);
+        showItem(instId); UI.render();
+      }));
+      d.appendChild(r1);
+
+      const r2 = el('div', 'row');
+      if (wearer === sel.char) {
+        r2.appendChild(btn('Tháo ra', 'ghost', () => {
+          SQ.unequip(sel.char, it.slot); UI.toast('Đã tháo.', true); showItem(instId); UI.render();
+        }));
+      } else {
+        r2.appendChild(btn('Lắp cho ' + SQ.CHAR_BY_ID[sel.char].name, '', () => {
+          SQ.equipItem(sel.char, it.id); UI.toast('Đã lắp.', true); showItem(instId); UI.render();
+        }));
+      }
+      r2.appendChild(btn(it.lock ? '🔒 Bỏ khoá' : '🔓 Khoá', 'ghost tiny', () => {
+        it.lock = !it.lock; SQ.save(); showItem(instId); UI.render();
+      }));
+      r2.appendChild(btn('Phân rã', 'ghost tiny danger', () => {
+        const r = SQ.dismantle(it.id);
+        if (!r.ok) return UI.toast(r.why || 'Không phân rã được.');
+        UI.toast('Được ' + SQ.WALLET_ICON.core + r.core + ' và ' + SQ.WALLET_ICON.gold + money(r.gold), true);
+        sel.item = null; UI.closePopup(); UI.render();
+      }));
+      d.appendChild(r2);
+    });
   }
 
   // ---------------------------------------------------------------------------
   // TIẾN HOÁ
   // ---------------------------------------------------------------------------
   function scrEvol(b) {
-    b.appendChild(el('h2', '', 'Tiến hoá'));
-    b.appendChild(el('p', 'hint', 'Nâng ở đây cộng cho <b>cả năm người</b> trong tổ, kể cả xác mới quay được sau này.'));
-    b.appendChild(el('div', 'eq-power', '⚡ Lực chiến tổ: <b>' + money(SQ.squadPower()) + '</b> · Tổng cấp tiến hoá: <b>' + SQ.evolTotal() + '</b>'));
+    const M = SQ.M;
+    const maxTotal = SQ.EVOL.reduce((n, e) => n + e.max, 0);
+    const cur = SQ.evolTotal();
+    const top = el('div', 'evo-top');
+    top.innerHTML =
+      '<div class="evo-tn">⚡ Lực chiến tổ <b>' + money(SQ.squadPower()) + '</b> · tiến hoá ' + cur + '/' + maxTotal + '</div>' +
+      '<div class="evo-bar"><i style="width:' + (cur / maxTotal * 100) + '%"></i></div>';
+    b.appendChild(top);
+    b.appendChild(el('p', 'hint', 'Nâng ở đây cộng cho <b>cả năm người</b> trong tổ, kể cả xác quay được sau này. Bấm một ô để xem chi tiết.'));
+
+    const grid = el('div', 'evo-grid');
     SQ.EVOL.forEach(e => {
-      const lv = SQ.M.evol[e.id] || 0;
-      const cost = SQ.evolCost(e);
+      const lv = M.evol[e.id] || 0;
       const maxed = lv >= e.max;
-      const row = el('div', 'evo' + (maxed ? ' maxed' : ''));
-      row.innerHTML =
+      const cost = SQ.evolCost(e);
+      const can = !maxed && SQ.can(cost);
+      const c = el('div', 'evo' + (maxed ? ' maxed' : '') + (can ? ' can' : ''));
+      c.innerHTML =
         '<div class="evo-i">' + e.icon + '</div>' +
-        '<div class="evo-b"><div class="evo-n">' + e.name + ' <span class="dim">' + lv + '/' + e.max + '</span></div>' +
-        '<div class="evo-d">' + e.desc + '</div>' +
-        '<div class="evo-bar"><i style="width:' + (lv / e.max * 100) + '%"></i></div></div>';
-      row.appendChild(maxed ? el('div', 'evo-max', 'TỐI ĐA')
-        : btn(SQ.WALLET_ICON.gold + money(cost.gold), '', () => {
-          const r = SQ.evolUp(e.id);
-          UI.toast(r.ok ? e.name + ' lên cấp ' + r.lv : r.why, r.ok);
-          UI.render();
-        }));
-      b.appendChild(row);
+        '<div class="evo-n">' + e.name + '</div>' +
+        '<div class="evo-lv">' + lv + '/' + e.max + '</div>' +
+        (maxed ? '<div class="evo-max">TỐI ĐA</div>'
+               : '<div class="evo-c">' + SQ.WALLET_ICON.gold + money(cost.gold) + '</div>');
+      on(c, 'click', () => showEvol(e.id));
+      grid.appendChild(c);
+    });
+    b.appendChild(grid);
+  }
+
+  function showEvol(id) {
+    const e = SQ.EVOL.find(x => x.id === id);
+    if (!e) return;
+    UI.popup(e.icon + ' ' + e.name, function (d) {
+      const lv = SQ.M.evol[e.id] || 0;
+      const maxed = lv >= e.max;
+      const cost = SQ.evolCost(e);
+      d.appendChild(el('div', 'det-sk', e.desc));
+      d.appendChild(el('div', 'evo-bar', '<i style="width:' + (lv / e.max * 100) + '%"></i>'));
+      d.appendChild(el('div', 'det-lv', 'Cấp ' + lv + '/' + e.max +
+        (maxed ? '' : ' · cấp sau tốn ' + SQ.WALLET_ICON.gold + money(cost.gold))));
+      if (maxed) { d.appendChild(el('div', 'evo-max', 'ĐÃ TỐI ĐA')); return; }
+      const row = el('div', 'row');
+      row.appendChild(btn('Nâng ' + SQ.WALLET_ICON.gold + money(cost.gold), '', () => {
+        const r = SQ.evolUp(e.id);
+        UI.toast(r.ok ? e.name + ' lên cấp ' + r.lv : r.why, r.ok);
+        if (r.ok) showEvol(id);
+        UI.render();
+      }));
+      row.appendChild(btn('Nâng tối đa', 'ghost', () => {
+        let n = 0;
+        while (SQ.evolUp(e.id).ok) n++;
+        UI.toast(n ? 'Nâng ' + n + ' cấp.' : 'Không đủ vàng.', n > 0);
+        showEvol(id); UI.render();
+      }));
+      d.appendChild(row);
     });
   }
 
@@ -450,7 +718,6 @@
   // GACHA
   // ---------------------------------------------------------------------------
   function scrGacha(b) {
-    b.appendChild(el('h2', '', 'Gacha'));
     const tabs = el('div', 'tabs');
     ['char', 'equip'].forEach(id => {
       const t = el('button', 'tab' + (sel.banner === id ? ' on' : ''), SQ.GACHA[id].name);
@@ -535,8 +802,13 @@
   // CỬA HÀNG
   // ---------------------------------------------------------------------------
   function scrShop(b) {
-    b.appendChild(el('h2', '', 'Cửa hàng'));
     b.appendChild(el('div', 'fakebox', '⚠️ <b>Nạp ở đây là giả.</b> Không có cổng thanh toán, không mất tiền thật — bấm là ngọc vào ví. Đây là bản chơi thử của cơ chế nạp.'));
+
+    const tick = el('div', 'stat-bar');
+    [['ticketX', 'Vé Xác'], ['ticketE', 'Vé Đồ'], ['core', 'Lõi'], ['gem', 'Ngọc']].forEach(([k, name]) => {
+      tick.appendChild(el('div', 'sb', '<i>' + SQ.WALLET_ICON[k] + '</i><b>' + money(SQ.M[k] || 0) + '</b><span>' + name + '</span>'));
+    });
+    b.appendChild(tick);
 
     b.appendChild(el('h3', '', 'Gói ngọc'));
     const g = el('div', 'pack-grid');
@@ -577,7 +849,6 @@
   // NHIỆM VỤ
   // ---------------------------------------------------------------------------
   function scrQuest(b) {
-    b.appendChild(el('h2', '', 'Nhiệm vụ'));
     const q = SQ.questList();
     const tabs = el('div', 'tabs');
     [['daily', 'Hằng ngày'], ['weekly', 'Hằng tuần'], ['ach', 'Thành tựu']].forEach(([id, name]) => {
