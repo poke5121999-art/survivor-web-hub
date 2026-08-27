@@ -3276,6 +3276,7 @@ function completePad(pad){
   makeNoise(pad.x, pad.y, EXTRACT_NOISE_R, 2.2);
   const taken = pad.value;
   S.wallet += taken;
+  if (HOOKS.onPayout) HOOKS.onPayout(taken, S.padIndex >= S.pads.length - 1);
   const surplus = taken - pad.quota;
   for (const l of pad.placed){ l.gone = true; }
   const last = S.padIndex >= S.pads.length - 1;
@@ -3436,6 +3437,9 @@ function finishLevel(){
   // the level went.
   S.lastLevel = { level:S.level, wallet:S.wallet,
                   pads:S.pads.map(q => ({ done:q.done, quota:q.quota, value:q.value })) };
+  // Bản Biệt Đội có map HỮU HẠN: hết tầng cuối là phá đảo chứ không đẻ tầng tiếp.
+  // Móc này trả true thì nó tự lo phần sau, bộ máy không mở trạm dịch vụ nữa.
+  if (HOOKS.onLevelClear && HOOKS.onLevelClear() === true) return;
   // Doors, then the van pulls out, then the station — the shift ends on screen rather than in a
   // scene change. startShop is what actually builds the next place; this only delays it.
   startCut('depart', '', '', () => startShop());
@@ -4133,6 +4137,25 @@ function makeMate(i, x, y){
 
 // Everyone in the house who is on your side, dead or alive. The player is always index 0, so a
 // caller that only wants "somebody living" can take the first hit and get the human by preference.
+// ---------------------------------------------------------------------------
+// ĐIỂM CẮM CHO LỚP META BÊN NGOÀI
+// Bộ máy này chạy cho HAI game: "Ca Trực Đêm" (repo2d, tự nó) và "Ca Trực Đêm:
+// Biệt Đội" (repo-squad, đắp thêm kỹ năng + tổ năm người + gacha lên trên).
+// WHY một bộ máy chứ không phải hai: bản Biệt Đội trước đây có sim riêng viết lại
+//   từ đầu, và nó thiếu đèn pin hình nón, xe đẩy, trạm dịch vụ, tủ đồ, đồ dùng,
+//   bắn thử — mỗi luật sửa ở một bên là một luật không ai tin được nữa. Chú thích
+//   trong data/games.js đã nói đúng điều đó về bản Unity; nó đúng cho cả bản này.
+// Mọi móc để null thì repo2d chạy y như trước khi có khối này.
+const HOOKS = {
+  mateCount: null,      // số bot đi theo. null = MATE_COUNT mặc định
+  mateInfo: null,       // (i) -> { name, col, hp, str, speed } cho từng bot
+  playerInfo: null,     // ()  -> { hp, str, speed } cho xác người chơi cầm
+  onLevelClear: null,   // ()  -> true nếu lớp ngoài tự lo phần sau (chặn vào trạm)
+  onPayout: null,       // (soTien, laBeCuoi) -> void, mỗi lần giao xong một bệ
+  skill: null           // { icon, name, cd, ready(), use() } — nút kỹ năng trong HUD
+};
+function hookMateCount(){ return HOOKS.mateCount == null ? MATE_COUNT : HOOKS.mateCount; }
+
 function crew(){ return S.player ? [S.player].concat(S.mates || []) : (S.mates || []); }
 function crewAlive(){ return crew().filter(a => a && !a.down); }
 function isDown(a){ return !a || !!a.down; }
@@ -4141,7 +4164,7 @@ function spawnCrew(){
   S.mates = [];
   if (!S.crewOn) return;
   const p = S.player;
-  for (let i = 0; i < MATE_COUNT; i++){
+  for (let i = 0; i < hookMateCount(); i++){
     let x = p.x, y = p.y;
     for (let k = 0; k < 60; k++){
       const a = Math.random()*Math.PI*2, r = mix(TILE*1.6, TILE*4, Math.random());
@@ -4149,7 +4172,18 @@ function spawnCrew(){
       if (hitsSolid(nx, ny, 9)) continue;
       x = nx; y = ny; break;
     }
-    S.mates.push(makeMate(i, x, y));
+    const m = makeMate(i, x, y);
+    // Lớp meta quyết định bot này là XÁC NÀO và khoẻ tới đâu.
+    const info = HOOKS.mateInfo && HOOKS.mateInfo(i);
+    if (info){
+      if (info.name)  m.name = info.name;
+      if (info.col)   m.col = info.col;
+      if (info.charId) m.charId = info.charId;
+      if (info.hp)    { m.hpMax = info.hp; m.hp = info.hp; }
+      if (info.str)   m.str = info.str;
+      if (info.speed) m.speed = info.speed;
+    }
+    S.mates.push(m);
   }
 }
 
@@ -6940,6 +6974,14 @@ function applyUpgrades(){
   p.hpMax = 100 + S.upg.hp*20;   p.hp = p.hpMax;          // "+20 máu tối đa, và hồi đầy ngay"
   p.stamMax = STAM_MAX + S.upg.stam*10; p.stam = p.stamMax;
   p.str = 30 + S.upg.str*10;
+  // Lớp meta cộng tiếp lên trên phần nâng cấp trong run: cấp xác, trang bị, tiến hoá.
+  const info = HOOKS.playerInfo && HOOKS.playerInfo();
+  if (info){
+    if (info.hp)    { p.hpMax = info.hp; p.hp = p.hpMax; }
+    if (info.str)   p.str = info.str;
+    if (info.speed) p.speed = info.speed;
+    if (info.charId) p.charId = info.charId;
+  }
 }
 
 // ---------- the truck locker
@@ -7193,6 +7235,8 @@ window.REPO = {
              who:l.who, whoName:l.whoName, x:l.x, y:l.y, held:!!l.held,
              onPad:!!l.onPad, inCart:!!l.inCart, value:l.value })); },
   setCrew(on){ S.crewOn = !!on; if (!on) S.mates = []; else if (!S.mates.length) spawnCrew(); },
+  hooks: HOOKS,
+  spawnCrew, crew, hudLayout, finishLevel, startShop, buildLevel,
   killMate(i){ const a = (S.mates||[])[i]; if (a) downActor(a); return !!a; },
   killPlayer(){ downActor(S.player); return true; },
   toggleSprint,
