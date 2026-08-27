@@ -45,12 +45,19 @@
   </main>
 
   <footer class="hub-footer">
-    <p>Local web game hub &middot; no backend &middot; add a game by editing <code>data/games.js</code></p>
+    <div class="hub-footer__row">
+      <p>Local web game hub &middot; no backend &middot; add a game by editing <code>data/games.js</code></p>
+      <button class="hub-refresh" id="hub-refresh" type="button">&#8635; Tải lại bản mới</button>
+    </div>
+    <p class="hub-note" id="hub-refresh-note">Bản game trên máy chủ đổi rồi mà trong máy vẫn là bản cũ? Bấm nút này. Nó nạp lại toàn bộ file của hub và của từng game — <b>không đụng vào tiến độ chơi đã lưu</b>.</p>
   </footer>
 
   <!-- Registry is loaded as a plain script (sets window.HUB_GAMES) rather than fetched, so the
        page also works when opened directly via file:// where fetch() of local files is blocked. -->
   <script src="data/games.js"></script>
   <script src="js/hub.js"></script>
+  <!-- Nút "Tải lại bản mới" ở chân trang. Nạp sau data/games.js vì nó cần HUB_GAMES
+       để biết phải nạp lại file của những game nào. -->
+  <script src="js/cache-bust.js"></script>
 </body>
 </html>

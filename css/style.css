@@ -217,6 +217,41 @@ body {
   color: var(--text-dim);
   font-size: 13px;
 }
+/* Chân trang: một hàng ngang, nút nằm bên phải; màn hẹp thì xuống dòng. */
+.hub-footer__row {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 8px 24px 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.hub-footer__row p { padding: 10px 0; margin: 0; }
+.hub-footer__row .hub-refresh { margin-left: auto; }
+.hub-refresh {
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 13px;
+  cursor: pointer;
+}
+.hub-refresh:hover:not(:disabled) { border-color: var(--text-dim); }
+.hub-refresh:active:not(:disabled) { transform: translateY(1px); }
+.hub-refresh:disabled { opacity: .6; cursor: default; }
+.hub-note {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 24px 16px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.hub-note b { color: var(--text); font-weight: 600; }
 .hub-footer code {
   background: var(--bg-card);
   border: 1px solid var(--border);
