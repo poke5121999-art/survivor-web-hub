@@ -156,7 +156,14 @@
     if (!d) return 99;
     return d.skill.cd * (1 - (l.stats ? l.stats.cd : 0));
   }
-  const foes = () => (S.monsters || []).filter(f => f.hp > 0);
+  // REPO.foesAll() chu khong phai S.monsters: con ma guong khong nam trong danh sach
+  // quai, nen moi ky nang truoc day deu di qua no - choi loa khong choang no, dong
+  // bang khong lam no cham, long sat khong chan no. Nguoi choi bao dung mot cai:
+  // "con ma guong dung choi loa khong choang duoc".
+  // f.hp == null la con ma guong: no khong co mau va khong giet duoc, nhung van dinh
+  // moi hieu ung khac.
+  const foes = () => (REPO.foesAll ? REPO.foesAll() : (S.monsters || []))
+    .filter(f => f.hp == null || f.hp > 0);
   const near = (x, y, rTiles) => foes().filter(f => Math.hypot(f.x - x, f.y - y) < rTiles * TILE);
 
   // ---------------------------------------------------------------------------

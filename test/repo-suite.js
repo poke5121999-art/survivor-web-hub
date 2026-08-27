@@ -94,7 +94,15 @@ async function repo2dSuite(b) {
   // --- tự ngắm ---
   const aim = await p.evaluate(() => {
     const S = REPO.S, pl = S.player, T = REPO.TILE;
+    // Dat sung vao DUNG o 0 - o ma phep do se bam vao. equip() tu chon o trong dau
+    // tien, nen neu o 0 da co gi do tu buoc truoc thi sung roi vao o 1 va cu bam
+    // vao o 0 khong ban ra gi ca. Do la mot phep do bap benh, khong phai mot bug.
     REPO.giveGear('gun', 2); REPO.equip('gun');
+    if (!(pl.inv[0] && pl.inv[0].kind === 'gun')){
+      const i = pl.inv.findIndex(x => x && x.kind === 'gun');
+      if (i > 0){ const t = pl.inv[0]; pl.inv[0] = pl.inv[i]; pl.inv[i] = t; }
+    }
+    if (!(pl.inv[0] && pl.inv[0].kind === 'gun')) return { ok: false, why: 'không đặt được súng vào ô 1' };
     REPO.populateFoes();
     if (!S.monsters.length) return { ok: false, why: 'không có quái' };
     const m = S.monsters[0];
@@ -120,13 +128,15 @@ async function repo2dSuite(b) {
     await p.waitForTimeout(25);
     const shot = await p.evaluate(() => {
       const S = REPO.S, pl = S.player, b = S.bullets[0];
-      if (!b) return { ban: false };
+      if (!b) return { ban: false, vi: { o: pl.inv.map(x => x && x.kind + 'x' + x.uses),
+                                         aim: pl.aimSlot, cd: +pl.cooldown.toFixed(2),
+                                         chay: S.running, guc: pl.down } };
       const gd = Math.atan2(b.vy, b.vx);
       const gq = Math.atan2(S.monsters[0].y - pl.y, S.monsters[0].x - pl.x);
       return { ban: true, vsQuai: Math.abs(REPO.angDiff(gd, gq)),
                vsNguoi: Math.abs(REPO.angDiff(gd, pl.dir)) };
     });
-    check('chạm nhanh ô đồ thì bắn ra đạn', shot.ban);
+    check('chạm nhanh ô đồ thì bắn ra đạn', shot.ban, shot.ban ? '' : JSON.stringify(shot.vi || {}));
     check('đạn bay vào con quái chứ không theo hướng mặt',
       shot.ban && shot.vsQuai < 0.15 && shot.vsNguoi > 1.0,
       shot.ban ? ('lệch quái ' + shot.vsQuai.toFixed(3) + ' rad, lệch mặt ' + shot.vsNguoi.toFixed(2) + ' rad') : '');
@@ -352,6 +362,287 @@ async function repoSquadSuite(b) {
     check('kỹ năng: không lỗi console', e3.length === 0, e3.slice(0, 2).join(' | '));
     await ctx.close();
   }
+}
+
+// =====================================================================
+// ĐẬP ĐÈN PIN + SỨC NỔ CỦA BOM
+// Đo bằng thế giới thật: đặt quái ở đúng khoảng cách rồi xem máu tụt bao nhiêu, bị
+// hất đi bao xa, và cú chạm nhẹ vào cần gạt phải có tự quay sang con quái không.
+async function meleeSuite(b) {
+  results.push('\n── đập đèn pin & sức nổ của bom ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 390, height: 844 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+
+  // Bo qua doan cat canh dau man TRUOC khi do cham. Neu khong, cu cham dau tien bi
+  // skipCut() nuot de tat doan phim - phep do se bao "cham khong an" trong khi cai
+  // that su xay ra la nguoi choi vua bo qua doan mo dau.
+  await p.evaluate(() => { REPO.S.cut = null; REPO.S.running = true; });
+  await p.waitForTimeout(120);
+
+  const don = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0;
+    pl.swingCd = 0; pl.dir = 0; pl.str = 30;
+    const m = REPO.spawnFoe('listen', 30, 0);        // ngay trước mặt, trong tầm với
+    m.hp = 400; m.kx = 0; m.ky = 0;
+    const truoc = { hp: m.hp, x: m.x };
+    REPO.meleeSwing(pl, null);
+    return { mat: truoc.hp - m.hp, day: Math.abs(m.kx) > 100,
+             cd: pl.swingCd, ve: pl.swingT > 0, str: pl.str };
+  });
+  check('đập trúng thì quái mất máu theo SỨC của mình', don.mat === 27,
+    'sức ' + don.str + ' → ' + don.mat + ' sát thương');
+  check('đập trúng thì quái bị hất lui', don.day);
+  check('đập xong phải chờ hồi', don.cd > 0.4, don.cd.toFixed(2) + 's');
+
+  const hut = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0;
+    const sau = REPO.spawnFoe('listen', -30, 0);     // ngay SAU lưng
+    const xa  = REPO.spawnFoe('listen', 90, 0);      // trước mặt nhưng ngoài tầm
+    sau.hp = 400; xa.hp = 400;
+    REPO.meleeSwing(pl, null);
+    return { sauLung: 400 - sau.hp, ngoaiTam: 400 - xa.hp };
+  });
+  check('không đập trúng con đứng sau lưng', hut.sauLung === 0, hut.sauLung + ' sát thương');
+  check('không với tới con ngoài tầm', hut.ngoaiTam === 0, hut.ngoaiTam + ' sát thương');
+
+  // Chạm NHẸ vào cần gạt phải: phải tự quay sang con quái rồi đập.
+  // Dùng cú chạm THẬT của trình duyệt, không phải PointerEvent tự dựng: sự kiện tự
+  // dựng không được tin cậy nên setPointerCapture ném lỗi và cả chuỗi chết giữa chừng
+  // — phép đo sẽ "xanh" vì không có gì xảy ra, chứ không phải vì code đúng.
+  const canGat = await p.evaluate(() => {
+    const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+    const r = cv.getBoundingClientRect();
+    return { x: r.left + h.right.x / h.w * r.width,
+             y: r.top + h.right.y / h.h * r.height };
+  });
+
+  await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.swingCd = 0;
+    pl.dir = Math.PI;                                 // đang quay LƯNG lại phía nó
+    const m = REPO.spawnFoe('listen', 34, 0);         // nó ở bên phải mình
+    // Ghim nó đứng yên: thế giới vẫn đang chạy, và một con quái đi lang thang trong
+    // lúc đo thì góc tới nó đổi vài phần mười radian — phép đo sẽ đỏ vì con quái
+    // nhúc nhích chứ không phải vì cú quay sai.
+    m.hp = 400; m.kx = 0; m.speed = 0; m.state = 'idle'; m.alert = 0;
+  });
+  await p.touchscreen.tap(canGat.x, canGat.y);
+  await p.waitForTimeout(160);
+  const cham = await p.evaluate(() => {
+    const m = REPO.S.monsters[0], pl = REPO.S.player;
+    return { mat: m ? 400 - m.hp : -1, huong: pl.dir, dungHuong: Math.abs(pl.dir) < 0.25 };
+  });
+  check('chạm nhẹ cần gạt phải thì TỰ QUAY sang con quái', cham.dungHuong,
+    'hướng ' + cham.huong.toFixed(2) + ' rad');
+  check('chạm nhẹ cần gạt phải thì đập trúng', cham.mat === 27, cham.mat + ' sát thương');
+
+  // KÉO cần gạt phải thì vẫn là NHÌN, không được thành đòn đánh.
+  await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0;
+    const m = REPO.spawnFoe('listen', 34, 0); m.hp = 400;
+  });
+  await p.mouse.move(canGat.x, canGat.y);
+  await p.mouse.down();
+  await p.mouse.move(canGat.x + 70, canGat.y, { steps: 6 });
+  await p.waitForTimeout(80);
+  await p.mouse.up();
+  await p.waitForTimeout(140);
+  const keo = await p.evaluate(() => {
+    const m = REPO.S.monsters[0];
+    return m ? 400 - m.hp : -1;
+  });
+  check('kéo cần gạt phải thì vẫn là NHÌN, không thành đòn đánh', keo === 0, keo + ' sát thương');
+
+  // Nhân vật khoẻ hơn thì đập đau hơn — chỗ chỉ số meta của Biệt Đội đi vào.
+  const suc = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player, out = {};
+    [30, 53].forEach(v => {
+      S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.str = v;
+      const m = REPO.spawnFoe('listen', 30, 0); m.hp = 400;
+      REPO.meleeSwing(pl, null);
+      out[v] = 400 - m.hp;
+    });
+    pl.str = 30;
+    return out;
+  });
+  check('xác khoẻ hơn thì đập đau hơn', suc[53] > suc[30],
+    'sức 30 → ' + suc[30] + ' · sức 53 → ' + suc[53]);
+
+  // Bom: giết gọn con dày máu nhất khi nổ sát chân nó.
+  const bom = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.monsters.length = 0; S.bombs.length = 0;
+    const m = REPO.spawnFoe('listen', 40, 0);         // Kẻ nghe, 75 máu
+    const goc = m.hp;
+    S.bombs.push({ x: m.x, y: m.y, t: 0, fuse: 0, r: REPO.TILE * 3.4, done: false, owner: 'player' });
+    await new Promise(k => setTimeout(k, 300));
+    return { goc: goc, con: S.monsters.indexOf(m) >= 0 };
+  });
+  check('bom nổ sát chân thì giết gọn con dày máu nhất', !bom.con,
+    'Kẻ nghe ' + bom.goc + ' máu');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đập đèn pin: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// CON MA GƯƠNG + PHANG CỬA KẸT + VÒNG SÁNG QUANH NHÂN VẬT
+async function ghostDoorSuite(b) {
+  results.push('\n── ma gương · phang cửa · vòng sáng ──');
+  const { ctx, p, errs } = await openGame(b, SQ, { width: 390, height: 844 });
+  await p.evaluate(() => {
+    SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+    SQ.autoFill(); SQ.squad.enter('k3');
+    REPO.S.cut = null; REPO.S.running = true;
+  });
+  await p.waitForTimeout(300);
+
+  // --- con ma gương phải nằm trong tầm với của kỹ năng ---
+  // Dựng gương bằng CHÍNH hàm của bộ máy, không bịa một đối tượng gương giả: một
+  // cái gương vá tay thiếu vài trường sẽ đi một đường khác với gương thật.
+  const co = await p.evaluate(() => {
+    REPO.spawnMirrors();
+    return { coGuong: !!REPO.S.mirror };
+  });
+  check('dựng được cảnh có gương', co.coGuong);
+
+  const ma = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    // Cho nó bước ra: stepMirror chuyển phase khi mr.t vượt MIRROR_EMERGE.
+    // MIRROR_EMERGE = 2 giay: doi 1,2 giay roi ket luan "con ma chua buoc ra" la
+    // ket luan ve dong ho cho, khong phai ve con ma.
+    for (let i = 0; i < 80 && !(S.mirror && S.mirror.m); i++) {
+      if (!S.mirror) REPO.spawnMirrors();
+      await new Promise(r => setTimeout(r, 60));
+    }
+    const m = S.mirror && S.mirror.m;
+    if (!m) return { loi: 'con ma chưa bước ra' };
+    m.x = pl.x + 3 * REPO.TILE; m.y = pl.y;
+    return { ra: true, trongDanhSachQuai: (REPO.foesAll() || []).indexOf(m) >= 0,
+             coSleep: typeof m.sleep === 'number' };
+  });
+  check('con ma gương nằm trong danh sách quái mà kỹ năng quét',
+    ma.ra && ma.trongDanhSachQuai, ma.loi || '');
+
+  // Chói Loà phải làm nó đứng hình — đúng chỗ người chơi báo.
+  // Đặt nó XA (7 ô) và đo trong cửa sổ ngắn: để nó lại gần thì nó tóm được người
+  // chơi giữa lúc đo, mà bị tóm là cả cảnh gương biến mất và phép đo mất đối tượng.
+  // Con ma mat MIRROR_EMERGE (2 giay) moi buoc ra khoi guong, va no bien mat han neu
+  // tom duoc nguoi choi. Nen moi phep do phai TU DUNG LAI canh cua no, chu khong
+  // duoc gia dinh la canh cu con do.
+  const dat = () => p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    for (let i = 0; i < 60; i++){
+      if (!S.mirror) REPO.spawnMirrors();
+      if (S.mirror && S.mirror.m) break;
+      await new Promise(r => setTimeout(r, 60));
+    }
+    const m = S.mirror && S.mirror.m;
+    if (!m) return false;
+    // 4 ô: nằm TRONG bán kính 5,5 ô của Chói Loà (đặt ngoài tầm thì phép đo chỉ
+    // chứng minh được rằng kỹ năng có bán kính, chứ không đo được nó có ăn hay không),
+    // mà vẫn đủ xa để nó không tóm được người chơi trong 0,9 giây đo.
+    m.x = pl.x + 4 * REPO.TILE; m.y = pl.y; m.sleep = 0; m.path = null; m.pathT = 0;
+    return true;
+  });
+  const diBaoXa = ms => p.evaluate(async ms => {
+    const m = REPO.S.mirror && REPO.S.mirror.m;
+    if (!m) return -1;
+    const t0 = { x: m.x, y: m.y };
+    await new Promise(r => setTimeout(r, ms));
+    const mm = REPO.S.mirror && REPO.S.mirror.m;
+    return mm ? Math.hypot(mm.x - t0.x, mm.y - t0.y) / REPO.TILE : -1;
+  }, ms);
+
+  await dat();
+  const diThuong = await diBaoXa(900);
+  await dat();
+  const sleep = await p.evaluate(() => {
+    SQ.M.squad.lead = 'bao'; REPO.S.time += 999;
+    REPO.hooks.skill.use();                       // Chói Loà
+    const m = REPO.S.mirror && REPO.S.mirror.m;
+    return m ? m.sleep : -1;
+  });
+  const diSauChoi = await diBaoXa(900);
+  check('Chói Loà làm con ma gương đứng hình',
+    sleep > 0 && diSauChoi >= 0 && diSauChoi < Math.max(0.2, diThuong * 0.25),
+    'không bấm đi ' + diThuong.toFixed(2) + ' ô · có bấm đi ' + diSauChoi.toFixed(2) + ' ô');
+
+  // Đập đèn pin vào mặt nó cũng phải làm nó khựng, dù không giết được.
+  await dat();
+  const dam = await p.evaluate(() => {
+    const S = REPO.S, m = S.mirror && S.mirror.m, pl = S.player;
+    if (!m) return { bo: true };
+    m.sleep = 0;
+    pl.x = m.x - 30; pl.y = m.y; pl.dir = 0; pl.swingCd = 0;
+    REPO.meleeSwing(pl, null);
+    return { sleep: m.sleep, conNguyen: !!(S.mirror && S.mirror.m), coMau: typeof m.hp === 'number' };
+  });
+  check('đập đèn pin làm con ma gương khựng lại', !dam.bo && dam.sleep > 0,
+    dam.bo ? 'con ma không còn đó' : dam.sleep + 's');
+  check('nhưng KHÔNG giết được nó — vẫn phải đập vỡ gương',
+    !dam.bo && dam.conNguyen && !dam.coMau);
+
+  // --- phang đèn pin vào cửa kẹt ---
+  const cua = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.mirror = null;
+    const d = S.doors.slice().sort((a, c) =>
+      Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(c.x - pl.x, c.y - pl.y))[0];
+    d.locked = true; d.broken = false; d.pry = 0; d.bash = 0;
+    REPO.warp(d.x - 18, d.y);
+    pl.dir = 0; pl.swingCd = 0;
+    const buoc = [];
+    for (let i = 0; i < REPO.DOOR.PRY_HITS + 2 && !d.broken; i++) {
+      pl.swingCd = 0;
+      REPO.meleeSwing(pl, null);
+      buoc.push(+(d.pry || 0).toFixed(1));
+    }
+    return { vo: !!d.broken, nhat: buoc.length, can: REPO.DOOR.PRY_HITS, buoc: buoc };
+  });
+  check('phang đèn pin đủ nhiều nhát thì bung được cửa kẹt', cua.vo,
+    cua.nhat + ' nhát / cần ' + cua.can);
+  check('một nhát thôi thì KHÔNG bung — phải lâu', cua.nhat > 3, cua.nhat + ' nhát');
+
+  // Ngừng tay thì tiến trình tụt lại: không gõ nhấm nháp cả màn được.
+  const tut = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    const d = S.doors.find(x => !x.broken);
+    if (!d) return { bo: true };
+    d.locked = true; d.pry = 3; d.bash = 0;
+    const truoc = d.pry;
+    await new Promise(r => setTimeout(r, 1500));
+    return { truoc: truoc, sau: d.pry };
+  });
+  check('ngừng tay thì tiến trình phá cửa tụt lại',
+    tut.bo || tut.sau < tut.truoc, tut.bo ? 'không có cửa để đo' : tut.truoc + ' → ' + (tut.sau || 0).toFixed(2));
+
+  // --- xe đẩy chở theo GIÁ TRỊ, không theo kích cỡ ---
+  const xe = await p.evaluate(() => {
+    const S = REPO.S, cart = S.cart;
+    if (!cart) return { bo: true };
+    cart.items.length = 0;
+    const to = { value: 4000, sizeIdx: 2, gone: false, mass: 40 };      // to nhưng rẻ
+    const dat = { value: 40000, sizeIdx: 0, gone: false, mass: 8 };     // nhỏ nhưng đắt
+    const vua = { value: 19999, sizeIdx: 2, gone: false, mass: 40 };    // sát ngưỡng
+    return { bo: false, nguong: REPO.CART_MAX_VALUE,
+             toReRa: REPO.cartFits(cart, to),
+             nhoDat: REPO.cartFits(cart, dat),
+             satNguong: REPO.cartFits(cart, vua) };
+  });
+  check('xe chở món TO nhưng RẺ', xe.bo || xe.toReRa, xe.bo ? 'không có xe' : '');
+  check('xe KHÔNG chở món nhỏ nhưng ĐẮT', xe.bo || !xe.nhoDat,
+    xe.bo ? '' : 'ngưỡng ' + xe.nguong);
+  check('sát ngưỡng thì vẫn lên được xe', xe.bo || xe.satNguong);
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('ma gương / phang cửa: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
 }
 
 // =====================================================================
@@ -959,6 +1250,8 @@ async function metaRulesSuite(b) {
   const b = await chromium.launch();
   try { await repo2dSuite(b); } catch (e) { check('repo2d: bộ test chạy trọn', false, e.message); }
   try { await repoSquadSuite(b); } catch (e) { check('repo-squad: bộ test chạy trọn', false, e.message); }
+  try { await ghostDoorSuite(b); } catch (e) { check('ma gương/phang cửa: bộ test chạy trọn', false, e.message); }
+  try { await meleeSuite(b); } catch (e) { check('đập đèn pin: bộ test chạy trọn', false, e.message); }
   try { await stashSuite(b); } catch (e) { check('tủ đồ: bộ test chạy trọn', false, e.message); }
   try { await rotateSuite(b); } catch (e) { check('nút xoay tay: bộ test chạy trọn', false, e.message); }
   try { await hudGeomSuite(b); } catch (e) { check('hình học HUD: bộ test chạy trọn', false, e.message); }

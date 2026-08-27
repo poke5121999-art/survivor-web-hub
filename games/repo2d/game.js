@@ -1094,7 +1094,15 @@ const CART_IMPACT_ABSORB = 0;
 const CART_TURN_PENALTY  = 0.5;    // the cart's share of the turn penalty — the one place its mass still tells
 const CART_WEAK_SPEED_MUL = 0.7;   // wrong-side grab: a choice you pay for in speed, not in weight
 const PRY_REACH = 2.2*TILE;   // how far in front of you the bar reaches for a jammed door
-const CART_MAX_SIZE   = 1;         // index into SIZES: 'to' (2) will not fit on the cart
+// Xe cho theo GIA TRI, khong theo kich co.
+// WHY doi: luat cu la "mon co 'to' thi khong len xe duoc", va no chia the gioi sai
+//   cho. Mot cai tu go re tien la thu dung phai chat len xe day; mot cai lo su nho
+//   xiu 40.000 lai la thu phai OM TRONG TAY va di cham, vi do la lan mo cua ca ca.
+//   Chia theo gia tri thi cai xe co dung mot cau chuyen: no cho HANG RE, con hang
+//   dat thi ban tu chiu trach nhiem tung mon mot.
+// Lay l.value chu khong phai l.value0: mon vua bi me mot goc gia con 18.000 thi cho
+//   len xe duoc that - gia tri no dang co moi la thu quan trong.
+const CART_MAX_VALUE  = 20000;
 
 // ============================================================ cửa giữa các phòng
 // A door leaf in every opening between two rooms.
@@ -1141,6 +1149,15 @@ const DOOR_LOCK_FRAC  = 0.25;     // at most this share of the doors in one hous
 const DOOR_LOCK_LEVEL = 2;        // level 1 teaches the loop with every door working
 const DOOR_BASH_T     = 1.6;      // seconds a body with shoulders spends forcing one
 const DOOR_BASH_R     = 1.2*TILE;
+// PHANG DEN PIN VAO CUA KET. Xa beng van la duong nhanh - mot nhat la xong - con
+// day la duong AI CUNG CO, doi lai bang thoi gian va bang tieng dong.
+// WHY no khong dung chung bo dem d.bash voi quai: bo dem do la mot dong ho chay lien
+//   tuc (1,6 giay ap vai), con cai nay la tung nhat mot. Cong nhat vao dong ho chay
+//   thi phan tut giua hai nhat (0,55 giay) an het phan vua cong, va cai cua khong
+//   bao gio vo - mot nut bam khong bao gio ra ket qua la mot nut hong.
+const DOOR_PRY_HITS   = 9;        // so nhat can de bung mot canh, neu phang lien tay
+const DOOR_PRY_DECAY  = 0.35;     // nhat/giay khi ngung tay: khong go dan qua ca man duoc
+const DOOR_PRY_R      = 34;       // tam voi cua cu phang vao cua
 const DOOR_BREAK_NOISE = 11*TILE; // splintering wood is loud, and the house hears it
 
 function makeDoor(gx, gy, vertical){
@@ -1252,7 +1269,7 @@ function lockDoors(rnd){
 // One way out of a jammed door, wherever the force came from.
 function breakDoor(d, how){
   if (!d || d.broken) return false;
-  d.broken = true; d.locked = false; d.open = 1; d.bash = 0; d.splint = 1;
+  d.broken = true; d.locked = false; d.open = 1; d.bash = 0; d.pry = 0; d.splint = 1;
   SFX.splinter(); fxShake(how === 'bash' ? 8 : 6);
   if (!S.shopMode) makeNoise(d.x, d.y, DOOR_BREAK_NOISE, 2);
   return true;
@@ -1299,6 +1316,11 @@ function stepDoors(dt){
         const mate = S.mates && S.mates.indexOf(b) >= 0;
         if (!mate && !(b.alert > 0)) continue;
         bashing = true; break;
+      }
+      // Phan nguoi choi phang vao, tut dan khi ngung tay.
+      if (d.pry > 0){
+        d.pry = Math.max(0, d.pry - DOOR_PRY_DECAY*dt);
+        if (d.pry >= DOOR_PRY_HITS){ breakDoor(d, 'bash'); continue; }
       }
       const was = d.bash;
       d.bash = bashing ? d.bash + dt : Math.max(0, d.bash - dt*0.5);
@@ -1936,7 +1958,7 @@ function makeCart(x,y){
 function cartLoad(cart){ return cart.items.reduce((a,l)=> a + (l.gone?0:l.mass), 0); }
 function cartValue(cart){ return cart.items.reduce((a,l)=> a + (l.gone?0:l.value), 0); }
 function cartFits(cart, l){
-  return cart.items.length < CART_SLOTS && l.sizeIdx <= CART_MAX_SIZE;
+  return cart.items.length < CART_SLOTS && l.value < CART_MAX_VALUE;
 }
 
 // ---- wall segments (merged runs) for the visibility polygon
@@ -2460,7 +2482,9 @@ function dropHeld(p){
       toast('Chất lên xe: ' + money(l.value) + ' (' + cart.items.length + '/' + CART_SLOTS + ')');
       return;
     }
-    toast(l.sizeIdx > CART_MAX_SIZE ? 'Món to quá, xe không chở được' : 'Xe đầy rồi');
+    toast(l.value >= CART_MAX_VALUE
+      ? 'Món ' + money(l.value) + ' — đắt quá, phải ôm tay. Xe chỉ chở dưới ' + money(CART_MAX_VALUE)
+      : 'Xe đầy rồi');
   }
   const pad = S.pads[S.padIndex];
   if (pad && pad.active && !pad.done &&
@@ -3091,7 +3115,12 @@ function hurtPlayer(n, src, fromX, fromY){
 // Cua DUY NHAT cho sat thuong len quai, de he so "dang bi dong bang thi an them 50%"
 // chi phai viet mot lan thay vi rai o ba cho roi quen mat mot cho.
 function foeDamage(m, n){
-  if (!m || m.hp <= 0) return false;
+  if (!m) return false;
+  // Con ma guong khong co mau va khong giet duoc - duong dut no la dap vo guong.
+  // Khong chan o day thi m.hp -= n bien hp thanh NaN, va NaN <= 0 la false nen no
+  // thanh bat tu THAT SU, khong con dap vo guong cung khong xong.
+  if (typeof m.hp !== 'number') return false;
+  if (m.hp <= 0) return false;
   m.hp -= n * ((m.vulnT || 0) > 0 ? FREEZE_VULN_MUL : 1);
   return m.hp <= 0;
 }
@@ -3124,6 +3153,110 @@ function killMonster(m){
 //   khi con quái đang chạy tới. Game bắn/MOBA di động không bắt ai làm thế: chạm là
 //   trúng, giữ mới là ngắm tay. Trước bản này, một cú chạm không kéo bắn theo p.dir —
 //   tức là theo hướng người đang QUAY, gần như không bao giờ trùng hướng con quái.
+// ====================== DAP DEN PIN ======================
+// Don danh tay khong duy nhat trong tro nay, va no co chu y la YEU: nguoi choi la
+// tho khuan do, khong phai linh. Gia tri that cua no khong nam o sat thuong ma o cu
+// HAT LUI - mot con quai bi day ra nua o la mot giay de chay, va mot giay do dang
+// gia hon vai chuc mau.
+// Voi xa hon tam voi 22px cua quai mot chut: dam truoc thi khong an don, nhung phai
+// dam truoc that, khong loi dung duoc.
+// Sat thuong bom len quai. Sat thuong len NGUOI CHOI (55) va len DO (420) giu
+// nguyen: bom manh hon thi phan thuong lon hon, con cai gia phai tra van the -
+// khong thi no thanh nut bam khong phai nghi.
+const BOMB_FOE_DMG = 165;
+const MELEE_R      = 40;      // tam voi cua cu vung
+const MELEE_HALF   = 1.05;    // nua goc quet, ~60 do moi ben
+const MELEE_CD     = 0.55;    // giay giua hai cu vung
+const MELEE_T      = 0.22;    // cu vung ve trong bao lau
+const MELEE_KNOCK  = 320;     // hat lui - phan quan trong nhat cua don nay
+const MELEE_NOISE  = 1.5;     // vung den pin la co tieng: khong danh len duoc
+const MELEE_STR    = 0.9;     // sat thuong = suc * he so. Suc 30 -> 27 sat thuong.
+// Cham nhe vao can gat phai ma co quai trong tam nay thi TU QUAY sang no roi vung.
+// Rong hon tam voi that, vi luc bi duoi thi ngon tay khong con thi gio ngam.
+const MELEE_SNAP_R = 78;
+const MELEE_GHOST_BLIND = 1.2;   // dam den pin vao mat con ma guong: no dung mot nhip
+
+// Con quai dang nen quay sang nhat khi nguoi choi cham nhe can gat phai.
+// Gan nhat truoc, nhung con dang lao vao minh duoc cong diem - no moi la con giet
+// minh. Cung mot luat voi autoAimAngle(), vi cung mot cau hoi.
+// Moi thu dang san nguoi choi, KE CA con ma guong. Bat cu vong lap nao hoi "co con
+// nao gan day khong" ma chi duyet S.monsters deu bo sot no - va do dung la vi sao
+// choi loa, dong bang, long sat truoc gio khong dung toi no mot lan nao.
+function foesAll(){
+  const mm = S.mirror && S.mirror.m;
+  return mm ? S.monsters.concat([mm]) : S.monsters;
+}
+function meleeTarget(p){
+  if (!p) return null;
+  let best = null, bestScore = Infinity;
+  for (const m of foesAll()){
+    if ((m.hp != null && m.hp <= 0) || m.sleep > 0) continue;
+    const d = Math.hypot(m.x - p.x, m.y - p.y);
+    if (d > MELEE_SNAP_R) continue;
+    if (!losClear(p.x, p.y, m.x, m.y)) continue;
+    const score = d * (m.state === 'chase' && m.alert > 0 ? 0.6 : 1);
+    if (score < bestScore){ bestScore = score; best = m; }
+  }
+  return best;
+}
+
+// ang = null thi vung theo huong dang nhin.
+function meleeSwing(p, ang){
+  if (!p || p.down || S.dead || !S.running || S.shopMode) return false;
+  if ((p.swingCd || 0) > 0) return false;
+  if ((p.stunT || 0) > 0) return false;
+  if (ang != null) p.dir = ang;
+  p.swingCd = MELEE_CD;
+  p.swingT  = MELEE_T;
+  p.swingDir = p.dir;
+  // Vung den pin thi den quet theo, nen tieng dong va anh sang deu bao vi tri minh.
+  makeNoise(p.x, p.y, TILE * 4.5, MELEE_NOISE);
+  const dmg = Math.max(6, Math.round((p.str || 30) * MELEE_STR));
+  let trung = 0;
+  for (const m of foesAll()){
+    if (m.hp <= 0) continue;
+    const dx = m.x - p.x, dy = m.y - p.y;
+    const d = Math.hypot(dx, dy);
+    if (d > MELEE_R + 9) continue;                                  // +9 la ban kinh than quai
+    if (Math.abs(angDiff(Math.atan2(dy, dx), p.dir)) > MELEE_HALF) continue;
+    if (!losClear(p.x, p.y, m.x, m.y)) continue;                    // khong dam xuyen tuong
+    const a = Math.atan2(dy, dx);
+    if (m.ghost){
+      // Khong dam chet no duoc, nhung dam ca cai den pin vao mat thi no lui lai.
+      // Do la dung mot luat voi MIRROR_TORCH_MUL: anh sang lam no cham lai.
+      m.sleep = Math.max(m.sleep || 0, MELEE_GHOST_BLIND);
+      moveEnt(m, Math.cos(a) * 16, Math.sin(a) * 16, 9);
+    } else {
+      m.kx = (m.kx || 0) + Math.cos(a) * MELEE_KNOCK;
+      m.ky = (m.ky || 0) + Math.sin(a) * MELEE_KNOCK;
+      m.alert = Math.max(m.alert, 3);
+      if (foeDamage(m, dmg)) killMonster(m);
+    }
+    trung++;
+  }
+  // Cua ket trong tam vung thi an mot nhat. Khong can nham chinh xac: dung truoc cua
+  // ma vung la trung, vi cai nguoi choi dang lam la "pha cai cua nay", khong phai
+  // "ngam vao mot diem tren canh cua".
+  const dr = nearestLockedDoor(p.x + Math.cos(p.dir)*DOOR_PRY_R*0.6,
+                               p.y + Math.sin(p.dir)*DOOR_PRY_R*0.6, DOOR_PRY_R);
+  if (dr){
+    dr.pry = (dr.pry || 0) + 1;
+    dr.warned = 3;
+    if (dr.pry >= DOOR_PRY_HITS){
+      breakDoor(dr, 'bash');
+      toast('Bung được rồi.');
+    } else {
+      SFX.strain();
+      const con = DOOR_PRY_HITS - Math.floor(dr.pry);
+      toast('Phang cửa — còn khoảng ' + con + ' nhát nữa');
+    }
+    trung++;
+  }
+  if (trung){ SFX.hit(dmg); fxShake(3.5); }
+  else SFX.thud();
+  return true;
+}
+
 const FREEZE_SLOW_MUL = 0.35;   // Dong Bang: quai le chan con hon mot phan ba
 const FREEZE_VULN_MUL = 1.5;    // ...va an them 50% sat thuong khi dang dong cung
 const HASTE_MUL       = 1.3;    // Gong: +30% toc do nhu mo ta ky nang hua
@@ -3255,12 +3388,15 @@ function stepProjectiles(dt){
       b.done = true;
       for (const m of S.monsters.slice()){
         const d = Math.hypot(m.x-b.x, m.y-b.y);
-        if (d < b.r){ if (foeDamage(m, 90 * (1 - d/b.r))) killMonster(m); }
+        // 90 -> 165: mot qua lu dan gia 7.000 ma khong giet duoc mot con Ke nghe
+        // (75 mau) dung ngay tam bom thi khong ai mua lan thu hai. Gio no giet gon
+        // moi thu dung gan tam, va tha dan o ria.
+        if (d < b.r){ if (foeDamage(m, BOMB_FOE_DMG * (1 - d/b.r))) killMonster(m); }
       }
       if (S.mirror){
         for (const pane of [S.mirror.a, S.mirror.b]){
           const dm = Math.hypot(pane.x-b.x, pane.y-b.y);
-          if (dm < b.r){ damageMirror(pane.x, pane.y, 90 * (1 - dm/b.r)); break; }
+          if (dm < b.r){ damageMirror(pane.x, pane.y, BOMB_FOE_DMG * (1 - dm/b.r)); break; }
         }
       }
       // A blast that can throw a monster across a room takes a jammed door off its hinges too.
@@ -3983,8 +4119,15 @@ function stepMirror(dt){
   if (mr.phase === 'wait'){
     if (mr.t < MIRROR_EMERGE) return;
     mr.phase = 'out';
+    // ghost:true - no KHONG co mau va khong giet duoc, do la ban chat cua no: muon
+    // dut duoc thi phai dap VO CAI GUONG. Nhung no VAN LA MOT CON QUAI: choi loa,
+    // dong bang, hay dam den pin vao mat deu phai an, va truoc day khong an cai nao
+    // vi no khong nam trong S.monsters nen moi vong lap ky nang deu di qua no.
+    // type de bang MIRROR_KIND cho cac cho hoi "con nay la con gi".
     mr.m = { x: mr.a.x, y: mr.a.y, dir: Math.atan2(p.y-mr.a.y, p.x-mr.a.x),
-             reveal: 0, lit: false, path: null, pi: 0, pathT: 0, born: 0, spotT: SPOT_FX_T };
+             reveal: 0, lit: false, path: null, pi: 0, pathT: 0, born: 0, spotT: SPOT_FX_T,
+             ghost: true, type: MIRROR_KIND, sleep: 0, slowT: 0, deafT: 0, vulnT: 0,
+             alert: 3, state: 'chase', kx: 0, ky: 0 };
     fxShake(4); FX.spotT = 1; SFX.sting();
     return;
   }
@@ -3992,7 +4135,18 @@ function stepMirror(dt){
   const m = mr.m;
   m.born += dt;
   m.spotT = Math.max(0, (m.spotT || 0) - dt);
+  m.slowT = Math.max(0, (m.slowT || 0) - dt);
+  m.deafT = Math.max(0, (m.deafT || 0) - dt);
+  m.vulnT = Math.max(0, (m.vulnT || 0) - dt);
   m.lit = litByTorch(m.x, m.y);
+  // Bi choi mat: dung im, va KHONG tom duoc ai. Kiem tra truoc ca phan tinh duong di,
+  // vi "dung im" ma van bam duoc vao nguoi dang chay ngang qua thi khong phai dung im.
+  if (m.sleep > 0){
+    m.sleep -= dt;
+    m.reveal = clamp(m.reveal + (Math.hypot(p.x-m.x, p.y-m.y) < REVEAL_R &&
+                                 losClear(p.x, p.y, m.x, m.y) ? dt/REVEAL_FADE : -dt/REVEAL_FADE), 0, 1);
+    return;
+  }
   // it walks at whoever is nearest and standing; a downed body is not a target
   const live = crewAlive();
   const quarry = live.length
@@ -4004,7 +4158,8 @@ function stepMirror(dt){
   // The leash: the further it gets from the glass it walked out of, the less of it there is.
   const away = Math.hypot(m.x-mr.a.x, m.y-mr.a.y);
   const falloff = mix(1, MIRROR_SLOW_FLOOR, clamp(away/MIRROR_FAR, 0, 1));
-  const spd = MIRROR_SPEED * falloff * (m.lit ? MIRROR_TORCH_MUL : 1);
+  const spd = MIRROR_SPEED * falloff * (m.lit ? MIRROR_TORCH_MUL : 1)
+            * ((m.slowT || 0) > 0 ? FREEZE_SLOW_MUL : 1);
 
   // Route to the player, recomputed on a timer.
   m.pathT -= dt;
@@ -4062,8 +4217,15 @@ function drawMirrors(c){
   c.moveTo(-8, 11); c.lineTo(-6, -12); c.lineTo(0, -17); c.lineTo(6, -12); c.lineTo(8, 11);
   c.closePath(); c.fill();
   c.strokeStyle = '#cfe0f0'; c.lineWidth = 1.5; c.globalAlpha = 0.8; c.stroke(); c.globalAlpha = 1;
+  if ((m.sleep || 0) > 0){
+    // Bi choi mat: hai vet gach thay cho hai con mat, cung ky hieu quai thuong dung.
+    c.strokeStyle = 'rgba(223,240,255,0.9)'; c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(-4.6,-9.8); c.lineTo(-1.2,-9.8);
+                   c.moveTo(1.2,-9.8);  c.lineTo(4.6,-9.8); c.stroke();
+  } else {
   c.fillStyle = '#dff0ff';
   c.fillRect(-4.4, -11.4, 3.2, 3.2); c.fillRect(1.4, -11.4, 3.2, 3.2);
+  }
   c.restore();
 }
 
@@ -4744,13 +4906,16 @@ function setupInput(){
     // roi cho no chay sau lung nguoi choi.
     if (HOOKS.menuMode && HOOKS.menuMode()) return;
     const k = e.key.toLowerCase();
-    if (['w','a','s','d','e','f','r','1','2','3','shift','tab',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+    if (['w','a','s','d','e','f','q','r','1','2','3','shift','tab',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
     if (skipCut()) return;
     if (k === 'r'){ resetRun(); startLevel(); return; }
     if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
     if (k === 'e'){ pickUp(S.player); return; }
     if (k === 'f'){ toggleStash(); return; }
     if (k === ' '){ toggleSprint(); return; }
+    if (k === 'q'){ const t = meleeTarget(S.player);
+                    meleeSwing(S.player, t ? Math.atan2(t.y - S.player.y, t.x - S.player.x) : null);
+                    return; }
     if (k === '1' || k === '2' || k === '3'){ useSlot(S.player, +k - 1); return; }
     keys.add(k);
   });
@@ -4835,7 +5000,12 @@ function setupInput(){
       // rests — read as "push down" and swung the character to face the floor and stay there.
       // Resting a thumb is now worth nothing; you turn by DRAGGING, which is the only motion that
       // was ever meant to mean anything.
-      else { stickR = { id:e.pointerId, ox:p.x, oy:p.y, x:p.x, y:p.y }; lookHeld = true; }
+      // sx/sy la diem ngon tay ĐẶT XUỐNG, khong bao gio doi - ox/oy bi keo theo khi
+      // ngon truot ra khoi vong nen khong dung de do "co keo di dau khong" duoc.
+      // t0 lay theo dong ho THAT chu khong phai S.time: S.time dung lai khi game tam
+      // dung, va mot cu cham keo dai qua mot lan tam dung se bao la 0 giay.
+      else { stickR = { id:e.pointerId, ox:p.x, oy:p.y, x:p.x, y:p.y,
+                        sx:p.x, sy:p.y, t0:performance.now() }; lookHeld = true; }
     }
   });
   cv.addEventListener('pointermove', e => {
@@ -4868,7 +5038,21 @@ function setupInput(){
       return;
     }
     if (stickL && stickL.id === e.pointerId) stickL = null;
-    if (stickR && stickR.id === e.pointerId){ stickR = null; lookHeld = false; }
+    if (stickR && stickR.id === e.pointerId){
+      // CHAM NHE vao can gat phai = DAP DEN PIN, va tu quay sang con quai gan nhat.
+      // WHY cho nay: can gat phai la "nhin", va nhin la thu ngon cai phai da dat len
+      // do khi co gi dang duoi minh. Bat no lech tay sang mot nut khac dung luc con
+      // quai cach hai o la bat no chon giua NHIN va DANH. Mot cu cham thi truoc gio
+      // khong co nghia gi ca - keo moi la nhin - nen cho nay dang bo trong.
+      const hud = hudLayout();
+      const keo = Math.hypot(p.x - stickR.sx, p.y - stickR.sy);
+      const lau = performance.now() - stickR.t0;
+      if (keo < hud.right.r * 0.35 && lau < 280 && !S.shopMode){
+        const t = meleeTarget(pl);
+        meleeSwing(pl, t ? Math.atan2(t.y - pl.y, t.x - pl.x) : null);
+      }
+      stickR = null; lookHeld = false;
+    }
   };
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointercancel', up);
@@ -5183,6 +5367,8 @@ function step(dt){
   const p = S.player;
   if (!p) return;
   p.cooldown = Math.max(0, p.cooldown - dt);
+  p.swingCd = Math.max(0, (p.swingCd || 0) - dt);
+  p.swingT  = Math.max(0, (p.swingT  || 0) - dt);
   p.hurt = Math.max(0, p.hurt - dt);
 
   p.floatT = Math.max(0, p.floatT - dt);
@@ -5266,7 +5452,8 @@ function step(dt){
     // in the wrong place, which is the bug report you get instead of the design landing.
     if (stopped){
       const d = nearestLockedDoor(p.x + vx*TILE, p.y + vy*TILE, 1.6*TILE);
-      if (d && d.warned <= 0){ d.warned = 3; toast('Cửa bị kẹt — cần xà beng hoặc bom'); }
+      if (d && d.warned <= 0){ d.warned = 3;
+        toast('Cửa bị kẹt — xà beng/bom cho nhanh, hoặc phang đèn pin nhiều nhát'); }
     }
   }
 
@@ -6035,6 +6222,30 @@ function drawHighlights(c){
   // First, so every ring below sits on top of it rather than inside it.
   drawFoeVision(c);
 
+  // VONG SANG QUANH NHAN VAT.
+  // WHY: vung sang duoi chan (PERIPH_R trong buildLight) la ANH SANG - no do lai
+  //   len san nha va tan ra, nen tren san sang mau nhat, giua mot dong do, hoac
+  //   luc dang bi duoi va man hinh rung, nguoi choi mat dau minh dang o dau. Cai
+  //   nay khong phai anh sang ma la mot cai VANH: no khong bao gio bi san nha nuot,
+  //   va no bam theo nguoi chu khong theo huong nhin.
+  // Ve o day chu khong o drawPlayer: drawPlayer chay TRUOC lop toi, nen mot vanh ve
+  //   trong do se bi lop toi phu len va mo di dung o cho toi nhat - dung cho can no
+  //   nhat. Lop nay nam TREN lop toi.
+  // Do nhip theo nhip tim: sap chet thi vanh do dan va dap nhanh hon, nen cai bao
+  //   "sap chet" nam ngay duoi mat chu khong o mot thanh mau goc man hinh.
+  {
+    const at = playerDrawPos();
+    if (at && !p.down){
+      const k = clamp(p.hp / Math.max(1, p.hpMax), 0, 1);
+      const col = [Math.round(210 + (1-k)*45), Math.round(196 - (1-k)*96), Math.round(150 - (1-k)*90)];
+      const nhip = 0.5 + 0.5*Math.sin(S.time * (3.0 + (1-k)*3.2));
+      // at.x/at.y chu khong phai p.x/p.y: trong doan cat canh dau man, nguoi choi
+      // duoc VE o mot cho khac cho dung that (dang buoc ra khoi xe), va mot cai vanh
+      // dung o cho dung that se lo lung giua san mot minh.
+      glowRing(c, at.x, at.y, 13 + nhip*1.4, col, (0.46 + nhip*0.16) * at.alpha, 1.9);
+    }
+  }
+
   for (const l of S.loot){
     if (l.gone || l.held || l.inCart || l.onPad) continue;
     if (!inSight(l.x, l.y)) continue;
@@ -6379,8 +6590,9 @@ function drawDoorJam(c, d){
   c.fillStyle = 'rgba(226,206,168,0.45)';
   for (const x of [-half*0.66, 0, half*0.66]){ c.fillRect(x-1, -11, 2, 2); c.fillRect(x-1, 9, 2, 2); }
   c.restore();
-  if (d.bash > 0){
-    const k = clamp(d.bash/DOOR_BASH_T, 0, 1);
+  const tien = Math.max((d.bash || 0)/DOOR_BASH_T, (d.pry || 0)/DOOR_PRY_HITS);
+  if (tien > 0){
+    const k = clamp(tien, 0, 1);
     c.save();
     c.globalAlpha = 0.2 + k*0.55;
     c.strokeStyle = '#e0b070'; c.lineWidth = 1 + k*2.2;
@@ -6442,7 +6654,22 @@ function drawPlayer(c){
   c.fillStyle = '#cfcbb9'; c.beginPath(); c.arc(0,0,7,0,Math.PI*2); c.fill();
   c.strokeStyle = 'rgba(18,20,18,0.85)'; c.lineWidth = 1.2; c.stroke();
   c.fillStyle = '#8d8873'; c.beginPath(); c.arc(3.6,0,3.3,0,Math.PI*2); c.fill();
-  c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,5,3);
+  // Cai den pin. Dang vung thi no van ra truoc mat theo cung cu danh.
+  const sw = (p.swingT || 0) / MELEE_T;                     // 1 -> 0 trong suot cu vung
+  if (sw > 0){
+    const q = 1 - sw;                                       // 0 o dau cu vung
+    const a = (-MELEE_HALF + q * MELEE_HALF * 2) * 0.85;
+    c.save(); c.rotate(a);
+    c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,7,3);
+    c.restore();
+    // Vet quet: mot cung sang mo dan, cho biet don vua di qua dau.
+    c.globalAlpha = a0 * at.alpha * sw * 0.5;
+    c.strokeStyle = 'rgba(255,232,180,0.9)'; c.lineWidth = 2.4;
+    c.beginPath(); c.arc(0, 0, MELEE_R * 0.72, -MELEE_HALF, MELEE_HALF); c.stroke();
+    c.globalAlpha = a0 * at.alpha;
+  } else {
+    c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,5,3);
+  }
   c.restore();
   c.globalAlpha = a0;
 }
@@ -7341,7 +7568,7 @@ window.REPO = {
   pickUp, dropHeld, useSlot, playerSpeed, grabRange, nearestLoot,
   startLevel, setBot, resetRun,
   damageLoot,
-  UPGRADES, GEAR, GEAR_BY_KEY, UPGRADE_MAX_SPAWNS, CART_SLOTS, CART_MAX_SIZE,
+  UPGRADES, GEAR, GEAR_BY_KEY, UPGRADE_MAX_SPAWNS, CART_SLOTS, CART_MAX_VALUE,
   grabCart, releaseCart, cartValue, cartLoad, cartFits, nearTruck, hasGear,
   toggleStash, rollShop, startShop, leaveShop, togglePay, testHeld,
   testable(){ const d = testableInHand(S.player); return d ? d.key : null; },
@@ -7469,6 +7696,11 @@ window.REPO = {
   killMate(i){ const a = (S.mates||[])[i]; if (a) downActor(a); return !!a; },
   killPlayer(){ downActor(S.player); return true; },
   toggleSprint,
+  meleeSwing, meleeTarget,
+  foesAll,
+  mirrorFoe(){ return (S.mirror && S.mirror.m) || null; },
+  MELEE: { R: MELEE_R, HALF: MELEE_HALF, CD: MELEE_CD, KNOCK: MELEE_KNOCK,
+           STR: MELEE_STR, SNAP: MELEE_SNAP_R },
   SPRINT: { MUL:RUN_MUL, NOISE:RUN_NOISE, MIN:RUN_MIN_STAM,
             BASE:PLAYER_BASE_SPEED, TIER:TIER_MUL, DRAIN:STAM_DRAIN, REGEN:STAM_REGEN,
             WALK: PLAYER_BASE_SPEED*TIER_MUL[1], RUN: PLAYER_BASE_SPEED*TIER_MUL[1]*RUN_MUL },
@@ -7582,7 +7814,8 @@ window.REPO = {
                                               broken:!!d.broken, bash:d.bash })); },
   DOOR: { OPEN_R:DOOR_OPEN_R, OPEN_T:DOOR_OPEN_T, SHUT_T:DOOR_SHUT_T, SEE_AT:DOOR_SEE_AT,
           SPAN:DOOR_SPAN, LEAF:DOOR_LEAF, LOCK_FRAC:DOOR_LOCK_FRAC, LOCK_LEVEL:DOOR_LOCK_LEVEL,
-          BASH_T:DOOR_BASH_T, PRY_REACH:PRY_REACH },
+          BASH_T:DOOR_BASH_T, PRY_REACH:PRY_REACH,
+          PRY_HITS:DOOR_PRY_HITS, PRY_R:DOOR_PRY_R },
   doorHits, doorBlockedTile, doorBlocks, floodWalk, doorBlockMask,
   breakDoor(i){ return breakDoor(S.doors[i|0], 'test'); },
   walkBlocked(gx, gy){ return solidAt(gx, gy) || doorBlockedTile(gx, gy); },
