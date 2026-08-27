@@ -4962,19 +4962,30 @@ function hudLayoutLandscape(w, h){
   const right = { x: w - pad - R, y: h - pad - R, r: R };
   const thumbY = h - (pad + 2*R + 10);
 
-  // Cụm bên phải: ba ô đồ hất lên và vào trong quanh cần phải, cách nhau đủ một
-  // đốt ngón tay — đúng hình cụm chiêu của game MOBA màn ngang.
+  // MỌI NÚT BẤM TRONG LÚC CHẠY ĐỀU THUỘC TAY PHẢI. Tay trái ôm cần di chuyển và
+  // không được rời ra: chạy nước rút, nhặt đồ và dùng đồ đều là thứ phải bấm TRONG
+  // KHI đang chạy, nên chúng nằm quanh cần phải cho ngón cái phải với tới.
+  // WHY: bản trước để chạy/nhặt bên trái. Muốn vừa chạy vừa nhặt thì ngón trái phải
+  //   nhả cần ra bấm — nhả cần là đứng lại, mà đứng lại giữa lúc con quái đuổi là
+  //   chết. Game bắn/MOBA di động không ai bày như thế.
+  // Cả cụm nằm TRÊN vạch thumbY: dải dưới cùng là của hai cần gạt, không ai được
+  // đặt nút vào đó.
+  // Xếp thành hình QUẠT hất lên và ra ngoài từ cần phải, chứ không thành hàng ngang
+  // trên đỉnh: khung ngang chỉ cao ~360px, một hàng nút sát mép trên là nằm đúng
+  // chỗ bản đồ nhỏ. Quạt bám theo đường ngón cái phải quét — cùng hình với cụm
+  // chiêu của game MOBA di động.
+  const cx = w - pad - R, cy = h - pad - R;
   const slots = S.shopMode ? [] : [
-    { x: w - pad - R*2.60, y: h - pad - R*0.55, r: sr*1.15, i: 0 },
-    { x: w - pad - R*2.50, y: h - pad - R*1.90, r: sr*1.15, i: 1 },
-    { x: w - pad - R*1.60, y: h - pad - R*2.70, r: sr*1.15, i: 2 }
+    { x: cx - R*3.05, y: cy - R*1.35, r: sr*1.15, i: 0 },
+    { x: cx - R*2.35, y: cy - R*2.55, r: sr*1.15, i: 1 },
+    { x: cx - R*3.55, y: cy - R*3.10, r: sr*1.15, i: 2 }
   ];
-  // Cụm bên trái: chạy nước rút ngay trên cần trái (nó là nút DI CHUYỂN), nhặt và
-  // tủ đồ hất vào trong để ngón cái với tới mà không rời cần.
-  const sprint = { x: pad + R*0.50, y: h - pad - R*2.55, r: sr*1.25 };
-  const grab   = { x: pad + R*3.05, y: h - pad - R*1.30, r: sr*1.25 };
-  const stash  = { x: pad + R*2.55, y: h - pad - R*2.75, r: sr*1.25 };
-  const test   = { x: pad + R*2.55, y: h - pad - R*2.75, r: sr*1.30 };
+  const grab   = { x: cx - R*2.00, y: cy - R*0.55, r: sr*1.25 };
+  const sprint = { x: cx - R*1.00, y: cy - R*1.85, r: sr*1.25 };
+  // Tủ đồ và bắn thử thì KHÔNG: cả hai chỉ bấm được lúc đứng yên (cạnh xe tải, hoặc
+  // trong trạm dịch vụ), nên để bên trái cho đỡ chật cụm tay phải.
+  const stash  = { x: pad + R*1.30, y: thumbY - sr*1.30, r: sr*1.25 };
+  const test   = { x: pad + R*1.30, y: thumbY - sr*1.30, r: sr*1.30 };
   // Chỗ bỏ món đang giơ: mép TRÊN giữa màn — xa nhất khỏi ngón vừa giơ nó lên,
   // và không đụng thanh máu (trên trái) lẫn bản đồ nhỏ (trên phải).
   const cancel = { x: w * 0.5, y: pad + sr*1.7, r: sr*1.7 };
@@ -6767,7 +6778,7 @@ function drawMinimap(c, hud){
   let h = w * (MH/MW);
   // Nằm ngang thì khung chỉ cao ~320px, mà bản đồ nhỏ vuông 210px ăn hai phần ba
   // chiều cao đó và đè lên cụm nút bên phải. Chặn theo CHIỀU CAO chứ không chỉ bề ngang.
-  const capH = hud.h * (big ? 0.8 : 0.34);
+  const capH = hud.h * (big ? 0.8 : (hud.w > hud.h ? 0.26 : 0.34));
   if (h > capH) { h = capH; w = h * (MW/MH); }
   const x = big ? (hud.w-w)/2 : hud.w - w - 14, y = big ? (hud.h-h)/2 : 14;
 
