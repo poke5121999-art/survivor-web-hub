@@ -4982,10 +4982,12 @@ function hudLayoutLandscape(w, h){
   ];
   const grab   = { x: cx - R*2.00, y: cy - R*0.55, r: sr*1.25 };
   const sprint = { x: cx - R*1.00, y: cy - R*1.85, r: sr*1.25 };
-  // Tủ đồ và bắn thử thì KHÔNG: cả hai chỉ bấm được lúc đứng yên (cạnh xe tải, hoặc
-  // trong trạm dịch vụ), nên để bên trái cho đỡ chật cụm tay phải.
-  const stash  = { x: pad + R*1.30, y: thumbY - sr*1.30, r: sr*1.25 };
-  const test   = { x: pad + R*1.30, y: thumbY - sr*1.30, r: sr*1.30 };
+  // Tủ đồ và Bắn thử nối tiếp vào ĐẦU NGOÀI của quạt — cùng bên phải nốt, để bên
+  // trái không còn nút nào cả. Hai nút này loại trừ nhau (tủ đồ chỉ hiện cạnh xe
+  // tải, bắn thử chỉ hiện trong trạm dịch vụ, mà trong trạm thì ba ô đồ rỗng) nên
+  // dùng chung được một chỗ mà không bao giờ chồng nhau.
+  const stash  = { x: cx - R*4.30, y: cy - R*1.95, r: sr*1.25 };
+  const test   = { x: cx - R*4.30, y: cy - R*1.95, r: sr*1.30 };
   // Chỗ bỏ món đang giơ: mép TRÊN giữa màn — xa nhất khỏi ngón vừa giơ nó lên,
   // và không đụng thanh máu (trên trái) lẫn bản đồ nhỏ (trên phải).
   const cancel = { x: w * 0.5, y: pad + sr*1.7, r: sr*1.7 };
