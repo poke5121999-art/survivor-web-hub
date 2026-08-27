@@ -3446,6 +3446,10 @@ function finishLevel(){
 }
 function startLevel(seed){
   S.shopMode = false;
+  // Bản Biệt Đội có 9 map, mỗi map vài tầng — nó tự quy đổi (map, tầng) ra một con
+  // số độ khó rồi ép vào đây, để đường cong khó/chỉ tiêu/quái vẫn là đường cong của
+  // repo2d chứ không phải một đường cong thứ hai viết lại.
+  if (HOOKS.levelIndex) S.level = HOOKS.levelIndex();
   buildLevel(seed === undefined ? (Math.random()*999999)|0 : seed);
   S.running = true; S.dead = false;
   hideVeil();
@@ -4152,7 +4156,8 @@ const HOOKS = {
   playerInfo: null,     // ()  -> { hp, str, speed } cho xác người chơi cầm
   onLevelClear: null,   // ()  -> true nếu lớp ngoài tự lo phần sau (chặn vào trạm)
   onPayout: null,       // (soTien, laBeCuoi) -> void, mỗi lần giao xong một bệ
-  skill: null           // { icon, name, cd, ready(), use() } — nút kỹ năng trong HUD
+  levelIndex: null,     // ()  -> số, ép độ khó của tầng sắp dựng (map hữu hạn tự tính)
+  skill: null           // { label(), ready(), cool(), use() } — nút kỹ năng trong HUD
 };
 function hookMateCount(){ return HOOKS.mateCount == null ? MATE_COUNT : HOOKS.mateCount; }
 
@@ -4696,6 +4701,12 @@ function setupInput(){
         Math.hypot(p.x-hud.sprint.x, p.y-hud.sprint.y) < hud.sprint.r*1.25){
       toggleSprint(); return;
     }
+    if (hud.skill && S.player && !S.shopMode &&
+        Math.hypot(p.x-hud.skill.x, p.y-hud.skill.y) < hud.skill.r*1.25){
+      if (HOOKS.skill.ready && !HOOKS.skill.ready()) { toast('Kỹ năng chưa hồi xong'); return; }
+      HOOKS.skill.use();
+      return;
+    }
     if (S.player && nearTruck(S.player) &&
         Math.hypot(p.x-hud.stash.x, p.y-hud.stash.y) < hud.stash.r*1.25){
       toggleStash(); return;
@@ -4974,7 +4985,10 @@ function hudLayout(){
   // found it. Centre-bottom, just above the thumb band: between the two sticks, clear of every
   // button, and squarely in the middle of where the eyes already are.
   const heart = { x: w/2, y: h - 319*K, r: Math.min(w,h)*0.075 };
-  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, pad, thumbY, aimR: R,
+  // Nút kỹ năng chỉ có ở bản Biệt Đội. Nó là nút bấm NHIỀU NHẤT sau nhặt đồ nên
+  // ngồi ngay trên nút nhặt, cùng cột, cùng ngón.
+  const skill = HOOKS.skill ? { x: grab.x, y: grab.y - sr*3.2, r: sr*1.45 } : null;
+  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: Math.min(stash.y - stash.r, heart.y - heart.r) - 14 };
 }
 
@@ -5033,7 +5047,10 @@ function hudLayoutLandscape(w, h){
   // Trái tim xuống MÉP DƯỚI giữa hai cần gạt. Vẫn nằm trong tầm mắt như chủ ý cũ,
   // nhưng không còn đứng chắn giữa màn chơi.
   const heart = { x: w * 0.5, y: h - pad - h*0.075, r: h*0.062 };
-  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, pad, thumbY, aimR: R,
+  // Nút kỹ năng nối vào ĐẦU TRONG của vòng cung, sát cần phải nhất — nó là nút bấm
+  // nhiều nhất của bản Biệt Đội nên phải nằm chỗ ngón cái với gần nhất.
+  const skill = HOOKS.skill ? Object.assign(at(60, sr*1.45), {}) : null;
+  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: heart.y - heart.r - 12 };
 }
 // Scaled with the truck: the locker button appears when you are standing AT it, and "at it" got
@@ -6508,6 +6525,30 @@ function drawHud(c){
     c.fillText(p.sprint ? 'Đang chạy' : 'Chạy', sp.x, sp.y+4);
   }
 
+  // skill button — bản Biệt Đội mới có. Vành ngoài là đồng hồ hồi chiêu, vẽ ngay
+  // trên chính cái nút phải bấm, giống hệt cách vành thể lực bám nút Chạy.
+  if (hud.skill && !S.shopMode){
+    const sk = hud.skill;
+    const ready = !HOOKS.skill.ready || HOOKS.skill.ready();
+    const cool = HOOKS.skill.cool ? clamp(HOOKS.skill.cool(), 0, 1) : 1;
+    c.beginPath();
+    c.fillStyle = ready ? 'rgba(46,32,58,0.82)' : 'rgba(16,18,20,0.55)';
+    c.arc(sk.x, sk.y, sk.r, 0, Math.PI*2); c.fill();
+    if (cool < 1){
+      c.beginPath(); c.strokeStyle = 'rgba(166,120,216,0.85)'; c.lineWidth = 3;
+      c.arc(sk.x, sk.y, sk.r + 3, -Math.PI/2, -Math.PI/2 + Math.PI*2*cool);
+      c.stroke();
+    }
+    ring(c, sk.x, sk.y, sk.r, ready ? 'rgba(200,150,255,0.95)' : 'rgba(88,76,100,0.45)');
+    c.textAlign = 'center';
+    c.font = '600 ' + Math.round(sk.r*0.85) + 'px ui-sans-serif, system-ui';
+    c.fillStyle = ready ? '#f0e2ff' : '#6a6f74';
+    c.fillText(HOOKS.skill.icon || '✳', sk.x, sk.y + sk.r*0.18);
+    c.font = '600 9px ui-sans-serif, system-ui';
+    c.fillStyle = ready ? '#c9b3e0' : '#5a5f64';
+    c.fillText(HOOKS.skill.label ? HOOKS.skill.label() : 'Kỹ năng', sk.x, sk.y + sk.r + 11);
+  }
+
   // locker button — only while you are standing at the truck
   if (nearTruck(p)){
     c.beginPath();
@@ -7236,7 +7277,18 @@ window.REPO = {
              onPad:!!l.onPad, inCart:!!l.inCart, value:l.value })); },
   setCrew(on){ S.crewOn = !!on; if (!on) S.mates = []; else if (!S.mates.length) spawnCrew(); },
   hooks: HOOKS,
-  spawnCrew, crew, hudLayout, finishLevel, startShop, buildLevel,
+  spawnCrew, crew, hudLayout, finishLevel, startShop, buildLevel, resetRun,
+  toast, makeNoise, hitsSolid, killMonster,
+  // Mấy hàm dưới đây là những nguyên thuỷ mà tầng kỹ năng của bản Biệt Đội cần.
+  // Đặt tên theo đúng việc chúng làm, thay vì bắt lớp ngoài chọc vào ruột bộ máy.
+  hurtFoe(m, n){ if (!m || m.hp <= 0) return false; m.hp -= n; m.alert = 3;
+                 if (m.hp <= 0){ killMonster(m); return true; } return false; },
+  reviveActor(a){ if (!a || !a.down) return false;
+                  a.down = false; a.hp = REVIVE_HP; a.hurt = 0;
+                  if (a === S.player) S.spectate = -1; return true; },
+  breakDoorAt(d){ return d ? breakDoor(d, 'skill') : false; },
+  revealAll(){ for (let i = 0; i < S.explored.length; i++) S.explored[i] = 1;
+               prerenderMinimap(); },
   killMate(i){ const a = (S.mates||[])[i]; if (a) downActor(a); return !!a; },
   killPlayer(){ downActor(S.player); return true; },
   toggleSprint,

@@ -258,7 +258,7 @@
     b.appendChild(pick);
 
     // — nút vào trận —
-    b.appendChild(btn('▶ ĐI CA', 'cta', () => SQ.game.enter(map.id)));
+    b.appendChild(btn('▶ ĐI CA', 'cta', () => SQ.squad.enter(map.id)));
 
     const foot = el('div', 'foot-note');
     foot.appendChild(el('span', '', 'Tiến độ lưu trên máy bạn.'));
@@ -320,7 +320,7 @@
       if (unlocked) {
         const acts = el('div', 'row');
         acts.appendChild(btn('Chọn map này', 'ghost', () => UI.pickMap(m.id)));
-        acts.appendChild(btn('Vào ca ngay', '', () => SQ.game.enter(m.id)));
+        acts.appendChild(btn('Vào ca ngay', '', () => SQ.squad.enter(m.id)));
         row.appendChild(acts);
       } else {
         row.appendChild(el('div', 'lockmsg', '🔒 Phá đảo map trước để mở'));
@@ -885,91 +885,29 @@
   // ---------------------------------------------------------------------------
   // HUD TRONG TRẬN
   // ---------------------------------------------------------------------------
-  UI.buildHud = function () {
-    const h = $('#hud');
-    clear(h);
-    h.innerHTML =
-      '<div class="h-top">' +
-        '<button class="h-x" id="hQuit">✕</button>' +
-        '<div class="h-mid"><div class="h-l"><b id="hFloor">Tầng 1/3</b><span id="hMap"></span></div>' +
-        '<div class="h-q"><i id="hQBar"></i></div>' +
-        '<div class="h-qn"><span id="hQNum">0 / 0</span></div></div>' +
-      '</div>' +
-      '<div class="h-squad" id="hSquad"></div>' +
-      '<div class="h-msg" id="hMsg"></div>' +
-      '<div class="h-ctl">' +
-        '<div class="h-stick" id="hStick"><i id="hKnob"></i></div>' +
-        '<button class="h-skill" id="hSkill"><span class="hs-i" id="hSkillI">✳</span><span class="hs-n" id="hSkillN">Kỹ năng</span><svg class="hs-cd" viewBox="0 0 100 100"><circle id="hSkillArc" cx="50" cy="50" r="46"/></svg><span class="hs-t" id="hSkillT"></span></button>' +
-      '</div>';
-  };
+  // HUD trong trận KHÔNG còn ở đây nữa: bộ máy repo2d tự vẽ nó lên canvas — hai cần
+  // gạt, đèn pin, thanh chỉ tiêu, ba ô đồ, nút nhặt/chạy/tủ đồ, và nút kỹ năng mà
+  // js/squad.js cắm vào. Giữ một bản HUD thứ hai ở đây là giữ một luật thứ hai.
 
-  UI.updateHud = function (R) {
-    const q = Math.min(1, R.W.pad.delivered / R.W.quota);
-    $('#hFloor').textContent = 'Tầng ' + R.floor + '/' + R.map.floors;
-    $('#hMap').textContent = R.map.name;
-    $('#hQBar').style.width = (q * 100) + '%';
-    $('#hQBar').className = q >= 1 ? 'full' : '';
-    $('#hQNum').textContent = money(R.W.pad.delivered) + ' / ' + money(R.W.quota);
-
-    const sq = $('#hSquad');
-    if (sq.childElementCount !== R.units.length) {
-      clear(sq);
-      R.units.forEach(u => {
-        const d = el('div', 'hu');
-        d.innerHTML = '<div class="hu-f">' + faceOf(u.def) + '</div>' +
-          '<div class="hu-b"><i></i></div><div class="hu-n"></div><div class="hu-cd"></div>';
-        sq.appendChild(d);
-      });
-    }
-    R.units.forEach((u, i) => {
-      const d = sq.children[i];
-      d.className = 'hu' + (u.player ? ' is-me' : '') + (u.down ? ' down' : '') + (u.out ? ' out' : '');
-      d.querySelector('.hu-b i').style.width = Math.max(0, u.hp / u.hpMax * 100) + '%';
-      d.querySelector('.hu-n').textContent = u.player ? u.def.name : (u.tactic ? SQ.TACTIC_BY_ID[u.tactic].icon : '');
-      const cd = d.querySelector('.hu-cd');
-      cd.textContent = u.out ? '✖' : u.down ? '⤓' : (u.skillT > 0 ? Math.ceil(u.skillT) + 's' : '●');
-      if (u.bag && u.bag.length) d.classList.add('carry'); else d.classList.remove('carry');
-    });
-
-    const me = R.units[0];
-    const sk = $('#hSkill');
-    const ready = me.skillT <= 0 && !me.down && !me.out;
-    sk.className = 'h-skill' + (ready ? ' ready' : '');
-    $('#hSkillI').textContent = skillIcon(me.def.skill.id);
-    $('#hSkillN').textContent = me.def.skill.name;
-    $('#hSkillT').textContent = me.skillT > 0 ? me.skillT.toFixed(1) : '';
-    const arc = $('#hSkillArc');
-    const c = 2 * Math.PI * 46;
-    const frac = me.skillT > 0 ? me.skillT / SQ.skillCd(me) : 0;
-    arc.style.strokeDasharray = c;
-    arc.style.strokeDashoffset = c * (1 - frac);
-
-    const msg = $('#hMsg');
-    const live = R.msgs.filter(m => m.t < 4.5);
-    msg.innerHTML = live.map(m => '<div style="opacity:' + Math.max(0, 1 - m.t / 4.5).toFixed(2) + '">' + m.text + '</div>').join('');
-  };
-  function skillIcon(id) {
-    return { flash: '💡', healring: '💚', gong: '💪', unlock: '🔑', vanish: '🌑', shock: '💥',
-             decoy: '🔔', rescue: '🪢', cage: '🧱', blink: '⚡', reveal: '👁️', freeze: '❄️',
-             pull: '🧲', angel: '🕊️' }[id] || '✳';
-  }
-
-  // ---------------------------------------------------------------------------
-  // Bảng kết quả
-  // ---------------------------------------------------------------------------
-  UI.panel = function (title, lines, buttons, cls) {
+  // Bảng kết ca — phá đảo map, hoặc bỏ ca giữa chừng.
+  UI.showRunEnd = function (how, map, reward) {
     const ov = $('#modal');
     clear(ov);
-    ov.className = 'modal show ' + (cls || '');
+    ov.className = 'modal show ' + (how === 'win' ? 'win' : 'lose');
     const card = el('div', 'mcard');
-    card.appendChild(el('h3', '', title));
-    lines.forEach(l => card.appendChild(el('div', 'mline', l)));
-    const row = el('div', 'row');
-    buttons.forEach(([label, cls2, fn]) => row.appendChild(btn(label, cls2, () => { ov.className = 'modal'; fn(); })));
-    card.appendChild(row);
+    card.appendChild(el('h3', '', how === 'win' ? '✔ Phá đảo ' + (map ? map.name : '') : 'Bỏ ca giữa chừng'));
+    card.appendChild(el('div', 'mline', how === 'win'
+      ? 'Hết tầng cuối. Cả tổ lên xe, mang theo tất cả những gì đã giao lên bệ.'
+      : 'Ra sớm thì chỉ giữ được phần đã giao lên bệ.'));
+    if (reward) {
+      const got = Object.keys(reward).filter(k => reward[k])
+        .map(k => SQ.WALLET_ICON[k] + money(reward[k])).join('  ');
+      if (got) card.appendChild(el('div', 'det-lv', 'Nhận: ' + got));
+    }
+    card.appendChild(btn('Về sảnh', 'big', () => { ov.className = 'modal'; UI.go('home'); }));
     ov.appendChild(card);
   };
-  UI.closePanel = function () { $('#modal').className = 'modal'; };
+
   UI.el = el; UI.btn = btn; UI.faceOf = faceOf;
 
 })(window);
