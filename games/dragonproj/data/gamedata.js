@@ -866,6 +866,36 @@
     { id:'k_1500', n:'1.500 Pikke', sub:'bằng hơn một tuần, rẻ 9%',  give:{pikke:1500}, price:{gold:68000} }
   ];
 
+  /* ------------------------------------------------------ QUẦY NẠP ------ */
+  /* Đúng những gói mà một game gacha di động bán bằng tiền thật — nhưng ở đây
+   * TẤT CẢ ĐỀU 0đ, bấm bao nhiêu lần cũng được.
+   *
+   * Vì sao dựng hẳn một quầy nạp thay vì rắc thêm tiền vào chỗ khác: bản gốc khoá
+   * vé và Pikke sau đồng hồ thật vì nó là game dịch vụ — chặn được người chơi
+   * ngày nào là bán được vé ngày đó. Bản này không bán gì cho ai, nên cái khoá ấy
+   * chẳng đổi lấy được thứ gì, chỉ làm người chơi ngồi chờ. Để nguyên hình dạng
+   * "gói nạp" (có cả giá gạch đi) thì nhìn là hiểu ngay đây vốn là chỗ móc ví, và
+   * ở bản này nó được cho không.
+   *
+   * Giá gạch đi là giá TƯỞNG TƯỢNG, không phải giá thật của game nào cả.
+   *
+   * Hệ quả, nói thẳng: vé và Gem thành vô hạn, cú quay không còn là lựa chọn phải
+   * cân nhắc. Thứ DUY NHẤT vẫn khan đúng như thiết kế là LÕI RỒNG — quầy này
+   * không phát, không quầy nào bán, nên bậc Tiến hoá vẫn giữ nguyên sức nặng, và
+   * quay trúng đồ trùng vẫn là đường duy nhất tới nó. */
+  G.IAP = [
+    { id:'i_start', n:'Gói Tân Thủ',   was:'99.000đ',  give:{ticket:20, gem:300, pikke:2000, gold:100000} },
+    { id:'i_tick',  n:'Túi Vé ×60',    was:'179.000đ', give:{ticket:60} },
+    { id:'i_gem',   n:'Túi Gem ×1.500',was:'249.000đ', give:{gem:1500} },
+    { id:'i_pikke', n:'Túi Pikke ×5.000', was:'129.000đ', give:{pikke:5000} },
+    { id:'i_gold',  n:'Túi Gold ×500.000', was:'99.000đ', give:{gold:500000} },
+    { id:'i_medal', n:'Túi Medal ×300', was:'199.000đ', give:{medal:300} },
+    { id:'i_mat',   n:'Túi Nguyên Liệu', was:'149.000đ',
+      give:{mat:{str_stone:100, magi_frag:100, crystal:50, lapis_b:30, lapis_a:20, lapis_s:10, lapis_ss:5}} },
+    { id:'i_all',   n:'Gói Đại Gia',   was:'999.000đ',
+      give:{ticket:200, gem:5000, pikke:20000, gold:2000000, medal:1000} }
+  ];
+
   /* ------------------------------------------------------------- NPC ----- */
   G.NPCS = ['Pamela', 'Pikke', 'Sylvie', 'Axel', 'Linton', 'Ange', 'Aine', 'Gawen', 'Jild'];
   // Ba đồng đội NPC thay cho co-op 4 người của bản gốc.

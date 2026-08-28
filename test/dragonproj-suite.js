@@ -521,6 +521,34 @@ const goBoss = (p, id) => p.evaluate(id => { DP.UI.startStage(id); DP.UI.battle.
   check('đổi Gold lấy Pikke: trừ đúng Gold, cộng đúng Pikke', pk.bought && pk.gold);
   check('hết Gold thì từ chối', pk.poor);
 
+  // QUẦY NẠP. Cố ý cho không, nên bài kiểm ở đây chốt hai điều: nó thật sự
+  // không đòi gì, và nó KHÔNG phát Lõi Rồng — thứ duy nhất còn khan.
+  await p.evaluate(() => { DP.UI.show('shop'); });
+  await p.waitForTimeout(250);
+  const iap = await p.evaluate(() => {
+    const S = DP.UI.save;
+    const before = { t: S.ticket, g: S.gem, k: S.pikke, o: S.gold, m: S.medal, core: S.mats.dragon_core || 0 };
+    const btn = document.querySelector('#body-shop [data-iap]');
+    const it = DP.IAP.find(x => x.id === btn.getAttribute('data-iap'));
+    btn.click();
+    const once = S.ticket - before.t;
+    document.querySelector('#body-shop [data-iap]').click();   // bấm lần hai
+    return {
+      free: DP.IAP.every(x => !x.price),
+      allGive: DP.IAP.every(x => Object.keys(x.give).length > 0),
+      allWas: DP.IAP.every(x => /đ$/.test(x.was || '')),
+      gave: once === (it.give.ticket || 0) && once > 0,
+      twice: S.ticket - before.t === once * 2,
+      noCore: JSON.stringify(DP.IAP).indexOf('dragon_core') < 0 &&
+              (S.mats.dragon_core || 0) === before.core
+    };
+  });
+  check('mọi gói nạp đều không đòi gì (0đ thật)', iap.free && iap.allGive);
+  check('gói nào cũng có giá gạch đi cho ra dáng quầy nạp', iap.allWas);
+  check('bấm gói là nhận đúng đồ', iap.gave);
+  check('bấm bao nhiêu lần cũng được', iap.twice);
+  check('quầy nạp KHÔNG phát Lõi Rồng', iap.noCore);
+
   // ------------------------------------------------------------- CHỌN ẢI
   results.push('\n── chuỗi ải ──');
   const stg = await p.evaluate(() => {

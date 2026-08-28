@@ -761,6 +761,18 @@
     };
   }
 
+  /* Gói nạp gồm gì, viết ra thành một dòng. */
+  function iapWhat(g) {
+    var p = [];
+    if (g.ticket) p.push('▤ ' + fmt(g.ticket) + ' vé');
+    if (g.gem) p.push('◈ ' + fmt(g.gem) + ' Gem');
+    if (g.pikke) p.push('✦ ' + fmt(g.pikke) + ' Pikke');
+    if (g.medal) p.push('✹ ' + fmt(g.medal) + ' Medal');
+    if (g.gold) p.push('⬤ ' + fmt(g.gold) + ' Gold');
+    if (g.mat) p.push('nguyên liệu đủ loại');
+    return p.join('<br>');
+  }
+
   function kindVi(k) {
     return { weapon: 'Vũ khí', head: 'Giáp đầu', body: 'Giáp thân', arm: 'Giáp tay', leg: 'Giáp chân' }[k] || k;
   }
@@ -789,9 +801,21 @@
   function rShop() {
     var b = $('body-shop');
 
-    // QUẦY MEDAL lên trước: đây là đường lấy vé mà CÀY LÀ RA, không phải chờ
-    // nhiệm vụ ngày reset. Người chơi mở tiệm ra là phải thấy nó đầu tiên.
-    var html = '<div class="card"><div class="row"><h3 style="flex:1;color:#ff9a4a">✹ Quầy Medal</h3>' +
+    // QUẦY NẠP lên đầu tiên: ở game gốc đây là chỗ móc ví, ở đây nó cho không.
+    var html = '<div class="card iapbox"><div class="row"><h3 style="flex:1;color:#3fd66a">🎁 Quầy Nạp</h3>' +
+      '<span class="freetag">TẤT CẢ 0đ</span></div>' +
+      '<p>Đúng những gói mà một game gacha di động bán bằng tiền thật. ' +
+      'Ở đây <b>miễn phí hết</b>, bấm bao nhiêu lần cũng được.</p><div class="grid2">';
+    G.IAP.forEach(function (it) {
+      html += '<button class="item iap" data-iap="' + it.id + '"><div class="nm">' + it.n + '</div>' +
+        '<div class="sub">' + iapWhat(it.give) + '</div>' +
+        '<div class="price"><s>' + it.was + '</s> <b>0đ</b></div></button>';
+    });
+    html += '</div><p style="color:#f2d24b">Không phát Lõi Rồng. Nó vẫn chỉ có từ quay trúng đồ trùng — ' +
+      'đó là thứ duy nhất còn khan, và bậc Tiến hoá sống nhờ nó.</p></div>';
+
+    // Quầy Medal: đường lấy vé mà CÀY LÀ RA, cho ai muốn chơi đúng luật.
+    html += '<div class="card"><div class="row"><h3 style="flex:1;color:#ff9a4a">✹ Quầy Medal</h3>' +
       '<span style="font-size:13px">Đang có <b style="color:#ff9a4a;font-size:16px">' + fmt(S.medal) + '</b></span></div>' +
       '<p>Medal rơi ra <b>mỗi lần phá ải</b> — trùm càng cao càng nhiều: ' +
       'B <b>2</b> · A <b>5</b> · S <b>12</b> · SS <b>30</b>. Cày lại ải đã phá vẫn ăn Medal, ' +
@@ -837,28 +861,29 @@
     html += '</div>';
     b.innerHTML = html;
     b.onclick = function (e) {
-      var t = e.target.closest('[data-buy],[data-buym],[data-buyk],[data-use],[data-buyp]'); if (!t) return;
+      var t = e.target.closest('[data-iap],[data-buy],[data-buym],[data-buyk],[data-use],[data-buyp]'); if (!t) return;
+      if (t.hasAttribute('data-iap')) {
+        var ip = G.IAP.find(function (x) { return x.id === t.getAttribute('data-iap'); });
+        G.giveBundle(S, ip.give);
+        toast('Đã nhận ' + ip.n, '#3fd66a');
+        save(); rShop(); refresh(); return;
+      }
       if (t.hasAttribute('data-buyk')) {
         var ki = G.PIKKE_BUY.find(function (x) { return x.id === t.getAttribute('data-buyk'); });
         if (!G.pay(S, ki.price)) { toast('Không đủ Gold', '#c34141'); return; }
-        S.pikke += ki.give.pikke; S.stats.buys++; G.track(S, { buy: 1 });
+        G.giveBundle(S, ki.give); S.stats.buys++; G.track(S, { buy: 1 });
         toast('Đã đổi ' + ki.n, '#3fd66a');
       } else if (t.hasAttribute('data-buym')) {
         var mi = G.MEDAL_SHOP.find(function (x) { return x.id === t.getAttribute('data-buym'); });
         if (!G.pay(S, mi.price)) { toast('Không đủ Medal — đi phá thêm ải', '#c34141'); return; }
         S.stats.buys++; G.track(S, { buy: 1 });
-        if (mi.give.gold) S.gold += mi.give.gold;
-        if (mi.give.ticket) S.ticket += mi.give.ticket;
-        if (mi.give.mat) for (var mm in mi.give.mat) G.addMat(S, mm, mi.give.mat[mm]);
+        G.giveBundle(S, mi.give);
         toast('Đã đổi ' + mi.n, '#3fd66a');
       } else if (t.hasAttribute('data-buy')) {
         var it = G.SHOP.find(function (x) { return x.id === t.getAttribute('data-buy'); });
         if (S.pikke < it.price.pikke) { toast('Không đủ Pikke Points', '#c34141'); return; }
         S.pikke -= it.price.pikke; S.stats.buys++; G.track(S, { buy: 1 });
-        if (it.give.gold) S.gold += it.give.gold;
-        if (it.give.ticket) S.ticket += it.give.ticket;
-        if (it.give.item) S.inv[it.give.item] = (S.inv[it.give.item] || 0) + 1;
-        if (it.give.mat) for (var m in it.give.mat) G.addMat(S, m, it.give.mat[m]);
+        G.giveBundle(S, it.give);
         toast('Đã mua ' + it.n, '#3fd66a');
       } else if (t.hasAttribute('data-buyp')) {
         var id = t.getAttribute('data-buyp'), P = G.ITEMS[id];
@@ -986,8 +1011,9 @@
       '<p>Nhưng gacha chỉ cho <b>món đồ</b>, không cho <b>sức mạnh</b>. Muốn mạnh thì nâng cấp, ' +
       'mà nguyên liệu nâng cấp <b>chỉ rơi trong ải</b>: Strengthening Stone, Equipment Crystal ' +
       '(bắt buộc từ Lv.25), Lapis để Limit Break, Magi Fragment.</p>' +
-      '<p><b>Hết vé thì đổi bằng Medal</b> ở Tiệm — phá ải là có Medal, nên cày là quay được, ' +
-        'không phải chờ nhiệm vụ ngày. Pikke Points thì ngược lại: chỉ có từ nhiệm vụ ngày/tuần.</p>' +
+      '<p><b>Hết vé thì vào Tiệm</b>: quầy <b style="color:#3fd66a">Nạp</b> phát không mọi gói (bấm ' +
+        'bao nhiêu lần cũng được), hoặc đổi bằng <b>Medal</b> — phá ải là có Medal. ' +
+        'Chỉ <b style="color:#f2d24b">Lõi Rồng</b> là không quầy nào cho: nó vẫn chỉ có từ quay trúng đồ trùng.</p>' +
       '<p>Quay ra món <b>đã có</b> thì thành <b style="color:#f2d24b">Lõi Rồng</b> ' +
       '(B ' + G.DUPE_CORE.B + ' · A ' + G.DUPE_CORE.A + ' · S ' + G.DUPE_CORE.S + ' · SS ' + G.DUPE_CORE.SS + '). ' +
       'Đây là thứ <b>duy nhất</b> mở được <b>Tiến hoá</b> — bậc nâng cấp cao nhất, chỉ đồ S và SS ' +

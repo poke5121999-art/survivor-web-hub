@@ -398,6 +398,21 @@
   };
   G.addMat = function (s, id, n) { s.mats[id] = (s.mats[id] || 0) + (n || 1); };
 
+  /* Phát một GÓI phần thưởng. Bốn quầy trong tiệm (Pikke, Medal, đổi Gold, nạp)
+   * đều dùng chung khuôn { gold, gem, ticket, pikke, medal, mat:{id:n}, item },
+   * nên chỉ nên có ĐÚNG MỘT chỗ biết cách mở gói ra — thêm quầy thứ năm thì khỏi
+   * phải nhớ chép lại đủ bảy dòng cộng tiền. */
+  G.giveBundle = function (s, g) {
+    if (!g) return;
+    if (g.gold) s.gold += g.gold;
+    if (g.gem) s.gem += g.gem;
+    if (g.ticket) s.ticket += g.ticket;
+    if (g.pikke) s.pikke += g.pikke;
+    if (g.medal) s.medal += g.medal;
+    if (g.mat) for (var m in g.mat) G.addMat(s, m, g.mat[m]);
+    if (g.item) s.inv[g.item] = (s.inv[g.item] || 0) + 1;
+  };
+
   /* --------------------------------------------------------- MỞ ẢI ------- */
   // Ải đầu tiên của game luôn mở; mọi ải sau chỉ mở khi ải LIỀN TRƯỚC đã phá.
   // Một chuỗi thẳng, không có nhánh — nhìn danh sách là biết đi tới đâu.
