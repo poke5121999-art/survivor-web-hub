@@ -16,9 +16,14 @@
   'use strict';
   if (root.REPO_SKIN) return;                  // nạp hai lần thì bỏ qua lần sau
 
-  const FW = 32, FH = 48, COLS = 3, ROWS = 4;
-  const RIM = 2, RIM_COLOR = '#ff3b30';
-  const CREW_SCALE = 0.55, FOE_SCALE = 0.80;   // quái to hơn người khoảng 1,45 lần
+  // File hình lưu ở 3 lần cỡ ô trong game: engine vẽ thế giới với hệ số dpr*zoom
+  // (khoảng 3,1 trên màn nét cao), nên nếu lưu đúng cỡ thì hình bị phóng to lúc vẽ
+  // và nhoè. Lưu dư rồi thu xuống thì nét. Tỉ lệ vẽ chia lại cho SRC nên cỡ nhân
+  // vật trên màn không đổi.
+  const SRC = 3;
+  const FW = 32 * SRC, FH = 48 * SRC, COLS = 3, ROWS = 4;
+  const RIM = 2 * SRC, RIM_COLOR = '#ff3b30';
+  const CREW_SCALE = 0.55 / SRC, FOE_SCALE = 0.80 / SRC;   // quái to hơn người khoảng 1,45 lần
   const DOWN = 0, LEFT = 1, RIGHT = 2, UP = 3;
 
   // Đường dẫn tính từ trang đang mở: Ca Trực Đêm mở games/repo2d/, Biệt Đội mở
@@ -58,7 +63,7 @@
   }
 
   function bakeRim(img) {
-    const pad = RIM + 1, cw = FW + pad * 2, ch = FH + pad * 2;
+    const pad = RIM + SRC, cw = FW + pad * 2, ch = FH + pad * 2;
     const out = cvs(cw * COLS, ch * ROWS);
     const ox = out.getContext('2d');
     const tmp = cvs(cw, ch);
@@ -157,7 +162,7 @@
 
     // Ba tín hiệu cũ phải giữ nguyên, chỉ dời lên cho khỏi bị hình che:
     // đang ngủ, đang đuổi, và cú choáng của Kẻ húc.
-    const top = -h + 12;
+    const top = -h + 12;   // đơn vị thế giới, không đổi theo SRC
     if (m.sleep > 0) {
       c.font = '600 10px ui-monospace, monospace';
       c.fillStyle = 'rgba(160,200,230,0.9)';

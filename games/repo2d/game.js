@@ -5220,8 +5220,14 @@ function mateFreeBike(a){
   return best;
 }
 
+// TAM KHOA (chu du an, 2026-08-29: "dang hoi roi"). Bot khong dung xe day va xe may nua —
+// nguoi choi van dung binh thuong. Bat lai bang cach doi hai bien nay ve true.
+const MATE_USE_CART = false;
+const MATE_USE_BIKE = false;
+
 // Đồng đội leo lên chiếc xe rảnh gần nhất, nếu quãng đường sắp đi đủ dài để bõ công.
 function mateTryBike(a, tx, ty){
+  if (!MATE_USE_BIKE) return false;
   if (a.riding || a.held || a.pushing || a.down) return false;
   if (Math.hypot(tx-a.x, ty-a.y) < MATE_BIKE_FAR) return false;
   const best = mateFreeBike(a);
@@ -5549,7 +5555,7 @@ function mateChooseJob(a){
   // lại thấy "xe đang có người đẩy" (chính nó) và bỏ việc đẩy để đi làm việc khác — mà tay thì
   // vẫn còn cầm càng, nên cái xe bị lôi lang thang khắp nhà và không bao giờ tới bệ.
   if (a.pushing){
-    if (!pad || pad.done || !S.cart || !S.cart.items.length) releaseCart(a);
+    if (!MATE_USE_CART || !pad || pad.done || !S.cart || !S.cart.items.length) releaseCart(a);
     else { a.job = 'push'; a.target = null; return; }
   }
 
@@ -5557,7 +5563,7 @@ function mateChooseJob(a){
     // Xe đẩy GẦN HƠN cái bệ thì chất lên xe — đó là toàn bộ lý do chiếc xe tồn tại. Không phải
     // lúc nào cũng đúng: món quá đắt phải ôm tay, xe đầy thì thôi, nên hỏi lại cartFits().
     const cart = S.cart;
-    if (cart && !cart.held && !a.held.isHead && cartFits(cart, a.held) && pad && !pad.done &&
+    if (MATE_USE_CART && cart && !cart.held && !a.held.isHead && cartFits(cart, a.held) && pad && !pad.done &&
         Math.hypot(cart.x-a.x, cart.y-a.y) < Math.hypot(pad.x-a.x, pad.y-a.y)*0.8){
       if (a.job !== 'cart'){ a.job = 'cart'; a.path = null; }
       a.target = null; return;
@@ -5567,7 +5573,7 @@ function mateChooseJob(a){
 
   // Tay không, xe đã chất kha khá, bệ đang mở: đẩy nó lên bệ. Một người thôi — ba đứa cùng
   // xúm vào một cái càng xe thì hai đứa chỉ đứng nhìn.
-  if (S.cart && !S.cart.held && S.cart.items.length >= 3 && pad && !pad.done &&
+  if (MATE_USE_CART && S.cart && !S.cart.held && S.cart.items.length >= 3 && pad && !pad.done &&
       !S.mates.some(o => o !== a && !o.down && o.job === 'push')){
     // Đừng xoá đường đi khi việc vẫn là việc cũ: cứ mỗi lần nghĩ lại mà xoá đường thì nó dò
     // đường lại từ đầu, và với MATE_DITHER thì nửa số lần đó là đứng ngẩn ra một nhịp.
@@ -8450,7 +8456,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260829a';
+const BUILD = '20260829b';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
