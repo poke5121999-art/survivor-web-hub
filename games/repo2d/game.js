@@ -5680,10 +5680,13 @@ function drawMates(c){
     c.save(); c.translate(a.x, a.y);
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0, 8, 9, 4, 0, 0, Math.PI*2); c.fill();
+    const skin = window.REPO_SKIN && REPO_SKIN.crew(c, a, false);
     c.rotate(a.dir);
-    c.fillStyle = a.hurt > 0 ? '#c86a60' : a.col.body;
-    c.beginPath(); c.arc(0, 0, 6.4, 0, Math.PI*2); c.fill();
-    c.strokeStyle = a.col.rim; c.lineWidth = 1.2; c.stroke();
+    if (!skin){
+      c.fillStyle = a.hurt > 0 ? '#c86a60' : a.col.body;
+      c.beginPath(); c.arc(0, 0, 6.4, 0, Math.PI*2); c.fill();
+      c.strokeStyle = a.col.rim; c.lineWidth = 1.2; c.stroke();
+    }
     c.fillStyle = a.col.torch; c.fillRect(5.5, -1.4, 4.5, 2.8);
     c.restore();
   }
@@ -7530,6 +7533,8 @@ function drawMonsters(c){
     // quai thi khong - nen ban trung mot con quai la mot viec khong de lai dau vet gi tren
     // man hinh. Day la nua con lai cua bai "ban yeu + giay qua", nua kia la con so sat thuong.
     c.fillStyle = (m.flash || 0) > 0 ? '#ffe4d8' : d.col;
+    // Co bo hinh pixel thi ve bang hinh (sprites.js), khong thi roi ve dang khoi cu.
+    if (window.REPO_SKIN && REPO_SKIN.foe(c, m, d)){ c.restore(); continue; }
     if (m.type === 'rook'){
       // Bulk, and a nose. It is the only thing in the house whose FACING is a threat on its own,
       // so the silhouette has to say which way it is pointed from across a dark room.
@@ -7696,10 +7701,15 @@ function drawPlayer(c){
   c.save(); c.translate(at.x, at.y);
   c.fillStyle = 'rgba(0,0,0,0.5)';
   c.beginPath(); c.ellipse(0,8,10,4.5,0,0,Math.PI*2); c.fill();
+  // Hinh nguoi ve TRUOC khi xoay: no dung thang, huong nam o hang trong charset.
+  // Den pin va cu vung thi van xoay theo dir - do la tin hieu choi, khong phai trang tri.
+  const skin = window.REPO_SKIN && REPO_SKIN.crew(c, p, true);
   c.rotate(p.dir);
-  c.fillStyle = '#cfcbb9'; c.beginPath(); c.arc(0,0,7,0,Math.PI*2); c.fill();
-  c.strokeStyle = 'rgba(18,20,18,0.85)'; c.lineWidth = 1.2; c.stroke();
-  c.fillStyle = '#8d8873'; c.beginPath(); c.arc(3.6,0,3.3,0,Math.PI*2); c.fill();
+  if (!skin){
+    c.fillStyle = '#cfcbb9'; c.beginPath(); c.arc(0,0,7,0,Math.PI*2); c.fill();
+    c.strokeStyle = 'rgba(18,20,18,0.85)'; c.lineWidth = 1.2; c.stroke();
+    c.fillStyle = '#8d8873'; c.beginPath(); c.arc(3.6,0,3.3,0,Math.PI*2); c.fill();
+  }
   // Cai den pin. Dang vung thi no van ra truoc mat theo cung cu danh.
   const sw = (p.swingT || 0) / MELEE_T;                     // 1 -> 0 trong suot cu vung
   if (sw > 0){
@@ -8434,7 +8444,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260828d';
+const BUILD = '20260828e';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
