@@ -490,6 +490,37 @@ const goBoss = (p, id) => p.evaluate(id => { DP.UI.startStage(id); DP.UI.battle.
     buy.spent === buy.want && buy.ticket === buy.give,
     'trừ ' + buy.spent + '/' + buy.want + ', vé ' + buy.ticket);
 
+  // ĐỔI GOLD LẤY PIKKE. Chỗ này dễ vỡ nhất không phải ở nút bấm mà ở GIÁ: tiệm
+  // bán cả hai chiều Gold <-> Pikke, nên nếu giá mua vào không đắt hơn giá bán ra
+  // thì đổi đi đổi lại là tự nhân đôi ví — một máy in tiền không ai để ý cho tới
+  // khi kinh tế vỡ. Bài kiểm này tính thẳng tỉ giá từ dữ liệu.
+  const pk = await p.evaluate(() => {
+    const sell = DP.SHOP.find(x => x.give.gold && x.price.pikke);   // Pikke -> Gold
+    const sellRate = sell.give.gold / sell.price.pikke;             // Gold nhận mỗi Pikke
+    const buyRates = DP.PIKKE_BUY.map(x => x.price.gold / x.give.pikke);
+    // Đường vòng Medal -> Gold -> Pikke không được rẻ hơn Medal -> vé đi thẳng.
+    const mGold = DP.MEDAL_SHOP.find(x => x.give.gold);
+    const mTick = DP.MEDAL_SHOP.find(x => x.give.ticket === 5);
+    const pTick = DP.SHOP.find(x => x.give.ticket);                 // vé mua bằng Pikke
+    const pikkePerTicket = pTick.price.pikke / pTick.give.ticket;
+    const direct = mTick.give.ticket * pikkePerTicket / mTick.price.medal;   // Pikke-quy-đổi mỗi Medal
+    const detour = (mGold.give.gold / Math.min.apply(null, buyRates)) / mGold.price.medal;
+
+    const s = DP.newSave('T');
+    s.gold = DP.PIKKE_BUY[0].price.gold; s.pikke = 0;
+    const okBuy = DP.pay(s, DP.PIKKE_BUY[0].price);
+    if (okBuy) s.pikke += DP.PIKKE_BUY[0].give.pikke;
+    const poor = DP.pay(s, DP.PIKKE_BUY[0].price);   // hết sạch gold -> phải từ chối
+    return { sellRate, buyMin: Math.min.apply(null, buyRates), direct, detour,
+             bought: s.pikke === DP.PIKKE_BUY[0].give.pikke, gold: s.gold === 0, poor: poor === false };
+  });
+  check('mua Pikke đắt hơn bán Pikke (không có vòng in tiền)', pk.buyMin > pk.sellRate,
+    'mua ' + pk.buyMin.toFixed(0) + ' vs bán ' + pk.sellRate.toFixed(0) + ' Gold/Pikke');
+  check('đổi Medal đi thẳng vẫn lời hơn vòng Medal→Gold→Pikke', pk.direct > pk.detour,
+    pk.direct.toFixed(1) + ' vs ' + pk.detour.toFixed(1) + ' Pikke mỗi Medal');
+  check('đổi Gold lấy Pikke: trừ đúng Gold, cộng đúng Pikke', pk.bought && pk.gold);
+  check('hết Gold thì từ chối', pk.poor);
+
   // ------------------------------------------------------------- CHỌN ẢI
   results.push('\n── chuỗi ải ──');
   const stg = await p.evaluate(() => {

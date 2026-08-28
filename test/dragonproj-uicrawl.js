@@ -78,14 +78,14 @@ const SEED = () => {
 /* ------------------------------------------------- CÁC HÀM CHẠY TRONG TRANG */
 // Danh sách phần tử bấm được đang hiển thị của một màn.
 const SEL = 'button,[data-act],[data-gear],[data-stage],[data-craft],[data-buy],' +
-  '[data-buym],[data-use],[data-slot],[data-putmagi],[data-upmagi],[data-nav],[data-filter],[data-w],' +
+  '[data-buym],[data-buyk],[data-use],[data-slot],[data-putmagi],[data-upmagi],[data-nav],[data-filter],[data-w],' +
   '[data-wslot],[data-aslot],[data-cy],[data-buyp],[data-unslot]';
 
 // Danh sách phần tử bấm được đang hiển thị của một màn.
 const PAGE_LIST = (a) => {
   const scr = document.getElementById('scr-' + a.id);
   if (!scr) return [];
-  const ATT = ['data-act', 'data-gear', 'data-stage', 'data-craft', 'data-buy', 'data-buym', 'data-use',
+  const ATT = ['data-act', 'data-gear', 'data-stage', 'data-craft', 'data-buy', 'data-buym', 'data-buyk', 'data-use',
     'data-slot', 'data-putmagi', 'data-upmagi', 'data-nav', 'data-filter', 'data-w', 'data-wslot',
     'data-aslot', 'data-cy', 'data-buyp', 'data-unslot'];
   return Array.prototype.filter.call(scr.querySelectorAll(a.sel),

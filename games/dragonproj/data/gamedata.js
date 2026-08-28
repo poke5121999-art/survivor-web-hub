@@ -843,7 +843,27 @@
     { id:'m_lapa', n:'Lapis A ×1',        sub:'Limit Break đồ hạng A', give:{mat:{lapis_a:1}}, price:{medal:12} },
     { id:'m_laps', n:'Lapis S ×1',        sub:'Limit Break đồ hạng S', give:{mat:{lapis_s:1}}, price:{medal:25} },
     { id:'m_crys', n:'Equipment Crystal ×2', sub:'nâng cấp từ Lv.25',  give:{mat:{crystal:2}}, price:{medal:10} },
-    { id:'m_gold', n:'50.000 Gold',       sub:'',                      give:{gold:50000}, price:{medal:8} }
+    { id:'m_gold', n:'15.000 Gold',       sub:'',                      give:{gold:15000}, price:{medal:8} }
+  ];
+
+  /* ------------------------------------------------ ĐỔI GOLD LẤY PIKKE --- */
+  /* Pikke của bản gốc CHỈ có từ nhiệm vụ ngày/tuần, tức đi qua đồng hồ thật. Ở đây
+   * mở thêm đường đổi bằng Gold — thứ cày ải là ra — nên tiệm Pikke không còn đứng
+   * hình khi hết nhiệm vụ trong ngày.
+   *
+   * GIÁ PHẢI CHỐNG ĐƯỢC VÒNG IN TIỀN. Tiệm đang bán chiều ngược lại:
+   * 500 Pikke -> 10.000 Gold, tức 20 Gold một Pikke. Nếu mua vào cũng quanh mức
+   * đó thì đổi đi đổi lại là tự nhân đôi ví. Mua vào để ở 50 Gold/Pikke — chênh
+   * 2,5 lần, đúng kiểu giá mua/giá bán của một cái tiệm.
+   *
+   * Và phải rẻ hơn đường Medal đi thẳng, nếu không thì quầy Medal thành vô nghĩa:
+   *   đi thẳng   15 Medal -> 5 vé            = 66,7 Pikke-quy-đổi mỗi Medal
+   *   đường vòng  8 Medal -> 15.000 Gold -> 300 Pikke = 37,5 mỗi Medal
+   * Đi thẳng vẫn lời gần gấp đôi. */
+  G.PIKKE_BUY = [
+    { id:'k_200',  n:'200 Pikke',   sub:'',                    give:{pikke:200},  price:{gold:10000} },
+    { id:'k_700',  n:'700 Pikke',   sub:'bằng hơn một ngày, rẻ 6%',  give:{pikke:700},  price:{gold:33000} },
+    { id:'k_1500', n:'1.500 Pikke', sub:'bằng hơn một tuần, rẻ 9%',  give:{pikke:1500}, price:{gold:68000} }
   ];
 
   /* ------------------------------------------------------------- NPC ----- */

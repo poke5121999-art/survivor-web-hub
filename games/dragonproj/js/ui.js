@@ -809,7 +809,16 @@
       '<span style="font-size:13px">Đang có <b style="color:#c8a0ff;font-size:16px">' + fmt(S.pikke) + '</b></span></div>' +
       '<p>Pikke Points <b>chỉ</b> có từ nhiệm vụ ngày và tuần — không rơi ở ải, không mua được. ' +
       'Ngày 3 nhiệm vụ (100 mỗi cái) + 300 khi xong cả ba = <b>600/ngày</b>. ' +
-      'Tuần 4 nhiệm vụ (200 mỗi cái) + 400 = <b>1.200/tuần</b>. Nhiệm vụ nằm ở màn <b>Nhà</b>.</p><div class="grid2">';
+      'Tuần 4 nhiệm vụ (200 mỗi cái) + 400 = <b>1.200/tuần</b>. Nhiệm vụ nằm ở màn <b>Nhà</b>.<br>' +
+      'Hết nhiệm vụ trong ngày thì <b>đổi bằng Gold</b> — cày ải là ra Gold, không phải chờ mai.</p>' +
+      '<div class="grid3">';
+    G.PIKKE_BUY.forEach(function (it) {
+      var ok = S.gold >= it.price.gold;
+      html += '<button class="item" data-buyk="' + it.id + '"><div class="nm">' + it.n + '</div>' +
+        '<div class="sub">' + (it.sub ? it.sub + '<br>' : '') +
+        '<b style="color:' + (ok ? 'var(--gold)' : '#5a6a7a') + '">⬤ ' + fmt(it.price.gold) + '</b></div></button>';
+    });
+    html += '</div><div class="grid2">';
     G.SHOP.forEach(function (it) {
       var ok = S.pikke >= it.price.pikke;
       html += '<button class="item" data-buy="' + it.id + '"><div class="nm">' + it.n + '</div>' +
@@ -828,8 +837,13 @@
     html += '</div>';
     b.innerHTML = html;
     b.onclick = function (e) {
-      var t = e.target.closest('[data-buy],[data-buym],[data-use],[data-buyp]'); if (!t) return;
-      if (t.hasAttribute('data-buym')) {
+      var t = e.target.closest('[data-buy],[data-buym],[data-buyk],[data-use],[data-buyp]'); if (!t) return;
+      if (t.hasAttribute('data-buyk')) {
+        var ki = G.PIKKE_BUY.find(function (x) { return x.id === t.getAttribute('data-buyk'); });
+        if (!G.pay(S, ki.price)) { toast('Không đủ Gold', '#c34141'); return; }
+        S.pikke += ki.give.pikke; S.stats.buys++; G.track(S, { buy: 1 });
+        toast('Đã đổi ' + ki.n, '#3fd66a');
+      } else if (t.hasAttribute('data-buym')) {
         var mi = G.MEDAL_SHOP.find(function (x) { return x.id === t.getAttribute('data-buym'); });
         if (!G.pay(S, mi.price)) { toast('Không đủ Medal — đi phá thêm ải', '#c34141'); return; }
         S.stats.buys++; G.track(S, { buy: 1 });
