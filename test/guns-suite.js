@@ -206,9 +206,17 @@ async function laserSuite(b) {
     let doDuoc = 0;
     for (let a = 0; a < Math.PI*2 - 1e-6; a += Math.PI/12) {
       let tuongO = null;
-      for (let d = T*0.5; d < T*14; d += T*0.2) {
+      // Lấy mẫu ở ĐÚNG những điểm tia lấy mẫu (mỗi 6px, bắt đầu từ 6px). Bước 0,2 ô = 4,8px
+      // thì hai bên rơi vào hai điểm khác nhau quanh mép ô, và ở những hướng lướt sát góc
+      // tường phép đo thấy tường ở chỗ tia không thấy — đỏ vì lệch nửa bước, không phải vì
+      // tia chui qua tường.
+      for (let d = 6; d < T*14; d += 6) {
         const x = pl.x + Math.cos(a)*d, y = pl.y + Math.sin(a)*d;
-        if (REPO.solidAt((x/T)|0, (y/T)|0) || REPO.hitsSolid(x, y, 2)) { tuongO = d/T; break; }
+        // Đo bằng ĐÚNG luật của tia: ô nào đặc thì tia dừng. Bản trước dò bằng hitsSolid với
+        // bán kính 2 — rộng hơn cái tia — nên một hướng lướt sát góc tường báo "có tường" ở
+        // 5,5 ô trong khi tia đi thẳng qua bên cạnh nó và chạy tiếp 8 ô hành lang trống. Đỏ
+        // vì phép đo rộng hơn lời hứa, không phải vì tia chui qua tường.
+        if (REPO.solidAt((x/T)|0, (y/T)|0)) { tuongO = d/T; break; }
       }
       if (tuongO === null) continue;             // hướng này trống hẳn, không đo được gì
       doDuoc++;

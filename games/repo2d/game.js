@@ -1086,6 +1086,61 @@ const GEAR = [
 const GEAR_BY_KEY = {};
 for (const g of GEAR) GEAR_BY_KEY[g.key] = g;
 
+// ============================================================ xe máy
+// HAI CHIẾC, đúng như bản gốc: bản cập nhật 07/05/2026 của R.E.P.O. thêm đúng hai xe, mỗi
+// chiếc MỘT CHỖ NGỒI, và luật quan trọng nhất của chúng là "không dùng được đồ khi đang lái".
+// Bản gốc chia đôi vai trò: một chiếc nhanh để do đường và cắt đuôi, một chiếc chở được đồ.
+// Ở đây giữ nguyên cách chia đó, vì nó là thứ làm hai chiếc xe thành hai LỰA CHỌN chứ không
+// phải hai bản sao.
+//   Xe trinh sát — nhanh hơn mọi con quái trong nhà, không chở được gì.
+//   Xe chở đồ    — chậm hơn một nhịp, có thùng sau.
+// Cả hai đều húc được quái: bản gốc gọi đó là "boosted impacts", và đó là cách duy nhất một
+// người đang ngồi trên xe có thể làm gì đó với con đang đuổi mình.
+const BIKE_KINDS = {
+  scout: { id:'scout', name:'Xe trinh sát', speed: 205, slots: 0, fuel: 26,
+           col:'#4d6b78', rim:'#9fd0dc' },
+  haul:  { id:'haul',  name:'Xe chở đồ',    speed: 168, slots: 4, fuel: 34,
+           col:'#6d5c34', rim:'#e0c07a' }
+};
+const BIKE_R          = 15;
+const BIKE_ACCEL      = 540;      // px/s² — xe phải có ĐÀ, không thì nó chỉ là đi bộ nhanh
+const BIKE_TURN       = 4.4;      // rad/s: bẻ lái mất thời gian, nên không thể đi ngang như đi bộ
+const BIKE_DRAG       = 2.1;      // buông ga thì trôi dần chứ không dừng khựng
+const BIKE_RAM_MIN    = 95;       // dưới tốc này thì húc chỉ là chạm nhẹ
+const BIKE_RAM_DMG    = 0.62;     // sát thương = tốc độ × hệ số: chạy chậm húc thì không ăn thua
+const BIKE_RAM_KNOCK  = 430;
+const BIKE_RAM_CD     = 0.45;     // một con chỉ ăn một cú húc trong ngần này giây
+const BIKE_CRASH_SPD  = 150;      // đâm tường nhanh hơn thế là NGÃ
+const BIKE_CRASH_DMG  = 12;
+const BIKE_DOWN_T     = 2.4;      // xe nằm bao lâu trước khi dựng lên được
+// XĂNG. Chủ dự án: "xe sẽ có xăng nên hết xăng thì qua map sau mới hồi".
+// Đó là thứ giữ cho hai chiếc xe không xoá sổ cả phần đi bộ của trò chơi: chúng là một tài
+// nguyên tiêu hao trong MỘT tầng, không phải một cách di chuyển mới. Không có bình xăng nào
+// mua được, không có cách nào đổ thêm giữa tầng — hết là hết, và tầng sau xe mới lại đầy.
+const BIKE_FUEL_RUN   = 1.0;      // xăng/giây khi kéo hết ga
+const BIKE_FUEL_IDLE  = 0.22;     // nổ máy đứng yên vẫn tốn
+
+function makeBike(kind, x, y, dir){
+  const d = BIKE_KINDS[kind];
+  return { kind, x, y, dir: dir || 0, spd: 0, r: BIKE_R,
+           fuel: d.fuel, fuelMax: d.fuel, items: [], rider: null, downed: 0, warned: false };
+}
+function bikeDef(b){ return BIKE_KINDS[b.kind]; }
+function bikeValue(b){ return b.items.reduce((a,l)=> a + (l.gone?0:l.value), 0); }
+function bikeFits(b, l){
+  const d = bikeDef(b);
+  return d.slots > 0 && b.items.length < d.slots && l.value < CART_MAX_VALUE;
+}
+function nearestBike(p, extra){
+  let best = null, bd = 1e9;
+  for (const b of (S.bikes || [])){
+    if (b.rider && b.rider !== p) continue;
+    const d = Math.hypot(b.x-p.x, b.y-p.y);
+    if (d < bd && d < b.r + grabRange(p) + (extra||0)){ bd = d; best = b; }
+  }
+  return best;
+}
+
 // ============================================================ cart
 // Source game: a wheeled platform that holds several small-to-medium valuables, shows the
 // money total on its front face, and reappears at the start of every level without having
@@ -1448,7 +1503,7 @@ function newPlayer(){
     inv: [ null, null, null ],
     aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0,
     pushing: false, runT: 0, rushing: false, blindT: 0, slowT: 0, kx: 0, ky: 0,
-    recoilT: 0, chargeSlot: -1, chargeT: 0,
+    recoilT: 0, chargeSlot: -1, chargeT: 0, riding: null,
     floatT: 0, shieldT: 0,
     sprint: false, sprinting: false, sprintOffT: 0, stunT: 0,
     // `down` is one worker on the floor; `S.dead` is the whole crew. They used to be the same
@@ -1467,7 +1522,7 @@ function buildLevel(seed){
   S.grid = new Uint8Array(MW*MH);
   S.explored = new Uint8Array(MW*MH);
   S.rooms = []; S.loot = []; S.monsters = []; S.pads = [];
-  S.bullets = []; S.bombs = []; S.corpses = []; S.beams = [];
+  S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.bikes = [];
   // WHY: the doors of the PREVIOUS house survived until buildDoors ran at the very end of this
   // function, and everything in between - loot placement, monster posts, the cart route repair -
   // asks whether a point is clear. A jammed door from the last level answering that question is a
@@ -1729,6 +1784,7 @@ function buildLevel(seed){
   S.player.runT = 0; S.player.rushing = false;
   S.player.blindT = 0; S.player.slowT = 0;
   S.player.recoilT = 0; S.player.chargeSlot = -1; S.player.chargeT = 0; S.player.chargeUsed = null;
+  S.player.riding = null;
   S.player.kx = 0; S.player.ky = 0;
   S.player.down = false; S.player.stunT = 0; S.spectate = -1;
   // The crew is placed around the player, so it has to come AFTER the player has a position.
@@ -1740,6 +1796,13 @@ function buildLevel(seed){
   // The cart is not something you buy and not something you bring home: the source game
   // respawns one at the truck at the start of every level, and it never has to come back.
   S.cart = makeCart(cartSpawnX, cartSpawnY);
+  // Hai chiếc dựng sẵn cạnh xe tải, y như cái xe đẩy: không mua, không mang về, và KHÔNG NẰM
+  // TRONG TỦ — tủ là chỗ của đồ cầm tay. Mỗi tầng dựng lại một cặp mới, nên bình xăng cũng
+  // đầy lại đúng lúc sang tầng mới.
+  S.bikes = [
+    makeBike('scout', S.car.x + TILE*2.0, S.car.y + TILE*3.1, 0),
+    makeBike('haul',  S.car.x + TILE*4.4, S.car.y + TILE*3.1, 0)
+  ];
 
   fxReset();
   S.segs = buildSegments();
@@ -1980,7 +2043,7 @@ function makeMonster(type,x,y){
            guardA: Math.random()*Math.PI*2 };    // its own place on the ring around the truck
 }
 function makeCart(x,y){
-  return { x, y, r:CART_R, items:[], held:false, mode:'strong',
+  return { x, y, r:CART_R, items:[], held:false, holder:null, mode:'strong',
            freeX:x, freeY:y, holdD:0, face:0 };
 }
 function cartLoad(cart){ return cart.items.reduce((a,l)=> a + (l.gone?0:l.mass), 0); }
@@ -2407,6 +2470,87 @@ function stepLoot(l, dt){
   l.invuln = Math.max(l.invuln, 0);
 }
 
+// LÁI XE. Người chơi vẫn là cái thân được moveEnt() đẩy đi, nên va chạm, tường và cửa kẹt
+// vẫn đúng một luật với lúc đi bộ; chiếc xe chỉ quyết định ĐI NHANH BAO NHIÊU và ĐI HƯỚNG NÀO.
+// WHY nó có đà và có góc lái thay vì đi ngang như lúc đi bộ: nếu bẻ lái tức thì thì chiếc xe
+// chỉ là "đi bộ nhanh gấp đôi", và không có gì để chơi. Có đà thì hành lang hẹp trở thành một
+// bài toán, và cú húc trở thành một thứ phải NGẮM chứ không phải một nút bấm.
+function rideBike(p, dt, vx, vy, push){
+  const b = p.riding;
+  const d = bikeDef(b);
+  const hetXang = b.fuel <= 0;
+  if (hetXang && !b.warned){
+    b.warned = true;
+    toast(d.name + ' hết xăng — sang tầng sau mới có xe đầy bình.');
+  }
+  const ga = hetXang ? 0 : ((vx || vy) ? clamp(push, 0, 1) : 0);
+  if (ga > 0){
+    const muon = Math.atan2(vy, vx);
+    const lech = angDiff(muon, b.dir);
+    const buoc = BIKE_TURN * dt;
+    b.dir += clamp(lech, -buoc, buoc);
+    b.spd = Math.min(d.speed, b.spd + BIKE_ACCEL * ga * dt);
+    b.fuel = Math.max(0, b.fuel - (BIKE_FUEL_RUN * ga + BIKE_FUEL_IDLE) * dt);
+  } else {
+    b.spd = Math.max(0, b.spd - d.speed * BIKE_DRAG * dt);
+    if (!hetXang) b.fuel = Math.max(0, b.fuel - BIKE_FUEL_IDLE * dt);
+  }
+  p.dir = b.dir;
+  if (b.spd > 0.5){
+    const dx = Math.cos(b.dir) * b.spd * dt, dy = Math.sin(b.dir) * b.spd * dt;
+    const truoc = { x: p.x, y: p.y };
+    const dung = moveEnt(p, dx, dy, 7.5);
+    b.x = p.x; b.y = p.y;
+    // ĐÂM là ĐI KHÔNG ĐƯỢC, không phải "có chạm vào tường".
+    // ROOT-CAUSE: moveEnt() báo `blocked` khi MỘT trong hai trục bị chặn — tức là suốt cả
+    // quãng lướt dọc theo một bức tường, khung nào cũng báo chặn dù xe vẫn đi ngon lành. Đọc
+    // thẳng cờ đó ra hai chuyện sai: tốc độ bị nhân 0,3 mỗi khung hình nên chạy sát tường là
+    // xe bò được vài px/giây, và đang phóng mà quệt nhẹ vào góc tường là NGÃ. Đo bằng quãng
+    // đường thật sự đi được thì lướt tường vẫn là lướt, còn dí thẳng mũi vào tường mới là đâm.
+    p.noise = 2.2;
+    const diDuoc = Math.hypot(p.x - truoc.x, p.y - truoc.y);
+    const dam = dung && diDuoc < Math.hypot(dx, dy) * 0.45;
+    if (dam && b.spd > BIKE_CRASH_SPD){ bikeCrash(p, b); return; }
+    if (dam) b.spd *= 0.3;
+    bikeRam(p, b);
+  } else {
+    b.x = p.x; b.y = p.y;
+    p.noise = hetXang ? 0 : 0.8;
+  }
+}
+
+// HÚC. Bản gốc gọi là "boosted impacts", và với một người không cầm được gì thì đây là cách
+// duy nhất họ còn có thể làm gì đó với con đang đuổi mình.
+function bikeRam(p, b){
+  if (b.spd < BIKE_RAM_MIN) return;
+  for (const m of S.monsters){
+    if (m.hp <= 0 || (m.ramT || 0) > 0) continue;
+    if (Math.hypot(m.x - b.x, m.y - b.y) > b.r + 11) continue;
+    m.ramT = BIKE_RAM_CD;
+    const dmg = b.spd * BIKE_RAM_DMG;
+    if (foeHit(m, dmg, b.dir, BIKE_RAM_KNOCK)) killMonster(m);
+    b.spd *= 0.5;                       // húc xong thì khựng lại — không cày được một hàng
+    fxShake(p === S.player ? 10 : 4);   // đồng đội húc ở phòng bên thì máy không cần rung mạnh
+    break;
+  }
+}
+
+function stepBikes(dt){
+  for (const b of (S.bikes || [])){
+    b.downed = Math.max(0, b.downed - dt);
+    if (!b.rider) b.spd = Math.max(0, b.spd - 400*dt);
+    // đồ trên thùng đi theo xe, xếp thành hàng để nhìn một cái là biết chở được mấy món
+    for (let i = 0; i < b.items.length; i++){
+      const l = b.items[i];
+      if (l.gone) continue;
+      l.x = b.x - Math.cos(b.dir)*10 + ((i%2)-0.5)*10;
+      l.y = b.y - Math.sin(b.dir)*10 + (((i/2)|0)-0.5)*10;
+      l.vx = l.vy = 0;
+    }
+    b.items = b.items.filter(l => !l.gone);
+  }
+}
+
 function stepCart(dt){
   const cart = S.cart, p = S.player;
   if (!cart) return;
@@ -2442,15 +2586,22 @@ function grabCart(p){
   if (!cart || p.held) return false;
   if (Math.hypot(cart.x-p.x, cart.y-p.y) > cart.r + grabRange(p)) return false;
   cart.mode = cartGrabMode(p, cart);
+  // AI đang cầm càng. holdInFront() đã đọc `o.holder` từ trước và chỉ rơi về S.player khi không
+  // có ai — gán thẳng vào đây là chiếc xe đẩy đi theo đúng người đang đẩy nó, và đó là toàn bộ
+  // thứ còn thiếu để một con bot dùng được cái xe.
+  cart.holder = p;
   cart.held = true; p.pushing = true;
   cart.freeX = cart.x; cart.freeY = cart.y;
-  toast(cart.mode === 'strong' ? 'Đẩy xe — nắm đúng mặt trước' : 'Đẩy xe — nắm sai mặt, nặng hơn hẳn');
+  // Đồng đội cũng đẩy được xe, nên mấy dòng nhắn phải hỏi lại xem người đẩy có phải là tôi không.
+  if (p === S.player)
+    toast(cart.mode === 'strong' ? 'Đẩy xe — nắm đúng mặt trước' : 'Đẩy xe — nắm sai mặt, nặng hơn hẳn');
   return true;
 }
 function releaseCart(p){
   const cart = S.cart;
   if (!cart || !cart.held) return;
-  cart.held = false; p.pushing = false;
+  if (cart.holder && cart.holder !== p) return;      // không buông hộ càng xe của người khác
+  cart.held = false; cart.holder = null; p.pushing = false;
   cart.face = p.dir + Math.PI;                 // the handle ends up where you left it
   cart.vx = cart.vy = 0;
   // Parking a loaded cart on the open pad unloads the whole thing at once.
@@ -2465,12 +2616,69 @@ function releaseCart(p){
   }
 }
 
+// Lên xe. KHÔNG cầm gì trên tay — bản gốc nói thẳng: "cannot carry items while riding".
+// Đó không phải một hạn chế cho vui: cả trò chơi này là khuân đồ, nên một chiếc xe vừa nhanh
+// vừa ôm được đồ là một chiếc xe xoá sổ phần còn lại của trò chơi. Muốn chở thì chất lên
+// thùng sau của xe chở đồ — đó là việc khác, và chỉ một trong hai chiếc làm được.
+function mountBike(p, b){
+  if (!b || b.rider) return false;
+  const minh = p === S.player;                      // đồng nghiệp leo lên xe thì đừng nhắn cho tôi
+  if (b.downed > 0){ if (minh) toast('Xe đang nằm — đợi ' + b.downed.toFixed(1) + 's nữa dựng lên được'); return false; }
+  if (p.down) return false;
+  if (p.held){ if (minh) toast('Đang ôm đồ thì không leo lên xe được — thả xuống, hoặc chất lên thùng sau'); return false; }
+  if (b.fuel <= 0){ if (minh) toast(bikeDef(b).name + ' hết xăng rồi — sang tầng sau mới có xe đầy bình'); return false; }
+  if (p.pushing) releaseCart(p);
+  b.rider = p; p.riding = b;
+  b.x = p.x; b.y = p.y; b.dir = p.dir; b.spd = 0;
+  if (minh) toast(bikeDef(b).name + ' — xăng ' + Math.round(b.fuel/b.fuelMax*100) +
+                  '%. Húc thẳng vào nó cũng là một cách.');
+  return true;
+}
+function dismountBike(p){
+  const b = p.riding;
+  if (!b) return false;
+  b.rider = null; p.riding = null; b.spd = 0;
+  // Đỗ xe chở đồ lên bệ đang mở thì dỡ cả thùng — cùng một luật với xe đẩy, vì với người chơi
+  // thì đó là cùng một việc.
+  const pad = S.pads[S.padIndex];
+  if (pad && pad.active && !pad.done && b.items.length &&
+      Math.abs(b.x-pad.x) < TILE*2.4 && Math.abs(b.y-pad.y) < TILE*2.4){
+    const n = b.items.length, v = bikeValue(b);
+    for (const l of b.items){ l.inCart = false; l.onPad = pad; pad.placed.push(l); }
+    b.items = [];
+    recomputePad(pad);
+    toast((p === S.player ? 'Dỡ ' : (p.name || 'Đồng đội') + ' dỡ ') + n + ' món lên bệ: ' + money(v));
+  }
+  return true;
+}
+// Ngã xe: đâm tường ở tốc độ cao. Người văng ra, xe nằm một lúc, và đồ trên thùng ăn đòn.
+function bikeCrash(p, b){
+  const minh = p === S.player;
+  const v = b.spd;
+  b.spd = 0; b.downed = BIKE_DOWN_T;
+  dismountBike(p);
+  // hurtActor: người chơi và đồng đội ngã xe đau như nhau, và mỗi bên đi đúng cửa của mình.
+  hurtActor(p, BIKE_CRASH_DMG, 'bike', b.x + Math.cos(b.dir)*20, b.y + Math.sin(b.dir)*20);
+  for (const l of b.items) damageLoot(l, v * 0.9);
+  fxShake(minh ? 14 : 5); SFX.thud();
+  toast(minh ? 'Đâm rồi — xe nằm ' + BIKE_DOWN_T + 's.'
+             : (p.name || 'Đồng đội') + ' đâm xe rồi.');
+}
+
 function pickUp(p){
   if (p.down) return cycleSpectate();  // a head on the floor has nothing to grab with — it watches
+  if (p.riding){ dismountBike(p); return true; }
   if (p.pushing){ releaseCart(p); return true; }
   if (p.held){ dropHeld(p); return true; }
   const best = nearestLoot(p);
-  if (!best) return grabCart(p);              // nothing to pick up: take the cart handle
+  if (!best){
+    // Không có gì để nhặt: xe máy trước, rồi mới tới càng xe đẩy. Xe máy đứng ngay cạnh xe tải
+    // cùng chỗ với xe đẩy, và nó là thứ người chơi CHỦ ĐỘNG đi tới — cái càng xe đẩy vốn chỉ
+    // là chỗ rơi cuối cùng của nút này.
+    const b = nearestBike(p);
+    if (b) return mountBike(p, b);
+    return grabCart(p);
+  }
   if (best.onPad){                            // shop only — lifting a good back off the checkout
     const pad = best.onPad;
     const i = pad.placed.indexOf(best);
@@ -2505,6 +2713,21 @@ function dropHeld(p){
   l.held = false; l.holder = null; l.vx *= 0.3; l.vy *= 0.3;
   l.grace = S.time + 0.35;
   p.held = null;
+  // Thùng sau của xe chở đồ, trước cả xe đẩy: bản gốc cho "place small Valuables into the back
+  // compartment", và người chơi đi tới tận nơi thì có nghĩa là họ đang định làm đúng việc đó.
+  for (const b of (S.bikes || [])){
+    if (bikeDef(b).slots <= 0) continue;
+    if (Math.hypot(l.x-b.x, l.y-b.y) > b.r + TILE*1.4) continue;
+    if (bikeFits(b, l)){
+      l.inCart = true; b.items.push(l);
+      toast('Chất lên thùng: ' + money(l.value) + ' (' + b.items.length + '/' + bikeDef(b).slots + ')');
+      return;
+    }
+    toast(l.value >= CART_MAX_VALUE
+      ? 'Món ' + money(l.value) + ' — đắt quá, phải ôm tay'
+      : 'Thùng sau đầy rồi');
+    break;
+  }
   // onto the cart first — you walk up to the cart to load it, so it must win over the floor
   const cart = S.cart;
   if (cart && Math.hypot(l.x-cart.x, l.y-cart.y) < cart.r + TILE*1.4){
@@ -2817,6 +3040,7 @@ function stepMonsters(dt){
     m.shoveCd = Math.max(0, (m.shoveCd || 0) - dt);
     m.slowT   = Math.max(0, (m.slowT || 0) - dt);
     m.flash   = Math.max(0, (m.flash || 0) - dt);
+    m.ramT    = Math.max(0, (m.ramT  || 0) - dt);
     m.vulnT   = Math.max(0, (m.vulnT || 0) - dt);
     m.deafT   = Math.max(0, (m.deafT || 0) - dt);
     if (m.sleep > 0){
@@ -3298,6 +3522,7 @@ function meleeTarget(p){
 // ang = null thi vung theo huong dang nhin.
 function meleeSwing(p, ang){
   if (!p || p.down || S.dead || !S.running || S.shopMode) return false;
+  if (p.riding) return false;                 // hai tay đang giữ ghi đông — xem chú thích ở useSlot()
   if ((p.swingCd || 0) > 0) return false;
   if ((p.stunT || 0) > 0) return false;
   if (ang != null) p.dir = ang;
@@ -3590,6 +3815,9 @@ function fireLaser(p, ang, charge){
 function useSlot(p, i, aimed){
   const it = p.inv[i];
   if (!it || it.uses <= 0 || p.cooldown > 0 || S.dead || p.down) return false;
+  // "cannot wield items while driving" — luật của bản gốc, và là toàn bộ cái giá của việc đi xe.
+  // Ngồi lên xe là đổi khả năng chống trả lấy tốc độ; không có dòng này thì chiếc xe chỉ toàn ưu điểm.
+  if (p.riding){ toast('Đang lái thì không dùng đồ được — xuống xe đã, hoặc húc thẳng vào nó'); return false; }
   const def = GEAR_BY_KEY[it.kind];
   if (def && def.passive) return false;          // the tracker works by being equipped
   const ang = aimed !== undefined ? aimed : p.dir;
@@ -4047,6 +4275,7 @@ function buildShop(){
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++)
     S.rooms.push({ name:'Trạm dịch vụ', cx, cy, seen: cx===SHOP_COL });
   S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = []; S.beams = [];
+  S.bikes = [];
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
   S.levelDone = false; S.dead = false; S.shiftLost = false; S.hurtLog = [];
   S.quotaTotal = 0;
@@ -4727,6 +4956,8 @@ function makeMate(i, x, y){
     x, y, dir: Math.random()*Math.PI*2,
     hp: MATE_HP, hpMax: MATE_HP, str: MATE_STR, speed: MATE_SPEED,
     held: null, down: false, hurt: 0, hit: 0, kx: 0, ky: 0, wob: Math.random()*7,
+    riding: null, pushing: false,        // đồng đội cũng lái xe và đẩy xe được như người chơi
+
     // "ngu ngu", in four numbers: a reaction delay, a chance of dithering, a plan that is only
     // re-checked once a second, and a target chosen from whatever is nearest rather than whatever
     // is worth the most.
@@ -4960,6 +5191,52 @@ function matePath(a, tx, ty){
 }
 
 // Walk the current path. Returns true while there is still somewhere to go.
+// Bao xa thì mới đáng leo lên xe. Dưới ngưỡng này, thời gian trèo lên trèo xuống ăn hết chỗ
+// nhanh hơn — và một con bot cứ lên xuống xe liên tục thì nhìn còn ngu hơn là không biết lái.
+const MATE_BIKE_FAR   = 7.5*TILE;   // đích xa hơn thế thì mới đi tìm xe
+const MATE_BIKE_REACH = 3.5*TILE;   // và chỉ leo lên chiếc đang trong tầm này
+const MATE_BIKE_OFF   = 2.4*TILE;   // tới gần đích thì xuống, vì lái thì không cầm được đồ
+const MATE_BIKE_KEEP  = 0.45;       // dưới ngần này xăng thì đồng đội không đụng vào nữa
+const MATE_LOOT_R_BIKE = 15*TILE;   // có xe thì bán kính làm việc rộng hẳn ra
+const MATE_BIKE_SIT   = 3.0;        // ngồi không trên xe quá ngần này giây thì xuống
+
+// Chiếc xe rảnh gần nhất mà đồng đội được phép đụng vào. Hai luật nhường đường, và cả hai đều
+// đứng về phía người chơi: chừa lại đáy bình, và không cướp chiếc tôi đang đứng sát hơn nó.
+function mateFreeBike(a){
+  // Chiếc nó ĐANG NGỒI vẫn tính là chiếc dùng được. Thiếu dòng này thì ngay khi leo lên xe,
+  // bán kính làm việc tụt về 6,5 ô, cái món ở xa mà nó vừa nổ máy để đi lấy rơi ra ngoài tầm
+  // nhìn, và nó phóng xe đi lang thang — đúng cái việc mà chiếc xe đáng lẽ phải chấm dứt.
+  if (a.riding && a.riding.fuel > 0) return a.riding;
+  const toi = S.player;
+  let best = null, bd = MATE_BIKE_REACH;
+  for (const b of (S.bikes || [])){
+    if (b.rider || b.downed > 0) continue;
+    if (b.fuel < b.fuelMax*MATE_BIKE_KEEP) continue;
+    const d = Math.hypot(b.x-a.x, b.y-a.y);
+    // Bị đồng đội cướp xe ngay trước mũi là kiểu bực mình mà không có cách nào chữa trong lúc chơi.
+    if (toi && !toi.down && Math.hypot(b.x-toi.x, b.y-toi.y) < d) continue;
+    if (d < bd){ bd = d; best = b; }
+  }
+  return best;
+}
+
+// Đồng đội leo lên chiếc xe rảnh gần nhất, nếu quãng đường sắp đi đủ dài để bõ công.
+function mateTryBike(a, tx, ty){
+  if (a.riding || a.held || a.pushing || a.down) return false;
+  if (Math.hypot(tx-a.x, ty-a.y) < MATE_BIKE_FAR) return false;
+  const best = mateFreeBike(a);
+  if (!best || !mountBike(a, best)) return false;
+  a.path = null;                    // đường vừa tìm là đường đi bộ, đi xe thì tìm lại
+  return true;
+}
+
+// Xuống xe khi đã tới nơi. Thiếu dòng này thì con bot tới đúng chỗ món đồ mà không nhặt được
+// (đang lái thì hai tay bận), rồi đứng vòng quanh nó cho hết ca.
+function mateOffBike(a, tx, ty){
+  if (!a.riding) return;
+  if (tx == null || Math.hypot(tx-a.x, ty-a.y) < MATE_BIKE_OFF){ dismountBike(a); a.path = null; }
+}
+
 function mateWalk(a, dt, spd){
   if (!a.path) return false;
   while (a.pi < a.path.length && Math.hypot(a.path[a.pi].x-a.x, a.path[a.pi].y-a.y) < 12) a.pi++;
@@ -4968,7 +5245,35 @@ function mateWalk(a, dt, spd){
   const dx = wp.x-a.x, dy = wp.y-a.y, d = Math.hypot(dx,dy) || 1;
   a.dir = Math.atan2(dy, dx);
   const before = { x:a.x, y:a.y };
-  moveEnt(a, dx/d*spd*dt, dy/d*spd*dt, 8);
+  // Ngồi trên xe thì chiếc xe quyết định tốc độ, và nó ăn xăng y như của người chơi. Bot lái
+  // ĐƠN GIẢN một cách có chủ ý: bám đúng đường vừa tìm, không đón đầu, không tự bẻ lái. Chúng
+  // là ba con bot ngu ngu — một con bot lái giỏi hơn người chơi là một con bot cướp ván.
+  if (a.riding){
+    const bk = a.riding;
+    if (bk.fuel <= 0){ dismountBike(a); }
+    else {
+      bk.dir = a.dir;
+      bk.spd = Math.min(bikeDef(bk).speed, bk.spd + BIKE_ACCEL*0.7*dt);
+      bk.fuel = Math.max(0, bk.fuel - (BIKE_FUEL_RUN*0.7 + BIKE_FUEL_IDLE)*dt);
+      spd = bk.spd;
+      a.bikeIdle = 0;                    // đang chạy thì không phải là ngồi không
+    }
+  }
+  const muon = spd*dt;
+  const chan = moveEnt(a, dx/d*muon, dy/d*muon, 8);
+  if (a.riding){
+    const bk = a.riding;
+    bk.x = a.x; bk.y = a.y;
+    a.noise = 2.2;                       // tiếng máy: cả nhà biết tổ này đang ở đâu
+    // Cùng một luật với người chơi: lướt dọc tường không phải là đâm. Xem chú thích dài ở
+    // rideBike(). Ở đây nó còn tệ hơn một bậc — đồng đội bám theo một con đường đã dò sẵn,
+    // mà đường đó ôm sát mép tường ở mọi khúc cua, nên cứ đọc cờ `blocked` là con bot ngồi
+    // trên xe bò 6 px/giây suốt ba mươi giây rồi mới bỏ cuộc.
+    const dam = chan && Math.hypot(a.x-before.x, a.y-before.y) < muon*0.45;
+    if (dam && bk.spd > BIKE_CRASH_SPD){ bikeCrash(a, bk); a.path = null; return true; }
+    if (dam) bk.spd *= 0.3;
+    bikeRam(a, bk);
+  }
   if (Math.hypot(a.x-before.x, a.y-before.y) < spd*dt*0.25){
     a.stuck = (a.stuck || 0) + dt;
     if (a.stuck > 0.8){ a.stuck = 0; a.path = null; a.pathT = 0; }   // wedged: think again
@@ -5009,7 +5314,13 @@ function stepMates(dt){
       if (Math.abs(a.kx) < 2) a.kx = 0;
       if (Math.abs(a.ky) < 2) a.ky = 0;
     }
-    if (a.down){ a.noise = 0; a.bubble = ''; continue; }
+    if (a.down){
+      // Gục thì buông hết. Không có hai dòng này thì cái xe đẩy khoá cứng vào một cái xác, và
+      // chiếc xe máy thì biến mất cùng người ngồi trên nó.
+      if (a.riding) dismountBike(a);
+      if (a.pushing) releaseCart(a);
+      a.noise = 0; a.bubble = ''; continue;
+    }
     // Idle chatter, on its own clock. It says nothing useful most of the time, which is the point.
     a.chatT -= dt;
     if (a.chatT <= 0){
@@ -5052,8 +5363,20 @@ function stepMates(dt){
         mateChat(a, 'flee');
       }
       a.dir = a.fleeA;
-      const sp = mateSpeed(a) * 1.15;
+      // Chạy trốn mà vẫn ngồi trên xe thì chiếc xe phải đi theo. Thiếu ba dòng này, người thì
+      // chạy còn chiếc xe đứng lại giữa phòng — mà nó vẫn ghi là "có người ngồi", nên không ai
+      // dùng được nó nữa cho tới hết tầng.
+      const treXe = !!a.riding;
+      const sp = (treXe ? Math.max(a.riding.spd, bikeDef(a.riding).speed*0.6) : mateSpeed(a)) * 1.15;
       moveEnt(a, Math.cos(a.fleeA)*sp*dt, Math.sin(a.fleeA)*sp*dt, 8);
+      if (treXe){
+        const bk = a.riding;
+        bk.x = a.x; bk.y = a.y; bk.dir = a.dir;
+        bk.spd = sp;
+        bk.fuel = Math.max(0, bk.fuel - (BIKE_FUEL_RUN*0.7 + BIKE_FUEL_IDLE)*dt);
+        if (bk.fuel <= 0) dismountBike(a);
+        else a.bikeIdle = 0;
+      }
       continue;
     }
 
@@ -5066,6 +5389,14 @@ function stepMates(dt){
     }
 
     // ---- 2. dithering. A third of their decisions come out as standing still looking at a wall.
+    // Nhưng ngồi không trên xe thì có hạn. Xuống ngay sau mỗi nhịp ngẩn ra thì nó lên xuống xe
+    // suốt ngày, nhìn còn ngu hơn là không biết lái; để nó ngồi mãi thì chiếc xe bị một con bot
+    // giữ làm của riêng đến hết tầng. Ba giây là đủ dài để một nhịp ngẩn ra không tính, và đủ
+    // ngắn để người chơi không phải đi tìm ai đang ngồi trên xe của mình.
+    if (a.riding){
+      a.bikeIdle = (a.bikeIdle || 0) + dt;
+      if (a.bikeIdle > MATE_BIKE_SIT) dismountBike(a);
+    }
     if (a.idleT > 0){ a.noise = 0; continue; }
 
     // ---- 3. pick a job, but only when they get round to it
@@ -5087,6 +5418,8 @@ function stepMates(dt){
         a.target = null; a.path = null; a.job = 'idle';
         continue;
       }
+      mateOffBike(a, h.x, h.y);
+      if (!a.riding) mateTryBike(a, h.x, h.y);
       if (!a.path && !matePath(a, h.x, h.y)){ a.target = null; a.job = 'idle'; continue; }
       mateWalk(a, dt, spd);
       continue;
@@ -5098,8 +5431,50 @@ function stepMates(dt){
         a.idleT = mix(MATE_BREATHER[0], MATE_BREATHER[1], Math.random());   // a breather, every time
         continue;
       }
+      mateOffBike(a, pad.x, pad.y);
       if (!a.path && !matePath(a, pad.x, pad.y)){ a.job = 'idle'; continue; }
       mateWalk(a, dt, spd);
+      continue;
+    }
+    // ---- CHẤT LÊN XE ĐẨY. Ôm một món đi bộ nửa căn nhà là đúng cái việc mà chiếc xe đẩy sinh
+    // ra để khỏi phải làm — vậy mà trước bản này ba đồng đội đi ngang qua nó suốt cả ca.
+    if (a.job === 'cart' && S.cart){
+      const cart = S.cart;
+      if (!a.held || !cartFits(cart, a.held)){ a.job = 'idle'; a.path = null; continue; }
+      if (Math.hypot(cart.x-a.x, cart.y-a.y) < cart.r + MATE_GRAB_R){
+        mateToCart(a, cart);
+        a.job = 'idle'; a.path = null; a.target = null;
+        continue;
+      }
+      // Không dò được đường tới xe thì mang thẳng ra bệ. Trả về 'idle' là để một đồng đội
+      // đứng ôm món đồ giữa phòng cho hết ca — nó vẫn đang cầm, nên mọi nhịp nghĩ sau đó lại
+      // chọn đúng cái việc vừa hỏng, và nó không bao giờ tự thoát ra.
+      if (!a.path && !matePath(a, cart.x, cart.y)){ a.job = 'deliver'; a.path = null; continue; }
+      mateWalk(a, dt, spd);
+      continue;
+    }
+    // ---- ĐẨY XE LÊN BỆ. Chất đầy mà không ai đẩy thì chiếc xe chỉ là một cái hố chứa đồ.
+    if (a.job === 'push' && S.cart && pad && !pad.done){
+      const cart = S.cart;
+      if (!a.pushing){
+        if (cart.held || !cart.items.length){ a.job = 'idle'; a.path = null; continue; }
+        if (Math.hypot(cart.x-a.x, cart.y-a.y) < cart.r + grabRange(a)){
+          if (!grabCart(a)){ a.job = 'idle'; a.path = null; continue; }
+          a.path = null;
+        } else {
+          if (!a.path && !matePath(a, cart.x, cart.y)){ a.job = 'idle'; continue; }
+          mateWalk(a, dt, spd);
+          continue;
+        }
+      }
+      if (Math.hypot(pad.x-a.x, pad.y-a.y) < TILE*1.8){
+        releaseCart(a);                     // releaseCart() tự dỡ cả xe lên bệ
+        a.job = 'idle'; a.path = null;
+        a.idleT = mix(MATE_BREATHER[0], MATE_BREATHER[1], Math.random());
+        continue;
+      }
+      if (!a.path && !matePath(a, pad.x, pad.y)){ releaseCart(a); a.job = 'idle'; continue; }
+      mateWalk(a, dt, spd*0.85);            // đẩy xe thì chậm hơn một nhịp
       continue;
     }
     if (a.job === 'loot' && a.target){
@@ -5108,27 +5483,43 @@ function stepMates(dt){
       if (Math.hypot(l.x-a.x, l.y-a.y) < MATE_GRAB_R){
         if (!a.held) mateTake(a, l);
         a.target = null; a.path = null; a.job = 'idle';
+        // Quyết định chỗ mang tới NGAY lúc cầm lên. Đợi tới nhịp nghĩ sau (1,2–3s, mà gần một
+        // nửa số nhịp là đứng ngẩn ra) thì nó đã lững thững đi khỏi cái xe đẩy đứng cạnh, và
+        // lúc đó bệ mới là chỗ gần hơn — nên nó không bao giờ dùng xe dù xe ngay bên cạnh.
+        if (a.held) mateChooseJob(a);
         continue;
       }
+      mateOffBike(a, l.x, l.y);
+      if (!a.riding) mateTryBike(a, l.x, l.y);
       if (!a.path && !matePath(a, l.x, l.y)){ a.target = null; a.job = 'idle'; continue; }
       mateWalk(a, dt, spd);
       continue;
     }
     if (a.job === 'roam' && a.roamTo){
       if (Math.hypot(a.roamTo.x-a.x, a.roamTo.y-a.y) < TILE*1.2){
+        mateOffBike(a, null);
         a.job = 'idle'; a.roamTo = null; a.path = null; continue;
       }
+      mateOffBike(a, a.roamTo.x, a.roamTo.y);
+      if (!a.riding) mateTryBike(a, a.roamTo.x, a.roamTo.y);
       if (!a.path && !matePath(a, a.roamTo.x, a.roamTo.y)){ a.job = 'idle'; a.roamTo = null; continue; }
       mateWalk(a, dt, spd);
       continue;
     }
     if (a.job === 'truck'){
-      if (Math.hypot(a.x-S.car.x, a.y-S.car.y) < TILE*2.2){ a.noise = 0; continue; }
+      if (Math.hypot(a.x-S.car.x, a.y-S.car.y) < TILE*2.2){ mateOffBike(a, null); a.noise = 0; continue; }
+      if (!a.riding) mateTryBike(a, S.car.x, S.car.y);
       if (!a.path && !matePath(a, S.car.x, S.car.y)) { a.noise = 0; continue; }
       mateWalk(a, dt, spd);
       continue;
     }
     // ---- 5. nothing to do: hang around the player, badly
+    // Không có việc thì tắt máy xuống xe. Ngồi im trên xe vẫn đốt xăng, và cái bình xăng đó
+    // đến tầng sau mới đầy lại — để một con bot nổ máy đứng chờ là ăn cắp của người chơi.
+    if (a.riding){
+      a.bikeIdle = (a.bikeIdle || 0) + dt;
+      if (a.bikeIdle > MATE_BIKE_SIT) dismountBike(a);
+    }
     const p = S.player;
     const d = Math.hypot(a.x-p.x, a.y-p.y);
     if (d > MATE_FOLLOW_R[1]){
@@ -5154,7 +5545,35 @@ function mateChooseJob(a){
   const pad = S.pads[S.padIndex];
   if (S.levelDone || S.shiftLost){ a.job = 'truck'; a.path = null; return; }
 
-  if (a.held){ a.job = 'deliver'; a.path = null; a.target = null; return; }
+  // Đang cầm càng xe thì việc đã chọn xong rồi. Không có nhánh này thì cứ mỗi lần nghĩ lại nó
+  // lại thấy "xe đang có người đẩy" (chính nó) và bỏ việc đẩy để đi làm việc khác — mà tay thì
+  // vẫn còn cầm càng, nên cái xe bị lôi lang thang khắp nhà và không bao giờ tới bệ.
+  if (a.pushing){
+    if (!pad || pad.done || !S.cart || !S.cart.items.length) releaseCart(a);
+    else { a.job = 'push'; a.target = null; return; }
+  }
+
+  if (a.held){
+    // Xe đẩy GẦN HƠN cái bệ thì chất lên xe — đó là toàn bộ lý do chiếc xe tồn tại. Không phải
+    // lúc nào cũng đúng: món quá đắt phải ôm tay, xe đầy thì thôi, nên hỏi lại cartFits().
+    const cart = S.cart;
+    if (cart && !cart.held && !a.held.isHead && cartFits(cart, a.held) && pad && !pad.done &&
+        Math.hypot(cart.x-a.x, cart.y-a.y) < Math.hypot(pad.x-a.x, pad.y-a.y)*0.8){
+      if (a.job !== 'cart'){ a.job = 'cart'; a.path = null; }
+      a.target = null; return;
+    }
+    a.job = 'deliver'; a.path = null; a.target = null; return;
+  }
+
+  // Tay không, xe đã chất kha khá, bệ đang mở: đẩy nó lên bệ. Một người thôi — ba đứa cùng
+  // xúm vào một cái càng xe thì hai đứa chỉ đứng nhìn.
+  if (S.cart && !S.cart.held && S.cart.items.length >= 3 && pad && !pad.done &&
+      !S.mates.some(o => o !== a && !o.down && o.job === 'push')){
+    // Đừng xoá đường đi khi việc vẫn là việc cũ: cứ mỗi lần nghĩ lại mà xoá đường thì nó dò
+    // đường lại từ đầu, và với MATE_DITHER thì nửa số lần đó là đứng ngẩn ra một nhịp.
+    if (a.job !== 'push'){ a.job = 'push'; a.path = null; }
+    a.target = null; return;
+  }
 
   const heads = looseHeads();
   if (heads.length){
@@ -5174,7 +5593,11 @@ function mateChooseJob(a){
   }
 
   if (!pad || pad.done){ a.job = 'idle'; a.target = null; a.path = null; return; }
-  let best = null, bd = MATE_LOOT_R;
+  // Có xe trong tầm với thì bán kính làm việc rộng hẳn ra — và đó là TOÀN BỘ điểm của việc cho
+  // đồng đội biết lái xe. Thiếu dòng này thì MATE_LOOT_R (6,5 ô) luôn nhỏ hơn ngưỡng đáng leo
+  // lên xe (7,5 ô), nên không có món nào đủ xa để chúng nghĩ tới chiếc xe, và cả ca làm việc
+  // ba đứa sẽ đi ngang qua hai chiếc xe mà không đụng tới.
+  let best = null, bd = mateFreeBike(a) ? MATE_LOOT_R_BIKE : MATE_LOOT_R;
   for (const l of S.loot){
     if (l.gone || l.held || l.inCart || l.onPad || l.isHead) continue;
     if (l.sizeIdx >= SIZES.length-1 && Math.random() < 0.5) continue;   // big ones look like work
@@ -5210,6 +5633,18 @@ function mateTake(a, l){
   l.freeX = a.x + Math.cos(a.dir)*(l.r+12);
   l.freeY = a.y + Math.sin(a.dir)*(l.r+12);
   a.held = l;
+}
+// Chất món đang ôm lên xe đẩy. mateDrop() là bản của cái bệ; đây là bản của chiếc xe — cùng
+// một động tác, khác chỗ đặt, và cũng lặng lẽ y như vậy (một dòng toast mỗi món thì ba đồng
+// đội sẽ lấp kín màn hình trong nửa phút).
+function mateToCart(a, cart){
+  const l = a.held;
+  if (!l || !cart || !cartFits(cart, l)) return false;
+  l.held = false; l.holder = null; l.vx = l.vy = 0;
+  l.grace = S.time + 0.35;
+  a.held = null;
+  l.inCart = true; cart.items.push(l);
+  return true;
 }
 function mateDrop(a, pad){
   const l = a.held;
@@ -5699,7 +6134,6 @@ function fitCanvas(){
 // Giữ lại một cử chỉ đang dở qua ranh giới đó là để nó đo bằng cái thước của bố cục CŨ —
 // nhân vật lao một hướng không ai bảo, cho tới khi nhấc tay lên.
 function resize(){
-  cancelGestures();
   fitCanvas();
   const cv = CV();
   // offsetWidth/Height, KHONG phai getBoundingClientRect(): cai sau tra ve hop BAO
@@ -5711,7 +6145,13 @@ function resize(){
   const h0 = cv.offsetHeight || cv.getBoundingClientRect().height;
   if (!w0) return;
   dpr = Math.min(devicePixelRatio || 1, 2);
-  viewW = Math.round(w0); viewH = Math.round(h0);
+  const wMoi = Math.round(w0), hMoi = Math.round(h0);
+  // Bỏ cử chỉ đang dở chỉ khi khung THẬT SỰ đổi kích thước. Trước đây dòng này nằm ngay đầu
+  // hàm và chạy mọi lần resize() được gọi — mà trên Safari iOS thì thanh công cụ trượt lên
+  // trượt xuống bắn ra `resize` liên tục ngay trong lúc ngón tay đang kéo cần gạt. Xoay màn
+  // hình thì vẫn phải bỏ: hai cần gạt đổi chỗ, ngón tay đang giữ ở toạ độ cũ là vô nghĩa.
+  if (wMoi !== viewW || hMoi !== viewH) cancelGestures();
+  viewW = wMoi; viewH = hMoi;
   cv.width = Math.round(viewW*dpr); cv.height = Math.round(viewH*dpr);
   if (!lightCv) lightCv = document.createElement('canvas');
   lightCv.width = cv.width; lightCv.height = cv.height;
@@ -5976,7 +6416,9 @@ function step(dt){
   }
 
   p.speedMul = tierMul;        // the tier multiplier, kept so a test can read what running is worth
-  if (vx || vy){
+  // Đang ngồi trên xe thì chiếc xe quyết định việc đi lại, không phải đôi chân.
+  if (p.riding){ rideBike(p, dt, vx, vy, push); }
+  else if (vx || vy){
     const sp = playerSpeed(p) * tierMul;
     const bx = p.x, by = p.y;
     const stopped = moveEnt(p, vx*sp*dt, vy*sp*dt, 7.5);
@@ -6049,6 +6491,7 @@ function step(dt){
   stepFx(dt);
   for (const l of S.loot) stepLoot(l, dt);
   stepCart(dt);
+  stepBikes(dt);
   if (S.shopMode){
     stepProjectiles(dt);                      // a test shot has to actually travel to be a test
     stepShop(dt);
@@ -6138,7 +6581,7 @@ function draw(){
 
   worldTransform(c);
   c.drawImage(S.worldCv, 0, 0);
-  drawPads(c); drawButton(c); drawCart(c); drawLoot(c); drawCar(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawDoors(c); drawProjectiles(c); drawPlayer(c);
+  drawPads(c); drawButton(c); drawBikes(c); drawCart(c); drawLoot(c); drawCar(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawDoors(c); drawProjectiles(c); drawPlayer(c);
 
   buildLight();
   c.setTransform(1,0,0,1,0,0);
@@ -6924,6 +7367,49 @@ function drawCar(c){
   c.strokeRect(x0, y0, L, W);
   c.globalAlpha = a;
 }
+// Xe vẽ TRƯỚC người: người ngồi lên nó, nên nó phải nằm dưới. Hình dáng nói ra ba thứ mà
+// người chơi cần biết từ xa: nó là chiếc nào, nó còn xăng không, và nó có đang nằm không.
+function drawBikes(c){
+  for (const b of (S.bikes || [])){
+    const d = bikeDef(b);
+    c.save(); c.translate(b.x, b.y);
+    c.fillStyle = 'rgba(0,0,0,0.45)';
+    c.beginPath(); c.ellipse(0, b.r*0.6, b.r*0.95, b.r*0.4, 0, 0, Math.PI*2); c.fill();
+    c.rotate(b.dir + (b.downed > 0 ? 1.15 : 0));      // nằm nghiêng khi vừa ngã
+    // hai bánh
+    c.fillStyle = '#1e2329';
+    c.beginPath(); c.ellipse(b.r*0.72, 0, b.r*0.30, b.r*0.20, 0, 0, Math.PI*2); c.fill();
+    c.beginPath(); c.ellipse(-b.r*0.72, 0, b.r*0.30, b.r*0.20, 0, 0, Math.PI*2); c.fill();
+    // thân
+    c.fillStyle = b.fuel > 0 ? d.col : '#3a3f45';
+    c.fillRect(-b.r*0.75, -b.r*0.34, b.r*1.5, b.r*0.68);
+    c.strokeStyle = b.rider ? d.rim : (b.fuel > 0 ? '#78838f' : '#4d545c');
+    c.lineWidth = 2; c.strokeRect(-b.r*0.75, -b.r*0.34, b.r*1.5, b.r*0.68);
+    // ghi đông ở đầu xe, để biết nó đang quay hướng nào
+    c.strokeStyle = d.rim; c.lineWidth = 2.4;
+    c.beginPath(); c.moveTo(b.r*0.60, -b.r*0.52); c.lineTo(b.r*0.60, b.r*0.52); c.stroke();
+    // thùng sau, chỉ chiếc chở đồ mới có
+    if (d.slots > 0){
+      c.fillStyle = b.items.length ? '#6a5a30' : '#3a3f45';
+      c.fillRect(-b.r*1.15, -b.r*0.42, b.r*0.42, b.r*0.84);
+      c.strokeStyle = '#8e7c46'; c.lineWidth = 1.4;
+      c.strokeRect(-b.r*1.15, -b.r*0.42, b.r*0.42, b.r*0.84);
+    }
+    c.restore();
+    // Nhãn: chỉ hiện khi ĐÁNG hiện — đang ngồi lên nó, hoặc đứng đủ gần để lên xe. Một cái nhãn
+    // luôn hiện trên mọi vật trong nhà là một cách chắc chắn để không ai đọc cái nào.
+    const p = S.player;
+    const gan = p && Math.hypot(p.x-b.x, p.y-b.y) < TILE*3;
+    if (!gan && b.rider !== p) continue;
+    const pct = Math.round(b.fuel / b.fuelMax * 100);
+    c.font = '700 10px ui-monospace, monospace'; c.textAlign = 'center';
+    c.fillStyle = b.fuel <= 0 ? '#b8544a' : pct < 25 ? '#e0a35a' : '#9fb0c0';
+    c.fillText(d.name + ' · xăng ' + pct + '%' +
+               (d.slots ? '  ' + b.items.length + '/' + d.slots : ''), b.x, b.y - b.r - 7);
+    c.textAlign = 'left';
+  }
+}
+
 function drawCart(c){
   const cart = S.cart;
   if (!cart) return;
@@ -7423,7 +7909,8 @@ function drawHud(c){
   ring(c, hud.grab.x, hud.grab.y, hud.grab.r, grabLit ? 'rgba(80,190,120,0.9)' : 'rgba(70,90,78,0.45)');
   c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
   c.fillStyle = grabLit ? '#e6ebee' : '#6a6f74';
-  const grabLabel = p.down ? 'Xem' : p.pushing ? 'Buông' : p.held ? 'Thả'
+  const grabLabel = p.down ? 'Xem' : p.riding ? 'Xuống xe' : p.pushing ? 'Buông' : p.held ? 'Thả'
+                   : (!near && nearestBike(p)) ? 'Lên xe'
                    : nearCart(p) && !near ? 'Đẩy xe' : 'Nhặt';
   c.fillText(grabLabel, hud.grab.x, hud.grab.y+4);
 
@@ -7490,6 +7977,9 @@ function drawHud(c){
   if (p.shieldT > 0) badges.push('Bọc ' + p.shieldT.toFixed(0) + 's');
   if (p.rushing) badges.push('Nước rút');
   if ((p.recoilT || 0) > 0) badges.push('Giật ' + p.recoilT.toFixed(1) + 's');
+  // Xăng là thứ quyết định còn đi được bao xa, nên nó phải nằm chỗ mắt đã nhìn sẵn.
+  if (p.riding) badges.push(bikeDef(p.riding).name + ' ' +
+    Math.round(p.riding.fuel / p.riding.fuelMax * 100) + '%');
   if (badges.length){
     c.font = '600 11px ui-monospace, monospace';
     c.fillStyle = '#8fd0b4';
@@ -7944,7 +8434,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260828c';
+const BUILD = '20260828d';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -8320,8 +8810,17 @@ function frame(now){
 function frameStep(now){
   const dt = Math.min(0.25, (now-last)/1000); last = now;
   const cv = CV();
-  const rr = cv.getBoundingClientRect();
-  if (cv.width !== Math.round(rr.width*dpr) || cv.height !== Math.round(rr.height*dpr)) resize();
+  // offsetWidth/Height, KHÔNG phải getBoundingClientRect().
+  // ROOT-CAUSE của "iPhone nằm ngang thì không đi được": ở chế độ xoay tay (body.force-land)
+  // cả vỏ game bị CSS quay 90°, nên hộp bao mà getBoundingClientRect() trả về có chiều rộng
+  // và chiều cao ĐỔI CHỖ cho nhau. resize() thì đo bằng offsetWidth (kích thước bố cục, không
+  // bị transform đụng tới) — nên hai bên không bao giờ khớp, dòng này thấy "kích thước vừa
+  // đổi" ở MỌI khung hình, và resize() chạy 60 lần một giây. resize() mở đầu bằng
+  // cancelGestures(), tức là cần gạt trái bị xoá đúng 60 lần một giây: ngón tay vẫn nằm trên
+  // màn hình mà nhân vật không nhúc nhích một bước nào. Chỉ hỏng ở màn hình ngang, vì chỉ ở
+  // đó mới có phép quay.
+  const w0 = cv.offsetWidth, h0 = cv.offsetHeight;
+  if (w0 && (cv.width !== Math.round(w0*dpr) || cv.height !== Math.round(h0*dpr))) resize();
   stepCut(dt);                     // real time: a cutscene is not part of the simulation
   watchdog(dt);
   if (S.running && !S.dead && !S.cut){
@@ -8412,6 +8911,13 @@ window.REPO = {
   damageLoot,
   UPGRADES, GEAR, GEAR_BY_KEY, UPGRADE_MAX_SPAWNS, CART_SLOTS, CART_MAX_VALUE,
   grabCart, releaseCart, cartValue, cartLoad, cartFits, nearTruck, hasGear,
+  // xe máy
+  BIKE_KINDS, makeBike, mountBike, dismountBike, nearestBike, bikeDef, bikeValue, bikeFits,
+  BIKE_RAM_MIN, BIKE_CRASH_SPD, GEAR, CART_MAX_VALUE,
+  bikes(){ return (S.bikes || []).map(b => ({
+    kind:b.kind, x:b.x, y:b.y, dir:b.dir, spd:b.spd, fuel:b.fuel, fuelMax:b.fuelMax,
+    items:b.items.length, value:bikeValue(b), riding: !!b.rider, downed:b.downed })); },
+  riding(){ const p = S.player; return p && p.riding ? p.riding.kind : null; },
   toggleStash, rollShop, startShop, leaveShop, togglePay, testHeld,
   testable(){ const d = testableInHand(S.player); return d ? d.key : null; },
   shop(){
@@ -8491,6 +8997,7 @@ window.REPO = {
                                    .map(a => ({ id:a.id, name:a.name, say:a.bubble })); },
   mates(){ return (S.mates || []).map(a => ({ id:a.id, name:a.name, x:a.x, y:a.y, hp:a.hp,
              hpMax:a.hpMax, down:a.down, job:a.job, held: a.held ? (a.held.isHead ? 'head' : 'loot') : null,
+             riding: a.riding ? a.riding.kind : null, pushing: !!a.pushing,
              target: a.target ? { x:a.target.x, y:a.target.y, isHead: !!a.target.isHead } : null })); },
   heads(){ return S.loot.filter(l => l.isHead && !l.gone).map(l => ({
              who:l.who, whoName:l.whoName, x:l.x, y:l.y, held:!!l.held,

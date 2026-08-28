@@ -123,11 +123,22 @@ async function repo2dSuite(b) {
       const h = REPO.hudLayout();
       return { l: r.left, t: r.top, x: h.slots[0].x, y: h.slots[0].y };
     });
+    // Bắt viên đạn NGAY LÚC nó vừa ra khỏi nòng. Con quái chỉ cách 3 ô, đạn bay hết quãng đó
+    // trong khoảng 80ms — đọc S.bullets sau khi chạm xong thì một nửa số lần viên đạn đã trúng
+    // và biến mất, và phép đo báo "không bắn ra gì" trong khi súng đã tụt một viên.
+    await p.evaluate(() => {
+      window.__daBan = null;
+      window.__rinh = setInterval(() => {
+        const b = REPO.S.bullets[0];
+        if (b && !window.__daBan) window.__daBan = { vx: b.vx, vy: b.vy };
+      }, 4);
+    });
     await p.mouse.move(g.l + g.x, g.t + g.y);
     await p.mouse.down(); await p.waitForTimeout(50); await p.mouse.up();
     await p.waitForTimeout(25);
     const shot = await p.evaluate(() => {
-      const S = REPO.S, pl = S.player, b = S.bullets[0];
+      clearInterval(window.__rinh);
+      const S = REPO.S, pl = S.player, b = S.bullets[0] || window.__daBan;
       if (!b) return { ban: false, vi: { o: pl.inv.map(x => x && x.kind + 'x' + x.uses),
                                          aim: pl.aimSlot, cd: +pl.cooldown.toFixed(2),
                                          chay: S.running, guc: pl.down } };
@@ -637,6 +648,16 @@ async function ghostDoorSuite(b) {
   // duoc gia dinh la canh cu con do.
   const dat = () => p.evaluate(async () => {
     const S = REPO.S, pl = S.player;
+    // Gửi tổ ba người về xe tải và cho đứng đó. Từ bản này đồng đội biết lái xe máy và húc
+    // quái (BIKE_RAM_KNOCK = 430, gần 18 ô/giây), nên một con bot chạy ngang qua là đủ thổi
+    // bay con quái đang đo hoặc giết luôn con ma gương — phép đo đỏ vì một thứ không liên
+    // quan. Đẩy chúng ra chứ KHÔNG tắt hẳn tổ: vài kỹ năng đọc danh sách tổ để tính hiệu ứng.
+    (REPO.S.mates || []).forEach(m => {
+      if (m.riding) REPO.dismountBike(m);
+      if (m.pushing) REPO.releaseCart(m);
+      if (REPO.S.car){ m.x = REPO.S.car.x; m.y = REPO.S.car.y; }
+      m.job = 'idle'; m.path = null; m.target = null; m.idleT = 9999; m.react = 9999;
+    });
     for (let i = 0; i < 60; i++){
       if (!S.mirror) REPO.spawnMirrors();
       if (S.mirror && S.mirror.m) break;
@@ -1150,6 +1171,16 @@ async function skillEffectSuite(b) {
   // Dựng lại bàn cờ trước mỗi phép đo: dọn quái, đặt lại người chơi giữa phòng.
   const setup = () => p.evaluate(() => {
     const S = REPO.S, pl = S.player;
+    // Gửi tổ ba người về xe tải và cho đứng đó. Từ bản này đồng đội biết lái xe máy và húc
+    // quái (BIKE_RAM_KNOCK = 430, gần 18 ô/giây), nên một con bot chạy ngang qua là đủ thổi
+    // bay con quái đang đo hoặc giết luôn con ma gương — phép đo đỏ vì một thứ không liên
+    // quan. Đẩy chúng ra chứ KHÔNG tắt hẳn tổ: vài kỹ năng đọc danh sách tổ để tính hiệu ứng.
+    (REPO.S.mates || []).forEach(m => {
+      if (m.riding) REPO.dismountBike(m);
+      if (m.pushing) REPO.releaseCart(m);
+      if (REPO.S.car){ m.x = REPO.S.car.x; m.y = REPO.S.car.y; }
+      m.job = 'idle'; m.path = null; m.target = null; m.idleT = 9999; m.react = 9999;
+    });
     S.monsters.length = 0;
     pl.down = false; pl.hp = pl.hpMax; pl.invisT = 0; pl.invulnT = 0;
     pl.hasteT = 0; pl.floatT = 0; pl.slowT = 0; pl.stunT = 0; pl.blindT = 0;
@@ -1232,8 +1263,14 @@ async function skillEffectSuite(b) {
   // Ghim quái sát người chơi MỖI KHUNG HÌNH trong lúc đo: quái phải thật sự ở trong
   // tầm đánh (22px) thì con số mất máu mới có nghĩa.
   const doMau = () => p.evaluate(async () => {
-    const S = REPO.S, pl = S.player, t0 = pl.hp;
+    const S = REPO.S, pl = S.player;
+    // Cộng dồn từng lần máu TỤT, chứ không lấy hiệu đầu-cuối. Đổi tướng dẫn đoàn có thể kéo
+    // theo một nhịp đồng bộ lại chỉ số làm máu nhảy LÊN giữa lúc đo, và một phép đo đầu-cuối
+    // sẽ đọc ra số âm rồi báo hỏng vì một lý do không liên quan gì tới tàng hình.
+    let mat = 0, truoc = pl.hp;
     const iv = setInterval(() => {
+      if (pl.hp < truoc) mat += truoc - pl.hp;
+      truoc = pl.hp;
       S.monsters.forEach((m, i) => {
         const a = i / S.monsters.length * Math.PI * 2;
         m.x = pl.x + Math.cos(a) * 14; m.y = pl.y + Math.sin(a) * 14;
@@ -1243,7 +1280,8 @@ async function skillEffectSuite(b) {
     }, 16);
     await new Promise(r => setTimeout(r, 1800));
     clearInterval(iv);
-    return t0 - pl.hp;
+    if (pl.hp < truoc) mat += truoc - pl.hp;
+    return mat;
   });
   await setup(); await putFoes(3, 1.2);
   const mauChuan = await doMau();
