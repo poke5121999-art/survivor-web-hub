@@ -104,7 +104,7 @@
     mkScreen('gear',   'CHI TIẾT TRANG BỊ', '', false, true);
     mkScreen('forge',  'NGUYÊN LIỆU', '', false, true);
     mkScreen('magi',   'MAGI', '', false, true);
-    mkScreen('shop',   'TIỆM PIKKE', '', false, true);
+    mkScreen('shop',   'TIỆM', '', false, true);
     mkScreen('help',   'CÁCH CHƠI', '', false, true);
     mkScreen('bosslist','DANH SÁCH BEHEMOTH', '', false, true);
   }
@@ -143,6 +143,7 @@
       '<b class="g">⬤ ' + fmt(S.gold) + '</b>' +
       '<b class="m">◈ ' + fmt(S.gem) + '</b>' +
       '<b class="t">▤ ' + fmt(S.ticket) + '</b>' +
+      '<b class="d">✹ ' + fmt(S.medal) + '</b>' +
       '<b class="p">✦ ' + fmt(S.pikke) + '</b>';
   }
   function refresh() { renderCur(cur); }
@@ -703,7 +704,8 @@
     html += '<div class="card"><div class="row">' +
       '<button class="btn ' + (S.ticket >= 5 ? 'pri' : 'dis') + '" data-act="g1" style="flex:1">Đơn — 5 vé</button>' +
       '<button class="btn ' + (S.ticket >= 50 ? 'pri' : 'dis') + '" data-act="g10" style="flex:1">10+1 — 50 vé <span style="font-size:9px">(bảo hiểm SS)</span></button>' +
-      '</div><p style="margin-top:7px">Vé: <b>' + S.ticket + '</b>. Hết vé thì mua ở tiệm Pikke hoặc làm nhiệm vụ tuần.<br>' +
+      '</div><p style="margin-top:7px">Vé: <b>' + S.ticket + '</b>. Hết vé thì <b>đổi bằng Medal</b> ở tiệm ' +
+      '(phá ải là có Medal — ' + fmt(S.medal) + ' đang có), hoặc làm nhiệm vụ cốt truyện / tuần.<br>' +
       'Ra món <b>đã có</b> thì đổi thành <b style="color:#f2d24b">Lõi Rồng</b> — ' +
       'thứ duy nhất mở được Tiến hoá, và <b>không cày được ở đâu cả</b>. Đang có ' +
       '<b style="color:#f2d24b">' + fmt(S.mats.dragon_core || 0) + '</b>.</p></div>';
@@ -786,14 +788,34 @@
   /* -------------------------------------------------------------- SHOP --- */
   function rShop() {
     var b = $('body-shop');
-    var html = '<div class="card"><p>Pikke Points chỉ có từ nhiệm vụ ngày/tuần. Bạn có <b style="color:#c8a0ff">' + fmt(S.pikke) + '</b>.</p></div>';
-    html += '<div class="grid2">';
+
+    // QUẦY MEDAL lên trước: đây là đường lấy vé mà CÀY LÀ RA, không phải chờ
+    // nhiệm vụ ngày reset. Người chơi mở tiệm ra là phải thấy nó đầu tiên.
+    var html = '<div class="card"><div class="row"><h3 style="flex:1;color:#ff9a4a">✹ Quầy Medal</h3>' +
+      '<span style="font-size:13px">Đang có <b style="color:#ff9a4a;font-size:16px">' + fmt(S.medal) + '</b></span></div>' +
+      '<p>Medal rơi ra <b>mỗi lần phá ải</b> — trùm càng cao càng nhiều: ' +
+      'B <b>2</b> · A <b>5</b> · S <b>12</b> · SS <b>30</b>. Cày lại ải đã phá vẫn ăn Medal, ' +
+      'nên muốn quay nhiều thì đi ải khó.</p><div class="grid2">';
+    G.MEDAL_SHOP.forEach(function (it) {
+      var ok = S.medal >= it.price.medal;
+      html += '<button class="item" data-buym="' + it.id + '"><div class="nm">' + it.n + '</div>' +
+        '<div class="sub">' + (it.sub ? it.sub + '<br>' : '') +
+        '<b style="color:' + (ok ? '#ff9a4a' : '#5a6a7a') + '">✹ ' + fmt(it.price.medal) + '</b></div></button>';
+    });
+    html += '</div><p style="color:#f2d24b">Không bán Lõi Rồng. Nó chỉ có từ quay trúng đồ trùng — ' +
+      'hở một đường mua là bậc Tiến hoá mất hết ý nghĩa.</p></div>';
+
+    html += '<div class="card"><div class="row"><h3 style="flex:1;color:#c8a0ff">✦ Tiệm Pikke</h3>' +
+      '<span style="font-size:13px">Đang có <b style="color:#c8a0ff;font-size:16px">' + fmt(S.pikke) + '</b></span></div>' +
+      '<p>Pikke Points <b>chỉ</b> có từ nhiệm vụ ngày và tuần — không rơi ở ải, không mua được. ' +
+      'Ngày 3 nhiệm vụ (100 mỗi cái) + 300 khi xong cả ba = <b>600/ngày</b>. ' +
+      'Tuần 4 nhiệm vụ (200 mỗi cái) + 400 = <b>1.200/tuần</b>. Nhiệm vụ nằm ở màn <b>Nhà</b>.</p><div class="grid2">';
     G.SHOP.forEach(function (it) {
       var ok = S.pikke >= it.price.pikke;
       html += '<button class="item" data-buy="' + it.id + '"><div class="nm">' + it.n + '</div>' +
         '<div class="sub" style="color:' + (ok ? '#c8a0ff' : '#5a6a7a') + '">✦ ' + fmt(it.price.pikke) + '</div></button>';
     });
-    html += '</div>';
+    html += '</div></div>';
     html += '<div class="card"><h3>Bình (Potion)</h3><p>Loại thường 30 phút, loại cao cấp mua bằng Gem có cả ba hiệu ứng và kéo dài 60 phút.</p>';
     Object.keys(G.ITEMS).forEach(function (id) {
       var it = G.ITEMS[id], have = S.inv[id] || 0;
@@ -806,8 +828,16 @@
     html += '</div>';
     b.innerHTML = html;
     b.onclick = function (e) {
-      var t = e.target.closest('[data-buy],[data-use],[data-buyp]'); if (!t) return;
-      if (t.hasAttribute('data-buy')) {
+      var t = e.target.closest('[data-buy],[data-buym],[data-use],[data-buyp]'); if (!t) return;
+      if (t.hasAttribute('data-buym')) {
+        var mi = G.MEDAL_SHOP.find(function (x) { return x.id === t.getAttribute('data-buym'); });
+        if (!G.pay(S, mi.price)) { toast('Không đủ Medal — đi phá thêm ải', '#c34141'); return; }
+        S.stats.buys++; G.track(S, { buy: 1 });
+        if (mi.give.gold) S.gold += mi.give.gold;
+        if (mi.give.ticket) S.ticket += mi.give.ticket;
+        if (mi.give.mat) for (var mm in mi.give.mat) G.addMat(S, mm, mi.give.mat[mm]);
+        toast('Đã đổi ' + mi.n, '#3fd66a');
+      } else if (t.hasAttribute('data-buy')) {
         var it = G.SHOP.find(function (x) { return x.id === t.getAttribute('data-buy'); });
         if (S.pikke < it.price.pikke) { toast('Không đủ Pikke Points', '#c34141'); return; }
         S.pikke -= it.price.pikke; S.stats.buys++; G.track(S, { buy: 1 });
@@ -942,6 +972,8 @@
       '<p>Nhưng gacha chỉ cho <b>món đồ</b>, không cho <b>sức mạnh</b>. Muốn mạnh thì nâng cấp, ' +
       'mà nguyên liệu nâng cấp <b>chỉ rơi trong ải</b>: Strengthening Stone, Equipment Crystal ' +
       '(bắt buộc từ Lv.25), Lapis để Limit Break, Magi Fragment.</p>' +
+      '<p><b>Hết vé thì đổi bằng Medal</b> ở Tiệm — phá ải là có Medal, nên cày là quay được, ' +
+        'không phải chờ nhiệm vụ ngày. Pikke Points thì ngược lại: chỉ có từ nhiệm vụ ngày/tuần.</p>' +
       '<p>Quay ra món <b>đã có</b> thì thành <b style="color:#f2d24b">Lõi Rồng</b> ' +
       '(B ' + G.DUPE_CORE.B + ' · A ' + G.DUPE_CORE.A + ' · S ' + G.DUPE_CORE.S + ' · SS ' + G.DUPE_CORE.SS + '). ' +
       'Đây là thứ <b>duy nhất</b> mở được <b>Tiến hoá</b> — bậc nâng cấp cao nhất, chỉ đồ S và SS ' +

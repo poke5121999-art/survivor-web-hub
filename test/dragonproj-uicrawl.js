@@ -78,14 +78,14 @@ const SEED = () => {
 /* ------------------------------------------------- CÁC HÀM CHẠY TRONG TRANG */
 // Danh sách phần tử bấm được đang hiển thị của một màn.
 const SEL = 'button,[data-act],[data-gear],[data-stage],[data-craft],[data-buy],' +
-  '[data-use],[data-slot],[data-putmagi],[data-upmagi],[data-nav],[data-filter],[data-w],' +
+  '[data-buym],[data-use],[data-slot],[data-putmagi],[data-upmagi],[data-nav],[data-filter],[data-w],' +
   '[data-wslot],[data-aslot],[data-cy],[data-buyp],[data-unslot]';
 
 // Danh sách phần tử bấm được đang hiển thị của một màn.
 const PAGE_LIST = (a) => {
   const scr = document.getElementById('scr-' + a.id);
   if (!scr) return [];
-  const ATT = ['data-act', 'data-gear', 'data-stage', 'data-craft', 'data-buy', 'data-use',
+  const ATT = ['data-act', 'data-gear', 'data-stage', 'data-craft', 'data-buy', 'data-buym', 'data-use',
     'data-slot', 'data-putmagi', 'data-upmagi', 'data-nav', 'data-filter', 'data-w', 'data-wslot',
     'data-aslot', 'data-cy', 'data-buyp', 'data-unslot'];
   return Array.prototype.filter.call(scr.querySelectorAll(a.sel),
@@ -453,7 +453,8 @@ const PAGE_SNAP = () => {
     // Lõi Rồng không được xuất hiện trong bất kỳ bảng rơi nào
     out.coreFarm = Object.keys(DP.TRIBES).some(k => DP.TRIBES[k].mat.indexOf('dragon_core') >= 0) ||
                    DP.GATHER_MATS.indexOf('dragon_core') >= 0 ||
-                   JSON.stringify(DP.SHOP).indexOf('dragon_core') >= 0;
+                   JSON.stringify(DP.SHOP).indexOf('dragon_core') >= 0 ||
+                   JSON.stringify(DP.MEDAL_SHOP).indexOf('dragon_core') >= 0;
 
     // --- MAGI ---
     s = mk();

@@ -184,7 +184,22 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
    Bố cục nhà chính của bản gốc: thanh tiền tệ trên cùng, banner nhiệm vụ bên
    trái, nhân vật đứng giữa, và HÀNG NÚT LỚN ở đáy.
    ========================================================================== */
-#screens{display:block}
+/* MENU TO HƠN SÂN ĐẤU.
+ * Sân đấu phải là 540×960 vì toàn bộ HUD và toạ độ Punicon neo theo đó, mà trên
+ * điện thoại rộng 430px thì cả sân bị thu còn 0,8 lần — chữ 11px hoá ra 8,8px,
+ * nhỏ đến mức phải nheo mắt.
+ *
+ * Nên lớp menu vẽ trong một khung HẸP HƠN (540 / --ui) rồi phóng to lại cho vừa
+ * sân. Kết quả: mọi thứ trong menu to hơn 26% mà KHÔNG phải đi sửa từng con
+ * font-size nằm rải rác trong CSS lẫn trong chuỗi HTML của js/ui.js — và sân đấu
+ * thì không suy suyển một pixel nào.
+ *
+ * 0,8 (thu sân) × 1,26 (phóng menu) ≈ 1,0 — tức chữ trong menu hiện ra gần đúng
+ * bằng số px đã ghi, trên đúng cái máy mà game này để chơi. */
+:root{--ui:1.26}
+#screens{display:block;inset:auto;left:0;top:0;
+  width:calc(540px / var(--ui));height:calc(960px / var(--ui));
+  transform:scale(var(--ui));transform-origin:0 0}
 .screen{position:absolute;inset:0;display:none;flex-direction:column;background:var(--bg);pointer-events:auto}
 .screen.on{display:flex}
 
@@ -219,7 +234,8 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .cur b{display:flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;
   background:#0d1117;border:1px solid var(--line);border-radius:12px;padding:2px 8px;
   font-variant-numeric:tabular-nums}
-.cur .g{color:var(--gold)} .cur .m{color:#8fd4ff} .cur .t{color:#ff9a4a} .cur .p{color:#c8a0ff}
+.cur .g{color:var(--gold)} .cur .m{color:#8fd4ff} .cur .t{color:#ff9a4a}
+.cur .d{color:#ff8a5a} .cur .p{color:#c8a0ff}
 
 /* --- lối tắt nổi ở bốn góc khung nội dung, kiểu REPO Squad --- */
 .quick{position:absolute;top:6px;display:flex;flex-direction:column;gap:6px;z-index:4}
@@ -334,7 +350,11 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .rate-tab b{background:#000;border:1px solid var(--line);border-radius:4px;padding:1px 6px}
 
 /* kết quả trận */
-.result{position:absolute;inset:0;background:rgba(5,8,12,.94);display:none;
+/* Bảng kết quả cũng là menu, nên phóng theo đúng --ui như #screens. */
+.result{position:absolute;left:0;top:0;
+  width:calc(540px / var(--ui));height:calc(960px / var(--ui));
+  transform:scale(var(--ui));transform-origin:0 0;
+  background:rgba(5,8,12,.94);display:none;
   flex-direction:column;align-items:center;justify-content:center;padding:20px;pointer-events:auto;z-index:70}
 .result.on{display:flex}
 .result h2{margin:0 0 4px;font-size:26px;letter-spacing:2px}

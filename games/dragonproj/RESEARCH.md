@@ -440,7 +440,7 @@ nổi trên đầu**, sát thương hiện thành **số trắng viền đen bay
 ## 13. Chỗ **cố ý lệch** bản gốc — và vì sao
 
 Mục 1–11 ở trên là thứ *tìm được* về Dragon Project. Mục này là thứ bản dựng lại *quyết định làm
-khác*. Bốn chỗ, và cả bốn đều đổi vì cùng một lý do: bản gốc là game **dịch vụ trực tuyến, nhiều
+khác*. Sáu chỗ, và phần lớn đổi vì cùng một lý do: bản gốc là game **dịch vụ trực tuyến, nhiều
 người, chơi dài hạn**, còn bản này là một trang HTML mở ra chơi một mình. Giữ nguyên khung của
 game gốc thì đúng về hình thức nhưng hỏng về trải nghiệm.
 
@@ -509,6 +509,42 @@ vào bảng nào — luật này phải làm hỏng test nếu ai đó lỡ tay 
 sạch quái trước khi người chơi kịp tới, và trận boss biến thành đứng nhìn. Punicon là một hệ điều
 khiển đòi *chính tay người chơi* đọc đòn và bấm đúng nhịp — có ai đó đánh hộ thì toàn bộ ngữ pháp
 đó thành thừa. Một mình thì mọi đòn trên sân đều là đòn của mình.
+
+### 13.5 Vé lấy bằng **Medal**, không lấy bằng đồng hồ thật
+
+**Bản gốc:** vé quay đến từ nhiệm vụ ngày/tuần và từ tiệm Pikke — mà Pikke cũng chỉ có từ nhiệm
+vụ ngày/tuần. Tức toàn bộ đường vào gacha đi qua **đồng hồ thật**: hết lượt hôm nay thì chờ mai.
+Đó là cách một game dịch vụ giữ người chơi quay lại mỗi ngày, và cũng là chỗ họ bán vé.
+
+**Bản này:** giữ nguyên đường Pikke đó, nhưng mở thêm một quầy **Medal** ở tiệm. Medal rơi ra
+**mỗi lần phá ải**, càng trùm cao càng nhiều (B 2 · A 5 · S 12 · SS 30), và cày lại ải đã phá
+vẫn ăn. Giá neo theo một lần quay: **5 vé = 15 Medal**, đúng bằng ba ải hạng B hoặc một ải hạng S;
+gói 10+1 (50 vé) 130 Medal.
+
+**Vì sao:** game này chơi offline, một mình, không bán gì cho ai. Chặn người chơi bằng đồng hồ
+thì không đổi lấy được thứ gì — chỉ làm họ ngồi không. Cho vé chảy ra từ **việc chơi** thì cày ải
+khó trở nên đáng, và cái vòng lặp "đánh ải → quay đồ → nâng cấp → đánh ải khó hơn" khép lại được
+mà không cần chờ ai.
+
+Đây cũng là chỗ sửa một lỗi: trước đó Medal **được cộng nhưng không tiêu được ở đâu cả** — một
+con số đếm lên trong màn Khác rồi thôi. Nó vốn là thứ quy đổi boss trùng của hệ gacha-ra-boss ở
+mục 13.2; bỏ hệ đó đi thì Medal thành mồ côi.
+
+Quầy Medal **không bán Lõi Rồng**, và test quét cả `SHOP` lẫn `MEDAL_SHOP` để chốt điều đó. Lõi
+Rồng phải giữ đúng lời hứa ở mục 13.3: chỉ có từ quay trúng đồ trùng, không cày được, không mua
+được. Hở một đường mua là bậc Tiến hoá mất hết ý nghĩa.
+
+### 13.6 Menu vẽ to hơn sân đấu
+
+Sân đấu buộc phải là 540×960 vì toàn bộ HUD và toạ độ Punicon neo theo đó. Trên điện thoại rộng
+430px thì cả sân bị thu còn 0,8 lần — chữ 11px trong menu hiện ra 8,8px, phải nheo mắt mới đọc
+được.
+
+Nên lớp menu (`#screens` và bảng kết quả) vẽ trong một khung hẹp hơn — `540 / --ui` với
+`--ui: 1.26` — rồi phóng to lại cho vừa sân. Mọi thứ trong menu to hơn 26% mà không phải đi sửa
+từng con số `font-size` nằm rải rác trong CSS lẫn trong chuỗi HTML của `js/ui.js`, và **sân đấu
+không suy suyển một pixel nào**. 0,8 × 1,26 ≈ 1,0 — chữ trong menu hiện ra gần đúng bằng số px
+đã ghi, trên đúng cái máy mà game này để chơi.
 
 ---
 

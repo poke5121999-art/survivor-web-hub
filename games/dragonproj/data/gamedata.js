@@ -824,6 +824,28 @@
     { id:'p_luckp', n:'Luck Potion',       give:{item:'luck_potion'},  price:{pikke:300} }
   ];
 
+  /* ------------------------------------------------- QUẦY ĐỔI MEDAL ----- */
+  /* Medal rơi ra mỗi lần PHÁ ẢI, càng trùm cao càng nhiều (B 2 · A 5 · S 12 · SS 30).
+   * Đây là quầy duy nhất nhận Medal, và cũng là đường lấy vé KHÔNG dính đồng hồ
+   * thật: tiệm Pikke thì phải chờ nhiệm vụ ngày reset, còn quầy này thì cày ải là
+   * ra. Game này chơi offline một mình, không bán gì cho ai, nên chặn người chơi
+   * bằng đồng hồ chỉ tổ làm họ ngồi không.
+   *
+   * Giá neo theo một lần quay: 5 vé = 15 Medal, đúng bằng ba ải hạng B, hoặc một
+   * ải hạng S. Gói 10+1 rẻ hơn ~13% để vẫn đáng gom.
+   *
+   * KHÔNG bán Lõi Rồng ở đây. Lõi Rồng phải giữ đúng lời hứa của nó: chỉ có từ
+   * quay trúng đồ trùng, không cày được, không mua được. Hở một đường mua là bậc
+   * Tiến hoá mất hết ý nghĩa. */
+  G.MEDAL_SHOP = [
+    { id:'m_t5',   n:'Vé Triệu hồi ×5',   sub:'đúng một lần quay đơn', give:{ticket:5},  price:{medal:15} },
+    { id:'m_t50',  n:'Vé Triệu hồi ×50',  sub:'gói 10+1, rẻ hơn 13%',  give:{ticket:50}, price:{medal:130} },
+    { id:'m_lapa', n:'Lapis A ×1',        sub:'Limit Break đồ hạng A', give:{mat:{lapis_a:1}}, price:{medal:12} },
+    { id:'m_laps', n:'Lapis S ×1',        sub:'Limit Break đồ hạng S', give:{mat:{lapis_s:1}}, price:{medal:25} },
+    { id:'m_crys', n:'Equipment Crystal ×2', sub:'nâng cấp từ Lv.25',  give:{mat:{crystal:2}}, price:{medal:10} },
+    { id:'m_gold', n:'50.000 Gold',       sub:'',                      give:{gold:50000}, price:{medal:8} }
+  ];
+
   /* ------------------------------------------------------------- NPC ----- */
   G.NPCS = ['Pamela', 'Pikke', 'Sylvie', 'Axel', 'Linton', 'Ange', 'Aine', 'Gawen', 'Jild'];
   // Ba đồng đội NPC thay cho co-op 4 người của bản gốc.

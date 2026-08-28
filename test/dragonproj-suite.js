@@ -451,6 +451,45 @@ const goBoss = (p, id) => p.evaluate(id => { DP.UI.startStage(id); DP.UI.battle.
   check('mở màn khác thì bảng kết quả tự dẹp',
     await p.evaluate(() => !document.getElementById('resultScr').classList.contains('on')));
 
+  // MEDAL. Phá ải là ra Medal, và Medal phải TIÊU ĐƯỢC — nếu không thì nó chỉ là
+  // một con số đếm lên trong màn Khác, tức tiền chết.
+  const medal = await p.evaluate(() => {
+    const s = DP.newSave('T');
+    const item = DP.MEDAL_SHOP.find(x => x.give.ticket === 5);
+    s.medal = item.price.medal - 1;
+    const t0 = s.ticket;
+    const poor = DP.pay(s, item.price);            // thiếu 1 Medal -> phải từ chối
+    s.medal = item.price.medal;
+    const ok = DP.pay(s, item.price);
+    return {
+      hasShop: DP.MEDAL_SHOP.length > 0,
+      buysTicket: !!item,
+      poor: poor === false, poorKept: s.ticket === t0,
+      ok: ok === true, spent: s.medal === 0,
+      // Lõi Rồng KHÔNG được bán ở bất cứ quầy nào
+      coreForSale: JSON.stringify(DP.MEDAL_SHOP).indexOf('dragon_core') >= 0 ||
+                   JSON.stringify(DP.SHOP).indexOf('dragon_core') >= 0
+    };
+  });
+  check('có quầy tiêu Medal (Medal không phải tiền chết)', medal.hasShop && medal.buysTicket);
+  check('thiếu Medal thì từ chối và không mất gì', medal.poor && medal.poorKept);
+  check('đủ Medal thì đổi được vé, trừ đúng số Medal', medal.ok && medal.spent);
+  check('không quầy nào bán Lõi Rồng', medal.coreForSale === false);
+
+  // Đường mua đi qua NÚT THẬT trên màn tiệm.
+  await p.evaluate(() => { DP.UI.save.medal = 500; DP.UI.save.ticket = 0; DP.UI.saveNow(); DP.UI.show('shop'); });
+  await p.waitForTimeout(250);
+  const buy = await p.evaluate(() => {
+    const S = DP.UI.save, m0 = S.medal;
+    const btn = document.querySelector('#body-shop [data-buym]');
+    const it = DP.MEDAL_SHOP.find(x => x.id === btn.getAttribute('data-buym'));
+    btn.click();
+    return { ticket: S.ticket, spent: m0 - S.medal, want: it.price.medal, give: it.give.ticket || 0 };
+  });
+  check('bấm nút quầy Medal thật: trừ đúng Medal, cộng đúng vé',
+    buy.spent === buy.want && buy.ticket === buy.give,
+    'trừ ' + buy.spent + '/' + buy.want + ', vé ' + buy.ticket);
+
   // ------------------------------------------------------------- CHỌN ẢI
   results.push('\n── chuỗi ải ──');
   const stg = await p.evaluate(() => {

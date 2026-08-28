@@ -381,6 +381,7 @@
     if (cost.gold && s.gold < cost.gold) return false;
     if (cost.gem && s.gem < cost.gem) return false;
     if (cost.pikke && s.pikke < cost.pikke) return false;
+    if (cost.medal && s.medal < cost.medal) return false;
     if (cost.ticket && s.ticket < cost.ticket) return false;
     if (cost.mat) for (var m in cost.mat) if ((s.mats[m] || 0) < cost.mat[m]) return false;
     return true;
@@ -390,6 +391,7 @@
     if (cost.gold) s.gold -= cost.gold;
     if (cost.gem) s.gem -= cost.gem;
     if (cost.pikke) s.pikke -= cost.pikke;
+    if (cost.medal) s.medal -= cost.medal;
     if (cost.ticket) s.ticket -= cost.ticket;
     if (cost.mat) for (var m in cost.mat) s.mats[m] -= cost.mat[m];
     return true;
