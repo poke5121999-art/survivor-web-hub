@@ -102,6 +102,13 @@
     rollQuests();
     return M;
   }
+  // Bảng nội dung có thể DÀI RA sau khi người chơi đã lưu — và cũng có thể NGẮN LẠI, hoặc đổi
+  // tên khoá. Bù phần thiếu thì bản cũ đã làm; vứt phần THỪA thì chưa, và đó mới là phần giết
+  // người: một id mà bản game này không biết nằm lại trong save là mọi màn menu đọc trúng nó
+  // đều ném lỗi, mà save thì sống qua mọi lần tải lại trang.
+  // Đường vào không hề xa vời: syncFromHub() dưới đây lấy nguyên payload đám mây nhét thẳng
+  // vào hàm này — một bản lưu viết bởi bản game mới hơn, hoặc bởi chính bản này trong lúc
+  // GitHub Pages còn phục vụ một tệp js cũ, là đủ.
   function migrate(d) {
     const base = freshState();
     const out = Object.assign(base, d);
@@ -111,7 +118,54 @@
     out.counters = Object.assign(base.counters, out.counters || {});
     out.day = Object.assign(base.day, out.day || {});
     out.week = Object.assign(base.week, out.week || {});
-    return out;
+    return scrub(out);
+  }
+
+  // Vứt mọi thứ trỏ tới một id không còn tồn tại. Thà mất một món đồ lạ còn hơn mất cả cái menu.
+  function scrub(o) {
+    const known = (tbl, id) => !!(tbl && tbl[id]);
+    if (o.chars && typeof o.chars === 'object') {
+      Object.keys(o.chars).forEach(id => { if (!known(SQ.CHAR_BY_ID, id)) delete o.chars[id]; });
+    } else o.chars = {};
+    if (!Array.isArray(o.inv)) o.inv = [];
+    o.inv = o.inv.filter(it => it && known(SQ.SLOT_BY_ID, it.slot) && SQ.STATS[it.main] &&
+                               known(SQ.SET_BY_ID, it.set) && it.star >= 1 && it.star <= 6);
+    o.inv.forEach(it => { if (!Array.isArray(it.subs)) it.subs = [];
+                          it.subs = it.subs.filter(x => x && SQ.STATS[x.k]); });
+    const invIds = {};
+    o.inv.forEach(it => { invIds[it.id] = 1; });
+    if (o.equip && typeof o.equip === 'object') {
+      Object.keys(o.equip).forEach(cid => {
+        if (!known(SQ.CHAR_BY_ID, cid)) { delete o.equip[cid]; return; }
+        const e = o.equip[cid];
+        if (!e || typeof e !== 'object') { delete o.equip[cid]; return; }
+        Object.keys(e).forEach(sl => { if (!known(SQ.SLOT_BY_ID, sl) || !invIds[e[sl]]) delete e[sl]; });
+      });
+    } else o.equip = {};
+    if (o.evol && typeof o.evol === 'object') {
+      Object.keys(o.evol).forEach(id => { if (!SQ.EVOL.some(e => e.id === id)) delete o.evol[id]; });
+    }
+    if (o.maps && typeof o.maps === 'object') {
+      Object.keys(o.maps).forEach(id => { if (!SQ.MAP_BY_ID[id]) delete o.maps[id]; });
+    }
+    if (o.squad && typeof o.squad === 'object') {
+      if (o.squad.lead && !known(SQ.CHAR_BY_ID, o.squad.lead)) o.squad.lead = null;
+      if (Array.isArray(o.squad.slots)) {
+        o.squad.slots = o.squad.slots.map(id => known(SQ.CHAR_BY_ID, id) ? id : null);
+      }
+    }
+    if (o.tactics && typeof o.tactics === 'object') {
+      Object.keys(o.tactics).forEach(cid => {
+        if (!known(SQ.CHAR_BY_ID, cid) || !SQ.TACTIC_BY_ID[o.tactics[cid]]) delete o.tactics[cid];
+      });
+    }
+    // Bộ nhiệm vụ: migrate() cũ không bao giờ sửa nó, mà questPending() thì đọc nó ở MỌI màn.
+    const q = o.quests;
+    if (!q || typeof q !== 'object' || !Array.isArray(q.daily) || !Array.isArray(q.weekly) ||
+        !q.claimed || typeof q.claimed !== 'object' || !q.achClaimed || typeof q.achClaimed !== 'object') {
+      o.quests = freshState().quests;
+    }
+    return o;
   }
   SQ.save = save; SQ.load = load;
 
@@ -584,7 +638,8 @@
     if (scope === 'weekly') return M.week[key] || 0;
     // thành tựu đọc bộ đếm đời
     if (key === 'mapsDone') return SQ.MAPS.filter(m => M.maps[m.id] && M.maps[m.id].cleared).length;
-    if (key === 'own5') return Object.keys(M.chars).filter(id => SQ.CHAR_BY_ID[id].star === 5).length;
+    if (key === 'own5') return Object.keys(M.chars)
+      .filter(id => SQ.CHAR_BY_ID[id] && SQ.CHAR_BY_ID[id].star === 5).length;
     if (key === 'squadFull') return SQ.squadList().length;
     if (key === 'eqMax') return M.inv.filter(i => i.lv >= SQ.EQUIP_MAX_LV).length;
     if (key === 'evolLv') return SQ.evolTotal();
@@ -693,7 +748,18 @@
         const cloud = r.payload, local = M;
         const cloudScore = (cloud.counters.runs || 0) + (cloud.counters.pulls || 0);
         const localScore = (local.counters.runs || 0) + (local.counters.pulls || 0);
-        if (cloudScore > localScore) { M = SQ.M = migrate(cloud); save(); return { ok: true, took: 'cloud' }; }
+        // KHÔNG BAO GIỜ tráo bản lưu ở GIỮA MỘT VÁN. Lời gọi này là bất đồng bộ và trên mạng
+        // chậm nó về SAU khi người chơi đã bấm ĐI CA — lúc đó H.onLevelClear và finishRun()
+        // đang đọc M.maps của ván đang chơi, và tráo nó ra dưới chân chúng là một undefined
+        // ném ra ngay trong vòng vẽ của bộ máy.
+        if (root.SQ && SQ.squad && SQ.squad.run && SQ.squad.run()) return { ok: true, took: 'local-in-run' };
+        if (cloudScore > localScore) {
+          // Đường nạp từ ổ cứng gọi repairSquad()+rollQuests() sau migrate(); đường đám mây
+          // trước đây không gọi cái nào. Cùng một dữ liệu, hai mức kiểm tra khác nhau.
+          M = SQ.M = migrate(cloud);
+          repairSquad(); rollQuests();
+          save(); return { ok: true, took: 'cloud' };
+        }
       }
       return { ok: true, took: 'local' };
     } catch (e) { return { ok: false, reason: 'error' }; }

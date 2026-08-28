@@ -1067,7 +1067,16 @@ const GEAR = [
   { key:'shield',  name:'Keo bọc chống vỡ',short:'Bọc',  desc:'25 giây món đang vác không mất giá trị dù va đập.',    uses:2, price: 11000, stock:3 },
   // The answer to a jammed door. Cheap on purpose: a door you cannot open is a detour, not a
   // paywall, and the bar is worth buying for the SECONDS it saves you while something is coming.
-  { key:'pry',     name:'Xà beng',         short:'Phá',  desc:'Phá cánh cửa bị kẹt ngay trước mặt. Ồn.',              uses:3, price: 5000,  stock:4 }
+  { key:'pry',     name:'Xà beng',         short:'Phá',  desc:'Phá cánh cửa bị kẹt ngay trước mặt. Ồn.',              uses:3, price: 5000,  stock:4 },
+  // Súng nòng ngắn của bản gốc: sát thương thô mạnh nhất trong nhà, một hai phát là xong hầu hết,
+  // đắt, và giật kinh khủng. Ở đây cái giật được dịch thành hai thứ người chơi thấy ngay: thân bị
+  // đẩy lùi, và chân chậm lại một nhịp. Nên nó là khẩu súng của một quyết định, không phải khẩu
+  // súng để bấm liên tục — bắn hụt ở khoảng cách xa là mất một viên đắt tiền mà chẳng được gì.
+  { key:'shotgun', name:'Súng nòng ngắn',  short:'Hoa cải', desc:'Bảy viên toé ra một nón ngắn. Sát mặt thì nát, xa thì phí đạn. Giật lùi và làm bạn chậm một nhịp.', uses:6, price: 26000, stock:2, aim:true, test:true },
+  // Khẩu này KHÔNG có trong bản gốc — nó là của chủ dự án. Cơ chế sạc dựng thẳng lên cử chỉ ngắm
+  // đã có sẵn: giữ ô đồ là đang sạc, buông tay là bắn. Không thêm một nút nào, không thêm một luật
+  // nào phải dạy — cái người chơi vốn đã làm để ngắm giờ mang thêm ý nghĩa.
+  { key:'laser',   name:'Súng laser sạc',  short:'Laser', desc:'Giữ để sạc, buông là bắn. Tia xuyên thẳng qua mọi thứ trên đường. Sạc đầy thì mạnh gấp bốn, nhưng vét sạch hơi.', uses:5, price: 22000, stock:2, aim:true, test:true, charge:true }
 ];
 const GEAR_BY_KEY = {};
 for (const g of GEAR) GEAR_BY_KEY[g.key] = g;
@@ -1434,6 +1443,7 @@ function newPlayer(){
     inv: [ null, null, null ],
     aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0,
     pushing: false, runT: 0, rushing: false, blindT: 0, slowT: 0, kx: 0, ky: 0,
+    recoilT: 0, chargeSlot: -1, chargeT: 0,
     floatT: 0, shieldT: 0,
     sprint: false, sprinting: false, sprintOffT: 0, stunT: 0,
     // `down` is one worker on the floor; `S.dead` is the whole crew. They used to be the same
@@ -1452,7 +1462,7 @@ function buildLevel(seed){
   S.grid = new Uint8Array(MW*MH);
   S.explored = new Uint8Array(MW*MH);
   S.rooms = []; S.loot = []; S.monsters = []; S.pads = [];
-  S.bullets = []; S.bombs = []; S.corpses = [];
+  S.bullets = []; S.bombs = []; S.corpses = []; S.beams = [];
   // WHY: the doors of the PREVIOUS house survived until buildDoors ran at the very end of this
   // function, and everything in between - loot placement, monster posts, the cart route repair -
   // asks whether a point is clear. A jammed door from the last level answering that question is a
@@ -1713,6 +1723,7 @@ function buildLevel(seed){
   S.player.pushing = false; S.player.floatT = 0; S.player.shieldT = 0;
   S.player.runT = 0; S.player.rushing = false;
   S.player.blindT = 0; S.player.slowT = 0;
+  S.player.recoilT = 0; S.player.chargeSlot = -1; S.player.chargeT = 0; S.player.chargeUsed = null;
   S.player.kx = 0; S.player.ky = 0;
   S.player.down = false; S.player.stunT = 0; S.spectate = -1;
   // The crew is placed around the player, so it has to come AFTER the player has a position.
@@ -1942,7 +1953,7 @@ function makeMonster(type,x,y){
   const d = MONSTERS[type];
   return { type, x, y, hp:d.hp, dmg:d.dmg, speed:d.speed, dir:0,
            state:'patrol', tx:x, ty:y, think:0, alert:0, hit:0, home:{x,y}, wob:Math.random()*7,
-           sleep:0, kx:0, ky:0,
+           sleep:0, kx:0, ky:0, vx:0, vy:0,
            lost: 0,                              // seconds since it last had the player
            reveal: 0,                            // fade-in of "this thing has seen you", 0..1
            seen: false, spotT: 0, unseenT: 0,    // the player's side: have I laid eyes on this one
@@ -2251,9 +2262,12 @@ function playerSpeed(p){
   // grabbed, and letting go and taking the front is always available.
   const s2 = (p.pushing && S.cart && S.cart.mode === 'weak') ? base * CART_WEAK_SPEED_MUL : base;
   const s3 = p.slowT > 0 ? s2 * 0.55 : s2;
+  // Giật súng: chân chậm hẳn một nhịp sau mỗi phát. Đây là cái giá của sát thương thô, và là
+  // lý do khẩu nòng ngắn không phải khẩu để bấm liên tục trong lúc có thứ đang đuổi.
+  const s4 = (p.recoilT || 0) > 0 ? s3 * RECOIL_SLOW_MUL : s3;
   // speedScale: chi so spd cua xac + giay + ky nang tang toc. Truong nay da duoc khai
   // o makeActor tu dau nhung chua noi nao doc - day la noi no co tac dung.
-  return s3 * (p.speedScale || 1) * ((p.hasteT || 0) > 0 ? HASTE_MUL : 1);
+  return s4 * (p.speedScale || 1) * ((p.hasteT || 0) > 0 ? HASTE_MUL : 1);
 }
 function turnRate(p){
   // The only place a loaded cart is still felt: it swings wide.
@@ -2877,7 +2891,12 @@ function stepMonsters(dt){
     let mx = ax/am*step, my = ay/am*step;
     const sep = foeSeparation(m);
     if (sep){ mx += sep.x*FOE_SEP_PUSH*dt; my += sep.y*FOE_SEP_PUSH*dt; }
+    // Vận tốc THẬT của khung này, đo bằng chỗ nó đứng trước và sau khi đi — không phải bằng
+    // hướng nó định đi. Đón đầu phải tính trên cái nó đang làm, không phải cái nó đang muốn:
+    // một con bị tường chặn vẫn "muốn" lao thẳng, mà thật ra nó đứng yên.
+    const ox = m.x, oy = m.y;
     if (mx || my) moveEnt(m, mx, my, 9);
+    if (dt > 0){ m.vx = (m.x - ox)/dt; m.vy = (m.y - oy)/dt; }
 
     // Tang hinh chan CA CU DANH, khong chi chan viec nhin thay. foeTarget() bo qua
     // nguoi dang tang hinh, nhung mot con dang o giua co CHASE thi van giu m.target
@@ -3295,25 +3314,212 @@ function meleeSwing(p, ang){
 const FREEZE_SLOW_MUL = 0.35;   // Dong Bang: quai le chan con hon mot phan ba
 const FREEZE_VULN_MUL = 1.5;    // ...va an them 50% sat thuong khi dang dong cung
 const HASTE_MUL       = 1.3;    // Gong: +30% toc do nhu mo ta ky nang hua
+// ---------------------------------------------------------------------------- súng
+// Nòng ngắn: tầm ngắn là do ĐẠN CHẾT SỚM chứ không phải một con số tầm bắn riêng — mỗi viên
+// vẫn là một viên đạn thật bay trong nhà, nên nó vẫn bị tường chặn, vẫn vỡ gương, vẫn trúng
+// con đứng sau con thứ nhất nếu nón toé tới đó.
+const SHOTGUN_PELLETS = 7;
+const SHOTGUN_SPREAD  = 0.30;      // rad, nửa góc nón
+const SHOTGUN_DMG     = 16;        // mỗi viên; trúng cả bảy là 112 — đủ hạ Kẻ bám trong một phát
+const SHOTGUN_SPEED   = 760;
+const SHOTGUN_LIFE    = 0.22;      // giây -> tầm với khoảng 5,5 ô
+const SHOTGUN_KNOCK   = 210;       // đẩy CHÍNH NGƯỜI BẮN lùi lại
+const SHOTGUN_RECOIL  = 0.85;      // giây chân chậm sau phát bắn
+const SHOTGUN_CD      = 0.95;
+
+// Laser: giữ càng lâu càng mạnh, và cái giá của một phát đầy là đứng chôn chân gần một giây.
+const LASER_FULL      = 1.10;      // giây để sạc đầy
+const LASER_DMG_MIN   = 22;
+const LASER_DMG_MAX   = 95;
+const LASER_RANGE     = TILE * 14;
+const LASER_RECOIL_MIN= 0.25;
+const LASER_RECOIL_MAX= 0.90;
+const LASER_CD        = 0.70;
+const LASER_HIT_R     = 15;        // bán kính tia tính trúng
+const LASER_STEP      = 6;         // bước dò dọc tia
+
+// Chân chậm sau khi bắn. Tách hẳn khỏi p.slowT (thứ do quái gây ra) để hai nguyên nhân khác
+// nhau không phải chia nhau một con số — và để cái vòng đỏ trên HUD nói đúng một chuyện.
+const RECOIL_SLOW_MUL = 0.45;
+
 const AUTO_AIM_RANGE = TILE * 11;      // xa hơn thế thì đạn cũng chưa chắc tới
-function autoAimAngle(p, kind, fallback){
-  // Chỉ mấy món BẮN/NÉM mới cần ngắm; băng, keo, bình nhẹ thì hướng nào cũng vậy.
-  if (kind !== 'gun' && kind !== 'tranq' && kind !== 'bomb') return fallback;
-  let best = null, bestScore = Infinity;
+// Mỗi khẩu ngắm một kiểu, vì mỗi khẩu bay một kiểu.
+//   speed  — để TÍNH ĐÓN ĐẦU. Bắn vào chỗ con quái ĐANG ĐỨNG là bắn vào chỗ nó vừa rời khỏi.
+//   range  — quá tầm thì đừng nhận, thà để người chơi tự quyết.
+//   pierce — tia xuyên thì mục tiêu tốt nhất là mục tiêu XẾP ĐƯỢC NHIỀU CON NHẤT thành một hàng.
+const AIM_PROFILE = {
+  gun:     { speed: 620, range: AUTO_AIM_RANGE,     pierce: false, needLos: true  },
+  tranq:   { speed: 520, range: AUTO_AIM_RANGE,     pierce: false, needLos: true  },
+  shotgun: { speed: SHOTGUN_SPEED, range: TILE*5.5, pierce: false, needLos: true  },
+  laser:   { speed: 0,   range: LASER_RANGE,        pierce: true,  needLos: true  },
+  bomb:    { speed: 300, range: AUTO_AIM_RANGE,     pierce: false, needLos: false }
+};
+// Cửa sổ HÚT của trợ ngắm khi người chơi ĐANG KÉO CẦN. Hẹp có chủ ý: rộng quá thì kéo đi đâu
+// cũng bị bẻ về một chỗ, và mất hẳn cảm giác đang cầm súng. Đây đúng là cách các game bắn di
+// động làm — một lực hút nhẹ quanh mục tiêu, không phải một cú bẻ thẳng vào giữa người nó.
+const AIM_ASSIST_ARC = 0.24;      // rad, khoảng 14 độ
+
+// ĐÓN ĐẦU: giải chỗ gặp nhau giữa viên đạn và con quái đang chạy.
+// Phương trình bậc hai |P + V*t| = speed*t. Không có nghiệm dương thì bắn thẳng vào nó.
+function leadPoint(p, m, speed){
+  if (!speed) return { x: m.x, y: m.y };                 // tia laser tới nơi tức thì
+  const px = m.x - p.x, py = m.y - p.y;
+  const vx = m.vx || 0, vy = m.vy || 0;
+  const a = vx*vx + vy*vy - speed*speed;
+  const b = 2*(px*vx + py*vy);
+  const c = px*px + py*py;
+  let t;
+  if (Math.abs(a) < 1e-4){ t = Math.abs(b) < 1e-6 ? 0 : -c/b; }
+  else {
+    const disc = b*b - 4*a*c;
+    if (disc < 0) return { x: m.x, y: m.y };
+    const r = Math.sqrt(disc);
+    const t1 = (-b - r)/(2*a), t2 = (-b + r)/(2*a);
+    t = Math.min(t1 > 0 ? t1 : Infinity, t2 > 0 ? t2 : Infinity);
+    if (!isFinite(t)) return { x: m.x, y: m.y };
+  }
+  t = clamp(t, 0, 1.2);
+  return { x: m.x + vx*t, y: m.y + vy*t };
+}
+
+// Bao nhiêu con nằm trên đúng một đường thẳng theo hướng này. Chỉ tia xuyên mới cần hỏi.
+function pierceCount(p, ang){
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  let n = 0;
   for (const m of S.monsters){
     if (m.hp <= 0) continue;
-    if (m.sleep > 0) continue;                       // đang ngủ thì để dành đạn
-    const d = Math.hypot(m.x - p.x, m.y - p.y);
-    if (d > AUTO_AIM_RANGE) continue;
-    // Nhìn thấy được thì ưu tiên hẳn: bắn vào tường không giúp được ai.
-    const blocked = !losClear(p.x, p.y, m.x, m.y);
-    if (blocked && kind !== 'bomb') continue;        // bom còn nảy, đạn thì không
-    // Gần nhất thắng, nhưng con đang lao vào mình được cộng điểm — nó mới là con giết mình.
-    const chasing = m.state === 'chase' && m.alert > 0;
-    const score = d * (chasing ? 0.65 : 1) * (blocked ? 1.6 : 1);
-    if (score < bestScore){ bestScore = score; best = m; }
+    const rx = m.x - p.x, ry = m.y - p.y;
+    const t = rx*dx + ry*dy;
+    if (t < 0 || t > LASER_RANGE) continue;
+    if (Math.hypot(rx - dx*t, ry - dy*t) < LASER_HIT_R) n++;
   }
-  return best ? Math.atan2(best.y - p.y, best.x - p.x) : fallback;
+  return n;
+}
+
+// Danh sách mục tiêu ĐÁNG BẮN, kèm góc đã đón đầu. Dùng chung cho cả ngắm tự động lẫn trợ ngắm,
+// nên hai thứ đó không bao giờ bất đồng về việc con nào là mục tiêu.
+function aimTargets(p, kind){
+  const prof = AIM_PROFILE[kind];
+  if (!prof || !p) return [];
+  const out = [];
+  for (const m of S.monsters){
+    if (m.hp <= 0 || m.sleep > 0) continue;             // đang ngủ thì để dành đạn
+    const d = Math.hypot(m.x - p.x, m.y - p.y);
+    if (d > prof.range) continue;
+    const lp = leadPoint(p, m, prof.speed);
+    // Hỏi tầm nhìn TỚI CHỖ SẼ GẶP, không phải tới chỗ nó đang đứng: đón đầu vào sau một bức
+    // tường thì viên đạn cắm vào tường, và người chơi mất một viên vì được "trợ giúp".
+    const blocked = !losClear(p.x, p.y, lp.x, lp.y);
+    if (blocked && prof.needLos) continue;
+    out.push({ m: m, d: d, ang: Math.atan2(lp.y - p.y, lp.x - p.x),
+               chasing: m.state === 'chase' && m.alert > 0, blocked: blocked });
+  }
+  return out;
+}
+
+function autoAimAngle(p, kind, fallback){
+  const list = aimTargets(p, kind);
+  if (!list.length) return fallback;
+  const prof = AIM_PROFILE[kind];
+  let best = null, bestScore = Infinity;
+  for (const t of list){
+    // Ba thứ quyết định, theo đúng thứ tự quan trọng:
+    //   1. LỆCH BAO NHIÊU SO VỚI HƯỚNG BẠN ĐANG NHÌN. Đây là phần mới, và là phần sửa đúng cái
+    //      cảm giác "ngắm tự động bắn lung tung": bản cũ chỉ xét khoảng cách, nên một con đứng
+    //      SAU LƯNG mà gần hơn thì cú bấm quay ngoắt người bạn lại và bắn ra sau.
+    //   2. Gần hay xa.
+    //   3. Nó có đang lao vào mình không — con đó mới là con giết mình.
+    const lech = Math.abs(angDiff(t.ang, fallback));
+    let score = t.d * (1 + lech * 0.55) * (t.chasing ? 0.62 : 1) * (t.blocked ? 1.7 : 1);
+    // Tia xuyên: xếp được ba con thành một hàng là phát bắn đáng giá nhất trên màn hình.
+    if (prof.pierce){ const n = pierceCount(p, t.ang); if (n > 1) score /= (1 + (n-1)*0.7); }
+    if (score < bestScore){ bestScore = score; best = t; }
+  }
+  return best ? best.ang : fallback;
+}
+
+// TRỢ NGẮM khi người chơi TỰ KÉO. Không bẻ hướng của người chơi — chỉ hút nhẹ vào mục tiêu gần
+// nhất trong một cửa sổ hẹp, và chỉ khi người chơi đã kéo về gần đúng phía nó.
+// WHY nó tồn tại: trên điện thoại, một cần ngắm dài 60px phải phủ 360 độ, nên một pixel lệch ở
+// ngón cái là vài độ lệch ở nòng súng — ở khoảng cách tám ô thì vài độ là trượt hẳn. Người chơi
+// làm đúng mà vẫn trượt là lỗi của cái cần, không phải lỗi của họ.
+// Góc mà một phát bắn NGAY BÂY GIỜ sẽ đi, và con nào sẽ ăn nó.
+// Vẽ và bắn phải hỏi CÙNG MỘT hàm này — một cái vòng khoá mục tiêu chỉ vào con A trong khi
+// viên đạn bay về con B thì tệ hơn hẳn là không có vòng nào.
+function aimNow(p, kind, far, rawAng){
+  const ang = far ? aimAssist(p, kind, rawAng) : autoAimAngle(p, kind, p.dir);
+  let target = null, best = 0.28;
+  for (const t of aimTargets(p, kind)){
+    const lech = Math.abs(angDiff(t.ang, ang));
+    if (lech < best){ best = lech; target = t.m; }
+  }
+  return { ang: ang, target: target };
+}
+
+function aimAssist(p, kind, raw){
+  const list = aimTargets(p, kind);
+  let best = null, bestLech = AIM_ASSIST_ARC;
+  for (const t of list){
+    if (t.blocked) continue;
+    const lech = Math.abs(angDiff(t.ang, raw));
+    if (lech < bestLech){ bestLech = lech; best = t; }
+  }
+  return best ? best.ang : raw;
+}
+
+// Giật: đẩy thân người bắn lùi lại và làm chân chậm một nhịp. Dùng CHUNG một hàm cho mọi
+// khẩu, vì "bắn xong thì chậm" phải là một luật của cả nhà chứ không phải một mẹo của từng khẩu.
+function applyRecoil(p, ang, knock, slowSec){
+  if (knock){ p.kx = (p.kx || 0) - Math.cos(ang)*knock; p.ky = (p.ky || 0) - Math.sin(ang)*knock; }
+  p.recoilT = Math.max(p.recoilT || 0, slowSec);
+}
+
+// Nòng ngắn: bảy viên thật, toé trong một nón, mỗi viên sống rất ngắn. Không có "tầm bắn" nào
+// được viết ra cả — tầm là hệ quả của việc đạn chết sớm, nên nó vẫn bị tường chặn và vẫn vỡ gương.
+function fireShotgun(p, ang){
+  for (let k = 0; k < SHOTGUN_PELLETS; k++){
+    // Toé đều quanh trục chứ không ngẫu nhiên hoàn toàn: một nón ngẫu nhiên hay để lọt lỗ thủng
+    // ngay giữa, và một khẩu hoa cải bắn trượt con quái đứng SÁT MẶT là một khẩu súng dối trá.
+    const t = SHOTGUN_PELLETS === 1 ? 0 : (k/(SHOTGUN_PELLETS-1))*2 - 1;
+    const a = ang + t*SHOTGUN_SPREAD + (Math.random()-0.5)*SHOTGUN_SPREAD*0.35;
+    const sp = SHOTGUN_SPEED * (0.88 + Math.random()*0.24);
+    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+                     life: SHOTGUN_LIFE * (0.85 + Math.random()*0.3), kind:'shot', dmg: SHOTGUN_DMG });
+  }
+  applyRecoil(p, ang, SHOTGUN_KNOCK, SHOTGUN_RECOIL);
+  fxShake(9);
+  SFX.crack();
+}
+
+// Laser: một tia tức thời, XUYÊN qua mọi con trên đường, dừng ở bức tường đầu tiên. Sạc quyết
+// định sát thương và cũng quyết định luôn cái giá phải trả sau đó.
+function fireLaser(p, ang, charge){
+  const k = clamp((charge || 0) / LASER_FULL, 0, 1);
+  const dmg = mix(LASER_DMG_MIN, LASER_DMG_MAX, k);
+  const dx = Math.cos(ang), dy = Math.sin(ang);
+  let ex = p.x, ey = p.y;
+  const trung = [];
+  for (let d = LASER_STEP; d <= LASER_RANGE; d += LASER_STEP){
+    const x = p.x + dx*d, y = p.y + dy*d;
+    if (solidAt((x/TILE)|0, (y/TILE)|0) || doorHits(x, y, 2)) break;
+    ex = x; ey = y;
+    damageMirror(x, y, 30);                       // kính trên đường đi thì vỡ, y như đạn
+    for (const m of S.monsters){
+      if (m.hp <= 0 || trung.indexOf(m) >= 0) continue;
+      if (Math.hypot(m.x - x, m.y - y) < LASER_HIT_R) trung.push(m);
+    }
+  }
+  for (const m of trung){
+    foeDamage(m, dmg); m.alert = 3;
+    if (m.hp <= 0) killMonster(m);
+  }
+  S.beams.push({ x0:p.x, y0:p.y, x1:ex, y1:ey, t:0, life:0.20, k:k });
+  // Sạc đầy thì đứng chôn chân gần một giây. Đây là toàn bộ cái giá của một phát 95 sát thương
+  // xuyên hết cả hàng — không có nó thì giữ nút một giây là câu trả lời cho mọi tình huống.
+  applyRecoil(p, ang, 40 + 90*k, mix(LASER_RECOIL_MIN, LASER_RECOIL_MAX, k));
+  fxShake(4 + 8*k);
+  SFX.crack();
+  return { dmg: dmg, hit: trung.length, charge: k };
 }
 
 function useSlot(p, i, aimed){
@@ -3323,10 +3529,21 @@ function useSlot(p, i, aimed){
   if (def && def.passive) return false;          // the tracker works by being equipped
   const ang = aimed !== undefined ? aimed : p.dir;
   if (it.kind === 'gun'){
-    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun' });
+    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun', dmg:25 });
+    applyRecoil(p, ang, 55, 0.22);
     it.uses--; p.cooldown = 0.45;
+  } else if (it.kind === 'shotgun'){
+    fireShotgun(p, ang);
+    it.uses--; p.cooldown = SHOTGUN_CD;
+  } else if (it.kind === 'laser'){
+    // chargeUsed == null nghia la mot loi goi tu code (bot, bo test) chu khong phai mot ngon
+    // tay dang giu — coi nhu sac day, vi khong co ai de ma hoi da giu bao lau.
+    S.lastLaser = fireLaser(p, ang, p.chargeUsed != null ? p.chargeUsed : LASER_FULL);
+    S.lastLaser.at = S.time;
+    it.uses--; p.cooldown = LASER_CD;
   } else if (it.kind === 'tranq'){
     S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*520, vy:Math.sin(ang)*520, life:1.0, kind:'tranq' });
+    applyRecoil(p, ang, 30, 0.18);
     it.uses--; p.cooldown = 0.6;
   } else if (it.kind === 'heal'){
     p.hp = Math.min(p.hpMax, p.hp + 45); it.uses--; p.cooldown = 0.4;
@@ -3364,11 +3581,19 @@ function testHeld(p){
   if (!def || !def.test || p.cooldown > 0) return false;
   const ang = p.dir;
   if (def.key === 'gun'){
-    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun' });
+    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun', dmg:25 });
     p.cooldown = 0.45;
   } else if (def.key === 'tranq'){
     S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*520, vy:Math.sin(ang)*520, life:1.0, kind:'tranq' });
     p.cooldown = 0.6;
+  } else if (def.key === 'shotgun'){
+    // Bắn thử PHẢI giật thật. Cái giật mới là thứ quyết định có nên mua khẩu này hay không, và
+    // một bản demo giấu đi phần khó chịu là một bản demo nói dối.
+    fireShotgun(p, ang);
+    p.cooldown = SHOTGUN_CD;
+  } else if (def.key === 'laser'){
+    fireLaser(p, ang, LASER_FULL);        // ở trạm thì cho bắn thử một phát đầy, để thấy tia dài tới đâu
+    p.cooldown = LASER_CD;
   } else return false;
   SFX.crack();
   return true;
@@ -3383,6 +3608,12 @@ function hasGear(p, key){
   return p.inv.some(it => it && it.kind === key && it.uses > 0);
 }
 function stepProjectiles(dt){
+  // Tia laser chỉ là một vệt sáng đang tàn — sát thương đã tính xong ngay lúc bắn.
+  if (S.beams) for (let i=S.beams.length-1;i>=0;i--){
+    const bm = S.beams[i];
+    bm.t += dt;
+    if (bm.t >= bm.life) S.beams.splice(i,1);
+  }
   for (let i=S.bullets.length-1;i>=0;i--){
     const b = S.bullets[i];
     b.life -= dt;
@@ -3403,7 +3634,7 @@ function stepProjectiles(dt){
           m.sleep = 12; m.alert = 0; m.state = 'sleep';
           toast(MONSTERS[m.type].name + ' ngủ rồi');
         } else {
-          foeDamage(m, 25); m.alert = 3;
+          foeDamage(m, b.dmg || 25); m.alert = 3;
           if (m.hp <= 0) killMonster(m);
         }
         S.bullets.splice(i,1);
@@ -3611,6 +3842,10 @@ function checkShiftLost(){
 function endLostShift(){
   if (!S.shiftLost || S.dead) return;
   S.dead = true; S.running = false;
+  // Bản Biệt Đội tự lo phần trượt chỉ tiêu — y như onCrewWiped. Không có móc này thì
+  // nút "Làm lại từ màn 1" bên dưới gọi startLevel(), mà HOOKS.levelIndex() lại ép về
+  // ĐÚNG TẦNG VỪA TRƯỢT: thua không mất gì, cày lại được vô hạn ngay tại chỗ.
+  if (HOOKS.onShiftLost && HOOKS.onShiftLost() === true) return;
   showVeil('Ca này hỏng rồi',
     'Số đồ còn lại trong nhà không đủ để đạt chỉ tiêu màn ' + S.level + ' nữa, nên ca này coi như trượt. ' +
     'Doc B4: trượt chỉ tiêu là mất cả run — tiền, nâng cấp và tủ đồ.',
@@ -3654,15 +3889,36 @@ function finishLevel(){
   // scene change. startShop is what actually builds the next place; this only delays it.
   startCut('depart', '', '', () => startShop());
 }
+let buildFails = 0;
 function startLevel(seed){
   S.shopMode = false;
   // Bản Biệt Đội có 9 map, mỗi map vài tầng — nó tự quy đổi (map, tầng) ra một con
   // số độ khó rồi ép vào đây, để đường cong khó/chỉ tiêu/quái vẫn là đường cong của
   // repo2d chứ không phải một đường cong thứ hai viết lại.
   if (HOOKS.levelIndex) S.level = HOOKS.levelIndex();
-  buildLevel(seed === undefined ? (Math.random()*999999)|0 : seed);
-  S.running = true; S.dead = false;
+  // MỞ ĐƯỜNG RA TRƯỚC, DỰNG THẾ GIỚI SAU — cùng một luật với toggleStash().
+  // ROOT-CAUSE: thứ tự cũ là buildLevel() rồi mới hideVeil(). buildLevel() ném lỗi thì
+  //   tấm màn phủ ĐANG HIỆN không bao giờ được gỡ, mà nút trên nó vừa gọi đúng cái hàm
+  //   vừa ném lỗi — nên mỗi lần bấm là một lần ném lại. Người chơi thấy: bảng hiện ra,
+  //   nút có hiệu ứng bấm, và không có gì xảy ra. Đó là cái bẫy tự khoá kinh điển.
   hideVeil();
+  cancelGestures();
+  S.stashOpen = false;
+  try {
+    buildLevel(seed === undefined ? (Math.random()*999999)|0 : seed);
+  } catch (e){
+    console.error('Dựng màn không được:', e);
+    S.running = false; S.dead = false;
+    if (++buildFails <= 3){ toast('Màn này dựng lỗi — thử hạt giống khác.'); startLevel(); return; }
+    buildFails = 0;
+    if (HOOKS.onEngineError && HOOKS.onEngineError(e) === true) return;
+    showVeil('Không dựng được màn',
+      'Bộ máy vấp lỗi khi dựng màn này: ' + ((e && e.message) || 'không rõ') + '.',
+      'Thử lại', () => { resetRun(); startLevel(); });
+    return;
+  }
+  buildFails = 0;
+  S.running = true; S.dead = false;
   startCut('arrive', 'Màn ' + S.level, 'Chỉ tiêu ' + money(S.quotaTotal));
 }
 
@@ -3720,7 +3976,7 @@ function buildShop(){
   S.rooms = [];
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++)
     S.rooms.push({ name:'Trạm dịch vụ', cx, cy, seen: cx===SHOP_COL });
-  S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = [];
+  S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = []; S.beams = [];
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
   S.levelDone = false; S.dead = false; S.shiftLost = false; S.hurtLog = [];
   S.quotaTotal = 0;
@@ -3796,8 +4052,15 @@ function buildShop(){
 
 function startShop(){
   S.offer = null;                 // a fresh visit rolls fresh stock, like the source game
-  buildShop();
-  hideVeil();
+  hideVeil();                     // mở đường ra trước, dựng sau — xem chú thích ở startLevel()
+  cancelGestures();
+  S.stashOpen = false;
+  try { buildShop(); }
+  catch (e){
+    console.error('Dựng trạm dịch vụ không được:', e);
+    toast('Trạm dịch vụ lỗi — đi thẳng sang màn sau.');
+    S.shopMode = false; S.level++; startLevel();
+  }
 }
 function leaveShop(){
   startCut('depart', '', '', () => {
@@ -3913,6 +4176,15 @@ function startCut(kind, label, sub, then){
   if (!cutscenesOn){ if (then) then(); return; }
   S.cut = { kind, t:0, label:label||'', sub:sub||'', then:then||null, banged:false, shut:false };
 }
+// HUỶ một cảnh cắt mà KHÔNG chạy callback của nó. Khác hẳn skipCut(): skipCut nghĩa là
+// "cho tôi xem nhanh phần sau", còn cái này nghĩa là "phần sau không còn ý nghĩa nữa".
+// ROOT-CAUSE của bug "bỏ ca giữa cảnh xe chạy rồi mà bộ máy vẫn chạy sau lưng menu":
+//   stepCut() chạy trên đồng hồ THẬT, ngoài cổng `S.running && !S.dead` của frame(). Ván
+//   kết thúc mà cảnh cắt vẫn còn treo thì 2 giây sau cái `then` của nó gọi startShop()
+//   hoặc startLevel(), và hai hàm đó bật lại S.running = true — một ca trực sống chạy sau
+//   lưng màn chọn map, quái đi lại, đồng hồ chạy, ví và tủ đồ bị ghi đè.
+//   Đo thật: về sảnh rồi mà running=true, shopMode=true, S.time 0 -> 1,55 và vẫn tăng.
+function cancelCut(){ const had = !!S.cut; S.cut = null; return had; }
 // Any input skips it. An intro you have already seen twelve times is an intro you are trying to
 // get past, and a game that will not let you is a game you stop starting.
 function skipCut(){
@@ -4052,8 +4324,20 @@ function roomOf(x, y){
   return ((gy/RH)|0)*GX + ((gx/RW)|0);
 }
 
+// Cái gì mọc ra thì mọc quanh MỘT NGƯỜI BẤT KỲ TRONG TỔ, không phải lúc nào cũng quanh
+// người chơi. Ca trực này là của bốn người; để mọi thứ đáng sợ chỉ mọc quanh đúng một người
+// là biến ba người kia thành đồ trang trí — và biến trò chơi thành một trò đoán được: người
+// chơi biết chắc mọi thứ sẽ xuất hiện trong tầm mắt của chính mình.
+// Chọn trong số những người CÒN ĐỨNG: một cái gương mọc cạnh cái xác nằm dưới đất thì không
+// ai nhìn thấy nó cả.
+function spawnAnchor(){
+  const song = (typeof crewAlive === 'function' ? crewAlive() : []).filter(a => a && !a.down);
+  if (!song.length) return S.player;
+  return song[(Math.random()*song.length)|0];
+}
+
 function spawnMirrors(){
-  const p = S.player;
+  const p = spawnAnchor();
   // A: near you, and in sight, because the whole beat is that a mirror was not there a moment ago.
   let a = null;
   for (let i = 0; i < 70; i++){
@@ -4092,7 +4376,11 @@ function spawnMirrors(){
 function breakMirror(which){
   const mr = S.mirror;
   if (!mr) return;
-  const at = mr.m || mr.a;
+  // RƠI NGAY CHỖ TẤM VỪA VỠ. Trước bản này nó rơi ở chỗ CON MA (mr.m) — mà con ma đang đi
+  // lại trong nhà, nên người chơi đập vỡ tấm gương trước mặt rồi cúi xuống nhặt thì chẳng có
+  // gì cả, còn món đồ thì nằm ở một phòng khác cạnh con ma. Phần thưởng phải rơi ở chỗ người
+  // chơi vừa làm ra nó; không thì nó không đọc như một phần thưởng.
+  const at = which || mr.m || mr.a;
   const value = Math.round(mix(MIRROR_LOOT[0], MIRROR_LOOT[1], Math.random()) / 50) * 50;
   // The glass is a monster now, so what it leaves is counted against the same three the bodies
   // share, and it is a piece of loot rather than a bag of money for the same reason theirs is.
@@ -4104,8 +4392,8 @@ function breakMirror(which){
   S.mirrorTimer = mirrorNextIn();
   S.mirrorGone = true;
   fxShake(9); fxFlash(0.35, '210,230,255'); SFX.chime();
-  toast(bag ? 'Gương vỡ - nó tan theo, để lại một món ' + bag.size + '.'
-            : 'Gương vỡ - nó tan theo, nhưng nhà này hết đồ rơi rồi.');
+  toast(bag ? 'Gương vỡ — nó tan theo, để lại một món ' + bag.size + ' ngay dưới chân bạn.'
+            : 'Gương vỡ — nó tan theo, nhưng nhà này hết đồ rơi rồi.');
 }
 
 function damageMirror(x, y, n){
@@ -4394,6 +4682,8 @@ const HOOKS = {
   onPayout: null,       // (soTien, laBeCuoi) -> void, mỗi lần giao xong một bệ
   levelIndex: null,     // ()  -> số, ép độ khó của tầng sắp dựng (map hữu hạn tự tính)
   onCrewWiped: null,    // ()  -> true nếu lớp ngoài tự lo phần thua (cả tổ gục)
+  onShiftLost: null,    // ()  -> true nếu lớp ngoài tự lo phần trượt chỉ tiêu
+  onEngineError: null,  // (e) -> true nếu lớp ngoài tự lo khi bộ máy vấp lỗi
   menuMode: null,       // ()  -> true khi đang ở menu ngoài ca: khoá bàn phím của bộ máy
   onTick: null,         // (dt) -> hiệu ứng kéo dài của lớp ngoài, chạy cuối mỗi bước
   skill: null           // { label(), ready(), cool(), use() } — nút kỹ năng trong HUD
@@ -4942,6 +5232,9 @@ function setupInput(){
     if (HOOKS.menuMode && HOOKS.menuMode()) return;
     const k = e.key.toLowerCase();
     if (['w','a','s','d','e','f','q','r','1','2','3','shift','tab',' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
+    // Escape là lối thoát mà mọi người chơi đều thử trước tiên. Nó phải luôn đóng được
+    // bảng đang mở, kể cả khi bảng đó tự dựng lỗi.
+    if (k === 'escape'){ if (S.stashOpen) closeStash(); return; }
     if (skipCut()) return;
     if (k === 'r'){ resetRun(); startLevel(); return; }
     if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
@@ -4951,15 +5244,57 @@ function setupInput(){
     if (k === 'q'){ const t = meleeTarget(S.player);
                     meleeSwing(S.player, t ? Math.atan2(t.y - S.player.y, t.x - S.player.x) : null);
                     return; }
-    if (k === '1' || k === '2' || k === '3'){ useSlot(S.player, +k - 1); return; }
+    if (k === '1' || k === '2' || k === '3'){
+      const i = +k - 1, p = S.player;
+      const it = p && p.inv[i], def = it && GEAR_BY_KEY[it.kind];
+      // Khẩu sạc thì GIỮ phím là sạc, NHẢ phím là bắn — đối xứng với cách ngón tay làm trên
+      // điện thoại. Phím giữ thì trình duyệt bắn keydown liên tục, nên phải chốt lần đầu.
+      if (def && def.charge){
+        if (p.chargeSlot !== i){ p.chargeSlot = i; p.chargeT = 0; }
+        keys.add(k);
+        return;
+      }
+      useSlot(p, i);
+      return;
+    }
     keys.add(k);
   });
-  addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+  addEventListener('keyup', e => {
+    const k = e.key.toLowerCase();
+    keys.delete(k);
+    // Nhả phím số của một khẩu đang sạc = bắn. Máy ngắm hộ, vì bàn phím không có cần kéo.
+    if (k === '1' || k === '2' || k === '3'){
+      const i = +k - 1, p = S.player;
+      if (p && p.chargeSlot === i){
+        const it = p.inv[i];
+        p.chargeUsed = p.chargeT;
+        useSlot(p, i, autoAimAngle(p, it && it.kind, p.dir));
+        p.chargeUsed = null;
+        p.chargeSlot = -1; p.chargeT = 0;
+      }
+    }
+  });
 
   cv.addEventListener('pointerdown', e => {
+    // Chỉ nút TRÁI của chuột mới là một cú bấm vào trò chơi. Chuột phải mở context menu và
+    // chuột giữa vào chế độ cuộn tự động — cả hai đều NUỐT MẤT pointerup, mà pointerup là
+    // chỗ duy nhất trong tệp này trả lại con trỏ. Một cú chuột phải là hỏng cả phiên.
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Màn cảm ứng còn phát ra một bộ sự kiện chuột "tương thích" ~25ms sau mỗi cú chạm.
+    // Chúng là bóng ma của cú chạm vừa rồi, không phải một cú bấm thứ hai.
+    if (e.pointerType === 'mouse' && performance.now() - lastTouchAt < 900) return;
     SFX.wake();                       // browsers refuse to start audio outside a user gesture
     // One finger is enough: this device is a touchscreen, and its mouse events are ghosts.
-    if (e.pointerType === 'touch') touchSeen = true;
+    if (e.pointerType === 'touch'){
+      touchSeen = true; lastTouchAt = performance.now(); canvasTouchDown++;
+      lastTouchX = e.clientX; lastTouchY = e.clientY;
+      // Chặn luôn bộ sự kiện chuột tương thích ở gốc. Đây là nửa còn lại của bản vá cho bug
+      // "chạm nút Tủ đồ thì tủ vừa mở đã đóng ngay trong cùng cú chạm": showVeil() làm tấm
+      // màn phủ hiện lên NGAY TRONG pointerdown này, rồi cú click chuột tương thích ~25ms sau
+      // được dò lại trên DOM MỚI và rơi trúng nút "Đóng tủ" mà thanh dính đáy vừa đặt xuống
+      // ngay dưới ngón tay. Đo thật: mở ở t+5ms, đóng ở t+30ms, phụ thuộc số hàng trong tủ.
+      if (e.cancelable) e.preventDefault();
+    }
     if (skipCut()) return;
     cv.setPointerCapture(e.pointerId);
     // Claimed unconditionally, and released in exactly one place. Claiming per-branch would be more
@@ -5010,7 +5345,14 @@ function setupInput(){
         if (!def || !def.aim){ useSlot(S.player, i); return; }
         S.player.aimSlot = i; S.player.aimId = e.pointerId;
         S.player.aimX = p.x; S.player.aimY = p.y;
-        stickR = null;
+        // Giữ ô đồ của một khẩu sạc LÀ đang sạc. Không thêm nút nào, không thêm luật nào phải
+        // dạy: cái ngón cái vốn đã làm để ngắm bây giờ mang thêm một ý nghĩa thứ hai.
+        if (def.charge){ S.player.chargeSlot = i; S.player.chargeT = 0; }
+        // CHỈ huỷ cần nhìn nếu chính ngón tay này đang giữ nó. Trước đây dòng này xoá thẳng,
+        // nên ngón cái thứ hai bấm một ô đồ là giết cần nhìn của ngón thứ nhất: ngón đó vẫn
+        // đang đặt trên kính, mọi pointermove của nó không khớp với gì nữa, và cú nhả tay của
+        // nó cũng không khớp — cần nhìn nằm chết cho tới khi nhấc tay lên đặt lại.
+        if (stickR && stickR.id === e.pointerId) stickR = null;
       });
     }
     if (btns.length){
@@ -5052,11 +5394,20 @@ function setupInput(){
     if (stickR && stickR.id === e.pointerId){ stickR.x = p.x; stickR.y = p.y; }
   });
   const up = e => {
+    if (e.pointerType === 'touch'){
+      canvasTouchDown = Math.max(0, canvasTouchDown - 1);
+      lastTouchAt = performance.now();
+      lastTouchX = e.clientX; lastTouchY = e.clientY;   // bóng ma rơi ở chỗ NHẤC TAY, không phải chỗ đặt
+    }
     releasePointer(e.pointerId);
     const p = canvasPoint(e);
     const pl = S.player;
     if (pl && pl.aimSlot >= 0 && pl.aimId === e.pointerId){
       const hud = hudLayout(), s = hud.slots[pl.aimSlot];
+      // Danh sách ô đồ RỖNG khi đang ở trạm dịch vụ (hudLayout: `S.shopMode ? [] : [...]`),
+      // nên `s` có thể là undefined. Đọc s.x lúc đó là ném lỗi — và cả ba chỗ đọc s đều nằm
+      // trong đường chạy mỗi khung hình, nên một cú ném là vòng vẽ chết vĩnh viễn.
+      if (!s){ pl.aimSlot = -1; pl.aimId = -1; return; }
       const dx = p.x - s.x, dy = p.y - s.y;
       // Letting go USES it — that is the whole point of holding it. The one way out is the X in the
       // top corner, which is what a mobile MOBA trains the thumb to look for. Releasing without
@@ -5065,11 +5416,16 @@ function setupInput(){
       if (!overCancel(hud, p)){
         const far = Math.hypot(dx,dy) > hud.aimR*STICK_DEAD;
         const it = pl.inv[pl.aimSlot];
-        // Kéo đi đâu thì bắn đi đó. Chạm nhanh không kéo thì để máy ngắm hộ.
-        useSlot(pl, pl.aimSlot,
-          far ? Math.atan2(dy,dx) : autoAimAngle(pl, it && it.kind, pl.dir));
+        const kind = it && it.kind;
+        // Kéo đi đâu thì bắn đi đó — nhưng có TRỢ NGẮM: nếu hướng vừa kéo đã gần đúng một con
+        // trong khoảng 14 độ thì hút vào nó. Chạm nhanh không kéo thì để máy ngắm hộ hẳn.
+        const ang = aimNow(pl, kind, far, Math.atan2(dy,dx)).ang;
+        pl.chargeUsed = pl.chargeSlot === pl.aimSlot ? pl.chargeT : null;
+        useSlot(pl, pl.aimSlot, ang);
+        pl.chargeUsed = null;
       }
       pl.aimSlot = -1; pl.aimId = -1;
+      pl.chargeSlot = -1; pl.chargeT = 0;
       return;
     }
     if (stickL && stickL.id === e.pointerId) stickL = null;
@@ -5110,12 +5466,30 @@ function setupInput(){
   });
   // A cursor that leaves the play area has stopped looking at anything.
   cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouseScreen = null; });
+
+  // ---- dọn dẹp: mọi lối mà một cú nhả tay hay một phím có thể lạc mất
+  // Trình duyệt tước quyền bắt con trỏ (đổi tab, gọi điện đến, cuộn của hệ điều hành) thì
+  // pointerup KHÔNG bao giờ tới. Đây là sự kiện duy nhất báo chuyện đó.
+  cv.addEventListener('lostpointercapture', e => {
+    releasePointer(e.pointerId);
+    if (stickL && stickL.id === e.pointerId) stickL = null;
+    if (stickR && stickR.id === e.pointerId){ stickR = null; lookHeld = false; }
+    const p = S.player;
+    if (p && p.aimId === e.pointerId){ p.aimSlot = -1; p.aimId = -1; }
+  });
+  // Chuột phải trên khung chơi là một cú bấm nhầm, không phải một yêu cầu mở menu hệ thống —
+  // và cái menu đó chính là thứ nuốt mất pointerup.
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  // Rời cửa sổ khi đang giữ W thì cú nhả W rơi vào cửa sổ khác. Không dọn thì nhân vật tự đi mãi.
+  addEventListener('blur', () => resetInput());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) resetInput(); });
 }
 function overCancel(hud, p){
   return Math.hypot(p.x-hud.cancel.x, p.y-hud.cancel.y) < hud.cancel.r*1.25;
 }
 function aimAngle(p, hud){
   const s = hud.slots[p.aimSlot];
+  if (!s) return p.dir;               // xem chú thích ở nhánh pointerup
   const dx = p.aimX - s.x, dy = p.aimY - s.y;
   return Math.hypot(dx,dy) > hud.aimR*STICK_DEAD ? Math.atan2(dy,dx) : p.dir;
 }
@@ -5129,7 +5503,11 @@ function aimAngle(p, hud){
 // item makes it rotate randomly" report. Nothing was random about it; it was parallax.
 // ROOT-CAUSE: a screen-space input was stored in world space, so camera motion became input.
 // It got worse the moment the camera stopped being clamped to the map and started following.
-let mouseScreen = null, mouseMovedAt = -1e9, touchSeen = false;
+let mouseScreen = null, mouseMovedAt = -1e9, touchSeen = false, lastTouchAt = -1e9;
+let lastTouchX = -1e9, lastTouchY = -1e9;   // điểm ngón tay chạm gần nhất, theo toạ độ TRANG
+// Bao nhiêu ngón tay đang đặt trên KHUNG CHƠI ngay lúc này. Chỉ dùng để biết một tấm màn phủ
+// có ra đời ở giữa một cú chạm hay không — xem chú thích ở showVeil().
+let canvasTouchDown = 0;
 
 // WHICH POINTERS ARE A HAND ON A CONTROL. A pointer in here is holding a stick or a button, and
 // must never ALSO be read as a gaze.
@@ -5155,6 +5533,38 @@ function claimPointer(id){
   mouseMovedAt = -1e9;
 }
 function releasePointer(id){ heldPointers.delete(id); }
+
+// ============================================================ dọn sạch trạng thái nhập liệu
+// WHY hai hàm chứ không một: cần gạt và cú ngắm là những thứ một NGÓN TAY đang giữ, còn
+// phím là thứ một BÀN TAY đang giữ. Đổi khung hình thì ngón tay vẫn đang đặt trên kính
+// nhưng toạ độ dưới nó đã đổi hết — phải bỏ cử chỉ mà không được bỏ phím. Rời cửa sổ thì
+// ngược lại: cả hai đều mất.
+//
+// ROOT-CAUSE của cả một họ lỗi "điều khiển chết mà game vẫn chạy": trước bản này KHÔNG CÓ
+//   một chỗ nào trong cả tệp reset keys / stickL / stickR / heldPointers / aimSlot. Một cú
+//   pointerup lạc mất là hỏng vĩnh viễn cho tới lúc tải lại trang:
+//     · chuột phải trên canvas   -> context menu nuốt pointerup -> heldPointers giữ mãi id
+//       của con chuột -> mọi pointermove sau đó bị chối ở dòng `heldPointers.has(...)` ->
+//       hướng nhìn đứng hình cả phiên.
+//     · chuột phải ở dải ngón cái -> stickL sinh ra và không ai xoá -> nhân vật tự đi mãi.
+//     · chuột phải trên ô đồ      -> aimSlot >= 0 mãi mãi -> cả ba ô đồ và cần nhìn chết.
+//     · giữ W rồi Alt-Tab, nhả W ở cửa sổ khác -> 'w' nằm lại trong Set -> tự đi mãi.
+function cancelGestures(){
+  stickL = null; stickR = null; lookHeld = false;
+  canvasTouchDown = 0;
+  // Bỏ cử chỉ giữa chừng thì mức sạc mất theo — không được phép bắn hộ người chơi một phát
+  // mà họ không hề buông tay để bắn.
+  const pl = S.player;
+  if (pl){ pl.chargeSlot = -1; pl.chargeT = 0; pl.chargeUsed = null; }
+  heldPointers.clear();
+  const p = S.player;
+  if (p){ p.aimSlot = -1; p.aimId = -1; }
+}
+function resetInput(){
+  keys.clear();
+  mouseScreen = null; mouseMovedAt = -1e9;
+  cancelGestures();
+}
 // Real time, not simulation time: how long ago the player physically moved the mouse.
 const mouseFresh = () => (performance.now() - mouseMovedAt) < LOOK_IDLE*1000;
 const mouseWorldNow = () => mouseScreen &&
@@ -5210,7 +5620,11 @@ function fitCanvas(){
   cv.style.height = Math.round(h) + 'px';
   document.body.classList.toggle('landscape', land);
 }
+// Đổi khung hình là mọi toạ độ dưới ngón tay đổi hết: gốc cần gạt, tâm nút, tâm ô đồ.
+// Giữ lại một cử chỉ đang dở qua ranh giới đó là để nó đo bằng cái thước của bố cục CŨ —
+// nhân vật lao một hướng không ai bảo, cho tới khi nhấc tay lên.
 function resize(){
+  cancelGestures();
   fitCanvas();
   const cv = CV();
   // offsetWidth/Height, KHONG phai getBoundingClientRect(): cai sau tra ve hop BAO
@@ -5283,7 +5697,9 @@ function hudLayout(){
     y: h - SLOT_AT[i].y*K,
     r: sr, i
   }));
-  const test = { x: 299*K, y: h - 228*K, r: sr*1.3 };
+  // Bắn thử ngồi vào ô của nút Chạy — xem chú thích dài ở bố cục ngang. Ở bố cục dọc hai nút
+  // này trước đây cách nhau đúng 1,4px, tức là cũng chồng nhau, chỉ chưa lộ ra.
+  const test = { x: 295*K, y: h - 58*K, r: sr*1.25 };
   // Grab is on the thumb that grabs (doc C2-4 — grabbing needs no aim). It used to sit up and in
   // from the LEFT corner, so reaching for it was a deliberate move away from the move stick.
   const grab  = { x: 298*K, y: h - 152*K, r: sr*1.25 };
@@ -5367,9 +5783,17 @@ function hudLayoutLandscape(w, h){
   const skill  = HOOKS.skill ? { x: rx(0), y: rowY, r: sr*1.25 } : null;
   const grab   = { x: rx(n0),     y: rowY, r: sr*1.15 };
   const sprint = { x: rx(n0 + 1), y: rowY, r: sr*1.15 };
-  // Tủ đồ và Bắn thử loại trừ nhau nên dùng chung ô ngoài cùng bên trái của hàng.
   const stash  = { x: rx(n0 + 2), y: rowY, r: sr*1.15 };
-  const test   = { x: rx(n0 + 2), y: rowY, r: sr*1.20 };
+  // Bắn thử NGỒI VÀO Ô CỦA NÚT CHẠY, vì ở trạm dịch vụ nút Chạy không được vẽ và không bắt
+  // chạm (`!S.shopMode` ở cả hai chỗ) — ô đó trống hẳn.
+  // ROOT-CAUSE: chú thích cũ nói "Tủ đồ và Bắn thử loại trừ nhau" nên cho chúng dùng chung
+  //   một ô. Chúng KHÔNG loại trừ nhau: ở trạm dịch vụ, đứng cạnh xe thì nearTruck() đúng và
+  //   S.shopMode cũng đúng. Luật chọn nút là dist/(r*mul), nên ở khoảng cách 0 nút có BÁN
+  //   KÍNH LỚN HƠN luôn thắng — Bắn thử (sr*1,20) nuốt sạch mọi cú chạm của Tủ đồ (sr*1,15).
+  //   Đo thật ở khung ngang: nút Tủ đồ chết hẳn ở trạm, mọi độ dài tủ 0..10, cả hai bản game;
+  //   chạm vào nó chỉ hiện "Cầm một khẩu súng lên rồi bấm thử." Mà trạm chính là chỗ mua đồ
+  //   về tủ, nên đó là chỗ người chơi cần mở tủ nhất.
+  const test   = { x: rx(n0 + 1), y: rowY, r: sr*1.15 };
   // Chỗ bỏ món đang giơ: mép TRÊN giữa màn — xa nhất khỏi ngón vừa giơ nó lên,
   // và không đụng thanh máu (trên trái) lẫn bản đồ nhỏ (trên phải).
   const cancel = { x: w * 0.5, y: pad + sr*1.7, r: sr*1.7 };
@@ -5410,6 +5834,10 @@ function step(dt){
   p.shieldT = Math.max(0, p.shieldT - dt);
   p.blindT = Math.max(0, p.blindT - dt);
   p.slowT = Math.max(0, p.slowT - dt);
+  p.recoilT = Math.max(0, (p.recoilT || 0) - dt);
+  // Sạc laser chạy trên đồng hồ của THẾ GIỚI, không phải đồng hồ thật: tạm dừng game giữa lúc
+  // đang giữ ô đồ thì không được sạc thêm miễn phí.
+  if (p.chargeSlot >= 0) p.chargeT = Math.min(LASER_FULL * 1.35, (p.chargeT || 0) + dt);
 
   // ---- movement intent
   let vx = 0, vy = 0, push = 0;
@@ -5829,7 +6257,7 @@ function litByTorch(x, y){
 }
 
 function spawnAngel(){
-  const p = S.player;
+  const p = spawnAnchor();      // xem chú thích ở spawnAnchor()
   // In front of you, and IN VIEW: the whole effect is that it was not there a moment ago.
   for (let i = 0; i < 60; i++){
     const wide = i < 40 ? 0.9 : Math.PI;          // widen the arc if you are facing a wall
@@ -6662,8 +7090,27 @@ function drawDoorWreck(c, d){
 }
 
 function drawProjectiles(c){
-  c.fillStyle = '#ffe9a8';
-  for (const b of S.bullets){ c.beginPath(); c.arc(b.x,b.y,2.6,0,Math.PI*2); c.fill(); }
+  // Tia laser: một vệt sáng đang tàn. Vẽ TRƯỚC đạn để mấy viên hoa cải nổi lên trên nó.
+  if (S.beams) for (const bm of S.beams){
+    const a = Math.max(0, 1 - bm.t/bm.life);
+    const w = 2 + 7*bm.k;
+    c.save();
+    c.lineCap = 'round';
+    c.globalCompositeOperation = 'lighter';
+    c.strokeStyle = `rgba(120,220,255,${0.22*a})`; c.lineWidth = w*2.6;
+    c.beginPath(); c.moveTo(bm.x0,bm.y0); c.lineTo(bm.x1,bm.y1); c.stroke();
+    c.strokeStyle = `rgba(190,245,255,${0.75*a})`; c.lineWidth = w;
+    c.beginPath(); c.moveTo(bm.x0,bm.y0); c.lineTo(bm.x1,bm.y1); c.stroke();
+    c.strokeStyle = `rgba(255,255,255,${0.9*a})`; c.lineWidth = Math.max(1, w*0.34);
+    c.beginPath(); c.moveTo(bm.x0,bm.y0); c.lineTo(bm.x1,bm.y1); c.stroke();
+    c.restore();
+  }
+  // Viên hoa cải nhỏ hơn và ngả đỏ: nhìn một cái là biết mình vừa bắn khẩu nào, và biết cái
+  // nón đó với tới đâu — thứ duy nhất dạy được người chơi rằng khẩu này là khẩu SÁT MẶT.
+  for (const b of S.bullets){
+    c.fillStyle = b.kind === 'shot' ? '#ffb87a' : '#ffe9a8';
+    c.beginPath(); c.arc(b.x, b.y, b.kind === 'shot' ? 1.8 : 2.6, 0, Math.PI*2); c.fill();
+  }
   for (const b of S.bombs){
     if (b.done){
       const t = clamp((b.t-b.fuse)/0.6,0,1);
@@ -6852,6 +7299,20 @@ function drawHud(c){
   for (let i=0;i<hud.slots.length;i++){
     const s = hud.slots[i], it = p.inv[i];
     const usable = it && it.uses > 0;
+    // Vành sạc vẽ NGAY TRÊN CÁI NÚT ĐANG GIỮ, giống hệt cách vành thể lực bám nút Chạy và
+    // vành hồi chiêu bám nút kỹ năng. Người chơi không phải nhìn đi đâu khác để biết đã đủ chưa.
+    if (p.chargeSlot === i){
+      const k = clamp((p.chargeT || 0) / LASER_FULL, 0, 1);
+      c.beginPath();
+      c.strokeStyle = k >= 1 ? 'rgba(190,245,255,0.95)' : 'rgba(120,200,235,0.8)';
+      c.lineWidth = 3.5;
+      c.arc(s.x, s.y, s.r + 5, -Math.PI/2, -Math.PI/2 + Math.PI*2*k);
+      c.stroke();
+      if (k >= 1){                                   // đầy rồi thì nói thành lời, đừng bắt đoán
+        c.beginPath(); c.strokeStyle = 'rgba(190,245,255,0.35)'; c.lineWidth = 1.5;
+        c.arc(s.x, s.y, s.r + 9 + Math.sin(S.time*9)*1.5, 0, Math.PI*2); c.stroke();
+      }
+    }
     // A filled disc behind it: a ring alone over a dark room is hard to find with a thumb, and
     // these are the only three buttons that ever hold something worth finding in a hurry.
     c.beginPath();
@@ -6950,6 +7411,7 @@ function drawHud(c){
   if (p.floatT > 0)  badges.push('Nhẹ ' + p.floatT.toFixed(0) + 's');
   if (p.shieldT > 0) badges.push('Bọc ' + p.shieldT.toFixed(0) + 's');
   if (p.rushing) badges.push('Nước rút');
+  if ((p.recoilT || 0) > 0) badges.push('Giật ' + p.recoilT.toFixed(1) + 's');
   if (badges.length){
     c.font = '600 11px ui-monospace, monospace';
     c.fillStyle = '#8fd0b4';
@@ -7074,12 +7536,56 @@ function drawReturnStrip(c, hud){
   c.textAlign = 'left';
 }
 
+// VÒNG KHOÁ MỤC TIÊU — con nào sắp ăn viên đạn này.
+// WHY nó đáng cả một hàm riêng: chủ dự án nói "cơ chế bắn hơi khó", và cái khó không nằm ở
+// đường đạn — nó nằm ở chỗ người chơi KHÔNG BIẾT mình đang nhắm vào ai. Trên một màn hình
+// điện thoại tối, giữa ba bốn cái bóng, một cú kéo cần 60px không nói được gì cả. Các game
+// bắn di động giải đúng chuyện này bằng cách vẽ hẳn dấu lên con đang bị khoá, để người chơi
+// đọc được mục tiêu TRƯỚC khi buông tay chứ không phải đoán sau khi đã mất một viên đạn.
+// Nó vẽ trong toạ độ THẾ GIỚI, không phải toạ độ HUD — nên phải tự phục hồi phép biến đổi.
+function drawLockOn(c, hud, p, slot, R){
+  const it = p.inv[p.aimSlot];
+  const kind = it && it.kind;
+  if (!AIM_PROFILE[kind]) return;
+  const dx = p.aimX - slot.x, dy = p.aimY - slot.y;
+  const far = Math.hypot(dx, dy) > R*STICK_DEAD;
+  const now = aimNow(p, kind, far, Math.atan2(dy, dx));
+  const m = now.target;
+  if (!m) return;
+  // Vẽ trong KHÔNG GIAN HUD, không phải không gian thế giới: hàm này được gọi từ drawHud,
+  // và scrX/scrY là đúng cặp đã có sẵn để đổi một điểm trong nhà sang chỗ nó nằm trên màn —
+  // kèm cả rung màn hình, nên cái vòng không bị tách khỏi con quái mỗi lần bị đấm.
+  const z = zoom();
+  const mx = scrX(m.x), my = scrY(m.y);
+  c.save();
+  const r = (16 + Math.sin(S.time*7)*1.4) * z;
+  c.strokeStyle = 'rgba(255,140,110,0.95)';
+  c.lineWidth = 2.2;
+  // bốn góc ngoặc, không phải một vòng tròn kín: vòng kín trùng với vòng sáng quanh quái
+  for (let q = 0; q < 4; q++){
+    const a0 = q*Math.PI/2 + 0.30, a1 = q*Math.PI/2 + Math.PI/2 - 0.30;
+    c.beginPath(); c.arc(mx, my, r, a0, a1); c.stroke();
+  }
+  // vạch chỉ chỗ ĐÓN ĐẦU, để người chơi thấy vì sao nòng súng lại lệch khỏi thân con quái
+  const prof = AIM_PROFILE[kind];
+  const lp = leadPoint(p, m, prof.speed);
+  if (Math.hypot(lp.x - m.x, lp.y - m.y) > 5){
+    c.strokeStyle = 'rgba(255,180,120,0.55)';
+    c.lineWidth = 1.4;
+    c.beginPath(); c.moveTo(mx, my); c.lineTo(scrX(lp.x), scrY(lp.y)); c.stroke();
+    c.beginPath(); c.arc(scrX(lp.x), scrY(lp.y), 3.5*z, 0, Math.PI*2); c.stroke();
+  }
+  c.restore();
+}
+
 // A raised item, drawn the way a mobile MOBA draws a raised skill: a stick under the thumb that
 // says which way, a line out of the CHARACTER that says where it lands, and one target in the far
 // corner that says how to put it down again.
 function drawAim(c, hud, p){
   const s = hud.slots[p.aimSlot];
+  if (!s){ p.aimSlot = -1; p.aimId = -1; return; }   // xem chú thích ở nhánh pointerup
   const R = hud.aimR;
+  drawLockOn(c, hud, p, s, R);
   let dx = p.aimX - s.x, dy = p.aimY - s.y;
   const d = Math.hypot(dx,dy) || 1;
   const live = d > R*STICK_DEAD;
@@ -7354,21 +7860,92 @@ function drawMinimap(c, hud){
 
 // ============================================================ DOM ui
 function el(id){ return document.getElementById(id); }
-function showVeil(title, body, btnText, onClick, extraHtml){
+let veilShownAt = -1e9, veilBornInTouch = false;
+const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
+const GHOST_RADIUS = 28;           // px: bóng ma rơi đúng điểm ngón tay nhấc, không lệch đi đâu
+// Một ngón tay MỚI đặt xuống ở bất kỳ đâu là người chơi đang bấm thật — bỏ chốt ngay lập tức.
+// Bắt ở pha CAPTURE trên document để chắc chắn chạy trước cú click của chính ngón tay đó.
+if (typeof document !== 'undefined'){
+  document.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') veilBornInTouch = false;
+  }, true);
+}
+// Bấm vào KHOẢNG TRỐNG của một bảng thì đóng bảng — thói quen mà mọi app di động đều dạy.
+// Chỉ những bảng KHÔNG mất mát gì mới được nhận nó: tủ đồ thì có, còn bảng kết ca thì không
+// (bấm nhầm ra nền mà khởi động lại cả ván là một kiểu mất trắng khác).
+// Gắn ĐÚNG MỘT lần, và chuyện đóng cái gì thì để một biến quyết định — gắn listener mới mỗi
+// lần mở là cái lỗi cộng dồn vừa phải sửa ở lớp menu bản Biệt Đội.
+let veilBackdrop = null;
+function veilBackdropTarget(t){
+  if (!t) return false;
+  if (t.id === 'veil' || t.id === 'veilTitle' || t.id === 'veilBody' ||
+      t.id === 'veilKeys' || t.id === 'veilExtra') return true;
+  return !!(t.classList && t.classList.contains('veil-acts'));
+}
+if (typeof document !== 'undefined'){
+  document.addEventListener('DOMContentLoaded', bindVeilBackdrop);
+  if (document.readyState !== 'loading') bindVeilBackdrop();
+}
+let veilBackdropBound = false;
+function bindVeilBackdrop(){
+  if (veilBackdropBound) return;
+  const v = el('veil');
+  if (!v) return;
+  veilBackdropBound = true;
+  v.addEventListener('click', ev => {
+    if (!veilBackdrop) return;
+    if (!veilBackdropTarget(ev.target)) return;
+    // Cùng một cái chốt bóng ma với nút bấm — xem chú thích ở showVeil().
+    if (veilBornInTouch && performance.now() - veilShownAt < VEIL_CLICK_GRACE &&
+        Math.hypot(ev.clientX - lastTouchX, ev.clientY - lastTouchY) < GHOST_RADIUS) return;
+    veilBackdrop();
+  });
+}
+function showVeil(title, body, btnText, onClick, extraHtml, onBackdrop){
   el('veilTitle').textContent = title;
   el('veilBody').textContent = body;
   el('veilExtra').innerHTML = extraHtml || '';
   el('veilKeys').style.display = extraHtml ? 'none' : '';
-  // "let the bot play" belongs to the title screen. On the shop or the locker it would hand
-  // the run to the agent while a panel is still open, and the panel's state goes stale.
+  // Bảng có danh sách thì bố cục đổi hẳn: hàng nút thành chân trang thật, danh sách là phần
+  // duy nhất cuộn. Xem chú thích .veil.panel trong index.html.
+  el('veil').classList.toggle('panel', !!extraHtml);
+  // "Để bot chơi" CHỈ thuộc về màn tiêu đề, và màn tiêu đề không đi qua hàm này.
+  // ROOT-CAUSE của bug "bấm nút thứ hai trên màn chết là đông cứng cả game": dòng cũ là
+  //   `b2.hidden = !!extraHtml`, mà hai bảng kết ca (crewWiped / endLostShift) không truyền
+  //   extraHtml — nên nút của MÀN TIÊU ĐỀ hiện lên trên MÀN CHẾT, vẫn mang nguyên cái đóng
+  //   gói gán từ lúc khởi động: `S.running = true; hideVeil(); setBot(true)`. Nó không hề
+  //   xoá S.dead, mà cổng của frame() là `S.running && !S.dead`. Đo thật: dead=true,
+  //   running=true, tấm màn đã ẩn, S.time kẹt ở 0.35, giữ W 0,9 giây đi được 0px — thế giới
+  //   đông cứng và trên màn hình không còn một cái nút nào để bấm.
   const b2 = el('veilBtn2');
-  if (b2) b2.hidden = !!extraHtml;
+  if (b2) b2.hidden = true;
   const b = el('veilBtn');
   b.textContent = btnText;
-  b.onclick = onClick;
+  // Một cú click là BÓNG MA của chính cú chạm vừa mở bảng này ra thì không phải là người chơi
+  // bấm vào bảng. Nhưng phân biệt bằng THỜI GIAN là sai, và sai theo đúng cái kiểu đang đi sửa:
+  // một khoảng ân hạn 900ms làm chính nút "Đóng tủ" chết trong 900ms đầu, nên ai chạm mở tủ rồi
+  // chạm đóng ngay thì thấy "bảng hiện ra, bấm nút close có anim mà không tắt". Đo được: 202/552
+  // ca của ma trận tủ hỏng đúng vì cái ân hạn đó.
+  // Cái phân biệt đúng là CÚ CHẠM NÀO. Bóng ma là một bộ sự kiện CHUỘT tương thích: nó không
+  // bao giờ có pointerdown kiểu 'touch' đi trước. Một cú chạm THẬT thì có. Nên hễ thấy một
+  // pointerdown 'touch' mới ở bất kỳ đâu là bỏ chốt ngay — cú click theo sau nó là của người chơi.
+  b.onclick = ev => {
+    // Bóng ma rơi ĐÚNG chỗ ngón tay vừa nhấc lên. Một cú bấm thật ở chỗ khác thì cho qua —
+    // kể cả khi nó tới ngay lập tức, và kể cả khi nó là chuột trên máy vừa dùng cảm ứng.
+    // WHY thêm điều kiện toạ độ: bản đầu chỉ xét thời gian, và nó chặn luôn mọi cú bấm thật
+    // trong 900ms — 202/552 ca của ma trận tủ hỏng vì đúng chuyện đó, với triệu chứng y hệt
+    // cái đang đi sửa ("bấm Đóng tủ, có anim, mà không tắt").
+    if (veilBornInTouch && ev && performance.now() - veilShownAt < VEIL_CLICK_GRACE &&
+        Math.hypot(ev.clientX - lastTouchX, ev.clientY - lastTouchY) < GHOST_RADIUS) return;
+    onClick();
+  };
+  veilShownAt = performance.now();
+  veilBornInTouch = canvasTouchDown > 0;
+  veilBackdrop = onBackdrop || null;
+  bindVeilBackdrop();
   el('veil').hidden = false;
 }
-function hideVeil(){ el('veil').hidden = true; }
+function hideVeil(){ veilBackdrop = null; const v = el('veil'); if (v) v.hidden = true; }
 
 // What the station has in stock tonight, rolled fresh every visit, in two separate sets. Where it
 // is LAID OUT is buildShop's job; this only decides what is on the floor.
@@ -7429,9 +8006,34 @@ function toggleStash(){
   if (S.stashOpen){ closeStash(); return; }
   if (!S.player || S.dead || S.player.down || !S.running) return;   // never over the shop or the intro veil
   if (!nearTruck(S.player)){ toast('Phải đứng cạnh xe mới mở được tủ đồ'); return; }
+  // DUNG BANG TRUOC, DONG BANG THE GIOI SAU.
+  // ROOT-CAUSE cua bug "toi man 4 map 2, tu do freeze lun, bam nut cung khong tat
+  //   duoc": thu tu cu la stashOpen = true -> running = false -> showStash(). Neu
+  //   showStash() nem loi thi HAI DONG DAU DA CHAY ROI ma tam man phu chua kip hien:
+  //   the gioi dung hinh, khong co bang nao, va khong co cai nut nao de bam. Nguoi
+  //   choi mat trang ca van, khong lam gi duoc ngoai tai lai trang.
+  //   Do la mot loi TU KHOA: cai dong lam hong lai la cai dong ve ra loi thoat.
+  // Dat theo thu tu nay thi mot cu ngoac o showStash() chi la mot dong bao loi, con
+  //   ca truc van chay tiep.
   S.stashOpen = true;
+  if (!renderStash()){ S.stashOpen = false; return; }
   S.running = false;
-  showStash();
+}
+
+// Ve bang tu do, va KHONG BAO GIO nem loi ra ngoai. Tra false neu ve khong duoc.
+function renderStash(warn){
+  try { showStash(warn); return true; }
+  catch (e) {
+    console.error('Tủ đồ dựng không được:', e);
+    // TRẢ LẠI ĐÚNG TRẠNG THÁI TRƯỚC KHI MỞ, không chỉ gỡ tấm màn. Bản cũ chỉ gọi hideVeil():
+    // nếu cú ngoặc đến từ một lần VẼ LẠI (bấm một hàng trong tủ) thì lúc đó stashOpen đã true
+    // và running đã false từ trước — gỡ màn xong là thế giới đứng hình mà không còn bảng nào.
+    S.stashOpen = false;
+    hideVeil();
+    if (!S.dead) S.running = true;
+    toast('Tủ đồ lỗi — ' + ((e && e.message) || 'không rõ') + '. Ca trực vẫn chạy tiếp.');
+    return false;
+  }
 }
 function closeStash(){
   S.stashOpen = false;
@@ -7443,8 +8045,10 @@ function showStash(warn){
   // Moi lan lay mot mon la ca bang duoc dung lai tu dau, va cho cuon nhay ve dinh.
   // Voi mot tu 8 mon thi lay mon thu bay nghia la cuon xuong lai bay lan. Nho lay
   // cho cuon truoc khi ve, tra lai sau khi ve xong.
-  const veil = el('veil');
-  const scr = (veil && S.stashOpen) ? veil.scrollTop : 0;
+  // Phần CUỘN bây giờ là #veilExtra chứ không phải cả tấm màn — hàng nút đã thành chân trang
+  // thật (xem .veil.panel trong index.html), nên chỗ hỏi chỗ cuộn cũng phải đổi theo.
+  const box = el('veilExtra');
+  const scr = (box && S.stashOpen) ? box.scrollTop : 0;
   const full = p.inv.every(it => it);
   const slotRows = [0,1,2].map(i => {
     const it = p.inv[i];
@@ -7455,8 +8059,22 @@ function showStash(warn){
       <span class="p">${it ? 'x'+it.uses+' · bấm để TRẢ LẠI TỦ' : 'còn trống'}</span>
     </button>`;
   }).join('');
+  // Mot mon ma bang do khong nhan ra thi VE NO RA, khong ngoac.
+  // Truoc day dong nay la `GEAR_BY_KEY[it.kind].name` khong cho chan: mot mon la lam
+  // ngoac ca ham, va vi toggleStash() da dong bang the gioi tu truoc nen ca van chet
+  // theo. Mot mon hong khong duoc phep giet ca ca truc - no chi duoc phep la mot dong
+  // xau trong danh sach, kem mot cai nut de vut no di.
+  let laCount = 0;
   const stashRows = S.stash.map((it,i) => {
-    const def = GEAR_BY_KEY[it.kind];
+    const def = it && GEAR_BY_KEY[it.kind];
+    if (!def){
+      laCount++;
+      return `<button class="gear" data-drop="${i}">
+        <span class="t">Món hỏng${it && it.kind ? ' (' + String(it.kind).slice(0,24) + ')' : ''}</span>
+        <span class="d">Bản game không nhận ra món này — dùng không được.</span>
+        <span class="p">bấm để bỏ đi</span>
+      </button>`;
+    }
     return `<button class="gear" data-stash="${i}">
       <span class="t">${def.name}</span>
       <span class="d">${def.desc}</span>
@@ -7468,64 +8086,158 @@ function showStash(warn){
   // đục 94% trùm kín canvas, nên mọi câu báo lỗi gửi qua toast đều rơi vào hư không.
   const warnRow = warn
     ? `<div class="empty" style="color:#e0a35a;border-color:#5a4320">⚠ ${warn}</div>` : '';
+  const laRow = laCount
+    ? `<div class="empty" style="color:#e0a35a;border-color:#5a4320">⚠ Có ${laCount} món trong tủ mà bản game này không nhận ra. Bấm vào để bỏ đi.</div>` : '';
 
   showVeil('Tủ đồ trên xe',
     'Về tới trạm là ba ô trên tay tự trả hết về tủ. Lấy lại đồ trước khi vào nhà; thứ để lại vẫn còn nguyên cho ca sau.',
     'Đóng tủ', closeStash,
     `<div class="wallet">Ví: ${money(S.wallet)}</div>
-     ${warnRow}
+     ${warnRow}${laRow}
      <div class="seg">Ba ô trên tay${full ? ' — ĐÃ ĐẦY' : ''}</div><div class="shop">${slotRows}</div>
-     <div class="seg">Trong tủ (${S.stash.length})</div><div class="shop">${stashRows}</div>`);
+     <div class="seg">Trong tủ (${S.stash.length})</div><div class="shop">${stashRows}</div>`,
+    closeStash);        // bấm ra khoảng trống cũng đóng — tủ đồ không mất gì khi đóng
 
-  if (veil && scr) veil.scrollTop = scr;
+  if (scr){ const b2 = el('veilExtra'); if (b2) b2.scrollTop = scr; }
   el('veilExtra').querySelectorAll('[data-slot]').forEach(btn => {
     btn.addEventListener('click', () => {
       const i = +btn.dataset.slot;
       if (!p.inv[i]) return;
       S.stash.push(p.inv[i]); p.inv[i] = null;
-      showStash();
+      renderStash();
+    });
+  });
+  el('veilExtra').querySelectorAll('[data-drop]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = +btn.dataset.drop;
+      if (i >= 0 && i < S.stash.length) S.stash.splice(i, 1);
+      renderStash();
     });
   });
   el('veilExtra').querySelectorAll('[data-stash]').forEach(btn => {
     btn.addEventListener('click', () => {
       const i = +btn.dataset.stash;
       const free = p.inv.findIndex(it => !it);
-      if (free < 0){ showStash('Ba ô trên tay đã đầy — bấm một ô ở trên để trả món đó về tủ, rồi lấy món này.'); return; }
+      if (free < 0){ renderStash('Ba ô trên tay đã đầy — bấm một ô ở trên để trả món đó về tủ, rồi lấy món này.'); return; }
       p.inv[free] = S.stash.splice(i,1)[0];
-      showStash();
+      renderStash();
     });
   });
 }
 
+// Sáu ô này nằm trong index.html, mà MỘT tệp game.js phục vụ HAI trang html được sửa độc lập.
+// Xoá một cái span ở một trang là khung hình kế tiếp ném lỗi ngay trong vòng vẽ.
+function setText(id, v){ const n = el(id); if (n) n.textContent = v; }
 function updateBar(){
-  el('hLevel').textContent = S.shopMode ? 'Trạm' : S.level;
+  setText('hLevel', S.shopMode ? 'Trạm' : S.level);
   const pad = S.pads[S.padIndex];
   const q = el('hQuota');
+  if (!q){ setText('hWallet', money(S.wallet)); return; }
   if (S.shopMode){
     q.textContent = pad ? 'trên bệ ' + money(pad.value) : '—';
     q.classList.toggle('met', !!pad && pad.value > 0 && pad.value <= S.wallet);
   }
   else if (S.levelDone){ q.textContent = 'xong — về xe'; q.classList.add('met'); }
   else if (pad){ q.textContent = money(pad.value) + ' / ' + money(pad.quota); q.classList.toggle('met', pad.value >= pad.quota); }
-  el('hWallet').textContent = money(S.wallet);
+  setText('hWallet', money(S.wallet));
   const p = S.player;
-  el('hCarry').textContent =
+  setText('hCarry',
     p && p.pushing && S.cart ? ('xe đẩy · ' + S.cart.items.length + '/' + CART_SLOTS + ' · ' + money(cartValue(S.cart)))
     : p && p.held ? (p.held.size + ' · ' + money(p.held.value))
-    : '—';
-  el('hPads').textContent = S.pads.filter(p=>p.done).length + '/' + S.pads.length;
-  el('hSeed').textContent = String(S.seed).padStart(6,'0');
+    : '—');
+  setText('hPads', S.pads.filter(p=>p.done).length + '/' + S.pads.length);
+  setText('hSeed', String(S.seed).padStart(6,'0'));
+}
+
+// ============================================================ chống đơ
+// Một thế giới ĐANG DỪNG mà trên màn hình không có lấy một cái nút bấm được thì không còn là
+// một màn hình chờ — nó là một cái bẫy. Chó canh chỉ hỏi đúng câu đó, mỗi nửa giây, và tự gỡ.
+//
+// Đây là tầng phòng thủ CUỐI CÙNG, không phải tầng đầu tiên: mọi lỗi cụ thể đều được vá ở
+// đúng chỗ của nó. Cái này để bắt những lỗi chưa ai biết — vì một con bọ chưa biết mà làm
+// người chơi mất trắng cả ca trực thì tệ hơn hẳn một con bọ chưa biết mà chỉ nhá lên một
+// dòng chữ rồi chơi tiếp được.
+const STUCK_SECONDS = 3;
+let stuckT = 0, watchT = 0;
+function veilUsable(){
+  const v = el('veil');
+  if (!v || v.hidden) return false;
+  // Không chỉ hỏi thuộc tính `hidden`: bản Biệt Đội có luật CSS `body:not(.in-run) #veil
+  // {display:none}`, nên tấm màn có thể "đang hiện" mà người chơi không nhìn thấy gì cả.
+  if (getComputedStyle(v).display === 'none') return false;
+  const b = el('veilBtn');
+  return !!(b && !b.hidden && b.offsetParent !== null);
+}
+function pausedWithNoWayOut(){
+  if (S.cut) return false;                                 // cảnh cắt tự nó sẽ kết thúc
+  if (S.running && !S.dead) return false;                  // thế giới vẫn chạy
+  if (HOOKS.menuMode && HOOKS.menuMode()) return false;    // đang ở menu: menu chính là lối ra
+  return !veilUsable();
+}
+function unstick(why){
+  console.warn('Gỡ kẹt:', why, { running:S.running, dead:S.dead, stashOpen:S.stashOpen });
+  S.stashOpen = false;
+  S.cut = null;
+  resetInput();
+  hideVeil();
+  if (S.dead){
+    if (HOOKS.onEngineError && HOOKS.onEngineError(new Error(why)) === true) return;
+    showVeil('Ca trực đã kết thúc',
+      'Ca này kết thúc mà màn hình không hiện lối ra nào. Bảng này chính là lối ra đó.',
+      'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
+  } else {
+    S.running = true;
+    toast('Đã gỡ kẹt — ca trực chạy tiếp.');
+  }
+}
+function watchdog(dt){
+  watchT += dt;
+  if (watchT < 0.5) return;                 // getComputedStyle mỗi khung hình thì quá đắt
+  const step = watchT; watchT = 0;
+  if (pausedWithNoWayOut()) stuckT += step; else stuckT = 0;
+  if (stuckT >= STUCK_SECONDS){ stuckT = 0; unstick('thế giới dừng mà không có lối ra'); }
 }
 
 // ============================================================ loop
 const FIXED = 1/60;
 let acc = 0, last = 0, timeScale = 1;
+let frameFail = 0;
+// VÒNG VẼ KHÔNG BAO GIỜ ĐƯỢC PHÉP CHẾT.
+// ROOT-CAUSE: bản cũ gọi requestAnimationFrame(frame) ở DÒNG CUỐI của frame() và không có
+//   try/catch. Một lỗi ném ra ở bất kỳ đâu trong step()/draw()/updateBar() là vòng lặp không
+//   bao giờ được lên lịch lại nữa: canvas đứng hình ở khung cuối, trong khi mọi nút DOM vẫn
+//   còn hiệu ứng :active. Người chơi thấy đúng cái cảnh "bảng hiện ra, bấm nút close có
+//   animation, mà không có gì xảy ra" — vì cái chạy được thì đã chết, còn cái chết rồi thì
+//   vẫn nhúc nhích. Đặt lời gọi vào `finally` là biến một lỗi vĩnh viễn thành một khung hình
+//   hỏng.
 function frame(now){
+  try { frameStep(now); frameFail = 0; }
+  catch (e){
+    frameFail++;
+    if (frameFail === 1){
+      console.error('Lỗi trong khung hình:', e);
+      resetInput();                                  // nghi phạm số một: một cử chỉ nửa vời
+    }
+    if (frameFail >= 8){                             // vẫn hỏng liên tục -> dừng hẳn, bày lối ra
+      frameFail = 0;
+      S.running = false; S.stashOpen = false; S.cut = null;
+      hideVeil();
+      if (!(HOOKS.onEngineError && HOOKS.onEngineError(e) === true)){
+        showVeil('Ca trực vấp phải lỗi',
+          'Bộ máy vấp một lỗi và tự dừng lại để bạn không bị kẹt: ' + ((e && e.message) || 'không rõ') + '.',
+          'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
+      }
+    }
+  }
+  finally { requestAnimationFrame(frame); }
+}
+function frameStep(now){
   const dt = Math.min(0.25, (now-last)/1000); last = now;
   const cv = CV();
   const rr = cv.getBoundingClientRect();
   if (cv.width !== Math.round(rr.width*dpr) || cv.height !== Math.round(rr.height*dpr)) resize();
   stepCut(dt);                     // real time: a cutscene is not part of the simulation
+  watchdog(dt);
   if (S.running && !S.dead && !S.cut){
     // Hitstop: the world stalls for a fraction of a second on a heavy impact, which is what makes
     // the impact land. It is counted down in REAL time so it lasts the same however slow the world
@@ -7538,7 +8250,6 @@ function frame(now){
   }
   draw();
   updateBar();
-  requestAnimationFrame(frame);
 }
 
 // ============================================================ boot
@@ -7549,7 +8260,16 @@ window.__boot = function(){
   // The frame's height changes when the page chrome wraps, and that fires no window resize event.
   if (window.ResizeObserver){
     const box = CV().parentElement;
-    if (box) new ResizeObserver(() => resize()).observe(box);
+    // Dồn vào khung hình kế tiếp thay vì đo lại ngay trong lượt gọi của observer.
+    // resize() ghi lại kích thước canvas, mà ghi ngay bên trong lượt gọi là trình duyệt phải
+    // bố cục lại lần nữa trong cùng một khung — nó nhả ra "ResizeObserver loop completed with
+    // undelivered notifications". Đó chỉ là một lời cảnh báo, nhưng nó vào thẳng console.error
+    // và trộn lẫn với những lỗi thật, nên mọi bộ dò lỗi đều phải học cách bỏ qua nó.
+    let cho = 0;
+    if (box) new ResizeObserver(() => {
+      if (cho) return;
+      cho = requestAnimationFrame(() => { cho = 0; resize(); });
+    }).observe(box);
   }
   buildLevel((Math.random()*999999)|0);
   S.running = false;
@@ -7645,8 +8365,20 @@ window.REPO = {
     S.player.inv[free] = S.stash.splice(i,1)[0];
     return true;
   },
+  // súng: bộ test phải đo được đón đầu, trợ ngắm và cái giật, chứ không chỉ nhìn máu tụt
+  autoAimAngle, aimAssist, aimTargets, leadPoint, pierceCount, fireShotgun, fireLaser, aimNow,
+  AIM_ASSIST_ARC, LASER_FULL, SHOTGUN_PELLETS, SHOTGUN_RECOIL,
+  beams(){ return (S.beams || []).map(b => ({ x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1, k:b.k })); },
+  // Vet sang cua tia chi song 0,2 giay, nen "dem tia dang bay" la mot cach do rat de truot.
+  // Cai bo test can biet la PHAT BAN CO XAY RA KHONG va SAC DUOC BAO NHIEU — hoi thang.
+  lastLaser(){ return S.lastLaser || null; },
+  charge(){ const p = S.player; return p ? { slot: p.chargeSlot, t: p.chargeT } : null; },
+  recoil(){ const p = S.player; return p ? (p.recoilT || 0) : 0; },
   cut(){ return S.cut ? { kind:S.cut.kind, t:S.cut.t, label:S.cut.label } : null; },
-  skipCut, setCutscenes,
+  skipCut, cancelCut, setCutscenes,
+  // chống đơ — lớp ngoài và bộ test đều cần nhìn thấy chúng
+  resetInput, cancelGestures, closeStash, unstick,
+  stuck(){ return { paused: pausedWithNoWayOut(), veilUsable: veilUsable(), forSec: stuckT }; },
   carDrawOffset, playerDrawPos,
   frame(){ const cv = CV(), r = cv.getBoundingClientRect();
            return { w:r.width, h:r.height, aspect:r.width/r.height, zoom:zoom(),
@@ -7663,7 +8395,7 @@ window.REPO = {
                  hurtT:FX.hurtT, tickPulse:FX.tickPulse, spotT:FX.spotT,
                  pops:FX.pops.map(q=>q.text) }; },
   threat(){ return threatLevel(); },
-  spawnAngel, litByTorch,
+  spawnAngel, litByTorch, spawnAnchor, breakMirror,
   // tổ ba người
   crew, crewAlive, downActor, reviveFromPad, truckPatchUp, spawnCrew, viewer, cycleSpectate,
   CREW: { COUNT:MATE_COUNT, HP:MATE_HP, SPEED:MATE_SPEED, FLEE_R:MATE_FLEE_R,

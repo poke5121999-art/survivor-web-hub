@@ -515,9 +515,20 @@ async function meleeSuite(b) {
     if (!S.mirror) return { bo: true };
     const pane = S.mirror.a;
     const goc = pane.hp;
+    // Đứng ở phía nào cũng được, MIỄN LÀ đứng được và nhìn thấy tấm gương. Bản test cũ đóng
+    // cứng "lùi sang trái 26px", nên hôm nào tấm gương mọc sát một bức tường bên trái thì
+    // người chơi bị nhét vào trong tường, losClear() trả false, và tám nhát trôi qua không
+    // trúng gì cả — một ca hỏng chập chờn không nói gì về trò chơi.
+    let dungDuoc = false;
+    for (const a of [0, Math.PI/2, Math.PI, -Math.PI/2, Math.PI/4, -Math.PI/4]){
+      const x = pane.x - Math.cos(a)*26, y = pane.y - Math.sin(a)*26;
+      if (REPO.hitsSolid(x, y, 9)) continue;
+      if (!REPO.losClear(x, y, pane.x, pane.y)) continue;
+      pl.x = x; pl.y = y; pl.dir = a; dungDuoc = true; break;
+    }
+    if (!dungDuoc) return { bo: true };
     let nhat = 0;
     for (let i = 0; i < 8 && pane.hp > 0 && S.mirror; i++){
-      pl.x = pane.x - 26; pl.y = pane.y; pl.dir = 0;
       pl.swingCd = 0; pl.stam = pl.stamMax;
       REPO.meleeSwing(pl, null);
       nhat++;
@@ -525,6 +536,33 @@ async function meleeSuite(b) {
     const con = S.mirror ? S.mirror.a.hp : 0;
     return { goc: goc, con: con, nhat: nhat, vo: !S.mirror || S.mirror.a.hp <= 0 };
   });
+  // ---- vỡ gương thì đồ phải rơi NGAY CHỖ VỪA ĐẬP ----
+  // Trước bản này nó rơi ở chỗ CON MA, mà con ma đang đi lại trong nhà — người chơi đập vỡ
+  // tấm gương trước mặt rồi cúi xuống nhặt thì chẳng có gì, còn món đồ nằm ở phòng khác.
+  const roi = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; S.mirror = null; S.foeDrops = 0;
+    REPO.spawnMirrors();
+    for (let i = 0; i < 40 && !S.mirror; i++) await new Promise(r => setTimeout(r, 50));
+    if (!S.mirror) return { bo: true };
+    const pane = S.mirror.a;
+    const maO = S.mirror.m ? { x: S.mirror.m.x, y: S.mirror.m.y } : null;
+    const truoc = S.loot.filter(l => l.fromFoe && !l.gone).length;
+    REPO.breakMirror(pane);
+    const moi = S.loot.filter(l => l.fromFoe && !l.gone);
+    if (moi.length <= truoc) return { khongRoi: true };
+    const l = moi[moi.length - 1];
+    return {
+      xaTam: Math.round(Math.hypot(l.x - pane.x, l.y - pane.y)),
+      xaMa: maO ? Math.round(Math.hypot(l.x - maO.x, l.y - maO.y)) : null,
+      coMa: !!maO
+    };
+  });
+  check('vỡ gương thì đồ rơi ngay tại tấm vừa đập',
+    roi.bo || roi.khongRoi || roi.xaTam <= 2,
+    roi.bo ? 'không dựng được gương' : roi.khongRoi ? 'nhà hết suất đồ rơi'
+           : 'cách tấm gương ' + roi.xaTam + 'px' + (roi.coMa ? ', cách con ma ' + roi.xaMa + 'px' : ''));
+
   check('phang đèn pin làm VỠ được gương', guong.bo || guong.vo,
     guong.bo ? 'không dựng được gương' : guong.nhat + ' nhát / ' + guong.goc + ' máu');
   check('vỡ gương phải mất vài nhát, không phải một', guong.bo || guong.nhat >= 2,
@@ -698,6 +736,41 @@ async function ghostDoorSuite(b) {
     xe.bo ? '' : 'ngưỡng ' + xe.nguong);
   check('sát ngưỡng thì vẫn lên được xe', xe.bo || xe.satNguong);
 
+  // ---- gương và thiên thần phải mọc quanh CẢ TỔ, không chỉ quanh người chơi ----
+  // Ca trực này là của bốn người; để mọi thứ đáng sợ chỉ mọc quanh đúng một người là biến ba
+  // người kia thành đồ trang trí, và biến trò chơi thành một trò đoán được.
+  const quanhTo = await p.evaluate(async () => {
+    const S = REPO.S;
+    const to = REPO.crew().filter(a => a && !a.down);
+    if (to.length < 2) return { boQua: 'tổ chỉ có ' + to.length + ' người' };
+    const gan = (x, y) => {                       // mọc gần AI nhất
+      let best = null, bd = 1e9;
+      REPO.crew().forEach((a, i) => { const d = Math.hypot(a.x - x, a.y - y); if (d < bd){ bd = d; best = i; } });
+      return best;
+    };
+    const ai = { guong: {}, thien: {} };
+    for (let i = 0; i < 40; i++){
+      S.mirror = null; S.mirrorGone = false; S.mirrorTimer = 0;
+      if (REPO.spawnMirrors() !== false && S.mirror){
+        const k = gan(S.mirror.a.x, S.mirror.a.y); ai.guong[k] = (ai.guong[k] || 0) + 1;
+      }
+      S.angel = null; S.angelTimer = 0;
+      if (REPO.spawnAngel() && S.angel){
+        const k = gan(S.angel.x, S.angel.y); ai.thien[k] = (ai.thien[k] || 0) + 1;
+      }
+    }
+    S.mirror = null; S.angel = null;
+    return { soTo: to.length,
+             guong: Object.keys(ai.guong).length, thien: Object.keys(ai.thien).length,
+             chiTiet: JSON.stringify(ai) };
+  });
+  check('gương mọc quanh nhiều người trong tổ, không chỉ người chơi',
+    !!quanhTo.boQua || quanhTo.guong > 1,
+    quanhTo.boQua || ('mọc cạnh ' + quanhTo.guong + ' người khác nhau'));
+  check('thiên thần cũng vậy',
+    !!quanhTo.boQua || quanhTo.thien > 1,
+    quanhTo.boQua || ('mọc cạnh ' + quanhTo.thien + ' người khác nhau'));
+
   const e = errs.filter(x => !/favicon/.test(x));
   check('ma gương / phang cửa: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
   await ctx.close();
@@ -738,27 +811,35 @@ async function stashSuite(b) {
     });
     await p.waitForTimeout(250);
 
+    // Bố cục bảng đã đổi: hàng nút là CHÂN TRANG thật, và #veilExtra là phần duy nhất cuộn.
+    // Yêu cầu cũ "bảng phải dài hơn màn hình" là mô tả cái bố cục hỏng, không phải một điều
+    // cần giữ. Cái CẦN giữ là: danh sách đủ dài để thật sự phải cuộn, và hàng nút không bao
+    // giờ đè lên nó.
     const mo = await p.evaluate(() => {
-      const v = document.getElementById('veil');
+      const box = document.getElementById('veilExtra');
       const a = document.querySelector('.veil-acts').getBoundingClientRect();
-      return { moTu: !!REPO.S.stashOpen, daiHonMan: v.scrollHeight > v.clientHeight,
+      const bx = box.getBoundingClientRect();
+      return { moTu: !!REPO.S.stashOpen, danhSachCuonDuoc: box.scrollHeight > box.clientHeight + 1,
                nutDongY: Math.round(a.top), nutDongTrongMan: a.bottom <= innerHeight,
+               khongDeLen: a.top >= bx.bottom - 1,
                so: document.querySelectorAll('[data-stash]').length };
     });
-    check('[' + ten + '] tủ 8 món thì bảng dài hơn màn hình', mo.moTu && mo.daiHonMan && mo.so === 8,
+    check('[' + ten + '] tủ 8 món thì danh sách cuộn được', mo.moTu && mo.danhSachCuonDuoc && mo.so === 8,
       mo.so + ' món');
+    check('[' + ten + '] hàng nút KHÔNG đè lên danh sách', mo.khongDeLen);
     check('[' + ten + '] nút "Đóng tủ" LUÔN nằm trong màn hình', mo.nutDongTrongMan,
       'y=' + mo.nutDongY + ' / màn 844');
 
     // Cuộn xuống đáy: mọi món phải với tới được, không món nào bị che.
     const che = await p.evaluate(() => {
-      const v = document.getElementById('veil');
-      v.scrollTop = v.scrollHeight;
+      const box = document.getElementById('veilExtra');
+      box.scrollTop = box.scrollHeight;
+      const bx = box.getBoundingClientRect();
       const out = [];
       [...document.querySelectorAll('[data-stash]')].forEach((n, i) => {
         const r = n.getBoundingClientRect();
         const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        const nhin = r.top >= 0 && r.bottom <= innerHeight;
+        const nhin = r.top >= bx.top - 1 && r.bottom <= bx.bottom + 1;
         if (!nhin || !(t && n.contains(t))) out.push(String(i));
       });
       return out;
@@ -768,7 +849,7 @@ async function stashSuite(b) {
 
     // Lấy một món bằng cú CHẠM thật, và chỗ cuộn phải giữ nguyên.
     const lay = await p.evaluate(() => {
-      const v = document.getElementById('veil');
+      const v = document.getElementById('veilExtra');
       const n = document.querySelector('[data-stash="5"]');
       const r = n.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2, scr: v.scrollTop,
@@ -778,7 +859,7 @@ async function stashSuite(b) {
     await p.waitForTimeout(250);
     const sau = await p.evaluate(() => ({
       inv: REPO.S.player.inv.map(x => x && x.kind), so: REPO.S.stash.length,
-      scr: document.getElementById('veil').scrollTop
+      scr: document.getElementById('veilExtra').scrollTop
     }));
     check('[' + ten + '] chạm một món ở giữa danh sách thì lấy được',
       sau.so === lay.so - 1 && sau.inv.filter(Boolean).length === 1,
@@ -799,7 +880,51 @@ async function stashSuite(b) {
     const daDong = await p.evaluate(() => ({ mo: !!REPO.S.stashOpen, chay: !!REPO.S.running }));
     check('[' + ten + '] đóng được tủ và chơi tiếp', !daDong.mo && daDong.chay);
 
-    const e = errs.filter(x => !/favicon/.test(x));
+    // ---- MỘT MÓN HỎNG TRONG TỦ KHÔNG ĐƯỢC GIẾT CẢ CA ----
+    // Dựng lại đúng cơ chế của bug người chơi báo ("đến round 4 map 2, tủ đồ freeze
+    // luôn, bấm nút cũng không tắt được"): showStash() ném lỗi vì một món trong tủ
+    // không có trong bảng đồ, mà toggleStash() đã đóng băng thế giới TỪ TRƯỚC — nên
+    // game đứng hình, không bảng, không nút.
+    // Cách dựng: xoá một mục khỏi bảng đồ ĐANG DÙNG (REPO.GEAR_BY_KEY là chính đối
+    // tượng bộ máy đọc, không phải bản sao), rồi mở tủ với một món thuộc mục đó.
+    const hong = await p.evaluate(async () => {
+      const S = REPO.S;
+      if (S.stashOpen) REPO.toggleStash();
+      S.running = true; S.dead = false;
+      S.stash = [{ kind: 'gun', uses: 5 }, { kind: 'heal', uses: 2 }];
+      const giu = REPO.GEAR_BY_KEY.gun;
+      delete REPO.GEAR_BY_KEY.gun;                 // 'gun' thành món bộ máy không nhận ra
+      REPO.warp(S.car.x, S.car.y);
+      let nem = null;
+      try { REPO.toggleStash(); } catch (e) { nem = e.message; }
+      const v = document.getElementById('veil');
+      const ra = {
+        nem: nem,
+        dongBang: !S.running && v.hidden,          // thế chết: đứng hình mà không có bảng
+        bangHien: !v.hidden,
+        coDongHong: /Món hỏng/.test(document.getElementById('veilExtra').innerHTML),
+        soNutBoDi: document.querySelectorAll('[data-drop]').length
+      };
+      // bấm bỏ món hỏng đi
+      const nut = document.querySelector('[data-drop]');
+      if (nut) nut.click();
+      await new Promise(r => setTimeout(r, 80));
+      ra.conLai = S.stash.length;
+      // đóng tủ lại
+      const btn = document.getElementById('veilBtn');
+      if (btn.onclick) btn.onclick();
+      ra.dongDuoc = !S.stashOpen && document.getElementById('veil').hidden && S.running;
+      REPO.GEAR_BY_KEY.gun = giu;
+      return ra;
+    });
+    check('[' + ten + '] một món hỏng trong tủ KHÔNG làm đứng hình cả ca',
+      !hong.dongBang && !hong.nem, hong.nem || (hong.dongBang ? 'đứng hình, không bảng' : ''));
+    check('[' + ten + '] bảng tủ vẫn mở được, món hỏng hiện thành một dòng',
+      hong.bangHien && hong.coDongHong && hong.soNutBoDi === 1);
+    check('[' + ten + '] bỏ được món hỏng đi', hong.conLai === 1, hong.conLai + ' món còn lại');
+    check('[' + ten + '] và vẫn đóng được tủ, ca chạy tiếp', hong.dongDuoc);
+
+    const e = errs.filter(x => !/favicon|Tủ đồ dựng không được/.test(x));
     check('[' + ten + '] tủ đồ: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
     await ctx.close();
   }

@@ -116,6 +116,26 @@
     return true;
   };
 
+  // Trượt chỉ tiêu là cách thứ BA để một ca kết thúc, và trước bản này nó là cách duy nhất
+  // không được hook. Bộ máy tự dựng bảng "Làm lại từ màn 1", mà nút đó gọi startLevel() —
+  // và H.levelIndex() bên dưới ép nó về ĐÚNG TẦNG VỪA TRƯỢT. Thua không mất gì, cày lại vô
+  // hạn ngay tại chỗ: đúng cái bẫy mà H.onCrewWiped đã được viết ra để chặn.
+  H.onShiftLost = function () {
+    if (!run) return false;
+    run.floorsDone = Math.max(0, run.floor - 1);
+    finish(false);
+    return true;
+  };
+
+  // Bộ máy vấp lỗi mà không tự gỡ được thì đường ra là VỀ MENU, không phải một tấm màn phủ
+  // nằm dưới luật CSS `body:not(.in-run) #veil{display:none}` — tấm màn đó ở đây là vô hình.
+  H.onEngineError = function () {
+    if (!run) { document.body.classList.remove('in-run'); try { SQ.ui.render(); } catch (e) {} return true; }
+    run.floorsDone = Math.max(0, run.floor - 1);
+    finish(false);
+    return true;
+  };
+
   // Ban phim cua bo may phai cam khi dang o menu ngoai ca.
   H.menuMode = () => !run;
 
@@ -130,7 +150,17 @@
   function finish(won) {
     if (!run) return;
     const map = SQ.MAP_BY_ID[run.mapId];
-    const reward = SQ.finishRun({
+    let reward = null;
+    // Sổ sách hỏng thì vẫn phải RA KHỎI CA. Trước bản này SQ.finishRun() ném lỗi là cú ngoặc
+    // bay ngược lên tận vòng vẽ của bộ máy — mà vòng đó gọi lại rAF ở dòng cuối, nên nó chết
+    // hẳn: `in-run` còn bật (menu bị ẩn), tấm màn phủ chưa kịp hiện, canvas đứng hình. Và nút
+    // "Bỏ ca" trên thanh trên lại gọi đúng finish() này, nên bấm bao nhiêu lần cũng vậy.
+    try { reward = calcReward(won); }
+    catch (e) { console.error('Tính thưởng không được:', e); }
+    SD.endRun(won ? 'win' : 'lose', map, reward);
+  }
+  function calcReward(won) {
+    return SQ.finishRun({
       mapId: run.mapId,
       floorsDone: run.floorsDone || 0,
       won: won,
@@ -139,7 +169,6 @@
       skills: run.skills,
       revives: S.revives || 0
     });
-    SD.endRun(won ? 'win' : 'lose', map, reward);
   }
 
   // ---------------------------------------------------------------------------
@@ -391,11 +420,24 @@
     run = { mapId: mapId, floor: 1, floorsDone: 0, loot: 0, skills: 0 };
     skillT = -999;
     FX = [];
-    SD.skillIcon();
-    REPO.resetRun();
-    REPO.setCrew(true);
+    // Bật `in-run` SAU khi bộ máy đã dựng xong, và trả lại tất cả nếu dựng hỏng.
+    // ROOT-CAUSE: thứ tự cũ bật lớp `in-run` trước REPO.startLevel(). Lớp đó ẩn cả menu
+    //   (`body.in-run #menu{display:none}`), nên startLevel() ném lỗi là màn hình chỉ còn
+    //   thanh trên với một khung canvas đứng hình — menu đã bị giấu, ca thì chưa từng bắt đầu.
+    try {
+      SD.skillIcon();
+      REPO.resetRun();
+      REPO.setCrew(true);
+      REPO.startLevel();
+    } catch (e) {
+      console.error('Vào ca không được:', e);
+      run = null;
+      document.body.classList.remove('in-run');
+      if (SQ.ui && SQ.ui.toast) SQ.ui.toast('Vào ca lỗi: ' + ((e && e.message) || 'không rõ'));
+      try { SQ.ui.render(); } catch (_) {}
+      return false;
+    }
     document.body.classList.add('in-run');
-    REPO.startLevel();
     return true;
   };
 
@@ -406,9 +448,27 @@
     // di, bot van khuan, dong ho van chay, va cai xac nam do van an sat thuong -
     // nguoi choi dang o man chon map ma trong bo nho thi ca truc van dien ra.
     S.running = false; S.dead = true;
+    // HUỶ cảnh cắt đang treo. stepCut() chạy trên đồng hồ THẬT, ngoài cổng
+    // `S.running && !S.dead` của frame(), nên hai dòng trên KHÔNG dừng được nó. Cái `then`
+    // của nó gọi startShop() hoặc startLevel(), và cả hai đều bật lại S.running = true.
+    // Đo thật: bỏ ca giữa cảnh xe chạy rồi về sảnh — squadRun=false, in-run=false, mà
+    // running=true, shopMode=true, S.time 0 -> 1,55 và vẫn tăng. Một ca trực sống đang chạy
+    // sau lưng màn chọn map: quái đi lại, đồng hồ chạy, ví và tủ đồ của bộ máy bị ghi đè.
+    // cancelCut() chứ không phải skipCut(): skipCut CHẠY cái callback, đúng thứ phải chặn.
+    if (REPO.cancelCut) REPO.cancelCut();
+    if (REPO.closeStash && S.stashOpen) REPO.closeStash();
+    if (REPO.resetInput) REPO.resetInput();
+    S.running = false; S.dead = true;     // closeStash() có thể vừa bật lại running
     document.body.classList.remove('in-run');
-    if (SQ.ui && SQ.ui.showRunEnd) SQ.ui.showRunEnd(how, map, reward);
-    else if (SQ.ui) SQ.ui.go('home');
+    // Bảng kết ca là LỐI RA DUY NHẤT khỏi màn hình này. Nó phải hiện ra kể cả khi việc tính
+    // thưởng phía trên vừa ném lỗi — nếu không thì người chơi ở lại một màn không có gì cả.
+    try {
+      if (SQ.ui && SQ.ui.showRunEnd) SQ.ui.showRunEnd(how, map, reward);
+      else if (SQ.ui) SQ.ui.go('home');
+    } catch (e) {
+      console.error('Bảng kết ca dựng không được:', e);
+      if (SQ.ui) SQ.ui.go('home');
+    }
   };
 
   // Bo ca giua chung: giu phan da giao len be, dung luat cua repo2d. Di qua cung

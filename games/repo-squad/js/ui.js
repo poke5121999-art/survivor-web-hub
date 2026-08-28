@@ -33,10 +33,19 @@
 
   // Cửa sổ chi tiết dùng chung cho trang bị / tiến hoá — thay cho khối chi tiết
   // chèn giữa danh sách, vì chèn giữa làm cả trang nhảy mỗi lần bấm.
+  // LỐI RA PHẢI CÓ TRƯỚC NỘI DUNG.
+  // ROOT-CAUSE của bug "bảng đen kín màn hình, không có nút ✕, bấm ra ngoài không tắt, Escape
+  //   cũng không tắt, chỉ tải lại trang mới thoát": thứ tự cũ là bật `modal show` -> dựng thẻ ✕
+  //   (nhưng CHƯA gắn vào) -> chạy build(body) -> mới gắn thẻ và mới gắn cái bắt bấm-ra-ngoài.
+  //   build() ném lỗi một cái là lớp phủ ĐANG HIỆN mà bên trong rỗng không: không nút, không
+  //   backdrop, và nó phủ kín cả thanh trên lẫn đường link "← Hub". Mà build() ném lỗi rất dễ:
+  //   `SQ.STATS[it.main].name`, `SQ.SLOT_BY_ID[it.slot].icon`, `SQ.SET_BY_ID[it.set].name` đều
+  //   đọc thẳng không chắn, nên một món đồ mang id mà bản game này không biết là đủ.
+  //   Gắn khung + lối ra TRƯỚC rồi mới đổ nội dung vào thì một cú ngoặc chỉ còn là một bảng
+  //   trống có nút đóng — khó chịu, nhưng thoát ra được.
   UI.popup = function (title, build) {
     const ov = $('#modal');
     clear(ov);
-    ov.className = 'modal show';
     const card = el('div', 'mcard');
     const h = el('div', 'pop-h');
     h.appendChild(el('div', 'pop-t', title));
@@ -44,11 +53,37 @@
     card.appendChild(h);
     const body = el('div', 'pop-b');
     card.appendChild(body);
-    build(body);
     ov.appendChild(card);
-    on(ov, 'click', e => { if (e.target === ov) UI.closePopup(); });
+    UI._closer = UI.closePopup;          // bấm ra ngoài đóng — xem listener gắn một lần ở dưới
+    ov.className = 'modal show';
+    try { build(body); }
+    catch (e) {
+      console.error('Dựng cửa sổ "' + title + '" không được:', e);
+      body.appendChild(el('div', 'mline', 'Cửa sổ này dựng lỗi: ' + ((e && e.message) || 'không rõ') +
+        '. Dữ liệu của bạn không sao — đóng lại và làm việc khác.'));
+    }
   };
-  UI.closePopup = function () { const ov = $('#modal'); if (ov) ov.className = 'modal'; };
+  UI.closePopup = function () { const ov = $('#modal'); if (ov) ov.className = 'modal'; UI._closer = null; };
+
+  // MỘT cái bắt bấm-ra-ngoài, gắn đúng MỘT lần.
+  // ROOT-CAUSE: bản cũ gắn một listener mới vào #modal trong MỖI lần mở popup và không bao giờ
+  //   gỡ. Chúng cộng dồn cả phiên, và vì #modal còn được hai bảng khác dùng chung (kết quả gacha
+  //   và bảng kết ca) nên hai bảng đó THỪA KẾ luôn cái bấm-ra-ngoài của popup — mà lối đóng
+  //   riêng của chúng còn kèm việc khác: "Xong" của gacha gọi UI.render(), "Về sảnh" của bảng kết
+  //   ca gọi UI.go('home'). Bấm lệch ra ngoài một cái là bảng biến mất và việc kèm theo bị bỏ
+  //   qua — người chơi thấy "quay 10 lần xong đồ đâu mất" và "phá đảo xong không thấy thưởng".
+  //   Bây giờ mỗi bảng tự khai lối-bấm-ra-ngoài của mình vào UI._closer, hoặc không khai gì cả.
+  UI._closer = null;
+  (function () {
+    const ov = $('#modal');
+    if (ov) on(ov, 'click', e => { if (e.target === ov && UI._closer) UI._closer(); });
+    // Escape là lối thoát ai cũng thử trước tiên, và nó phải đóng được cả bảng dựng lỗi.
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (ov && ov.classList.contains('show')) { UI.closePopup(); return; }
+      if (window.REPO && REPO.S && REPO.S.stashOpen && REPO.closeStash) REPO.closeStash();
+    });
+  })();
 
   UI.toast = function (text, good) {
     const t = $('#toast');
@@ -87,7 +122,42 @@
     gacha: 'Gacha', shop: 'Cửa hàng', quest: 'Nhiệm vụ'
   };
 
+  // KHÔNG BAO GIỜ ĐƯỢC PHÉP ĐỂ LẠI MỘT CÁI MENU RỖNG.
+  // ROOT-CAUSE: bản cũ gọi clear(wrap) NGAY ĐẦU rồi mới dựng lại, và hàng tab được thêm vào SAU
+  //   CÙNG. Bất kỳ cú ngoặc nào ở giữa là menu trắng vĩnh viễn — không nút ĐI CA, không hàng tab,
+  //   và nút "Xoá dữ liệu" thì nằm trong chính cái màn vừa chết. Tệ nhất: nguyên nhân nằm trong
+  //   localStorage nên tải lại trang vẫn y nguyên. Đo được: chỉ cần một id nhân vật lạ trong save
+  //   là questPending() ném lỗi, và mọi màn đều chết theo vì hàng tab gọi nó.
+  //   Đường vào không hề xa vời: SQ.syncFromHub() lấy nguyên payload đám mây nhét vào migrate()
+  //   rồi GHI XUỐNG localStorage mà không kiểm tra một chữ.
+  //   Dựng vào một khung rời rồi mới tráo vào là menu cũ đứng nguyên cho tới khi có menu mới
+  //   dùng được; và nếu cả bản dự phòng cũng chết thì vẫn còn một màn tối thiểu để thoát ra.
   UI.render = function () {
+    try { renderInto(); }
+    catch (e) {
+      console.error('Dựng menu không được:', e);
+      renderFallback(e);
+    }
+  };
+  function renderFallback(e) {
+    const wrap = $('#menu');
+    if (!wrap) return;
+    clear(wrap);
+    const box = el('div', 'sheet');
+    const b = el('div', 'sheet-b');
+    b.appendChild(el('h3', '', '⚠ Giao diện vấp lỗi'));
+    b.appendChild(el('div', 'mline', 'Bản lưu có thứ gì đó bản game này không đọc được: ' +
+      ((e && e.message) || 'không rõ') + '.'));
+    b.appendChild(btn('Thử dựng lại', 'big', () => UI.render()));
+    b.appendChild(btn('Về sảnh', '', () => { try { UI.go('home'); } catch (_) { renderFallback(e); } }));
+    b.appendChild(btn('Xoá dữ liệu và chơi lại từ đầu', 'ghost', () => {
+      if (SQ.hardReset) SQ.hardReset();
+      try { UI.go('home'); } catch (_) { location.reload(); }
+    }));
+    box.appendChild(b);
+    wrap.appendChild(box);
+  }
+  function renderInto() {
     const wrap = $('#menu');
     if (!wrap) return;
     // Giu cho cuon CHI KHI ve lai dung man cu. render() cung chay khi DOI man, nen
@@ -97,12 +167,14 @@
     // lon man vua khit nen trinh duyet kep ve 0.
     const keep = wrap.querySelector('.stage');
     const scrollTop = (keep && keep.dataset.scr === screenName) ? keep.scrollTop : 0;
-    clear(wrap);
+    // Dựng vào một khung RỜI. Menu đang hiện không bị đụng tới cho tới dòng tráo ở cuối hàm,
+    // nên một cú ngoặc ở giữa để lại menu cũ vẫn dùng được thay vì một khoảng trắng.
+    const frag = document.createDocumentFragment();
 
-    wrap.appendChild(topBar());
+    frag.appendChild(topBar());
 
     const stage = el('div', 'stage' + (screenName === 'home' ? ' is-home' : ''));
-    wrap.appendChild(stage);
+    frag.appendChild(stage);
 
     if (screenName === 'home') {
       scrHome(stage);
@@ -118,10 +190,12 @@
       (SCREENS[screenName] || scrHome)(body);
     }
 
-    wrap.appendChild(tabBar());
+    frag.appendChild(tabBar());
+    clear(wrap);                 // tới đây mới chắc chắn có một menu đầy đủ để thay vào
+    wrap.appendChild(frag);
     stage.dataset.scr = screenName;
     if (scrollTop) stage.scrollTop = scrollTop;
-  };
+  }
 
   function questPending() {
     const q = SQ.questList();
@@ -779,6 +853,7 @@
   function showPulls(items) {
     const ov = $('#modal');
     clear(ov);
+    UI._closer = null;                   // bảng này có việc phải làm khi đóng — không cho bấm lệch
     ov.className = 'modal show';
     const card = el('div', 'mcard');
     card.appendChild(el('h3', '', 'Kết quả ' + items.length + ' lượt'));
@@ -900,6 +975,7 @@
     document.body.classList.remove('in-run');   // tu phong ho: goi tu dau cung phai ve duoc menu
     const ov = $('#modal');
     clear(ov);
+    UI._closer = null;                   // "Về sảnh" còn phải chạy — không cho bấm lệch ra ngoài
     ov.className = 'modal show ' + (how === 'win' ? 'win' : 'lose');
     const card = el('div', 'mcard');
     card.appendChild(el('h3', '', how === 'win' ? '✔ Phá đảo ' + (map ? map.name : '') : 'Bỏ ca giữa chừng'));

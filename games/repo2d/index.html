@@ -131,6 +131,25 @@
      Dinh day thi du danh sach dai bao nhieu, loi ra van luon o duoi ngon tay. */
   .veil-acts{position:sticky;bottom:0;width:100%;padding:8px 0 4px;z-index:2;
     background:linear-gradient(180deg,rgba(6,7,9,0),rgba(6,7,9,.97) 35%)}
+
+  /* MỘT BẢNG (tủ đồ / trạm dịch vụ) thì hàng nút KHÔNG được dính đè lên danh sách nữa —
+     nó trở thành một cái chân trang thật, và danh sách là phần duy nhất cuộn.
+     ROOT-CAUSE: thanh dính đáy ở trên được thêm vào để cứu ca màn DỌC (bảng cao hơn chỗ
+     trống nên nút "Đóng tủ" rơi xuống dưới đáy màn hình). Nó cứu được ca đó nhưng đẻ ra ca
+     khác ở màn NGANG: khung chỉ cao ~330px, phần đầu bảng ăn gần hết, nên danh sách bắt đầu
+     ngay dưới thanh dính — và vì nền thanh là một dải chuyển sắc TRONG SUỐT ở mép trên, hàng
+     đồ đầu tiên VẪN NHÌN THẤY dưới nó và trông như bấm được. Chạm vào hàng đó thì cú chạm rơi
+     vào nút "Đóng tủ" nằm trên: tủ đóng lại, không nhặt được gì. Đo thật: topmost="veilBtn",
+     coveredBy="Đóng tủ", isTop=false, clickFired=0 — hỏng ngay khi tủ chỉ có MỘT món.
+     Chia thành ba tầng thì không còn chỗ nào chồng lên chỗ nào, ở mọi cỡ khung. */
+  .veil.panel{overflow:hidden;justify-content:flex-start;gap:7px;padding-bottom:0}
+  .veil.panel #veilExtra{flex:1 1 auto;min-height:0;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;padding-bottom:6px}
+  .veil.panel .veil-acts{position:static;flex:0 0 auto;background:#060709;
+    border-top:1px solid var(--line);padding:8px 0 6px}
+  /* Màn ngang: phần đầu bảng phải nhường chỗ cho danh sách, vì danh sách mới là thứ để bấm. */
+  body.landscape .veil.panel h2{font-size:15px}
+  body.landscape .veil.panel #veilBody{font-size:10.5px;max-width:74ch;line-height:1.35}
   /* Chua cho hang nut dev o duoi: no nam NGOAI tam man phu nen tam phu khong biet
      no ton tai, va hang cuoi cung cua danh sach chui xuong duoi no. */
   .veil{padding-bottom:22px}
@@ -231,7 +250,9 @@
       <p style="font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)" id="veilKeys">
         <kbd>W A S D</kbd> đi &nbsp;·&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;·&nbsp; <kbd>Shift</kbd> chạy &nbsp;·&nbsp; <kbd>E</kbd> nhặt/thả/đẩy xe<br>
         <kbd>F</kbd> tủ đồ trên xe &nbsp;·&nbsp; <kbd>Q</kbd> đập đèn pin &nbsp;·&nbsp; <kbd>1 2 3</kbd> dùng đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>R</kbd> chơi lại<br>
-        <span style="opacity:.8">Đồ ném được: giữ ô đồ để hiện cần định hướng, thả tay là dùng; kéo lên dấu ✕ góc trên bên phải để bỏ.</span><br>
+        <span style="opacity:.8">Đồ ném được: giữ ô đồ để hiện cần định hướng, thả tay là dùng; kéo lên dấu ✕ góc trên bên phải để bỏ. Kéo gần đúng phía con quái là đủ — nòng súng tự hút vào nó.</span><br>
+        <span style="opacity:.8"><b>Súng laser sạc:</b> giữ ô đồ (hoặc giữ phím <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>) để sạc — vành sáng chạy quanh nút cho biết đã đủ chưa — buông tay là bắn một tia xuyên qua cả hàng. Sạc càng đầy càng mạnh, nhưng bắn xong đứng chôn chân lâu hơn.</span><br>
+        <span style="opacity:.8"><b>Súng nòng ngắn:</b> bảy viên toé ra một nón ngắn. Sát mặt thì nát, xa thì phí đạn — và mỗi phát đẩy bạn lùi lại, chân chậm một nhịp.</span><br>
         <span style="opacity:.8">Ba ô trên tay bắt đầu ca nào cũng rỗng — lấy đồ từ tủ trên xe trước khi đi.
         Xe đẩy nằm sẵn cạnh xe tải: chở được 6 món nhỏ/vừa, đẩy thẳng lên bệ là dỡ cả xe.</span><br>
         <span style="opacity:.8">Hết màn là vào trạm dịch vụ: nhặt món muốn mua đặt lên bệ, đứng lên nút cạnh bệ
@@ -334,8 +355,8 @@
 })();
 </script>
 
-<script src="game.js?v=20260827p"></script>
-<script src="bot.js?v=20260827p"></script>
+<script src="game.js?v=20260828a"></script>
+<script src="bot.js?v=20260828a"></script>
 <script>window.__boot && window.__boot();</script>
 </body>
 </html>

@@ -249,10 +249,21 @@ const bot = {
     // ---- threat handling comes before everything else
     const th = this.threat();
     if (th && th.d < 6*A.TILE){
-      const gun = p.inv.findIndex(it => it && it.kind === 'gun' && it.uses > 0);
-      const look = Math.atan2(th.m.y-p.y, th.m.x-p.x);
-      if (gun >= 0 && th.d < 5*A.TILE && this.shootCd <= 0){
-        A.useSlot(p, gun, look);
+      // Khẩu nào cũng bắn được, nhưng mỗi khẩu có tầm của nó: nòng ngắn chỉ đáng bóp cò khi
+      // con quái đã sát mặt, còn laser thì bắn được từ xa. Bắn hoa cải ở tám ô là phí một
+      // viên đắt tiền và tự làm mình chậm đúng lúc không nên chậm.
+      const TAM = { shotgun: 2.6, gun: 5, tranq: 5, laser: 9 };
+      let gun = -1, look = Math.atan2(th.m.y-p.y, th.m.x-p.x);
+      for (let i = 0; i < p.inv.length; i++){
+        const it = p.inv[i];
+        if (!it || it.uses <= 0 || TAM[it.kind] == null) continue;
+        if (th.d > TAM[it.kind]*A.TILE) continue;
+        if (gun < 0 || TAM[it.kind] < TAM[p.inv[gun].kind]) gun = i;   // khẩu sát mặt được ưu tiên
+      }
+      if (gun >= 0 && this.shootCd <= 0){
+        // Máy ngắm hộ: bot phải dùng đúng cái ngắm mà người chơi dùng, nếu không thì nó
+        // đang chơi một trò khác và mọi phép đo trên nó đều nói về một trò khác.
+        A.useSlot(p, gun, A.autoAimAngle ? A.autoAimAngle(p, p.inv[gun].kind, look) : look);
         this.shootCd = 0.5; this.stats.shots++;
         this.state = ST.FLEE;
         return { vx:0, vy:0, push:0, look };
