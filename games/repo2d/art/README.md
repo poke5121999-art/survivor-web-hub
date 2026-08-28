@@ -5,8 +5,8 @@ vẽ tay đè lên đúng khuôn dưới đây là game nhận ngay, không ph�
 
 ## Khuôn một file
 
-Một file = một nhân vật (hoặc một giống quái), kích thước **96 × 192**, chia thành
-**3 cột × 4 hàng**, mỗi ô **32 × 48**. Nền trong suốt (PNG có kênh alpha).
+Một file = một nhân vật (hoặc một giống quái), kích thước **288 × 576**, chia thành
+**3 cột × 4 hàng**, mỗi ô **96 × 144**. Nền trong suốt (PNG có kênh alpha).
 
 ```
         cột 0        cột 1        cột 2
@@ -26,12 +26,13 @@ kia là hai bước chân trái phải. Đứng im thì game khoá ở cột 1.
 
 | Việc | Số |
 |---|---|
-| Chân chạm đất | dòng **y = 46** trong ô (chừa 1–2 dòng trống dưới cùng) |
-| Cả người cao | khoảng **36–40 px**, đừng chạm mép trên |
-| Cả người rộng | khoảng **24–28 px**, chừa mép hai bên cho viền |
-| Bảng màu | khoảng **20–30 màu** một hình là đủ; viền tối bao ngoài |
+| Chân chạm đất | dòng **y = 138** trong ô (chừa vài dòng trống dưới cùng) |
+| Cả người cao | khoảng **108–120 px**, đừng chạm mép trên |
+| Cả người rộng | khoảng **72–84 px**, chừa mép hai bên cho viền |
+| Bảng màu | tuỳ ý; viền tối bao ngoài để hình không tan vào sàn tối |
 
-Game thu nhỏ hình khi vẽ: người ×0,55 (cao ~22 px trên màn), quái ×0,80 (cao ~38 px).
+Ô lưu **gấp ba** cỡ thật trên màn (người cao ~22 px, quái ~38 px). Lưu đúng cỡ thật
+thì hình bị phóng to lúc vẽ và nhoè — engine vẽ thế giới với hệ số dpr × zoom ≈ 3.
 Nên **quái phải vẽ đầy khung hơn người** thì trên màn mới ra to gấp rưỡi.
 
 **Đừng vẽ viền đỏ cho quái** — game tự nướng viền đỏ quanh hình lúc nạp, vẽ sẵn là
