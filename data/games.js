@@ -37,10 +37,10 @@ window.HUB_GAMES = [
   {
     id: "dragonproj",
     title: "Săn Rồng",
-    tagline: "Dựng lại Dragon Project (COLOPL, đã đóng cửa). Một ngón tay ở giữa màn hình làm hết: kéo để chạy, chạm để chém, vẩy để né, giữ để ra đòn đặc thù — và năm vũ khí cho ra năm bộ đòn khác hẳn nhau.",
+    tagline: "Dựng lại Dragon Project (COLOPL, đã đóng cửa). Một ngón tay ở giữa màn hình làm hết: kéo để chạy, chạm để chém, vẩy để né, giữ để ra đòn đặc thù — và năm vũ khí cho ra năm bộ đòn khác hẳn nhau. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
     thumbnail: "assets/thumbnails/dragonproj.svg",
     path: "games/dragonproj/index.html",
-    rev: "20260828a",
+    rev: "20260828b",
     // Plain canvas/JS, không engine, mở được từ file://. Dựng lại từ Dragon Project
     // (COLOPL 2016, Global 2017, đóng cửa 30/09/2020) — game săn quái kiểu Monster Hunter
     // cho di động, 1-4 người.
@@ -60,8 +60,15 @@ window.HUB_GAMES = [
     // Magi thứ 3, bảng thưởng nhiệm vụ ngày/tuần, và luật thưởng tối đa 4 Gem mỗi con boss.
     // Máu boss và sát thương từng đòn KHÔNG nguồn nào công bố nên là tái dựng, cân theo
     // thang chỉ số trên.
-    // Co-op 1-4 người của bản gốc KHÔNG được dựng lại: thay bằng 3 đồng đội NPC biết né
-    // vùng báo đỏ và tới cứu khi người chơi ngã.
+    // BA CHỖ CỐ Ý LỆCH BẢN GỐC (lý do đầy đủ ở RESEARCH.md mục 13):
+    //   1. Đi ẢI đánh số thay cho map nối map + Quest Gacha ra boss — 38 ải, mỗi ải là
+    //      dọn quái rồi Behemoth cuối ải ra ngay tại chỗ. Trùm leo B → A → S → SS.
+    //   2. Gacha ra THẲNG trang bị (giữ nguyên tỉ lệ SS 3 / S 15 / A 55 / B 27), bỏ khâu
+    //      Tablet + lò rèn. Nguyên liệu để NÂNG CẤP vẫn phải cày trong ải.
+    //   3. Quay trúng món đã có thì ra LÕI RỒNG — thứ duy nhất mở được bậc Tiến hoá, và
+    //      không rơi ở bất kỳ bảng nào (có test quét toàn bộ bảng rơi để chốt luật này).
+    // Co-op 1-4 người của bản gốc KHÔNG được dựng lại, và cũng không có NPC đồng đội:
+    // vào ải MỘT MÌNH, bù lại có 3 lượt tự đứng dậy.
     // Ships with an in-game bot bắn PointerEvent thật lên canvas — tức là đi qua đúng con
     // đường mà ngón tay người chơi đi qua (js/punicon.js), nên ngưỡng tap/flick/hold sai là
     // bot hỏng ngay. test/dragonproj-suite.js lái nó và kiểm luật.

@@ -120,7 +120,8 @@
       var scr = document.querySelector('.screen.on');
       if (scr && scr.id === 'scr-home') { ui.show('quest'); return; }
       if (scr && scr.id === 'scr-quest') {
-        var go = document.querySelector('#body-quest [data-map]:not(.dis)');
+        // Ải đang mở gần nhất: hàng .stage không mang class 'lock'.
+        var go = document.querySelector('#body-quest .stage:not(.lock)');
         if (go) go.click();
         return;
       }
@@ -129,7 +130,7 @@
     if (b.paused) return;
     var p = b.player;
     if (p.down) {
-      // Chờ đồng đội cứu; nếu quá lâu thì tiêu gem.
+      // Không còn đồng đội tới cứu: tự gượng dậy hết lượt, quá lâu thì tiêu gem.
       var gr = document.getElementById('hGemRevive');
       if (p.downT > 7000 && gr && ui.save.gem >= 5) gr.click();
       return;
@@ -155,13 +156,9 @@
 
     var e = nearestEnemy(b);
     if (!e) {
-      // Không còn quái: đi tới cổng (field) hoặc đứng yên.
-      if (b.mode === 'field' && b.portalOpen) {
-        var ang = Math.atan2(b.portal.y - p.y, b.portal.x - p.x);
-        dragTo(Math.cos(ang), Math.sin(ang), 400);
-      } else if (b.mode === 'field') {
-        dragTo(Math.cos(tick), Math.sin(tick), 400);
-      }
+      // Sân trống một nhịp (quái đang chờ hồi sinh, hoặc trùm sắp ra): đi lang
+      // thang chứ không đứng im, để bot không bao giờ chôn chân chờ thứ chưa tới.
+      dragTo(Math.cos(tick * 0.7), Math.sin(tick * 0.7), 400);
       return;
     }
 

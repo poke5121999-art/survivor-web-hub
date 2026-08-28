@@ -6,7 +6,7 @@
 (function (G) {
   'use strict';
 
-  var SAVE_KEY = 'dp.save.v1';
+  var SAVE_KEY = 'dp.save.v2';
   var uidSeq = 1;
   function uid() { return 'u' + (uidSeq++) + '_' + ((Math.random() * 1e6) | 0); }
 
@@ -137,7 +137,7 @@
   /* ------------------------------------------------------------ HỒ SƠ ----- */
   G.newSave = function (name) {
     return {
-      v: 1, name: name || 'Hound',
+      v: 2, name: name || 'Hound',
       gender: 0, face: 0, skin: 2, hair: 0, hairColor: 0, voice: 0,
       lv: 1, exp: 0,
       gold: 3000, gem: 30, ticket: 10, pikke: 0, medal: 0,
@@ -146,11 +146,11 @@
       story: { done: [] },
       daily: { date: '', picks: [], done: {} },
       weekly: { week: '', picks: [], done: {} },
-      area: 'tior', mapIdx: 0, unlocked: { tior: 0 },
+      area: 'tior',
+      cleared: {},           // { 'tior-1': true, ... } — ải đã phá
       bossKills: {}, seenBoss: {},
       inv: {}, potions: {},
       stats: { boss: 0, mob: 0, deaths: 0, parts: 0, gathers: 0, rerolls: 0, buys: 0, potions: 0, magiLv: 0, equipLv: 0 },
-      pendingBoss: null,     // con boss vừa gacha ra, đang chờ đi đánh
       log: []
     };
   };
@@ -160,7 +160,7 @@
       var raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       var s = JSON.parse(raw);
-      if (!s || s.v !== 1) return null;
+      if (!s || s.v !== 2) return null;
       // uid sinh sau khi nạp phải không đụng uid cũ
       s.gear.concat(s.magi).forEach(function (o) {
         var m = /^u(\d+)_/.exec(o.uid || ''); if (m) uidSeq = Math.max(uidSeq, +m[1] + 1);
@@ -283,13 +283,28 @@
 
   /* ------------------------------------------------------------ GACHA ---- */
   // Tỉ lệ THẬT: boss SS 3 / S 15 / A 55 / B 27 ; magi SS 3 / S 9 / A 48 / B 40.
-  G.summonBehemoth = function (s, count, guaranteed) {
+  /* Gacha ra THẲNG trang bị. Tỉ lệ hạng giữ nguyên tỉ lệ thật của Quest Gacha bản
+   * gốc (SS 3 / S 15 / A 55 / B 27) vì đó là con số có nguồn; chỉ đổi thứ rơi ra.
+   * Trúng món đã có -> LÕI RỒNG, nguyên liệu độc quyền không cày được, dùng để tiến
+   * hoá đồ S/SS. Xem G.DUPE_CORE trong data/gamedata.js. */
+  G.summonGear = function (s, count, guaranteed) {
     var out = [], order = ['SS', 'S', 'A', 'B'];
     for (var i = 0; i < count; i++) {
-      var rank = (guaranteed && i === count - 1) ? 'SS' : G.rollRank(G.BEHEMOTH_RATES, Math.random);
+      var rank = (guaranteed && i === count - 1) ? 'SS' : G.rollRank(G.GEAR_RATES, Math.random);
       var pool = G.BEHEMOTHS.filter(function (b) { return b.rank === rank; });
       if (!pool.length) { rank = order[order.indexOf(rank) + 1] || 'B'; pool = G.BEHEMOTHS.filter(function (b) { return b.rank === rank; }); }
-      out.push(pool[(Math.random() * pool.length) | 0]);
+      var b = pool[(Math.random() * pool.length) | 0];
+      var kind = G.GEAR_KINDS[(Math.random() * G.GEAR_KINDS.length) | 0];
+      if (G.hasGear(s, b.id, kind)) {
+        var n = G.DUPE_CORE[rank] || 1;
+        G.addMat(s, 'dragon_core', n);
+        out.push({ dupe: true, rank: rank, src: b.id, kind: kind,
+                   name: (kind === 'weapon' ? weaponName(b, 0) : armorName(b, kind)), cores: n });
+      } else {
+        var g = G.forgeGear(b.id, kind, s.gear.length + '_' + i);
+        s.gear.push(g);
+        out.push({ dupe: false, rank: rank, gear: g, name: g.name, kind: kind });
+      }
     }
     return out;
   };
@@ -339,26 +354,29 @@
   var RANK_COST = { B: 1, A: 2.2, S: 4.5, SS: 8 };
   G.enhanceCost = function (g) {
     var k = RANK_COST[g.rank] || 1;
-    return { gold: Math.round((180 + g.lv * 95) * k), mat: { str_stone: 1 + Math.floor(g.lv / 8) } };
+    var mat = { str_stone: 1 + Math.floor(g.lv / 8) };
+    // Từ cấp 25 trở lên còn cần Equipment Crystal — thứ chỉ rơi ở ải và điểm khai
+    // thác. Nâng cấp cuối đời phải đi cày, đúng như đã hẹn.
+    if (g.lv >= 25) mat.crystal = 1 + Math.floor((g.lv - 25) / 5);
+    return { gold: Math.round((180 + g.lv * 95) * k), mat: mat };
   };
   G.limitBreakCost = function (g) {
     var lap = { B: 'lapis_b', A: 'lapis_a', S: 'lapis_s', SS: 'lapis_ss' }[g.rank] || 'lapis_b';
     var m = {}; m[lap] = g.lb + 1;
     return { gold: Math.round(2500 * (RANK_COST[g.rank] || 1) * (g.lb + 1)), mat: m };
   };
+  // Tiến hoá là bậc nâng cấp cao nhất và CHỈ mở bằng Lõi Rồng — thứ duy nhất không
+  // cày được, chỉ có từ việc quay gacha trúng món đã có. Đây là chỗ những cú quay
+  // trùng biến thành sức mạnh thật, thay vì thành một xấp Lapis mà đi cày cũng có.
   G.evolveCost = function (g) {
-    return { gold: Math.round(9000 * (RANK_COST[g.rank] || 1)), mat: { crystal: g.evo + 1 } };
+    var need = { S: 8, SS: 14 }[g.rank] || 6;
+    return { gold: Math.round(9000 * (RANK_COST[g.rank] || 1)), mat: { dragon_core: need * (g.evo + 1) } };
   };
   G.rerollCost = function (g) { return { gold: Math.round(1200 * (RANK_COST[g.rank] || 1)) }; };
   G.magiEnhanceCost = function (m) {
     var k = { SS: 4, S: 2.4, A: 1.4, B: 1 }[m.rank] || 1;
     return { gold: Math.round((90 + m.lv * 55) * k), mat: { magi_frag: 1 + Math.floor(m.lv / 10) } };
   };
-  G.craftCost = function (b, kind) {
-    var k = RANK_COST[b.rank] || 1;
-    return { gold: Math.round((kind === 'weapon' ? 2200 : 1400) * k), tablet: 1 };
-  };
-
   G.canPay = function (s, cost) {
     if (cost.gold && s.gold < cost.gold) return false;
     if (cost.gem && s.gem < cost.gem) return false;
@@ -378,24 +396,24 @@
   };
   G.addMat = function (s, id, n) { s.mats[id] = (s.mats[id] || 0) + (n || 1); };
 
-  /* --------------------------------------------------- TABLET & CHẾ ĐỒ -- */
-  // Bản gốc: Tablet của boss nào chỉ chế được đúng bộ đồ của boss đó; hạ 5 con
-  // cùng loại là đủ 4 giáp + 1 vũ khí.
-  G.tabletCount = function (s, bid) { return s.bossKills[bid] || 0; };
+  /* --------------------------------------------------------- MỞ ẢI ------- */
+  // Ải đầu tiên của game luôn mở; mọi ải sau chỉ mở khi ải LIỀN TRƯỚC đã phá.
+  // Một chuỗi thẳng, không có nhánh — nhìn danh sách là biết đi tới đâu.
+  G.stageOpen = function (s, st) {
+    var i = G.STAGES.indexOf(st);
+    if (i <= 0) return true;
+    return !!s.cleared[G.STAGES[i - 1].id];
+  };
+  G.nextStage = function (s) {
+    for (var i = 0; i < G.STAGES.length; i++) if (!s.cleared[G.STAGES[i].id]) return G.STAGES[i];
+    return G.STAGES[G.STAGES.length - 1];
+  };
+
+  /* ------------------------------------------------------ SỞ HỮU ĐỒ ------ */
+  // Hệ Tablet + lò rèn chế đồ của bản gốc ĐÃ BỎ: gacha ra thẳng trang bị. Hàm này
+  // ở lại vì gacha cần biết món sắp ra đã có chưa, để quy đổi thành Lõi Rồng.
   G.hasGear = function (s, bid, kind) {
     return s.gear.some(function (g) { return g.src === bid && g.kind === kind; });
-  };
-  G.craft = function (s, bid, kind) {
-    var b = G.behemothById(bid); if (!b) return { ok: false, why: 'Không có boss này' };
-    if (G.hasGear(s, bid, kind)) return { ok: false, why: 'Đã có món này rồi' };
-    var cost = G.craftCost(b, kind);
-    if (G.tabletCount(s, bid) < 1) return { ok: false, why: 'Chưa có Tablet' };
-    if (!G.canPay(s, { gold: cost.gold })) return { ok: false, why: 'Không đủ Gold' };
-    G.pay(s, { gold: cost.gold });
-    s.bossKills[bid] -= 1;
-    var g = G.forgeGear(bid, kind, s.gear.length);
-    s.gear.push(g);
-    return { ok: true, gear: g };
   };
 
   /* ---------------------------------------------- NÂNG CẤP TRANG BỊ ----- */
@@ -566,7 +584,7 @@
     G.equipMagi(s, w, 1, m2.uid);
     var head = s.gear.find(function (g) { return g.uid === s.loadout.head; });
     if (head) G.equipMagi(s, head, 0, m3.uid);
-    G.addMat(s, 'str_stone', 8); G.addMat(s, 'magi_frag', 6);
+    G.addMat(s, 'str_stone', 8); G.addMat(s, 'magi_frag', 6); G.addMat(s, 'crystal', 2);
     return s;
   };
 })(window.DP = window.DP || {});

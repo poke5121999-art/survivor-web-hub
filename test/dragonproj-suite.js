@@ -40,6 +40,10 @@ const G = {
   drag:  (p, dx, dy, ms) => p.evaluate(([dx, dy, ms]) => DPBot._drag(dx, dy, ms), [dx, dy, ms])
 };
 
+// Vào ải. goBoss nhảy thẳng sang chặng Behemoth để khỏi phải dọn quái trước.
+const goStage = (p, id) => p.evaluate(id => DP.UI.startStage(id), id);
+const goBoss = (p, id) => p.evaluate(id => { DP.UI.startStage(id); DP.UI.battle.startBossPhase(); }, id);
+
 (async () => {
   const b = await chromium.launch();
   const { ctx, p, errs } = await open(b);
@@ -114,9 +118,10 @@ const G = {
 
   // --------------------------------------------------------- PUNICON THẬT
   results.push('\n── Punicon (cử chỉ thật trên canvas) ──');
-  await p.evaluate(() => { DP.UI.startField('tior', 0); });
+  await goStage(p, 'tior-1');
   await p.waitForTimeout(500);
-  check('vào được map', await p.evaluate(() => !!(DP.UI.battle && DP.UI.battle.running)));
+  check('vào được ải', await p.evaluate(() => !!(DP.UI.battle && DP.UI.battle.running)));
+  check('ải mở ra ở chặng quái thường', await p.evaluate(() => DP.UI.battle.phase === 'mobs'));
 
   // KÉO -> di chuyển
   const before = await p.evaluate(() => ({ x: DP.UI.battle.player.x, y: DP.UI.battle.player.y }));
@@ -151,7 +156,9 @@ const G = {
   await p.waitForTimeout(500);
   const roll = await p.evaluate(async () => {
     const b = DP.UI.battle, p2 = b.player;
-    p2.state = 'idle'; p2.dodgeCd = 0;
+    // counterUntil dọn sạch: đang thử Rolling Attack, không phải cửa sổ phản đòn
+    // (quái trong ải có thể vừa đâm vào khung bất tử của cú né trước đó).
+    p2.state = 'idle'; p2.dodgeCd = 0; p2.counterUntil = 0;
     b.tryDodge(1, 0);
     const before = b.fx.length;
     b.tryAttack();                       // chạm trong lúc đang lăn
@@ -193,17 +200,22 @@ const G = {
 
   // ------------------------------------------------------------ TRẬN BOSS
   results.push('\n── trận Behemoth ──');
-  await p.evaluate(() => { DP.UI.startBoss('grouton', 10, false); });
+  await goBoss(p, 'tior-1');
   await p.waitForTimeout(600);
   const bs = await p.evaluate(() => {
     const b = DP.UI.battle;
-    return { on: !!b.boss, hp: b.boss.hp, parts: b.boss.parts.length,
-             weak: b.boss.parts.filter(x => x.weak).length, allies: b.allies.length };
+    return { on: !!b.boss, hp: b.boss.hp, parts: b.boss.parts.length, id: b.boss.def.id,
+             weak: b.boss.parts.filter(x => x.weak).length, allies: b.allies.length,
+             phase: b.phase, mobs: b.mobs.filter(m => !m.dead).length, revives: b.player.revives };
   });
   check('boss xuất hiện', bs.on && bs.hp > 0);
+  check('đúng con trùm mà ải khai báo', bs.id === 'grouton', bs.id);
   check('boss có bộ phận phá được', bs.parts >= 2, bs.parts + ' bộ phận');
   check('boss có điểm yếu', bs.weak >= 1);
-  check('có 3 đồng đội NPC (thay cho co-op 4 người)', bs.allies === 3);
+  check('vào ải MỘT MÌNH — không còn NPC đồng đội', bs.allies === 0);
+  check('sang chặng boss thì quái thường bị dọn sạch', bs.phase === 'boss' && bs.mobs === 0,
+    bs.mobs + ' con còn lại');
+  check('một mình nên có sẵn lượt tự đứng dậy', bs.revives >= 1, bs.revives + ' lượt');
 
   // Đánh vào WEAK point phải nạp thanh gục mạnh hơn đánh vào chỗ thường
   const fat = await p.evaluate(() => {
@@ -261,23 +273,39 @@ const G = {
   const win = await p.evaluate(() => new Promise(res => {
     const b = DP.UI.battle;
     b.player.usedMagi = true; b.player.deaths = 0;
-    b.cb.onFinish = r => res(r);
+    const orig = b.cb.onFinish;      // giữ nguyên onFinish thật để save được ghi
+    b.cb.onFinish = r => {
+      // Chụp ví ngay TRƯỚC và NGAY SAU màn kết quả: gold/exp nhặt trong ải đã vào
+      // túi từ lúc nhặt rương, nên màn kết quả chỉ được cộng đúng phần thưởng ải.
+      const g0 = DP.UI.save.gold, e0 = DP.UI.save.exp, l0 = DP.UI.save.lv;
+      orig(r);
+      res(Object.assign({}, r, { goldAdded: DP.UI.save.gold - g0,
+                                 lvUp: DP.UI.save.lv - l0, expAfter: DP.UI.save.exp, e0 }));
+    };
     b.boss.hp = 1;
     b.dealToBoss({ phys: 99999, elem: 0, el: 'none' }, b.boss.x, b.boss.y, {});
   }));
   check('hạ boss trả về kết quả thắng', win.win === true);
-  check('nhận Tablet của đúng con boss', win.tablet >= 1 && win.boss.id === 'grouton');
+  check('kết quả gắn với đúng ải vừa đánh', win.stage && win.stage.id === 'tior-1', win.stage && win.stage.id);
+  check('lần đầu phá ải được đánh dấu', win.firstClear === true);
   check('thưởng gem theo 3 điều kiện + bonus (tối đa 4)', win.gems >= 1 && win.gems <= 4, win.gems + ' gem');
   check('có rơi nguyên liệu', (win.drops || []).length > 0, (win.drops || []).length + ' món');
+  // Rương trong ải cộng thẳng vào túi lúc nhặt. Nếu màn kết quả cộng LẠI phần đó
+  // thì mỗi ải in thêm tiền — thứ không ai để ý cho tới khi kinh tế vỡ.
+  check('thưởng Gold của ải cộng đúng MỘT lần (không nhân đôi phần nhặt dọc đường)',
+    win.goldAdded === win.gold, 'cộng ' + win.goldAdded + ', thưởng ải là ' + win.gold);
+  await p.waitForTimeout(300);
+  check('phá xong thì ải được ghi vào save', await p.evaluate(() => !!DP.UI.save.cleared['tior-1']));
+  check('phá ải 1 thì ải 2 mở ra',
+    await p.evaluate(() => DP.stageOpen(DP.UI.save, DP.stageById('tior-2'))));
 
-  // ------------------------------------------------------------- LÒ RÈN
-  results.push('\n── lò rèn & meta ──');
+  // ------------------------------------------------ TRANG BỊ & NÂNG CẤP
+  results.push('\n── trang bị & meta ──');
   const forge = await p.evaluate(() => {
     const s = DP.starterKit(DP.newSave('T'));
-    s.gold = 999999; s.bossKills.amarok = 5;
-    const r1 = DP.craft(s, 'amarok', 'weapon');
-    const r2 = DP.craft(s, 'amarok', 'weapon');   // lần hai phải bị chặn
-    const g = r1.gear;
+    s.gold = 999999;
+    const g = DP.forgeGear('amarok', 'weapon', 'x');
+    s.gear.push(g);
     s.mats.str_stone = 999; s.mats.lapis_ss = 99; s.mats.crystal = 99;
     const lv0 = DP.gearStats(g).patk;
     for (let i = 0; i < 5; i++) DP.enhance(s, g);
@@ -285,29 +313,119 @@ const G = {
     const beforeLb = DP.gearStats(g).patk;
     DP.limitBreak(s, g);
     const afterLb = DP.gearStats(g).patk;
-    return { crafted: r1.ok, dup: r2.ok, grew: lv5 > lv0, lbGrew: afterLb > beforeLb, lb: g.lb, tablets: s.bossKills.amarok };
+    return { grew: lv5 > lv0, lbGrew: afterLb > beforeLb, lb: g.lb };
   });
-  check('chế được đồ từ Tablet', forge.crafted);
-  check('không chế trùng một món', forge.dup === false);
-  check('Tablet bị trừ khi chế', forge.tablets === 4, forge.tablets + ' còn lại');
   check('nâng cấp làm tăng chỉ số', forge.grew);
   check('limit break làm tăng chỉ số', forge.lbGrew && forge.lb === 1);
 
+  // Tiến hoá chỉ mở bằng Lõi Rồng, mà Lõi Rồng thì không cày được ở đâu.
+  const core = await p.evaluate(() => {
+    const s = DP.newSave('T'); s.gold = 9e6;
+    const g = DP.forgeGear('amarok', 'weapon', 'e'); g.lv = DP.MAX_LV; s.gear.push(g);
+    const noCore = DP.evolve(s, g);
+    const cost = DP.evolveCost(g);
+    s.mats.dragon_core = 999;
+    const withCore = DP.evolve(s, g);
+    // không một bảng rơi đồ nào được phép nhả ra Lõi Rồng
+    const inTribes = Object.keys(DP.TRIBES).some(k => DP.TRIBES[k].mat.indexOf('dragon_core') >= 0);
+    const inGather = DP.GATHER_MATS.indexOf('dragon_core') >= 0;
+    const inShop = JSON.stringify(DP.SHOP || []).indexOf('dragon_core') >= 0;
+    const inBoss = DP.BEHEMOTHS.some(b => JSON.stringify(b).indexOf('dragon_core') >= 0);
+    return { noCore: noCore.ok, withCore: withCore.ok, needsCore: !!(cost.mat && cost.mat.dragon_core),
+             farmable: inTribes || inGather || inShop || inBoss };
+  });
+  check('Tiến hoá đòi Lõi Rồng', core.needsCore);
+  check('không có Lõi Rồng thì không Tiến hoá được', core.noCore === false);
+  check('có Lõi Rồng thì Tiến hoá được', core.withCore === true);
+  check('Lõi Rồng KHÔNG cày được: không nằm trong bảng rơi nào', core.farmable === false);
+
+  const dupe = await p.evaluate(() => {
+    const s = DP.newSave('T');
+    const a = DP.summonGear(s, 1, true);              // ép ra SS, chắc chắn là món mới
+    const before = s.mats.dragon_core || 0;
+    // quay lại đúng món đó: ép hasGear đúng nên lần hai phải ra Lõi
+    const rank = a[0].rank, kind = a[0].gear.kind, src = a[0].gear.src;
+    let dup = null;
+    for (let i = 0; i < 400 && !dup; i++) {
+      const r = DP.summonGear(s, 1, false);
+      if (r[0].dupe) dup = r[0];
+    }
+    return { first: a[0].dupe === false, gearAdded: s.gear.length >= 1,
+             dupFound: !!dup, cores: dup ? dup.cores : 0,
+             stock: (s.mats.dragon_core || 0) > before, rank, kind, src };
+  });
+  check('Triệu hồi ra thẳng trang bị', dupe.first && dupe.gearAdded);
+  check('quay trúng món đã có thì thành Lõi Rồng', dupe.dupFound && dupe.cores >= 1,
+    dupe.cores + ' lõi/lần trùng');
+  check('Lõi Rồng vào kho', dupe.stock);
+
   const gacha = await p.evaluate(() => {
     const s = DP.newSave('T');
-    const r = DP.summonBehemoth(s, 11, true);
+    const r = DP.summonGear(s, 11, true);
     const m = DP.summonMagi(s, 11, true);
-    return { bossLast: r[10].rank, magiLast: m[10].rank, n: r.length, mn: s.magi.length };
+    return { gearLast: r[10].rank, magiLast: m[10].rank, n: r.length, mn: s.magi.length,
+             kinds: r.map(x => x.kind).filter((v, i, a) => a.indexOf(v) === i).length };
   });
-  check('gói 10+1 boss bảo hiểm SS', gacha.bossLast === 'SS');
+  check('gói 10+1 trang bị bảo hiểm SS', gacha.gearLast === 'SS');
+  check('gacha ra đủ cả vũ khí lẫn giáp', gacha.kinds >= 2, gacha.kinds + ' loại');
   check('gói 10+1 magi bảo hiểm SS', gacha.magiLast === 'SS');
   check('magi vào kho đúng số lượng', gacha.mn === 11);
+
+  // Bỏ dở giữa chừng: bảng "RỜI ẢI" hiện ra, và ví KHÔNG được đổi thêm một đồng
+  // nào — thứ nhặt được đã vào túi từ lúc nhặt rồi.
+  await goStage(p, 'tior-2');
+  await p.waitForTimeout(500);
+  const quit = await p.evaluate(() => new Promise(res => {
+    const g0 = DP.UI.save.gold, m0 = JSON.stringify(DP.UI.save.mats);
+    DP.UI.leave();
+    setTimeout(() => {
+      const el = document.getElementById('resultScr');
+      res({ shown: el.classList.contains('on'), text: (el.innerText || '').split('\n')[0],
+            goldDelta: DP.UI.save.gold - g0, matsSame: JSON.stringify(DP.UI.save.mats) === m0,
+            cleared: !!DP.UI.save.cleared['tior-2'], running: !!(DP.UI.battle && DP.UI.battle.running) });
+    }, 400);
+  }));
+  check('rời ải giữa chừng hiện bảng tổng kết', quit.shown && /RỜI ẢI/.test(quit.text), quit.text);
+  check('rời ải không cộng thêm/trừ bớt tiền', quit.goldDelta === 0 && quit.matsSame,
+    'lệch ' + quit.goldDelta + ' gold');
+  check('rời ải KHÔNG tính là phá ải', quit.cleared === false);
+  check('rời ải thì trận dừng hẳn', quit.running === false);
+  await p.evaluate(() => DP.UI.show('home'));
+  await p.waitForTimeout(200);
+  check('mở màn khác thì bảng kết quả tự dẹp',
+    await p.evaluate(() => !document.getElementById('resultScr').classList.contains('on')));
+
+  // ------------------------------------------------------------- CHỌN ẢI
+  results.push('\n── chuỗi ải ──');
+  const stg = await p.evaluate(() => {
+    const s = DP.newSave('T');
+    const first = DP.STAGES[0], second = DP.STAGES[1], last = DP.STAGES[DP.STAGES.length - 1];
+    const openFirst = DP.stageOpen(s, first), openSecond = DP.stageOpen(s, second);
+    s.cleared[first.id] = true;
+    return {
+      n: DP.STAGES.length, openFirst, openSecond,
+      afterClear: DP.stageOpen(s, second),
+      next: DP.nextStage(s).id,
+      allHaveBoss: DP.STAGES.every(x => !!DP.behemothById(x.boss)),
+      allHaveKills: DP.STAGES.every(x => x.kills > 0),
+      lvUp: last.lv > first.lv,
+      lastIsBigger: last.rank === 'S' || last.rank === 'SS'
+    };
+  });
+  check('có đủ chuỗi ải', stg.n >= 30, stg.n + ' ải');
+  check('ải đầu luôn mở, ải sau khoá', stg.openFirst === true && stg.openSecond === false);
+  check('phá ải trước thì ải sau mở', stg.afterClear === true);
+  check('ải kế tiếp trỏ đúng chỗ đang dở', stg.next === 'tior-2', stg.next);
+  check('mọi ải đều có Behemoth cuối ải', stg.allHaveBoss);
+  check('mọi ải đều có chỉ tiêu dọn quái', stg.allHaveKills);
+  check('cấp độ tăng dần theo chuỗi ải', stg.lvUp);
+  check('ải cuối là trùm hạng cao', stg.lastIsBigger);
 
   // ------------------------------------------------------------- BOT CHẠY
   results.push('\n── bot chơi thật ──');
   await p.evaluate(() => { DP.UI.show('home'); });
   await p.waitForTimeout(300);
-  await p.evaluate(() => { DP.UI.startBoss('grouton', 8, false); });
+  await goBoss(p, 'tior-1');
   await p.waitForTimeout(400);
   const hp0 = await p.evaluate(() => DP.UI.battle.boss.hp);
   await p.evaluate(() => DPBot.on(150));
@@ -325,7 +443,7 @@ const G = {
   // Mở HẲN một trận boss chứ không chỉ mở khi chưa có trận nào: bot có thể đang ở
   // giữa một trận FIELD, mà field thì không có hàng thanh máu boss nên mọi phép đo
   // dưới đây ra 0. Bài kiểm không được ngầm dựa vào việc bot đang làm gì.
-  await p.evaluate(() => { DP.UI.startBoss('grouton', 8, false); });
+  await goBoss(p, 'tior-1');
   await p.waitForTimeout(500);
   const hud = await p.evaluate(() => {
     const q = id => document.getElementById(id);
@@ -362,6 +480,27 @@ const G = {
   });
   check('vùng ngón cái (giữa + nửa dưới) KHÔNG có nút nào', thumbZone.length === 0,
     thumbZone.length ? thumbZone.join(', ') : 'sạch');
+
+  // Chặng quái không có boss: hàng boss phải nhường chỗ cho bộ đếm quái, chứ
+  // không để một thanh máu rỗng chiếm chỗ đắt nhất màn hình.
+  await goStage(p, 'tior-1');
+  await p.waitForTimeout(400);
+  const mobHud = await p.evaluate(() => {
+    const vis = id => getComputedStyle(document.getElementById(id)).display !== 'none';
+    return { mobRow: vis('mobRow'), bossRow: vis('bossRow'),
+             left: document.getElementById('hMobLeft').textContent,
+             timer: !!document.querySelector('.timer-orb'),
+             name: document.getElementById('hStageName').textContent };
+  });
+  check('chặng quái: hiện bộ đếm quái, ẩn hàng boss', mobHud.mobRow && !mobHud.bossRow);
+  check('bộ đếm quái ghi đúng số còn lại', +mobHud.left > 0, 'còn ' + mobHud.left);
+  check('chặng quái vẫn hiện tên ải', /Ải/.test(mobHud.name), mobHud.name);
+  const swap = await p.evaluate(() => {
+    DP.UI.battle.startBossPhase();
+    const vis = id => getComputedStyle(document.getElementById(id)).display !== 'none';
+    return { mobRow: vis('mobRow'), bossRow: vis('bossRow') };
+  });
+  check('sang chặng boss thì hai hàng đổi chỗ cho nhau', swap.bossRow && !swap.mobRow);
 
   // ------------------------------------------------------------ MÀN MENU
   results.push('\n── màn hình menu ──');

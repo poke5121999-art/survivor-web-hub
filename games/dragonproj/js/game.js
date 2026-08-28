@@ -23,7 +23,7 @@
   function Battle(cv, save, opts, cb) {
     this.cv = cv; this.ctx = cv.getContext('2d');
     this.s = save; this.o = opts || {}; this.cb = cb || {};
-    this.mode = this.o.mode || 'field';       // 'field' | 'boss'
+    this.mode = 'stage';   // một ải: chặng quái rồi tới chặng boss
     this.running = false;
     this.t = 0; this.last = 0;
     this.msgs = [];       // số sát thương bay lên
@@ -42,49 +42,57 @@
   }
 
   /* --------------------------------------------------------------- THẾ GIỚI */
+  /* MỘT ẢI = hai chặng liền nhau trong cùng một trận:
+   *   chặng 'mobs' — dọn đủ số quái thường mà ải yêu cầu
+   *   chặng 'boss' — Behemoth cuối ải xuất hiện, hạ nó là phá ải
+   * Vào MỘT MÌNH. Không có đồng đội NPC, nên không có ai tới cứu khi bạn ngã —
+   * bù lại người chơi có sẵn mấy lượt tự đứng dậy (xem playerDown).
+   */
   Battle.prototype.setupWorld = function () {
-    var area = G.areaById(this.o.areaId || this.s.area) || G.AREAS[0];
+    var st = G.stageById(this.o.stageId) || G.STAGES[0];
+    this.stage = st;
+    var area = G.areaById(st.area) || G.AREAS[0];
     this.area = area;
-    this.map = area.maps[clamp(this.o.mapIdx || 0, 0, area.maps.length - 1)];
+    this.map = { n: st.sub, lv: st.lv, tribes: st.tribes, kills: st.kills };
     this.bg = area.bg;
-    if (this.mode === 'boss') {
-      this.wW = 1150; this.wH = 1150;
-    } else {
-      this.wW = 1500; this.wH = 1900;
-    }
+    this.wW = 1300; this.wH = 1600;
+
     this.decor = [];
-    var n = this.mode === 'boss' ? 26 : 60;
-    for (var i = 0; i < n; i++) {
+    for (var i = 0; i < 52; i++) {
       this.decor.push({ x: Math.random() * this.wW, y: Math.random() * this.wH, r: 6 + Math.random() * 22, k: (Math.random() * 3) | 0 });
     }
     this.mobs = [];
     this.gathers = [];
     this.killed = 0;
-    this.needKills = this.map.kills || 8;
-    this.portalOpen = false;
+    this.needKills = st.kills;
+    this.phase = 'mobs';
+    this.boss = null;
     this.timeLeft = G.BAL.questMs;
-
-    if (this.mode === 'field') {
-      this.portal = { x: this.wW * 0.5, y: 90 };
-      for (var g = 0; g < 4; g++) {
-        this.gathers.push({ x: 120 + Math.random() * (this.wW - 240), y: 240 + Math.random() * (this.wH - 400), used: false });
-      }
-      this.spawnWave(10);
-      // Xác suất gặp Sudden Behemoth (bản gốc: gặp ngẫu nhiên khi đang farm).
-      this.suddenAt = 12000 + Math.random() * 26000;
-      this.suddenDone = false;
-    } else {
-      this.spawnBehemoth(this.o.behemothId, this.o.level || this.map.lv);
-    }
+    // Đồng đội NPC đã bỏ — ải là solo. Mảng để rỗng vì vài vòng lặp khác còn duyệt nó.
     this.allies = [];
-    for (var a = 0; a < 3; a++) {
-      this.allies.push({
-        name: G.ALLY_NAMES[a], x: this.wW / 2 + (a - 1) * 60, y: this.wH * (this.mode === 'boss' ? 0.72 : 0.86) + 40,
-        hp: this.stats.hp * 0.85, maxHp: this.stats.hp * 0.85, r: 13, facing: -Math.PI / 2,
-        atkCd: 500 + a * 220, down: false, downT: 0, kind: ['sword', 'bow', 'spear'][a],
-        dmg: this.stats.atk * 0.55, hitT: 0, dodgeT: 0
-      });
+
+    for (var g = 0; g < 3; g++) {
+      this.gathers.push({ x: 140 + Math.random() * (this.wW - 280), y: 240 + Math.random() * (this.wH - 420), used: false });
     }
+    this.spawnWave(9);
+  };
+
+  /* Dọn đủ quái thì Behemoth cuối ải ra. Quái còn sót bị dọn sạch để sân trống hẳn —
+   * trận boss phải đọc được, không lẫn với một đám quái lẻ chạy vòng vòng. */
+  Battle.prototype.startBossPhase = function () {
+    if (this.phase !== 'mobs') return;
+    this.phase = 'boss';
+    var self = this;
+    this.mobs.forEach(function (m) { if (!m.dead) { m.dead = true; m.hp = 0; self.puff(m.x, m.y, '#cfd8e2'); } });
+    this.mobs = [];
+    this.spawnBehemoth(this.stage.boss, this.stage.bossLv);
+    var b = this.boss;
+    b.x = this.wW / 2; b.y = this.player.y - 340;
+    if (b.y < 140) b.y = 140;
+    this.shake = 18;
+    this.puff(b.x, b.y, G.ELEMENTS[b.el].color);
+    this.toast('BEHEMOTH XUẤT HIỆN — ' + b.n, '#e33b30');
+    if (this.cb.onPhase) this.cb.onPhase('boss');
   };
 
   Battle.prototype.spawnWave = function (n) {
@@ -161,7 +169,7 @@
   Battle.prototype.setupPlayer = function () {
     var st = this.stats;
     this.player = {
-      x: this.wW / 2, y: this.wH * (this.mode === 'boss' ? 0.78 : 0.9),
+      x: this.wW / 2, y: this.wH * 0.86,
       r: 13, facing: -Math.PI / 2,
       hp: st.hp, maxHp: st.hp,
       state: 'idle', stateT: 0, stateDur: 0, hitDone: false,
@@ -765,7 +773,10 @@
       return;
     }
     p.down = true; p.downT = 0; p.state = 'idle';
-    this.toast('BẤT TỈNH — đồng đội tới cứu', '#c34141');
+    // Solo: không có ai tới cứu. Còn lượt thì tự đứng dậy sau vài giây, hết lượt là
+    // thua ải. Đây là thứ thay cho vòng cứu của đồng đội trong bản gốc.
+    if (p.revives > 0) this.toast('NGÃ — tự đứng dậy sau ' + (G.BAL.selfReviveMs / 1000) + 's', '#c34141');
+    else this.toast('NGÃ — hết lượt đứng dậy', '#c34141');
     if (this.cb.onDown) this.cb.onDown();
   };
 
@@ -795,18 +806,19 @@
       exp: Math.round((4 + m.lv * 2.2) * (m.elite ? 3 : 1) * G.potionMul(this.s, 'exp'))
     });
     this.puff(m.x, m.y, G.ELEMENTS[m.el].color);
-    if (this.mode === 'field' && this.killed >= this.needKills && !this.portalOpen) {
-      this.portalOpen = true;
-      this.toast('CỔNG ĐÃ MỞ', '#f2d24b');
-    }
-    // Field giữ mật độ quái — bản gốc map luôn có quái đi lại.
-    if (this.mode === 'field') {
-      var self = this;
-      setTimeout(function () {
-        if (self.running && self.mobs.filter(function (x) { return !x.dead; }).length < 9) {
-          self.mobs.push(self.makeMob(pick(self.map.tribes), self.map.lv, Math.random() < 0.16, self.map.gold));
-        }
-      }, 2200);
+    if (this.phase === 'mobs') {
+      if (this.killed >= this.needKills) {
+        this.startBossPhase();
+      } else {
+        // Bù quái để sân không bao giờ trống trước khi đủ chỉ tiêu.
+        var self = this;
+        setTimeout(function () {
+          if (self.running && self.phase === 'mobs' &&
+              self.mobs.filter(function (x) { return !x.dead; }).length < 8) {
+            self.mobs.push(self.makeMob(pick(self.map.tribes), self.map.lv, Math.random() < 0.16, false));
+          }
+        }, 1600);
+      }
     }
   };
 
@@ -826,12 +838,16 @@
     var gems = (conds.noDeath ? 1 : 0) + (conds.usedMagi ? 1 : 0) + (conds.fast ? 1 : 0);
     if (gems === 3) gems += G.BAL.gemAllBonus;
     var drops = G.rollBossDrop(b.def, b.partsBroken, this.stats.luck);
+    var st = this.stage;
+    var firstClear = !this.s.cleared[st.id];
     setTimeout(function () {
       self.finish({
-        win: true, boss: b.def, gems: gems, conds: conds, drops: drops,
-        tablet: 1, parts: b.partsBroken, elapsed: elapsed,
-        gold: Math.round((900 + b.lv * 180) * ({ B: 1, A: 2, S: 4, SS: 8 }[b.rank] || 1) * G.potionMul(self.s, 'gold')),
-        exp: Math.round((70 + b.lv * 22) * ({ B: 1, A: 2, S: 3.5, SS: 6 }[b.rank] || 1) * G.potionMul(self.s, 'exp')),
+        win: true, stage: st, firstClear: firstClear,
+        boss: b.def, gems: gems, conds: conds, drops: drops,
+        parts: b.partsBroken, elapsed: elapsed, killed: self.killed,
+        bag: self.bag || { mats: {}, gold: 0, exp: 0 },
+        gold: Math.round(st.gold * G.potionMul(self.s, 'gold')),
+        exp: Math.round(st.exp * G.potionMul(self.s, 'exp')),
         medal: ({ B: 2, A: 5, S: 12, SS: 30 }[b.rank] || 2)
       });
     }, 1200);
@@ -845,8 +861,8 @@
     if (this.cb.onFinish) this.cb.onFinish(r);
   };
 
-  Battle.prototype.leaveField = function () {
-    this.finish({ win: true, field: true, killed: this.killed, bag: this.bag || {} });
+  Battle.prototype.leaveStage = function () {
+    this.finish({ win: false, quit: true, stage: this.stage, killed: this.killed, bag: this.bag || {} });
   };
 
   /* ============================================================ VÒNG LẶP == */
@@ -877,8 +893,8 @@
     var p = this.player, self = this;
 
     this.timeLeft -= dt;
-    if (this.timeLeft <= 0 && this.mode === 'boss' && !this.result) {
-      this.finish({ win: false, timeout: true, boss: this.boss.def });
+    if (this.timeLeft <= 0 && !this.result) {
+      this.finish({ win: false, timeout: true, stage: this.stage, boss: this.boss && this.boss.def });
       return;
     }
 
@@ -912,20 +928,19 @@
     var mv = this.puni.tick(this.t);
     if (p.down) {
       p.downT += dt;
-      // Đồng đội tới vòng cứu; hết lượt cứu thì thua (đúng luật Tower của bản gốc).
-      if (p.downT > 12000) {
-        if (this.mode === 'boss') { this.finish({ win: false, wipe: true, boss: this.boss.def }); return; }
-        this.revivePlayer(0.5);
+      if (p.revives <= 0) {
+        this.finish({ win: false, wipe: true, stage: this.stage, boss: this.boss && this.boss.def, killed: this.killed });
+        return;
       }
+      if (p.downT >= G.BAL.selfReviveMs) { p.revives--; this.revivePlayer(0.6); }
     } else if (!stunned) {
       this.updateAction(dt, mv, slowMul);
     }
 
     // ---- entities ----
-    if (this.mode === 'boss') this.updateBoss(dt); else this.updateField(dt);
+    if (this.phase === 'boss') this.updateBoss(dt); else this.updateStage(dt);
     this.updateChests(dt);
     this.updateMobs(dt);
-    this.updateAllies(dt);
     this.updateProjectiles(dt);
     this.updateTelegraphs(dt);
 
@@ -1086,34 +1101,20 @@
   };
 
   /* -------------------------------------------------------- FIELD ------- */
-  Battle.prototype.updateField = function (dt) {
+  Battle.prototype.updateStage = function (dt) {
     var p = this.player, self = this;
-    // Điểm khai thác (nhiệm vụ ngày "Thu thập 2 lần")
+    // Điểm khai thác (nhiệm vụ ngày "Thu thập 2 lần", và là chỗ ra Equipment Crystal
+    // — thứ mà nâng cấp từ cấp 25 trở lên bắt buộc phải có)
     this.gathers.forEach(function (g) {
       if (!g.used && dist(p, g) < 34) {
         g.used = true; self.s.stats.gathers++;
         G.track(self.s, { gather: 1 });
-        var m = pick(['str_stone', 'magi_frag', 'crystal', 'lapis_b']);
+        var m = pick(G.GATHER_MATS);
         G.addMat(self.s, m, 1);
         self.toast('Thu được ' + G.MATERIALS[m].n, '#7fd07f');
         self.puff(g.x, g.y, '#7fd07f');
       }
     });
-    // Sudden Behemoth: đang farm thì gặp boss (bản gốc gọi là Sudden Massive Monster)
-    if (!this.suddenDone) {
-      this.suddenAt -= dt;
-      if (this.suddenAt <= 0) {
-        this.suddenDone = true;
-        var rare = Math.random() < 0.22;
-        var pool = rare ? (this.area.rare || this.area.sudden) : this.area.sudden;
-        var bid = pick(pool);
-        if (this.cb.onSudden) this.cb.onSudden(bid, rare);
-      }
-    }
-    // Cổng sang map kế
-    if (this.portalOpen && dist(p, this.portal) < 40) {
-      this.finish({ win: true, field: true, portal: true, killed: this.killed, bag: this.bag });
-    }
   };
 
   /* --------------------------------------------------------- BOSS AI ---- */
@@ -1313,76 +1314,6 @@
     this.mobs = this.mobs.filter(function (m) { return !m.dead || m.hp > 0; });
   };
 
-  /* --------------------------------------------------- ĐỒNG ĐỘI NPC ---- */
-  // Thay cho co-op 4 người của bản gốc: 3 NPC đánh, né, và tới cứu khi bạn ngã.
-  Battle.prototype.updateAllies = function (dt) {
-    var self = this, p = this.player;
-    this.allies.forEach(function (a) {
-      if (a.down) {
-        a.downT += dt;
-        if (a.downT > 9000) { a.down = false; a.hp = a.maxHp * 0.5; }
-        return;
-      }
-      // Ưu tiên tuyệt đối: cứu người chơi.
-      if (p.down) {
-        var d = dist(a, p);
-        if (d > G.BAL.reviveRadius) {
-          var ar = Math.atan2(p.y - a.y, p.x - a.x);
-          a.x += Math.cos(ar) * 3.1 * dt / 16.67; a.y += Math.sin(ar) * 3.1 * dt / 16.67;
-        } else {
-          a.reviveT = (a.reviveT || 0) + dt;
-          if (a.reviveT >= G.BAL.reviveMs) { a.reviveT = 0; self.revivePlayer(0.6); }
-        }
-        return;
-      }
-      a.reviveT = 0;
-      // Né vùng báo đỏ
-      var danger = self.telegraphs.find(function (t) { return t.hostile && t.t < t.windup && self.inTelegraph(t, a.x, a.y, a.r + 20); });
-      if (danger && a.dodgeT <= 0) {
-        a.dodgeT = 700;
-        var away = Math.atan2(a.y - danger.y, a.x - danger.x) + (Math.random() - 0.5);
-        a.dvx = Math.cos(away); a.dvy = Math.sin(away);
-      }
-      if (a.dodgeT > 0) {
-        a.dodgeT -= dt;
-        a.x = clamp(a.x + a.dvx * 4.2 * dt / 16.67, 20, self.wW - 20);
-        a.y = clamp(a.y + a.dvy * 4.2 * dt / 16.67, 20, self.wH - 20);
-        return;
-      }
-      // Tìm mục tiêu
-      var tgt = null, bd = 1e9;
-      if (self.boss && self.boss.hp > 0) { tgt = self.boss; bd = dist(a, self.boss); }
-      self.mobs.forEach(function (m) { if (!m.dead) { var d2 = dist(a, m); if (d2 < bd) { bd = d2; tgt = m; } } });
-      if (!tgt) {
-        var dp = dist(a, p);
-        if (dp > 130) { var ap = Math.atan2(p.y - a.y, p.x - a.x); a.x += Math.cos(ap) * 2.2 * dt / 16.67; a.y += Math.sin(ap) * 2.2 * dt / 16.67; }
-        return;
-      }
-      var want = a.kind === 'bow' ? 220 : (a.kind === 'spear' ? 90 : 60);
-      var ta = Math.atan2(tgt.y - a.y, tgt.x - a.x);
-      a.facing = ta;
-      var dd = dist(a, tgt) - (tgt.r || 14);
-      if (Math.abs(dd - want) > 24) {
-        var dir = dd > want ? 1 : -1;
-        a.x = clamp(a.x + Math.cos(ta) * dir * 2.5 * dt / 16.67, 20, self.wW - 20);
-        a.y = clamp(a.y + Math.sin(ta) * dir * 2.5 * dt / 16.67, 20, self.wH - 20);
-        a.moving = true;
-      }
-      else a.moving = false;
-      a.atkCd -= dt;
-      if (a.atkCd <= 0 && dd <= want + 20) {
-        a.atkCd = a.kind === 'bow' ? 900 : a.kind === 'spear' ? 700 : 550;
-        a.hitT = 200;
-        var dmgO = { phys: a.dmg, elem: 0, el: 'none' };
-        if (tgt === self.boss) {
-          // NPC đánh vào thân, không ăn bonus WEAK — người chơi mới là người tìm điểm yếu.
-          self.dealToBoss(dmgO, tgt.x + Math.cos(ta + Math.PI) * tgt.r * 0.5, tgt.y + Math.sin(ta + Math.PI) * tgt.r * 0.5, {});
-        } else self.dealToMob(tgt, dmgO, {});
-        self.fx.push({ k: 'slash', x: a.x, y: a.y, a: ta, arc: 1.3, r: want + 20, t: 0, ms: 150, col: '#a8c8e8' });
-      }
-    });
-  };
-
   /* ------------------------------------------------------- ĐẠN BAY ---- */
   Battle.prototype.updateProjectiles = function (dt) {
     var self = this, W = this.W;
@@ -1472,19 +1403,17 @@
     this.drawDecor();
     // báo đỏ vẽ DƯỚI nhân vật để không che
     this.drawTelegraphs();
-    if (this.mode === 'field') this.drawFieldStuff();
+    this.drawStageStuff();
     this.drawChests();
 
     var ents = [];
     this.mobs.forEach(function (m) { if (!m.dead) ents.push({ y: m.y, d: m, k: 'mob' }); });
-    this.allies.forEach(function (a) { ents.push({ y: a.y, d: a, k: 'ally' }); });
     if (this.boss && this.boss.hp > 0) ents.push({ y: this.boss.y, d: this.boss, k: 'boss' });
     ents.push({ y: p.y, d: p, k: 'player' });
     ents.sort(function (a, b) { return a.y - b.y; });
     for (var i = 0; i < ents.length; i++) {
       var e = ents[i];
       if (e.k === 'mob') this.drawMob(e.d);
-      else if (e.k === 'ally') this.drawAlly(e.d);
       else if (e.k === 'boss') this.drawBoss(e.d);
       else this.drawPlayer(e.d);
     }
@@ -1542,20 +1471,8 @@
     });
   };
 
-  Battle.prototype.drawFieldStuff = function () {
+  Battle.prototype.drawStageStuff = function () {
     var ctx = this.ctx, self = this;
-    // cổng
-    var po = this.portalOpen;
-    ctx.save(); ctx.translate(this.portal.x, this.portal.y);
-    ctx.globalAlpha = 0.35 + 0.25 * Math.sin(this.t / 300);
-    ctx.fillStyle = po ? '#f2d24b' : '#4a5a6a';
-    ctx.beginPath(); ctx.ellipse(0, 0, 46, 26, 0, 0, TAU); ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = po ? '#fff0a0' : '#7b8b9b'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.ellipse(0, 0, 46, 26, 0, 0, TAU); ctx.stroke();
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center';
-    ctx.fillText(po ? 'CỔNG MỞ' : 'còn ' + Math.max(0, this.needKills - this.killed) + ' con', 0, -36);
-    ctx.restore();
 
     this.gathers.forEach(function (g) {
       if (g.used) return;
@@ -1619,258 +1536,162 @@
 
   /* -- Nhân vật vẽ bằng vài hình khối: thân, đầu, và vũ khí theo hướng quay -- */
   /* ======================================================================
-   * NGƯỜI QUE CÓ KHỚP
+   * NHÂN VẬT TRÒN NHÌN TỪ TRÊN XUỐNG — cùng ngôn ngữ với games/repo2d
    *
-   * Vì sao là người que chứ không phải khối tròn: game này ăn nhau ở chỗ ĐỌC
-   * ĐƯỢC nhân vật đang làm gì — đang chạy, đang nạp, đang đỡ, đang lăn — vì
-   * người chơi phải quyết định trong vài phần mười giây. Một cái đốm ellipse
-   * không nói được điều đó; một bộ xương có vai, khuỷu, hông, gối thì nói được
-   * chỉ bằng tư thế, kể cả khi nhân vật chỉ cao 34px.
+   * Một thân tròn viền đậm, một cục nhô ra phía trước cho biết đang quay hướng
+   * nào, vũ khí thò ra trước, và một vệt cung khi vung. Không có tay chân.
    *
-   * Khung xương (toạ độ cục bộ, y âm là hướng lên màn hình):
-   *      đầu  (0,-31) r 5.6
-   *      cổ   (0,-25)
-   *      vai  (±4.6,-23)
-   *      hông (0,-13)
-   *      chậu (±3.4,-12)
-   * Mọi tư thế chỉ là việc đặt lại BÀN TAY và BÀN CHÂN; khuỷu và gối được suy ra
-   * bằng phép gập hai đoạn (IK hai xương), nên tay chân luôn gập đúng chiều.
+   * Vì sao bỏ người que: game này nhìn thẳng từ trên xuống, mà người que thì
+   * phải vẽ đứng như nhìn ngang — hai góc nhìn đá nhau, và ở cỡ 30px thì đám
+   * tay chân biến thành một mớ nét rối. Hình tròn đọc được hướng quay ngay lập
+   * tức, và mọi trạng thái diễn bằng BIẾN DẠNG cả khối (bẹp, xoay, nảy, nhấc
+   * lên) — thứ vẫn thấy rõ khi nhân vật chỉ to bằng đầu ngón tay.
    * ====================================================================== */
   var SKIN = ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'];
   var HAIRC = ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
                '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'];
-  var J = { headY: -31, headR: 5.6, neckY: -25, shX: 4.6, shY: -23, hipY: -13, pelX: 3.4, pelY: -12 };
+  var BODY_R = 9.2;
 
-  /* Gập hai xương: cho gốc A và đầu mút B, trả về khớp giữa. `bend` quyết định
-   * gập về bên nào (tay gập ra sau, chân gập ra trước). */
-  function joint(ax, ay, bx, by, len, bend) {
-    var dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy) || 0.001;
-    var half = Math.min(len, d * 0.98) / 2;
-    var h = Math.sqrt(Math.max(0, half * half - (d / 2) * (d / 2)));
-    var mx = ax + dx / 2, my = ay + dy / 2;
-    return { x: mx + (-dy / d) * h * bend, y: my + (dx / d) * h * bend };
-  }
+  /* o: { facing, state, k, t, moving, skin, hair, cloth, weapon, elem, guardPerfect } */
+  function drawChar(ctx, o) {
+    var st = o.state, k = o.k || 0, t = o.t || 0;
+    var r = BODY_R;
+    var swing = Math.sin(k * Math.PI);
 
-  /* Tư thế: trả về vị trí hai bàn tay, hai bàn chân, độ nghiêng thân, và góc
-   * cầm vũ khí. `k` là tiến độ 0..1 của hành động đang chạy. */
-  function pose(o) {
-    var t = o.t, k = o.k, st = o.state;
-    var P = {
-      lean: 0, bob: 0, crouch: 0, spin: 0,
-      handF: { x: 8, y: -17 },    // tay CẦM VŨ KHÍ (tay trước)
-      handB: { x: -8, y: -17 },   // tay còn lại
-      footF: { x: 3.4, y: 0 }, footB: { x: -3.4, y: 0 },
-      wAng: -0.35, wScale: 1
-    };
-    var swing = Math.sin(k * Math.PI);           // 0 -> 1 -> 0 trong một đòn
-    var runP = t / 135;
+    // ---- biến dạng cả khối theo trạng thái ----
+    var lift = 0;        // nhấc khỏi mặt đất (bóng co lại)
+    var spin = 0;        // xoay quanh trục đứng
+    var sx = 1, sy = 1;  // bẹp/giãn
+    var push = 0;        // đẩy tới/lui theo hướng quay
+    if (st === 'dodge') { spin = k * TAU; sx = 1.22; sy = 0.78; lift = Math.sin(k * Math.PI) * 4; }
+    else if (st === 'ranbu') { spin = t / 40; lift = 11 + swing * 6; sx = sy = 1.06; }
+    else if (st === 'attack' || st === 'cleave') { push = swing * (st === 'cleave' ? 5 : 3); sx = 1 + swing * 0.10; sy = 1 - swing * 0.07; }
+    else if (st === 'lunge') { push = 6; sx = 1.28; sy = 0.8; }
+    else if (st === 'charge') { var tr = Math.sin(t / 40) * (0.3 + 1.6 * (o.charge || 0)); push = -2 + tr * 0.4; sx = 0.94; sy = 1.06; }
+    else if (st === 'guard') { push = 1.5; sx = 0.96; sy = 1.02; }
+    else if (st === 'hurt') { push = -4; sx = 1.1; sy = 0.92; }
+    else if (st === 'down') { sx = 1.35; sy = 0.62; }
+    else if (o.moving) { lift = Math.abs(Math.sin(t / 105)) * 1.6; }   // nhún theo nhịp bước
+    else { var br = Math.sin(t / 620) * 0.02; sx = 1 + br; sy = 1 - br; }
 
-    if (st === 'attack' || st === 'cleave') {
-      // Vung: tay vẽ một cung từ sau đầu ra trước mặt. Thân xoay theo.
-      var a = -2.05 + 2.9 * k;                    // góc cánh tay
-      var reach = st === 'cleave' ? 19 : 15;
-      P.handF = { x: Math.cos(a) * reach + 3, y: Math.sin(a) * reach - 20 };
-      P.handB = { x: P.handF.x * (st === 'cleave' ? 0.72 : -0.45) - 2, y: P.handF.y + (st === 'cleave' ? 4 : 5) };
-      P.lean = (st === 'cleave' ? 0.30 : 0.20) * Math.sin(k * Math.PI);
-      P.footF = { x: 8 + swing * 3, y: 0 }; P.footB = { x: -7 - swing * 2, y: 0 };
-      P.wAng = a + 1.3;
-      P.crouch = swing * (st === 'cleave' ? 3 : 1.5);
-    } else if (st === 'charge') {
-      // Nạp: co người ra sau, hai tay giơ vũ khí lên quá đầu, run lên theo mức nạp.
-      var tr = Math.sin(t / 38) * (0.4 + 2.0 * (o.charge || 0));
-      P.lean = -0.26; P.crouch = 2.5;
-      P.handF = { x: -4 + tr, y: -32 }; P.handB = { x: -9 + tr, y: -28 };
-      P.footF = { x: 7, y: 0 }; P.footB = { x: -8, y: 0 };
-      P.wAng = -2.5 + tr * 0.06;
-    } else if (st === 'guard') {
-      // Đỡ: hạ trọng tâm, khiên đưa hẳn ra trước, kiếm thu về sau.
-      P.crouch = 4.5; P.lean = 0.16;
-      P.handB = { x: 13, y: -20 };   // tay khiên
-      P.handF = { x: -6, y: -16 };
-      P.footF = { x: 9, y: 0 }; P.footB = { x: -8, y: 1 };
-      P.wAng = -1.5;
-    } else if (st === 'aim') {
-      // Ngắm: tay trước duỗi thẳng, tay sau kéo dây về mang tai.
-      P.handF = { x: 16, y: -24 };
-      P.handB = { x: -1, y: -27 };
-      P.lean = 0.05; P.crouch = 1.5;
-      P.footF = { x: 8, y: 0 }; P.footB = { x: -8, y: 0 };
-      P.wAng = -0.05;
-    } else if (st === 'lunge') {
-      // Lao: thân gần như nằm ngang, hai tay chĩa vũ khí thẳng về trước.
-      P.lean = 0.62; P.crouch = 4;
-      P.handF = { x: 17, y: -22 }; P.handB = { x: 7, y: -20 };
-      P.footF = { x: -4, y: -4 }; P.footB = { x: -12, y: -8 };
-      P.wAng = -0.15;
-    } else if (st === 'ranbu') {
-      // Loạn vũ: bốc lên khỏi đất và xoay tít, chân co lại.
-      P.spin = t / 42;
-      P.bob = -13 - 7 * Math.sin(k * Math.PI);
-      P.handF = { x: 15, y: -22 }; P.handB = { x: -15, y: -22 };
-      P.footF = { x: 6, y: -7 }; P.footB = { x: -6, y: -7 };
-      P.wAng = -0.9;
-    } else if (st === 'dodge') {
-      // Lăn: cả người cuộn tròn một vòng.
-      P.spin = k * TAU;
-      P.bob = -Math.sin(k * Math.PI) * 5;
-      P.crouch = 6;
-      P.handF = { x: 6, y: -14 }; P.handB = { x: -6, y: -14 };
-      P.footF = { x: 5, y: -6 }; P.footB = { x: -5, y: -6 };
-    } else if (st === 'down') {
-      // Nằm sõng soài: chân tay duỗi ra, không phải một khối gỗ.
-      P.crouch = 9; P.lean = 0.1;
-      P.handF = { x: 15, y: -14 }; P.handB = { x: -14, y: -10 };
-      P.footF = { x: 11, y: 2 }; P.footB = { x: -12, y: -3 };
-    } else if (st === 'cast') {
-      P.handF = { x: 10, y: -33 }; P.handB = { x: -10, y: -33 };
-      P.lean = -0.12; P.bob = -Math.sin(k * Math.PI) * 3;
-    } else if (st === 'hurt') {
-      P.lean = -0.35; P.crouch = 2;
-      P.handF = { x: 12, y: -26 }; P.handB = { x: -12, y: -24 };
-      P.footF = { x: 2, y: 0 }; P.footB = { x: -11, y: 0 };
-    } else if (o.moving) {
-      // Chạy: chân đạp so le, tay vung ngược pha, người nhấp nhô và chúi tới.
-      var s = Math.sin(runP), c = Math.cos(runP);
-      P.footF = { x: 3 + s * 8, y: -Math.max(0, s) * 4 };
-      P.footB = { x: -3 - s * 8, y: -Math.max(0, -s) * 4 };
-      P.handF = { x: 7 - s * 6, y: -17 - c * 1.5 };
-      P.handB = { x: -7 + s * 6, y: -17 + c * 1.5 };
-      P.bob = -Math.abs(c) * 1.6;
-      P.lean = 0.14;
-      P.wAng = -0.5 - s * 0.25;
-    } else {
-      // Đứng: thở nhẹ, không đứng chết cứng.
-      var br = Math.sin(t / 620);
-      P.bob = br * 0.9;
-      P.handF = { x: 8, y: -17 + br * 0.8 }; P.handB = { x: -8, y: -17 - br * 0.8 };
-      P.wAng = -0.4 + br * 0.05;
-    }
-    return P;
-  }
-
-  /* Vẽ một người que. `o` gồm: facing, state, k, t, moving, skin, hair, cloth,
-   * weapon (mã lớp vũ khí hoặc null), elem (màu hệ của vũ khí), guardPerfect. */
-  function drawStick(ctx, o) {
-    var P = pose(o);
-    var faceRight = Math.cos(o.facing) >= 0;
-    // Nhìn từ trên chếch xuống: quay lưng lại (đi lên) thì không thấy mặt, quay
-    // xuống thì thấy. Chỉ một chi tiết này thôi là hướng nhân vật đọc được ngay.
-    var toCamera = Math.sin(o.facing) > -0.15;
+    // ---- bóng: co lại khi nhấc lên, đó là thứ cho biết đang ở trên không ----
+    var shK = 1 - Math.min(0.55, lift / 22);
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.42 * shK) + ')';
+    ctx.beginPath(); ctx.ellipse(0, 8, r * 1.15 * shK, r * 0.46 * shK, 0, 0, TAU); ctx.fill();
 
     ctx.save();
-    ctx.translate(0, P.bob);
-    if (P.spin) ctx.rotate(P.spin);
-    if (!faceRight) ctx.scale(-1, 1);
-    ctx.rotate(P.lean);
+    ctx.translate(Math.cos(o.facing) * push, Math.sin(o.facing) * push - lift);
+    ctx.rotate(o.facing + spin);
+    ctx.scale(sx, sy);
 
-    var hipY = J.hipY + P.crouch, neckY = J.neckY + P.crouch * 0.7, headY = J.headY + P.crouch * 0.6;
-    var shY = J.shY + P.crouch * 0.7;
-
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-
-    function limb(ax, ay, bx, by, len, bend, w, col) {
-      var m = joint(ax, ay, bx, by, len, bend);
-      ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = w + 1.6;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(m.x, m.y); ctx.lineTo(bx, by); ctx.stroke();
-      ctx.strokeStyle = col; ctx.lineWidth = w;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(m.x, m.y); ctx.lineTo(bx, by); ctx.stroke();
-      return m;
-    }
-
-    // ---- chi phía xa (vẽ trước để nằm dưới thân) ----
-    limb(-J.pelX, hipY, P.footB.x, P.footB.y, 15, -1, 3.4, shade(o.cloth, -0.28));
-    limb(-J.shX, shY, P.handB.x, P.handB.y, 13, 1, 3.0, shade(o.skin, -0.22));
-    // Khiên đeo ở tay kia. Vẽ Ở ĐÂY, tức trước thân và đầu, để nó không bao giờ
-    // che mất mặt nhân vật — mặt là thứ cho biết nhân vật đang quay về phía nào.
-    if (o.weapon === 'sword') {
-      ctx.save(); ctx.translate(P.handB.x - 1.5, P.handB.y + 2.5);
-      ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 1.8;
-      ctx.fillStyle = o.state === 'guard' ? (o.guardPerfect ? '#8fe4ff' : '#c2d4e6') : '#8fa3b5';
-      ctx.beginPath(); ctx.ellipse(0, 0, 5.4, 7.4, o.state === 'guard' ? 0 : 0.3, 0, TAU);
-      ctx.fill(); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.ellipse(0, 0, 2.8, 4.2, 0, 0, TAU); ctx.stroke();
-      ctx.restore();
+    // ---- hai bàn chân: hai chấm nhỏ đạp so le ở hai bên, đủ để thấy đang bước ----
+    if (o.moving && st !== 'dodge' && st !== 'ranbu') {
+      var stp = Math.sin(t / 105) * 4.2;
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.beginPath(); ctx.arc(stp, -r * 0.72, 2.4, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(-stp, r * 0.72, 2.4, 0, TAU); ctx.fill();
     }
 
     // ---- thân ----
-    ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 8.6;
-    ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(0, neckY); ctx.stroke();
-    ctx.strokeStyle = o.cloth; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(0, hipY); ctx.lineTo(0, neckY); ctx.stroke();
-    // đai vai, để thấy thân có bề ngang
-    ctx.strokeStyle = shade(o.cloth, 0.18); ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(-J.shX, shY); ctx.lineTo(J.shX, shY); ctx.stroke();
+    ctx.fillStyle = o.cloth;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(12,16,20,.85)'; ctx.lineWidth = 1.8; ctx.stroke();
+    // vai: một vòng cung tối phía sau, để khối tròn có chiều
+    ctx.strokeStyle = shade(o.cloth, -0.35); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, r - 1.9, Math.PI * 0.45, Math.PI * 1.55); ctx.stroke();
 
-    // ---- chi phía gần ----
-    limb(J.pelX, hipY, P.footF.x, P.footF.y, 15, -1, 3.6, o.cloth);
-    var elbowF = limb(J.shX, shY, P.handF.x, P.handF.y, 13, 1, 3.2, o.skin);
-
-    // ---- đầu ----
-    ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 2;
+    // ---- cục nhô ra phía trước = đầu, cho biết đang quay hướng nào ----
     ctx.fillStyle = o.skin;
-    ctx.beginPath(); ctx.arc(0, headY, J.headR, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(r * 0.5, 0, r * 0.5, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(12,16,20,.8)'; ctx.lineWidth = 1.4; ctx.stroke();
     ctx.fillStyle = o.hair;
-    ctx.beginPath(); ctx.arc(0, headY - 0.8, J.headR + 0.5, Math.PI + 0.35, TAU - 0.35); ctx.fill();
-    if (toCamera) {
-      ctx.fillStyle = '#1b2026';
-      ctx.beginPath(); ctx.arc(1.6, headY + 0.6, 0.95, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.arc(-1.9, headY + 0.6, 0.95, 0, TAU); ctx.fill();
-    }
+    ctx.beginPath(); ctx.arc(r * 0.34, 0, r * 0.42, Math.PI * 0.5, Math.PI * 1.5); ctx.fill();
 
-    // ---- vũ khí, cầm ở đúng BÀN TAY, xoay theo tư thế ----
-    if (o.weapon) {
+    // ---- vũ khí thò ra trước, xoay theo cú vung ----
+    if (o.weapon) drawHeldWeapon(ctx, o.weapon, o.elem, o, r, k, st);
+
+    ctx.restore();
+
+    // ---- vệt quét của cú vung, vẽ ngoài phép scale để không bị méo ----
+    if ((st === 'attack' || st === 'cleave') && swing > 0.05) {
+      var W = G.WEAPONS[o.weapon] || {};
+      var arc = st === 'cleave' ? (W.cleaveArc || 2.5) : (W.arc || 1.7);
+      var reach = st === 'cleave' ? (W.cleaveReach || 110) : (W.reach || 62);
       ctx.save();
-      ctx.translate(P.handF.x, P.handF.y);
-      ctx.rotate(P.wAng);
-      drawHeldWeapon(ctx, o.weapon, o.elem, o);
+      ctx.rotate(o.facing);
+      ctx.globalAlpha = swing * 0.5;
+      ctx.strokeStyle = st === 'cleave' ? '#ffd8a0' : '#e8f4ff';
+      ctx.lineWidth = st === 'cleave' ? 9 : 5; ctx.lineCap = 'round';
+      var a0 = -arc / 2 + arc * k;
+      ctx.beginPath(); ctx.arc(0, 0, reach * 0.72, a0 - arc * 0.22, a0 + arc * 0.22); ctx.stroke();
       ctx.restore();
     }
-    ctx.restore();
+    // ---- vòng khiên khi đang đỡ: một cung dày chắn ngay trước mặt ----
+    if (st === 'guard') {
+      ctx.save(); ctx.rotate(o.facing);
+      ctx.strokeStyle = o.guardPerfect ? '#8fe4ff' : '#c2d4e6';
+      ctx.lineWidth = 4.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(0, 0, r + 5, -0.85, 0.85); ctx.stroke();
+      ctx.globalAlpha = 0.28; ctx.lineWidth = 10;
+      ctx.beginPath(); ctx.arc(0, 0, r + 5, -0.85, 0.85); ctx.stroke();
+      ctx.restore();
+    }
   }
 
-  /* Vũ khí vẽ trong hệ toạ độ của BÀN TAY: gốc là chuôi, lưỡi chĩa theo +x. */
-  function drawHeldWeapon(ctx, cls, elCol, o) {
-    ctx.lineCap = 'butt';
+  /* Vũ khí trong hệ toạ độ THÂN: gốc là tâm nhân vật, mũi chĩa theo +x. */
+  function drawHeldWeapon(ctx, cls, elCol, o, r, k, st) {
+    var swing = Math.sin((k || 0) * Math.PI);
+    // Góc vung: lưỡi quét từ sau ra trước trong suốt cú đánh.
+    var a = 0;
+    if (st === 'attack') a = -1.15 + 2.3 * k;
+    else if (st === 'cleave') a = -1.5 + 3.0 * k;
+    else if (st === 'charge') a = -2.2;
+    else if (st === 'guard') a = 1.15;
+    else if (st === 'lunge' || st === 'aim') a = 0;
+    else a = -0.55;
+
+    ctx.save(); ctx.rotate(a);
     function bar(x, y, w, h, fill) {
-      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(x - 0.8, y - 0.8, w + 1.6, h + 1.6);
+      ctx.fillStyle = 'rgba(12,16,20,.8)'; ctx.fillRect(x - 0.9, y - 0.9, w + 1.8, h + 1.8);
       ctx.fillStyle = fill; ctx.fillRect(x, y, w, h);
     }
     if (cls === 'sword') {
-      bar(2, -1.6, 20, 3.2, '#e4edf5');
-      bar(17, -1.6, 5, 3.2, elCol);
-      bar(0, -3.2, 2.4, 6.4, '#6a5a4a');
-    } else if (cls === 'great') {
-      bar(3, -3.6, 38, 7.2, '#e8eef4');
-      bar(31, -3.6, 10, 7.2, elCol);
-      bar(-4, -2.2, 7, 4.4, '#6a5a4a');
-    } else if (cls === 'spear') {
-      bar(-14, -1.2, 62, 2.4, '#8a6a4a');
-      ctx.fillStyle = 'rgba(0,0,0,.55)';
-      ctx.beginPath(); ctx.moveTo(60, 0); ctx.lineTo(46, -5.4); ctx.lineTo(46, 5.4); ctx.fill();
-      ctx.fillStyle = elCol;
-      ctx.beginPath(); ctx.moveTo(58, 0); ctx.lineTo(46, -4.2); ctx.lineTo(46, 4.2); ctx.fill();
-    } else if (cls === 'dual') {
-      bar(2, -1.4, 16, 2.8, '#e0e8f0');
-      bar(14, -1.4, 4, 2.8, elCol);
-      ctx.save(); ctx.rotate(-0.9);
-      bar(2, -1.4, 14, 2.8, '#cfd8e2'); bar(12, -1.4, 4, 2.8, elCol);
+      bar(r * 0.6, -1.7, 17, 3.4, '#e4edf5'); bar(r * 0.6 + 12, -1.7, 5, 3.4, elCol);
+      // Khiên đeo ở phía ĐỐI DIỆN lưỡi kiếm: nhìn là biết đây là bộ đánh-và-đỡ.
+      ctx.save(); ctx.rotate(-a);
+      ctx.fillStyle = 'rgba(12,16,20,.8)';
+      ctx.beginPath(); ctx.ellipse(-r * 0.75, 0, 4.6, 6.4, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = st === 'guard' ? (o.guardPerfect ? '#8fe4ff' : '#c2d4e6') : '#93a7ba';
+      ctx.beginPath(); ctx.ellipse(-r * 0.75, 0, 3.6, 5.4, 0, 0, TAU); ctx.fill();
       ctx.restore();
+    } else if (cls === 'great') {
+      bar(r * 0.5, -3.6, 30 + swing * 6, 7.2, '#e8eef4');
+      bar(r * 0.5 + 22 + swing * 6, -3.6, 8, 7.2, elCol);
+    } else if (cls === 'spear') {
+      bar(-r * 0.9, -1.3, 40, 2.6, '#8a6a4a');
+      ctx.fillStyle = 'rgba(12,16,20,.8)';
+      ctx.beginPath(); ctx.moveTo(-r * 0.9 + 48, 0); ctx.lineTo(-r * 0.9 + 37, -5.4); ctx.lineTo(-r * 0.9 + 37, 5.4); ctx.fill();
+      ctx.fillStyle = elCol;
+      ctx.beginPath(); ctx.moveTo(-r * 0.9 + 46, 0); ctx.lineTo(-r * 0.9 + 37, -4); ctx.lineTo(-r * 0.9 + 37, 4); ctx.fill();
+    } else if (cls === 'dual') {
+      bar(r * 0.6, -3.6, 13, 2.6, '#e0e8f0'); bar(r * 0.6 + 9, -3.6, 4, 2.6, elCol);
+      bar(r * 0.6, 1.0, 13, 2.6, '#cfd8e2'); bar(r * 0.6 + 9, 1.0, 4, 2.6, elCol);
     } else if (cls === 'bow') {
-      // Cung: cánh cung cong, và dây CĂNG RA khi đang ngắm — nhìn là biết đang nạp.
-      var pull = (o && o.state === 'aim') ? 7 : 0;
-      ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 4.4;
-      ctx.beginPath(); ctx.arc(2, 0, 15, -1.25, 1.25); ctx.stroke();
+      // Cung nằm ngang trước mặt; đang ngắm thì dây kéo căng về sau và lắp tên.
+      var pull = (st === 'aim') ? 6 : 0;
+      ctx.strokeStyle = 'rgba(12,16,20,.8)'; ctx.lineWidth = 4.4;
+      ctx.beginPath(); ctx.arc(r * 0.35, 0, 12, -1.3, 1.3); ctx.stroke();
       ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 2.6;
-      ctx.beginPath(); ctx.arc(2, 0, 15, -1.25, 1.25); ctx.stroke();
-      var tx = 2 + 15 * Math.cos(1.25), ty = 15 * Math.sin(1.25);
+      ctx.beginPath(); ctx.arc(r * 0.35, 0, 12, -1.3, 1.3); ctx.stroke();
+      var tx = r * 0.35 + 12 * Math.cos(1.3), ty = 12 * Math.sin(1.3);
       ctx.strokeStyle = '#e8f2ff'; ctx.lineWidth = 1.1;
       ctx.beginPath(); ctx.moveTo(tx, -ty); ctx.lineTo(tx - pull, 0); ctx.lineTo(tx, ty); ctx.stroke();
       if (pull) {
         ctx.strokeStyle = elCol; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(tx - pull, 0); ctx.lineTo(tx + 20, 0); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(tx - pull, 0); ctx.lineTo(tx + 18, 0); ctx.stroke();
       }
     }
+    ctx.restore();
   }
 
   // Bốn màu mức nạp là quy ước của Punicon từ White Cat (Overcharge/Combo Charge):
@@ -1909,15 +1730,20 @@
     }
     if (p.down) {
       ctx.rotate(1.42); ctx.translate(0, -6);
-      drawStick(ctx, { facing: 0, state: 'down', moving: false, t: this.t, k: 0,
+      drawChar(ctx, { facing: 0, state: 'down', moving: false, t: this.t, k: 0,
         skin: SKIN[this.s.skin || 2], hair: HAIRC[this.s.hairColor || 0], cloth: '#5a6a7a',
         weapon: null, elem: '#888' });
       ctx.restore();
-      // vòng cứu
-      ctx.save(); ctx.translate(p.x, p.y);
-      ctx.strokeStyle = '#7fd07f'; ctx.lineWidth = 3; ctx.globalAlpha = 0.5 + 0.4 * Math.sin(this.t / 200);
-      ctx.beginPath(); ctx.ellipse(0, 6, G.BAL.reviveRadius, G.BAL.reviveRadius * 0.55, 0, 0, TAU); ctx.stroke();
-      ctx.restore();
+      // Vòng đếm ngược tự đứng dậy: vành vơi dần cho biết còn bao lâu.
+      if (p.revives > 0) {
+        var kk = clamp(p.downT / G.BAL.selfReviveMs, 0, 1);
+        ctx.save(); ctx.translate(p.x, p.y);
+        ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.ellipse(0, 6, 34, 19, 0, 0, TAU); ctx.stroke();
+        ctx.strokeStyle = '#7fd07f'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.ellipse(0, 6, 34, 19, 0, -Math.PI / 2, -Math.PI / 2 + TAU * kk); ctx.stroke();
+        ctx.restore();
+      }
       return;
     }
     if (p.iframe > 0) ctx.globalAlpha = 0.5 + 0.5 * Math.sin(this.t / 50);
@@ -1930,7 +1756,7 @@
       ctx.strokeStyle = '#ff7a3c'; ctx.lineWidth = 2; ctx.globalAlpha = 0.55 + 0.3 * Math.sin(this.t / 90);
       ctx.beginPath(); ctx.arc(0, -4, 30, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
     }
-    drawStick(ctx, {
+    drawChar(ctx, {
       facing: p.facing, state: p.state, moving: p.moving, t: this.t,
       k: p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0,
       charge: this.chargeLevel() > 0 ? this.chargeLevel() : 0,
@@ -1955,37 +1781,6 @@
       ctx.fillStyle = '#ffd23f'; ctx.fillRect(-18, 5, 36 * left, 4);
       ctx.restore();
     }
-  };
-
-  Battle.prototype.drawAlly = function (a) {
-    var ctx = this.ctx;
-    ctx.save(); ctx.translate(a.x, a.y);
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(0, 9, 13, 5, 0, 0, TAU); ctx.fill();
-    var ai = this.allies.indexOf(a);
-    var cloth = ['#7a4a8a', '#4a7a5a', '#8a6a3a'][ai] || '#6a6a8a';
-    if (a.down) {
-      ctx.rotate(1.42); ctx.translate(0, -6);
-      drawStick(ctx, { facing: 0, state: 'down', moving: false, t: this.t, k: 0,
-        skin: SKIN[ai + 1], hair: HAIRC[ai * 3 + 1], cloth: '#5a6a7a', weapon: null, elem: '#888' });
-      ctx.restore(); return;
-    }
-    drawStick(ctx, {
-      facing: a.facing, state: a.hitT > 0 ? 'attack' : 'idle', moving: !!a.moving, t: this.t + ai * 220,
-      k: a.hitT > 0 ? clamp(1 - a.hitT / 200, 0, 1) : 0,
-      skin: SKIN[ai + 1], hair: HAIRC[ai * 3 + 1], cloth: cloth,
-      weapon: { sword: 'sword', bow: 'bow', spear: 'spear' }[a.kind] || 'sword',
-      elem: '#cfd8e2'
-    });
-    ctx.restore();
-    // Biển tên + máu treo trên đầu, giống bản gốc. Lệch cao theo thứ tự đội hình để
-    // ba biển không chồng lên nhau khi cả tổ đứng sát nhau đánh cùng một bộ phận.
-    ctx.save(); ctx.translate(a.x, a.y - 46 - this.allies.indexOf(a) * 12);
-    ctx.font = '9px system-ui'; ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(-30, -10, 60, 11);
-    ctx.fillStyle = '#cfe0f0'; ctx.fillText('[NPC] ' + a.name, 0, -1);
-    ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(-24, 2, 48, 3);
-    ctx.fillStyle = '#5fd06a'; ctx.fillRect(-24, 2, 48 * clamp(a.hp / a.maxHp, 0, 1), 3);
-    ctx.restore();
   };
 
   Battle.prototype.drawMob = function (m) {
@@ -2356,7 +2151,7 @@
 
   // Màn menu dùng lại đúng người que này, để nhân vật ở sân guild và nhân vật
   // trong trận là MỘT — đổi giáp thấy ngay ở cả hai chỗ.
-  G.drawStick = drawStick;
+  G.drawChar = drawChar;
   G.Battle = Battle;
   G.VIEW = { W: W, H: H };
 })(window.DP = window.DP || {});

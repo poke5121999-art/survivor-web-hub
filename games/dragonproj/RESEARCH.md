@@ -396,13 +396,89 @@ nổi trên đầu**, sát thương hiện thành **số trắng viền đen bay
 
 ## 12. Những gì bản dựng lại **không** làm
 
-- **Multiplayer thật.** Bản gốc là 1–4 người thật. Bản này thay bằng **3 NPC đồng đội** chạy AI —
-  giữ được cảm giác đội hình 4 người, cứu nhau, chia đòn, nhưng không có mạng.
+- **Multiplayer thật.** Bản gốc là 1–4 người thật. Bản này đi **một mình** — xem mục 13.4.
 - **Tài nguyên gốc.** Không dùng một file ảnh/âm thanh nào của Dragon Project. Mọi thứ trên màn
   hình đều **vẽ bằng code**. Cái được lấy là **dữ liệu thiết kế**: bản đồ thao tác Punicon,
   đặc thù 5 vũ khí, thang chỉ số, tỉ lệ gacha, tỉ lệ rơi đồ, layout HUD.
 - **Số liệu không công bố.** Máu boss, sát thương từng đòn, thời gian hồi Magi, tốc chạy — wiki
   không có. Đều là `[TÁI DỰNG]`, cân theo thang chỉ số trang bị ở mục 4 và 6.
+
+---
+
+## 13. Chỗ **cố ý lệch** bản gốc — và vì sao
+
+Mục 1–11 ở trên là thứ *tìm được* về Dragon Project. Mục này là thứ bản dựng lại *quyết định làm
+khác*. Bốn chỗ, và cả bốn đều đổi vì cùng một lý do: bản gốc là game **dịch vụ trực tuyến, nhiều
+người, chơi dài hạn**, còn bản này là một trang HTML mở ra chơi một mình. Giữ nguyên khung của
+game gốc thì đúng về hình thức nhưng hỏng về trải nghiệm.
+
+### 13.1 Đi **ải** thay cho đi map nối map
+
+**Bản gốc:** mỗi vùng là một chuỗi map nối nhau bằng cổng. Dọn đủ quái thì cổng mở, đi qua sang
+map sau. Behemoth thì phải quay Quest Gacha mới có con để đánh, hoặc đợi *Sudden Behemoth* ngẫu
+nhiên nhảy ra giữa map.
+
+**Bản này:** một danh sách **ải đánh số** (Ải 1-1, 1-2, …). Mỗi ải là **hai chặng liền nhau trong
+cùng một trận**: dọn đủ số quái mà ải yêu cầu, rồi **Behemoth cuối ải** ra ngay tại chỗ. Hạ nó là
+phá ải, và ải kế tiếp mở.
+
+**Vì sao:** cấu trúc gốc phân tán mục tiêu ra ba chỗ — cổng ở map, boss ở gacha, boss hiếm ở may
+rủi. Người chơi mới mở game lên không biết mình *nên* làm gì tiếp. Danh sách ải đánh số trả lời
+câu đó bằng một dòng: ải kế tiếp là ải nào, cần dọn bao nhiêu quái, trùm là con gì. Toàn bộ phần
+"đi đâu bây giờ" biến mất.
+
+**Chuỗi ải:** 38 ải qua 8 vùng, cấp 1 → 70. Trùm leo thang theo đúng bảng hạng của game gốc:
+24 ải trùm hạng B, 9 ải hạng A, 4 ải hạng S, và ải cuối cùng là **Deus Felnarog hạng SS**. Ải cuối
+mỗi vùng là chốt chặn (trùm mạnh hơn, thưởng gấp đôi, +10 Gem cho lần phá đầu).
+
+### 13.2 Gacha ra **thẳng trang bị**
+
+**Bản gốc:** Quest Gacha quay ra **một con Behemoth để đi đánh**. Hạ nó xong mới có **Tablet**,
+đem Tablet về lò rèn mới chế được đồ. Năm Tablet cùng loại = 4 giáp + 1 vũ khí của con đó.
+
+**Bản này:** quay ra **thẳng vũ khí hoặc giáp**, dùng được ngay.
+
+**Vì sao:** ba bước (quay → đánh → chế) cho *một* món đồ là quá dài để hiểu, và ở bước một người
+chơi còn chưa biết mình đang quay cái gì. Tỉ lệ hạng thì giữ **nguyên số thật** của Quest Gacha:
+SS 3% / S 15% / A 55% / B 27%. Bộ đồ của mỗi Behemoth cũng giữ nguyên — chỉ bỏ khâu trung gian.
+
+**Cân bằng bù lại:** gacha chỉ cho **món đồ**, không cho sức mạnh. Muốn mạnh thì phải **nâng cấp**,
+mà mọi nguyên liệu nâng cấp đều **rơi trong ải**: Strengthening Stone, Equipment Crystal (bắt buộc
+từ cấp 25), Lapis cho Limit Break, Magi Fragment. Gacha rút ngắn đường *có đồ*, không rút ngắn
+đường *mạnh lên*.
+
+### 13.3 **Lõi Rồng** — trùng gacha thành nguyên liệu không cày được
+
+Quay trúng món **đã có** thì đổi thành **Lõi Rồng**: trùng hạng B ra 1, A ra 2, S ra 5, SS ra 12.
+
+Lõi Rồng là thứ **duy nhất** mở được **Tiến hoá** — bậc nâng cấp cao nhất, và chỉ đồ hạng S/SS mới
+tiến hoá được. Nó **không rơi ở bất kỳ ải nào**, không có trong bảng rơi của tộc quái nào, không
+nằm trong điểm khai thác, không bán ở tiệm Pikke, rã đồ cũng không ra. Đường duy nhất là quay
+trúng đồ trùng.
+
+**Vì sao phải chặt như vậy:** nếu trùng chỉ đổi ra Lapis (thứ cày được) thì quay trùng chẳng khác
+gì đi cày một lúc, và cú quay mất hết ý nghĩa. Cho nó gánh một bậc nâng cấp mà **đi cày không bao
+giờ với tới**, thì mọi lần quay đều là tiến bộ thật — kể cả lần ra món đã có. Đây cũng là lý do
+bậc Tiến hoá bị khoá ở hạng S/SS: nếu đồ hạng B cũng tiến hoá được thì Lõi Rồng tiêu hết vào đồ
+vứt đi.
+
+Cả `test/dragonproj-suite.js` lẫn `test/dragonproj-uicrawl.js` đều có một phép kiểm quét toàn bộ
+bảng rơi (tộc quái, điểm khai thác, tiệm, drop của Behemoth) để chốt rằng `dragon_core` không lọt
+vào bảng nào — luật này phải làm hỏng test nếu ai đó lỡ tay thêm nó vào.
+
+### 13.4 Đi **một mình**
+
+**Bản gốc:** 1–4 người thật, có hồi sinh đồng đội.
+
+**Bản này:** không có người khác, và cũng **không có NPC đồng đội**. Bù lại người chơi có sẵn
+**3 lượt tự đứng dậy** (4 giây mỗi lượt) và vẫn hồi sinh bằng Gem được. Hết lượt là thua ải.
+
+**Vì sao:** bản dựng thử đầu tiên có 3 NPC chạy AI cho giống đội hình 4 người. Kết quả là NPC dọn
+sạch quái trước khi người chơi kịp tới, và trận boss biến thành đứng nhìn. Punicon là một hệ điều
+khiển đòi *chính tay người chơi* đọc đòn và bấm đúng nhịp — có ai đó đánh hộ thì toàn bộ ngữ pháp
+đó thành thừa. Một mình thì mọi đòn trên sân đều là đòn của mình.
+
+---
 
 ## Nguồn
 

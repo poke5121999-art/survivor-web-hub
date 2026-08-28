@@ -83,7 +83,7 @@
 
   var NAV = [
     { id: 'home',   em: '🏰', n: 'Nhà' },
-    { id: 'quest',  em: '🗺️', n: 'Nhiệm vụ' },
+    { id: 'quest',  em: '🗺️', n: 'Ải' },
     { id: 'armory', em: '🛡️', n: 'Kho đồ' },
     { id: 'gacha',  em: '🔮', n: 'Triệu hồi' },
     { id: 'more',   em: '☰',  n: 'Khác' }
@@ -97,12 +97,12 @@
 
   function buildScreens() {
     mkScreen('home',   'HEILAND — Guild', '', true);
-    mkScreen('quest',  'NHIỆM VỤ', '', true);
+    mkScreen('quest',  'CHỌN ẢI', '', true);
     mkScreen('armory', 'KHO ĐỒ', '', true);
     mkScreen('gacha',  'TRIỆU HỒI', '', true);
     mkScreen('more',   'KHÁC', '', true);
     mkScreen('gear',   'CHI TIẾT TRANG BỊ', '', false, true);
-    mkScreen('forge',  'LÒ RÈN', '', false, true);
+    mkScreen('forge',  'NGUYÊN LIỆU', '', false, true);
     mkScreen('magi',   'MAGI', '', false, true);
     mkScreen('shop',   'TIỆM PIKKE', '', false, true);
     mkScreen('help',   'CÁCH CHƠI', '', false, true);
@@ -115,6 +115,7 @@
     var el = $('scr-' + id); if (!el) return;
     el.classList.add('on');
     hud.classList.remove('on');
+    var rs = $('resultScr'); if (rs) rs.classList.remove('on');
     if (battle) { battle.stop(); battle = null; }
     screens.style.display = 'block';
     renderCur(id);
@@ -151,7 +152,8 @@
     var b = $('body-home');
     var area = G.areaById(S.area) || G.AREAS[0];
     var nextStory = G.STORY.find(function (q) { return S.story.done.indexOf(q.id) < 0; });
-    var pb = S.pendingBoss ? G.behemothById(S.pendingBoss.id) : null;
+    var nx = G.nextStage(S);
+    var nxBoss = G.behemothById(nx.boss);
 
     var html = '';
     // Sân guild: nhân vật đứng giữa, bốn lối tắt nổi ở bốn góc — đúng cách REPO
@@ -162,7 +164,7 @@
             '<div class="lvchip">Lv. ' + S.lv + ' · ' + S.name + '</div>' +
             '<div class="area">' + area.n + '</div>' +
             '<div class="quick l">' +
-              '<button data-act="forge"><span class="em">⚒️</span>Lò rèn</button>' +
+              '<button data-act="forge"><span class="em">⚒️</span>Nguyên liệu</button>' +
               '<button data-act="magi"><span class="em">💠</span>Magi</button>' +
             '</div>' +
             '<div class="quick r">' +
@@ -173,12 +175,13 @@
               ? elemDot(wNow.el) + ' ' + wNow.name + ' · ' + G.WEAPONS[wNow.wclass].vi
               : 'Chưa cầm vũ khí nào') + '</div></div>';
 
-    if (pb) {
-      html += '<div class="banner event"><div class="npc">🐲</div><div class="t">' +
-        '<b>' + pb.n + ' đang chờ</b><span>' + rankChip(pb.rank) + ' · ' + G.WEAPONS[pb.weapon].vi +
-        ' · ' + G.WTYPES[pb.type].vi + ' · ' + elemDot(pb.el) + ' ' + G.ELEMENTS[pb.el].vi + '</span></div>' +
-        '<button class="btn go" data-act="fightPending">ĐÁNH</button></div>';
-    }
+    // Ải kế tiếp luôn nằm ngay đây: mở game lên là biết đi đâu, không phải nhớ.
+    html += '<div class="banner event"><div class="npc">🗺️</div><div class="t">' +
+      '<span class="kind" style="color:#8fd4ff">ẢI KẾ</span> <b>' + nx.n + ' — ' + nx.sub + '</b>' +
+      '<span>Lv.' + nx.lv + ' · dọn ' + nx.kills + ' quái · trùm ' +
+      (nxBoss ? nxBoss.n + ' ' + nxBoss.rank : '?') + '</span></div>' +
+      '<button class="btn go" data-act="hunt">ĐÁNH</button></div>';
+
     if (nextStory) {
       var pr = questProgressText(nextStory);
       html += '<div class="banner main"><div class="npc">👩</div><div class="t">' +
@@ -196,21 +199,18 @@
     html += '<div class="card"><h3>Nhiệm vụ tuần</h3>' + recurrentRows(S.weekly.picks, G.WEEKLY, S.weekly.done, 'w') +
       recurrentBonus(G.WEEKLY_BONUS, S.weekly, 4, 'w') + '</div>';
 
-    // Nút hành động chính, to hết bề ngang: vào thẳng map đang mở, không bắt đi
-    // vòng qua màn Nhiệm vụ. Có boss đang chờ thì nút đổi thành đi đánh boss.
-    var maxMap = Math.min((S.unlocked[S.area] || 0), area.maps.length - 1);
-    var curMap = area.maps[maxMap];
-    html += pb
-      ? '<button class="cta" data-act="fightPending">▶ ĐÁNH BEHEMOTH<small>' + pb.n + ' · ' + pb.rank + '</small></button>'
-      : '<button class="cta" data-act="hunt">▶ ĐI SĂN<small>' + curMap.n + ' · Lv.' + curMap.lv + '</small></button>';
+    // Nút hành động chính, to hết bề ngang: vào thẳng ải kế tiếp, không bắt đi
+    // vòng qua màn Ải. Kèm luôn số ải đã phá, để biết mình đang ở đâu trong 38 ải.
+    var totalClear = G.STAGES.filter(function (s2) { return S.cleared[s2.id]; }).length;
+    html += '<button class="cta" data-act="hunt">▶ VÀO ' + nx.n.toUpperCase() +
+      '<small>' + nx.sub + ' · Lv.' + nx.lv + ' · đã phá ' + totalClear + '/' + G.STAGES.length + ' ải</small></button>';
 
     b.innerHTML = html;
     drawHero();
     b.onclick = function (e) {
       var t = e.target.closest('[data-act]'); if (!t) return;
       var a = t.getAttribute('data-act');
-      if (a === 'fightPending') startBoss(S.pendingBoss.id, S.pendingBoss.lv, true);
-      else if (a === 'hunt') startField(S.area, Math.min((S.unlocked[S.area] || 0), (G.areaById(S.area) || G.AREAS[0]).maps.length - 1));
+      if (a === 'hunt') startStage(nx.id);
       else if (a === 'goQuest') show('quest');
       else if (a === 'forge') show('forge');
       else if (a === 'magi') show('magi');
@@ -293,13 +293,13 @@
     ctx.fillRect(20, 30, 38, 14); ctx.fillRect(242, 30, 38, 14);
     ctx.restore();
 
-    // Cùng một người que với trong trận (G.drawStick) — đổi giáp hay đổi vũ khí là
+    // Cùng một nhân vật với trong trận (G.drawChar) — đổi giáp hay đổi vũ khí là
     // thấy ngay ở sân guild, không phải một hình minh hoạ riêng dễ lệch với thực tế.
     var eq = G.equipped(S), w = eq.weapons.find(Boolean);
     ctx.save(); ctx.translate(150, 214); ctx.scale(3.0, 3.0);
     ctx.fillStyle = 'rgba(0,0,0,.35)';
     ctx.beginPath(); ctx.ellipse(0, 2, 15, 5, 0, 0, 6.2832); ctx.fill();
-    G.drawStick(ctx, {
+    G.drawChar(ctx, {
       facing: 0.55, state: 'idle', moving: false, t: performance.now(), k: 0,
       skin: ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'][S.skin || 2],
       hair: ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
@@ -311,10 +311,15 @@
     ctx.restore();
   }
 
-  /* ------------------------------------------------------------ QUEST ---- */
+  /* ------------------------------------------------------------- ẢI ----- */
+  /* Bản gốc đi map nối map qua cổng, boss thì phải quay gacha mới có. Ở đây gộp lại
+   * thành một danh sách ải đánh số, mở dần theo chuỗi thẳng: dọn quái rồi trùm ra.
+   * Nhìn là biết mình đang ở đâu và còn bao nhiêu ải nữa. (RESEARCH.md mục 13) */
   function rQuest() {
     var b = $('body-quest');
+    var nx = G.nextStage(S);
     var html = '';
+
     var nextStory = G.STORY.find(function (q) { return S.story.done.indexOf(q.id) < 0; });
     if (nextStory) {
       var can = storyDone(nextStory);
@@ -324,57 +329,47 @@
         '<button class="btn ' + (can ? 'pri' : 'dis') + '" data-act="claimStory">Nhận thưởng</button></div></div>';
     }
 
-    html += '<div class="card"><h3>Vùng đất</h3><div class="grid2" id="areaGrid">';
-    G.AREAS.forEach(function (a, i) {
-      var unlocked = S.unlocked.hasOwnProperty(a.id) || i === 0;
-      html += '<button class="item ' + (S.area === a.id ? 'sel' : '') + '" data-area="' + a.id + '" ' + (unlocked ? '' : 'disabled style="opacity:.35"') + '>' +
-        '<div class="nm">' + a.vi + '</div><div class="sub">' + a.n + '<br>Lv ' + a.lv[0] + '–' + a.lv[1] + (unlocked ? '' : ' · 🔒') + '</div></button>';
+    G.AREAS.forEach(function (a) {
+      var stages = a.stages;
+      // Vùng chưa mở được ải nào thì chưa hiện — đổ cả 38 ải ra một lượt thì không
+      // đọc nổi, mà cũng chẳng để làm gì.
+      if (!G.stageOpen(S, stages[0])) return;
+      var done = stages.filter(function (s2) { return S.cleared[s2.id]; }).length;
+      html += '<div class="card"><div class="row"><h3 style="flex:1">' + a.vi +
+        ' <span style="font-size:10px;color:#9fb2c4">' + a.n + '</span></h3>' +
+        '<span style="font-size:11px;color:' + (done === stages.length ? '#3fd66a' : '#9fb2c4') + '">' +
+        done + '/' + stages.length + ' ải</span></div>';
+      stages.forEach(function (s2) {
+        var open = G.stageOpen(S, s2), cleared = !!S.cleared[s2.id];
+        var bd = G.behemothById(s2.boss);
+        html += '<div class="stage' + (cleared ? ' done' : '') + (open ? '' : ' lock') +
+          (s2 === nx ? ' next' : '') + '" data-stage="' + s2.id + '">' +
+          '<div class="st-no">' + (open ? (cleared ? '✔' : s2.n.replace('Ải ', '')) : '🔒') + '</div>' +
+          '<div class="st-t"><b>' + s2.sub + '</b><span>Lv.' + s2.lv + ' · dọn ' + s2.kills + ' quái · trùm ' +
+            (bd ? bd.n + ' ' + rankChip(bd.rank) + ' ' + elemDot(bd.el) : '?') +
+            (cleared ? '' : ' · +' + s2.firstGem + ' ◈ lần đầu') + '</span></div>' +
+          '<div class="st-go">' + (open ? '▶' : '') + '</div></div>';
+      });
+      html += '</div>';
     });
-    html += '</div></div>';
-
-    var area = G.areaById(S.area) || G.AREAS[0];
-    html += '<div class="card"><h3>Map trong ' + area.vi + '</h3>';
-    area.maps.forEach(function (m, i) {
-      var open = i <= (S.unlocked[area.id] || 0);
-      html += '<div class="row" style="margin-bottom:6px">' +
-        '<span style="font-size:11px;flex:1">' + (open ? '' : '🔒 ') + m.n + '<br><span style="font-size:9.5px;color:#9fb2c4">Lv.' + m.lv +
-        ' · ' + m.tribes.map(function (t) { return G.TRIBES[t].en; }).join(', ') + ' · cần ' + m.kills + ' con để mở cổng</span></span>' +
-        '<button class="btn ' + (open ? 'go' : 'dis') + '" data-map="' + i + '">VÀO</button></div>';
-    });
-    html += '</div>';
-
-    html += '<div class="card"><h3>Sudden Behemoth ở vùng này</h3><p>Đang farm ngoài map thì có thể gặp. ' +
-      'Loại <b style="color:#f2c94b">Rare</b> khó hơn nhưng rơi đồ hiếm.</p><div>' +
-      area.sudden.map(function (id) { var x = G.behemothById(id); return x ? '<span class="mat-chip">' + rankChip(x.rank) + ' ' + x.n + '</span>' : ''; }).join('') +
-      (area.rare || []).map(function (id) { var x = G.behemothById(id); return x ? '<span class="mat-chip" style="border-color:#f2c94b">★ ' + x.n + '</span>' : ''; }).join('') +
-      '</div></div>';
 
     b.innerHTML = html;
     b.onclick = function (e) {
-      var a = e.target.closest('[data-area]');
-      if (a) { S.area = a.getAttribute('data-area'); S.mapIdx = 0; save(); rQuest(); return; }
-      var m = e.target.closest('[data-map]');
-      if (m) {
-        // Bấm vào map chưa mở thì phải NÓI vì sao không vào được. Trước đây handler
-        // thoát im lặng, và một nút bấm không phản hồi luôn bị hiểu là nút hỏng.
-        if (m.classList.contains('dis')) { toast('Map này chưa mở — đi hết map trước đã', '#c34141'); return; }
-        startField(S.area, +m.getAttribute('data-map')); return;
+      var t = e.target.closest('[data-stage]');
+      if (t) {
+        var s2 = G.stageById(t.getAttribute('data-stage'));
+        if (!s2) return;
+        // Ải khoá phải NÓI vì sao, chứ không im lặng: nút không phản hồi luôn bị hiểu là nút hỏng.
+        if (!G.stageOpen(S, s2)) { toast('Phá ải liền trước đã', '#c34141'); return; }
+        startStage(s2.id); return;
       }
       var c = e.target.closest('[data-act="claimStory"]');
-      if (c && nextStory && !storyDone(nextStory)) { toast('Chưa xong: ' + questProgressText(nextStory), '#c34141'); return; }
-      if (c && nextStory && storyDone(nextStory)) {
-        S.story.done.push(nextStory.id);
-        G.grant(S, nextStory.rw);
-        // Xong một chặng cốt truyện thì mở vùng kế (đúng luật bản gốc: boss nằm giữa các map).
-        var idx = G.AREAS.findIndex(function (x) { return x.id === nextStory.area; });
-        var nx = G.AREAS[idx + 1];
-        if (nx && !S.unlocked.hasOwnProperty(nx.id)) {
-          var stillSame = G.STORY.some(function (q) { return q.area === nextStory.area && S.story.done.indexOf(q.id) < 0; });
-          if (!stillSame) { S.unlocked[nx.id] = 0; toast('MỞ VÙNG MỚI: ' + nx.vi, '#f2c94b'); }
-        }
-        toast('Hoàn thành: ' + nextStory.vi, '#3fd66a');
-        save(); rQuest(); refresh();
-      }
+      if (!c || !nextStory) return;
+      if (!storyDone(nextStory)) { toast('Chưa xong: ' + questProgressText(nextStory), '#c34141'); return; }
+      S.story.done.push(nextStory.id);
+      G.grant(S, nextStory.rw);
+      toast('Hoàn thành: ' + nextStory.vi, '#3fd66a');
+      save(); rQuest(); refresh();
     };
   }
 
@@ -424,7 +419,7 @@
           { weapon: 'Vũ khí', head: 'Đầu', body: 'Thân', arm: 'Tay', leg: 'Chân' }[k] + '</button>';
       }).join('') + '</div><div class="grid2">';
     var list = S.gear.filter(function (g) { return g.kind === gearFilter; });
-    if (!list.length) html += '<div class="empty-note" style="grid-column:1/-1">Chưa có món nào. Hạ Behemoth lấy Tablet rồi vào Lò rèn.</div>';
+    if (!list.length) html += '<div class="empty-note" style="grid-column:1/-1">Chưa có món nào loại này. Sang Triệu hồi quay đồ.</div>';
     list.forEach(function (g) {
       html += '<button class="item" data-gear="' + g.uid + '"><div class="corner">' + rankChip(g.rank) + '</div>' +
         '<div class="nm">' + g.name + '</div><div class="sub">' +
@@ -558,7 +553,12 @@
                    : 'Limit Break ' + (g.lb + 1) + '/4' + (g.lb === 3 ? ' — MỞ Ô MAGI' : '') + ' · ' + fmt(lc.gold) + ' Gold + Lapis') +
         '</button>' +
       '<button class="btn ' + (G.canEvolve(g) && G.canPay(S, vc) ? 'pri' : 'dis') + '" data-act="evolve" style="width:100%;margin-bottom:6px">' +
-        'Tiến hóa (về Lv.1, chỉ số cao hơn) · ' + fmt(vc.gold) + ' Gold + ' + vc.mat.crystal + ' Crystal</button>' +
+        (G.canEvolve(g)
+          ? 'Tiến hoá → Lv.1, chỉ số cao hơn · ' + fmt(vc.gold) + ' Gold + ' + vc.mat.dragon_core + ' Lõi Rồng'
+          : (g.rank === 'S' || g.rank === 'SS'
+              ? (g.evo >= G.MAX_EVO ? 'Tiến hoá ' + g.evo + '/' + G.MAX_EVO + ' — đã tối đa'
+                                    : 'Tiến hoá — cần Lv.' + G.MAX_LV + ' trước')
+              : 'Tiến hoá — chỉ dành cho đồ hạng S và SS')) + '</button>' +
       '<div class="row"><button class="btn ' + (equipped ? 'dis' : 'go') + '" data-act="equip" style="flex:1">' + (equipped ? 'Đang mặc' : 'Trang bị') + '</button>' +
       '<button class="btn red" data-act="dismantle">Rã lấy Lapis</button></div></div>';
 
@@ -595,36 +595,61 @@
     };
   }
 
-  /* ------------------------------------------------------------- FORGE --- */
+  /* ---------------------------------------------------- NGUYÊN LIỆU ------ */
+  /* Lò rèn chế đồ từ Tablet đã bỏ (gacha ra thẳng trang bị). Màn này giờ trả lời
+   * đúng một câu hỏi: "thứ tôi đang thiếu để nâng cấp thì cày ở đâu?" */
   function rForge() {
     var b = $('body-forge');
-    var owned = Object.keys(S.bossKills).filter(function (k) { return S.bossKills[k] > 0; });
-    var html = '<div class="card"><p>Bản gốc: gacha ra <b>một con boss để đi đánh</b>, hạ xong mới có ' +
-      '<b>Tablet</b> để tự chế đồ. Hạ <b>5 con cùng loại</b> là đủ 4 giáp + 1 vũ khí.</p></div>';
-    if (!owned.length) html += '<div class="empty-note">Chưa có Tablet nào. Đi hạ Behemoth đã.</div>';
-    owned.forEach(function (bid) {
-      var bh = G.behemothById(bid); if (!bh) return;
-      html += '<div class="card"><div class="row"><h3 style="flex:1">' + bh.n + '</h3>' + rankChip(bh.rank) +
-        '<span style="font-size:11px;color:#f2c94b;margin-left:6px">Tablet ×' + S.bossKills[bid] + '</span></div>' +
-        '<p>' + G.WEAPONS[bh.weapon].vi + ' · ' + G.WTYPES[bh.type].vi + ' · ' + elemDot(bh.el) + ' ' + G.ELEMENTS[bh.el].vi + '</p>' +
-        '<div class="grid3">';
-      ['weapon', 'head', 'body', 'arm', 'leg'].forEach(function (k) {
-        var has = G.hasGear(S, bid, k);
-        var c = G.craftCost(bh, k);
-        html += '<button class="item ' + (has ? '' : '') + '" data-craft="' + bid + '|' + k + '" ' + (has ? 'disabled style="opacity:.4"' : '') + '>' +
-          '<div class="nm">' + { weapon: '⚔️ Vũ khí', head: '🪖 Đầu', body: '🥋 Thân', arm: '🧤 Tay', leg: '👢 Chân' }[k] + '</div>' +
-          '<div class="sub">' + (has ? 'đã chế' : fmt(c.gold) + ' Gold<br>+1 Tablet') + '</div></button>';
+    var html = '<div class="card"><p>Gacha ra <b>trang bị</b>. Còn <b>nâng cấp</b> thì phải đi cày: ' +
+      'nguyên liệu rơi từ quái trong ải và từ điểm khai thác.</p></div>';
+
+    html += '<div class="card"><h3 style="color:#f2d24b">Lõi Rồng — độc quyền Triệu hồi</h3>' +
+      '<div class="row"><span style="flex:1;font-size:12px">Đang có <b style="color:#f2d24b;font-size:15px">' +
+      fmt(S.mats.dragon_core || 0) + '</b></span>' +
+      '<button class="btn sm pri" data-act="gacha">Triệu hồi</button></div>' +
+      '<p><b>Không rơi ở bất kỳ ải nào</b>, không bán ở tiệm. Đường duy nhất: quay Triệu hồi ra món ' +
+      '<b>đã có</b> — trùng B ra ' + G.DUPE_CORE.B + ', A ra ' + G.DUPE_CORE.A + ', S ra ' + G.DUPE_CORE.S +
+      ', SS ra ' + G.DUPE_CORE.SS + '. Đây là thứ duy nhất mở được <b>Tiến hoá</b> cho đồ S và SS, ' +
+      'tức bậc nâng cấp cao nhất của game.</p></div>';
+
+    html += '<div class="card"><h3>Nâng cấp ăn gì</h3>' +
+      '<div class="upgrow"><b>Nâng cấp</b><span>Strengthening Stone + Gold<br>' +
+        '<i style="color:#9fb2c4">từ Lv.25 cần thêm Equipment Crystal</i></span></div>' +
+      '<div class="upgrow"><b>Limit Break</b><span>Lapis cùng hạng với món đồ</span></div>' +
+      '<div class="upgrow"><b>Tiến hoá</b><span style="color:#f2d24b">Lõi Rồng — chỉ có từ Triệu hồi trùng</span></div>' +
+      '<div class="upgrow"><b>Đổi Ability</b><span>Gold</span></div>' +
+      '<div class="upgrow"><b>Nâng Magi</b><span>Magi Fragment + Gold</span></div></div>';
+
+    html += '<div class="card"><h3>Kho nguyên liệu</h3>';
+    var any = false;
+    ['SS', 'S', 'A', 'B', 'C', 'D'].forEach(function (rk) {
+      var ids = Object.keys(S.mats).filter(function (id) {
+        var m = G.MATERIALS[id]; return m && m.r === rk && S.mats[id] > 0;
       });
-      html += '</div></div>';
+      if (!ids.length) return;
+      any = true;
+      html += '<div>' + ids.map(function (id) {
+        var m = G.MATERIALS[id];
+        return '<span class="mat-chip"' + (m.gachaOnly ? ' style="border-color:#f2d24b;color:#f2d24b"' : '') + '>' +
+          rankChip(m.r) + ' ' + m.n + ' ×' + fmt(S.mats[id]) + '</span>';
+      }).join('') + '</div>';
     });
+    if (!any) html += '<p>Chưa có gì. Vào ải đi.</p>';
+    html += '</div>';
+
+    html += '<div class="card"><h3>Cày ở đâu</h3><p>Đồ rơi do <b>tộc quái</b> quyết định. ' +
+      'Màn Ải ghi rõ ải nào có tộc nào.</p>';
+    Object.keys(G.TRIBES).forEach(function (k) {
+      var T = G.TRIBES[k];
+      var uniq = T.mat.filter(function (v, i, arr) { return arr.indexOf(v) === i; });
+      html += '<div class="upgrow"><b>' + T.en + '</b><span>' +
+        uniq.map(function (id) { return G.MATERIALS[id] ? G.MATERIALS[id].n : id; }).join(' · ') + '</span></div>';
+    });
+    html += '<div class="upgrow"><b>Điểm khai thác</b><span>Strengthening Stone · Magi Fragment · Equipment Crystal · Lapis</span></div>' +
+      '<div class="upgrow"><b>Behemoth cuối ải</b><span>Nguyên liệu hạng cao + Lapis; phá bộ phận thì rơi thêm</span></div></div>';
+
     b.innerHTML = html;
-    b.onclick = function (e) {
-      var t = e.target.closest('[data-craft]'); if (!t) return;
-      var p = t.getAttribute('data-craft').split('|');
-      var r = G.craft(S, p[0], p[1]);
-      if (!r.ok) toast(r.why, '#c34141'); else toast('Chế được ' + r.gear.name, '#3fd66a');
-      save(); rForge(); refresh();
-    };
+    b.onclick = function (e) { if (e.target.closest('[data-act="gacha"]')) show('gacha'); };
   }
 
   /* -------------------------------------------------------------- MAGI --- */
@@ -661,20 +686,28 @@
     };
   }
 
-  /* ------------------------------------------------------------- GACHA --- */
+  /* --------------------------------------------------------- TRIỆU HỒI --- */
+  /* Bản gốc: gacha ra một con boss để đi đánh, hạ xong mới có Tablet đem về chế đồ.
+   * Ba bước cho một món vũ khí là quá dài để hiểu. Ở đây quay ra thẳng trang bị —
+   * và món TRÙNG không vứt đi mà đổi thành Lõi Rồng, thứ duy nhất mở được Tiến hoá. */
+  var gachaOut = '';        // HTML kết quả lần quay gần nhất
   function rGacha() {
     var b = $('body-gacha');
     var html = '';
-    html += '<div class="gacha-hero"><b>QUEST GACHA</b><span>Ra một con Behemoth để đi đánh — không ra vũ khí</span>' +
+    html += '<div class="gacha-hero"><b>TRIỆU HỒI TRANG BỊ</b>' +
+      '<span>Ra thẳng vũ khí và giáp — trùng thì thành Lõi Rồng</span>' +
       '<div class="rate-tab"><b style="color:#f2d24b">SS 3%</b><b style="color:#f2a03c">S 15%</b>' +
       '<b style="color:#b06fd0">A 55%</b><b style="color:#5b8fd6">B 27%</b></div></div>';
     html += '<div class="card"><div class="row">' +
-      '<button class="btn ' + (S.ticket >= 5 ? 'pri' : 'dis') + '" data-act="b1" style="flex:1">Đơn — 5 vé</button>' +
-      '<button class="btn ' + (S.ticket >= 50 ? 'pri' : 'dis') + '" data-act="b10" style="flex:1">10+1 — 50 vé <span style="font-size:9px">(bảo hiểm SS)</span></button>' +
-      '</div><p style="margin-top:7px">Vé: <b>' + S.ticket + '</b>. Hết vé thì mua ở tiệm Pikke, hoặc làm nhiệm vụ tuần.</p></div>';
+      '<button class="btn ' + (S.ticket >= 5 ? 'pri' : 'dis') + '" data-act="g1" style="flex:1">Đơn — 5 vé</button>' +
+      '<button class="btn ' + (S.ticket >= 50 ? 'pri' : 'dis') + '" data-act="g10" style="flex:1">10+1 — 50 vé <span style="font-size:9px">(bảo hiểm SS)</span></button>' +
+      '</div><p style="margin-top:7px">Vé: <b>' + S.ticket + '</b>. Hết vé thì mua ở tiệm Pikke hoặc làm nhiệm vụ tuần.<br>' +
+      'Ra món <b>đã có</b> thì đổi thành <b style="color:#f2d24b">Lõi Rồng</b> — ' +
+      'thứ duy nhất mở được Tiến hoá, và <b>không cày được ở đâu cả</b>. Đang có ' +
+      '<b style="color:#f2d24b">' + fmt(S.mats.dragon_core || 0) + '</b>.</p></div>';
 
     html += '<div class="gacha-hero" style="background:radial-gradient(90% 100% at 50% 100%,#2f4a6a,#101620 70%)">' +
-      '<b>MAGI GACHA</b><span>Đá kỹ năng lắp vào trang bị</span>' +
+      '<b>TRIỆU HỒI MAGI</b><span>Đá kỹ năng lắp vào trang bị</span>' +
       '<div class="rate-tab"><b style="color:#f2d24b">SS 3%</b><b style="color:#f2a03c">S 9%</b>' +
       '<b style="color:#b06fd0">A 48%</b><b style="color:#5b8fd6">B 40%</b></div></div>';
     html += '<div class="card"><div class="row">' +
@@ -682,36 +715,30 @@
       '<button class="btn ' + (S.gem >= 250 ? 'pri' : 'dis') + '" data-act="m10" style="flex:1">10+1 — 250 Gem <span style="font-size:9px">(bảo hiểm SS)</span></button>' +
       '</div></div>';
 
-    html += '<div class="card"><h3>Behemoth đang chờ đánh</h3>';
-    if (S.pendingBoss) {
-      var pb = G.behemothById(S.pendingBoss.id);
-      html += '<div class="row"><span style="flex:1;font-size:12px">' + rankChip(pb.rank) + ' <b>' + pb.n + '</b><br>' +
-        '<span style="font-size:10px;color:#9fb2c4">Lv.' + S.pendingBoss.lv + ' · ' + G.WEAPONS[pb.weapon].vi + ' · ' + elemDot(pb.el) + '</span></span>' +
-        '<button class="btn go" data-act="fight">ĐÁNH</button></div>';
-    } else html += '<p>Chưa có. Quay Quest Gacha đi.</p>';
-    html += '<button class="btn" data-act="bosslist" style="width:100%;margin-top:7px">Xem toàn bộ ' + G.BEHEMOTHS.length + ' Behemoth</button></div>';
+    html += '<div class="card"><button class="btn" data-act="bosslist" style="width:100%">Xem toàn bộ ' +
+      G.BEHEMOTHS.length + ' Behemoth và bộ đồ của chúng</button></div>';
+    html += '<div id="gachaOut">' + gachaOut + '</div>';
 
-    html += '<div id="gachaOut"></div>';
     b.innerHTML = html;
     b.onclick = function (e) {
       var t = e.target.closest('[data-act]'); if (!t) return;
-      var a = t.getAttribute('data-act'), out = $('gachaOut');
-      if (a === 'b1' || a === 'b10') {
-        var cost = a === 'b1' ? 5 : 50, cnt = a === 'b1' ? 1 : 11;
+      var a = t.getAttribute('data-act');
+      if (a === 'g1' || a === 'g10') {
+        var cost = a === 'g1' ? 5 : 50, cnt = a === 'g1' ? 1 : 11;
         if (S.ticket < cost) { toast('Không đủ vé', '#c34141'); return; }
         S.ticket -= cost;
-        var res = G.summonBehemoth(S, cnt, cnt > 1);
-        // Bản gốc chỉ cho ĐI ĐÁNH từng con; ở đây con mạnh nhất được đưa lên chờ, phần còn lại thành vé/medal.
-        var bestI = 0;
-        res.forEach(function (x, i) { if (G.RANK_ORDER.indexOf(x.rank) > G.RANK_ORDER.indexOf(res[bestI].rank)) bestI = i; });
-        S.pendingBoss = { id: res[bestI].id, lv: bossLevelFor(res[bestI]) };
-        var extra = 0;
-        res.forEach(function (x, i) { if (i !== bestI) { extra += { B: 1, A: 2, S: 4, SS: 8 }[x.rank] || 1; S.seenBoss[x.id] = 1; } });
-        S.medal += extra; S.seenBoss[res[bestI].id] = 1;
-        out.innerHTML = '<div class="card"><h3>Kết quả</h3>' + res.map(function (x, i) {
-          return '<div class="row" style="font-size:11px;padding:3px 0"><span style="flex:1">' + rankChip(x.rank) + ' ' + x.n +
-            (i === bestI ? ' <b style="color:#f2c94b">← đưa lên chờ đánh</b>' : '') + '</span>' + elemDot(x.el) + '</div>';
-        }).join('') + '<p style="margin-top:6px">Các con còn lại đổi thành <b>' + extra + ' Medal</b>.</p></div>';
+        var res = G.summonGear(S, cnt, cnt > 1);
+        var cores = res.reduce(function (n, x) { return n + (x.dupe ? x.cores : 0); }, 0);
+        res.forEach(function (x) { S.seenBoss[x.src || (x.gear && x.gear.src)] = 1; });
+        gachaOut = '<div class="card"><h3>Kết quả</h3>' + res.map(function (x) {
+          return '<div class="row" style="font-size:11px;padding:3px 0">' +
+            '<span style="flex:1">' + rankChip(x.rank) + ' ' + x.name +
+            ' <span style="color:#9fb2c4">' + kindVi(x.kind) + '</span></span>' +
+            (x.dupe ? '<b style="color:#f2d24b">trùng · +' + x.cores + ' Lõi</b>'
+                    : '<b style="color:#3fd66a">MỚI</b>') + '</div>';
+        }).join('') +
+        (cores ? '<p style="margin-top:6px;color:#f2d24b">Tổng +' + cores + ' Lõi Rồng.</p>' : '') +
+        '<button class="btn pri" data-act="armory" style="width:100%;margin-top:7px">Vào Kho đồ mặc thử</button></div>';
         save(); rGacha(); refresh(); return;
       }
       if (a === 'm1' || a === 'm10') {
@@ -719,20 +746,19 @@
         if (S.gem < g2) { toast('Không đủ Gem', '#c34141'); return; }
         S.gem -= g2;
         var mr = G.summonMagi(S, c2, c2 > 1);
-        $('gachaOut').innerHTML = '<div class="card"><h3>Kết quả</h3>' + mr.map(function (x) {
+        gachaOut = '<div class="card"><h3>Kết quả</h3>' + mr.map(function (x) {
           return '<div class="row" style="font-size:11px;padding:3px 0"><span style="flex:1">' + rankChip(x.rank) + ' ' +
             '<b style="color:' + G.MAGI_SHAPES[x.shape].color + '">' + G.MAGI_SHAPES[x.shape].sym + '</b> ' + x.n + '</span></div>';
         }).join('') + '</div>';
         save(); rGacha(); refresh(); return;
       }
-      if (a === 'fight') { startBoss(S.pendingBoss.id, S.pendingBoss.lv, true); return; }
+      if (a === 'armory') { show('armory'); return; }
       if (a === 'bosslist') { show('bosslist'); return; }
     };
   }
 
-  function bossLevelFor(b) {
-    var base = { B: 8, A: 20, S: 34, SS: 48 }[b.rank] || 8;
-    return Math.max(base, Math.min(base + 20, S.lv + { B: -2, A: 2, S: 6, SS: 10 }[b.rank]));
+  function kindVi(k) {
+    return { weapon: 'Vũ khí', head: 'Giáp đầu', body: 'Giáp thân', arm: 'Giáp tay', leg: 'Giáp chân' }[k] || k;
   }
 
   function rBossList() {
@@ -742,10 +768,10 @@
       if (!list.length) return;
       html += '<div class="card"><h3>' + rankChip(rk) + ' — ' + list.length + ' con</h3><div class="grid2">';
       list.forEach(function (x) {
-        var kills = S.bossKills[x.id] || 0;
+        var own = ['weapon', 'head', 'body', 'arm', 'leg'].filter(function (k) { return G.hasGear(S, x.id, k); }).length;
         html += '<div class="item"><div class="nm">' + x.n + '</div><div class="sub">' +
           G.WEAPONS[x.weapon].vi + ' · ' + G.WTYPES[x.type].vi + '<br>' + elemDot(x.el) + ' ' + G.ELEMENTS[x.el].vi +
-          (kills ? '<br><b style="color:#f2c94b">Tablet ×' + kills + '</b>' : '') +
+          (own ? '<br><b style="color:#f2c94b">Đã có ' + own + '/5 món</b>' : '') +
           '<br><span style="font-size:9px">Bộ phận: ' + (x.parts || []).join(', ') + '</span>' +
           '<br><span style="font-size:9px;color:#f2c94b">WEAK: ' + (x.wp || []).join(', ') + '</span>' +
           '</div></div>';
@@ -819,7 +845,10 @@
       '<span>Behemoth hạ: <b>' + (st.boss || 0) + '</b></span><span>Quái hạ: <b>' + (st.mob || 0) + '</b></span>' +
       '<span>Bộ phận phá: <b>' + (st.parts || 0) + '</b></span><span>Chết: <b>' + (st.deaths || 0) + '</b></span>' +
       '<span>Trang bị: <b>' + S.gear.length + '</b></span><span>Magi: <b>' + S.magi.length + '</b></span>' +
-      '<span>Medal: <b>' + fmt(S.medal) + '</b></span></div></div>' +
+      '<span>Medal: <b>' + fmt(S.medal) + '</b></span>' +
+      '<span>Ải đã phá: <b>' + G.STAGES.filter(function (x) { return S.cleared[x.id]; }).length +
+        '/' + G.STAGES.length + '</b></span>' +
+      '<span>Lõi Rồng: <b>' + fmt(S.mats.dragon_core || 0) + '</b></span></div></div>' +
 
       '<div class="card"><h3>Về bản dựng lại này</h3>' +
       '<p>Dựng lại từ <b>Dragon Project</b> (COLOPL, 2016–2020) — game đã đóng cửa. Trọng tâm là ' +
@@ -894,21 +923,39 @@
     html += '<div class="card"><h3>Hệ</h3><p>Vòng khắc chế: <b>Thủy ▸ Hỏa ▸ Thổ ▸ Lôi ▸ Thủy</b>, và <b>Quang ↔ Ám</b>. ' +
       'Khắc chế ×' + G.ELEM_ADV + ', bị khắc ×' + G.ELEM_DIS + '.</p></div>';
 
-    html += '<div class="card"><h3>Thưởng Gem của trận boss</h3>' +
-      '<p>Đúng như bản gốc, tối đa <b>4 Gem</b> mỗi con: không chết lần nào (+1), có dùng Magi (+1), ' +
-      'hạ trong ' + (G.BAL.gemFastMs / 1000) + ' giây (+1), và đủ cả ba thì <b>+1 nữa</b>.</p></div>';
+    html += '<div class="card"><h3>Một ải gồm những gì</h3>' +
+      '<p>Vào ải <b>một mình</b>. Hai chặng liền nhau trong cùng một trận:</p>' +
+      '<p>1. <b>Chặng quái</b> — dọn đủ số quái ải yêu cầu (hàng trên cùng đếm ngược cho bạn).</p>' +
+      '<p>2. <b>Chặng trùm</b> — Behemoth cuối ải ra ngay tại chỗ. Hạ nó là <b>phá ải</b>, và ải kế mở.</p>' +
+      '<p>Ngã thì <b>tự đứng dậy</b> sau ' + (G.BAL.selfReviveMs / 1000) + ' giây, có ' + G.BAL.reviveCount +
+      ' lượt. Hết lượt là thua ải (vẫn giữ đồ đã nhặt).</p>' +
+      '<p>Cả ải có ' + Math.round(G.BAL.questMs / 60000) + ' phút.</p></div>';
+
+    html += '<div class="card"><h3>Đồ mạnh lên bằng cách nào</h3>' +
+      '<p><b>Triệu hồi</b> ra thẳng vũ khí và giáp — không phải đi chế. ' +
+      'SS 3% · S 15% · A 55% · B 27%, đúng tỉ lệ Quest Gacha của bản gốc.</p>' +
+      '<p>Nhưng gacha chỉ cho <b>món đồ</b>, không cho <b>sức mạnh</b>. Muốn mạnh thì nâng cấp, ' +
+      'mà nguyên liệu nâng cấp <b>chỉ rơi trong ải</b>: Strengthening Stone, Equipment Crystal ' +
+      '(bắt buộc từ Lv.25), Lapis để Limit Break, Magi Fragment.</p>' +
+      '<p>Quay ra món <b>đã có</b> thì thành <b style="color:#f2d24b">Lõi Rồng</b> ' +
+      '(B ' + G.DUPE_CORE.B + ' · A ' + G.DUPE_CORE.A + ' · S ' + G.DUPE_CORE.S + ' · SS ' + G.DUPE_CORE.SS + '). ' +
+      'Đây là thứ <b>duy nhất</b> mở được <b>Tiến hoá</b> — bậc nâng cấp cao nhất, chỉ đồ S và SS ' +
+      'mới dùng được — và nó <b>không cày được ở đâu cả</b>. Nên không có cú quay nào là phí.</p></div>';
+
+    html += '<div class="card"><h3>Thưởng Gem mỗi ải</h3>' +
+      '<p>Đúng như bản gốc, tối đa <b>4 Gem</b>: không gục lần nào (+1), có dùng Magi (+1), ' +
+      'xong trong ' + (G.BAL.gemFastMs / 1000) + ' giây (+1), và đủ cả ba thì <b>+1 nữa</b>.</p>' +
+      '<p>Riêng <b>lần đầu phá</b> mỗi ải còn thưởng thêm Gem — ải thường +5, ải cuối vùng +10.</p></div>';
 
     b.innerHTML = html;
   }
 
   /* ======================================================== VÀO TRẬN ===== */
-  function startField(areaId, mapIdx) {
-    S.area = areaId; S.mapIdx = mapIdx;
-    enterBattle({ mode: 'field', areaId: areaId, mapIdx: mapIdx });
-  }
-  function startBoss(bid, lv, fromGacha) {
-    var area = G.areaById(S.area) || G.AREAS[0];
-    enterBattle({ mode: 'boss', areaId: S.area, mapIdx: S.mapIdx, behemothId: bid, level: lv, fromGacha: fromGacha });
+  function startStage(stageId) {
+    var st = G.stageById(stageId);
+    if (!st) return;
+    S.area = st.area;
+    enterBattle({ stageId: st.id });
   }
 
   function enterBattle(opts) {
@@ -917,31 +964,27 @@
     hud.classList.add('on');
     $('resultScr').classList.remove('on');
     $('hDown').classList.remove('on');
-    $('bossRow').style.display = opts.mode === 'boss' ? 'block' : 'none';
-    $('hDist').style.display = opts.mode === 'boss' ? 'flex' : 'none';
+    setPhaseHud('mobs');
 
     if (battle) battle.stop();
     battle = new G.Battle($('view'), S, opts, {
       onToast: toast,
       onHud: updateHud,
       onFinish: onFinish,
-      onSudden: onSudden,
+      onPhase: setPhaseHud,
       onWeapon: function () { renderWeaponSlots(); renderMagiBtns(); }
     });
     renderWeaponSlots(); renderMagiBtns();
     battle.start();
   }
 
-  function onSudden(bid, rare) {
-    var b = G.behemothById(bid);
-    toast((rare ? '★ RARE — ' : '') + 'GẶP ' + b.n + '!', rare ? '#f2c94b' : '#ff8a5a');
-    // Bản gốc kéo cả map vào trận; ở đây chuyển sang sân boss sau một nhịp để đọc kịp dòng chữ.
-    var lv = battle.map.lv + (rare ? 6 : 0);
-    setTimeout(function () {
-      if (!battle) return;
-      var bag = battle.bag;
-      enterBattle({ mode: 'boss', areaId: S.area, mapIdx: S.mapIdx, behemothId: bid, level: lv, sudden: true, rare: rare });
-    }, 1400);
+  /* Nửa đầu ải không có boss, nên hàng thông tin boss phải nhường chỗ cho bộ đếm
+   * quái — chỗ trên cùng màn hình là chỗ đắt nhất, không để một thanh máu rỗng. */
+  function setPhaseHud(phase) {
+    var boss = phase === 'boss';
+    $('bossRow').style.display = boss ? 'block' : 'none';
+    $('hDist').style.display = boss ? 'flex' : 'none';
+    $('mobRow').style.display = boss ? 'none' : 'flex';
   }
 
   /* ---------------------------------------------------------- HUD BIND -- */
@@ -962,10 +1005,10 @@
   }
 
   function leaveBattle() {
-    if (battle && battle.mode === 'field' && battle.bag) {
-      G.track(S, { kill: battle.killed });
-      S.progress.kill = (S.progress.kill || 0) + 0;
-    }
+    // Còn đang trong ải: kết thúc qua đường chính thức để có bảng "RỜI ẢI".
+    if (battle && battle.running) { battle.leaveStage(); return; }
+    if (battle) battle.stop();
+    battle = null;
     save(); show('home');
   }
 
@@ -1005,8 +1048,16 @@
     // đồng hồ
     var t = Math.max(0, bt.timeLeft) / 1000;
     $('hTimer').textContent = Math.floor(t / 60) + ':' + ('0' + Math.floor(t % 60)).slice(-2);
+    // nửa đầu ải: còn bao nhiêu con nữa thì Behemoth ra
+    if (bt.phase === 'mobs') {
+      $('hStageName').textContent = bt.stage.n;
+      $('hStageSub').textContent = bt.stage.sub;
+      var left = Math.max(0, bt.needKills - bt.killed);
+      $('hMobLeft').textContent = left;
+      $('hMobFill').style.width = Math.min(100, bt.killed / bt.needKills * 100) + '%';
+    }
     // boss
-    if (bt.mode === 'boss' && bt.boss) {
+    if (bt.phase === 'boss' && bt.boss) {
       var b = bt.boss;
       $('hBossRank').textContent = b.rank;
       $('hBossRank').style.color = G.RANK_COLOR[b.rank];
@@ -1060,84 +1111,96 @@
   /* ---------------------------------------------------------- KẾT THÚC -- */
   function onFinish(r) {
     var el = $('resultScr');
+    var st = r.stage || (battle && battle.stage);
     var html = '';
-    if (r.field) {
-      var bag = r.bag || { mats: {}, gold: 0, exp: 0 };
-      G.track(S, { kill: r.killed || 0 });
-      S.progress.kill = (S.progress.kill || 0);
-      html += '<h2 style="color:#f2c94b">HẾT MAP</h2><div class="sub">' + battle.map.n + '</div>';
-      html += '<div class="box"><div class="line"><span>Quái đã hạ</span><b>' + (r.killed || 0) + '</b></div>' +
-        '<div class="line"><span>Gold</span><b>' + fmt(bag.gold || 0) + '</b></div>' +
-        '<div class="line"><span>EXP</span><b>' + fmt(bag.exp || 0) + '</b></div>';
-      Object.keys(bag.mats || {}).forEach(function (m) {
-        html += '<div class="line"><span>' + G.MATERIALS[m].n + '</span><b>×' + bag.mats[m] + '</b></div>';
-      });
-      html += '</div>';
-      if (r.portal) {
-        var area = G.areaById(S.area);
-        var nxt = (S.unlocked[S.area] || 0) + 1;
-        if (nxt < area.maps.length && nxt > (S.unlocked[S.area] || 0)) {
-          S.unlocked[S.area] = nxt;
-          html += '<div class="sub" style="color:#3fd66a">Đã mở map: ' + area.maps[nxt].n + '</div>';
-        }
-      }
-      html += '<button class="btn pri" id="rBack" style="width:260px">Về Guild</button>' +
-        '<button class="btn" id="rAgain" style="width:260px;margin-top:7px">Đánh tiếp map này</button>';
-    } else if (r.win) {
+
+    if (r.win) {
       var b = r.boss;
+      var bag = r.bag || { mats: {}, gold: 0, exp: 0 };
       S.stats.boss++; S.stats.parts += r.parts || 0;
-      S.bossKills[b.id] = (S.bossKills[b.id] || 0) + (r.tablet || 1);
-      S.gold += r.gold; S.gem += r.gems; S.medal += r.medal;
+      S.bossKills[b.id] = (S.bossKills[b.id] || 0) + 1;
+      S.seenBoss[b.id] = 1;
+
+      // Thưởng lần đầu chỉ trả một lần; cày lại vẫn ăn gold/exp/đồ rơi nhưng không ăn Gem.
+      var gems = r.gems + (r.firstClear ? st.firstGem : 0);
+      S.gold += r.gold;
+      S.gem += gems;
+      S.medal += r.medal;
       var lvUp = G.addExp(S, r.exp);
       (r.drops || []).forEach(function (m) { G.addMat(S, m, 1); });
-      G.track(S, { boss: 1, part: r.parts || 0 });
+      G.track(S, { boss: 1, part: r.parts || 0, kill: r.killed || 0 });
       S.progress['bossId_' + b.id] = (S.progress['bossId_' + b.id] || 0) + 1;
       S.progress['bossRank_' + b.rank] = (S.progress['bossRank_' + b.rank] || 0) + 1;
       if (battle && battle.wp) S.progress['bossWith_' + battle.wp.wclass] = (S.progress['bossWith_' + battle.wp.wclass] || 0) + 1;
-      if (S.pendingBoss && S.pendingBoss.id === b.id) S.pendingBoss = null;
+      S.cleared[st.id] = true;
 
-      html += '<h2 style="color:#3fd66a">HẠ GỤC</h2><div class="sub">' + b.n + ' · ' +
+      html += '<h2 style="color:#3fd66a">PHÁ ẢI</h2><div class="sub">' + st.n + ' · ' + st.sub + ' — ' +
         Math.floor(r.elapsed / 60000) + ':' + ('0' + Math.floor(r.elapsed / 1000 % 60)).slice(-2) + '</div>';
       html += '<div class="box">';
-      html += '<div class="gemcond"><span class="' + (r.conds.noDeath ? 'ok' : 'no') + '">' + (r.conds.noDeath ? '✔' : '✘') + ' Không chết lần nào</span></div>';
+      html += '<div class="gemcond"><span class="' + (r.conds.noDeath ? 'ok' : 'no') + '">' + (r.conds.noDeath ? '✔' : '✘') + ' Không gục lần nào</span></div>';
       html += '<div class="gemcond"><span class="' + (r.conds.usedMagi ? 'ok' : 'no') + '">' + (r.conds.usedMagi ? '✔' : '✘') + ' Có dùng Magi</span></div>';
-      html += '<div class="gemcond"><span class="' + (r.conds.fast ? 'ok' : 'no') + '">' + (r.conds.fast ? '✔' : '✘') + ' Hạ trong ' + (G.BAL.gemFastMs / 1000) + ' giây</span></div>';
-      html += '<div class="line" style="border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><span>◈ Gem</span><b style="color:#8fd4ff">+' + r.gems + '</b></div>';
-      html += '<div class="line"><span>Tablet của ' + b.n + '</span><b style="color:#f2c94b">×' + (r.tablet || 1) + '</b></div>';
-      html += '<div class="line"><span>Bộ phận đã phá</span><b>' + (r.parts || 0) + '</b></div>';
-      html += '<div class="line"><span>Gold</span><b>' + fmt(r.gold) + '</b></div>';
-      html += '<div class="line"><span>EXP</span><b>' + fmt(r.exp) + (lvUp ? ' <span style="color:#3fd66a">LÊN CẤP ×' + lvUp + '!</span>' : '') + '</b></div>';
+      html += '<div class="gemcond"><span class="' + (r.conds.fast ? 'ok' : 'no') + '">' + (r.conds.fast ? '✔' : '✘') + ' Xong trong ' + (G.BAL.gemFastMs / 1000) + ' giây</span></div>';
+      if (r.firstClear) html += '<div class="gemcond"><span class="ok">✔ Phá lần đầu · +' + st.firstGem + ' ◈</span></div>';
+      html += '<div class="line" style="border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><span>◈ Gem</span><b style="color:#8fd4ff">+' + gems + '</b></div>';
+      html += '<div class="line"><span>' + b.n + ' · bộ phận đã phá</span><b>' + (r.parts || 0) + '</b></div>';
+      html += '<div class="line"><span>Quái đã hạ</span><b>' + (r.killed || 0) + '</b></div>';
+      html += '<div class="line"><span>Gold thưởng ải</span><b>' + fmt(r.gold) + '</b></div>';
+      html += '<div class="line"><span>EXP thưởng ải</span><b>' + fmt(r.exp) +
+        (lvUp ? ' <span style="color:#3fd66a">LÊN CẤP ×' + lvUp + '!</span>' : '') + '</b></div>';
       html += '<div class="line"><span>Medal</span><b>' + r.medal + '</b></div>';
+      // Rương trong ải cộng thẳng vào túi ngay lúc nhặt, nên ở đây chỉ nhắc lại.
+      if (bag.gold || bag.exp) html += '<div class="line"><span>Nhặt dọc đường</span><b>' +
+        fmt(bag.gold || 0) + ' Gold · ' + fmt(bag.exp || 0) + ' EXP</b></div>';
       var counted = {};
+      Object.keys(bag.mats || {}).forEach(function (m) { counted[m] = (counted[m] || 0) + bag.mats[m]; });
       (r.drops || []).forEach(function (m) { counted[m] = (counted[m] || 0) + 1; });
       Object.keys(counted).forEach(function (m) {
         html += '<div class="line"><span>' + rankChip(G.MATERIALS[m].r) + ' ' + G.MATERIALS[m].n + '</span><b>×' + counted[m] + '</b></div>';
       });
       html += '</div>';
-      html += '<button class="btn pri" id="rBack" style="width:260px">Về Guild</button>' +
-        '<button class="btn" id="rForge" style="width:260px;margin-top:7px">⚒️ Vào Lò rèn chế đồ</button>';
+      var nx = G.nextStage(S);
+      html += '<button class="btn pri" id="rNext" style="width:260px" data-next="' + nx.id + '">▶ ' +
+        (nx.id === st.id ? 'Đánh lại ải này' : 'Vào ' + nx.n + ' — ' + nx.sub) + '</button>' +
+        '<button class="btn" id="rAgain" style="width:260px;margin-top:7px">Cày lại ' + st.n + '</button>' +
+        '<button class="btn" id="rBack" style="width:260px;margin-top:7px">Về Guild</button>';
+
+    } else if (r.quit) {
+      // Bỏ dở: đồ đã nhặt vẫn của mình (đã vào túi từ lúc nhặt), nhưng ải không
+      // tính là phá và không có thưởng ải.
+      var bag2 = r.bag || { mats: {}, gold: 0, exp: 0 };
+      G.track(S, { kill: r.killed || 0 });
+      html += '<h2 style="color:#f2c94b">RỜI ẢI</h2><div class="sub">' + (st ? st.n + ' · ' + st.sub : '') + '</div>' +
+        '<div class="box"><div class="line"><span>Quái đã hạ</span><b>' + (r.killed || 0) + '</b></div>' +
+        '<div class="line"><span>Gold nhặt được</span><b>' + fmt(bag2.gold || 0) + '</b></div>' +
+        '<p class="hint">Ải chưa tính là phá. Đồ đã nhặt vẫn giữ.</p></div>' +
+        '<button class="btn pri" id="rBack" style="width:260px">Về Guild</button>';
+
     } else {
       S.stats.deaths++;
       html += '<h2 style="color:#ff5a5a">' + (r.timeout ? 'HẾT GIỜ' : 'THẤT BẠI') + '</h2>' +
-        '<div class="sub">' + (r.boss ? r.boss.n : '') + '</div>' +
+        '<div class="sub">' + (st ? st.n + ' · ' + st.sub : '') + '</div>' +
         '<div class="box"><p class="hint">' + (r.timeout
-          ? 'Trận boss có giới hạn 5 phút, đúng như luật Tower Clearing của bản gốc. Nâng trang bị, hoặc đổi vũ khí khắc hệ rồi thử lại.'
-          : 'Cả tổ đã ngã. Lần sau nhớ: đánh vào WEAK point để nạp thanh gục, và vẩy ngón để né vùng đỏ.') + '</p></div>' +
-        '<button class="btn pri" id="rBack" style="width:260px">Về Guild</button>';
+          ? 'Mỗi ải có ' + Math.round(G.BAL.questMs / 60000) + ' phút, đúng luật Tower Clearing của bản gốc. ' +
+            'Nâng trang bị, hoặc đổi sang vũ khí khắc hệ con trùm rồi thử lại.'
+          : 'Hết lượt tự đứng dậy. Đánh vào WEAK point để nạp thanh gục, và vẩy ngón để né vùng đỏ.') +
+        '</p></div>' +
+        '<button class="btn pri" id="rAgain" style="width:260px">Thử lại</button>' +
+        '<button class="btn" id="rBack" style="width:260px;margin-top:7px">Về Guild</button>';
     }
+
     el.innerHTML = html;
     el.classList.add('on');
     save();
-    var rb = $('rBack'); if (rb) rb.onclick = function () { el.classList.remove('on'); show('home'); };
-    var ra = $('rAgain'); if (ra) ra.onclick = function () { el.classList.remove('on'); startField(S.area, S.mapIdx); };
-    var rf = $('rForge'); if (rf) rf.onclick = function () { el.classList.remove('on'); show('forge'); };
+    var rb = $('rBack'); if (rb) rb.onclick = function () { el.classList.remove('on'); battle = null; show('home'); };
+    var ra = $('rAgain'); if (ra) ra.onclick = function () { el.classList.remove('on'); startStage(st.id); };
+    var rn = $('rNext'); if (rn) rn.onclick = function () { el.classList.remove('on'); startStage(rn.getAttribute('data-next')); };
   }
 
   /* ------------------------------------------------------ API CHO BOT --- */
   var api = {
     get save() { return S; },
     get battle() { return battle; },
-    show: show, toast: toast, startField: startField, startBoss: startBoss,
+    show: show, toast: toast, startStage: startStage,
     leave: leaveBattle, refresh: function () { refresh(); },
     saveNow: save
   };

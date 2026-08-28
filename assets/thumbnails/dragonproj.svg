@@ -80,17 +80,25 @@
           fill="#8fa3b5" text-anchor="middle">♥</text>
   </g>
 
-  <!-- người săn, nhìn từ trên xuống -->
+  <!-- người săn: thân tròn nhìn thẳng từ trên xuống, đúng như trong game -->
   <g transform="translate(96 132)">
-    <ellipse cx="0" cy="9" rx="12" ry="5" fill="#000" opacity="0.4"/>
-    <ellipse cx="0" cy="0" rx="8" ry="11" fill="#3b6ea5"/>
-    <rect x="-7" y="2" width="14" height="7" fill="#2a4f78"/>
-    <circle cx="0" cy="-10" r="6.5" fill="#e8c098"/>
-    <path d="M-6.5 -11 a6.5 6.5 0 0 1 13 0 Z" fill="#2a2a2a"/>
-    <!-- đại kiếm đang vung -->
-    <g transform="rotate(-32)">
-      <rect x="8" y="-30" width="6" height="30" fill="#e8eef4"/>
-      <rect x="8" y="-30" width="6" height="8" fill="#ff7a3c"/>
+    <ellipse cx="0" cy="10" rx="13" ry="5" fill="#000" opacity="0.4"/>
+    <g transform="rotate(-58)">
+      <!-- hai bàn chân đạp so le -->
+      <circle cx="4" cy="-8" r="2.8" fill="#000" opacity="0.45"/>
+      <circle cx="-4" cy="8" r="2.8" fill="#000" opacity="0.45"/>
+      <!-- thân -->
+      <circle cx="0" cy="0" r="11" fill="#3b6ea5" stroke="#0c1014" stroke-width="2"/>
+      <path d="M-7.8 -7.8 A 11 11 0 0 0 -7.8 7.8" fill="none" stroke="#25476b" stroke-width="3.4"/>
+      <!-- cục nhô ra phía trước = đầu, cho biết đang quay hướng nào -->
+      <circle cx="5.5" cy="0" r="5.5" fill="#e8c098" stroke="#0c1014" stroke-width="1.5"/>
+      <path d="M3.8 -5 A 5 5 0 0 0 3.8 5 Z" fill="#2a2a2a"/>
+      <!-- đại kiếm thò ra trước, đang giữa cú vung -->
+      <g transform="rotate(-26)">
+        <rect x="5" y="-4.6" width="34" height="9.2" fill="#0c1014"/>
+        <rect x="6" y="-3.6" width="32" height="7.2" fill="#e8eef4"/>
+        <rect x="29" y="-3.6" width="9" height="7.2" fill="#ff7a3c"/>
+      </g>
     </g>
   </g>
   <!-- vệt chém -->

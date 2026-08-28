@@ -371,6 +371,9 @@
     lapis_b: { n:'Lapis B', r:'Lapis' }, lapis_a: { n:'Lapis A', r:'Lapis' },
     lapis_s: { n:'Lapis S', r:'Lapis' }, lapis_ss:{ n:'Lapis SS',r:'Lapis' },
     crystal: { n:'Equipment Crystal', r:'S' },
+    // ĐỘC QUYỀN GACHA. Không rơi ở ải nào, không bán ở tiệm, không rã đồ ra được.
+    // Đường duy nhất: quay Triệu hồi trúng món đã có. Dùng để TIẾN HOÁ đồ S/SS.
+    dragon_core: { n:'Lõi Rồng', r:'SS', gachaOnly:true },
     magi_frag:{n:'Magi Fragment', r:'B' },
     str_stone:{n:'Strengthening Stone', r:'B' }
   };
@@ -651,6 +654,89 @@
       sudden:['winvlum','dodonki','galidon'], rare:['musashi','veiltail','archelon'] }
   ];
 
+  /* ------------------------------------------------------------- ẢI ------- */
+  /* CỐ Ý LỆCH BẢN GỐC. Dragon Project không có màn chọn ải: bạn đi lang thang trên
+   * map nối nhau bằng cổng, và boss thì gặp ngẫu nhiên hoặc quay ra từ Quest Gacha.
+   * Bản này đổi sang CHỌN ẢI vì nó dễ hiểu hơn hẳn: một danh sách đánh số, biết ngay
+   * mình đang ở đâu và ải sau cần gì. Xem RESEARCH.md mục 13.
+   *
+   * Một ải = mấy đợt quái thường, dọn đủ thì BOSS CUỐI ẢI xuất hiện. Hạ boss là phá
+   * ải, mở ải kế. Vào một mình — không có đồng đội NPC.
+   */
+  /* Chốt chặn cuối mỗi vùng. Bốn vùng đầu dùng đúng con Rare mà wiki gán cho vùng
+   * đó (hạng A). Bốn vùng cuối phải leo tiếp lên S rồi SS — nếu không thì đồ hạng
+   * SS mà gacha phát ra, và cả bậc Tiến hoá tốn Lõi Rồng, chẳng có đối thủ nào
+   * xứng để mà dùng. Chuỗi ải là toàn bộ nội dung của game này, nên nó phải leo
+   * hết tới đỉnh bảng Behemoth. */
+  G.AREA_FINAL = {
+    kouglorz: 'phoelix',      // S — Aura Phoelix
+    borda:    'arion',        // S — Blade Arion
+    torv:     'wukong',       // S — Ascetic Wukong
+    kirva:    'felnarog'      // SS — Deus Felnarog, chốt chặn cuối cùng của game
+  };
+
+  G.buildStages = function () {
+    G.AREAS.forEach(function (a, ai) {
+      var pool = a.sudden || [];
+      // Từ vùng 4 trở đi, ải lẻ đặt một con Rare (hạng A) làm trùm: tới cấp 30+ mà
+      // vẫn chỉ gặp trùm hạng B thì chuỗi ải đứng yên tại chỗ. Vùng 4 phải bỏ con
+      // Rare đầu bảng ra vì nó đang giữ chỗ chốt chặn cuối vùng.
+      var mids = (a.rare || []);
+      if (!G.AREA_FINAL[a.id]) mids = mids.slice(1);
+      a.stages = a.maps.map(function (m, i) {
+        var last = i === a.maps.length - 1;
+        // Ải cuối mỗi vùng đặt con khó nhất của vùng làm chốt chặn.
+        var boss = last
+          ? (G.AREA_FINAL[a.id] || (a.rare && a.rare[0]) || pool[0])
+          : (ai >= 3 && i % 2 === 1 && mids.length ? mids[((i - 1) / 2) % mids.length]
+                                                   : pool[i % pool.length]);
+        var bd = G.behemothById(boss);
+        return {
+          id: a.id + '-' + (i + 1),
+          n: 'Ải ' + (ai + 1) + '-' + (i + 1),
+          sub: m.n,
+          area: a.id, idx: i, last: last,
+          lv: m.lv,
+          tribes: m.tribes,
+          kills: m.kills,                       // dọn đủ ngần này thì boss ra
+          boss: boss,
+          bossLv: m.lv + (last ? 6 : 3),
+          rank: bd ? bd.rank : 'B',
+          gold: Math.round(320 + m.lv * 78) * (last ? 2 : 1),
+          exp: Math.round(28 + m.lv * 9) * (last ? 2 : 1),
+          firstGem: last ? 10 : 5               // thưởng riêng cho lần phá đầu tiên
+        };
+      });
+    });
+    G.STAGES = G.AREAS.reduce(function (acc, a) { return acc.concat(a.stages); }, []);
+  };
+  G.stageById = function (id) { return (G.STAGES || []).find(function (s) { return s.id === id; }); };
+  G.stagesOf = function (areaId) { var a = G.areaById(areaId); return a ? a.stages : []; };
+
+  /* --------------------------------------------- GACHA RA THẲNG TRANG BỊ -- */
+  /* CỐ Ý LỆCH BẢN GỐC. Quest Gacha của Dragon Project quay ra MỘT CON BOSS để đi
+   * đánh, hạ xong mới có Tablet để tự chế đồ — đó là nét lạ nhất của game gốc, và
+   * cũng là thứ khó hiểu nhất với người mới. Bản này quay ra thẳng trang bị.
+   * Tỉ lệ hạng giữ NGUYÊN tỉ lệ thật của Quest Gacha (SS 3 / S 15 / A 55 / B 27),
+   * vì đó là con số có nguồn. Nguyên liệu để NÂNG CẤP vẫn phải đi cày ở ải.
+   */
+  G.GEAR_RATES = { SS: 0.03, S: 0.15, A: 0.55, B: 0.27 };
+  G.GEAR_KINDS = ['weapon', 'head', 'body', 'arm', 'leg'];
+
+  /* Quay trúng món đã có thì đổi thành LÕI RỒNG — nguyên liệu độc quyền của gacha,
+   * KHÔNG rơi ở bất kỳ ải nào, không mua được ở tiệm. Nó là thứ duy nhất mở được
+   * TIẾN HOÁ cho đồ hạng S và SS, tức bậc nâng cấp cao nhất trong game.
+   *
+   * Vì sao buộc phải như vậy: nếu trùng chỉ đổi ra Lapis (thứ cày được) thì quay
+   * trùng chẳng khác gì đi cày, và cú quay không còn nghĩa lý gì. Cho nó gánh một
+   * bậc nâng cấp mà đi cày KHÔNG BAO GIỜ với tới được thì lần quay nào cũng là tiến
+   * bộ thật — kể cả khi ra món đã có. */
+  G.DUPE_CORE = { B: 1, A: 2, S: 5, SS: 12 };
+
+  // Điểm khai thác trong ải nhả ra một trong bốn thứ này. Để ở đây (chứ không
+  // nằm rải trong game.js) để mọi đường ra nguyên liệu đều khai báo một chỗ.
+  G.GATHER_MATS = ['str_stone', 'magi_frag', 'crystal', 'lapis_b'];
+
   /* ---------------------------------------------------- NHIỆM VỤ STORY ---- */
   // Tên nguyên văn từ trang Story Quests (Area 1). Từ Area 2 trở đi wiki bỏ trống,
   // nên phần sau là tái dựng theo đúng khuôn của game.
@@ -758,7 +844,8 @@
     weakMul: 2.2,                      // đánh trúng WEAK point
     partHpFrac: 0.16,                  // máu mỗi bộ phận = 16% máu boss
     partBrokenMul: 1.25,               // phá xong thì vùng đó ăn thêm sát thương
-    reviveCount: 4, reviveMs: 3000, reviveRadius: 70,
+    // Solo: khong co dong doi toi cuu. Nguoi choi co san may luot tu dung day.
+    reviveCount: 3, selfReviveMs: 4000, reviveMs: 3000, reviveRadius: 70,
     questMs: 300000,                   // 5 phút, đúng giới hạn Tower Clearing
     expToLv: function (lv) { return Math.floor(60 * Math.pow(lv, 1.45)); },
     // Điều kiện thưởng gem của Sudden Behemoth (wiki): 3 điều kiện + 1 bonus = tối đa 4 gem.
@@ -786,6 +873,9 @@
   G.behemothById = function (id) { return G.BEHEMOTHS.find(function (b) { return b.id === id; }); };
   G.areaById = function (id) { return G.AREAS.find(function (a) { return a.id === id; }); };
   G.matById = function (id) { return G.MATERIALS[id]; };
+
+  // Dựng danh sách ải sau cùng, vì nó cần G.behemothById và G.areaById.
+  G.buildStages();
 
   G.rollRank = function (rates, rnd) {
     var r = rnd(), acc = 0;

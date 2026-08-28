@@ -92,7 +92,7 @@ const INSTALL = function () {
   // Nếu không dọn thì một cú cắn của quái đẩy state sang 'hurt' và làm nhiễu.
   T.clean = function () {
     var b = DP.UI.battle; if (!b) return;
-    b.mobs.length = 0; b.suddenDone = true; b.portalOpen = false; b.needKills = 9999;
+    b.mobs.length = 0; b.needKills = 9999;   // chỉ tiêu treo cao để trùm không ra giữa phép kiểm
     b.telegraphs.length = 0; b.projs.length = 0; b.fx.length = 0; b.msgs.length = 0;
     // Nhả sạch cần gạt, để mỗi phép kiểm bắt đầu từ trang giấy trắng.
     b.puni.active = false; b.puni.holding = false; b.puni.pointerId = null;
@@ -115,7 +115,7 @@ const INSTALL = function () {
     T.frOn = false;
     var b = DP.UI.battle;
     return { fr: T.fr.slice(),
-             run: !!(b && b.running), mode: b ? b.mode : null,
+             run: !!(b && b.running), phase: b ? b.phase : null,
              res: b && b.result ? JSON.stringify(Object.keys(b.result)) : null,
              scr: (document.querySelector('.screen.on') || {}).id || null };
   };
@@ -131,23 +131,23 @@ const INSTALL = function () {
       if (!b || !b.running || b.paused) { T.st.push({ s: '-', T: 0, t: performance.now() }); return; }
       if (b.__id === undefined) b.__id = ++T.seenBattles;
       T.st.push({ s: b.player.state, T: b.player.stateT | 0, t: performance.now(),
-                  w: b.W.id, d: b.player.down ? 1 : 0, m: b.mode, b: b.__id,
+                  w: b.W.id, d: b.player.down ? 1 : 0, m: b.phase, b: b.__id,
                   x: Math.round(b.player.x), y: Math.round(b.player.y),
                   pa: b.puni.active ? 1 : 0, ph: b.puni.holding ? 1 : 0 });
     }, 100);
   };
   T.stStop = function () { clearInterval(T.stIv); T.stIv = null; return T.st.slice(); };
 
-  // Giữ trận sống để đo đủ lâu (không thì boss SS lv48 hạ người chơi trong 10s
+  // Giữ trận sống để đo đủ lâu (không thì trùm SS cuối game (Deus Felnarog) hạ người chơi trong 10s
   // và trận kết thúc giữa lúc đang đo).
-  T.keepOn = function (freezeField) {
+  T.keepOn = function (freezeMobs) {
     clearInterval(T.keep);
     T.keep = setInterval(function () {
       var b = DP.UI.battle; if (!b || !b.running) return;
       b.player.hp = b.player.maxHp; b.player.down = false; b.player.downT = 0;
       b.timeLeft = 300000;
       if (b.boss) b.boss.hp = b.boss.maxHp;
-      if (freezeField) { b.portalOpen = false; b.needKills = 9999; b.suddenDone = true; }
+      if (freezeMobs) b.needKills = 9999;      // giữ ở chặng quái, đừng để nhảy sang trùm
     }, 400);
   };
   T.keepOff = function () { clearInterval(T.keep); T.keep = null; };
@@ -159,14 +159,16 @@ const INSTALL = function () {
   T.autoOn = function () {
     clearInterval(T.autoIv);
     var idle = 0;
-    var BOSS = ['grouton', 'frogrid', 'mumu', 'dodonki', 'galidon', 'vaccahorn'];
+    // Đi qua nhiều ải khác nhau, và cứ hai trận thì một trận nhảy thẳng vào chặng
+    // trùm — để đoạn săn kẹt phủ cả hai chặng chứ không chỉ chặng quái.
+    var LOOP = ['tior-1', 'tior-4', 'rakshard-3', 'torerno-2', 'sutherland-2', 'kouglorz-2'];
     T.autoIv = setInterval(function () {
       var b = DP.UI.battle;
       if (b && b.running) { idle = 0; return; }
       if (++idle < 6) return;
       idle = 0; T.battles++;
-      if (T.battles % 2) DP.UI.startBoss(BOSS[T.battles % BOSS.length], 5 + (T.battles % 4) * 4, false);
-      else DP.UI.startField('tior', T.battles % 7);
+      DP.UI.startStage(LOOP[T.battles % LOOP.length]);
+      if (T.battles % 2 && DP.UI.battle) DP.UI.battle.startBossPhase();
     }, 500);
   };
   T.autoOff = function () { clearInterval(T.autoIv); T.autoIv = null; return T.battles; };
@@ -273,35 +275,35 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
 
   /* ================================================================ 1. FPS ==
    * Đo khung hình thật trong hai cảnh nặng nhất: boss SS cấp cao (nhiều đạn,
-   * nhiều vùng báo đỏ) và map field đông quái. Đây là hai cảnh mà máy yếu sẽ tụt.
+   * nhiều vùng báo đỏ) và map chặng quái đông (ải cuối vùng 2). Đây là hai cảnh mà máy yếu sẽ tụt.
    */
   results.push('\n── 1. ĐỘ MƯỢT (FPS thật, đo bằng khoảng cách giữa các khung hình) ──');
 
-  // --- boss SS lv48
-  await p.evaluate(() => { DP.UI.startBoss('felnarog', 48, false); });
+  // --- trùm SS cuối game (Deus Felnarog)
+  await p.evaluate(() => { DP.UI.startStage('kirva-3'); DP.UI.battle.startBossPhase(); });
   await p.waitForTimeout(700);
   await p.evaluate(() => { window.__T.keepOn(false); DPBot.on(150); window.__T.frStart(); });
   await p.waitForTimeout(T_FPS);
   const dBoss = await p.evaluate(() => { const f = window.__T.frStop(); DPBot.off(); window.__T.keepOff(); return f; });
   const kBoss = stats(dBoss.fr);
   if (!kBoss) info('KHÔNG thu được khung hình nào: ' + JSON.stringify(dBoss));
-  check('boss SS lv48 (' + (T_FPS/1000) + 's, bot đánh): trung bình >= 50fps',
+  check('trùm SS cuối game (Deus Felnarog) (' + (T_FPS/1000) + 's, bot đánh): trung bình >= 50fps',
     !!kBoss && kBoss.avgFps >= 50, kBoss ? fmtFps(kBoss) : 'không đo được khung hình nào');
-  check('boss SS lv48: khung giật (>50ms) dưới 2% số khung',
+  check('trùm SS cuối game (Deus Felnarog): khung giật (>50ms) dưới 2% số khung',
     !!kBoss && kBoss.jank50 / kBoss.n < 0.02, kBoss ? kBoss.jank50 + '/' + kBoss.n +
     ' = ' + (100 * kBoss.jank50 / kBoss.n).toFixed(2) + '%' : 'không đo được');
 
-  // --- field đông quái (map cuối vùng cấp cao)
-  await p.evaluate(() => { DP.UI.startField('rakshard', 6); });
+  // --- chặng quái đông (ải cuối vùng 2) (map cuối vùng cấp cao)
+  await p.evaluate(() => { DP.UI.startStage('rakshard-7'); });
   await p.waitForTimeout(700);
   await p.evaluate(() => { window.__T.keepOn(true); DPBot.on(150); window.__T.frStart(); });
   await p.waitForTimeout(T_FPS);
   const dField = await p.evaluate(() => { const f = window.__T.frStop(); DPBot.off(); window.__T.keepOff(); return f; });
   const kField = stats(dField.fr);
   if (!kField) info('KHÔNG thu được khung hình nào: ' + JSON.stringify(dField));
-  check('field đông quái (' + (T_FPS/1000) + 's, bot đánh): trung bình >= 50fps',
+  check('chặng quái đông (ải cuối vùng 2) (' + (T_FPS/1000) + 's, bot đánh): trung bình >= 50fps',
     !!kField && kField.avgFps >= 50, kField ? fmtFps(kField) : 'không đo được khung hình nào');
-  check('field: khung giật (>50ms) dưới 2% số khung',
+  check('chặng quái: khung giật (>50ms) dưới 2% số khung',
     !!kField && kField.jank50 / kField.n < 0.02, kField ? kField.jank50 + '/' + kField.n +
     ' = ' + (100 * kField.jank50 / kField.n).toFixed(2) + '%' : 'không đo được');
 
@@ -311,8 +313,8 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
    * setTimeout sinh quá tay thì mobs phình dần và FPS tụt sau vài phút chơi.
    * fx/msgs/projs/telegraphs cũng phải quay về mức thấp khi ngừng đánh.
    */
-  results.push('\n── 2. RÒ RỈ BỘ NHỚ / MẢNG PHÌNH (field, 60s bot đánh, lấy mẫu mỗi 5s) ──');
-  await p.evaluate(() => { DP.UI.startField('rakshard', 6); });
+  results.push('\n── 2. RÒ RỈ BỘ NHỚ / MẢNG PHÌNH (chặng quái, 60s bot đánh, lấy mẫu mỗi 5s) ──');
+  await p.evaluate(() => { DP.UI.startStage('rakshard-7'); });
   await p.waitForTimeout(700);
   await p.evaluate(() => { window.__T.keepOn(true); DPBot.on(150); });
   const samples = [];
@@ -358,7 +360,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
    * kéo dài quá 3 giây liên tục mà stateT không reset = KẸT.
    */
   results.push('\n── 3. KẸT TRẠNG THÁI (bot chơi 150s qua nhiều trận, lấy mẫu 100ms) ──');
-  await p.evaluate(() => { DP.UI.startField('tior', 0); });
+  await p.evaluate(() => { DP.UI.startStage('tior-1'); });
   await p.waitForTimeout(600);
   await p.evaluate(() => { window.__T.stStart(); window.__T.autoOn(); DPBot.on(160); });
   await p.waitForTimeout(T_STUCK);
@@ -431,8 +433,8 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
   results.push('\n── 3b. ÉP TÌNH HUỐNG DỄ KẸT ──');
 
   // Đưa về sân sạch, không ai đánh mình, để kết quả không bị nhiễu bởi 'hurt'.
-  async function freshField(cls) {
-    await p.evaluate(() => { DP.UI.startField('tior', 0); });
+  async function freshStage(cls) {
+    await p.evaluate(() => { DP.UI.startStage('tior-1'); });
     await p.waitForTimeout(500);
     await p.evaluate(c => { window.__T.clean(); window.__T.equip(c); }, cls);
     await p.waitForTimeout(120);
@@ -456,7 +458,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
 
   // (a) Đổi vũ khí ĐANG khi đang charge / aim / ranbu.
   for (const [cls, want] of [['great', 'charge'], ['bow', 'aim'], ['dual', 'ranbu']]) {
-    await freshField(cls);
+    await freshStage(cls);
     const got = await p.evaluate(([c, w]) => {
       const b = DP.UI.battle, pl = b.player;
       pl.state = 'idle';
@@ -471,7 +473,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
 
   // (b) Né ngay lúc đang cleave. Theo thiết kế, cleave/ranbu KHÔNG hủy được —
   // kiểm rằng nó vẫn tự kết thúc chứ không đứng im mãi.
-  await freshField('great');
+  await freshStage('great');
   const cleaveRes = await p.evaluate(() => {
     const b = DP.UI.battle, pl = b.player;
     pl.state = 'idle'; b.holdStart(40, 0); b.holdEnd(40, 0, 900);   // -> cleave
@@ -485,7 +487,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
   await assertRecovered('(b) né giữa cú cleave');
 
   // (c) Xả Magi khi đang guard.
-  await freshField('sword');
+  await freshStage('sword');
   const starter = await p.evaluate(() => window.__T.restore());   // bộ khởi đầu có Magi sẵn
   info('(c) vũ khí khởi đầu: đặc thù=' + starter.special + ', số Magi gắn=' + starter.magi);
   const magiRes = await p.evaluate(() => {
@@ -508,7 +510,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
 
   // (d) Người chơi ngã ĐANG khi đang ranbu / charge.
   for (const [cls, how] of [['dual', 'ranbu'], ['great', 'charge']]) {
-    await freshField(cls);
+    await freshStage(cls);
     const dres = await p.evaluate(([c, h]) => {
       const b = DP.UI.battle, pl = b.player;
       pl.state = 'idle';
@@ -537,7 +539,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
   }
 
   // (e) Boss chết ĐANG khi người chơi đang aim.
-  await p.evaluate(() => { DP.UI.startBoss('grouton', 8, false); });
+  await p.evaluate(() => { DP.UI.startStage('tior-1'); DP.UI.battle.startBossPhase(); });
   await p.waitForTimeout(600);
   await p.evaluate(() => { window.__T.clean(); window.__T.equip('bow'); });
   const eres = await p.evaluate(() => {
@@ -554,7 +556,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
   info('(e) boss chết khi đang ' + eres.before + ': state=' + eAfter.s + ', trận còn chạy=' + eAfter.run);
   check('(e) boss chết giữa lúc aim thì trận kết thúc gọn', eAfter.run === false, 'running=' + eAfter.run);
   // Điều thật sự quan trọng: trận SAU phải sạch, không thừa kế trạng thái treo.
-  await p.evaluate(() => { DP.UI.startBoss('grouton', 8, false); });
+  await p.evaluate(() => { DP.UI.startStage('tior-1'); DP.UI.battle.startBossPhase(); });
   await p.waitForTimeout(600);
   await p.evaluate(() => { window.__T.clean(); });
   const eNew = await p.evaluate(() => window.__T.state());
@@ -570,7 +572,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
   // (js/game.js) từ chối vì busy(). Punicon KHÔNG biết mình bị từ chối nên vẫn ở
   // holding: onMove trả về sớm, moveVec đứng ở 0 => nhân vật vừa KHÔNG ra đòn đặc
   // thù vừa KHÔNG đi được, cho tới khi nhấc tay. Đó là một khoảng chết input.
-  await freshField('sword');
+  await freshStage('sword');
   const busyHold = await p.evaluate(() => new Promise(res => {
     const T = window.__T, b = DP.UI.battle, pl = b.player;
     pl.state = 'lag'; pl.stateT = 0; pl.stateDur = 350;    // còn cứng đòn
@@ -614,7 +616,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
   results.push('\n── 4. LUẬT PUNICON: chạy dài KHÔNG được tự thành đòn đặc thù ──');
 
   for (const cls of WCLS) {
-    await freshField(cls);
+    await freshStage(cls);
     const special = await p.evaluate(c => window.__T.equip(c), cls);
 
     // (4.1) kéo ra 60px rồi GIỮ NGUYÊN 3 giây -> phải luôn 'idle', không bao giờ đặc thù.
@@ -689,7 +691,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
 
   // Kiểm bổ sung: chạy ĐỔI HƯỚNG liên tục rất lâu (như người chơi thật đảo ngón)
   // cũng không được thành đòn đặc thù, và nhân vật phải thật sự di chuyển.
-  await freshField('sword');
+  await freshStage('sword');
   const longRun = await p.evaluate(() => new Promise(res => {
     const T = window.__T, b = DP.UI.battle;
     b.player.state = 'idle';
@@ -725,7 +727,7 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
    * 60ms (giống ngón thật), nên 60ms đó nằm trong con số đo được.
    */
   results.push('\n── 5. ĐỘ TRỄ PHẢN HỒI KHI CHẠM (20 lần) ──');
-  await freshField('sword');
+  await freshStage('sword');
   const lat = await p.evaluate(() => window.__T.tapLatency(20));
   const okLat = lat.filter(x => x >= 0);
   const latAvg = okLat.reduce((a, c) => a + c, 0) / Math.max(1, okLat.length);
