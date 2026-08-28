@@ -36,7 +36,7 @@
   const CREW_IDS = ['lead', 'mate0', 'mate1', 'mate2',
     'bao', 'hue', 'tam', 'ky', 'linh', 'dung', 'mai', 'phuc', 'son',
     'nga', 'khoi', 'van', 'hai', 'tuyet'];
-  const FOE_IDS = ['patrol', 'listen', 'stalk', 'bomber', 'heavy', 'rook'];
+  const FOE_IDS = ['patrol', 'listen', 'stalk', 'bomber', 'heavy', 'rook', 'angel'];
 
   function cvs(w, h) {
     const c = document.createElement('canvas');
@@ -114,9 +114,13 @@
     let moved = 0;
     if (e._sx !== undefined) moved = Math.hypot(e.x - e._sx, e.y - e._sy);
     e._sx = e.x; e._sy = e.y;
-    if (moved < 0.05) return 1;
+    // _sc = khung chân đang dùng. Ghi lại để kiểm được bằng máy: so ảnh chụp thì
+    // hai lần vẽ y hệt nhau vẫn ra pixel khác nhau (trình duyệt đổi cách thu nhỏ
+    // sau vài khung đầu), nên bài test phải hỏi thẳng khung nào chứ không so ảnh.
+    if (moved < 0.05) { e._sc = 1; return 1; }
     e._sd = (e._sd || 0) + moved;
-    return CYCLE[Math.floor(e._sd / 7) % 4];
+    e._sc = CYCLE[Math.floor(e._sd / 7) % 4];
+    return e._sc;
   }
 
   // Con bot / người chơi nào là ai: Biệt Đội gắn charId cho từng xác, Ca Trực Đêm thì
@@ -133,7 +137,9 @@
     const s = crew[crewIdOf(a, isPlayer)];
     if (!s) return false;
     const w = FW * CREW_SCALE, h = FH * CREW_SCALE;
-    c.imageSmoothingEnabled = false;
+    // Bật khử răng cưa: bộ hình là tranh vẽ tay đã thu nhỏ, không phải lưới ô vuông
+    // vẽ đúng từng pixel — tắt đi thì mỗi lần thu tỉ lệ lẻ là rụng mất nét.
+    c.imageSmoothingEnabled = true;
     c.drawImage((a.hurt || 0) > 0 ? s.hurt : s.img, colFor(a) * FW, rowFor(a.dir) * FH, FW, FH,
       Math.round(-w / 2), Math.round(8 - h), w, h);
     return true;
@@ -145,7 +151,7 @@
     const src = (m.flash || 0) > 0 ? s.flash : s.cv;
     const w = s.cw * FOE_SCALE, h = s.ch * FOE_SCALE;
     const feet = (s.ch - s.pad) * FOE_SCALE;
-    c.imageSmoothingEnabled = false;
+    c.imageSmoothingEnabled = true;
     c.drawImage(src, colFor(m) * s.cw, rowFor(m.dir) * s.ch, s.cw, s.ch,
       Math.round(-w / 2), Math.round(9 - feet), w, h);
 
@@ -175,6 +181,7 @@
     foe: drawFoe,
     ready: function () { return pending === 0; },
     failed: function () { return failed; },
-    have: function () { return Object.keys(crew).length + Object.keys(foe).length; }
+    have: function () { return Object.keys(crew).length + Object.keys(foe).length; },
+    frame: function (e) { return e._sc; }
   };
 })(window);

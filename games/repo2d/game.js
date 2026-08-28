@@ -6918,6 +6918,11 @@ function drawAngel(c){
   const col = stone.map((v,i) => Math.round(mix(v, lit[i], k)));
   const fill = `rgb(${col[0]},${col[1]},${col[2]})`;
 
+  // Pho tuong co bo hinh rieng thi ve bang hinh; vong sac tren dau van giu nguyen
+  // vi do moi la thu noi cho nguoi choi biet no sap lao toi.
+  const skinned = window.REPO_SKIN &&
+    REPO_SKIN.foe(c, { type:'angel', x:a.x, y:a.y, dir:a.face, sleep:0, state:'idle' }, null);
+  if (!skinned){
   c.save();
   c.rotate(a.face);
   // wings, swept back behind whichever way it is facing
@@ -6938,6 +6943,7 @@ function drawAngel(c){
   c.closePath(); c.fill();
   c.beginPath(); c.arc(0, -10, 5.4, 0, Math.PI*2); c.fill();
   c.strokeStyle = `rgba(30,28,26,${0.55*(1-k)})`; c.lineWidth = 1.2; c.stroke();
+  }
 
   // the charge arc above its head — the mechanic has to be legible or it is just a random mauling
   if (a.t >= ANGEL_SETTLE && k > 0.001){
@@ -8444,7 +8450,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260828e';
+const BUILD = '20260829a';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm

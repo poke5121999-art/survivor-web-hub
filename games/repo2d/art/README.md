@@ -74,6 +74,19 @@ thành hai lớp viền. Bản đóng băng (chiêu của Vân) cũng do game t�
 | `bomber` | Kẻ nổ | Máu ít, ôm thùng, tới sát là nổ. |
 | `heavy` | Kẻ nặng | 620 máu, đi chậm, một đòn gần chết. |
 | `rook` | Kẻ húc | Không đuổi. Nó ngắm một đường thẳng rồi lao, báo trước ba giây. |
+| `angel` | Tượng thiên thần | Sự kiện riêng: đứng yên khi bị nhìn, quay lưng đi là nó tới. |
 
-Còn một con nữa **chưa có hình**: pho tượng thiên thần trong sự kiện, game vẫn tự vẽ
-bằng hình khối. Muốn thay thì thêm `foe/angel.png` và nói một tiếng để nối dây.
+Còn `foe/crawler.png` nằm sẵn trong thư mục nhưng **chưa có chỗ trong luật** — để dành
+cho giống quái tiếp theo, game không nạp nó.
+
+## Bộ hiện tại từ đâu ra
+
+Chủ dự án gửi 18 ảnh JPEG (mỗi ảnh một lưới 3×4, có nền). `../tools/import_art.py` bóc
+nền, cắt lưới và chuẩn hoá về khuôn trên. Gửi ảnh mới cùng kiểu thì chạy lại:
+
+```
+python web-hub/games/repo2d/tools/import_art.py <thư-mục-ảnh>
+```
+
+Mã nào chưa có ảnh thật thì vẫn giữ bản kê chỗ do code sinh, nên không nhân vật nào bị
+trống mặt: hiện còn `son`, `nga`, `van`, `hai`, `tuyet` và ba đồng đội `mate0/1/2`.
