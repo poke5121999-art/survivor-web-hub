@@ -821,15 +821,20 @@ const MONSTERS = {
   // `col` was near-black on all five, which is atmospheric and unreadable: a thing standing in your
   // own torch beam has to be a SHAPE, not a suggestion. Lifted enough to read against a lit floor,
   // still dark enough to vanish outside the beam — which is where the fear lives.
-  patrol:  { name:'Kẻ đi tuần', hp: 40,  dmg:10,  cd:0.9, speed: 58, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad' },
-  listen:  { name:'Kẻ nghe',    hp: 75,  dmg:32,  cd:1.6, speed: 74, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6' },
-  stalk:   { name:'Kẻ bám',     hp: 60,  dmg:30,  cd:1.1, speed: 66, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6' },
-  bomber:  { name:'Kẻ nổ',      hp: 30,  dmg:14,  cd:0.9, speed: 62, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8' },
-  heavy:   { name:'Kẻ nặng',    hp:300,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8' },
+  // MAU GAP DOI so voi ban truoc. Chu du an: "may con quai giay qua".
+  // Mot con chet vi mot cu cham nhe thi khong bao gio nang duoc, va ca can nha mat luon
+  // cai cam giac "co thu gi do dang di lai trong nay". Sat thuong sung duoc keo len MANH
+  // HON ti le nay (xem SUNG ben duoi), nen thoi gian ha mot con KHONG dai ra - chi la moi
+  // phat ban gio dang mot phat ban.
+  patrol:  { name:'Kẻ đi tuần', hp: 85,  dmg:10,  cd:0.9, speed: 58, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad' },
+  listen:  { name:'Kẻ nghe',    hp:150,  dmg:32,  cd:1.6, speed: 74, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6' },
+  stalk:   { name:'Kẻ bám',     hp:130,  dmg:30,  cd:1.1, speed: 66, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6' },
+  bomber:  { name:'Kẻ nổ',      hp: 60,  dmg:14,  cd:0.9, speed: 62, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8' },
+  heavy:   { name:'Kẻ nặng',    hp:620,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8' },
   // Kẻ húc. It does not chase and it does not touch you while walking: its whole threat is one
   // straight line, announced three seconds before it is fired. Everything about it is built so the
   // counter-play is a step sideways and a wall between you, never a health bar.
-  rook:    { name:'Kẻ húc',     hp: 75,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' }
+  rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
@@ -1949,11 +1954,23 @@ function makeLoot(x,y,size,mat,v0){
            onPad:null, inCart:false, cracks:0, gone:false, bob: Math.random()*6,
            freeX:x, freeY:y, holdD:0 };
 }
+// SAT THUONG CUA QUAI TANG THEO MAN.
+// Chu du an: "de len map khac thi quai cung se tang st len".
+// Truoc ban nay bang MONSTERS la mot bang PHANG: Ke nang danh 100 o man 1 va van danh 100 o
+// man 20. Do kho cua nhung man sau nam het o SO LUONG quai va o chi tieu, con moi cu danh thi
+// y het nhau - nen ca truc thu hai muoi khong dang so hon ca truc dau tien, no chi dong hon.
+// Duong cong dat thoai: +5% moi man, man 20 la gap doi. Cong voi luat "khong chet tu mau day"
+// o hurtPlayer(), ket qua la o man cuoi mot don van khong giet duoc ban tu day mau - nhung
+// don thu hai thi co, va khoang cach giua hai don ay chinh la thu bi bop lai dan.
+const FOE_DMG_PER_LEVEL = 0.05;
+function foeDmgScale(){ return 1 + Math.max(0, (S.level || 1) - 1) * FOE_DMG_PER_LEVEL; }
+
 function makeMonster(type,x,y){
   const d = MONSTERS[type];
-  return { type, x, y, hp:d.hp, dmg:d.dmg, speed:d.speed, dir:0,
+  return { type, x, y, hp:d.hp, hpMax:d.hp,
+           dmg: Math.round(d.dmg * foeDmgScale()), speed:d.speed, dir:0,
            state:'patrol', tx:x, ty:y, think:0, alert:0, hit:0, home:{x,y}, wob:Math.random()*7,
-           sleep:0, kx:0, ky:0, vx:0, vy:0,
+           sleep:0, kx:0, ky:0, vx:0, vy:0, flash:0,
            lost: 0,                              // seconds since it last had the player
            reveal: 0,                            // fade-in of "this thing has seen you", 0..1
            seen: false, spotT: 0, unseenT: 0,    // the player's side: have I laid eyes on this one
@@ -2799,6 +2816,7 @@ function stepMonsters(dt){
     }
     m.shoveCd = Math.max(0, (m.shoveCd || 0) - dt);
     m.slowT   = Math.max(0, (m.slowT || 0) - dt);
+    m.flash   = Math.max(0, (m.flash || 0) - dt);
     m.vulnT   = Math.max(0, (m.vulnT || 0) - dt);
     m.deafT   = Math.max(0, (m.deafT || 0) - dt);
     if (m.sleep > 0){
@@ -3109,11 +3127,24 @@ function stepRook(m, dt, dist){
   moveEnt(m, ax/am*m.speed*dt, ay/am*m.speed*dt, 9);
 }
 
+// MOT CU DANH KHONG DUOC PHEP GIET BAN TU DAY MAU.
+// Chu du an: "trung 1 phat la chet neu player chua tang mau goc".
+// So do khong sai o dau ca: Ke nang danh 100, ma mau goc cung dung 100 - nen nguoi choi chua
+// mua nang cap mau thi mot cu cham duy nhat la het van, khong kip lam gi, khong kip hieu vi
+// sao. Do khong phai do kho, do la mot cai bay: cai duy nhat no day nguoi choi la "dung lai
+// gan Ke nang", ma bai hoc do chi den SAU khi da mat ca ca truc.
+// Cach chan: mot don le KHONG duoc lay qua ngan nay phan mau toi da. Chan theo TI LE chu
+// khong theo con so cung, vi ban Biet Doi moi xac mot muc mau khac nhau (95..129), va mot
+// con so cung se dung cho xac nay va sai cho xac kia.
+// No KHONG lam ban bat tu: cu thu hai giet duoc ngay, va no chi chan khi ban dang DAY MAU -
+// dung so mau ma nguoi choi tin la mot lan an don nua van con song.
+const HIT_MAX_FRAC = 0.72;
 function hurtPlayer(n, src, fromX, fromY){
   const p = S.player;
   // hurtActor da chan, nhung hurtPlayer con duoc goi THANG o nhieu cho (bom, nga,
   // Ke Huc), nen la chan phai dung o ca hai cua chu khong chi mot.
   if ((p.invulnT || 0) > 0) return;
+  if (p.hp >= p.hpMax) n = Math.min(n, Math.floor(p.hpMax * HIT_MAX_FRAC));
   (S.hurtLog = S.hurtLog || []).push({ t:+S.time.toFixed(1), n, src: src || '?', hp: Math.round(p.hp - n) });
   p.hp -= n; p.hurt = 0.45;
   // Away from whatever hit you. Decays like the monsters' own knockback does, and moves through
@@ -3143,6 +3174,33 @@ function foeDamage(m, n){
   m.hp -= n * ((m.vulnT || 0) > 0 ? FREEZE_VULN_MUL : 1);
   return m.hp <= 0;
 }
+// MOT PHAT BAN PHAI CO CAM GIAC LA MOT PHAT BAN.
+// ROOT-CAUSE cua "ban yeu + giay qua": hurtActor() - luc NGUOI CHOI an don - lam du ca nam
+//   thu: rung man, khung hinh khung lai, mau bat vao tu dung phia, tieng danh, va thanh mau
+//   giat. Con foeDamage() - luc QUAI an dan - chi lam dung mot thu: tru mot con so ma khong
+//   ai nhin thay. Nen viec ban vao mot con quai khong khac gi go phim vao khoang khong: khong
+//   co gi tren man hinh noi rang cu bam vua roi da an. Do khong phai loi cua con so sat thuong,
+//   va tang sat thuong khong thoi cung khong chua duoc no.
+// foeHit() la cua duy nhat cho MOT CU DANH TRUNG - khac foeDamage(), la cua cho sat thuong noi
+// chung (ke ca sat thuong ri ra tung khung hinh cua ky nang, thu khong duoc phep nhay so).
+function foeHit(m, n, ang, knock){
+  if (!m || typeof m.hp !== 'number' || m.hp <= 0) return false;
+  const chet = foeDamage(m, n);
+  m.alert = 3;
+  m.flash = 0.14;                                  // nhap trang mot nhip
+  if (ang != null && knock){                       // va bat lui - dan phai co suc day
+    m.kx = (m.kx || 0) + Math.cos(ang)*knock;
+    m.ky = (m.ky || 0) + Math.sin(ang)*knock;
+  }
+  fxPop(m.x, m.y - 16, '-' + Math.round(n), chet ? '#ffd08a' : '#ffb0a0', chet ? 15 : 12);
+  // Khung hinh khung lai mot nhip - dung cai lam cu danh "cham" vao duoc. Do bang REAL time
+  // trong frame(), nen no khong bao gio dung han dong ho.
+  FX.hitstop = Math.max(FX.hitstop, chet ? 0.10 : Math.min(0.07, 0.02 + n*0.0006));
+  fxShake(chet ? 7 : 2 + Math.min(4, n*0.03));
+  SFX.hit(n);
+  return chet;
+}
+
 function killMonster(m){
   S.kills = (S.kills || 0) + 1;
   const i = S.monsters.indexOf(m);
@@ -3182,14 +3240,22 @@ function killMonster(m){
 // Sat thuong bom len quai. Sat thuong len NGUOI CHOI (55) va len DO (420) giu
 // nguyen: bom manh hon thi phan thuong lon hon, con cai gia phai tra van the -
 // khong thi no thanh nut bam khong phai nghi.
-const BOMB_FOE_DMG = 165;
+const BOMB_FOE_DMG = 340;     // keo theo mau quai: mot qua van la mot qua
 const MELEE_R      = 40;      // tam voi cua cu vung
 const MELEE_HALF   = 1.05;    // nua goc quet, ~60 do moi ben
-const MELEE_CD     = 0.55;    // giay giua hai cu vung
+const MELEE_CD     = 1.10;    // giay giua hai cu vung
 const MELEE_T      = 0.22;    // cu vung ve trong bao lau
 const MELEE_KNOCK  = 320;     // hat lui - phan quan trong nhat cua don nay
 const MELEE_NOISE  = 1.5;     // vung den pin la co tieng: khong danh len duoc
-const MELEE_STR    = 0.9;     // sat thuong = suc * he so. Suc 30 -> 27 sat thuong.
+// DEN PIN LA THU YEU NHAT TRONG TAY BAN, va no phai duoc CAM THAY nhu vay.
+// Chu du an: "nerf sat thuong danh bang den pin xuong + cham lai".
+// Hai con so cung di xuong mot luc, va chung nhan nhau: 0,47 suc moi nhat va 1,1 giay moi
+// nhat nghia la ~13 sat thuong mot giay, so voi ~49 cua ban dau va so voi 62 cua MOT phat
+// sung luc. Cong voi mau quai vua gap doi: phang den pin de HAT LUI mot con dang ap mat thi
+// duoc - va do van la phan quan trong nhat cua don nay, MELEE_KNOCK khong bi dong toi - con
+// phang de HA mot con thi khong con la mot lua chon nua.
+// Do dung la vai tro no nen co: no la cai den pin, khong phai vu khi.
+const MELEE_STR    = 0.47;    // sat thuong = suc * he so. Suc 30 -> 14 sat thuong.
 // Cham nhe vao can gat phai ma co quai trong tam nay thi TU QUAY sang no roi vung.
 // Rong hon tam voi that, vi luc bi duoi thi ngon tay khong con thi gio ngam.
 const MELEE_SNAP_R = 78;
@@ -3265,15 +3331,14 @@ function meleeSwing(p, ang){
       m.kx = (m.kx || 0) + Math.cos(a) * MELEE_KNOCK;
       m.ky = (m.ky || 0) + Math.sin(a) * MELEE_KNOCK;
       m.alert = Math.max(m.alert, 3);
-      if (foeDamage(m, dmg)) killMonster(m);
+      if (foeHit(m, dmg, a, 0)) killMonster(m);      // den pin da tu hat lui o dong tren
     }
     trung++;
   }
   // GUONG. Bom pha duoc guong tu dau, con den pin thi khong - ma guong lai la thu
   // DUY NHAT dut duoc con ma di theo minh. Nghia la gap guong ma trong tay khong co
   // bom hay sung thi khong con duong nao, va do la mot the co khong loi thoat chu
-  // khong phai mot the kho. MIRROR_HP = 70, mot nhat 27, tuc la ba nhat mot tam -
-  // dung bang "ba vien dan" ma chu thich cua MIRROR_HP da noi.
+  // khong phai mot the kho. MIRROR_HP = 84, mot nhat 14, tuc la sau nhat mot tam.
   if (S.mirror){
     for (const pane of [S.mirror.a, S.mirror.b]){
       if (!pane || pane.hp <= 0) continue;
@@ -3320,7 +3385,7 @@ const HASTE_MUL       = 1.3;    // Gong: +30% toc do nhu mo ta ky nang hua
 // con đứng sau con thứ nhất nếu nón toé tới đó.
 const SHOTGUN_PELLETS = 7;
 const SHOTGUN_SPREAD  = 0.30;      // rad, nửa góc nón
-const SHOTGUN_DMG     = 16;        // mỗi viên; trúng cả bảy là 112 — đủ hạ Kẻ bám trong một phát
+const SHOTGUN_DMG     = 36;        // mỗi viên; trúng cả bảy là 252 — sát mặt là hạ gọn hầu hết
 const SHOTGUN_SPEED   = 760;
 const SHOTGUN_LIFE    = 0.22;      // giây -> tầm với khoảng 5,5 ô
 const SHOTGUN_KNOCK   = 210;       // đẩy CHÍNH NGƯỜI BẮN lùi lại
@@ -3329,8 +3394,8 @@ const SHOTGUN_CD      = 0.95;
 
 // Laser: giữ càng lâu càng mạnh, và cái giá của một phát đầy là đứng chôn chân gần một giây.
 const LASER_FULL      = 1.10;      // giây để sạc đầy
-const LASER_DMG_MIN   = 22;
-const LASER_DMG_MAX   = 95;
+const LASER_DMG_MIN   = 48;
+const LASER_DMG_MAX   = 215;      // sạc đầy: một tia hạ gọn Kẻ bám / Kẻ húc, và xuyên qua cả hàng
 const LASER_RANGE     = TILE * 14;
 const LASER_RECOIL_MIN= 0.25;
 const LASER_RECOIL_MAX= 0.90;
@@ -3510,7 +3575,7 @@ function fireLaser(p, ang, charge){
     }
   }
   for (const m of trung){
-    foeDamage(m, dmg); m.alert = 3;
+    foeHit(m, dmg, ang, 60);
     if (m.hp <= 0) killMonster(m);
   }
   S.beams.push({ x0:p.x, y0:p.y, x1:ex, y1:ey, t:0, life:0.20, k:k });
@@ -3529,7 +3594,9 @@ function useSlot(p, i, aimed){
   if (def && def.passive) return false;          // the tracker works by being equipped
   const ang = aimed !== undefined ? aimed : p.dir;
   if (it.kind === 'gun'){
-    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun', dmg:25 });
+    // 62 chu khong phai 25. Mot khau sung phai la mot CAU TRA LOI, khong phai mot thu de
+    // banh nhe vao con quai roi van phai chay. Ke di tuan: hai phat. Ke bam: ba phat.
+    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun', dmg:62 });
     applyRecoil(p, ang, 55, 0.22);
     it.uses--; p.cooldown = 0.45;
   } else if (it.kind === 'shotgun'){
@@ -3581,7 +3648,7 @@ function testHeld(p){
   if (!def || !def.test || p.cooldown > 0) return false;
   const ang = p.dir;
   if (def.key === 'gun'){
-    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun', dmg:25 });
+    S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun', dmg:62 });
     p.cooldown = 0.45;
   } else if (def.key === 'tranq'){
     S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*520, vy:Math.sin(ang)*520, life:1.0, kind:'tranq' });
@@ -3634,7 +3701,7 @@ function stepProjectiles(dt){
           m.sleep = 12; m.alert = 0; m.state = 'sleep';
           toast(MONSTERS[m.type].name + ' ngủ rồi');
         } else {
-          foeDamage(m, b.dmg || 25); m.alert = 3;
+          foeHit(m, b.dmg || 62, Math.atan2(b.vy, b.vx), b.kind === 'shot' ? 90 : 150);
           if (m.hp <= 0) killMonster(m);
         }
         S.bullets.splice(i,1);
@@ -3657,7 +3724,10 @@ function stepProjectiles(dt){
         // 90 -> 165: mot qua lu dan gia 7.000 ma khong giet duoc mot con Ke nghe
         // (75 mau) dung ngay tam bom thi khong ai mua lan thu hai. Gio no giet gon
         // moi thu dung gan tam, va tha dan o ria.
-        if (d < b.r){ if (foeDamage(m, BOMB_FOE_DMG * (1 - d/b.r))) killMonster(m); }
+        if (d < b.r){
+          const a = Math.atan2(m.y - b.y, m.x - b.x);
+          if (foeHit(m, BOMB_FOE_DMG * (1 - d/b.r), a, 260)) killMonster(m);
+        }
       }
       if (S.mirror){
         for (const pane of [S.mirror.a, S.mirror.b]){
@@ -4296,7 +4366,12 @@ const MIRROR_SPEED      = 58;
 const MIRROR_FAR        = 12*TILE;    // distance from mirror A at which it is at its slowest
 const MIRROR_SLOW_FLOOR = 0.32;       // and that slowest is this much of its speed
 const MIRROR_TORCH_MUL  = 0.42;       // hold the beam on it and it wades
-const MIRROR_HP         = 70;         // per mirror — about three pistol rounds
+// Guong KHONG duoc keo theo mau quai. No la loi thoat duy nhat khoi con ma khi trong tay
+// khong co gi, nen so nhat can de dap vo phai giu nguyen dung tam voi cai den pin vua bi nerf.
+// 84 / 14 = 6 nhat den pin, hoac 2 vien sung luc. Den pin cang yeu thi con so nay cang phai
+// di xuong theo, neu khong thi nguoi khong co sung se khong bao gio dut duoc con ma - ma dap
+// vo guong la loi thoat DUY NHAT khoi no.
+const MIRROR_HP         = 84;         // per mirror — hai vien sung luc, hoac sau nhat den pin
 const MIRROR_NEAR       = [4, 7];     // how far from you mirror A lands, in tiles
 const MIRROR_GRAB_R     = 20;         // how close it has to get to put you through the far one
 const MIRROR_LOOT       = [1500, 3200];
@@ -6965,7 +7040,10 @@ function drawMonsters(c){
     c.save(); c.translate(m.x, m.y);
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0,9,10,4.5,0,0,Math.PI*2); c.fill();
-    c.fillStyle = d.col;
+    // Nhap trang mot nhip khi vua an don. Bot dong doi da co cai nay tu lau (a.hurt), con
+    // quai thi khong - nen ban trung mot con quai la mot viec khong de lai dau vet gi tren
+    // man hinh. Day la nua con lai cua bai "ban yeu + giay qua", nua kia la con so sat thuong.
+    c.fillStyle = (m.flash || 0) > 0 ? '#ffe4d8' : d.col;
     if (m.type === 'rook'){
       // Bulk, and a nose. It is the only thing in the house whose FACING is a threat on its own,
       // so the silhouette has to say which way it is pointed from across a dark room.
@@ -7859,6 +7937,14 @@ function drawMinimap(c, hud){
 }
 
 // ============================================================ DOM ui
+// DAU BUILD, nam TRONG chinh tep nay.
+// WHY no ton tai: GitHub Pages tra Cache-Control: max-age=600 cho moi tep tinh. Nguoi choi mo
+// game sau khi deploy van co the dang chay ban CU toi muoi phut, va khong co cach nao nhin ra
+// dieu do tu trong tro choi - moi bao cao loi tu ho deu noi ve mot ban khac voi ban vua sua.
+// Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
+// chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
+// hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
+const BUILD = '20260828c';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -8318,6 +8404,7 @@ function setBot(on){
 
 // ============================================================ hooks for tests + bot
 window.REPO = {
+  BUILD,
   S, TILE, MW, MH, RW, RH, GX, GY, WPX, HPX,
   solidAt, losClear, hitsSolid, money, clamp, angDiff,
   pickUp, dropHeld, useSlot, playerSpeed, grabRange, nearestLoot,
@@ -8414,7 +8501,7 @@ window.REPO = {
   toast, makeNoise, hitsSolid, killMonster,
   // Mấy hàm dưới đây là những nguyên thuỷ mà tầng kỹ năng của bản Biệt Đội cần.
   // Đặt tên theo đúng việc chúng làm, thay vì bắt lớp ngoài chọc vào ruột bộ máy.
-  hurtFoe(m, n){ if (!m || m.hp <= 0) return false; foeDamage(m, n); m.alert = 3;
+  hurtFoe(m, n){ if (!m || m.hp <= 0) return false; foeHit(m, n, null, 0);
                  if (m.hp <= 0){ killMonster(m); return true; } return false; },
   reviveActor(a){
     if (!a || !a.down) return false;
@@ -8466,6 +8553,7 @@ window.REPO = {
   meleeSwing, meleeTarget,
   foesAll,
   mirrorFoe(){ return (S.mirror && S.mirror.m) || null; },
+  HIT_MAX_FRAC, FOE_DMG_PER_LEVEL, foeDmgScale, hurtPlayer,
   MELEE: { R: MELEE_R, HALF: MELEE_HALF, CD: MELEE_CD, KNOCK: MELEE_KNOCK,
            STR: MELEE_STR, SNAP: MELEE_SNAP_R, STAM: MELEE_STAM,
            TIRED_DMG: MELEE_TIRED_DMG, TIRED_CD: MELEE_TIRED_CD },

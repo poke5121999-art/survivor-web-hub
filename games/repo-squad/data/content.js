@@ -99,7 +99,7 @@
       hp: 150, atk: 16, spd: 0.95, carry: 40, grit: 0.14, atkR: 2.1, atkCd: 1.05,
       passive: { name: 'Lì Đòn', desc: 'Bị đánh không rơi đồ đang vác.' },
       skill: {
-        id: 'shock', name: 'Xung Chấn', cd: 17, radius: 5, dmg: 34, stun: 2.2,
+        id: 'shock', name: 'Xung Chấn', cd: 17, radius: 5, dmg: 72, stun: 2.2,
         desc: 'Nện sàn: quái quanh 5 ô văng ra, choáng 2,2 giây và ăn 34 sát thương.'
       }
     },

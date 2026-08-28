@@ -391,7 +391,9 @@ async function meleeSuite(b) {
     return { mat: truoc.hp - m.hp, day: Math.abs(m.kx) > 100,
              cd: pl.swingCd, ve: pl.swingT > 0, str: pl.str };
   });
-  check('đập trúng thì quái mất máu theo SỨC của mình', don.mat === 27,
+  const heSo = await p.evaluate(() => REPO.MELEE.STR);
+  const chuan = Math.max(3, Math.round(30 * heSo));
+  check('đập trúng thì quái mất máu theo SỨC của mình', don.mat === chuan,
     'sức ' + don.str + ' → ' + don.mat + ' sát thương');
   check('đập trúng thì quái bị hất lui', don.day);
   check('đập xong phải chờ hồi', don.cd > 0.4, don.cd.toFixed(2) + 's');
@@ -437,7 +439,9 @@ async function meleeSuite(b) {
   });
   check('chạm nhẹ cần gạt phải thì TỰ QUAY sang con quái', cham.dungHuong,
     'hướng ' + cham.huong.toFixed(2) + ' rad');
-  check('chạm nhẹ cần gạt phải thì đập trúng', cham.mat === 27, cham.mat + ' sát thương');
+  const heSo2 = await p.evaluate(() => REPO.MELEE.STR);
+  check('chạm nhẹ cần gạt phải thì đập trúng',
+    cham.mat === Math.max(3, Math.round(30 * heSo2)), cham.mat + ' sát thương');
 
   // KÉO cần gạt phải thì vẫn là NHÌN, không được thành đòn đánh.
   await p.evaluate(() => {
@@ -1428,6 +1432,47 @@ async function metaRulesSuite(b) {
     SQ.squad.quit();
     return { runs: SQ.M.counters.runs, day: SQ.M.day.runs, week: SQ.M.week.runs };
   });
+  // ---- ba nguoi con lai cua to cung phai biet dung chieu ----
+  // Nguoi choi quay gacha ra mot cai xac VI KY NANG cua no, xep vao to, roi ky nang do khong
+  // bao gio chay - tru khi no duoc dat lam to truong. Ba o con lai thanh ba cuc chi so.
+  const botChieu = await p.evaluate(async () => {
+    if (SQ.squad.run()) SQ.squad.quit();
+    SQ.ui.closePopup();
+    SQ.CHARS.forEach(c => { SQ.M.chars[c.id] = { lv: 1, shard: 0, equip: {} }; });
+    SQ.autoFill(); SQ.squad.enter('k3');
+    await new Promise(r => setTimeout(r, 400));
+    const ghi = [];
+    const goc = REPO.toast;
+    REPO.toast = m => { ghi.push(m); return goc(m); };
+    REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.monsters.length = 0;
+    (REPO.S.mates || []).forEach(a => {
+      const m = REPO.spawnFoe('patrol', 0, 0);
+      m.x = a.x + 30; m.y = a.y; m.hp = 4000; m.hpMax = 4000; m.state = 'chase'; m.alert = 3;
+    });
+    for (let i = 0; i < 24; i++) {
+      await new Promise(r => setTimeout(r, 500));
+      (REPO.S.mates || []).forEach((a, k) => {
+        const m = REPO.S.monsters[k]; if (!m) return;
+        m.x = a.x + 30; m.y = a.y; m.hp = 4000; m.alert = 3; m.state = 'chase';
+      });
+      REPO.S.player.hp = REPO.S.player.hpMax;
+      if (ghi.filter(x => /dùng/.test(x)).length >= 3) break;
+    }
+    REPO.toast = goc;
+    const dung = ghi.filter(x => /dùng/.test(x));
+    // moi nguoi phai dung chieu CUA CHINH MINH, khong phai chieu cua to truong
+    const ten = new Set(dung.map(x => x.split(' dùng ')[0]));
+    const chieu = new Set(dung.map(x => (x.split(' dùng ')[1] || '').split(' — ')[0]));
+    return { soLuot: dung.length, soNguoi: ten.size, soChieu: chieu.size,
+             vd: dung.slice(0, 4) };
+  });
+  check('ba người còn lại trong tổ CÓ dùng chiêu', botChieu.soLuot > 0,
+    botChieu.soLuot + ' lượt: ' + botChieu.vd.join(' | '));
+  check('mỗi người dùng chiêu của CHÍNH MÌNH, không phải của tổ trưởng',
+    botChieu.soNguoi >= 2 && botChieu.soChieu >= 2,
+    botChieu.soNguoi + ' người · ' + botChieu.soChieu + ' chiêu khác nhau');
+
   check('một ván đếm đúng một lần', so.runs === 1, so.runs + ' ván');
   check('bộ đếm ngày/tuần có chạy', so.day === 1 && so.week === 1,
     'ngày ' + so.day + ' · tuần ' + so.week);

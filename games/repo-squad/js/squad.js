@@ -203,6 +203,7 @@
   // FX là danh sách những thứ đang chạy; H.onTick nhả chúng ra từng khung một.
   let FX = [];
   H.onTick = function (dt) {
+    if (SD.tickMates) SD.tickMates(dt);
     if (!FX.length) return;
     for (const f of FX) { f.t -= dt; if (f.tick) f.tick(dt); }
     const xong = FX.filter(f => f.t <= 0);
@@ -411,6 +412,60 @@
   SD.skillIcon = () => { const d = leadDef(); H.skill.icon = d ? (SQ.ui.faceOf ? SQ.ui.faceOf(d) : '✳') : '✳'; };
 
   // ---------------------------------------------------------------------------
+  // BA NGƯỜI CÒN LẠI CŨNG BIẾT DÙNG CHIÊU
+  // ---------------------------------------------------------------------------
+  // Chủ dự án: "mấy con bot hình như chưa biết cast skill".
+  // Đúng vậy, và đó là một lỗ hổng về Ý NGHĨA chứ không chỉ về tính năng: người chơi quay
+  // gacha ra một cái xác vì kỹ năng của nó, xếp nó vào tổ, rồi cái kỹ năng đó không bao giờ
+  // chạy — trừ khi nó được đặt làm tổ trưởng. Ba ô còn lại của đội hình trở thành ba cục chỉ
+  // số, và mọi lời hứa trên thẻ nhân vật chỉ đúng với đúng một ô.
+  //
+  // Mỗi người trong tổ dùng chiêu CỦA CHÍNH MÌNH, trên đồng hồ hồi chiêu CỦA CHÍNH MÌNH, và
+  // lấy CHÍNH MÌNH làm tâm. Mọi hàm trong SKILLS đều đã nhận người dùng làm tham số đầu tiên
+  // (p) từ đầu, nên không có gì phải viết lại — thứ còn thiếu chỉ là một người thứ hai gọi chúng.
+  //
+  // Luật bấm của bot cố tình ĐƠN GIẢN và đọc được: có quái trong tầm chiêu, và chiêu đã hồi.
+  // Không dự đoán, không xếp combo. Chúng là "3 con bot ngu ngu" như chủ dự án đã đặt ra từ
+  // đầu, và một con bot bấm chiêu thông minh hơn người chơi là một con bot cướp mất ván đấu.
+  const mateSkillT = {};                 // id xác -> thời điểm dùng gần nhất
+  const MATE_SKILL_R = 5.5;              // ô: tầm mặc định cho chiêu không tự khai bán kính
+
+  function mateSkillDef(a) {
+    // a.charId do statsOf() gắn vào qua H.mateInfo — đó là sợi dây duy nhất nối một con bot
+    // trên sàn với cái xác trong đội hình.
+    const id = a && a.charId;
+    return id ? SQ.CHAR_BY_ID[id] : null;
+  }
+
+  function mateCast(a, dt) {
+    if (!a || a.down) return;
+    const def = mateSkillDef(a);
+    if (!def || !def.skill) return;
+    const fn = SKILLS[def.skill.id];
+    if (!fn) return;
+    const cd = def.skill.cd;
+    const last = mateSkillT[def.id];
+    if (last != null && S.time - last < cd) return;
+    if (last == null && S.time < 3) return;        // đừng bấm ngay giây đầu của tầng
+    // Có gì đáng bấm không: một con quái còn sống, trong tầm của chính chiêu đó.
+    const tam = def.skill.radius || MATE_SKILL_R;
+    if (!near(a.x, a.y, tam).length) return;
+    mateSkillT[def.id] = S.time;
+    if (run) run.skills++;                          // đếm chung một sổ với chiêu của người chơi
+    let msg = null;
+    try { msg = fn(a, def.skill); }
+    catch (e) { console.error('Chiêu của ' + def.name + ' lỗi:', e); return; }
+    REPO.toast(def.name + ' dùng ' + def.skill.name + (msg ? ' — ' + msg : ''));
+  }
+
+  // Chạy trong cùng một nhịp với mọi hiệu ứng kéo dài khác.
+  SD.tickMates = function (dt) {
+    if (!run) return;
+    const to = REPO.crew ? REPO.crew() : [];
+    for (const a of to) { if (a !== S.player) mateCast(a, dt); }
+  };
+
+  // ---------------------------------------------------------------------------
   // VÀO / RA VÁN
   // ---------------------------------------------------------------------------
   SD.enter = function (mapId) {
@@ -419,6 +474,7 @@
     // day - finishRun() da cong roi, cong ca hai cho la dem doi moi van.
     run = { mapId: mapId, floor: 1, floorsDone: 0, loot: 0, skills: 0 };
     skillT = -999;
+    for (const k in mateSkillT) delete mateSkillT[k];   // đồng hồ hồi chiêu không sống sang ván sau
     FX = [];
     // Bật `in-run` SAU khi bộ máy đã dựng xong, và trả lại tất cả nếu dựng hỏng.
     // ROOT-CAUSE: thứ tự cũ bật lớp `in-run` trước REPO.startLevel(). Lớp đó ẩn cả menu

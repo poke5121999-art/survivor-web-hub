@@ -440,6 +440,63 @@ async function ngamSuite(b) {
 }
 
 // =====================================================================
+// MOT DON KHONG DUOC GIET BAN TU DAY MAU, va sat thuong quai tang theo man.
+// Ke nang danh 100, mau goc cung dung 100 - nen mot don "khong dinh giet" lai thanh giet
+// ngay, va nguoi choi chua kip hieu vi sao thi da mat ca ca truc.
+// =====================================================================
+async function sucBenSuite(b) {
+  results.push('\n── một đòn không giết được người đầy máu ──');
+  const { ctx, p, errs } = await open(b, { width: 844, height: 390 });
+  await sanDo(p);
+
+  const nang = await p.evaluate(() => {
+    const pl = REPO.S.player;
+    pl.hp = pl.hpMax; pl.invulnT = 0; pl.kx = 0; pl.ky = 0;
+    const max = pl.hpMax;
+    REPO.hurtPlayer(9999, 'test');          // một đòn to hơn cả thanh máu
+    return { max, con: pl.hp, chet: REPO.S.dead };
+  });
+  check('đầy máu mà ăn một đòn cực nặng thì VẪN CÒN SỐNG',
+    nang.con > 0 && !nang.chet, nang.max + ' máu → còn ' + nang.con);
+  check('nhưng nó lấy đi phần lớn thanh máu',
+    nang.con <= nang.max * 0.30, 'còn ' + Math.round(nang.con / nang.max * 100) + '%');
+
+  // ...và đòn THỨ HAI thì giết được. Luật này không được phép thành bất tử.
+  const hai = await p.evaluate(() => {
+    const pl = REPO.S.player;
+    pl.invulnT = 0;
+    REPO.hurtPlayer(9999, 'test');
+    return { con: pl.hp, chet: REPO.S.dead || pl.down };
+  });
+  check('đòn thứ hai thì giết được — không phải bất tử', hai.con <= 0 || hai.chet,
+    'còn ' + hai.con + ' máu, gục=' + hai.chet);
+
+  // Sát thương quái tăng theo màn.
+  const theoMan = await p.evaluate(() => {
+    const goc = REPO.S.level;
+    const d = {};
+    [1, 5, 10, 20].forEach(lv => {
+      REPO.S.level = lv;
+      REPO.S.monsters.length = 0;
+      const m = REPO.spawnFoe('heavy', REPO.TILE * 3, 0);
+      d[lv] = m.dmg;
+      REPO.S.monsters.length = 0;
+    });
+    REPO.S.level = goc;
+    return d;
+  });
+  check('sát thương quái tăng dần theo màn',
+    theoMan[20] > theoMan[10] && theoMan[10] > theoMan[5] && theoMan[5] > theoMan[1],
+    'màn 1: ' + theoMan[1] + ' · màn 5: ' + theoMan[5] +
+    ' · màn 10: ' + theoMan[10] + ' · màn 20: ' + theoMan[20]);
+  check('màn cuối mạnh gần gấp đôi màn đầu',
+    theoMan[20] >= theoMan[1] * 1.8 && theoMan[20] <= theoMan[1] * 2.2,
+    'x' + (theoMan[20] / theoMan[1]).toFixed(2));
+  check('sức bền: không lỗi trang', errs.length === 0, errs[0] || '');
+  await ctx.close();
+}
+
+// =====================================================================
 (async () => {
   const b = await chromium.launch();
   const run = async (ten, fn) => {
@@ -451,6 +508,7 @@ async function ngamSuite(b) {
   await run('giật', giatSuite);
   await run('cử chỉ sạc', cuChiSacSuite);
   await run('ngắm', ngamSuite);
+  await run('sức bền', sucBenSuite);
   await b.close();
   console.log(results.join('\n'));
   console.log('\n' + '═'.repeat(52));
