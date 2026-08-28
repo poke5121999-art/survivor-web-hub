@@ -55,16 +55,27 @@
     var d = document.createElement('div');
     d.className = 'screen'; d.id = 'scr-' + id;
     d.innerHTML =
+      // Hàng trên cùng: đường ra Hub và nút nạp lại bản mới. Thiếu hai thứ này thì
+      // người chơi vào game rồi không có cách nào quay lại danh sách game.
+      '<div class="hubbar">' +
+        '<a href="../../index.html">← Hub</a>' +
+        '<button data-act="reload" title="Nạp lại bản mới">⟳</button>' +
+        '<span class="ttl">' + title + '</span>' +
+      '</div>' +
       '<div class="topbar">' +
         (showBack ? '<button class="back" data-back="1">‹</button>' : '') +
-        '<h2>' + title + '</h2>' +
+        '<div class="mechip" data-nav="more"><span class="av">🗡️</span>' +
+          '<span><span class="nm" id="me-nm-' + id + '"></span>' +
+          '<span class="pw" id="me-pw-' + id + '"></span></span></div>' +
         '<div class="cur" id="cur-' + id + '"></div>' +
       '</div>' +
       '<div class="body" id="body-' + id + '">' + (bodyHtml || '') + '</div>' +
       (showNav ? navHtml(id) : '');
     screens.appendChild(d);
     d.addEventListener('click', function (e) {
-      var b = e.target.closest('[data-back]'); if (b) { show('home'); }
+      var b = e.target.closest('[data-back]'); if (b) { show('home'); return; }
+      var r = e.target.closest('[data-act="reload"]');
+      if (r) { save(); location.href = location.pathname + '?fresh=' + Date.now(); return; }
       var n = e.target.closest('[data-nav]'); if (n) { show(n.getAttribute('data-nav')); }
     });
     return d;
@@ -114,8 +125,19 @@
     if (nb) Array.prototype.forEach.call(nb.children, function (b) { b.classList.toggle('on', b.getAttribute('data-nav') === id); });
   }
 
+  // Sức mạnh: một con số duy nhất gộp cả bộ đồ, để biết ngay là mình có khoẻ lên
+  // sau khi nâng cấp hay không mà không phải mở bảng chỉ số.
+  function powerOf() {
+    var st = G.buildStats(S);
+    return Math.round(st.hp * 0.5 + st.atk * 6 + st.def * 4 + st.edef * 1.2);
+  }
+
   function renderCur(id) {
-    var c = $('cur-' + id); if (!c) return;
+    var c = $('cur-' + id);
+    var nm = $('me-nm-' + id), pw = $('me-pw-' + id);
+    if (nm) nm.textContent = S.name;
+    if (pw) pw.textContent = 'Lv.' + S.lv + ' · ⚔ ' + fmt(powerOf());
+    if (!c) return;
     c.innerHTML =
       '<b class="g">⬤ ' + fmt(S.gold) + '</b>' +
       '<b class="m">◈ ' + fmt(S.gem) + '</b>' +
@@ -132,12 +154,24 @@
     var pb = S.pendingBoss ? G.behemothById(S.pendingBoss.id) : null;
 
     var html = '';
-    var hst = G.buildStats(S);
-    var power = Math.round(hst.hp * 0.5 + hst.atk * 6 + hst.def * 4 + hst.edef * 1.2);
+    // Sân guild: nhân vật đứng giữa, bốn lối tắt nổi ở bốn góc — đúng cách REPO
+    // Squad xếp, vì nó để phần giữa cho thứ đáng nhìn và đẩy nút ra rìa.
+    var eqNow = G.equipped(S);
+    var wNow = eqNow.weapons.find(Boolean);
     html += '<div class="home-hero"><canvas id="heroCv" width="300" height="250"></canvas>' +
             '<div class="lvchip">Lv. ' + S.lv + ' · ' + S.name + '</div>' +
             '<div class="area">' + area.n + '</div>' +
-            '<div class="power">⚔ Sức mạnh <b>' + fmt(power) + '</b></div></div>';
+            '<div class="quick l">' +
+              '<button data-act="forge"><span class="em">⚒️</span>Lò rèn</button>' +
+              '<button data-act="magi"><span class="em">💠</span>Magi</button>' +
+            '</div>' +
+            '<div class="quick r">' +
+              '<button data-act="shop"><span class="em">🛒</span>Tiệm</button>' +
+              '<button data-act="help"><span class="em">❔</span>Cách chơi</button>' +
+            '</div>' +
+            '<div class="power">' + (wNow
+              ? elemDot(wNow.el) + ' ' + wNow.name + ' · ' + G.WEAPONS[wNow.wclass].vi
+              : 'Chưa cầm vũ khí nào') + '</div></div>';
 
     if (pb) {
       html += '<div class="banner event"><div class="npc">🐲</div><div class="t">' +
@@ -162,12 +196,13 @@
     html += '<div class="card"><h3>Nhiệm vụ tuần</h3>' + recurrentRows(S.weekly.picks, G.WEEKLY, S.weekly.done, 'w') +
       recurrentBonus(G.WEEKLY_BONUS, S.weekly, 4, 'w') + '</div>';
 
-    html += '<div class="grid2">' +
-      '<button class="btn" data-act="forge">⚒️ Lò rèn</button>' +
-      '<button class="btn" data-act="magi">💠 Magi</button>' +
-      '<button class="btn" data-act="shop">🛒 Tiệm Pikke</button>' +
-      '<button class="btn" data-act="help">❔ Cách chơi</button>' +
-      '</div>';
+    // Nút hành động chính, to hết bề ngang: vào thẳng map đang mở, không bắt đi
+    // vòng qua màn Nhiệm vụ. Có boss đang chờ thì nút đổi thành đi đánh boss.
+    var maxMap = Math.min((S.unlocked[S.area] || 0), area.maps.length - 1);
+    var curMap = area.maps[maxMap];
+    html += pb
+      ? '<button class="cta" data-act="fightPending">▶ ĐÁNH BEHEMOTH<small>' + pb.n + ' · ' + pb.rank + '</small></button>'
+      : '<button class="cta" data-act="hunt">▶ ĐI SĂN<small>' + curMap.n + ' · Lv.' + curMap.lv + '</small></button>';
 
     b.innerHTML = html;
     drawHero();
@@ -175,6 +210,7 @@
       var t = e.target.closest('[data-act]'); if (!t) return;
       var a = t.getAttribute('data-act');
       if (a === 'fightPending') startBoss(S.pendingBoss.id, S.pendingBoss.lv, true);
+      else if (a === 'hunt') startField(S.area, Math.min((S.unlocked[S.area] || 0), (G.areaById(S.area) || G.AREAS[0]).maps.length - 1));
       else if (a === 'goQuest') show('quest');
       else if (a === 'forge') show('forge');
       else if (a === 'magi') show('magi');
@@ -257,25 +293,21 @@
     ctx.fillRect(20, 30, 38, 14); ctx.fillRect(242, 30, 38, 14);
     ctx.restore();
 
-    ctx.save(); ctx.translate(150, 196); ctx.scale(3.6, 3.6);
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(0, 4, 14, 4, 0, 0, 6.2832); ctx.fill();
-    var skin = ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'][S.skin || 2];
-    ctx.fillStyle = '#3b6ea5'; ctx.beginPath(); ctx.ellipse(0, -10, 9, 12, 0, 0, 6.2832); ctx.fill();
-    ctx.fillStyle = '#2a4f78'; ctx.fillRect(-8, -6, 16, 8);
-    ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(0, -24, 7.5, 0, 6.2832); ctx.fill();
-    ctx.fillStyle = ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
-                     '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'][S.hairColor || 0];
-    ctx.beginPath(); ctx.arc(0, -26, 8, Math.PI, 6.2832); ctx.fill();
-    // vũ khí đang cầm ở khe 1
+    // Cùng một người que với trong trận (G.drawStick) — đổi giáp hay đổi vũ khí là
+    // thấy ngay ở sân guild, không phải một hình minh hoạ riêng dễ lệch với thực tế.
     var eq = G.equipped(S), w = eq.weapons.find(Boolean);
-    if (w) {
-      var col = G.ELEMENTS[w.el || 'none'].color;
-      ctx.fillStyle = '#dfe8f0';
-      if (w.wclass === 'great') { ctx.fillRect(11, -34, 5, 32); ctx.fillStyle = col; ctx.fillRect(11, -34, 5, 8); }
-      else if (w.wclass === 'spear') { ctx.fillStyle = '#8a6a4a'; ctx.fillRect(12, -40, 2.5, 40); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(13, -48); ctx.lineTo(17, -38); ctx.lineTo(9, -38); ctx.fill(); }
-      else if (w.wclass === 'bow') { ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(13, -18, 13, -1.2, 1.2); ctx.stroke(); }
-      else { ctx.fillRect(11, -28, 3.5, 22); ctx.fillStyle = col; ctx.fillRect(11, -28, 3.5, 6); }
-    }
+    ctx.save(); ctx.translate(150, 214); ctx.scale(3.0, 3.0);
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.beginPath(); ctx.ellipse(0, 2, 15, 5, 0, 0, 6.2832); ctx.fill();
+    G.drawStick(ctx, {
+      facing: 0.55, state: 'idle', moving: false, t: performance.now(), k: 0,
+      skin: ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'][S.skin || 2],
+      hair: ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
+             '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'][S.hairColor || 0],
+      cloth: '#3b6ea5',
+      weapon: w ? w.wclass : 'sword',
+      elem: G.ELEMENTS[(w && w.el) || 'none'].color
+    });
     ctx.restore();
   }
 
@@ -322,8 +354,14 @@
       var a = e.target.closest('[data-area]');
       if (a) { S.area = a.getAttribute('data-area'); S.mapIdx = 0; save(); rQuest(); return; }
       var m = e.target.closest('[data-map]');
-      if (m && !m.classList.contains('dis')) { startField(S.area, +m.getAttribute('data-map')); return; }
+      if (m) {
+        // Bấm vào map chưa mở thì phải NÓI vì sao không vào được. Trước đây handler
+        // thoát im lặng, và một nút bấm không phản hồi luôn bị hiểu là nút hỏng.
+        if (m.classList.contains('dis')) { toast('Map này chưa mở — đi hết map trước đã', '#c34141'); return; }
+        startField(S.area, +m.getAttribute('data-map')); return;
+      }
       var c = e.target.closest('[data-act="claimStory"]');
+      if (c && nextStory && !storyDone(nextStory)) { toast('Chưa xong: ' + questProgressText(nextStory), '#c34141'); return; }
       if (c && nextStory && storyDone(nextStory)) {
         S.story.done.push(nextStory.id);
         G.grant(S, nextStory.rw);
@@ -402,7 +440,10 @@
       var f = e.target.closest('[data-filter]');
       if (f) { gearFilter = f.getAttribute('data-filter'); rArmory(); return; }
       var g = e.target.closest('[data-gear]');
-      if (g) { selGear = g.getAttribute('data-gear'); show('gear'); return; }
+      // selMagiSlot phải reset khi đổi món: nó là biến dùng chung, và nếu món trước
+      // là vũ khí (3 ô) còn món sau là giáp (2 ô) thì chỉ số cũ trỏ ra ngoài mảng
+      // shapes -> G.MAGI_SHAPES[undefined].sym ném lỗi và treo cả màn hình.
+      if (g) { selGear = g.getAttribute('data-gear'); selMagiSlot = -1; show('gear'); return; }
       var ws = e.target.closest('[data-wslot]');
       if (ws) { gearFilter = 'weapon'; toast('Chọn một vũ khí trong túi để lắp vào khe ' + (+ws.getAttribute('data-wslot') + 1)); pendingSlot = { kind: 'weapon', i: +ws.getAttribute('data-wslot') }; rArmory(); return; }
       var as = e.target.closest('[data-aslot]');
@@ -417,8 +458,10 @@
     return s + '</span>';
   }
   function slotsHtml(g) {
+    // Số ô vẽ ra bám theo g.shapes chứ KHÔNG cứng bằng 3: vũ khí có 3 hình dạng còn
+    // giáp chỉ có 2, cứ vẽ đủ 3 là món giáp nào cũng in ra một chữ "undefined".
     var n = G.gearSlots(g), s = '<div class="slots">';
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < g.shapes.length; i++) {
       var shape = g.shapes[i], locked = i >= n;
       var m = G.magiByUid(S, g.magi[i]);
       s += '<i class="slot ' + shape + ' ' + (locked ? 'locked' : '') + '">' +
@@ -476,7 +519,7 @@
     html += '<div class="card"><h3>Ô Magi</h3><p>Chỉ lắp được Magi CÙNG HÌNH DẠNG với ô. Ô thứ ' +
       (g.kind === 'weapon' ? '3' : '2') + ' mở khi Limit Break đủ 4 lần.</p>';
     var n = G.gearSlots(g);
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < g.shapes.length; i++) {
       var shape = g.shapes[i], locked = i >= n, m = G.magiByUid(S, g.magi[i]);
       html += '<div class="row" style="margin-bottom:5px;opacity:' + (locked ? '.35' : '1') + '">' +
         '<span class="slot ' + shape + '">' + (G.MAGI_SHAPES[shape] || {}).sym + '</span>' +
@@ -485,10 +528,14 @@
         (m && !locked ? '<button class="btn sm red" data-unslot="' + i + '">✕</button>' : '') +
         '</div>';
     }
-    if (selMagiSlot >= 0) {
+    if (selMagiSlot >= 0 && selMagiSlot < g.shapes.length) {
       var want = g.shapes[selMagiSlot];
+      // Phải ghi rõ ĐANG LẮP Ô SỐ MẤY: bể hình dạng của vũ khí là star/star/heart/
+      // diamond nên hai ô trùng hình rất hay xảy ra, lúc đó ba nút "Lắp" cho ra ba
+      // bảng giống hệt nhau và không ai biết mình đang lắp vào ô nào.
       html += '<div style="border-top:1px dashed rgba(255,255,255,.12);margin-top:7px;padding-top:7px">' +
-        '<p>Chọn Magi hình <b>' + G.MAGI_SHAPES[want].sym + ' ' + G.MAGI_SHAPES[want].vi + '</b>:</p><div class="grid2">';
+        '<p>Lắp vào <b>ô số ' + (selMagiSlot + 1) + '</b> — chọn Magi hình <b>' +
+        G.MAGI_SHAPES[want].sym + ' ' + G.MAGI_SHAPES[want].vi + '</b>:</p><div class="grid2">';
       var avail = S.magi.filter(function (inst) { var d = G.magiById(inst.id); return d && d.shape === want; });
       if (!avail.length) html += '<div class="empty-note" style="grid-column:1/-1">Không có Magi hình này. Triệu hồi thêm.</div>';
       avail.forEach(function (inst) {
@@ -506,7 +553,10 @@
       '<button class="btn ' + (g.lv < G.MAX_LV && G.canPay(S, ec) ? 'pri' : 'dis') + '" data-act="enhance" style="width:100%;margin-bottom:6px">' +
         'Nâng cấp → Lv.' + Math.min(G.MAX_LV, g.lv + 1) + ' · ' + fmt(ec.gold) + ' Gold + ' + ec.mat.str_stone + ' Strengthening Stone</button>' +
       '<button class="btn ' + (g.lb < 4 && G.canPay(S, lc) ? 'pri' : 'dis') + '" data-act="lb" style="width:100%;margin-bottom:6px">' +
-        'Limit Break ' + (g.lb + 1) + '/4' + (g.lb === 3 ? ' — MỞ Ô MAGI' : '') + ' · ' + fmt(lc.gold) + ' Gold + Lapis</button>' +
+        // Kẹp nhãn ở 4/4: trước đây in ra "Limit Break 5/4" khi đã tối đa.
+        (g.lb >= 4 ? 'Limit Break 4/4 — đã tối đa'
+                   : 'Limit Break ' + (g.lb + 1) + '/4' + (g.lb === 3 ? ' — MỞ Ô MAGI' : '') + ' · ' + fmt(lc.gold) + ' Gold + Lapis') +
+        '</button>' +
       '<button class="btn ' + (G.canEvolve(g) && G.canPay(S, vc) ? 'pri' : 'dis') + '" data-act="evolve" style="width:100%;margin-bottom:6px">' +
         'Tiến hóa (về Lv.1, chỉ số cao hơn) · ' + fmt(vc.gold) + ' Gold + ' + vc.mat.crystal + ' Crystal</button>' +
       '<div class="row"><button class="btn ' + (equipped ? 'dis' : 'go') + '" data-act="equip" style="flex:1">' + (equipped ? 'Đang mặc' : 'Trang bị') + '</button>' +
@@ -803,7 +853,10 @@
       '<p><span class="kbd">KÉO</span> di chuyển — kéo nhẹ đi bộ, kéo hết vòng thì chạy.</p>' +
       '<p><span class="kbd">CHẠM</span> đánh thường. <span class="kbd">BẤM LIÊN TỤC</span> nối combo.</p>' +
       '<p><span class="kbd">VẨY</span> né/lăn. Né hủy được độ cứng sau đòn đánh.</p>' +
-      '<p><span class="kbd">GIỮ</span> ra đòn đặc thù — <b>mỗi vũ khí một kiểu hoàn toàn khác</b>.</p>' +
+      '<p><span class="kbd">GIỮ</span> ra đòn đặc thù — <b>mỗi vũ khí một kiểu hoàn toàn khác</b>. ' +
+      'Giữ chỉ tính khi <b>cần gạt đang ở giữa</b>, nên kéo chạy bao lâu cũng không lo tự ra đòn; ' +
+      'muốn ra đòn thì thả cần gạt về giữa rồi giữ. Riêng thế <b>đỡ</b> vẫn đi được (chậm hơn), ' +
+      'còn nạp Chém Tích Lực và ngắm bắn thì đứng yên — lúc đó kéo là <b>ngắm</b>.</p>' +
       '<p><span class="kbd">GIỮ rồi TRƯỢT VỀ HƯỚNG NÚT MAGI</span> xả Magi. Không cần với tay tới nút — ' +
       'chỉ cần <b>trượt đúng hướng</b>, cần gạt sẽ mọc ra một tia sáng chỉ về nút bạn đang nhắm. ' +
       'Đây là câu lệnh gốc của Colopl cho kỹ năng; bấm thẳng vào nút cũng được.</p></div>';

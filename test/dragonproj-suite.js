@@ -322,7 +322,10 @@ const G = {
 
   // ---------------------------------------------------------- HUD & LAYOUT
   results.push('\n── HUD & bố cục ──');
-  await p.evaluate(() => { if (!DP.UI.battle) DP.UI.startBoss('grouton', 8, false); });
+  // Mở HẲN một trận boss chứ không chỉ mở khi chưa có trận nào: bot có thể đang ở
+  // giữa một trận FIELD, mà field thì không có hàng thanh máu boss nên mọi phép đo
+  // dưới đây ra 0. Bài kiểm không được ngầm dựa vào việc bot đang làm gì.
+  await p.evaluate(() => { DP.UI.startBoss('grouton', 8, false); });
   await p.waitForTimeout(500);
   const hud = await p.evaluate(() => {
     const q = id => document.getElementById(id);

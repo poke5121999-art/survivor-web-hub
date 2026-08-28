@@ -109,8 +109,14 @@
     var b = ui.battle;
     if (!b || !b.running) {
       // Ngoài trận: tự bấm nút để đi tiếp vòng lặp.
-      var rb = document.getElementById('rBack');
-      if (rb) { rb.click(); return; }
+      // #rBack vẫn nằm trong DOM sau khi bảng kết quả đã tắt (ui.js chỉ gỡ class 'on'),
+      // nên phải kiểm bảng có ĐANG HIỆN hay không. Thiếu điều kiện này thì hết trận
+      // đầu tiên là bot bấm mãi một nút vô hình và không bao giờ đi tiếp.
+      var res = document.getElementById('resultScr');
+      if (res && res.classList.contains('on')) {
+        var rb = document.getElementById('rBack');
+        if (rb) { rb.click(); return; }
+      }
       var scr = document.querySelector('.screen.on');
       if (scr && scr.id === 'scr-home') { ui.show('quest'); return; }
       if (scr && scr.id === 'scr-quest') {

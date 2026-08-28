@@ -773,7 +773,9 @@
     dead: 12,         // vùng chết: kéo dưới ngưỡng này thì không tính là di chuyển
     tapMs: 180,       // nhả trước mốc này + kéo < dead  => TAP (đánh)
     holdMs: 260,      // giữ yên quá mốc này            => đặc thù vũ khí
-    holdMoveTol: 26,  // "yên" nghĩa là ngón di chuyển ít hơn ngần này
+    holdZone: 20,     // GIỮ chỉ tính khi cần gạt còn nằm trong ngần này kể từ gốc,
+                      // tức nhân vật đang đứng yên. Kéo ra chạy thì không bao giờ
+                      // tự thành đòn đặc thù. Xem đầu js/punicon.js.
     flickV: 1.05,     // px/ms lúc nhả  => FLICK (né)
     flickWindowMs: 90,
     comboMs: 450      // cửa sổ nối combo sau khi đòn trước kết thúc

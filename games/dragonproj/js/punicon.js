@@ -23,11 +23,16 @@
  * chơi được bằng một ngón cái ở giữa màn hình, và là lý do nhân vật không bị
  * ngón tay che.
  *
- * Vì sao HOLD lại đòi ngón "đứng yên" (holdMoveTol) chứ không chỉ đòi thời gian:
- * nếu chỉ đếm thời gian thì mọi lần đi bộ dài đều biến thành đòn đặc thù. Bản
- * gốc phân biệt được vì nó có ngữ cảnh mà bản web không có; ràng buộc "đứng yên"
- * là cách tái dựng gần nhất, và vẫn cho phép GIỮ RỒI KÉO ĐỂ NGẮM (cung/thương)
- * bởi vì việc ngắm chỉ bắt đầu SAU khi hold đã kích hoạt.
+ * Vì sao HOLD đòi CẦN GẠT Ở GIỮA, chứ không phải "ngón không nhúc nhích":
+ * cách chạy của Punicon là kéo cần gạt ra rồi GIỮ NGUYÊN Ở ĐÓ. Ngón lúc ấy đứng
+ * yên suốt, nên nếu chỉ đo "ngón có nhúc nhích không" thì mọi lần chạy dài đều tự
+ * biến thành đòn đặc thù. Điều kiện đúng là VỊ TRÍ: cần gạt phải nằm trong vùng
+ * chết, tức là nhân vật đang đứng yên. Từ đó ra một luật bất di bất dịch:
+ *
+ *      ĐANG CHẠY THÌ KHÔNG BAO GIỜ TỰ THÀNH ĐÒN ĐẶC THÙ.
+ *
+ * Muốn ra đòn đặc thù thì thả cần gạt về giữa (hoặc nhấc tay đặt lại) rồi giữ.
+ * Sau khi đòn đặc thù đã kích hoạt thì kéo thoải mái — lúc đó kéo là NGẮM.
  * ========================================================================== */
 (function (G) {
   'use strict';
@@ -44,14 +49,15 @@
     this.t0 = 0;
     this.pointerId = null;
     this.maxDrag = 0;              // khoảng cách xa nhất so với gốc, để phân biệt tap
-    this.holdBaseX = 0;            // gốc để đo "đứng yên" cho hold (trượt theo ngón)
-    this.holdBaseY = 0;
-    this.holdBaseT = 0;
+    // Mốc thời gian cần gạt bắt đầu nằm im trong vùng giữa. null = đang lệch ra,
+    // tức đang chạy, tức không được phép thành đòn đặc thù.
+    this.centeredT = null;
     this.holding = false;          // đã kích hoạt đặc thù chưa
     this.hist = [];                // lịch sử điểm để tính vận tốc flick
     this.moveVec = { x: 0, y: 0, m: 0 };
     this.hotspots = [];            // nút kỹ năng: {id, x, y} toạ độ MÀN HÌNH của canvas
     this.slideHint = -1;           // hotspot đang được nhắm tới, để vẽ gợi ý
+    this.holdMoves = false;        // đang giữ mà VẪN đi được? (chỉ thế đỡ)
 
     var self = this;
     this._down = function (e) { self.onDown(e); };
@@ -93,7 +99,7 @@
     this.t0 = performance.now();
     this.maxDrag = 0;
     this.holding = false;
-    this.holdBaseX = p.x; this.holdBaseY = p.y; this.holdBaseT = this.t0;
+    this.centeredT = this.t0;   // vừa chạm xuống thì cần gạt đang ở giữa
     this.hist = [{ x: p.x, y: p.y, t: this.t0 }];
     this.moveVec = { x: 0, y: 0, m: 0 };
     if (this.cb.onDown) this.cb.onDown(p.x, p.y);
@@ -112,18 +118,20 @@
     this.hist.push({ x: p.x, y: p.y, t: now });
     while (this.hist.length > 2 && now - this.hist[0].t > this.c.flickWindowMs * 2) this.hist.shift();
 
-    // Ngón di chuyển đủ xa so với mốc "đứng yên" => reset đồng hồ hold.
     if (!this.holding) {
-      if (Math.hypot(p.x - this.holdBaseX, p.y - this.holdBaseY) > this.c.holdMoveTol) {
-        this.holdBaseX = p.x; this.holdBaseY = p.y; this.holdBaseT = now;
-      }
+      // Cần gạt lệch ra khỏi vùng giữa = ĐANG CHẠY => hủy đồng hồ giữ, để chạy bao
+      // lâu cũng không tự thành đòn đặc thù. Thả về giữa thì đồng hồ chạy lại từ đầu.
+      if (d > this.c.holdZone) this.centeredT = null;
+      else if (this.centeredT === null) this.centeredT = now;
     }
 
-    // Nếu ĐANG giữ đặc thù thì kéo ngón = NGẮM (cung, thương heat), không phải đi.
+    // Đang giữ đặc thù: kéo ngón nghĩa là gì tuỳ đòn, do game quyết định qua
+    // `holdMoves`. Đỡ bằng Kiếm & Khiên thì VẪN ĐI ĐƯỢC (chậm hơn) đúng như bản gốc;
+    // còn nạp Chém Tích Lực hay ngắm bắn thì nhân vật đứng yên và kéo là NGẮM.
     if (this.holding) {
       this.slideHint = this.aimedHotspot(dx, dy, d);
       if (this.cb.onHoldAim) this.cb.onHoldAim(p.x - this.ox, p.y - this.oy, d, p.x, p.y);
-      return;
+      if (!this.holdMoves) return;
     }
 
     // Ngoài vùng chết => di chuyển. Độ lớn là analog: kéo nhẹ đi bộ, kéo hết vòng chạy.
@@ -139,15 +147,33 @@
    * phát hiện HOLD (vì hold là sự kiện của thời gian, không phải của input). */
   Punicon.prototype.tick = function (now) {
     if (!this.active) return this.moveVec;
-    if (!this.holding && now - this.holdBaseT >= this.c.holdMs) {
-      this.holding = true;
-      this.moveVec = { x: 0, y: 0, m: 0 };   // giữ = đứng yên (đúng bản gốc: hở sườn)
+    if (!this.holding && this.centeredT !== null && now - this.centeredT >= this.c.holdMs) {
+      // Trò chơi có QUYỀN TỪ CHỐI: đang cứng đòn, đang ngã, hay đang tạm dừng thì
+      // không vào được đòn đặc thù. Phải hỏi TRƯỚC khi tự nhận là đang giữ.
+      //
+      // Trước đây làm ngược lại — bật this.holding rồi mới gọi onHoldStart — nên khi
+      // game từ chối thì Punicon vẫn tưởng mình đang giữ: onMove thoát sớm mãi,
+      // moveVec đứng ở 0, và ngón tay bị KHOÁ CỨNG. Người chơi vừa không ra được đòn
+      // đặc thù vừa không đi được, kéo cần gạt cả giây rưỡi mà nhân vật đứng im, cho
+      // tới khi nhấc tay ra. Đây là thứ xảy ra liên tục vì ai cũng đặt ngón xuống
+      // ngay sau khi vừa vung xong.
+      var ok = true;
       if (this.cb.onHoldStart) {
-        this.cb.onHoldStart(this.px - this.ox, this.py - this.oy, this.px, this.py);
+        ok = this.cb.onHoldStart(this.px - this.ox, this.py - this.oy, this.px, this.py) !== false;
+      }
+      if (ok) {
+        this.holding = true;
+        this.holdStartedT = now;
+        // Giữ = đứng yên và hở sườn, TRỪ thế đỡ — game bật holdMoves cho trường hợp đó.
+        if (!this.holdMoves) this.moveVec = { x: 0, y: 0, m: 0 };
+      } else {
+        // Bị từ chối: hẹn thử lại sau đúng holdMs nữa, và GIỮ NGUYÊN moveVec để
+        // ngón tay vẫn điều khiển được nhân vật trong lúc chờ.
+        this.centeredT = now;
       }
     }
     if (this.holding && this.cb.onHoldTick) {
-      this.cb.onHoldTick(now - this.holdBaseT, this.px - this.ox, this.py - this.oy);
+      this.cb.onHoldTick(now - this.holdStartedT, this.px - this.ox, this.py - this.oy);
     }
     return this.moveVec;
   };
@@ -208,7 +234,7 @@
 
     if (wasHolding) {
       // Nhả sau khi giữ => THI TRIỂN đặc thù (nhả guard, nhả cleave, bắn snipe...).
-      if (this.cb.onHoldEnd) this.cb.onHoldEnd(this.px - this.ox, this.py - this.oy, now - this.holdBaseT);
+      if (this.cb.onHoldEnd) this.cb.onHoldEnd(this.px - this.ox, this.py - this.oy, now - this.holdStartedT);
       return;
     }
     if (v > this.c.flickV && Math.hypot(vx, vy) > 0) {
