@@ -548,6 +548,143 @@ không suy suyển một pixel nào**. 0,8 × 1,26 ≈ 1,0 — chữ trong menu 
 
 ---
 
+---
+
+## 14. Dựng lại phần đánh nhau cho ra chất **hack and slash**
+
+Bản đầu có đủ mọi thứ *trên giấy* — năm vũ khí, sáu tộc quái, 56 Behemoth — mà chém vẫn không đã
+tay. Chẩn đoán ra ba chỗ, và cả ba đều không nằm ở con số sát thương:
+
+1. **Đánh trúng chẳng khác gì đánh hụt.** Trừ máu, hiện con số, hết. Không khựng, không văng,
+   không loạng choạng.
+2. **Quái không có gì để đọc.** Mọi con làm đúng một việc: đi thẳng vào mặt, chạm, trừ máu.
+   Không báo trước thì không có gì để né, mà không né được thì không có nhịp.
+3. **Sân quá rộng.** 1300×1600 với 9 con, phần lớn thời gian là đi bộ đi tìm quái.
+
+### 14.1 Hitstop — thứ phải làm trước tiên
+
+> *"Hitstop helps convey the strength, weight, and effectiveness of your hits… gives the eyes a
+> few frames to register and confirm it happened"* — Celia Wagar, CritPoints
+
+Khi đòn chạm thì **đóng băng cả hai bên** vài khung hình. Cái khựng đó là thứ nói cho người chơi
+biết thứ họ đang chém **có sức cản**. Sakurai (Famitsu vol.490) gọi đây là nền của mọi cảm giác
+"nặng tay"; Dark Souls 2 bị chê nhẹ đòn cũng vì thiếu nó.
+
+Bảng dùng ở đây (ms, 60fps): nhẹ 50 · vừa 85 · nặng 145 · kết liễu 190 · hất tung 170. Trần 240ms
+để chém trúng bảy con một lúc không thành đứng hình.
+
+Ba điều phải giữ đúng, nếu không hitstop biến từ "đã tay" thành "lag":
+- **Có trần.** Không cộng dồn.
+- **Không nuốt input.** Tap trong lúc đóng băng vẫn vào hàng đợi. Đây không phải chi tiết phụ:
+  Street Fighter 2 dùng đúng 10 khung hitstop để **nới cửa sổ hủy từ 5 lên 15 khung** — cái khựng
+  vừa để sướng tay vừa để dễ bấm nối.
+- **FX vẫn chạy.** Chỉ nhân vật và quái đứng; loé sáng, số bay lên, rung màn hình thì không.
+
+### 14.2 Quái biết văng, biết loạng choạng, biết bay lên
+
+- **Văng (knockback).** Mỗi đòn có lực văng riêng, tắt dần theo hệ số 0,86 mỗi khung. Đại Kiếm
+  văng gấp bốn Song Kiếm — đó mới là chỗ phân biệt hai cây, chứ không phải con số sát thương.
+- **Lì đòn (poise).** Con nào cũng có một thanh lì đòn. Đục hết thì **VỠ THẾ**: đứng chết trân
+  0,9 giây. Đây là nhịp mà một game chặt chém sống nhờ — dồn đòn cho vỡ rồi xả đòn nặng vào. Con
+  Fungo có poise 110 (gấp bốn con Jelly) nên nó là con dạy người chơi để ý thanh này.
+- **Hất tung (launch).** Mượn thẳng từ Devil May Cry:
+
+  > *"A launcher is any move in the game that tosses an enemy in the air, essentially neutralizing
+  > their ability to attack and allowing you to attack until your heart's content"* — DMC3 Battle
+  > Mechanics FAQ
+
+  Game nhìn từ trên xuống không có nút nhảy, nên "trên không" ở đây là **độ cao + bóng co lại**.
+  Quái đang lơ lửng thì không đánh trả được và **ăn thêm 40% sát thương** — phần thưởng cho việc
+  giữ được nhịp. Trọng lực đặt sao cho một cú hất kéo dài ~0,9 giây, đủ để nối thêm hai ba nhát.
+
+### 14.3 Mỗi cây vũ khí một BỘ ĐÒN, không phải một hệ số nhân
+
+Trước đây `combo: [1.0, 1.0, 1.15, 1.45]` — bốn nhát y hệt nhau. Giờ mỗi nhát là một đòn riêng có
+tầm, góc quét, thời gian, lực văng, độ khựng, lực phá poise của nó. Ba đường ra đòn, **tất cả vẫn
+chỉ một ngón** đúng luật Punicon:
+
+| Cách bấm | Ra gì |
+|---|---|
+| Tap liên tục | Đi hết chuỗi (3–6 nhát tuỳ cây), nhát cuối nặng nhất |
+| **Ngưng 0,2s rồi mới tap** | Rẽ sang **ĐÒN NẶNG** — cửa sổ 0,26 giây, có vòng vàng dưới chân báo |
+| Vẩy né rồi tap khi đang lăn | **ĐÒN LƯỚT**, mỗi cây một kiểu |
+
+Nhánh "ngưng rồi mới tap" chính là thứ Monster Hunter dùng để phân biệt người quen tay với người
+bấm loạn: *"really good longsword users understand instinctively how many frames they can wait
+after the animation for one move ends before they can no longer initiate the next move."*
+
+**Huỷ đuôi khi đã trúng.** Đòn chạm được thì cho nối sớm từ 62% thời gian; đòn **hụt** thì phải
+chịu hết đuôi. Luật này thưởng cho việc đánh trúng và phạt việc bấm loạn — cùng một cây vũ khí mà
+người quen tay chạy mượt hơn hẳn.
+
+**Cam kết (commitment)** là chỗ phân biệt các cây, đúng như Monster Hunter: Song Kiếm 130ms một
+nhát, huỷ lúc nào cũng được; Đại Kiếm 540–700ms, vung là phải chịu hết. *"The dual blades do away
+with a lot of the restrictive slowness that Monster Hunter combat usually has."*
+
+Cả năm cây **phát sẵn từ đầu**, ba khe đều có đồ. Bắt cày mấy tiếng mới được thử cây thứ hai thì
+người chơi chẳng bao giờ biết game có gì.
+
+### 14.4 Sáu lối đánh của quái, và ai cũng phải BÁO TRƯỚC
+
+Con nào cũng chạy chung một khung: `idle → tell (báo trước) → act (ra đòn) → rest (hở)`. Cái
+quan trọng không phải con quái làm gì, mà là **nó có báo trước không** — có báo thì mới có gì để
+đọc, có đọc thì né mới là kỹ năng chứ không phải may rủi. Và `rest` là **cửa sổ phạt**: chỗ để
+dồn đòn.
+
+| Tộc | Lối đánh | Nét riêng |
+|---|---|---|
+| Purun | swarm | Đông, yếu, bâu vào. Có để mà chém cho đã |
+| Vacca | charger | Vạch đỏ 0,8s rồi **húc thẳng** — né sang ngang. Húc xong đơ 0,9s |
+| Geguri | hopper | **Nhảy vòng cung**, đang bay không đổi hướng được. Chạm đất nổ một vòng |
+| Bat | flyer | **Lượn vòng** ngoài tầm rồi bổ nhào — canh đúng nhịp bổ mà chém |
+| Galena | ranged | Giữ khoảng cách, **nhả ba viên**. Bắt người chơi phải xông vào |
+| Fungo | tank | Chậm, **poise gấp bốn**, phải đục vỡ mới đánh vào được tử tế |
+
+Behemoth cũng **nổi điên dưới nửa máu**: mở thêm bài và ra đòn dồn hơn 40%. Ba con trùm đầu game
+được nới từ 3 lên 5–6 bài — 3 bài thì đánh hai lượt là thuộc lòng.
+
+### 14.5 Sân chật lại
+
+820×1080 thay cho 1300×1600, và 11–16 con thay cho 9. Lúc nào cũng có thứ trong tầm với, và cú
+quét vòng 360° của Thương hay Đại Kiếm mới có nghĩa lý. Biển tên chỉ hiện cho con trong tầm với
+hoặc con elite — sân chật mà con nào cũng đeo biển thì chữ chồng lên nhau, che mất chính cái đang
+cần nhìn là vùng đỏ và xác quái.
+
+### 14.6 Hai ý mượn của **Sephiria**
+
+Sephiria (roguelike hành động, 6 loại vũ khí: Sword & Shield · Greatsword · Dagger · Katana ·
+Crossbow · Staff) có hai nét thiết kế đáng lấy, và cả hai đều lấp đúng một lỗ của bản này:
+
+**1. Đánh ra được TỪ THẾ ĐỠ.** Wiki Sephiria mô tả Sword & Shield: *"Hold Guard toward the
+cursor to stop frontal damage. Attack during Guard to use the broad Cleave special."* Trước đây
+ở bản này, đang đỡ mà bấm là HUỶ thế đỡ rồi mới đánh — tức thế đỡ chỉ biết đứng chịu, không có
+đường ra đòn nào của riêng nó. Giờ bấm trong lúc đỡ ra **Chém Khiên**: quét rộng 2,4 rad, lực
+văng 28, phá 38 poise.
+
+**2. Phòng thủ thành công MỞ RA thứ gì đó.** Sephiria cho Dagger: *"Parry attacks around the
+rabbit while briefly preventing damage. A successful defense enables the powerful Fury
+follow-up."* Ở đây đỡ chuẩn vốn chỉ giảm 90% sát thương rồi thôi. Giờ nó mở thêm cửa sổ
+**2,2 giây tay nhanh hơn 40%** — người chơi tự chọn xả cửa sổ đó bằng đòn gì, thay vì bị ép vào
+một đòn định sẵn.
+
+**Không lấy asset.** Không dùng một file ảnh, hiệu ứng hay animation nào của Sephiria — cùng một
+luật đã áp cho Dragon Project ở mục 12: thứ lấy về là **dữ liệu thiết kế**, còn mọi thứ trên màn
+hình vẫn vẽ bằng code. Wiki Sephiria phần lớn là trang SEO, không công bố hệ số hay số khung
+hình, nên phần lấy được cũng chỉ tới mức ý cơ chế.
+
+### Nguồn của mục này
+
+- https://critpoints.net/2017/05/17/hitstophitfreezehitlaghitpausehitshit/ (hitstop)
+- https://sourcegaming.info/2015/11/11/thoughts-on-hitstop-sakurais-famitsu-column-vol-490-1/
+- https://www.ssbwiki.com/Hitlag
+- https://gamefaqs.gamespot.com/ps2/930014-devil-may-cry-3-special-edition/faqs/40790 (launcher, juggle, cancel)
+- https://intothebluesky.com/2021/03/20/devil-may-cry-files-04-dmc3-launchers/
+- https://azhdarchid.com/monster-hunter-combat-landscape/ (bản sắc từng vũ khí)
+- https://gist.github.com/fguillen/e4d4b066621910d8d77174a96ea2ca99 (danh sách "juiciness")
+- https://sephiria.net/weapons/ và https://sephiriawiki.vercel.app/guides/weapons-guide (Sephiria)
+
+---
+
 ## Nguồn
 
 - https://dragonproject.fandom.com/wiki/Basic_gameplay

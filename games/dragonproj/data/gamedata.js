@@ -59,12 +59,95 @@
    * Dual Blades tăng tốc chạy và tốc né (nguyên văn: 移動速度や回避速度が向上).
    * Bow bị chậm chân lại (How-to-Play: "offset with a slower movement speed").
    */
+  /* ======================================================================
+   * LỚP CẢM GIÁC — thứ quyết định "chặt có đã tay hay không"
+   *
+   * Bản trước đánh trúng quái chỉ trừ máu rồi thôi: không khựng, không văng,
+   * không loạng choạng. Nên dù số sát thương có to đến mấy thì tay vẫn thấy như
+   * đang chém vào không khí.
+   *
+   * HITSTOP là thứ đầu tiên phải có. Nguyên tắc (Sakurai, Famitsu vol.490; và
+   * Celia Wagar, CritPoints): khi đòn chạm thì ĐÓNG BĂNG cả hai bên vài khung
+   * hình — mắt cần chừng ấy thời gian để kịp đăng ký "nó trúng rồi", và chính
+   * cái khựng đó nói cho người chơi biết thứ họ đang chém có sức cản. Street
+   * Fighter 2 dùng 10 khung, và cái khựng đó nới luôn cửa sổ nhập lệnh từ 5 lên
+   * 15 khung — ở đây cũng vậy: hitstop vừa để sướng tay vừa để dễ bấm nối.
+   *
+   * Số dưới đây tính bằng mili-giây ở 60fps: 50ms ≈ 3 khung, 190ms ≈ 11 khung.
+   * ====================================================================== */
+  /* SÂN ĐẤU. Trước đây 1300×1600 với 9 con — rộng đến mức phần lớn thời gian là
+   * đi bộ đi tìm quái, mà đi bộ thì không phải chặt chém. Thu lại còn 820×1080 và
+   * nhồi gấp đôi số quái: lúc nào cũng có thứ trong tầm với, và cú quét vòng
+   * của Thương hay Đại Kiếm mới có nghĩa lý. */
+  G.ARENA = { w: 820, h: 1080, maxMobs: 16, wave: 11 };
+
+  G.FEEL = {
+    hitstop: { light: 50, mid: 85, heavy: 145, finish: 190, launch: 170, crit: 210 },
+    hitstopMax: 240,        // trần, để nhiều đòn trúng cùng lúc không đứng hình
+    shake:   { light: 3, mid: 6, heavy: 11, finish: 15, quake: 20 },
+    kbDecay: 0.86,          // vận tốc văng còn lại sau mỗi khung
+    airGrav: 0.00034,       // px/ms². Đặt cùng airLaunch cho ra ~0,9s lơ lửng ở độ cao 34px
+    airLaunch: 0.0045,      // vận tốc bay lên = launch × hệ số này
+    airDmgMul: 1.4,         // đang lơ lửng thì ăn đòn nặng hơn — thưởng cho việc giữ nhịp
+    airBounce: 0.32,        // nảy lại khi chạm đất
+    landStagger: 380,       // rơi xuống thì nằm thêm ngần này
+    poiseRegen: 14,         // poise hồi mỗi giây
+    breakStagger: 900,      // vỡ poise -> loạng choạng dài, đây là cửa sổ đánh hội đồng
+    // ĐỠ CHUẨN xong thì tay nhanh hẳn lên một nhịp. Ý lấy từ Sephiria: đỡ/parry
+    // thành công MỞ RA một đòn mạnh, chứ không chỉ là "đỡ được rồi thôi". Ở đây
+    // biến nó thành cửa sổ tăng tốc để người chơi tự chọn xả bằng đòn gì.
+    furyMs: 2200, furySpd: 0.40,
+    comboWindowMs: 520,     // còn trong ngần này thì tap kế nối chuỗi
+    delayMin: 200,          // chờ ít nhất ngần này sau khi đòn xong rồi tap -> ra ĐÒN NẶNG
+    delayWindow: 260,       // và chỉ trong ngần này. Hẹp thì mới là kỹ năng, rộng quá thì thành ngẫu nhiên
+    cancelOnHit: true       // đòn ĐÃ TRÚNG thì huỷ đuôi được; đòn hụt thì phải chịu hết
+  };
+
+  /* ======================================================================
+   * VŨ KHÍ — mỗi cây một BỘ ĐÒN, không phải một con số nhân
+   *
+   * Trước đây combo chỉ là [1.0, 1.0, 1.15, 1.45]: bốn nhát y hệt nhau, khác
+   * mỗi hệ số. Giờ mỗi nhát là một đòn riêng có tầm, góc quét, thời gian, lực
+   * văng và độ khựng của nó.
+   *
+   * Ba đường ra đòn cho mỗi cây, tất cả vẫn chỉ bằng MỘT ngón (đúng luật
+   * Punicon):
+   *   - CHUỖI    : tap liên tục -> đi hết chain, nhát cuối nặng nhất
+   *   - ĐÒN NẶNG : ngưng >= FEEL.delayMin rồi mới tap -> rẽ sang heavy.
+   *                Đây là cách Monster Hunter phân biệt người quen tay với
+   *                người bấm loạn: "really good longsword users understand
+   *                instinctively how many frames they can wait".
+   *   - ĐÒN LƯỚT : vẩy để né rồi tap ngay trong lúc còn đang lăn -> dash
+   *
+   * HẤT TUNG (launch) là món mượn thẳng từ Devil May Cry: đòn hất quái lên
+   * trời, lên rồi thì nó không đánh trả được và ăn thêm 40% sát thương. Game
+   * nhìn từ trên xuống không có nút nhảy, nên "trên không" ở đây thể hiện bằng
+   * độ cao + bóng co lại, còn người chơi thì chỉ việc đánh tiếp cho nó đừng
+   * rơi. ("A launcher is any move that tosses an enemy in the air, essentially
+   * neutralizing their ability to attack" — DMC3 Battle Mechanics FAQ)
+   *
+   * Mỗi nhát: mul hệ số sát thương · arc góc quét · reach tầm · ms thời gian ·
+   * kb lực văng · hs độ khựng · launch độ cao hất · poise lực phá lì đòn
+   * ====================================================================== */
+  var HS = { light: 50, mid: 85, heavy: 145, finish: 190, launch: 170 };
+
   G.WEAPONS = {
     sword: {
       id: 'sword', vi: 'Kiếm & Khiên', jp: '片手剣', en: 'Sword & Shield',
-      desc: 'Cân bằng, dễ dùng nhất, và là vũ khí DUY NHẤT đỡ được đòn.',
-      combo: [1.00, 1.00, 1.15, 1.45], arc: 1.75, reach: 62, swingMs: 300,
+      desc: 'Cân bằng, xoay trở nhanh nhất, và là cây DUY NHẤT đỡ được đòn. Chuỗi 4 nhát, nhát cuối HẤT TUNG.',
+      arc: 1.75, reach: 62, swingMs: 300,
       moveMul: 1.00, dodgeMul: 1.00, atkBase: 1.00,
+      // Chuỗi: ngang -> trả -> đâm -> hất lên. Nhát 4 là launcher, mở màn juggle.
+      chain: [
+        { n:'Chém ngang',  mul:1.00, arc:1.75, reach:62, ms:250, kb:8,  hs:HS.light, poise:10 },
+        { n:'Chém trả',    mul:1.05, arc:1.75, reach:62, ms:240, kb:8,  hs:HS.light, poise:10 },
+        { n:'Đâm tới',     mul:1.20, arc:0.85, reach:80, ms:270, kb:16, hs:HS.mid,   poise:14, push:14 },
+        { n:'Hất lên',     mul:1.55, arc:1.95, reach:70, ms:380, kb:10, hs:HS.launch, poise:22, launch:34 }
+      ],
+      heavy: { n:'Thăng Long Trảm', mul:2.30, arc:2.00, reach:76, ms:520, kb:14, hs:HS.finish, poise:34, launch:48, wind:0.42 },
+      dash:  { n:'Xô Khiên', mul:1.35, arc:1.30, reach:64, ms:280, kb:30, hs:HS.mid, poise:26 },
+      // Bấm trong lúc ĐANG ĐỠ: quét một nhát rộng ra từ sau khiên.
+      guardHit: { n:'Chém Khiên', mul:1.90, arc:2.40, reach:76, ms:420, kb:28, hs:HS.heavy, poise:38, wind:0.38 },
       special: 'guard',
       specialVi: 'Đỡ đòn + Phản đòn',
       // Đỡ đúng lúc -> giảm 90% (wiki: "damage become 1/10"); đỡ thường -> giảm 60% [TÁI DỰNG]
@@ -73,9 +156,17 @@
     },
     great: {
       id: 'great', vi: 'Đại Kiếm', jp: '両手剣', en: 'Great Sword',
-      desc: 'Sát thương cao nhất game, chậm nhất. Giữ để nạp Chém Tích Lực.',
-      combo: [1.55, 1.70, 2.20], arc: 2.30, reach: 78, swingMs: 620,
+      desc: 'Nặng và chậm, nhưng mỗi nhát hất văng cả đám. Nhát cuối đập đất rung màn hình.',
+      arc: 2.30, reach: 78, swingMs: 620,
       moveMul: 0.80, dodgeMul: 0.92, atkBase: 1.45,
+      // Cam kết cao: vung là phải chịu hết đuôi. Bù lại lực văng gấp ba cây khác.
+      chain: [
+        { n:'Bổ dọc',    mul:1.60, arc:1.15, reach:86, ms:540, kb:22, hs:HS.heavy,  poise:30 },
+        { n:'Quét ngang',mul:1.80, arc:2.45, reach:84, ms:580, kb:28, hs:HS.heavy,  poise:34 },
+        { n:'Đập đất',   mul:2.45, arc:6.283, reach:96, ms:700, kb:36, hs:HS.finish, poise:48, quake:true }
+      ],
+      heavy: { n:'Trảm Địa Liệt', mul:3.30, arc:2.70, reach:112, ms:820, kb:34, hs:HS.finish, poise:60, launch:32, quake:true, wind:0.5 },
+      dash:  { n:'Húc Vai', mul:2.00, arc:1.10, reach:80, ms:340, kb:34, hs:HS.heavy, poise:40 },
       special: 'cleave',
       specialVi: 'Chém Tích Lực (溜め斬り)',
       chargeMs: 1800, cleaveMin: 2.0, cleaveMax: 6.0,
@@ -86,10 +177,18 @@
     },
     spear: {
       id: 'spear', vi: 'Thương', jp: '槍', en: 'Spear',
-      desc: 'Tầm với dài nhất. Đòn cuối combo quét vòng quanh. Giữ để Lao Tới.',
-      combo: [0.85, 0.85, 0.95, 1.30], arc: 0.95, reach: 96, swingMs: 260,
-      finalSweep: true, // đòn cuối quét 360° (4Gamer: 周囲をなぎ払うような攻撃)
+      desc: 'Tầm với dài nhất, đâm nhanh và ít hở. Nhát cuối quét trọn vòng quanh.',
+      arc: 0.95, reach: 96, swingMs: 260,
       moveMul: 0.95, dodgeMul: 1.00, atkBase: 1.20,
+      finalSweep: true, // đòn cuối quét 360° (4Gamer: 周囲をなぎ払うような攻撃)
+      chain: [
+        { n:'Đâm 1',    mul:0.88, arc:0.50, reach:96,  ms:210, kb:6,  hs:HS.light, poise:8 },
+        { n:'Đâm 2',    mul:0.88, arc:0.50, reach:96,  ms:200, kb:6,  hs:HS.light, poise:8 },
+        { n:'Đâm xuyên',mul:1.00, arc:0.60, reach:104, ms:230, kb:12, hs:HS.mid,   poise:12, push:10 },
+        { n:'Quét vòng',mul:1.40, arc:6.283, reach:92, ms:340, kb:20, hs:HS.heavy, poise:26 }
+      ],
+      heavy: { n:'Xuyên Thiên', mul:2.00, arc:0.55, reach:126, ms:460, kb:16, hs:HS.finish, poise:30, launch:42, push:26, wind:0.4 },
+      dash:  { n:'Lao Đâm', mul:1.65, arc:0.70, reach:118, ms:260, kb:18, hs:HS.mid, poise:22, push:22 },
       special: 'lunge',
       specialVi: 'Lao Tới (突進)',
       lungeDist: 190, lungeMul: 1.90, lungeMs: 220, lungeLagMs: 260,
@@ -98,9 +197,21 @@
     },
     dual: {
       id: 'dual', vi: 'Song Kiếm', jp: '双剣', en: 'Dual Blades',
-      desc: 'Nhanh nhất, chạy nhanh nhất, tầm ngắn nhất. Giữ để Loạn Vũ.',
-      combo: [0.62, 0.62, 0.62, 0.62, 0.62], arc: 1.35, reach: 48, swingMs: 155,
+      desc: 'Chuỗi 6 nhát nhanh như bão, gần như không hở. Ít lực văng — bù bằng số nhát.',
+      arc: 1.35, reach: 48, swingMs: 155,
       moveMul: 1.15, dodgeMul: 1.18, atkBase: 0.85,
+      // Cam kết THẤP nhất game: mỗi nhát chỉ 130ms, huỷ đuôi lúc nào cũng được.
+      // (MH: "the dual blades do away with a lot of the restrictive slowness")
+      chain: [
+        { n:'Xé trái',  mul:0.60, arc:1.35, reach:50, ms:130, kb:3, hs:35, poise:5 },
+        { n:'Xé phải',  mul:0.60, arc:1.35, reach:50, ms:125, kb:3, hs:35, poise:5 },
+        { n:'Cắt chéo', mul:0.62, arc:1.45, reach:52, ms:130, kb:4, hs:40, poise:6 },
+        { n:'Cắt ngược',mul:0.62, arc:1.45, reach:52, ms:125, kb:4, hs:40, poise:6 },
+        { n:'Xoay kép', mul:0.70, arc:1.90, reach:54, ms:160, kb:6, hs:HS.light, poise:9 },
+        { n:'Bổ đôi',   mul:1.15, arc:1.70, reach:58, ms:230, kb:12, hs:HS.mid, poise:16 }
+      ],
+      heavy: { n:'Song Long Trảm', mul:1.05, arc:1.80, reach:60, ms:300, kb:8, hs:HS.mid, poise:14, hits:2, launch:26, wind:0.3 },
+      dash:  { n:'Xẹt Qua', mul:1.25, arc:1.60, reach:56, ms:200, kb:8, hs:HS.light, poise:12, push:30 },
       special: 'ranbu',
       specialVi: 'Loạn Vũ (乱舞)',
       ranbuWindupMs: 380, ranbuHits: 8, ranbuMul: 0.75, ranbuMs: 900,
@@ -108,10 +219,17 @@
     },
     bow: {
       id: 'bow', vi: 'Cung', jp: '弓矢', en: 'Bow',
-      desc: 'Duy nhất đánh xa. CÀNG GẦN BẮN CÀNG ĐAU. Giữ để Ngắm Bắn.',
-      combo: [0.70, 0.70, 0.90], arc: 0, reach: 420, swingMs: 340, ranged: true,
+      desc: 'Duy nhất đánh xa. CÀNG GẦN BẮN CÀNG ĐAU. Nhát cuối bắn loạt ba mũi.',
+      arc: 0, reach: 420, swingMs: 340, ranged: true,
       moveMul: 0.85, dodgeMul: 0.95, atkBase: 0.90,
       arrowSpeed: 12,
+      chain: [
+        { n:'Bắn nhanh', mul:0.72, ms:280, hs:35,       poise:6 },
+        { n:'Bắn kép',   mul:0.72, ms:270, hs:35,       poise:6 },
+        { n:'Loạt ba',   mul:0.80, ms:400, hs:HS.light, poise:10, shots:3, spread:0.30 }
+      ],
+      heavy: { n:'Mũi Xuyên Giáp', mul:1.90, ms:520, hs:HS.mid, poise:24, pierce:true, wind:0.45 },
+      dash:  { n:'Bắn Lùi', mul:1.30, ms:300, hs:HS.light, poise:10, back:34 },
       special: 'snipe',
       specialVi: 'Ngắm Bắn (狙い撃ち)',
       snipeChargeMs: 1500, snipeMin: 1.5, snipeMax: 5.0,
@@ -121,6 +239,13 @@
       snipeDotMs: 8000, snipeDotDps: 0.03   // nạp đầy trúng WEAK -> mũi tên trắng gây DoT
     }
   };
+  /* Vài chỗ trong game và test còn đọc W.combo (mảng số). Dựng lại nó từ chain
+   * thay vì để hai bảng số song song rồi lệch nhau. */
+  Object.keys(G.WEAPONS).forEach(function (k) {
+    var W = G.WEAPONS[k];
+    W.combo = W.chain.map(function (c) { return c.mul; });
+  });
+
   G.WEAPON_ORDER = ['sword', 'great', 'spear', 'dual', 'bow'];
 
   /* ------------------------------------------- LOẠI ĐẶC THÙ CỦA VŨ KHÍ ---- */
@@ -382,13 +507,48 @@
 
   /* --------------------------------------------------- TỘC QUÁI THƯỜNG ---- */
   // Sáu tộc trong How-to-Play guide. shape dùng để vẽ bằng code.
+  /* ======================================================================
+   * QUÁI THƯỜNG — mỗi tộc một lối đánh, không phải cùng một con đi thẳng vào mặt
+   *
+   * Bản trước mọi con đều làm đúng một việc: đi tới, chạm vào người chơi, trừ
+   * máu. Không báo trước, không có nhịp, nên chẳng có gì để đọc và cũng chẳng có
+   * gì để né — đánh nhau thành ra bấm cho hết máu.
+   *
+   * Giờ mỗi tộc có một ai riêng, và quan trọng hơn: con nào cũng có POISE.
+   * Poise là thanh lì đòn — đánh vào thì trừ, trừ hết thì VỠ, con quái loạng
+   * choạng gần một giây. Đó là nhịp mà một game chặt chém sống nhờ: dồn đòn cho
+   * vỡ, rồi xả đòn nặng vào lúc nó đứng chết trân.
+   *
+   *   swarm   — đông, yếu, bâu lại; chết dễ, có để mà chém cho đã
+   *   charger — báo trước bằng vạch đỏ rồi HÚC thẳng; húc hụt thì đơ lâu (chỗ phạt)
+   *   hopper  — nhảy vòng cung tới, chạm đất nổ một vòng nhỏ; đang bay không đổi hướng
+   *   flyer   — lượn vòng quanh rồi bổ nhào; nhanh, máu giấy
+   *   ranged  — giữ khoảng cách, nhả đạn ba viên; phải xông vào mới giết được
+   *   tank    — chậm, poise dày gấp ba, phải đục vỡ mới đánh vào được tử tế
+   * ====================================================================== */
   G.TRIBES = {
-    purun:  { vi:'Purun',  en:'Jelly',  shape:'blob',  r:15, hp:1.0, atk:0.9, spd:0.55, mat:['jelly_dew','gummy','jelly_core','hq_jelly_core'] },
-    vacca:  { vi:'Vacca',  en:'Vacca',  shape:'bull',  r:19, hp:1.6, atk:1.3, spd:0.75, mat:['vacca_horns','cow_hoof','vacca_meat','hq_vacca_meat'], charger:true },
-    geguri: { vi:'Geguri', en:'Froggo', shape:'frog',  r:16, hp:1.2, atk:1.0, spd:0.70, mat:['froggo_oil','frog_adhesive','froggo_eye','hq_froggo_eye'], hopper:true },
-    bat:    { vi:'Bat',    en:'Bat',    shape:'bat',   r:13, hp:0.8, atk:1.0, spd:1.15, mat:['bat_wing','bat_fang','bat_ears','giant_bat_ear'], flyer:true },
-    galena: { vi:'Galena', en:'Galena', shape:'bird',  r:17, hp:1.1, atk:1.15,spd:0.95, mat:['galena_feather','galena_beak','galena_heart','galena_egg'] },
-    fungo:  { vi:'Fungo',  en:'Fungo',  shape:'shroom',r:18, hp:1.9, atk:1.1, spd:0.40, mat:['fungo_cap','fungolise','variant_fungolise','variant_fungolise'], poisoner:true }
+    purun:  { vi:'Purun',  en:'Jelly',  shape:'blob',  r:15, hp:1.0, atk:0.9, spd:0.55,
+              ai:'swarm',   poise:26,  mat:['jelly_dew','gummy','jelly_core','hq_jelly_core'] },
+    vacca:  { vi:'Vacca',  en:'Vacca',  shape:'bull',  r:19, hp:1.6, atk:1.3, spd:0.75,
+              ai:'charger', poise:60, charger:true,
+              tell:820, dashSpd:7.6, dashMs:620, recover:900,
+              mat:['vacca_horns','cow_hoof','vacca_meat','hq_vacca_meat'] },
+    geguri: { vi:'Geguri', en:'Froggo', shape:'frog',  r:16, hp:1.2, atk:1.0, spd:0.70,
+              ai:'hopper',  poise:34, hopper:true,
+              tell:460, hopDist:150, hopMs:520, shockR:56,
+              mat:['froggo_oil','frog_adhesive','froggo_eye','hq_froggo_eye'] },
+    bat:    { vi:'Bat',    en:'Bat',    shape:'bat',   r:13, hp:0.8, atk:1.0, spd:1.15,
+              ai:'flyer',   poise:18, flyer:true,
+              orbit:120, tell:380, diveSpd:8.4, diveMs:420,
+              mat:['bat_wing','bat_fang','bat_ears','giant_bat_ear'] },
+    galena: { vi:'Galena', en:'Galena', shape:'bird',  r:17, hp:1.1, atk:1.15,spd:0.95,
+              ai:'ranged',  poise:30,
+              keep:210, tell:560, shots:3, spread:0.36, projSpd:5.4,
+              mat:['galena_feather','galena_beak','galena_heart','galena_egg'] },
+    fungo:  { vi:'Fungo',  en:'Fungo',  shape:'shroom',r:18, hp:1.9, atk:1.1, spd:0.40,
+              ai:'tank',    poise:110, poisoner:true,
+              tell:900, slamR:74, puffR:96,
+              mat:['fungo_cap','fungolise','variant_fungolise','variant_fungolise'] }
   };
   // Tiền tố biến thể theo hệ (wiki: Heat/Aqua/Thunder-Elec/Mad + bản thường)
   G.MOB_VARIANTS = [
@@ -410,6 +570,34 @@
   function bh(id, n, rank, weapon, type, el, body, o) {
     return Object.assign({ id, n, rank, weapon, type, el, body }, o);
   }
+  /* Ba con trùm đầu game vốn chỉ có 3 bài, đánh hai lượt là thuộc lòng. Nới ra
+   * cho đủ nhịp: một bài cận chiến, một bài tầm xa, một bài diện rộng, một bài
+   * di chuyển. Có ngần đó thì người chơi mới phải ĐỌC chứ không đứng một chỗ chém. */
+  G.BOSS_EXTRA = {
+    grouton:   ['slam', 'bounce', 'spit', 'stomp', 'charge', 'ring'],
+    vaccahorn: ['charge', 'stomp', 'sweep', 'slam', 'ring'],
+    frogrid:   ['tongue', 'hop', 'spit', 'stomp', 'bounce'],
+    mumu:      ['slam', 'spore', 'stomp', 'ring', 'summon'],
+    dodonki:   ['peck', 'dive', 'feather', 'sonic', 'charge'],
+    winvlum:   ['dive', 'sonic', 'feather', 'lash', 'ring'],
+    galidon:   ['beam', 'ring', 'slam', 'charge', 'stomp'],
+    dofungos:  ['spore', 'slam', 'stomp', 'summon', 'ring']
+  };
+
+  /* Ba con trùm đầu game vốn chỉ có 3 bài, đánh hai lượt là thuộc lòng. Nới ra
+   * cho đủ nhịp: một bài cận chiến, một bài tầm xa, một bài diện rộng, một bài
+   * di chuyển. Có ngần đó thì người chơi mới phải ĐỌC chứ không đứng một chỗ chém. */
+  G.BOSS_EXTRA = {
+    grouton:   ['slam', 'bounce', 'spit', 'stomp', 'charge', 'ring'],
+    vaccahorn: ['charge', 'stomp', 'sweep', 'slam', 'ring'],
+    frogrid:   ['tongue', 'hop', 'spit', 'stomp', 'bounce'],
+    mumu:      ['slam', 'spore', 'stomp', 'ring', 'summon'],
+    dodonki:   ['peck', 'dive', 'feather', 'sonic', 'charge'],
+    winvlum:   ['dive', 'sonic', 'feather', 'lash', 'ring'],
+    galidon:   ['beam', 'ring', 'slam', 'charge', 'stomp'],
+    dofungos:  ['spore', 'slam', 'stomp', 'summon', 'ring']
+  };
+
   G.BEHEMOTHS = [
     /* ---- B rank: gặp ngoài field từ sớm ---- */
     bh('grouton','Igni Grouton','B','spear','normal','fire','blob',

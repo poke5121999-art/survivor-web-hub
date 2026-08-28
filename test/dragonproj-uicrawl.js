@@ -635,7 +635,7 @@ const PAGE_SNAP = () => {
              scr: (document.querySelector('#screens .screen.on') || {}).id };
   });
   check('nút "Xóa dữ liệu" đưa game về đúng trạng thái mới tinh',
-    fresh.gold === 3000 && fresh.lv === 1 && fresh.gear === 5 && fresh.cleared === 0 && fresh.core === 0,
+    fresh.gold === 3000 && fresh.lv === 1 && fresh.gear === 9 && fresh.cleared === 0 && fresh.core === 0,
     JSON.stringify(fresh));
 
   // --- CHẶNG QUÁI: vào ải đầu, bot cày 25 giây ---

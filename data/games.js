@@ -40,7 +40,7 @@ window.HUB_GAMES = [
     tagline: "Dựng lại Dragon Project (COLOPL, đã đóng cửa). Một ngón tay ở giữa màn hình làm hết: kéo để chạy, chạm để chém, vẩy để né, giữ để ra đòn đặc thù — và năm vũ khí cho ra năm bộ đòn khác hẳn nhau. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
     thumbnail: "assets/thumbnails/dragonproj.svg",
     path: "games/dragonproj/index.html",
-    rev: "20260828g",
+    rev: "20260828h",
     // Plain canvas/JS, không engine, mở được từ file://. Dựng lại từ Dragon Project
     // (COLOPL 2016, Global 2017, đóng cửa 30/09/2020) — game săn quái kiểu Monster Hunter
     // cho di động, 1-4 người.

@@ -44,6 +44,8 @@ const G = {
 const goStage = (p, id) => p.evaluate(id => DP.UI.startStage(id), id);
 const goBoss = (p, id) => p.evaluate(id => { DP.UI.startStage(id); DP.UI.battle.startBossPhase(); }, id);
 
+const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đọc
+
 (async () => {
   const b = await chromium.launch();
   const { ctx, p, errs } = await open(b);
@@ -253,6 +255,165 @@ const goBoss = (p, id) => p.evaluate(id => { DP.UI.startStage(id); DP.UI.battle.
     return { used: b.player.magi < m0, flagged: b.player.usedMagi };
   });
   check('xả được Magi', cast.used && cast.flagged);
+
+  /* ================= LỚP CẢM GIÁC =================
+   * Đây là phần quyết định "chặt có đã tay hay không", và cũng là phần dễ bị
+   * chỉnh hỏng nhất mà không ai nhận ra — vì nó không làm gì sai, chỉ làm cho
+   * game nhạt đi. Nên mỗi cơ chế phải có một phép kiểm chốt lại. */
+  results.push('\n── lớp cảm giác (hitstop · văng · vỡ thế · hất tung) ──');
+  await goStage(p, 'tior-1');
+  await p.waitForTimeout(500);
+
+  // Dựng một con bia đứng ngay trước mặt, máu trâu để không chết giữa chừng.
+  const target = () => p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    b.mobs.length = 0; b.freeze = 0; b.shake = 0;
+    const m = b.makeMob('purun', 1, false, false);
+    m.hp = m.maxHp = 9e6; m.x = pl.x + 40; m.y = pl.y;
+    b.mobs.push(m);
+    pl.facing = 0; pl.state = 'idle'; pl.combo = 0; pl.counterUntil = 0; pl.heavyFrom = 0;
+    window.__m = m;
+  });
+
+  await target();
+  const feel = await p.evaluate(() => {
+    const b = DP.UI.battle, m = window.__m;
+    b.meleeHit(1, 1.75, 62, { move: b.W.chain[0] });
+    return { freeze: Math.round(b.freeze), shake: Math.round(b.shake),
+             kb: +Math.hypot(m.kbX, m.kbY).toFixed(1), poise: Math.round(m.poise), max: m.poiseMax };
+  });
+  check('đánh trúng thì ĐÓNG BĂNG một nhịp (hitstop)', feel.freeze >= 40, feel.freeze + 'ms');
+  check('đánh trúng thì rung màn hình', feel.shake > 0, feel.shake);
+  check('đánh trúng thì quái VĂNG ra', feel.kb > 0, feel.kb + 'px/khung');
+  check('đánh trúng thì trừ thanh lì đòn', feel.poise < feel.max, feel.poise + '/' + feel.max);
+
+  // Hitstop không được nuốt input, và phải có trần.
+  const stop = await p.evaluate(() => {
+    const b = DP.UI.battle;
+    b.freeze = 0;
+    for (let i = 0; i < 8; i++) b.impact(0, 0, 200, 0);   // tám đòn trúng cùng lúc
+    const capped = b.freeze <= DP.FEEL.hitstopMax;
+    // trong lúc đóng băng, fx vẫn phải chạy chứ không đứng luôn
+    return { capped, freeze: Math.round(b.freeze) };
+  });
+  check('hitstop có TRẦN, nhiều đòn cùng lúc không đứng hình', stop.capped, stop.freeze + 'ms');
+
+  await target();
+  const brk = await p.evaluate(() => {
+    const b = DP.UI.battle, m = window.__m;
+    m.poise = 5;
+    b.dealToMob(m, { phys: 50, elem: 0, el: 'none' }, { move: { poise: 10, kb: 8 } });
+    return { stagger: Math.round(m.stagger), reset: m.poise === m.poiseMax };
+  });
+  check('đục hết lì đòn thì quái VỠ THẾ và đứng chết trân', brk.stagger >= 600 && brk.reset,
+    'loạng choạng ' + brk.stagger + 'ms');
+
+  await target();
+  const air = await p.evaluate(() => new Promise(res => {
+    const b = DP.UI.battle, m = window.__m;
+    b.dealToMob(m, { phys: 10, elem: 0, el: 'none' }, { move: { launch: 34, poise: 5 } });
+    const t0 = performance.now();
+    setTimeout(() => {
+      const up = m.z;
+      const before = m.hp;
+      b.dealToMob(m, { phys: 100, elem: 0, el: 'none' }, { move: {} });
+      res({ up: +up.toFixed(1), dmg: Math.round(before - m.hp), acts: m.stagger > 0 });
+    }, 400);
+  }));
+  check('đòn HẤT TUNG nhấc quái lên trời', air.up > 15, air.up + 'px');
+  check('quái đang lơ lửng thì ăn đòn nặng hơn', air.dmg > 100,
+    air.dmg + ' từ base 100 (×' + DP_AIR + ')');
+  check('quái đang lơ lửng thì không đánh trả được', air.acts);
+
+  // Cửa sổ ĐÒN NẶNG: ngưng đúng nhịp rồi tap thì rẽ nhánh.
+  await target();
+  const heavy = await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    b.t = performance.now();
+    pl.heavyFrom = b.t - 50; pl.heavyTo = b.t + 200; pl.state = 'idle';
+    b.tryAttack();
+    return { move: pl.move && pl.move.n, want: b.W.heavy.n, idx: pl.comboIdx };
+  });
+  check('ngưng đúng nhịp rồi tap thì ra ĐÒN NẶNG', heavy.move === heavy.want && heavy.idx === -2,
+    heavy.move);
+
+  // Mỗi cây một bộ đòn thật sự khác nhau, không phải cùng một nhát đổi hệ số.
+  const sets = await p.evaluate(() => {
+    const out = {};
+    Object.keys(DP.WEAPONS).forEach(k => {
+      const W = DP.WEAPONS[k];
+      out[k] = { chain: W.chain.length, names: W.chain.map(c => c.n),
+                 heavy: !!(W.heavy && W.heavy.n), dash: !!(W.dash && W.dash.n),
+                 reach: W.chain.map(c => c.reach), ms: W.chain.map(c => c.ms) };
+    });
+    const allNames = [].concat.apply([], Object.keys(out).map(k => out[k].names));
+    return { out: out,
+             everyHasHeavyDash: Object.keys(out).every(k => out[k].heavy && out[k].dash),
+             chainLens: Object.keys(out).map(k => out[k].chain),
+             uniqueNames: new Set(allNames).size === allNames.length,
+             // trong một cây, các nhát phải KHÁC nhau về thời gian hoặc tầm
+             variedInside: Object.keys(out).every(k => {
+               const o = out[k];
+               return new Set(o.ms).size > 1 || new Set(o.reach).size > 1;
+             }) };
+  });
+  check('cây nào cũng có đòn nặng và đòn lướt riêng', sets.everyHasHeavyDash);
+  check('chuỗi của mỗi cây dài ngắn khác nhau', new Set(sets.chainLens).size >= 3,
+    sets.chainLens.join('/') + ' nhát');
+  check('không nhát nào trùng tên giữa các cây', sets.uniqueNames);
+  check('trong cùng một cây, các nhát khác nhau thật (tầm hoặc nhịp)', sets.variedInside);
+
+  // Quái phải BÁO TRƯỚC, và phải có lúc hở để phạt.
+  const ais = await p.evaluate(() => {
+    const b = DP.UI.battle, out = {};
+    ['purun', 'vacca', 'geguri', 'bat', 'galena', 'fungo'].forEach(tr => {
+      b.mobs.length = 0;
+      const m = b.makeMob(tr, 5, false, false);
+      m.hp = m.maxHp = 9e9; m.x = b.player.x + 60; m.y = b.player.y; m.agro = 1;
+      b.mobs.push(m);
+      const seen = {};
+      let tells = 0;
+      for (let i = 0; i < 400; i++) {
+        const fx0 = b.fx.filter(f => f.k === 'tell').length;
+        b.mobAI(m, b.player, 16.7);
+        if (b.fx.filter(f => f.k === 'tell').length > fx0) tells++;
+        seen[m.phase] = 1;
+      }
+      out[tr] = { ai: m.ai, phases: Object.keys(seen), tells: tells, poise: m.poiseMax };
+    });
+    return out;
+  });
+  const aiKeys = Object.keys(ais);
+  check('sáu tộc quái có sáu lối đánh khác nhau',
+    new Set(aiKeys.map(k => ais[k].ai)).size === 6,
+    aiKeys.map(k => ais[k].ai).join(', '));
+  check('mọi tộc biết đánh đều BÁO TRƯỚC bằng vùng đỏ',
+    aiKeys.filter(k => k !== 'purun').every(k => ais[k].tells > 0),
+    aiKeys.map(k => k + ':' + ais[k].tells).join(' '));
+  check('đánh xong con nào cũng HỞ một nhịp để bị phạt',
+    aiKeys.every(k => ais[k].phases.indexOf('rest') >= 0));
+  check('con lì đòn nhất dày gấp nhiều lần con yếu nhất',
+    ais.fungo.poise >= ais.bat.poise * 3,
+    'Fungo ' + ais.fungo.poise + ' vs Bat ' + ais.bat.poise);
+
+  // Sân phải chật để lúc nào cũng có thứ trong tầm với.
+  const arena = await p.evaluate(() => {
+    const b = DP.UI.battle;
+    return { w: b.wW, h: b.wH, cfg: DP.ARENA };
+  });
+  check('sân đấu chật lại cho khỏi mất thì giờ đi bộ',
+    arena.w === arena.cfg.w && arena.h === arena.cfg.h && arena.w * arena.h < 1300 * 1600 * 0.6,
+    arena.w + '×' + arena.h);
+
+  // Cả năm cây phát sẵn từ đầu.
+  const kit = await p.evaluate(() => {
+    const s = DP.starterKit(DP.newSave('T'));
+    const cls = s.gear.filter(g => g.kind === 'weapon').map(g => g.wclass);
+    const eq = DP.equipped(s).weapons.filter(Boolean).length;
+    return { n: new Set(cls).size, eq: eq };
+  });
+  check('phát sẵn cả năm cây vũ khí', kit.n === 5, kit.n + ' cây');
+  check('ba khe vũ khí đều có đồ để đổi giữa trận', kit.eq === 3);
 
   // ------------------------------------------------------------ TRẬN BOSS
   results.push('\n── trận Behemoth ──');

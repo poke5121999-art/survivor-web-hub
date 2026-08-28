@@ -580,6 +580,9 @@
   /* -------------------------------------------------- KHỞI ĐỘNG MỚI ---- */
   // Bản gốc cho người chơi bắt đầu bằng Kiếm & Khiên ("The player starts off with
   // this weapon type"). Ở đây tặng luôn một bộ giáp B để có gì mà mặc.
+  /* Bộ khởi đầu. Phát ĐỦ CẢ NĂM cây: mỗi cây một bộ đòn khác hẳn nhau, mà cái
+   * hay của game này nằm ở chỗ đổi vũ khí giữa trận — bắt người chơi cày mấy
+   * tiếng mới được thử cây thứ hai thì họ chẳng bao giờ biết game có gì. */
   G.starterKit = function (s) {
     var starter = 'grouton';
     var w = G.forgeGear('vaccahorn', 'weapon', 'starter');
@@ -587,6 +590,22 @@
     w.shapes = ['star', 'heart', 'diamond'];
     s.gear.push(w);
     s.loadout.weapons[0] = w.uid;
+
+    // Bốn cây còn lại, mỗi cây một bộ đòn hoàn toàn khác. Hai cây tiếp lắp sẵn vào
+    // khe 2 và 3 để đổi được ngay giữa trận; hai cây kia nằm trong kho.
+    var REST = [
+      { cls:'great', src:'vaccahorn', n:'Guild Cleaver' },
+      { cls:'dual',  src:'shurak',    n:'Guild Fangs' },
+      { cls:'spear', src:'grouton',   n:'Guild Pike' },
+      { cls:'bow',   src:'galidon',   n:'Guild Shortbow' }
+    ];
+    REST.forEach(function (x, i) {
+      var g = G.forgeGear(x.src, 'weapon', 'starter_' + x.cls);
+      g.wclass = x.cls; g.wtype = 'normal'; g.name = x.n; g.rank = 'B'; g.el = 'none';
+      g.shapes = ['star', 'heart', 'diamond'];
+      s.gear.push(g);
+      if (i < 2) s.loadout.weapons[i + 1] = g.uid;
+    });
     ['head', 'body', 'arm', 'leg'].forEach(function (k) {
       var g = G.forgeGear(starter, k, 'starter');
       g.rank = 'B'; g.name = 'Guild ' + { head: 'Helm', body: 'Plate', arm: 'Wrists', leg: 'Sabatons' }[k];

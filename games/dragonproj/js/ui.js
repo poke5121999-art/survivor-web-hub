@@ -976,11 +976,31 @@
       '<b style="color:#8fd14f">lục</b> → <b style="color:#ff3b30">đỏ (tối đa)</b>. ' +
       'Nhìn xuống chân thay vì liếc lên rìa màn hình, mắt không rời mục tiêu.</p></div>';
 
+    html += '<div class="card"><h3>Ba cách ra đòn — vẫn một ngón</h3>' +
+      '<p><span class="kbd">TAP LIÊN TỤC</span> đi hết <b>chuỗi</b> của cây đang cầm (3–6 nhát, nhát cuối nặng nhất).</p>' +
+      '<p><span class="kbd">NGƯNG rồi TAP</span> ra <b style="color:#f2c94b">ĐÒN NẶNG</b>. Ngưng khoảng ' +
+        (G.FEEL.delayMin / 1000).toFixed(1) + ' giây sau khi nhát trước <b>trúng</b> thì một <b>vòng vàng</b> nở ra dưới chân — ' +
+        'tap trong lúc vòng còn đó là ra. Cửa sổ chỉ ' + (G.FEEL.delayWindow / 1000).toFixed(2) + ' giây.</p>' +
+      '<p><span class="kbd">VẨY rồi TAP</span> ra <b>đòn lướt</b> — mỗi cây một kiểu, và không mất khung bất tử.</p>' +
+      '<p><b>Đòn đã TRÚNG thì huỷ đuôi được</b> nên nối nhanh hơn; đòn <b>hụt</b> phải chịu hết. ' +
+        'Đánh trúng được thưởng, bấm loạn bị phạt.</p></div>';
+
+    html += '<div class="card"><h3>Ba thứ phải để mắt trên người quái</h3>' +
+      '<p><b style="color:#c8a0ff">Thanh tím</b> dưới thanh máu là <b>lì đòn</b>. Đục hết thì <b style="color:#f2d24b">VỠ THẾ</b> — ' +
+        'nó đứng chết trân gần một giây. Đó là lúc xả đòn nặng.</p>' +
+      '<p><b style="color:#8fd4ff">Bóng co lại</b> nghĩa là nó đang <b>bị hất lên trời</b>: không đánh trả được, ' +
+        'và ăn thêm ' + Math.round((G.FEEL.airDmgMul - 1) * 100) + '% sát thương. Đánh tiếp cho nó đừng rơi.</p>' +
+      '<p><b style="color:#ff5a5a">Vùng đỏ</b> là đòn sắp ra — của quái thường cũng như của Behemoth. ' +
+        'Vòng trong thu nhỏ báo thời điểm nổ. Con nào cũng báo trước, nên đòn nào cũng né được.</p>' +
+      '<p>Đánh xong một đòn con quái <b>đơ một nhịp</b> — con Vacca húc hụt thì đơ gần một giây. Đó là chỗ để dồn đòn.</p></div>';
+
     html += '<div class="card"><h3>Năm vũ khí, năm bộ move set</h3>';
     G.WEAPON_ORDER.forEach(function (k) {
       var w = G.WEAPONS[k];
-      html += '<p style="margin-bottom:8px"><b>' + w.vi + '</b> (' + w.jp + ') — combo ' + w.combo.length + ' đòn' +
-        (w.finalSweep ? ' (đòn cuối quét vòng)' : '') + '<br>' +
+      html += '<p style="margin-bottom:10px"><b>' + w.vi + '</b> (' + w.jp + ')<br>' +
+        '<span style="color:#cfe0ee;font-size:10.5px">' + w.chain.map(function (c) { return c.n; }).join(' › ') + '</span><br>' +
+        '<span style="color:#f2c94b">NẶNG: ' + w.heavy.n + '</span> · ' +
+        '<span style="color:#8fd4ff">LƯỚT: ' + w.dash.n + '</span><br>' +
         '<span style="color:#f2c94b">GIỮ: ' + w.specialVi + '</span><br>' +
         '<span style="color:#9fb2c4">' + w.desc + '</span></p>';
     });
