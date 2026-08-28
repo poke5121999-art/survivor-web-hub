@@ -1673,8 +1673,17 @@
     else if (st === 'down') wA = 1.5;
     else wA = 0.88 + bob;
     var offA = (st === 'guard' ? -0.72 : -0.88) - bob;   // tay còn lại
+    // SONG KIẾM: mỗi tay MỘT lưỡi, và hai tay soi gương nhau. Lúc vung, tay này
+    // quét xuôi thì tay kia quét ngược, nên hai lưỡi cắt chéo qua nhau — đó mới là
+    // hình ảnh đọc ra "song đao", chứ ôm cả hai lưỡi trong một tay thì nhìn như
+    // cầm một bó dao.
+    // Lệch pha một chút khi vung: nếu soi gương y hệt thì đúng giữa cú chém hai
+    // lưỡi chồng khít lên nhau thành một, mất luôn cái nhìn "hai lưỡi cắt chéo".
+    if (o.weapon === 'dual') offA = -wA + ((st === 'attack' || st === 'cleave') ? 0.34 : 0);
 
     drawHand(ctx, offA, o, st, o.weapon === 'sword');    // tay trái (đeo khiên nếu có)
+    // Lưỡi của tay trái vẽ TRƯỚC thân: nó nằm phía sau, cho khối có chiều sâu.
+    if (o.weapon === 'dual') drawHeldWeapon(ctx, 'dual', o.elem, o, offA, k, st, true);
 
     // ---- thân ----
     ctx.fillStyle = o.body;
@@ -1759,8 +1768,9 @@
     ctx.strokeStyle = shade(hc, -0.45); ctx.lineWidth = 1.6; ctx.stroke();
   }
 
-  /* Vũ khí mọc RA TỪ BÀN TAY (góc `wA`), chĩa gần như thẳng về phía trước. */
-  function drawHeldWeapon(ctx, cls, elCol, o, wA, k, st) {
+  /* Vũ khí mọc RA TỪ BÀN TAY (góc `wA`), chĩa gần như thẳng về phía trước.
+   * `second` = lưỡi thứ hai của Song Kiếm (tay trái), chỉ khác tông kim loại. */
+  function drawHeldWeapon(ctx, cls, elCol, o, wA, k, st, second) {
     var swing = Math.sin((k || 0) * Math.PI);
     ctx.save();
     ctx.translate(Math.cos(wA) * HR, Math.sin(wA) * HR);
@@ -1783,9 +1793,10 @@
       ctx.fillStyle = elCol;
       ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(23, -3.5); ctx.lineTo(23, 3.5); ctx.fill();
     } else if (cls === 'dual') {
-      // Hai lưỡi ngắn xoè hình chữ V ngay tại bàn tay.
-      ctx.save(); ctx.rotate(-0.24); bar(0, -1.2, 12, 2.4, '#e0e8f0'); bar(8, -1.2, 4, 2.4, elCol); ctx.restore();
-      ctx.save(); ctx.rotate(0.24); bar(0, -1.2, 12, 2.4, '#cfd8e2'); bar(8, -1.2, 4, 2.4, elCol); ctx.restore();
+      // MỘT lưỡi cho MỘT tay — hàm này được gọi hai lần khi cầm Song Kiếm.
+      bar(-1.5, -1.2, 13, 2.4, second ? '#cfd8e2' : '#e6eef6');
+      bar(8, -1.2, 4.5, 2.4, elCol);
+      ctx.fillStyle = '#6a5030'; ctx.fillRect(-3.4, -1, 2.4, 2);   // chuôi
     } else if (cls === 'bow') {
       var pull = (st === 'aim') ? 6 : 0;
       ctx.strokeStyle = 'rgba(12,16,20,.8)'; ctx.lineWidth = 4.4;
