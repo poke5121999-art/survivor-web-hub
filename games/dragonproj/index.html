@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Săn Rồng — Dragon Project</title>
+<!-- WHY: thiếu favicon thì trình duyệt gọi /favicon.ico mỗi lần tải và ghi một
+     lỗi 404, che mất lỗi thật trong console. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ctext y=%2726%27 font-size=%2726%27%3E%F0%9F%90%89%3C/text%3E%3C/svg%3E">
+<style>
+/* ==========================================================================
+   BẢNG MÀU & KHUNG
+   Tông của bản gốc: nền xanh đen, khung vàng đồng, chữ trắng ngà. Mọi thanh
+   trạng thái đều có viền vàng và nền tối — đó là chất "Colopl" của HUD gốc.
+   ========================================================================== */
+:root{
+  --ink:#eaf1f8; --dim:#9fb2c4;
+  --bg:#0a1017; --panel:#141d28; --panel2:#1c2836; --panel3:#25344a;
+  --line:#3a4d63; --gold:#f2c94b; --gold2:#a8801a;
+  --hp:#3fd66a; --hp2:#1f8f42;
+  --boss:#e33b30; --boss2:#8a1f18;
+  --fatigue:#f2c94b; --magi:#6fd4ff;
+  --fire:#ff7a3c; --water:#4fb6ff; --earth:#8fd14f; --thunder:#ffd23f;
+  --light:#fff6d8; --dark:#a06fe0;
+  --SS:#f2d24b; --S:#f2a03c; --A:#b06fd0; --B:#5b8fd6; --C:#7fd07f; --D:#8fa3b5;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#05080c;overflow:hidden;color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  user-select:none;-webkit-user-select:none;touch-action:none}
+#frame{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#05080c}
+/* flex:0 0 auto là BẮT BUỘC: không có nó thì trên màn hẹp hơn 540px, #stage co lại
+   theo flex-shrink còn canvas vẫn 540px, và mép phải của game — đúng chỗ đặt hai nút
+   Magi — bị overflow:hidden cắt mất. Việc thu nhỏ do transform:scale lo, không phải
+   do layout. */
+#stage{position:relative;flex:0 0 auto;width:540px;height:960px;transform-origin:center center;
+  background:var(--bg);overflow:hidden;box-shadow:0 0 0 2px #22303d,0 18px 60px rgba(0,0,0,.75)}
+canvas#view{position:absolute;inset:0;display:block;width:540px;height:960px;touch-action:none}
+.layer{position:absolute;inset:0;pointer-events:none}
+.layer button,.layer .tap{pointer-events:auto}
+button{font-family:inherit;color:inherit;border:none;background:none;cursor:pointer}
+
+/* ==========================================================================
+   HUD TRẬN ĐẤU — bố cục dựng theo ảnh chụp CHANGE_WEAPON.png của bản gốc.
+   Quy tắc bất di bất dịch: KHÔNG đặt nút nào ở giữa và nửa dưới màn hình.
+   Đó là vùng ngón cái, và là lý do UI gốc tối ưu. Chỉ có ba thứ bấm được:
+   nút Magi ở mép phải, nút menu góc trên phải, nút đổi vũ khí ngay dưới Magi.
+   ========================================================================== */
+#hud{display:none}
+#hud.on{display:block}
+
+/* --- hàng boss trên cùng --- */
+.boss-row{position:absolute;left:0;right:0;top:0;height:88px;
+  background:linear-gradient(180deg,rgba(6,10,16,.92),rgba(6,10,16,0))}
+.timer-orb{position:absolute;left:12px;top:14px;width:60px;height:60px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%,#3c4c60,#131c27 72%);
+  border:3px solid var(--gold2);box-shadow:0 0 0 1px #000,0 0 12px rgba(242,201,75,.25)}
+.timer-orb b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:var(--gold);letter-spacing:.3px}
+.boss-meta{position:absolute;left:80px;right:60px;top:8px;display:flex;align-items:center;gap:6px;font-size:12px}
+.boss-rankchip{font-weight:900;font-size:11px;padding:1px 6px;border-radius:4px;background:#000;border:1px solid var(--line)}
+.boss-name{font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.boss-weak{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--dim)}
+.elem-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(0,0,0,.6)}
+.boss-bars{position:absolute;left:80px;right:14px;top:28px}
+.bar{position:relative;height:14px;border:2px solid var(--gold2);border-radius:3px;
+  background:linear-gradient(180deg,#0a0f16,#161f2b);overflow:hidden;box-shadow:0 1px 0 #000}
+.bar i{position:absolute;left:0;top:0;bottom:0;display:block;transition:width .12s linear}
+.bar.boss i{background:linear-gradient(180deg,#ff6a5a,var(--boss) 55%,var(--boss2))}
+.bar.fatigue{height:9px;margin-top:3px;border-color:#6a5a1a}
+.bar.fatigue i{background:linear-gradient(180deg,#fff0a0,var(--fatigue) 60%,#a8801a)}
+.bar-ticks{position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 39px,rgba(0,0,0,.45) 39px 40px)}
+.parts-row{position:absolute;left:80px;right:14px;top:56px;display:flex;gap:4px;font-size:9px}
+.part-chip{padding:1px 5px;border-radius:3px;background:rgba(0,0,0,.55);border:1px solid var(--line);color:var(--dim)}
+.part-chip.broken{border-color:#5a5a5a;color:#6a6a6a;text-decoration:line-through}
+.part-chip.weak{border-color:var(--gold);color:var(--gold)}
+
+/* --- nút menu góc trên phải --- */
+.btn-menu{position:absolute;right:8px;top:8px;width:36px;height:32px;border-radius:7px;
+  background:linear-gradient(180deg,#e8622e,#a83a12);border:2px solid #6a2408;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 2px 0 #000}
+.btn-menu span{display:block;width:16px;height:2px;background:#ffe6c8;box-shadow:0 5px 0 #ffe6c8,0 -5px 0 #ffe6c8}
+
+/* --- nút Magi ở mép phải (lục giác, đúng bản gốc) --- */
+.magi-col{position:absolute;right:6px;top:270px;display:flex;flex-direction:column;gap:14px}
+.magi-btn{position:relative;width:74px;height:74px;
+  clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
+  background:linear-gradient(180deg,#3b4a5e,#1b2531);
+  display:flex;align-items:center;justify-content:center;
+  filter:grayscale(1) brightness(.7);transition:filter .15s}
+.magi-btn.ready{filter:none;box-shadow:0 0 16px rgba(111,212,255,.45)}
+.magi-btn:active{transform:translateY(2px)}
+.magi-btn .sym{font-size:26px;line-height:1;text-shadow:0 2px 3px #000}
+.magi-btn .rk{position:absolute;left:8px;top:8px;font-size:9px;font-weight:900}
+.magi-btn .fill{position:absolute;left:0;right:0;bottom:0;background:rgba(111,212,255,.28)}
+.magi-btn .edge{position:absolute;inset:0;
+  clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
+  box-shadow:inset 0 0 0 3px rgba(242,201,75,.75)}
+.magi-btn.empty{opacity:.28}
+
+/* --- đổi vũ khí: ba khe nhỏ, dưới cột Magi --- */
+.wswitch{position:absolute;right:10px;top:432px;display:flex;flex-direction:column;gap:6px}
+.wslot{width:52px;height:34px;border-radius:8px;background:rgba(10,16,23,.8);
+  border:2px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:var(--dim);line-height:1.05;text-align:center;padding:2px}
+.wslot.on{border-color:var(--gold);color:var(--gold);background:rgba(242,201,75,.14)}
+.wslot.empty{opacity:.3}
+
+/* --- khoảng cách tới boss, mép trái --- */
+.dist{position:absolute;left:10px;top:600px;font-size:11px;color:#bfd2e4;
+  background:rgba(6,10,16,.6);border-radius:12px;padding:2px 9px 2px 6px;display:flex;align-items:center;gap:5px}
+.dist b{color:var(--gold)}
+
+/* --- đáy màn hình: quả cầu Magi + máu + exp + đếm --- */
+.foot{position:absolute;left:0;right:0;bottom:0;height:120px;
+  background:linear-gradient(0deg,rgba(6,10,16,.95),rgba(6,10,16,0))}
+.magi-orb{position:absolute;left:10px;bottom:16px;width:96px;height:96px;border-radius:50%;
+  border:4px solid var(--gold2);background:radial-gradient(circle at 36% 32%,#1b2733,#080d13 74%);
+  box-shadow:0 0 0 1px #000,0 3px 10px rgba(0,0,0,.7);overflow:hidden}
+.magi-orb .core{position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+  width:100%;background:radial-gradient(circle at 50% 100%,#dff6ff,#6fd4ff 45%,#2a86c8);
+  box-shadow:0 0 22px rgba(111,212,255,.75)}
+.magi-orb .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:900;text-shadow:0 2px 4px #000}
+.magi-orb .gem{position:absolute;left:50%;top:-9px;transform:translateX(-50%) rotate(45deg);
+  width:16px;height:16px;background:linear-gradient(135deg,#fff3c0,#c8a020);border:2px solid #6a5210}
+.p-name{position:absolute;left:118px;bottom:76px;font-size:12px;font-weight:700}
+.p-hpnum{position:absolute;right:14px;bottom:74px;font-size:19px;font-weight:900;text-shadow:0 2px 3px #000}
+.p-hp{position:absolute;left:118px;right:14px;bottom:52px;height:18px;
+  border:2px solid var(--gold2);border-radius:3px;background:#0a0f16;overflow:hidden}
+.p-hp i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#7bf29a,var(--hp) 55%,var(--hp2))}
+.p-hp .sh{position:absolute;left:0;top:0;bottom:0;background:rgba(111,212,255,.55)}
+.p-exp{position:absolute;left:118px;right:14px;bottom:36px;height:10px;
+  border:1px solid #2a3a4c;border-radius:2px;background:#0a0f16;overflow:hidden}
+.p-exp i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#8fd8ff,#2a86c8)}
+.p-exp b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:8px;font-weight:800;color:#cfe4f5;text-shadow:0 1px 1px #000}
+.p-sub{position:absolute;left:118px;right:14px;bottom:10px;display:flex;gap:14px;
+  font-size:11px;color:#cfe0ee;align-items:center}
+.p-sub span{display:flex;align-items:center;gap:4px}
+.p-sub .ic{width:13px;height:13px;border-radius:3px;background:var(--gold);display:inline-block}
+/* thanh Heat / Soul chỉ hiện khi vũ khí có loại đó */
+.gauge2{position:absolute;left:118px;right:14px;bottom:96px;height:8px;border:1px solid #4a3a1a;
+  border-radius:2px;background:#0a0f16;overflow:hidden;display:none}
+.gauge2.on{display:block}
+.gauge2 i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#ffb37a,#ff7a3c)}
+.gauge2.soul i{background:linear-gradient(180deg,#d3b6f5,#a06fe0)}
+.gauge2 .seg{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 32%,rgba(0,0,0,.6) 32% 33.4%)}
+
+/* --- vòng cứu / hồi sinh --- */
+.downbox{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:300px;
+  background:rgba(8,12,18,.94);border:2px solid var(--boss);border-radius:12px;padding:14px;
+  text-align:center;display:none}
+.downbox.on{display:block}
+.downbox h3{margin:0 0 6px;font-size:17px;color:#ff8a7a}
+.downbox p{margin:0 0 10px;font-size:12px;color:var(--dim)}
+.downbox button{width:100%;padding:10px;border-radius:8px;background:var(--panel3);
+  border:1px solid var(--line);font-size:13px;font-weight:700;margin-top:6px}
+.downbox button.gem{background:linear-gradient(180deg,#3aa0d8,#1d5f88);border-color:#7fd4ff}
+
+/* --- toast --- */
+#toasts{position:absolute;left:0;right:0;top:120px;display:flex;flex-direction:column;
+  align-items:center;gap:5px;pointer-events:none;z-index:60}
+.toast{background:rgba(8,12,18,.9);border:1px solid var(--line);border-radius:14px;
+  padding:5px 14px;font-size:12px;font-weight:700;animation:tin .2s ease-out}
+@keyframes tin{from{transform:translateY(-8px) scale(.94);opacity:0}}
+
+/* ==========================================================================
+   MÀN HÌNH MENU
+   Bố cục nhà chính của bản gốc: thanh tiền tệ trên cùng, banner nhiệm vụ bên
+   trái, nhân vật đứng giữa, và HÀNG NÚT LỚN ở đáy.
+   ========================================================================== */
+#screens{display:block}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;background:var(--bg);pointer-events:auto}
+.screen.on{display:flex}
+
+.topbar{display:flex;align-items:center;gap:6px;padding:8px 10px;
+  background:linear-gradient(180deg,#16202c,#0d141d);border-bottom:2px solid var(--gold2);flex:0 0 auto}
+.topbar .back{width:34px;height:30px;border-radius:7px;background:var(--panel3);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px}
+.topbar h2{margin:0;font-size:15px;flex:1;letter-spacing:.4px}
+.cur{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.cur b{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:800;
+  background:rgba(0,0,0,.45);border:1px solid var(--line);border-radius:11px;padding:2px 8px}
+.cur .g{color:var(--gold)} .cur .m{color:#8fd4ff} .cur .t{color:#ff9a4a} .cur .p{color:#c8a0ff}
+
+.body{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px;-webkit-overflow-scrolling:touch}
+.body::-webkit-scrollbar{width:6px}
+.body::-webkit-scrollbar-thumb{background:#2c3c4e;border-radius:3px}
+
+.navbar{flex:0 0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:7px 6px 10px;
+  background:linear-gradient(0deg,#0d141d,#16202c);border-top:2px solid var(--gold2)}
+.navbar button{padding:8px 2px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);
+  font-size:10px;font-weight:800;line-height:1.5}
+.navbar button .em{display:block;font-size:19px;line-height:1}
+.navbar button.on{background:linear-gradient(180deg,#e8a72c,#a8700f);border-color:#ffe6a0;color:#1a1206}
+
+/* thẻ chung */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.card h3{margin:0 0 6px;font-size:13px}
+.card p{margin:0 0 6px;font-size:11px;color:var(--dim);line-height:1.45}
+.row{display:flex;align-items:center;gap:8px}
+.row.wrap{flex-wrap:wrap}
+.spacer{flex:1}
+.btn{padding:8px 12px;border-radius:8px;background:var(--panel3);border:1px solid var(--line);
+  font-size:12px;font-weight:700}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:linear-gradient(180deg,#e8a72c,#a8700f);border-color:#ffe6a0;color:#1a1206}
+.btn.go{background:linear-gradient(180deg,#3ba85a,#1d6b36);border-color:#9de8b4;color:#052010}
+.btn.dis{opacity:.42}
+.btn.sm{padding:5px 9px;font-size:11px}
+.btn.red{background:linear-gradient(180deg,#c34141,#7a1f1f);border-color:#ffb0b0}
+
+.rank{font-weight:900;font-size:10px;padding:1px 5px;border-radius:3px;background:#000;border:1px solid currentColor}
+.rk-SS{color:var(--SS)}.rk-S{color:var(--S)}.rk-A{color:var(--A)}.rk-B{color:var(--B)}.rk-C{color:var(--C)}.rk-D{color:var(--D)}.rk-Lapis{color:#7fe3f0}
+
+/* danh sách trang bị / magi */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.item{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px;font-size:11px;position:relative}
+.item.sel{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.item .nm{font-weight:800;font-size:11px;line-height:1.25;margin-bottom:3px}
+.item .sub{font-size:9.5px;color:var(--dim);line-height:1.4}
+.item .corner{position:absolute;right:5px;top:5px}
+.slots{display:flex;gap:3px;margin-top:4px}
+.slot{width:19px;height:19px;border-radius:4px;background:#0a0f16;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:11px}
+.slot.locked{opacity:.3}
+.slot.star{color:#ff9a4a}.slot.heart{color:#ff6a8a}.slot.diamond{color:#7fd4ff}.slot.circle{color:#c0a8ff}
+.lb{display:inline-flex;gap:1px;margin-left:3px}
+.lb i{width:6px;height:6px;border-radius:50%;background:#2a3a4c;display:block}
+.lb i.on{background:var(--gold)}
+
+/* trang chủ */
+.home-hero{position:relative;height:250px;border-radius:12px;overflow:hidden;margin-bottom:9px;
+  background:radial-gradient(120% 90% at 50% 8%,#2a3f57,#0d141d 70%);border:1px solid var(--line)}
+.home-hero canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+.home-hero .lvchip{position:absolute;left:10px;top:10px;font-size:11px;font-weight:800;
+  background:rgba(0,0,0,.6);border:1px solid var(--gold2);border-radius:12px;padding:3px 10px;color:var(--gold)}
+.home-hero .area{position:absolute;right:10px;top:10px;font-size:10px;color:var(--dim);
+  background:rgba(0,0,0,.6);border-radius:10px;padding:3px 9px}
+.home-hero .power{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);
+  font-size:11px;background:rgba(0,0,0,.62);border:1px solid var(--gold2);border-radius:12px;
+  padding:3px 14px;white-space:nowrap}
+.home-hero .power b{color:var(--gold);font-size:13px}
+.banner{display:flex;align-items:center;gap:9px;border-radius:10px;padding:9px;margin-bottom:7px;
+  border-left:5px solid;background:var(--panel)}
+.banner.main{border-color:#3ba85a}.banner.side{border-color:#3b7fd6}
+.banner.secret{border-color:#a06fe0}.banner.event{border-color:#e8862c}
+.banner .npc{width:38px;height:38px;border-radius:50%;background:var(--panel3);
+  display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto}
+.banner .t{flex:1;min-width:0}
+.banner .t b{display:block;font-size:12px;margin-bottom:2px}
+.banner .t span{font-size:10px;color:var(--dim)}
+.banner .kind{font-size:8.5px;font-weight:900;letter-spacing:.6px;padding:1px 5px;border-radius:3px;background:#000}
+
+/* gacha */
+.gacha-hero{height:130px;border-radius:12px;border:1px solid var(--line);margin-bottom:9px;
+  background:radial-gradient(90% 100% at 50% 100%,#4a2f6a,#12101d 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+.gacha-hero b{font-size:16px;letter-spacing:1px}
+.gacha-hero span{font-size:10px;color:var(--dim)}
+.rate-tab{display:flex;gap:5px;font-size:10px;margin-top:5px}
+.rate-tab b{background:#000;border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+
+/* kết quả trận */
+.result{position:absolute;inset:0;background:rgba(5,8,12,.94);display:none;
+  flex-direction:column;align-items:center;justify-content:center;padding:20px;pointer-events:auto;z-index:70}
+.result.on{display:flex}
+.result h2{margin:0 0 4px;font-size:26px;letter-spacing:2px}
+.result .sub{font-size:12px;color:var(--dim);margin-bottom:12px}
+.result .box{width:100%;max-width:400px;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:12px;margin-bottom:9px;max-height:380px;overflow-y:auto}
+.result .line{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;
+  border-bottom:1px dashed rgba(255,255,255,.07)}
+.gemcond{display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0}
+.gemcond .ok{color:var(--hp)}.gemcond .no{color:#7a8a9a;text-decoration:line-through}
+
+.hint{font-size:10.5px;color:var(--dim);line-height:1.55}
+.kbd{display:inline-block;background:#000;border:1px solid var(--line);border-radius:4px;
+  padding:0 5px;font-size:10px;font-weight:700;color:var(--gold)}
+.mat-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:2px 8px;margin:0 4px 4px 0}
+.empty-note{text-align:center;font-size:11px;color:var(--dim);padding:22px 10px}
+</style>
+</head>
+<body>
+<div id="frame">
+  <div id="stage">
+    <canvas id="view" width="540" height="960"></canvas>
+
+    <!-- ================= HUD TRẬN ĐẤU ================= -->
+    <div class="layer" id="hud">
+      <div class="boss-row" id="bossRow">
+        <div class="timer-orb"><b id="hTimer">5:00</b></div>
+        <div class="boss-meta">
+          <span class="boss-rankchip" id="hBossRank">SS</span>
+          <span class="boss-name" id="hBossName">—</span>
+          <span class="boss-weak">Weakness <i class="elem-dot" id="hBossElem"></i></span>
+        </div>
+        <div class="boss-bars">
+          <div class="bar boss"><i id="hBossHp" style="width:100%"></i><div class="bar-ticks"></div></div>
+          <div class="bar fatigue"><i id="hBossFat" style="width:0%"></i></div>
+        </div>
+        <div class="parts-row" id="hParts"></div>
+      </div>
+      <button class="btn-menu tap" id="hMenu"><span></span></button>
+
+      <div class="magi-col">
+        <button class="magi-btn empty tap" id="hMagi0"><i class="fill"></i><span class="rk"></span><span class="sym"></span><i class="edge"></i></button>
+        <button class="magi-btn empty tap" id="hMagi1"><i class="fill"></i><span class="rk"></span><span class="sym"></span><i class="edge"></i></button>
+      </div>
+
+      <div class="wswitch" id="hWswitch"></div>
+
+      <div class="dist" id="hDist">⟟ <b>0</b>m</div>
+
+      <div class="foot">
+        <div class="gauge2" id="hGauge2"><i></i><div class="seg"></div></div>
+        <div class="magi-orb tap" id="hOrb">
+          <div class="gem"></div>
+          <div class="core" id="hOrbCore" style="height:0%"></div>
+          <div class="pct" id="hOrbPct">0%</div>
+        </div>
+        <div class="p-name" id="hPName">Hound</div>
+        <div class="p-hpnum" id="hPHpNum">0</div>
+        <div class="p-hp"><i id="hPHp" style="width:100%"></i><i class="sh" id="hPSh" style="width:0"></i></div>
+        <div class="p-exp"><i id="hPExp" style="width:0"></i><b id="hPLv">Lv. 1</b></div>
+        <div class="p-sub">
+          <span><i class="ic" style="background:#6fd4ff"></i><b id="hRevive">4</b> cứu</span>
+          <span><i class="ic" style="background:#c8a0ff"></i><b id="hGem">0</b> gem</span>
+          <span id="hWName" style="color:#cfe0ee"></span>
+        </div>
+      </div>
+
+      <div class="downbox" id="hDown">
+        <h3>BẤT TỈNH</h3>
+        <p>Đồng đội đang chạy tới vòng cứu. Hoặc đứng dậy ngay bằng Gem.</p>
+        <button class="gem" id="hGemRevive">Hồi sinh — 5 Gem</button>
+        <button id="hGiveUp">Bỏ cuộc</button>
+      </div>
+    </div>
+
+    <!-- ================= MÀN HÌNH MENU ================= -->
+    <div class="layer" id="screens"></div>
+    <div id="toasts"></div>
+    <div class="result" id="resultScr"></div>
+  </div>
+</div>
+
+<script src="data/gamedata.js"></script>
+<script src="js/punicon.js"></script>
+<script src="js/meta.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/bot.js"></script>
+</body>
+</html>

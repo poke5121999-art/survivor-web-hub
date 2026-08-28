@@ -35,6 +35,40 @@
  */
 window.HUB_GAMES = [
   {
+    id: "dragonproj",
+    title: "Săn Rồng",
+    tagline: "Dựng lại Dragon Project (COLOPL, đã đóng cửa). Một ngón tay ở giữa màn hình làm hết: kéo để chạy, chạm để chém, vẩy để né, giữ để ra đòn đặc thù — và năm vũ khí cho ra năm bộ đòn khác hẳn nhau.",
+    thumbnail: "assets/thumbnails/dragonproj.svg",
+    path: "games/dragonproj/index.html",
+    rev: "20260828a",
+    // Plain canvas/JS, không engine, mở được từ file://. Dựng lại từ Dragon Project
+    // (COLOPL 2016, Global 2017, đóng cửa 30/09/2020) — game săn quái kiểu Monster Hunter
+    // cho di động, 1-4 người.
+    // KHÔNG dùng một file ảnh/âm thanh nào của game gốc: mọi thứ trên màn hình vẽ bằng
+    // code. Cái được lấy là DỮ LIỆU THIẾT KẾ, đọc từ Official Dragon Project Wiki (154
+    // trang, qua api.php), bài 4Gamer 2016-06-20 mô tả bản đồ thao tác ぷにコン, wiki
+    // Shironeko Project (game cùng hệ điều khiển, nơi Punicon ra đời), và ảnh chụp HUD
+    // trong wiki dùng để dựng lại bố cục. Ghi chép đầy đủ kèm nguồn:
+    // games/dragonproj/RESEARCH.md.
+    // Trọng tâm là PUNICON, hệ điều khiển một-ngón của COLOPL, tái dựng đúng ngữ pháp của
+    // nó: kéo = chạy, chạm = đánh, bấm liên tục = combo, vẩy = né, giữ = đòn đặc thù riêng
+    // của từng vũ khí, giữ-rồi-trượt-về-nút = xả Magi, và dấu "!!" trên đầu là lời mời bấm
+    // tiếp (đánh khi đang lăn, phản đòn sau khi né chuẩn).
+    // Số liệu CÓ NGUỒN: tỉ lệ gacha boss (SS 3 / S 15 / A 55 / B 27) và magi (3/9/48/40),
+    // tỉ lệ rơi đồ của quái thường và quái elite, thang chỉ số trang bị hạng SS, số hồi máu
+    // của Recovery Magi, mốc buff của Support/Passive Magi, luật limit break 4 lần mở ô
+    // Magi thứ 3, bảng thưởng nhiệm vụ ngày/tuần, và luật thưởng tối đa 4 Gem mỗi con boss.
+    // Máu boss và sát thương từng đòn KHÔNG nguồn nào công bố nên là tái dựng, cân theo
+    // thang chỉ số trên.
+    // Co-op 1-4 người của bản gốc KHÔNG được dựng lại: thay bằng 3 đồng đội NPC biết né
+    // vùng báo đỏ và tới cứu khi người chơi ngã.
+    // Ships with an in-game bot bắn PointerEvent thật lên canvas — tức là đi qua đúng con
+    // đường mà ngón tay người chơi đi qua (js/punicon.js), nên ngưỡng tap/flick/hold sai là
+    // bot hỏng ngay. test/dragonproj-suite.js lái nó và kiểm luật.
+    status: "available",
+    tags: ["Săn quái", "Hành động", "Gacha", "Một ngón", "Solo"]
+  },
+  {
     id: "survivor",
     title: "Survivor",
     tagline: "Vampire-Survivors-style auto-shooter. Move to dodge, weapons fire themselves, survive escalating waves.",

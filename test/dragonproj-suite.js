@@ -1,0 +1,392 @@
+/*
+ * Bộ kiểm thử cho games/dragonproj (Săn Rồng).
+ * Chạy: node test/dragonproj-suite.js
+ *
+ * Nguyên tắc: mọi thao tác chiến đấu đều đi qua PointerEvent thật trên canvas,
+ * tức là qua đúng js/punicon.js mà ngón tay người chơi đi qua. Nếu ngưỡng
+ * tap/flick/hold sai thì test đỏ, chứ không phải "gọi hàm nội bộ nên vẫn xanh".
+ */
+const PW = process.env.PLAYWRIGHT_PATH ||
+  'C:/Users/tamph/AppData/Roaming/npm/node_modules/@playwright/cli/node_modules/playwright';
+const { chromium } = require(PW);
+const path = require('path');
+const root = 'file:///' + path.resolve(__dirname, '..').split(path.sep).join('/');
+const URL = root + '/games/dragonproj/index.html';
+
+let pass = 0, fail = 0;
+const results = [];
+function check(name, ok, detail) {
+  if (ok) { pass++; results.push('  ✔ ' + name + (detail ? '  — ' + detail : '')); }
+  else { fail++; results.push('  ✘ ' + name + (detail ? '  — ' + detail : '')); }
+}
+
+async function open(b) {
+  const ctx = await b.newContext({ viewport: { width: 430, height: 860 }, isMobile: true,
+    hasTouch: true, deviceScaleFactor: 2 });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
+  p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
+  await p.goto(URL);
+  await p.waitForTimeout(900);
+  return { ctx, p, errs };
+}
+
+// Bắn cử chỉ Punicon từ trong trang, dùng đúng helper của bot.
+const G = {
+  tap:   (p, x, y) => p.evaluate(([x, y]) => DPBot._tap(x, y), [x, y]),
+  flick: (p, x, y, dx, dy) => p.evaluate(([x, y, dx, dy]) => DPBot._flick(x, y, dx, dy), [x, y, dx, dy]),
+  hold:  (p, ms, ax, ay) => p.evaluate(([ms, ax, ay]) => DPBot._hold(270, 640, ms, ax, ay), [ms, ax, ay]),
+  drag:  (p, dx, dy, ms) => p.evaluate(([dx, dy, ms]) => DPBot._drag(dx, dy, ms), [dx, dy, ms])
+};
+
+(async () => {
+  const b = await chromium.launch();
+  const { ctx, p, errs } = await open(b);
+
+  // ---------------------------------------------------------------- DỮ LIỆU
+  results.push('\n── dữ liệu ──');
+  const d = await p.evaluate(() => ({
+    weapons: Object.keys(DP.WEAPONS).length,
+    behemoths: DP.BEHEMOTHS.length,
+    magi: DP.MAGI.length,
+    areas: DP.AREAS.length,
+    story: DP.STORY.length,
+    mats: Object.keys(DP.MATERIALS).length,
+    bossRates: DP.BEHEMOTH_RATES,
+    magiRates: DP.MAGI_RATES,
+    dropNormal: DP.DROP_NORMAL,
+    elem: [DP.elemMult('water', 'fire'), DP.elemMult('fire', 'water'), DP.elemMult('fire', 'earth')]
+  }));
+  check('5 loại vũ khí', d.weapons === 5, d.weapons + '');
+  check('đủ Behemoth (>=50)', d.behemoths >= 50, d.behemoths + ' con');
+  check('đủ Magi (>=60)', d.magi >= 60, d.magi + ' viên');
+  check('8 vùng đất', d.areas === 8, d.areas + '');
+  check('cốt truyện >=30 chặng', d.story >= 30, d.story + '');
+  check('tỉ lệ gacha boss đúng wiki (3/15/55/27)',
+    d.bossRates.SS === 0.03 && d.bossRates.S === 0.15 && d.bossRates.A === 0.55 && d.bossRates.B === 0.27);
+  check('tỉ lệ gacha magi đúng wiki (3/9/48/40)',
+    d.magiRates.SS === 0.03 && d.magiRates.S === 0.09 && d.magiRates.A === 0.48 && d.magiRates.B === 0.40);
+  check('tỉ lệ rơi đồ quái thường đúng wiki (D 24.95%)', d.dropNormal.D === 0.2495);
+  check('vòng khắc chế Thủy>Hỏa>Thổ>Lôi', d.elem[0] === 1.5 && d.elem[1] === 0.6 && d.elem[2] === 1.5,
+    JSON.stringify(d.elem));
+
+  // --------------------------------------------------------- THANG CHỈ SỐ
+  results.push('\n── thang chỉ số khớp số thật của wiki ──');
+  const st = await p.evaluate(() => {
+    // Cocytus Amarok (SS) trong wiki: vũ khí 306 phys / 656 elem ở max, evolve bậc 3.
+    const g = DP.forgeGear('amarok', 'weapon', 't');
+    g.lv = 40; g.evo = 2;
+    const a = DP.gearStats(g);
+    g.evo = 0; const b0 = DP.gearStats(g);
+    g.evo = 1; const b1 = DP.gearStats(g);
+    // giáp
+    const h = DP.forgeGear('amarok', 'head', 't'); h.lv = 40;
+    return { max: a, evo0: b0, evo1: b1, head: DP.gearStats(h) };
+  });
+  check('vũ khí SS evolve cuối = 306 phys / 656 elem', st.max.patk === 306 && st.max.eatk === 656,
+    st.max.patk + '/' + st.max.eatk);
+  check('bậc evolve 1 ≈ 135/291 như wiki', Math.abs(st.evo0.patk - 135) <= 2 && Math.abs(st.evo0.eatk - 291) <= 3,
+    st.evo0.patk + '/' + st.evo0.eatk);
+  check('bậc evolve 2 ≈ 274/587 như wiki', Math.abs(st.evo1.patk - 274) <= 1 && Math.abs(st.evo1.eatk - 587) <= 1,
+    st.evo1.patk + '/' + st.evo1.eatk);
+  check('giáp đầu SS = 252 HP như wiki', st.head.hp === 252, st.head.hp + '');
+
+  // -------------------------------------------------- LUẬT LIMIT BREAK / Ô
+  results.push('\n── luật trang bị ──');
+  const lb = await p.evaluate(() => {
+    const g = DP.forgeGear('amarok', 'weapon', 't');
+    const a = DP.gearSlots(g); g.lb = 3; const b = DP.gearSlots(g); g.lb = 4; const c = DP.gearSlots(g);
+    const h = DP.forgeGear('amarok', 'head', 't'); const h1 = DP.gearSlots(h); h.lb = 4; const h2 = DP.gearSlots(h);
+    return { w2: a, w3: b, w4: c, h1, h2 };
+  });
+  check('vũ khí 2 ô, limit break 4 mới mở ô thứ 3', lb.w2 === 2 && lb.w3 === 2 && lb.w4 === 3,
+    lb.w2 + '/' + lb.w3 + '/' + lb.w4);
+  check('giáp Gold 1 ô, limit break 4 mở ô thứ 2', lb.h1 === 1 && lb.h2 === 2);
+
+  const shape = await p.evaluate(() => {
+    const s = DP.starterKit(DP.newSave('T'));
+    const w = s.gear.find(g => g.kind === 'weapon');
+    const wrong = s.magi.find(m => DP.magiById(m.id).shape !== w.shapes[0]);
+    return DP.equipMagi(s, w, 0, wrong ? wrong.uid : null);
+  });
+  check('Magi sai hình dạng bị từ chối', shape.ok === false, shape.why || '');
+
+  // --------------------------------------------------------- PUNICON THẬT
+  results.push('\n── Punicon (cử chỉ thật trên canvas) ──');
+  await p.evaluate(() => { DP.UI.startField('tior', 0); });
+  await p.waitForTimeout(500);
+  check('vào được map', await p.evaluate(() => !!(DP.UI.battle && DP.UI.battle.running)));
+
+  // KÉO -> di chuyển
+  const before = await p.evaluate(() => ({ x: DP.UI.battle.player.x, y: DP.UI.battle.player.y }));
+  await G.drag(p, 0, -1, 500);
+  await p.waitForTimeout(650);
+  const after = await p.evaluate(() => ({ x: DP.UI.battle.player.x, y: DP.UI.battle.player.y }));
+  check('KÉO làm nhân vật di chuyển', Math.hypot(after.x - before.x, after.y - before.y) > 25,
+    'đi được ' + Math.round(Math.hypot(after.x - before.x, after.y - before.y)) + 'px');
+
+  // CHẠM -> đánh
+  await p.evaluate(() => { DP.UI.battle.player.state = 'idle'; DP.UI.battle.player.combo = 0; });
+  await G.tap(p, 270, 640);
+  await p.waitForTimeout(120);
+  check('CHẠM ra đòn đánh', await p.evaluate(() => DP.UI.battle.player.state === 'attack'));
+
+  // BẤM LIÊN TỤC -> nối combo
+  await p.waitForTimeout(350);
+  for (let i = 0; i < 3; i++) { await G.tap(p, 270, 640); await p.waitForTimeout(300); }
+  check('BẤM LIÊN TỤC nối được combo', await p.evaluate(() => DP.UI.battle.player.combo >= 3),
+    'combo = ' + await p.evaluate(() => DP.UI.battle.player.combo));
+
+  // VẨY -> né
+  await p.waitForTimeout(500);
+  await p.evaluate(() => { DP.UI.battle.player.state = 'idle'; DP.UI.battle.player.dodgeCd = 0; });
+  await G.flick(p, 270, 640, 1, 0);
+  await p.waitForTimeout(90);
+  const dodged = await p.evaluate(() => ({ st: DP.UI.battle.player.state, ifr: DP.UI.battle.player.iframe }));
+  check('VẨY ra đòn né', dodged.st === 'dodge', dodged.st);
+  check('né có khung bất tử', dodged.ifr > 0, dodged.ifr + 'ms');
+
+  // ĐÁNH KHI ĐANG LĂN (Rolling Attack — ngữ pháp Punicon của White Cat)
+  await p.waitForTimeout(500);
+  const roll = await p.evaluate(async () => {
+    const b = DP.UI.battle, p2 = b.player;
+    p2.state = 'idle'; p2.dodgeCd = 0;
+    b.tryDodge(1, 0);
+    const before = b.fx.length;
+    b.tryAttack();                       // chạm trong lúc đang lăn
+    return { still: p2.state === 'dodge', rollHit: p2.rollHit, fx: b.fx.length > before };
+  });
+  check('CHẠM khi đang lăn ra đòn mà KHÔNG hủy cú lăn', roll.still && roll.rollHit, JSON.stringify(roll));
+
+  // GIỮ -> đặc thù vũ khí (Kiếm & Khiên = đỡ)
+  await p.waitForTimeout(600);
+  await p.evaluate(() => { DP.UI.battle.player.state = 'idle'; });
+  await G.hold(p, 700);
+  await p.waitForTimeout(400);
+  check('GIỮ vào thế đỡ (Kiếm & Khiên)', await p.evaluate(() => DP.UI.battle.player.state === 'guard'));
+  await p.waitForTimeout(500);
+
+  // GIỮ RỒI TRƯỢT VỀ HƯỚNG NÚT MAGI -> xả Magi
+  const slide = await p.evaluate(async () => {
+    const b = DP.UI.battle;
+    b.player.state = 'idle'; b.player.magi = 100;
+    const hs = b.puni.hotspots[0];
+    // mô phỏng: gốc chạm ở giữa, kéo về hướng nút Magi 1
+    b.puni.ox = 270; b.puni.oy = 640;
+    const dx = hs.x - 270, dy = hs.y - 640, d = Math.hypot(dx, dy);
+    const idx = b.puni.aimedHotspot(dx / d * 80, dy / d * 80, 80);
+    const wrong = b.puni.aimedHotspot(-80, 0, 80);
+    return { idx, wrong, hasMagi: !!(b.wp && b.wp.magi[0]) };
+  });
+  check('trượt ĐÚNG hướng nút Magi được nhận', slide.idx === 0, 'idx=' + slide.idx);
+  check('trượt SAI hướng thì không nhận', slide.wrong === -1);
+
+  const cast = await p.evaluate(() => {
+    const b = DP.UI.battle;
+    b.player.state = 'idle'; b.player.magi = 100;
+    const m0 = b.player.magi;
+    b.castMagi(0);
+    return { used: b.player.magi < m0, flagged: b.player.usedMagi };
+  });
+  check('xả được Magi', cast.used && cast.flagged);
+
+  // ------------------------------------------------------------ TRẬN BOSS
+  results.push('\n── trận Behemoth ──');
+  await p.evaluate(() => { DP.UI.startBoss('grouton', 10, false); });
+  await p.waitForTimeout(600);
+  const bs = await p.evaluate(() => {
+    const b = DP.UI.battle;
+    return { on: !!b.boss, hp: b.boss.hp, parts: b.boss.parts.length,
+             weak: b.boss.parts.filter(x => x.weak).length, allies: b.allies.length };
+  });
+  check('boss xuất hiện', bs.on && bs.hp > 0);
+  check('boss có bộ phận phá được', bs.parts >= 2, bs.parts + ' bộ phận');
+  check('boss có điểm yếu', bs.weak >= 1);
+  check('có 3 đồng đội NPC (thay cho co-op 4 người)', bs.allies === 3);
+
+  // Đánh vào WEAK point phải nạp thanh gục mạnh hơn đánh vào chỗ thường
+  const fat = await p.evaluate(() => {
+    const b = DP.UI.battle, bo = b.boss;
+    bo.wpOn = true; bo.fatigue = 0;
+    const wpPart = bo.parts.find(x => x.weak);
+    const wx = bo.x + Math.cos(wpPart.a + bo.facing) * wpPart.d;
+    const wy = bo.y + Math.sin(wpPart.a + bo.facing) * wpPart.d;
+    b.dealToBoss({ phys: 100, elem: 0, el: 'none' }, wx, wy, {});
+    const fw = bo.fatigue;
+    bo.fatigue = 0;
+    b.dealToBoss({ phys: 100, elem: 0, el: 'none' }, bo.x + 400, bo.y + 400, {});
+    return { weak: fw, normal: bo.fatigue };
+  });
+  check('đánh WEAK nạp thanh gục mạnh hơn hẳn', fat.weak > fat.normal * 3,
+    fat.weak.toFixed(2) + ' vs ' + fat.normal.toFixed(2));
+
+  // Thanh gục đầy -> boss nằm ra, ăn sát thương nhân lên
+  const down = await p.evaluate(() => {
+    const b = DP.UI.battle, bo = b.boss;
+    bo.fatigue = DP.BAL.fatigueMax - 1; bo.wpOn = true;
+    const wpPart = bo.parts.find(x => x.weak);
+    const wx = bo.x + Math.cos(wpPart.a + bo.facing) * wpPart.d;
+    const wy = bo.y + Math.sin(wpPart.a + bo.facing) * wpPart.d;
+    b.dealToBoss({ phys: 10, elem: 0, el: 'none' }, wx, wy, {});
+    const isDown = bo.down > 0;
+    const hp0 = bo.hp;
+    b.dealToBoss({ phys: 100, elem: 0, el: 'none' }, bo.x, bo.y, {});
+    return { isDown, dealt: hp0 - bo.hp };
+  });
+  check('thanh gục đầy thì boss GỤC', down.isDown);
+  check('boss đang gục ăn sát thương nhân lên', down.dealt > 100, Math.round(down.dealt) + ' từ base 100');
+
+  // Phá bộ phận
+  const part = await p.evaluate(() => {
+    const b = DP.UI.battle, bo = b.boss;
+    const pt = bo.parts[0];
+    const px = bo.x + Math.cos(pt.a + bo.facing) * pt.d, py = bo.y + Math.sin(pt.a + bo.facing) * pt.d;
+    for (let i = 0; i < 40 && !pt.broken; i++) b.dealToBoss({ phys: 500, elem: 0, el: 'none' }, px, py, {});
+    return { broken: pt.broken, count: bo.partsBroken };
+  });
+  check('phá được bộ phận', part.broken && part.count >= 1);
+
+  // Báo đỏ và né
+  const tel = await p.evaluate(() => {
+    const b = DP.UI.battle;
+    b.boss.down = 0; b.boss.state = 'idle'; b.boss.cd = 0;
+    b.bossAttack();
+    const t = b.telegraphs.find(x => x.hostile);
+    return { has: !!t, windup: t ? t.windup : 0, hitsPlayerBeforeWindup: t ? (t.t >= t.windup) : null };
+  });
+  check('boss báo trước bằng vùng đỏ', tel.has && tel.windup > 300, tel.windup + 'ms báo trước');
+
+  // Hạ boss -> nhận Tablet + gem theo đúng 3 điều kiện của bản gốc
+  const win = await p.evaluate(() => new Promise(res => {
+    const b = DP.UI.battle;
+    b.player.usedMagi = true; b.player.deaths = 0;
+    b.cb.onFinish = r => res(r);
+    b.boss.hp = 1;
+    b.dealToBoss({ phys: 99999, elem: 0, el: 'none' }, b.boss.x, b.boss.y, {});
+  }));
+  check('hạ boss trả về kết quả thắng', win.win === true);
+  check('nhận Tablet của đúng con boss', win.tablet >= 1 && win.boss.id === 'grouton');
+  check('thưởng gem theo 3 điều kiện + bonus (tối đa 4)', win.gems >= 1 && win.gems <= 4, win.gems + ' gem');
+  check('có rơi nguyên liệu', (win.drops || []).length > 0, (win.drops || []).length + ' món');
+
+  // ------------------------------------------------------------- LÒ RÈN
+  results.push('\n── lò rèn & meta ──');
+  const forge = await p.evaluate(() => {
+    const s = DP.starterKit(DP.newSave('T'));
+    s.gold = 999999; s.bossKills.amarok = 5;
+    const r1 = DP.craft(s, 'amarok', 'weapon');
+    const r2 = DP.craft(s, 'amarok', 'weapon');   // lần hai phải bị chặn
+    const g = r1.gear;
+    s.mats.str_stone = 999; s.mats.lapis_ss = 99; s.mats.crystal = 99;
+    const lv0 = DP.gearStats(g).patk;
+    for (let i = 0; i < 5; i++) DP.enhance(s, g);
+    const lv5 = DP.gearStats(g).patk;
+    const beforeLb = DP.gearStats(g).patk;
+    DP.limitBreak(s, g);
+    const afterLb = DP.gearStats(g).patk;
+    return { crafted: r1.ok, dup: r2.ok, grew: lv5 > lv0, lbGrew: afterLb > beforeLb, lb: g.lb, tablets: s.bossKills.amarok };
+  });
+  check('chế được đồ từ Tablet', forge.crafted);
+  check('không chế trùng một món', forge.dup === false);
+  check('Tablet bị trừ khi chế', forge.tablets === 4, forge.tablets + ' còn lại');
+  check('nâng cấp làm tăng chỉ số', forge.grew);
+  check('limit break làm tăng chỉ số', forge.lbGrew && forge.lb === 1);
+
+  const gacha = await p.evaluate(() => {
+    const s = DP.newSave('T');
+    const r = DP.summonBehemoth(s, 11, true);
+    const m = DP.summonMagi(s, 11, true);
+    return { bossLast: r[10].rank, magiLast: m[10].rank, n: r.length, mn: s.magi.length };
+  });
+  check('gói 10+1 boss bảo hiểm SS', gacha.bossLast === 'SS');
+  check('gói 10+1 magi bảo hiểm SS', gacha.magiLast === 'SS');
+  check('magi vào kho đúng số lượng', gacha.mn === 11);
+
+  // ------------------------------------------------------------- BOT CHẠY
+  results.push('\n── bot chơi thật ──');
+  await p.evaluate(() => { DP.UI.show('home'); });
+  await p.waitForTimeout(300);
+  await p.evaluate(() => { DP.UI.startBoss('grouton', 8, false); });
+  await p.waitForTimeout(400);
+  const hp0 = await p.evaluate(() => DP.UI.battle.boss.hp);
+  await p.evaluate(() => DPBot.on(150));
+  await p.waitForTimeout(14000);
+  const botRes = await p.evaluate(() => {
+    const b = DP.UI.battle;
+    return { hp: b ? (b.boss ? b.boss.hp : 0) : 0, alive: !!(b && b.running), finished: !b || !b.running };
+  });
+  await p.evaluate(() => DPBot.off());
+  check('bot đánh boss có tiến triển', botRes.finished || botRes.hp < hp0 * 0.85,
+    botRes.finished ? 'hạ xong trước 14s' : Math.round((1 - botRes.hp / hp0) * 100) + '% máu boss');
+
+  // ---------------------------------------------------------- HUD & LAYOUT
+  results.push('\n── HUD & bố cục ──');
+  await p.evaluate(() => { if (!DP.UI.battle) DP.UI.startBoss('grouton', 8, false); });
+  await p.waitForTimeout(500);
+  const hud = await p.evaluate(() => {
+    const q = id => document.getElementById(id);
+    const r = el => { const b = el.getBoundingClientRect(); const s = document.getElementById('stage').getBoundingClientRect();
+      const k = 540 / s.width; return { x: (b.left - s.left) * k, y: (b.top - s.top) * k, w: b.width * k, h: b.height * k }; };
+    return {
+      bossBar: r(q('hBossHp').parentElement),
+      fatigue: r(q('hBossFat').parentElement),
+      magi0: r(q('hMagi0')), magi1: r(q('hMagi1')),
+      orb: r(q('hOrb')), hp: r(q('hPHp')), timer: r(q('hTimer')),
+      hudOn: q('hud').classList.contains('on')
+    };
+  });
+  check('HUD trận đang bật', hud.hudOn);
+  check('thanh máu boss nằm trên cùng', hud.bossBar.y < 60, 'y=' + Math.round(hud.bossBar.y));
+  check('thanh gục nằm NGAY DƯỚI thanh máu boss (đúng bản gốc)',
+    hud.fatigue.y > hud.bossBar.y && hud.fatigue.y - (hud.bossBar.y + hud.bossBar.h) < 8,
+    'cách ' + Math.round(hud.fatigue.y - hud.bossBar.y - hud.bossBar.h) + 'px');
+  check('nút Magi nằm ở MÉP PHẢI', hud.magi0.x > 440 && hud.magi1.x > 440,
+    'x=' + Math.round(hud.magi0.x));
+  check('quả cầu Magi ở góc dưới trái', hud.orb.x < 40 && hud.orb.y > 800,
+    Math.round(hud.orb.x) + ',' + Math.round(hud.orb.y));
+  check('thanh máu người chơi ở đáy', hud.hp.y > 850, 'y=' + Math.round(hud.hp.y));
+  // Quy tắc bất di bất dịch của bản gốc: giữa và nửa dưới màn hình KHÔNG có nút nào.
+  const thumbZone = await p.evaluate(() => {
+    const s = document.getElementById('stage').getBoundingClientRect();
+    const k = s.width / 540;
+    const pts = [];
+    for (let x = 90; x <= 450; x += 60) for (let y = 480; y <= 820; y += 60) pts.push([x, y]);
+    return pts.map(([x, y]) => {
+      const el = document.elementFromPoint(s.left + x * k, s.top + y * k);
+      return el ? (el.tagName + '.' + (el.className && el.className.baseVal !== undefined ? '' : el.className)) : 'null';
+    }).filter(t => /BUTTON/.test(t));
+  });
+  check('vùng ngón cái (giữa + nửa dưới) KHÔNG có nút nào', thumbZone.length === 0,
+    thumbZone.length ? thumbZone.join(', ') : 'sạch');
+
+  // ------------------------------------------------------------ MÀN MENU
+  results.push('\n── màn hình menu ──');
+  await p.evaluate(() => { DP.UI.leave(); });
+  await p.waitForTimeout(300);
+  for (const s of ['home', 'quest', 'armory', 'gacha', 'more', 'forge', 'magi', 'shop', 'help', 'bosslist']) {
+    await p.evaluate(id => DP.UI.show(id), s);
+    await p.waitForTimeout(120);
+    const ok = await p.evaluate(id => {
+      const el = document.getElementById('scr-' + id);
+      return !!el && el.classList.contains('on') && el.querySelector('.body').children.length > 0;
+    }, s);
+    check('màn "' + s + '" mở và có nội dung', ok);
+  }
+
+  // Lưu game
+  await p.evaluate(() => { DP.UI.save.gold = 12345; DP.UI.saveNow(); });
+  await p.reload(); await p.waitForTimeout(900);
+  check('lưu và nạp lại giữ nguyên tiến độ',
+    await p.evaluate(() => DP.UI.save.gold === 12345));
+
+  // -------------------------------------------------------------- LỖI JS
+  results.push('\n── console ──');
+  check('không có lỗi JavaScript', errs.length === 0, errs.slice(0, 3).join(' | '));
+
+  await ctx.close(); await b.close();
+
+  console.log(results.join('\n'));
+  console.log('\n' + pass + ' đạt, ' + fail + ' hỏng.');
+  process.exit(fail ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

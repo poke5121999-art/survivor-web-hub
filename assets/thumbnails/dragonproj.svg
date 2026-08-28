@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Săn Rồng">
+  <defs>
+    <linearGradient id="dp-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2a3d"/>
+      <stop offset="0.55" stop-color="#122032"/>
+      <stop offset="1" stop-color="#0a1017"/>
+    </linearGradient>
+    <linearGradient id="dp-ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f6b3a"/>
+      <stop offset="1" stop-color="#243f24"/>
+    </linearGradient>
+    <radialGradient id="dp-puni" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#e8f2ff" stop-opacity="0.30"/>
+      <stop offset="0.82" stop-color="#e8f2ff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#e8f2ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dp-knob" cx="0.35" cy="0.3" r="0.75">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#8fb6d8"/>
+    </radialGradient>
+    <radialGradient id="dp-weak" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f2d24b" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#f2d24b" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="320" height="180" fill="url(#dp-sky)"/>
+
+  <!-- sân đấu nhìn từ trên xuống, hơi nghiêng -->
+  <path d="M0 62 L320 52 L320 180 L0 180 Z" fill="url(#dp-ground)"/>
+  <g stroke="#2b4a2b" stroke-width="1" opacity="0.55">
+    <path d="M0 84 L320 76 M0 108 L320 102 M0 134 L320 130 M0 160 L320 158"/>
+    <path d="M46 58 L40 180 M96 57 L94 180 M146 55 L148 180 M196 54 L202 180 M246 53 L254 180"/>
+  </g>
+
+  <!-- BEHEMOTH: bóng rồng lớn chiếm nửa trên -->
+  <g>
+    <ellipse cx="196" cy="96" rx="60" ry="18" fill="#000" opacity="0.35"/>
+    <!-- cánh -->
+    <path d="M196 72 C 156 44, 116 46, 104 72 C 130 70, 158 78, 190 84 Z" fill="#2f4a6e"/>
+    <path d="M196 72 C 236 44, 276 46, 288 72 C 262 70, 234 78, 202 84 Z" fill="#2f4a6e"/>
+    <!-- thân -->
+    <ellipse cx="196" cy="80" rx="24" ry="34" fill="#3d5f8c"/>
+    <!-- cổ + đầu -->
+    <path d="M186 54 L196 22 L206 54 Z" fill="#4a72a6"/>
+    <circle cx="196" cy="26" r="11" fill="#4a72a6"/>
+    <circle cx="192" cy="24" r="2.6" fill="#ff5a4a"/>
+    <circle cx="201" cy="24" r="2.6" fill="#ff5a4a"/>
+    <!-- sừng -->
+    <path d="M188 18 L182 6 L193 15 Z" fill="#dfe8f0"/>
+    <path d="M204 18 L210 6 L199 15 Z" fill="#dfe8f0"/>
+  </g>
+
+  <!-- WEAK point đang lộ, vòng vàng nhấp nháy -->
+  <ellipse cx="196" cy="26" rx="30" ry="26" fill="url(#dp-weak)"/>
+  <circle cx="196" cy="26" r="17" fill="none" stroke="#f2d24b" stroke-width="2.5"/>
+  <text x="196" y="6" font-family="system-ui,sans-serif" font-size="9" font-weight="700"
+        fill="#f2d24b" text-anchor="middle">WEAK</text>
+
+  <!-- thanh máu boss + thanh gục, đúng bố cục HUD gốc -->
+  <g>
+    <rect x="10" y="10" width="16" height="16" rx="8" fill="#131c27" stroke="#a8801a" stroke-width="2"/>
+    <rect x="32" y="12" width="200" height="9" fill="#0a0f16" stroke="#a8801a" stroke-width="1.5"/>
+    <rect x="34" y="14" width="138" height="5" fill="#e33b30"/>
+    <rect x="32" y="23" width="200" height="5" fill="#0a0f16" stroke="#6a5a1a" stroke-width="1"/>
+    <rect x="33.5" y="24.5" width="96" height="2" fill="#f2d24b"/>
+  </g>
+
+  <!-- nút Magi lục giác ở mép phải -->
+  <g transform="translate(292 92)">
+    <path d="M0 -17 L15 -8.5 L15 8.5 L0 17 L-15 8.5 L-15 -8.5 Z"
+          fill="#26364a" stroke="#f2c94b" stroke-width="2"/>
+    <text x="0" y="5" font-family="system-ui,sans-serif" font-size="15"
+          fill="#ff9a4a" text-anchor="middle">★</text>
+  </g>
+  <g transform="translate(292 130)" opacity="0.55">
+    <path d="M0 -17 L15 -8.5 L15 8.5 L0 17 L-15 8.5 L-15 -8.5 Z"
+          fill="#1b2531" stroke="#4a5a6e" stroke-width="2"/>
+    <text x="0" y="5" font-family="system-ui,sans-serif" font-size="15"
+          fill="#8fa3b5" text-anchor="middle">♥</text>
+  </g>
+
+  <!-- người săn, nhìn từ trên xuống -->
+  <g transform="translate(96 132)">
+    <ellipse cx="0" cy="9" rx="12" ry="5" fill="#000" opacity="0.4"/>
+    <ellipse cx="0" cy="0" rx="8" ry="11" fill="#3b6ea5"/>
+    <rect x="-7" y="2" width="14" height="7" fill="#2a4f78"/>
+    <circle cx="0" cy="-10" r="6.5" fill="#e8c098"/>
+    <path d="M-6.5 -11 a6.5 6.5 0 0 1 13 0 Z" fill="#2a2a2a"/>
+    <!-- đại kiếm đang vung -->
+    <g transform="rotate(-32)">
+      <rect x="8" y="-30" width="6" height="30" fill="#e8eef4"/>
+      <rect x="8" y="-30" width="6" height="8" fill="#ff7a3c"/>
+    </g>
+  </g>
+  <!-- vệt chém -->
+  <path d="M108 108 A 34 34 0 0 1 128 138" fill="none" stroke="#ffffff"
+        stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- ぷにコン: cần gạt ảo mọc ra dưới ngón cái, giữa màn hình -->
+  <circle cx="150" cy="150" r="26" fill="url(#dp-puni)"/>
+  <circle cx="150" cy="150" r="26" fill="none" stroke="#e8f2ff" stroke-width="2" opacity="0.65"/>
+  <circle cx="150" cy="150" r="6" fill="none" stroke="#e8f2ff" stroke-width="1" opacity="0.4"/>
+  <circle cx="166" cy="141" r="11" fill="url(#dp-knob)" stroke="#ffffff" stroke-width="1.4" opacity="0.9"/>
+
+  <!-- số sát thương -->
+  <text x="228" y="60" font-family="system-ui,sans-serif" font-size="17" font-weight="800"
+        fill="#f2d24b" stroke="#000" stroke-width="3" paint-order="stroke"
+        text-anchor="middle">3387</text>
+
+  <!-- quả cầu Magi góc dưới trái -->
+  <g>
+    <circle cx="22" cy="158" r="15" fill="#0a1017" stroke="#a8801a" stroke-width="2.5"/>
+    <path d="M8 160 a14 14 0 0 0 28 0 Z" fill="#6fd4ff" opacity="0.9"/>
+  </g>
+  <rect x="44" y="152" width="230" height="11" fill="#0a0f16" stroke="#a8801a" stroke-width="1.5"/>
+  <rect x="46" y="154" width="170" height="7" fill="#3fd66a"/>
+</svg>
