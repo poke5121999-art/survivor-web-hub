@@ -143,6 +143,62 @@ const goBoss = (p, id) => p.evaluate(id => { DP.UI.startStage(id); DP.UI.battle.
   check('BẤM LIÊN TỤC nối được combo', await p.evaluate(() => DP.UI.battle.player.combo >= 3),
     'combo = ' + await p.evaluate(() => DP.UI.battle.player.combo));
 
+  // HƯỚNG NHÌN — luật của White Cat: đứng yên thì tự quay về địch gần nhất, còn
+  // đang chạy thì đòn bay theo hướng đi. Không có luật này thì "chạm chỗ nào cũng
+  // được" là nói dối: người chơi phải vừa chỉ hướng vừa bấm.
+  await p.waitForTimeout(400);
+  const aim = await p.evaluate(async () => {
+    const b = DP.UI.battle, pl = b.player;
+    b.mobs.forEach(m => { m.dead = true; m.hp = 0; });
+    const m = b.makeMob('purun', 1, false, false);
+    m.x = pl.x - 70; m.y = pl.y;            // đặt con quái ở NGAY SAU lưng
+    b.mobs.push(m);
+    pl.state = 'idle'; pl.moving = false; pl.counterUntil = 0;
+    pl.facing = 0;                          // đang quay mặt ngược hướng con quái
+    const want = Math.atan2(m.y - pl.y, m.x - pl.x);
+
+    // 1) đứng yên -> phải tự quay về phía con quái
+    b.faceTarget();
+    const still = Math.abs(Math.atan2(Math.sin(pl.facing - want), Math.cos(pl.facing - want)));
+
+    // 2) đang chạy -> KHÔNG được tự ngắm, giữ nguyên hướng đi
+    pl.facing = 0; pl.moving = true;
+    b.faceTarget();
+    const moving = pl.facing;
+
+    // 3) ngoài tầm khoá thì cũng không quay
+    pl.moving = false; pl.facing = 0;
+    m.x = pl.x - 900; m.y = pl.y - 900;
+    b.faceTarget();
+    const far = pl.facing;
+
+    m.dead = true; m.hp = 0;
+    return { still, moving, far, want };
+  });
+  check('ĐỨNG YÊN: chạm là tự quay về phía địch gần nhất', aim.still < 0.05,
+    'lệch ' + aim.still.toFixed(3) + ' rad');
+  check('ĐANG CHẠY: không tự ngắm, đòn theo hướng đi', aim.moving === 0);
+  check('địch quá xa thì không tự quay (không khoá qua cả sân)', aim.far === 0);
+
+  // Và phải đi qua đúng đường CHẠM THẬT, không chỉ gọi hàm.
+  await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    b.mobs.forEach(m => { m.dead = true; m.hp = 0; });
+    const m = b.makeMob('purun', 1, false, false);
+    m.x = pl.x; m.y = pl.y - 60; b.mobs.push(m);   // con quái ở PHÍA TRÊN
+    pl.state = 'idle'; pl.moving = false; pl.facing = Math.PI / 2;  // đang quay xuống dưới
+    window.__mobHp = m.hp; window.__mob = m;
+  });
+  await G.tap(p, 270, 640);
+  await p.waitForTimeout(220);
+  const tapAim = await p.evaluate(() => {
+    const pl = DP.UI.battle.player;
+    return { facing: pl.facing, hurt: window.__mob.hp < window.__mobHp };
+  });
+  check('chạm thật (PointerEvent) cũng tự quay và đánh trúng con ở sau lưng',
+    Math.abs(tapAim.facing + Math.PI / 2) < 0.05 && tapAim.hurt,
+    'facing=' + tapAim.facing.toFixed(2) + ' trúng=' + tapAim.hurt);
+
   // VẨY -> né
   await p.waitForTimeout(500);
   await p.evaluate(() => { DP.UI.battle.player.state = 'idle'; DP.UI.battle.player.dodgeCd = 0; });

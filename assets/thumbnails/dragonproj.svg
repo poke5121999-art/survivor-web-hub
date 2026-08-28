@@ -80,24 +80,37 @@
           fill="#8fa3b5" text-anchor="middle">♥</text>
   </g>
 
-  <!-- người săn: thân tròn nhìn thẳng từ trên xuống, đúng như trong game -->
+  <!-- người săn: khối bo góc + hai mắt + hai bàn tay, đúng như trong game -->
   <g transform="translate(96 132)">
-    <ellipse cx="0" cy="10" rx="13" ry="5" fill="#000" opacity="0.4"/>
+    <ellipse cx="0" cy="11" rx="15" ry="5.5" fill="#000" opacity="0.4"/>
     <g transform="rotate(-58)">
-      <!-- hai bàn chân đạp so le -->
-      <circle cx="4" cy="-8" r="2.8" fill="#000" opacity="0.45"/>
-      <circle cx="-4" cy="8" r="2.8" fill="#000" opacity="0.45"/>
+      <!-- bàn tay rảnh, đeo khiên -->
+      <g transform="translate(10 -12.6) rotate(-51)">
+        <rect x="-3" y="-7.4" width="6" height="14.8" rx="2.4" fill="#93a7ba" stroke="#3c4a57" stroke-width="1.5"/>
+      </g>
+      <rect x="7" y="-15.6" width="6.8" height="6.8" rx="3" fill="#e8c098" stroke="#8a6a48" stroke-width="1.8"/>
       <!-- thân -->
-      <circle cx="0" cy="0" r="11" fill="#3b6ea5" stroke="#0c1014" stroke-width="2"/>
-      <path d="M-7.8 -7.8 A 11 11 0 0 0 -7.8 7.8" fill="none" stroke="#25476b" stroke-width="3.4"/>
-      <!-- cục nhô ra phía trước = đầu, cho biết đang quay hướng nào -->
-      <circle cx="5.5" cy="0" r="5.5" fill="#e8c098" stroke="#0c1014" stroke-width="1.5"/>
-      <path d="M3.8 -5 A 5 5 0 0 0 3.8 5 Z" fill="#2a2a2a"/>
-      <!-- đại kiếm thò ra trước, đang giữa cú vung -->
-      <g transform="rotate(-26)">
-        <rect x="5" y="-4.6" width="34" height="9.2" fill="#0c1014"/>
-        <rect x="6" y="-3.6" width="32" height="7.2" fill="#e8eef4"/>
-        <rect x="29" y="-3.6" width="9" height="7.2" fill="#ff7a3c"/>
+      <rect x="-11.5" y="-10.5" width="23" height="21" rx="6.8" fill="#bcdff5" stroke="#5a8ba8" stroke-width="2.2"/>
+      <!-- dải tóc ở mép sau + khăn quàng -->
+      <path d="M-11.5 -4.5 L-11.5 4.5 A6.8 6.8 0 0 0 -6.8 10.5 L-6.8 -10.5 A6.8 6.8 0 0 0 -11.5 -4.5 Z" fill="#2a2a2a"/>
+      <rect x="-6.4" y="-10.5" width="2.6" height="21" fill="#c04040"/>
+      <!-- hai mắt: thứ cho biết đang quay hướng nào -->
+      <g fill="#14181c">
+        <ellipse cx="6.6" cy="-4.9" rx="3.4" ry="3.9"/>
+        <ellipse cx="6.6" cy="4.9" rx="3.4" ry="3.9"/>
+      </g>
+      <g fill="#ffffff">
+        <circle cx="7.7" cy="-6.2" r="1.3"/>
+        <circle cx="7.7" cy="3.6" r="1.3"/>
+      </g>
+      <!-- bàn tay cầm đại kiếm, đang giữa cú vung -->
+      <g transform="translate(12.5 8.4)">
+        <g transform="rotate(-16)">
+          <rect x="-2" y="-4.6" width="34" height="9.2" fill="#0c1014"/>
+          <rect x="-1" y="-3.6" width="32" height="7.2" fill="#e8eef4"/>
+          <rect x="22" y="-3.6" width="9" height="7.2" fill="#ff7a3c"/>
+        </g>
+        <rect x="-3.4" y="-3.4" width="6.8" height="6.8" rx="3" fill="#e8c098" stroke="#8a6a48" stroke-width="1.8"/>
       </g>
     </g>
   </g>

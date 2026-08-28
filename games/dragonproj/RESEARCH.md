@@ -55,7 +55,7 @@ Phần "Basic mechanics" (nguyên văn, áp dụng cho **mọi** class):
 > **Normal Attack** — Tap the screen. Tap continuously for combos… A small amount of SP is recovered with each attack landed on enemies.
 > **Action Skill** — **Hold the screen and slide in the direction of the skill button.** Each skill consumes SP.
 
-Ba điều rút ra, và cả ba đều đã đưa vào bản dựng lại:
+Bốn điều rút ra, và cả bốn đều đã đưa vào bản dựng lại:
 
 **1. Kỹ năng kích hoạt bằng GIỮ RỒI TRƯỢT VỀ HƯỚNG NÚT — không phải bấm vào nút.**
 Đây là chi tiết dễ bỏ sót nhất và cũng là chi tiết *giải thích tại sao UI gốc tối ưu*: ngón cái
@@ -76,6 +76,38 @@ Nó xuất hiện ở rất nhiều class và luôn có nghĩa **"chạm ngay b�
 Có ở Fencer (*Rolling Attack*), Warrior (*Rolling Smash*), Archer (*Rolling Shot*),
 Brawler. Nghĩa là né trong Punicon **không phải hành động phòng thủ thuần** — nó là nửa đầu của
 một combo. Đây là thứ làm cho việc "vẩy liên tục" có ích chứ không phải chạy trốn.
+
+**4. HƯỚNG NHÌN: đứng yên thì tự ngắm, đang chạy thì bắn theo hướng đi.**
+Đây là mảnh còn thiếu khiến câu quảng cáo của Colopl thành ra đúng. 週刊アスキー viết về ぷにコン:
+
+> 攻撃は画面のどこをタップしても大丈夫。自分の指で敵が見えなくなるわずらわしさもありません。
+> *(Đánh thì chạm chỗ nào trên màn hình cũng được. Không có chuyện ngón tay che mất con quái.)*
+
+"Chạm chỗ nào cũng được" chỉ đúng nếu game **tự quay nhân vật về phía địch**. GameWith, khi tổng
+hợp đợt đổi thao tác 19/02/2020 của White Cat, ghi rõ luật hai vế:
+
+> チャージアクションで発生する敵のターゲットが、**移動中は無くなり、進行方向に放つ**ように変更
+> *(mục tiêu tự động của chiêu nạp **biến mất khi đang di chuyển, đòn bay theo hướng đi**)*
+>
+> その場で**停止して使う場合は敵の方向を向く**ので、慣れるまで注意しておこう
+> *(dùng khi **đứng yên tại chỗ thì nhân vật quay về phía địch**, phải quen tay một chút)*
+
+Wiki Shironeko nhắc lại luật này ở từng đòn: Sword Master *"a quick attack **in the direction of
+the closest target**"*, Brawler sau Charge Knuckle *"**Automatically attacks a targeted enemy**"*,
+Dragon Rider / Cross Saber *"**Targets the closest enemy**"*.
+
+Nên luật là:
+
+| Cần gạt | Hướng nhìn | Nghĩa là |
+|---|---|---|
+| Đang lệch (chạy) | Theo **hướng đi** | Người chơi đang tự chỉ hướng, game không giành lái |
+| Đang ở giữa (đứng) | Tự quay về **địch gần nhất** | Chạm chỗ nào cũng trúng — cái lõi của một-ngón |
+
+Bản dựng lại làm đúng vậy trong `Battle.faceTarget()`: thoát ngay nếu `player.moving`, còn không
+thì khoá con gần nhất trong tầm `max(tầm vũ khí × 2.4, 190px)` (vũ khí bắn xa thì 520px) — đủ
+rộng để khỏi canh hướng, đủ hẹp để không tự quay sang một con ở tận đầu kia sân. Áp cho: đánh
+thường, vào thế đòn đặc thù, phản đòn, và xả Magi. **Không** áp cho đòn đánh-khi-đang-lăn, vì lúc
+đó hướng đã do cú vẩy quyết định.
 
 Ba quy ước phụ khác cũng lấy về:
 - **Mức nạp hiện thành VÒNG MÀU DƯỚI CHÂN nhân vật**, không phải thanh ở rìa màn hình.
@@ -489,4 +521,6 @@ khiển đòi *chính tay người chơi* đọc đòn và bấm đúng nhịp �
 - https://dragonproject.fandom.com/wiki/Monster (+ SS/S/A/B Behemoths, Small monsters)
 - https://dragonproject.fandom.com/wiki/Equipment · /Material · /Map · /Story_Quests · /Recurrent_Quests · /Event_Quests
 - https://www.4gamer.net/games/336/G033666/20160617066/
+- https://gamewith.jp/shironeko/article/show/187071 (đổi thao tác 19/02/2020 — luật hướng nhìn)
+- https://weekly.ascii.jp/elem/000/002/624/2624413/ (週刊アスキー về ぷにコン)
 - https://app.famitsu.com/20160603_736272/

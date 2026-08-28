@@ -168,6 +168,10 @@
   /* ------------------------------------------------------------ NGƯỜI CHƠI */
   Battle.prototype.setupPlayer = function () {
     var st = this.stats;
+    // Hệ của giáp thân (rơi về giáp đầu, rồi 'none'): quyết định màu thân nhân vật.
+    var eq = G.equipped(this.s);
+    var arm = eq.body || eq.head || eq.arm || eq.leg;
+    this.bodyEl = arm ? arm.el : 'none';
     this.player = {
       x: this.wW / 2, y: this.wH * 0.86,
       r: 13, facing: -Math.PI / 2,
@@ -273,8 +277,46 @@
     this.doAttack();
   };
 
+  /* ============================ HƯỚNG NHÌN (luật của White Cat Project) ====
+   * ĐANG DI CHUYỂN -> đòn bay theo HƯỚNG ĐI, không tự ngắm ai cả.
+   * ĐỨNG YÊN        -> tự quay về phía mục tiêu gần nhất rồi mới ra đòn.
+   *
+   * Nguồn: GameWith tổng hợp thay đổi thao tác 19/02/2020 của 白猫プロジェクト —
+   *   "チャージアクションで発生する敵のターゲットが、移動中は無くなり、進行方向に放つように変更"
+   *   (mục tiêu tự động biến mất khi đang di chuyển, đòn bay theo hướng đi)
+   *   "その場で停止して使う場合は敵の方向を向くので、慣れるまで注意しておこう"
+   *   (đứng yên tại chỗ mà dùng thì nhân vật sẽ quay về phía địch)
+   * Và 週刊アスキー về ぷにコン: "攻撃は画面のどこをタップしても大丈夫" — chạm chỗ nào
+   * cũng được. Câu đó CHỈ đúng khi đứng yên bấm là tự trúng; không có luật này thì
+   * người chơi phải vừa chỉ hướng vừa bấm, tức là hỏng mất cái lõi một-ngón.
+   *
+   * Wiki Shironeko cũng ghi rõ nhiều đòn "in the direction of the closest target",
+   * "Automatically attacks a targeted enemy", "Targets the closest enemy".
+   */
+  Battle.prototype.faceTarget = function () {
+    var p = this.player;
+    if (p.moving) return;                  // đang chạy: giữ nguyên hướng đi
+    var W = this.W;
+    // Tầm khoá: đủ rộng để không phải canh hướng, đủ hẹp để không tự quay sang một
+    // con ở tận đầu kia sân. Cung thì bắn xa nên khoá xa hơn hẳn.
+    var lim = W.ranged ? 520 : Math.max(W.reach * 2.4, 190);
+    var best = null, bd = lim;
+    var b = this.boss;
+    if (b && b.hp > 0) {
+      var d = Math.hypot(b.x - p.x, b.y - p.y) - b.r;
+      if (d < bd) { bd = d; best = b; }
+    }
+    this.mobs.forEach(function (m) {
+      if (m.dead) return;
+      var d2 = Math.hypot(m.x - p.x, m.y - p.y) - m.r;
+      if (d2 < bd) { bd = d2; best = m; }
+    });
+    if (best) p.facing = Math.atan2(best.y - p.y, best.x - p.x);
+  };
+
   Battle.prototype.doAttack = function () {
     var p = this.player, W = this.W;
+    this.faceTarget();
     if (this.t - p.comboT > G.PUNI.comboMs) p.combo = 0;
     p.state = 'attack'; p.stateT = 0; p.hitDone = false; p.queued = false;
     p.stateDur = W.swingMs / this.atkSpeed();
@@ -325,6 +367,10 @@
   Battle.prototype.holdStart = function (dx, dy) {
     var p = this.player, c = this.W.special;
     if (p.down || this.paused || this.busy()) return false;
+    // Giữ tay chỉ tính khi cần gạt đang ở giữa, tức là nhân vật đứng yên -> quay
+    // về phía địch trước khi vào thế. Kéo tay trong lúc giữ vẫn NGẮM lại được
+    // (holdTick), đúng như bản gốc cho ngắm bằng cần gạt.
+    this.faceTarget();
     p.charge = 0; p.aimD = 0; p.aimX = 0; p.aimY = 0;
     // Chỉ thế đỡ mới vừa giữ vừa đi được. Chém Tích Lực thì wiki ghi rõ nhân vật
     // "vulnerable and immobile"; ngắm bắn và lao tới cũng đứng yên để kéo là NGẮM.
@@ -396,6 +442,7 @@
   // hoặc chạm khi dấu "!!" hiện lên sau một cú NÉ chuẩn (mọi vũ khí).
   Battle.prototype.doCounter = function (fromDodge) {
     var p = this.player, W = this.W;
+    this.faceTarget();                  // "Automatically attacks a targeted enemy"
     p.state = 'attack'; p.stateT = 0; p.hitDone = false;
     p.stateDur = 280; p.comboIdx = -1;   // -1 đánh dấu là đòn phản
     p.counterHits = (!fromDodge && this.wp.wtype === 'heat') ? 2 : 1;
@@ -506,6 +553,7 @@
     if (!m) return;
     if (p.magi < m.cost) { this.toast('Magi chưa đầy', '#8fa3b5'); return; }
     p.magi -= m.cost; p.usedMagi = true;
+    this.faceTarget();               // xả Magi khi đứng yên cũng tự quay về phía địch
     var k = G.magiPower(m);
     p.state = 'cast'; p.stateT = 0; p.stateDur = 520 / (this.stats.castSpd || 1);
     if (m.invuln) p.iframe = p.stateDur + 120;
@@ -1536,26 +1584,53 @@
 
   /* -- Nhân vật vẽ bằng vài hình khối: thân, đầu, và vũ khí theo hướng quay -- */
   /* ======================================================================
-   * NHÂN VẬT TRÒN NHÌN TỪ TRÊN XUỐNG — cùng ngôn ngữ với games/repo2d
+   * NHÂN VẬT NHÌN THẲNG TỪ TRÊN XUỐNG — ngôn ngữ hình của dòng .io (Starve.io)
    *
-   * Một thân tròn viền đậm, một cục nhô ra phía trước cho biết đang quay hướng
-   * nào, vũ khí thò ra trước, và một vệt cung khi vung. Không có tay chân.
+   * Một khối BO GÓC làm thân, HAI MẮT ở mặt trước cho biết đang quay hướng nào,
+   * và HAI BÀN TAY là hai khối nhỏ nổi ở hai bên. Vũ khí mọc ra từ bàn tay chứ
+   * không phải từ rốn, nên cú vung là bàn tay quét thật một vòng cung.
    *
-   * Vì sao bỏ người que: game này nhìn thẳng từ trên xuống, mà người que thì
-   * phải vẽ đứng như nhìn ngang — hai góc nhìn đá nhau, và ở cỡ 30px thì đám
-   * tay chân biến thành một mớ nét rối. Hình tròn đọc được hướng quay ngay lập
-   * tức, và mọi trạng thái diễn bằng BIẾN DẠNG cả khối (bẹp, xoay, nảy, nhấc
-   * lên) — thứ vẫn thấy rõ khi nhân vật chỉ to bằng đầu ngón tay.
+   * Vì sao chọn kiểu này: game nhìn thẳng từ trên xuống, mà người que thì phải vẽ
+   * đứng như nhìn ngang — hai góc nhìn đá nhau, và ở cỡ 30px thì đám tay chân
+   * thành một mớ nét rối. Khối bo góc + hai mắt đọc được hướng quay ngay lập tức
+   * kể cả khi nhân vật chỉ to bằng đầu ngón tay, còn mọi trạng thái thì diễn bằng
+   * BIẾN DẠNG cả khối (bẹp, xoay, nảy, nhấc lên) — thứ vẫn thấy rõ ở cỡ đó.
    * ====================================================================== */
   var SKIN = ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'];
   var HAIRC = ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
                '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'];
-  var BODY_R = 9.2;
 
-  /* o: { facing, state, k, t, moving, skin, hair, cloth, weapon, elem, guardPerfect } */
+  /* Màu THÂN lấy theo hệ của bộ GIÁP đang mặc, không phải một màu chết cứng: đổi
+   * giáp là thấy ngay trên người, khỏi phải mở bảng chỉ số ra kiểm. Toàn màu nhạt
+   * để hai mắt và vũ khí vẫn nổi lên trên. */
+  var BODY_TINT = { none: '#dceaf4', fire: '#f7c6ad', water: '#bcdff5', earth: '#d8e6b6',
+                    thunder: '#f5e5ae', light: '#f8f1da', dark: '#d2c7e6' };
+  G.bodyTint = function (el) { return BODY_TINT[el] || BODY_TINT.none; };
+  /* Hộp va chạm của người chơi là r=13 (setupPlayer). Thân vẽ ra phải to xấp xỉ
+   * ngần đó, nếu không thì "trông thì hụt mà vẫn ăn đòn". ART là hệ số phóng cho
+   * cả khối, đặt ở một chỗ để chỉnh một lần là xong. */
+  var ART = 1.22;
+  var HW = 9.4, HH = 8.6;    // nửa bề ngang / nửa bề dọc của thân
+  var EX = 5.4, EY = 4.0;    // vị trí hai mắt trong hệ toạ độ thân
+  var HR = 12.7;             // bán kính đặt hai bàn tay quanh thân
+
+  /* Khối bo góc: nền của cả thân lẫn bàn tay. Tự vẽ chứ không dùng ctx.roundRect
+   * vì game phải mở được từ file:// trên trình duyệt cũ. */
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  /* o: { facing, state, k, t, moving, body, hand, hair, cloth, weapon, elem, guardPerfect }
+   *    body = màu thân (theo hệ giáp), hand = tông da của hai bàn tay. */
   function drawChar(ctx, o) {
     var st = o.state, k = o.k || 0, t = o.t || 0;
-    var r = BODY_R;
+    var W = G.WEAPONS[o.weapon] || {};
     var swing = Math.sin(k * Math.PI);
 
     // ---- biến dạng cả khối theo trạng thái ----
@@ -1563,58 +1638,88 @@
     var spin = 0;        // xoay quanh trục đứng
     var sx = 1, sy = 1;  // bẹp/giãn
     var push = 0;        // đẩy tới/lui theo hướng quay
-    if (st === 'dodge') { spin = k * TAU; sx = 1.22; sy = 0.78; lift = Math.sin(k * Math.PI) * 4; }
+    if (st === 'dodge') { spin = k * TAU; sx = 1.20; sy = 0.80; lift = Math.sin(k * Math.PI) * 4; }
     else if (st === 'ranbu') { spin = t / 40; lift = 11 + swing * 6; sx = sy = 1.06; }
     else if (st === 'attack' || st === 'cleave') { push = swing * (st === 'cleave' ? 5 : 3); sx = 1 + swing * 0.10; sy = 1 - swing * 0.07; }
-    else if (st === 'lunge') { push = 6; sx = 1.28; sy = 0.8; }
+    else if (st === 'lunge') { push = 6; sx = 1.26; sy = 0.82; }
     else if (st === 'charge') { var tr = Math.sin(t / 40) * (0.3 + 1.6 * (o.charge || 0)); push = -2 + tr * 0.4; sx = 0.94; sy = 1.06; }
     else if (st === 'guard') { push = 1.5; sx = 0.96; sy = 1.02; }
     else if (st === 'hurt') { push = -4; sx = 1.1; sy = 0.92; }
-    else if (st === 'down') { sx = 1.35; sy = 0.62; }
+    else if (st === 'down') { sx = 1.30; sy = 0.66; }
     else if (o.moving) { lift = Math.abs(Math.sin(t / 105)) * 1.6; }   // nhún theo nhịp bước
     else { var br = Math.sin(t / 620) * 0.02; sx = 1 + br; sy = 1 - br; }
 
     // ---- bóng: co lại khi nhấc lên, đó là thứ cho biết đang ở trên không ----
     var shK = 1 - Math.min(0.55, lift / 22);
     ctx.fillStyle = 'rgba(0,0,0,' + (0.42 * shK) + ')';
-    ctx.beginPath(); ctx.ellipse(0, 8, r * 1.15 * shK, r * 0.46 * shK, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 8, HW * ART * 1.3 * shK, HW * ART * 0.5 * shK, 0, 0, TAU); ctx.fill();
 
     ctx.save();
     ctx.translate(Math.cos(o.facing) * push, Math.sin(o.facing) * push - lift);
     ctx.rotate(o.facing + spin);
-    ctx.scale(sx, sy);
+    ctx.scale(sx * ART, sy * ART);
 
-    // ---- hai bàn chân: hai chấm nhỏ đạp so le ở hai bên, đủ để thấy đang bước ----
-    if (o.moving && st !== 'dodge' && st !== 'ranbu') {
-      var stp = Math.sin(t / 105) * 4.2;
-      ctx.fillStyle = 'rgba(0,0,0,.45)';
-      ctx.beginPath(); ctx.arc(stp, -r * 0.72, 2.4, 0, TAU); ctx.fill();
-      ctx.beginPath(); ctx.arc(-stp, r * 0.72, 2.4, 0, TAU); ctx.fill();
-    }
+    /* ---- HAI BÀN TAY ----
+     * Tay đặt theo GÓC quanh thân, nên cú vung là tay quét thật một vòng cung chứ
+     * không phải lưỡi kiếm tự xoay quanh rốn. Tay cầm vũ khí đi đúng cung mà vệt
+     * chém vẽ ra, nhờ vậy nhìn tay là đoán được đòn sẽ quét tới đâu. */
+    var bob = o.moving ? Math.sin(t / 105) * 0.20 : 0;
+    var wA;                                    // góc tay CẦM vũ khí
+    if (st === 'attack') { var ar = W.arc || 1.7; wA = -ar / 2 + ar * k; }
+    else if (st === 'cleave') { var cr = W.cleaveArc || 2.5; wA = -cr / 2 + cr * k; }
+    else if (st === 'charge') wA = -1.75;      // giơ ra sau nạp lực
+    else if (st === 'guard') wA = 1.05;
+    else if (st === 'aim' || st === 'lunge') wA = 0.34;
+    else if (st === 'down') wA = 1.5;
+    else wA = 0.88 + bob;
+    var offA = (st === 'guard' ? -0.72 : -0.88) - bob;   // tay còn lại
+
+    drawHand(ctx, offA, o, st, o.weapon === 'sword');    // tay trái (đeo khiên nếu có)
 
     // ---- thân ----
-    ctx.fillStyle = o.cloth;
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill();
-    ctx.strokeStyle = 'rgba(12,16,20,.85)'; ctx.lineWidth = 1.8; ctx.stroke();
-    // vai: một vòng cung tối phía sau, để khối tròn có chiều
-    ctx.strokeStyle = shade(o.cloth, -0.35); ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(0, 0, r - 1.9, Math.PI * 0.45, Math.PI * 1.55); ctx.stroke();
-
-    // ---- cục nhô ra phía trước = đầu, cho biết đang quay hướng nào ----
-    ctx.fillStyle = o.skin;
-    ctx.beginPath(); ctx.arc(r * 0.5, 0, r * 0.5, 0, TAU); ctx.fill();
-    ctx.strokeStyle = 'rgba(12,16,20,.8)'; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.fillStyle = o.body;
+    roundRect(ctx, -HW, -HH, HW * 2, HH * 2, 5.6); ctx.fill();
+    ctx.strokeStyle = shade(o.body, -0.45); ctx.lineWidth = 2; ctx.stroke();
+    // dải tóc ở mép SAU, cắt theo thân: giữ cho ô màu tóc còn ý nghĩa
+    ctx.save();
+    roundRect(ctx, -HW, -HH, HW * 2, HH * 2, 5.6); ctx.clip();
     ctx.fillStyle = o.hair;
-    ctx.beginPath(); ctx.arc(r * 0.34, 0, r * 0.42, Math.PI * 0.5, Math.PI * 1.5); ctx.fill();
+    ctx.fillRect(-HW - 1, -HH - 1, 3.8, HH * 2 + 2);
+    // khăn quàng màu áo vắt ngang, để ô màu áo cũng còn ý nghĩa
+    ctx.fillStyle = o.cloth;
+    ctx.fillRect(-HW + 3.4, -HH - 1, 2.0, HH * 2 + 2);
+    ctx.restore();
 
-    // ---- vũ khí thò ra trước, xoay theo cú vung ----
-    if (o.weapon) drawHeldWeapon(ctx, o.weapon, o.elem, o, r, k, st);
+    // ---- hai mắt ở mặt trước: thứ nói cho biết đang quay hướng nào ----
+    // Chớp mắt ~4,2 giây một lần. Nhăn mặt khi ăn đòn thì cũng dùng đúng khung này.
+    var blink = (t % 4200) < 130 || st === 'hurt';
+    ctx.fillStyle = '#14181c';
+    if (st === 'down') {                       // ngã: hai dấu nhân
+        [-1, 1].forEach(function (s) {
+          ctx.save(); ctx.translate(EX, s * EY); ctx.lineWidth = 1.6; ctx.strokeStyle = '#14181c';
+          ctx.beginPath(); ctx.moveTo(-1.8, -1.8); ctx.lineTo(1.8, 1.8);
+          ctx.moveTo(1.8, -1.8); ctx.lineTo(-1.8, 1.8); ctx.stroke(); ctx.restore();
+        });
+    } else if (blink) {
+      [-1, 1].forEach(function (s) { ctx.fillRect(EX - 2.8, s * EY - 0.8, 5.6, 1.6); });
+    } else {
+      [-1, 1].forEach(function (s) {
+        ctx.beginPath(); ctx.ellipse(EX, s * EY, 2.8, 3.2, 0, 0, TAU); ctx.fill();
+      });
+      ctx.fillStyle = '#ffffff';
+      [-1, 1].forEach(function (s) {
+        ctx.beginPath(); ctx.arc(EX + 0.9, s * EY - 1.1, 1.0, 0, TAU); ctx.fill();
+      });
+    }
+
+    // ---- tay cầm vũ khí, vẽ SAU thân để lưỡi nằm trên ----
+    drawHand(ctx, wA, o, st, false);
+    if (o.weapon) drawHeldWeapon(ctx, o.weapon, o.elem, o, wA, k, st);
 
     ctx.restore();
 
     // ---- vệt quét của cú vung, vẽ ngoài phép scale để không bị méo ----
     if ((st === 'attack' || st === 'cleave') && swing > 0.05) {
-      var W = G.WEAPONS[o.weapon] || {};
       var arc = st === 'cleave' ? (W.cleaveArc || 2.5) : (W.arc || 1.7);
       var reach = st === 'cleave' ? (W.cleaveReach || 110) : (W.reach || 62);
       ctx.save();
@@ -1631,59 +1736,63 @@
       ctx.save(); ctx.rotate(o.facing);
       ctx.strokeStyle = o.guardPerfect ? '#8fe4ff' : '#c2d4e6';
       ctx.lineWidth = 4.5; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(0, 0, r + 5, -0.85, 0.85); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, HW * ART + 7, -0.85, 0.85); ctx.stroke();
       ctx.globalAlpha = 0.28; ctx.lineWidth = 10;
-      ctx.beginPath(); ctx.arc(0, 0, r + 5, -0.85, 0.85); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, HW * ART + 7, -0.85, 0.85); ctx.stroke();
       ctx.restore();
     }
   }
 
-  /* Vũ khí trong hệ toạ độ THÂN: gốc là tâm nhân vật, mũi chĩa theo +x. */
-  function drawHeldWeapon(ctx, cls, elCol, o, r, k, st) {
-    var swing = Math.sin((k || 0) * Math.PI);
-    // Góc vung: lưỡi quét từ sau ra trước trong suốt cú đánh.
-    var a = 0;
-    if (st === 'attack') a = -1.15 + 2.3 * k;
-    else if (st === 'cleave') a = -1.5 + 3.0 * k;
-    else if (st === 'charge') a = -2.2;
-    else if (st === 'guard') a = 1.15;
-    else if (st === 'lunge' || st === 'aim') a = 0;
-    else a = -0.55;
+  /* Một bàn tay = một khối bo góc nhỏ cùng màu thân, đặt ở góc `a` quanh thân. */
+  function drawHand(ctx, a, o, st, shield) {
+    var hx = Math.cos(a) * HR, hy = Math.sin(a) * HR;
+    if (shield) {                      // Kiếm & Khiên: khiên nằm ở bàn tay rảnh
+      ctx.save(); ctx.translate(hx, hy); ctx.rotate(a);
+      ctx.fillStyle = st === 'guard' ? (o.guardPerfect ? '#8fe4ff' : '#c2d4e6') : '#93a7ba';
+      roundRect(ctx, -2.6, -6.4, 5.2, 12.8, 2.2); ctx.fill();
+      ctx.strokeStyle = shade('#93a7ba', -0.5); ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.restore();
+    }
+    var hc = o.hand || o.body;
+    ctx.fillStyle = hc;
+    roundRect(ctx, hx - 2.9, hy - 2.9, 5.8, 5.8, 2.6); ctx.fill();
+    ctx.strokeStyle = shade(hc, -0.45); ctx.lineWidth = 1.6; ctx.stroke();
+  }
 
-    ctx.save(); ctx.rotate(a);
+  /* Vũ khí mọc RA TỪ BÀN TAY (góc `wA`), chĩa gần như thẳng về phía trước. */
+  function drawHeldWeapon(ctx, cls, elCol, o, wA, k, st) {
+    var swing = Math.sin((k || 0) * Math.PI);
+    ctx.save();
+    ctx.translate(Math.cos(wA) * HR, Math.sin(wA) * HR);
+    ctx.rotate(wA * 0.55);             // lưỡi nghiêng theo tay nhưng vẫn hướng ra trước
     function bar(x, y, w, h, fill) {
       ctx.fillStyle = 'rgba(12,16,20,.8)'; ctx.fillRect(x - 0.9, y - 0.9, w + 1.8, h + 1.8);
       ctx.fillStyle = fill; ctx.fillRect(x, y, w, h);
     }
     if (cls === 'sword') {
-      bar(r * 0.6, -1.7, 17, 3.4, '#e4edf5'); bar(r * 0.6 + 12, -1.7, 5, 3.4, elCol);
-      // Khiên đeo ở phía ĐỐI DIỆN lưỡi kiếm: nhìn là biết đây là bộ đánh-và-đỡ.
-      ctx.save(); ctx.rotate(-a);
-      ctx.fillStyle = 'rgba(12,16,20,.8)';
-      ctx.beginPath(); ctx.ellipse(-r * 0.75, 0, 4.6, 6.4, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = st === 'guard' ? (o.guardPerfect ? '#8fe4ff' : '#c2d4e6') : '#93a7ba';
-      ctx.beginPath(); ctx.ellipse(-r * 0.75, 0, 3.6, 5.4, 0, 0, TAU); ctx.fill();
-      ctx.restore();
+      bar(-1, -1.6, 15, 3.2, '#e4edf5'); bar(9, -1.6, 5, 3.2, elCol);
+      ctx.fillStyle = '#6a5030'; ctx.fillRect(-3.6, -1.2, 3, 2.4);   // chuôi
     } else if (cls === 'great') {
-      bar(r * 0.5, -3.6, 30 + swing * 6, 7.2, '#e8eef4');
-      bar(r * 0.5 + 22 + swing * 6, -3.6, 8, 7.2, elCol);
+      bar(-1, -3.4, 26 + swing * 5, 6.8, '#e8eef4');
+      bar(18 + swing * 5, -3.4, 7, 6.8, elCol);
+      ctx.fillStyle = '#6a5030'; ctx.fillRect(-4.6, -1.6, 4, 3.2);
     } else if (cls === 'spear') {
-      bar(-r * 0.9, -1.3, 40, 2.6, '#8a6a4a');
+      bar(-11, -1.2, 36, 2.4, '#8a6a4a');
       ctx.fillStyle = 'rgba(12,16,20,.8)';
-      ctx.beginPath(); ctx.moveTo(-r * 0.9 + 48, 0); ctx.lineTo(-r * 0.9 + 37, -5.4); ctx.lineTo(-r * 0.9 + 37, 5.4); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(23, -4.8); ctx.lineTo(23, 4.8); ctx.fill();
       ctx.fillStyle = elCol;
-      ctx.beginPath(); ctx.moveTo(-r * 0.9 + 46, 0); ctx.lineTo(-r * 0.9 + 37, -4); ctx.lineTo(-r * 0.9 + 37, 4); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(23, -3.5); ctx.lineTo(23, 3.5); ctx.fill();
     } else if (cls === 'dual') {
-      bar(r * 0.6, -3.6, 13, 2.6, '#e0e8f0'); bar(r * 0.6 + 9, -3.6, 4, 2.6, elCol);
-      bar(r * 0.6, 1.0, 13, 2.6, '#cfd8e2'); bar(r * 0.6 + 9, 1.0, 4, 2.6, elCol);
+      // Hai lưỡi ngắn xoè hình chữ V ngay tại bàn tay.
+      ctx.save(); ctx.rotate(-0.24); bar(0, -1.2, 12, 2.4, '#e0e8f0'); bar(8, -1.2, 4, 2.4, elCol); ctx.restore();
+      ctx.save(); ctx.rotate(0.24); bar(0, -1.2, 12, 2.4, '#cfd8e2'); bar(8, -1.2, 4, 2.4, elCol); ctx.restore();
     } else if (cls === 'bow') {
-      // Cung nằm ngang trước mặt; đang ngắm thì dây kéo căng về sau và lắp tên.
       var pull = (st === 'aim') ? 6 : 0;
       ctx.strokeStyle = 'rgba(12,16,20,.8)'; ctx.lineWidth = 4.4;
-      ctx.beginPath(); ctx.arc(r * 0.35, 0, 12, -1.3, 1.3); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 12, -1.3, 1.3); ctx.stroke();
       ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 2.6;
-      ctx.beginPath(); ctx.arc(r * 0.35, 0, 12, -1.3, 1.3); ctx.stroke();
-      var tx = r * 0.35 + 12 * Math.cos(1.3), ty = 12 * Math.sin(1.3);
+      ctx.beginPath(); ctx.arc(0, 0, 12, -1.3, 1.3); ctx.stroke();
+      var tx = 12 * Math.cos(1.3), ty = 12 * Math.sin(1.3);
       ctx.strokeStyle = '#e8f2ff'; ctx.lineWidth = 1.1;
       ctx.beginPath(); ctx.moveTo(tx, -ty); ctx.lineTo(tx - pull, 0); ctx.lineTo(tx, ty); ctx.stroke();
       if (pull) {
@@ -1694,7 +1803,7 @@
     ctx.restore();
   }
 
-  // Bốn màu mức nạp là quy ước của Punicon từ White Cat (Overcharge/Combo Charge):
+  // Bốn màu mức nạp là quy ước của Punicon từ White Cat  // Bốn màu mức nạp là quy ước của Punicon từ White Cat (Overcharge/Combo Charge):
   // trắng -> vàng -> lục -> đỏ, vẽ thành VÒNG DƯỚI CHÂN nhân vật, không phải thanh
   // ở rìa màn hình. Mắt liếc xuống chân là biết đã nạp tới đâu mà không rời mục tiêu.
   var CHARGE_COL = ['#ffffff', '#ffd23f', '#8fd14f', '#ff3b30'];
@@ -1731,8 +1840,8 @@
     if (p.down) {
       ctx.rotate(1.42); ctx.translate(0, -6);
       drawChar(ctx, { facing: 0, state: 'down', moving: false, t: this.t, k: 0,
-        skin: SKIN[this.s.skin || 2], hair: HAIRC[this.s.hairColor || 0], cloth: '#5a6a7a',
-        weapon: null, elem: '#888' });
+        body: '#9fb0be', hand: SKIN[this.s.skin || 2], hair: HAIRC[this.s.hairColor || 0],
+        cloth: '#5a6a7a', weapon: null, elem: '#888' });
       ctx.restore();
       // Vòng đếm ngược tự đứng dậy: vành vơi dần cho biết còn bao lâu.
       if (p.revives > 0) {
@@ -1760,7 +1869,8 @@
       facing: p.facing, state: p.state, moving: p.moving, t: this.t,
       k: p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0,
       charge: this.chargeLevel() > 0 ? this.chargeLevel() : 0,
-      skin: SKIN[this.s.skin || 2], hair: HAIRC[this.s.hairColor || 0], cloth: '#3b6ea5',
+      body: G.bodyTint(this.bodyEl), hand: SKIN[this.s.skin || 2],
+      hair: HAIRC[this.s.hairColor || 0], cloth: '#3b6ea5',
       weapon: this.wp ? this.wp.wclass : 'sword',
       elem: G.ELEMENTS[this.wp ? this.wp.el : 'none'].color,
       guardPerfect: p.state === 'guard' && p.guardT <= this.W.perfectMs

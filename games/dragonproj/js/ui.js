@@ -296,12 +296,14 @@
     // Cùng một nhân vật với trong trận (G.drawChar) — đổi giáp hay đổi vũ khí là
     // thấy ngay ở sân guild, không phải một hình minh hoạ riêng dễ lệch với thực tế.
     var eq = G.equipped(S), w = eq.weapons.find(Boolean);
-    ctx.save(); ctx.translate(150, 214); ctx.scale(3.0, 3.0);
+    ctx.save(); ctx.translate(146, 166); ctx.scale(3.1, 3.1);
     ctx.fillStyle = 'rgba(0,0,0,.35)';
     ctx.beginPath(); ctx.ellipse(0, 2, 15, 5, 0, 0, 6.2832); ctx.fill();
     G.drawChar(ctx, {
-      facing: 0.55, state: 'idle', moving: false, t: performance.now(), k: 0,
-      skin: ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'][S.skin || 2],
+      facing: -0.38, state: 'idle', moving: false, t: 1500, k: 0,
+      // Thân lấy màu theo hệ của giáp đang mặc, y như trong trận; bàn tay mới là tông da.
+      body: G.bodyTint((eq.body || eq.head || eq.arm || eq.leg || {}).el || 'none'),
+      hand: ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'][S.skin || 2],
       hair: ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
              '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'][S.hairColor || 0],
       cloth: '#3b6ea5',
@@ -880,7 +882,10 @@
     var html = '<div class="card"><h3>ぷにコン — Punicon</h3>' +
       '<p>Không có D-pad, không có hàng nút. Chạm <b>bất cứ đâu ở giữa màn hình</b> là cần gạt mọc ra ngay tại đó.</p>' +
       '<p><span class="kbd">KÉO</span> di chuyển — kéo nhẹ đi bộ, kéo hết vòng thì chạy.</p>' +
-      '<p><span class="kbd">CHẠM</span> đánh thường. <span class="kbd">BẤM LIÊN TỤC</span> nối combo.</p>' +
+      '<p><span class="kbd">CHẠM</span> đánh thường. <span class="kbd">BẤM LIÊN TỤC</span> nối combo. ' +
+        'Chạm <b>chỗ nào cũng được</b> — không phải ngắm.</p>' +
+      '<p><b>Hướng nhìn</b> theo đúng luật bản gốc: <b>đứng yên</b> thì nhân vật <b>tự quay về con gần nhất</b>, ' +
+        'còn <b>đang chạy</b> thì đòn bay theo <b>hướng đang đi</b> — muốn đánh chỗ nào thì thả cần gạt ra rồi bấm.</p>' +
       '<p><span class="kbd">VẨY</span> né/lăn. Né hủy được độ cứng sau đòn đánh.</p>' +
       '<p><span class="kbd">GIỮ</span> ra đòn đặc thù — <b>mỗi vũ khí một kiểu hoàn toàn khác</b>. ' +
       'Giữ chỉ tính khi <b>cần gạt đang ở giữa</b>, nên kéo chạy bao lâu cũng không lo tự ra đòn; ' +
