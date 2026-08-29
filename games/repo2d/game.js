@@ -6634,8 +6634,15 @@ function buildLight(){
   c.save(); pathPoly(c, master); c.clip();
 
   // small pool at your feet
+  // Sáng hẳn ngay dưới chân, rồi tụt về đúng mức cũ trong vòng nửa ô. Lý do: lớp tối
+  // được NHÂN lên cả khung hình, kể cả lên chính nhân vật — đo được là màu sàn 106 rơi
+  // xuống còn 2..41, tức là bộ hình vẽ tay bị nhân cho tối đi tới 20 lần và người chơi
+  // chỉ thấy một cục đen. Chỗ sáng thêm gói trong bán kính người chơi, nên cả căn nhà
+  // vẫn tối y như trước — thứ đổi là bạn nhìn rõ mình và người đứng cạnh mình.
   let g = c.createRadialGradient(p.x,p.y,2,p.x,p.y,PERIPH_R);
-  g.addColorStop(0,'rgba(168,176,180,0.34)');
+  g.addColorStop(0,'rgba(206,212,216,0.94)');
+  g.addColorStop(0.30,'rgba(196,202,206,0.82)');
+  g.addColorStop(0.55,'rgba(150,160,168,0.46)');
   g.addColorStop(1,'rgba(90,100,110,0)');
   c.fillStyle = g; c.fillRect(p.x-PERIPH_R,p.y-PERIPH_R,PERIPH_R*2,PERIPH_R*2);
 
@@ -8456,7 +8463,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260829b';
+const BUILD = '20260829c';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -8995,6 +9002,10 @@ window.REPO = {
   resetInput, cancelGestures, closeStash, unstick,
   stuck(){ return { paused: pausedWithNoWayOut(), veilUsable: veilUsable(), forSec: stuckT }; },
   carDrawOffset, playerDrawPos,
+  // Một điểm trong nhà nằm ở đâu trên khung vẽ (tính bằng pixel THẬT của canvas, đã
+  // nhân dpr). Bộ test cần nó để soi đúng ô người chơi đang đứng: camera bị chặn ở rìa
+  // bản đồ nên "người chơi luôn ở giữa màn" là sai, và đo nhầm ô thì đo ra sàn tối.
+  screenOf(x, y){ return { x: scrX(x)*dpr, y: scrY(y)*dpr }; },
   frame(){ const cv = CV(), r = cv.getBoundingClientRect();
            return { w:r.width, h:r.height, aspect:r.width/r.height, zoom:zoom(),
                     worldW:vwW(), worldH:vwH() }; },

@@ -23,7 +23,11 @@
   const SRC = 3;
   const FW = 32 * SRC, FH = 48 * SRC, COLS = 3, ROWS = 4;
   const RIM = 2 * SRC, RIM_COLOR = '#ff3b30';
-  const CREW_SCALE = 0.55 / SRC, FOE_SCALE = 0.80 / SRC;   // quái to hơn người khoảng 1,45 lần
+  // Người 0,80 và quái 1,05 (trước là 0,55 / 0,80). Bộ hình vẽ tay là tranh pixel: ô
+  // nguồn cao 144 px mà vẽ ra chỉ 77 px thì thu hơn một nửa, và nửa số pixel của bộ
+  // hình rơi mất trước khi tới mắt người chơi. Vẽ to lên là cách duy nhất thấy được
+  // cái áo, cái nơ, cái mặt — thứ mà chủ dự án bỏ công vẽ. Tỉ lệ quái/người giữ ~1,3.
+  const CREW_SCALE = 0.80 / SRC, FOE_SCALE = 1.05 / SRC;
   const DOWN = 0, LEFT = 1, RIGHT = 2, UP = 3;
 
   // Đường dẫn tính từ trang đang mở: Ca Trực Đêm mở games/repo2d/, Biệt Đội mở
@@ -149,9 +153,11 @@
     const s = crew[crewIdOf(a, isPlayer)];
     if (!s) return false;
     const w = FW * CREW_SCALE, h = FH * CREW_SCALE;
-    // Bật khử răng cưa: bộ hình là tranh vẽ tay đã thu nhỏ, không phải lưới ô vuông
-    // vẽ đúng từng pixel — tắt đi thì mỗi lần thu tỉ lệ lẻ là rụng mất nét.
-    c.imageSmoothingEnabled = true;
+    // TẮT khử răng cưa. Đo bằng phương sai sai phân bậc hai trên chính ô hình đang vẽ:
+    // tắt được 417, bật 336, bật ở mức "high" chỉ 250 — tức là bật lên thì trình duyệt
+    // trộn nhoè các ô vuông của tranh pixel. Vẽ to lên (CREW_SCALE) là thứ bù lại phần
+    // răng cưa mà chú thích cũ lo, vì tỉ lệ thu nhỏ đã gần 1 hơn nhiều.
+    c.imageSmoothingEnabled = false;
     c.drawImage((a.hurt || 0) > 0 ? s.hurt : s.img, colFor(a) * FW, rowFor(a.dir) * FH, FW, FH,
       Math.round(-w / 2), Math.round(8 - h), w, h);
     return true;
@@ -163,7 +169,7 @@
     const src = (m.flash || 0) > 0 ? s.flash : s.cv;
     const w = s.cw * FOE_SCALE, h = s.ch * FOE_SCALE;
     const feet = (s.ch - s.pad) * FOE_SCALE;
-    c.imageSmoothingEnabled = true;
+    c.imageSmoothingEnabled = false;   // cùng lý do như bên người, xem drawCrew
     c.drawImage(src, colFor(m) * s.cw, rowFor(m.dir) * s.ch, s.cw, s.ch,
       Math.round(-w / 2), Math.round(9 - feet), w, h);
 
