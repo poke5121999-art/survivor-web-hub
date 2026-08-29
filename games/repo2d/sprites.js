@@ -133,6 +133,50 @@
     load(HERE + 'art/foe/' + id + '.png', function (im) { foe[id] = bakeRim(im); });
   });
 
+  // ---------------------------------------------------------------- đồ vật
+  // Món đồ ăn tiền và cái đèn trong tay. Không phải charset: đồ vật không có hướng nhìn,
+  // nên mỗi tệp là một DẢI NGANG các ô vuông. Một căn nhà có vài chục món; gộp thành ba
+  // dải theo cỡ thì trang tải bốn tệp thay vì hai ba chục.
+  const ITEM = 32 * 3;
+  const lootStrip = Object.create(null);     // 'nho' | 'vua' | 'to' -> { img, n }
+  let lampStrip = null;
+
+  ['nho', 'vua', 'to'].forEach(function (sz) {
+    load(HERE + 'art/item/loot-' + sz + '.png', function (im) {
+      lootStrip[sz] = { img: im, n: Math.max(1, Math.round(im.width / ITEM)) };
+    });
+  });
+  load(HERE + 'art/item/lantern.png', function (im) {
+    lampStrip = { img: im, n: Math.max(1, Math.round(im.width / ITEM)) };
+  });
+
+  const SZ_KEY = ['nho', 'vua', 'to'];
+
+  // Món nào ra hình nào phải CỐ ĐỊNH theo món, không bốc lại mỗi khung hình. `bob` là số
+  // ngẫu nhiên gắn vào món lúc sinh ra và không đổi nữa, nên dùng nó làm hạt giống: cùng
+  // một cái ấm thì lúc nào cũng là cái ấm, kể cả sau khi bị vác đi rồi thả xuống.
+  function lootIcon(c, l) {
+    const s = lootStrip[SZ_KEY[l.sizeIdx | 0] || 'vua'];
+    if (!s) return false;
+    const i = Math.abs(Math.floor((l.bob || 0) * 997)) % s.n;
+    const w = l.r * 2.6, h = w;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(s.img, i * ITEM, 0, ITEM, ITEM,
+      Math.round(l.x - w / 2), Math.round(l.y - h * 0.78), w, h);
+    return true;
+  }
+
+  // Ngọn lửa lay theo đồng hồ chứ không theo bước chân — cái đèn cháy cả khi đứng im.
+  function lamp(c, x, y, size, t) {
+    if (!lampStrip) return false;
+    const i = Math.floor((t || 0) * 8) % lampStrip.n;
+    const h = size, w = size * 0.63;          // khung gốc 32x51, giữ đúng tỉ lệ
+    c.imageSmoothingEnabled = false;
+    c.drawImage(lampStrip.img, i * ITEM, 0, ITEM, ITEM,
+      Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+    return true;
+  }
+
   function rowFor(a) {
     const cs = Math.cos(a), sn = Math.sin(a);
     if (Math.abs(cs) > Math.abs(sn)) return cs > 0 ? RIGHT : LEFT;
@@ -214,6 +258,8 @@
   root.REPO_SKIN = {
     crew: drawCrew,
     foe: drawFoe,
+    loot: lootIcon,
+    lamp: lamp,
     ready: function () { return pending === 0; },
     failed: function () { return failed; },
     have: function () { return Object.keys(crew).length + Object.keys(foe).length; },

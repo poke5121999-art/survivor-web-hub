@@ -7515,9 +7515,19 @@ function drawLoot(c){
     }
     c.beginPath(); c.fillStyle = 'rgba(0,0,0,0.4)';
     c.ellipse(l.x, y + l.r*0.7, l.r*0.9, l.r*0.42, 0, 0, Math.PI*2); c.fill();
+    // Co bo hinh do vat thi ve MON DO that; khong thi roi ve dang khoi tron cu.
+    // Cai vong mau van ve trong ca hai truong hop, va no khong phai trang tri: mau noi
+    // mon nay lam bang gi (gom vo de, kim loai khong vo) va ban kinh noi no to co nao —
+    // hai thu quyet dinh vac gi va trach cai gi. Bo vong di la bo mat luat.
+    const iconed = !l.good && !l.isBag && window.REPO_SKIN && REPO_SKIN.loot &&
+                   REPO_SKIN.loot(c, { x:l.x, y:y, r:l.r, sizeIdx:l.sizeIdx, bob:l.bob });
     c.beginPath();
-    c.fillStyle = l.good ? (l.good.kind === 'up' ? '#d3a04a' : '#5aa3ab') : l.isBag ? '#c8a33c' : l.mat.col;
-    c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
+    if (!iconed){
+      c.fillStyle = l.good ? (l.good.kind === 'up' ? '#d3a04a' : '#5aa3ab') : l.isBag ? '#c8a33c' : l.mat.col;
+      c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
+    } else {
+      c.arc(l.x, y, l.r, 0, Math.PI*2);
+    }
     c.lineWidth = 2;
     c.strokeStyle = l.good ? (l.good.kind === 'up' ? '#8a6222' : '#2f6a71') : l.isBag ? '#8a6d1e' : l.mat.edge;
     c.stroke();
@@ -7735,7 +7745,12 @@ function drawPlayer(c){
     const q = 1 - sw;                                       // 0 o dau cu vung
     const a = (-MELEE_HALF + q * MELEE_HALF * 2) * 0.85;
     c.save(); c.rotate(a);
-    c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,7,3);
+    // Cai den treo o dau tay. Truoc day la mot hinh chu nhat mau vang; gio la cai den bao
+    // that, va no VAN xoay theo huong nhin — cai den di dau thi vung sang di do, nen no la
+    // tin hieu choi chu khong phai trang tri.
+    if (!(window.REPO_SKIN && REPO_SKIN.lamp && REPO_SKIN.lamp(c, 9, 0, 13, S.time))){
+      c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,7,3);
+    }
     c.restore();
     // Vet quet: mot cung sang mo dan, cho biet don vua di qua dau.
     c.globalAlpha = a0 * at.alpha * sw * 0.5;
@@ -8463,7 +8478,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260829f';
+const BUILD = '20260829g';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
