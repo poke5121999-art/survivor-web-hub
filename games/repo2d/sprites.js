@@ -41,6 +41,12 @@
   const CREW_IDS = ['lead', 'mate0', 'mate1', 'mate2',
     'bao', 'hue', 'tam', 'ky', 'linh', 'dung', 'mai', 'phuc', 'son',
     'nga', 'khoi', 'van', 'hai', 'tuyet'];
+
+  // Ba con bot của Ca Trực Đêm ("Tổ 2/3/4") không có xác riêng nên trước đây dùng
+  // mate0/1/2 — bộ kê chỗ do code sinh ra. Cho chúng mượn ba xác đã có hình vẽ tay,
+  // thứ tự cố định để cùng một con bot luôn ra cùng một mặt trong mọi ván.
+  // mate0/1/2 vẫn nằm lại làm lưới đỡ: thiếu file vẽ tay thì rơi về đó, không vỡ màn.
+  const MATE_LOOK = ['bao', 'hue', 'tam'];
   const FOE_IDS = ['patrol', 'listen', 'stalk', 'bomber', 'heavy', 'rook', 'angel'];
 
   function cvs(w, h) {
@@ -129,11 +135,12 @@
   }
 
   // Con bot / người chơi nào là ai: Biệt Đội gắn charId cho từng xác, Ca Trực Đêm thì
-  // không có nên rơi về bộ chung (một người dẫn, ba đồng đội theo màu áo sẵn có).
+  // không có nên rơi về bộ chung (một người dẫn + ba xác trong MATE_LOOK).
   function crewIdOf(a, isPlayer) {
     if (a.charId && crew[a.charId]) return a.charId;
     if (isPlayer) return 'lead';
-    return 'mate' + ((a.id | 0) % 3);
+    const n = (a.id | 0) % 3;
+    return crew[MATE_LOOK[n]] ? MATE_LOOK[n] : 'mate' + n;
   }
 
   // c ĐÃ dịch về chỗ đứng của nhân vật và CHƯA xoay. Hình đứng thẳng, không xoay theo
@@ -187,6 +194,9 @@
     ready: function () { return pending === 0; },
     failed: function () { return failed; },
     have: function () { return Object.keys(crew).length + Object.keys(foe).length; },
-    frame: function (e) { return e._sc; }
+    frame: function (e) { return e._sc; },
+    // Xác nào đang được mượn cho một con bot. Mở ra để kiểm được bằng máy: so ảnh
+    // chụp thì hai lần vẽ y hệt nhau vẫn ra pixel khác nhau, nên phải hỏi thẳng tên.
+    look: function (a, isPlayer) { return crewIdOf(a, !!isPlayer); }
   };
 })(window);
