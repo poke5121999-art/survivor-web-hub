@@ -107,19 +107,29 @@ ra** (file 4–5 KB), hoặc chưa có file nào:
 | `hai` | Hải — Từ Trường | 5★ |
 | `tuyet` | Tuyết — Bất Tử | 5★ |
 
-**Quái của Biệt Đội — 4 giống CHƯA CÓ FILE NÀO.** Chúng không nằm trong `FOE_IDS` của
-`sprites.js` nên game không thử nạp, và vẽ ra bằng hình khối cũ:
+**Quái của Biệt Đội — xong hết từ 2026-08-29.** Bảy giống, bảy tấm hình, và mỗi tấm
+được chọn theo **luật của con quái** chứ không theo cái tên trùng:
 
-| Mã | Tên | Nó là gì |
-|---|---|---|
-| `hunter` | Thợ Săn | To bè, nghe cả tiếng thở. Nó không quên. |
-| `nhen` | Nhện Trần | Rơi xuống từ trần. Máu ít, chạy nhanh, cắn đau. |
-| `quanca` | Quản Ca | Chậm và dai. Thấy bạn một cái là cả nhà biết bạn ở đâu. |
-| `bongden` | Bóng Đen | Chỉ hiện ra khi đã sát mặt. Choáng không ăn thua. |
+| Mã | Tên | Lấy hình từ đâu | Vì sao |
+|---|---|---|---|
+| `rook` | Con Ngồi | `crawler.png` (qua bảng đổi) | Mù, ngồi thu lu — đúng thứ đang ngồi bệt dưới đất |
+| `patrol` | Kẻ Tuần | `patrol.png` | Gã đội mũ cầm súng, đi theo tuyến |
+| `angel` | Tượng | `angel.png` | Pho tượng cầm kiếm |
+| `hunter` | Thợ Săn | `rook.png` (qua bảng đổi) | Con sói mắt đỏ — đánh hơi và không quên |
+| `nhen` | Nhện Trần | `listen.png` (qua bảng đổi) | Con nhện đã vẽ sẵn từ lâu, chỉ là treo nhầm chỗ |
+| `quanca` | Quản Ca | `quanca.png` mới | Bông hoa hình cái kèn — thấy bạn là cả nhà biết |
+| `bongden` | Bóng Đen | `bongden.png` mới | Con ma đảo sáng thành bóng, chỉ còn hai con mắt |
 
-Ba giống còn lại của Biệt Đội (`rook`, `patrol`, `angel`) dùng chung file với Ca Trực Đêm
-nên **đã có hình vẽ tay**. Thêm file cho 4 mã trên thì phải thêm mã vào `FOE_IDS` —
-để trống thì game lặng lẽ vẽ hình khối, không báo lỗi.
+**Bảng đổi nằm ở `SQUAD_FOE_ART` trong `sprites.js` và CHỈ áp cho trang Biệt Đội.**
+Lý do phải có nó: `rook` bên Ca Trực Đêm là Kẻ húc (con thú lao thẳng), bên Biệt Đội là
+Con Ngồi (mù, ngồi im). Một cái tên, hai luật, không thể chung một tấm hình.
+
+Hai tấm mới dựng bằng `tools/import_foe_packs.py` từ gói hình rời trong
+`CharREPO/MostersFREE`. Thêm mã mới thì nhớ thêm cả vào `FOE_IDS`, không thì game
+không nạp và lặng lẽ vẽ lại hình khối.
+
+Còn thừa chưa dùng trong gói đó: con dơi, cái đầu hề, quả bí nhớt, vệ binh băng,
+golem đá, và hai giống cây nữa (Plant1, Plant3).
 
 ## Vẽ ra màn thế nào (đừng đổi lại nếu chưa đo)
 

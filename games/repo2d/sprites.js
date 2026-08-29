@@ -51,7 +51,24 @@
   // thứ tự cố định để cùng một con bot luôn ra cùng một mặt trong mọi ván.
   // mate0/1/2 vẫn nằm lại làm lưới đỡ: thiếu file vẽ tay thì rơi về đó, không vỡ màn.
   const MATE_LOOK = ['bao', 'hue', 'tam'];
-  const FOE_IDS = ['patrol', 'listen', 'stalk', 'bomber', 'heavy', 'rook', 'angel'];
+  const FOE_IDS = ['patrol', 'listen', 'stalk', 'bomber', 'heavy', 'rook', 'angel',
+    'crawler', 'quanca', 'bongden'];
+
+  // Hai game dùng chung thư mục hình nhưng BỘ QUÁI KHÁC NHAU, và tệ hơn: có mã trùng
+  // tên mà khác hẳn con. `rook` bên Ca Trực Đêm là Kẻ húc — con thú ngắm một đường rồi
+  // lao; bên Biệt Đội là Con Ngồi — mù, chỉ nghe, ngồi thu lu một chỗ, đứng im thì nó
+  // đi qua. Một cái tên, hai luật, nên không thể để chung một tấm hình.
+  //
+  // Bảng này chỉ áp cho trang Biệt Đội, và nó gắn lại theo LUẬT của con quái chứ không
+  // theo cái tên: cục ngồi thu lu cho Con Ngồi, con sói không quên mùi cho Thợ Săn,
+  // con nhện cho Nhện Trần. Ba tấm đó vẽ sẵn từ lâu, chỉ là đang treo nhầm chỗ.
+  const SQUAD_FOE_ART = {
+    rook:   'crawler',   // Con Ngồi   — thứ ngồi thu lu dưới đất
+    hunter: 'rook',      // Thợ Săn    — con sói mắt đỏ, đánh hơi và không quên
+    nhen:   'listen'     // Nhện Trần  — con nhện
+  };
+  // Nạp lúc trang mở thì `window.SQ` chưa có (content.js nạp sau), nên phải hỏi lúc VẼ.
+  const foeArt = (t) => (window.SQ && SQUAD_FOE_ART[t]) || t;
 
   function cvs(w, h) {
     const c = document.createElement('canvas');
@@ -164,7 +181,7 @@
   }
 
   function drawFoe(c, m, d) {
-    const s = foe[m.type];
+    const s = foe[foeArt(m.type)];
     if (!s) return false;
     const src = (m.flash || 0) > 0 ? s.flash : s.cv;
     const w = s.cw * FOE_SCALE, h = s.ch * FOE_SCALE;
