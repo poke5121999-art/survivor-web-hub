@@ -5687,13 +5687,16 @@ function drawMates(c){
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0, 8, 9, 4, 0, 0, Math.PI*2); c.fill();
     const skin = window.REPO_SKIN && REPO_SKIN.crew(c, a, false);
+    // Đèn của đồng đội, cùng luật với đèn người chơi: chạy quanh theo hướng, không xoay.
+    const mLamp = window.REPO_SKIN && REPO_SKIN.lamp &&
+      REPO_SKIN.lamp(c, Math.cos(a.dir) * 9, Math.sin(a.dir) * 9 - 2, 13, S.time + a.id);
     c.rotate(a.dir);
     if (!skin){
       c.fillStyle = a.hurt > 0 ? '#c86a60' : a.col.body;
       c.beginPath(); c.arc(0, 0, 6.4, 0, Math.PI*2); c.fill();
       c.strokeStyle = a.col.rim; c.lineWidth = 1.2; c.stroke();
     }
-    c.fillStyle = a.col.torch; c.fillRect(5.5, -1.4, 4.5, 2.8);
+    if (!mLamp){ c.fillStyle = a.col.torch; c.fillRect(5.5, -1.4, 4.5, 2.8); }
     c.restore();
   }
 }
@@ -6629,6 +6632,32 @@ function buildLight(){
   c.fillStyle = 'rgb(6,7,9)'; c.fillRect(0,0,lightCv.width,lightCv.height);
   worldTransform(c);
   c.globalCompositeOperation = 'lighter';
+
+  // Quầng sáng bám THÂN NGƯỜI, và nó cố ý nằm NGOÀI phần bị đa giác tầm nhìn cắt.
+  //
+  // WHY: thế giới vẽ từ trên xuống nhưng nhân vật vẽ đứng thẳng, nên cái đầu chiếm chỗ
+  // của ô NGAY TRÊN bàn chân mình. Đứng sát tường thì ô đó là tường, đa giác tầm nhìn
+  // dừng đúng ở mặt tường, và nửa trên của nhân vật rơi vào vùng tối — trên màn hình
+  // trông y như bị bức tường cắt ngang người.
+  // ROOT-CAUSE: ánh sáng tính theo toạ độ thế giới của BÀN CHÂN, còn hình thì cao 30
+  // đơn vị dựng ngược lên trên; hai hệ đó không phải một.
+  // SEE: chủ dự án 2026-08-29 — "đừng để cho tường cắt hình char".
+  //
+  // Bán kính vừa đủ trùm hết chiều cao hình rồi tắt hẳn, nên chỗ rò qua một bức tường
+  // dày một ô chỉ là một vệt mờ sát chân tường, không đủ để thấy thứ gì ở phòng bên.
+  c.globalCompositeOperation = 'lighter';
+  // Tâm quầng nâng LÊN ngang giữa thân, không đặt ở bàn chân: hình cao 38 đơn vị và
+  // dựng ngược lên trên, nên đặt ở chân thì tới cái đầu là quầng đã tắt gần hết — đo được
+  // 10/255 ở tầm đầu, tức vẫn còn nguyên vệt cắt. Nâng tâm lên thì cùng một bán kính trùm
+  // đủ từ chân tới đỉnh đầu, và rò qua tường ít hơn là nới rộng bán kính.
+  const bodyHalo = 30, bodyMid = 13;
+  const hy = p.y - bodyMid;
+  const hg = c.createRadialGradient(p.x, hy, 2, p.x, hy, bodyHalo);
+  hg.addColorStop(0, 'rgba(206,212,216,0.96)');
+  hg.addColorStop(0.70, 'rgba(184,192,198,0.66)');
+  hg.addColorStop(1, 'rgba(90,100,110,0)');
+  c.fillStyle = hg;
+  c.fillRect(p.x - bodyHalo, hy - bodyHalo, bodyHalo * 2, bodyHalo * 2);
 
   const master = visPoly(p.x, p.y, LOS_R, 80);
   c.save(); pathPoly(c, master); c.clip();
@@ -7733,6 +7762,16 @@ function drawPlayer(c){
   // Hinh nguoi ve TRUOC khi xoay: no dung thang, huong nam o hang trong charset.
   // Den pin va cu vung thi van xoay theo dir - do la tin hieu choi, khong phai trang tri.
   const skin = window.REPO_SKIN && REPO_SKIN.crew(c, p, true);
+
+  // Cái đèn: VỊ TRÍ chạy quanh người theo hướng nhìn, còn bản thân cái đèn thì luôn
+  // DỰNG ĐỨNG. Vẽ nó sau `c.rotate` thì cả cái đèn bị quay theo, và nhìn xuống là cái
+  // đèn nằm ngang dưới đất — nó là vật treo trong tay, không phải mũi tên chỉ hướng.
+  // Cùng lý do hình người được vẽ trước khi xoay.
+  const swp = (p.swingT || 0) / MELEE_T;
+  const lampA = p.dir + (swp > 0 ? (-MELEE_HALF + (1 - swp) * MELEE_HALF * 2) * 0.85 : 0);
+  const lampOk = window.REPO_SKIN && REPO_SKIN.lamp &&
+    REPO_SKIN.lamp(c, Math.cos(lampA) * 10, Math.sin(lampA) * 10 - 3, 16, S.time);
+
   c.rotate(p.dir);
   if (!skin){
     c.fillStyle = '#cfcbb9'; c.beginPath(); c.arc(0,0,7,0,Math.PI*2); c.fill();
@@ -7744,20 +7783,17 @@ function drawPlayer(c){
   if (sw > 0){
     const q = 1 - sw;                                       // 0 o dau cu vung
     const a = (-MELEE_HALF + q * MELEE_HALF * 2) * 0.85;
-    c.save(); c.rotate(a);
-    // Cai den treo o dau tay. Truoc day la mot hinh chu nhat mau vang; gio la cai den bao
-    // that, va no VAN xoay theo huong nhin — cai den di dau thi vung sang di do, nen no la
-    // tin hieu choi chu khong phai trang tri.
-    if (!(window.REPO_SKIN && REPO_SKIN.lamp && REPO_SKIN.lamp(c, 9, 0, 13, S.time))){
+    if (!lampOk){
+      c.save(); c.rotate(a);
       c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,7,3);
+      c.restore();
     }
-    c.restore();
     // Vet quet: mot cung sang mo dan, cho biet don vua di qua dau.
     c.globalAlpha = a0 * at.alpha * sw * 0.5;
     c.strokeStyle = 'rgba(255,232,180,0.9)'; c.lineWidth = 2.4;
     c.beginPath(); c.arc(0, 0, MELEE_R * 0.72, -MELEE_HALF, MELEE_HALF); c.stroke();
     c.globalAlpha = a0 * at.alpha;
-  } else {
+  } else if (!lampOk){
     c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,5,3);
   }
   c.restore();
@@ -8478,7 +8514,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260829g';
+const BUILD = '20260829h';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
