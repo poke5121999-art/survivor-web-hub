@@ -912,15 +912,21 @@ const MONSTERS = {
   // cai cam giac "co thu gi do dang di lai trong nay". Sat thuong sung duoc keo len MANH
   // HON ti le nay (xem SUNG ben duoi), nen thoi gian ha mot con KHONG dai ra - chi la moi
   // phat ban gio dang mot phat ban.
-  patrol:  { name:'Kẻ đi tuần', hp: 85,  dmg:10,  cd:0.9, speed: 58, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad' },
-  listen:  { name:'Kẻ nghe',    hp:150,  dmg:32,  cd:1.6, speed: 74, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6' },
-  stalk:   { name:'Kẻ bám',     hp:130,  dmg:30,  cd:1.1, speed: 66, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6' },
-  bomber:  { name:'Kẻ nổ',      hp: 60,  dmg:14,  cd:0.9, speed: 62, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8' },
-  heavy:   { name:'Kẻ nặng',    hp:620,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8' },
+  patrol:  { name:'Kẻ đi tuần', hp: 85,  dmg:10,  cd:0.9, speed: 58, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad',
+             wiki:'Nhìn bằng mắt, ĐIẾC ĐẶC. Chạy ầm ầm sau lưng nó cũng không sao — nhưng đi vào nón nhìn thì nó thấy ngay. Nấp sau tường là xong chuyện.' },
+  listen:  { name:'Kẻ nghe',    hp:150,  dmg:32,  cd:1.6, speed: 74, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6',
+             wiki:'MÙ hẳn, nhưng nghe rất xa. Vòng nghe vẽ đúng bằng tiếng bạn đang gây ra: đứng yên thì vòng co lại gần bằng không. Rón rén đi ngang mặt nó vẫn thoát.' },
+  stalk:   { name:'Kẻ bám',     hp:130,  dmg:30,  cd:1.1, speed: 66, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6',
+             wiki:'Mắt xa nhất nhà và đi nhanh. Mất dấu thì nó không về chỗ cũ mà dời sang một phòng gần bạn — nên chỗ vừa cắt đuôi nó không còn an toàn nữa.' },
+  bomber:  { name:'Kẻ nổ',      hp: 60,  dmg:14,  cd:0.9, speed: 62, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8',
+             wiki:'Ít máu nhất, nhưng CHẾT LÀ NỔ. Đừng hạ nó khi đang ôm đồ hoặc đứng cạnh xe đẩy — vụ nổ làm vỡ hàng, và tiền vỡ thì không lấy lại được.' },
+  heavy:   { name:'Kẻ nặng',    hp:620,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8',
+             wiki:'Sáu trăm máu và một đòn gần trăm sát thương. Bù lại nó CHẬM: chạy là thoát, đánh là thua. Không có món nào trong tủ đáng đổi lấy việc đứng lại với nó.' },
   // Kẻ húc. It does not chase and it does not touch you while walking: its whole threat is one
   // straight line, announced three seconds before it is fired. Everything about it is built so the
   // counter-play is a step sideways and a wall between you, never a health bar.
-  rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' },
+  rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4',
+             wiki:'Không đuổi và không đụng bạn lúc đi. Nó ngắm MỘT đường thẳng, gồng ba giây lộ liễu rồi lao — và không bẻ lái được. Bước sang ngang một bước là xong; đứng sau tường thì càng chắc.' },
 
   // ------------------------------------------------------------------ hai loài đi theo ĐÀN
   //
@@ -940,12 +946,14 @@ const MONSTERS = {
   // một cái đồng hồ trên đầu. Đánh chết trước khi ngòi cháy hết thì nổ nhỏ, nên vụt cho nó bay
   // ra xa rồi mới giết là nước đi đúng. Vụ nổ làm vỡ đồ và kích luôn con bom bên cạnh.
   banger:  { name:'Bom con',    hp: 26,  dmg: 0,  cd:0.9, speed: 84, sight:6.0, hear:4.5, col:'#6a4630', eye:'#ff9a3c', rim:'#f0c090',
-             pack:4, noLoot:true, knockMul:3.4 },
+             pack:4, noLoot:true, knockMul:3.4,
+             wiki:'Đi bốn con một đàn. Thấy người là CHÂM NGÒI, và ngòi cháy rồi thì không tắt được — câu hỏi đổi từ giết nó thế nào sang giết nó Ở ĐÂU. Một cú vụt hất nó bay rất xa; đẩy ra chỗ trống rồi hạ.' },
   // GNOME. Không giết được ai, nhưng chuyên đập vào món bạn đang ôm — mối đe doạ của nó là VÍ
   // TIỀN chứ không phải thanh máu. Chạy tới giẫm lên là chết, nên cái giá của chúng là bạn
   // phải liên tục di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.
   gnome:   { name:'Gnome',      hp: 18,  dmg: 5,  cd:0.7, speed: 88, sight:7.0, hear:5.0, col:'#5a4a6a', eye:'#8cf0a0', rim:'#cfe6d6',
-             pack:3, noLoot:true, knockMul:3.4, lootDmg:9, stomp:true }
+             pack:3, noLoot:true, knockMul:3.4, lootDmg:9, stomp:true,
+             wiki:'Ba con một đàn, gần như không làm bạn đau — nhưng cái búa của nó nhắm vào MÓN BẠN ĐANG ÔM. Chạy tới giẫm lên là chết, nên cái giá của chúng là bạn phải liên tục di chuyển.' }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
@@ -9137,7 +9145,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831k';
+const BUILD = '20260831l';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -9225,6 +9233,134 @@ function showVeil(title, body, btnText, onClick, extraHtml, onBackdrop){
   el('veil').hidden = false;
 }
 function hideVeil(){ veilBackdrop = null; const v = el('veil'); if (v) v.hidden = true; }
+
+// ---------------------------------------------------------------------------
+// BẢNG TRA — mặt con quái, và bên cạnh nó là cái luật của nó.
+//
+// Cả hai game dùng chung hàm này nhưng KHÔNG dùng chung bảng dữ liệu: Biệt Đội có
+// SQ.FOES + SQ.CHARS (mỗi xác một chiêu), Ca Trực Đêm có MONSTERS + GEAR (không có
+// chiêu, thứ tương đương là món đồ mua ở cửa hàng). Nên hàm này hỏi `window.SQ`
+// trước rồi mới rơi về bảng của engine — cùng một nút, hai nội dung đúng.
+//
+// WHY dựng bằng HTML chứ không vẽ lên canvas: bảng này để ĐỌC, và chữ đọc được thì
+// phải cuộn được, chọn được, tự xuống dòng theo bề ngang máy. Hạ tầng đó tấm màn
+// #veilExtra đã có sẵn từ cái tủ đồ (showStash) — dựng lại nó trong canvas là tự
+// viết lại bộ chữ của trình duyệt cho một màn hình không ai nhìn quá ba mươi giây.
+const WIKI_SCALE = 0.5;                              // 96x144 -> 48x72
+function wikiEsc(t){
+  return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// Một ô hình: cắt ĐÚNG khung "đứng yên, quay mặt xuống" (cột giữa, hàng đầu) ra khỏi
+// tấm charset 3x4 bằng background-position. Con nào chưa có hình thì không bỏ trống —
+// vẽ tạm bằng chính hai màu con đó đang dùng trong game (thân + mắt), để hàng nào cũng
+// có một cái mặt để nhắm vào, và để lúc art về thì chỗ cần thay là hiển nhiên.
+function wikiFace(url, d){
+  const K = (window.REPO_SKIN && REPO_SKIN.cell) || { w:96, h:144, cols:3, rows:4 };
+  const w = Math.round(K.w * WIKI_SCALE), h = Math.round(K.h * WIKI_SCALE);
+  if (url){
+    return '<i class="wk-art" style="width:' + w + 'px;height:' + h + 'px;' +
+           'background-image:url(' + wikiEsc(url) + ');' +
+           'background-size:' + (w*K.cols) + 'px ' + (h*K.rows) + 'px;' +
+           'background-position:-' + w + 'px 0"></i>';
+  }
+  const col = (d && d.col) || '#4a5566', eye = (d && d.eye) || '#ffd9a0',
+        rim = (d && d.rim) || 'rgba(255,255,255,0.35)';
+  return '<i class="wk-art wk-none" style="width:' + w + 'px;height:' + h + 'px;' +
+         'background:' +
+           'radial-gradient(circle at 37% 38%, ' + eye + ' 0 2.4px, transparent 2.6px),' +
+           'radial-gradient(circle at 63% 38%, ' + eye + ' 0 2.4px, transparent 2.6px),' +
+           col + ';border-color:' + rim + '"></i>';
+}
+// Đồ nghề KHÔNG có hình — trong game nó cũng chỉ là một ô chữ trên nút HUD (drawHud vẽ
+// `def.short`). Nên bảng tra dùng đúng cái nhãn đó, không phải một cái icon bịa ra: thứ
+// người chơi đọc ở đây phải là thứ họ sẽ thấy dưới ngón cái lúc cần dùng nó.
+function wikiChip(txt){
+  const K = (window.REPO_SKIN && REPO_SKIN.cell) || { w:96, h:144 };
+  return '<i class="wk-art wk-chip" style="width:' + Math.round(K.w*WIKI_SCALE) + 'px;' +
+         'height:' + Math.round(K.h*WIKI_SCALE) + 'px">' + wikiEsc(txt) + '</i>';
+}
+function wikiStat(k, v){
+  return '<em>' + wikiEsc(k) + '</em>' + wikiEsc(v);
+}
+const wikiO = (n) => (n ? (Math.round(n*10)/10) + ' ô' : '—');
+function wikiRow(face, ten, phu, stats, mo){
+  return '<div class="wk-row">' + face + '<div class="wk-txt">' +
+         '<b>' + wikiEsc(ten) + '</b>' + (phu ? '<span class="wk-sub">' + wikiEsc(phu) + '</span>' : '') +
+         (stats ? '<div class="wk-st">' + stats + '</div>' : '') +
+         '<p>' + wikiEsc(mo) + '</p></div></div>';
+}
+function wikiHtml(){
+  const SK = window.REPO_SKIN, SQd = window.SQ;
+  const url = (fn, id) => { try { return SK && SK[fn] ? SK[fn](id) : ''; } catch(e){ return ''; } };
+  // Con nào THẬT SỰ có tấm hình trong kho. Hỏi thẳng thay vì đoán theo tên, vì hai game
+  // có mã trùng tên mà khác con và sprites.js gắn lại một bảng riêng cho Biệt Đội.
+  const CO_HINH = { patrol:1, listen:1, stalk:1, bomber:1, heavy:1, rook:1, angel:1,
+                    crawler:1, quanca:1, bongden:1, hunter:1, nhen:1 };
+  let h = '<div class="wk">';
+
+  h += '<h3 class="wk-h">Trong nhà có gì</h3>';
+  if (SQd && SQd.FOES){
+    for (const k in SQd.FOES){
+      const f = SQd.FOES[k];
+      h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '', { col:f.color, eye:'#ffb46a' }),
+        f.name, '',
+        wikiStat('Máu', f.hp) + wikiStat('Đòn', f.dmg) + wikiStat('Chạy', f.spd) +
+        wikiStat('Mắt', wikiO(f.sight)) + wikiStat('Tai', wikiO(f.hear)),
+        f.desc || '');
+    }
+  } else {
+    for (const k in MONSTERS){
+      const d = MONSTERS[k];
+      h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '', d),
+        d.name, d.pack ? 'đi ' + d.pack + ' con một đàn' : '',
+        wikiStat('Máu', d.hp) + wikiStat('Đòn', d.dmg) + wikiStat('Chạy', d.speed) +
+        wikiStat('Mắt', wikiO(d.sight)) + wikiStat('Tai', wikiO(d.hear)) +
+        (d.noLoot ? wikiStat('Rơi đồ', 'không') : ''),
+        d.wiki || '');
+    }
+  }
+
+  if (SQd && SQd.CHARS){
+    h += '<h3 class="wk-h">Chiêu của từng xác</h3>';
+    for (const ch of SQd.CHARS){
+      h += wikiRow(wikiFace(url('crewUrl', ch.id), { col:'#3a4450' }),
+        ch.skill.name, ch.name + ' — ' + ch.epithet,
+        wikiStat('Hồi', ch.skill.cd + 's') +
+        (ch.skill.dur ? wikiStat('Kéo dài', ch.skill.dur + 's') : '') +
+        (ch.skill.radius ? wikiStat('Tầm', wikiO(ch.skill.radius)) : ''),
+        ch.skill.desc + (ch.passive ? '  ⟡ ' + ch.passive.name + ': ' + ch.passive.desc : ''));
+    }
+  } else {
+    // Ca Trực Đêm không có chiêu — thứ nằm đúng vị trí đó là món mua ở cửa hàng: cũng
+    // một nút bấm, cũng có số lần dùng, cũng là quyết định "để dành hay xài bây giờ".
+    h += '<h3 class="wk-h">Đồ nghề mua được</h3>';
+    for (const g of GEAR){
+      h += wikiRow(wikiChip(g.short),
+        g.name, '',
+        wikiStat('Giá', '$' + g.price.toLocaleString('vi-VN')) +
+        wikiStat('Lần dùng', g.passive ? 'gắn luôn' : g.uses),
+        g.desc);
+    }
+  }
+  return h + '</div>';
+}
+let wikiWasRunning = false;
+function showWiki(){
+  // Đọc thì phải đọc yên. Bảng này bấm được GIỮA CA — khác cái tủ đồ vốn chỉ mở ở cửa
+  // hàng — nên để thế giới chạy tiếp sau tấm màn là mời con quái tới ăn người đang đọc.
+  wikiWasRunning = !!S.running;
+  S.running = false;
+  document.body.classList.add('wiki-open');   // xem chú thích body.wiki-open trong index.html
+  showVeil('Sổ tay', 'Mặt của từng thứ trong nhà, và cái luật đi kèm nó.', 'Đóng sổ',
+           closeWiki, wikiHtml(), closeWiki);
+}
+function closeWiki(){
+  hideVeil();
+  document.body.classList.remove('wiki-open');
+  if (wikiWasRunning && !S.dead){ S.running = true; last = performance.now(); }
+  wikiWasRunning = false;
+}
 
 // What the station has in stock tonight, rolled fresh every visit, in two separate sets. Where it
 // is LAID OUT is buildShop's job; this only decides what is on the floor.
@@ -9593,6 +9729,10 @@ window.__boot = function(){
   };
   paintFoeBtn();
   el('botBtn').onclick = () => setBot(!window.__botActive);
+  // Nút sổ tay nằm trên THANH TRÊN chứ không trong HUD canvas: HUD đã chật, và mọi
+  // toạ độ trong đó đang bị hudGeomSuite/rotateSuite đo từng pixel. Một nút để đọc
+  // không đáng phải chen vào chỗ ngón cái đang bận.
+  { const w = el('wikiBtn'); if (w) w.onclick = showWiki; }
 
   last = performance.now();
   requestAnimationFrame(frame);
@@ -9884,6 +10024,7 @@ window.REPO = {
   // nam trong engine ma khong mo ra, nen lop ky nang cua Biet Doi khong co cach nao noi
   // chuyen bang hinh anh - no chi doi duoc trang thai roi in mot dong chu.
   castFx, CAST_T, fxShake, fxFlash, fxPop,
+  showWiki, closeWiki, wikiHtml,
   casts(){ return (S.casts || []).map(f => ({ kind:f.kind, x:f.x, y:f.y, r:f.r, t:+f.t.toFixed(2) })); },
   FOES_FROM_LEVEL, FOES_MAX, PUSH_R,
   FOE: { STANDOFF:FOE_STANDOFF, SEP_R:FOE_SEP_R, SEP_PUSH:FOE_SEP_PUSH, BODY:FOE_BODY },

@@ -1600,6 +1600,117 @@ async function boardingSuite(b) {
 }
 
 // =====================================================================
+// SỔ TAY. Ba thứ dễ hỏng mà mắt không thấy ngay:
+//   1. bảng phải DỰNG ĐƯỢC ở cả hai game, từ hai bảng dữ liệu khác nhau;
+//   2. mở ra thì thế giới phải ĐỨNG LẠI, đóng vào thì phải CHẠY TIẾP — nút này bấm
+//      được giữa ca, nên để quái đi tiếp sau tấm màn là bán mạng người đang đọc;
+//   3. ở Biệt Đội, tấm màn nằm dưới hai luật CSS đang cố giấu nó (#menu z-8 và
+//      `body:not(.in-run) #veil{display:none}`) — bảng dựng đủ 21 hàng mà vẫn vô hình.
+//      Đó chính là cái bug đã gặp, nên nó phải có test riêng đo BỀ NGANG THẬT.
+async function wikiSuite(b) {
+  results.push('\n── sổ tay (bảng tra quái & chiêu) ──');
+
+  // --- Ca Trực Đêm ---
+  {
+    const { ctx, p, errs } = await openGame(b, R2D, { width: 900, height: 700 });
+    check('Ca Trực Đêm: có nút Sổ tay trên thanh trên',
+      await p.locator('#wikiBtn').count() === 1);
+
+    // Vào ca thật, và đợi đồng hồ mô phỏng thực sự nhúc nhích trước khi đo "đứng lại".
+    await p.locator('#veilBtn').click();
+    for (let i = 0; i < 30; i++) {
+      if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+      await p.waitForTimeout(150);
+      await p.evaluate(() => { const v = document.getElementById('veilBtn');
+        if (v && !document.getElementById('veil').hidden) v.click(); });
+    }
+    const chay0 = await p.evaluate(() => REPO.S.ticks || 0);
+    await p.waitForTimeout(500);
+    check('mô phỏng đang chạy trước khi mở sổ', (await p.evaluate(() => REPO.S.ticks)) > chay0);
+
+    await p.locator('#wikiBtn').click();
+    await p.waitForTimeout(450);
+    const mo = await p.evaluate(() => ({
+      running: REPO.S.running,
+      hien: !document.getElementById('veil').hidden,
+      rong: document.getElementById('veil').getBoundingClientRect().width,
+      hang: document.querySelectorAll('.wk-row').length,
+      dau: [...document.querySelectorAll('.wk-h')].map(h => h.textContent),
+      ticks: REPO.S.ticks
+    }));
+    check('bảng hiện ra và CHIẾM MÀN HÌNH', mo.hien && mo.rong > 200, mo.rong + 'px');
+    check('có đủ hai mục: quái, và thứ bạn dùng được', mo.dau.length === 2, mo.dau.join(' / '));
+    check('mỗi con quái một hàng, cộng đồ nghề',
+      mo.hang === (await p.evaluate(() => Object.keys(REPO.MONSTERS).length + REPO.GEAR.length)),
+      mo.hang + ' hàng');
+    check('mở sổ thì THẾ GIỚI ĐỨNG LẠI', mo.running === false);
+
+    await p.waitForTimeout(600);
+    check('và đứng yên thật, không chỉ tắt cờ',
+      (await p.evaluate(() => REPO.S.ticks)) === mo.ticks);
+
+    // Mọi con quái phải có một dòng luật — bảng tra mà bỏ trống một hàng là bảng nói dối.
+    const thieu = await p.evaluate(() => Object.keys(REPO.MONSTERS)
+      .filter(k => !(REPO.MONSTERS[k].wiki || '').trim()));
+    check('con nào cũng có một dòng luật để đọc', thieu.length === 0, thieu.join(','));
+
+    await p.locator('#veilBtn').click();
+    await p.waitForTimeout(400);
+    const t1 = await p.evaluate(() => REPO.S.ticks);
+    await p.waitForTimeout(600);
+    const dong = await p.evaluate(() => ({ running: REPO.S.running, ticks: REPO.S.ticks,
+      an: document.getElementById('veil').hidden,
+      co: document.body.classList.contains('wiki-open') }));
+    check('đóng sổ thì tấm màn tắt và cờ được gỡ', dong.an && !dong.co);
+    check('đóng sổ thì thế giới CHẠY TIẾP', dong.running && dong.ticks > t1,
+      t1 + ' -> ' + dong.ticks);
+
+    const e = errs.filter(x => !/favicon/.test(x));
+    check('sổ tay Ca Trực Đêm: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
+  // --- Biệt Đội: mở NGAY Ở MÀN MENU, đúng lúc hai luật CSS kia đang bật ---
+  {
+    const { ctx, p, errs } = await openGame(b, SQ, { width: 900, height: 700 });
+    check('Biệt Đội: có nút Sổ tay', await p.locator('#wikiBtn').count() === 1);
+    await p.locator('#wikiBtn').click();
+    await p.waitForTimeout(600);
+    const m = await p.evaluate(() => {
+      const v = document.getElementById('veil');
+      const r = v.getBoundingClientRect();
+      // Ai đang nằm TRÊN CÙNG ở giữa màn: phải là một hàng của sổ tay, không phải menu.
+      const tren = document.elementFromPoint(Math.round(innerWidth / 2), Math.round(innerHeight / 2));
+      return { rong: r.width, cao: r.height, disp: getComputedStyle(v).display,
+        hang: document.querySelectorAll('.wk-row').length,
+        // Không so tên lớp: điểm giữa màn có thể rơi vào #veilExtra (không có class)
+        // hay vào thẻ <p> trong một hàng. Câu hỏi đúng là "nó có THUỘC tấm màn không".
+        trongVeil: !!(tren && v.contains(tren)),
+        tren: tren ? (tren.tagName + '.' + tren.className + '#' + tren.id) : '',
+        dau: [...document.querySelectorAll('.wk-h')].map(h => h.textContent) };
+    });
+    check('ở màn menu, sổ tay vẫn HIỆN (không bị display:none)',
+      m.disp !== 'none' && m.rong > 200 && m.cao > 200, m.disp + ' ' + m.rong + 'x' + m.cao);
+    check('và nằm TRÊN menu, không khuất bên dưới', m.trongVeil, 'trên cùng: ' + m.tren);
+    check('quái lấy từ SQ.FOES, chiêu lấy từ SQ.CHARS',
+      m.hang === (await p.evaluate(() => Object.keys(SQ.FOES).length + SQ.CHARS.length)),
+      m.hang + ' hàng');
+    check('mục thứ hai là chiêu, không phải đồ nghề', /Chiêu/.test(m.dau[1] || ''), m.dau.join(' / '));
+
+    await p.locator('#veilBtn').click();
+    await p.waitForTimeout(400);
+    check('đóng sổ ở màn menu thì menu hiện lại nguyên vẹn',
+      await p.evaluate(() => document.getElementById('veil').hidden &&
+        !document.body.classList.contains('wiki-open') &&
+        getComputedStyle(document.getElementById('menu')).display !== 'none'));
+
+    const e = errs.filter(x => !/favicon/.test(x));
+    check('sổ tay Biệt Đội: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+}
+
+// =====================================================================
 (async () => {
   const b = await chromium.launch();
   try { await repo2dSuite(b); } catch (e) { check('repo2d: bộ test chạy trọn', false, e.message); }
@@ -1612,6 +1723,7 @@ async function boardingSuite(b) {
   try { await hudGeomSuite(b); } catch (e) { check('hình học HUD: bộ test chạy trọn', false, e.message); }
   try { await skillEffectSuite(b); } catch (e) { check('hiệu ứng kỹ năng: bộ test chạy trọn', false, e.message); }
   try { await metaRulesSuite(b); } catch (e) { check('sổ sách & luật ván: bộ test chạy trọn', false, e.message); }
+  try { await wikiSuite(b); } catch (e) { check('sổ tay: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));
   console.log('\n' + '═'.repeat(52));

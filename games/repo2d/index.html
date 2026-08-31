@@ -167,6 +167,12 @@
     position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
     justify-content:flex-start;gap:10px;text-align:center;background:rgba(6,7,9,.94);
     padding:18px 14px;line-height:1.55;overflow:auto;-webkit-overflow-scrolling:touch;
+    /* Trên màn menu của Biệt Đội, #menu là anh em ĐỨNG SAU trong cùng một .screen và
+       mang z-index:8 — tấm màn không z-index sẽ bị vẽ trước nó và nằm khuất bên dưới.
+       (Đó là một nửa của cái bẫy: nửa kia là luật `body:not(.in-run) #veil{display:none}`
+       — xem body.wiki-open ở dưới. Sửa mỗi một nửa thì bảng vẫn không hiện.)
+       12 để vượt menu; toast (30) và nhãn bản dựng (9999) vẫn ở trên như cũ. */
+    z-index:12;
   }
   .veil[hidden]{display:none;}
   .veil h2{font-family:var(--display);font-weight:400;font-size:25px;margin:0;color:#e8ebee;}
@@ -230,6 +236,39 @@
     .ctl{padding:5px 8px;font-size:9px;}
     #footHint{display:none;}
   }
+  /* Nút sổ tay: luôn hiện (khác .rot chỉ hiện trên máy cảm ứng), trông như nút Hub. */
+  .bar .wikibtn{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);
+    color:var(--ink-dim);padding:4px 9px;border-radius:2px;cursor:pointer;
+    font-family:inherit;font-size:12px;line-height:1.25;white-space:nowrap;}
+  .bar .wikibtn:hover{color:var(--ink);border-color:#3a434f;}
+  .bar .wikibtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+
+  /* --- Bảng tra --------------------------------------------------------------
+     Một hàng = một cái mặt bên trái, cái luật bên phải. Hình để nguyên pixel
+     (image-rendering) vì art là charset vẽ tay ở độ phân giải thấp — làm mượt
+     nó thì thành một vũng màu. */
+  .wk{display:flex;flex-direction:column;gap:7px;width:100%;text-align:left;}
+  .wk-h{margin:6px 0 1px;font-family:var(--display);font-weight:400;font-size:13px;
+    color:var(--amber);letter-spacing:.06em;text-transform:uppercase;}
+  .wk-h:first-child{margin-top:0;}
+  .wk-row{display:flex;gap:9px;align-items:flex-start;padding:7px 8px;
+    border:1px solid var(--line);border-radius:3px;background:#0c0f13;}
+  .wk-art{flex:0 0 auto;display:block;background-repeat:no-repeat;
+    image-rendering:pixelated;border-radius:2px;}
+  .wk-art.wk-none{border:1.5px solid rgba(255,255,255,0.3);border-radius:42% 42% 30% 30%;}
+  .wk-art.wk-chip{display:flex;align-items:center;justify-content:center;text-align:center;
+    background:#141a21;border:1px solid var(--line);border-radius:3px;font-family:var(--mono);
+    font-size:11px;font-style:normal;color:var(--ink-dim);letter-spacing:.04em;padding:0 3px;}
+  .wk-txt{min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .wk-txt b{font-size:12.5px;color:#e8ebee;font-weight:600;}
+  .wk-sub{font-size:10px;color:var(--ink-faint);}
+  .wk-st{display:flex;flex-wrap:wrap;gap:3px 9px;font-family:var(--mono);font-size:10px;
+    color:var(--ink);}
+  .wk-st em{font-style:normal;color:var(--ink-faint);text-transform:uppercase;
+    letter-spacing:.1em;font-size:8.5px;margin-right:4px;}
+  .wk-txt p{margin:0;font-size:11px;line-height:1.45;color:var(--ink-dim);max-width:none;}
+  #veilExtra .wk{max-width:none;}
+  body.landscape .wk-txt p{font-size:10px;line-height:1.35;}
 </style>
 </head>
 <body>
@@ -240,6 +279,7 @@
   <header class="bar">
     <a class="back" href="../../index.html">&larr; Hub</a>
     <button class="rot" id="rotBtn" type="button" aria-pressed="false" title="Xoay ngang">⟳</button>
+    <button class="wikibtn" id="wikiBtn" type="button" title="Sổ tay: quái và luật của chúng">☉ Sổ tay</button>
     <span class="name">Ca Trực Đêm</span>
     <span><span class="k">Màn</span><span class="v" id="hLevel">1</span></span>
     <span><span class="k">Chỉ tiêu</span><span class="v quota" id="hQuota">$0 / $0</span></span>
@@ -370,9 +410,9 @@
 })();
 </script>
 
-<script src="sprites.js?v=20260831k"></script>
-<script src="game.js?v=20260831k"></script>
-<script src="bot.js?v=20260831k"></script>
+<script src="sprites.js?v=20260831l"></script>
+<script src="game.js?v=20260831l"></script>
+<script src="bot.js?v=20260831l"></script>
 <script>window.__boot && window.__boot();</script>
 <script>
 // Doc dau build TU HAI PHIA roi so:

@@ -366,6 +366,12 @@
     frame: function (e) { return e._sc; },
     // Xác nào đang được mượn cho một con bot. Mở ra để kiểm được bằng máy: so ảnh
     // chụp thì hai lần vẽ y hệt nhau vẫn ra pixel khác nhau, nên phải hỏi thẳng tên.
-    look: function (a, isPlayer) { return crewIdOf(a, !!isPlayer); }
+    look: function (a, isPlayer) { return crewIdOf(a, !!isPlayer); },
+    // Đường dẫn tấm hình THÔ, cho những chỗ vẽ bằng HTML chứ không bằng canvas (bảng wiki).
+    // Trả cả VER để bảng không kẹt lại ở tấm hình cũ trong cache như art trong game từng bị.
+    foeUrl:  function (type) { return HERE + 'art/foe/'  + foeArt(type) + '.png' + VER; },
+    crewUrl: function (id)   { return HERE + 'art/crew/' + id           + '.png' + VER; },
+    // Kích thước MỘT khung trong tấm charset thô: 3 cột (trái/đứng/phải) x 4 hàng (hướng).
+    cell: { w: FW, h: FH, cols: COLS, rows: ROWS }
   };
 })(window);
