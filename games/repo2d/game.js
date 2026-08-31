@@ -2406,11 +2406,20 @@ const FLOORS = [
   { base:[108,108,106],alt:[114,114,112] },  // 2 concrete
   { base:[104,84,80],  alt:[112,92,86] }     // 3 carpet
 ];
+// Chọn lại mặt tường, 2026-08-31. Bốn màu cũ nằm gọn trong khoảng sáng 74..84/255 — chênh nhau
+// 10 mức trên 255, tức là mắt không phân biệt nổi, và sau khi lớp tối NHÂN lên thì cả bốn ra
+// cùng một màu xám. Hai kiểu tệ nhất bị thay hẳn:
+//   - bê tông [74,74,72]: xám trung tính tuyệt đối, không nghiêng màu nào. Đèn ấm soi vào ra
+//     màu bùn, và vì không có vân gì nên nó là mảng phẳng lì rõ nhất trong game.
+//   - gạch men [78,86,86]: lạnh ngả xanh, đúng hướng ngược với đèn ấm. Nó CHỐNG lại ánh sáng
+//     thay vì nhận ánh sáng, nên soi vào bao nhiêu cũng vẫn xám xanh.
+// Thay bằng vật liệu có VÂN, vì cái cứu một mặt phẳng khỏi trông phẳng là vân chứ không phải
+// màu: một màu tô đặc nhân với ánh sáng thì vẫn là một màu tô đặc.
 const WALLS = [
-  [86,74,62],    // 0 wood room  — papered
-  [78,86,86],    // 1 tiled room — cold
-  [74,74,72],    // 2 concrete   — bare
-  [88,68,66]     // 3 carpeted   — dark red paper
+  [78,66,54],    // 0 giấy dán tường — nâu ấm, có mối nối dọc
+  [96,92,84],    // 1 gạch men       — men kem, mạch vữa tối (thay cho xanh lạnh)
+  [72,69,64],    // 2 blốc bê tông   — có hàng gạch và mạch so le (thay cho xám trơn)
+  [76,56,54]     // 3 giấy hoa văn   — đỏ trầm, kẻ sọc dọc
 ];
 function prerenderWorld(rnd){
   if (!S.worldCv){ S.worldCv = document.createElement('canvas'); S.worldCv.width = WPX; S.worldCv.height = HPX; }
@@ -2431,18 +2440,45 @@ function prerenderWorld(rnd){
       const w = WALLS[S.roomStyle ? S.roomStyle[ri] : 0] || WALLS[0];
       c.fillStyle = `rgb(${(w[0]+n*12)|0},${(w[1]+n*11)|0},${(w[2]+n*10)|0})`;
       c.fillRect(x,y,TILE,TILE);
+      paintWallSkin(c, x, y, S.roomStyle ? S.roomStyle[ri] : 0, gx, gy, n);
       // Shading follows the EXPOSED FACES of a wall run, not every tile in it. Painted per tile,
       // a run of wall came out a ladder of stripes and the eye counted tiles instead of reading one
       // wall - which is most of why a two-tile partition looked like a slab. A face is exposed when
       // the neighbour is not wall; a prop still stands in a room, so it counts as open.
-      if (!isW(gx,gy+1)){ c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(x,y+TILE-4,TILE,4); }
-      if (!isW(gx,gy-1)){ c.fillStyle = 'rgba(255,246,226,0.10)'; c.fillRect(x,y,TILE,2); }
+      //
+      // ĐẢO CHIỀU 2026-08-31. Trước đây mép giáp phòng bị tô đen 34% còn mép quay đi bị tô sáng
+      // 10%, nghĩa là bức tường sáng dần về phía khuất — đo được 77 ở mặt, 95 ở mép xa. Mắt đọc
+      // cái đó ra "nguồn sáng nằm sau tường", và cả dải trông như thanh gỗ đặt nằm.
+      // Quy ước dùng ở đây là quy ước chung của game nhìn từ trên xuống (Hotline Miami, Zelda):
+      // MÉP DƯỚI của ô tường là MẶT TRƯỚC — cái mặt đứng mà người chơi nhìn thấy — nên nó sáng;
+      // mép trên là đỉnh tường nhìn từ phía khuất nên nó chìm. Bóng đổ xuống sàn không nằm ở đây:
+      // paintWallContact vẽ nó lên chính ô sàn bên dưới, đúng chỗ của nó.
+      if (!isW(gx,gy+1)){
+        // mặt trước: sáng dần xuống mép, rồi một vạch chân tường tối để mặt không dính vào sàn
+        const fg = c.createLinearGradient(0, y+TILE-9, 0, y+TILE-1);
+        fg.addColorStop(0, 'rgba(255,244,224,0)');
+        fg.addColorStop(1, 'rgba(255,244,224,0.20)');
+        c.fillStyle = fg; c.fillRect(x, y+TILE-9, TILE, 8);
+        c.fillStyle = 'rgba(0,0,0,0.30)'; c.fillRect(x, y+TILE-1, TILE, 1);
+      }
+      if (!isW(gx,gy-1)){
+        // Mặt sau — đỉnh tường nhìn từ phía bên kia. Nó tối hơn mặt trước, nhưng vẫn phải TỐI DẦN
+        // VÀO TRONG chứ không tối dần ra ngoài: đứng ở phòng phía trên soi xuống thì cạnh gần
+        // đo được 47 còn ruột đo được 71, tức là vẫn sáng dần về phía khuất — đúng cái lỗi vừa
+        // sửa ở mặt trước, chỉ nhẹ hơn. Một luật chỉ đúng ở một mặt thì không phải một luật.
+        // Dải này phủ đúng bằng độ sâu đèn ăn được (LIP_MAX). Ngắn hơn thì hết dải là độ sáng
+        // nảy ngược lên một bậc, đo được 45 rồi vọt lại 71 — một cái gờ sáng giữa bức tường.
+        const bd = Math.round(LIP_MAX);
+        const bg = c.createLinearGradient(0, y, 0, y+bd);
+        bg.addColorStop(0, 'rgba(0,0,0,0.06)');
+        bg.addColorStop(1, 'rgba(0,0,0,0.40)');
+        c.fillStyle = bg; c.fillRect(x, y, TILE, bd);
+      }
       // A one-tile partition seen from above is a LINE, and a line needs two edges or it vanishes
       // into the floor. The side faces are what give a vertical run its thickness now that it has
       // only one tile to spend. SEE: wall + door pass, 2026-08-31
       if (!isW(gx-1,gy)){ c.fillStyle = 'rgba(0,0,0,0.26)'; c.fillRect(x,y,2,TILE); }
       if (!isW(gx+1,gy)){ c.fillStyle = 'rgba(0,0,0,0.26)'; c.fillRect(x+TILE-2,y,2,TILE); }
-      if (((gx ^ gy) & 3) === 0){ c.fillStyle = 'rgba(0,0,0,0.07)'; c.fillRect(x+2, y+2, TILE-4, 1); }
     } else {
       const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
       const st = FLOORS[S.roomStyle ? S.roomStyle[ri] : 0] || FLOORS[0];
@@ -2452,6 +2488,48 @@ function prerenderWorld(rnd){
   }
   paintWallContact(c);
   paintDoorFrames(c);
+}
+// Vân mặt tường. Đây là nửa còn lại của việc "soi đèn vào tường cho ra hồn", và là nửa mà hình
+// học ánh sáng không làm thay được: lớp tối NHÂN lên bức tường, mà một màu tô đặc nhân với bất
+// cứ số nào cũng vẫn là một màu tô đặc. Muốn mặt tường có gì để nhìn thì bản thân nó phải có
+// chênh lệch sáng tối bên trong.
+//
+// Vân cũ là một vạch 1 điểm ảnh, đậm 7%, cứ 4 ô mới có một ô — đo trên ảnh chụp thì không phân
+// biệt được với nhiễu. Nay mỗi kiểu phòng có vân riêng, và vân lấy theo TOẠ ĐỘ Ô chứ không lấy
+// theo dòng ngẫu nhiên: vân ngẫu nhiên từng ô biến bức tường thành vệt loang, mắt đọc ra vết bẩn
+// chứ không đọc ra vật liệu — đúng cái bẫy sàn nhà đã dính một lần rồi.
+// SEE: docs/patches/phase-5.4-patch-29-repo-wall-light.md
+function paintWallSkin(c, x, y, style, gx, gy, n){
+  if (style === 1){
+    // gạch men: mạch vữa kẻ ô, cộng một chút bóng men ở nửa trên mỗi viên
+    c.fillStyle = 'rgba(0,0,0,0.30)';
+    for (let k = 0; k <= TILE; k += 8){ c.fillRect(x, y+k, TILE, 1); c.fillRect(x+k, y, 1, TILE); }
+    c.fillStyle = 'rgba(255,252,244,0.07)';
+    for (let k = 0; k < TILE; k += 8) c.fillRect(x+1, y+k+1, TILE-2, 2);
+  } else if (style === 2){
+    // blốc bê tông: hàng gạch nằm, mạch đứng so le hàng trên hàng dưới
+    c.fillStyle = 'rgba(0,0,0,0.26)';
+    for (let k = 0; k <= TILE; k += 6) c.fillRect(x, y+k, TILE, 1);
+    for (let r = 0; r*6 < TILE; r++){
+      const off = ((gy*4 + r) & 1) ? 12 : 0;
+      c.fillRect(x + off, y + r*6, 1, 6);
+    }
+    // rỗ mặt: vài chấm tối, đủ để mặt không mịn như sơn
+    c.fillStyle = 'rgba(0,0,0,0.12)';
+    for (let k = 0; k < 3; k++)
+      c.fillRect(x + (((gx*7 + gy*13 + k*5) * 11) % (TILE-2)), y + (((gx*5 + gy*3 + k*9) * 7) % (TILE-2)), 2, 1);
+  } else if (style === 3){
+    // giấy hoa văn: kẻ sọc dọc mảnh, hai độ đậm xen kẽ
+    for (let k = 0; k < TILE; k += 4){
+      c.fillStyle = ((k >> 2) & 1) ? 'rgba(0,0,0,0.16)' : 'rgba(255,236,232,0.06)';
+      c.fillRect(x+k, y, 1, TILE);
+    }
+  } else {
+    // giấy dán tường trơn: mối nối dọc giữa hai khổ giấy, và một vệt ố nhạt
+    c.fillStyle = 'rgba(0,0,0,0.18)'; c.fillRect(x + (((gx & 1) ? 4 : 16)), y, 1, TILE);
+    c.fillStyle = 'rgba(255,240,220,0.05)'; c.fillRect(x + (((gx & 1) ? 5 : 17)), y, 1, TILE);
+    if (n > 0.72){ c.fillStyle = 'rgba(0,0,0,0.09)'; c.fillRect(x+3, y + ((n*13)|0), TILE-6, 3); }
+  }
 }
 // The shadow a wall casts onto the floor in front of it. A thin wall drawn flat from directly above
 // has nothing to say how tall it is, and it floated - it read as paint on the floor rather than as
@@ -2640,6 +2718,45 @@ function visPoly(ox,oy,R,uniform){
 // đa giác này sinh ra để chặn. Cánh cửa vẫn phải sáng (đứng soi đèn vào cửa mà cửa đen thì cũng
 // là cái lỗi đang đi sửa), nên nó được nới đúng bằng bề dày của chính nó: DOOR_THICK, tức 6px,
 // nằm gọn trong nửa ô cửa nên không con mắt nào thấy được sàn bên kia.
+// Đèn ăn vào tường SÂU BAO NHIÊU, và ăn theo góc tới.
+//
+// Bản vá 2026-08-31 buổi sáng chỉ trả lời "tường có sáng không". Nó cho tia đi tới hết mép ô,
+// nên cả ô tường dày 24 điểm ảnh sáng đều một mức. Đo được ở ba hạt giống: soi thẳng vào một
+// bức tường gỗ thì mặt tường (mép giáp phòng) đọc 77-78/255, ruột tường 76-85, còn mép XA
+// nhất — cái mép quay sang phòng bên, đáng lẽ tối nhất — đọc 88-95, tức là SÁNG NHẤT cả dải.
+// Ngoài đời không có mặt phẳng nào sáng dần về phía khuất; nên nó không đọc ra một bức tường
+// đứng, nó đọc ra một thanh gỗ sáng nằm trên sàn.
+//
+// Hai luật thay thế, đều là luật của mặt phẳng thật:
+//
+// 1. Đèn chỉ liếm được một LỚP MẶT, không xuyên hết bề dày. Lớp đó dừng trong nửa ô, nên phần
+//    còn lại của ô chìm vào tối và chính khoảng tối đó là thứ nói cho mắt biết bức tường có bề
+//    dày. Trước đây dải sáng chấm dứt bằng một vách đứng 94 -> 3 trong 2 điểm ảnh; nay nó tắt
+//    dần bên trong ô.
+// 2. Tường soi thẳng thì sáng, tường soi chéo thì gần như không. Đây là số hạng N·L kinh điển:
+//    một mặt phẳng chỉ có một pháp tuyến nên nếu không nhân với góc tới thì mọi điểm trên nó
+//    sáng bằng nhau, và đó đúng là định nghĩa của "trông phẳng lì"
+//    (learnopengl.com/Advanced-Lighting/Normal-Mapping). Có số hạng này thì một dãy tường
+//    trước mặt sẽ đậm ở giữa và nhạt dần ra hai đầu — mắt đọc ra một mặt phẳng cong theo tầm
+//    nhìn, thay vì một thanh sáng đều.
+//
+// KHÔNG bỏ phép min với mép ô: quyết định cũ đã ghi rõ, một khoảng nới cố định vừa đủ soi bức
+// tường dày một ô thì cũng vừa đủ rò sang phòng bên ở góc chéo. Lấy min của cả hai thì chặt hơn
+// từng cái một — không bao giờ qua nổi mép ô, mà cũng không bao giờ sáng hết bề dày.
+// SEE: docs/patches/phase-5.4-patch-29-repo-wall-light.md
+const LIP_MAX   = TILE * 0.55;    // soi thẳng mặt: lớp mặt dày chừng nửa ô
+const LIP_GRAZE = TILE * 0.16;    // soi chéo hết cỡ: còn đúng một vệt, để dải tường không bị rách
+function faceLip(dx, dy, s){
+  if (!s) return LIP_MAX;
+  const ex = s.x2 - s.x1, ey = s.y2 - s.y1;
+  const el = Math.hypot(ex, ey);
+  if (!(el > 1e-6)) return LIP_MAX;
+  // |tia · pháp tuyến mặt|: 1 là soi vuông góc vào mặt, 0 là quét sượt dọc mặt.
+  const nd = Math.abs(dx * (-ey / el) + dy * (ex / el));
+  // Mũ 1.5: giữ được gần hết độ sáng quanh chính diện rồi mới tụt nhanh, nên một bức tường
+  // hơi chếch vẫn là tường sáng, còn tường gần như song song tia thì tắt hẳn.
+  return LIP_GRAZE + (LIP_MAX - LIP_GRAZE) * Math.pow(nd, 1.5);
+}
 function lipInto(pts, i, ox, oy, dx, dy, best, s){
   const hx = ox + dx*best, hy = oy + dy*best;
   // Nhích nửa pixel qua mặt vừa chạm để đọc ô ở PHÍA BÊN KIA, không phải ô mình đang đứng.
@@ -2650,7 +2767,7 @@ function lipInto(pts, i, ox, oy, dx, dy, best, s){
     const by = dy > 0 ? (gy+1)*TILE : gy*TILE;
     const tx = (dx > 1e-9 || dx < -1e-9) ? (bx - hx)/dx : Infinity;
     const ty = (dy > 1e-9 || dy < -1e-9) ? (by - hy)/dy : Infinity;
-    them = Math.min(tx, ty);
+    them = Math.min(tx, ty, faceLip(dx, dy, s));
   } else if (s && s.cua){
     them = DOOR_THICK;
   } else return;
@@ -9392,7 +9509,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831q';
+const BUILD = '20260831w';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
