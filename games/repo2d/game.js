@@ -2578,7 +2578,11 @@ function visPoly(ox,oy,R,uniform){
   const shut = [];
   const tmp = [];
   if (S.doors) for (const d of S.doors)
-    for (const s of doorSegs(d, tmp)) shut.push(seg(s[0], s[1], s[2], s[3]));
+    for (const s of doorSegs(d, tmp)){
+      const g = seg(s[0], s[1], s[2], s[3]);
+      g.cua = 1;                                  // đánh dấu để lipInto biết đây là cánh cửa, không phải tường
+      shut.push(g);
+    }
   for (const s of S.segs.concat(shut)){
     if (s.minX>ox+R || s.maxX<ox-R || s.minY>oy+R || s.maxY<oy-R) continue;
     local.push(s);
@@ -2599,7 +2603,7 @@ function visPoly(ox,oy,R,uniform){
   const pts = new Float64Array(angles.length*2);
   for (let i=0;i<angles.length;i++){
     const a = angles[i], dx = Math.cos(a), dy = Math.sin(a);
-    let best = R;
+    let best = R, trung = null;
     for (let j=0;j<local.length;j++){
       const s = local[j];
       const ex = s.x2-s.x1, ey = s.y2-s.y1;
@@ -2610,11 +2614,49 @@ function visPoly(ox,oy,R,uniform){
       if (t<=0 || t>=best) continue;
       const u = (ax*dy-ay*dx)/den;
       if (u<0||u>1) continue;
-      best = t;
+      best = t; trung = s;
     }
     pts[i*2] = ox+dx*best; pts[i*2+1] = oy+dy*best;
+    if (trung) lipInto(pts, i, ox, oy, dx, dy, best, trung);
   }
   return pts;
+}
+
+// Soi đèn thẳng vào tường mà tường vẫn ĐEN — chủ dự án, 2026-08-31.
+//
+// Không phải lỗi của lớp tối hay của bộ vẽ tường: đa giác tầm nhìn dựng từ các GÓC của vật cản,
+// nên biên của nó nằm đúng trên MẶT tường, và bản thân ô tường luôn nằm ngoài vùng được clip.
+// Đo được: đứng cách một bức tường ba ô rồi soi đèn thẳng vào, sàn cách hai ô lên 105/255 (21 khi
+// quay lưng) còn ô tường đứng nguyên 3/255 dù quay mặt hay quay lưng — chênh lệch đúng bằng
+// không, tức là ánh sáng chưa từng chạm tới nó.
+//
+// Cách sửa: tia nào CHẠM vật cản thì đi tiếp vào bên trong ô nó vừa chạm, rồi dừng ngay khi ra
+// khỏi đúng ô đó. Không nới một khoảng cố định, vì một khoảng cố định vừa đủ soi sáng bức tường
+// dày một ô cũng vừa đủ rò sang phòng bên ở góc chéo. Đi tới mép ô là chặn đứng theo hình học:
+// một tia vào một ô vuông thì ra khỏi ô đó trong vòng một đường chéo (≈34px), không hơn.
+//
+// Ô phía sau điểm chạm phải THỰC SỰ đặc thì mới đi tới mép ô. Chạm một cánh cửa đóng thì phía
+// sau là sàn của phòng bên, và đi tới mép ô ở đó là rọi thẳng qua cánh cửa đang đóng — đúng thứ
+// đa giác này sinh ra để chặn. Cánh cửa vẫn phải sáng (đứng soi đèn vào cửa mà cửa đen thì cũng
+// là cái lỗi đang đi sửa), nên nó được nới đúng bằng bề dày của chính nó: DOOR_THICK, tức 6px,
+// nằm gọn trong nửa ô cửa nên không con mắt nào thấy được sàn bên kia.
+function lipInto(pts, i, ox, oy, dx, dy, best, s){
+  const hx = ox + dx*best, hy = oy + dy*best;
+  // Nhích nửa pixel qua mặt vừa chạm để đọc ô ở PHÍA BÊN KIA, không phải ô mình đang đứng.
+  const gx = ((hx + dx*0.5)/TILE)|0, gy = ((hy + dy*0.5)/TILE)|0;
+  let them;
+  if (solidAt(gx, gy)){
+    const bx = dx > 0 ? (gx+1)*TILE : gx*TILE;
+    const by = dy > 0 ? (gy+1)*TILE : gy*TILE;
+    const tx = (dx > 1e-9 || dx < -1e-9) ? (bx - hx)/dx : Infinity;
+    const ty = (dy > 1e-9 || dy < -1e-9) ? (by - hy)/dy : Infinity;
+    them = Math.min(tx, ty);
+  } else if (s && s.cua){
+    them = DOOR_THICK;
+  } else return;
+  if (!(them > 0) || them === Infinity) return;
+  pts[i*2]   = hx + dx*them;
+  pts[i*2+1] = hy + dy*them;
 }
 function pathPoly(c, pts){
   c.beginPath(); c.moveTo(pts[0],pts[1]);
@@ -9350,7 +9392,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831p';
+const BUILD = '20260831q';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm

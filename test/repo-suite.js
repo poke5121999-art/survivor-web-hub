@@ -1868,6 +1868,132 @@ async function escapeSuite(b) {
 }
 
 // =====================================================================
+// ĐÈN PIN CHIẾU LÊN TƯỜNG.
+//
+// Đa giác tầm nhìn dựng từ các GÓC của vật cản nên biên của nó nằm đúng trên MẶT tường, và ô
+// tường luôn rơi ra ngoài vùng được clip — soi đèn thẳng vào tường thì tường vẫn đen. Bộ này đo
+// bằng cách so CHÍNH MỘT Ô ĐÓ ở hai tư thế: quay mặt vào và quay lưng lại. Hiệu số mới là bằng
+// chứng; một con số tuyệt đối thì không, vì nó lẫn cả màu gạch, lớp trí nhớ và cái vignette.
+//
+// Và phải khoá cả hai đầu: tường SÁNG lên, mà sàn NGAY SAU tường thì KHÔNG — nới rộng vùng sáng
+// mà không chặn được ở đó thì thành nhìn xuyên tường, tức là đổi một lỗi lấy một lỗi tệ hơn.
+async function lightSuite(_khongDung) {
+  results.push('\n── đèn pin phải soi sáng được tường ──');
+  // Trình duyệt RIÊNG, vì bộ này đọc pixel bằng getImageData mà art nạp qua file:// làm canvas
+  // "nhiễm chéo nguồn" — Chromium chặn thẳng bằng SecurityError. Cờ này chỉ mở trong bộ đo pixel
+  // này, không mở cho cả bộ kiểm.
+  const b = await chromium.launch({ args: ['--allow-file-access-from-files'] });
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 900, height: 640 });
+  await p.locator('#veilBtn').click();
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+  await p.evaluate(() => { REPO.S.level = 4; REPO.startLevel(1234);
+    REPO.S.monsters.length = 0;
+    (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; }); });
+  await p.waitForTimeout(400);
+
+  // Một hành lang dọc: ba ô sàn đi lên rồi tới tường. Đứng dưới cùng, ngửa đèn lên.
+  const cho = await p.evaluate(() => {
+    const T = REPO.TILE;
+    for (let gy = 6; gy < REPO.MH - 2; gy++) for (let gx = 2; gx < REPO.MW - 2; gx++) {
+      let ok = true;
+      for (let k = 0; k < 3; k++) if (REPO.solidAt(gx, gy - k)) { ok = false; break; }
+      if (!ok || !REPO.solidAt(gx, gy - 3)) continue;
+      const px = (gx + 0.5) * T, py = (gy + 0.5) * T;
+      if (REPO.hitsSolid(px, py, 10)) continue;
+      REPO.warp(px, py);
+      return { gx, gy };
+    }
+    return null;
+  });
+  check('dựng được thế đứng để đo: hành lang cụt, cuối là tường', !!cho, JSON.stringify(cho));
+
+  // Hướng nhìn bị ghi đè mỗi khung nếu có input, nên phải ép lại liên tục.
+  const nhin = async (dir) => {
+    await p.evaluate(d => { if (window.__k) clearInterval(window.__k);
+      window.__k = setInterval(() => { REPO.S.player.dir = d; }, 16); }, dir);
+    await p.waitForTimeout(2400);
+    return p.evaluate(() => {
+      const c = document.getElementById('game'), g = c.getContext('2d');
+      const T = REPO.TILE, S = REPO.S;
+      const gx0 = (S.player.x / T) | 0, gy0 = (S.player.y / T) | 0;
+      // Trung bình một mảng 9x9 quanh tâm ô, để một đường kẻ gạch không lái kết quả.
+      const lay = d => {
+        const s = REPO.screenOf((gx0 + 0.5) * T, (gy0 - d + 0.5) * T);
+        let t = 0, n = 0;
+        for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
+          const q = g.getImageData(Math.round(s.x) + i, Math.round(s.y) + j, 1, 1).data;
+          t += (q[0] + q[1] + q[2]) / 3; n++;
+        }
+        return Math.round(t / n);
+      };
+      return { san: lay(2), tuong: lay(3), sauTuong: lay(4) };
+    });
+  };
+  const vao = await nhin(-Math.PI / 2);          // ngửa lên, soi thẳng vào tường
+  const ra  = await nhin(Math.PI / 2);           // quay lưng lại
+
+  check('đo được: soi đèn vào thì SÀN phía trước sáng hẳn lên',
+    vao.san - ra.san > 40, ra.san + ' -> ' + vao.san);
+  check('và ô TƯỜNG cuối hành lang cũng sáng lên theo',
+    vao.tuong - ra.tuong > 25, ra.tuong + ' -> ' + vao.tuong);
+  check('nhưng sàn NGAY SAU bức tường vẫn tối như cũ',
+    Math.abs(vao.sauTuong - ra.sauTuong) < 10 && vao.sauTuong < 25,
+    ra.sauTuong + ' -> ' + vao.sauTuong);
+
+  // --- cánh cửa ĐÓNG: sáng được, mà vẫn không nhìn xuyên qua ---------------
+  const cua = await p.evaluate(() => {
+    const T = REPO.TILE, d = (REPO.S.doors || [])[0];
+    if (!d) return null;
+    d.leaf[0] = 0; d.leaf[1] = 0; d.open = 0;
+    REPO.warp(d.vertical ? d.x + T * 2.5 : d.x, d.vertical ? d.y : d.y + T * 2.5);
+    window.__cuaDir = d.vertical ? Math.PI : -Math.PI / 2;
+    return { doc: !!d.vertical };
+  });
+  const nhinCua = async (dir) => {
+    await p.evaluate(d => { if (window.__k) clearInterval(window.__k);
+      window.__k = setInterval(() => { REPO.S.player.dir = d;
+        (REPO.S.doors || []).forEach(q => { q.leaf[0] = 0; q.leaf[1] = 0; q.open = 0; }); }, 16); }, dir);
+    await p.waitForTimeout(2400);
+    return p.evaluate(() => {
+      const c = document.getElementById('game'), g = c.getContext('2d');
+      const T = REPO.TILE, d = REPO.S.doors[0];
+      const ux = d.vertical ? 1 : 0, uy = d.vertical ? 0 : 1;
+      const lay = (wx, wy) => {
+        const s = REPO.screenOf(wx, wy);
+        let t = 0, n = 0;
+        for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
+          const q = g.getImageData(Math.round(s.x) + i, Math.round(s.y) + j, 1, 1).data;
+          t += (q[0] + q[1] + q[2]) / 3; n++;
+        }
+        return Math.round(t / n);
+      };
+      return { taiCua: lay(d.x, d.y),
+               sauCua: lay(d.x - ux * T * 1.2, d.y - uy * T * 1.2),
+               xaHon:  lay(d.x - ux * T * 2.4, d.y - uy * T * 2.4) };
+    });
+  };
+  if (cua) {
+    const cVao = await nhinCua(await p.evaluate(() => window.__cuaDir));
+    const cRa  = await nhinCua(await p.evaluate(() => window.__cuaDir + Math.PI));
+    check('cánh cửa ĐÓNG cũng sáng lên khi soi đèn vào',
+      cVao.taiCua - cRa.taiCua > 25, cRa.taiCua + ' -> ' + cVao.taiCua);
+    check('mà phòng sau cánh cửa đóng thì vẫn không thấy gì',
+      cVao.sauCua < 25 && cVao.xaHon < 25, cVao.sauCua + ' / ' + cVao.xaHon);
+  }
+
+  await p.evaluate(() => { if (window.__k) clearInterval(window.__k); });
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đèn pin: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+  await b.close();
+}
+
+// =====================================================================
 (async () => {
   const b = await chromium.launch();
   try { await repo2dSuite(b); } catch (e) { check('repo2d: bộ test chạy trọn', false, e.message); }
@@ -1882,6 +2008,7 @@ async function escapeSuite(b) {
   try { await metaRulesSuite(b); } catch (e) { check('sổ sách & luật ván: bộ test chạy trọn', false, e.message); }
   try { await wikiSuite(b); } catch (e) { check('sổ tay: bộ test chạy trọn', false, e.message); }
   try { await escapeSuite(b); } catch (e) { check('pha chạy: bộ test chạy trọn', false, e.message); }
+  try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));
   console.log('\n' + '═'.repeat(52));
