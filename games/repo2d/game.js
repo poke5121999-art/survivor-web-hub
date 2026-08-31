@@ -1242,12 +1242,21 @@ function bikeFits(b, l){
   const d = bikeDef(b);
   return d.slots > 0 && b.items.length < d.slots && l.value < CART_MAX_VALUE;
 }
+// Tầm leo lên xe HẸP HƠN tầm nhặt đồ, và cố ý.
+//
+// Cũ nó mượn grabRange (1,9 ô, còn nới thêm theo nâng cấp Với Xa) cộng bán kính xe: 60px, hai
+// ô rưỡi. Nút Nhặt đổi chữ thành "Lên xe" từ khoảng cách đó, tức là đi ngang qua chỗ đậu xe
+// trên đường tới chỗ khác là nút đã đổi mặt — và bấm Nhặt lúc ấy thì leo lên xe thay vì nhặt
+// cái mình đang tới lấy. Với Xa càng cao thì càng dễ dính.
+// Nay phải đứng SÁT xe. Cùng một hàm cho cả nút lẫn hành động, nên chữ trên nút luôn đúng với
+// việc bấm nó sẽ làm. SEE: siết tầm lên xe, 2026-08-31
+const BIKE_MOUNT_R = TILE * 0.95;
 function nearestBike(p, extra){
   let best = null, bd = 1e9;
   for (const b of (S.bikes || [])){
     if (b.rider && b.rider !== p) continue;
     const d = Math.hypot(b.x-p.x, b.y-p.y);
-    if (d < bd && d < b.r + grabRange(p) + (extra||0)){ bd = d; best = b; }
+    if (d < bd && d < b.r + BIKE_MOUNT_R + (extra||0)){ bd = d; best = b; }
   }
   return best;
 }
@@ -1323,6 +1332,10 @@ const DOOR_DRAG     = 2.2;        // 1/s, how fast a flung leaf loses the swing 
 // rule for Amnesia was that a door holds the state you left it in, and a 1.1s slam-shut broke that
 // every time you stepped back to look. Nine seconds after a two-and-a-half second pause never
 // fights you, and it keeps "that door is open, something came through it" worth reading.
+// Bề ngang thân người trải trên TRỤC CỬA, dùng để biết nó chạm cánh nào. Rộng hơn bán kính va
+// chạm thật (7,5) một chút: hai vai và cái đèn trong tay cũng đẩy được cửa, và một con số sát
+// quá thì đi đúng giữa lại không chạm cánh nào.
+const BODY_ON_DOOR  = 10;
 const DOOR_HOLD     = 2.5;        // seconds a leaf keeps the angle you left it at
 const DOOR_SAG_T    = 9;          // and how long the hinge then takes to sag it shut, wide to zero
 
@@ -1364,7 +1377,10 @@ const DOOR_BREAK_NOISE = 11*TILE; // splintering wood is loud, and the house hea
 
 function makeDoor(gx, gy, vertical){
   return { gx, gy, x:(gx+0.5)*TILE, y:(gy+0.5)*TILE, vertical, side:1,
-           open:0, vel:0, idle:0, pry:0,
+           // Hai cánh, hai đời riêng: [0] bản lề bên âm, [1] bên dương. `open` là góc của cánh
+           // mở nhiều nhất, giữ lại cho mọi chỗ chỉ cần hỏi "cửa này có mở không".
+           leaf:[0,0], lside:[1,1], lvel:[0,0], lidle:[0,0],
+           open:0, pry:0,
            locked:false, broken:false, bash:0, splint:0, warned:0 };
 }
 
@@ -1376,18 +1392,21 @@ function makeDoor(gx, gy, vertical){
 // nudged halfway hid exactly as much as a shut one and then the whole room arrived in one frame.
 // The number here is the same one drawDoors rotates the art by, so what you can see through a door
 // is now what the door LOOKS like - the crack you are peering through is the crack that is there.
-function doorCover(d){
+function doorCover(d, i){
   if (d.broken) return 0;
   if (d.locked) return DOOR_LEAF;                 // boards nailed across it: no crack, ever
-  return DOOR_LEAF * Math.cos(clamp(d.open,0,1) * Math.PI/2);
+  return DOOR_LEAF * Math.cos(clamp(d.leaf[i],0,1) * Math.PI/2);
 }
 
 // The pair as up to two occluding segments, one hugging each jamb. Callers get [x0,y0,x1,y1].
 function doorSegs(d, out){
   out.length = 0;
-  const cov = doorCover(d);
-  if (cov < 0.5) return out;                      // wide enough open that neither leaf is in the way
-  for (let k = -1; k <= 1; k += 2){
+  // Từng cánh che phần của riêng nó. Mở một cánh thì khe hở lệch hẳn về một bên chứ không phải
+  // một khe cân giữa — và đó đúng là thứ mắt thấy, nên đúng là thứ tia nhìn phải gặp.
+  for (let i = 0; i < 2; i++){
+    const cov = doorCover(d, i);
+    if (cov < 0.5) continue;                      // cánh này mở đủ rộng, không còn chắn gì
+    const k = i ? 1 : -1;
     const a = k*DOOR_LEAF, b = k*(DOOR_LEAF-cov);
     const lo = Math.min(a,b), hi = Math.max(a,b);
     out.push(d.vertical ? [d.x, d.y+lo, d.x, d.y+hi] : [d.x+lo, d.y, d.x+hi, d.y]);
@@ -1414,7 +1433,9 @@ function buildDoors(rnd){
     }
   }
   const r = rnd || Math.random;
-  for (const d of S.doors) d.side = r() < 0.5 ? 1 : -1;   // which room the pair swings into
+  // Chiều mở KHÔNG còn tung đồng xu lúc dựng nhà. Từng cánh tự quyết lúc bị đẩy, theo hướng
+  // người đẩy đang đi — xem stepDoors. Đồng xu là lý do trước đây một nửa số cửa trong nhà mở
+  // thẳng vào mặt người mở nó.
   lockDoors(r);
 }
 
@@ -1538,7 +1559,7 @@ function stepDoors(dt){
     if (d.splint > 0) d.splint = Math.max(0, d.splint - dt*0.6);
     if (d.warned > 0) d.warned = Math.max(0, d.warned - dt);
     if (d.locked && !d.broken){
-      d.open = 0;
+      d.open = 0; d.leaf[0] = d.leaf[1] = 0;
       // Anything with shoulders forces it eventually - and that is deliberately everything except
       // YOU. A jammed door that opened if the player leaned on it long enough would make the pry
       // bar a thing nobody ever has a reason to buy, and being the one body in the house that
@@ -1567,18 +1588,26 @@ function stepDoors(dt){
       if (d.bash >= DOOR_BASH_T) breakDoor(d, 'bash');
       continue;
     }
-    if (d.broken){ d.open = 1; continue; }        // a broken door is a hole, for good
+    if (d.broken){ d.open = 1; d.leaf[0] = d.leaf[1] = 1; continue; }   // a hole, for good
     const was = d.open;
-    // `touch` is how far the nearest body has already displaced the pair: 0 at arm's length,
-    // 1 standing in the plane. `slam` is the fastest anything is crossing that plane this frame.
-    let touch = 0, slam = 0, from = 0;
+    // MỖI CÁNH MỘT ĐỜI RIÊNG. Trước đây cả cặp dùng chung một góc mở, nên chạm vào cánh trái là
+    // cánh phải cũng bật ra — một cái cửa hai cánh cư xử như một tấm cửa lùa. Nay `leaf[0]` là
+    // cánh bản lề bên âm, `leaf[1]` bên dương, và thân người chỉ đẩy được cánh nào nó THỰC SỰ
+    // chạm vào: lấy bề ngang thân trải trên trục cửa rồi cắt với khoảng mà từng cánh phủ.
+    // Đi lệch một bên thì chỉ một cánh mở; đi giữa thì cả hai, vì lúc đó bạn chạm cả hai thật.
+    //
+    // CHIỀU MỞ lấy từ HƯỚNG ĐANG ĐI, không phải từ chỗ đang đứng. Bản cũ đọc dấu của `across`
+    // đúng lúc `touch` lớn nhất — mà lúc đó thân người nằm NGAY TRÊN mặt phẳng cửa, chỗ dấu ấy
+    // lật qua lật lại: đi từ trái sang, vượt quá 2px là nó đọc thành "người đứng bên phải" và
+    // đẩy cánh ngược vào mặt. Hướng đi thì không mơ hồ ở bất kỳ khung hình nào.
+    // SEE: cửa mở đúng chiều, từng cánh một, 2026-08-31
+    const cham = [0, 0], xo = [0, 0], huong = [0, 0];
     for (const b of bodies){
       const along  = d.vertical ? b.y-d.y : b.x-d.x;
       const across = d.vertical ? b.x-d.x : b.y-d.y;
       if (Math.abs(along) > DOOR_LEAF + 8) continue;        // beside the opening, not in it
       if (Math.abs(across) > DOOR_REACH) continue;          // not near enough to be leaning on it
       const t = 1 - Math.abs(across)/DOOR_REACH;
-      if (t > touch){ touch = t; from = across >= 0 ? 1 : -1; }
       // Only motion INTO the plane counts. Walking parallel past a doorway pushes nothing, which is
       // the single biggest difference from the old proximity rule, and walking AWAY after you are
       // through does not keep dragging the leaf round.
@@ -1586,26 +1615,42 @@ function stepDoors(dt){
       // Nothing walks a whole tile in one frame. A step that big is a TELEPORT - relocateFoe moving
       // a monster to the far side of the house, a respawn, REPO.warp - and reading it as a shove
       // would blow a door off its hinges from across the map.
-      if (Math.abs(mv) < TILE && across*mv <= 0) slam = Math.max(slam, Math.abs(mv)/Math.max(dt, 1e-4));
+      const that = Math.abs(mv) < TILE;
+      const lo = along - BODY_ON_DOOR, hi = along + BODY_ON_DOOR;
+      for (let i = 0; i < 2; i++){
+        const k = i ? 1 : -1;
+        const a0 = Math.min(0, k*DOOR_LEAF), a1 = Math.max(0, k*DOOR_LEAF);
+        if (hi < a0 || lo > a1) continue;                   // thân không chạm tới cánh này
+        if (t > cham[i]){
+          cham[i] = t;
+          if (that && mv) huong[i] = mv > 0 ? 1 : -1;
+        }
+        if (that && across*mv <= 0) xo[i] = Math.max(xo[i], Math.abs(mv)/Math.max(dt, 1e-4));
+      }
     }
-    // Which room the pair swings into: away from whoever is pushing it. Only ever decided while the
-    // door is as good as shut, so a leaf never flips through a body mid-swing. It was a coin flip
-    // before, which meant half the doors in the house opened INTO your face.
-    if (from && d.open < 0.05) d.side = d.vertical ? (from > 0 ? 1 : -1) : (from > 0 ? -1 : 1);
-    if (slam > DOOR_SLAM) d.vel = Math.max(d.vel, slam/DOOR_SWING);
-    if (d.vel > 0){
-      d.open = clamp(d.open + d.vel*dt, 0, 1);
-      d.vel = Math.max(0, d.vel - DOOR_DRAG*d.vel*dt);
-      if (d.vel < 0.02 || d.open >= 1) d.vel = 0;
+    for (let i = 0; i < 2; i++){
+      // Cánh xoay THEO chiều người đẩy đang đi. Chỉ đổi chiều khi cánh gần như đã khép: một cánh
+      // đang mở dở mà lật chiều là nó quét xuyên qua chính cái thân vừa đẩy nó.
+      if (huong[i] && d.leaf[i] < 0.12) d.lside[i] = d.vertical ? -huong[i] : huong[i];
+      if (xo[i] > DOOR_SLAM) d.lvel[i] = Math.max(d.lvel[i], xo[i]/DOOR_SWING);
+      if (d.lvel[i] > 0){
+        d.leaf[i] = clamp(d.leaf[i] + d.lvel[i]*dt, 0, 1);
+        d.lvel[i] = Math.max(0, d.lvel[i] - DOOR_DRAG*d.lvel[i]*dt);
+        if (d.lvel[i] < 0.02 || d.leaf[i] >= 1) d.lvel[i] = 0;
+      }
+      if (cham[i] > d.leaf[i]) d.leaf[i] = cham[i];   // bề ngang thân, không bao giờ kéo ngược lại
+      if (cham[i] > 0 || d.lvel[i] > 0) d.lidle[i] = 0; else d.lidle[i] += dt;
+      if (d.lidle[i] > DOOR_HOLD) d.leaf[i] = Math.max(0, d.leaf[i] - dt/DOOR_SAG_T);
     }
-    if (touch > d.open) d.open = touch;           // the body's own bulk, never pulling it back shut
-    if (touch > 0 || d.vel > 0) d.idle = 0; else d.idle += dt;
-    if (d.idle > DOOR_HOLD) d.open = Math.max(0, d.open - dt/DOOR_SAG_T);
+    // `open` là góc của cánh mở NHIỀU NHẤT. Giữ lại vì cả bộ kiểm, HUD lẫn lớp ngoài đều hỏi một
+    // câu duy nhất: "cái cửa này có mở không". Phần hình học thì đọc thẳng từng cánh.
+    d.open = Math.max(d.leaf[0], d.leaf[1]);
+    const xoNhat = Math.max(xo[0], xo[1]);
     const heard = Math.hypot(d.x-S.player.x, d.y-S.player.y) < 10*TILE;
     // the hinge as it starts to move, either way, and the bang of a door that was shoved
     if (heard && was < 0.02 && d.open >= 0.02) SFX.hinge(true);
     if (heard && was > 0.02 && d.open <= 0.02) SFX.hinge(false);
-    if (heard && slam > DOOR_SLAM && was < 0.35 && d.open >= 0.35) SFX.thud();
+    if (heard && xoNhat > DOOR_SLAM && was < 0.35 && d.open >= 0.35) SFX.thud();
   }
   for (const b of bodies){ b.doorPx = b.x; b.doorPy = b.y; }
 }
@@ -6046,14 +6091,12 @@ function drawMates(c){
     if (a.bubble && a.bubbleT > 0){
       // Drawn in the WORLD pass, so a colleague chattering two rooms away in the dark is a sound
       // you do not get to read. You have to be near them, or have a light on them.
-      const fade = Math.min(1, a.bubbleT/0.6);
-      c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
-      const w = c.measureText(a.bubble).width + 12;
-      c.fillStyle = `rgba(18,20,24,${0.72*fade})`;
-      c.fillRect(a.x - w/2, a.y - 30, w, 16);
-      c.fillStyle = `rgba(226,232,236,${fade})`;
-      c.fillText(a.bubble, a.x, a.y - 18);
-      c.textAlign = 'left';
+      // Luật cũ giữ nguyên: chỉ đọc được nếu THẤY họ. Nhưng thấy rồi thì phải đọc được hẳn,
+      // chứ không phải mờ đi vì một bức tường tình cờ nằm sau chữ.
+      if (inSight(a.x, a.y)){
+        const fade = Math.min(1, a.bubbleT/0.6);
+        wText(a.bubble, a.x, a.y - 18, `rgba(226,232,236,${fade})`, 11, `rgba(18,20,24,${0.72*fade})`);
+      }
     }
     c.save(); c.translate(a.x, a.y);
     c.fillStyle = 'rgba(0,0,0,0.45)';
@@ -7897,11 +7940,9 @@ function drawBikes(c){
     const gan = p && Math.hypot(p.x-b.x, p.y-b.y) < TILE*3;
     if (!gan && b.rider !== p) continue;
     const pct = Math.round(b.fuel / b.fuelMax * 100);
-    c.font = '700 10px ui-monospace, monospace'; c.textAlign = 'center';
-    c.fillStyle = b.fuel <= 0 ? '#b8544a' : pct < 25 ? '#e0a35a' : '#9fb0c0';
-    c.fillText(d.name + ' · xăng ' + pct + '%' +
-               (d.slots ? '  ' + b.items.length + '/' + d.slots : ''), b.x, b.y - b.r - 7);
-    c.textAlign = 'left';
+    wText(d.name + ' · xăng ' + pct + '%' + (d.slots ? '  ' + b.items.length + '/' + d.slots : ''),
+          b.x, b.y - b.r - 7,
+          b.fuel <= 0 ? '#b8544a' : pct < 25 ? '#e0a35a' : '#9fb0c0', 10);
   }
 }
 
@@ -7924,10 +7965,8 @@ function drawCart(c){
   c.beginPath(); c.moveTo(r*0.95, -r*0.5); c.lineTo(r*0.95, r*0.5); c.stroke();
   c.restore();
   // the money total, on the front face, exactly like the source game
-  c.font = '700 11px ui-monospace, monospace'; c.textAlign = 'center';
-  c.fillStyle = cart.items.length ? '#e0c07a' : '#8b939d';
-  c.fillText(money(cartValue(cart)) + '  ' + cart.items.length + '/' + CART_SLOTS, cart.x, cart.y - r - 6);
-  c.textAlign = 'left';
+  wText(money(cartValue(cart)) + '  ' + cart.items.length + '/' + CART_SLOTS,
+        cart.x, cart.y - r - 6, cart.items.length ? '#e0c07a' : '#8b939d', 11);
 }
 // The till button, painted on the floor beside the checkout. Green while it is counting, because
 // the thing it is counting down to is money leaving your wallet.
@@ -7954,13 +7993,11 @@ function drawPads(c){
     c.fillStyle = pad.done ? 'rgba(40,60,50,0.35)' : pad.active ? 'rgba(50,120,90,0.22)' : 'rgba(60,70,80,0.15)';
     c.fillRect(pad.x-TILE*1.8, pad.y-TILE*1.8, TILE*3.6, TILE*3.6);
     if (!pad.done){
-      c.fillStyle = '#dfe6ea'; c.font = '600 13px ui-monospace, monospace'; c.textAlign = 'center';
       // On a checkout the number is red once it is past what the wallet holds — otherwise the till
       // simply refuses and the player is left guessing which part it objected to.
-      if (pad.shop && pad.value > S.wallet) c.fillStyle = '#e8776a';
-      c.fillText(pad.shop ? money(pad.value) : money(pad.value) + ' / ' + money(pad.quota),
-                 pad.x, pad.y - TILE*2.1);
-      c.textAlign = 'left';
+      wText(pad.shop ? money(pad.value) : money(pad.value) + ' / ' + money(pad.quota),
+            pad.x, pad.y - TILE*2.1,
+            (pad.shop && pad.value > S.wallet) ? '#e8776a' : '#dfe6ea', 13);
     }
   }
 }
@@ -7980,10 +8017,7 @@ function drawLoot(c){
       c.fillRect(l.x-4.2, y-2.4, 2.6, 2.6); c.fillRect(l.x+1.6, y-2.4, 2.6, 2.6);
       c.strokeStyle = 'rgba(58,47,44,0.9)'; c.lineWidth = 1.1;
       c.beginPath(); c.moveTo(l.x-3, y+4); c.lineTo(l.x+3, y+4); c.stroke();
-      c.font = '600 10px ui-sans-serif, system-ui'; c.textAlign = 'center';
-      c.fillStyle = '#e6b8b0';
-      c.fillText('Đầu ' + (l.whoName || ''), l.x, y - l.r - 5);
-      c.textAlign = 'left';
+      wText('Đầu ' + (l.whoName || ''), l.x, y - l.r - 5, '#e6b8b0', 10);
       continue;
     }
     c.beginPath(); c.fillStyle = 'rgba(0,0,0,0.4)';
@@ -8006,9 +8040,7 @@ function drawLoot(c){
     c.stroke();
     if (l.good){
       // A price with no name on it is a number, not an offer.
-      c.font = '600 10px ui-sans-serif, system-ui'; c.textAlign = 'center';
-      c.fillStyle = '#dfe6ea';
-      c.fillText(l.good.name, l.x, y + l.r + 12);
+      wText(l.good.name, l.x, y + l.r + 12, '#dfe6ea', 10);
     }
     for (let i=0;i<l.cracks;i++){
       c.beginPath(); c.strokeStyle = 'rgba(20,20,20,0.6)'; c.lineWidth = 1.2;
@@ -8018,11 +8050,7 @@ function drawLoot(c){
       c.stroke();
     }
     // C3-8 step 2: the value must be visible or losing it reads as the game cheating
-    c.font = '600 11px ui-monospace, monospace'; c.textAlign = 'center';
-    const lost = l.value < l.value0;
-    c.fillStyle = lost ? '#d98a7a' : '#e2e8ec';
-    c.fillText(money(l.value), l.x, y - l.r - 5);
-    c.textAlign = 'left';
+    wText(money(l.value), l.x, y - l.r - 5, l.value < l.value0 ? '#d98a7a' : '#e2e8ec', 11);
   }
 }
 function drawMonsters(c){
@@ -8086,12 +8114,13 @@ function drawDoors(c){
   for (const d of S.doors){
     if (d.broken){ drawDoorWreck(c, d); continue; }
     const jam = d.locked;
-    for (const k of [-1, 1]){
+    for (let i = 0; i < 2; i++){
+      const k = i ? 1 : -1;
       const hx = d.vertical ? d.x : d.x + k*DOOR_LEAF;
       const hy = d.vertical ? d.y + k*DOOR_LEAF : d.y;
       // shut = the leaf lies along the opening, reaching from its jamb to the middle
       const shut = d.vertical ? -k*(Math.PI/2) : (k > 0 ? Math.PI : 0);
-      const a = shut + (jam ? 0 : -k*d.side*(Math.PI/2)*d.open);
+      const a = shut + (jam ? 0 : -k*d.lside[i]*(Math.PI/2)*d.leaf[i]);
       c.save();
       c.translate(hx, hy);
       c.rotate(a);
@@ -8370,7 +8399,7 @@ function drawHud(c){
   drawExtractBar(c, hud);
   drawReturnStrip(c, hud);
 
-  drawPops(c);
+  drawPops(c); drawWorldText(c);
   if (S.countdownActive) drawCountdown(c, hud);
   if (S.messageT > 0){
     // Above the thumb sticks, not under them: the sticks own the bottom band of a portrait frame.
@@ -8771,6 +8800,43 @@ function drawAim(c, hud, p){
 // Money leaving an object, drawn where the object is. The old build changed a number on the item
 // and printed one line of text at the bottom of the screen; neither is something a player looking
 // at the thing they just dropped will see.
+
+// ============================================================ chữ neo vào thế giới
+//
+// Chữ đi kèm một vật trong nhà — giá tiền món đồ, bình xăng chiếc xe, câu đồng đội vừa nói — luôn
+// nằm PHÍA TRÊN cái vật đó, tức là trên đúng cái ô mà một căn nhà nhìn từ trên xuống thường có
+// tường. Vẽ trong lớp thế giới thì nó đi qua phép nhân của lớp tối, mà đa giác tầm nhìn lại dừng
+// ngay ở mặt tường — nên chữ bị nhân xuống gần đen dù cái vật mang nó thì đang sáng rõ.
+// Cùng họ với lỗi "tường cắt ngang người" đã sửa hôm trước, và cùng nguyên nhân: thế giới vẽ từ
+// trên xuống nhưng mọi thứ đều dựng LÊN từ chân.
+//
+// Nên gom lại rồi vẽ SAU, ở toạ độ màn hình, giống hệt cách các con số sát thương (drawPops) vẫn
+// làm từ trước. Luật "phải thấy mới đọc được" không mất: từng chỗ gọi tự quyết định có nói hay
+// không. Cái mất đi chỉ là việc một bức tường vô tình nằm sau chữ thì xoá mất chữ.
+// SEE: chữ đừng để tường che, 2026-08-31
+const worldText = [];
+function wText(txt, x, y, col, size, box){
+  worldText.push({ txt, x, y, col, size: size || 11, box: box || null });
+}
+function drawWorldText(c){
+  for (const t of worldText){
+    const x = scrX(t.x), y = scrY(t.y);
+    c.font = '600 ' + t.size + 'px ui-monospace, monospace';
+    c.textAlign = 'center';
+    if (t.box){
+      const w = c.measureText(t.txt).width + 12;
+      c.fillStyle = t.box;
+      c.fillRect(x - w/2, y - t.size, w, t.size + 5);
+    } else {
+      c.fillStyle = 'rgba(8,10,12,0.55)';
+      c.fillText(t.txt, x + 1, y + 1);
+    }
+    c.fillStyle = t.col;
+    c.fillText(t.txt, x, y);
+    c.textAlign = 'left';
+  }
+  worldText.length = 0;
+}
 function drawPops(c){
   for (const q of FX.pops){
     const k = q.t / q.life;
@@ -9016,7 +9082,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831i';
+const BUILD = '20260831j';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
