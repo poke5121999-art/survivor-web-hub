@@ -544,6 +544,27 @@
         '</b> bung ra chỗ lưỡi chạm.</p></div>';
     }
 
+    // Nâng cấp / trang bị / rã đồ
+    var ec = G.enhanceCost(g), lc = G.limitBreakCost(g), vc = G.evolveCost(g);
+    html += '<div class="card"><h3>Nâng cấp</h3>' +
+      '<button class="btn ' + (g.lv < G.MAX_LV && G.canPay(S, ec) ? 'pri' : 'dis') + '" data-act="enhance" style="width:100%;margin-bottom:6px">' +
+        'Nâng cấp → Lv.' + Math.min(G.MAX_LV, g.lv + 1) + ' · ' + fmt(ec.gold) + ' Gold + ' + ec.mat.str_stone + ' Strengthening Stone</button>' +
+      '<button class="btn ' + (g.lb < 4 && G.canPay(S, lc) ? 'pri' : 'dis') + '" data-act="lb" style="width:100%;margin-bottom:6px">' +
+        // Kẹp nhãn ở 4/4: trước đây in ra "Limit Break 5/4" khi đã tối đa.
+        (g.lb >= 4 ? 'Limit Break 4/4 — đã tối đa'
+                   : 'Limit Break ' + (g.lb + 1) + '/4 · ' + fmt(lc.gold) + ' Gold + Lapis') +
+        '</button>' +
+      '<button class="btn ' + (G.canEvolve(g) && G.canPay(S, vc) ? 'pri' : 'dis') + '" data-act="evolve" style="width:100%;margin-bottom:6px">' +
+        (G.canEvolve(g)
+          ? 'Tiến hoá → Lv.1, chỉ số cao hơn · ' + fmt(vc.gold) + ' Gold + ' + vc.mat.dragon_core + ' Lõi Rồng'
+          : (g.rank === 'S' || g.rank === 'SS'
+              ? (g.evo >= G.MAX_EVO ? 'Tiến hoá ' + g.evo + '/' + G.MAX_EVO + ' — đã tối đa'
+                                    : 'Tiến hoá — cần Lv.' + G.MAX_LV + ' trước')
+              : 'Tiến hoá — chỉ dành cho đồ hạng S và SS')) + '</button>' +
+      '<div class="row"><button class="btn ' + (equipped ? 'dis' : 'go') + '" data-act="equip" style="flex:1">' +
+        (equipped ? 'Đang mặc' : 'Trang bị') + '</button>' +
+      '<button class="btn red" data-act="dismantle">Rã lấy Lapis</button></div></div>';
+
     b.innerHTML = html;
     b.onclick = function (e) {
       var t = e.target.closest('[data-act]'); if (!t) return;

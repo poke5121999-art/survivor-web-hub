@@ -164,6 +164,36 @@ const PAGE_SNAP = () => {
   ];
   const RUBBISH = ['undefined', 'NaN', '[object Object]'];
 
+  /* ---------------------------------------- ĐỦ NÚT Ở MÀN CHI TIẾT ĐỒ ---- */
+  // Đợt dọn hệ Magi đã CẮT NHẦM nguyên thẻ "Nâng cấp" của màn chi tiết đồ, mang
+  // theo cả nút Trang bị và Rã đồ — và không phép kiểm nào kêu, vì crawler chỉ
+  // bấm những nút CÓ MẶT chứ không hỏi nút nào PHẢI có mặt. Chốt lại ở đây:
+  // mỗi hành động mà rGear biết xử lý đều phải có một cái nút gọi tới nó.
+  await openGear('weapon');
+  const gearActs = await p.evaluate(() => {
+    const b = document.getElementById('body-gear');
+    return [...b.querySelectorAll('[data-act]')].map(x => x.getAttribute('data-act'));
+  });
+  ['enhance', 'lb', 'evolve', 'reroll', 'equip', 'dismantle'].forEach(a => {
+    check('màn chi tiết đồ có nút "' + a + '"', gearActs.indexOf(a) >= 0,
+      'đang có: ' + gearActs.join(', '));
+  });
+
+  // Bấm Trang bị thì món đó phải THẬT SỰ vào loadout.
+  const eqTest = await p.evaluate(() => {
+    const S = DP.UI.save;
+    const g = S.gear.find(x => x.kind === 'weapon' && S.loadout.weapons.indexOf(x.uid) < 0);
+    if (!g) return { skip: true };
+    DP.UI.show('armory');
+    document.querySelector('#body-armory [data-filter="weapon"]').click();
+    document.querySelector('#body-armory [data-gear="' + g.uid + '"]').click();
+    document.querySelector('#body-gear [data-act="equip"]').click();
+    return { on: DP.UI.save.loadout.weapons.indexOf(g.uid) >= 0, name: g.name };
+  });
+  if (!eqTest.skip) {
+    check('bấm "Trang bị" thì món vào đúng loadout', eqTest.on, eqTest.name);
+  }
+
   note('\n── crawl mọi nút trên mọi màn hình ──');
   let clicks = 0;
   for (const T of TARGETS) {
