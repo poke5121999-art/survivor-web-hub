@@ -144,13 +144,25 @@ def ramp_img(im, dark, light):
     return g
 
 
-def pack_one(src, name, node=None):
+def pack_one(src, name, node=None, src2=None):
     """Ghép khung rời thành một dải ngang. Trả về (Image, số khung, w, h)."""
     node = node or {}
     folder = os.path.join(src, name)
+    files = None
     if not os.path.isdir(folder):
-        return None
-    files = frame_files(folder)
+        # Nguồn thứ hai: thư mục ảnh PHẲNG nằm ngay trong repo (_assets_src/**).
+        # Dùng cho những ảnh không lấy từ kho HoloCure — chúng phải đi kèm repo,
+        # nếu không thì máy nào không có ổ D: là chạy pack.py ra thiếu.
+        if src2:
+            for sub in ('', 'weapons'):
+                one = os.path.join(src2, sub, name + '.png')
+                if os.path.isfile(one):
+                    files = [one]
+                    break
+        if files is None:
+            return None
+    if files is None:
+        files = frame_files(folder)
     if not files:
         # vài sprite chỉ có đúng một file không đánh số
         one = os.path.join(folder, name + '.png')
@@ -181,6 +193,7 @@ def pack_one(src, name, node=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--src', default=r'D:\HoloCureAssets\GameSprites')
+    ap.add_argument('--src2', default=os.path.join(GAME, '_assets_src'))
     ap.add_argument('--dry-run', action='store_true')
     a = ap.parse_args()
 
@@ -213,7 +226,7 @@ def main():
             node.update(seen[out_name])
             ok += 1
             continue
-        r = pack_one(a.src, name, node)
+        r = pack_one(a.src, name, node, a.src2)
         if not r:
             print('  THIẾU  %-34s <- %s' % (key, name))
             miss += 1

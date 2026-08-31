@@ -78,6 +78,13 @@
       ox: def.ox || 0, oy: def.oy || 0,
       fps: def.fps || 14,
       scale: def.scale || 1,
+      // Thuộc tính của ẢNH, không phải của game: hướng mũi (rot), chiều dài khi
+      // cầm (len), chỗ nắm dọc trục (grip). Đổi ảnh vũ khí khác hướng thì sửa
+      // ba số này trong asset-map, không đụng code vẽ.
+      rot: (def.rot || 0) * Math.PI / 180,
+      len: def.len || 0,
+      grip: def.grip === undefined ? 0.5 : def.grip,
+      file: def.file || (def.spr + '.png'),
       loaded: false, img: null
     };
     this.entries[key] = e;
@@ -108,6 +115,13 @@
     return null;
   };
   Atlas.has = function (key) { return !!this.get(key); };
+
+  /* Đường dẫn file của một khoá — để HTML dùng thẻ <img>, chứ canvas thì đã có
+     entry.img rồi. Trả '' nếu chưa có ảnh, bên gọi tự lo. */
+  Atlas.src = function (key) {
+    var e = this.entries[key];
+    return e ? this.base + e.file : '';
+  };
 
   /* Mọi khoá đã nạp xong nằm dưới một nhánh, ví dụ 'doodads.grass'.
      Nhờ nó mà code game không cần biết biome đó có mấy món trang trí, tên gì —

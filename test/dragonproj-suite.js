@@ -855,6 +855,29 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('lưu và nạp lại giữ nguyên tiến độ',
     await p.evaluate(() => DP.UI.save.gold === 12345));
 
+  /* ------------------------------------------------------ BỘ ẢNH ------- */
+  // Luật của đường ống art: đổi art = thay PNG + sửa asset-map, KHÔNG đụng code.
+  // Luật đó chỉ đứng được khi mọi khoá mà code hỏi tới đều CÓ ảnh. Chỗ dễ thủng
+  // nhất là bảng vũ khí: 5 lớp x 7 hệ = 35 ô, thiếu một ô là cây đó rơi về hình
+  // học trong khi mấy cây kia đã là ảnh — lệch hẳn mà không báo lỗi gì.
+  results.push('\n── bộ ảnh ──');
+  const art = await p.evaluate(() => {
+    const A = DP.Atlas, out = { rep: A.report(), miss: [], bad: [] };
+    ['sword', 'great', 'spear', 'dual', 'bow'].forEach(c =>
+      ['none', 'thunder', 'fire', 'water', 'earth', 'light', 'dark'].forEach(e => {
+        const k = 'weapons.' + c + '.' + e, en = A.get(k);
+        if (!en) out.miss.push(k);
+        else if (!en.len || !en.img) out.bad.push(k);
+      }));
+    return out;
+  });
+  check('mọi ảnh trong asset-map đều nạp được', art.rep.loaded === art.rep.total,
+    art.rep.loaded + '/' + art.rep.total);
+  check('đủ 35 biểu tượng vũ khí (5 lớp x 7 hệ)', art.miss.length === 0,
+    art.miss.length ? 'thiếu: ' + art.miss.slice(0, 5).join(', ') : '35/35');
+  check('biểu tượng vũ khí nào cũng có ảnh và có chiều dài khi cầm',
+    art.bad.length === 0, art.bad.slice(0, 5).join(', ') || 'ok');
+
   // -------------------------------------------------------------- LỖI JS
   results.push('\n── console ──');
   check('không có lỗi JavaScript', errs.length === 0, errs.slice(0, 3).join(' | '));

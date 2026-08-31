@@ -2165,6 +2165,26 @@
     ctx.save();
     ctx.translate(Math.cos(wA) * HR, Math.sin(wA) * HR);
     ctx.rotate(wA * 0.55);             // lưỡi nghiêng theo tay nhưng vẫn hướng ra trước
+
+    /* Có ảnh vũ khí thì vẽ ảnh. Ba số rot/len/grip nằm trong asset-map chứ không
+     * nằm ở đây, vì chúng là thuộc tính của TẤM ẢNH: biểu tượng kiếm vẽ đứng
+     * (mũi lên) nên phải xoay 90°, nỏ vẽ nằm nên xoay 0°. Thay ảnh khác hướng =
+     * sửa số trong manifest, không sửa hàm này. */
+    var we = G.Atlas && G.Atlas.get('weapons.' + cls + '.' + ((o && o.el) || 'none'));
+    if (!we && G.Atlas) we = G.Atlas.get('weapons.' + cls + '.none');
+    if (we && we.len) {
+      var up = Math.abs(we.rot) > 0.1;          // ảnh vẽ đứng hay nằm
+      var axis = up ? we.h : we.w;              // cạnh chạy dọc thân vũ khí
+      var sc = we.len / Math.max(1, axis);
+      var iw = we.w * sc, ih = we.h * sc;
+      ctx.rotate(we.rot);
+      // đặt sao cho ĐIỂM NẮM rơi đúng vào bàn tay (gốc toạ độ)
+      if (up) ctx.drawImage(we.img, 0, 0, we.w, we.h, -iw / 2, -we.grip * ih, iw, ih);
+      else    ctx.drawImage(we.img, 0, 0, we.w, we.h, -(1 - we.grip) * iw, -ih / 2, iw, ih);
+      ctx.restore();
+      return;
+    }
+
     function bar(x, y, w, h, fill) {
       ctx.fillStyle = 'rgba(12,16,20,.8)'; ctx.fillRect(x - 0.9, y - 0.9, w + 1.8, h + 1.8);
       ctx.fillStyle = fill; ctx.fillRect(x, y, w, h);
@@ -2264,7 +2284,7 @@
       ctx.rotate(1.42); ctx.translate(0, -6);
       drawChar(ctx, { facing: 0, state: 'down', moving: false, t: this.t, k: 0,
         body: '#9fb0be', hand: SKIN[this.s.skin || 2], hair: HAIRC[this.s.hairColor || 0],
-        cloth: '#5a6a7a', weapon: null, elem: '#888' });
+        cloth: '#5a6a7a', weapon: null, elem: '#888', el: 'none' });
       ctx.restore();
       // Vòng đếm ngược tự đứng dậy: vành vơi dần cho biết còn bao lâu.
       if (p.revives > 0) {
@@ -2329,7 +2349,7 @@
           // của cú lăn nên nó lăn theo người, không đứng yên giữa lưng chừng.
           ctx.save(); ctx.rotate(p.facing);
           drawHeldWeapon(ctx, this.wp.wclass, G.ELEMENTS[this.wp.el].color,
-            { state: st, k: p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0 },
+            { state: st, el: this.wp.el, k: p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0 },
             0, p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0, st);
           ctx.restore();
         }
@@ -2344,6 +2364,7 @@
       hair: HAIRC[this.s.hairColor || 0], cloth: '#3b6ea5',
       weapon: this.wp ? this.wp.wclass : 'sword',
       elem: G.ELEMENTS[this.wp ? this.wp.el : 'none'].color,
+      el: this.wp ? this.wp.el : 'none',
       guardPerfect: p.state === 'guard' && p.guardT <= this.W.perfectMs
     });
     ctx.restore();

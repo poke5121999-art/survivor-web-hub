@@ -120,8 +120,9 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 /* --- đổi vũ khí: ba khe nhỏ, dưới cột kỹ năng --- */
 .wswitch{position:absolute;right:10px;top:432px;display:flex;flex-direction:column;gap:6px}
 .wslot{width:52px;height:34px;border-radius:8px;background:rgba(10,16,23,.8);
-  border:2px solid var(--line);display:flex;align-items:center;justify-content:center;
-  font-size:9px;font-weight:700;color:var(--dim);line-height:1.05;text-align:center;padding:2px}
+  border:2px solid var(--line);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;font-size:9px;font-weight:700;color:var(--dim);
+  line-height:1.05;text-align:center;padding:2px}
 .wslot.on{border-color:var(--gold);color:var(--gold);background:rgba(242,201,75,.14)}
 .wslot.empty{opacity:.3}
 
@@ -314,6 +315,17 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .item .nm{font-weight:800;font-size:11px;line-height:1.25;margin-bottom:3px}
 .item .sub{font-size:9.5px;color:var(--dim);line-height:1.4}
 .item .corner{position:absolute;right:5px;top:5px}
+/* Biểu tượng vũ khí. pixelated là bắt buộc: ảnh gốc cao 15-30px, để trình duyệt
+   làm mượt là nát hết nét pixel. */
+.wicon{image-rendering:pixelated;display:block;width:auto}
+/* Trong túi đồ: biểu tượng đứng riêng một cột bên phải, nên thẻ phải chừa chỗ —
+   không chừa là nó đè lên dòng chữ và mấy ô kỹ năng. */
+.item.wpn{padding-right:46px}
+.item.wpn > .wicon{position:absolute;right:7px;top:50%;transform:translateY(-50%);
+  height:38px;pointer-events:none}
+.wicon.top{height:42px;margin:1px auto 6px}
+.card .row > .wicon{height:30px;margin-right:7px;align-self:center}
+.wslot .wicon{height:16px;margin:0 auto 1px}
 .slots{display:flex;gap:3px;margin-top:4px}
 .slot{width:19px;height:19px;border-radius:4px;background:#0a0f16;border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-size:11px}

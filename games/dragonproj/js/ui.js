@@ -47,6 +47,16 @@
 
   function save() { G.save(S); }
   function fmt(n) { return (n | 0).toLocaleString('vi-VN'); }
+  /* Biểu tượng vũ khí. Ảnh tra theo LỚP + HỆ, nên đổi bảng ảnh trong
+     asset-map là cả giao diện đổi theo, không phải sửa từng chỗ ở đây.
+     Chưa có ảnh thì trả chuỗi rỗng — mọi chỗ gọi đều chịu được. */
+  function wIcon(g, cls) {
+    if (!g || g.kind !== 'weapon' || !G.Atlas) return '';
+    var src = G.Atlas.src('weapons.' + g.wclass + '.' + (g.el || 'none')) ||
+              G.Atlas.src('weapons.' + g.wclass + '.none');
+    return src ? '<img class="wicon ' + (cls || '') + '" src="' + src + '" alt="">' : '';
+  }
+
   function rankChip(r) { return '<span class="rank rk-' + r + '">' + r + '</span>'; }
   function elemDot(el) {
     var E = G.ELEMENTS[el] || G.ELEMENTS.none;
@@ -309,7 +319,8 @@
              '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'][S.hairColor || 0],
       cloth: '#3b6ea5',
       weapon: w ? w.wclass : 'sword',
-      elem: G.ELEMENTS[(w && w.el) || 'none'].color
+      elem: G.ELEMENTS[(w && w.el) || 'none'].color,
+      el: (w && w.el) || 'none'
     });
     ctx.restore();
   }
@@ -401,7 +412,7 @@
     for (var i = 0; i < 3; i++) {
       var g = eq.weapons[i];
       html += '<button class="item" data-wslot="' + i + '">' + (g
-        ? '<div class="nm">' + g.name + '</div><div class="sub">' + rankChip(g.rank) + ' ' + G.WEAPONS[g.wclass].vi +
+        ? wIcon(g, 'top') + '<div class="nm">' + g.name + '</div><div class="sub">' + rankChip(g.rank) + ' ' + G.WEAPONS[g.wclass].vi +
           '<br>' + G.WTYPES[g.wtype].vi + ' ' + elemDot(g.el) + '<br>Lv.' + g.lv + lbDots(g) + '</div>'
         : '<div class="nm" style="opacity:.4">Khe ' + (i + 1) + '</div><div class="sub">trống</div>') + '</button>';
     }
@@ -424,8 +435,9 @@
     var list = S.gear.filter(function (g) { return g.kind === gearFilter; });
     if (!list.length) html += '<div class="empty-note" style="grid-column:1/-1">Chưa có món nào loại này. Sang Triệu hồi quay đồ.</div>';
     list.forEach(function (g) {
-      html += '<button class="item" data-gear="' + g.uid + '"><div class="corner">' + rankChip(g.rank) + '</div>' +
-        '<div class="nm">' + g.name + '</div><div class="sub">' +
+      html += '<button class="item' + (g.kind === 'weapon' ? ' wpn' : '') +
+        '" data-gear="' + g.uid + '"><div class="corner">' + rankChip(g.rank) + '</div>' +
+        wIcon(g) + '<div class="nm">' + g.name + '</div><div class="sub">' +
         (g.kind === 'weapon' ? G.WEAPONS[g.wclass].vi + ' · ' + G.WTYPES[g.wtype].vi + ' ' + elemDot(g.el) : 'Giáp ' + elemDot(g.defEl || 'none')) +
         '<br>Lv.' + g.lv + '/' + G.MAX_LV + (g.evo ? ' ·進' + g.evo : '') + lbDots(g) + '</div>' + slotsHtml(g) + '</button>';
     });
@@ -483,7 +495,8 @@
     var eq = G.equipped(S);
     var equipped = (g.kind === 'weapon') ? S.loadout.weapons.indexOf(g.uid) >= 0 : S.loadout[g.kind] === g.uid;
 
-    var html = '<div class="card"><div class="row"><h3 style="flex:1">' + g.name + '</h3>' + rankChip(g.rank) + '</div>';
+    var html = '<div class="card"><div class="row">' + wIcon(g, 'big') +
+      '<h3 style="flex:1">' + g.name + '</h3>' + rankChip(g.rank) + '</div>';
     if (g.kind === 'weapon') {
       var Wd = G.WEAPONS[g.wclass];
       html += '<p>' + Wd.vi + ' (' + Wd.jp + ') · loại <b style="color:' + G.WTYPES[g.wtype].color + '">' + G.WTYPES[g.wtype].vi + '</b> · ' +
@@ -1044,7 +1057,7 @@
       var g = eq.weapons[i];
       var on = battle && battle.player.wIdx === i;
       html += '<button class="wslot ' + (on ? 'on' : '') + ' ' + (g ? '' : 'empty') + '" data-w="' + i + '">' +
-        (g ? G.WEAPONS[g.wclass].vi.split(' ')[0] + '<br>' + G.WTYPES[g.wtype].vi : '—') + '</button>';
+        (g ? wIcon(g, 'hud') + G.WTYPES[g.wtype].vi : '—') + '</button>';
     }
     el.innerHTML = html;
     el.onclick = function (e) {

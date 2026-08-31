@@ -716,7 +716,8 @@
         if (G.drawChar) {
           G.drawChar(ctx, { facing: d.facing, state: 'idle', moving: false, t: self.t, k: 0,
             charge: 0, body: '#7a5fb0', hand: '#7a5fb0', hair: '#c9a8ff', cloth: '#4a3a72',
-            weapon: self.wp ? self.wp.wclass : 'sword', elem: '#c9a8ff' });
+            weapon: self.wp ? self.wp.wclass : 'sword', elem: '#c9a8ff',
+            el: self.wp ? self.wp.el : 'none' });
         }
         // vòng ngoài nhấp nháy: nói cho biết nó SẼ NỔ, không phải chỉ đứng đó
         ctx.globalAlpha = 0.35 * (d.left / d.max);

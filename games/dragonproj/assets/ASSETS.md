@@ -367,3 +367,69 @@ cây hơn thì **đổi thứ tự trong `asset-map.json`**, không phải sửa
 
 `BG_floorstoneA/B/C` sau khi cắt viền trong suốt chỉ còn 7×5 tới 11×9 pixel —
 gần như vô hình — nên chúng mang thêm `scale` 2.6–3.0.
+
+
+---
+
+## 9. Biểu tượng vũ khí
+
+Nguồn: **`https://sephiria.page/icons/weapons/`** — wiki cộng đồng của Sephiria.
+Ảnh gốc để trong repo tại `_assets_src/weapons/` (35 file, ~90 KB) chứ không tải
+về lúc build: máy nào không có mạng vẫn chạy được `pack.py`.
+
+Tra theo **LỚP × HỆ**, khoá `weapons.<lớp>.<hệ>` — 5 × 7 = 35 ô, không ô nào để
+trống. Trước đây vũ khí trên tay là hình học tô màu theo hệ; giờ mỗi hệ có ảnh
+riêng, nên nhìn thanh kiếm là biết đang cầm hệ gì mà không cần đọc chữ.
+
+| Lớp | Vô | Lôi | Hoả | Thuỷ | Thổ | Quang | Ám |
+|---|---|---|---|---|---|---|---|
+| **Kiếm & Khiên** | `katana_Tier1` | `katana_Lightning_DarkCloud` | `katana_Fire_FlameSword` | `katana_Ice_Eco` | `katana_Basic_Speed` | `katana_Basic_Tier2` | `katana_Magic_MagicBlade` |
+| **Đại Kiếm** | `Icon_GreatSword_Tier1` | `GreatSword_Fire_Minor` | `Icon_GreatSword_Red` | `Icon_GreatSword_Ice` | `Icon_GreatClub` | `Icon_GreatSword_Tier3_A` | `GreatSword_Laser` |
+| **Thương** | `Staff_Spear` | `Staff_Lightning` | `Staff_Fire` | `Staff_Ice` | `Icon_BlackHalberd` | `Staff_Extend_Tier3_Crit` | `Staff_Rolling_Tier3Bolt` |
+| **Song Kiếm** | `Icon_Dagger_Tier1` | `Icon_Dagger_Lightning1` | `Icon_Dagger_FireBurn` | `Dagger_IceScythe` | `Icon_Dagger_Tier3_F` | `Dagger_EvadeT3_Fury` | `Icon_Dagger_Tier3_C` |
+| **Cung** | `Crossbow_Tier2` | `Crossbow_Auto` | `Crossbow_Minigun` | `Crossbow_IceMinor` | `Crossbow_MineMinor` | `Crossbow_Pierce_Cooldown` | `Crossbow_Mine` |
+
+**Tên file không phải lúc nào cũng khớp hệ, và đó là cố ý.** Người chơi đọc
+MÀU chứ không đọc tên file: `GreatSword_Fire_Minor` là một lưỡi vàng chói nên nó
+làm Đại Kiếm hệ Lôi, còn hệ Hoả lấy `Icon_GreatSword_Red`. Khoá trong manifest
+mới là thứ game dùng; `spr` chỉ là chỗ lấy ảnh.
+
+**Vì sao lớp "Kiếm & Khiên" lại mượn bộ katana.** Bộ `ShieldSword_*` của Sephiria
+vẽ CẶP kiếm-khiên nằm cạnh nhau. Cầm trên tay thì vũ khí phải xoay theo hướng
+ngắm, mà xoay một cặp hai vật thì nó thành một cục không đọc ra hình gì. Katana
+là một lưỡi, một trục dài — xoay đẹp. Hình học cũ của lớp này vốn cũng chỉ vẽ
+mỗi thanh kiếm, không có khiên, nên không mất gì.
+
+**Vì sao nỏ đổi sang mấy bản sáng màu.** `Crossbow_Tier1`/`_Mine`/`_SGMinor`
+toàn thân xám đen; đặt lên nền cỏ tối thì thành một vệt đen. Đổi sang
+`Crossbow_Tier2`/`_Auto`/`_Minigun`… có mảng sáng nên tách được khỏi nền.
+Cũng vì lý do đó mà loại hết mấy biểu tượng hình ngôi sao / quả cầu
+(`Crossbow_PoisonJelly`, `Crossbow_Lightning`): không có trục dài thì xoay xong
+không ra khẩu nỏ.
+
+### Ba con số căn ảnh: `rot`, `len`, `grip`
+
+Chúng nằm trong `asset-map.json` chứ không nằm trong code, vì chúng là thuộc
+tính của TẤM ẢNH:
+
+| | rot | len | grip | ghi chú |
+|---|---:|---:|---:|---|
+| Kiếm & Khiên | 90 | 28 | 0.88 | katana vẽ đứng, mũi lên |
+| Đại Kiếm | 90 | 38 | 0.90 | |
+| Thương | 90 | 48 | 0.82 | dài hơn thân người, đúng chất polearm |
+| Song Kiếm | 90 | 22 | 0.88 | vẽ hai lần, mỗi tay một lưỡi |
+| Cung | 0 | 28 | 0.45 | nỏ vẽ NẰM, mũi sẵn sang phải nên khỏi xoay |
+
+* `rot` — xoay bao nhiêu độ để mũi chỉ về phía trước. Ảnh vẽ đứng → 90.
+* `len` — chiều dài khi cầm, tính bằng pixel thế giới (nhân vật cao ~34).
+* `grip` — chỗ bàn tay nắm, đo dọc trục dài, `0` = mũi, `1` = chuôi.
+
+Thay một biểu tượng khác hướng thì sửa ba số này, **không sửa code**. Có test
+khoá lại: đủ 35 ô, ô nào cũng nạp được ảnh và có `len`.
+
+### Bản quyền
+
+Đây là ảnh rip từ **Sephiria** (game thương mại trên Steam), lấy qua wiki cộng
+đồng. Repo này công khai. Chúng nằm đây theo yêu cầu của chủ dự án, với dự định
+vẽ đè lên sau — thay ảnh là sửa `_assets_src/weapons/` rồi chạy lại `pack.py`,
+không phải sửa code.
