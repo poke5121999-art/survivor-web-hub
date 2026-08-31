@@ -1679,6 +1679,25 @@ async function wikiSuite(b) {
   {
     const { ctx, p, errs } = await openGame(b, SQ, { width: 900, height: 700 });
     check('Biệt Đội: có nút Sổ tay', await p.locator('#wikiBtn').count() === 1);
+    // Cửa vào thứ hai, và là cửa duy nhất tìm thấy được: nút trên thanh chrome của trang nhỏ
+    // và lẫn vào giữa "← Hub" với "⟳" — chủ dự án mở bảng không ra. Ở sảnh, sổ tay đứng ngang
+    // hàng Gacha / Nhiệm Vụ, cùng cỡ 64×60.
+    const railWiki = p.locator('.rail-b', { hasText: 'Sổ Tay' });
+    check('và ngoài sảnh có nút Sổ Tay đứng cùng hàng với Gacha',
+      await railWiki.count() === 1);
+    const cỡ = await railWiki.boundingBox();
+    const cỡGacha = await p.locator('.rail-b', { hasText: 'Gacha' }).boundingBox();
+    check('nút đó to đúng bằng nút Gacha',
+      cỡ && cỡGacha && Math.abs(cỡ.width - cỡGacha.width) < 1 &&
+      Math.abs(cỡ.height - cỡGacha.height) < 1,
+      cỡ && Math.round(cỡ.width) + 'x' + Math.round(cỡ.height));
+    await railWiki.click();
+    await p.waitForTimeout(500);
+    check('bấm nút ngoài sảnh cũng mở đúng bảng đó',
+      (await p.locator('.wk-row').count()) > 0 &&
+      !(await p.evaluate(() => document.getElementById('veil').hidden)));
+    await p.locator('#veilBtn').click();
+    await p.waitForTimeout(300);
     await p.locator('#wikiBtn').click();
     await p.waitForTimeout(600);
     const m = await p.evaluate(() => {

@@ -265,13 +265,27 @@
     // — hai cột phím tắt hai bên, đúng chỗ nhóm trái/phải của bản tham chiếu —
     const railL = el('div', 'rail left');
     const railR = el('div', 'rail');
+    // Sổ tay vốn chỉ có một cửa vào: cái nút nhỏ trên thanh chrome của TRANG, cạnh "← Hub".
+    // Chủ dự án tìm không ra ("r bấm đâu để show ra wiki?") — và đúng lúc vừa bảo mấy nút ngoài
+    // sảnh cần to lên. Nên nó có thêm một cửa vào ở đây, đứng ngang hàng với Gacha và Nhiệm Vụ,
+    // vì đọc mặt con quái là việc của lúc CHƯA vào nhà. Nút trên thanh trang vẫn giữ: đó là cửa
+    // duy nhất mở được lúc đang trong ca.
+    // Mục này không phải một màn hình của UI.go — nó gọi thẳng tấm màn của engine.
     [['gacha', '🎰', 'Gacha', 0, railL],
      ['maps', '🗺️', 'Map', 0, railL],
+     ['wiki', '📖', 'Sổ Tay', 0, railL],
      ['quest', '📜', 'Nhiệm Vụ', questPending(), railR],
      ['shop', '🏪', 'Cửa Hàng', 0, railR]].forEach(function (r) {
       const d = el('div', 'rail-b', '<div class="rb-i">' + r[1] + '</div><div class="rb-n">' + r[2] + '</div>');
       if (r[3]) d.appendChild(el('span', 'dot', String(r[3])));
-      on(d, 'click', () => UI.go(r[0]));
+      on(d, 'click', () => {
+        if (r[0] === 'wiki'){
+          if (window.REPO && REPO.showWiki) REPO.showWiki();
+          else UI.toast('Sổ tay chưa nạp xong, thử lại sau một giây.');
+          return;
+        }
+        UI.go(r[0]);
+      });
       r[4].appendChild(d);
     });
     b.appendChild(railL);
