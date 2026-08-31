@@ -211,15 +211,36 @@
     { name: 'Basic Fertilizer', craft: [{ item: 'Sap', qty: 2 }] }
   ];
 
+  /* data/recipes_unlock.js has always been loaded and never read. It carries a
+   * real condition per recipe; of its ~150 entries the skill / heart / have
+   * shapes (85 of them) map straight onto state this game already keeps. The
+   * `buy` and `special` shapes name Stardew Valley shops and one-offs that do
+   * not exist here and have NO other way in, so those stay unlocked rather
+   * than becoming unreachable content. */
+  function recipeKnown(sim, name) {
+    var u = global.SDV_RECIPE_UNLOCK && global.SDV_RECIPE_UNLOCK[name];
+    if (!u) return true;
+    if (u.k === 'skill') return (sim.skills[u.s] || 0) >= u.n;
+    if (u.k === 'heart') return sim.hearts(u.who) >= u.n;
+    if (u.k === 'have') return !!(sim.flags.held && sim.flags.held[u.item]);
+    return true;                       // start, buy, special
+  }
+
   function openWorkshop(g) {
     UI.panel('Bàn chế tạo', function (b) { paint(b); });
     function paint(b) {
       b.innerHTML = '';
-      var rows = EXTRA_CRAFT.concat((data().machines || []).filter(function (m) {
+      var all = EXTRA_CRAFT.concat((data().machines || []).filter(function (m) {
         return m.craft && m.craft.length;
       }));
+      var rows = all.filter(function (r) { return recipeKnown(g.sim, r.name); });
+      var locked = all.length - rows.length;
       b.appendChild(el('div', 'isl-hint',
         'Chế xong thì món đồ vào túi. Mở túi, chạm nó rồi chọn "Đặt xuống trước mặt".'));
+      if (locked) {
+        b.appendChild(el('div', 'isl-cost',
+          'Còn ' + locked + ' công thức chưa mở — lên kỹ năng để học thêm.'));
+      }
       var m = el('div', 'isl-menu');
       rows.forEach(function (r) {
         var ok = true;
@@ -268,11 +289,23 @@
       var m = el('div', 'isl-menu');
       ready.forEach(function (r) { m.appendChild(row(r, true)); });
       b.appendChild(m);
-      b.appendChild(el('div', 'isl-sub', 'CÒN THIẾU NGUYÊN LIỆU'));
-      var m2 = el('div', 'isl-menu');
-      list.filter(function (r) { return !canMake(g.sim, r); })
-          .slice(0, 30).forEach(function (r) { m2.appendChild(row(r, false)); });
-      b.appendChild(m2);
+      /* Only what is ACTUALLY within reach - a recipe the player already holds
+       * at least one ingredient for. Listing thirty unmakeable dishes from the
+       * first morning, on a kitchen that stands in the starting house, was the
+       * biggest wall of dead text in the game. */
+      var close_ = list.filter(function (r) {
+        if (canMake(g.sim, r)) return false;
+        return r.in.some(function (i) { return g.sim.count(i.item || i.name) > 0; });
+      });
+      if (close_.length) {
+        b.appendChild(el('div', 'isl-sub', 'CÒN THIẾU NGUYÊN LIỆU'));
+        var m2 = el('div', 'isl-menu');
+        close_.slice(0, 20).forEach(function (r) { m2.appendChild(row(r, false)); });
+        b.appendChild(m2);
+      }
+      b.appendChild(el('div', 'isl-hint',
+        'Còn ' + (list.length - ready.length - close_.length) +
+        ' món nữa sẽ hiện ra khi bạn có nguyên liệu đầu tiên của chúng.'));
 
       function row(r, ok) {
         var e = el('button', 'isl-mbtn isl-inline');

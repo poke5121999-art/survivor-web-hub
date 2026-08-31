@@ -115,8 +115,10 @@
         var t = a.name_of(x, y);
         if (t !== 'tilled' && t !== 'watered') continue;
         if (a.objAt(x, y)) continue;
-        if (g.plantAt(x, y, seedName, { silent: n > 0 })) n++;
-        else return n;                    // wrong season - stop, do not spam
+        /* Skip a tile that refuses, do not abandon the field. One out-of-season
+         * or blocked tile used to end the sweep, so a single bad square left
+         * the rest of the island unsown. silent keeps it from spamming. */
+        if (g.plantAt(x, y, seedName, { silent: true })) n++;
       }
     }
     return n;
@@ -185,7 +187,7 @@
       m.appendChild(act('💧  Tưới hết luống', s.dry + s.tilled, (s.dry + s.tilled) * 2, function () {
         var n = bulkWater(g); g.toast('Đã tưới ' + n + ' ô.'); paint(b);
       }));
-      m.appendChild(act('🌱  Gieo kín luống trống', s.tilled, 0, function () {
+      m.appendChild(act('🌱  Gieo kín luống trống', s.tilled + s.watered, 0, function () {
         seedPick(g, function (name) { var n = bulkPlant(g, name); g.toast('Đã gieo ' + n + ' hạt.'); paint(b); });
       }));
       m.appendChild(act('🌾  Hái hết cây chín', s.ready, 0, function () {

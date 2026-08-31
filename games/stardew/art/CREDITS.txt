@@ -40,20 +40,47 @@ data/pokedata.js
 
 Item icons
 -----------------------------------------------------------------------
-  Most of the 717 items have no frame in either atlas. js/itemart.js draws
-  those procedurally: the item's name is hashed into a stable colour and a
-  small shape is drawn for its category. It is not beautiful and it is not
-  meant to be - it is what lets every item in the game have a consistent
-  picture today.
+  Only 65 of the 717 items have a frame of their own (js/itemart.js MAP).
+  Everything else goes down one of two paths:
+
+    - CATEGORY POOLS. A category with several plausible frames in the atlas
+      picks one by a stable hash of the item's name, so two different fish look
+      like two different things. 19 fish frames, 23 ore/gem, 18 cooked, 19
+      tool/weapon - all of them were already in the sheet and referenced by
+      nothing. Before this, all 77 fish drew the same goldfish, all 53 minerals
+      the same sapphire, and all 119 crafted items the same hammer.
+
+    - PROCEDURAL. Crops and fruit have no honest stand-in, so sprites.js
+      hashes the name into a colour and draws a small shape for the category.
+      It is not beautiful and it is not meant to be.
+
+  The pool art is still Pickaxe King Island art and goes when the rest does.
 
 
 How to replace
 -----------------------------------------------------------------------
   ISLAND ART.  Put the new sprites in a folder as loose PNGs named after the
-  frame names the game asks for (run `node tools/check_art.js` for the list),
-  then `python tools/pack_pki.py <folder> art/pki`. Nothing in js/ changes.
+  frame names the game asks for, then `python tools/pack_pki.py <folder>
+  art/pki`. Nothing in js/ changes.
+
+      node tools/check_art.js --list          name, native w/h, who asks
+      node tools/check_art.js --list --json   the same as data
+
+  THE JOB IS 207 FRAMES, NOT 1,178. The other ~1,000 frames in the atlas are
+  referenced by nothing and can be deleted outright; they are in the sheet only
+  because the packer took nearly everything the exporter produced.
+
+  Two things to know before starting:
+    - Some required names contain a SPACE - "BaseGround0_forSliced 1" and
+      three of its siblings. The replacement PNG must keep it.
+    - The 8 BaseGround*_forSliced panels are the nine-slice source every one of
+      the 25 islands is built from, and their 16px middle patch is stretched
+      across the whole island (up to 23x horizontally). Assume the middle is a
+      flat fill; any texture in it will smear.
+
   Frame names live in data/islands.js, data/npcs.js, js/game.js OBJ_ART and
-  js/itemart.js MAP.
+  CROP_ART, js/world.js SCATTER_ART, js/mine.js, js/pokework.js, data/tutorial.js
+  and js/itemart.js MAP + CAT_POOL.
 
   POKEMON ART.  Drop replacements into front/ back/ sfront/ sback/ as <id>.png
   and run `python tools/pack_poke.py <folder> art/poke`. js/pokeart.js reads

@@ -50,12 +50,16 @@
       energyN: q('hud-energyn'), healthN: q('hud-healthn'),
       hand: q('hud-hand'), handIcon: q('hud-handicon'), handText: q('hud-handtext'),
       toasts: q('hud-toasts'), mini: q('hud-mini'),
-      island: q('hud-island')
+      island: q('hud-island'),
+      btnPoke: q('btn-poke'), btnFarm: q('btn-farm')
     };
     bindStick();
-    hud.hand.onclick = function () { game.useHand(); };
+    bindHand();
     q('btn-bag').onclick = function () { openBag(game); };
     q('btn-map').onclick = function () { openMap(game); };
+    q('btn-farm').onclick = function () {
+      if (global.ISL_FARMQOL) global.ISL_FARMQOL.openPanel(game);
+    };
     q('btn-poke').onclick = function () {
       if (global.ISL_POKEUI) global.ISL_POKEUI.openParty(game);
     };
@@ -85,6 +89,54 @@
       e.preventDefault();
     }
     if (e.key === ' ' || e.key === 'Enter') { game.useHand(); e.preventDefault(); }
+  }
+
+  /* HOLD TO REPEAT. Tapping once per tile is what made farming feel like work:
+   * bare ground to a planted, watered tile was four separate taps, and ten
+   * tiles was forty. Holding the button now walks that same tile through
+   * till -> sow -> water on its own, and keeps swinging at a tree or a rock.
+   *
+   * There is deliberately NO auto-walk to the next tile. Harvest Town does
+   * that and it is the single thing its own players complain about ("my
+   * character goes where it wants"); repeating in place gets most of the speed
+   * and costs none of the control.
+   */
+  var HAND_FIRST = 320, HAND_EVERY = 200;
+  function bindHand() {
+    var timer = null, held = false, fired = false;
+    function act() {
+      if (game.busy()) return stop();
+      fired = true;
+      game.useHand();
+    }
+    function start(e) {
+      if (held) return;
+      held = true; fired = false;
+      act();
+      timer = setTimeout(function tick() {
+        if (!held) return;
+        act();
+        timer = setTimeout(tick, HAND_EVERY);
+      }, HAND_FIRST);
+      if (e && e.preventDefault) e.preventDefault();
+    }
+    function stop() {
+      held = false;
+      if (timer) { clearTimeout(timer); timer = null; }
+    }
+    hud.hand.addEventListener('touchstart', start, { passive: false });
+    hud.hand.addEventListener('touchend', stop);
+    hud.hand.addEventListener('touchcancel', stop);
+    hud.hand.addEventListener('mousedown', start);
+    document.addEventListener('mouseup', stop);
+    hud.hand.addEventListener('mouseleave', stop);
+    /* onclick still works on its own for the keyboard path and for anything
+     * driving the button programmatically (tools/uicrawl.js), but must not
+     * double-fire after a press already acted. */
+    hud.hand.onclick = function () {
+      if (fired) { fired = false; return; }
+      game.useHand();
+    };
   }
 
   function bindStick() {
@@ -139,6 +191,16 @@
 
   // ------------------------------------------------------------------- tick
   var lastHud = {};
+  /* Anything that means "this player has met a Pokemon". taught.pokework is
+   * latched by the tutorial the moment the first one is in the party, and the
+   * others cover a save that got there another way - a caught mon in the box,
+   * one in the day care, or simply owning the island that hands you Pikachu. */
+  function pokeUnlocked(s) {
+    return !!(s.party.length || (s.boxes && s.boxes.length) ||
+              (s.daycare && s.daycare.length) || s.pokeCaught ||
+              s.taught.pokework || s.owned.meadow || s.owned.pokemart);
+  }
+
   function tick(g, dt) {
     if (!hud) return;
     var s = g.sim;
@@ -156,13 +218,23 @@
     var isl = g.currentIsland();
     set(hud.island, isl ? isl.isl.name : 'Ngoài khơi');
 
+    /* A feature the player cannot use yet is not a teaser, it is noise. The
+     * Pokemon button sat on the HUD from the first morning and opened a panel
+     * whose entire content was "you have none, buy Đảo Cỏ Xanh" - an island
+     * seven tiers and 7,000v away. Hidden, never removed: ui.js binds these by
+     * id at build time and tick() writes to them every frame. */
+    hud.btnPoke.hidden = !pokeUnlocked(s);
+
     var f = g.focus;
     if (f && f.verb) {
       hud.hand.classList.add('isl-on');
       set(hud.handIcon, f.icon || '✋');
       set(hud.handText, f.verb);
     } else {
+      /* Dim, do not hide - the button that vanishes teaches nothing. */
       hud.hand.classList.remove('isl-on');
+      set(hud.handIcon, '✋');
+      set(hud.handText, 'Không có gì');
     }
     drawToasts(g);
     drawMini(g);
@@ -338,6 +410,17 @@
           if (placeItem(g, item.name)) { close(); redraw(body); }
         }));
       }
+      /* Pick the seed ONCE, then just sow. This is the bag half of the held
+       * seed - the seed picker sets it too, but a player who wants to switch
+       * crops should not have to walk to a tilled tile to do it. */
+      if (SEEDY.test(item.name)) {
+        var held = g.sim.flags.seed === item.name;
+        menu.appendChild(btn(held ? '✓ Đang cầm hạt này' : 'Cầm hạt này để gieo', function () {
+          g.holdSeed(held ? null : item.name);
+          g.toast(held ? 'Đã cất hạt.' : 'Đang cầm ' + item.name + '.');
+          close(); redraw(body);
+        }));
+      }
       menu.appendChild(btn('Bỏ đi', function () {
         /* takeStack, not take(name, qty): the player tapped THIS stack. By
          * name it removed the last stack with that name, so discarding the
@@ -385,10 +468,9 @@
   }
 
   // ------------------------------------------------------------ seed picker
+  var SEEDY = /Seeds|Starter|Bulb|Sapling|Shoot|Tuber|Rice/i;
   function openSeedPicker(g, x, y) {
-    var seeds = g.sim.inventory.filter(function (it) {
-      return /Seeds|Starter|Bulb|Sapling|Shoot|Tuber|Rice/i.test(it.name);
-    });
+    var seeds = g.sim.inventory.filter(function (it) { return SEEDY.test(it.name); });
     if (!seeds.length) { g.toast('Bạn không có hạt nào. Mua ở Đảo Chợ.'); return; }
     panel('Gieo hạt', function (b) {
       var menu = el('div', 'isl-menu');
@@ -403,14 +485,19 @@
             crop.seasons.map(vnSeason).join('/') + ' · ' + crop.growth + ' ngày · bán ' + crop.sell + 'v'));
         }
         row.appendChild(t);
+        if (g.sim.flags.seed === it.name) row.classList.add('isl-on');
         row.onclick = function () {
-          if (g.plantAt(x, y, it.name)) { close(); }
+          /* Picking here also PICKS UP - the next tile sows this without
+           * asking again. */
+          g.holdSeed(it.name);
+          if (g.plantAt(x, y, it.name)) close();
         };
         menu.appendChild(row);
       });
       b.appendChild(menu);
       b.appendChild(el('div', 'isl-hint',
-        'Mẹo: Pokémon hệ Cỏ có thể gieo cả luống cùng lúc.'));
+        'Hạt bạn chọn sẽ được CẦM THEO: những ô sau chỉ cần bấm nút là gieo, ' +
+        'không hỏi lại. Đổi hạt trong túi đồ.'));
     });
   }
   function vnSeason(s) {
@@ -622,7 +709,10 @@
       c.width = 250; c.height = 200;
       wrap.appendChild(c);
       b.appendChild(wrap);
-      var a = g.area();
+      /* The map is always the archipelago, never the room you are standing
+       * in - opened from a mine floor it used to paint a 34x28 slab with no
+       * islands and no bridges into a 250x200 canvas. */
+      var a = g.seaArea();
       var x = c.getContext('2d');
       x.fillStyle = '#0d2b40'; x.fillRect(0, 0, c.width, c.height);
       var sx = c.width / a.w, sy = c.height / a.h;
@@ -694,7 +784,9 @@
       });
       b.appendChild(go);
       b.appendChild(el('div', 'isl-hint',
-        'Đi đò tốn 60v. Pokémon hệ Bay hoặc Rồng đưa bạn đi miễn phí.'));
+        pokeUnlocked(g.sim)
+          ? 'Đi đò tốn 60v. Pokémon hệ Bay hoặc Rồng đưa bạn đi miễn phí.'
+          : 'Đi đò tốn 60v.'));
     }
   }
   function shortName(n) { return n.replace(/^Đảo\s*/, ''); }
@@ -1013,7 +1105,11 @@
       var m = el('div', 'isl-menu');
       m.appendChild(btn('📖 Sổ tay hướng dẫn', function () { close(); openHandbook(g); }));
       m.appendChild(btn('🧑‍🌾 Kỹ năng & Nghề', function () { close(); openSkills(g); }));
-      m.appendChild(btn('👥 Dân đảo', function () { close(); openPeople(g); }));
+      /* Only once there is somebody to know. On the home island every row in
+       * this panel reads "???". */
+      if (Object.keys(g.sim.owned).length > 1) {
+        m.appendChild(btn('👥 Dân đảo', function () { close(); openPeople(g); }));
+      }
       m.appendChild(btn('🌾 Bảng nông trại', function () {
         close();
         if (global.ISL_FARMQOL) global.ISL_FARMQOL.openPanel(g);
@@ -1025,8 +1121,12 @@
         'Đứng yên cạnh cây hoặc đá là tự làm. Đi ngang qua thì không.'));
       m.appendChild(toggleRow(g, 'autoLoot', '🧲 Tự động nhặt',
         'Đồ rơi quanh bạn tự vào túi.'));
-      m.appendChild(toggleRow(g, 'autoFight', '⚔ Tự động đánh quái',
-        'Dưới hầm mỏ. Tự dừng khi máu còn dưới 30% — quái vẫn đánh bạn.'));
+      /* Its own hint says "dưới hầm mỏ", and the mine is rank 10 / 9,000v. A
+       * switch for a place you have never been is a question, not an option. */
+      if (g.sim.deepestMine > 0) {
+        m.appendChild(toggleRow(g, 'autoFight', '⚔ Tự động đánh quái',
+          'Dưới hầm mỏ. Tự dừng khi máu còn dưới 30% — quái vẫn đánh bạn.'));
+      }
       m.appendChild(btn('💾 Lưu game', function () {
         g.sim.save(g.world) ? g.toast('Đã lưu.') : g.toast('Không lưu được.');
       }));
@@ -1079,7 +1179,8 @@
       b.appendChild(el('div', 'isl-hint',
         g.sim.rankXp.toLocaleString('vi') + ' / ' +
         g.sim.rankNeed(g.sim.rank).toLocaleString('vi') + ' điểm.\n' +
-        'Mọi việc có ích đều cộng điểm cấp: trồng, bán, câu, đào, bắt Pokémon, giao đơn hàng.'));
+        'Mọi việc có ích đều cộng điểm cấp: trồng, bán, câu, đào, ' +
+        (pokeUnlocked(g.sim) ? 'bắt Pokémon, ' : '') + 'giao đơn hàng.'));
     });
   }
 
@@ -1115,8 +1216,45 @@
    * panel is one line in one file. */
   function P() { return global.ISL_PLACES; }
 
+  /* Buying the island you are standing in front of. Same numbers and the same
+   * refusals as the map's row, but reached from the shore, which is where a
+   * player who can see the island across the water actually goes. */
+  function openLandPost(g, o) {
+    var rec = g.islandRec(o.target);
+    if (!rec || g.sim.owned[o.target]) return;
+    var u = rec.isl.unlock;
+    panel(rec.isl.name, function (b) {
+      b.appendChild(el('div', 'isl-sub', rec.isl.blurb || ''));
+      var head = el('div', 'isl-mrow');
+      head.appendChild(el('b', null, 'Giá đất'));
+      head.appendChild(el('span', 'isl-cost',
+        'Cấp ' + u.rank + ' · ' + u.gold.toLocaleString('vi') + 'v'));
+      b.appendChild(head);
+
+      var why = g.sim.rank < u.rank ? 'Cần Cấp Đảo Trưởng ' + u.rank +
+                  ' — bạn đang Cấp ' + g.sim.rank + '.'
+              : g.sim.gold < u.gold ? 'Còn thiếu ' +
+                  (u.gold - g.sim.gold).toLocaleString('vi') + 'v.'
+              : null;
+      var m = el('div', 'isl-menu');
+      var r = el('button', 'isl-mbtn' + (why ? ' isl-off' : ''));
+      r.appendChild(el('b', null, why ? 'Chưa mua được' : '🏝  MUA ĐẢO NÀY'));
+      r.appendChild(el('div', why ? 'isl-cost' : 'isl-good',
+        why || 'Cầu sẽ nối ngay từ chỗ bạn đang đứng.'));
+      r.onclick = function () {
+        if (why) { g.toast(why); return; }
+        if (g.buyIsland(o.target)) { close(); }
+      };
+      m.appendChild(r);
+      b.appendChild(m);
+      b.appendChild(el('div', 'isl-hint',
+        'Bạn cũng có thể mua từ BẢN ĐỒ 🗺, nơi xem được cả quần đảo cùng lúc.'));
+    });
+  }
+
   function openFor(g, f) {
     switch (f.kind) {
+      case 'landPost': return openLandPost(g, f.obj);
       case 'chest':   return openChest(g, f.obj);
       case 'bin':     return openBin(g);
       case 'shop':    return openShop(g, f.obj.shop);

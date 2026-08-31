@@ -21,8 +21,16 @@ require('../data/tutorial.js');
 
 const frames = new Set(Object.keys(JSON.parse(fs.readFileSync('art/pki/pki.json', 'utf8')).f));
 const bad = [];
+/* Every frame the game actually asks for, and who asks for it. This is the
+ * REPLACEMENT LIST: art/CREDITS.txt tells whoever draws the new set to "run
+ * node tools/check_art.js for the list", and until now the tool only ever
+ * printed names on failure, so the documented workflow could not be followed.
+ * `--list` prints it; `--list --json` prints it as data. */
+const want = new Map();
 function check(where, name) {
   if (!name) return;
+  if (!want.has(name)) want.set(name, []);
+  want.get(name).push(where);
   if (!frames.has(name)) bad.push(where + ' -> ' + name);
 }
 
@@ -65,16 +73,22 @@ for (const k in window.ISL_ITEMART.BY_CAT) check('itemart cat ' + k, window.ISL_
 const gsrc = fs.readFileSync('js/game.js', 'utf8');
 const objArt = gsrc.match(/var OBJ_ART = \{[\s\S]*?\n  \};/);
 if (objArt) {
-  for (const m of objArt[0].matchAll(/'([^']+)'/g)) {
-    const n = m[1];
-    // keys and values are both quoted; only values are frame names, and a key
-    // that happens to be a real frame does no harm
-    if (!frames.has(n) && /^[A-Z]/.test(n)) bad.push('game.OBJ_ART -> ' + n);
-  }
+  /* Keys and values are both quoted, so take only what sits after a colon -
+   * the values. The old rule was "starts with a capital", which silently
+   * skipped real frame names like smithy_0 and let a typo in one through. */
+  for (const m of objArt[0].matchAll(/:\s*'([^']+)'/g)) check('game.OBJ_ART', m[1]);
 }
 const cropArt = gsrc.match(/var CROP_ART = \{[\s\S]*?\n  \};/);
 if (cropArt) {
   for (const m of cropArt[0].matchAll(/'([A-Z][^']*)'/g)) check('game.CROP_ART', m[1]);
+}
+
+/* drawNpc alternates Foo_0 -> Foo_1 while a villager walks, so the second
+ * frame of every idle pair is part of the required set. */
+const nsrc = fs.readFileSync('data/npcs.js', 'utf8');
+for (const m of nsrc.matchAll(/art: '([^']+0)'/g)) {
+  const alt = m[1].slice(0, -1) + '1';
+  if (frames.has(alt)) check('npc idle frame 2', alt);
 }
 
 // mine art
@@ -92,4 +106,29 @@ if (bad.length) {
   bad.forEach(b => console.log('  ' + b));
   process.exit(1);
 }
+
+const TAB = String.fromCharCode(9), NL = String.fromCharCode(10);
+if (process.argv.includes('--list')) {
+  const atlas = JSON.parse(fs.readFileSync('art/pki/pki.json', 'utf8')).f;
+  const names = [...want.keys()].sort();
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify(names.map(n => ({
+      name: n, w: atlas[n][7], h: atlas[n][8], usedBy: want.get(n)
+    })), null, 2));
+  } else {
+    console.log('FRAMES THE GAME ASKS FOR (' + names.length + ' of ' +
+                frames.size + ' in the atlas):');
+    console.log('# name' + TAB + 'w' + TAB + 'h' + TAB + 'first asked for by');
+    names.forEach(n => {
+      console.log(n + TAB + atlas[n][7] + TAB + atlas[n][8] + TAB + want.get(n)[0]);
+    });
+    console.log(NL + (frames.size - names.length) + ' frames in the atlas are ' +
+                'referenced by nothing.');
+    console.log('NOTE: some names contain a SPACE (e.g. "BaseGround0_forSliced 1"). ' +
+                'A replacement PNG must keep it.');
+  }
+  process.exit(0);
+}
+
 console.log('all art references resolve (' + frames.size + ' frames in atlas)');
+console.log('run with --list for the frame names a replacement set must provide');

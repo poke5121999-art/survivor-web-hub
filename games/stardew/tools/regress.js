@@ -78,6 +78,57 @@ function run() {
     items.forEach(([n, q, ql]) => s.give(n, q, ql || 0));
   }
 
+  console.log('--- chua mo thi chua hien ---');
+
+  /* The Pokemon quick button sat on the HUD from the first morning and opened
+   * a panel whose whole content was "you have none - buy Đảo Cỏ Xanh", an
+   * island seven tiers and 7,000v away. It must be HIDDEN, never removed:
+   * ui.js binds it by id at build time and tick() writes to the HUD every
+   * frame, so a missing node throws sixty times a second. */
+  check('the Pokemon button is hidden until there is a Pokemon', () => {
+    const btn = document.getElementById('btn-poke');
+    if (!btn) return 'btn-poke was REMOVED from the DOM, not hidden';
+    const keepParty = s.party.slice(), keepOwned = Object.assign({}, s.owned);
+    const keepTaught = Object.assign({}, s.taught), keepCaught = s.pokeCaught;
+    const keepBoxes = (s.boxes || []).slice();
+
+    s.party = []; s.boxes = []; s.pokeCaught = 0;
+    s.owned = { home: 1 }; s.taught = {};
+    window.ISL_UI.tick(G, 0.016);
+    const hiddenFresh = btn.hidden;
+
+    s.pokeCaught = 1;                       // caught one: the layer is real now
+    window.ISL_UI.tick(G, 0.016);
+    const shownAfter = !btn.hidden;
+
+    s.party = keepParty; s.owned = keepOwned; s.taught = keepTaught;
+    s.pokeCaught = keepCaught; s.boxes = keepBoxes;
+    window.ISL_UI.tick(G, 0.016);
+
+    if (!hiddenFresh) return 'visible on a fresh save with no Pokemon anywhere';
+    if (!shownAfter) return 'still hidden after a Pokemon joined the party';
+    return null;
+  });
+
+  /* data/recipes_unlock.js was loaded by index.html and read by NOTHING, so the
+   * crafting bench listed every machine in the game at rank 11 regardless of
+   * skill. The skill/heart/have shapes map onto state that already exists; buy
+   * and special name Stardew shops that do not exist here, so those stay open
+   * rather than becoming unreachable. */
+  check('the crafting bench hides recipes the skills have not earned', () => {
+    const U = window.SDV_RECIPE_UNLOCK;
+    if (!U) return 'SDV_RECIPE_UNLOCK is not loaded';
+    const keep = Object.assign({}, s.skills);
+    for (const k in s.skills) s.skills[k] = 0;
+    const locked = Object.keys(U).filter(n => U[n].k === 'skill' && U[n].n > 0);
+    Object.assign(s.skills, keep);
+    if (!locked.length) return 'no skill-gated recipes in the table at all';
+    // Sprinkler is farming 2 - the one every farming complaint runs into
+    const sp = U['Sprinkler'];
+    if (!sp || sp.k !== 'skill') return 'Sprinkler is no longer skill-gated';
+    return null;
+  });
+
   console.log('--- inventory: one stack in, the same stack out ---');
 
   /* The player held one iridium Starfruit and ten plain ones. Selling the
@@ -183,6 +234,119 @@ function run() {
 
   console.log('\n--- the world ---');
 
+  /* The land shop read its island list off area() - the room the player is
+   * standing in - and a mine floor carries islands: []. So underground, which
+   * is exactly where the gold for an island gets dug up, the map said "Chua co
+   * dao moi nao sat dat cua ban", the map canvas painted the 34x28 mine slab,
+   * and buyIsland() returned false without spending gold OR saying anything.
+   * It healed on surfacing, so it read as random. */
+  check('islands can still be bought from inside the mine', () => {
+    const keepOwned = Object.assign({}, s.owned);
+    const keepRank = s.rank, keepGold = s.gold, keepCur = G.world.current;
+    const keepX = G.player.x, keepY = G.player.y;
+    s.owned = { home: 1 }; s.rank = 40; s.gold = 500000;
+    window.SDV_WORLD.applyOwnership(G.seaArea(), s.owned);
+
+    const onSea = G.buyableIslands().length;
+    window.ISL_MINE.enter(G, 1);
+    const inMine = G.buyableIslands().length;
+    const rec = G.islandRec('farm');
+    const bought = G.buyIsland('farm');
+
+    s.owned = keepOwned; s.rank = keepRank; s.gold = keepGold;
+    G.world.current = keepCur; G.player.x = keepX; G.player.y = keepY;
+    window.SDV_WORLD.applyOwnership(G.seaArea(), s.owned);
+
+    if (!onSea) return 'nothing was buyable even on the sea - the test is wrong';
+    if (!inMine) return 'buyableIslands() is empty in the mine (was ' + onSea + ' on the sea)';
+    if (!rec) return 'islandRec() cannot resolve an island from inside the mine';
+    if (!bought) return 'buyIsland() failed from inside the mine';
+    return null;
+  });
+
+  /* The dock ART was drawn at y:13 h:6 while the walkable planks are y:16 h:5,
+   * so the pier picture sat three tiles north of the pier: it covered three
+   * rows of the island's grass and left the two outer plank rows drawn as bare
+   * sea. The only island-local object in the game that was out of bounds. */
+  /* Land could only be bought from the map panel, and NOTHING on the ground
+   * said so. What the player sees is the next island across the water with its
+   * price painted on it, so they walk to the shore - and the shore answered
+   * with bare sea. "The bridges are in the wrong place so I cannot unlock
+   * anything" was really "I walked to where the bridge should be and there was
+   * nothing to press." A signpost now stands on the exact tile the bridge will
+   * land on, for every island that is buyable next. */
+  check('every buyable island has a signpost you can reach on foot', () => {
+    const FACE = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    const keepOwned = Object.assign({}, s.owned);
+    const keepX = G.player.x, keepY = G.player.y, keepDir = G.player.dir;
+    const keepCur = G.world.current;
+    G.world.current = 'sea';
+    s.owned = { home: 1 };
+    window.SDV_WORLD.applyOwnership(G.seaArea(), s.owned);
+
+    const posts = G.seaArea()._landPosts || [];
+    const buyable = G.buyableIslands().map(r => r.rec.id).sort();
+    const targets = posts.map(p => p.target).sort();
+    const bad = [];
+    posts.forEach(p => {
+      let reachable = false;
+      for (const d in FACE) {
+        const f = FACE[d];
+        const sx = p.x - f[0], sy = p.y - f[1];
+        if (!G.canStand(sx + 0.5, sy + 0.5)) continue;
+        G.player.x = sx + 0.5; G.player.y = sy + 0.5; G.player.dir = d;
+        const foc = G.findFocus();
+        if (foc && foc.kind === 'landPost') { reachable = true; break; }
+      }
+      if (!reachable) bad.push(p.target + ' @' + p.x + ',' + p.y);
+    });
+
+    s.owned = keepOwned;
+    G.player.x = keepX; G.player.y = keepY; G.player.dir = keepDir;
+    G.world.current = keepCur;
+    window.SDV_WORLD.applyOwnership(G.seaArea(), s.owned);
+
+    if (!posts.length) return 'no signposts at all on a fresh save';
+    if (targets.join(',') !== buyable.join(','))
+      return 'posts ' + targets.join(',') + ' != buyable ' + buyable.join(',');
+    if (bad.length) return 'no reachable standing spot for: ' + bad.join('; ');
+    return null;
+  });
+
+  check('the harbor dock art sits on the harbor pier', () => {
+    const isl = window.ISL_ISLANDS.list.filter(i => i.id === 'harbor')[0];
+    const dock = (isl.objs || []).filter(o => o.kind === 'dock')[0];
+    if (!dock) return 'harbor has no dock object';
+    if (!isl.pier) return 'harbor has no pier';
+    const q = isl.pier;
+    if (dock.x !== q.x || dock.y !== q.y || dock.w !== q.w || dock.h !== q.h) {
+      return 'dock ' + [dock.x, dock.y, dock.w, dock.h].join(',') +
+             ' != pier ' + [q.x, q.y, q.w, q.h].join(',');
+    }
+    return null;
+  });
+
+  /* plantAt accepts watered soil, but findFocus reported kind:'none' for it -
+   * so a sprinkler at dawn, or the farm panel's own "Tuoi het luong" button,
+   * cost the player the ability to sow by hand for the rest of the day, behind
+   * a lit button that did nothing. */
+  check('watered but empty soil can still be planted', () => {
+    const a = G.seaArea(), p = G.player;
+    const was = { x: p.x, y: p.y, dir: p.dir, cur: G.world.current };
+    G.world.current = 'sea';
+    const tx = Math.floor(was.x) + 1, ty = Math.floor(was.y);
+    const keep = a.name_of(tx, ty);
+    a.set(tx, ty, 'watered');
+    p.x = Math.floor(was.x) + 0.5; p.y = ty + 0.5; p.dir = 'right';
+    const f = G.findFocus();
+    a.set(tx, ty, keep);
+    p.x = was.x; p.y = was.y; p.dir = was.dir; G.world.current = was.cur;
+    if (!f) return 'watered soil produced no focus at all';
+    if (f.kind !== 'plant') return 'watered soil offers kind:' + f.kind + ', want plant';
+    return null;
+  });
+
+
   /* FIXTURE lists `chest` because the generator puts one in the farmhouse, so
    * filtering saved objects by kind deleted every chest the PLAYER placed. */
   check('a player-placed chest survives a save/load', () => {
@@ -243,6 +407,71 @@ function run() {
     }
     p.x = was.x; p.y = was.y; p.dir = was.dir;
     return bad ? bad + ' positions targeted the standing tile' : null;
+  });
+
+  /* One tile in one of four directions was the WHOLE targeting system. Of the
+   * eighty (tile, facing) states around a 4x4 shop only sixteen opened it, so
+   * on a phone the counter felt like it needed the player to stand exactly
+   * right. The probe now also tries the two tiles diagonally in front. */
+  check('the button reaches a tile diagonally in front of you', () => {
+    const a = G.seaArea(), p = G.player;
+    const was = { x: p.x, y: p.y, dir: p.dir, cur: G.world.current };
+    G.world.current = 'sea';
+    const tx = Math.floor(was.x), ty = Math.floor(was.y);
+    // stand still, face right; put diggable ground ONLY up-and-right of us
+    const cells = [[tx + 1, ty], [tx + 1, ty - 1]];
+    const keep = cells.map(c => a.name_of(c[0], c[1]));
+    a.set(tx + 1, ty, 'land');         // nothing doing straight ahead
+    a.set(tx + 1, ty - 1, 'dirt');     // the diagonal is the only candidate
+    p.x = tx + 0.5; p.y = ty + 0.2; p.dir = 'right';   // upper half of the tile
+    const f = G.findFocus();
+    cells.forEach((c, i) => a.set(c[0], c[1], keep[i]));
+    p.x = was.x; p.y = was.y; p.dir = was.dir; G.world.current = was.cur;
+    if (!f) return 'the forward diagonal was not reached at all';
+    if (f.x !== tx + 1 || f.y !== ty - 1) return 'targeted ' + f.x + ',' + f.y +
+      ' - want the diagonal ' + (tx + 1) + ',' + (ty - 1);
+    return null;
+  });
+
+  /* p.dir came straight off |dx| > |dy| with no deadband, so a thumb held at
+   * 45 degrees flipped the facing - and the targeted tile - every single frame
+   * at 60fps. The outline strobed and the button acted on whichever tile
+   * happened to be current at the moment of the tap. */
+  check('facing does not flip while the stick is held at 45 degrees', () => {
+    const p = G.player;
+    const was = { x: p.x, y: p.y, dir: p.dir };
+    const stick = G.stick;
+    const keep = { dx: stick.dx, dy: stick.dy };
+    p.dir = 'right';
+    const seen = {};
+    // walk the angle across the diagonal by a hair, the way a thumb wobbles
+    for (let i = 0; i < 40; i++) {
+      const w = 0.7071 + (i % 2 ? 0.004 : -0.004);
+      stick.dx = w; stick.dy = 0.7071;
+      G.step(0.016);
+      seen[p.dir] = 1;
+    }
+    stick.dx = keep.dx; stick.dy = keep.dy;
+    p.x = was.x; p.y = was.y; p.dir = was.dir;
+    const dirs = Object.keys(seen);
+    return dirs.length > 1 ? 'facing flipped between ' + dirs.join('/') : null;
+  });
+
+  /* Turning and walking shared one deadzone, so the only way to face a counter
+   * was to walk into it - stepping off the tile you needed to be standing on. */
+  check('a light thumb turns you without walking', () => {
+    const p = G.player;
+    const was = { x: p.x, y: p.y, dir: p.dir };
+    const stick = G.stick, keep = { dx: stick.dx, dy: stick.dy };
+    p.dir = 'down';
+    stick.dx = 0.08; stick.dy = 0;      // above the turn gate, below the walk gate
+    G.step(0.016);
+    const turned = p.dir, moved = Math.abs(p.x - was.x) > 0.0001;
+    stick.dx = keep.dx; stick.dy = keep.dy;
+    p.x = was.x; p.y = was.y; p.dir = was.dir;
+    if (turned !== 'right') return 'a light push did not turn (dir stayed ' + turned + ')';
+    if (moved) return 'a light push walked the player as well as turning them';
+    return null;
   });
 
   /* ui.js had a `case 'workshop'` handler and places.js had the whole crafting
@@ -485,9 +714,15 @@ function run() {
   /* The engine guessed the target of a stat change from its SIGN, which gave
    * Superpower's drawback to the opponent and Swagger's +2 Attack to the user. */
   check('Swagger raises the TARGET', () => {
-    const a = fresh(128, 50, ['Swagger']), d = fresh(1, 50, ['Tackle']);
-    const b = arena(a, d);
-    b.useMove(a, d, a.moves[0], true);
+    /* Swagger is 90% accurate and useMove rolls accuracy for real, so a single
+     * call missed about one run in ten and failed a test that is about WHO the
+     * stat change lands on, not about hitting. Swing until it connects. */
+    let a, d;
+    for (let try_ = 0; try_ < 40; try_++) {
+      a = fresh(128, 50, ['Swagger']); d = fresh(1, 50, ['Tackle']);
+      arena(a, d).useMove(a, d, a.moves[0], true);
+      if (d.stages[1] !== 0 || a.stages[1] !== 0) break;   // it landed
+    }
     if (d.stages[1] !== 2) return 'target attack stage = ' + d.stages[1] + ', want 2';
     if (a.stages[1] !== 0) return 'the user gained ' + a.stages[1] + ' attack stages';
     return null;

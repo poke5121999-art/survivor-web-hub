@@ -166,6 +166,13 @@
   }
 
   Game.prototype.area = function () { return this.world.area(); };
+  /* The archipelago, whatever room the player happens to be standing in.
+   * Island ownership, the map and the land shop all live on the sea area,
+   * but a mine floor is its own area with islands: [] - so reading them off
+   * area() while underground reported that nothing was for sale and made
+   * buyIsland() fail silently, which is exactly where a player grinds the
+   * gold an island costs. */
+  Game.prototype.seaArea = function () { return this.world.areas.sea; };
   Game.prototype.busy = function () {
     return this.paused || this.modal > 0 || !!this.battle;
   };
@@ -203,13 +210,15 @@
   };
 
   Game.prototype.islandRec = function (id) {
-    var list = this.area().islands || [];
+    var list = this.seaArea().islands || [];
     for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
     return null;
   };
   Game.prototype.currentIsland = function () {
     if (this.world.current !== 'sea') return null;
-    return this.area().islandAt(Math.round(this.player.x), Math.round(this.player.y));
+    /* floor, not round - every other "which tile am I on" in the game
+     * floors, and rounding put this one tile off across half of each tile. */
+    return this.area().islandAt(Math.floor(this.player.x), Math.floor(this.player.y));
   };
 
   // ------------------------------------------------------------------- loop
@@ -232,12 +241,15 @@
     var dx = this.stick.dx, dy = this.stick.dy;
     var mag = Math.sqrt(dx * dx + dy * dy);
     p.moving = mag > 0.12;
+    /* Turning starts well before walking does. With one threshold for both,
+     * the only way to face a counter was to walk at it - which meant stepping
+     * off the very tile you needed to stand on. A light thumb now turns you
+     * on the spot. */
+    if (mag > 0.05) p.dir = dirOf(dx / mag, dy / mag, p.dir);
     if (p.moving) {
       dx /= mag; dy /= mag;
       var spd = p.speed * (this.sim.sluggish ? 0.6 : 1) * dt;
       this.tryMove(dx * spd, dy * spd);
-      p.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left')
-                                          : (dy > 0 ? 'down' : 'up');
       p.anim += dt * 8;
     } else {
       p.anim += dt * 2.5;
@@ -278,7 +290,13 @@
 
   Game.prototype.recenter = function (snap) {
     var c = this.canvas;
-    this.cam.zoom = Math.max(1, c.width / (TILE_ON_SCREEN * TS));
+    /* INTEGER zoom. c.width / 272 is an arbitrary fraction - 2.868 on a 390px
+     * phone at dpr 2, 1.831 letterboxed on a desktop - and nearest-neighbour
+     * at 2.868x duplicates source pixels UNEVENLY: a 1px sprite outline comes
+     * out 2px wide in some columns and 3px in others, and which columns get
+     * doubled changes as the camera pans, so edges crawl. Flooring shows a
+     * fraction more of the world and makes every pixel the same size. */
+    this.cam.zoom = Math.max(1, Math.floor(c.width / (TILE_ON_SCREEN * TS)));
     var vw = c.width / this.cam.zoom, vh = c.height / this.cam.zoom;
     var tx = this.player.x * TS - vw / 2;
     var ty = this.player.y * TS - vh / 2;
@@ -314,20 +332,30 @@
   /* The tile in front, plus what the button would do to it. Called once a
    * frame and read by the HUD, so it must stay cheap - it is one objAt and a
    * handful of comparisons. */
-  var FACE = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  /* Which way a vector points, with HYSTERESIS: the axis you are already
+   * facing keeps the tile unless the other axis beats it by a clear margin.
+   * A bare |dx| > |dy| flips direction on a one-pixel wobble, so a thumb held
+   * at 45 degrees used to swap the targeted tile every frame at 60fps, and the
+   * outline strobed between two tiles while the button acted on whichever one
+   * happened to be current when it was tapped. */
+  var TURN_BIAS = 1.35;
+  function dirOf(dx, dy, cur) {
+    var ax = Math.abs(dx), ay = Math.abs(dy);
+    var horiz = cur === 'left' || cur === 'right';
+    var vert = cur === 'up' || cur === 'down';
+    if (horiz && ax * TURN_BIAS >= ay) return dx > 0 ? 'right' : 'left';
+    if (vert && ay * TURN_BIAS >= ax) return dy > 0 ? 'down' : 'up';
+    return ax > ay ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  }
 
-  Game.prototype.findFocus = function () {
-    var p = this.player, f = FACE[p.dir];
-    /* 0.85 of a tile ahead, not 1.0: standing dead centre and facing a wall
-     * should still target the wall, and a full tile of reach put the probe
-     * past a tile the player was actually touching. */
-    /* Step a whole tile from the CENTRE of the tile you are standing on, not
-     * 0.85 from your exact position. `floor(p.x + 0.85)` returns your own tile
-     * whenever your position within it is under 0.15 - so for about 15% of
-     * every tile the button silently acted on the ground under your feet, and
-     * the outline agreed with it, which read as reach failing at random. */
-    var fx = Math.floor(p.x) + f[0];
-    var fy = Math.floor(p.y) + f[1];
+  var FACE = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  /* The axis across the facing direction, used to reach the two tiles
+   * diagonally in front of you. */
+  var PERP = { up: [1, 0], down: [1, 0], left: [0, 1], right: [0, 1] };
+
+  /* What one tile offers, or null if it offers nothing. Split out of
+   * findFocus so the probe can try more than one candidate. */
+  Game.prototype.probeTile = function (fx, fy) {
     var a = this.area();
     if (fx < 0 || fy < 0 || fx >= a.w || fy >= a.h) return null;
 
@@ -338,19 +366,52 @@
     if (o) {
       var v = objectVerb(this, o);
       if (v) { v.x = fx; v.y = fy; v.obj = o; return v; }
-      /* An object with no verb ENDS the probe. Falling through to the tile
-       * checks made the button read "Cuốc đất" while standing in front of a
-       * crab pot; till() then refused on its own objAt check, silently, with
-       * no message and no energy spent. Better to offer nothing than to offer
-       * something that does nothing. */
-      return { x: fx, y: fy, verb: '', icon: '', kind: 'none' };
+      /* An object with no verb makes this TILE offer nothing. It must not fall
+       * through to the ground checks below: that made the button read "Cuốc
+       * đất" while standing in front of a crab pot, and till() then refused on
+       * its own objAt check, silently. Returning null moves on to the NEXT
+       * candidate tile, which is a different thing entirely. */
+      return null;
     }
     var t = a.name_of(fx, fy);
     if (t === 'dirt') return { x: fx, y: fy, verb: 'Cuốc đất', icon: '⛏', kind: 'till' };
     if (t === 'tilled') return { x: fx, y: fy, verb: 'Gieo hạt', icon: '🌱', kind: 'plant' };
-    if (t === 'watered') return { x: fx, y: fy, verb: 'Đã tưới', icon: '💧', kind: 'none' };
+    /* Watered but EMPTY soil is still plantable - plantAt accepts it, and a
+     * sprinkler at dawn or the panel's own "Tưới hết luống" both produce
+     * exactly this state. Reporting nothing here meant that owning a sprinkler,
+     * or pressing the game's own bulk-water button, cost you the ability to sow
+     * by hand for the rest of the day, behind a lit button that did nothing. */
+    if (t === 'watered') return { x: fx, y: fy, verb: 'Gieo hạt', icon: '🌱', kind: 'plant' };
     if (TILE_WATER(a, fx, fy)) return { x: fx, y: fy, verb: 'Câu cá', icon: '🎣', kind: 'fish' };
     return null;
+  };
+
+  /* The tile the button acts on. Called once a frame and read by the HUD, so
+   * it must stay cheap - at most three objAt lookups and a few comparisons.
+   *
+   * It probes the tile you face FIRST, then the two tiles diagonally in front
+   * of you, nearer side first. One tile in one of four directions was the
+   * whole targeting system, and it was far too strict to aim on a phone: of
+   * the eighty (tile, facing) states around a 4x4 shop only sixteen opened it.
+   * The two diagonals take that to fifty-six, and they cost nothing in
+   * predictability because the chosen tile is the one drawn outlined.
+   *
+   * The tile UNDER the player is deliberately NOT a candidate. It was one once,
+   * by accident, and acting on the ground beneath your feet reads as the reach
+   * failing at random - see the assertion in tools/regress.js. */
+  Game.prototype.findFocus = function () {
+    var p = this.player, f = FACE[p.dir], q = PERP[p.dir];
+    if (!f) return null;
+    var tx = Math.floor(p.x), ty = Math.floor(p.y);
+    /* Which half of your own tile you stand in decides which diagonal is
+     * tried first, so the closer one always wins. */
+    var off = (q[0] ? p.x - tx : p.y - ty) - 0.5;
+    var s = off >= 0 ? 1 : -1;
+
+    return this.probeTile(tx + f[0], ty + f[1]) ||
+           this.probeTile(tx + f[0] + q[0] * s, ty + f[1] + q[1] * s) ||
+           this.probeTile(tx + f[0] - q[0] * s, ty + f[1] - q[1] * s) ||
+           null;
   };
 
   function TILE_WATER(a, x, y) {
@@ -360,6 +421,13 @@
 
   function objectVerb(game, o) {
     switch (o.kind) {
+      case 'landPost': {
+        /* The post stands in the water where the bridge will land. It reads
+         * the live price so the button says what it will cost right now. */
+        var rec = game.islandRec(o.target);
+        if (!rec || game.sim.owned[o.target]) return null;
+        return { verb: 'Mua ' + rec.isl.name, icon: '🏝', kind: 'landPost' };
+      }
       case 'crop':
         if (o.dead) return { verb: 'Nhổ bỏ', icon: '🥀', kind: 'clearCrop' };
         if (o.stage >= o.maxStage && !o.harvested) {
@@ -432,7 +500,16 @@
     var UI = global.ISL_UI;
     switch (f.kind) {
       case 'till':      return this.till(f.x, f.y);
-      case 'plant':     return UI && UI.openSeedPicker(this, f.x, f.y);
+      case 'plant': {
+        /* A full-screen modal PER TILE was the whole reason sowing felt slow:
+         * ten tiles meant ten panels. Sow what you are carrying; the picker
+         * only appears when you are carrying nothing, or when what you carry
+         * will not go in this ground (wrong season), which is the one moment
+         * choosing again is actually useful. */
+        var held = this.heldSeed();
+        if (held && this.plantAt(f.x, f.y, held.name, { silent: true })) return;
+        return UI && UI.openSeedPicker(this, f.x, f.y);
+      }
       case 'water':     return this.waterTile(f.x, f.y);
       case 'harvest':   return this.harvestCrop(f.obj);
       case 'clearCrop': return this.clearCrop(f.obj);
@@ -744,9 +821,7 @@
     return Math.max(0.26, AUTO_PERIOD - 0.045 * ((g.sim.toolPower || 1) - 1));
   }
   function faceToward(p, o) {
-    var dx = (o.x + 0.5) - p.x, dy = (o.y + 0.5) - p.y;
-    p.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left')
-                                        : (dy > 0 ? 'down' : 'up');
+    p.dir = dirOf((o.x + 0.5) - p.x, (o.y + 0.5) - p.y, p.dir);
   }
 
   /* Loot walks to you. Everything the player knocked loose is already theirs;
@@ -886,7 +961,7 @@
   };
 
   Game.prototype.buyableIslands = function () {
-    var out = [], a = this.area(), sim = this.sim;
+    var out = [], a = this.seaArea(), sim = this.sim;
     var list = a.islands || [];
     for (var i = 0; i < list.length; i++) {
       var rec = list[i];
@@ -916,7 +991,7 @@
     if (this.sim.rank < u.rank) { this.toast('Cần Cấp Đảo Trưởng ' + u.rank + '.'); return false; }
     if (!this.sim.spendGold(u.gold)) { this.toast('Không đủ vàng.'); return false; }
     this.sim.owned[id] = 1;
-    W.applyOwnership(this.area(), this.sim.owned);
+    W.applyOwnership(this.seaArea(), this.sim.owned);
     if (global.ISL_NPC) global.ISL_NPC.build(this);
     this.toast('Đã mua ' + rec.isl.name + '!');
     this.addRank(40);
@@ -1042,7 +1117,11 @@
   Game.prototype.travelTo = function (rec) {
     if (!rec) return false;
     if (!this.sim.owned[rec.id]) { this.toast('Bạn chưa sở hữu đảo này.'); return false; }
-    var a = this.area();
+    /* Travelling to an island always surfaces you. The destination tile is a
+     * sea coordinate, so leaving world.current on a mine floor would drop the
+     * player onto the 34x28 slab at a coordinate that means nothing there. */
+    this.world.current = 'sea';
+    var a = this.seaArea();
     var spot = a.nearestFree(rec.x + Math.floor(rec.w / 2),
                              rec.y + Math.floor(rec.h / 2), 20);
     this.player.x = spot.x + 0.5;
@@ -1146,12 +1225,25 @@
   };
 
   // ------------------------------------------------ hooks used by pokework
+  /* The seed the player is CARRYING, the way Harvest Town has you pick a seed
+   * once from the bag and then just sow. Falls back to the first sowable thing
+   * in the bag, which is what this used to do unconditionally - and which meant
+   * the Pokemon sow job planted bag order rather than intent. */
   Game.prototype.heldSeed = function () {
-    var inv = this.sim.inventory;
-    for (var i = 0; i < inv.length; i++) {
+    var inv = this.sim.inventory, i;
+    var want = this.sim.flags.seed;
+    if (want) {
+      for (i = 0; i < inv.length; i++) {
+        if (inv[i].name === want && inv[i].qty > 0) return inv[i];
+      }
+    }
+    for (i = 0; i < inv.length; i++) {
       if (cropForSeed(this.data, inv[i].name)) return inv[i];
     }
     return null;
+  };
+  Game.prototype.holdSeed = function (name) {
+    this.sim.flags.seed = name || null;
   };
   Game.prototype.heldFertilizer = function () {
     var names = ['Deluxe Fertilizer', 'Quality Fertilizer', 'Basic Fertilizer'];
@@ -1450,6 +1542,7 @@
     silo: 'Storage', bed: 'Bottom', chest: 'Box', kitchen: 'OvenEmpty',
     mailbox: 'WoodSign', bin: 'BoxBottom', calendarBoard: 'BlackBoard',
     orderBoard: 'QuestBase', bundleBoard: 'BlackBoard2', sign: 'Sign',
+    landPost: 'Sign',
     toolUpgrade: 'smithy_0', geodeCrusher: 'DrawMachin',
     mineEntrance: 'MineGate', museumDesk: 'Desk', display: 'FishTank',
     table: 'Desk', stage: 'RedCarpet', pillar: 'Pillar', shrine: 'HearthStone',
@@ -1537,12 +1630,36 @@
     ctx.fillRect(px + 6, py + 16 - 4 - o.stage * 2, 4, 4 + o.stage * 2);
   };
 
+  /* The second frame of an idle pair, or null. The sheet uses two conventions
+   * for the same thing - Foo_0/Foo_1 and Foo_Idle0/Foo_Idle1 - so try both and
+   * remember the answer, because this runs per villager per frame. */
+  var ALT_CACHE = {};
+  function ALT_FRAME(name) {
+    if (name in ALT_CACHE) return ALT_CACHE[name];
+    var alt = null;
+    if (/0$/.test(name)) {
+      var cand = name.replace(/0$/, '1');
+      if (A.has(cand)) alt = cand;
+    }
+    ALT_CACHE[name] = alt;
+    return alt;
+  }
+
   Game.prototype.drawNpc = function (ctx, v) {
     var cx = v.x * TS + TS / 2, by = v.y * TS + TS + 2;
     ctx.fillStyle = 'rgba(0,0,0,.2)';
     ctx.beginPath(); ctx.ellipse(cx, by - 2, 7, 3, 0, 0, 6.284); ctx.fill();
     var bob = v.moving ? Math.abs(Math.sin(this.time / 120)) * 1.5 : Math.sin(this.time / 500) * 0.8;
-    A.drawAt(ctx, v.art, cx, by - bob, { flip: v.dir === 'left' });
+    /* Every villager ships with a second frame - CookingElf_1, smithy_1,
+     * Princess_Idle_1 and twenty-odd more were all in the atlas, all unused,
+     * while drawNpc painted the _0 frame and a sine bob. The player has
+     * animated this whole time; the cast were statues next to them. */
+    var art = v.art;
+    if (v.moving) {
+      var alt = ALT_FRAME(art);
+      if (alt && Math.sin(this.time / 120) < 0) art = alt;
+    }
+    A.drawAt(ctx, art, cx, by - bob, { flip: v.dir === 'left' });
     if (v.exclaim) A.drawAt(ctx, 'Exclamation', cx, by - 22);
   };
 

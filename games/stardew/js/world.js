@@ -95,7 +95,7 @@
     skyAltar: 1, dragonNest: 1, healStone: 1, pcBox: 1, ivJudge: 1,
     evTrainer: 1, natureMint: 1, daycare: 1, dexResearch: 1, baitTable: 1,
     crabPotRack: 1, tapper: 1, trough: 1, workshop: 1, blackboard: 1,
-    sign: 1, elevator: 1, fossilDig: 1, petBed: 1, dock: 1
+    sign: 1, elevator: 1, fossilDig: 1, petBed: 1, dock: 1, landPost: 1
   };
 
   // ------------------------------------------------------------------- area
@@ -412,6 +412,11 @@
         sea.block(t[0], t[1], true);
       });
     }
+    /* And take down the signposts, which are rebuilt from ownership too. */
+    if (sea._landPosts) {
+      sea._landPosts.forEach(function (o) { sea.remove(o); });
+    }
+    var posts = [];
     var laid = [];
     sea.islands.forEach(function (a) {
       if (!owned[a.id]) return;
@@ -428,6 +433,50 @@
       });
     });
     sea._bridges = laid;
+
+    /* A SIGNPOST standing in the water at the exact tile the bridge will land
+     * on, for every island you could buy next.
+     *
+     * The map panel was the only way to buy land, and nothing on the ground
+     * said so. What the player sees instead is the next island across the
+     * water with its price painted on it, so they walk to the shore - which is
+     * the right instinct and the game answered it with nothing at all. Now the
+     * shore answers: the post carries the island's name and price, the action
+     * button reads "Mua đảo", and the bridge grows from the post you were
+     * standing at. */
+    sea.islands.forEach(function (a) {
+      if (!owned[a.id]) return;
+      ISL.neighbours(a.isl).forEach(function (bIsl) {
+        if (owned[bIsl.id] || !bIsl.unlock) return;
+        var b = null;
+        for (var i = 0; i < sea.islands.length; i++)
+          if (sea.islands[i].id === bIsl.id) b = sea.islands[i];
+        if (!b) return;
+        var t = channelStart(a, b);
+        if (!t) return;
+        if (sea.objAt(t[0], t[1])) return;
+        /* obj() returns the AREA, not the object, so keep our own handle - the
+         * next rebuild has to be able to take these back down. */
+        var post = { x: t[0], y: t[1], kind: 'landPost', target: b.id };
+        sea.obj(post);
+        posts.push(post);
+      });
+    });
+    sea._landPosts = posts;
+
+    /* The tile just off island `a`, on the centre line of the channel toward
+     * `b` - i.e. where span() would start cutting. */
+    function channelStart(a, b) {
+      var lo, hi, m;
+      if (b.isl.col !== a.isl.col) {
+        lo = Math.max(a.y, b.y); hi = Math.min(a.y + a.h, b.y + b.h);
+        m = Math.floor((lo + hi) / 2) - 1;
+        return b.isl.col > a.isl.col ? [a.x + a.w, m] : [a.x - 1, m];
+      }
+      lo = Math.max(a.x, b.x); hi = Math.min(a.x + a.w, b.x + b.w);
+      m = Math.floor((lo + hi) / 2) - 1;
+      return b.isl.row > a.isl.row ? [m, a.y + a.h] : [m, a.y - 1];
+    }
 
     function span(a, b, horiz, out) {
       var x, y, i;

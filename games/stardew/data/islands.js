@@ -164,7 +164,7 @@
         { x: 15, y: 4, kind: 'shop', shop: 'fish', art: 'Harbor_FishMarket', w: 4, h: 3,
           label: 'Chợ Cá' },
         { x: 4, y: 5, kind: 'baitTable' },
-        { x: 9, y: 13, kind: 'dock', w: 4, h: 6 },
+        { x: 9, y: 16, kind: 'dock', w: 4, h: 5 },
         { x: 20, y: 10, kind: 'crabPotRack' }
       ],
       pier: { x: 9, y: 16, w: 4, h: 5 },

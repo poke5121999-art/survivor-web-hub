@@ -396,7 +396,7 @@
     }
     var ctx = {
       game: game, sim: game.sim, area: area, poke: poke, isl: isl,
-      px: Math.round(game.player.x), py: Math.round(game.player.y),
+      px: Math.floor(game.player.x), py: Math.floor(game.player.y),
       target: target
     };
     var r = s.run(ctx) || { ok: false, msg: '' };
