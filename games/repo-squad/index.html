@@ -282,14 +282,34 @@
   .me-n{font-size:11px;font-weight:700;line-height:1.15}
   .me-p{font-family:var(--mono);font-size:9px;color:var(--gold);line-height:1.2}
   .purse{flex:1;display:flex;justify-content:flex-end;gap:4px;min-width:0}
-  .coin{display:flex;align-items:center;gap:3px;padding:2px 2px 2px 4px;border-radius:12px;
+  /* Cả cái chip là một nút (nó nhảy sang cửa hàng), nên nó phải cao bằng một cái nút.
+     Đo được lúc còn 21px: thấp hơn mọi thứ khác trên sảnh, kể cả ô xác 59px. */
+  .coin{display:flex;align-items:center;gap:4px;padding:4px 4px 4px 7px;border-radius:14px;
         background:#0d1117;border:1px solid var(--line);cursor:pointer;min-width:0}
-  .coin i{font-style:normal;font-size:11px}
-  .coin b{font-family:var(--mono);font-size:10px;font-weight:400;color:var(--ink);
+  .coin i{font-style:normal;font-size:14px}
+  .coin b{font-family:var(--mono);font-size:11.5px;font-weight:400;color:var(--ink);
           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:62px}
-  .coin s{text-decoration:none;width:14px;height:14px;border-radius:50%;flex:0 0 auto;
-          background:#2c3644;color:#cfd6de;font-size:11px;line-height:13px;text-align:center}
+  .coin s{text-decoration:none;width:18px;height:18px;border-radius:50%;flex:0 0 auto;
+          background:#2c3644;color:#cfd6de;font-size:13px;line-height:17px;text-align:center}
   .coin:active{filter:brightness(1.25)}
+  /* Máy hẹp: ba cái chip vừa nới rộng thì hết chỗ, và .purse có min-width:0 nên nó KHÔNG tràn
+     hàng mà bóp con số thành "5…". Đo được ở 320px sau khi nới: "5.0…", trong khi bản cũ hiện
+     đủ "5.000" — tức là nới rộng ở đây làm hỏng đúng cái thông tin mà chip sinh ra để nói.
+     Nên bớt LỀ NGANG lại theo bề rộng máy, và chỉ giữ phần cao thêm. Ở 320px thì lề ngang về
+     đúng bằng bản cũ: chỗ đó không đủ cho cả hai, và con số quan trọng hơn vài pixel bề ngang
+     — cả chip vẫn bấm được, chỉ là không to ra thêm. */
+  @media (max-width:380px){
+    .coin{padding:4px 3px 4px 5px;gap:3px}
+    .coin i{font-size:12.5px}
+    .coin b{font-size:10.5px}
+    .coin s{width:16px;height:16px;font-size:12px;line-height:15px}
+  }
+  @media (max-width:340px){
+    .coin{padding:4px 2px 4px 4px;gap:3px}
+    .coin i{font-size:11px}
+    .coin b{font-size:10px}
+    .coin s{width:14px;height:14px;font-size:11px;line-height:13px}
+  }
 
   /* --- vùng cuộn duy nhất --- */
   .stage{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
@@ -298,16 +318,20 @@
   /* --- cột phím tắt bên phải ở sảnh --- */
   .rail{position:absolute;top:6px;right:8px;display:flex;flex-direction:column;gap:6px;z-index:3}
   .rail.left{right:auto;left:8px}
-  .rail-b{position:relative;width:46px;padding:5px 2px 4px;border-radius:9px;text-align:center;cursor:pointer;
+  /* Nới rộng 2026-08-31 theo yêu cầu chủ dự án. 46px với nhãn 7,5px là cỡ của một cái
+     nhãn, không phải cỡ của một cái nút bấm bằng ngón cái — mà đây là bốn lối đi chính
+     của sảnh (Gacha, Map, Nhiệm Vụ, Cửa Hàng). 64px vẫn nằm gọn trong lề mà sân khấu đã
+     chừa sẵn, nên chỉ cần nới lề đó theo (58 -> 76) là không con chữ nào bị đè. */
+  .rail-b{position:relative;width:64px;padding:8px 3px 7px;border-radius:11px;text-align:center;cursor:pointer;
           background:linear-gradient(180deg,#212a36,#141a22);border:1px solid var(--line2);
-          box-shadow:0 2px 0 #0a0d12}
-  .rail-b:active{transform:translateY(2px);box-shadow:none}
-  .rb-i{font-size:18px;line-height:1.1}
-  .rb-n{font-size:7.5px;color:var(--dim);letter-spacing:.02em}
+          box-shadow:0 3px 0 #0a0d12}
+  .rail-b:active{transform:translateY(3px);box-shadow:none}
+  .rb-i{font-size:26px;line-height:1.1}
+  .rb-n{font-size:9.5px;color:var(--dim);letter-spacing:.02em;margin-top:2px}
 
   /* --- sân khấu nhân vật --- */
   .showcase{position:relative;overflow:hidden;border:1px solid var(--line2);border-radius:12px;
-            padding:14px 58px 10px;text-align:center;cursor:pointer;
+            padding:14px 76px 10px;text-align:center;cursor:pointer;
             background:linear-gradient(180deg,hsl(var(--hue,40) 30% 16%),#0c1016 72%)}
   .stage.is-home>.showcase{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
   .sc-glow{position:absolute;left:50%;top:50%;width:210px;height:210px;border-radius:50%;
@@ -346,7 +370,9 @@
           border:1px solid #1d232c}
   .ch-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--gold))}
   .ch-f{font-family:var(--mono);font-size:8.5px;color:var(--faint)}
-  .b.chev{flex:0 0 auto;width:30px;padding:0;font-size:20px;line-height:1;background:#1b2430;
+  /* 30px là bề ngang của một mũi tên, không phải của một chỗ đặt ngón tay — và đây là nút
+     lật chương, thứ người chơi bấm mỗi lần chọn map. */
+  .b.chev{flex:0 0 auto;width:42px;padding:0;font-size:22px;line-height:1;background:#1b2430;
           color:var(--ink);border:1px solid var(--line2);border-radius:8px;letter-spacing:0}
   .b.chev:disabled{opacity:.3;cursor:default}
 
@@ -677,7 +703,7 @@
   body.landscape .lu-f{font-size:17px}
   body.landscape .lu-n{font-size:9px}
   body.landscape .foot-note{font-size:8.5px}
-  body.landscape .stage.is-home>.showcase{grid-row:1 / span 4;min-height:0;padding:10px 52px}
+  body.landscape .stage.is-home>.showcase{grid-row:1 / span 4;min-height:0;padding:10px 68px}
   body.landscape .sc-face{font-size:52px}
   body.landscape .sc-name{font-size:18px}
   body.landscape .sc-skill{font-size:9.5px;margin-top:3px;padding-top:4px}
@@ -686,9 +712,9 @@
      dưới — vì cột trái là sân khấu, vốn đã chừa sẵn 52px lề hai bên. */
   body.landscape .rail{top:auto;bottom:4px;right:auto;left:4px}
   body.landscape .rail.left{top:4px;bottom:auto;left:4px}
-  body.landscape .rail-b{width:40px;padding:3px 2px}
-  body.landscape .rb-i{font-size:15px}
-  body.landscape .rb-n{font-size:7px}
+  body.landscape .rail-b{width:56px;padding:5px 3px}
+  body.landscape .rb-i{font-size:21px}
+  body.landscape .rb-n{font-size:8.5px}
   body.landscape .stage.is-home>.lineup{grid-column:2;align-self:end}
   body.landscape .stage.is-home>.chapter{grid-column:2;margin-top:0}
   body.landscape .stage.is-home>.b.cta{grid-column:2;padding:11px;font-size:15px}
@@ -921,15 +947,15 @@
 <script src="../../js/save-sync.js"></script>
 
 <!-- BỘ MÁY: dùng CHUNG với games/repo2d. Không có bản sao thứ hai của luật chơi. -->
-<script src="../repo2d/sprites.js?v=20260831m"></script>
-<script src="../repo2d/game.js?v=20260831m"></script>
-<script src="../repo2d/bot.js?v=20260831m"></script>
+<script src="../repo2d/sprites.js?v=20260831n"></script>
+<script src="../repo2d/game.js?v=20260831n"></script>
+<script src="../repo2d/bot.js?v=20260831n"></script>
 
 <!-- TẦNG META của Biệt Đội: gacha, trang bị, tiến hoá, tổ năm người, kỹ năng -->
-<script src="data/content.js?v=20260831m"></script>
-<script src="js/meta.js?v=20260831m"></script>
-<script src="js/ui.js?v=20260831m"></script>
-<script src="js/squad.js?v=20260831m"></script>
+<script src="data/content.js?v=20260831n"></script>
+<script src="js/meta.js?v=20260831n"></script>
+<script src="js/ui.js?v=20260831n"></script>
+<script src="js/squad.js?v=20260831n"></script>
 
 <script>
   window.__boot && window.__boot();          // bộ máy dựng khung, gắn phím, gắn chạm
