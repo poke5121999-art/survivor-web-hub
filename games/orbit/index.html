@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Quỹ Đạo — Mốc 1</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ctext y=%2726%27 font-size=%2726%27%3E%E2%9A%99%3C/text%3E%3C/svg%3E">
+<!-- Same reason as the other games here: a canvas swallows its own failures
+     silently — the screen just stops updating. Read window.__errs. -->
+<script>
+window.__errs = [];
+window.addEventListener('error', function (e) {
+  window.__errs.push((e.message || 'error') + ' @ ' +
+    (e.filename || '?').split('/').pop() + ':' + (e.lineno || 0));
+});
+window.addEventListener('unhandledrejection', function (e) {
+  window.__errs.push('unhandled promise: ' + (e.reason && e.reason.message || e.reason));
+});
+</script>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:#070b11;overflow:hidden;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#dfe7f2;
+    user-select:none;-webkit-user-select:none;touch-action:none}
+  /* A phone-shaped viewport on a desktop, so the portrait layout this
+     prototype exists to test is what a desktop reviewer actually sees. On a
+     real phone the frame is the whole screen. */
+  #frame{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  #stage{position:relative;background:#070b11;overflow:hidden;
+    box-shadow:0 0 0 2px #1b2430,0 18px 60px rgba(0,0,0,.6)}
+  canvas#view{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<div id="frame"><div id="stage"><canvas id="view"></canvas></div></div>
+<script src="js/game.js"></script>
+</body>
+</html>
