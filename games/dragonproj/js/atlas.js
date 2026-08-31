@@ -116,6 +116,22 @@
   };
   Atlas.has = function (key) { return !!this.get(key); };
 
+  /* Kiểu CSS để nhét một sprite vào HTML bằng thẻ thường.
+   *
+   * Không dùng <img src> được: mỗi file là một DẢI NGANG nhiều khung, nên thẻ img
+   * bày ra cả ba con takodachi cạnh nhau. Nên vẽ bằng background: hộp rộng đúng
+   * MỘT khung, ảnh nền phóng lên `frames * 100%`, ghim ở khung 0.
+   * `h` là chiều cao mong muốn tính bằng px. */
+  Atlas.iconCss = function (key, h) {
+    var e = this.entries[key];
+    if (!e || !e.w || !e.h) return '';
+    var w = Math.round(e.w / e.h * h);
+    return 'width:' + w + 'px;height:' + h + 'px;' +
+           'background-image:url(' + this.base + e.file + ');' +
+           'background-size:' + (e.frames * 100) + '% 100%;background-position:0 0;' +
+           'background-repeat:no-repeat;image-rendering:pixelated';
+  };
+
   /* Đường dẫn file của một khoá — để HTML dùng thẻ <img>, chứ canvas thì đã có
      entry.img rồi. Trả '' nếu chưa có ảnh, bên gọi tự lo. */
   Atlas.src = function (key) {

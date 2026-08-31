@@ -1665,5 +1665,95 @@
     "file": "Crossbow_Mine.png"
    }
   }
+ },
+ "ui": {
+  "home": {
+   "spr": "furn_LanternIcon",
+   "anchor": "center",
+   "fps": 6,
+   "frames": 1,
+   "w": 11,
+   "h": 18,
+   "ox": 5,
+   "oy": 9,
+   "file": "furn_LanternIcon.png"
+  },
+  "quest": {
+   "spr": "spr_takodachi",
+   "anchor": "center",
+   "fps": 6,
+   "frames": 3,
+   "w": 21,
+   "h": 21,
+   "ox": 10,
+   "oy": 21,
+   "file": "spr_takodachi.png"
+  },
+  "armory": {
+   "spr": "furn_TreasureChestAIcon",
+   "anchor": "center",
+   "fps": 6,
+   "frames": 1,
+   "w": 15,
+   "h": 15,
+   "ox": 7,
+   "oy": 7,
+   "file": "furn_TreasureChestAIcon.png"
+  },
+  "gacha": {
+   "spr": "spr_ShionPortal",
+   "anchor": "center",
+   "fps": 6,
+   "frames": 4,
+   "w": 42,
+   "h": 23,
+   "ox": 21,
+   "oy": 11,
+   "file": "spr_ShionPortal.png"
+  },
+  "mats": {
+   "spr": "furn_BoxAIcon",
+   "anchor": "center",
+   "fps": 6,
+   "frames": 1,
+   "w": 14,
+   "h": 14,
+   "ox": 7,
+   "oy": 7,
+   "file": "furn_BoxAIcon.png"
+  },
+  "shop": {
+   "spr": "spr_holoCoin",
+   "anchor": "center",
+   "fps": 6,
+   "frames": 8,
+   "w": 15,
+   "h": 15,
+   "ox": 7,
+   "oy": 7,
+   "file": "spr_holoCoin.png"
+  },
+  "help": {
+   "spr": "furn_Marble_bookshelfIcon",
+   "anchor": "center",
+   "fps": 6,
+   "frames": 1,
+   "w": 12,
+   "h": 23,
+   "ox": 6,
+   "oy": 11,
+   "file": "furn_Marble_bookshelfIcon.png"
+  },
+  "npc": {
+   "spr": "furn_AchanDollIcon",
+   "anchor": "center",
+   "fps": 6,
+   "frames": 1,
+   "w": 14,
+   "h": 20,
+   "ox": 7,
+   "oy": 10,
+   "file": "furn_AchanDollIcon.png"
+  }
  }
 }

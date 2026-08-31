@@ -339,6 +339,11 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 /* Khe NHẬN được món đang cầm: viền đứt. Khe đang chĩa vào: viền liền + nền vàng. */
 .item.drop-ok{outline:2px dashed var(--gold);outline-offset:-3px}
 .item.drop-hot{outline:2px solid var(--gold);outline-offset:-3px;background:rgba(242,201,75,.18)}
+
+/* --- biểu tượng giao diện: pixel art, không phải emoji --- */
+.uicon{display:inline-block;margin:0 auto 2px;flex:none}
+.navbar button .uicon,.quick .uicon{display:block}
+.banner .npc .uicon{margin:0}
 .slots{display:flex;gap:3px;margin-top:4px}
 .slot{width:19px;height:19px;border-radius:4px;background:#0a0f16;border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-size:11px}

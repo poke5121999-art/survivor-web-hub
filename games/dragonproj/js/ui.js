@@ -19,7 +19,9 @@
     fit(); window.addEventListener('resize', fit);
     // Nạp bộ ảnh. Không chặn gì cả — thiếu ảnh thì game vẫn vẽ bằng hình học như
     // cũ, ảnh về tới đâu thì lên tới đó. Nhờ vậy thay art được từng phần.
-    if (G.Atlas) G.Atlas.load('assets/asset-map.js');
+    // Ảnh về sau, mà thanh nav thì dựng ngay từ đầu — nên phải vẽ lại nav khi ảnh
+    // tới, nếu không nó đứng nguyên với emoji dự phòng suốt cả phiên.
+    if (G.Atlas) G.Atlas.load('assets/asset-map.js', function () { repaintNav(); });
     S = G.load();
     if (!S) { S = G.starterKit(G.newSave('Hound')); G.save(S); }
     G.rollRecurrent(S);
@@ -48,6 +50,16 @@
 
   function save() { G.save(S); }
   function fmt(n) { return (n | 0).toLocaleString('vi-VN'); }
+  /* Biểu tượng giao diện. Emoji trông lạc lõng cạnh pixel art — cùng một cái nút
+     mà nửa trên là emoji bo tròn của hệ điều hành, nửa dưới là chữ của game. Nên
+     mọi biểu tượng menu đều lấy từ chính kho sprite đang dùng.
+     Thiếu ảnh thì trả về emoji dự phòng, không để trống. */
+  function uiIcon(key, fallback, h) {
+    var css = G.Atlas && G.Atlas.iconCss('ui.' + key, h || 22);
+    return css ? '<i class="uicon" style="' + css + '"></i>'
+               : '<span class="em">' + (fallback || '') + '</span>';
+  }
+
   /* Biểu tượng vũ khí. Ảnh tra theo LỚP + HỆ, nên đổi bảng ảnh trong
      asset-map là cả giao diện đổi theo, không phải sửa từng chỗ ở đây.
      Chưa có ảnh thì trả chuỗi rỗng — mọi chỗ gọi đều chịu được. */
@@ -78,7 +90,7 @@
       '</div>' +
       '<div class="topbar">' +
         (showBack ? '<button class="back" data-back="1">‹</button>' : '') +
-        '<div class="mechip" data-nav="more"><span class="av">🗡️</span>' +
+        '<div class="mechip" data-nav="more"><span class="av" id="me-av-' + id + '">🗡️</span>' +
           '<span><span class="nm" id="me-nm-' + id + '"></span>' +
           '<span class="pw" id="me-pw-' + id + '"></span></span></div>' +
         '<div class="cur" id="cur-' + id + '"></div>' +
@@ -102,10 +114,27 @@
     { id: 'gacha',  em: '🔮', n: 'Triệu hồi' },
     { id: 'more',   em: '☰',  n: 'Khác' }
   ];
+  /* Vẽ lại biểu tượng của mọi thanh nav đã dựng. Gọi khi bộ ảnh nạp xong. */
+  function repaintNav() {
+    [].forEach.call(document.querySelectorAll('.navbar'), function (bar) {
+      [].forEach.call(bar.querySelectorAll('button[data-nav]'), function (btn) {
+        var id = btn.getAttribute('data-nav');
+        var css = G.Atlas && G.Atlas.iconCss('ui.' + id, 23);
+        if (!css) return;
+        var old = btn.querySelector('.em, .uicon');
+        var im = document.createElement('i');
+        im.className = 'uicon'; im.setAttribute('style', css);
+        if (old) btn.replaceChild(im, old); else btn.insertBefore(im, btn.firstChild);
+      });
+    });
+    var cur = document.querySelector('.screen.on');
+    if (cur) show(cur.id.replace('scr-', ''));   // vẽ lại thân màn cho các icon khác
+  }
+
   function navHtml(active) {
     return '<div class="navbar">' + NAV.map(function (x) {
       return '<button data-nav="' + x.id + '" class="' + (x.id === active ? 'on' : '') + '">' +
-        '<span class="em">' + x.em + '</span>' + x.n + '</button>';
+        uiIcon(x.id, x.em) + x.n + '</button>';
     }).join('') + '</div>';
   }
 
@@ -148,6 +177,15 @@
 
   function renderCur(id) {
     var c = $('cur-' + id);
+    // Avatar: chính sprite nhân vật đang chơi, không phải emoji con dao.
+    var av = $('me-av-' + id);
+    if (av && G.Atlas) {
+      var acss = G.Atlas.iconCss('player.idle', 24);
+      if (acss && av.getAttribute('data-spr') !== '1') {
+        av.setAttribute('data-spr', '1'); av.textContent = '';
+        av.className = 'av uicon'; av.setAttribute('style', acss);
+      }
+    }
     var nm = $('me-nm-' + id), pw = $('me-pw-' + id);
     if (nm) nm.textContent = S.name;
     if (pw) pw.textContent = 'Lv.' + S.lv + ' · ⚔ ' + fmt(powerOf());
@@ -178,18 +216,21 @@
             '<div class="lvchip">Lv. ' + S.lv + ' · ' + S.name + '</div>' +
             '<div class="area">' + area.n + '</div>' +
             '<div class="quick l">' +
-              '<button data-act="forge"><span class="em">⚒️</span>Nguyên liệu</button>' +
+              '<button data-act="forge">' + uiIcon('mats', '⚒️') + 'Nguyên liệu</button>' +
             '</div>' +
             '<div class="quick r">' +
-              '<button data-act="shop"><span class="em">🛒</span>Tiệm</button>' +
-              '<button data-act="help"><span class="em">❔</span>Cách chơi</button>' +
+              '<button data-act="shop">' + uiIcon('shop', '🛒') + 'Tiệm</button>' +
+              '<button data-act="help">' + uiIcon('help', '❔') + 'Cách chơi</button>' +
             '</div>' +
             '<div class="power">' + (wNow
               ? elemDot(wNow.el) + ' ' + wNow.name + ' · ' + G.WEAPONS[wNow.wclass].vi
               : 'Chưa cầm vũ khí nào') + '</div></div>';
 
     // Ải kế tiếp luôn nằm ngay đây: mở game lên là biết đi đâu, không phải nhớ.
-    html += '<div class="banner event"><div class="npc">🗺️</div><div class="t">' +
+    // Ảnh con trùm sắp gặp, ngay trên tấm banner: biết mặt nó trước khi vào ải.
+    var nxIcon = (nxBoss && G.Atlas && G.Atlas.iconCss('bosses.' + nxBoss.body + '.idle', 40)) || '';
+    html += '<div class="banner event"><div class="npc">' +
+      (nxIcon ? '<i class="uicon" style="' + nxIcon + '"></i>' : '🗺️') + '</div><div class="t">' +
       '<span class="kind" style="color:#8fd4ff">ẢI KẾ</span> <b>' + nx.n + ' — ' + nx.sub + '</b>' +
       '<span>Lv.' + nx.lv + ' · dọn ' + nx.kills + ' quái · trùm ' +
       (nxBoss ? nxBoss.n + ' ' + nxBoss.rank : '?') + '</span></div>' +
@@ -197,12 +238,12 @@
 
     if (nextStory) {
       var pr = questProgressText(nextStory);
-      html += '<div class="banner main"><div class="npc">👩</div><div class="t">' +
+      html += '<div class="banner main"><div class="npc">' + uiIcon('npc', '👩') + '</div><div class="t">' +
         '<span class="kind" style="color:#8ee8a8">STORY</span> ' +
         '<b>' + nextStory.vi + '</b><span>' + nextStory.n + ' — ' + pr + '</span></div>' +
         '<button class="btn go" data-act="goQuest">ĐI</button></div>';
     } else {
-      html += '<div class="banner main"><div class="npc">👩</div><div class="t"><b>Hết cốt truyện mùa 1</b>' +
+      html += '<div class="banner main"><div class="npc">' + uiIcon('npc', '👩') + '</div><div class="t"><b>Hết cốt truyện mùa 1</b>' +
         '<span>Pamela không còn việc nào cho bạn nữa. Đi săn Behemoth thôi.</span></div></div>';
     }
 
