@@ -22,7 +22,11 @@
   // vật trên màn không đổi.
   const SRC = 3;
   const FW = 32 * SRC, FH = 48 * SRC, COLS = 3, ROWS = 4;
-  const RIM = 2 * SRC, RIM_COLOR = '#ff3b30';
+  // Viền MỎNG. Bộ hình mới lấp gần kín khung 96x144 (nhân vật cao ~48 pixel gốc thay vì 32),
+  // nên cùng một bề dày viền giờ ăn nhiều hơn hẳn phần hình bên trong, và ở tỉ lệ vẽ thật
+  // (96 -> 25,6 đơn vị thế giới) thì 6px thành một vệt gần 2 pixel màn hình bao quanh mọi thứ.
+  // 4px cho ra hơn một pixel màn hình: đủ để tách khỏi nền tối, không đủ để nuốt mất cái áo.
+  const RIM = Math.round(SRC * 1.35), RIM_COLOR = '#ff3b30';
   // Người 0,80 và quái 1,05 (trước là 0,55 / 0,80). Bộ hình vẽ tay là tranh pixel: ô
   // nguồn cao 144 px mà vẽ ra chỉ 77 px thì thu hơn một nửa, và nửa số pixel của bộ
   // hình rơi mất trước khi tới mắt người chơi. Vẽ to lên là cách duy nhất thấy được
@@ -36,6 +40,22 @@
     const s = document.currentScript;
     if (s && s.src) return s.src.replace(/[^/]*(\?.*)?$/, '');
     return 'games/repo2d/';
+  })();
+
+  // ...và LẤY LUÔN dấu ?v= của chính thẻ script này để đóng vào mọi đường dẫn ảnh.
+  //
+  // Đây là lỗi làm chủ dự án thay cả bộ hình mà trên web vẫn thấy hình cũ, ở CẢ HAI bản. Ba tệp
+  // .js đều có ?v= chống cache và được bump mỗi lần sửa, nhưng ẢNH thì không có gì cả — mà tên
+  // tệp không đổi, chỉ ruột đổi. Trình duyệt lẫn CDN của GitHub Pages đều coi art/crew/bao.png
+  // là đúng cái tệp chúng đã có, nên trả lại bản cũ và không hỏi lại máy chủ.
+  //
+  // Buộc vào chính dấu của thẻ script chứ không phải một hằng số riêng: bump một chỗ là cả JS
+  // lẫn ảnh cùng mới, không có cách nào quên một nửa.
+  // SEE: web vẫn thấy art cũ, 2026-08-31
+  const VER = (function () {
+    const s = document.currentScript;
+    const m = s && s.src && s.src.match(/[?&]v=([^&]+)/);
+    return m ? '?v=' + m[1] : '';
   })();
 
   const crew = Object.create(null);
@@ -201,13 +221,13 @@
   }
 
   CREW_IDS.forEach(function (id) {
-    load(HERE + 'art/crew/' + id + '.png', function (im) {
+    load(HERE + 'art/crew/' + id + '.png' + VER, function (im) {
       // Bản đỏ: engine cũ nháy đỏ cả người khi vừa ăn đòn, giữ lại tín hiệu đó.
       crew[id] = { img: im, hurt: tinted(im, 'rgba(214,88,74,.62)') };
     });
   });
   FOE_IDS.forEach(function (id) {
-    load(HERE + 'art/foe/' + id + '.png', function (im) { foe[id] = bakeRim(im); });
+    load(HERE + 'art/foe/' + id + '.png' + VER, function (im) { foe[id] = bakeRim(im); });
   });
 
   // ---------------------------------------------------------------- đồ vật
@@ -219,11 +239,11 @@
   let lampStrip = null;
 
   ['nho', 'vua', 'to'].forEach(function (sz) {
-    load(HERE + 'art/item/loot-' + sz + '.png', function (im) {
+    load(HERE + 'art/item/loot-' + sz + '.png' + VER, function (im) {
       lootStrip[sz] = { img: im, n: Math.max(1, Math.round(im.width / ITEM)) };
     });
   });
-  load(HERE + 'art/item/lantern.png', function (im) {
+  load(HERE + 'art/item/lantern.png' + VER, function (im) {
     lampStrip = { img: im, n: Math.max(1, Math.round(im.width / ITEM)) };
   });
 

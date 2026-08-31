@@ -7693,43 +7693,19 @@ function drawHighlights(c){
   // First, so every ring below sits on top of it rather than inside it.
   drawFoeVision(c);
 
-  // VONG SANG QUANH NHAN VAT.
-  // WHY: vung sang duoi chan (PERIPH_R trong buildLight) la ANH SANG - no do lai
-  //   len san nha va tan ra, nen tren san sang mau nhat, giua mot dong do, hoac
-  //   luc dang bi duoi va man hinh rung, nguoi choi mat dau minh dang o dau. Cai
-  //   nay khong phai anh sang ma la mot cai VANH: no khong bao gio bi san nha nuot,
-  //   va no bam theo nguoi chu khong theo huong nhin.
-  // Ve o day chu khong o drawPlayer: drawPlayer chay TRUOC lop toi, nen mot vanh ve
-  //   trong do se bi lop toi phu len va mo di dung o cho toi nhat - dung cho can no
-  //   nhat. Lop nay nam TREN lop toi.
-  // Do nhip theo nhip tim: sap chet thi vanh do dan va dap nhanh hon, nen cai bao
-  //   "sap chet" nam ngay duoi mat chu khong o mot thanh mau goc man hinh.
-  {
-    const at = playerDrawPos();
-    if (at && !p.down){
-      const k = clamp(p.hp / Math.max(1, p.hpMax), 0, 1);
-      // Vàng khi lành, đỏ khi sắp gục. Bản cũ chạy từ kem sang đỏ vì cái vòng tròn nằm NGOÀI quầng
-      // sáng quanh người nên nền của nó là sàn tối. Cái viền bó sát thì nằm ngay trong quầng sáng
-      // đó — kem trên nền kem là không thấy gì — nên đầu thang phải là màu vàng ăn được với quầng.
-      const col = [255, Math.round(212 - (1-k)*122), Math.round(90 - (1-k)*22)];
-      const nhip = 0.5 + 0.5*Math.sin(S.time * (3.0 + (1-k)*3.2));
-      // at.x/at.y chu khong phai p.x/p.y: trong doan cat canh dau man, nguoi choi
-      // duoc VE o mot cho khac cho dung that (dang buoc ra khoi xe), va mot cai vanh
-      // dung o cho dung that se lo lung giua san mot minh.
-      // Viền bó sát người thay cho hình tròn. Cái vòng nói được "có ai đó ở đây" nhưng không nói
-      // được ai — nó là một hình tròn, và ba người trong tổ ra ba hình tròn giống hệt nhau. Viền
-      // ôm đúng dáng đứng thì hình dáng nhân vật LÀ tín hiệu. Màu vẫn chạy theo máu và vẫn đập
-      // nhanh dần khi sắp gục: đó là thứ cái vòng mang, và nó ở lại.
-      // SEE: viền bó sát thay vòng tròn, 2026-08-31
-      const bien = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')';
-      const mo = (0.46 + nhip*0.16) * at.alpha;
-      c.save(); c.translate(at.x, at.y);
-      const veDuoc = window.REPO_SKIN && REPO_SKIN.halo &&
-                     REPO_SKIN.halo(c, p, true, bien, Math.min(1, mo*1.9));
-      c.restore();
-      if (!veDuoc) glowRing(c, at.x, at.y, 13 + nhip*1.4, col, mo, 1.9);
-    }
-  }
+  // NGƯỜI CHƠI KHÔNG CÓ VIỀN, và đây từng là chỗ vẽ nó.
+  //
+  // Highlight trả lời đúng một câu: "cái kia là gì". Người chơi là thứ duy nhất trên màn hình
+  // không bao giờ phải hỏi câu đó — nó nằm giữa khung hình, camera bám theo nó, quầng sáng quanh
+  // thân đã tách nó khỏi sàn, và ngón cái đang điều khiển nó. Một cái viền ở đó chỉ tô đậm thêm
+  // thứ mắt đang nhìn thẳng vào; tệ hơn, nó làm cả ba người trong tổ sáng viền như nhau đúng lúc
+  // việc cần làm là phân biệt MÌNH với KHÔNG PHẢI MÌNH.
+  //
+  // Lý lẽ cũ để giữ nó — "giữa một đống đồ hoặc lúc màn hình rung thì mất dấu mình đang ở đâu" —
+  // là lý lẽ của thời cả tổ còn là mấy hình tròn giống hệt nhau. Giờ mỗi người một bộ hình riêng,
+  // và chỉ đồng đội mới có viền, nên người không viền chính là mình.
+  // Còn máu thì đã có thanh máu trên HUD và trái tim đập theo nhịp; không cần nói lần thứ ba.
+  // SEE: bỏ viền người chơi, 2026-08-31
 
   for (const l of S.loot){
     if (l.gone || l.held || l.inCart || l.onPad) continue;
@@ -9040,7 +9016,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831h';
+const BUILD = '20260831i';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
