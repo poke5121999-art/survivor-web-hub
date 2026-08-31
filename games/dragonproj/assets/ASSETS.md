@@ -433,3 +433,50 @@ khoá lại: đủ 35 ô, ô nào cũng nạp được ảnh và có `len`.
 đồng. Repo này công khai. Chúng nằm đây theo yêu cầu của chủ dự án, với dự định
 vẽ đè lên sau — thay ảnh là sửa `_assets_src/weapons/` rồi chạy lại `pack.py`,
 không phải sửa code.
+
+
+---
+
+## 10. Boss
+
+Ảnh tra theo **DÁNG THÂN**, không theo từng con: 56 Behemoth chỉ có **21 dáng**
+(`b.def.body`), nên một tấm ảnh phục vụ cả họ. Tên, thanh máu, bộ phận điểm yếu
+và **quầng sáng theo hệ dưới chân** lo phần phân biệt — ảnh boss là art có sẵn,
+nhuộm nguyên con theo hệ là phá nát bảng màu của nó.
+
+| Dáng | | Đứng | Ra đòn |
+|---|---|---|---|
+| `blob` | khối tròn | `spr_Cilus` | — |
+| `bull` | bò mộng | `spr_Risusaurus` | — |
+| `frog` | ếch | `spr_Upao` | — |
+| `shroom` | nấm | `spr_Moontato` | `spr_Moontato_dash` |
+| `bird` | chim | `spr_Merakyat` | — |
+| `ape` | vượn | `spr_Goriela_idle` | `spr_Goriela_special` |
+| `fluff` | lông xù | `spr_fubuzilla` | — |
+| `bat` | dơi | `spr_MelBat` | — |
+| `drake` | rồng | `spr_CocoDragon` | — |
+| `beast` | thú | `spr_Gurasaur` | — |
+| `golem` | golem | `spr_Pekodam` | `spr_Pekodam` |
+| `serpent` | rắn/biển | `spr_CaughtShark` | — |
+| `samurai` | kiếm sĩ | `spr_Ayame_idle` | — |
+| `turtle` | rùa | `spr_CaughtTurtle` | — |
+| `lich` | tử linh | `spr_EldrichHaachama_walk` | `spr_EldrichHaachama_scream` |
+| `plant` | thực vật | `spr_FaunaTree` | — |
+| `knight` | hiệp sĩ | `spr_luknightB` | `spr_luknightA` |
+| `anubis` | anubis | `spr_YagooHeadB` | — |
+| `phoenix` | phượng | `spr_FubuBird` | — |
+| `demon` | quỷ | `spr_Lunazilla` | — |
+| `angel` | thiên thần | `spr_AngelFairy` | — |
+
+Boss **không xoay theo hướng**, chỉ lật trái/phải như quái thường — ảnh vẽ nhìn
+chếch từ trên xuống, xoay nó là nằm ngang. Lúc gục thì nghiêng 0.42 rad và bẹp
+xuống, cùng ngôn ngữ với quái thường. Dáng nào thiếu ảnh thì rơi về hình học cũ
+trong `drawBossBody` — có test khoá lại là không dáng nào thiếu.
+
+Khớp cỡ: `sc = r * 2.45 / max(h, w * 0.66)`. Lấy cạnh dài hơn làm chuẩn, nếu
+không con cá mập dài 123px sẽ tràn ra gấp đôi vùng ăn đòn của chính nó.
+
+**Tắt làm mượt ảnh.** `Atlas.draw` đặt `imageSmoothingEnabled = false`. Đây là
+pixel art: con thiên thần 28px thổi lên 110px mà để trình duyệt nội suy thì ra
+một vũng màu nhoè; tắt đi thì nó lên thành khối pixel to và sắc, ăn khớp với
+phần art còn lại.

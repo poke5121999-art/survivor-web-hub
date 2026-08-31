@@ -155,6 +155,10 @@
                                       : this.frameAt(e, opt.ms || 0, opt.loop);
     var s = opt.scale || 1;
     ctx.save();
+    // Art là pixel art. Để trình duyệt nội suy khi phóng to là nát hết nét —
+    // con boss 28px thổi lên 110px thành một vũng màu nhoè. Tắt làm mượt thì nó
+    // lên thành khối pixel to, sắc, và ĐÚNG với phần art còn lại.
+    ctx.imageSmoothingEnabled = false;
     if (opt.alpha !== undefined) ctx.globalAlpha *= opt.alpha;
     ctx.translate(x, y);
     if (opt.rot) ctx.rotate(opt.rot);

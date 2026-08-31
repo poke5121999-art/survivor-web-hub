@@ -840,11 +840,23 @@
         '/' + G.STAGES.length + '</b></span>' +
       '<span>Lõi Rồng: <b>' + fmt(S.mats.dragon_core || 0) + '</b></span></div></div>' +
 
+      '<div class="card"><h3>Bộ trưng bày</h3>' +
+      '<p>Sáu cây SS tối cấp, mỗi cây một lớp và một hệ khác nhau — đủ để xem hết ' +
+      'art vũ khí và <b>cả hai kỹ năng</b> của từng lớp mà không phải cày tới Lv.8. ' +
+      'Bấm lại không nhân bản.</p>' +
+      '<div class="row wrap" style="gap:8px;margin:6px 0">' +
+      G.showcaseList().map(function (it) {
+        var b = G.behemothById(it.src) || {};
+        return '<span class="mat-chip">' + (G.WEAPONS[b.weapon] || {}).vi + ' · ' + it.note + '</span>';
+      }).join('') + '</div>' +
+      '<button class="btn pri" data-act="showcase" style="width:100%">Nhận bộ trưng bày</button></div>' +
+
       '<div class="card"><h3>Về bản dựng lại này</h3>' +
       '<p>Dựng lại từ <b>Dragon Project</b> (COLOPL, 2016–2020) — game đã đóng cửa. Trọng tâm là ' +
       '<b>ぷにコン (Punicon)</b>: một ngón làm hết. Bản đồ thao tác, đặc thù 5 vũ khí, tỉ lệ gacha, ' +
       'tỉ lệ rơi đồ và thang chỉ số đều lấy từ wiki chính thức và bài 4Gamer 2016. ' +
-      'Không dùng một file ảnh/âm thanh nào của game gốc — tất cả vẽ bằng code.</p>' +
+      'Không dùng một file ảnh/âm thanh nào của game gốc: nhân vật, quái, boss và nền là ' +
+      'sprite của HoloCure, biểu tượng vũ khí lấy từ wiki Sephiria, còn VFX vẽ bằng code.</p>' +
       '<p>Chi tiết nguồn: <code>games/dragonproj/RESEARCH.md</code></p>' +
       '<button class="btn" data-act="help" style="width:100%;margin-top:6px">Cách chơi</button>' +
       '<button class="btn red" data-act="wipe" style="width:100%;margin-top:6px">Xóa dữ liệu và chơi lại</button></div>';
@@ -857,6 +869,13 @@
         save(); rMore(); return;
       }
       var a = t.getAttribute('data-act');
+      if (a === 'showcase') {
+        var got = G.grantShowcase(S);
+        save();
+        toast(got.length ? 'Đã thêm ' + got.length + ' cây vào Kho đồ' : 'Đã có đủ bộ rồi',
+              got.length ? '#f2c94b' : '#8fa3b5');
+        rMore(); return;
+      }
       if (a === 'help') show('help');
       if (a === 'wipe') { G.wipe(); location.reload(); }
     };

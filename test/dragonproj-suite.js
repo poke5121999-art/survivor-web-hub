@@ -871,6 +871,32 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
       }));
     return out;
   });
+  // 56 Behemoth chỉ có ngần này DÁNG THÂN; thiếu một dáng là cả họ đó rơi về
+  // hình học trong khi mấy họ kia đã lên ảnh — lệch mà không báo lỗi gì.
+  const boss = await p.evaluate(() => {
+    const A = DP.Atlas, need = {}, miss = [];
+    DP.BEHEMOTHS.forEach(b => { need[b.body] = 1; });
+    Object.keys(need).forEach(b => { if (!A.get('bosses.' + b + '.idle')) miss.push(b); });
+    return { shapes: Object.keys(need).length, miss: miss };
+  });
+  check('mọi dáng thân Behemoth đều có ảnh', boss.miss.length === 0,
+    boss.miss.length ? 'thiếu: ' + boss.miss.join(', ') : boss.shapes + ' dáng');
+
+  // Bộ trưng bày: bấm hai lần không được nhân bản, và phải mở đủ hai kỹ năng.
+  const sc = await p.evaluate(() => {
+    const S = DP.UI.save;
+    const a = DP.grantShowcase(S).length, b2 = DP.grantShowcase(S).length;
+    const w = S.gear.filter(g => g.show);
+    return { a: a, b: b2, n: w.length,
+             allMax: w.every(g => g.lv === DP.MAX_LV && g.evo === DP.MAX_EVO),
+             allTwo: w.every(g => DP.weaponProfile(S, g).skills.length === 2),
+             classes: new Set(w.map(g => g.wclass)).size };
+  });
+  check('bộ trưng bày: 6 cây, bấm lần hai không nhân bản',
+    sc.a === 6 && sc.b === 0 && sc.n === 6, JSON.stringify(sc));
+  check('bộ trưng bày: cây nào cũng tối cấp và mở đủ hai kỹ năng',
+    sc.allMax && sc.allTwo && sc.classes === 5, sc.classes + ' lớp');
+
   check('mọi ảnh trong asset-map đều nạp được', art.rep.loaded === art.rep.total,
     art.rep.loaded + '/' + art.rep.total);
   check('đủ 35 biểu tượng vũ khí (5 lớp x 7 hệ)', art.miss.length === 0,

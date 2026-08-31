@@ -72,6 +72,39 @@
     return g;
   };
 
+  /* BỘ TRƯNG BÀY — sáu cây chọn tay, mỗi cây một lớp, để xem art và kỹ năng.
+   *
+   * Không phải cheat cho vui: mở khoá kỹ năng thứ hai cần Lv.8 và cả sáu hệ mới
+   * thấy hết được lớp nguyên tố, mà cày tới đó thì lâu. Sáu cây này là SS, tối
+   * cấp, limit break đủ và tiến hoá tối đa — tức là trạng thái mà mọi thứ đều
+   * bật, xem một lần là biết game có gì.
+   * Bấm lại không nhân bản: món nào đã có rồi thì bỏ qua. */
+  var SHOWCASE = [
+    { src: 'ayame',       note: 'katana lửa' },      // sword  · hoả
+    { src: 'pandemonius', note: 'song dao sét' },    // dual   · lôi  -> Ảnh Độn có vệt điện
+    { src: 'lunathalmus', note: 'thương sét' },      // spear  · lôi
+    { src: 'galdrux',     note: 'đại kiếm vàng' },   // great  · lôi
+    { src: 'ciel',        note: 'nỏ quang' },        // bow    · quang
+    { src: 'amarok',      note: 'katana băng' }      // sword  · thuỷ
+  ];
+
+  G.showcaseList = function () { return SHOWCASE.slice(); };
+
+  G.grantShowcase = function (s) {
+    var added = [];
+    SHOWCASE.forEach(function (it) {
+      if (s.gear.some(function (g) { return g.src === it.src && g.kind === 'weapon' && g.show; })) return;
+      var g = G.forgeGear(it.src, 'weapon', 'showcase');
+      if (!g) return;
+      var b = G.behemothById(it.src);
+      g.lv = MAX_LV; g.lb = 4; g.evo = MAX_EVO; g.show = true;
+      g.name = weaponName(b, MAX_EVO);
+      s.gear.push(g);
+      added.push(g);
+    });
+    return added;
+  };
+
   function counterOf(el) { for (var k in G.ELEM_BEATS) if (G.ELEM_BEATS[k] === el) return k; return 'none'; }
 
   var W_SUFFIX = {

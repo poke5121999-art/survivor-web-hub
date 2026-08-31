@@ -145,9 +145,11 @@ window.DP.ASSET_MAP = {
   }
  },
  "bosses": {
-  "grouton": {
+  "blob": {
    "idle": {
     "spr": "spr_Cilus",
+    "anchor": "foot",
+    "fps": 7,
     "frames": 4,
     "w": 79,
     "h": 50,
@@ -156,20 +158,74 @@ window.DP.ASSET_MAP = {
     "file": "spr_Cilus.png"
    }
   },
-  "mumu": {
+  "bull": {
    "idle": {
-    "spr": "spr_fubuzilla",
-    "frames": 12,
-    "w": 82,
-    "h": 55,
-    "ox": 41,
-    "oy": 55,
-    "file": "spr_fubuzilla.png"
+    "spr": "spr_Risusaurus",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 6,
+    "w": 87,
+    "h": 85,
+    "ox": 43,
+    "oy": 85,
+    "file": "spr_Risusaurus.png"
    }
   },
-  "dodonki": {
+  "frog": {
+   "idle": {
+    "spr": "spr_Upao",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 4,
+    "w": 59,
+    "h": 31,
+    "ox": 29,
+    "oy": 31,
+    "file": "spr_Upao.png"
+   }
+  },
+  "shroom": {
+   "idle": {
+    "spr": "spr_Moontato",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 4,
+    "w": 84,
+    "h": 67,
+    "ox": 42,
+    "oy": 67,
+    "file": "spr_Moontato.png"
+   },
+   "attack": {
+    "spr": "spr_Moontato_dash",
+    "anchor": "foot",
+    "fps": 10,
+    "frames": 2,
+    "w": 74,
+    "h": 64,
+    "ox": 37,
+    "oy": 64,
+    "file": "spr_Moontato_dash.png"
+   }
+  },
+  "bird": {
+   "idle": {
+    "spr": "spr_Merakyat",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 3,
+    "w": 31,
+    "h": 31,
+    "ox": 15,
+    "oy": 31,
+    "file": "spr_Merakyat.png"
+   }
+  },
+  "ape": {
    "idle": {
     "spr": "spr_Goriela_idle",
+    "anchor": "foot",
+    "fps": 7,
     "frames": 4,
     "w": 98,
     "h": 78,
@@ -178,44 +234,243 @@ window.DP.ASSET_MAP = {
     "file": "spr_Goriela_idle.png"
    },
    "attack": {
-    "spr": "spr_Goriela_throw",
-    "frames": 3,
-    "w": 82,
-    "h": 104,
-    "ox": 41,
-    "oy": 104,
-    "file": "spr_Goriela_throw.png"
+    "spr": "spr_Goriela_special",
+    "anchor": "foot",
+    "fps": 10,
+    "frames": 2,
+    "w": 94,
+    "h": 83,
+    "ox": 47,
+    "oy": 83,
+    "file": "spr_Goriela_special.png"
    }
   },
-  "boldon": {
+  "fluff": {
    "idle": {
-    "spr": "spr_Shubangelion_walk",
-    "frames": 8,
-    "w": 68,
-    "h": 104,
-    "ox": 34,
-    "oy": 104,
-    "file": "spr_Shubangelion_walk.png"
-   },
-   "attack": {
-    "spr": "spr_Shubangelion_attack_punch",
-    "frames": 8,
-    "w": 92,
-    "h": 96,
-    "ox": 46,
-    "oy": 96,
-    "file": "spr_Shubangelion_attack_punch.png"
+    "spr": "spr_fubuzilla",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 12,
+    "w": 82,
+    "h": 55,
+    "ox": 41,
+    "oy": 55,
+    "file": "spr_fubuzilla.png"
    }
   },
-  "sentry": {
+  "bat": {
+   "idle": {
+    "spr": "spr_MelBat",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 3,
+    "w": 52,
+    "h": 28,
+    "ox": 26,
+    "oy": 28,
+    "file": "spr_MelBat.png"
+   }
+  },
+  "drake": {
+   "idle": {
+    "spr": "spr_CocoDragon",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 6,
+    "w": 132,
+    "h": 95,
+    "ox": 66,
+    "oy": 95,
+    "file": "spr_CocoDragon.png"
+   }
+  },
+  "beast": {
+   "idle": {
+    "spr": "spr_Gurasaur",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 6,
+    "w": 62,
+    "h": 73,
+    "ox": 31,
+    "oy": 73,
+    "file": "spr_Gurasaur.png"
+   }
+  },
+  "golem": {
    "idle": {
     "spr": "spr_Pekodam",
+    "anchor": "foot",
+    "fps": 7,
     "frames": 4,
     "w": 101,
     "h": 127,
     "ox": 50,
     "oy": 127,
     "file": "spr_Pekodam.png"
+   },
+   "attack": {
+    "spr": "spr_Pekodam",
+    "anchor": "foot",
+    "fps": 10,
+    "frames": 4,
+    "w": 101,
+    "h": 127,
+    "ox": 50,
+    "oy": 127,
+    "file": "spr_Pekodam.png"
+   }
+  },
+  "serpent": {
+   "idle": {
+    "spr": "spr_CaughtShark",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 1,
+    "w": 123,
+    "h": 60,
+    "ox": 61,
+    "oy": 57,
+    "file": "spr_CaughtShark.png"
+   }
+  },
+  "samurai": {
+   "idle": {
+    "spr": "spr_Ayame_idle",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 4,
+    "w": 41,
+    "h": 34,
+    "ox": 20,
+    "oy": 34,
+    "file": "spr_Ayame_idle.png"
+   }
+  },
+  "turtle": {
+   "idle": {
+    "spr": "spr_CaughtTurtle",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 1,
+    "w": 87,
+    "h": 69,
+    "ox": 45,
+    "oy": 48,
+    "file": "spr_CaughtTurtle.png"
+   }
+  },
+  "lich": {
+   "idle": {
+    "spr": "spr_EldrichHaachama_walk",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 8,
+    "w": 137,
+    "h": 73,
+    "ox": 68,
+    "oy": 73,
+    "file": "spr_EldrichHaachama_walk.png"
+   },
+   "attack": {
+    "spr": "spr_EldrichHaachama_scream",
+    "anchor": "foot",
+    "fps": 10,
+    "frames": 2,
+    "w": 120,
+    "h": 69,
+    "ox": 60,
+    "oy": 69,
+    "file": "spr_EldrichHaachama_scream.png"
+   }
+  },
+  "plant": {
+   "idle": {
+    "spr": "spr_FaunaTree",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 1,
+    "w": 263,
+    "h": 221,
+    "ox": 130,
+    "oy": 193,
+    "file": "spr_FaunaTree.png"
+   }
+  },
+  "knight": {
+   "idle": {
+    "spr": "spr_luknightB",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 3,
+    "w": 33,
+    "h": 35,
+    "ox": 16,
+    "oy": 35,
+    "file": "spr_luknightB.png"
+   },
+   "attack": {
+    "spr": "spr_luknightA",
+    "anchor": "foot",
+    "fps": 10,
+    "frames": 3,
+    "w": 27,
+    "h": 34,
+    "ox": 13,
+    "oy": 34,
+    "file": "spr_luknightA.png"
+   }
+  },
+  "anubis": {
+   "idle": {
+    "spr": "spr_YagooHeadB",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 2,
+    "w": 34,
+    "h": 78,
+    "ox": 17,
+    "oy": 78,
+    "file": "spr_YagooHeadB.png"
+   }
+  },
+  "phoenix": {
+   "idle": {
+    "spr": "spr_FubuBird",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 2,
+    "w": 34,
+    "h": 25,
+    "ox": 17,
+    "oy": 25,
+    "file": "spr_FubuBird.png"
+   }
+  },
+  "demon": {
+   "idle": {
+    "spr": "spr_Lunazilla",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 10,
+    "w": 130,
+    "h": 124,
+    "ox": 65,
+    "oy": 124,
+    "file": "spr_Lunazilla.png"
+   }
+  },
+  "angel": {
+   "idle": {
+    "spr": "spr_AngelFairy",
+    "anchor": "foot",
+    "fps": 7,
+    "frames": 3,
+    "w": 28,
+    "h": 25,
+    "ox": 14,
+    "oy": 25,
+    "file": "spr_AngelFairy.png"
    }
   }
  },
@@ -951,7 +1206,7 @@ window.DP.ASSET_MAP = {
     "spr": "katana_Tier1",
     "anchor": "center",
     "rot": 90,
-    "len": 28,
+    "len": 32,
     "grip": 0.88,
     "frames": 1,
     "w": 12,
@@ -964,7 +1219,7 @@ window.DP.ASSET_MAP = {
     "spr": "katana_Lightning_DarkCloud",
     "anchor": "center",
     "rot": 90,
-    "len": 28,
+    "len": 32,
     "grip": 0.88,
     "frames": 1,
     "w": 11,
@@ -977,7 +1232,7 @@ window.DP.ASSET_MAP = {
     "spr": "katana_Fire_FlameSword",
     "anchor": "center",
     "rot": 90,
-    "len": 28,
+    "len": 32,
     "grip": 0.88,
     "frames": 1,
     "w": 10,
@@ -990,7 +1245,7 @@ window.DP.ASSET_MAP = {
     "spr": "katana_Ice_Eco",
     "anchor": "center",
     "rot": 90,
-    "len": 28,
+    "len": 32,
     "grip": 0.88,
     "frames": 1,
     "w": 12,
@@ -1003,7 +1258,7 @@ window.DP.ASSET_MAP = {
     "spr": "katana_Basic_Speed",
     "anchor": "center",
     "rot": 90,
-    "len": 28,
+    "len": 32,
     "grip": 0.88,
     "frames": 1,
     "w": 11,
@@ -1016,7 +1271,7 @@ window.DP.ASSET_MAP = {
     "spr": "katana_Basic_Tier2",
     "anchor": "center",
     "rot": 90,
-    "len": 28,
+    "len": 32,
     "grip": 0.88,
     "frames": 1,
     "w": 10,
@@ -1029,7 +1284,7 @@ window.DP.ASSET_MAP = {
     "spr": "katana_Magic_MagicBlade",
     "anchor": "center",
     "rot": 90,
-    "len": 28,
+    "len": 32,
     "grip": 0.88,
     "frames": 1,
     "w": 13,
@@ -1044,7 +1299,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_GreatSword_Tier1",
     "anchor": "center",
     "rot": 90,
-    "len": 38,
+    "len": 46,
     "grip": 0.9,
     "frames": 1,
     "w": 13,
@@ -1057,7 +1312,7 @@ window.DP.ASSET_MAP = {
     "spr": "GreatSword_Fire_Minor",
     "anchor": "center",
     "rot": 90,
-    "len": 38,
+    "len": 46,
     "grip": 0.9,
     "frames": 1,
     "w": 11,
@@ -1070,7 +1325,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_GreatSword_Red",
     "anchor": "center",
     "rot": 90,
-    "len": 38,
+    "len": 46,
     "grip": 0.9,
     "frames": 1,
     "w": 17,
@@ -1083,7 +1338,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_GreatSword_Ice",
     "anchor": "center",
     "rot": 90,
-    "len": 38,
+    "len": 46,
     "grip": 0.9,
     "frames": 1,
     "w": 19,
@@ -1096,7 +1351,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_GreatClub",
     "anchor": "center",
     "rot": 90,
-    "len": 38,
+    "len": 46,
     "grip": 0.9,
     "frames": 1,
     "w": 12,
@@ -1109,7 +1364,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_GreatSword_Tier3_A",
     "anchor": "center",
     "rot": 90,
-    "len": 38,
+    "len": 46,
     "grip": 0.9,
     "frames": 1,
     "w": 17,
@@ -1122,7 +1377,7 @@ window.DP.ASSET_MAP = {
     "spr": "GreatSword_Laser",
     "anchor": "center",
     "rot": 90,
-    "len": 38,
+    "len": 46,
     "grip": 0.9,
     "frames": 1,
     "w": 9,
@@ -1137,7 +1392,7 @@ window.DP.ASSET_MAP = {
     "spr": "Staff_Spear",
     "anchor": "center",
     "rot": 90,
-    "len": 48,
+    "len": 58,
     "grip": 0.82,
     "frames": 1,
     "w": 9,
@@ -1150,7 +1405,7 @@ window.DP.ASSET_MAP = {
     "spr": "Staff_Lightning",
     "anchor": "center",
     "rot": 90,
-    "len": 48,
+    "len": 58,
     "grip": 0.82,
     "frames": 1,
     "w": 7,
@@ -1163,7 +1418,7 @@ window.DP.ASSET_MAP = {
     "spr": "Staff_Fire",
     "anchor": "center",
     "rot": 90,
-    "len": 48,
+    "len": 58,
     "grip": 0.82,
     "frames": 1,
     "w": 9,
@@ -1176,7 +1431,7 @@ window.DP.ASSET_MAP = {
     "spr": "Staff_Ice",
     "anchor": "center",
     "rot": 90,
-    "len": 48,
+    "len": 58,
     "grip": 0.82,
     "frames": 1,
     "w": 9,
@@ -1189,7 +1444,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_BlackHalberd",
     "anchor": "center",
     "rot": 90,
-    "len": 48,
+    "len": 58,
     "grip": 0.82,
     "frames": 1,
     "w": 19,
@@ -1202,7 +1457,7 @@ window.DP.ASSET_MAP = {
     "spr": "Staff_Extend_Tier3_Crit",
     "anchor": "center",
     "rot": 90,
-    "len": 48,
+    "len": 58,
     "grip": 0.82,
     "frames": 1,
     "w": 11,
@@ -1215,7 +1470,7 @@ window.DP.ASSET_MAP = {
     "spr": "Staff_Rolling_Tier3Bolt",
     "anchor": "center",
     "rot": 90,
-    "len": 48,
+    "len": 58,
     "grip": 0.82,
     "frames": 1,
     "w": 9,
@@ -1230,7 +1485,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_Dagger_Tier1",
     "anchor": "center",
     "rot": 90,
-    "len": 22,
+    "len": 26,
     "grip": 0.88,
     "frames": 1,
     "w": 9,
@@ -1243,7 +1498,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_Dagger_Lightning1",
     "anchor": "center",
     "rot": 90,
-    "len": 22,
+    "len": 26,
     "grip": 0.88,
     "frames": 1,
     "w": 11,
@@ -1256,7 +1511,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_Dagger_FireBurn",
     "anchor": "center",
     "rot": 90,
-    "len": 22,
+    "len": 26,
     "grip": 0.88,
     "frames": 1,
     "w": 10,
@@ -1269,7 +1524,7 @@ window.DP.ASSET_MAP = {
     "spr": "Dagger_IceScythe",
     "anchor": "center",
     "rot": 90,
-    "len": 22,
+    "len": 26,
     "grip": 0.88,
     "frames": 1,
     "w": 10,
@@ -1282,7 +1537,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_Dagger_Tier3_F",
     "anchor": "center",
     "rot": 90,
-    "len": 22,
+    "len": 26,
     "grip": 0.88,
     "frames": 1,
     "w": 13,
@@ -1295,7 +1550,7 @@ window.DP.ASSET_MAP = {
     "spr": "Dagger_EvadeT3_Fury",
     "anchor": "center",
     "rot": 90,
-    "len": 22,
+    "len": 26,
     "grip": 0.88,
     "frames": 1,
     "w": 13,
@@ -1308,7 +1563,7 @@ window.DP.ASSET_MAP = {
     "spr": "Icon_Dagger_Tier3_C",
     "anchor": "center",
     "rot": 90,
-    "len": 22,
+    "len": 26,
     "grip": 0.88,
     "frames": 1,
     "w": 9,

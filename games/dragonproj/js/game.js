@@ -518,8 +518,28 @@
         p.y = clamp(p.y + Math.sin(p.facing) * mv.push, 24, this.wH - 24);
       }
       this.meleeHit(mv.mul, mv.arc, mv.reach, { move: mv });
-      this.fx.push({ k: 'slash', x: p.x, y: p.y, a: p.facing, arc: mv.arc, r: mv.reach, t: 0, ms: 170, col: '#bfe4ff' });
+      this.slashFx(mv.arc, mv.reach, '#bfe4ff');
     }
+  };
+
+  /* Sinh VỆT CHÉM khớp với cú vung đang diễn ra.
+   *
+   * Cú vung có phần lấy đà: lúc lưỡi thật sự ăn vào thì tay đã đi được một
+   * đoạn cung rồi. Nên vệt chém không thể bắt đầu từ đầu cung — nó phải bắt
+   * từ ĐÚNG CHỖ tay đang ở (k0) và quét nốt phần cung còn lại trong đúng
+   * quãng thời gian còn lại của cú vung, rồi mới tan.
+   * Thiếu chỗ này là lưỡi kiếm đi một đường, vệt chém đi một đường khác —
+   * và mắt bắt được ngay, nó là cái làm cú chém trông "đơ". */
+  Battle.prototype.slashFx = function (arc, reach, col, big) {
+    var p = this.player;
+    var left = Math.max(60, (p.stateDur || 200) - (p.stateT || 0));
+    var fade = 150;
+    this.fx.push({
+      k: 'slash', x: p.x, y: p.y, a: p.facing, arc: arc, r: reach,
+      t: 0, ms: left + fade, sweep: left / (left + fade),
+      k0: p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0,
+      col: col, big: !!big
+    });
   };
 
   Battle.prototype.doCleave = function (ms) {
@@ -1119,9 +1139,8 @@
           } else {
             var landed = this.meleeHit(mv.mul, arc, reach, { elemMul: elemMul, move: mv });
             if (landed) p.connected = true;
-            this.fx.push({ k: 'slash', x: p.x, y: p.y, a: p.facing, arc: arc, r: reach, t: 0,
-              ms: mv.launch ? 260 : 190, big: !!mv.quake,
-              col: isCounter ? '#c88cff' : (p.comboIdx === -2 ? '#ffd8a0' : '#ffffff') });
+            this.slashFx(arc, reach,
+              isCounter ? '#c88cff' : (p.comboIdx === -2 ? '#ffd8a0' : '#ffffff'), !!mv.quake);
             if (mv.quake) {
               this.shake = Math.max(this.shake, G.FEEL.shake.quake);
               this.fx.push({ k: 'ring', x: p.x, y: p.y, r: reach, t: 0, ms: 340, col: '#ffd8a0' });
@@ -1157,7 +1176,7 @@
           // Normal-type: chém nạp gây ×4 sát thương HỆ.
           var em = (this.wp.wtype === 'normal') ? (1 + (W.cleaveElemBonus - 1) * k) : 1;
           this.meleeHit(mul, W.cleaveArc, W.cleaveReach, { elemMul: em, fatigue: W.cleaveFatigue });
-          this.fx.push({ k: 'slash', x: p.x, y: p.y, a: p.facing, arc: W.cleaveArc, r: W.cleaveReach, t: 0, ms: 300, col: '#ffd8a0', big: true });
+          this.slashFx(W.cleaveArc, W.cleaveReach, '#ffd8a0', true);
           this.shake = 8 + 8 * k;
         }
         if (p.stateT >= p.stateDur) {
@@ -2054,14 +2073,7 @@
      * không phải lưỡi kiếm tự xoay quanh rốn. Tay cầm vũ khí đi đúng cung mà vệt
      * chém vẽ ra, nhờ vậy nhìn tay là đoán được đòn sẽ quét tới đâu. */
     var bob = o.moving ? Math.sin(t / 105) * 0.20 : 0;
-    var wA;                                    // góc tay CẦM vũ khí
-    if (st === 'attack') { var ar = W.arc || 1.7; wA = -ar / 2 + ar * k; }
-    else if (st === 'cleave') { var cr = W.cleaveArc || 2.5; wA = -cr / 2 + cr * k; }
-    else if (st === 'charge') wA = -1.75;      // giơ ra sau nạp lực
-    else if (st === 'guard') wA = 1.05;
-    else if (st === 'aim' || st === 'lunge') wA = 0.34;
-    else if (st === 'down') wA = 1.5;
-    else wA = 0.88 + bob;
+    var wA = handAngle(st, k, W, bob, o.arc);  // góc tay CẦM vũ khí
     var offA = (st === 'guard' ? -0.72 : -0.88) - bob;   // tay còn lại
     // SONG KIẾM: mỗi tay MỘT lưỡi, và hai tay soi gương nhau. Lúc vung, tay này
     // quét xuôi thì tay kia quét ngược, nên hai lưỡi cắt chéo qua nhau — đó mới là
@@ -2142,6 +2154,29 @@
     }
   }
 
+  /* GÓC BÀN TAY CẦM VŨ KHÍ, tính theo trạng thái.
+   *
+   * Đây là trái tim của cảm giác "chém": tay quét thật một vòng cung, nên lưỡi
+   * đi ĐÚNG cung mà vệt chém vẽ ra — nhìn tay là đoán được đòn quét tới đâu.
+   * Tách riêng ra vì cả hai đường vẽ đều cần: thân vẽ-bằng-code (drawChar) và
+   * thân vẽ-bằng-ảnh (drawPlayer). Trước đây bản ảnh truyền cứng 0, thành ra
+   * vũ khí đứng im như dán vào người trong khi vệt chém quét ngang — hai thứ
+   * nói hai chuyện khác nhau. */
+  function handAngle(st, k, W, bob, mvArc) {
+    bob = bob || 0;
+    // mvArc = cung của ĐÒN ĐANG RA, không phải cung mặc định của vũ khí. Đại Kiếm
+    // mặc định quét 2.30 rad nhưng "Bổ dọc" chỉ 1.15 — lấy nhầm con số là tay đi
+    // một đường còn vệt chém đi một đường khác.
+    if (st === 'attack') { var ar = mvArc || W.arc || 1.7; return -ar / 2 + ar * k; }
+    if (st === 'cleave') { var cr = W.cleaveArc || 2.5; return -cr / 2 + cr * k; }
+    if (st === 'ranbu') return -2.2 + (k * 6.0) % TAU;   // loạn vũ: quay tít
+    if (st === 'charge') return -1.75;                   // giơ ra sau nạp lực
+    if (st === 'guard') return 1.05;
+    if (st === 'aim' || st === 'lunge') return 0.34;
+    if (st === 'down') return 1.5;
+    return 0.88 + bob;
+  }
+
   /* Một bàn tay = một khối bo góc nhỏ cùng màu thân, đặt ở góc `a` quanh thân. */
   function drawHand(ctx, a, o, st, shield) {
     var hx = Math.cos(a) * HR, hy = Math.sin(a) * HR;
@@ -2164,7 +2199,15 @@
     var swing = Math.sin((k || 0) * Math.PI);
     ctx.save();
     ctx.translate(Math.cos(wA) * HR, Math.sin(wA) * HR);
-    ctx.rotate(wA * 0.55);             // lưỡi nghiêng theo tay nhưng vẫn hướng ra trước
+    /* Lưỡi nghiêng theo tay. Lúc ĐỨNG thì chỉ nghiêng nửa vời, vì cầm hờ trước
+     * mặt mới ra dáng thủ thế. Lúc VUNG thì nghiêng gần hết theo góc tay: lưỡi
+     * nằm dọc theo bán kính, tức là vuông góc với hướng đi — đó mới là hình
+     * ảnh của một nhát CHÉM chứ không phải một cú đâm đưa ngang.
+     * Cộng thêm một cú lắc cổ tay ở giữa cung, để mũi lưỡi vượt lên trước bàn
+     * tay rồi tụt lại — thiếu nó thì cả cây vũ khí trôi cứng như một cây kim
+     * đồng hồ. */
+    var sweep = (st === 'attack' || st === 'cleave' || st === 'ranbu');
+    ctx.rotate(wA * (sweep ? 0.98 : 0.55) + (sweep ? swing * 0.42 : 0));
 
     /* Có ảnh vũ khí thì vẽ ảnh. Ba số rot/len/grip nằm trong asset-map chứ không
      * nằm ở đây, vì chúng là thuộc tính của TẤM ẢNH: biểu tượng kiếm vẽ đứng
@@ -2345,12 +2388,24 @@
           scale: 34 / Math.max(1, pe.h)
         });
         if (drawn && this.wp) {
-          // Vũ khí vẽ đè lên, xoay theo hướng thật — và vì nó nằm TRONG phép quay
-          // của cú lăn nên nó lăn theo người, không đứng yên giữa lưng chừng.
+          /* Vũ khí xoay theo hướng thật, và QUÉT theo cú vung — cùng một công
+           * thức góc tay mà thân vẽ-bằng-code dùng, nên lưỡi đi đúng cung của
+           * vệt chém. Nó cũng nằm trong phép quay của cú lăn nên lăn theo người.
+           */
+          var kk = p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0;
+          var WD = G.WEAPONS[this.wp.wclass] || {};
+          var bob2 = p.moving ? Math.sin(this.t / 105) * 0.20 : 0;
+          var wA = handAngle(st, kk, WD, bob2, p.move && p.move.arc);
+          var wo = { state: st, el: this.wp.el, k: kk };
+          var wcol = G.ELEMENTS[this.wp.el].color;
           ctx.save(); ctx.rotate(p.facing);
-          drawHeldWeapon(ctx, this.wp.wclass, G.ELEMENTS[this.wp.el].color,
-            { state: st, el: this.wp.el, k: p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0 },
-            0, p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0, st);
+          // Song Kiếm: lưỡi tay trái soi gương lưỡi tay phải, lệch pha một chút
+          // khi vung để hai lưỡi cắt chéo nhau chứ không chồng khít thành một.
+          if (this.wp.wclass === 'dual') {
+            var oA = -wA + ((st === 'attack' || st === 'cleave') ? 0.34 : 0);
+            drawHeldWeapon(ctx, 'dual', wcol, wo, oA, kk, st, true);
+          }
+          drawHeldWeapon(ctx, this.wp.wclass, wcol, wo, wA, kk, st);
           ctx.restore();
         }
         ctx.restore();
@@ -2365,6 +2420,7 @@
       weapon: this.wp ? this.wp.wclass : 'sword',
       elem: G.ELEMENTS[this.wp ? this.wp.el : 'none'].color,
       el: this.wp ? this.wp.el : 'none',
+      arc: p.move ? p.move.arc : 0,
       guardPerfect: p.state === 'guard' && p.guardT <= this.W.perfectMs
     });
     ctx.restore();
@@ -2635,11 +2691,45 @@
     ctx.save(); ctx.translate(b.x, b.y);
     ctx.fillStyle = 'rgba(0,0,0,.42)';
     ctx.beginPath(); ctx.ellipse(0, r * 0.5, r * 1.05, r * 0.4, 0, 0, TAU); ctx.fill();
-    ctx.save();
-    ctx.rotate(b.facing + Math.PI / 2);
-    if (b.down > 0) ctx.rotate(0.9);
-    this.drawBossBody(ctx, b, r);
-    ctx.restore();
+    // Quầng sáng theo HỆ dưới chân. Ảnh boss là ảnh có sẵn, không nhuộm được theo
+    // hệ mà không phá nát bảng màu của nó — nên hệ nói bằng cái quầng này.
+    var ecol = G.ELEMENTS[b.el].color;
+    ctx.globalAlpha = 0.30 + 0.10 * Math.sin(this.t / 260);
+    ctx.fillStyle = ecol;
+    ctx.beginPath(); ctx.ellipse(0, r * 0.5, r * 0.92, r * 0.34, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    /* Ảnh boss tra theo DÁNG THÂN (blob/drake/golem/…), không theo từng con:
+     * 56 Behemoth chỉ có 21 dáng, nên một tấm ảnh phục vụ cả họ. Tên, thanh máu,
+     * quầng hệ và bộ phận điểm yếu lo phần phân biệt. Thiếu ảnh dáng nào thì dáng
+     * đó rơi về hình học cũ — không phải chờ đủ bộ mới bật được. */
+    var drawn = false;
+    if (G.Atlas && b.def) {
+      var bk = 'bosses.' + b.def.body + '.';
+      var ent = (b.state === 'attack' && G.Atlas.get(bk + 'attack')) || G.Atlas.get(bk + 'idle');
+      if (ent) {
+        ctx.save();
+        // Gục: đổ nghiêng và bẹp xuống, cùng ngôn ngữ với con quái thường.
+        if (b.down > 0) { ctx.rotate(0.42); ctx.scale(1.06, 0.86); }
+        // Khớp cỡ vào hitbox: lấy cạnh DÀI hơn làm chuẩn, nếu không con cá mập
+        // dài 123px sẽ tràn ra gấp đôi vùng ăn đòn của chính nó.
+        var sc = (r * 2.45) / Math.max(1, ent.h, ent.w * 0.66);
+        G.Atlas.draw(ctx, ent, 0, r * 0.5, {
+          ms: this.t, flip: Math.cos(b.facing) < 0, scale: sc,
+          tint: b.flash > 0 ? '#ffffff' : null,
+          tintA: b.flash > 0 ? b.flash * 0.9 : 0
+        });
+        ctx.restore();
+        drawn = true;
+      }
+    }
+    if (!drawn) {
+      ctx.save();
+      ctx.rotate(b.facing + Math.PI / 2);
+      if (b.down > 0) ctx.rotate(0.9);
+      this.drawBossBody(ctx, b, r);
+      ctx.restore();
+    }
 
     // Bộ phận + điểm yếu — vẽ SAU thân để luôn nhìn thấy.
     var self = this;
@@ -2718,10 +2808,48 @@
       // Hiệu ứng của hệ kỹ năng nằm ở js/skills.js — hàm này trả về true nếu đã vẽ.
       if (G.drawSkillFx && G.drawSkillFx(ctx, f, k)) { ctx.restore(); return; }
       if (f.k === 'slash') {
+        /* VỆT CHÉM = một dải VUỐT NHỌN, không phải một nét cung dày đều.
+         *
+         * Mép DẪN của dải nằm đúng chỗ bàn tay đang ở (cùng công thức handAngle
+         * dùng), nên lưỡi kiếm chạy trong lòng vệt chứ không rời nhau. Bề dày
+         * phình hết cỡ ở mép dẫn rồi vuốt về 0 ở đuôi — mắt đọc ra ngay hướng
+         * quét và tốc độ, thứ mà một nét cung dày đều không nói được.
+         * Vẽ chồng: một lớp dày mờ làm thân vệt, một nét mảnh trắng ở mép dẫn
+         * làm ánh thép. Lớp sáng bật 'lighter' để chồng lên nhau thì rực hơn. */
         ctx.translate(f.x, f.y);
-        ctx.strokeStyle = f.col; ctx.lineWidth = f.big ? 10 : 5; ctx.lineCap = 'round';
-        var a0 = f.a - f.arc / 2 + f.arc * k, a1 = a0 + f.arc * 0.5;
-        ctx.beginPath(); ctx.arc(0, 0, f.r * 0.85, a0, a1); ctx.stroke();
+        // kk = tiến độ QUÉT (kẹp lại ở 1 khi cung đã đi hết), k = tiến độ TAN.
+        var kk = f.sweep ? Math.min(1, k / f.sweep) : k;
+        var k0 = f.k0 || 0;
+        var arc = f.arc, aL = f.a - arc / 2 + arc * (k0 + (1 - k0) * kk);
+        var tail = arc * (f.big ? 0.62 : 0.5);
+        var aT = arc > 6 ? aL - tail
+                         : Math.max(f.a - arc / 2 + arc * k0, aL - tail);
+        var rOut = f.r * (f.big ? 1.0 : 0.94), rIn = f.r * 0.20;
+        var N = 16, i, u, a, ri;
+        ctx.beginPath();
+        for (i = 0; i <= N; i++) {
+          a = aT + (aL - aT) * (i / N);
+          ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * rOut, Math.sin(a) * rOut);
+        }
+        for (i = N; i >= 0; i--) {
+          u = i / N; a = aT + (aL - aT) * u;
+          ri = rOut - (rOut - rIn) * Math.pow(u, 0.85);
+          ctx.lineTo(Math.cos(a) * ri, Math.sin(a) * ri);
+        }
+        ctx.closePath();
+        ctx.globalAlpha = (1 - k) * 0.55;
+        ctx.fillStyle = f.col; ctx.fill();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = (1 - k) * 0.55;
+        ctx.strokeStyle = f.col; ctx.lineWidth = f.big ? 3.5 : 2.4; ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, rOut, aT, aL, false); ctx.stroke();
+        // ánh thép ở mép dẫn: một gạch ngắn nối trong ra ngoài, đúng chỗ lưỡi
+        ctx.globalAlpha = (1 - k) * 0.9; ctx.lineWidth = f.big ? 4 : 2.6;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(aL) * rIn, Math.sin(aL) * rIn);
+        ctx.lineTo(Math.cos(aL) * rOut, Math.sin(aL) * rOut);
+        ctx.stroke();
       } else if (f.k === 'ring') {
         ctx.strokeStyle = f.col || '#ffffff'; ctx.lineWidth = 4;
         ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r * (0.5 + k * 0.8), f.r * 0.72 * (0.5 + k * 0.8), 0, 0, TAU); ctx.stroke();
