@@ -40,7 +40,7 @@ window.HUB_GAMES = [
     tagline: "Dựng lại Dragon Project (COLOPL, đã đóng cửa). Một ngón tay ở giữa màn hình làm hết: kéo để chạy, chạm để chém, vẩy để né, giữ để ra đòn đặc thù, giữ-rồi-trượt-về-nút để xả kỹ năng. Năm vũ khí, mỗi cây hai kỹ năng nặng đô riêng — song dao thì nháy ra sau lưng rồi chém, đại kiếm thì bổ ra một làn chấn khí — nhân sáu hệ nguyên tố lên trên. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
     thumbnail: "assets/thumbnails/dragonproj.svg",
     path: "games/dragonproj/index.html",
-    rev: "20260831c",
+    rev: "20260831d",
     // Plain canvas/JS, không engine, mở được từ file://. Dựng lại từ Dragon Project
     // (COLOPL 2016, Global 2017, đóng cửa 30/09/2020) — game săn quái kiểu Monster Hunter
     // cho di động, 1-4 người.
@@ -64,6 +64,9 @@ window.HUB_GAMES = [
     // đứng im trong khi vệt chém quét ngang.
     // Boss tra ảnh theo DÁNG THÂN (21 dáng cho 56 con), hệ nói bằng quầng sáng dưới
     // chân chứ không nhuộm nguyên con.
+    // Kho đồ: GIỮ một món rồi KÉO lên khe để lắp. Giữ-rồi-mới-kéo (180ms) là để
+    // không giết mất thao tác cuộn danh sách; khe chỉ sáng khi nhận được đúng loại;
+    // kéo tới sát mép trên thì khung tự cuộn cho khe trang bị lên tới nơi.
     // VFX vẫn vẽ bằng code (Canvas 2D thuần) — xem games/dragonproj/REMAKE.md.
     // Trọng tâm là PUNICON, hệ điều khiển một-ngón của COLOPL, tái dựng đúng ngữ pháp của
     // nó: kéo = chạy, chạm = đánh, bấm liên tục = combo, vẩy = né, giữ = đòn đặc thù riêng

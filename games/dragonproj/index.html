@@ -326,6 +326,19 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .wicon.top{height:42px;margin:1px auto 6px}
 .card .row > .wicon{height:30px;margin-right:7px;align-self:center}
 .wslot .wicon{height:16px;margin:0 auto 1px}
+
+/* --- kéo một món thả vào khe trang bị --- */
+.dragghost{position:fixed;z-index:9999;pointer-events:none;transform:translate(-50%,-58%);
+  display:flex;align-items:center;gap:7px;max-width:230px;
+  background:rgba(10,16,23,.96);border:2px solid var(--gold);border-radius:11px;
+  padding:6px 10px;font-size:11px;font-weight:800;color:#eaf1f8;
+  box-shadow:0 10px 26px rgba(0,0,0,.65)}
+.dragghost .wicon{height:30px;flex:none}
+.dragghost span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item.dragsrc{opacity:.3}
+/* Khe NHẬN được món đang cầm: viền đứt. Khe đang chĩa vào: viền liền + nền vàng. */
+.item.drop-ok{outline:2px dashed var(--gold);outline-offset:-3px}
+.item.drop-hot{outline:2px solid var(--gold);outline-offset:-3px;background:rgba(242,201,75,.18)}
 .slots{display:flex;gap:3px;margin-top:4px}
 .slot{width:19px;height:19px;border-radius:4px;background:#0a0f16;border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-size:11px}

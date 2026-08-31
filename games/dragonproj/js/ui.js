@@ -25,6 +25,7 @@
     G.rollRecurrent(S);
     S.progress = S.progress || {};
     buildScreens();
+    installDragEquip();
     show('home');
     bindHud();
     if (window.DPBot) window.DPBot.attach(api);
@@ -427,7 +428,9 @@
     });
     html += '</div></div>';
 
-    html += '<div class="card"><h3>Túi đồ</h3><div class="row" style="gap:5px;margin-bottom:7px">' +
+    html += '<div class="card"><h3>Túi đồ</h3>' +
+      '<p class="hint" style="margin:-2px 0 6px">Giữ một món rồi kéo lên khe để lắp — hoặc bấm khe rồi bấm món như cũ.</p>' +
+      '<div class="row" style="gap:5px;margin-bottom:7px">' +
       ['weapon', 'head', 'body', 'arm', 'leg'].map(function (k) {
         return '<button class="btn sm ' + (gearFilter === k ? 'pri' : '') + '" data-filter="' + k + '">' +
           { weapon: 'Vũ khí', head: 'Đầu', body: 'Thân', arm: 'Tay', leg: 'Chân' }[k] + '</button>';
@@ -458,6 +461,167 @@
     };
   }
   var pendingSlot = null;
+
+  /* ================= KÉO MỘT MÓN THẢ VÀO KHE ĐỂ TRANG BỊ =================
+   *
+   * Cách cũ vẫn còn: bấm khe → bấm món. Nhưng thao tác tự nhiên là bốc món lên
+   * và thả vào chỗ, nên thêm hẳn đường đó.
+   *
+   * Ba chỗ dễ hỏng, xử lý luôn ở đây:
+   *
+   * 1. GIỮ RỒI MỚI KÉO. Túi đồ nằm trong một khung cuộn. Nếu bốc món ngay từ lúc
+   *    ngón chạm xuống thì không ai cuộn được danh sách nữa. Nên phải GIỮ YÊN
+   *    180ms mới vào chế độ kéo; nhúc nhích quá 10px trước đó là cuộn, bỏ kéo.
+   * 2. KHÓA CUỘN LÚC ĐANG KÉO. Vào chế độ kéo là tắt cuộn của khung, nếu không
+   *    ngón vừa kéo món vừa kéo cả trang.
+   * 3. NUỐT CÚ CLICK SAU CÙNG. Thả tay xong trình duyệt vẫn bắn một `click` lên
+   *    cái thẻ vừa kéo — không chặn là vừa lắp xong đã nhảy sang màn chi tiết.
+   */
+  var drag = null;
+
+  function slotOf(el) {
+    if (!el) return null;
+    var w = el.closest('[data-wslot]');
+    if (w) return { kind: 'weapon', i: +w.getAttribute('data-wslot'), el: w };
+    var a = el.closest('[data-aslot]');
+    if (a) return { kind: a.getAttribute('data-aslot'), el: a };
+    return null;
+  }
+
+  function equipInto(g, slot) {
+    if (g.kind === 'weapon') {
+      // Cùng một cây không được nằm ở hai khe: gỡ nó khỏi chỗ cũ trước đã.
+      S.loadout.weapons = S.loadout.weapons.map(function (u) { return u === g.uid ? null : u; });
+      S.loadout.weapons[slot.i] = g.uid;
+    } else {
+      S.loadout[g.kind] = g.uid;
+    }
+    pendingSlot = null;
+    save(); toast('Đã lắp ' + g.name, '#3fd66a');
+    rArmory(); refresh();
+  }
+
+  function dragEnd(ok) {
+    if (!drag) return;
+    if (drag.timer) clearTimeout(drag.timer);
+    if (drag.tick) clearInterval(drag.tick);
+    if (drag.ghost && drag.ghost.parentNode) drag.ghost.parentNode.removeChild(drag.ghost);
+    if (drag.body) drag.body.style.overflowY = '';
+    var b = $('body-armory');
+    [].forEach.call(b.querySelectorAll('.drop-ok,.drop-hot,.dragsrc'), function (e) {
+      e.classList.remove('drop-ok', 'drop-hot', 'dragsrc');
+    });
+    // Nuốt cú click phát ra ngay sau khi thả tay — và CHỈ cú đó.
+    // Cách cũ (đặt một cái cờ rồi chờ click tới xoá) sai kín đáo: nếu cú click
+    // đó không bao giờ tới, cờ nằm lại và ăn mất cái chạm kế tiếp, ở bất kỳ đâu.
+    // Nên gắn một cái bẫy dùng-một-lần rồi gỡ ngay ở cuối vòng lặp sự kiện:
+    // click sau pointerup bắn ra ngay trong vòng đó, muộn hơn là không phải nó.
+    if (drag.on) armSwallow();
+    drag = null;
+    if (ok) return;
+  }
+
+  function armSwallow() {
+    var eat = function (e) { e.stopPropagation(); e.preventDefault(); };
+    window.addEventListener('click', eat, true);
+    setTimeout(function () { window.removeEventListener('click', eat, true); }, 0);
+  }
+
+  function installDragEquip() {
+    var b = $('body-armory');
+    if (!b || b._dragOn) return;
+    b._dragOn = true;
+
+    b.addEventListener('pointerdown', function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      var card = e.target.closest('[data-gear]');
+      if (!card) return;
+      var uid = card.getAttribute('data-gear');
+      var g = S.gear.find(function (x) { return x.uid === uid; });
+      if (!g) return;
+      dragEnd();
+      drag = { g: g, card: card, x: e.clientX, y: e.clientY, on: false, body: b, id: e.pointerId };
+      drag.timer = setTimeout(function () { dragStart(e.clientX, e.clientY); }, 180);
+    });
+
+    b.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      if (!drag.on) {
+        // Chưa vào chế độ kéo mà ngón đã đi xa: người ta đang CUỘN, bỏ kéo.
+        if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 10) dragEnd();
+        return;
+      }
+      e.preventDefault();
+      dragMove(e.clientX, e.clientY);
+    }, { passive: false });
+
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
+      b.addEventListener(ev, function (e) {
+        if (!drag) return;
+        if (!drag.on) { dragEnd(); return; }
+        var slot = slotOf(document.elementFromPoint(e.clientX, e.clientY));
+        var g = drag.g;
+        var fits = slot && (slot.kind === 'weapon' ? g.kind === 'weapon' : slot.kind === g.kind);
+        dragEnd();
+        if (fits) equipInto(g, slot);
+        else if (slot) toast('Khe này không nhận ' + (g.kind === 'weapon' ? 'vũ khí' : 'món này'), '#c34141');
+      });
+    });
+
+    // Cú click sinh ra ngay sau khi thả tay phải bị nuốt, nếu không vừa lắp xong
+    // là nhảy luôn sang màn chi tiết món.
+  }
+
+  function dragStart(x, y) {
+    if (!drag) return;
+    drag.on = true;
+    drag.body.style.overflowY = 'hidden';       // khoá cuộn trong lúc kéo
+    drag.card.classList.add('dragsrc');
+    var g = drag.g;
+    // Sáng lên đúng những khe NHẬN được món này.
+    var b = $('body-armory');
+    [].forEach.call(b.querySelectorAll('[data-wslot],[data-aslot]'), function (el) {
+      var sl = slotOf(el);
+      var fits = sl && (sl.kind === 'weapon' ? g.kind === 'weapon' : sl.kind === g.kind);
+      if (fits) el.classList.add('drop-ok');
+    });
+    var gh = document.createElement('div');
+    gh.className = 'dragghost';
+    gh.innerHTML = wIcon(g) + '<span>' + rankChip(g.rank) + ' ' + g.name + '</span>';
+    document.body.appendChild(gh);
+    drag.ghost = gh;
+    drag.tick = setInterval(dragTick, 24);
+    dragMove(x, y);
+  }
+
+  function dragMove(x, y) {
+    drag.lx = x; drag.ly = y;
+    drag.ghost.style.left = x + 'px';
+    drag.ghost.style.top = y + 'px';
+    dragHover();
+  }
+
+  /* Cuộn mép + tô sáng khe đang chĩa vào.
+   * Chạy trên ĐỒNG HỒ chứ không chỉ theo pointermove: khe trang bị nằm trên đầu
+   * danh sách, muốn kéo món từ dưới túi lên thì phải giữ ngón ở mép trên cho nó
+   * tự cuộn — mà giữ yên thì không có pointermove nào bắn ra cả. */
+  function dragTick() {
+    if (!drag || !drag.on) return;
+    var b = drag.body, r = b.getBoundingClientRect(), y = drag.ly;
+    var before = b.scrollTop;
+    if (y < r.top + 52) b.scrollTop -= 12;
+    else if (y > r.bottom - 52) b.scrollTop += 12;
+    if (b.scrollTop !== before) dragHover();
+  }
+
+  function dragHover() {
+    var b = drag.body;
+    var hot = slotOf(document.elementFromPoint(drag.lx, drag.ly));
+    [].forEach.call(b.querySelectorAll('.drop-hot'), function (e) { e.classList.remove('drop-hot'); });
+    if (hot && hot.el.classList.contains('drop-ok')) hot.el.classList.add('drop-hot');
+  }
+
+
 
   function lbDots(g) {
     var s = '<span class="lb">';

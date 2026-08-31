@@ -194,6 +194,102 @@ const PAGE_SNAP = () => {
     check('bấm "Trang bị" thì món vào đúng loadout', eqTest.on, eqTest.name);
   }
 
+  /* ---------------------------------------- KÉO MÓN THẢ VÀO KHE --------- */
+  // Ba thứ phải đúng cùng lúc, thiếu một là thao tác thành khó chịu:
+  //   giữ rồi kéo mới bốc được món (không thì hết cuộn danh sách),
+  //   khe không hợp loại thì không nhận,
+  //   và cú click sau khi thả phải bị nuốt (không thì vừa lắp xong nhảy màn).
+  async function dragGear(uid, slotSel) {
+    await p.evaluate(u => {
+      document.querySelector('#body-armory [data-gear="' + u + '"]').scrollIntoView({ block: 'center' });
+    }, uid);
+    await p.waitForTimeout(180);
+    const c = await p.evaluate(u => {
+      const r = document.querySelector('#body-armory [data-gear="' + u + '"]').getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, uid);
+    await p.mouse.move(c.x, c.y);
+    await p.mouse.down();
+    await p.waitForTimeout(240);                        // GIỮ cho qua ngưỡng 180ms
+    const top = await p.evaluate(() => document.getElementById('body-armory').getBoundingClientRect().top);
+    for (let i = 1; i <= 8; i++) { await p.mouse.move(c.x, c.y + (top + 30 - c.y) * i / 8); await p.waitForTimeout(20); }
+    await p.waitForTimeout(1100);                       // đứng ở mép cho nó tự cuộn lên
+    const sl = await p.evaluate(sel => {
+      const e = document.querySelector(sel); if (!e) return null;
+      const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }, slotSel);
+    if (!sl) { await p.mouse.up(); return { hot: false }; }
+    await p.mouse.move(sl.x, sl.y);
+    await p.waitForTimeout(110);
+    const hot = await p.evaluate(sel => document.querySelector(sel).classList.contains('drop-hot'), slotSel);
+    await p.mouse.up();
+    await p.waitForTimeout(320);
+    return { hot: hot };
+  }
+
+  const dg1 = await p.evaluate(() => {
+    const S = DP.UI.save; S.loadout.head = null;
+    DP.UI.show('armory');
+    document.querySelector('#body-armory [data-filter="head"]').click();
+    const g = S.gear.find(x => x.kind === 'head');
+    return { uid: g.uid, name: g.name };
+  });
+  await p.waitForTimeout(200);
+  const r1 = await dragGear(dg1.uid, '#body-armory [data-aslot="head"]');
+  const on1 = await p.evaluate(u => DP.UI.save.loadout.head === u, dg1.uid);
+  check('kéo giáp thả vào khe Đầu thì lắp được', r1.hot && on1, dg1.name);
+
+  const dg2 = await p.evaluate(() => {
+    const S = DP.UI.save;
+    DP.UI.show('armory');
+    document.querySelector('#body-armory [data-filter="weapon"]').click();
+    const g = S.gear.find(x => x.kind === 'weapon');
+    return { uid: g.uid, head: S.loadout.head, slot0: S.loadout.weapons[0] };
+  });
+  await p.waitForTimeout(200);
+  const r2 = await dragGear(dg2.uid, '#body-armory [data-aslot="head"]');
+  const same = await p.evaluate(h => DP.UI.save.loadout.head === h, dg2.head);
+  check('khe Đầu KHÔNG nhận vũ khí', !r2.hot && same);
+
+  const dg3 = await p.evaluate(() => {
+    const S = DP.UI.save; S.loadout.weapons = [null, null, null];
+    DP.UI.show('armory');
+    document.querySelector('#body-armory [data-filter="weapon"]').click();
+    const g = S.gear.find(x => x.kind === 'weapon');
+    return { uid: g.uid };
+  });
+  await p.waitForTimeout(200);
+  const r3 = await dragGear(dg3.uid, '#body-armory [data-wslot="2"]');
+  const on3 = await p.evaluate(u => DP.UI.save.loadout.weapons[2] === u, dg3.uid);
+  check('kéo vũ khí thả vào khe 3 thì vào ĐÚNG khe đó', r3.hot && on3);
+
+  // Thả xong không được nhảy sang màn chi tiết, và cú chạm KẾ TIẾP phải sống.
+  const after = await p.evaluate(() => {
+    const scr = [...document.querySelectorAll('.screen.on')].map(s => s.id).join(',');
+    document.querySelector('#body-armory [data-filter="head"]').click();
+    return { scr: scr, filterTook: document.querySelector('#body-armory [data-filter="head"]').classList.contains('pri') };
+  });
+  check('thả xong vẫn ở màn Kho đồ, và cú chạm kế tiếp không bị nuốt',
+    after.scr === 'scr-armory' && after.filterTook, JSON.stringify(after));
+
+  // Chạm nhanh (không giữ) vẫn là mở chi tiết món, không phải kéo.
+  await p.evaluate(() => {
+    DP.UI.show('armory');
+    document.querySelector('#body-armory [data-filter="weapon"]').click();
+  });
+  await p.waitForTimeout(200);
+  const tapPt = await p.evaluate(() => {
+    const e = document.querySelector('#body-armory [data-gear]');
+    e.scrollIntoView({ block: 'center' });
+    const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  await p.waitForTimeout(150);
+  await p.mouse.click(tapPt.x, tapPt.y);
+  await p.waitForTimeout(300);
+  const tapScr = await p.evaluate(() => [...document.querySelectorAll('.screen.on')].map(s => s.id).join(','));
+  check('chạm nhanh vẫn mở màn chi tiết món (không bị hiểu thành kéo)',
+    tapScr === 'scr-gear', tapScr);
+
   note('\n── crawl mọi nút trên mọi màn hình ──');
   let clicks = 0;
   for (const T of TARGETS) {
