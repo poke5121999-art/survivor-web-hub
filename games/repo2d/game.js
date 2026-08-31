@@ -834,7 +834,32 @@ const MONSTERS = {
   // Kẻ húc. It does not chase and it does not touch you while walking: its whole threat is one
   // straight line, announced three seconds before it is fired. Everything about it is built so the
   // counter-play is a step sideways and a wall between you, never a health bar.
-  rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' }
+  rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4' },
+
+  // ------------------------------------------------------------------ hai loài đi theo ĐÀN
+  //
+  // Mọi con trên đây đi một mình: bộ sinh màn lấy đúng một con cho mỗi loài (xem chỗ đặt quái
+  // trong buildLevel). Hai loài dưới đây phá luật đó — chúng chỉ đáng sợ khi đông, và mỗi con
+  // lẻ thì gần như vô hại. `pack` là số con đặt quanh một chỗ.
+  //
+  // Cả hai KHÔNG rơi đồ (`noLoot`). Bản gốc R.E.P.O. cũng vậy: đây là hai loài duy nhất không
+  // để lại soul orb, vì chúng không phải mối đe doạ để đổi lấy phần thưởng, chúng là thời tiết
+  // xấu. Cho chúng rơi đồ là biến một đàn bốn con thành một mỏ tiền và hỏng cả hai luật.
+  //
+  // `knockMul` nhân vào cú hất của đòn đánh thường: cả hai nhẹ bỗng, một cú vụt là bay đi.
+  // `lootDmg` thay hệ số mặc định 4 khi con quái đập vào món đang ôm trên tay.
+  // SEE: đàn bom + đàn gnome, 2026-08-31
+
+  // BOM CON. Thấy người là châm ngòi, và ngòi đã cháy thì KHÔNG tắt được — nó lao theo bạn với
+  // một cái đồng hồ trên đầu. Đánh chết trước khi ngòi cháy hết thì nổ nhỏ, nên vụt cho nó bay
+  // ra xa rồi mới giết là nước đi đúng. Vụ nổ làm vỡ đồ và kích luôn con bom bên cạnh.
+  banger:  { name:'Bom con',    hp: 26,  dmg: 0,  cd:0.9, speed: 84, sight:6.0, hear:4.5, col:'#6a4630', eye:'#ff9a3c', rim:'#f0c090',
+             pack:4, noLoot:true, knockMul:3.4 },
+  // GNOME. Không giết được ai, nhưng chuyên đập vào món bạn đang ôm — mối đe doạ của nó là VÍ
+  // TIỀN chứ không phải thanh máu. Chạy tới giẫm lên là chết, nên cái giá của chúng là bạn
+  // phải liên tục di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.
+  gnome:   { name:'Gnome',      hp: 18,  dmg: 5,  cd:0.7, speed: 88, sight:7.0, hear:5.0, col:'#5a4a6a', eye:'#8cf0a0', rim:'#cfe6d6',
+             pack:3, noLoot:true, knockMul:3.4, lootDmg:9, stomp:true }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
@@ -1877,7 +1902,24 @@ function buildLevel(seed){
     for (let i=0;i<n;i++){
       const sp = i < ms.length ? ms[i] : spare[i - ms.length];
       const type = kinds[i % kinds.length];
-      S.monsters.push(makeMonster(type, (sp.gx+0.5)*TILE, (sp.gy+0.5)*TILE));
+      const x0 = (sp.gx+0.5)*TILE, y0 = (sp.gy+0.5)*TILE;
+      // Loài đi ĐÀN đặt cả cụm quanh MỘT chỗ. Chỗ đặt vốn chỉ có một con mỗi loài, và một con
+      // Bom con đứng lẻ thì chỉ là một quả lựu đạn biết đi — cái đáng sợ là bốn quả cùng lúc,
+      // vì lúc đó câu hỏi không còn là "giết con nào trước" mà là "lùi về đâu".
+      // Rải quanh một vòng bán kính một ô rưỡi, bỏ qua con nào rơi vào tường.
+      const bay = MONSTERS[type].pack || 1;
+      S.monsters.push(makeMonster(type, x0, y0));
+      for (let k=1;k<bay;k++){
+        // Thử tám hướng trước khi bỏ một con. Một lần thử duy nhất thì đàn bốn con đứng cạnh
+        // tường thường chỉ ra ba: chỗ đặt quái nào cũng có ít nhất một phía là tường.
+        for (let thu=0; thu<8; thu++){
+          const a = (k/bay)*Math.PI*2 + thu*0.79 + rnd()*0.4, r = TILE*(1.1 + rnd()*0.9);
+          const x = x0 + Math.cos(a)*r, y = y0 + Math.sin(a)*r;
+          if (hitsSolid(x, y, 9)) continue;
+          S.monsters.push(makeMonster(type, x, y));
+          break;
+        }
+      }
     }
   }
 
@@ -2143,6 +2185,7 @@ function makeMonster(type,x,y){
            lost: 0,                              // seconds since it last had the player
            reveal: 0,                            // fade-in of "this thing has seen you", 0..1
            seen: false, spotT: 0, unseenT: 0,    // the player's side: have I laid eyes on this one
+           fuse: null,                 // Bom con: giay con lai cua ngoi, null la chua cham
            rook: type === 'rook' ? 'walk' : null, // the rook's own state machine
            goal: null, path: null, pi: 0, pathT: 0, windT: 0, dashLeft: 0,
            stun: 0, charging: false, rammed: null, linger: 0,
@@ -3036,6 +3079,9 @@ const FOE_RESPAWN = 45;
 function foeLootValue(type){
   const d = MONSTERS[type];
   if (!d) return 0;
+  // Loài đi theo đàn không rơi gì. Không có dòng này thì một đàn bốn con là bốn món đồ, tức là
+  // phần thưởng lớn nhất trong nhà lại đến từ thứ rẻ nhất để giết.
+  if (d.noLoot) return 0;
   return Math.round((d.hp*FOE_LOOT_PER_HP + d.dmg*FOE_LOOT_PER_DMG) / 50) * 50;
 }
 // A monster does not PAY you. It drops a thing on the floor, and that thing is an ordinary
@@ -3075,6 +3121,10 @@ function dropFoeLoot(x, y, type){
 
 function queueRespawn(type){
   if (S.shopMode || S.levelDone || S.shiftLost || S.noFoes) return false;
+  // Loai di dan KHONG quay lai. queueRespawn xep tung con mot, nen mot dan bon con bi don sach
+  // se tro ve thanh bon con le te o bon goc nha vao bon thoi diem khac nhau - dung cai hinh dang
+  // ma ca hai loai nay khong co. Don sach mot dan la mot viec DA XONG.
+  if (MONSTERS[type] && MONSTERS[type].pack) return false;
   (S.respawns = S.respawns || []).push({ type, t: FOE_RESPAWN });
   return true;
 }
@@ -3290,9 +3340,85 @@ function stepMonsters(dt){
     if (dist < 22 && m.hit <= 0 && !S.dead && !p.down && m.alert > 0 && !((p.invisT || 0) > 0)){
       m.hit = d.cd || 0.9;
       hurtActor(p, m.dmg, m.type, m.x, m.y);
-      // a monster hitting you also hits what you are carrying
-      if (p.held) damageLoot(p.held, m.dmg * 4);
+      // a monster hitting you also hits what you are carrying. Gnome đảo ngược tỉ lệ đó: đòn của
+      // nó gần như không đau, nhưng cái búa chim của nó nhắm vào MÓN ĐỒ. Với một loài không giết
+      // được ai, đó là cách duy nhất nó còn là một mối đe doạ.
+      if (p.held) damageLoot(p.held, m.dmg * (d.lootDmg || 4));
     }
+  }
+}
+
+// ============================================================ Bom con và Gnome
+//
+// Hai loài này chạy ở PASS RIÊNG, sau stepMonsters, vì cả hai đều có thể giết một con quái giữa
+// chừng — mà stepMonsters duyệt `for (const m of S.monsters)` và killMonster thì splice ngay
+// trong mảng đó. Cắt phần tử trong lúc for-of đang chạy là bỏ sót đúng con đứng sau nó, một cách
+// lặng lẽ. Chạy riêng trên một bản chụp thì không phải nghĩ về chuyện đó nữa.
+// SEE: đàn bom + đàn gnome, 2026-08-31
+
+const BANGER_FUSE   = 3.2;    // giây từ lúc thấy người tới lúc nổ
+const BANGER_R      = TILE*3.0;
+const BANGER_EARLY  = 0.45;   // hệ số nổ khi bị giết lúc ngòi còn cháy
+const BANGER_CHAIN  = 0.22;   // ngòi của quả bị kích dây chuyền, để thấy được nó là DÂY CHUYỀN
+const BANGER_NOISE  = 9*TILE; // tiếng nổ gọi cả nhà tới
+
+function blowBanger(m, pow, fuse){
+  S.bombs.push({ x:m.x, y:m.y, t:0, fuse:fuse || 0, r:BANGER_R, pow:pow, done:false, owner:'foe' });
+}
+
+// Ngòi cháy rồi thì KHÔNG tắt được, và đó là toàn bộ luật chơi của con này: khoảnh khắc nó thấy
+// bạn, câu hỏi đổi từ "làm sao giết nó" thành "giết nó Ở ĐÂU". Vụt cho bay ra xa rồi mới hạ thì
+// vụ nổ rơi vào chỗ trống; hạ ngay dưới chân mình thì vỡ hết đồ đang ôm.
+function stepBangers(dt){
+  for (const m of S.monsters.slice()){
+    if (m.type !== 'banger' || m.hp <= 0) continue;
+    if (m.sleep > 0) continue;                    // thuốc mê giữ được cả cái ngòi
+    if (m.fuse == null){
+      if (m.alert <= 0) continue;
+      m.fuse = BANGER_FUSE;
+      if (Math.hypot(m.x-S.player.x, m.y-S.player.y) < 12*TILE) SFX.strain();
+      continue;
+    }
+    m.fuse -= dt;
+    // một nhịp mỗi nửa giây, nhanh dần — nghe được cái ngòi là biết còn bao lâu mà không phải nhìn
+    const nhip = m.fuse < 1.2 ? 0.18 : 0.42;
+    if (Math.floor((m.fuse + dt)/nhip) !== Math.floor(m.fuse/nhip) &&
+        Math.hypot(m.x-S.player.x, m.y-S.player.y) < 11*TILE) SFX.tick(m.fuse < 1.2 ? 4 : 1);
+    if (m.fuse <= 0){
+      blowBanger(m, 1, 0);
+      makeNoise(m.x, m.y, BANGER_NOISE, 2);
+      killMonster(m);
+    }
+  }
+}
+
+// GIẪM. Người chơi đi tới đè lên là con gnome chết.
+//
+// Phải có ĐI: đứng dí vào nó mà nó tự chết thì loài này thành vô hại, và bike-suite đã có sẵn một
+// bài khẳng định đúng nguyên tắc đó cho cú húc xe ("bò chậm chạm vào thì KHÔNG ăn thua").
+// Và bán kính phải NHỎ HƠN tầm đánh 22px của chính con quái, đúng bài học đã ghi ở nút Đẩy: một
+// vùng giết rộng hơn tầm nó đánh là nó chết trước khi kịp vung tay, tức là miễn nhiễm trá hình,
+// tức là loài này không tồn tại.
+//
+// "Đang đi" đọc từ p.noise chứ không phải từ quãng đường đi được giữa hai khung hình. Đo thử bằng
+// quãng đường thì hỏng: người chơi đứng yên vẫn TRÔI ~55px/s khi có một cái thân khác đè vào, nên
+// con gnome tự lao vào chân mình rồi tự chết, và loài này lại thành vô hại theo một đường khác.
+// p.noise là câu trả lời sẵn có của bộ máy cho đúng câu hỏi đó, và nó có bốn bậc: đứng yên 0, rón
+// rén 0,25, đi 1, chạy 2,6. Lấy mốc ở bậc ĐI, nên rón rén qua một con gnome thì nó sống.
+const STOMP_R     = 15;
+const STOMP_NOISE = 1;        // phải đi hẳn, không phải rón rén, và không phải đứng yên
+function stepStomp(dt){
+  const p = S.player;
+  if (!p || p.down || S.dead || S.shopMode) return;
+  if ((p.noise || 0) < STOMP_NOISE) return;
+  for (const m of S.monsters.slice()){
+    const d = MONSTERS[m.type];
+    if (!d || !d.stomp || m.hp <= 0) continue;
+    if (Math.hypot(m.x-p.x, m.y-p.y) > STOMP_R) continue;
+    fxPop(m.x, m.y, 'ĐỘP', '#b8f0c4', 12);
+    fxShake(3); SFX.thud();
+    m.hp = 0;
+    killMonster(m);
   }
 }
 
@@ -3575,6 +3701,13 @@ function killMonster(m){
   if (m.type === 'bomber'){
     S.bombs.push({ x:m.x, y:m.y, t:0, fuse:0, r:TILE*3.2, done:false, owner:'foe' });
   }
+  // Bom con chết TRONG LÚC ngòi đang cháy vẫn nổ, chỉ yếu hơn — nên vụt nó ra xa rồi hạ là một
+  // nước đi khác hẳn với hạ tại chỗ. Chết trước khi kịp châm ngòi thì không nổ gì cả.
+  // Ngòi 0,22s cho quả bị kích dây chuyền: nổ ngay trong cùng khung hình thì cả đàn bốn con ra
+  // một tiếng một quầng, mắt không đọc được đó là bốn quả.
+  if (m.type === 'banger' && m.fuse != null && m.fuse > 0){
+    blowBanger(m, BANGER_EARLY, BANGER_CHAIN);
+  }
   // The drop goes down BEFORE the bomber's own blast (queued above) resolves, which is what the
   // bag's three-second grace is for: the thing that killed it is allowed to be standing on it.
   const bag = dropFoeLoot(m.x, m.y, m.type);
@@ -3696,8 +3829,11 @@ function meleeSwing(p, ang){
       m.sleep = Math.max(m.sleep || 0, MELEE_GHOST_BLIND);
       moveEnt(m, Math.cos(a) * 16, Math.sin(a) * 16, 9);
     } else {
-      m.kx = (m.kx || 0) + Math.cos(a) * MELEE_KNOCK;
-      m.ky = (m.ky || 0) + Math.sin(a) * MELEE_KNOCK;
+      // Loai nhe thi mot cu vut la bay di. Day la ca cach choi voi Bom con: day no ra xa roi
+      // moi ha, de vu no roi vao cho trong chu khong roi vao chan minh.
+      const nhe = (MONSTERS[m.type] && MONSTERS[m.type].knockMul) || 1;
+      m.kx = (m.kx || 0) + Math.cos(a) * MELEE_KNOCK * nhe;
+      m.ky = (m.ky || 0) + Math.sin(a) * MELEE_KNOCK * nhe;
       m.alert = Math.max(m.alert, 3);
       if (foeHit(m, dmg, a, 0)) killMonster(m);      // den pin da tu hat lui o dong tren
     }
@@ -4090,6 +4226,7 @@ function stepProjectiles(dt){
     }
     if (b.t >= b.fuse && !b.done){
       b.done = true;
+      const pow = b.pow || 1;          // Bom con bị giết giữa chừng nổ yếu hơn ngòi cháy hết
       for (const m of S.monsters.slice()){
         const d = Math.hypot(m.x-b.x, m.y-b.y);
         // 90 -> 165: mot qua lu dan gia 7.000 ma khong giet duoc mot con Ke nghe
@@ -4097,13 +4234,13 @@ function stepProjectiles(dt){
         // moi thu dung gan tam, va tha dan o ria.
         if (d < b.r){
           const a = Math.atan2(m.y - b.y, m.x - b.x);
-          if (foeHit(m, BOMB_FOE_DMG * (1 - d/b.r), a, 260)) killMonster(m);
+          if (foeHit(m, BOMB_FOE_DMG * pow * (1 - d/b.r), a, 260*pow)) killMonster(m);
         }
       }
       if (S.mirror){
         for (const pane of [S.mirror.a, S.mirror.b]){
           const dm = Math.hypot(pane.x-b.x, pane.y-b.y);
-          if (dm < b.r){ damageMirror(pane.x, pane.y, BOMB_FOE_DMG * (1 - dm/b.r)); break; }
+          if (dm < b.r){ damageMirror(pane.x, pane.y, BOMB_FOE_DMG * pow * (1 - dm/b.r)); break; }
         }
       }
       // A blast that can throw a monster across a room takes a jammed door off its hinges too.
@@ -4112,11 +4249,16 @@ function stepProjectiles(dt){
       for (const l of S.loot){
         if (l.gone) continue;
         const d = Math.hypot(l.x-b.x, l.y-b.y);
-        if (d < b.r) damageLoot(l, 420 * (1 - d/b.r));
+        if (d < b.r) damageLoot(l, 420 * pow * (1 - d/b.r));
       }
       const dp = Math.hypot(S.player.x-b.x, S.player.y-b.y);
-      if (dp < b.r) hurtPlayer(Math.round(55 * (1 - dp/b.r)), 'bomb', b.x, b.y);
-      fxShake(9); fxFlash(0.35, '255,170,90');
+      if (dp < b.r) hurtPlayer(Math.round(55 * pow * (1 - dp/b.r)), 'bomb', b.x, b.y);
+      // Một vụ nổ phải NHÌN THẤY được là một vụ nổ. Trước đây nó là đúng một hình tròn phẳng nở
+      // ra rồi mờ đi, không sáng lên căn phòng, không để lại gì. Nay thêm một quầng sáng thật vào
+      // danh sách đèn — nổ trong phòng tối mà không thấy phòng thì mất luôn phần tin tức đắt nhất
+      // của vụ nổ: bạn vừa được nhìn một lượt cái phòng đang ở.
+      S.lightZones.push({ x:b.x, y:b.y, r:b.r*2.1, t:0.55 });
+      fxShake(9*pow + 3); fxFlash(0.35*pow + 0.12, '255,190,120');
     }
     if (b.t > b.fuse + 0.6) S.bombs.splice(i,1);
   }
@@ -6726,7 +6868,7 @@ function step(dt){
   } else {
     stepDoors(dt);
     stepMates(dt);
-    if (!S.noFoes){ stepMonsters(dt); separateFoes(); stepFoeSound(dt); stepRespawns(dt); }
+    if (!S.noFoes){ stepMonsters(dt); stepBangers(dt); stepStomp(dt); separateFoes(); stepFoeSound(dt); stepRespawns(dt); }
     stepAngel(dt);
     stepMirror(dt);
     stepProjectiles(dt);
@@ -7536,6 +7678,22 @@ function drawHighlights(c){
     if (!foeVisible(m) || m.sleep > 0) continue;
     spotFx(c, m.x, m.y, m.spotT || 0);
     if (foeAlerted(m)) alertMark(c, m.x, m.y);
+    // NGÒI ĐANG CHÁY. Đây là cái đồng hồ duy nhất trong game chạy trên đầu một con quái, và nó
+    // phải đọc được từ xa trong bóng tối — nên vẽ ở lớp cộng sáng này chứ không phải trong lớp
+    // thế giới, chỗ mà lớp tối sẽ nhân nó xuống còn không thấy gì. Vòng cung vơi dần là hình
+    // dáng, không phải con số: "sắp rồi" phải đọc được bằng đuôi mắt.
+    if (m.fuse != null && m.fuse > 0){
+      const k = clamp(m.fuse / BANGER_FUSE, 0, 1);
+      const gap = m.fuse < 1.2 ? (Math.floor(S.time*11)%2 ? 1 : 0.35) : 1;
+      c.save();
+      c.strokeStyle = `rgba(255,${140+k*80|0},70,${(0.55 + (1-k)*0.4) * gap})`;
+      c.lineWidth = 2.6; c.lineCap = 'round';
+      c.beginPath(); c.arc(m.x, m.y - 26, 7, -Math.PI/2, -Math.PI/2 + Math.PI*2*k); c.stroke();
+      c.lineCap = 'butt';
+      c.beginPath(); c.fillStyle = `rgba(255,235,190,${0.85*gap})`;
+      c.arc(m.x, m.y - 26, 2.4, 0, Math.PI*2); c.fill();
+      c.restore();
+    }
   }
 
   // The rook's wind-up, drawn as the LANE it is about to occupy. Three seconds of warning are
@@ -7964,13 +8122,49 @@ function drawProjectiles(c){
     c.fillStyle = b.kind === 'shot' ? '#ffb87a' : '#ffe9a8';
     c.beginPath(); c.arc(b.x, b.y, b.kind === 'shot' ? 1.8 : 2.6, 0, Math.PI*2); c.fill();
   }
+  // VỤ NỔ. Trước đây là đúng một hình tròn phẳng nở ra rồi mờ đi — cùng một hình với vệt sáng,
+  // với vòng highlight, với mọi thứ tròn khác trong game, nên nó không đọc ra là một vụ nổ. Bốn
+  // lớp, mỗi lớp trả lời một câu: lõi trắng nói NÓ NỔ Ở ĐÂY, vòng xung kích nở nhanh hơn lõi nói
+  // TỚI ĐÂU LÀ CÒN ĂN ĐÒN, mấy tia nói NÓ NỔ CHỨ KHÔNG PHẢI NỞ RA, và cái vệt khói ở lại sau khi
+  // ba lớp kia tắt. Vẽ ở chế độ cộng sáng nên nó tự sáng, không bị lớp tối nhân xuống.
+  // SEE: đàn bom + đàn gnome, 2026-08-31
   for (const b of S.bombs){
     if (b.done){
       const t = clamp((b.t-b.fuse)/0.6,0,1);
-      c.beginPath(); c.fillStyle = `rgba(255,${180-t*120|0},80,${0.55*(1-t)})`;
-      c.arc(b.x,b.y,b.r*(0.4+t*0.9),0,Math.PI*2); c.fill();
+      const pow = b.pow || 1;
+      const om = (1-t)*(1-t);
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      // vòng xung kích: mỏng dần, chạy tới đúng bán kính sát thương rồi tắt
+      const R = b.r*(0.25 + t*0.95);
+      c.beginPath(); c.strokeStyle = `rgba(255,${210-t*130|0},${150-t*110|0},${0.75*om})`;
+      c.lineWidth = Math.max(1, b.r*0.16*(1-t)); c.arc(b.x,b.y,R,0,Math.PI*2); c.stroke();
+      // lõi: chậm hơn vòng, và trắng ở giữa
+      const cg = c.createRadialGradient(b.x,b.y,0,b.x,b.y,Math.max(2,b.r*(0.16+t*0.5)));
+      cg.addColorStop(0, `rgba(255,248,224,${0.9*om})`);
+      cg.addColorStop(0.45, `rgba(255,186,88,${0.62*om})`);
+      cg.addColorStop(1, 'rgba(210,90,40,0)');
+      c.fillStyle = cg; c.fillRect(b.x-b.r, b.y-b.r, b.r*2, b.r*2);
+      // tia: hạt bay ra, số tia theo sức nổ nên quả nhỏ trông ra quả nhỏ
+      const tia = Math.round(7 + 6*pow);
+      c.strokeStyle = `rgba(255,206,140,${0.8*om})`; c.lineWidth = 1.6;
+      c.beginPath();
+      for (let i=0;i<tia;i++){
+        const a = (i/tia)*Math.PI*2 + (b.x+b.y)*0.017;   // lệch theo chỗ nổ, để hai quả không trùng
+        const r0 = b.r*(0.30 + t*0.75), r1 = r0 + b.r*0.30*(1-t);
+        c.moveTo(b.x+Math.cos(a)*r0, b.y+Math.sin(a)*r0);
+        c.lineTo(b.x+Math.cos(a)*r1, b.y+Math.sin(a)*r1);
+      }
+      c.stroke();
+      c.restore();
+      // khói: lớp duy nhất KHÔNG cộng sáng, nên nó tối đi chứ không sáng lên
+      c.beginPath(); c.fillStyle = `rgba(40,30,26,${0.30*t*(1-t)*4})`;
+      c.arc(b.x,b.y,b.r*(0.5+t*0.7),0,Math.PI*2); c.fill();
     } else {
-      c.beginPath(); c.fillStyle = (Math.floor(b.t*8)%2) ? '#e05a3a' : '#3a2a26';
+      // Ngòi đang cháy: chớp nhanh dần khi sắp hết, cùng nhịp với tiếng tick.
+      const con = Math.max(0, b.fuse - b.t);
+      const nhanh = con < 0.5 ? 16 : 8;
+      c.beginPath(); c.fillStyle = (Math.floor(b.t*nhanh)%2) ? '#ffb45a' : '#3a2a26';
       c.arc(b.x,b.y,5,0,Math.PI*2); c.fill();
     }
   }
@@ -8762,7 +8956,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831d';
+const BUILD = '20260831e';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
