@@ -1,0 +1,947 @@
+{
+ "note": "Sprite rip tu HoloCure, goc: D:/HoloCureAssets/GameSprites/. Moi muc la mot thu muc PNG roi: <spr>/<spr>_<i>.png voi i = 0..frames-1. w/h/ox/oy lay nguyen tu sprites.csv; (ox,oy) la diem neo -> ve bang drawImage(img, x-ox, y-oy). Chi tiet va ly do chon xem ASSETS.md.",
+ "player": {
+  "idle": {
+   "spr": "spr_Noel_idle",
+   "frames": 4,
+   "w": 37,
+   "h": 32,
+   "ox": 18,
+   "oy": 32,
+   "file": "spr_Noel_idle.png"
+  },
+  "run": {
+   "spr": "spr_Noel_run",
+   "frames": 6,
+   "w": 40,
+   "h": 29,
+   "ox": 20,
+   "oy": 29,
+   "file": "spr_Noel_run.png"
+  },
+  "dodge": null
+ },
+ "mobs": {
+  "purun": {
+   "idle": {
+    "spr": "spr_takodachi",
+    "frames": 3,
+    "w": 21,
+    "h": 21,
+    "ox": 10,
+    "oy": 21,
+    "file": "spr_takodachi.png"
+   },
+   "move": {
+    "spr": "spr_takodachi",
+    "frames": 3,
+    "w": 21,
+    "h": 21,
+    "ox": 10,
+    "oy": 21,
+    "file": "spr_takodachi.png"
+   }
+  },
+  "vacca": {
+   "idle": {
+    "spr": "spr_Poyoyo",
+    "frames": 3,
+    "w": 43,
+    "h": 37,
+    "ox": 21,
+    "oy": 37,
+    "file": "spr_Poyoyo.png"
+   },
+   "move": {
+    "spr": "spr_Poyoyo",
+    "frames": 3,
+    "w": 43,
+    "h": 37,
+    "ox": 21,
+    "oy": 37,
+    "file": "spr_Poyoyo.png"
+   }
+  },
+  "geguri": {
+   "idle": {
+    "spr": "spr_Upao",
+    "frames": 4,
+    "w": 59,
+    "h": 31,
+    "ox": 29,
+    "oy": 31,
+    "file": "spr_Upao.png"
+   },
+   "move": {
+    "spr": "spr_Upao",
+    "frames": 4,
+    "w": 59,
+    "h": 31,
+    "ox": 29,
+    "oy": 31,
+    "file": "spr_Upao.png"
+   }
+  },
+  "bat": {
+   "idle": {
+    "spr": "spr_MelBat",
+    "frames": 3,
+    "w": 52,
+    "h": 28,
+    "ox": 26,
+    "oy": 28,
+    "file": "spr_MelBat.png"
+   },
+   "move": {
+    "spr": "spr_MelBat",
+    "frames": 3,
+    "w": 52,
+    "h": 28,
+    "ox": 26,
+    "oy": 28,
+    "file": "spr_MelBat.png"
+   }
+  },
+  "galena": {
+   "idle": {
+    "spr": "spr_Merakyat",
+    "frames": 3,
+    "w": 31,
+    "h": 31,
+    "ox": 15,
+    "oy": 31,
+    "file": "spr_Merakyat.png"
+   },
+   "move": {
+    "spr": "spr_Merakyat",
+    "frames": 3,
+    "w": 31,
+    "h": 31,
+    "ox": 15,
+    "oy": 31,
+    "file": "spr_Merakyat.png"
+   }
+  },
+  "fungo": {
+   "idle": {
+    "spr": "spr_SaplingKing",
+    "frames": 3,
+    "w": 40,
+    "h": 40,
+    "ox": 20,
+    "oy": 40,
+    "file": "spr_SaplingKing.png"
+   },
+   "move": {
+    "spr": "spr_SaplingKing",
+    "frames": 3,
+    "w": 40,
+    "h": 40,
+    "ox": 20,
+    "oy": 40,
+    "file": "spr_SaplingKing.png"
+   }
+  }
+ },
+ "bosses": {
+  "grouton": {
+   "idle": {
+    "spr": "spr_Cilus",
+    "frames": 4,
+    "w": 79,
+    "h": 50,
+    "ox": 39,
+    "oy": 50,
+    "file": "spr_Cilus.png"
+   }
+  },
+  "mumu": {
+   "idle": {
+    "spr": "spr_fubuzilla",
+    "frames": 12,
+    "w": 82,
+    "h": 55,
+    "ox": 41,
+    "oy": 55,
+    "file": "spr_fubuzilla.png"
+   }
+  },
+  "dodonki": {
+   "idle": {
+    "spr": "spr_Goriela_idle",
+    "frames": 4,
+    "w": 98,
+    "h": 78,
+    "ox": 49,
+    "oy": 78,
+    "file": "spr_Goriela_idle.png"
+   },
+   "attack": {
+    "spr": "spr_Goriela_throw",
+    "frames": 3,
+    "w": 82,
+    "h": 104,
+    "ox": 41,
+    "oy": 104,
+    "file": "spr_Goriela_throw.png"
+   }
+  },
+  "boldon": {
+   "idle": {
+    "spr": "spr_Shubangelion_walk",
+    "frames": 8,
+    "w": 68,
+    "h": 104,
+    "ox": 34,
+    "oy": 104,
+    "file": "spr_Shubangelion_walk.png"
+   },
+   "attack": {
+    "spr": "spr_Shubangelion_attack_punch",
+    "frames": 8,
+    "w": 92,
+    "h": 96,
+    "ox": 46,
+    "oy": 96,
+    "file": "spr_Shubangelion_attack_punch.png"
+   }
+  },
+  "sentry": {
+   "idle": {
+    "spr": "spr_Pekodam",
+    "frames": 4,
+    "w": 101,
+    "h": 127,
+    "ox": 50,
+    "oy": 127,
+    "file": "spr_Pekodam.png"
+   }
+  }
+ },
+ "fx": {
+  "slash_wide": {
+   "spr": "spr_CalliSlash1",
+   "frames": 10,
+   "w": 181,
+   "h": 176,
+   "ox": 90,
+   "oy": 88,
+   "file": "spr_CalliSlash1.png"
+  },
+  "slash_narrow": {
+   "spr": "spr_AyameSlash",
+   "frames": 9,
+   "w": 115,
+   "h": 108,
+   "ox": 57,
+   "oy": 54,
+   "file": "spr_AyameSlash.png"
+  },
+  "slash_thrust": {
+   "spr": "spr_KroniiStab",
+   "frames": 15,
+   "w": 98,
+   "h": 23,
+   "ox": 49,
+   "oy": 11,
+   "file": "spr_KroniiStab.png"
+  },
+  "explosion": {
+   "spr": "spr_bombExplode",
+   "frames": 15,
+   "w": 110,
+   "h": 118,
+   "ox": 55,
+   "oy": 59,
+   "file": "spr_bombExplode.png"
+  },
+  "impact": {
+   "spr": "spr_ZetaStealthHit",
+   "frames": 4,
+   "w": 63,
+   "h": 56,
+   "ox": 31,
+   "oy": 28,
+   "file": "spr_ZetaStealthHit.png"
+  },
+  "smoke": {
+   "spr": "vfx_smoke",
+   "frames": 6,
+   "w": 55,
+   "h": 41,
+   "ox": 27,
+   "oy": 20,
+   "file": "vfx_smoke.png"
+  },
+  "dust": {
+   "spr": "spr_smokeeffect1",
+   "frames": 6,
+   "w": 167,
+   "h": 41,
+   "ox": 83,
+   "oy": 20,
+   "file": "spr_smokeeffect1.png"
+  },
+  "vortex": {
+   "spr": "spr_whirlpool",
+   "frames": 4,
+   "w": 104,
+   "h": 83,
+   "ox": 52,
+   "oy": 41,
+   "file": "spr_whirlpool.png"
+  },
+  "shockwave": {
+   "spr": "spr_Explosion",
+   "frames": 9,
+   "w": 114,
+   "h": 118,
+   "ox": 57,
+   "oy": 59,
+   "file": "spr_Explosion.png"
+  },
+  "chain": {
+   "spr": "spr_ShionBeam",
+   "frames": 8,
+   "w": 26,
+   "h": 197,
+   "ox": 13,
+   "oy": 188,
+   "file": "spr_ShionBeam.png"
+  },
+  "spike": {
+   "spr": "spr_FaunaGuardianTree",
+   "frames": 14,
+   "w": 40,
+   "h": 68,
+   "ox": 20,
+   "oy": 34,
+   "file": "spr_FaunaGuardianTree.png"
+  },
+  "wall": {
+   "spr": "spr_KroniiTimeBubbleStart",
+   "frames": 7,
+   "w": 110,
+   "h": 101,
+   "ox": 55,
+   "oy": 50,
+   "file": "spr_KroniiTimeBubbleStart.png"
+  },
+  "ghost": null,
+  "vanish": {
+   "spr": "spr_ShionPortal",
+   "frames": 4,
+   "w": 42,
+   "h": 23,
+   "ox": 21,
+   "oy": 11,
+   "file": "spr_ShionPortal.png"
+  },
+  "arrow": {
+   "spr": "spr_Arrow",
+   "frames": 3,
+   "w": 7,
+   "h": 12,
+   "ox": 3,
+   "oy": 6,
+   "file": "spr_Arrow.png"
+  },
+  "shadow": {
+   "spr": "spr_Shadow",
+   "frames": 1,
+   "w": 15,
+   "h": 3,
+   "ox": 7,
+   "oy": 1,
+   "file": "spr_Shadow.png"
+  }
+ },
+ "elem": {
+  "thunder": {
+   "trail": {
+    "spr": "spr_LightningWeiner",
+    "frames": 6,
+    "w": 62,
+    "h": 16,
+    "ox": 31,
+    "oy": 8,
+    "file": "spr_LightningWeiner.png"
+   },
+   "burst": {
+    "spr": "spr_spawnFX",
+    "frames": 5,
+    "w": 67,
+    "h": 114,
+    "ox": 35,
+    "oy": 110,
+    "file": "spr_spawnFX.png"
+   }
+  },
+  "fire": {
+   "trail": {
+    "spr": "spr_KiaraEmbers",
+    "frames": 4,
+    "w": 16,
+    "h": 27,
+    "ox": 8,
+    "oy": 13,
+    "file": "spr_KiaraEmbers.png"
+   },
+   "burst": {
+    "spr": "spr_KiaraExplosion",
+    "frames": 14,
+    "w": 117,
+    "h": 139,
+    "ox": 58,
+    "oy": 69,
+    "file": "spr_KiaraExplosion.png"
+   }
+  },
+  "water": {
+   "trail": {
+    "spr": "spr_watersplash",
+    "frames": 6,
+    "w": 50,
+    "h": 29,
+    "ox": 25,
+    "oy": 14,
+    "file": "spr_watersplash.png"
+   },
+   "burst": {
+    "spr": "spr_WamyWaterSplash",
+    "frames": 7,
+    "w": 79,
+    "h": 117,
+    "ox": 39,
+    "oy": 58,
+    "file": "spr_WamyWaterSplash.png"
+   }
+  },
+  "earth": {
+   "trail": {
+    "spr": "spr_ShubangelionRocks_Small",
+    "frames": 5,
+    "w": 10,
+    "h": 9,
+    "ox": 5,
+    "oy": 4,
+    "file": "spr_ShubangelionRocks_Small.png"
+   },
+   "burst": {
+    "spr": "spr_ShubangelionRocks_Big",
+    "frames": 4,
+    "w": 43,
+    "h": 42,
+    "ox": 21,
+    "oy": 21,
+    "file": "spr_ShubangelionRocks_Big.png"
+   }
+  },
+  "light": {
+   "trail": {
+    "spr": "spr_portraitspark",
+    "frames": 3,
+    "w": 47,
+    "h": 49,
+    "ox": 23,
+    "oy": 24,
+    "file": "spr_portraitspark.png"
+   },
+   "burst": {
+    "spr": "spr_IrysExplosionA",
+    "frames": 7,
+    "w": 93,
+    "h": 91,
+    "ox": 49,
+    "oy": 47,
+    "file": "spr_IrysExplosionA.png"
+   }
+  },
+  "dark": {
+   "trail": {
+    "spr": "spr_EldritchSmoke",
+    "frames": 3,
+    "w": 64,
+    "h": 60,
+    "ox": 32,
+    "oy": 30,
+    "file": "spr_EldritchSmoke.png"
+   },
+   "burst": {
+    "spr": "spr_EldrichHorrorPool",
+    "frames": 4,
+    "w": 104,
+    "h": 83,
+    "ox": 52,
+    "oy": 41,
+    "file": "spr_EldrichHorrorPool.png"
+   }
+  }
+ },
+ "pickups": {
+  "gold": {
+   "spr": "spr_holoCoin",
+   "frames": 8,
+   "w": 15,
+   "h": 15,
+   "ox": 7,
+   "oy": 7,
+   "file": "spr_holoCoin.png"
+  },
+  "exp": {
+   "spr": "spr_EXP",
+   "frames": 12,
+   "w": 12,
+   "h": 13,
+   "ox": 6,
+   "oy": 6,
+   "file": "spr_EXP.png"
+  },
+  "chest": {
+   "spr": "BG_ItemCrate",
+   "frames": 1,
+   "w": 29,
+   "h": 36,
+   "ox": 14,
+   "oy": 34,
+   "file": "BG_ItemCrate.png"
+  }
+ },
+ "ground": {
+  "grass": {
+   "spr": "BG_newgrass",
+   "anchor": "tl",
+   "crop": [
+    64,
+    64,
+    256,
+    256
+   ],
+   "frames": 1,
+   "w": 256,
+   "h": 256,
+   "ox": 0,
+   "oy": 0,
+   "file": "BG_newgrass__c64_64_s.png",
+   "seamless": true
+  },
+  "jungle": {
+   "spr": "BG_newgrass",
+   "anchor": "tl",
+   "crop": [
+    704,
+    704,
+    256,
+    256
+   ],
+   "ramp": [
+    "#0e2e17",
+    "#3d7d45"
+   ],
+   "frames": 1,
+   "w": 256,
+   "h": 256,
+   "ox": 0,
+   "oy": 0,
+   "file": "BG_newgrass__c704_704_s_p0e2e173d7d45.png",
+   "seamless": true
+  },
+  "desert": {
+   "spr": "BG_newgrass",
+   "anchor": "tl",
+   "crop": [
+    704,
+    64,
+    256,
+    256
+   ],
+   "ramp": [
+    "#6f5330",
+    "#d3b47e"
+   ],
+   "frames": 1,
+   "w": 256,
+   "h": 256,
+   "ox": 0,
+   "oy": 0,
+   "file": "BG_newgrass__c704_64_s_p6f5330d3b47e.png",
+   "seamless": true
+  },
+  "snow": {
+   "spr": "BG_newgrass",
+   "anchor": "tl",
+   "crop": [
+    64,
+    704,
+    256,
+    256
+   ],
+   "ramp": [
+    "#74899d",
+    "#eaf3fb"
+   ],
+   "frames": 1,
+   "w": 256,
+   "h": 256,
+   "ox": 0,
+   "oy": 0,
+   "file": "BG_newgrass__c64_704_s_p74899deaf3fb.png",
+   "seamless": true
+  },
+  "ruins": {
+   "spr": "bg_dungeonfloor1",
+   "anchor": "tl",
+   "frames": 1,
+   "w": 128,
+   "h": 128,
+   "ox": 0,
+   "oy": 0,
+   "file": "bg_dungeonfloor1__s.png",
+   "seamless": true
+  }
+ },
+ "doodads": {
+  "grass": {
+   "grassA": {
+    "spr": "BG_shortgrassA",
+    "frames": 1,
+    "w": 13,
+    "h": 23,
+    "ox": 6,
+    "oy": 23,
+    "file": "BG_shortgrassA.png",
+    "anchor": "foot"
+   },
+   "grassB": {
+    "spr": "BG_shortgrassB",
+    "frames": 1,
+    "w": 14,
+    "h": 12,
+    "ox": 7,
+    "oy": 12,
+    "file": "BG_shortgrassB.png",
+    "anchor": "foot"
+   },
+   "grassC": {
+    "spr": "BG_shortgrassC",
+    "frames": 1,
+    "w": 16,
+    "h": 15,
+    "ox": 8,
+    "oy": 15,
+    "file": "BG_shortgrassC.png",
+    "anchor": "foot"
+   },
+   "grassD": {
+    "spr": "BG_shortgrassD",
+    "frames": 1,
+    "w": 17,
+    "h": 16,
+    "ox": 8,
+    "oy": 16,
+    "file": "BG_shortgrassD.png",
+    "anchor": "foot"
+   },
+   "flower1": {
+    "spr": "BG_flower1",
+    "frames": 1,
+    "w": 18,
+    "h": 30,
+    "ox": 9,
+    "oy": 30,
+    "file": "BG_flower1.png",
+    "anchor": "foot"
+   },
+   "flower2": {
+    "spr": "BG_flower2",
+    "frames": 1,
+    "w": 19,
+    "h": 28,
+    "ox": 9,
+    "oy": 28,
+    "file": "BG_flower2.png",
+    "anchor": "foot"
+   },
+   "bush1": {
+    "spr": "BG_bush1",
+    "frames": 1,
+    "w": 25,
+    "h": 25,
+    "ox": 12,
+    "oy": 25,
+    "file": "BG_bush1.png",
+    "anchor": "foot"
+   },
+   "bush2": {
+    "spr": "BG_bush2",
+    "frames": 1,
+    "w": 26,
+    "h": 19,
+    "ox": 13,
+    "oy": 19,
+    "file": "BG_bush2.png",
+    "anchor": "foot"
+   },
+   "tall1": {
+    "spr": "BG_tallgrass",
+    "frames": 1,
+    "w": 18,
+    "h": 39,
+    "ox": 9,
+    "oy": 39,
+    "file": "BG_tallgrass.png",
+    "anchor": "foot"
+   }
+  },
+  "jungle": {
+   "grassA": {
+    "spr": "BG_shortgrassA",
+    "frames": 1,
+    "w": 13,
+    "h": 23,
+    "ox": 6,
+    "oy": 23,
+    "file": "BG_shortgrassA.png",
+    "anchor": "foot"
+   },
+   "bush4": {
+    "spr": "BG_bush4",
+    "frames": 1,
+    "w": 37,
+    "h": 26,
+    "ox": 18,
+    "oy": 26,
+    "file": "BG_bush4.png",
+    "anchor": "foot"
+   },
+   "bush3": {
+    "spr": "BG_bush3",
+    "frames": 1,
+    "w": 38,
+    "h": 30,
+    "ox": 19,
+    "oy": 30,
+    "file": "BG_bush3.png",
+    "anchor": "foot"
+   },
+   "tall2": {
+    "spr": "BG_tallgrass2",
+    "frames": 1,
+    "w": 22,
+    "h": 38,
+    "ox": 11,
+    "oy": 38,
+    "file": "BG_tallgrass2.png",
+    "anchor": "foot"
+   },
+   "tall3": {
+    "spr": "BG_tallgrass3",
+    "frames": 1,
+    "w": 20,
+    "h": 44,
+    "ox": 10,
+    "oy": 44,
+    "file": "BG_tallgrass3.png",
+    "anchor": "foot"
+   },
+   "tall4": {
+    "spr": "BG_tallgrass4",
+    "frames": 1,
+    "w": 28,
+    "h": 43,
+    "ox": 14,
+    "oy": 43,
+    "file": "BG_tallgrass4.png",
+    "anchor": "foot"
+   }
+  },
+  "desert": {
+   "stoneA": {
+    "spr": "BG_floorstoneA",
+    "frames": 1,
+    "w": 7,
+    "h": 5,
+    "ox": 3,
+    "oy": 5,
+    "file": "BG_floorstoneA.png",
+    "anchor": "foot",
+    "scale": 3.0
+   },
+   "stoneB": {
+    "spr": "BG_floorstoneB",
+    "frames": 1,
+    "w": 11,
+    "h": 9,
+    "ox": 5,
+    "oy": 9,
+    "file": "BG_floorstoneB.png",
+    "anchor": "foot",
+    "scale": 2.6
+   },
+   "stoneC": {
+    "spr": "BG_floorstoneC",
+    "frames": 1,
+    "w": 9,
+    "h": 8,
+    "ox": 4,
+    "oy": 8,
+    "file": "BG_floorstoneC.png",
+    "anchor": "foot",
+    "scale": 2.8
+   },
+   "cactus": {
+    "spr": "BG_cactus",
+    "frames": 1,
+    "w": 56,
+    "h": 84,
+    "ox": 25,
+    "oy": 76,
+    "file": "BG_cactus.png",
+    "anchor": "foot"
+   },
+   "tree": {
+    "spr": "BG_DeadTree",
+    "scale": 0.7,
+    "frames": 1,
+    "w": 113,
+    "h": 117,
+    "ox": 56,
+    "oy": 117,
+    "file": "BG_DeadTree.png",
+    "anchor": "foot"
+   }
+  },
+  "snow": {
+   "stoneA": {
+    "spr": "BG_floorstoneA",
+    "frames": 1,
+    "w": 7,
+    "h": 5,
+    "ox": 3,
+    "oy": 5,
+    "file": "BG_floorstoneA.png",
+    "anchor": "foot",
+    "scale": 3.0
+   },
+   "stoneB": {
+    "spr": "BG_floorstoneB",
+    "frames": 1,
+    "w": 11,
+    "h": 9,
+    "ox": 5,
+    "oy": 9,
+    "file": "BG_floorstoneB.png",
+    "anchor": "foot",
+    "scale": 2.6
+   },
+   "stoneC": {
+    "spr": "BG_floorstoneC",
+    "frames": 1,
+    "w": 9,
+    "h": 8,
+    "ox": 4,
+    "oy": 8,
+    "file": "BG_floorstoneC.png",
+    "anchor": "foot",
+    "scale": 2.8
+   },
+   "fence1": {
+    "spr": "BG_fence1",
+    "frames": 1,
+    "w": 38,
+    "h": 21,
+    "ox": 19,
+    "oy": 21,
+    "file": "BG_fence1.png",
+    "anchor": "foot"
+   },
+   "tree": {
+    "spr": "BG_DeadTree",
+    "scale": 0.8,
+    "frames": 1,
+    "w": 113,
+    "h": 117,
+    "ox": 56,
+    "oy": 117,
+    "file": "BG_DeadTree.png",
+    "anchor": "foot"
+   }
+  },
+  "ruins": {
+   "stoneA": {
+    "spr": "BG_floorstoneA",
+    "frames": 1,
+    "w": 7,
+    "h": 5,
+    "ox": 3,
+    "oy": 5,
+    "file": "BG_floorstoneA.png",
+    "anchor": "foot",
+    "scale": 3.0
+   },
+   "stoneC": {
+    "spr": "BG_floorstoneC",
+    "frames": 1,
+    "w": 9,
+    "h": 8,
+    "ox": 4,
+    "oy": 8,
+    "file": "BG_floorstoneC.png",
+    "anchor": "foot",
+    "scale": 2.8
+   },
+   "pillarB": {
+    "spr": "BG_PillarBroken",
+    "scale": 0.85,
+    "frames": 1,
+    "w": 28,
+    "h": 33,
+    "ox": 14,
+    "oy": 33,
+    "file": "BG_PillarBroken.png",
+    "anchor": "foot"
+   },
+   "pillar": {
+    "spr": "BG_Pillar",
+    "scale": 0.85,
+    "frames": 2,
+    "w": 28,
+    "h": 45,
+    "ox": 14,
+    "oy": 45,
+    "file": "BG_Pillar.png",
+    "anchor": "foot"
+   },
+   "wall2": {
+    "spr": "BG_stonewall2",
+    "frames": 1,
+    "w": 31,
+    "h": 81,
+    "ox": 15,
+    "oy": 81,
+    "file": "BG_stonewall2.png",
+    "anchor": "foot"
+   },
+   "wall1": {
+    "spr": "BG_stonewall1",
+    "frames": 1,
+    "w": 97,
+    "h": 47,
+    "ox": 48,
+    "oy": 47,
+    "file": "BG_stonewall1.png",
+    "anchor": "foot"
+   },
+   "wall3": {
+    "spr": "BG_stonewall3",
+    "frames": 1,
+    "w": 97,
+    "h": 51,
+    "ox": 48,
+    "oy": 51,
+    "file": "BG_stonewall3.png",
+    "anchor": "foot"
+   }
+  }
+ }
+}

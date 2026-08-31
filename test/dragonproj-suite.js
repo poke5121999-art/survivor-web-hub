@@ -55,24 +55,23 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   const d = await p.evaluate(() => ({
     weapons: Object.keys(DP.WEAPONS).length,
     behemoths: DP.BEHEMOTHS.length,
-    magi: DP.MAGI.length,
+    skills: Object.keys(DP.SKILLS).reduce(function (n, k) { return n + DP.SKILLS[k].length; }, 0),
     areas: DP.AREAS.length,
     story: DP.STORY.length,
     mats: Object.keys(DP.MATERIALS).length,
     bossRates: DP.BEHEMOTH_RATES,
-    magiRates: DP.MAGI_RATES,
+    elemFx: Object.keys(DP.ELEM_FX).length,
     dropNormal: DP.DROP_NORMAL,
     elem: [DP.elemMult('water', 'fire'), DP.elemMult('fire', 'water'), DP.elemMult('fire', 'earth')]
   }));
   check('5 loại vũ khí', d.weapons === 5, d.weapons + '');
   check('đủ Behemoth (>=50)', d.behemoths >= 50, d.behemoths + ' con');
-  check('đủ Magi (>=60)', d.magi >= 60, d.magi + ' viên');
+  check('đủ kỹ năng (2 mỗi vũ khí)', d.skills === 10, d.skills + ' đòn');
   check('8 vùng đất', d.areas === 8, d.areas + '');
   check('cốt truyện >=30 chặng', d.story >= 30, d.story + '');
   check('tỉ lệ gacha boss đúng wiki (3/15/55/27)',
     d.bossRates.SS === 0.03 && d.bossRates.S === 0.15 && d.bossRates.A === 0.55 && d.bossRates.B === 0.27);
-  check('tỉ lệ gacha magi đúng wiki (3/9/48/40)',
-    d.magiRates.SS === 0.03 && d.magiRates.S === 0.09 && d.magiRates.A === 0.48 && d.magiRates.B === 0.40);
+  check('đủ bảng nguyên tố cho lớp VFX', d.elemFx === 7, d.elemFx + ' hệ');
   check('tỉ lệ rơi đồ quái thường đúng wiki (D 24.95%)', d.dropNormal.D === 0.2495);
   check('vòng khắc chế Thủy>Hỏa>Thổ>Lôi', d.elem[0] === 1.5 && d.elem[1] === 0.6 && d.elem[2] === 1.5,
     JSON.stringify(d.elem));
@@ -100,23 +99,23 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
 
   // -------------------------------------------------- LUẬT LIMIT BREAK / Ô
   results.push('\n── luật trang bị ──');
-  const lb = await p.evaluate(() => {
-    const g = DP.forgeGear('amarok', 'weapon', 't');
-    const a = DP.gearSlots(g); g.lb = 3; const b = DP.gearSlots(g); g.lb = 4; const c = DP.gearSlots(g);
-    const h = DP.forgeGear('amarok', 'head', 't'); const h1 = DP.gearSlots(h); h.lb = 4; const h2 = DP.gearSlots(h);
-    return { w2: a, w3: b, w4: c, h1, h2 };
-  });
-  check('vũ khí 2 ô, limit break 4 mới mở ô thứ 3', lb.w2 === 2 && lb.w3 === 2 && lb.w4 === 3,
-    lb.w2 + '/' + lb.w3 + '/' + lb.w4);
-  check('giáp Gold 1 ô, limit break 4 mở ô thứ 2', lb.h1 === 1 && lb.h2 === 2);
-
-  const shape = await p.evaluate(() => {
+  // Kỹ năng THUỘC VỀ VŨ KHÍ: mỗi cây đúng hai đòn, đòn thứ hai mở theo cấp.
+  const sk = await p.evaluate(() => {
     const s = DP.starterKit(DP.newSave('T'));
-    const w = s.gear.find(g => g.kind === 'weapon');
-    const wrong = s.magi.find(m => DP.magiById(m.id).shape !== w.shapes[0]);
-    return DP.equipMagi(s, w, 0, wrong ? wrong.uid : null);
+    const w = s.gear.find(g => g.kind === 'weapon' && g.wclass === 'dual');
+    w.lv = 1;
+    const lo = DP.weaponProfile(s, w).skills.length;
+    w.lv = DP.SKILL_RULES.unlockLv2;
+    const hi = DP.weaponProfile(s, w).skills.length;
+    const perWeapon = DP.WEAPON_ORDER.map(k => DP.skillsOf(k).length);
+    const kinds = DP.WEAPON_ORDER.reduce((a, k) => a.concat(DP.skillsOf(k).map(x => x.kind)), []);
+    return { lo, hi, perWeapon, uniqueKinds: kinds.filter((v, i, a) => a.indexOf(v) === i).length };
   });
-  check('Magi sai hình dạng bị từ chối', shape.ok === false, shape.why || '');
+  check('mỗi vũ khí đúng 2 kỹ năng', sk.perWeapon.every(n => n === 2), sk.perWeapon.join('/'));
+  check('kỹ năng thứ hai mở theo cấp vũ khí', sk.lo === 1 && sk.hi === 2, sk.lo + ' -> ' + sk.hi);
+  // Đây là phép kiểm chống lại đúng cái đã giết hệ Magi cũ: bốn mươi viên dùng
+  // chung ba đoạn code. Mười đòn thì phải là mười trình phát khác nhau.
+  check('mười kỹ năng là MƯỜI trình phát khác nhau', sk.uniqueKinds === 10, sk.uniqueKinds + ' kind');
 
   // --------------------------------------------------------- PUNICON THẬT
   results.push('\n── Punicon (cử chỉ thật trên canvas) ──');
@@ -232,29 +231,51 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('GIỮ vào thế đỡ (Kiếm & Khiên)', await p.evaluate(() => DP.UI.battle.player.state === 'guard'));
   await p.waitForTimeout(500);
 
-  // GIỮ RỒI TRƯỢT VỀ HƯỚNG NÚT MAGI -> xả Magi
+  // GIỮ RỒI TRƯỢT VỀ HƯỚNG NÚT KỸ NĂNG
   const slide = await p.evaluate(async () => {
     const b = DP.UI.battle;
-    b.player.state = 'idle'; b.player.magi = 100;
+    b.player.state = 'idle';
     const hs = b.puni.hotspots[0];
-    // mô phỏng: gốc chạm ở giữa, kéo về hướng nút Magi 1
     b.puni.ox = 270; b.puni.oy = 640;
     const dx = hs.x - 270, dy = hs.y - 640, d = Math.hypot(dx, dy);
     const idx = b.puni.aimedHotspot(dx / d * 80, dy / d * 80, 80);
     const wrong = b.puni.aimedHotspot(-80, 0, 80);
-    return { idx, wrong, hasMagi: !!(b.wp && b.wp.magi[0]) };
+    return { idx, wrong, hasSkill: !!b.skillDef(0) };
   });
-  check('trượt ĐÚNG hướng nút Magi được nhận', slide.idx === 0, 'idx=' + slide.idx);
+  check('trượt ĐÚNG hướng nút kỹ năng được nhận', slide.idx === 0, 'idx=' + slide.idx);
   check('trượt SAI hướng thì không nhận', slide.wrong === -1);
+  check('vũ khí đang cầm có kỹ năng ở khe 1', slide.hasSkill);
 
-  const cast = await p.evaluate(() => {
-    const b = DP.UI.battle;
-    b.player.state = 'idle'; b.player.magi = 100;
-    const m0 = b.player.magi;
-    b.castMagi(0);
-    return { used: b.player.magi < m0, flagged: b.player.usedMagi };
+  /* Kỹ năng phải NẠP mới xả được. Nhả sớm thì huỷ và hoàn phần lớn hồi chiêu —
+   * không phạt người đọc đúng tình huống rồi rút tay. */
+  const cast = await p.evaluate(async () => {
+    const b = DP.UI.battle, pl = b.player;
+    const sk = b.skillDef(0);
+    pl.state = 'idle'; pl.skCd = [0, 0]; pl.usedSkill = false;
+
+    // (a) nhả sớm -> huỷ, KHÔNG xả, hồi chiêu chỉ còn một phần
+    b.skillCharge(0, 10);
+    const charging = pl.state;
+    b.skillRelease(0, sk.charge * 0.3);
+    const early = { state: pl.state, used: pl.usedSkill, cd: b.skillCdLeft(0), full: b.skillCdOf(sk) };
+
+    // (b) nạp đủ -> xả thật, và vào hồi chiêu đầy
+    pl.skCd = [0, 0]; pl.state = 'idle';
+    b.skillCharge(0, 10);
+    b.skillCharge(0, sk.charge + 50);
+    const ready = pl.skReady;
+    b.skillRelease(0, sk.charge + 50);
+    return { charging, early, ready, fired: pl.usedSkill, cdAfter: b.skillCdLeft(0), full: b.skillCdOf(sk) };
   });
-  check('xả được Magi', cast.used && cast.flagged);
+  check('trượt về nút thì vào thế NẠP', cast.charging === 'skcharge', cast.charging);
+  check('nhả sớm thì KHÔNG xả', cast.early.used === false && cast.early.state === 'idle');
+  check('huỷ giữa chừng hoàn 60% hồi chiêu',
+    Math.abs(cast.early.cd - cast.early.full * 0.4) < 2,
+    Math.round(cast.early.cd) + '/' + Math.round(cast.early.full) + 'ms');
+  check('nạp đủ thì báo sẵn sàng', cast.ready === true);
+  check('nạp đủ thì xả được kỹ năng', cast.fired === true);
+  check('xả xong vào hồi chiêu đầy', Math.abs(cast.cdAfter - cast.full) < 2,
+    Math.round(cast.cdAfter) + 'ms');
 
   /* ================= LỚP CẢM GIÁC =================
    * Đây là phần quyết định "chặt có đã tay hay không", và cũng là phần dễ bị
@@ -489,7 +510,7 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   // Hạ boss -> nhận Tablet + gem theo đúng 3 điều kiện của bản gốc
   const win = await p.evaluate(() => new Promise(res => {
     const b = DP.UI.battle;
-    b.player.usedMagi = true; b.player.deaths = 0;
+    b.player.usedSkill = true; b.player.deaths = 0;
     const orig = b.cb.onFinish;      // giữ nguyên onFinish thật để save được ghi
     b.cb.onFinish = r => {
       // Chụp ví ngay TRƯỚC và NGAY SAU màn kết quả: gold/exp nhặt trong ải đã vào
@@ -579,14 +600,11 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   const gacha = await p.evaluate(() => {
     const s = DP.newSave('T');
     const r = DP.summonGear(s, 11, true);
-    const m = DP.summonMagi(s, 11, true);
-    return { gearLast: r[10].rank, magiLast: m[10].rank, n: r.length, mn: s.magi.length,
+    return { gearLast: r[10].rank, n: r.length,
              kinds: r.map(x => x.kind).filter((v, i, a) => a.indexOf(v) === i).length };
   });
   check('gói 10+1 trang bị bảo hiểm SS', gacha.gearLast === 'SS');
   check('gacha ra đủ cả vũ khí lẫn giáp', gacha.kinds >= 2, gacha.kinds + ' loại');
-  check('gói 10+1 magi bảo hiểm SS', gacha.magiLast === 'SS');
-  check('magi vào kho đúng số lượng', gacha.mn === 11);
 
   // Bỏ dở giữa chừng: bảng "RỜI ẢI" hiện ra, và ví KHÔNG được đổi thêm một đồng
   // nào — thứ nhặt được đã vào túi từ lúc nhặt rồi.
@@ -767,7 +785,7 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     return {
       bossBar: r(q('hBossHp').parentElement),
       fatigue: r(q('hBossFat').parentElement),
-      magi0: r(q('hMagi0')), magi1: r(q('hMagi1')),
+      skill0: r(q('hSkill0')), skill1: r(q('hSkill1')),
       orb: r(q('hOrb')), hp: r(q('hPHp')), timer: r(q('hTimer')),
       hudOn: q('hud').classList.contains('on')
     };
@@ -777,9 +795,9 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('thanh gục nằm NGAY DƯỚI thanh máu boss (đúng bản gốc)',
     hud.fatigue.y > hud.bossBar.y && hud.fatigue.y - (hud.bossBar.y + hud.bossBar.h) < 8,
     'cách ' + Math.round(hud.fatigue.y - hud.bossBar.y - hud.bossBar.h) + 'px');
-  check('nút Magi nằm ở MÉP PHẢI', hud.magi0.x > 440 && hud.magi1.x > 440,
-    'x=' + Math.round(hud.magi0.x));
-  check('quả cầu Magi ở góc dưới trái', hud.orb.x < 40 && hud.orb.y > 800,
+  check('nút kỹ năng nằm ở MÉP PHẢI', hud.skill0.x > 440 && hud.skill1.x > 440,
+    'x=' + Math.round(hud.skill0.x));
+  check('viên hệ ở góc dưới trái', hud.orb.x < 40 && hud.orb.y > 800,
     Math.round(hud.orb.x) + ',' + Math.round(hud.orb.y));
   check('thanh máu người chơi ở đáy', hud.hp.y > 850, 'y=' + Math.round(hud.hp.y));
   // Quy tắc bất di bất dịch của bản gốc: giữa và nửa dưới màn hình KHÔNG có nút nào.
@@ -821,7 +839,7 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   results.push('\n── màn hình menu ──');
   await p.evaluate(() => { DP.UI.leave(); });
   await p.waitForTimeout(300);
-  for (const s of ['home', 'quest', 'armory', 'gacha', 'more', 'forge', 'magi', 'shop', 'help', 'bosslist']) {
+  for (const s of ['home', 'quest', 'armory', 'gacha', 'more', 'forge', 'shop', 'help', 'bosslist']) {
     await p.evaluate(id => DP.UI.show(id), s);
     await p.waitForTimeout(120);
     const ok = await p.evaluate(id => {

@@ -19,7 +19,7 @@
   --line:#3a4d63; --gold:#f2c94b; --gold2:#a8801a;
   --hp:#3fd66a; --hp2:#1f8f42;
   --boss:#e33b30; --boss2:#8a1f18;
-  --fatigue:#f2c94b; --magi:#6fd4ff;
+  --fatigue:#f2c94b; --skill:#6fd4ff;
   --fire:#ff7a3c; --water:#4fb6ff; --earth:#8fd14f; --thunder:#ffd23f;
   --light:#fff6d8; --dark:#a06fe0;
   --SS:#f2d24b; --S:#f2a03c; --A:#b06fd0; --B:#5b8fd6; --C:#7fd07f; --D:#8fa3b5;
@@ -31,7 +31,7 @@ html,body{margin:0;height:100%;background:#05080c;overflow:hidden;color:var(--in
 #frame{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#05080c}
 /* flex:0 0 auto là BẮT BUỘC: không có nó thì trên màn hẹp hơn 540px, #stage co lại
    theo flex-shrink còn canvas vẫn 540px, và mép phải của game — đúng chỗ đặt hai nút
-   Magi — bị overflow:hidden cắt mất. Việc thu nhỏ do transform:scale lo, không phải
+   Kỹ năng — bị overflow:hidden cắt mất. Việc thu nhỏ do transform:scale lo, không phải
    do layout. */
 #stage{position:relative;flex:0 0 auto;width:540px;height:960px;transform-origin:center center;
   background:var(--bg);overflow:hidden;box-shadow:0 0 0 2px #22303d,0 18px 60px rgba(0,0,0,.75)}
@@ -44,7 +44,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
    HUD TRẬN ĐẤU — bố cục dựng theo ảnh chụp CHANGE_WEAPON.png của bản gốc.
    Quy tắc bất di bất dịch: KHÔNG đặt nút nào ở giữa và nửa dưới màn hình.
    Đó là vùng ngón cái, và là lý do UI gốc tối ưu. Chỉ có ba thứ bấm được:
-   nút Magi ở mép phải, nút menu góc trên phải, nút đổi vũ khí ngay dưới Magi.
+   nút kỹ năng ở mép phải, nút menu góc trên phải, nút đổi vũ khí ngay dưới.
    ========================================================================== */
 #hud{display:none}
 #hud.on{display:block}
@@ -95,24 +95,29 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
   display:flex;align-items:center;justify-content:center;box-shadow:0 2px 0 #000}
 .btn-menu span{display:block;width:16px;height:2px;background:#ffe6c8;box-shadow:0 5px 0 #ffe6c8,0 -5px 0 #ffe6c8}
 
-/* --- nút Magi ở mép phải (lục giác, đúng bản gốc) --- */
-.magi-col{position:absolute;right:6px;top:270px;display:flex;flex-direction:column;gap:14px}
-.magi-btn{position:relative;width:74px;height:74px;
+/* --- nút kỹ năng ở mép phải (lục giác, đúng bản gốc) --- */
+.skill-col{position:absolute;right:6px;top:270px;display:flex;flex-direction:column;gap:14px}
+.skill-btn{position:relative;width:74px;height:74px;
   clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
   background:linear-gradient(180deg,#3b4a5e,#1b2531);
   display:flex;align-items:center;justify-content:center;
   filter:grayscale(1) brightness(.7);transition:filter .15s}
-.magi-btn.ready{filter:none;box-shadow:0 0 16px rgba(111,212,255,.45)}
-.magi-btn:active{transform:translateY(2px)}
-.magi-btn .sym{font-size:26px;line-height:1;text-shadow:0 2px 3px #000}
-.magi-btn .rk{position:absolute;left:8px;top:8px;font-size:9px;font-weight:900}
-.magi-btn .fill{position:absolute;left:0;right:0;bottom:0;background:rgba(111,212,255,.28)}
-.magi-btn .edge{position:absolute;inset:0;
+.skill-btn.ready{filter:none;box-shadow:0 0 16px rgba(111,212,255,.45)}
+.skill-btn:active{transform:translateY(2px)}
+.skill-btn .nm{font-size:10px;font-weight:800;line-height:1.15;text-align:center;
+  padding:0 5px;text-shadow:0 2px 3px #000;letter-spacing:.2px}
+.skill-btn .cd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:900;color:#e8f2ff;text-shadow:0 2px 4px #000}
+.skill-btn .fill{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.55)}
+.skill-btn .edge{position:absolute;inset:0;
   clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
   box-shadow:inset 0 0 0 3px rgba(242,201,75,.75)}
-.magi-btn.empty{opacity:.28}
+.skill-btn.empty{opacity:.28}
+/* Đang hồi chiêu thì con số chiếm chỗ — giấu tên đi, không để hai lớp chữ đè nhau. */
+.skill-btn:not(.ready):not(.empty) .nm{opacity:0}
+.skill-btn:not(.ready):not(.empty){filter:grayscale(.55) brightness(.75)}
 
-/* --- đổi vũ khí: ba khe nhỏ, dưới cột Magi --- */
+/* --- đổi vũ khí: ba khe nhỏ, dưới cột kỹ năng --- */
 .wswitch{position:absolute;right:10px;top:432px;display:flex;flex-direction:column;gap:6px}
 .wslot{width:52px;height:34px;border-radius:8px;background:rgba(10,16,23,.8);
   border:2px solid var(--line);display:flex;align-items:center;justify-content:center;
@@ -125,18 +130,18 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
   background:rgba(6,10,16,.6);border-radius:12px;padding:2px 9px 2px 6px;display:flex;align-items:center;gap:5px}
 .dist b{color:var(--gold)}
 
-/* --- đáy màn hình: quả cầu Magi + máu + exp + đếm --- */
+/* --- đáy màn hình: viên hệ + máu + exp + đếm --- */
 .foot{position:absolute;left:0;right:0;bottom:0;height:120px;
   background:linear-gradient(0deg,rgba(6,10,16,.95),rgba(6,10,16,0))}
-.magi-orb{position:absolute;left:10px;bottom:16px;width:96px;height:96px;border-radius:50%;
+.elem-orb{position:absolute;left:10px;bottom:16px;width:96px;height:96px;border-radius:50%;
   border:4px solid var(--gold2);background:radial-gradient(circle at 36% 32%,#1b2733,#080d13 74%);
   box-shadow:0 0 0 1px #000,0 3px 10px rgba(0,0,0,.7);overflow:hidden}
-.magi-orb .core{position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+.elem-orb .core{position:absolute;left:50%;bottom:0;transform:translateX(-50%);
   width:100%;background:radial-gradient(circle at 50% 100%,#dff6ff,#6fd4ff 45%,#2a86c8);
   box-shadow:0 0 22px rgba(111,212,255,.75)}
-.magi-orb .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+.elem-orb .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:15px;font-weight:900;text-shadow:0 2px 4px #000}
-.magi-orb .gem{position:absolute;left:50%;top:-9px;transform:translateX(-50%) rotate(45deg);
+.elem-orb .gem{position:absolute;left:50%;top:-9px;transform:translateX(-50%) rotate(45deg);
   width:16px;height:16px;background:linear-gradient(135deg,#fff3c0,#c8a020);border:2px solid #6a5210}
 .p-name{position:absolute;left:118px;bottom:76px;font-size:12px;font-weight:700}
 .p-hpnum{position:absolute;right:14px;bottom:74px;font-size:19px;font-weight:900;text-shadow:0 2px 3px #000}
@@ -301,7 +306,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .rank{font-weight:900;font-size:10px;padding:1px 5px;border-radius:3px;background:#000;border:1px solid currentColor}
 .rk-SS{color:var(--SS)}.rk-S{color:var(--S)}.rk-A{color:var(--A)}.rk-B{color:var(--B)}.rk-C{color:var(--C)}.rk-D{color:var(--D)}.rk-Lapis{color:#7fe3f0}
 
-/* danh sách trang bị / magi */
+/* danh sách trang bị */
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .item{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px;font-size:11px;position:relative}
@@ -439,9 +444,9 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
       </div>
       <button class="btn-menu tap" id="hMenu"><span></span></button>
 
-      <div class="magi-col">
-        <button class="magi-btn empty tap" id="hMagi0"><i class="fill"></i><span class="rk"></span><span class="sym"></span><i class="edge"></i></button>
-        <button class="magi-btn empty tap" id="hMagi1"><i class="fill"></i><span class="rk"></span><span class="sym"></span><i class="edge"></i></button>
+      <div class="skill-col">
+        <button class="skill-btn empty tap" id="hSkill0"><i class="fill"></i><span class="cd"></span><span class="nm"></span><i class="edge"></i></button>
+        <button class="skill-btn empty tap" id="hSkill1"><i class="fill"></i><span class="cd"></span><span class="nm"></span><i class="edge"></i></button>
       </div>
 
       <div class="wswitch" id="hWswitch"></div>
@@ -450,7 +455,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 
       <div class="foot">
         <div class="gauge2" id="hGauge2"><i></i><div class="seg"></div></div>
-        <div class="magi-orb tap" id="hOrb">
+        <div class="elem-orb tap" id="hOrb">
           <div class="gem"></div>
           <div class="core" id="hOrbCore" style="height:0%"></div>
           <div class="pct" id="hOrbPct">0%</div>
@@ -482,8 +487,10 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 </div>
 
 <script src="data/gamedata.js"></script>
+<script src="js/atlas.js"></script>
 <script src="js/punicon.js"></script>
 <script src="js/meta.js"></script>
+<script src="js/skills.js"></script>
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/bot.js"></script>

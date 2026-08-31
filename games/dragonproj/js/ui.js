@@ -11,12 +11,15 @@
   var battle = null;
   var screens, cur = 'home';
   var stage, hud;
-  var selGear = null, selMagiSlot = -1, gearFilter = 'weapon';
+  var selGear = null, gearFilter = 'weapon';
 
   /* --------------------------------------------------------- KHỞI ĐỘNG --- */
   function boot() {
     stage = $('stage'); hud = $('hud'); screens = $('screens');
     fit(); window.addEventListener('resize', fit);
+    // Nạp bộ ảnh. Không chặn gì cả — thiếu ảnh thì game vẫn vẽ bằng hình học như
+    // cũ, ảnh về tới đâu thì lên tới đó. Nhờ vậy thay art được từng phần.
+    if (G.Atlas) G.Atlas.load('assets/asset-map.js');
     S = G.load();
     if (!S) { S = G.starterKit(G.newSave('Hound')); G.save(S); }
     G.rollRecurrent(S);
@@ -103,7 +106,6 @@
     mkScreen('more',   'KHÁC', '', true);
     mkScreen('gear',   'CHI TIẾT TRANG BỊ', '', false, true);
     mkScreen('forge',  'NGUYÊN LIỆU', '', false, true);
-    mkScreen('magi',   'MAGI', '', false, true);
     mkScreen('shop',   'TIỆM', '', false, true);
     mkScreen('help',   'CÁCH CHƠI', '', false, true);
     mkScreen('bosslist','DANH SÁCH BEHEMOTH', '', false, true);
@@ -120,7 +122,7 @@
     screens.style.display = 'block';
     renderCur(id);
     ({ home: rHome, quest: rQuest, armory: rArmory, gacha: rGacha, more: rMore,
-       gear: rGear, forge: rForge, magi: rMagi, shop: rShop, help: rHelp, bosslist: rBossList }[id] || function () {})();
+       gear: rGear, forge: rForge, shop: rShop, help: rHelp, bosslist: rBossList }[id] || function () {})();
     // nav highlight
     var nb = el.querySelector('.navbar');
     if (nb) Array.prototype.forEach.call(nb.children, function (b) { b.classList.toggle('on', b.getAttribute('data-nav') === id); });
@@ -166,7 +168,6 @@
             '<div class="area">' + area.n + '</div>' +
             '<div class="quick l">' +
               '<button data-act="forge"><span class="em">⚒️</span>Nguyên liệu</button>' +
-              '<button data-act="magi"><span class="em">💠</span>Magi</button>' +
             '</div>' +
             '<div class="quick r">' +
               '<button data-act="shop"><span class="em">🛒</span>Tiệm</button>' +
@@ -214,7 +215,6 @@
       if (a === 'hunt') startStage(nx.id);
       else if (a === 'goQuest') show('quest');
       else if (a === 'forge') show('forge');
-      else if (a === 'magi') show('magi');
       else if (a === 'shop') show('shop');
       else if (a === 'help') show('help');
       else if (a === 'claim') { claimRecurrent(t.getAttribute('data-k'), t.getAttribute('data-id')); }
@@ -438,10 +438,7 @@
       var f = e.target.closest('[data-filter]');
       if (f) { gearFilter = f.getAttribute('data-filter'); rArmory(); return; }
       var g = e.target.closest('[data-gear]');
-      // selMagiSlot phải reset khi đổi món: nó là biến dùng chung, và nếu món trước
-      // là vũ khí (3 ô) còn món sau là giáp (2 ô) thì chỉ số cũ trỏ ra ngoài mảng
-      // shapes -> G.MAGI_SHAPES[undefined].sym ném lỗi và treo cả màn hình.
-      if (g) { selGear = g.getAttribute('data-gear'); selMagiSlot = -1; show('gear'); return; }
+      if (g) { selGear = g.getAttribute('data-gear'); show('gear'); return; }
       var ws = e.target.closest('[data-wslot]');
       if (ws) { gearFilter = 'weapon'; toast('Chọn một vũ khí trong túi để lắp vào khe ' + (+ws.getAttribute('data-wslot') + 1)); pendingSlot = { kind: 'weapon', i: +ws.getAttribute('data-wslot') }; rArmory(); return; }
       var as = e.target.closest('[data-aslot]');
@@ -455,18 +452,17 @@
     for (var i = 0; i < 4; i++) s += '<i class="' + (i < g.lb ? 'on' : '') + '"></i>';
     return s + '</span>';
   }
+  // Vũ khí giờ mang theo bộ kỹ năng của chính nó, nên thứ đáng xem trước ở một
+  // món vũ khí là HAI ĐÒN đó, không phải mấy cái ô rỗng.
   function slotsHtml(g) {
-    // Số ô vẽ ra bám theo g.shapes chứ KHÔNG cứng bằng 3: vũ khí có 3 hình dạng còn
-    // giáp chỉ có 2, cứ vẽ đủ 3 là món giáp nào cũng in ra một chữ "undefined".
-    var n = G.gearSlots(g), s = '<div class="slots">';
-    for (var i = 0; i < g.shapes.length; i++) {
-      var shape = g.shapes[i], locked = i >= n;
-      var m = G.magiByUid(S, g.magi[i]);
-      s += '<i class="slot ' + shape + ' ' + (locked ? 'locked' : '') + '">' +
-        (m ? '<b style="color:' + G.MAGI_SHAPES[m.shape].color + '">' + G.MAGI_SHAPES[m.shape].sym + '</b>'
-           : (G.MAGI_SHAPES[shape] || {}).sym || '') + '</i>';
-    }
-    return s + '</div>';
+    if (g.kind !== 'weapon') return '';
+    var list = G.skillsOf(g.wclass), out = '<div class="slots">';
+    list.forEach(function (sk, i) {
+      var locked = i > 0 && g.lv < G.SKILL_RULES.unlockLv2;
+      out += '<i class="slot ' + (locked ? 'locked' : '') + '" title="' + sk.n + '">' +
+        (locked ? '🔒' : '◈') + '</i>';
+    });
+    return out + '</div>';
   }
   function matChips() {
     var out = '';
@@ -513,72 +509,35 @@
     var rc = G.rerollCost(g);
     html += '<button class="btn ' + (G.canPay(S, rc) ? '' : 'dis') + '" data-act="reroll">Đổi ability — ' + fmt(rc.gold) + ' Gold</button></div>';
 
-    // Ô Magi
-    html += '<div class="card"><h3>Ô Magi</h3><p>Chỉ lắp được Magi CÙNG HÌNH DẠNG với ô. Ô thứ ' +
-      (g.kind === 'weapon' ? '3' : '2') + ' mở khi Limit Break đủ 4 lần.</p>';
-    var n = G.gearSlots(g);
-    for (var i = 0; i < g.shapes.length; i++) {
-      var shape = g.shapes[i], locked = i >= n, m = G.magiByUid(S, g.magi[i]);
-      html += '<div class="row" style="margin-bottom:5px;opacity:' + (locked ? '.35' : '1') + '">' +
-        '<span class="slot ' + shape + '">' + (G.MAGI_SHAPES[shape] || {}).sym + '</span>' +
-        '<span style="font-size:11px;flex:1">' + (m ? m.n + ' <b style="color:#9fb2c4">Lv.' + m.lv + '</b>' : (locked ? 'chưa mở' : 'trống — ' + G.MAGI_SHAPES[shape].vi)) + '</span>' +
-        (locked ? '' : '<button class="btn sm" data-slot="' + i + '">' + (m ? 'Đổi' : 'Lắp') + '</button>') +
-        (m && !locked ? '<button class="btn sm red" data-unslot="' + i + '">✕</button>' : '') +
-        '</div>';
-    }
-    if (selMagiSlot >= 0 && selMagiSlot < g.shapes.length) {
-      var want = g.shapes[selMagiSlot];
-      // Phải ghi rõ ĐANG LẮP Ô SỐ MẤY: bể hình dạng của vũ khí là star/star/heart/
-      // diamond nên hai ô trùng hình rất hay xảy ra, lúc đó ba nút "Lắp" cho ra ba
-      // bảng giống hệt nhau và không ai biết mình đang lắp vào ô nào.
-      html += '<div style="border-top:1px dashed rgba(255,255,255,.12);margin-top:7px;padding-top:7px">' +
-        '<p>Lắp vào <b>ô số ' + (selMagiSlot + 1) + '</b> — chọn Magi hình <b>' +
-        G.MAGI_SHAPES[want].sym + ' ' + G.MAGI_SHAPES[want].vi + '</b>:</p><div class="grid2">';
-      var avail = S.magi.filter(function (inst) { var d = G.magiById(inst.id); return d && d.shape === want; });
-      if (!avail.length) html += '<div class="empty-note" style="grid-column:1/-1">Không có Magi hình này. Triệu hồi thêm.</div>';
-      avail.forEach(function (inst) {
-        var d = G.magiById(inst.id);
-        html += '<button class="item" data-putmagi="' + inst.uid + '"><div class="corner">' + rankChip(d.rank) + '</div>' +
-          '<div class="nm">' + d.n + '</div><div class="sub">Lv.' + inst.lv + '<br>' + d.d.slice(0, 60) + '…</div></button>';
+    // Kỹ năng của vũ khí
+    if (g.kind === 'weapon') {
+      var sks = G.skillsOf(g.wclass);
+      html += '<div class="card"><h3>Kỹ năng</h3><p>Hai đòn này gắn liền với loại vũ khí, ' +
+        'không tháo lắp được. Đổi vũ khí là đổi hẳn cả hai. Trong trận: <b>giữ rồi trượt về ' +
+        'phía nút kỹ năng, giữ nguyên ở đó để nạp, nhả ra để xả</b>.</p>';
+      sks.forEach(function (sk, i) {
+        var locked = i > 0 && g.lv < G.SKILL_RULES.unlockLv2;
+        html += '<div class="row" style="margin-bottom:5px;opacity:' + (locked ? '.4' : '1') + '">' +
+          '<span style="font-size:11px;flex:1"><b>' + sk.n + '</b>' +
+          (locked ? ' <i style="color:#9fb2c4">— mở ở Lv.' + G.SKILL_RULES.unlockLv2 + '</i>' : '') +
+          '<br><i style="color:#9fb2c4">' + sk.d + '</i>' +
+          '<br><i style="color:#7f8fa0">nạp ' + (sk.charge / 1000).toFixed(1) + 's · hồi ' +
+          (sk.cd / 1000).toFixed(0) + 's</i></span></div>';
       });
-      html += '</div></div>';
+      var ef = G.ELEM_FX[g.el] || G.ELEM_FX.none;
+      html += '<p style="border-top:1px dashed rgba(255,255,255,.12);margin-top:7px;padding-top:7px">' +
+        'Hệ <b style="color:' + G.ELEMENTS[g.el].color + '">' + G.ELEMENTS[g.el].vi + '</b> đổi luôn ' +
+        'hình dạng hiệu ứng: vệt <b>' + ef.trail + '</b> để lại dọc đường, và <b>' + ef.burst +
+        '</b> bung ra chỗ lưỡi chạm.</p></div>';
     }
-    html += '</div>';
-
-    // Nâng cấp
-    var ec = G.enhanceCost(g), lc = G.limitBreakCost(g), vc = G.evolveCost(g);
-    html += '<div class="card"><h3>Nâng cấp</h3>' +
-      '<button class="btn ' + (g.lv < G.MAX_LV && G.canPay(S, ec) ? 'pri' : 'dis') + '" data-act="enhance" style="width:100%;margin-bottom:6px">' +
-        'Nâng cấp → Lv.' + Math.min(G.MAX_LV, g.lv + 1) + ' · ' + fmt(ec.gold) + ' Gold + ' + ec.mat.str_stone + ' Strengthening Stone</button>' +
-      '<button class="btn ' + (g.lb < 4 && G.canPay(S, lc) ? 'pri' : 'dis') + '" data-act="lb" style="width:100%;margin-bottom:6px">' +
-        // Kẹp nhãn ở 4/4: trước đây in ra "Limit Break 5/4" khi đã tối đa.
-        (g.lb >= 4 ? 'Limit Break 4/4 — đã tối đa'
-                   : 'Limit Break ' + (g.lb + 1) + '/4' + (g.lb === 3 ? ' — MỞ Ô MAGI' : '') + ' · ' + fmt(lc.gold) + ' Gold + Lapis') +
-        '</button>' +
-      '<button class="btn ' + (G.canEvolve(g) && G.canPay(S, vc) ? 'pri' : 'dis') + '" data-act="evolve" style="width:100%;margin-bottom:6px">' +
-        (G.canEvolve(g)
-          ? 'Tiến hoá → Lv.1, chỉ số cao hơn · ' + fmt(vc.gold) + ' Gold + ' + vc.mat.dragon_core + ' Lõi Rồng'
-          : (g.rank === 'S' || g.rank === 'SS'
-              ? (g.evo >= G.MAX_EVO ? 'Tiến hoá ' + g.evo + '/' + G.MAX_EVO + ' — đã tối đa'
-                                    : 'Tiến hoá — cần Lv.' + G.MAX_LV + ' trước')
-              : 'Tiến hoá — chỉ dành cho đồ hạng S và SS')) + '</button>' +
-      '<div class="row"><button class="btn ' + (equipped ? 'dis' : 'go') + '" data-act="equip" style="flex:1">' + (equipped ? 'Đang mặc' : 'Trang bị') + '</button>' +
-      '<button class="btn red" data-act="dismantle">Rã lấy Lapis</button></div></div>';
 
     b.innerHTML = html;
     b.onclick = function (e) {
-      var t = e.target.closest('[data-act],[data-slot],[data-unslot],[data-putmagi]'); if (!t) return;
+      var t = e.target.closest('[data-act]'); if (!t) return;
       var a = t.getAttribute('data-act');
       var r;
-      if (t.hasAttribute('data-slot')) { selMagiSlot = +t.getAttribute('data-slot'); rGear(); return; }
-      if (t.hasAttribute('data-unslot')) { G.equipMagi(S, g, +t.getAttribute('data-unslot'), null); save(); rGear(); return; }
-      if (t.hasAttribute('data-putmagi')) {
-        r = G.equipMagi(S, g, selMagiSlot, t.getAttribute('data-putmagi'));
-        if (!r.ok) toast(r.why, '#c34141'); else { selMagiSlot = -1; save(); }
-        rGear(); return;
-      }
       if (a === 'enhance') r = G.enhance(S, g);
-      else if (a === 'lb') { r = G.limitBreak(S, g); if (r.ok && r.unlockedSlot) toast('MỞ Ô MAGI THỨ ' + (g.kind === 'weapon' ? 3 : 2) + '!', '#f2c94b'); }
+      else if (a === 'lb') r = G.limitBreak(S, g);
       else if (a === 'evolve') r = G.evolve(S, g);
       else if (a === 'reroll') r = G.reroll(S, g);
       else if (a === 'equip') {
@@ -621,7 +580,7 @@
       '<div class="upgrow"><b>Limit Break</b><span>Lapis cùng hạng với món đồ</span></div>' +
       '<div class="upgrow"><b>Tiến hoá</b><span style="color:#f2d24b">Lõi Rồng — chỉ có từ Triệu hồi trùng</span></div>' +
       '<div class="upgrow"><b>Đổi Ability</b><span>Gold</span></div>' +
-      '<div class="upgrow"><b>Nâng Magi</b><span>Magi Fragment + Gold</span></div></div>';
+      '</div>';
 
     html += '<div class="card"><h3>Kho nguyên liệu</h3>';
     var any = false;
@@ -648,45 +607,11 @@
       html += '<div class="upgrow"><b>' + T.en + '</b><span>' +
         uniq.map(function (id) { return G.MATERIALS[id] ? G.MATERIALS[id].n : id; }).join(' · ') + '</span></div>';
     });
-    html += '<div class="upgrow"><b>Điểm khai thác</b><span>Strengthening Stone · Magi Fragment · Equipment Crystal · Lapis</span></div>' +
+    html += '<div class="upgrow"><b>Điểm khai thác</b><span>Strengthening Stone · Lõi Kỹ Năng · Equipment Crystal · Lapis</span></div>' +
       '<div class="upgrow"><b>Behemoth cuối ải</b><span>Nguyên liệu hạng cao + Lapis; phá bộ phận thì rơi thêm</span></div></div>';
 
     b.innerHTML = html;
     b.onclick = function (e) { if (e.target.closest('[data-act="gacha"]')) show('gacha'); };
-  }
-
-  /* -------------------------------------------------------------- MAGI --- */
-  function rMagi() {
-    var b = $('body-magi');
-    var html = '<div class="card"><p>Bốn loại: ★ Công kích · ♥ Hồi phục · ◆ Hỗ trợ (ba loại này gắn vào ' +
-      '<b>vũ khí</b>) · ● Bị động (gắn vào <b>giáp</b>). Ô có hình dạng — chỉ lắp được Magi cùng hình.</p></div>';
-    if (!S.magi.length) html += '<div class="empty-note">Chưa có Magi. Sang Triệu hồi.</div>';
-    var byShape = {};
-    S.magi.forEach(function (inst) { var d = G.magiById(inst.id); if (!d) return; (byShape[d.shape] = byShape[d.shape] || []).push({ i: inst, d: d }); });
-    ['star', 'heart', 'diamond', 'circle'].forEach(function (sh) {
-      var list = byShape[sh]; if (!list) return;
-      var SH = G.MAGI_SHAPES[sh];
-      html += '<div class="card"><h3 style="color:' + SH.color + '">' + SH.sym + ' ' + SH.vi + ' (' + list.length + ')</h3><div class="grid2">';
-      list.sort(function (a, b2) { return G.RANK_ORDER.indexOf(b2.d.rank) - G.RANK_ORDER.indexOf(a.d.rank); });
-      list.forEach(function (x) {
-        var max = G.MAGI_MAXLV[x.d.rank];
-        var c = G.magiEnhanceCost({ rank: x.d.rank, lv: x.i.lv });
-        html += '<div class="item"><div class="corner">' + rankChip(x.d.rank) + '</div>' +
-          '<div class="nm">' + x.d.n + '</div>' +
-          '<div class="sub">Lv.' + x.i.lv + '/' + max + ' · sức mạnh ×' + G.magiPower({ rank: x.d.rank, lv: x.i.lv }).toFixed(2) + '<br>' + x.d.d + '</div>' +
-          '<button class="btn sm ' + (x.i.lv < max && G.canPay(S, c) ? 'pri' : 'dis') + '" data-upmagi="' + x.i.uid + '" style="margin-top:5px">' +
-          'Nâng · ' + fmt(c.gold) + 'G + ' + c.mat.magi_frag + ' mảnh</button></div>';
-      });
-      html += '</div></div>';
-    });
-    b.innerHTML = html;
-    b.onclick = function (e) {
-      var t = e.target.closest('[data-upmagi]'); if (!t) return;
-      var inst = S.magi.find(function (m) { return m.uid === t.getAttribute('data-upmagi'); });
-      var r = G.enhanceMagi(S, inst);
-      if (!r.ok) toast(r.why, '#c34141');
-      save(); rMagi(); refresh();
-    };
   }
 
   /* --------------------------------------------------------- TRIỆU HỒI --- */
@@ -710,14 +635,6 @@
       'thứ duy nhất mở được Tiến hoá, và <b>không cày được ở đâu cả</b>. Đang có ' +
       '<b style="color:#f2d24b">' + fmt(S.mats.dragon_core || 0) + '</b>.</p></div>';
 
-    html += '<div class="gacha-hero" style="background:radial-gradient(90% 100% at 50% 100%,#2f4a6a,#101620 70%)">' +
-      '<b>TRIỆU HỒI MAGI</b><span>Đá kỹ năng lắp vào trang bị</span>' +
-      '<div class="rate-tab"><b style="color:#f2d24b">SS 3%</b><b style="color:#f2a03c">S 9%</b>' +
-      '<b style="color:#b06fd0">A 48%</b><b style="color:#5b8fd6">B 40%</b></div></div>';
-    html += '<div class="card"><div class="row">' +
-      '<button class="btn ' + (S.gem >= 25 ? 'pri' : 'dis') + '" data-act="m1" style="flex:1">Đơn — 25 Gem</button>' +
-      '<button class="btn ' + (S.gem >= 250 ? 'pri' : 'dis') + '" data-act="m10" style="flex:1">10+1 — 250 Gem <span style="font-size:9px">(bảo hiểm SS)</span></button>' +
-      '</div></div>';
 
     html += '<div class="card"><button class="btn" data-act="bosslist" style="width:100%">Xem toàn bộ ' +
       G.BEHEMOTHS.length + ' Behemoth và bộ đồ của chúng</button></div>';
@@ -743,17 +660,6 @@
         }).join('') +
         (cores ? '<p style="margin-top:6px;color:#f2d24b">Tổng +' + cores + ' Lõi Rồng.</p>' : '') +
         '<button class="btn pri" data-act="armory" style="width:100%;margin-top:7px">Vào Kho đồ mặc thử</button></div>';
-        save(); rGacha(); refresh(); return;
-      }
-      if (a === 'm1' || a === 'm10') {
-        var g2 = a === 'm1' ? 25 : 250, c2 = a === 'm1' ? 1 : 11;
-        if (S.gem < g2) { toast('Không đủ Gem', '#c34141'); return; }
-        S.gem -= g2;
-        var mr = G.summonMagi(S, c2, c2 > 1);
-        gachaOut = '<div class="card"><h3>Kết quả</h3>' + mr.map(function (x) {
-          return '<div class="row" style="font-size:11px;padding:3px 0"><span style="flex:1">' + rankChip(x.rank) + ' ' +
-            '<b style="color:' + G.MAGI_SHAPES[x.shape].color + '">' + G.MAGI_SHAPES[x.shape].sym + '</b> ' + x.n + '</span></div>';
-        }).join('') + '</div>';
         save(); rGacha(); refresh(); return;
       }
       if (a === 'armory') { show('armory'); return; }
@@ -915,7 +821,7 @@
       '<div class="row wrap" style="font-size:11px;gap:14px">' +
       '<span>Behemoth hạ: <b>' + (st.boss || 0) + '</b></span><span>Quái hạ: <b>' + (st.mob || 0) + '</b></span>' +
       '<span>Bộ phận phá: <b>' + (st.parts || 0) + '</b></span><span>Chết: <b>' + (st.deaths || 0) + '</b></span>' +
-      '<span>Trang bị: <b>' + S.gear.length + '</b></span><span>Magi: <b>' + S.magi.length + '</b></span>' +
+      '<span>Trang bị: <b>' + S.gear.length + '</b></span>' +
       '<span>Medal: <b>' + fmt(S.medal) + '</b></span>' +
       '<span>Ải đã phá: <b>' + G.STAGES.filter(function (x) { return S.cleared[x.id]; }).length +
         '/' + G.STAGES.length + '</b></span>' +
@@ -960,7 +866,7 @@
       'Giữ chỉ tính khi <b>cần gạt đang ở giữa</b>, nên kéo chạy bao lâu cũng không lo tự ra đòn; ' +
       'muốn ra đòn thì thả cần gạt về giữa rồi giữ. Riêng thế <b>đỡ</b> vẫn đi được (chậm hơn), ' +
       'còn nạp Chém Tích Lực và ngắm bắn thì đứng yên — lúc đó kéo là <b>ngắm</b>.</p>' +
-      '<p><span class="kbd">GIỮ rồi TRƯỢT VỀ HƯỚNG NÚT MAGI</span> xả Magi. Không cần với tay tới nút — ' +
+      '<p><span class="kbd">GIỮ rồi TRƯỢT VỀ HƯỚNG NÚT KỸ NĂNG</span> rồi GIỮ NGUYÊN ở đó để NẠP, nhả ra để XẢ. Không cần với tay tới nút — ' +
       'chỉ cần <b>trượt đúng hướng</b>, cần gạt sẽ mọc ra một tia sáng chỉ về nút bạn đang nhắm. ' +
       'Đây là câu lệnh gốc của Colopl cho kỹ năng; bấm thẳng vào nút cũng được.</p></div>';
 
@@ -1010,7 +916,7 @@
       '<p>1. Boss <b>lộ WEAK point</b> từng đợt (viền vàng, chữ WEAK).</p>' +
       '<p>2. Đánh vào đó → sát thương ×' + G.BAL.weakMul + ' và <b>nạp thanh gục</b> (thanh vàng nhỏ dưới thanh máu).</p>' +
       '<p>3. Thanh gục đầy → boss <b>nằm ra ' + (G.BAL.downMs / 1000) + ' giây</b>, ăn sát thương ×' + G.BAL.downDmgMul + '.</p>' +
-      '<p>4. Đó là lúc xả Magi và đòn đặc thù mạnh nhất.</p>' +
+      '<p>4. Đó là lúc xả kỹ năng và đòn đặc thù mạnh nhất.</p>' +
       '<p>Đánh đủ vào một bộ phận thì <b>phá</b> được nó — rơi thêm nguyên liệu, và vùng đó ăn thêm sát thương.</p>' +
       '<p>Vùng <b style="color:#ff3b30">đỏ</b> là đòn boss sắp ra. Vòng trong thu nhỏ báo thời điểm nổ.</p></div>';
 
@@ -1030,7 +936,7 @@
       'SS 3% · S 15% · A 55% · B 27%, đúng tỉ lệ Quest Gacha của bản gốc.</p>' +
       '<p>Nhưng gacha chỉ cho <b>món đồ</b>, không cho <b>sức mạnh</b>. Muốn mạnh thì nâng cấp, ' +
       'mà nguyên liệu nâng cấp <b>chỉ rơi trong ải</b>: Strengthening Stone, Equipment Crystal ' +
-      '(bắt buộc từ Lv.25), Lapis để Limit Break, Magi Fragment.</p>' +
+      '(bắt buộc từ Lv.25), Lapis để Limit Break, Lõi Kỹ Năng.</p>' +
       '<p><b>Hết vé thì vào Tiệm</b>: quầy <b style="color:#3fd66a">Nạp</b> phát không mọi gói (bấm ' +
         'bao nhiêu lần cũng được), hoặc đổi bằng <b>Medal</b> — phá ải là có Medal. ' +
         'Chỉ <b style="color:#f2d24b">Lõi Rồng</b> là không quầy nào cho: nó vẫn chỉ có từ quay trúng đồ trùng.</p>' +
@@ -1040,7 +946,7 @@
       'mới dùng được — và nó <b>không cày được ở đâu cả</b>. Nên không có cú quay nào là phí.</p></div>';
 
     html += '<div class="card"><h3>Thưởng Gem mỗi ải</h3>' +
-      '<p>Đúng như bản gốc, tối đa <b>4 Gem</b>: không gục lần nào (+1), có dùng Magi (+1), ' +
+      '<p>Đúng như bản gốc, tối đa <b>4 Gem</b>: không gục lần nào (+1), có dùng kỹ năng (+1), ' +
       'xong trong ' + (G.BAL.gemFastMs / 1000) + ' giây (+1), và đủ cả ba thì <b>+1 nữa</b>.</p>' +
       '<p>Riêng <b>lần đầu phá</b> mỗi ải còn thưởng thêm Gem — ải thường +5, ải cuối vùng +10.</p></div>';
 
@@ -1069,9 +975,9 @@
       onHud: updateHud,
       onFinish: onFinish,
       onPhase: setPhaseHud,
-      onWeapon: function () { renderWeaponSlots(); renderMagiBtns(); }
+      onWeapon: function () { renderWeaponSlots(); renderSkillBtns(); }
     });
-    renderWeaponSlots(); renderMagiBtns();
+    renderWeaponSlots(); renderSkillBtns();
     battle.start();
   }
 
@@ -1095,8 +1001,31 @@
         else battle.paused = false;
       }
     };
-    $('hMagi0').onclick = function () { if (battle) battle.castMagi(0); };
-    $('hMagi1').onclick = function () { if (battle) battle.castMagi(1); };
+    // Kỹ năng nạp bằng GIỮ, nên nút cũng phải giữ chứ không bấm. Đây chỉ là đường
+    // dự phòng cho ai không quen cử chỉ trượt — cách chính vẫn là giữ rồi trượt về
+    // hướng nút, đúng ngữ pháp Punicon.
+    [0, 1].forEach(function (i) {
+      var btn = $('hSkill' + i), holdT = 0, raf = 0;
+      btn.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        if (!battle) return;
+        holdT = performance.now();
+        var step = function () {
+          if (!battle) return;
+          battle.skillCharge(i, performance.now() - holdT);
+          raf = requestAnimationFrame(step);
+        };
+        step();
+      });
+      var up = function (e) {
+        if (!raf) return;
+        cancelAnimationFrame(raf); raf = 0;
+        if (battle) battle.skillRelease(i, performance.now() - holdT);
+      };
+      btn.addEventListener('pointerup', up);
+      btn.addEventListener('pointercancel', up);
+      btn.addEventListener('pointerleave', up);
+    });
     $('hGemRevive').onclick = function () { if (battle && battle.gemRevive()) { $('hDown').classList.remove('on'); refresh(); } };
     $('hGiveUp').onclick = function () { leaveBattle(); };
   }
@@ -1122,21 +1051,30 @@
       var t = e.target.closest('[data-w]'); if (!t || !battle) return;
       battle.setWeapon(+t.getAttribute('data-w'));
       renderWeaponSlots();
-      renderMagiBtns();
+      renderSkillBtns();
     };
   }
 
-  function renderMagiBtns() {
+  function renderSkillBtns() {
     for (var i = 0; i < 2; i++) {
-      var btn = $('hMagi' + i);
-      var m = battle && battle.wp ? battle.wp.magi[i] : null;
-      if (!m) { btn.className = 'magi-btn empty tap'; btn.querySelector('.sym').textContent = ''; btn.querySelector('.rk').textContent = ''; continue; }
-      btn.className = 'magi-btn tap';
-      btn.querySelector('.sym').textContent = G.MAGI_SHAPES[m.shape].sym;
-      btn.querySelector('.sym').style.color = G.MAGI_SHAPES[m.shape].color;
-      btn.querySelector('.rk').textContent = m.rank;
-      btn.querySelector('.rk').style.color = G.RANK_COLOR[m.rank];
-      btn.title = m.n;
+      var btn = $('hSkill' + i);
+      var sk = battle ? battle.skillDef(i) : null;
+      var nm = btn.querySelector('.nm');
+      if (!sk) {
+        // Khe trống vì CHƯA MỞ, không phải vì hỏng. Để trắng trơn thì người chơi
+        // tưởng game lỗi; ghi thẳng điều kiện ra là hết thắc mắc.
+        var all = battle && battle.wp ? G.skillsOf(battle.wp.wclass) : [];
+        btn.className = 'skill-btn empty tap';
+        nm.textContent = all[i] ? 'Lv.' + G.SKILL_RULES.unlockLv2 : '';
+        btn.querySelector('.cd').textContent = '';
+        btn.title = all[i] ? all[i].n + ' — mở ở cấp vũ khí ' + G.SKILL_RULES.unlockLv2 : '';
+        continue;
+      }
+      btn.className = 'skill-btn tap';
+      // Tên đòn ngay trên nút. Người chơi cần biết mình sắp xả cái gì, không phải
+      // một ký hiệu hình học rồi tự đoán.
+      nm.textContent = sk.n;
+      btn.title = sk.n + ' — ' + sk.d;
     }
   }
 
@@ -1184,9 +1122,12 @@
     $('hRevive').textContent = p.revives;
     $('hGem').textContent = S.gem;
     $('hWName').textContent = bt.wp ? (G.WEAPONS[bt.wp.wclass].vi + ' · ' + G.WTYPES[bt.wp.wtype].vi) : '';
-    // quả cầu Magi
-    $('hOrbCore').style.height = p.magi + '%';
-    $('hOrbPct').textContent = Math.floor(p.magi) + '%';
+    // Viên hệ: hệ nguyên tố của vũ khí đang cầm giờ đổi luôn hình dạng hiệu ứng
+    // kỹ năng, nên nó là thông tin phải thấy được mọi lúc.
+    var elId = (bt.wp && bt.wp.el) || 'none', EL = G.ELEMENTS[elId];
+    $('hOrbCore').style.background = EL.color;
+    $('hOrbCore').style.height = '100%';
+    $('hOrbPct').textContent = EL.vi;
     // Heat / Soul
     var g2 = $('hGauge2');
     if (bt.wp && (bt.wp.wtype === 'heat' || bt.wp.wtype === 'soul')) {
@@ -1194,12 +1135,15 @@
       g2.classList.toggle('soul', bt.wp.wtype === 'soul');
       g2.querySelector('i').style.width = (bt.wp.wtype === 'heat' ? p.heat : p.soul) + '%';
     } else g2.classList.remove('on');
-    // nút Magi sáng khi đủ
+    // Nút kỹ năng: phần tối dâng từ dưới lên là hồi chiêu còn lại, hết thì viền sáng.
     for (var i = 0; i < 2; i++) {
-      var btn = $('hMagi' + i), m = bt.wp ? bt.wp.magi[i] : null;
-      if (!m) continue;
-      btn.classList.toggle('ready', p.magi >= m.cost);
-      btn.querySelector('.fill').style.height = Math.min(100, p.magi / m.cost * 100) + '%';
+      var btn = $('hSkill' + i), sk = bt.skillDef(i);
+      if (!sk) continue;
+      var left = bt.skillCdLeft(i), full = bt.skillCdOf(sk);
+      var ready = left <= 0;
+      btn.classList.toggle('ready', ready);
+      btn.querySelector('.fill').style.height = (ready ? 0 : left / full * 100) + '%';
+      btn.querySelector('.cd').textContent = ready ? '' : Math.ceil(left / 1000);
     }
     // bảng bất tỉnh
     $('hDown').classList.toggle('on', !!p.down);
@@ -1235,7 +1179,7 @@
         Math.floor(r.elapsed / 60000) + ':' + ('0' + Math.floor(r.elapsed / 1000 % 60)).slice(-2) + '</div>';
       html += '<div class="box">';
       html += '<div class="gemcond"><span class="' + (r.conds.noDeath ? 'ok' : 'no') + '">' + (r.conds.noDeath ? '✔' : '✘') + ' Không gục lần nào</span></div>';
-      html += '<div class="gemcond"><span class="' + (r.conds.usedMagi ? 'ok' : 'no') + '">' + (r.conds.usedMagi ? '✔' : '✘') + ' Có dùng Magi</span></div>';
+      html += '<div class="gemcond"><span class="' + (r.conds.usedSkill ? 'ok' : 'no') + '">' + (r.conds.usedSkill ? '✔' : '✘') + ' Có dùng kỹ năng</span></div>';
       html += '<div class="gemcond"><span class="' + (r.conds.fast ? 'ok' : 'no') + '">' + (r.conds.fast ? '✔' : '✘') + ' Xong trong ' + (G.BAL.gemFastMs / 1000) + ' giây</span></div>';
       if (r.firstClear) html += '<div class="gemcond"><span class="ok">✔ Phá lần đầu · +' + st.firstGem + ' ◈</span></div>';
       html += '<div class="line" style="border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><span>◈ Gem</span><b style="color:#8fd4ff">+' + gems + '</b></div>';

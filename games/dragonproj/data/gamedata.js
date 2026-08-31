@@ -2,7 +2,7 @@
  * DỮ LIỆU GAME — dựng lại từ Official Dragon Project Wiki + bài 4Gamer.
  * Xem games/dragonproj/RESEARCH.md để biết con số nào có nguồn, con số nào
  * là tái dựng. Quy ước trong file này:
- *   - Tên riêng (vũ khí, boss, magi, nguyên liệu, map) giữ NGUYÊN VĂN bản
+ *   - Tên riêng (vũ khí, boss, nguyên liệu, map) giữ NGUYÊN VĂN bản
  *     Global, vì đó là thứ duy nhất còn tra lại được.
  *   - Chỉ số chiến đấu (dmg, hp, tốc độ) là TÁI DỰNG, cân theo thang chỉ số
  *     thật ở RESEARCH.md mục 4 (vũ khí SS ~306 phys / 656 elem, giáp SS bộ
@@ -37,7 +37,7 @@
 
   /* ------------------------------------------------- TRẠNG THÁI BẤT LỢI ---- */
   // Burn/Poison/Paralysis/Slow có trong bảng Common Abilities của wiki; Freeze và
-  // Stagger lấy từ mô tả Magi. Thời lượng là tái dựng.
+  // Stagger lấy từ mô tả bản gốc. Thời lượng là tái dựng.
   G.STATUS = {
     burn:      { vi: 'Bỏng',    ms: 8000,  dps: 0.020, color: '#ff7a3c' },
     poison:    { vi: 'Độc',     ms: 12000, dps: 0.012, color: '#8fd14f' },
@@ -45,7 +45,7 @@
     freeze:    { vi: 'Đóng băng', ms: 2500, stun: true, color: '#4fb6ff' },
     slow:      { vi: 'Chậm',    ms: 6000,  spd: 0.6,   color: '#a06fe0' }
   };
-  // Trang Attack Magi: tê liệt theo hệ địch — Earth 0%, Lightning 25%, Fire 50%, Water 100%.
+  // Tê liệt theo hệ địch — Earth 0%, Lightning 25%, Fire 50%, Water 100%.
   G.PARALYZE_CHANCE = { earth: 0, thunder: 0.25, fire: 0.5, water: 1, none: 0.4, light: 0.4, dark: 0.4 };
 
   /* ------------------------------------------------------------- VŨ KHÍ ---- */
@@ -285,174 +285,162 @@
     { id: 'recovery',  vi: 'Hồi phục +{v}%',             stat: 'recovery',   v: [6, 18] },
     { id: 'moveSpd',   vi: 'Tốc chạy +{v}%',             stat: 'moveSpd',    v: [3, 10] },
     { id: 'dodge',     vi: 'Quãng né +{v}%',             stat: 'dodge',      v: [5, 15] },
-    { id: 'magiCharge',vi: 'Nạp Magi +{v}%',             stat: 'magiCharge', v: [5, 15] },
-    { id: 'castSpd',   vi: 'Tốc thi triển Magi +{v}%',   stat: 'castSpd',    v: [5, 15] },
+    { id: 'skillCd',   vi: 'Hồi chiêu -{v}%',             stat: 'skillCd',    v: [5, 15] },
+    { id: 'skillDmg',  vi: 'Sát thương kỹ năng +{v}%',    stat: 'skillDmg',   v: [6, 18] },
     { id: 'luck',      vi: 'May mắn +{v}',               stat: 'luck',       v: [1, 5] }
   ];
 
-  /* ------------------------------------------------------------- MAGI ------ */
-  // Tỉ lệ gacha THẬT (wiki): SS 3% · S 9% · A 48% · B 40%.
-  G.MAGI_RATES = { SS: 0.03, S: 0.09, A: 0.48, B: 0.40 };
-  G.MAGI_MAXLV = { SS: 60, S: 40, A: 30, B: 20 };
-
-  // shape: 'star' Attack (vũ khí) · 'heart' Recovery (vũ khí) · 'diamond' Support (vũ khí) · 'circle' Passive (giáp)
-  G.MAGI = [
-    /* ---- ATTACK SS (tên và mô tả nguyên văn wiki) ---- */
-    { id:'natures_descent', n:"Nature's Descent", shape:'star', rank:'SS', el:'earth', kind:'aoe',
-      d:'Mở vòng phép lớn quanh địch, gọi mưa thiên thạch gây sát thương Thổ. Nạp thêm thanh gục.',
-      mul:6.2, radius:150, cost:100, fatigue:18 },
-    { id:'jupiters_descent', n:"Jupiter's Descent", shape:'star', rank:'SS', el:'thunder', kind:'ranged',
-      d:'Giáng 10 tia sét vào địch, gây tê liệt, +50% sát thương Lôi trong 30 giây.',
-      mul:5.8, radius:120, cost:100, status:'paralysis', buff:{edmg:{thunder:0.5}, ms:30000} },
-    { id:'frozen_water_rush', n:'Frozen Water Rush', shape:'star', rank:'SS', el:'water', kind:'melee',
-      d:'Đóng băng địch phía trước rồi lao tới bằng một khối băng.', mul:6.0, radius:130, cost:100, status:'freeze' },
-    { id:'eingrams_star', n:"Eingram's Star", shape:'star', rank:'SS', el:'fire', kind:'melee',
-      d:'Gọi một cây búa đá khổng lồ đập tới trước, gây bỏng cho địch hệ Thổ.', mul:6.4, radius:135, cost:100, status:'burn' },
-    { id:'dragons_manifest', n:"Dragon's Manifest", shape:'star', rank:'SS', el:'water', kind:'ranged',
-      d:'Gọi 8 luồng rồng nước, giảm 50% kháng Thủy của địch trong 30 giây.', mul:5.4, radius:160, cost:100 },
-    { id:'subjugating_blade', n:'Subjugating Blade', shape:'star', rank:'SS', el:'water', kind:'melee',
-      d:'Chém chữ thập. Nhát đầu phá bộ phận rất mạnh, nhát sau nạp thanh gục.',
-      mul:5.0, radius:110, cost:100, partMul:2.5, fatigue:22 },
-    { id:'cocytus_ice_barrage', n:'Cocytus Ice Barrage', shape:'star', rank:'SS', el:'water', kind:'ranged',
-      d:'Sáu cột băng rơi xuống địch, gây đóng băng. Tầm toàn màn.', mul:5.2, radius:140, cost:100, status:'freeze' },
-    { id:'crimson_dragonflame', n:'Crimson Dragonflame', shape:'star', rank:'SS', el:'fire', kind:'ranged',
-      d:'Gọi một con rồng lửa lao thẳng về phía trước.', mul:5.6, radius:120, cost:100 },
-    { id:'diabolical_tornado', n:'Diabolical Tornado', shape:'star', rank:'SS', el:'thunder', kind:'melee',
-      d:'Tạo lốc sét lớn quanh mình.', mul:5.5, radius:145, cost:100 },
-    { id:'miasmatic_blast', n:'Miasmatic Blast', shape:'star', rank:'SS', el:'earth', kind:'melee',
-      d:'Bốn đầu lâu phun sương độc quanh mình, gây trúng độc.', mul:4.8, radius:140, cost:100, status:'poison' },
-    { id:'king_solomons_gate', n:"King Solomon's Gate", shape:'star', rank:'SS', el:'dark', kind:'aoe',
-      d:'Mở cánh cổng thở ra tử linh gây sát thương Ám. Bất tử trong lúc thi triển.',
-      mul:6.0, radius:150, cost:100, invuln:true },
-    { id:'ciel_serras_feather', n:"Ciel Serra's Feather", shape:'star', rank:'SS', el:'light', kind:'aoe',
-      d:'Bay lên bắn 8 lưỡi lông vũ gây sát thương Quang.', mul:5.9, radius:150, cost:100 },
-    /* ---- ATTACK S / A / B ---- */
-    { id:'ice_spike',  n:'Ice Spike',  shape:'star', rank:'S', el:'water',  d:'Cột băng dựng lên.',      mul:3.2, radius:100, cost:80 },
-    { id:'inferno',    n:'Inferno',    shape:'star', rank:'S', el:'fire',   d:'Đòn lửa cuồng nộ.',       mul:3.2, radius:100, cost:80 },
-    { id:'thunder_storm', n:'Thunder Storm', shape:'star', rank:'S', el:'thunder', d:'Bão sét dữ dội.',  mul:3.2, radius:100, cost:80 },
-    { id:'magaruda',   n:'Magaruda',   shape:'star', rank:'S', el:'earth',  d:'Hai nhát chém gây choáng và sát thương Thổ.', mul:3.0, radius:95, cost:80 },
-    { id:'meteora',    n:'Meteora',    shape:'star', rank:'S', el:'fire',   d:'Gọi thiên thạch, nạp thanh gục.', mul:3.1, radius:110, cost:80, fatigue:12 },
-    { id:'flame_slash',n:'Flame Slash',shape:'star', rank:'A', el:'fire',   d:'Nhát chém rực lửa.',      mul:1.9, radius:80, cost:60 },
-    { id:'rock_strike',n:'Rock Strike',shape:'star', rank:'A', el:'earth',  d:'Triệu năng lượng Thổ.',   mul:1.9, radius:80, cost:60 },
-    { id:'gale_sweep', n:'Gale Sweep', shape:'star', rank:'A', el:'thunder',d:'Luồng gió xuyên phá.',    mul:1.9, radius:80, cost:60 },
-    { id:'frozen_arrow',n:'Frozen Arrow',shape:'star',rank:'A',el:'water',  d:'Phi tiêu băng giá.',      mul:1.9, radius:80, cost:60 },
-    { id:'full_swing', n:'Full Swing', shape:'star', rank:'A', el:'none',   d:'Một cú vung mạnh.',       mul:2.1, radius:80, cost:60 },
-    { id:'smash',      n:'Smash',      shape:'star', rank:'B', el:'none',   d:'Một cú đập.',             mul:1.3, radius:70, cost:50 },
-    { id:'fire_stroke',n:'Fire Stroke',shape:'star', rank:'B', el:'fire',   d:'Ngọn lửa xuyên qua.',     mul:1.2, radius:70, cost:50 },
-    { id:'ice_blast',  n:'Ice Blast',  shape:'star', rank:'B', el:'water',  d:'Quả cầu băng.',           mul:1.2, radius:70, cost:50 },
-    { id:'wind_edge',  n:'Wind Edge',  shape:'star', rank:'B', el:'thunder',d:'Đòn xoáy gió.',           mul:1.2, radius:70, cost:50 },
-    { id:'earth_slash',n:'Earth Slash',shape:'star', rank:'B', el:'earth',  d:'Năng lượng Thổ bùng lên.',mul:1.2, radius:70, cost:50 },
-
-    /* ---- RECOVERY (số hồi máu là số THẬT trong wiki) ---- */
-    { id:'angels_embrace', n:"Angel's Embrace", shape:'heart', rank:'SS', el:'none',
-      d:'Hồi máu bản thân và đồng đội trong vòng phép, kèm bùa hồi sinh (một lần mỗi trận, sống lại 50% máu).',
-      heal:1600, cost:100, revive:true },
-    { id:'clara_erasmus', n:'Clara Erasmus', shape:'heart', rank:'SS', el:'none',
-      d:'Hồi máu cả tổ, +300 công, +400 thủ và miễn choáng trong 30 giây.',
-      heal:1400, cost:100, buff:{atk:300, def:400, antiStagger:true, ms:30000} },
-    { id:'brimming_magia', n:'Brimming Magia', shape:'heart', rank:'SS', el:'none',
-      d:'Hồi máu bản thân và nạp thêm một ít cho các Magi khác.', heal:1080, cost:100, magiBack:25 },
-    { id:'pure_cure', n:'Pure Cure', shape:'heart', rank:'SS', el:'none',
-      d:'Hồi máu cả tổ và gỡ mọi hiệu ứng bất lợi.', heal:880, cost:100, cleanse:true },
-    { id:'sanctuary', n:'Sanctuary', shape:'heart', rank:'SS', el:'none',
-      d:'Vòng phép hồi máu liên tục cho cả tổ.', heal:50, hot:{ticks:25, ms:600}, cost:100 },
-    { id:'rejuvenation', n:'Rejuvenation', shape:'heart', rank:'S', el:'none', d:'Hồi máu mạnh.', heal:520, cost:80 },
-    { id:'pure_chakras', n:'Pure Chakras', shape:'heart', rank:'S', el:'none', d:'Hồi máu cho mình và đồng đội gần.', heal:420, cost:80 },
-    { id:'soothing_aura', n:'Soothing Aura', shape:'heart', rank:'A', el:'none', d:'Hồi nhiều máu.', heal:300, cost:60 },
-    { id:'revitalize', n:'Revitalize', shape:'heart', rank:'A', el:'none', d:'Hồi máu dần.', heal:40, hot:{ticks:10, ms:700}, cost:60 },
-    { id:'first_aid', n:'First Aid', shape:'heart', rank:'B', el:'none', d:'Hồi một phần máu.', heal:150, cost:50 },
-    { id:'recover', n:'Recover', shape:'heart', rank:'B', el:'none', d:'Hồi máu và gỡ hiệu ứng bất lợi.', heal:120, cost:50, cleanse:true },
-
-    /* ---- SUPPORT (số buff là số THẬT trong wiki) ---- */
-    { id:'quad_aegis', n:'Quad Aegis', shape:'diamond', rank:'SS', el:'none',
-      d:'Bốn tấm khiên quanh mình, độ bền 200% máu tối đa, miễn choáng cho tới khi khiên vỡ.',
-      cost:100, shield:2.0, buff:{antiStagger:true, ms:60000} },
-    { id:'vita_aegis', n:'Vita Aegis', shape:'diamond', rank:'SS', el:'none',
-      d:'Hai tấm khiên bền 100% máu tối đa, hồi ngay 500 và 50 máu mỗi 2 giây trong 20 giây.',
-      cost:100, shield:1.0, heal:500, hot:{ticks:10, ms:2000, amount:50}, buff:{antiStagger:true, ms:20000} },
-    { id:'perendis_wrath', n:"Perendi's Wrath", shape:'diamond', rank:'SS', el:'thunder',
-      d:'+180% sát thương Lôi, +800 thủ Thủy, miễn choáng trong 30 giây.',
-      cost:100, buff:{edmg:{thunder:1.8}, def:800, antiStagger:true, ms:30000} },
-    { id:'vulcans_fury', n:"Vulcan's Fury", shape:'diamond', rank:'SS', el:'fire',
-      d:'+180% sát thương Hỏa, +800 thủ Thổ, miễn choáng trong 30 giây.',
-      cost:100, buff:{edmg:{fire:1.8}, def:800, antiStagger:true, ms:30000} },
-    { id:'tellus_cloak', n:'Tellus Cloak', shape:'diamond', rank:'SS', el:'earth',
-      d:'+200% sát thương Thổ và miễn choáng trong 20 giây.',
-      cost:100, buff:{edmg:{earth:2.0}, antiStagger:true, ms:20000} },
-    { id:'undulance_cloak', n:'Undulance Cloak', shape:'diamond', rank:'SS', el:'water',
-      d:'+200% sát thương Thủy và miễn choáng trong 20 giây.',
-      cost:100, buff:{edmg:{water:2.0}, antiStagger:true, ms:20000} },
-    { id:'survivors_grit', n:"Survivor's Grit", shape:'diamond', rank:'SS', el:'none',
-      d:'Đòn thường hút 10% máu (tối đa 200/đòn), +20% sát thương đòn thường, miễn choáng 40 giây.',
-      cost:100, buff:{lifesteal:0.10, lifestealCap:200, normalDmg:0.2, antiStagger:true, ms:40000} },
-    { id:'thundering_hysteria', n:'Thundering Hysteria', shape:'diamond', rank:'SS', el:'thunder',
-      d:'+20% tốc đánh và tốc chạy, miễn choáng, vũ khí gây tê liệt trong 30 giây.',
-      cost:100, buff:{atkSpd:0.2, moveSpd:0.2, enchant:'paralysis', antiStagger:true, ms:30000} },
-    { id:'mercurys_blessing', n:"Mercury's Blessing", shape:'diamond', rank:'SS', el:'none',
-      d:'Né biến thành dịch chuyển tức thời, +40% tốc đánh trong 30 giây.',
-      cost:100, buff:{blink:true, atkSpd:0.4, ms:30000} },
-    { id:'berserk', n:'Berserk', shape:'diamond', rank:'S', el:'none', d:'Tăng công tạm thời.',
-      cost:80, buff:{atkPct:0.45, ms:25000} },
-    { id:'protect', n:'Protect', shape:'diamond', rank:'S', el:'none', d:'Tăng thủ tạm thời.',
-      cost:80, buff:{defPct:0.5, ms:25000} },
-    { id:'poison_mist', n:'Poison Mist', shape:'diamond', rank:'A', el:'earth', d:'Bẫy: sát thương Thổ và trúng độc.',
-      cost:60, trap:true, mul:1.4, status:'poison' },
-    { id:'thunder_bind', n:'Thunder Bind', shape:'diamond', rank:'A', el:'thunder', d:'Bẫy: sát thương Lôi và tê liệt.',
-      cost:60, trap:true, mul:1.4, status:'paralysis' },
-    { id:'battle_cry', n:'Battle Cry', shape:'diamond', rank:'B', el:'none', d:'Tăng công tạm thời.',
-      cost:50, buff:{atkPct:0.22, ms:20000} },
-    { id:'guard_aura', n:'Guard Aura', shape:'diamond', rank:'B', el:'none', d:'Tăng thủ tạm thời.',
-      cost:50, buff:{defPct:0.25, ms:20000} },
-    { id:'neurotoxin', n:'Neurotoxin', shape:'diamond', rank:'B', el:'none', d:'Vũ khí gây tê liệt một lúc.',
-      cost:50, buff:{enchant:'paralysis', ms:20000} },
-
-    /* ---- PASSIVE (giáp) — số là số THẬT ở max level trong wiki ---- */
-    { id:'unwavering_spirit', n:'Unwavering Spirit', shape:'circle', rank:'SS', el:'none',
-      d:'HP +280 và thủ vật lý +120.', pas:{hp:280, def:120} },
-    { id:'champions_vigor', n:"Champion's Vigor", shape:'circle', rank:'SS', el:'none',
-      d:'Công vật lý +50, thủ vật lý +40, tốc nạp Soul +10%.', pas:{atk:50, def:40, soul:0.10} },
-    { id:'magic_champions_soul', n:"Magic Champion's Soul", shape:'circle', rank:'SS', el:'none',
-      d:'Công vật lý +90 và tốc nạp Soul +10%.', pas:{atk:90, soul:0.10} },
-    { id:'flame_incarnation', n:'Flame Incarnation', shape:'circle', rank:'SS', el:'fire',
-      d:'Sát thương Hỏa của vũ khí +20% và Magi Hỏa nạp nhanh +10%.', pas:{edmg:{fire:0.20}, magiCharge:0.10} },
-    { id:'water_incarnation', n:'Water Incarnation', shape:'circle', rank:'SS', el:'water',
-      d:'Sát thương Thủy của vũ khí +20% và Magi Thủy nạp nhanh +10%.', pas:{edmg:{water:0.20}, magiCharge:0.10} },
-    { id:'earth_incarnation', n:'Earth Incarnation', shape:'circle', rank:'SS', el:'earth',
-      d:'Sát thương Thổ của vũ khí +20% và Magi Thổ nạp nhanh +10%.', pas:{edmg:{earth:0.20}, magiCharge:0.10} },
-    { id:'thunder_incarnation', n:'Thunder Incarnation', shape:'circle', rank:'SS', el:'thunder',
-      d:'Sát thương Lôi của vũ khí +20% và Magi Lôi nạp nhanh +10%.', pas:{edmg:{thunder:0.20}, magiCharge:0.10} },
-    { id:'maniac_mark', n:'Maniac Mark', shape:'circle', rank:'SS', el:'none',
-      d:'Công vật lý +90 và tốc nạp Heat +10%.', pas:{atk:90, heat:0.10} },
-    { id:'hermes_blessing', n:'Hermes Blessing', shape:'circle', rank:'SS', el:'none',
-      d:'HP +285 và tốc chạy +15%.', pas:{hp:285, moveSpd:0.15} },
-    { id:'iron_wall_spirit', n:'Iron Wall Spirit', shape:'circle', rank:'SS', el:'none',
-      d:'Thủ vật lý +200.', pas:{def:200} },
-    { id:'gallant_fervor', n:'Gallant Fervor', shape:'circle', rank:'SS', el:'none',
-      d:'HP +285 và công vật lý +60.', pas:{hp:285, atk:60} },
-    { id:'heros_proof', n:"Hero's Proof", shape:'circle', rank:'SS', el:'none',
-      d:'Công vật lý +90 và thủ vật lý +116.', pas:{atk:90, def:116} },
-    { id:'heros_talent', n:"Hero's Talent", shape:'circle', rank:'S', el:'none',
-      d:'Công +60 và thủ +65.', pas:{atk:60, def:65} },
-    { id:'iron_mastery', n:'Iron Mastery', shape:'circle', rank:'S', el:'none', d:'Công +87.', pas:{atk:87} },
-    { id:'iron_wall_mastery', n:'Iron Wall Mastery', shape:'circle', rank:'S', el:'none', d:'Thủ +83.', pas:{def:83} },
-    { id:'sword_craft', n:'Sword Craft', shape:'circle', rank:'A', el:'none', d:'Công Kiếm & Khiên +85.', pas:{watk:{sword:85}} },
-    { id:'great_sword_craft', n:'Great Sword Craft', shape:'circle', rank:'A', el:'none', d:'Công Đại Kiếm +85.', pas:{watk:{great:85}} },
-    { id:'spear_craft', n:'Spear Craft', shape:'circle', rank:'A', el:'none', d:'Công Thương +85.', pas:{watk:{spear:85}} },
-    { id:'dual_blades_craft', n:'Dual Blades Craft', shape:'circle', rank:'A', el:'none', d:'Công Song Kiếm +85.', pas:{watk:{dual:85}} },
-    { id:'bow_craft', n:'Bow Craft', shape:'circle', rank:'A', el:'none', d:'Công Cung +85.', pas:{watk:{bow:85}} },
-    { id:'vitalitys_boon', n:"Vitality's Boon", shape:'circle', rank:'A', el:'none', d:'HP tối đa +186.', pas:{hp:186} },
-    { id:'crushing_mastery', n:'Crushing Mastery', shape:'circle', rank:'B', el:'none', d:'Công +45.', pas:{atk:45} },
-    { id:'guardian_mastery', n:'Guardian Mastery', shape:'circle', rank:'B', el:'none', d:'Thủ +44.', pas:{def:44} },
-    { id:'vitalitys_joy', n:"Vitality's Joy", shape:'circle', rank:'B', el:'none', d:'HP tối đa +137.', pas:{hp:137} },
-    { id:'auto_heal', n:'Auto-Heal', shape:'circle', rank:'B', el:'none', d:'Hồi máu nhanh hơn.', pas:{regen:0.4} }
-  ];
-  G.MAGI_SHAPES = {
-    star:    { vi: 'Công kích', slot: 'weapon', color: '#ff9a4a', sym: '★' },
-    heart:   { vi: 'Hồi phục',  slot: 'weapon', color: '#ff6a8a', sym: '♥' },
-    diamond: { vi: 'Hỗ trợ',    slot: 'weapon', color: '#7fd4ff', sym: '◆' },
-    circle:  { vi: 'Bị động',   slot: 'armor',  color: '#c0a8ff', sym: '●' }
+  /* ----------------------------------------------------- LỚP NGUYÊN TỐ ---- */
+  /* Trước đây hệ chỉ là một hệ số sát thương và một mã màu — lôi kiếm với hoả
+   * kiếm chém giống hệt nhau. Bảng này cho hệ hai móc để BIỂU DIỄN ra ngoài:
+   *   trail — vệt để lại dọc đường đi của một đòn cơ động
+   *   burst — thứ bung ra tại điểm lưỡi chạm
+   * Một bảng sáu dòng, cả mười kỹ năng hưởng. Đây là chỗ lấy biến hoá mà không
+   * phải viết sáu mươi kỹ năng. */
+  G.ELEM_FX = {
+    none:    { trail:'streak', burst:'flash', col:'#c8d4de', glow:'#8fa3b5' },
+    thunder: { trail:'bolt',   burst:'chain', col:'#ffd23f', glow:'#fff0a0',
+               chainN:2, chainR:120, chainMul:0.45, status:'paralysis' },
+    fire:    { trail:'burn',   burst:'flare', col:'#ff9f2e', glow:'#ffcf8a',
+               burnMs:3000, burnDps:0.018, status:'burn' },
+    water:   { trail:'frost',  burst:'shard', col:'#4fb6ff', glow:'#a5dcff',
+               slickMs:2600, status:'slow' },
+    earth:   { trail:'crack',  burst:'spike', col:'#8fd14f', glow:'#c6ec9d',
+               kbMul:1.6, quake:true },
+    light:   { trail:'streak', burst:'flash', col:'#fff6d8', glow:'#ffffff',
+               blindMs:900 },
+    dark:    { trail:'smoke',  burst:'pool',  col:'#a06fe0', glow:'#d3b6f5',
+               drain:0.12, poolMs:2400 }
   };
 
+  /* --------------------------------------------------------- KỸ NĂNG ------ */
+  /* HAI kỹ năng mỗi vũ khí, khớp đúng hai nút trên HUD. Không nhét bốn tiện ích
+   * lặt vặt — mỗi cái là một MÀN DIỄN: nạp lâu, hồi lâu, có báo trước, có rủi ro,
+   * và bán được một hình ảnh cụ thể.
+   *
+   * Luật chung:
+   *   charge 900–2200ms · cd 14000–24000ms
+   *   trong lúc nạp thì đi chậm hẳn — đó là cái giá
+   *   vẩy né lúc đang nạp = huỷ, hoàn 60% hồi chiêu (không phạt việc đọc đúng)
+   *
+   * kind quyết định trình phát nào chạy nó. Mỗi kind là một hình dạng vùng khác
+   * nhau, nên mười kỹ năng tự khác nhau trên màn hình — đây chính là chỗ hệ Magi
+   * cũ chết: bốn mươi viên dùng chung ba đoạn code nên hiện lên y hệt nhau. */
+  G.SKILL_RULES = {
+    cancelRefund: 0.60,     // huỷ giữa chừng thì hoàn ngần này hồi chiêu
+    chargeMoveMul: 0.35,    // đi chậm lại trong lúc nạp
+    unlockLv2: 8            // kỹ năng thứ hai mở ở cấp vũ khí này
+  };
+
+  G.SKILLS = {
+    /* --- SONG KIẾM: sát thủ. Lén lút, mượt, một nhát định đoạt. --- */
+    dual: [
+      { id:'shadowstep', n:'Ảnh Độn', kind:'blink',
+        d:'Chìm vào bóng rồi hiện ra sau lưng mục tiêu. Trúng sau lưng thì đau gấp bội.',
+        charge:900, cd:14000,
+        fadeTo:0.35,            // độ mờ khi nạp xong — tới mức này thì quái mất dấu
+        loseAggro:true,
+        range:280,              // tầm khoá mục tiêu
+        appearMs:150,           // biến mất -> hiện ra sau lưng
+        slashDelay:120,         // vệt chém NỞ RA TRỄ ngần này sau khi đã hiện
+        mul:2.10, backMul:2.50, frontMul:1.00,
+        arc:1.60, reach:64, ms:420,
+        kb:14, hitstop:190, poise:30,
+        trail:true, burst:true, ghosts:5 },
+
+      { id:'afterimage', n:'Tàn Ảnh', kind:'stance',
+        d:'Để lại ảo ảnh hút đòn. Ba giây kế mọi nhát đều tính là đâm lén.',
+        charge:1100, cd:20000,
+        stanceMs:3000, fadeTo:0.45,
+        decoyMs:3000, decoyTaunt:true, decoyBlastMul:1.40, decoyBlastR:96,
+        backstabAll:true, backMul:2.20,
+        trail:false, burst:false }
+    ],
+
+    /* --- ĐẠI KIẾM: đao phủ. Chậm, nặng, cả sân thấy nó tới. --- */
+    great: [
+      { id:'skyrend', n:'Trảm Thiên', kind:'wave',
+        d:'Giơ kiếm lên trời rồi bổ xuống. Sóng nứt lan thẳng, xuyên tất cả.',
+        charge:2000, cd:16000,
+        chargeDR:0.50,          // giảm ngần này sát thương nhận trong lúc nạp
+        waveLen:300, waveW:76, waveSpd:0.9,
+        mul:3.20, hitstop:190, kb:34, poise:60, launch:34, quake:true,
+        trail:true, burst:true },
+
+      { id:'maelstrom', n:'Nghiền', kind:'pull',
+        d:'Cắm kiếm hút cả đám vào tâm rồi một cú đập vỡ thế hàng loạt.',
+        charge:1400, cd:22000,
+        pullR:180, pullMs:700, pullForce:0.32,
+        mul:2.40, hitstop:190, kb:26, poise:190, quake:true, arc:6.283, reach:110,
+        trail:false, burst:true }
+    ],
+
+    /* --- KIẾM & KHIÊN: bức tường. Phòng thủ là tấn công. --- */
+    sword: [
+      { id:'bulwark', n:'Thành Trì', kind:'wall',
+        d:'Cắm khiên dựng tường chắn đạn. Đứng sau tường thì đòn nặng tay hẳn.',
+        charge:1000, cd:18000,
+        wallMs:5000, wallArc:2.2, wallDist:56, wallW:8,
+        behindDmg:0.40,         // đứng sau tường: đòn +40%
+        blockShots:true,
+        trail:false, burst:false },
+
+      { id:'ramrod', n:'Thiên Chuỳ', kind:'rush',
+        d:'Lao xuyên có giáp, dồn cả đám tới cuối đường rồi đập hất tung.',
+        charge:1600, cd:15000,
+        dist:240, rushMs:420, armor:true,
+        pushAlong:true,
+        mul:1.30, endMul:2.20, arc:2.00, reach:80,
+        hitstop:170, kb:30, poise:40, launch:40,
+        trail:true, burst:true }
+    ],
+
+    /* --- THƯƠNG: long kỵ. Tầm với và trên không. --- */
+    spear: [
+      { id:'swallowdive', n:'Yến Phi Trảm', kind:'leap',
+        d:'Bật lên cao rồi đâm xuống điểm đã ngắm. Chạm đất là cả vùng bay lên.',
+        charge:1300, cd:15000,
+        aimR:260, upMs:420, hangMs:180, downMs:220,
+        peakZ:120, camPull:0.10,
+        mul:2.60, radius:96, hitstop:190, kb:24, poise:44, launch:46, quake:true,
+        trail:false, burst:true },
+
+      { id:'cloudpierce', n:'Xuyên Vân', kind:'pierce',
+        d:'Một cú đâm xuyên thẳng. Xuyên qua càng nhiều con thì càng nặng đòn.',
+        charge:1800, cd:20000,
+        len:500, w:44, ms:260,
+        mul:1.80, rampPerHit:0.20, rampMax:2.20,
+        hitstop:145, kb:18, poise:30, push:20,
+        trail:true, burst:true }
+    ],
+
+    /* --- CUNG: thợ săn. Kiểm soát không gian. --- */
+    bow: [
+      { id:'arrowrain', n:'Vũ Tiễn', kind:'rain',
+        d:'Bắn lên trời rồi mưa mũi tên xuống vùng đã chọn. Mỗi mũi có bóng báo trước.',
+        charge:1600, cd:18000,
+        aimR:300, zoneR:110, delayMs:800, arrows:14, spreadMs:520,
+        mul:0.62, hitstop:50, kb:6, poise:8,
+        trail:false, burst:true },
+
+      { id:'heartpierce', n:'Nhất Tiễn Xuyên Tâm', kind:'snipe2',
+        d:'Nạp lâu nhất game. Xuyên trọn một hàng và để lại vết thương rỉ máu.',
+        charge:2200, cd:24000,
+        len:560, w:26, speed:20,
+        mul:3.40, pierce:true, dotMs:6000, dotDps:0.030,
+        hitstop:190, zoomPunch:0.12, kb:20, poise:36,
+        trail:true, burst:true }
+    ]
+  };
+
+  G.skillsOf = function (weaponId) { return G.SKILLS[weaponId] || []; };
+  G.skillById = function (id) {
+    var out = null;
+    Object.keys(G.SKILLS).forEach(function (k) {
+      G.SKILLS[k].forEach(function (s) { if (s.id === id) out = s; });
+    });
+    return out;
+  };
   /* ------------------------------------------------------- NGUYÊN LIỆU ---- */
   // Sáu hạng SS/S/A/B/C/D + nhóm Lapis riêng. Tên lấy từ wiki.
   G.MATERIALS = {
@@ -499,7 +487,7 @@
     // ĐỘC QUYỀN GACHA. Không rơi ở ải nào, không bán ở tiệm, không rã đồ ra được.
     // Đường duy nhất: quay Triệu hồi trúng món đã có. Dùng để TIẾN HOÁ đồ S/SS.
     dragon_core: { n:'Lõi Rồng', r:'SS', gachaOnly:true },
-    magi_frag:{n:'Magi Fragment', r:'B' },
+    skill_core:{n:'Lõi Kỹ Năng', r:'B' },
     str_stone:{n:'Strengthening Stone', r:'B' }
   };
   G.RANK_ORDER = ['D', 'C', 'B', 'A', 'S', 'SS'];
@@ -923,7 +911,7 @@
 
   // Điểm khai thác trong ải nhả ra một trong bốn thứ này. Để ở đây (chứ không
   // nằm rải trong game.js) để mọi đường ra nguyên liệu đều khai báo một chỗ.
-  G.GATHER_MATS = ['str_stone', 'magi_frag', 'crystal', 'lapis_b'];
+  G.GATHER_MATS = ['str_stone', 'skill_core', 'crystal', 'lapis_b'];
 
   /* ---------------------------------------------------- NHIỆM VỤ STORY ---- */
   // Tên nguyên văn từ trang Story Quests (Area 1). Từ Area 2 trở đi wiki bỏ trống,
@@ -967,13 +955,13 @@
   G.DAILY = [
     { id:'d_boss1',  n:'Hạ Behemoth',        need:{boss:1},   rw:{gold:10000, pikke:100} },
     { id:'d_boss3',  n:'Hạ 3 Behemoth',      need:{boss:3},   rw:{pikke:150, item:'gold_potion'} },
-    { id:'d_gather', n:'Thu thập 2 lần',     need:{gather:2}, rw:{pikke:100, mat:'magi_frag'} },
-    { id:'d_magi',   n:'Nâng 1 cấp Magi',    need:{magiLv:1}, rw:{pikke:100, mat:'magi_frag'} },
-    { id:'d_equip',  n:'Nâng 1 cấp trang bị',need:{equipLv:1},rw:{pikke:100, mat:'magi_frag'} },
+    { id:'d_gather', n:'Thu thập 2 lần',     need:{gather:2}, rw:{pikke:100, mat:'skill_core'} },
+    { id:'d_skill',  n:'Dùng kỹ năng 5 lần', need:{skillUse:5}, rw:{pikke:100, mat:'skill_core'} },
+    { id:'d_equip',  n:'Nâng 1 cấp trang bị',need:{equipLv:1},rw:{pikke:100, mat:'skill_core'} },
     { id:'d_bow',    n:'Hạ Behemoth bằng Cung',      need:{bossWith:'bow'},   rw:{pikke:100, item:'luck_potion'} },
     { id:'d_great',  n:'Hạ Behemoth chỉ bằng Đại Kiếm', need:{bossWith:'great'}, rw:{pikke:100, item:'luck_potion'} },
     { id:'d_sword',  n:'Hạ Behemoth chỉ bằng Kiếm & Khiên', need:{bossWith:'sword'}, rw:{pikke:100, item:'exp_potion'} },
-    { id:'d_shop',   n:'Mua 1 món ở tiệm Pikke', need:{buy:1}, rw:{pikke:100, mat:'magi_frag'} }
+    { id:'d_shop',   n:'Mua 1 món ở tiệm Pikke', need:{buy:1}, rw:{pikke:100, mat:'skill_core'} }
   ];
   G.DAILY_BONUS = { id:'d_all', n:'Xong cả 3 nhiệm vụ ngày', rw:{pikke:300, gem:5} };
   G.WEEKLY = [
@@ -999,7 +987,7 @@
 
   /* --------------------------------------------------------- TIỆM PIKKE -- */
   G.SHOP = [
-    { id:'p_frag',  n:'Magi Fragment x5',  give:{mat:{magi_frag:5}},   price:{pikke:200} },
+    { id:'p_frag',  n:'Lõi Kỹ Năng x5',  give:{mat:{skill_core:5}},   price:{pikke:200} },
     { id:'p_stone', n:'Strengthening Stone x5', give:{mat:{str_stone:5}}, price:{pikke:250} },
     { id:'p_lapisb',n:'Lapis B x1',        give:{mat:{lapis_b:1}},     price:{pikke:400} },
     { id:'p_lapisa',n:'Lapis A x1',        give:{mat:{lapis_a:1}},     price:{pikke:800} },
@@ -1079,7 +1067,7 @@
     { id:'i_gold',  n:'Túi Gold ×500.000', was:'99.000đ', give:{gold:500000} },
     { id:'i_medal', n:'Túi Medal ×300', was:'199.000đ', give:{medal:300} },
     { id:'i_mat',   n:'Túi Nguyên Liệu', was:'149.000đ',
-      give:{mat:{str_stone:100, magi_frag:100, crystal:50, lapis_b:30, lapis_a:20, lapis_s:10, lapis_ss:5}} },
+      give:{mat:{str_stone:100, skill_core:100, crystal:50, lapis_b:30, lapis_a:20, lapis_s:10, lapis_ss:5}} },
     { id:'i_all',   n:'Gói Đại Gia',   was:'999.000đ',
       give:{ticket:200, gem:5000, pikke:20000, gold:2000000, medal:1000} }
   ];
@@ -1091,14 +1079,11 @@
 
   /* ------------------------------------------------- HẰNG SỐ CÂN BẰNG ---- */
   G.BAL = {
-    baseHp: 420, hpPerLv: 46,          // Lv1 420 máu -> Lv60 ~3100, khớp thang hồi máu Magi SS (400-1600)
+    baseHp: 420, hpPerLv: 46,          // Lv1 420 máu -> Lv60 ~3100
     baseAtk: 32, atkPerLv: 4.2,
     baseDef: 10, defPerLv: 2.6,
     baseSpd: 2.35,                     // px/frame ở 60fps
     dodgeDist: 118, dodgeMs: 300, dodgeIFrameMs: 210, dodgeCdMs: 420,
-    magiChargeOnHit: 1.6,              // % thanh Magi mỗi đòn trúng
-    magiChargeOnTake: 2.4,
-    magiRegenPerSec: 1.2,
     fatigueMax: 100, fatigueWeakGain: 3.2, fatigueNormalGain: 0.55,
     downMs: 8000, downDmgMul: 2.5,     // gục -> ăn sát thương ×2.5
     weakMul: 2.2,                      // đánh trúng WEAK point
@@ -1109,7 +1094,7 @@
     questMs: 300000,                   // 5 phút, đúng giới hạn Tower Clearing
     expToLv: function (lv) { return Math.floor(60 * Math.pow(lv, 1.45)); },
     // Điều kiện thưởng gem của Sudden Behemoth (wiki): 3 điều kiện + 1 bonus = tối đa 4 gem.
-    gemNoDeath: 1, gemUsedMagi: 1, gemFastMs: 120000, gemAllBonus: 1
+    gemNoDeath: 1, gemUsedSkill: 1, gemFastMs: 120000, gemAllBonus: 1
   };
 
   /* ------------------------------------------------ NGƯỠNG PUNICON ------- */
@@ -1129,7 +1114,6 @@
   };
 
   /* ------------------------------------------------------- TIỆN ÍCH ------ */
-  G.magiById = function (id) { return G.MAGI.find(function (m) { return m.id === id; }); };
   G.behemothById = function (id) { return G.BEHEMOTHS.find(function (b) { return b.id === id; }); };
   G.areaById = function (id) { return G.AREAS.find(function (a) { return a.id === id; }); };
   G.matById = function (id) { return G.MATERIALS[id]; };

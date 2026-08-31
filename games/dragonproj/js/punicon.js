@@ -57,6 +57,7 @@
     this.moveVec = { x: 0, y: 0, m: 0 };
     this.hotspots = [];            // nút kỹ năng: {id, x, y} toạ độ MÀN HÌNH của canvas
     this.slideHint = -1;           // hotspot đang được nhắm tới, để vẽ gợi ý
+    this.slideHintT = 0;           // mốc thời gian khoá được hướng đó — dùng để đo pha nạp
     this.holdMoves = false;        // đang giữ mà VẪN đi được? (chỉ thế đỡ)
 
     var self = this;
@@ -129,7 +130,11 @@
     // `holdMoves`. Đỡ bằng Kiếm & Khiên thì VẪN ĐI ĐƯỢC (chậm hơn) đúng như bản gốc;
     // còn nạp Chém Tích Lực hay ngắm bắn thì nhân vật đứng yên và kéo là NGẮM.
     if (this.holding) {
-      this.slideHint = this.aimedHotspot(dx, dy, d);
+      // Trượt về một nút kỹ năng rồi GIỮ NGUYÊN ở đó = đang nạp. Mốc thời gian
+      // tính từ lúc khoá được hướng, không phải từ lúc đặt ngón — trượt ra rồi
+      // trượt lại là nạp từ đầu.
+      var hsNow = this.aimedHotspot(dx, dy, d);
+      if (hsNow !== this.slideHint) { this.slideHint = hsNow; this.slideHintT = hsNow >= 0 ? now : 0; }
       if (this.cb.onHoldAim) this.cb.onHoldAim(p.x - this.ox, p.y - this.oy, d, p.x, p.y);
       if (!this.holdMoves) return;
     }
@@ -172,7 +177,10 @@
         this.centeredT = now;
       }
     }
-    if (this.holding && this.cb.onHoldTick) {
+    if (this.holding && this.slideHint >= 0 && this.hotspots[this.slideHint] && this.cb.onSkillCharge) {
+      // Đang khoá hướng một nút kỹ năng: báo cho game biết nạp được bao lâu rồi.
+      this.cb.onSkillCharge(this.hotspots[this.slideHint].id, now - this.slideHintT);
+    } else if (this.holding && this.cb.onHoldTick) {
       this.cb.onHoldTick(now - this.holdStartedT, this.px - this.ox, this.py - this.oy);
     }
     return this.moveVec;
@@ -219,17 +227,20 @@
 
     var wasHolding = this.holding;
     var hs = this.slideHint;
+    var hsMs = hs >= 0 ? now - this.slideHintT : 0;
     this.active = false;
     this.pointerId = null;
     this.holding = false;
     this.slideHint = -1;
+    this.slideHintT = 0;
     this.moveVec = { x: 0, y: 0, m: 0 };
 
     if (cancelled) { if (this.cb.onCancel) this.cb.onCancel(wasHolding); return; }
 
-    // GIỮ rồi TRƯỢT VỀ HƯỚNG nút kỹ năng, nhả ra -> xả kỹ năng đó.
+    // GIỮ rồi TRƯỢT VỀ HƯỚNG nút kỹ năng: giữ nguyên ở đó là NẠP, nhả ra là XẢ.
+    // Nhả sớm quá thì game tự huỷ và hoàn phần lớn hồi chiêu.
     if (wasHolding && hs >= 0 && this.hotspots[hs]) {
-      if (this.cb.onSkillSlide) { this.cb.onSkillSlide(this.hotspots[hs].id, hs); return; }
+      if (this.cb.onSkillSlide) { this.cb.onSkillSlide(this.hotspots[hs].id, hsMs); return; }
     }
 
     if (wasHolding) {
@@ -271,7 +282,7 @@
     ctx.globalAlpha = 0.30;
     ctx.beginPath(); ctx.arc(this.ox, this.oy, this.c.dead, 0, 6.2832);
     ctx.strokeStyle = '#e8f2ff'; ctx.lineWidth = 1; ctx.stroke();
-    // Đang giữ thì vẽ tia chỉ về từng nút kỹ năng — nhắc rằng trượt về đó là xả Magi.
+    // Đang giữ thì vẽ tia chỉ về từng nút kỹ năng — nhắc rằng trượt về đó là nạp kỹ năng.
     if (this.holding && this.hotspots.length) {
       for (var i = 0; i < this.hotspots.length; i++) {
         var h = this.hotspots[i]; if (h.off) continue;

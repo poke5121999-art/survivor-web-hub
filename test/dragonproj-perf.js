@@ -71,13 +71,11 @@ const INSTALL = function () {
   // Trang bị nhanh một lớp vũ khí để kiểm đủ 5 kiểu đặc thù (guard/cleave/lunge/
   // ranbu/snipe). Dùng đúng đường craft của game, chỉ bỏ qua khâu tốn tài nguyên.
   var SRC = { sword: 'felnarog', great: 'vaccahorn', spear: 'grouton', dual: 'shurak', bow: 'yggdragis' };
-  // Giữ lại bộ đồ khởi đầu — nó là bộ DUY NHẤT có sẵn Magi gắn vào ô, cần cho
-  // phép kiểm "xả Magi khi đang guard".
   T.startLoadout = DP.UI.save.loadout.weapons.slice();
   T.restore = function () {
     DP.UI.save.loadout.weapons = T.startLoadout.slice();
     DP.UI.battle.setWeapon(0, true);
-    return { special: DP.UI.battle.W.special, magi: DP.UI.battle.wp.magi.length };
+    return { special: DP.UI.battle.W.special, skills: DP.UI.battle.skillList().length };
   };
   T.equip = function (cls) {
     var S = DP.UI.save;
@@ -248,7 +246,7 @@ function runs(samples) {
 }
 
 const VALID = ['idle', 'attack', 'dodge', 'guard', 'charge', 'aim', 'cleave',
-               'lunge', 'ranbu', 'lag', 'hurt', 'cast', 'switch'];
+               'lunge', 'ranbu', 'lag', 'hurt', 'cast', 'switch', 'skcharge', 'skill'];
 
 const WCLS = ['sword', 'great', 'spear', 'dual', 'bow'];
 // Trạng thái ĐẶC THÙ hợp lệ mà mỗi lớp vũ khí phải vào khi GIỮ giữa màn hình.
@@ -486,26 +484,32 @@ const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
     cleaveRes.inCleave === 'cleave' && cleaveRes.afterDodge === 'cleave');
   await assertRecovered('(b) né giữa cú cleave');
 
-  // (c) Xả Magi khi đang guard.
+  /* (c) Nạp kỹ năng khi ĐANG ở thế đỡ. Đây là chỗ dễ kẹt nhất của hệ mới: hai
+   *     cơ chế "giữ ngón" chồng lên nhau (giữ để đỡ, và giữ-trượt để nạp), nên
+   *     phải chắc là vào được thế nạp rồi ra được, không khoá cứng nhân vật. */
   await freshStage('sword');
-  const starter = await p.evaluate(() => window.__T.restore());   // bộ khởi đầu có Magi sẵn
-  info('(c) vũ khí khởi đầu: đặc thù=' + starter.special + ', số Magi gắn=' + starter.magi);
-  const magiRes = await p.evaluate(() => {
+  const starter = await p.evaluate(() => window.__T.restore());
+  info('(c) vũ khí khởi đầu: đặc thù=' + starter.special + ', số kỹ năng=' + starter.skills);
+  const skRes = await p.evaluate(() => {
     const b = DP.UI.battle, pl = b.player;
-    // Bảo đảm có ít nhất một Magi để xả.
-    if (!(b.wp && b.wp.magi[0])) return { skip: true };
-    pl.state = 'idle'; pl.magi = 100;
+    if (!b.skillDef(0)) return { skip: true };
+    const sk = b.skillDef(0);
+    pl.state = 'idle'; pl.skCd = [0, 0];
     b.holdStart(0, 0);                       // -> guard
     const inGuard = pl.state;
-    b.castMagi(0);                           // xả Magi ngay trong thế thủ
-    return { inGuard, afterCast: pl.state, magi: pl.magi };
+    b.skillCharge(0, 10);                    // trượt về nút ngay trong thế thủ
+    const charging = pl.state;
+    b.skillCharge(0, sk.charge + 40);
+    b.skillRelease(0, sk.charge + 40);
+    return { inGuard, charging, after: pl.state, fired: pl.usedSkill };
   });
-  if (magiRes.skip) { info('(c) không có Magi gắn sẵn — bỏ qua'); }
+  if (skRes.skip) { info('(c) vũ khí không có kỹ năng — bỏ qua'); }
   else {
-    info('(c) guard → xả Magi: ' + magiRes.inGuard + ' → ' + magiRes.afterCast);
-    check('(c) xả Magi khi đang guard vào được trạng thái cast',
-      magiRes.inGuard === 'guard' && magiRes.afterCast === 'cast', JSON.stringify(magiRes));
-    await assertRecovered('(c) xả Magi giữa thế thủ');
+    info('(c) guard → nạp → xả: ' + skRes.inGuard + ' → ' + skRes.charging + ' → ' + skRes.after);
+    check('(c) đang đỡ vẫn vào được thế nạp kỹ năng',
+      skRes.inGuard === 'guard' && skRes.charging === 'skcharge', JSON.stringify(skRes));
+    check('(c) nạp đủ thì xả được', skRes.fired === true);
+    await assertRecovered('(c) nạp kỹ năng giữa thế thủ');
   }
 
   // (d) Người chơi ngã ĐANG khi đang ranbu / charge.

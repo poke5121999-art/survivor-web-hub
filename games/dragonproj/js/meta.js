@@ -1,5 +1,5 @@
 /* ==========================================================================
- * META — hồ sơ người chơi, lò rèn, magi, gacha, nhiệm vụ, lưu game.
+ * META — hồ sơ người chơi, lò rèn, gacha, nhiệm vụ, lưu game.
  * Tách khỏi js/game.js: file kia lo một trận đấu, file này lo mọi thứ giữa
  * các trận. Không đụng tới canvas.
  * ========================================================================== */
@@ -11,7 +11,7 @@
   function uid() { return 'u' + (uidSeq++) + '_' + ((Math.random() * 1e6) | 0); }
 
   /* ---------------------------------------------------------- NGẪU NHIÊN -- */
-  // RNG có hạt giống, để một con boss luôn sinh ra cùng một bộ đồ với cùng ô Magi.
+  // RNG có hạt giống, để một con boss luôn sinh ra cùng một bộ đồ.
   function seeded(str) {
     var h = 2166136261;
     for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -39,15 +39,6 @@
   G.MAX_LV = MAX_LV; G.MAX_LB = MAX_LB; G.MAX_EVO = MAX_EVO;
 
   /* ------------------------------------------------------ SINH TRANG BỊ --- */
-  // Ô Magi của một món: vũ khí 2 ô (+1 khi limit break lần 4), giáp 1 ô (+1 nếu là Gold).
-  function slotShapes(rng, kind) {
-    var pool = ['star', 'star', 'heart', 'diamond'];
-    if (kind === 'weapon') {
-      var a = pool[(rng() * pool.length) | 0], b = pool[(rng() * pool.length) | 0], c = pool[(rng() * pool.length) | 0];
-      return [a, b, c];
-    }
-    return ['circle', 'circle'];
-  }
 
   function rollAbility(rng, kind) {
     var pool = G.ABILITIES.filter(function (a) {
@@ -67,18 +58,15 @@
     var rng = seeded(behemothId + '|' + kind + '|' + (seedExtra || ''));
     var g = {
       uid: uid(), kind: kind, src: behemothId, rank: b.rank,
-      lv: 1, evo: 0, lb: 0, gold: true,
-      magi: [null, null, null]
+      lv: 1, evo: 0, lb: 0, gold: true
     };
     if (kind === 'weapon') {
       g.wclass = b.weapon; g.wtype = b.type; g.el = b.el;
       g.name = weaponName(b, 0);
-      g.shapes = slotShapes(rng, 'weapon');
       g.green = b.ability || null;      // ability cố định hiện chữ xanh lá
     } else {
       g.el = b.el; g.defEl = counterOf(b.el);
       g.name = armorName(b, kind);
-      g.shapes = slotShapes(rng, 'armor');
     }
     g.abilities = [rollAbility(rng, kind), rollAbility(rng, kind)];
     return g;
@@ -124,13 +112,6 @@
     };
   };
 
-  G.gearSlots = function (g) {
-    // Vũ khí: 2 ô, ô thứ 3 mở ở limit break lần 4 (đúng wiki).
-    // Giáp Gold: 1 ô, ô thứ 2 mở ở limit break lần 4. Giáp Silver không có ô thứ 2.
-    if (g.kind === 'weapon') return g.lb >= 4 ? 3 : 2;
-    return (g.gold && g.lb >= 4) ? 2 : 1;
-  };
-
   G.gearMaxLv = function () { return MAX_LV; };
   G.canEvolve = function (g) { return g.lv >= MAX_LV && g.evo < MAX_EVO && (g.rank === 'S' || g.rank === 'SS'); };
 
@@ -141,7 +122,7 @@
       gender: 0, face: 0, skin: 2, hair: 0, hairColor: 0, voice: 0,
       lv: 1, exp: 0,
       gold: 3000, gem: 30, ticket: 10, pikke: 0, medal: 0,
-      mats: {}, gear: [], magi: [],
+      mats: {}, gear: [],
       loadout: { weapons: [null, null, null], head: null, body: null, arm: null, leg: null },
       story: { done: [] },
       daily: { date: '', picks: [], done: {} },
@@ -150,7 +131,7 @@
       cleared: {},           // { 'tior-1': true, ... } — ải đã phá
       bossKills: {}, seenBoss: {},
       inv: {}, potions: {},
-      stats: { boss: 0, mob: 0, deaths: 0, parts: 0, gathers: 0, rerolls: 0, buys: 0, potions: 0, magiLv: 0, equipLv: 0 },
+      stats: { boss: 0, mob: 0, deaths: 0, parts: 0, gathers: 0, rerolls: 0, buys: 0, potions: 0, skillUse: 0, equipLv: 0 },
       log: []
     };
   };
@@ -162,7 +143,7 @@
       var s = JSON.parse(raw);
       if (!s || s.v !== 2) return null;
       // uid sinh sau khi nạp phải không đụng uid cũ
-      s.gear.concat(s.magi).forEach(function (o) {
+      s.gear.forEach(function (o) {
         var m = /^u(\d+)_/.exec(o.uid || ''); if (m) uidSeq = Math.max(uidSeq, +m[1] + 1);
       });
       return s;
@@ -183,22 +164,8 @@
     };
   };
 
-  G.magiByUid = function (s, u) {
-    if (!u) return null;
-    var inst = s.magi.find(function (m) { return m.uid === u; });
-    if (!inst) return null;
-    var def = G.magiById(inst.id);
-    return def ? Object.assign({}, def, { uid: inst.uid, lv: inst.lv }) : null;
-  };
-
-  // Nhân hiệu quả Magi theo cấp: lv1 = 100%, lv max = 220%. [TÁI DỰNG]
-  G.magiPower = function (m) {
-    var max = G.MAGI_MAXLV[m.rank] || 20;
-    return 1 + 1.2 * ((m.lv - 1) / Math.max(1, max - 1));
-  };
-
   /* Tổng hợp toàn bộ chỉ số chiến đấu của người chơi. Đây là chỗ duy nhất
-   * ability, passive magi và bộ đồ gặp nhau — game.js chỉ đọc kết quả. */
+   * ability và bộ đồ gặp nhau — game.js chỉ đọc kết quả. */
   G.buildStats = function (s) {
     var B = G.BAL, eq = G.equipped(s);
     var st = {
@@ -206,7 +173,7 @@
       atk: B.baseAtk + B.atkPerLv * (s.lv - 1),
       def: B.baseDef + B.defPerLv * (s.lv - 1),
       edef: 0,
-      moveSpd: 1, dodge: 1, recovery: 1, magiCharge: 1, castSpd: 1, luck: 0,
+      moveSpd: 1, dodge: 1, recovery: 1, skillCd: 0, skillDmg: 0, luck: 0,
       guard: 0, cleave: 0, cleaveSpd: 0, lunge: 0, frenzy: 0, snipe: 0, snipeSpd: 0,
       soul: 0, heat: 0, regen: 0,
       wdmg: { sword: 0, great: 0, spear: 0, dual: 0, bow: 0 },
@@ -229,21 +196,6 @@
       else st[def.stat] = (st[def.stat] || 0) + v;
     }
 
-    function applyPassive(m) {
-      if (!m || !m.pas) return;
-      var k = G.magiPower(m), p = m.pas;
-      if (p.hp)  st.hp  += p.hp * k;
-      if (p.atk) st.atk += p.atk * k;
-      if (p.def) st.def += p.def * k;
-      if (p.moveSpd) st.moveSpd += p.moveSpd;
-      if (p.magiCharge) st.magiCharge += p.magiCharge;
-      if (p.soul) st.soul += p.soul;
-      if (p.heat) st.heat += p.heat;
-      if (p.regen) st.regen += p.regen;
-      if (p.edmg) for (var e in p.edmg) st.edmg[e] += p.edmg[e];
-      if (p.watk) for (var w in p.watk) st.watk[w] += p.watk[w] * k;
-    }
-
     // Bốn mảnh giáp
     var srcs = [];
     ['head', 'body', 'arm', 'leg'].forEach(function (k) {
@@ -252,8 +204,6 @@
       var gs = G.gearStats(g);
       st.hp += gs.hp; st.def += gs.pdef; st.edef += gs.edef; st.atk += gs.patk;
       (g.abilities || []).forEach(applyAbility);
-      var n = G.gearSlots(g);
-      for (var i = 0; i < n; i++) applyPassive(G.magiByUid(s, g.magi[i]));
     });
     // Bonus mặc đủ bộ (wiki: "Hunters wearing a full armor set may receive bonus stats")
     if (srcs.length === 4 && srcs.every(function (x) { return x === srcs[0]; })) {
@@ -275,14 +225,15 @@
       var def = G.ABILITIES.find(function (x) { return x.id === a.id; });
       if (def) prof.extra[def.stat] = (prof.extra[def.stat] || 0) + a.v / 100;
     });
-    prof.magi = [];
-    var n = G.gearSlots(g);
-    for (var i = 0; i < n; i++) { var m = G.magiByUid(s, g.magi[i]); if (m && m.shape !== 'circle') prof.magi.push(m); }
+    // Kỹ năng thuộc về VŨ KHÍ, không phải viên đá cắm vào nó. Đổi vũ khí là đổi
+    // hẳn hai đòn — đó mới là lý do để mang ba khe.
+    prof.skills = G.skillsOf(g.wclass).filter(function (sk, i) {
+      return i === 0 || g.lv >= G.SKILL_RULES.unlockLv2;
+    });
     return prof;
   };
 
   /* ------------------------------------------------------------ GACHA ---- */
-  // Tỉ lệ THẬT: boss SS 3 / S 15 / A 55 / B 27 ; magi SS 3 / S 9 / A 48 / B 40.
   /* Gacha ra THẲNG trang bị. Tỉ lệ hạng giữ nguyên tỉ lệ thật của Quest Gacha bản
    * gốc (SS 3 / S 15 / A 55 / B 27) vì đó là con số có nguồn; chỉ đổi thứ rơi ra.
    * Trúng món đã có -> LÕI RỒNG, nguyên liệu độc quyền không cày được, dùng để tiến
@@ -305,19 +256,6 @@
         s.gear.push(g);
         out.push({ dupe: false, rank: rank, gear: g, name: g.name, kind: kind });
       }
-    }
-    return out;
-  };
-
-  G.summonMagi = function (s, count, guaranteed) {
-    var out = [];
-    for (var i = 0; i < count; i++) {
-      var rank = (guaranteed && i === count - 1) ? 'SS' : G.rollRank(G.MAGI_RATES, Math.random);
-      var pool = G.MAGI.filter(function (m) { return m.rank === rank; });
-      var def = pool[(Math.random() * pool.length) | 0];
-      var inst = { uid: uid(), id: def.id, lv: 1 };
-      s.magi.push(inst);
-      out.push(Object.assign({}, def, inst));
     }
     return out;
   };
@@ -373,10 +311,6 @@
     return { gold: Math.round(9000 * (RANK_COST[g.rank] || 1)), mat: { dragon_core: need * (g.evo + 1) } };
   };
   G.rerollCost = function (g) { return { gold: Math.round(1200 * (RANK_COST[g.rank] || 1)) }; };
-  G.magiEnhanceCost = function (m) {
-    var k = { SS: 4, S: 2.4, A: 1.4, B: 1 }[m.rank] || 1;
-    return { gold: Math.round((90 + m.lv * 55) * k), mat: { magi_frag: 1 + Math.floor(m.lv / 10) } };
-  };
   G.canPay = function (s, cost) {
     if (cost.gold && s.gold < cost.gold) return false;
     if (cost.gem && s.gem < cost.gem) return false;
@@ -466,43 +400,17 @@
     s.stats.rerolls++;
     return { ok: true };
   };
-  G.enhanceMagi = function (s, inst) {
-    var def = G.magiById(inst.id); if (!def) return { ok: false, why: '?' };
-    var max = G.MAGI_MAXLV[def.rank] || 20;
-    if (inst.lv >= max) return { ok: false, why: 'Đã tối đa cấp' };
-    var c = G.magiEnhanceCost({ rank: def.rank, lv: inst.lv });
-    if (!G.canPay(s, c)) return { ok: false, why: 'Không đủ Magi Fragment' };
-    G.pay(s, c); inst.lv++; s.stats.magiLv++;
-    return { ok: true };
-  };
   // Rã trang bị -> Lapis cùng hạng (đúng bản gốc: Lapis từ việc rã đồ boss).
   G.dismantle = function (s, g) {
     var lap = { B: 'lapis_b', A: 'lapis_a', S: 'lapis_s', SS: 'lapis_ss' }[g.rank] || 'lapis_b';
     var n = 1 + g.lb + g.evo;
     G.addMat(s, lap, n);
-    // Trả Magi đang lắp về kho
-    g.magi = [null, null, null];
     for (var k in s.loadout) {
       if (Array.isArray(s.loadout[k])) s.loadout[k] = s.loadout[k].map(function (u) { return u === g.uid ? null : u; });
       else if (s.loadout[k] === g.uid) s.loadout[k] = null;
     }
     s.gear = s.gear.filter(function (x) { return x.uid !== g.uid; });
     return { ok: true, lapis: lap, n: n };
-  };
-
-  /* ------------------------------------------------------- MAGI LẮP ----- */
-  G.equipMagi = function (s, g, slotIdx, magiUid) {
-    var n = G.gearSlots(g);
-    if (slotIdx >= n) return { ok: false, why: 'Ô này chưa mở' };
-    if (magiUid) {
-      var m = G.magiByUid(s, magiUid);
-      if (!m) return { ok: false, why: 'Không có Magi này' };
-      if (m.shape !== g.shapes[slotIdx]) return { ok: false, why: 'Hình dạng Magi không khớp ô' };
-      // Một viên Magi chỉ lắp được vào một chỗ.
-      s.gear.forEach(function (x) { x.magi = x.magi.map(function (u) { return u === magiUid ? null : u; }); });
-    }
-    g.magi[slotIdx] = magiUid || null;
-    return { ok: true };
   };
 
   /* ------------------------------------------------------ NHIỆM VỤ ----- */
@@ -587,7 +495,6 @@
     var starter = 'grouton';
     var w = G.forgeGear('vaccahorn', 'weapon', 'starter');
     w.wclass = 'sword'; w.wtype = 'normal'; w.name = 'Guild Blade'; w.rank = 'B'; w.el = 'none';
-    w.shapes = ['star', 'heart', 'diamond'];
     s.gear.push(w);
     s.loadout.weapons[0] = w.uid;
 
@@ -602,7 +509,6 @@
     REST.forEach(function (x, i) {
       var g = G.forgeGear(x.src, 'weapon', 'starter_' + x.cls);
       g.wclass = x.cls; g.wtype = 'normal'; g.name = x.n; g.rank = 'B'; g.el = 'none';
-      g.shapes = ['star', 'heart', 'diamond'];
       s.gear.push(g);
       if (i < 2) s.loadout.weapons[i + 1] = g.uid;
     });
@@ -611,16 +517,7 @@
       g.rank = 'B'; g.name = 'Guild ' + { head: 'Helm', body: 'Plate', arm: 'Wrists', leg: 'Sabatons' }[k];
       s.gear.push(g); s.loadout[k] = g.uid;
     });
-    // Vài viên Magi mở màn, và một viên Attack để bấm được nút Magi ngay từ trận đầu
-    var m1 = { uid: uid(), id: 'flame_slash', lv: 1 };
-    var m2 = { uid: uid(), id: 'first_aid', lv: 1 };
-    var m3 = { uid: uid(), id: 'crushing_mastery', lv: 1 };
-    s.magi.push(m1, m2, m3);
-    G.equipMagi(s, w, 0, m1.uid);
-    G.equipMagi(s, w, 1, m2.uid);
-    var head = s.gear.find(function (g) { return g.uid === s.loadout.head; });
-    if (head) G.equipMagi(s, head, 0, m3.uid);
-    G.addMat(s, 'str_stone', 8); G.addMat(s, 'magi_frag', 6); G.addMat(s, 'crystal', 2);
+    G.addMat(s, 'str_stone', 8); G.addMat(s, 'skill_core', 6); G.addMat(s, 'crystal', 2);
     return s;
   };
 })(window.DP = window.DP || {});

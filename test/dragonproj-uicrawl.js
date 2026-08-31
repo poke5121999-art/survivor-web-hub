@@ -57,11 +57,11 @@ async function open(b) {
 const SEED = () => {
   const S = DP.UI.save;
   S.gold = 9e6; S.gem = 9e4; S.ticket = 9e3; S.pikke = 9e4; S.medal = 9e3;
-  ['str_stone', 'magi_frag', 'crystal', 'lapis_b', 'lapis_a', 'lapis_s', 'lapis_ss']
+  ['str_stone', 'skill_core', 'crystal', 'lapis_b', 'lapis_a', 'lapis_s', 'lapis_ss']
     .forEach(m => { S.mats[m] = 9999; });
   S.mats.dragon_core = 999;             // đủ Lõi để mở cả nhánh Tiến hoá
   S.bossKills = { amarok: 5, lich: 5, grouton: 5 };
-  // Một bộ đồ SS thật để mở hết nhánh giao diện (ô Magi thứ 3 chỉ hiện khi LB4).
+  // Một bộ đồ SS thật để mở hết nhánh giao diện.
   ['weapon', 'head', 'body', 'arm', 'leg'].forEach(k => {
     const g = DP.forgeGear('amarok', k, 'seed');
     S.gear.push(g);
@@ -70,7 +70,6 @@ const SEED = () => {
   });
   // Vài ải đã phá để màn Ải có cả ải xong, ải đang mở và ải khoá.
   ['tior-1', 'tior-2', 'tior-3'].forEach(id => { S.cleared[id] = true; });
-  DP.summonMagi(S, 24, false);          // đủ Magi mọi hình dạng để nút "Lắp" có gì mà chọn
   S.inv = { gold_potion: 5, exp_potion: 5, luck_potion: 5, hunter_potion: 5 };
   DP.UI.saveNow(); DP.UI.show('home');
 };
@@ -78,7 +77,7 @@ const SEED = () => {
 /* ------------------------------------------------- CÁC HÀM CHẠY TRONG TRANG */
 // Danh sách phần tử bấm được đang hiển thị của một màn.
 const SEL = 'button,[data-act],[data-gear],[data-stage],[data-craft],[data-buy],' +
-  '[data-iap],[data-buym],[data-buyk],[data-use],[data-slot],[data-putmagi],[data-upmagi],[data-nav],[data-filter],[data-w],' +
+  '[data-iap],[data-buym],[data-buyk],[data-use],[data-nav],[data-filter],[data-w],' +
   '[data-wslot],[data-aslot],[data-cy],[data-buyp],[data-unslot]';
 
 // Danh sách phần tử bấm được đang hiển thị của một màn.
@@ -86,7 +85,7 @@ const PAGE_LIST = (a) => {
   const scr = document.getElementById('scr-' + a.id);
   if (!scr) return [];
   const ATT = ['data-act', 'data-gear', 'data-stage', 'data-craft', 'data-iap', 'data-buy', 'data-buym', 'data-buyk', 'data-use',
-    'data-slot', 'data-putmagi', 'data-upmagi', 'data-nav', 'data-filter', 'data-w', 'data-wslot',
+    'data-nav', 'data-filter', 'data-w', 'data-wslot',
     'data-aslot', 'data-cy', 'data-buyp', 'data-unslot'];
   return Array.prototype.filter.call(scr.querySelectorAll(a.sel),
       el => el.offsetParent !== null && !el.disabled)
@@ -133,12 +132,12 @@ const PAGE_SNAP = () => {
   await p.evaluate(SEED);
   await p.waitForTimeout(300);
   const seeded = await p.evaluate(() => ({
-    gold: DP.UI.save.gold, gear: DP.UI.save.gear.length, magi: DP.UI.save.magi.length,
+    gold: DP.UI.save.gold, gear: DP.UI.save.gear.length,
     lb: (DP.UI.save.gear.find(g => g.src === 'amarok' && g.kind === 'weapon') || {}).lb
   }));
-  check('bơm được tài nguyên và đồ SS', seeded.gold > 1e6 && seeded.gear >= 9 && seeded.magi >= 24,
-    seeded.gear + ' món, ' + seeded.magi + ' magi');
-  check('vũ khí SS lên tới Limit Break 4 (mở ô Magi thứ 3)', seeded.lb === 4, 'lb=' + seeded.lb);
+  check('bơm được tài nguyên và đồ SS', seeded.gold > 1e6 && seeded.gear >= 9,
+    seeded.gear + ' món');
+  check('vũ khí SS lên tới Limit Break 4', seeded.lb === 4, 'lb=' + seeded.lb);
 
   /* ------------------------------------------------------------- CRAWL --- */
   // 'gear' không có đường vào trực tiếp: phải chọn một món trong Kho đồ trước.
@@ -149,7 +148,7 @@ const PAGE_SNAP = () => {
       const fb = document.querySelector('#body-armory [data-filter="' + f + '"]');
       if (fb) fb.click();
       // Mở món SÂU nhất (limit break/cấp cao nhất) chứ không phải món đầu danh
-      // sách: chỉ món limit break 4 mới hiện ô Magi thứ 3 và nút tiến hóa.
+      // sách: chỉ món limit break 4 mới hiện nút tiến hoá.
       const list = DP.UI.save.gear.filter(g => g.kind === f)
         .sort((a, b2) => (b2.lb - a.lb) || (b2.lv - a.lv));
       const el = list.length ? document.querySelector('#body-armory [data-gear="' + list[0].uid + '"]')
@@ -158,25 +157,9 @@ const PAGE_SNAP = () => {
     }, filter);
     await p.waitForTimeout(180);
   }
-  // selMagiSlot là biến dùng chung của cả màn "gear". Nếu để nó treo ở một ô
-  // không tồn tại trên món kế tiếp thì rGear() nổ ngay khi render (lỗi thật của
-  // game — kiểm riêng bên dưới), nên trước mỗi lần đổi món phải đưa nó về -1.
-  async function resetMagiSel() {
-    await p.evaluate(() => {
-      const s0 = document.querySelector('#body-gear [data-slot="0"]');
-      if (s0) s0.click();
-    });
-    await p.waitForTimeout(90);
-    await p.evaluate(() => {
-      const pm = document.querySelector('#body-gear [data-putmagi]');
-      if (pm) pm.click();
-    });
-    await p.waitForTimeout(90);
-  }
-
   const TARGETS = [
     { id: 'home' }, { id: 'quest' }, { id: 'armory' }, { id: 'gacha' }, { id: 'more' },
-    { id: 'forge' }, { id: 'magi' }, { id: 'shop' }, { id: 'help' }, { id: 'bosslist' },
+    { id: 'forge' }, { id: 'shop' }, { id: 'help' }, { id: 'bosslist' },
     { id: 'gear', pre: 'weapon' }, { id: 'gear', pre: 'head' }
   ];
   const RUBBISH = ['undefined', 'NaN', '[object Object]'];
@@ -185,12 +168,9 @@ const PAGE_SNAP = () => {
   let clicks = 0;
   for (const T of TARGETS) {
     const tag = T.id + (T.pre ? '/' + T.pre : '');
-    // Trước khi sang biến thể giáp phải đưa selMagiSlot về ô hợp lệ, nếu không
     // rGear() nổ ngay khi render (xem lỗi #1 trong báo cáo).
     if (T.id === 'gear') {
-      await resetMagiSel();
       await openGear(T.pre);
-      await resetMagiSel();
     }
     // Phải mở màn ra rồi mới đếm được nút: phần tử ẩn có offsetParent = null.
     await p.evaluate(id => DP.UI.show(id), T.id);
@@ -205,7 +185,7 @@ const PAGE_SNAP = () => {
         // gear rỗng và crawl dừng sớm. Mở món khác để đi tiếp.
         const gone = await p.evaluate(() =>
           /Không tìm thấy/.test(document.getElementById('body-gear').innerText || ''));
-        if (gone) { await openGear(T.pre); await resetMagiSel(); await p.evaluate(() => DP.UI.show('gear')); }
+        if (gone) { await openGear(T.pre); await p.evaluate(() => DP.UI.show('gear')); }
       } else await p.evaluate(id => DP.UI.show(id), T.id);
       await p.waitForTimeout(60);
       const list = await p.evaluate(PAGE_LIST, { id: T.id, sel: SEL });
@@ -242,7 +222,6 @@ const PAGE_SNAP = () => {
       // 3. nút chết
       let changed = after.html !== before.html || after.scr !== before.scr ||
         after.toasts > before.toasts || after.save !== before.save || after.battle !== before.battle;
-      // Nút "Lắp"/"Đổi" của ô Magi chỉ đổi biến selMagiSlot rồi vẽ lại bảng chọn.
       // Hai ô CÙNG HÌNH DẠNG cho ra bảng chọn giống hệt nhau từng byte, nên so
       // HTML sẽ báo nhầm là nút chết. Ở đây coi là có phản hồi khi bảng chọn hiện
       // ra — còn chuyện bảng đó không nói rõ đang lắp vào ô nào thì kiểm riêng.
@@ -266,36 +245,6 @@ const PAGE_SNAP = () => {
   check('không có chuỗi rác (undefined/NaN/[object Object]/null) trên giao diện',
     dirty.length === 0, dirty.length + ' chỗ');
   check('không có tiền tệ nào âm sau khi bấm', negMoney.length === 0, negMoney.length + ' chỗ');
-  // Bảng chọn Magi phải nói rõ đang lắp vào Ô SỐ MẤY. Nếu hai ô cùng hình dạng
-  // thì bảng hiện ra giống hệt nhau và người chơi không biết mình đang lắp ô nào.
-  const slotHint = await p.evaluate(() => {
-    const deepest = DP.UI.save.gear.filter(g => g.kind === 'weapon')
-      .sort((a, b2) => (b2.lb - a.lb) || (b2.lv - a.lv))[0];
-    // Ép ba ô cùng hình dạng cho bài kiểm chạy ổn định: bể hình dạng của vũ khí
-    // là ['star','star','heart','diamond'] nên ô trùng hình là chuyện thường gặp.
-    deepest.shapes = ['star', 'star', 'star']; deepest.lb = 4;
-    DP.UI.show('armory');
-    document.querySelector('#body-armory [data-filter="weapon"]').click();
-    document.querySelector('#body-armory [data-gear="' + deepest.uid + '"]').click();
-    const out = [];
-    [0, 1, 2].forEach(i => {
-      const btn = document.querySelector('#body-gear [data-slot="' + i + '"]');
-      if (!btn) return;
-      btn.click();
-      const t = document.getElementById('body-gear').innerText || '';
-      // Nhãn bảng chọn giờ là "Lắp vào ô số N — chọn Magi hình ...", và chính con số
-      // ô là thứ bài kiểm này cần thấy khác nhau giữa ba lần bấm.
-      const m = /Lắp vào ô số[^\n]*/.exec(t);
-      out.push(m ? m[0] : '(không có bảng chọn)');
-    });
-    return { shapes: deepest.shapes.slice(), panels: out };
-  });
-  const uniq = new Set(slotHint.panels);
-  check('bảng chọn Magi cho biết đang lắp vào Ô SỐ MẤY (ba ô cùng hình dạng)',
-    slotHint.panels.length === 3 && uniq.size === 3,
-    slotHint.panels.length + ' ô (' + slotHint.shapes.join('/') + ') nhưng chỉ ' + uniq.size +
-    ' bảng khác nhau: ' + slotHint.panels.join(' | '));
-
   // Đã limit break tối đa mà nút vẫn ghi "Limit Break 5/4" và báo giá tiền.
   const lbText = await p.evaluate(() => {
     const g = DP.UI.save.gear.filter(x => x.lb >= 4).sort((a, b2) => b2.lb - a.lb)[0];
@@ -328,60 +277,6 @@ const PAGE_SNAP = () => {
   check('không có nút chết (bỏ qua nút game cố ý khoá)', deadReal.length === 0,
     deadReal.length + ' nghi chết / ' + deadBtns.length + ' bấm mà không đổi gì');
 
-  /* ------------------------------------ LỖI ĐÃ BIẾT: ô Magi 3 của giáp ---- */
-  // Giáp chỉ có 2 hình dạng ô (shapes = ['circle','circle']) nhưng rGear() luôn vẽ
-  // 3 dòng => dòng thứ 3 đọc g.shapes[2] === undefined. Kiểm riêng cho rõ.
-  note('\n── ô Magi thứ 3 của giáp ──');
-  // Crawl ở trên có bấm cả nút "Rã lấy Lapis" nên bộ đồ SS có thể đã biến mất —
-  // nạp lại trước khi kiểm, để bài kiểm này luôn chạy trên cùng một tình huống.
-  await p.evaluate(SEED); await p.waitForTimeout(300);
-  const armorSlot = await p.evaluate(() => {
-    const S = DP.UI.save;
-    const g = S.gear.find(x => x.kind === 'head');
-    return { shapes: g.shapes.slice(), len: g.shapes.length };
-  });
-  const armorTxt = await p.evaluate(() => {
-    const S = DP.UI.save;
-    const g = S.gear.find(x => x.kind === 'head');
-    DP.UI.show('armory');
-    document.querySelector('#body-armory [data-filter="head"]').click();
-    document.querySelector('#body-armory [data-gear="' + g.uid + '"]').click();
-    return document.getElementById('body-gear').innerText || '';
-  });
-  check('màn chi tiết GIÁP không lòi chữ "undefined" ở ô Magi',
-    armorTxt.indexOf('undefined') < 0 && armorTxt.length > 40,
-    'giáp có ' + armorSlot.len + ' hình dạng ô (' + armorSlot.shapes.join(', ') +
-    ') — đúng thiết kế: 1 ô, ô thứ 2 mở khi limit break 4');
-
-  // Và cú nổ khi selMagiSlot=2 còn treo lại rồi mở một món giáp.
-  // window.onerror trên file:// bị bóp thành "Script error." — nên bắt lỗi bằng
-  // pageerror của Playwright, chính xác tới tận thông điệp.
-  const eCrash = errs.length;
-  const crash = await p.evaluate(async () => {
-    let err = null;
-    const deepest = k => DP.UI.save.gear.filter(g => g.kind === k)
-      .sort((a, b2) => (b2.lb - a.lb) || (b2.lv - a.lv))[0];
-    DP.UI.show('armory');
-    document.querySelector('#body-armory [data-filter="weapon"]').click();
-    document.querySelector('#body-armory [data-gear="' + deepest('weapon').uid + '"]').click();
-    const s2 = document.querySelector('#body-gear [data-slot="2"]');
-    if (!s2) return { skipped: true };
-    s2.click();                                   // chọn ô thứ 3 của VŨ KHÍ
-    DP.UI.show('armory');
-    document.querySelector('#body-armory [data-filter="head"]').click();
-    try { document.querySelector('#body-armory [data-gear="' + deepest('head').uid + '"]').click(); }
-    catch (e) { err = e.message; }
-    const body = document.getElementById('body-gear').innerText || '';
-    return { err: err, empty: body.length < 20 };
-  });
-  await p.waitForTimeout(200);
-  const crashErrs = errs.slice(eCrash);
-  crashErrs.forEach(x => ignoreErr.push(x));
-  check('chọn ô 3 của vũ khí rồi mở một món GIÁP không làm nổ màn hình',
-    !crash.skipped && !crash.err && !crash.empty && crashErrs.length === 0,
-    crashErrs[0] || crash.err || (crash.empty ? 'màn gear rỗng' : 'ok'));
-  await p.evaluate(SEED); await p.waitForTimeout(200);
-
   /* ------------------------------------------- BẢO TOÀN TÀI NGUYÊN ------- */
   note('\n── bảo toàn tài nguyên (gọi thẳng API DP.*) ──');
   // Mọi phép dưới đây chạy trên một save nháp, không đụng save thật, để nếu
@@ -390,7 +285,7 @@ const PAGE_SNAP = () => {
     const mk = () => {
       const s = DP.starterKit(DP.newSave('T'));
       s.gold = 5e6; s.gem = 5e3; s.ticket = 500; s.pikke = 5e4;
-      ['str_stone', 'magi_frag', 'crystal', 'lapis_b', 'lapis_a', 'lapis_s', 'lapis_ss']
+      ['str_stone', 'skill_core', 'crystal', 'lapis_b', 'lapis_a', 'lapis_s', 'lapis_ss']
         .forEach(m => { s.mats[m] = 500; });
       s.mats.dragon_core = 500;
       s.bossKills = { amarok: 5 };
@@ -456,18 +351,6 @@ const PAGE_SNAP = () => {
                    JSON.stringify(DP.SHOP).indexOf('dragon_core') >= 0 ||
                    JSON.stringify(DP.MEDAL_SHOP).indexOf('dragon_core') >= 0;
 
-    // --- MAGI ---
-    s = mk();
-    let inst = s.magi[0];
-    c = DP.magiEnhanceCost({ rank: DP.magiById(inst.id).rank, lv: inst.lv });
-    g0 = s.gold; m0 = s.mats.magi_frag;
-    r = DP.enhanceMagi(s, inst);
-    out.magi = { ok: r.ok, gold: g0 - s.gold === c.gold, mat: m0 - s.mats.magi_frag === c.mat.magi_frag,
-                 lv: inst.lv === 2 };
-    s.mats.magi_frag = 0; g0 = s.gold; const ml = inst.lv;
-    r = DP.enhanceMagi(s, inst);
-    out.magiBroke = { ok: r.ok === false, untouched: s.gold === g0 && inst.lv === ml };
-
     // --- GỌI HAI LẦN VỚI TÀI NGUYÊN CHỈ ĐỦ MỘT LẦN ---
     s = mk(); g = mkGear(s, 'weapon');
     c = DP.enhanceCost(g); s.gold = c.gold; s.mats.str_stone = c.mat.str_stone;
@@ -483,41 +366,18 @@ const PAGE_SNAP = () => {
     // --- canPay=false thì mọi hàm phải trả ok:false ---
     s = mk(); g = mkGear(s, 'weapon'); g.lv = DP.MAX_LV;
     s.gold = 0; s.mats = {};
-    out.allRefuse = [DP.enhance(s, g), DP.limitBreak(s, g), DP.evolve(s, g), DP.reroll(s, g),
-                     DP.enhanceMagi(s, s.magi[0])].every(x => x.ok === false);
+    out.allRefuse = [DP.enhance(s, g), DP.limitBreak(s, g), DP.evolve(s, g),
+                     DP.reroll(s, g)].every(x => x.ok === false);
 
-    // --- DISMANTLE: gỡ khỏi loadout, trả Magi về kho, không để magi mồ côi ---
+    // --- DISMANTLE: gỡ khỏi loadout, biến mất khỏi túi ---
     s = mk();
     const w = s.gear.find(x => x.kind === 'weapon');
-    const magiOn = w.magi.filter(Boolean).slice();
     const wasEquipped = s.loadout.weapons.indexOf(w.uid) >= 0;
-    const nMagi = s.magi.length;
     const dr = DP.dismantle(s, w);
     const stillInLoadout = JSON.stringify(s.loadout).indexOf(w.uid) >= 0;
     const stillInBag = s.gear.some(x => x.uid === w.uid);
-    const orphan = magiOn.some(u => s.gear.some(x => x.magi.indexOf(u) >= 0));
-    const magiKept = magiOn.every(u => s.magi.some(m => m.uid === u));
     out.dis = { ok: dr.ok, wasEquipped: wasEquipped, gotLapis: (s.mats[dr.lapis] || 0) >= dr.n,
-                outLoadout: !stillInLoadout, outBag: !stillInBag, orphan: orphan,
-                magiKept: magiKept, count: s.magi.length === nMagi };
-
-    // --- EQUIP MAGI: một viên không được nằm ở hai chỗ ---
-    s = mk();
-    const w2 = s.gear.find(x => x.kind === 'weapon');
-    const star = s.magi.find(m => DP.magiById(m.id).shape === 'star');
-    // ép cả hai ô đầu của vũ khí cùng hình 'star' rồi thử lắp một viên vào cả hai
-    w2.shapes = ['star', 'star', 'star'];
-    DP.equipMagi(s, w2, 0, star.uid);
-    DP.equipMagi(s, w2, 1, star.uid);
-    const twoPlaces = w2.magi.filter(u => u === star.uid).length;
-    // và sang một món khác
-    const w3 = mkGear(s, 'weapon'); w3.shapes = ['star', 'star', 'star'];
-    DP.equipMagi(s, w3, 0, star.uid);
-    const across = s.gear.reduce((n, x) => n + x.magi.filter(u => u === star.uid).length, 0);
-    out.eqMagi = { single: twoPlaces === 1, across: across === 1 };
-    // ô chưa mở thì không được lắp
-    const armor = s.gear.find(x => x.kind === 'head');
-    out.lockedSlot = DP.equipMagi(s, armor, 1, null).ok === false;
+                outLoadout: !stillInLoadout, outBag: !stillInBag };
 
     return out;
   });
@@ -536,9 +396,6 @@ const PAGE_SNAP = () => {
   check('gacha ra món trùng thì thành Lõi Rồng đúng số lượng', eco.gear.dupFound && eco.gear.cores && eco.gear.stock);
   check('túi không bao giờ có hai món giống hệt nhau', eco.gear.noDupInBag);
   check('Lõi Rồng không nằm trong bảng rơi nào (không cày được)', eco.coreFarm === false);
-  check('nâng Magi trừ đúng gold + mảnh', eco.magi.ok && eco.magi.gold && eco.magi.mat && eco.magi.lv,
-    JSON.stringify(eco.magi));
-  check('nâng Magi khi hết mảnh: từ chối, không trừ gold', eco.magiBroke.ok && eco.magiBroke.untouched);
   check('gọi hai lần với tài nguyên đủ MỘT lần: lần hai fail, không âm',
     eco.twice.first && eco.twice.second && eco.twice.gold && eco.twice.mat && eco.twice.lv,
     JSON.stringify(eco.twice));
@@ -546,11 +403,6 @@ const PAGE_SNAP = () => {
   check('canPay=false thì mọi hàm nâng cấp đều trả ok:false', eco.allRefuse);
   check('rã đồ: gỡ khỏi loadout', eco.dis.wasEquipped && eco.dis.outLoadout);
   check('rã đồ: biến mất khỏi túi và nhận Lapis', eco.dis.outBag && eco.dis.gotLapis);
-  check('rã đồ: KHÔNG để Magi mồ côi (không món nào còn tham chiếu uid đã rã)',
-    !eco.dis.orphan && eco.dis.magiKept && eco.dis.count);
-  check('một viên Magi không nằm ở hai ô cùng lúc', eco.eqMagi.single, 'trong cùng một món');
-  check('một viên Magi không nằm ở hai MÓN cùng lúc', eco.eqMagi.across);
-  check('ô Magi chưa mở thì không lắp được', eco.lockedSlot);
 
   /* ------------------------------------- MUA Ở TIỆM (đường đi qua UI) ---- */
   note('\n── tiệm Pikke: đường mua đi qua nút thật ──');
@@ -591,8 +443,7 @@ const PAGE_SNAP = () => {
   note('\n── gacha: vé và gem ──');
   const gac = await p.evaluate(() => {
     const S = DP.UI.save;
-    S.ticket = 50; S.gem = 250; S.magi = []; DP.UI.show('gacha');
-    const m0 = S.magi.length;
+    S.ticket = 50; S.gem = 250; DP.UI.show('gacha');
     const gear0 = S.gear.length, core0 = S.mats.dragon_core || 0;
     document.querySelector('#body-gacha [data-act="g10"]').click();
     // 11 lần quay = 11 kết quả: mỗi cái hoặc là một món mới trong túi, hoặc là Lõi Rồng.
@@ -603,19 +454,17 @@ const PAGE_SNAP = () => {
     const gear1 = S.gear.length;
     document.querySelector('#body-gacha [data-act="g10"]').click();   // hết vé
     const t2 = S.ticket === 0 && S.gear.length === gear1;
+    // Quầy quay Magi đã bị bóc: nút phải KHÔNG còn, và Gem không được đụng tới.
     DP.UI.show('gacha');
-    document.querySelector('#body-gacha [data-act="m10"]').click();
-    const g = { gem: S.gem === 0, magi: S.magi.length === m0 + 11 };
-    DP.UI.show('gacha');
-    document.querySelector('#body-gacha [data-act="m10"]').click();   // hết gem
-    const g2 = { gem: S.gem === 0, magi: S.magi.length === m0 + 11 };
-    return { t, t2, g, g2 };
+    const gemBtnGone = !document.querySelector('#body-gacha [data-act="m10"]') &&
+                       !document.querySelector('#body-gacha [data-act="m1"]');
+    return { t, t2, gemBtnGone, gemKept: S.gem === 250 };
   });
   check('quay 10+1 trừ đúng 50 vé và ra thẳng trang bị', gac.t.ticket && gac.t.got && gac.t.accounted,
     JSON.stringify(gac.t));
   check('hết vé thì không quay được nữa (vé không âm, túi không tăng)', gac.t2);
-  check('quay 10+1 magi trừ đúng 250 Gem và vào kho 11 viên', gac.g.gem && gac.g.magi);
-  check('hết Gem thì không quay được nữa (gem không âm, kho không tăng)', gac.g2.gem && gac.g2.magi);
+  check('quầy quay Magi đã bị bóc khỏi màn gacha', gac.gemBtnGone);
+  check('Gem không bị đụng tới ở màn gacha', gac.gemKept);
 
   /* ================================ LUỒNG ĐẦU-CUỐI: chơi lại từ số 0 ===== */
   note('\n── chơi lại từ số 0 (bot điều khiển) ──');
@@ -761,7 +610,7 @@ const PAGE_SNAP = () => {
     await p.evaluate(() => {
       DPBot.off();
       const b = DP.UI.battle;
-      b.player.usedMagi = true;
+      b.player.usedSkill = true;
       b.dealToBoss({ phys: 9e9, elem: 0, el: 'none' }, b.boss.x, b.boss.y, {});
     });
     for (let t = 0; t < 8 && !done; t++) { await p.waitForTimeout(500); done = await p.evaluate(() => !!window.__res); }
@@ -792,7 +641,7 @@ const PAGE_SNAP = () => {
 
   /* --------------------------------------------------------- TỔNG KẾT ---- */
   note('\n── console cả phiên ──');
-  // Bỏ qua đúng những lỗi mà test CỐ TÌNH tái hiện ở phần "ô Magi thứ 3".
+  // Bỏ qua đúng những lỗi mà test CỐ TÌNH tái hiện.
   const pageErrs = errs.filter(e => e.indexOf('PAGEERROR') === 0 && ignoreErr.indexOf(e) < 0);
   check('không có pageerror nào trong cả phiên', pageErrs.length === 0,
     pageErrs.slice(0, 3).join(' | '));

@@ -74,6 +74,20 @@
     }, 40);
   }
 
+  /* Giữ một nút kỹ năng đủ lâu rồi nhả — bot phải đi qua đúng pha nạp như người. */
+  var holdingSkill = null;
+  function holdSkill(i, ms) {
+    if (holdingSkill) return;
+    var btn = document.getElementById('hSkill' + i);
+    if (!btn) return;
+    holdingSkill = i;
+    btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    setTimeout(function () {
+      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+      holdingSkill = null;
+    }, ms);
+  }
+
   function nearestEnemy(b) {
     if (b.boss && b.boss.hp > 0) return b.boss;
     var best = null, bd = 1e9;
@@ -145,13 +159,16 @@
       return;
     }
 
-    // 2. Xả Magi khi boss gục hoặc đầy thanh.
+    // 2. Nạp rồi xả kỹ năng khi có mục tiêu đáng dùng. Kỹ năng nạp lâu nên bot
+    //    phải GIỮ nút chứ không bấm — mô phỏng đúng thao tác của người chơi.
     for (var i = 0; i < 2; i++) {
-      var m = b.wp && b.wp.magi[i];
-      if (!m) continue;
-      var wantNow = (m.shape === 'heart' && p.hp < p.maxHp * 0.5) ||
-                    (m.shape !== 'heart' && p.magi >= 100 && (!b.boss || b.boss.down > 0 || b.boss.hp < b.boss.maxHp * 0.9));
-      if (p.magi >= m.cost && wantNow) { document.getElementById('hMagi' + i).click(); return; }
+      var sk = b.skillDef(i);
+      if (!sk || b.skillCdLeft(i) > 0) continue;
+      var worth = (b.boss && (b.boss.down > 0 || b.boss.hp < b.boss.maxHp * 0.95)) ||
+                  b.mobs.filter(function (m) { return m.hp > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 260; }).length >= 2;
+      if (!worth) continue;
+      holdSkill(i, sk.charge + 120);
+      return;
     }
 
     var e = nearestEnemy(b);
