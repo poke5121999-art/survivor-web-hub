@@ -1186,12 +1186,34 @@ const CART_MAX_VALUE  = 20000;
 // closed at play time — two truths about the same tile. Sight is the one thing that can be layered
 // on top without any of them knowing.
 //
-// It swings open on its own when anything alive is close. Nobody has to press anything: the source
-// game's doors are pushed through, and a button to open a door is a fifth input.
-const DOOR_OPEN_R   = 1.8*TILE;   // anything alive this close pushes it open
-const DOOR_OPEN_T   = 0.22;       // seconds to swing open
-const DOOR_SHUT_T   = 1.1;        // and it takes longer to fall shut, so you are not fighting it
-const DOOR_SEE_AT   = 0.55;       // open past this and it stops blocking sight
+// Nobody presses anything: the source game's doors are pushed through, and a button to open a door
+// is a fifth input on a screen that already has four too many.
+//
+// A door is PUSHED, and it opens exactly as far as you have pushed it.
+//
+// It used to swing itself: anything alive inside a 3.6-tile box opened it in 0.22s, and sight
+// unblocked in one step the moment it passed 0.55 - so the next room appeared, whole, 0.12s after
+// you wandered near the doorway, whether or not you were even walking at it. That is a supermarket
+// door. Walking past a doorway two tiles off the centre line opened it. Standing still held it open.
+// The one moment this game is built around - the black rectangle you have not looked into yet - was
+// being handed away for free, before you had decided to look.
+//
+// The rule now: the leaf is shoved out of the space your body is taking. Cross the last tile toward
+// the plane and the pair swings by exactly that fraction, so the reveal runs at the speed of your
+// own feet and STOPS when you stop. You can hold at a third open and read the room through the slit
+// (see doorSegs - the sight test is the real geometry now, not a threshold). Come at it running and
+// the shove carries: the leaf keeps swinging after you have let go of it.
+// SEE: wall + door pass, 2026-08-31, and Darkwood's "run into it and it slams open" doors.
+const DOOR_REACH    = 1.0*TILE;   // how close to the leaf plane a body has to be to be touching it
+const DOOR_SLAM     = 130;        // px/s across the plane that reads as a shove rather than a lean
+const DOOR_SWING    = 190;        // a shove at this speed is worth one full swing per second
+const DOOR_DRAG     = 2.2;        // 1/s, how fast a flung leaf loses the swing it was given
+// It still falls shut eventually, but slowly and only after it has been left alone. Frictional's
+// rule for Amnesia was that a door holds the state you left it in, and a 1.1s slam-shut broke that
+// every time you stepped back to look. Nine seconds after a two-and-a-half second pause never
+// fights you, and it keeps "that door is open, something came through it" worth reading.
+const DOOR_HOLD     = 2.5;        // seconds a leaf keeps the angle you left it at
+const DOOR_SAG_T    = 9;          // and how long the hinge then takes to sag it shut, wide to zero
 
 // The opening is carved THREE tiles wide and the leaf was one tile of it, hinged in the middle.
 // So "a shut door hides the next room" was only true head-on: step a tile off the centre line and
@@ -1231,7 +1253,35 @@ const DOOR_BREAK_NOISE = 11*TILE; // splintering wood is loud, and the house hea
 
 function makeDoor(gx, gy, vertical){
   return { gx, gy, x:(gx+0.5)*TILE, y:(gy+0.5)*TILE, vertical, side:1,
-           open:0, locked:false, broken:false, bash:0, splint:0, warned:0 };
+           open:0, vel:0, idle:0, pry:0,
+           locked:false, broken:false, bash:0, splint:0, warned:0 };
+}
+
+// How far across the opening ONE leaf still stands, in px, measured from its own jamb inward.
+//
+// A leaf hinged at the jamb and swung by t*90 degrees lies across cos(t*90) of its own length - so
+// a pair a third open leaves a slit down the middle and still hides everything either side of it.
+// This replaces a threshold: sight used to be all-or-nothing at open >= 0.55, which meant a door
+// nudged halfway hid exactly as much as a shut one and then the whole room arrived in one frame.
+// The number here is the same one drawDoors rotates the art by, so what you can see through a door
+// is now what the door LOOKS like - the crack you are peering through is the crack that is there.
+function doorCover(d){
+  if (d.broken) return 0;
+  if (d.locked) return DOOR_LEAF;                 // boards nailed across it: no crack, ever
+  return DOOR_LEAF * Math.cos(clamp(d.open,0,1) * Math.PI/2);
+}
+
+// The pair as up to two occluding segments, one hugging each jamb. Callers get [x0,y0,x1,y1].
+function doorSegs(d, out){
+  out.length = 0;
+  const cov = doorCover(d);
+  if (cov < 0.5) return out;                      // wide enough open that neither leaf is in the way
+  for (let k = -1; k <= 1; k += 2){
+    const a = k*DOOR_LEAF, b = k*(DOOR_LEAF-cov);
+    const lo = Math.min(a,b), hi = Math.max(a,b);
+    out.push(d.vertical ? [d.x, d.y+lo, d.x, d.y+hi] : [d.x+lo, d.y, d.x+hi, d.y]);
+  }
+  return out;
 }
 
 // Every floor tile sitting on a room boundary is a doorway. Only the middle tile of each opening
@@ -1240,12 +1290,15 @@ function buildDoors(rnd){
   S.doors = [];
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
     const my = cy*RH + (RH>>1), mx = cx*RW + (RW>>1);
+    // The pair hangs in the tile the wall used to occupy. With a two-tile partition the leaf sat
+    // half a tile off the wall's centre and visibly favoured one room; on a one-tile seam it is
+    // centred for free.
     if (cx < GX-1){
-      const col = (cx+1)*RW;
+      const col = (cx+1)*RW-1;
       if (S.grid[my*MW+col] === FLOOR) S.doors.push(makeDoor(col, my, true));
     }
     if (cy < GY-1){
-      const row = (cy+1)*RH;
+      const row = (cy+1)*RH-1;
       if (S.grid[row*MW+mx] === FLOOR) S.doors.push(makeDoor(mx, row, false));
     }
   }
@@ -1366,6 +1419,10 @@ function breakDoorsNear(x, y, r){
 function stepDoors(dt){
   if (!S.doors) return;
   const bodies = S.shopMode ? [] : crewAlive().concat(S.monsters);
+  // Where each body stood last frame, so a door can tell a shove from a lean. Kept on the body
+  // rather than in a map because monsters come and go and a stale entry would push a door on its
+  // own. A body seen for the first time has not moved yet.
+  for (const b of bodies) if (b.doorPx === undefined){ b.doorPx = b.x; b.doorPy = b.y; }
   for (const d of S.doors){
     if (d.splint > 0) d.splint = Math.max(0, d.splint - dt*0.6);
     if (d.warned > 0) d.warned = Math.max(0, d.warned - dt);
@@ -1400,39 +1457,66 @@ function stepDoors(dt){
       continue;
     }
     if (d.broken){ d.open = 1; continue; }        // a broken door is a hole, for good
-    let near = false;
-    for (const b of bodies){
-      if (Math.abs(b.x-d.x) > DOOR_OPEN_R || Math.abs(b.y-d.y) > DOOR_OPEN_R) continue;
-      near = true; break;
-    }
     const was = d.open;
-    d.open = clamp(d.open + (near ? dt/DOOR_OPEN_T : -dt/DOOR_SHUT_T), 0, 1);
+    // `touch` is how far the nearest body has already displaced the pair: 0 at arm's length,
+    // 1 standing in the plane. `slam` is the fastest anything is crossing that plane this frame.
+    let touch = 0, slam = 0, from = 0;
+    for (const b of bodies){
+      const along  = d.vertical ? b.y-d.y : b.x-d.x;
+      const across = d.vertical ? b.x-d.x : b.y-d.y;
+      if (Math.abs(along) > DOOR_LEAF + 8) continue;        // beside the opening, not in it
+      if (Math.abs(across) > DOOR_REACH) continue;          // not near enough to be leaning on it
+      const t = 1 - Math.abs(across)/DOOR_REACH;
+      if (t > touch){ touch = t; from = across >= 0 ? 1 : -1; }
+      // Only motion INTO the plane counts. Walking parallel past a doorway pushes nothing, which is
+      // the single biggest difference from the old proximity rule, and walking AWAY after you are
+      // through does not keep dragging the leaf round.
+      const mv = d.vertical ? b.x - b.doorPx : b.y - b.doorPy;
+      // Nothing walks a whole tile in one frame. A step that big is a TELEPORT - relocateFoe moving
+      // a monster to the far side of the house, a respawn, REPO.warp - and reading it as a shove
+      // would blow a door off its hinges from across the map.
+      if (Math.abs(mv) < TILE && across*mv <= 0) slam = Math.max(slam, Math.abs(mv)/Math.max(dt, 1e-4));
+    }
+    // Which room the pair swings into: away from whoever is pushing it. Only ever decided while the
+    // door is as good as shut, so a leaf never flips through a body mid-swing. It was a coin flip
+    // before, which meant half the doors in the house opened INTO your face.
+    if (from && d.open < 0.05) d.side = d.vertical ? (from > 0 ? 1 : -1) : (from > 0 ? -1 : 1);
+    if (slam > DOOR_SLAM) d.vel = Math.max(d.vel, slam/DOOR_SWING);
+    if (d.vel > 0){
+      d.open = clamp(d.open + d.vel*dt, 0, 1);
+      d.vel = Math.max(0, d.vel - DOOR_DRAG*d.vel*dt);
+      if (d.vel < 0.02 || d.open >= 1) d.vel = 0;
+    }
+    if (touch > d.open) d.open = touch;           // the body's own bulk, never pulling it back shut
+    if (touch > 0 || d.vel > 0) d.idle = 0; else d.idle += dt;
+    if (d.idle > DOOR_HOLD) d.open = Math.max(0, d.open - dt/DOOR_SAG_T);
     const heard = Math.hypot(d.x-S.player.x, d.y-S.player.y) < 10*TILE;
-    // the hinge as it starts to move, either way, and the clack when it passes the middle
+    // the hinge as it starts to move, either way, and the bang of a door that was shoved
     if (heard && was < 0.02 && d.open >= 0.02) SFX.hinge(true);
-    if (heard && was > 0.98 && d.open <= 0.98) SFX.hinge(false);
-    if (was < DOOR_SEE_AT && d.open >= DOOR_SEE_AT && heard) SFX.thud();
+    if (heard && was > 0.02 && d.open <= 0.02) SFX.hinge(false);
+    if (heard && slam > DOOR_SLAM && was < 0.35 && d.open >= 0.35) SFX.thud();
   }
+  for (const b of bodies){ b.doorPx = b.x; b.doorPy = b.y; }
 }
 
 // A closed door is a wall as far as any sightline is concerned - the player's torch, a monster's
 // eyes, the AEngel's beam check, all of them, because they all come through losClear.
+const doorSegScratch = [];
 function doorBlocks(x0, y0, x1, y1){
   if (!S.doors) return false;
   for (const d of S.doors){
-    if (d.broken) continue;
-    if (!d.locked && d.open >= DOOR_SEE_AT) continue;
-    // the pair spans the whole opening, not just its middle tile
-    const half = DOOR_LEAF;
-    const ax = d.vertical ? d.x : d.x - half, ay = d.vertical ? d.y - half : d.y;
-    const bx = d.vertical ? d.x : d.x + half, by = d.vertical ? d.y + half : d.y;
-    const dx = x1-x0, dy = y1-y0, ex = bx-ax, ey = by-ay;
-    const den = dx*ey - dy*ex;
-    if (Math.abs(den) < 1e-9) continue;
-    const px = ax-x0, py = ay-y0;
-    const t = (px*ey - py*ex) / den;
-    const u = (px*dy - py*dx) / den;
-    if (t > 0 && t < 1 && u >= 0 && u <= 1) return true;
+    // Two leaves, each covering only what it still covers at this swing angle - so a door eased a
+    // crack open lets a sightline through the middle and nothing else.
+    for (const s of doorSegs(d, doorSegScratch)){
+      const ax = s[0], ay = s[1];
+      const dx = x1-x0, dy = y1-y0, ex = s[2]-ax, ey = s[3]-ay;
+      const den = dx*ey - dy*ex;
+      if (Math.abs(den) < 1e-9) continue;
+      const px = ax-x0, py = ay-y0;
+      const t = (px*ey - py*ex) / den;
+      const u = (px*dy - py*dx) / den;
+      if (t > 0 && t < 1 && u >= 0 && u <= 1) return true;
+    }
   }
   return false;
 }
@@ -1569,7 +1653,14 @@ function buildLevel(seed){
       const gx = cx*RW+x, gy = cy*RH+y;
       const prop = PROP_CH[ch] || 0;
       let v = ch === '#' ? WALL : prop ? PROP : FLOOR;
-      if (x===0||y===0||x===RW-1||y===RH-1) v = WALL;      // room shell is always closed
+      // A room owns its RIGHT and BOTTOM wall outright, its LEFT and TOP only where the map ends.
+      // Two rooms side by side each used to close their own shell, so every partition in the house
+      // was TWO tiles - 48px - standing against a 15px body: three times wider than the man walking
+      // past it. Darkwood's walls are thinner than its character, and that is what makes a room read
+      // as a room. The seam is one tile now, and the two rooms share it.
+      // SEE: wall + door pass, 2026-08-31
+      if (x===RW-1 || y===RH-1 || (x===0 && cx===0) || (y===0 && cy===0)) v = WALL;
+      else if (x===0 || y===0) v = FLOOR;                  // the neighbour's wall already stands here
       S.grid[gy*MW+gx] = v;
       if (v === PROP) S.deco[gy*MW+gx] = prop;
       if (v === FLOOR && ch === 'L') lootSpots.push({gx,gy,ri});
@@ -1582,8 +1673,11 @@ function buildLevel(seed){
   const carve = carveTile;                              // never the map border; see carveTile
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
     const my = cy*RH + (RH>>1), mx = cx*RW + (RW>>1);
-    if (cx < GX-1){ const col=(cx+1)*RW; for(let d=-1;d<=1;d++) for(let o=-2;o<=1;o++) carve(col+o, my+d); }
-    if (cy < GY-1){ const row=(cy+1)*RH; for(let d=-1;d<=1;d++) for(let o=-2;o<=1;o++) carve(mx+d, row+o); }
+    // The seam is the LAST column a room owns, not the first column of the next one, and it is one
+    // tile now - so the o range is symmetric: the wall itself plus one floor tile either side.
+    // It used to run -2..1 because it had to pierce two stacked wall columns.
+    if (cx < GX-1){ const col=(cx+1)*RW-1; for(let d=-1;d<=1;d++) for(let o=-1;o<=1;o++) carve(col+o, my+d); }
+    if (cy < GY-1){ const row=(cy+1)*RH-1; for(let d=-1;d<=1;d++) for(let o=-1;o<=1;o++) carve(mx+d, row+o); }
   }
 
   // the car (start point) sits in a corner room
@@ -2109,6 +2203,8 @@ function prerenderWorld(rnd){
   const c = S.worldCv.getContext('2d');
   c.setTransform(1,0,0,1,0,0);
   c.fillStyle = '#0a0b0c'; c.fillRect(0,0,WPX,HPX);
+  // Off the map is wall, so the outer shell does not get an edge drawn on its outside face.
+  const isW = (ax,ay) => ax<0 || ay<0 || ax>=MW || ay>=MH || S.grid[ay*MW+ax] === WALL;
   for (let gy=0; gy<MH; gy++) for (let gx=0; gx<MW; gx++){
     const i = gy*MW+gx, v = S.grid[i], x = gx*TILE, y = gy*TILE, n = rnd();
     if (v === FLOOR){
@@ -2121,8 +2217,17 @@ function prerenderWorld(rnd){
       const w = WALLS[S.roomStyle ? S.roomStyle[ri] : 0] || WALLS[0];
       c.fillStyle = `rgb(${(w[0]+n*12)|0},${(w[1]+n*11)|0},${(w[2]+n*10)|0})`;
       c.fillRect(x,y,TILE,TILE);
-      c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(x,y+TILE-4,TILE,4);
-      c.fillStyle = 'rgba(255,246,226,0.10)'; c.fillRect(x,y,TILE,2);
+      // Shading follows the EXPOSED FACES of a wall run, not every tile in it. Painted per tile,
+      // a run of wall came out a ladder of stripes and the eye counted tiles instead of reading one
+      // wall - which is most of why a two-tile partition looked like a slab. A face is exposed when
+      // the neighbour is not wall; a prop still stands in a room, so it counts as open.
+      if (!isW(gx,gy+1)){ c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(x,y+TILE-4,TILE,4); }
+      if (!isW(gx,gy-1)){ c.fillStyle = 'rgba(255,246,226,0.10)'; c.fillRect(x,y,TILE,2); }
+      // A one-tile partition seen from above is a LINE, and a line needs two edges or it vanishes
+      // into the floor. The side faces are what give a vertical run its thickness now that it has
+      // only one tile to spend. SEE: wall + door pass, 2026-08-31
+      if (!isW(gx-1,gy)){ c.fillStyle = 'rgba(0,0,0,0.26)'; c.fillRect(x,y,2,TILE); }
+      if (!isW(gx+1,gy)){ c.fillStyle = 'rgba(0,0,0,0.26)'; c.fillRect(x+TILE-2,y,2,TILE); }
       if (((gx ^ gy) & 3) === 0){ c.fillStyle = 'rgba(0,0,0,0.07)'; c.fillRect(x+2, y+2, TILE-4, 1); }
     } else {
       const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
@@ -2131,7 +2236,23 @@ function prerenderWorld(rnd){
       paintProp(c, x, y, S.deco ? S.deco[i] : P_BLOCK, n);
     }
   }
+  paintWallContact(c);
   paintDoorFrames(c);
+}
+// The shadow a wall casts onto the floor in front of it. A thin wall drawn flat from directly above
+// has nothing to say how tall it is, and it floated - it read as paint on the floor rather than as
+// something standing in the room. Darkwood leans its walls slightly toward the camera to say the
+// same thing; a contact shadow is the cheap version, and it costs no tiles. Six pixels, fading out.
+// SEE: wall + door pass, 2026-08-31
+function paintWallContact(c){
+  for (let gy=1; gy<MH; gy++) for (let gx=0; gx<MW; gx++){
+    if (S.grid[gy*MW+gx] === WALL) continue;
+    if (S.grid[(gy-1)*MW+gx] !== WALL) continue;
+    const x = gx*TILE, y = gy*TILE;
+    const g = c.createLinearGradient(0, y, 0, y+6);
+    g.addColorStop(0, 'rgba(0,0,0,0.38)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.fillRect(x, y, TILE, 6);
+  }
 }
 function paintFloor(c, x, y, st, gx, gy, n){
   // The pattern has to come from the GRID, not from the random stream. Tinting each tile at
@@ -2199,8 +2320,10 @@ function paintProp(c, x, y, kind, n){
 function paintDoorFrames(c){
   for (let gy=1; gy<MH-1; gy++) for (let gx=1; gx<MW-1; gx++){
     if (S.grid[gy*MW+gx] !== FLOOR) continue;
-    const onCol = (gx % RW) === 0 || (gx % RW) === RW-1;
-    const onRow = (gy % RH) === 0 || (gy % RH) === RH-1;
+    // One jamb per opening, not two. A room's seam is its last column/row; the old predicate also
+    // matched the next room's first column, which is floor now.
+    const onCol = (gx % RW) === RW-1;
+    const onRow = (gy % RH) === RH-1;
     if (!onCol && !onRow) continue;
     const x = gx*TILE, y = gy*TILE;
     c.fillStyle = 'rgba(30,24,18,0.55)';
@@ -2239,12 +2362,9 @@ function visPoly(ox,oy,R,uniform){
   // through a shut door while every sight TEST said it was blocked — the rule would be real and
   // invisible, which is the same as not shipping it.
   const shut = [];
-  if (S.doors) for (const d of S.doors){
-    if (d.broken || (!d.locked && d.open >= DOOR_SEE_AT)) continue;
-    const half = DOOR_LEAF;
-    shut.push(d.vertical ? seg(d.x, d.y-half, d.x, d.y+half)
-                         : seg(d.x-half, d.y, d.x+half, d.y));
-  }
+  const tmp = [];
+  if (S.doors) for (const d of S.doors)
+    for (const s of doorSegs(d, tmp)) shut.push(seg(s[0], s[1], s[2], s[3]));
   for (const s of S.segs.concat(shut)){
     if (s.minX>ox+R || s.maxX<ox-R || s.minY>oy+R || s.maxY<oy-R) continue;
     local.push(s);
@@ -8514,7 +8634,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260829h';
+const BUILD = '20260831a';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -9259,7 +9379,8 @@ window.REPO = {
   doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, gx:d.gx, gy:d.gy, open:d.open,
                                               vertical:d.vertical, locked:!!d.locked,
                                               broken:!!d.broken, bash:d.bash })); },
-  DOOR: { OPEN_R:DOOR_OPEN_R, OPEN_T:DOOR_OPEN_T, SHUT_T:DOOR_SHUT_T, SEE_AT:DOOR_SEE_AT,
+  DOOR: { REACH:DOOR_REACH, SLAM:DOOR_SLAM, SWING:DOOR_SWING, DRAG:DOOR_DRAG,
+          HOLD:DOOR_HOLD, SAG_T:DOOR_SAG_T, THICK:DOOR_THICK,
           SPAN:DOOR_SPAN, LEAF:DOOR_LEAF, LOCK_FRAC:DOOR_LOCK_FRAC, LOCK_LEVEL:DOOR_LOCK_LEVEL,
           BASH_T:DOOR_BASH_T, PRY_REACH:PRY_REACH,
           PRY_HITS:DOOR_PRY_HITS, PRY_R:DOOR_PRY_R },
