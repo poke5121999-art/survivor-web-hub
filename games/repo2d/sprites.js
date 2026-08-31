@@ -50,11 +50,11 @@
   // Đội là cùng một người: `bao`. Trước đây hai mã trỏ vào hai tệp khác nhau, nên cùng một nhân
   // vật ra hai mặt tuỳ bản đang chơi. Xem crewIdOf.
   //
-  // Bộ hình có 11 xác; Biệt Đội cần 14 nhân vật, và `bao` gánh luôn vai chính, nên còn THIẾU BA:
-  // van (Frost), hai (Magnet), tuyet (Seraph) — cả ba là nhân vật 5 sao. Chúng vẫn chơi được,
-  // chỉ rơi về hình khối cũ cho tới khi có tệp. Mỗi tên ở đây không có tệp là một request 404
-  // thật, nên danh sách này chỉ liệt kê cái đang có.
-  const CREW_IDS = ['bao', 'hue', 'tam', 'ky', 'linh', 'dung', 'mai', 'phuc', 'son', 'nga', 'khoi'];
+  // ĐỦ CẢ 14. Biệt Đội có 14 nhân vật và `bao` gánh luôn vai chính của Ca Trực Đêm, nên bộ này
+  // là đủ, không còn xác nào rơi về hình khối cũ. Mỗi tên ở đây không có tệp tương ứng là một
+  // request 404 thật, nên danh sách phải khớp đúng thư mục art/crew.
+  const CREW_IDS = ['bao', 'hue', 'tam', 'ky', 'linh', 'dung', 'mai', 'phuc', 'son',
+                    'nga', 'khoi', 'van', 'hai', 'tuyet'];
 
   // Ba con bot của Ca Trực Đêm ("Tổ 2/3/4") mượn ba xác, thứ tự cố định để cùng một con bot
   // luôn ra cùng một mặt trong mọi ván. KHÔNG được có `bao` ở đây: bao giờ cũng là mặt của
