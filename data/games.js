@@ -365,8 +365,9 @@ window.HUB_GAMES = [
     // 2026-08-31. Dụng cụ đo cho games/orbit/RESEARCH.md muc 9 (Moc 1) - the question is
     // whether a factory graph survives a portrait screen and a single centre joystick once
     // conveyor dragging is removed. Both variants share map seed, recipes, craft times and
-    // controls; only the transport layer differs. Not a game, not a build: status stays
-    // build-pending so it shows on admin.html and never on the public hub.
+    // controls; only the transport layer differs. It is a measuring tool rather than a
+    // finished game — but it runs, so it is available rather than build-pending; the
+    // "Dựng thử" tag is what tells a player what they are opening.
     // Checks: node games/orbit/tools/smoke.js
     status: "available",
     tags: ["Dây chuyền", "Dựng thử", "Màn dọc", "Một tay"]
