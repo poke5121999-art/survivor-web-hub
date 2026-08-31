@@ -222,6 +222,11 @@
     flash: (p, d) => {
       const bi = near(p.x, p.y, d.radius).filter(f => REPO.losClear(p.x, p.y, f.x, f.y));
       bi.forEach(f => { REPO.foeSleep(f, d.dur); REPO.foeDeafen(f, d.dur); });
+      // Cú loé: nở ra đúng bán kính nó với tới, trắng và nhiều tia. Vòng sáng chạy tới đâu thì
+      // con quái ở đó đứng hình tới đó — người chơi đọc được TẦM của kỹ năng chứ không phải
+      // đoán. REPO.fxFlash làm sáng cả màn một nhịp, đúng nghĩa loé đèn vào mặt.
+      REPO.castFx('burst', p.x, p.y, { r: d.radius * TILE, col: '255,252,225', tia: 16, dur: 0.55 });
+      REPO.fxFlash(0.4, '255,250,225');
       return bi.length ? 'Loé vào mặt ' + bi.length + ' con' : 'Không con nào nhìn thấy';
     },
 
@@ -240,6 +245,7 @@
           });
         }
       });
+      REPO.castFx('dome', cx, cy, { r: R, col: '150,240,180', dur: d.dur });
       return 'Vòng hồi ' + d.dur + 's';
     },
 
@@ -249,6 +255,7 @@
       p.floatT = Math.max(p.floatT || 0, d.dur);
       p.hasteT = Math.max(p.hasteT || 0, d.dur);
       p.stam = p.stamMax;
+      REPO.castFx('aura', p.x, p.y, { col: '255,205,110', dur: 0.6 });
       return 'Gồng ' + d.dur + 's';
     },
 
@@ -268,6 +275,7 @@
     vanish: (p, d) => {
       p.invisT = Math.max(p.invisT || 0, d.dur);
       foes().forEach(f => { if (f.target === p) { f.target = null; f.alert = 0; } });
+      REPO.castFx('implode', p.x, p.y, { r: TILE * 2.6, col: '190,170,240', tia: 8, dur: 0.5 });
       return 'Biến mất ' + d.dur + 's';
     },
 
@@ -281,6 +289,8 @@
         REPO.foeSleep(f, d.stun);
         REPO.foeKnock(f, Math.atan2(f.y - p.y, f.x - p.x), 240);
       });
+      REPO.castFx('burst', p.x, p.y, { r: d.radius * TILE, col: '255,170,110', tia: 12, dur: 0.45 });
+      REPO.fxShake(6);
       return bi.length ? 'Nện ' + bi.length + ' con' : 'Nện hụt';
     },
 
@@ -332,6 +342,7 @@
           });
         }
       });
+      REPO.castFx('dome', cx, cy, { r: R, col: '150,205,255', dur: d.dur });
       return 'Dựng lồng ' + d.dur + 's';
     },
 
@@ -345,6 +356,10 @@
       }
       REPO.makeNoise(ox, oy, 9 * TILE, 3);                    // bóng giả: quái đổ về chỗ bạn VỪA RỜI
       p.invulnT = Math.max(p.invulnT || 0, 2);
+      // Hai cú, hai chỗ: chỗ vừa rời và chỗ vừa tới. Một cú thôi thì không ai đọc ra là DỊCH
+      // CHUYỂN — người chơi chỉ thấy mình bỗng đứng chỗ khác.
+      REPO.castFx('implode', ox, oy, { r: TILE * 2.2, col: '200,190,255', tia: 8, dur: 0.42 });
+      REPO.castFx('burst',   p.x, p.y, { r: TILE * 2.2, col: '230,225,255', tia: 8, dur: 0.42 });
       return 'Chớp';
     },
 
@@ -364,6 +379,7 @@
     freeze: (p, d) => {
       const bi = near(p.x, p.y, d.radius);
       bi.forEach(f => { REPO.foeSleep(f, d.dur); REPO.foeSlow(f, d.dur); });
+      REPO.castFx('burst', p.x, p.y, { r: d.radius * TILE, col: '175,235,255', tia: 6, dur: 0.6 });
       return bi.length ? 'Đông cứng ' + bi.length + ' con' : 'Không có quái gần đây';
     },
 
@@ -378,6 +394,7 @@
         if (Math.hypot(l.x - p.x, l.y - p.y) > d.radius * TILE) return;
         if (REPO.deliverLoot(l, pad)) n++;
       });
+      REPO.castFx('implode', p.x, p.y, { r: d.radius * TILE, col: '245,215,120', tia: 12, dur: 0.55 });
       return n ? 'Giao thẳng ' + n + ' món lên bệ' : 'Không có đồ rơi gần đây';
     },
 
@@ -389,6 +406,8 @@
         if (a.down && REPO.reviveActor(a)) n++;
         a.invulnT = Math.max(a.invulnT || 0, d.dur);
       });
+      REPO.castFx('dome', p.x, p.y, { r: TILE * 5, col: '255,240,190', dur: Math.min(d.dur, 1.4) });
+      REPO.fxFlash(0.3, '255,245,205');
       return n ? 'Đỡ dậy ' + n + ' người, cả tổ bất tử ' + d.dur + 's' : 'Cả tổ bất tử ' + d.dur + 's';
     }
   };

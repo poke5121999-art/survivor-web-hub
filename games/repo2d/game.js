@@ -560,7 +560,85 @@ function threatLevel(){
   return best;
 }
 
+// ============================================================ hiệu ứng lúc thi triển kỹ năng
+//
+// Mười bốn kỹ năng của Biệt Đội trước đây đổi TRẠNG THÁI mà không đổi gì trên màn hình: bấm nút,
+// đọc dòng toast, và tin. Thứ duy nhất nhìn thấy được là hệ quả — con quái đứng hình, cánh cửa
+// bung ra — nên người chơi không bao giờ biết kỹ năng đã ăn hay chưa ăn, chỉ biết chuyện gì xảy
+// ra sau đó. Một nút bấm tốn 30 giây hồi mà không có phản hồi ngay tại khoảnh khắc bấm thì cảm
+// giác như nó không hoạt động.
+//
+// Không vẽ mười bốn hiệu ứng riêng. Bốn HỌ hình, mỗi họ trả lời một câu khác nhau về không gian,
+// và mỗi kỹ năng chọn họ cộng màu của nó:
+//   burst   — nở ra từ tâm: "chuyện này vừa lan tới ĐÂU" (loá sáng, sốc điện, mở toang)
+//   dome    — một vùng đứng yên và ở lại: "chỗ này đang được giữ" (vòng hồi, lồng sắt)
+//   implode — co vào tâm: "thứ gì đó vừa bị hút về đây" (tàng hình, kéo đồ)
+//   aura    — bó sát người thi triển: "hiệu ứng nằm trên NGƯỜI này" (gồng, đóng băng)
+// Vẽ ở lớp cộng sáng nên nó tự phát sáng trong tối, chỗ mà phần lớn kỹ năng được bấm.
+// SEE: fx lúc cast kỹ năng, 2026-08-31
+const CAST_T = 0.5;
+function castFx(kind, x, y, opt){
+  const o = opt || {};
+  S.casts.push({ kind: kind || 'burst', x, y, t: 0,
+                 dur: o.dur || CAST_T, r: o.r || TILE*3,
+                 col: o.col || '255,232,170', tia: o.tia == null ? 10 : o.tia });
+}
+function stepCasts(dt){
+  for (let i=S.casts.length-1;i>=0;i--){
+    S.casts[i].t += dt;
+    if (S.casts[i].t >= S.casts[i].dur) S.casts.splice(i,1);
+  }
+}
+function drawCasts(c){
+  for (const f of S.casts){
+    const k = clamp(f.t/f.dur, 0, 1), om = (1-k)*(1-k);
+    c.save();
+    if (f.kind === 'dome'){
+      // Đứng yên tại chỗ, viền dày lên rồi mỏng đi: một cái vùng, không phải một cú nổ.
+      const g = c.createRadialGradient(f.x,f.y,f.r*0.25,f.x,f.y,f.r);
+      g.addColorStop(0, 'rgba('+f.col+',0)');
+      g.addColorStop(0.82, 'rgba('+f.col+','+(0.16*om)+')');
+      g.addColorStop(1, 'rgba('+f.col+',0)');
+      c.fillStyle = g; c.fillRect(f.x-f.r, f.y-f.r, f.r*2, f.r*2);
+      c.beginPath(); c.strokeStyle = 'rgba('+f.col+','+(0.8*om)+')';
+      c.lineWidth = 1.5 + 4*Math.sin(k*Math.PI);
+      c.arc(f.x, f.y, f.r, 0, Math.PI*2); c.stroke();
+    } else if (f.kind === 'aura'){
+      // Bó quanh người thi triển, phồng nhẹ rồi xẹp. Bán kính nhỏ, vì nó nói về MỘT NGƯỜI.
+      const R = 15 + 9*Math.sin(k*Math.PI);
+      c.beginPath(); c.strokeStyle = 'rgba('+f.col+','+(0.9*om)+')';
+      c.lineWidth = 3.2*(1-k) + 0.8; c.arc(f.x, f.y-10, R, 0, Math.PI*2); c.stroke();
+      c.beginPath(); c.fillStyle = 'rgba('+f.col+','+(0.22*om)+')';
+      c.arc(f.x, f.y-10, R*0.8, 0, Math.PI*2); c.fill();
+    } else {
+      // burst nở ra, implode co vào — cùng một hình, chạy ngược chiều nhau.
+      const vao = f.kind === 'implode';
+      const q = vao ? 1-k : k;
+      const R = f.r*(0.12 + q*0.95);
+      c.beginPath(); c.strokeStyle = 'rgba('+f.col+','+(0.85*om)+')';
+      c.lineWidth = Math.max(1, f.r*0.10*(1-k)); c.arc(f.x, f.y, R, 0, Math.PI*2); c.stroke();
+      if (f.tia > 0){
+        c.strokeStyle = 'rgba('+f.col+','+(0.7*om)+')'; c.lineWidth = 1.8;
+        c.beginPath();
+        for (let i=0;i<f.tia;i++){
+          const a = (i/f.tia)*Math.PI*2 + (vao ? -k : k)*0.5;
+          const r0 = R*0.55, r1 = R*(vao ? 1.35 : 1.15);
+          c.moveTo(f.x+Math.cos(a)*r0, f.y+Math.sin(a)*r0);
+          c.lineTo(f.x+Math.cos(a)*r1, f.y+Math.sin(a)*r1);
+        }
+        c.stroke();
+      }
+      const cg = c.createRadialGradient(f.x,f.y,0,f.x,f.y,Math.max(3,f.r*0.42*(1-k)));
+      cg.addColorStop(0, 'rgba(255,255,255,'+(0.85*om)+')');
+      cg.addColorStop(1, 'rgba('+f.col+',0)');
+      c.fillStyle = cg; c.fillRect(f.x-f.r, f.y-f.r, f.r*2, f.r*2);
+    }
+    c.restore();
+  }
+}
+
 function stepFx(dt){
+  stepCasts(dt);
   const want = threatLevel();
   // Rises fast and falls slow, like the feeling does. A dread that drained as quickly as it
   // filled would flicker every time a patrol stepped behind a wall.
@@ -1589,6 +1667,7 @@ const S = {
   // Một cái đồng hồ đếm ngược trên HUD, dùng chung cho ba việc: bệ rút hàng, trả tiền ở shop, và
   // đứng chờ xe tải lăn bánh. Chỉ một việc chạy tại một thời điểm, nên `max` và `label` đi kèm để
   // cái vòng tròn biết vẽ đúng phần trăm và gọi đúng tên việc.
+  casts: [],                                 // hieu ung dang chay cua ky nang vua thi trien
   countdown: 0, countdownActive: false, countdownMax: EXTRACT_COUNTDOWN, countdownLabel: 'GIAO HÀNG',
   board: 0,                                  // giây đã đứng trong thùng xe tải
   player: null,
@@ -1643,7 +1722,7 @@ function buildLevel(seed){
   S.grid = new Uint8Array(MW*MH);
   S.explored = new Uint8Array(MW*MH);
   S.rooms = []; S.loot = []; S.monsters = []; S.pads = [];
-  S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.bikes = [];
+  S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.bikes = []; S.casts = [];
   // WHY: the doors of the PREVIOUS house survived until buildDoors ran at the very end of this
   // function, and everything in between - loot placement, monster posts, the cart route repair -
   // asks whether a point is clear. A jammed door from the last level answering that question is a
@@ -4560,7 +4639,7 @@ function buildShop(){
   S.rooms = [];
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++)
     S.rooms.push({ name:'Trạm dịch vụ', cx, cy, seen: cx===SHOP_COL });
-  S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = []; S.beams = [];
+  S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.casts = [];
   S.bikes = [];
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
   S.levelDone = false; S.dead = false; S.shiftLost = false; S.hurtLog = [];
@@ -6156,6 +6235,10 @@ function setupInput(){
     });
     add(hud.skill,  1.25, hud.skill && S.player && !S.shopMode, () => {
       if (HOOKS.skill.ready && !HOOKS.skill.ready()) { toast('Kỹ năng chưa hồi xong'); return; }
+      // Tin hieu CHUNG cho moi ky nang, ban ngay tai cho bam. Tung ky nang ban them hinh rieng
+      // qua REPO.castFx; day la cai luoi do, de khong ky nang nao im lang.
+      castFx('aura', S.player.x, S.player.y, { col:'210,235,255', dur:0.42 });
+      fxShake(2.5);
       HOOKS.skill.use();
     });
     // Ba ô đồ: một cú chạm BẮT ĐẦU trên ô đồ là đang ngắm, không phải đang nhìn
@@ -6958,6 +7041,7 @@ function draw(){
   c.globalCompositeOperation = 'lighter';
   worldTransform(c);
   drawMemory(c);
+  drawCasts(c);
   drawHighlights(c);
 
   c.setTransform(1,0,0,1,0,0);
@@ -8956,7 +9040,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831g';
+const BUILD = '20260831h';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -9699,6 +9783,11 @@ window.REPO = {
                     x: hud.heart.x, y: hud.heart.y, r: hud.heart.r }; },
   mouseLook(){ return mouseFresh() ? mouseWorldNow() : null; },
   foesForLevel, makeNoise, lootCap, foeSeparation, separateFoes, populateFoes,
+  // castFx cho hinh, fxShake/fxFlash cho cai rung va cai loe ca man. Ba thu nay truoc gio
+  // nam trong engine ma khong mo ra, nen lop ky nang cua Biet Doi khong co cach nao noi
+  // chuyen bang hinh anh - no chi doi duoc trang thai roi in mot dong chu.
+  castFx, CAST_T, fxShake, fxFlash, fxPop,
+  casts(){ return (S.casts || []).map(f => ({ kind:f.kind, x:f.x, y:f.y, r:f.r, t:+f.t.toFixed(2) })); },
   FOES_FROM_LEVEL, FOES_MAX, PUSH_R,
   FOE: { STANDOFF:FOE_STANDOFF, SEP_R:FOE_SEP_R, SEP_PUSH:FOE_SEP_PUSH, BODY:FOE_BODY },
   doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, gx:d.gx, gy:d.gy, open:d.open,
