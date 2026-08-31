@@ -132,7 +132,15 @@ function lootCap(lv){
 }
 
 const QUOTA_FACTOR = 0.7;        // you may leave 30% of the value behind
-const EXTRACT_COUNTDOWN = 5;
+// GIAO HÀNG giờ là một cái NÚT, không phải một cái đồng hồ tự chạy.
+//
+// Cũ: đủ chỉ tiêu là bệ tự đếm 5 giây rồi bắn. Người chơi không có tiếng nói nào trong khoảnh
+// khắc đó — mà đó là khoảnh khắc đắt nhất tầng, vì bắn bệ là hét toáng vị trí mình cho cả nhà
+// (xem EXTRACT_NOISE_R). Đặt nốt món cuối lên bệ rồi bị đồng hồ lôi đi là mất quyền chọn LÚC NÀO.
+// Nay phải đứng lên nút và ở lại: bước ra là đồng hồ về 0, y như luật lên xe tải.
+// SEE: nút giao hàng, 2026-08-31
+const EXTRACT_COUNTDOWN = 5;      // giữ làm mốc mặc định cho cái vòng đếm trên HUD
+const EXTRACT_HOLD = 3;           // giây phải ĐỨNG TRÊN NÚT
 
 const STAM_MAX = 100, STAM_DRAIN = 22, STAM_REGEN = 16;
 
@@ -1918,10 +1926,20 @@ function buildLevel(seed){
   } else {
     chosen = pickSpread(cand, padCount, rnd, []);
   }
-  chosen.forEach((c,i) => S.pads.push({
-    x:c.x, y:c.y, ri:c.ri, quota: 0, placed: [], value: 0,
-    active: i===0, done:false, index:i
-  }));
+  chosen.forEach((c,i) => {
+    // Nút đặt CẠNH bệ chứ không phải trên bệ: mặt bệ là chỗ để thả đồ, và một cái nút nằm cùng chỗ
+    // đó thì mọi lần đặt món cuối cùng đều vô tình khởi động luôn đồng hồ — đúng cái vừa bỏ đi.
+    let bx = c.x + TILE*2.9, by = c.y;
+    for (const [dx,dy] of [[2.9,0],[-2.9,0],[0,2.9],[0,-2.9],[2.4,2.4],[-2.4,2.4],[2.4,-2.4],[-2.4,-2.4]]){
+      const nx = c.x + dx*TILE, ny = c.y + dy*TILE;
+      if (!hitsSolid(nx, ny, 10)){ bx = nx; by = ny; break; }
+    }
+    S.pads.push({
+      x:c.x, y:c.y, ri:c.ri, quota: 0, placed: [], value: 0,
+      btn: { x:bx, y:by, r: TILE*0.95 }, 
+      active: i===0, done:false, index:i
+    });
+  });
 
   // --- passability is a post-condition, not a hope. Every pad and the cart's parking spot must
   // be reachable from the truck through space the CART fits in, not just space the player fits in.
@@ -2271,7 +2289,13 @@ function visibleRoute(){
 function routeToObjective(){
   const p = S.player;
   if (!p || !S.grid) return [];
-  const target = S.levelDone ? S.car : (S.pads[S.padIndex] || S.car);
+  // Đủ chỉ tiêu rồi thì việc tiếp theo KHÔNG còn là cái bệ, mà là cái nút cạnh nó. Không có
+  // dòng này thì mũi chỉ đường vẫn trỏ vào mặt bệ — chỗ chẳng còn gì để làm — và bot tự chơi
+  // đứng đó chờ một cái đồng hồ không bao giờ chạy.
+  const pad = S.pads[S.padIndex];
+  const target = S.levelDone ? S.car
+               : (pad && !pad.done && pad.btn && pad.value >= pad.quota) ? pad.btn
+               : (pad || S.car);
   if (!target) return [];
   const pgx = (p.x/TILE)|0, pgy = (p.y/TILE)|0;
   const tgx = (target.x/TILE)|0, tgy = (target.y/TILE)|0;
@@ -4393,19 +4417,28 @@ function stepExtraction(dt){
   const pad = S.pads[S.padIndex];
   if (!pad || pad.done) return;
   recomputePad(pad);
-  if (pad.value >= pad.quota){
+  // Ai được đạp: người chơi. Người chơi đang nằm thì một đồng đội còn đứng làm thay — cùng luật
+  // với việc ai được đứng chờ xe tải, và cùng lý do: gục đúng lúc chỉ tiêu vừa đủ không được là
+  // một ván không có lối ra.
+  const du = pad.value >= pad.quota;
+  const p = S.player;
+  const tren = (a) => a && !a.down && pad.btn &&
+                      Math.hypot(a.x-pad.btn.x, a.y-pad.btn.y) < pad.btn.r + 9;
+  const dap = du && (p && !p.down ? tren(p) : (S.mates||[]).some(tren));
+  pad.dap = !!dap;
+  if (dap){
     pad.countdown = (pad.countdown || 0) + dt;
     S.countdownActive = true;
-    S.countdownMax = EXTRACT_COUNTDOWN; S.countdownLabel = 'GIAO HÀNG';
-    S.countdown = Math.max(0, EXTRACT_COUNTDOWN - pad.countdown);
+    S.countdownMax = EXTRACT_HOLD; S.countdownLabel = 'GIAO HÀNG';
+    S.countdown = Math.max(0, EXTRACT_HOLD - pad.countdown);
     // One beat per whole second, rising in pitch. A countdown you can hear is a countdown you can
     // stand away from and still trust, which is the point of standing away from it.
     const whole = Math.ceil(S.countdown);
     if (whole !== FX.lastTick){
       FX.lastTick = whole; FX.tickPulse = 1;
-      if (whole > 0) SFX.tick(EXTRACT_COUNTDOWN - whole);
+      if (whole > 0) SFX.tick(EXTRACT_HOLD - whole);
     }
-    if (pad.countdown >= EXTRACT_COUNTDOWN) completePad(pad);
+    if (pad.countdown >= EXTRACT_HOLD) completePad(pad);
   } else {
     pad.countdown = 0; S.countdownActive = false; S.countdown = 0; FX.lastTick = -1;
   }
@@ -7999,6 +8032,28 @@ function drawPads(c){
             pad.x, pad.y - TILE*2.1,
             (pad.shop && pad.value > S.wallet) ? '#e8776a' : '#dfe6ea', 13);
     }
+    // NÚT GIAO HÀNG, vẽ trên sàn cạnh bệ. Xám khi chưa đủ chỉ tiêu — cái nút phải nói được rằng
+    // đạp bây giờ cũng không ăn thua, chứ không phải để người chơi đứng lên rồi tự hỏi vì sao
+    // không có gì xảy ra. Sáng xanh và có vòng cung vơi dần khi đang đếm.
+    if (pad.btn && !pad.done && pad.active){
+      const b = pad.btn;
+      const du = pad.value >= pad.quota;
+      const dang = !!pad.dap;
+      c.beginPath();
+      c.fillStyle = dang ? 'rgba(30,80,58,0.9)' : du ? 'rgba(24,58,44,0.8)' : 'rgba(30,34,38,0.7)';
+      c.arc(b.x, b.y, b.r, 0, Math.PI*2); c.fill();
+      c.beginPath();
+      c.strokeStyle = dang ? 'rgba(150,240,190,0.95)' : du ? 'rgba(90,190,140,0.85)' : 'rgba(96,106,114,0.5)';
+      c.lineWidth = dang ? 3 : 2;
+      c.arc(b.x, b.y, b.r, 0, Math.PI*2); c.stroke();
+      if (dang){
+        const k = clamp((pad.countdown || 0) / EXTRACT_HOLD, 0, 1);
+        c.beginPath(); c.strokeStyle = 'rgba(190,255,215,0.95)'; c.lineWidth = 3.4;
+        c.arc(b.x, b.y, b.r + 4, -Math.PI/2, -Math.PI/2 + Math.PI*2*k); c.stroke();
+      }
+      wText(du ? 'ĐẠP ĐỂ GIAO' : 'CHƯA ĐỦ', b.x, b.y - b.r - 6,
+            du ? '#a8f0c8' : '#7c858c', 10);
+    }
   }
 }
 function drawLoot(c){
@@ -9082,7 +9137,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831j';
+const BUILD = '20260831k';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
