@@ -1119,6 +1119,14 @@ const BIKE_DOWN_T     = 2.4;      // xe nằm bao lâu trước khi dựng lên 
 // mua được, không có cách nào đổ thêm giữa tầng — hết là hết, và tầng sau xe mới lại đầy.
 const BIKE_FUEL_RUN   = 1.0;      // xăng/giây khi kéo hết ga
 const BIKE_FUEL_IDLE  = 0.22;     // nổ máy đứng yên vẫn tốn
+// ...nhưng hết xăng thì LẾT được. Bản cũ khoá hẳn: mountBike từ chối xe cạn bình, mà đường duy
+// nhất dỡ thùng hàng lại là dismountBike đúng trên bệ đang mở — nên cạn bình ở giữa nhà là cả
+// thùng hàng nằm đó tới hết ván. Người chơi mất hàng vì một luật họ không thấy trước.
+// Giờ máy chết thì dắt bộ: chậm hơn đi bộ, không húc nổi ai, không ngã, nhưng LUÔN về được tới xe
+// tải. Cái giá của hết xăng là thời gian, không phải mất trắng chỗ hàng đã khiêng cả ván.
+// SEE: xe hết xăng thì cho lết về, 2026-08-31
+const BIKE_PUSH_SPEED = 52;       // px/s khi dắt bộ (đi bộ là 92)
+const BIKE_PUSH_ACCEL = 150;
 
 function makeBike(kind, x, y, dir){
   const d = BIKE_KINDS[kind];
@@ -2601,16 +2609,20 @@ function rideBike(p, dt, vx, vy, push){
   const hetXang = b.fuel <= 0;
   if (hetXang && !b.warned){
     b.warned = true;
-    toast(d.name + ' hết xăng — sang tầng sau mới có xe đầy bình.');
+    toast(d.name + ' hết xăng — dắt bộ về được, chậm thôi. Tầng sau mới có xe đầy bình.');
   }
-  const ga = hetXang ? 0 : ((vx || vy) ? clamp(push, 0, 1) : 0);
+  const ga = (vx || vy) ? clamp(push, 0, 1) : 0;
   if (ga > 0){
     const muon = Math.atan2(vy, vx);
     const lech = angDiff(muon, b.dir);
     const buoc = BIKE_TURN * dt;
     b.dir += clamp(lech, -buoc, buoc);
-    b.spd = Math.min(d.speed, b.spd + BIKE_ACCEL * ga * dt);
-    b.fuel = Math.max(0, b.fuel - (BIKE_FUEL_RUN * ga + BIKE_FUEL_IDLE) * dt);
+    // Máy chết thì trần tốc và đà đều tụt xuống mức dắt bộ. Không cần luật riêng cho húc hay ngã:
+    // BIKE_PUSH_SPEED nằm dưới cả BIKE_RAM_MIN lẫn BIKE_CRASH_SPD, nên dắt bộ tự nó đã không húc
+    // được ai và không ngã được.
+    b.spd = Math.min(hetXang ? BIKE_PUSH_SPEED : d.speed,
+                     b.spd + (hetXang ? BIKE_PUSH_ACCEL : BIKE_ACCEL) * ga * dt);
+    if (!hetXang) b.fuel = Math.max(0, b.fuel - (BIKE_FUEL_RUN * ga + BIKE_FUEL_IDLE) * dt);
   } else {
     b.spd = Math.max(0, b.spd - d.speed * BIKE_DRAG * dt);
     if (!hetXang) b.fuel = Math.max(0, b.fuel - BIKE_FUEL_IDLE * dt);
@@ -2627,7 +2639,7 @@ function rideBike(p, dt, vx, vy, push){
     // thẳng cờ đó ra hai chuyện sai: tốc độ bị nhân 0,3 mỗi khung hình nên chạy sát tường là
     // xe bò được vài px/giây, và đang phóng mà quệt nhẹ vào góc tường là NGÃ. Đo bằng quãng
     // đường thật sự đi được thì lướt tường vẫn là lướt, còn dí thẳng mũi vào tường mới là đâm.
-    p.noise = 2.2;
+    p.noise = hetXang ? 0.9 : 2.2;   // một cái xe chết máy đang được dắt thì gần như im
     const diDuoc = Math.hypot(p.x - truoc.x, p.y - truoc.y);
     const dam = dung && diDuoc < Math.hypot(dx, dy) * 0.45;
     if (dam && b.spd > BIKE_CRASH_SPD){ bikeCrash(p, b); return; }
@@ -2746,7 +2758,8 @@ function mountBike(p, b){
   if (b.downed > 0){ if (minh) toast('Xe đang nằm — đợi ' + b.downed.toFixed(1) + 's nữa dựng lên được'); return false; }
   if (p.down) return false;
   if (p.held){ if (minh) toast('Đang ôm đồ thì không leo lên xe được — thả xuống, hoặc chất lên thùng sau'); return false; }
-  if (b.fuel <= 0){ if (minh) toast(bikeDef(b).name + ' hết xăng rồi — sang tầng sau mới có xe đầy bình'); return false; }
+  // Cạn bình KHÔNG khoá xe nữa — leo lên dắt bộ được, xem BIKE_PUSH_SPEED.
+  if (b.fuel <= 0 && minh) toast(bikeDef(b).name + ' hết xăng — dắt bộ được, chậm thôi. Tầng sau mới đầy bình.');
   if (p.pushing) releaseCart(p);
   b.rider = p; p.riding = b;
   b.x = p.x; b.y = p.y; b.dir = p.dir; b.spd = 0;
@@ -2764,7 +2777,7 @@ function dismountBike(p){
   if (pad && pad.active && !pad.done && b.items.length &&
       Math.abs(b.x-pad.x) < TILE*2.4 && Math.abs(b.y-pad.y) < TILE*2.4){
     const n = b.items.length, v = bikeValue(b);
-    for (const l of b.items){ l.inCart = false; l.onPad = pad; pad.placed.push(l); }
+    for (const l of b.items){ l.inCart = false; l.inBike = null; l.onPad = pad; pad.placed.push(l); }
     b.items = [];
     recomputePad(pad);
     toast((p === S.player ? 'Dỡ ' : (p.name || 'Đồng đội') + ' dỡ ') + n + ' món lên bệ: ' + money(v));
@@ -2776,10 +2789,14 @@ function bikeCrash(p, b){
   const minh = p === S.player;
   const v = b.spd;
   b.spd = 0; b.downed = BIKE_DOWN_T;
+  // Cú va đập tính TRƯỚC khi xuống xe. dismountBike có thể dỡ cả thùng lên bệ nếu đâm ngay cạnh
+  // bệ, và bản cũ vẫn chạy tiếp vòng lặp `b.items` đã cũ — nên món vừa đặt lên bệ an toàn vẫn ăn
+  // trọn cú đập. Đâm cạnh bệ thành nước đi tệ nhất trong game một cách vô hình.
+  const cho = b.items.slice();
+  for (const l of cho) damageLoot(l, v * 0.9);
   dismountBike(p);
   // hurtActor: người chơi và đồng đội ngã xe đau như nhau, và mỗi bên đi đúng cửa của mình.
   hurtActor(p, BIKE_CRASH_DMG, 'bike', b.x + Math.cos(b.dir)*20, b.y + Math.sin(b.dir)*20);
-  for (const l of b.items) damageLoot(l, v * 0.9);
   fxShake(minh ? 14 : 5); SFX.thud();
   toast(minh ? 'Đâm rồi — xe nằm ' + BIKE_DOWN_T + 's.'
              : (p.name || 'Đồng đội') + ' đâm xe rồi.');
@@ -2799,7 +2816,7 @@ function pickUp(p){
     if (b) return mountBike(p, b);
     return grabCart(p);
   }
-  if (best.onPad){                            // shop only — lifting a good back off the checkout
+  if (best.onPad){                            // off a shop checkout, or off a pad still counting
     const pad = best.onPad;
     const i = pad.placed.indexOf(best);
     if (i >= 0) pad.placed.splice(i,1);
@@ -2839,7 +2856,9 @@ function dropHeld(p){
     if (bikeDef(b).slots <= 0) continue;
     if (Math.hypot(l.x-b.x, l.y-b.y) > b.r + TILE*1.4) continue;
     if (bikeFits(b, l)){
-      l.inCart = true; b.items.push(l);
+      // `inBike` là con trỏ ngược về chiếc xe đang giữ món này. Trước đây chỉ có cờ `inCart` dùng
+      // chung với xe đẩy, nên không ai trả lời được câu "món này nằm trong xe NÀO" — xem clearHeadOf.
+      l.inCart = true; l.inBike = b; b.items.push(l);
       toast('Chất lên thùng: ' + money(l.value) + ' (' + b.items.length + '/' + bikeDef(b).slots + ')');
       return;
     }
@@ -5202,6 +5221,10 @@ function clearHeadOf(a){
     l.gone = true;
     for (const b of crew()) if (b && b.held === l) b.held = null;
     if (l.inCart && S.cart){ const i = S.cart.items.indexOf(l); if (i >= 0) S.cart.items.splice(i,1); }
+    // ...và cái thùng sau xe máy, thứ bản cũ bỏ sót: `inCart` dùng chung cho cả hai chỗ chứa nên
+    // chỉ dòng trên là chỉ dọn được một nửa, cái đầu đứng dậy rồi vẫn nằm trong b.items cho tới khi
+    // stepBikes tình cờ lọc nó ra ở khung sau.
+    if (l.inBike){ const i = l.inBike.items.indexOf(l); if (i >= 0) l.inBike.items.splice(i,1); l.inBike = null; }
     if (l.onPad){ const P = l.onPad; const i = P.placed.indexOf(l); if (i >= 0) P.placed.splice(i,1);
                   l.onPad = null; recomputePad(P); }
     l.inCart = false;
@@ -8501,7 +8524,10 @@ function nearestLoot(p){
     // the whole point of a shop. On a house's extraction pad you may not, because that would be
     // un-banking a haul the level has already paid you for.
     if (l.gone || l.held || l.inCart) continue;
-    if (l.onPad && !S.shopMode) continue;
+    // Trên bệ rút hàng thì vẫn nhấc lại được CHỪNG NÀO bệ chưa chốt. Trước đây cấm hẳn ngoài shop,
+    // nên đặt nhầm một món lên bệ là mất luôn phần chênh — mà cả ván chơi là bài toán xếp hàng cho
+    // đủ chỉ tiêu với ít giá trị nhất. Bệ đã done thì thôi: tiền đã vào ví rồi.
+    if (l.onPad && !S.shopMode && l.onPad.done) continue;
     const d = Math.hypot(l.x-p.x, l.y-p.y);
     // Sight is required only BEYOND arm's length. A wall is 24 px thick, so anything on its far
     // side is at least ~38 px from the player's centre; inside one tile you are in the same room as
@@ -8634,7 +8660,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831a';
+const BUILD = '20260831b';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -9113,7 +9139,7 @@ window.REPO = {
   grabCart, releaseCart, cartValue, cartLoad, cartFits, nearTruck, hasGear,
   // xe máy
   BIKE_KINDS, makeBike, mountBike, dismountBike, nearestBike, bikeDef, bikeValue, bikeFits,
-  BIKE_RAM_MIN, BIKE_CRASH_SPD, GEAR, CART_MAX_VALUE,
+  BIKE_RAM_MIN, BIKE_CRASH_SPD, BIKE_PUSH_SPEED, GEAR, CART_MAX_VALUE,
   bikes(){ return (S.bikes || []).map(b => ({
     kind:b.kind, x:b.x, y:b.y, dir:b.dir, spd:b.spd, fuel:b.fuel, fuelMax:b.fuelMax,
     items:b.items.length, value:bikeValue(b), riding: !!b.rider, downed:b.downed })); },

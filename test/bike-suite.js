@@ -253,14 +253,31 @@ async function xangSuite(b) {
   check('hết xăng thì xe dừng hẳn', !het.boQua && het.fuel === 0 && het.spd === 0,
     JSON.stringify(het));
 
+  // Hết xăng là mất TỐC ĐỘ, không phải mất chiếc xe. Luật cũ khoá hẳn mountBike, mà đường duy nhất
+  // dỡ thùng hàng lại là xuống xe đúng trên bệ đang mở — nên cạn bình giữa nhà là cả thùng hàng
+  // nằm chết ở đó tới hết ván. Giờ leo lên dắt bộ về được, chậm hơn cả đi bộ.
   const lenLai = await p.evaluate(() => {
     const S = REPO.S, pl = S.player;
     if (pl.riding) REPO.dismountBike(pl);
-    const bk = S.bikes[0]; bk.x = pl.x; bk.y = pl.y; bk.downed = 0;
+    const bk = S.bikes[0]; bk.x = pl.x; bk.y = pl.y; bk.downed = 0; bk.fuel = 0; bk.spd = 0;
     return { lenDuoc: REPO.mountBike(pl, bk), dangNgoi: REPO.riding() };
   });
-  check('hết xăng thì KHÔNG leo lên lại được — không có cách đổ thêm giữa tầng',
-    lenLai.lenDuoc === false && lenLai.dangNgoi === null);
+  check('hết xăng thì VẪN leo lên được để dắt về',
+    lenLai.lenDuoc === true && lenLai.dangNgoi !== null, JSON.stringify(lenLai));
+
+  const at = await p.evaluate(() => ({ x: REPO.S.player.x, y: REPO.S.player.y }));
+  await p.keyboard.down('d');
+  await p.waitForTimeout(800);
+  const let_ = await p.evaluate(o => ({
+    spd: Math.round(REPO.S.player.riding ? REPO.S.player.riding.spd : -1),
+    diDuoc: Math.round(Math.hypot(REPO.S.player.x - o.x, REPO.S.player.y - o.y)),
+    tran: REPO.BIKE_PUSH_SPEED, thuong: REPO.BIKE_KINDS[REPO.S.bikes[0].kind].speed
+  }), at);
+  await p.keyboard.up('d');
+  check('dắt bộ thì xe ĐI ĐƯỢC thật', let_.diDuoc > 15, 'đi ' + let_.diDuoc + 'px trong 0,8s');
+  check('nhưng bị chặn ở tốc độ dắt, không phải tốc độ nổ máy',
+    let_.spd > 0 && let_.spd <= let_.tran + 2 && let_.tran < let_.thuong,
+    let_.spd + ' px/s · trần dắt ' + let_.tran + ' · nổ máy ' + let_.thuong);
 
   await p.evaluate(() => REPO.startLevel());
   await p.waitForTimeout(800);
