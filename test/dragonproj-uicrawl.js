@@ -179,19 +179,22 @@ const PAGE_SNAP = () => {
       'đang có: ' + gearActs.join(', '));
   });
 
-  // Bấm Trang bị thì món đó phải THẬT SỰ vào loadout.
+  // Bấm Trang bị thì món đó phải THẬT SỰ vào tay người đang chọn.
   const eqTest = await p.evaluate(() => {
     const S = DP.UI.save;
-    const g = S.gear.find(x => x.kind === 'weapon' && S.loadout.weapons.indexOf(x.uid) < 0);
+    const h = DP.party(S).filter(Boolean)[0];
+    const d = DP.heroDef(h);
+    // phải là món ĐÚNG LỚP của người đó, người khác lớp thì từ chối là đúng
+    const g = S.gear.find(x => x.kind === 'weapon' && x.wclass === d.wclass && !DP.holderOf(S, x.uid));
     if (!g) return { skip: true };
     DP.UI.show('armory');
     document.querySelector('#body-armory [data-filter="weapon"]').click();
     document.querySelector('#body-armory [data-gear="' + g.uid + '"]').click();
     document.querySelector('#body-gear [data-act="equip"]').click();
-    return { on: DP.UI.save.loadout.weapons.indexOf(g.uid) >= 0, name: g.name };
+    return { on: (DP.holderOf(DP.UI.save, g.uid) || {}).uid === h.uid, name: g.name };
   });
   if (!eqTest.skip) {
-    check('bấm "Trang bị" thì món vào đúng loadout', eqTest.on, eqTest.name);
+    check('bấm "Trang bị" thì món về đúng người đang chọn', eqTest.on, eqTest.name);
   }
 
   /* ---------------------------------------- KÉO MÓN THẢ VÀO KHE --------- */
@@ -228,7 +231,8 @@ const PAGE_SNAP = () => {
   }
 
   const dg1 = await p.evaluate(() => {
-    const S = DP.UI.save; S.loadout.head = null;
+    const S = DP.UI.save;
+    const h0 = DP.party(S).filter(Boolean)[0]; h0.gear.head = null;
     DP.UI.show('armory');
     document.querySelector('#body-armory [data-filter="head"]').click();
     const g = S.gear.find(x => x.kind === 'head');
@@ -236,7 +240,10 @@ const PAGE_SNAP = () => {
   });
   await p.waitForTimeout(200);
   const r1 = await dragGear(dg1.uid, '#body-armory [data-aslot="head"]');
-  const on1 = await p.evaluate(u => DP.UI.save.loadout.head === u, dg1.uid);
+  const on1 = await p.evaluate(u => {
+    const h = DP.party(DP.UI.save).filter(Boolean)[0];
+    return h.gear.head === u;
+  }, dg1.uid);
   check('kéo giáp thả vào khe Đầu thì lắp được', r1.hot && on1, dg1.name);
 
   const dg2 = await p.evaluate(() => {
@@ -244,24 +251,47 @@ const PAGE_SNAP = () => {
     DP.UI.show('armory');
     document.querySelector('#body-armory [data-filter="weapon"]').click();
     const g = S.gear.find(x => x.kind === 'weapon');
-    return { uid: g.uid, head: S.loadout.head, slot0: S.loadout.weapons[0] };
+    const h = DP.party(S).filter(Boolean)[0];
+    return { uid: g.uid, head: h.gear.head };
   });
   await p.waitForTimeout(200);
   const r2 = await dragGear(dg2.uid, '#body-armory [data-aslot="head"]');
-  const same = await p.evaluate(h => DP.UI.save.loadout.head === h, dg2.head);
+  const same = await p.evaluate(x => {
+    const h = DP.party(DP.UI.save).filter(Boolean)[0];
+    return h.gear.head === x;
+  }, dg2.head);
   check('khe Đầu KHÔNG nhận vũ khí', !r2.hot && same);
 
   const dg3 = await p.evaluate(() => {
-    const S = DP.UI.save; S.loadout.weapons = [null, null, null];
+    const S = DP.UI.save;
+    const h = DP.party(S).filter(Boolean)[0], d = DP.heroDef(h);
+    h.gear.weapon = null;
     DP.UI.show('armory');
     document.querySelector('#body-armory [data-filter="weapon"]').click();
-    const g = S.gear.find(x => x.kind === 'weapon');
-    return { uid: g.uid };
+    const g = S.gear.find(x => x.kind === 'weapon' && x.wclass === d.wclass);
+    return { uid: g.uid, hero: h.uid };
   });
   await p.waitForTimeout(200);
-  const r3 = await dragGear(dg3.uid, '#body-armory [data-wslot="2"]');
-  const on3 = await p.evaluate(u => DP.UI.save.loadout.weapons[2] === u, dg3.uid);
-  check('kéo vũ khí thả vào khe 3 thì vào ĐÚNG khe đó', r3.hot && on3);
+  const r3 = await dragGear(dg3.uid, '#body-armory [data-wslot="0"]');
+  const on3 = await p.evaluate(x => DP.heroOf(DP.UI.save, x.hero).gear.weapon === x.uid, dg3);
+  check('kéo vũ khí đúng lớp thả vào ô vũ khí thì lắp được', r3.hot && on3);
+
+  // Vũ khí SAI LỚP: ô không được sáng, và thả vào cũng không lắp.
+  const dg4 = await p.evaluate(() => {
+    const S = DP.UI.save;
+    const h = DP.party(S).filter(Boolean)[0], d = DP.heroDef(h);
+    const g = S.gear.find(x => x.kind === 'weapon' && x.wclass !== d.wclass);
+    if (!g) return null;
+    DP.UI.show('armory');
+    document.querySelector('#body-armory [data-filter="weapon"]').click();
+    return { uid: g.uid, hero: h.uid, was: h.gear.weapon };
+  });
+  if (dg4) {
+    await p.waitForTimeout(200);
+    const r4 = await dragGear(dg4.uid, '#body-armory [data-wslot="0"]');
+    const keep = await p.evaluate(x => DP.heroOf(DP.UI.save, x.hero).gear.weapon === x.was, dg4);
+    check('vũ khí SAI LỚP: ô không sáng và không lắp được', !r4.hot && keep);
+  }
 
   // Thả xong không được nhảy sang màn chi tiết, và cú chạm KẾ TIẾP phải sống.
   const after = await p.evaluate(() => {
@@ -495,12 +525,12 @@ const PAGE_SNAP = () => {
     out.allRefuse = [DP.enhance(s, g), DP.limitBreak(s, g), DP.evolve(s, g),
                      DP.reroll(s, g)].every(x => x.ok === false);
 
-    // --- DISMANTLE: gỡ khỏi loadout, biến mất khỏi túi ---
+    // --- DISMANTLE: gỡ khỏi tay người đang giữ, biến mất khỏi túi ---
     s = mk();
     const w = s.gear.find(x => x.kind === 'weapon');
-    const wasEquipped = s.loadout.weapons.indexOf(w.uid) >= 0;
+    const wasEquipped = !!DP.holderOf(s, w.uid);
     const dr = DP.dismantle(s, w);
-    const stillInLoadout = JSON.stringify(s.loadout).indexOf(w.uid) >= 0;
+    const stillInLoadout = JSON.stringify(s.heroes).indexOf(w.uid) >= 0;
     const stillInBag = s.gear.some(x => x.uid === w.uid);
     out.dis = { ok: dr.ok, wasEquipped: wasEquipped, gotLapis: (s.mats[dr.lapis] || 0) >= dr.n,
                 outLoadout: !stillInLoadout, outBag: !stillInBag };
@@ -527,7 +557,7 @@ const PAGE_SNAP = () => {
     JSON.stringify(eco.twice));
   check('một bình chỉ uống được một lần', eco.potion.first && eco.potion.second && eco.potion.inv);
   check('canPay=false thì mọi hàm nâng cấp đều trả ok:false', eco.allRefuse);
-  check('rã đồ: gỡ khỏi loadout', eco.dis.wasEquipped && eco.dis.outLoadout);
+  check('rã đồ: gỡ khỏi tay người đang giữ', eco.dis.wasEquipped && eco.dis.outLoadout);
   check('rã đồ: biến mất khỏi túi và nhận Lapis', eco.dis.outBag && eco.dis.gotLapis);
 
   /* ------------------------------------- MUA Ở TIỆM (đường đi qua UI) ---- */
@@ -570,23 +600,23 @@ const PAGE_SNAP = () => {
   const gac = await p.evaluate(() => {
     const S = DP.UI.save;
     S.ticket = 50; S.gem = 250; DP.UI.show('gacha');
-    const gear0 = S.gear.length, core0 = S.mats.dragon_core || 0;
+    const hero0 = S.heroes.length, core0 = S.mats.dragon_core || 0;
     document.querySelector('#body-gacha [data-act="g10"]').click();
-    // 11 lần quay = 11 kết quả: mỗi cái hoặc là một món mới trong túi, hoặc là Lõi Rồng.
-    const gained = (S.gear.length - gear0);
+    // 11 lần quay = 11 kết quả: mỗi cái hoặc là một NGƯỜI mới, hoặc là Lõi Rồng.
+    const gained = (S.heroes.length - hero0);
     const cores = (S.mats.dragon_core || 0) - core0;
     const t = { ticket: S.ticket === 0, got: gained > 0, accounted: gained + (cores > 0 ? 1 : 0) >= 1 };
     DP.UI.show('gacha');
-    const gear1 = S.gear.length;
+    const hero1 = S.heroes.length;
     document.querySelector('#body-gacha [data-act="g10"]').click();   // hết vé
-    const t2 = S.ticket === 0 && S.gear.length === gear1;
+    const t2 = S.ticket === 0 && S.heroes.length === hero1;
     // Quầy quay Magi đã bị bóc: nút phải KHÔNG còn, và Gem không được đụng tới.
     DP.UI.show('gacha');
     const gemBtnGone = !document.querySelector('#body-gacha [data-act="m10"]') &&
                        !document.querySelector('#body-gacha [data-act="m1"]');
     return { t, t2, gemBtnGone, gemKept: S.gem === 250 };
   });
-  check('quay 10+1 trừ đúng 50 vé và ra thẳng trang bị', gac.t.ticket && gac.t.got && gac.t.accounted,
+  check('quay 10+1 trừ đúng 50 vé và ra thẳng NHÂN VẬT', gac.t.ticket && gac.t.got && gac.t.accounted,
     JSON.stringify(gac.t));
   check('hết vé thì không quay được nữa (vé không âm, túi không tăng)', gac.t2);
   check('quầy quay Magi đã bị bóc khỏi màn gacha', gac.gemBtnGone);

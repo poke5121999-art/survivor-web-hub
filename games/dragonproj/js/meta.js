@@ -156,7 +156,10 @@
       lv: 1, exp: 0,
       gold: 3000, gem: 30, ticket: 10, pikke: 0, medal: 0,
       mats: {}, gear: [],
-      loadout: { weapons: [null, null, null], head: null, body: null, arm: null, leg: null },
+      // roster: mọi nhân vật đã quay được. Mỗi người TỰ GIỮ trang bị của mình.
+      heroes: [],
+      // đội hình mang vào ải — tối đa ba người, đổi qua lại giữa trận.
+      party: [null, null, null],
       story: { done: [] },
       daily: { date: '', picks: [], done: {} },
       weekly: { week: '', picks: [], done: {} },
@@ -179,6 +182,10 @@
       s.gear.forEach(function (o) {
         var m = /^u(\d+)_/.exec(o.uid || ''); if (m) uidSeq = Math.max(uidSeq, +m[1] + 1);
       });
+      (s.heroes || []).forEach(function (o) {
+        var m = /^h(\d+)_/.exec(o.uid || ''); if (m) uidSeq = Math.max(uidSeq, +m[1] + 1);
+      });
+      G.migrateHeroes(s);
       return s;
     } catch (e) { return null; }
   };
@@ -187,24 +194,141 @@
   };
   G.wipe = function () { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} };
 
+  /* ======================= NHÂN VẬT (NPC) ==============================
+   *
+   * Gacha quay ra NGƯỜI. Mỗi người gắn cứng một lớp vũ khí (= một bộ move set và
+   * hai kỹ năng), một hệ, và GIỮ TRANG BỊ CỦA RIÊNG MÌNH: một ô vũ khí đúng lớp
+   * của mình cộng bốn ô giáp. Đội hình ba người, đổi qua lại giữa trận.
+   *
+   * Một món đồ chỉ nằm ở MỘT người tại một thời điểm — lắp cho người này là tự
+   * gỡ khỏi người kia, chứ không nhân bản chỉ số.
+   */
+  var HERO_MUL = { SS: 1.30, S: 1.16, A: 1.06, B: 1.00 };
+  G.heroMul = function (rank) { return HERO_MUL[rank] || 1; };
+
+  G.mkHero = function (id) {
+    var d = G.heroById(id); if (!d) return null;
+    return { uid: 'h' + (uidSeq++) + '_' + ((Math.random() * 1e6) | 0),
+             id: id, lv: 1, dupes: 0,
+             gear: { weapon: null, head: null, body: null, arm: null, leg: null } };
+  };
+  G.hasHero = function (s, id) {
+    return (s.heroes || []).some(function (h) { return h.id === id; });
+  };
+  G.heroOf = function (s, uid) {
+    var a = s.heroes || [];
+    for (var i = 0; i < a.length; i++) if (a[i].uid === uid) return a[i];
+    return null;
+  };
+  G.heroDef = function (h) { return h ? G.heroById(h.id) : null; };
+
+  /* Ba người đang mang theo. Ô trống thì null — game.js tự bỏ qua. */
+  G.party = function (s) {
+    return (s.party || []).map(function (u) { return u ? G.heroOf(s, u) : null; });
+  };
+
+  /* Món này người này có lắp được không.
+   * Vũ khí phải ĐÚNG LỚP của nhân vật — đó là cả điểm của việc gắn lớp vào người.
+   * Giáp thì ai mặc cũng được. */
+  G.canEquip = function (h, g) {
+    if (!h || !g) return false;
+    if (g.kind !== 'weapon') return true;
+    var d = G.heroDef(h);
+    return !!d && d.wclass === g.wclass;
+  };
+
+  /* Lắp món vào một người. Tự gỡ khỏi mọi người khác trước, vì một món chỉ nằm
+     ở một chỗ. Trả false nếu sai lớp. */
+  G.equipOn = function (s, h, g) {
+    if (!G.canEquip(h, g)) return false;
+    var slot = g.kind === 'weapon' ? 'weapon' : g.kind;
+    (s.heroes || []).forEach(function (o) {
+      for (var k in o.gear) if (o.gear[k] === g.uid) o.gear[k] = null;
+    });
+    h.gear[slot] = g.uid;
+    return true;
+  };
+  G.unequipFrom = function (h, slot) { if (h && h.gear) h.gear[slot] = null; };
+
+  /* Ai đang giữ món này (để giao diện nói rõ "đang ở chỗ Fubuki"). */
+  G.holderOf = function (s, uid) {
+    var a = s.heroes || [];
+    for (var i = 0; i < a.length; i++) {
+      for (var k in a[i].gear) if (a[i].gear[k] === uid) return a[i];
+    }
+    return null;
+  };
+
   /* --------------------------------------------- BỘ ĐỒ ĐANG MẶC -> CHỈ SỐ - */
-  G.equipped = function (s) {
+  /* Trang bị của MỘT người. Không truyền người thì lấy người đứng đầu đội hình,
+     để mấy chỗ cũ chỉ cần "bộ đồ đang mặc" vẫn gọi được. */
+  G.equippedOf = function (s, h) {
     var byUid = {}; s.gear.forEach(function (g) { byUid[g.uid] = g; });
-    return {
-      weapons: s.loadout.weapons.map(function (u) { return u ? byUid[u] : null; }),
-      head: byUid[s.loadout.head] || null, body: byUid[s.loadout.body] || null,
-      arm: byUid[s.loadout.arm] || null,   leg: byUid[s.loadout.leg] || null
-    };
+    var e = { weapon: null, head: null, body: null, arm: null, leg: null };
+    if (h && h.gear) for (var k in e) e[k] = byUid[h.gear[k]] || null;
+    return e;
+  };
+  G.equipped = function (s, h) {
+    h = h || G.party(s).filter(Boolean)[0] || null;
+    var e = G.equippedOf(s, h);
+    // `weapons` giữ lại hình dạng cũ (ba khe) nhưng giờ nó là VŨ KHÍ CỦA BA NGƯỜI
+    // trong đội hình, không phải ba cây của một người.
+    e.weapons = G.party(s).map(function (x) {
+      return x ? (G.equippedOf(s, x).weapon || null) : null;
+    });
+    return e;
+  };
+
+  /* Chuyển hồ sơ cũ (ba khe vũ khí của MỘT người) sang hồ sơ mới (ba NGƯỜI).
+     Chạy mỗi lần nạp; đã có roster thì không đụng gì. */
+  G.migrateHeroes = function (s) {
+    if (!s) return s;
+    s.heroes = s.heroes || [];
+    s.party = s.party || [null, null, null];
+    if (s.heroes.length) return s;
+
+    var old = s.loadout || {};
+    var oldW = (old.weapons || []).map(function (u) {
+      return (s.gear || []).filter(function (g) { return g.uid === u; })[0] || null;
+    });
+    // Ba người đầu tiên: chọn theo LỚP của ba cây đang lắp, để người chơi cũ mở
+    // game lên vẫn thấy đúng ba lối đánh mình đang dùng.
+    var picked = [];
+    oldW.forEach(function (w) {
+      if (!w) return;
+      var cand = G.HEROES.filter(function (d) {
+        return d.wclass === w.wclass && picked.indexOf(d.id) < 0;
+      });
+      if (cand.length) picked.push(cand[cand.length - 1].id);   // hạng thấp = người mở đầu
+    });
+    G.STARTER_HEROES.forEach(function (id) {
+      if (picked.length < 3 && picked.indexOf(id) < 0) picked.push(id);
+    });
+    picked.slice(0, 3).forEach(function (id, i) {
+      var h = G.mkHero(id); if (!h) return;
+      s.heroes.push(h); s.party[i] = h.uid;
+      var w = oldW[i];
+      if (w && G.canEquip(h, w)) h.gear.weapon = w.uid;
+      if (i === 0) ['head', 'body', 'arm', 'leg'].forEach(function (k) { h.gear[k] = old[k] || null; });
+    });
+    // Cây nào không ai cầm được thì vẫn nằm trong túi, không mất.
+    return s;
   };
 
   /* Tổng hợp toàn bộ chỉ số chiến đấu của người chơi. Đây là chỗ duy nhất
    * ability và bộ đồ gặp nhau — game.js chỉ đọc kết quả. */
-  G.buildStats = function (s) {
-    var B = G.BAL, eq = G.equipped(s);
+  G.buildStats = function (s, hero) {
+    var B = G.BAL;
+    hero = hero || G.party(s).filter(Boolean)[0] || null;
+    var eq = G.equippedOf(s, hero);
+    // Hạng nhân vật nhân thẳng vào chỉ số gốc — đó là thứ làm một con SS đáng quay
+    // hơn một con B, chứ không phải chỉ khác cái ảnh.
+    var hm = G.heroMul(hero ? (G.heroDef(hero) || {}).rank : 'B');
     var st = {
-      hp: B.baseHp + B.hpPerLv * (s.lv - 1),
-      atk: B.baseAtk + B.atkPerLv * (s.lv - 1),
-      def: B.baseDef + B.defPerLv * (s.lv - 1),
+      hero: hero,
+      hp: (B.baseHp + B.hpPerLv * (s.lv - 1)) * hm,
+      atk: (B.baseAtk + B.atkPerLv * (s.lv - 1)) * hm,
+      def: (B.baseDef + B.defPerLv * (s.lv - 1)) * hm,
       edef: 0,
       moveSpd: 1, dodge: 1, recovery: 1, skillCd: 0, skillDmg: 0, luck: 0,
       guard: 0, cleave: 0, cleaveSpd: 0, lunge: 0, frenzy: 0, snipe: 0, snipeSpd: 0,
@@ -250,7 +374,7 @@
   };
 
   // Chỉ số riêng của MÓN VŨ KHÍ đang cầm — game.js gọi mỗi lần đổi vũ khí.
-  G.weaponProfile = function (s, g) {
+  G.weaponProfile = function (s, g, opt) {
     if (!g) return null;
     var W = G.WEAPONS[g.wclass], gs = G.gearStats(g);
     var prof = { g: g, W: W, patk: gs.patk, eatk: gs.eatk, el: g.el, wclass: g.wclass, wtype: g.wtype, extra: {} };
@@ -263,6 +387,14 @@
     prof.skills = G.skillsOf(g.wclass).filter(function (sk, i) {
       return i === 0 || g.lv >= G.SKILL_RULES.unlockLv2;
     });
+    prof.hero = opt && opt.hero ? opt.hero : null;
+    // Hệ của NGƯỜI đứng sau hệ của MÓN: cây trần (hệ 'none') thì lấy hệ của nhân
+    // vật, nên Kiara cầm cây tập sự vẫn ra lửa. Món có hệ riêng thì món thắng —
+    // đó là lý do để đi tìm đồ.
+    if (prof.el === 'none' && prof.hero) {
+      var hd = G.heroDef(prof.hero);
+      if (hd && hd.el && hd.el !== 'none') prof.el = hd.el;
+    }
     return prof;
   };
 
@@ -271,6 +403,34 @@
    * gốc (SS 3 / S 15 / A 55 / B 27) vì đó là con số có nguồn; chỉ đổi thứ rơi ra.
    * Trúng món đã có -> LÕI RỒNG, nguyên liệu độc quyền không cày được, dùng để tiến
    * hoá đồ S/SS. Xem G.DUPE_CORE trong data/gamedata.js. */
+  /* Quay ra NGƯỜI. Trùng người thì cộng `dupes` cho người đó và trả Lõi Rồng —
+   * cùng luật với trùng đồ ngày trước, chỉ đổi thứ rơi ra.
+   * Tỉ lệ hạng vẫn là con số có nguồn của Quest Gacha bản gốc. */
+  G.summonHeroes = function (s, count, guaranteed) {
+    var out = [], order = ['SS', 'S', 'A', 'B'];
+    s.heroes = s.heroes || [];
+    for (var i = 0; i < count; i++) {
+      var rank = (guaranteed && i === count - 1) ? 'SS' : G.rollRank(G.HERO_RATES, Math.random);
+      var pool = G.heroesOfRank(rank);
+      if (!pool.length) { rank = order[order.indexOf(rank) + 1] || 'B'; pool = G.heroesOfRank(rank); }
+      var d = pool[(Math.random() * pool.length) | 0];
+      if (G.hasHero(s, d.id)) {
+        var n = G.DUPE_CORE[rank] || 1;
+        G.addMat(s, 'dragon_core', n);
+        var ex = s.heroes.filter(function (h) { return h.id === d.id; })[0];
+        if (ex) ex.dupes = (ex.dupes || 0) + 1;
+        out.push({ dupe: true, rank: rank, id: d.id, name: d.n, cores: n });
+      } else {
+        var h = G.mkHero(d.id);
+        s.heroes.push(h);
+        // Người mới về mà đội hình còn chỗ thì xếp vào luôn, khỏi bắt đi lắp tay.
+        for (var k = 0; k < G.PARTY_MAX; k++) if (!s.party[k]) { s.party[k] = h.uid; break; }
+        out.push({ dupe: false, rank: rank, id: d.id, name: d.n, hero: h });
+      }
+    }
+    return out;
+  };
+
   G.summonGear = function (s, count, guaranteed) {
     var out = [], order = ['SS', 'S', 'A', 'B'];
     for (var i = 0; i < count; i++) {
@@ -438,10 +598,10 @@
     var lap = { B: 'lapis_b', A: 'lapis_a', S: 'lapis_s', SS: 'lapis_ss' }[g.rank] || 'lapis_b';
     var n = 1 + g.lb + g.evo;
     G.addMat(s, lap, n);
-    for (var k in s.loadout) {
-      if (Array.isArray(s.loadout[k])) s.loadout[k] = s.loadout[k].map(function (u) { return u === g.uid ? null : u; });
-      else if (s.loadout[k] === g.uid) s.loadout[k] = null;
-    }
+    // Gỡ khỏi mọi nhân vật đang giữ nó, nếu không rã xong vẫn còn tham chiếu mồ côi.
+    (s.heroes || []).forEach(function (h) {
+      for (var k in h.gear) if (h.gear[k] === g.uid) h.gear[k] = null;
+    });
     s.gear = s.gear.filter(function (x) { return x.uid !== g.uid; });
     return { ok: true, lapis: lap, n: n };
   };
@@ -524,31 +684,47 @@
   /* Bộ khởi đầu. Phát ĐỦ CẢ NĂM cây: mỗi cây một bộ đòn khác hẳn nhau, mà cái
    * hay của game này nằm ở chỗ đổi vũ khí giữa trận — bắt người chơi cày mấy
    * tiếng mới được thử cây thứ hai thì họ chẳng bao giờ biết game có gì. */
+  /* Ba người mở đầu: ba lối đánh KHÁC HẲN nhau, để ngay ván đầu đã hiểu vì sao
+     phải mang ba người và đổi giữa trận. Kiếm cận chiến có đỡ, đại kiếm chậm mà
+     nặng, cung đứng xa — không ai làm thay được ai. */
+  G.STARTER_HEROES = ['sora', 'mel', 'risu'];
+
   G.starterKit = function (s) {
     var starter = 'grouton';
-    var w = G.forgeGear('vaccahorn', 'weapon', 'starter');
-    w.wclass = 'sword'; w.wtype = 'normal'; w.name = 'Guild Blade'; w.rank = 'B'; w.el = 'none';
-    s.gear.push(w);
-    s.loadout.weapons[0] = w.uid;
+    var NAMES = { sword: 'Guild Blade', great: 'Guild Cleaver', dual: 'Guild Fangs',
+                  spear: 'Guild Pike', bow: 'Guild Shortbow' };
+    var SRC = { sword: 'vaccahorn', great: 'vaccahorn', dual: 'shurak',
+                spear: 'grouton', bow: 'galidon' };
 
-    // Bốn cây còn lại, mỗi cây một bộ đòn hoàn toàn khác. Hai cây tiếp lắp sẵn vào
-    // khe 2 và 3 để đổi được ngay giữa trận; hai cây kia nằm trong kho.
-    var REST = [
-      { cls:'great', src:'vaccahorn', n:'Guild Cleaver' },
-      { cls:'dual',  src:'shurak',    n:'Guild Fangs' },
-      { cls:'spear', src:'grouton',   n:'Guild Pike' },
-      { cls:'bow',   src:'galidon',   n:'Guild Shortbow' }
-    ];
-    REST.forEach(function (x, i) {
-      var g = G.forgeGear(x.src, 'weapon', 'starter_' + x.cls);
-      g.wclass = x.cls; g.wtype = 'normal'; g.name = x.n; g.rank = 'B'; g.el = 'none';
-      s.gear.push(g);
-      if (i < 2) s.loadout.weapons[i + 1] = g.uid;
+    s.heroes = []; s.party = [null, null, null];
+    G.STARTER_HEROES.forEach(function (id, i) {
+      var d = G.heroById(id); if (!d) return;
+      var h = G.mkHero(id);
+      s.heroes.push(h); s.party[i] = h.uid;
+      // Mỗi người một cây ĐÚNG LỚP của mình — lắp sẵn, khỏi bắt đi tìm.
+      var w = G.forgeGear(SRC[d.wclass], 'weapon', 'starter_' + id);
+      w.wclass = d.wclass; w.wtype = 'normal'; w.name = NAMES[d.wclass];
+      w.rank = 'B'; w.el = 'none';
+      s.gear.push(w);
+      h.gear.weapon = w.uid;
     });
+
+    // Hai cây dự phòng cho hai lớp còn lại, để lúc quay được người lớp đó là có
+    // ngay đồ mà lắp.
+    ['dual', 'spear'].forEach(function (cls) {
+      if (s.heroes.some(function (h) { return (G.heroDef(h) || {}).wclass === cls; })) return;
+      var g = G.forgeGear(SRC[cls], 'weapon', 'spare_' + cls);
+      g.wclass = cls; g.wtype = 'normal'; g.name = NAMES[cls]; g.rank = 'B'; g.el = 'none';
+      s.gear.push(g);
+    });
+
+    // Bộ giáp mở đầu về người đứng đầu đội hình.
+    var h0 = s.heroes[0];
     ['head', 'body', 'arm', 'leg'].forEach(function (k) {
       var g = G.forgeGear(starter, k, 'starter');
       g.rank = 'B'; g.name = 'Guild ' + { head: 'Helm', body: 'Plate', arm: 'Wrists', leg: 'Sabatons' }[k];
-      s.gear.push(g); s.loadout[k] = g.uid;
+      s.gear.push(g);
+      if (h0) h0.gear[k] = g.uid;
     });
     G.addMat(s, 'str_stone', 8); G.addMat(s, 'skill_core', 6); G.addMat(s, 'crystal', 2);
     return s;

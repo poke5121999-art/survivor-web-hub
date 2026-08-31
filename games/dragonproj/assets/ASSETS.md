@@ -480,3 +480,24 @@ không con cá mập dài 123px sẽ tràn ra gấp đôi vùng ăn đòn của 
 pixel art: con thiên thần 28px thổi lên 110px mà để trình duyệt nội suy thì ra
 một vũng màu nhoè; tắt đi thì nó lên thành khối pixel to và sắc, ăn khớp với
 phần art còn lại.
+
+
+---
+
+## 11. Nhân vật (NPC)
+
+Game đổi trục: gacha quay ra **NGƯỜI**, không quay ra đồ. Mỗi nhân vật là một bộ
+`spr_<Tên>_idle` / `_run` trong kho HoloCure — đều 64×64, 4 khung đứng và 6 khung
+chạy (riêng Calli 102×102). Khoá: `heroes.<id>.idle` / `.run`, tổng **43 người**.
+
+Đây là chỗ mà cái kho HoloCure trả về nhiều nhất: hơn bốn mươi bộ nhân vật chơi
+được, cùng cỡ, cùng số khung, cùng góc nhìn — đúng thứ một dàn gacha cần và là
+thứ tự vẽ tay thì không đời nào làm nổi.
+
+Bảng nhân vật nằm ở `data/heroes.js`, không nằm trong asset-map: mỗi người còn
+mang lớp vũ khí, hệ và hạng, tức là **dữ liệu chơi** chứ không phải dữ liệu ảnh.
+asset-map chỉ trỏ id → ảnh. Thêm một người = thêm một dòng ở `heroes.js` và một
+mục ở asset-map, không đụng code.
+
+Ảnh nhân vật trong trận tra theo `heroes.<id>.*`; thiếu thì rơi về `player.*`
+như trước, nên đổi trục sang NPC không làm vỡ đường vẽ cũ.

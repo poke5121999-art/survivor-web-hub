@@ -211,25 +211,50 @@
     this.setWeapon(0, true);
   };
 
+  /* ĐỔI KHE = ĐỔI NGƯỜI.
+   *
+   * Khe không còn là "cây vũ khí thứ i của tôi" mà là "người thứ i trong đội".
+   * Đổi khe là đổi cả: ảnh nhân vật, lớp vũ khí (tức move set), hai kỹ năng, hệ,
+   * và chỉ số — vì giáp là của riêng từng người. Tên hàm giữ nguyên `setWeapon`
+   * để bot và mấy chỗ gọi cũ không phải sửa; `setHero` là tên đọc đúng nghĩa.
+   */
+  Battle.prototype.setHero =
   Battle.prototype.setWeapon = function (i, instant) {
-    var eq = G.equipped(this.s);
-    var list = eq.weapons.filter(Boolean);
-    if (!list.length) return;
+    var party = G.party(this.s);
+    if (!party.filter(Boolean).length) return;
     i = ((i % 3) + 3) % 3;
-    var g = eq.weapons[i];
-    if (!g) { // khe trống -> nhảy sang khe có đồ
-      for (var k = 0; k < 3; k++) { if (eq.weapons[(i + k) % 3]) { i = (i + k) % 3; g = eq.weapons[i]; break; } }
+    var h = party[i];
+    if (!h) { for (var k = 0; k < 3; k++) { if (party[(i + k) % 3]) { i = (i + k) % 3; h = party[i]; break; } } }
+    if (!h) return;
+    var g = G.equippedOf(this.s, h).weapon;
+    if (!g) {
+      // Người không cầm gì thì vẫn ra trận được, nhưng đánh bằng lớp của mình với
+      // một cây trần — thà vậy còn hơn đứng im không đánh được.
+      var d = G.heroDef(h) || {};
+      g = { uid: 'bare_' + h.uid, kind: 'weapon', wclass: d.wclass || 'sword',
+            wtype: 'normal', el: d.el || 'none', rank: 'B', lv: 1, evo: 0, lb: 0,
+            name: 'Tay không', abilities: [] };
     }
-    if (!g) return;
     this.player.wIdx = i;
-    this.wp = G.weaponProfile(this.s, g);
+    this.hero = h;
+    this.heroDef = G.heroDef(h);
+    this.stats = G.buildStats(this.s, h);
+    this.wp = G.weaponProfile(this.s, g, { hero: h });
     this.W = G.WEAPONS[this.wp.wclass];
+    // Mỗi người một thanh máu riêng (giáp là của riêng họ, hạng cũng khác nhau).
+    // Đổi người thì giữ nguyên TỈ LỆ máu đang còn — không thì đổi qua đổi lại là
+    // một cách hồi máu miễn phí, mà đổi vào lúc sắp chết cũng không cứu được.
+    if (this.player && this.player.maxHp) {
+      var ratio = clamp(this.player.hp / this.player.maxHp, 0, 1);
+      this.player.maxHp = this.stats.hp;
+      this.player.hp = Math.max(1, Math.round(this.stats.hp * ratio));
+    }
     // Dual Blades Heat: thanh Heat ĐẦY SẴN khi vào trận (đúng wiki).
     if (this.wp.wclass === 'dual' && this.wp.wtype === 'heat') this.player.heat = 100;
     // Đổi vũ khí giữa trận có độ trễ, đứng yên và hở sườn.
     if (!instant) { this.player.switchT = 420; this.player.state = 'switch'; this.player.stateT = 0; this.player.stateDur = 420; }
     if (this.puni) this.syncHotspots();
-    if (this.cb.onWeapon) this.cb.onWeapon(this.wp, i);
+    if (this.cb.onWeapon) this.cb.onWeapon(this.wp, i, h);
   };
 
   /* ------------------------------------------------------------- PUNICON -- */
@@ -2358,13 +2383,17 @@
     var drawn = false;
     if (G.Atlas) {
       var st = p.state;
-      var key = (st === 'attack' || st === 'skill') ? 'player.attack'
-              : (st === 'dodge') ? 'player.dodge'
-              : (p.moving ? 'player.run' : 'player.idle');
+      // Ảnh theo NGƯỜI đang cầm. Không có người (save cũ, hoặc lỗi) thì về bộ
+      // 'player.*' như trước, nên đổi trục sang NPC không làm vỡ đường vẽ.
+      var hp_ = this.heroDef ? 'heroes.' + this.heroDef.id : 'player';
+      var key = (st === 'attack' || st === 'skill') ? hp_ + '.attack'
+              : (st === 'dodge') ? hp_ + '.dodge'
+              : (p.moving ? hp_ + '.run' : hp_ + '.idle');
       // Lăn thì mượn khung CHẠY (chân co, đọc ra động tác hơn khung đứng);
       // mọi trạng thái khác thiếu ảnh thì về khung đứng như cũ.
       var pe = G.Atlas.get(key)
-            || (st === 'dodge' ? G.Atlas.get('player.run') : null)
+            || (st === 'dodge' ? G.Atlas.get(hp_ + '.run') : null)
+            || G.Atlas.get(hp_ + '.idle')
             || G.Atlas.get('player.idle');
       if (pe) {
         // ĐÒN LĂN: kho không có sprite lăn nào cho nhân vật người chơi, mà cũng

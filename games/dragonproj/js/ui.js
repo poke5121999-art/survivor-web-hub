@@ -144,6 +144,7 @@
     mkScreen('armory', 'KHO ĐỒ', '', true);
     mkScreen('gacha',  'TRIỆU HỒI', '', true);
     mkScreen('more',   'KHÁC', '', true);
+    mkScreen('roster', 'NHÂN VẬT', '', true, true);
     mkScreen('gear',   'CHI TIẾT TRANG BỊ', '', false, true);
     mkScreen('forge',  'NGUYÊN LIỆU', '', false, true);
     mkScreen('shop',   'TIỆM', '', false, true);
@@ -161,7 +162,7 @@
     if (battle) { battle.stop(); battle = null; }
     screens.style.display = 'block';
     renderCur(id);
-    ({ home: rHome, quest: rQuest, armory: rArmory, gacha: rGacha, more: rMore,
+    ({ home: rHome, quest: rQuest, armory: rArmory, gacha: rGacha, more: rMore, roster: rRoster,
        gear: rGear, forge: rForge, shop: rShop, help: rHelp, bosslist: rBossList }[id] || function () {})();
     // nav highlight
     var nb = el.querySelector('.navbar');
@@ -200,6 +201,20 @@
   function refresh() { renderCur(cur); }
 
   /* ------------------------------------------------------------- HOME ---- */
+  /* Người giao việc ở guild. Lấy luôn từ dàn nhân vật Hololive — không phải NPC
+     vô danh — nên tấm banner ở nhà và bộ mặt trong gacha là cùng một thế giới.
+     Chọn CỐ ĐỊNH theo id nhiệm vụ, để mở đi mở lại vẫn là một người, không nhấp
+     nháy đổi mặt mỗi lần vẽ lại. */
+  var QUEST_NPC = ['Tokino Sora', 'Sakura Miko', 'Roboco-san', 'AZKi'];
+  var QUEST_NPC_ID = ['sora', 'miko', 'roboco', 'azki'];
+  function npcFace(seed) {
+    var n = 0; seed = String(seed || '');
+    for (var i = 0; i < seed.length; i++) n = (n * 31 + seed.charCodeAt(i)) >>> 0;
+    var id = QUEST_NPC_ID[n % QUEST_NPC_ID.length];
+    var css = G.Atlas && G.Atlas.iconCss('heroes.' + id + '.idle', 38);
+    return css ? '<i class="uicon hero" style="' + css + '"></i>' : uiIcon('npc', '👩');
+  }
+
   function rHome() {
     var b = $('body-home');
     var area = G.areaById(S.area) || G.AREAS[0];
@@ -210,8 +225,7 @@
     var html = '';
     // Sân guild: nhân vật đứng giữa, bốn lối tắt nổi ở bốn góc — đúng cách REPO
     // Squad xếp, vì nó để phần giữa cho thứ đáng nhìn và đẩy nút ra rìa.
-    var eqNow = G.equipped(S);
-    var wNow = eqNow.weapons.find(Boolean);
+    var partyNow = G.party(S).filter(Boolean);
     html += '<div class="home-hero"><canvas id="heroCv" width="300" height="250"></canvas>' +
             '<div class="lvchip">Lv. ' + S.lv + ' · ' + S.name + '</div>' +
             '<div class="area">' + area.n + '</div>' +
@@ -222,9 +236,12 @@
               '<button data-act="shop">' + uiIcon('shop', '🛒') + 'Tiệm</button>' +
               '<button data-act="help">' + uiIcon('help', '❔') + 'Cách chơi</button>' +
             '</div>' +
-            '<div class="power">' + (wNow
-              ? elemDot(wNow.el) + ' ' + wNow.name + ' · ' + G.WEAPONS[wNow.wclass].vi
-              : 'Chưa cầm vũ khí nào') + '</div></div>';
+            '<div class="power">' + (partyNow.length
+              ? partyNow.map(function (h) {
+                  var d = G.heroDef(h) || {};
+                  return elemDot(d.el) + ' ' + (d.n || '').split(' ').pop();
+                }).join(' · ')
+              : 'Chưa có nhân vật nào') + '</div></div>';
 
     // Ải kế tiếp luôn nằm ngay đây: mở game lên là biết đi đâu, không phải nhớ.
     // Ảnh con trùm sắp gặp, ngay trên tấm banner: biết mặt nó trước khi vào ải.
@@ -238,13 +255,13 @@
 
     if (nextStory) {
       var pr = questProgressText(nextStory);
-      html += '<div class="banner main"><div class="npc">' + uiIcon('npc', '👩') + '</div><div class="t">' +
+      html += '<div class="banner main"><div class="npc">' + npcFace(nextStory.id) + '</div><div class="t">' +
         '<span class="kind" style="color:#8ee8a8">STORY</span> ' +
         '<b>' + nextStory.vi + '</b><span>' + nextStory.n + ' — ' + pr + '</span></div>' +
         '<button class="btn go" data-act="goQuest">ĐI</button></div>';
     } else {
-      html += '<div class="banner main"><div class="npc">' + uiIcon('npc', '👩') + '</div><div class="t"><b>Hết cốt truyện mùa 1</b>' +
-        '<span>Pamela không còn việc nào cho bạn nữa. Đi săn Behemoth thôi.</span></div></div>';
+      html += '<div class="banner main"><div class="npc">' + npcFace('end') + '</div><div class="t"><b>Hết cốt truyện mùa 1</b>' +
+        '<span>' + QUEST_NPC[0] + ' không còn việc nào cho bạn nữa. Đi săn Behemoth thôi.</span></div></div>';
     }
 
     // Nhiệm vụ ngày / tuần
@@ -346,25 +363,48 @@
     ctx.fillRect(20, 30, 38, 14); ctx.fillRect(242, 30, 38, 14);
     ctx.restore();
 
-    // Cùng một nhân vật với trong trận (G.drawChar) — đổi giáp hay đổi vũ khí là
-    // thấy ngay ở sân guild, không phải một hình minh hoạ riêng dễ lệch với thực tế.
-    var eq = G.equipped(S), w = eq.weapons.find(Boolean);
-    ctx.save(); ctx.translate(146, 166); ctx.scale(3.1, 3.1);
-    ctx.fillStyle = 'rgba(0,0,0,.35)';
-    ctx.beginPath(); ctx.ellipse(0, 2, 15, 5, 0, 0, 6.2832); ctx.fill();
-    G.drawChar(ctx, {
-      facing: -0.38, state: 'idle', moving: false, t: 1500, k: 0,
-      // Thân lấy màu theo hệ của giáp đang mặc, y như trong trận; bàn tay mới là tông da.
-      body: G.bodyTint((eq.body || eq.head || eq.arm || eq.leg || {}).el || 'none'),
-      hand: ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'][S.skin || 2],
-      hair: ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
-             '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'][S.hairColor || 0],
-      cloth: '#3b6ea5',
-      weapon: w ? w.wclass : 'sword',
-      elem: G.ELEMENTS[(w && w.el) || 'none'].color,
-      el: (w && w.el) || 'none'
+    /* Sân guild đứng CẢ BA người trong đội, bằng chính ảnh dùng trong trận.
+     * Người ở khe 1 đứng giữa và to hơn, hai người kia lùi ra sau và nhỏ lại —
+     * đội hình là quyết định lớn nhất trước khi vào ải, nên nó phải là thứ nhìn
+     * thấy đầu tiên khi mở game, không phải một dòng chữ.
+     * Thiếu ảnh thì rơi về hình vẽ-bằng-code như trước. */
+    var party = G.party(S).filter(Boolean);
+    var SPOT = [{ x: 150, y: 176, s: 3.4, a: 1 },
+                { x: 74,  y: 162, s: 2.5, a: 0.82 },
+                { x: 226, y: 162, s: 2.5, a: 0.82 }];
+    var drew = 0;
+    party.slice(0, 3).forEach(function (h, i) {
+      var d = G.heroDef(h); if (!d) return;
+      var sp = SPOT[i], e = G.Atlas && G.Atlas.get('heroes.' + d.id + '.idle');
+      ctx.save();
+      ctx.globalAlpha = sp.a;
+      ctx.fillStyle = 'rgba(0,0,0,.32)';
+      ctx.beginPath(); ctx.ellipse(sp.x, sp.y + 3, 15 * sp.s / 3, 5 * sp.s / 3, 0, 0, 6.2832); ctx.fill();
+      if (e) {
+        G.Atlas.draw(ctx, e, sp.x, sp.y, { ms: 1500 + i * 400, scale: sp.s * 34 / Math.max(1, e.h) });
+        drew++;
+      }
+      ctx.restore();
     });
-    ctx.restore();
+
+    if (!drew) {
+      var eq = G.equipped(S), w = eq.weapons.filter(Boolean)[0];
+      ctx.save(); ctx.translate(146, 166); ctx.scale(3.1, 3.1);
+      ctx.fillStyle = 'rgba(0,0,0,.35)';
+      ctx.beginPath(); ctx.ellipse(0, 2, 15, 5, 0, 0, 6.2832); ctx.fill();
+      G.drawChar(ctx, {
+        facing: -0.38, state: 'idle', moving: false, t: 1500, k: 0,
+        body: G.bodyTint((eq.body || eq.head || eq.arm || eq.leg || {}).el || 'none'),
+        hand: ['#f0d0b0', '#e8c098', '#d8a878', '#c08858', '#9a6a42', '#7a5030', '#5c3a22', '#f8e0c8'][S.skin || 2],
+        hair: ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
+               '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'][S.hairColor || 0],
+        cloth: '#3b6ea5',
+        weapon: w ? w.wclass : 'sword',
+        elem: G.ELEMENTS[(w && w.el) || 'none'].color,
+        el: (w && w.el) || 'none'
+      });
+      ctx.restore();
+    }
   }
 
   /* ------------------------------------------------------------- ẢI ----- */
@@ -437,70 +477,178 @@
     return p.join(' · ');
   }
 
-  /* ----------------------------------------------------------- ARMORY ---- */
+  /* ----------------------------------------------------------- ARMORY ----
+   * Kho đồ giờ xoay quanh NGƯỜI, không xoay quanh cái túi.
+   *
+   *   [ đội hình: ba người, bấm để chọn người đang sửa ]   <- dính trên đầu
+   *   [ năm ô trang bị CỦA NGƯỜI ĐÓ                    ]   <- dính trên đầu
+   *   [ túi đồ                                          ]   <- cuộn
+   *
+   * Hai thẻ đầu dính (sticky) vì có kéo-thả: kéo một món từ dưới túi lên mà ô đã
+   * trôi khỏi màn hình thì thao tác đó thành ra phải ngồi chờ cuộn.
+   */
+  var selHero = null;             // uid người đang sửa đồ
+
+  function heroPortrait(h, px) {
+    var d = G.heroDef(h); if (!d) return '';
+    var css = G.Atlas && G.Atlas.iconCss('heroes.' + d.id + '.idle', px || 40);
+    return css ? '<i class="uicon hero" style="' + css + '"></i>' : '';
+  }
+
+  function curHero() {
+    var h = selHero ? G.heroOf(S, selHero) : null;
+    if (!h) { h = G.party(S).filter(Boolean)[0] || (S.heroes || [])[0] || null; selHero = h ? h.uid : null; }
+    return h;
+  }
+
+  var ASLOT_VI = { head: 'Đầu', body: 'Thân', arm: 'Tay', leg: 'Chân' };
+
   function rArmory() {
-    var b = $('body-armory'), eq = G.equipped(S);
-    var st = G.buildStats(S);
+    var b = $('body-armory');
+    var h = curHero();
+    var d = G.heroDef(h);
+    var eq = G.equippedOf(S, h);
+    var st = G.buildStats(S, h);
     var html = '';
-    html += '<div class="card"><h3>Chỉ số</h3><div class="row wrap" style="font-size:11px;gap:12px">' +
-      '<span>❤️ HP <b>' + fmt(st.hp) + '</b></span>' +
-      '<span>⚔️ Công <b>' + fmt(st.atk) + '</b></span>' +
-      '<span>🛡️ Thủ <b>' + fmt(st.def) + '</b></span>' +
-      '<span>✨ Thủ hệ <b>' + fmt(st.edef) + '</b></span>' +
-      '</div>' + (st.setBonus ? '<p style="color:#f2c94b;margin-top:6px">Bonus mặc đủ bộ ' +
-        (G.behemothById(st.setBonus) || {}).n + ': HP +10%, Công +8%, Thủ +10%</p>' : '') + '</div>';
 
-    html += '<div class="card"><h3>Ba khe vũ khí (đổi được giữa trận)</h3><div class="grid3">';
-    for (var i = 0; i < 3; i++) {
-      var g = eq.weapons[i];
-      html += '<button class="item" data-wslot="' + i + '">' + (g
-        ? wIcon(g, 'top') + '<div class="nm">' + g.name + '</div><div class="sub">' + rankChip(g.rank) + ' ' + G.WEAPONS[g.wclass].vi +
-          '<br>' + G.WTYPES[g.wtype].vi + ' ' + elemDot(g.el) + '<br>Lv.' + g.lv + lbDots(g) + '</div>'
-        : '<div class="nm" style="opacity:.4">Khe ' + (i + 1) + '</div><div class="sub">trống</div>') + '</button>';
-    }
-    html += '</div></div>';
-
-    html += '<div class="card"><h3>Giáp</h3><div class="grid2">';
-    ['head', 'body', 'arm', 'leg'].forEach(function (k) {
-      var g = eq[k], nm = { head: 'Đầu', body: 'Thân', arm: 'Tay', leg: 'Chân' }[k];
-      html += '<button class="item" data-aslot="' + k + '">' + (g
-        ? '<div class="nm">' + g.name + '</div><div class="sub">' + nm + ' · ' + rankChip(g.rank) + ' Lv.' + g.lv + lbDots(g) + '</div>'
-        : '<div class="nm" style="opacity:.4">' + nm + '</div><div class="sub">trống</div>') + '</button>';
+    /* --- đội hình + trang bị: một khối DÍNH trên đầu --- */
+    html += '<div class="stickwrap"><div class="card party">' +
+      '<div class="row"><h3 style="flex:1">Đội hình</h3>' +
+      '<button class="btn sm" data-act="roster">Nhân vật</button></div>' +
+      '<div class="grid3">';
+    G.party(S).forEach(function (x, i) {
+      var xd = G.heroDef(x);
+      html += '<button class="hslot' + (x && h && x.uid === h.uid ? ' on' : '') + '" data-pslot="' + i + '">' +
+        (xd ? heroPortrait(x, 38) + '<div class="nm">' + xd.n.split(' ').pop() + '</div>' +
+              '<div class="sub">' + rankChip(xd.rank) + ' ' + G.WEAPONS[xd.wclass].vi.split(' ')[0] +
+              ' ' + elemDot(xd.el) + '</div>'
+            : '<div class="nm" style="opacity:.4">Khe ' + (i + 1) + '</div><div class="sub">trống</div>') +
+        '</button>';
     });
     html += '</div></div>';
 
+    if (d) {
+      html += '<div class="card gearbar"><div class="row" style="align-items:center;gap:8px">' +
+        heroPortrait(h, 34) +
+        '<h3 style="flex:1;margin:0">' + d.n + '</h3>' + rankChip(d.rank) + '</div>' +
+        '<p class="hint" style="margin:4px 0 7px">' + G.WEAPONS[d.wclass].vi + ' ' + elemDot(d.el) +
+        ' · HP ' + fmt(st.hp) + ' · Công ' + fmt(st.atk) + ' · Thủ ' + fmt(st.def) + '</p>' +
+        '<div class="eqrow">';
+      html += '<button class="eqslot' + (eq.weapon ? '' : ' empty') + '" data-wslot="0">' +
+        (eq.weapon ? wIcon(eq.weapon, 'top') : '<span class="lbl">Vũ khí</span>') +
+        '<span class="tag">' + (eq.weapon ? rankChip(eq.weapon.rank) : G.WEAPONS[d.wclass].vi.split(' ')[0]) + '</span></button>';
+      ['head', 'body', 'arm', 'leg'].forEach(function (k) {
+        var g = eq[k];
+        html += '<button class="eqslot' + (g ? '' : ' empty') + '" data-aslot="' + k + '">' +
+          '<span class="lbl">' + ASLOT_VI[k] + '</span>' +
+          '<span class="tag">' + (g ? rankChip(g.rank) + ' Lv.' + g.lv : '—') + '</span></button>';
+      });
+      html += '</div></div></div>';
+    } else {
+      html += '</div><div class="empty-note">Chưa có nhân vật nào. Sang Triệu hồi.</div>';
+    }
+
+    /* --- túi đồ --- */
     html += '<div class="card"><h3>Túi đồ</h3>' +
-      '<p class="hint" style="margin:-2px 0 6px">Giữ một món rồi kéo lên khe để lắp — hoặc bấm khe rồi bấm món như cũ.</p>' +
+      '<p class="hint" style="margin:-2px 0 6px">Giữ một món rồi kéo lên ô để lắp cho <b>' +
+      (d ? d.n.split(' ').pop() : '—') + '</b> — hoặc bấm ô rồi bấm món.</p>' +
       '<div class="row" style="gap:5px;margin-bottom:7px">' +
       ['weapon', 'head', 'body', 'arm', 'leg'].map(function (k) {
         return '<button class="btn sm ' + (gearFilter === k ? 'pri' : '') + '" data-filter="' + k + '">' +
           { weapon: 'Vũ khí', head: 'Đầu', body: 'Thân', arm: 'Tay', leg: 'Chân' }[k] + '</button>';
       }).join('') + '</div><div class="grid2">';
     var list = S.gear.filter(function (g) { return g.kind === gearFilter; });
-    if (!list.length) html += '<div class="empty-note" style="grid-column:1/-1">Chưa có món nào loại này. Sang Triệu hồi quay đồ.</div>';
+    if (!list.length) html += '<div class="empty-note" style="grid-column:1/-1">Chưa có món nào loại này.</div>';
     list.forEach(function (g) {
-      html += '<button class="item' + (g.kind === 'weapon' ? ' wpn' : '') +
+      // Vũ khí sai lớp thì làm mờ và nói rõ vì sao, chứ không im lặng từ chối
+      // đúng lúc người ta đã kéo tới nơi.
+      var fits = !h || G.canEquip(h, g);
+      var hold = G.holderOf(S, g.uid);
+      html += '<button class="item' + (g.kind === 'weapon' ? ' wpn' : '') + (fits ? '' : ' nofit') +
         '" data-gear="' + g.uid + '"><div class="corner">' + rankChip(g.rank) + '</div>' +
         wIcon(g) + '<div class="nm">' + g.name + '</div><div class="sub">' +
-        (g.kind === 'weapon' ? G.WEAPONS[g.wclass].vi + ' · ' + G.WTYPES[g.wtype].vi + ' ' + elemDot(g.el) : 'Giáp ' + elemDot(g.defEl || 'none')) +
-        '<br>Lv.' + g.lv + '/' + G.MAX_LV + (g.evo ? ' ·進' + g.evo : '') + lbDots(g) + '</div>' + slotsHtml(g) + '</button>';
+        (g.kind === 'weapon' ? G.WEAPONS[g.wclass].vi + ' · ' + G.WTYPES[g.wtype].vi + ' ' + elemDot(g.el)
+                             : 'Giáp ' + elemDot(g.defEl || 'none')) +
+        '<br>Lv.' + g.lv + '/' + G.MAX_LV + (g.evo ? ' ·進' + g.evo : '') + lbDots(g) +
+        (hold ? '<br><i style="color:#8fd4ff">đang ở ' + (G.heroDef(hold) || {}).n + '</i>' : '') +
+        (fits ? '' : '<br><i style="color:#c98a8a">không hợp lớp</i>') +
+        '</div>' + slotsHtml(g) + '</button>';
     });
     html += '</div></div>';
-
     html += '<div class="card"><h3>Nguyên liệu</h3><div>' + matChips() + '</div></div>';
 
     b.innerHTML = html;
     b.onclick = function (e) {
       var f = e.target.closest('[data-filter]');
       if (f) { gearFilter = f.getAttribute('data-filter'); rArmory(); return; }
+      var ac = e.target.closest('[data-act="roster"]');
+      if (ac) { pendingPartySlot = -1; show('roster'); return; }
+      var ps = e.target.closest('[data-pslot]');
+      if (ps) {
+        var pi = +ps.getAttribute('data-pslot');
+        var hx = G.party(S)[pi];
+        if (hx) { selHero = hx.uid; rArmory(); }
+        else { pendingPartySlot = pi; show('roster'); }
+        return;
+      }
       var g = e.target.closest('[data-gear]');
       if (g) { selGear = g.getAttribute('data-gear'); show('gear'); return; }
       var ws = e.target.closest('[data-wslot]');
-      if (ws) { gearFilter = 'weapon'; toast('Chọn một vũ khí trong túi để lắp vào khe ' + (+ws.getAttribute('data-wslot') + 1)); pendingSlot = { kind: 'weapon', i: +ws.getAttribute('data-wslot') }; rArmory(); return; }
+      if (ws) { gearFilter = 'weapon'; pendingSlot = { kind: 'weapon' };
+                toast('Chọn một ' + (d ? G.WEAPONS[d.wclass].vi : 'vũ khí') + ' trong túi'); rArmory(); return; }
       var as = e.target.closest('[data-aslot]');
-      if (as) { gearFilter = as.getAttribute('data-aslot'); pendingSlot = { kind: as.getAttribute('data-aslot') }; toast('Chọn một món trong túi để mặc'); rArmory(); return; }
+      if (as) { gearFilter = as.getAttribute('data-aslot'); pendingSlot = { kind: as.getAttribute('data-aslot') };
+                toast('Chọn một món trong túi để mặc'); rArmory(); return; }
     };
   }
+
+  /* ------------------------------------------------- DANH SÁCH NHÂN VẬT -- */
+  var pendingPartySlot = -1;
+
+  function rRoster() {
+    var b = $('body-roster');
+    var party = (S.party || []).slice();
+    var html = '<div class="card"><h3>Nhân vật đã có (' + (S.heroes || []).length + '/' + G.HEROES.length + ')</h3>' +
+      '<p class="hint">' + (pendingPartySlot >= 0
+        ? 'Chọn một người cho khe ' + (pendingPartySlot + 1) + '.'
+        : 'Bấm một người để đưa vào đội hình; bấm người đang trong đội để bỏ ra.') +
+      '</p></div><div class="grid2">';
+    var RANKV = { SS: 0, S: 1, A: 2, B: 3 };
+    (S.heroes || []).slice().sort(function (a, c) {
+      var da = G.heroDef(a) || {}, dc = G.heroDef(c) || {};
+      return (RANKV[da.rank] - RANKV[dc.rank]) || (da.n || '').localeCompare(dc.n || '');
+    }).forEach(function (h) {
+      var d = G.heroDef(h); if (!d) return;
+      var inParty = party.indexOf(h.uid);
+      var w = G.equippedOf(S, h).weapon;
+      html += '<button class="item hero' + (inParty >= 0 ? ' on' : '') + '" data-hero="' + h.uid + '">' +
+        '<div class="corner">' + rankChip(d.rank) + '</div>' +
+        heroPortrait(h, 46) +
+        '<div class="nm">' + d.n + '</div><div class="sub">' +
+        G.WEAPONS[d.wclass].vi + ' ' + elemDot(d.el) +
+        '<br>' + (w ? w.name : '<i style="opacity:.6">chưa cầm gì</i>') +
+        (inParty >= 0 ? '<br><b style="color:#f2c94b">Khe ' + (inParty + 1) + '</b>' : '') +
+        (h.dupes ? '<br><i style="color:#8fd4ff">trùng x' + h.dupes + '</i>' : '') +
+        '</div></button>';
+    });
+    html += '</div>';
+    b.innerHTML = html;
+    b.onclick = function (e) {
+      var t = e.target.closest('[data-hero]'); if (!t) return;
+      var uid = t.getAttribute('data-hero');
+      var cur = S.party.indexOf(uid);
+      if (cur >= 0) S.party[cur] = null;          // đang trong đội -> bỏ ra
+      else {
+        var slot = pendingPartySlot >= 0 ? pendingPartySlot : S.party.indexOf(null);
+        if (slot < 0) slot = 0;
+        S.party[slot] = uid;
+        pendingPartySlot = -1;
+      }
+      selHero = uid;
+      save(); rRoster(); refresh();
+    };
+  }
+
   var pendingSlot = null;
 
   /* ================= KÉO MỘT MÓN THẢ VÀO KHE ĐỂ TRANG BỊ =================
@@ -529,16 +677,23 @@
     return null;
   }
 
+  function slotFits(slot, g) {
+    if (!slot || !g) return false;
+    if (slot.kind === 'weapon') return g.kind === 'weapon' && G.canEquip(curHero(), g);
+    return slot.kind === g.kind;
+  }
+
   function equipInto(g, slot) {
-    if (g.kind === 'weapon') {
-      // Cùng một cây không được nằm ở hai khe: gỡ nó khỏi chỗ cũ trước đã.
-      S.loadout.weapons = S.loadout.weapons.map(function (u) { return u === g.uid ? null : u; });
-      S.loadout.weapons[slot.i] = g.uid;
-    } else {
-      S.loadout[g.kind] = g.uid;
+    var h = curHero();
+    if (!h) { toast('Chưa có nhân vật nào', '#c34141'); return; }
+    // Một món chỉ nằm ở MỘT người: G.equipOn tự gỡ nó khỏi người đang giữ.
+    if (!G.equipOn(S, h, g)) {
+      var d = G.heroDef(h) || {};
+      toast((G.heroDef(h) || {}).n + ' chỉ cầm được ' + (G.WEAPONS[d.wclass] || {}).vi, '#c34141');
+      return;
     }
     pendingSlot = null;
-    save(); toast('Đã lắp ' + g.name, '#3fd66a');
+    save(); toast('Đã lắp ' + g.name + ' cho ' + (G.heroDef(h) || {}).n, '#3fd66a');
     rArmory(); refresh();
   }
 
@@ -602,10 +757,10 @@
         if (!drag.on) { dragEnd(); return; }
         var slot = slotOf(document.elementFromPoint(e.clientX, e.clientY));
         var g = drag.g;
-        var fits = slot && (slot.kind === 'weapon' ? g.kind === 'weapon' : slot.kind === g.kind);
+        var fits = slotFits(slot, g);
         dragEnd();
         if (fits) equipInto(g, slot);
-        else if (slot) toast('Khe này không nhận ' + (g.kind === 'weapon' ? 'vũ khí' : 'món này'), '#c34141');
+        else if (slot) toast('Ô này không nhận món đó', '#c34141');
       });
     });
 
@@ -619,12 +774,11 @@
     drag.body.style.overflowY = 'hidden';       // khoá cuộn trong lúc kéo
     drag.card.classList.add('dragsrc');
     var g = drag.g;
-    // Sáng lên đúng những khe NHẬN được món này.
+    // Sáng lên đúng những ô NHẬN được món này (ô vũ khí còn phải đúng lớp của
+    // người đang chọn — sai lớp thì không sáng, khỏi kéo tới nơi mới biết).
     var b = $('body-armory');
     [].forEach.call(b.querySelectorAll('[data-wslot],[data-aslot]'), function (el) {
-      var sl = slotOf(el);
-      var fits = sl && (sl.kind === 'weapon' ? g.kind === 'weapon' : sl.kind === g.kind);
-      if (fits) el.classList.add('drop-ok');
+      if (slotFits(slotOf(el), g)) el.classList.add('drop-ok');
     });
     var gh = document.createElement('div');
     gh.className = 'dragghost';
@@ -698,7 +852,8 @@
     if (!g) { b.innerHTML = '<div class="empty-note">Không tìm thấy món này.</div>'; return; }
     var gs = G.gearStats(g);
     var eq = G.equipped(S);
-    var equipped = (g.kind === 'weapon') ? S.loadout.weapons.indexOf(g.uid) >= 0 : S.loadout[g.kind] === g.uid;
+    var holder = G.holderOf(S, g.uid);
+    var equipped = !!holder;
 
     var html = '<div class="card"><div class="row">' + wIcon(g, 'big') +
       '<h3 style="flex:1">' + g.name + '</h3>' + rankChip(g.rank) + '</div>';
@@ -767,7 +922,8 @@
                                     : 'Tiến hoá — cần Lv.' + G.MAX_LV + ' trước')
               : 'Tiến hoá — chỉ dành cho đồ hạng S và SS')) + '</button>' +
       '<div class="row"><button class="btn ' + (equipped ? 'dis' : 'go') + '" data-act="equip" style="flex:1">' +
-        (equipped ? 'Đang mặc' : 'Trang bị') + '</button>' +
+        (equipped ? 'Đang ở ' + (G.heroDef(holder) || {}).n
+                  : 'Trang bị cho ' + ((G.heroDef(curHero()) || {}).n || '—')) + '</button>' +
       '<button class="btn red" data-act="dismantle">Rã lấy Lapis</button></div></div>';
 
     b.innerHTML = html;
@@ -780,12 +936,11 @@
       else if (a === 'evolve') r = G.evolve(S, g);
       else if (a === 'reroll') r = G.reroll(S, g);
       else if (a === 'equip') {
-        if (g.kind === 'weapon') {
-          var idx = (pendingSlot && pendingSlot.kind === 'weapon') ? pendingSlot.i : S.loadout.weapons.indexOf(null);
-          if (idx < 0) idx = 0;
-          S.loadout.weapons = S.loadout.weapons.map(function (u) { return u === g.uid ? null : u; });
-          S.loadout.weapons[idx] = g.uid;
-        } else S.loadout[g.kind] = g.uid;
+        var hh = curHero();
+        if (!hh) { toast('Chưa có nhân vật nào', '#c34141'); return; }
+        if (!G.equipOn(S, hh, g)) {
+          toast((G.heroDef(hh) || {}).n + ' không cầm được món này', '#c34141'); return;
+        }
         pendingSlot = null; r = { ok: true }; toast('Đã trang bị', '#3fd66a');
       } else if (a === 'dismantle') {
         r = G.dismantle(S, g);
@@ -861,8 +1016,8 @@
   function rGacha() {
     var b = $('body-gacha');
     var html = '';
-    html += '<div class="gacha-hero"><b>TRIỆU HỒI TRANG BỊ</b>' +
-      '<span>Ra thẳng vũ khí và giáp — trùng thì thành Lõi Rồng</span>' +
+    html += '<div class="gacha-hero"><b>TRIỆU HỒI NHÂN VẬT</b>' +
+      '<span>Ra NGƯỜI, không ra đồ. Trùng người thì thành Lõi Rồng</span>' +
       '<div class="rate-tab"><b style="color:#f2d24b">SS 3%</b><b style="color:#f2a03c">S 15%</b>' +
       '<b style="color:#b06fd0">A 55%</b><b style="color:#5b8fd6">B 27%</b></div></div>';
     html += '<div class="card"><div class="row">' +
@@ -870,13 +1025,16 @@
       '<button class="btn ' + (S.ticket >= 50 ? 'pri' : 'dis') + '" data-act="g10" style="flex:1">10+1 — 50 vé <span style="font-size:9px">(bảo hiểm SS)</span></button>' +
       '</div><p style="margin-top:7px">Vé: <b>' + S.ticket + '</b>. Hết vé thì <b>đổi bằng Medal</b> ở tiệm ' +
       '(phá ải là có Medal — ' + fmt(S.medal) + ' đang có), hoặc làm nhiệm vụ cốt truyện / tuần.<br>' +
-      'Ra món <b>đã có</b> thì đổi thành <b style="color:#f2d24b">Lõi Rồng</b> — ' +
+      'Mỗi nhân vật gắn cứng <b>một lớp vũ khí</b> (tức một bộ đòn và hai kỹ năng) và <b>một hệ</b>. ' +
+      'Ra người <b>đã có</b> thì đổi thành <b style="color:#f2d24b">Lõi Rồng</b> — ' +
       'thứ duy nhất mở được Tiến hoá, và <b>không cày được ở đâu cả</b>. Đang có ' +
-      '<b style="color:#f2d24b">' + fmt(S.mats.dragon_core || 0) + '</b>.</p></div>';
+      '<b style="color:#f2d24b">' + fmt(S.mats.dragon_core || 0) + '</b>.<br>' +
+      'Đã có <b>' + (S.heroes || []).length + '/' + G.HEROES.length + '</b> nhân vật.</p></div>';
 
 
-    html += '<div class="card"><button class="btn" data-act="bosslist" style="width:100%">Xem toàn bộ ' +
-      G.BEHEMOTHS.length + ' Behemoth và bộ đồ của chúng</button></div>';
+    html += '<div class="card"><button class="btn" data-act="roster" style="width:100%">Danh sách nhân vật đã có</button>' +
+      '<button class="btn" data-act="bosslist" style="width:100%;margin-top:6px">Xem toàn bộ ' +
+      G.BEHEMOTHS.length + ' Behemoth</button></div>';
     html += '<div id="gachaOut">' + gachaOut + '</div>';
 
     b.innerHTML = html;
@@ -887,21 +1045,24 @@
         var cost = a === 'g1' ? 5 : 50, cnt = a === 'g1' ? 1 : 11;
         if (S.ticket < cost) { toast('Không đủ vé', '#c34141'); return; }
         S.ticket -= cost;
-        var res = G.summonGear(S, cnt, cnt > 1);
+        var res = G.summonHeroes(S, cnt, cnt > 1);
         var cores = res.reduce(function (n, x) { return n + (x.dupe ? x.cores : 0); }, 0);
-        res.forEach(function (x) { S.seenBoss[x.src || (x.gear && x.gear.src)] = 1; });
         gachaOut = '<div class="card"><h3>Kết quả</h3>' + res.map(function (x) {
-          return '<div class="row" style="font-size:11px;padding:3px 0">' +
-            '<span style="flex:1">' + rankChip(x.rank) + ' ' + x.name +
-            ' <span style="color:#9fb2c4">' + kindVi(x.kind) + '</span></span>' +
+          var d = G.heroById(x.id) || {};
+          var css = G.Atlas && G.Atlas.iconCss('heroes.' + x.id + '.idle', 34);
+          return '<div class="row" style="font-size:11px;padding:3px 0;align-items:center;gap:7px">' +
+            (css ? '<i class="uicon hero" style="' + css + '"></i>' : '') +
+            '<span style="flex:1">' + rankChip(x.rank) + ' <b>' + x.name + '</b>' +
+            '<br><span style="color:#9fb2c4">' + (G.WEAPONS[d.wclass] || {}).vi + ' ' + elemDot(d.el) + '</span></span>' +
             (x.dupe ? '<b style="color:#f2d24b">trùng · +' + x.cores + ' Lõi</b>'
                     : '<b style="color:#3fd66a">MỚI</b>') + '</div>';
         }).join('') +
         (cores ? '<p style="margin-top:6px;color:#f2d24b">Tổng +' + cores + ' Lõi Rồng.</p>' : '') +
-        '<button class="btn pri" data-act="armory" style="width:100%;margin-top:7px">Vào Kho đồ mặc thử</button></div>';
+        '<button class="btn pri" data-act="roster" style="width:100%;margin-top:7px">Xem và xếp đội hình</button></div>';
         save(); rGacha(); refresh(); return;
       }
       if (a === 'armory') { show('armory'); return; }
+      if (a === 'roster') { show('roster'); return; }
       if (a === 'bosslist') { show('bosslist'); return; }
     };
   }
@@ -1297,12 +1458,15 @@
   }
 
   function renderWeaponSlots() {
-    var eq = G.equipped(S), el = $('hWswitch'), html = '';
+    // Ba khe trên HUD giờ là BA NGƯỜI. Ảnh nhân vật to hơn chữ, vì lúc đánh nhau
+    // mắt chỉ kịp nhận ra hình chứ không kịp đọc.
+    var party = G.party(S), el = $('hWswitch'), html = '';
     for (var i = 0; i < 3; i++) {
-      var g = eq.weapons[i];
+      var h = party[i], d = G.heroDef(h);
       var on = battle && battle.player.wIdx === i;
-      html += '<button class="wslot ' + (on ? 'on' : '') + ' ' + (g ? '' : 'empty') + '" data-w="' + i + '">' +
-        (g ? wIcon(g, 'hud') + G.WTYPES[g.wtype].vi : '—') + '</button>';
+      var css = d && G.Atlas ? G.Atlas.iconCss('heroes.' + d.id + '.idle', 20) : '';
+      html += '<button class="wslot ' + (on ? 'on' : '') + ' ' + (d ? '' : 'empty') + '" data-w="' + i + '">' +
+        (d ? (css ? '<i class="uicon" style="' + css + '"></i>' : '') + d.n.split(' ').pop() : '—') + '</button>';
     }
     el.innerHTML = html;
     el.onclick = function (e) {
@@ -1379,7 +1543,9 @@
     $('hPLv').textContent = 'Lv. ' + S.lv;
     $('hRevive').textContent = p.revives;
     $('hGem').textContent = S.gem;
-    $('hWName').textContent = bt.wp ? (G.WEAPONS[bt.wp.wclass].vi + ' · ' + G.WTYPES[bt.wp.wtype].vi) : '';
+    $('hWName').textContent = bt.heroDef
+      ? (bt.heroDef.n + ' · ' + G.WEAPONS[bt.wp.wclass].vi)
+      : (bt.wp ? (G.WEAPONS[bt.wp.wclass].vi + ' · ' + G.WTYPES[bt.wp.wtype].vi) : '');
     // Viên hệ: hệ nguyên tố của vũ khí đang cầm giờ đổi luôn hình dạng hiệu ứng
     // kỹ năng, nên nó là thông tin phải thấy được mọi lúc.
     var elId = (bt.wp && bt.wp.el) || 'none', EL = G.ELEMENTS[elId];

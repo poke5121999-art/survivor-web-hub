@@ -855,6 +855,97 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('lưu và nạp lại giữ nguyên tiến độ',
     await p.evaluate(() => DP.UI.save.gold === 12345));
 
+  /* --------------------------------------------------- NHÂN VẬT (NPC) --- */
+  // Trục mới của game: gacha ra NGƯỜI, mỗi người gắn cứng một lớp vũ khí và giữ
+  // trang bị riêng, mang ba người vào ải và đổi giữa trận. Mấy luật dưới đây là
+  // thứ giữ cho cái trục đó không tự tháo ra.
+  results.push('\n── nhân vật ──');
+  const hero = await p.evaluate(() => {
+    const S = DP.UI.save, A = DP.Atlas;
+    const missSpr = DP.HEROES.filter(d => !A.get('heroes.' + d.id + '.idle') ||
+                                          !A.get('heroes.' + d.id + '.run')).map(d => d.id);
+    const badCls = DP.HEROES.filter(d => !DP.WEAPONS[d.wclass]).map(d => d.id);
+    const badEl  = DP.HEROES.filter(d => !DP.ELEMENTS[d.el]).map(d => d.id);
+    // gacha: 200 lần quay, phải KHÔNG đẻ thêm món đồ nào vào túi
+    const gear0 = S.gear.length;
+    const res = DP.summonHeroes(S, 200, false);
+    const ranks = {};
+    res.forEach(r => { ranks[r.rank] = (ranks[r.rank] || 0) + 1; });
+    return {
+      total: DP.HEROES.length, missSpr, badCls, badEl,
+      gearGrew: S.gear.length - gear0,
+      ranks, owned: S.heroes.length,
+      classes: new Set(DP.HEROES.map(d => d.wclass)).size
+    };
+  });
+  check('43 nhân vật, ai cũng có ảnh đứng và ảnh chạy',
+    hero.missSpr.length === 0, hero.missSpr.length ? 'thiếu: ' + hero.missSpr.join(',') : hero.total + ' người');
+  check('nhân vật nào cũng có lớp vũ khí và hệ hợp lệ',
+    hero.badCls.length === 0 && hero.badEl.length === 0,
+    (hero.badCls.concat(hero.badEl).join(',')) || 'ok');
+  check('đủ cả năm lớp vũ khí trong dàn nhân vật', hero.classes === 5, hero.classes + ' lớp');
+  check('gacha KHÔNG còn đẻ ra trang bị', hero.gearGrew === 0, 'túi tăng ' + hero.gearGrew + ' món');
+  check('quay 200 lần ra đủ bốn hạng', Object.keys(hero.ranks).length === 4, JSON.stringify(hero.ranks));
+
+  const eqr = await p.evaluate(() => {
+    const S = DP.UI.save;
+    const sw = DP.HEROES.find(d => d.wclass === 'sword');
+    const bw = DP.HEROES.find(d => d.wclass === 'bow');
+    let h1 = S.heroes.find(h => h.id === sw.id) || (S.heroes.push(DP.mkHero(sw.id)), S.heroes[S.heroes.length - 1]);
+    let h2 = S.heroes.find(h => h.id === bw.id) || (S.heroes.push(DP.mkHero(bw.id)), S.heroes[S.heroes.length - 1]);
+    const gSword = S.gear.find(g => g.kind === 'weapon' && g.wclass === 'sword');
+    const gHead = S.gear.find(g => g.kind === 'head');
+    const okRight = DP.equipOn(S, h1, gSword);
+    const okWrong = DP.equipOn(S, h2, gSword);          // cung không cầm được kiếm
+    // một món chỉ nằm ở MỘT người
+    DP.equipOn(S, h1, gHead); DP.equipOn(S, h2, gHead);
+    const onlyOne = (h1.gear.head !== gHead.uid) && (h2.gear.head === gHead.uid);
+    return { okRight, okWrong, onlyOne, holder: (DP.holderOf(S, gHead.uid) || {}).uid === h2.uid };
+  });
+  check('vũ khí chỉ lắp được cho nhân vật ĐÚNG LỚP', eqr.okRight && !eqr.okWrong,
+    'đúng lớp=' + eqr.okRight + ' sai lớp=' + eqr.okWrong);
+  check('một món chỉ nằm ở MỘT người', eqr.onlyOne && eqr.holder);
+
+  const swi = await p.evaluate(() => {
+    const S = DP.UI.save;
+    // ba người ba lớp khác nhau vào đội hình
+    const want = ['sword', 'great', 'bow'];
+    want.forEach((cls, i) => {
+      const d = DP.HEROES.find(x => x.wclass === cls);
+      let h = S.heroes.find(x => x.id === d.id);
+      if (!h) { h = DP.mkHero(d.id); S.heroes.push(h); }
+      S.party[i] = h.uid;
+    });
+    DP.UI.startStage('tior-1');
+    const b = DP.UI.battle, out = [];
+    for (let i = 0; i < 3; i++) {
+      b.setHero(i, true);
+      out.push({ n: (b.heroDef || {}).n, cls: b.wp.wclass, hp: b.player.maxHp,
+                 sk: b.skillList().map(x => x.n).join('+') });
+    }
+    return out;
+  });
+  check('đổi khe = đổi NGƯỜI: ba khe ra ba lớp vũ khí khác nhau',
+    new Set(swi.map(x => x.cls)).size === 3, swi.map(x => x.n + '/' + x.cls).join(' | '));
+  check('đổi người thì bộ kỹ năng cũng đổi theo',
+    new Set(swi.map(x => x.sk)).size === 3, swi.map(x => x.sk).join(' | '));
+
+  // Hồ sơ cũ (ba khe vũ khí của MỘT người) phải nạp được thành đội hình ba người.
+  const mig = await p.evaluate(() => {
+    const legacy = DP.newSave('Cũ');
+    legacy.gear = []; legacy.heroes = []; legacy.party = [null, null, null];
+    const w = DP.forgeGear('vaccahorn', 'weapon', 'legacy');
+    w.wclass = 'great'; legacy.gear.push(w);
+    legacy.loadout = { weapons: [w.uid, null, null], head: null, body: null, arm: null, leg: null };
+    delete legacy.heroes;
+    DP.migrateHeroes(legacy);
+    const p0 = DP.party(legacy).filter(Boolean);
+    return { n: p0.length, cls: p0.map(h => (DP.heroDef(h) || {}).wclass),
+             keptWeapon: p0.some(h => h.gear.weapon === w.uid) };
+  });
+  check('hồ sơ cũ nạp lên thành đội hình ba người', mig.n === 3, JSON.stringify(mig.cls));
+  check('hồ sơ cũ: cây đang cầm về đúng tay người cùng lớp', mig.keptWeapon);
+
   /* ------------------------------------------------------ BỘ ẢNH ------- */
   // Luật của đường ống art: đổi art = thay PNG + sửa asset-map, KHÔNG đụng code.
   // Luật đó chỉ đứng được khi mọi khoá mà code hỏi tới đều CÓ ảnh. Chỗ dễ thủng

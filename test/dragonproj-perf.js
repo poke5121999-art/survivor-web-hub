@@ -71,18 +71,28 @@ const INSTALL = function () {
   // Trang bị nhanh một lớp vũ khí để kiểm đủ 5 kiểu đặc thù (guard/cleave/lunge/
   // ranbu/snipe). Dùng đúng đường craft của game, chỉ bỏ qua khâu tốn tài nguyên.
   var SRC = { sword: 'felnarog', great: 'vaccahorn', spear: 'grouton', dual: 'shurak', bow: 'yggdragis' };
-  T.startLoadout = DP.UI.save.loadout.weapons.slice();
+  T.startLoadout = DP.UI.save.party.slice();
   T.restore = function () {
-    DP.UI.save.loadout.weapons = T.startLoadout.slice();
+    DP.UI.save.party = T.startLoadout.slice();
     DP.UI.battle.setWeapon(0, true);
     return { special: DP.UI.battle.W.special, skills: DP.UI.battle.skillList().length };
   };
+  /* Ép khe 1 của đội hình thành một người thuộc LỚP `cls`, cầm cây đúng lớp đó.
+     Lớp vũ khí giờ gắn vào NGƯỜI, nên muốn kiểm move set của một lớp thì phải
+     đổi người chứ không đổi mỗi cây vũ khí. */
   T.equip = function (cls) {
     var S = DP.UI.save;
+    var h = (S.heroes || []).filter(function (x) { return (DP.heroDef(x) || {}).wclass === cls; })[0];
+    if (!h) {
+      var d = DP.HEROES.filter(function (x) { return x.wclass === cls; })[0];
+      h = DP.mkHero(d.id); S.heroes.push(h);
+    }
+    S.party[0] = h.uid;
     var g = S.gear.find(function (x) { return x.kind === 'weapon' && x.wclass === cls; });
-    if (!g) { g = DP.forgeGear(SRC[cls], 'weapon', 'perf'); g.lv = 30; S.gear.push(g); }
-    S.loadout.weapons[0] = g.uid;
-    DP.UI.battle.setWeapon(0, true);          // true = đổi tức thì, không vào trạng thái 'switch'
+    if (!g) { g = DP.forgeGear(SRC[cls], 'weapon', 'perf'); g.wclass = cls; g.lv = 30; S.gear.push(g); }
+    g.lv = Math.max(g.lv, 30);
+    DP.equipOn(S, h, g);
+    DP.UI.battle.setHero(0, true);            // true = đổi tức thì, không vào trạng thái 'switch'
     return DP.UI.battle.W.special;
   };
 

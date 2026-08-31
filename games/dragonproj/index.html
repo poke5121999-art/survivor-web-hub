@@ -344,6 +344,34 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .uicon{display:inline-block;margin:0 auto 2px;flex:none}
 .navbar button .uicon,.quick .uicon{display:block}
 .banner .npc .uicon{margin:0}
+.uicon.hero{image-rendering:pixelated}
+
+/* --- kho đồ theo NGƯỜI --- */
+/* Đội hình + ô trang bị DÍNH trên đầu khung cuộn: có kéo-thả, mà ô đã trôi khỏi
+   màn hình thì mỗi lần lắp đồ là một lần ngồi chờ cuộn. */
+.stickwrap{position:sticky;top:-10px;z-index:6;background:var(--bg);
+  margin:-10px -10px 0;padding:10px 10px 1px;box-shadow:0 6px 12px -6px #000}
+.stickwrap .card{margin-bottom:8px}
+.card.party h3,.card.gearbar h3{font-size:12px}
+.hslot{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+  padding:6px 3px;font-size:10px;position:relative;display:flex;flex-direction:column;
+  align-items:center;gap:2px}
+.hslot.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.hslot .nm{font-weight:800;font-size:10.5px;line-height:1.1}
+.hslot .sub{font-size:9px;color:var(--dim);line-height:1.2}
+.eqrow{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.eqslot{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+  min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;padding:4px 2px;position:relative}
+.eqslot.empty{border-style:dashed;opacity:.75}
+.eqslot .lbl{font-size:9.5px;color:var(--dim);font-weight:700}
+.eqslot .tag{font-size:9px;color:var(--dim)}
+.eqslot .wicon.top{height:26px;margin:0}
+/* Món không hợp lớp của người đang chọn: mờ đi và nói rõ, chứ không im lặng. */
+.item.nofit{opacity:.45}
+.item.hero{padding-left:58px;min-height:70px}
+.item.hero .uicon.hero{position:absolute;left:8px;top:50%;transform:translateY(-50%)}
+.item.hero.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
 .slots{display:flex;gap:3px;margin-top:4px}
 .slot{width:19px;height:19px;border-radius:4px;background:#0a0f16;border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font-size:11px}
@@ -517,6 +545,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 </div>
 
 <script src="data/gamedata.js"></script>
+<script src="data/heroes.js"></script>
 <script src="js/atlas.js"></script>
 <script src="js/punicon.js"></script>
 <script src="js/meta.js"></script>

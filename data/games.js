@@ -37,10 +37,10 @@ window.HUB_GAMES = [
   {
     id: "dragonproj",
     title: "Săn Rồng",
-    tagline: "Dựng lại Dragon Project (COLOPL, đã đóng cửa). Một ngón tay ở giữa màn hình làm hết: kéo để chạy, chạm để chém, vẩy để né, giữ để ra đòn đặc thù, giữ-rồi-trượt-về-nút để xả kỹ năng. Năm vũ khí, mỗi cây hai kỹ năng nặng đô riêng — song dao thì nháy ra sau lưng rồi chém, đại kiếm thì bổ ra một làn chấn khí — nhân sáu hệ nguyên tố lên trên. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
+    tagline: "Dựng lại Dragon Project (COLOPL, đã đóng cửa) trên nền điều khiển một-ngón ぷにコン: kéo để chạy, chạm để chém, vẩy để né, giữ để ra đòn đặc thù, giữ-rồi-trượt-về-nút để xả kỹ năng. Gacha ra NHÂN VẬT kiểu White Cat: 43 người, mỗi người gắn cứng một lớp vũ khí (một bộ đòn, hai kỹ năng nặng đô) và một hệ, tự giữ trang bị riêng. Mang ba người vào ải, đổi qua lại giữa trận. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
     thumbnail: "assets/thumbnails/dragonproj.svg",
     path: "games/dragonproj/index.html",
-    rev: "20260831d",
+    rev: "20260831e",
     // Plain canvas/JS, không engine, mở được từ file://. Dựng lại từ Dragon Project
     // (COLOPL 2016, Global 2017, đóng cửa 30/09/2020) — game săn quái kiểu Monster Hunter
     // cho di động, 1-4 người.
@@ -68,6 +68,16 @@ window.HUB_GAMES = [
     // không giết mất thao tác cuộn danh sách; khe chỉ sáng khi nhận được đúng loại;
     // kéo tới sát mép trên thì khung tự cuộn cho khe trang bị lên tới nơi.
     // VFX vẫn vẽ bằng code (Canvas 2D thuần) — xem games/dragonproj/REMAKE.md.
+    // NHÂN VẬT (data/heroes.js): 43 người lấy từ dàn sprite HoloCure. Mỗi người gắn
+    // CỨNG một lớp vũ khí — tức gắn cứng một bộ move set và hai kỹ năng — cộng một hệ.
+    // Gắn cứng chứ không cho tự chọn, vì nếu ai cũng cầm được mọi thứ thì nhân vật chỉ
+    // còn là một bộ chỉ số và một tấm ảnh; gắn cứng thì đội hình ba người mới là một
+    // quyết định thật. Mỗi người TỰ GIỮ trang bị của mình (một ô vũ khí đúng lớp + bốn
+    // ô giáp) và một món chỉ nằm ở một người. Ba khe đổi-giữa-trận có sẵn từ trước giờ
+    // là ba NGƯỜI: đổi khe là đổi ảnh, đổi lớp, đổi kỹ năng, đổi cả thanh máu.
+    // Gacha KHÔNG còn quay ra đồ, chỉ quay ra người; trùng người thì thành Lõi Rồng.
+    // Hồ sơ cũ (ba khe vũ khí của một người) tự chuyển thành đội hình ba người, chọn
+    // theo đúng ba lớp đang dùng — có test khoá lại.
     // Trọng tâm là PUNICON, hệ điều khiển một-ngón của COLOPL, tái dựng đúng ngữ pháp của
     // nó: kéo = chạy, chạm = đánh, bấm liên tục = combo, vẩy = né, giữ = đòn đặc thù riêng
     // của từng vũ khí, giữ-rồi-trượt-về-nút = dồn rồi xả kỹ năng, và dấu "!!" trên đầu là
