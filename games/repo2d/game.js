@@ -1561,7 +1561,11 @@ const S = {
   loot: [], monsters: [], pads: [], bullets: [], bombs: [], corpses: [],
   car: { x:0, y:0 }, cart: null,
   quotaTotal: 0, padIndex: 0,
-  countdown: 0, countdownActive: false,
+  // Một cái đồng hồ đếm ngược trên HUD, dùng chung cho ba việc: bệ rút hàng, trả tiền ở shop, và
+  // đứng chờ xe tải lăn bánh. Chỉ một việc chạy tại một thời điểm, nên `max` và `label` đi kèm để
+  // cái vòng tròn biết vẽ đúng phần trăm và gọi đúng tên việc.
+  countdown: 0, countdownActive: false, countdownMax: EXTRACT_COUNTDOWN, countdownLabel: 'GIAO HÀNG',
+  board: 0,                                  // giây đã đứng trong thùng xe tải
   player: null,
   upg: newUpgrades(),
   upgSpawned: {},                  // how many times each upgrade has been ROLLED into a shop
@@ -4126,6 +4130,7 @@ function stepExtraction(dt){
   if (pad.value >= pad.quota){
     pad.countdown = (pad.countdown || 0) + dt;
     S.countdownActive = true;
+    S.countdownMax = EXTRACT_COUNTDOWN; S.countdownLabel = 'GIAO HÀNG';
     S.countdown = Math.max(0, EXTRACT_COUNTDOWN - pad.countdown);
     // One beat per whole second, rising in pitch. A countdown you can hear is a countdown you can
     // stand away from and still trust, which is the point of standing away from it.
@@ -4578,13 +4583,16 @@ function stepShop(dt){
       }
       if (S.pay.t >= PAY_COUNTDOWN) completePurchase(pad);
     }
-  } else if (S.countdownActive){ S.countdownActive = false; S.countdown = 0; FX.lastTick = -1; }
+  } else if (S.countdownActive && !S.board){ S.countdownActive = false; S.countdown = 0; FX.lastTick = -1; }
 
   // The truck is the exit, but the player is standing next to it when the room opens, so it only
-  // becomes an exit once they have walked away from it once.
+  // becomes an exit once they have walked away from it once — and then only if they stand in it.
+  // Trạm là chỗ duy nhất trong game người chơi ĐI TỚI xe tải vì việc khác: cái tủ đồ nằm ở đó.
+  // Cũ thì quay lại mở tủ là bị chở đi luôn, giữa lúc còn tiền chưa tiêu.
   const d = Math.hypot(p.x-S.car.x, p.y-S.car.y);
   if (!S.shopCanLeave && d > TILE*4.5) S.shopCanLeave = true;
-  if (S.shopCanLeave && d < TILE*2.2) leaveShop();
+  // Đang trả tiền thì lượt trả tiền giữ đồng hồ; một lúc chỉ một cái đếm ngược.
+  if (!S.pay.active && holdAtTruck(dt, S.shopCanLeave && inTruck(p), 'RỜI TRẠM')) leaveShop();
 }
 
 
@@ -5875,7 +5883,12 @@ function drawHeadGlow(c){
   for (const a of (S.mates || [])){
     if (a.down) continue;
     if (!inSight(a.x, a.y)) continue;
-    glowRing(c, a.x, a.y, 13, [150,200,235], 0.28, 1.6);
+    // Cùng luật với người chơi: viền bó sát, xanh lạnh để phân biệt với màu máu của mình.
+    c.save(); c.translate(a.x, a.y);
+    const veDuoc = window.REPO_SKIN && REPO_SKIN.halo &&
+                   REPO_SKIN.halo(c, a, false, 'rgb(150,200,235)', 0.62);
+    c.restore();
+    if (!veDuoc) glowRing(c, a.x, a.y, 13, [150,200,235], 0.28, 1.6);
   }
 }
 
@@ -6480,6 +6493,42 @@ function hudLayoutLandscape(w, h){
 // bigger when the thing itself did.
 function nearTruck(p){ return Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*3.6; }
 
+// ĐỨNG CHỜ XE LĂN BÁNH.
+//
+// Trước đây xe đi ngay khoảnh khắc có ai bước vào bán kính 2,4 ô — không hỏi, không đếm, không
+// rút lại được. Ba lần kết ca khác nhau đều thế: xong bệ cuối, ca hỏng, và rời shop. Thành ra
+// cái xe tải là một cái bẫy đặt giữa sàn: chạy ngang qua nó trên đường đi lấy nốt món cuối là
+// mất luôn phần còn lại của tầng, và ở shop thì quay lại xe để mở tủ đồ là bị chở đi.
+//
+// Nay phải đứng trong thùng đủ TRUCK_BOARD_T giây. Bước ra là đồng hồ về 0 — về 0 chứ không tạm
+// dừng, vì "tôi có còn được tính không" là câu hỏi mà một cái đồng hồ tạm dừng không trả lời
+// được, còn cái vòng tròn tụt về đầy thì trả lời được từ xa. Cùng bộ đồng hồ với bệ rút hàng,
+// nên nó cũng kêu từng nhịp một giây và cũng nhìn thấy được từ bên kia phòng.
+// SEE: đứng trong xe đủ 5s xe mới chạy, 2026-08-31
+const TRUCK_BOARD_T = 5;
+const TRUCK_BOARD_R = TILE*2.4;      // đúng bán kính cũ, chỉ khác là giờ phải Ở LẠI trong đó
+function inTruck(a){ return a && !a.down && Math.hypot(a.x-S.car.x, a.y-S.car.y) < TRUCK_BOARD_R; }
+function clearBoard(){
+  if (!S.board && !S.countdownActive) return;
+  S.board = 0; S.countdownActive = false; S.countdown = 0; FX.lastTick = -1;
+}
+// Trả về true đúng một lần, ở khung hình mà đồng hồ chạy hết.
+function holdAtTruck(dt, ai, nhan){
+  if (!ai){ clearBoard(); return false; }
+  S.board = (S.board || 0) + dt;
+  S.countdownActive = true;
+  S.countdownMax = TRUCK_BOARD_T; S.countdownLabel = nhan;
+  S.countdown = Math.max(0, TRUCK_BOARD_T - S.board);
+  const whole = Math.ceil(S.countdown);
+  if (whole !== FX.lastTick){
+    FX.lastTick = whole; FX.tickPulse = 1;
+    if (whole > 0) SFX.tick(TRUCK_BOARD_T - whole);
+  }
+  if (S.board < TRUCK_BOARD_T) return false;
+  clearBoard();
+  return true;
+}
+
 // ============================================================ step
 function step(dt){
   S.time += dt;
@@ -6660,19 +6709,17 @@ function step(dt){
     stepProjectiles(dt);
     stepExtraction(dt);
 
-    // reaching the car after the last pad ends the level
-    if (S.levelDone && !p.down && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ truckPatchUp(); finishLevel(); return; }
-    // Down when the last pad closed out? A colleague standing at the truck drives it home for you.
-    if (S.levelDone && p.down && (S.mates||[]).some(a => !a.down && Math.hypot(a.x-S.car.x, a.y-S.car.y) < TILE*2.4)){
-      truckPatchUp(); finishLevel(); return;
-    }
-    // Same for a shift that can no longer be paid: a colleague at the truck calls it. Without
-    // this, being down when the quota became unreachable was a run with NO exit at all — the
-    // player cannot walk to the truck, and the crew's own arrival did nothing.
-    if (S.shiftLost && !p.down && Math.hypot(p.x-S.car.x, p.y-S.car.y) < TILE*2.4){ endLostShift(); return; }
-    if (S.shiftLost && p.down && (S.mates||[]).some(a => !a.down && Math.hypot(a.x-S.car.x, a.y-S.car.y) < TILE*2.4)){
-      endLostShift(); return;
-    }
+    // Về tới xe sau bệ cuối là kết ca — nhưng phải ĐỨNG TRONG THÙNG đủ TRUCK_BOARD_T giây, và
+    // bước ra là đồng hồ về 0. Ai đứng chờ thì tuỳ: bình thường là chính người chơi, còn nếu
+    // người chơi đang nằm thì một đồng đội còn đứng làm thay — không có luật đó thì gục lúc bệ
+    // cuối vừa chốt là một ván KHÔNG CÓ lối ra.
+    if (S.levelDone || S.shiftLost){
+      const ai = p.down ? (S.mates||[]).some(inTruck) : inTruck(p);
+      if (holdAtTruck(dt, ai, S.shiftLost ? 'BỎ CA' : 'LÊN XE')){
+        if (S.shiftLost){ endLostShift(); return; }
+        truckPatchUp(); finishLevel(); return;
+      }
+    } else if (S.board) clearBoard();
     if (lootJustDestroyed){ lootJustDestroyed = false; checkShiftLost(); }
 
     markExplored();
@@ -7412,12 +7459,26 @@ function drawHighlights(c){
     const at = playerDrawPos();
     if (at && !p.down){
       const k = clamp(p.hp / Math.max(1, p.hpMax), 0, 1);
-      const col = [Math.round(210 + (1-k)*45), Math.round(196 - (1-k)*96), Math.round(150 - (1-k)*90)];
+      // Vàng khi lành, đỏ khi sắp gục. Bản cũ chạy từ kem sang đỏ vì cái vòng tròn nằm NGOÀI quầng
+      // sáng quanh người nên nền của nó là sàn tối. Cái viền bó sát thì nằm ngay trong quầng sáng
+      // đó — kem trên nền kem là không thấy gì — nên đầu thang phải là màu vàng ăn được với quầng.
+      const col = [255, Math.round(212 - (1-k)*122), Math.round(90 - (1-k)*22)];
       const nhip = 0.5 + 0.5*Math.sin(S.time * (3.0 + (1-k)*3.2));
       // at.x/at.y chu khong phai p.x/p.y: trong doan cat canh dau man, nguoi choi
       // duoc VE o mot cho khac cho dung that (dang buoc ra khoi xe), va mot cai vanh
       // dung o cho dung that se lo lung giua san mot minh.
-      glowRing(c, at.x, at.y, 13 + nhip*1.4, col, (0.46 + nhip*0.16) * at.alpha, 1.9);
+      // Viền bó sát người thay cho hình tròn. Cái vòng nói được "có ai đó ở đây" nhưng không nói
+      // được ai — nó là một hình tròn, và ba người trong tổ ra ba hình tròn giống hệt nhau. Viền
+      // ôm đúng dáng đứng thì hình dáng nhân vật LÀ tín hiệu. Màu vẫn chạy theo máu và vẫn đập
+      // nhanh dần khi sắp gục: đó là thứ cái vòng mang, và nó ở lại.
+      // SEE: viền bó sát thay vòng tròn, 2026-08-31
+      const bien = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')';
+      const mo = (0.46 + nhip*0.16) * at.alpha;
+      c.save(); c.translate(at.x, at.y);
+      const veDuoc = window.REPO_SKIN && REPO_SKIN.halo &&
+                     REPO_SKIN.halo(c, p, true, bien, Math.min(1, mo*1.9));
+      c.restore();
+      if (!veDuoc) glowRing(c, at.x, at.y, 13 + nhip*1.4, col, mo, 1.9);
     }
   }
 
@@ -7442,17 +7503,16 @@ function drawHighlights(c){
   // "there is something in front of me" is the one piece of information this game must never make
   // you squint for. Outside the beam it stays invisible — that half is the point of the game.
   // The colour is red for all of them now — see HL_FOE.
+  // KHÔNG còn vòng tròn quanh quái. Bộ hình đã tự mang viền đỏ bó sát người, nướng sẵn lúc nạp
+  // (bakeRim trong sprites.js), nên cái vòng chỉ là một hình tròn to hơn nằm đè lên một cái viền
+  // vốn đã nói đúng chuyện đó — và nó nói kém hơn, vì một hình tròn không có hình dáng của con
+  // quái. Con đang ngủ đã có chữ z trên đầu, con đang săn vẫn có dấu ! và vệt spotFx: hai tín
+  // hiệu ĐỘNG đó mới là thứ cái vòng thực sự mang, và chúng ở lại.
+  // SEE: bỏ vòng tròn trên quái, 2026-08-31
   for (const m of S.monsters){
-    if (!foeVisible(m)) continue;
-    const hunting = foeAlerted(m);
-    if (m.sleep > 0){
-      glowRing(c, m.x, m.y, 15, HL_ASLEEP, 0.30, 1.6);
-    } else {
-      glowRing(c, m.x, m.y, 15 + (hunting ? beat*3.5 : 0), hunting ? HL_HUNT : HL_FOE,
-               hunting ? 0.72 + beat*0.3 : 0.44, hunting ? 3.0 : 2.0);
-      spotFx(c, m.x, m.y, m.spotT || 0);
-      if (hunting) alertMark(c, m.x, m.y);
-    }
+    if (!foeVisible(m) || m.sleep > 0) continue;
+    spotFx(c, m.x, m.y, m.spotT || 0);
+    if (foeAlerted(m)) alertMark(c, m.x, m.y);
   }
 
   // The rook's wind-up, drawn as the LANE it is about to occupy. Three seconds of warning are
@@ -8435,7 +8495,7 @@ function drawPops(c){
 function drawCountdown(c, hud){
   const r = Math.min(hud.w, hud.h) * 0.135;
   const cx = hud.w/2, cy = hud.h * 0.24;
-  const k = clamp(S.countdown / EXTRACT_COUNTDOWN, 0, 1);
+  const k = clamp(S.countdown / (S.countdownMax || EXTRACT_COUNTDOWN), 0, 1);
   const pop = FX.tickPulse;
 
   c.save();
@@ -8462,7 +8522,7 @@ function drawCountdown(c, hud){
   c.fillText(String(Math.ceil(S.countdown)), 0, r*0.33);
   c.font = `600 ${Math.round(r*0.26)}px ui-sans-serif, system-ui`;
   c.fillStyle = 'rgba(150,220,185,0.9)';
-  c.fillText('GIAO HÀNG', 0, -r*0.42);
+  c.fillText(S.countdownLabel || 'GIAO HÀNG', 0, -r*0.42);
   c.textAlign = 'left';
   c.restore();
 }
@@ -8660,7 +8720,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831b';
+const BUILD = '20260831c';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -9145,6 +9205,9 @@ window.REPO = {
     items:b.items.length, value:bikeValue(b), riding: !!b.rider, downed:b.downed })); },
   riding(){ const p = S.player; return p && p.riding ? p.riding.kind : null; },
   toggleStash, rollShop, startShop, leaveShop, togglePay, testHeld,
+  TRUCK_BOARD_T, TRUCK_BOARD_R, inTruck,
+  boarding(){ return { t: +(S.board || 0).toFixed(2), of: TRUCK_BOARD_T,
+                       show: !!S.countdownActive, label: S.countdownLabel }; },
   testable(){ const d = testableInHand(S.player); return d ? d.key : null; },
   shop(){
     if (!S.shopMode) return null;

@@ -1521,9 +1521,54 @@ async function metaRulesSuite(b) {
 }
 
 // =====================================================================
+// Xe tải chỉ lăn bánh khi có người ĐỨNG TRONG THÙNG đủ lâu. Trước đây chạm vào bán kính một
+// khung hình là mất luôn phần còn lại của tầng — không hỏi, không đếm, không rút lại được.
+async function boardingSuite(b) {
+  results.push('\n── đứng trong xe đủ lâu xe mới chạy ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  await p.locator('#veilBtn').click();
+  await p.waitForTimeout(900);
+  await p.evaluate(() => { REPO.S.cut = null; REPO.S.running = true; });
+  await p.waitForTimeout(400);
+
+  const T = await p.evaluate(() => REPO.TRUCK_BOARD_T);
+  check('có luật đứng chờ, và nó đáng kể', T >= 3, T + 's');
+
+  // Đứng vào thùng: đồng hồ phải chạy, và ván CHƯA được kết thúc.
+  await p.evaluate(() => {
+    REPO.S.pads.forEach(q => { q.done = true; q.value = q.quota; });
+    REPO.S.levelDone = true;
+    REPO.warp(REPO.S.car.x, REPO.S.car.y);
+  });
+  await p.waitForTimeout(900);
+  const dang = await p.evaluate(() => ({ b: REPO.boarding(), cut: !!REPO.S.cut, shop: !!REPO.S.shopMode }));
+  check('bước vào thùng thì đồng hồ chạy', dang.b.show && dang.b.t > 0.3,
+    dang.b.t + '/' + dang.b.of + 's · ' + dang.b.label);
+  check('nhưng CHƯA đi ngay khi vừa chạm tới', !dang.cut && !dang.shop);
+
+  // Bước ra: đồng hồ phải về 0, không phải tạm dừng.
+  await p.evaluate(() => REPO.warp(REPO.S.car.x + REPO.TILE * 8, REPO.S.car.y));
+  await p.waitForTimeout(350);
+  const ra = await p.evaluate(() => REPO.boarding());
+  check('bước ra khỏi thùng thì đồng hồ VỀ 0', !ra.show && ra.t === 0,
+    ra.t + 's · hiện ' + ra.show);
+
+  // Quay vào và ở lại đủ lâu: giờ mới được đi.
+  await p.evaluate(() => REPO.warp(REPO.S.car.x, REPO.S.car.y));
+  await p.waitForTimeout(T * 1000 + 900);
+  const xong = await p.evaluate(() => ({ cut: !!REPO.S.cut, shop: !!REPO.S.shopMode }));
+  check('ở lại đủ ' + T + 's thì xe mới chạy', xong.cut || xong.shop);
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đứng chờ xe: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 (async () => {
   const b = await chromium.launch();
   try { await repo2dSuite(b); } catch (e) { check('repo2d: bộ test chạy trọn', false, e.message); }
+  try { await boardingSuite(b); } catch (e) { check('đứng chờ xe: bộ test chạy trọn', false, e.message); }
   try { await repoSquadSuite(b); } catch (e) { check('repo-squad: bộ test chạy trọn', false, e.message); }
   try { await ghostDoorSuite(b); } catch (e) { check('ma gương/phang cửa: bộ test chạy trọn', false, e.message); }
   try { await meleeSuite(b); } catch (e) { check('đập đèn pin: bộ test chạy trọn', false, e.message); }

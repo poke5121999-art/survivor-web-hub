@@ -42,14 +42,17 @@
   const foe = Object.create(null);
   let pending = 0, failed = 0;
 
-  const CREW_IDS = ['lead', 'mate0', 'mate1', 'mate2',
+  // Danh sách này là danh sách TẢI VỀ, nên mỗi tên không có file tương ứng là một request
+  // 404 thật trên mạng — bộ kiểm đếm nó thành lỗi console, đúng như nó nên làm.
+  // mate0/1/2 là bộ kê chỗ do code sinh ra thuở chưa có hình vẽ tay; ba con bot đã mượn
+  // bao/hue/tam từ lâu (xem MATE_LOOK) nên ba tệp đó bị xoá khỏi kho. Bỏ nốt tên ra đây.
+  const CREW_IDS = ['lead',
     'bao', 'hue', 'tam', 'ky', 'linh', 'dung', 'mai', 'phuc', 'son',
     'nga', 'khoi', 'van', 'hai', 'tuyet'];
 
-  // Ba con bot của Ca Trực Đêm ("Tổ 2/3/4") không có xác riêng nên trước đây dùng
-  // mate0/1/2 — bộ kê chỗ do code sinh ra. Cho chúng mượn ba xác đã có hình vẽ tay,
-  // thứ tự cố định để cùng một con bot luôn ra cùng một mặt trong mọi ván.
-  // mate0/1/2 vẫn nằm lại làm lưới đỡ: thiếu file vẽ tay thì rơi về đó, không vỡ màn.
+  // Ba con bot của Ca Trực Đêm ("Tổ 2/3/4") mượn ba xác đã có hình vẽ tay, thứ tự cố định
+  // để cùng một con bot luôn ra cùng một mặt trong mọi ván. Thiếu cả ba thì crewIdOf trả về
+  // một mã không có trong kho, drawCrew trả false, và màn rơi về hình khối cũ — không vỡ.
   const MATE_LOOK = ['bao', 'hue', 'tam'];
   const FOE_IDS = ['patrol', 'listen', 'stalk', 'bomber', 'heavy', 'rook', 'angel',
     'crawler', 'quanca', 'bongden'];
@@ -113,6 +116,72 @@
       }
     }
     return { cv: out, flash: tinted(out, 'rgba(255,228,216,.75)'), cw: cw, ch: ch, pad: pad };
+  }
+
+  // VIỀN RỖNG quanh người, để thay cho cái vòng tròn highlight.
+  //
+  // Khác bakeRim ở đúng một bước: sau khi bôi 12 bản lệch để lấy bóng người, ta KHOÉT chính hình
+  // gốc ra ('destination-out'), nên còn lại đúng cái viền chứ không phải cả cái bóng đặc. Phải rỗng,
+  // vì lớp highlight vẽ ở chế độ cộng sáng ('lighter') NGOÀI lớp thế giới — một cái bóng đặc vẽ
+  // chồng lên sẽ xoá trắng nhân vật thay vì làm nổi nhân vật lên.
+  //
+  // Nướng LƯỜI, từng xác một lúc cần tới. Bộ có 18 xác mà một ván chỉ dùng bốn; nướng sẵn cả bộ
+  // là ~16MB canvas nằm không trên máy điện thoại.
+  // SEE: viền bó sát thay vòng tròn, 2026-08-31
+  const halo = Object.create(null);
+  function bakeHalo(img) {
+    const pad = RIM + SRC, cw = FW + pad * 2, ch = FH + pad * 2;
+    const out = cvs(cw * COLS, ch * ROWS);
+    const ox = out.getContext('2d');
+    const tmp = cvs(cw, ch);
+    const tx = tmp.getContext('2d');
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        tx.clearRect(0, 0, cw, ch);
+        tx.globalCompositeOperation = 'source-over';
+        for (let a = 0; a < 12; a++) {
+          const ang = a / 12 * Math.PI * 2;
+          tx.drawImage(img, c * FW, r * FH, FW, FH,
+            pad + Math.cos(ang) * RIM, pad + Math.sin(ang) * RIM, FW, FH);
+        }
+        tx.globalCompositeOperation = 'destination-out';
+        tx.drawImage(img, c * FW, r * FH, FW, FH, pad, pad, FW, FH);
+        tx.globalCompositeOperation = 'source-in';
+        tx.fillStyle = '#fff';
+        tx.fillRect(0, 0, cw, ch);
+        ox.drawImage(tmp, c * cw, r * ch);
+      }
+    }
+    return { cv: out, cw: cw, ch: ch, pad: pad };
+  }
+  // Một ô nháp dùng chung để nhuộm màu viền lúc vẽ. Nướng viền trắng một lần rồi nhuộm ở đây thì
+  // mỗi vai (người chơi / đồng đội) không phải tốn một bộ sheet riêng.
+  let tintCv = null;
+  function haloOf(id) {
+    if (halo[id] === undefined) halo[id] = crew[id] ? bakeHalo(crew[id].img) : null;
+    return halo[id];
+  }
+  // c ĐÃ dịch về chỗ đứng của nhân vật, y hệt hợp đồng của drawCrew.
+  function drawCrewHalo(c, a, isPlayer, color, alpha) {
+    const s = haloOf(crewIdOf(a, isPlayer));
+    if (!s) return false;
+    if (!tintCv || tintCv.width < s.cw || tintCv.height < s.ch) tintCv = cvs(s.cw, s.ch);
+    const t = tintCv.getContext('2d');
+    t.globalCompositeOperation = 'source-over';
+    t.clearRect(0, 0, tintCv.width, tintCv.height);
+    t.drawImage(s.cv, colFor(a) * s.cw, rowFor(a.dir) * s.ch, s.cw, s.ch, 0, 0, s.cw, s.ch);
+    t.globalCompositeOperation = 'source-in';
+    t.fillStyle = color;
+    t.fillRect(0, 0, s.cw, s.ch);
+    // Căn sao cho ô hình gốc nằm trong viền rơi ĐÚNG chỗ drawCrew vẽ nó.
+    const w = FW * CREW_SCALE, h = FH * CREW_SCALE, k = CREW_SCALE;
+    c.save();
+    c.globalAlpha = alpha == null ? 1 : alpha;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(tintCv, 0, 0, s.cw, s.ch,
+      Math.round(-w / 2 - s.pad * k), Math.round(8 - h - s.pad * k), s.cw * k, s.ch * k);
+    c.restore();
+    return true;
   }
 
   function load(url, done) {
@@ -257,6 +326,7 @@
 
   root.REPO_SKIN = {
     crew: drawCrew,
+    halo: drawCrewHalo,
     foe: drawFoe,
     loot: lootIcon,
     lamp: lamp,

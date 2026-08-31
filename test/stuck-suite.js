@@ -537,7 +537,9 @@ async function squadCutSuite(b) {
     REPO.S.levelDone = true;
     REPO.warp(REPO.S.car.x, REPO.S.car.y);
   });
-  await p.waitForTimeout(700);
+  // Xe không đi ngay khi bước vào nữa: phải ĐỨNG TRONG THÙNG đủ REPO.TRUCK_BOARD_T giây.
+  // REPO.warp đặt người vào đúng chỗ, còn đồng hồ thì cần thời gian thật để chạy hết.
+  await p.waitForTimeout(await p.evaluate(() => REPO.TRUCK_BOARD_T * 1000 + 900));
   check('kích được cảnh xe chạy', await p.evaluate(() => !!REPO.S.cut));
 
   // >>> BẤM THẬT: Bỏ ca ngay giữa cảnh cắt <<<
