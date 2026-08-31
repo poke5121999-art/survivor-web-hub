@@ -368,7 +368,7 @@ window.HUB_GAMES = [
     // controls; only the transport layer differs. Not a game, not a build: status stays
     // build-pending so it shows on admin.html and never on the public hub.
     // Checks: node games/orbit/tools/smoke.js
-    status: "build-pending",
+    status: "available",
     tags: ["Dây chuyền", "Dựng thử", "Màn dọc", "Một tay"]
   }
 ];
