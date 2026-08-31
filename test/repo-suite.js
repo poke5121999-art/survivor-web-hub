@@ -1573,6 +1573,11 @@ async function boardingSuite(b) {
   await p.evaluate(() => {
     REPO.S.pads.forEach(q => { q.done = true; q.value = q.quota; });
     REPO.S.levelDone = true;
+    // Dọn quái đi: từ 2026-08-31 ải 1 có sẵn một đàn (Bom con hoặc Gnome), và khi levelDone thì
+    // cả đàn vây thành vòng bán kính 3,8 ô quanh xe — đúng chỗ phép thử này bắt người chơi đứng
+    // yên 5 giây. Bị hẩy ra khỏi thùng là đồng hồ về 0 và xe không bao giờ chạy. Cái đang đo ở
+    // đây là LUẬT ĐỨNG CHỜ, không phải chuyện đánh nhau ở cửa xe.
+    REPO.S.monsters.length = 0;
     REPO.warp(REPO.S.car.x, REPO.S.car.y);
   });
   await p.waitForTimeout(900);
@@ -1711,6 +1716,139 @@ async function wikiSuite(b) {
 }
 
 // =====================================================================
+// PHA CHẠY — căn nhà sau lần rút hàng cuối.
+//
+// Bài đo quan trọng nhất ở đây là bài SO SÁNH: trước khi có pha này, chốt xong bệ cuối làm căn
+// nhà YÊN HƠN lúc đang làm (queueRespawn bỏ chạy khi levelDone, stepRespawns xoá sạch hàng đợi),
+// nên một phép thử chỉ nhìn "có quái không" sẽ đạt cả trước lẫn sau khi sửa. Cái phải khoá là
+// dấu của hiệu số.
+async function escapeSuite(b) {
+  results.push('\n── pha chạy sau bệ cuối ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 900, height: 640 });
+  await p.locator('#veilBtn').click();
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- ải 1–2 có một đàn, ải 3 thì không -------------------------------------
+  const dan = await p.evaluate(() => {
+    const r = {};
+    for (const lv of [1, 2, 3]) {
+      r[lv] = [];
+      for (let s = 0; s < 10; s++) {
+        REPO.S.level = lv; REPO.startLevel(3000 + s * 131);
+        r[lv].push(REPO.S.roster.filter(k => REPO.PACK_KINDS.indexOf(k) >= 0));
+      }
+    }
+    return r;
+  });
+  for (const lv of [1, 2]) {
+    check('ải ' + lv + ': ván nào cũng có ĐÚNG một đàn',
+      dan[lv].every(x => x.length === 1), JSON.stringify(dan[lv].map(x => x.join())));
+  }
+  check('và đàn đó bốc ngẫu nhiên, không phải lúc nào cũng một loài',
+    new Set([].concat(dan[1], dan[2]).map(String)).size > 1);
+  check('ải 3 KHÔNG bị thêm đàn (bảng viết tay giữ nguyên)',
+    dan[3].every(x => x.length === 0));
+
+  // --- trước bệ cuối: nhà chưa trở mặt --------------------------------------
+  const xa = () => p.evaluate(() => {
+    let best = null, bd = 1e9;
+    for (let gy = 1; gy < REPO.MH - 1; gy++) for (let gx = 1; gx < REPO.MW - 1; gx++) {
+      const x = (gx + 0.5) * REPO.TILE, y = (gy + 0.5) * REPO.TILE;
+      if (REPO.hitsSolid(x, y, 10)) continue;
+      const d = Math.abs(Math.hypot(x - REPO.S.car.x, y - REPO.S.car.y) / REPO.TILE - 18);
+      if (d < bd) { bd = d; best = { x, y }; }
+    }
+    REPO.warp(best.x, best.y);
+    (REPO.S.mates || []).forEach(m => { m.x = best.x + 16; m.y = best.y + 16; });
+  });
+  await p.evaluate(() => { REPO.S.level = 5; REPO.startLevel(505); });
+  await p.waitForTimeout(300);
+  await xa();
+  const truoc = await p.evaluate(() => ({ esc: REPO.escape(), glow: REPO.memGlow(),
+    n: REPO.S.monsters.length }));
+  check('chưa chốt bệ cuối thì không có pha chạy, đèn nhà còn nguyên',
+    truoc.esc === null && truoc.glow === 1);
+
+  // --- chốt bệ cuối ---------------------------------------------------------
+  // Bất tử TRƯỚC khi chốt, không phải sau. stepEscape dừng hẳn khi S.dead, và bản chạy đầu của
+  // bộ này báo "nhịp 3s -> 3s (đã chết)": người chơi đứng im giữa một căn nhà vừa được gọi thêm
+  // chín con thì chết ở khoảng giây mười một, và bơm máu sau đó không gỡ được cờ S.dead.
+  // Cái đang đo ở đây là NHỊP của căn nhà, không phải khả năng sống sót.
+  // (Việc đứng im sau bệ cuối giờ là chết thật — đó chính là thứ pha này được dựng ra để làm.)
+  await p.evaluate(() => { REPO.S.player.hpMax = 1e9; REPO.S.player.hp = 1e9;
+                           REPO.S.levelDone = true; REPO.startEscape(); });
+  const T = await p.evaluate(() => ({ delay: REPO.ESC_DELAY, hornN: REPO.ESC_HORN_N,
+    hornT: REPO.ESC_HORN_T, dark: REPO.ESC_DARK, ping0: REPO.ESC_PING_0,
+    up: REPO.ESC_PING_UP, max: REPO.ESC_PING_MAX, resp: REPO.ESC_RESPAWN,
+    hi: REPO.ESC_SPOT_HI, tile: REPO.TILE }));
+
+  await p.waitForTimeout(600);
+  const som = await p.evaluate(() => REPO.escape());
+  check('trong ' + T.delay + 's đầu, còi CHƯA rú', som && som.horns === 0, JSON.stringify(som));
+
+  // Chờ theo TRẠNG THÁI, không theo đồng hồ treo tường. e.t chạy bằng thời gian MÔ PHỎNG, và
+  // pha này vừa gọi thêm chín cái thân vào một trang đang vẽ — khung hình tụt thì 11 giây thật
+  // chỉ là hơn tám giây mô phỏng, và phép thử báo 3/4 tiếng còi trong khi luật vẫn đúng.
+  // Đo được: 2/3 lần chạy hỏng theo đúng kiểu đó.
+  for (let i = 0; i < 60; i++) {
+    if ((await p.evaluate(() => REPO.escape().horns)) >= T.hornN) break;
+    await p.waitForTimeout(500);
+  }
+  const sauCoi = await p.evaluate(() => ({ e: REPO.escape(), glow: REPO.memGlow(),
+    n: REPO.S.monsters.length, q: REPO.respawns().length,
+    quanhXe: REPO.S.monsters.filter(m =>
+      Math.hypot(m.x - REPO.S.car.x, m.y - REPO.S.car.y) < 12 * REPO.TILE).length }));
+  check('xe tải rú đủ ' + T.hornN + ' lần trong ' + T.hornT + 's',
+    sauCoi.e.horns === T.hornN && sauCoi.e.t <= T.delay + T.hornT + 1,
+    sauCoi.e.horns + '/' + T.hornN + ' xong ở giây mô phỏng ' + sauCoi.e.t);
+  check('đèn trong nhà TẮT, trí nhớ căn nhà tối lại',
+    Math.abs(sauCoi.glow - T.dark) < 0.02, sauCoi.glow + ' (đích ' + T.dark + ')');
+  check('đợt gọi thêm đã vào hết hàng đợi', sauCoi.q === 0, sauCoi.q + ' còn chờ');
+  check('và nhà giờ đông hơn lúc vừa chốt', sauCoi.n > truoc.n, truoc.n + ' -> ' + sauCoi.n);
+  check('quái mới đứng QUANH XE, không phải ở rìa bản đồ',
+    sauCoi.quanhXe >= 2, sauCoi.quanhXe + ' con trong 12 ô quanh xe');
+
+  // --- hồi sinh tụt xuống 1 giây -------------------------------------------
+  const nhanh = await p.evaluate(() => {
+    const truoc = REPO.respawns().length;
+    // hạ một con đi lẻ: loài đi đàn không bao giờ được xếp lại, đó là luật riêng của chúng
+    const m = REPO.S.monsters.find(x => !REPO.MONSTERS[x.type].pack);
+    if (!m) return null;
+    REPO.killMonster(m);
+    const sau = REPO.respawns();
+    return { them: sau.length - truoc, t: sau.length ? sau[sau.length - 1].t : null };
+  });
+  check('hạ một con trong pha chạy thì nó ĐƯỢC xếp quay lại',
+    nhanh && nhanh.them === 1, JSON.stringify(nhanh));
+  check('và quay lại sau ' + T.resp + 's chứ không phải 45s',
+    nhanh && Math.abs(nhanh.t - T.resp) < 0.05, nhanh && nhanh.t);
+
+  // --- nhịp chỉ điểm giãn dần ----------------------------------------------
+  const g0 = (await p.evaluate(() => REPO.escape())).gap;
+  await p.waitForTimeout(g0 * 1000 + 2000);
+  const sau = await p.evaluate(() => ({ e: REPO.escape(), chet: REPO.S.dead }));
+  check('nhịp chỉ điểm giãn thêm ' + T.up + 's mỗi lần',
+    !sau.chet && sau.e.gap === Math.min(T.max, g0 + T.up),
+    g0 + 's -> ' + sau.e.gap + 's' + (sau.chet ? ' (đã chết)' : ''));
+
+  // --- trạm dịch vụ không phải chỗ bị đuổi ----------------------------------
+  await p.evaluate(() => REPO.startShop());
+  await p.waitForTimeout(500);
+  const shop = await p.evaluate(() => ({ esc: REPO.escape(), glow: REPO.memGlow() }));
+  check('vào trạm dịch vụ thì pha chạy tắt và đèn sáng lại',
+    shop.esc === null && shop.glow === 1, JSON.stringify(shop));
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('pha chạy: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 (async () => {
   const b = await chromium.launch();
   try { await repo2dSuite(b); } catch (e) { check('repo2d: bộ test chạy trọn', false, e.message); }
@@ -1724,6 +1862,7 @@ async function wikiSuite(b) {
   try { await skillEffectSuite(b); } catch (e) { check('hiệu ứng kỹ năng: bộ test chạy trọn', false, e.message); }
   try { await metaRulesSuite(b); } catch (e) { check('sổ sách & luật ván: bộ test chạy trọn', false, e.message); }
   try { await wikiSuite(b); } catch (e) { check('sổ tay: bộ test chạy trọn', false, e.message); }
+  try { await escapeSuite(b); } catch (e) { check('pha chạy: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));
   console.log('\n' + '═'.repeat(52));

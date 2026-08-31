@@ -1133,8 +1133,21 @@ const SCRIPTED_ROSTER = [
   [ANGEL_KIND, MIRROR_KIND],
   [ANGEL_KIND, MIRROR_KIND, STOCK_ALWAYS]
 ];
+// Hai ải đầu trong bảng trên KHÔNG có một cái thân nào: tượng và gương đều là sự kiện của căn
+// nhà chứ không phải quái đi lại, nên bodyKinds() trả về rỗng và hai ải đó là hai căn nhà trống.
+// Chủ dự án, 2026-08-31: ải 1 và 2 bốc thêm một đàn. Bốc trong hai loài ĐI ĐÀN, vì đúng hai
+// loài đó là thứ dạy được người mới mà không giết họ: Bom con không gây sát thương trực tiếp,
+// Gnome gần như không đau và giẫm lên là chết. Chúng dạy "lùi về đâu" và "đừng đứng yên" —
+// hai câu hỏi mà phần còn lại của game sẽ hỏi lại bằng những con đắt hơn nhiều.
+const PACK_KINDS = ['banger', 'gnome'];
+const SCRIPTED_PACK_LV = 2;        // ải 1..2 được thêm một đàn
 function rosterForLevel(lv, rnd){
-  if (lv >= 1 && lv <= SCRIPTED_ROSTER.length) return SCRIPTED_ROSTER[lv-1].slice();
+  if (lv >= 1 && lv <= SCRIPTED_ROSTER.length){
+    const r = SCRIPTED_ROSTER[lv-1].slice();
+    const bo = rnd || Math.random;
+    if (lv <= SCRIPTED_PACK_LV) r.push(PACK_KINDS[(bo()*PACK_KINDS.length)|0]);
+    return r;
+  }
   return stockKinds(rnd || Math.random);
 }
 function rosterHas(kind){ return (S.roster || []).indexOf(kind) >= 0; }
@@ -1739,6 +1752,7 @@ const S = {
   offer: null,                     // the stock this shop visit rolled, held so it cannot re-roll
   stashOpen: false,
   running: false, dead: false, levelDone: false, noFoes: false,
+  esc: null,                                 // pha "nhà tiễn khách" sau bệ cuối — xem startEscape()
   shopMode: false, pay: { active:false, t:0 }, onButton: false, shopCanLeave: false,
   button: { x:0, y:0, r:0 }, cut: null,
   angel: null, angelTimer: 0, angelFx: null, lightZones: [],
@@ -1809,6 +1823,7 @@ function buildLevel(seed){
   // and taking three numbers out of the front of it would move every wall, every valuable and every
   // door in every seeded house the tests pin.
   S.roster = rosterForLevel(S.level, mulberry32(seed ^ 0x2f7a1c3d));
+  S.esc = null;           // căn nhà chưa trở mặt; startEscape() dựng cái này lúc chốt bệ cuối
   S.respawns = [];        // bodies the house owes you back, each with its own clock
   S.foeDrops = 0;         // how many times something has dropped money in this house
 
@@ -2057,19 +2072,7 @@ function buildLevel(seed){
       // Bom con đứng lẻ thì chỉ là một quả lựu đạn biết đi — cái đáng sợ là bốn quả cùng lúc,
       // vì lúc đó câu hỏi không còn là "giết con nào trước" mà là "lùi về đâu".
       // Rải quanh một vòng bán kính một ô rưỡi, bỏ qua con nào rơi vào tường.
-      const bay = MONSTERS[type].pack || 1;
-      S.monsters.push(makeMonster(type, x0, y0));
-      for (let k=1;k<bay;k++){
-        // Thử tám hướng trước khi bỏ một con. Một lần thử duy nhất thì đàn bốn con đứng cạnh
-        // tường thường chỉ ra ba: chỗ đặt quái nào cũng có ít nhất một phía là tường.
-        for (let thu=0; thu<8; thu++){
-          const a = (k/bay)*Math.PI*2 + thu*0.79 + rnd()*0.4, r = TILE*(1.1 + rnd()*0.9);
-          const x = x0 + Math.cos(a)*r, y = y0 + Math.sin(a)*r;
-          if (hitsSolid(x, y, 9)) continue;
-          S.monsters.push(makeMonster(type, x, y));
-          break;
-        }
-      }
+      spawnPack(type, x0, y0, rnd);
     }
   }
 
@@ -3276,17 +3279,42 @@ function dropFoeLoot(x, y, type){
 }
 
 function queueRespawn(type){
-  if (S.shopMode || S.levelDone || S.shiftLost || S.noFoes) return false;
+  // S.levelDone KHÔNG còn là cái chốt ở đây. Trước đây nó là, và đó chính là lý do "xong hết
+  // extract chưa thấy quái ồ ạt": chốt bệ cuối xong thì mọi con bị hạ đều biến mất vĩnh viễn.
+  // Giờ chỉ có ca hỏng / chết / cửa hàng mới dừng, còn pha chạy thì gọi lại NHANH HƠN 45 lần.
+  if (S.shopMode || S.shiftLost || S.noFoes) return false;
+  if (S.levelDone && !S.esc) return false;
   // Loai di dan KHONG quay lai. queueRespawn xep tung con mot, nen mot dan bon con bi don sach
   // se tro ve thanh bon con le te o bon goc nha vao bon thoi diem khac nhau - dung cai hinh dang
   // ma ca hai loai nay khong co. Don sach mot dan la mot viec DA XONG.
   if (MONSTERS[type] && MONSTERS[type].pack) return false;
-  (S.respawns = S.respawns || []).push({ type, t: FOE_RESPAWN });
+  (S.respawns = S.respawns || []).push({ type, t: S.esc ? ESC_RESPAWN : FOE_RESPAWN });
   return true;
 }
 // Somewhere reachable, well away from the truck, never within nine tiles of anybody alive, and
 // never anywhere the player is looking - the same rule the mid-shift restock follows, because a
 // monster that blinks into view is a bug the player can see.
+// Đặt một con, hoặc CẢ ĐÀN nếu loài đó đi đàn. Tách riêng vì có hai chỗ cần đúng cái hình
+// dạng này: lúc dựng nhà, và lúc nhà gọi thêm người sau bệ cuối. Một con Bom con đứng lẻ chỉ
+// là một quả lựu đạn biết đi — cái đáng sợ là bốn quả cùng lúc, vì lúc đó câu hỏi không còn
+// là "giết con nào trước" mà là "lùi về đâu".
+function spawnPack(type, x0, y0, rnd){
+  rnd = rnd || Math.random;
+  const bay = (MONSTERS[type] && MONSTERS[type].pack) || 1;
+  S.monsters.push(makeMonster(type, x0, y0));
+  for (let k = 1; k < bay; k++){
+    // Thử tám hướng trước khi bỏ một con. Một lần thử duy nhất thì đàn bốn con đứng cạnh
+    // tường thường chỉ ra ba: chỗ đặt quái nào cũng có ít nhất một phía là tường.
+    for (let thu = 0; thu < 8; thu++){
+      const a = (k/bay)*Math.PI*2 + thu*0.79 + rnd()*0.4, r = TILE*(1.1 + rnd()*0.9);
+      const x = x0 + Math.cos(a)*r, y = y0 + Math.sin(a)*r;
+      if (hitsSolid(x, y, 9)) continue;
+      S.monsters.push(makeMonster(type, x, y));
+      break;
+    }
+  }
+  return bay;
+}
 function respawnSpot(){
   for (let tries = 0; tries < 300; tries++){
     const gx = 1 + ((Math.random()*(MW-2))|0), gy = 1 + ((Math.random()*(MH-2))|0);
@@ -3307,14 +3335,21 @@ function stepRespawns(dt){
     const e = q[i];
     e.t -= dt;
     if (e.t > 0) continue;
-    // The shift is over, one way or the other: nothing else walks in.
-    if (S.levelDone || S.shiftLost || S.dead){ q.splice(i,1); continue; }
-    const at = respawnSpot();
+    // Ca hỏng hoặc chết thì thôi. Nhưng XONG BỆ CUỐI thì không: đó là lúc căn nhà bận rộn
+    // nhất, không phải lúc nó đóng cửa. Xem startEscape().
+    if (S.shiftLost || S.dead || (S.levelDone && !S.esc)){ q.splice(i,1); continue; }
+    // Con của đợt gọi thêm đứng quanh XE TẢI (escSpot); con quay lại sau khi bị hạ vẫn theo
+    // luật cũ, tức là tránh xa xe tải ra.
+    const at = e.wave ? escSpot() : respawnSpot();
     if (!at){ e.t = 3; continue; }       // nowhere out of sight right now - try again shortly
-    S.monsters.push(makeMonster(e.type, at.x, at.y));
+    // spawnPack ra CẢ ĐÀN nếu loài đó đi đàn. Con quay lại sau khi bị hạ vẫn ra một mình như
+    // cũ, không phải vì có luật riêng ở đây mà vì queueRespawn không bao giờ xếp loài đi đàn —
+    // dọn sạch một đàn là một việc ĐÃ XONG. Đàn chỉ tới từ đợt gọi thêm của pha chạy.
+    const bay = spawnPack(e.type, at.x, at.y);
     q.splice(i, 1);
     SFX.thud();                          // something moved, somewhere behind you
-    toast(MONSTERS[e.type].name + ' vừa vào nhà');
+    toast(MONSTERS[e.type].name + (bay > 1 ? ' ×' + bay : '') +
+          (S.esc ? ' vào chặn đường' : ' vừa vào nhà'));
   }
 }
 // Everything the house owes you the return of, as ONE list: the bodies you killed, the statue you
@@ -4479,11 +4514,163 @@ function completePad(pad){
   if (last){
     S.levelDone = true;
     toast('Xong hết bệ. Về xe.');
+    startEscape();                        // và từ đây căn nhà không còn để bạn đi bộ về
   } else {
     S.padIndex++;
     S.pads[S.padIndex].active = true;
     toast('Bệ tiếp theo đã mở');
   }
+}
+
+// ============================================================ nhà tiễn khách
+// Bản gốc R.E.P.O. không để bạn đi bộ về sau lần rút hàng CUỐI. Đúng một giây sau khi bệ cuối
+// chốt, đồng hồ hồi sinh của quái tụt xuống 1 giây; xe tải rú bốn lần trong mười giây đầu; sau
+// đó cứ vài giây căn nhà lại chỉ điểm một chỗ ngẫu nhiên trong phòng người chơi, ban đầu 3 giây
+// một lần rồi giãn dần +2 mỗi lần tới trần 30; và đèn trong nhà tắt hết. Quái KHÔNG được biết
+// tuốt — chúng vẫn dò tìm như thường, chỉ là liên tục bị chỉ về phía bạn.
+//
+// Vì sao chép cái này chứ không chỉ tăng số quái: cả bốn thứ trên đều nói MỘT câu — "đường về
+// mới là màn chơi". Bản này trước đó làm ngược hẳn: queueRespawn bỏ chạy khi S.levelDone và
+// stepRespawns xoá sạch hàng đợi, nên chốt xong bệ cuối là căn nhà YÊN HƠN lúc đang làm. Cái
+// khoảnh khắc đáng sợ nhất của ca trực đang là cái khoảnh khắc rảnh nhất.
+//
+// Chỗ duy nhất chệch khỏi bản gốc: bên đó nhà đã đầy quái sẵn nên chỉ cần hồi sinh nhanh là đủ
+// đông; ở đây một căn nhà chỉ có ba con, nên phải GỌI THÊM một đợt, nếu không "ồ ạt" chỉ là
+// ba con cũ đi nhanh hơn.
+const ESC_DELAY    = 1.0;          // giây sau khi bệ cuối chốt thì nhà mới trở mặt
+const ESC_RESPAWN  = 1.0;          // hồi sinh tụt từ 45s xuống 1s
+const ESC_HORN_N   = 4;            // xe tải rú mấy lần
+const ESC_HORN_T   = 10;           // trong bao nhiêu giây
+const ESC_HORN_R   = 30 * TILE;    // tiếng rú nghe xa cỡ nào
+const ESC_PING_0   = 3;            // lần chỉ điểm đầu, cách nhau mấy giây
+const ESC_PING_UP  = 2;            // mỗi lần giãn thêm
+const ESC_PING_MAX = 30;           // trần
+const ESC_PING_R   = 15 * TILE;    // tiếng chỉ điểm lan xa cỡ nào
+const ESC_PING_NEAR= 6 * TILE;     // chỉ điểm rơi trong bán kính này quanh người còn đứng
+const ESC_HORN_ALERT = 3;          // to bằng một cú vụt trúng mặt
+const ESC_PING_ALERT = 2.2;        // bằng tiếng bệ rút hàng: một tiếng động thật, không phải bị nhìn thấy
+const ESC_DARK     = 0.16;         // trí nhớ căn nhà mờ còn bao nhiêu (đèn nhà tắt)
+const ESC_DARK_T   = 2.2;          // tắt trong mấy giây
+const ESC_WAVE_T   = 7;            // đợt gọi thêm rải ra trong mấy giây
+
+// Đợt gọi thêm tính bằng THÂN, không bằng đàn. Đếm theo đàn thì ba đàn Bom con ra mười hai
+// cái thân còn ba con Kẻ húc ra ba — cùng một con số, hai căn nhà khác hẳn nhau, và ở bản đông
+// hơn thì cửa ra biến mất chứ không còn là cửa ra. Đường về phải khó, không phải phải kín.
+const ESC_WAVE_MIN = 3, ESC_WAVE_MAX = 9;
+const ESC_PACK_MIN = 5;     // đợt nhỏ hơn thế này thì không kèm đàn: mất cả đàn là mất cả chốt
+function escWaveBodies(){ return clamp(2 + S.level, ESC_WAVE_MIN, ESC_WAVE_MAX); }
+
+// Loài nào được gọi. Ưu tiên chính bộ quái của căn nhà này — nhà đang có gì thì gọi thêm cái đó,
+// đường về không phải chỗ giới thiệu một con bạn chưa từng gặp. Nhà không có thân nào (ải 1–2
+// vốn chỉ có tượng và gương) thì rơi về hai loài đi đàn.
+function escKinds(){
+  const co = bodyKinds(S.roster).slice();
+  if (!co.length) co.push.apply(co, PACK_KINDS);
+  // Nhà TOÀN loài đi đàn thì phải mượn thêm một con đi lẻ, và ải 1–2 đúng là như vậy: cả nhà
+  // chỉ có một đàn Bom con hoặc Gnome. Đo được ở ải 1 seed 101: sau 11 giây còn 0 con — cả đợt
+  // là một dây pháo, đồng đội đi tới châm nổ hết một lượt và đường về sạch trơn, tức là pha
+  // chạy tự dọn chính nó. Một con đi lẻ sống sót qua dây chuyền là thứ giữ cho lối ra vẫn có
+  // người canh sau khi khói tan.
+  if (co.every(k => MONSTERS[k].pack)){
+    const pool = LEVEL_MONSTERS[clamp(S.level-1, 0, LEVEL_MONSTERS.length-1)];
+    co.push(pool[(Math.random()*pool.length)|0]);
+  }
+  return co;
+}
+
+// Chỗ đứng cho đợt gọi thêm. KHÔNG dùng respawnSpot() được: luật của nó là "cách xe tải ít
+// nhất 12 ô", đúng cái luật cần thiết lúc giữa ca (quái không được đẻ ra ngay cạnh chỗ bạn
+// đang chất hàng) và đúng cái luật phá hỏng pha này — cả đợt sinh ở rìa bản đồ rồi lững thững
+// đi về, tới nơi thì bạn đã lên xe. Đo được: sinh bằng respawnSpot, sau 12 giây vẫn còn 33 ô
+// cách xe. "Ồ ạt ra cản" thì phải ra ở CHỖ CẢN.
+//
+// Nên ở đây đảo ngược: đứng thành vành 6–15 ô quanh xe tải — giữa bạn và lối ra. Hai luật giữ
+// nguyên vì chúng nói về sự công bằng chứ không về độ khó: không bao giờ trong tầm mắt, và
+// không bao giờ sát người còn sống.
+const ESC_SPOT_LO = 6 * TILE, ESC_SPOT_HI = 15 * TILE, ESC_SPOT_CLEAR = 7 * TILE;
+function escSpot(){
+  for (let thu = 0; thu < 400; thu++){
+    const a = Math.random()*Math.PI*2, r = mix(ESC_SPOT_LO, ESC_SPOT_HI, Math.random());
+    const x = S.car.x + Math.cos(a)*r, y = S.car.y + Math.sin(a)*r;
+    const gx = (x/TILE)|0, gy = (y/TILE)|0;
+    if (gx < 1 || gy < 1 || gx >= MW-1 || gy >= MH-1) continue;
+    if (S.grid[gy*MW+gx] !== FLOOR) continue;
+    if (hitsSolid(x, y, 11)) continue;
+    if (crewAlive().some(c => Math.hypot(x-c.x, y-c.y) < ESC_SPOT_CLEAR)) continue;
+    if (inSight(x, y)) continue;
+    return { x, y };
+  }
+  return respawnSpot();          // vành quanh xe kín hết thì thà ở xa còn hơn không có ai
+}
+
+function startEscape(){
+  if (S.esc || S.noFoes) return;
+  S.esc = { t: 0, horns: 0, ping: ESC_PING_0, gap: ESC_PING_0, dark: 0 };
+  // Đợt gọi thêm dựng từ loài ĐI LẺ trước, đàn chỉ được kèm MỘT và chỉ khi đợt đã đủ to.
+  //
+  // Lý do đo được, không phải lý do thẩm mỹ: một chốt chặn toàn Bom con tự xoá chính nó. Ải 1
+  // seed 101, cả nhà chỉ có một đàn Bom con nên đợt gọi thêm cũng toàn Bom con — ai tới trước
+  // cũng châm nổ hết một lượt, và sau 11 giây căn nhà còn 0 con, tức là chốt bệ cuối xong thì
+  // đường về SẠCH HƠN lúc chưa có pha chạy. Ngân sách ải 1 chỉ có 3 thân mà một đàn đã 4, nên
+  // hễ để đàn bốc trước là nó ăn hết ngân sách và con đi lẻ không bao giờ tới lượt.
+  const ks  = escKinds();
+  const xao = (a) => { for (let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; };
+  const le  = xao(ks.filter(k => !MONSTERS[k].pack));
+  const dan = xao(ks.filter(k =>  MONSTERS[k].pack));
+  const ngan = escWaveBodies();
+  const dat = [];
+  let than = 0;
+  for (let i = 0; than < ngan && le.length; i++){ dat.push(le[i % le.length]); than++; }
+  // Một đàn là gia vị, không phải bữa chính — và chỉ khi mất cả đàn vẫn còn người canh cửa.
+  if (dan.length && ngan >= ESC_PACK_MIN) dat.push(dan[0]);
+  if (!dat.length) dat.push(ks[0]);
+
+  // Rải ra trong ESC_WAVE_T giây chứ không ập vào cùng một khung: cả đợt hiện ra một lúc thì
+  // hoặc bạn thấy đủ để vòng tránh hết, hoặc không thấy gì cả. Nhỏ giọt là thứ bắt phải quyết
+  // định lại liên tục trên đường về.
+  dat.forEach((k, i) => S.respawns.push({
+    type: k, t: ESC_DELAY + (i + 0.4) * (ESC_WAVE_T / dat.length), wave: true }));
+}
+
+function stepEscape(dt){
+  const e = S.esc;
+  if (!e || S.dead || S.shopMode) return;
+  e.t += dt;
+  e.dark = Math.min(1, e.dark + dt / ESC_DARK_T);
+  if (e.t < ESC_DELAY) return;
+
+  // Bốn tiếng rú của xe tải. Nó gọi mọi thứ về phía LỐI RA chứ không về phía bạn — đó mới là
+  // cái làm đường về thành đường về: chỗ duy nhất bạn phải tới cũng là chỗ đông nhất.
+  if (e.horns < ESC_HORN_N){
+    const moc = ESC_DELAY + e.horns * (ESC_HORN_T / ESC_HORN_N);
+    // Chỉ hỏi "đã tới mốc chưa". KHÔNG hỏi thêm "và khung trước chưa tới" — mốc tự tiến lên
+    // sau mỗi tiếng còi nên không thể rú hai lần cho cùng một mốc, còn cái điều kiện thứ hai
+    // thì HỤT hẳn một tiếng khi máy khựng: nó tương đương `e.t < moc + 2dt`, và một khung dài
+    // nhảy qua ngưỡng đó là mốc kẹt lại vĩnh viễn. Đo được: 2/3 lần chạy bộ kiểm ra 3/4 tiếng.
+    if (e.t >= moc){
+      e.horns++;
+      // Sức 3 chứ không phải 1: m.alert tụt 1 mỗi giây, nên sức 1 là đúng MỘT giây đuổi
+      // rồi con quái quay về vòng canh xe — tiếng còi to nhất game mà chỉ bằng một bước chân.
+      // 3 là mức của cú vụt trúng mặt (dòng 'm.alert = Math.max(m.alert, 3)' lúc đánh thường).
+      makeNoise(S.car.x, S.car.y, ESC_HORN_R, ESC_HORN_ALERT);
+      SFX.thud(); fxShake(3.2);
+      if (e.horns === 1) toast('Xe tải rú còi. Nhà biết bạn sắp đi.');
+    }
+    return;
+  }
+
+  // Rồi tới lượt căn nhà chỉ điểm. KHÔNG phải toạ độ chính xác của bạn: một chỗ ngẫu nhiên
+  // trong tầm ESC_PING_NEAR quanh người còn đứng, nên quái vẫn phải tự dò nốt đoạn cuối.
+  e.ping -= dt;
+  if (e.ping > 0) return;
+  e.gap  = Math.min(ESC_PING_MAX, e.gap + ESC_PING_UP);
+  e.ping = e.gap;
+  const song = crewAlive();
+  if (!song.length) return;
+  const a = song[(Math.random()*song.length)|0];
+  const goc = Math.random()*Math.PI*2, r = Math.random()*ESC_PING_NEAR;
+  makeNoise(a.x + Math.cos(goc)*r, a.y + Math.sin(goc)*r, ESC_PING_R, ESC_PING_ALERT);
+  SFX.thud();
 }
 
 // ============================================================ lifecycle
@@ -4729,6 +4916,7 @@ function buildShop(){
   S.bikes = [];
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
   S.levelDone = false; S.dead = false; S.shiftLost = false; S.hurtLog = [];
+  S.esc = null;      // trạm dịch vụ không phải chỗ bị đuổi; và nếu quên thì đèn vẫn tắt ở đây
   S.quotaTotal = 0;
   S.pay = { active:false, t:0 };
   S.onButton = false; S.shopCanLeave = false;
@@ -7035,6 +7223,9 @@ function step(dt){
   } else {
     stepDoors(dt);
     stepMates(dt);
+    // TRƯỚC stepMonsters: stepEscape chỉ đi gắn m.tx/m.alert bằng makeNoise, để sau thì cả
+    // đàn ăn tin chậm đúng một khung — nghe thấy tiếng còi rồi mới quay đầu ở nhịp sau.
+    stepEscape(dt);
     if (!S.noFoes){ stepMonsters(dt); stepBangers(dt); stepStomp(dt); separateFoes(); stepFoeSound(dt); stepRespawns(dt); }
     stepAngel(dt);
     stepMirror(dt);
@@ -7874,7 +8065,18 @@ function drawHighlights(c){
              HL_TRUCK, near ? 0.5 + beat*0.3 : 0.24, near ? 2.6 : 1.6);
   }
 }
+// Hệ số sáng của TRÍ NHỚ căn nhà. Trong pha chạy nó tụt gần về không: bản gốc tắt hết đèn
+// nhà sau lần rút cuối, và ở bản này thứ tương đương chính là lớp này — cái sàn bạn ĐÃ đi qua
+// vẫn còn mờ mờ trên màn hình. Tắt nó đi thì đường về phải đi bằng nón đèn, đúng như lúc mới
+// vào nhà, chỉ khác là giờ nhà đông hơn nhiều.
+function memGlow(){
+  return S.esc ? mix(1, ESC_DARK, clamp(S.esc.dark, 0, 1)) : 1;
+}
 function drawMemory(c){
+  const mo = memGlow();
+  if (mo <= 0.02) return;
+  const aCu = c.globalAlpha;
+  c.globalAlpha = aCu * mo;
   const gx0 = Math.max(0,(cam.x/TILE)|0), gy0 = Math.max(0,(cam.y/TILE)|0);
   const gx1 = Math.min(MW-1,((cam.x+vwW())/TILE)|0), gy1 = Math.min(MH-1,((cam.y+vwH())/TILE)|0);
   for (let gy=gy0; gy<=gy1; gy++) for (let gx=gx0; gx<=gx1; gx++){
@@ -7884,6 +8086,7 @@ function drawMemory(c){
     c.fillStyle = v===FLOOR ? 'rgb(6,8,10)' : v===PROP ? 'rgb(12,12,14)' : 'rgb(12,15,19)';
     c.fillRect(gx*TILE, gy*TILE, TILE, TILE);
   }
+  c.globalAlpha = aCu;
 }
 // The truck. It was drawn three tiles by two, which is a small van, and it is the thing the whole
 // shift is built around — you start in it, you carry everything back to it, its locker is your
@@ -8725,6 +8928,8 @@ function drawExtractBar(c, hud){
   c.font = '600 9px ui-monospace, monospace';
   let head, col;
   if (S.shiftLost)            { head = 'CA HỎNG — VỀ XE';  col = 'rgba(226,140,130,0.95)'; }
+  else if (S.levelDone && S.esc){ head = tick ? 'CHẠY ĐI' : 'CHẠY VỀ XE';
+                                col = tick ? '#ffd2c4' : 'rgba(238,150,130,0.95)'; }
   else if (S.levelDone)       { head = 'XONG — VỀ XE';      col = 'rgba(150,225,190,0.95)'; }
   else if (S.countdownActive) { head = 'ĐANG GIAO ' + Math.ceil(S.countdown) + 's';
                                 col = tick ? '#d6ffe8' : 'rgba(150,230,190,0.95)'; }
@@ -9145,7 +9350,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831l';
+const BUILD = '20260831m';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -9972,7 +10177,11 @@ window.REPO = {
   },
   killFoe(i){ const m = S.monsters[i|0]; if (!m) return null;
               const t = m.type; killMonster(m); return t; },
-  respawns(){ return (S.respawns || []).map(r => ({ type:r.type, t:r.t })); },
+  respawns(){ return (S.respawns || []).map(r => ({ type:r.type, t:r.t, wave:!!r.wave })); },
+  PACK_KINDS, ESC_RESPAWN, ESC_DELAY, ESC_HORN_N, ESC_HORN_T, ESC_PING_0, ESC_PING_UP,
+  ESC_PING_MAX, ESC_DARK, startEscape, escWaveBodies, escKinds, memGlow, escSpot, ESC_SPOT_LO, ESC_SPOT_HI, ESC_WAVE_MIN, ESC_WAVE_MAX,
+  escape(){ const e = S.esc; return e ? { t:+e.t.toFixed(2), horns:e.horns,
+    ping:+e.ping.toFixed(2), gap:e.gap, dark:+e.dark.toFixed(2) } : null; },
   returns(){ return pendingReturns(); },
   // ---- what the player is shown about a monster
   foeAlerted(i){ return foeAlerted(S.monsters[i|0]); },
