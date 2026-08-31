@@ -46,14 +46,22 @@
   // 404 thật trên mạng — bộ kiểm đếm nó thành lỗi console, đúng như nó nên làm.
   // mate0/1/2 là bộ kê chỗ do code sinh ra thuở chưa có hình vẽ tay; ba con bot đã mượn
   // bao/hue/tam từ lâu (xem MATE_LOOK) nên ba tệp đó bị xoá khỏi kho. Bỏ nốt tên ra đây.
-  const CREW_IDS = ['lead',
-    'bao', 'hue', 'tam', 'ky', 'linh', 'dung', 'mai', 'phuc', 'son',
-    'nga', 'khoi', 'van', 'hai', 'tuyet'];
+  // `lead` KHÔNG còn là một xác riêng. Nhân vật chính của Ca Trực Đêm và Flare "Đèn Pin" của Biệt
+  // Đội là cùng một người: `bao`. Trước đây hai mã trỏ vào hai tệp khác nhau, nên cùng một nhân
+  // vật ra hai mặt tuỳ bản đang chơi. Xem crewIdOf.
+  //
+  // Bộ hình có 11 xác; Biệt Đội cần 14 nhân vật, và `bao` gánh luôn vai chính, nên còn THIẾU BA:
+  // van (Frost), hai (Magnet), tuyet (Seraph) — cả ba là nhân vật 5 sao. Chúng vẫn chơi được,
+  // chỉ rơi về hình khối cũ cho tới khi có tệp. Mỗi tên ở đây không có tệp là một request 404
+  // thật, nên danh sách này chỉ liệt kê cái đang có.
+  const CREW_IDS = ['bao', 'hue', 'tam', 'ky', 'linh', 'dung', 'mai', 'phuc', 'son', 'nga', 'khoi'];
 
-  // Ba con bot của Ca Trực Đêm ("Tổ 2/3/4") mượn ba xác đã có hình vẽ tay, thứ tự cố định
-  // để cùng một con bot luôn ra cùng một mặt trong mọi ván. Thiếu cả ba thì crewIdOf trả về
-  // một mã không có trong kho, drawCrew trả false, và màn rơi về hình khối cũ — không vỡ.
-  const MATE_LOOK = ['bao', 'hue', 'tam'];
+  // Ba con bot của Ca Trực Đêm ("Tổ 2/3/4") mượn ba xác, thứ tự cố định để cùng một con bot
+  // luôn ra cùng một mặt trong mọi ván. KHÔNG được có `bao` ở đây: bao giờ cũng là mặt của
+  // người chơi, và một con bot đi sau lưng mang đúng mặt mình là thứ đọc nhầm trong nửa giây
+  // — đúng nửa giây đắt nhất trong game này. Thiếu cả ba thì crewIdOf trả về một mã không có
+  // trong kho, drawCrew trả false, và màn rơi về hình khối cũ — không vỡ.
+  const MATE_LOOK = ['hue', 'tam', 'ky'];
   const FOE_IDS = ['patrol', 'listen', 'stalk', 'bomber', 'heavy', 'rook', 'angel',
     'crawler', 'quanca', 'bongden'];
 
@@ -272,7 +280,9 @@
   // không có nên rơi về bộ chung (một người dẫn + ba xác trong MATE_LOOK).
   function crewIdOf(a, isPlayer) {
     if (a.charId && crew[a.charId]) return a.charId;
-    if (isPlayer) return 'lead';
+    // Nhân vật chính của Ca Trực Đêm CHÍNH LÀ `bao` — Flare "Đèn Pin" bên Biệt Đội. Cũ thì
+    // `lead` là một tệp riêng, nên cùng một người ra hai mặt tuỳ bản đang mở.
+    if (isPlayer) return 'bao';
     const n = (a.id | 0) % 3;
     return crew[MATE_LOOK[n]] ? MATE_LOOK[n] : 'mate' + n;
   }
