@@ -6000,6 +6000,14 @@ function setupInput(){
     };
     add(hud.grab,   1.25, !!S.player,                       () => pickUp(S.player));
     add(hud.sprint, 1.25, S.player && !S.shopMode,          () => toggleSprint());
+    // Đánh thường có NÚT RIÊNG. Chạm nhẹ lên cần xoay vẫn đánh — cùng hai dòng dưới đây, xem
+    // nhánh nhả ngón ở pointerup — nhưng một hành động mà cách duy nhất để gọi nó là "chạm rồi
+    // nhả trong 280ms mà đừng kéo quá xa" thì không ai đọc ra được từ màn hình. meleeSwing tự
+    // canh hồi chiêu, choáng, đang lái xe và chế độ shop, nên cứ gọi thẳng.
+    add(hud.melee,  1.25, S.player && !S.shopMode,          () => {
+      const t = meleeTarget(S.player);
+      meleeSwing(S.player, t ? Math.atan2(t.y - S.player.y, t.x - S.player.x) : null);
+    });
     add(hud.stash,  1.25, S.player && nearTruck(S.player),  () => toggleStash());
     add(hud.test,   1.25, S.shopMode && !!S.player,         () => {
       if (!testHeld(S.player)) toast('Cầm một khẩu súng lên rồi bấm thử.');
@@ -6351,8 +6359,18 @@ function hudLayout(){
   const pad = Math.min(w,h) * 0.05;
   const R   = Math.min(w,h) * 0.115;      // stick radius — a thumb's comfortable throw
   const sr  = R * 0.44;                   // button radius
-  const left  = { x: pad + R, y: h - pad - R, r: R };
-  const right = { x: w - pad - R, y: h - pad - R, r: R };
+  // Cần gạt XOAY nhỏ hơn cần gạt ĐI. Hai việc khác nhau: cần trái phải đọc được cả độ lớn (đi
+  // nhanh hay rón rén) nên cần quãng đẩy dài, còn cần phải chỉ đọc GÓC — quãng đẩy dư ra không
+  // mang thêm tin gì, nó chỉ ăn chỗ ở đúng góc màn hình ngón cái phải hay ở. Thu lại lấy chỗ cho
+  // nút đánh thường. R vẫn giữ nguyên cho mọi thứ khác (nút, vòng cung ô đồ, thumbY, aimR).
+  // SEE: nút đánh thường + thu nhỏ cần xoay, 2026-08-31
+  const RR = R * 0.72;
+  const left  = { x: pad + R,  y: h - pad - R,  r: R };
+  const right = { x: w - pad - RR, y: h - pad - RR, r: RR };
+  // Đánh thường: ở ngay cạnh cần xoay, trong dải ngón cái, vào chỗ cần xoay vừa nhả ra. Vẫn giữ
+  // được lối chạm nhẹ lên cần xoay để đánh — hai đường vào cùng một hành động, và phép chọn nút
+  // gần nhất lo phần tranh chấp.
+  const melee = { x: w - pad - RR - R*1.5, y: h - pad - R*0.62, r: sr*1.02 };
 
   // Everything below this line belongs to the sticks. Buttons start above it.
   const thumbY = h - (pad + 2*R + 10);
@@ -6406,7 +6424,7 @@ function hudLayout(){
   //   cú chạm: ở màn dọc, bản Biệt Đội KHÔNG mở được tủ đồ. Thứ tự hỏi giờ cũng đã
   //   đổi cho tủ đồ đứng trước, nên kể cả có đè cũng không cướp được nữa.
   const skill = HOOKS.skill ? { x: w - 120*K, y: h - 265*K, r: sr*1.45 } : null;
-  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
+  return { w, h, left, right, melee, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: Math.min(stash.y - stash.r, heart.y - heart.r) - 14 };
 }
 
@@ -6424,8 +6442,13 @@ function hudLayoutLandscape(w, h){
   const pad = h * 0.05;
   const R   = h * 0.145;                  // cần gạt: to đủ quăng, nhưng khung ngang thấp nên đừng quá
   const sr  = R * 0.46;
-  const left  = { x: pad + R, y: h - pad - R, r: R };
-  const right = { x: w - pad - R, y: h - pad - R, r: R };
+  // Cùng luật với bố cục dọc: cần xoay nhỏ hơn cần đi, và chỗ nó nhả ra thành nút đánh thường.
+  const RR = R * 0.72;
+  const left  = { x: pad + R,  y: h - pad - R,  r: R };
+  const right = { x: w - pad - RR, y: h - pad - RR, r: RR };
+  // Chéo lên trái so với cần xoay: hàng nút và vòng cung ô đồ vẫn dựng quanh R cũ nên chỗ này
+  // trống thật, và nó nằm sâu bên phải nên không đụng luật "giữa màn hình để trống".
+  const melee = { x: w - pad - R - R*0.58, y: h - pad - R - R*0.58, r: sr*0.88 };
   const thumbY = h - (pad + 2*R + 10);
 
   // MỌI NÚT BẤM TRONG LÚC CHẠY ĐỀU THUỘC TAY PHẢI. Tay trái ôm cần di chuyển và
@@ -6486,7 +6509,7 @@ function hudLayoutLandscape(w, h){
   // Nút kỹ năng nối vào ĐẦU TRONG của vòng cung, sát cần phải nhất — nó là nút bấm
   // nhiều nhất của bản Biệt Đội nên phải nằm chỗ ngón cái với gần nhất.
 
-  return { w, h, left, right, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
+  return { w, h, left, right, melee, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: heart.y - heart.r - 12 };
 }
 // Scaled with the truck: the locker button appears when you are standing AT it, and "at it" got
@@ -8218,6 +8241,25 @@ function drawHud(c){
     c.fillText(p.sprint ? 'Đang chạy' : 'Chạy', sp.x, sp.y+4);
   }
 
+  // Đánh thường. Vòng hồi chiêu vẽ ngay trên nút, cùng cách nút Chạy vẽ thanh thể lực và nút
+  // Kỹ năng vẽ vòng hồi: con số quyết định bấm có ăn thua không thì vẽ lên chính cái được bấm.
+  if (hud.melee && !S.shopMode && p){
+    const mb = hud.melee;
+    const cd = clamp(1 - (p.swingCd || 0) / MELEE_CD, 0, 1);
+    const san = cd >= 1 && (p.stunT || 0) <= 0 && !p.riding;
+    c.beginPath();
+    c.fillStyle = san ? 'rgba(40,20,18,0.72)' : 'rgba(16,18,20,0.5)';
+    c.arc(mb.x, mb.y, mb.r, 0, Math.PI*2); c.fill();
+    if (cd < 1){
+      c.beginPath(); c.strokeStyle = 'rgba(214,120,90,0.85)'; c.lineWidth = 3;
+      c.arc(mb.x, mb.y, mb.r + 3, -Math.PI/2, -Math.PI/2 + Math.PI*2*cd); c.stroke();
+    }
+    ring(c, mb.x, mb.y, mb.r, san ? 'rgba(228,120,92,0.9)' : 'rgba(96,74,68,0.45)');
+    c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
+    c.fillStyle = san ? '#ffd6c4' : '#6a6f74';
+    c.fillText('Đánh', mb.x, mb.y+4);
+  }
+
   // skill button — bản Biệt Đội mới có. Vành ngoài là đồng hồ hồi chiêu, vẽ ngay
   // trên chính cái nút phải bấm, giống hệt cách vành thể lực bám nút Chạy.
   if (hud.skill && !S.shopMode){
@@ -8720,7 +8762,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260831c';
+const BUILD = '20260831d';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm

@@ -454,6 +454,41 @@ async function meleeSuite(b) {
   check('chạm nhẹ cần gạt phải thì đập trúng',
     cham.mat === Math.max(3, Math.round(30 * heSo2)), cham.mat + ' sát thương');
 
+  // NÚT ĐÁNH RIÊNG. Lối chạm nhẹ ở trên vẫn còn, nhưng một hành động mà cách duy nhất để gọi nó
+  // là "chạm rồi nhả trong 280ms mà đừng kéo quá xa" thì không ai đọc ra được từ màn hình.
+  const kichThuoc = await p.evaluate(() => {
+    const h = REPO.hudLayout();
+    return { co: !!h.melee, xoay: +h.right.r.toFixed(1), di: +h.left.r.toFixed(1) };
+  });
+  check('có nút đánh thường trên HUD', kichThuoc.co);
+  check('cần gạt XOAY nhỏ hơn cần gạt ĐI', kichThuoc.co && kichThuoc.xoay < kichThuoc.di,
+    'xoay ' + kichThuoc.xoay + ' · đi ' + kichThuoc.di);
+
+  const nutDanh = await p.evaluate(() => {
+    const h = REPO.hudLayout(), cv = document.querySelector('canvas');
+    const r = cv.getBoundingClientRect();
+    return { x: r.left + h.melee.x / h.w * r.width,
+             y: r.top + h.melee.y / h.h * r.height };
+  });
+  await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    S.monsters.length = 0; pl.swingCd = 0; pl.stam = pl.stamMax; pl.sprint = false;
+    pl.dir = Math.PI;
+    const m = REPO.spawnFoe('listen', 34, 0);
+    m.hp = 400; m.kx = 0; m.speed = 0; m.state = 'idle'; m.alert = 0;
+  });
+  await p.touchscreen.tap(nutDanh.x, nutDanh.y);
+  await p.waitForTimeout(160);
+  const bamNut = await p.evaluate(() => {
+    const m = REPO.S.monsters[0], pl = REPO.S.player;
+    return { mat: m ? 400 - m.hp : -1, chay: !!pl.sprint, tu: !!REPO.S.stashOpen,
+             gat: !!REPO.stick() };
+  });
+  check('bấm nút Đánh thì đập trúng', bamNut.mat === Math.max(3, Math.round(30 * heSo2)),
+    bamNut.mat + ' sát thương');
+  check('và nó không cướp mất nút Chạy, tủ đồ hay cần gạt',
+    !bamNut.chay && !bamNut.tu && !bamNut.gat);
+
   // KÉO cần gạt phải thì vẫn là NHÌN, không được thành đòn đánh.
   await p.evaluate(() => {
     const S = REPO.S, pl = S.player;
