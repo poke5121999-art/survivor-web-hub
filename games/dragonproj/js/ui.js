@@ -399,7 +399,7 @@
         hair: ['#2a2a2a', '#6a4a2a', '#c8a850', '#c04040', '#4060c0', '#40a060', '#a050c0', '#e8e8e8',
                '#f08040', '#40c0c0', '#8a5a3a', '#d8d040'][S.hairColor || 0],
         cloth: '#3b6ea5',
-        weapon: w ? w.wclass : 'sword',
+        weapon: w ? w.wclass : 'rifle',
         elem: G.ELEMENTS[(w && w.el) || 'none'].color,
         el: (w && w.el) || 'none'
       });

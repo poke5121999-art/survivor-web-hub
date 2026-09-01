@@ -23,17 +23,32 @@
    * là hệ số rút xuống. Ba bậc evolve dùng đúng tỉ lệ đọc được từ cây vũ khí
    * Amarok: 135/306 = 0.44, 274/306 = 0.895, 306/306 = 1.00.
    */
-  var RANK_W = { SS: { p: 306, e: 656 }, S: { p: 210, e: 450 }, A: { p: 140, e: 300 }, B: { p: 85, e: 180 } };
+  /* THANG NÉN LẠI. Bản cũ để SS/B = 306/85 = 3,6x công vật lý, CỘNG 656/180 =
+   * 3,6x công hệ nữa — tức bậc hiếm cao mua số to hơn. Đó là cái Soul Knight cố
+   * ý không làm: tính trên cả 500 vũ khí của nó, toàn bộ Trắng -> Magenta chỉ
+   * chênh 2,4x DPS trung vị, và đường cong còn KHÔNG đơn điệu (Cam mạnh hơn Đỏ).
+   * Wiki nói thẳng: "màu tên thể hiện XÁC SUẤT GẶP, nên không nhất thiết thể
+   * hiện độ hữu dụng". Bậc cao mua CƠ CHẾ MỚI, không mua số.
+   *
+   * Số ở đây là ATK, và sát thương mỗi viên = W.dmg × ATK/10. SS ở cấp đồ tối
+   * đa cho 46 ATK; cộng công nhân vật Lv60 (64) ra ~110, tức nhân 11 lần sát
+   * thương gốc của cây súng. */
+  // Công HỆ hạ thêm một nấc nữa. Ở 46/30 nó đóng góp 65% tổng sát thương, tức
+  // hệ nguyên tố gánh nhiều hơn cả cây súng. Ở 46/16 nó còn ~35% — đủ để việc
+  // chọn hệ là một quyết định thật, không đủ để nó át phần bắn.
+  var RANK_W = { SS: { p: 46, e: 16 }, S: { p: 34, e: 12 }, A: { p: 24, e: 8 }, B: { p: 15, e: 5 } };
   var RANK_A_MUL = { SS: 1.00, S: 0.68, A: 0.45, B: 0.28 };
   var ARMOR_BASE = {
     head: { hp: 252, pdef: 0,   edef: 148, patk: 0  },
     body: { hp: 0,   pdef: 327, edef: 199, patk: 0  },
-    arm:  { hp: 52,  pdef: 112, edef: 151, patk: 45 },
-    leg:  { hp: 120, pdef: 105, edef: 210, patk: 19 }
+    arm:  { hp: 52,  pdef: 112, edef: 151, patk: 7 },
+    leg:  { hp: 120, pdef: 105, edef: 210, patk: 3 }
   };
   var EVO_MUL = [0.44, 0.895, 1.00];
   // Limit-break bonus cộng vào công vật lý, đúng số wiki: Normal +20/+42/+55, Heat +44/+66/+89.
-  var LB_BONUS = { normal: [0, 20, 42, 55, 55], heat: [0, 44, 66, 89, 89], soul: [0, 32, 54, 72, 72] };
+  // Chia theo cùng tỉ lệ với RANK_W (306 -> 46) để phần thưởng limit-break giữ
+  // đúng trọng số cũ so với chỉ số nền, thay vì bỗng dưng gánh cả cây.
+  var LB_BONUS = { normal: [0, 3, 6, 8, 8], heat: [0, 7, 10, 13, 13], soul: [0, 5, 8, 11, 11] };
   var MAX_LV = 40, MAX_LB = 4, MAX_EVO = 2;
 
   G.MAX_LV = MAX_LV; G.MAX_LB = MAX_LB; G.MAX_EVO = MAX_EVO;
@@ -61,7 +76,7 @@
       lv: 1, evo: 0, lb: 0, gold: true
     };
     if (kind === 'weapon') {
-      g.wclass = b.weapon; g.wtype = b.type; g.el = b.el;
+      g.wclass = G.wclassOf(b.weapon); g.wtype = b.type; g.el = b.el;
       g.name = weaponName(b, 0);
       g.green = b.ability || null;      // ability cố định hiện chữ xanh lá
     } else {
@@ -108,13 +123,18 @@
   function counterOf(el) { for (var k in G.ELEM_BEATS) if (G.ELEM_BEATS[k] === el) return k; return 'none'; }
 
   var W_SUFFIX = {
-    sword: ['Blade', 'Legend', 'Aspect'], great: ['Cleaver', 'Ruin', 'Apex'],
-    spear: ['Lance', 'Pursuit', 'Zenith'], dual: ['Fangs', 'Talons', 'Eclipse'],
-    bow: ['Bow', 'Cantus', 'Requiem']
+    rifle:    ['Rifle', 'Cadence', 'Aspect'],
+    shotgun:  ['Scattergun', 'Maw', 'Eclipse'],
+    sniper:   ['Lance', 'Pursuit', 'Zenith'],
+    bow:      ['Bow', 'Cantus', 'Requiem'],
+    staff:    ['Scepter', 'Oracle', 'Apotheosis'],
+    launcher: ['Mortar', 'Ruin', 'Apex']
   };
   var A_SUFFIX = { head: 'Visor', body: 'Vest', arm: 'Gauntlets', leg: 'Leggings' };
   function shortName(b) { var p = b.n.split(' '); return p[p.length - 1]; }
-  function weaponName(b, evo) { return shortName(b) + "'s " + W_SUFFIX[b.weapon][evo]; }
+  // b.weapon còn là tên lớp CŨ trong bảng Behemoth (giữ nguyên vì nó là dữ liệu
+  // lấy nguyên văn từ wiki). Đổi sang lớp mới ở đúng chỗ đọc.
+  function weaponName(b, evo) { return shortName(b) + "'s " + W_SUFFIX[G.wclassOf(b.weapon)][evo]; }
   function armorName(b, kind) { return shortName(b) + ' ' + A_SUFFIX[kind]; }
 
   /* --------------------------------------------------- TÍNH CHỈ SỐ MÓN --- */
@@ -691,10 +711,10 @@
 
   G.starterKit = function (s) {
     var starter = 'grouton';
-    var NAMES = { sword: 'Guild Blade', great: 'Guild Cleaver', dual: 'Guild Fangs',
-                  spear: 'Guild Pike', bow: 'Guild Shortbow' };
-    var SRC = { sword: 'vaccahorn', great: 'vaccahorn', dual: 'shurak',
-                spear: 'grouton', bow: 'galidon' };
+    var NAMES = { rifle: 'Guild Carbine', launcher: 'Guild Mortar', shotgun: 'Guild Scattergun',
+                  sniper: 'Guild Longshot', bow: 'Guild Shortbow', staff: 'Guild Scepter' };
+    var SRC = { rifle: 'vaccahorn', launcher: 'vaccahorn', shotgun: 'shurak',
+                sniper: 'grouton', bow: 'galidon', staff: 'frogrid' };
 
     s.heroes = []; s.party = [null, null, null];
     G.STARTER_HEROES.forEach(function (id, i) {
@@ -709,9 +729,9 @@
       h.gear.weapon = w.uid;
     });
 
-    // Hai cây dự phòng cho hai lớp còn lại, để lúc quay được người lớp đó là có
-    // ngay đồ mà lắp.
-    ['dual', 'spear'].forEach(function (cls) {
+    // Cây dự phòng cho những lớp chưa có người, để lúc quay được người lớp đó là
+    // có ngay đồ mà lắp.
+    G.WEAPON_ORDER.forEach(function (cls) {
       if (s.heroes.some(function (h) { return (G.heroDef(h) || {}).wclass === cls; })) return;
       var g = G.forgeGear(SRC[cls], 'weapon', 'spare_' + cls);
       g.wclass = cls; g.wtype = 'normal'; g.name = NAMES[cls]; g.rank = 'B'; g.el = 'none';

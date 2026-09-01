@@ -79,12 +79,44 @@
    * đi bộ đi tìm quái, mà đi bộ thì không phải chặt chém. Thu lại còn 820×1080 và
    * nhồi gấp đôi số quái: lúc nào cũng có thứ trong tầm với, và cú quét vòng
    * của Thương hay Đại Kiếm mới có nghĩa lý. */
-  G.ARENA = { w: 820, h: 1080, maxMobs: 16, wave: 11 };
+  /* Số quái cắt xuống vì TTK dài gấp 4–5 lần: một đợt 20 giây mà nhân 5 lần thì
+   * thành 100 giây, chết trên điện thoại. Kèm theo là HỆ THẺ ĐÁNH (xem
+   * G.TOKENS): chỉ con nào giữ thẻ mới được ra đòn, số còn lại làm bộ hung hăng
+   * nhưng không đánh. Chuẩn ngành, và nó là cái giữ cho màn hình đọc được. */
+  G.ARENA = { w: 820, h: 1080, maxMobs: 9, wave: 6 };
+
+  // Nhẹ 3–5 con / 1 thẻ · thường 5–8 con / 2 thẻ · cao trào 8–12 con / 3 thẻ.
+  // KHÔNG BAO GIỜ quá 3 — quá đó thì người chơi không theo dõi nổi trên màn dọc.
+  G.TOKENS = { max: 3, byCount: function (n) { return n <= 4 ? 1 : n <= 7 ? 2 : 3; },
+               cadenceMs: 2400 };      // nhịp đánh trung bình mỗi con: 2–3 giây
+
+  /* Ngân sách đạn trên màn (SHOOTER.md §5.1). Nghiên cứu IEEE GEM 2014 đo được
+   * rằng giữ nguyên kích thước phần tử khi màn hình nhỏ lại cho ra game "khó hơn
+   * nhiều" — và người chơi NHẬN RA rồi bực. ~90 viên trên điện thoại tương đương
+   * ~300 viên trên desktop. */
+  G.DANMAKU = { softCap: 90, hardCap: 130,
+                // n_max = 2πd / (2·r_đạn + 2·r_người + M), M là biên sai số cảm ứng
+                ringMax: 20, fadeInMs: 140 };
 
   G.FEEL = {
-    hitstop: { light: 50, mid: 85, heavy: 145, finish: 190, launch: 170, crit: 210 },
-    hitstopMax: 240,        // trần, để nhiều đòn trúng cùng lúc không đứng hình
-    shake:   { light: 3, mid: 6, heavy: 11, finish: 15, quake: 20 },
+    /* HITSTOP theo thang Nuclear Throne, đọc từ sleep.gml của bản giải mã:
+     *   đạn nảy tường 1ms · đĩa/plasma trúng 10 · quái nổ 20 · boss chết 50 ·
+     *   nổ lớn 100. Mỗi bậc gấp ~2–2,5 lần.
+     * Bản cũ để nhát NHẸ NHẤT là 50ms — bằng cả cú boss chết của Nuclear Throne
+     * — và nặng nhất 210ms. Bắn 5 phát/giây (200ms một phát) mà hitstop 50ms là
+     * đứng hình 25% thời gian. Luật: hitstop <= 20% khoảng cách hai phát.
+     * Và hitstop leo thang theo SỰ KIỆN, không theo sát thương. */
+    hitstop: { tick: 1, light: 10, mid: 20, heavy: 50, kill: 60, elite: 80, boom: 100, crit: 30 },
+    hitstopMax: 110,        // trần, để nhiều đòn trúng cùng lúc không đứng hình
+    /* RUNG giảm một nửa so với số desktop: 10px trên màn 6 inch cầm cách mặt
+     * 30cm dữ dội hơn hẳn cùng số đó trên màn hình bàn. Và biên độ ĐỒNG THỜI là
+     * thời lượng tính bằng khung, vì rung nhẹ giảm tuyến tính 1 đơn vị/khung
+     * (mẹo của Nuclear Throne: chỉnh một số thay vì hai). */
+    shake:   { light: 2, mid: 4, heavy: 7, finish: 8, quake: 10 },
+    shakeMax: 14,
+    // Đá camera CÓ HƯỚNG, về phía bắn — kênh riêng, không gộp vào rung.
+    kickDecay: 0.40,        // −40% mỗi khung
+    recoilRecover: 1,       // sprite súng lùi rồi hồi 1px/khung
     kbDecay: 0.86,          // vận tốc văng còn lại sau mỗi khung
     airGrav: 0.00034,       // px/ms². Đặt cùng airLaunch cho ra ~0,9s lơ lửng ở độ cao 34px
     airLaunch: 0.0045,      // vận tốc bay lên = launch × hệ số này
@@ -104,149 +136,199 @@
   };
 
   /* ======================================================================
-   * VŨ KHÍ — mỗi cây một BỘ ĐÒN, không phải một con số nhân
+   * VŨ KHÍ — SÁU LỚP BẮN
    *
-   * Trước đây combo chỉ là [1.0, 1.0, 1.15, 1.45]: bốn nhát y hệt nhau, khác
-   * mỗi hệ số. Giờ mỗi nhát là một đòn riêng có tầm, góc quét, thời gian, lực
-   * văng và độ khựng của nó.
+   * Trước đây là bốn cây cận chiến + một cây cung, mỗi cây một CHUỖI COMBO.
+   * Giờ cả sáu đều bắn. Xem SHOOTER.md để biết vì sao đổi và số ở đâu ra.
    *
-   * Ba đường ra đòn cho mỗi cây, tất cả vẫn chỉ bằng MỘT ngón (đúng luật
-   * Punicon):
-   *   - CHUỖI    : tap liên tục -> đi hết chain, nhát cuối nặng nhất
-   *   - ĐÒN NẶNG : ngưng >= FEEL.delayMin rồi mới tap -> rẽ sang heavy.
-   *                Đây là cách Monster Hunter phân biệt người quen tay với
-   *                người bấm loạn: "really good longsword users understand
-   *                instinctively how many frames they can wait".
-   *   - ĐÒN LƯỚT : vẩy để né rồi tap ngay trong lúc còn đang lăn -> dash
+   * LUẬT PHÂN BIỆT (SHOOTER.md §3.1). DPS bền của mọi archetype trong Enter the
+   * Gungeon gần như BẰNG NHAU — AK 42,3 · shotgun 29,1 · sniper 22,6, chênh ~2
+   * lần — nhưng sát thương MỖI LẦN BẤM chênh mười lần: SMG 3,2 · shotgun 24 ·
+   * sniper 26 · Railgun 50 · Prototype Railgun 150. Trong game né đạn, cái quyết
+   * định không phải DPS mà là sát thương gom được trong một cửa sổ an toàn 0,4
+   * giây. Nên mỗi lớp GIỎI NHẤT ĐÚNG MỘT TRỤC và TỆ NHẤT HAI TRỤC.
    *
-   * HẤT TUNG (launch) là món mượn thẳng từ Devil May Cry: đòn hất quái lên
-   * trời, lên rồi thì nó không đánh trả được và ăn thêm 40% sát thương. Game
-   * nhìn từ trên xuống không có nút nhảy, nên "trên không" ở đây thể hiện bằng
-   * độ cao + bóng co lại, còn người chơi thì chỉ việc đánh tiếp cho nó đừng
-   * rơi. ("A launcher is any move that tosses an enemy in the air, essentially
-   * neutralizing their ability to attack" — DMC3 Battle Mechanics FAQ)
+   * TẦM BẮN LÀ HỆ QUẢ, không phải con số chỉnh tay thứ ba (luật của Realm of the
+   * Mad God, kiểm chứng: Staff of the Cosmic Whole 18 × 0,475 = 8,55 ✓):
    *
-   * Mỗi nhát: mul hệ số sát thương · arc góc quét · reach tầm · ms thời gian ·
-   * kb lực văng · hs độ khựng · launch độ cao hất · poise lực phá lì đòn
+   *     range = spd × life / 16,67      (px, ở 60fps)
+   *
+   * Hết cảnh ba con số mâu thuẫn nhau.
+   *
+   * TỐC ĐỘ ĐẠN. Nuclear Throne (đọc từ mã nguồn giải mã): người chơi 4 px/khung,
+   * đạn người chơi 16 = 4×, đạn quái ~4 = 1×. Bất đối xứng đó là con số quan
+   * trọng nhất trong cả hệ — đạn quái luôn đi bộ tránh được. Người chơi ở đây
+   * chạy 2,35 px/khung, nên đạn chuẩn là 9,4.
+   *
+   * SÁT THƯƠNG là số nguyên nhỏ (Soul Knight: AK-47 = 3, Crossbow = 8,
+   * Broadsword = 12, Soul Calibre = 25). Con số ở đây là GỐC; sát thương thật
+   * mỗi viên = dmg × ATK/10.
+   *
+   * Trường của một cây:
+   *   dmg    sát thương gốc mỗi viên      shots  số viên mỗi phát
+   *   arcGap độ giữa hai viên (quạt cố định)     spread jitter ngẫu nhiên (độ)
+   *   rpm    phát mỗi phút                spd    px/khung
+   *   life   ms sống của viên đạn         r      bán kính đạn
+   *   crit   tỉ lệ chí mạng gốc           sideMul hệ số cho viên phụ
    * ====================================================================== */
-  var HS = { light: 50, mid: 85, heavy: 145, finish: 190, launch: 170 };
+
+  // Hitstop theo thang Nuclear Throne (sleep.gml): 1/10/20/50/100 ms, mỗi bậc
+  // gấp ~2–2,5 lần. Bản cũ để nhát nhẹ nhất 50ms — bằng cả cú boss chết của NT —
+  // nên bắn 5 phát/giây là đứng hình. Luật: hitstop <= 20% khoảng cách hai phát.
+  var HS = { tick: 1, light: 10, mid: 20, heavy: 50, boom: 100 };
+
+  var PSPD = 2.35;          // tốc chạy người chơi, px/khung (G.BAL.baseSpd)
 
   G.WEAPONS = {
-    sword: {
-      id: 'sword', vi: 'Kiếm & Khiên', jp: '片手剣', en: 'Sword & Shield',
-      desc: 'Cân bằng, xoay trở nhanh nhất, và là cây DUY NHẤT đỡ được đòn. Chuỗi 4 nhát, nhát cuối HẤT TUNG.',
-      arc: 1.75, reach: 62, swingMs: 300,
-      moveMul: 1.00, dodgeMul: 1.00, atkBase: 1.00,
-      // Chuỗi: ngang -> trả -> đâm -> hất lên. Nhát 4 là launcher, mở màn juggle.
-      chain: [
-        { n:'Chém ngang',  mul:1.00, arc:1.75, reach:62, ms:250, kb:8,  hs:HS.light, poise:10 },
-        { n:'Chém trả',    mul:1.05, arc:1.75, reach:62, ms:240, kb:8,  hs:HS.light, poise:10 },
-        { n:'Đâm tới',     mul:1.20, arc:0.85, reach:80, ms:270, kb:16, hs:HS.mid,   poise:14, push:14 },
-        { n:'Hất lên',     mul:1.55, arc:1.95, reach:70, ms:380, kb:10, hs:HS.launch, poise:22, launch:34 }
-      ],
-      heavy: { n:'Thăng Long Trảm', mul:2.30, arc:2.00, reach:76, ms:520, kb:14, hs:HS.finish, poise:34, launch:48, wind:0.42 },
-      dash:  { n:'Xô Khiên', mul:1.35, arc:1.30, reach:64, ms:280, kb:30, hs:HS.mid, poise:26 },
-      // Bấm trong lúc ĐANG ĐỠ: quét một nhát rộng ra từ sau khiên.
-      guardHit: { n:'Chém Khiên', mul:1.90, arc:2.40, reach:76, ms:420, kb:28, hs:HS.heavy, poise:38, wind:0.38 },
-      special: 'guard',
-      specialVi: 'Đỡ đòn + Phản đòn',
-      // Đỡ đúng lúc -> giảm 90% (wiki: "damage become 1/10"); đỡ thường -> giảm 60% [TÁI DỰNG]
-      guardCut: 0.40, perfectCut: 0.10, perfectMs: 220, guardMoveMul: 0.40,
-      counterMul: 2.60, counterArc: 1.2, counterReach: 82
+    /* --- SÚNG TRƯỜNG: cây tham chiếu. Mọi cây khác đọc được nhờ so với nó. --- */
+    rifle: {
+      id: 'rifle', vi: 'Súng Trường', jp: '突撃銃', en: 'Assault Rifle',
+      desc: 'Cây chuẩn. Bắn đều, tầm xa, tản đạn hẹp, trượt một phát không đau. Không giỏi nhất chỗ nào ngoài việc lúc nào cũng đúng.',
+      dmg: 4, shots: 1, arcGap: 0, spread: 4,
+      rpm: 300,                       // 5 phát/giây — dải "cảm giác tốt" của rifle
+      spd: PSPD * 4, life: 620,       // tầm ~350px
+      r: 7, crit: 0.12,
+      moveMul: 1.00, dodgeMul: 1.00, auto: true,
+      hs: HS.light, shake: 2, kick: 5, recoil: 4, knock: 0,
+      poise: 7, kb: 4,
+      // Giữ nút thì càng bắn càng toè ra, nhả một nhịp thì thu lại. Đây là cái
+      // phạt việc giữ cò vô tội vạ mà không phải hạ DPS.
+      bloomPer: 1.1, bloomMax: 9, bloomCool: 7,
+      trait: 'DPS bền cao nhất, tầm dài, phạt nhẹ khi trượt.'
     },
-    great: {
-      id: 'great', vi: 'Đại Kiếm', jp: '両手剣', en: 'Great Sword',
-      desc: 'Nặng và chậm, nhưng mỗi nhát hất văng cả đám. Nhát cuối đập đất rung màn hình.',
-      arc: 2.30, reach: 78, swingMs: 620,
-      moveMul: 0.80, dodgeMul: 0.92, atkBase: 1.45,
-      // Cam kết cao: vung là phải chịu hết đuôi. Bù lại lực văng gấp ba cây khác.
-      chain: [
-        { n:'Bổ dọc',    mul:1.60, arc:1.15, reach:86, ms:540, kb:22, hs:HS.heavy,  poise:30 },
-        { n:'Quét ngang',mul:1.80, arc:2.45, reach:84, ms:580, kb:28, hs:HS.heavy,  poise:34 },
-        { n:'Đập đất',   mul:2.45, arc:6.283, reach:96, ms:700, kb:36, hs:HS.finish, poise:48, quake:true }
-      ],
-      heavy: { n:'Trảm Địa Liệt', mul:3.30, arc:2.70, reach:112, ms:820, kb:34, hs:HS.finish, poise:60, launch:32, quake:true, wind:0.5 },
-      dash:  { n:'Húc Vai', mul:2.00, arc:1.10, reach:80, ms:340, kb:34, hs:HS.heavy, poise:40 },
-      special: 'cleave',
-      specialVi: 'Chém Tích Lực (溜め斬り)',
-      chargeMs: 1800, cleaveMin: 2.0, cleaveMax: 6.0,
-      cleaveArc: 2.5, cleaveReach: 118,
-      cleaveElemBonus: 4.0,   // Normal-type: sát thương HỆ ×4 khi chém nạp
-      cleaveDR: 0.5,          // giảm 50% sát thương nhận trong lúc chém
-      cleaveFatigue: 2.0      // nạp thanh gục mạnh, kể cả không trúng WEAK
+
+    /* --- SÚNG SĂN: burst cận cảnh. Tầm NGẮN NHẤT game, và đó là cái giá. --- */
+    shotgun: {
+      id: 'shotgun', vi: 'Súng Săn', jp: '散弾銃', en: 'Shotgun',
+      desc: 'Sáu viên một phát, toè rộng, tầm cực ngắn. Đứng sát mặt thì cả sáu viên vào một con; đứng xa thì trúng được một hai viên là may.',
+      dmg: 2, shots: 6, arcGap: 8, spread: 3,   // quạt 40° = ±20°, đúng Nuclear Throne
+      rpm: 84,                                   // 1,4 phát/giây
+      spd: PSPD * 3.4, life: 310,                // tầm ~149px — ngắn nhất game
+      r: 6, crit: 0.08, sideMul: 1.0,
+      moveMul: 1.05, dodgeMul: 1.05, auto: false,
+      hs: HS.mid, shake: 8, kick: 15, recoil: 8, knock: 2,
+      poise: 5, kb: 9,                           // lực văng lớn: mua lại khoảng cách
+      trait: 'Burst mỗi lần bấm cao nhất, nhưng phải áp sát và trượt thì rất đau.'
     },
-    spear: {
-      id: 'spear', vi: 'Thương', jp: '槍', en: 'Spear',
-      desc: 'Tầm với dài nhất, đâm nhanh và ít hở. Nhát cuối quét trọn vòng quanh.',
-      arc: 0.95, reach: 96, swingMs: 260,
-      moveMul: 0.95, dodgeMul: 1.00, atkBase: 1.20,
-      finalSweep: true, // đòn cuối quét 360° (4Gamer: 周囲をなぎ払うような攻撃)
-      chain: [
-        { n:'Đâm 1',    mul:0.88, arc:0.50, reach:96,  ms:210, kb:6,  hs:HS.light, poise:8 },
-        { n:'Đâm 2',    mul:0.88, arc:0.50, reach:96,  ms:200, kb:6,  hs:HS.light, poise:8 },
-        { n:'Đâm xuyên',mul:1.00, arc:0.60, reach:104, ms:230, kb:12, hs:HS.mid,   poise:12, push:10 },
-        { n:'Quét vòng',mul:1.40, arc:6.283, reach:92, ms:340, kb:20, hs:HS.heavy, poise:26 }
-      ],
-      heavy: { n:'Xuyên Thiên', mul:2.00, arc:0.55, reach:126, ms:460, kb:16, hs:HS.finish, poise:30, launch:42, push:26, wind:0.4 },
-      dash:  { n:'Lao Đâm', mul:1.65, arc:0.70, reach:118, ms:260, kb:18, hs:HS.mid, poise:22, push:22 },
-      special: 'lunge',
-      specialVi: 'Lao Tới (突進)',
-      lungeDist: 190, lungeMul: 1.90, lungeMs: 220, lungeLagMs: 260,
-      lungeElemBonus: 4.0,   // Normal-type: giữ chỉ hướng -> sát thương hệ tới ×4
-      lungeStagger: true     // trúng WEAK -> quái chùn, ngắt đòn đang ra
+
+    /* --- BẮN TỈA: đổi nhịp lấy sức. Đạn gần như tức thời, xuyên cả hàng. --- */
+    sniper: {
+      id: 'sniper', vi: 'Súng Bắn Tỉa', jp: '狙撃銃', en: 'Sniper Rifle',
+      desc: 'Một phát một viên, xuyên hết cả hàng đứng sau. Đạn nhanh tới mức gần như không phải ngắm đón. Bắn hụt thì đứng nhìn cả giây.',
+      dmg: 22, shots: 1, arcGap: 0, spread: 0,   // tản đạn BẰNG KHÔNG
+      rpm: 54,                                    // 0,9 phát/giây
+      spd: PSPD * 10, life: 900,                  // xuyên hết sân
+      r: 8, crit: 0.30,                           // lớp crit, đúng Soul Knight
+      moveMul: 0.90, dodgeMul: 0.95, auto: false,
+      pierce: true, pierceFall: 0.33,             // −33% mỗi con xuyên qua
+      hs: HS.heavy, shake: 6, kick: 14, recoil: 9, knock: 0,
+      poise: 24, kb: 6,
+      trait: 'Tầm và burst tối đa, xuyên hàng; đổi lại DPS bền thấp nhất và trượt rất đau.'
     },
-    dual: {
-      id: 'dual', vi: 'Song Kiếm', jp: '双剣', en: 'Dual Blades',
-      desc: 'Chuỗi 6 nhát nhanh như bão, gần như không hở. Ít lực văng — bù bằng số nhát.',
-      arc: 1.35, reach: 48, swingMs: 155,
-      moveMul: 1.15, dodgeMul: 1.18, atkBase: 0.85,
-      // Cam kết THẤP nhất game: mỗi nhát chỉ 130ms, huỷ đuôi lúc nào cũng được.
-      // (MH: "the dual blades do away with a lot of the restrictive slowness")
-      chain: [
-        { n:'Xé trái',  mul:0.60, arc:1.35, reach:50, ms:130, kb:3, hs:35, poise:5 },
-        { n:'Xé phải',  mul:0.60, arc:1.35, reach:50, ms:125, kb:3, hs:35, poise:5 },
-        { n:'Cắt chéo', mul:0.62, arc:1.45, reach:52, ms:130, kb:4, hs:40, poise:6 },
-        { n:'Cắt ngược',mul:0.62, arc:1.45, reach:52, ms:125, kb:4, hs:40, poise:6 },
-        { n:'Xoay kép', mul:0.70, arc:1.90, reach:54, ms:160, kb:6, hs:HS.light, poise:9 },
-        { n:'Bổ đôi',   mul:1.15, arc:1.70, reach:58, ms:230, kb:12, hs:HS.mid, poise:16 }
-      ],
-      heavy: { n:'Song Long Trảm', mul:1.05, arc:1.80, reach:60, ms:300, kb:8, hs:HS.mid, poise:14, hits:2, launch:26, wind:0.3 },
-      dash:  { n:'Xẹt Qua', mul:1.25, arc:1.60, reach:56, ms:200, kb:8, hs:HS.light, poise:12, push:30 },
-      special: 'ranbu',
-      specialVi: 'Loạn Vũ (乱舞)',
-      ranbuWindupMs: 380, ranbuHits: 8, ranbuMul: 0.75, ranbuMs: 900,
-      ranbuLandLagMs: 420, ranbuInvuln: true, ranbuReach: 76
-    },
+
+    /* --- CUNG: vũ khí của VỊ TRÍ. Nạp bốn nấc + dải chí mạng. --- */
     bow: {
       id: 'bow', vi: 'Cung', jp: '弓矢', en: 'Bow',
-      desc: 'Duy nhất đánh xa. CÀNG GẦN BẮN CÀNG ĐAU. Nhát cuối bắn loạt ba mũi.',
-      arc: 0, reach: 420, swingMs: 340, ranged: true,
-      moveMul: 0.85, dodgeMul: 0.95, atkBase: 0.90,
-      arrowSpeed: 12,
-      chain: [
-        { n:'Bắn nhanh', mul:0.72, ms:280, hs:35,       poise:6 },
-        { n:'Bắn kép',   mul:0.72, ms:270, hs:35,       poise:6 },
-        { n:'Loạt ba',   mul:0.80, ms:400, hs:HS.light, poise:10, shots:3, spread:0.30 }
-      ],
-      heavy: { n:'Mũi Xuyên Giáp', mul:1.90, ms:520, hs:HS.mid, poise:24, pierce:true, wind:0.45 },
-      dash:  { n:'Bắn Lùi', mul:1.30, ms:300, hs:HS.light, poise:10, back:34 },
-      special: 'snipe',
-      specialVi: 'Ngắm Bắn (狙い撃ち)',
-      snipeChargeMs: 1500, snipeMin: 1.5, snipeMax: 5.0,
-      snipeAimRadius: 260, snipePierce: true,
-      // 4Gamer: 射程距離が短いほど矢の威力が大幅に高まる
-      snipeCloseBonus: 0.9, snipeCloseRange: 340,
-      snipeDotMs: 8000, snipeDotDps: 0.03   // nạp đầy trúng WEAK -> mũi tên trắng gây DoT
+      desc: 'Giữ để nạp bốn nấc — nạp càng sâu càng nhiều mũi và càng dễ chí mạng. Và có một KHOẢNG CÁCH ngọt: đứng đúng tầm thì mỗi mũi đau gấp rưỡi.',
+      dmg: 6, shots: 1, arcGap: 7, spread: 0, sideMul: 0.40,
+      rpm: 170,
+      spd: PSPD * 5.1, life: 700,                 // tầm ~504px
+      r: 7, crit: 0.10,
+      moveMul: 1.00, dodgeMul: 1.00, auto: false,
+      hs: HS.mid, shake: 0, kick: 10, recoil: 6, knock: 0,   // rung = 0: cây chính xác
+      poise: 12, kb: 5,
+      charge: true,
+      // Hình dáng đường cong nạp lấy của Monster Hunter, cố ý phạt nặng ở đáy:
+      // nấc 1 là 0,40× — chưa tới một nửa nấc 2. Nấc 4 chỉ hơn nấc 3 có 13% nên
+      // MH khoá nó sau một kỹ năng; ở đây nó là phần thưởng cho việc giữ trọn.
+      chargeMs: [0, 240, 480, 760],               // mốc thời gian từng nấc
+      chargeMul: [0.40, 1.00, 1.50, 1.70],        // hệ số vật lý
+      chargeElem: [0.70, 0.85, 1.00, 1.125],      // hệ số hệ — đường cong PHẲNG hơn
+      chargeShots: [1, 1, 2, 3],                  // nạp tăng SỐ MŨI, không chỉ tăng số
+      chargeCrit: [0.00, 0.10, 0.35, 0.60],       // crit nạp theo (Soul Knight)
+      // Nạp KHÔNG làm chậm; chỉ khi NGẮM mới chậm (Kiranico MHW Bow). Đây là
+      // quyết định cảm giác hay nhất trong cả bộ nghiên cứu.
+      chargeMoveMul: 1.00, aimMoveMul: 0.45,
+      // Né huỷ nạp là MIỄN PHÍ, và phát sau khi né bắt đầu cao hơn một nấc.
+      dodgeKeepsCharge: true, dodgeChargeBonus: 1,
+      // DẢI CHÍ MẠNG (MH4U/MHGen/MHGU, Laxaria). Phạt BẤT ĐỐI XỨNG: quá gần chỉ
+      // MẤT thưởng, quá xa mới BỊ PHẠT. Nó đẩy người chơi tiến vào chỗ nguy hiểm.
+      critDist: { bands: [90, 150, 250, 330, 420, 504],
+                  mul:   [1.00, 1.50, 1.00, 0.80, 0.50] },
+      trait: 'Thưởng cho việc đứng đúng chỗ và nạp trọn. Không giỏi nhất trục nào, nhưng ở dải ngọt thì trên mọi cây.'
+    },
+
+    /* --- GẬY PHÉP: DPS đến từ SỐ ĐẠN, không phải sát thương mỗi viên. --- */
+    staff: {
+      id: 'staff', vi: 'Gậy Phép', jp: '魔法杖', en: 'Staff',
+      desc: 'Năm tia toè hình quạt, mỗi tia yếu nhưng phủ kín cả đám. Có nhịp NIỆM ngắn trước khi tia bay ra — bị đánh trúng lúc đó thì mất trắng.',
+      dmg: 3, shots: 5, arcGap: 12, spread: 0, sideMul: 1.0,   // quạt 48°
+      rpm: 108,                                   // 1,8 phát/giây — nhịp đều của lớp gậy
+      spd: PSPD * 3, life: 640,                   // tầm ~269px
+      r: 9, crit: 0.10,
+      moveMul: 0.95, dodgeMul: 1.00, auto: true,
+      // CAST DELAY NGẮT ĐƯỢC — bản sắc của lớp, và là cái giá của việc bắn 5 tia
+      // một lúc. Wiki Soul Knight: "Nếu động tác niệm bị ngắt, không có gì xảy ra."
+      castMs: 260, castInterrupt: true, castMoveMul: 0.55,
+      homing: 2.2,                                // độ/khung — đuổi nhẹ, không bám dính
+      hs: HS.light, shake: 3, kick: 4, recoil: 3, knock: 0,
+      poise: 6, kb: 3,
+      trait: 'Phủ diện rộng và tự đuổi, nhưng đơn mục tiêu thì yếu và niệm thì ngắt được.'
+    },
+
+    /* --- SÚNG PHÓNG: dọn đám. Đạn CHẬM cố ý — đó là cái làm nó đọc được. --- */
+    launcher: {
+      id: 'launcher', vi: 'Súng Phóng', jp: '擲弾筒', en: 'Launcher',
+      desc: 'Một quả bay chậm rồi nổ trùm cả vùng. Đạn chậm là cố ý: nó cho cả bạn lẫn quái kịp thấy quả đạn đang tới.',
+      dmg: 6, shots: 1, arcGap: 0, spread: 3,
+      rpm: 48,                                    // 0,8 phát/giây
+      spd: PSPD * 2, life: 900,                   // tầm ~254px, chậm và thấy rõ
+      r: 11,
+      // Explosive KHÔNG BAO GIỜ chí mạng — luật của Soul Knight, giữ nguyên vì nó
+      // là cái ngăn AoE cộng dồn với crit thành hai lần nhân chồng lên nhau.
+      crit: 0, noCrit: true,
+      explode: { dmg: 14, r: 90 },
+      moveMul: 0.88, dodgeMul: 0.92, auto: false,
+      hs: HS.boom, shake: 4, kick: 30, recoil: 10, knock: 0,   // đá camera to, rung nhỏ: NẶNG chứ không hỗn loạn
+      poise: 30, kb: 12, quake: true,
+      trait: 'Dọn cả đám một phát, nhưng đạn chậm nên đơn mục tiêu thì dễ hụt.'
     }
   };
-  /* Vài chỗ trong game và test còn đọc W.combo (mảng số). Dựng lại nó từ chain
-   * thay vì để hai bảng số song song rồi lệch nhau. */
+
+  /* Tầm bắn là HỆ QUẢ của tốc độ và thời gian sống, không phải số thứ ba. Tính
+   * một lần ở đây để mọi chỗ khác đọc W.range thay vì tự nhân lại. */
   Object.keys(G.WEAPONS).forEach(function (k) {
     var W = G.WEAPONS[k];
-    W.combo = W.chain.map(function (c) { return c.mul; });
+    W.range = Math.round(W.spd * W.life / 16.67);
+    W.shotMs = 60000 / W.rpm;
+    // DPS lý thuyết ở ATK gốc, để test khoá lại dải cân bằng.
+    var side = (W.sideMul === undefined ? 1 : W.sideMul);
+    var perShot = W.dmg * (1 + (W.shots - 1) * side);
+    if (W.explode) perShot += W.explode.dmg;
+    W.burst = perShot;                    // sát thương một lần bấm
+    if (W.charge) {
+      // Cây nạp lực đo ở nấc 3 — nấc người chơi thật sự dùng. Nấc 4 chỉ hơn 13%
+      // nên nó là phần thưởng cho việc giữ trọn, không phải nhịp mặc định.
+      var lv = 2, n = W.chargeShots[lv];
+      W.burst = W.dmg * W.chargeMul[lv] * (1 + (n - 1) * side);
+      W.dps = W.burst / ((W.chargeMs[lv] + W.shotMs) / 1000);
+    } else {
+      W.dps = perShot * (W.rpm / 60);
+    }
   });
 
-  G.WEAPON_ORDER = ['sword', 'great', 'spear', 'dual', 'bow'];
+  G.WEAPON_ORDER = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher'];
+
+  /* Ánh xạ lớp cũ -> lớp mới. Save cũ, đồ cũ và đội hình cũ đi qua bảng này.
+   * Giữ đúng hình tượng: đại kiếm chậm-nặng-cả-sân-thấy-nó-tới thành súng phóng,
+   * thương tầm-xa-đâm-xuyên-một-hàng thành bắn tỉa, song kiếm phải-áp-sát-ra-nhiều
+   * -nhát thành súng săn. Xem SHOOTER.md §10. */
+  G.WCLASS_LEGACY = {
+    sword: 'rifle', great: 'launcher', spear: 'sniper', dual: 'shotgun', bow: 'bow'
+  };
+  G.wclassOf = function (c) {
+    return G.WEAPONS[c] ? c : (G.WCLASS_LEGACY[c] || 'rifle');
+  };
 
   /* ------------------------------------------- LOẠI ĐẶC THÙ CỦA VŨ KHÍ ---- */
   G.WTYPES = {
@@ -314,18 +396,30 @@
   };
 
   /* --------------------------------------------------------- KỸ NĂNG ------ */
-  /* HAI kỹ năng mỗi vũ khí, khớp đúng hai nút trên HUD. Không nhét bốn tiện ích
-   * lặt vặt — mỗi cái là một MÀN DIỄN: nạp lâu, hồi lâu, có báo trước, có rủi ro,
-   * và bán được một hình ảnh cụ thể.
+  /* HAI kỹ năng mỗi lớp bắn, khớp đúng hai nút trên HUD.
    *
-   * Luật chung:
-   *   charge 900–2200ms · cd 14000–24000ms
-   *   trong lúc nạp thì đi chậm hẳn — đó là cái giá
-   *   vẩy né lúc đang nạp = huỷ, hoàn 60% hồi chiêu (không phạt việc đọc đúng)
+   * SỨC MẠNH LẤY TỪ CÔNG THỨC, KHÔNG PHẢI TỪ CẢM TÍNH. Bản cũ để hệ số 1,8–3,4
+   * và đó là lý do không ai buồn bấm kỹ năng — nó thấp hơn chuẩn thể loại cả
+   * chục lần. Cách tính đúng là theo SÁT THƯƠNG TRONG CẢ CỬA SỔ HỒI CHIÊU, không
+   * phải sát thương mỗi lần bấm:
    *
-   * kind quyết định trình phát nào chạy nó. Mỗi kind là một hình dạng vùng khác
-   * nhau, nên mười kỹ năng tự khác nhau trên màn hình — đây chính là chỗ hệ Magi
-   * cũ chết: bốn mươi viên dùng chung ba đoạn code nên hiện lên y hệt nhau. */
+   *     dmg_kỹ_năng ≈ D × R × T × K
+   *     D = sát thương đòn thường · R = phát/giây · T = hồi chiêu (giây)
+   *     K ≈ 0,5 với hồi chiêu ngắn 3–5s  ·  K ≈ 0,8–1,2 với hồi chiêu 10s+
+   *
+   * Kiểm chứng ngược: Hades Cast 50 vs đòn thường Stygian Blade 20 = 2,5× trên
+   * hồi chiêu ~3s. Wizard of Legend Shock Assault 5×5+16 = 41 vs spam đòn thường
+   * 16 trong cùng 5 giây = 2,5×. Hai game khác hẳn nhau, cùng một tỉ lệ.
+   *
+   * K TỤT VỀ 0,3–0,5 khi kỹ năng có "quà kèm" — bất tử, đóng băng cả màn, một
+   * vùng đứng được — vì tiện ích CHÍNH LÀ phần thưởng.
+   *
+   * mul ở đây tính theo ĐƠN VỊ SÁT THƯƠNG GỐC (cùng đơn vị với W.dmg), nên đọc
+   * thẳng ra được: mul 260 = bằng 65 viên đạn súng trường.
+   *
+   * kind quyết định trình phát nào chạy nó. Mười hai kind là mười hai hình dạng
+   * khác nhau trên màn hình — đây chính là chỗ hệ Magi cũ chết: bốn mươi viên
+   * dùng chung ba đoạn code nên hiện lên y hệt nhau. */
   G.SKILL_RULES = {
     cancelRefund: 0.60,     // huỷ giữa chừng thì hoàn ngần này hồi chiêu
     chargeMoveMul: 0.35,    // đi chậm lại trong lúc nạp
@@ -333,103 +427,134 @@
   };
 
   G.SKILLS = {
-    /* --- SONG KIẾM: sát thủ. Lén lút, mượt, một nhát định đoạt. --- */
-    dual: [
-      { id:'shadowstep', n:'Ảnh Độn', kind:'blink',
-        d:'Chìm vào bóng rồi hiện ra sau lưng mục tiêu. Trúng sau lưng thì đau gấp bội.',
-        charge:900, cd:14000,
-        fadeTo:0.35,            // độ mờ khi nạp xong — tới mức này thì quái mất dấu
-        loseAggro:true,
-        range:280,              // tầm khoá mục tiêu
-        appearMs:150,           // biến mất -> hiện ra sau lưng
-        slashDelay:120,         // vệt chém NỞ RA TRỄ ngần này sau khi đã hiện
-        mul:2.10, backMul:2.50, frontMul:1.00,
-        arc:1.60, reach:64, ms:420,
-        kb:14, hitstop:190, poise:30,
-        trail:true, burst:true, ghosts:5 },
+    /* --- SÚNG TRƯỜNG: kiểm soát hoả lực. Đứng vững và rải. --- */
+    rifle: [
+      { id:'suppress', n:'Áp Chế', kind:'beam',
+        d:'Ghì súng xuống rồi xả một tràng dài không giật. Đứng yên trong lúc xả thì đạn càng lúc càng chụm.',
+        charge:700, cd:16000,
+        // D×R×T×K = 4 × 5 × 16 × 0,8 = 256. Chia cho 32 nhịp bắn.
+        mul:256, ticks:32, tickMs:70,
+        coneStart:14, coneEnd:1,      // toè 14° thu dần về 1° — thưởng cho việc đứng yên
+        moveMul:0.30, hitstop:HS.tick, kb:3, poise:6,
+        trail:true, burst:false },
 
-      { id:'afterimage', n:'Tàn Ảnh', kind:'stance',
-        d:'Để lại ảo ảnh hút đòn. Ba giây kế mọi nhát đều tính là đâm lén.',
-        charge:1100, cd:20000,
-        stanceMs:3000, fadeTo:0.45,
-        decoyMs:3000, decoyTaunt:true, decoyBlastMul:1.40, decoyBlastR:96,
-        backstabAll:true, backMul:2.20,
-        trail:false, burst:false }
-    ],
-
-    /* --- ĐẠI KIẾM: đao phủ. Chậm, nặng, cả sân thấy nó tới. --- */
-    great: [
-      { id:'skyrend', n:'Trảm Thiên', kind:'wave',
-        d:'Giơ kiếm lên trời rồi bổ xuống. Sóng nứt lan thẳng, xuyên tất cả.',
-        charge:2000, cd:16000,
-        chargeDR:0.50,          // giảm ngần này sát thương nhận trong lúc nạp
-        waveLen:300, waveW:76, waveSpd:0.9,
-        mul:3.20, hitstop:190, kb:34, poise:60, launch:34, quake:true,
-        trail:true, burst:true },
-
-      { id:'maelstrom', n:'Nghiền', kind:'pull',
-        d:'Cắm kiếm hút cả đám vào tâm rồi một cú đập vỡ thế hàng loạt.',
-        charge:1400, cd:22000,
-        pullR:180, pullMs:700, pullForce:0.32,
-        mul:2.40, hitstop:190, kb:26, poise:190, quake:true, arc:6.283, reach:110,
+      { id:'turret', n:'Ụ Súng', kind:'turret',
+        d:'Cắm một ụ súng tự bắn. Nó tự tìm mục tiêu gần nhất, và nó không biết sợ.',
+        charge:900, cd:22000,
+        // Có "quà kèm" (một nguồn sát thương thứ hai đứng độc lập) nên K = 0,5:
+        // 4 × 5 × 22 × 0,5 = 220.
+        mul:220, ttlMs:9000, rpm:200, turretRange:320,
+        hitstop:HS.tick, kb:3, poise:5,
         trail:false, burst:true }
     ],
 
-    /* --- KIẾM & KHIÊN: bức tường. Phòng thủ là tấn công. --- */
-    sword: [
-      { id:'bulwark', n:'Thành Trì', kind:'wall',
-        d:'Cắm khiên dựng tường chắn đạn. Đứng sau tường thì đòn nặng tay hẳn.',
-        charge:1000, cd:18000,
-        wallMs:5000, wallArc:2.2, wallDist:56, wallW:8,
-        behindDmg:0.40,         // đứng sau tường: đòn +40%
-        blockShots:true,
-        trail:false, burst:false },
+    /* --- SÚNG SĂN: áp sát. Cả hai kỹ năng đều đẩy bạn vào mặt quái. --- */
+    shotgun: [
+      { id:'breach', n:'Phá Cửa', kind:'rush',
+        d:'Lao thẳng tới trước, vừa lao vừa nã. Chạm ai thì người đó ăn trọn cả loạt ở cự ly bằng không.',
+        charge:600, cd:15000,
+        // 4,2 × 15 × 0,55 (có dịch chuyển + giáp) ≈ 35 đơn vị/giây × ... = 190
+        mul:190, dist:230, rushMs:380, armor:true,
+        pellets:10, arcGap:9,
+        hitstop:HS.mid, kb:14, poise:34, knock:3,
+        trail:true, burst:true },
 
-      { id:'ramrod', n:'Thiên Chuỳ', kind:'rush',
-        d:'Lao xuyên có giáp, dồn cả đám tới cuối đường rồi đập hất tung.',
-        charge:1600, cd:15000,
-        dist:240, rushMs:420, armor:true,
-        pushAlong:true,
-        mul:1.30, endMul:2.20, arc:2.00, reach:80,
-        hitstop:170, kb:30, poise:40, launch:40,
-        trail:true, burst:true }
+      { id:'flak', n:'Vòng Mảnh', kind:'ring',
+        d:'Nổ một vòng mảnh 360° quanh thân. Không cần ngắm — cái gì đứng gần thì cái đó ăn.',
+        charge:800, cd:18000,
+        // AoE quanh thân, K = 0,45: 4,2 × 18 × 0,45 × 6 ≈ 204
+        mul:204, ringR:170, ringMs:260, pellets:20,
+        // 20 viên một vòng: đúng trần của công thức hành lang ở tầm này
+        // (n_max = 2πd/(2r_đạn + 2r_người + M) ≈ 20). Xem SHOOTER.md §5.2.
+        hitstop:HS.mid, kb:16, poise:30, knock:2,
+        trail:false, burst:true }
     ],
 
-    /* --- THƯƠNG: long kỵ. Tầm với và trên không. --- */
-    spear: [
-      { id:'swallowdive', n:'Yến Phi Trảm', kind:'leap',
-        d:'Bật lên cao rồi đâm xuống điểm đã ngắm. Chạm đất là cả vùng bay lên.',
-        charge:1300, cd:15000,
-        aimR:260, upMs:420, hangMs:180, downMs:220,
-        peakZ:120, camPull:0.10,
-        mul:2.60, radius:96, hitstop:190, kb:24, poise:44, launch:46, quake:true,
-        trail:false, burst:true },
+    /* --- BẮN TỈA: một viên định đoạt. Chậm, đắt, và không được phép trượt. --- */
+    sniper: [
+      { id:'railshot', n:'Xuyên Tuyến', kind:'rail',
+        d:'Nạp trọn rồi bắn một tia xuyên hết chiều dài sân. Càng xuyên nhiều con càng nặng đòn.',
+        charge:1600, cd:20000,
+        // 0,9 phát/giây × 22 = 19,8/s. × 20 × 0,9 = 356. Trận đơn mục tiêu.
+        mul:356, len:900, w:26, speed:34,
+        rampPerHit:0.22, rampMax:2.4,        // xuyên nhiều thì cộng dồn
+        pierce:true, chargeDR:0.35,
+        hitstop:HS.boom, zoomPunch:0.14, kb:10, poise:34, shake:6,
+        trail:true, burst:true },
 
-      { id:'cloudpierce', n:'Xuyên Vân', kind:'pierce',
-        d:'Một cú đâm xuyên thẳng. Xuyên qua càng nhiều con thì càng nặng đòn.',
-        charge:1800, cd:20000,
-        len:500, w:44, ms:260,
-        mul:1.80, rampPerHit:0.20, rampMax:2.20,
-        hitstop:145, kb:18, poise:30, push:20,
-        trail:true, burst:true }
+      { id:'mark', n:'Điểm Danh', kind:'mark',
+        d:'Đóng dấu lên tất cả những gì đang thấy. Mọi phát bắn vào con có dấu đều tính là chí mạng, và không mất sát thương theo khoảng cách.',
+        charge:1000, cd:24000,
+        // Kỹ năng THUẦN TIỆN ÍCH, K = 0,25 — giá trị nằm ở chỗ nó nâng mọi phát
+        // bắn sau đó, không ở con số của chính nó. Ý lấy từ Tracer Arrow của
+        // MH Wilds: mũi tên đóng dấu, mọi mũi sau đó tự đuổi vào dấu, tính như
+        // nạp đầy, và KHÔNG bị trừ sát thương theo khoảng cách.
+        mul:100, markMs:8000, markR:520, markCrit:true, markNoFalloff:true,
+        hitstop:HS.light, kb:0, poise:0,
+        trail:false, burst:false }
     ],
 
-    /* --- CUNG: thợ săn. Kiểm soát không gian. --- */
+    /* --- CUNG: kiểm soát không gian. Vũ khí của người biết đứng chỗ nào. --- */
     bow: [
       { id:'arrowrain', n:'Vũ Tiễn', kind:'rain',
-        d:'Bắn lên trời rồi mưa mũi tên xuống vùng đã chọn. Mỗi mũi có bóng báo trước.',
-        charge:1600, cd:18000,
-        aimR:300, zoneR:110, delayMs:800, arrows:14, spreadMs:520,
-        mul:0.62, hitstop:50, kb:6, poise:8,
+        d:'Bắn lên trời rồi mưa mũi tên xuống vùng đã chọn. Mỗi mũi có bóng báo trước dưới đất.',
+        charge:1300, cd:18000,
+        // AoE có báo trước, K = 0,45: 13/s × 18 × 0,45 ≈ 105 → chia cho 18 mũi
+        mul:180, aimR:320, zoneR:120, delayMs:700, arrows:18, spreadMs:520,
+        hitstop:HS.light, kb:4, poise:6,
         trail:false, burst:true },
 
-      { id:'heartpierce', n:'Nhất Tiễn Xuyên Tâm', kind:'snipe2',
-        d:'Nạp lâu nhất game. Xuyên trọn một hàng và để lại vết thương rỉ máu.',
-        charge:2200, cd:24000,
-        len:560, w:26, speed:20,
-        mul:3.40, pierce:true, dotMs:6000, dotDps:0.030,
-        hitstop:190, zoomPunch:0.12, kb:20, poise:36,
+      { id:'heartpierce', n:'Nhất Tiễn Xuyên Tâm', kind:'pierce',
+        d:'Nạp lâu nhất game. Một mũi xuyên trọn một hàng và để lại vết thương rỉ máu.',
+        charge:2000, cd:22000,
+        // Đơn mục tiêu, K = 0,9: 13/s × 22 × 0,9 ≈ 257
+        mul:257, len:620, w:24, speed:26,
+        pierce:true, pierceFall:0.15,        // rất ít suy giảm — đây là cây xuyên
+        dotMs:6000, dotFrac:0.30,
+        hitstop:HS.boom, zoomPunch:0.12, kb:12, poise:26,
         trail:true, burst:true }
+    ],
+
+    /* --- GẬY PHÉP: hai kỹ năng, hai ĐỘNG TỪ khác nhau, không phải hai màu. --- */
+    staff: [
+      { id:'stormfield', n:'Trận Sấm', kind:'field',
+        d:'Dựng một vùng sấm đứng yên tại chỗ. Cái gì bước vào thì ăn đòn, và sét nảy sang con bên cạnh.',
+        charge:1100, cd:19000,
+        // Vùng đứng lâu = "quà kèm" lớn, K = 0,4: 27/s × 19 × 0,4 ≈ 205
+        mul:205, fieldR:150, fieldMs:6000, tickMs:400,
+        chain:3, chainFall:0.30, chainR:110,   // 3 lần nảy, −30% mỗi lần (Hades)
+        hitstop:HS.tick, kb:2, poise:4,
+        trail:false, burst:true },
+
+      { id:'singularity', n:'Điểm Hút', kind:'pull',
+        d:'Ném ra một điểm hút. Nó kéo cả đám vào tâm rồi vỡ ra một cú.',
+        charge:1400, cd:23000,
+        // Gom quái là tiện ích rất lớn, K = 0,45: 27/s × 23 × 0,45 ≈ 279
+        mul:279, throwSpd:5, pullR:200, pullMs:900, pullForce:0.34,
+        blastR:130,
+        hitstop:HS.heavy, kb:6, poise:26, shake:7,
+        trail:true, burst:true }
+    ],
+
+    /* --- SÚNG PHÓNG: dọn sạch. Cả hai đều là hình ảnh "cả sân thấy nó tới". --- */
+    launcher: [
+      { id:'carpet', n:'Rải Thảm', kind:'barrage',
+        d:'Bắn một loạt tám quả rải dần ra xa theo hướng đang nhìn. Mỗi quả nổ có báo trước.',
+        charge:1200, cd:17000,
+        // AoE dây chuyền, K = 0,5: 16/s × 17 × 0,5 ≈ 136 → nhưng nó trúng nhiều
+        // con nên chia đều cho 8 quả: mỗi quả 34.
+        mul:272, shells:8, stepPx:95, stepMs:130, blastR:86,
+        hitstop:HS.heavy, kb:10, poise:26, shake:8, quake:true,
+        trail:true, burst:true },
+
+      { id:'cluster', n:'Bom Chùm', kind:'cluster',
+        d:'Một quả bay lên rồi vỡ thành mười sáu quả nhỏ rơi quanh điểm chạm.',
+        charge:1500, cd:21000,
+        // K = 0,5: 16/s × 21 × 0,5 ≈ 168, nhưng chia cho 1 quả to + 16 quả nhỏ
+        mul:300, coreFrac:0.35, frags:16, fragR:56, spreadR:180,
+        fuseMs:520,
+        hitstop:HS.boom, kb:8, poise:22, shake:10, quake:true,
+        trail:false, burst:true }
     ]
   };
 
@@ -531,7 +656,11 @@
               mat:['bat_wing','bat_fang','bat_ears','giant_bat_ear'] },
     galena: { vi:'Galena', en:'Galena', shape:'bird',  r:17, hp:1.1, atk:1.15,spd:0.95,
               ai:'ranged',  poise:30,
-              keep:210, tell:560, shots:3, spread:0.36, projSpd:5.4,
+              // projSpd hạ từ 5,4 xuống 2,4 = ĐÚNG BẰNG tốc chạy người chơi.
+              // Luật của Nuclear Throne: đạn người chơi 4× tốc chạy, đạn quái 1×
+              // — bất đối xứng đó là cái làm mọi viên đạn địch đi bộ tránh được.
+              // 5,4 là 2,3× tốc người chơi, tức nhanh gấp đôi mức công bằng.
+              keep:210, tell:560, shots:3, spread:0.36, projSpd:2.4,
               mat:['galena_feather','galena_beak','galena_heart','galena_egg'] },
     fungo:  { vi:'Fungo',  en:'Fungo',  shape:'shroom',r:18, hp:1.9, atk:1.1, spd:0.40,
               ai:'tank',    poise:110, poisoner:true,
@@ -958,18 +1087,18 @@
     { id:'d_gather', n:'Thu thập 2 lần',     need:{gather:2}, rw:{pikke:100, mat:'skill_core'} },
     { id:'d_skill',  n:'Dùng kỹ năng 5 lần', need:{skillUse:5}, rw:{pikke:100, mat:'skill_core'} },
     { id:'d_equip',  n:'Nâng 1 cấp trang bị',need:{equipLv:1},rw:{pikke:100, mat:'skill_core'} },
-    { id:'d_bow',    n:'Hạ Behemoth bằng Cung',      need:{bossWith:'bow'},   rw:{pikke:100, item:'luck_potion'} },
-    { id:'d_great',  n:'Hạ Behemoth chỉ bằng Đại Kiếm', need:{bossWith:'great'}, rw:{pikke:100, item:'luck_potion'} },
-    { id:'d_sword',  n:'Hạ Behemoth chỉ bằng Kiếm & Khiên', need:{bossWith:'sword'}, rw:{pikke:100, item:'exp_potion'} },
+    { id:'d_bow',    n:'Hạ Behemoth bằng Cung',        need:{bossWith:'bow'},      rw:{pikke:100, item:'luck_potion'} },
+    { id:'d_launch', n:'Hạ Behemoth bằng Súng Phóng',   need:{bossWith:'launcher'}, rw:{pikke:100, item:'luck_potion'} },
+    { id:'d_rifle',  n:'Hạ Behemoth bằng Súng Trường',  need:{bossWith:'rifle'},    rw:{pikke:100, item:'exp_potion'} },
     { id:'d_shop',   n:'Mua 1 món ở tiệm Pikke', need:{buy:1}, rw:{pikke:100, mat:'skill_core'} }
   ];
   G.DAILY_BONUS = { id:'d_all', n:'Xong cả 3 nhiệm vụ ngày', rw:{pikke:300, gem:5} };
   G.WEEKLY = [
-    { id:'w_spear', n:'Hạ 15 Behemoth bằng Thương',        need:{bossWith:'spear', n:15}, rw:{pikke:200, ticket:2} },
-    { id:'w_bow',   n:'Hạ 15 Behemoth bằng Cung',          need:{bossWith:'bow', n:15},   rw:{pikke:200, ticket:2} },
-    { id:'w_sword', n:'Hạ 15 Behemoth bằng Kiếm & Khiên',  need:{bossWith:'sword', n:15}, rw:{pikke:200, ticket:2} },
-    { id:'w_great', n:'Hạ 15 Behemoth bằng Đại Kiếm',      need:{bossWith:'great', n:15}, rw:{pikke:200, ticket:2} },
-    { id:'w_dual',  n:'Hạ 15 Behemoth bằng Song Kiếm',     need:{bossWith:'dual', n:15},  rw:{pikke:200, ticket:2} },
+    { id:'w_sniper', n:'Hạ 15 Behemoth bằng Bắn Tỉa',      need:{bossWith:'sniper', n:15},   rw:{pikke:200, ticket:2} },
+    { id:'w_bow',    n:'Hạ 15 Behemoth bằng Cung',          need:{bossWith:'bow', n:15},      rw:{pikke:200, ticket:2} },
+    { id:'w_rifle',  n:'Hạ 15 Behemoth bằng Súng Trường',   need:{bossWith:'rifle', n:15},    rw:{pikke:200, ticket:2} },
+    { id:'w_launch', n:'Hạ 15 Behemoth bằng Súng Phóng',    need:{bossWith:'launcher', n:15}, rw:{pikke:200, ticket:2} },
+    { id:'w_staff',  n:'Hạ 15 Behemoth bằng Gậy Phép',      need:{bossWith:'staff', n:15},    rw:{pikke:200, ticket:2} },
     { id:'w_abil',  n:'Đổi ability của trang bị 1 lần',    need:{reroll:1},               rw:{pikke:200, ticket:2} },
     { id:'w_part',  n:'Phá bộ phận và hạ 15 Behemoth',     need:{part:1, boss:15},        rw:{pikke:200, ticket:2} },
     { id:'w_potion',n:'Dùng Potion 4 lần',                 need:{potion:4},               rw:{pikke:200, ticket:2} }
@@ -1078,9 +1207,51 @@
   G.ALLY_NAMES = ['Sylvie', 'Axel', 'Linton'];
 
   /* ------------------------------------------------- HẰNG SỐ CÂN BẰNG ---- */
+  /* ---------------------------------------------------- CÂN BẰNG ---------
+   * Thang số HẠ XUỐNG. Bản cũ để quái thường chết trong 0,5–1,0 phát suốt cả
+   * game (đo được: xem SHOOTER.md §0.1) vì sát thương cộng dồn từ ba nguồn đều
+   * lớn trong khi máu quái chỉ là 32 + 14·lv.
+   *
+   * Cách làm mới là NGÂN SÁCH DPS, không phải chỉnh số mò:
+   *     HP_quái(bậc, N) = TTK_mục_tiêu(bậc) × DPS(N) × A × U
+   * với A = 0,90 (game tự ngắm khi đứng yên) và U = 0,80 (phần thời gian thật sự
+   * đang bắn). Mục tiêu: quái thường 4–6 phát, TTK 1,0–2,5s; boss ~40× máu quái
+   * thường. Nguồn: Enter the Gungeon 700/15 = 47× · Soul Knight 480/8 = 60×.
+   *
+   * Và phần lớn việc rescale do TỐC ĐỘ BẮN gánh, không phải do chia sát thương:
+   * chuỗi combo cũ ra ~2 nhát/giây, rifle bắn 5 phát/giây, nên cắt sát thương
+   * mỗi phát 2,5 lần là DPS không đổi — không phá tỉ lệ nào khác. */
   G.BAL = {
     baseHp: 420, hpPerLv: 46,          // Lv1 420 máu -> Lv60 ~3100
-    baseAtk: 32, atkPerLv: 4.2,
+    // Công nhân vật giờ là CHỈ SỐ SỨC MẠNH, không phải sát thương thô: sát
+    // thương mỗi viên = W.dmg × ATK/10. Lv1 = 10,9 -> Lv60 = 64.
+    baseAtk: 10, atkPerLv: 0.9,
+    atkDiv: 10,                        // mẫu số của ATK/10
+    // Quái: máu và công tách thành hai đường cong RIÊNG, và công tăng chậm hơn
+    // hẳn. Risk of Rain 2 làm đúng thế — máu boss theo coeff/2,5 còn sát thương
+    // boss theo coeff/30, chậm hơn MƯỜI HAI LẦN. Lý do: quái sống lâu gấp 4–5
+    // lần thì nó cũng BẮN vào người chơi lâu gấp 4–5 lần.
+    // Đo lần một cho ra TTK 0,47–1,31s, tức vẫn ở đầu NHANH của dải mục tiêu
+    // 1,0–2,5s. Nhân đôi lên: Lv1 36 máu -> Lv60 396.
+    mobHpBase: 30, mobHpPerLv: 6.2,
+    // Công quái phải tăng CHẬM HƠN máu quái (bất đối xứng của Risk of Rain 2),
+    // nhưng không được cắt sâu: hệ thẻ đánh đã hạ số con đánh cùng lúc từ 16
+    // xuống tối đa 3, tức DPS dồn vào người chơi đã giảm sẵn năm lần. Cắt thêm
+    // nữa thì quái thành vô hại.
+    //   máu  36 -> 396  (11,0 lần)
+    //   công 12,7 -> 111 (8,8 lần)   <- chậm hơn, đúng chiều
+    mobAtkBase: 11, mobAtkPerLv: 1.7,
+    eliteHpMul: 3.4, goldHpMul: 2.2,
+    // Máu boss suy ra TỪ máu quái thường, không phải một bảng số tự do — có vậy
+    // hai đường cong mới không lệch nhau như bản cũ.
+    bossHpMul: { B: 40, A: 50, S: 62, SS: 78 },
+    // Giáp PHẢI là phần trăm, không được trừ thẳng: với max(1, dmg − armor),
+    // giáp 3 điểm làm khẩu 4 sát thương mất 75% sức mạnh còn khẩu 22 sát thương
+    // chỉ mất 12% — xoá sổ nguyên một dòng vũ khí một cách vô tình.
+    armorK: 50,                        // dmg × K/(K + armor)
+    critMul: 1.75,                     // số nhỏ thì hệ số phải thấp
+    critBase: 0.15,
+    dmgVariance: 0.10,                 // ±10%, hẹp — đừng chồng lên crit
     baseDef: 10, defPerLv: 2.6,
     baseSpd: 2.35,                     // px/frame ở 60fps
     dodgeDist: 118, dodgeMs: 300, dodgeIFrameMs: 210, dodgeCdMs: 420,

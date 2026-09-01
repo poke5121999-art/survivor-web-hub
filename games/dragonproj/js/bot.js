@@ -182,29 +182,53 @@
     var wp = weakPos(b);
     var tx = wp ? wp.x : e.x, ty = wp ? wp.y : e.y;
     var d = Math.hypot(tx - p.x, ty - p.y);
-    var want = b.W.ranged ? 220 : (b.W.reach + (e.r || 14) - 10);
+    /* Cự ly đứng bắn bám theo TẦM của cây. Súng săn tầm 149px thì phải xông vào
+     * tận mặt; bắn tỉa tầm hơn nghìn thì đứng đâu cũng bắn tới, nên nó lùi ra.
+     * Cung thì nhắm vào giữa DẢI CHÍ MẠNG chứ không phải tầm tối đa — đứng đúng
+     * chỗ đó thì mỗi mũi đau gấp rưỡi, và đó là cái bot phải biết. */
+    var W = b.W;
+    var want;
+    if (W.critDist) {
+      var bands = W.critDist.bands;
+      want = (bands[1] + bands[2]) / 2;          // giữa dải 1,5x
+    } else {
+      want = Math.min(W.range * 0.62, 300);
+    }
+    want = Math.max(want, (e.r || 14) + 30);
     var ang2 = Math.atan2(ty - p.y, tx - p.x);
 
-    if (d > want + 26) { dragTo(Math.cos(ang2), Math.sin(ang2), 260); return; }
-    if (d < want * 0.45 && !b.W.ranged) { dragTo(-Math.cos(ang2), -Math.sin(ang2), 140); return; }
+    /* Chỉ TIẾN khi ngoài tầm, và chỉ LÙI khi thật sự bị dí sát. Ngưỡng lùi cũ
+     * (want × 0,55) làm bot dao động: quái swarm tiến vào, bot lùi ra, và không
+     * bao giờ bắn được phát nào — đo được 8 phát trong 20 giây. */
+    var tooClose = Math.max((e.r || 14) + 34, want * 0.28);
+    if (d > want + 40) { dragTo(Math.cos(ang2), Math.sin(ang2), 200); return; }
+    if (d < tooClose) { dragTo(-Math.cos(ang2), -Math.sin(ang2), 120); return; }
 
     if (b.busy()) return;
 
-    // 3. Dùng đặc thù khi đáng: boss đang gục, hoặc đang nhắm được điểm yếu.
-    var special = b.boss && (b.boss.down > 0 || wp) && Math.random() < 0.5;
-    if (special) {
-      var W = b.W;
-      // Quay mặt về mục tiêu bằng cách kéo trước rồi giữ.
-      var ax = Math.cos(ang2) * 46, ay = Math.sin(ang2) * 46;
-      if (W.special === 'cleave') hold(270, 640, 2000, ax, ay);
-      else if (W.special === 'snipe') hold(270, 640, 1700, ax, ay);
-      else if (W.special === 'lunge') hold(270, 640, 700, ax, ay);
-      else if (W.special === 'ranbu') hold(270, 640, 700, ax, ay);
-      else hold(270, 640, 900, ax, ay);   // guard: giữ rồi nhả để phản đòn
+    /* 3. GIỮ nút. Ba nghĩa khác nhau tuỳ cây, và bot phải đi qua đúng con đường
+     *    ngón tay người chơi đi qua — nếu ngưỡng giữ/chạm sai thì bot hỏng ngay,
+     *    chứ không phải "gọi hàm nội bộ nên vẫn xanh".
+     *      cây auto -> giữ để rải một tràng
+     *      cây nạp  -> giữ tới nấc 3 (nấc người chơi thật sự dùng)
+     *      còn lại  -> ghì súng cho chắc tay khi có mục tiêu đáng
+     */
+    var ax = Math.cos(ang2) * 46, ay = Math.sin(ang2) * 46;
+    var juicy = b.boss && (b.boss.down > 0 || wp);
+    if (W.auto) {
+      // Cây auto: CHẠM liên tục thay vì giữ. Một cú giữ 700ms chặn mất mấy nhịp
+      // quyết định kế tiếp, nên bot rải đạn thưa hơn hẳn người thật đang ghì cò.
+      // Chạm mỗi nhịp cho ra đúng nhịp bắn của cây, vì đuôi phát trước tự chặn.
+      tap(270 + Math.cos(ang2) * 8, 640 + Math.sin(ang2) * 8);
+      if (tick % 4 === 0) dragTo(Math.cos(ang2), Math.sin(ang2), 60);
       return;
+    } else if (W.charge) {
+      hold(270, 640, W.chargeMs[2] + 140, ax, ay); return;
+    } else if (juicy && Math.random() < 0.6) {
+      hold(270, 640, 620, ax, ay); return;          // ghì đủ 550ms để được thưởng
     }
 
-    // 4. Combo: quay mặt rồi bấm liên tục.
+    // 4. Bấm liên tục.
     tap(270 + Math.cos(ang2) * 8, 640 + Math.sin(ang2) * 8);
     // giữ hướng bằng một cú kéo rất ngắn
     if (tick % 3 === 0) dragTo(Math.cos(ang2), Math.sin(ang2), 60);
