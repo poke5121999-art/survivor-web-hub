@@ -307,9 +307,17 @@
 
   Battle.prototype.busy = function () {
     var st = this.player.state;
-    return st === 'fire' || st === 'dodge' || st === 'autofire' || st === 'charge' ||
-           st === 'steady' || st === 'lag' || st === 'switch' || st === 'cast' || st === 'hurt' ||
-           st === 'skill' || st === 'skcharge';
+    /* BA TRẠNG THÁI GIỮ (autofire / charge / steady) CỐ Ý KHÔNG NẰM TRONG ĐÂY.
+     *
+     * Chúng không phải hành động đã cam kết — holdCancel() thoát khỏi chúng tự
+     * do, và quan trọng hơn: ngữ pháp cốt lõi của Punicon là "GIỮ rồi TRƯỢT VỀ
+     * NÚT" để nạp kỹ năng. Nếu giữ mà tính là bận thì skillCharge() bị chặn ở
+     * `if (this.busy()) return false` và người chơi không bao giờ xả được kỹ
+     * năng trong lúc đang ghì cò — tức là mất hẳn một nửa bộ điều khiển.
+     * Bản trước tôi đã nhét chúng vào đây và nó làm người chơi kẹt cứng ở
+     * 'autofire': đo được state=autofire vẫn nguyên sau 2 giây. */
+    return st === 'fire' || st === 'dodge' || st === 'lag' || st === 'switch' ||
+           st === 'cast' || st === 'hurt' || st === 'skill' || st === 'skcharge';
   };
 
   /* ---- CHẠM: đánh thường, bấm liên tục thì nối combo ---- */
@@ -343,7 +351,7 @@
     // moving to attack."
     if (p.state === 'dodge' && !p.rollHit) { p.rollHit = true; this.fire({ roll: true }); return; }
 
-    if (p.state === 'charge' || p.state === 'steady') { this.holdCancel(); }
+    if (p.state === 'charge' || p.state === 'steady' || p.state === 'autofire') { this.holdCancel(); }
     if (this.busy()) {
       // Bấm sớm trong lúc còn đuôi -> đệm lại, bắn ngay khi hết đuôi.
       if (p.state === 'fire' && p.stateT > p.stateDur * 0.5) p.queued = true;
