@@ -70,6 +70,20 @@ HP_quái(bậc, N) = TTK_mục_tiêu(bậc) × DPS(N) × A × U
 - `U` = tỉ lệ thời gian thực sự đang bắn (còn lại là né, đổi chỗ): **0,80**.
 - Tích `A × U = 0,72`.
 
+**`U` KHÔNG PHẢI MỘT CON SỐ ĐOÁN — nó là hệ quả cứng của Punicon.** `punicon.js`
+ghi thẳng: *"Punicon là MỘT ngón. Ngón thứ hai bị bỏ qua."* Kéo là chạy, chạm là
+bắn, và một ngón không làm được hai việc cùng lúc. Đây đúng là mô hình Archero —
+*"khi đứng yên thì nhân vật tự bắn vào con gần nhất; khi đang di chuyển thì
+không bắn"* ([Game Developer, Finding the Fun:
+Archero](https://www.gamedeveloper.com/design/finding-the-fun-archero-part-1---gameplay)) —
+và nó là một thiết kế đã được chứng minh, không phải một thiếu sót.
+
+Hệ quả: mọi phép tính TTK ở giả định "bắn 100% thời gian" đều SAI 1,4 lần. Máu
+boss vòng đầu đặt 40–78× máu quái thường cho ra TTK 73 giây, nghe thì lọt dải
+45–90 — nhưng ở uptime thật 72% nó là **101 giây**. Chia 4/3 xuống còn 30–59×:
+TTK 55 giây ở uptime hoàn hảo, ~76 giây ở uptime thật. Tỉ lệ boss/quái thành
+45,4× — sát Enter the Gungeon (47×).
+
 ### 2.2 Mục tiêu TTK
 
 Tổng hợp từ Enter the Gungeon và Soul Knight (hai game khớp khổ màn hình nhất):
@@ -80,7 +94,7 @@ Tổng hợp từ Enter the Gungeon và Soul Knight (hai game khớp khổ màn 
 | **Quái thường** | **1,0–2,5 s** | **4–6** | **1× (gốc)** |
 | Quái lì / có giáp | 2,5–4 s | 6–8 | 2–3× |
 | Elite | 6–12 s | 10–20 | 8–15× |
-| Boss | 45–90 s (2–3 pha) | 60–200 | **~40×** |
+| Boss | 45–90 s (2–3 pha) | 60–200 | **~45×** |
 
 Tỉ lệ boss/quái thường ≈ 40× nhất quán một cách bất ngờ:
 [Gungeon](https://enterthegungeon.wiki.gg/wiki/Bullet_Kin) 700/15 = 47×,

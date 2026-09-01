@@ -1249,7 +1249,16 @@
     eliteHpMul: 3.4, goldHpMul: 2.2,
     // Máu boss suy ra TỪ máu quái thường, không phải một bảng số tự do — có vậy
     // hai đường cong mới không lệch nhau như bản cũ.
-    bossHpMul: { B: 40, A: 50, S: 62, SS: 78 },
+    // Chia cho HỆ SỐ THỜI GIAN THẬT SỰ ĐANG BẮN. Bảng đầu (40/50/62/78) đặt theo
+    // tỉ lệ boss/quái ~40-78 lần, và đo được TTK 73 giây — nghe thì đúng dải
+    // 45-90s, nhưng đó là ở giả định bắn 100% thời gian.
+    //
+    // Không đúng, vì PUNICON LÀ MỘT NGÓN (punicon.js: "ngón thứ hai bị bỏ qua").
+    // Kéo là chạy, chạm là bắn, và một ngón không làm được hai việc cùng lúc —
+    // đúng mô hình Archero. Nên A × U trong công thức ngân sách (§2.1 của
+    // SHOOTER.md) là 0,72 chứ không phải 1,0, và 73 giây thật ra là 101 giây.
+    // Chia 4/3 xuống: TTK ~55s ở uptime hoàn hảo, ~76s ở uptime thật.
+    bossHpMul: { B: 30, A: 38, S: 47, SS: 59 },
     // Giáp PHẢI là phần trăm, không được trừ thẳng: với max(1, dmg − armor),
     // giáp 3 điểm làm khẩu 4 sát thương mất 75% sức mạnh còn khẩu 22 sát thương
     // chỉ mất 12% — xoá sổ nguyên một dòng vũ khí một cách vô tình.

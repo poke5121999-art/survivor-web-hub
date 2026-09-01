@@ -204,10 +204,20 @@
     if (d > want + 40) { dragTo(Math.cos(ang2), Math.sin(ang2), 200); return; }
     if (d < tooClose) { dragTo(-Math.cos(ang2), -Math.sin(ang2), 120); return; }
 
-    // Đuôi của một phát bắn KHÔNG còn khoá chân, nên đang trong 'fire' thì bot
-    // vẫn phải lách ngang chứ không đứng nhìn. Chỉ những trạng thái thật sự khoá
-    // (né, kỹ năng, đổi người, dính đòn) mới bỏ nhịp.
-    if (b.player.state === 'fire') { strafe(ang2, 90); return; }
+    /* Đang trong đuôi một phát bắn: VẪN BẤM, và vẫn lách ngang.
+     *
+     * Bấm sớm trong lúc còn đuôi được ĐỆM LẠI (tryAttack đặt p.queued) rồi bắn
+     * ngay khi hết đuôi — tức là bấm sớm không mất gì, và đó là cách giữ đúng
+     * nhịp bắn tối đa của cây. Bản đầu tôi cho bot `return` ở đây và nó tụt
+     * xuống 1,6 phát/giây trên một khẩu bắn được 5 phát/giây, vì đuôi 200ms dài
+     * hơn nhịp quyết định 90-150ms nên phần lớn nhịp rơi đúng vào đó.
+     * Chỉ những trạng thái THẬT SỰ khoá (né, kỹ năng, đổi người, dính đòn) mới
+     * bỏ nhịp. */
+    if (b.player.state === 'fire') {
+      tap(270 + Math.cos(ang2) * 8, 640 + Math.sin(ang2) * 8);
+      if (tick % 2 === 0) strafe(ang2, 90);
+      return;
+    }
     if (b.busy()) return;
 
     /* 3. GIỮ nút. Ba nghĩa khác nhau tuỳ cây, và bot phải đi qua đúng con đường
