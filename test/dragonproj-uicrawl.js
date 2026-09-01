@@ -640,7 +640,11 @@ const PAGE_SNAP = () => {
              scr: (document.querySelector('#screens .screen.on') || {}).id };
   });
   check('nút "Xóa dữ liệu" đưa game về đúng trạng thái mới tinh',
-    fresh.gold === 3000 && fresh.lv === 1 && fresh.gear === 9 && fresh.cleared === 0 && fresh.core === 0,
+    // 10 món chứ không phải 9: bộ mở đầu giờ phát MỘT cây cho mỗi lớp chưa có
+    // người trong đội (3 cây của 3 nhân vật mở đầu + 3 cây dự phòng cho ba lớp
+    // còn lại) cộng 4 mảnh giáp. Sáu lớp thì phải là sáu cây, không thì có lớp
+    // quay được người mà không có gì để lắp.
+    fresh.gold === 3000 && fresh.lv === 1 && fresh.gear === 10 && fresh.cleared === 0 && fresh.core === 0,
     JSON.stringify(fresh));
 
   // --- CHẶNG QUÁI: vào ải đầu, bot cày 25 giây ---
@@ -700,25 +704,31 @@ const PAGE_SNAP = () => {
   await p.waitForTimeout(500);
   const loot = await p.evaluate(() => new Promise(res => {
     const bt = DP.UI.battle, pl = bt.player;
+    const clamp2 = (v, a, b) => v < a ? a : v > b ? b : v;
     // Tự dựng một con quái để bài kiểm luôn chạy y hệt nhau, không phụ thuộc
     // vào việc trên sân còn con nào sống hay đã sang chặng boss.
     let m = bt.mobs.find(x => !x.dead);
     if (!m) { m = bt.makeMob('purun', 1, false, false); bt.mobs.push(m); }
     m.x = bt.wW / 2; m.y = bt.wH / 2;
     const a = Math.atan2(pl.y - m.y, pl.x - m.x);
-    pl.x = m.x + Math.cos(a) * bt.W.reach;
-    pl.y = m.y + Math.sin(a) * bt.W.reach;
+    /* Đứng ở CỰ LY BẮN thật của cây, không phải "tầm với" của bản cận chiến —
+     * W.reach không còn tồn tại. Lấy 60% tầm bắn: đó là chỗ người chơi thật sự
+     * đứng, đủ xa để an toàn và đủ gần để không trượt. Rương phải HÚT được về
+     * từ đó, nếu không thì bắn xong lại phải chạy tới nhặt từng cái. */
+    const stand = Math.min(bt.W.range * 0.6, 300);
+    pl.x = clamp2(m.x + Math.cos(a) * stand, 30, bt.wW - 30);
+    pl.y = clamp2(m.y + Math.sin(a) * stand, 30, bt.wH - 30);
     bt.chests.length = 0;
     bt.killMob(m);
     var mine = bt.chests[bt.chests.length - 1];   // đúng rương của con vừa giết
     setTimeout(function () {
-      res({ reach: bt.W.reach, left: bt.chests.indexOf(mine) >= 0 ? 1 : 0,
-            reaches: Object.keys(DP.WEAPONS).map(k => k + '=' + DP.WEAPONS[k].reach).join(' ') });
+      res({ reach: Math.round(stand), left: bt.chests.indexOf(mine) >= 0 ? 1 : 0,
+            reaches: Object.keys(DP.WEAPONS).map(k => k + '=' + DP.WEAPONS[k].range).join(' ') });
     }, 800);
   }));
   check('giết quái ở đúng tầm đánh thì nhặt được rương nó rơi ra',
     !!loot && loot.left === 0,
-    loot ? ('đứng cách xác quái ' + loot.reach + 'px, rương tự hút về và nhặt được — tầm với: ' +
+    loot ? ('đứng cách xác quái ' + loot.reach + 'px (60% tầm bắn), rương tự hút về và nhặt được — tầm bắn: ' +
             loot.reaches) : 'không tìm được quái để thử');
 
   // --- BOSS: grouton lv8 ---

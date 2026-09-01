@@ -256,7 +256,7 @@
     this.heroDef = G.heroDef(h);
     this.stats = G.buildStats(this.s, h);
     this.wp = G.weaponProfile(this.s, g, { hero: h });
-    this.W = G.WEAPONS[this.wp.wclass];
+    this.W = G.weaponOf(this.wp.wclass);
     // Mỗi người một thanh máu riêng (giáp là của riêng họ, hạng cũng khác nhau).
     // Đổi người thì giữ nguyên TỈ LỆ máu đang còn — không thì đổi qua đổi lại là
     // một cách hồi máu miễn phí, mà đổi vào lúc sắp chết cũng không cứu được.
@@ -425,7 +425,10 @@
     p.bloom = Math.min(W.bloomMax || 0, (p.bloom || 0) + (W.bloomPer || 0));
     p.bloomT = 260;
 
-    if (!o.roll) {
+    // Không đè trạng thái khi phát bắn này đến TỪ một thế đang giữ: giữ cò thì
+    // trạng thái phải ở lại 'autofire' cho tới khi nhả tay, chứ không nhảy sang
+    // 'fire' rồi tự về 'idle' sau 200ms — làm thế thì nút giữ mất tác dụng.
+    if (!o.roll && !o.sustained) {
       p.state = 'fire'; p.stateT = 0; p.queued = false;
       p.stateDur = W.shotMs / this.atkSpeed();
     }
@@ -541,7 +544,7 @@
     this.puni.holdMoves = true;
     if (W.auto) {
       p.state = 'autofire'; p.autoT = 0;
-      this.fire({});                       // phát đầu ra ngay, không đợi nhịp
+      this.fire({ sustained: true });      // phát đầu ra ngay, không đợi nhịp
     } else if (W.charge) {
       p.state = 'charge';
       // Nạp mang sang: vừa né xong thì bắt đầu ở nấc cao hơn một bậc.
@@ -721,10 +724,12 @@
     this.impact(hitX, hitY, _mv.hs || G.FEEL.hitstop.mid, G.FEEL.shake.mid, "#ffe6a0");
     var mul = G.elemMult(dmgObj.el, b.el);
     var raw = dmgObj.phys + dmgObj.elem * mul;
+    var bMarked = b.marked && b.marked > this.t;
     if (opt.falloff) raw *= opt.falloff;
-    if (opt.distMul) raw *= opt.distMul;
+    if (opt.distMul && !bMarked) raw *= opt.distMul;
     var rl = this.roll(raw, b, { noCrit: dmgObj.noCrit || opt.noCrit,
-                                 critBonus: opt.critBonus, forceCrit: opt.forceCrit });
+                                 critBonus: opt.critBonus,
+                                 forceCrit: opt.forceCrit || bMarked });
     raw = rl.dmg;
 
     // Trúng bộ phận nào?
@@ -787,15 +792,31 @@
     var F = G.FEEL, mv = opt.move || {};
     var mul = G.elemMult(dmgObj.el, m.el);
     var raw = (dmgObj.phys + dmgObj.elem * mul);
+    /* ĐÁNH DẤU (kỹ năng Điểm Danh của bắn tỉa). Con có dấu thì mọi phát bắn vào
+     * nó đều tính là chí mạng, và KHÔNG bị trừ sát thương theo khoảng cách. Ý
+     * lấy nguyên từ Tracer Arrow của MH Wilds: đóng dấu một lần rồi mọi mũi sau
+     * đó được miễn luật vị trí — nó là một CỬA SỔ BURST, không phải một buff
+     * cộng phần trăm. */
+    var marked = m.marked && m.marked > this.t;
     if (opt.falloff) raw *= opt.falloff;          // xuyên / nảy: −33% / −30% mỗi lần
-    if (opt.distMul) raw *= opt.distMul;          // dải chí mạng của cung
+    if (opt.distMul && !marked) raw *= opt.distMul;   // dải chí mạng của cung
     // Đang lơ lửng thì ăn nặng hơn — đó là phần thưởng cho việc giữ được nhịp juggle.
     if (m.z > 2) raw *= F.airDmgMul;
     var rl = this.roll(raw, m, { noCrit: dmgObj.noCrit || opt.noCrit,
-                                 critBonus: opt.critBonus, forceCrit: opt.forceCrit });
+                                 critBonus: opt.critBonus,
+                                 forceCrit: opt.forceCrit || marked });
     raw = rl.dmg;
     m.hp -= raw; m.flash = 1; m.squash = 1;
     this.lastDealt = raw;
+    /* Hitstop trên MỌI cú trúng, không chỉ khi vỡ thế. Sát thương mỗi viên giờ
+     * nhỏ hơn hẳn, nên cái bán cảm giác "trúng" không còn là con số mà là phản
+     * hồi: đứng hình một nhịp rất ngắn + loé + văng. Thang Nuclear Throne, và
+     * hitstop leo thang theo SỰ KIỆN chứ không theo sát thương — trúng thường
+     * 10ms, chí mạng 30ms, giết 60ms, giết elite 80ms. */
+    var F2 = G.FEEL.hitstop;
+    var hs2 = (m.hp <= 0) ? (m.elite ? F2.elite : F2.kill) : (rl.crit ? F2.crit : (mv.hs || F2.light));
+    this.impact(m.x, m.y, hs2, rl.crit ? G.FEEL.shake.mid : G.FEEL.shake.light,
+                rl.crit ? '#ff4f7a' : '#e8f2ff');
     this.number(m.x, m.y - m.r - m.z, Math.round(raw),
       rl.crit ? 'crit' : (mul > 1 ? 'adv' : mul < 1 ? 'dis' : 'norm'));
     if (this.wp.wtype === 'heat') this.player.heat = Math.min(100, this.player.heat + 1.0);
@@ -910,7 +931,7 @@
     if (p.state === 'guard') {
       // Đỡ ĐÚNG LÚC (trong 220ms đầu của thế thủ) -> giảm 90%, đúng wiki.
       perfect = p.guardT <= W.perfectMs;
-      cut = perfect ? W.perfectCut : W.guardCut;
+      cut = perfect ? (W.perfectCut || 0.10) : (W.guardCut || 0.40);
       cut += -(this.stats.guard || 0) * 0.5;
       cut = clamp(cut, 0.02, 1);
       p.guardBlocked = true;
@@ -1178,7 +1199,20 @@
   Battle.prototype.updateFx = function (dt) {
     for (var f = this.fx.length - 1; f >= 0; f--) { this.fx[f].t += dt; if (this.fx[f].t > this.fx[f].ms) this.fx.splice(f, 1); }
     for (var m2 = this.msgs.length - 1; m2 >= 0; m2--) { this.msgs[m2].t += dt; if (this.msgs[m2].t > 900) this.msgs.splice(m2, 1); }
-    if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 0.04);
+    /* Rung mạnh giảm theo hàm mũ, rung NHẸ giảm TUYẾN TÍNH — mẹo của Nuclear
+     * Throne, và nó có một hệ quả rất tiện: vì mất đúng 1 đơn vị mỗi khung, CON
+     * SỐ BIÊN ĐỘ ĐỒNG THỜI LÀ THỜI LƯỢNG tính bằng khung. Mỗi khẩu chỉ phải
+     * chỉnh một số thay vì hai. */
+    if (this.shake > 10) this.shake *= Math.pow(0.8, dt / 16.67);
+    else if (this.shake > 0) this.shake = Math.max(0, this.shake - dt / 16.67);
+    // Đá camera hồi −40% mỗi khung: nửa đời ~1,35 khung, tan hẳn trong ~5 khung.
+    var kd = Math.pow(1 - G.FEEL.kickDecay, dt / 16.67);
+    this.kickX = Math.abs((this.kickX || 0) * kd) < 0.2 ? 0 : this.kickX * kd;
+    this.kickY = Math.abs((this.kickY || 0) * kd) < 0.2 ? 0 : this.kickY * kd;
+    // Sprite súng lùi rồi hồi 1px mỗi khung.
+    if (this.player.recoil > 0) {
+      this.player.recoil = Math.max(0, this.player.recoil - G.FEEL.recoilRecover * dt / 16.67);
+    }
   };
 
   Battle.prototype.updateAction = function (dt, mv, slowMul) {
@@ -1524,8 +1558,32 @@
     else if (m.poise < m.poiseMax) m.poise = Math.min(m.poiseMax, m.poise + F.poiseRegen * dt / 1000);
   };
 
+  /* Phát thẻ đánh mỗi khung. Ai đang ra đòn thì giữ thẻ tới khi xong; số thẻ
+   * còn lại về tay những con GẦN NHẤT đang muốn đánh — gần nhất chứ không phải
+   * ngẫu nhiên, vì con đứng sát mặt mà đứng im nhìn thì trông hỏng. */
+  Battle.prototype.updateTokens = function () {
+    var p = this.player, self = this;
+    var alive = this.mobs.filter(function (m) { return !m.dead && m.hp > 0; });
+    var cap = Math.min(G.TOKENS.max, G.TOKENS.byCount(alive.length));
+    var holders = [];
+    alive.forEach(function (m) {
+      // Trả thẻ khi đã đánh xong và hết nhịp hở.
+      if (m.token && m.phase === 'idle') m.token = false;
+      if (m.token) holders.push(m);
+    });
+    if (holders.length >= cap) return;
+    var want = alive.filter(function (m) { return !m.token && m.agro; });
+    want.sort(function (u, v) {
+      return (Math.hypot(u.x - p.x, u.y - p.y)) - (Math.hypot(v.x - p.x, v.y - p.y));
+    });
+    for (var i = 0; i < want.length && holders.length < cap; i++) {
+      want[i].token = true; holders.push(want[i]);
+    }
+  };
+
   Battle.prototype.updateMobs = function (dt) {
     var p = this.player, self = this;
+    this.updateTokens();
     this.mobs.forEach(function (m) {
       if (m.dead) return;
       self.mobReact(m, dt);
@@ -1565,7 +1623,16 @@
       m.y = clamp(m.y + Math.sin(ang === undefined ? a : ang) * s, 20, self.wH - 20);
     }
     // Vùng báo trước: đỏ dần lên rồi mới nổ. Đây là hợp đồng với người chơi.
+    /* THẺ ĐÁNH. Con nào không giữ thẻ thì vẫn đi lại, vẫn áp sát, vẫn trông
+     * hung hăng — nhưng KHÔNG ra đòn. Đây là chuẩn ngành và nó giải đúng hai
+     * việc cùng lúc: giữ cho màn hình đọc được, và giữ cho ngân sách sát thương
+     * nhận vào không nổ tung khi quái sống lâu gấp bốn năm lần.
+     *
+     * Không có nó thì cả chín con cùng đánh, và người chơi không theo dõi nổi
+     * con nào đang báo đòn — nhất là trên màn dọc, nơi một phần năm phía dưới đã
+     * bị ngón cái che mất. */
     function tell(ms, r, ox, oy) {
+      if (!m.token) { m.wantToken = self.t; return; }
       m.phase = 'tell'; m.pt = ms; m.aim = a;
       self.fx.push({ k: 'tell', x: m.x + (ox || 0), y: m.y + (oy || 0), r: r, t: 0, ms: ms });
     }
@@ -1868,7 +1935,14 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
     ctx.save();
+    /* HAI KÊNH RIÊNG, không gộp (Nuclear Throne scr_screenshake.gml):
+     *   - ĐÁ CAMERA có hướng, hất ngược lại phía nòng súng. Nó nói "khẩu này
+     *     nặng", và vì có hướng nên nó đọc được là một cú giật chứ không phải
+     *     một cái rung chung chung.
+     *   - RUNG ngẫu nhiên, không hướng. Nó nói "vừa có gì đó nổ".
+     * Gộp hai thứ này làm một là mất luôn phần thông tin của cái thứ nhất. */
     if (this.shake > 0) ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
+    if (this.kickX || this.kickY) ctx.translate(this.kickX || 0, this.kickY || 0);
     ctx.translate(-camX, -camY);
 
     this.drawGround();
@@ -2113,7 +2187,7 @@
    *    body = màu thân (theo hệ giáp), hand = tông da của hai bàn tay. */
   function drawChar(ctx, o) {
     var st = o.state, k = o.k || 0, t = o.t || 0;
-    var W = G.WEAPONS[o.weapon] || {};
+    var W = G.weaponOf(o.weapon) || {};
     var swing = Math.sin(k * Math.PI);
 
     // ---- biến dạng cả khối theo trạng thái ----
@@ -2123,7 +2197,9 @@
     var push = 0;        // đẩy tới/lui theo hướng quay
     if (st === 'dodge') { spin = k * TAU; sx = 1.20; sy = 0.80; lift = Math.sin(k * Math.PI) * 4; }
     else if (st === 'ranbu') { spin = t / 40; lift = 11 + swing * 6; sx = sy = 1.06; }
-    else if (st === 'attack' || st === 'cleave') { push = swing * (st === 'cleave' ? 5 : 3); sx = 1 + swing * 0.10; sy = 1 - swing * 0.07; }
+    else if (st === 'fire') { push = -(o.recoil || 0) * 0.35; sx = 1 + swing * 0.05; sy = 1 - swing * 0.04; }
+    else if (st === 'autofire') { push = -(o.recoil || 0) * 0.30; }
+    else if (st === 'steady') { push = 1.5; sx = 0.97; sy = 1.03; }
     else if (st === 'lunge') { push = 6; sx = 1.26; sy = 0.82; }
     else if (st === 'charge') { var tr = Math.sin(t / 40) * (0.3 + 1.6 * (o.charge || 0)); push = -2 + tr * 0.4; sx = 0.94; sy = 1.06; }
     else if (st === 'guard') { push = 1.5; sx = 0.96; sy = 1.02; }
@@ -2205,8 +2281,8 @@
 
     // ---- vệt quét của cú vung, vẽ ngoài phép scale để không bị méo ----
     if ((st === 'attack' || st === 'cleave') && swing > 0.05) {
-      var arc = st === 'cleave' ? (W.cleaveArc || 2.5) : (W.arc || 1.7);
-      var reach = st === 'cleave' ? (W.cleaveReach || 110) : (W.reach || 62);
+      var arc = W.arc || 1.7;
+      var reach = W.reach || 62;
       ctx.save();
       ctx.rotate(o.facing);
       ctx.globalAlpha = swing * 0.5;
@@ -2241,7 +2317,7 @@
     // mvArc = cung của ĐÒN ĐANG RA, không phải cung mặc định của vũ khí. Đại Kiếm
     // mặc định quét 2.30 rad nhưng "Bổ dọc" chỉ 1.15 — lấy nhầm con số là tay đi
     // một đường còn vệt chém đi một đường khác.
-    if (st === 'attack') { var ar = mvArc || W.arc || 1.7; return -ar / 2 + ar * k; }
+    if (st === 'fire') { var ar = mvArc || W.arc || 0; return -ar / 2 + ar * k; }
     if (st === 'cleave') { var cr = W.cleaveArc || 2.5; return -cr / 2 + cr * k; }
     if (st === 'ranbu') return -2.2 + (k * 6.0) % TAU;   // loạn vũ: quay tít
     if (st === 'charge') return -1.75;                   // giơ ra sau nạp lực
@@ -2295,6 +2371,11 @@
       var sc = we.len / Math.max(1, axis);
       var iw = we.w * sc, ih = we.h * sc;
       ctx.rotate(we.rot);
+      // GIẬT SÚNG: kéo cây súng lùi dọc chính trục của nó. Kênh thứ ba, tách hẳn
+      // khỏi đá camera và rung — nó là cái duy nhất nói riêng về KHẨU SÚNG chứ
+      // không phải về cả khung hình.
+      var rc = (o && o.recoil) || 0;
+      if (rc) ctx.translate(0, up ? rc : 0), ctx.translate(up ? 0 : -rc, 0);
       // đặt sao cho ĐIỂM NẮM rơi đúng vào bàn tay (gốc toạ độ)
       if (up) ctx.drawImage(we.img, 0, 0, we.w, we.h, -iw / 2, -we.grip * ih, iw, ih);
       else    ctx.drawImage(we.img, 0, 0, we.w, we.h, -(1 - we.grip) * iw, -ih / 2, iw, ih);
@@ -2347,10 +2428,10 @@
   var CHARGE_COL = ['#ffffff', '#ffd23f', '#8fd14f', '#ff3b30'];
   Battle.prototype.chargeLevel = function () {
     var p = this.player, W = this.W, full = 0;
-    if (p.state === 'charge' && W.special === 'cleave') full = W.chargeMs;
-    else if (p.state === 'aim' && W.special === 'snipe') full = W.snipeChargeMs;
-    else if (p.state === 'charge' && W.special === 'ranbu') full = W.ranbuWindupMs;
-    else if (p.state === 'aim' && W.special === 'lunge') return p.aimD;
+    // Thanh nạp dưới chân: cây nạp thì đo tới nấc cuối, cây ghì súng thì đo tới
+    // mốc 550ms — vượt mốc đó mới được thưởng.
+    if (p.state === 'charge' && W.chargeMs) full = W.chargeMs[W.chargeMs.length - 1];
+    else if (p.state === 'steady') full = 550;
     else return -1;
     return clamp(p.charge / full, 0, 1);
   };
@@ -2471,7 +2552,7 @@
            * vệt chém. Nó cũng nằm trong phép quay của cú lăn nên lăn theo người.
            */
           var kk = p.stateDur ? clamp(p.stateT / p.stateDur, 0, 1) : 0;
-          var WD = G.WEAPONS[this.wp.wclass] || {};
+          var WD = G.weaponOf(this.wp.wclass) || {};
           var bob2 = p.moving ? Math.sin(this.t / 105) * 0.20 : 0;
           var wA = handAngle(st, kk, WD, bob2, p.move && p.move.arc);
           var wo = { state: st, el: this.wp.el, k: kk };
@@ -2495,7 +2576,8 @@
       charge: this.chargeLevel() > 0 ? this.chargeLevel() : 0,
       body: G.bodyTint(this.bodyEl), hand: SKIN[this.s.skin || 2],
       hair: HAIRC[this.s.hairColor || 0], cloth: '#3b6ea5',
-      weapon: this.wp ? this.wp.wclass : 'sword',
+      weapon: this.wp ? this.wp.wclass : 'rifle',
+      recoil: p.recoil || 0,
       elem: G.ELEMENTS[this.wp ? this.wp.el : 'none'].color,
       el: this.wp ? this.wp.el : 'none',
       arc: p.move ? p.move.arc : 0,

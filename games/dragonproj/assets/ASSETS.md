@@ -501,3 +501,26 @@ mục ở asset-map, không đụng code.
 
 Ảnh nhân vật trong trận tra theo `heroes.<id>.*`; thiếu thì rơi về `player.*`
 như trước, nên đổi trục sang NPC không làm vỡ đường vẽ cũ.
+
+
+## Biểu tượng vũ khí sau khi đổi sang sáu lớp bắn (2026-09-01)
+
+Bảng `weapons.*` trong `asset-map.json` đổi khoá theo sáu lớp mới. Hai lớp giữ
+được ĐÚNG art, bốn lớp là ART TẠM và cần thay:
+
+| Lớp | Bộ sprite đang dùng | Đúng hay tạm |
+|-----|---------------------|--------------|
+| `bow` Cung | `Crossbow_*` | **đúng** |
+| `staff` Gậy Phép | `Staff_*` | **đúng** |
+| `sniper` Bắn Tỉa | `Crossbow_*` kéo dài 1,45× | tạm — đọc được là cây dài, nhưng vẫn là nỏ |
+| `rifle` Súng Trường | `katana_*` | **TẠM — đang là thanh katana** |
+| `shotgun` Súng Săn | `Dagger_*` | **TẠM — đang là con dao** |
+| `launcher` Súng Phóng | `GreatSword_*` | **TẠM — đang là thanh đại kiếm** |
+
+Kho Sephiria không có sprite súng nào, nên bốn dòng in đậm ở trên là chỗ PHẢI
+thay trước khi đưa cho người chơi thật. Đường ống giữ nguyên luật cũ: **đổi art
+= thay file PNG + sửa `assets/asset-map.json`, KHÔNG đụng code** — trong code
+không có lấy một tên sprite nào, chỉ có khoá kiểu `weapons.rifle.fire`.
+
+Ba số `rot` / `len` / `grip` căn ảnh vào bàn tay nằm trong manifest, không nằm
+trong code, nên thay sprite dài ngắn khác nhau chỉ cần chỉnh ba số đó.

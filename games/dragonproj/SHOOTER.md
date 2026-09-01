@@ -97,8 +97,12 @@ Soul Calibre = 25), quái tầng 1 có **8–15 máu**, boss tầng 1 có 480
 
 ```
 CŨ:  máu quái = 32 + 14·lv      (lv1 = 46,  lv60 = 872)
-MỚI: máu quái = 18 + 3,4·lv     (lv1 = 21,  lv60 = 222)
+MỚI: máu quái = 30 + 6,2·lv     (lv1 = 36,  lv60 = 396)
 ```
+
+Con số này đi qua HAI VÒNG ĐO. Vòng một đặt `18 + 3,4·lv` và đo được TTK
+0,47–1,31 giây — vẫn ở đầu NHANH của dải mục tiêu 1,0–2,5. Nhân đôi máu quái lên
+rồi đo lại: **0,95–2,34 giây**, vào đúng dải.
 
 Sát thương người chơi mỗi viên đạn:
 ```
@@ -106,7 +110,9 @@ dmg = W.dmg × (ATK / 10)
 ATK = công nhân vật + công vũ khí + công theo lớp
 ```
 với công nhân vật `10 + 0,9·lv` (lv1 = 10,9 · lv60 = 64) và bảng công vũ khí đã
-chia nhỏ (SS 46 / S 34 / A 24 / B 15 ở cấp đồ tối đa).
+chia nhỏ (SS 46 / S 34 / A 24 / B 15 ở cấp đồ tối đa). Công HỆ hạ sâu hơn nữa
+(SS 16 / S 12 / A 8 / B 5): ở mức 30 nó đóng góp 65% tổng sát thương, tức hệ
+nguyên tố gánh nhiều hơn cả cây súng; ở mức 16 nó còn ~35%.
 
 Kết quả: **số phát để giết quái thường giữ nguyên ~5 suốt cả game**, thay vì trôi
 từ 0,5 tới 1,0 rồi về 0,5.
@@ -136,7 +142,11 @@ theo `coeff/2,5` còn sát thương boss theo `coeff/30` — **chậm hơn 12 l�
 ([Difficulty, RoR2 Wiki](https://riskofrain2.wiki.gg/wiki/Difficulty)).
 
 Nên đi kèm với rescale, BẮT BUỘC:
-- Hạ sát thương quái (`7 + 2,1·lv` → `4 + 0,85·lv`).
+- Công quái phải tăng CHẬM HƠN máu quái, nhưng KHÔNG được cắt sâu: hệ thẻ đánh
+  đã hạ số con đánh cùng lúc từ 16 xuống tối đa 3, tức DPS dồn vào người chơi đã
+  giảm sẵn năm lần. Cắt thêm nữa thì quái thành vô hại. Nên `7 + 2,1·lv` →
+  `11 + 1,7·lv`: máu quái tăng 11,0 lần từ lv1 tới lv60, công quái chỉ 8,8 lần —
+  chậm hơn, đúng chiều.
 - **Cắt số quái mỗi đợt**: `maxMobs 16 → 9`, `wave 11 → 6`. Đợt 20 giây mà nhân 5
   lần TTK thì thành 100 giây — chết trên điện thoại.
 - Thêm **hệ thẻ đánh** (mục 5.2).
@@ -602,9 +612,9 @@ nguyên chủ, đội hình ba người giữ nguyên thứ tự.
 | Hằng số | Cũ | Mới | Nguồn/lý do |
 |---------|-----|-----|-------------|
 | `baseAtk` / `atkPerLv` | 32 / 4,2 | **10 / 0,9** | thang số nhỏ (§2.3) |
-| Máu quái | `32 + 14·lv` | **`18 + 3,4·lv`** | ngân sách DPS (§2.1) |
-| Công quái | `7 + 2,1·lv` | **`4 + 0,85·lv`** | cái bẫy TTK (§2.5) |
-| `RANK_W` SS | p306 / e656 | **p46 / e30** | nén thang hiếm (§9) |
+| Máu quái | `32 + 14·lv` | **`30 + 6,2·lv`** | ngân sách DPS (§2.1) |
+| Công quái | `7 + 2,1·lv` | **`11 + 1,7·lv`** | xem ghi chú dưới bảng |
+| `RANK_W` SS | p306 / e656 | **p46 / e16** | nén thang hiếm (§9) |
 | `maxMobs` | 16 | **9** | thẻ đánh + độ dài đợt (§5.3) |
 | `wave` | 11 | **6** | đợt 20 s không được thành 100 s |
 | Đạn quái `r` | 6 (0,73% sân) | **16 (2,0%)** | đọc được trên màn dọc (§5.1) |

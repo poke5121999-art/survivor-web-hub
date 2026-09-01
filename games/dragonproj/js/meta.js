@@ -94,13 +94,16 @@
    * cấp, limit break đủ và tiến hoá tối đa — tức là trạng thái mà mọi thứ đều
    * bật, xem một lần là biết game có gì.
    * Bấm lại không nhân bản: món nào đã có rồi thì bỏ qua. */
+  /* Bộ trưng bày phải phủ ĐỦ SÁU LỚP, mỗi lớp một cây — nếu không thì có lớp
+   * người chơi không bao giờ được cầm thử. Bản cũ có hai cây cùng lớp sword nên
+   * sau khi đổi sang sáu lớp bắn nó chỉ còn phủ năm. */
   var SHOWCASE = [
-    { src: 'ayame',       note: 'katana lửa' },      // sword  · hoả
-    { src: 'pandemonius', note: 'song dao sét' },    // dual   · lôi  -> Ảnh Độn có vệt điện
-    { src: 'lunathalmus', note: 'thương sét' },      // spear  · lôi
-    { src: 'galdrux',     note: 'đại kiếm vàng' },   // great  · lôi
-    { src: 'ciel',        note: 'nỏ quang' },        // bow    · quang
-    { src: 'amarok',      note: 'katana băng' }      // sword  · thuỷ
+    { src: 'amarok',      note: 'súng trường băng' },  // rifle
+    { src: 'pandemonius', note: 'súng săn sét' },      // shotgun
+    { src: 'magna',       note: 'bắn tỉa thổ' },       // sniper
+    { src: 'carniva',     note: 'cung lửa' },          // bow
+    { src: 'ayame',       note: 'gậy phép lửa' },      // staff (loại Soul)
+    { src: 'lich',        note: 'súng phóng thổ' }     // launcher
   ];
 
   G.showcaseList = function () { return SHOWCASE.slice(); };
@@ -301,8 +304,23 @@
 
   /* Chuyển hồ sơ cũ (ba khe vũ khí của MỘT người) sang hồ sơ mới (ba NGƯỜI).
      Chạy mỗi lần nạp; đã có roster thì không đụng gì. */
+  /* Đồ trong hồ sơ cũ còn mang tên lớp CŨ ('sword', 'great', ...). Đổi ngay ở
+   * đây, MỘT LẦN, rồi ghi đè lại vào món đồ — chứ không đổi ở từng chỗ đọc.
+   * Nếu chỉ đổi lúc đọc thì sẽ có chỗ quên, và chỗ quên đó là một cây vũ khí
+   * người chơi cũ không lắp được cho ai nữa. */
+  G.migrateGearClass = function (s) {
+    if (!s || !s.gear) return s;
+    s.gear.forEach(function (g) {
+      if (g.kind === 'weapon' && g.wclass && !G.WEAPONS[g.wclass]) {
+        g.wclass = G.wclassOf(g.wclass);
+      }
+    });
+    return s;
+  };
+
   G.migrateHeroes = function (s) {
     if (!s) return s;
+    G.migrateGearClass(s);
     s.heroes = s.heroes || [];
     s.party = s.party || [null, null, null];
     if (s.heroes.length) return s;
@@ -396,7 +414,7 @@
   // Chỉ số riêng của MÓN VŨ KHÍ đang cầm — game.js gọi mỗi lần đổi vũ khí.
   G.weaponProfile = function (s, g, opt) {
     if (!g) return null;
-    var W = G.WEAPONS[g.wclass], gs = G.gearStats(g);
+    var W = G.weaponOf(g.wclass), gs = G.gearStats(g);
     var prof = { g: g, W: W, patk: gs.patk, eatk: gs.eatk, el: g.el, wclass: g.wclass, wtype: g.wtype, extra: {} };
     (g.abilities || []).forEach(function (a) {
       var def = G.ABILITIES.find(function (x) { return x.id === a.id; });

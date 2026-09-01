@@ -64,9 +64,9 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     dropNormal: DP.DROP_NORMAL,
     elem: [DP.elemMult('water', 'fire'), DP.elemMult('fire', 'water'), DP.elemMult('fire', 'earth')]
   }));
-  check('5 loại vũ khí', d.weapons === 5, d.weapons + '');
+  check('6 lớp vũ khí bắn', d.weapons === 6, d.weapons + '');
   check('đủ Behemoth (>=50)', d.behemoths >= 50, d.behemoths + ' con');
-  check('đủ kỹ năng (2 mỗi vũ khí)', d.skills === 10, d.skills + ' đòn');
+  check('đủ kỹ năng (2 mỗi lớp)', d.skills === 12, d.skills + ' đòn');
   check('8 vùng đất', d.areas === 8, d.areas + '');
   check('cốt truyện >=30 chặng', d.story >= 30, d.story + '');
   check('tỉ lệ gacha boss đúng wiki (3/15/55/27)',
@@ -89,12 +89,18 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     const h = DP.forgeGear('amarok', 'head', 't'); h.lv = 40;
     return { max: a, evo0: b0, evo1: b1, head: DP.gearStats(h) };
   });
-  check('vũ khí SS evolve cuối = 306 phys / 656 elem', st.max.patk === 306 && st.max.eatk === 656,
-    st.max.patk + '/' + st.max.eatk);
-  check('bậc evolve 1 ≈ 135/291 như wiki', Math.abs(st.evo0.patk - 135) <= 2 && Math.abs(st.evo0.eatk - 291) <= 3,
-    st.evo0.patk + '/' + st.evo0.eatk);
-  check('bậc evolve 2 ≈ 274/587 như wiki', Math.abs(st.evo1.patk - 274) <= 1 && Math.abs(st.evo1.eatk - 587) <= 1,
-    st.evo1.patk + '/' + st.evo1.eatk);
+  // Thang chỉ số đã HẠ XUỐNG (xem SHOOTER.md §9): số tuyệt đối cũ 306/656 không
+  // còn, nhưng TỈ LỆ giữa ba bậc evolve thì phải giữ nguyên, vì đó mới là cái có
+  // nguồn từ wiki (135/306 = 0,44 và 274/306 = 0,895 trên cây vũ khí Amarok).
+  check('vũ khí SS ở thang mới = 46 ATK vật lý', st.max.patk === 46, st.max.patk + '');
+  check('công hệ không được át phần bắn (<= 40% công vật lý)',
+    st.max.eatk <= st.max.patk * 0.40, st.max.eatk + '/' + st.max.patk);
+  check('tỉ lệ evolve bậc 1 giữ đúng 0,44 của wiki',
+    Math.abs(st.evo0.patk / st.max.patk - 0.44) < 0.03,
+    (st.evo0.patk / st.max.patk).toFixed(3));
+  check('tỉ lệ evolve bậc 2 giữ đúng 0,895 của wiki',
+    Math.abs(st.evo1.patk / st.max.patk - 0.895) < 0.03,
+    (st.evo1.patk / st.max.patk).toFixed(3));
   check('giáp đầu SS = 252 HP như wiki', st.head.hp === 252, st.head.hp + '');
 
   // -------------------------------------------------- LUẬT LIMIT BREAK / Ô
@@ -102,20 +108,29 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   // Kỹ năng THUỘC VỀ VŨ KHÍ: mỗi cây đúng hai đòn, đòn thứ hai mở theo cấp.
   const sk = await p.evaluate(() => {
     const s = DP.starterKit(DP.newSave('T'));
-    const w = s.gear.find(g => g.kind === 'weapon' && g.wclass === 'dual');
+    const w = s.gear.find(g => g.kind === 'weapon' && g.wclass === 'shotgun');
     w.lv = 1;
     const lo = DP.weaponProfile(s, w).skills.length;
     w.lv = DP.SKILL_RULES.unlockLv2;
     const hi = DP.weaponProfile(s, w).skills.length;
     const perWeapon = DP.WEAPON_ORDER.map(k => DP.skillsOf(k).length);
     const kinds = DP.WEAPON_ORDER.reduce((a, k) => a.concat(DP.skillsOf(k).map(x => x.kind)), []);
-    return { lo, hi, perWeapon, uniqueKinds: kinds.filter((v, i, a) => a.indexOf(v) === i).length };
+    const uniq = kinds.filter((v, i, a) => a.indexOf(v) === i);
+    // Trình phát nằm trên Battle.prototype; ở bước này chưa vào trận nào nên lấy
+    // qua DP.Battle (lớp), không qua một thể hiện.
+    const proto = (DP.Battle && DP.Battle.prototype) || {};
+    const missing = uniq.filter(k => typeof proto['sk_' + k] !== 'function');
+    return { lo, hi, perWeapon, uniqueKinds: uniq.length,
+             missingRunners: missing.length, missing: missing };
   });
   check('mỗi vũ khí đúng 2 kỹ năng', sk.perWeapon.every(n => n === 2), sk.perWeapon.join('/'));
   check('kỹ năng thứ hai mở theo cấp vũ khí', sk.lo === 1 && sk.hi === 2, sk.lo + ' -> ' + sk.hi);
   // Đây là phép kiểm chống lại đúng cái đã giết hệ Magi cũ: bốn mươi viên dùng
   // chung ba đoạn code. Mười đòn thì phải là mười trình phát khác nhau.
-  check('mười kỹ năng là MƯỜI trình phát khác nhau', sk.uniqueKinds === 10, sk.uniqueKinds + ' kind');
+  check('mười hai kỹ năng là MƯỜI HAI trình phát khác nhau', sk.uniqueKinds === 12, sk.uniqueKinds + ' kind');
+  // Và mỗi kind phải CÓ trình phát thật, không rơi vào nhánh "chưa cài" im lặng.
+  check('mọi kind đều có trình phát sk_*', sk.missingRunners === 0,
+    sk.missingRunners ? 'thiếu ' + sk.missing.join(',') : 'đủ 12'); 
 
   // --------------------------------------------------------- PUNICON THẬT
   results.push('\n── Punicon (cử chỉ thật trên canvas) ──');
@@ -132,17 +147,45 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('KÉO làm nhân vật di chuyển', Math.hypot(after.x - before.x, after.y - before.y) > 25,
     'đi được ' + Math.round(Math.hypot(after.x - before.x, after.y - before.y)) + 'px');
 
-  // CHẠM -> đánh
-  await p.evaluate(() => { DP.UI.battle.player.state = 'idle'; DP.UI.battle.player.combo = 0; });
+  // CHẠM -> bắn một phát, và phải có ĐẠN thật bay ra
+  await p.evaluate(() => { DP.UI.battle.player.state = 'idle'; DP.UI.battle.projs.length = 0; });
   await G.tap(p, 270, 640);
   await p.waitForTimeout(120);
-  check('CHẠM ra đòn đánh', await p.evaluate(() => DP.UI.battle.player.state === 'attack'));
+  const shot1 = await p.evaluate(() => ({ st: DP.UI.battle.player.state,
+                                          n: DP.UI.battle.projs.length }));
+  check('CHẠM bắn một phát', shot1.st === 'fire' || shot1.st === 'cast', shot1.st);
+  check('CHẠM sinh ra đạn thật', shot1.n >= 1, shot1.n + ' viên');
 
-  // BẤM LIÊN TỤC -> nối combo
+  // BẤM LIÊN TỤC -> bắn liên tục theo nhịp của cây, không nối combo nữa
   await p.waitForTimeout(350);
-  for (let i = 0; i < 3; i++) { await G.tap(p, 270, 640); await p.waitForTimeout(300); }
-  check('BẤM LIÊN TỤC nối được combo', await p.evaluate(() => DP.UI.battle.player.combo >= 3),
-    'combo = ' + await p.evaluate(() => DP.UI.battle.player.combo));
+  await p.evaluate(() => { DP.UI.battle.projs.length = 0; window.__fired = 0;
+    const b = DP.UI.battle, f = b.fire.bind(b);
+    b.fire = function (o) { window.__fired++; return f(o); }; });
+  for (let i = 0; i < 4; i++) { await G.tap(p, 270, 640); await p.waitForTimeout(300); }
+  check('BẤM LIÊN TỤC bắn được nhiều phát',
+    await p.evaluate(() => window.__fired) >= 3,
+    await p.evaluate(() => window.__fired) + ' phát');
+
+  // GIỮ -> ba nghĩa tuỳ lớp. Đi qua đúng cử chỉ thật, không gọi hàm nội bộ.
+  /* DPBot._hold() trả về NGAY rồi mới nhả tay qua setTimeout, và Punicon chỉ
+   * nhận là "giữ" sau PUNI.holdMs = 260ms. Nên phải đọc trạng thái GIỮA cú giữ,
+   * rồi chờ cho nó nhả hẳn trước bài kế — nếu không thì bài kế bấm vào giữa một
+   * cú giữ đang chạy và không có gì hoạt động như mong đợi. */
+  await p.waitForTimeout(500);
+  await p.evaluate(() => {
+    const b = DP.UI.battle;
+    b.player.state = 'idle'; b.player.stateT = 0; b.player.stateDur = 0;
+    window.__fired = 0; window.__heldState = '';
+    const hs = b.holdStart.bind(b);
+    b.holdStart = function (dx, dy) { const r = hs(dx, dy);
+      window.__heldState = b.player.state; return r; };
+  });
+  await G.hold(p, 900, 0, 0);
+  await p.waitForTimeout(450);                     // quá ngưỡng holdMs, còn giữa cú giữ
+  const heldState = await p.evaluate(() => window.__heldState);
+  check('GIỮ vào đúng trạng thái của lớp (auto/nạp/ghì)',
+    ['autofire', 'charge', 'steady'].indexOf(heldState) >= 0, heldState + '');
+  await p.waitForTimeout(700);                     // chờ nhả tay hẳn
 
   // HƯỚNG NHÌN — luật của White Cat: đứng yên thì tự quay về địch gần nhất, còn
   // đang chạy thì đòn bay theo hướng đi. Không có luật này thì "chạm chỗ nào cũng
@@ -191,7 +234,10 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     window.__mobHp = m.hp; window.__mob = m;
   });
   await G.tap(p, 270, 640);
-  await p.waitForTimeout(220);
+  // Chờ lâu hơn hẳn bản cận chiến: viên đạn phải HIỆN DẦN 140ms (chưa có hitbox)
+  // rồi mới BAY hết quãng đường tới mục tiêu. Thời gian bay là bản chất của game
+  // bắn, không phải độ trễ thừa.
+  await p.waitForTimeout(600);
   const tapAim = await p.evaluate(() => {
     const pl = DP.UI.battle.player;
     return { facing: pl.facing, hurt: window.__mob.hp < window.__mobHp };
@@ -223,12 +269,23 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   });
   check('CHẠM khi đang lăn ra đòn mà KHÔNG hủy cú lăn', roll.still && roll.rollHit, JSON.stringify(roll));
 
-  // GIỮ -> đặc thù vũ khí (Kiếm & Khiên = đỡ)
+  /* GIỮ có BA nghĩa, và mỗi lớp chỉ nhận đúng một nghĩa. Kiểm cả ba trên cùng
+   * một đường vào (holdStart), vì đó là chỗ ngón tay người chơi đi qua. */
   await p.waitForTimeout(600);
-  await p.evaluate(() => { DP.UI.battle.player.state = 'idle'; });
-  await G.hold(p, 700);
-  await p.waitForTimeout(400);
-  check('GIỮ vào thế đỡ (Kiếm & Khiên)', await p.evaluate(() => DP.UI.battle.player.state === 'guard'));
+  const holds = await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player, out = {};
+    ['rifle', 'bow', 'sniper'].forEach(k => {
+      b.W = DP.WEAPONS[k];
+      pl.state = 'idle'; pl.stateT = 0; pl.stateDur = 0; pl.carryCharge = 0;
+      b.holdStart(0, 0);
+      out[k] = pl.state;
+      b.holdCancel();
+    });
+    return out;
+  });
+  check('GIỮ cây auto = bắn liên tục', holds.rifle === 'autofire', holds.rifle);
+  check('GIỮ cây nạp = vào thế nạp lực', holds.bow === 'charge', holds.bow);
+  check('GIỮ cây còn lại = ghì súng', holds.sniper === 'steady', holds.sniper);
   await p.waitForTimeout(500);
 
   // GIỮ RỒI TRƯỢT VỀ HƯỚNG NÚT KỸ NĂNG
@@ -299,14 +356,19 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   await target();
   const feel = await p.evaluate(() => {
     const b = DP.UI.battle, m = window.__m;
-    b.meleeHit(1, 1.75, 62, { move: b.W.chain[0] });
+    b.dealToMob(m, b.playerDamage(b.W.dmg, {}),
+                { move: { kb: b.W.kb, poise: b.W.poise, hs: DP.FEEL.hitstop.light } });
     return { freeze: Math.round(b.freeze), shake: Math.round(b.shake),
-             kb: +Math.hypot(m.kbX, m.kbY).toFixed(1), poise: Math.round(m.poise), max: m.poiseMax };
+             kb: +Math.hypot(m.kbX, m.kbY).toFixed(1), poise: Math.round(m.poise), max: m.poiseMax,
+             cap: Math.round(DP.WEAPONS.rifle.shotMs * 0.2) };
   });
-  check('đánh trúng thì ĐÓNG BĂNG một nhịp (hitstop)', feel.freeze >= 40, feel.freeze + 'ms');
-  check('đánh trúng thì rung màn hình', feel.shake > 0, feel.shake);
-  check('đánh trúng thì quái VĂNG ra', feel.kb > 0, feel.kb + 'px/khung');
-  check('đánh trúng thì trừ thanh lì đòn', feel.poise < feel.max, feel.poise + '/' + feel.max);
+  // Hitstop giờ theo thang Nuclear Throne (1/10/20/50/100ms). Ngưỡng cũ là 40ms,
+  // tức lớn hơn cả cú "quái nổ" của NT — bắn 5 phát/giây mà giữ nó thì đứng hình.
+  check('bắn trúng thì ĐÓNG BĂNG một nhịp ngắn (hitstop)', feel.freeze >= 8, feel.freeze + 'ms');
+  check('hitstop đủ ngắn cho nhịp bắn (<= 20% khoảng cách hai phát)',
+    feel.freeze <= feel.cap, feel.freeze + 'ms / trần ' + feel.cap + 'ms');
+  check('bắn trúng thì quái VĂNG ra', feel.kb > 0, feel.kb + 'px/khung');
+  check('bắn trúng thì trừ thanh lì đòn', feel.poise < feel.max, feel.poise + '/' + feel.max);
 
   // Hitstop không được nuốt input, và phải có trần.
   const stop = await p.evaluate(() => {
@@ -346,43 +408,88 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     air.dmg + ' từ base 100 (×' + DP_AIR + ')');
   check('quái đang lơ lửng thì không đánh trả được', air.acts);
 
-  // Cửa sổ ĐÒN NẶNG: ngưng đúng nhịp rồi tap thì rẽ nhánh.
+  /* GHÌ SÚNG. Giữ đủ lâu thì tản đạn về 0 và phát bắn nặng tay hơn; giữ chưa đủ
+   * thì vẫn bắn được, chỉ là không được thưởng. Phạt BẤT ĐỐI XỨNG — đây là luật
+   * lấy từ dải chí mạng của Monster Hunter: đứng sai chỗ thì MẤT thưởng, chứ
+   * không bị trừ xuống dưới mức gốc. */
   await target();
-  const heavy = await p.evaluate(() => {
+  const steady = await p.evaluate(() => {
     const b = DP.UI.battle, pl = b.player;
-    b.t = performance.now();
-    pl.heavyFrom = b.t - 50; pl.heavyTo = b.t + 200; pl.state = 'idle';
-    b.tryAttack();
-    return { move: pl.move && pl.move.n, want: b.W.heavy.n, idx: pl.comboIdx };
+    b.W = DP.WEAPONS.sniper;
+    b.projs.length = 0; pl.state = 'idle'; pl.bloom = 0;
+    b.fire({});                       // bắn thường
+    const plain = b.projs[0].mul;
+    b.projs.length = 0; pl.state = 'idle';
+    b.fire({ steady: true });         // ghì đủ rồi bắn
+    const held = b.projs[0].mul;
+    const heldCrit = b.projs[0].critBonus;
+    return { plain: plain, held: held, heldCrit: heldCrit };
   });
-  check('ngưng đúng nhịp rồi tap thì ra ĐÒN NẶNG', heavy.move === heavy.want && heavy.idx === -2,
-    heavy.move);
+  check('GHÌ SÚNG làm phát bắn nặng tay hơn', steady.held > steady.plain,
+    steady.plain + ' -> ' + steady.held);
+  check('GHÌ SÚNG cộng thêm tỉ lệ chí mạng', steady.heldCrit > 0, '+' + steady.heldCrit);
 
-  // Mỗi cây một bộ đòn thật sự khác nhau, không phải cùng một nhát đổi hệ số.
+  /* TẢN ĐẠN NỞ RA khi giữ cò. Đây là cái phạt việc ghì cò vô tội vạ mà không
+   * phải hạ DPS — và nó thu lại khi nhả tay một nhịp. */
+  const bloom = await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    b.W = DP.WEAPONS.rifle;
+    pl.state = 'idle'; pl.bloom = 0;
+    for (let i = 0; i < 8; i++) { pl.state = 'idle'; b.fire({}); }
+    return { after: +pl.bloom.toFixed(1), max: b.W.bloomMax };
+  });
+  check('giữ cò lâu thì tản đạn NỞ RA', bloom.after > 0, '+' + bloom.after + '°');
+  check('tản đạn có trần, không nở vô hạn', bloom.after <= bloom.max,
+    bloom.after + ' <= ' + bloom.max);
+
+  /* DẢI CHÍ MẠNG của cung. Ba tính chất phải giữ: quá gần chỉ MẤT thưởng (về
+   * 1,0×) chứ không tụt dưới gốc; quá xa mới BỊ PHẠT; và không có vách đứng. */
+  const cd = await p.evaluate(() => {
+    const C = DP.WEAPONS.bow.critDist;
+    return { peak: Math.max.apply(null, C.mul), first: C.mul[0],
+             last: C.mul[C.mul.length - 1], bands: C.bands.length, muls: C.mul.length,
+             monotonicAfterPeak: C.mul.slice(1).every((v, i, a) => i === 0 || v <= a[i - 1]) };
+  });
+  check('cung có DẢI CHÍ MẠNG thưởng gấp rưỡi', cd.peak === 1.5, '×' + cd.peak);
+  check('đứng quá GẦN chỉ mất thưởng, không bị phạt', cd.first === 1.0, '×' + cd.first);
+  check('đứng quá XA thì bị phạt thật', cd.last < 1.0, '×' + cd.last);
+  check('dải chí mạng giảm dần, không có vách đứng', cd.monotonicAfterPeak);
+
+  /* Mỗi LỚP một bộ thông số bắn thật sự khác nhau, không phải cùng một viên đạn
+   * đổi hệ số. Luật cân bằng (SHOOTER.md §3.1): DPS bền của mọi archetype phải
+   * GẦN BẰNG NHAU, nhưng sát thương MỖI LẦN BẤM thì phải chênh nhau nhiều lần —
+   * đó mới là cái phân biệt chúng trong một game né đạn. */
   const sets = await p.evaluate(() => {
     const out = {};
     Object.keys(DP.WEAPONS).forEach(k => {
       const W = DP.WEAPONS[k];
-      out[k] = { chain: W.chain.length, names: W.chain.map(c => c.n),
-                 heavy: !!(W.heavy && W.heavy.n), dash: !!(W.dash && W.dash.n),
-                 reach: W.chain.map(c => c.reach), ms: W.chain.map(c => c.ms) };
+      out[k] = { dmg: W.dmg, shots: W.shots, rpm: W.rpm, range: W.range,
+                 spd: W.spd, burst: W.burst, dps: W.dps, vi: W.vi };
     });
-    const allNames = [].concat.apply([], Object.keys(out).map(k => out[k].names));
-    return { out: out,
-             everyHasHeavyDash: Object.keys(out).every(k => out[k].heavy && out[k].dash),
-             chainLens: Object.keys(out).map(k => out[k].chain),
-             uniqueNames: new Set(allNames).size === allNames.length,
-             // trong một cây, các nhát phải KHÁC nhau về thời gian hoặc tầm
-             variedInside: Object.keys(out).every(k => {
-               const o = out[k];
-               return new Set(o.ms).size > 1 || new Set(o.reach).size > 1;
-             }) };
+    const ks = Object.keys(out);
+    const dps = ks.map(k => out[k].dps), burst = ks.map(k => out[k].burst);
+    const range = ks.map(k => out[k].range), rpm = ks.map(k => out[k].rpm);
+    return {
+      out: out,
+      dpsBand: Math.max.apply(null, dps) / Math.min.apply(null, dps),
+      burstBand: Math.max.apply(null, burst) / Math.min.apply(null, burst),
+      uniqueRange: new Set(range).size, uniqueRpm: new Set(rpm).size,
+      uniqueNames: new Set(ks.map(k => out[k].vi)).size === ks.length,
+      // range PHẢI là hệ quả của spd x life, không phải một số chỉnh tay riêng
+      rangeDerived: ks.every(k => {
+        const W = DP.WEAPONS[k];
+        return Math.abs(W.range - W.spd * W.life / 16.67) < 1.5;
+      })
+    };
   });
-  check('cây nào cũng có đòn nặng và đòn lướt riêng', sets.everyHasHeavyDash);
-  check('chuỗi của mỗi cây dài ngắn khác nhau', new Set(sets.chainLens).size >= 3,
-    sets.chainLens.join('/') + ' nhát');
-  check('không nhát nào trùng tên giữa các cây', sets.uniqueNames);
-  check('trong cùng một cây, các nhát khác nhau thật (tầm hoặc nhịp)', sets.variedInside);
+  check('DPS bền của sáu lớp nằm trong dải hẹp (<= 2,2 lần)', sets.dpsBand <= 2.2,
+    sets.dpsBand.toFixed(2) + 'x');
+  check('burst mỗi lần bấm thì chênh nhiều (>= 3 lần)', sets.burstBand >= 3,
+    sets.burstBand.toFixed(2) + 'x');
+  check('sáu lớp sáu tầm bắn khác nhau', sets.uniqueRange === 6, sets.uniqueRange + '');
+  check('sáu lớp sáu nhịp bắn khác nhau', sets.uniqueRpm === 6, sets.uniqueRpm + '');
+  check('không lớp nào trùng tên', sets.uniqueNames);
+  check('tầm bắn là HỆ QUẢ của spd x life, không phải số chỉnh tay', sets.rangeDerived);
 
   // Quái phải BÁO TRƯỚC, và phải có lúc hở để phạt.
   const ais = await p.evaluate(() => {
@@ -396,6 +503,10 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
       let tells = 0;
       for (let i = 0; i < 400; i++) {
         const fx0 = b.fx.filter(f => f.k === 'tell').length;
+        // Phát thẻ đánh trước, đúng thứ tự của updateMobs. Không có thẻ thì con
+        // quái vẫn đi lại và vẫn doạ, nhưng KHÔNG ra đòn — nên bỏ bước này là
+        // đang kiểm một con quái bị trói tay.
+        b.updateTokens();
         b.mobAI(m, b.player, 16.7);
         if (b.fx.filter(f => f.k === 'tell').length > fx0) tells++;
         seen[m.phase] = 1;
@@ -426,14 +537,14 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     arena.w === arena.cfg.w && arena.h === arena.cfg.h && arena.w * arena.h < 1300 * 1600 * 0.6,
     arena.w + '×' + arena.h);
 
-  // Cả năm cây phát sẵn từ đầu.
+  // Cả sáu lớp phát sẵn từ đầu.
   const kit = await p.evaluate(() => {
     const s = DP.starterKit(DP.newSave('T'));
     const cls = s.gear.filter(g => g.kind === 'weapon').map(g => g.wclass);
     const eq = DP.equipped(s).weapons.filter(Boolean).length;
     return { n: new Set(cls).size, eq: eq };
   });
-  check('phát sẵn cả năm cây vũ khí', kit.n === 5, kit.n + ' cây');
+  check('phát sẵn đủ sáu lớp vũ khí', kit.n === 6, kit.n + ' cây');
   check('ba khe vũ khí đều có đồ để đổi giữa trận', kit.eq === 3);
 
   // ------------------------------------------------------------ TRẬN BOSS
@@ -762,13 +873,16 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   await p.waitForTimeout(400);
   const hp0 = await p.evaluate(() => DP.UI.battle.boss.hp);
   await p.evaluate(() => DPBot.on(150));
-  await p.waitForTimeout(14000);
+  // Cửa sổ nới từ 14s lên 22s vì trận boss GIỜ DÀI HƠN THEO THIẾT KẾ: máu boss
+  // suy ra từ máu quái thường nhân 40-78 lần, cho TTK mục tiêu 45-90 giây (chuẩn
+  // thể loại). Giữ nguyên 14s và đòi 15% là đang đo bằng thước của bản cũ.
+  await p.waitForTimeout(22000);
   const botRes = await p.evaluate(() => {
     const b = DP.UI.battle;
     return { hp: b ? (b.boss ? b.boss.hp : 0) : 0, alive: !!(b && b.running), finished: !b || !b.running };
   });
   await p.evaluate(() => DPBot.off());
-  check('bot đánh boss có tiến triển', botRes.finished || botRes.hp < hp0 * 0.85,
+  check('bot đánh boss có tiến triển', botRes.finished || botRes.hp < hp0 * 0.88,
     botRes.finished ? 'hạ xong trước 14s' : Math.round((1 - botRes.hp / hp0) * 100) + '% máu boss');
 
   // ---------------------------------------------------------- HUD & LAYOUT
@@ -883,20 +997,20 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('nhân vật nào cũng có lớp vũ khí và hệ hợp lệ',
     hero.badCls.length === 0 && hero.badEl.length === 0,
     (hero.badCls.concat(hero.badEl).join(',')) || 'ok');
-  check('đủ cả năm lớp vũ khí trong dàn nhân vật', hero.classes === 5, hero.classes + ' lớp');
+  check('đủ cả sáu lớp vũ khí trong dàn nhân vật', hero.classes === 6, hero.classes + ' lớp');
   check('gacha KHÔNG còn đẻ ra trang bị', hero.gearGrew === 0, 'túi tăng ' + hero.gearGrew + ' món');
   check('quay 200 lần ra đủ bốn hạng', Object.keys(hero.ranks).length === 4, JSON.stringify(hero.ranks));
 
   const eqr = await p.evaluate(() => {
     const S = DP.UI.save;
-    const sw = DP.HEROES.find(d => d.wclass === 'sword');
+    const sw = DP.HEROES.find(d => d.wclass === 'rifle');
     const bw = DP.HEROES.find(d => d.wclass === 'bow');
     let h1 = S.heroes.find(h => h.id === sw.id) || (S.heroes.push(DP.mkHero(sw.id)), S.heroes[S.heroes.length - 1]);
     let h2 = S.heroes.find(h => h.id === bw.id) || (S.heroes.push(DP.mkHero(bw.id)), S.heroes[S.heroes.length - 1]);
-    const gSword = S.gear.find(g => g.kind === 'weapon' && g.wclass === 'sword');
+    const gSword = S.gear.find(g => g.kind === 'weapon' && g.wclass === 'rifle');
     const gHead = S.gear.find(g => g.kind === 'head');
     const okRight = DP.equipOn(S, h1, gSword);
-    const okWrong = DP.equipOn(S, h2, gSword);          // cung không cầm được kiếm
+    const okWrong = DP.equipOn(S, h2, gSword);          // cung không cầm được súng trường
     // một món chỉ nằm ở MỘT người
     DP.equipOn(S, h1, gHead); DP.equipOn(S, h2, gHead);
     const onlyOne = (h1.gear.head !== gHead.uid) && (h2.gear.head === gHead.uid);
@@ -909,7 +1023,7 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   const swi = await p.evaluate(() => {
     const S = DP.UI.save;
     // ba người ba lớp khác nhau vào đội hình
-    const want = ['sword', 'great', 'bow'];
+    const want = ['rifle', 'launcher', 'bow'];
     want.forEach((cls, i) => {
       const d = DP.HEROES.find(x => x.wclass === cls);
       let h = S.heroes.find(x => x.id === d.id);
@@ -954,7 +1068,7 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   results.push('\n── bộ ảnh ──');
   const art = await p.evaluate(() => {
     const A = DP.Atlas, out = { rep: A.report(), miss: [], bad: [] };
-    ['sword', 'great', 'spear', 'dual', 'bow'].forEach(c =>
+    DP.WEAPON_ORDER.forEach(c =>
       ['none', 'thunder', 'fire', 'water', 'earth', 'light', 'dark'].forEach(e => {
         const k = 'weapons.' + c + '.' + e, en = A.get(k);
         if (!en) out.miss.push(k);
@@ -985,13 +1099,15 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   });
   check('bộ trưng bày: 6 cây, bấm lần hai không nhân bản',
     sc.a === 6 && sc.b === 0 && sc.n === 6, JSON.stringify(sc));
+  // Bộ trưng bày phải phủ ĐỦ SÁU LỚP — nếu không thì có lớp người chơi không bao
+  // giờ được cầm thử.
   check('bộ trưng bày: cây nào cũng tối cấp và mở đủ hai kỹ năng',
-    sc.allMax && sc.allTwo && sc.classes === 5, sc.classes + ' lớp');
+    sc.allMax && sc.allTwo && sc.classes === 6, sc.classes + ' lớp');
 
   check('mọi ảnh trong asset-map đều nạp được', art.rep.loaded === art.rep.total,
     art.rep.loaded + '/' + art.rep.total);
-  check('đủ 35 biểu tượng vũ khí (5 lớp x 7 hệ)', art.miss.length === 0,
-    art.miss.length ? 'thiếu: ' + art.miss.slice(0, 5).join(', ') : '35/35');
+  check('đủ 42 biểu tượng vũ khí (6 lớp x 7 hệ)', art.miss.length === 0,
+    art.miss.length ? 'thiếu: ' + art.miss.slice(0, 5).join(', ') : '42/42');
   check('biểu tượng vũ khí nào cũng có ảnh và có chiều dài khi cầm',
     art.bad.length === 0, art.bad.slice(0, 5).join(', ') || 'ok');
 

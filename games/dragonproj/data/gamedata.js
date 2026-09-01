@@ -329,6 +329,11 @@
   G.wclassOf = function (c) {
     return G.WEAPONS[c] ? c : (G.WCLASS_LEGACY[c] || 'rifle');
   };
+  /* Mọi chỗ tra bảng vũ khí đi qua đây, không tra thẳng G.WEAPONS[...]. Lý do:
+   * bảng Behemoth vẫn giữ tên lớp CŨ (nó là dữ liệu lấy nguyên văn từ wiki), và
+   * save của người chơi cũ cũng vậy. Một hàm tra duy nhất thì không thể có chỗ
+   * nào quên đổi — mà quên một chỗ là màn hình đó nổ. */
+  G.weaponOf = function (c) { return G.WEAPONS[G.wclassOf(c)]; };
 
   /* ------------------------------------------- LOẠI ĐẶC THÙ CỦA VŨ KHÍ ---- */
   G.WTYPES = {
@@ -454,8 +459,8 @@
         d:'Lao thẳng tới trước, vừa lao vừa nã. Chạm ai thì người đó ăn trọn cả loạt ở cự ly bằng không.',
         charge:600, cd:15000,
         // 4,2 × 15 × 0,55 (có dịch chuyển + giáp) ≈ 35 đơn vị/giây × ... = 190
-        mul:190, dist:230, rushMs:380, armor:true,
-        pellets:10, arcGap:9,
+        mul:120, endMul:190, dist:230, rushMs:380, armor:true, pushAlong:true,
+        arc:2.0, reach:96, pellets:10, arcGap:9,
         hitstop:HS.mid, kb:14, poise:34, knock:3,
         trail:true, burst:true },
 
@@ -508,9 +513,9 @@
         d:'Nạp lâu nhất game. Một mũi xuyên trọn một hàng và để lại vết thương rỉ máu.',
         charge:2000, cd:22000,
         // Đơn mục tiêu, K = 0,9: 13/s × 22 × 0,9 ≈ 257
-        mul:257, len:620, w:24, speed:26,
-        pierce:true, pierceFall:0.15,        // rất ít suy giảm — đây là cây xuyên
-        dotMs:6000, dotFrac:0.30,
+        mul:257, ms:300, len:620, w:24, speed:26,
+        pierce:true, rampPerHit:0.18, rampMax:2.2,   // xuyên nhiều thì cộng dồn
+        dotMs:6000, dotFrac:0.30, push:0,
         hitstop:HS.boom, zoomPunch:0.12, kb:12, poise:26,
         trail:true, burst:true }
     ],
@@ -531,7 +536,7 @@
         charge:1400, cd:23000,
         // Gom quái là tiện ích rất lớn, K = 0,45: 27/s × 23 × 0,45 ≈ 279
         mul:279, throwSpd:5, pullR:200, pullMs:900, pullForce:0.34,
-        blastR:130,
+        blastR:130, arc:6.283, reach:130,
         hitstop:HS.heavy, kb:6, poise:26, shake:7,
         trail:true, burst:true }
     ],
@@ -1288,6 +1293,30 @@
   G.behemothById = function (id) { return G.BEHEMOTHS.find(function (b) { return b.id === id; }); };
   G.areaById = function (id) { return G.AREAS.find(function (a) { return a.id === id; }); };
   G.matById = function (id) { return G.MATERIALS[id]; };
+
+  /* ---------------------------------- NGUỒN RƠI ĐỒ CHO LỚP GẬY PHÉP ------
+   * Trường `weapon` của Behemoth là dữ liệu lấy NGUYÊN VĂN từ wiki, nên nó chỉ
+   * biết năm lớp cũ. Ánh xạ sang lớp mới cho ra: sniper 11 · launcher 9 ·
+   * rifle 15 · shotgun 9 · bow 12 — và GẬY PHÉP ĐƯỢC 0.
+   *
+   * Không con Behemoth nào rơi ra gậy nghĩa là tám nhân vật lớp gậy vĩnh viễn
+   * không có gì để lắp. Nên phải chuyển một phần sang, và chuyển theo một luật
+   * ĐỌC ĐƯỢC chứ không phải bốc tay: con nào mang hệ QUANG hoặc ÁM — hai hệ
+   * mang tính phép thuật nhất trong sáu hệ — thì đổi sang gậy. Lấy từ hai lớp
+   * đang dư nhất (rifle 15, sniper 11), không đụng vào ba lớp còn lại.
+   *
+   * Đây là chỗ lệch bản gốc thứ NĂM, cùng loại với bốn chỗ đã ghi trong
+   * data/games.js: bản gốc không có lớp gậy nên không có gì để lấy nguyên văn. */
+  (function () {
+    G.BEHEMOTHS.forEach(function (b) {
+      // Luật: con nào mang LOẠI SOUL thì rơi ra gậy. Trong ba loại đặc thù của
+      // bản gốc, Soul là loại "có thanh nội lực, đầy thì vào trạng thái tăng sức
+      // mạnh" — tức là loại duy nhất nói về một nguồn năng lượng bên trong chứ
+      // không phải về nhiệt hay về đòn đánh. Đó là con đường ngắn nhất từ dữ
+      // liệu CÓ SẴN của wiki sang một lớp vũ khí phép, không phải bốc tay.
+      if (b.type === 'soul') b.weapon = 'staff';
+    });
+  })();
 
   // Dựng danh sách ải sau cùng, vì nó cần G.behemothById và G.areaById.
   G.buildStages();

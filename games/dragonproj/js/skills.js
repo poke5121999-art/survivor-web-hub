@@ -537,6 +537,204 @@
     };
 
     /* ==================================================================== */
+    /* TRÌNH PHÁT CHO SÁU LỚP BẮN                                           */
+    /*                                                                      */
+    /* Tám kind mới. Mỗi kind là một HÌNH DẠNG khác nhau trên màn hình, chứ  */
+    /* không phải cùng một vùng đổi màu — đây chính là chỗ hệ Magi cũ chết:  */
+    /* bốn mươi viên dùng chung ba đoạn code nên hiện lên y hệt nhau.        */
+    /* ==================================================================== */
+
+    /* --- beam: Áp Chế. Một tràng dài, toè rộng rồi THU DẦN về gần như một
+     *     đường thẳng. Thưởng cho việc đứng yên, chứ không phải cho việc bấm. */
+    Battle.prototype.sk_beam = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.ticks * sk.tickMs; p.stateDur = st.dur;
+      st.fired = 0; st.acc = 0;
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 40, t: 0, ms: 200, col: this.elemFx().col });
+    };
+    Battle.prototype.upd_beam = function (sk, st, dt) {
+      var p = this.player;
+      st.acc += dt;
+      while (st.fired < sk.ticks && st.acc >= sk.tickMs) {
+        st.acc -= sk.tickMs;
+        var k = st.fired / (sk.ticks - 1);
+        var cone = (sk.coneStart + (sk.coneEnd - sk.coneStart) * k) * Math.PI / 180;
+        var a = p.facing + (Math.random() - 0.5) * cone;
+        this.projs.push({ k: 'shot', wclass: 'rifle',
+          x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14, a: a,
+          spd: this.W.spd * 1.15, life: this.W.life, r: this.W.r,
+          mul: sk.mul / sk.ticks, critBonus: 0, pierce: false, pierceFall: 0.33, hits: 0,
+          from: { x: p.x, y: p.y }, hitSet: [], fade: 0, skill: true });
+        this.shake = Math.min(G.FEEL.shakeMax, this.shake + 1);
+        st.fired++;
+      }
+      if (st.t >= st.dur) { p.state = 'lag'; p.stateT = 0; p.stateDur = 260; }
+    };
+
+    /* --- turret: Ụ Súng. Một nguồn sát thương thứ hai đứng độc lập, nên hệ
+     *     số K tụt về 0,5: tiện ích chính là phần thưởng. */
+    Battle.prototype.sk_turret = function (sk, st) {
+      var p = this.player;
+      st.dur = 380; p.stateDur = st.dur;
+      this.turrets = this.turrets || [];
+      this.turrets.push({ x: p.x, y: p.y, left: sk.ttlMs, cd: 0, sk: sk,
+                          shotMs: 60000 / sk.rpm, shots: 0 });
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 44, t: 0, ms: 320, col: '#ffd23f' });
+    };
+    Battle.prototype.upd_turret = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 220; }
+    };
+
+    /* --- ring: Vòng Mảnh. 360° quanh thân, không cần ngắm.
+     *     Số viên khoá ở sk.pellets = 20, đúng trần của công thức hành lang
+     *     n_max = 2πd / (2·r_đạn + 2·r_người + M) ở tầm đó. Xem SHOOTER.md §5.2. */
+    Battle.prototype.sk_ring = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.ringMs + 220; p.stateDur = st.dur;
+      var n = Math.min(sk.pellets, G.DANMAKU.ringMax);
+      // Góc gốc NGẪU NHIÊN nhưng cấu trúc thì không: randomize hạt giống, đừng
+      // bao giờ randomize cấu trúc (luật của Sparen). Có vậy mỗi lần dùng mới
+      // phủ khác nhau mà vẫn đọc được là một cái vòng.
+      var a0 = Math.random() * TAU;
+      for (var i = 0; i < n; i++) {
+        var a = a0 + i / n * TAU;
+        this.projs.push({ k: 'shot', wclass: 'shotgun',
+          x: p.x + Math.cos(a) * 16, y: p.y + Math.sin(a) * 16, a: a,
+          spd: this.W.spd * 1.2, life: sk.ringR / (this.W.spd * 1.2) * 16.67,
+          r: this.W.r, mul: sk.mul / n, critBonus: 0,
+          pierce: true, pierceFall: 0.30, hits: 0,
+          from: { x: p.x, y: p.y }, hitSet: [], fade: 0, skill: true });
+      }
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: sk.ringR, t: 0, ms: sk.ringMs, col: '#ffb45a' });
+      this.impact(p.x, p.y, sk.hitstop, G.FEEL.shake.heavy, '#ffb45a');
+    };
+    Battle.prototype.upd_ring = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 240; }
+    };
+
+    /* --- rail: Xuyên Tuyến. Một tia xuyên hết chiều dài sân, càng xuyên nhiều
+     *     con càng nặng đòn. Dùng lại đúng luật cộng dồn của sk_pierce. */
+    Battle.prototype.sk_rail = function (sk, st) {
+      var p = this.player, self = this;
+      st.dur = 420; p.stateDur = st.dur;
+      var a = p.facing, ex = p.x + Math.cos(a) * sk.len, ey = p.y + Math.sin(a) * sk.len;
+      var list = [];
+      this.mobs.forEach(function (m) {
+        if (m.hp <= 0) return;
+        var rx = m.x - p.x, ry = m.y - p.y;
+        var along = rx * Math.cos(a) + ry * Math.sin(a);
+        var perp = Math.abs(-rx * Math.sin(a) + ry * Math.cos(a));
+        if (along > 0 && along < sk.len && perp < sk.w / 2 + m.r) list.push({ m: m, d: along });
+      });
+      list.sort(function (u, v) { return u.d - v.d; });
+      var mul = sk.mul;
+      list.forEach(function (o) {
+        self.dealToMob(o.m, self.playerDamage(mul, { skill: true }),
+          { move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop }, from: a, skill: true });
+        self.elemBurst(o.m.x, o.m.y, mul, o.m);
+        mul = Math.min(sk.mul * sk.rampMax, mul * (1 + sk.rampPerHit));
+      });
+      if (this.boss && this.boss.hp > 0) {
+        var rx2 = this.boss.x - p.x, ry2 = this.boss.y - p.y;
+        var al = rx2 * Math.cos(a) + ry2 * Math.sin(a);
+        var pe = Math.abs(-rx2 * Math.sin(a) + ry2 * Math.cos(a));
+        if (al > 0 && al < sk.len && pe < sk.w / 2 + this.boss.r) {
+          this.dealToBoss(this.playerDamage(mul, { skill: true }),
+            p.x + Math.cos(a) * al, p.y + Math.sin(a) * al, { skill: true });
+        }
+      }
+      if (list.length > 1) this.number(ex, ey, '×' + list.length + ' XUYÊN', 'weak');
+      this.elemTrail(p.x, p.y, ex, ey, 560);
+      this.impact(ex, ey, sk.hitstop, G.FEEL.shake.quake, this.elemFx().col);
+      if (sk.zoomPunch) this.zoomPunch = sk.zoomPunch;
+    };
+    Battle.prototype.upd_rail = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 300; }
+    };
+
+    /* --- mark: Điểm Danh. Kỹ năng THUẦN TIỆN ÍCH — giá trị nằm ở chỗ nó nâng
+     *     mọi phát bắn sau đó, không ở con số của chính nó. Ý lấy từ Tracer
+     *     Arrow của MH Wilds: đóng dấu một lần, mọi mũi sau tính như nạp đầy và
+     *     KHÔNG bị trừ sát thương theo khoảng cách. */
+    Battle.prototype.sk_mark = function (sk, st) {
+      var p = this.player, self = this, n = 0;
+      st.dur = 420; p.stateDur = st.dur;
+      this.mobs.forEach(function (m) {
+        if (m.hp <= 0) return;
+        if (Math.hypot(m.x - p.x, m.y - p.y) > sk.markR) return;
+        m.marked = self.t + sk.markMs; n++;
+        self.fx.push({ k: 'ring', x: m.x, y: m.y, r: m.r + 16, t: 0, ms: 300, col: '#ff4f7a' });
+      });
+      if (this.boss && this.boss.hp > 0) { this.boss.marked = this.t + sk.markMs; n++; }
+      this.toast('ĐÁNH DẤU ×' + n, '#ff4f7a');
+      this.impact(p.x, p.y, sk.hitstop, G.FEEL.shake.mid, '#ff4f7a');
+    };
+    Battle.prototype.upd_mark = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 220; }
+    };
+
+    /* --- field: Trận Sấm. Một VÙNG đứng yên tại chỗ — động từ này không cây
+     *     nào khác có, và đó là điểm khác thật giữa phép và súng. Sét nảy sang
+     *     con bên cạnh: ba lần, −30% mỗi lần (đúng số của Hades). */
+    Battle.prototype.sk_field = function (sk, st) {
+      var p = this.player;
+      st.dur = 420; p.stateDur = st.dur;
+      var fx = clamp(p.aimX || (p.x + Math.cos(p.facing) * 120), 40, this.wW - 40);
+      var fy = clamp(p.aimY || (p.y + Math.sin(p.facing) * 120), 40, this.wH - 40);
+      this.fields = this.fields || [];
+      this.fields.push({ x: fx, y: fy, left: sk.fieldMs, cd: 0, sk: sk });
+      this.fx.push({ k: 'ring', x: fx, y: fy, r: sk.fieldR, t: 0, ms: 400, col: '#8fd4ff' });
+    };
+    Battle.prototype.upd_field = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 260; }
+    };
+
+    /* --- barrage: Rải Thảm. Tám quả nổ rải DẦN RA XA theo hướng nhìn, mỗi quả
+     *     có bóng báo trước. Cái làm nó đọc được là ĐỘ TRỄ giữa các quả. */
+    Battle.prototype.sk_barrage = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.shells * sk.stepMs + 300; p.stateDur = st.dur;
+      this.blasts = this.blasts || [];
+      for (var i = 0; i < sk.shells; i++) {
+        var d = (i + 1) * sk.stepPx;
+        this.blasts.push({
+          x: clamp(p.x + Math.cos(p.facing) * d, 20, this.wW - 20),
+          y: clamp(p.y + Math.sin(p.facing) * d, 20, this.wH - 20),
+          left: 260 + i * sk.stepMs, r: sk.blastR,
+          dmg: sk.mul / sk.shells, sk: sk
+        });
+      }
+    };
+    Battle.prototype.upd_barrage = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 280; }
+    };
+
+    /* --- cluster: Bom Chùm. Một quả to vỡ thành mười sáu quả nhỏ. Sát thương
+     *     dồn về SAU, nên nó chỉ trả công khi quả to trúng chỗ đông. */
+    Battle.prototype.sk_cluster = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.fuseMs + 420; p.stateDur = st.dur;
+      var cx = clamp(p.aimX || (p.x + Math.cos(p.facing) * 200), 30, this.wW - 30);
+      var cy = clamp(p.aimY || (p.y + Math.sin(p.facing) * 200), 30, this.wH - 30);
+      this.blasts = this.blasts || [];
+      this.blasts.push({ x: cx, y: cy, left: sk.fuseMs, r: sk.fragR * 1.6,
+                         dmg: sk.mul * sk.coreFrac, sk: sk, core: true });
+      var each = sk.mul * (1 - sk.coreFrac) / sk.frags;
+      for (var i = 0; i < sk.frags; i++) {
+        var a = Math.random() * TAU, rr = Math.sqrt(Math.random()) * sk.spreadR;
+        this.blasts.push({
+          x: clamp(cx + Math.cos(a) * rr, 20, this.wW - 20),
+          y: clamp(cy + Math.sin(a) * rr, 20, this.wH - 20),
+          left: sk.fuseMs + 160 + Math.random() * 380, r: sk.fragR, dmg: each, sk: sk
+        });
+      }
+      this.fx.push({ k: 'tell', x: cx, y: cy, r: sk.spreadR, t: 0, ms: sk.fuseMs, friendly: true });
+    };
+    Battle.prototype.upd_cluster = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 300; }
+    };
+
+    /* ==================================================================== */
     /* CẬP NHẬT MỖI KHUNG                                                   */
     /* ==================================================================== */
 
@@ -607,6 +805,99 @@
       }
 
       // mưa tên
+      /* Ụ SÚNG. Nó tự tìm mục tiêu gần nhất và bắn theo nhịp riêng — một nguồn
+       * sát thương thứ hai chạy song song, không phụ thuộc người chơi đang làm gì. */
+      if (this.turrets && this.turrets.length) {
+        for (var tt = this.turrets.length - 1; tt >= 0; tt--) {
+          var tu = this.turrets[tt];
+          tu.left -= dt; tu.cd -= dt;
+          if (tu.left <= 0) {
+            this.fx.push({ k: 'ring', x: tu.x, y: tu.y, r: 30, t: 0, ms: 240, col: '#8fa3b5' });
+            this.turrets.splice(tt, 1); continue;
+          }
+          if (tu.cd <= 0) {
+            var tgt = this.nearestHostile(tu.x, tu.y, tu.sk.turretRange);
+            if (tgt) {
+              tu.cd = tu.shotMs;
+              var ta = Math.atan2(tgt.y - tu.y, tgt.x - tu.x);
+              // Tổng sát thương chia đều cho số phát nó kịp bắn trong đời nó.
+              var total = Math.max(1, Math.round(tu.sk.ttlMs / tu.shotMs));
+              this.projs.push({ k: 'shot', wclass: 'rifle',
+                x: tu.x + Math.cos(ta) * 12, y: tu.y + Math.sin(ta) * 12, a: ta,
+                spd: this.W.spd, life: 900, r: 6,
+                mul: tu.sk.mul / total, critBonus: 0, pierce: false, pierceFall: 0.33, hits: 0,
+                from: { x: tu.x, y: tu.y }, hitSet: [], fade: 0, skill: true });
+            }
+          }
+        }
+      }
+
+      /* TRẬN SẤM. Một vùng đứng yên tại chỗ, đánh theo nhịp, và mỗi cú đánh nảy
+       * sang tối đa ba con bên cạnh với −30% mỗi lần nảy (đúng số của Hades). */
+      if (this.fields && this.fields.length) {
+        for (var fd = this.fields.length - 1; fd >= 0; fd--) {
+          var fi = this.fields[fd];
+          fi.left -= dt; fi.cd -= dt;
+          if (fi.left <= 0) { this.fields.splice(fd, 1); continue; }
+          if (fi.cd <= 0) {
+            fi.cd = fi.sk.tickMs;
+            var ticks = Math.max(1, Math.round(fi.sk.fieldMs / fi.sk.tickMs));
+            var per = fi.sk.mul / ticks;
+            var hitInField = [];
+            var selfB = this;
+            this.mobs.forEach(function (m) {
+              if (m.hp <= 0) return;
+              if (Math.hypot(m.x - fi.x, m.y - fi.y) > fi.sk.fieldR + m.r) return;
+              hitInField.push(m);
+              selfB.dealToMob(m, selfB.playerDamage(per, { skill: true }),
+                { move: { kb: fi.sk.kb, poise: fi.sk.poise, hs: fi.sk.hitstop }, skill: true });
+            });
+            if (this.boss && this.boss.hp > 0 &&
+                Math.hypot(this.boss.x - fi.x, this.boss.y - fi.y) < fi.sk.fieldR + this.boss.r) {
+              this.dealToBoss(this.playerDamage(per, { skill: true }), this.boss.x, this.boss.y, { skill: true });
+            }
+            // Sét nảy: từ mỗi con đã trúng, tìm con GẦN NHẤT chưa trúng.
+            hitInField.forEach(function (src) {
+              var cur = src, dmg = per;
+              for (var c = 0; c < fi.sk.chain; c++) {
+                dmg *= (1 - fi.sk.chainFall);
+                var nx = null, nd = fi.sk.chainR;
+                selfB.mobs.forEach(function (m2) {
+                  if (m2.hp <= 0 || hitInField.indexOf(m2) >= 0) return;
+                  var dd = Math.hypot(m2.x - cur.x, m2.y - cur.y);
+                  if (dd < nd) { nd = dd; nx = m2; }
+                });
+                if (!nx) break;
+                hitInField.push(nx);
+                selfB.dealToMob(nx, selfB.playerDamage(dmg, { skill: true }), { skill: true });
+                selfB.fx.push({ k: 'spark', x: nx.x, y: nx.y, t: 0, ms: 160, col: '#8fd4ff' });
+                cur = nx;
+              }
+            });
+          }
+        }
+      }
+
+      /* NỔ CÓ HẸN GIỜ — dùng chung cho Rải Thảm và Bom Chùm. Bóng báo trước là
+       * bắt buộc: một quả nổ không báo trước là sát thương không né được. */
+      if (this.blasts && this.blasts.length) {
+        for (var bl = this.blasts.length - 1; bl >= 0; bl--) {
+          var bo = this.blasts[bl];
+          if (!bo.told) {
+            bo.told = true;
+            this.fx.push({ k: 'tell', x: bo.x, y: bo.y, r: bo.r, t: 0, ms: Math.max(60, bo.left), friendly: true });
+          }
+          bo.left -= dt;
+          if (bo.left <= 0) {
+            this.aoeDamage(bo.x, bo.y, bo.r, bo.dmg,
+              { move: { kb: bo.sk.kb, poise: bo.sk.poise, hs: bo.sk.hitstop }, skill: true, noCrit: true });
+            this.fx.push({ k: 'ring', x: bo.x, y: bo.y, r: bo.r, t: 0, ms: 300, col: '#ffb45a' });
+            this.shake = Math.min(G.FEEL.shakeMax, this.shake + (bo.core ? 6 : 2));
+            this.blasts.splice(bl, 1);
+          }
+        }
+      }
+
       if (this.rains && this.rains.length) {
         for (var r = this.rains.length - 1; r >= 0; r--) {
           var ra = this.rains[r];
@@ -660,6 +951,33 @@
         ctx.save(); ctx.globalAlpha = a;
         ctx.strokeStyle = '#a5dcff'; ctx.lineWidth = 26; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(s.x0, s.y0); ctx.lineTo(s.x1, s.y1); ctx.stroke();
+        ctx.restore();
+      });
+
+      // Ụ SÚNG: thân vuông + nòng quay theo mục tiêu, và một vòng đếm ngược cho
+      // biết nó còn sống bao lâu — người chơi phải thấy được cái đó để canh.
+      (this.turrets || []).forEach(function (t) {
+        var k = t.left / t.sk.ttlMs;
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        ctx.fillStyle = 'rgba(20,26,34,.9)';
+        ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.rect(-9, -9, 18, 18); ctx.fill(); ctx.stroke();
+        ctx.globalAlpha = 0.55;
+        ctx.beginPath(); ctx.arc(0, 0, 15, -Math.PI / 2, -Math.PI / 2 + TAU * k); ctx.stroke();
+        ctx.restore();
+      });
+
+      // TRẬN SẤM: vùng đứng yên, viền nhấp nháy theo nhịp đánh.
+      (this.fields || []).forEach(function (f) {
+        var pulse = 0.5 + 0.5 * Math.sin(f.left / 90);
+        ctx.save();
+        ctx.globalAlpha = 0.14 + 0.10 * pulse;
+        ctx.fillStyle = '#8fd4ff';
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.sk.fieldR, 0, TAU); ctx.fill();
+        ctx.globalAlpha = 0.55 + 0.35 * pulse;
+        ctx.strokeStyle = '#8fd4ff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.sk.fieldR, 0, TAU); ctx.stroke();
         ctx.restore();
       });
 

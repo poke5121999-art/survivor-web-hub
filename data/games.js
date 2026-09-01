@@ -37,10 +37,10 @@ window.HUB_GAMES = [
   {
     id: "dragonproj",
     title: "Săn Rồng",
-    tagline: "Dựng lại Dragon Project (COLOPL, đã đóng cửa) trên nền điều khiển một-ngón ぷにコン: kéo để chạy, chạm để chém, vẩy để né, giữ để ra đòn đặc thù, giữ-rồi-trượt-về-nút để xả kỹ năng. Gacha ra NHÂN VẬT kiểu White Cat: 43 người, mỗi người gắn cứng một lớp vũ khí (một bộ đòn, hai kỹ năng nặng đô) và một hệ, tự giữ trang bị riêng. Mang ba người vào ải, đổi qua lại giữa trận. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
+    tagline: "Bắn từ trên xuống, một ngón. Sáu lớp vũ khí — súng trường, súng săn, bắn tỉa, cung nạp lực, gậy phép, súng phóng — mỗi lớp giỏi nhất đúng một thứ và tệ nhất hai thứ. Kéo để chạy, chạm để bắn, giữ để rải/nạp/ghì súng, vẩy để né. Gacha ra NHÂN VẬT kiểu White Cat: 43 người, mỗi người gắn cứng một lớp và một hệ. Mang ba người vào ải, đổi qua lại giữa trận. 38 ải solo, dọn quái rồi hạ Behemoth cuối ải.",
     thumbnail: "assets/thumbnails/dragonproj.svg",
     path: "games/dragonproj/index.html",
-    rev: "20260831e",
+    rev: "20260901a",
     // Plain canvas/JS, không engine, mở được từ file://. Dựng lại từ Dragon Project
     // (COLOPL 2016, Global 2017, đóng cửa 30/09/2020) — game săn quái kiểu Monster Hunter
     // cho di động, 1-4 người.
@@ -78,15 +78,30 @@ window.HUB_GAMES = [
     // Gacha KHÔNG còn quay ra đồ, chỉ quay ra người; trùng người thì thành Lõi Rồng.
     // Hồ sơ cũ (ba khe vũ khí của một người) tự chuyển thành đội hình ba người, chọn
     // theo đúng ba lớp đang dùng — có test khoá lại.
-    // Trọng tâm là PUNICON, hệ điều khiển một-ngón của COLOPL, tái dựng đúng ngữ pháp của
-    // nó: kéo = chạy, chạm = đánh, bấm liên tục = combo, vẩy = né, giữ = đòn đặc thù riêng
-    // của từng vũ khí, giữ-rồi-trượt-về-nút = dồn rồi xả kỹ năng, và dấu "!!" trên đầu là
-    // lời mời bấm tiếp (đánh khi đang lăn, phản đòn sau khi né chuẩn).
-    // KỸ NĂNG (js/skills.js): 5 vũ khí × 2 = MƯỜI kỹ năng, và mười cái là mười trình phát
-    // riêng biệt — có test khoá lại luật đó, vì bệnh cũ của bản trước đúng là 40 viên Magi
-    // dùng chung 3 nhánh code nên xả cái nào cũng thấy y hệt nhau. Nặng đô, không rẻ: dồn
-    // lâu (0,8–1,6s, đi chậm còn 35% trong lúc dồn), hồi lâu (12–26s), huỷ giữa chừng thì
-    // hoàn 60%. Chồng lên là LỚP NGUYÊN TỐ (6 hệ): lôi kiếm lướt tới để lại vệt điện, chém
+    // 2026-09-01: ĐỔI TỪ CẬN CHIẾN SANG BẮN, và hạ thang sát thương. Lý do đo được
+    // chứ không phải cảm tính: quái thường đang chết trong 0,5-1,0 phát suốt cả game
+    // (0,60 ở cấp 1 · 1,01 ở cấp 10 · 0,51 ở cấp 40), vì sát thương cộng dồn từ ba
+    // nguồn đều lớn trong khi máu quái chỉ là 32+14/cấp. Sau khi sửa: TTK 0,95-2,34
+    // giây, đúng dải chuẩn của thể loại, và số phát để giết giữ ổn định theo cấp.
+    // Phần lớn việc rescale do TỐC ĐỘ BẮN gánh chứ không phải do chia sát thương:
+    // chuỗi combo cũ ra ~2 nhát/giây, súng trường bắn 5 phát/giây.
+    // Sáu lớp: rifle (DPS bền) · shotgun (burst cận cảnh, tầm 149px ngắn nhất game) ·
+    // sniper (tầm + xuyên hàng) · bow (nạp bốn nấc + DẢI CHÍ MẠNG: đứng đúng tầm thì
+    // mỗi mũi đau gấp rưỡi) · staff (năm tia toè quạt, niệm NGẮT ĐƯỢC) · launcher
+    // (dọn đám, đạn chậm cố ý, không bao giờ chí mạng).
+    // Kèm theo: hệ THẺ ĐÁNH (tối đa 3 con được ra đòn cùng lúc, số còn lại vẫn doạ
+    // nhưng không đánh), đạn quái to gấp 2,5 và chậm bằng đúng tốc chạy người chơi,
+    // hitstop hạ từ 50-210ms xuống thang 1/10/20/50/100ms, và đạn hiện dần 140ms chưa
+    // có hitbox. Ghi chép đầy đủ kèm nguồn: games/dragonproj/SHOOTER.md
+    // Trọng tâm vẫn là PUNICON, hệ điều khiển một-ngón của COLOPL: kéo = chạy,
+    // chạm = bắn, giữ = ba nghĩa tuỳ lớp (rải / nạp lực / ghì súng), vẩy = né,
+    // giữ-rồi-trượt-về-nút = dồn rồi xả kỹ năng.
+    // KỸ NĂNG (js/skills.js): 6 lớp × 2 = MƯỜI HAI kỹ năng, và mười hai cái là mười hai
+    // trình phát riêng biệt — có test khoá lại luật đó, vì bệnh cũ của bản trước đúng là
+    // 40 viên Magi dùng chung 3 nhánh code nên xả cái nào cũng thấy y hệt nhau.
+    // Sức mạnh giờ tính theo D×R×T×K (sát thương đòn thường × phát/giây × hồi chiêu ×
+    // hệ số) thay vì hệ số 1,8–3,4 cũ — thấp hơn chuẩn thể loại cả chục lần, và đó là
+    // lý do không ai buồn bấm kỹ năng. Chồng lên là LỚP NGUYÊN TỐ (6 hệ): lôi kiếm lướt tới để lại vệt điện, chém
     // trúng thì điện nảy sang mục tiêu bên cạnh; hoả thì đốt, thuỷ thì đóng băng trơn
     // trượt, thổ thì hất văng và rung đất, quang thì làm loá, ám thì hút máu.
     // HỆ MAGI ĐÃ XOÁ SẠCH — nó là thứ làm loãng phần vũ khí. Ô Magi, kho Magi, quầy quay
