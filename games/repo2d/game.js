@@ -67,8 +67,10 @@ const MINIMAP_FADED_ALPHA = 0.16;
 const FLOOR = 0, WALL = 1, PROP = 2;
 
 // prop kinds — solid either way; the code only changes how the tile is painted
-const P_BLOCK = 1, P_TABLE = 2, P_SHELF = 3, P_CRATE = 4, P_PLANT = 5;
-const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_PLANT };
+const P_BLOCK = 1, P_TABLE = 2, P_SHELF = 3, P_CRATE = 4, P_LOCKER = 5;
+// Chữ 'P' trong các mẫu phòng vẫn là 'P' — nó từng là planter, nay là tủ sắt (xem paintProp).
+// Đổi chữ thì phải sửa lại toàn bộ mẫu phòng đã vẽ tay, mà cái đổi ở đây là NƯỚC SƠN.
+const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_LOCKER };
 const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3 };
 
 // WHY 92 and not the 132 this shipped with: at 132 a walking player outran every chasing monster
@@ -2415,11 +2417,31 @@ const FLOORS = [
 //     thay vì nhận ánh sáng, nên soi vào bao nhiêu cũng vẫn xám xanh.
 // Thay bằng vật liệu có VÂN, vì cái cứu một mặt phẳng khỏi trông phẳng là vân chứ không phải
 // màu: một màu tô đặc nhân với ánh sáng thì vẫn là một màu tô đặc.
+// NÂNG ĐỘ SÁNG VẬT LIỆU, 2026-09-01 — "soi đèn vào tường mà tường vẫn chưa tỏ", lần thứ hai.
+//
+// Lần trước đi tìm lỗi ở hình học ánh sáng, và hình học ĐÃ đúng: đo bằng cách đọc điểm ảnh
+// ngay trên khung hình, đứng cách tường ba ô soi thẳng, ruột tường đọc 89/255 trong khi chính
+// vật liệu đó tô đặc không đèn chỉ có 92 — tức là đèn đã trả về 97% những gì nó có thể trả.
+// Chỗ hụt không nằm ở đèn.
+//
+// Nó nằm ở phép NHÂN. Lớp tối nhân lên ảnh nền, mà nhân thì không bao giờ cho ra sáng hơn
+// chính nước sơn: trần của một mặt tường được soi hết cỡ ĐÚNG BẰNG màu tô của nó. Bốn màu cũ
+// nằm ở 60..92 trên thang sáng, còn bốn màu SÀN của cùng những căn phòng đó nằm ở 88..127.
+// Nên bức tường được soi thẳng mặt vẫn tối hơn cái sàn đang soi chéo cạnh nó chừng 30% —
+// và mắt đọc chênh lệch đó ra "tường không nhận được đèn", đúng như báo cáo.
+//
+// Ngoài đời thì ngược hẳn: sàn nhận tia sượt, mặt tường đứng nhận tia gần vuông góc, nên mặt
+// tường trước mũi đèn phải là thứ SÁNG NHẤT trong nón sáng. Bảng dưới đây đặt mỗi mặt tường
+// nhỉnh hơn sàn cùng phòng chừng 8%: gỗ 98 -> tường 107, gạch men 127 -> 137, bê tông 108 ->
+// 117, thảm 88 -> 95.
+//
+// Chỗ tối KHÔNG bị hỏng theo: ngoài nón sáng lớp tối là rgb(6,7,9), tức nhân 0.024 — tường
+// 137 ra 3/255, vẫn là đen. Nước sơn sáng chỉ đổi được thứ ĐANG có đèn chiếu vào.
 const WALLS = [
-  [78,66,54],    // 0 giấy dán tường — nâu ấm, có mối nối dọc
-  [96,92,84],    // 1 gạch men       — men kem, mạch vữa tối (thay cho xanh lạnh)
-  [72,69,64],    // 2 blốc bê tông   — có hàng gạch và mạch so le (thay cho xám trơn)
-  [76,56,54]     // 3 giấy hoa văn   — đỏ trầm, kẻ sọc dọc
+  [123,104,85],  // 0 giấy dán tường — nâu ấm, có mối nối dọc
+  [143,137,125], // 1 gạch men       — men kem, mạch vữa tối (thay cho xanh lạnh)
+  [122,117,109], // 2 blốc bê tông   — có hàng gạch và mạch so le (thay cho xám trơn)
+  [120,89,86]    // 3 giấy hoa văn   — đỏ trầm, kẻ sọc dọc
 ];
 function prerenderWorld(rnd){
   if (!S.worldCv){ S.worldCv = document.createElement('canvas'); S.worldCv.width = WPX; S.worldCv.height = HPX; }
@@ -2468,10 +2490,15 @@ function prerenderWorld(rnd){
         // sửa ở mặt trước, chỉ nhẹ hơn. Một luật chỉ đúng ở một mặt thì không phải một luật.
         // Dải này phủ đúng bằng độ sâu đèn ăn được (LIP_MAX). Ngắn hơn thì hết dải là độ sáng
         // nảy ngược lên một bậc, đo được 45 rồi vọt lại 71 — một cái gờ sáng giữa bức tường.
+        // NHẠT BỚT 2026-09-01: 0.40 ở đáy dải nghĩa là chỗ TỐI NHẤT của mặt sau nằm đúng chỗ
+        // đèn ăn sâu nhất, nên đứng ở phòng phía trên soi xuống thì cả dải sáng đọc 65..121
+        // trong khi sàn ngay cạnh đọc 128 — vẫn là "soi vào mà tường không tỏ", chỉ đổi mặt.
+        // Mặt sau PHẢI tối hơn mặt trước (nó là đỉnh tường nhìn từ phía khuất), nhưng tối hơn
+        // là 0.28 chứ không phải gần một nửa.
         const bd = Math.round(LIP_MAX);
         const bg = c.createLinearGradient(0, y, 0, y+bd);
-        bg.addColorStop(0, 'rgba(0,0,0,0.06)');
-        bg.addColorStop(1, 'rgba(0,0,0,0.40)');
+        bg.addColorStop(0, 'rgba(0,0,0,0.05)');
+        bg.addColorStop(1, 'rgba(0,0,0,0.28)');
         c.fillStyle = bg; c.fillRect(x, y, TILE, bd);
       }
       // A one-tile partition seen from above is a LINE, and a line needs two edges or it vanishes
@@ -2593,13 +2620,27 @@ function paintProp(c, x, y, kind, n){
     c.strokeStyle = 'rgba(80,68,50,0.55)'; c.lineWidth = 1.2;
     c.beginPath(); c.moveTo(x+3, y+3); c.lineTo(x+T-3, y+T-3);
     c.moveTo(x+T-3, y+3); c.lineTo(x+3, y+T-3); c.stroke();
-  } else if (kind === P_PLANT){     // planter / barrel — round, greener
-    c.fillStyle = '#6b5a44';
-    c.beginPath(); c.arc(x+T/2, y+T/2, T*0.42, 0, Math.PI*2); c.fill();
-    c.fillStyle = '#4f6b45';
-    c.beginPath(); c.arc(x+T/2, y+T/2-1, T*0.30, 0, Math.PI*2); c.fill();
-    c.fillStyle = 'rgba(0,0,0,0.30)';
-    c.beginPath(); c.ellipse(x+T/2, y+T*0.82, T*0.36, T*0.14, 0, 0, Math.PI*2); c.fill();
+  } else if (kind === P_LOCKER){    // tủ sắt — hộp kim loại lạnh, hai cánh, khe thông hơi
+    // THAY CHO CHẬU CÂY, 2026-09-01 — "cái tường có hình tròn bên trong nhìn xấu quá".
+    //
+    // Cái cũ là hai hình tròn tô đặc lồng nhau cộng một vệt bóng bầu dục: không có mặt trên,
+    // không có cạnh, không có hướng. Bốn món còn lại đều là hộp có mặt trên sáng và chân tối,
+    // nên giữa chúng nó không đọc ra một cái chậu — nó đọc ra một cái vòng tròn ai đó vẽ lên
+    // ô gạch, và vì món này hay nằm sát tường nên thành ra "cái tường có hình tròn bên trong".
+    // Hình tròn tô đặc còn là thứ chịu ánh sáng kém nhất trong cả bộ: không có mặt nào để
+    // sáng khác nhau thì soi đèn vào chỉ đổi được độ đậm của đúng một mảng màu.
+    //
+    // Tủ sắt dùng đúng hàm box() như ba món kia, nên nó ăn cùng một quy ước "mặt trên sáng,
+    // chân tối" — và nó là món DUY NHẤT ngả lạnh trong một căn nhà toàn gỗ và giấy dán tường,
+    // nên vẫn phân biệt được với tủ gỗ ngay cạnh mà không cần một hình dạng lạ.
+    box(1, 1, T-2, T-2, '#7d868c', '#59626a', 'rgba(0,0,0,0.45)');
+    const seam = x + ((T*0.55)|0);
+    c.fillStyle = 'rgba(0,0,0,0.40)'; c.fillRect(seam, y+2, 1, T-5);
+    c.fillStyle = 'rgba(226,236,242,0.34)';                    // hai tay nắm hai bên khe
+    c.fillRect(seam-4, y+9, 3, 1); c.fillRect(seam+2, y+9, 3, 1);
+    c.fillStyle = 'rgba(0,0,0,0.22)';                          // khe thông hơi trên cánh trái
+    for (let k = 0; k < 3; k++) c.fillRect(x+3, y+3+k*2, seam-x-5, 1);
+    c.fillStyle = 'rgba(240,248,252,0.10)'; c.fillRect(x+1, y+1, T-2, 1);   // gờ sáng mép trên
   } else {                          // plain block, the old 'x'
     c.fillStyle = `rgb(${(112+n*12)|0},${(104+n*10)|0},${(92+n*9)|0})`;
     c.fillRect(x+1,y+1,TILE-2,TILE-2);
@@ -2757,17 +2798,47 @@ function faceLip(dx, dy, s){
   // hơi chếch vẫn là tường sáng, còn tường gần như song song tia thì tắt hẳn.
   return LIP_GRAZE + (LIP_MAX - LIP_GRAZE) * Math.pow(nd, 1.5);
 }
+// Đi trong KHỐI ĐẶC, không dừng ở mép ô — và đây là chỗ sinh ra mấy vết khuyết hình chữ V
+// trên dải tường được soi sáng, 2026-09-01.
+//
+// Bản cũ lấy min với khoảng cách tới mép của ĐÚNG MỘT ô: tia nào chạm tường ngay sát đường
+// ranh giữa hai ô tường thì "mép ô" cách nó chưa tới một điểm ảnh, nên đèn ăn vào tường đúng
+// 0 — trong khi tia bên cạnh, chạm giữa ô, ăn vào đủ 13. Hai ô tường liền nhau là MỘT BỨC
+// TƯỜNG chứ không phải hai vật, nên cái ranh giữa chúng không được phép để lại dấu vết gì.
+// Đo trên ảnh chụp: cứ đúng một ô (24 điểm ảnh) lại một vết khuyết đen ăn ngược vào dải sáng,
+// và mắt đọc cả dải ra hàng răng cưa thay vì một mặt tường.
+//
+// Luật thay thế giữ NGUYÊN thứ mà phép min sinh ra để giữ — không rọi sang phòng bên — nhưng
+// phát biểu nó đúng chỗ: đi tiếp qua mép ô KHI VÀ CHỈ KHI ô bên kia mép cũng đặc. Gặp ô rỗng
+// là dừng ngay tại mép, y như cũ. Bức tường dày một ô vẫn không bị xuyên, vì cái chặn thật sự
+// là faceLip (tối đa LIP_MAX < một ô) chứ chưa bao giờ là mép ô.
+function marchSolid(hx, hy, dx, dy, gx, gy){
+  let t = 0;
+  // Nhiều nhất hai lần qua mép: lớp mặt dày chưa tới một ô, mà một ô rộng TILE.
+  for (let k = 0; k < 3; k++){
+    const bx = dx > 0 ? (gx+1)*TILE : gx*TILE;
+    const by = dy > 0 ? (gy+1)*TILE : gy*TILE;
+    const px = hx + dx*t, py = hy + dy*t;
+    const tx = (dx > 1e-9 || dx < -1e-9) ? (bx - px)/dx : Infinity;
+    const ty = (dy > 1e-9 || dy < -1e-9) ? (by - py)/dy : Infinity;
+    const mep = Math.min(tx, ty);
+    if (!(mep >= 0) || mep === Infinity) return LIP_MAX;
+    // Bước qua mép một chút để đọc ô KẾ TIẾP, không đọc lại ô vừa ra khỏi.
+    const t2 = t + mep + 0.02;
+    const ngx = ((hx + dx*t2)/TILE)|0, ngy = ((hy + dy*t2)/TILE)|0;
+    if (!solidAt(ngx, ngy)) return t + mep;    // ô bên kia là phòng: dừng đúng ở mặt tường
+    t = t2; gx = ngx; gy = ngy;
+    if (t > LIP_MAX) return t;                  // đã quá lớp mặt, faceLip sẽ cắt nốt
+  }
+  return t;
+}
 function lipInto(pts, i, ox, oy, dx, dy, best, s){
   const hx = ox + dx*best, hy = oy + dy*best;
   // Nhích nửa pixel qua mặt vừa chạm để đọc ô ở PHÍA BÊN KIA, không phải ô mình đang đứng.
   const gx = ((hx + dx*0.5)/TILE)|0, gy = ((hy + dy*0.5)/TILE)|0;
   let them;
   if (solidAt(gx, gy)){
-    const bx = dx > 0 ? (gx+1)*TILE : gx*TILE;
-    const by = dy > 0 ? (gy+1)*TILE : gy*TILE;
-    const tx = (dx > 1e-9 || dx < -1e-9) ? (bx - hx)/dx : Infinity;
-    const ty = (dy > 1e-9 || dy < -1e-9) ? (by - hy)/dy : Infinity;
-    them = Math.min(tx, ty, faceLip(dx, dy, s));
+    them = Math.min(marchSolid(hx, hy, dx, dy, gx, gy), faceLip(dx, dy, s));
   } else if (s && s.cua){
     them = DOOR_THICK;
   } else return;
