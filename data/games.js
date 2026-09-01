@@ -127,7 +127,7 @@ window.HUB_GAMES = [
     // đường mà ngón tay người chơi đi qua (js/punicon.js), nên ngưỡng tap/flick/hold sai là
     // bot hỏng ngay. test/dragonproj-suite.js lái nó và kiểm luật.
     status: "available",
-    tags: ["Săn quái", "Hành động", "Gacha", "Một ngón", "Solo"]
+    tags: ["Bắn súng", "Săn quái", "Gacha", "Một ngón", "Solo"]
   },
   {
     id: "survivor",
