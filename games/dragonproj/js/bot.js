@@ -204,6 +204,10 @@
     if (d > want + 40) { dragTo(Math.cos(ang2), Math.sin(ang2), 200); return; }
     if (d < tooClose) { dragTo(-Math.cos(ang2), -Math.sin(ang2), 120); return; }
 
+    // Đuôi của một phát bắn KHÔNG còn khoá chân, nên đang trong 'fire' thì bot
+    // vẫn phải lách ngang chứ không đứng nhìn. Chỉ những trạng thái thật sự khoá
+    // (né, kỹ năng, đổi người, dính đòn) mới bỏ nhịp.
+    if (b.player.state === 'fire') { strafe(ang2, 90); return; }
     if (b.busy()) return;
 
     /* 3. GIỮ nút. Ba nghĩa khác nhau tuỳ cây, và bot phải đi qua đúng con đường
@@ -220,7 +224,10 @@
       // quyết định kế tiếp, nên bot rải đạn thưa hơn hẳn người thật đang ghì cò.
       // Chạm mỗi nhịp cho ra đúng nhịp bắn của cây, vì đuôi phát trước tự chặn.
       tap(270 + Math.cos(ang2) * 8, 640 + Math.sin(ang2) * 8);
-      if (tick % 4 === 0) dragTo(Math.cos(ang2), Math.sin(ang2), 60);
+      // ...nhưng phải LÁCH NGANG giữa các phát. Đứng chôn chân bắn là chết trong
+      // một game né đạn, và một con bot đứng im cũng không kiểm được gì về việc
+      // vừa đi vừa bắn có chạy đúng không.
+      if (tick % 2 === 0) strafe(ang2, 120);
       return;
     } else if (W.charge) {
       hold(270, 640, W.chargeMs[2] + 140, ax, ay); return;
@@ -230,8 +237,18 @@
 
     // 4. Bấm liên tục.
     tap(270 + Math.cos(ang2) * 8, 640 + Math.sin(ang2) * 8);
-    // giữ hướng bằng một cú kéo rất ngắn
-    if (tick % 3 === 0) dragTo(Math.cos(ang2), Math.sin(ang2), 60);
+    // giữ hướng bằng một cú kéo rất ngắn, và lách ngang cho khỏi chôn chân
+    if (tick % 3 === 0) strafe(ang2, 90);
+  }
+
+  /* LÁCH NGANG quanh mục tiêu: đi vuông góc với hướng ngắm, đổi bên theo nhịp.
+   * Đây là cách một người chơi thật giữ khoảng cách trong game bắn — không tiến
+   * thẳng, không lùi thẳng, mà vòng quanh. Đổi bên để bot không trôi mãi về một
+   * phía rồi dính vào mép sân. */
+  function strafe(aim, ms) {
+    var side = (Math.floor(tick / 6) % 2) ? 1 : -1;
+    var a = aim + side * Math.PI / 2;
+    dragTo(Math.cos(a), Math.sin(a), ms);
   }
 
   var api = {

@@ -1221,8 +1221,16 @@
 
     switch (p.state) {
       /* Đuôi của một phát bắn. Ngắn hơn hẳn đuôi của một nhát chém, vì cái phạt
-       * ở đây là NHỊP và TẢN ĐẠN chứ không phải thời gian đứng chôn chân. */
+       * ở đây là NHỊP và TẢN ĐẠN chứ không phải thời gian đứng chôn chân.
+       *
+       * VÀ NÓ KHÔNG KHOÁ CHÂN. Đây là chỗ khác nhau lớn nhất giữa một game chém
+       * và một game bắn: chém thì cả người phải xoay theo nhát chém nên đứng lại
+       * là đúng, còn bắn thì vừa đi vừa bắn là hành vi mặc định. Để nguyên luật
+       * cũ thì bắn 5 phát/giây với đuôi 200ms mỗi phát = chôn chân vĩnh viễn,
+       * trong một game mà né đạn là kỹ năng chính. Đi hơi chậm lại (85%) để cú
+       * bắn vẫn có một chút sức nặng. */
       case 'fire': {
+        this.moveStep(p, mv, slowMul, dt, 0.85);
         if (p.stateT >= p.stateDur) {
           p.state = 'idle';
           if (p.queued) { p.queued = false; this.fire({}); }
@@ -1324,8 +1332,19 @@
       // d > 1 là BẮT BUỘC: rương phá bộ phận có thể rơi đúng ngay chỗ người chơi
       // đang đứng, lúc đó d = 0 và phép chia cho d biến toạ độ rương thành NaN —
       // rương treo vĩnh viễn trên sân, không nhặt được và không biến mất.
-      if (d > 1 && d < 130 && !p.down) {
-        var pull = Math.min(d, (1 - d / 130) * 7.2 * dt / 16.67);
+      /* BÁN KÍNH HÚT BÁM THEO TẦM BẮN, không phải một con số cố định.
+       *
+       * 130px là con số của bản CẬN CHIẾN, khi tầm với chỉ 48–96px nên chỗ quái
+       * chết luôn nằm sát chân người chơi. Giờ người chơi giết từ 210px (súng
+       * trường) hoặc xa hơn nhiều (bắn tỉa 1269px) — rương rơi ngoài tầm hút, và
+       * cả trận biến thành: bắn một phát, chạy tới nhặt, chạy về. Đó là đúng cái
+       * vòng lặp mà một game bắn phải tránh.
+       *
+       * Nên bán kính hút = 75% tầm bắn, sàn 130 (giữ nguyên hành vi cũ cho cây
+       * tầm ngắn), trần 420 để không thành "nhặt cả sân từ chỗ đứng". */
+      var mag = clamp((this.W.range || 180) * 0.75, 130, 420);
+      if (d > 1 && d < mag && !p.down) {
+        var pull = Math.min(d, (1 - d / mag) * 8.4 * dt / 16.67);
         c.x += (p.x - c.x) / d * pull;
         c.y += (p.y - c.y) / d * pull;
         d = dist(p, c);
