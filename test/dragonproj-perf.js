@@ -70,12 +70,18 @@ const INSTALL = function () {
 
   // Trang bị nhanh một lớp vũ khí để kiểm đủ 5 kiểu đặc thù (guard/cleave/lunge/
   // ranbu/snipe). Dùng đúng đường craft của game, chỉ bỏ qua khâu tốn tài nguyên.
-  var SRC = { sword: 'felnarog', great: 'vaccahorn', spear: 'grouton', dual: 'shurak', bow: 'yggdragis' };
+  // Nguồn rèn một cây cho mỗi lớp. Lấy động từ bảng Behemoth thay vì viết cứng,
+  // để thêm/bớt lớp không phải sửa hai chỗ.
+  var SRC = {};
+  DP.WEAPON_ORDER.forEach(function (c) {
+    var b = DP.BEHEMOTHS.filter(function (x) { return DP.wclassOf(x.weapon) === c; })[0];
+    if (b) SRC[c] = b.id;
+  });
   T.startLoadout = DP.UI.save.party.slice();
   T.restore = function () {
     DP.UI.save.party = T.startLoadout.slice();
     DP.UI.battle.setWeapon(0, true);
-    return { special: DP.UI.battle.W.special, skills: DP.UI.battle.skillList().length };
+    return { special: DP.UI.battle.W.id, skills: DP.UI.battle.skillList().length };
   };
   /* Ép khe 1 của đội hình thành một người thuộc LỚP `cls`, cầm cây đúng lớp đó.
      Lớp vũ khí giờ gắn vào NGƯỜI, nên muốn kiểm move set của một lớp thì phải
@@ -93,7 +99,7 @@ const INSTALL = function () {
     g.lv = Math.max(g.lv, 30);
     DP.equipOn(S, h, g);
     DP.UI.battle.setHero(0, true);            // true = đổi tức thì, không vào trạng thái 'switch'
-    return DP.UI.battle.W.special;
+    return DP.UI.battle.W.id;
   };
 
   // Dọn sân để kiểm Punicon: không quái, không boss đánh, không Sudden Behemoth.
@@ -258,16 +264,22 @@ function runs(samples) {
 const VALID = ['idle', 'attack', 'dodge', 'guard', 'charge', 'aim', 'cleave',
                'lunge', 'ranbu', 'lag', 'hurt', 'cast', 'switch', 'skcharge', 'skill'];
 
-const WCLS = ['sword', 'great', 'spear', 'dual', 'bow'];
-// Trạng thái ĐẶC THÙ hợp lệ mà mỗi lớp vũ khí phải vào khi GIỮ giữa màn hình.
+const WCLS = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher'];
+/* Trạng thái hợp lệ khi GIỮ giữa màn hình. GIỮ giờ có BA nghĩa tuỳ lớp:
+ *   cây auto (súng trường, gậy phép) -> 'autofire', và mỗi phát nó bắn ra lại
+ *     đẩy qua 'fire' một nhịp, nên cả hai đều hợp lệ
+ *   cây nạp  (cung)                  -> 'charge'
+ *   cây còn lại                      -> 'steady'
+ * 'lag' và 'idle' hợp lệ ở mọi lớp vì cú giữ có thể rơi đúng vào đuôi một phát. */
 const SPECIAL_OK = {
-  sword: ['guard'],
-  great: ['charge'],
-  spear: ['aim'],
-  dual:  ['charge', 'ranbu', 'lag', 'idle'],   // Song Kiếm tự phát loạn vũ / bật Overdrive
-  bow:   ['aim']
+  rifle:    ['autofire', 'fire', 'lag', 'idle'],
+  staff:    ['autofire', 'fire', 'cast', 'lag', 'idle'],
+  bow:      ['charge'],
+  shotgun:  ['steady'],
+  sniper:   ['steady'],
+  launcher: ['steady']
 };
-const SPECIAL_ANY = ['guard', 'charge', 'aim', 'cleave', 'lunge', 'ranbu'];
+const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
 
 (async () => {
   const b = await chromium.launch();
