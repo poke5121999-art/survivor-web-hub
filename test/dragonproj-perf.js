@@ -6,7 +6,7 @@
  *   - dragonproj-suite.js kiểm "đúng luật" (số liệu, cử chỉ, phần thưởng).
  *   - bộ này kiểm "chơi có sướng không": khung hình có tụt không, mảng có phình
  *     lên mãi không, và quan trọng nhất — máy trạng thái người chơi có bao giờ
- *     kẹt lại ở 'lag'/'charge'/'aim' rồi không nhận input nữa không.
+ *     kẹt lại ở 'lag'/'charge'/'steady' rồi không nhận input nữa không.
  *
  * Nguyên tắc giữ nguyên: mọi thao tác chiến đấu đi qua PointerEvent thật trên
  * canvas, tức đi qua đúng js/punicon.js. Không gọi tắt hàm nội bộ để "làm xanh".
@@ -134,7 +134,7 @@ const INSTALL = function () {
              scr: (document.querySelector('.screen.on') || {}).id || null };
   };
 
-  // Lấy mẫu trạng thái + stateT. stateT cần thiết để phân biệt "kẹt ở 'attack'"
+  // Lấy mẫu trạng thái + stateT. stateT cần thiết để phân biệt "kẹt ở 'fire'"
   // với "đánh liên tiếp nhiều đòn": đòn mới làm stateT tụt về 0.
   T.seenBattles = 0;
   T.stStart = function () {
@@ -199,7 +199,7 @@ const INSTALL = function () {
     };
   };
 
-  // Đo độ trễ chạm: bấm giờ NGAY TRƯỚC pointerdown, dừng khi state = 'attack'.
+  // Đo độ trễ chạm: bấm giờ NGAY TRƯỚC pointerdown, dừng khi state = 'fire'.
   // Đo trong trang để không lẫn độ trễ đi-về của CDP.
   T.tapLatency = function (n) {
     return new Promise(function (done) {
@@ -212,7 +212,7 @@ const INSTALL = function () {
         T.pe('pointerdown', 270, 640, ++id);
         setTimeout(function () { T.pe('pointerup', 270, 640, id); }, 60);
         (function poll() {
-          if (DP.UI.battle.player.state === 'attack') {
+          if (DP.UI.battle.player.state === 'fire') {
             out.push(performance.now() - t0);
             if (++i >= n) return done(out);
             setTimeout(one, 420);   // chờ hết đòn rồi bấm tiếp
@@ -261,8 +261,8 @@ function runs(samples) {
   return out.map(r => ({ ...r, ms: r.t1 - r.t0 }));
 }
 
-const VALID = ['idle', 'attack', 'dodge', 'guard', 'charge', 'aim', 'cleave',
-               'lunge', 'ranbu', 'lag', 'hurt', 'cast', 'switch', 'skcharge', 'skill'];
+const VALID = ['idle', 'fire', 'autofire', 'charge', 'steady', 'cast', 'dodge',
+               'lag', 'hurt', 'switch', 'skcharge', 'skill'];
 
 const WCLS = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher'];
 /* Trạng thái hợp lệ khi GIỮ giữa màn hình. GIỮ giờ có BA nghĩa tuỳ lớp:
@@ -472,17 +472,20 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
     await p.evaluate(() => { const b = DP.UI.battle; b.player.state = 'idle'; b.player.down = false; DPBot._tap(270, 640); });
     await p.waitForTimeout(160);
     const after = await p.evaluate(() => DP.UI.battle.player.state);
-    check(label + ': game vẫn nhận input (chạm ra đòn)', after === 'attack', 'state=' + after);
+    check(label + ': game vẫn nhận input (chạm là bắn)', after === 'fire' || after === 'cast', 'state=' + after);
     await p.waitForTimeout(400);
   }
 
-  // (a) Đổi vũ khí ĐANG khi đang charge / aim / ranbu.
-  for (const [cls, want] of [['great', 'charge'], ['bow', 'aim'], ['dual', 'ranbu']]) {
+  /* (a) Đổi người ĐANG khi đang giữ nút. Ba trạng thái giữ của mô hình bắn:
+   *   cây nạp  -> 'charge'    · cây ghì súng -> 'steady'  · cây auto -> 'autofire'
+   * Đây là chỗ dễ treo nhất: đổi người giữa một cú giữ mà không dọn trạng thái
+   * thì nhân vật mới kế thừa một thế đang nạp của cây cũ. */
+  for (const [cls, want] of [['bow', 'charge'], ['sniper', 'steady'], ['rifle', 'autofire']]) {
     await freshStage(cls);
     const got = await p.evaluate(([c, w]) => {
       const b = DP.UI.battle, pl = b.player;
       pl.state = 'idle';
-      if (w === 'ranbu') b.startRanbu(); else b.holdStart(40, 0);   // vào đúng trạng thái cần
+      b.holdStart(40, 0);                       // vào đúng trạng thái giữ của lớp
       const before = pl.state;
       b.setWeapon(1);                                              // đổi vũ khí giữa chừng (có độ trễ)
       return { before: before, after: pl.state };
@@ -491,33 +494,43 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
     await assertRecovered('(a) đổi vũ khí khi đang ' + want + ' (' + cls + ')');
   }
 
-  // (b) Né ngay lúc đang cleave. Theo thiết kế, cleave/ranbu KHÔNG hủy được —
-  // kiểm rằng nó vẫn tự kết thúc chứ không đứng im mãi.
-  await freshStage('great');
-  const cleaveRes = await p.evaluate(() => {
+  /* (b) NÉ HUỶ NẠP LÀ MIỄN PHÍ. Luật lấy từ Monster Hunter (Kiranico MHW Bow):
+   *     "evade rolls cancel charged shots - no shot fires and no coating is
+   *     consumed". Nếu huỷ mà mất tài nguyên thì người chơi thôi nạp lúc nguy
+   *     hiểm, và cả vòng lặp nạp-lực sụp. Kiểm đúng ba điều: né được, không có
+   *     đạn nào bay ra, và nấc nạp được giữ lại một bậc cho phát sau. */
+  await freshStage('bow');
+  const cancelRes = await p.evaluate(() => {
     const b = DP.UI.battle, pl = b.player;
-    pl.state = 'idle'; b.holdStart(40, 0); b.holdEnd(40, 0, 900);   // -> cleave
-    const inCleave = pl.state;
-    pl.dodgeCd = 0; b.tryDodge(1, 0);                               // né ngay giữa cú chém
-    return { inCleave, afterDodge: pl.state };
+    pl.state = 'idle'; pl.carryCharge = 0; b.projs.length = 0;
+    b.holdStart(40, 0);
+    b.holdTick(b.W.chargeMs[2] + 20, 40, 0);        // nạp tới nấc 3
+    const atLv = pl.chargeLv;
+    pl.dodgeCd = 0; b.tryDodge(1, 0);               // né giữa lúc đang nạp
+    return { atLv: atLv, afterDodge: pl.state, shots: b.projs.length,
+             carried: pl.carryCharge };
   });
-  info('(b) cleave → né: ' + cleaveRes.inCleave + ' → ' + cleaveRes.afterDodge);
-  check('(b) né khi đang cleave KHÔNG hủy cú chém (đúng thiết kế)',
-    cleaveRes.inCleave === 'cleave' && cleaveRes.afterDodge === 'cleave');
-  await assertRecovered('(b) né giữa cú cleave');
+  info('(b) nạp nấc ' + cancelRes.atLv + ' → né: state=' + cancelRes.afterDodge +
+       ', đạn bay ra=' + cancelRes.shots + ', nấc mang sang=' + cancelRes.carried);
+  check('(b) né huỷ được cú nạp', cancelRes.afterDodge === 'dodge');
+  check('(b) huỷ nạp KHÔNG bắn ra viên nào (miễn phí)', cancelRes.shots === 0,
+    cancelRes.shots + ' viên');
+  check('(b) nấc nạp được mang sang cho phát sau khi né', cancelRes.carried >= 1,
+    'nấc ' + cancelRes.carried);
+  await assertRecovered('(b) né giữa cú nạp');
 
   /* (c) Nạp kỹ năng khi ĐANG ở thế đỡ. Đây là chỗ dễ kẹt nhất của hệ mới: hai
    *     cơ chế "giữ ngón" chồng lên nhau (giữ để đỡ, và giữ-trượt để nạp), nên
    *     phải chắc là vào được thế nạp rồi ra được, không khoá cứng nhân vật. */
-  await freshStage('sword');
+  await freshStage('rifle');
   const starter = await p.evaluate(() => window.__T.restore());
-  info('(c) vũ khí khởi đầu: đặc thù=' + starter.special + ', số kỹ năng=' + starter.skills);
+  info('(c) vũ khí khởi đầu: lớp=' + starter.special + ', số kỹ năng=' + starter.skills);
   const skRes = await p.evaluate(() => {
     const b = DP.UI.battle, pl = b.player;
     if (!b.skillDef(0)) return { skip: true };
     const sk = b.skillDef(0);
     pl.state = 'idle'; pl.skCd = [0, 0];
-    b.holdStart(0, 0);                       // -> guard
+    b.holdStart(0, 0);                       // -> autofire (súng trường là cây auto)
     const inGuard = pl.state;
     b.skillCharge(0, 10);                    // trượt về nút ngay trong thế thủ
     const charging = pl.state;
@@ -528,19 +541,19 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
   if (skRes.skip) { info('(c) vũ khí không có kỹ năng — bỏ qua'); }
   else {
     info('(c) guard → nạp → xả: ' + skRes.inGuard + ' → ' + skRes.charging + ' → ' + skRes.after);
-    check('(c) đang đỡ vẫn vào được thế nạp kỹ năng',
-      skRes.inGuard === 'guard' && skRes.charging === 'skcharge', JSON.stringify(skRes));
+    check('(c) đang giữ cò vẫn vào được thế nạp kỹ năng',
+      skRes.inGuard === 'autofire' && skRes.charging === 'skcharge', JSON.stringify(skRes));
     check('(c) nạp đủ thì xả được', skRes.fired === true);
     await assertRecovered('(c) nạp kỹ năng giữa thế thủ');
   }
 
-  // (d) Người chơi ngã ĐANG khi đang ranbu / charge.
-  for (const [cls, how] of [['dual', 'ranbu'], ['great', 'charge']]) {
+  // (d) Người chơi ngã ĐANG khi đang giữ nút — cả ba nghĩa của GIỮ.
+  for (const [cls, how] of [['bow', 'charge'], ['sniper', 'steady'], ['rifle', 'autofire']]) {
     await freshStage(cls);
     const dres = await p.evaluate(([c, h]) => {
       const b = DP.UI.battle, pl = b.player;
       pl.state = 'idle';
-      if (h === 'ranbu') b.startRanbu(); else b.holdStart(40, 0);
+      b.holdStart(40, 0);
       const before = pl.state;
       pl.hp = 0;                                  // để chính game xử lý cái chết ở khung sau
       return { before };
@@ -561,7 +574,7 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
     await p.evaluate(() => { DP.UI.battle.player.state = 'idle'; DPBot._tap(270, 640); });
     await p.waitForTimeout(160);
     check('(d) đứng dậy sau khi ngã giữa ' + how + ' thì chơi lại được',
-      await p.evaluate(() => DP.UI.battle.player.state === 'attack'));
+      await p.evaluate(() => ['fire', 'cast'].indexOf(DP.UI.battle.player.state) >= 0));
   }
 
   // (e) Boss chết ĐANG khi người chơi đang aim.
@@ -590,15 +603,15 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
     JSON.stringify(eNew));
   await p.evaluate(() => { DPBot._tap(270, 640); });
   await p.waitForTimeout(160);
-  check('(e) trận mới vẫn nhận input', await p.evaluate(() => DP.UI.battle.player.state === 'attack'));
+  check('(e) trận mới vẫn nhận input', await p.evaluate(() => ['fire', 'cast'].indexOf(DP.UI.battle.player.state) >= 0));
 
   // (f) GIỮ TAY TRONG LÚC CÒN CỨNG ĐÒN. Đây là tình huống người chơi gặp liên tục:
-  // vừa vung xong (state 'lag'/'attack') thì đặt ngón xuống định nạp đòn đặc thù.
+  // vừa bắn xong (state 'lag'/'fire') thì đặt ngón xuống định giữ nút.
   // Punicon.tick() bật holding=true và gọi onHoldStart, nhưng Battle.holdStart
   // (js/game.js) từ chối vì busy(). Punicon KHÔNG biết mình bị từ chối nên vẫn ở
   // holding: onMove trả về sớm, moveVec đứng ở 0 => nhân vật vừa KHÔNG ra đòn đặc
   // thù vừa KHÔNG đi được, cho tới khi nhấc tay. Đó là một khoảng chết input.
-  await freshStage('sword');
+  await freshStage('rifle');
   const busyHold = await p.evaluate(() => new Promise(res => {
     const T = window.__T, b = DP.UI.battle, pl = b.player;
     pl.state = 'lag'; pl.stateT = 0; pl.stateDur = 350;    // còn cứng đòn
@@ -717,7 +730,7 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
 
   // Kiểm bổ sung: chạy ĐỔI HƯỚNG liên tục rất lâu (như người chơi thật đảo ngón)
   // cũng không được thành đòn đặc thù, và nhân vật phải thật sự di chuyển.
-  await freshStage('sword');
+  await freshStage('rifle');
   const longRun = await p.evaluate(() => new Promise(res => {
     const T = window.__T, b = DP.UI.battle;
     b.player.state = 'idle';
@@ -753,7 +766,7 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
    * 60ms (giống ngón thật), nên 60ms đó nằm trong con số đo được.
    */
   results.push('\n── 5. ĐỘ TRỄ PHẢN HỒI KHI CHẠM (20 lần) ──');
-  await freshStage('sword');
+  await freshStage('rifle');
   const lat = await p.evaluate(() => window.__T.tapLatency(20));
   const okLat = lat.filter(x => x >= 0);
   const latAvg = okLat.reduce((a, c) => a + c, 0) / Math.max(1, okLat.length);
