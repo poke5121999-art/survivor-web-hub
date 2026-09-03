@@ -70,6 +70,10 @@
     return src ? '<img class="wicon ' + (cls || '') + '" src="' + src + '" alt="">' : '';
   }
 
+  // Ba dáng ngắm, viết ra thành lời — người chơi phải biết TRƯỚC khi vào ải là
+  // đòn này cần chỉ hướng, cần chỉ điểm rơi, hay bấm là xong.
+  var AIM_VI = { self: 'bấm là xả tại chỗ', dir: 'kéo để chỉ hướng', point: 'kéo để chọn điểm rơi' };
+
   function rankChip(r) { return '<span class="rank rk-' + r + '">' + r + '</span>'; }
   function elemDot(el) {
     var E = G.ELEMENTS[el] || G.ELEMENTS.none;
@@ -888,16 +892,17 @@
     if (g.kind === 'weapon') {
       var sks = G.skillsOf(g.wclass);
       html += '<div class="card"><h3>Kỹ năng</h3><p>Hai đòn này gắn liền với loại vũ khí, ' +
-        'không tháo lắp được. Đổi vũ khí là đổi hẳn cả hai. Trong trận: <b>giữ rồi trượt về ' +
-        'phía nút kỹ năng, giữ nguyên ở đó để nạp, nhả ra để xả</b>.</p>';
+        'không tháo lắp được. Đổi vũ khí là đổi hẳn cả hai. Trong trận: <b>hồi chiêu xong ' +
+        'thì nút sáng — đặt ngón lên nút, kéo để chỉ hướng, thả ra là xả</b>. ' +
+        'Không kéo thì tự ngắm con gần nhất.</p>';
       sks.forEach(function (sk, i) {
         var locked = i > 0 && g.lv < G.SKILL_RULES.unlockLv2;
         html += '<div class="row" style="margin-bottom:5px;opacity:' + (locked ? '.4' : '1') + '">' +
           '<span style="font-size:11px;flex:1"><b>' + sk.n + '</b>' +
           (locked ? ' <i style="color:#9fb2c4">— mở ở Lv.' + G.SKILL_RULES.unlockLv2 + '</i>' : '') +
           '<br><i style="color:#9fb2c4">' + sk.d + '</i>' +
-          '<br><i style="color:#7f8fa0">nạp ' + (sk.charge / 1000).toFixed(1) + 's · hồi ' +
-          (sk.cd / 1000).toFixed(0) + 's</i></span></div>';
+          '<br><i style="color:#7f8fa0">' + AIM_VI[G.aimKindOf ? G.aimKindOf(sk) : 'dir'] +
+          ' · hồi ' + (sk.cd / 1000).toFixed(0) + 's</i></span></div>';
       });
       var ef = G.ELEM_FX[g.el] || G.ELEM_FX.none;
       html += '<p style="border-top:1px dashed rgba(255,255,255,.12);margin-top:7px;padding-top:7px">' +

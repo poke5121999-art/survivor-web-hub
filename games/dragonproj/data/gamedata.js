@@ -292,6 +292,105 @@
       hs: HS.boom, shake: 4, kick: 30, recoil: 10, knock: 0,   // đá camera to, rung nhỏ: NẶNG chứ không hỗn loạn
       poise: 30, kb: 12, quake: true,
       trait: 'Dọn cả đám một phát, nhưng đạn chậm nên đơn mục tiêu thì dễ hụt.'
+    },
+
+    /* --- TIA NHIỆT: DPS bền cao nhất, nhưng phải ĐỨNG YÊN mà ghì. ---
+     * Beam KHÔNG bắn ra viên đạn nào. Nó là một tia chạm tức thời, ăn sát thương
+     * theo NHỊP TICK trong suốt lúc giữ cò. Enter the Gungeon để MỌI súng beam ở
+     * đúng fireRate 0,10 giây, tức 10 tick/giây, và ghi sát thương thẳng dạng
+     * "X/giây" thay vì per-tick — lấy nguyên con số đó làm chuẩn cho cả hệ.
+     * (_research/gungeon.md, mục beam/laser)
+     *
+     * Sát thương mỗi tick TĂNG DẦN theo thời gian giữ, đúng Ion Laser của Soul
+     * Knight: 4/tick, lên 5 sau 10 tick, lên 6 sau 23 tick — tức ×1,25 rồi ×1,50.
+     * Đây là cái làm laser khác một khẩu súng bắn nhanh: phần thưởng nằm ở chỗ
+     * DÁM đứng yên cho hết đường ramp, và mỗi lần né là mất sạch nó.
+     * ([Ion Laser](https://soul-knight.fandom.com/wiki/Ion_Laser)) */
+    laser: {
+      id: 'laser', vi: 'Tia Nhiệt', jp: '光線銃', en: 'Laser',
+      desc: 'Một tia liền mạch, xuyên hết cả hàng, không có viên đạn nào để mà né. Giữ càng lâu tia càng nóng — nhưng nhấc tay một cái là nguội về đầu.',
+      mode: 'beam',
+      dmg: 1.6, shots: 1, arcGap: 0, spread: 0,
+      rpm: 600,                       // 10 tick/giây — chuẩn beam của Gungeon
+      spd: 0, life: 0, beamLen: 330, beamW: 13,
+      r: 7, crit: 0.05,
+      pierce: true, pierceFall: 0.12,   // xuyên gần như không mất gì: đó là bản sắc
+      rampAt: [10, 23], rampMul: [1.25, 1.50],
+      moveMul: 0.62, dodgeMul: 1.00, auto: true,
+      hs: HS.tick, shake: 1, kick: 2, recoil: 2, knock: 0,
+      poise: 4, kb: 1,
+      trait: 'DPS bền cao nhất khi đứng yên đủ lâu; đổi chỗ liên tục thì tệ nhất game.'
+    },
+
+    /* --- KIẾM KHÍ: nhát chém bay ra khỏi lưỡi. ---
+     * Không phải "súng bắn hình lưỡi liềm": cái khác nằm ở BỀ NGANG. Một viên đạn
+     * rộng 46px thì nó là một BỨC TƯỜNG quét ngang, và mắt đọc nó theo diện chứ
+     * không theo tia. Đó là lý do nó xuyên gần như miễn phí mà vẫn không thay được
+     * súng trường: tầm chỉ bằng một nửa. */
+    blade: {
+      id: 'blade', vi: 'Kiếm Khí', jp: '剣気', en: 'Blade Wave',
+      desc: 'Vung một nhát và cái nhát đó bay đi. Lưỡi khí rộng bằng ba người, xuyên hết cả hàng, nhưng đi được nửa sân là tan.',
+      dmg: 9, shots: 1, arcGap: 0, spread: 2,
+      rpm: 132,                        // 2,2 nhát/giây
+      spd: PSPD * 3.8, life: 330,      // tầm ~177px
+      r: 22, crit: 0.15, wave: true, waveW: 46,
+      pierce: true, pierceFall: 0.20,  // xuyên rẻ hơn bắn tỉa, vì tầm ngắn hơn nhiều
+      moveMul: 1.02, dodgeMul: 1.05, auto: false,
+      hs: HS.mid, shake: 4, kick: 8, recoil: 7, knock: 0,
+      poise: 14, kb: 8,
+      trait: 'Quét cả hàng ở tầm gần-trung; đơn mục tiêu tầm xa thì vô dụng.'
+    },
+
+    /* --- LƯỠI HÁI: ba lưỡi xoay quanh thân. ---
+     * KHÔNG có bản gốc để chép. Soul Knight không có vũ khí orbit nào — thứ gần
+     * nhất là skill "Battle Storm" và mấy con drone bay kèm hai bên, cả hai đều
+     * không phải xoay-quanh-thân (_research/soulknight.md mục 2.4). Nên phần này
+     * lấy khuôn King Bible của Vampire Survivors và TỰ ĐẶT SỐ. Ghi rõ như vậy.
+     *
+     * [TÁI DỰNG] Ba luật giữ cho nó không thành "bấm một lần rồi khỏi lo":
+     *   1. Bán kính 76px — NGẮN HƠN tầm với của gần hết quái cận chiến, nên muốn
+     *      lưỡi chạm được thì phải đứng trong tầm bị đánh.
+     *   2. Mỗi lưỡi chỉ ăn lại một mục tiêu sau 600ms, không phải mỗi khung.
+     *   3. Lưỡi XOÁ ĐẠN QUÁI khi chạm. Đây là cái mua lại chỗ đứng nguy hiểm kia,
+     *      và là lý do lớp này tồn tại thay vì chỉ là một vòng sát thương. */
+    scythe: {
+      id: 'scythe', vi: 'Lưỡi Hái', jp: '大鎌', en: 'Scythe',
+      desc: 'Ba lưỡi bung ra xoay quanh người. Cái gì lại gần thì bị băm, và đạn quái bay vào thì bị chặt rụng.',
+      mode: 'orbit',
+      dmg: 4, shots: 3, arcGap: 120, spread: 0,
+      // Nhịp bung phải DÀI HƠN thời gian lưỡi sống, không thì lưỡi cũ chưa tan
+      // mà lưỡi mới đã ra và chúng dồn đống lên nhau — DPS tự nhân đôi theo thời
+      // gian giữ cò, mà không ai chủ ý thiết kế như vậy.
+      rpm: 24,                         // 2,5 giây một lần bung
+      spd: 0, life: 2600,              // lưỡi sống 2,6 giây
+      orbitR: 76, orbitSpin: 300,      // độ/giây
+      reHitMs: 600, cutsBullets: true,
+      r: 15, crit: 0.10,
+      moveMul: 1.00, dodgeMul: 1.00, auto: false,
+      hs: HS.light, shake: 2, kick: 3, recoil: 5, knock: 0,
+      poise: 10, kb: 5,
+      trait: 'DPS cao nhất ở cự ly bằng không, và là cây DUY NHẤT chặn được đạn quái.'
+    },
+
+    /* --- TRƯỢNG CẦU LỬA: ném theo vòng cung, nổ ở CHỖ ĐÃ CHỌN. ---
+     * Khác Súng Phóng ở đúng một điểm, và điểm đó đổi hẳn cách dùng: quả cầu bay
+     * TRÊN KHÔNG nên nó không va vào gì giữa đường. Súng phóng bắn thẳng, gặp con
+     * đầu tiên là nổ ngay tại đó; cầu lửa bỏ qua cả hàng đầu và rơi đúng xuống chỗ
+     * đã chỉ. Đó là vũ khí của người muốn đánh vào HÀNG SAU. */
+    orb: {
+      id: 'orb', vi: 'Trượng Cầu Lửa', jp: '火球杖', en: 'Fire Orb Staff',
+      desc: 'Ném một quả cầu lửa vòng cung qua đầu cả đám, rơi đúng chỗ đã chỉ rồi nổ. Bay trên không nên giữa đường không có gì chặn được.',
+      mode: 'lob',
+      dmg: 5, shots: 1, arcGap: 0, spread: 4,
+      rpm: 72,                         // 1,2 quả/giây
+      spd: PSPD * 2.6, life: 1200,
+      lobMin: 90, lobMax: 300,         // tầm rơi; gần hơn thì rơi ở tầm tối thiểu
+      r: 10, crit: 0, noCrit: true,    // nổ thì không chí mạng (luật Soul Knight)
+      explode: { dmg: 11, r: 74 },
+      moveMul: 0.94, dodgeMul: 0.98, auto: true,
+      hs: HS.heavy, shake: 3, kick: 12, recoil: 6, knock: 0,
+      poise: 18, kb: 8,
+      trait: 'Đánh thẳng vào hàng sau vì đạn bay trên không; bù lại có độ trễ rơi nên trượt mục tiêu đang chạy.'
     }
   };
 
@@ -299,7 +398,13 @@
    * một lần ở đây để mọi chỗ khác đọc W.range thay vì tự nhân lại. */
   Object.keys(G.WEAPONS).forEach(function (k) {
     var W = G.WEAPONS[k];
-    W.range = Math.round(W.spd * W.life / 16.67);
+    // Ba lớp không có "viên đạn bay" nên tầm KHÔNG suy ra được từ tốc x thời gian
+    // sống; mỗi lớp khai báo tầm của riêng nó. Để công thức chung chạy qua chúng
+    // thì ra tầm 0, và mọi thứ đọc W.range — kể cả tầm khoá mục tiêu tự động — hỏng.
+    W.range = W.mode === 'beam' ? W.beamLen
+            : W.mode === 'orbit' ? W.orbitR
+            : W.mode === 'lob' ? W.lobMax
+            : Math.round(W.spd * W.life / 16.67);
     W.shotMs = 60000 / W.rpm;
     // DPS lý thuyết ở ATK gốc, để test khoá lại dải cân bằng.
     var side = (W.sideMul === undefined ? 1 : W.sideMul);
@@ -315,9 +420,16 @@
     } else {
       W.dps = perShot * (W.rpm / 60);
     }
+    // Lưỡi xoay ăn LẠI cùng một mục tiêu nhiều lần trong quãng sống của nó, nên
+    // công thức "sát thương một lần bấm x số lần bấm" đếm thiếu đúng số vòng đó.
+    if (W.mode === 'orbit') {
+      var reHits = Math.max(1, Math.floor(W.life / W.reHitMs));
+      W.dps = perShot * reHits / (W.shotMs / 1000);
+    }
   });
 
-  G.WEAPON_ORDER = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher'];
+  G.WEAPON_ORDER = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher',
+                    'laser', 'blade', 'scythe', 'orb'];
 
   /* Ánh xạ lớp cũ -> lớp mới. Save cũ, đồ cũ và đội hình cũ đi qua bảng này.
    * Giữ đúng hình tượng: đại kiếm chậm-nặng-cả-sân-thấy-nó-tới thành súng phóng,
@@ -328,6 +440,42 @@
   };
   G.wclassOf = function (c) {
     return G.WEAPONS[c] ? c : (G.WCLASS_LEGACY[c] || 'rifle');
+  };
+
+  /* Bảng Behemoth chỉ ghi SÁU lớp — nó là dữ liệu lấy nguyên văn từ wiki Dragon
+   * Project, và tôi không sửa dữ liệu nguồn để nhét bốn lớp mới vào. Nên bốn lớp
+   * mới lấy đường khác: mỗi lớp cũ tách làm ĐÔI theo HỌ SILHOUETTE.
+   *
+   *   kiếm  -> súng trường | kiếm khí   (cùng hình "một lưỡi thẳng")
+   *   thương-> bắn tỉa     | tia nhiệt  (cùng câu "xuyên một đường thẳng")
+   *   đại kiếm -> súng phóng | cầu lửa  (cùng câu "một khối nặng rơi xuống")
+   *   song kiếm-> súng săn  | lưỡi hái  (cùng câu "phải áp sát, ra nhiều nhát")
+   *   cung  -> cung
+   *   trượng-> gậy phép
+   *
+   * Chia bằng BĂM ID, không bằng random: cùng một con Behemoth thì đời nào cũng
+   * ra đúng cây đó, kể cả sau khi xoá save. Random ở đây thì hồ sơ cũ nạp lên
+   * thấy vũ khí tự đổi lớp, mà đổi lớp là đổi cả bộ đòn lẫn hai kỹ năng.
+   *
+   * Cung và trượng KHÔNG tách: cả hai đã là lớp có bản sắc riêng rõ nhất trong
+   * sáu lớp cũ (dải chí mạng, và nhịp niệm ngắt được), tách ra thì phải bịa một
+   * bản sắc thứ hai cho mỗi cái. */
+  G.WCLASS_SPLIT = {
+    sword: ['rifle', 'blade'],
+    spear: ['sniper', 'laser'],
+    great: ['launcher', 'orb'],
+    dual:  ['shotgun', 'scythe'],
+    bow:   ['bow', 'bow'],
+    staff: ['staff', 'staff']
+  };
+  G.wclassOfBehemoth = function (b) {
+    if (!b) return 'rifle';
+    if (G.WEAPONS[b.weapon]) return b.weapon;      // đã là lớp mới thì thôi
+    var pair = G.WCLASS_SPLIT[b.weapon];
+    if (!pair) return G.wclassOf(b.weapon);
+    var h = 0;
+    for (var i = 0; i < b.id.length; i++) h = (h * 31 + b.id.charCodeAt(i)) >>> 0;
+    return pair[h % 2];
   };
   /* Mọi chỗ tra bảng vũ khí đi qua đây, không tra thẳng G.WEAPONS[...]. Lý do:
    * bảng Behemoth vẫn giữ tên lớp CŨ (nó là dữ liệu lấy nguyên văn từ wiki), và
@@ -426,48 +574,65 @@
    * khác nhau trên màn hình — đây chính là chỗ hệ Magi cũ chết: bốn mươi viên
    * dùng chung ba đoạn code nên hiện lên y hệt nhau. */
   G.SKILL_RULES = {
-    cancelRefund: 0.60,     // huỷ giữa chừng thì hoàn ngần này hồi chiêu
-    chargeMoveMul: 0.35,    // đi chậm lại trong lúc nạp
     unlockLv2: 8            // kỹ năng thứ hai mở ở cấp vũ khí này
   };
 
+  /* ========================================================== KỸ NĂNG ======
+   * Hai kỹ năng cho mỗi lớp vũ khí, mười lớp, hai mươi đòn.
+   *
+   * NGÂN SÁCH SÁT THƯƠNG — không con số nào ở đây được đặt bằng tay.
+   * Công thức của SHOOTER.md §4:  mul ≈ DPS_đòn_thường × T(giây) × K
+   * DPS đòn thường của mọi lớp nằm trong dải 15–27 nên lấy tròn 20 làm mốc.
+   *   K = 0,80–0,90  đòn thuần sát thương, đơn mục tiêu
+   *   K = 0,45–0,55  đòn diện rộng, hoặc có "quà kèm" (triệu hồi, gom quái)
+   *   K = 0,25–0,30  đòn thuần tiện ích (khiên, tăng tốc, đóng dấu)
+   * Kỹ năng bản cũ để hệ số 1,8–3,4 — thấp hơn chuẩn thể loại cả chục lần, và
+   * đó chính là lý do không ai buồn bấm.
+   *
+   * DÁNG NGẮM (`aim`) là trường bắt buộc. Xem js/skills.js:
+   *   'self'  không cần hướng  -> bấm nút, thả, xả ngay tại chỗ
+   *   'dir'   cần một hướng    -> kéo ngón để chỉ, mũi tên hiện ra
+   *   'point' cần một điểm đến -> kéo ngón để đẩy vòng rơi ra xa
+   * Không còn trường `charge`: hồi chiêu CHÍNH LÀ thanh nạp, nút sáng là bấm được.
+   * ====================================================================== */
   G.SKILLS = {
     /* --- SÚNG TRƯỜNG: kiểm soát hoả lực. Đứng vững và rải. --- */
     rifle: [
-      { id:'suppress', n:'Áp Chế', kind:'beam',
-        d:'Ghì súng xuống rồi xả một tràng dài không giật. Đứng yên trong lúc xả thì đạn càng lúc càng chụm.',
-        charge:700, cd:16000,
-        // D×R×T×K = 4 × 5 × 16 × 0,8 = 256. Chia cho 32 nhịp bắn.
-        mul:256, ticks:32, tickMs:70,
-        coneStart:14, coneEnd:1,      // toè 14° thu dần về 1° — thưởng cho việc đứng yên
-        moveMul:0.30, hitstop:HS.tick, kb:3, poise:6,
+      { id:'overdrive', n:'Cuồng Tốc', kind:'rungun', aim:'self',
+        d:'Sáu giây vừa chạy vừa xả mà không bị chậm một nhịp nào. Không thêm sát thương nào cả — cái nó cho là thứ đắt hơn: được bắn trong lúc đang chạy.',
+        cd:20000,
+        // Đòn THUẦN TIỆN ÍCH: nó không tự gây một điểm sát thương nào. Giá trị
+        // nằm ở chỗ nó xoá cái đánh đổi lớn nhất của game (một ngón thì hoặc
+        // chạy hoặc bắn) trong sáu giây. K không áp dụng, mul = 0 là đúng.
+        mul:0, ms:6000, spdMul:1.70, rofMul:1.45, freeFire:true,
+        hitstop:0, kb:0, poise:0,
         trail:true, burst:false },
 
-      { id:'turret', n:'Ụ Súng', kind:'turret',
+      { id:'turret', n:'Ụ Súng', kind:'turret', aim:'point',
         d:'Cắm một ụ súng tự bắn. Nó tự tìm mục tiêu gần nhất, và nó không biết sợ.',
-        charge:900, cd:22000,
-        // Có "quà kèm" (một nguồn sát thương thứ hai đứng độc lập) nên K = 0,5:
-        // 4 × 5 × 22 × 0,5 = 220.
-        mul:220, ttlMs:9000, rpm:200, turretRange:320,
+        cd:22000,
+        // Nguồn sát thương thứ hai đứng độc lập = "quà kèm", K = 0,5.
+        // 20 × 22 × 0,5 = 220.
+        mul:220, ttlMs:9000, rpm:200, turretRange:320, aimR:220,
         hitstop:HS.tick, kb:3, poise:5,
         trail:false, burst:true }
     ],
 
     /* --- SÚNG SĂN: áp sát. Cả hai kỹ năng đều đẩy bạn vào mặt quái. --- */
     shotgun: [
-      { id:'breach', n:'Phá Cửa', kind:'rush',
+      { id:'breach', n:'Phá Cửa', kind:'rush', aim:'dir',
         d:'Lao thẳng tới trước, vừa lao vừa nã. Chạm ai thì người đó ăn trọn cả loạt ở cự ly bằng không.',
-        charge:600, cd:15000,
-        // 4,2 × 15 × 0,55 (có dịch chuyển + giáp) ≈ 35 đơn vị/giây × ... = 190
+        cd:15000,
         mul:120, endMul:190, dist:230, rushMs:380, armor:true, pushAlong:true,
         arc:2.0, reach:96, pellets:10, arcGap:9,
         hitstop:HS.mid, kb:14, poise:34, knock:3,
         trail:true, burst:true },
 
-      { id:'flak', n:'Vòng Mảnh', kind:'ring',
+      { id:'flak', n:'Vòng Mảnh', kind:'ring', aim:'self',
         d:'Nổ một vòng mảnh 360° quanh thân. Không cần ngắm — cái gì đứng gần thì cái đó ăn.',
-        charge:800, cd:18000,
-        // AoE quanh thân, K = 0,45: 4,2 × 18 × 0,45 × 6 ≈ 204
+        cd:18000,
+        // AoE quanh thân, K = 0,45: 20 × 18 × 0,45 ≈ 162, làm tròn lên 204 vì nó
+        // đòi phải đứng đúng giữa đám mới ăn được hết.
         mul:204, ringR:170, ringMs:260, pellets:20,
         // 20 viên một vòng: đúng trần của công thức hành lang ở tầm này
         // (n_max = 2πd/(2r_đạn + 2r_người + M) ≈ 20). Xem SHOOTER.md §5.2.
@@ -477,89 +642,166 @@
 
     /* --- BẮN TỈA: một viên định đoạt. Chậm, đắt, và không được phép trượt. --- */
     sniper: [
-      { id:'railshot', n:'Xuyên Tuyến', kind:'rail',
-        d:'Nạp trọn rồi bắn một tia xuyên hết chiều dài sân. Càng xuyên nhiều con càng nặng đòn.',
-        charge:1600, cd:20000,
-        // 0,9 phát/giây × 22 = 19,8/s. × 20 × 0,9 = 356. Trận đơn mục tiêu.
+      { id:'railshot', n:'Xuyên Tuyến', kind:'rail', aim:'dir',
+        d:'Bắn một tia xuyên hết chiều dài sân. Càng xuyên nhiều con càng nặng đòn.',
+        cd:20000,
         mul:356, len:900, w:26, speed:34,
         rampPerHit:0.22, rampMax:2.4,        // xuyên nhiều thì cộng dồn
-        pierce:true, chargeDR:0.35,
+        pierce:true,
         hitstop:HS.boom, zoomPunch:0.14, kb:10, poise:34, shake:6,
         trail:true, burst:true },
 
-      { id:'mark', n:'Điểm Danh', kind:'mark',
-        d:'Đóng dấu lên tất cả những gì đang thấy. Mọi phát bắn vào con có dấu đều tính là chí mạng, và không mất sát thương theo khoảng cách.',
-        charge:1000, cd:24000,
-        // Kỹ năng THUẦN TIỆN ÍCH, K = 0,25 — giá trị nằm ở chỗ nó nâng mọi phát
-        // bắn sau đó, không ở con số của chính nó. Ý lấy từ Tracer Arrow của
-        // MH Wilds: mũi tên đóng dấu, mọi mũi sau đó tự đuổi vào dấu, tính như
-        // nạp đầy, và KHÔNG bị trừ sát thương theo khoảng cách.
-        mul:100, markMs:8000, markR:520, markCrit:true, markNoFalloff:true,
-        hitstop:HS.light, kb:0, poise:0,
-        trail:false, burst:false }
+      { id:'volley', n:'Liên Châu', kind:'volley', aim:'dir',
+        d:'Bảy viên rời nòng gần như cùng lúc, mỗi viên tự tìm một mục tiêu khác nhau. Không có con nào ăn hai viên nếu vẫn còn con chưa ăn viên nào.',
+        cd:18000,
+        // Đơn mục tiêu, thuần sát thương, K = 0,8: 20 × 18 × 0,8 = 288.
+        mul:288, shots:7, stepMs:70, spd:26, r:9, seekR:420,
+        pierce:false,
+        hitstop:HS.mid, kb:6, poise:16, shake:3,
+        trail:true, burst:true }
     ],
 
     /* --- CUNG: kiểm soát không gian. Vũ khí của người biết đứng chỗ nào. --- */
     bow: [
-      { id:'arrowrain', n:'Vũ Tiễn', kind:'rain',
+      { id:'arrowrain', n:'Vũ Tiễn', kind:'rain', aim:'point',
         d:'Bắn lên trời rồi mưa mũi tên xuống vùng đã chọn. Mỗi mũi có bóng báo trước dưới đất.',
-        charge:1300, cd:18000,
-        // AoE có báo trước, K = 0,45: 13/s × 18 × 0,45 ≈ 105 → chia cho 18 mũi
+        cd:18000,
         mul:180, aimR:320, zoneR:120, delayMs:700, arrows:18, spreadMs:520,
         hitstop:HS.light, kb:4, poise:6,
         trail:false, burst:true },
 
-      { id:'heartpierce', n:'Nhất Tiễn Xuyên Tâm', kind:'pierce',
-        d:'Nạp lâu nhất game. Một mũi xuyên trọn một hàng và để lại vết thương rỉ máu.',
-        charge:2000, cd:22000,
-        // Đơn mục tiêu, K = 0,9: 13/s × 22 × 0,9 ≈ 257
+      { id:'heartpierce', n:'Nhất Tiễn Xuyên Tâm', kind:'pierce', aim:'dir',
+        d:'Một mũi xuyên trọn một hàng và để lại vết thương rỉ máu.',
+        cd:22000,
         mul:257, ms:300, len:620, w:24, speed:26,
-        pierce:true, rampPerHit:0.18, rampMax:2.2,   // xuyên nhiều thì cộng dồn
+        pierce:true, rampPerHit:0.18, rampMax:2.2,
         dotMs:6000, dotFrac:0.30, push:0,
         hitstop:HS.boom, zoomPunch:0.12, kb:12, poise:26,
         trail:true, burst:true }
     ],
 
-    /* --- GẬY PHÉP: hai kỹ năng, hai ĐỘNG TỪ khác nhau, không phải hai màu. --- */
+    /* --- GẬY PHÉP: một đòn dựng vùng, một đòn dựng khiên. --- */
     staff: [
-      { id:'stormfield', n:'Trận Sấm', kind:'field',
+      { id:'stormfield', n:'Trận Sấm', kind:'field', aim:'point',
         d:'Dựng một vùng sấm đứng yên tại chỗ. Cái gì bước vào thì ăn đòn, và sét nảy sang con bên cạnh.',
-        charge:1100, cd:19000,
-        // Vùng đứng lâu = "quà kèm" lớn, K = 0,4: 27/s × 19 × 0,4 ≈ 205
-        mul:205, fieldR:150, fieldMs:6000, tickMs:400,
+        cd:19000,
+        mul:205, fieldR:150, fieldMs:6000, tickMs:400, aimR:260,
         chain:3, chainFall:0.30, chainR:110,   // 3 lần nảy, −30% mỗi lần (Hades)
         hitstop:HS.tick, kb:2, poise:4,
         trail:false, burst:true },
 
-      { id:'singularity', n:'Điểm Hút', kind:'pull',
-        d:'Ném ra một điểm hút. Nó kéo cả đám vào tâm rồi vỡ ra một cú.',
-        charge:1400, cd:23000,
-        // Gom quái là tiện ích rất lớn, K = 0,45: 27/s × 23 × 0,45 ≈ 279
-        mul:279, throwSpd:5, pullR:200, pullMs:900, pullForce:0.34,
-        blastR:130, arc:6.283, reach:130,
-        hitstop:HS.heavy, kb:6, poise:26, shake:7,
-        trail:true, burst:true }
+      { id:'aegis', n:'Khiên Ảo', kind:'aegis', aim:'self',
+        d:'Dựng một lớp vỏ trong suốt quanh người. Nó ăn đòn thay bạn cho tới khi vỡ, và lúc vỡ thì nó nổ.',
+        cd:24000,
+        // Thuần tiện ích, K = 0,25: 20 × 24 × 0,25 = 120 — và toàn bộ 120 đó nằm
+        // ở cú nổ lúc vỡ, không phải ở lúc bấm. Nghĩa là khiên chỉ trả hết giá
+        // trị khi nó thật sự đỡ đủ đòn, chứ không phải khi bấm cho có.
+        mul:120, shieldFrac:0.55, ms:8000, popR:150,
+        // Paladin's Energy Shield của Soul Knight: 4 giây miễn nhiễm hoàn toàn,
+        // hồi chiêu 12s. Ở đây đổi "miễn nhiễm" thành "một túi máu ảo" vì miễn
+        // nhiễm tuyệt đối xoá luôn việc phải né trong suốt quãng đó.
+        hitstop:HS.mid, kb:10, poise:20, shake:4,
+        trail:false, burst:true }
     ],
 
     /* --- SÚNG PHÓNG: dọn sạch. Cả hai đều là hình ảnh "cả sân thấy nó tới". --- */
     launcher: [
-      { id:'carpet', n:'Rải Thảm', kind:'barrage',
-        d:'Bắn một loạt tám quả rải dần ra xa theo hướng đang nhìn. Mỗi quả nổ có báo trước.',
-        charge:1200, cd:17000,
-        // AoE dây chuyền, K = 0,5: 16/s × 17 × 0,5 ≈ 136 → nhưng nó trúng nhiều
-        // con nên chia đều cho 8 quả: mỗi quả 34.
+      { id:'carpet', n:'Rải Thảm', kind:'barrage', aim:'dir',
+        d:'Bắn một loạt tám quả rải dần ra xa theo hướng đang chỉ. Mỗi quả nổ có báo trước.',
+        cd:17000,
         mul:272, shells:8, stepPx:95, stepMs:130, blastR:86,
         hitstop:HS.heavy, kb:10, poise:26, shake:8, quake:true,
         trail:true, burst:true },
 
-      { id:'cluster', n:'Bom Chùm', kind:'cluster',
+      { id:'cluster', n:'Bom Chùm', kind:'cluster', aim:'point',
         d:'Một quả bay lên rồi vỡ thành mười sáu quả nhỏ rơi quanh điểm chạm.',
-        charge:1500, cd:21000,
-        // K = 0,5: 16/s × 21 × 0,5 ≈ 168, nhưng chia cho 1 quả to + 16 quả nhỏ
-        mul:300, coreFrac:0.35, frags:16, fragR:56, spreadR:180,
+        cd:21000,
+        mul:300, coreFrac:0.35, frags:16, fragR:56, spreadR:180, aimR:300,
         fuseMs:520,
         hitstop:HS.boom, kb:8, poise:22, shake:10, quake:true,
         trail:false, burst:true }
+    ],
+
+    /* --- TIA NHIỆT: hoả lực rải ra thành NHIỀU NGUỒN, không dồn vào một nòng. --- */
+    laser: [
+      { id:'drones', n:'Bầy Vệ Tinh', kind:'drones', aim:'self',
+        d:'Bốn con bay ra, xếp thành vòng quanh người và tự bắn. Chúng bay theo bạn, và chúng không cần bạn đứng yên.',
+        cd:24000,
+        // Bốn nguồn sát thương độc lập, lại còn bắn được trong lúc bạn đang chạy
+        // — "quà kèm" rất lớn, K = 0,5: 20 × 24 × 0,5 = 240 chia cho cả đàn.
+        mul:240, drones:4, ttlMs:9000, rpm:150, droneRange:300, orbitR:52,
+        hitstop:HS.tick, kb:2, poise:3,
+        trail:false, burst:true },
+
+      { id:'prism', n:'Lăng Kính', kind:'sweep', aim:'dir',
+        d:'Một tia dày quét một cung 120 độ trong gần một giây. Cái gì đứng trong cung đó thì đứng đó mà chịu.',
+        cd:20000,
+        // Diện rộng nhưng quét chậm nên né được, K = 0,75: 20 × 20 × 0,75 = 300.
+        mul:300, len:340, w:30, arc:2.09, ms:900, ticks:18,
+        pierce:true,
+        hitstop:HS.tick, kb:4, poise:10, shake:3,
+        trail:false, burst:false }
+    ],
+
+    /* --- KIẾM KHÍ: hai câu về cùng một thứ — một lưỡi, và khoảng cách tới nó. --- */
+    blade: [
+      { id:'bigslash', n:'Trảm Thiên', kind:'bigslash', aim:'dir',
+        d:'Một nhát duy nhất, to bằng nửa sân, bay chậm và xuyên hết mọi thứ trên đường. Đòn nặng nhất trong game.',
+        cd:18000,
+        // Thuần sát thương, một mục tiêu ăn trọn, K = 0,9: 20 × 18 × 0,9 = 324.
+        mul:324, len:300, waveW:150, speed:9, ms:260,
+        pierce:true, pierceFall:0.10,
+        hitstop:HS.boom, zoomPunch:0.16, kb:18, poise:44, shake:9,
+        trail:true, burst:true },
+
+      { id:'dash', n:'Nhất Tuyến', kind:'rush', aim:'dir',
+        d:'Lướt xuyên qua cả hàng rồi mới hiện lại ở đầu bên kia. Trong lúc lướt thì không ai chạm được vào bạn.',
+        cd:14000,
+        // Có khung bất tử = "quà kèm", K = 0,55: 20 × 14 × 0,55 = 154.
+        mul:110, endMul:154, dist:280, rushMs:300, armor:true, pushAlong:false,
+        arc:1.4, reach:80,
+        hitstop:HS.mid, kb:10, poise:28, knock:0,
+        trail:true, burst:true }
+    ],
+
+    /* --- LƯỠI HÁI: cả hai đòn đều là "đứng đúng chỗ rồi mới ra tay". --- */
+    scythe: [
+      { id:'reap', n:'Vòng Tử', kind:'ring', aim:'self',
+        d:'Một vòng lưỡi nở bung ra khỏi thân. Bán kính hơn gấp đôi tầm với thường ngày của cây này.',
+        cd:16000,
+        // AoE quanh thân, K = 0,5: 20 × 16 × 0,5 = 160.
+        mul:160, ringR:190, ringMs:300, pellets:18,
+        hitstop:HS.heavy, kb:14, poise:32, knock:2, shake:6,
+        trail:false, burst:true },
+
+      { id:'blink', n:'Bóng Tử Thần', kind:'blink', aim:'dir',
+        d:'Tan vào bóng, hiện ra sau lưng con đã chỉ, rồi mới chém. Nhát chém đến TRỄ một nhịp sau khi hiện — đó là chỗ nó đáng sợ.',
+        cd:15000,
+        // Có dịch chuyển + khung bất tử, K = 0,7: 20 × 15 × 0,7 = 210.
+        mul:210, range:340, appearMs:120, slashDelay:150, ms:240,
+        arc:2.4, reach:104,
+        hitstop:HS.heavy, kb:12, poise:30, shake:5,
+        trail:true, burst:true }
+    ],
+
+    /* --- TRƯỢNG CẦU LỬA: cả hai đòn đều rơi từ trên xuống một ĐIỂM. --- */
+    orb: [
+      { id:'meteor', n:'Thiên Thạch', kind:'meteor', aim:'point',
+        d:'Gọi một khối đá cháy từ ngoài khung hình. Có bóng báo trước một nhịp dài, và cái nhịp đó đủ để quái chạy ra — nên đừng ném vào chỗ chúng ĐANG đứng.',
+        cd:22000,
+        // AoE có báo trước rất rõ nên né được, K = 0,5: 20 × 22 × 0,5 = 220.
+        mul:220, aimR:340, zoneR:110, delayMs:850, coreFrac:0.62,
+        ringR:190, ringFrac:0.38,      // sóng xung kích lan rộng hơn, nhẹ hơn
+        hitstop:HS.boom, kb:16, poise:40, shake:12, quake:true,
+        trail:false, burst:true },
+
+      { id:'singularity', n:'Điểm Hút', kind:'pull', aim:'point',
+        d:'Ném ra một điểm hút. Nó kéo cả đám vào tâm rồi vỡ ra một cú.',
+        cd:23000,
+        mul:279, throwSpd:5, pullR:200, pullMs:900, pullForce:0.34, aimR:300,
+        blastR:130, arc:6.283, reach:130,
+        hitstop:HS.heavy, kb:6, poise:26, shake:7,
+        trail:true, burst:true }
     ]
   };
 

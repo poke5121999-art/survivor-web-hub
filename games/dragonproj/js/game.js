@@ -386,6 +386,13 @@
     var base = W.dmg * mul;
     var self = this;
 
+    /* BA LỚP KHÔNG SINH VIÊN ĐẠN. Chúng rẽ ra ở đây rồi đi thẳng xuống phần phản
+     * hồi (giật, rung, đá camera) ở cuối hàm — phần đó dùng chung cho mọi lớp,
+     * nên chép lại nó ba lần là ba chỗ để quên đồng bộ. */
+    if (W.mode === 'beam')       this.fireBeam(base);
+    else if (W.mode === 'orbit') this.fireOrbit(base, shots);
+    else if (W.mode === 'lob')   this.fireLob(base, spread);
+    else
     for (var i = 0; i < shots; i++) {
       // Quạt CỐ ĐỊNH (arcGap) khác hẳn jitter NGẪU NHIÊN (spread): quạt cố định
       // là một bức tường ngắm được và học được, jitter là một đám mây không học
@@ -406,7 +413,8 @@
         from: { x: p.x, y: p.y }, hitSet: [],
         // Đạn hiện dần, CHƯA CÓ HITBOX. Không phải trang trí: đây là bảo đảm
         // công bằng chống chết-do-đạn-sinh-ra-trên-đầu (luật của Danmakufu).
-        fade: G.DANMAKU.fadeInMs
+        fade: G.DANMAKU.fadeInMs,
+        wave: !!W.wave, waveW: W.waveW || 0
       });
     }
 
@@ -433,6 +441,126 @@
     p.chargeLv = -1; p.chargeT = 0;
     if (W.id) this.moveName = { n: W.vi, t: this.t };
     return true;
+  };
+
+  /* ================================== TIA NHIỆT (beam) =====================
+   * Tia chạm TỨC THỜI: không có viên đạn nào bay, nên không có gì để né và cũng
+   * không có gì để dẫn trước. Mỗi "phát bắn" của cây này là MỘT TICK — nhịp cây
+   * là 10 tick/giây, đúng chuẩn beam của Enter the Gungeon.
+   *
+   * Đường ramp là toàn bộ bản sắc của lớp: giữ tia liên tục thì mỗi tick nặng dần
+   * (×1,25 sau 10 tick, ×1,50 sau 23 tick — Ion Laser). Nhấc tay là bộ đếm về 0.
+   * Nên cây này thưởng cho người dám đứng yên, và phạt đúng cái mà mọi cây khác
+   * thưởng: né liên tục.
+   * ==================================================================== */
+  Battle.prototype.fireBeam = function (base) {
+    var p = this.player, W = this.W;
+    p.beamTicks = (p.beamTicks || 0) + 1;
+    var ramp = 1;
+    for (var ri = 0; ri < (W.rampAt || []).length; ri++) {
+      if (p.beamTicks >= W.rampAt[ri]) ramp = W.rampMul[ri];
+    }
+    var len = W.beamLen, hw = (W.beamW || 12) / 2 + 4;
+    var ca = Math.cos(p.facing), sa = Math.sin(p.facing);
+    var x0 = p.x + ca * 14, y0 = p.y + sa * 14;
+
+    // Điểm gần nhất trên đoạn thẳng tới tâm mục tiêu; trúng nếu khoảng cách đó
+    // nhỏ hơn tổng hai bán kính. Đây là phép thử đoạn-thẳng-với-hình-tròn chuẩn,
+    // và nó là cách duy nhất đúng khi tia dài hơn một bước khung hình rất nhiều.
+    function hitDist(ex, ey, er) {
+      var dx = ex - x0, dy = ey - y0;
+      var t = (dx * ca + dy * sa);
+      if (t < 0 || t > len) return -1;
+      var px = x0 + ca * t, py = y0 + sa * t;
+      return Math.hypot(ex - px, ey - py) < er + hw ? t : -1;
+    }
+
+    var targets = [];
+    this.mobs.forEach(function (m) {
+      if (m.dead) return;
+      var t = hitDist(m.x, m.y, m.r);
+      if (t >= 0) targets.push({ t: t, m: m, x: m.x, y: m.y });
+    });
+    var b = this.boss, bossHit = null;
+    if (b && b.hp > 0) {
+      var tb = hitDist(b.x, b.y, b.r);
+      if (tb >= 0) bossHit = { t: tb, x: x0 + ca * tb, y: y0 + sa * tb };
+    }
+    targets.sort(function (a, c) { return a.t - c.t; });
+
+    var reach = len, hits = 0, self = this;
+    var opt0 = { move: { hs: G.FEEL.hitstop.tick, kb: W.kb, poise: W.poise } };
+    targets.forEach(function (o) {
+      var fall = Math.pow(1 - (W.pierceFall || 0), hits);
+      var d = self.playerDamage(base * ramp);
+      self.dealToMob(o.m, d, { falloff: fall, from: p.facing,
+        move: { hs: G.FEEL.hitstop.tick, kb: W.kb, poise: W.poise } });
+      hits++;
+      if (!W.pierce) reach = Math.min(reach, o.t);
+    });
+    if (bossHit) {
+      var fb = Math.pow(1 - (W.pierceFall || 0), hits);
+      this.dealToBoss(this.playerDamage(base * ramp), bossHit.x, bossHit.y,
+        { falloff: fb, from: p.facing, move: opt0.move });
+    }
+
+    // Tia là thứ phải THẤY suốt, không phải một cái loé. Nó sống đúng một nhịp
+    // tick rồi được thay bằng tia mới — nên nó liền mạch khi giữ, và tắt ngay khi
+    // nhả tay, không lê thê một vệt ma.
+    this.fx.push({ k: 'beam', x: x0, y: y0, a: p.facing, len: reach,
+                   w: (W.beamW || 12) * (0.8 + 0.35 * (ramp - 1) * 2),
+                   t: 0, ms: W.shotMs + 30, ramp: ramp,
+                   col: G.ELEMENTS[this.wp ? this.wp.el : 'none'].color });
+  };
+
+  /* ================================ LƯỠI HÁI (orbit) =======================
+   * Lưỡi không bay đi đâu cả: nó xoay quanh NGƯỜI. Nên vị trí của nó là hàm của
+   * vị trí người chơi tại mỗi khung, không phải một quỹ đạo tự do — chạy đi đâu
+   * thì lưỡi theo tới đó.
+   * ==================================================================== */
+  Battle.prototype.fireOrbit = function (base, n) {
+    var p = this.player, W = this.W;
+    var a0 = p.facing;
+    for (var i = 0; i < n; i++) {
+      this.projs.push({
+        k: 'orbit', wclass: W.id,
+        x: p.x, y: p.y,
+        ang0: a0 + i * (W.arcGap || 120) * Math.PI / 180,
+        spin: (W.orbitSpin || 300) * Math.PI / 180,
+        orbitR: W.orbitR, born: this.t,
+        life: W.life, r: W.r, mul: base,
+        cuts: !!W.cutsBullets, reHitMs: W.reHitMs || 600,
+        hitAt: [],                 // [{e, t}] — mốc lần cuối chạm từng mục tiêu
+        critBonus: 0, fade: 0
+      });
+    }
+  };
+
+  /* ================================ CẦU LỬA (lob) ==========================
+   * Quả cầu bay TRÊN KHÔNG nên nó không va vào gì giữa đường — chỉ khi chạm đất
+   * mới nổ. Cái làm nó đọc được là BÓNG dưới đất: bóng chạy trước, quả cầu nhấc
+   * lên rồi hạ xuống đúng chỗ bóng đang tới. Không có bóng thì trong một game
+   * nhìn từ trên xuống, "trên không" và "trên mặt đất" trông y hệt nhau.
+   * ==================================================================== */
+  Battle.prototype.fireLob = function (base, spread) {
+    var p = this.player, W = this.W;
+    var a = p.facing + (Math.random() - 0.5) * spread * Math.PI / 180;
+    // Tầm rơi bám theo mục tiêu đang khoá, kẹp trong dải của cây. Không có mục
+    // tiêu thì ném hết tầm — người bấm bừa vẫn phải ra được một quả có ích.
+    var tg = this.nearestHostile(p.x, p.y, W.lobMax * 1.4);
+    var dd = tg ? Math.hypot(tg.x - p.x, tg.y - p.y) : W.lobMax;
+    dd = clamp(dd, W.lobMin, W.lobMax);
+    var flight = Math.max(340, dd / (W.spd) * 16.67);
+    this.projs.push({
+      k: 'lob', wclass: W.id,
+      x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14,
+      x0: p.x, y0: p.y,
+      tx: clamp(p.x + Math.cos(a) * dd, 16, this.wW - 16),
+      ty: clamp(p.y + Math.sin(a) * dd, 16, this.wH - 16),
+      a: a, t: 0, flight: flight, life: flight + 60,
+      r: W.r, mul: base, explode: W.explode, noCrit: !!W.noCrit,
+      z: 0, fade: 0
+    });
   };
 
   /* Đòn "phản" sau khi né chuẩn giữ nguyên vị trí trong ngữ pháp, nhưng giờ nó
@@ -487,6 +615,9 @@
 
   Battle.prototype.atkSpeed = function () {
     var m = 1;
+    // Buff nhịp bắn từ kỹ năng (Cuồng Tốc). Cộng vào cùng chỗ với buff đỡ chuẩn
+    // để mọi thứ ảnh hưởng tốc bắn đi qua đúng một hàm.
+    this.player.buffs.forEach(function (b) { if (b.rof) m += b.rof; });
     if (this.player.fury > this.t) m += G.FEEL.furySpd;   // vừa đỡ chuẩn -> tay nhanh hẳn
     this.player.buffs.forEach(function (b) { if (b.atkSpd) m += b.atkSpd; });
     if (this.player.overdrive > 0) m += 0.35;
@@ -583,6 +714,10 @@
 
   Battle.prototype.holdEnd = function (dx, dy, ms) {
     var p = this.player, W = this.W;
+    // Nhả cò là đường ramp của tia nhiệt về 0. Đây KHÔNG phải dọn dẹp cho gọn —
+    // nó là toàn bộ cái giá của lớp beam: mỗi lần né là mất sạch phần thưởng đã
+    // tích. Quên dòng này thì laser thành cây mạnh nhất game một cách âm thầm.
+    p.beamTicks = 0;
     if (p.state === 'autofire') { p.state = 'idle'; return; }
     if (p.state === 'charge') { this.fire({ chargeLv: p.chargeLv || 0 }); return; }
     if (p.state === 'steady') {
@@ -596,6 +731,7 @@
 
   Battle.prototype.holdCancel = function () {
     var p = this.player;
+    p.beamTicks = 0;
     if (p.state === 'autofire' || p.state === 'charge' || p.state === 'steady') {
       // HUỶ NẠP LÀ MIỄN PHÍ: không bắn ra, không mất gì. Nếu huỷ mà mất tài
       // nguyên thì người chơi thôi nạp lúc nguy hiểm, và cả vòng lặp sụp.
@@ -1290,7 +1426,13 @@
   Battle.prototype.moveStep = function (p, mv, slowMul, dt, mul) {
     var W = this.W;
     if (!(mv.m > 0) || !(mul > 0)) { p.moving = false; return; }
-    var spd = G.BAL.baseSpd * W.moveMul * (this.stats.moveSpd || 1) * mul * mv.m * slowMul;
+    /* CUỒNG TỐC bỏ HAI hệ số phạt cùng lúc, không phải một: `W.moveMul` (phạt
+     * theo cây — tia nhiệt 0,62) và `mul` (phạt theo trạng thái — đang bắn 0,85,
+     * đang ghì 0,45). Bỏ mỗi cái thứ nhất thì người chơi vẫn thấy mình bò trong
+     * lúc bấm cò, và cả kỹ năng mất nghĩa. */
+    var free = p.buffs.some(function (b) { return b.freeFire; });
+    var spd = G.BAL.baseSpd * (free ? 1 : W.moveMul) * (this.stats.moveSpd || 1) *
+              (free ? 1 : mul) * mv.m * slowMul;
     var bs = 1; p.buffs.forEach(function (b) { if (b.moveSpd) bs += b.moveSpd; });
     if (p.overdrive > 0) bs += 0.25;
     spd *= bs;
@@ -1806,6 +1948,12 @@
       // đạn-sinh-ra-trên-đầu, không phải hiệu ứng trang trí.
       if (pr.fade > 0) { pr.fade -= dt; continue; }
 
+      // Hai loại dưới đây không đi theo đường thẳng nên chúng không dùng chung
+      // một dòng nào với đoạn bên dưới. Tách hẳn ra hàm riêng, xử lý xong là
+      // nhảy sang viên kế tiếp.
+      if (pr.k === 'orbit') { if (!this.stepOrbit(pr, dt)) this.projs.splice(i, 1); continue; }
+      if (pr.k === 'lob')   { if (!this.stepLob(pr, dt))   this.projs.splice(i, 1); continue; }
+
       // Đuổi theo TỐC ĐỘ QUAY CÓ TRẦN, không phải bám dính. Bán kính vòng tối
       // thiểu R = v/radian(ω) là cái người chơi luôn có thể chạy ra khỏi — đó là
       // chỗ khác nhau giữa "đạn đuổi" và "đạn không né được".
@@ -1886,6 +2034,77 @@
         if (!pr.pierce) { this.projs.splice(i, 1); continue; }
       }
     }
+  };
+
+  /* Một lưỡi hái xoay. Trả về false khi hết hạn.
+   *
+   * Điểm phải làm đúng: mỗi lưỡi giữ SỔ RIÊNG mốc thời gian nó chạm từng mục tiêu
+   * lần cuối. Không có sổ đó thì lưỡi ăn mỗi khung — 60 lần một giây — và cây này
+   * một mình xoá sổ cả bảng cân bằng. Có sổ mà để chung cho cả ba lưỡi thì ngược
+   * lại: lưỡi thứ hai và thứ ba vĩnh viễn không bao giờ ăn được gì. */
+  Battle.prototype.stepOrbit = function (pr, dt) {
+    var p = this.player, self = this;
+    var age = this.t - pr.born;
+    if (age > pr.life) return false;
+    // Lưỡi neo vào NGƯỜI: chạy đi đâu lưỡi theo tới đó, không có quán tính.
+    var a = pr.ang0 + pr.spin * age / 1000;
+    pr.a = a;
+    pr.x = p.x + Math.cos(a) * pr.orbitR;
+    pr.y = p.y + Math.sin(a) * pr.orbitR;
+
+    // Chặt đạn quái. Đây là thứ mua lại cái giá "phải đứng sát mặt" của cây này.
+    if (pr.cuts) {
+      for (var j = this.projs.length - 1; j >= 0; j--) {
+        var q = this.projs[j];
+        if (q.k !== 'mobshot') continue;
+        if (Math.hypot(q.x - pr.x, q.y - pr.y) < pr.r + q.r) {
+          this.fx.push({ k: 'spark', x: q.x, y: q.y, t: 0, ms: 160, col: '#ffe74c' });
+          this.projs.splice(j, 1);
+        }
+      }
+    }
+
+    function canHit(e) {
+      for (var k = 0; k < pr.hitAt.length; k++) {
+        if (pr.hitAt[k].e === e) {
+          if (self.t - pr.hitAt[k].t < pr.reHitMs) return false;
+          pr.hitAt[k].t = self.t; return true;
+        }
+      }
+      pr.hitAt.push({ e: e, t: self.t }); return true;
+    }
+
+    var opt = { from: pr.a, move: { hs: G.FEEL.hitstop.light, kb: this.W.kb, poise: this.W.poise } };
+    for (var mi = 0; mi < this.mobs.length; mi++) {
+      var m = this.mobs[mi];
+      if (m.dead) continue;
+      if (Math.hypot(pr.x - m.x, pr.y - m.y) < m.r + pr.r && canHit(m)) {
+        this.dealToMob(m, this.playerDamage(pr.mul), opt);
+        this.impact(pr.x, pr.y, G.FEEL.hitstop.light, G.FEEL.shake.light, '#e8f2ff');
+      }
+    }
+    var b = this.boss;
+    if (b && b.hp > 0 && Math.hypot(pr.x - b.x, pr.y - b.y) < b.r + pr.r && canHit(b)) {
+      this.dealToBoss(this.playerDamage(pr.mul), pr.x, pr.y, opt);
+    }
+    return true;
+  };
+
+  /* Một quả cầu lửa đang bay vòng cung. Trả về false khi đã chạm đất và nổ.
+   *
+   * Chiều cao là một parabol theo TIẾN ĐỘ đường bay, không phải mô phỏng trọng
+   * lực: mô phỏng thật thì điểm rơi phụ thuộc vận tốc ban đầu và sẽ trượt khỏi
+   * chỗ đã ngắm. Ở đây điểm rơi là thứ được CHỐT TRƯỚC, và cái parabol chỉ có
+   * nhiệm vụ làm cho việc đó nhìn ra là một cú ném. */
+  Battle.prototype.stepLob = function (pr, dt) {
+    pr.t += dt;
+    var k = clamp(pr.t / pr.flight, 0, 1);
+    pr.x = pr.x0 + (pr.tx - pr.x0) * k;
+    pr.y = pr.y0 + (pr.ty - pr.y0) * k;
+    pr.z = Math.sin(k * Math.PI) * (0.30 * Math.hypot(pr.tx - pr.x0, pr.ty - pr.y0) + 40);
+    if (k < 1) return true;
+    this.boom(pr);
+    return false;
   };
 
   /* Quả nổ của súng phóng. Explosive KHÔNG BAO GIỜ chí mạng (luật của Soul
@@ -1985,6 +2204,7 @@
       else this.drawPlayer(e.d);
     }
     this.drawProjectiles();
+    this.drawDrones();
     // Tường chắn và ảo ảnh đứng ngang tầm nhân vật, vẽ sau khi đã xếp lớp xong.
     if (this.drawSkillEntities) this.drawSkillEntities();
     this.drawFx();
@@ -2521,8 +2741,19 @@
     if (p.iframe > 0) ctx.globalAlpha = 0.5 + 0.5 * Math.sin(this.t / 50);
     // khiên chắn
     if (p.shield > 0) {
-      ctx.strokeStyle = '#7fd4ff'; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.7;
-      ctx.beginPath(); ctx.arc(0, -4, 26, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
+      // Khiên Ảo vẽ dày và có mảng trong — nó là một QUẢ CẦU, không phải một
+      // đường viền. Người chơi phải nhìn ra ngay là mình đang ở trong một cái
+      // vỏ, vì mọi quyết định trong tám giây đó dựa vào việc còn vỏ hay không.
+      var big = !!this.aegis;
+      ctx.strokeStyle = '#7fd4ff'; ctx.globalAlpha = big ? 0.85 : 0.7;
+      ctx.lineWidth = big ? 3.5 : 2.5;
+      ctx.beginPath(); ctx.arc(0, -4, big ? 30 : 26, 0, TAU); ctx.stroke();
+      if (big) {
+        ctx.globalAlpha = 0.13 + 0.07 * Math.sin(this.t / 180);
+        ctx.fillStyle = '#7fd4ff';
+        ctx.beginPath(); ctx.arc(0, -4, 30, 0, TAU); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
     }
     if (p.overdrive > 0) {
       ctx.strokeStyle = '#ff7a3c'; ctx.lineWidth = 2; ctx.globalAlpha = 0.55 + 0.3 * Math.sin(this.t / 90);
@@ -3055,20 +3286,156 @@
     ctx.restore();
   };
 
+  /* ======================================================== VẼ ĐẠN ==========
+   * Bản cũ vẽ MỌI viên — của mình lẫn của quái, bán kính 6 lẫn bán kính 22 — bằng
+   * đúng một hình mũi tên dài 28px màu kem. Hệ quả: bán kính va chạm thật và hình
+   * người chơi nhìn thấy không liên quan gì tới nhau, mà đó lại là thứ duy nhất
+   * quyết định né được hay không.
+   *
+   * Luật mới, và chỉ có ba:
+   *   1. HÌNH VẼ ĐÚNG BẰNG BÁN KÍNH VA CHẠM. Không có ngoại lệ.
+   *   2. Đạn quái vẽ khác hẳn đạn mình — khác cả hình lẫn màu. Trong một màn hình
+   *      có bảy chục viên đang bay, cái phải trả lời tức thì là "viên này của ai".
+   *   3. Đạn đang trong pha hiện dần (chưa có hitbox) thì MỜ và có vành ngoài —
+   *      nhìn ra ngay là "chưa ăn được", đúng cái mà lời hứa công bằng đã hẹn.
+   * ==================================================================== */
   Battle.prototype.drawProjectiles = function () {
-    var ctx = this.ctx;
+    var ctx = this.ctx, self = this;
+    var pcol = G.ELEMENTS[this.wp ? this.wp.el : 'none'].color;
     this.projs.forEach(function (p) {
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
-      ctx.strokeStyle = p.full ? '#ffffff' : '#e8d8a0'; ctx.lineWidth = p.full ? 3 : 2;
-      ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(10, 0); ctx.stroke();
-      ctx.fillStyle = p.full ? '#ffffff' : '#e8d8a0';
-      ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(6, -4); ctx.lineTo(6, 4); ctx.fill();
+      if (p.k === 'orbit') { self.drawScytheBlade(p); return; }
+      if (p.k === 'lob')   { self.drawFireOrb(p); return; }
+      if (p.wave)          { self.drawBladeWave(p, pcol); return; }
+
+      var ghost = p.fade > 0;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a || 0);
+      if (ghost) ctx.globalAlpha = 0.42;
+
+      if (p.k === 'mobshot') {
+        // Đạn quái: hình TRÒN, viền tối, lõi sáng. Tròn vì nó không có hướng nào
+        // đáng đọc — cái đáng đọc là chỗ nó đang ở và nó to bằng nào.
+        var col = p.col || '#ff6a5a';
+        ctx.fillStyle = 'rgba(10,14,20,.55)';
+        ctx.beginPath(); ctx.arc(0, 0, p.r + 2, 0, TAU); ctx.fill();
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(0, 0, p.r, 0, TAU); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,.85)';
+        ctx.beginPath(); ctx.arc(-p.r * 0.22, -p.r * 0.22, p.r * 0.34, 0, TAU); ctx.fill();
+        if (ghost) {
+          ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.7;
+          ctx.beginPath(); ctx.arc(0, 0, p.r + 5, 0, TAU); ctx.stroke();
+        }
+      } else {
+        // Đạn mình: một VIÊN THUÔN theo hướng bay, dài gấp rưỡi bán kính. Thuôn
+        // vì nó có hướng, và hướng là thứ nói cho biết nó sẽ đi tới đâu.
+        var L = p.r * 1.6, cc = p.critBonus > 0.3 ? '#ffd23f' : pcol;
+        ctx.fillStyle = 'rgba(8,12,18,.45)';
+        ctx.beginPath(); ctx.ellipse(0, 0, L + 2, p.r + 2, 0, 0, TAU); ctx.fill();
+        var g = ctx.createLinearGradient(-L, 0, L, 0);
+        g.addColorStop(0, 'rgba(255,255,255,.15)');
+        g.addColorStop(0.55, cc);
+        g.addColorStop(1, '#ffffff');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.ellipse(0, 0, L, p.r * 0.82, 0, 0, TAU); ctx.fill();
+      }
       ctx.restore();
     });
   };
 
+  /* Lưỡi hái: một hình liềm, mũi hướng ra ngoài theo chiều xoay. Vẽ kèm một vệt
+   * cung mờ chạy sau lưng — không có vệt thì ở 300 độ/giây mắt chỉ thấy ba chấm
+   * nhấp nháy chứ không thấy một thứ đang quay. */
+  Battle.prototype.drawScytheBlade = function (p) {
+    var ctx = this.ctx, col = G.ELEMENTS[this.wp ? this.wp.el : 'none'].color;
+    var age = this.t - p.born, k = clamp(age / p.life, 0, 1);
+    var fade = k > 0.85 ? (1 - k) / 0.15 : 1;
+    ctx.save();
+    ctx.globalAlpha = 0.28 * fade;
+    ctx.strokeStyle = col; ctx.lineWidth = p.r * 1.2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(this.player.x, this.player.y, p.orbitR, p.a - 0.55, p.a);
+    ctx.stroke();
+    ctx.globalAlpha = fade;
+    ctx.translate(p.x, p.y); ctx.rotate(p.a + Math.PI / 2);
+    ctx.fillStyle = col; ctx.strokeStyle = 'rgba(12,18,26,.85)'; ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-p.r * 0.85, p.r * 0.35);
+    ctx.quadraticCurveTo(p.r * 0.15, -p.r * 1.05, p.r * 0.95, -p.r * 0.1);
+    ctx.quadraticCurveTo(p.r * 0.1, -p.r * 0.35, -p.r * 0.85, p.r * 0.35);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  };
+
+  /* Cầu lửa: bóng dưới đất chạy theo mặt phẳng, quả cầu nhấc lên theo z. Bóng co
+   * lại khi quả lên cao — đó là thứ DUY NHẤT nói cho biết nó đang ở trên không,
+   * và cái vòng nét đứt là lời hứa "nó sẽ nổ ở đúng đây". */
+  Battle.prototype.drawFireOrb = function (p) {
+    var ctx = this.ctx, col = G.ELEMENTS[this.wp ? this.wp.el : 'none'].color;
+    var shK = 1 - Math.min(0.55, p.z / 120);
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.34)';
+    ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r * shK, p.r * 0.45 * shK, 0, 0, TAU); ctx.fill();
+    var e = p.explode;
+    if (e) {
+      var kk = clamp(p.t / p.flight, 0, 1);
+      ctx.globalAlpha = 0.20 + 0.35 * kk;
+      ctx.strokeStyle = '#ffb45a'; ctx.lineWidth = 2;
+      ctx.setLineDash([7, 6]); ctx.lineDashOffset = -this.t / 24;
+      ctx.beginPath(); ctx.arc(p.tx, p.ty, e.r * (0.55 + 0.45 * kk), 0, TAU); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+    }
+    ctx.translate(p.x, p.y - p.z);
+    var g = ctx.createRadialGradient(0, 0, 1, 0, 0, p.r * 1.6);
+    g.addColorStop(0, '#fff3d0'); g.addColorStop(0.45, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, p.r * 1.6, 0, TAU); ctx.fill();
+    ctx.restore();
+  };
+
+  /* Kiếm khí: một cung dày vuông góc với hướng bay, không phải viên đạn tròn.
+   * Hình dạng phải nói ra BỀ NGANG, vì bề ngang chính là cái người chơi mua. */
+  Battle.prototype.drawBladeWave = function (p, pcol) {
+    var ctx = this.ctx, col = pcol || '#e8f2ff';
+    var w = p.waveW || 44;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
+    if (p.fade > 0) ctx.globalAlpha = 0.42;
+    ctx.strokeStyle = col; ctx.lineCap = 'round';
+    ctx.globalAlpha *= 0.42; ctx.lineWidth = 13;
+    ctx.beginPath(); ctx.arc(-w * 0.72, 0, w * 0.78, -0.66, 0.66); ctx.stroke();
+    ctx.globalAlpha /= 0.42; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(-w * 0.55, 0, w * 0.78, -0.78, 0.78); ctx.stroke();
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(-w * 0.55, 0, w * 0.78, -0.62, 0.62); ctx.stroke();
+    ctx.restore();
+  };
+
   /* Thanh LÌ ĐÒN dưới thanh máu: người chơi phải THẤY mình sắp đục vỡ tới nơi,
    * không thì cơ chế poise chỉ là một con số giấu trong code. */
+  /* Bầy vệ tinh. Vẽ SAU đạn để chúng không bị đạn của chính chúng che, và có
+   * bóng riêng dưới đất — nếu không thì bốn cái chấm sáng lơ lửng đọc ra là hiệu
+   * ứng trang trí chứ không đọc ra là bốn thực thể đang bắn. */
+  Battle.prototype.drawDrones = function () {
+    if (!this.drones || !this.drones.length) return;
+    var ctx = this.ctx, col = G.ELEMENTS[this.wp ? this.wp.el : 'none'].color;
+    for (var i = 0; i < this.drones.length; i++) {
+      var d = this.drones[i];
+      var fade = d.left < 900 ? d.left / 900 : 1;
+      ctx.save(); ctx.globalAlpha = fade;
+      ctx.fillStyle = 'rgba(0,0,0,.28)';
+      ctx.beginPath(); ctx.ellipse(d.x, d.y + 12, 7, 3, 0, 0, TAU); ctx.fill();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(this.t / 320);
+      ctx.fillStyle = '#1c2733'; ctx.strokeStyle = col; ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(0, -8); ctx.lineTo(7, 0); ctx.lineTo(0, 8); ctx.lineTo(-7, 0);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.rotate(-this.t / 320);
+      ctx.fillStyle = col; ctx.globalAlpha = fade * (0.55 + 0.45 * Math.abs(Math.sin(this.t / 130)));
+      ctx.beginPath(); ctx.arc(0, 0, 2.8, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  };
+
   Battle.prototype.drawPoise = function (m, y) {
     if (m.poise >= m.poiseMax - 0.5 && m.stagger <= 0) return;
     var ctx = this.ctx, w = m.r * 1.8;
@@ -3090,6 +3457,34 @@
       ctx.save(); ctx.globalAlpha = 1 - k;
       // Hiệu ứng của hệ kỹ năng nằm ở js/skills.js — hàm này trả về true nếu đã vẽ.
       if (G.drawSkillFx && G.drawSkillFx(ctx, f, k)) { ctx.restore(); return; }
+      if (f.k === 'beam') {
+        /* Tia nhiệt. Ba lớp chồng lên nhau, và ba lớp đó KHÔNG phải trang trí:
+         * lớp ngoài rộng và mờ là vùng ảnh hưởng nhìn thấy được, lớp giữa là thân
+         * tia, lõi trắng mảnh ở giữa là đường TÂM — cái quyết định trúng hay
+         * trượt. Người chơi ngắm theo lõi, không ngắm theo quầng sáng.
+         *
+         * Tia không mờ dần theo tuổi như mọi hiệu ứng khác: nó sống đúng một nhịp
+         * tick rồi được thay bằng tia mới. Mờ dần thì lúc giữ cò liên tục sẽ thấy
+         * nó nhấp nháy đúng 10 lần mỗi giây. */
+        ctx.globalAlpha = 1;
+        ctx.translate(f.x, f.y); ctx.rotate(f.a);
+        ctx.lineCap = 'round';
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = f.col; ctx.globalAlpha = 0.22;
+        ctx.lineWidth = f.w * 2.1;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(f.len, 0); ctx.stroke();
+        ctx.globalAlpha = 0.75; ctx.lineWidth = f.w;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(f.len, 0); ctx.stroke();
+        ctx.globalAlpha = 1; ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(1.5, f.w * 0.28);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(f.len, 0); ctx.stroke();
+        // Cụm sáng ở nòng nở ra theo mức ramp: đó là chỗ duy nhất người chơi
+        // đọc được "tia đang nóng tới đâu" mà không phải rời mắt khỏi mục tiêu.
+        ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.arc(0, 0, f.w * 0.55 * (f.ramp || 1), 0, TAU); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.restore(); return;
+      }
       if (f.k === 'slash') {
         /* VỆT CHÉM = một dải VUỐT NHỌN, không phải một nét cung dày đều.
          *

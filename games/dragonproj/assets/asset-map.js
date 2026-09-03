@@ -1758,6 +1758,490 @@ window.DP.ASSET_MAP = {
     "oy": 7,
     "file": "Crossbow_Mine.png"
    }
+  },
+  "laser": {
+   "none": {
+    "spr": "Laser_Wand",
+    "anchor": "center",
+    "rot": -45,
+    "len": 32,
+    "grip": 0.86,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 22,
+    "ox": 9,
+    "oy": 11,
+    "file": "Laser_Wand__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Laser_Wand",
+    "anchor": "center",
+    "rot": -45,
+    "len": 32,
+    "grip": 0.86,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 22,
+    "ox": 9,
+    "oy": 11,
+    "file": "Laser_Wand__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Laser_Wand",
+    "anchor": "center",
+    "rot": -45,
+    "len": 32,
+    "grip": 0.86,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 22,
+    "ox": 9,
+    "oy": 11,
+    "file": "Laser_Wand__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Laser_Wand",
+    "anchor": "center",
+    "rot": -45,
+    "len": 32,
+    "grip": 0.86,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 22,
+    "ox": 9,
+    "oy": 11,
+    "file": "Laser_Wand__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Laser_Wand",
+    "anchor": "center",
+    "rot": -45,
+    "len": 32,
+    "grip": 0.86,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 22,
+    "ox": 9,
+    "oy": 11,
+    "file": "Laser_Wand__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Laser_Wand",
+    "anchor": "center",
+    "rot": -45,
+    "len": 32,
+    "grip": 0.86,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 22,
+    "ox": 9,
+    "oy": 11,
+    "file": "Laser_Wand__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Laser_Wand",
+    "anchor": "center",
+    "rot": -45,
+    "len": 32,
+    "grip": 0.86,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 22,
+    "ox": 9,
+    "oy": 11,
+    "file": "Laser_Wand__p331d52dcc4f7.png"
+   }
+  },
+  "blade": {
+   "none": {
+    "spr": "Blade_Edge",
+    "anchor": "center",
+    "rot": -45,
+    "len": 34,
+    "grip": 0.88,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 20,
+    "h": 20,
+    "ox": 10,
+    "oy": 10,
+    "file": "Blade_Edge__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Blade_Edge",
+    "anchor": "center",
+    "rot": -45,
+    "len": 34,
+    "grip": 0.88,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 20,
+    "h": 20,
+    "ox": 10,
+    "oy": 10,
+    "file": "Blade_Edge__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Blade_Edge",
+    "anchor": "center",
+    "rot": -45,
+    "len": 34,
+    "grip": 0.88,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 20,
+    "h": 20,
+    "ox": 10,
+    "oy": 10,
+    "file": "Blade_Edge__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Blade_Edge",
+    "anchor": "center",
+    "rot": -45,
+    "len": 34,
+    "grip": 0.88,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 20,
+    "h": 20,
+    "ox": 10,
+    "oy": 10,
+    "file": "Blade_Edge__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Blade_Edge",
+    "anchor": "center",
+    "rot": -45,
+    "len": 34,
+    "grip": 0.88,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 20,
+    "h": 20,
+    "ox": 10,
+    "oy": 10,
+    "file": "Blade_Edge__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Blade_Edge",
+    "anchor": "center",
+    "rot": -45,
+    "len": 34,
+    "grip": 0.88,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 20,
+    "h": 20,
+    "ox": 10,
+    "oy": 10,
+    "file": "Blade_Edge__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Blade_Edge",
+    "anchor": "center",
+    "rot": -45,
+    "len": 34,
+    "grip": 0.88,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 20,
+    "h": 20,
+    "ox": 10,
+    "oy": 10,
+    "file": "Blade_Edge__p331d52dcc4f7.png"
+   }
+  },
+  "scythe": {
+   "none": {
+    "spr": "Scythe_Claw",
+    "anchor": "center",
+    "rot": -45,
+    "len": 30,
+    "grip": 0.62,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 21,
+    "h": 19,
+    "ox": 10,
+    "oy": 9,
+    "file": "Scythe_Claw__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Scythe_Claw",
+    "anchor": "center",
+    "rot": -45,
+    "len": 30,
+    "grip": 0.62,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 21,
+    "h": 19,
+    "ox": 10,
+    "oy": 9,
+    "file": "Scythe_Claw__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Scythe_Claw",
+    "anchor": "center",
+    "rot": -45,
+    "len": 30,
+    "grip": 0.62,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 21,
+    "h": 19,
+    "ox": 10,
+    "oy": 9,
+    "file": "Scythe_Claw__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Scythe_Claw",
+    "anchor": "center",
+    "rot": -45,
+    "len": 30,
+    "grip": 0.62,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 21,
+    "h": 19,
+    "ox": 10,
+    "oy": 9,
+    "file": "Scythe_Claw__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Scythe_Claw",
+    "anchor": "center",
+    "rot": -45,
+    "len": 30,
+    "grip": 0.62,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 21,
+    "h": 19,
+    "ox": 10,
+    "oy": 9,
+    "file": "Scythe_Claw__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Scythe_Claw",
+    "anchor": "center",
+    "rot": -45,
+    "len": 30,
+    "grip": 0.62,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 21,
+    "h": 19,
+    "ox": 10,
+    "oy": 9,
+    "file": "Scythe_Claw__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Scythe_Claw",
+    "anchor": "center",
+    "rot": -45,
+    "len": 30,
+    "grip": 0.62,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 21,
+    "h": 19,
+    "ox": 10,
+    "oy": 9,
+    "file": "Scythe_Claw__p331d52dcc4f7.png"
+   }
+  },
+  "orb": {
+   "none": {
+    "spr": "Orb_Sphere",
+    "anchor": "center",
+    "rot": 0,
+    "len": 20,
+    "grip": 0.5,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 41,
+    "h": 41,
+    "ox": 20,
+    "oy": 20,
+    "file": "Orb_Sphere__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Orb_Sphere",
+    "anchor": "center",
+    "rot": 0,
+    "len": 20,
+    "grip": 0.5,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 41,
+    "h": 41,
+    "ox": 20,
+    "oy": 20,
+    "file": "Orb_Sphere__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Orb_Sphere",
+    "anchor": "center",
+    "rot": 0,
+    "len": 20,
+    "grip": 0.5,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 41,
+    "h": 41,
+    "ox": 20,
+    "oy": 20,
+    "file": "Orb_Sphere__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Orb_Sphere",
+    "anchor": "center",
+    "rot": 0,
+    "len": 20,
+    "grip": 0.5,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 41,
+    "h": 41,
+    "ox": 20,
+    "oy": 20,
+    "file": "Orb_Sphere__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Orb_Sphere",
+    "anchor": "center",
+    "rot": 0,
+    "len": 20,
+    "grip": 0.5,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 41,
+    "h": 41,
+    "ox": 20,
+    "oy": 20,
+    "file": "Orb_Sphere__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Orb_Sphere",
+    "anchor": "center",
+    "rot": 0,
+    "len": 20,
+    "grip": 0.5,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 41,
+    "h": 41,
+    "ox": 20,
+    "oy": 20,
+    "file": "Orb_Sphere__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Orb_Sphere",
+    "anchor": "center",
+    "rot": 0,
+    "len": 20,
+    "grip": 0.5,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 41,
+    "h": 41,
+    "ox": 20,
+    "oy": 20,
+    "file": "Orb_Sphere__p331d52dcc4f7.png"
+   }
   }
  },
  "ui": {

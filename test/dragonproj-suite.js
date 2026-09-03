@@ -64,9 +64,9 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     dropNormal: DP.DROP_NORMAL,
     elem: [DP.elemMult('water', 'fire'), DP.elemMult('fire', 'water'), DP.elemMult('fire', 'earth')]
   }));
-  check('6 lớp vũ khí bắn', d.weapons === 6, d.weapons + '');
+  check('10 lớp vũ khí bắn', d.weapons === 10, d.weapons + '');
   check('đủ Behemoth (>=50)', d.behemoths >= 50, d.behemoths + ' con');
-  check('đủ kỹ năng (2 mỗi lớp)', d.skills === 12, d.skills + ' đòn');
+  check('đủ kỹ năng (2 mỗi lớp)', d.skills === 20, d.skills + ' đòn');
   check('8 vùng đất', d.areas === 8, d.areas + '');
   check('cốt truyện >=30 chặng', d.story >= 30, d.story + '');
   check('tỉ lệ gacha boss đúng wiki (3/15/55/27)',
@@ -116,18 +116,40 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     const perWeapon = DP.WEAPON_ORDER.map(k => DP.skillsOf(k).length);
     const kinds = DP.WEAPON_ORDER.reduce((a, k) => a.concat(DP.skillsOf(k).map(x => x.kind)), []);
     const uniq = kinds.filter((v, i, a) => a.indexOf(v) === i);
+    // Trong CÙNG một lớp thì hai đòn không được trùng trình phát — trùng là lớp
+    // đó chỉ có một đòn được vẽ hai lần.
+    const dupInClass = DP.WEAPON_ORDER.filter(k => {
+      const c = DP.skillsOf(k).map(x => x.kind);
+      return new Set(c).size !== c.length;
+    });
+    // Mỗi đòn phải khai báo dáng ngắm, và chỉ được là một trong ba dáng.
+    const badAim = DP.WEAPON_ORDER.reduce((a, k) => a.concat(
+      DP.skillsOf(k).filter(x => ['self', 'dir', 'point'].indexOf(x.aim) < 0).map(x => x.id)), []);
     // Trình phát nằm trên Battle.prototype; ở bước này chưa vào trận nào nên lấy
     // qua DP.Battle (lớp), không qua một thể hiện.
     const proto = (DP.Battle && DP.Battle.prototype) || {};
     const missing = uniq.filter(k => typeof proto['sk_' + k] !== 'function');
     return { lo, hi, perWeapon, uniqueKinds: uniq.length,
-             missingRunners: missing.length, missing: missing };
+             missingRunners: missing.length, missing: missing,
+             dupInClass: dupInClass, badAim: badAim };
   });
   check('mỗi vũ khí đúng 2 kỹ năng', sk.perWeapon.every(n => n === 2), sk.perWeapon.join('/'));
   check('kỹ năng thứ hai mở theo cấp vũ khí', sk.lo === 1 && sk.hi === 2, sk.lo + ' -> ' + sk.hi);
-  // Đây là phép kiểm chống lại đúng cái đã giết hệ Magi cũ: bốn mươi viên dùng
-  // chung ba đoạn code. Mười đòn thì phải là mười trình phát khác nhau.
-  check('mười hai kỹ năng là MƯỜI HAI trình phát khác nhau', sk.uniqueKinds === 12, sk.uniqueKinds + ' kind');
+  /* Đây là phép kiểm chống lại đúng cái đã giết hệ Magi cũ: bốn mươi viên dùng
+   * chung ba đoạn code. Hai mươi đòn phải là ít nhất mười tám trình phát.
+   *
+   * Vì sao KHÔNG đòi đủ hai mươi: hai cặp dùng chung kind một cách CÓ CHỦ Ý —
+   * Phá Cửa (súng săn) và Nhất Tuyến (kiếm khí) cùng là 'rush', Vòng Mảnh và
+   * Vòng Tử cùng là 'ring'. Hai cặp đó khác nhau ở tầm, ở số mảnh và ở việc có
+   * khung bất tử hay không, tức là khác nhau ở SỐ chứ không ở hình. Cái phải
+   * cấm tuyệt đối là trùng trong CÙNG MỘT LỚP — hai đòn của một cây mà vẽ ra
+   * giống nhau thì cây đó chỉ có một đòn. */
+  check('hai mươi kỹ năng là ít nhất MƯỜI TÁM trình phát khác nhau',
+    sk.uniqueKinds >= 18, sk.uniqueKinds + ' kind');
+  check('không lớp nào có hai đòn trùng trình phát',
+    sk.dupInClass.length === 0, sk.dupInClass.join(','));
+  check('đòn nào cũng khai báo dáng ngắm hợp lệ',
+    sk.badAim.length === 0, sk.badAim.join(','));
   // Và mỗi kind phải CÓ trình phát thật, không rơi vào nhánh "chưa cài" im lặng.
   check('mọi kind đều có trình phát sk_*', sk.missingRunners === 0,
     sk.missingRunners ? 'thiếu ' + sk.missing.join(',') : 'đủ 12'); 
@@ -350,6 +372,75 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     byFinger.a !== null && Math.abs(Math.abs(byFinger.a) - Math.PI) < 0.02);
   check('thả ngón thì xả và vào hồi chiêu', byFinger.used === true && byFinger.cd > 0);
 
+  /* ============ MƯỜI LỚP ĐỀU RA SÁT THƯƠNG, HAI MƯƠI ĐÒN ĐỀU XẢ ĐƯỢC ======
+   * Bốn lớp mới không bắn ra viên đạn nào theo nghĩa cũ: tia nhiệt là một đoạn
+   * thẳng chạm tức thời, lưỡi hái là ba thực thể xoay quanh người, cầu lửa bay
+   * trên không và chỉ nổ khi chạm đất. Ba đường đó đi qua ba hàm khác nhau, và
+   * không hàm nào chạy qua vòng lặp đạn thẳng cũ — nên "bảng số đẹp" không nói
+   * lên được gì cả. Phép kiểm này bắn thật vào một con quái bất tử rồi đo máu.
+   * ==================================================================== */
+  await p.waitForTimeout(400);
+  const allW = await p.evaluate(async () => {
+    const b = DP.UI.battle, pl = b.player, out = {};
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    for (const k of DP.WEAPON_ORDER) {
+      b.mobs.length = 0; b.projs.length = 0;
+      b.W = DP.WEAPONS[k];
+      b.wp = { wclass: k, el: 'none', wtype: 'normal', patk: 0, eatk: 0, extra: {}, skills: DP.skillsOf(k) };
+      const m = b.makeMob('purun', 5, false, false);
+      // Con bia đứng SÁT NGƯỜI: lưỡi hái chỉ với tới 76px, mà cầu lửa lại có tầm
+      // rơi tối thiểu 90px — đặt ở 60px là chỗ duy nhất cả mười cây đều chạm tới.
+      m.hp = m.maxHp = 9e9; m.x = pl.x + 60; m.y = pl.y; m.agro = 1;
+      b.mobs.push(m);
+      pl.state = 'idle'; pl.moving = false; pl.beamTicks = 0; pl.bloom = 0;
+      pl.facing = 0;
+      const hp0 = m.hp;
+      // Bắn vài nhịp: cây nào cũng phải ra sát thương trong vòng một giây, kể cả
+      // cây phải chờ đạn bay (cầu lửa) hay chờ lưỡi xoay tới (lưỡi hái).
+      for (let i = 0; i < 6; i++) { b.fire({}); await sleep(30); }
+      await sleep(700);
+      out[k] = { dealt: hp0 - m.hp, projs: b.projs.length };
+    }
+    return out;
+  });
+  const wZero = Object.keys(allW).filter(k => !(allW[k].dealt > 0));
+  check('cả mười lớp đều thật sự gây được sát thương', wZero.length === 0,
+    wZero.length ? 'câm: ' + wZero.join(',')
+                 : Object.keys(allW).map(k => k + ' ' + Math.round(allW[k].dealt)).join(' · '));
+
+  const allSk = await p.evaluate(async () => {
+    const b = DP.UI.battle, pl = b.player, bad = [], noCd = [];
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    for (const k of DP.WEAPON_ORDER) {
+      b.W = DP.WEAPONS[k];
+      b.wp = { wclass: k, el: 'none', wtype: 'normal', patk: 0, eatk: 0, extra: {}, skills: DP.skillsOf(k) };
+      const list = DP.skillsOf(k);
+      for (let i = 0; i < list.length; i++) {
+        b.mobs.length = 0;
+        const m = b.makeMob('purun', 5, false, false);
+        m.hp = m.maxHp = 9e9; m.x = pl.x + 120; m.y = pl.y; m.agro = 1;
+        b.mobs.push(m);
+        pl.state = 'idle'; pl.moving = false; pl.skCd = [0, 0]; pl.usedSkill = false;
+        pl.hp = pl.maxHp; pl.shield = 0;
+        try {
+          if (!b.skillAimStart(i)) { bad.push(k + '#' + i + ':không-bấm-được'); continue; }
+          b.skillAimMove(70, 0);
+          b.skillAimEnd();
+          // Chạy vài chục khung để trình phát diễn hết: đòn nào treo hoặc nổ ở
+          // giữa chừng thì lỗi rơi ra ở đây chứ không ở lúc bấm.
+          for (let f = 0; f < 90; f++) b.update(16.7);
+        } catch (e) {
+          bad.push(k + '#' + i + ':' + e.message);
+          continue;
+        }
+        if (!(b.skillCdLeft(i) > 0)) noCd.push(k + '#' + i);
+      }
+    }
+    return { bad, noCd };
+  });
+  check('cả hai mươi kỹ năng xả được mà không nổ', allSk.bad.length === 0, allSk.bad.join(' | '));
+  check('xả xong đòn nào cũng vào hồi chiêu', allSk.noCd.length === 0, allSk.noCd.join(','));
+
   /* ================= LỚP CẢM GIÁC =================
    * Đây là phần quyết định "chặt có đã tay hay không", và cũng là phần dễ bị
    * chỉnh hỏng nhất mà không ai nhận ra — vì nó không làm gì sai, chỉ làm cho
@@ -491,19 +582,22 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
       burstBand: Math.max.apply(null, burst) / Math.min.apply(null, burst),
       uniqueRange: new Set(range).size, uniqueRpm: new Set(rpm).size,
       uniqueNames: new Set(ks.map(k => out[k].vi)).size === ks.length,
-      // range PHẢI là hệ quả của spd x life, không phải một số chỉnh tay riêng
+      // range PHẢI là hệ quả của spd x life với mọi cây BẮN RA ĐẠN. Ba lớp không
+      // có viên đạn nào (tia, lưỡi xoay, cầu ném) thì tầm là một trường khai báo
+      // của riêng chúng — nhưng chúng phải khai báo nó, không được để 0.
       rangeDerived: ks.every(k => {
         const W = DP.WEAPONS[k];
+        if (W.mode) return W.range > 0;
         return Math.abs(W.range - W.spd * W.life / 16.67) < 1.5;
       })
     };
   });
-  check('DPS bền của sáu lớp nằm trong dải hẹp (<= 2,2 lần)', sets.dpsBand <= 2.2,
+  check('DPS bền của mười lớp nằm trong dải hẹp (<= 2,2 lần)', sets.dpsBand <= 2.2,
     sets.dpsBand.toFixed(2) + 'x');
   check('burst mỗi lần bấm thì chênh nhiều (>= 3 lần)', sets.burstBand >= 3,
     sets.burstBand.toFixed(2) + 'x');
-  check('sáu lớp sáu tầm bắn khác nhau', sets.uniqueRange === 6, sets.uniqueRange + '');
-  check('sáu lớp sáu nhịp bắn khác nhau', sets.uniqueRpm === 6, sets.uniqueRpm + '');
+  check('mười lớp mười tầm bắn khác nhau', sets.uniqueRange === 10, sets.uniqueRange + '');
+  check('mười lớp mười nhịp bắn khác nhau', sets.uniqueRpm === 10, sets.uniqueRpm + '');
   check('không lớp nào trùng tên', sets.uniqueNames);
   check('tầm bắn là HỆ QUẢ của spd x life, không phải số chỉnh tay', sets.rangeDerived);
 
@@ -553,14 +647,14 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     arena.w === arena.cfg.w && arena.h === arena.cfg.h && arena.w * arena.h < 1300 * 1600 * 0.6,
     arena.w + '×' + arena.h);
 
-  // Cả sáu lớp phát sẵn từ đầu.
+  // Cả mười lớp phát sẵn từ đầu.
   const kit = await p.evaluate(() => {
     const s = DP.starterKit(DP.newSave('T'));
     const cls = s.gear.filter(g => g.kind === 'weapon').map(g => g.wclass);
     const eq = DP.equipped(s).weapons.filter(Boolean).length;
     return { n: new Set(cls).size, eq: eq };
   });
-  check('phát sẵn đủ sáu lớp vũ khí', kit.n === 6, kit.n + ' cây');
+  check('phát sẵn đủ mười lớp vũ khí', kit.n === 10, kit.n + ' cây');
   check('ba khe vũ khí đều có đồ để đổi giữa trận', kit.eq === 3);
 
   // ------------------------------------------------------------ TRẬN BOSS
@@ -1013,7 +1107,7 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('nhân vật nào cũng có lớp vũ khí và hệ hợp lệ',
     hero.badCls.length === 0 && hero.badEl.length === 0,
     (hero.badCls.concat(hero.badEl).join(',')) || 'ok');
-  check('đủ cả sáu lớp vũ khí trong dàn nhân vật', hero.classes === 6, hero.classes + ' lớp');
+  check('đủ cả mười lớp vũ khí trong dàn nhân vật', hero.classes === 10, hero.classes + ' lớp');
   check('gacha KHÔNG còn đẻ ra trang bị', hero.gearGrew === 0, 'túi tăng ' + hero.gearGrew + ' món');
   check('quay 200 lần ra đủ bốn hạng', Object.keys(hero.ranks).length === 4, JSON.stringify(hero.ranks));
 
@@ -1113,16 +1207,16 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
              allTwo: w.every(g => DP.weaponProfile(S, g).skills.length === 2),
              classes: new Set(w.map(g => g.wclass)).size };
   });
-  check('bộ trưng bày: 6 cây, bấm lần hai không nhân bản',
-    sc.a === 6 && sc.b === 0 && sc.n === 6, JSON.stringify(sc));
-  // Bộ trưng bày phải phủ ĐỦ SÁU LỚP — nếu không thì có lớp người chơi không bao
+  check('bộ trưng bày: 10 cây, bấm lần hai không nhân bản',
+    sc.a === 10 && sc.b === 0 && sc.n === 10, JSON.stringify(sc));
+  // Bộ trưng bày phải phủ ĐỦ MƯỜI LỚP — nếu không thì có lớp người chơi không bao
   // giờ được cầm thử.
   check('bộ trưng bày: cây nào cũng tối cấp và mở đủ hai kỹ năng',
-    sc.allMax && sc.allTwo && sc.classes === 6, sc.classes + ' lớp');
+    sc.allMax && sc.allTwo && sc.classes === 10, sc.classes + ' lớp');
 
   check('mọi ảnh trong asset-map đều nạp được', art.rep.loaded === art.rep.total,
     art.rep.loaded + '/' + art.rep.total);
-  check('đủ 42 biểu tượng vũ khí (6 lớp x 7 hệ)', art.miss.length === 0,
+  check('đủ 70 biểu tượng vũ khí (10 lớp x 7 hệ)', art.miss.length === 0,
     art.miss.length ? 'thiếu: ' + art.miss.slice(0, 5).join(', ') : '42/42');
   check('biểu tượng vũ khí nào cũng có ảnh và có chiều dài khi cầm',
     art.bad.length === 0, art.bad.slice(0, 5).join(', ') || 'ok');

@@ -788,6 +788,278 @@
     /* CẬP NHẬT MỖI KHUNG                                                   */
     /* ==================================================================== */
 
+    /* ==================================================================== */
+    /* BẢY KIND MỚI CHO BỐN LỚP MỚI                                         */
+    /*                                                                      */
+    /* Luật vẫn đúng một: mỗi kind là một HÌNH DẠNG khác nhau trên màn hình. */
+    /* Hai kỹ năng cùng vẽ ra một vòng tròn đổi màu là hai kỹ năng thừa một. */
+    /* ==================================================================== */
+
+    /* --- rungun: Cuồng Tốc. Không gây một điểm sát thương nào.
+     *
+     * Cái nó bán là thứ đắt hơn sát thương: game này một ngón, nên "chạy" và
+     * "bắn" là hai việc loại trừ nhau, và mọi cây súng còn kèm một hệ số phạt
+     * di chuyển riêng (tia nhiệt 0,62 — chậm hơn một phần ba). Trong sáu giây,
+     * đòn này xoá cả hai: chạy hết tốc, bắn hết nhịp, không phạt.
+     *
+     * Vì sao cho luôn +70% tốc chạy chứ không chỉ bỏ phạt: bỏ phạt thôi thì
+     * người chơi KHÔNG NHÌN THẤY gì cả — họ có sẵn tốc đó lúc không bắn. Phải
+     * nhanh hơn cả lúc bình thường thì mới đọc ra là "đang có buff". */
+    Battle.prototype.sk_rungun = function (sk, st) {
+      var p = this.player;
+      st.dur = 180; p.stateDur = st.dur;
+      p.buffs.push({ until: this.t + sk.ms, moveSpd: sk.spdMul - 1,
+                     rof: sk.rofMul - 1, freeFire: !!sk.freeFire, tag: 'rungun' });
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 70, t: 0, ms: 420, col: '#ffd23f' });
+      this.toast('CUỒNG TỐC — ' + (sk.ms / 1000) + 's', '#ffd23f');
+    };
+    Battle.prototype.upd_rungun = function (sk, st, dt) {
+      if (st.t >= st.dur) this.player.state = 'idle';
+    };
+
+    /* --- volley: Liên Châu. Bảy viên rời nòng cách nhau 70ms, mỗi viên tự tìm
+     *     một mục tiêu KHÁC NHAU.
+     *
+     * "Khác nhau" là toàn bộ nội dung của đòn này. Nếu cả bảy viên cùng dồn vào
+     * con gần nhất thì nó chỉ là Xuyên Tuyến bắn chậm hơn. Luật phân bổ: mỗi
+     * vòng chia mục tiêu chưa ai nhận; hết mục tiêu chưa nhận thì mới quay lại
+     * từ đầu. Nên đứng trước bảy con thì bảy con cùng gục, đứng trước một con
+     * thì cả bảy viên vào một con. */
+    Battle.prototype.sk_volley = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.shots * sk.stepMs + 260;
+      p.stateDur = st.dur;
+      st.fired = 0; st.next = 0; st.claimed = [];
+      this.impact(p.x, p.y, 0, G.FEEL.shake.light, this.elemFx().col);
+    };
+    Battle.prototype.upd_volley = function (sk, st, dt) {
+      var p = this.player;
+      st.next -= dt;
+      while (st.fired < sk.shots && st.next <= 0) {
+        st.next += sk.stepMs;
+        // Danh sách địch còn sống, gần nhất trước; bỏ qua ai đã bị nhận trong
+        // loạt này cho tới khi mọi người đều đã có phần.
+        var list = this.mobs.filter(function (m) { return m.hp > 0; });
+        if (this.boss && this.boss.hp > 0) list.push(this.boss);
+        var self = this;
+        list.sort(function (a, b) { return dist(a, p) - dist(b, p); });
+        var free = list.filter(function (m) { return st.claimed.indexOf(m) < 0; });
+        if (!free.length) { st.claimed = []; free = list; }
+        var tg = free[0];
+        var a = tg ? Math.atan2(tg.y - p.y, tg.x - p.x) : p.facing;
+        if (tg) st.claimed.push(tg);
+        this.projs.push({ k: 'shot', wclass: 'sniper',
+          x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14, a: a,
+          spd: sk.spd, life: sk.seekR / sk.spd * 16.67, r: sk.r,
+          mul: sk.mul / sk.shots, critBonus: 0.15,
+          pierce: !!sk.pierce, pierceFall: 0.33, hits: 0, homing: 4.5,
+          from: { x: p.x, y: p.y }, hitSet: [], fade: 0, skill: true });
+        this.kickX = (this.kickX || 0) - Math.cos(a) * 6;
+        this.kickY = (this.kickY || 0) - Math.sin(a) * 6;
+        st.fired++;
+      }
+      if (st.t >= st.dur) { p.state = 'lag'; p.stateT = 0; p.stateDur = 200; }
+    };
+
+    /* --- aegis: Khiên Ảo. Một túi máu ảo, và một cú nổ lúc nó vỡ.
+     *
+     * Toàn bộ sát thương của đòn nằm ở CÚ NỔ, không ở lúc bấm. Nghĩa là bấm cho
+     * có thì chỉ được cái khiên; chỉ khi khiên thật sự ăn đủ đòn (hoặc hết giờ)
+     * mới ra được cú nổ. Điều đó biến nó thành đòn của người biết bấm ĐÚNG LÚC
+     * bị vây, chứ không phải đòn bấm mỗi khi nút sáng.
+     *
+     * Không làm "miễn nhiễm tuyệt đối" như Paladin's Energy Shield của Soul
+     * Knight (4 giây, hồi 12s): miễn nhiễm xoá luôn việc phải né trong suốt
+     * quãng đó, mà né là toàn bộ nội dung của game này. */
+    Battle.prototype.sk_aegis = function (sk, st) {
+      var p = this.player;
+      st.dur = 260; p.stateDur = st.dur;
+      p.shield = (p.shield || 0) + p.maxHp * sk.shieldFrac;
+      this.aegis = { left: sk.ms, sk: sk };
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 60, t: 0, ms: 420, col: '#7fd4ff' });
+      this.toast('KHIÊN ẢO', '#7fd4ff');
+    };
+    Battle.prototype.upd_aegis = function (sk, st, dt) {
+      if (st.t >= st.dur) this.player.state = 'idle';
+    };
+    // Vỡ khiên — gọi mỗi khung từ vòng lặp kỹ năng.
+    Battle.prototype.tickAegis = function (dt) {
+      var ae = this.aegis; if (!ae) return;
+      var p = this.player;
+      ae.left -= dt;
+      if (ae.left > 0 && p.shield > 0.5) return;
+      this.aegis = null;
+      p.shield = 0;
+      this.aoeDamage(p.x, p.y, ae.sk.popR, ae.sk.mul,
+        { move: { kb: ae.sk.kb, poise: ae.sk.poise, hs: ae.sk.hitstop }, skill: true });
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: ae.sk.popR, t: 0, ms: 380, col: '#7fd4ff' });
+      this.impact(p.x, p.y, ae.sk.hitstop, ae.sk.shake || G.FEEL.shake.mid, '#7fd4ff');
+    };
+
+    /* --- drones: Bầy Vệ Tinh. Bốn con xếp vòng quanh người và tự bắn.
+     *
+     * Khác Ụ Súng ở đúng một điểm, và điểm đó quyết định lớp nào được cầm nó: ụ
+     * súng CẮM XUỐNG ĐẤT, drone BAY THEO NGƯỜI. Tia Nhiệt là lớp bị phạt di
+     * chuyển nặng nhất game (0,62), nên nó cần một nguồn sát thương không quan
+     * tâm nó đang đứng hay đang chạy. */
+    Battle.prototype.sk_drones = function (sk, st) {
+      var p = this.player;
+      st.dur = 320; p.stateDur = st.dur;
+      this.drones = this.drones || [];
+      for (var i = 0; i < sk.drones; i++) {
+        this.drones.push({ ang: i / sk.drones * TAU, left: sk.ttlMs, cd: i * 90,
+                           sk: sk, shotMs: 60000 / sk.rpm, x: p.x, y: p.y });
+      }
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: sk.orbitR + 20, t: 0, ms: 420, col: '#6fd4ff' });
+    };
+    Battle.prototype.upd_drones = function (sk, st, dt) {
+      if (st.t >= st.dur) this.player.state = 'idle';
+    };
+    Battle.prototype.tickDrones = function (dt) {
+      if (!this.drones || !this.drones.length) return;
+      var p = this.player;
+      for (var i = this.drones.length - 1; i >= 0; i--) {
+        var d = this.drones[i];
+        d.left -= dt; d.cd -= dt;
+        if (d.left <= 0) {
+          this.fx.push({ k: 'ring', x: d.x, y: d.y, r: 22, t: 0, ms: 220, col: '#6fd4ff' });
+          this.drones.splice(i, 1); continue;
+        }
+        d.ang += dt / 1000 * 1.1;
+        d.x = p.x + Math.cos(d.ang) * d.sk.orbitR;
+        d.y = p.y + Math.sin(d.ang) * d.sk.orbitR - 12;
+        if (d.cd > 0) continue;
+        var tg = this.nearestHostile(d.x, d.y, d.sk.droneRange);
+        if (!tg) continue;
+        d.cd = d.shotMs;
+        var a = Math.atan2(tg.y - d.y, tg.x - d.x);
+        // Tổng chia đều cho số phát CẢ ĐÀN kịp bắn trong đời chúng, nên thêm
+        // drone không tự nhân sát thương lên — nó chỉ rải ra rộng hơn.
+        var total = Math.max(1, Math.round(d.sk.ttlMs / d.shotMs) * d.sk.drones);
+        this.projs.push({ k: 'shot', wclass: 'laser',
+          x: d.x + Math.cos(a) * 8, y: d.y + Math.sin(a) * 8, a: a,
+          spd: 11, life: 800, r: 5, mul: d.sk.mul / total, critBonus: 0,
+          pierce: false, pierceFall: 0.33, hits: 0,
+          from: { x: d.x, y: d.y }, hitSet: [], fade: 0, skill: true });
+      }
+    };
+
+    /* --- sweep: Lăng Kính. Một tia dày quét một cung trong gần một giây.
+     *
+     * Vì sao quét CHẬM: một tia quét nhanh thì không né được, và một đòn không
+     * né được ở tầm 340px là một đòn xoá sổ mọi quyết định. Quét trong 900ms thì
+     * quái ở rìa cung có thời gian chạy ra — và người chơi phải chọn quét từ
+     * bên nào, tức là đòn này có một quyết định thật bên trong nó. */
+    Battle.prototype.sk_sweep = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.ms + 200; p.stateDur = st.dur;
+      st.a0 = p.facing - sk.arc / 2;
+      st.next = 0; st.done = 0;
+      st.hitAt = [];
+      this.impact(p.x, p.y, 0, sk.shake || G.FEEL.shake.mid, this.elemFx().col);
+    };
+    Battle.prototype.upd_sweep = function (sk, st, dt) {
+      var p = this.player, self = this;
+      var k = clamp(st.t / sk.ms, 0, 1);
+      st.a = st.a0 + sk.arc * k;
+      if (st.t <= sk.ms) {
+        st.next -= dt;
+        if (st.next <= 0) {
+          st.next += sk.ms / sk.ticks;
+          st.done++;
+          var per = sk.mul / sk.ticks;
+          var ca = Math.cos(st.a), sa = Math.sin(st.a), hw = sk.w / 2;
+          var opt = { from: st.a, skill: true,
+                      move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop } };
+          var list = this.mobs.filter(function (m) { return m.hp > 0; });
+          list.forEach(function (m) {
+            var dx = m.x - p.x, dy = m.y - p.y;
+            var t = dx * ca + dy * sa;
+            if (t < 0 || t > sk.len) return;
+            if (Math.hypot(dx - ca * t, dy - sa * t) > m.r + hw) return;
+            self.dealToMob(m, self.playerDamage(per), opt);
+          });
+          var b = this.boss;
+          if (b && b.hp > 0) {
+            var bx = b.x - p.x, by = b.y - p.y, tb = bx * ca + by * sa;
+            if (tb >= 0 && tb <= sk.len &&
+                Math.hypot(bx - ca * tb, by - sa * tb) < b.r + hw) {
+              this.dealToBoss(this.playerDamage(per), p.x + ca * tb, p.y + sa * tb, opt);
+            }
+          }
+        }
+        this.fx.push({ k: 'beam', x: p.x, y: p.y, a: st.a, len: sk.len, w: sk.w,
+                       t: 0, ms: 60, ramp: 1.4, col: this.elemFx().col });
+      }
+      if (st.t >= st.dur) { p.state = 'lag'; p.stateT = 0; p.stateDur = 220; }
+    };
+
+    /* --- bigslash: Trảm Thiên. Một nhát duy nhất, rộng 150px, đi CHẬM.
+     *
+     * Đi chậm là cố ý và là toàn bộ cảm giác của đòn: nó cho cả người chơi lẫn
+     * quái nhìn thấy cái tường đang tới. Một nhát to mà bay nhanh thì nó biến
+     * mất trước khi mắt kịp đăng ký, và cả 324 điểm sát thương xảy ra trong một
+     * khung hình không ai thấy. */
+    Battle.prototype.sk_bigslash = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.ms + 220; p.stateDur = st.dur;
+      this.projs.push({ k: 'shot', wclass: 'blade',
+        x: p.x + Math.cos(p.facing) * 20, y: p.y + Math.sin(p.facing) * 20,
+        a: p.facing, spd: sk.speed, life: sk.len / sk.speed * 16.67,
+        r: sk.waveW / 2, wave: true, waveW: sk.waveW,
+        mul: sk.mul, critBonus: 0,
+        pierce: true, pierceFall: sk.pierceFall || 0.10, hits: 0,
+        from: { x: p.x, y: p.y }, hitSet: [], fade: 0, skill: true,
+        move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop } });
+      this.slashFx(2.6, 120, this.elemFx().col, true);
+      this.impact(p.x, p.y, sk.hitstop, sk.shake || G.FEEL.shake.heavy, this.elemFx().col);
+      if (sk.zoomPunch) this.zoomPunch = sk.zoomPunch;
+      if (sk.trail) this.elemTrail(p.x, p.y,
+        p.x + Math.cos(p.facing) * sk.len, p.y + Math.sin(p.facing) * sk.len, 700);
+    };
+    Battle.prototype.upd_bigslash = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 260; }
+    };
+
+    /* --- meteor: Thiên Thạch. Một khối rơi xuống ĐIỂM đã chỉ, sau một nhịp chờ.
+     *
+     * Nhịp chờ 850ms là dài nhất trong mọi đòn của game, và nó là một lời hứa
+     * hai chiều: quái có thời gian chạy ra khỏi vòng, nên đòn này KHÔNG phải để
+     * ném vào chỗ chúng đang đứng — nó để ném vào chỗ chúng SẼ đứng, hoặc vào
+     * chỗ chúng không thể rời (một con boss đang trong pha cứng đòn).
+     *
+     * Hai vòng sát thương, không phải một: lõi 62% trong bán kính 110, sóng xung
+     * kích 38% trong bán kính 190. Đứng rìa vẫn ăn, nhưng ăn ít — đó là cái làm
+     * cho việc chạy ra rìa là một hành động có nghĩa chứ không phải nhị phân. */
+    Battle.prototype.sk_meteor = function (sk, st) {
+      var p = this.player;
+      st.dur = 420; p.stateDur = st.dur;
+      var zx = clamp(p.aimX || (p.x + Math.cos(p.facing) * sk.aimR), 30, this.wW - 30);
+      var zy = clamp(p.aimY || (p.y + Math.sin(p.facing) * sk.aimR), 30, this.wH - 30);
+      this.meteors = this.meteors || [];
+      this.meteors.push({ x: zx, y: zy, left: sk.delayMs, sk: sk });
+      this.fx.push({ k: 'tell', x: zx, y: zy, r: sk.zoneR, t: 0, ms: sk.delayMs, friendly: true });
+    };
+    Battle.prototype.upd_meteor = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 220; }
+    };
+    Battle.prototype.tickMeteors = function (dt) {
+      if (!this.meteors || !this.meteors.length) return;
+      for (var i = this.meteors.length - 1; i >= 0; i--) {
+        var m = this.meteors[i];
+        m.left -= dt;
+        if (m.left > 0) continue;
+        var sk = m.sk;
+        var mv = { kb: sk.kb, poise: sk.poise, hs: sk.hitstop };
+        this.aoeDamage(m.x, m.y, sk.zoneR, sk.mul * sk.coreFrac, { move: mv, skill: true });
+        this.aoeDamage(m.x, m.y, sk.ringR, sk.mul * sk.ringFrac, { move: mv, skill: true });
+        this.fx.push({ k: 'ring', x: m.x, y: m.y, r: sk.zoneR, t: 0, ms: 340, col: '#ffb45a' });
+        this.fx.push({ k: 'ring', x: m.x, y: m.y, r: sk.ringR, t: 0, ms: 520, col: '#ff7a3c' });
+        this.impact(m.x, m.y, sk.hitstop, sk.shake || G.FEEL.shake.quake, '#ffb45a');
+        this.meteors.splice(i, 1);
+      }
+    };
+
     Battle.prototype.updateSkills = function (dt) {
       var p = this.player, self = this;
 
@@ -961,6 +1233,12 @@
           }
         }
       }
+
+      // Ba nguồn mới chạy song song với người chơi: bầy drone bay theo, khối
+      // thiên thạch đang rơi, và cái khiên đang đếm ngược tới lúc vỡ.
+      this.tickDrones(dt);
+      this.tickMeteors(dt);
+      this.tickAegis(dt);
 
       // mặt đất trơn (hệ Thủy)
       if (this.slicks && this.slicks.length) {

@@ -76,7 +76,7 @@
       lv: 1, evo: 0, lb: 0, gold: true
     };
     if (kind === 'weapon') {
-      g.wclass = G.wclassOf(b.weapon); g.wtype = b.type; g.el = b.el;
+      g.wclass = G.wclassOfBehemoth(b); g.wtype = b.type; g.el = b.el;
       g.name = weaponName(b, 0);
       g.green = b.ability || null;      // ability cố định hiện chữ xanh lá
     } else {
@@ -87,23 +87,28 @@
     return g;
   };
 
-  /* BỘ TRƯNG BÀY — sáu cây chọn tay, mỗi cây một lớp, để xem art và kỹ năng.
+  /* BỘ TRƯNG BÀY — mười cây chọn tay, mỗi cây một lớp, để xem art và kỹ năng.
    *
    * Không phải cheat cho vui: mở khoá kỹ năng thứ hai cần Lv.8 và cả sáu hệ mới
-   * thấy hết được lớp nguyên tố, mà cày tới đó thì lâu. Sáu cây này là SS, tối
+   * thấy hết được lớp nguyên tố, mà cày tới đó thì lâu. Mười cây này là SS, tối
    * cấp, limit break đủ và tiến hoá tối đa — tức là trạng thái mà mọi thứ đều
    * bật, xem một lần là biết game có gì.
    * Bấm lại không nhân bản: món nào đã có rồi thì bỏ qua. */
-  /* Bộ trưng bày phải phủ ĐỦ SÁU LỚP, mỗi lớp một cây — nếu không thì có lớp
-   * người chơi không bao giờ được cầm thử. Bản cũ có hai cây cùng lớp sword nên
-   * sau khi đổi sang sáu lớp bắn nó chỉ còn phủ năm. */
+  /* Bộ trưng bày phải phủ ĐỦ MƯỜI LỚP, mỗi lớp một cây — nếu không thì có lớp
+   * người chơi không bao giờ được cầm thử. Danh sách này bám theo G.WCLASS_SPLIT:
+   * đổi bảng tách lớp mà quên đổi đây thì bộ trưng bày lặng lẽ có hai cây trùng
+   * lớp và thiếu một lớp, nên có phép kiểm khoá lại đúng chuyện đó. */
   var SHOWCASE = [
-    { src: 'amarok',      note: 'súng trường băng' },  // rifle
-    { src: 'pandemonius', note: 'súng săn sét' },      // shotgun
+    { src: 'felnarog',    note: 'súng trường hoả' },   // rifle
+    { src: 'ulkatron',    note: 'súng săn sét' },      // shotgun
     { src: 'magna',       note: 'bắn tỉa thổ' },       // sniper
-    { src: 'carniva',     note: 'cung lửa' },          // bow
-    { src: 'ayame',       note: 'gậy phép lửa' },      // staff (loại Soul)
-    { src: 'lich',        note: 'súng phóng thổ' }     // launcher
+    { src: 'carniva',     note: 'cung hoả' },          // bow
+    { src: 'ayame',       note: 'gậy phép hoả' },      // staff (loại Soul)
+    { src: 'lich',        note: 'súng phóng thổ' },    // launcher
+    { src: 'gorynych',    note: 'tia nhiệt hoả' },     // laser
+    { src: 'amarok',      note: 'kiếm khí thuỷ' },     // blade
+    { src: 'pandemonius', note: 'lưỡi hái sét' },      // scythe
+    { src: 'galdrux',     note: 'cầu lửa sét' }        // orb
   ];
 
   G.showcaseList = function () { return SHOWCASE.slice(); };
@@ -730,9 +735,12 @@
   G.starterKit = function (s) {
     var starter = 'grouton';
     var NAMES = { rifle: 'Guild Carbine', launcher: 'Guild Mortar', shotgun: 'Guild Scattergun',
-                  sniper: 'Guild Longshot', bow: 'Guild Shortbow', staff: 'Guild Scepter' };
-    var SRC = { rifle: 'vaccahorn', launcher: 'vaccahorn', shotgun: 'shurak',
-                sniper: 'grouton', bow: 'galidon', staff: 'frogrid' };
+                  sniper: 'Guild Longshot', bow: 'Guild Shortbow', staff: 'Guild Scepter',
+                  laser: 'Guild Emitter', blade: 'Guild Edge', scythe: 'Guild Reaper',
+                  orb: 'Guild Ember' };
+    var SRC = { rifle: 'mumu', launcher: 'landaronba', shotgun: 'dodonki',
+                sniper: 'grouton', bow: 'galidon', staff: 'frogrid',
+                laser: 'kyulmar', blade: 'frogrid', scythe: 'dofungos', orb: 'vaccahorn' };
 
     s.heroes = []; s.party = [null, null, null];
     G.STARTER_HEROES.forEach(function (id, i) {
