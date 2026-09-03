@@ -35,6 +35,7 @@
       reviveAdToday: 0,
       chapterGold: 0,
       chapterCards: 0,
+      autoEnd: true,          // hết bước thì tự sang lượt
       lossStreak: 0,
       failPackClaimed: false,
       boughtOnce: [],

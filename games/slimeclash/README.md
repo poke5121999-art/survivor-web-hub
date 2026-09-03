@@ -8,8 +8,9 @@ Chạy được từ `file://`, không engine, không phụ thuộc mạng.
 
 ## Chơi thế nào
 
-- **3 bước mỗi lượt.** Chạm một quân rảnh của bạn để nhấc, chạm **▼** dưới một cột để thả.
-  Chạm lại quân đang cầm để bỏ nhấc — **không tốn bước**.
+- **3 bước mỗi lượt.** **Kéo** một quân rảnh sang cột khác — như game ghép ô. Thả ra ngoài
+  bàn thì **không tốn bước**. Vùng thả cố ý rộng: chỉ toạ độ ngang quyết định cột, nên
+  trượt vài chục pixel vẫn vào đúng chỗ. Chạm ngắn vẫn giữ lối nhặt–thả cũ làm dự phòng.
 - **3 quân cùng màu theo CỘT** → đội hình tấn công, nạp 2–4 lượt tuỳ loại quân.
 - **3 quân cùng màu theo HÀNG** → tường, máu bằng tổng máu các quân tạo ra nó.
 - Đòn bay **thẳng theo cột**, trừ dần máu từng quân trên đường đi; dư bao nhiêu mới đánh
@@ -17,6 +18,24 @@ Chạy được từ `file://`, không engine, không phụ thuộc mạng.
 - Hai đội hình cùng cột bắn chung → **×3**. Nhiều đội hình bắn cùng lượt → **×3.3**.
 - Ghép 3+ ô cho **hộp kỹ năng**, giữ tối đa 8.
 - **Thua khi hết ngân sách lượt mà chưa hạ được địch** — không chỉ khi bị giết.
+
+## Bố cục
+
+HUD trận và màn hình nhà dàn theo **bố cục thật của Slime Legion**, đọc từ cây UI trong
+`ui/gameplay.bytes` và `ui/home.bytes` chứ không phải tự nghĩ:
+
+| Bản gốc | Ở đây |
+|---|---|
+| `Top`: ButtonAccelerate · ButtonPause · ImageSwapBg(Step) · ImageDayBg(Day) | thanh trên: AUTO · ⏸ · 👣 bước · 📅 ngày |
+| `TopDay` — Scroll View chứa DayItem | ray ngày, ngày boss có dấu ☠ |
+| `SelfHpNode` — LordSkillBtnL · EnergyBar · LordSkillBtnR | thanh máu mình kẹp giữa 2 nút kỹ năng |
+| `RetainSkillsLayer` / `GamePauseLayer` | kỹ năng và nhật ký nằm ở hộp thoại riêng, không chiếm HUD |
+| `HomeLayer` > `NavigatorBar` (7 mục) | thanh điều hướng đáy 4 mục |
+| `TopViewMain` — Player(Avatar+Level+BattlePower) · Gold · Gem | avatar + cấp + lực chiến, rồi tài nguyên |
+
+Khác bản gốc ở phần giữa: chỗ đó bản gốc là quái đi bộ xuống thành, còn đây là **hai lưới
+đối đầu**. Bề rộng bàn ràng theo **chiều cao màn hình** (`33vh`) chứ không theo chiều rộng —
+nếu ràng theo chiều rộng thì hai bàn cao ~800px và người chơi phải cuộn giữa trận.
 
 ## Vì sao các con số là thế
 

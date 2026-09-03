@@ -114,35 +114,39 @@
     refreshHome();
   }
 
+  // Vẽ lại + tự kết thúc lượt nếu bật AUTO và đã dùng hết bước.
+  function afterMove() {
+    if (!battle) return;
+    UI.renderBattle(battle);
+    if (S.autoEnd && !battle.over && battle.movesLeft === 0 && !battle.pickedUp) {
+      setTimeout(function () {
+        if (battle && !battle.over && battle.movesLeft === 0) doEndTurn();
+      }, 260);
+    }
+  }
+
+  function doEndTurn() {
+    if (!battle || battle.over) return;
+    battle.endTurn();
+    UI.renderBattle(battle);
+    if (battle.over) setTimeout(afterBattle, 350);
+  }
+
+  // Chạm vào thanh ▼ hoặc ô kỹ năng (kéo thả xử lý riêng trong UI.initDrag)
   function onBattleTap(e) {
     if (!battle || battle.over) return;
-    var cell = e.target.closest('.cell');
     var drop = e.target.closest('#dropbar button');
     var skill = e.target.closest('[data-skill]');
 
-    if (skill) {
+    if (skill && skill.dataset.skill !== '') {
       battle.useSkill(parseInt(skill.dataset.skill, 10));
       UI.renderBattle(battle);
       return;
     }
     if (drop) {
-      if (!battle.pickedUp) { UI.toast('Chạm một quân của bạn trước'); return; }
+      if (!battle.pickedUp) { UI.toast('Kéo một quân của bạn sang cột khác'); return; }
       battle.dropAt(parseInt(drop.dataset.col, 10));
-      UI.renderBattle(battle);
-      return;
-    }
-    if (cell && cell.closest('#board-mine')) {
-      var r = parseInt(cell.dataset.r, 10), c = parseInt(cell.dataset.c, 10);
-      if (battle.pickedUp) { battle.cancelPick(); UI.renderBattle(battle); return; }
-      if (eraseMode) {
-        if (battle.deleteAt(r, c)) { eraseMode = false; $('btn-erase').textContent = 'Xoá quân'; }
-        else UI.toast('Quân này đang trong đội hình');
-        UI.renderBattle(battle);
-        return;
-      }
-      if (!battle.canAct()) { UI.toast('Hết bước — kết thúc lượt'); return; }
-      if (!battle.pickUp(r, c)) UI.toast('Quân này đang trong đội hình hoặc là tường');
-      UI.renderBattle(battle);
+      afterMove();
     }
   }
 
@@ -150,9 +154,17 @@
 
   function bind() {
     $('btn-fight').addEventListener('click', startBattle);
-    $('btn-deck').addEventListener('click', function () { UI.renderDeck(S); UI.show('s-deck'); });
-    $('btn-upgrade').addEventListener('click', function () { UI.renderUpgrade(S); UI.show('s-upgrade'); });
-    $('btn-shop').addEventListener('click', function () { UI.renderShop(S, eco); UI.show('s-shop'); });
+    // NavigatorBar
+    $('navbar').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-nav]');
+      if (!b) return;
+      var id = b.dataset.nav;
+      if (id === 's-deck') UI.renderDeck(S);
+      if (id === 's-upgrade') UI.renderUpgrade(S);
+      if (id === 's-shop') UI.renderShop(S, eco);
+      if (id === 's-home') refreshHome();
+      UI.show(id);
+    });
 
     $('btn-winbox').addEventListener('click', function () {
       var r = eco.claimWinBox();
@@ -220,26 +232,71 @@
       }
     });
 
-    $('board-mine').addEventListener('click', onBattleTap);
     $('dropbar').addEventListener('click', onBattleTap);
-    $('skills').addEventListener('click', onBattleTap);
+    $('skill-l').addEventListener('click', onBattleTap);
+    $('skill-r').addEventListener('click', onBattleTap);
+
+    // Kéo thả là đường thao tác CHÍNH; chạm ngắn vẫn chạy như cũ (dự phòng).
+    UI.initDrag(function () { return battle; }, afterMove);
 
     $('btn-erase').addEventListener('click', function () {
       eraseMode = !eraseMode;
-      this.textContent = eraseMode ? 'Chọn quân để xoá…' : 'Xoá quân';
+      this.textContent = eraseMode ? 'Chạm quân để xoá…' : 'Xoá quân';
+      if (eraseMode) UI.toast('Chạm một quân rảnh để xoá (tốn 1 bước)');
     });
 
-    $('btn-end').addEventListener('click', function () {
+    // Chế độ xoá: dùng chạm, nên bắt riêng ở tầng click.
+    $('board-mine').addEventListener('click', function (e) {
+      if (!eraseMode || !battle || battle.over || battle.pickedUp) return;
+      var cell = e.target.closest('.cell');
+      if (!cell) return;
+      var r = parseInt(cell.dataset.r, 10), c = parseInt(cell.dataset.c, 10);
+      if (battle.deleteAt(r, c)) {
+        eraseMode = false;
+        $('btn-erase').textContent = 'Xoá quân';
+        afterMove();
+      } else UI.toast('Quân này đang trong đội hình');
+    });
+
+    $('btn-end').addEventListener('click', doEndTurn);
+
+    $('btn-skills').addEventListener('click', function () {
       if (!battle || battle.over) return;
-      battle.endTurn();
-      UI.renderBattle(battle);
-      if (battle.over) setTimeout(afterBattle, 350);
+      UI.dialog(UI.skillsHtml(battle));
     });
 
-    $('btn-flee').addEventListener('click', function () {
-      if (!battle) { UI.show('s-home'); return; }
-      battle.over = true; battle.won = false;
-      afterBattle();
+    // ButtonAccelerate của bản gốc là tua nhanh pha auto-battle. Ở đây trận theo lượt
+    // nên không có gì để tua — chuyển thành AUTO: hết bước thì tự sang lượt.
+    $('btn-speed').addEventListener('click', function () {
+      S.autoEnd = !S.autoEnd;
+      $('speed-x').textContent = S.autoEnd ? 'AUTO' : 'TAY';
+      persist();
+      UI.toast(S.autoEnd ? 'Hết bước sẽ tự sang lượt' : 'Tự sang lượt: tắt');
+    });
+
+    // ButtonPause -> GamePauseLayer của bản gốc
+    $('btn-pause').addEventListener('click', function () {
+      if (!battle || battle.over) return;
+      UI.dialog('<h3>Tạm dừng</h3>' +
+        '<p class="sub">Chương ' + S.chapter + ' · Ngày ' + S.day +
+        ' · lượt ' + battle.turn + '/' + battle.maxTurns + '</p>' +
+        UI.logHtml(battle) +
+        '<button class="btn primary" data-close>Chơi tiếp</button>' +
+        '<button class="btn ghost" id="btn-flee2">Bỏ trận</button>');
+    });
+
+    document.addEventListener('click', function (e) {
+      var us = e.target.closest && e.target.closest('[data-useskill]');
+      if (us && battle && !battle.over) {
+        battle.useSkill(parseInt(us.dataset.useskill, 10));
+        UI.closeDialog();
+        UI.renderBattle(battle);
+        return;
+      }
+      if (e.target && e.target.id === 'btn-flee2') {
+        UI.closeDialog();
+        if (battle) { battle.over = true; battle.won = false; afterBattle(); }
+      }
     });
 
     $('overlay').addEventListener('click', function (e) {
@@ -256,7 +313,9 @@
     // vá save cũ thiếu trường
     if (!S.stats) S.stats = { battles: 0, wins: 0 };
     if (!S.deck || !S.deck.length) S.deck = DATA.starterIds.slice(0, CFG.deck.size);
+    if (typeof S.autoEnd !== 'boolean') S.autoEnd = true;
     bind();
+    $('speed-x').textContent = S.autoEnd ? 'AUTO' : 'TAY';
     refreshHome();
   }).catch(function (err) {
     document.body.innerHTML =

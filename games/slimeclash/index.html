@@ -9,13 +9,20 @@
 <body>
 <div id="app">
 
+  <!-- TopViewMain của bản gốc: Player(avatar+Level+BattlePower) | Gold | Gem | ... -->
   <div class="topbar">
+    <div class="player">
+      <div class="avatar" id="pl-avatar"></div>
+      <div class="plmeta">
+        <b id="pl-level">Lv.1</b>
+        <span id="pl-power">⚔ 0</span>
+      </div>
+    </div>
+    <span class="spacer"></span>
     <span class="res gold">🪙<b id="r-gold">0</b></span>
     <span class="res gem">💎<b id="r-gem">0</b></span>
     <span class="res shard">🧩<b id="r-shard">0</b></span>
     <span class="res ticket">🎫<b id="r-ticket">0</b></span>
-    <span class="spacer"></span>
-    <span class="chip" id="r-progress">C1 · N1</span>
   </div>
 
   <!-- ============ NHÀ ============ -->
@@ -32,10 +39,7 @@
 
     <div id="home-offer"></div>
 
-    <button class="btn primary" id="btn-fight">Vào trận</button>
-    <button class="btn" id="btn-deck">Đội hình</button>
-    <button class="btn" id="btn-upgrade">Nâng cấp</button>
-    <button class="btn" id="btn-shop">Cửa hàng</button>
+    <button class="btn primary big" id="btn-fight">Vào trận</button>
     <button class="btn ghost small" id="btn-winbox">Rương thắng trận</button>
 
     <p class="note">
@@ -46,12 +50,27 @@
     </p>
   </section>
 
-  <!-- ============ TRẬN ============ -->
+  <!-- ============ TRẬN ============
+       Bố cục theo HUD thật của Slime Legion, đọc từ ui/gameplay.bytes (GamePlayLayer):
+         Top        : ButtonAccelerate | ButtonPause | ImageSwapBg(Step) | ImageDayBg(Day)
+         TopDay     : ray ngày cuộn ngang, DayItem cho từng ngày
+         giữa       : chiến trường
+         SelfHpNode : thanh máu mình + LordSkillBtnL/R + EnergyBar
+       Khác bản gốc ở chỗ giữa là HAI lưới đối đầu thay cho quái đi bộ xuống thành. -->
   <section class="screen" id="s-battle">
-    <div class="side">
-      <div class="side-label"><span>Địch</span><span id="foe-hp-txt"></span></div>
-      <div class="hpbar foe"><i id="foe-hp" style="width:100%"></i></div>
+
+    <div class="hud-top">
+      <button class="hud-btn" id="btn-speed" title="Tăng tốc">⏩<span id="speed-x">1×</span></button>
+      <button class="hud-btn" id="btn-pause" title="Tạm dừng">⏸</button>
+      <span class="spacer"></span>
+      <div class="hud-box step" id="box-step"><i>👣</i><b id="hud-step">3</b></div>
+      <div class="hud-box day" id="box-day"><i>📅</i><b id="hud-day">1</b></div>
     </div>
+
+    <div class="dayrail" id="dayrail"></div>
+
+    <div class="hpbar foe big"><i id="foe-hp" style="width:100%"></i>
+      <span><b id="foe-name">Địch</b> <em id="foe-hp-txt"></em></span></div>
     <div class="board foe" id="board-foe"></div>
 
     <div class="midline" id="mid-note">đòn bay theo cột</div>
@@ -59,30 +78,25 @@
     <div class="board mine" id="board-mine"></div>
     <div class="dropbar" id="dropbar"></div>
 
-    <div class="side" style="margin-top:8px">
-      <div class="side-label"><span>Bạn</span><span id="me-hp-txt"></span></div>
-      <div class="hpbar"><i id="me-hp" style="width:100%"></i></div>
-    </div>
-
     <div id="boss-warn"></div>
 
-    <div class="movebar">
-      <span>Lượt <b id="turn-no">1</b>/<b id="turn-max">12</b></span>
-      <span class="spacer"></span>
-      <span>Bước:</span>
-      <span class="dot" id="d0"></span><span class="dot" id="d1"></span><span class="dot" id="d2"></span>
+    <!-- SelfHpNode: máu mình + hai nút kỹ năng hai bên, đúng như LordNode của bản gốc -->
+    <div class="selfhp">
+      <button class="lordbtn" id="skill-l" disabled>—</button>
+      <div class="selfhp-mid">
+        <div class="hpbar big"><i id="me-hp" style="width:100%"></i>
+          <span><b>Bạn</b> <em id="me-hp-txt"></em></span></div>
+        <div class="energybar"><i id="me-energy" style="width:0%"></i></div>
+      </div>
+      <button class="lordbtn" id="skill-r" disabled>—</button>
     </div>
-
-    <div class="skills" id="skills"></div>
 
     <div class="row">
       <button class="btn small" id="btn-erase">Xoá quân</button>
+      <button class="btn small" id="btn-skills">🎁 <b id="skill-n">0</b></button>
       <span class="spacer"></span>
       <button class="btn small primary" id="btn-end">Kết thúc lượt</button>
     </div>
-
-    <div class="log" id="log"></div>
-    <button class="btn ghost small" id="btn-flee" style="margin-top:8px">Bỏ trận</button>
   </section>
 
   <!-- ============ ĐỘI HÌNH ============ -->
@@ -90,7 +104,6 @@
     <h2>Đội hình</h2>
     <p class="sub">Mang tối đa 5 loại quân. Cần ít nhất 2 loại <b>core</b> để bàn cờ có quân thường mà ghép.</p>
     <div class="list" id="deck-list"></div>
-    <button class="btn ghost" data-back>Quay lại</button>
   </section>
 
   <!-- ============ NÂNG CẤP ============ -->
@@ -103,7 +116,6 @@
     <div class="card" id="up-hero"></div>
     <h2 style="margin-top:16px">Quân trong đội hình</h2>
     <div class="list" id="up-units"></div>
-    <button class="btn ghost" data-back>Quay lại</button>
   </section>
 
   <!-- ============ CỬA HÀNG ============ -->
@@ -114,8 +126,16 @@
       Vàng và mảnh hero nhận được vẫn phải đi qua trần của chương hiện tại.
     </p>
     <div class="list" id="shop-list"></div>
-    <button class="btn ghost" data-back>Quay lại</button>
   </section>
+
+  <!-- NavigatorBar của HomeLayer. Bản gốc có 7 mục (Main/Shop/Dungeons/Lord/Guild/
+       InternalWorld/Hero); ở đây chỉ giữ 4 mục thật sự có nội dung. -->
+  <nav class="navbar" id="navbar">
+    <button class="nav on" data-nav="s-home"><i>⚔</i><span>Trận</span></button>
+    <button class="nav" data-nav="s-deck"><i>🛡</i><span>Đội hình</span></button>
+    <button class="nav" data-nav="s-upgrade"><i>⬆</i><span>Nâng cấp</span></button>
+    <button class="nav" data-nav="s-shop"><i>🛒</i><span>Cửa hàng</span></button>
+  </nav>
 
 </div>
 
