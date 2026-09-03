@@ -69,9 +69,9 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
            'PIKKE_BUY', 'IAP', 'GATHER_MATS', 'DROP_NORMAL'].filter(k => DP[k] !== undefined),
     elem: [DP.elemMult('water', 'fire'), DP.elemMult('fire', 'water'), DP.elemMult('fire', 'earth')]
   }));
-  check('10 lớp vũ khí bắn', d.weapons === 10, d.weapons + '');
+  check('14 lớp vũ khí bắn', d.weapons === 14, d.weapons + '');
   check('đủ Behemoth (>=50)', d.behemoths >= 50, d.behemoths + ' con');
-  check('đủ kỹ năng (2 mỗi lớp)', d.skills === 20, d.skills + ' đòn');
+  check('đủ kỹ năng (2 mỗi lớp, 28 đòn)', d.skills === 28, d.skills + ' đòn');
   check('8 vùng đất', d.areas === 8, d.areas + '');
   check('ba banner: nhân vật / vũ khí / tiêu chuẩn', d.banners === 3, d.banners + '');
   check('Tiến Hoá có bốn nhánh', d.evolTracks === 4, d.evolTracks + '');
@@ -428,7 +428,7 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
     cancelled.mid === 'ultiaim' && cancelled.used === false &&
     cancelled.ulti === 1 && cancelled.st !== 'ultiaim', JSON.stringify(cancelled));
 
-  // Tốc độ nạp phải NHƯ NHAU giữa mười lớp — nếu không thì cây bắn nhanh có ulti
+  // Tốc độ nạp phải NHƯ NHAU giữa mười bốn lớp — nếu không thì cây bắn nhanh có ulti
   // gấp mấy lần cây bắn chậm, và cả bảng cân bằng vũ khí đổ theo.
   const fill = await p.evaluate(() => {
     const b = DP.UI.battle, out = {};
@@ -442,12 +442,12 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
     const vals = Object.keys(out).map(k => out[k]);
     return { out, min: Math.min.apply(null, vals), max: Math.max.apply(null, vals) };
   });
-  check('mười lớp nạp đầy thanh trong cùng một khoảng thời gian',
+  check('mười bốn lớp nạp đầy thanh trong cùng một khoảng thời gian',
     Math.abs(fill.max - fill.min) < 0.05 && Math.abs(fill.max - DP_ULTI_SEC) < 0.05,
     fill.min + 's – ' + fill.max + 's');
 
 
-  /* ============ MƯỜI LỚP ĐỀU RA SÁT THƯƠNG, HAI MƯƠI ĐÒN ĐỀU XẢ ĐƯỢC ======
+  /* ====== MƯỜI BỐN LỚP ĐỀU RA SÁT THƯƠNG, HAI MƯƠI TÁM ĐÒN ĐỀU XẢ ĐƯỢC ===
    * Bốn lớp mới không bắn ra viên đạn nào theo nghĩa cũ: tia nhiệt là một đoạn
    * thẳng chạm tức thời, lưỡi hái là ba thực thể xoay quanh người, cầu lửa bay
    * trên không và chỉ nổ khi chạm đất. Ba đường đó đi qua ba hàm khác nhau, và
@@ -479,7 +479,7 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
     return out;
   });
   const wZero = Object.keys(allW).filter(k => !(allW[k].dealt > 0));
-  check('cả mười lớp đều thật sự gây được sát thương', wZero.length === 0,
+  check('cả mười bốn lớp đều thật sự gây được sát thương', wZero.length === 0,
     wZero.length ? 'câm: ' + wZero.join(',')
                  : Object.keys(allW).map(k => k + ' ' + Math.round(allW[k].dealt)).join(' · '));
 
@@ -777,12 +777,12 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
       })
     };
   });
-  check('DPS bền của mười lớp nằm trong dải hẹp (<= 2,2 lần)', sets.dpsBand <= 2.2,
+  check('DPS bền của mười bốn lớp nằm trong dải hẹp (<= 2,2 lần)', sets.dpsBand <= 2.2,
     sets.dpsBand.toFixed(2) + 'x');
   check('burst mỗi lần bấm thì chênh nhiều (>= 3 lần)', sets.burstBand >= 3,
     sets.burstBand.toFixed(2) + 'x');
-  check('mười lớp mười tầm bắn khác nhau', sets.uniqueRange === 10, sets.uniqueRange + '');
-  check('mười lớp mười nhịp bắn khác nhau', sets.uniqueRpm === 10, sets.uniqueRpm + '');
+  check('mười bốn lớp mười bốn tầm bắn khác nhau', sets.uniqueRange === 14, sets.uniqueRange + '');
+  check('mười bốn lớp: không hai cây nào chung nhịp bắn', sets.uniqueRpm === 14, sets.uniqueRpm + '');
   check('không lớp nào trùng tên', sets.uniqueNames);
   check('tầm bắn là HỆ QUẢ của spd x life, không phải số chỉnh tay', sets.rangeDerived);
 
@@ -832,14 +832,14 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
     arena.w === arena.cfg.w && arena.h === arena.cfg.h && arena.w * arena.h < 1300 * 1600 * 0.6,
     arena.w + '×' + arena.h);
 
-  // Cả mười lớp phát sẵn từ đầu.
+  // Cả mười bốn lớp phát sẵn từ đầu.
   const kit = await p.evaluate(() => {
     const s = DP.starterKit(DP.newSave('T'));
     const cls = s.gear.filter(g => g.kind === 'weapon').map(g => g.wclass);
     const eq = DP.equipped(s).weapons.filter(Boolean).length;
     return { n: new Set(cls).size, eq: eq };
   });
-  check('phát sẵn đủ mười lớp vũ khí', kit.n === 10, kit.n + ' cây');
+  check('phát sẵn đủ mười bốn lớp vũ khí', kit.n === 14, kit.n + ' cây');
   check('ba khe vũ khí đều có đồ để đổi giữa trận', kit.eq === 3);
 
   // ------------------------------------------------------------ TRẬN BOSS
@@ -1382,7 +1382,7 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
   check('nhân vật nào cũng có lớp vũ khí và hệ hợp lệ',
     hero.badCls.length === 0 && hero.badEl.length === 0,
     (hero.badCls.concat(hero.badEl).join(',')) || 'ok');
-  check('đủ cả mười lớp vũ khí trong dàn nhân vật', hero.classes === 10, hero.classes + ' lớp');
+  check('đủ cả mười bốn lớp vũ khí trong dàn nhân vật', hero.classes === 14, hero.classes + ' lớp');
   check('banner nhân vật KHÔNG đẻ ra trang bị', hero.gearGrew === 0, 'túi tăng ' + hero.gearGrew + ' món');
   check('quay 200 lần ra đủ bốn hạng', Object.keys(hero.ranks).length === 4, JSON.stringify(hero.ranks));
 
@@ -1482,12 +1482,12 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
              allTwo: w.every(g => DP.weaponProfile(S, g).skills.length === 2),
              classes: new Set(w.map(g => g.wclass)).size };
   });
-  check('bộ trưng bày: 10 cây, bấm lần hai không nhân bản',
-    sc.a === 10 && sc.b === 0 && sc.n === 10, JSON.stringify(sc));
-  // Bộ trưng bày phải phủ ĐỦ MƯỜI LỚP — nếu không thì có lớp người chơi không bao
+  check('bộ trưng bày: 14 cây, bấm lần hai không nhân bản',
+    sc.a === 14 && sc.b === 0 && sc.n === 14, JSON.stringify(sc));
+  // Bộ trưng bày phải phủ ĐỦ MƯỜI BỐN LỚP — nếu không thì có lớp người chơi không bao
   // giờ được cầm thử.
   check('bộ trưng bày: cây nào cũng tối cấp và mở đủ hai kỹ năng',
-    sc.allMax && sc.allTwo && sc.classes === 10, sc.classes + ' lớp');
+    sc.allMax && sc.allTwo && sc.classes === 14, sc.classes + ' lớp');
 
   /* ================= TÊN MÓN PHẢI KHỚP LỚP =============================
    * Bảng Behemoth giữ tên lớp CŨ, còn bốn lớp mới sinh ra bằng cách tách đôi
@@ -1504,7 +1504,8 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
     const SUF = {
       rifle: 'Rifle', shotgun: 'Scattergun', sniper: 'Lance', bow: 'Bow',
       staff: 'Scepter', launcher: 'Mortar', laser: 'Prism', blade: 'Ionblade',
-      scythe: 'Reaper', orb: 'Censer'
+      scythe: 'Reaper', orb: 'Censer', gatling: 'Vortex', chakram: 'Discus',
+      flame: 'Torch', whip: 'Lash'
     };
     const bad = [], mismatch = [], by = {};
     DP.BEHEMOTHS.forEach(b => {
@@ -1528,12 +1529,46 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
     nm.bad.length === 0, nm.bad.slice(0, 5).join(', ') || 'sạch');
   check('tên vũ khí luôn mang hậu tố ĐÚNG lớp của chính nó',
     nm.mismatch.length === 0, nm.mismatch.slice(0, 4).join(', ') || 'khớp hết');
-  check('dàn Behemoth rải đủ cả mười lớp', nm.classes === 10,
+  check('dàn Behemoth rải đủ cả mười bốn lớp', nm.classes === 14,
     nm.classes + ' lớp: ' + JSON.stringify(nm.by));
+
+  /* ================= HAI MƯƠI TÁM ĐÒN, HAI MƯƠI TÁM TRÌNH PHÁT =========
+   * Trùng `kind` nghĩa là trùng trình phát. Tên khác nhau, con số khác nhau,
+   * nhưng tay người chơi vẫn cảm thấy y hệt — và đó đúng là thứ vừa phải sửa:
+   * Phá Cửa với Nhất Tuyến cùng chạy `rush`, Vòng Mảnh với Vòng Tử cùng chạy
+   * `ring`. Bốn đòn, hai cảm giác.
+   *
+   * Phép kiểm này khoá lại chuyện đó, và nó cũng bắt luôn lỗi ngược lại: một
+   * `kind` khai trong dữ liệu mà KHÔNG có hàm `sk_<kind>` thì đòn đó bấm vào
+   * không ra gì — fireSkill nuốt im lặng để khỏi treo game, nên không ai biết.
+   * ==================================================================== */
+  results.push('\n── kỹ năng: không đòn nào trùng trình phát ──');
+  const kinds = await p.evaluate(() => {
+    const seen = {}, dup = [], noImpl = [], b = DP.UI.battle;
+    DP.WEAPON_ORDER.forEach(c => {
+      (DP.SKILLS[c] || []).forEach(sk => {
+        (seen[sk.kind] = seen[sk.kind] || []).push(c + '/' + sk.id);
+        if (b && typeof b['sk_' + sk.kind] !== 'function') noImpl.push(sk.kind);
+      });
+    });
+    Object.keys(seen).forEach(k => { if (seen[k].length > 1) dup.push(k + ': ' + seen[k].join(' + ')); });
+    const aims = {};
+    DP.WEAPON_ORDER.forEach(c => (DP.SKILLS[c] || []).forEach(sk => {
+      aims[sk.aim] = (aims[sk.aim] || 0) + 1;
+    }));
+    return { dup, noImpl: [...new Set(noImpl)], n: Object.keys(seen).length, aims };
+  });
+  check('28 đòn dùng 28 trình phát KHÁC NHAU, không cái nào trùng',
+    kinds.dup.length === 0 && kinds.n === 28,
+    kinds.dup.join(' | ') || kinds.n + ' trình phát');
+  check('mọi kind khai trong dữ liệu đều có hàm sk_ thật',
+    kinds.noImpl.length === 0, kinds.noImpl.join(', ') || 'đủ');
+  check('cả ba kiểu ngắm đều được dùng (self / dir / point)',
+    Object.keys(kinds.aims).length === 3, JSON.stringify(kinds.aims));
 
   check('mọi ảnh trong asset-map đều nạp được', art.rep.loaded === art.rep.total,
     art.rep.loaded + '/' + art.rep.total);
-  check('đủ 70 biểu tượng vũ khí (10 lớp x 7 hệ)', art.miss.length === 0,
+  check('đủ biểu tượng vũ khí (14 lớp x 7 hệ)', art.miss.length === 0,
     art.miss.length ? 'thiếu: ' + art.miss.slice(0, 5).join(', ') : '42/42');
   check('biểu tượng vũ khí nào cũng có ảnh và có chiều dài khi cầm',
     art.bad.length === 0, art.bad.slice(0, 5).join(', ') || 'ok');

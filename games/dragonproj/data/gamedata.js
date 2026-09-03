@@ -353,6 +353,103 @@
      *   2. Mỗi lưỡi chỉ ăn lại một mục tiêu sau 600ms, không phải mỗi khung.
      *   3. Lưỡi XOÁ ĐẠN QUÁI khi chạm. Đây là cái mua lại chỗ đứng nguy hiểm kia,
      *      và là lý do lớp này tồn tại thay vì chỉ là một vòng sát thương. */
+    /* --- SÚNG QUAY: cây của SỰ CAM KẾT. Nhịp bắn LEO, không cố định. ---
+     * Trục cảm giác chưa lớp nào chiếm: mọi cây khác có một nhịp bắn và giữ
+     * nguyên nhịp đó. Cây này bắt đầu chậm hơn cả súng phóng rồi leo lên nhanh
+     * hơn cả súng trường — nhưng nhấc tay là tuột hết về đáy.
+     *
+     * Khác tia nhiệt ở chỗ nào: tia nhiệt leo SÁT THƯƠNG mỗi tick, cây này leo
+     * NHỊP. Nghe giống nhau nhưng chơi khác hẳn — tia nhiệt phải giữ tia dính
+     * vào một con, còn cây này quay đủ vòng rồi thì quét ngang cả đám cũng
+     * không tuột nhịp. Một cây thưởng cho việc NGẮM ĐÚNG, cây kia thưởng cho
+     * việc DÁM ĐỨNG LẠI. */
+    gatling: {
+      id: 'gatling', vi: 'Súng Quay', jp: '回転銃', en: 'Gatling',
+      desc: 'Nòng phải quay đủ vòng mới bắn nhanh được. Ba giây đầu chậm như súng phóng, sau đó nhanh hơn mọi cây trong game. Nhấc tay một nhịp là tuột hết về đáy.',
+      mode: 'spin',
+      dmg: 3.8, shots: 1, arcGap: 0, spread: 7,
+      rpm: 180,                        // nhịp NỀN; nhịp thật nhân theo vòng quay
+      spinMs: 2600,                    // bao lâu thì đạt vòng tối đa
+      spinMul: [0.55, 2.30],           // nhịp ở vòng 0 và vòng tối đa
+      spinDecay: 2.2,                  // tuột nhanh gấp 2,2 lần lúc lên
+      spd: PSPD * 3.8, life: 630,
+      r: 7, crit: 0.07,
+      moveMul: 0.52, dodgeMul: 0.85, auto: true,
+      bloomPer: 0.7, bloomMax: 12, bloomCool: 9,
+      hs: HS.light, shake: 3, kick: 4, recoil: 3, knock: 0,
+      poise: 6, kb: 3,
+      trait: 'DPS đỉnh cao nhất game khi quay đủ vòng, nhưng chậm chân nhất và mất hết nếu phải né.'
+    },
+
+    /* --- LUÂN XA: cây DUY NHẤT ăn sát thương HAI LẦN trên cùng một đường bay.
+     * Đĩa bay ra rồi QUAY VỀ. Đứng yên thì lượt về đi qua đúng chỗ lượt đi đã
+     * đi, nên cả hai lượt trúng cùng một hàng — nhưng nếu vừa ném vừa chạy thì
+     * lượt về quét một đường KHÁC, và đó là chỗ cây này có chiều sâu.
+     *
+     * Không lẫn với lưỡi hái: lưỡi hái xoay quanh CHÂN mình và không đi đâu cả;
+     * luân xa đi xa rồi mới về. Một cây phòng thủ, một cây tấn công tầm trung. */
+    chakram: {
+      id: 'chakram', vi: 'Luân Xa', jp: '輪刃', en: 'Chakram',
+      desc: 'Ném một đĩa lưỡi bay đi rồi quay ngược về tay. Cùng một đường bay ăn sát thương hai lượt — và nếu bạn di chuyển thì lượt về quét một đường mới.',
+      mode: 'boomerang',
+      dmg: 8, shots: 1, arcGap: 0, spread: 2,
+      rpm: 78,
+      spd: PSPD * 3.6, life: 1100,
+      outMs: 420,                      // bao lâu thì đĩa quay đầu
+      backMul: 0.85,                   // lượt về ăn 85% sát thương lượt đi
+      spinDeg: 900,                    // độ/giây, chỉ để vẽ
+      pierce: true, pierceFall: 0.18,
+      r: 12, crit: 0.14,
+      moveMul: 1.02, dodgeMul: 1.00, auto: false,
+      hs: HS.mid, shake: 2, kick: 6, recoil: 4, knock: 0,
+      poise: 11, kb: 6,
+      trait: 'Ăn hai lượt trên một lần ném, và đường về đổi theo chỗ bạn đứng.'
+    },
+
+    /* --- SÚNG PHUN LỬA: không có viên đạn nào. Một hình NÓN ngắn, liên tục.
+     * Trục riêng: đây là cây duy nhất mà sát thương chính KHÔNG nằm ở lúc trúng
+     * mà nằm ở vết BỎNG để lại. Bắn hai giây rồi bỏ chạy thì cả đám vẫn cháy.
+     *
+     * Khác tia nhiệt: tia nhiệt là một ĐƯỜNG mảnh, xuyên xa, phải ngắm. Cây này
+     * là một VÙNG nón rộng, tầm rất ngắn, gần như không cần ngắm. */
+    flame: {
+      id: 'flame', vi: 'Súng Phun Lửa', jp: '火炎放射', en: 'Flamethrower',
+      desc: 'Một nón lửa ngắn, phủ kín cả đám trước mặt. Sát thương lúc trúng thì nhẹ, nhưng cái nó để lại là vết bỏng chồng được nhiều lớp.',
+      mode: 'cone',
+      dmg: 0.62, shots: 1, arcGap: 0, spread: 0,
+      rpm: 480,                        // 8 tick/giây
+      spd: 0, life: 0,
+      coneLen: 168, coneArc: 0.85,     // ~49 độ
+      burnStack: 4, burnPerTick: 0.55, // chồng tối đa 4 lớp bỏng
+      r: 6, crit: 0,  noCrit: true,
+      moveMul: 0.78, dodgeMul: 0.95, auto: true,
+      hs: HS.tick, shake: 1, kick: 2, recoil: 1, knock: 0,
+      poise: 3, kb: 1,
+      trait: 'Sát thương theo thời gian mạnh nhất và phủ rộng nhất, nhưng tầm ngắn nhì game và không bao giờ chí mạng.'
+    },
+
+    /* --- ROI XÍCH: quét một CUNG rộng trước mặt và KÉO cái gì trúng lại gần.
+     * Trục riêng: cây duy nhất DI CHUYỂN kẻ địch về phía mình. Nó không giết
+     * nhanh — nó gom đám lại thành một cục cho những cây khác (và cho ulti) dọn.
+     *
+     * Khác súng săn: súng săn cũng cận cảnh nhưng ĐẨY RA để mua khoảng cách.
+     * Roi xích làm ngược lại, và hai thứ đó dẫn tới hai lối chơi trái ngược. */
+    whip: {
+      id: 'whip', vi: 'Roi Xích', jp: '鎖鞭', en: 'Chain Whip',
+      desc: 'Quất một cung rộng trước mặt, trúng ai thì giật người đó về phía mình. Cây duy nhất gom được đám đông lại thành một cục.',
+      mode: 'arc',
+      dmg: 4.6, shots: 1, arcGap: 0, spread: 0,
+      rpm: 96,
+      spd: 0, life: 0,
+      arcLen: 132, arcSpan: 2.2,       // ~126 độ
+      pull: 26,                        // px giật về mỗi cú trúng
+      r: 10, crit: 0.11,
+      moveMul: 0.94, dodgeMul: 1.00, auto: false,
+      hs: HS.mid, shake: 4, kick: 7, recoil: 5, knock: 0,
+      poise: 16, kb: 0,                // kb = 0: nó KÉO chứ không đẩy
+      trait: 'Gom đám đông lại một chỗ. Sát thương trung bình, nhưng nó quyết định trận đấu diễn ra Ở ĐÂU.'
+    },
+
     scythe: {
       id: 'scythe', vi: 'Lưỡi Hái', jp: '大鎌', en: 'Scythe',
       desc: 'Ba lưỡi bung ra xoay quanh người. Cái gì lại gần thì bị băm, và đạn quái bay vào thì bị chặt rụng.',
@@ -404,6 +501,12 @@
     W.range = W.mode === 'beam' ? W.beamLen
             : W.mode === 'orbit' ? W.orbitR
             : W.mode === 'lob' ? W.lobMax
+            : W.mode === 'cone' ? W.coneLen
+            : W.mode === 'arc' ? W.arcLen
+            // Luân xa: tầm là chỗ đĩa QUAY ĐẦU, không phải chỗ nó tan. Đo tới
+            // chỗ tan thì con số gấp đôi sự thật, và bot sẽ đứng xa gấp đôi mức
+            // cần thiết rồi ném vào không khí.
+            : W.mode === 'boomerang' ? Math.round(W.spd * W.outMs / 16.67)
             : Math.round(W.spd * W.life / 16.67);
     W.shotMs = 60000 / W.rpm;
     // DPS lý thuyết ở ATK gốc, để test khoá lại dải cân bằng.
@@ -426,10 +529,41 @@
       var reHits = Math.max(1, Math.floor(W.life / W.reHitMs));
       W.dps = perShot * reHits / (W.shotMs / 1000);
     }
+    /* BỐN LỚP MỚI KHÔNG ĐỌC ĐƯỢC BẰNG CÔNG THỨC CHUNG, mỗi lớp lệch một kiểu:
+     *
+     *   súng quay  — nhịp bắn KHÔNG cố định, nó leo theo vòng quay. Đo ở nhịp
+     *                nền thì ra một con số không lớp nào từng chơi ở đó. Đo ở
+     *                nhịp TRUNG BÌNH của một lượt giữ cò đủ dài mới đúng.
+     *   luân xa    — một lần ném ăn HAI lượt trên cùng đường bay.
+     *   nón lửa    — trúng CẢ ĐÁM mỗi tick, và phần lớn sát thương nằm ở vết
+     *                bỏng để lại chứ không ở cú trúng.
+     *   roi xích   — quét một cung rộng nên cũng trúng nhiều con một lúc.
+     *
+     * Hai lớp cuối quy ước đo trên BA mục tiêu: đó là mật độ mà chúng được thiết
+     * kế để đánh, và đo đơn mục tiêu thì con số nói dối theo hướng ngược lại. */
+    if (W.mode === 'spin') {
+      // Trung bình có trọng số: một lượt giữ cò dài thì phần lớn thời gian ở
+      // gần vòng tối đa, nên nghiêng về đầu cao chứ không lấy trung bình cộng.
+      var sm = W.spinMul || [0.55, 2.3];
+      W.dps = perShot * (W.rpm / 60) * (sm[0] * 0.28 + sm[1] * 0.72);
+    }
+    if (W.mode === 'boomerang') {
+      W.dps = perShot * (1 + (W.backMul === undefined ? 0.85 : W.backMul)) * (W.rpm / 60);
+    }
+    if (W.mode === 'cone') {
+      var burnDps = W.dmg * W.burnStack * (W.burnPerTick || 0.5) * 1.5;
+      W.dps = (perShot * (W.rpm / 60) + burnDps) * 3;
+      W.burst = perShot * 3;
+    }
+    if (W.mode === 'arc') {
+      W.dps = perShot * (W.rpm / 60) * 3;
+      W.burst = perShot * 3;
+    }
   });
 
   G.WEAPON_ORDER = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher',
-                    'laser', 'blade', 'scythe', 'orb'];
+                    'laser', 'blade', 'scythe', 'orb',
+                    'gatling', 'chakram', 'flame', 'whip'];
 
   /* Ánh xạ lớp cũ -> lớp mới. Save cũ, đồ cũ và đội hình cũ đi qua bảng này.
    * Giữ đúng hình tượng: đại kiếm chậm-nặng-cả-sân-thấy-nó-tới thành súng phóng,
@@ -460,22 +594,57 @@
    * Cung và trượng KHÔNG tách: cả hai đã là lớp có bản sắc riêng rõ nhất trong
    * sáu lớp cũ (dải chí mạng, và nhịp niệm ngắt được), tách ra thì phải bịa một
    * bản sắc thứ hai cho mỗi cái. */
+  /* Bốn lớp mới (súng quay, luân xa, súng phun lửa, roi xích) nhét vào đâu?
+   * Cùng một luật: mỗi lớp cũ tách theo HỌ SILHOUETTE, chỉ là giờ tách làm BA
+   * thay vì làm đôi. Vẫn băm id nên vẫn tất định — cùng một con Behemoth thì
+   * đời nào cũng ra đúng cây đó.
+   *
+   *   kiếm     -> súng trường | kiếm khí  | luân xa   (đều là "một lưỡi bay đi")
+   *   thương   -> bắn tỉa     | tia nhiệt | roi xích  (đều là "vươn dài ra xa")
+   *   đại kiếm -> súng phóng  | cầu lửa   | phun lửa  (đều là "một khối lửa trùm")
+   *   song kiếm-> súng săn    | lưỡi hái  | súng quay (đều là "áp sát, ra nhiều nhát")
+   *
+   * Cung và trượng vẫn KHÔNG tách, vì lý do cũ: cả hai đã là lớp có bản sắc rõ
+   * nhất, tách ra thì phải bịa một bản sắc thứ hai cho mỗi cái. */
   G.WCLASS_SPLIT = {
-    sword: ['rifle', 'blade'],
-    spear: ['sniper', 'laser'],
-    great: ['launcher', 'orb'],
-    dual:  ['shotgun', 'scythe'],
-    bow:   ['bow', 'bow'],
-    staff: ['staff', 'staff']
+    sword: ['rifle', 'blade', 'chakram'],
+    spear: ['sniper', 'laser', 'whip'],
+    great: ['launcher', 'orb', 'flame'],
+    dual:  ['shotgun', 'scythe', 'gatling'],
+    bow:   ['bow'],
+    staff: ['staff']
   };
+  /* CHIA VÒNG TRÒN, KHÔNG BĂM MODULO.
+   *
+   * Bản trước băm id rồi lấy dư. Nó tất định, nhưng nó KHÔNG chia đều — và với
+   * tám con `dual` chia làm ba, băm cho ra 5 súng săn, 3 lưỡi hái và ĐÚNG 0 súng
+   * quay. Một lớp không con Behemoth nào rơi vào nghĩa là lớp đó không có nguồn
+   * rơi đồ, không có nhân vật, và không bao giờ chơi được — cả một lớp vũ khí
+   * chết lặng lẽ mà không có gì báo.
+   *
+   * Chia vòng tròn theo THỨ TỰ ĐÃ SẮP của id trong cùng nhóm: vẫn tất định (id
+   * không đổi thì vị trí không đổi), nhưng bảo đảm chênh nhau nhiều nhất một
+   * con giữa các lớp cùng nhóm. Bảng dựng một lần rồi nhớ lại. */
+  var SPLIT_IDX = null;
+  function buildSplitIdx() {
+    SPLIT_IDX = {};
+    var groups = {};
+    G.BEHEMOTHS.forEach(function (b) {
+      if (G.WEAPONS[b.weapon]) return;
+      (groups[b.weapon] = groups[b.weapon] || []).push(b.id);
+    });
+    Object.keys(groups).forEach(function (g) {
+      var pool = G.WCLASS_SPLIT[g];
+      if (!pool) return;
+      groups[g].sort().forEach(function (id, i) { SPLIT_IDX[id] = pool[i % pool.length]; });
+    });
+  }
   G.wclassOfBehemoth = function (b) {
     if (!b) return 'rifle';
     if (G.WEAPONS[b.weapon]) return b.weapon;      // đã là lớp mới thì thôi
-    var pair = G.WCLASS_SPLIT[b.weapon];
-    if (!pair) return G.wclassOf(b.weapon);
-    var h = 0;
-    for (var i = 0; i < b.id.length; i++) h = (h * 31 + b.id.charCodeAt(i)) >>> 0;
-    return pair[h % 2];
+    if (!G.WCLASS_SPLIT[b.weapon]) return G.wclassOf(b.weapon);
+    if (!SPLIT_IDX) buildSplitIdx();
+    return SPLIT_IDX[b.id] || G.wclassOf(b.weapon);
   };
   /* Mọi chỗ tra bảng vũ khí đi qua đây, không tra thẳng G.WEAPONS[...]. Lý do:
    * bảng Behemoth vẫn giữ tên lớp CŨ (nó là dữ liệu lấy nguyên văn từ wiki), và
@@ -759,7 +928,7 @@
         hitstop:HS.boom, zoomPunch:0.16, kb:18, poise:44, shake:9,
         trail:true, burst:true },
 
-      { id:'dash', n:'Nhất Tuyến', kind:'rush', aim:'dir',
+      { id:'dash', n:'Nhất Tuyến', kind:'phase', aim:'dir',
         d:'Lướt xuyên qua cả hàng rồi mới hiện lại ở đầu bên kia. Trong lúc lướt thì không ai chạm được vào bạn.',
         cd:14000,
         // Có khung bất tử = "quà kèm", K = 0,55: 20 × 14 × 0,55 = 154.
@@ -771,7 +940,7 @@
 
     /* --- LƯỠI HÁI: cả hai đòn đều là "đứng đúng chỗ rồi mới ra tay". --- */
     scythe: [
-      { id:'reap', n:'Vòng Tử', kind:'ring', aim:'self',
+      { id:'reap', n:'Vòng Tử', kind:'reapfield', aim:'self',
         d:'Một vòng lưỡi nở bung ra khỏi thân. Bán kính hơn gấp đôi tầm với thường ngày của cây này.',
         cd:16000,
         // AoE quanh thân, K = 0,5: 20 × 16 × 0,5 = 160.
@@ -807,7 +976,102 @@
         blastR:130, arc:6.283, reach:130,
         hitstop:HS.heavy, kb:6, poise:26, shake:7,
         trail:true, burst:true }
+    ],
+    /* ---------------------------- SÚNG QUAY ----------------------------
+     * Cả hai đòn đều xoay quanh VÒNG QUAY, vì đó là bản sắc của cây. Một đòn
+     * cho bạn vòng quay miễn phí, đòn kia biến vòng quay thành thứ khác. */
+    gatling: [
+      { id:'leadstorm', n:'Bão Chì', kind:'maxspin', aim:'self',
+        d:'Nòng lập tức đạt vòng tối đa và giữ nguyên suốt sáu giây — không cần quay lên, không tuột xuống, và trong lúc đó không gì đẩy bạn lùi được.',
+        cd:20000,
+        ms:6000, keepSpin:true, noKnock:true, moveBonus:0.30,
+        // Không cộng sát thương: cái nó cho là SÁU GIÂY không phải trả giá quay
+        // nòng. Với cây này đó đã là phần thưởng lớn nhất có thể cho.
+        mul:0,
+        hitstop:HS.light, kb:0, poise:0, shake:3,
+        trail:false, burst:false },
+
+      { id:'shred', n:'Xé Giáp', kind:'shred', aim:'dir',
+        d:'Dốc cả băng đạn vào một hình nón hẹp để bào mòn giáp. Cái nó để lại không phải sát thương mà là một vết hở — mọi đòn sau đó, của bất kỳ ai, đều đau hơn.',
+        cd:17000,
+        // K = 0,55: nón hẹp và phải đứng yên xả, nhưng phần thưởng thật nằm ở
+        // debuff chứ không ở con số này. 20 x 17 x 0,55 = 187.
+        mul:187, coneLen:230, coneArc:0.55, ticks:12, ms:900,
+        armorCut:0.40, armorMs:7000,
+        hitstop:HS.tick, kb:2, poise:14, shake:4,
+        trail:true, burst:false }
+    ],
+
+    /* ---------------------------- LUÂN XA ------------------------------
+     * Cây này ăn hai lượt trên một đường bay. Hai đòn kéo ý đó về hai phía:
+     * một đòn biến đĩa thành lớp phòng thủ quanh mình, đòn kia bỏ luôn đường
+     * về mà đổi lấy vô số lần nảy. */
+    chakram: [
+      { id:'trilune', n:'Tam Luân', kind:'orbitals', aim:'self',
+        d:'Ba đĩa lưỡi tách ra bay vòng quanh người trong tám giây. Chúng chém mọi thứ lại gần, và chặt rụng đạn quái bay vào.',
+        cd:21000,
+        // K = 0,45: kéo dài, tự đánh, và còn chặn đạn — ba thứ cộng lại thì
+        // hệ số phải thấp. 20 x 21 x 0,45 = 189.
+        mul:189, n:3, ms:8000, orbitR:82, spin:280, reHitMs:520, cutsBullets:true,
+        hitstop:HS.light, kb:5, poise:10, shake:2,
+        trail:false, burst:false },
+
+      { id:'endlessring', n:'Nảy Vô Tận', kind:'bounce', aim:'dir',
+        d:'Một đĩa duy nhất, không quay về, nhưng nảy từ con này sang con khác tới mười hai lần. Đám càng đông thì nó càng lâu tan.',
+        cd:18000,
+        // K = 0,50 và mỗi lần nảy yếu dần, nên trần thật thấp hơn con số này
+        // nhiều khi chỉ có một hai con. 20 x 18 x 0,50 = 180.
+        mul:180, bounces:12, bounceFall:0.07, bounceR:260, spd:11, life:5200,
+        hitstop:HS.mid, kb:6, poise:12, shake:3,
+        trail:true, burst:false }
+    ],
+
+    /* -------------------------- SÚNG PHUN LỬA --------------------------
+     * Cây này bán sát thương THEO THỜI GIAN. Đòn một đặt sẵn thời gian đó lên
+     * mặt đất; đòn hai thu toàn bộ thời gian còn lại về hiện tại một lần. */
+    flame: [
+      { id:'firelane', n:'Tường Lửa', kind:'firelane', aim:'dir',
+        d:'Đặt một bức tường lửa nằm ngang chắn đường. Nó không đuổi theo ai — nó bắt cả đám phải chọn: đi vòng, hay đi qua và cháy.',
+        cd:19000,
+        // K = 0,45: nó không tự tìm mục tiêu, và quái hoàn toàn né được bằng
+        // cách đi vòng. 20 x 19 x 0,45 = 171.
+        mul:171, len:280, w:44, ms:7000, tickMs:420, burn:true,
+        hitstop:HS.tick, kb:0, poise:6, shake:3,
+        trail:false, burst:false },
+
+      { id:'flashover', n:'Bùng Nổ', kind:'detonate', aim:'self',
+        d:'Kích nổ cùng lúc mọi vết bỏng đang cháy trên sân. Không đốt ai đang lành lặn — nó chỉ thu về những gì bạn đã đốt sẵn.',
+        cd:16000,
+        // Hệ số này là mỗi CON đang cháy, không phải tổng — nên nó phải thấp:
+        // sân đông thì nó tự nhân lên. Trần thật đến từ việc phải đốt trước đã.
+        mul:96, perStack:0.45, blastR:120, maxStack:4,
+        hitstop:HS.boom, kb:12, poise:28, shake:10, quake:true,
+        trail:false, burst:true }
+    ],
+
+    /* ---------------------------- ROI XÍCH -----------------------------
+     * Cây này quyết định trận đấu diễn ra Ở ĐÂU. Đòn một gom đám lại một cục;
+     * đòn hai biến chính mình thành cái cối xay giữa cục đó. */
+    whip: [
+      { id:'yank', n:'Móc Kéo', kind:'yank', aim:'dir',
+        d:'Phóng roi thành một đường thẳng rồi giật ngược. Mọi thứ dính vào bị lôi về sát chân bạn và choáng một nhịp — nhịp đó là để bạn ra đòn tiếp.',
+        cd:14000,
+        // K = 0,45: sát thương thấp là ĐÚNG. Giá trị của đòn nằm ở chỗ nó dọn
+        // sân về một điểm cho đòn sau, không ở con số nó gây ra.
+        mul:126, len:300, w:40, pull:1.0, stunMs:900,
+        hitstop:HS.mid, kb:0, poise:22, shake:6,
+        trail:true, burst:false },
+
+      { id:'cyclone', n:'Lốc Xích', kind:'spincyclone', aim:'self',
+        d:'Quay tròn cả sợi roi quanh người trong năm giây, và VẪN ĐI LẠI ĐƯỢC. Đi tới đâu băm tới đó.',
+        cd:22000,
+        // K = 0,52: đánh liên tục, diện rộng, mà chân vẫn tự do — thứ duy nhất
+        // giữ nó không quá tay là bán kính ngắn. 20 x 22 x 0,52 = 229.
+        mul:229, ms:5000, r:96, tickMs:280, moveMul:0.82,
+        hitstop:HS.light, kb:7, poise:12, shake:2,
+        trail:false, burst:false }
     ]
+
   };
 
   G.skillsOf = function (weaponId) { return G.SKILLS[weaponId] || []; };

@@ -2591,6 +2591,490 @@
     "oy": 20,
     "file": "Orb_Sphere__p331d52dcc4f7.png"
    }
+  },
+  "gatling": {
+   "none": {
+    "spr": "Crossbow_Minigun",
+    "anchor": "center",
+    "rot": 90,
+    "len": 34,
+    "grip": 0.9,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Minigun__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Crossbow_Minigun",
+    "anchor": "center",
+    "rot": 90,
+    "len": 34,
+    "grip": 0.9,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Minigun__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Crossbow_Minigun",
+    "anchor": "center",
+    "rot": 90,
+    "len": 34,
+    "grip": 0.9,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Minigun__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Crossbow_Minigun",
+    "anchor": "center",
+    "rot": 90,
+    "len": 34,
+    "grip": 0.9,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Minigun__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Crossbow_Minigun",
+    "anchor": "center",
+    "rot": 90,
+    "len": 34,
+    "grip": 0.9,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Minigun__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Crossbow_Minigun",
+    "anchor": "center",
+    "rot": 90,
+    "len": 34,
+    "grip": 0.9,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Minigun__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Crossbow_Minigun",
+    "anchor": "center",
+    "rot": 90,
+    "len": 34,
+    "grip": 0.9,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Minigun__p331d52dcc4f7.png"
+   }
+  },
+  "chakram": {
+   "none": {
+    "spr": "Dagger_IceScythe",
+    "anchor": "center",
+    "rot": -45,
+    "len": 26,
+    "grip": 0.55,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 10,
+    "h": 18,
+    "ox": 5,
+    "oy": 9,
+    "file": "Dagger_IceScythe__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Dagger_IceScythe",
+    "anchor": "center",
+    "rot": -45,
+    "len": 26,
+    "grip": 0.55,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 10,
+    "h": 18,
+    "ox": 5,
+    "oy": 9,
+    "file": "Dagger_IceScythe__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Dagger_IceScythe",
+    "anchor": "center",
+    "rot": -45,
+    "len": 26,
+    "grip": 0.55,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 10,
+    "h": 18,
+    "ox": 5,
+    "oy": 9,
+    "file": "Dagger_IceScythe__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Dagger_IceScythe",
+    "anchor": "center",
+    "rot": -45,
+    "len": 26,
+    "grip": 0.55,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 10,
+    "h": 18,
+    "ox": 5,
+    "oy": 9,
+    "file": "Dagger_IceScythe__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Dagger_IceScythe",
+    "anchor": "center",
+    "rot": -45,
+    "len": 26,
+    "grip": 0.55,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 10,
+    "h": 18,
+    "ox": 5,
+    "oy": 9,
+    "file": "Dagger_IceScythe__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Dagger_IceScythe",
+    "anchor": "center",
+    "rot": -45,
+    "len": 26,
+    "grip": 0.55,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 10,
+    "h": 18,
+    "ox": 5,
+    "oy": 9,
+    "file": "Dagger_IceScythe__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Dagger_IceScythe",
+    "anchor": "center",
+    "rot": -45,
+    "len": 26,
+    "grip": 0.55,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 10,
+    "h": 18,
+    "ox": 5,
+    "oy": 9,
+    "file": "Dagger_IceScythe__p331d52dcc4f7.png"
+   }
+  },
+  "flame": {
+   "none": {
+    "spr": "Staff_Fire",
+    "anchor": "center",
+    "rot": 90,
+    "len": 30,
+    "grip": 0.86,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 9,
+    "h": 33,
+    "ox": 4,
+    "oy": 16,
+    "file": "Staff_Fire__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Staff_Fire",
+    "anchor": "center",
+    "rot": 90,
+    "len": 30,
+    "grip": 0.86,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 9,
+    "h": 33,
+    "ox": 4,
+    "oy": 16,
+    "file": "Staff_Fire__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Staff_Fire",
+    "anchor": "center",
+    "rot": 90,
+    "len": 30,
+    "grip": 0.86,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 9,
+    "h": 33,
+    "ox": 4,
+    "oy": 16,
+    "file": "Staff_Fire__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Staff_Fire",
+    "anchor": "center",
+    "rot": 90,
+    "len": 30,
+    "grip": 0.86,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 9,
+    "h": 33,
+    "ox": 4,
+    "oy": 16,
+    "file": "Staff_Fire__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Staff_Fire",
+    "anchor": "center",
+    "rot": 90,
+    "len": 30,
+    "grip": 0.86,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 9,
+    "h": 33,
+    "ox": 4,
+    "oy": 16,
+    "file": "Staff_Fire__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Staff_Fire",
+    "anchor": "center",
+    "rot": 90,
+    "len": 30,
+    "grip": 0.86,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 9,
+    "h": 33,
+    "ox": 4,
+    "oy": 16,
+    "file": "Staff_Fire__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Staff_Fire",
+    "anchor": "center",
+    "rot": 90,
+    "len": 30,
+    "grip": 0.86,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 9,
+    "h": 33,
+    "ox": 4,
+    "oy": 16,
+    "file": "Staff_Fire__p331d52dcc4f7.png"
+   }
+  },
+  "whip": {
+   "none": {
+    "spr": "Icon_BlackHalberd",
+    "anchor": "center",
+    "rot": 90,
+    "len": 44,
+    "grip": 0.8,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 46,
+    "ox": 9,
+    "oy": 23,
+    "file": "Icon_BlackHalberd__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Icon_BlackHalberd",
+    "anchor": "center",
+    "rot": 90,
+    "len": 44,
+    "grip": 0.8,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 46,
+    "ox": 9,
+    "oy": 23,
+    "file": "Icon_BlackHalberd__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Icon_BlackHalberd",
+    "anchor": "center",
+    "rot": 90,
+    "len": 44,
+    "grip": 0.8,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 46,
+    "ox": 9,
+    "oy": 23,
+    "file": "Icon_BlackHalberd__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Icon_BlackHalberd",
+    "anchor": "center",
+    "rot": 90,
+    "len": 44,
+    "grip": 0.8,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 46,
+    "ox": 9,
+    "oy": 23,
+    "file": "Icon_BlackHalberd__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Icon_BlackHalberd",
+    "anchor": "center",
+    "rot": 90,
+    "len": 44,
+    "grip": 0.8,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 46,
+    "ox": 9,
+    "oy": 23,
+    "file": "Icon_BlackHalberd__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Icon_BlackHalberd",
+    "anchor": "center",
+    "rot": 90,
+    "len": 44,
+    "grip": 0.8,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 46,
+    "ox": 9,
+    "oy": 23,
+    "file": "Icon_BlackHalberd__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Icon_BlackHalberd",
+    "anchor": "center",
+    "rot": 90,
+    "len": 44,
+    "grip": 0.8,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 19,
+    "h": 46,
+    "ox": 9,
+    "oy": 23,
+    "file": "Icon_BlackHalberd__p331d52dcc4f7.png"
+   }
   }
  },
  "ui": {

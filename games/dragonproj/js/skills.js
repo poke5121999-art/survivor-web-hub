@@ -39,6 +39,10 @@
   var TAU = Math.PI * 2;
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
   function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+  /* Chuẩn hoá góc về [-pi, pi]. game.js có bản riêng, nhưng hai file là hai IIFE
+   * tách biệt nên không thấy nhau — Xé Giáp gọi `ang` ở đây và nổ ngay vì tưởng
+   * là thấy được. Chép lại một dòng rẻ hơn nhiều so với việc mở một biến toàn cục. */
+  function ang(a) { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; }
 
   G.installSkills = function (Battle) {
 
@@ -1046,6 +1050,291 @@
       if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 260; }
     };
 
+    /* ================= BỐN LỚP MỚI: TÁM ĐÒN ==============================
+     * Luật tự đặt cho cả tám: KHÔNG đòn nào lặp lại `kind` của đòn đã có. Trùng
+     * kind nghĩa là trùng trình phát, mà trùng trình phát thì dù tên và con số
+     * có khác nhau, tay người chơi vẫn cảm thấy y hệt.
+     * ==================================================================== */
+
+    /* --- maxspin: Bão Chì. Nòng đạt vòng tối đa tức thì và KHÔNG tuột trong
+     * suốt thời gian hiệu lực. Không cộng một điểm sát thương nào — với cây súng
+     * quay, sáu giây không phải trả giá quay nòng đã là phần thưởng lớn nhất có
+     * thể trao. Cộng thêm sát thương lên trên nữa là nhân đôi phần thưởng. */
+    Battle.prototype.sk_maxspin = function (sk, st) {
+      var p = this.player;
+      st.dur = 300; p.stateDur = st.dur;
+      p.spin = 1;
+      p.spinLock = this.t + sk.ms;          // stepSpin đọc mốc này để không cho tuột
+      p.buffs.push({ until: this.t + sk.ms, spd: sk.moveBonus || 0,
+                     noKnock: !!sk.noKnock, tag: 'leadstorm' });
+      this.toast('BÃO CHÌ', '#ffd23f');
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 54, t: 0, ms: 420, col: '#ffd23f' });
+      this.impact(p.x, p.y, sk.hitstop, sk.shake || 4, '#ffd23f');
+    };
+    Battle.prototype.upd_maxspin = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'idle'; }
+    };
+
+    /* --- shred: Xé Giáp. Một nón hẹp xả liên tục rồi để lại một VẾT HỞ trên
+     * giáp. Giá trị thật nằm ở vết hở, không ở con số — nên armorMs phải dài hơn
+     * hẳn thời gian xả, để cả những đòn sau đó cũng hưởng. Nếu debuff tắt cùng
+     * lúc đòn kết thúc thì nó chỉ là sát thương trá hình. */
+    Battle.prototype.sk_shred = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.ms + 200; p.stateDur = st.dur;
+      st.tick = 0; st.done = 0; st.a = p.facing;
+    };
+    Battle.prototype.upd_shred = function (sk, st, dt) {
+      var p = this.player, self = this;
+      var step = sk.ms / sk.ticks, half = sk.coneArc / 2;
+      st.tick += dt;
+      while (st.tick >= step && st.done < sk.ticks) {
+        st.tick -= step; st.done++;
+        this.mobs.forEach(function (m) {
+          if (m.hp <= 0) return;
+          var dx = m.x - p.x, dy = m.y - p.y, d = Math.hypot(dx, dy);
+          if (d > sk.coneLen + m.r) return;
+          if (Math.abs(ang(Math.atan2(dy, dx) - st.a)) > half) return;
+          self.dealToMob(m, self.playerDamage(sk.mul / sk.ticks, {}),
+            { move: { kb: sk.kb, poise: sk.poise / sk.ticks, hs: sk.hitstop },
+              from: st.a, skill: true });
+          m.armorCut = Math.max(m.armorCut || 0, sk.armorCut);
+          m.armorCutUntil = self.t + sk.armorMs;
+        });
+        this.fx.push({ k: 'cone', x: p.x, y: p.y, a: st.a, len: sk.coneLen,
+                       half: half, t: 0, ms: 160, col: this.elemFx().col });
+      }
+      if (st.t >= st.dur) { p.state = 'lag'; p.stateT = 0; p.stateDur = 220; }
+    };
+
+    /* --- orbitals: Tam Luân. Ba đĩa bay vòng quanh người, chặn cả đạn quái.
+     * Dùng lại loại đạn 'orbit' của lưỡi hái, nhưng KHÔNG dùng lại kind của kỹ
+     * năng: lưỡi hái bung theo nhịp bắn thường, còn đây là một lớp phòng thủ bật
+     * lên tám giây bằng một quyết định. */
+    Battle.prototype.sk_orbitals = function (sk, st) {
+      var p = this.player;
+      st.dur = 260; p.stateDur = st.dur;
+      for (var i = 0; i < sk.n; i++) {
+        this.projs.push({ k: 'orbit', wclass: 'chakram',
+          x: p.x, y: p.y, a: i / sk.n * TAU, r: 14,
+          orbitR: sk.orbitR, spin: sk.spin, life: sk.ms,
+          mul: sk.mul / sk.n, reHitMs: sk.reHitMs, lastHit: {},
+          cutsBullets: !!sk.cutsBullets, skill: true,
+          move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop } });
+      }
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: sk.orbitR, t: 0, ms: 500,
+                     col: this.elemFx().col });
+      this.toast('TAM LUÂN', this.elemFx().col);
+    };
+    Battle.prototype.upd_orbitals = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'idle'; }
+    };
+
+    /* --- bounce: Nảy Vô Tận. Một đĩa nảy từ con này sang con khác.
+     * Khác pierce (xuyên thẳng một hàng) ở chỗ nó ĐỔI HƯỚNG mỗi lần trúng, nên
+     * đám càng đông thì nó đi càng lâu — một đòn mà giá trị phụ thuộc vào MẬT ĐỘ
+     * chứ không vào cách kẻ địch xếp hàng. */
+    Battle.prototype.sk_bounce = function (sk, st) {
+      var p = this.player;
+      st.dur = 260; p.stateDur = st.dur;
+      this.projs.push({ k: 'shot', wclass: 'chakram',
+        x: p.x + Math.cos(p.facing) * 18, y: p.y + Math.sin(p.facing) * 18,
+        a: p.facing, spd: sk.spd, life: sk.life, r: 13,
+        mul: sk.mul, critBonus: 0, hits: 0, spin: 0, chakSpin: true,
+        bounceLeft: sk.bounces, bounceFall: sk.bounceFall, bounceR: sk.bounceR,
+        from: { x: p.x, y: p.y }, hitSet: [], fade: 0, skill: true,
+        move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop } });
+    };
+    Battle.prototype.upd_bounce = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'idle'; }
+    };
+
+    /* --- firelane: Tường Lửa. Một dải cháy nằm NGANG so với hướng đã chỉ.
+     * Ngang chứ không dọc, và đó là cả thiết kế: một dải dọc chỉ là đòn xuyên
+     * chậm, còn một dải ngang thì CHẶN ĐƯỜNG. Nó không đuổi ai — nó buộc cả đám
+     * phải chọn giữa đi vòng và đi qua mà cháy. */
+    Battle.prototype.sk_firelane = function (sk, st) {
+      var p = this.player;
+      st.dur = 300; p.stateDur = st.dur;
+      var a = p.facing;
+      var cx = clamp(p.x + Math.cos(a) * sk.w * 1.6, 30, this.wW - 30);
+      var cy = clamp(p.y + Math.sin(a) * sk.w * 1.6, 30, this.wH - 30);
+      this.lanes = this.lanes || [];
+      this.lanes.push({ x: cx, y: cy, a: a + Math.PI / 2, len: sk.len, w: sk.w,
+                        left: sk.ms, tick: 0, tickMs: sk.tickMs,
+                        mul: sk.mul / (sk.ms / sk.tickMs), burn: !!sk.burn,
+                        col: this.elemFx().col });
+      this.toast('TƯỜNG LỬA', '#ff7a3c');
+    };
+    Battle.prototype.upd_firelane = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'idle'; }
+    };
+
+    /* --- detonate: Bùng Nổ. Kích nổ mọi vết bỏng đang cháy CÙNG LÚC.
+     * Đòn duy nhất trong game có sát thương bằng 0 khi dùng sai lúc, và đó là
+     * điểm hay của nó: nó không tạo ra giá trị, nó THU LẠI giá trị đã gieo. Xả
+     * lúc chưa đốt gì là mất trắng — một cái bẫy công bằng, vì lớp bỏng hiện rõ
+     * trên từng con trước khi bấm. */
+    Battle.prototype.sk_detonate = function (sk, st) {
+      var p = this.player, self = this, n = 0;
+      st.dur = 320; p.stateDur = st.dur;
+      this.mobs.forEach(function (m) {
+        if (m.hp <= 0) return;
+        var stack = Math.min(sk.maxStack, m.fstack || 0);
+        if (stack <= 0 && !(m.status && m.status.burn)) return;
+        n++;
+        var mul = sk.mul * (1 + stack * sk.perStack);
+        self.dealToMob(m, self.playerDamage(mul, { el: 'fire' }),
+          { move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop },
+            from: Math.atan2(m.y - p.y, m.x - p.x), skill: true });
+        m.fstack = 0;
+        self.fx.push({ k: 'ring', x: m.x, y: m.y, r: sk.blastR, t: 0, ms: 340, col: '#ff7a3c' });
+        self.aoeDamage(m.x, m.y, sk.blastR, mul * 0.45, { el: 'fire' });
+      });
+      if (n) {
+        this.shake = Math.max(this.shake, sk.shake || 10);
+        this.toast('BÙNG NỔ x' + n, '#ff7a3c');
+      } else {
+        this.toast('không có gì đang cháy', '#8fa3b5');
+      }
+    };
+    Battle.prototype.upd_detonate = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 200; }
+    };
+
+    /* --- yank: Móc Kéo. Giật mọi thứ trên một đường thẳng về sát chân mình.
+     * Khác pull của Điểm Hút: điểm hút là quả cầu ném ra xa rồi hút quanh CHÍNH
+     * NÓ; móc kéo hút về phía NGƯỜI CHƠI, tức thì, theo một đường thẳng. Một cái
+     * gom quái ở đằng kia, một cái mang quái tới đây — hai ý đồ trái ngược. */
+    Battle.prototype.sk_yank = function (sk, st) {
+      var p = this.player, self = this, a = p.facing, n = 0;
+      st.dur = 380; p.stateDur = st.dur;
+      var ex = p.x + Math.cos(a) * sk.len, ey = p.y + Math.sin(a) * sk.len;
+      this.mobs.forEach(function (m) {
+        if (m.hp <= 0) return;
+        var vx = ex - p.x, vy = ey - p.y, L = Math.hypot(vx, vy) || 1;
+        var t = clamp(((m.x - p.x) * vx + (m.y - p.y) * vy) / (L * L), 0, 1);
+        var qx = p.x + vx * t, qy = p.y + vy * t;
+        if (Math.hypot(m.x - qx, m.y - qy) > sk.w / 2 + m.r) return;
+        n++;
+        self.dealToMob(m, self.playerDamage(sk.mul, {}),
+          { move: { kb: 0, poise: sk.poise, hs: sk.hitstop }, from: a, skill: true });
+        var dx = m.x - p.x, dy = m.y - p.y, d = Math.hypot(dx, dy) || 1;
+        var want = Math.max(m.r + 22, d * (1 - sk.pull));
+        m.x = p.x + dx / d * want; m.y = p.y + dy / d * want;
+        m.stagger = Math.max(m.stagger, sk.stunMs);
+      });
+      this.fx.push({ k: 'whiparc', x: p.x, y: p.y, a: a, len: sk.len, half: 0.22,
+                     t: 0, ms: 300, col: this.elemFx().col });
+      if (sk.trail) this.elemTrail(p.x, p.y, ex, ey, 420);
+      this.impact(p.x, p.y, sk.hitstop, sk.shake || 6, this.elemFx().col);
+      if (n) this.toast('MÓC KÉO x' + n, this.elemFx().col);
+    };
+    Battle.prototype.upd_yank = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'lag'; this.player.stateT = 0; this.player.stateDur = 200; }
+    };
+
+    /* --- spincyclone: Lốc Xích. Quay roi quanh người năm giây mà VẪN ĐI ĐƯỢC.
+     * Khác Vòng Tử của lưỡi hái (một vùng đứng yên tại chỗ đã đặt): cái này bám
+     * theo chân người chơi, nên nó là một đòn DI CHUYỂN — giá trị nằm ở việc bạn
+     * đi qua đâu, không ở chỗ bạn đứng. */
+    Battle.prototype.sk_spincyclone = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.ms; p.stateDur = st.dur;
+      st.tick = 0; st.spin = 0;
+      this.toast('LỐC XÍCH', this.elemFx().col);
+    };
+    Battle.prototype.upd_spincyclone = function (sk, st, dt) {
+      var p = this.player, self = this;
+      // Chân TỰ DO suốt đòn — đó là cả điểm mạnh. Đọc moveMul của KỸ NĂNG chứ
+      // không của vũ khí, vì đòn này ghi đè cách cây súng khoá chân.
+      this.moveStep(p, this.puni ? this.puni.moveVec : { x: 0, y: 0, m: 0 },
+                    1, dt, sk.moveMul || 0.82);
+      st.spin += dt; st.tick += dt;
+      var per = sk.mul / (sk.ms / sk.tickMs);
+      while (st.tick >= sk.tickMs) {
+        st.tick -= sk.tickMs;
+        this.mobs.forEach(function (m) {
+          if (m.hp <= 0) return;
+          if (dist(m, p) > sk.r + m.r) return;
+          self.dealToMob(m, self.playerDamage(per, {}),
+            { move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop },
+              from: Math.atan2(m.y - p.y, m.x - p.x), skill: true });
+        });
+        if (this.boss && this.boss.hp > 0 && dist(this.boss, p) < sk.r + this.boss.r) {
+          this.dealToBoss(this.playerDamage(per, {}), this.boss.x, this.boss.y, {});
+        }
+      }
+      this.fx.push({ k: 'whiparc', x: p.x, y: p.y, a: st.spin / 1000 * 7, len: sk.r,
+                     half: 0.9, t: 0, ms: 120, col: this.elemFx().col });
+      if (st.t >= st.dur) { p.state = 'lag'; p.stateT = 0; p.stateDur = 240; }
+    };
+
+    /* --- phase: Nhất Tuyến. Lướt XUYÊN QUA cả hàng rồi hiện lại ở đầu bên kia.
+     * Khác rush của Phá Cửa: rush DỪNG khi đâm vào và kết bằng một cú vung tại
+     * chỗ; phase không dừng vì bất cứ gì, không ai chạm được vào bạn suốt quãng
+     * đường, và sát thương rải đều dọc đường chứ không dồn vào cuối. Một đòn để
+     * XÔNG VÀO, một đòn để THOÁT RA. */
+    Battle.prototype.sk_phase = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.rushMs + 180; p.stateDur = st.dur;
+      st.a = p.facing; st.hit = []; st.moved = 0;
+      p.iframe = Math.max(p.iframe, sk.rushMs + 120);
+      this.fx.push({ k: 'ghost', x: p.x, y: p.y, a: st.a, t: 0, ms: 300,
+                     col: this.elemFx().col });
+    };
+    Battle.prototype.upd_phase = function (sk, st, dt) {
+      var p = this.player, self = this;
+      if (st.t < sk.rushMs) {
+        var step = sk.dist * (dt / sk.rushMs);
+        p.x = clamp(p.x + Math.cos(st.a) * step, 24, this.wW - 24);
+        p.y = clamp(p.y + Math.sin(st.a) * step, 24, this.wH - 24);
+        st.moved += step;
+        if (Math.random() < 0.5) {
+          this.fx.push({ k: 'ghost', x: p.x, y: p.y, a: st.a, t: 0, ms: 260,
+                         col: this.elemFx().col });
+        }
+        this.mobs.forEach(function (m) {
+          if (m.hp <= 0 || st.hit.indexOf(m) >= 0) return;
+          if (dist(m, p) > m.r + 30) return;
+          st.hit.push(m);
+          self.dealToMob(m, self.playerDamage(sk.mul, {}),
+            { move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop }, from: st.a, skill: true });
+        });
+      }
+      if (st.t >= st.dur) { p.state = 'idle'; }
+    };
+
+    /* --- reapfield: Vòng Tử. Một vòng lưỡi ĐỨNG YÊN TẠI CHỖ và cắt liên tục.
+     * Khác Vòng Mảnh của súng săn (một cú nổ mảnh bay ra rồi hết): cái này là một
+     * VÙNG tồn tại qua thời gian, nên nó dùng để chiếm chỗ chứ không để dồn sát
+     * thương vào một khoảnh khắc. */
+    Battle.prototype.sk_reapfield = function (sk, st) {
+      var p = this.player;
+      st.dur = sk.ringMs; p.stateDur = st.dur;
+      st.cx = p.x; st.cy = p.y; st.tick = 0; st.spin = 0;
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: sk.ringR, t: 0, ms: sk.ringMs,
+                     col: this.elemFx().col });
+    };
+    Battle.prototype.upd_reapfield = function (sk, st, dt) {
+      var p = this.player, self = this;
+      var per = sk.mul / (sk.ringMs / 300);
+      st.tick += dt; st.spin += dt;
+      while (st.tick >= 300) {
+        st.tick -= 300;
+        this.mobs.forEach(function (m) {
+          if (m.hp <= 0) return;
+          if (Math.hypot(m.x - st.cx, m.y - st.cy) > sk.ringR + m.r) return;
+          self.dealToMob(m, self.playerDamage(per, {}),
+            { move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop },
+              from: Math.atan2(m.y - st.cy, m.x - st.cx), skill: true });
+        });
+      }
+      this.fx.push({ k: 'whiparc', x: st.cx, y: st.cy, a: st.spin / 1000 * 6,
+                     len: sk.ringR, half: 1.1, t: 0, ms: 140, col: this.elemFx().col });
+      if (st.t >= st.dur) { p.state = 'idle'; }
+    };
+
     /* --- meteor: Thiên Thạch. Một khối rơi xuống ĐIỂM đã chỉ, sau một nhịp chờ.
      *
      * Nhịp chờ 850ms là dài nhất trong mọi đòn của game, và nó là một lời hứa
@@ -1689,6 +1978,44 @@
           ctx.globalAlpha = ab; ctx.fillStyle = f.glow || '#ffffff';
           ctx.beginPath(); ctx.arc(f.x, f.y, (5 + 20 * k) * (1 - k * 0.4), 0, TAU); ctx.fill();
         }
+        return true;
+      }
+
+      /* NÓN LỬA. Hai lớp quạt chồng nhau — lớp ngoài rộng và mờ, lớp trong hẹp
+       * và sáng. Một hình quạt đặc một màu trông như mảng giấy dán lên sân chứ
+       * không ra lửa; hai lớp lệch nhau mới có chiều sâu. */
+      case 'cone': {
+        ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.a);
+        ctx.globalCompositeOperation = 'lighter';
+        for (var ci = 0; ci < 2; ci++) {
+          var cw = ci ? f.half * 0.52 : f.half;
+          var cl = f.len * (ci ? 0.82 : 1) * (0.86 + 0.14 * Math.sin(f.x + k * 9));
+          ctx.globalAlpha = (ci ? 0.5 : 0.26) * (1 - k * 0.7);
+          ctx.beginPath(); ctx.moveTo(0, 0);
+          ctx.arc(0, 0, cl, -cw, cw); ctx.closePath();
+          ctx.fillStyle = ci ? '#fff2c0' : (f.col || '#ff7a3c');
+          ctx.fill();
+        }
+        ctx.restore();
+        return true;
+      }
+
+      /* CUNG ROI. Ba vệt cong lồng nhau, thu hẹp dần theo thời gian: thứ cần
+       * đọc được là roi vừa quét TỪ ĐÂU SANG ĐÂU, không phải nó đang ở đâu. */
+      case 'whiparc': {
+        ctx.save(); ctx.translate(f.x, f.y);
+        ctx.strokeStyle = f.col || '#e8f2ff';
+        ctx.lineCap = 'round';
+        for (var wi = 0; wi < 3; wi++) {
+          ctx.lineWidth = 5 - wi * 1.4;
+          ctx.globalAlpha = (0.85 - wi * 0.24) * (1 - k);
+          ctx.beginPath();
+          ctx.arc(0, 0, f.len * (0.72 + wi * 0.13),
+                  f.a - f.half + k * f.half * 0.5,
+                  f.a + f.half - k * f.half * 0.5);
+          ctx.stroke();
+        }
+        ctx.restore();
         return true;
       }
 

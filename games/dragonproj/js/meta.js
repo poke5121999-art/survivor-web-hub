@@ -94,21 +94,25 @@
    * cấp, limit break đủ và tiến hoá tối đa — tức là trạng thái mà mọi thứ đều
    * bật, xem một lần là biết game có gì.
    * Bấm lại không nhân bản: món nào đã có rồi thì bỏ qua. */
-  /* Bộ trưng bày phải phủ ĐỦ MƯỜI LỚP, mỗi lớp một cây — nếu không thì có lớp
+  /* Bộ trưng bày phải phủ ĐỦ MƯỜI BỐN LỚP, mỗi lớp một cây — nếu không thì có lớp
    * người chơi không bao giờ được cầm thử. Danh sách này bám theo G.WCLASS_SPLIT:
    * đổi bảng tách lớp mà quên đổi đây thì bộ trưng bày lặng lẽ có hai cây trùng
    * lớp và thiếu một lớp, nên có phép kiểm khoá lại đúng chuyện đó. */
   var SHOWCASE = [
-    { src: 'felnarog',    note: 'súng trường hoả' },   // rifle
-    { src: 'ulkatron',    note: 'súng săn sét' },      // shotgun
-    { src: 'magna',       note: 'bắn tỉa thổ' },       // sniper
-    { src: 'carniva',     note: 'cung hoả' },          // bow
-    { src: 'ayame',       note: 'gậy phép hoả' },      // staff (loại Soul)
-    { src: 'lich',        note: 'súng phóng thổ' },    // launcher
-    { src: 'gorynych',    note: 'tia nhiệt hoả' },     // laser
-    { src: 'amarok',      note: 'kiếm khí thuỷ' },     // blade
-    { src: 'pandemonius', note: 'lưỡi hái sét' },      // scythe
-    { src: 'galdrux',     note: 'cầu lửa sét' }        // orb
+    { src: 'boldon',      note: 'súng trường' },      // rifle
+    { src: 'dofungos',    note: 'súng săn' },         // shotgun
+    { src: 'grouton',     note: 'bắn tỉa' },          // sniper
+    { src: 'galidon',     note: 'cung' },             // bow
+    { src: 'glitch',      note: 'gậy phép' },         // staff
+    { src: 'veiltail',    note: 'súng phóng' },       // launcher
+    { src: 'kyulmar',     note: 'tia nhiệt' },        // laser
+    { src: 'frogrid',     note: 'kiếm khí' },         // blade
+    { src: 'kolun',       note: 'lưỡi hái' },         // scythe
+    { src: 'undoun',      note: 'cầu lửa' },          // orb
+    { src: 'dodonki',     note: 'súng quay' },        // gatling
+    { src: 'musashi',     note: 'luân xa' },          // chakram
+    { src: 'vaccahorn',   note: 'súng phun lửa' },    // flame
+    { src: 'rudolmea',    note: 'roi xích' }           // whip
   ];
 
   G.showcaseList = function () { return SHOWCASE.slice(); };
@@ -144,7 +148,11 @@
     laser:    ['Prism', 'Meridian', 'Daybreak'],
     blade:    ['Ionblade', 'Crescent', 'Severance'],
     scythe:   ['Reaper', 'Gyre', 'Harvest'],
-    orb:      ['Censer', 'Ember', 'Conflagration']
+    orb:      ['Censer', 'Ember', 'Conflagration'],
+    gatling:  ['Vortex', 'Maelstrom', 'Cataclysm'],
+    chakram:  ['Discus', 'Orbit', 'Perihelion'],
+    flame:    ['Torch', 'Pyre', 'Immolation'],
+    whip:     ['Lash', 'Coil', 'Leviathan']
   };
   var A_SUFFIX = { head: 'Visor', body: 'Vest', arm: 'Gauntlets', leg: 'Leggings' };
   function shortName(b) { var p = b.n.split(' '); return p[p.length - 1]; }
@@ -928,13 +936,19 @@
 
   G.starterKit = function (s) {
     var starter = 'grouton';
+    /* Mười bốn lớp, mười bốn dòng. Thiếu một dòng ở đây thì lớp đó phát ra một
+     * cây tên `undefined`, và người chơi quay trúng nhân vật lớp ấy sẽ không có
+     * gì mà lắp. Bảng này phải bám sát G.WEAPON_ORDER — có phép kiểm khoá lại
+     * đúng chuyện đó. */
     var NAMES = { rifle: 'Guild Carbine', launcher: 'Guild Mortar', shotgun: 'Guild Scattergun',
                   sniper: 'Guild Longshot', bow: 'Guild Shortbow', staff: 'Guild Scepter',
                   laser: 'Guild Emitter', blade: 'Guild Edge', scythe: 'Guild Reaper',
-                  orb: 'Guild Ember' };
+                  orb: 'Guild Ember', gatling: 'Guild Vortex', chakram: 'Guild Discus',
+                  flame: 'Guild Torch', whip: 'Guild Lash' };
     var SRC = { rifle: 'mumu', launcher: 'landaronba', shotgun: 'dodonki',
                 sniper: 'grouton', bow: 'galidon', staff: 'frogrid',
-                laser: 'kyulmar', blade: 'frogrid', scythe: 'dofungos', orb: 'vaccahorn' };
+                laser: 'kyulmar', blade: 'frogrid', scythe: 'dofungos', orb: 'vaccahorn',
+                gatling: 'dodonki', chakram: 'mumu', flame: 'landaronba', whip: 'grouton' };
 
     s.heroes = []; s.party = [null, null, null];
     G.STARTER_HEROES.forEach(function (id, i) {

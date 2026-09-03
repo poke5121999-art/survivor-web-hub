@@ -530,10 +530,18 @@ let DP_BANNERS = ['char', 'weapon', 'std'];
     // --- QUAY: món mới vào túi, món trùng thành Lõi Rồng ---
     s = DP.newSave('T'); s.core = 0; s.gem = 9e6;
     const n0 = s.gear.length + s.heroes.length;
-    let dup = null;
-    for (let i = 0; i < 120 && !dup; i++) {
+    /* Quay cho tới khi thấy CẢ HAI đường trùng, không chỉ đường đầu tiên gặp:
+     *   - trùng NGƯỜI  -> ra Lõi Rồng   (x.dupe)
+     *   - trùng ĐỒ     -> ra món thật   (x.spare)
+     * Bản trước dừng ngay khi gặp trùng người, mà trùng người xảy ra sớm hơn
+     * hẳn — 43 nhân vật so với 56 con x 5 ô đồ. Nên nó thoát ra trước khi kịp
+     * có món trùng nào, rồi phép kiểm ngay dưới báo "0 món thừa" và trông như
+     * một lỗi thật của game. Chờ đủ cả hai thì phép kiểm đo đúng thứ nó định đo. */
+    let dup = null, spareSeen = false;
+    for (let i = 0; i < 400 && !(dup && spareSeen); i++) {
       const res = DP.pull(s, 'std', 10);
-      dup = res.results.filter(x => x.dupe)[0] || null;
+      dup = dup || res.results.filter(x => x.dupe)[0] || null;
+      spareSeen = spareSeen || res.results.some(x => x.spare);
     }
     out.gear = { grew: s.gear.length + s.heroes.length > n0,
                  dupFound: !!dup, cores: dup ? dup.cores === DP.DUPE_CORE[dup.rank] : false,
@@ -597,8 +605,16 @@ let DP_BANNERS = ['char', 'weapon', 'std'];
   check('Tiến Hoá khi hết gold: từ chối, không đụng gì', eco.evolBroke.ok && eco.evolBroke.untouched);
   check('quay ra thứ mới thì vào thẳng túi', eco.gear.grew, JSON.stringify(eco.gear));
   check('quay ra thứ trùng thì thành Lõi Rồng đúng số lượng', eco.gear.dupFound && eco.gear.cores && eco.gear.stock);
+  /* ĐỒ TRÙNG PHẢI Ở LẠI TRONG TÚI, không tan thành Lõi Rồng — nếu tan hết thì
+   * không bao giờ có nguyên liệu để Đột phá, và cả một bậc nâng cấp thành bất
+   * khả thi. (Trùng NGƯỜI thì vẫn ra Lõi; đó là hai đường khác nhau.)
+   *
+   * Ngưỡng phải suy ra từ dữ liệu chứ không cắm cứng: mười bốn lớp và năm mươi
+   * sáu con Behemoth thì số tổ hợp món tăng lên, nên số lượt quay cần để chắc
+   * chắn đụng một món trùng cũng tăng. Cắm cứng "20 lượt" là phép kiểm sẽ hỏng
+   * mỗi lần thêm nội dung, mà hỏng vì lý do không liên quan gì tới thứ nó đo. */
   check('túi GIỮ đồ trùng để làm nguyên liệu đột phá', eco.gear.spares > 0,
-    eco.gear.spares + ' món thừa');
+    eco.gear.spares + ' món thừa / ' + eco.gear.stock + ' món trong túi');
   check('roster KHÔNG bao giờ có hai bản của cùng một nhân vật', eco.gear.heroDupOnly);
   check('Lõi Rồng không nằm trong bảng rơi hay quầy nào (không cày được)', eco.coreFarm === false);
   check('gọi hai lần với tài nguyên đủ MỘT lần: lần hai fail, không âm',
@@ -684,10 +700,12 @@ let DP_BANNERS = ['char', 'weapon', 'std'];
              scr: (document.querySelector('#screens .screen.on') || {}).id };
   });
   check('nút "Xóa dữ liệu" đưa game về đúng trạng thái mới tinh',
-    // 14 món: 3 cây của ba nhân vật mở đầu + 7 cây dự phòng cho bảy lớp còn lại
-    // + 4 mảnh giáp. Mười lớp thì phải là mười cây, không thì có lớp quay được
-    // người mà không có gì để lắp.
-    fresh.gold === 3000 && fresh.lv === 1 && fresh.gear === 14 && fresh.cleared === 0 &&
+    /* 18 món: 3 cây của ba nhân vật mở đầu + 11 cây dự phòng cho mười một lớp
+     * còn lại + 4 mảnh giáp. MƯỜI BỐN LỚP thì phải đủ mười bốn cây — thiếu một
+     * cây là có một lớp quay được người mà không có gì để lắp, và người chơi
+     * ngồi nhìn một nhân vật không đánh được. Con số này bám theo độ dài của
+     * G.WEAPON_ORDER, nên thêm lớp mà quên sửa đây là phép kiểm sẽ nói. */
+    fresh.gold === 3000 && fresh.lv === 1 && fresh.gear === 18 && fresh.cleared === 0 &&
     fresh.core === 0 && fresh.gem === 1600,
     JSON.stringify(fresh));
 

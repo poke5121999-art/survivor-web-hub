@@ -27,6 +27,14 @@
     return { id: id, n: n, rank: rank, wclass: wclass, el: el, spr: spr, d: d };
   }
 
+  /* TÁM NGƯỜI ĐÃ ĐỔI LỚP khi bốn lớp vũ khí mới ra đời (súng quay, luân xa,
+   * súng phun lửa, roi xích). Một lớp không có nhân vật nào là một lớp không ai
+   * chơi được — dù bảng chỉ số, kỹ năng và biểu tượng của nó đều đã có đủ.
+   *
+   * Chọn theo hình tượng, không bốc bừa: Roboco là người máy nên cầm súng quay;
+   * Flare có lửa ngay trong tên; Towa là quỷ nên hợp roi xích; Bae là hỗn loạn
+   * nên hợp thứ ném ra rồi quay lại. Lớp cũ của họ đều đang thừa người, nên
+   * không lớp nào tụt xuống dưới hai người. */
   G.HEROES = [
     /* ---------------------------------------------------------------- SS -- */
     h('calli', 'Mori Calliope', 'SS', 'scythe', 'dark', 'Calli',
@@ -65,19 +73,19 @@
       'Chó. Xông vào là không lùi.'),
     h('watame', 'Tsunomaki Watame', 'A', 'laser', 'light', 'Watame',
       'Cừu. Bắn xong rồi bảo watame did nothing wrong.'),
-    h('flare', 'Shiranui Flare', 'A', 'laser', 'fire', 'Flare',
+    h('flare', 'Shiranui Flare', 'A', 'flame', 'fire', 'Flare',
       'Elf. Một phát xuyên hết cả hàng, và hàng đó cháy.'),
     h('shion', 'Murasaki Shion', 'A', 'laser', 'water', 'Shion',
       'Phù thuỷ nhỏ. Gậy phép dài hơn cả người.'),
-    h('towa', 'Tokoyami Towa', 'A', 'sniper', 'dark', 'Towa',
+    h('towa', 'Tokoyami Towa', 'A', 'whip', 'dark', 'Towa',
       'Quỷ. Ba chiếc sừng và một tầm ngắm không ai thoát.'),
-    h('subaru', 'Oozora Subaru', 'A', 'shotgun', 'water', 'Subaru',
+    h('subaru', 'Oozora Subaru', 'A', 'whip', 'water', 'Subaru',
       'Vịt. Súng săn: bắn gần, bắn mạnh.'),
     h('ame', 'Watson Amelia', 'A', 'sniper', 'thunder', 'Ame',
       'Thám tử. Một phát ngắm kỹ và một cái đồng hồ tua ngược được.'),
     h('mumei', 'Nanashi Mumei', 'A', 'bow', 'light', 'Mumei',
       'Cú. Bắn từ chỗ không ai nhìn.'),
-    h('bae', 'Hakos Baelz', 'A', 'scythe', 'dark', 'Bae',
+    h('bae', 'Hakos Baelz', 'A', 'chakram', 'dark', 'Bae',
       'Chuột hỗn loạn. Xúc xắc quyết định bạn ăn mấy viên.'),
     h('anya', 'Anya Melfissa', 'A', 'scythe', 'earth', 'Anya',
       'Keris. Nòng cong, đạn đi xoáy.'),
@@ -89,17 +97,17 @@
       'Mẹ thiên nhiên. Rễ cây mọc ra từ đầu gậy.'),
     h('reine', 'Pavolia Reine', 'A', 'bow', 'light', 'Reine',
       'Công. Mũi tên xoè ra như cái đuôi.'),
-    h('haato', 'Akai Haato', 'A', 'launcher', 'fire', 'Haato',
+    h('haato', 'Akai Haato', 'A', 'flame', 'fire', 'Haato',
       'Thớt. Đừng hỏi, cứ né.'),
 
     /* ----------------------------------------------------------------- B -- */
     h('sora', 'Tokino Sora', 'B', 'rifle', 'light', 'Sora',
       'Người đầu tiên. Khẩu cơ bản, chuẩn từng viên.'),
-    h('roboco', 'Roboco-san', 'B', 'laser', 'thunder', 'Roboco',
+    h('roboco', 'Roboco-san', 'B', 'gatling', 'thunder', 'Roboco',
       'Robot. Chùm tia, ngắm tự động.'),
     h('mel', 'Yozora Mel', 'B', 'staff', 'dark', 'Mel',
       'Ma cà rồng. Phép tối, và hút máu.'),
-    h('matsuri', 'Natsuiro Matsuri', 'B', 'shotgun', 'fire', 'Matsuri',
+    h('matsuri', 'Natsuiro Matsuri', 'B', 'gatling', 'fire', 'Matsuri',
       'Lễ hội. Bắn gần, và nóng.'),
     h('aki', 'Aki Rosenthal', 'B', 'laser', 'none', 'Aki',
       'Elf múa. Bắn theo nhịp, không lệch một phách.'),
@@ -111,7 +119,7 @@
       'Miko. Tia laser từ mắt, phát qua cung.'),
     h('azki', 'AZKi', 'B', 'sniper', 'light', 'AZKi',
       'Diva. Sóng âm nén thành một đường thẳng.'),
-    h('iofi', 'Airani Iofifteen', 'B', 'staff', 'thunder', 'Iofi',
+    h('iofi', 'Airani Iofifteen', 'B', 'chakram', 'thunder', 'Iofi',
       'Hoạ sĩ ngoài hành tinh. Cọ vẽ ra tia.'),
     h('risu', 'Ayunda Risu', 'B', 'bow', 'earth', 'Risu',
       'Sóc. Bắn hạt dẻ, nhiều và nhanh.'),
