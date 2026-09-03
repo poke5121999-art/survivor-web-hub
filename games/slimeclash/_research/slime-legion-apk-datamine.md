@@ -321,3 +321,52 @@ là hero chưa lộ tên trong bảng này — tên đầy đủ nằm trong `co
   và trọng số dồn vào 2 kỹ năng mạnh (`303` w50, `304` w55).
 - Kỹ năng `103` có trọng số **1/106 ≈ 0,9%** ở hộp ghép-3 — kỹ năng hiếm nhất, dùng làm
   "khoảnh khắc may mắn". Trong khi `SafetySkills = 104|204|3202` là bộ bảo hiểm khi RNG xấu.
+
+---
+
+## 11. Art và roster đầy đủ — đợt đào thứ hai `[ĐO TỪ APK]`
+
+Đợt đầu chỉ lấy roster qua `GiftTriggerConfig` nên ra 59 hero. Đào tiếp phần art thì ra
+**đủ 96 hero**.
+
+### 11.1 Roster thật: 96 hero, id 101–196
+
+Nguồn: **tên file** `assets/assetpack/res/heroes/<id>_<slug>.bytes`. Đây là danh sách đầy
+đủ nhất — `GiftTriggerConfig` chỉ phủ 59/96 vì không phải hero nào cũng có gói nạp riêng.
+
+37 hero mà đợt đầu bỏ sót, kèm slug: `105 reaper`, `122 goblins`, `123 mummy`, `134 wolf`,
+`140 finer`, `167 aurora`, `168 angel`, `169 youyou`, `170 simon`, `171 forestelf`,
+`172 sivir`, `173 kalifna`, `174 ifrit`, `175 sapphire`, `176 luna`, `177 beelzebubslime`,
+`178 beelzebubarcher`, `179 metis`, `180 iris`, `181 tahla`, `182 mary`, `184 selene`,
+`186 nephthys`, `187 laina`, `188 shifrony`, `189 teresa`, `190 beelzebubsiren`, `191 eryx`,
+`192 tamamo`, `193 wukong`, `194 serqet`, `195 zhenji`, `196 rhea`.
+
+`196 rhea` khớp đúng ghi chú "New Hero: Rhea" trong patch note 4.5.0 mà agent research tìm
+được độc lập trên Google Play — hai nguồn xác nhận chéo nhau.
+
+Slug cũng đính chính vài tên: `110` là **dracula** (bảng gói ghi 吸血鬼 = ma cà rồng),
+`183` là **rockturtle** (khớp "Giant Rock Tortoise"), `139` là **firedragon** (bảng gói ghi
+"Luby" — hai tên khác nhau cho cùng id, chưa rõ cái nào là tên hiển thị).
+
+### 11.2 Bậc hiếm: có tín hiệu thứ hai, và nó KHÔNG trùng tín hiệu thứ nhất
+
+Sprite chân dung trong `ui/avataricon.bytes` đặt tên `Headicon_<bậc>_<id>`. Bậc chỉ có
+**hai giá trị: 1 và 4** — 61 hero nhóm 1, **33 hero nhóm 4** (trên 94 hero có chân dung).
+
+So với suy luận đợt đầu (dựa độ dài chuỗi gói nạp: 15 thường / 31 hiếm / 11 cao cấp):
+hai cách chia **không khớp**. Nhóm icon 4 gộp cả phần "hiếm" lẫn một phần "cao cấp", còn
+vài hero đợt đầu xếp cao cấp (`117 medusa`, `153 prophet`…) lại nằm ở nhóm icon 1.
+
+→ **Không có nguồn nào trong APK cho bảng rarity dứt điểm.** Cả hai tín hiệu đều đo *độ
+hiếm thương mại*, và chúng mâu thuẫn. Đừng ai dùng file này để khẳng định bậc hiếm.
+
+### 11.3 Art lấy được
+
+| Thứ | Nguồn | Ghi chú |
+|---|---|---|
+| 94 chân dung hero | `Headicon_<bậc>_<id>` trong `ui/avataricon.bytes`, gốc 208×208 | thiếu `122`, `134` |
+| Hoạt ảnh vũ khí | `res/heroes/<id>_<slug>.bytes`, khung `_0.._6`, 256×256 | **không phải nhân vật** — đã thử nhầm |
+| Chưa dùng | `res/skillicon` (973), `res/enemyicon` (250), `res/enemies/spines` (308), `res/terrain` (35), `ui/gameplay.bytes`, `res/audios` (525) | |
+
+Chỉ **8/8344** file `.bytes` trong pack bị mã hoá — toàn bộ art đọc được bằng UnityPy,
+không cần khoá XXTEA.

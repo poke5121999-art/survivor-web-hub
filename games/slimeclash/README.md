@@ -40,23 +40,38 @@ Những số `[APK]` đáng chú ý — **đây là số của một game đã c
 - **Máu thành 1000, bất biến ở cả 1.744 dòng** — họ không buff thành lấy một lần nào.
 - **Trần vàng và mảnh theo chương** — `coin_max` 220 → 1.800, `hero_card_max` 25/35/45.
 - **Bảng trọng số rơi hộp kỹ năng** — ghép càng nhiều ô, bảng càng tốt.
-- **59 hero kèm id và tên thật.**
+- **96 hero kèm id và slug thật**, 94 con có chân dung.
 
 Cách lấy được và toàn bộ dẫn chứng: `_research/slime-legion-apk-datamine.md`.
 
+## Art
+
+94 chân dung trong `assets/units/` là **ảnh TẠM rip từ APK Slime Legion** — chỗ để vẽ đè.
+Đổi art = thay PNG + sửa `assets/asset-map.js`, **không đụng code**. Chi tiết và lý do ô cờ
+phải trộn màu: `ASSETS.md`.
+
 ## Chỗ KHÔNG phải số thật
 
-`js/data.js` có 59 hero với **tên và id thật**, nhưng **chỉ số thì không**. Bảng chỉ số gốc
+`js/roster.js` có **96 hero** (id 101–196) với **tên, slug và bậc icon thật**, nhưng
+**chỉ số thì không**. Bảng chỉ số gốc
 nằm trong `config/table.bytes` bị mã hoá XXTEA và chưa giải được. Bốn agent research đã xác
 nhận HP/sát thương/tốc đánh của các hero này **không tồn tại ở bất kỳ nguồn công khai nào** —
-wiki fandom chỉ có 8 trang hero, đều nằm ngoài danh sách 59.
+wiki fandom chỉ có 8 trang hero, đều nằm ngoài roster này.
 
 Nên chỉ số được dựng theo thang 38 unit của Clash of Heroes (thang này đã cross-check hai
 nguồn độc lập). Header của `data.js` ghi rõ điều đó. **Đừng ai đọc nhầm thành số của Slime Legion.**
 
-Bậc hiếm (`common` / `rare` / `epic`) thì suy từ APK: game phân tầng hero bằng độ dài chuỗi
-gói nạp và cooldown. Nhưng đó là **độ hiếm thương mại**, không phải sức mạnh gameplay — tier
-list cộng đồng không xác nhận hai thứ trùng nhau.
+37/96 hero chỉ có tên **suy từ slug** trong APK (ví dụ `firedragon` → "Firedragon") chứ chưa
+xác nhận tên hiển thị thật; những con đó bị đánh dấu `named:false` và hiện dấu `*` trong game.
+
+Bậc hiếm có **hai tín hiệu từ APK và chúng không trùng nhau**:
+- nhóm icon `Headicon_<bậc>_<id>` — chỉ có hai giá trị, 1 và 4 (33 hero thuộc nhóm 4);
+- cấu hình gói nạp — 11 hero được xếp riêng (chuỗi 3 gói, cooldown 720 phút).
+
+Chọn: 11 hero kia làm **champion**, nhóm icon 4 còn lại làm **elite**, phần còn lại **core**.
+Đây là quyết định thiết kế trên hai nguồn đo lệch nhau, không phải số đo — và cả hai đều đo
+**độ hiếm thương mại**, không phải sức mạnh gameplay. Tier list cộng đồng không xác nhận hai
+thứ đó trùng nhau.
 
 ## IAP mua-free
 
@@ -105,16 +120,21 @@ biết dùng fusion/link có chủ đích, nên con số này chỉ là chặn d
 ## Cấu trúc
 
 ```
-index.html        vỏ + thứ tự nạp script
-css/style.css     bố cục dọc, lưới địch trên / lưới ta dưới
-js/config.js      TOÀN BỘ số cân bằng, mỗi dòng có nhãn nguồn
-js/data.js        59 hero (tên/id thật, chỉ số dựng)
-js/engine.js      bàn cờ, đội hình, sát thương xuyên tuyến, vòng lượt
-js/ai.js          AI địch (tham lam 1 bước — cố ý không mạnh)
-js/economy.js     tiền tệ, trần chương, gói mua-free
-js/save.js        localStorage + cầu HubSave của hub
-js/ui.js          render + thao tác chạm
-js/main.js        nối vòng lặp nhà → trận → thưởng
-_test/sim.js      test headless
-_research/        12 tài liệu nguồn
+index.html            vỏ + thứ tự nạp script
+css/style.css         bố cục dọc, lưới địch trên / lưới ta dưới
+assets/units/*.png    94 chân dung (art TẠM, rip từ APK)
+assets/asset-map.js   khoá art -> đường dẫn; sửa ở đây khi vẽ đè
+js/atlas.js           tra art theo khoá, thiếu thì rơi về ô màu trơn
+js/config.js          TOÀN BỘ số cân bằng, mỗi dòng có nhãn nguồn
+js/roster.js          96 hero, SINH TỰ ĐỘNG từ APK — đừng sửa tay
+js/data.js            chỉ số dựng trên roster
+js/engine.js          bàn cờ, đội hình, sát thương xuyên tuyến, vòng lượt
+js/ai.js              AI địch (tham lam 1 bước — cố ý không mạnh)
+js/economy.js         tiền tệ, trần chương, gói mua-free
+js/save.js            localStorage + cầu HubSave của hub
+js/ui.js              render + thao tác chạm
+js/main.js            nối vòng lặp nhà → trận → thưởng
+_test/sim.js          test headless
+_research/            12 tài liệu nguồn
+ASSETS.md             art: nguồn, luật đổi, vì sao ô cờ trộn màu
 ```

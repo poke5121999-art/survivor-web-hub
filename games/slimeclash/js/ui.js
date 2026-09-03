@@ -60,7 +60,21 @@
       if (u.kind === 'wall') d.classList.add('wall');
       if (u.klass === 'elite') d.classList.add('elite');
       if (u.klass === 'champion') d.classList.add('champion');
-      d.textContent = u.kind === 'wall' ? u.hp : u.power;
+
+      // Chân dung nằm TRONG ô, chừa viền để lộ màu của ô. Màu mới là thứ người chơi
+      // ghép, nên nó phải luôn đọc được kể cả khi ảnh chiếm gần hết ô.
+      var art = root.Atlas && root.Atlas.unit(u.heroId);
+      if (art) {
+        var im = document.createElement('i');
+        im.className = 'art';
+        im.style.backgroundImage = 'url("' + art + '")';
+        d.appendChild(im);
+        d.classList.add('has-art');
+      }
+      var n = document.createElement('b');
+      n.className = 'num';
+      n.textContent = u.kind === 'wall' ? u.hp : u.power;
+      d.appendChild(n);
       d.title = u.name + ' · ' + u.klass + ' · máu ' + u.hp + ' · lực ' + u.power;
     }
     return d;
@@ -183,9 +197,13 @@
       var st = DATA.statAt(h, own.level);
       var el = document.createElement('div');
       el.className = 'item';
+      var art = root.Atlas && root.Atlas.unit(h.id);
       el.innerHTML =
+        (art ? '<i class="thumb u-' + h.color + '" style="background-image:url(' +
+               JSON.stringify(art) + ')"></i>' : '') +
         '<div class="grow"><div class="name">' + h.name +
-        '<span class="tag ' + h.rarity + '">' + h.rarity + '</span></div>' +
+        (h.named ? '' : '<span title="tên suy từ slug trong APK, chưa xác nhận">*</span>') +
+        '<span class="tag ' + h.rarity + '">' + (DATA.RARITY_VI[h.rarity] || h.rarity) + '</span></div>' +
         '<div class="meta">' + h.klass + ' · ' + DATA.COLOR_VI[h.color] +
         ' · cấp ' + own.level + ' · máu ' + st.hp + ' · lực ' + st.power +
         ' · nạp ' + h.charge + ' lượt</div></div>' +
