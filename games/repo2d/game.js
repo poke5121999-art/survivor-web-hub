@@ -2484,22 +2484,24 @@ function prerenderWorld(rnd){
         c.fillStyle = 'rgba(0,0,0,0.30)'; c.fillRect(x, y+TILE-1, TILE, 1);
       }
       if (!isW(gx,gy-1)){
-        // Mặt sau — đỉnh tường nhìn từ phía bên kia. Nó tối hơn mặt trước, nhưng vẫn phải TỐI DẦN
-        // VÀO TRONG chứ không tối dần ra ngoài: đứng ở phòng phía trên soi xuống thì cạnh gần
-        // đo được 47 còn ruột đo được 71, tức là vẫn sáng dần về phía khuất — đúng cái lỗi vừa
-        // sửa ở mặt trước, chỉ nhẹ hơn. Một luật chỉ đúng ở một mặt thì không phải một luật.
-        // Dải này phủ đúng bằng độ sâu đèn ăn được (LIP_MAX). Ngắn hơn thì hết dải là độ sáng
-        // nảy ngược lên một bậc, đo được 45 rồi vọt lại 71 — một cái gờ sáng giữa bức tường.
-        // NHẠT BỚT 2026-09-01: 0.40 ở đáy dải nghĩa là chỗ TỐI NHẤT của mặt sau nằm đúng chỗ
-        // đèn ăn sâu nhất, nên đứng ở phòng phía trên soi xuống thì cả dải sáng đọc 65..121
-        // trong khi sàn ngay cạnh đọc 128 — vẫn là "soi vào mà tường không tỏ", chỉ đổi mặt.
-        // Mặt sau PHẢI tối hơn mặt trước (nó là đỉnh tường nhìn từ phía khuất), nhưng tối hơn
-        // là 0.28 chứ không phải gần một nửa.
-        const bd = Math.round(LIP_MAX);
-        const bg = c.createLinearGradient(0, y, 0, y+bd);
-        bg.addColorStop(0, 'rgba(0,0,0,0.05)');
-        bg.addColorStop(1, 'rgba(0,0,0,0.28)');
-        c.fillStyle = bg; c.fillRect(x, y, TILE, bd);
+        // Mặt sau — đỉnh tường nhìn từ phía khuất. Nó tối hơn mặt trước, và ĐỔI HÌNH 2026-09-03
+        // cùng lúc với việc đèn ăn hết bề dày tường.
+        //
+        // Dải cũ chỉ phủ nửa ô (LIP_MAX) và tối DẦN XUỐNG, vì hồi đó đèn cũng chỉ tới nửa ô —
+        // qua khỏi dải là tối tuyệt đối nên không ai thấy chỗ nối. Nay cả ô đều có đèn, và cái
+        // dải ấy để lại đúng thứ nó sinh ra để tránh: nửa trên tối dần tới 0.28, hết dải thì
+        // độ sáng nảy ngược lên một bậc, rồi mép dưới lại được mặt trước tô sáng thêm — ba
+        // vạch sáng-tối nằm trong 24 điểm ảnh, mắt đọc ra sọc chứ không đọc ra một mặt tường.
+        //
+        // Nay là MỘT dốc duy nhất phủ cả ô, tối ở mép trên và tan hết trước khi tới mặt trước.
+        // Đúng quy ước nhìn từ trên xuống đã dùng ở mặt trước: càng lùi về phía khuất càng chìm,
+        // không có chỗ nào sáng nảy lên giữa chừng. Và chỉ 0.18 chứ không 0.28 — bức tường phải
+        // TỎ cả bức, cái dốc này chỉ để nó có bề dày chứ không phải để giấu nửa trên đi.
+        const bg = c.createLinearGradient(0, y, 0, y+TILE);
+        bg.addColorStop(0,    'rgba(0,0,0,0.18)');
+        bg.addColorStop(0.62, 'rgba(0,0,0,0.02)');
+        bg.addColorStop(1,    'rgba(0,0,0,0)');
+        c.fillStyle = bg; c.fillRect(x, y, TILE, TILE);
       }
       // A one-tile partition seen from above is a LINE, and a line needs two edges or it vanishes
       // into the floor. The side faces are what give a vertical run its thickness now that it has
@@ -2759,78 +2761,87 @@ function visPoly(ox,oy,R,uniform){
 // đa giác này sinh ra để chặn. Cánh cửa vẫn phải sáng (đứng soi đèn vào cửa mà cửa đen thì cũng
 // là cái lỗi đang đi sửa), nên nó được nới đúng bằng bề dày của chính nó: DOOR_THICK, tức 6px,
 // nằm gọn trong nửa ô cửa nên không con mắt nào thấy được sàn bên kia.
-// Đèn ăn vào tường SÂU BAO NHIÊU, và ăn theo góc tới.
+// SÁNG NGUYÊN BỨC TƯỜNG, không sáng một lớp mặt — chủ dự án, 2026-09-03:
+// "chiếu vào cần sáng rõ nguyên bức tường luôn, đừng chỉ sáng 1 nữa, chỉ che sau bức tường thôi".
 //
-// Bản vá 2026-08-31 buổi sáng chỉ trả lời "tường có sáng không". Nó cho tia đi tới hết mép ô,
-// nên cả ô tường dày 24 điểm ảnh sáng đều một mức. Đo được ở ba hạt giống: soi thẳng vào một
-// bức tường gỗ thì mặt tường (mép giáp phòng) đọc 77-78/255, ruột tường 76-85, còn mép XA
-// nhất — cái mép quay sang phòng bên, đáng lẽ tối nhất — đọc 88-95, tức là SÁNG NHẤT cả dải.
-// Ngoài đời không có mặt phẳng nào sáng dần về phía khuất; nên nó không đọc ra một bức tường
-// đứng, nó đọc ra một thanh gỗ sáng nằm trên sàn.
+// Bản 2026-09-01 cắt đèn theo hai luật vật lý: chỉ liếm nửa ô (LIP_MAX) và nhân với góc tới
+// (N·L). Đúng sách vở, sai cái mà mắt cần đọc được. Hậu quả đo trên khung hình:
+//   - nửa xa của mỗi ô tường chìm hẳn vào tối, nên một bức tường dày 24 điểm ảnh chỉ hiện ra
+//     một vạch sáng chừng 13 — mắt đọc ra một cái gờ, không đọc ra bức tường;
+//   - dãy tường trước mặt thì đậm ở giữa và tắt dần ra hai đầu vì mũ 1.5 của N·L, nên chỉ ĐÚNG
+//     MỘT khúc tường sáng còn phần còn lại của cùng bức tường ấy vẫn đen.
 //
-// Hai luật thay thế, đều là luật của mặt phẳng thật:
+// Luật mới, đúng một câu: tia chạm vật đặc thì đi hết BỀ DÀY của khối đặc đó rồi dừng ngay tại
+// mặt bên kia. Cả ô tường sáng đều từ mép này sang mép kia, không phụ thuộc góc tới.
 //
-// 1. Đèn chỉ liếm được một LỚP MẶT, không xuyên hết bề dày. Lớp đó dừng trong nửa ô, nên phần
-//    còn lại của ô chìm vào tối và chính khoảng tối đó là thứ nói cho mắt biết bức tường có bề
-//    dày. Trước đây dải sáng chấm dứt bằng một vách đứng 94 -> 3 trong 2 điểm ảnh; nay nó tắt
-//    dần bên trong ô.
-// 2. Tường soi thẳng thì sáng, tường soi chéo thì gần như không. Đây là số hạng N·L kinh điển:
-//    một mặt phẳng chỉ có một pháp tuyến nên nếu không nhân với góc tới thì mọi điểm trên nó
-//    sáng bằng nhau, và đó đúng là định nghĩa của "trông phẳng lì"
-//    (learnopengl.com/Advanced-Lighting/Normal-Mapping). Có số hạng này thì một dãy tường
-//    trước mặt sẽ đậm ở giữa và nhạt dần ra hai đầu — mắt đọc ra một mặt phẳng cong theo tầm
-//    nhìn, thay vì một thanh sáng đều.
+// Cái CHẶN vẫn là chặn hình học, không phải một khoảng nới đoán chừng: điểm dừng luôn rơi trên
+// một mép ô — mép nơi ô kế tiếp KHÔNG đặc, hoặc mép xa của chính hàng ô vừa chạm, tuỳ cái nào
+// tới trước. Không tia nào bước được một điểm ảnh vào ô sàn phía sau, nên "chỉ che sau bức tường
+// thôi" đúng theo nghĩa đen: đo 225-310 điểm sàn phía sau tường trên bốn hạt giống, sáng nhất
+// vẫn 4/255, y hệt trước bản vá này.
 //
-// KHÔNG bỏ phép min với mép ô: quyết định cũ đã ghi rõ, một khoảng nới cố định vừa đủ soi bức
-// tường dày một ô thì cũng vừa đủ rò sang phòng bên ở góc chéo. Lấy min của cả hai thì chặt hơn
-// từng cái một — không bao giờ qua nổi mép ô, mà cũng không bao giờ sáng hết bề dày.
+// Đèn dừng ở BỨC TƯỜNG THỨ NHẤT, không đi tiếp vào thứ nằm sau nó — "chỉ che sau bức tường thôi".
+// Đo được khi chưa có luật này: một bức tường có cụm tủ kê sát mặt sau, đèn đi hết 24 điểm ảnh bề
+// dày tường rồi thừa 14 ăn sang cụm tủ, nên trên màn hình có hai mảng sáng hình thang lơ lửng phía
+// sau bức tường đang soi. Không phải rò sang phòng bên (sàn sau tường vẫn đọc 3/255) nhưng mắt đọc
+// ra "đèn xuyên qua tường", tức là vẫn sai.
+//
+// Luật: mặt tường nằm ngang thì đèn chỉ ăn trong HÀNG ô vừa chạm, mặt đứng thì chỉ trong CỘT ô đó.
+// Chặn theo ĐÚNG MỘT trục — trục ăn sâu — chứ không lấy min với cả bốn mép ô như bản 2026-08-31:
+// chính phép min hai trục ấy đẻ ra mấy vết khuyết hình chữ V, vì tia chạm sát ranh giữa hai ô tường
+// CÙNG HÀNG thì mép bên chỉ cách nó một điểm ảnh. Đi ngang trong cùng một hàng là đi trong cùng một
+// bức tường nên vẫn cho đi; bước sang hàng sau mới là sang một vật khác nên chặn.
+//
+// Trần độ sâu WALL_DEEP lo nốt trường hợp còn lại: tia quét SƯỢT dọc dãy tường thì không bao giờ
+// rời khỏi hàng, nên nó đi được cả trăm điểm ảnh trong ruột tường, và hai đỉnh liền nhau của đa
+// giác lệch nhau xa như thế thì cạnh nối chúng phình ra ngoài ở góc cửa. 1.6 ô = 38px, vừa hơn
+// đường chéo một ô (34px) nên tường dày một ô luôn được soi hết bề dày.
+//
+// Cánh cửa đóng KHÔNG theo luật này: phía sau cánh cửa là sàn phòng bên chứ không phải khối
+// đặc, đi hết "bề dày" ở đó là rọi thẳng qua cửa. Nó vẫn được nới đúng bằng bề dày của chính
+// nó — DOOR_THICK, 6px, gọn trong nửa ô cửa.
 // SEE: docs/patches/phase-5.4-patch-29-repo-wall-light.md
-const LIP_MAX   = TILE * 0.55;    // soi thẳng mặt: lớp mặt dày chừng nửa ô
-const LIP_GRAZE = TILE * 0.16;    // soi chéo hết cỡ: còn đúng một vệt, để dải tường không bị rách
-function faceLip(dx, dy, s){
-  if (!s) return LIP_MAX;
-  const ex = s.x2 - s.x1, ey = s.y2 - s.y1;
-  const el = Math.hypot(ex, ey);
-  if (!(el > 1e-6)) return LIP_MAX;
-  // |tia · pháp tuyến mặt|: 1 là soi vuông góc vào mặt, 0 là quét sượt dọc mặt.
-  const nd = Math.abs(dx * (-ey / el) + dy * (ex / el));
-  // Mũ 1.5: giữ được gần hết độ sáng quanh chính diện rồi mới tụt nhanh, nên một bức tường
-  // hơi chếch vẫn là tường sáng, còn tường gần như song song tia thì tắt hẳn.
-  return LIP_GRAZE + (LIP_MAX - LIP_GRAZE) * Math.pow(nd, 1.5);
-}
-// Đi trong KHỐI ĐẶC, không dừng ở mép ô — và đây là chỗ sinh ra mấy vết khuyết hình chữ V
+const MARCH_LUI = TILE * 0.55;   // giá trị lui khi hình học suy biến, không trả ra số nào dùng được
+const WALL_DEEP = TILE * 1.6;    // trần độ sâu trong khối đặc: hơn đường chéo một ô, đủ cho tường dày một ô
+// Đi trong KHỐI ĐẶC tới khi ra khỏi nó — và đây cũng là chỗ đã sinh ra mấy vết khuyết hình chữ V
 // trên dải tường được soi sáng, 2026-09-01.
 //
-// Bản cũ lấy min với khoảng cách tới mép của ĐÚNG MỘT ô: tia nào chạm tường ngay sát đường
-// ranh giữa hai ô tường thì "mép ô" cách nó chưa tới một điểm ảnh, nên đèn ăn vào tường đúng
-// 0 — trong khi tia bên cạnh, chạm giữa ô, ăn vào đủ 13. Hai ô tường liền nhau là MỘT BỨC
-// TƯỜNG chứ không phải hai vật, nên cái ranh giữa chúng không được phép để lại dấu vết gì.
-// Đo trên ảnh chụp: cứ đúng một ô (24 điểm ảnh) lại một vết khuyết đen ăn ngược vào dải sáng,
-// và mắt đọc cả dải ra hàng răng cưa thay vì một mặt tường.
-//
-// Luật thay thế giữ NGUYÊN thứ mà phép min sinh ra để giữ — không rọi sang phòng bên — nhưng
-// phát biểu nó đúng chỗ: đi tiếp qua mép ô KHI VÀ CHỈ KHI ô bên kia mép cũng đặc. Gặp ô rỗng
-// là dừng ngay tại mép, y như cũ. Bức tường dày một ô vẫn không bị xuyên, vì cái chặn thật sự
-// là faceLip (tối đa LIP_MAX < một ô) chứ chưa bao giờ là mép ô.
+// Bản cũ hơn nữa lấy min với khoảng cách tới mép của ĐÚNG MỘT ô: tia nào chạm tường ngay sát
+// đường ranh giữa hai ô tường thì "mép ô" cách nó chưa tới một điểm ảnh, nên đèn ăn vào tường
+// đúng 0 — trong khi tia bên cạnh, chạm giữa ô, ăn vào đủ 13. Hai ô tường liền nhau là MỘT BỨC
+// TƯỜNG chứ không phải hai vật, nên cái ranh giữa chúng không được để lại dấu vết gì: đi tiếp
+// qua mép ô KHI VÀ CHỈ KHI ô bên kia mép cũng đặc. Gặp ô rỗng là dừng ngay tại mép.
 function marchSolid(hx, hy, dx, dy, gx, gy){
   let t = 0;
-  // Nhiều nhất hai lần qua mép: lớp mặt dày chưa tới một ô, mà một ô rộng TILE.
-  for (let k = 0; k < 3; k++){
+  for (let k = 0; k < 5; k++){
     const bx = dx > 0 ? (gx+1)*TILE : gx*TILE;
     const by = dy > 0 ? (gy+1)*TILE : gy*TILE;
     const px = hx + dx*t, py = hy + dy*t;
     const tx = (dx > 1e-9 || dx < -1e-9) ? (bx - px)/dx : Infinity;
     const ty = (dy > 1e-9 || dy < -1e-9) ? (by - py)/dy : Infinity;
     const mep = Math.min(tx, ty);
-    if (!(mep >= 0) || mep === Infinity) return LIP_MAX;
+    if (!(mep >= 0) || mep === Infinity) return MARCH_LUI;
     // Bước qua mép một chút để đọc ô KẾ TIẾP, không đọc lại ô vừa ra khỏi.
     const t2 = t + mep + 0.02;
     const ngx = ((hx + dx*t2)/TILE)|0, ngy = ((hy + dy*t2)/TILE)|0;
     if (!solidAt(ngx, ngy)) return t + mep;    // ô bên kia là phòng: dừng đúng ở mặt tường
     t = t2; gx = ngx; gy = ngy;
-    if (t > LIP_MAX) return t;                  // đã quá lớp mặt, faceLip sẽ cắt nốt
+    if (t > WALL_DEEP) return WALL_DEEP;       // khối đặc dày quá: cắt, đừng tô sáng cả cụm
   }
-  return t;
+  return Math.min(t, WALL_DEEP);
+}
+// Mép xa của HÀNG (hoặc CỘT) ô mà tia vừa chạm vào, đo dọc theo tia. Đây là "hết bức tường thứ
+// nhất": qua khỏi mặt phẳng này là sang ô của một vật khác, dù ô đó cũng đặc.
+function slabExit(hx, hy, dx, dy, gx, gy, s){
+  const ngang = Math.abs(s.y2 - s.y1) < 1e-6;      // đoạn nằm ngang = mặt tường quay lên/xuống
+  if (ngang){
+    if (dy >  1e-9) return ((gy+1)*TILE - hy)/dy;
+    if (dy < -1e-9) return (gy*TILE - hy)/dy;
+    return Infinity;                                // quét sượt: WALL_DEEP cắt nốt
+  }
+  if (dx >  1e-9) return ((gx+1)*TILE - hx)/dx;
+  if (dx < -1e-9) return (gx*TILE - hx)/dx;
+  return Infinity;
 }
 function lipInto(pts, i, ox, oy, dx, dy, best, s){
   const hx = ox + dx*best, hy = oy + dy*best;
@@ -2838,7 +2849,7 @@ function lipInto(pts, i, ox, oy, dx, dy, best, s){
   const gx = ((hx + dx*0.5)/TILE)|0, gy = ((hy + dy*0.5)/TILE)|0;
   let them;
   if (solidAt(gx, gy)){
-    them = Math.min(marchSolid(hx, hy, dx, dy, gx, gy), faceLip(dx, dy, s));
+    them = Math.min(marchSolid(hx, hy, dx, dy, gx, gy), slabExit(hx, hy, dx, dy, gx, gy, s));
   } else if (s && s.cua){
     them = DOOR_THICK;
   } else return;

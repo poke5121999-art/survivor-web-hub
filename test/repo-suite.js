@@ -2054,15 +2054,73 @@ async function lightSuite(_khongDung) {
       const cx = (g.gx + 0.5) * T;
       return { mat: dai(cx, g.gy * T + 16, g.gy * T + 22),
                san: dai(cx, (g.gy + 1) * T + 8, (g.gy + 1) * T + 14),
-               canNhat: xep[0], giuaDai: xep[(xep.length / 2) | 0] };
+               canNhat: xep[0], giuaDai: xep[(xep.length / 2) | 0],
+               // Hai lát cắt cho báo cáo 2026-09-03 — "cần sáng rõ nguyên bức tường luôn, đừng
+               // chỉ sáng 1 nữa". Một dọc theo BỀ DÀY một ô tường, một ngang qua NĂM ô của cùng
+               // bức tường ấy. Bỏ 3 điểm ảnh mỗi đầu vì hai mép ô là vạch chân tường và mép trên,
+               // hai thứ cố tình tối để bức tường có bề dày.
+               dayTuong: (() => { const v = []; for (let d = 3; d <= T - 4; d += 2) v.push(doc(cx, g.gy * T + d)); return v; })(),
+               dayNgang: (() => { const v = []; for (let j = -2; j <= 2; j++) v.push(doc((g.gx + j + 0.5) * T, g.gy * T + T / 2)); return v; })() };
     }, day);
     check('mặt tường soi thẳng sáng xấp xỉ cái sàn ngay trước nó',
       so.mat >= so.san * 0.75, 'tường ' + so.mat + ' / sàn ' + so.san);
     check('đèn ăn vào tường sâu đều nhau, không có cột nào bị sứt',
       so.canNhat > so.giuaDai * 0.6,
       'cột cạn nhất ' + so.canNhat + ' / cột giữa dải ' + so.giuaDai + ' (điểm ảnh)');
+    // Đo được TRƯỚC bản vá 2026-09-03, trên bốn hạt giống: nửa xa của ô tường đọc 3/255 trong khi
+    // nửa gần đọc 113 — đèn chỉ liếm một lớp mặt dày nửa ô. Và đo ngang qua năm ô của cùng bức
+    // tường ấy ra 3 / 19 / 60 / 21 / 3, tức là ĐÚNG MỘT khúc tường sáng: số hạng N·L mũ 1.5 tắt
+    // hết hai bên. Hai ca dưới đây khoá cả hai chiều.
+    const mn = a => Math.min.apply(null, a), mx = a => Math.max.apply(null, a);
+    check('sáng đều hết BỀ DÀY bức tường, không chỉ một lớp mặt',
+      mn(so.dayTuong) > mx(so.dayTuong) * 0.5,
+      'tối nhất ' + mn(so.dayTuong) + ' / sáng nhất ' + mx(so.dayTuong) + ' qua ' + so.dayTuong.length + ' lát');
+    check('cả DÃY tường trước mặt đều sáng, không chỉ đúng một khúc',
+      mn(so.dayNgang) > mx(so.dayNgang) * 0.6,
+      so.dayNgang.join(' / '));
   }
 
+
+  // --- ĐÈN DỪNG Ở BỨC TƯỜNG THỨ NHẤT --------------------------------------------------
+  // Nửa còn lại của "chỉ che sau bức tường thôi". Cho đèn ăn hết bề dày tường thì phải nói rõ
+  // HẾT LÀ HẾT ở đâu: một bức tường có tủ kê sát mặt sau, mà độ sâu đèn chỉ chặn bằng một con số
+  // khoảng cách, thì đèn ăn hết 24 điểm ảnh tường rồi thừa ra ăn sang cụm tủ — trên màn hình là
+  // hai mảng sáng hình thang lơ lửng phía sau bức tường đang soi. Sàn thì vẫn tối (ca trên đã đo)
+  // nên chỉ đo sàn là lọt; phải đo chính cái ô ĐẶC nằm ngay sau bức tường.
+  const sau = await p.evaluate(() => {
+    const T = REPO.TILE, S = REPO.S, MW = REPO.MW, MH = REPO.MH;
+    const G = (gx, gy) => S.grid[gy * MW + gx];
+    for (let gy = 6; gy < MH - 5; gy++) for (let gx = 4; gx < MW - 4; gx++) {
+      let ok = true;
+      for (let j = -1; j <= 1; j++) if (G(gx + j, gy) !== 1) ok = false;          // tường trước mặt
+      for (let k = 1; k <= 3 && ok; k++) for (let j = -1; j <= 1; j++)
+        if (G(gx + j, gy + k) !== 0) ok = false;                                  // sàn đứng soi
+      if (ok && G(gx, gy - 1) === 0) ok = false;                                  // sau tường phải ĐẶC
+      if (!ok) continue;
+      REPO.warp((gx + 0.5) * T, (gy + 3.5) * T);
+      return { gx, gy };
+    }
+    return null;
+  });
+  if (sau) {
+    await p.evaluate(() => { if (window.__k) clearInterval(window.__k);
+      window.__k = setInterval(() => { REPO.S.player.dir = -Math.PI / 2; }, 16); });
+    await p.waitForTimeout(2400);
+    const d = await p.evaluate(g => {
+      const gg = document.getElementById('game').getContext('2d');
+      const T = REPO.TILE;
+      const doc = (wx, wy) => { const s = REPO.screenOf(wx, wy); let t = 0, n = 0;
+        for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+          const q = gg.getImageData(Math.round(s.x) + i, Math.round(s.y) + j, 1, 1).data;
+          t += (q[0] + q[1] + q[2]) / 3; n++; }
+        return Math.round(t / n); };
+      const cx = (g.gx + 0.5) * T;
+      return { tuong: doc(cx, g.gy * T + T / 2), vatSau: doc(cx, (g.gy - 1) * T + T / 2) };
+    }, sau);
+    check('bức tường thứ nhất vẫn sáng ở thế đứng này', d.tuong > 40, String(d.tuong));
+    check('mà cái vật ĐẶC nằm ngay sau nó thì không ăn tí đèn nào',
+      d.vatSau < 25, 'tường ' + d.tuong + ' / vật sau tường ' + d.vatSau);
+  }
   await p.evaluate(() => { if (window.__k) clearInterval(window.__k); });
   const e = errs.filter(x => !/favicon/.test(x));
   check('đèn pin: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
