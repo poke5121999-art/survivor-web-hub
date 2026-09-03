@@ -8939,45 +8939,8 @@ function drawHighlights(c){
   //   3. Thân nó rướn về sau và cái sừng hạ xuống (xem drawMonsters).
   for (const m of S.monsters){
     if (m.type !== 'rook' || !foeVisible(m)) continue;
-    if (m.rook === 'wind'){
-      const k = clamp(m.windT/ROOK_WIND, 0, 1);
-      const len = Math.max(4*TILE, Math.hypot(p.x-m.x, p.y-m.y) * ROOK_OVERSHOOT[0]);
-      const ux = Math.cos(m.dir), uy = Math.sin(m.dir), nx = -uy, ny = ux;
-      c.save();
-      // vết cày: hiện dần từ chân nó ra xa, cái nào cũ thì đậm lên
-      const buoc = TILE*0.85, soVet = Math.floor((len - 18) / buoc);
-      for (let i = 0; i < soVet; i++){
-        const t = i / Math.max(1, soVet - 1);
-        if (t > k*1.12) break;                       // chưa cày tới đó thì chưa vẽ
-        const d0 = 18 + i*buoc, mo = clamp((k*1.12 - t) * 3.4, 0, 1);
-        const bx = m.x + ux*d0, by = m.y + uy*d0;
-        const rong = 7 + k*4;
-        c.strokeStyle = `rgba(214,186,140,${0.16 + mo*0.30})`;
-        c.lineWidth = 1.6 + k*1.2;
-        c.beginPath();                               // hai vạch chéo, như hai móng cào
-        c.moveTo(bx + nx*rong - ux*3, by + ny*rong - uy*3);
-        c.lineTo(bx + nx*(rong*0.45) + ux*3, by + ny*(rong*0.45) + uy*3);
-        c.moveTo(bx - nx*rong - ux*3, by - ny*rong - uy*3);
-        c.lineTo(bx - nx*(rong*0.45) + ux*3, by - ny*(rong*0.45) + uy*3);
-        c.stroke();
-      }
-      c.restore();
-      // bụi của cú giậm chân: hai cụm tung ngược ra sau
-      if (m.stompT > 0){
-        const b = m.stompT / 0.28;
-        c.save();
-        for (const ben of [-1, 1]) for (let i = 0; i < 3; i++){
-          const r0 = (1-b) * (10 + i*7);
-          c.fillStyle = `rgba(226,206,170,${0.34*b*(1 - i*0.22)})`;
-          c.beginPath();
-          c.arc(m.x - ux*(6 + r0) + nx*ben*(4 + r0*0.55),
-                m.y - uy*(6 + r0) + ny*ben*(4 + r0*0.55),
-                2.4 + (1-b)*4.2, 0, Math.PI*2);
-          c.fill();
-        }
-        c.restore();
-      }
-    } else if (m.rook === 'stun'){
+    if (m.rook === 'wind'){ drawRookTell(c, m, p.x, p.y); }
+    else if (m.rook === 'stun'){
       glowRing(c, m.x, m.y, 15, [230,200,120], 0.24, 1.6);
     }
   }
@@ -9304,7 +9267,56 @@ function drawSwing(c, m, d){
   c.restore();
 }
 function drawMonsters(c){
-  for (const m of S.monsters){
+  for (const m of S.monsters) drawFoeOne(c, m);
+}
+// CÚ GỒNG CỦA KẺ HÚC — vết móng cào trên sàn cộng bụi giậm chân, vẽ trong toạ độ THẾ GIỚI.
+// Tách ra vì sổ tay vẽ lại đúng cú này trong một ô nhỏ; xem chú thích dài ở drawFoeOne về lý do
+// bảng tra phải dùng chung mã vẽ với căn nhà.
+function drawRookTell(c, m, tx, ty){
+  const k = clamp(m.windT/ROOK_WIND, 0, 1);
+  const len = Math.max(4*TILE, Math.hypot(tx-m.x, ty-m.y) * ROOK_OVERSHOOT[0]);
+  const ux = Math.cos(m.dir), uy = Math.sin(m.dir), nx = -uy, ny = ux;
+  c.save();
+  const buoc = TILE*0.85, soVet = Math.floor((len - 18) / buoc);
+  for (let i = 0; i < soVet; i++){
+    const t = i / Math.max(1, soVet - 1);
+    if (t > k*1.12) break;
+    const d0 = 18 + i*buoc, mo = clamp((k*1.12 - t) * 3.4, 0, 1);
+    const bx = m.x + ux*d0, by = m.y + uy*d0;
+    const rong = 7 + k*4;
+    c.strokeStyle = `rgba(214,186,140,${0.16 + mo*0.30})`;
+    c.lineWidth = 1.6 + k*1.2;
+    c.beginPath();
+    c.moveTo(bx + nx*rong - ux*3, by + ny*rong - uy*3);
+    c.lineTo(bx + nx*(rong*0.45) + ux*3, by + ny*(rong*0.45) + uy*3);
+    c.moveTo(bx - nx*rong - ux*3, by - ny*rong - uy*3);
+    c.lineTo(bx - nx*(rong*0.45) + ux*3, by - ny*(rong*0.45) + uy*3);
+    c.stroke();
+  }
+  c.restore();
+  if (m.stompT > 0){
+    const b = m.stompT / 0.28;
+    c.save();
+    for (const ben of [-1, 1]) for (let i = 0; i < 3; i++){
+      const r0 = (1-b) * (10 + i*7);
+      c.fillStyle = `rgba(226,206,170,${0.34*b*(1 - i*0.22)})`;
+      c.beginPath();
+      c.arc(m.x - ux*(6 + r0) + nx*ben*(4 + r0*0.55),
+            m.y - uy*(6 + r0) + ny*ben*(4 + r0*0.55),
+            2.4 + (1-b)*4.2, 0, Math.PI*2);
+      c.fill();
+    }
+    c.restore();
+  }
+}
+// MỘT con quái, vẽ tại gốc toạ độ của chính nó.
+//
+// Tách ra khỏi vòng lặp để SỔ TAY dùng lại được đúng mã này. Bảng tra mà vẽ bằng một bộ hình
+// riêng — ảnh chụp, GIF quay sẵn, hay một hàm vẽ thứ hai — thì nó lệch với thứ người chơi gặp
+// trong nhà ngay lần sửa art kế tiếp, và một bảng tra sai còn tệ hơn không có bảng tra. Ở đây chỉ
+// có một nguồn sự thật: sửa cách con quái vung tay là sổ tay đổi theo trong cùng một lần sửa.
+function drawFoeOne(c, m){
+  {
     const d = MONSTERS[m.type], s = Math.sin(m.wob)*1.5;
     // CỠ VẼ tách khỏi CỠ THÂN.
     //
@@ -9345,7 +9357,7 @@ function drawMonsters(c){
     // man hinh. Day la nua con lai cua bai "ban yeu + giay qua", nua kia la con so sat thuong.
     c.fillStyle = (m.flash || 0) > 0 ? '#ffe4d8' : d.col;
     // Co bo hinh pixel thi ve bang hinh (sprites.js), khong thi roi ve dang khoi cu.
-    if (window.REPO_SKIN && REPO_SKIN.foe(c, m, d)){ if (coTay) drawArms(c, m, d); c.restore(); continue; }
+    if (window.REPO_SKIN && REPO_SKIN.foe(c, m, d)){ if (coTay) drawArms(c, m, d); c.restore(); return; }
     if (m.type === 'rook'){
       // Bulk, and a nose. It is the only thing in the house whose FACING is a threat on its own,
       // so the silhouette has to say which way it is pointed from across a dark room.
@@ -9383,7 +9395,7 @@ function drawMonsters(c){
         c.fillRect(4,-4.6,3.4,3.2); c.fillRect(4,1.4,3.4,3.2);
       }
       c.restore();
-      continue;
+      return;
     }
     c.beginPath();
     c.moveTo(-9,10); c.lineTo(-7,-9+s); c.lineTo(0,-14); c.lineTo(7,-9-s); c.lineTo(9,10);
@@ -10392,7 +10404,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260903c';
+const BUILD = '20260903d';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -10527,6 +10539,177 @@ function wikiChip(txt){
   return '<i class="wk-art wk-chip" style="width:' + Math.round(K.w*WIKI_SCALE) + 'px;' +
          'height:' + Math.round(K.h*WIKI_SCALE) + 'px">' + wikiEsc(txt) + '</i>';
 }
+// ================================================== hình động trong sổ tay
+//
+// Chủ dự án, 2026-09-03: "cái wiki về mấy con quái nên có mấy cái gif về mấy con quái ... để dễ
+// hiểu hơn".
+//
+// KHÔNG bake GIF, và đây là một quyết định chứ không phải một sự lười. Cái GIF quay thử con Kẻ húc
+// nặng 2,1 MB ở khổ 540px; thu về cỡ ô sổ tay thì mỗi con vẫn vài trăm KB, tám con quái cộng tám
+// chiêu là dăm MB tải thêm cho một game web chạy trên điện thoại. Và tệ hơn cái dung lượng: ảnh
+// quay sẵn CHẾT CỨNG. Đúng hôm nay cách Kẻ húc gồng vừa đổi hẳn — mọi khung hình quay trước đó
+// lập tức sai, mà không có gì trong mã báo cho ai biết là nó sai.
+//
+// Nên bảng tra vẽ SỐNG, bằng chính drawFoeOne() mà căn nhà đang dùng. Nặng thêm 0 byte, và không
+// bao giờ lệch: sửa cách một con quái vung tay là ô hình của nó đổi theo trong cùng một lần sửa.
+//
+// Mỗi ô diễn đúng MỘT thứ — cái DẤU HIỆU mà người chơi phải nhận ra để sống sót, không phải một
+// vòng đi bộ. Sổ tay tồn tại để trả lời 'nhận ra nó bằng cách nào', và một con quái đi qua đi lại
+// thì không trả lời được câu đó.
+const WIKI_CANH = {
+  // mỗi kịch bản trả về các trường mà drawFoeOne đọc; `t` là giây trong vòng lặp
+  vung: { chuKy: 2.6, dien(m, t, d){
+    const w = d.wind || FOE_WIND;
+    m.state = 'chase'; m.alert = 2;
+    if (t < 0.9)              { m.swing = 0; }
+    else if (t < 0.9 + w)     { m.swing = (0.9 + w) - t; m.swingDir = 0; }
+    else                      { m.swing = 0; }
+    m.wob = t * 5;
+  }},
+  huc: { chuKy: 4.4, dien(m, t){
+    m.state = 'chase'; m.alert = 2;
+    if (t < ROOK_WIND){
+      m.rook = 'wind'; m.windT = t; m.x = -30;
+      const gan = ROOK_STOMPS.map(k => k*ROOK_WIND).filter(k => t >= k && t < k + 0.28);
+      m.stompT = gan.length ? 0.28 - (t - gan[0]) : 0;
+    } else if (t < ROOK_WIND + 0.75){
+      m.rook = 'dash'; m.windT = 0; m.stompT = 0;
+      m.x = -30 + (t - ROOK_WIND) / 0.75 * 62;
+    } else { m.rook = 'stun'; m.x = 32; }
+  }},
+  bom: { chuKy: 3.4, dien(m, t){
+    m.state = 'chase'; m.alert = 2; m.wob = t*6;
+    m.x = t < 1.1 ? -28 + t/1.1*22 : -6;
+    m.planted = t >= 1.1;
+    m.fuse = t >= 1.1 ? Math.max(0.02, 0.75 - (t - 1.1)) : 2;
+    if (t > 2.6) m.hp = 0;
+  }},
+  met: { chuKy: 3.2, dien(m, t){
+    m.state = 'chase'; m.alert = 2; m.wob = t*5;
+    m.tired = clamp((t - 0.6) / 1.6, 0, 1);
+  }}
+};
+// Con nào diễn cảnh nào. Mặc định là cú vung tay, vì đó là thứ mọi loài đánh cận chiến đều làm và
+// là thứ vừa đổi luật hôm nay.
+const WIKI_CANH_CUA = { rook:'huc', banger:'bom', gnome:'vung', heavy:'vung',
+                        patrol:'vung', listen:'vung', stalk:'vung', bomber:'vung' };
+// Ô hình RỘNG GẤP ĐÔI ô sprite cũ. Ô cũ vừa khít một cái thân đứng yên, mà mấy cảnh ở đây có thứ
+// DI CHUYỂN: Kẻ húc lao qua hết chiều ngang, Bom con đi tới rồi cắm chân. Để nguyên bề ngang cũ
+// thì hai con đó diễn ngoài khung — đo lần đầu: ô Kẻ húc trống trơn, ô Bom con còn đúng một vệt
+// ở mép trái.
+function wikiChieuO(ch){
+  const K = (window.REPO_SKIN && REPO_SKIN.cell) || { w:96, h:144 };
+  const w = Math.round(K.w * WIKI_SCALE) * 2, h = Math.round(K.h * WIKI_SCALE);
+  return '<canvas class="wk-art wk-skill" data-hue="' + (ch.hue || 45) + '" ' +
+         'data-sk="' + wikiEsc(JSON.stringify({ radius: ch.skill.radius || 0, dur: ch.skill.dur || 0 })) + '" ' +
+         'width="' + (w*2) + '" height="' + (h*2) + '" ' +
+         'style="width:' + w + 'px;height:' + h + 'px"></canvas>';
+}
+function wikiSong(type){
+  const K = (window.REPO_SKIN && REPO_SKIN.cell) || { w:96, h:144 };
+  const w = Math.round(K.w * WIKI_SCALE) * 2, h = Math.round(K.h * WIKI_SCALE);
+  return '<canvas class="wk-art wk-live" data-foe="' + wikiEsc(type) + '" ' +
+         'width="' + (w*2) + '" height="' + (h*2) + '" ' +
+         'style="width:' + w + 'px;height:' + h + 'px"></canvas>';
+}
+// Vòng vẽ của sổ tay. Chạy bằng rAF RIÊNG, không móc vào step() — sổ tay cố ý dừng thế giới lại
+// (xem toggleWiki), nên nếu mấy ô này ăn theo đồng hồ mô phỏng thì chúng đứng hình đúng lúc người
+// chơi mở ra xem.
+let wikiRaf = 0, wikiT0 = 0;
+function wikiAnimStart(){
+  wikiAnimStop();
+  const oList = Array.prototype.slice.call(document.querySelectorAll('canvas.wk-live'));
+  const oChieu = Array.prototype.slice.call(document.querySelectorAll('canvas.wk-skill'));
+  if (!oList.length && !oChieu.length) return;
+  wikiT0 = performance.now();
+  const ve = (now) => {
+    const giay = (now - wikiT0) / 1000;
+    for (const cv of oList){
+      const type = cv.getAttribute('data-foe'), d = MONSTERS[type];
+      if (!d) continue;
+      const ten = WIKI_CANH_CUA[type] || 'vung', canh = WIKI_CANH[ten];
+      const t = giay % canh.chuKy;
+      const m = { type, x:0, y:0, dir:0, wob:0, hp:d.hp, hpMax:d.hp, dmg:d.dmg,
+                  state:'patrol', alert:0, hit:0, sleep:0, flash:0, swing:0, swingDir:0,
+                  tired:0, stompT:0, planted:false, fuse:null, rook: type==='rook'?'walk':null,
+                  windT:0, seen:true, reveal:1 };
+      canh.dien(m, t, d);
+      const c = cv.getContext('2d');
+      c.setTransform(1,0,0,1,0,0);
+      c.clearRect(0,0,cv.width,cv.height);
+      // Nền tối như trong nhà: mấy con này vẽ để nổi trên sàn tối, đặt lên nền trắng là mất viền.
+      c.fillStyle = 'rgb(26,28,32)'; c.fillRect(0,0,cv.width,cv.height);
+      const k = cv.height / 62;                       // 62 đơn vị thế giới lọt vừa ô
+      c.setTransform(k,0,0,k, cv.width/2, cv.height*0.62);
+      if (type === 'rook' && m.rook === 'wind') drawRookTell(c, m, 34, 0);
+      if (m.hp > 0) drawFoeOne(c, m);
+      else { c.fillStyle = 'rgba(255,190,120,0.9)';
+             c.beginPath(); c.arc(m.x, 0, 16, 0, Math.PI*2); c.fill(); }
+    }
+    for (const cv of oChieu){
+      let sk; try { sk = JSON.parse(cv.getAttribute('data-sk')); } catch(e){ continue; }
+      veChieu(cv, sk, +cv.getAttribute('data-hue'), giay);
+    }
+    wikiRaf = requestAnimationFrame(ve);
+  };
+  wikiRaf = requestAnimationFrame(ve);
+}
+function wikiAnimStop(){ if (wikiRaf) cancelAnimationFrame(wikiRaf); wikiRaf = 0; }
+// Ô hình của MỘT CHIÊU. Vẽ sơ đồ trên LƯỚI Ô, không vẽ hiệu ứng thật.
+//
+// Lý do không dựng lại hiệu ứng thật: mỗi chiêu là một đoạn mã riêng ăn sâu vào trạng thái ván
+// đấu (Chói Loà đọc danh sách quái, Mở Toang đọc danh sách cửa, Tàng Hình đọc bộ đếm của người
+// chơi). Dựng lại chúng trong một ô 96px là viết bản thứ hai của tám thứ, và bản thứ hai thì sẽ
+// lệch bản thứ nhất — đúng cái bẫy mà ô hình con quái tránh được bằng cách dùng chung drawFoeOne.
+//
+// Thứ ô này trả lời là câu mà mấy con số ở ngay bên cạnh KHÔNG trả lời được: 'rộng chừng nào'.
+// 'Tầm 5,5 ô' là một con số trừu tượng; một vòng tròn phủ lên lưới ô có kích thước bằng đúng ô sàn
+// trong nhà thì đọc một cái là biết. Và nó phân biệt được ba dáng chiêu — phủ một VÙNG quanh mình,
+// chỉ tác động lên CHÍNH MÌNH, hay đánh một PHÁT rồi thôi — thứ mà bảng số không nói.
+function veChieu(cv, sk, hue, t){
+  const c = cv.getContext('2d');
+  c.setTransform(1,0,0,1,0,0);
+  c.clearRect(0,0,cv.width,cv.height);
+  c.fillStyle = 'rgb(26,28,32)'; c.fillRect(0,0,cv.width,cv.height);
+  const R0 = sk.radius || 0;
+  // Khung nhìn: đủ chứa cả vòng, tối thiểu 3 ô để chiêu tự-thân vẫn có lưới mà so.
+  const oNhin = Math.max(3.2, (R0 || 0) + 1.1);
+  const k = (cv.height/2) / oNhin;              // điểm ảnh trên một Ô
+  c.setTransform(k,0,0,k, cv.width/2, cv.height/2);
+  // lưới ô, mờ
+  c.strokeStyle = 'rgba(255,255,255,0.07)'; c.lineWidth = 1/k;
+  const n = Math.ceil(oNhin);
+  c.beginPath();
+  for (let i = -n; i <= n; i++){ c.moveTo(i, -n); c.lineTo(i, n); c.moveTo(-n, i); c.lineTo(n, i); }
+  c.stroke();
+  const chuKy = 2.8, u = (t % chuKy) / chuKy;
+  const mau = (a) => `hsla(${hue||45},80%,64%,${a})`;
+  if (R0 > 0){
+    // VÙNG: vòng nở ra tới đúng tầm rồi giữ, rồi tan
+    const no = clamp(u/0.34, 0, 1), giu = clamp((0.84 - u)/0.2, 0, 1);
+    const r = R0 * (1 - Math.pow(1-no, 3));
+    c.fillStyle = mau(0.10 * giu);
+    c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.fill();
+    c.strokeStyle = mau(0.85 * giu); c.lineWidth = 2.4/k;
+    c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.stroke();
+  } else {
+    // CHỈ MÌNH: quầng bám sát thân, phập phồng theo nhịp
+    const ph = 0.5 + 0.5*Math.sin(u*Math.PI*2*2);
+    c.strokeStyle = mau(0.28 + ph*0.5); c.lineWidth = 2.2/k;
+    c.beginPath(); c.arc(0,0, 0.62 + ph*0.16, 0, Math.PI*2); c.stroke();
+  }
+  // người: một khối nhỏ ở tâm, để mắt biết vòng kia lấy AI làm gốc
+  c.fillStyle = 'rgba(226,232,238,0.92)';
+  c.beginPath(); c.ellipse(0, 0.10, 0.20, 0.30, 0, 0, Math.PI*2); c.fill();
+  c.beginPath(); c.arc(0, -0.26, 0.17, 0, Math.PI*2); c.fill();
+  // thanh THỜI GIAN KÉO DÀI chạy dưới đáy ô, nếu chiêu có thời hạn
+  if (sk.dur){
+    c.setTransform(1,0,0,1,0,0);
+    const w = cv.width - 12, y = cv.height - 7;
+    c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(6, y, w, 3);
+    c.fillStyle = mau(0.9); c.fillRect(6, y, w * clamp(u/0.84, 0, 1), 3);
+  }
+}
 function wikiStat(k, v){
   return '<em>' + wikiEsc(k) + '</em>' + wikiEsc(v);
 }
@@ -10559,7 +10742,7 @@ function wikiHtml(){
   } else {
     for (const k in MONSTERS){
       const d = MONSTERS[k];
-      h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '', d),
+      h += wikiRow(wikiSong(k),
         d.name, d.pack ? 'đi ' + d.pack + ' con một đàn' : '',
         wikiStat('Máu', d.hp) + wikiStat('Đòn', d.dmg) + wikiStat('Chạy', d.speed) +
         wikiStat('Mắt', wikiO(d.sight)) + wikiStat('Tai', wikiO(d.hear)) +
@@ -10571,7 +10754,7 @@ function wikiHtml(){
   if (SQd && SQd.CHARS){
     h += '<h3 class="wk-h">Chiêu của từng xác</h3>';
     for (const ch of SQd.CHARS){
-      h += wikiRow(wikiFace(url('crewUrl', ch.id), { col:'#3a4450' }),
+      h += wikiRow(wikiChieuO(ch),
         ch.skill.name, ch.name + ' — ' + ch.epithet,
         wikiStat('Hồi', ch.skill.cd + 's') +
         (ch.skill.dur ? wikiStat('Kéo dài', ch.skill.dur + 's') : '') +
@@ -10601,10 +10784,13 @@ function showWiki(){
   document.body.classList.add('wiki-open');   // xem chú thích body.wiki-open trong index.html
   showVeil('Sổ tay', 'Mặt của từng thứ trong nhà, và cái luật đi kèm nó.', 'Đóng sổ',
            closeWiki, wikiHtml(), closeWiki);
+  // Sau khi HTML đã nằm trong trang mới đi tìm mấy ô canvas: wikiHtml() chỉ trả về chuỗi.
+  wikiAnimStart();
 }
 function closeWiki(){
   hideVeil();
   document.body.classList.remove('wiki-open');
+  wikiAnimStop();                       // đóng sổ là gỡ luôn vòng rAF của mấy ô hình
   if (wikiWasRunning && !S.dead){ S.running = true; last = performance.now(); }
   wikiWasRunning = false;
 }

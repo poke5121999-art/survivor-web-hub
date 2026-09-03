@@ -2264,7 +2264,12 @@ async function lightSuite(_khongDung) {
       // — nên nó phải đo qua vân, đúng như hai phép đo `dai()` và `doc()` ngay dưới đây vẫn làm.
       const oSang = (i, j) => {
         let t = 0, n = 0;
-        for (let k = -4; k <= 4; k++){
+        // Cửa sổ phải RỘNG HƠN MẠCH ĐÁ. Mạch dọc rộng 1 điểm ảnh thế giới, mà ở mức phóng của
+        // bộ đo là chừng 6 điểm ảnh màn hình; lấy trung bình 9 điểm ảnh thì mạch vẫn chiếm hai
+        // phần ba và kéo cả cột xuống dưới ngưỡng — đo được vết lõm 34/123 trên một dải thật ra
+        // phẳng lì. 17 điểm ảnh vẫn hẹp hơn một ô (24) rất nhiều, nên nó không thể lấp mất một
+        // vết khuyết thật của đa giác ánh sáng, thứ mà ca này sinh ra để bắt.
+        for (let k = -8; k <= 8; k++){
           const ii = Math.max(0, Math.min(bw-1, i+k)), o = (j * bw + ii) * 4;
           t += (im[o] + im[o+1] + im[o+2]) / 3; n++;
         }
