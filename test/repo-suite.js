@@ -1891,15 +1891,34 @@ async function lightSuite(_khongDung) {
     await p.evaluate(() => { const v = document.getElementById('veilBtn');
       if (v && !document.getElementById('veil').hidden) v.click(); });
   }
-  await p.evaluate(() => { REPO.S.level = 4; REPO.startLevel(1234);
-    REPO.S.monsters.length = 0;
-    (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; }); });
-  await p.waitForTimeout(400);
+  // Thế đứng phải DÒ QUA NHIỀU HẠT GIỐNG, không đóng đinh vào một ván.
+  //
+  // Bộ này từng ghim REPO.startLevel(1234) rồi tìm thế đứng trong đúng ván ấy. Thêm đúng một mẫu
+  // phòng vào bảng ROOMS là thứ tự bốc phòng đổi, ván 1234 ra một căn nhà khác, và hai ca đo gãy
+  // vì không dựng nổi thế đứng — chứ không phải vì ánh sáng sai. Một bộ đo pixel mà phụ thuộc vào
+  // việc bảng phòng có bao nhiêu dòng thì nó đo cả những thứ nó không định đo.
+  //
+  // Và thế đứng phải CÁCH MÉP BẢN ĐỒ: camera chặn lại ở rìa, nên đứng sát rìa thì điểm đo tính
+  // theo screenOf rơi lên thanh máu ở góc trên trái. Đo được lúc đó là 198/255 cả khi quay mặt lẫn
+  // khi quay lưng — đúng màu của cái thanh máu, không phải màu của cái sàn.
+  const MEP = 9;
+  const doVan = async (timFn) => {
+    for (const seed of [1234, 7, 42, 99, 512, 2026, 31337, 8080, 606, 1717]) {
+      const r = await p.evaluate(g => {
+        REPO.S.level = 4; REPO.startLevel(g.seed);
+        REPO.S.monsters.length = 0;
+        (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
+        return eval('(' + g.fn + ')')(g.mep);
+      }, { seed, fn: timFn.toString(), mep: MEP });
+      if (r) { await p.waitForTimeout(400); return Object.assign({ seed }, r); }
+    }
+    return null;
+  };
 
   // Một hành lang dọc: ba ô sàn đi lên rồi tới tường. Đứng dưới cùng, ngửa đèn lên.
-  const cho = await p.evaluate(() => {
+  const cho = await doVan(mep => {
     const T = REPO.TILE;
-    for (let gy = 6; gy < REPO.MH - 2; gy++) for (let gx = 2; gx < REPO.MW - 2; gx++) {
+    for (let gy = mep; gy < REPO.MH - mep; gy++) for (let gx = mep; gx < REPO.MW - mep; gx++) {
       let ok = true;
       for (let k = 0; k < 3; k++) if (REPO.solidAt(gx, gy - k)) { ok = false; break; }
       if (!ok || !REPO.solidAt(gx, gy - 3)) continue;
@@ -1992,10 +2011,10 @@ async function lightSuite(_khongDung) {
   //      nên phải đo tường SO VỚI sàn ngay trước nó chứ không so với chính nó lúc tắt đèn;
   //   2. tia nào chạm tường sát đường ranh giữa hai ô tường thì đèn ăn vào đúng 0 điểm ảnh,
   //      nên cứ đúng một ô lại có một vết khuyết đen ăn ngược vào dải sáng.
-  const day = await p.evaluate(() => {
+  const day = await doVan(mep => {
     const T = REPO.TILE, S = REPO.S, MW = REPO.MW, MH = REPO.MH;
     const G = (gx, gy) => S.grid[gy * MW + gx];
-    for (let gy = 6; gy < MH - 5; gy++) for (let gx = 4; gx < MW - 4; gx++) {
+    for (let gy = mep; gy < MH - mep; gy++) for (let gx = mep; gx < MW - mep; gx++) {
       let ok = true;
       for (let j = -2; j <= 2; j++) if (G(gx + j, gy) !== 1) ok = false;        // dãy tường 5 ô
       for (let k = 1; k <= 3 && ok; k++) for (let j = -2; j <= 2; j++)
@@ -2087,10 +2106,10 @@ async function lightSuite(_khongDung) {
   // khoảng cách, thì đèn ăn hết 24 điểm ảnh tường rồi thừa ra ăn sang cụm tủ — trên màn hình là
   // hai mảng sáng hình thang lơ lửng phía sau bức tường đang soi. Sàn thì vẫn tối (ca trên đã đo)
   // nên chỉ đo sàn là lọt; phải đo chính cái ô ĐẶC nằm ngay sau bức tường.
-  const sau = await p.evaluate(() => {
+  const sau = await doVan(mep => {
     const T = REPO.TILE, S = REPO.S, MW = REPO.MW, MH = REPO.MH;
     const G = (gx, gy) => S.grid[gy * MW + gx];
-    for (let gy = 6; gy < MH - 5; gy++) for (let gx = 4; gx < MW - 4; gx++) {
+    for (let gy = mep; gy < MH - mep; gy++) for (let gx = mep; gx < MW - mep; gx++) {
       let ok = true;
       for (let j = -1; j <= 1; j++) if (G(gx + j, gy) !== 1) ok = false;          // tường trước mặt
       for (let k = 1; k <= 3 && ok; k++) for (let j = -1; j <= 1; j++)

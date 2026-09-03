@@ -68,10 +68,13 @@ const FLOOR = 0, WALL = 1, PROP = 2;
 
 // prop kinds — solid either way; the code only changes how the tile is painted
 const P_BLOCK = 1, P_TABLE = 2, P_SHELF = 3, P_CRATE = 4, P_LOCKER = 5;
+// Ba món của hầm mộ, 2026-09-03. Quan tài đứng dựa tường, đá vụn đổ trên sàn, vò gốm.
+const P_TOMB = 6, P_RUBBLE = 7, P_URN = 8;
 // Chữ 'P' trong các mẫu phòng vẫn là 'P' — nó từng là planter, nay là tủ sắt (xem paintProp).
 // Đổi chữ thì phải sửa lại toàn bộ mẫu phòng đã vẽ tay, mà cái đổi ở đây là NƯỚC SƠN.
-const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_LOCKER };
-const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3 };
+const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_LOCKER,
+                  K:P_TOMB, R:P_RUBBLE, U:P_URN };
+const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3, stone:4 };
 
 // WHY 92 and not the 132 this shipped with: at 132 a walking player outran every chasing monster
 // in the game (the fastest chase in MONSTERS is 74*1.25 = 92.5 px/s), so being seen cost nothing —
@@ -879,6 +882,35 @@ const ROOMS = [
     '#...................#',
     '#...................#',
     '#...................#',
+    '#####################' ]},
+  // HẦM MỘ — dựng từ tranh ý tưởng của chủ dự án, 2026-09-03.
+  //
+  // Thứ lấy ra từ tranh là BỐ CỤC, không phải điểm ảnh: một hành lang dọc cắt một hành lang ngang
+  // thành hình chữ thập, bốn gian mộ nằm ở bốn góc, quan tài đá dựng thành hàng dựa bức tường
+  // ngoài cùng của mỗi gian, đá vụn và vò gốm đổ trên sàn trước mặt chúng.
+  //
+  // Hai ràng buộc của bộ dựng phòng quyết định vì sao chữ thập nằm đúng chỗ này, không phải chỗ
+  // khác: cửa được khoét ở GIỮA mỗi cạnh chung, nên cột 9-11 phải thông từ trên xuống và hàng 6-8
+  // phải thông từ trái sang. Chính hai cái lằn ấy LÀ chữ thập trong tranh — bố cục kia vừa khít
+  // vào luật sẵn có chứ không phải bẻ luật cho vừa nó.
+  //
+  // Bốn gian đều mở toang về phía hành lang ngang, không có cửa hẹp: xe đẩy rộng 40 điểm ảnh, mà
+  // một lối một ô chỉ có 24 — bịt lại thành ra bốn gian mà cả vòng khuân đồ không vào được.
+  { name:'Hầm mộ', floor:'stone', rows:[
+    '#####################',
+    '#K.K.K.K#...#K.K.K.K#',
+    '#.......#...#.......#',
+    '#.U...R.#...#.R...U.#',
+    '#...L...#...#...L...#',
+    '#.......#...#.......#',
+    '#...................#',
+    '#.........M.........#',
+    '#...................#',
+    '#.......#...#.......#',
+    '#...L...#...#...L...#',
+    '#.R...U.#...#.U...R.#',
+    '#.......#...#.......#',
+    '#K.K.K.K#...#K.K.K.K#',
     '#####################' ]}
 ];
 
@@ -2406,7 +2438,10 @@ const FLOORS = [
   { base:[112,96,74],  alt:[122,104,80] },   // 0 wood
   { base:[126,128,124],alt:[136,138,134] },  // 1 tile
   { base:[108,108,106],alt:[114,114,112] },  // 2 concrete
-  { base:[104,84,80],  alt:[112,92,86] }     // 3 carpet
+  { base:[104,84,80],  alt:[112,92,86] },    // 3 carpet
+  // 4 đá hầm mộ — xám ngả lục lạnh, lấy từ tranh ý tưởng. alt sáng hơn base một nấc rất nhỏ:
+  // đây là hai loại đá lát xen nhau chứ không phải hai ô gạch, nên chênh nhau nhiều là ra bàn cờ.
+  { base:[118,132,126],alt:[124,138,131] }   // 4 stone
 ];
 // Chọn lại mặt tường, 2026-08-31. Bốn màu cũ nằm gọn trong khoảng sáng 74..84/255 — chênh nhau
 // 10 mức trên 255, tức là mắt không phân biệt nổi, và sau khi lớp tối NHÂN lên thì cả bốn ra
@@ -2441,12 +2476,29 @@ const WALLS = [
   [123,104,85],  // 0 giấy dán tường — nâu ấm, có mối nối dọc
   [143,137,125], // 1 gạch men       — men kem, mạch vữa tối (thay cho xanh lạnh)
   [122,117,109], // 2 blốc bê tông   — có hàng gạch và mạch so le (thay cho xám trơn)
-  [120,89,86]    // 3 giấy hoa văn   — đỏ trầm, kẻ sọc dọc
+  [120,89,86],   // 3 giấy hoa văn   — đỏ trầm, kẻ sọc dọc
+  [128,142,135]  // 4 đá hầm mộ      — nhỉnh hơn sàn đá cùng phòng chừng 8%, đúng luật ở trên
 ];
+// LỚP THẾ GIỚI VẼ Ở ĐỘ PHÂN GIẢI GẤP ĐÔI, 2026-09-03 — "làm sao cho chi tiết + rõ nét nhất".
+//
+// Ảnh nền thế giới trước nay dựng đúng 1 điểm ảnh cho 1 điểm ảnh thế giới: 63x45 ô, ô 24px, ra
+// 1512x1080. Nhưng khi vẽ lên màn hình nó bị nhân với dpr*zoom(): máy để bàn 900x640 ở dpr 2 ra
+// hệ số 3.8, điện thoại dpr 3 ra chừng 3.5. Tức là mọi vân tường, mọi mạch đá đều được PHÓNG TO
+// gần bốn lần rồi mới tới mắt — nét 1 điểm ảnh thành vệt mờ 4 điểm ảnh. Không có chi tiết nào
+// vẽ thêm vào cứu được chuyện đó, vì trần chi tiết nằm ở độ phân giải của ảnh nền.
+//
+// SS=2 chia đôi hệ số phóng ấy và cho mỗi ô 48x48 điểm ảnh để vẽ thay vì 24x24. Không hàm vẽ nào
+// phải sửa: transform nhân sẵn SS nên mọi hàm vẫn nói bằng đơn vị thế giới như cũ, chỉ là nét bút
+// mảnh đi một nửa. Vẽ ra màn hình thì nói rõ khổ đích WPX x HPX.
+//
+// KHÔNG lên SS=3 hay 4: 4 sẽ là nét đúng từng điểm ảnh trên máy để bàn, nhưng ảnh nền khi đó là
+// 6048x4320 = 26 triệu điểm ảnh, tức 104MB một tấm — quá trần diện tích canvas của Safari trên
+// iOS (16.7 triệu) và quá sức bộ nhớ điện thoại. SS=2 là 3024x2160, 26MB, cấp một lần cho cả ván.
+const SS = 2;
 function prerenderWorld(rnd){
-  if (!S.worldCv){ S.worldCv = document.createElement('canvas'); S.worldCv.width = WPX; S.worldCv.height = HPX; }
+  if (!S.worldCv){ S.worldCv = document.createElement('canvas'); S.worldCv.width = WPX*SS; S.worldCv.height = HPX*SS; }
   const c = S.worldCv.getContext('2d');
-  c.setTransform(1,0,0,1,0,0);
+  c.setTransform(SS,0,0,SS,0,0);
   c.fillStyle = '#0a0b0c'; c.fillRect(0,0,WPX,HPX);
   // Off the map is wall, so the outer shell does not get an edge drawn on its outside face.
   const isW = (ax,ay) => ax<0 || ay<0 || ax>=MW || ay>=MH || S.grid[ay*MW+ax] === WALL;
@@ -2457,12 +2509,28 @@ function prerenderWorld(rnd){
       const st = FLOORS[S.roomStyle ? S.roomStyle[ri] : 0] || FLOORS[0];
       paintFloor(c, x, y, st, gx, gy, n);
     } else if (v === WALL){
-      // wallpaper follows the room, so a wall tells you which room you are looking into
-      const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
-      const w = WALLS[S.roomStyle ? S.roomStyle[ri] : 0] || WALLS[0];
+      // "wallpaper follows the room, so a wall tells you which room you are looking into" — câu này
+      // là ý định gốc, và tới 2026-09-03 thì mã ở đây vẫn làm NGƯỢC lại nó.
+      //
+      // Nó lấy kiểu phòng theo ô tường, mà ô tường thuộc về phòng NẰM SAU nó: một phòng sở hữu
+      // tường phải và tường dưới của mình, nên bức tường mà người đứng trong phòng B nhìn thẳng
+      // vào — bức trên đầu — lại là tường dưới của phòng A ở trên. Đứng trong bếp nhìn lên thấy
+      // giấy dán tường của phòng ngủ.
+      //
+      // Chuyện đó âm ỉ vì bốn kiểu cũ đều là tường nhà, đổi nhau chỉ vài chục mức sáng. Kiểu đá
+      // hầm mộ làm nó lộ ra ngay: cả dải phù điêu Ai Cập vẽ trên nền giấy dán tường nâu.
+      //
+      // Và nó còn phá đúng cái luật mà bảng WALLS được dựng lên để giữ — 'mỗi mặt tường nhỉnh hơn
+      // SÀN CÙNG PHÒNG chừng 8%'. Ghép sai phòng thì cặp số ấy so với cái sàn của phòng khác.
+      // Nay hỏi ô ngay DƯỚI: mặt tường này đang quay xuống phòng nào thì mang nước sơn phòng đó.
+      // Ô dưới cũng là tường (ruột một khối đặc) thì không ai nhìn thấy mặt nào, giữ phòng của nó.
+      const duoi = gy+1 < MH && S.grid[(gy+1)*MW+gx] !== WALL ? gy+1 : gy;
+      const ri = ((duoi/RH)|0)*GX + ((gx/RW)|0);
+      const ki = S.roomStyle ? S.roomStyle[ri] : 0;
+      const w = WALLS[ki] || WALLS[0];
       c.fillStyle = `rgb(${(w[0]+n*12)|0},${(w[1]+n*11)|0},${(w[2]+n*10)|0})`;
       c.fillRect(x,y,TILE,TILE);
-      paintWallSkin(c, x, y, S.roomStyle ? S.roomStyle[ri] : 0, gx, gy, n);
+      paintWallSkin(c, x, y, ki, gx, gy, n);
       // Shading follows the EXPOSED FACES of a wall run, not every tile in it. Painted per tile,
       // a run of wall came out a ladder of stripes and the eye counted tiles instead of reading one
       // wall - which is most of why a two-tile partition looked like a slab. A face is exposed when
@@ -2515,6 +2583,8 @@ function prerenderWorld(rnd){
       paintProp(c, x, y, S.deco ? S.deco[i] : P_BLOCK, n);
     }
   }
+  paintStoneInlay(c);
+  paintStoneFrieze(c);
   paintWallContact(c);
   paintDoorFrames(c);
 }
@@ -2529,6 +2599,35 @@ function prerenderWorld(rnd){
 // chứ không đọc ra vật liệu — đúng cái bẫy sàn nhà đã dính một lần rồi.
 // SEE: docs/patches/phase-5.4-patch-29-repo-wall-light.md
 function paintWallSkin(c, x, y, style, gx, gy, n){
+  if (style === 4){
+    // ĐÁ HẦM MỘ. Hàng đá cao 8 điểm ảnh, mạch dọc so le giữa hai hàng.
+    //
+    // Cả hai loại mạch đều tính từ TOẠ ĐỘ THẾ GIỚI, không tính từ góc ô: hàng đá nằm ở mọi y
+    // chia hết cho 8, mà 24 chia hết cho 8, nên ô nào cũng kẻ đúng ba đường ấy và ba đường ấy
+    // nối thẳng sang ô bên cạnh. Mạch dọc cách nhau 16, lệch 8 giữa hàng chẵn và hàng lẻ; ô nào
+    // có mạch rơi vào trong mình thì ô đó kẻ, không có thì thôi. Không ô nào kẻ viền quanh mình.
+    const H = 8, W = 16;
+    for (let wy = y; wy < y + TILE; wy++){
+      if (wy % H) continue;
+      c.fillStyle = 'rgba(0,0,0,0.28)'; c.fillRect(x, wy, TILE, 1);
+      c.fillStyle = 'rgba(238,248,244,0.09)'; c.fillRect(x, wy+1, TILE, 1);   // gờ sáng: đá có bề dày
+    }
+    for (let wy = y; wy < y + TILE; wy += H){
+      const hang = Math.floor(wy / H), off = (hang & 1) ? H : 0;
+      for (let wx = x - W; wx < x + TILE + W; wx++){
+        if (((wx - off) % W + W) % W) continue;
+        if (wx < x || wx >= x + TILE) continue;
+        c.fillStyle = 'rgba(0,0,0,0.22)'; c.fillRect(wx, wy, 1, H);
+      }
+    }
+    // Rỗ mặt đá: chấm mờ lấy theo toạ độ ô, đủ để mặt không mịn như sơn.
+    for (let k = 0; k < 4; k++){
+      const u = bam(gx*5+k, gy*3), v = bam(gx, gy*7+k);
+      c.fillStyle = `rgba(0,0,0,${0.05 + u*0.05})`;
+      c.fillRect(x + u*(TILE-3), y + v*(TILE-2), 2, 1);
+    }
+    return;
+  }
   if (style === 1){
     // gạch men: mạch vữa kẻ ô, cộng một chút bóng men ở nửa trên mỗi viên
     c.fillStyle = 'rgba(0,0,0,0.30)';
@@ -2560,11 +2659,250 @@ function paintWallSkin(c, x, y, style, gx, gy, n){
     if (n > 0.72){ c.fillStyle = 'rgba(0,0,0,0.09)'; c.fillRect(x+3, y + ((n*13)|0), TILE-6, 3); }
   }
 }
+// Một ô của mặt sàn đá. Mọi con số ở đây đọc từ TOẠ ĐỘ Ô trên bản đồ, không đọc từ dòng ngẫu
+// nhiên, nên hai ô cạnh nhau luôn nối được vào nhau.
+const SLAB_W = 3, SLAB_H = 2;                 // một tấm đá = 3x2 ô = 72x48 điểm ảnh thế giới
+function bam(a, b){                            // băm hai số nguyên ra [0,1) — thay cho rnd() theo ô
+  let h = (a*73856093) ^ (b*19349663);
+  h = (h ^ (h >>> 13)) * 1274126177;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function paintStone(c, x, y, st, gx, gy){
+  // Tấm đá 3x2 ô, hàng lẻ đẩy ngang một ô: mạch dọc không bao giờ xuyên suốt hai hàng, đúng kiểu
+  // xây đá. Mạch dọc thẳng tuột từ trên xuống dưới là dấu hiệu số một của một mặt dán ảnh lặp.
+  const hang = Math.floor(gy / SLAB_H);
+  const lech = (hang & 1) ? 1 : 0;
+  const cot  = Math.floor((gx + lech) / SLAB_W);
+  const t    = bam(cot, hang);
+  const col  = (t < 0.5) ? st.base : st.alt;
+  const tx   = (cot*SLAB_W - lech) * TILE, ty = hang*SLAB_H * TILE;   // góc tấm, hệ toạ độ thế giới
+  // Chênh màu giữa hai tấm phải RẤT nhỏ. Bản trước để +-3 trên 255 cộng với base/alt, và cả mặt
+  // sàn ra một mảng vá: mắt đọc mỗi tấm thành một miếng dán riêng chứ không đọc ra một mặt đá.
+  const j    = Math.round(t * 3) - 1;          // một TẤM một sắc, không phải một Ô một sắc
+  c.fillStyle = `rgb(${col[0]+j},${col[1]+j},${col[2]+j})`;
+  c.fillRect(x, y, TILE, TILE);
+  // RỖ MẶT ĐÁ. Lấy theo toạ độ Ô chứ không theo tấm, và mỗi chấm chỉ 1-2 điểm ảnh: chấm nhỏ hơn
+  // một ô thì không có gì để mà cắt cụt ở ranh giới ô. Bản trước vẽ vệt loang to bằng nửa tấm rồi
+  // cắt theo ô — hai ô cạnh nhau thuộc hai tấm khác nhau thì vệt đứt phựt đúng giữa chừng, và đó
+  // chính là 'nét đứt' phải bỏ.
+  for (let k = 0; k < 7; k++){
+    const u = bam(gx*7+k, gy*13), v = bam(gx*5, gy*11+k), d = bam(gx+k, gy-k);
+    c.fillStyle = d < 0.55 ? `rgba(0,0,0,${0.05 + d*0.06})` : `rgba(240,250,246,${0.03 + d*0.04})`;
+    c.fillRect(x + 2 + u*(TILE-5), y + 2 + v*(TILE-5), 1 + (d>0.8?1:0), 1);
+  }
+  // VẾT NỨT. Một tấm nhiều lắm một vết, và vết ấy vẽ trong hệ toạ độ của TẤM rồi cắt theo ô —
+  // nên ô nào chứa một khúc của nó thì vẽ đúng khúc ấy, và các khúc nối liền nhau qua ranh giới ô.
+  // Khác vệt loang ở chỗ: vết nứt nằm GỌN trong tấm, không bao giờ chạm mép tấm, nên không có
+  // chỗ nào để đứt.
+  if (t > 0.62){
+    const sx = tx + (0.18 + bam(cot, hang*3)*0.24) * SLAB_W*TILE;
+    const sy = ty + (0.16 + bam(cot*3, hang)*0.20) * SLAB_H*TILE;
+    c.save(); c.beginPath(); c.rect(x, y, TILE, TILE); c.clip();
+    c.strokeStyle = 'rgba(0,0,0,0.20)'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(sx, sy);
+    let px = sx, py = sy;
+    for (let k = 1; k <= 4; k++){
+      px += (bam(cot*9+k, hang) - 0.30) * SLAB_W*TILE*0.20;
+      py += (0.10 + bam(cot, hang*7+k)*0.10) * SLAB_H*TILE;
+      c.lineTo(px, py);
+    }
+    c.stroke();
+    c.restore();
+  }
+  // MẠCH ĐÁ — kẻ ở mép TRÊN và mép TRÁI của ô, và chỉ khi mép đó đúng là ranh giới tấm.
+  //
+  // Đây là chỗ khác hẳn bốn kiểu sàn cũ, và là câu trả lời cho "mặt đất đừng có nét đứt": bốn kiểu
+  // kia kẻ một vạch ở đáy CHÍNH NÓ, nên cứ 24 điểm ảnh lại một đường và cả phòng ra một tấm lưới.
+  // Ở đây mọi ô nằm trên cùng một ranh giới tấm đều kẻ đúng một đường thế giới, nên đường ấy liền
+  // một mạch qua cả căn phòng; ô không nằm trên ranh giới thì không kẻ gì cả.
+  const mach = 'rgba(0,0,0,0.40)', sang = 'rgba(240,250,246,0.16)';
+  if ((gy % SLAB_H) === 0){
+    c.fillStyle = mach; c.fillRect(x, y, TILE, 1.4);
+    c.fillStyle = sang; c.fillRect(x, y+1.4, TILE, 1);       // gờ sáng dưới mạch: đá có bề dày
+  }
+  if (((gx + lech) % SLAB_W) === 0){
+    c.fillStyle = mach; c.fillRect(x, y, 1.4, TILE);
+    c.fillStyle = sang; c.fillRect(x+1.4, y, 1, TILE);
+  }
+}
+// HOA VĂN SÀN — lượt vẽ THỨ HAI, chạy sau khi cả bản đồ đã lát xong.
+//
+// Phải tách ra một lượt riêng vì mấy hoạ tiết này TO HƠN MỘT Ô: viên kim cương lồng rộng hai ô,
+// bọ hung rộng gần hai. Vẽ trong vòng lặp lát ô thì phần tràn sang ô bên cạnh bị chính ô bên cạnh
+// tô đè lên ngay sau đó, ra một hoạ tiết cụt đúng ở ranh giới ô — tức là đúng cái 'nét đứt' phải bỏ.
+//
+// Chỗ đặt lấy theo TOẠ ĐỘ TRONG PHÒNG, không rải đều khắp sàn: trong tranh ý tưởng, hoa văn nằm
+// dọc hành lang còn sàn hai gian bên để trơn. Mà hành lang thì nằm đúng chỗ biết trước — bộ dựng
+// khoét cửa ở giữa mỗi cạnh chung, nên cột 9-11 và hàng 6-8 của phòng nào cũng là lối đi.
+function paintStoneInlay(c){
+  const laDa = (gx, gy) => {
+    if (gx < 0 || gy < 0 || gx >= MW || gy >= MH) return false;
+    if (S.grid[gy*MW+gx] !== FLOOR) return false;
+    const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
+    return (S.roomStyle ? S.roomStyle[ri] : 0) === FLOOR_STYLE.stone;
+  };
+  const kimCuong = (mx, my, r) => {
+    c.strokeStyle = 'rgba(0,0,0,0.26)'; c.lineWidth = 1.4;
+    c.beginPath(); c.moveTo(mx, my-r); c.lineTo(mx+r, my); c.lineTo(mx, my+r); c.lineTo(mx-r, my); c.closePath(); c.stroke();
+    c.strokeStyle = 'rgba(236,246,242,0.14)'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(mx, my-r*0.58); c.lineTo(mx+r*0.58, my); c.lineTo(mx, my+r*0.58); c.lineTo(mx-r*0.58, my); c.closePath(); c.stroke();
+    c.fillStyle = 'rgba(0,0,0,0.10)';
+    c.beginPath(); c.moveTo(mx, my-r*0.22); c.lineTo(mx+r*0.22, my); c.lineTo(mx, my+r*0.22); c.lineTo(mx-r*0.22, my); c.closePath(); c.fill();
+  };
+  // Bọ hung: cùng quy ước hộp của cả bộ — thân tối, lưng hứng sáng, không phải một hình tô đặc.
+  // Bọ hung. Bản trước vẽ sáu cái chân toè ra hai bên và nó đọc ra CON NHỆN. Cái làm nên bọ hung
+  // không phải chân mà là hai cánh cứng khép lại thành một đường sống giữa lưng, cộng cái đầu
+  // hình quạt. Chân rút lại thành sáu vấu ngắn nằm sát thân, đúng như trên bùa Ai Cập.
+  const boHung = (mx, my, r) => {
+    c.strokeStyle = 'rgba(0,0,0,0.20)'; c.lineWidth = 1.2;      // vành huy hiệu
+    c.beginPath(); c.arc(mx, my, r*0.98, 0, Math.PI*2); c.stroke();
+    c.fillStyle = 'rgba(0,0,0,0.26)';                            // thân: hai cánh cứng khép
+    c.beginPath(); c.ellipse(mx, my + r*0.08, r*0.46, r*0.58, 0, 0, Math.PI*2); c.fill();
+    c.fillStyle = 'rgba(238,248,244,0.13)';
+    c.beginPath(); c.ellipse(mx, my + r*0.02, r*0.38, r*0.48, 0, 0, Math.PI*2); c.fill();
+    c.fillStyle = 'rgba(0,0,0,0.30)';
+    c.fillRect(mx - 0.7, my - r*0.34, 1.4, r*0.94);              // sống lưng giữa hai cánh
+    c.beginPath();                                               // đầu hình quạt
+    c.moveTo(mx - r*0.34, my - r*0.40);
+    c.lineTo(mx + r*0.34, my - r*0.40);
+    c.lineTo(mx + r*0.22, my - r*0.70);
+    c.lineTo(mx - r*0.22, my - r*0.70);
+    c.closePath(); c.fill();
+    c.lineWidth = 1.4;                                           // sáu vấu chân, ngắn và sát thân
+    c.strokeStyle = 'rgba(0,0,0,0.28)';
+    for (const d of [-1, 1]) for (let k = 0; k < 3; k++){
+      c.beginPath();
+      c.moveTo(mx + d*r*0.44, my - r*0.26 + k*r*0.32);
+      c.lineTo(mx + d*r*0.64, my - r*0.40 + k*r*0.34);
+      c.stroke();
+    }
+  };
+  for (let gy = 0; gy < MH; gy++) for (let gx = 0; gx < MW; gx++){
+    if (!laDa(gx, gy)) continue;
+    const lx = gx % RW, ly = gy % RH;
+    const doc  = lx >= 9  && lx <= 11;         // hành lang dọc  (cột cửa)
+    const ngang = ly >= 6 && ly <= 8;          // hành lang ngang (hàng cửa)
+    if (!doc && !ngang) continue;
+    const mx = gx*TILE + TILE/2, my = gy*TILE + TILE/2;
+    if (doc && ngang) continue;                // giữa ngã tư để trơn, hoa văn chồng nhau thì rối
+    if (doc && lx === 10){
+      if (ly % 4 === 1) kimCuong(mx, my, TILE*0.82);
+      if (ly % 4 === 3) boHung(mx, my, TILE*0.62);
+    } else if (ngang && ly === 7){
+      if (lx % 4 === 1) kimCuong(mx, my, TILE*0.82);
+      if (lx % 4 === 3) boHung(mx, my, TILE*0.62);
+    }
+  }
+}
 // The shadow a wall casts onto the floor in front of it. A thin wall drawn flat from directly above
 // has nothing to say how tall it is, and it floated - it read as paint on the floor rather than as
 // something standing in the room. Darkwood leans its walls slightly toward the camera to say the
 // same thing; a contact shadow is the cheap version, and it costs no tiles. Six pixels, fading out.
 // SEE: wall + door pass, 2026-08-31
+// PHÙ ĐIÊU MẶT TƯỜNG — chạy suốt một DÃY tường, không vẽ theo từng ô.
+//
+// Đây là câu trả lời thẳng cho "tường đừng có nét đứt, nối". Nếu vẽ trong vòng lặp lát ô thì mỗi
+// ô tự vẽ một khúc phù điêu của riêng nó, và dù có căn pha theo toạ độ thế giới thì hai khúc vẫn
+// hở nhau đúng ở ranh giới do bo tròn và do nét vẽ. Ở đây tìm ra DÃY tường liền nhau trước — một
+// mạch ô tường cùng hàng, cùng kiểu phòng, cùng lộ mặt xuống phòng — rồi vẽ cả dải bằng MỘT lệnh
+// từ đầu dãy tới cuối dãy. Không có mối nối nào để mà hở.
+//
+// Dải này nằm ở mép DƯỚI của ô tường, tức mặt đứng người chơi nhìn thấy, đúng quy ước nhìn từ
+// trên xuống mà mặt trước/mặt sau của tường đang dùng.
+function paintStoneFrieze(c){
+  // Phù điêu thuộc về CĂN PHÒNG NHÌN THẤY NÓ, không thuộc về ô tường mang nó.
+  //
+  // Bản đầu hỏi sai câu: nó hỏi 'ô tường này có thuộc phòng kiểu đá không'. Nhưng luật sở hữu
+  // tường ở đây là một phòng chỉ sở hữu tường PHẢI và tường DƯỚI của mình (xem chỗ dựng lưới),
+  // nên bức tường mà người đứng trong hầm mộ nhìn thẳng vào — bức trên đầu — lại thuộc về phòng
+  // PHÍA TRÊN, và phòng đó thường không phải hầm mộ. Kết quả: không một nét phù điêu nào vẽ ra.
+  // Hỏi đúng là hỏi ô SÀN ngay dưới nó: mặt tường này đang quay xuống phòng nào.
+  const daBenDuoi = (gx, gy) => {
+    if (gx < 0 || gy < 0 || gx >= MW || gy+1 >= MH) return false;
+    if (S.grid[gy*MW+gx] !== WALL) return false;
+    if (S.grid[(gy+1)*MW+gx] === WALL) return false;          // phải lộ mặt xuống một khoảng trống
+    const ri = (((gy+1)/RH)|0)*GX + ((gx/RW)|0);
+    return (S.roomStyle ? S.roomStyle[ri] : 0) === FLOOR_STYLE.stone;
+  };
+  for (let gy = 0; gy < MH; gy++){
+    let gx = 0;
+    while (gx < MW){
+      if (!daBenDuoi(gx, gy)){ gx++; continue; }
+      let g2 = gx;
+      while (g2+1 < MW && daBenDuoi(g2+1, gy)) g2++;
+      const x0 = gx*TILE, x1 = (g2+1)*TILE, y = gy*TILE, w = x1 - x0;
+      if (w >= TILE*2) friezeRun(c, x0, x1, y, gy);
+      gx = g2 + 1;
+    }
+  }
+}
+// Một DÃY phù điêu, vẽ một lần từ đầu dãy tới cuối dãy. Không có mối nối nào để mà hở.
+function friezeRun(c, x0, x1, y, gy){
+  const w = x1 - x0;
+  // Dải nền hơi lõm, để phù điêu không nổi lên trên mặt tường phẳng lì.
+  const g = c.createLinearGradient(0, y+TILE-13, 0, y+TILE-2);
+  g.addColorStop(0, 'rgba(0,0,0,0.16)');
+  g.addColorStop(0.5, 'rgba(0,0,0,0.03)');
+  g.addColorStop(1, 'rgba(0,0,0,0.14)');
+  c.fillStyle = g; c.fillRect(x0, y+TILE-13, w, 11);
+  // Hai đường gờ chạy suốt dãy — đây là thứ khiến cả dãy đọc ra MỘT bức tường.
+  c.fillStyle = 'rgba(0,0,0,0.34)';        c.fillRect(x0, y+TILE-14, w, 1.2);
+  c.fillStyle = 'rgba(240,250,246,0.15)';  c.fillRect(x0, y+TILE-12.8, w, 1);
+  c.fillStyle = 'rgba(0,0,0,0.30)';        c.fillRect(x0, y+TILE-2.4, w, 1.2);
+  c.fillStyle = 'rgba(240,250,246,0.10)';  c.fillRect(x0, y+TILE-3.6, w, 1);
+  // Ô chữ tượng hình. Vạch ngăn và nét chữ đều lấy pha từ TOẠ ĐỘ THẾ GIỚI, nên nhịp của chúng
+  // không đổi khi dãy dài ra hay ngắn lại, và hai dãy nối nhau qua một khung cửa vẫn cùng nhịp.
+  const B = 11;
+  for (let wx = Math.ceil(x0/B)*B; wx < x1; wx += B){
+    c.fillStyle = 'rgba(0,0,0,0.24)'; c.fillRect(wx, y+TILE-11.6, 1, 8);
+  }
+  for (let wx = Math.ceil(x0/B)*B; wx < x1 - B*0.6; wx += B){
+    const t = bam(wx, gy), u = bam(wx*3, gy*5);
+    c.fillStyle = 'rgba(0,0,0,0.30)';
+    if (t < 0.25){                                   // chim ưng: thân ngang, đuôi xoè
+      c.fillRect(wx+2.5, y+TILE-9.5, 6, 1.2);
+      c.fillRect(wx+2.5, y+TILE-8.3, 1.2, 3);
+      c.fillRect(wx+6.5, y+TILE-8.3, 2, 1.2);
+    } else if (t < 0.5){                             // mắt Horus: vòng cung cộng một nét rủ
+      c.strokeStyle = 'rgba(0,0,0,0.30)'; c.lineWidth = 1.2;
+      c.beginPath(); c.arc(wx+5, y+TILE-7.5, 2.6, Math.PI, Math.PI*2); c.stroke();
+      c.fillRect(wx+4.4, y+TILE-7.2, 1.2, 1.2);
+      c.fillRect(wx+6.6, y+TILE-6.4, 1.6, 1.2);
+    } else if (t < 0.75){                            // ankh
+      c.fillRect(wx+4.4, y+TILE-8.4, 1.2, 5.4);
+      c.fillRect(wx+2.6, y+TILE-6.6, 4.8, 1.2);
+      c.strokeStyle = 'rgba(0,0,0,0.30)'; c.lineWidth = 1.2;
+      c.beginPath(); c.arc(wx+5, y+TILE-9.4, 1.6, 0, Math.PI*2); c.stroke();
+    } else {                                         // ba nét sóng nước, dài ngắn theo băm
+      for (let k = 0; k < 3; k++)
+        c.fillRect(wx+2.4, y+TILE-9.2+k*2.2, 3.4 + u*3, 1.2);
+    }
+  }
+  // ĐĨA MẶT TRỜI CÓ CÁNH, đặt giữa dãy — chỉ khi dãy đủ dài để hai cánh không đè lên hai đầu.
+  // Trong tranh ý tưởng đây là thứ nói cho mắt biết bức tường này là một MẶT, không phải một dải:
+  // nó có tâm, và mọi thứ khác trên tường xếp quanh cái tâm ấy.
+  if (w >= TILE*6){
+    const mx = (x0 + x1) / 2, my = y + TILE - 7.6;
+    c.fillStyle = 'rgba(0,0,0,0.20)'; c.fillRect(mx - TILE*1.9, y+TILE-12.6, TILE*3.8, 9.6);
+    c.fillStyle = 'rgba(0,0,0,0.42)';
+    c.beginPath(); c.arc(mx, my, 3.1, 0, Math.PI*2); c.fill();
+    c.fillStyle = 'rgba(242,252,248,0.16)';
+    c.beginPath(); c.arc(mx, my-0.7, 1.7, 0, Math.PI*2); c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.34)'; c.lineWidth = 1.1;
+    for (const d of [-1, 1]){
+      for (let k = 1; k <= 5; k++){                  // lông cánh, dài dần rồi cụp xuống
+        c.beginPath();
+        c.moveTo(mx + d*3.6, my - 1.2 + k*0.42);
+        c.lineTo(mx + d*(3.6 + k*3.4), my - 2.4 + k*1.06);
+        c.stroke();
+      }
+      c.beginPath();                                  // rắn thần cuộn hai bên đĩa
+      c.moveTo(mx + d*3.0, my + 2.6);
+      c.quadraticCurveTo(mx + d*6.2, my + 3.4, mx + d*5.0, my + 0.4);
+      c.stroke();
+    }
+  }
+}
 function paintWallContact(c){
   for (let gy=1; gy<MH; gy++) for (let gx=0; gx<MW; gx++){
     if (S.grid[gy*MW+gx] === WALL) continue;
@@ -2580,6 +2918,18 @@ function paintFloor(c, x, y, st, gx, gy, n){
   // random turned a floor into camouflage: the eye read the blotches as objects and the room
   // as clutter. Planks run in rows, tiles checker, and the randomness is demoted to a faint
   // wear jitter you only notice up close.
+  // ĐÁ HẦM MỘ — mặt sàn phải LIỀN, không đứt theo ô. Chủ dự án, 2026-09-03: "phần tường, mặt
+  // đất đừng có nét đứt, nối".
+  //
+  // Đây là cái bẫy mà bốn kiểu sàn cũ đều dính: mỗi ô tự kẻ một vạch tối ở đáy và ở mép phải
+  // của CHÍNH NÓ, nên cứ 24 điểm ảnh lại một đường, và cả căn phòng đọc ra một tấm lưới chứ
+  // không đọc ra một mặt sàn. Mắt đếm ô thay vì nhìn phòng.
+  //
+  // Sàn đá không kẻ mạch theo ô, nó kẻ theo TẤM: tấm 2x2 ô, mạch ngang chạy suốt (mọi ô cùng
+  // hàng đều vẽ đúng một đường thế giới nên nó nối liền), mạch dọc so le giữa hai hàng tấm
+  // đúng kiểu xây đá thật. Màu cũng bốc theo TẤM chứ không theo ô — bốc theo ô thì mỗi ô một
+  // sắc, và một tấm đá bị cắt làm bốn mảnh khác màu là thứ trông giả nhất trong cả bộ.
+  if (st === FLOORS[4]){ paintStone(c, x, y, st, gx, gy); return; }
   let swap;
   if (st === FLOORS[1])      swap = (gx + gy) & 1;        // tile: checkerboard
   else if (st === FLOORS[0]) swap = ((gy >> 1) & 1);      // wood: two-tile plank rows
@@ -2643,6 +2993,105 @@ function paintProp(c, x, y, kind, n){
     c.fillStyle = 'rgba(0,0,0,0.22)';                          // khe thông hơi trên cánh trái
     for (let k = 0; k < 3; k++) c.fillRect(x+3, y+3+k*2, seam-x-5, 1);
     c.fillStyle = 'rgba(240,248,252,0.10)'; c.fillRect(x+1, y+1, T-2, 1);   // gờ sáng mép trên
+  } else if (kind === P_TOMB){      // quan tài đá — dựng đứng dựa tường, mặt nạ ở đầu
+    // Ba món của hầm mộ vẫn theo ĐÚNG quy ước của bốn món cũ: mặt trên sáng, chân tối, có cạnh.
+    // Quyết định 2026-09-01 đã ghi rõ vì sao — một hình tô đặc không có mặt nào để sáng khác nhau
+    // thì soi đèn vào chỉ đổi được độ đậm của đúng một mảng màu, và giữa bốn cái hộp nó không đọc
+    // ra đồ vật.
+    //
+    // Bản đầu vẽ nó thành một hộp chữ nhật có vạch ngang — giữa một gian toàn hộp thì nó đọc ra
+    // cái tủ hồ sơ. Cái làm nên quan tài không phải nước sơn mà là HÌNH DÁNG: vai rộng, đầu tròn,
+    // chân thuôn. Nên nó dựng bằng đường bao chứ không bằng fillRect.
+    const cx = x + T/2;
+    const vai = y + T*0.30, chan = y + T - 1.5, hong = T*0.34, mut = T*0.24;
+    const than = (fill) => {
+      c.beginPath();
+      c.moveTo(cx - hong, vai);
+      c.quadraticCurveTo(cx - hong, y + 1.5, cx, y + 1.5);      // vai trái lên đỉnh đầu
+      c.quadraticCurveTo(cx + hong, y + 1.5, cx + hong, vai);   // xuống vai phải
+      c.lineTo(cx + mut, chan);                                 // thuôn dần về chân
+      c.lineTo(cx - mut, chan);
+      c.closePath();
+      c.fillStyle = fill; c.fill();
+    };
+    than('#6d7d76');                                            // thân, phần khuất
+    c.save(); c.beginPath();                                     // nắp: nửa trên hứng sáng
+    c.rect(x, y, T, T*0.62); c.clip();
+    than('#9db0a7');
+    c.restore();
+    c.strokeStyle = 'rgba(0,0,0,0.46)'; c.lineWidth = 1;
+    than('rgba(0,0,0,0)'); c.stroke();                           // đường bao, để nó tách khỏi tường
+    // Khăn trùm đầu: hai vạt xoè hai bên mặt, đây là nét đọc ra 'Ai Cập' nhanh nhất.
+    c.fillStyle = 'rgba(228,240,234,0.40)';
+    c.fillRect(cx - hong*0.92, y + T*0.16, hong*1.84, 2.2);
+    c.fillStyle = 'rgba(0,0,0,0.30)';
+    c.fillRect(cx - hong*0.92, y + T*0.16, 2.2, T*0.16);
+    c.fillRect(cx + hong*0.92 - 2.2, y + T*0.16, 2.2, T*0.16);
+    c.fillStyle = 'rgba(0,0,0,0.58)';                            // hai con mắt kẻ dài
+    c.fillRect(cx - 3.4, y + T*0.235, 2.4, 1.2);
+    c.fillRect(cx + 1.0, y + T*0.235, 2.4, 1.2);
+    c.fillStyle = 'rgba(0,0,0,0.34)';                            // râu cằm
+    c.fillRect(cx - 0.7, y + T*0.30, 1.4, 2.6);
+    // Hai tay khoanh trước ngực, rồi cột chữ tượng hình chạy xuống chân.
+    c.fillStyle = 'rgba(0,0,0,0.26)';
+    c.fillRect(cx - hong*0.62, y + T*0.40, hong*1.24, 1.4);
+    c.fillRect(cx - hong*0.52, y + T*0.46, hong*1.04, 1.4);
+    for (let k = 0; k < 4; k++) c.fillRect(cx - 2.4, y + T*0.58 + k*3.0, 4.8, 1.2);
+    c.fillStyle = 'rgba(238,250,244,0.16)';                      // gờ sáng dọc mép trái nắp
+    c.fillRect(cx - hong + 1.2, vai, 1.2, T*0.26);
+    c.fillStyle = 'rgba(0,0,0,0.40)';                            // chân đổ bóng xuống sàn
+    c.fillRect(cx - mut, chan - 1.6, mut*2, 2.2);
+  } else if (kind === P_RUBBLE){    // đá vụn — mảng tường đổ, mảnh to mảnh nhỏ
+    // Cùng quy ước: mỗi mảnh là một khối có mặt trên sáng và chân tối. Vị trí lấy từ n nên đống
+    // nào cũng khác đống nào, mà vẫn đứng yên qua các khung hình.
+    const manh = [[1.5,10,10,9],[10,5,9,11],[4,2,8,7],[14,12,7,8],[2,16,7,6],[11,17,8,5]];
+    for (let k = 0; k < manh.length; k++){
+      const m = manh[k], sh = ((n*7 + k*0.37) % 1);
+      const w = Math.max(3.5, m[2] - sh*3), h = Math.max(3.5, m[3] - sh*2.4);
+      const px = x + m[0] + sh*1.6, py = y + m[1] + sh*1.2;
+      c.beginPath();                                             // mảnh vỡ có góc, không phải ô vuông
+      c.moveTo(px, py + h*0.30);
+      c.lineTo(px + w*0.34, py);
+      c.lineTo(px + w, py + h*0.22);
+      c.lineTo(px + w*0.82, py + h);
+      c.lineTo(px + w*0.14, py + h*0.88);
+      c.closePath();
+      c.fillStyle = '#7b8a83'; c.fill();
+      c.strokeStyle = 'rgba(0,0,0,0.38)'; c.lineWidth = 1; c.stroke();
+      c.save(); c.clip();
+      c.fillStyle = '#9aa9a1'; c.fillRect(px, py, w, h*0.52);    // mặt trên
+      c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(px, py + h*0.78, w, h*0.30);
+      c.restore();
+    }
+    c.fillStyle = 'rgba(0,0,0,0.16)';                            // bụi đá vương quanh đống
+    for (let k = 0; k < 5; k++){
+      const u = ((n*13 + k*0.29) % 1), v = ((n*29 + k*0.61) % 1);
+      c.fillRect(x + 1 + u*(T-3), y + 1 + v*(T-3), 1.6, 1.2);
+    }
+  } else if (kind === P_URN){       // vò gốm — món DUY NHẤT ngả ấm trong cả gian đá lạnh
+    // Cố ý không phải một hình tròn tô đặc: có miệng vò (mặt trên, tối), có vai hứng sáng, có
+    // chân đổ bóng. Đó là ba thứ mà cái chậu cây bị bỏ hồi 2026-09-01 không có.
+    const cx = x + T/2;
+    c.fillStyle = 'rgba(0,0,0,0.34)';                            // bóng dưới chân, vẽ trước
+    c.beginPath(); c.ellipse(cx, y+T-3.5, T*0.30, T*0.10, 0, 0, Math.PI*2); c.fill();
+    c.beginPath();                                               // thân vò: phình giữa, thắt chân
+    c.moveTo(cx - 2.6, y + 5.5);
+    c.bezierCurveTo(cx - T*0.40, y + 9, cx - T*0.36, y + T - 8, cx - 3.4, y + T - 4);
+    c.lineTo(cx + 3.4, y + T - 4);
+    c.bezierCurveTo(cx + T*0.36, y + T - 8, cx + T*0.40, y + 9, cx + 2.6, y + 5.5);
+    c.closePath();
+    c.fillStyle = '#8a6438'; c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.42)'; c.lineWidth = 1; c.stroke();
+    c.save(); c.clip();
+    c.fillStyle = '#a87b45'; c.fillRect(x, y, T, T*0.52);        // vai hứng sáng
+    c.fillStyle = 'rgba(238,206,156,0.26)'; c.fillRect(cx - 6, y + 8, 2.2, 8);
+    c.fillStyle = 'rgba(0,0,0,0.26)';                            // hai vòng khắc quanh bụng
+    c.fillRect(x, y + T*0.56, T, 1.2); c.fillRect(x, y + T*0.66, T, 1.2);
+    c.restore();
+    c.fillStyle = '#4a3520';                                     // miệng vò
+    c.beginPath(); c.ellipse(cx, y+5.5, T*0.15, T*0.075, 0, 0, Math.PI*2); c.fill();
+    c.fillStyle = 'rgba(230,200,158,0.30)';
+    c.beginPath(); c.ellipse(cx, y+4.8, T*0.15, T*0.055, 0, 0, Math.PI*2); c.fill();
   } else {                          // plain block, the old 'x'
     c.fillStyle = `rgb(${(112+n*12)|0},${(104+n*10)|0},${(92+n*9)|0})`;
     c.fillRect(x+1,y+1,TILE-2,TILE-2);
@@ -7546,7 +7995,7 @@ function draw(){
   if (!S.grid) return;
 
   worldTransform(c);
-  c.drawImage(S.worldCv, 0, 0);
+  c.drawImage(S.worldCv, 0, 0, WPX, HPX);   // ảnh nền vẽ ở SS lần, thu về đúng khổ thế giới
   drawPads(c); drawButton(c); drawBikes(c); drawCart(c); drawLoot(c); drawCar(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawDoors(c); drawProjectiles(c); drawPlayer(c);
 
   buildLight();
