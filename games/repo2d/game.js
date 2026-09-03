@@ -950,11 +950,13 @@ const MONSTERS = {
   // phat ban gio dang mot phat ban.
   patrol:  { name:'Kẻ đi tuần', hp: 85,  dmg:10,  cd:0.9, speed: 58, wind:0.42, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad',
              wiki:'Nhìn bằng mắt, ĐIẾC ĐẶC. Chạy ầm ầm sau lưng nó cũng không sao — nhưng đi vào nón nhìn thì nó thấy ngay. Nấp sau tường là xong chuyện.' },
-  listen:  { name:'Kẻ nghe',    hp:150,  dmg:32,  cd:1.6, speed: 74, wind:0.58, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6',
+  // danh:'ham' — bộ hình của nó là một con NHỆN, không có vai. Xem veHam.
+  listen:  { name:'Kẻ nghe',   danh:'ham',    hp:150,  dmg:32,  cd:1.6, speed: 74, wind:0.58, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6',
              wiki:'MÙ hẳn, nhưng nghe rất xa. Vòng nghe vẽ đúng bằng tiếng bạn đang gây ra: đứng yên thì vòng co lại gần bằng không. Rón rén đi ngang mặt nó vẫn thoát.' },
   stalk:   { name:'Kẻ bám',     hp:130,  dmg:30,  cd:1.1, speed: 66, wind:0.52, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6',
              wiki:'Mắt xa nhất nhà và đi nhanh. Mất dấu thì nó không về chỗ cũ mà dời sang một phòng gần bạn — nên chỗ vừa cắt đuôi nó không còn an toàn nữa.' },
-  bomber:  { name:'Kẻ nổ',      hp: 60,  dmg:14,  cd:0.9, speed: 62, wind:0.46, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8',
+  // danh:'ham' — cái cây có mồm, cũng không có vai. Xem veHam.
+  bomber:  { name:'Kẻ nổ',     danh:'ham',      hp: 60,  dmg:14,  cd:0.9, speed: 62, wind:0.46, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8',
              wiki:'Ít máu nhất, nhưng CHẾT LÀ NỔ. Đừng hạ nó khi đang ôm đồ hoặc đứng cạnh xe đẩy — vụ nổ làm vỡ hàng, và tiền vỡ thì không lấy lại được.' },
   heavy:   { name:'Kẻ nặng',    hp:620,  dmg:100, cd:1.8, speed: 40, wind:0.90, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8',
              wiki:'Sáu trăm máu và một đòn gần trăm sát thương. Bù lại nó CHẬM: chạy là thoát, đánh là thua. Không có món nào trong tủ đáng đổi lấy việc đứng lại với nó.' },
@@ -9220,39 +9222,125 @@ function drawLoot(c){
 // HAI CÁNH TAY, và chỉ con nào CHẠY LẠI ĐÁNH mới có. Chủ dự án, 2026-09-03: "quái nào chạy lại
 // đánh vì vẽ thêm 2 cái tay ra, bức tượng thì không cần".
 //
-// Tay không phải đồ trang trí ở đây, nó là cái làm cho luật hai thì đọc được: một khối bóng phình
-// ra rồi trừ máu thì vẫn là 'ủn vào là đau', chỉ chậm hơn. Có hai cánh tay đung đưa lúc đi, và một
-// trong hai ngoác hẳn ra sau lúc vung, thì mắt đọc ra 'nó sắp đấm' trước khi cú đấm tới — mà đó
-// đúng là toàn bộ mục đích của thì vung.
+// Bộ phận đánh không phải đồ trang trí ở đây, nó là cái làm cho luật hai thì đọc được: một khối
+// bóng phình ra rồi trừ máu thì vẫn là 'ủn vào là đau', chỉ chậm hơn. Có thứ gì đó ngoác ra rồi
+// mới sập vào thì mắt đọc ra 'nó sắp đánh' TRƯỚC khi cú đánh tới — mà đó đúng là toàn bộ mục
+// đích của thì vung.
+//
+// Hai dáng, chọn theo `danh` trong bảng: hai bàn tay lơ lửng cho loài đứng, một cặp hàm ngoạm
+// cho loài bò. Xem veTayBay và veHam.
 //
 // Loài KHÔNG có tay: Bom con (`noMelee` — nó không đánh, nó tự nổ) và AEngel, tức bức tượng, vốn
 // vẽ ở hàm riêng của nó chứ không đi qua đây.
-function drawArms(c, m, d){
-  const dai = (d.reach || FOE_REACH) * 0.50, day = 2.6;
+// Tiến độ của cú vung, quy về 0..1. Dưới 0 nghĩa là không vung, đang đi thường. `m.swing` đếm
+// NGƯỢC từ thì vung về 0, nên phải lật lại mới ra 'đã đi được bao nhiêu phần'.
+const DANH_QUAT = 0.62;          // trước mốc này là lấy đà, sau mốc này là giáng xuống
+function danhPha(m, d){
   const tong = d.wind || FOE_WIND;
-  const k = (m.swing || 0) > 0 ? clamp(1 - m.swing / tong, 0, 1) : -1;
-  // đi thì hai tay đung đưa ngược pha nhau; đứng thì buông
-  const du = Math.sin(m.wob * 2.2) * 0.42;
-  c.save(); c.rotate((m.swing || 0) > 0 ? m.swingDir : m.dir);
-  c.strokeStyle = (d && d.rim) || '#e8b9ad';
-  c.lineCap = 'round'; c.lineWidth = day;
-  for (const ben of [-1, 1]){
-    let goc;
-    if (k < 0) goc = ben*0.95 + du*ben;                 // đi bình thường
-    else if (ben > 0) goc = k < 0.62 ? 0.95 + (k/0.62)*1.5      // tay thuận ngoác ra sau
-                                     : 0.95 + 1.5 - ((k-0.62)/0.38)*2.9;   // rồi quật tới
-    else goc = -0.95 - du*0.5;                          // tay kia giữ thăng bằng
-    const vx = Math.cos(goc)*dai, vy = Math.sin(goc)*dai;
-    c.beginPath();
-    c.moveTo(1, ben*4.5 - 3);
-    c.quadraticCurveTo(vx*0.55 + 1, ben*4.5 + vy*0.4 - 3, vx, vy*0.9 + ben*2.0 - 3);
-    c.stroke();
-    // bàn tay
-    c.fillStyle = (d && d.rim) || '#e8b9ad';
-    c.beginPath(); c.arc(vx, vy*0.9 + ben*2.0 - 3, day*0.78, 0, Math.PI*2); c.fill();
+  return (m.swing || 0) > 0 ? clamp(1 - m.swing / tong, 0, 1) : -1;
+}
+// HAI BÀN TAY LƠ LỬNG, rời hẳn khỏi thân.
+//
+// Bản đầu nối tay vào thân bằng một đoạn cong bắt đầu từ giữa người. Chủ dự án, 2026-09-03:
+// "2 bản tay không nên dính ở giữa người con quái ... nếu có 2 tay thì nên như pokemon haunter
+// có 2 màn tay lơ lửng". Và đúng: bộ hình pixel đã vẽ sẵn vai với tay trong đó rồi, nên một cánh
+// tay vector mọc thêm từ giữa ngực là bộ tay THỨ HAI chồng lên bộ thứ nhất — mắt đọc ra ngay là
+// sai giải phẫu, chứ không đọc ra 'nó sắp đấm'.
+//
+// Bàn tay rời thì không có giải phẫu nào để mà sai. Nó thành một TÍN HIỆU thuần tuý, đọc được ở
+// mọi cỡ và trên mọi bộ hình: hai vật trôi hai bên, thụt về sau lúc lấy đà rồi phóng tới lúc
+// giáng. Cái khoảng hở giữa bàn tay với thân chính là thứ nói 'lơ lửng' — nên đừng khép nó lại.
+//
+// HỆ TOẠ ĐỘ: đặt theo MÀN HÌNH, không theo hướng con quái.
+//
+// Bản trước quay cả cụm tay theo `m.dir` rồi đặt hai bàn tay ở (trước mặt, ±hai bên) như thể
+// đang nhìn từ trên nóc xuống. Đo ra thì sai hẳn: bộ hình pixel vẽ con quái ĐỨNG THẲNG nhìn từ
+// phía trước, nên trục 'hai bên' của thế giới lại rơi vào trục 'trên đầu / dưới chân' của tấm
+// hình — một bàn tay nằm ngang ngực, bàn kia nằm dưới gót. Đúng cái lỗi 'dính ở giữa người' mà
+// lần sửa này sinh ra để dẹp, chỉ đổi chỗ.
+//
+// Nên: hai bàn tay luôn nằm hai bên thân TRÊN MÀN HÌNH, ngang tầm ngực, bất kể nó quay đâu — y
+// như Haunter. Hướng đánh chỉ dùng để ĐẨY cả hai bàn tay tới, và trục dọc bị nén còn 0,6 vì đây
+// là góc nhìn chếch chứ không phải nhìn thẳng từ trên xuống.
+function veBanTay(c, x, y, goc, mau){
+  c.save(); c.translate(x, y); c.rotate(goc);
+  c.fillStyle = mau;
+  c.beginPath(); c.ellipse(0, 0, 3.2, 2.8, 0, 0, Math.PI*2); c.fill();
+  for (let i = -1; i <= 1; i++){                      // ba ngón, chĩa theo hướng đánh
+    c.beginPath(); c.ellipse(3.0, i*1.8, 1.9, 0.9, 0, 0, Math.PI*2); c.fill();
   }
-  c.lineCap = 'butt';
   c.restore();
+}
+function veTayBay(c, m, d){
+  const k = danhPha(m, d), mau = (d && d.rim) || '#e8b9ad';
+  const goc = k >= 0 ? m.swingDir : m.dir;
+  const ux = Math.cos(goc), uy = Math.sin(goc) * 0.6;
+  let ra, cao, day;              // ra: nửa khoảng cách hai tay · cao: tầm ngực · day: đẩy tới
+  if (k < 0){                                         // đi thường: trôi lên xuống nhè nhẹ
+    const du = Math.sin(m.wob * 2.2);
+    ra = 13.2;  cao = -8.0 + du * 0.9;  day = 1.0 + du * 1.1;
+  } else if (k < DANH_QUAT){                          // lấy đà: dang rộng, thụt hẳn về sau
+    const q = k / DANH_QUAT;
+    ra = 13.2 + q * 3.4;  cao = -8.0 - q * 2.0;  day = 1.0 - q * 8.0;
+  } else {                                            // giáng: chụm lại, phóng thẳng tới
+    const q = (k - DANH_QUAT) / (1 - DANH_QUAT);
+    ra = 16.6 - q * 9.6;  cao = -10.0 + q * 3.0;  day = -7.0 + q * 22.0;
+  }
+  for (const ben of [-1, 1]) veBanTay(c, ben*ra + ux*day, cao + uy*day, goc, mau);
+}
+// HÀM NGOẠM, cho loài BÒ.
+//
+// Chủ dự án, cùng hôm đó: "nếu là quái bò thì bên để trước đầu như cái hàm để cắn". Con nhện,
+// con sói, cái thứ bò lê dưới đất — chúng không có vai để mọc tay ra, nên gắn tay vào là vẽ một
+// con vật khác. Thứ chúng có là cái mồm, và cái mồm ngoác ra trước khi ngoạm đúng bằng cách hai
+// bàn tay ngoác ra trước khi đấm: cùng một luật hai thì, khác cái vẽ.
+//
+// Hàm bám theo HƯỚNG ĐÁNH — nó phải nằm ở phía con quái đang nhắm, nếu không thì cái ngoác chỉ
+// nói 'có gì đó sắp xảy ra' mà không nói 'sắp xảy ra với BẠN'.
+function veHam(c, m, d){
+  const k = danhPha(m, d), mau = (d && d.rim) || '#e8b9ad';
+  const goc = k >= 0 ? m.swingDir : m.dir;
+  const ux = Math.cos(goc), uy = Math.sin(goc) * 0.6;
+  const dai = (d.reach || FOE_REACH) * 0.46;
+  let mo, day;
+  if (k < 0){                                         // thở
+    mo = 0.26 + Math.sin(m.wob * 2.2) * 0.05;  day = 7.5;
+  } else if (k < DANH_QUAT){                          // ngoác hết cỡ, rụt về lấy đà
+    const q = k / DANH_QUAT;
+    mo = 0.26 + q * 0.86;  day = 7.5 - q * 3.5;
+  } else {                                            // ngoạm, và lao theo cú ngoạm
+    const q = (k - DANH_QUAT) / (1 - DANH_QUAT);
+    mo = 1.12 - q * 1.20;  day = 4.0 + q * 12.0;
+  }
+  c.save();
+  c.translate(ux * day, -6 + uy * day);
+  c.rotate(goc);
+  c.fillStyle = mau;
+  for (const ben of [-1, 1]){
+    c.save(); c.rotate(ben * mo);
+    c.beginPath();
+    c.moveTo(0, ben * 2.4);
+    c.quadraticCurveTo(dai * 0.6, ben * 3.4, dai, ben * 1.4);
+    c.lineTo(dai * 0.9, ben * 0.1);
+    c.quadraticCurveTo(dai * 0.5, ben * 0.9, 0, ben * 0.3);
+    c.closePath(); c.fill();
+    for (let i = 1; i <= 3; i++){                     // răng, chĩa vào trong
+      const t = i / 4;
+      c.beginPath();
+      c.moveTo(dai * t - 0.9, ben * 0.9);
+      c.lineTo(dai * t,       ben * -1.1);
+      c.lineTo(dai * t + 0.9, ben * 0.9);
+      c.closePath(); c.fill();
+    }
+    c.restore();
+  }
+  c.restore();
+}
+// Cửa vào: loài nào ngoạm, loài nào đấm. Mặc định là đấm, vì phần lớn thứ trong nhà đứng hai
+// chân; `danh:'ham'` là thứ phải khai rõ trong bảng MONSTERS.
+function drawArms(c, m, d){
+  if (d && d.danh === 'ham') veHam(c, m, d);
+  else veTayBay(c, m, d);
 }
 // Vòng cung báo hướng của cú vung. Nó trả lời câu duy nhất người chơi cần trả lời trong khoảnh
 // khắc đó: nó đang nhắm về PHÍA NÀO — vì né là né sang bên, không phải né lùi.
@@ -10413,7 +10501,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260903e';
+const BUILD = '20260903f';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -11020,8 +11108,13 @@ function wikiHtml(){
       // vào cái viền đỏ mà sprites.js nướng sẵn quanh mọi con quái, và cú vung — thứ cả ô hình
       // này dựng ra để khoe — thành ra không nhìn thấy. Một màu ấm đặc thì nổi trên cả viền đỏ
       // lẫn nền tối.
+      // Con nào BÒ thì ngoạm, con nào đứng thì đấm. Bên này phải tự khai vì SQ.FOES không có
+      // trường đó: Con Ngồi bò dưới đất, Thợ Săn là con sói, Nhện Trần là con nhện, Quản Ca là
+      // cái cây — bốn con không có vai để mọc tay ra.
+      const HAM_SQ = { rook:1, hunter:1, nhen:1, quanca:1 };
       const fd = { col: f.color, eye: '#ffb46a', rim: '#f0dccc',
-                   hp: f.hp, dmg: f.dmg, wind: 0.5, noMelee: k === 'angel' ? 1 : 0 };
+                   hp: f.hp, dmg: f.dmg, wind: 0.5, danh: HAM_SQ[k] ? 'ham' : 'tay',
+                   noMelee: k === 'angel' ? 1 : 0 };
       h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '', { col:f.color, eye:'#ffb46a' }) +
                    wikiSong(k, fd, WIKI_CANH_SQ[k] || 'vung'),
         f.name, '',

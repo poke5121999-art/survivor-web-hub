@@ -1499,6 +1499,74 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
   check('cả ba kiểu ngắm đều được dùng (self / dir / point)',
     Object.keys(kinds.aims).length === 3, JSON.stringify(kinds.aims));
 
+  /* ================= HƯỚNG DẪN CHO NGƯỜI MỚI ===========================
+   * Hai lỗi của bản đầu đều IM LẶNG HOÀN TOÀN — không lỗi, không cảnh báo, chỉ
+   * là một cái nút không bấm được và một bước không bao giờ tiến. Nên chỗ này
+   * kiểm đúng hai thứ đó bằng máy, chứ mắt nhìn ảnh chụp thì không thấy:
+   *
+   *   1. LỖ PHẢI TRÙNG CHỖ NÚT. Cái lỗ neo vào #stage (có thu phóng) chứ không
+   *      vào #frame; đo nhầm gốc thì lỗ lệch hơn trăm pixel — nhưng vẫn hiện ra
+   *      trông rất thuyết phục, chỉ là sáng vào chỗ trống.
+   *   2. CHẠM VÀO CHỖ SÁNG PHẢI ĐI LỌT xuống nút thật, và phải đẩy bước tiến.
+   * ==================================================================== */
+  results.push('\n-- huong dan cho nguoi moi --');
+  await p.evaluate(() => { DP.tutRestart(DP.UI.save); DP.UI.show('home'); });
+  await p.waitForTimeout(400);
+  const tut0 = await p.evaluate(() => {
+    const st = DP.tutStep(DP.UI.save);
+    return { id: st && st.id, n: DP.TUT.length,
+             ids: DP.TUT.length === new Set(DP.TUT.map(x => x.id)).size,
+             box: document.getElementById('tutBox').classList.contains('on') };
+  });
+  check('hồ sơ mới mở ra là vào ngay bước một của hướng dẫn',
+    tut0.id === 'welcome' && tut0.box, JSON.stringify(tut0));
+  check('mọi bước có id riêng', tut0.ids, tut0.n + ' bước');
+
+  // sang bước chỉ vào nút ẢI, rồi ĐO xem lỗ có trùng chỗ nút không
+  await p.evaluate(() => document.getElementById('tutOk').click());
+  await p.waitForTimeout(400);
+  const tutAim = await p.evaluate(() => {
+    const st = DP.tutStep(DP.UI.save);
+    const live = document.querySelector('.screen.on');
+    const el = live.querySelector(st.sel);
+    const er = el.getBoundingClientRect();
+    const hr = document.getElementById('tutHole').getBoundingClientRect();
+    return { id: st.id,
+             dx: Math.abs((er.left + er.width / 2) - (hr.left + hr.width / 2)),
+             dy: Math.abs((er.top + er.height / 2) - (hr.top + hr.height / 2)),
+             // Chỗ sáng phải nhận được chạm: hỏi thẳng trình duyệt xem điểm giữa
+             // nút thuộc về phần tử nào. Nếu lớp chặn còn nằm trên thì nó trả về
+             // #tutBlock, và người chơi bấm mãi không ra gì.
+             hit: (document.elementFromPoint(er.left + er.width / 2,
+                                             er.top + er.height / 2) || {}).id || 'khac',
+             onBlock: (document.elementFromPoint(20, 400) || {}).id };
+  });
+  check('lỗ khoét sáng TRÙNG chỗ nút, lệch dưới 4px',
+    tutAim.dx < 4 && tutAim.dy < 4, 'lệch ' + tutAim.dx.toFixed(1) + ',' + tutAim.dy.toFixed(1) + 'px');
+  check('chạm vào chỗ sáng đi LỌT xuống nút thật',
+    tutAim.hit !== 'tutBlock', 'điểm giữa nút thuộc về #' + tutAim.hit);
+  check('chạm ra ngoài chỗ sáng thì BỊ CHẶN',
+    tutAim.onBlock === 'tutBlock', 'điểm ngoài thuộc về #' + tutAim.onBlock);
+
+  const adv = await p.evaluate(() => {
+    document.querySelector('.screen.on [data-nav="quest"]').click();
+    return new Promise(r => setTimeout(() => {
+      const st = DP.tutStep(DP.UI.save);
+      r({ id: st && st.id });
+    }, 300));
+  });
+  check('bấm đúng chỗ sáng thì bước tiến lên', adv.id === 'pick-stage', adv.id);
+
+  const skip = await p.evaluate(() => {
+    document.getElementById('tutSkip').click();
+    return { step: DP.tutStep(DP.UI.save),
+             box: document.getElementById('tutBox').classList.contains('on') };
+  });
+  check('bỏ qua thì tắt hẳn, không còn bước nào',
+    skip.step === null && !skip.box, JSON.stringify(skip));
+  await p.evaluate(() => { DP.tutSkip(DP.UI.save); DP.UI.show('home'); });
+  await p.waitForTimeout(200);
+
   check('mọi ảnh trong asset-map đều nạp được', art.rep.loaded === art.rep.total,
     art.rep.loaded + '/' + art.rep.total);
   check('đủ biểu tượng vũ khí (14 lớp x 7 hệ)', art.miss.length === 0,

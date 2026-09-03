@@ -28,6 +28,7 @@
     buildScreens();
     installDragEquip();
     show('home');
+    tutWire(); tutStart();
     bindHud();
     if (window.DPBot) window.DPBot.attach(api);
   }
@@ -153,6 +154,167 @@
     mkScreen('shop',   'TIỆM', '', false, true);
     mkScreen('help',   'CÁCH CHƠI', '', false, true);
     mkScreen('bosslist','DANH SÁCH BEHEMOTH', '', false, true);
+  }
+
+  /* ===================== HƯỚNG DẪN CHO NGƯỜI MỚI ========================
+   * Chạy theo NHỊP chứ không theo sự kiện. Mỗi 250ms hỏi lại ba câu: bước hiện
+   * tại là gì, chỗ cần sáng đang ở toạ độ nào, và điều kiện sang bước sau đã
+   * đủ chưa.
+   *
+   * Vì sao theo nhịp: chỗ cần khoét sáng nằm trong HTML do các hàm render dựng
+   * lại liên tục (đổi màn, quay xong, mua xong). Bám vào một phần tử cụ thể thì
+   * lần render sau nó là một đối tượng khác và cái lỗ trỏ vào hư không. Đo lại
+   * mỗi nhịp thì cái lỗ tự bám theo, kể cả khi trang cuộn hay màn hình xoay.
+   *
+   * 250ms đủ nhanh để mắt không thấy trễ, đủ chậm để không tốn gì.
+   * ==================================================================== */
+  var tutTimer = null;
+
+  /* Tìm chỗ cần khoét sáng TRONG MÀN ĐANG MỞ trước đã.
+   *
+   * Thanh nav có mặt ở MỌI màn — mỗi màn một bản sao. `document.querySelector`
+   * trả về bản đầu tiên trong cây, mà bản đó thường nằm ở một màn đang ẩn: cái
+   * lỗ khoét vào một phần tử có kích thước 0, và cú chạm của người chơi lên nút
+   * thật thì không khớp với phần tử đang được theo dõi. Bước hướng dẫn đứng im
+   * mãi mà không ai hiểu vì sao.
+   *
+   * Nên: tìm trong `.screen.on` trước, và chỉ tìm toàn cây khi không thấy (HUD
+   * trong ải nằm ngoài mọi .screen). */
+  function tutEl(step) {
+    if (!step || !step.sel) return null;
+    var live = document.querySelector('.screen.on');
+    return (live && live.querySelector(step.sel)) || document.querySelector(step.sel);
+  }
+
+  function tutHide() {
+    $('tutHole').classList.remove('on');
+    $('tutBox').classList.remove('on');
+    $('tutBlock').classList.remove('on');
+  }
+
+  /* Bước này có đang đúng lúc để hiện không?
+   * Sai màn thì ẩn đi chứ KHÔNG tự chuyển màn hộ: người chơi có thể đang cố ý
+   * đi xem chỗ khác, và kéo họ về là cướp mất quyền điều khiển. */
+  function tutFits(step) {
+    if (!step) return false;
+    if (!step.scr) return true;
+    if (step.scr === 'battle') return !!(battle && battle.running);
+    return cur === step.scr && !(battle && battle.running);
+  }
+
+  function tutTick() {
+    var step = G.tutStep(S);
+    if (!step) { tutHide(); return; }
+    if (!tutFits(step)) { tutHide(); return; }
+
+    // điều kiện sang bước sau
+    if (typeof step.next === 'function') {
+      if (step.next(battle)) { G.tutAdvance(S); save(); tutTick(); return; }
+    }
+
+    var el = tutEl(step);
+    if (step.sel && !el) { tutHide(); return; }   // chưa dựng xong thì chờ nhịp sau
+
+    var hole = $('tutHole'), box = $('tutBox');
+    $('tutBlock').classList.add('on');
+    hole.classList.add('on');
+    box.classList.add('on');
+
+    /* Neo theo #stage, KHÔNG theo #frame.
+     *
+     * Ba phần tử của hướng dẫn nằm trong #stage, và #stage mới là cái bị CSS thu
+     * phóng cho vừa màn hình (540x960 co về bề ngang thật). Đo theo #frame thì
+     * lấy nhầm gốc toạ độ VÀ nhầm cả tỉ lệ: đo được nút ở y=747 mà cái lỗ hiện
+     * ra ở y=638. Phải đo theo đúng phần tử mà cái lỗ đang neo vào.
+     *
+     * getBoundingClientRect trả về pixel MÀN HÌNH; style.left/top thì tính theo
+     * hệ toạ độ CHƯA thu phóng của #stage. Nên phải chia lại cho tỉ lệ ấy. */
+    var frEl = $('stage');
+    var fbox = frEl.getBoundingClientRect();
+    var k = fbox.width / (frEl.offsetWidth || fbox.width);
+    var fr = { left: fbox.left, top: fbox.top,
+               width: fbox.width / k, height: fbox.height / k };
+    function toFrame(r) {
+      return { left: (r.left - fbox.left) / k, top: (r.top - fbox.top) / k,
+               width: r.width / k, height: r.height / k };
+    }
+    if (el) {
+      var r = toFrame(el.getBoundingClientRect());
+      hole.classList.remove('empty');
+      hole.style.left = (r.left - 6) + 'px';
+      hole.style.top = (r.top - 6) + 'px';
+      hole.style.width = (r.width + 12) + 'px';
+      hole.style.height = (r.height + 12) + 'px';
+      // CẮT THẬT một lỗ trên lớp chặn, không chỉ vẽ sáng: xem chú thích ở CSS.
+      var x0 = r.left - 6, y0 = r.top - 6, x1 = x0 + r.width + 12, y1 = y0 + r.height + 12;
+      $('tutBlock').style.clipPath =
+        'polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ' +
+        x0 + 'px ' + y0 + 'px, ' + x0 + 'px ' + y1 + 'px, ' +
+        x1 + 'px ' + y1 + 'px, ' + x1 + 'px ' + y0 + 'px, ' +
+        x0 + 'px ' + y0 + 'px)';
+    } else {
+      $('tutBlock').style.clipPath = '';
+      // Bước không chỉ vào nút nào (dạy cử chỉ trên sân): chỉ tối màn. Lỗ co về
+      // một điểm ở giữa để bóng đổ phủ kín, và bỏ viền vì không có gì để viền.
+      hole.classList.add('empty');
+      hole.style.left = '50%'; hole.style.top = '50%';
+      hole.style.width = '0px'; hole.style.height = '0px';
+    }
+
+    $('tutT').textContent = step.t;
+    $('tutTip').textContent = step.tip || '';
+    // Nút "Tiếp" chỉ hiện ở bước KHÔNG có việc gì phải làm. Bước có việc thì để
+    // nút đó là cho người chơi một đường tắt bỏ qua chính cái mình đang dạy.
+    $('tutOk').style.display = (step.next === 'ok') ? '' : 'none';
+
+    /* Bảng chữ không được che mất chỗ đang sáng. Đặt dưới nếu lỗ ở nửa trên,
+     * đặt trên nếu lỗ ở nửa dưới — và với bước dạy cử chỉ (không có lỗ) thì
+     * luôn đặt trên, vì nửa dưới là chỗ ngón cái đang bận. */
+    var mid = fr.height / 2;
+    var hb = el ? toFrame(el.getBoundingClientRect()) : null;
+    var holeMid = hb ? (hb.top + hb.height / 2) : fr.height * 0.75;
+    var below = step.place === 'bottom' || (step.place !== 'top' && holeMid < mid);
+    box.style.top = below ? (Math.min(fr.height - 150, holeMid + 70)) + 'px' : '';
+    box.style.bottom = below ? '' : (fr.height - Math.max(150, holeMid - 60)) + 'px';
+  }
+
+  function tutStart() {
+    if (tutTimer) clearInterval(tutTimer);
+    tutTimer = setInterval(tutTick, 250);
+    tutTick();
+  }
+
+  function tutWire() {
+    $('tutSkip').onclick = function () {
+      G.tutSkip(S); save(); tutHide();
+      toast('Đã bỏ qua hướng dẫn — mở lại ở mục Khác', '#8fa3b5');
+    };
+    $('tutOk').onclick = function () { G.tutAdvance(S); save(); tutTick(); };
+    /* Chạm vào chỗ ĐANG SÁNG cũng tính là xong bước. Bắt ở tầng document lúc
+     * BUBBLE (không capture): để nút thật xử lý cú chạm của nó trước, rồi mới
+     * sang bước sau — đảo thứ tự thì màn hình đổi trước khi nút kịp chạy. */
+    document.addEventListener('click', function (e) {
+      var step = G.tutStep(S);
+      /* KHÔNG hỏi tutFits ở đây. Nút vừa bấm thường tự đổi màn, nên tới lượt ta
+       * chạy thì `cur` đã là màn MỚI và tutFits trả về false — đúng cú chạm hợp
+       * lệ nhất lại bị chính điều kiện ấy loại. Chỉ cần: bước đang chờ một cú
+       * chạm, và cái vừa chạm khớp selector. */
+      if (!step || step.next !== 'tap') return;
+      /* So khớp theo SELECTOR, không theo phần tử.
+       *
+       * Trình nghe này chạy ở pha bubble, tức là SAU khi nút thật đã xử lý xong
+       * cú chạm — mà việc nút làm thường là đổi màn. Lúc ta chạy thì `.screen.on`
+       * đã là màn mới, nên tra lại phần tử cho ra một đối tượng KHÁC hẳn cái vừa
+       * bị chạm, và phép so `el.contains(e.target)` không bao giờ đúng. Bước
+       * hướng dẫn đứng im dù người chơi đã làm đúng.
+       *
+       * Hỏi thẳng "cái vừa chạm có khớp selector không" thì không phụ thuộc vào
+       * việc màn hình đã đổi hay chưa. */
+      if (e.target.closest && e.target.closest(step.sel)) {
+        G.tutAdvance(S); save();
+        setTimeout(tutTick, 60);
+      }
+    }, false);
   }
 
   function show(id) {
@@ -1258,6 +1420,13 @@
         '<button class="btn sm" data-cy="hairColor">' + ((S.hairColor || 0) + 1) + '/12</button></div>' +
       '<p style="margin-top:7px">Cấp <b>' + S.lv + '</b> · EXP ' + fmt(S.exp) + '/' + fmt(G.BAL.expToLv(S.lv)) + '</p></div>' +
 
+      /* Mở lại hướng dẫn. Phải có: người chơi bỏ qua ở bước một rồi mười phút
+         sau không biết cách xả ulti là chuyện chắc chắn xảy ra, và lúc đó không
+         còn đường nào quay lại. */
+      '<div class="card"><h3>Hướng dẫn</h3>' +
+      '<p style="color:#9fb2c4">Chạy lại từ đầu: vào ải, học ba cử chỉ, quay, lắp đồ, nâng cấp.</p>' +
+      '<button class="btn" data-act="tut" style="width:100%">Chạy lại hướng dẫn</button></div>' +
+
       '<div class="card"><h3>Thống kê</h3>' +
       '<div class="row wrap" style="font-size:11px;gap:14px">' +
       '<span>Behemoth hạ: <b>' + (st.boss || 0) + '</b></span><span>Quái hạ: <b>' + (st.mob || 0) + '</b></span>' +
@@ -1310,6 +1479,12 @@
     };
     var ni = $('nameIn');
     if (ni) ni.onchange = function () { S.name = ni.value.slice(0, 14) || 'Hound'; save(); };
+    var oldMore = b.onclick;
+    b.onclick = function (e) {
+      var tt = e.target.closest && e.target.closest('[data-act="tut"]');
+      if (tt) { G.tutRestart(S); save(); show('home'); setTimeout(tutTick, 80); return; }
+      if (oldMore) oldMore.call(b, e);
+    };
   }
 
   /* -------------------------------------------------------------- HELP --- */

@@ -410,6 +410,7 @@
     // Bắn ngay trong lúc đang lăn. Không huỷ cú lăn — đạn ra NGAY, nên vẫn giữ
     // nguyên khung bất tử. Nguyên văn bản gốc: "Flick the screen and tap while
     // moving to attack."
+    p.usedAttack = true;   // cờ cho hướng dẫn: đã bấm đánh ít nhất một lần
     if (p.state === 'dodge' && !p.rollHit) { p.rollHit = true; this.fire({ roll: true }); return; }
 
     if (p.state === 'steady' || p.state === 'autofire' ||
@@ -747,6 +748,7 @@
     p.iframe = G.BAL.dodgeIFrameMs;
     p.iframeFromDodge = true;   // chỉ khung bất tử của NÉ mới mở được cửa sổ phản đòn
     p.rollHit = false;          // mỗi cú lăn cho đúng một Rolling Attack
+    p.usedDodge = true;    // cờ cho hướng dẫn
     p.dodgeCd = G.BAL.dodgeCdMs;
     p.dodgeVX = dx; p.dodgeVY = dy;
     p.dodgeDist = G.BAL.dodgeDist * (this.W.dodgeMul || 1) * (1 + (this.stats.dodge - 1));
@@ -1625,6 +1627,9 @@
     p.y = clamp(p.y + mv.y * spd * dt / 16.67, 24, this.wH - 24);
     p.facing = Math.atan2(mv.y, mv.x);
     p.moving = true;
+    p.usedMove = true;   // cờ DÍNH cho hướng dẫn: `moving` chỉ đúng ở đúng
+                         // khung đang đi, mà nhịp hỏi của hướng dẫn là 250ms
+                         // nên nó trượt gần như mọi lần.
   };
 
 
