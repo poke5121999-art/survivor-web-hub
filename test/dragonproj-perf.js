@@ -261,8 +261,11 @@ function runs(samples) {
   return out.map(r => ({ ...r, ms: r.t1 - r.t0 }));
 }
 
+/* 'skcharge' đã chết cùng bản nạp-kỹ-năng cũ; 'ultiaim' là trạng thái thay nó —
+ * thanh nạp đã đủ, ngón đang giữ trên sân và chỉ hướng cho đòn lớn. Giữ luôn
+ * 'skcharge' trong danh sách thì phép kiểm này không còn bắt được hồi quy nào. */
 const VALID = ['idle', 'fire', 'autofire', 'charge', 'steady', 'cast', 'dodge',
-               'lag', 'hurt', 'switch', 'skcharge', 'skill'];
+               'lag', 'hurt', 'switch', 'ultiaim', 'skill'];
 
 const WCLS = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher'];
 /* Trạng thái hợp lệ khi GIỮ giữa màn hình. GIỮ giờ có BA nghĩa tuỳ lớp:

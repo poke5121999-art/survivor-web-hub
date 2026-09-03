@@ -1551,6 +1551,79 @@
 
   /* ------------------------------------------------ NGƯỠNG PUNICON ------- */
   // [TÁI DỰNG] — không nguồn nào công bố. Xem RESEARCH.md mục 1.
+  /* ======================= ĐỔI NGƯỜI: LUẬT GENSHIN =======================
+   * Đội ba người mà đổi qua đổi lại tự do thì nó chỉ là ba thanh máu nối đuôi
+   * nhau. Genshin biến đúng cái nút đổi đó thành trục chính của cả trận bằng ba
+   * luật, và ba luật này chép về đây:
+   *
+   *   1. ĐỔI CÓ HỒI CHIÊU. Không có nó thì không có nhịp, và mọi tính toán
+   *      "đổi lúc nào" đều biến mất. Genshin để khoảng 1 giây; ở đây 1,2s vì
+   *      trận này ngắn hơn và dày quái hơn.
+   *
+   *   2. NGƯỜI MỚI LAO RA CÓ ĐÒN. Không phải để thêm sát thương — mà để việc
+   *      đổi người có HÌNH ẢNH. Đổi mà màn hình không đổi gì thì người chơi
+   *      không tin là mình vừa làm một việc.
+   *
+   *   3. HAI HỆ KHÁC NHAU GẶP NHAU THÌ NỔ. Đây là cái làm cho THỨ TỰ đổi có ý
+   *      nghĩa: Hỏa rồi Thủy khác Thủy rồi Hỏa. Ở đây dùng đúng bảng khắc chế
+   *      sẵn có (G.ELEM_BEATS) chứ không bịa một bảng phản ứng thứ hai — một
+   *      bảng khắc chế đã đủ, hai bảng thì người chơi phải nhớ hai thứ.
+   *
+   * COMBO CHUỖI: đổi liên tiếp trong `comboMs` thì đòn ra mắt mạnh dần. Nó
+   * thưởng cho việc xoay vòng cả đội thay vì nhảy qua nhảy lại giữa hai người,
+   * đúng cái mà vòng xoay của Genshin dạy. */
+  G.SWAP = {
+    cd: 1200,          // hồi chiêu đổi người
+    entryMul: 2.4,     // hệ số sát thương của đòn ra mắt
+    entryR: 108,       // bán kính đòn ra mắt
+    reactMul: 1.75,    // nhân thêm khi hai hệ phản ứng với nhau
+    reactR: 150,       // phản ứng nổ rộng hơn đòn thường
+    comboMs: 2800,     // đổi lại trong ngần này thì cộng chuỗi
+    comboMax: 4,
+    comboStep: 0.20    // mỗi nấc chuỗi +20% đòn ra mắt
+  };
+
+  /* Tên phản ứng — theo cặp khắc chế. Có tên thì người chơi nhớ được cặp nào ăn
+   * cặp nào; không tên thì mọi lần nổ trông giống nhau và không ai học được gì. */
+  G.REACT = {
+    'water>fire':    { n: 'BỐC HƠI',   col: '#4fb6ff', st: null },
+    'fire>earth':    { n: 'THIÊU RỤI', col: '#ff7a3c', st: 'burn' },
+    'earth>thunder': { n: 'TIẾP ĐỊA',  col: '#8fd14f', st: 'slow' },
+    'thunder>water': { n: 'DẪN ĐIỆN',  col: '#ffd23f', st: 'paralysis' },
+    'light>dark':    { n: 'THANH TẨY', col: '#fff6d8', st: null },
+    'dark>light':    { n: 'NUỐT SÁNG', col: '#a06fe0', st: 'poison' }
+  };
+  G.reactOf = function (fromEl, toEl) {
+    if (!fromEl || !toEl || fromEl === toEl) return null;
+    return G.REACT[toEl + '>' + fromEl] || G.REACT[fromEl + '>' + toEl] || null;
+  };
+
+  /* ============================ THANH ULTI ==============================
+   * Kỹ năng KHÔNG chạy bằng hồi chiêu nữa. Nó chạy bằng một thanh nạp treo trên
+   * đầu nhân vật, và thanh đó dâng bằng đúng một việc: ĐÁNH TRÚNG.
+   *
+   * Vì sao đổi. Hồi chiêu đếm thời gian, nên nó thưởng cho việc CHỜ: đứng né
+   * lòng vòng mười giây thì kỹ năng vẫn về đủ. Thanh nạp thì thưởng cho việc
+   * XÔNG VÀO — muốn có đòn to thì phải bắn trúng đủ nhiều trước đã. Đó là vòng
+   * lặp của thể loại này, và nó cũng làm cho thanh trên đầu char có nghĩa: nhìn
+   * nó là biết còn bao xa tới đòn lớn, không phải nhìn một con số đếm ngược.
+   *
+   * NẤC GIỮA là chỗ ra quyết định. Qua nấc thì xả được đòn NHỎ ngay; nhịn thêm
+   * tới khi đầy thì xả được đòn LỚN. Không có nấc thì thanh nạp chỉ là hồi chiêu
+   * đội lốt — có nấc thì mỗi lần đầy nửa thanh là một lần phải chọn.
+   *
+   * `sec` là mốc cân bằng duy nhất: bắn TRÚNG liên tục ngần ấy giây thì đầy,
+   * cho MỌI lớp vũ khí. Quy về giây chứ không quy về số phát, vì súng trường
+   * bắn 5 phát/giây còn bắn tỉa 0,9 — đếm phát thì hai cây lệch nhau sáu lần.
+   * ==================================================================== */
+  G.ULTI = {
+    sec: 11,          // bắn trúng liên tục 11 giây thì đầy thanh
+    notch: 0.55,      // qua nấc này: xả được kỹ năng 1
+    killGain: 0.030,  // mỗi con chết cộng thêm, để dọn đám cũng nạp được
+    bossMul: 0.60,    // đánh boss nạp chậm hơn: boss đứng yên cho bắn, dễ nạp tràn
+    cost: [0.55, 1.00]   // giá của từng kỹ năng, khớp với nấc
+  };
+
   G.PUNI = {
     ringR: 58,        // bán kính vòng ngoài của cần gạt ảo
     knobR: 26,

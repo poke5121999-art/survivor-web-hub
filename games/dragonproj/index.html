@@ -157,7 +157,13 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .draft .card2 .pips s{width:16px;height:4px;border-radius:2px;background:#2a3542;text-decoration:none}
 
 /* --- đổi vũ khí: ba khe nhỏ, dưới cột kỹ năng --- */
-.wswitch{position:absolute;right:10px;top:432px;display:flex;flex-direction:column;gap:6px}
+.wswitch{position:absolute;right:10px;top:250px;display:flex;flex-direction:column;gap:6px}
+/* Nút đổi người đang trong hồi chiêu: phủ tối dâng từ dưới lên, đúng cách hai
+   nút kỹ năng cũ vẽ hồi chiêu — cùng một ngôn ngữ hình cho cùng một ý. */
+.wslot{position:relative;overflow:hidden}
+.wslot.cool{filter:grayscale(.6) brightness(.7)}
+.wslot.cool::after{content:'';position:absolute;left:0;right:0;bottom:0;
+  height:var(--cd,0%);background:rgba(6,12,20,.72);pointer-events:none}
 .wslot{width:52px;height:34px;border-radius:8px;background:rgba(10,16,23,.8);
   border:2px solid var(--line);display:flex;flex-direction:column;align-items:center;
   justify-content:center;font-size:9px;font-weight:700;color:var(--dim);
@@ -199,7 +205,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .p-sub span{display:flex;align-items:center;gap:4px}
 .p-sub .ic{width:13px;height:13px;border-radius:3px;background:var(--gold);display:inline-block}
 /* thanh Heat / Soul chỉ hiện khi vũ khí có loại đó */
-.gauge2{position:absolute;left:118px;right:14px;bottom:96px;height:8px;border:1px solid #4a3a1a;
+.gauge2{position:absolute;left:24px;right:24px;bottom:18px;height:8px;border:1px solid #4a3a1a;
   border-radius:2px;background:#0a0f16;overflow:hidden;display:none}
 .gauge2.on{display:block}
 .gauge2 i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(180deg,#ffb37a,#ff7a3c)}
@@ -570,32 +576,26 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
       </div>
       <button class="btn-menu tap" id="hMenu"><span></span></button>
 
-      <div class="skill-col">
-        <button class="skill-btn empty tap" id="hSkill0"><i class="fill"></i><span class="cd"></span><span class="nm"></span><i class="edge"></i></button>
-        <button class="skill-btn empty tap" id="hSkill1"><i class="fill"></i><span class="cd"></span><span class="nm"></span><i class="edge"></i></button>
-      </div>
+      <!-- KHÔNG CÒN NÚT KỸ NĂNG, KHÔNG CÒN KHỐI UI ĐÁY.
+           Kỹ năng xả bằng cử chỉ Punicon ngay trên sân (giữ → kéo chỉ hướng →
+           thả), nên hai nút lục giác ở mép phải chỉ còn là chỗ để bấm nhầm —
+           và chúng nằm sát ngay cột đổi nhân vật, nên bấm nhầm là chuyện xảy ra
+           chứ không phải chuyện có thể xảy ra.
+
+           Khối đáy (máu, tên, thanh EXP, dòng "cứu / gem / tên vũ khí", quả cầu
+           hệ) cũng đi cùng: máu và thanh nạp giờ nằm ngay trên đầu nhân vật, tức
+           là ở chỗ mắt đang nhìn. Đọc máu ở chân màn hình trong lúc mắt ở giữa
+           sân là bắt người chơi nhìn hai nơi cùng lúc.
+
+           Cột đổi nhân vật GIỮ LẠI, nhưng dời lên chỗ hai nút kỹ năng vừa bỏ.
+           Chỗ cũ của nó nằm ngay dưới nút kỹ năng, nên với tay bấm đòn là trúng
+           nó — đổi luôn cả nhân vật lẫn vũ khí giữa trận mà không hề định. -->
+
+      <div class="gauge2" id="hGauge2"><i></i><div class="seg"></div></div>
 
       <div class="wswitch" id="hWswitch"></div>
 
       <div class="dist" id="hDist">⟟ <b>0</b>m</div>
-
-      <div class="foot">
-        <div class="gauge2" id="hGauge2"><i></i><div class="seg"></div></div>
-        <div class="elem-orb tap" id="hOrb">
-          <div class="gem"></div>
-          <div class="core" id="hOrbCore" style="height:0%"></div>
-          <div class="pct" id="hOrbPct">0%</div>
-        </div>
-        <div class="p-name" id="hPName">Hound</div>
-        <div class="p-hpnum" id="hPHpNum">0</div>
-        <div class="p-hp"><i id="hPHp" style="width:100%"></i><i class="sh" id="hPSh" style="width:0"></i></div>
-        <div class="p-exp"><i id="hPExp" style="width:0"></i><b id="hPLv">Lv. 1</b></div>
-        <div class="p-sub">
-          <span><i class="ic" style="background:#6fd4ff"></i><b id="hRevive">4</b> cứu</span>
-          <span><i class="ic" style="background:#c8a0ff"></i><b id="hGem">0</b> gem</span>
-          <span id="hWName" style="color:#cfe0ee"></span>
-        </div>
-      </div>
 
       <!-- Thanh EXP của LƯỢT CHƠI, nằm ngay dưới hàng đếm quái. Nó phải tách hẳn
            thanh EXP tài khoản ở chân màn hình: một cái đo tiến bộ vĩnh viễn tính

@@ -1484,45 +1484,6 @@
         else battle.paused = false;
       }
     };
-    /* NÚT KỸ NĂNG — đặt ngón, KÉO ĐỂ CHỈ HƯỚNG, thả là xả.
-     *
-     * Hồi chiêu chính là thanh nạp: nút tối thì chưa được, nút sáng thì bấm là
-     * chắc chắn ra đòn. Không còn "giữ đủ lâu mới tính".
-     *
-     * setPointerCapture là bắt buộc, không phải cho đẹp: ngón phải kéo RA KHỎI
-     * nút thì mới chỉ được hướng, mà rời khỏi nút là pointermove ngừng bắn vào
-     * nút ngay. Không bắt con trỏ thì cử chỉ chết ngay milimét đầu tiên và mọi
-     * cú xả đều thành tự-ngắm.
-     */
-    [0, 1].forEach(function (i) {
-      var btn = $('hSkill' + i), sx = 0, sy = 0, on = false;
-      btn.addEventListener('pointerdown', function (e) {
-        e.preventDefault(); e.stopPropagation();
-        if (!battle) return;
-        if (!battle.skillAimStart(i)) return;
-        on = true; sx = e.clientX; sy = e.clientY;
-        btn.classList.add('aiming');
-        try { btn.setPointerCapture(e.pointerId); } catch (err) {}
-      });
-      btn.addEventListener('pointermove', function (e) {
-        if (!on || !battle) return;
-        e.preventDefault();
-        battle.skillAimMove(e.clientX - sx, e.clientY - sy);
-      });
-      var end = function (e) {
-        if (!on) return;
-        on = false; btn.classList.remove('aiming');
-        try { btn.releasePointerCapture(e.pointerId); } catch (err) {}
-        if (battle) battle.skillAimEnd();
-      };
-      var cancel = function () {
-        if (!on) return;
-        on = false; btn.classList.remove('aiming');
-        if (battle) battle.skillAimCancel();
-      };
-      btn.addEventListener('pointerup', end);
-      btn.addEventListener('pointercancel', cancel);
-    });
     $('hGemRevive').onclick = function () { if (battle && battle.gemRevive()) { $('hDown').classList.remove('on'); refresh(); } };
     $('hGiveUp').onclick = function () { leaveBattle(); };
   }
@@ -1536,9 +1497,16 @@
     save(); show('home');
   }
 
+  /* HAI HÀM VẼ HUD ĐÃ BỎ: renderWeaponSlots (cột ba nhân vật ở mép phải) và
+   * renderSkillBtns (hai nút lục giác). Cả hai thứ chúng vẽ đều không còn tồn
+   * tại — kỹ năng đi bằng cử chỉ Punicon, đội hình chốt ở màn chuẩn bị.
+   *
+   * Giữ lại hai cái vỏ rỗng thay vì xoá sạch mọi lời gọi: chúng được gọi từ bốn
+   * chỗ khác nhau trong luồng vào ải và đổi vũ khí, và một hàm rỗng có chú thích
+   * thì đọc rõ hơn là bốn chỗ gọi bị cắt cụt. */
   function renderWeaponSlots() {
-    // Ba khe trên HUD giờ là BA NGƯỜI. Ảnh nhân vật to hơn chữ, vì lúc đánh nhau
-    // mắt chỉ kịp nhận ra hình chứ không kịp đọc.
+    // Ba khe trên HUD là BA NGƯỜI. Ảnh nhân vật to hơn chữ, vì lúc đánh nhau mắt
+    // chỉ kịp nhận ra hình chứ không kịp đọc.
     var party = G.party(S), el = $('hWswitch'), html = '';
     for (var i = 0; i < 3; i++) {
       var h = party[i], d = G.heroDef(h);
@@ -1552,32 +1520,13 @@
       var t = e.target.closest('[data-w]'); if (!t || !battle) return;
       battle.setWeapon(+t.getAttribute('data-w'));
       renderWeaponSlots();
-      renderSkillBtns();
     };
   }
 
-  function renderSkillBtns() {
-    for (var i = 0; i < 2; i++) {
-      var btn = $('hSkill' + i);
-      var sk = battle ? battle.skillDef(i) : null;
-      var nm = btn.querySelector('.nm');
-      if (!sk) {
-        // Khe trống vì CHƯA MỞ, không phải vì hỏng. Để trắng trơn thì người chơi
-        // tưởng game lỗi; ghi thẳng điều kiện ra là hết thắc mắc.
-        var all = battle && battle.wp ? G.skillsOf(battle.wp.wclass) : [];
-        btn.className = 'skill-btn empty tap';
-        nm.textContent = all[i] ? 'Lv.' + G.SKILL_RULES.unlockLv2 : '';
-        btn.querySelector('.cd').textContent = '';
-        btn.title = all[i] ? all[i].n + ' — mở ở cấp vũ khí ' + G.SKILL_RULES.unlockLv2 : '';
-        continue;
-      }
-      btn.className = 'skill-btn tap';
-      // Tên đòn ngay trên nút. Người chơi cần biết mình sắp xả cái gì, không phải
-      // một ký hiệu hình học rồi tự đoán.
-      nm.textContent = sk.n;
-      btn.title = sk.n + ' — ' + sk.d;
-    }
-  }
+  /* renderSkillBtns ĐÃ RỖNG: hai nút lục giác không còn. Kỹ năng đi bằng cử chỉ
+   * Punicon trên sân, và thứ báo "sắp xả được đòn gì" là thanh nạp trên đầu nhân
+   * vật. Giữ vỏ rỗng vì bốn chỗ trong luồng vào ải vẫn gọi tới nó. */
+  function renderSkillBtns() {}
 
   function updateHud(bt) {
     var p = bt.player;
@@ -1612,42 +1561,30 @@
       $('hParts').innerHTML = ph;
       $('hDist').innerHTML = '⟟ <b>' + Math.round(Math.hypot(b.x - p.x, b.y - p.y) / 10) + '</b>m';
     }
-    // người chơi
-    $('hPName').textContent = S.name;
-    $('hPHpNum').textContent = Math.max(0, Math.round(p.hp));
-    $('hPHp').style.width = Math.max(0, p.hp / p.maxHp * 100) + '%';
-    $('hPSh').style.width = Math.min(100, p.shield / p.maxHp * 100) + '%';
-    var need = G.BAL.expToLv(S.lv);
-    $('hPExp').style.width = Math.min(100, S.exp / need * 100) + '%';
-    $('hPLv').textContent = 'Lv. ' + S.lv;
-    $('hRevive').textContent = p.revives;
-    $('hGem').textContent = S.gem;
-    $('hWName').textContent = bt.heroDef
-      ? (bt.heroDef.n + ' · ' + G.weaponOf(bt.wp.wclass).vi)
-      : (bt.wp ? (G.weaponOf(bt.wp.wclass).vi + ' · ' + G.WTYPES[bt.wp.wtype].vi) : '');
-    // Viên hệ: hệ nguyên tố của vũ khí đang cầm giờ đổi luôn hình dạng hiệu ứng
-    // kỹ năng, nên nó là thông tin phải thấy được mọi lúc.
-    var elId = (bt.wp && bt.wp.el) || 'none', EL = G.ELEMENTS[elId];
-    $('hOrbCore').style.background = EL.color;
-    $('hOrbCore').style.height = '100%';
-    $('hOrbPct').textContent = EL.vi;
-    // Heat / Soul
+    /* Ba thứ vừa bỏ khỏi vòng cập nhật này, vì phần tử của chúng không còn:
+     *   - tên nhân vật + tên vũ khí  -> đọc ở màn chuẩn bị, không phải giữa trận
+     *   - viên hệ nguyên tố          -> hệ đã hiện ra bằng MÀU của chính đạn bay
+     *   - hai đồng hồ hồi chiêu      -> kỹ năng chạy bằng thanh nạp, không bằng
+     *                                   hồi chiêu, và thanh đó vẽ trên đầu char
+     * Thanh Heat/Soul thì giữ, chỉ đổi chỗ: nó là tài nguyên của LOẠI vũ khí và
+     * vẫn phải thấy được. */
+    /* HỒI CHIÊU ĐỔI NGƯỜI, vẽ thẳng lên ba nút. Không có nó thì người chơi bấm
+     * vào khoảng không: nút vẫn sáng, vẫn bấm được, mà không có gì xảy ra ngoài
+     * một dòng chữ nhỏ. Phủ tối + số giây là cách rẻ nhất để nói "chưa tới lúc". */
+    var swk = Math.max(0, (p.swapCd || 0)) / G.SWAP.cd;
+    var slots = $('hWswitch').children;
+    for (var wi = 0; wi < slots.length; wi++) {
+      slots[wi].classList.toggle('cool', swk > 0 && wi !== p.wIdx);
+      slots[wi].style.setProperty('--cd', (swk * 100) + '%');
+    }
+
     var g2 = $('hGauge2');
     if (bt.wp && (bt.wp.wtype === 'heat' || bt.wp.wtype === 'soul')) {
       g2.classList.add('on');
       g2.classList.toggle('soul', bt.wp.wtype === 'soul');
       g2.querySelector('i').style.width = (bt.wp.wtype === 'heat' ? p.heat : p.soul) + '%';
     } else g2.classList.remove('on');
-    // Nút kỹ năng: phần tối dâng từ dưới lên là hồi chiêu còn lại, hết thì viền sáng.
-    for (var i = 0; i < 2; i++) {
-      var btn = $('hSkill' + i), sk = bt.skillDef(i);
-      if (!sk) continue;
-      var left = bt.skillCdLeft(i), full = bt.skillCdOf(sk);
-      var ready = left <= 0;
-      btn.classList.toggle('ready', ready);
-      btn.querySelector('.fill').style.height = (ready ? 0 : left / full * 100) + '%';
-      btn.querySelector('.cd').textContent = ready ? '' : Math.ceil(left / 1000);
-    }
+
     // Thanh EXP của LƯỢT CHƠI: còn bao xa tới lần bốc bài kế tiếp.
     var need = G.RUN.need((p.runLv || 0) + 1);
     $('hRunLv').textContent = 'Lv.' + (p.runLv || 0);

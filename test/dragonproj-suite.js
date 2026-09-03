@@ -44,7 +44,8 @@ const G = {
 const goStage = (p, id) => p.evaluate(id => DP.UI.startStage(id), id);
 const goBoss = (p, id) => p.evaluate(id => { DP.UI.startStage(id); DP.UI.battle.startBossPhase(); }, id);
 
-const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đọc
+const DP_AIR = 1.4;
+const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đọc
 
 (async () => {
   const b = await chromium.launch();
@@ -356,27 +357,95 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('xả xong vào hồi chiêu đầy', Math.abs(cast.cdAfter - cast.full) < 2,
     Math.round(cast.cdAfter) + 'ms');
 
-  /* Nút kỹ năng phải chạy được bằng CHUỖI SỰ KIỆN CHUỘT THẬT trên phần tử HUD,
-   * không chỉ bằng lời gọi hàm — cử chỉ mới sống hay chết ở chỗ đó. */
-  const byFinger = await p.evaluate(async () => {
-    const b = DP.UI.battle, pl = b.player;
-    pl.state = 'idle'; pl.skCd = [0, 0]; pl.usedSkill = false;
-    const btn = document.getElementById('hSkill0');
-    const r = btn.getBoundingClientRect();
-    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    const ev = (t, x, y) => btn.dispatchEvent(new PointerEvent(t, { bubbles: true,
-      cancelable: true, pointerId: 77, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y }));
-    ev('pointerdown', cx, cy);
-    const armed = b.skillAiming();
-    ev('pointermove', cx - 70, cy);
-    const a = pl.skAim ? pl.skAim.a : null;
-    ev('pointerup', cx - 70, cy);
-    return { armed, a, used: pl.usedSkill, cd: b.skillCdLeft(0) };
+  /* ==================== THANH ULTI + XẢ BẰNG PUNICON =====================
+   * Kỹ năng không còn nút HUD nào. Toàn bộ cách xả là một cử chỉ trên SÂN:
+   * giữ ngón -> kéo chỉ hướng -> thả. Nên phép kiểm phải đi bằng chuột thật
+   * trên canvas, không phải bằng lời gọi hàm — cử chỉ sống hay chết ở đúng chỗ
+   * đó, và mọi lần hỏng trước nay đều hỏng ở tầng sự kiện chứ không ở tầng logic.
+   *
+   * Bốn chuyện phải đúng:
+   *   1. chưa đủ nạp -> giữ vẫn là đòn đặc thù của vũ khí, KHÔNG phải ulti
+   *   2. đủ nạp     -> giữ vào thế ngắm, kéo thì hướng bám theo ngón
+   *   3. thả        -> xả thật, và thanh nạp bị TRỪ đúng giá
+   *   4. huỷ        -> không xả, và KHÔNG mất thanh
+   * ==================================================================== */
+  results.push('\n── thanh ulti + cử chỉ punicon ──');
+  const CV = await p.evaluate(() => {
+    const r = document.getElementById('view').getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height * 0.62 };
   });
-  check('bấm nút HUD bằng ngón thật thì vào thế ngắm', byFinger.armed === 0);
-  check('kéo ngón sang trái thì hướng ngắm quay sang trái',
-    byFinger.a !== null && Math.abs(Math.abs(byFinger.a) - Math.PI) < 0.02);
-  check('thả ngón thì xả và vào hồi chiêu', byFinger.used === true && byFinger.cd > 0);
+
+  // (1) thanh còn cạn: giữ ra ĐÒN ĐẶC THÙ của cây, không phải ulti
+  await p.evaluate(() => { const b = DP.UI.battle; b.player.ulti = 0; b.player.state = 'idle'; });
+  await p.mouse.move(CV.x, CV.y); await p.mouse.down();
+  await p.waitForTimeout(340);
+  const lowState = await p.evaluate(() => DP.UI.battle.player.state);
+  await p.mouse.up(); await p.waitForTimeout(120);
+  check('thanh chưa đủ thì giữ VẪN là đòn đặc thù của vũ khí, không phải ulti',
+    lowState !== 'ultiaim', 'state=' + lowState);
+
+  // (2)(3) thanh đầy: giữ -> ngắm, kéo -> xoay hướng, thả -> xả và trừ thanh
+  await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    pl.ulti = 1; pl.state = 'idle'; pl.skCd = [0, 0]; pl.usedSkill = false;
+  });
+  await p.mouse.move(CV.x, CV.y); await p.mouse.down();
+  await p.waitForTimeout(340);
+  const held = await p.evaluate(() => ({ st: DP.UI.battle.player.state,
+                                         aim: DP.UI.battle.skillAiming() }));
+  await p.mouse.move(CV.x, CV.y - 90, { steps: 6 });
+  await p.waitForTimeout(90);
+  const aimA = await p.evaluate(() => DP.UI.battle.player.skAim
+    ? DP.UI.battle.player.skAim.a : null);
+  await p.mouse.up(); await p.waitForTimeout(200);
+  const done = await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    return { st: pl.state, used: pl.usedSkill, ulti: pl.ulti,
+             facing: pl.facing, cost: DP.ULTI.cost[0] };
+  });
+  check('nạp đầy thì GIỮ trên sân là vào thế ngắm ulti',
+    held.st === 'ultiaim' && held.aim === 0, JSON.stringify(held));
+  check('kéo ngón lên trên thì hướng ngắm quay lên trên',
+    aimA !== null && Math.abs(aimA - (-Math.PI / 2)) < 0.05, 'a=' + aimA);
+  check('thả ngón thì XẢ thật và mặt quay đúng hướng đã kéo',
+    done.used === true && Math.abs(done.facing - (-Math.PI / 2)) < 0.05,
+    'facing=' + (done.facing || 0).toFixed(2));
+  check('xả xong thì TRỪ đúng giá trên thanh nạp',
+    Math.abs(done.ulti - (1 - done.cost)) < 0.001,
+    'còn ' + done.ulti.toFixed(3) + ', giá ' + done.cost);
+  check('xả xong thì thoát khỏi thế ngắm', done.st !== 'ultiaim', done.st);
+
+  // (4) huỷ giữa chừng: không xả, không mất thanh
+  const cancelled = await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    pl.ulti = 1; pl.state = 'idle'; pl.skCd = [0, 0]; pl.usedSkill = false;
+    b.holdStart(0, 0);
+    const mid = pl.state;
+    b.holdCancel();
+    return { mid: mid, st: pl.state, used: pl.usedSkill, ulti: pl.ulti };
+  });
+  check('huỷ lúc đang ngắm thì KHÔNG xả và KHÔNG mất thanh nạp',
+    cancelled.mid === 'ultiaim' && cancelled.used === false &&
+    cancelled.ulti === 1 && cancelled.st !== 'ultiaim', JSON.stringify(cancelled));
+
+  // Tốc độ nạp phải NHƯ NHAU giữa mười lớp — nếu không thì cây bắn nhanh có ulti
+  // gấp mấy lần cây bắn chậm, và cả bảng cân bằng vũ khí đổ theo.
+  const fill = await p.evaluate(() => {
+    const b = DP.UI.battle, out = {};
+    DP.WEAPON_ORDER.forEach(c => {
+      b.W = DP.WEAPONS[c];
+      // giây bắn trúng liên tục để đầy thanh = 1 / (nhịp trúng mỗi giây * mỗi cú)
+      const W = DP.WEAPONS[c];
+      const hitsPerSec = Math.max(0.2, (W.rpm || 120) / 60) * Math.max(1, W.shots || 1);
+      out[c] = +(1 / (b.ultiPerHit() * hitsPerSec)).toFixed(2);
+    });
+    const vals = Object.keys(out).map(k => out[k]);
+    return { out, min: Math.min.apply(null, vals), max: Math.max.apply(null, vals) };
+  });
+  check('mười lớp nạp đầy thanh trong cùng một khoảng thời gian',
+    Math.abs(fill.max - fill.min) < 0.05 && Math.abs(fill.max - DP_ULTI_SEC) < 0.05,
+    fill.min + 's – ' + fill.max + 's');
+
 
   /* ============ MƯỜI LỚP ĐỀU RA SÁT THƯƠNG, HAI MƯƠI ĐÒN ĐỀU XẢ ĐƯỢC ======
    * Bốn lớp mới không bắn ra viên đạn nào theo nghĩa cũ: tia nhiệt là một đoạn
@@ -1198,8 +1267,12 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     return {
       bossBar: r(q('hBossHp').parentElement),
       fatigue: r(q('hBossFat').parentElement),
-      skill0: r(q('hSkill0')), skill1: r(q('hSkill1')),
-      orb: r(q('hOrb')), hp: r(q('hPHp')), timer: r(q('hTimer')),
+      wswitch: r(q('hWswitch')),
+      timer: r(q('hTimer')),
+      // Những phần tử này đã bị BỎ HẲN. Đo bằng "có tồn tại không" chứ không đo
+      // toạ độ, vì cái phải khẳng định bây giờ là chúng KHÔNG còn ở đó nữa.
+      gone: ['hSkill0', 'hSkill1', 'hOrb', 'hPHp', 'hPName', 'hPExp', 'hPLv',
+             'hRevive', 'hWName'].filter(id => !!q(id)),
       hudOn: q('hud').classList.contains('on')
     };
   });
@@ -1208,11 +1281,21 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('thanh gục nằm NGAY DƯỚI thanh máu boss (đúng bản gốc)',
     hud.fatigue.y > hud.bossBar.y && hud.fatigue.y - (hud.bossBar.y + hud.bossBar.h) < 8,
     'cách ' + Math.round(hud.fatigue.y - hud.bossBar.y - hud.bossBar.h) + 'px');
-  check('nút kỹ năng nằm ở MÉP PHẢI', hud.skill0.x > 440 && hud.skill1.x > 440,
-    'x=' + Math.round(hud.skill0.x));
-  check('viên hệ ở góc dưới trái', hud.orb.x < 40 && hud.orb.y > 800,
-    Math.round(hud.orb.x) + ',' + Math.round(hud.orb.y));
-  check('thanh máu người chơi ở đáy', hud.hp.y > 850, 'y=' + Math.round(hud.hp.y));
+  /* ĐÁY MÀN HÌNH PHẢI TRỐNG, và hai nút kỹ năng phải biến mất.
+   *
+   * Cả hai thứ này từng tồn tại và từng được phép kiểm cũ BẢO VỆ — nên nếu chỉ
+   * xoá phép kiểm cũ đi thì không còn gì ngăn chúng lặng lẽ quay lại. Đây là
+   * phép kiểm ngược: nêu đích danh chín phần tử đã bỏ, và hỏng ngay nếu bất kỳ
+   * cái nào mọc lại.
+   *
+   * Máu và thanh nạp giờ vẽ TRÊN CANVAS ngay trên đầu nhân vật, không phải phần
+   * tử DOM nào — nên không có gì để đo toạ độ ở đây nữa, và đó chính là điều
+   * đang được khẳng định. */
+  check('chín phần tử HUD cũ đã bỏ hẳn, không cái nào mọc lại',
+    hud.gone.length === 0, hud.gone.join(', ') || 'sạch');
+  check('cột đổi người ở mép phải, và RA KHỎI vùng ngón cái',
+    hud.wswitch.x > 400 && hud.wswitch.y < 480,
+    Math.round(hud.wswitch.x) + ',' + Math.round(hud.wswitch.y));
   // Quy tắc bất di bất dịch của bản gốc: giữa và nửa dưới màn hình KHÔNG có nút nào.
   const thumbZone = await p.evaluate(() => {
     const s = document.getElementById('stage').getBoundingClientRect();

@@ -74,35 +74,46 @@
     }, 40);
   }
 
-  /* Bấm nút kỹ năng rồi KÉO để chỉ hướng, y hệt ngón tay người: pointerdown trên
-   * nút, vài nhịp pointermove về phía mục tiêu, rồi pointerup. Gọi thẳng
-   * skillAimStart/End thì test sẽ xanh kể cả khi chuỗi sự kiện chuột hỏng — mà
-   * chuỗi sự kiện mới chính là thứ đang được đổi. */
+  /* XẢ ULTI BẰNG ĐÚNG CỬ CHỈ CỦA NGƯỜI CHƠI: GIỮ TRÊN SÂN, KÉO, THẢ.
+   *
+   * Không còn nút HUD nào để bấm. Bot phải đi qua chính cái đường mà ngón tay
+   * người đi: pointerdown giữa canvas, đứng yên đủ lâu để Punicon vào thế giữ
+   * (holdMs), rồi mới kéo về phía mục tiêu, rồi thả.
+   *
+   * ĐỨNG YÊN TRƯỚC LÀ BẮT BUỘC, không phải cho giống người. Punicon chỉ vào thế
+   * giữ khi cần gạt còn nằm trong vùng chết — kéo ngay từ nhịp đầu thì đó là một
+   * cú CHẠY, và không bao giờ thành ulti. Đây đúng là cái bẫy mà luật "đang chạy
+   * thì không bao giờ tự thành đòn đặc thù" dựng lên, và bot phải tôn trọng nó
+   * y như người chơi. */
   var castingSkill = null;
   function castSkill(i, dx, dy) {
     if (castingSkill !== null) return;
-    var btn = document.getElementById('hSkill' + i);
-    if (!btn) return;
+    var cv = document.getElementById('view');
+    if (!cv) return;
     castingSkill = i;
-    var r = btn.getBoundingClientRect();
-    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var r = cv.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height * 0.62;
     var id = 900 + i;
     function ev(type, x, y) {
-      btn.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true,
+      var t = (type === 'pointerdown') ? cv : window;
+      t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true,
         pointerId: id, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y }));
     }
     ev('pointerdown', cx, cy);
-    var n = 0, m = Math.hypot(dx, dy) || 1;
+    var m = Math.hypot(dx, dy) || 1;
+    var n = 0;
+    // 8 nhịp x 55ms = 440ms: quá mốc holdMs (260ms) một cách chắc chắn, kể cả khi
+    // khung hình bị giật. Sáu nhịp đầu đứng yên, hai nhịp cuối mới kéo.
     var iv = setInterval(function () {
       n++;
-      var k = n / 4 * 70;
-      ev('pointermove', cx + dx / m * k, cy + dy / m * k);
-      if (n >= 4) {
+      if (n <= 6) { ev('pointermove', cx, cy); }
+      else { ev('pointermove', cx + dx / m * 80, cy + dy / m * 80); }
+      if (n >= 8) {
         clearInterval(iv);
-        ev('pointerup', cx + dx / m * 70, cy + dy / m * 70);
+        ev('pointerup', cx + dx / m * 80, cy + dy / m * 80);
         castingSkill = null;
       }
-    }, 30);
+    }, 55);
   }
 
   function nearestEnemy(b) {
@@ -194,6 +205,9 @@
     for (var i = 0; i < 2; i++) {
       var sk = b.skillDef(i);
       if (!sk || b.skillCdLeft(i) > 0) continue;
+      // Kỹ năng chạy bằng THANH NẠP: chưa đủ nạp thì giữ ngón chỉ ra đòn đặc thù
+      // của cây, không ra ulti. Hỏi đúng hàm mà trận dùng để phân xử.
+      if (b.ultiArmed() !== i) continue;
       var worth = (b.boss && (b.boss.down > 0 || b.boss.hp < b.boss.maxHp * 0.95)) ||
                   b.mobs.filter(function (m) { return m.hp > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 260; }).length >= 2;
       if (!worth) continue;
