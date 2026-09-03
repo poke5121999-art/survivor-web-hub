@@ -1131,8 +1131,56 @@
       'Ra từ quái, rương, điểm khai thác và thưởng ải.</span></div>' +
       '<div class="upgrow"><b style="color:#8fd4ff">◈ Gem</b><span>CHỈ để quay ở màn Triệu Hồi. ' +
       'Ra từ phá ải — lần đầu trả đậm, cày lại trả nhỏ giọt.</span></div>' +
-      '<p style="color:#9fb2c4">Không có đường đổi gem sang gold hay ngược lại. Hai đồng tiền mà đổi ' +
-      'được cho nhau thì thật ra chỉ có một.</p></div>';
+      '<p style="color:#9fb2c4">Đổi được MỘT CHIỀU: gem sang gold, không bao giờ ngược lại. ' +
+      'Hai đồng tiền mà đổi qua đổi lại tự do thì thật ra chỉ có một.</p></div>';
+
+    /* ---------------------------- QUẦY NẠP ------------------------------
+     * Tiền GIẢ. Nói thẳng điều đó ngay dòng đầu, to và rõ, chứ không giấu ở
+     * chân màn hình: một quầy nạp trông y như thật mà không nói mình là giả thì
+     * đó là một cái bẫy, kể cả khi không ai mất đồng nào.
+     *
+     * Vẫn dựng đúng hình dạng của một quầy thật — bậc thang, nhãn "×2 LẦN ĐẦU",
+     * gói to lời hơn gói nhỏ — vì cái hình dạng ấy chính là thứ đáng nhìn thấy.
+     * In luôn "bằng mấy lượt quay" bên dưới mỗi gói: đó là con số duy nhất có
+     * nghĩa với người chơi, còn "980 gem" thì không nói lên điều gì. */
+    html += '<div class="card"><h3>Quầy Nạp <span style="color:#ff7a3c">— TIỀN GIẢ</span></h3>' +
+      '<p style="color:#9fb2c4">Không có cổng thanh toán nào và không có đồng nào đổi chủ. ' +
+      'Bấm là cộng thẳng vào ví. Quầy này để <b>thử game cho nhanh</b>, và để nhìn thấy ' +
+      'cái giá thật của mô hình quay số.</p>';
+    G.IAP.gem.forEach(function (pk) {
+      var first = G.iapFirst(S, pk.id);
+      var got = pk.gem * (first ? G.IAP.firstBonus : 1);
+      var pulls = Math.floor(got / G.REWARD.pull);
+      html += '<div class="row" style="margin-bottom:5px">' +
+        '<span style="flex:1;font-size:11px"><b>' + pk.n + '</b>' +
+        (first ? ' <span style="color:#f2d24b">×2 LẦN ĐẦU</span>' : '') +
+        // "đủ 0 lượt quay" đọc như một lỗi, mà nó là sự thật đáng nói nhất trên
+        // cả bảng này: gói một đô KHÔNG mua nổi một lượt quay. Viết thành chữ
+        // để nó đọc ra đúng cái nó là.
+        '<br><span style="font-size:9.5px;color:#9fb2c4">◈ ' + fmt(got) +
+        (pulls ? ' — đủ <b>' + pulls + '</b> lượt quay'
+               : ' — <b style="color:#ff7a3c">chưa đủ một lượt quay</b>') + '</span></span>' +
+        '<button class="btn sm pri" data-iap="' + pk.id + '">$' + pk.usd.toFixed(2) + '</button></div>';
+    });
+    html += '<div class="line" style="margin-top:8px"><span style="font-size:9.5px;color:#8fa3b5">' +
+      'Gói bé nhất 60,6 gem/$1, gói to nhất 68,0 gem/$1 — lời hơn 12%. Bậc thang đó là ' +
+      'thứ mọi quầy nạp thật đều có.</span></div></div>';
+
+    /* Gold mua bằng GEM, không bằng tiền. Giữ nguyên luật một chiều của game. */
+    html += '<div class="card"><h3>Đổi Gem lấy Gold</h3>' +
+      '<p style="color:#9fb2c4">Một chiều: gem đi được sang gold, gold không bao giờ đi ngược lại. ' +
+      'Có đường ngược thì hai đồng tiền thật ra chỉ là một.</p>';
+    G.IAP.gold.forEach(function (pk) {
+      var first = G.iapFirst(S, pk.id);
+      var got = pk.gold * (first ? G.IAP.firstBonus : 1);
+      var ok = S.gem >= pk.gem;
+      html += '<div class="row" style="margin-bottom:5px">' +
+        '<span style="flex:1;font-size:11px"><b>' + pk.n + '</b>' +
+        (first ? ' <span style="color:#f2d24b">×2 LẦN ĐẦU</span>' : '') +
+        '<br><span style="font-size:9.5px;color:#9fb2c4">⬤ ' + fmt(got) + '</span></span>' +
+        '<button class="btn sm ' + (ok ? '' : 'dis') + '" data-iap="' + pk.id + '">◈ ' + fmt(pk.gem) + '</button></div>';
+    });
+    html += '</div>';
 
     html += '<div class="card"><h3>Bình (Potion)</h3><p>Loại thường 30 phút, loại cao cấp 60 phút và có cả ba hiệu ứng.</p>';
     Object.keys(G.ITEMS).forEach(function (id) {
@@ -1149,7 +1197,15 @@
 
     b.innerHTML = html;
     b.onclick = function (e) {
-      var t = e.target.closest('[data-buy],[data-use]'); if (!t) return;
+      var t = e.target.closest('[data-buy],[data-use],[data-iap]'); if (!t) return;
+      if (t.hasAttribute('data-iap')) {
+        var r2 = G.iapBuy(S, t.getAttribute('data-iap'));
+        if (!r2.ok) { toast(r2.why, '#c34141'); return; }
+        toast((r2.kind === 'gem' ? '◈ +' : '⬤ +') + fmt(r2.got) +
+              (r2.first ? '  (×2 lần đầu)' : ''), '#3fd66a');
+        save(); rShop(); refresh();
+        return;
+      }
       if (t.hasAttribute('data-buy')) {
         var id = t.getAttribute('data-buy'), P = G.ITEMS[id];
         if (S.gold < P.price.gold) { toast('Không đủ Gold', '#c34141'); return; }

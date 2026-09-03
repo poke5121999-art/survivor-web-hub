@@ -65,10 +65,21 @@ const DP_ULTI_SEC = 11;   // G.ULTI.sec, chỉ dùng để in nhãn   // FEEL.ai
     // Hệ nguyên liệu, cốt truyện và nhiệm vụ ngày/tuần đã BỎ HẲN. Kiểm cả việc
     // chúng biến mất: để lại một bảng mồ côi mà không ai đọc là để lại một lời
     // nói dối trong dữ liệu, và lần sau có người sẽ tin nó.
+    // `IAP` đã ra khỏi danh sách này: quầy nạp GIẢ được dựng lại có chủ ý, để
+    // thử game cho nhanh và để nhìn thấy cái giá của mô hình quay số. Nó là một
+    // bảng sống, không phải một bảng mồ côi.
     gone: ['MATERIALS', 'STORY', 'DAILY', 'WEEKLY', 'SHOP', 'MEDAL_SHOP',
-           'PIKKE_BUY', 'IAP', 'GATHER_MATS', 'DROP_NORMAL'].filter(k => DP[k] !== undefined),
+           'PIKKE_BUY', 'GATHER_MATS', 'DROP_NORMAL'].filter(k => DP[k] !== undefined),
+    iap: { gem: DP.IAP.gem.length, gold: DP.IAP.gold.length,
+           // Bậc thang phải LÊN theo tiền: gói to phải lời hơn gói nhỏ, không
+           // thì cả bảng chỉ là mấy con số ngẫu nhiên đội lốt một quầy nạp.
+           rising: DP.IAP.gem.every((pk, i, a) =>
+             i === 0 || pk.gem / pk.usd >= a[i - 1].gem / a[i - 1].usd) },
     elem: [DP.elemMult('water', 'fire'), DP.elemMult('fire', 'water'), DP.elemMult('fire', 'earth')]
   }));
+  check('quầy nạp giả có đủ hai bảng gói và bậc thang lên đúng chiều',
+    d.iap.gem === 6 && d.iap.gold === 4 && d.iap.rising,
+    JSON.stringify(d.iap));
   check('14 lớp vũ khí bắn', d.weapons === 14, d.weapons + '');
   check('đủ Behemoth (>=50)', d.behemoths >= 50, d.behemoths + ' con');
   check('đủ kỹ năng (2 mỗi lớp, 28 đòn)', d.skills === 28, d.skills + ' đòn');

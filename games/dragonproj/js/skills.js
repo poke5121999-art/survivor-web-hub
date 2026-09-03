@@ -68,7 +68,9 @@
       // Chỉ còn MỘT nguồn giảm hồi chiêu: ability trên trang bị. Lá bài
       // "Định Thần" đã đi cùng cả hệ lên-cấp-trong-trận.
       var cut = (this.stats.skillCd || 0);
-      return sk.cd * (1 - clamp(cut, 0, 0.6));
+      // Kẹp trần: xem G.ULTI.cdCap. Thanh nạp mới là thứ điều nhịp, hồi chiêu
+      // chỉ còn để chặn hai cú xả dính liền nhau.
+      return Math.min(G.ULTI.cdCap, sk.cd * (1 - clamp(cut, 0, 0.6)));
     };
     // Bảng nguyên tố của vũ khí đang cầm.
     Battle.prototype.elemFx = function () {
@@ -1189,6 +1191,45 @@
       this.impact(p.x, p.y, sk.hitstop, sk.shake || 6, '#ffb45a');
     };
     Battle.prototype.upd_minefield = function (sk, st, dt) {
+      if (st.t >= st.dur) { this.player.state = 'idle'; }
+    };
+
+    /* --- sticky: Bom Dính. Bắn mấy quả TỰ BÁM vào địch rồi mới nổ.
+     *
+     * Ba thứ làm nó khác hẳn mìn của cùng cây vũ khí:
+     *   - nó ĐI TÌM mục tiêu, mìn thì nằm chờ
+     *   - nó bám theo con đó, con đó chạy cũng mang theo
+     *   - nó nổ theo ĐỒNG HỒ, không theo va chạm
+     * Nên hai thứ dùng ở hai lúc khác nhau: mìn để dựng đường lui, bom dính để
+     * dứt điểm một đám đang xông tới.
+     *
+     * Chia đều mục tiêu chứ không dồn cả sáu quả vào một con: dồn hết vào con
+     * gần nhất thì đòn này chỉ là một cú nổ đơn mục tiêu, mà đơn mục tiêu đã có
+     * cả chục đòn khác làm tốt hơn. */
+    Battle.prototype.sk_sticky = function (sk, st) {
+      var p = this.player, self = this;
+      st.dur = 300; p.stateDur = st.dur;
+      var foes = this.mobs.filter(function (m) {
+        return m.hp > 0 && dist(m, p) < sk.seekR;
+      }).sort(function (a, b) { return dist(a, p) - dist(b, p); });
+      if (this.boss && this.boss.hp > 0 && dist(this.boss, p) < sk.seekR) foes.push(this.boss);
+
+      this.sticky = this.sticky || [];
+      for (var i = 0; i < sk.count; i++) {
+        var tgt = foes.length ? foes[i % foes.length] : null;
+        var a = tgt ? Math.atan2(tgt.y - p.y, tgt.x - p.x)
+                    : p.facing + (i / sk.count) * TAU;
+        this.sticky.push({
+          x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14,
+          a: a, spd: sk.spd, tgt: tgt, stuck: false,
+          left: sk.stickMs, fly: 900,
+          mul: sk.mul / sk.count, r: sk.blastR, sk: sk, t: 0
+        });
+      }
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 52, t: 0, ms: 360, col: '#ffb45a' });
+      this.impact(p.x, p.y, sk.hitstop, sk.shake || 7, '#ffb45a');
+    };
+    Battle.prototype.upd_sticky = function (sk, st, dt) {
       if (st.t >= st.dur) { this.player.state = 'idle'; }
     };
 

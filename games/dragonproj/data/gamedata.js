@@ -1035,13 +1035,17 @@
      * Cả hai đòn đều KHÔNG cần ngắm — đúng lý do lớp này tồn tại. Một đòn rải
      * sẵn cả bãi, đòn kia thu toàn bộ bãi đó về một khoảnh khắc. */
     mine: [
-      { id:'minefield', n:'Bãi Mìn', kind:'minefield', aim:'self',
-        d:'Rải một vòng 10 quả mìn quanh chân, gài xong ngay lập tức. Không cần ngắm.',
-        cd:18000,
-        // K = 0,50: rải xong vẫn phải dụ quái đi vào, nên nó không tự quy đổi
-        // thành sát thương. 20 x 18 x 0,50 = 180.
-        mul:180, count:10, spread:120, armMs:120, life:9000,
-        hitstop:HS.boom, kb:11, poise:24, shake:6,
+      { id:'sticky', n:'Bom Dính', kind:'sticky', aim:'self',
+        d:'Bắn 6 quả bom tự bám vào kẻ địch gần nhất. Bám xong đếm 1,2 giây rồi nổ — chạy cũng mang theo.',
+        cd:17000,
+        /* Ngược hẳn với đòn thường của chính cây này: mìn NẰM CHỜ địch tới, bom
+         * dính ĐI TÌM địch. Cùng một lớp, hai câu trả lời trái ngược cho câu hỏi
+         * "làm sao cho nó nổ đúng chỗ" — đó mới là một kỹ năng, chứ không phải
+         * một cái nút rải nhiều mìn hơn.
+         * K = 0,55: nó tự tìm mục tiêu nên gần như không trượt, nhưng có 1,2
+         * giây trễ và không ăn được gì nếu sân trống. 20 x 17 x 0,55 = 187. */
+        mul:187, count:6, seekR:300, stickMs:1200, blastR:78, spd:9,
+        hitstop:HS.boom, kb:12, poise:26, shake:7,
         trail:false, burst:true },
 
       { id:'flashover', n:'Kích Nổ Dây Chuyền', kind:'detonate', aim:'self',
@@ -1533,6 +1537,79 @@
    * lại trả nhỏ giọt.
    * ==================================================================== */
 
+  /* ======================== QUẦY NẠP (IAP GIẢ) ==========================
+   * Tiền GIẢ — không có cổng thanh toán nào, không gửi đi đâu, bấm là cộng.
+   * Nó tồn tại vì hai lý do thật:
+   *
+   *   1. ĐỂ THỬ. Muốn xem hai mươi lượt quay ra gì, hay xem một cây SS tối cấp
+   *      đánh ra sao, mà phải cày ba tiếng trước đã thì không ai thử. Không thử
+   *      thì không biết game có gì để mà thích.
+   *   2. ĐỂ ĐỌC ĐƯỢC CÁI GIÁ. Bảng này cố ý dựng đúng hình dạng của một quầy
+   *      nạp thật — bậc thang, thưởng lần đầu gấp đôi, gói to lời hơn gói nhỏ.
+   *      Nhìn "2.700 gem = 16 lượt quay = có thể vẫn không ra SS" là hiểu ngay
+   *      cái mô hình đó bán gì, rõ hơn mọi lời giải thích.
+   *
+   * BẬC THANG CỐ Ý LÊN DẦN. Gói bé nhất 60,6 gem mỗi đô; gói to nhất 68,0 gem
+   * mỗi đô — lời hơn 12%. Hình dạng lấy từ Genshin (gói $1 rẻ nhất, gói $100
+   * lời nhất) nhưng con số thì tự đặt cho lên ĐỀU, vì đây là chỗ để nhìn thấy
+   * cái cơ chế chứ không phải chỗ chép nguyên một bảng giá có thật.
+   *
+   * THƯỞNG LẦN ĐẦU GẤP ĐÔI, mỗi gói một lần trong đời, cũng lấy nguyên từ đó.
+   *
+   * GOLD KHÔNG MUA BẰNG TIỀN, chỉ mua bằng GEM. Giữ nguyên luật một chiều của
+   * game: gem đi được sang gold, gold không bao giờ đi ngược lại. Có đường
+   * ngược thì hai đồng tiền thật ra chỉ là một.
+   * ==================================================================== */
+  G.IAP = {
+    /* Gói gem. `usd` chỉ để hiển thị — không có đồng nào đổi chủ. */
+    gem: [
+      { id: 'g1', usd: 0.99,  gem: 60,   n: 'Nắm Đá Nhỏ' },
+      { id: 'g2', usd: 4.99,  gem: 310,  n: 'Túi Đá' },
+      { id: 'g3', usd: 14.99, gem: 980,  n: 'Hòm Đá' },
+      { id: 'g4', usd: 29.99, gem: 1980, n: 'Rương Đá' },
+      { id: 'g5', usd: 49.99, gem: 3350, n: 'Khoang Đá' },
+      { id: 'g6', usd: 99.99, gem: 6800, n: 'Kho Đá' }
+    ],
+    /* Gói gold, trả bằng GEM. Tỉ giá tốt dần theo bậc, cùng một luật. */
+    gold: [
+      { id: 'o1', gem: 30,  gold: 12000,  n: 'Vốn Lẻ' },
+      { id: 'o2', gem: 120, gold: 55000,  n: 'Vốn Vừa' },
+      { id: 'o3', gem: 300, gold: 160000, n: 'Vốn Lớn' },
+      { id: 'o4', gem: 800, gold: 480000, n: 'Kho Bạc' }
+    ],
+    firstBonus: 2       // lần đầu mỗi gói: nhân đôi
+  };
+
+  /* Gói này đã dùng thưởng-lần-đầu chưa? Ghi trong save, không phải trong biến
+   * tạm — "lần đầu" mà quên sau khi tải lại trang thì nó không phải lần đầu. */
+  G.iapFirst = function (s, id) { return !(s.iap && s.iap[id]); };
+
+  G.iapBuy = function (s, id) {
+    var i, pk = null, kind = null;
+    for (i = 0; i < G.IAP.gem.length; i++) if (G.IAP.gem[i].id === id) { pk = G.IAP.gem[i]; kind = 'gem'; }
+    for (i = 0; i < G.IAP.gold.length; i++) if (G.IAP.gold[i].id === id) { pk = G.IAP.gold[i]; kind = 'gold'; }
+    if (!pk) return { ok: false, why: 'Không có gói này' };
+
+    // Gói gold trả bằng gem, nên nó CÓ THỂ trượt vì thiếu tiền. Gói gem thì
+    // không bao giờ trượt — tiền là giả.
+    if (kind === 'gold' && s.gem < pk.gem) return { ok: false, why: 'Không đủ Gem' };
+
+    var first = G.iapFirst(s, id);
+    var mul = first ? G.IAP.firstBonus : 1;
+    s.iap = s.iap || {};
+    s.iap[id] = (s.iap[id] || 0) + 1;
+
+    if (kind === 'gem') {
+      var got = pk.gem * mul;
+      s.gem += got;
+      return { ok: true, kind: 'gem', got: got, first: first, pk: pk };
+    }
+    s.gem -= pk.gem;
+    var gotG = pk.gold * mul;
+    s.gold += gotG;
+    return { ok: true, kind: 'gold', got: gotG, first: first, pk: pk };
+  };
+
   G.CUR = {
     gold: { vi: 'Gold', sym: '⬤', col: '#f2d24b', d: 'Nâng cấp mọi thứ' },
     gem:  { vi: 'Gem',  sym: '◈', col: '#8fd4ff', d: 'Chỉ để quay' }
@@ -1809,7 +1886,20 @@
     notch: 0.55,      // qua nấc này: xả được kỹ năng 1
     killGain: 0.030,  // mỗi con chết cộng thêm, để dọn đám cũng nạp được
     bossMul: 0.60,    // đánh boss nạp chậm hơn: boss đứng yên cho bắn, dễ nạp tràn
-    cost: [0.55, 1.00]   // giá của từng kỹ năng, khớp với nấc
+    cost: [0.55, 1.00],  // giá của từng kỹ năng, khớp với nấc
+    /* TRẦN HỒI CHIÊU. Từ lúc thanh nạp ĐỨNG YÊN trong khi đòn còn khoá, hồi
+     * chiêu và thanh nạp không còn chạy song song nữa mà NỐI ĐUÔI nhau: phải
+     * chờ hết chiêu rồi mới bắt đầu nạp lại. Cộng vào là 20 giây chờ cộng 11
+     * giây nạp cho một đòn — hơn nửa phút, và cả nhịp trận đứng lại.
+     *
+     * Nên hồi chiêu bị kẹp về một con số ngắn. Vai trò của nó bây giờ chỉ còn
+     * MỘT: chặn xả hai lần liên tiếp trong cùng một khoảnh khắc khi thanh đang
+     * đầy. Việc điều nhịp đã chuyển hẳn sang thanh nạp, mà thanh nạp thì điều
+     * nhịp theo thứ đáng thưởng hơn — bắn trúng nhiều tới đâu.
+     *
+     * Con số riêng trong dữ liệu từng đòn vẫn giữ nguyên, không xoá: nó là thứ
+     * tự sống lại nếu sau này bỏ luật đóng băng. */
+    cdCap: 4500
   };
 
   /* HAI BẢNG ĐÃ GỠ cùng hệ lên-cấp-trong-trận: G.PERKS (mười lăm lá cường

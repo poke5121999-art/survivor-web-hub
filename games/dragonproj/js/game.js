@@ -24,7 +24,20 @@
    * nhau và game trông sai. Zoom camera thì mọi thứ trong sân to lên cùng một hệ
    * số, không có gì lệch pha; cái mất là khung nhìn hẹp lại, và đó là cái phải
    * bù bằng việc kéo camera nhìn xa hơn về phía trước theo hướng đang ngắm. */
-  var ZOOM = 1.30;
+  /* CAMERA: hai mức, đổi mượt giữa chúng.
+   *
+   *   chặng quái — 1,72×  : gần, để nhìn rõ mặt nhân vật và đọc được đạn
+   *   chặng boss — 1,26×  : nới ra, vì một con Behemoth với đầy đủ vùng đòn của
+   *                         nó không lọt nổi vào khung 1,72×
+   *
+   * Nới DẦN chứ không nhảy một cái: cú nhảy zoom giữa trận làm mất phương hướng
+   * đúng vào giây mà boss đang lao ra, tức là giây tệ nhất để làm điều đó. Hai
+   * giây nới đủ chậm để mắt bám theo, đủ nhanh để xong trước khi boss ra đòn.
+   *
+   * `zoomNow` là mức đang vẽ, `zoomWant` là mức đích. Đá zoom lúc xả ulti
+   * (zoomPunch) cộng lên trên, không thay thế. */
+  var ZOOM_MOB = 1.72;
+  var ZOOM_BOSS = 1.26;
 
   function ang(a) { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; }
   // Hiệu hai góc, đã chuẩn hoá về [-pi, pi]. Trừ thẳng rồi so sánh thì hai góc
@@ -104,6 +117,7 @@
   Battle.prototype.startBossPhase = function () {
     if (this.phase !== 'mobs') return;
     this.phase = 'boss';
+    this.zoomWant = ZOOM_BOSS;   // nới dần ra, xem stepZoom
     var self = this;
     this.mobs.forEach(function (m) { if (!m.dead) { m.dead = true; m.hp = 0; self.puff(m.x, m.y, '#cfd8e2'); } });
     this.mobs = [];
@@ -495,7 +509,11 @@
       p.stateDur = W.shotMs / this.atkSpeed();
     }
     p.chargeLv = -1; p.chargeT = 0;
-    if (W.id) this.moveName = { n: W.vi, t: this.t };
+    /* KHÔNG in tên vũ khí mỗi phát bắn nữa.
+     * Biển tên giữa màn hình bây giờ chỉ dành cho ULTI. Nếu mỗi phát đạn thường
+     * cũng bắn một dòng chữ lên đó thì nó nhấp nháy liên tục và mất sạch nghĩa —
+     * lúc ulti ra thật thì mắt đã bỏ qua chỗ ấy từ lâu. Một kênh báo chỉ có giá
+     * trị khi nó im lặng phần lớn thời gian. */
     return true;
   };
 
@@ -675,6 +693,18 @@
   Battle.prototype.spinK = function () {
     return clamp(this.player.spin || 0, 0, 1);
   };
+  /* Nới zoom về mức đích. Tốc độ cố định theo GIÂY chứ không theo tỉ lệ khung
+   * hình: máy chậm và máy nhanh phải nới hết trong cùng một khoảng thời gian,
+   * không thì cùng một trận chơi ra hai cảm giác khác nhau. */
+  Battle.prototype.stepZoom = function (dt) {
+    if (this.zoomNow === undefined) this.zoomNow = ZOOM_MOB;
+    var want = this.zoomWant || ZOOM_MOB;
+    if (this.zoomNow === want) return;
+    var step = (ZOOM_MOB - ZOOM_BOSS) * (dt / 2000);   // nới hết trong 2 giây
+    if (this.zoomNow > want) this.zoomNow = Math.max(want, this.zoomNow - step);
+    else this.zoomNow = Math.min(want, this.zoomNow + step);
+  };
+
   Battle.prototype.stepSpin = function (dt) {
     var p = this.player, W = this.W;
     if (W.mode !== 'spin') { p.spin = 0; return; }
@@ -1269,7 +1299,9 @@
 
   /* ------------------------------------------------------ QUÁI CHẾT ----- */
   Battle.prototype.killMob = function (m) {
-    this.player.ulti = Math.min(1, (this.player.ulti || 0) + G.ULTI.killGain);
+    if (!this.ultiFrozen()) {
+      this.player.ulti = Math.min(1, (this.player.ulti || 0) + G.ULTI.killGain);
+    }
     m.hp = 0; m.dead = true;
     this.killed++;
     this.s.stats.mob++;
@@ -1451,8 +1483,10 @@
     if (p.iframe > 0) p.iframe -= dt;
     this.stepLanes(dt);
     this.stepMines(dt);
+    this.stepSticky(dt);
     if (p.dodgeCd > 0) p.dodgeCd -= dt;
     if (p.swapCd > 0) p.swapCd -= dt;
+    this.stepZoom(dt);
     if (this.zoomPunch) this.zoomPunch = Math.max(0, this.zoomPunch - dt / 260 * 0.045);
     if (this.flash) this.flash = Math.max(0, this.flash - dt / 220);
     this.stepSpin(dt);
@@ -2329,6 +2363,73 @@
     });
   };
 
+  /* BOM DÍNH. Hai pha: BAY tới mục tiêu, rồi BÁM và đếm giờ.
+   *
+   * Bám vào một CON, không bám vào một toạ độ: con đó chạy thì quả bom đi theo,
+   * và đó là toàn bộ khác biệt so với mìn. Bám vào toạ độ thì nó chỉ là một quả
+   * mìn có đường bay.
+   *
+   * Mục tiêu chết trước khi nổ thì bom rơi tại chỗ và vẫn nổ đúng giờ — không
+   * thì giết con mang bom trở thành cách vô hiệu hoá cả đòn, mà người chơi
+   * không có cách nào biết để tránh làm thế. */
+  Battle.prototype.stepSticky = function (dt) {
+    if (!this.sticky || !this.sticky.length) return;
+    for (var i = this.sticky.length - 1; i >= 0; i--) {
+      var b = this.sticky[i];
+      b.t += dt;
+      if (!b.stuck) {
+        b.fly -= dt;
+        if (b.tgt && b.tgt.hp > 0) b.a = Math.atan2(b.tgt.y - b.y, b.tgt.x - b.x);
+        b.x += Math.cos(b.a) * b.spd * dt / 16.67;
+        b.y += Math.sin(b.a) * b.spd * dt / 16.67;
+        if (b.tgt && b.tgt.hp > 0 && Math.hypot(b.tgt.x - b.x, b.tgt.y - b.y) < b.tgt.r + 10) {
+          b.stuck = true;
+          this.fx.push({ k: 'ring', x: b.x, y: b.y, r: 20, t: 0, ms: 220, col: '#ffb45a' });
+        } else if (b.fly <= 0) {
+          b.stuck = true;   // không bám được ai thì cắm xuống đất và vẫn nổ
+          b.tgt = null;
+        }
+        continue;
+      }
+      if (b.tgt && b.tgt.hp > 0) { b.x = b.tgt.x; b.y = b.tgt.y - (b.tgt.r || 0) * 0.4; }
+      b.left -= dt;
+      if (b.left <= 0) {
+        this.aoeDamage(b.x, b.y, b.r, b.mul, { from: b.a });
+        this.fx.push({ k: 'spr', key: 'fx.midboom', x: b.x, y: b.y, r: b.r,
+                       t: 0, ms: 420, blend: 'lighter' });
+        this.impact(b.x, b.y, G.FEEL.hitstop.mid, G.FEEL.shake.mid, '#ffb45a');
+        this.sticky.splice(i, 1);
+      }
+    }
+  };
+
+  Battle.prototype.drawSticky = function () {
+    if (!this.sticky || !this.sticky.length) return;
+    var ctx = this.ctx;
+    for (var i = 0; i < this.sticky.length; i++) {
+      var b = this.sticky[i];
+      ctx.save(); ctx.translate(b.x, b.y);
+      if (b.stuck) {
+        // Nhấp nháy NHANH DẦN theo thời gian còn lại: người chơi (và mắt) đọc
+        // được "sắp nổ" mà không cần một con số đếm ngược.
+        var k = 1 - b.left / (b.sk.stickMs || 1200);
+        var blink = Math.abs(Math.sin(b.t / (150 - 110 * k)));
+        ctx.fillStyle = 'rgba(255,90,70,' + (0.35 + 0.65 * blink) + ')';
+        ctx.beginPath(); ctx.arc(0, 0, 6 + 2 * blink, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(255,180,90,' + (0.3 + 0.5 * blink) + ')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(0, 0, b.r * (0.25 + 0.75 * k), 0, TAU); ctx.stroke();
+      } else {
+        ctx.rotate(b.a);
+        ctx.fillStyle = '#3a4652';
+        ctx.beginPath(); ctx.ellipse(0, 0, 7, 4.5, 0, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#ff7a3c';
+        ctx.beginPath(); ctx.arc(4, 0, 2.4, 0, TAU); ctx.fill();
+      }
+      ctx.restore();
+    }
+  };
+
   Battle.prototype.stepMines = function (dt) {
     if (!this.mines || !this.mines.length) return;
     for (var i = this.mines.length - 1; i >= 0; i--) {
@@ -2614,12 +2715,12 @@
     /* Khung nhìn THẬT (đơn vị sân) nhỏ hơn khung canvas đúng bằng hệ số zoom. Mọi
      * phép kẹp camera phải tính trên khung này, không phải trên W/H — tính nhầm
      * thì mép sân lòi ra một dải đen ở đúng lúc người chơi chạy sát biên. */
-    var VW = W / ZOOM, VH = H / ZOOM;
+    var VW = W / (this.zoomNow || ZOOM_MOB), VH = H / (this.zoomNow || ZOOM_MOB);
     var camX = clamp(p.x - VW / 2, 0, Math.max(0, this.wW - VW));
     var camY = clamp(p.y - VH * 0.56, 0, Math.max(0, this.wH - VH));
     if (this.wW < VW) camX = (this.wW - VW) / 2;
     if (this.wH < VH) camY = (this.wH - VH) / 2;
-    this.camX = camX; this.camY = camY; this.camZ = ZOOM;
+    this.camX = camX; this.camY = camY; this.camZ = this.zoomNow || ZOOM_MOB;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -2638,7 +2739,8 @@
      * hiệu ứng chung của mọi ulti) nhưng chưa bao giờ có ai đọc — nên nó không
      * làm gì cả. Một cú giật zoom rất ngắn là cách rẻ nhất để nói "vừa có một
      * đòn LỚN", và nó không che mất gì vì nó tắt trong ba phần mười giây. */
-    ctx.scale(ZOOM * (1 + (this.zoomPunch || 0)), ZOOM * (1 + (this.zoomPunch || 0)));
+    var Z = (this.zoomNow || ZOOM_MOB) * (1 + (this.zoomPunch || 0));
+    ctx.scale(Z, Z);
     ctx.translate(-camX, -camY);
 
     this.drawGround();
@@ -2663,6 +2765,7 @@
     }
     this.drawLanes();
     this.drawMines();
+    this.drawSticky();
     this.drawProjectiles();
     this.drawDrones();
     // Tường chắn và ảo ảnh đứng ngang tầm nhân vật, vẽ sau khi đã xếp lớp xong.
@@ -3146,9 +3249,36 @@
     return 1 / (shotsPerSec * perShot * G.ULTI.sec);
   };
 
+  /* Đòn mà thanh đang nạp HƯỚNG TỚI, và nó có đang khoá hay không.
+   *
+   * Dưới nấc thì thanh đang nạp cho đòn 1; qua nấc rồi thì nó đang nạp cho đòn 2
+   * (nếu đòn 2 đã mở). Biết đang nạp cho ai mới trả lời được câu "có nên nạp
+   * tiếp không". */
+  Battle.prototype.ultiTargetIdx = function () {
+    var u = this.player.ulti || 0;
+    if (u >= G.ULTI.notch && this.skillDef(1)) return 1;
+    return 0;
+  };
+
+  /* ĐANG HỒI CHIÊU THÌ THANH ĐỨNG YÊN.
+   *
+   * Trước đây thanh vẫn dâng trong lúc đòn còn khoá, nên nó đầy rồi nằm đó chờ —
+   * và mọi cú đánh trong quãng chờ ấy là công cốc. Tệ hơn: thanh đầy là tín hiệu
+   * "xả được", mà xả thì không được, nên tín hiệu nói dối.
+   *
+   * Đóng băng thì hai chuyện đúng lại: không cú đánh nào phí, và thanh đầy luôn
+   * có nghĩa là xả được thật. Đổi lại phải VẼ RÕ trạng thái đóng băng, nếu không
+   * người chơi tưởng thanh hỏng — xem drawPlayerPlate. */
+  Battle.prototype.ultiFrozen = function () {
+    var idx = this.ultiTargetIdx();
+    if (!this.skillDef(idx)) return false;
+    return this.skillCdLeft(idx) > 0;
+  };
+
   Battle.prototype.ultiGain = function (k) {
     var p = this.player;
     if (p.down) return;
+    if (this.ultiFrozen()) return;
     p.ulti = Math.min(1, (p.ulti || 0) + this.ultiPerHit() * (k === undefined ? 1 : k));
   };
 
@@ -3537,14 +3667,35 @@
       var uk = clamp(p.ulti || 0, 0, 1);
       var notch = G.ULTI.notch;
       var ufull = uk >= 0.999, upast = uk >= notch;
+      var frozen = this.ultiFrozen();
       ctx.fillStyle = 'rgba(0,0,0,.62)';
       ctx.fillRect(-BW / 2 - 1, UY, BW + 2, 5);
-      ctx.fillStyle = ufull ? '#ffffff' : upast ? '#ffd23f' : '#5aa9d8';
+      /* Đóng băng vẽ XÁM và có sọc chéo, không chỉ mờ đi: một thanh nhạt màu
+       * trông giống một thanh gần đầy, còn sọc chéo thì không giống bất cứ trạng
+       * thái nào khác trên màn hình. Kèm số giây còn lại ngay bên phải — người
+       * chơi phải biết mình đang chờ BAO LÂU, không chỉ biết là đang chờ. */
+      ctx.fillStyle = frozen ? '#55636f' : (ufull ? '#ffffff' : upast ? '#ffd23f' : '#5aa9d8');
       ctx.fillRect(-BW / 2, UY + 1, BW * uk, 3);
+      if (frozen) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(-BW / 2, UY, BW, 5); ctx.clip();
+        ctx.strokeStyle = 'rgba(180,196,210,.55)'; ctx.lineWidth = 1;
+        for (var sx = -BW / 2 - 6; sx < BW / 2 + 6; sx += 5) {
+          ctx.beginPath(); ctx.moveTo(sx, UY + 6); ctx.lineTo(sx + 6, UY - 1); ctx.stroke();
+        }
+        ctx.restore();
+        var wait = Math.ceil(this.skillCdLeft(this.ultiTargetIdx()) / 1000);
+        ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(4,8,14,.9)';
+        ctx.fillRect(BW / 2 + 2, UY - 1, 16, 8);
+        ctx.fillStyle = '#c8d4de';
+        ctx.fillText(wait + 's', BW / 2 + 4, UY + 5.5);
+        ctx.textAlign = 'left';
+      }
       // vạch nấc — cái đích của đòn nhỏ
       ctx.fillStyle = upast ? 'rgba(20,14,0,.75)' : 'rgba(232,242,255,.85)';
       ctx.fillRect(-BW / 2 + BW * notch, UY, 1.4, 5);
-      if (upast) {
+      if (upast && !frozen) {
         ctx.globalAlpha = 0.35 + 0.65 * Math.abs(Math.sin(this.t / (ufull ? 80 : 150)));
         ctx.strokeStyle = ufull ? '#ffffff' : '#ffd23f'; ctx.lineWidth = 1.2;
         ctx.strokeRect(-BW / 2 - 2, UY - 1, BW + 4, 7);

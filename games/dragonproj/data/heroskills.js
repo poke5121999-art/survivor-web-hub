@@ -128,9 +128,15 @@
       d: 'Ba chiếc lông tách ra bay vòng quanh trong 9 giây, chém mọi thứ lại gần và chặt rụng đạn bay vào.',
       cd: 21000, mul: 196, count: 3, ms: 9000 },
 
-    bae: { base: 'minefield', n: 'Xúc Xắc Hỗn Loạn', el: 'dark',
+    /* Hai mục dưới đây khai THẲNG `kind` thay vì mượn của base.
+     * Lý do: lớp Bẫy Mìn đã bỏ đòn "Bãi Mìn" (nó trùng với chính đòn thường của
+     * cây — cả hai đều rải mìn), nên không còn mục nào trong G.SKILLS mang kind
+     * 'minefield' để mà mượn. Nhưng TRÌNH PHÁT sk_minefield vẫn còn và vẫn đúng
+     * cho hai người này: với Bae và Kobo thì rải một bãi là chuyện MỚI, vì lớp
+     * của họ (luân xa, cầu lửa) không làm gì giống thế. */
+    bae: { base: 'sticky', kind: 'minefield', n: 'Xúc Xắc Hỗn Loạn', el: 'dark',
       d: 'Rải một vòng 12 con xúc xắc quanh chân. Con nào cũng nổ, chỉ là bạn không biết khi nào.',
-      cd: 18000, mul: 190, n: 12 },
+      cd: 18000, mul: 190, count: 12, spread: 128, armMs: 120, life: 9000 },
 
     anya: { base: 'shred', n: 'Keris Xoáy', el: 'earth',
       d: 'Nòng cong, đạn đi xoáy — một nón hẹp bào mòn giáp. Mọi đòn sau đó, của bất kỳ ai, đều đau hơn.',
@@ -163,7 +169,7 @@
 
     roboco: { base: 'drones', n: 'Vệ Tinh RBC', el: 'thunder',
       d: 'Bốn vệ tinh tách ra bay quanh và tự khoá mục tiêu. Ngắm tự động, đúng nghĩa đen.',
-      cd: 20000, mul: 190, n: 4 },
+      cd: 20000, mul: 190, drones: 4 },
 
     mel: { base: 'prism', n: 'Nanh Hút Máu', el: 'dark',
       d: 'Quét một cung tối trước mặt, và mỗi con trúng phải trả lại cho bạn một phần máu.',
@@ -205,9 +211,9 @@
       d: 'Một luồng nước vươn thẳng rồi giật ngược, lôi cả hàng về sát chân bạn.',
       cd: 15000, mul: 140, len: 310 },
 
-    kobo: { base: 'minefield', n: 'Vũng Mưa', el: 'water',
+    kobo: { base: 'sticky', kind: 'minefield', n: 'Vũng Mưa', el: 'water',
       d: 'Rải 10 vũng nước quanh chân. Quả nào rơi xuống cũng thành vũng, và vũng thì trơn.',
-      cd: 17000, mul: 178, count: 10, status: 'slow' },
+      cd: 17000, mul: 178, count: 10, spread: 112, armMs: 200, life: 10000, status: 'slow' },
 
     zeta: { base: 'dash', n: 'Bóng Điệp Viên', el: 'water',
       d: 'Lướt xuyên qua cả hàng và để lại một cái bóng ở mỗi bước. Hai khẩu, một cái bóng.',

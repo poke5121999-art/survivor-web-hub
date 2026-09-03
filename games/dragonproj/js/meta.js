@@ -221,6 +221,8 @@
       cleared: {},           // { 'tior-1': true, ... } — ải đã phá
       bossKills: {}, seenBoss: {},
       inv: {}, potions: {},
+      // Quầy nạp: đếm số lần đã mua từng gói, để biết gói nào còn thưởng lần đầu.
+      iap: {},
       stats: { boss: 0, mob: 0, deaths: 0, parts: 0, gathers: 0, rerolls: 0, buys: 0,
                potions: 0, skillUse: 0, equipLv: 0, pulls: 0 },
       log: []
