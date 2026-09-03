@@ -1430,30 +1430,44 @@
         else battle.paused = false;
       }
     };
-    // Kỹ năng nạp bằng GIỮ, nên nút cũng phải giữ chứ không bấm. Đây chỉ là đường
-    // dự phòng cho ai không quen cử chỉ trượt — cách chính vẫn là giữ rồi trượt về
-    // hướng nút, đúng ngữ pháp Punicon.
+    /* NÚT KỸ NĂNG — đặt ngón, KÉO ĐỂ CHỈ HƯỚNG, thả là xả.
+     *
+     * Hồi chiêu chính là thanh nạp: nút tối thì chưa được, nút sáng thì bấm là
+     * chắc chắn ra đòn. Không còn "giữ đủ lâu mới tính".
+     *
+     * setPointerCapture là bắt buộc, không phải cho đẹp: ngón phải kéo RA KHỎI
+     * nút thì mới chỉ được hướng, mà rời khỏi nút là pointermove ngừng bắn vào
+     * nút ngay. Không bắt con trỏ thì cử chỉ chết ngay milimét đầu tiên và mọi
+     * cú xả đều thành tự-ngắm.
+     */
     [0, 1].forEach(function (i) {
-      var btn = $('hSkill' + i), holdT = 0, raf = 0;
+      var btn = $('hSkill' + i), sx = 0, sy = 0, on = false;
       btn.addEventListener('pointerdown', function (e) {
-        e.preventDefault();
+        e.preventDefault(); e.stopPropagation();
         if (!battle) return;
-        holdT = performance.now();
-        var step = function () {
-          if (!battle) return;
-          battle.skillCharge(i, performance.now() - holdT);
-          raf = requestAnimationFrame(step);
-        };
-        step();
+        if (!battle.skillAimStart(i)) return;
+        on = true; sx = e.clientX; sy = e.clientY;
+        btn.classList.add('aiming');
+        try { btn.setPointerCapture(e.pointerId); } catch (err) {}
       });
-      var up = function (e) {
-        if (!raf) return;
-        cancelAnimationFrame(raf); raf = 0;
-        if (battle) battle.skillRelease(i, performance.now() - holdT);
+      btn.addEventListener('pointermove', function (e) {
+        if (!on || !battle) return;
+        e.preventDefault();
+        battle.skillAimMove(e.clientX - sx, e.clientY - sy);
+      });
+      var end = function (e) {
+        if (!on) return;
+        on = false; btn.classList.remove('aiming');
+        try { btn.releasePointerCapture(e.pointerId); } catch (err) {}
+        if (battle) battle.skillAimEnd();
       };
-      btn.addEventListener('pointerup', up);
-      btn.addEventListener('pointercancel', up);
-      btn.addEventListener('pointerleave', up);
+      var cancel = function () {
+        if (!on) return;
+        on = false; btn.classList.remove('aiming');
+        if (battle) battle.skillAimCancel();
+      };
+      btn.addEventListener('pointerup', end);
+      btn.addEventListener('pointercancel', cancel);
     });
     $('hGemRevive').onclick = function () { if (battle && battle.gemRevive()) { $('hDown').classList.remove('on'); refresh(); } };
     $('hGiveUp').onclick = function () { leaveBattle(); };

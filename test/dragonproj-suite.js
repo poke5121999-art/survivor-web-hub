@@ -288,51 +288,67 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('GIỮ cây còn lại = ghì súng', holds.sniper === 'steady', holds.sniper);
   await p.waitForTimeout(500);
 
-  // GIỮ RỒI TRƯỢT VỀ HƯỚNG NÚT KỸ NĂNG
-  const slide = await p.evaluate(async () => {
-    const b = DP.UI.battle;
-    b.player.state = 'idle';
-    const hs = b.puni.hotspots[0];
-    b.puni.ox = 270; b.puni.oy = 640;
-    const dx = hs.x - 270, dy = hs.y - 640, d = Math.hypot(dx, dy);
-    const idx = b.puni.aimedHotspot(dx / d * 80, dy / d * 80, 80);
-    const wrong = b.puni.aimedHotspot(-80, 0, 80);
-    return { idx, wrong, hasSkill: !!b.skillDef(0) };
-  });
-  check('trượt ĐÚNG hướng nút kỹ năng được nhận', slide.idx === 0, 'idx=' + slide.idx);
-  check('trượt SAI hướng thì không nhận', slide.wrong === -1);
-  check('vũ khí đang cầm có kỹ năng ở khe 1', slide.hasSkill);
-
-  /* Kỹ năng phải NẠP mới xả được. Nhả sớm thì huỷ và hoàn phần lớn hồi chiêu —
-   * không phạt người đọc đúng tình huống rồi rút tay. */
+  /* ================= KỸ NĂNG: NGẮM RỒI THẢ =================
+   * Hồi chiêu CHÍNH LÀ thanh nạp. Nút sáng thì bấm là chắc chắn ra đòn; kéo ngón
+   * là chỉ hướng; thả không kéo thì tự ngắm con gần nhất. Không còn pha "giữ đủ
+   * lâu mới tính" — nên cái phải đo là: chưa hồi xong thì KHÔNG vào được thế
+   * ngắm, huỷ thì KHÔNG mất gì, và hướng ngón kéo phải thật sự đi vào đòn. */
   const cast = await p.evaluate(async () => {
     const b = DP.UI.battle, pl = b.player;
     const sk = b.skillDef(0);
     pl.state = 'idle'; pl.skCd = [0, 0]; pl.usedSkill = false;
 
-    // (a) nhả sớm -> huỷ, KHÔNG xả, hồi chiêu chỉ còn một phần
-    b.skillCharge(0, 10);
-    const charging = pl.state;
-    b.skillRelease(0, sk.charge * 0.3);
-    const early = { state: pl.state, used: pl.usedSkill, cd: b.skillCdLeft(0), full: b.skillCdOf(sk) };
+    // (a) huỷ giữa chừng: không xả, và KHÔNG mất hồi chiêu
+    const okStart = b.skillAimStart(0);
+    const aiming = b.skillAiming();
+    b.skillAimMove(0, -70);
+    b.skillAimCancel();
+    const afterCancel = { used: pl.usedSkill, cd: b.skillCdLeft(0), aiming: b.skillAiming() };
 
-    // (b) nạp đủ -> xả thật, và vào hồi chiêu đầy
-    pl.skCd = [0, 0]; pl.state = 'idle';
-    b.skillCharge(0, 10);
-    b.skillCharge(0, sk.charge + 50);
-    const ready = pl.skReady;
-    b.skillRelease(0, sk.charge + 50);
-    return { charging, early, ready, fired: pl.usedSkill, cdAfter: b.skillCdLeft(0), full: b.skillCdOf(sk) };
+    // (b) đang hồi chiêu thì không vào được thế ngắm
+    pl.skCd[0] = 5000;
+    const blocked = b.skillAimStart(0);
+    pl.skCd = [0, 0];
+
+    // (c) bấm - kéo lên trên - thả: xả thật, mặt quay đúng hướng ngón kéo
+    b.skillAimStart(0);
+    b.skillAimMove(0, -70);
+    const fired = b.skillAimEnd();
+    return { okStart, aiming, afterCancel, blocked, fired,
+             facing: pl.facing, used: pl.usedSkill,
+             cdAfter: b.skillCdLeft(0), full: b.skillCdOf(sk) };
   });
-  check('trượt về nút thì vào thế NẠP', cast.charging === 'skcharge', cast.charging);
-  check('nhả sớm thì KHÔNG xả', cast.early.used === false && cast.early.state === 'idle');
-  check('huỷ giữa chừng hoàn 60% hồi chiêu',
-    Math.abs(cast.early.cd - cast.early.full * 0.4) < 2,
-    Math.round(cast.early.cd) + '/' + Math.round(cast.early.full) + 'ms');
-  check('nạp đủ thì báo sẵn sàng', cast.ready === true);
-  check('nạp đủ thì xả được kỹ năng', cast.fired === true);
+  check('nút sáng thì vào được thế ngắm', cast.okStart === true && cast.aiming === 0);
+  check('huỷ ngắm thì KHÔNG xả và KHÔNG mất hồi chiêu',
+    cast.afterCancel.used === false && cast.afterCancel.cd === 0 && cast.afterCancel.aiming === -1);
+  check('đang hồi chiêu thì không bấm được', cast.blocked === false);
+  check('kéo rồi thả thì xả được kỹ năng', cast.fired === true && cast.used === true);
+  check('hướng xả bám theo hướng ngón kéo',
+    Math.abs(cast.facing - (-Math.PI / 2)) < 0.02, 'facing=' + cast.facing.toFixed(2));
   check('xả xong vào hồi chiêu đầy', Math.abs(cast.cdAfter - cast.full) < 2,
     Math.round(cast.cdAfter) + 'ms');
+
+  /* Nút kỹ năng phải chạy được bằng CHUỖI SỰ KIỆN CHUỘT THẬT trên phần tử HUD,
+   * không chỉ bằng lời gọi hàm — cử chỉ mới sống hay chết ở chỗ đó. */
+  const byFinger = await p.evaluate(async () => {
+    const b = DP.UI.battle, pl = b.player;
+    pl.state = 'idle'; pl.skCd = [0, 0]; pl.usedSkill = false;
+    const btn = document.getElementById('hSkill0');
+    const r = btn.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const ev = (t, x, y) => btn.dispatchEvent(new PointerEvent(t, { bubbles: true,
+      cancelable: true, pointerId: 77, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y }));
+    ev('pointerdown', cx, cy);
+    const armed = b.skillAiming();
+    ev('pointermove', cx - 70, cy);
+    const a = pl.skAim ? pl.skAim.a : null;
+    ev('pointerup', cx - 70, cy);
+    return { armed, a, used: pl.usedSkill, cd: b.skillCdLeft(0) };
+  });
+  check('bấm nút HUD bằng ngón thật thì vào thế ngắm', byFinger.armed === 0);
+  check('kéo ngón sang trái thì hướng ngắm quay sang trái',
+    byFinger.a !== null && Math.abs(Math.abs(byFinger.a) - Math.PI) < 0.02);
+  check('thả ngón thì xả và vào hồi chiêu', byFinger.used === true && byFinger.cd > 0);
 
   /* ================= LỚP CẢM GIÁC =================
    * Đây là phần quyết định "chặt có đã tay hay không", và cũng là phần dễ bị

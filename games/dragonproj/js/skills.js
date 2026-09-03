@@ -9,9 +9,22 @@
  * Ở đây kỹ năng THUỘC VỀ VŨ KHÍ, hai cái một cây, và mỗi cái có TRÌNH PHÁT
  * RIÊNG (`kind`) — một hình dạng vùng khác nhau. Đổi vũ khí là đổi hẳn hai đòn.
  *
- * Cách bấm, vẫn một ngón, đúng ngữ pháp Punicon:
- *     giữ -> trượt về hướng nút -> GIỮ NGUYÊN Ở ĐÓ để nạp -> nhả để xả
- * Nhả sớm thì huỷ và hoàn phần lớn hồi chiêu — không phạt người đọc đúng tình huống.
+ * CÁCH BẤM — đã đổi hẳn. Cũ: giữ màn hình, trượt về hướng nút, giữ nguyên ở đó
+ * cho đủ 0,6–2,0 giây, rồi mới nhả. Ba điều kiện nối tiếp trên một ngón, hỏng
+ * bước nào cũng ra cùng một kết quả là "không có gì xảy ra".
+ *
+ * Mới, đúng chuẩn survivor-like trên điện thoại:
+ *     HỒI CHIÊU CHÍNH LÀ THANH NẠP  ->  nạp đầy thì nút sáng
+ *     đặt ngón lên nút, KÉO ĐỂ CHỈ HƯỚNG (thả tay không kéo = tự ngắm con gần nhất)
+ *     THẢ RA = XẢ
+ * Không còn "nhả sớm thì huỷ": chưa nạp đầy thì nút không bấm được, mà bấm được
+ * thì chắc chắn xả ra. Bỏ ngón khỏi nút trước khi kéo ra khỏi vùng chết = huỷ,
+ * và huỷ KHÔNG mất hồi chiêu — chưa tiêu gì thì không phải trả gì.
+ *
+ * Ngắm KHÔNG khoá chân. Ngón di chuyển vẫn nằm trên canvas và vẫn chạy được
+ * trong lúc ngón kia đang chỉ hướng trên nút — đó là lý do trạng thái ngắm nằm ở
+ * `p.skAim` chứ không nằm ở `p.state`: `p.state` bị mọi phát bắn ghi đè, còn cái
+ * ngắm thì phải sống xuyên qua tất cả những cái đó.
  *
  * Lớp NGUYÊN TỐ (G.ELEM_FX) gắn thêm hai móc cho những kỹ năng khai báo chúng:
  *     trail — vệt để lại dọc đường đi
@@ -52,83 +65,116 @@
       return G.ELEM_FX[(this.wp && this.wp.el) || 'none'] || G.ELEM_FX.none;
     };
 
-    /* --------------------------------------------------------- PHA NẠP ----- */
+    /* ------------------------------------------------- NGẮM RỒI THẢ ------- */
 
-    /* Punicon gọi mỗi khung trong lúc ngón đang khoá hướng một nút kỹ năng.
-     * Vào được thế nạp thì trả về true. */
-    Battle.prototype.skillCharge = function (idx, ms) {
+    /* Ba dáng ngắm. Mỗi kỹ năng khai báo `aim` để biết mình thuộc dáng nào:
+     *   'self'  không cần hướng (khiên, tăng tốc, bắn loạt quanh thân) -> bấm là xả
+     *   'dir'   cần một HƯỚNG   (lao tới, tia xuyên, chém siêu to)
+     *   'point' cần một ĐIỂM ĐẾN (mưa tên, thiên thạch, điểm hút, chớp)
+     * Dáng quyết định cả cái vẽ ra lúc ngắm lẫn cái đọc ra lúc xả. Không có dáng
+     * thứ tư: mọi kỹ năng trong game rơi vào đúng ba cái này, và giữ đúng ba cái
+     * là lý do người chơi chỉ phải học một lần. */
+    function aimKindOf(sk) { return sk.aim || (sk.aimR ? 'point' : 'dir'); }
+    G.aimKindOf = aimKindOf;
+
+    // Ngưỡng kéo. Dưới DEAD là "không kéo" -> tự ngắm. Trên FULL là kéo hết cỡ.
+    var AIM_DEAD = 14, AIM_FULL = 86;
+
+    /* Đặt ngón lên nút kỹ năng. Trả về false nếu không vào được thế ngắm — HUD
+     * đọc giá trị này để biết có nên bắt đầu theo dõi cử chỉ kéo hay không. */
+    Battle.prototype.skillAimStart = function (idx) {
       var p = this.player, sk = this.skillDef(idx);
-      if (!sk) return false;
+      if (!sk || p.down || this.paused) return false;
+      if (this.skillCdLeft(idx) > 0) {
+        this.toast(sk.n + ' còn ' + (this.skillCdLeft(idx) / 1000).toFixed(1) + 's', '#8fa3b5');
+        return false;
+      }
+      // Đang cắm giữa một kỹ năng khác, đang lăn, đang cứng đòn: từ chối. Nhưng
+      // KHÔNG từ chối lúc đang giữ cò hay đang nạp cung — bỏ ngón ra khỏi cò để
+      // bấm kỹ năng là chuyện xảy ra mỗi mười giây một lần, chặn nó là chặn nhịp.
+      var st = p.state;
+      if (st === 'skill' || st === 'dodge' || st === 'hurt' || st === 'switch') return false;
+      this.holdCancel();
+      p.skAim = { idx: idx, a: p.facing, mag: 0, dragged: false, t: this.t };
+      // Khoá sẵn mục tiêu để cái vòng ngắm hiện ra ngay ở chỗ đúng, chứ không
+      // nhảy một cái sau khi ngón kéo được vài pixel đầu tiên.
+      var tg = this.nearestFoe(sk.aimR ? sk.aimR * 1.7 : (sk.range || sk.dist || 420));
+      if (tg) p.skAim.a = Math.atan2(tg.y - p.y, tg.x - p.x);
+      p.skAim.auto = tg || null;
+      this.moveName = { n: sk.n, t: this.t };
+      return true;
+    };
+
+    /* Ngón kéo trên nút. (dx,dy) là véc-tơ tính từ ĐIỂM ĐẶT NGÓN, không phải từ
+     * tâm nút: ngón cái đặt lệch mép nút là chuyện bình thường, lấy tâm nút làm
+     * gốc thì mọi cú kéo đều bị lệch sẵn một hằng số. */
+    Battle.prototype.skillAimMove = function (dx, dy) {
+      var p = this.player; if (!p.skAim) return;
+      var d = Math.hypot(dx, dy);
+      if (d < AIM_DEAD) { p.skAim.mag = 0; p.skAim.dragged = false; return; }
+      p.skAim.a = Math.atan2(dy, dx);
+      p.skAim.mag = clamp((d - AIM_DEAD) / (AIM_FULL - AIM_DEAD), 0, 1);
+      p.skAim.dragged = true;
+    };
+
+    /* Thả ngón = xả. Không kéo thì lấy hướng tự ngắm đã khoá lúc đặt ngón, và
+     * lấy TẦM ĐẦY — người không kéo là người muốn đòn đi xa nhất có thể, không
+     * phải người muốn đòn rơi ngay dưới chân mình. */
+    Battle.prototype.skillAimEnd = function () {
+      var p = this.player, aim = p.skAim;
+      if (!aim) return false;
+      p.skAim = null;
+      var sk = this.skillDef(aim.idx);
+      if (!sk || this.skillCdLeft(aim.idx) > 0) return false;
       if (p.down || this.paused) return false;
 
-      if (p.state !== 'skcharge') {
-        // Chưa hồi chiêu xong thì báo một lần rồi thôi, không kêu mỗi khung.
-        if (this.skillCdLeft(idx) > 0) {
-          if (this.t - (p.skNagT || 0) > 700) {
-            p.skNagT = this.t;
-            this.toast(sk.n + ' còn ' + (this.skillCdLeft(idx) / 1000).toFixed(1) + 's', '#8fa3b5');
-          }
-          return false;
-        }
-        if (this.busy()) return false;
-        this.holdCancel();
-        p.state = 'skcharge'; p.skIdx = idx; p.skChargeT = 0;
-        this.moveName = { n: sk.n, t: this.t };
-        if (sk.chargeDR) p.chargeDR = sk.chargeDR;
+      var kind = aimKindOf(sk);
+      p.facing = aim.a;
+      if (kind === 'point') {
+        var R = sk.aimR || sk.range || 300;
+        // Kéo hết cỡ = tầm tối đa; kéo nửa = nửa tầm. Không kéo = tầm tới đúng
+        // con đang tự ngắm, kẹp trong tầm — rơi trúng đầu nó chứ không rơi sau lưng.
+        var dd = aim.dragged ? R * (0.25 + 0.75 * aim.mag)
+               : (aim.auto ? Math.min(R, Math.hypot(aim.auto.x - p.x, aim.auto.y - p.y)) : R);
+        p.aimX = clamp(p.x + Math.cos(aim.a) * dd, 20, this.wW - 20);
+        p.aimY = clamp(p.y + Math.sin(aim.a) * dd, 20, this.wH - 20);
       }
-      p.skChargeT = ms;
-      p.skReady = ms >= sk.charge;
-
-      /* NGẮM cho mấy đòn cần điểm đến (nhảy bổ, mưa tên).
-       *
-       * Trong lúc nạp, ngón tay đang GHIM về phía nút kỹ năng — nó không thể vừa
-       * giữ hướng đó vừa chỉ chỗ rơi. Đó không phải thiếu sót của bản dựng này mà
-       * là hệ quả thẳng của ngữ pháp "trượt về nút rồi giữ". Nên việc ngắm phải
-       * tự động: bám con gần nhất, kẹp trong tầm của đòn.
-       *
-       * Bỏ qua chuyện này là hai đòn rơi vào chỗ trống và không trúng gì — đúng
-       * cái xảy ra lúc đo thử: Yến Phi Trảm và Vũ Tiễn cùng ra 0 sát thương. */
-      if (sk.aimR) {
-        var k = clamp(ms / sk.charge, 0, 1);
-        var tg = this.nearestFoe(sk.aimR * 1.6);
-        var aa = tg ? Math.atan2(tg.y - p.y, tg.x - p.x) : p.facing;
-        var ad = tg ? Math.min(sk.aimR, Math.hypot(tg.x - p.x, tg.y - p.y)) : sk.aimR;
-        if (tg) p.facing = aa;
-        p.aimX = p.x + Math.cos(aa) * ad * k;
-        p.aimY = p.y + Math.sin(aa) * ad * k;
+      if (sk.kind === 'blink') {
+        // Chớp bám theo hướng ngón chỉ: con nào NẰM VỀ PHÍA ĐÓ, không phải con
+        // gần nhất tuyệt đối. Chỉ tay sang phải mà nhảy sang trái là lỗi nặng.
+        p.skTarget = this.foeToward(aim.a, sk.range || 320);
       }
-      // Đòn chớp: khoá mục tiêu ngay từ lúc nạp để người chơi thấy mình sắp đi đâu.
-      if (sk.kind === 'blink') p.skTarget = this.nearestFoe(sk.range);
-      // Chìm vào bóng — càng nạp càng mờ, và tới ngưỡng thì quái mất dấu.
-      if (sk.fadeTo !== undefined) {
-        p.fade = 1 - (1 - sk.fadeTo) * clamp(ms / sk.charge, 0, 1);
-        if (sk.loseAggro && p.skReady) this.dropAggro();
-      }
+      this.fireSkill(aim.idx, sk);
       return true;
     };
 
-    /* Nhả tay. Nạp đủ thì xả, chưa đủ thì huỷ và hoàn phần lớn hồi chiêu. */
-    Battle.prototype.skillRelease = function (idx, ms) {
-      var p = this.player, sk = this.skillDef(idx);
-      p.fade = 1; p.chargeDR = 0;
-      if (!sk || p.state !== 'skcharge') { if (p.state === 'skcharge') p.state = 'idle'; return; }
-      if (ms < sk.charge) {
-        p.state = 'idle'; p.skIdx = -1;
-        this.toast('Nạp chưa đủ', '#8fa3b5');
-        this.player.skCd[idx] = this.skillCdOf(sk) * (1 - G.SKILL_RULES.cancelRefund);
-        return;
-      }
-      this.fireSkill(idx, sk);
-    };
-
-    /* Vẩy né giữa chừng = huỷ. Cùng luật hoàn như nhả sớm. */
-    Battle.prototype.skillCancel = function () {
+    /* Bỏ ngón ra ngoài nút, hoặc trận kết thúc giữa chừng. Không tốn gì cả. */
+    Battle.prototype.skillAimCancel = function () {
       var p = this.player;
-      if (p.state !== 'skcharge') return false;
-      var sk = this.skillDef(p.skIdx);
-      if (sk) this.player.skCd[p.skIdx] = this.skillCdOf(sk) * (1 - G.SKILL_RULES.cancelRefund);
-      p.state = 'idle'; p.skIdx = -1; p.fade = 1; p.chargeDR = 0;
+      if (!p.skAim) return false;
+      p.skAim = null;
       return true;
+    };
+
+    Battle.prototype.skillAiming = function () {
+      return this.player.skAim ? this.player.skAim.idx : -1;
+    };
+
+    /* Kẻ địch nằm gần nhất VỀ PHÍA một hướng. Chấm vô hướng nhân khoảng cách:
+     * một con ở đúng hướng nhưng xa vẫn thắng một con sát nách nhưng sau lưng. */
+    Battle.prototype.foeToward = function (a, range) {
+      var p = this.player, best = null, bs = -1e9, cx = Math.cos(a), cy = Math.sin(a);
+      var list = this.mobs.filter(function (m) { return m.hp > 0; });
+      if (this.boss && this.boss.hp > 0) list.push(this.boss);
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i], dx = m.x - p.x, dy = m.y - p.y, d = Math.hypot(dx, dy) || 1;
+        if (d > (range || 1e9)) continue;
+        var dot = (dx * cx + dy * cy) / d;           // 1 = đúng hướng, -1 = sau lưng
+        if (dot < 0.2) continue;                      // ngoài nón ~78 độ: bỏ
+        var score = dot * 2 - d / 600;
+        if (score > bs) { bs = score; best = m; }
+      }
+      return best;
     };
 
     /* ------------------------------------------------------------ XẢ ------- */
@@ -140,7 +186,11 @@
       p.fade = 1;
       this.s.stats.skillUse = (this.s.stats.skillUse || 0) + 1;
       this.toast(sk.n, this.elemFx().col);
-      this.faceTarget();
+      /* KHÔNG gọi faceTarget() ở đây. Hướng đã được chốt ở skillAimEnd: hoặc là
+       * hướng ngón kéo, hoặc — khi không kéo — là hướng con gần nhất đã khoá từ
+       * lúc đặt ngón. Gọi thêm faceTarget() thì nó quay người về con gần nhất
+       * TẠI THỜI ĐIỂM XẢ và ghi đè mất chỉ định của người chơi: chỉ tay lên trên
+       * mà đòn bay sang ngang, vì có một con đứng sát nách. */
 
       p.sk = { def: sk, idx: idx, phase: 0, t: 0, hits: 0, from: { x: p.x, y: p.y } };
       p.state = 'skill'; p.stateT = 0;
@@ -747,7 +797,7 @@
 
       // hết thời gian ẩn thân
       if (p.fadeUntil && this.t > p.fadeUntil) { p.fadeUntil = 0; p.fade = 1; }
-      if (p.state !== 'skcharge' && !p.fadeUntil) p.fade = 1;
+      if (!p.fadeUntil) p.fade = 1;
 
       // đang diễn một kỹ năng
       if (p.state === 'skill' && p.sk) {
@@ -1059,78 +1109,99 @@
       });
     };
 
-    /* Vòng ngắm và thanh nạp của kỹ năng. Vẽ ở lớp thế giới, gọi từ drawAimOverlay. */
+    /* ================================================== VẼ LỚP NGẮM ========
+     * Cái người chơi nhìn trong lúc ngón đang chỉ hướng. Ba dáng, ba hình:
+     *   'dir'   một mũi tên dài đúng tầm của đòn
+     *   'point' một vòng ở chỗ đòn sẽ rơi, kèm sợi chỉ nối từ chân tới đó
+     *   'self'  một vòng quanh thân, vì đòn nổ ngay tại chỗ
+     * Màu VÀNG, không phải đỏ: đỏ trong game này đã có nghĩa "vùng quái sắp đánh",
+     * dùng lại nó cho vùng của chính mình là dạy người chơi sai một thứ đắt.
+     * ==================================================================== */
     Battle.prototype.drawSkillAim = function (ox, oy) {
-      var p = this.player, ctx = this.ctx;
-      if (p.state !== 'skcharge') return;
-      var sk = this.skillDef(p.skIdx); if (!sk) return;
-      var kk = clamp(p.skChargeT / sk.charge, 0, 1);
-      var E = this.elemFx();
+      var p = this.player, ctx = this.ctx, aim = p.skAim;
+      if (!aim) return;
+      var sk = this.skillDef(aim.idx); if (!sk) return;
+      var kind = aimKindOf(sk);
+      var pulse = 0.62 + 0.38 * Math.abs(Math.sin(this.t / 150));
 
       ctx.save(); ctx.translate(ox, oy);
+      ctx.lineCap = 'round';
 
-      // Vòng nạp dưới chân — đầy dần, đầy rồi thì viền sáng bừng.
-      ctx.globalAlpha = 0.85;
-      ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.arc(p.x, p.y + 10, 30, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = p.skReady ? '#ffffff' : E.col; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(p.x, p.y + 10, 30, -Math.PI / 2, -Math.PI / 2 + TAU * kk); ctx.stroke();
-      if (p.skReady) {
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(this.t / 70);
-        ctx.strokeStyle = E.glow; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(p.x, p.y + 10, 36, 0, TAU); ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over';
-      }
+      // Vòng dưới chân: nói "đang ở thế ngắm", và nó là chỗ neo mắt.
+      ctx.globalAlpha = 0.55 * pulse;
+      ctx.strokeStyle = '#ffe74c'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(p.x, p.y + 10, 28, 11, 0, 0, TAU); ctx.stroke();
 
-      // Đòn chớp: nối một sợi chỉ tới chỗ sắp hiện ra, để người chơi biết mình đi đâu.
-      if (sk.kind === 'blink' && p.skTarget && p.skTarget.hp > 0) {
-        var tg = p.skTarget;
-        var back = (tg.facing || 0) + Math.PI, off = (tg.r || 20) + 26;
-        var dx2 = tg.x + Math.cos(back) * off, dy2 = tg.y + Math.sin(back) * off;
-        ctx.globalAlpha = 0.35 + 0.4 * kk;
-        ctx.setLineDash([6, 7]); ctx.lineDashOffset = -this.t / 26;
-        ctx.strokeStyle = E.col; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(dx2, dy2); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 0.5 + 0.5 * kk;
-        ctx.strokeStyle = p.skReady ? '#ffffff' : E.col; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(dx2, dy2, 16, 0, TAU); ctx.stroke();
-        // dấu hướng lưng của mục tiêu
-        ctx.beginPath();
-        ctx.moveTo(dx2 + Math.cos(back + Math.PI) * 8, dy2 + Math.sin(back + Math.PI) * 8);
-        ctx.lineTo(dx2 + Math.cos(back + Math.PI) * 20, dy2 + Math.sin(back + Math.PI) * 20);
-        ctx.stroke();
-      }
-
-      // Đòn cần điểm đến: vẽ vùng sẽ nổ, màu VÀNG (đỏ để dành cho nguy hiểm).
-      if (sk.aimR) {
-        var r2 = sk.zoneR || sk.radius || 70;
-        ctx.globalAlpha = 0.14 + 0.16 * kk;
+      if (kind === 'self') {
+        var rS = sk.ringR || sk.radius || sk.fieldR || 150;
+        ctx.globalAlpha = 0.13;
         ctx.fillStyle = '#f2c14e';
-        ctx.beginPath(); ctx.arc(p.aimX, p.aimY, r2, 0, TAU); ctx.fill();
-        ctx.globalAlpha = 0.8;
-        ctx.strokeStyle = '#ffe74c'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, rS, 0, TAU); ctx.fill();
+        ctx.globalAlpha = 0.75; ctx.lineWidth = 2;
         ctx.setLineDash([9, 6]); ctx.lineDashOffset = -this.t / 22;
-        ctx.beginPath(); ctx.arc(p.aimX, p.aimY, r2, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.x, p.y, rS, 0, TAU); ctx.stroke();
         ctx.setLineDash([]);
-      }
 
-      // Đòn xuyên / sóng: vạch thẳng dài dần theo mức nạp.
-      if (sk.len || sk.waveLen || sk.dist) {
-        var L2 = (sk.len || sk.waveLen || sk.dist) * kk;
-        var w2 = (sk.w || sk.waveW || 40);
-        ctx.globalAlpha = 0.12 + 0.20 * kk;
+      } else if (kind === 'point') {
+        var R = sk.aimR || sk.range || 300;
+        var dd = aim.dragged ? R * (0.25 + 0.75 * aim.mag)
+               : (aim.auto ? Math.min(R, Math.hypot(aim.auto.x - p.x, aim.auto.y - p.y)) : R);
+        var tx = clamp(p.x + Math.cos(aim.a) * dd, 20, this.wW - 20);
+        var ty = clamp(p.y + Math.sin(aim.a) * dd, 20, this.wH - 20);
+        var r2 = sk.zoneR || sk.blastR || sk.pullR || sk.fragR || 80;
+        // Vành tầm tối đa: cho biết kéo hết cỡ thì tới đâu, nên không phải mò.
+        ctx.globalAlpha = 0.20; ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 8]);
+        ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(tx, ty); ctx.stroke();
+        ctx.globalAlpha = 0.16;
         ctx.fillStyle = '#f2c14e';
-        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.facing);
-        ctx.fillRect(0, -w2 / 2, L2, w2);
-        ctx.globalAlpha = 0.7; ctx.strokeStyle = '#ffe74c'; ctx.lineWidth = 2;
-        ctx.strokeRect(0, -w2 / 2, L2, w2);
+        ctx.beginPath(); ctx.arc(tx, ty, r2, 0, TAU); ctx.fill();
+        ctx.globalAlpha = 0.85 * pulse; ctx.lineWidth = 2.5;
+        ctx.setLineDash([9, 6]); ctx.lineDashOffset = -this.t / 22;
+        ctx.beginPath(); ctx.arc(tx, ty, r2, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]);
+        // Chữ thập giữa vòng: tâm ở đâu thì mắt biết ngay, không phải ước lượng.
+        ctx.globalAlpha = 0.9; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(tx - 9, ty); ctx.lineTo(tx + 9, ty);
+        ctx.moveTo(tx, ty - 9); ctx.lineTo(tx, ty + 9);
+        ctx.stroke();
+
+      } else {
+        var L = sk.len || sk.dist || sk.waveLen || sk.reach || sk.range || 320;
+        var w2 = sk.w || sk.waveW || sk.arcW || 46;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(aim.a);
+        ctx.globalAlpha = 0.14;
+        ctx.fillStyle = '#f2c14e';
+        ctx.fillRect(0, -w2 / 2, L, w2);
+        ctx.globalAlpha = 0.8 * pulse; ctx.strokeStyle = '#ffe74c'; ctx.lineWidth = 2;
+        ctx.strokeRect(0, -w2 / 2, L, w2);
+        // Đầu mũi tên ở cuối: nó là cái nói "hướng này", chứ một hình chữ nhật
+        // thì hai đầu trông giống hệt nhau.
+        ctx.globalAlpha = 0.95; ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(L - 18, -13); ctx.lineTo(L, 0); ctx.lineTo(L - 18, 13);
+        ctx.stroke();
         ctx.restore();
       }
 
+      // Đòn chớp: chấm rõ chỗ sắp hiện ra. Không có nó thì người chơi bấm xong
+      // mới biết mình vừa nhảy đi đâu, mà lúc đó thì đã muộn.
+      if (sk.kind === 'blink') {
+        var tg = this.foeToward(aim.a, sk.range || 320);
+        if (tg) {
+          var back = (tg.facing || 0) + Math.PI, off = (tg.r || 20) + 26;
+          var bx = tg.x + Math.cos(back) * off, by = tg.y + Math.sin(back) * off;
+          ctx.globalAlpha = 0.9; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.arc(bx, by, 16, 0, TAU); ctx.stroke();
+        }
+      }
       ctx.restore();
     };
+
 
     /* Đứng sau tường thì đòn nặng tay hơn. */
     Battle.prototype.wallBonus = function () {

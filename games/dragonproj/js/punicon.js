@@ -12,12 +12,18 @@
  *     bấm liên tục  -> nối combo        (onTap gọi liên tiếp, người dùng tự đếm)
  *     vẩy   (flick) -> né / lăn         onFlick(dx, dy)
  *     giữ   (hold)  -> đặc thù vũ khí   onHoldStart() / onHoldAim() / onHoldEnd()
- *     giữ rồi TRƯỢT VỀ HƯỚNG NÚT KỸ NĂNG -> xả kỹ năng   onSkillSlide(id)
  *
- * Cái cuối là câu lệnh chuẩn của Colopl cho kỹ năng, nguyên văn wiki Shironeko:
- * "Action Skill — Hold the screen and slide in the direction of the skill button."
- * Chú ý: là TRƯỢT VỀ HƯỚNG nút, không phải chạm tới nút. Ngón cái ở giữa màn hình
- * không với tới mép phải được — đó chính là lý do câu lệnh này tồn tại.
+ * KỸ NĂNG KHÔNG CÒN NẰM TRONG NGỮ PHÁP NÀY. Trước đây nó là "giữ rồi trượt về
+ * hướng nút kỹ năng rồi giữ nguyên ở đó để nạp" — đúng câu lệnh gốc của Colopl,
+ * nhưng là BA điều kiện phải đúng liên tiếp trên cùng một ngón: đứng yên đủ lâu
+ * để vào thế giữ, khoá đúng hướng trong sai số 26 độ, rồi không nhúc nhích thêm
+ * một giây rưỡi nữa. Trượt một nấc ở bất kỳ bước nào là mất trắng cả chuỗi, mà
+ * người chơi không có cách nào biết mình hỏng ở bước nào.
+ *
+ * Giờ kỹ năng đi bằng NÚT RIÊNG ở mép phải: hồi chiêu chính là thanh nạp, nạp
+ * đầy thì đặt ngón lên nút và KÉO ĐỂ CHỈ HƯỚNG, thả ra là xả. Ngón thứ hai nằm
+ * trên nút HUD chứ không trên canvas, nên nó không đụng gì tới luật một-ngón ở
+ * đây. Xem `skillAimStart` trong js/skills.js.
  *
  * Cần gạt ảo MỌC RA TẠI ĐIỂM CHẠM — không cố định ở góc màn hình. Đó là lý do
  * chơi được bằng một ngón cái ở giữa màn hình, và là lý do nhân vật không bị
@@ -55,9 +61,6 @@
     this.holding = false;          // đã kích hoạt đặc thù chưa
     this.hist = [];                // lịch sử điểm để tính vận tốc flick
     this.moveVec = { x: 0, y: 0, m: 0 };
-    this.hotspots = [];            // nút kỹ năng: {id, x, y} toạ độ MÀN HÌNH của canvas
-    this.slideHint = -1;           // hotspot đang được nhắm tới, để vẽ gợi ý
-    this.slideHintT = 0;           // mốc thời gian khoá được hướng đó — dùng để đo pha nạp
     this.holdMoves = false;        // đang giữ mà VẪN đi được? (chỉ thế đỡ)
 
     var self = this;
@@ -130,11 +133,6 @@
     // `holdMoves`. Đỡ bằng Kiếm & Khiên thì VẪN ĐI ĐƯỢC (chậm hơn) đúng như bản gốc;
     // còn nạp Chém Tích Lực hay ngắm bắn thì nhân vật đứng yên và kéo là NGẮM.
     if (this.holding) {
-      // Trượt về một nút kỹ năng rồi GIỮ NGUYÊN ở đó = đang nạp. Mốc thời gian
-      // tính từ lúc khoá được hướng, không phải từ lúc đặt ngón — trượt ra rồi
-      // trượt lại là nạp từ đầu.
-      var hsNow = this.aimedHotspot(dx, dy, d);
-      if (hsNow !== this.slideHint) { this.slideHint = hsNow; this.slideHintT = hsNow >= 0 ? now : 0; }
       if (this.cb.onHoldAim) this.cb.onHoldAim(p.x - this.ox, p.y - this.oy, d, p.x, p.y);
       if (!this.holdMoves) return;
     }
@@ -177,31 +175,10 @@
         this.centeredT = now;
       }
     }
-    if (this.holding && this.slideHint >= 0 && this.hotspots[this.slideHint] && this.cb.onSkillCharge) {
-      // Đang khoá hướng một nút kỹ năng: báo cho game biết nạp được bao lâu rồi.
-      this.cb.onSkillCharge(this.hotspots[this.slideHint].id, now - this.slideHintT);
-    } else if (this.holding && this.cb.onHoldTick) {
+    if (this.holding && this.cb.onHoldTick) {
       this.cb.onHoldTick(now - this.holdStartedT, this.px - this.ox, this.py - this.oy);
     }
     return this.moveVec;
-  };
-
-  /* Ngón đang trượt VỀ HƯỚNG nút kỹ năng nào? Trả về chỉ số hotspot, hoặc -1.
-   * Điều kiện: kéo đủ xa (ra khỏi vòng cần gạt) và lệch hướng dưới ~26°.
-   * Không đòi ngón chạm tới nút — đó là điểm mấu chốt của câu lệnh này. */
-  Punicon.prototype.aimedHotspot = function (dx, dy, d) {
-    if (!this.hotspots.length) return -1;
-    if (d < this.c.ringR * 0.85) return -1;
-    var best = -1, bestErr = 0.46;   // ~26 độ
-    for (var i = 0; i < this.hotspots.length; i++) {
-      var h = this.hotspots[i];
-      if (h.off) continue;
-      var want = Math.atan2(h.y - this.oy, h.x - this.ox);
-      var have = Math.atan2(dy, dx);
-      var err = Math.abs(Math.atan2(Math.sin(have - want), Math.cos(have - want)));
-      if (err < bestErr) { bestErr = err; best = i; }
-    }
-    return best;
   };
 
   Punicon.prototype.onUp = function (e, cancelled) {
@@ -226,22 +203,12 @@
     }
 
     var wasHolding = this.holding;
-    var hs = this.slideHint;
-    var hsMs = hs >= 0 ? now - this.slideHintT : 0;
     this.active = false;
     this.pointerId = null;
     this.holding = false;
-    this.slideHint = -1;
-    this.slideHintT = 0;
     this.moveVec = { x: 0, y: 0, m: 0 };
 
     if (cancelled) { if (this.cb.onCancel) this.cb.onCancel(wasHolding); return; }
-
-    // GIỮ rồi TRƯỢT VỀ HƯỚNG nút kỹ năng: giữ nguyên ở đó là NẠP, nhả ra là XẢ.
-    // Nhả sớm quá thì game tự huỷ và hoàn phần lớn hồi chiêu.
-    if (wasHolding && hs >= 0 && this.hotspots[hs]) {
-      if (this.cb.onSkillSlide) { this.cb.onSkillSlide(this.hotspots[hs].id, hsMs); return; }
-    }
 
     if (wasHolding) {
       // Nhả sau khi giữ => THI TRIỂN đặc thù (nhả guard, nhả cleave, bắn snipe...).
@@ -282,31 +249,6 @@
     ctx.globalAlpha = 0.30;
     ctx.beginPath(); ctx.arc(this.ox, this.oy, this.c.dead, 0, 6.2832);
     ctx.strokeStyle = '#e8f2ff'; ctx.lineWidth = 1; ctx.stroke();
-    // Đang giữ thì vẽ tia chỉ về từng nút kỹ năng — nhắc rằng trượt về đó là nạp kỹ năng.
-    if (this.holding && this.hotspots.length) {
-      for (var i = 0; i < this.hotspots.length; i++) {
-        var h = this.hotspots[i]; if (h.off) continue;
-        var a = Math.atan2(h.y - this.oy, h.x - this.ox);
-        var on = (this.slideHint === i);
-        var len = on ? 96 : 46;
-        ctx.globalAlpha = on ? 0.9 : 0.30;
-        ctx.strokeStyle = on ? '#6fd4ff' : '#e8f2ff';
-        ctx.lineWidth = on ? 6 : 2.5;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(this.ox + Math.cos(a) * (R + 10), this.oy + Math.sin(a) * (R + 10));
-        ctx.lineTo(this.ox + Math.cos(a) * (R + len), this.oy + Math.sin(a) * (R + len));
-        ctx.stroke();
-        // đầu mũi tên, để rõ là "trượt về phía này"
-        var tipX = this.ox + Math.cos(a) * (R + len), tipY = this.oy + Math.sin(a) * (R + len);
-        ctx.beginPath();
-        ctx.moveTo(tipX, tipY);
-        ctx.lineTo(tipX - Math.cos(a - 0.45) * 14, tipY - Math.sin(a - 0.45) * 14);
-        ctx.moveTo(tipX, tipY);
-        ctx.lineTo(tipX - Math.cos(a + 0.45) * 14, tipY - Math.sin(a + 0.45) * 14);
-        ctx.stroke();
-      }
-    }
     // núm
     ctx.globalAlpha = 0.75;
     ctx.beginPath(); ctx.arc(kx, ky, this.c.knobR, 0, 6.2832);

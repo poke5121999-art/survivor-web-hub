@@ -14,6 +14,18 @@
   var W = 540, H = 960;              // khung dọc 9:16, đúng tỉ lệ máy điện thoại
   var TAU = Math.PI * 2;
 
+  /* CAMERA GẦN LẠI. Trước đây khung nhìn là 1:1 với sân, tức nhân vật cao 34px
+   * trên một khung 540 bề ngang — chiếm 6% chiều rộng. Survivor.io giữ nhân vật
+   * quanh 11–13% bề ngang màn hình, và đó là lý do đọc được cái gì đang xảy ra
+   * quanh chân mình mà không phải căng mắt.
+   *
+   * Đổi bằng ZOOM chứ không bằng cách phóng to sprite: phóng sprite thì tầm bắn,
+   * tầm quái và mọi con số va chạm đứng nguyên trong khi ẢNH to ra — hai thứ lệch
+   * nhau và game trông sai. Zoom camera thì mọi thứ trong sân to lên cùng một hệ
+   * số, không có gì lệch pha; cái mất là khung nhìn hẹp lại, và đó là cái phải
+   * bù bằng việc kéo camera nhìn xa hơn về phía trước theo hướng đang ngắm. */
+  var ZOOM = 1.30;
+
   function ang(a) { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; }
   function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
@@ -216,7 +228,7 @@
       charge: 0, aimX: 0, aimY: 0, aimD: 0,
       heat: 0, soul: 0,
       // kỹ năng vũ khí: hai khe, mỗi khe một đồng hồ hồi chiêu riêng
-      skCd: [0, 0], skIdx: -1, skChargeT: 0, skReady: false, sk: null,
+      skCd: [0, 0], skIdx: -1, skAim: null, sk: null,
       fade: 1, fadeUntil: 0, backstabUntil: 0, armorUntil: 0, chargeDR: 0, z: 0,
       shield: 0, buffs: [],
       status: {}, dot: [],
@@ -269,7 +281,6 @@
     if (this.wp.wclass === 'dual' && this.wp.wtype === 'heat') this.player.heat = 100;
     // Đổi vũ khí giữa trận có độ trễ, đứng yên và hở sườn.
     if (!instant) { this.player.switchT = 420; this.player.state = 'switch'; this.player.stateT = 0; this.player.stateDur = 420; }
-    if (this.puni) this.syncHotspots();
     if (this.cb.onWeapon) this.cb.onWeapon(this.wp, i, h);
   };
 
@@ -284,25 +295,8 @@
       onHoldStart: function (dx, dy) { return self.holdStart(dx, dy); },
       onHoldTick: function (ms, dx, dy) { self.holdTick(ms, dx, dy); },
       onHoldEnd: function (dx, dy, ms) { self.holdEnd(dx, dy, ms); },
-      onSkillCharge: function (id, ms) { return self.skillCharge(id, ms); },
-      onSkillSlide: function (id, ms) { self.skillRelease(id, ms); },
       onCancel: function () { self.holdCancel(); }
     });
-    // Toạ độ TÂM hai nút kỹ năng trong hệ 540x960 — khớp với .skill-col trong index.html
-    // (right:6px, top:270px, ô 74x74, cách nhau 14px). Punicon dùng chúng làm HƯỚNG
-    // để nhận lệnh "giữ rồi trượt về nút", chứ ngón không cần chạm tới.
-    this.puni.hotspots = [
-      { id: 0, x: 540 - 6 - 37, y: 270 + 37 },
-      { id: 1, x: 540 - 6 - 37, y: 270 + 74 + 14 + 37 }
-    ];
-    this.syncHotspots();
-  };
-
-  // Khe kỹ năng trống thì tắt hướng trượt của nó đi, không thì trượt vào chỗ chết.
-  Battle.prototype.syncHotspots = function () {
-    for (var i = 0; i < 2; i++) {
-      if (this.puni.hotspots[i]) this.puni.hotspots[i].off = !this.skillDef(i);
-    }
   };
 
   Battle.prototype.busy = function () {
@@ -310,14 +304,10 @@
     /* BA TRẠNG THÁI GIỮ (autofire / charge / steady) CỐ Ý KHÔNG NẰM TRONG ĐÂY.
      *
      * Chúng không phải hành động đã cam kết — holdCancel() thoát khỏi chúng tự
-     * do, và quan trọng hơn: ngữ pháp cốt lõi của Punicon là "GIỮ rồi TRƯỢT VỀ
-     * NÚT" để nạp kỹ năng. Nếu giữ mà tính là bận thì skillCharge() bị chặn ở
-     * `if (this.busy()) return false` và người chơi không bao giờ xả được kỹ
-     * năng trong lúc đang ghì cò — tức là mất hẳn một nửa bộ điều khiển.
-     * Bản trước tôi đã nhét chúng vào đây và nó làm người chơi kẹt cứng ở
+     * do. Bản trước tôi đã nhét chúng vào đây và nó làm người chơi kẹt cứng ở
      * 'autofire': đo được state=autofire vẫn nguyên sau 2 giây. */
     return st === 'fire' || st === 'dodge' || st === 'lag' || st === 'switch' ||
-           st === 'cast' || st === 'hurt' || st === 'skill' || st === 'skcharge';
+           st === 'cast' || st === 'hurt' || st === 'skill';
   };
 
   /* ---- CHẠM: đánh thường, bấm liên tục thì nối combo ---- */
@@ -510,7 +500,7 @@
     if (p.down || this.paused || p.dodgeCd > 0) return;
     if (p.state === 'cleave' || p.state === 'ranbu') return;   // chém nạp không hủy được
     if (p.state === 'skill') return;                           // đang diễn kỹ năng thì chịu hết
-    this.skillCancel();                                        // đang nạp thì huỷ, hoàn phần lớn hồi chiêu
+    this.skillAimCancel();                                     // đang chỉ hướng mà vẩy né thì bỏ ngắm, không mất gì
     this.holdCancel();
     var teleport = p.buffs.some(function (b) { return b.blink; });
     p.state = 'dodge'; p.stateT = 0;
@@ -1288,12 +1278,6 @@
       case 'lag': case 'hurt': case 'switch':
         if (p.stateT >= p.stateDur) p.state = 'idle';
         break;
-      case 'skcharge': {
-        // Nạp kỹ năng thì lê chân được, nhưng chậm hẳn — đó là cái giá phải trả
-        // cho một đòn nặng, và là khoảng hở để quái phạt lại.
-        this.moveStep(p, mv, slowMul, dt, G.SKILL_RULES.chargeMoveMul);
-        break;
-      }
       case 'idle': {
         this.moveStep(p, mv, slowMul, dt, 1);
         break;
@@ -1954,10 +1938,15 @@
   /* ============================================================== VẼ ==== */
   Battle.prototype.render = function () {
     var ctx = this.ctx, p = this.player;
-    var camX = clamp(p.x - W / 2, 0, Math.max(0, this.wW - W));
-    var camY = clamp(p.y - H * 0.58, 0, Math.max(0, this.wH - H));
-    if (this.wW < W) camX = (this.wW - W) / 2;
-    this.camX = camX; this.camY = camY;
+    /* Khung nhìn THẬT (đơn vị sân) nhỏ hơn khung canvas đúng bằng hệ số zoom. Mọi
+     * phép kẹp camera phải tính trên khung này, không phải trên W/H — tính nhầm
+     * thì mép sân lòi ra một dải đen ở đúng lúc người chơi chạy sát biên. */
+    var VW = W / ZOOM, VH = H / ZOOM;
+    var camX = clamp(p.x - VW / 2, 0, Math.max(0, this.wW - VW));
+    var camY = clamp(p.y - VH * 0.56, 0, Math.max(0, this.wH - VH));
+    if (this.wW < VW) camX = (this.wW - VW) / 2;
+    if (this.wH < VH) camY = (this.wH - VH) / 2;
+    this.camX = camX; this.camY = camY; this.camZ = ZOOM;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -1970,6 +1959,9 @@
      * Gộp hai thứ này làm một là mất luôn phần thông tin của cái thứ nhất. */
     if (this.shake > 0) ctx.translate((Math.random() - 0.5) * this.shake, (Math.random() - 0.5) * this.shake);
     if (this.kickX || this.kickY) ctx.translate(this.kickX || 0, this.kickY || 0);
+    // Rung và đá camera đo bằng PIXEL MÀN HÌNH nên phải nằm NGOÀI phép zoom, không
+    // thì cùng một con số rung sẽ mạnh yếu khác nhau tuỳ mức zoom.
+    ctx.scale(ZOOM, ZOOM);
     ctx.translate(-camX, -camY);
 
     this.drawGround();
@@ -1996,6 +1988,9 @@
     // Tường chắn và ảo ảnh đứng ngang tầm nhân vật, vẽ sau khi đã xếp lớp xong.
     if (this.drawSkillEntities) this.drawSkillEntities();
     this.drawFx();
+    // Bảng trên đầu vẽ SAU hiệu ứng: một cú nổ trùm lên đúng lúc mất máu mà lại
+    // che mất thanh máu thì thanh máu đó vô dụng ở đúng khoảnh khắc cần nó nhất.
+    this.drawPlayerPlate(p);
     this.drawNumbers();
     ctx.restore();
 
@@ -2628,6 +2623,107 @@
     }
   };
 
+  /* ================================================ BẢNG TRẠNG THÁI NGƯỜI CHƠI ==
+   * Máu, thanh nạp và hai đồng hồ kỹ năng nằm NGAY TRÊN ĐẦU nhân vật, không nằm
+   * dưới chân màn hình.
+   *
+   * Vì sao dời: trên màn dọc điện thoại, mắt bám vào nhân vật gần như suốt trận —
+   * đó là chỗ mọi thứ nguy hiểm xảy ra. Thanh máu ở mép dưới bắt mắt phải rời mục
+   * tiêu, đi hết chiều dọc màn hình, đọc, rồi quay lại; trong một trận mà cửa sổ
+   * né chỉ 0,4 giây thì quãng đường đó là quãng đường bị ăn đòn. Survivor.io,
+   * Archero và mọi game cùng khổ màn đều gắn thanh máu vào chân nhân vật đúng vì
+   * lý do này.
+   *
+   * Thanh dưới chân màn hình VẪN GIỮ — nó là bảng số chi tiết (số máu, EXP, cấp).
+   * Cái trên đầu là bảng CẢNH BÁO: chỉ ba thứ, đọc bằng màu và bằng bề dài.
+   * ======================================================================== */
+  Battle.prototype.drawPlayerPlate = function (p) {
+    if (p.down) return;
+    var ctx = this.ctx;
+    var hk = clamp(p.hp / p.maxHp, 0, 1);
+    // Màu đổi theo NGƯỠNG chứ không nội suy trơn: một dải màu chuyển dần thì
+    // không có mốc nào để nhận ra, còn ba bậc thì "đang đỏ" là một sự kiện.
+    var hcol = hk > 0.5 ? '#5fd06a' : hk > 0.25 ? '#f2c94b' : '#ff4f4f';
+    var BW = 52, y = -34;
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+
+    // ---- máu ----
+    ctx.fillStyle = 'rgba(0,0,0,.62)';
+    ctx.fillRect(-BW / 2 - 1, y - 1, BW + 2, 7);
+    ctx.fillStyle = hcol;
+    ctx.fillRect(-BW / 2, y, BW * hk, 5);
+    // Khiên chồng LÊN TRÊN thanh máu chứ không nối tiếp: nó là lớp đệm đứng
+    // trước máu, và vẽ đúng như vậy thì không phải giải thích.
+    if (p.shield > 0) {
+      var sk = clamp(p.shield / p.maxHp, 0, 1);
+      ctx.fillStyle = 'rgba(127,212,255,.85)';
+      ctx.fillRect(-BW / 2, y, BW * sk, 5);
+    }
+    // Vạch chia mỗi 25% để ước lượng được "còn mấy đòn nữa thì chết".
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    for (var q = 1; q < 4; q++) ctx.fillRect(-BW / 2 + BW * q / 4, y, 1, 5);
+
+    // ---- thanh NẠP, ngay dưới thanh máu ----
+    // Một thanh duy nhất cho cả nạp vũ khí lẫn nạp kỹ năng: hai thứ không bao giờ
+    // xảy ra cùng lúc, nên hai thanh riêng chỉ tổ chiếm chỗ.
+    var ck = -1, ccol = '#e8f2ff', full = false;
+    var wk = this.chargeLevel();
+    if (wk >= 0) { ck = wk; ccol = '#ffd23f'; full = wk >= 0.999; }
+    if (ck >= 0) {
+      ctx.fillStyle = 'rgba(0,0,0,.62)';
+      ctx.fillRect(-BW / 2 - 1, y + 7, BW + 2, 5);
+      ctx.fillStyle = full ? '#ffffff' : ccol;
+      ctx.fillRect(-BW / 2, y + 8, BW * ck, 3);
+      if (full) {
+        // Nạp đầy phải NHÁY, không chỉ đổi màu: mắt ngoại vi bắt được nhấp nháy
+        // ở chỗ nó không bắt được một sắc độ.
+        ctx.globalAlpha = 0.4 + 0.6 * Math.abs(Math.sin(this.t / 90));
+        ctx.strokeStyle = ccol; ctx.lineWidth = 1.2;
+        ctx.strokeRect(-BW / 2 - 2, y + 6, BW + 4, 7);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // ---- hai đồng hồ kỹ năng, nằm TRÊN thanh máu ----
+    // Hình tròn vơi dần, không phải con số: đọc một hình quạt nhanh hơn đọc chữ số,
+    // và ở cỡ này chữ số cũng không đọc nổi.
+    var n = 0, i;
+    for (i = 0; i < 2; i++) if (this.skillDef(i)) n++;
+    if (n) {
+      var R = 6.5, gap = 17, x0 = -(n - 1) * gap / 2, j = 0;
+      for (i = 0; i < 2; i++) {
+        var sd = this.skillDef(i); if (!sd) continue;
+        var cx = x0 + j * gap, cy = y - 12; j++;
+        var left = this.skillCdLeft(i), cdFull = this.skillCdOf(sd);
+        var ready = left <= 0;
+        ctx.beginPath(); ctx.arc(cx, cy, R + 1.5, 0, TAU);
+        ctx.fillStyle = 'rgba(0,0,0,.62)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU);
+        ctx.fillStyle = ready ? '#6fd4ff' : 'rgba(120,140,160,.55)'; ctx.fill();
+        if (!ready) {
+          // Phần TỐI là phần còn phải chờ — nó vơi đi, và cái vơi đi là cái mắt bắt.
+          var k2 = clamp(left / Math.max(1, cdFull), 0, 1);
+          ctx.beginPath(); ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + TAU * k2);
+          ctx.closePath();
+          ctx.fillStyle = 'rgba(10,16,24,.78)'; ctx.fill();
+        } else {
+          ctx.globalAlpha = 0.35 + 0.35 * Math.abs(Math.sin(this.t / 110));
+          ctx.strokeStyle = '#bdefff'; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.arc(cx, cy, R + 3, 0, TAU); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = ready ? '#062430' : 'rgba(220,235,245,.75)';
+        ctx.font = 'bold 8px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(i + 1), cx, cy + 0.5);
+        ctx.textBaseline = 'alphabetic';
+      }
+    }
+    ctx.restore();
+  };
+
   Battle.prototype.drawMob = function (m) {
     var ctx = this.ctx, T = m.T;
     // Bóng co lại khi con quái bị hất lên trời — đó là thứ duy nhất cho biết nó
@@ -3125,6 +3221,10 @@
   Battle.prototype.drawAimOverlay = function () {
     var ctx = this.ctx, p = this.player;
     var ox = -this.camX, oy = -this.camY;
+    // Lớp ngắm vẽ ở toạ độ SÂN nhưng được gọi sau khi camera đã trả về gốc, nên
+    // nó phải tự dựng lại đúng phép zoom — nếu không thì vòng ngắm lệch khỏi chân
+    // nhân vật đúng bằng hệ số zoom, và lệch càng xa khi chạy ra mép sân.
+    ctx.save(); ctx.scale(this.camZ || 1, this.camZ || 1);
     if (this.drawSkillAim) this.drawSkillAim(ox, oy);
     if (p.state === 'aim') {
       ctx.save(); ctx.translate(ox, oy);
@@ -3161,6 +3261,7 @@
         ctx.restore();
       }
     }
+    ctx.restore();
   };
 
   // Màn menu dùng lại đúng người que này, để nhân vật ở sân guild và nhân vật

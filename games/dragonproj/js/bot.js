@@ -74,18 +74,35 @@
     }, 40);
   }
 
-  /* Giữ một nút kỹ năng đủ lâu rồi nhả — bot phải đi qua đúng pha nạp như người. */
-  var holdingSkill = null;
-  function holdSkill(i, ms) {
-    if (holdingSkill) return;
+  /* Bấm nút kỹ năng rồi KÉO để chỉ hướng, y hệt ngón tay người: pointerdown trên
+   * nút, vài nhịp pointermove về phía mục tiêu, rồi pointerup. Gọi thẳng
+   * skillAimStart/End thì test sẽ xanh kể cả khi chuỗi sự kiện chuột hỏng — mà
+   * chuỗi sự kiện mới chính là thứ đang được đổi. */
+  var castingSkill = null;
+  function castSkill(i, dx, dy) {
+    if (castingSkill !== null) return;
     var btn = document.getElementById('hSkill' + i);
     if (!btn) return;
-    holdingSkill = i;
-    btn.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    setTimeout(function () {
-      btn.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-      holdingSkill = null;
-    }, ms);
+    castingSkill = i;
+    var r = btn.getBoundingClientRect();
+    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    var id = 900 + i;
+    function ev(type, x, y) {
+      btn.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true,
+        pointerId: id, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y }));
+    }
+    ev('pointerdown', cx, cy);
+    var n = 0, m = Math.hypot(dx, dy) || 1;
+    var iv = setInterval(function () {
+      n++;
+      var k = n / 4 * 70;
+      ev('pointermove', cx + dx / m * k, cy + dy / m * k);
+      if (n >= 4) {
+        clearInterval(iv);
+        ev('pointerup', cx + dx / m * 70, cy + dy / m * 70);
+        castingSkill = null;
+      }
+    }, 30);
   }
 
   function nearestEnemy(b) {
@@ -159,15 +176,16 @@
       return;
     }
 
-    // 2. Nạp rồi xả kỹ năng khi có mục tiêu đáng dùng. Kỹ năng nạp lâu nên bot
-    //    phải GIỮ nút chứ không bấm — mô phỏng đúng thao tác của người chơi.
+    // 2. Xả kỹ năng khi có mục tiêu đáng dùng: bấm nút rồi kéo về phía địch,
+    //    đúng cử chỉ của người chơi.
     for (var i = 0; i < 2; i++) {
       var sk = b.skillDef(i);
       if (!sk || b.skillCdLeft(i) > 0) continue;
       var worth = (b.boss && (b.boss.down > 0 || b.boss.hp < b.boss.maxHp * 0.95)) ||
                   b.mobs.filter(function (m) { return m.hp > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 260; }).length >= 2;
       if (!worth) continue;
-      holdSkill(i, sk.charge + 120);
+      var tg = nearestEnemy(b);
+      castSkill(i, tg ? tg.x - p.x : Math.cos(p.facing), tg ? tg.y - p.y : Math.sin(p.facing));
       return;
     }
 
