@@ -130,19 +130,33 @@
 
   function counterOf(el) { for (var k in G.ELEM_BEATS) if (G.ELEM_BEATS[k] === el) return k; return 'none'; }
 
+  /* Hậu tố tên theo LỚP, ba bậc tiến hoá. Bốn dòng cuối là bốn lớp mới, và
+   * chúng phải có mặt ở đây: tên món tra thẳng vào bảng này, thiếu một dòng là
+   * món đó mang tên `undefined`. Mỗi bộ ba đi từ đồ vật (bậc 0) sang khái niệm
+   * (bậc 2), đúng nhịp sáu dòng cũ. */
   var W_SUFFIX = {
     rifle:    ['Rifle', 'Cadence', 'Aspect'],
     shotgun:  ['Scattergun', 'Maw', 'Eclipse'],
     sniper:   ['Lance', 'Pursuit', 'Zenith'],
     bow:      ['Bow', 'Cantus', 'Requiem'],
     staff:    ['Scepter', 'Oracle', 'Apotheosis'],
-    launcher: ['Mortar', 'Ruin', 'Apex']
+    launcher: ['Mortar', 'Ruin', 'Apex'],
+    laser:    ['Prism', 'Meridian', 'Daybreak'],
+    blade:    ['Ionblade', 'Crescent', 'Severance'],
+    scythe:   ['Reaper', 'Gyre', 'Harvest'],
+    orb:      ['Censer', 'Ember', 'Conflagration']
   };
   var A_SUFFIX = { head: 'Visor', body: 'Vest', arm: 'Gauntlets', leg: 'Leggings' };
   function shortName(b) { var p = b.n.split(' '); return p[p.length - 1]; }
-  // b.weapon còn là tên lớp CŨ trong bảng Behemoth (giữ nguyên vì nó là dữ liệu
-  // lấy nguyên văn từ wiki). Đổi sang lớp mới ở đúng chỗ đọc.
-  function weaponName(b, evo) { return shortName(b) + "'s " + W_SUFFIX[G.wclassOf(b.weapon)][evo]; }
+  /* Tên món phải đi qua ĐÚNG hàm mà forgeGear dùng để đặt lớp.
+   *
+   * `G.wclassOf(b.weapon)` chỉ dịch tên lớp cũ sang lớp cũ tương ứng, nên nó
+   * KHÔNG biết chuyện tách đôi: con Amarok bị băm về `blade` mà tên vẫn là
+   * "Amarok's Rifle" — cầm một cây kiếm khí đọc chữ Rifle. `wclassOfBehemoth`
+   * là hàm duy nhất biết bảng tách, nên tên gọi nó, y như forgeGear. */
+  function weaponName(b, evo) {
+    return shortName(b) + "'s " + W_SUFFIX[G.wclassOfBehemoth(b)][evo];
+  }
   function armorName(b, kind) { return shortName(b) + ' ' + A_SUFFIX[kind]; }
 
   /* --------------------------------------------------- TÍNH CHỈ SỐ MÓN --- */

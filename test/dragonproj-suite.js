@@ -1406,6 +1406,48 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('bộ trưng bày: cây nào cũng tối cấp và mở đủ hai kỹ năng',
     sc.allMax && sc.allTwo && sc.classes === 10, sc.classes + ' lớp');
 
+  /* ================= TÊN MÓN PHẢI KHỚP LỚP =============================
+   * Bảng Behemoth giữ tên lớp CŨ, còn bốn lớp mới sinh ra bằng cách tách đôi
+   * lớp cũ theo băm id. Chỗ đó có hai đường đọc — một đường đặt lớp, một đường
+   * đặt tên — và chúng đã từng lệch nhau: cây của Amarok mang lớp `blade` mà
+   * tên vẫn là "Amarok's Rifle". Người chơi đọc chữ Rifle rồi cầm ra một cây
+   * chém lưỡi khí, đó là nói dối ngay trên nhãn.
+   *
+   * Phép kiểm quét CẢ 56 con × 5 ô, vì lỗi kiểu này chỉ lộ ở đúng những con rơi
+   * vào nửa sau của cặp tách — soi vài con đầu bảng thì không bao giờ thấy.
+   * ==================================================================== */
+  results.push('\n── tên món ──');
+  const nm = await p.evaluate(() => {
+    const SUF = {
+      rifle: 'Rifle', shotgun: 'Scattergun', sniper: 'Lance', bow: 'Bow',
+      staff: 'Scepter', launcher: 'Mortar', laser: 'Prism', blade: 'Ionblade',
+      scythe: 'Reaper', orb: 'Censer'
+    };
+    const bad = [], mismatch = [], by = {};
+    DP.BEHEMOTHS.forEach(b => {
+      ['weapon', 'head', 'body', 'arm', 'leg'].forEach(k => {
+        const g = DP.forgeGear(b.id, k, 't');
+        if (!g || !g.name || /undefined/.test(g.name)) bad.push(b.id + '/' + k);
+      });
+      const g = DP.forgeGear(b.id, 'weapon', 't');
+      by[g.wclass] = (by[g.wclass] || 0) + 1;
+      if (g.name.indexOf(SUF[g.wclass]) < 0) mismatch.push(g.name + '≠' + g.wclass);
+    });
+    // Tên phải đổi theo bậc tiến hoá, và cả ba bậc đều phải có chữ.
+    const b0 = DP.BEHEMOTHS[0];
+    const evo = [0, 1, 2].map(e => {
+      const g = DP.forgeGear(b0.id, 'weapon', 't'); g.evo = e;
+      return DP.gearName ? DP.gearName(g) : g.name;
+    });
+    return { bad, mismatch, classes: Object.keys(by).length, by, evo };
+  });
+  check('56 con x 5 ô: món nào cũng có tên, không món nào "undefined"',
+    nm.bad.length === 0, nm.bad.slice(0, 5).join(', ') || 'sạch');
+  check('tên vũ khí luôn mang hậu tố ĐÚNG lớp của chính nó',
+    nm.mismatch.length === 0, nm.mismatch.slice(0, 4).join(', ') || 'khớp hết');
+  check('dàn Behemoth rải đủ cả mười lớp', nm.classes === 10,
+    nm.classes + ' lớp: ' + JSON.stringify(nm.by));
+
   check('mọi ảnh trong asset-map đều nạp được', art.rep.loaded === art.rep.total,
     art.rep.loaded + '/' + art.rep.total);
   check('đủ 70 biểu tượng vũ khí (10 lớp x 7 hệ)', art.miss.length === 0,
