@@ -226,8 +226,12 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 /* --- toast --- */
 #toasts{position:absolute;left:0;right:0;top:120px;display:flex;flex-direction:column;
   align-items:center;gap:5px;pointer-events:none;z-index:60}
-.toast{background:rgba(8,12,18,.9);border:1px solid var(--line);border-radius:14px;
-  padding:5px 14px;font-size:12px;font-weight:700;animation:tin .2s ease-out}
+/* Toast CỠ LỚN. 12px là cỡ để đọc một danh sách khi đang rảnh tay, không phải
+   để liếc một dòng chữ trong lúc đang né đạn. Nền đặc hơn và viền dày hơn vì
+   nó nằm đè lên sân chứ không nằm trên nền menu. */
+.toast{background:rgba(6,10,16,.94);border:2px solid var(--line);border-radius:14px;
+  padding:8px 20px;font-size:19px;font-weight:900;letter-spacing:.3px;
+  text-shadow:0 2px 4px rgba(0,0,0,.9);animation:tin .2s ease-out}
 @keyframes tin{from{transform:translateY(-8px) scale(.94);opacity:0}}
 
 /* ==========================================================================
@@ -597,20 +601,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 
       <div class="dist" id="hDist">⟟ <b>0</b>m</div>
 
-      <!-- Thanh EXP của LƯỢT CHƠI, nằm ngay dưới hàng đếm quái. Nó phải tách hẳn
-           thanh EXP tài khoản ở chân màn hình: một cái đo tiến bộ vĩnh viễn tính
-           bằng tuần, cái này đo lần bốc bài kế tiếp tính bằng mươi giây. Hai thứ
-           đó vẽ giống nhau ở hai đầu màn hình đã là một lần lẫn. -->
-      <div class="runbar" id="hRunBar">
-        <b id="hRunLv">Lv.0</b>
-        <i><u id="hRunFill" style="width:0%"></u></i>
-      </div>
 
-      <div class="draft" id="hDraft">
-        <h3>LÊN CẤP <b id="hDraftLv">1</b></h3>
-        <p>Chọn một</p>
-        <div class="cards" id="hDraftCards"></div>
-      </div>
 
       <div class="downbox" id="hDown">
         <h3>BẤT TỈNH</h3>
@@ -629,6 +620,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 
 <script src="data/gamedata.js"></script>
 <script src="data/heroes.js"></script>
+  <script src="data/heroskills.js"></script>
 <script src="js/atlas.js"></script>
 <script src="js/punicon.js"></script>
 <script src="js/meta.js"></script>

@@ -233,7 +233,6 @@
       heat: 0, soul: 0,
       // kỹ năng vũ khí: hai khe, mỗi khe một đồng hồ hồi chiêu riêng
       skCd: [0, 0], skIdx: -1, skAim: null, sk: null,
-      runLv: 0, runExp: 0,
       fade: 1, fadeUntil: 0, backstabUntil: 0, armorUntil: 0, chargeDR: 0, z: 0,
       shield: 0, buffs: [],
       status: {}, dot: [],
@@ -399,7 +398,7 @@
     // moving to attack."
     if (p.state === 'dodge' && !p.rollHit) { p.rollHit = true; this.fire({ roll: true }); return; }
 
-    if (p.state === 'charge' || p.state === 'steady' || p.state === 'autofire' ||
+    if (p.state === 'steady' || p.state === 'autofire' ||
         p.state === 'ultiaim') { this.holdCancel(); }
     if (this.busy()) {
       // Bấm sớm trong lúc còn đuôi -> đệm lại, bắn ngay khi hết đuôi.
@@ -427,22 +426,10 @@
       return true;
     }
 
-    var lvl = o.chargeLv === undefined ? -1 : o.chargeLv;
     var mul = 1, shots = W.shots, crit = 0, elemMul = 1;
-    if (W.charge && lvl >= 0) {
-      mul     = W.chargeMul[lvl];
-      shots   = W.chargeShots[lvl];
-      crit    = W.chargeCrit[lvl];
-      elemMul = W.chargeElem[lvl] / W.chargeMul[lvl];   // đường cong hệ PHẲNG hơn vật lý
-    } else if (W.charge) {
-      mul = W.chargeMul[0]; shots = W.chargeShots[0]; crit = W.chargeCrit[0];
-    }
     if (o.steady) { mul *= 1.35; crit += 0.20; }        // ghì súng: chắc tay hơn
     // Ba lá bài đổi thẳng hình dạng phát bắn, nên chúng phải vào ĐÂY chứ không
     // vào bảng chỉ số: số viên, tỉ lệ chí mạng, và số con đạn xuyên qua được.
-    shots += this.perkSum('shots');
-    crit += this.perkSum('crit');
-    var perkPierce = this.perkSum('pierce');
 
     var spread = o.steady ? 0 : (W.spread || 0);
     if (!o.steady) spread += p.bloom || 0;              // giữ cò lâu thì toè ra
@@ -456,7 +443,7 @@
     if (W.mode === 'beam')       this.fireBeam(base);
     else if (W.mode === 'orbit') this.fireOrbit(base, shots);
     else if (W.mode === 'lob')   this.fireLob(base, spread);
-    else if (W.mode === 'cone')  this.fireCone(base);
+    else if (W.mode === 'drop')  this.dropMine(base);
     else if (W.mode === 'arc')   this.fireArc(base);
     else if (W.mode === 'boomerang') this.fireBoomerang(base, spread, crit + (o.critBonus || 0));
     else
@@ -474,8 +461,8 @@
         x: p.x + Math.cos(p.facing) * 14, y: p.y + Math.sin(p.facing) * 14,
         a: p.facing + off, spd: W.spd, life: W.life, r: W.r,
         mul: base * dmgMul, critBonus: crit + (o.critBonus || 0),
-        pierce: !!W.pierce || perkPierce > 0,
-        pierceMax: W.pierce ? 0 : perkPierce,   // 0 = xuyên vô hạn (cây vốn xuyên)
+        pierce: !!W.pierce,
+        pierceMax: 0,
         pierceFall: W.pierceFall || 0.33, hits: 0,
         homing: W.homing || 0, explode: W.explode || null,
         noCrit: !!W.noCrit, critDist: W.critDist || null,
@@ -730,7 +717,7 @@
     p.iframe = G.BAL.dodgeIFrameMs;
     p.iframeFromDodge = true;   // chỉ khung bất tử của NÉ mới mở được cửa sổ phản đòn
     p.rollHit = false;          // mỗi cú lăn cho đúng một Rolling Attack
-    p.dodgeCd = G.BAL.dodgeCdMs * (1 - Math.min(0.6, this.perkSum('dodgeCd')));
+    p.dodgeCd = G.BAL.dodgeCdMs;
     p.dodgeVX = dx; p.dodgeVY = dy;
     p.dodgeDist = G.BAL.dodgeDist * (this.W.dodgeMul || 1) * (1 + (this.stats.dodge - 1));
     p.facing = Math.atan2(dy, dx);
@@ -784,10 +771,6 @@
     if (W.auto) {
       p.state = 'autofire'; p.autoT = 0;
       this.fire({ sustained: true });      // phát đầu ra ngay, không đợi nhịp
-    } else if (W.charge) {
-      p.state = 'charge';
-      // Nạp mang sang: vừa né xong thì bắt đầu ở nấc cao hơn một bậc.
-      p.chargeLv = p.carryCharge || 0; p.carryCharge = 0;
     } else {
       p.state = 'steady';
     }
@@ -805,20 +788,6 @@
     if (p.state === 'autofire') {
       p.autoT += 16;
       if (p.autoT >= W.shotMs / this.atkSpeed()) { p.autoT = 0; this.fire({ sustained: true }); }
-    } else if (p.state === 'charge') {
-      // Bốn nấc, và nấc 1 cố ý TỆ (0,40x) — chưa tới một nửa nấc 2. Monster
-      // Hunter làm thế để nhả sớm là một quyết định thật, chứ không phải một
-      // lựa chọn miễn phí.
-      var lv = 0;
-      for (var i = W.chargeMs.length - 1; i >= 0; i--) {
-        if (ms >= W.chargeMs[i]) { lv = i; break; }
-      }
-      lv = Math.min(W.chargeMs.length - 1, Math.max(lv, p.chargeLv || 0));
-      if (lv !== p.chargeLv) {
-        p.chargeLv = lv;
-        this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 26 + lv * 5, t: 0, ms: 180,
-                       col: lv >= 3 ? '#ffd23f' : '#8fd4ff' });
-      }
     } else if (p.state === 'steady') {
       p.steadyK = Math.min(1, ms / 550);
     }
@@ -840,7 +809,6 @@
       return;
     }
     if (p.state === 'autofire') { p.state = 'idle'; return; }
-    if (p.state === 'charge') { this.fire({ chargeLv: p.chargeLv || 0 }); return; }
     if (p.state === 'steady') {
       // Ghì đủ lâu mới được thưởng. Chưa đủ thì vẫn bắn, chỉ là bắn thường —
       // không phạt, chỉ là không thưởng (luật bất đối xứng của dải chí mạng).
@@ -856,16 +824,10 @@
     // Huỷ lúc đang ngắm ulti KHÔNG tốn thanh: bỏ tay ra là mất trắng đòn lớn thì
     // không ai dám thử cử chỉ này lần thứ hai.
     if (p.state === 'ultiaim') { this.skillAimCancel(); p.state = 'idle'; return; }
-    if (p.state === 'autofire' || p.state === 'charge' || p.state === 'steady') {
+    if (p.state === 'autofire' || p.state === 'steady') {
       // HUỶ NẠP LÀ MIỄN PHÍ: không bắn ra, không mất gì. Nếu huỷ mà mất tài
       // nguyên thì người chơi thôi nạp lúc nguy hiểm, và cả vòng lặp sụp.
       p.state = 'idle'; p.charge = 0; p.steadyK = 0;
-      // Nhưng nấc đang nạp được GIỮ LẠI một bậc cho phát sau cú né.
-      if (this.W.charge && this.W.dodgeKeepsCharge) {
-        p.carryCharge = Math.min(this.W.chargeMs.length - 1,
-          Math.max(0, (p.chargeLv || 0) + (this.W.dodgeChargeBonus || 0) - 1));
-      }
-      p.chargeLv = -1;
     }
   };
 
@@ -1080,7 +1042,7 @@
     // Hút Máu gắn vào ĐÚNG chỗ này: nơi con số cuối cùng được chốt, sau phương
     // sai, chí mạng và giáp. Gắn ở chỗ tính sát thương THÔ thì lá bài này hồi
     // theo một con số mà người chơi không bao giờ nhìn thấy.
-    var dr = this.perkSum('drain');
+    var dr = 0;
     if (dr) this.heal(this.player, raw * dr);
     /* Hitstop trên MỌI cú trúng, không chỉ khi vỡ thế. Sát thương mỗi viên giờ
      * nhỏ hơn hẳn, nên cái bán cảm giác "trúng" không còn là con số mà là phản
@@ -1286,90 +1248,24 @@
     return true;
   };
 
-  /* ================================================ CƯỜNG HOÁ TRONG ẢI ====
-   * Giết quái -> EXP -> lên cấp NGAY TRONG ẢI -> bốc một trong ba.
+  /* ================= KHÔNG CÓ LÊN CẤP TRONG TRẬN =======================
+   * Đã gỡ: EXP lượt chơi, mười lăm lá cường hoá, và màn bốc ba lá lúc lên cấp.
    *
-   * Buff bốc được đẩy thẳng vào `p.buffs` với `until: Infinity`. Không dựng một
-   * kho buff thứ hai: `p.buffs` đã là chỗ duy nhất mà playerDamage, atkSpeed,
-   * moveStep và hurtPlayer cùng đọc, nên đi qua nó thì mười bốn lá bài lập tức
-   * chạy được ở cả bốn chỗ mà không phải sửa chỗ nào. Buff dựng thêm một kho
-   * riêng là dựng thêm bốn chỗ để quên đọc.
+   * Vì sao gỡ chứ không chỉ bỏ màn chọn: cái phiền không nằm ở chỗ phải chọn,
+   * nó nằm ở chỗ sức mạnh của bạn thay đổi GIỮA CHỪNG một ải. Nửa đầu ải bạn là
+   * một người, nửa sau là một người khác, mà không ai quyết định điều đó trước
+   * khi vào. Nó cũng làm mọi con số cân bằng thành vô nghĩa: cùng một con boss
+   * có thể gặp bạn ở Lv.0 hay Lv.7 tuỳ bạn dọn quái nhanh chậm.
    *
-   * `until: Infinity` sống qua bộ lọc hết-hạn ở updateAction, và cả trận kết
-   * thúc thì `p.buffs` biến mất cùng đối tượng Battle — nên "reset sau mỗi ải"
-   * xảy ra tự nhiên, không cần ai đi dọn.
+   * Sức mạnh bây giờ CHỐT Ở MÀN CHUẨN BỊ và chỉ ở đó: trang bị, cấp vũ khí, đột
+   * phá, tiến hoá, đội hình ba người. Vào ải rồi thì thứ duy nhất còn thay đổi
+   * được là bạn chơi hay dở tới đâu.
+   *
+   * `perkSum` cũng đi theo — nó từng được gọi ở chín chỗ, và mỗi chỗ giờ đọc
+   * thẳng con số của trang bị. Giữ lại một hàm luôn trả về 0 thì rẻ hơn, nhưng
+   * nó để lại chín lời gọi nói dối rằng vẫn còn một hệ thống ở đâu đó.
    * ==================================================================== */
-  Battle.prototype.runGain = function (n) {
-    var p = this.player;
-    p.runExp = (p.runExp || 0) + n;
-    var guard = 0;
-    while (p.runExp >= G.RUN.need(p.runLv + 1) && guard++ < 20) {
-      p.runExp -= G.RUN.need(p.runLv + 1);
-      p.runLv++;
-      this.openDraft();
-    }
-  };
 
-  /* Ba lá, không trùng nhau, và không lá nào đã đầy trần.
-   *
-   * Hết bài dùng được thì KHÔNG mở màn bốc — trả về false và cấp đó lặng lẽ
-   * trôi qua. Mở một màn bốc trống, hoặc mở với hai lá, là bắt người chơi dừng
-   * trận lại để nhìn một thứ vô nghĩa. */
-  Battle.prototype.openDraft = function () {
-    if (this.draft) { this.draftQueue = (this.draftQueue || 0) + 1; return true; }
-    var taken = this.perks = this.perks || {};
-    var pool = G.PERKS.filter(function (x) { return (taken[x.id] || 0) < x.max; });
-    if (!pool.length) return false;
-    var pick = [];
-    while (pick.length < Math.min(G.RUN.picks, pool.length)) {
-      var i = (Math.random() * pool.length) | 0;
-      pick.push(pool.splice(i, 1)[0]);
-    }
-    this.draft = pick;
-    this.paused = true;
-    if (this.cb.onDraft) this.cb.onDraft(pick, this.player.runLv, taken);
-    return true;
-  };
-
-  Battle.prototype.takePerk = function (id) {
-    var d = G.perkById(id);
-    if (!d || !this.draft) return false;
-    if (!this.draft.some(function (x) { return x.id === id; })) return false;
-    this.perks[id] = (this.perks[id] || 0) + 1;
-    this.applyPerk(d);
-    this.draft = null;
-    this.toast(d.n + ' ×' + this.perks[id], d.col);
-    // Xếp hàng: hai cấp lên cùng một lúc (một con vàng cho 6 exp) thì lá thứ hai
-    // phải hiện ngay sau lá thứ nhất, không được nuốt mất.
-    if (this.draftQueue > 0) { this.draftQueue--; this.openDraft(); return true; }
-    this.paused = false;
-    if (this.cb.onDraft) this.cb.onDraft(null);
-    return true;
-  };
-
-  Battle.prototype.applyPerk = function (d) {
-    var p = this.player, b = d.buff;
-    var mod = {};
-    for (var k in b) mod[k] = b[k];
-    mod.until = Infinity;
-    mod.perk = d.id;
-    p.buffs.push(mod);
-    // Máu tối đa phải cộng NGAY và hồi lại đúng phần vừa cộng — nếu chỉ nâng
-    // trần thì lá này là một thanh máu dài ra mà không có gì trong đó, tức là
-    // một lá bài không làm gì cả ở đúng lúc người chơi cần nó nhất.
-    if (b.hpPct) {
-      var add = Math.round(p.maxHp * b.hpPct);
-      p.maxHp += add; p.hp = Math.min(p.maxHp, p.hp + add);
-      this.fx.push({ k: 'spr', key: 'fx.heal', x: p.x, y: p.y, r: 40, t: 0, ms: 600 });
-    }
-  };
-
-  // Tổng một khoá buff nào đó từ mọi lá đã bốc. Một chỗ đọc duy nhất.
-  Battle.prototype.perkSum = function (key) {
-    var n = 0;
-    this.player.buffs.forEach(function (b) { if (b[key]) n += b[key]; });
-    return n;
-  };
 
   /* ------------------------------------------------------ QUÁI CHẾT ----- */
   Battle.prototype.killMob = function (m) {
@@ -1387,9 +1283,8 @@
       exp: Math.round((4 + m.lv * 2.2) * (m.elite ? 3 : 1) * G.potionMul(this.s, 'exp'))
     });
     this.puff(m.x, m.y, G.ELEMENTS[m.el].color);
-    this.runGain(G.RUN.orb(m.elite, m.gold));
     // Dây Chuyền: con chết thì nổ, và cú nổ đó giết tiếp được con bên cạnh.
-    var db = this.perkSum('deathBlast');
+    var db = 0;
     if (db) {
       var r = 46 + 18 * db;
       this.aoeDamage(m.x, m.y, r, this.W.dmg * (1.6 + 0.9 * db), { noCrit: true });
@@ -1446,7 +1341,6 @@
         conds: conds, nCond: nCond,
         parts: b.partsBroken, elapsed: elapsed, killed: self.killed,
         bag: self.bag || { gold: 0, exp: 0 },
-        perks: self.perks || {}, runLv: self.player.runLv || 0,
         gold: Math.round(st.gold * G.REWARD.goldMul * G.potionMul(self.s, 'gold')) + drops.gold,
         bossGold: drops.gold,
         exp: Math.round(st.exp * G.potionMul(self.s, 'exp'))
@@ -1539,7 +1433,7 @@
 
     // Hồi Phục: một dòng máu chảy đều, tính theo % máu TỐI ĐA nên nó không mạnh
     // dần lên theo Sức Bền một cách vô tình.
-    var rg = this.perkSum('regen');
+    var rg = 0;
     if (rg && p.hp > 0 && !p.down) this.heal(p, p.maxHp * rg * dt / 1000);
 
     // ---- hồi phục theo thời gian (dot/hot) ----
@@ -1556,9 +1450,13 @@
     this.updateSkills(dt);
     if (p.iframe > 0) p.iframe -= dt;
     this.stepLanes(dt);
+    this.stepMines(dt);
     if (p.dodgeCd > 0) p.dodgeCd -= dt;
     if (p.swapCd > 0) p.swapCd -= dt;
+    if (this.zoomPunch) this.zoomPunch = Math.max(0, this.zoomPunch - dt / 260 * 0.045);
+    if (this.flash) this.flash = Math.max(0, this.flash - dt / 220);
     this.stepSpin(dt);
+    this.autoCastUlti();
 
     // ---- di chuyển / hành động ----
     var mv = this.puni.tick(this.t);
@@ -1638,15 +1536,6 @@
        * (bloom), không phải chân bị khoá. */
       case 'autofire': {
         this.moveStep(p, mv, slowMul, dt, 1);
-        break;
-      }
-
-      /* NẠP: đi lại BÌNH THƯỜNG. Đây là luật của Monster Hunter và là quyết định
-       * cảm giác quan trọng nhất của cây cung — "Charging an arrow does not slow
-       * movement. Instead, movement only slows when the player aims their shot."
-       * Tách nạp khỏi ngắm cho phép chạy vòng vòng tích lực rồi mới chốt. */
-      case 'charge': {
-        this.moveStep(p, mv, slowMul, dt, W.chargeMoveMul === undefined ? 1 : W.chargeMoveMul);
         break;
       }
 
@@ -1739,7 +1628,7 @@
        * Nên bán kính hút = 75% tầm bắn, sàn 130 (giữ nguyên hành vi cũ cho cây
        * tầm ngắn), trần 420 để không thành "nhặt cả sân từ chỗ đứng". */
       var mag = clamp((this.W.range || 180) * 0.75, 130, 420);
-      mag *= 1 + this.perkSum('magnet');
+      mag *= 1 + 0;
       if (d > 1 && d < mag && !p.down) {
         var pull = Math.min(d, (1 - d / mag) * 8.4 * dt / 16.67);
         c.x += (p.x - c.x) / d * pull;
@@ -2048,10 +1937,25 @@
      * Không có nó thì cả chín con cùng đánh, và người chơi không theo dõi nổi
      * con nào đang báo đòn — nhất là trên màn dọc, nơi một phần năm phía dưới đã
      * bị ngón cái che mất. */
+    /* BÁO TRƯỚC. Mọi chiêu của quái đều đi qua đúng hàm này, nên đây là chỗ duy
+     * nhất cần sửa để MỌI chiêu đều có hình.
+     *
+     * Ba lớp, và ba lớp đó không thừa:
+     *   - vạch/vùng đỏ  : nói đòn sẽ RƠI VÀO ĐÂU (đã có sẵn)
+     *   - dấu chấm than : nói CON NÀO sắp ra đòn — trong một đám mười con thì
+     *                     một vệt đỏ dưới đất không chỉ ra được ai là thủ phạm
+     *   - vòng nạp      : nói CÒN BAO LÂU, vì thời điểm né mới là thứ quyết định
+     *
+     * Bản trước chỉ có lớp thứ nhất, nên trong đám đông người chơi thấy sân đỏ
+     * lên mà không biết nên né hướng nào hay nên đánh ai trước. */
     function tell(ms, r, ox, oy) {
       if (!m.token) { m.wantToken = self.t; return; }
       m.phase = 'tell'; m.pt = ms; m.aim = a;
       self.fx.push({ k: 'tell', x: m.x + (ox || 0), y: m.y + (oy || 0), r: r, t: 0, ms: ms });
+      self.fx.push({ k: 'spr', key: 'fx.warn', x: m.x, y: m.y - m.r - 20, r: 26,
+                     t: 0, ms: Math.min(ms, 640), blend: 'lighter' });
+      self.fx.push({ k: 'spr', key: 'fx.mobcast', x: m.x, y: m.y, r: m.r + 18,
+                     t: 0, ms: ms, blend: 'lighter' });
     }
     function hitPlayer(mul, opt) {
       if (dist(m, p) < m.r + p.r + (opt && opt.reach || 10)) {
@@ -2064,6 +1968,11 @@
       m.facing = m.aim;
       if (m.pt > 0) return;
       m.phase = 'act'; m.pt = 0;
+      // Khoảnh khắc CHUYỂN từ doạ sang thật là khoảnh khắc quan trọng nhất trong
+      // cả chuỗi — đó là lúc phải bấm né. Một cú loé ở đúng đây đáng giá hơn mọi
+      // hiệu ứng vẽ trong lúc đang doạ.
+      this.fx.push({ k: 'spr', key: 'fx.dashtrail', x: m.x, y: m.y, r: 34,
+                     a: m.aim, t: 0, ms: 260, blend: 'lighter' });
     }
     if (m.phase === 'rest') {
       m.pt -= dt;
@@ -2074,12 +1983,34 @@
     switch (m.ai) {
 
       /* Đông và yếu. Bâu vào, chạm là trừ máu. Có để mà chém cho đã tay. */
-      case 'swarm':
+      case 'swarm': {
+        var Ts = m.T;
+        // CÚ LAO. Đang trong pha lao thì bay thẳng, không đổi hướng — nên né sang
+        // ngang là thoát, đúng luật của mọi đòn có báo trước trong game này.
+        if (Ts.lunge && m.phase === 'act') {
+          m.pt += dt;
+          walk(Ts.dashSpd / m.spd, m.aim);
+          hitPlayer(1.5, { reach: 10 });
+          if (m.pt >= Ts.dashMs) {
+            m.phase = 'rest'; m.pt = Ts.recover;
+            this.fx.push({ k: 'dust', x: m.x, y: m.y, t: 0, ms: 260 });
+          }
+          break;
+        }
         m.facing = a;
+        if (Ts.lunge && d < Ts.lungeAt && d > m.r + p.r + 4) {
+          m.cd -= dt;
+          if (m.cd <= 0) {
+            m.cd = 1500 + Math.random() * 600;
+            tell(Ts.tell, m.r + 16, Math.cos(a) * 70, Math.sin(a) * 70);
+            break;
+          }
+        }
         if (d > m.r + p.r + 6) { walk(); }
         else { m.cd -= dt; if (m.cd <= 0) { m.cd = 900 + Math.random() * 700; m.phase = 'rest'; m.pt = 340;
           hitPlayer(1); this.fx.push({ k: 'ring', x: m.x, y: m.y, r: m.r + 14, t: 0, ms: 180, col: '#ff6a6a' }); } }
         break;
+      }
 
       /* HÚC. Vạch đỏ dài báo trước gần một giây, rồi lao thẳng — né sang NGANG là
        * thoát. Húc xong đơ 900ms: cửa sổ phạt rộng nhất trong đám quái thường. */
@@ -2160,6 +2091,11 @@
               life: 2600, dmg: m.atk * 0.55, r: 15, col: G.ELEMENTS[m.el].color,
               fade: G.DANMAKU.fadeInMs });
           }
+          // Chớp nòng: nói cho biết viên đạn RA TỪ ĐÂU. Không có nó thì đạn cứ
+          // hiện ra giữa không trung và người chơi không học được ai vừa bắn.
+          this.fx.push({ k: 'spr', key: 'fx.mobshotfx', x: m.x + Math.cos(m.aim) * 14,
+                         y: m.y + Math.sin(m.aim) * 14, r: 20, a: m.aim,
+                         t: 0, ms: 180, blend: 'lighter' });
           m.phase = 'rest'; m.pt = 700;
           break;
         }
@@ -2362,39 +2298,94 @@
    * lần cuối. Không có sổ đó thì lưỡi ăn mỗi khung — 60 lần một giây — và cây này
    * một mình xoá sổ cả bảng cân bằng. Có sổ mà để chung cho cả ba lưỡi thì ngược
    * lại: lưỡi thứ hai và thứ ba vĩnh viễn không bao giờ ăn được gì. */
-  /* ---- NÓN LỬA: không có viên đạn, đánh mọi thứ nằm trong hình quạt trước
-   * mặt mỗi tick. Cái đắt của cây này không phải cú trúng mà là vết BỎNG chồng
-   * lên, nên hàm này cộng stack trước rồi mới tính sát thương tức thời. */
-  Battle.prototype.fireCone = function (base) {
-    var p = this.player, W = this.W, self = this;
-    var a0 = p.facing, half = W.coneArc / 2, len = W.coneLen;
-    var hit = 0;
-    this.mobs.forEach(function (m) {
-      if (m.hp <= 0) return;
-      var dx = m.x - p.x, dy = m.y - p.y, d = Math.hypot(dx, dy);
-      if (d > len + m.r) return;
-      var da = Math.abs(ang2(Math.atan2(dy, dx), a0));
-      if (da > half) return;
-      hit++;
-      // Bỏng CHỒNG được, tối đa burnStack lớp. Đây là toàn bộ lý do tồn tại của
-      // cây: đứng phun ba giây rồi bỏ đi thì cả đám vẫn cháy tiếp.
-      m.fstack = Math.min(W.burnStack, (m.fstack || 0) + W.burnPerTick);
-      self.applyStatus(m, 'burn');
-      self.dealToMob(m, self.playerDamage(base, {}),
-        { move: { kb: W.kb, poise: W.poise, hs: W.hs }, from: a0 });
+  /* ---- BẪY MÌN: thả một quả ngay dưới chân. Không có hướng, không có đạn.
+   *
+   * Ba con số làm nên cả cảm giác của lớp này:
+   *   mineArmMs  — nằm im bao lâu mới gài xong. Chưa gài xong thì vô hại, nên
+   *                thả mìn vào mặt một con đang xông tới KHÔNG cứu được bạn.
+   *                Đây là cái ngăn nó thành "súng phóng bắn thẳng xuống chân".
+   *   mineTrigR  — lại gần ngần nào thì kích. Nhỏ hơn bán kính nổ, nên con nào
+   *                đạp trúng thì chắc chắn ăn trọn.
+   *   mineMax    — trần số quả trên sân. Không có trần thì đứng yên rải hai
+   *                mươi giây rồi lùi lại là xoá sổ mọi thứ đi vào.
+   *
+   * Quả cũ nhất bị đẩy ra khi chạm trần, không phải quả gần nhất: đẩy quả gần
+   * nhất thì người chơi vô tình phá đúng cái bẫy mình vừa đặt trước mặt. */
+  Battle.prototype.dropMine = function (base, opt) {
+    opt = opt || {};
+    var p = this.player, W = this.W;
+    this.mines = this.mines || [];
+    var max = opt.max || W.mineMax || 14;
+    while (this.mines.length >= max) this.mines.shift();
+    this.mines.push({
+      x: opt.x === undefined ? p.x : opt.x,
+      y: opt.y === undefined ? p.y : opt.y,
+      arm: opt.armMs === undefined ? (W.mineArmMs || 380) : opt.armMs,
+      left: opt.life || W.mineLife || 9000,
+      r: opt.r || W.mineR || 62,
+      trig: opt.trig || W.mineTrigR || 30,
+      mul: base,
+      t: 0
     });
-    if (this.boss && this.boss.hp > 0) {
-      var bx = this.boss.x - p.x, by = this.boss.y - p.y;
-      if (Math.hypot(bx, by) < len + this.boss.r &&
-          Math.abs(ang2(Math.atan2(by, bx), a0)) < half) {
-        this.applyStatus(this.boss, 'burn');
-        this.dealToBoss(this.playerDamage(base, {}),
-          p.x + Math.cos(a0) * len * 0.7, p.y + Math.sin(a0) * len * 0.7,
-          { move: { hs: W.hs } });
+  };
+
+  Battle.prototype.stepMines = function (dt) {
+    if (!this.mines || !this.mines.length) return;
+    for (var i = this.mines.length - 1; i >= 0; i--) {
+      var mn = this.mines[i];
+      mn.t += dt;
+      if (mn.arm > 0) { mn.arm -= dt; continue; }
+      mn.left -= dt;
+      if (mn.left <= 0) { this.mines.splice(i, 1); continue; }
+      var hit = false;
+      for (var k = 0; k < this.mobs.length; k++) {
+        var m = this.mobs[k];
+        if (m.hp <= 0) continue;
+        if (Math.hypot(m.x - mn.x, m.y - mn.y) < mn.trig + m.r) { hit = true; break; }
       }
+      if (!hit && this.boss && this.boss.hp > 0 &&
+          Math.hypot(this.boss.x - mn.x, this.boss.y - mn.y) < mn.trig + this.boss.r) hit = true;
+      if (hit) { this.blowMine(mn); this.mines.splice(i, 1); }
     }
-    this.fx.push({ k: 'cone', x: p.x, y: p.y, a: a0, len: len, half: half,
-                   t: 0, ms: 150, col: this.elemFx().col });
+  };
+
+  Battle.prototype.blowMine = function (mn, mulK) {
+    var k = mulK || 1;
+    this.aoeDamage(mn.x, mn.y, mn.r * k, mn.mul * k, { from: 0 });
+    this.fx.push({ k: 'spr', key: 'fx.midboom', x: mn.x, y: mn.y, r: mn.r * k,
+                   t: 0, ms: 420, blend: 'lighter' });
+    this.fx.push({ k: 'ring', x: mn.x, y: mn.y, r: mn.r * k, t: 0, ms: 300, col: '#ffb45a' });
+    this.impact(mn.x, mn.y, G.FEEL.hitstop.mid, G.FEEL.shake.mid, '#ffb45a');
+  };
+
+  Battle.prototype.drawMines = function () {
+    if (!this.mines || !this.mines.length) return;
+    var ctx = this.ctx;
+    for (var i = 0; i < this.mines.length; i++) {
+      var mn = this.mines[i];
+      var armed = mn.arm <= 0;
+      // Chưa gài xong thì XÁM và không nháy — người chơi phải phân biệt được
+      // ngay quả nào đã ăn được và quả nào còn là đồ trang trí.
+      var blink = armed ? (0.5 + 0.5 * Math.abs(Math.sin(mn.t / 130))) : 0;
+      ctx.save();
+      ctx.translate(mn.x, mn.y);
+      ctx.fillStyle = 'rgba(8,12,18,.55)';
+      ctx.beginPath(); ctx.ellipse(0, 3, 9, 4, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = armed ? '#3a4652' : '#2b333c';
+      ctx.beginPath(); ctx.arc(0, 0, 7, 0, TAU); ctx.fill();
+      ctx.strokeStyle = armed ? 'rgba(255,120,90,' + (0.4 + 0.6 * blink) + ')' : 'rgba(140,155,170,.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 7, 0, TAU); ctx.stroke();
+      if (armed) {
+        ctx.fillStyle = 'rgba(255,90,70,' + (0.35 + 0.65 * blink) + ')';
+        ctx.beginPath(); ctx.arc(0, 0, 2.6, 0, TAU); ctx.fill();
+        // vòng kích, mờ: nói cho biết đứng cách bao xa thì an toàn
+        ctx.globalAlpha = 0.10 + 0.10 * blink;
+        ctx.strokeStyle = '#ff7a3c'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(0, 0, mn.trig, 0, TAU); ctx.stroke();
+      }
+      ctx.restore();
+    }
   };
 
   /* ---- CUNG ROI: quét một hình quạt rộng và KÉO cái gì trúng lại gần. Lực kéo
@@ -2643,7 +2634,11 @@
     if (this.kickX || this.kickY) ctx.translate(this.kickX || 0, this.kickY || 0);
     // Rung và đá camera đo bằng PIXEL MÀN HÌNH nên phải nằm NGOÀI phép zoom, không
     // thì cùng một con số rung sẽ mạnh yếu khác nhau tuỳ mức zoom.
-    ctx.scale(ZOOM, ZOOM);
+    /* ĐÁ ZOOM. `zoomPunch` đã được gán từ hai chỗ (Trảm Thiên, và giờ là lớp
+     * hiệu ứng chung của mọi ulti) nhưng chưa bao giờ có ai đọc — nên nó không
+     * làm gì cả. Một cú giật zoom rất ngắn là cách rẻ nhất để nói "vừa có một
+     * đòn LỚN", và nó không che mất gì vì nó tắt trong ba phần mười giây. */
+    ctx.scale(ZOOM * (1 + (this.zoomPunch || 0)), ZOOM * (1 + (this.zoomPunch || 0)));
     ctx.translate(-camX, -camY);
 
     this.drawGround();
@@ -2667,6 +2662,7 @@
       else this.drawPlayer(e.d);
     }
     this.drawLanes();
+    this.drawMines();
     this.drawProjectiles();
     this.drawDrones();
     // Tường chắn và ảo ảnh đứng ngang tầm nhân vật, vẽ sau khi đã xếp lớp xong.
@@ -2682,6 +2678,8 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.drawAimOverlay();
     this.puni.draw(ctx);
+    this.drawFlash();
+    this.drawUltiBanner();
   };
 
   var BG = {
@@ -3166,19 +3164,49 @@
     return -1;
   };
 
+  /* ĐÒN THUẦN BUFF THÌ TỰ XẢ, không bắt người chơi làm cử chỉ.
+   *
+   * Một đòn không gây sát thương và không có hướng thì cử chỉ ngắm chẳng chỉ
+   * vào đâu cả — nó chỉ là một thao tác bắt buộc không mang thông tin nào. Tệ
+   * hơn: bắt giữ ngón để bật một cái buff nghĩa là bắt ĐỨNG YÊN đúng lúc đang
+   * cần chạy, mà chạy nhanh hơn lại chính là thứ cái buff đó cho.
+   *
+   * Vẫn tôn trọng đủ mọi điều kiện của một cú xả tay: đủ nạp, hết hồi chiêu,
+   * không ngã, không cứng đòn, không đang ngắm đòn khác. Chỉ bỏ đúng phần cử
+   * chỉ. Và vẫn TRỪ thanh như thường — tự xả không có nghĩa là miễn phí. */
+  Battle.prototype.autoCastUlti = function () {
+    var p = this.player;
+    if (p.down || this.paused || this.busy()) return;
+    if (p.state === 'ultiaim' || p.skAim) return;
+    var idx = this.ultiArmed();
+    if (idx < 0) return;
+    var sk = this.skillDef(idx);
+    if (!sk || !sk.autoCast) return;
+    p.facing = p.facing || 0;
+    this.fireSkill(idx, sk);
+    this.ultiSpend(idx);
+  };
+
   Battle.prototype.ultiSpend = function (idx) {
     var p = this.player;
     p.ulti = Math.max(0, (p.ulti || 0) - (G.ULTI.cost[idx] || G.ULTI.notch));
   };
 
+  /* KHÔNG CÒN TRẠNG THÁI NẠP.
+   *
+   * Cử chỉ GIỮ giờ thuộc về ulti và chỉ thuộc về ulti. Cung từng giữ để nạp bốn
+   * nấc rồi bắn ba mũi — hai thứ tranh nhau cùng một ngón, và người chơi không
+   * bao giờ đoán được mình sắp ra cái gì. Cung giữ lại bản sắc bằng DẢI CHÍ MẠNG
+   * chứ không bằng nạp lực.
+   *
+   * Hàm này còn lại đúng một việc: đo tiến độ GHÌ SÚNG. Và nó KHÔNG được vẽ lên
+   * thanh trên đầu nhân vật nữa — thanh đó bây giờ là thanh ulti, chỉ là thanh
+   * ulti, và không có gì được mượn chỗ. Một thanh mà lúc thì đo cái này lúc đo
+   * cái kia là một thanh không đọc được. */
   Battle.prototype.chargeLevel = function () {
-    var p = this.player, W = this.W, full = 0;
-    // Thanh nạp dưới chân: cây nạp thì đo tới nấc cuối, cây ghì súng thì đo tới
-    // mốc 550ms — vượt mốc đó mới được thưởng.
-    if (p.state === 'charge' && W.chargeMs) full = W.chargeMs[W.chargeMs.length - 1];
-    else if (p.state === 'steady') full = 550;
-    else return -1;
-    return clamp(p.charge / full, 0, 1);
+    var p = this.player;
+    if (p.state !== 'steady') return -1;
+    return clamp(p.charge / 550, 0, 1);
   };
 
   Battle.prototype.drawPlayer = function (p) {
@@ -3371,6 +3399,97 @@
    * Thanh dưới chân màn hình VẪN GIỮ — nó là bảng số chi tiết (số máu, EXP, cấp).
    * Cái trên đầu là bảng CẢNH BÁO: chỉ ba thứ, đọc bằng màu và bằng bề dài.
    * ======================================================================== */
+  /* BIỂN TÊN ĐÒN, vẽ ở TOẠ ĐỘ MÀN HÌNH giữa khung.
+   *
+   * `moveName` đã được gán từ lâu ở hai chỗ (đổi vũ khí, vào thế ngắm) nhưng
+   * chưa bao giờ có ai vẽ nó — nên mọi cú xả ulti xảy ra mà màn hình không nói
+   * một chữ nào. Một đòn lớn phải TỰ XƯNG TÊN: đó là cách người chơi học được
+   * đòn nào ra hiệu ứng nào, và là cách họ biết cú bấm vừa rồi có ăn hay không.
+   *
+   * Vẽ ở toạ độ màn hình chứ không theo camera: biển tên thuộc về giao diện,
+   * không thuộc về sân. Bám theo sân thì nó trôi ra khỏi khung khi camera đuổi
+   * theo nhân vật. */
+  /* CHỚP SÁNG TOÀN MÀN HÌNH. Vẽ ở toạ độ màn hình, sau mọi thứ khác trừ biển
+   * tên. Đây là tín hiệu "có chuyện lớn vừa xảy ra" mạnh nhất mà một game 2D có
+   * — và cũng là thứ dễ lạm dụng nhất, nên nó cố ý ngắn (0,22s) và không bao giờ
+   * đục hơn 45%: đủ để mắt bắt được, không đủ để che mất một viên đạn đang bay. */
+  Battle.prototype.drawFlash = function () {
+    if (!this.flash) return;
+    var ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = Math.min(0.45, this.flash);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = this.flashCol || '#ffffff';
+    ctx.fillRect(0, 0, this.cv.width, this.cv.height);
+    ctx.restore();
+  };
+
+  Battle.prototype.drawUltiBanner = function () {
+    var m = this.moveName;
+    if (!m) return;
+    var age = this.t - m.t, LIFE = 1100;
+    if (age > LIFE) { this.moveName = null; return; }
+    var k = age / LIFE;
+    var ctx = this.ctx;
+    // vào nhanh, đứng yên, ra chậm — chữ phải ĐỌC ĐƯỢC chứ không phải chớp qua
+    var a = k < 0.10 ? k / 0.10 : k > 0.68 ? (1 - k) / 0.32 : 1;
+    var pop = k < 0.10 ? 1.25 - 0.25 * (k / 0.10) : 1;
+    var cx = this.cv.width / 2, cy = this.cv.height * 0.30;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, a));
+    ctx.translate(cx, cy); ctx.scale(pop, pop);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+    var col = m.col || '#ffd23f';
+    ctx.font = '900 38px system-ui';
+    var w = ctx.measureText(m.n).width;
+    // dải nền tối: chữ vàng trên nền cỏ sáng thì không đọc nổi
+    var g = ctx.createLinearGradient(-w / 2 - 40, 0, w / 2 + 40, 0);
+    g.addColorStop(0, 'rgba(6,10,16,0)');
+    g.addColorStop(0.5, 'rgba(6,10,16,.78)');
+    g.addColorStop(1, 'rgba(6,10,16,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-w / 2 - 40, -30, w + 80, 60);
+
+    ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(4,8,14,.95)';
+    ctx.strokeText(m.n, 0, 0);
+    ctx.fillStyle = col;
+    ctx.fillText(m.n, 0, 0);
+
+    // hai vạch ngang hai bên: nhìn ra ngay là "một đòn vừa nổ", không phải toast
+    ctx.globalAlpha *= 0.8;
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-w / 2 - 34, 0); ctx.lineTo(-w / 2 - 10, 0);
+    ctx.moveTo(w / 2 + 10, 0);  ctx.lineTo(w / 2 + 34, 0);
+    ctx.stroke();
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  };
+
+  /* HIỆU ỨNG XẢ DÙNG CHUNG CHO MỌI ULTI.
+   *
+   * Mỗi đòn đã có hiệu ứng riêng của nó, nhưng chúng khác nhau quá xa: Cuồng Tốc
+   * chỉ đổi vài con số, Thiên Thạch thì rung cả màn hình. Kết quả là có đòn xả
+   * xong mà người chơi không chắc mình vừa xả — nhất là những đòn thuần buff.
+   *
+   * Lớp chung này bảo đảm MỌI ulti đều có cùng ba tín hiệu mở màn, bất kể nó
+   * làm gì sau đó: chớp sáng, hai vòng nở ra từ chân, và biển tên. Hiệu ứng
+   * riêng của từng đòn vẫn chồng lên trên. */
+  Battle.prototype.ultiCastFx = function (sk) {
+    var p = this.player;
+    var col = (sk && sk.col) || this.elemFx().col || '#ffd23f';
+    this.moveName = { n: sk ? sk.n : '', t: this.t, col: col };
+    this.flash = Math.max(this.flash || 0, 0.45);
+    this.flashCol = col;
+    this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 96,  t: 0, ms: 380, col: col });
+    this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 158, t: 0, ms: 520, col: '#ffffff' });
+    this.puff(p.x, p.y, col);
+    this.shake = Math.max(this.shake, 7);
+    if (!this.zoomPunch) this.zoomPunch = 0.045;
+  };
+
   Battle.prototype.drawPlayerPlate = function (p) {
     if (p.down) return;
     var ctx = this.ctx;
@@ -3414,14 +3533,7 @@
      * thứ không bao giờ xảy ra cùng lúc, vì đủ nạp thì giữ là ngắm ulti chứ
      * không còn là nạp cung nữa. */
     var UY = y + 7;
-    var wk = this.chargeLevel();
-    if (wk >= 0) {
-      // đang nạp vũ khí: thanh này thuộc về cây súng, không phải ulti
-      ctx.fillStyle = 'rgba(0,0,0,.62)';
-      ctx.fillRect(-BW / 2 - 1, UY, BW + 2, 5);
-      ctx.fillStyle = wk >= 0.999 ? '#ffffff' : '#ffd23f';
-      ctx.fillRect(-BW / 2, UY + 1, BW * wk, 3);
-    } else {
+    {
       var uk = clamp(p.ulti || 0, 0, 1);
       var notch = G.ULTI.notch;
       var ufull = uk >= 0.999, upast = uk >= notch;
@@ -3448,13 +3560,47 @@
     if (armed >= 0) {
       var asd = this.skillDef(armed);
       if (asd) {
-        ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
-        var tw = ctx.measureText(asd.n).width;
-        ctx.fillStyle = 'rgba(0,0,0,.6)';
-        ctx.fillRect(-tw / 2 - 4, y - 22, tw + 8, 12);
-        ctx.fillStyle = armed === 1 ? '#ffffff' : '#ffd23f';
-        ctx.fillText(asd.n, 0, y - 13);
-        ctx.textAlign = 'left';
+        /* BÁO SẴN SÀNG. Bản trước chỉ đổi màu thanh và in tên đòn cỡ 9px — quá
+         * nhỏ để đọc trong lúc đang né, nên người chơi không bao giờ biết mình
+         * đã xả được hay chưa. Ba tín hiệu chồng lên nhau, mỗi cái bắt một kiểu
+         * chú ý khác nhau:
+         *   1. VÒNG SÁNG dưới chân, đập theo nhịp — mắt ngoại vi bắt được
+         *   2. TÊN ĐÒN cỡ lớn có viền đen — đọc được mà không cần nhìn thẳng
+         *   3. Dòng "GIỮ ĐỂ XẢ" — nói thẳng phải làm gì, vì cử chỉ này mới
+         * Ba cái cùng lúc nghe như thừa, nhưng đây là thông tin quan trọng nhất
+         * trên màn hình và nó chỉ đúng trong vài giây. */
+        var pulse = 0.55 + 0.45 * Math.abs(Math.sin(this.t / (armed === 1 ? 110 : 160)));
+        var acol = armed === 1 ? '#ffffff' : '#ffd23f';
+
+        // (1) vòng sáng dưới chân
+        ctx.save();
+        ctx.globalAlpha = 0.30 + 0.40 * pulse;
+        ctx.strokeStyle = acol;
+        ctx.lineWidth = 2 + 1.5 * pulse;
+        ctx.beginPath();
+        ctx.ellipse(0, 11, 22 + 5 * pulse, 9 + 2 * pulse, 0, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+
+        // (2) tên đòn, CỠ LỚN, viền đen để nổi trên mọi nền
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = '900 15px system-ui';
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(4,8,14,.92)';
+        ctx.strokeText(asd.n, 0, y - 26);
+        ctx.globalAlpha = 0.75 + 0.25 * pulse;
+        ctx.fillStyle = acol;
+        ctx.fillText(asd.n, 0, y - 26);
+
+        // (3) nói thẳng phải làm gì
+        ctx.globalAlpha = 0.6 + 0.4 * pulse;
+        ctx.font = '800 11px system-ui';
+        var hint = asd.autoCast ? 'TỰ XẢ' : 'GIỮ ĐỂ XẢ';
+        ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(4,8,14,.92)';
+        ctx.strokeText(hint, 0, y - 14);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(hint, 0, y - 14);
+        ctx.restore();
       }
     }
 
@@ -4024,6 +4170,10 @@
        * đúng vùng nổ bán kính r thì scale = r/48. Có vậy vòng nổ vẽ ra mới đúng
        * bằng vòng nổ ăn sát thương — hai thứ đó lệch nhau là người chơi học sai
        * tầm của chính vũ khí mình đang cầm. */
+      /* HIỆU ỨNG BÁM THEO NHÂN VẬT. Buff kéo dài mấy giây mà hiệu ứng đứng
+       * yên ở chỗ vừa xả thì sau nửa giây nhân vật đã chạy khỏi nó, và cái đang
+       * sáng rực trên sân không còn liên quan gì tới người chơi nữa. */
+      if (f.follow) { f.x = this.player.x; f.y = this.player.y; }
       if (f.k === 'spr') {
         var se = G.Atlas && G.Atlas.get(f.key);
         if (se) {
@@ -4239,21 +4389,10 @@
       }
       ctx.restore();
     }
-    // Thanh nạp nổi ngay trên đầu nhân vật (đại kiếm / cung).
-    if (p.state === 'charge' || p.state === 'aim') {
-      var W2 = this.W, full = 0, k = 0;
-      if (W2.special === 'cleave') { full = W2.chargeMs; k = clamp(p.charge / full, 0, 1); }
-      else if (W2.special === 'snipe') { full = W2.snipeChargeMs; k = clamp(p.charge / full, 0, 1); }
-      else if (W2.special === 'ranbu') { full = W2.ranbuWindupMs; k = clamp(p.charge / full, 0, 1); }
-      if (full) {
-        var bx = p.x + ox - 28, by = p.y + oy - 44;
-        ctx.save();
-        ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(bx, by, 56, 7);
-        ctx.fillStyle = k >= 1 ? '#ffd23f' : '#e8f2ff'; ctx.fillRect(bx + 1, by + 1, 54 * k, 5);
-        if (k >= 1) { ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 1.5; ctx.strokeRect(bx - 1, by - 1, 58, 9); }
-        ctx.restore();
-      }
-    }
+    /* Thanh nạp cũ của bản CẬN CHIẾN đã gỡ. Nó đọc W.special ('cleave' /
+     * 'snipe' / 'ranbu') — ba thứ không còn tồn tại từ lúc game đổi sang mô hình
+     * bắn — và vẽ ở trạng thái 'charge', cũng không còn. Mã chết vẽ đè lên đúng
+     * chỗ thanh ulti bây giờ đứng, nên để lại là một quả bom hẹn giờ. */
     ctx.restore();
   };
 

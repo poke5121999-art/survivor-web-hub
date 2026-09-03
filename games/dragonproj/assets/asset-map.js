@@ -960,6 +960,126 @@ window.DP.ASSET_MAP = {
    "w": 96,
    "h": 96,
    "file": "pvfx_boom.png"
+  },
+  "bolt": {
+   "strip": "giga_bolt.png",
+   "frames": 7,
+   "ms": 45,
+   "anchor": "fixed",
+   "ox": 64,
+   "oy": 122
+  },
+  "boltsmall": {
+   "strip": "giga_boltsmall.png",
+   "frames": 7,
+   "ms": 45,
+   "anchor": "fixed",
+   "ox": 32,
+   "oy": 58
+  },
+  "boltburst": {
+   "strip": "giga_boltburst.png",
+   "frames": 9,
+   "ms": 45,
+   "anchor": "fixed",
+   "ox": 32,
+   "oy": 32
+  },
+  "buffhaste": {
+   "strip": "giga_buffhaste.png",
+   "frames": 29,
+   "ms": 55,
+   "anchor": "fixed",
+   "ox": 64,
+   "oy": 64
+  },
+  "buffguard": {
+   "strip": "giga_buffguard.png",
+   "frames": 18,
+   "ms": 55,
+   "anchor": "fixed",
+   "ox": 64,
+   "oy": 64
+  },
+  "buffatk": {
+   "strip": "giga_buffatk.png",
+   "frames": 18,
+   "ms": 55,
+   "anchor": "fixed",
+   "ox": 64,
+   "oy": 64
+  },
+  "ultiring": {
+   "strip": "giga_ultiring.png",
+   "frames": 16,
+   "ms": 45,
+   "anchor": "fixed",
+   "ox": 72,
+   "oy": 72
+  },
+  "ultispark": {
+   "strip": "giga_ultispark.png",
+   "frames": 14,
+   "ms": 45,
+   "anchor": "fixed",
+   "ox": 32,
+   "oy": 32
+  },
+  "bigboom": {
+   "strip": "giga_bigboom.png",
+   "frames": 13,
+   "ms": 45,
+   "anchor": "fixed",
+   "ox": 64,
+   "oy": 64
+  },
+  "midboom": {
+   "strip": "giga_midboom.png",
+   "frames": 8,
+   "ms": 45,
+   "anchor": "fixed",
+   "ox": 32,
+   "oy": 32
+  },
+  "warn": {
+   "strip": "giga_warn.png",
+   "frames": 14,
+   "ms": 60,
+   "anchor": "fixed",
+   "ox": 40,
+   "oy": 40
+  },
+  "dashtrail": {
+   "strip": "giga_dashtrail.png",
+   "frames": 7,
+   "ms": 40,
+   "anchor": "fixed",
+   "ox": 32,
+   "oy": 32
+  },
+  "mobcast": {
+   "strip": "giga_mobcast.png",
+   "frames": 12,
+   "ms": 55,
+   "anchor": "fixed",
+   "ox": 48,
+   "oy": 48
+  },
+  "mobshotfx": {
+   "strip": "giga_mobshotfx.png",
+   "frames": 2,
+   "ms": 40,
+   "anchor": "fixed",
+   "ox": 16,
+   "oy": 16
+  },
+  "warp": {
+   "strip": "giga_warp.png",
+   "frames": 12,
+   "ms": 45,
+   "anchor": "fixed",
+   "ox": 64,
+   "oy": 64
   }
  },
  "elem": {
@@ -2835,127 +2955,6 @@ window.DP.ASSET_MAP = {
     "file": "Dagger_IceScythe__p331d52dcc4f7.png"
    }
   },
-  "flame": {
-   "none": {
-    "spr": "Staff_Fire",
-    "anchor": "center",
-    "rot": 90,
-    "len": 30,
-    "grip": 0.86,
-    "ramp": [
-     "#4a5560",
-     "#e8f0f6"
-    ],
-    "frames": 1,
-    "w": 9,
-    "h": 33,
-    "ox": 4,
-    "oy": 16,
-    "file": "Staff_Fire__p4a5560e8f0f6.png"
-   },
-   "fire": {
-    "spr": "Staff_Fire",
-    "anchor": "center",
-    "rot": 90,
-    "len": 30,
-    "grip": 0.86,
-    "ramp": [
-     "#5a2410",
-     "#ffc9a0"
-    ],
-    "frames": 1,
-    "w": 9,
-    "h": 33,
-    "ox": 4,
-    "oy": 16,
-    "file": "Staff_Fire__p5a2410ffc9a0.png"
-   },
-   "water": {
-    "spr": "Staff_Fire",
-    "anchor": "center",
-    "rot": 90,
-    "len": 30,
-    "grip": 0.86,
-    "ramp": [
-     "#123a5e",
-     "#bfe6ff"
-    ],
-    "frames": 1,
-    "w": 9,
-    "h": 33,
-    "ox": 4,
-    "oy": 16,
-    "file": "Staff_Fire__p123a5ebfe6ff.png"
-   },
-   "earth": {
-    "spr": "Staff_Fire",
-    "anchor": "center",
-    "rot": 90,
-    "len": 30,
-    "grip": 0.86,
-    "ramp": [
-     "#2c4a18",
-     "#d6f0ac"
-    ],
-    "frames": 1,
-    "w": 9,
-    "h": 33,
-    "ox": 4,
-    "oy": 16,
-    "file": "Staff_Fire__p2c4a18d6f0ac.png"
-   },
-   "thunder": {
-    "spr": "Staff_Fire",
-    "anchor": "center",
-    "rot": 90,
-    "len": 30,
-    "grip": 0.86,
-    "ramp": [
-     "#5c4506",
-     "#fff0b0"
-    ],
-    "frames": 1,
-    "w": 9,
-    "h": 33,
-    "ox": 4,
-    "oy": 16,
-    "file": "Staff_Fire__p5c4506fff0b0.png"
-   },
-   "light": {
-    "spr": "Staff_Fire",
-    "anchor": "center",
-    "rot": 90,
-    "len": 30,
-    "grip": 0.86,
-    "ramp": [
-     "#6a6250",
-     "#fffdf2"
-    ],
-    "frames": 1,
-    "w": 9,
-    "h": 33,
-    "ox": 4,
-    "oy": 16,
-    "file": "Staff_Fire__p6a6250fffdf2.png"
-   },
-   "dark": {
-    "spr": "Staff_Fire",
-    "anchor": "center",
-    "rot": 90,
-    "len": 30,
-    "grip": 0.86,
-    "ramp": [
-     "#331d52",
-     "#dcc4f7"
-    ],
-    "frames": 1,
-    "w": 9,
-    "h": 33,
-    "ox": 4,
-    "oy": 16,
-    "file": "Staff_Fire__p331d52dcc4f7.png"
-   }
-  },
   "whip": {
    "none": {
     "spr": "Icon_BlackHalberd",
@@ -3075,6 +3074,127 @@ window.DP.ASSET_MAP = {
     "ox": 9,
     "oy": 23,
     "file": "Icon_BlackHalberd__p331d52dcc4f7.png"
+   }
+  },
+  "mine": {
+   "none": {
+    "spr": "Crossbow_Mine",
+    "anchor": "center",
+    "rot": 0,
+    "len": 22,
+    "grip": 0.5,
+    "ramp": [
+     "#4a5560",
+     "#e8f0f6"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Mine__p4a5560e8f0f6.png"
+   },
+   "fire": {
+    "spr": "Crossbow_Mine",
+    "anchor": "center",
+    "rot": 0,
+    "len": 22,
+    "grip": 0.5,
+    "ramp": [
+     "#5a2410",
+     "#ffc9a0"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Mine__p5a2410ffc9a0.png"
+   },
+   "water": {
+    "spr": "Crossbow_Mine",
+    "anchor": "center",
+    "rot": 0,
+    "len": 22,
+    "grip": 0.5,
+    "ramp": [
+     "#123a5e",
+     "#bfe6ff"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Mine__p123a5ebfe6ff.png"
+   },
+   "earth": {
+    "spr": "Crossbow_Mine",
+    "anchor": "center",
+    "rot": 0,
+    "len": 22,
+    "grip": 0.5,
+    "ramp": [
+     "#2c4a18",
+     "#d6f0ac"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Mine__p2c4a18d6f0ac.png"
+   },
+   "thunder": {
+    "spr": "Crossbow_Mine",
+    "anchor": "center",
+    "rot": 0,
+    "len": 22,
+    "grip": 0.5,
+    "ramp": [
+     "#5c4506",
+     "#fff0b0"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Mine__p5c4506fff0b0.png"
+   },
+   "light": {
+    "spr": "Crossbow_Mine",
+    "anchor": "center",
+    "rot": 0,
+    "len": 22,
+    "grip": 0.5,
+    "ramp": [
+     "#6a6250",
+     "#fffdf2"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Mine__p6a6250fffdf2.png"
+   },
+   "dark": {
+    "spr": "Crossbow_Mine",
+    "anchor": "center",
+    "rot": 0,
+    "len": 22,
+    "grip": 0.5,
+    "ramp": [
+     "#331d52",
+     "#dcc4f7"
+    ],
+    "frames": 1,
+    "w": 24,
+    "h": 15,
+    "ox": 12,
+    "oy": 7,
+    "file": "Crossbow_Mine__p331d52dcc4f7.png"
    }
   }
  },

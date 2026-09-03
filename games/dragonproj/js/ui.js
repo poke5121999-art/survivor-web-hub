@@ -1433,36 +1433,10 @@
     battle.start();
   }
 
-  /* MÀN BỐC CƯỜNG HOÁ. Trận đã dừng (battle.paused) trước khi hàm này được gọi,
-   * nên ở đây chỉ có một việc: vẽ ba lá và chờ một cú chạm.
-   *
-   * Số CHỒNG hiện ngay trên lá (×2/4) và vẽ thành các vạch — người chơi phải
-   * biết lá này còn nâng được mấy lần nữa TRƯỚC khi chọn, không thì lần bốc thứ
-   * năm của cùng một lá là một bất ngờ khó chịu. */
-  function showDraft(cards, lv, taken) {
-    var box = $('hDraft');
-    if (!cards) { box.classList.remove('on'); return; }
-    $('hDraftLv').textContent = lv;
-    $('hDraftCards').innerHTML = cards.map(function (c) {
-      var have = (taken && taken[c.id]) || 0;
-      var bars = '';
-      for (var i = 0; i < c.max; i++) {
-        bars += '<s style="' + (i < have + 1 ? 'background:' + c.col : '') + '"></s>';
-      }
-      return '<button class="card2 tap" data-perk="' + c.id + '" style="border-color:' + c.col + '55">' +
-        '<span class="st">' + (have ? '×' + have + ' → ×' + (have + 1) : 'MỚI') + '</span>' +
-        '<div class="nm" style="color:' + c.col + '">' + c.n + '</div>' +
-        '<div class="ds">' + c.d + '</div>' +
-        '<div class="pips">' + bars + '</div></button>';
-    }).join('');
-    box.classList.add('on');
-    box.onclick = function (e) {
-      var t = e.target.closest('[data-perk]'); if (!t || !battle) return;
-      battle.takePerk(t.getAttribute('data-perk'));
-      if (!battle.draft) box.classList.remove('on');
-      else showDraft(battle.draft, battle.player.runLv, battle.perks);
-    };
-  }
+  /* Màn bốc cường hoá đã gỡ cùng cả hệ lên-cấp-trong-trận. `onDraft` vẫn nằm
+   * trong bảng callback nên vẫn phải có một hàm ở đây — một callback trỏ vào
+   * undefined thì nổ đúng vào lúc không ai ngờ. */
+  function showDraft() {}
 
   /* Nửa đầu ải không có boss, nên hàng thông tin boss phải nhường chỗ cho bộ đếm
    * quái — chỗ trên cùng màn hình là chỗ đắt nhất, không để một thanh máu rỗng. */
@@ -1489,7 +1463,6 @@
   }
 
   function leaveBattle() {
-    $('hDraft').classList.remove('on');
     // Còn đang trong ải: kết thúc qua đường chính thức để có bảng "RỜI ẢI".
     if (battle && battle.running) { battle.leaveStage(); return; }
     if (battle) battle.stop();
@@ -1585,18 +1558,12 @@
       g2.querySelector('i').style.width = (bt.wp.wtype === 'heat' ? p.heat : p.soul) + '%';
     } else g2.classList.remove('on');
 
-    // Thanh EXP của LƯỢT CHƠI: còn bao xa tới lần bốc bài kế tiếp.
-    var need = G.RUN.need((p.runLv || 0) + 1);
-    $('hRunLv').textContent = 'Lv.' + (p.runLv || 0);
-    $('hRunFill').style.width = Math.min(100, (p.runExp || 0) / need * 100) + '%';
-
     // bảng bất tỉnh
     $('hDown').classList.toggle('on', !!p.down);
   }
 
   /* ---------------------------------------------------------- KẾT THÚC -- */
   function onFinish(r) {
-    $('hDraft').classList.remove('on');
     var el = $('resultScr');
     var st = r.stage || (battle && battle.stage);
     var html = '';
@@ -1644,18 +1611,6 @@
       if (bag.gold || bag.exp) html += '<div class="line"><span>Nhặt dọc đường</span><b>' +
         fmt(bag.gold || 0) + ' Gold · ' + fmt(bag.exp || 0) + ' EXP</b></div>';
       html += '</div>';
-      /* Build của lượt vừa rồi. Nó biến mất khi rời ải, nên nếu không ghi lại ở
-       * đây thì người chơi không bao giờ đọc được cái mình vừa dựng — mà đó
-       * chính là thứ quyết định lượt chơi đó thắng hay thua. */
-      if (r.perks && Object.keys(r.perks).length) {
-        html += '<div class="box"><div class="line"><span><b>Cường hoá đã bốc</b></span>' +
-          '<b>Lv.' + (r.runLv || 0) + '</b></div>' +
-          Object.keys(r.perks).map(function (id) {
-            var d = G.perkById(id); if (!d) return '';
-            return '<div class="line"><span style="color:' + d.col + '">' + d.n + '</span><b>×' +
-              r.perks[id] + '</b></div>';
-          }).join('') + '</div>';
-      }
       // Lần đầu phá xong thì nói luôn nó bằng bao nhiêu lượt quay: đó là đơn vị
       // mà người chơi gacha thật sự dùng để nghĩ, không phải "gem".
       if (gems >= G.REWARD.pull) html += '<div class="sub" style="color:#8fd4ff">' +

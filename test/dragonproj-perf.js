@@ -271,18 +271,20 @@ const WCLS = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher'];
 /* Trạng thái hợp lệ khi GIỮ giữa màn hình. GIỮ giờ có BA nghĩa tuỳ lớp:
  *   cây auto (súng trường, gậy phép) -> 'autofire', và mỗi phát nó bắn ra lại
  *     đẩy qua 'fire' một nhịp, nên cả hai đều hợp lệ
- *   cây nạp  (cung)                  -> 'charge'
- *   cây còn lại                      -> 'steady'
+ *   cây còn lại (kể cả CUNG)         -> 'steady'
+ * Cung từng có nghĩa thứ ba là 'charge' (nạp bốn nấc). Bỏ rồi: cử chỉ GIỮ nay
+ * thuộc hẳn về ulti, và một cử chỉ không thể mang hai nghĩa mà người chơi vẫn
+ * đoán được mình sắp ra cái gì.
  * 'lag' và 'idle' hợp lệ ở mọi lớp vì cú giữ có thể rơi đúng vào đuôi một phát. */
 const SPECIAL_OK = {
   rifle:    ['autofire', 'fire', 'lag', 'idle'],
   staff:    ['autofire', 'fire', 'cast', 'lag', 'idle'],
-  bow:      ['charge'],
+  bow:      ['steady'],
   shotgun:  ['steady'],
   sniper:   ['steady'],
   launcher: ['steady']
 };
-const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
+const SPECIAL_ANY = ['autofire', 'steady', 'fire', 'cast'];
 
 (async () => {
   const b = await chromium.launch();
@@ -497,30 +499,22 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
     await assertRecovered('(a) đổi vũ khí khi đang ' + want + ' (' + cls + ')');
   }
 
-  /* (b) NÉ HUỶ NẠP LÀ MIỄN PHÍ. Luật lấy từ Monster Hunter (Kiranico MHW Bow):
-   *     "evade rolls cancel charged shots - no shot fires and no coating is
-   *     consumed". Nếu huỷ mà mất tài nguyên thì người chơi thôi nạp lúc nguy
-   *     hiểm, và cả vòng lặp nạp-lực sụp. Kiểm đúng ba điều: né được, không có
-   *     đạn nào bay ra, và nấc nạp được giữ lại một bậc cho phát sau. */
+  /* (b) Phép kiểm "né huỷ nạp là miễn phí" đã bỏ: CUNG KHÔNG CÒN NẠP LỰC.
+   * Cử chỉ GIỮ nay thuộc hẳn về ulti, nên không còn nấc nạp nào để mà huỷ. Cái
+   * còn phải bảo đảm là né vẫn thoát được khỏi thế GHÌ SÚNG mà không mất gì —
+   * đó là cùng một lời hứa, chỉ khác trạng thái. */
   await freshStage('bow');
   const cancelRes = await p.evaluate(() => {
     const b = DP.UI.battle, pl = b.player;
-    pl.state = 'idle'; pl.carryCharge = 0; b.projs.length = 0;
+    pl.state = 'idle'; b.projs.length = 0;
     b.holdStart(40, 0);
-    b.holdTick(b.W.chargeMs[2] + 20, 40, 0);        // nạp tới nấc 3
-    const atLv = pl.chargeLv;
-    pl.dodgeCd = 0; b.tryDodge(1, 0);               // né giữa lúc đang nạp
-    return { atLv: atLv, afterDodge: pl.state, shots: b.projs.length,
-             carried: pl.carryCharge };
+    const held = pl.state;
+    pl.dodgeCd = 0; b.tryDodge(1, 0);
+    return { held: held, afterDodge: pl.state, shots: b.projs.length };
   });
-  info('(b) nạp nấc ' + cancelRes.atLv + ' → né: state=' + cancelRes.afterDodge +
-       ', đạn bay ra=' + cancelRes.shots + ', nấc mang sang=' + cancelRes.carried);
-  check('(b) né huỷ được cú nạp', cancelRes.afterDodge === 'dodge');
-  check('(b) huỷ nạp KHÔNG bắn ra viên nào (miễn phí)', cancelRes.shots === 0,
-    cancelRes.shots + ' viên');
-  check('(b) nấc nạp được mang sang cho phát sau khi né', cancelRes.carried >= 1,
-    'nấc ' + cancelRes.carried);
-  await assertRecovered('(b) né giữa cú nạp');
+  check('giữ cung = ghì súng, và né thoát ra được mà không bắn phát nào',
+    cancelRes.held === 'steady' && cancelRes.afterDodge === 'dodge' && cancelRes.shots === 0,
+    JSON.stringify(cancelRes));
 
   /* (c) Xả kỹ năng khi ĐANG GIỮ CÒ. Đây là chỗ dễ kẹt nhất: hai cử chỉ chồng
    *     lên nhau (một ngón giữ cò trên canvas, ngón kia bấm nút kỹ năng), nên

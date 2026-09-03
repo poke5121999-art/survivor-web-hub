@@ -65,7 +65,9 @@
       // Hai nguồn giảm hồi chiêu — ability trên trang bị và lá bài Định Thần —
       // cộng vào NHAU rồi mới kẹp chung một trần 60%. Kẹp riêng từng nguồn thì
       // hai nguồn đầy trần cho ra −84%, và cả hệ hồi chiêu sụp.
-      var cut = (this.stats.skillCd || 0) + this.perkSum('skillCd');
+      // Chỉ còn MỘT nguồn giảm hồi chiêu: ability trên trang bị. Lá bài
+      // "Định Thần" đã đi cùng cả hệ lên-cấp-trong-trận.
+      var cut = (this.stats.skillCd || 0);
       return sk.cd * (1 - clamp(cut, 0, 0.6));
     };
     // Bảng nguyên tố của vũ khí đang cầm.
@@ -191,6 +193,10 @@
       var p = this.player;
       p.skCd[idx] = this.skillCdOf(sk);
       p.usedSkill = true;
+      // Lớp hiệu ứng CHUNG cho mọi ulti, gọi trước trình phát riêng của từng
+      // đòn: chớp sáng + hai vòng nở + biển tên. Không có nó thì đòn thuần buff
+      // xả xong mà màn hình không đổi gì, và người chơi tưởng mình bấm hụt.
+      this.ultiCastFx(sk);
       p.fade = 1;
       this.s.stats.skillUse = (this.s.stats.skillUse || 0) + 1;
       this.toast(sk.n, this.elemFx().col);
@@ -833,6 +839,10 @@
       st.dur = 180; p.stateDur = st.dur;
       p.buffs.push({ until: this.t + sk.ms, moveSpd: sk.spdMul - 1,
                      rof: sk.rofMul - 1, freeFire: !!sk.freeFire, tag: 'rungun' });
+      // Đòn TỰ XẢ thì càng cần hình: người chơi không bấm gì cả, nên nếu màn
+      // hình không đổi thì họ không biết vừa có chuyện gì xảy ra.
+      this.fx.push({ k: 'spr', key: 'fx.buffhaste', x: p.x, y: p.y, r: 46,
+                     t: 0, ms: 900, blend: 'lighter', follow: true });
       this.fx.push({ k: 'spr', key: 'fx.charge', x: p.x, y: p.y, r: 74,
                      t: 0, ms: 700, blend: 'lighter', tint: '#ffd23f', tintA: 0.4 });
       this.toast('CUỒNG TỐC — ' + (sk.ms / 1000) + 's', '#ffd23f');
@@ -902,6 +912,10 @@
       this.aegis = { left: sk.ms, sk: sk };
       this.fx.push({ k: 'spr', key: 'fx.ward', x: p.x, y: p.y, r: 66, t: 0, ms: 800 });
       this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 60, t: 0, ms: 420, col: '#7fd4ff' });
+      // Hình riêng, bám theo người suốt thời gian khiên còn đứng: khiên là thứ
+      // người chơi phải biết mình CÒN HAY HẾT, không chỉ biết lúc nó vừa bật.
+      this.fx.push({ k: 'spr', key: 'fx.buffguard', x: p.x, y: p.y, r: 52,
+                     t: 0, ms: 1000, blend: 'lighter', follow: true });
       this.toast('KHIÊN ẢO', '#7fd4ff');
     };
     Battle.prototype.upd_aegis = function (sk, st, dt) {
@@ -1069,6 +1083,10 @@
                      noKnock: !!sk.noKnock, tag: 'leadstorm' });
       this.toast('BÃO CHÌ', '#ffd23f');
       this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 54, t: 0, ms: 420, col: '#ffd23f' });
+      // Hình riêng cho từng đòn buff, không dùng chung một cái vòng: ba đòn tự
+      // xả mà giống hệt nhau thì người chơi không phân biệt được đòn nào vừa lên.
+      this.fx.push({ k: 'spr', key: 'fx.buffatk', x: p.x, y: p.y, r: 48,
+                     t: 0, ms: 900, blend: 'lighter', follow: true });
       this.impact(p.x, p.y, sk.hitstop, sk.shake || 4, '#ffd23f');
     };
     Battle.prototype.upd_maxspin = function (sk, st, dt) {
@@ -1114,11 +1132,11 @@
     Battle.prototype.sk_orbitals = function (sk, st) {
       var p = this.player;
       st.dur = 260; p.stateDur = st.dur;
-      for (var i = 0; i < sk.n; i++) {
+      for (var i = 0; i < sk.count; i++) {
         this.projs.push({ k: 'orbit', wclass: 'chakram',
-          x: p.x, y: p.y, a: i / sk.n * TAU, r: 14,
+          x: p.x, y: p.y, a: i / sk.count * TAU, r: 14,
           orbitR: sk.orbitR, spin: sk.spin, life: sk.ms,
-          mul: sk.mul / sk.n, reHitMs: sk.reHitMs, lastHit: {},
+          mul: sk.mul / sk.count, reHitMs: sk.reHitMs, lastHit: {},
           cutsBullets: !!sk.cutsBullets, skill: true,
           move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop } });
       }
@@ -1149,53 +1167,52 @@
       if (st.t >= st.dur) { this.player.state = 'idle'; }
     };
 
-    /* --- firelane: Tường Lửa. Một dải cháy nằm NGANG so với hướng đã chỉ.
-     * Ngang chứ không dọc, và đó là cả thiết kế: một dải dọc chỉ là đòn xuyên
-     * chậm, còn một dải ngang thì CHẶN ĐƯỜNG. Nó không đuổi ai — nó buộc cả đám
-     * phải chọn giữa đi vòng và đi qua mà cháy. */
-    Battle.prototype.sk_firelane = function (sk, st) {
+    /* --- minefield: Bãi Mìn. Rải một vòng mìn quanh chân, gài xong ngay.
+     * Không cần ngắm một lần nào — đúng lý do lớp này tồn tại. Rải thành VÒNG
+     * chứ không rải bừa: một vòng đọc được là "chỗ này cấm vào", còn một đám
+     * lốm đốm ngẫu nhiên thì người chơi không nhớ nổi mình đã rải chỗ nào. */
+    Battle.prototype.sk_minefield = function (sk, st) {
       var p = this.player;
-      st.dur = 300; p.stateDur = st.dur;
-      var a = p.facing;
-      var cx = clamp(p.x + Math.cos(a) * sk.w * 1.6, 30, this.wW - 30);
-      var cy = clamp(p.y + Math.sin(a) * sk.w * 1.6, 30, this.wH - 30);
-      this.lanes = this.lanes || [];
-      this.lanes.push({ x: cx, y: cy, a: a + Math.PI / 2, len: sk.len, w: sk.w,
-                        left: sk.ms, tick: 0, tickMs: sk.tickMs,
-                        mul: sk.mul / (sk.ms / sk.tickMs), burn: !!sk.burn,
-                        col: this.elemFx().col });
-      this.toast('TƯỜNG LỬA', '#ff7a3c');
+      st.dur = 340; p.stateDur = st.dur;
+      var a0 = Math.random() * TAU;
+      for (var i = 0; i < sk.count; i++) {
+        var a = a0 + i / sk.count * TAU;
+        // hai vành so le: một vòng đơn thì địch đi lọt qua khe giữa hai quả
+        var rr = sk.spread * (i % 2 ? 1 : 0.62);
+        this.dropMine(sk.mul / sk.count, {
+          x: clamp(p.x + Math.cos(a) * rr, 24, this.wW - 24),
+          y: clamp(p.y + Math.sin(a) * rr, 24, this.wH - 24),
+          armMs: sk.armMs, life: sk.life, max: 99
+        });
+      }
+      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: sk.spread, t: 0, ms: 480, col: '#ffb45a' });
+      this.impact(p.x, p.y, sk.hitstop, sk.shake || 6, '#ffb45a');
     };
-    Battle.prototype.upd_firelane = function (sk, st, dt) {
+    Battle.prototype.upd_minefield = function (sk, st, dt) {
       if (st.t >= st.dur) { this.player.state = 'idle'; }
     };
 
-    /* --- detonate: Bùng Nổ. Kích nổ mọi vết bỏng đang cháy CÙNG LÚC.
-     * Đòn duy nhất trong game có sát thương bằng 0 khi dùng sai lúc, và đó là
-     * điểm hay của nó: nó không tạo ra giá trị, nó THU LẠI giá trị đã gieo. Xả
-     * lúc chưa đốt gì là mất trắng — một cái bẫy công bằng, vì lớp bỏng hiện rõ
-     * trên từng con trước khi bấm. */
+    /* --- detonate: Kích Nổ Dây Chuyền. Cho nổ CÙNG LÚC mọi quả mìn trên sân.
+     * Đòn duy nhất có thể ra sát thương bằng 0 khi dùng sai lúc, và đó là điểm
+     * hay: nó không tạo ra giá trị, nó THU LẠI giá trị đã gieo. Xả lúc chưa rải
+     * gì là mất trắng — một cái bẫy công bằng, vì mìn nằm sờ sờ trên sân. */
     Battle.prototype.sk_detonate = function (sk, st) {
-      var p = this.player, self = this, n = 0;
+      var p = this.player;
       st.dur = 320; p.stateDur = st.dur;
-      this.mobs.forEach(function (m) {
-        if (m.hp <= 0) return;
-        var stack = Math.min(sk.maxStack, m.fstack || 0);
-        if (stack <= 0 && !(m.status && m.status.burn)) return;
-        n++;
-        var mul = sk.mul * (1 + stack * sk.perStack);
-        self.dealToMob(m, self.playerDamage(mul, { el: 'fire' }),
-          { move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop },
-            from: Math.atan2(m.y - p.y, m.x - p.x), skill: true });
-        m.fstack = 0;
-        self.fx.push({ k: 'ring', x: m.x, y: m.y, r: sk.blastR, t: 0, ms: 340, col: '#ff7a3c' });
-        self.aoeDamage(m.x, m.y, sk.blastR, mul * 0.45, { el: 'fire' });
+      var list = (this.mines || []).slice();
+      this.mines = [];
+      var self = this;
+      list.forEach(function (mn) {
+        mn.mul *= (1 + sk.perMine);
+        self.blowMine(mn, sk.blastMul || 2);
       });
-      if (n) {
-        this.shake = Math.max(this.shake, sk.shake || 10);
-        this.toast('BÙNG NỔ x' + n, '#ff7a3c');
+      if (list.length) {
+        this.shake = Math.max(this.shake, sk.shake || 11);
+        this.fx.push({ k: 'spr', key: 'fx.bigboom', x: p.x, y: p.y, r: 90,
+                       t: 0, ms: 520, blend: 'lighter' });
+        this.toast('KÍCH NỔ x' + list.length, '#ffb45a');
       } else {
-        this.toast('không có gì đang cháy', '#8fa3b5');
+        this.toast('không có quả mìn nào trên sân', '#8fa3b5');
       }
     };
     Battle.prototype.upd_detonate = function (sk, st, dt) {
@@ -1483,6 +1500,26 @@
           if (fi.left <= 0) { this.fields.splice(fd, 1); continue; }
           if (fi.cd <= 0) {
             fi.cd = fi.sk.tickMs;
+            /* SÉT CẮM XUỐNG THẬT, mỗi nhịp mấy tia, rơi rải rác trong vùng.
+             *
+             * Trước đây "trận sấm" chỉ là một vòng tròn xanh nhấp nháy — đúng
+             * về luật chơi nhưng sai hoàn toàn về hình ảnh: người chơi thấy một
+             * cái vòng, không thấy sét. Mà tên đòn đã hứa là sét.
+             *
+             * Điểm rơi ngẫu nhiên theo CĂN của bán kính, không phải theo bán
+             * kính thẳng: lấy thẳng thì tia nào cũng dồn về giữa, vì diện tích
+             * một vành tăng theo r. Căn bậc hai cho ra rải đều trên mặt tròn. */
+            var nb = fi.sk.bolts || 3;
+            for (var bi = 0; bi < nb; bi++) {
+              var ba = Math.random() * TAU;
+              var br = fi.sk.fieldR * Math.sqrt(Math.random());
+              var bx = fi.x + Math.cos(ba) * br, by = fi.y + Math.sin(ba) * br;
+              this.fx.push({ k: 'spr', key: bi ? 'fx.boltsmall' : 'fx.bolt',
+                             x: bx, y: by, r: bi ? 34 : 58, t: 0, ms: 320,
+                             blend: 'lighter' });
+              this.fx.push({ k: 'ring', x: bx, y: by, r: 18, t: 0, ms: 220, col: '#cfe8ff' });
+            }
+            this.shake = Math.max(this.shake, 4);
             var ticks = Math.max(1, Math.round(fi.sk.fieldMs / fi.sk.tickMs));
             var per = fi.sk.mul / ticks;
             var hitInField = [];
@@ -1617,15 +1654,20 @@
       });
 
       // TRẬN SẤM: vùng đứng yên, viền nhấp nháy theo nhịp đánh.
+      /* Vùng vẽ NHẠT ĐI hẳn so với trước. Thứ phải nhìn bây giờ là những tia
+       * sét đang cắm xuống; cái vòng chỉ còn một việc là nói ranh giới ở đâu.
+       * Để nó sáng như cũ thì hai thứ tranh nhau và không cái nào đọc rõ. */
       (this.fields || []).forEach(function (f) {
         var pulse = 0.5 + 0.5 * Math.sin(f.left / 90);
         ctx.save();
-        ctx.globalAlpha = 0.14 + 0.10 * pulse;
+        ctx.globalAlpha = 0.07 + 0.05 * pulse;
         ctx.fillStyle = '#8fd4ff';
         ctx.beginPath(); ctx.arc(f.x, f.y, f.sk.fieldR, 0, TAU); ctx.fill();
-        ctx.globalAlpha = 0.55 + 0.35 * pulse;
-        ctx.strokeStyle = '#8fd4ff'; ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.30 + 0.20 * pulse;
+        ctx.strokeStyle = '#8fd4ff'; ctx.lineWidth = 1.5;
+        ctx.setLineDash([9, 7]);
         ctx.beginPath(); ctx.arc(f.x, f.y, f.sk.fieldR, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]);
         ctx.restore();
       });
 

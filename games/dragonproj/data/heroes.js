@@ -73,7 +73,7 @@
       'Chó. Xông vào là không lùi.'),
     h('watame', 'Tsunomaki Watame', 'A', 'laser', 'light', 'Watame',
       'Cừu. Bắn xong rồi bảo watame did nothing wrong.'),
-    h('flare', 'Shiranui Flare', 'A', 'flame', 'fire', 'Flare',
+    h('flare', 'Shiranui Flare', 'A', 'mine', 'fire', 'Flare',
       'Elf. Một phát xuyên hết cả hàng, và hàng đó cháy.'),
     h('shion', 'Murasaki Shion', 'A', 'laser', 'water', 'Shion',
       'Phù thuỷ nhỏ. Gậy phép dài hơn cả người.'),
@@ -97,7 +97,7 @@
       'Mẹ thiên nhiên. Rễ cây mọc ra từ đầu gậy.'),
     h('reine', 'Pavolia Reine', 'A', 'bow', 'light', 'Reine',
       'Công. Mũi tên xoè ra như cái đuôi.'),
-    h('haato', 'Akai Haato', 'A', 'flame', 'fire', 'Haato',
+    h('haato', 'Akai Haato', 'A', 'mine', 'fire', 'Haato',
       'Thớt. Đừng hỏi, cứ né.'),
 
     /* ----------------------------------------------------------------- B -- */

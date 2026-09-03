@@ -237,20 +237,14 @@
       moveMul: 1.00, dodgeMul: 1.00, auto: false,
       hs: HS.mid, shake: 0, kick: 10, recoil: 6, knock: 0,   // rung = 0: cây chính xác
       poise: 12, kb: 5,
-      charge: true,
-      // Hình dáng đường cong nạp lấy của Monster Hunter, cố ý phạt nặng ở đáy:
-      // nấc 1 là 0,40× — chưa tới một nửa nấc 2. Nấc 4 chỉ hơn nấc 3 có 13% nên
-      // MH khoá nó sau một kỹ năng; ở đây nó là phần thưởng cho việc giữ trọn.
-      chargeMs: [0, 240, 480, 760],               // mốc thời gian từng nấc
-      chargeMul: [0.40, 1.00, 1.50, 1.70],        // hệ số vật lý
-      chargeElem: [0.70, 0.85, 1.00, 1.125],      // hệ số hệ — đường cong PHẲNG hơn
-      chargeShots: [1, 1, 2, 3],                  // nạp tăng SỐ MŨI, không chỉ tăng số
-      chargeCrit: [0.00, 0.10, 0.35, 0.60],       // crit nạp theo (Soul Knight)
-      // Nạp KHÔNG làm chậm; chỉ khi NGẮM mới chậm (Kiranico MHW Bow). Đây là
-      // quyết định cảm giác hay nhất trong cả bộ nghiên cứu.
-      chargeMoveMul: 1.00, aimMoveMul: 0.45,
-      // Né huỷ nạp là MIỄN PHÍ, và phát sau khi né bắt đầu cao hơn một nấc.
-      dodgeKeepsCharge: true, dodgeChargeBonus: 1,
+      /* CUNG KHÔNG CÒN NẠP LỰC.
+       * Trước đây giữ để nạp bốn nấc, nấc 3 bắn ra ba mũi. Bỏ đi vì cử chỉ GIỮ
+       * bây giờ thuộc về ULTI và chỉ thuộc về ulti — hai thứ tranh nhau cùng một
+       * ngón thì người chơi không bao giờ biết mình sắp ra cái gì.
+       *
+       * Bản sắc của cung không mất theo: nó chưa bao giờ nằm ở việc nạp mà ở
+       * DẢI CHÍ MẠNG ngay dưới đây — đứng đúng khoảng thì mỗi mũi đau gấp rưỡi.
+       * Đó vẫn là cây duy nhất thưởng cho VỊ TRÍ đứng. */
       // DẢI CHÍ MẠNG (MH4U/MHGen/MHGU, Laxaria). Phạt BẤT ĐỐI XỨNG: quá gần chỉ
       // MẤT thưởng, quá xa mới BỊ PHẠT. Nó đẩy người chơi tiến vào chỗ nguy hiểm.
       critDist: { bands: [90, 150, 250, 330, 420, 504],
@@ -406,26 +400,34 @@
       trait: 'Ăn hai lượt trên một lần ném, và đường về đổi theo chỗ bạn đứng.'
     },
 
-    /* --- SÚNG PHUN LỬA: không có viên đạn nào. Một hình NÓN ngắn, liên tục.
-     * Trục riêng: đây là cây duy nhất mà sát thương chính KHÔNG nằm ở lúc trúng
-     * mà nằm ở vết BỎNG để lại. Bắn hai giây rồi bỏ chạy thì cả đám vẫn cháy.
+    /* --- BẪY MÌN: vũ khí của ĐƯỜNG ĐI, không phải của hướng ngắm.
+     * Đây là lớp duy nhất không quan tâm bạn đang quay mặt về đâu. Mìn rơi ngay
+     * dưới chân theo nhịp, nằm đó chờ, và nổ khi có con lại gần.
      *
-     * Khác tia nhiệt: tia nhiệt là một ĐƯỜNG mảnh, xuyên xa, phải ngắm. Cây này
-     * là một VÙNG nón rộng, tầm rất ngắn, gần như không cần ngắm. */
-    flame: {
-      id: 'flame', vi: 'Súng Phun Lửa', jp: '火炎放射', en: 'Flamethrower',
-      desc: 'Một nón lửa ngắn, phủ kín cả đám trước mặt. Sát thương lúc trúng thì nhẹ, nhưng cái nó để lại là vết bỏng chồng được nhiều lớp.',
-      mode: 'cone',
-      dmg: 0.62, shots: 1, arcGap: 0, spread: 0,
-      rpm: 480,                        // 8 tick/giây
+     * Vì sao lớp này tồn tại: Punicon tự khoá hướng mặt vào con gần nhất, nên
+     * mọi vũ khí có hình dạng gắn với hướng (nón, cung quét) đều là thứ người
+     * chơi không chủ động chỉnh được. Lớp này lấy đúng cái mà một ngón tay THẬT
+     * SỰ điều khiển — quỹ đạo chạy — và biến nó thành vũ khí.
+     *
+     * Khác súng phóng: súng phóng bắn một quả bay tới chỗ địch. Mìn không bay
+     * đi đâu cả, nó chờ địch tới. Một cây tấn công, một cây dựng địa hình. */
+    mine: {
+      id: 'mine', vi: 'Bẫy Mìn', jp: '地雷', en: 'Mine Layer',
+      desc: 'Thả mìn ngay dưới chân theo nhịp. Mìn nằm đó chờ, gài xong thì nổ khi có con lại gần. Không cần ngắm — thứ quyết định là bạn chạy qua đâu.',
+      mode: 'drop',
+      dmg: 4, shots: 1, arcGap: 0, spread: 0,
+      rpm: 100,
       spd: 0, life: 0,
-      coneLen: 168, coneArc: 0.85,     // ~49 độ
-      burnStack: 4, burnPerTick: 0.55, // chồng tối đa 4 lớp bỏng
-      r: 6, crit: 0,  noCrit: true,
-      moveMul: 0.78, dodgeMul: 0.95, auto: true,
-      hs: HS.tick, shake: 1, kick: 2, recoil: 1, knock: 0,
-      poise: 3, kb: 1,
-      trait: 'Sát thương theo thời gian mạnh nhất và phủ rộng nhất, nhưng tầm ngắn nhì game và không bao giờ chí mạng.'
+      mineArmMs: 380,          // nằm im ngần này rồi mới gài xong
+      mineLife: 9000,          // sống 9 giây rồi tự tan
+      mineR: 62,               // bán kính nổ
+      mineTrigR: 30,           // lại gần ngần này thì kích
+      mineMax: 14,             // trần số mìn cùng lúc trên sân
+      r: 9, crit: 0, noCrit: true,
+      moveMul: 1.06, dodgeMul: 1.05, auto: true,
+      hs: HS.boom, shake: 5, kick: 0, recoil: 0, knock: 0,
+      poise: 22, kb: 10, quake: true,
+      trait: 'Không cần ngắm một lần nào. Mạnh nhất khi bị đuổi — chạy vòng là rải sẵn một bãi mìn trên đường chúng phải đi qua.'
     },
 
     /* --- ROI XÍCH: quét một CUNG rộng trước mặt và KÉO cái gì trúng lại gần.
@@ -501,7 +503,7 @@
     W.range = W.mode === 'beam' ? W.beamLen
             : W.mode === 'orbit' ? W.orbitR
             : W.mode === 'lob' ? W.lobMax
-            : W.mode === 'cone' ? W.coneLen
+            : W.mode === 'drop' ? W.mineR * 2
             : W.mode === 'arc' ? W.arcLen
             // Luân xa: tầm là chỗ đĩa QUAY ĐẦU, không phải chỗ nó tan. Đo tới
             // chỗ tan thì con số gấp đôi sự thật, và bot sẽ đứng xa gấp đôi mức
@@ -550,9 +552,12 @@
     if (W.mode === 'boomerang') {
       W.dps = perShot * (1 + (W.backMul === undefined ? 0.85 : W.backMul)) * (W.rpm / 60);
     }
-    if (W.mode === 'cone') {
-      var burnDps = W.dmg * W.burnStack * (W.burnPerTick || 0.5) * 1.5;
-      W.dps = (perShot * (W.rpm / 60) + burnDps) * 3;
+    if (W.mode === 'drop') {
+      // Đo trên BA mục tiêu: mìn nổ trùm, và mật độ đó đúng là thứ nó được thiết
+      // kế để gặp. Nhưng chỉ tính MỘT lần nổ mỗi quả — quy ước là mọi quả đều nổ,
+      // điều chỉ đúng khi bị đuổi; đứng yên bắn thì nó tệ hơn con số này nhiều,
+      // và cái đánh đổi ấy chính là bản sắc của lớp.
+      W.dps = perShot * (W.rpm / 60) * 3;
       W.burst = perShot * 3;
     }
     if (W.mode === 'arc') {
@@ -563,7 +568,7 @@
 
   G.WEAPON_ORDER = ['rifle', 'shotgun', 'sniper', 'bow', 'staff', 'launcher',
                     'laser', 'blade', 'scythe', 'orb',
-                    'gatling', 'chakram', 'flame', 'whip'];
+                    'gatling', 'chakram', 'mine', 'whip'];
 
   /* Ánh xạ lớp cũ -> lớp mới. Save cũ, đồ cũ và đội hình cũ đi qua bảng này.
    * Giữ đúng hình tượng: đại kiếm chậm-nặng-cả-sân-thấy-nó-tới thành súng phóng,
@@ -601,7 +606,7 @@
    *
    *   kiếm     -> súng trường | kiếm khí  | luân xa   (đều là "một lưỡi bay đi")
    *   thương   -> bắn tỉa     | tia nhiệt | roi xích  (đều là "vươn dài ra xa")
-   *   đại kiếm -> súng phóng  | cầu lửa   | phun lửa  (đều là "một khối lửa trùm")
+   *   đại kiếm -> súng phóng  | cầu lửa   | bẫy mìn   (đều là "một khối nổ trùm")
    *   song kiếm-> súng săn    | lưỡi hái  | súng quay (đều là "áp sát, ra nhiều nhát")
    *
    * Cung và trượng vẫn KHÔNG tách, vì lý do cũ: cả hai đã là lớp có bản sắc rõ
@@ -609,7 +614,7 @@
   G.WCLASS_SPLIT = {
     sword: ['rifle', 'blade', 'chakram'],
     spear: ['sniper', 'laser', 'whip'],
-    great: ['launcher', 'orb', 'flame'],
+    great: ['launcher', 'orb', 'mine'],
     dual:  ['shotgun', 'scythe', 'gatling'],
     bow:   ['bow'],
     staff: ['staff']
@@ -773,8 +778,8 @@
     /* --- SÚNG TRƯỜNG: kiểm soát hoả lực. Đứng vững và rải. --- */
     rifle: [
       { id:'overdrive', n:'Cuồng Tốc', kind:'rungun', aim:'self',
-        d:'Sáu giây vừa chạy vừa xả mà không bị chậm một nhịp nào. Không thêm sát thương nào cả — cái nó cho là thứ đắt hơn: được bắn trong lúc đang chạy.',
-        cd:20000,
+        d:'TỰ XẢ khi thanh đầy. 6 giây: tốc chạy +70%, tốc bắn +45%, và bắn được TRONG LÚC ĐANG CHẠY. Không cộng sát thương.',
+        cd:20000, autoCast:true,
         // Đòn THUẦN TIỆN ÍCH: nó không tự gây một điểm sát thương nào. Giá trị
         // nằm ở chỗ nó xoá cái đánh đổi lớn nhất của game (một ngón thì hoặc
         // chạy hoặc bắn) trong sáu giây. K không áp dụng, mul = 0 là đúng.
@@ -857,16 +862,16 @@
     /* --- GẬY PHÉP: một đòn dựng vùng, một đòn dựng khiên. --- */
     staff: [
       { id:'stormfield', n:'Trận Sấm', kind:'field', aim:'point',
-        d:'Dựng một vùng sấm đứng yên tại chỗ. Cái gì bước vào thì ăn đòn, và sét nảy sang con bên cạnh.',
+        d:'Gọi sét đánh liên tục xuống vùng đã chỉ trong 6 giây. Mỗi nhịp có 3 tia sét cắm xuống, và mỗi tia còn nảy sang 3 con bên cạnh.',
         cd:19000,
-        mul:205, fieldR:150, fieldMs:6000, tickMs:400, aimR:260,
+        mul:205, fieldR:150, fieldMs:6000, tickMs:400, aimR:260, bolts:3,
         chain:3, chainFall:0.30, chainR:110,   // 3 lần nảy, −30% mỗi lần (Hades)
         hitstop:HS.tick, kb:2, poise:4,
         trail:false, burst:true },
 
       { id:'aegis', n:'Khiên Ảo', kind:'aegis', aim:'self',
-        d:'Dựng một lớp vỏ trong suốt quanh người. Nó ăn đòn thay bạn cho tới khi vỡ, và lúc vỡ thì nó nổ.',
-        cd:24000,
+        d:'TỰ XẢ khi thanh đầy. Khiên bằng 55% máu tối đa, đứng được 8 giây, ăn đòn thay bạn cho tới khi vỡ — vỡ thì nổ trong bán kính 150.',
+        cd:24000, autoCast:true,
         // Thuần tiện ích, K = 0,25: 20 × 24 × 0,25 = 120 — và toàn bộ 120 đó nằm
         // ở cú nổ lúc vỡ, không phải ở lúc bấm. Nghĩa là khiên chỉ trả hết giá
         // trị khi nó thật sự đỡ đủ đòn, chứ không phải khi bấm cho có.
@@ -982,8 +987,8 @@
      * cho bạn vòng quay miễn phí, đòn kia biến vòng quay thành thứ khác. */
     gatling: [
       { id:'leadstorm', n:'Bão Chì', kind:'maxspin', aim:'self',
-        d:'Nòng lập tức đạt vòng tối đa và giữ nguyên suốt sáu giây — không cần quay lên, không tuột xuống, và trong lúc đó không gì đẩy bạn lùi được.',
-        cd:20000,
+        d:'TỰ XẢ khi thanh đầy. 6 giây: nòng ở vòng tối đa (tốc bắn x2,3 — không cần quay lên, không tuột), tốc chạy +30%, và không gì đẩy bạn lùi được.',
+        cd:20000, autoCast:true,
         ms:6000, keepSpin:true, noKnock:true, moveBonus:0.30,
         // Không cộng sát thương: cái nó cho là SÁU GIÂY không phải trả giá quay
         // nòng. Với cây này đó đã là phần thưởng lớn nhất có thể cho.
@@ -1012,7 +1017,7 @@
         cd:21000,
         // K = 0,45: kéo dài, tự đánh, và còn chặn đạn — ba thứ cộng lại thì
         // hệ số phải thấp. 20 x 21 x 0,45 = 189.
-        mul:189, n:3, ms:8000, orbitR:82, spin:280, reHitMs:520, cutsBullets:true,
+        mul:189, count:3, ms:8000, orbitR:82, spin:280, reHitMs:520, cutsBullets:true,
         hitstop:HS.light, kb:5, poise:10, shake:2,
         trail:false, burst:false },
 
@@ -1026,26 +1031,26 @@
         trail:true, burst:false }
     ],
 
-    /* -------------------------- SÚNG PHUN LỬA --------------------------
-     * Cây này bán sát thương THEO THỜI GIAN. Đòn một đặt sẵn thời gian đó lên
-     * mặt đất; đòn hai thu toàn bộ thời gian còn lại về hiện tại một lần. */
-    flame: [
-      { id:'firelane', n:'Tường Lửa', kind:'firelane', aim:'dir',
-        d:'Đặt một bức tường lửa nằm ngang chắn đường. Nó không đuổi theo ai — nó bắt cả đám phải chọn: đi vòng, hay đi qua và cháy.',
-        cd:19000,
-        // K = 0,45: nó không tự tìm mục tiêu, và quái hoàn toàn né được bằng
-        // cách đi vòng. 20 x 19 x 0,45 = 171.
-        mul:171, len:280, w:44, ms:7000, tickMs:420, burn:true,
-        hitstop:HS.tick, kb:0, poise:6, shake:3,
-        trail:false, burst:false },
+    /* ---------------------------- BẪY MÌN ------------------------------
+     * Cả hai đòn đều KHÔNG cần ngắm — đúng lý do lớp này tồn tại. Một đòn rải
+     * sẵn cả bãi, đòn kia thu toàn bộ bãi đó về một khoảnh khắc. */
+    mine: [
+      { id:'minefield', n:'Bãi Mìn', kind:'minefield', aim:'self',
+        d:'Rải một vòng 10 quả mìn quanh chân, gài xong ngay lập tức. Không cần ngắm.',
+        cd:18000,
+        // K = 0,50: rải xong vẫn phải dụ quái đi vào, nên nó không tự quy đổi
+        // thành sát thương. 20 x 18 x 0,50 = 180.
+        mul:180, count:10, spread:120, armMs:120, life:9000,
+        hitstop:HS.boom, kb:11, poise:24, shake:6,
+        trail:false, burst:true },
 
-      { id:'flashover', n:'Bùng Nổ', kind:'detonate', aim:'self',
-        d:'Kích nổ cùng lúc mọi vết bỏng đang cháy trên sân. Không đốt ai đang lành lặn — nó chỉ thu về những gì bạn đã đốt sẵn.',
+      { id:'flashover', n:'Kích Nổ Dây Chuyền', kind:'detonate', aim:'self',
+        d:'Cho nổ CÙNG LÚC mọi quả mìn đang nằm trên sân, mỗi quả nổ rộng gấp đôi. Không có mìn nào thì không có gì xảy ra.',
         cd:16000,
-        // Hệ số này là mỗi CON đang cháy, không phải tổng — nên nó phải thấp:
-        // sân đông thì nó tự nhân lên. Trần thật đến từ việc phải đốt trước đã.
-        mul:96, perStack:0.45, blastR:120, maxStack:4,
-        hitstop:HS.boom, kb:12, poise:28, shake:10, quake:true,
+        // Hệ số này là MỖI QUẢ, không phải tổng — nên nó phải thấp: rải nhiều
+        // thì nó tự nhân lên. Trần thật đến từ việc phải rải trước đã.
+        mul:74, blastMul:2.0, perMine:0.30,
+        hitstop:HS.boom, kb:14, poise:30, shake:11, quake:true,
         trail:false, burst:true }
     ],
 
@@ -1107,8 +1112,14 @@
    *   tank    — chậm, poise dày gấp ba, phải đục vỡ mới đánh vào được tử tế
    * ====================================================================== */
   G.TRIBES = {
+    /* Purun không còn chỉ biết đi bộ tới. Nó có một cú LAO NGẮN có báo trước:
+     * tới cự ly `lungeAt` thì đứng lại một nhịp, sáng lên, rồi bật tới và cắn
+     * đau gấp rưỡi. Vì sao phải thêm: con quái nền của cả game mà chỉ biết đi
+     * thẳng thì mọi ải đầu đều là đi vòng tròn cho tới khi hết giờ — không có
+     * khoảnh khắc nào phải phản ứng, nên cũng không có gì để chơi. */
     purun:  { vi:'Purun',  en:'Jelly',  shape:'blob',  r:15, hp:1.0, atk:0.9, spd:0.55,
-              ai:'swarm',   poise:26 },
+              ai:'swarm',   poise:26, lunge:true,
+              lungeAt:132, tell:420, dashSpd:5.2, dashMs:300, recover:520 },
     vacca:  { vi:'Vacca',  en:'Vacca',  shape:'bull',  r:19, hp:1.6, atk:1.3, spd:0.75,
               ai:'charger', poise:60, charger:true,
               tell:820, dashSpd:7.6, dashMs:620, recover:900 },
@@ -1344,13 +1355,13 @@
   G.AREAS = [
     { id:'tior', n:'Tior Fields', vi:'Đồng Tior', lv:[1,21], bg:'grass',
       maps:[
-        { n:'Doras Plains - South', tribes:['purun'], lv:1, kills:6 },
-        { n:'Doras Plains - West',  tribes:['purun','geguri'], lv:2, kills:8 },
+        { n:'Doras Plains - South', tribes:['purun','galena'], lv:1, kills:6 },
+        { n:'Doras Plains - West',  tribes:['purun','geguri','galena'], lv:2, kills:8 },
         { n:'Doras Plains - North', tribes:['purun','vacca'], lv:3, kills:8 },
-        { n:'Doras Plains - East',  tribes:['vacca'], lv:4, kills:9 },
-        { n:'Cray Forest - West',   tribes:['purun','geguri'], lv:5, kills:10 },
+        { n:'Doras Plains - East',  tribes:['vacca','galena'], lv:4, kills:9 },
+        { n:'Cray Forest - West',   tribes:['purun','geguri','galena'], lv:5, kills:10 },
         { n:'Cray Forest - East',   tribes:['geguri','vacca'], lv:6, kills:10 },
-        { n:'Tarbes Ruins',         tribes:['purun'], lv:7, kills:11 }
+        { n:'Tarbes Ruins',         tribes:['purun','vacca','galena'], lv:7, kills:11 }
       ],
       sudden:['grouton','vaccahorn','frogrid','galidon','mumu','dodonki'], rare:['landaronba'] },
     { id:'rakshard', n:'Rakshard Badlands', vi:'Hoang Địa Rakshard', lv:[5,28], bg:'desert',
@@ -1609,93 +1620,6 @@
       heroChance:0.30 }              // 30% lượt quay ra người, 70% ra đồ
   ];
 
-  /* ==================================================== CƯỜNG HOÁ TRONG ẢI ==
-   * Đây là thứ làm một game thành survivor-like, và là thứ bản trước THIẾU HẲN.
-   *
-   * Vòng lặp của cả thể loại — Vampire Survivors, Archero, Survivor.io — không
-   * phải "đi ải rồi nâng đồ ở nhà". Nó là: giết quái -> lên cấp NGAY TRONG ẢI ->
-   * BỐC MỘT TRONG BA -> build của lượt chơi này khác lượt trước. Không có bước
-   * bốc bài thì mọi lượt chơi giống hệt nhau và cái duy nhất còn thay đổi được
-   * là bảng chỉ số ở nhà.
-   * ([Vampire Survivors / Archero draft — _research/sephira-genre.md phần B])
-   *
-   * MỌI THỨ Ở ĐÂY RESET SAU MỖI ẢI. Đó là điểm phân biệt với Tiến Hoá: Tiến Hoá
-   * là tiến bộ vĩnh viễn và tính bằng tuần; cường hoá là quyết định của mười lăm
-   * phút này và tính bằng lượt chơi. Hai lớp đó phải tách hẳn, không thì lớp
-   * vĩnh viễn nuốt lớp tạm thời và bốc bài thành vô nghĩa.
-   *
-   * BA LUẬT ĐẶT BÀI:
-   *   1. Không lá nào chỉ là "+x% của một lá khác". Mỗi lá đổi một ĐỘNG TỪ hoặc
-   *      một trục khác nhau.
-   *   2. Lá nào cũng có TRẦN CHỒNG. Không trần thì mọi lượt chơi hội tụ về việc
-   *      dồn hết vào lá mạnh nhất, và bộ bài mười bốn lá chỉ còn một lá.
-   *   3. Lá đã đầy trần thì KHÔNG hiện ra nữa. Bốc phải ba lá dùng được là một
-   *      lượt bốc bị ăn cắp, và người chơi không có cách nào biết là do xui hay
-   *      do game hỏng.
-   * ==================================================================== */
-  G.RUN = {
-    // EXP mỗi con quái cho. Quái thường 1, tinh nhuệ 3, con vàng 6.
-    orb: function (elite, gold) { return gold ? 6 : elite ? 3 : 1; },
-    // EXP cần để lên cấp n (n = cấp SẮP đạt). Một ải ~16 con thì ra 4 lần bốc.
-    need: function (n) { return 2 + n; },
-    picks: 3            // bốc một trong ba
-  };
-
-  G.PERKS = [
-    { id:'atk',    n:'Sát Khí',      max:5, col:'#ff7a3c',
-      d:'+12% sát thương mọi nguồn.',
-      buff:{ atkPct:0.12 } },
-    { id:'rof',    n:'Tay Nhanh',    max:5, col:'#ffd23f',
-      d:'+10% tốc bắn.',
-      buff:{ atkSpd:0.10 } },
-    { id:'hp',     n:'Sức Bền',      max:4, col:'#5fd06a',
-      d:'+15% máu tối đa, và hồi lại đúng phần vừa cộng.',
-      buff:{ hpPct:0.15 } },
-    { id:'spd',    n:'Chân Nhanh',   max:4, col:'#8fd4ff',
-      d:'+9% tốc chạy.',
-      buff:{ moveSpd:0.09 } },
-    { id:'crit',   n:'Điểm Huyệt',   max:4, col:'#ff4f7a',
-      d:'+8% tỉ lệ chí mạng.',
-      buff:{ crit:0.08 } },
-    /* Đạn phụ chịu THUẾ, đúng luật Archero: mũi bắn về hướng mới thì miễn phí,
-     * mũi bắn cùng hướng thì phải trả (Front Arrow −25%). Không có thuế thì lá
-     * này mạnh gấp đôi mọi lá khác và ba lượt bốc đầu tiên đều chỉ có một đáp án. */
-    { id:'shots',  n:'Đạn Phụ',      max:3, col:'#c9a8ff',
-      d:'+1 viên mỗi phát, nhưng mỗi viên yếu đi 12%.',
-      buff:{ shots:1, atkPct:-0.12 } },
-    { id:'pierce', n:'Xuyên Thấu',   max:2, col:'#7fe3f0',
-      d:'Đạn xuyên qua thêm một con nữa.',
-      buff:{ pierce:1 } },
-    { id:'drain',  n:'Hút Máu',      max:3, col:'#a06fe0',
-      d:'Hồi 2,5% sát thương gây ra.',
-      buff:{ drain:0.025 } },
-    { id:'skcd',   n:'Định Thần',    max:3, col:'#6fd4ff',
-      d:'−12% hồi chiêu kỹ năng.',
-      buff:{ skillCd:0.12 } },
-    { id:'armor',  n:'Da Dày',       max:4, col:'#8fa3b5',
-      d:'−9% sát thương phải chịu.',
-      buff:{ defPct:0.09 } },
-    { id:'magnet', n:'Nam Châm',     max:2, col:'#f2d24b',
-      d:'+70% tầm hút rương.',
-      buff:{ magnet:0.70 } },
-    { id:'regen',  n:'Hồi Phục',     max:3, col:'#7fd07f',
-      d:'Hồi 1,2% máu tối đa mỗi giây.',
-      buff:{ regen:0.012 } },
-    { id:'dodge',  n:'Phản Xạ',      max:2, col:'#bdefff',
-      d:'−25% hồi chiêu né.',
-      buff:{ dodgeCd:0.25 } },
-    /* Nộ Khí là lá DUY NHẤT thưởng cho việc đang ở thế nguy. Nó tồn tại để bộ
-     * bài có ít nhất một quyết định không phải "cộng thêm cho cái đang tốt". */
-    { id:'rage',   n:'Nộ Khí',       max:2, col:'#ff5a5a',
-      d:'Dưới 40% máu thì +30% sát thương.',
-      buff:{ rage:0.30 } },
-    { id:'blast',  n:'Dây Chuyền',   max:2, col:'#ffb45a',
-      d:'Quái chết thì nổ một vòng nhỏ.',
-      buff:{ deathBlast:1 } }
-  ];
-  G.perkById = function (id) {
-    return G.PERKS.filter(function (x) { return x.id === id; })[0] || null;
-  };
 
   /* ======================================================== TIẾN HOÁ ======
    * EVOL — nâng CHỈ SỐ GỐC cho TOÀN BỘ nhân vật, không riêng ai.
@@ -1888,6 +1812,8 @@
     cost: [0.55, 1.00]   // giá của từng kỹ năng, khớp với nấc
   };
 
+  /* HAI BẢNG ĐÃ GỠ cùng hệ lên-cấp-trong-trận: G.PERKS (mười lăm lá cường
+   * hoá) và G.RUN (đường cong EXP lượt chơi). Sức mạnh chốt ở màn chuẩn bị. */
   G.PUNI = {
     ringR: 58,        // bán kính vòng ngoài của cần gạt ảo
     knobR: 26,

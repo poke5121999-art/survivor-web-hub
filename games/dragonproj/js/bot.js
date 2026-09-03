@@ -169,18 +169,7 @@
       }
       return;
     }
-    /* MÀN BỐC CƯỜNG HOÁ dừng trận lại. Bot phải bấm chọn như người, không thì
-     * nó đứng chờ vĩnh viễn ở lần lên cấp đầu tiên — và mọi bài kiểm chạy bằng
-     * bot sẽ treo ở đúng chỗ đó. Bấm bằng CLICK THẬT lên nút, vì đường đó mới
-     * là đường ngón tay đi.
-     *
-     * Phải đứng TRƯỚC cửa kiểm `b.paused`: chính màn bốc là thứ bật tạm dừng
-     * lên, nên kiểm tạm dừng trước là bot không bao giờ tới được đây. */
-    if (b.draft) {
-      var card = document.querySelector('#hDraftCards [data-perk]');
-      if (card) card.click();
-      return;
-    }
+    // Không còn màn bốc lá nào để bấm: hệ lên-cấp-trong-trận đã gỡ hẳn.
 
     if (b.paused) return;
     var p = b.player;
@@ -284,8 +273,6 @@
       // vừa đi vừa bắn có chạy đúng không.
       if (tick % 2 === 0) strafe(ang2, 120);
       return;
-    } else if (W.charge) {
-      hold(270, 640, W.chargeMs[2] + 140, ax, ay); return;
     } else if (juicy && Math.random() < 0.6) {
       hold(270, 640, 620, ax, ay); return;          // ghì đủ 550ms để được thưởng
     }

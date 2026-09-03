@@ -728,7 +728,7 @@ let DP_BANNERS = ['char', 'weapon', 'std'];
 
   const eField = errs.length;
   await p.evaluate(() => DPBot.on(140));
-  const track = { kill: 0, gold: 0, perks: 0, runLv: 0, moved: 0, stuckSamples: 0, chests: 0 };
+  const track = { kill: 0, gold: 0, moved: 0, stuckSamples: 0, chests: 0, paused: 0 };
   let lastPos = null;
   for (let t = 0; t < 25; t++) {
     await p.waitForTimeout(1000);
@@ -737,15 +737,13 @@ let DP_BANNERS = ['char', 'weapon', 'std'];
       if (!b) return null;
       return { killed: b.killed || 0, x: Math.round(b.player.x), y: Math.round(b.player.y),
                bag: b.bag || { gold: 0 }, phase: b.phase, hp: b.player.hp,
-               perks: Object.keys(b.perks || {}).length, runLv: b.player.runLv || 0,
-               chests: b.chests.length, running: b.running };
+               chests: b.chests.length, running: b.running, paused: !!b.paused };
     });
     if (!s) break;
     track.kill = Math.max(track.kill, s.killed);
     track.gold = Math.max(track.gold, s.bag.gold || 0);
-    track.perks = Math.max(track.perks || 0, s.perks || 0);
-    track.runLv = Math.max(track.runLv || 0, s.runLv || 0);
     track.chests = s.chests;                 // số rương CÒN NẰM TRÊN ĐẤT lúc lấy mẫu
+    if (s.paused) track.paused++;
     if (lastPos && Math.hypot(s.x - lastPos.x, s.y - lastPos.y) < 4) track.stuckSamples++;
     else track.moved++;
     lastPos = s;
@@ -755,13 +753,12 @@ let DP_BANNERS = ['char', 'weapon', 'std'];
   check('bot giết được quái trong ải', track.kill > 0,
     track.kill + ' con, nhặt được ' + track.gold + ' gold, còn ' +
     track.chests + ' rương nằm trên đất');
-  /* Bot phải BỐC ĐƯỢC BÀI. Màn bốc dừng trận lại, nên nếu bot không biết bấm thì
-   * nó đứng chờ vĩnh viễn ở lần lên cấp đầu tiên — và triệu chứng duy nhất nhìn
-   * thấy được là "bot giết ít quái hơn bình thường", tức là một lỗi không ai
-   * truy ra được nếu không khoá lại ở đây. */
-  check('bot lên cấp trong ải và bốc được cường hoá',
-    track.runLv > 0 && track.perks > 0,
-    'Lv.' + track.runLv + ', ' + track.perks + ' lá');
+  /* Phép kiểm "bot bốc được bài" đã bỏ cùng cả hệ lên-cấp-trong-trận. Thay vào
+   * đó khoá lại điều ngược lại: trận KHÔNG được dừng vì bất cứ lý do gì trong
+   * suốt hai mươi lăm giây cày. Màn bốc bài từng là thứ duy nhất dừng được trận,
+   * nên nếu có ai lỡ tay thêm lại một cái cửa chặn nào nữa thì chỗ này báo. */
+  check('trận không bị dừng lần nào trong suốt lượt cày',
+    track.paused === 0, track.paused + ' lần dừng');
   check('bot không bị kẹt một chỗ', track.moved >= 8,
     track.moved + ' lần di chuyển / ' + track.stuckSamples + ' lần đứng yên');
   const noJs = errs.slice(eField).filter(e => e.indexOf('PAGEERROR') === 0);

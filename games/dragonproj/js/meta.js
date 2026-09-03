@@ -111,7 +111,7 @@
     { src: 'undoun',      note: 'cầu lửa' },          // orb
     { src: 'dodonki',     note: 'súng quay' },        // gatling
     { src: 'musashi',     note: 'luân xa' },          // chakram
-    { src: 'vaccahorn',   note: 'súng phun lửa' },    // flame
+    { src: 'vaccahorn',   note: 'bẫy mìn' },          // mine
     { src: 'rudolmea',    note: 'roi xích' }           // whip
   ];
 
@@ -151,7 +151,7 @@
     orb:      ['Censer', 'Ember', 'Conflagration'],
     gatling:  ['Vortex', 'Maelstrom', 'Cataclysm'],
     chakram:  ['Discus', 'Orbit', 'Perihelion'],
-    flame:    ['Torch', 'Pyre', 'Immolation'],
+    mine:     ['Charge', 'Payload', 'Devastation'],
     whip:     ['Lash', 'Coil', 'Leviathan']
   };
   var A_SUFFIX = { head: 'Visor', body: 'Vest', arm: 'Gauntlets', leg: 'Leggings' };
@@ -464,12 +464,32 @@
       var def = G.ABILITIES.find(function (x) { return x.id === a.id; });
       if (def) prof.extra[def.stat] = (prof.extra[def.stat] || 0) + a.v / 100;
     });
-    // Kỹ năng thuộc về VŨ KHÍ, không phải viên đá cắm vào nó. Đổi vũ khí là đổi
-    // hẳn hai đòn — đó mới là lý do để mang ba khe.
-    prof.skills = G.skillsOf(g.wclass).filter(function (sk, i) {
-      return i === 0 || g.lv >= G.SKILL_RULES.unlockLv2;
-    });
     prof.hero = opt && opt.hero ? opt.hero : null;
+
+    /* HAI KHE, HAI NGUỒN KHÁC NHAU.
+     *
+     *   khe 1 — ĐÒN RIÊNG CỦA NGƯỜI, mở sẵn từ đầu
+     *   khe 2 — đòn của LỚP vũ khí, mở ở cấp vũ khí 8
+     *
+     * Bản trước cả hai khe đều lấy từ lớp, nên 43 nhân vật chỉ có 14 bộ đòn:
+     * IRyS, Fauna và Mel xả y hệt nhau. Chọn người nào trong ba người đó là chọn
+     * một tấm ảnh, không phải chọn một lối đánh.
+     *
+     * Chia như vậy giữ được CẢ HAI thứ: mỗi người có một đòn không ai có, mà lớp
+     * vũ khí vẫn còn nghĩa — hai người cùng lớp vẫn chung một điểm, và đổi vũ khí
+     * vẫn đổi được nửa bộ đòn.
+     *
+     * Không có người (cây trần trong kho, bộ trưng bày) thì rơi về đòn lớp như cũ
+     * — nếu không thì mọi màn xem đồ đều hiện một khe trống. */
+    var sig = prof.hero ? G.sigSkill(prof.hero.id) : null;
+    var cls = G.skillsOf(g.wclass);
+    if (sig) {
+      prof.skills = g.lv >= G.SKILL_RULES.unlockLv2 ? [sig, cls[0]] : [sig];
+    } else {
+      prof.skills = cls.filter(function (sk, i) {
+        return i === 0 || g.lv >= G.SKILL_RULES.unlockLv2;
+      });
+    }
     // Hệ của NGƯỜI đứng sau hệ của MÓN: cây trần (hệ 'none') thì lấy hệ của nhân
     // vật, nên Kiara cầm cây tập sự vẫn ra lửa. Món có hệ riêng thì món thắng —
     // đó là lý do để đi tìm đồ.
@@ -944,11 +964,11 @@
                   sniper: 'Guild Longshot', bow: 'Guild Shortbow', staff: 'Guild Scepter',
                   laser: 'Guild Emitter', blade: 'Guild Edge', scythe: 'Guild Reaper',
                   orb: 'Guild Ember', gatling: 'Guild Vortex', chakram: 'Guild Discus',
-                  flame: 'Guild Torch', whip: 'Guild Lash' };
+                  mine: 'Guild Charge', whip: 'Guild Lash' };
     var SRC = { rifle: 'mumu', launcher: 'landaronba', shotgun: 'dodonki',
                 sniper: 'grouton', bow: 'galidon', staff: 'frogrid',
                 laser: 'kyulmar', blade: 'frogrid', scythe: 'dofungos', orb: 'vaccahorn',
-                gatling: 'dodonki', chakram: 'mumu', flame: 'landaronba', whip: 'grouton' };
+                gatling: 'dodonki', chakram: 'mumu', mine: 'landaronba', whip: 'grouton' };
 
     s.heroes = []; s.party = [null, null, null];
     G.STARTER_HEROES.forEach(function (id, i) {
