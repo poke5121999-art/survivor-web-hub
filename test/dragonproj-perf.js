@@ -519,32 +519,31 @@ const SPECIAL_ANY = ['autofire', 'charge', 'steady', 'fire', 'cast'];
     'nấc ' + cancelRes.carried);
   await assertRecovered('(b) né giữa cú nạp');
 
-  /* (c) Nạp kỹ năng khi ĐANG ở thế đỡ. Đây là chỗ dễ kẹt nhất của hệ mới: hai
-   *     cơ chế "giữ ngón" chồng lên nhau (giữ để đỡ, và giữ-trượt để nạp), nên
-   *     phải chắc là vào được thế nạp rồi ra được, không khoá cứng nhân vật. */
+  /* (c) Xả kỹ năng khi ĐANG GIỮ CÒ. Đây là chỗ dễ kẹt nhất: hai cử chỉ chồng
+   *     lên nhau (một ngón giữ cò trên canvas, ngón kia bấm nút kỹ năng), nên
+   *     phải chắc là vào được thế ngắm, xả được, rồi ra được — không khoá cứng
+   *     nhân vật ở giữa. */
   await freshStage('rifle');
   const starter = await p.evaluate(() => window.__T.restore());
   info('(c) vũ khí khởi đầu: lớp=' + starter.special + ', số kỹ năng=' + starter.skills);
   const skRes = await p.evaluate(() => {
     const b = DP.UI.battle, pl = b.player;
     if (!b.skillDef(0)) return { skip: true };
-    const sk = b.skillDef(0);
-    pl.state = 'idle'; pl.skCd = [0, 0];
+    pl.state = 'idle'; pl.skCd = [0, 0]; pl.usedSkill = false;
     b.holdStart(0, 0);                       // -> autofire (súng trường là cây auto)
-    const inGuard = pl.state;
-    b.skillCharge(0, 10);                    // trượt về nút ngay trong thế thủ
-    const charging = pl.state;
-    b.skillCharge(0, sk.charge + 40);
-    b.skillRelease(0, sk.charge + 40);
-    return { inGuard, charging, after: pl.state, fired: pl.usedSkill };
+    const holding = pl.state;
+    const armed = b.skillAimStart(0);        // bấm nút kỹ năng ngay giữa lúc đang xả
+    b.skillAimMove(70, 0);
+    b.skillAimEnd();
+    return { holding, armed, after: pl.state, fired: pl.usedSkill };
   });
   if (skRes.skip) { info('(c) vũ khí không có kỹ năng — bỏ qua'); }
   else {
-    info('(c) guard → nạp → xả: ' + skRes.inGuard + ' → ' + skRes.charging + ' → ' + skRes.after);
-    check('(c) đang giữ cò vẫn vào được thế nạp kỹ năng',
-      skRes.inGuard === 'autofire' && skRes.charging === 'skcharge', JSON.stringify(skRes));
-    check('(c) nạp đủ thì xả được', skRes.fired === true);
-    await assertRecovered('(c) nạp kỹ năng giữa thế thủ');
+    info('(c) giữ cò → ngắm → xả: ' + skRes.holding + ' → ' + skRes.after);
+    check('(c) đang giữ cò vẫn bấm được nút kỹ năng',
+      skRes.holding === 'autofire' && skRes.armed === true, JSON.stringify(skRes));
+    check('(c) ngắm xong thì xả được', skRes.fired === true);
+    await assertRecovered('(c) xả kỹ năng giữa lúc giữ cò');
   }
 
   // (d) Người chơi ngã ĐANG khi đang giữ nút — cả ba nghĩa của GIỮ.

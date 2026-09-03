@@ -1345,6 +1345,94 @@
       heroChance:0.30 }              // 30% lượt quay ra người, 70% ra đồ
   ];
 
+  /* ==================================================== CƯỜNG HOÁ TRONG ẢI ==
+   * Đây là thứ làm một game thành survivor-like, và là thứ bản trước THIẾU HẲN.
+   *
+   * Vòng lặp của cả thể loại — Vampire Survivors, Archero, Survivor.io — không
+   * phải "đi ải rồi nâng đồ ở nhà". Nó là: giết quái -> lên cấp NGAY TRONG ẢI ->
+   * BỐC MỘT TRONG BA -> build của lượt chơi này khác lượt trước. Không có bước
+   * bốc bài thì mọi lượt chơi giống hệt nhau và cái duy nhất còn thay đổi được
+   * là bảng chỉ số ở nhà.
+   * ([Vampire Survivors / Archero draft — _research/sephira-genre.md phần B])
+   *
+   * MỌI THỨ Ở ĐÂY RESET SAU MỖI ẢI. Đó là điểm phân biệt với Tiến Hoá: Tiến Hoá
+   * là tiến bộ vĩnh viễn và tính bằng tuần; cường hoá là quyết định của mười lăm
+   * phút này và tính bằng lượt chơi. Hai lớp đó phải tách hẳn, không thì lớp
+   * vĩnh viễn nuốt lớp tạm thời và bốc bài thành vô nghĩa.
+   *
+   * BA LUẬT ĐẶT BÀI:
+   *   1. Không lá nào chỉ là "+x% của một lá khác". Mỗi lá đổi một ĐỘNG TỪ hoặc
+   *      một trục khác nhau.
+   *   2. Lá nào cũng có TRẦN CHỒNG. Không trần thì mọi lượt chơi hội tụ về việc
+   *      dồn hết vào lá mạnh nhất, và bộ bài mười bốn lá chỉ còn một lá.
+   *   3. Lá đã đầy trần thì KHÔNG hiện ra nữa. Bốc phải ba lá dùng được là một
+   *      lượt bốc bị ăn cắp, và người chơi không có cách nào biết là do xui hay
+   *      do game hỏng.
+   * ==================================================================== */
+  G.RUN = {
+    // EXP mỗi con quái cho. Quái thường 1, tinh nhuệ 3, con vàng 6.
+    orb: function (elite, gold) { return gold ? 6 : elite ? 3 : 1; },
+    // EXP cần để lên cấp n (n = cấp SẮP đạt). Một ải ~16 con thì ra 4 lần bốc.
+    need: function (n) { return 2 + n; },
+    picks: 3            // bốc một trong ba
+  };
+
+  G.PERKS = [
+    { id:'atk',    n:'Sát Khí',      max:5, col:'#ff7a3c',
+      d:'+12% sát thương mọi nguồn.',
+      buff:{ atkPct:0.12 } },
+    { id:'rof',    n:'Tay Nhanh',    max:5, col:'#ffd23f',
+      d:'+10% tốc bắn.',
+      buff:{ atkSpd:0.10 } },
+    { id:'hp',     n:'Sức Bền',      max:4, col:'#5fd06a',
+      d:'+15% máu tối đa, và hồi lại đúng phần vừa cộng.',
+      buff:{ hpPct:0.15 } },
+    { id:'spd',    n:'Chân Nhanh',   max:4, col:'#8fd4ff',
+      d:'+9% tốc chạy.',
+      buff:{ moveSpd:0.09 } },
+    { id:'crit',   n:'Điểm Huyệt',   max:4, col:'#ff4f7a',
+      d:'+8% tỉ lệ chí mạng.',
+      buff:{ crit:0.08 } },
+    /* Đạn phụ chịu THUẾ, đúng luật Archero: mũi bắn về hướng mới thì miễn phí,
+     * mũi bắn cùng hướng thì phải trả (Front Arrow −25%). Không có thuế thì lá
+     * này mạnh gấp đôi mọi lá khác và ba lượt bốc đầu tiên đều chỉ có một đáp án. */
+    { id:'shots',  n:'Đạn Phụ',      max:3, col:'#c9a8ff',
+      d:'+1 viên mỗi phát, nhưng mỗi viên yếu đi 12%.',
+      buff:{ shots:1, atkPct:-0.12 } },
+    { id:'pierce', n:'Xuyên Thấu',   max:2, col:'#7fe3f0',
+      d:'Đạn xuyên qua thêm một con nữa.',
+      buff:{ pierce:1 } },
+    { id:'drain',  n:'Hút Máu',      max:3, col:'#a06fe0',
+      d:'Hồi 2,5% sát thương gây ra.',
+      buff:{ drain:0.025 } },
+    { id:'skcd',   n:'Định Thần',    max:3, col:'#6fd4ff',
+      d:'−12% hồi chiêu kỹ năng.',
+      buff:{ skillCd:0.12 } },
+    { id:'armor',  n:'Da Dày',       max:4, col:'#8fa3b5',
+      d:'−9% sát thương phải chịu.',
+      buff:{ defPct:0.09 } },
+    { id:'magnet', n:'Nam Châm',     max:2, col:'#f2d24b',
+      d:'+70% tầm hút rương.',
+      buff:{ magnet:0.70 } },
+    { id:'regen',  n:'Hồi Phục',     max:3, col:'#7fd07f',
+      d:'Hồi 1,2% máu tối đa mỗi giây.',
+      buff:{ regen:0.012 } },
+    { id:'dodge',  n:'Phản Xạ',      max:2, col:'#bdefff',
+      d:'−25% hồi chiêu né.',
+      buff:{ dodgeCd:0.25 } },
+    /* Nộ Khí là lá DUY NHẤT thưởng cho việc đang ở thế nguy. Nó tồn tại để bộ
+     * bài có ít nhất một quyết định không phải "cộng thêm cho cái đang tốt". */
+    { id:'rage',   n:'Nộ Khí',       max:2, col:'#ff5a5a',
+      d:'Dưới 40% máu thì +30% sát thương.',
+      buff:{ rage:0.30 } },
+    { id:'blast',  n:'Dây Chuyền',   max:2, col:'#ffb45a',
+      d:'Quái chết thì nổ một vòng nhỏ.',
+      buff:{ deathBlast:1 } }
+  ];
+  G.perkById = function (id) {
+    return G.PERKS.filter(function (x) { return x.id === id; })[0] || null;
+  };
+
   /* ======================================================== TIẾN HOÁ ======
    * EVOL — nâng CHỈ SỐ GỐC cho TOÀN BỘ nhân vật, không riêng ai.
    *

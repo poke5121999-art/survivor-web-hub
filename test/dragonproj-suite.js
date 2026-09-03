@@ -447,6 +447,116 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('cả hai mươi kỹ năng xả được mà không nổ', allSk.bad.length === 0, allSk.bad.join(' | '));
   check('xả xong đòn nào cũng vào hồi chiêu', allSk.noCd.length === 0, allSk.noCd.join(','));
 
+  /* ================= CƯỜNG HOÁ TRONG ẢI ================================
+   * Vòng lặp lõi của thể loại: giết quái -> lên cấp NGAY TRONG ẢI -> bốc một
+   * trong ba. Ba thứ phải đúng, và cả ba đều là chỗ dễ hỏng âm thầm:
+   *   1. Lá đã đầy trần thì KHÔNG được hiện ra nữa.
+   *   2. Buff bốc được phải THẬT SỰ đi vào con số, không chỉ vào một cái sổ.
+   *   3. Hai cấp lên cùng lúc phải cho hai lần bốc, không được nuốt mất một.
+   * ==================================================================== */
+  results.push('\n── cường hoá trong ải ──');
+  await goStage(p, 'tior-1');
+  await p.waitForTimeout(600);
+  const draft = await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    b.draft = null; b.draftQueue = 0; b.perks = {}; pl.buffs.length = 0;
+    pl.runLv = 0; pl.runExp = 0; b.paused = false;
+
+    // (a) đủ EXP -> mở màn bốc, và trận PHẢI dừng
+    b.runGain(DP.RUN.need(1));
+    const opened = { n: b.draft ? b.draft.length : 0, paused: b.paused,
+                     shown: document.getElementById('hDraft').classList.contains('on'),
+                     lv: pl.runLv };
+    const uniq = b.draft ? new Set(b.draft.map(x => x.id)).size : 0;
+
+    // (b) chọn một lá -> trận chạy tiếp, buff vào ví
+    const id = b.draft[0].id;
+    b.takePerk(id);
+    const after = { taken: b.perks[id], paused: b.paused, draft: !!b.draft,
+                    buff: pl.buffs.some(x => x.perk === id) };
+
+    // (c) lá đầy trần thì biến mất khỏi bộ bài
+    const t = DP.PERKS[0];
+    b.perks[t.id] = t.max;
+    let sawFull = false;
+    for (let i = 0; i < 200; i++) {
+      b.draft = null; b.paused = false;
+      b.openDraft();
+      if (b.draft && b.draft.some(x => x.id === t.id)) sawFull = true;
+      b.draft = null;
+    }
+
+    // (d) lên hai cấp một lúc -> hai lần bốc, không nuốt mất lần nào
+    b.perks = {}; b.draft = null; b.draftQueue = 0; pl.runLv = 0; pl.runExp = 0;
+    b.runGain(DP.RUN.need(1) + DP.RUN.need(2));
+    const twoLv = pl.runLv;
+    const q0 = b.draftQueue || 0;
+    b.takePerk(b.draft.id || b.draft[0].id);
+    const second = !!b.draft;
+
+    b.draft = null; b.paused = false;
+    document.getElementById('hDraft').classList.remove('on');
+    return { opened, uniq, after, sawFull, twoLv, q0, second };
+  });
+  check('đủ EXP thì mở màn bốc ba lá và DỪNG trận',
+    draft.opened.n === 3 && draft.opened.paused && draft.opened.shown && draft.opened.lv === 1,
+    JSON.stringify(draft.opened));
+  check('ba lá không trùng nhau', draft.uniq === 3, draft.uniq + ' lá khác nhau');
+  check('chọn xong thì trận chạy tiếp và buff vào ví',
+    draft.after.taken === 1 && !draft.after.paused && !draft.after.draft && draft.after.buff,
+    JSON.stringify(draft.after));
+  check('lá đã đầy trần KHÔNG bao giờ hiện lại', draft.sawFull === false);
+  check('lên hai cấp một lúc thì được bốc hai lần',
+    draft.twoLv === 2 && draft.q0 === 1 && draft.second === true,
+    'lv=' + draft.twoLv + ' hàng chờ=' + draft.q0);
+
+  // Buff phải đi vào ĐÚNG con số, không chỉ nằm trong sổ. Đo bằng sát thương
+  // thật, tốc bắn thật, máu thật — ba đường khác nhau đi qua ba hàm khác nhau.
+  const perkFx = await p.evaluate(() => {
+    const b = DP.UI.battle, pl = b.player;
+    b.perks = {}; pl.buffs.length = 0;
+    b.W = DP.WEAPONS.rifle;
+    b.wp = { wclass: 'rifle', el: 'none', wtype: 'normal', patk: 0, eatk: 0, extra: {}, skills: DP.skillsOf('rifle') };
+    const d0 = b.playerDamage(10).phys;
+    const s0 = b.atkSpeed();
+    const h0 = pl.maxHp;
+    const sk = DP.skillsOf('rifle')[0];
+    const c0 = b.skillCdOf(sk);
+    b.applyPerk(DP.perkById('atk'));
+    b.applyPerk(DP.perkById('rof'));
+    b.applyPerk(DP.perkById('hp'));
+    b.applyPerk(DP.perkById('skcd'));
+    return { dmg: b.playerDamage(10).phys / d0, spd: b.atkSpeed() / s0,
+             hp: pl.maxHp / h0, hpFilled: pl.hp > 0, cd: b.skillCdOf(sk) / c0 };
+  });
+  check('Sát Khí vào thẳng sát thương (+12%)', Math.abs(perkFx.dmg - 1.12) < 0.01,
+    'x' + perkFx.dmg.toFixed(3));
+  check('Tay Nhanh vào thẳng tốc bắn (+10%)', Math.abs(perkFx.spd - 1.10) < 0.01,
+    'x' + perkFx.spd.toFixed(3));
+  check('Sức Bền nâng máu tối đa (+15%)', Math.abs(perkFx.hp - 1.15) < 0.01,
+    'x' + perkFx.hp.toFixed(3));
+  check('Định Thần cắt hồi chiêu kỹ năng (−12%)', Math.abs(perkFx.cd - 0.88) < 0.01,
+    'x' + perkFx.cd.toFixed(3));
+
+  // Trần chồng: dồn hết một lá cũng không được vượt quá trần đã hứa.
+  const perkCap = await p.evaluate(() => {
+    const bad = [];
+    DP.PERKS.forEach(x => {
+      if (!(x.max >= 1 && x.max <= 5)) bad.push(x.id + ':max' + x.max);
+      if (!x.n || !x.d || !x.col || !x.buff) bad.push(x.id + ':thiếu-trường');
+      if (!Object.keys(x.buff).length) bad.push(x.id + ':buff-rỗng');
+    });
+    const ids = DP.PERKS.map(x => x.id);
+    return { bad, dup: ids.length !== new Set(ids).size, n: DP.PERKS.length };
+  });
+  check('bộ bài đủ 14 lá, không lá nào thiếu trường hay trùng id',
+    perkCap.bad.length === 0 && !perkCap.dup && perkCap.n >= 14,
+    perkCap.bad.join(',') || perkCap.n + ' lá');
+  await p.evaluate(() => DP.UI.leave());
+  await p.waitForTimeout(300);
+  await p.evaluate(() => DP.UI.show('home'));
+  await p.waitForTimeout(200);
+
   /* ================= LỚP CẢM GIÁC =================
    * Đây là phần quyết định "chặt có đã tay hay không", và cũng là phần dễ bị
    * chỉnh hỏng nhất mà không ai nhận ra — vì nó không làm gì sai, chỉ làm cho

@@ -229,6 +229,7 @@
       heat: 0, soul: 0,
       // kỹ năng vũ khí: hai khe, mỗi khe một đồng hồ hồi chiêu riêng
       skCd: [0, 0], skIdx: -1, skAim: null, sk: null,
+      runLv: 0, runExp: 0,
       fade: 1, fadeUntil: 0, backstabUntil: 0, armorUntil: 0, chargeDR: 0, z: 0,
       shield: 0, buffs: [],
       status: {}, dot: [],
@@ -379,6 +380,11 @@
       mul = W.chargeMul[0]; shots = W.chargeShots[0]; crit = W.chargeCrit[0];
     }
     if (o.steady) { mul *= 1.35; crit += 0.20; }        // ghì súng: chắc tay hơn
+    // Ba lá bài đổi thẳng hình dạng phát bắn, nên chúng phải vào ĐÂY chứ không
+    // vào bảng chỉ số: số viên, tỉ lệ chí mạng, và số con đạn xuyên qua được.
+    shots += this.perkSum('shots');
+    crit += this.perkSum('crit');
+    var perkPierce = this.perkSum('pierce');
 
     var spread = o.steady ? 0 : (W.spread || 0);
     if (!o.steady) spread += p.bloom || 0;              // giữ cò lâu thì toè ra
@@ -407,7 +413,9 @@
         x: p.x + Math.cos(p.facing) * 14, y: p.y + Math.sin(p.facing) * 14,
         a: p.facing + off, spd: W.spd, life: W.life, r: W.r,
         mul: base * dmgMul, critBonus: crit + (o.critBonus || 0),
-        pierce: !!W.pierce, pierceFall: W.pierceFall || 0.33, hits: 0,
+        pierce: !!W.pierce || perkPierce > 0,
+        pierceMax: W.pierce ? 0 : perkPierce,   // 0 = xuyên vô hạn (cây vốn xuyên)
+        pierceFall: W.pierceFall || 0.33, hits: 0,
         homing: W.homing || 0, explode: W.explode || null,
         noCrit: !!W.noCrit, critDist: W.critDist || null,
         from: { x: p.x, y: p.y }, hitSet: [],
@@ -639,7 +647,7 @@
     p.iframe = G.BAL.dodgeIFrameMs;
     p.iframeFromDodge = true;   // chỉ khung bất tử của NÉ mới mở được cửa sổ phản đòn
     p.rollHit = false;          // mỗi cú lăn cho đúng một Rolling Attack
-    p.dodgeCd = G.BAL.dodgeCdMs;
+    p.dodgeCd = G.BAL.dodgeCdMs * (1 - Math.min(0.6, this.perkSum('dodgeCd')));
     p.dodgeVX = dx; p.dodgeVY = dy;
     p.dodgeDist = G.BAL.dodgeDist * (this.W.dodgeMul || 1) * (1 + (this.stats.dodge - 1));
     p.facing = Math.atan2(dy, dx);
@@ -818,6 +826,11 @@
     if (this.player.backstabUntil > this.t) atkPct += 1.20;
     // Thành Trì: đứng sau tường thì nặng tay hơn.
     if (this.wallBonus) atkPct += this.wallBonus();
+    // Nộ Khí: chỉ trả thưởng khi đang ở thế nguy. Đây là lá duy nhất trong bộ
+    // bài thưởng cho việc KHÔNG an toàn.
+    var rage = 0;
+    this.player.buffs.forEach(function (b) { if (b.rage) rage += b.rage; });
+    if (rage && this.player.hp < this.player.maxHp * 0.40) atkPct += rage;
     var elemMul = opt.elemMul || 1;
     return { phys: (phys + flatAtk) * wdmg * atkPct, elem: elemAmt * elemMul * atkPct,
              el: opt.el || wp.el, noCrit: !!opt.noCrit };
@@ -942,6 +955,11 @@
     raw = rl.dmg;
     m.hp -= raw; m.flash = 1; m.squash = 1;
     this.lastDealt = raw;
+    // Hút Máu gắn vào ĐÚNG chỗ này: nơi con số cuối cùng được chốt, sau phương
+    // sai, chí mạng và giáp. Gắn ở chỗ tính sát thương THÔ thì lá bài này hồi
+    // theo một con số mà người chơi không bao giờ nhìn thấy.
+    var dr = this.perkSum('drain');
+    if (dr) this.heal(this.player, raw * dr);
     /* Hitstop trên MỌI cú trúng, không chỉ khi vỡ thế. Sát thương mỗi viên giờ
      * nhỏ hơn hẳn, nên cái bán cảm giác "trúng" không còn là con số mà là phản
      * hồi: đứng hình một nhịp rất ngắn + loé + văng. Thang Nuclear Throne, và
@@ -1145,6 +1163,91 @@
     return true;
   };
 
+  /* ================================================ CƯỜNG HOÁ TRONG ẢI ====
+   * Giết quái -> EXP -> lên cấp NGAY TRONG ẢI -> bốc một trong ba.
+   *
+   * Buff bốc được đẩy thẳng vào `p.buffs` với `until: Infinity`. Không dựng một
+   * kho buff thứ hai: `p.buffs` đã là chỗ duy nhất mà playerDamage, atkSpeed,
+   * moveStep và hurtPlayer cùng đọc, nên đi qua nó thì mười bốn lá bài lập tức
+   * chạy được ở cả bốn chỗ mà không phải sửa chỗ nào. Buff dựng thêm một kho
+   * riêng là dựng thêm bốn chỗ để quên đọc.
+   *
+   * `until: Infinity` sống qua bộ lọc hết-hạn ở updateAction, và cả trận kết
+   * thúc thì `p.buffs` biến mất cùng đối tượng Battle — nên "reset sau mỗi ải"
+   * xảy ra tự nhiên, không cần ai đi dọn.
+   * ==================================================================== */
+  Battle.prototype.runGain = function (n) {
+    var p = this.player;
+    p.runExp = (p.runExp || 0) + n;
+    var guard = 0;
+    while (p.runExp >= G.RUN.need(p.runLv + 1) && guard++ < 20) {
+      p.runExp -= G.RUN.need(p.runLv + 1);
+      p.runLv++;
+      this.openDraft();
+    }
+  };
+
+  /* Ba lá, không trùng nhau, và không lá nào đã đầy trần.
+   *
+   * Hết bài dùng được thì KHÔNG mở màn bốc — trả về false và cấp đó lặng lẽ
+   * trôi qua. Mở một màn bốc trống, hoặc mở với hai lá, là bắt người chơi dừng
+   * trận lại để nhìn một thứ vô nghĩa. */
+  Battle.prototype.openDraft = function () {
+    if (this.draft) { this.draftQueue = (this.draftQueue || 0) + 1; return true; }
+    var taken = this.perks = this.perks || {};
+    var pool = G.PERKS.filter(function (x) { return (taken[x.id] || 0) < x.max; });
+    if (!pool.length) return false;
+    var pick = [];
+    while (pick.length < Math.min(G.RUN.picks, pool.length)) {
+      var i = (Math.random() * pool.length) | 0;
+      pick.push(pool.splice(i, 1)[0]);
+    }
+    this.draft = pick;
+    this.paused = true;
+    if (this.cb.onDraft) this.cb.onDraft(pick, this.player.runLv, taken);
+    return true;
+  };
+
+  Battle.prototype.takePerk = function (id) {
+    var d = G.perkById(id);
+    if (!d || !this.draft) return false;
+    if (!this.draft.some(function (x) { return x.id === id; })) return false;
+    this.perks[id] = (this.perks[id] || 0) + 1;
+    this.applyPerk(d);
+    this.draft = null;
+    this.toast(d.n + ' ×' + this.perks[id], d.col);
+    // Xếp hàng: hai cấp lên cùng một lúc (một con vàng cho 6 exp) thì lá thứ hai
+    // phải hiện ngay sau lá thứ nhất, không được nuốt mất.
+    if (this.draftQueue > 0) { this.draftQueue--; this.openDraft(); return true; }
+    this.paused = false;
+    if (this.cb.onDraft) this.cb.onDraft(null);
+    return true;
+  };
+
+  Battle.prototype.applyPerk = function (d) {
+    var p = this.player, b = d.buff;
+    var mod = {};
+    for (var k in b) mod[k] = b[k];
+    mod.until = Infinity;
+    mod.perk = d.id;
+    p.buffs.push(mod);
+    // Máu tối đa phải cộng NGAY và hồi lại đúng phần vừa cộng — nếu chỉ nâng
+    // trần thì lá này là một thanh máu dài ra mà không có gì trong đó, tức là
+    // một lá bài không làm gì cả ở đúng lúc người chơi cần nó nhất.
+    if (b.hpPct) {
+      var add = Math.round(p.maxHp * b.hpPct);
+      p.maxHp += add; p.hp = Math.min(p.maxHp, p.hp + add);
+      this.fx.push({ k: 'spr', key: 'fx.heal', x: p.x, y: p.y, r: 40, t: 0, ms: 600 });
+    }
+  };
+
+  // Tổng một khoá buff nào đó từ mọi lá đã bốc. Một chỗ đọc duy nhất.
+  Battle.prototype.perkSum = function (key) {
+    var n = 0;
+    this.player.buffs.forEach(function (b) { if (b[key]) n += b[key]; });
+    return n;
+  };
+
   /* ------------------------------------------------------ QUÁI CHẾT ----- */
   Battle.prototype.killMob = function (m) {
     m.hp = 0; m.dead = true;
@@ -1160,6 +1263,15 @@
       exp: Math.round((4 + m.lv * 2.2) * (m.elite ? 3 : 1) * G.potionMul(this.s, 'exp'))
     });
     this.puff(m.x, m.y, G.ELEMENTS[m.el].color);
+    this.runGain(G.RUN.orb(m.elite, m.gold));
+    // Dây Chuyền: con chết thì nổ, và cú nổ đó giết tiếp được con bên cạnh.
+    var db = this.perkSum('deathBlast');
+    if (db) {
+      var r = 46 + 18 * db;
+      this.aoeDamage(m.x, m.y, r, this.W.dmg * (1.6 + 0.9 * db), { noCrit: true });
+      this.fx.push({ k: 'spr', key: 'fx.boom', x: m.x, y: m.y, r: r,
+                     t: 0, ms: 420, blend: 'lighter' });
+    }
     if (this.phase === 'mobs') {
       if (this.killed >= this.needKills) {
         this.startBossPhase();
@@ -1210,6 +1322,7 @@
         conds: conds, nCond: nCond,
         parts: b.partsBroken, elapsed: elapsed, killed: self.killed,
         bag: self.bag || { gold: 0, exp: 0 },
+        perks: self.perks || {}, runLv: self.player.runLv || 0,
         gold: Math.round(st.gold * G.REWARD.goldMul * G.potionMul(self.s, 'gold')) + drops.gold,
         bossGold: drops.gold,
         exp: Math.round(st.exp * G.potionMul(self.s, 'exp'))
@@ -1299,6 +1412,11 @@
       if (S.dps) p.hp -= p.maxHp * S.dps * dt / 1000;
     }
     if (p.hp <= 0 && !p.down) this.playerDown();
+
+    // Hồi Phục: một dòng máu chảy đều, tính theo % máu TỐI ĐA nên nó không mạnh
+    // dần lên theo Sức Bền một cách vô tình.
+    var rg = this.perkSum('regen');
+    if (rg && p.hp > 0 && !p.down) this.heal(p, p.maxHp * rg * dt / 1000);
 
     // ---- hồi phục theo thời gian (dot/hot) ----
     for (var i = p.dot.length - 1; i >= 0; i--) {
@@ -1486,6 +1604,7 @@
        * Nên bán kính hút = 75% tầm bắn, sàn 130 (giữ nguyên hành vi cũ cho cây
        * tầm ngắn), trần 420 để không thành "nhặt cả sân từ chỗ đứng". */
       var mag = clamp((this.W.range || 180) * 0.75, 130, 420);
+      mag *= 1 + this.perkSum('magnet');
       if (d > 1 && d < mag && !p.down) {
         var pull = Math.min(d, (1 - d / mag) * 8.4 * dt / 16.67);
         c.x += (p.x - c.x) / d * pull;
@@ -2042,6 +2161,9 @@
       if (hitSomething) {
         if (pr.explode) { this.boom(pr); this.projs.splice(i, 1); continue; }
         if (!pr.pierce) { this.projs.splice(i, 1); continue; }
+        // Xuyên do LÁ BÀI cấp là xuyên có hạn: qua đủ số con thì viên đạn tắt.
+        // Cây vốn xuyên (bắn tỉa, kiếm khí) để pierceMax = 0 và xuyên vô hạn.
+        if (pr.pierceMax && pr.hits > pr.pierceMax) { this.projs.splice(i, 1); continue; }
       }
     }
   };

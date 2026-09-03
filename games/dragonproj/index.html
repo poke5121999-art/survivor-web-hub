@@ -123,6 +123,39 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
   box-shadow:0 0 22px rgba(255,231,76,.75)}
 .skill-btn.aiming .edge{box-shadow:inset 0 0 0 4px rgba(255,231,76,.95)}
 
+/* --- thanh EXP của lượt chơi + màn bốc cường hoá --- */
+.runbar{position:absolute;left:12px;right:96px;top:76px;display:flex;align-items:center;gap:6px}
+.runbar b{font-size:10px;font-weight:900;color:#c9a8ff;text-shadow:0 1px 2px #000;
+  font-variant-numeric:tabular-nums;flex:0 0 auto}
+.runbar i{flex:1;height:5px;border-radius:3px;background:rgba(8,12,18,.75);
+  border:1px solid rgba(201,168,255,.35);overflow:hidden}
+.runbar u{display:block;height:100%;background:linear-gradient(90deg,#7a54c0,#c9a8ff);
+  text-decoration:none;transition:width .12s linear}
+
+/* Màn bốc bài dừng trận lại, nên nó được phép chiếm cả màn hình — nhưng phải
+   thấy được sân phía sau, vì thứ vừa xảy ra ở đó là lý do bạn lên cấp. */
+.draft{position:absolute;inset:0;display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:8px;
+  background:rgba(6,9,14,.82);backdrop-filter:blur(2px);pointer-events:auto;z-index:6}
+.draft.on{display:flex}
+.draft h3{font-size:15px;letter-spacing:2px;color:#c9a8ff;text-shadow:0 2px 6px #000}
+.draft h3 b{color:#fff}
+.draft p{font-size:11px;color:#9fb2c4;margin-bottom:4px}
+.draft .cards{display:flex;flex-direction:column;gap:9px;width:82%}
+.draft .card2{position:relative;text-align:left;padding:11px 12px;border-radius:11px;
+  background:linear-gradient(180deg,#1d2836,#0e141d);border:1px solid #3a4d63;
+  box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.draft .card2:active{transform:translateY(2px)}
+.draft .card2 .nm{font-size:14px;font-weight:900;letter-spacing:.4px}
+.draft .card2 .st{position:absolute;right:11px;top:11px;font-size:10px;font-weight:800;
+  color:#9fb2c4;font-variant-numeric:tabular-nums}
+.draft .card2 .ds{font-size:11px;color:#cfe0ee;margin-top:3px;line-height:1.35}
+/* Tên lớp phải là `pips`, KHÔNG phải `bar`: `.bar` đã là thanh máu boss ở trên
+   và nó mang sẵn viền vàng cùng chiều rộng tràn hàng. Trùng tên lớp trong một
+   file CSS phẳng là lỗi im lặng — nó không hỏng, nó chỉ trông sai. */
+.draft .card2 .pips{display:flex;gap:3px;margin-top:6px}
+.draft .card2 .pips s{width:16px;height:4px;border-radius:2px;background:#2a3542;text-decoration:none}
+
 /* --- đổi vũ khí: ba khe nhỏ, dưới cột kỹ năng --- */
 .wswitch{position:absolute;right:10px;top:432px;display:flex;flex-direction:column;gap:6px}
 .wslot{width:52px;height:34px;border-radius:8px;background:rgba(10,16,23,.8);
@@ -562,6 +595,21 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
           <span><i class="ic" style="background:#c8a0ff"></i><b id="hGem">0</b> gem</span>
           <span id="hWName" style="color:#cfe0ee"></span>
         </div>
+      </div>
+
+      <!-- Thanh EXP của LƯỢT CHƠI, nằm ngay dưới hàng đếm quái. Nó phải tách hẳn
+           thanh EXP tài khoản ở chân màn hình: một cái đo tiến bộ vĩnh viễn tính
+           bằng tuần, cái này đo lần bốc bài kế tiếp tính bằng mươi giây. Hai thứ
+           đó vẽ giống nhau ở hai đầu màn hình đã là một lần lẫn. -->
+      <div class="runbar" id="hRunBar">
+        <b id="hRunLv">Lv.0</b>
+        <i><u id="hRunFill" style="width:0%"></u></i>
+      </div>
+
+      <div class="draft" id="hDraft">
+        <h3>LÊN CẤP <b id="hDraftLv">1</b></h3>
+        <p>Chọn một</p>
+        <div class="cards" id="hDraftCards"></div>
       </div>
 
       <div class="downbox" id="hDown">

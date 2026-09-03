@@ -56,16 +56,23 @@ async function open(b) {
  * bỏ sót đúng những nhánh code hay hỏng nhất. */
 const SEED = () => {
   const S = DP.UI.save;
-  S.gold = 9e6; S.gem = 9e4; S.ticket = 9e3; S.pikke = 9e4; S.medal = 9e3;
-  ['str_stone', 'skill_core', 'crystal', 'lapis_b', 'lapis_a', 'lapis_s', 'lapis_ss']
-    .forEach(m => { S.mats[m] = 9999; });
-  S.mats.dragon_core = 999;             // đủ Lõi để mở cả nhánh Tiến hoá
+  S.gold = 9e6; S.gem = 9e4; S.core = 999;
   S.bossKills = { amarok: 5, lich: 5, grouton: 5 };
-  // Một bộ đồ SS thật để mở hết nhánh giao diện.
+  // Một bộ đồ SS thật để mở hết nhánh giao diện. Đột phá giờ ăn ĐỒ, nên phải
+  // rèn sẵn một xấp đồ nướng — không có nó thì bộ SS đứng ở Đột phá 0 và cả
+  // nhánh giao diện đó không bao giờ được crawl tới.
   ['weapon', 'head', 'body', 'arm', 'leg'].forEach(k => {
     const g = DP.forgeGear('amarok', k, 'seed');
     S.gear.push(g);
-    for (let i = 0; i < 4; i++) DP.limitBreak(S, g);
+    for (let i = 0; i < 4; i++) {
+      const need = DP.breakFodder(g);
+      const fod = [];
+      for (let j = 0; j < need.n; j++) {
+        const f = DP.forgeGear('amarok', 'head', 'fod' + k + i + j);
+        f.rank = 'SS'; S.gear.push(f); fod.push(f.uid);
+      }
+      DP.limitBreak(S, g, fod);
+    }
     g.lv = DP.MAX_LV;
   });
   // Vài ải đã phá để màn Ải có cả ải xong, ải đang mở và ải khoá.
@@ -77,7 +84,7 @@ const SEED = () => {
 /* ------------------------------------------------- CÁC HÀM CHẠY TRONG TRANG */
 // Danh sách phần tử bấm được đang hiển thị của một màn.
 const SEL = 'button,[data-act],[data-gear],[data-stage],[data-craft],[data-buy],' +
-  '[data-iap],[data-buym],[data-buyk],[data-use],[data-nav],[data-filter],[data-w],' +
+  '[data-evol],[data-pull],[data-tab],[data-fate],[data-fod],[data-use],[data-nav],[data-filter],[data-w],' +
   '[data-wslot],[data-aslot],[data-cy],[data-buyp],[data-unslot]';
 
 // Danh sách phần tử bấm được đang hiển thị của một màn.
@@ -117,16 +124,20 @@ const PAGE_SNAP = () => {
     scr: on ? on.id : '',
     toasts: document.getElementById('toasts').children.length,
     save: JSON.stringify(S),
-    money: { gold: S.gold, gem: S.gem, ticket: S.ticket, pikke: S.pikke, medal: S.medal },
+    money: { gold: S.gold, gem: S.gem, core: S.core || 0 },
     text: on ? (on.innerText || '') : '',
     battle: !!DP.UI.battle
   };
 };
 
 /* ============================================================== CHẠY ===== */
+// Ba id banner, đọc một lần từ trong trang để phía node lặp được trên chúng.
+let DP_BANNERS = ['char', 'weapon', 'std'];
+
 (async () => {
   const b = await chromium.launch();
   const { ctx, p, errs } = await open(b);
+  DP_BANNERS = await p.evaluate(() => DP.BANNERS.map(x => x.id));
 
   note('\n── nạp tài nguyên để crawl được sâu ──');
   await p.evaluate(SEED);
@@ -159,7 +170,7 @@ const PAGE_SNAP = () => {
   }
   const TARGETS = [
     { id: 'home' }, { id: 'quest' }, { id: 'armory' }, { id: 'gacha' }, { id: 'more' },
-    { id: 'forge' }, { id: 'shop' }, { id: 'help' }, { id: 'bosslist' },
+    { id: 'evol' }, { id: 'shop' }, { id: 'help' }, { id: 'bosslist' },
     { id: 'gear', pre: 'weapon' }, { id: 'gear', pre: 'head' }
   ];
   const RUBBISH = ['undefined', 'NaN', '[object Object]'];
@@ -440,49 +451,64 @@ const PAGE_SNAP = () => {
   const eco = await p.evaluate(() => {
     const mk = () => {
       const s = DP.starterKit(DP.newSave('T'));
-      s.gold = 5e6; s.gem = 5e3; s.ticket = 500; s.pikke = 5e4;
-      ['str_stone', 'skill_core', 'crystal', 'lapis_b', 'lapis_a', 'lapis_s', 'lapis_ss']
-        .forEach(m => { s.mats[m] = 500; });
-      s.mats.dragon_core = 500;
+      s.gold = 5e6; s.gem = 5e5; s.core = 500;
       s.bossKills = { amarok: 5 };
       return s;
     };
-    // Gacha ra thẳng đồ, nên test kinh tế chỉ cần một món trong túi để nâng cấp.
     let seq = 0;
     const mkGear = (s, kind) => { const g = DP.forgeGear('amarok', kind, 'eco' + (seq++)); s.gear.push(g); return g; };
+    // Rèn một xấp đồ hạng SS chưa lắp lên ai, để dành làm nguyên liệu đột phá.
+    const mkFodder = (s, n) => {
+      const out = [];
+      for (let i = 0; i < n; i++) {
+        const g = DP.forgeGear('amarok', 'head', 'fod' + (seq++));
+        g.rank = 'SS'; s.gear.push(g); out.push(g.uid);
+      }
+      return out;
+    };
     const out = {};
 
-    // --- ENHANCE: trừ đúng gold + str_stone ---
+    // --- NÂNG CẤP: trừ đúng gold ---
     let s = mk(); let g = mkGear(s, 'weapon');
-    let c = DP.enhanceCost(g), g0 = s.gold, m0 = s.mats.str_stone, lv0 = g.lv;
+    let c = DP.enhanceCost(g), g0 = s.gold, lv0 = g.lv;
     let r = DP.enhance(s, g);
-    out.enhance = { ok: r.ok, gold: g0 - s.gold === c.gold, mat: m0 - s.mats.str_stone === c.mat.str_stone,
-                    lv: g.lv === lv0 + 1 };
-    // hết tiền thì phải từ chối, và không được đụng vào gì
-    s.gold = 0; g0 = s.gold; m0 = s.mats.str_stone; lv0 = g.lv;
+    out.enhance = { ok: r.ok, gold: g0 - s.gold === c.gold, lv: g.lv === lv0 + 1 };
+    s.gold = 0; g0 = s.gold; lv0 = g.lv;
     r = DP.enhance(s, g);
-    out.enhanceBroke = { ok: r.ok === false, untouched: s.gold === g0 && s.mats.str_stone === m0 && g.lv === lv0 };
+    out.enhanceBroke = { ok: r.ok === false, untouched: s.gold === g0 && g.lv === lv0 };
 
-    // --- LIMIT BREAK ---
+    // --- ĐỘT PHÁ: ăn ĐỒ, và món đem nướng phải biến mất ---
     s = mk(); g = mkGear(s, 'weapon');
-    c = DP.limitBreakCost(g); g0 = s.gold; m0 = s.mats.lapis_ss;
-    r = DP.limitBreak(s, g);
-    out.lb = { ok: r.ok, gold: g0 - s.gold === c.gold, mat: m0 - s.mats.lapis_ss === c.mat.lapis_ss, lb: g.lb === 1 };
-    s.mats.lapis_ss = 0; g0 = s.gold;
-    r = DP.limitBreak(s, g);
+    c = DP.limitBreakCost(g); g0 = s.gold;
+    const fod = mkFodder(s, c.fodder.n);
+    const bag0 = s.gear.length;
+    r = DP.limitBreak(s, g, fod);
+    out.lb = { ok: r.ok, gold: g0 - s.gold === c.gold, lb: g.lb === 1,
+               burned: bag0 - s.gear.length === c.fodder.n,
+               gone: fod.every(u => !s.gear.some(x => x.uid === u)) };
+    // không còn đồ để nướng -> từ chối, và KHÔNG trừ gold
+    g0 = s.gold;
+    r = DP.limitBreak(s, g, []);
     out.lbBroke = { ok: r.ok === false, untouched: s.gold === g0 && g.lb === 1 };
+    // gửi lên uid của món ĐANG LẮP -> phải từ chối, không được xoá nhầm
+    s = mk(); g = mkGear(s, 'weapon');
+    const worn = s.gear.filter(x => DP.holderOf(s, x.uid));
+    const wornN = worn.length;
+    r = DP.limitBreak(s, g, worn.slice(0, DP.breakFodder(g).n).map(x => x.uid));
+    out.lbWorn = { refused: r.ok === false, kept: worn.every(x => s.gear.some(y => y.uid === x.uid)),
+                   n: wornN };
 
-    // --- EVOLVE ---
+    // --- TINH LUYỆN ---
     s = mk(); g = mkGear(s, 'weapon'); g.lv = DP.MAX_LV;
-    c = DP.evolveCost(g); g0 = s.gold; m0 = s.mats.dragon_core;
+    c = DP.evolveCost(g); g0 = s.gold; let core0 = s.core;
     r = DP.evolve(s, g);
-    out.evo = { ok: r.ok, gold: g0 - s.gold === c.gold, mat: m0 - s.mats.dragon_core === c.mat.dragon_core,
+    out.evo = { ok: r.ok, gold: g0 - s.gold === c.gold, core: core0 - s.core === c.core,
                 reset: g.lv === 1 && g.evo === 1 };
-    s.mats.dragon_core = 0; g.lv = DP.MAX_LV; g0 = s.gold;
+    s.core = 0; g.lv = DP.MAX_LV; g0 = s.gold;
     r = DP.evolve(s, g);
     out.evoBroke = { ok: r.ok === false, untouched: s.gold === g0 && g.evo === 1 };
 
-    // --- REROLL ability ---
+    // --- ĐỔI ABILITY ---
     s = mk(); g = mkGear(s, 'weapon');
     c = DP.rerollCost(g); g0 = s.gold;
     r = DP.reroll(s, g);
@@ -491,136 +517,154 @@ const PAGE_SNAP = () => {
     r = DP.reroll(s, g);
     out.rrBroke = { ok: r.ok === false, untouched: s.gold === g0 };
 
-    // --- GACHA TRANG BỊ: món mới vào túi, món trùng thành Lõi Rồng ---
-    s = DP.newSave('T'); s.mats.dragon_core = 0;
-    const n0 = s.gear.length;
-    const first = DP.summonGear(s, 1, true)[0];        // ép SS: chắc chắn là món mới
+    // --- TIẾN HOÁ ---
+    s = mk();
+    const t = DP.EVOL.tracks[0];
+    let ec = DP.evolCost(s, t.id); g0 = s.gold;
+    r = DP.evolUp(s, t.id);
+    out.evol = { ok: r.ok, gold: g0 - s.gold === ec.gold, lv: DP.evolLv(s, t.id) === 1 };
+    s.gold = 0; g0 = s.gold;
+    r = DP.evolUp(s, t.id);
+    out.evolBroke = { ok: r.ok === false, untouched: s.gold === g0 && DP.evolLv(s, t.id) === 1 };
+
+    // --- QUAY: món mới vào túi, món trùng thành Lõi Rồng ---
+    s = DP.newSave('T'); s.core = 0; s.gem = 9e6;
+    const n0 = s.gear.length + s.heroes.length;
     let dup = null;
-    for (let i = 0; i < 500 && !dup; i++) { const x = DP.summonGear(s, 1, false)[0]; if (x.dupe) dup = x; }
-    out.gear = { newItem: first.dupe === false, inBag: s.gear.length > n0,
+    for (let i = 0; i < 120 && !dup; i++) {
+      const res = DP.pull(s, 'std', 10);
+      dup = res.results.filter(x => x.dupe)[0] || null;
+    }
+    out.gear = { grew: s.gear.length + s.heroes.length > n0,
                  dupFound: !!dup, cores: dup ? dup.cores === DP.DUPE_CORE[dup.rank] : false,
-                 stock: (s.mats.dragon_core || 0) > 0,
-                 noDupInBag: s.gear.length === new Set(s.gear.map(g => g.src + '|' + g.kind)).size };
-    // Lõi Rồng không được xuất hiện trong bất kỳ bảng rơi nào
-    out.coreFarm = Object.keys(DP.TRIBES).some(k => DP.TRIBES[k].mat.indexOf('dragon_core') >= 0) ||
-                   DP.GATHER_MATS.indexOf('dragon_core') >= 0 ||
-                   JSON.stringify(DP.SHOP).indexOf('dragon_core') >= 0 ||
-                   JSON.stringify(DP.MEDAL_SHOP).indexOf('dragon_core') >= 0;
+                 stock: (s.core || 0) > 0,
+                 // Túi PHẢI cho phép đồ trùng: đó là kho nguyên liệu của Đột phá.
+                 // Trùng người thì ra Lõi, trùng đồ thì ra một món thật.
+                 spares: s.gear.length - new Set(s.gear.map(g => g.src + '|' + g.kind)).size,
+                 heroDupOnly: !s.heroes.some((h, i) => s.heroes.findIndex(x => x.id === h.id) !== i) };
+    // Lõi Rồng không được có đường cày nào
+    out.coreFarm = JSON.stringify(DP.ITEMS).indexOf('core') >= 0 ||
+                   !!DP.rollMobDrop('purun', true, true, 99, 40).core ||
+                   !!DP.rollBossDrop(DP.behemothById('amarok'), 4, 99, 60).core;
 
     // --- GỌI HAI LẦN VỚI TÀI NGUYÊN CHỈ ĐỦ MỘT LẦN ---
     s = mk(); g = mkGear(s, 'weapon');
-    c = DP.enhanceCost(g); s.gold = c.gold; s.mats.str_stone = c.mat.str_stone;
+    c = DP.enhanceCost(g); s.gold = c.gold;
     const a1 = DP.enhance(s, g), a2 = DP.enhance(s, g);
     out.twice = { first: a1.ok === true, second: a2.ok === false,
-                  gold: s.gold === 0, mat: s.mats.str_stone === 0, lv: g.lv === 2 };
+                  gold: s.gold === 0, lv: g.lv === 2 };
 
-    // --- USE POTION: một bình chỉ dùng được một lần ---
+    // --- BÌNH: một bình chỉ dùng được một lần ---
     s = mk(); s.inv.gold_potion = 1;
     const p1 = DP.usePotion(s, 'gold_potion'), p2 = DP.usePotion(s, 'gold_potion');
     out.potion = { first: p1.ok === true, second: p2.ok === false, inv: s.inv.gold_potion === 0 };
 
-    // --- canPay=false thì mọi hàm phải trả ok:false ---
+    // --- hết sạch tiền thì mọi hàm nâng cấp đều phải trả ok:false ---
     s = mk(); g = mkGear(s, 'weapon'); g.lv = DP.MAX_LV;
-    s.gold = 0; s.mats = {};
-    out.allRefuse = [DP.enhance(s, g), DP.limitBreak(s, g), DP.evolve(s, g),
-                     DP.reroll(s, g)].every(x => x.ok === false);
+    s.gold = 0; s.core = 0;
+    out.allRefuse = [DP.enhance(s, g), DP.limitBreak(s, g, []), DP.evolve(s, g),
+                     DP.reroll(s, g), DP.evolUp(s, DP.EVOL.tracks[0].id)].every(x => x.ok === false);
 
-    // --- DISMANTLE: gỡ khỏi tay người đang giữ, biến mất khỏi túi ---
+    // --- RÃ ĐỒ: gỡ khỏi tay người đang giữ, biến mất khỏi túi, trả về Gold ---
     s = mk();
     const w = s.gear.find(x => x.kind === 'weapon');
     const wasEquipped = !!DP.holderOf(s, w.uid);
+    g0 = s.gold;
     const dr = DP.dismantle(s, w);
-    const stillInLoadout = JSON.stringify(s.heroes).indexOf(w.uid) >= 0;
-    const stillInBag = s.gear.some(x => x.uid === w.uid);
-    out.dis = { ok: dr.ok, wasEquipped: wasEquipped, gotLapis: (s.mats[dr.lapis] || 0) >= dr.n,
-                outLoadout: !stillInLoadout, outBag: !stillInBag };
+    out.dis = { ok: dr.ok, wasEquipped: wasEquipped,
+                gotGold: s.gold - g0 === dr.gold && dr.gold > 0,
+                outLoadout: JSON.stringify(s.heroes).indexOf(w.uid) < 0,
+                outBag: !s.gear.some(x => x.uid === w.uid) };
 
     return out;
   });
 
-  check('nâng cấp trừ đúng gold + nguyên liệu', eco.enhance.ok && eco.enhance.gold && eco.enhance.mat && eco.enhance.lv,
+  check('nâng cấp trừ đúng gold', eco.enhance.ok && eco.enhance.gold && eco.enhance.lv,
     JSON.stringify(eco.enhance));
   check('nâng cấp khi hết tiền: từ chối và không đụng gì', eco.enhanceBroke.ok && eco.enhanceBroke.untouched);
-  check('limit break trừ đúng gold + Lapis', eco.lb.ok && eco.lb.gold && eco.lb.mat && eco.lb.lb, JSON.stringify(eco.lb));
-  check('limit break khi hết Lapis: từ chối, không trừ gold', eco.lbBroke.ok && eco.lbBroke.untouched);
-  check('tiến hóa trừ đúng gold + Lõi Rồng và reset Lv', eco.evo.ok && eco.evo.gold && eco.evo.mat && eco.evo.reset,
+  check('đột phá trừ gold VÀ nướng đúng số món', eco.lb.ok && eco.lb.gold && eco.lb.lb && eco.lb.burned && eco.lb.gone,
+    JSON.stringify(eco.lb));
+  check('đột phá khi không có đồ nướng: từ chối, không trừ gold', eco.lbBroke.ok && eco.lbBroke.untouched);
+  check('đột phá KHÔNG bao giờ nướng món đang lắp lên người',
+    eco.lbWorn.n > 0 && eco.lbWorn.refused && eco.lbWorn.kept, eco.lbWorn.n + ' món đang lắp');
+  check('tinh luyện trừ đúng gold + Lõi Rồng và reset Lv', eco.evo.ok && eco.evo.gold && eco.evo.core && eco.evo.reset,
     JSON.stringify(eco.evo));
-  check('tiến hóa khi hết Lõi Rồng: từ chối, không trừ gold', eco.evoBroke.ok && eco.evoBroke.untouched);
+  check('tinh luyện khi hết Lõi Rồng: từ chối, không trừ gold', eco.evoBroke.ok && eco.evoBroke.untouched);
   check('đổi ability trừ đúng gold', eco.rr.ok && eco.rr.gold);
   check('đổi ability khi thiếu 1 gold: từ chối', eco.rrBroke.ok && eco.rrBroke.untouched);
-  check('gacha ra món mới thì vào thẳng túi', eco.gear.newItem && eco.gear.inBag, JSON.stringify(eco.gear));
-  check('gacha ra món trùng thì thành Lõi Rồng đúng số lượng', eco.gear.dupFound && eco.gear.cores && eco.gear.stock);
-  check('túi không bao giờ có hai món giống hệt nhau', eco.gear.noDupInBag);
-  check('Lõi Rồng không nằm trong bảng rơi nào (không cày được)', eco.coreFarm === false);
+  check('Tiến Hoá trừ đúng gold và lên đúng một cấp', eco.evol.ok && eco.evol.gold && eco.evol.lv,
+    JSON.stringify(eco.evol));
+  check('Tiến Hoá khi hết gold: từ chối, không đụng gì', eco.evolBroke.ok && eco.evolBroke.untouched);
+  check('quay ra thứ mới thì vào thẳng túi', eco.gear.grew, JSON.stringify(eco.gear));
+  check('quay ra thứ trùng thì thành Lõi Rồng đúng số lượng', eco.gear.dupFound && eco.gear.cores && eco.gear.stock);
+  check('túi GIỮ đồ trùng để làm nguyên liệu đột phá', eco.gear.spares > 0,
+    eco.gear.spares + ' món thừa');
+  check('roster KHÔNG bao giờ có hai bản của cùng một nhân vật', eco.gear.heroDupOnly);
+  check('Lõi Rồng không nằm trong bảng rơi hay quầy nào (không cày được)', eco.coreFarm === false);
   check('gọi hai lần với tài nguyên đủ MỘT lần: lần hai fail, không âm',
-    eco.twice.first && eco.twice.second && eco.twice.gold && eco.twice.mat && eco.twice.lv,
+    eco.twice.first && eco.twice.second && eco.twice.gold && eco.twice.lv,
     JSON.stringify(eco.twice));
   check('một bình chỉ uống được một lần', eco.potion.first && eco.potion.second && eco.potion.inv);
-  check('canPay=false thì mọi hàm nâng cấp đều trả ok:false', eco.allRefuse);
+  check('hết sạch tiền thì mọi hàm nâng cấp đều trả ok:false', eco.allRefuse);
   check('rã đồ: gỡ khỏi tay người đang giữ', eco.dis.wasEquipped && eco.dis.outLoadout);
-  check('rã đồ: biến mất khỏi túi và nhận Lapis', eco.dis.outBag && eco.dis.gotLapis);
+  check('rã đồ: biến mất khỏi túi và trả về Gold', eco.dis.outBag && eco.dis.gotGold);
 
   /* ------------------------------------- MUA Ở TIỆM (đường đi qua UI) ---- */
-  note('\n── tiệm Pikke: đường mua đi qua nút thật ──');
+  note('\n── tiệm: đường mua đi qua nút thật ──');
   const shop = await p.evaluate(async () => {
     const S = DP.UI.save;
-    const it = DP.SHOP.find(x => x.id === 'p_gold');   // 10.000 Gold, giá 500 Pikke
-    DP.UI.show('shop');
-    // 1) thiếu 1 Pikke -> không được mua
-    S.pikke = it.price.pikke - 1; DP.UI.show('shop');
-    let g0 = S.gold;
-    document.querySelector('#body-shop [data-buy="p_gold"]').click();
-    const poor = { pikke: S.pikke === it.price.pikke - 1, gold: S.gold === g0 };
-    // 2) đủ đúng 1 lần -> mua được, và lần hai phải trượt
-    S.pikke = it.price.pikke; DP.UI.show('shop'); g0 = S.gold;
-    document.querySelector('#body-shop [data-buy="p_gold"]').click();
-    const one = { pikke: S.pikke === 0, gold: S.gold === g0 + it.give.gold };
-    DP.UI.show('shop'); g0 = S.gold;
-    document.querySelector('#body-shop [data-buy="p_gold"]').click();
-    const two = { pikke: S.pikke === 0, gold: S.gold === g0 };
-    // 3) bình cao cấp mua bằng Gem
-    const P = DP.ITEMS.hunter_potion;
-    S.gem = P.price.gem - 1; DP.UI.show('shop');
-    const inv0 = S.inv.hunter_potion || 0;
-    document.querySelector('#body-shop [data-buyp="hunter_potion"]').click();
-    const gemPoor = { gem: S.gem === P.price.gem - 1, inv: (S.inv.hunter_potion || 0) === inv0 };
-    S.gem = P.price.gem; DP.UI.show('shop');
-    document.querySelector('#body-shop [data-buyp="hunter_potion"]').click();
-    const gemOk = { gem: S.gem === 0, inv: (S.inv.hunter_potion || 0) === inv0 + 1 };
-    return { poor, one, two, gemPoor, gemOk };
+    const P = DP.ITEMS.gold_potion;
+    // 1) thiếu 1 Gold -> không được mua
+    S.gold = P.price.gold - 1; DP.UI.show('shop');
+    let inv0 = S.inv.gold_potion || 0;
+    document.querySelector('#body-shop [data-buy="gold_potion"]').click();
+    const poor = { gold: S.gold === P.price.gold - 1, inv: (S.inv.gold_potion || 0) === inv0 };
+    // 2) đủ đúng một lần -> mua được, lần hai trượt
+    S.gold = P.price.gold; DP.UI.show('shop'); inv0 = S.inv.gold_potion || 0;
+    document.querySelector('#body-shop [data-buy="gold_potion"]').click();
+    const one = { gold: S.gold === 0, inv: (S.inv.gold_potion || 0) === inv0 + 1 };
+    DP.UI.show('shop'); inv0 = S.inv.gold_potion || 0;
+    document.querySelector('#body-shop [data-buy="gold_potion"]').click();
+    const two = { gold: S.gold === 0, inv: (S.inv.gold_potion || 0) === inv0 };
+    // 3) tiệm KHÔNG được đụng tới Gem — gem chỉ tiêu ở màn Triệu Hồi
+    S.gem = 1234; DP.UI.show('shop');
+    S.gold = 9e6; DP.UI.show('shop');
+    document.querySelector('#body-shop [data-buy="hunter_potion"]').click();
+    const gemUntouched = S.gem === 1234;
+    return { poor, one, two, gemUntouched };
   });
-  check('thiếu Pikke thì nút mua không trừ gì', shop.poor.pikke && shop.poor.gold);
-  check('đủ Pikke thì mua đúng một lần, trừ đúng giá', shop.one.pikke && shop.one.gold);
-  check('bấm mua lần hai khi đã hết Pikke: không được gì, không âm', shop.two.pikke && shop.two.gold);
-  check('thiếu Gem thì không mua được bình cao cấp', shop.gemPoor.gem && shop.gemPoor.inv);
-  check('đủ Gem thì mua được đúng một bình', shop.gemOk.gem && shop.gemOk.inv);
+  check('thiếu Gold thì nút mua không trừ gì', shop.poor.gold && shop.poor.inv);
+  check('đủ Gold thì mua đúng một lần, trừ đúng giá', shop.one.gold && shop.one.inv);
+  check('bấm mua lần hai khi đã hết Gold: không được gì, không âm', shop.two.gold && shop.two.inv);
+  check('tiệm KHÔNG bao giờ đụng tới Gem', shop.gemUntouched);
 
-  /* ---------------------------------------- GACHA: vé/gem trừ đúng ------- */
-  note('\n── gacha: vé và gem ──');
+  /* ---------------------------------------- QUAY: gem trừ đúng ---------- */
+  note('\n── triệu hồi: gem trừ đúng, ba banner đều chạy ──');
   const gac = await p.evaluate(() => {
     const S = DP.UI.save;
-    S.ticket = 50; S.gem = 250; DP.UI.show('gacha');
-    const hero0 = S.heroes.length, core0 = S.mats.dragon_core || 0;
-    document.querySelector('#body-gacha [data-act="g10"]').click();
-    // 11 lần quay = 11 kết quả: mỗi cái hoặc là một NGƯỜI mới, hoặc là Lõi Rồng.
-    const gained = (S.heroes.length - hero0);
-    const cores = (S.mats.dragon_core || 0) - core0;
-    const t = { ticket: S.ticket === 0, got: gained > 0, accounted: gained + (cores > 0 ? 1 : 0) >= 1 };
-    DP.UI.show('gacha');
-    const hero1 = S.heroes.length;
-    document.querySelector('#body-gacha [data-act="g10"]').click();   // hết vé
-    const t2 = S.ticket === 0 && S.heroes.length === hero1;
-    // Quầy quay Magi đã bị bóc: nút phải KHÔNG còn, và Gem không được đụng tới.
-    DP.UI.show('gacha');
-    const gemBtnGone = !document.querySelector('#body-gacha [data-act="m10"]') &&
-                       !document.querySelector('#body-gacha [data-act="m1"]');
-    return { t, t2, gemBtnGone, gemKept: S.gem === 250 };
+    const out = {};
+    DP.BANNERS.forEach(bn => {
+      S.gem = DP.REWARD.pull10; DP.UI.show('gacha');
+      const tab = document.querySelector('#body-gacha [data-tab="' + bn.id + '"]');
+      tab.click();
+      const n0 = S.gear.length + S.heroes.length, c0 = S.core || 0;
+      document.querySelector('#body-gacha [data-pull="10"]').click();
+      const grew = (S.gear.length + S.heroes.length) - n0 + ((S.core || 0) - c0 > 0 ? 1 : 0);
+      // hết gem -> bấm lần hai không được gì
+      DP.UI.show('gacha');
+      const n1 = S.gear.length + S.heroes.length;
+      const btn = document.querySelector('#body-gacha [data-pull="10"]');
+      if (btn) btn.click();
+      out[bn.id] = { spentAll: S.gem === 0, grew: grew > 0,
+                     noSecond: (S.gear.length + S.heroes.length) === n1 };
+    });
+    return out;
   });
-  check('quay 10+1 trừ đúng 50 vé và ra thẳng NHÂN VẬT', gac.t.ticket && gac.t.got && gac.t.accounted,
-    JSON.stringify(gac.t));
-  check('hết vé thì không quay được nữa (vé không âm, túi không tăng)', gac.t2);
-  check('quầy quay Magi đã bị bóc khỏi màn gacha', gac.gemBtnGone);
-  check('Gem không bị đụng tới ở màn gacha', gac.gemKept);
+  DP_BANNERS.forEach(id => {
+    check('banner ' + id + ': quay 10 trừ đúng gem và ra đồ', gac[id].spentAll && gac[id].grew,
+      JSON.stringify(gac[id]));
+    check('banner ' + id + ': hết gem thì không quay được nữa', gac[id].noSecond);
+  });
 
   /* ================================ LUỒNG ĐẦU-CUỐI: chơi lại từ số 0 ===== */
   note('\n── chơi lại từ số 0 (bot điều khiển) ──');
@@ -636,15 +680,15 @@ const PAGE_SNAP = () => {
   const fresh = await p.evaluate(() => {
     const S = DP.UI.save;
     return { gold: S.gold, lv: S.lv, gear: S.gear.length, cleared: Object.keys(S.cleared).length,
-             core: S.mats.dragon_core || 0,
+             core: S.core || 0, gem: S.gem,
              scr: (document.querySelector('#screens .screen.on') || {}).id };
   });
   check('nút "Xóa dữ liệu" đưa game về đúng trạng thái mới tinh',
-    // 10 món chứ không phải 9: bộ mở đầu giờ phát MỘT cây cho mỗi lớp chưa có
-    // người trong đội (3 cây của 3 nhân vật mở đầu + 3 cây dự phòng cho ba lớp
-    // còn lại) cộng 4 mảnh giáp. Sáu lớp thì phải là sáu cây, không thì có lớp
-    // quay được người mà không có gì để lắp.
-    fresh.gold === 3000 && fresh.lv === 1 && fresh.gear === 10 && fresh.cleared === 0 && fresh.core === 0,
+    // 14 món: 3 cây của ba nhân vật mở đầu + 7 cây dự phòng cho bảy lớp còn lại
+    // + 4 mảnh giáp. Mười lớp thì phải là mười cây, không thì có lớp quay được
+    // người mà không có gì để lắp.
+    fresh.gold === 3000 && fresh.lv === 1 && fresh.gear === 14 && fresh.cleared === 0 &&
+    fresh.core === 0 && fresh.gem === 1600,
     JSON.stringify(fresh));
 
   // --- CHẶNG QUÁI: vào ải đầu, bot cày 25 giây ---
@@ -666,7 +710,7 @@ const PAGE_SNAP = () => {
 
   const eField = errs.length;
   await p.evaluate(() => DPBot.on(140));
-  const track = { kill: 0, gold: 0, mats: 0, moved: 0, stuckSamples: 0, chests: 0 };
+  const track = { kill: 0, gold: 0, perks: 0, runLv: 0, moved: 0, stuckSamples: 0, chests: 0 };
   let lastPos = null;
   for (let t = 0; t < 25; t++) {
     await p.waitForTimeout(1000);
@@ -674,13 +718,15 @@ const PAGE_SNAP = () => {
       const b = DP.UI.battle;
       if (!b) return null;
       return { killed: b.killed || 0, x: Math.round(b.player.x), y: Math.round(b.player.y),
-               bag: b.bag || { gold: 0, mats: {} }, phase: b.phase, hp: b.player.hp,
+               bag: b.bag || { gold: 0 }, phase: b.phase, hp: b.player.hp,
+               perks: Object.keys(b.perks || {}).length, runLv: b.player.runLv || 0,
                chests: b.chests.length, running: b.running };
     });
     if (!s) break;
     track.kill = Math.max(track.kill, s.killed);
     track.gold = Math.max(track.gold, s.bag.gold || 0);
-    track.mats = Math.max(track.mats, Object.keys(s.bag.mats || {}).length);
+    track.perks = Math.max(track.perks || 0, s.perks || 0);
+    track.runLv = Math.max(track.runLv || 0, s.runLv || 0);
     track.chests = s.chests;                 // số rương CÒN NẰM TRÊN ĐẤT lúc lấy mẫu
     if (lastPos && Math.hypot(s.x - lastPos.x, s.y - lastPos.y) < 4) track.stuckSamples++;
     else track.moved++;
@@ -689,8 +735,15 @@ const PAGE_SNAP = () => {
   }
   await p.evaluate(() => DPBot.off());
   check('bot giết được quái trong ải', track.kill > 0,
-    track.kill + ' con, nhặt được ' + track.gold + ' gold / ' + track.mats +
-    ' loại nguyên liệu, còn ' + track.chests + ' rương nằm trên đất');
+    track.kill + ' con, nhặt được ' + track.gold + ' gold, còn ' +
+    track.chests + ' rương nằm trên đất');
+  /* Bot phải BỐC ĐƯỢC BÀI. Màn bốc dừng trận lại, nên nếu bot không biết bấm thì
+   * nó đứng chờ vĩnh viễn ở lần lên cấp đầu tiên — và triệu chứng duy nhất nhìn
+   * thấy được là "bot giết ít quái hơn bình thường", tức là một lỗi không ai
+   * truy ra được nếu không khoá lại ở đây. */
+  check('bot lên cấp trong ải và bốc được cường hoá',
+    track.runLv > 0 && track.perks > 0,
+    'Lv.' + track.runLv + ', ' + track.perks + ' lá');
   check('bot không bị kẹt một chỗ', track.moved >= 8,
     track.moved + ' lần di chuyển / ' + track.stuckSamples + ' lần đứng yên');
   const noJs = errs.slice(eField).filter(e => e.indexOf('PAGEERROR') === 0);
@@ -792,9 +845,8 @@ const PAGE_SNAP = () => {
     check('ải kế tiếp mở ra sau khi phá', !!S2.cleared['tior-1']);
     check('phần thưởng được cộng vào save: Gold tăng', S2.gold > before.gold,
       before.gold + ' → ' + S2.gold);
-    check('phần thưởng được cộng vào save: Gem/Medal tăng',
-      S2.gem >= before.gem && S2.medal > before.medal, 'gem ' + before.gem + '→' + S2.gem +
-      ', medal ' + before.medal + '→' + S2.medal);
+    check('phần thưởng được cộng vào save: Gem tăng',
+      S2.gem > before.gem, 'gem ' + before.gem + '→' + S2.gem);
     check('màn kết quả không lộ chuỗi rác', !/undefined|NaN|\[object Object\]/.test(res.text || ''),
       (res.text || '').split('\n').find(x => /undefined|NaN/.test(x)) || 'sạch');
     // Lưu rồi nạp lại: phần thưởng phải còn.

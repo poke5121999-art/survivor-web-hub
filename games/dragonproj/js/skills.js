@@ -58,7 +58,11 @@
     };
     // Hồi chiêu thật sau khi trừ ability 'skillCd'.
     Battle.prototype.skillCdOf = function (sk) {
-      return sk.cd * (1 - clamp(this.stats.skillCd || 0, 0, 0.6));
+      // Hai nguồn giảm hồi chiêu — ability trên trang bị và lá bài Định Thần —
+      // cộng vào NHAU rồi mới kẹp chung một trần 60%. Kẹp riêng từng nguồn thì
+      // hai nguồn đầy trần cho ra −84%, và cả hệ hồi chiêu sụp.
+      var cut = (this.stats.skillCd || 0) + this.perkSum('skillCd');
+      return sk.cd * (1 - clamp(cut, 0, 0.6));
     };
     // Bảng nguyên tố của vũ khí đang cầm.
     Battle.prototype.elemFx = function () {

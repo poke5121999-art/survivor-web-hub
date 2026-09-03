@@ -521,12 +521,29 @@
     return { kind: 'hero', id: id, name: d.n, rank: d.rank, dupe: false, uid: h && h.uid };
   }
 
+  /* TRÙNG ĐỒ KHÔNG ĐỔI RA LÕI — và đây là một quyết định, không phải thiếu sót.
+   *
+   * Bản trước: quay trúng món đã có thì món đó biến thành Lõi Rồng, vì túi đồ
+   * không cho phép hai món giống hệt nhau. Luật đó chết ngay khi ĐỘT PHÁ đổi
+   * sang ăn chính trang bị: nếu mọi món trùng đều tan thành Lõi thì không bao
+   * giờ có đồ thừa để mà nướng, và cả một bậc nâng cấp trở thành bất khả thi.
+   *
+   * Nên giờ: TRÙNG NGƯỜI ra Lõi Rồng, TRÙNG ĐỒ ra một món thật. Đó cũng đúng
+   * mô hình Survivor.io, nơi mọi bậc hiếm phía trên đều phải ghép từ một đống
+   * đồ cấp dưới chứ không mua thẳng (_research/survivorio.md §4.3): túi đầy đồ
+   * trùng không phải rác, nó là kho nguyên liệu.
+   *
+   * Hệ quả phải chấp nhận: Lõi Rồng chỉ còn một nguồn duy nhất là trùng NGƯỜI.
+   * Với 43 nhân vật thì nguồn đó vẫn dồi dào sau vài chục lượt quay, và nó giữ
+   * cho hai bậc cao nhất (Tinh Luyện, Tiến Hoá) khoá vào đúng cú quay chứ không
+   * vào việc đi cày. */
   function addGear(s, bid, kind) {
     var g = G.forgeGear(bid, kind, 'gacha' + Date.now() + Math.random());
     if (!g) return null;
+    var had = G.hasGear(s, bid, kind);
     s.gear.push(g);
     return { kind: 'gear', id: bid, name: g.name, rank: g.rank, gkind: kind,
-             wclass: g.wclass, el: g.el, uid: g.uid, dupe: false };
+             wclass: g.wclass, el: g.el, uid: g.uid, dupe: false, spare: had };
   }
 
   /* Một lượt quay trên một banner. Trả về một bản ghi mô tả thứ vừa ra, kèm cờ

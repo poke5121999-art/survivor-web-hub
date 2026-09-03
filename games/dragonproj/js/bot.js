@@ -158,6 +158,19 @@
       }
       return;
     }
+    /* MÀN BỐC CƯỜNG HOÁ dừng trận lại. Bot phải bấm chọn như người, không thì
+     * nó đứng chờ vĩnh viễn ở lần lên cấp đầu tiên — và mọi bài kiểm chạy bằng
+     * bot sẽ treo ở đúng chỗ đó. Bấm bằng CLICK THẬT lên nút, vì đường đó mới
+     * là đường ngón tay đi.
+     *
+     * Phải đứng TRƯỚC cửa kiểm `b.paused`: chính màn bốc là thứ bật tạm dừng
+     * lên, nên kiểm tạm dừng trước là bot không bao giờ tới được đây. */
+    if (b.draft) {
+      var card = document.querySelector('#hDraftCards [data-perk]');
+      if (card) card.click();
+      return;
+    }
+
     if (b.paused) return;
     var p = b.player;
     if (p.down) {
