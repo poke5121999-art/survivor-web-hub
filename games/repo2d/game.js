@@ -962,6 +962,7 @@ const MONSTERS = {
   // straight line, announced three seconds before it is fired. Everything about it is built so the
   // counter-play is a step sideways and a wall between you, never a health bar.
   rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4',
+             scale:1.6,
              wiki:'Không đuổi và không đụng bạn lúc đi. Nó ngắm MỘT đường thẳng, gồng ba giây lộ liễu rồi lao — và không bẻ lái được. Bước sang ngang một bước là xong; đứng sau tường thì càng chắc.' },
 
   // ------------------------------------------------------------------ hai loài đi theo ĐÀN
@@ -2419,6 +2420,7 @@ function makeMonster(type,x,y){
            goal: null, path: null, pi: 0, pathT: 0, windT: 0, dashLeft: 0,
            stun: 0, charging: false, rammed: null, linger: 0,
            swing: 0, swingDir: 0,        // thì vung tay: giây còn lại, và hướng nó nhắm
+           stompT: 0,                    // Kẻ húc: bụi của cú giậm chân vừa rồi
            planted: false,               // Bom con: đã áp sát và cắm chân xuống đếm ngược
            chaseT: 0, tired: 0,          // đuổi bao lâu rồi, và mệt tới đâu (0..1)
            guardA: Math.random()*Math.PI*2 };    // its own place on the ring around the truck
@@ -4170,6 +4172,7 @@ function stepMonsters(dt){
   for (const m of S.monsters){
     const d = MONSTERS[m.type];
     m.wob += dt*4; m.hit = Math.max(0, m.hit - dt);
+    if (m.stompT > 0) m.stompT = Math.max(0, m.stompT - dt);
     const p = foeTarget(m);
     m.target = p;
     const dist = Math.hypot(p.x-m.x, p.y-m.y);
@@ -4493,6 +4496,9 @@ const ROOK_KNOCK       = 560;
 const ROOK_FOE_DMG     = 0.5;      // what it does to another monster in the lane - and it keeps going
 const ROOK_HIT_R       = 22;
 const ROOK_REPATH      = 1.2;      // seconds between route recalculations while walking
+// Ba nhịp giậm chân, tính theo phần trăm của cả cú gồng. Dồn về cuối chứ không rải đều: nhịp
+// thưa rồi mau là cách rẻ nhất để nói 'sắp rồi' mà không cần một con số đếm ngược nào.
+const ROOK_STOMPS      = [0.30, 0.62, 0.86];
 
 function rookSees(m, dist){
   const p = m.target || S.player;
@@ -4618,7 +4624,22 @@ function stepRook(m, dt, dist){
     }
     const want = Math.atan2(p.y-m.y, p.x-m.x);
     m.dir += clamp(angDiff(want, m.dir), -2.6*dt, 2.6*dt);
+    const truoc = m.windT;
     m.windT += dt;
+    // GIẬM CHÂN. Ba nhịp trong ba giây, và nhịp sau gấp hơn nhịp trước.
+    //
+    // Đây là phần mà bản cũ thiếu hẳn, và là lý do cả cú gồng đọc ra 'đang ngắm bắn' chứ không
+    // đọc ra 'sắp lao'. Don't Starve Together dạy đúng bài này ở con Clockwork Rook — nó ngẩng
+    // sừng lên rồi GIẬM MÓNG XUỐNG ĐẤT mấy nhịp trước khi lao, và một khi đã lao thì không bẻ lái.
+    // Cái người chơi học được là một CỬ ĐỘNG của con vật, không phải một đường kẻ.
+    for (const nhip of ROOK_STOMPS){
+      const t = nhip * ROOK_WIND;
+      if (truoc < t && m.windT >= t){
+        m.stompT = 0.28;                         // bụi tung lên, tắt dần trong ngần này giây
+        const xa = Math.hypot(m.x-S.player.x, m.y-S.player.y);
+        if (xa < 13*TILE){ SFX.thud(); fxShake(1.4 + nhip*2.2); }
+      }
+    }
     if (m.windT >= ROOK_WIND){
       m.windT = 0;
       m.dir = want;
@@ -8898,23 +8919,64 @@ function drawHighlights(c){
     }
   }
 
-  // The rook's wind-up, drawn as the LANE it is about to occupy. Three seconds of warning are
-  // worth nothing if the warning does not say where — the counter-play to this monster is one step
-  // sideways, and a step sideways needs a line to step out of.
+  // CÚ GỒNG CỦA KẺ HÚC, VẼ LẠI 2026-09-03 — chủ dự án: "con rook đang nhìn không giống charge lắm
+  // mà cứ như nhắm bắn vậy".
+  //
+  // Bản cũ vẽ MỘT VỆT SÁNG MẢNH TRONG KHÔNG KHÍ kéo từ nó qua chỗ người chơi. Đó đúng là ngôn ngữ
+  // của NGẮM BẮN, không phải của húc: Half-Life 2 dùng đúng hình đó cho lính bắn tỉa, và cả một
+  // thế hệ game sau đó dùng lại, nên mắt người chơi đã học sẵn 'vệt sáng = có thứ gì đó sắp bay
+  // dọc theo đây'. Cái sắp bay dọc theo đây là CẢ CON QUÁI, và đó là một câu chuyện khác.
+  //
+  // Don't Starve Together kể chuyện đó ở con Clockwork Rook — trùng tên, trùng luật, và cũng lao
+  // một đường thẳng không bẻ lái được: nó NGẨNG SỪNG LÊN rồi GIẬM MÓNG XUỐNG ĐẤT mấy nhịp. Tín
+  // hiệu nằm ở cử động của con vật và ở mặt đất dưới chân nó, không nằm ở một đường kẻ.
+  //
+  // Nên ở đây còn ba thứ, và không thứ nào là một tia sáng:
+  //   1. VẾT CÀY trên sàn: từng vạch ngắn hiện dần dọc làn, như móng cào xuống nền đá. Nó vẫn trả
+  //      lời câu 'né sang bên nào' — mà đó là lý do bản cũ có đường kẻ — nhưng trả lời bằng dấu
+  //      trên MẶT ĐẤT, thứ mà mắt đọc ra 'chỗ này sắp nguy' chứ không đọc ra 'có ai đang ngắm'.
+  //   2. BỤI của cú giậm chân, tung ngược về phía sau nó.
+  //   3. Thân nó rướn về sau và cái sừng hạ xuống (xem drawMonsters).
   for (const m of S.monsters){
     if (m.type !== 'rook' || !foeVisible(m)) continue;
     if (m.rook === 'wind'){
       const k = clamp(m.windT/ROOK_WIND, 0, 1);
       const len = Math.max(4*TILE, Math.hypot(p.x-m.x, p.y-m.y) * ROOK_OVERSHOOT[0]);
+      const ux = Math.cos(m.dir), uy = Math.sin(m.dir), nx = -uy, ny = ux;
       c.save();
-      c.strokeStyle = `rgba(255,201,78,${0.10 + k*0.34})`;
-      c.lineWidth = 2 + k*10;
-      c.beginPath();
-      c.moveTo(m.x + Math.cos(m.dir)*16, m.y + Math.sin(m.dir)*16);
-      c.lineTo(m.x + Math.cos(m.dir)*len, m.y + Math.sin(m.dir)*len);
-      c.stroke();
+      // vết cày: hiện dần từ chân nó ra xa, cái nào cũ thì đậm lên
+      const buoc = TILE*0.85, soVet = Math.floor((len - 18) / buoc);
+      for (let i = 0; i < soVet; i++){
+        const t = i / Math.max(1, soVet - 1);
+        if (t > k*1.12) break;                       // chưa cày tới đó thì chưa vẽ
+        const d0 = 18 + i*buoc, mo = clamp((k*1.12 - t) * 3.4, 0, 1);
+        const bx = m.x + ux*d0, by = m.y + uy*d0;
+        const rong = 7 + k*4;
+        c.strokeStyle = `rgba(214,186,140,${0.16 + mo*0.30})`;
+        c.lineWidth = 1.6 + k*1.2;
+        c.beginPath();                               // hai vạch chéo, như hai móng cào
+        c.moveTo(bx + nx*rong - ux*3, by + ny*rong - uy*3);
+        c.lineTo(bx + nx*(rong*0.45) + ux*3, by + ny*(rong*0.45) + uy*3);
+        c.moveTo(bx - nx*rong - ux*3, by - ny*rong - uy*3);
+        c.lineTo(bx - nx*(rong*0.45) + ux*3, by - ny*(rong*0.45) + uy*3);
+        c.stroke();
+      }
       c.restore();
-      glowRing(c, m.x, m.y, 16 + (1-k)*16, [255,201,78], 0.30 + k*0.5, 2.4);
+      // bụi của cú giậm chân: hai cụm tung ngược ra sau
+      if (m.stompT > 0){
+        const b = m.stompT / 0.28;
+        c.save();
+        for (const ben of [-1, 1]) for (let i = 0; i < 3; i++){
+          const r0 = (1-b) * (10 + i*7);
+          c.fillStyle = `rgba(226,206,170,${0.34*b*(1 - i*0.22)})`;
+          c.beginPath();
+          c.arc(m.x - ux*(6 + r0) + nx*ben*(4 + r0*0.55),
+                m.y - uy*(6 + r0) + ny*ben*(4 + r0*0.55),
+                2.4 + (1-b)*4.2, 0, Math.PI*2);
+          c.fill();
+        }
+        c.restore();
+      }
     } else if (m.rook === 'stun'){
       glowRing(c, m.x, m.y, 15, [230,200,120], 0.24, 1.6);
     }
@@ -9244,7 +9306,14 @@ function drawSwing(c, m, d){
 function drawMonsters(c){
   for (const m of S.monsters){
     const d = MONSTERS[m.type], s = Math.sin(m.wob)*1.5;
-    const co = (d && d.body || FOE_BODY) / FOE_BODY;    // thân nhỏ thì vẽ nhỏ theo
+    // CỠ VẼ tách khỏi CỠ THÂN.
+    //
+    // `body` là bán kính va chạm — nới nó ra là con quái bắt đầu kẹt ở lối một ô và ở khe giữa hai
+    // món đồ, tức là đổi một thứ hình ảnh lấy một lỗi đi lại. `scale` chỉ đụng tới nét vẽ. Kẻ húc
+    // cần TO ra vì nó là con duy nhất mà bạn phải đọc được TỪ XA và đọc được HƯỚNG của nó: cả lối
+    // chơi của nó là bước sang bên khỏi một đường thẳng, mà muốn bước đúng bên thì phải nhìn ra nó
+    // đang quay mặt đi đâu. Bom con và Gnome thì ngược lại, nhỏ theo đúng cỡ thân của chúng.
+    const co = (d && d.scale != null) ? d.scale : (d && d.body || FOE_BODY) / FOE_BODY;
     c.save(); c.translate(m.x, m.y);
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0,9*co,10*co,4.5*co,0,0,Math.PI*2); c.fill();
@@ -9282,10 +9351,28 @@ function drawMonsters(c){
       // so the silhouette has to say which way it is pointed from across a dark room.
       c.rotate(m.dir);
       const wind = m.rook === 'wind' ? clamp(m.windT/ROOK_WIND, 0, 1) : 0;
-      c.translate(-wind*4, 0);                       // it rocks backwards as it loads
+      // RƯỚN VỀ SAU VÀ HẠ SỪNG. Đây là nửa quan trọng nhất của cú gồng — cái mà mắt đọc ra 'nó
+      // sắp lao', chứ không phải mấy dấu dưới đất. Bản cũ chỉ lùi 4 điểm ảnh, gần như không thấy.
+      //
+      // Ba chuyển động chồng lên nhau, cả ba đều mạnh dần theo tiến độ: lùi hẳn ra sau (như con
+      // vật dồn sức vào chân sau), thân NÉN LẠI theo chiều lao và phình ra ngang, và rung theo
+      // đúng nhịp giậm chân. Nén-rồi-bung là ngữ pháp cơ bản của anticipation: càng nén sâu thì
+      // cú bung ra càng đọc là mạnh.
+      const rung = m.stompT > 0 ? (m.stompT/0.28) * 2.6 : 0;
+      c.translate(-wind*9 - rung*Math.sin(S.time*70), (Math.random()-0.5)*rung*0.9);
+      c.scale(1 - wind*0.16, 1 + wind*0.13);
       c.beginPath();
       c.moveTo(14,0); c.lineTo(2,-11); c.lineTo(-11,-9); c.lineTo(-11,9); c.lineTo(2,11);
       c.closePath(); c.fill();
+      if (wind > 0){
+        // cái sừng: hạ dần xuống ngang tầm húc, và sáng lên ở nhịp cuối
+        c.fillStyle = `rgba(255,${210 - wind*70|0},${130 - wind*60|0},${0.45 + wind*0.5})`;
+        c.beginPath();
+        c.moveTo(13 + wind*5, 0);
+        c.lineTo(4, -3.4 - wind*1.6);
+        c.lineTo(4,  3.4 + wind*1.6);
+        c.closePath(); c.fill();
+      }
       c.strokeStyle = d.rim; c.lineWidth = 1.6; c.globalAlpha = 0.8; c.stroke(); c.globalAlpha = 1;
       if (m.rook === 'stun'){
         c.rotate(-m.dir);
@@ -10305,7 +10392,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260903b';
+const BUILD = '20260903c';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
