@@ -2213,6 +2213,14 @@ async function lightSuite(_khongDung) {
       for (let j = -2; j <= 2; j++) if (G(gx + j, gy) !== 1) ok = false;        // dãy tường 5 ô
       for (let k = 1; k <= 3 && ok; k++) for (let j = -2; j <= 2; j++)
         if (G(gx + j, gy + k) !== 0) ok = false;                                // sàn trống trước mặt
+      // VÀ CẢ DÃY PHẢI NẰM GỌN TRONG MỘT PHÒNG.
+      //
+      // Từ 2026-09-03 mỗi phòng mang một nước đá riêng, nên một dãy tường vắt qua ranh hai phòng
+      // có hai nước sơn khác nhau — đo được cột cạn nhất 34 trong khi cột giữa dải 123, mà cả dải
+      // vẫn liền, không sứt một chỗ nào. Cái bộ này đi tìm là vết khuyết của ĐA GIÁC ÁNH SÁNG;
+      // để nó đo qua một chỗ đổi nước sơn là bắt nó trả lời một câu khác câu nó hỏi.
+      const phong = j2 => ((gy + 1) / REPO.RH | 0) * REPO.GX + ((gx + j2) / REPO.RW | 0);
+      for (let j = -2; j <= 2 && ok; j++) if (phong(j) !== phong(-2)) ok = false;
       if (!ok) continue;
       REPO.warp((gx + 0.5) * T, (gy + 3.5) * T);
       return { gx, gy };
@@ -2246,7 +2254,22 @@ async function lightSuite(_khongDung) {
       const bx = Math.round(s0.x), by = Math.round(s0.y);
       const bw = Math.round(s1.x - s0.x), bh = Math.round(s1.y - s0.y);
       const im = gg.getImageData(bx, by, bw, bh).data;
-      const oSang = (i, j) => { const o = (j * bw + i) * 4; return (im[o] + im[o+1] + im[o+2]) / 3; };
+      // Lấy TRUNG BÌNH BA CỘT, không đọc một cột đơn.
+      //
+      // Từ 2026-09-03 mặt sàn là đá, và mạch đá dọc chạy SUỐT từ đầu phòng tới cuối phòng — đó
+      // chính là thứ khiến sàn không còn 'nét đứt'. Nhưng nó cũng có nghĩa là một cột điểm ảnh rơi
+      // đúng vào mạch thì tối hơn hẳn trên cả chiều dài của nó, và phép đếm 'sáng hơn 30' dừng sớm:
+      // đo được cột cạn nhất 32 trong khi cột giữa dải 123, mà cả hai đều nằm trên một dải sáng
+      // không hề sứt. Cái bộ này đi tìm là vết khuyết của ĐA GIÁC ÁNH SÁNG, không phải vân vật liệu
+      // — nên nó phải đo qua vân, đúng như hai phép đo `dai()` và `doc()` ngay dưới đây vẫn làm.
+      const oSang = (i, j) => {
+        let t = 0, n = 0;
+        for (let k = -4; k <= 4; k++){
+          const ii = Math.max(0, Math.min(bw-1, i+k)), o = (j * bw + ii) * 4;
+          t += (im[o] + im[o+1] + im[o+2]) / 3; n++;
+        }
+        return t / n;
+      };
       // Bỏ 6% mỗi đầu: hai mép dải là chỗ nón đèn cắt góc, ở đó nông đi là đúng chứ không sứt.
       const le = Math.round(bw * 0.06), sau = [];
       for (let i = le; i < bw - le; i++) {
@@ -2268,6 +2291,7 @@ async function lightSuite(_khongDung) {
       return { mat: dai(cx, g.gy * T + 16, g.gy * T + 22),
                san: dai(cx, (g.gy + 1) * T + 8, (g.gy + 1) * T + 14),
                canNhat: xep[0], giuaDai: xep[(xep.length / 2) | 0],
+               hinhDang: sau.filter((_, i) => i % 12 === 0).map(v => Math.round(v)).join(' '),
                // Hai lát cắt cho báo cáo 2026-09-03 — "cần sáng rõ nguyên bức tường luôn, đừng
                // chỉ sáng 1 nữa". Một dọc theo BỀ DÀY một ô tường, một ngang qua NĂM ô của cùng
                // bức tường ấy. Bỏ 3 điểm ảnh mỗi đầu vì hai mép ô là vạch chân tường và mép trên,
@@ -2279,7 +2303,7 @@ async function lightSuite(_khongDung) {
       so.mat >= so.san * 0.75, 'tường ' + so.mat + ' / sàn ' + so.san);
     check('đèn ăn vào tường sâu đều nhau, không có cột nào bị sứt',
       so.canNhat > so.giuaDai * 0.6,
-      'cột cạn nhất ' + so.canNhat + ' / cột giữa dải ' + so.giuaDai + ' (điểm ảnh)');
+      'cột cạn nhất ' + so.canNhat + ' / cột giữa dải ' + so.giuaDai + ' · hình dạng: ' + so.hinhDang);
     // Đo được TRƯỚC bản vá 2026-09-03, trên bốn hạt giống: nửa xa của ô tường đọc 3/255 trong khi
     // nửa gần đọc 113 — đèn chỉ liếm một lớp mặt dày nửa ô. Và đo ngang qua năm ô của cùng bức
     // tường ấy ra 3 / 19 / 60 / 21 / 3, tức là ĐÚNG MỘT khúc tường sáng: số hạng N·L mũ 1.5 tắt

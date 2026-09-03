@@ -74,7 +74,9 @@ const P_TOMB = 6, P_RUBBLE = 7, P_URN = 8;
 // Đổi chữ thì phải sửa lại toàn bộ mẫu phòng đã vẽ tay, mà cái đổi ở đây là NƯỚC SƠN.
 const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_LOCKER,
                   K:P_TOMB, R:P_RUBBLE, U:P_URN };
-const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3, stone:4 };
+const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3,
+                      stone:4, da_cat:5, da_sam:6, da_thau:7 };
+const STONE_TU = 4;   // từ chỉ số này trở đi là đá
 
 // WHY 92 and not the 132 this shipped with: at 132 a walking player outran every chasing monster
 // in the game (the fastest chase in MONSTERS is 74*1.25 = 92.5 px/s), so being seen cost nothing —
@@ -739,7 +741,7 @@ const money = n => '$' + Math.round(n).toLocaleString('en-US');
 // Layout rule: doors are carved at the middle of every shared edge, so rows 6-8 must stay
 // clear near the left and right walls, and columns 9-11 near the top and bottom ones.
 const ROOMS = [
-  { name:'Phòng khách', floor:'carpet', rows:[
+  { name:'Phòng khách', floor:'da_thau', rows:[
     '#####################',
     '#P...S.........S...P#',
     '#....S.........S....#',
@@ -755,7 +757,7 @@ const ROOMS = [
     '#...................#',
     '#...................#',
     '#####################' ]},
-  { name:'Nhà kho', floor:'concrete', rows:[
+  { name:'Nhà kho', floor:'da_sam', rows:[
     '#####################',
     '#.C.C.........C.C..P#',
     '#.SSS.SSS...SSS.SSS.#',
@@ -771,7 +773,7 @@ const ROOMS = [
     '#.C.C....L....C.C..P#',
     '#...................#',
     '#####################' ]},
-  { name:'Bếp', floor:'tile', rows:[
+  { name:'Bếp', floor:'da_cat', rows:[
     '#####################',
     '#.TTTTT.....TTTTT...#',
     '#.L...T.....T...L...#',
@@ -787,7 +789,7 @@ const ROOMS = [
     '#.TTTTT.....TTTTT...#',
     '#...................#',
     '#####################' ]},
-  { name:'Hành lang', floor:'wood', rows:[
+  { name:'Hành lang', floor:'stone', rows:[
     '#####################',
     '#.SS.SS.....SS.SS...#',
     '#...................#',
@@ -803,7 +805,7 @@ const ROOMS = [
     '#...................#',
     '#.SS.SS.....SS.SS...#',
     '#####################' ]},
-  { name:'Thư phòng', floor:'wood', rows:[
+  { name:'Thư phòng', floor:'da_sam', rows:[
     '#####################',
     '#.S.S.S.....S.S.S...#',
     '#...................#',
@@ -819,7 +821,7 @@ const ROOMS = [
     '#.S.S.S.....S.S.S...#',
     '#...................#',
     '#####################' ]},
-  { name:'Sân trong', floor:'concrete', rows:[
+  { name:'Sân trong', floor:'da_cat', rows:[
     '#####################',
     '#...................#',
     '#...PPPPP...PPPPP...#',
@@ -835,7 +837,7 @@ const ROOMS = [
     '#...PPPPP...PPPPP...#',
     '#...................#',
     '#####################' ]},
-  { name:'Phòng ngủ', floor:'carpet', rows:[
+  { name:'Phòng ngủ', floor:'da_thau', rows:[
     '#####################',
     '#.SS...........SS...#',
     '#.TTT.........TTT...#',
@@ -851,7 +853,7 @@ const ROOMS = [
     '#.SS...........SS...#',
     '#...................#',
     '#####################' ]},
-  { name:'Phòng ăn', floor:'wood', rows:[
+  { name:'Phòng ăn', floor:'stone', rows:[
     '#####################',
     '#.S.....T...TT....S.#',
     '#.S...TTT...T.....S.#',
@@ -867,7 +869,7 @@ const ROOMS = [
     '#.S...TTT...T.....S.#',
     '#.S.....T...T.....S.#',
     '#####################' ]},
-  { name:'Phòng tắm', floor:'tile', rows:[
+  { name:'Phòng tắm', floor:'da_cat', rows:[
     '#####################',
     '#.TT.TT.....TT.TT...#',
     '#.T..T......T..T....#',
@@ -2478,7 +2480,20 @@ const FLOORS = [
   { base:[104,84,80],  alt:[112,92,86] },    // 3 carpet
   // 4 đá hầm mộ — xám ngả lục lạnh, lấy từ tranh ý tưởng. alt sáng hơn base một nấc rất nhỏ:
   // đây là hai loại đá lát xen nhau chứ không phải hai ô gạch, nên chênh nhau nhiều là ra bàn cờ.
-  { base:[118,132,126],alt:[124,138,131] }   // 4 stone
+  // CẢ CĂN NHÀ LÀ ĐÁ — chủ dự án, 2026-09-03: "sao không thay hết phòng, nền, wall thành style đó".
+  //
+  // Bốn nước đá chứ không phải một: chín phòng cùng một nước thì cả bản đồ đọc ra MỘT hành lang
+  // dài, và cái mà bảng này tồn tại để giữ — nhìn nước sơn là biết đang ở phòng nào — mất sạch.
+  // Bốn nước đều trong một họ xám ngả lục của tranh ý tưởng, lệch nhau 10-14 mức sáng và một chút
+  // sắc: thấy được, mà không đọc ra bốn vật liệu khác nhau.
+  //
+  // Cờ `stone` để chỗ khác hỏi "đây có phải đá không" mà không phải so theo chỉ số. Bốn nước sơn
+  // nhà (0..3) giữ nguyên chứ không xoá: trạm dịch vụ vẫn dùng FLOOR_STYLE.tile, và nó cố ý KHÔNG
+  // phải hầm mộ — đó là nơi duy nhất trong game có đèn bật sẵn.
+  { base:[118,132,126],alt:[124,138,131], stone:1 },  // 4 đá lục  — nước gốc, lấy thẳng từ tranh
+  { base:[132,130,118],alt:[138,136,123], stone:1 },  // 5 đá cát  — ngả vàng, ấm hơn một nấc
+  { base:[104,114,112],alt:[110,120,117], stone:1 },  // 6 đá sẫm  — tối nhất, cho phòng sâu
+  { base:[124,120,128],alt:[130,126,134], stone:1 }   // 7 đá thau — ngả tím rất nhạt, lạnh nhất
 ];
 // Chọn lại mặt tường, 2026-08-31. Bốn màu cũ nằm gọn trong khoảng sáng 74..84/255 — chênh nhau
 // 10 mức trên 255, tức là mắt không phân biệt nổi, và sau khi lớp tối NHÂN lên thì cả bốn ra
@@ -2514,7 +2529,10 @@ const WALLS = [
   [143,137,125], // 1 gạch men       — men kem, mạch vữa tối (thay cho xanh lạnh)
   [122,117,109], // 2 blốc bê tông   — có hàng gạch và mạch so le (thay cho xám trơn)
   [120,89,86],   // 3 giấy hoa văn   — đỏ trầm, kẻ sọc dọc
-  [128,142,135]  // 4 đá hầm mộ      — nhỉnh hơn sàn đá cùng phòng chừng 8%, đúng luật ở trên
+  [128,142,135], // 4 đá lục   — nhỉnh hơn sàn cùng phòng chừng 8%, đúng luật ở trên
+  [142,140,127], // 5 đá cát
+  [113,124,121], // 6 đá sẫm
+  [134,130,138]  // 7 đá thau
 ];
 // LỚP THẾ GIỚI VẼ Ở ĐỘ PHÂN GIẢI GẤP ĐÔI, 2026-09-03 — "làm sao cho chi tiết + rõ nét nhất".
 //
@@ -2636,7 +2654,7 @@ function prerenderWorld(rnd){
 // chứ không đọc ra vật liệu — đúng cái bẫy sàn nhà đã dính một lần rồi.
 // SEE: docs/patches/phase-5.4-patch-29-repo-wall-light.md
 function paintWallSkin(c, x, y, style, gx, gy, n){
-  if (style === 4){
+  if (style >= STONE_TU){
     // ĐÁ HẦM MỘ. Hàng đá cao 8 điểm ảnh, mạch dọc so le giữa hai hàng.
     //
     // Cả hai loại mạch đều tính từ TOẠ ĐỘ THẾ GIỚI, không tính từ góc ô: hàng đá nằm ở mọi y
@@ -2776,7 +2794,7 @@ function paintStoneInlay(c){
     if (gx < 0 || gy < 0 || gx >= MW || gy >= MH) return false;
     if (S.grid[gy*MW+gx] !== FLOOR) return false;
     const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
-    return (S.roomStyle ? S.roomStyle[ri] : 0) === FLOOR_STYLE.stone;
+    return (S.roomStyle ? S.roomStyle[ri] : 0) >= STONE_TU;
   };
   const kimCuong = (mx, my, r) => {
     c.strokeStyle = 'rgba(0,0,0,0.26)'; c.lineWidth = 1.4;
@@ -2859,7 +2877,7 @@ function paintStoneFrieze(c){
     if (S.grid[gy*MW+gx] !== WALL) return false;
     if (S.grid[(gy+1)*MW+gx] === WALL) return false;          // phải lộ mặt xuống một khoảng trống
     const ri = (((gy+1)/RH)|0)*GX + ((gx/RW)|0);
-    return (S.roomStyle ? S.roomStyle[ri] : 0) === FLOOR_STYLE.stone;
+    return (S.roomStyle ? S.roomStyle[ri] : 0) >= STONE_TU;
   };
   for (let gy = 0; gy < MH; gy++){
     let gx = 0;
@@ -2876,39 +2894,43 @@ function paintStoneFrieze(c){
 // Một DÃY phù điêu, vẽ một lần từ đầu dãy tới cuối dãy. Không có mối nối nào để mà hở.
 function friezeRun(c, x0, x1, y, gy){
   const w = x1 - x0;
-  // Dải nền hơi lõm, để phù điêu không nổi lên trên mặt tường phẳng lì.
-  const g = c.createLinearGradient(0, y+TILE-13, 0, y+TILE-2);
-  g.addColorStop(0, 'rgba(0,0,0,0.16)');
-  g.addColorStop(0.5, 'rgba(0,0,0,0.03)');
-  g.addColorStop(1, 'rgba(0,0,0,0.14)');
-  c.fillStyle = g; c.fillRect(x0, y+TILE-13, w, 11);
-  // Hai đường gờ chạy suốt dãy — đây là thứ khiến cả dãy đọc ra MỘT bức tường.
-  c.fillStyle = 'rgba(0,0,0,0.34)';        c.fillRect(x0, y+TILE-14, w, 1.2);
-  c.fillStyle = 'rgba(240,250,246,0.15)';  c.fillRect(x0, y+TILE-12.8, w, 1);
-  c.fillStyle = 'rgba(0,0,0,0.30)';        c.fillRect(x0, y+TILE-2.4, w, 1.2);
-  c.fillStyle = 'rgba(240,250,246,0.10)';  c.fillRect(x0, y+TILE-3.6, w, 1);
+  // DẢI NÀY PHẢI TRUNG TÍNH VỀ ĐỘ SÁNG.
+  //
+  // Từ lúc cả nhà là đá, phù điêu phủ MỌI bức tường chứ không riêng hầm mộ — và bản đầu của nó tô
+  // một dải tối 0.16 lên đúng chỗ mặt tường mà người chơi soi đèn vào. Bộ đo bắt được ngay: mặt
+  // tường đọc 91 trong khi sàn ngay trước nó đọc 128, tức là tụt xuống 0.71 lần — dưới ngưỡng 0.75,
+  // và đúng là cái lỗi 'soi đèn vào tường mà tường không tỏ' đã sửa hai lần trước đó. Một dải trang
+  // trí không được phép lấy lại thứ mà cả hai bản vá kia vừa trả về.
+  //
+  // Nay mỗi nét tối đi kèm một nét sáng ngay cạnh: mắt vẫn đọc ra chữ khắc chìm, mà độ sáng trung
+  // bình của cả dải gần như không đổi. Chạm khắc là CHÊNH LỆCH, không phải bóng tối.
+  c.fillStyle = 'rgba(0,0,0,0.20)';        c.fillRect(x0, y+TILE-14, w, 1);
+  c.fillStyle = 'rgba(244,252,248,0.22)';  c.fillRect(x0, y+TILE-13, w, 1);
+  c.fillStyle = 'rgba(0,0,0,0.18)';        c.fillRect(x0, y+TILE-2.4, w, 1);
+  c.fillStyle = 'rgba(244,252,248,0.18)';  c.fillRect(x0, y+TILE-3.4, w, 1);
   // Ô chữ tượng hình. Vạch ngăn và nét chữ đều lấy pha từ TOẠ ĐỘ THẾ GIỚI, nên nhịp của chúng
   // không đổi khi dãy dài ra hay ngắn lại, và hai dãy nối nhau qua một khung cửa vẫn cùng nhịp.
   const B = 11;
   for (let wx = Math.ceil(x0/B)*B; wx < x1; wx += B){
-    c.fillStyle = 'rgba(0,0,0,0.24)'; c.fillRect(wx, y+TILE-11.6, 1, 8);
+    c.fillStyle = 'rgba(0,0,0,0.16)'; c.fillRect(wx, y+TILE-11.6, 1, 8);
+    c.fillStyle = 'rgba(244,252,248,0.14)'; c.fillRect(wx+1, y+TILE-11.6, 1, 8);
   }
   for (let wx = Math.ceil(x0/B)*B; wx < x1 - B*0.6; wx += B){
     const t = bam(wx, gy), u = bam(wx*3, gy*5);
-    c.fillStyle = 'rgba(0,0,0,0.30)';
+    c.fillStyle = 'rgba(0,0,0,0.22)';
     if (t < 0.25){                                   // chim ưng: thân ngang, đuôi xoè
       c.fillRect(wx+2.5, y+TILE-9.5, 6, 1.2);
       c.fillRect(wx+2.5, y+TILE-8.3, 1.2, 3);
       c.fillRect(wx+6.5, y+TILE-8.3, 2, 1.2);
     } else if (t < 0.5){                             // mắt Horus: vòng cung cộng một nét rủ
-      c.strokeStyle = 'rgba(0,0,0,0.30)'; c.lineWidth = 1.2;
+      c.strokeStyle = 'rgba(0,0,0,0.22)'; c.lineWidth = 1.2;
       c.beginPath(); c.arc(wx+5, y+TILE-7.5, 2.6, Math.PI, Math.PI*2); c.stroke();
       c.fillRect(wx+4.4, y+TILE-7.2, 1.2, 1.2);
       c.fillRect(wx+6.6, y+TILE-6.4, 1.6, 1.2);
     } else if (t < 0.75){                            // ankh
       c.fillRect(wx+4.4, y+TILE-8.4, 1.2, 5.4);
       c.fillRect(wx+2.6, y+TILE-6.6, 4.8, 1.2);
-      c.strokeStyle = 'rgba(0,0,0,0.30)'; c.lineWidth = 1.2;
+      c.strokeStyle = 'rgba(0,0,0,0.22)'; c.lineWidth = 1.2;
       c.beginPath(); c.arc(wx+5, y+TILE-9.4, 1.6, 0, Math.PI*2); c.stroke();
     } else {                                         // ba nét sóng nước, dài ngắn theo băm
       for (let k = 0; k < 3; k++)
@@ -2920,7 +2942,7 @@ function friezeRun(c, x0, x1, y, gy){
   // nó có tâm, và mọi thứ khác trên tường xếp quanh cái tâm ấy.
   if (w >= TILE*6){
     const mx = (x0 + x1) / 2, my = y + TILE - 7.6;
-    c.fillStyle = 'rgba(0,0,0,0.20)'; c.fillRect(mx - TILE*1.9, y+TILE-12.6, TILE*3.8, 9.6);
+    c.fillStyle = 'rgba(244,252,248,0.07)'; c.fillRect(mx - TILE*1.9, y+TILE-12.6, TILE*3.8, 9.6);
     c.fillStyle = 'rgba(0,0,0,0.42)';
     c.beginPath(); c.arc(mx, my, 3.1, 0, Math.PI*2); c.fill();
     c.fillStyle = 'rgba(242,252,248,0.16)';
@@ -2966,7 +2988,7 @@ function paintFloor(c, x, y, st, gx, gy, n){
   // hàng đều vẽ đúng một đường thế giới nên nó nối liền), mạch dọc so le giữa hai hàng tấm
   // đúng kiểu xây đá thật. Màu cũng bốc theo TẤM chứ không theo ô — bốc theo ô thì mỗi ô một
   // sắc, và một tấm đá bị cắt làm bốn mảnh khác màu là thứ trông giả nhất trong cả bộ.
-  if (st === FLOORS[4]){ paintStone(c, x, y, st, gx, gy); return; }
+  if (st.stone){ paintStone(c, x, y, st, gx, gy); return; }
   let swap;
   if (st === FLOORS[1])      swap = (gx + gy) & 1;        // tile: checkerboard
   else if (st === FLOORS[0]) swap = ((gy >> 1) & 1);      // wood: two-tile plank rows
@@ -2996,41 +3018,55 @@ function paintProp(c, x, y, kind, n){
     c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(x+ix, y+iy+h-3, w, 3);
     if (edge){ c.strokeStyle = edge; c.lineWidth = 1; c.strokeRect(x+ix+0.5, y+iy+0.5, w-1, h-1); }
   };
-  if (kind === P_TABLE){            // table / counter / bed — low, warm wood
-    box(1, 2, T-2, T-4, '#8e6b45', '#6d4f32', 'rgba(0,0,0,0.35)');
-    c.fillStyle = 'rgba(255,236,200,0.10)'; c.fillRect(x+2, y+3, T-4, 2);
-  } else if (kind === P_SHELF){     // shelf / cabinet / bookcase — tall, dark, with shelves
-    box(1, 0, T-2, T, '#5c4a3a', '#41352a', 'rgba(0,0,0,0.45)');
+  // BỐN MÓN ĐỒ NHÀ ĐỔI THÀNH ĐỒ HẦM MỘ, 2026-09-03.
+  //
+  // Đổi sàn và tường sang đá mà để nguyên bàn gỗ, tủ sách và tủ sắt thì ra một hầm mộ có tủ hồ sơ.
+  // Nhưng KHÔNG đụng vào mười mẫu phòng, cũng không đụng vào chữ cái T/S/C/P: bố cục từng phòng,
+  // chỗ rơi đồ, chỗ quái đứng, lối cho xe đẩy đều đã cân rồi — cái phải đổi là NƯỚC SƠN. Đây đúng
+  // là quyết định đã ghi ở PROP_CH hồi thay chậu cây bằng tủ sắt, áp lại cho cả bốn món.
+  //
+  // Cả bốn vẫn theo quy ước hộp cũ: mặt trên sáng, chân tối, có cạnh — thứ khiến một đồ vật ăn
+  // được ánh đèn thay vì chỉ đổi độ đậm của một mảng màu.
+  const gxo = (x / TILE) | 0, gyo = (y / TILE) | 0;
+  if (kind === P_TABLE){            // BỆ ĐÁ — bàn thờ thấp, mặt phẳng, có gờ chân
+    box(1, 3, T-2, T-7, '#9aa9a1', '#71807a', 'rgba(0,0,0,0.42)');
+    c.fillStyle = 'rgba(0,0,0,0.26)';
+    c.fillRect(x+1, y+3+(((T-7)*0.42)|0), T-2, 1.2);      // mạch giữa hai phiến mặt bệ
+    c.fillStyle = 'rgba(238,248,244,0.16)'; c.fillRect(x+1, y+3, T-2, 1.2);
+    c.fillStyle = '#5f6d67'; c.fillRect(x+3, y+T-5, T-6, 3);
+    c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(x+3, y+T-3, T-6, 2);
+  } else if (kind === P_SHELF){     // HỐC XẾP BÌNH — ba hộc khoét vào tường, mỗi hộc một bình
+    box(1, 0, T-2, T, '#6d7c75', '#4e5b56', 'rgba(0,0,0,0.48)');
+    for (let k = 0; k < 3; k++){
+      c.fillStyle = 'rgba(0,0,0,0.44)';
+      c.fillRect(x+2.5, y+2 + k*7.2, T-5, 5.4);
+      const t = bam(gxo+k, gyo);
+      c.fillStyle = t < 0.5 ? '#a8927a' : '#93a29a';
+      c.fillRect(x+4 + ((t*6)|0), y+3.4 + k*7.2, 3.4, 4);
+      c.fillStyle = 'rgba(0,0,0,0.40)';
+      c.fillRect(x+4 + ((t*6)|0), y+3.4 + k*7.2, 3.4, 1.2);
+    }
+    c.fillStyle = 'rgba(238,248,244,0.13)'; c.fillRect(x+1, y, T-2, 1.2);
+  } else if (kind === P_CRATE){     // RƯƠNG KHAI QUẬT — món DUY NHẤT còn là gỗ, và đó là chủ ý:
+    // trong một hầm mộ toàn đá, thứ duy nhất nói 'có người tới đây trước bạn' là đồ của họ.
+    box(2, 2, T-4, T-4, '#a8834b', '#7a5c33', 'rgba(0,0,0,0.44)');
     c.fillStyle = 'rgba(0,0,0,0.30)';
-    c.fillRect(x+2, y+7, T-4, 2); c.fillRect(x+2, y+15, T-4, 2);
-    if (n > 0.5){ c.fillStyle = 'rgba(190,160,120,0.30)'; c.fillRect(x+3, y+2, T-6, 4); }
-  } else if (kind === P_CRATE){     // crate / appliance — pale box with a cross brace
-    box(2, 2, T-4, T-4, '#b9ac92', '#8f8470', 'rgba(0,0,0,0.40)');
-    c.strokeStyle = 'rgba(80,68,50,0.55)'; c.lineWidth = 1.2;
-    c.beginPath(); c.moveTo(x+3, y+3); c.lineTo(x+T-3, y+T-3);
-    c.moveTo(x+T-3, y+3); c.lineTo(x+3, y+T-3); c.stroke();
-  } else if (kind === P_LOCKER){    // tủ sắt — hộp kim loại lạnh, hai cánh, khe thông hơi
-    // THAY CHO CHẬU CÂY, 2026-09-01 — "cái tường có hình tròn bên trong nhìn xấu quá".
-    //
-    // Cái cũ là hai hình tròn tô đặc lồng nhau cộng một vệt bóng bầu dục: không có mặt trên,
-    // không có cạnh, không có hướng. Bốn món còn lại đều là hộp có mặt trên sáng và chân tối,
-    // nên giữa chúng nó không đọc ra một cái chậu — nó đọc ra một cái vòng tròn ai đó vẽ lên
-    // ô gạch, và vì món này hay nằm sát tường nên thành ra "cái tường có hình tròn bên trong".
-    // Hình tròn tô đặc còn là thứ chịu ánh sáng kém nhất trong cả bộ: không có mặt nào để
-    // sáng khác nhau thì soi đèn vào chỉ đổi được độ đậm của đúng một mảng màu.
-    //
-    // Tủ sắt dùng đúng hàm box() như ba món kia, nên nó ăn cùng một quy ước "mặt trên sáng,
-    // chân tối" — và nó là món DUY NHẤT ngả lạnh trong một căn nhà toàn gỗ và giấy dán tường,
-    // nên vẫn phân biệt được với tủ gỗ ngay cạnh mà không cần một hình dạng lạ.
-    box(1, 1, T-2, T-2, '#7d868c', '#59626a', 'rgba(0,0,0,0.45)');
-    const seam = x + ((T*0.55)|0);
-    c.fillStyle = 'rgba(0,0,0,0.40)'; c.fillRect(seam, y+2, 1, T-5);
-    c.fillStyle = 'rgba(226,236,242,0.34)';                    // hai tay nắm hai bên khe
-    c.fillRect(seam-4, y+9, 3, 1); c.fillRect(seam+2, y+9, 3, 1);
-    c.fillStyle = 'rgba(0,0,0,0.22)';                          // khe thông hơi trên cánh trái
-    for (let k = 0; k < 3; k++) c.fillRect(x+3, y+3+k*2, seam-x-5, 1);
-    c.fillStyle = 'rgba(240,248,252,0.10)'; c.fillRect(x+1, y+1, T-2, 1);   // gờ sáng mép trên
-  } else if (kind === P_TOMB){      // quan tài đá — dựng đứng dựa tường, mặt nạ ở đầu
+    c.fillRect(x+2, y+6, T-4, 1.6); c.fillRect(x+2, y+T-8, T-4, 1.6);
+    c.fillStyle = 'rgba(226,214,190,0.22)';
+    c.fillRect(x+2, y+5, T-4, 1); c.fillRect(x+2, y+T-9, T-4, 1);
+    c.fillStyle = 'rgba(0,0,0,0.34)'; c.fillRect(x+((T/2)|0)-1, y+2, 2, T-4);
+  } else if (kind === P_LOCKER){    // CỘT ĐÁ — trụ có rãnh dọc, đầu cột loe, chân có bệ
+    // Món này hay nằm sát tường, nên bài học 2026-09-01 vẫn giữ: KHÔNG được là một hình tròn tô
+    // đặc, nếu không nó lại đọc ra 'cái tường có hình tròn bên trong'. Cột có mặt trên sáng, thân
+    // có rãnh, chân có bệ và bóng — bốn thứ mà một cái đĩa tròn không có.
+    c.fillStyle = '#5f6d67'; c.fillRect(x+1, y+T-6, T-2, 5);
+    c.fillStyle = 'rgba(0,0,0,0.36)'; c.fillRect(x+1, y+T-2.5, T-2, 2.5);
+    box(3, 2, T-6, T-7, '#93a29a', '#6b7a74', 'rgba(0,0,0,0.44)');
+    c.fillStyle = 'rgba(0,0,0,0.26)';
+    for (let k = 1; k < 4; k++) c.fillRect(x+3 + k*((T-6)/4), y+3, 1, T-9);
+    c.fillStyle = '#a8b7ae'; c.fillRect(x+2, y+1, T-4, 3.2);
+    c.fillStyle = 'rgba(238,248,244,0.18)'; c.fillRect(x+2, y+1, T-4, 1.2);
+  } else if (kind === P_TOMB){  } else if (kind === P_TOMB){      // quan tài đá — dựng đứng dựa tường, mặt nạ ở đầu
     // Ba món của hầm mộ vẫn theo ĐÚNG quy ước của bốn món cũ: mặt trên sáng, chân tối, có cạnh.
     // Quyết định 2026-09-01 đã ghi rõ vì sao — một hình tô đặc không có mặt nào để sáng khác nhau
     // thì soi đèn vào chỉ đổi được độ đậm của đúng một mảng màu, và giữa bốn cái hộp nó không đọc
@@ -10269,7 +10305,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260903a';
+const BUILD = '20260903b';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
