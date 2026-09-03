@@ -246,8 +246,7 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .cur b{display:flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;
   background:#0d1117;border:1px solid var(--line);border-radius:12px;padding:2px 8px;
   font-variant-numeric:tabular-nums}
-.cur .g{color:var(--gold)} .cur .m{color:#8fd4ff} .cur .t{color:#ff9a4a}
-.cur .d{color:#ff8a5a} .cur .p{color:#c8a0ff}
+.cur .g{color:var(--gold)} .cur .m{color:#8fd4ff} .cur .d{color:#f2d24b}
 
 /* --- lối tắt nổi ở bốn góc khung nội dung, kiểu REPO Squad --- */
 .quick{position:absolute;top:6px;display:flex;flex-direction:column;gap:6px;z-index:4}
@@ -417,6 +416,36 @@ button{font-family:inherit;color:inherit;border:none;background:none;cursor:poin
 .gacha-hero span{font-size:10px;color:var(--dim)}
 .rate-tab{display:flex;gap:5px;font-size:10px;margin-top:5px}
 .rate-tab b{background:#000;border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+.gacha-hero{height:112px}
+
+/* Ba banner: một hàng tab dính trên đầu. Không dùng nav phụ vì ba banner không
+   phải ba màn hình — chúng là ba mặt của cùng một quầy, và chuyển qua lại giữa
+   chúng phải rẻ bằng đúng một cú chạm. */
+.tabrow{display:flex;gap:5px;margin-bottom:8px}
+.tabrow .tab{flex:1;padding:7px 0;font-size:11px;font-weight:800;letter-spacing:.4px;
+  background:#0d1117;border:1px solid var(--line);border-radius:8px;color:var(--dim)}
+.tabrow .tab.on{background:linear-gradient(180deg,#3b4a5e,#1b2531);color:#eaf1f8;
+  border-color:#6f8ba8;box-shadow:0 0 10px rgba(111,212,255,.25)}
+
+/* Thanh pity. Vạch `u` là mốc pity MỀM — chỗ tỉ lệ bắt đầu leo. Vẽ nó ra vì một
+   cơ chế người chơi không thấy thì coi như không tồn tại: họ vẫn nghĩ mỗi lượt
+   quay là một canh bạc độc lập, mà đó chính là cái pity sinh ra để chữa. */
+.pitybar{position:relative;height:7px;border-radius:4px;background:#0a0f16;
+  border:1px solid var(--line);overflow:hidden;margin-top:6px}
+.pitybar i{display:block;height:100%;background:linear-gradient(90deg,#4a7fb5,#8fd4ff)}
+.pitybar u{position:absolute;top:0;bottom:0;width:2px;background:#f2d24b;opacity:.8}
+
+/* Thẻ chọn món đem nướng khi đột phá. */
+.chip{font-size:10px;padding:4px 7px;border-radius:7px;background:#0d1117;
+  border:1px solid var(--line);color:var(--dim);display:inline-flex;align-items:center;gap:4px}
+.chip.on{border-color:#f2d24b;color:#f2d24b;background:#241d0a}
+.card.sub{background:#0a0f16;border-style:dashed;margin:6px 0;padding:8px}
+
+/* Bốn nhánh Tiến Hoá: mười lăm ô, ô nào sáng là một cấp đã mua. Đếm được bằng
+   mắt thì không cần đọc con số, và tiến độ nhìn ra ngay từ xa. */
+.evolbar{display:flex;gap:3px;margin-top:7px}
+.evolbar i{flex:1;height:9px;border-radius:2px;background:#0a0f16;border:1px solid var(--line)}
+.evolbar i.on{border-color:transparent}
 
 /* kết quả trận */
 /* Bảng kết quả cũng là menu, nên phóng theo đúng --ui như #screens. */

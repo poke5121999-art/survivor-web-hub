@@ -24,7 +24,6 @@
     if (G.Atlas) G.Atlas.load('assets/asset-map.js', function () { repaintNav(); });
     S = G.load();
     if (!S) { S = G.starterKit(G.newSave('Hound')); G.save(S); }
-    G.rollRecurrent(S);
     S.progress = S.progress || {};
     buildScreens();
     installDragEquip();
@@ -150,7 +149,7 @@
     mkScreen('more',   'KHÁC', '', true);
     mkScreen('roster', 'NHÂN VẬT', '', true, true);
     mkScreen('gear',   'CHI TIẾT TRANG BỊ', '', false, true);
-    mkScreen('forge',  'NGUYÊN LIỆU', '', false, true);
+    mkScreen('evol',   'TIẾN HOÁ', '', false, true);
     mkScreen('shop',   'TIỆM', '', false, true);
     mkScreen('help',   'CÁCH CHƠI', '', false, true);
     mkScreen('bosslist','DANH SÁCH BEHEMOTH', '', false, true);
@@ -167,7 +166,7 @@
     screens.style.display = 'block';
     renderCur(id);
     ({ home: rHome, quest: rQuest, armory: rArmory, gacha: rGacha, more: rMore, roster: rRoster,
-       gear: rGear, forge: rForge, shop: rShop, help: rHelp, bosslist: rBossList }[id] || function () {})();
+       gear: rGear, evol: rEvol, shop: rShop, help: rHelp, bosslist: rBossList }[id] || function () {})();
     // nav highlight
     var nb = el.querySelector('.navbar');
     if (nb) Array.prototype.forEach.call(nb.children, function (b) { b.classList.toggle('on', b.getAttribute('data-nav') === id); });
@@ -195,12 +194,14 @@
     if (nm) nm.textContent = S.name;
     if (pw) pw.textContent = 'Lv.' + S.lv + ' · ⚔ ' + fmt(powerOf());
     if (!c) return;
+    /* HAI đồng tiền, và một con dấu. Bản trước có năm ô ở đây và không ai nhớ
+     * nổi ô nào mua được gì. Lõi Rồng đứng cùng hàng vì nó là thứ người chơi
+     * phải theo dõi để biết mình còn Tinh Luyện được hay không — nhưng nó không
+     * mua được gì trong tiệm, nên nó không phải đồng tiền thứ ba. */
     c.innerHTML =
       '<b class="g">⬤ ' + fmt(S.gold) + '</b>' +
       '<b class="m">◈ ' + fmt(S.gem) + '</b>' +
-      '<b class="t">▤ ' + fmt(S.ticket) + '</b>' +
-      '<b class="d">✹ ' + fmt(S.medal) + '</b>' +
-      '<b class="p">✦ ' + fmt(S.pikke) + '</b>';
+      '<b class="d">◆ ' + fmt(S.core || 0) + '</b>';
   }
   function refresh() { renderCur(cur); }
 
@@ -222,7 +223,6 @@
   function rHome() {
     var b = $('body-home');
     var area = G.areaById(S.area) || G.AREAS[0];
-    var nextStory = G.STORY.find(function (q) { return S.story.done.indexOf(q.id) < 0; });
     var nx = G.nextStage(S);
     var nxBoss = G.behemothById(nx.boss);
 
@@ -234,7 +234,7 @@
             '<div class="lvchip">Lv. ' + S.lv + ' · ' + S.name + '</div>' +
             '<div class="area">' + area.n + '</div>' +
             '<div class="quick l">' +
-              '<button data-act="forge">' + uiIcon('mats', '⚒️') + 'Nguyên liệu</button>' +
+              '<button data-act="evol">' + uiIcon('mats', '⚒️') + 'Tiến Hoá</button>' +
             '</div>' +
             '<div class="quick r">' +
               '<button data-act="shop">' + uiIcon('shop', '🛒') + 'Tiệm</button>' +
@@ -257,22 +257,24 @@
       (nxBoss ? nxBoss.n + ' ' + nxBoss.rank : '?') + '</span></div>' +
       '<button class="btn go" data-act="hunt">ĐÁNH</button></div>';
 
-    if (nextStory) {
-      var pr = questProgressText(nextStory);
-      html += '<div class="banner main"><div class="npc">' + npcFace(nextStory.id) + '</div><div class="t">' +
-        '<span class="kind" style="color:#8ee8a8">STORY</span> ' +
-        '<b>' + nextStory.vi + '</b><span>' + nextStory.n + ' — ' + pr + '</span></div>' +
-        '<button class="btn go" data-act="goQuest">ĐI</button></div>';
-    } else {
-      html += '<div class="banner main"><div class="npc">' + npcFace('end') + '</div><div class="t"><b>Hết cốt truyện mùa 1</b>' +
-        '<span>' + QUEST_NPC[0] + ' không còn việc nào cho bạn nữa. Đi săn Behemoth thôi.</span></div></div>';
-    }
+    /* Tấm banner thứ hai: TIẾN HOÁ. Nó thay chỗ của tấm cốt truyện cũ, và đó là
+     * một sự thay thế có chủ ý — cả hai đều trả lời câu "ngoài đi ải ra thì tôi
+     * làm gì tiếp", nhưng cái này trả lời bằng một thứ vĩnh viễn thay vì bằng
+     * một danh sách việc vặt. */
+    var evTotal = G.evolTotal(S), evMax = G.EVOL.max * G.EVOL.tracks.length;
+    html += '<div class="banner main"><div class="npc">' + npcFace('evol') + '</div><div class="t">' +
+      '<span class="kind" style="color:#8ee8a8">TIẾN HOÁ</span> ' +
+      '<b>' + evTotal + '/' + evMax + ' cấp</b><span>Nâng chỉ số gốc cho MỌI nhân vật — ' +
+      'kể cả người quay được sau này.</span></div>' +
+      '<button class="btn go" data-act="evol">MỞ</button></div>';
 
-    // Nhiệm vụ ngày / tuần
-    html += '<div class="card"><h3>Nhiệm vụ ngày</h3>' + recurrentRows(S.daily.picks, G.DAILY, S.daily.done, 'd') +
-      recurrentBonus(G.DAILY_BONUS, S.daily, 3, 'd') + '</div>';
-    html += '<div class="card"><h3>Nhiệm vụ tuần</h3>' + recurrentRows(S.weekly.picks, G.WEEKLY, S.weekly.done, 'w') +
-      recurrentBonus(G.WEEKLY_BONUS, S.weekly, 4, 'w') + '</div>';
+    // Gem đang có và nó quay được mấy lượt: câu hỏi mà người chơi gacha nào cũng
+    // hỏi trước tiên, nên trả lời ngay ở màn đầu chứ không bắt bấm vào tiệm.
+    html += '<div class="banner event"><div class="npc">🔮</div><div class="t">' +
+      '<span class="kind" style="color:#8fd4ff">TRIỆU HỒI</span> <b>◈ ' + fmt(S.gem) + '</b>' +
+      '<span>đủ ' + Math.floor(S.gem / G.REWARD.pull) + ' lượt quay đơn' +
+      (S.gem >= G.REWARD.pull10 ? ' · quay được ' + Math.floor(S.gem / G.REWARD.pull10) + ' gói mười' : '') +
+      '</span></div><button class="btn go" data-act="gacha">QUAY</button></div>';
 
     // Nút hành động chính, to hết bề ngang: vào thẳng ải kế tiếp, không bắt đi
     // vòng qua màn Ải. Kèm luôn số ải đã phá, để biết mình đang ở đâu trong 38 ải.
@@ -287,69 +289,11 @@
       var a = t.getAttribute('data-act');
       if (a === 'hunt') startStage(nx.id);
       else if (a === 'goQuest') show('quest');
-      else if (a === 'forge') show('forge');
+      else if (a === 'evol') show('evol');
+      else if (a === 'gacha') show('gacha');
       else if (a === 'shop') show('shop');
       else if (a === 'help') show('help');
-      else if (a === 'claim') { claimRecurrent(t.getAttribute('data-k'), t.getAttribute('data-id')); }
     };
-  }
-
-  function recurrentRows(picks, defs, done, kind) {
-    return picks.map(function (id) {
-      var q = defs.find(function (x) { return x.id === id; }); if (!q) return '';
-      var p = G.questProgress(S, q);
-      var claimed = !!done[id];
-      return '<div class="row" style="margin-bottom:5px">' +
-        '<span style="font-size:11px;flex:1">' + q.n + ' <b style="color:' + (p.done ? '#3fd66a' : '#9fb2c4') + '">' + p.have + '/' + p.want + '</b></span>' +
-        (claimed ? '<span style="font-size:10px;color:#5a6a7a">đã nhận</span>'
-                 : '<button class="btn sm ' + (p.done ? 'pri' : 'dis') + '" data-act="claim" data-k="' + kind + '" data-id="' + id + '">Nhận</button>') +
-        '</div>';
-    }).join('');
-  }
-  function recurrentBonus(bonus, store, need, kind) {
-    var n = 0; (store.picks || []).forEach(function (id) { if (store.done[id]) n++; });
-    var ok = n >= need, claimed = !!store.done[bonus.id];
-    return '<div class="row" style="border-top:1px dashed rgba(255,255,255,.1);padding-top:6px;margin-top:4px">' +
-      '<span style="font-size:11px;flex:1;color:#f2c94b">' + bonus.n + ' <b>' + n + '/' + need + '</b></span>' +
-      (claimed ? '<span style="font-size:10px;color:#5a6a7a">đã nhận</span>'
-               : '<button class="btn sm ' + (ok ? 'pri' : 'dis') + '" data-act="claim" data-k="' + kind + '" data-id="' + bonus.id + '">Nhận</button>') +
-      '</div>';
-  }
-  function claimRecurrent(kind, id) {
-    var store = kind === 'd' ? S.daily : S.weekly;
-    var defs = kind === 'd' ? G.DAILY : G.WEEKLY;
-    var bonus = kind === 'd' ? G.DAILY_BONUS : G.WEEKLY_BONUS;
-    var need = kind === 'd' ? 3 : 4;
-    if (store.done[id]) return;
-    if (id === bonus.id) {
-      var n = 0; store.picks.forEach(function (x) { if (store.done[x]) n++; });
-      if (n < need) { toast('Chưa xong đủ nhiệm vụ', '#c34141'); return; }
-      G.grant(S, bonus.rw); store.done[id] = 1;
-    } else {
-      var q = defs.find(function (x) { return x.id === id; });
-      if (!q || !G.questProgress(S, q).done) { toast('Chưa hoàn thành', '#c34141'); return; }
-      G.grant(S, q.rw); store.done[id] = 1;
-    }
-    toast('Đã nhận thưởng', '#3fd66a'); save(); rHome(); refresh();
-  }
-
-  function questProgressText(q) {
-    var g = q.goal, p = S.progress || {};
-    if (g.kill) return 'giết quái ' + Math.min(g.kill, p.kill || 0) + '/' + g.kill;
-    if (g.boss) return 'hạ Behemoth ' + Math.min(g.boss, p.boss || 0) + '/' + g.boss;
-    if (g.bossId) { var b = G.behemothById(g.bossId); return 'hạ ' + (b ? b.n : g.bossId); }
-    if (g.bossRank) return 'hạ một Behemoth hạng ' + g.bossRank;
-    if (g.mat) return 'nhặt ' + G.MATERIALS[g.mat].n + ' ' + Math.min(g.n, S.mats[g.mat] || 0) + '/' + g.n;
-    return '';
-  }
-  function storyDone(q) {
-    var g = q.goal, p = S.progress || {};
-    if (g.kill) return (p.kill || 0) >= g.kill;
-    if (g.boss) return (p.boss || 0) >= g.boss;
-    if (g.bossId) return (p['bossId_' + g.bossId] || 0) >= 1;
-    if (g.bossRank) return (p['bossRank_' + g.bossRank] || 0) >= 1;
-    if (g.mat) return (S.mats[g.mat] || 0) >= g.n;
-    return false;
   }
 
   function drawHero() {
@@ -420,15 +364,6 @@
     var nx = G.nextStage(S);
     var html = '';
 
-    var nextStory = G.STORY.find(function (q) { return S.story.done.indexOf(q.id) < 0; });
-    if (nextStory) {
-      var can = storyDone(nextStory);
-      html += '<div class="card"><h3>📜 ' + nextStory.vi + ' <span style="font-size:10px;color:#9fb2c4">' + nextStory.n + '</span></h3>' +
-        '<p>' + questProgressText(nextStory) + '</p><div class="row">' +
-        '<span style="font-size:11px;color:#f2c94b">Thưởng: ' + rwText(nextStory.rw) + '</span><span class="spacer"></span>' +
-        '<button class="btn ' + (can ? 'pri' : 'dis') + '" data-act="claimStory">Nhận thưởng</button></div></div>';
-    }
-
     G.AREAS.forEach(function (a) {
       var stages = a.stages;
       // Vùng chưa mở được ải nào thì chưa hiện — đổ cả 38 ải ra một lượt thì không
@@ -447,7 +382,9 @@
           '<div class="st-no">' + (open ? (cleared ? '✔' : s2.n.replace('Ải ', '')) : '🔒') + '</div>' +
           '<div class="st-t"><b>' + s2.sub + '</b><span>Lv.' + s2.lv + ' · dọn ' + s2.kills + ' quái · trùm ' +
             (bd ? bd.n + ' ' + rankChip(bd.rank) + ' ' + elemDot(bd.el) : '?') +
-            (cleared ? '' : ' · +' + s2.firstGem + ' ◈ lần đầu') + '</span></div>' +
+            ' · ' + (cleared ? '+' + G.REWARD.repeatGem(G.STAGES.indexOf(s2)) + ' ◈ cày lại'
+                            : '+' + G.REWARD.firstGem(G.STAGES.indexOf(s2)) + ' ◈ LẦN ĐẦU') +
+            '</span></div>' +
           '<div class="st-go">' + (open ? '▶' : '') + '</div></div>';
       });
       html += '</div>';
@@ -463,21 +400,15 @@
         if (!G.stageOpen(S, s2)) { toast('Phá ải liền trước đã', '#c34141'); return; }
         startStage(s2.id); return;
       }
-      var c = e.target.closest('[data-act="claimStory"]');
-      if (!c || !nextStory) return;
-      if (!storyDone(nextStory)) { toast('Chưa xong: ' + questProgressText(nextStory), '#c34141'); return; }
-      S.story.done.push(nextStory.id);
-      G.grant(S, nextStory.rw);
-      toast('Hoàn thành: ' + nextStory.vi, '#3fd66a');
-      save(); rQuest(); refresh();
     };
   }
 
   function rwText(rw) {
     var p = [];
-    if (rw.exp) p.push(rw.exp + ' EXP'); if (rw.gold) p.push(fmt(rw.gold) + ' Gold');
-    if (rw.gem) p.push(rw.gem + ' Gem'); if (rw.ticket) p.push(rw.ticket + ' Vé');
-    if (rw.pikke) p.push(rw.pikke + ' Pikke');
+    if (rw.exp) p.push(rw.exp + ' EXP');
+    if (rw.gold) p.push(fmt(rw.gold) + ' Gold');
+    if (rw.gem) p.push(rw.gem + ' Gem');
+    if (rw.core) p.push(rw.core + ' Lõi Rồng');
     return p.join(' · ');
   }
 
@@ -579,12 +510,17 @@
         '</div>' + slotsHtml(g) + '</button>';
     });
     html += '</div></div>';
-    html += '<div class="card"><h3>Nguyên liệu</h3><div>' + matChips() + '</div></div>';
+    html += '<div class="card"><div class="row"><span style="flex:1;font-size:11px">' +
+      '<b style="color:#f2d24b">◆ Lõi Rồng ' + fmt(S.core || 0) + '</b><br>' +
+      'Ra từ quay trúng thứ đã có. Tiêu vào Tinh Luyện đồ S/SS và Tiến Hoá.</span>' +
+      '<button class="btn sm" data-act="evol">Tiến Hoá</button></div></div>';
 
     b.innerHTML = html;
     b.onclick = function (e) {
       var f = e.target.closest('[data-filter]');
       if (f) { gearFilter = f.getAttribute('data-filter'); rArmory(); return; }
+      var ev = e.target.closest('[data-act="evol"]');
+      if (ev) { show('evol'); return; }
       var ac = e.target.closest('[data-act="roster"]');
       if (ac) { pendingPartySlot = -1; show('roster'); return; }
       var ps = e.target.closest('[data-pslot]');
@@ -839,19 +775,15 @@
     });
     return out + '</div>';
   }
-  function matChips() {
-    var out = '';
-    Object.keys(S.mats).forEach(function (id) {
-      if (!S.mats[id]) return;
-      var m = G.MATERIALS[id]; if (!m) return;
-      out += '<span class="mat-chip">' + rankChip(m.r) + ' ' + m.n + ' ×' + S.mats[id] + '</span>';
-    });
-    return out || '<span class="hint">Chưa có nguyên liệu nào.</span>';
-  }
-
   /* ---------------------------------------------------- CHI TIẾT TRANG BỊ */
+  // Danh sách uid đang được chọn để nướng cho lần đột phá. Để ở ngoài hàm vì
+  // rGear() vẽ lại sau mỗi lần bấm, và mất danh sách sau mỗi lần bấm thì không
+  // ai chọn nổi tới món thứ hai.
+  var fodderPick = [], fodderOwner = null;
+
   function rGear() {
     var g = S.gear.find(function (x) { return x.uid === selGear; });
+    if (fodderOwner !== selGear) { fodderPick = []; fodderOwner = selGear; }
     var b = $('body-gear');
     if (!g) { b.innerHTML = '<div class="empty-note">Không tìm thấy món này.</div>'; return; }
     var gs = G.gearStats(g);
@@ -911,35 +843,79 @@
         '</b> bung ra chỗ lưỡi chạm.</p></div>';
     }
 
-    // Nâng cấp / trang bị / rã đồ
+    /* BA BẬC NÂNG CẤP, và mỗi bậc tiêu một thứ khác nhau — đó là cái làm ba bậc
+     * thành ba quyết định chứ không phải ba lần bấm cùng một nút.
+     *   Nâng cấp   -> GOLD        (cày ải là ra)
+     *   Đột phá    -> ĐỒ TRÙNG    (phải hy sinh món khác)
+     *   Tinh luyện -> LÕI RỒNG    (chỉ có từ quay trúng thứ đã có)
+     */
     var ec = G.enhanceCost(g), lc = G.limitBreakCost(g), vc = G.evolveCost(g);
     html += '<div class="card"><h3>Nâng cấp</h3>' +
       '<button class="btn ' + (g.lv < G.MAX_LV && G.canPay(S, ec) ? 'pri' : 'dis') + '" data-act="enhance" style="width:100%;margin-bottom:6px">' +
-        'Nâng cấp → Lv.' + Math.min(G.MAX_LV, g.lv + 1) + ' · ' + fmt(ec.gold) + ' Gold + ' + ec.mat.str_stone + ' Strengthening Stone</button>' +
-      '<button class="btn ' + (g.lb < 4 && G.canPay(S, lc) ? 'pri' : 'dis') + '" data-act="lb" style="width:100%;margin-bottom:6px">' +
-        // Kẹp nhãn ở 4/4: trước đây in ra "Limit Break 5/4" khi đã tối đa.
-        (g.lb >= 4 ? 'Limit Break 4/4 — đã tối đa'
-                   : 'Limit Break ' + (g.lb + 1) + '/4 · ' + fmt(lc.gold) + ' Gold + Lapis') +
-        '</button>' +
-      '<button class="btn ' + (G.canEvolve(g) && G.canPay(S, vc) ? 'pri' : 'dis') + '" data-act="evolve" style="width:100%;margin-bottom:6px">' +
+        (g.lv >= G.MAX_LV ? 'Lv.' + G.MAX_LV + '/' + G.MAX_LV + ' — đã tối đa'
+                          : 'Nâng cấp → Lv.' + (g.lv + 1) + ' · ⬤ ' + fmt(ec.gold)) + '</button>';
+
+    // ---- ĐỘT PHÁ: nướng đồ ----
+    if (g.lb >= 4) {
+      html += '<button class="btn dis" style="width:100%;margin-bottom:6px">Đột phá 4/4 — đã tối đa</button>';
+    } else {
+      var pool = G.fodderFor(S, g);
+      var need = lc.fodder;
+      // Bỏ khỏi danh sách đã chọn những món vừa biến mất (đã nướng ở lần trước,
+      // hoặc vừa được lắp lên người) — nếu không thì nút Đột phá sáng mà bấm vào
+      // lại báo lỗi, và không ai đoán được vì sao.
+      fodderPick = fodderPick.filter(function (u) {
+        return pool.some(function (x) { return x.uid === u; });
+      });
+      html += '<div class="card sub"><div class="row"><b style="flex:1">Đột phá ' + (g.lb + 1) + '/4</b>' +
+        '<span style="font-size:11px">⬤ ' + fmt(lc.gold) + '</span></div>' +
+        '<p style="font-size:11px">Nướng <b>' + need.n + '</b> món hạng <b>' + need.rank +
+        '</b> trở lên, chưa lắp lên ai. Đã chọn <b>' + fodderPick.length + '/' + need.n + '</b>.</p>';
+      if (!pool.length) {
+        html += '<p style="font-size:11px;color:#c98a8a">Không có món nào đủ điều kiện. ' +
+          'Quay thêm, hoặc tháo bớt đồ khỏi nhân vật.</p>';
+      } else {
+        html += '<div class="row wrap" style="gap:5px">' + pool.slice(0, 40).map(function (x) {
+          var on = fodderPick.indexOf(x.uid) >= 0;
+          return '<button class="chip ' + (on ? 'on' : '') + '" data-fod="' + x.uid + '">' +
+            rankChip(x.rank) + ' ' + x.name + (x.lv > 1 ? ' Lv' + x.lv : '') + '</button>';
+        }).join('') + '</div>';
+      }
+      var canLB = fodderPick.length === need.n && S.gold >= lc.gold;
+      html += '<button class="btn ' + (canLB ? 'pri' : 'dis') + '" data-act="lb" style="width:100%;margin-top:7px">' +
+        'Đột phá — nướng ' + fodderPick.length + '/' + need.n + ' món</button></div>';
+    }
+
+    html += '<button class="btn ' + (G.canEvolve(g) && G.canPay(S, vc) ? 'pri' : 'dis') + '" data-act="evolve" style="width:100%;margin:6px 0">' +
         (G.canEvolve(g)
-          ? 'Tiến hoá → Lv.1, chỉ số cao hơn · ' + fmt(vc.gold) + ' Gold + ' + vc.mat.dragon_core + ' Lõi Rồng'
+          ? 'Tinh luyện → Lv.1, chỉ số cao hơn · ⬤ ' + fmt(vc.gold) + ' + ' + vc.core + ' Lõi Rồng'
           : (g.rank === 'S' || g.rank === 'SS'
-              ? (g.evo >= G.MAX_EVO ? 'Tiến hoá ' + g.evo + '/' + G.MAX_EVO + ' — đã tối đa'
-                                    : 'Tiến hoá — cần Lv.' + G.MAX_LV + ' trước')
-              : 'Tiến hoá — chỉ dành cho đồ hạng S và SS')) + '</button>' +
+              ? (g.evo >= G.MAX_EVO ? 'Tinh luyện ' + g.evo + '/' + G.MAX_EVO + ' — đã tối đa'
+                                    : 'Tinh luyện — cần Lv.' + G.MAX_LV + ' trước')
+              : 'Tinh luyện — chỉ dành cho đồ hạng S và SS')) + '</button>' +
       '<div class="row"><button class="btn ' + (equipped ? 'dis' : 'go') + '" data-act="equip" style="flex:1">' +
         (equipped ? 'Đang ở ' + (G.heroDef(holder) || {}).n
                   : 'Trang bị cho ' + ((G.heroDef(curHero()) || {}).n || '—')) + '</button>' +
-      '<button class="btn red" data-act="dismantle">Rã lấy Lapis</button></div></div>';
+      '<button class="btn red" data-act="dismantle">Rã lấy Gold</button></div></div>';
 
     b.innerHTML = html;
     b.onclick = function (e) {
+      var fd = e.target.closest('[data-fod]');
+      if (fd) {
+        var u = fd.getAttribute('data-fod'), k = fodderPick.indexOf(u);
+        if (k >= 0) fodderPick.splice(k, 1);
+        else if (fodderPick.length < G.breakFodder(g).n) fodderPick.push(u);
+        else toast('Đã chọn đủ ' + G.breakFodder(g).n + ' món', '#8fa3b5');
+        rGear(); return;
+      }
       var t = e.target.closest('[data-act]'); if (!t) return;
       var a = t.getAttribute('data-act');
       var r;
       if (a === 'enhance') r = G.enhance(S, g);
-      else if (a === 'lb') r = G.limitBreak(S, g);
+      else if (a === 'lb') {
+        r = G.limitBreak(S, g, fodderPick.slice());
+        if (r.ok) { toast('Đột phá ' + g.lb + '/4 — đã nướng ' + r.burned + ' món', '#3fd66a'); fodderPick = []; }
+      }
       else if (a === 'evolve') r = G.evolve(S, g);
       else if (a === 'reroll') r = G.reroll(S, g);
       else if (a === 'equip') {
@@ -951,139 +927,237 @@
         pendingSlot = null; r = { ok: true }; toast('Đã trang bị', '#3fd66a');
       } else if (a === 'dismantle') {
         r = G.dismantle(S, g);
-        if (r.ok) { toast('Rã được ' + r.n + ' ' + G.MATERIALS[r.lapis].n, '#7fe3f0'); save(); show('armory'); return; }
+        if (r.ok) { toast('Rã được ' + fmt(r.gold) + ' Gold', '#f2d24b'); fodderPick = []; save(); show('armory'); return; }
       }
       if (r && !r.ok) toast(r.why, '#c34141');
       save(); rGear(); refresh();
     };
   }
 
-  /* ---------------------------------------------------- NGUYÊN LIỆU ------ */
-  /* Lò rèn chế đồ từ Tablet đã bỏ (gacha ra thẳng trang bị). Màn này giờ trả lời
-   * đúng một câu hỏi: "thứ tôi đang thiếu để nâng cấp thì cày ở đâu?" */
-  function rForge() {
-    var b = $('body-forge');
-    var html = '<div class="card"><p>Gacha ra <b>trang bị</b>. Còn <b>nâng cấp</b> thì phải đi cày: ' +
-      'nguyên liệu rơi từ quái trong ải và từ điểm khai thác.</p></div>';
+  /* --------------------------------------------------------- TRIỆU HỒI ---
+   * BA BANNER, đúng cấu trúc Genshin. Toàn bộ luật nằm trong meta.js
+   * (G.pull / G.ssRateNow / G.setFateTarget); màn này chỉ có một việc: làm cho
+   * pity NHÌN THẤY ĐƯỢC.
+   *
+   * Đó không phải chi tiết trang trí. Một hệ pity mà người chơi không thấy thì
+   * về mặt trải nghiệm nó không tồn tại — họ vẫn cảm thấy mỗi lượt quay là một
+   * canh bạc độc lập, và cảm giác đó chính là cái mà pity sinh ra để chữa. Nên
+   * ở đây hiện đủ ba con số: còn bao nhiêu lượt tới pity cứng, tỉ lệ SS THẬT của
+   * lượt tiếp theo, và trạng thái bảo hiểm 50/50 hoặc Điểm Định Mệnh. */
+  var gachaOut = '';        // HTML kết quả lần quay gần nhất
+  var gachaTab = 'char';
 
-    html += '<div class="card"><h3 style="color:#f2d24b">Lõi Rồng — độc quyền Triệu hồi</h3>' +
-      '<div class="row"><span style="flex:1;font-size:12px">Đang có <b style="color:#f2d24b;font-size:15px">' +
-      fmt(S.mats.dragon_core || 0) + '</b></span>' +
-      '<button class="btn sm pri" data-act="gacha">Triệu hồi</button></div>' +
-      '<p><b>Không rơi ở bất kỳ ải nào</b>, không bán ở tiệm. Đường duy nhất: quay Triệu hồi ra món ' +
-      '<b>đã có</b> — trùng B ra ' + G.DUPE_CORE.B + ', A ra ' + G.DUPE_CORE.A + ', S ra ' + G.DUPE_CORE.S +
-      ', SS ra ' + G.DUPE_CORE.SS + '. Đây là thứ duy nhất mở được <b>Tiến hoá</b> cho đồ S và SS, ' +
-      'tức bậc nâng cấp cao nhất của game.</p></div>';
-
-    html += '<div class="card"><h3>Nâng cấp ăn gì</h3>' +
-      '<div class="upgrow"><b>Nâng cấp</b><span>Strengthening Stone + Gold<br>' +
-        '<i style="color:#9fb2c4">từ Lv.25 cần thêm Equipment Crystal</i></span></div>' +
-      '<div class="upgrow"><b>Limit Break</b><span>Lapis cùng hạng với món đồ</span></div>' +
-      '<div class="upgrow"><b>Tiến hoá</b><span style="color:#f2d24b">Lõi Rồng — chỉ có từ Triệu hồi trùng</span></div>' +
-      '<div class="upgrow"><b>Đổi Ability</b><span>Gold</span></div>' +
-      '</div>';
-
-    html += '<div class="card"><h3>Kho nguyên liệu</h3>';
-    var any = false;
-    ['SS', 'S', 'A', 'B', 'C', 'D'].forEach(function (rk) {
-      var ids = Object.keys(S.mats).filter(function (id) {
-        var m = G.MATERIALS[id]; return m && m.r === rk && S.mats[id] > 0;
-      });
-      if (!ids.length) return;
-      any = true;
-      html += '<div>' + ids.map(function (id) {
-        var m = G.MATERIALS[id];
-        return '<span class="mat-chip"' + (m.gachaOnly ? ' style="border-color:#f2d24b;color:#f2d24b"' : '') + '>' +
-          rankChip(m.r) + ' ' + m.n + ' ×' + fmt(S.mats[id]) + '</span>';
-      }).join('') + '</div>';
+  function bannerCard(bn) {
+    var pity = G.pityOf(S, bn.id);
+    var rate = G.ssRateNow(bn, pity);
+    var left = Math.max(0, bn.hard - pity.n);
+    var soft = pity.n + 1 > bn.soft;
+    var featNames = (bn.featured || []).map(function (id) {
+      if (bn.kind === 'hero') { var d = G.heroById(id); return d ? d.n : id; }
+      var b2 = G.behemothById(id); return b2 ? b2.n : id;
     });
-    if (!any) html += '<p>Chưa có gì. Vào ải đi.</p>';
-    html += '</div>';
 
-    html += '<div class="card"><h3>Cày ở đâu</h3><p>Đồ rơi do <b>tộc quái</b> quyết định. ' +
-      'Màn Ải ghi rõ ải nào có tộc nào.</p>';
-    Object.keys(G.TRIBES).forEach(function (k) {
-      var T = G.TRIBES[k];
-      var uniq = T.mat.filter(function (v, i, arr) { return arr.indexOf(v) === i; });
-      html += '<div class="upgrow"><b>' + T.en + '</b><span>' +
-        uniq.map(function (id) { return G.MATERIALS[id] ? G.MATERIALS[id].n : id; }).join(' · ') + '</span></div>';
-    });
-    html += '<div class="upgrow"><b>Điểm khai thác</b><span>Strengthening Stone · Lõi Kỹ Năng · Equipment Crystal · Lapis</span></div>' +
-      '<div class="upgrow"><b>Behemoth cuối ải</b><span>Nguyên liệu hạng cao + Lapis; phá bộ phận thì rơi thêm</span></div></div>';
+    var html = '<div class="gacha-hero"><b>' + bn.n + '</b><span>' + bn.d + '</span>' +
+      '<div class="rate-tab">' +
+        '<b style="color:#f2d24b">SS ' + (bn.rates.SS * 100).toFixed(1) + '%</b>' +
+        '<b style="color:#f2a03c">S ' + (bn.rates.S * 100).toFixed(0) + '%</b>' +
+        '<b style="color:#b06fd0">A ' + (bn.rates.A * 100).toFixed(0) + '%</b>' +
+        '<b style="color:#5b8fd6">B ' + (bn.rates.B * 100).toFixed(0) + '%</b>' +
+      '</div></div>';
 
-    b.innerHTML = html;
-    b.onclick = function (e) { if (e.target.closest('[data-act="gacha"]')) show('gacha'); };
+    if (featNames.length) {
+      html += '<div class="card"><h3 style="color:#f2d24b">Rate-up</h3><p>' +
+        featNames.map(function (n) { return '<b>' + n + '</b>'; }).join(' · ') + '</p>';
+      // Banner vũ khí: phải CHỌN mục tiêu trước, không thì Điểm Định Mệnh không
+      // biết đang đếm cho cây nào.
+      if (bn.fate) {
+        html += '<p style="font-size:11px">Mục tiêu Điểm Định Mệnh — chọn một cây:</p><div class="row">' +
+          bn.featured.map(function (id) {
+            var b2 = G.behemothById(id);
+            return '<button class="btn sm ' + (pity.target === id ? 'pri' : '') +
+              '" data-fate="' + id + '" style="flex:1">' + (b2 ? b2.n : id) + '</button>';
+          }).join('') + '</div>' +
+          '<p style="font-size:11px;color:' + (pity.fate ? '#3fd66a' : '#9fb2c4') + '">' +
+          'Điểm Định Mệnh <b>' + pity.fate + '/1</b>' +
+          (pity.fate >= 1 ? ' — lần SS tới CHẮC CHẮN trúng cây đã chọn' : ' — trượt một lần là lần sau chắc trúng') +
+          '</p>';
+      }
+      if (bn.fifty) {
+        html += '<p style="font-size:11px;color:' + (pity.guar ? '#3fd66a' : '#9fb2c4') + '">' +
+          (pity.guar ? '<b>Bảo hiểm đang bật</b> — lần SS tới chắc chắn là người rate-up'
+                     : 'Lần SS tới là 50/50. Thua thì lần sau chắc chắn trúng.') + '</p>';
+      }
+      html += '</div>';
+    }
+
+    html += '<div class="card"><div class="row">' +
+      '<span style="flex:1;font-size:11px">Đã quay <b>' + pity.n + '</b> lượt không ra SS<br>' +
+      '<span style="color:' + (soft ? '#3fd66a' : '#9fb2c4') + '">Tỉ lệ SS lượt tới: <b>' +
+        (rate * 100).toFixed(1) + '%</b>' + (soft ? ' (đang tăng)' : '') + '</span><br>' +
+      '<span style="color:#f2d24b">Còn <b>' + left + '</b> lượt là chắc chắn ra SS</span></span></div>' +
+      '<div class="pitybar"><i style="width:' + Math.min(100, pity.n / bn.hard * 100) + '%"></i>' +
+        '<u style="left:' + (bn.soft / bn.hard * 100) + '%"></u></div>' +
+      '<div class="row" style="margin-top:8px">' +
+      '<button class="btn ' + (S.gem >= G.REWARD.pull ? 'pri' : 'dis') + '" data-pull="1" style="flex:1">Quay 1 — ◈ ' + fmt(G.REWARD.pull) + '</button>' +
+      '<button class="btn ' + (S.gem >= G.REWARD.pull10 ? 'pri' : 'dis') + '" data-pull="10" style="flex:1">Quay 10 — ◈ ' + fmt(G.REWARD.pull10) + '</button>' +
+      '</div><p style="font-size:11px">Đang có <b style="color:#8fd4ff">◈ ' + fmt(S.gem) + '</b>. ' +
+      'Gem đến từ <b>phá ải</b> — lần đầu trả đậm, cày lại trả nhỏ giọt.</p></div>';
+    return html;
   }
 
-  /* --------------------------------------------------------- TRIỆU HỒI --- */
-  /* Bản gốc: gacha ra một con boss để đi đánh, hạ xong mới có Tablet đem về chế đồ.
-   * Ba bước cho một món vũ khí là quá dài để hiểu. Ở đây quay ra thẳng trang bị —
-   * và món TRÙNG không vứt đi mà đổi thành Lõi Rồng, thứ duy nhất mở được Tiến hoá. */
-  var gachaOut = '';        // HTML kết quả lần quay gần nhất
+  function pullRow(x) {
+    var css = '', sub = '';
+    if (x.kind === 'hero') {
+      var d = G.heroById(x.id) || {};
+      css = G.Atlas && G.Atlas.iconCss('heroes.' + x.id + '.idle', 34);
+      sub = (G.weaponOf(d.wclass) || {}).vi + ' ' + elemDot(d.el);
+    } else {
+      sub = kindVi(x.gkind) + (x.wclass ? ' · ' + (G.weaponOf(x.wclass) || {}).vi : '') +
+            ' ' + elemDot(x.el || 'none');
+    }
+    return '<div class="row" style="font-size:11px;padding:3px 0;align-items:center;gap:7px">' +
+      (css ? '<i class="uicon hero" style="' + css + '"></i>' : '') +
+      '<span style="flex:1">' + rankChip(x.rank) + ' <b>' + x.name + '</b>' +
+      (x.up ? ' <b style="color:#f2d24b">RATE-UP</b>' : '') +
+      '<br><span style="color:#9fb2c4">' + sub + '</span></span>' +
+      (x.dupe ? '<b style="color:#f2d24b">trùng · +' + x.cores + ' Lõi</b>'
+              : '<b style="color:#3fd66a">MỚI</b>') + '</div>';
+  }
+
   function rGacha() {
     var b = $('body-gacha');
-    var html = '';
-    html += '<div class="gacha-hero"><b>TRIỆU HỒI NHÂN VẬT</b>' +
-      '<span>Ra NGƯỜI, không ra đồ. Trùng người thì thành Lõi Rồng</span>' +
-      '<div class="rate-tab"><b style="color:#f2d24b">SS 3%</b><b style="color:#f2a03c">S 15%</b>' +
-      '<b style="color:#b06fd0">A 55%</b><b style="color:#5b8fd6">B 27%</b></div></div>';
+    var bn = G.bannerById(gachaTab);
+    var html = '<div class="tabrow">' + G.BANNERS.map(function (x) {
+      return '<button class="tab ' + (x.id === gachaTab ? 'on' : '') + '" data-tab="' + x.id + '">' + x.vi + '</button>';
+    }).join('') + '</div>';
+    html += bannerCard(bn);
     html += '<div class="card"><div class="row">' +
-      '<button class="btn ' + (S.ticket >= 5 ? 'pri' : 'dis') + '" data-act="g1" style="flex:1">Đơn — 5 vé</button>' +
-      '<button class="btn ' + (S.ticket >= 50 ? 'pri' : 'dis') + '" data-act="g10" style="flex:1">10+1 — 50 vé <span style="font-size:9px">(bảo hiểm SS)</span></button>' +
-      '</div><p style="margin-top:7px">Vé: <b>' + S.ticket + '</b>. Hết vé thì <b>đổi bằng Medal</b> ở tiệm ' +
-      '(phá ải là có Medal — ' + fmt(S.medal) + ' đang có), hoặc làm nhiệm vụ cốt truyện / tuần.<br>' +
-      'Mỗi nhân vật gắn cứng <b>một lớp vũ khí</b> (tức một bộ đòn và hai kỹ năng) và <b>một hệ</b>. ' +
-      'Ra người <b>đã có</b> thì đổi thành <b style="color:#f2d24b">Lõi Rồng</b> — ' +
-      'thứ duy nhất mở được Tiến hoá, và <b>không cày được ở đâu cả</b>. Đang có ' +
-      '<b style="color:#f2d24b">' + fmt(S.mats.dragon_core || 0) + '</b>.<br>' +
-      'Đã có <b>' + (S.heroes || []).length + '/' + G.HEROES.length + '</b> nhân vật.</p></div>';
-
-
-    html += '<div class="card"><button class="btn" data-act="roster" style="width:100%">Danh sách nhân vật đã có</button>' +
+      '<span style="flex:1;font-size:11px">Lõi Rồng <b style="color:#f2d24b">' + fmt(S.core || 0) + '</b> — ' +
+      'ra từ quay trúng thứ <b>đã có</b>. Tiêu vào <b>Tinh Luyện</b> đồ S/SS và <b>Tiến Hoá</b>.</span>' +
+      '<button class="btn sm" data-act="evol">Tiến Hoá</button></div></div>';
+    html += '<div class="card"><button class="btn" data-act="roster" style="width:100%">Nhân vật đã có — ' +
+      (S.heroes || []).length + '/' + G.HEROES.length + '</button>' +
       '<button class="btn" data-act="bosslist" style="width:100%;margin-top:6px">Xem toàn bộ ' +
       G.BEHEMOTHS.length + ' Behemoth</button></div>';
     html += '<div id="gachaOut">' + gachaOut + '</div>';
 
     b.innerHTML = html;
     b.onclick = function (e) {
-      var t = e.target.closest('[data-act]'); if (!t) return;
-      var a = t.getAttribute('data-act');
-      if (a === 'g1' || a === 'g10') {
-        var cost = a === 'g1' ? 5 : 50, cnt = a === 'g1' ? 1 : 11;
-        if (S.ticket < cost) { toast('Không đủ vé', '#c34141'); return; }
-        S.ticket -= cost;
-        var res = G.summonHeroes(S, cnt, cnt > 1);
-        var cores = res.reduce(function (n, x) { return n + (x.dupe ? x.cores : 0); }, 0);
-        gachaOut = '<div class="card"><h3>Kết quả</h3>' + res.map(function (x) {
-          var d = G.heroById(x.id) || {};
-          var css = G.Atlas && G.Atlas.iconCss('heroes.' + x.id + '.idle', 34);
-          return '<div class="row" style="font-size:11px;padding:3px 0;align-items:center;gap:7px">' +
-            (css ? '<i class="uicon hero" style="' + css + '"></i>' : '') +
-            '<span style="flex:1">' + rankChip(x.rank) + ' <b>' + x.name + '</b>' +
-            '<br><span style="color:#9fb2c4">' + (G.weaponOf(d.wclass) || {}).vi + ' ' + elemDot(d.el) + '</span></span>' +
-            (x.dupe ? '<b style="color:#f2d24b">trùng · +' + x.cores + ' Lõi</b>'
-                    : '<b style="color:#3fd66a">MỚI</b>') + '</div>';
-        }).join('') +
-        (cores ? '<p style="margin-top:6px;color:#f2d24b">Tổng +' + cores + ' Lõi Rồng.</p>' : '') +
-        '<button class="btn pri" data-act="roster" style="width:100%;margin-top:7px">Xem và xếp đội hình</button></div>';
+      var t = e.target.closest('[data-tab],[data-pull],[data-fate],[data-act]'); if (!t) return;
+      if (t.hasAttribute('data-tab')) { gachaTab = t.getAttribute('data-tab'); gachaOut = ''; rGacha(); return; }
+      if (t.hasAttribute('data-fate')) { G.setFateTarget(S, t.getAttribute('data-fate')); save(); rGacha(); return; }
+      if (t.hasAttribute('data-pull')) {
+        var n = +t.getAttribute('data-pull');
+        var r = G.pull(S, gachaTab, n);
+        if (!r.ok) { toast(r.why, '#c34141'); return; }
+        var cores = r.results.reduce(function (a, x) { return a + (x.dupe ? x.cores : 0); }, 0);
+        gachaOut = '<div class="card"><h3>Kết quả — ' + r.banner.vi + '</h3>' +
+          r.results.map(pullRow).join('') +
+          (cores ? '<p style="margin-top:6px;color:#f2d24b">Tổng +' + cores + ' Lõi Rồng.</p>' : '') +
+          '<button class="btn pri" data-act="roster" style="width:100%;margin-top:7px">Xem và xếp đội hình</button></div>';
         save(); rGacha(); refresh(); return;
       }
-      if (a === 'armory') { show('armory'); return; }
-      if (a === 'roster') { show('roster'); return; }
-      if (a === 'bosslist') { show('bosslist'); return; }
+      var a = t.getAttribute('data-act');
+      if (a === 'roster') show('roster');
+      else if (a === 'bosslist') show('bosslist');
+      else if (a === 'evol') show('evol');
     };
   }
 
-  /* Gói nạp gồm gì, viết ra thành một dòng. */
-  function iapWhat(g) {
-    var p = [];
-    if (g.ticket) p.push('▤ ' + fmt(g.ticket) + ' vé');
-    if (g.gem) p.push('◈ ' + fmt(g.gem) + ' Gem');
-    if (g.pikke) p.push('✦ ' + fmt(g.pikke) + ' Pikke');
-    if (g.medal) p.push('✹ ' + fmt(g.medal) + ' Medal');
-    if (g.gold) p.push('⬤ ' + fmt(g.gold) + ' Gold');
-    if (g.mat) p.push('nguyên liệu đủ loại');
-    return p.join('<br>');
+  /* ------------------------------------------------------------ TIẾN HOÁ -
+   * Bốn nhánh, mỗi nhánh 15 cấp, cộng phần trăm vào CHỈ SỐ GỐC của MỌI nhân vật.
+   *
+   * Màn này tồn tại vì một lý do rất cụ thể: gacha ra người, và không có nó thì
+   * mọi người mới quay được đều yếu hơn người đang dùng — nên người chơi học
+   * được đúng một bài, là đừng bao giờ đổi người. */
+  function rEvol() {
+    var b = $('body-evol');
+    var total = G.evolTotal(S), max = G.EVOL.max * G.EVOL.tracks.length;
+    var st = G.buildStats(S);
+    var html = '<div class="card"><h3>Tiến Hoá — ' + total + '/' + max + ' cấp</h3>' +
+      '<p>Cộng thẳng vào <b>chỉ số gốc</b> của <b>mọi nhân vật</b>, kể cả người quay được sau này. ' +
+      'Đây là lý do một người mới về không phải là một bước lùi.</p>' +
+      '<div class="row wrap" style="font-size:12px;gap:14px">' +
+      '<span>❤️ <b>' + fmt(st.hp) + '</b></span><span>⚔️ <b>' + fmt(st.atk) + '</b></span>' +
+      '<span>🛡️ <b>' + fmt(st.def) + '</b></span><span>✨ <b>' + fmt(st.edef) + '</b></span>' +
+      '</div></div>';
+
+    G.EVOL.tracks.forEach(function (t) {
+      var lv = G.evolLv(S, t.id), c = G.evolCost(S, t.id);
+      var can = c && G.canPay(S, c);
+      html += '<div class="card"><div class="row"><h3 style="flex:1;color:' + t.col + '">' + t.n + '</h3>' +
+        '<b style="color:' + t.col + '">Lv.' + lv + '/' + G.EVOL.max + '</b></div>' +
+        '<p>' + t.d + ' Hiện tại <b style="color:' + t.col + '">+' +
+        (t.per * lv * 100).toFixed(1) + '%</b>.</p>' +
+        '<div class="evolbar">';
+      for (var i = 0; i < G.EVOL.max; i++) {
+        html += '<i class="' + (i < lv ? 'on' : '') + '" style="' +
+          (i < lv ? 'background:' + t.col : '') + '"></i>';
+      }
+      html += '</div>';
+      if (!c) {
+        html += '<button class="btn dis" style="width:100%;margin-top:7px">Đã tối đa</button>';
+      } else {
+        html += '<button class="btn ' + (can ? 'pri' : 'dis') + '" data-evol="' + t.id + '" style="width:100%;margin-top:7px">' +
+          'Lên Lv.' + (lv + 1) + ' — ⬤ ' + fmt(c.gold) +
+          (c.core ? ' + ' + c.core + ' Lõi Rồng' : '') + '</button>';
+        if (c.core) html += '<p style="font-size:11px;color:#f2d24b">Cứ 5 cấp cần thêm Lõi Rồng — đang có <b>' +
+          fmt(S.core || 0) + '</b>.</p>';
+      }
+      html += '</div>';
+    });
+
+    b.innerHTML = html;
+    b.onclick = function (e) {
+      var t = e.target.closest('[data-evol]'); if (!t) return;
+      var r = G.evolUp(S, t.getAttribute('data-evol'));
+      if (!r.ok) { toast(r.why, '#c34141'); return; }
+      toast('Tiến Hoá lên Lv.' + r.lv, '#3fd66a');
+      save(); rEvol(); refresh();
+    };
+  }
+
+  /* -------------------------------------------------------------- TIỆM ---
+   * Tiệm chỉ tiêu GOLD. Banner gacha nằm ở màn Triệu Hồi và chỉ tiêu GEM —
+   * hai đồng tiền, hai màn hình, không có chỗ nào lẫn. */
+  function rShop() {
+    var b = $('body-shop');
+    var html = '<div class="card"><h3>Hai đồng tiền</h3>' +
+      '<div class="upgrow"><b style="color:#f2d24b">⬤ Gold</b><span>Nâng cấp trang bị, Tiến Hoá, mua bình. ' +
+      'Ra từ quái, rương, điểm khai thác và thưởng ải.</span></div>' +
+      '<div class="upgrow"><b style="color:#8fd4ff">◈ Gem</b><span>CHỈ để quay ở màn Triệu Hồi. ' +
+      'Ra từ phá ải — lần đầu trả đậm, cày lại trả nhỏ giọt.</span></div>' +
+      '<p style="color:#9fb2c4">Không có đường đổi gem sang gold hay ngược lại. Hai đồng tiền mà đổi ' +
+      'được cho nhau thì thật ra chỉ có một.</p></div>';
+
+    html += '<div class="card"><h3>Bình (Potion)</h3><p>Loại thường 30 phút, loại cao cấp 60 phút và có cả ba hiệu ứng.</p>';
+    Object.keys(G.ITEMS).forEach(function (id) {
+      var it = G.ITEMS[id], have = S.inv[id] || 0;
+      var active = (S.potions[id] || 0) > Date.now();
+      var ok = S.gold >= it.price.gold;
+      html += '<div class="row" style="margin-bottom:5px"><span style="flex:1;font-size:11px">' + it.vi + ' <b>×' + have + '</b>' +
+        (active ? ' <span style="color:#3fd66a">(đang bật)</span>' : '') +
+        '<br><span style="font-size:9.5px;color:#9fb2c4">' + it.n + '</span></span>' +
+        '<button class="btn sm ' + (ok ? '' : 'dis') + '" data-buy="' + id + '">⬤ ' + fmt(it.price.gold) + '</button>' +
+        '<button class="btn sm ' + (have ? 'pri' : 'dis') + '" data-use="' + id + '">Dùng</button></div>';
+    });
+    html += '</div>';
+
+    b.innerHTML = html;
+    b.onclick = function (e) {
+      var t = e.target.closest('[data-buy],[data-use]'); if (!t) return;
+      if (t.hasAttribute('data-buy')) {
+        var id = t.getAttribute('data-buy'), P = G.ITEMS[id];
+        if (S.gold < P.price.gold) { toast('Không đủ Gold', '#c34141'); return; }
+        S.gold -= P.price.gold; S.inv[id] = (S.inv[id] || 0) + 1;
+        S.stats.buys++; G.track(S, { buy: 1 });
+        toast('Đã mua ' + P.vi, '#3fd66a');
+      } else {
+        var r = G.usePotion(S, t.getAttribute('data-use'));
+        if (!r.ok) toast(r.why, '#c34141'); else { G.track(S, { potion: 1 }); toast('Đã dùng', '#3fd66a'); }
+      }
+      save(); rShop(); refresh();
+    };
   }
 
   function kindVi(k) {
@@ -1110,106 +1184,6 @@
     b.innerHTML = html;
   }
 
-  /* -------------------------------------------------------------- SHOP --- */
-  function rShop() {
-    var b = $('body-shop');
-
-    // QUẦY NẠP lên đầu tiên: ở game gốc đây là chỗ móc ví, ở đây nó cho không.
-    var html = '<div class="card iapbox"><div class="row"><h3 style="flex:1;color:#3fd66a">🎁 Quầy Nạp</h3>' +
-      '<span class="freetag">TẤT CẢ 0đ</span></div>' +
-      '<p>Đúng những gói mà một game gacha di động bán bằng tiền thật. ' +
-      'Ở đây <b>miễn phí hết</b>, bấm bao nhiêu lần cũng được.</p><div class="grid2">';
-    G.IAP.forEach(function (it) {
-      html += '<button class="item iap" data-iap="' + it.id + '"><div class="nm">' + it.n + '</div>' +
-        '<div class="sub">' + iapWhat(it.give) + '</div>' +
-        '<div class="price"><s>' + it.was + '</s> <b>0đ</b></div></button>';
-    });
-    html += '</div><p style="color:#f2d24b">Không phát Lõi Rồng. Nó vẫn chỉ có từ quay trúng đồ trùng — ' +
-      'đó là thứ duy nhất còn khan, và bậc Tiến hoá sống nhờ nó.</p></div>';
-
-    // Quầy Medal: đường lấy vé mà CÀY LÀ RA, cho ai muốn chơi đúng luật.
-    html += '<div class="card"><div class="row"><h3 style="flex:1;color:#ff9a4a">✹ Quầy Medal</h3>' +
-      '<span style="font-size:13px">Đang có <b style="color:#ff9a4a;font-size:16px">' + fmt(S.medal) + '</b></span></div>' +
-      '<p>Medal rơi ra <b>mỗi lần phá ải</b> — trùm càng cao càng nhiều: ' +
-      'B <b>2</b> · A <b>5</b> · S <b>12</b> · SS <b>30</b>. Cày lại ải đã phá vẫn ăn Medal, ' +
-      'nên muốn quay nhiều thì đi ải khó.</p><div class="grid2">';
-    G.MEDAL_SHOP.forEach(function (it) {
-      var ok = S.medal >= it.price.medal;
-      html += '<button class="item" data-buym="' + it.id + '"><div class="nm">' + it.n + '</div>' +
-        '<div class="sub">' + (it.sub ? it.sub + '<br>' : '') +
-        '<b style="color:' + (ok ? '#ff9a4a' : '#5a6a7a') + '">✹ ' + fmt(it.price.medal) + '</b></div></button>';
-    });
-    html += '</div><p style="color:#f2d24b">Không bán Lõi Rồng. Nó chỉ có từ quay trúng đồ trùng — ' +
-      'hở một đường mua là bậc Tiến hoá mất hết ý nghĩa.</p></div>';
-
-    html += '<div class="card"><div class="row"><h3 style="flex:1;color:#c8a0ff">✦ Tiệm Pikke</h3>' +
-      '<span style="font-size:13px">Đang có <b style="color:#c8a0ff;font-size:16px">' + fmt(S.pikke) + '</b></span></div>' +
-      '<p>Pikke Points <b>chỉ</b> có từ nhiệm vụ ngày và tuần — không rơi ở ải, không mua được. ' +
-      'Ngày 3 nhiệm vụ (100 mỗi cái) + 300 khi xong cả ba = <b>600/ngày</b>. ' +
-      'Tuần 4 nhiệm vụ (200 mỗi cái) + 400 = <b>1.200/tuần</b>. Nhiệm vụ nằm ở màn <b>Nhà</b>.<br>' +
-      'Hết nhiệm vụ trong ngày thì <b>đổi bằng Gold</b> — cày ải là ra Gold, không phải chờ mai.</p>' +
-      '<div class="grid3">';
-    G.PIKKE_BUY.forEach(function (it) {
-      var ok = S.gold >= it.price.gold;
-      html += '<button class="item" data-buyk="' + it.id + '"><div class="nm">' + it.n + '</div>' +
-        '<div class="sub">' + (it.sub ? it.sub + '<br>' : '') +
-        '<b style="color:' + (ok ? 'var(--gold)' : '#5a6a7a') + '">⬤ ' + fmt(it.price.gold) + '</b></div></button>';
-    });
-    html += '</div><div class="grid2">';
-    G.SHOP.forEach(function (it) {
-      var ok = S.pikke >= it.price.pikke;
-      html += '<button class="item" data-buy="' + it.id + '"><div class="nm">' + it.n + '</div>' +
-        '<div class="sub" style="color:' + (ok ? '#c8a0ff' : '#5a6a7a') + '">✦ ' + fmt(it.price.pikke) + '</div></button>';
-    });
-    html += '</div></div>';
-    html += '<div class="card"><h3>Bình (Potion)</h3><p>Loại thường 30 phút, loại cao cấp mua bằng Gem có cả ba hiệu ứng và kéo dài 60 phút.</p>';
-    Object.keys(G.ITEMS).forEach(function (id) {
-      var it = G.ITEMS[id], have = S.inv[id] || 0;
-      var active = (S.potions[id] || 0) > Date.now();
-      html += '<div class="row" style="margin-bottom:5px"><span style="flex:1;font-size:11px">' + it.vi + ' <b>×' + have + '</b>' +
-        (active ? ' <span style="color:#3fd66a">(đang bật)</span>' : '') + '<br><span style="font-size:9.5px;color:#9fb2c4">' + it.n + '</span></span>' +
-        (it.premium ? '<button class="btn sm ' + (S.gem >= it.price.gem ? '' : 'dis') + '" data-buyp="' + id + '">◈ ' + it.price.gem + '</button>' : '') +
-        '<button class="btn sm ' + (have ? 'pri' : 'dis') + '" data-use="' + id + '">Dùng</button></div>';
-    });
-    html += '</div>';
-    b.innerHTML = html;
-    b.onclick = function (e) {
-      var t = e.target.closest('[data-iap],[data-buy],[data-buym],[data-buyk],[data-use],[data-buyp]'); if (!t) return;
-      if (t.hasAttribute('data-iap')) {
-        var ip = G.IAP.find(function (x) { return x.id === t.getAttribute('data-iap'); });
-        G.giveBundle(S, ip.give);
-        toast('Đã nhận ' + ip.n, '#3fd66a');
-        save(); rShop(); refresh(); return;
-      }
-      if (t.hasAttribute('data-buyk')) {
-        var ki = G.PIKKE_BUY.find(function (x) { return x.id === t.getAttribute('data-buyk'); });
-        if (!G.pay(S, ki.price)) { toast('Không đủ Gold', '#c34141'); return; }
-        G.giveBundle(S, ki.give); S.stats.buys++; G.track(S, { buy: 1 });
-        toast('Đã đổi ' + ki.n, '#3fd66a');
-      } else if (t.hasAttribute('data-buym')) {
-        var mi = G.MEDAL_SHOP.find(function (x) { return x.id === t.getAttribute('data-buym'); });
-        if (!G.pay(S, mi.price)) { toast('Không đủ Medal — đi phá thêm ải', '#c34141'); return; }
-        S.stats.buys++; G.track(S, { buy: 1 });
-        G.giveBundle(S, mi.give);
-        toast('Đã đổi ' + mi.n, '#3fd66a');
-      } else if (t.hasAttribute('data-buy')) {
-        var it = G.SHOP.find(function (x) { return x.id === t.getAttribute('data-buy'); });
-        if (S.pikke < it.price.pikke) { toast('Không đủ Pikke Points', '#c34141'); return; }
-        S.pikke -= it.price.pikke; S.stats.buys++; G.track(S, { buy: 1 });
-        G.giveBundle(S, it.give);
-        toast('Đã mua ' + it.n, '#3fd66a');
-      } else if (t.hasAttribute('data-buyp')) {
-        var id = t.getAttribute('data-buyp'), P = G.ITEMS[id];
-        if (S.gem < P.price.gem) { toast('Không đủ Gem', '#c34141'); return; }
-        S.gem -= P.price.gem; S.inv[id] = (S.inv[id] || 0) + 1; toast('Đã mua ' + P.vi, '#3fd66a');
-      } else {
-        var r = G.usePotion(S, t.getAttribute('data-use'));
-        if (!r.ok) toast(r.why, '#c34141'); else { G.track(S, { potion: 1 }); toast('Đã dùng', '#3fd66a'); }
-      }
-      save(); rShop(); refresh();
-    };
-  }
-
   /* -------------------------------------------------------------- MORE --- */
   function rMore() {
     var b = $('body-more');
@@ -1229,13 +1203,14 @@
       '<span>Behemoth hạ: <b>' + (st.boss || 0) + '</b></span><span>Quái hạ: <b>' + (st.mob || 0) + '</b></span>' +
       '<span>Bộ phận phá: <b>' + (st.parts || 0) + '</b></span><span>Chết: <b>' + (st.deaths || 0) + '</b></span>' +
       '<span>Trang bị: <b>' + S.gear.length + '</b></span>' +
-      '<span>Medal: <b>' + fmt(S.medal) + '</b></span>' +
       '<span>Ải đã phá: <b>' + G.STAGES.filter(function (x) { return S.cleared[x.id]; }).length +
         '/' + G.STAGES.length + '</b></span>' +
-      '<span>Lõi Rồng: <b>' + fmt(S.mats.dragon_core || 0) + '</b></span></div></div>' +
+      '<span>Lõi Rồng: <b>' + fmt(S.core || 0) + '</b></span>' +
+      '<span>Lượt quay: <b>' + fmt(st.pulls || 0) + '</b></span>' +
+      '<span>Tiến Hoá: <b>' + G.evolTotal(S) + '</b></span></div></div>' +
 
       '<div class="card"><h3>Bộ trưng bày</h3>' +
-      '<p>Sáu cây SS tối cấp, mỗi cây một lớp và một hệ khác nhau — đủ để xem hết ' +
+      '<p>Mười cây SS tối cấp, mỗi cây một lớp và một hệ khác nhau — đủ để xem hết ' +
       'art vũ khí và <b>cả hai kỹ năng</b> của từng lớp mà không phải cày tới Lv.8. ' +
       'Bấm lại không nhân bản.</p>' +
       '<div class="row wrap" style="gap:8px;margin:6px 0">' +
@@ -1326,9 +1301,9 @@
         'Vòng trong thu nhỏ báo thời điểm nổ. Con nào cũng báo trước, nên đòn nào cũng né được.</p>' +
       '<p>Đánh xong một đòn con quái <b>đơ một nhịp</b> — con Vacca húc hụt thì đơ gần một giây. Đó là chỗ để dồn đòn.</p></div>';
 
-    html += '<div class="card"><h3>Sáu lớp vũ khí bắn</h3>' +
+    html += '<div class="card"><h3>Mười lớp vũ khí</h3>' +
       '<p style="color:#9fb2c4;font-size:10.5px;margin-bottom:10px">Mỗi lớp GIỎI NHẤT đúng một trục ' +
-      'và TỆ NHẤT hai trục. DPS bền của cả sáu gần bằng nhau — cái phân biệt chúng là ' +
+      'và TỆ NHẤT hai trục. DPS bền của cả mười gần bằng nhau — cái phân biệt chúng là ' +
       '<b>sát thương gom được trong một cửa sổ an toàn</b>, tầm với, và giá của một phát trượt.</p>';
     G.WEAPON_ORDER.forEach(function (k) {
       var w = G.weaponOf(k);
@@ -1351,7 +1326,7 @@
       '<p>2. Đánh vào đó → sát thương ×' + G.BAL.weakMul + ' và <b>nạp thanh gục</b> (thanh vàng nhỏ dưới thanh máu).</p>' +
       '<p>3. Thanh gục đầy → boss <b>nằm ra ' + (G.BAL.downMs / 1000) + ' giây</b>, ăn sát thương ×' + G.BAL.downDmgMul + '.</p>' +
       '<p>4. Đó là lúc xả kỹ năng và đòn đặc thù mạnh nhất.</p>' +
-      '<p>Đánh đủ vào một bộ phận thì <b>phá</b> được nó — rơi thêm nguyên liệu, và vùng đó ăn thêm sát thương.</p>' +
+      '<p>Đánh đủ vào một bộ phận thì <b>phá</b> được nó — thưởng Gold cuối ải tăng theo số bộ phận đã phá, và vùng đó ăn thêm sát thương.</p>' +
       '<p>Vùng <b style="color:#ff3b30">đỏ</b> là đòn boss sắp ra. Vòng trong thu nhỏ báo thời điểm nổ.</p></div>';
 
     html += '<div class="card"><h3>Hệ</h3><p>Vòng khắc chế: <b>Thủy ▸ Hỏa ▸ Thổ ▸ Lôi ▸ Thủy</b>, và <b>Quang ↔ Ám</b>. ' +
@@ -1365,24 +1340,62 @@
       ' lượt. Hết lượt là thua ải (vẫn giữ đồ đã nhặt).</p>' +
       '<p>Cả ải có ' + Math.round(G.BAL.questMs / 60000) + ' phút.</p></div>';
 
-    html += '<div class="card"><h3>Đồ mạnh lên bằng cách nào</h3>' +
-      '<p><b>Triệu hồi</b> ra thẳng vũ khí và giáp — không phải đi chế. ' +
-      'SS 3% · S 15% · A 55% · B 27%, đúng tỉ lệ Quest Gacha của bản gốc.</p>' +
-      '<p>Nhưng gacha chỉ cho <b>món đồ</b>, không cho <b>sức mạnh</b>. Muốn mạnh thì nâng cấp, ' +
-      'mà nguyên liệu nâng cấp <b>chỉ rơi trong ải</b>: Strengthening Stone, Equipment Crystal ' +
-      '(bắt buộc từ Lv.25), Lapis để Limit Break, Lõi Kỹ Năng.</p>' +
-      '<p><b>Hết vé thì vào Tiệm</b>: quầy <b style="color:#3fd66a">Nạp</b> phát không mọi gói (bấm ' +
-        'bao nhiêu lần cũng được), hoặc đổi bằng <b>Medal</b> — phá ải là có Medal. ' +
-        'Chỉ <b style="color:#f2d24b">Lõi Rồng</b> là không quầy nào cho: nó vẫn chỉ có từ quay trúng đồ trùng.</p>' +
-      '<p>Quay ra món <b>đã có</b> thì thành <b style="color:#f2d24b">Lõi Rồng</b> ' +
-      '(B ' + G.DUPE_CORE.B + ' · A ' + G.DUPE_CORE.A + ' · S ' + G.DUPE_CORE.S + ' · SS ' + G.DUPE_CORE.SS + '). ' +
-      'Đây là thứ <b>duy nhất</b> mở được <b>Tiến hoá</b> — bậc nâng cấp cao nhất, chỉ đồ S và SS ' +
-      'mới dùng được — và nó <b>không cày được ở đâu cả</b>. Nên không có cú quay nào là phí.</p></div>';
+    html += '<div class="card"><h3>Kỹ năng: nạp xong, chỉ hướng, thả</h3>' +
+      '<p><b>Hồi chiêu chính là thanh nạp.</b> Nút bên phải sáng lên là bấm được — không có ' +
+      'pha giữ nào nữa, và bấm được thì chắc chắn ra đòn.</p>' +
+      '<p>Đặt ngón lên nút rồi <b>KÉO để chỉ hướng</b>, thả ra là xả. ' +
+      '<b>Không kéo</b> thì đòn tự ngắm con gần nhất. Bỏ ngón ra là huỷ, và huỷ <b>không mất gì</b>.</p>' +
+      '<p>Ba dáng ngắm, ghi sẵn trên màn chi tiết vũ khí: ' +
+      '<b>bấm là xả tại chỗ</b> (khiên, tăng tốc), <b>kéo để chỉ hướng</b> (lao tới, tia xuyên), ' +
+      '<b>kéo để chọn điểm rơi</b> (thiên thạch, mưa tên).</p>' +
+      '<p>Ngắm <b>không khoá chân</b>: ngón di chuyển vẫn chạy được trong lúc ngón kia đang chỉ hướng.</p></div>';
 
-    html += '<div class="card"><h3>Thưởng Gem mỗi ải</h3>' +
-      '<p>Đúng như bản gốc, tối đa <b>4 Gem</b>: không gục lần nào (+1), có dùng kỹ năng (+1), ' +
-      'xong trong ' + (G.BAL.gemFastMs / 1000) + ' giây (+1), và đủ cả ba thì <b>+1 nữa</b>.</p>' +
-      '<p>Riêng <b>lần đầu phá</b> mỗi ải còn thưởng thêm Gem — ải thường +5, ải cuối vùng +10.</p></div>';
+    html += '<div class="card"><h3>Hai đồng tiền</h3>' +
+      '<div class="upgrow"><b style="color:#f2d24b">⬤ Gold</b><span>Mọi thứ nâng cấp. ' +
+      'Ra từ quái, rương, điểm khai thác và thưởng ải.</span></div>' +
+      '<div class="upgrow"><b style="color:#8fd4ff">◈ Gem</b><span>CHỈ để quay. ' +
+      'Một lượt ' + G.REWARD.pull + ', gói mười ' + fmt(G.REWARD.pull10) + '.</span></div>' +
+      '<div class="upgrow"><b style="color:#f2d24b">◆ Lõi Rồng</b><span>Không phải tiền: không mua được gì. ' +
+      'Chỉ có từ <b>quay trúng thứ đã có</b>, và chỉ tiêu được vào Tinh Luyện với Tiến Hoá.</span></div>' +
+      '<p>Không có đường đổi Gem sang Gold hay ngược lại. Hai đồng tiền mà đổi được cho nhau ' +
+      'thì thật ra chỉ có một.</p></div>';
+
+    html += '<div class="card"><h3>Thưởng Gem sau mỗi ải</h3>' +
+      '<p><b>Phá lần đầu</b> mỗi ải trả đậm và tăng dần theo chuỗi: ải đầu +' + G.REWARD.firstGem(0) +
+      ', ải cuối +' + G.REWARD.firstGem(G.STAGES.length - 1) + '. Cả 38 ải cộng lại đủ khoảng <b>' +
+      Math.round(G.STAGES.reduce(function (a, x, i) { return a + G.REWARD.firstGem(i); }, 0) / G.REWARD.pull) +
+      ' lượt quay</b>.</p>' +
+      '<p><b>Cày lại</b> vẫn ra Gem, nhưng nhỏ giọt — ải cuối +' + G.REWARD.repeatGem(G.STAGES.length - 1) +
+      '. Đủ để cày có nghĩa, không đủ để cày thay cho việc đi tiếp.</p>' +
+      '<p>Cộng thêm <b>+' + G.REWARD.condGem + ' mỗi điều kiện</b>: không gục lần nào, có dùng kỹ năng, ' +
+      'xong trong ' + (G.BAL.gemFastMs / 1000) + ' giây. Đủ cả ba thì <b>+' + G.REWARD.allCondGem + ' nữa</b>.</p></div>';
+
+    html += '<div class="card"><h3>Ba banner</h3>' +
+      G.BANNERS.map(function (bn) {
+        return '<div class="upgrow"><b>' + bn.vi + '</b><span>' + bn.d +
+          '<br><i style="color:#9fb2c4">SS ' + (bn.rates.SS * 100).toFixed(1) + '% gốc · ' +
+          'tỉ lệ bắt đầu leo từ lượt ' + bn.soft + ' · chắc chắn ra SS ở lượt ' + bn.hard + '</i></span></div>';
+      }).join('') +
+      '<p>Quay trúng thứ <b>đã có</b> thì đổi thành <b style="color:#f2d24b">Lõi Rồng</b> ' +
+      '(B ' + G.DUPE_CORE.B + ' · A ' + G.DUPE_CORE.A + ' · S ' + G.DUPE_CORE.S + ' · SS ' + G.DUPE_CORE.SS + '). ' +
+      'Nên không có cú quay nào là phí.</p></div>';
+
+    html += '<div class="card"><h3>Đồ mạnh lên bằng cách nào</h3>' +
+      '<div class="upgrow"><b>Nâng cấp</b><span>Lv.1 → ' + G.MAX_LV + ', tiêu <b>Gold</b>.</span></div>' +
+      '<div class="upgrow"><b>Đột phá</b><span>0 → 4, tiêu <b>chính trang bị khác</b>: nướng ' +
+      'món cùng hạng trở lên. Món rác quay được là nguyên liệu, nên không cú quay nào bỏ đi.</span></div>' +
+      '<div class="upgrow"><b>Tinh luyện</b><span>Chỉ đồ S/SS, cần <b>Lõi Rồng</b>. Về Lv.1 nhưng ' +
+      'trần chỉ số cao hơn hẳn.</span></div>' +
+      '<div class="upgrow"><b>Đổi Ability</b><span>Tiêu Gold, quay lại hai dòng ability.</span></div>' +
+      '<p>Mặc đủ bốn mảnh giáp <b>cùng một Behemoth</b> thì được thưởng bộ: +10% máu, +8% công, +10% thủ.</p></div>';
+
+    html += '<div class="card"><h3>Tiến Hoá — nâng nền cho MỌI nhân vật</h3>' +
+      '<p>Bốn nhánh, mỗi nhánh ' + G.EVOL.max + ' cấp, cộng thẳng vào <b>chỉ số gốc</b> của ' +
+      '<b>mọi nhân vật</b> — kể cả người quay được sau này.</p>' +
+      '<p>Vì sao cần: không có nó thì người mới quay được luôn yếu hơn người đang dùng, ' +
+      'và người chơi học được đúng một bài là <b>đừng đổi người</b> — tức là cả hệ gacha mất nghĩa.</p>' +
+      '<p>Tiêu Gold, và cứ 5 cấp cần thêm <b>Lõi Rồng</b>. Đây là đích của cả chiến dịch, ' +
+      'không phải một nút bấm trong buổi đầu.</p></div>';
 
     b.innerHTML = html;
   }
@@ -1610,18 +1623,17 @@
 
     if (r.win) {
       var b = r.boss;
-      var bag = r.bag || { mats: {}, gold: 0, exp: 0 };
+      var bag = r.bag || { gold: 0, exp: 0 };
       S.stats.boss++; S.stats.parts += r.parts || 0;
       S.bossKills[b.id] = (S.bossKills[b.id] || 0) + 1;
       S.seenBoss[b.id] = 1;
 
-      // Thưởng lần đầu chỉ trả một lần; cày lại vẫn ăn gold/exp/đồ rơi nhưng không ăn Gem.
-      var gems = r.gems + (r.firstClear ? st.firstGem : 0);
+      // Gem đã tính xong hết ở bossDown (nền theo ải + ba điều kiện). Ở đây chỉ
+      // cộng vào ví — không tính lại, vì tính ở hai chỗ là hai chỗ để lệch nhau.
+      var gems = r.gems;
       S.gold += r.gold;
       S.gem += gems;
-      S.medal += r.medal;
       var lvUp = G.addExp(S, r.exp);
-      (r.drops || []).forEach(function (m) { G.addMat(S, m, 1); });
       G.track(S, { boss: 1, part: r.parts || 0, kill: r.killed || 0 });
       S.progress['bossId_' + b.id] = (S.progress['bossId_' + b.id] || 0) + 1;
       S.progress['bossRank_' + b.rank] = (S.progress['bossRank_' + b.rank] || 0) + 1;
@@ -1631,27 +1643,31 @@
       html += '<h2 style="color:#3fd66a">PHÁ ẢI</h2><div class="sub">' + st.n + ' · ' + st.sub + ' — ' +
         Math.floor(r.elapsed / 60000) + ':' + ('0' + Math.floor(r.elapsed / 1000 % 60)).slice(-2) + '</div>';
       html += '<div class="box">';
-      html += '<div class="gemcond"><span class="' + (r.conds.noDeath ? 'ok' : 'no') + '">' + (r.conds.noDeath ? '✔' : '✘') + ' Không gục lần nào</span></div>';
-      html += '<div class="gemcond"><span class="' + (r.conds.usedSkill ? 'ok' : 'no') + '">' + (r.conds.usedSkill ? '✔' : '✘') + ' Có dùng kỹ năng</span></div>';
-      html += '<div class="gemcond"><span class="' + (r.conds.fast ? 'ok' : 'no') + '">' + (r.conds.fast ? '✔' : '✘') + ' Xong trong ' + (G.BAL.gemFastMs / 1000) + ' giây</span></div>';
-      if (r.firstClear) html += '<div class="gemcond"><span class="ok">✔ Phá lần đầu · +' + st.firstGem + ' ◈</span></div>';
-      html += '<div class="line" style="border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><span>◈ Gem</span><b style="color:#8fd4ff">+' + gems + '</b></div>';
+      // Ba điều kiện: mỗi cái là gem lẻ, đủ cả ba thì thêm một cục. Hiện đủ cả ba
+      // KỂ CẢ khi trượt — người chơi phải thấy cái mình vừa bỏ lỡ, không thì lần
+      // sau họ vẫn không biết có thứ đó để mà nhắm.
+      html += '<div class="gemcond"><span class="' + (r.conds.noDeath ? 'ok' : 'no') + '">' + (r.conds.noDeath ? '✔' : '✘') + ' Không gục lần nào · +' + G.REWARD.condGem + ' ◈</span></div>';
+      html += '<div class="gemcond"><span class="' + (r.conds.usedSkill ? 'ok' : 'no') + '">' + (r.conds.usedSkill ? '✔' : '✘') + ' Có dùng kỹ năng · +' + G.REWARD.condGem + ' ◈</span></div>';
+      html += '<div class="gemcond"><span class="' + (r.conds.fast ? 'ok' : 'no') + '">' + (r.conds.fast ? '✔' : '✘') + ' Xong trong ' + (G.BAL.gemFastMs / 1000) + ' giây · +' + G.REWARD.condGem + ' ◈</span></div>';
+      html += '<div class="gemcond"><span class="' + (r.nCond === 3 ? 'ok' : 'no') + '">' + (r.nCond === 3 ? '✔' : '✘') + ' Đủ cả ba · +' + G.REWARD.allCondGem + ' ◈</span></div>';
+      html += '<div class="line" style="border-top:1px solid rgba(255,255,255,.15);margin-top:6px;padding-top:6px"><span>' +
+        (r.firstClear ? '◈ Phá LẦN ĐẦU' : '◈ Cày lại') + '</span><b style="color:#8fd4ff">+' + r.gemBase + '</b></div>';
+      html += '<div class="line"><span>◈ Điều kiện</span><b style="color:#8fd4ff">+' + r.gemCond + '</b></div>';
+      html += '<div class="line"><span><b>◈ Tổng Gem</b></span><b style="color:#8fd4ff;font-size:15px">+' + gems + '</b></div>';
       html += '<div class="line"><span>' + b.n + ' · bộ phận đã phá</span><b>' + (r.parts || 0) + '</b></div>';
       html += '<div class="line"><span>Quái đã hạ</span><b>' + (r.killed || 0) + '</b></div>';
-      html += '<div class="line"><span>Gold thưởng ải</span><b>' + fmt(r.gold) + '</b></div>';
+      html += '<div class="line"><span>⬤ Gold thưởng ải</span><b>' + fmt(r.gold) +
+        (r.bossGold ? ' <i style="color:#9fb2c4;font-size:10px">(gồm ' + fmt(r.bossGold) + ' từ trùm)</i>' : '') + '</b></div>';
       html += '<div class="line"><span>EXP thưởng ải</span><b>' + fmt(r.exp) +
         (lvUp ? ' <span style="color:#3fd66a">LÊN CẤP ×' + lvUp + '!</span>' : '') + '</b></div>';
-      html += '<div class="line"><span>Medal</span><b>' + r.medal + '</b></div>';
       // Rương trong ải cộng thẳng vào túi ngay lúc nhặt, nên ở đây chỉ nhắc lại.
       if (bag.gold || bag.exp) html += '<div class="line"><span>Nhặt dọc đường</span><b>' +
         fmt(bag.gold || 0) + ' Gold · ' + fmt(bag.exp || 0) + ' EXP</b></div>';
-      var counted = {};
-      Object.keys(bag.mats || {}).forEach(function (m) { counted[m] = (counted[m] || 0) + bag.mats[m]; });
-      (r.drops || []).forEach(function (m) { counted[m] = (counted[m] || 0) + 1; });
-      Object.keys(counted).forEach(function (m) {
-        html += '<div class="line"><span>' + rankChip(G.MATERIALS[m].r) + ' ' + G.MATERIALS[m].n + '</span><b>×' + counted[m] + '</b></div>';
-      });
       html += '</div>';
+      // Lần đầu phá xong thì nói luôn nó bằng bao nhiêu lượt quay: đó là đơn vị
+      // mà người chơi gacha thật sự dùng để nghĩ, không phải "gem".
+      if (gems >= G.REWARD.pull) html += '<div class="sub" style="color:#8fd4ff">' +
+        'Đủ ' + Math.floor(gems / G.REWARD.pull) + ' lượt quay.</div>';
       var nx = G.nextStage(S);
       html += '<button class="btn pri" id="rNext" style="width:260px" data-next="' + nx.id + '">▶ ' +
         (nx.id === st.id ? 'Đánh lại ải này' : 'Vào ' + nx.n + ' — ' + nx.sub) + '</button>' +
@@ -1661,7 +1677,7 @@
     } else if (r.quit) {
       // Bỏ dở: đồ đã nhặt vẫn của mình (đã vào túi từ lúc nhặt), nhưng ải không
       // tính là phá và không có thưởng ải.
-      var bag2 = r.bag || { mats: {}, gold: 0, exp: 0 };
+      var bag2 = r.bag || { gold: 0, exp: 0 };
       G.track(S, { kill: r.killed || 0 });
       html += '<h2 style="color:#f2c94b">RỜI ẢI</h2><div class="sub">' + (st ? st.n + ' · ' + st.sub : '') + '</div>' +
         '<div class="box"><div class="line"><span>Quái đã hạ</span><b>' + (r.killed || 0) + '</b></div>' +

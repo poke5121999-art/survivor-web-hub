@@ -57,22 +57,28 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     behemoths: DP.BEHEMOTHS.length,
     skills: Object.keys(DP.SKILLS).reduce(function (n, k) { return n + DP.SKILLS[k].length; }, 0),
     areas: DP.AREAS.length,
-    story: DP.STORY.length,
-    mats: Object.keys(DP.MATERIALS).length,
+    banners: DP.BANNERS.length,
+    evolTracks: DP.EVOL.tracks.length,
     bossRates: DP.BEHEMOTH_RATES,
     elemFx: Object.keys(DP.ELEM_FX).length,
-    dropNormal: DP.DROP_NORMAL,
+    // Hệ nguyên liệu, cốt truyện và nhiệm vụ ngày/tuần đã BỎ HẲN. Kiểm cả việc
+    // chúng biến mất: để lại một bảng mồ côi mà không ai đọc là để lại một lời
+    // nói dối trong dữ liệu, và lần sau có người sẽ tin nó.
+    gone: ['MATERIALS', 'STORY', 'DAILY', 'WEEKLY', 'SHOP', 'MEDAL_SHOP',
+           'PIKKE_BUY', 'IAP', 'GATHER_MATS', 'DROP_NORMAL'].filter(k => DP[k] !== undefined),
     elem: [DP.elemMult('water', 'fire'), DP.elemMult('fire', 'water'), DP.elemMult('fire', 'earth')]
   }));
   check('10 lớp vũ khí bắn', d.weapons === 10, d.weapons + '');
   check('đủ Behemoth (>=50)', d.behemoths >= 50, d.behemoths + ' con');
   check('đủ kỹ năng (2 mỗi lớp)', d.skills === 20, d.skills + ' đòn');
   check('8 vùng đất', d.areas === 8, d.areas + '');
-  check('cốt truyện >=30 chặng', d.story >= 30, d.story + '');
+  check('ba banner: nhân vật / vũ khí / tiêu chuẩn', d.banners === 3, d.banners + '');
+  check('Tiến Hoá có bốn nhánh', d.evolTracks === 4, d.evolTracks + '');
+  check('hệ nguyên liệu / cốt truyện / nhiệm vụ ngày đã bỏ HẲN',
+    d.gone.length === 0, 'còn sót: ' + d.gone.join(','));
   check('tỉ lệ gacha boss đúng wiki (3/15/55/27)',
     d.bossRates.SS === 0.03 && d.bossRates.S === 0.15 && d.bossRates.A === 0.55 && d.bossRates.B === 0.27);
   check('đủ bảng nguyên tố cho lớp VFX', d.elemFx === 7, d.elemFx + ' hệ');
-  check('tỉ lệ rơi đồ quái thường đúng wiki (D 24.95%)', d.dropNormal.D === 0.2495);
   check('vòng khắc chế Thủy>Hỏa>Thổ>Lôi', d.elem[0] === 1.5 && d.elem[1] === 0.6 && d.elem[2] === 1.5,
     JSON.stringify(d.elem));
 
@@ -747,8 +753,18 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('hạ boss trả về kết quả thắng', win.win === true);
   check('kết quả gắn với đúng ải vừa đánh', win.stage && win.stage.id === 'tior-1', win.stage && win.stage.id);
   check('lần đầu phá ải được đánh dấu', win.firstClear === true);
-  check('thưởng gem theo 3 điều kiện + bonus (tối đa 4)', win.gems >= 1 && win.gems <= 4, win.gems + ' gem');
-  check('có rơi nguyên liệu', (win.drops || []).length > 0, (win.drops || []).length + ' món');
+  // Gem sau ải phải khớp CHÍNH XÁC bảng G.REWARD — nền theo vị trí ải cộng phần
+  // thưởng điều kiện. Kiểm bằng đẳng thức chứ không bằng một dải: một dải rộng
+  // sẽ vẫn xanh khi bảng thưởng bị chỉnh lệch đi vài chục phần trăm.
+  const wantBase = await p.evaluate(i => DP.REWARD.firstGem(i), win.stageIdx);
+  const wantCond = await p.evaluate(n =>
+    n * DP.REWARD.condGem + (n === 3 ? DP.REWARD.allCondGem : 0), win.nCond);
+  check('gem nền lần đầu đúng bảng thưởng theo vị trí ải', win.gemBase === wantBase,
+    win.gemBase + ' vs ' + wantBase);
+  check('gem điều kiện đúng bảng thưởng', win.gemCond === wantCond,
+    win.gemCond + ' vs ' + wantCond + ' (' + win.nCond + '/3 điều kiện)');
+  check('tổng gem = nền + điều kiện', win.gems === win.gemBase + win.gemCond, win.gems + ' gem');
+  check('trùm rơi Gold, không rơi nguyên liệu', win.bossGold > 0, win.bossGold + ' gold');
   // Rương trong ải cộng thẳng vào túi lúc nhặt. Nếu màn kết quả cộng LẠI phần đó
   // thì mỗi ải in thêm tiền — thứ không ai để ý cho tới khi kinh tế vỡ.
   check('thưởng Gold của ải cộng đúng MỘT lần (không nhân đôi phần nhặt dọc đường)',
@@ -762,87 +778,231 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   results.push('\n── trang bị & meta ──');
   const forge = await p.evaluate(() => {
     const s = DP.starterKit(DP.newSave('T'));
-    s.gold = 999999;
+    s.gold = 9e7;
     const g = DP.forgeGear('amarok', 'weapon', 'x');
     s.gear.push(g);
-    s.mats.str_stone = 999; s.mats.lapis_ss = 99; s.mats.crystal = 99;
     const lv0 = DP.gearStats(g).patk;
     for (let i = 0; i < 5; i++) DP.enhance(s, g);
     const lv5 = DP.gearStats(g).patk;
+
+    // ĐỘT PHÁ ăn ĐỒ. Không có đồ để nướng thì phải TỪ CHỐI, kể cả khi thừa gold —
+    // đó là toàn bộ điểm khác biệt so với bậc nâng cấp bên trên.
     const beforeLb = DP.gearStats(g).patk;
-    DP.limitBreak(s, g);
+    const empty = DP.limitBreak(s, g, []);
+    const pool0 = DP.fodderFor(s, g).length;
+    // nướng đúng số món cần: hạng SS trở lên, chưa lắp lên ai
+    for (let i = 0; i < 3; i++) {
+      const f = DP.forgeGear('amarok', 'head', 'f' + i);
+      f.rank = 'SS'; s.gear.push(f);
+    }
+    const pool1 = DP.fodderFor(s, g).length;
+    const need = DP.breakFodder(g);
+    const pick = DP.fodderFor(s, g).slice(0, need.n).map(x => x.uid);
+    const nGear0 = s.gear.length;
+    const okLb = DP.limitBreak(s, g, pick);
     const afterLb = DP.gearStats(g).patk;
-    return { grew: lv5 > lv0, lbGrew: afterLb > beforeLb, lb: g.lb };
+    // món đã nướng phải BIẾN MẤT khỏi túi
+    const burned = nGear0 - s.gear.length;
+    const gone = pick.every(u => !s.gear.some(x => x.uid === u));
+
+    // Món ĐANG LẮP LÊN NGƯỜI không được nằm trong danh sách nướng. Đây là chỗ
+    // duy nhất trong game xoá vĩnh viễn một món, và không có nút hoàn tác.
+    const worn = s.gear.filter(x => DP.holderOf(s, x.uid));
+    const wornOffered = worn.some(w => DP.fodderFor(s, g).some(x => x.uid === w.uid));
+
+    return { grew: lv5 > lv0, lbGrew: afterLb > beforeLb, lb: g.lb,
+             emptyRejected: empty.ok === false, okLb: okLb.ok === true,
+             pool0, pool1, burned, gone, need: need.n, wornOffered, wornN: worn.length };
   });
   check('nâng cấp làm tăng chỉ số', forge.grew);
-  check('limit break làm tăng chỉ số', forge.lbGrew && forge.lb === 1);
+  check('đột phá KHÔNG có đồ để nướng thì từ chối', forge.emptyRejected);
+  check('đột phá bằng đồ trùng làm tăng chỉ số', forge.okLb && forge.lbGrew && forge.lb === 1);
+  check('món đem nướng biến mất khỏi túi', forge.burned === forge.need && forge.gone,
+    'nướng ' + forge.burned + '/' + forge.need);
+  check('món ĐANG LẮP không bao giờ được đề nghị đem nướng',
+    forge.wornN > 0 && forge.wornOffered === false, forge.wornN + ' món đang lắp');
 
-  // Tiến hoá chỉ mở bằng Lõi Rồng, mà Lõi Rồng thì không cày được ở đâu.
+  // Tinh luyện chỉ mở bằng Lõi Rồng, mà Lõi Rồng thì không cày được ở đâu.
   const core = await p.evaluate(() => {
     const s = DP.newSave('T'); s.gold = 9e6;
     const g = DP.forgeGear('amarok', 'weapon', 'e'); g.lv = DP.MAX_LV; s.gear.push(g);
     const noCore = DP.evolve(s, g);
     const cost = DP.evolveCost(g);
-    s.mats.dragon_core = 999;
+    s.core = 999;
     const withCore = DP.evolve(s, g);
-    // không một bảng rơi đồ nào được phép nhả ra Lõi Rồng
-    const inTribes = Object.keys(DP.TRIBES).some(k => DP.TRIBES[k].mat.indexOf('dragon_core') >= 0);
-    const inGather = DP.GATHER_MATS.indexOf('dragon_core') >= 0;
-    const inShop = JSON.stringify(DP.SHOP || []).indexOf('dragon_core') >= 0;
-    const inBoss = DP.BEHEMOTHS.some(b => JSON.stringify(b).indexOf('dragon_core') >= 0);
-    return { noCore: noCore.ok, withCore: withCore.ok, needsCore: !!(cost.mat && cost.mat.dragon_core),
-             farmable: inTribes || inGather || inShop || inBoss };
+    // Lõi Rồng chỉ có MỘT đường vào: quay trúng thứ đã có. Không rơi ở ải, không
+    // bán ở tiệm, không nằm trong gói nào.
+    const inShop = JSON.stringify(DP.ITEMS).indexOf('core') >= 0;
+    const inReward = JSON.stringify(Object.keys(DP.REWARD)).indexOf('core') >= 0;
+    const s2 = DP.newSave('T');
+    const mob = DP.rollMobDrop('purun', true, true, 99, 40);
+    const boss = DP.rollBossDrop(DP.behemothById('amarok'), 4, 99, 60);
+    return { noCore: noCore.ok, withCore: withCore.ok, needsCore: cost.core > 0,
+             farmable: inShop || inReward || !!mob.core || !!boss.core };
   });
-  check('Tiến hoá đòi Lõi Rồng', core.needsCore);
-  check('không có Lõi Rồng thì không Tiến hoá được', core.noCore === false);
-  check('có Lõi Rồng thì Tiến hoá được', core.withCore === true);
-  check('Lõi Rồng KHÔNG cày được: không nằm trong bảng rơi nào', core.farmable === false);
+  check('Tinh luyện đòi Lõi Rồng', core.needsCore);
+  check('không có Lõi Rồng thì không Tinh luyện được', core.noCore === false);
+  check('có Lõi Rồng thì Tinh luyện được', core.withCore === true);
+  check('Lõi Rồng KHÔNG cày được: không nằm trong bảng rơi hay quầy nào', core.farmable === false);
 
-  const dupe = await p.evaluate(() => {
-    const s = DP.newSave('T');
-    const a = DP.summonGear(s, 1, true);              // ép ra SS, chắc chắn là món mới
-    const before = s.mats.dragon_core || 0;
-    // quay lại đúng món đó: ép hasGear đúng nên lần hai phải ra Lõi
-    const rank = a[0].rank, kind = a[0].gear.kind, src = a[0].gear.src;
-    let dup = null;
-    for (let i = 0; i < 400 && !dup; i++) {
-      const r = DP.summonGear(s, 1, false);
-      if (r[0].dupe) dup = r[0];
-    }
-    return { first: a[0].dupe === false, gearAdded: s.gear.length >= 1,
-             dupFound: !!dup, cores: dup ? dup.cores : 0,
-             stock: (s.mats.dragon_core || 0) > before, rank, kind, src };
-  });
-  check('Triệu hồi ra thẳng trang bị', dupe.first && dupe.gearAdded);
-  check('quay trúng món đã có thì thành Lõi Rồng', dupe.dupFound && dupe.cores >= 1,
-    dupe.cores + ' lõi/lần trùng');
-  check('Lõi Rồng vào kho', dupe.stock);
-
+  // -------------------------------------------------------------- QUAY
+  results.push('\n── ba banner ──');
   const gacha = await p.evaluate(() => {
-    const s = DP.newSave('T');
-    const r = DP.summonGear(s, 11, true);
-    return { gearLast: r[10].rank, n: r.length,
-             kinds: r.map(x => x.kind).filter((v, i, a) => a.indexOf(v) === i).length };
+    const out = {};
+    DP.BANNERS.forEach(bn => {
+      const s = DP.newSave('T'); s.gem = 9e7;
+      const got = { SS: 0, S: 0, A: 0, B: 0 };
+      let n = 0, up = 0, maxDry = 0;
+      for (let i = 0; i < 300; i++) {
+        const r = DP.pull(s, bn.id, 10);
+        r.results.forEach(x => { got[x.rank]++; n++; if (x.up) up++; });
+        maxDry = Math.max(maxDry, DP.pityOf(s, bn.id).n);
+      }
+      out[bn.id] = { got, n, up, maxDry, ssPct: got.SS / n * 100,
+                     hard: bn.hard, kinds: null };
+    });
+    return out;
   });
-  check('gói 10+1 trang bị bảo hiểm SS', gacha.gearLast === 'SS');
-  check('gacha ra đủ cả vũ khí lẫn giáp', gacha.kinds >= 2, gacha.kinds + ' loại');
+  ['char', 'weapon', 'std'].forEach(id => {
+    const g = gacha[id];
+    check('banner ' + id + ': ra đủ bốn hạng',
+      g.got.SS > 0 && g.got.S > 0 && g.got.A > 0 && g.got.B > 0, JSON.stringify(g.got));
+    // PITY CỨNG là lời hứa nặng nhất của một hệ gacha. Nếu chuỗi khô dài hơn mốc
+    // cứng dù chỉ một lượt thì lời hứa đó sai, và nó sai một cách người chơi
+    // không bao giờ chứng minh được — nên phải kiểm bằng số.
+    check('banner ' + id + ': chuỗi khô không bao giờ vượt pity cứng (' + g.hard + ')',
+      g.maxDry < g.hard, 'dài nhất ' + g.maxDry);
+    check('banner ' + id + ': tỉ lệ SS thật cao hơn tỉ lệ gốc (pity có làm việc)',
+      g.ssPct > 2.5, g.ssPct.toFixed(2) + '%');
+  });
+  check('banner nhân vật: bảo hiểm 50/50 kéo tỉ lệ trúng rate-up lên trên 60%',
+    gacha.char.up / gacha.char.got.SS > 0.6,
+    (gacha.char.up / gacha.char.got.SS * 100).toFixed(0) + '%');
+
+  const pull1 = await p.evaluate(() => {
+    const s = DP.newSave('T');
+    s.gem = DP.REWARD.pull - 1;
+    const poor = DP.pull(s, 'char', 1);
+    const keptAfterPoor = s.gem === DP.REWARD.pull - 1;   // đo NGAY, trước khi nạp lại ví
+    s.gem = DP.REWARD.pull10;
+    const ten = DP.pull(s, 'char', 10);
+    // Quay trúng người ĐÃ CÓ thì đổi thành Lõi Rồng — không có cú quay nào phí.
+    const s2 = DP.newSave('T'); s2.gem = 9e6;
+    let dup = null;
+    for (let i = 0; i < 200 && !dup; i++) {
+      const r = DP.pull(s2, 'char', 10);
+      dup = r.results.filter(x => x.dupe)[0] || null;
+    }
+    // Điểm Định Mệnh của banner vũ khí: đổi mục tiêu thì điểm về 0.
+    const s3 = DP.newSave('T');
+    DP.setFateTarget(s3, DP.bannerById('weapon').featured[0]);
+    DP.pityOf(s3, 'weapon').fate = 1;
+    DP.setFateTarget(s3, DP.bannerById('weapon').featured[1]);
+    const fateReset = DP.pityOf(s3, 'weapon').fate === 0;
+    return { poor: poor.ok === false, poorKept: keptAfterPoor,
+             ten: ten.ok && ten.results.length === 10, spent: s.gem === 0,
+             dup: !!dup, cores: dup ? dup.cores : 0, stock: (s2.core || 0) > 0,
+             fateReset };
+  });
+  check('thiếu Gem thì từ chối và không trừ gì', pull1.poor && pull1.poorKept);
+  check('gói mười ra đúng mười món, trừ đúng giá gói', pull1.ten && pull1.spent);
+  check('quay trúng thứ ĐÃ CÓ thì đổi thành Lõi Rồng', pull1.dup && pull1.cores >= 1 && pull1.stock,
+    pull1.cores + ' lõi/lần trùng');
+  check('đổi mục tiêu banner vũ khí thì Điểm Định Mệnh về 0', pull1.fateReset);
+
+  // Quay qua NÚT THẬT trên màn Triệu Hồi.
+  await p.evaluate(() => { DP.UI.save.gem = 99999; DP.UI.saveNow(); DP.UI.show('gacha'); });
+  await p.waitForTimeout(250);
+  const pullUI = await p.evaluate(() => {
+    const S = DP.UI.save, g0 = S.gem, n0 = (S.heroes || []).length + S.gear.length;
+    document.querySelector('#body-gacha [data-pull="10"]').click();
+    const out = document.getElementById('gachaOut');
+    return { spent: g0 - S.gem, grew: (S.heroes || []).length + S.gear.length > n0,
+             shown: !!out && out.innerText.length > 10,
+             tabs: document.querySelectorAll('#body-gacha .tabrow .tab').length };
+  });
+  check('màn Triệu Hồi có ba tab banner', pullUI.tabs === 3, pullUI.tabs + '');
+  check('bấm nút quay mười: trừ đúng gem và hiện kết quả',
+    pullUI.spent === 1600 && pullUI.shown, 'trừ ' + pullUI.spent);
+
+  // ------------------------------------------------------------ TIẾN HOÁ
+  results.push('\n── Tiến Hoá ──');
+  const evol = await p.evaluate(() => {
+    /* Đo trên hồ sơ TRẦN (chưa lắp giáp). Tiến Hoá nhân vào CHỈ SỐ GỐC, còn máu
+     * từ bốn mảnh giáp thì cộng thẳng vào sau — đo trên hồ sơ có giáp thì tỉ lệ
+     * bị pha loãng và phép kiểm sẽ đo nhầm một thứ khác. */
+    const s = DP.newSave('T');
+    s.heroes.push(DP.mkHero('sora')); s.party[0] = s.heroes[0].uid;
+    const before = DP.buildStats(s);
+    s.gold = 9e9; s.core = 9999;
+    const t = DP.EVOL.tracks[0];
+    const poorSave = DP.newSave('T'); poorSave.gold = 0;
+    const poor = DP.evolUp(poorSave, t.id);
+    for (let i = 0; i < DP.EVOL.max; i++) DP.evolUp(s, t.id);
+    const over = DP.evolUp(s, t.id);
+    const after = DP.buildStats(s);
+    // Cộng cho MỌI nhân vật, không riêng ai: đo trên một người khác hẳn.
+    s.heroes.push(DP.mkHero('calli'));
+    const other = s.heroes[1];
+    const s2 = DP.newSave('T'); s2.heroes.push(DP.mkHero('calli'));
+    const b2 = DP.buildStats(s2, s2.heroes[0]);
+    const a2 = DP.buildStats(s, other);
+    return { poor: poor.ok === false, lv: DP.evolLv(s, t.id), max: DP.EVOL.max,
+             over: over.ok === false,
+             hpGrew: after.hp > before.hp,
+             ratio: after.hp / before.hp, want: 1 + t.per * DP.EVOL.max,
+             otherGrew: a2.hp > b2.hp,
+             total: DP.evolTotal(s) };
+  });
+  check('không đủ Gold thì không Tiến Hoá được', evol.poor);
+  check('Tiến Hoá lên được tối đa rồi dừng', evol.lv === evol.max && evol.over,
+    evol.lv + '/' + evol.max);
+  check('Tiến Hoá cộng đúng phần trăm đã hứa vào chỉ số gốc',
+    Math.abs(evol.ratio - evol.want) < 0.02,
+    'x' + evol.ratio.toFixed(3) + ' vs x' + evol.want.toFixed(3));
+  check('Tiến Hoá áp cho MỌI nhân vật, không riêng người đang dùng', evol.otherGrew);
+
+  // ------------------------------------------------------ THƯỞNG SAU ẢI
+  results.push('\n── thưởng sau ải ──');
+  const rew = await p.evaluate(() => {
+    const n = DP.STAGES.length;
+    const first = [], repeat = [];
+    for (let i = 0; i < n; i++) { first.push(DP.REWARD.firstGem(i)); repeat.push(DP.REWARD.repeatGem(i)); }
+    const totalFirst = first.reduce((a, b) => a + b, 0);
+    return {
+      n, totalFirst,
+      pulls: totalFirst / DP.REWARD.pull,
+      rising: first.every((v, i) => i === 0 || v > first[i - 1]),
+      firstBeatsRepeat: first.every((v, i) => v > repeat[i] * 3),
+      lastRepeat: repeat[n - 1],
+      runsPerPull: DP.REWARD.pull / (repeat[n - 1] + 3 * DP.REWARD.condGem + DP.REWARD.allCondGem)
+    };
+  });
+  check('gem lần đầu tăng đều theo chuỗi ải', rew.rising);
+  check('phá lần đầu đáng giá hơn cày lại ít nhất 3 lần', rew.firstBeatsRepeat);
+  check('cả chiến dịch cho khoảng 30-60 lượt quay',
+    rew.pulls >= 30 && rew.pulls <= 60, rew.pulls.toFixed(1) + ' lượt');
+  // Cày lại phải CÓ NGHĨA nhưng không được thay thế việc đi tiếp: nếu vài lượt
+  // cày đã bằng một cú quay thì chẳng ai buồn phá ải mới nữa.
+  check('cày lại ải cuối cần 3-8 lượt cho một cú quay',
+    rew.runsPerPull >= 3 && rew.runsPerPull <= 8, rew.runsPerPull.toFixed(1) + ' lượt/quay');
 
   // Bỏ dở giữa chừng: bảng "RỜI ẢI" hiện ra, và ví KHÔNG được đổi thêm một đồng
   // nào — thứ nhặt được đã vào túi từ lúc nhặt rồi.
   await goStage(p, 'tior-2');
   await p.waitForTimeout(500);
   const quit = await p.evaluate(() => new Promise(res => {
-    const g0 = DP.UI.save.gold, m0 = JSON.stringify(DP.UI.save.mats);
+    const g0 = DP.UI.save.gold, m0 = DP.UI.save.gem;
     DP.UI.leave();
     setTimeout(() => {
       const el = document.getElementById('resultScr');
       res({ shown: el.classList.contains('on'), text: (el.innerText || '').split('\n')[0],
-            goldDelta: DP.UI.save.gold - g0, matsSame: JSON.stringify(DP.UI.save.mats) === m0,
+            goldDelta: DP.UI.save.gold - g0, gemSame: DP.UI.save.gem === m0,
             cleared: !!DP.UI.save.cleared['tior-2'], running: !!(DP.UI.battle && DP.UI.battle.running) });
     }, 400);
   }));
   check('rời ải giữa chừng hiện bảng tổng kết', quit.shown && /RỜI ẢI/.test(quit.text), quit.text);
-  check('rời ải không cộng thêm/trừ bớt tiền', quit.goldDelta === 0 && quit.matsSame,
+  check('rời ải không cộng thêm/trừ bớt tiền', quit.goldDelta === 0 && quit.gemSame,
     'lệch ' + quit.goldDelta + ' gold');
   check('rời ải KHÔNG tính là phá ải', quit.cleared === false);
   check('rời ải thì trận dừng hẳn', quit.running === false);
@@ -851,103 +1011,22 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   check('mở màn khác thì bảng kết quả tự dẹp',
     await p.evaluate(() => !document.getElementById('resultScr').classList.contains('on')));
 
-  // MEDAL. Phá ải là ra Medal, và Medal phải TIÊU ĐƯỢC — nếu không thì nó chỉ là
-  // một con số đếm lên trong màn Khác, tức tiền chết.
-  const medal = await p.evaluate(() => {
-    const s = DP.newSave('T');
-    const item = DP.MEDAL_SHOP.find(x => x.give.ticket === 5);
-    s.medal = item.price.medal - 1;
-    const t0 = s.ticket;
-    const poor = DP.pay(s, item.price);            // thiếu 1 Medal -> phải từ chối
-    s.medal = item.price.medal;
-    const ok = DP.pay(s, item.price);
-    return {
-      hasShop: DP.MEDAL_SHOP.length > 0,
-      buysTicket: !!item,
-      poor: poor === false, poorKept: s.ticket === t0,
-      ok: ok === true, spent: s.medal === 0,
-      // Lõi Rồng KHÔNG được bán ở bất cứ quầy nào
-      coreForSale: JSON.stringify(DP.MEDAL_SHOP).indexOf('dragon_core') >= 0 ||
-                   JSON.stringify(DP.SHOP).indexOf('dragon_core') >= 0
-    };
-  });
-  check('có quầy tiêu Medal (Medal không phải tiền chết)', medal.hasShop && medal.buysTicket);
-  check('thiếu Medal thì từ chối và không mất gì', medal.poor && medal.poorKept);
-  check('đủ Medal thì đổi được vé, trừ đúng số Medal', medal.ok && medal.spent);
-  check('không quầy nào bán Lõi Rồng', medal.coreForSale === false);
-
-  // Đường mua đi qua NÚT THẬT trên màn tiệm.
-  await p.evaluate(() => { DP.UI.save.medal = 500; DP.UI.save.ticket = 0; DP.UI.saveNow(); DP.UI.show('shop'); });
+  // TIỆM chỉ tiêu GOLD. Hai đồng tiền mà đổi được cho nhau thì thật ra chỉ có một
+  // — nên phải kiểm rằng KHÔNG có đường nào đổi gem sang gold hay ngược lại.
+  await p.evaluate(() => { DP.UI.save.gold = 999999; DP.UI.saveNow(); DP.UI.show('shop'); });
   await p.waitForTimeout(250);
-  const buy = await p.evaluate(() => {
-    const S = DP.UI.save, m0 = S.medal;
-    const btn = document.querySelector('#body-shop [data-buym]');
-    const it = DP.MEDAL_SHOP.find(x => x.id === btn.getAttribute('data-buym'));
+  const shop = await p.evaluate(() => {
+    const S = DP.UI.save, g0 = S.gold, m0 = S.gem;
+    const btn = document.querySelector('#body-shop [data-buy]');
+    const id = btn.getAttribute('data-buy'), it = DP.ITEMS[id];
     btn.click();
-    return { ticket: S.ticket, spent: m0 - S.medal, want: it.price.medal, give: it.give.ticket || 0 };
+    return { spent: g0 - S.gold, want: it.price.gold, got: (S.inv[id] || 0),
+             gemUntouched: S.gem === m0,
+             allGold: Object.keys(DP.ITEMS).every(k => DP.ITEMS[k].price.gold > 0 && !DP.ITEMS[k].price.gem) };
   });
-  check('bấm nút quầy Medal thật: trừ đúng Medal, cộng đúng vé',
-    buy.spent === buy.want && buy.ticket === buy.give,
-    'trừ ' + buy.spent + '/' + buy.want + ', vé ' + buy.ticket);
-
-  // ĐỔI GOLD LẤY PIKKE. Chỗ này dễ vỡ nhất không phải ở nút bấm mà ở GIÁ: tiệm
-  // bán cả hai chiều Gold <-> Pikke, nên nếu giá mua vào không đắt hơn giá bán ra
-  // thì đổi đi đổi lại là tự nhân đôi ví — một máy in tiền không ai để ý cho tới
-  // khi kinh tế vỡ. Bài kiểm này tính thẳng tỉ giá từ dữ liệu.
-  const pk = await p.evaluate(() => {
-    const sell = DP.SHOP.find(x => x.give.gold && x.price.pikke);   // Pikke -> Gold
-    const sellRate = sell.give.gold / sell.price.pikke;             // Gold nhận mỗi Pikke
-    const buyRates = DP.PIKKE_BUY.map(x => x.price.gold / x.give.pikke);
-    // Đường vòng Medal -> Gold -> Pikke không được rẻ hơn Medal -> vé đi thẳng.
-    const mGold = DP.MEDAL_SHOP.find(x => x.give.gold);
-    const mTick = DP.MEDAL_SHOP.find(x => x.give.ticket === 5);
-    const pTick = DP.SHOP.find(x => x.give.ticket);                 // vé mua bằng Pikke
-    const pikkePerTicket = pTick.price.pikke / pTick.give.ticket;
-    const direct = mTick.give.ticket * pikkePerTicket / mTick.price.medal;   // Pikke-quy-đổi mỗi Medal
-    const detour = (mGold.give.gold / Math.min.apply(null, buyRates)) / mGold.price.medal;
-
-    const s = DP.newSave('T');
-    s.gold = DP.PIKKE_BUY[0].price.gold; s.pikke = 0;
-    const okBuy = DP.pay(s, DP.PIKKE_BUY[0].price);
-    if (okBuy) s.pikke += DP.PIKKE_BUY[0].give.pikke;
-    const poor = DP.pay(s, DP.PIKKE_BUY[0].price);   // hết sạch gold -> phải từ chối
-    return { sellRate, buyMin: Math.min.apply(null, buyRates), direct, detour,
-             bought: s.pikke === DP.PIKKE_BUY[0].give.pikke, gold: s.gold === 0, poor: poor === false };
-  });
-  check('mua Pikke đắt hơn bán Pikke (không có vòng in tiền)', pk.buyMin > pk.sellRate,
-    'mua ' + pk.buyMin.toFixed(0) + ' vs bán ' + pk.sellRate.toFixed(0) + ' Gold/Pikke');
-  check('đổi Medal đi thẳng vẫn lời hơn vòng Medal→Gold→Pikke', pk.direct > pk.detour,
-    pk.direct.toFixed(1) + ' vs ' + pk.detour.toFixed(1) + ' Pikke mỗi Medal');
-  check('đổi Gold lấy Pikke: trừ đúng Gold, cộng đúng Pikke', pk.bought && pk.gold);
-  check('hết Gold thì từ chối', pk.poor);
-
-  // QUẦY NẠP. Cố ý cho không, nên bài kiểm ở đây chốt hai điều: nó thật sự
-  // không đòi gì, và nó KHÔNG phát Lõi Rồng — thứ duy nhất còn khan.
-  await p.evaluate(() => { DP.UI.show('shop'); });
-  await p.waitForTimeout(250);
-  const iap = await p.evaluate(() => {
-    const S = DP.UI.save;
-    const before = { t: S.ticket, g: S.gem, k: S.pikke, o: S.gold, m: S.medal, core: S.mats.dragon_core || 0 };
-    const btn = document.querySelector('#body-shop [data-iap]');
-    const it = DP.IAP.find(x => x.id === btn.getAttribute('data-iap'));
-    btn.click();
-    const once = S.ticket - before.t;
-    document.querySelector('#body-shop [data-iap]').click();   // bấm lần hai
-    return {
-      free: DP.IAP.every(x => !x.price),
-      allGive: DP.IAP.every(x => Object.keys(x.give).length > 0),
-      allWas: DP.IAP.every(x => /đ$/.test(x.was || '')),
-      gave: once === (it.give.ticket || 0) && once > 0,
-      twice: S.ticket - before.t === once * 2,
-      noCore: JSON.stringify(DP.IAP).indexOf('dragon_core') < 0 &&
-              (S.mats.dragon_core || 0) === before.core
-    };
-  });
-  check('mọi gói nạp đều không đòi gì (0đ thật)', iap.free && iap.allGive);
-  check('gói nào cũng có giá gạch đi cho ra dáng quầy nạp', iap.allWas);
-  check('bấm gói là nhận đúng đồ', iap.gave);
-  check('bấm bao nhiêu lần cũng được', iap.twice);
-  check('quầy nạp KHÔNG phát Lõi Rồng', iap.noCore);
+  check('tiệm chỉ nhận Gold, không nhận Gem', shop.allGold && shop.gemUntouched);
+  check('bấm nút mua thật: trừ đúng Gold, cộng đúng đồ',
+    shop.spent === shop.want && shop.got >= 1, 'trừ ' + shop.spent + '/' + shop.want);
 
   // ------------------------------------------------------------- CHỌN ẢI
   results.push('\n── chuỗi ải ──');
@@ -1063,7 +1142,7 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
   results.push('\n── màn hình menu ──');
   await p.evaluate(() => { DP.UI.leave(); });
   await p.waitForTimeout(300);
-  for (const s of ['home', 'quest', 'armory', 'gacha', 'more', 'forge', 'shop', 'help', 'bosslist']) {
+  for (const s of ['home', 'quest', 'armory', 'gacha', 'more', 'evol', 'shop', 'help', 'bosslist']) {
     await p.evaluate(id => DP.UI.show(id), s);
     await p.waitForTimeout(120);
     const ok = await p.evaluate(id => {
@@ -1090,11 +1169,14 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
                                           !A.get('heroes.' + d.id + '.run')).map(d => d.id);
     const badCls = DP.HEROES.filter(d => !DP.WEAPONS[d.wclass]).map(d => d.id);
     const badEl  = DP.HEROES.filter(d => !DP.ELEMENTS[d.el]).map(d => d.id);
-    // gacha: 200 lần quay, phải KHÔNG đẻ thêm món đồ nào vào túi
+    // Banner NHÂN VẬT phải chỉ ra người, không lẫn một món đồ nào — nếu nó ra
+    // cả đồ thì nó chính là banner tiêu chuẩn, và ba banner thành hai.
     const gear0 = S.gear.length;
-    const res = DP.summonHeroes(S, 200, false);
+    S.gem = 9e7;
     const ranks = {};
-    res.forEach(r => { ranks[r.rank] = (ranks[r.rank] || 0) + 1; });
+    for (let i = 0; i < 20; i++) {
+      DP.pull(S, 'char', 10).results.forEach(r => { ranks[r.rank] = (ranks[r.rank] || 0) + 1; });
+    }
     return {
       total: DP.HEROES.length, missSpr, badCls, badEl,
       gearGrew: S.gear.length - gear0,
@@ -1108,7 +1190,7 @@ const DP_AIR = 1.4;   // FEEL.airDmgMul, chỉ dùng để in nhãn cho dễ đ�
     hero.badCls.length === 0 && hero.badEl.length === 0,
     (hero.badCls.concat(hero.badEl).join(',')) || 'ok');
   check('đủ cả mười lớp vũ khí trong dàn nhân vật', hero.classes === 10, hero.classes + ' lớp');
-  check('gacha KHÔNG còn đẻ ra trang bị', hero.gearGrew === 0, 'túi tăng ' + hero.gearGrew + ' món');
+  check('banner nhân vật KHÔNG đẻ ra trang bị', hero.gearGrew === 0, 'túi tăng ' + hero.gearGrew + ' món');
   check('quay 200 lần ra đủ bốn hạng', Object.keys(hero.ranks).length === 4, JSON.stringify(hero.ranks));
 
   const eqr = await p.evaluate(() => {

@@ -182,20 +182,25 @@
       v: 2, name: name || 'Hound',
       gender: 0, face: 0, skin: 2, hair: 0, hairColor: 0, voice: 0,
       lv: 1, exp: 0,
-      gold: 3000, gem: 30, ticket: 10, pikke: 0, medal: 0,
-      mats: {}, gear: [],
+      // HAI đồng tiền. `core` (Lõi Rồng) không phải đồng thứ ba: nó không mua
+      // được gì trong tiệm, chỉ có từ quay trúng đồ đã có, và chỉ tiêu được vào
+      // Tinh Luyện với Tiến Hoá. Nó là con dấu ghi lại số lần quay thừa.
+      gold: 3000, gem: 1600, core: 0,
+      gear: [],
       // roster: mọi nhân vật đã quay được. Mỗi người TỰ GIỮ trang bị của mình.
       heroes: [],
       // đội hình mang vào ải — tối đa ba người, đổi qua lại giữa trận.
       party: [null, null, null],
-      story: { done: [] },
-      daily: { date: '', picks: [], done: {} },
-      weekly: { week: '', picks: [], done: {} },
+      // Tiến Hoá: cấp của bốn nhánh, dùng chung cho MỌI nhân vật.
+      evol: {},
+      // Pity của từng banner: { n, guar, fate, target }
+      pity: {},
       area: 'tior',
       cleared: {},           // { 'tior-1': true, ... } — ải đã phá
       bossKills: {}, seenBoss: {},
       inv: {}, potions: {},
-      stats: { boss: 0, mob: 0, deaths: 0, parts: 0, gathers: 0, rerolls: 0, buys: 0, potions: 0, skillUse: 0, equipLv: 0 },
+      stats: { boss: 0, mob: 0, deaths: 0, parts: 0, gathers: 0, rerolls: 0, buys: 0,
+               potions: 0, skillUse: 0, equipLv: 0, pulls: 0 },
       log: []
     };
   };
@@ -367,12 +372,20 @@
     // Hạng nhân vật nhân thẳng vào chỉ số gốc — đó là thứ làm một con SS đáng quay
     // hơn một con B, chứ không phải chỉ khác cái ảnh.
     var hm = G.heroMul(hero ? (G.heroDef(hero) || {}).rank : 'B');
+    /* TIẾN HOÁ nhân vào NỀN, và nhân TRƯỚC hệ số hạng. Thứ tự đó quyết định ý
+     * nghĩa của cả hệ: nhân trước thì một con SS hưởng nhiều hơn một con B đúng
+     * theo tỉ lệ hạng của nó, tức Tiến Hoá nâng ĐỀU tất cả. Cộng sau khi nhân
+     * hạng thì mọi hạng nhận cùng một lượng tuyệt đối, và nó âm thầm thành thứ
+     * thu hẹp khoảng cách giữa các hạng — ngược hẳn ý định. */
+    var ev = { hp: G.evolMul(s, 'hp'), atk: G.evolMul(s, 'atk'),
+               def: G.evolMul(s, 'def'), edef: G.evolMul(s, 'edef') };
     var st = {
       hero: hero,
-      hp: (B.baseHp + B.hpPerLv * (s.lv - 1)) * hm,
-      atk: (B.baseAtk + B.atkPerLv * (s.lv - 1)) * hm,
-      def: (B.baseDef + B.defPerLv * (s.lv - 1)) * hm,
+      hp: (B.baseHp + B.hpPerLv * (s.lv - 1)) * ev.hp * hm,
+      atk: (B.baseAtk + B.atkPerLv * (s.lv - 1)) * ev.atk * hm,
+      def: (B.baseDef + B.defPerLv * (s.lv - 1)) * ev.def * hm,
       edef: 0,
+      evolEdef: ev.edef,
       moveSpd: 1, dodge: 1, recovery: 1, skillCd: 0, skillDmg: 0, luck: 0,
       guard: 0, cleave: 0, cleaveSpd: 0, lunge: 0, frenzy: 0, snipe: 0, snipeSpd: 0,
       soul: 0, heat: 0, regen: 0,
@@ -412,7 +425,11 @@
     }
     // Ability của vũ khí đang mang (cả 3 khe đều tính — bản gốc tính theo món đang cầm,
     // nhưng ở đây đổi vũ khí liên tục nên tính theo món cầm được xử lý trong game.js)
+    // Kháng hệ chỉ tới từ giáp nên nó phải nhân SAU khi cộng xong bốn mảnh —
+    // nhân trước thì nhân với số 0 và cả nhánh Kháng Hệ không làm gì cả.
+    st.edef *= st.evolEdef;
     st.hp = Math.round(st.hp); st.atk = Math.round(st.atk); st.def = Math.round(st.def);
+    st.edef = Math.round(st.edef);
     return st;
   };
 
@@ -441,147 +458,300 @@
     return prof;
   };
 
-  /* ------------------------------------------------------------ GACHA ---- */
-  /* Gacha ra THẲNG trang bị. Tỉ lệ hạng giữ nguyên tỉ lệ thật của Quest Gacha bản
-   * gốc (SS 3 / S 15 / A 55 / B 27) vì đó là con số có nguồn; chỉ đổi thứ rơi ra.
-   * Trúng món đã có -> LÕI RỒNG, nguyên liệu độc quyền không cày được, dùng để tiến
-   * hoá đồ S/SS. Xem G.DUPE_CORE trong data/gamedata.js. */
-  /* Quay ra NGƯỜI. Trùng người thì cộng `dupes` cho người đó và trả Lõi Rồng —
-   * cùng luật với trùng đồ ngày trước, chỉ đổi thứ rơi ra.
-   * Tỉ lệ hạng vẫn là con số có nguồn của Quest Gacha bản gốc. */
-  G.summonHeroes = function (s, count, guaranteed) {
-    var out = [], order = ['SS', 'S', 'A', 'B'];
-    s.heroes = s.heroes || [];
-    for (var i = 0; i < count; i++) {
-      var rank = (guaranteed && i === count - 1) ? 'SS' : G.rollRank(G.HERO_RATES, Math.random);
-      var pool = G.heroesOfRank(rank);
-      if (!pool.length) { rank = order[order.indexOf(rank) + 1] || 'B'; pool = G.heroesOfRank(rank); }
-      var d = pool[(Math.random() * pool.length) | 0];
-      if (G.hasHero(s, d.id)) {
-        var n = G.DUPE_CORE[rank] || 1;
-        G.addMat(s, 'dragon_core', n);
-        var ex = s.heroes.filter(function (h) { return h.id === d.id; })[0];
-        if (ex) ex.dupes = (ex.dupes || 0) + 1;
-        out.push({ dupe: true, rank: rank, id: d.id, name: d.n, cores: n });
-      } else {
-        var h = G.mkHero(d.id);
-        s.heroes.push(h);
-        // Người mới về mà đội hình còn chỗ thì xếp vào luôn, khỏi bắt đi lắp tay.
-        for (var k = 0; k < G.PARTY_MAX; k++) if (!s.party[k]) { s.party[k] = h.uid; break; }
-        out.push({ dupe: false, rank: rank, id: d.id, name: d.n, hero: h });
-      }
-    }
-    return out;
+  /* ========================================================= QUAY =========
+   * Ba banner, một bộ máy. Trạng thái pity nằm trong `s.pity[bannerId]`:
+   *
+   *   { n, guar, fate, target }
+   *     n      — đã quay bao nhiêu lượt kể từ lần SS gần nhất
+   *     guar   — lần SS tới CHẮC CHẮN là đồ rate-up (do đã thua 50/50)
+   *     fate   — Điểm Định Mệnh của banner vũ khí
+   *     target — cây vũ khí đã chọn làm mục tiêu
+   *
+   * PITY MỀM là phần dễ làm sai nhất. Nó KHÔNG phải "tới lượt N thì bảo đảm";
+   * nó là cộng thêm một lượng vào tỉ lệ SS cho mỗi lượt vượt qua mốc mềm, cho
+   * tới khi chạm mốc cứng thì thành 100%. Genshin: mềm ~74, cứng 90, tức mềm bắt
+   * đầu ở 82% quãng đường. Giữ đúng tỉ lệ đó, kéo về thang ngắn hơn cho hợp với
+   * tỉ lệ gốc 3% (cao gấp năm lần Genshin).
+   * ==================================================================== */
+  function pityOf(s, id) {
+    s.pity = s.pity || {};
+    if (!s.pity[id]) s.pity[id] = { n: 0, guar: false, fate: 0, target: null };
+    return s.pity[id];
+  }
+  G.pityOf = pityOf;
+  G.bannerById = function (id) {
+    return G.BANNERS.filter(function (b) { return b.id === id; })[0] || G.BANNERS[0];
   };
 
-  G.summonGear = function (s, count, guaranteed) {
-    var out = [], order = ['SS', 'S', 'A', 'B'];
-    for (var i = 0; i < count; i++) {
-      var rank = (guaranteed && i === count - 1) ? 'SS' : G.rollRank(G.GEAR_RATES, Math.random);
-      var pool = G.BEHEMOTHS.filter(function (b) { return b.rank === rank; });
-      if (!pool.length) { rank = order[order.indexOf(rank) + 1] || 'B'; pool = G.BEHEMOTHS.filter(function (b) { return b.rank === rank; }); }
-      var b = pool[(Math.random() * pool.length) | 0];
-      var kind = G.GEAR_KINDS[(Math.random() * G.GEAR_KINDS.length) | 0];
-      if (G.hasGear(s, b.id, kind)) {
-        var n = G.DUPE_CORE[rank] || 1;
-        G.addMat(s, 'dragon_core', n);
-        out.push({ dupe: true, rank: rank, src: b.id, kind: kind,
-                   name: (kind === 'weapon' ? weaponName(b, 0) : armorName(b, kind)), cores: n });
-      } else {
-        var g = G.forgeGear(b.id, kind, s.gear.length + '_' + i);
-        s.gear.push(g);
-        out.push({ dupe: false, rank: rank, gear: g, name: g.name, kind: kind });
-      }
-    }
-    return out;
+  /* Tỉ lệ SS THẬT ở lượt quay tiếp theo, đã tính pity mềm và pity cứng. Tách ra
+   * thành hàm riêng vì màn hình quay hiện chính con số này — người chơi phải
+   * thấy pity đang làm việc, không thì nó chỉ là một lời hứa trong tài liệu. */
+  G.ssRateNow = function (bn, pity) {
+    var n = pity.n + 1;
+    if (n >= bn.hard) return 1;
+    var r = bn.rates.SS;
+    if (n > bn.soft) r += (n - bn.soft) * bn.softStep;
+    return Math.min(1, r);
   };
 
-  /* ------------------------------------------------------- RƠI ĐỒ ------- */
-  G.rollMobDrop = function (tribe, elite, gold, luck) {
-    var T = G.TRIBES[tribe];
-    var tab = gold ? G.DROP_GOLD : elite ? G.DROP_ELITE : G.DROP_NORMAL;
-    var lk = 1 + (luck || 0) * 0.02;
+  function rollRankFor(bn, pity) {
+    if (Math.random() < G.ssRateNow(bn, pity)) return 'SS';
+    // Ba hạng còn lại chia lại phần còn thừa theo đúng tỉ lệ tương đối của chúng.
+    var rest = 1 - bn.rates.SS, r = Math.random() * rest, acc = 0;
+    var order = ['S', 'A', 'B'];
+    for (var i = 0; i < order.length; i++) {
+      acc += bn.rates[order[i]];
+      if (r < acc) return order[i];
+    }
+    return 'B';
+  }
+
+  function addHero(s, id) {
+    var d = G.heroById(id);
+    if (!d) return null;
+    if (G.hasHero(s, id)) {
+      var n = G.DUPE_CORE[d.rank] || 1;
+      s.core = (s.core || 0) + n;
+      var ex = s.heroes.filter(function (h) { return h.id === id; })[0];
+      if (ex) ex.dupes = (ex.dupes || 0) + 1;
+      return { kind: 'hero', id: id, name: d.n, rank: d.rank, dupe: true, cores: n };
+    }
+    var h = G.mkHero(id);
+    if (h) s.heroes.push(h);
+    return { kind: 'hero', id: id, name: d.n, rank: d.rank, dupe: false, uid: h && h.uid };
+  }
+
+  function addGear(s, bid, kind) {
+    var g = G.forgeGear(bid, kind, 'gacha' + Date.now() + Math.random());
+    if (!g) return null;
+    s.gear.push(g);
+    return { kind: 'gear', id: bid, name: g.name, rank: g.rank, gkind: kind,
+             wclass: g.wclass, el: g.el, uid: g.uid, dupe: false };
+  }
+
+  /* Một lượt quay trên một banner. Trả về một bản ghi mô tả thứ vừa ra, kèm cờ
+   * `up` (có phải đồ rate-up không) để màn hình kết quả nói được điều đó. */
+  function pullOne(s, bn) {
+    var pity = pityOf(s, bn.id);
+    var rank = rollRankFor(bn, pity);
+    pity.n = rank === 'SS' ? 0 : pity.n + 1;
+
+    // ---- banner NHÂN VẬT ----
+    if (bn.kind === 'hero') {
+      var id;
+      if (rank === 'SS') {
+        var feat = bn.featured[0];
+        // 50/50, và bảo hiểm: thua một lần thì lần SS sau chắc chắn trúng.
+        var win = pity.guar || Math.random() < 0.5;
+        pity.guar = !win;
+        id = win ? feat : pickHeroRank(rank, feat);
+        var r0 = addHero(s, id); if (r0) r0.up = win;
+        return r0;
+      }
+      id = pickHeroRank(rank, null);
+      return addHero(s, id);
+    }
+
+    // ---- banner VŨ KHÍ ----
+    if (bn.kind === 'weapon') {
+      if (rank === 'SS') {
+        var target = pity.target || bn.featured[0];
+        var hit;
+        if (pity.fate >= 1) { hit = target; pity.fate = 0; }
+        else {
+          // Trúng một trong hai cây rate-up thì tính là "trúng banner"; trúng cây
+          // KHÔNG PHẢI mục tiêu đã chọn thì vẫn +1 Điểm Định Mệnh, đúng luật
+          // Epitomized Path: điểm đếm theo MỤC TIÊU, không theo banner.
+          var onBanner = Math.random() < 0.75;
+          hit = onBanner ? bn.featured[(Math.random() * bn.featured.length) | 0]
+                         : pickBehemothRank('SS', null);
+          if (hit !== target) pity.fate++; else pity.fate = 0;
+        }
+        var rw = addGear(s, hit, 'weapon');
+        if (rw) { rw.up = hit === target; rw.fate = pity.fate; }
+        return rw;
+      }
+      return addGear(s, pickBehemothRank(rank, null), 'weapon');
+    }
+
+    // ---- banner TIÊU CHUẨN ----
+    if (Math.random() < bn.heroChance) return addHero(s, pickHeroRank(rank, null));
+    var kinds = G.GEAR_KINDS;
+    return addGear(s, pickBehemothRank(rank, null),
+                   kinds[(Math.random() * kinds.length) | 0]);
+  }
+
+  // Một người hạng `rank`, ưu tiên người CHƯA CÓ nếu có thể. `avoid` để loại
+  // đúng người rate-up ra khỏi nhánh "thua 50/50" — không loại thì thua 50/50
+  // vẫn có thể ra chính người đó, và cả cơ chế mất nghĩa.
+  function pickHeroRank(rank, avoid) {
+    var pool = G.heroesOfRank(rank).filter(function (d) { return d.id !== avoid; });
+    if (!pool.length) pool = G.heroesOfRank(rank);
+    if (!pool.length) pool = G.HEROES;
+    return pool[(Math.random() * pool.length) | 0].id;
+  }
+  function pickBehemothRank(rank, avoid) {
+    var pool = G.BEHEMOTHS.filter(function (b) { return b.rank === rank && b.id !== avoid; });
+    if (!pool.length) pool = G.BEHEMOTHS.filter(function (b) { return b.rank === rank; });
+    if (!pool.length) pool = G.BEHEMOTHS;
+    return pool[(Math.random() * pool.length) | 0].id;
+  }
+
+  /* Quay `count` lượt. Trả về { ok, results, cost, why }.
+   * Trừ tiền MỘT LẦN ở đầu, không trừ từng lượt: trừ từng lượt thì một lượt mười
+   * mà hết gem giữa chừng sẽ để lại nửa gói, và người chơi không có cách nào biết
+   * mình đã nhận được gì. */
+  G.pull = function (s, bannerId, count) {
+    var bn = G.bannerById(bannerId);
+    var cost = count >= 10 ? G.REWARD.pull10 : G.REWARD.pull * count;
+    if (s.gem < cost) return { ok: false, why: 'Không đủ Gem', cost: cost };
+    s.gem -= cost;
     var out = [];
-    if (Math.random() < tab.D * lk) out.push(T.mat[0]);
-    if (Math.random() < tab.C * lk) out.push(T.mat[1]);
-    if (Math.random() < tab.B * lk) out.push(T.mat[2]);
-    if (Math.random() < tab.hq * lk) out.push(T.mat[3]);
-    if (Math.random() < tab.boss * lk) out.push('lapis_b');
-    if (Math.random() < 0.06 * lk) out.push('str_stone');
-    if (!out.length) out.push(T.mat[0]);
-    return out;
+    for (var i = 0; i < count; i++) {
+      var r = pullOne(s, bn);
+      if (r) out.push(r);
+    }
+    s.stats.pulls = (s.stats.pulls || 0) + count;
+    return { ok: true, results: out, cost: cost, banner: bn, pity: pityOf(s, bn.id) };
   };
 
-  G.rollBossDrop = function (b, partsBroken, luck) {
-    var out = [], lk = 1 + (luck || 0) * 0.02;
-    var byRank = { B: ['lapis_b'], A: ['lapis_a', 'crystal'], S: ['lapis_s', 'crystal'], SS: ['lapis_ss', 'crystal'] };
-    (byRank[b.rank] || []).forEach(function (m) { if (Math.random() < 0.55 * lk) out.push(m); });
-    var pool = ['stone_dragon_claw', 'frozen_tail', 'monster_claw', 'ice_core', 'grouton_core',
-                'vaccahorn_horn', 'frogrid_tongue', 'galidon_heart', 'dofungo_sporecap'];
-    var n = 2 + ((b.rank === 'SS') ? 3 : b.rank === 'S' ? 2 : b.rank === 'A' ? 1 : 0) + partsBroken;
-    for (var i = 0; i < n; i++) out.push(pool[(Math.random() * pool.length) | 0]);
-    out.push('str_stone');
-    return out;
+  // Chọn cây mục tiêu trên banner vũ khí. Đổi mục tiêu thì Điểm Định Mệnh về 0 —
+  // đúng luật Epitomized Path, và nếu không reset thì người chơi tích điểm bằng
+  // một cây rồi đổi sang cây kia để lấy bảo hiểm miễn phí.
+  G.setFateTarget = function (s, bid) {
+    var pity = pityOf(s, 'weapon');
+    if (pity.target !== bid) { pity.target = bid; pity.fate = 0; }
+    return pity;
   };
 
-  /* --------------------------------------------- CHI PHÍ NÂNG / RÈN ----- */
+  /* ======================================================= TIẾN HOÁ =======
+   * Cộng vào NỀN của mọi nhân vật. Đọc trong buildStats trước khi nhân hệ số
+   * hạng — thứ tự đó quan trọng: cộng SAU khi nhân hạng thì một con SS và một
+   * con B nhận cùng một lượng tuyệt đối, và Tiến Hoá âm thầm thành thứ thu hẹp
+   * khoảng cách giữa các hạng thay vì nâng đều tất cả.
+   * ==================================================================== */
+  G.evolLv = function (s, id) { return (s.evol && s.evol[id]) || 0; };
+  G.evolMul = function (s, statId) {
+    var t = G.EVOL.tracks.filter(function (x) { return x.stat === statId; })[0];
+    if (!t) return 1;
+    return 1 + t.per * G.evolLv(s, t.id);
+  };
+  G.evolCost = function (s, id) {
+    var lv = G.evolLv(s, id);
+    if (lv >= G.EVOL.max) return null;
+    var n = lv + 1;
+    return { gold: G.EVOL.cost(n), core: G.EVOL.core(n) };
+  };
+  G.evolUp = function (s, id) {
+    var c = G.evolCost(s, id);
+    if (!c) return { ok: false, why: 'Đã tối đa' };
+    if (!G.canPay(s, c)) return { ok: false, why: c.core && (s.core || 0) < c.core ? 'Không đủ Lõi Rồng' : 'Không đủ Gold' };
+    G.pay(s, c);
+    s.evol = s.evol || {};
+    s.evol[id] = G.evolLv(s, id) + 1;
+    return { ok: true, lv: s.evol[id], cost: c };
+  };
+  // Tổng số cấp đã nâng — một con số duy nhất để khoe trên màn hình chính.
+  G.evolTotal = function (s) {
+    var n = 0;
+    G.EVOL.tracks.forEach(function (t) { n += G.evolLv(s, t.id); });
+    return n;
+  };
+
+  /* ------------------------------------------------------- RƠI ĐỒ -------
+   * Quái và trùm không rơi nguyên liệu nữa — chúng rơi GOLD. Bảng tỉ lệ rơi
+   * nguyên liệu thật của wiki (Small monsters) đã bỏ cùng với cả hệ nguyên liệu:
+   * nó mô tả một trò chơi mà bạn nhặt Jelly Dew để chế đồ, và trò chơi đó không
+   * còn ở đây nữa. Giữ lại một bảng tỉ lệ không ai đọc là giữ một lời nói dối.
+   * ==================================================================== */
+  G.rollMobDrop = function (tribe, elite, gold, luck, lv) {
+    var lk = 1 + (luck || 0) * 0.02;
+    return { gold: Math.round(G.REWARD.mobGold(lv || 1, elite, gold) * lk) };
+  };
+
+  G.rollBossDrop = function (b, partsBroken, luck, lv) {
+    var lk = 1 + (luck || 0) * 0.02;
+    // Bộ phận phá được cộng thẳng vào tiền thưởng: đó là chỗ trả công cho việc
+    // chịu khó đánh vào điểm yếu thay vì bổ bừa vào thân.
+    var mul = 1 + 0.22 * (partsBroken || 0);
+    return { gold: Math.round(G.REWARD.bossGold(lv || 1, b.rank) * mul * lk) };
+  };
+
+  /* ============================================ CHI PHÍ NÂNG CẤP ==========
+   * Ba bậc, và mỗi bậc tiêu MỘT thứ khác nhau — đó là cái làm ba bậc thành ba
+   * quyết định chứ không phải ba lần bấm cùng một nút:
+   *
+   *   NÂNG CẤP (lv 1..40)   tiêu GOLD           — cày ải là ra
+   *   ĐỘT PHÁ  (lb 0..4)    tiêu ĐỒ TRÙNG       - phải HY SINH món khác
+   *   TINH LUYỆN (evo 0..2) tiêu LÕI RỒNG       — chỉ có từ quay trúng đồ đã có
+   *
+   * Bậc giữa là chỗ đổi lớn nhất so với bản cũ: trước đây nó tiêu Lapis, tức là
+   * đi cày. Giờ nó tiêu chính TRANG BỊ — đúng cơ chế merge của Survivor.io, nơi
+   * mọi bậc hiếm phía trên đều phải ghép từ đồ cấp dưới chứ không mua thẳng
+   * (_research/survivorio.md §4.3). Nó biến mọi món rác quay được thành nguyên
+   * liệu, nên không có cú quay nào là vô nghĩa, và nó buộc người chơi phải chọn:
+   * giữ ba món hạng A để dùng, hay nướng cả ba cho một món hạng S.
+   * ==================================================================== */
   var RANK_COST = { B: 1, A: 2.2, S: 4.5, SS: 8 };
+
   G.enhanceCost = function (g) {
     var k = RANK_COST[g.rank] || 1;
-    var mat = { str_stone: 1 + Math.floor(g.lv / 8) };
-    // Từ cấp 25 trở lên còn cần Equipment Crystal — thứ chỉ rơi ở ải và điểm khai
-    // thác. Nâng cấp cuối đời phải đi cày, đúng như đã hẹn.
-    if (g.lv >= 25) mat.crystal = 1 + Math.floor((g.lv - 25) / 5);
-    return { gold: Math.round((180 + g.lv * 95) * k), mat: mat };
+    return { gold: Math.round((180 + g.lv * 95) * k) };
+  };
+
+  // Số món phải nướng cho lần đột phá thứ (lb+1), và hạng tối thiểu của chúng.
+  G.breakFodder = function (g) {
+    return { n: g.lb + 1, rank: g.rank };
   };
   G.limitBreakCost = function (g) {
-    var lap = { B: 'lapis_b', A: 'lapis_a', S: 'lapis_s', SS: 'lapis_ss' }[g.rank] || 'lapis_b';
-    var m = {}; m[lap] = g.lb + 1;
-    return { gold: Math.round(2500 * (RANK_COST[g.rank] || 1) * (g.lb + 1)), mat: m };
+    return { gold: Math.round(2500 * (RANK_COST[g.rank] || 1) * (g.lb + 1)),
+             fodder: G.breakFodder(g) };
   };
-  // Tiến hoá là bậc nâng cấp cao nhất và CHỈ mở bằng Lõi Rồng — thứ duy nhất không
-  // cày được, chỉ có từ việc quay gacha trúng món đã có. Đây là chỗ những cú quay
-  // trùng biến thành sức mạnh thật, thay vì thành một xấp Lapis mà đi cày cũng có.
+  /* Món nào đủ tư cách làm nguyên liệu đột phá cho món `g`:
+   * cùng hạng trở lên, không phải chính nó, chưa lắp lên ai, và không phải đồ
+   * trưng bày. "Chưa lắp lên ai" là điều kiện quan trọng nhất — nướng nhầm cây
+   * đang cầm là mất một buổi chơi, và không có nút hoàn tác. */
+  G.fodderFor = function (s, g) {
+    var order = G.RANK_ORDER.indexOf(g.rank);
+    return (s.gear || []).filter(function (x) {
+      if (x.uid === g.uid || x.show) return false;
+      if (G.holderOf(s, x.uid)) return false;
+      return G.RANK_ORDER.indexOf(x.rank) >= order;
+    });
+  };
+
   G.evolveCost = function (g) {
     var need = { S: 8, SS: 14 }[g.rank] || 6;
-    return { gold: Math.round(9000 * (RANK_COST[g.rank] || 1)), mat: { dragon_core: need * (g.evo + 1) } };
+    return { gold: Math.round(9000 * (RANK_COST[g.rank] || 1)), core: need * (g.evo + 1) };
   };
   G.rerollCost = function (g) { return { gold: Math.round(1200 * (RANK_COST[g.rank] || 1)) }; };
+
   G.canPay = function (s, cost) {
     if (cost.gold && s.gold < cost.gold) return false;
     if (cost.gem && s.gem < cost.gem) return false;
-    if (cost.pikke && s.pikke < cost.pikke) return false;
-    if (cost.medal && s.medal < cost.medal) return false;
-    if (cost.ticket && s.ticket < cost.ticket) return false;
-    if (cost.mat) for (var m in cost.mat) if ((s.mats[m] || 0) < cost.mat[m]) return false;
+    if (cost.core && (s.core || 0) < cost.core) return false;
     return true;
   };
   G.pay = function (s, cost) {
     if (!G.canPay(s, cost)) return false;
     if (cost.gold) s.gold -= cost.gold;
     if (cost.gem) s.gem -= cost.gem;
-    if (cost.pikke) s.pikke -= cost.pikke;
-    if (cost.medal) s.medal -= cost.medal;
-    if (cost.ticket) s.ticket -= cost.ticket;
-    if (cost.mat) for (var m in cost.mat) s.mats[m] -= cost.mat[m];
+    if (cost.core) s.core -= cost.core;
     return true;
   };
-  G.addMat = function (s, id, n) { s.mats[id] = (s.mats[id] || 0) + (n || 1); };
 
-  /* Phát một GÓI phần thưởng. Bốn quầy trong tiệm (Pikke, Medal, đổi Gold, nạp)
-   * đều dùng chung khuôn { gold, gem, ticket, pikke, medal, mat:{id:n}, item },
-   * nên chỉ nên có ĐÚNG MỘT chỗ biết cách mở gói ra — thêm quầy thứ năm thì khỏi
-   * phải nhớ chép lại đủ bảy dòng cộng tiền. */
+  /* Phát một GÓI phần thưởng. Khuôn { gold, gem, core, exp, item } — bốn chỗ
+   * phát thưởng (phá ải, tiệm, quay trùng, rương trong ải) đi qua đúng một hàm,
+   * nên thêm chỗ thứ năm không phải nhớ chép lại đủ mấy dòng cộng tiền. */
   G.giveBundle = function (s, g) {
     if (!g) return;
     if (g.gold) s.gold += g.gold;
     if (g.gem) s.gem += g.gem;
-    if (g.ticket) s.ticket += g.ticket;
-    if (g.pikke) s.pikke += g.pikke;
-    if (g.medal) s.medal += g.medal;
-    if (g.mat) for (var m in g.mat) G.addMat(s, m, g.mat[m]);
+    if (g.core) s.core = (s.core || 0) + g.core;
+    if (g.exp) G.addExp(s, g.exp);
     if (g.item) s.inv[g.item] = (s.inv[g.item] || 0) + 1;
   };
+  G.grant = G.giveBundle;
 
   /* --------------------------------------------------------- MỞ ẢI ------- */
   // Ải đầu tiên của game luôn mở; mọi ải sau chỉ mở khi ải LIỀN TRƯỚC đã phá.
@@ -607,21 +777,44 @@
   G.enhance = function (s, g) {
     if (g.lv >= MAX_LV) return { ok: false, why: 'Đã tối đa cấp' };
     var c = G.enhanceCost(g);
-    if (!G.canPay(s, c)) return { ok: false, why: 'Không đủ nguyên liệu' };
+    if (!G.canPay(s, c)) return { ok: false, why: 'Không đủ Gold' };
     G.pay(s, c); g.lv++; s.stats.equipLv++;
     return { ok: true };
   };
-  G.limitBreak = function (s, g) {
-    if (g.lb >= MAX_LB) return { ok: false, why: 'Đã limit break tối đa' };
-    var c = G.limitBreakCost(g);
-    if (!G.canPay(s, c)) return { ok: false, why: 'Không đủ Lapis' };
-    G.pay(s, c); g.lb++;
-    return { ok: true, unlockedSlot: g.lb === 4 };
+
+  /* ĐỘT PHÁ giờ nướng ĐỒ, không tiêu nguyên liệu.
+   *
+   * `fodder` là mảng uid do người chơi tự chọn — KHÔNG tự chọn hộ. Tự chọn hộ là
+   * cách chắc chắn nhất để một ngày nào đó nướng nhầm món người ta đang để dành,
+   * và không có nút hoàn tác nào cho việc đó. Hàm này chỉ kiểm tra lại danh sách
+   * gửi lên có hợp lệ không rồi mới nướng. */
+  G.limitBreakReady = function (s, g, fodder) {
+    var need = G.breakFodder(g);
+    if (!fodder || fodder.length !== need.n) return false;
+    var ok = G.fodderFor(s, g);
+    for (var i = 0; i < fodder.length; i++) {
+      if (fodder.indexOf(fodder[i]) !== i) return false;         // trùng uid
+      if (!ok.some(function (x) { return x.uid === fodder[i]; })) return false;
+    }
+    return true;
   };
+  G.limitBreak = function (s, g, fodder) {
+    if (g.lb >= MAX_LB) return { ok: false, why: 'Đã đột phá tối đa' };
+    var c = G.limitBreakCost(g);
+    if (!G.limitBreakReady(s, g, fodder))
+      return { ok: false, why: 'Cần đúng ' + c.fodder.n + ' món hạng ' + c.fodder.rank +
+                               ' trở lên, chưa lắp lên ai' };
+    if (!G.canPay(s, { gold: c.gold })) return { ok: false, why: 'Không đủ Gold' };
+    G.pay(s, { gold: c.gold });
+    fodder.forEach(function (uid) { G.destroyGear(s, uid); });
+    g.lb++;
+    return { ok: true, burned: fodder.length, unlockedSlot: g.lb === 4 };
+  };
+
   G.evolve = function (s, g) {
-    if (!G.canEvolve(g)) return { ok: false, why: 'Chưa đủ điều kiện tiến hóa' };
+    if (!G.canEvolve(g)) return { ok: false, why: 'Chưa đủ điều kiện tinh luyện' };
     var c = G.evolveCost(g);
-    if (!G.canPay(s, c)) return { ok: false, why: 'Không đủ Crystal' };
+    if (!G.canPay(s, c)) return { ok: false, why: (s.core || 0) < c.core ? 'Không đủ Lõi Rồng' : 'Không đủ Gold' };
     G.pay(s, c); g.evo++; g.lv = 1;
     var b = G.behemothById(g.src);
     if (b && g.kind === 'weapon') g.name = weaponName(b, g.evo);
@@ -636,64 +829,34 @@
     s.stats.rerolls++;
     return { ok: true };
   };
-  // Rã trang bị -> Lapis cùng hạng (đúng bản gốc: Lapis từ việc rã đồ boss).
-  G.dismantle = function (s, g) {
-    var lap = { B: 'lapis_b', A: 'lapis_a', S: 'lapis_s', SS: 'lapis_ss' }[g.rank] || 'lapis_b';
-    var n = 1 + g.lb + g.evo;
-    G.addMat(s, lap, n);
-    // Gỡ khỏi mọi nhân vật đang giữ nó, nếu không rã xong vẫn còn tham chiếu mồ côi.
+
+  // Xoá một món khỏi túi và khỏi tay mọi người đang giữ nó. Gọi từ cả đột phá
+  // (nướng làm nguyên liệu) lẫn rã đồ — một chỗ duy nhất biết cách gỡ tham chiếu,
+  // nếu không thì món đã biến mất vẫn còn nằm trong h.gear và ô đó khoá cứng.
+  G.destroyGear = function (s, uid) {
     (s.heroes || []).forEach(function (h) {
-      for (var k in h.gear) if (h.gear[k] === g.uid) h.gear[k] = null;
+      for (var k in h.gear) if (h.gear[k] === uid) h.gear[k] = null;
     });
-    s.gear = s.gear.filter(function (x) { return x.uid !== g.uid; });
-    return { ok: true, lapis: lap, n: n };
+    s.gear = s.gear.filter(function (x) { return x.uid !== uid; });
   };
 
-  /* ------------------------------------------------------ NHIỆM VỤ ----- */
-  function today() { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
-  function thisWeek() {
-    var d = new Date(), o = new Date(d.getFullYear(), 0, 1);
-    return d.getFullYear() + 'W' + Math.ceil(((d - o) / 86400000 + o.getDay() + 1) / 7);
-  }
-  function pickN(arr, n, seed) {
-    var rng = seeded(seed), pool = arr.slice(), out = [];
-    while (out.length < n && pool.length) out.push(pool.splice((rng() * pool.length) | 0, 1)[0].id);
-    return out;
-  }
-  G.rollRecurrent = function (s) {
-    var t = today(), w = thisWeek();
-    if (s.daily.date !== t) { s.daily = { date: t, picks: pickN(G.DAILY, 3, 'd' + t), done: {} }; }
-    if (s.weekly.week !== w) { s.weekly = { week: w, picks: pickN(G.WEEKLY, 4, 'w' + w), done: {}, dailyClears: s.weekly.dailyClears || 0 }; }
+  // Rã trang bị -> GOLD. Trả lại theo hạng và theo công đã đổ vào nó, để việc rã
+  // một món đã nâng không phải là một cú mất trắng.
+  G.dismantle = function (s, g) {
+    var back = Math.round(600 * (RANK_COST[g.rank] || 1) * (1 + g.lb * 0.5 + g.evo) +
+                          (g.lv - 1) * 40 * (RANK_COST[g.rank] || 1));
+    s.gold += back;
+    G.destroyGear(s, g.uid);
+    return { ok: true, gold: back };
   };
 
-  // Đếm tiến độ: game.js bắn sự kiện vào đây sau mỗi trận.
+  /* Đếm tiến độ. Hệ nhiệm vụ ngày/tuần/cốt truyện đã bỏ, nhưng bộ đếm thì ở lại:
+   * màn Hồ Sơ vẫn đọc nó, và nó không tốn gì. Cái bỏ đi là ba màn hình bắt người
+   * chơi quay lại vào ngày mai — một game chạy trong localStorage không có ngày
+   * mai để mà quay lại. */
   G.track = function (s, ev) {
     var prog = s.progress = s.progress || {};
     for (var k in ev) prog[k] = (prog[k] || 0) + ev[k];
-  };
-
-  G.questProgress = function (s, q) {
-    var p = s.progress || {}, need = q.need || q.goal || {};
-    var have = 0, want = 0;
-    for (var k in need) {
-      if (k === 'n') continue;
-      var w = (typeof need[k] === 'number') ? need[k] : (need.n || 1);
-      var key = (k === 'bossWith') ? ('bossWith_' + need[k]) : k;
-      want += w; have += Math.min(w, p[key] || 0);
-    }
-    return { have: have, want: want, done: have >= want };
-  };
-
-  G.grant = function (s, rw) {
-    if (!rw) return;
-    if (rw.gold) s.gold += rw.gold;
-    if (rw.gem) s.gem += rw.gem;
-    if (rw.ticket) s.ticket += rw.ticket;
-    if (rw.pikke) s.pikke += rw.pikke;
-    if (rw.medal) s.medal += rw.medal;
-    if (rw.exp) G.addExp(s, rw.exp);
-    if (rw.mat) G.addMat(s, rw.mat, 1);
-    if (rw.item) s.inv[rw.item] = (s.inv[rw.item] || 0) + 1;
   };
 
   G.addExp = function (s, n) {
@@ -772,7 +935,6 @@
       s.gear.push(g);
       if (h0) h0.gear[k] = g.uid;
     });
-    G.addMat(s, 'str_stone', 8); G.addMat(s, 'skill_core', 6); G.addMat(s, 'crystal', 2);
     return s;
   };
 })(window.DP = window.DP || {});

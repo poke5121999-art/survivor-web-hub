@@ -532,19 +532,24 @@
    *   burst — thứ bung ra tại điểm lưỡi chạm
    * Một bảng sáu dòng, cả mười kỹ năng hưởng. Đây là chỗ lấy biến hoá mà không
    * phải viết sáu mươi kỹ năng. */
+  /* `spr` là ẢNH bung ra tại điểm chạm, một hiệu ứng riêng cho từng hệ. Bảy hệ,
+   * bảy hình khác nhau — chứ không phải một vòng tròn đổi bảy màu. Đó chính là
+   * chỗ hệ Magi cũ chết: bốn mươi viên đá dùng chung ba đoạn code nên "gọi thiên
+   * thạch" và "cột băng dựng lên" hiện lên y hệt nhau.
+   * Ảnh lấy từ bộ PVFX Foundry (CC0) — xem _tools/pvfx.py. */
   G.ELEM_FX = {
-    none:    { trail:'streak', burst:'flash', col:'#c8d4de', glow:'#8fa3b5' },
-    thunder: { trail:'bolt',   burst:'chain', col:'#ffd23f', glow:'#fff0a0',
+    none:    { trail:'streak', burst:'flash', spr:'fx.shrapnel', col:'#c8d4de', glow:'#8fa3b5' },
+    thunder: { trail:'bolt',   burst:'chain', spr:'fx.zap',      col:'#ffd23f', glow:'#fff0a0',
                chainN:2, chainR:120, chainMul:0.45, status:'paralysis' },
-    fire:    { trail:'burn',   burst:'flare', col:'#ff9f2e', glow:'#ffcf8a',
+    fire:    { trail:'burn',   burst:'flare', spr:'fx.ember',    col:'#ff9f2e', glow:'#ffcf8a',
                burnMs:3000, burnDps:0.018, status:'burn' },
-    water:   { trail:'frost',  burst:'shard', col:'#4fb6ff', glow:'#a5dcff',
+    water:   { trail:'frost',  burst:'shard', spr:'fx.frost',    col:'#4fb6ff', glow:'#a5dcff',
                slickMs:2600, status:'slow' },
-    earth:   { trail:'crack',  burst:'spike', col:'#8fd14f', glow:'#c6ec9d',
+    earth:   { trail:'crack',  burst:'spike', spr:'fx.leaf',     col:'#8fd14f', glow:'#c6ec9d',
                kbMul:1.6, quake:true },
-    light:   { trail:'streak', burst:'flash', col:'#fff6d8', glow:'#ffffff',
+    light:   { trail:'streak', burst:'flash', spr:'fx.heal',     col:'#fff6d8', glow:'#ffffff',
                blindMs:900 },
-    dark:    { trail:'smoke',  burst:'pool',  col:'#a06fe0', glow:'#d3b6f5',
+    dark:    { trail:'smoke',  burst:'pool',  spr:'fx.bloom',    col:'#a06fe0', glow:'#d3b6f5',
                drain:0.12, poolMs:2400 }
   };
 
@@ -813,55 +818,6 @@
     });
     return out;
   };
-  /* ------------------------------------------------------- NGUYÊN LIỆU ---- */
-  // Sáu hạng SS/S/A/B/C/D + nhóm Lapis riêng. Tên lấy từ wiki.
-  G.MATERIALS = {
-    // D — rơi nhiều nhất
-    jelly_dew:      { n:'Jelly Dew',        r:'D', tribe:'purun'  },
-    vacca_horns:    { n:'Vacca Horns',      r:'D', tribe:'vacca'  },
-    froggo_oil:     { n:'Froggo Oil',       r:'D', tribe:'geguri' },
-    bat_wing:       { n:'Bat Wing',         r:'D', tribe:'bat'    },
-    galena_feather: { n:'Galena Feather',   r:'D', tribe:'galena' },
-    fungo_cap:      { n:'Fungo Cap',        r:'D', tribe:'fungo'  },
-    // C
-    gummy:          { n:'Gummy',            r:'C', tribe:'purun'  },
-    cow_hoof:       { n:'Wild Cow Hoof',    r:'C', tribe:'vacca'  },
-    frog_adhesive:  { n:'Frog Adhesive',    r:'C', tribe:'geguri' },
-    bat_fang:       { n:"Bat's Bloody Fang",r:'C', tribe:'bat'    },
-    galena_beak:    { n:'Galena Beak',      r:'C', tribe:'galena' },
-    fungolise:      { n:'Fungolise',        r:'C', tribe:'fungo'  },
-    // B
-    jelly_core:     { n:'Jelly Core',       r:'B', tribe:'purun'  },
-    vacca_meat:     { n:'Vacca Meat',       r:'B', tribe:'vacca'  },
-    froggo_eye:     { n:'Froggo Eye',       r:'B', tribe:'geguri' },
-    bat_ears:       { n:'Bat Ears',         r:'B', tribe:'bat'    },
-    galena_heart:   { n:'Galena Heart',     r:'B', tribe:'galena' },
-    variant_fungolise:{n:'Variant Fungolise',r:'B',tribe:'fungo'  },
-    hq_jelly_core:  { n:'High-Quality Jelly Core', r:'B', tribe:'purun', hq:true },
-    hq_vacca_meat:  { n:'High-Quality Vacca Meat', r:'B', tribe:'vacca', hq:true },
-    hq_froggo_eye:  { n:'High-Quality Froggo Eye', r:'B', tribe:'geguri', hq:true },
-    giant_bat_ear:  { n:'Giant Bat Ear',    r:'B', tribe:'bat',    hq:true },
-    galena_egg:     { n:'Galena Egg',       r:'B', tribe:'galena', hq:true },
-    // A / S / SS — nguyên liệu boss
-    stone_dragon_claw: { n:'Stone Dragon Claw', r:'A' },
-    frozen_tail:       { n:'Frozen Dragon Frozen Tail', r:'A' },
-    monster_claw:      { n:'Mouse Monster Claw', r:'A' },
-    ice_core:          { n:'Frozen Dragon Ice Core', r:'S' },
-    grouton_core:      { n:'Grouton Core',      r:'S' },
-    vaccahorn_horn:    { n:'Vaccahorn Horn',    r:'S' },
-    frogrid_tongue:    { n:'Large Frogrid Tongue', r:'S' },
-    galidon_heart:     { n:'Galidon Heart',     r:'S' },
-    dofungo_sporecap:  { n:'Giant Dofungo Sporecap', r:'S' },
-    // Lapis (dùng cho Limit Break) + Crystal (dùng cho Evolve)
-    lapis_b: { n:'Lapis B', r:'Lapis' }, lapis_a: { n:'Lapis A', r:'Lapis' },
-    lapis_s: { n:'Lapis S', r:'Lapis' }, lapis_ss:{ n:'Lapis SS',r:'Lapis' },
-    crystal: { n:'Equipment Crystal', r:'S' },
-    // ĐỘC QUYỀN GACHA. Không rơi ở ải nào, không bán ở tiệm, không rã đồ ra được.
-    // Đường duy nhất: quay Triệu hồi trúng món đã có. Dùng để TIẾN HOÁ đồ S/SS.
-    dragon_core: { n:'Lõi Rồng', r:'SS', gachaOnly:true },
-    skill_core:{n:'Lõi Kỹ Năng', r:'B' },
-    str_stone:{n:'Strengthening Stone', r:'B' }
-  };
   G.RANK_ORDER = ['D', 'C', 'B', 'A', 'S', 'SS'];
   G.RANK_COLOR = { D:'#8fa3b5', C:'#7fd07f', B:'#5b8fd6', A:'#b06fd0', S:'#f2a03c', SS:'#f2d24b', Lapis:'#7fe3f0' };
 
@@ -888,31 +844,26 @@
    * ====================================================================== */
   G.TRIBES = {
     purun:  { vi:'Purun',  en:'Jelly',  shape:'blob',  r:15, hp:1.0, atk:0.9, spd:0.55,
-              ai:'swarm',   poise:26,  mat:['jelly_dew','gummy','jelly_core','hq_jelly_core'] },
+              ai:'swarm',   poise:26 },
     vacca:  { vi:'Vacca',  en:'Vacca',  shape:'bull',  r:19, hp:1.6, atk:1.3, spd:0.75,
               ai:'charger', poise:60, charger:true,
-              tell:820, dashSpd:7.6, dashMs:620, recover:900,
-              mat:['vacca_horns','cow_hoof','vacca_meat','hq_vacca_meat'] },
+              tell:820, dashSpd:7.6, dashMs:620, recover:900 },
     geguri: { vi:'Geguri', en:'Froggo', shape:'frog',  r:16, hp:1.2, atk:1.0, spd:0.70,
               ai:'hopper',  poise:34, hopper:true,
-              tell:460, hopDist:150, hopMs:520, shockR:56,
-              mat:['froggo_oil','frog_adhesive','froggo_eye','hq_froggo_eye'] },
+              tell:460, hopDist:150, hopMs:520, shockR:56 },
     bat:    { vi:'Bat',    en:'Bat',    shape:'bat',   r:13, hp:0.8, atk:1.0, spd:1.15,
               ai:'flyer',   poise:18, flyer:true,
-              orbit:120, tell:380, diveSpd:8.4, diveMs:420,
-              mat:['bat_wing','bat_fang','bat_ears','giant_bat_ear'] },
+              orbit:120, tell:380, diveSpd:8.4, diveMs:420 },
     galena: { vi:'Galena', en:'Galena', shape:'bird',  r:17, hp:1.1, atk:1.15,spd:0.95,
               ai:'ranged',  poise:30,
               // projSpd hạ từ 5,4 xuống 2,4 = ĐÚNG BẰNG tốc chạy người chơi.
               // Luật của Nuclear Throne: đạn người chơi 4× tốc chạy, đạn quái 1×
               // — bất đối xứng đó là cái làm mọi viên đạn địch đi bộ tránh được.
               // 5,4 là 2,3× tốc người chơi, tức nhanh gấp đôi mức công bằng.
-              keep:210, tell:560, shots:3, spread:0.36, projSpd:2.4,
-              mat:['galena_feather','galena_beak','galena_heart','galena_egg'] },
+              keep:210, tell:560, shots:3, spread:0.36, projSpd:2.4 },
     fungo:  { vi:'Fungo',  en:'Fungo',  shape:'shroom',r:18, hp:1.9, atk:1.1, spd:0.40,
               ai:'tank',    poise:110, poisoner:true,
-              tell:900, slamR:74, puffR:96,
-              mat:['fungo_cap','fungolise','variant_fungolise','variant_fungolise'] }
+              tell:900, slamR:74, puffR:96 }
   };
   // Tiền tố biến thể theo hệ (wiki: Heat/Aqua/Thunder-Elec/Mad + bản thường)
   G.MOB_VARIANTS = [
@@ -922,10 +873,6 @@
     { pre:'Thunder ',el:'thunder' },
     { pre:'Mad ',    el:'earth'   }
   ];
-  // Tỉ lệ rơi THẬT từ trang Small monsters.
-  G.DROP_NORMAL = { D:0.2495, C:0.0295, B:0.0770, hq:0.0145, boss:0.0032 };
-  G.DROP_ELITE  = { D:0.2844, C:0.1999, B:0.2495, hq:0.1603, boss:0.1059 };
-  G.DROP_GOLD   = { D:0.2795, C:0.2020, B:0.2495, hq:0.1620, boss:0.1070 };
 
   /* -------------------------------------------------------- BEHEMOTHS ----- */
   // Tên/hạng/vũ khí/loại/hệ lấy NGUYÊN VĂN từ các trang SS/S/A/B Behemoths.
@@ -948,9 +895,6 @@
     dofungos:  ['spore', 'slam', 'stomp', 'summon', 'ring']
   };
 
-  /* Ba con trùm đầu game vốn chỉ có 3 bài, đánh hai lượt là thuộc lòng. Nới ra
-   * cho đủ nhịp: một bài cận chiến, một bài tầm xa, một bài diện rộng, một bài
-   * di chuyển. Có ngần đó thì người chơi mới phải ĐỌC chứ không đứng một chỗ chém. */
   G.BOSS_EXTRA = {
     grouton:   ['slam', 'bounce', 'spit', 'stomp', 'charge', 'ring'],
     vaccahorn: ['charge', 'stomp', 'sweep', 'slam', 'ring'],
@@ -1255,8 +1199,11 @@
           bossLv: m.lv + (last ? 6 : 3),
           rank: bd ? bd.rank : 'B',
           gold: Math.round(320 + m.lv * 78) * (last ? 2 : 1),
-          exp: Math.round(28 + m.lv * 9) * (last ? 2 : 1),
-          firstGem: last ? 10 : 5               // thưởng riêng cho lần phá đầu tiên
+          exp: Math.round(28 + m.lv * 9) * (last ? 2 : 1)
+          // Gem KHÔNG khai báo ở đây nữa. Nó nằm trong G.REWARD và tính theo VỊ
+          // TRÍ của ải trong chuỗi 38 ải, không theo "ải cuối vùng hay không" —
+          // một bảng duy nhất thì đường cong gem đọc được bằng mắt, còn rải một
+          // con số vào từng ải thì không ai kiểm được nó có tăng đều hay không.
         };
       });
     });
@@ -1285,168 +1232,158 @@
    * bộ thật — kể cả khi ra món đã có. */
   G.DUPE_CORE = { B: 1, A: 2, S: 5, SS: 12 };
 
-  // Điểm khai thác trong ải nhả ra một trong bốn thứ này. Để ở đây (chứ không
-  // nằm rải trong game.js) để mọi đường ra nguyên liệu đều khai báo một chỗ.
-  G.GATHER_MATS = ['str_stone', 'skill_core', 'crystal', 'lapis_b'];
+  /* ======================================================= KINH TẾ ========
+   * HAI ĐỒNG TIỀN, KHÔNG BA, KHÔNG NĂM.
+   *
+   *   ⬤ GOLD  — mọi thứ NÂNG CẤP: cấp trang bị, đột phá, tinh luyện, Tiến Hoá.
+   *   ◈ GEM   — chỉ dùng để QUAY. Không mua được nâng cấp, không đổi ngược.
+   *
+   * Bản trước có năm: gold, gem, vé, medal, pikke. Năm đồng tiền có nghĩa là
+   * năm bảng giá, năm quầy trong tiệm, năm chỗ để hụt — và người chơi phải nhớ
+   * cái nào mua được cái gì trước khi biết mình có đủ hay không. Không đồng nào
+   * trong ba đồng bỏ đi làm được việc mà gold hoặc gem không làm được.
+   *
+   * VÌ SAO PHÁ ẢI LẠI RA GEM — cố ý lệch Survivor.io.
+   * Survivor.io tách hẳn gem khỏi vòng cày ải chính: ải chính chỉ ra Gold + XP +
+   * trang bị thô qua Patrol, còn gem đến từ một lớp mode phụ có trần theo
+   * ngày/tuần/mùa (nhiệm vụ ngày ~80, tuần 450, Trials 200–600, Ender's Echo
+   * 3.000–5.000/mùa) — ước tính ~300 gem/ngày cho người chơi miễn phí
+   * (_research/survivorio.md §2.4).
+   *
+   * Cách đó đúng cho một game CÓ MÁY CHỦ và có mốc reset mỗi ngày. Bản này chạy
+   * hoàn toàn trong localStorage: không có ngày mai, không có mùa, không có
+   * event. Chép nguyên cấu trúc đó vào đây thì người ngồi chơi liền hai tiếng
+   * nhận được đúng 0 gem, và cả hệ gacha thành thứ không bao giờ chạm tới được.
+   * Nên gem ở đây đi theo TIẾN ĐỘ, không theo lịch: phá ải lần đầu trả đậm, cày
+   * lại trả nhỏ giọt.
+   * ==================================================================== */
 
-  /* ---------------------------------------------------- NHIỆM VỤ STORY ---- */
-  // Tên nguyên văn từ trang Story Quests (Area 1). Từ Area 2 trở đi wiki bỏ trống,
-  // nên phần sau là tái dựng theo đúng khuôn của game.
-  G.STORY = [
-    { id:'s1',  area:'tior', n:"I'm In A Hurry!",        vi:'Vội Quá Đi!',            goal:{kill:6},                    rw:{exp:30, gold:400, gem:3} },
-    { id:'s2',  area:'tior', n:'Find Froggo Skin!',      vi:'Tìm Da Froggo!',         goal:{mat:'froggo_oil', n:3},     rw:{exp:35, gold:500, gem:3} },
-    { id:'s3',  area:'tior', n:'Medicinal Use of Jelly', vi:'Thạch Làm Thuốc',        goal:{mat:'jelly_dew', n:4},      rw:{exp:35, gold:500, ticket:5} },
-    { id:'s4',  area:'tior', n:'Earthen Horns, Please',  vi:'Cho Xin Cặp Sừng Đất',   goal:{mat:'vacca_horns', n:4},    rw:{exp:40, gold:600, gem:3} },
-    { id:'s5',  area:'tior', n:'Defeat the Behemoth!',   vi:'Hạ Gục Behemoth!',       goal:{boss:1},                    rw:{exp:60, gold:900, gem:5, ticket:5} },
-    { id:'s6',  area:'tior', n:'Mission From Sylvie',    vi:'Việc Sylvie Nhờ',        goal:{kill:14},                   rw:{exp:50, gold:800, gem:3} },
-    { id:'s7',  area:'tior', n:'Froggo Hate',            vi:'Ghét Froggo',            goal:{mat:'froggo_eye', n:2},     rw:{exp:55, gold:900, gem:4} },
-    { id:'s8',  area:'tior', n:"Axel's Hunting Mission", vi:'Chuyến Săn Của Axel',    goal:{boss:2},                    rw:{exp:80, gold:1400, gem:5, ticket:5} },
-    { id:'s9',  area:'tior', n:'Protect the Carriage',   vi:'Bảo Vệ Đoàn Xe',         goal:{kill:20},                   rw:{exp:70, gold:1200, gem:4} },
-    { id:'s10', area:'tior', n:'Defeat a Winvlum!',      vi:'Hạ Một Con Winvlum!',    goal:{bossId:'winvlum'},          rw:{exp:120, gold:2000, gem:8, ticket:10} },
-    { id:'s11', area:'rakshard', n:'The Mysterious Bird',vi:'Con Chim Bí Ẩn',         goal:{mat:'galena_feather', n:5}, rw:{exp:90, gold:1600, gem:4} },
-    { id:'s12', area:'rakshard', n:'Stiff Shoulders',    vi:'Mỏi Vai',                goal:{kill:22},                   rw:{exp:95, gold:1700, gem:4} },
-    { id:'s13', area:'rakshard', n:'Sandstorm Pterosaur',vi:'Dực Long Bão Cát',       goal:{boss:3},                    rw:{exp:140, gold:2600, gem:6, ticket:10} },
-    { id:'s14', area:'torerno', n:'Off to Torerno',      vi:'Lên Đường Tới Torerno',  goal:{kill:24},                   rw:{exp:150, gold:2800, gem:5} },
-    { id:'s15', area:'torerno', n:'Payment in Bat Wings',vi:'Trả Bằng Cánh Dơi',      goal:{mat:'bat_wing', n:8},       rw:{exp:160, gold:3000, gem:5} },
-    { id:'s16', area:'torerno', n:'Strange Dodonki',     vi:'Dodonki Kỳ Lạ',          goal:{bossId:'dodonki'},          rw:{exp:220, gold:4200, gem:10, ticket:10} },
-    { id:'s17', area:'sutherland', n:'Bats in the Snow', vi:'Dơi Trong Tuyết',        goal:{mat:'bat_ears', n:4},       rw:{exp:200, gold:4000, gem:6} },
-    { id:'s18', area:'sutherland', n:'The Strange Snowbird', vi:'Chim Tuyết Kỳ Dị',   goal:{boss:4},                    rw:{exp:240, gold:4600, gem:8} },
-    { id:'s19', area:'sutherland', n:'Fluffy Monsters',  vi:'Đám Quái Lông Xù',       goal:{mat:'fungo_cap', n:6},      rw:{exp:250, gold:4800, gem:6, ticket:10} },
-    { id:'s20', area:'kouglorz', n:'Red Froggo',         vi:'Froggo Đỏ',              goal:{mat:'frog_adhesive', n:5},  rw:{exp:300, gold:6000, gem:6} },
-    { id:'s21', area:'kouglorz', n:'All the Gold Jellies', vi:'Toàn Bộ Thạch Vàng',   goal:{kill:30},                   rw:{exp:320, gold:12000, gem:6} },
-    { id:'s22', area:'kouglorz', n:'Behemoth Hunting',   vi:'Đi Săn Behemoth',        goal:{boss:6},                    rw:{exp:380, gold:8000, gem:12, ticket:15} },
-    { id:'s23', area:'borda', n:"Borda Ruins' Frogs",    vi:'Ếch Ở Phế Tích Borda',   goal:{mat:'froggo_eye', n:6},     rw:{exp:400, gold:9000, gem:8} },
-    { id:'s24', area:'borda', n:"Tobock Plains' Vacca",  vi:'Bò Đồng Tobock',         goal:{mat:'vacca_meat', n:6},     rw:{exp:420, gold:9500, gem:8} },
-    { id:'s25', area:'borda', n:'Pamela is on the Job',  vi:'Pamela Vào Việc',        goal:{boss:8},                    rw:{exp:500, gold:12000, gem:15, ticket:15} },
-    { id:'s26', area:'torv', n:'Mystery Bug of Torv',    vi:'Con Bọ Bí Ẩn Ở Torv',    goal:{kill:34},                   rw:{exp:520, gold:13000, gem:8} },
-    { id:'s27', area:'torv', n:'Desert Flame Bird',      vi:'Hỏa Điểu Sa Mạc',        goal:{boss:10},                   rw:{exp:600, gold:15000, gem:12} },
-    { id:'s28', area:'torv', n:'Strange Shadows',        vi:'Những Cái Bóng Lạ',      goal:{mat:'galena_heart', n:5},   rw:{exp:640, gold:16000, gem:10, ticket:20} },
-    { id:'s29', area:'kirva', n:'Sneaking into Kirva',   vi:'Lẻn Vào Kirva',          goal:{kill:40},                   rw:{exp:700, gold:18000, gem:10} },
-    { id:'s30', area:'kirva', n:"The Bone's Identity",   vi:'Danh Tính Bộ Xương',     goal:{boss:12},                   rw:{exp:800, gold:20000, gem:15, ticket:20} },
-    { id:'s31', area:'kirva', n:'Crimson Gloria',        vi:'Crimson Gloria',         goal:{bossRank:'SS'},             rw:{exp:1200, gold:30000, gem:30, ticket:50} }
-  ];
-
-  /* -------------------------------------------- NHIỆM VỤ NGÀY / TUẦN ---- */
-  // Thưởng lấy NGUYÊN VĂN bảng Recurrent Quests trong wiki.
-  G.DAILY = [
-    { id:'d_boss1',  n:'Hạ Behemoth',        need:{boss:1},   rw:{gold:10000, pikke:100} },
-    { id:'d_boss3',  n:'Hạ 3 Behemoth',      need:{boss:3},   rw:{pikke:150, item:'gold_potion'} },
-    { id:'d_gather', n:'Thu thập 2 lần',     need:{gather:2}, rw:{pikke:100, mat:'skill_core'} },
-    { id:'d_skill',  n:'Dùng kỹ năng 5 lần', need:{skillUse:5}, rw:{pikke:100, mat:'skill_core'} },
-    { id:'d_equip',  n:'Nâng 1 cấp trang bị',need:{equipLv:1},rw:{pikke:100, mat:'skill_core'} },
-    { id:'d_bow',    n:'Hạ Behemoth bằng Cung',        need:{bossWith:'bow'},      rw:{pikke:100, item:'luck_potion'} },
-    { id:'d_launch', n:'Hạ Behemoth bằng Súng Phóng',   need:{bossWith:'launcher'}, rw:{pikke:100, item:'luck_potion'} },
-    { id:'d_rifle',  n:'Hạ Behemoth bằng Súng Trường',  need:{bossWith:'rifle'},    rw:{pikke:100, item:'exp_potion'} },
-    { id:'d_shop',   n:'Mua 1 món ở tiệm Pikke', need:{buy:1}, rw:{pikke:100, mat:'skill_core'} }
-  ];
-  G.DAILY_BONUS = { id:'d_all', n:'Xong cả 3 nhiệm vụ ngày', rw:{pikke:300, gem:5} };
-  G.WEEKLY = [
-    { id:'w_sniper', n:'Hạ 15 Behemoth bằng Bắn Tỉa',      need:{bossWith:'sniper', n:15},   rw:{pikke:200, ticket:2} },
-    { id:'w_bow',    n:'Hạ 15 Behemoth bằng Cung',          need:{bossWith:'bow', n:15},      rw:{pikke:200, ticket:2} },
-    { id:'w_rifle',  n:'Hạ 15 Behemoth bằng Súng Trường',   need:{bossWith:'rifle', n:15},    rw:{pikke:200, ticket:2} },
-    { id:'w_launch', n:'Hạ 15 Behemoth bằng Súng Phóng',    need:{bossWith:'launcher', n:15}, rw:{pikke:200, ticket:2} },
-    { id:'w_staff',  n:'Hạ 15 Behemoth bằng Gậy Phép',      need:{bossWith:'staff', n:15},    rw:{pikke:200, ticket:2} },
-    { id:'w_abil',  n:'Đổi ability của trang bị 1 lần',    need:{reroll:1},               rw:{pikke:200, ticket:2} },
-    { id:'w_part',  n:'Phá bộ phận và hạ 15 Behemoth',     need:{part:1, boss:15},        rw:{pikke:200, ticket:2} },
-    { id:'w_potion',n:'Dùng Potion 4 lần',                 need:{potion:4},               rw:{pikke:200, ticket:2} }
-  ];
-  G.WEEKLY_BONUS = { id:'w_all', n:'Xong nhiệm vụ ngày 5 lần trong tuần', rw:{pikke:400, gem:25} };
-
-  /* ------------------------------------------------------ VẬT PHẨM ------- */
-  // Potion: 30 phút thường, 60 phút loại cao cấp (wiki).
-  G.ITEMS = {
-    gold_potion: { n:'Gold Potion', vi:'Bình Vàng',  ms:1800000, eff:{gold:0.5},  price:{pikke:300} },
-    exp_potion:  { n:'Exp Potion',  vi:'Bình Kinh Nghiệm', ms:1800000, eff:{exp:0.5}, price:{pikke:300} },
-    luck_potion: { n:'Luck Potion', vi:'Bình May Mắn', ms:1800000, eff:{drop:0.5}, price:{pikke:300} },
-    hunter_potion:{n:'Hunter Potion', vi:'Bình Thợ Săn', ms:3600000, eff:{gold:0.5, exp:0.5, drop:0.5}, price:{gem:30}, premium:true }
+  G.CUR = {
+    gold: { vi: 'Gold', sym: '⬤', col: '#f2d24b', d: 'Nâng cấp mọi thứ' },
+    gem:  { vi: 'Gem',  sym: '◈', col: '#8fd4ff', d: 'Chỉ để quay' }
   };
 
-  /* --------------------------------------------------------- TIỆM PIKKE -- */
-  G.SHOP = [
-    { id:'p_frag',  n:'Lõi Kỹ Năng x5',  give:{mat:{skill_core:5}},   price:{pikke:200} },
-    { id:'p_stone', n:'Strengthening Stone x5', give:{mat:{str_stone:5}}, price:{pikke:250} },
-    { id:'p_lapisb',n:'Lapis B x1',        give:{mat:{lapis_b:1}},     price:{pikke:400} },
-    { id:'p_lapisa',n:'Lapis A x1',        give:{mat:{lapis_a:1}},     price:{pikke:800} },
-    { id:'p_lapiss',n:'Lapis S x1',        give:{mat:{lapis_s:1}},     price:{pikke:1500} },
-    { id:'p_crystal',n:'Equipment Crystal x1', give:{mat:{crystal:1}}, price:{pikke:1200} },
-    { id:'p_ticket',n:'Gacha Ticket x5',   give:{ticket:5},            price:{pikke:1000} },
-    { id:'p_gold',  n:'10.000 Gold',       give:{gold:10000},          price:{pikke:500} },
-    { id:'p_goldp', n:'Gold Potion',       give:{item:'gold_potion'},  price:{pikke:300} },
-    { id:'p_expp',  n:'Exp Potion',        give:{item:'exp_potion'},   price:{pikke:300} },
-    { id:'p_luckp', n:'Luck Potion',       give:{item:'luck_potion'},  price:{pikke:300} }
+  /* Thưởng sau ải. Bốn nguồn, và mỗi nguồn trả lời một câu khác nhau:
+   *
+   *   base       — "đã phá được ải này"        : gold + exp, theo cấp ải
+   *   firstClear — "lần đầu tiên"              : gem đậm, chỉ một lần trong đời
+   *   conds      — "phá ĐẸP"                   : gem lẻ cho ba điều kiện
+   *   repeat     — "cày lại"                   : gem nhỏ giọt, không có trần
+   *
+   * Tổng gem của toàn bộ 38 ải ở lần phá đầu ≈ 6.500, tức khoảng 40 lượt quay
+   * cho cả chiến dịch. Cày lại ải cuối được ~34 gem/lượt, tức ~5 lượt chơi đổi
+   * một lượt quay — đủ để cày có nghĩa, không đủ để cày thay cho việc đi tiếp. */
+  G.REWARD = {
+    pull: 160,              // giá một lượt quay (tỉ giá Genshin: 160 primogem = 1 fate)
+    pull10: 1600,           // mười lượt — KHÔNG giảm giá, đúng như Genshin
+    // Ải thứ i (0-based) trong tổng 38 ải
+    firstGem: function (i) { return 60 + 6 * i; },
+    repeatGem: function (i) { return Math.round(8 + 0.62 * i); },
+    condGem: 4,             // mỗi điều kiện đạt được
+    allCondGem: 8,          // thưởng thêm khi đủ cả ba
+    // Gold nhân lên so với bản cũ vì gold giờ là đường DUY NHẤT để nâng cấp:
+    // mọi thứ trước đây tiêu nguyên liệu giờ tiêu gold.
+    goldMul: 1.9,
+    // Rương trong ải và quái rơi ra: chỉ còn gold, không còn nguyên liệu nào.
+    mobGold: function (lv, elite, gold) {
+      return Math.round((6 + lv * 2.1) * (elite ? 3.2 : 1) * (gold ? 5 : 1));
+    },
+    bossGold: function (lv, rank) {
+      return Math.round((60 + lv * 12) * ({ B: 1, A: 1.6, S: 2.6, SS: 4 }[rank] || 1));
+    },
+    gatherGold: function (lv) { return Math.round(80 + lv * 26); }
+  };
+
+  /* ------------------------------------------------------ VẬT PHẨM ------- */
+  // Potion: 30 phút thường, 60 phút loại cao cấp. Giá đổi hết sang GOLD — nó là
+  // thứ để TIÊU gold, và một game chỉ có hai đồng tiền thì mọi cái không phải
+  // gacha đều phải tiêu được bằng đồng thứ nhất.
+  G.ITEMS = {
+    gold_potion: { n:'Gold Potion', vi:'Bình Vàng',  ms:1800000, eff:{gold:0.5},  price:{gold:9000} },
+    exp_potion:  { n:'Exp Potion',  vi:'Bình Kinh Nghiệm', ms:1800000, eff:{exp:0.5}, price:{gold:9000} },
+    luck_potion: { n:'Luck Potion', vi:'Bình May Mắn', ms:1800000, eff:{drop:0.5}, price:{gold:12000} },
+    hunter_potion:{n:'Hunter Potion', vi:'Bình Thợ Săn', ms:3600000, eff:{gold:0.5, exp:0.5, drop:0.5}, price:{gold:40000} }
+  };
+
+  /* ======================================================== BANNER ========
+   * Ba banner, đúng cấu trúc Genshin (_research/sephira-genre.md phần B).
+   *
+   *   NHÂN VẬT  — một người rate-up. Ra SS thì 50/50: hoặc là người đó, hoặc là
+   *               một SS bất kỳ. Thua 50/50 -> lần SS SAU chắc chắn là người đó.
+   *   VŨ KHÍ    — hai cây rate-up, chọn trước MỘT cây làm mục tiêu. Ra SS mà
+   *               không phải cây đã chọn -> +1 Điểm Định Mệnh; có 1 điểm thì lần
+   *               SS sau chắc chắn đúng cây đó (luật từ bản Genshin 5.0).
+   *   TIÊU CHUẨN— không rate-up, không 50/50. Ra cả người lẫn cả năm loại đồ.
+   *
+   * TỈ LỆ GỐC giữ nguyên số của Dragon Project (SS 3 / S 15 / A 55 / B 27) chứ
+   * KHÔNG chép 0,6% của Genshin: dàn SS ở đây chỉ có 4 người và 15 con Behemoth,
+   * nhỏ hơn Genshin cả chục lần, nên 0,6% ở đây là một cái tường chứ không phải
+   * một đường cong. Cái chép của Genshin là CẤU TRÚC pity, không phải con số.
+   *
+   * Pity mềm bắt đầu ở 3/4 quãng đường tới pity cứng — cùng tỉ lệ với Genshin
+   * (soft 74 / hard 90 ≈ 0,82) nhưng kéo về thang ngắn hơn cho hợp tỉ lệ gốc cao.
+   * ==================================================================== */
+  G.BANNERS = [
+    { id:'char', n:'Triệu Hồi Nhân Vật', vi:'NHÂN VẬT', kind:'hero',
+      d:'Ra NGƯỜI. Trùng người thì đổi thành Lõi Rồng.',
+      rates:{ SS:0.03, S:0.15, A:0.55, B:0.27 },
+      soft:33, hard:40, softStep:0.06,
+      fifty:true,                    // 50/50 rate-up
+      featured:['calli'] },
+
+    { id:'weapon', n:'Triệu Hồi Vũ Khí', vi:'VŨ KHÍ', kind:'weapon',
+      d:'Chỉ ra VŨ KHÍ. Chọn trước một cây làm mục tiêu — trượt một lần là lần sau chắc chắn trúng.',
+      rates:{ SS:0.04, S:0.18, A:0.52, B:0.26 },
+      soft:26, hard:32, softStep:0.08,
+      fate:true,                     // Điểm Định Mệnh
+      featured:['amarok', 'gorynych'] },
+
+    { id:'std', n:'Triệu Hồi Tiêu Chuẩn', vi:'TIÊU CHUẨN', kind:'mixed',
+      d:'Ra cả người lẫn cả năm loại trang bị. Không rate-up, không 50/50 — bù lại pity ngắn hơn.',
+      rates:{ SS:0.025, S:0.14, A:0.55, B:0.285 },
+      soft:36, hard:44, softStep:0.05,
+      heroChance:0.30 }              // 30% lượt quay ra người, 70% ra đồ
   ];
 
-  /* ------------------------------------------------- QUẦY ĐỔI MEDAL ----- */
-  /* Medal rơi ra mỗi lần PHÁ ẢI, càng trùm cao càng nhiều (B 2 · A 5 · S 12 · SS 30).
-   * Đây là quầy duy nhất nhận Medal, và cũng là đường lấy vé KHÔNG dính đồng hồ
-   * thật: tiệm Pikke thì phải chờ nhiệm vụ ngày reset, còn quầy này thì cày ải là
-   * ra. Game này chơi offline một mình, không bán gì cho ai, nên chặn người chơi
-   * bằng đồng hồ chỉ tổ làm họ ngồi không.
+  /* ======================================================== TIẾN HOÁ ======
+   * EVOL — nâng CHỈ SỐ GỐC cho TOÀN BỘ nhân vật, không riêng ai.
    *
-   * Giá neo theo một lần quay: 5 vé = 15 Medal, đúng bằng ba ải hạng B, hoặc một
-   * ải hạng S. Gói 10+1 rẻ hơn ~13% để vẫn đáng gom.
+   * Vì sao cần: gacha ra người, và một người mới quay được thì chỉ số gốc của
+   * họ đúng bằng chỉ số gốc lúc mới bắt đầu game. Không có lớp này thì mọi người
+   * mới nhận về đều là một bước LÙI so với người đang dùng, và người chơi học
+   * được đúng một bài: đừng đổi người. Đó là cái giết ý nghĩa của việc quay.
    *
-   * KHÔNG bán Lõi Rồng ở đây. Lõi Rồng phải giữ đúng lời hứa của nó: chỉ có từ
-   * quay trúng đồ trùng, không cày được, không mua được. Hở một đường mua là bậc
-   * Tiến hoá mất hết ý nghĩa. */
-  G.MEDAL_SHOP = [
-    { id:'m_t5',   n:'Vé Triệu hồi ×5',   sub:'đúng một lần quay đơn', give:{ticket:5},  price:{medal:15} },
-    { id:'m_t50',  n:'Vé Triệu hồi ×50',  sub:'gói 10+1, rẻ hơn 13%',  give:{ticket:50}, price:{medal:130} },
-    { id:'m_lapa', n:'Lapis A ×1',        sub:'Limit Break đồ hạng A', give:{mat:{lapis_a:1}}, price:{medal:12} },
-    { id:'m_laps', n:'Lapis S ×1',        sub:'Limit Break đồ hạng S', give:{mat:{lapis_s:1}}, price:{medal:25} },
-    { id:'m_crys', n:'Equipment Crystal ×2', sub:'nâng cấp từ Lv.25',  give:{mat:{crystal:2}}, price:{medal:10} },
-    { id:'m_gold', n:'15.000 Gold',       sub:'',                      give:{gold:15000}, price:{medal:8} }
-  ];
-
-  /* ------------------------------------------------ ĐỔI GOLD LẤY PIKKE --- */
-  /* Pikke của bản gốc CHỈ có từ nhiệm vụ ngày/tuần, tức đi qua đồng hồ thật. Ở đây
-   * mở thêm đường đổi bằng Gold — thứ cày ải là ra — nên tiệm Pikke không còn đứng
-   * hình khi hết nhiệm vụ trong ngày.
+   * Tiến Hoá cộng vào NỀN, nên nó theo tài khoản chứ không theo người: quay được
+   * ai thì người đó lập tức đứng ở cùng cái nền ấy.
    *
-   * GIÁ PHẢI CHỐNG ĐƯỢC VÒNG IN TIỀN. Tiệm đang bán chiều ngược lại:
-   * 500 Pikke -> 10.000 Gold, tức 20 Gold một Pikke. Nếu mua vào cũng quanh mức
-   * đó thì đổi đi đổi lại là tự nhân đôi ví. Mua vào để ở 50 Gold/Pikke — chênh
-   * 2,5 lần, đúng kiểu giá mua/giá bán của một cái tiệm.
+   * Bốn nhánh, mỗi nhánh 20 cấp. Cộng THEO PHẦN TRĂM, không cộng thẳng: cộng
+   * thẳng thì ở cấp thấp nó là +200% còn ở cấp cao nó là +3%, và cùng một con số
+   * không được phép có hai nghĩa cách nhau bảy chục lần.
    *
-   * Và phải rẻ hơn đường Medal đi thẳng, nếu không thì quầy Medal thành vô nghĩa:
-   *   đi thẳng   15 Medal -> 5 vé            = 66,7 Pikke-quy-đổi mỗi Medal
-   *   đường vòng  8 Medal -> 15.000 Gold -> 300 Pikke = 37,5 mỗi Medal
-   * Đi thẳng vẫn lời gần gấp đôi. */
-  G.PIKKE_BUY = [
-    { id:'k_200',  n:'200 Pikke',   sub:'',                    give:{pikke:200},  price:{gold:10000} },
-    { id:'k_700',  n:'700 Pikke',   sub:'bằng hơn một ngày, rẻ 6%',  give:{pikke:700},  price:{gold:33000} },
-    { id:'k_1500', n:'1.500 Pikke', sub:'bằng hơn một tuần, rẻ 9%',  give:{pikke:1500}, price:{gold:68000} }
-  ];
-
-  /* ------------------------------------------------------ QUẦY NẠP ------ */
-  /* Đúng những gói mà một game gacha di động bán bằng tiền thật — nhưng ở đây
-   * TẤT CẢ ĐỀU 0đ, bấm bao nhiêu lần cũng được.
-   *
-   * Vì sao dựng hẳn một quầy nạp thay vì rắc thêm tiền vào chỗ khác: bản gốc khoá
-   * vé và Pikke sau đồng hồ thật vì nó là game dịch vụ — chặn được người chơi
-   * ngày nào là bán được vé ngày đó. Bản này không bán gì cho ai, nên cái khoá ấy
-   * chẳng đổi lấy được thứ gì, chỉ làm người chơi ngồi chờ. Để nguyên hình dạng
-   * "gói nạp" (có cả giá gạch đi) thì nhìn là hiểu ngay đây vốn là chỗ móc ví, và
-   * ở bản này nó được cho không.
-   *
-   * Giá gạch đi là giá TƯỞNG TƯỢNG, không phải giá thật của game nào cả.
-   *
-   * Hệ quả, nói thẳng: vé và Gem thành vô hạn, cú quay không còn là lựa chọn phải
-   * cân nhắc. Thứ DUY NHẤT vẫn khan đúng như thiết kế là LÕI RỒNG — quầy này
-   * không phát, không quầy nào bán, nên bậc Tiến hoá vẫn giữ nguyên sức nặng, và
-   * quay trúng đồ trùng vẫn là đường duy nhất tới nó. */
-  G.IAP = [
-    { id:'i_start', n:'Gói Tân Thủ',   was:'99.000đ',  give:{ticket:20, gem:300, pikke:2000, gold:100000} },
-    { id:'i_tick',  n:'Túi Vé ×60',    was:'179.000đ', give:{ticket:60} },
-    { id:'i_gem',   n:'Túi Gem ×1.500',was:'249.000đ', give:{gem:1500} },
-    { id:'i_pikke', n:'Túi Pikke ×5.000', was:'129.000đ', give:{pikke:5000} },
-    { id:'i_gold',  n:'Túi Gold ×500.000', was:'99.000đ', give:{gold:500000} },
-    { id:'i_medal', n:'Túi Medal ×300', was:'199.000đ', give:{medal:300} },
-    { id:'i_mat',   n:'Túi Nguyên Liệu', was:'149.000đ',
-      give:{mat:{str_stone:100, skill_core:100, crystal:50, lapis_b:30, lapis_a:20, lapis_s:10, lapis_ss:5}} },
-    { id:'i_all',   n:'Gói Đại Gia',   was:'999.000đ',
-      give:{ticket:200, gem:5000, pikke:20000, gold:2000000, medal:1000} }
-  ];
+   * Giá tăng theo LUỸ THỪA 1,52. Con số đó không phải chọn cho đẹp: nó là hệ số
+   * làm cho TỔNG giá của cả bốn nhánh (~10,6 triệu gold) rơi vào đúng quãng mà
+   * một người chơi hết 38 ải rồi cày lại vài chục lượt mới với tới — tức Tiến
+   * Hoá là đích của cả chiến dịch, không phải một nút bấm trong buổi đầu.
+   * ==================================================================== */
+  G.EVOL = {
+    max: 15,
+    tracks: [
+      { id:'hp',   n:'Thể Chất', stat:'hp',   per:0.030, col:'#5fd06a',
+        d:'+3% máu gốc mỗi cấp, cho mọi nhân vật.' },
+      { id:'atk',  n:'Sát Phạt', stat:'atk',  per:0.028, col:'#ff7a3c',
+        d:'+2,8% công gốc mỗi cấp, cho mọi nhân vật.' },
+      { id:'def',  n:'Kiên Cố', stat:'def',  per:0.032, col:'#8fd4ff',
+        d:'+3,2% thủ gốc mỗi cấp, cho mọi nhân vật.' },
+      { id:'edef', n:'Kháng Hệ', stat:'edef', per:0.034, col:'#c9a8ff',
+        d:'+3,4% kháng hệ gốc mỗi cấp, cho mọi nhân vật.' }
+    ],
+    // Giá lên cấp n (n = cấp SẮP đạt, 1..20)
+    cost: function (n) { return Math.round(2200 * Math.pow(1.52, n - 1)); },
+    // Cứ 5 cấp thì cần thêm Lõi Rồng — thứ chỉ có từ quay trúng đồ trùng. Đây là
+    // chỗ những cú quay thừa biến thành sức mạnh vĩnh viễn, và là lý do quay
+    // trúng món đã có vẫn là một bước tiến chứ không phải một lần phí.
+    core: function (n) { return n % 5 === 0 ? n / 5 * 3 : 0; }
+  };
 
   /* ------------------------------------------------------------- NPC ----- */
   G.NPCS = ['Pamela', 'Pikke', 'Sylvie', 'Axel', 'Linton', 'Ange', 'Aine', 'Gawen', 'Jild'];
@@ -1543,7 +1480,6 @@
   /* ------------------------------------------------------- TIỆN ÍCH ------ */
   G.behemothById = function (id) { return G.BEHEMOTHS.find(function (b) { return b.id === id; }); };
   G.areaById = function (id) { return G.AREAS.find(function (a) { return a.id === id; }); };
-  G.matById = function (id) { return G.MATERIALS[id]; };
 
   /* ---------------------------------- NGUỒN RƠI ĐỒ CHO LỚP GẬY PHÉP ------
    * Trường `weapon` của Behemoth là dữ liệu lấy NGUYÊN VĂN từ wiki, nên nó chỉ

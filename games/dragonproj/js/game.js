@@ -414,7 +414,7 @@
         // Đạn hiện dần, CHƯA CÓ HITBOX. Không phải trang trí: đây là bảo đảm
         // công bằng chống chết-do-đạn-sinh-ra-trên-đầu (luật của Danmakufu).
         fade: G.DANMAKU.fadeInMs,
-        wave: !!W.wave, waveW: W.waveW || 0
+        wave: !!W.wave, waveW: W.waveW || 0, life0: W.life
       });
     }
 
@@ -509,7 +509,7 @@
     // nhả tay, không lê thê một vệt ma.
     this.fx.push({ k: 'beam', x: x0, y: y0, a: p.facing, len: reach,
                    w: (W.beamW || 12) * (0.8 + 0.35 * (ramp - 1) * 2),
-                   t: 0, ms: W.shotMs + 30, ramp: ramp,
+                   t: 0, ms: W.shotMs + 30, ramp: ramp, bt: this.t,
                    col: G.ELEMENTS[this.wp ? this.wp.el : 'none'].color });
   };
 
@@ -881,7 +881,7 @@
           hitPart.broken = true; b.partsBroken++; this.player.partsBroken++;
           this.toast('PHÁ BỘ PHẬN: ' + hitPart.n, '#f2d24b');
           this.chests.push({ x: b.x + (Math.random() - 0.5) * 60, y: b.y + 40, kind: 'red', t: 0, part: true,
-            mats: G.rollBossDrop(b.def, 0, this.stats.luck).slice(0, 2), gold: 0, exp: 0 });
+            gold: Math.round(G.rollBossDrop(b.def, 0, this.stats.luck, b.lv).gold * 0.35), exp: 0 });
           // Phá bộ phận hủy trạng thái tê liệt (đúng ghi chú của wiki).
           delete b.status.paralysis;
           this.shake = 12;
@@ -1150,11 +1150,13 @@
     m.hp = 0; m.dead = true;
     this.killed++;
     this.s.stats.mob++;
-    var mats = G.rollMobDrop(m.tribe, m.elite, m.gold, this.stats.luck);
+    // Quái rơi GOLD, không rơi nguyên liệu — hệ nguyên liệu đã bỏ hẳn. Một
+    // đường ra tiền duy nhất thì con số trên rương là con số người chơi hiểu ngay.
+    var drop = G.rollMobDrop(m.tribe, m.elite, m.gold, this.stats.luck, m.lv);
     this.chests.push({
-      x: m.x, y: m.y, t: 0, mats: mats,
+      x: m.x, y: m.y, t: 0,
       kind: m.gold ? 'gold' : m.elite ? 'red' : 'silver',
-      gold: Math.round((12 + m.lv * 5) * (m.gold ? 8 : m.elite ? 3 : 1) * G.potionMul(this.s, 'gold')),
+      gold: Math.round(drop.gold * G.potionMul(this.s, 'gold')),
       exp: Math.round((4 + m.lv * 2.2) * (m.elite ? 3 : 1) * G.potionMul(this.s, 'exp'))
     });
     this.puff(m.x, m.y, G.ELEMENTS[m.el].color);
@@ -1190,20 +1192,27 @@
       usedSkill: this.player.usedSkill,
       fast: elapsed <= G.BAL.gemFastMs
     };
-    var gems = (conds.noDeath ? 1 : 0) + (conds.usedSkill ? 1 : 0) + (conds.fast ? 1 : 0);
-    if (gems === 3) gems += G.BAL.gemAllBonus;
-    var drops = G.rollBossDrop(b.def, b.partsBroken, this.stats.luck);
+    /* GEM SAU ẢI — bốn nguồn, và mỗi nguồn trả lời một câu khác nhau.
+     * Xem G.REWARD trong gamedata.js để biết vì sao ở đây phá ải lại ra gem
+     * trong khi Survivor.io cố ý không cho. */
     var st = this.stage;
+    var idx = G.STAGES.indexOf(st);
     var firstClear = !this.s.cleared[st.id];
+    var nCond = (conds.noDeath ? 1 : 0) + (conds.usedSkill ? 1 : 0) + (conds.fast ? 1 : 0);
+    var gemCond = nCond * G.REWARD.condGem + (nCond === 3 ? G.REWARD.allCondGem : 0);
+    var gemBase = firstClear ? G.REWARD.firstGem(idx) : G.REWARD.repeatGem(idx);
+    var gems = gemBase + gemCond;
+    var drops = G.rollBossDrop(b.def, b.partsBroken, this.stats.luck, b.lv);
     setTimeout(function () {
       self.finish({
-        win: true, stage: st, firstClear: firstClear,
-        boss: b.def, gems: gems, conds: conds, drops: drops,
+        win: true, stage: st, stageIdx: idx, firstClear: firstClear,
+        boss: b.def, gems: gems, gemBase: gemBase, gemCond: gemCond,
+        conds: conds, nCond: nCond,
         parts: b.partsBroken, elapsed: elapsed, killed: self.killed,
-        bag: self.bag || { mats: {}, gold: 0, exp: 0 },
-        gold: Math.round(st.gold * G.potionMul(self.s, 'gold')),
-        exp: Math.round(st.exp * G.potionMul(self.s, 'exp')),
-        medal: ({ B: 2, A: 5, S: 12, SS: 30 }[b.rank] || 2)
+        bag: self.bag || { gold: 0, exp: 0 },
+        gold: Math.round(st.gold * G.REWARD.goldMul * G.potionMul(self.s, 'gold')) + drops.gold,
+        bossGold: drops.gold,
+        exp: Math.round(st.exp * G.potionMul(self.s, 'exp'))
       });
     }, 1200);
   };
@@ -1457,7 +1466,7 @@
    */
   Battle.prototype.updateChests = function (dt) {
     var p = this.player, self = this;
-    this.bag = this.bag || { mats: {}, gold: 0, exp: 0 };
+    this.bag = this.bag || { gold: 0, exp: 0 };
     for (var i = this.chests.length - 1; i >= 0; i--) {
       var c = this.chests[i];
       c.t += dt;
@@ -1484,12 +1493,10 @@
         d = dist(p, c);
       }
       if (d < 34) {
-        (c.mats || []).forEach(function (m) { self.bag.mats[m] = (self.bag.mats[m] || 0) + 1; G.addMat(self.s, m, 1); });
         this.bag.gold += c.gold || 0; this.s.gold += c.gold || 0;
         this.bag.exp += c.exp || 0;
         G.addExp(this.s, c.exp || 0);
         if (c.gold) this.toast('+' + c.gold + ' Gold', '#f2d24b');
-        else if (c.part) this.toast('Nhặt được nguyên liệu bộ phận', '#f2d24b');
         this.chests.splice(i, 1);
       }
     }
@@ -1498,16 +1505,19 @@
   /* -------------------------------------------------------- FIELD ------- */
   Battle.prototype.updateStage = function (dt) {
     var p = this.player, self = this;
-    // Điểm khai thác (nhiệm vụ ngày "Thu thập 2 lần", và là chỗ ra Equipment Crystal
-    // — thứ mà nâng cấp từ cấp 25 trở lên bắt buộc phải có)
+    // Điểm khai thác trong ải. Trước đây nó nhả nguyên liệu; giờ nhả GOLD, và
+    // nhả một cục đủ to để đi vòng ra nhặt là một quyết định chứ không phải một
+    // thói quen — bằng khoảng ba con quái cùng cấp.
     this.gathers.forEach(function (g) {
       if (!g.used && dist(p, g) < 34) {
         g.used = true; self.s.stats.gathers++;
         G.track(self.s, { gather: 1 });
-        var m = pick(G.GATHER_MATS);
-        G.addMat(self.s, m, 1);
-        self.toast('Thu được ' + G.MATERIALS[m].n, '#7fd07f');
-        self.puff(g.x, g.y, '#7fd07f');
+        var got = Math.round(G.REWARD.gatherGold(self.stage.lv) * G.potionMul(self.s, 'gold'));
+        self.s.gold += got;
+        self.bag = self.bag || { gold: 0, exp: 0 };
+        self.bag.gold += got;
+        self.toast('+' + got + ' Gold', '#f2d24b');
+        self.puff(g.x, g.y, '#f2d24b');
       }
     });
   };
@@ -2112,6 +2122,8 @@
   Battle.prototype.boom = function (pr) {
     var e = pr.explode; if (!e) return;
     this.aoeDamage(pr.x, pr.y, e.r, e.dmg, { noCrit: true });
+    this.fx.push({ k: 'spr', key: 'fx.boom', x: pr.x, y: pr.y, r: e.r * 1.15,
+                   t: 0, ms: 560, blend: 'lighter', fade: false });
     this.fx.push({ k: 'ring', x: pr.x, y: pr.y, r: e.r, t: 0, ms: 300, col: '#ffb45a' });
     this.impact(pr.x, pr.y, G.FEEL.hitstop.boom, G.FEEL.shake.quake, '#ffb45a');
   };
@@ -2152,6 +2164,11 @@
   };
   Battle.prototype.puff = function (x, y, col) {
     this.fx.push({ k: 'puff', x: x, y: y, t: 0, ms: 420, col: col || '#ffffff' });
+    // Cụm khói vẽ chồng lên, nhuộm theo hệ của con vừa chết. Nó là thứ nói
+    // "chỗ này vừa có gì đó biến mất" ở tầm mắt ngoại vi, chỗ mà một chấm màu
+    // nhỏ không với tới được.
+    this.fx.push({ k: 'spr', key: 'fx.puff2', x: x, y: y, r: 30,
+                   t: 0, ms: 420, tint: col || '#ffffff', tintA: 0.35 });
   };
 
   /* ============================================================== VẼ ==== */
@@ -3385,10 +3402,20 @@
       ctx.setLineDash([]); ctx.globalAlpha = 1;
     }
     ctx.translate(p.x, p.y - p.z);
-    var g = ctx.createRadialGradient(0, 0, 1, 0, 0, p.r * 1.6);
-    g.addColorStop(0, '#fff3d0'); g.addColorStop(0.45, col); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(0, 0, p.r * 1.6, 0, TAU); ctx.fill();
+    var oe = G.Atlas && G.Atlas.get('fx.orb');
+    if (oe) {
+      // Quả cầu quay tròn trong lúc bay: khung hình chạy theo tiến độ đường bay
+      // nên nó "chín" dần lên đúng lúc chạm đất.
+      G.Atlas.draw(ctx, oe, 0, 0, {
+        ms: this.t, loop: true, rot: p.a,
+        scale: p.r * 2.6 / 96, alpha: 1, blend: 'lighter', tint: col, tintA: 0.4
+      });
+    } else {
+      var g = ctx.createRadialGradient(0, 0, 1, 0, 0, p.r * 1.6);
+      g.addColorStop(0, '#fff3d0'); g.addColorStop(0.45, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, p.r * 1.6, 0, TAU); ctx.fill();
+    }
     ctx.restore();
   };
 
@@ -3397,6 +3424,20 @@
   Battle.prototype.drawBladeWave = function (p, pcol) {
     var ctx = this.ctx, col = pcol || '#e8f2ff';
     var w = p.waveW || 44;
+    /* Có ảnh lưỡi chém thì dùng ảnh, và NHUỘM nó theo hệ của cây. Nhuộm chứ
+     * không dùng nguyên bản: bảng màu gốc của hiệu ứng là xanh lam, mà cùng một
+     * cây cầm hệ Hoả thì mọi thứ khác trên màn hình đã là cam — một mảnh xanh
+     * lam giữa đó đọc ra là "của người khác". */
+    var ce = G.Atlas && G.Atlas.get('fx.crescent');
+    if (ce) {
+      var age = 1 - (p.life / (p.life0 || p.life || 1));
+      G.Atlas.draw(ctx, ce, p.x, p.y, {
+        frame: Math.min(ce.frames - 1, 2 + Math.floor(Math.max(0, age) * (ce.frames - 3))),
+        rot: p.a, scale: w / 40, alpha: 0.95, blend: 'lighter',
+        tint: col, tintA: 0.55
+      });
+      return;
+    }
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
     if (p.fade > 0) ctx.globalAlpha = 0.42;
     ctx.strokeStyle = col; ctx.lineCap = 'round';
@@ -3457,6 +3498,34 @@
       ctx.save(); ctx.globalAlpha = 1 - k;
       // Hiệu ứng của hệ kỹ năng nằm ở js/skills.js — hàm này trả về true nếu đã vẽ.
       if (G.drawSkillFx && G.drawSkillFx(ctx, f, k)) { ctx.restore(); return; }
+      /* MỘT kind cho mọi hiệu ứng có ảnh. Trước đây mỗi hiệu ứng mới là một
+       * nhánh switch mới cộng một hàm vẽ tay mới; giờ chỉ cần đẩy vào
+       * { k:'spr', key:'fx.<tên>' } và bảng ảnh lo phần còn lại.
+       *
+       * `scale` tính theo BÁN KÍNH mong muốn, không phải một hệ số tự do: hiệu
+       * ứng gốc 96px với tâm ở giữa thì bán kính của nó là 48, nên muốn nó phủ
+       * đúng vùng nổ bán kính r thì scale = r/48. Có vậy vòng nổ vẽ ra mới đúng
+       * bằng vòng nổ ăn sát thương — hai thứ đó lệch nhau là người chơi học sai
+       * tầm của chính vũ khí mình đang cầm. */
+      if (f.k === 'spr') {
+        var se = G.Atlas && G.Atlas.get(f.key);
+        if (se) {
+          var sf = f.loop ? undefined : Math.min(se.frames - 1, Math.floor(k * se.frames));
+          G.Atlas.draw(ctx, se, f.x, f.y - (f.z || 0), {
+            frame: sf, ms: f.t, loop: !!f.loop,
+            scale: f.r ? f.r / 48 : (f.scale || 1),
+            rot: f.a || 0,
+            alpha: f.fade === false ? 1 : (1 - k * k),
+            blend: f.blend,
+            tint: f.tint, tintA: f.tintA
+          });
+          ctx.restore(); return;
+        }
+        // Không có ảnh thì rơi về một vòng tròn — thà thô còn hơn im lặng.
+        ctx.strokeStyle = f.col || '#ffffff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(f.x, f.y, (f.r || 40) * (0.4 + 0.6 * k), 0, TAU); ctx.stroke();
+        ctx.restore(); return;
+      }
       if (f.k === 'beam') {
         /* Tia nhiệt. Ba lớp chồng lên nhau, và ba lớp đó KHÔNG phải trang trí:
          * lớp ngoài rộng và mờ là vùng ảnh hưởng nhìn thấy được, lớp giữa là thân
@@ -3467,14 +3536,26 @@
          * tick rồi được thay bằng tia mới. Mờ dần thì lúc giữ cò liên tục sẽ thấy
          * nó nhấp nháy đúng 10 lần mỗi giây. */
         ctx.globalAlpha = 1;
+        /* Có ảnh tia thì kéo giãn ảnh dọc đúng chiều dài tia. Ảnh gốc là một
+         * dải LẶP (16 khung), neo ở đầu phát — nên nó nối liền mạch khi giữ cò,
+         * và nó tự chạy hoạt hoạ trong lúc đứng yên. */
+        var be = G.Atlas && G.Atlas.get('fx.beam');
+        if (be) {
+          G.Atlas.drawStretched(ctx, be, f.x, f.y,
+            f.x + Math.cos(f.a) * f.len, f.y + Math.sin(f.a) * f.len,
+            { ms: (f.bt || 0), loop: true, alpha: 0.95, blend: 'lighter',
+              thickness: f.w * 2.4 });
+        }
         ctx.translate(f.x, f.y); ctx.rotate(f.a);
         ctx.lineCap = 'round';
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = f.col; ctx.globalAlpha = 0.22;
-        ctx.lineWidth = f.w * 2.1;
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(f.len, 0); ctx.stroke();
-        ctx.globalAlpha = 0.75; ctx.lineWidth = f.w;
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(f.len, 0); ctx.stroke();
+        if (!be) {
+          ctx.strokeStyle = f.col; ctx.globalAlpha = 0.22;
+          ctx.lineWidth = f.w * 2.1;
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(f.len, 0); ctx.stroke();
+          ctx.globalAlpha = 0.75; ctx.lineWidth = f.w;
+          ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(f.len, 0); ctx.stroke();
+        }
         ctx.globalAlpha = 1; ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = Math.max(1.5, f.w * 0.28);
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(f.len, 0); ctx.stroke();

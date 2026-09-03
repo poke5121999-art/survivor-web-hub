@@ -246,6 +246,10 @@
     /* Thứ bung ra tại điểm lưỡi chạm. Cũng do hệ quyết định. */
     Battle.prototype.elemBurst = function (x, y, mul, victim) {
       var E = this.elemFx(), self = this;
+      // Ảnh riêng của hệ, vẽ TRƯỚC lớp hình học cũ để lớp cũ còn làm được việc
+      // của nó: hình học nói ĐÚNG bán kính, ảnh nói cảm giác.
+      if (E.spr) this.fx.push({ k: 'spr', key: E.spr, x: x, y: y, r: 42,
+                                t: 0, ms: 500, blend: 'lighter' });
       this.fx.push({ k: 'eburst', kind: E.burst, elem: this.wp && this.wp.el, x: x, y: y, t: 0, ms: 380,
                      col: E.col, glow: E.glow, seed: Math.random() * 1000 });
 
@@ -312,6 +316,11 @@
         st.tgt = tgt;
       }
       st.phase = 0;
+      // Cổng ở CẢ HAI đầu: chỗ biến mất và chỗ hiện ra. Chỉ vẽ một đầu thì người
+      // chơi thấy mình biến mất mà không biết mình đi đâu, và đòn này sống chết
+      // ở chỗ đọc được điểm đến.
+      this.fx.push({ k: 'spr', key: 'fx.portal', x: st.from.x, y: st.from.y, r: 34, t: 0, ms: 420 });
+      this.fx.push({ k: 'spr', key: 'fx.portal', x: st.to.x, y: st.to.y, r: 34, t: 0, ms: 520 });
       this.fx.push({ k: 'smoke', x: st.from.x, y: st.from.y, t: 0, ms: 420, col: '#a06fe0' });
     };
 
@@ -395,6 +404,8 @@
     Battle.prototype.sk_pull = function (sk, st) {
       var p = this.player;
       st.dur = sk.pullMs + 260; p.stateDur = st.dur; st.fired = false;
+      this.fx.push({ k: 'spr', key: 'fx.implode', x: p.x, y: p.y, r: sk.pullR * 0.8,
+                     t: 0, ms: sk.pullMs, fade: false, blend: 'lighter' });
       this.fx.push({ k: 'vortex', x: p.x, y: p.y, r: sk.pullR, t: 0, ms: sk.pullMs, col: this.elemFx().col });
     };
     Battle.prototype.upd_pull = function (sk, st, dt) {
@@ -413,6 +424,8 @@
         this.meleeHit(sk.mul, sk.arc, sk.reach,
           { move: { kb: sk.kb, poise: sk.poise, hs: sk.hitstop }, skill: true });
         this.impact(p.x, p.y, sk.hitstop, G.FEEL.shake.quake, this.elemFx().col);
+        this.fx.push({ k: 'spr', key: 'fx.boom', x: p.x, y: p.y, r: sk.reach,
+                       t: 0, ms: 560, blend: 'lighter' });
         this.fx.push({ k: 'ring', x: p.x, y: p.y, r: sk.reach, t: 0, ms: 380, col: this.elemFx().glow });
         if (sk.burst) this.elemBurst(p.x, p.y, sk.mul, null);
       }
@@ -655,6 +668,8 @@
           pierce: true, pierceFall: 0.30, hits: 0,
           from: { x: p.x, y: p.y }, hitSet: [], fade: 0, skill: true });
       }
+      this.fx.push({ k: 'spr', key: 'fx.shrapnel', x: p.x, y: p.y, r: sk.ringR,
+                     t: 0, ms: 620, blend: 'lighter' });
       this.fx.push({ k: 'ring', x: p.x, y: p.y, r: sk.ringR, t: 0, ms: sk.ringMs, col: '#ffb45a' });
       this.impact(p.x, p.y, sk.hitstop, G.FEEL.shake.heavy, '#ffb45a');
     };
@@ -810,7 +825,8 @@
       st.dur = 180; p.stateDur = st.dur;
       p.buffs.push({ until: this.t + sk.ms, moveSpd: sk.spdMul - 1,
                      rof: sk.rofMul - 1, freeFire: !!sk.freeFire, tag: 'rungun' });
-      this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 70, t: 0, ms: 420, col: '#ffd23f' });
+      this.fx.push({ k: 'spr', key: 'fx.charge', x: p.x, y: p.y, r: 74,
+                     t: 0, ms: 700, blend: 'lighter', tint: '#ffd23f', tintA: 0.4 });
       this.toast('CUỒNG TỐC — ' + (sk.ms / 1000) + 's', '#ffd23f');
     };
     Battle.prototype.upd_rungun = function (sk, st, dt) {
@@ -876,6 +892,7 @@
       st.dur = 260; p.stateDur = st.dur;
       p.shield = (p.shield || 0) + p.maxHp * sk.shieldFrac;
       this.aegis = { left: sk.ms, sk: sk };
+      this.fx.push({ k: 'spr', key: 'fx.ward', x: p.x, y: p.y, r: 66, t: 0, ms: 800 });
       this.fx.push({ k: 'ring', x: p.x, y: p.y, r: 60, t: 0, ms: 420, col: '#7fd4ff' });
       this.toast('KHIÊN ẢO', '#7fd4ff');
     };
@@ -892,6 +909,8 @@
       p.shield = 0;
       this.aoeDamage(p.x, p.y, ae.sk.popR, ae.sk.mul,
         { move: { kb: ae.sk.kb, poise: ae.sk.poise, hs: ae.sk.hitstop }, skill: true });
+      this.fx.push({ k: 'spr', key: 'fx.frost', x: p.x, y: p.y, r: ae.sk.popR,
+                     t: 0, ms: 620, blend: 'lighter' });
       this.fx.push({ k: 'ring', x: p.x, y: p.y, r: ae.sk.popR, t: 0, ms: 380, col: '#7fd4ff' });
       this.impact(p.x, p.y, ae.sk.hitstop, ae.sk.shake || G.FEEL.shake.mid, '#7fd4ff');
     };
@@ -910,6 +929,8 @@
         this.drones.push({ ang: i / sk.drones * TAU, left: sk.ttlMs, cd: i * 90,
                            sk: sk, shotMs: 60000 / sk.rpm, x: p.x, y: p.y });
       }
+      this.fx.push({ k: 'spr', key: 'fx.charge', x: p.x, y: p.y, r: sk.orbitR + 24,
+                     t: 0, ms: 700, blend: 'lighter' });
       this.fx.push({ k: 'ring', x: p.x, y: p.y, r: sk.orbitR + 20, t: 0, ms: 420, col: '#6fd4ff' });
     };
     Battle.prototype.upd_drones = function (sk, st, dt) {
@@ -1053,7 +1074,13 @@
         var mv = { kb: sk.kb, poise: sk.poise, hs: sk.hitstop };
         this.aoeDamage(m.x, m.y, sk.zoneR, sk.mul * sk.coreFrac, { move: mv, skill: true });
         this.aoeDamage(m.x, m.y, sk.ringR, sk.mul * sk.ringFrac, { move: mv, skill: true });
-        this.fx.push({ k: 'ring', x: m.x, y: m.y, r: sk.zoneR, t: 0, ms: 340, col: '#ffb45a' });
+        // Hai lớp ảnh cho hai vòng sát thương: khối đá nứt đất ở LÕI, và vụ nổ
+        // lan ra ở vòng ngoài. Hai vòng ăn hai mức sát thương khác nhau nên
+        // chúng phải nhìn ra được là hai thứ khác nhau.
+        this.fx.push({ k: 'spr', key: 'fx.quake', x: m.x, y: m.y, r: sk.zoneR * 1.1,
+                       t: 0, ms: 700, fade: false });
+        this.fx.push({ k: 'spr', key: 'fx.boom', x: m.x, y: m.y, r: sk.ringR * 0.9,
+                       t: 0, ms: 560, blend: 'lighter' });
         this.fx.push({ k: 'ring', x: m.x, y: m.y, r: sk.ringR, t: 0, ms: 520, col: '#ff7a3c' });
         this.impact(m.x, m.y, sk.hitstop, sk.shake || G.FEEL.shake.quake, '#ffb45a');
         this.meteors.splice(i, 1);

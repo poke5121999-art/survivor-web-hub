@@ -154,7 +154,7 @@ def pack_one(src, name, node=None, src2=None):
         # Dùng cho những ảnh không lấy từ kho HoloCure — chúng phải đi kèm repo,
         # nếu không thì máy nào không có ổ D: là chạy pack.py ra thiếu.
         if src2:
-            for sub in ('', 'weapons'):
+            for sub in ('', 'weapons', 'fx'):
                 one = os.path.join(src2, sub, name + '.png')
                 if os.path.isfile(one):
                     files = [one]
@@ -171,6 +171,13 @@ def pack_one(src, name, node=None, src2=None):
         else:
             return None
     imgs = [Image.open(f).convert('RGBA') for f in files]
+    # Nguồn đã là một DẢI NGANG sẵn: cắt lại thành từng khung. Dùng cho bộ VFX
+    # nhập từ ngoài, nơi mỗi hiệu ứng tới dưới dạng một tấm duy nhất — chép ra
+    # mười lăm file rời chỉ để pack.py ghép lại thì thừa một vòng.
+    ns = node.get('strip')
+    if ns and len(imgs) == 1:
+        w0 = imgs[0].width // ns
+        imgs = [imgs[0].crop((i * w0, 0, (i + 1) * w0, imgs[0].height)) for i in range(ns)]
     crop = node.get('crop')
     if crop:
         imgs = [i.crop((crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3])) for i in imgs]
@@ -250,7 +257,12 @@ def main():
         cat = key.split('.')[0]
         anchor = node.get('anchor') or ('foot' if cat in ('player', 'mobs', 'bosses') else 'center')
         untrimmed = m and m.get('w') == w and m.get('h') == h
-        if node.get('anchor') == 'tl':
+        if node.get('anchor') == 'fixed':
+            # Neo do MANIFEST NGUỒN quy định, không đoán lại. Bộ VFX ngoài ghi
+            # sẵn pivot của từng hiệu ứng (tâm nổ, chân cột khói, gốc tia), và
+            # đoán lại bằng "tâm ảnh" sẽ làm cột khói mọc từ giữa không khí.
+            pass
+        elif node.get('anchor') == 'tl':
             # ô lát nền: neo góc trên-trái, vì nó được xếp thành lưới chứ không
             # đứng tại một điểm.
             node['ox'], node['oy'] = 0, 0
