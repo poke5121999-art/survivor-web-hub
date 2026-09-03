@@ -6,6 +6,25 @@
 > Nhãn: `[ĐO ĐƯỢC]` = có nguồn trong file research (xem file gốc để lấy link).
 > `[ĐỀ XUẤT]` = quyết định thiết kế của tài liệu này, **không có nguồn**, cần playtest.
 
+> ## ⚠ BẢN DỰNG CUỐI ĐÃ ĐI KHÁC TÀI LIỆU NÀY
+>
+> Mọi `[ĐỀ XUẤT]` bên dưới lấy pha thao tác lưới của **Clash of Heroes** làm lõi: hai sân đối
+> đầu, đội hình dọc có **bộ đếm lượt nạp** trên đầu từng quân, tường ngang, sát thương xuyên
+> tuyến. Bản đó **đã dựng xong và đã bị bỏ**.
+>
+> Lý do bỏ: hai sân đối đầu là hình dạng của một game **PvP**, không phải PvE — người chơi
+> chỉ ra đúng một câu để thấy điều đó. Bản đang chạy là:
+>
+> - **một lưới 6×6 của người chơi**, đối thủ là **một con quái to** có thanh máu riêng;
+> - **gộp kiểu Slime Legion**: ≥3 quân cùng loại **cùng cấp** thành hàng → một quân cấp cao hơn,
+>   đổi luôn sprite; gộp dây chuyền;
+> - **không có bộ đếm nạp trên đầu quân**; hết bước thì cả sân bắn, rồi quái đánh trả vào một
+>   cột đã báo trước.
+>
+> Tài liệu này vẫn giữ nguyên vì phần `[ĐO ĐƯỢC]` của nó là dữ kiện, và vì phần `[ĐỀ XUẤT]`
+> là bản ghi của một hướng đã thử và đã sai — có ích hơn là xoá đi. Thiết kế đang chạy nằm ở
+> `games/slimeclash/README.md`; số cân bằng nằm ở `js/config.js`.
+
 ## 0. Bản đồ nguồn
 
 | File | Nội dung | Số mục có nguồn | Lỗ hổng |

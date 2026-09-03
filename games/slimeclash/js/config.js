@@ -17,21 +17,50 @@
     board: {
       cols: 6,            // [APK] BoardInitColumnCount = 6
       rows: 6,            // [APK] BoardInitRowCount = 6
-      colors: 3           // [CoH] 3 màu core mỗi phe
+      // [TUNE] 18/36 ô. Để 14 thì bàn nhìn trống hoác, không ra dáng game ghép ô —
+      // và ít quân thì cũng ít cơ hội xếp được hàng ngay từ lượt đầu.
+      startUnits: 18,
+      spawnPerTurn: 3     // [TUNE] quân mới mỗi lượt
     },
 
     movesPerTurn: 3,      // [CoH] 3 move/lượt: nhấc-thả 1 quân, hoặc xoá 1 quân
 
-    // [CoH] core 2-3 lượt, elite/champion 4-6. Rút xuống để trận còn 2-5 phút [MOB].
-    charge: { core: 2, elite: 3, champion: 4 },
+    /* GỘP — cơ chế lõi, lấy của Slime Legion.
+     * Xếp >= minRun quân CÙNG LOẠI CÙNG CẤP thành hàng (ngang hoặc dọc) -> gộp thành
+     * MỘT quân cấp cao hơn.
+     *
+     * gradePowerMul PHẢI LỚN HƠN minRun. Bản đầu tôi để 2.2 với lập luận "ô là tài
+     * nguyên khan hiếm nên lỗ lực vẫn đáng" — SAI, và mô phỏng bắt được: gộp 3 con
+     * (lực 3P) ra 2.2P là LỖ THẲNG, mà bàn 6x6 thì ô lại tự đầy nhờ spawn, nên nước
+     * đi tối ưu thành "không bao giờ gộp". Lực trên sân đứng yên ở 36 x P suốt trận
+     * và mọi ngày từ ngày 5 trở đi đều 0% thắng.
+     * Để 3.6 thì gộp 3 con = 3.6P, lại giải phóng 2 ô cho quân mới -> gộp luôn là
+     * nước đi tốt, và trần lực của bàn tăng theo cấp thay vì kẹt ở số ô.
+     * [APK] HeroThreeMergeOneMoreProbability / HeroFourMergeExtraGradeProbability = 0.5 */
+    merge: {
+      minRun: 3,
+      gradePowerMul: 3.6,     // [TUNE] > minRun, xem lập luận ngay trên
+      extraUnitChance: 0.5,   // [APK] gộp 3 -> 50% sinh thêm 1 quân
+      extraGradeChance: 0.5   // [APK] gộp 4+ -> 50% thêm 1 cấp
+    },
+    maxGrade: 6,              // sprite trong APK có đúng 6 khung cấp
 
-    // [CoH] fusion (chồng cột) +200%; link 2 formation cùng charge còn lại +230%.
-    // Hai nguồn mâu thuẫn về link (xem combat.md 6.1) — số này cần playtest.
-    fusionMul: 3.0,       // +200% => x3
-    linkMul: 3.3,         // +230% => x3.3
-
-    // [APK] HeroThreeMergeOneMoreProbability / HeroFourMergeExtraGradeProbability
-    merge: { extraUnitChance: 0.5, extraGradeChance: 0.5, gradeMul: 1.5 },
+    /* QUÁI — một con, không phải một sân địch. */
+    foe: {
+      atkBase: 90,                // [TUNE] đủ để xoá vài quân trong cột bị nhắm
+      /* [TUNE] 1.12, KHÔNG phải 1.35 như bản đầu.
+       * hpRatioByDay [APK] đã là máu của ĐÚNG ngày đó, kể cả ngày boss — bảng chạy
+       * mượt 1.20/1.50/1.80 chứ không nhảy ở ngày 5. Nhân thêm 1.35 lên ngày boss là
+       * tôi cộng hai lần: mô phỏng cho ra ngày 5 (16% thắng) KHÓ HƠN ngày 8 (88%),
+       * tức độ khó răng cưa trong chương. Chỉ giữ một chút để boss vẫn "nặng" hơn. */
+      bossHpMul: 1.12,
+      bossAtkMul: 1.35,           // [TUNE] boss đánh đau hơn, đó mới là chỗ nó khác
+      /* [TUNE] 9 bước = đúng 3 lượt (3 bước/lượt), sát với boss_forecast_step = 10 [APK].
+       * Để 6 thì quái thường đánh mỗi 2 lượt còn boss đánh mỗi 3.3 lượt — mô phỏng cho
+       * ra NGÀY BOSS lại là ngày DỄ NHẤT chương ở chương 12 (100% so với 40%), vì ở đó
+       * người chơi thua do bị đánh chết chứ không do hết giờ. */
+      normalForecastSteps: 9
+    },
 
     // [APK] HeroMaxDefenseRatio / EnemyMaxDefenseRatio / TowerMaxDefenseRatio = 0.8
     defenseCapRatio: 0.8,
@@ -45,43 +74,55 @@
     chapter: {
       daysPerChapter: 10,     // [APK] pass_day = 10 ở Chapter 1-2
       bossDays: [5, 10],      // [APK] ChapterWave_1: type=2 ở ngày 5 và 10
-      // [APK] step_range 10/10/6: hai ngày đầu rộng tay rồi siết lại. Giữ ĐÚNG TỈ LỆ
-      // đó nhưng quy sang lượt, vì 1 "ngày" ở đây là trọn một trận Clash of Heroes
-      // chứ không phải một wave ngắn. Số tuyệt đối chốt theo mục tiêu 2-5 phút [MOB].
-      turnsFirstDays: 15,
-      turnsNormal: 12,
-      firstDaysCount: 2
+      /* [APK] step_range 10/10/6: hai ngày đầu rộng tay rồi siết lại. Giữ ĐÚNG TINH
+       * THẦN đó nhưng SIẾT DẦN thay vì cắt một nhát.
+       * Bản đầu là 12 lượt cho ngày 1-2 rồi tụt thẳng xuống 9 từ ngày 3. Mô phỏng cho
+       * ra ngày 3 là ngày khó nhất chương (72% thắng) trong khi ngày 5, 8, 10 đều gần
+       * 100% — răng cưa, vì máu quái mới tăng 1.7 lần mà ngân sách lượt đã mất 25%.
+       * Bảng dưới siết đều, nên độ khó đi lên trơn theo ngày.
+       * Số tuyệt đối chốt theo mục tiêu 2-5 phút mỗi trận [MOB]. */
+      turnsByDay: [12, 11, 10, 10, 10, 10, 9, 9, 9, 9],
+      turnsBeyond: 9
     },
 
     // [APK] hp_ratio Chapter 1 theo ngày. Ngày 6-10 tăng ~1.15x/ngày.
     hpRatioByDay: [0.40, 0.70, 1.20, 1.50, 1.80, 2.26, 2.60, 2.98, 3.39, 3.84],
     hpRatioPerDayBeyond: 1.15,  // [APK] hệ số cho chương sau
 
-    // [TUNE] Máu địch trong 1 chương tăng 9.6 lần (0.40 -> 3.84). Sức mạnh người chơi
-    // phải tăng gần bằng, nếu không ngày 10 là bức tường. Chọn 1.25/ngày => 7.45 lần
-    // sau 9 ngày, tức ngày 10 khó hơn ngày 1 đúng 1.29 lần. Đó là độ dốc muốn có.
-    runPowerPerDay: 1.25,
+    /* [TUNE] Sức mạnh của người chơi trong một chương BÁM THEO ĐÚNG HÌNH của hpRatio,
+     * không phải một hệ số cố định mỗi ngày.
+     *
+     * Vì sao: hpRatio [APK] dốc đứng ở đầu chương (0.40 -> 1.80, gấp 4.5 lần trong 4
+     * ngày) rồi thoải hẳn ở cuối (1.80 -> 3.84, gấp 2.1 lần trong 5 ngày). Một hệ số
+     * cố định kiểu x1.28/ngày không thể vừa khớp đoạn dốc vừa khớp đoạn thoải: mô
+     * phỏng cho ra ngày 5 chỉ 15% thắng còn ngày 10 lại 85%.
+     *   runPowerMul(d) = (hpRatio(d) / hpRatio(1)) ^ runPowerFollow
+     * runPowerFollow < 1 nghĩa là người chơi luôn đuổi HỤT máu quái một chút, đều đặn
+     * ở mọi ngày — đó chính là "độ khó tăng dần" mà không có ngày nào thành bức tường.
+     *
+     * KÈM THEO: sát thương quái nhân đúng hệ số này. Máu quân cũng nhân theo nó, nên
+     * nếu đòn quái đứng yên thì bàn không bao giờ thủng và ngày cuối chương hoá ra dễ
+     * nhất — mô phỏng đã bắt đúng lỗi đó ở bản trước. */
+    runPowerFollow: 1.00,
     // [TUNE] Mỗi chương địch dày thêm 1.32 lần; đối trọng duy nhất là cấp Hero (1->10),
     // mà cấp Hero mua bằng vàng, mà vàng bị chặn bởi coin_max [APK]. Nhờ vậy kinh tế
     // và độ khó khoá chặt vào nhau: không cày đủ vàng thì không qua chương được.
-    chapterHpMul: 1.32,
+    chapterHpMul: 1.24,
     // [APK] attack_ratio = 1 ở MỌI ngày -> sát thương địch KHÔNG tăng theo ngày.
     // Chỉ tăng theo chương. Giữ đúng vậy: độ khó là bài toán đủ DPS, không phải né chết.
-    enemyPowerChapterMul: 1.32,
+    enemyPowerChapterMul: 1.24,
 
     hero: {
-      // [TUNE] Chốt bằng mô phỏng, không đoán. Bot gây D ~= 60 sát thương/lượt với quân
-      // cấp 1; sức mạnh trong run nhân 1.25/ngày. Số lượt cần để hạ địch:
-      //     turns(d) = enemyHpBase * hpRatio(d) / (D * 1.25^(d-1))
-      // Muốn ngày 1 ~9 lượt  => enemyHpBase = 9*60/0.40  = 1350
-      // Kiểm ngày 10        => 1350*3.84 / (60*7.45)     = 11.6 lượt, sát trần 12.
-      // Nhờ vậy độ khó TĂNG DẦN trong chương và thứ siết là ĐỒNG HỒ, đúng kết luận
-      // đo được từ [APK]: "bài toán đủ DPS trong ngần ấy bước, không phải né chết".
-      enemyHpBase: 1350,
-      // [TUNE] Trận dài 9-12 lượt thì địch có nhiều thời gian đánh hơn hẳn bản trước,
-      // nên máu người chơi phải nâng theo, nếu không thua vì bị giết chứ không vì hết giờ.
+      /* [TUNE] Chốt bằng mô phỏng (_test/sim.js), không đoán.
+       * Mô hình gộp làm lực trên sân TĂNG trong chính trận đấu, nên tổng sát thương
+       * không tuyến tính theo số lượt — dải chuyển từ "thắng chắc" sang "thua chắc"
+       * hẹp: đo được 3200 -> gần 100% thắng, 3600 -> khoảng 30%. Chọn 3200 để bot
+       * tham lam 1 nước (yếu hơn người chơi thật) vẫn đi được, và để chỗ thua nằm ở
+       * chỗ đáng thua: khi hệ số theo chương vượt qua trần vàng.
+       * Trận dài 7-9 lượt, khớp mục tiêu 2-5 phút [MOB]. */
+      enemyHpBase: 3200,
+      // [TUNE] Máu gốc; nhân theo metaPowerMul, xem CFG.playerMaxHp.
       playerHpBase: 400,
-      playerHpLevelMul: 0.35,   // [TUNE] mỗi cấp Hero +35% máu
       maxLevel: 10              // [CoH] hero tối đa cấp 10
     },
 
@@ -158,7 +199,9 @@
   // Nhân sức mạnh của người chơi trong một lần chạy chương (roguelike, giống [APK]:
   // mỗi chương là một run 10 ngày, mạnh dần trong run rồi reset).
   CFG.runPowerMul = function (day) {
-    return Math.pow(CFG.runPowerPerDay, Math.max(0, day - 1));
+    var d = CFG.hpRatioByDay;
+    var here = d[Math.min(day, d.length) - 1];
+    return Math.pow(here / d[0], CFG.runPowerFollow);
   };
   // Nhân sức mạnh vĩnh viễn, đến từ cấp Hero mua bằng vàng.
   // Chọn 1.30/cấp để bám sát chapterHpMul = 1.32/chương, nhưng CỐ Ý thấp hơn một chút:
@@ -168,13 +211,18 @@
   CFG.metaPowerMul = function (heroLevel) {
     return Math.pow(1.30, Math.max(0, (heroLevel || 1) - 1));
   };
+  /* Máu người chơi đi theo ĐÚNG metaPowerMul, không phải một đường tuyến tính.
+   * Bản trước là playerHpBase * (1 + 0.35*(cấp-1)) — tuyến tính, trần 1660 ở cấp 10 —
+   * trong khi sát thương quái nhân 1.24 mỗi chương, tức hàm mũ. Mô phỏng bắt được hệ
+   * quả: từ chương 10 trở đi, NGÀY 1 là ngày khó nhất chương (0% thắng) vì người chơi
+   * bị đánh chết ở lượt 6-7, còn ngày 5 và 10 lại 60% — độ khó trong chương đảo ngược.
+   * Cho máu đi cùng hàm mũ với lực thì trục sống-chết và trục DPS cùng một nhịp. */
   CFG.playerMaxHp = function (heroLevel) {
-    return Math.round(CFG.hero.playerHpBase *
-      (1 + CFG.hero.playerHpLevelMul * ((heroLevel || 1) - 1)));
+    return Math.round(CFG.hero.playerHpBase * CFG.metaPowerMul(heroLevel));
   };
   CFG.turnsFor = function (day) {
-    return day <= CFG.chapter.firstDaysCount
-      ? CFG.chapter.turnsFirstDays : CFG.chapter.turnsNormal;
+    var t = CFG.chapter.turnsByDay;
+    return day <= t.length ? t[day - 1] : CFG.chapter.turnsBeyond;
   };
   CFG.isBossDay = function (day) { return CFG.chapter.bossDays.indexOf(day) >= 0; };
 

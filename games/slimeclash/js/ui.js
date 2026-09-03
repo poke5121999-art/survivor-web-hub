@@ -1,11 +1,11 @@
 /*
- * SlimeClash — render và thao tác chạm.
+ * SlimeClash — render và thao tác.
  *
- * Thao tác giữ đúng cơ chế nhặt–thả của Clash of Heroes (KHÔNG đổi sang swap-2-ô kiểu
- * match-3 thường — xem _research/00-tong-hop-thiet-ke.md mục 3.3):
- *   chạm quân rảnh  -> nhấc lên
- *   chạm cột        -> thả xuống, tốn 1 bước
- *   chạm lại quân   -> bỏ nhấc, KHÔNG tốn bước
+ * Thao tác: KÉO một quân sang ô khác (ô trống thì dời, ô có quân thì đổi chỗ) — giống
+ * game merge. Không còn "chạm quân rồi chạm cột", không còn bộ đếm lượt nạp trên đầu quân.
+ *
+ * Ô cờ vẽ ĐÚNG KHUNG THEO CẤP: dải sprite 6 khung, cấp k dùng khung k. Gộp lên cấp là
+ * thấy con vật lột xác ngay — đó là phần thưởng thị giác của cả cơ chế gộp.
  */
 (function (root) {
   'use strict';
@@ -27,7 +27,6 @@
     ['s-home', 's-battle', 's-deck', 's-upgrade', 's-shop'].forEach(function (s) {
       $(s).classList.toggle('on', s === id);
     });
-    // Thanh điều hướng ẩn khi đang đánh — bản gốc cũng che NavigatorBar trong GamePlayLayer.
     var nav = $('navbar');
     nav.style.display = (id === 's-battle') ? 'none' : '';
     var btns = nav.querySelectorAll('.nav');
@@ -36,6 +35,17 @@
     }
     document.body.classList.toggle('in-battle', id === 's-battle');
     window.scrollTo(0, 0);
+  };
+
+  UI.dialog = function (html, onClose) {
+    $('dialog').innerHTML = html;
+    $('overlay').classList.add('on');
+    UI._onClose = onClose || null;
+  };
+  UI.closeDialog = function () {
+    $('overlay').classList.remove('on');
+    var f = UI._onClose; UI._onClose = null;
+    if (f) f();
   };
 
   // Lực chiến — BattlePower trong TopViewMain của bản gốc.
@@ -51,23 +61,12 @@
     return Math.round(sum * CFG.metaPowerMul(s.heroLevel));
   };
 
-  UI.dialog = function (html, onClose) {
-    $('dialog').innerHTML = html;
-    $('overlay').classList.add('on');
-    UI._onClose = onClose || null;
-  };
-  UI.closeDialog = function () {
-    $('overlay').classList.remove('on');
-    var f = UI._onClose; UI._onClose = null;
-    if (f) f();
-  };
-
   UI.renderTop = function (s) {
     $('pl-level').textContent = 'Lv.' + s.heroLevel;
     $('pl-power').textContent = '⚔ ' + UI.battlePower(s);
     var lead = (s.deck && s.deck[0]) || DATA.starterIds[0];
-    var art = root.Atlas && root.Atlas.unit(lead);
-    $('pl-avatar').style.backgroundImage = art ? 'url(' + JSON.stringify(art) + ')' : '';
+    var head = root.Atlas && root.Atlas.head(lead);
+    $('pl-avatar').style.backgroundImage = head ? 'url(' + JSON.stringify(head) + ')' : '';
     $('r-gold').textContent = s.gold;
     $('r-gem').textContent = s.gem;
     $('r-shard').textContent = s.shards;
@@ -76,126 +75,94 @@
 
   // ---------------------------------------------------------------- bàn cờ
 
-  function cellEl(u, r, c, mine) {
+  function cellEl(u, r, c) {
     var d = document.createElement('div');
     d.className = 'cell' + (u ? ' u-' + u.color : ' empty');
     d.dataset.r = r; d.dataset.c = c;
-    if (u) {
-      if (u.kind === 'charging') { d.classList.add('charging'); d.dataset.charge = u.charge; }
-      if (u.kind === 'wall') d.classList.add('wall');
-      if (u.klass === 'elite') d.classList.add('elite');
-      if (u.klass === 'champion') d.classList.add('champion');
+    if (!u) return d;
 
-      // Chân dung nằm TRONG ô, chừa viền để lộ màu của ô. Màu mới là thứ người chơi
-      // ghép, nên nó phải luôn đọc được kể cả khi ảnh chiếm gần hết ô.
-      var art = root.Atlas && root.Atlas.unit(u.heroId);
-      if (art) {
-        var im = document.createElement('i');
-        im.className = 'art';
-        im.style.backgroundImage = 'url("' + art + '")';
-        d.appendChild(im);
-        d.classList.add('has-art');
-      }
-      var n = document.createElement('b');
-      n.className = 'num';
-      n.textContent = u.kind === 'wall' ? u.hp : u.power;
-      d.appendChild(n);
-      d.title = u.name + ' · ' + u.klass + ' · máu ' + u.hp + ' · lực ' + u.power;
+    var style = root.Atlas && root.Atlas.unitStyle(u.heroId, u.grade);
+    if (style) {
+      var im = document.createElement('i');
+      im.className = 'art';
+      im.setAttribute('style', style);
+      d.appendChild(im);
+      d.classList.add('has-art');
     }
+    if (u.grade > 1) {
+      var g = document.createElement('u');
+      g.className = 'grade';
+      g.textContent = u.grade;
+      d.appendChild(g);
+    }
+    var hpPct = Math.max(0, u.hp / u.maxHp);
+    if (hpPct < 1) {
+      var bar = document.createElement('s');
+      bar.className = 'uhp';
+      bar.style.width = (hpPct * 100) + '%';
+      d.appendChild(bar);
+    }
+    d.title = u.name + ' · cấp ' + u.grade + ' · lực ' + u.power +
+              ' · máu ' + u.hp + '/' + u.maxHp;
     return d;
   }
 
-  /*
-   * Bàn địch được render LẬT NGƯỢC: hàng r=rows-1 (giáp mặt ta) vẽ ở DƯỚI CÙNG của
-   * khối địch, sát đường giữa. Nhờ vậy hai chồng quân "đối mặt" nhau đúng như bản DS.
-   */
-  UI.renderBoards = function (battle) {
-    var mine = $('board-mine'), foe = $('board-foe');
-    mine.innerHTML = ''; foe.innerHTML = '';
-
-    var r, c;
-    for (r = 0; r < battle.enemy.rows; r++) {
-      for (c = 0; c < battle.enemy.cols; c++) {
-        foe.appendChild(cellEl(battle.enemy.get(r, c), r, c, false));
-      }
-    }
-    // ta: hàng sau (r=0) ở TRÊN, hàng trước (r=rows-1) ở DƯỚI -> vẽ thuận
-    for (r = battle.player.rows - 1; r >= 0; r--) {
-      for (c = 0; c < battle.player.cols; c++) {
-        var el = cellEl(battle.player.get(r, c), r, c, true);
-        if (battle.player.isFree(r, c)) el.classList.add('hint');
+  UI.renderBoard = function (battle) {
+    var mine = $('board-mine');
+    mine.innerHTML = '';
+    for (var r = 0; r < battle.board.rows; r++) {
+      for (var c = 0; c < battle.board.cols; c++) {
+        var el = cellEl(battle.board.get(r, c), r, c);
+        if (c === battle.foe.targetCol) el.classList.add('threat');
         mine.appendChild(el);
       }
     }
-
-    var bar = $('dropbar');
-    bar.innerHTML = '';
-    for (c = 0; c < battle.player.cols; c++) {
-      var b = document.createElement('button');
-      b.textContent = '▼';
-      b.dataset.col = c;
-      b.className = battle.pickedUp ? 'on' : '';
-      bar.appendChild(b);
+    var tb = $('threatbar');
+    tb.innerHTML = '';
+    for (var i = 0; i < battle.board.cols; i++) {
+      var s = document.createElement('span');
+      s.className = 'tm' + (i === battle.foe.targetCol ? ' on' : '');
+      s.textContent = i === battle.foe.targetCol ? '▼' : '';
+      tb.appendChild(s);
     }
   };
 
   UI.renderBattle = function (battle) {
-    UI.renderBoards(battle);
+    UI.renderBoard(battle);
 
-    var fp = Math.max(0, battle.enemyHp) / battle.enemyHpMax * 100;
-    var mp = Math.max(0, battle.playerHp) / battle.playerHpMax * 100;
-    $('foe-hp').style.width = fp + '%';
-    $('me-hp').style.width = mp + '%';
-    $('foe-hp-txt').textContent = Math.max(0, battle.enemyHp) + ' / ' + battle.enemyHpMax;
-    $('me-hp-txt').textContent = Math.max(0, battle.playerHp) + ' / ' + battle.playerHpMax;
-    $('foe-name').textContent = battle.isBoss ? '☠ BOSS' : 'Địch';
+    var f = battle.foe;
+    $('foe-hp').style.width = Math.max(0, f.hp) / f.hpMax * 100 + '%';
+    $('foe-hp-txt').textContent = Math.max(0, f.hp) + ' / ' + f.hpMax;
+    $('foe-name').textContent = (battle.isBoss ? '☠ ' : '') + f.name;
+    $('foe-atk').textContent = '⚔ ' + f.atk;
+    var art = f.art && root.Atlas && root.Atlas.foe(f.art);
+    $('foe-art').style.backgroundImage = art ? 'url(' + JSON.stringify(art) + ')' : '';
+    $('foe-art').classList.toggle('boss', !!battle.isBoss);
 
-    // Top: STEP và DAY, đúng hai ô ImageSwapBg / ImageDayBg của bản gốc
+    $('foe-intent').innerHTML = f.countdown <= 0
+      ? '<b class="now">Đánh ngay khi hết bước — cột ' + (f.targetCol + 1) + '</b>'
+      : 'Đánh cột <b>' + (f.targetCol + 1) + '</b> sau <b>' + f.countdown + '</b> bước';
+
     $('hud-step').textContent = battle.movesLeft;
     $('box-step').classList.toggle('low', battle.movesLeft === 0);
     $('hud-day').textContent = battle.day;
 
-    // EnergyBar của LordNode: ở đây là tiến độ lượt trong ngân sách
+    $('me-hp').style.width = Math.max(0, battle.playerHp) / battle.playerHpMax * 100 + '%';
+    $('me-hp-txt').textContent = Math.max(0, battle.playerHp) + ' / ' + battle.playerHpMax;
     $('me-energy').style.width = Math.min(100, battle.turn / battle.maxTurns * 100) + '%';
 
-    UI.renderDayRail(battle.day, battle.turn, battle.maxTurns);
+    UI.renderDayRail(battle.day);
     UI.renderLordButtons(battle);
 
-    $('mid-note').textContent = battle.pickedUp
-      ? 'thả vào một cột'
-      : 'kéo quân sang cột khác · đòn bay theo cột';
-
-    var bw = $('boss-warn');
-    if (battle.isBoss) {
-      bw.innerHTML = '<div class="bosswarn">☠ <b>BOSS</b> — đòn lớn sau <b>' +
-        battle.bossCountdown + '</b> bước. Mỗi thao tác của bạn làm nó tới gần hơn.</div>';
-    } else bw.innerHTML = '';
+    $('mid-note').innerHTML = 'Lực trên sân: <b>' + battle.totalPower() +
+      '</b> · lượt ' + battle.turn + '/' + battle.maxTurns;
 
     $('skill-n').textContent = battle.skills.length;
     $('btn-skills').classList.toggle('primary', battle.skills.length > 0);
+    $('btn-end').textContent = battle.movesLeft > 0
+      ? 'Đánh (còn ' + battle.movesLeft + ' bước)' : 'Đánh';
   };
 
-  // RetainSkillsLayer của bản gốc: kỹ năng có layer riêng chứ không nằm trên HUD chính.
-  UI.skillsHtml = function (battle) {
-    if (!battle.skills.length) {
-      return '<h3>Kỹ năng</h3><p class="sub">Chưa có. Ghép 3+ ô để nhận — giữ tối đa ' +
-        CFG.retainSkillLimit + '.</p><button class="btn primary" data-close>Đóng</button>';
-    }
-    var html = '<h3>Kỹ năng (' + battle.skills.length + '/' + CFG.retainSkillLimit + ')</h3><div class="list">';
-    battle.skills.forEach(function (key, i) {
-      var def = DATA.SKILLS[key] || { icon: '?', name: key, desc: '' };
-      html += '<div class="item"><div class="grow"><div class="name">' + def.icon + ' ' + def.name +
-              '</div><div class="meta">' + def.desc + '</div></div>' +
-              '<button class="btn small primary" data-useskill="' + i + '">Dùng</button></div>';
-    });
-    return html + '</div><button class="btn ghost" data-close>Đóng</button>';
-  };
-
-  UI.logHtml = function (battle) {
-    return '<div class="log">' + (battle.log.slice(-14).reverse().join('<br>') || 'chưa có gì') + '</div>';
-  };
-
-  // Ray ngày — DayItem trong TopDay của bản gốc. Ngày boss có dấu ☠ [APK] bossDays.
   UI.renderDayRail = function (day) {
     var rail = $('dayrail');
     var html = '';
@@ -213,7 +180,6 @@
     }
   };
 
-  // Hai nút kỹ năng hai bên thanh máu — LordSkillBtnL / LordSkillBtnR của bản gốc.
   UI.renderLordButtons = function (battle) {
     [['skill-l', 0], ['skill-r', 1]].forEach(function (pair) {
       var el = $(pair[0]);
@@ -227,51 +193,72 @@
     });
   };
 
+  UI.skillsHtml = function (battle) {
+    if (!battle.skills.length) {
+      return '<h3>Kỹ năng</h3><p class="sub">Chưa có. Gộp quân để nhận — giữ tối đa ' +
+        CFG.retainSkillLimit + '.</p><button class="btn primary" data-close>Đóng</button>';
+    }
+    var html = '<h3>Kỹ năng (' + battle.skills.length + '/' + CFG.retainSkillLimit +
+               ')</h3><div class="list">';
+    battle.skills.forEach(function (key, i) {
+      var def = DATA.SKILLS[key] || { icon: '?', name: key, desc: '' };
+      html += '<div class="item"><div class="grow"><div class="name">' + def.icon + ' ' + def.name +
+              '</div><div class="meta">' + def.desc + '</div></div>' +
+              '<button class="btn small primary" data-useskill="' + i + '">Dùng</button></div>';
+    });
+    return html + '</div><button class="btn ghost" data-close>Đóng</button>';
+  };
+
+  UI.logHtml = function (battle) {
+    return '<div class="log">' +
+      (battle.log.slice(-14).reverse().join('<br>') || 'chưa có gì') + '</div>';
+  };
+
   /* ---------------------------------------------------------------- kéo thả
-   * Yêu cầu: kéo quân đi như game ghép ô, thay vì chạm-quân rồi chạm-cột.
-   * Chạm ngắn (< 8px) vẫn giữ hành vi cũ để không mất đường thao tác dự phòng.
-   *
-   * Vùng thả CỐ Ý rộng: cả bàn của mình cộng thanh ▼ bên dưới, và chỉ xét toạ độ X
-   * để suy ra cột. Thả trượt vài chục pixel vẫn vào đúng cột — trên màn cảm ứng thì
-   * bắt người chơi thả trúng đúng một ô là quá khắt khe.
+   * Kéo quân từ ô này sang ô khác. Ô trống -> dời; ô có quân -> đổi chỗ.
+   * Vùng bắt CỐ Ý rộng: suy ô từ toạ độ trong bàn thay vì đòi thả trúng ô — trên màn
+   * cảm ứng bắt thả chính xác từng ô là quá khắt khe.
    */
-  UI.initDrag = function (getBattle, onChange) {
+  UI.initDrag = function (getBattle, onChange, isErase) {
     var mine = $('board-mine');
     var st = null;
 
-    function columnFromPoint(x, y) {
+    function cellFromPoint(x, y) {
       var b = mine.getBoundingClientRect();
-      var d = $('dropbar').getBoundingClientRect();
-      if (y < b.top - 44 || y > d.bottom + 24) return null;
-      var rel = (x - b.left) / b.width;
-      if (rel < -0.06 || rel > 1.06) return null;
-      return Math.max(0, Math.min(CFG.board.cols - 1, Math.floor(rel * CFG.board.cols)));
+      if (x < b.left - 30 || x > b.right + 30 || y < b.top - 30 || y > b.bottom + 30) return null;
+      var cols = CFG.board.cols, rows = CFG.board.rows;
+      var c = Math.max(0, Math.min(cols - 1, Math.floor((x - b.left) / b.width * cols)));
+      var r = Math.max(0, Math.min(rows - 1, Math.floor((y - b.top) / b.height * rows)));
+      return { r: r, c: c };
     }
 
     function makeGhost(unit) {
       var g = document.createElement('div');
       g.className = 'drag-ghost u-' + unit.color;
-      var art = root.Atlas && root.Atlas.unit(unit.heroId);
-      if (art) {
+      var style = root.Atlas && root.Atlas.unitStyle(unit.heroId, unit.grade);
+      if (style) {
         var i = document.createElement('i');
         i.className = 'art';
-        i.style.backgroundImage = 'url(' + JSON.stringify(art) + ')';
+        i.setAttribute('style', style);
         g.appendChild(i);
       }
       document.body.appendChild(g);
       return g;
     }
 
-    function highlight(col) {
-      var btns = $('dropbar').children;
-      for (var i = 0; i < btns.length; i++) {
-        btns[i].classList.toggle('target', i === col);
-      }
+    function markTarget(p) {
+      var cells = mine.children;
+      for (var i = 0; i < cells.length; i++) cells[i].classList.remove('dropto');
+      if (!p) return;
+      var idx = p.r * CFG.board.cols + p.c;
+      if (cells[idx]) cells[idx].classList.add('dropto');
     }
 
     function cleanup() {
       if (st && st.ghost && st.ghost.parentNode) st.ghost.parentNode.removeChild(st.ghost);
-      highlight(-1);
+      markTarget(null);
+      var cells = mine.children;
+      for (var i = 0; i < cells.length; i++) cells[i].classList.remove('dragging');
       st = null;
     }
 
@@ -280,8 +267,10 @@
       if (!battle || battle.over) return;
       var cell = e.target.closest('.cell');
       if (!cell) return;
-      var r = parseInt(cell.dataset.r, 10), c = parseInt(cell.dataset.c, 10);
-      st = { r: r, c: c, x: e.clientX, y: e.clientY, dragging: false, id: e.pointerId };
+      st = {
+        r: parseInt(cell.dataset.r, 10), c: parseInt(cell.dataset.c, 10),
+        x: e.clientX, y: e.clientY, dragging: false, el: cell
+      };
       try { mine.setPointerCapture(e.pointerId); } catch (err) { }
     });
 
@@ -292,52 +281,38 @@
 
       if (!st.dragging) {
         var dx = e.clientX - st.x, dy = e.clientY - st.y;
-        if (dx * dx + dy * dy < 64) return;              // ngưỡng 8px
-        if (!battle.canAct()) { UI.toast('Hết bước — kết thúc lượt'); cleanup(); return; }
-        var u = battle.player.get(st.r, st.c);
-        if (!u || !battle.player.isFree(st.r, st.c)) {
-          UI.toast('Quân này đang trong đội hình hoặc là tường');
-          cleanup(); return;
-        }
-        if (!battle.pickUp(st.r, st.c)) { cleanup(); return; }
+        if (dx * dx + dy * dy < 64) return;               // ngưỡng 8px
+        if (isErase && isErase()) return;                 // chế độ xoá dùng chạm
+        if (!battle.canAct()) { UI.toast('Hết bước — bấm Đánh'); cleanup(); return; }
+        var u = battle.board.get(st.r, st.c);
+        if (!u) { cleanup(); return; }
         st.dragging = true;
         st.ghost = makeGhost(u);
-        onChange();
+        st.el.classList.add('dragging');
       }
       st.ghost.style.left = e.clientX + 'px';
       st.ghost.style.top = e.clientY + 'px';
-      highlight(columnFromPoint(e.clientX, e.clientY));
+      markTarget(cellFromPoint(e.clientX, e.clientY));
       e.preventDefault();
     });
 
     function finish(e) {
       if (!st) return;
       var battle = getBattle();
-      if (st.dragging && battle && !battle.over) {
-        var col = columnFromPoint(e.clientX, e.clientY);
-        if (col == null) battle.cancelPick();        // thả ra ngoài -> không tốn bước
-        else battle.dropAt(col);
-        cleanup();
-        onChange();
-        return;
-      }
-      // chạm ngắn: giữ hành vi cũ
-      var r = st.r, c = st.c;
+      var wasDrag = st.dragging, r = st.r, c = st.c;
+      var p = wasDrag ? cellFromPoint(e.clientX, e.clientY) : null;
       cleanup();
       if (!battle || battle.over) return;
-      if (battle.pickedUp) { battle.cancelPick(); onChange(); return; }
-      if (!battle.canAct()) { UI.toast('Hết bước — kết thúc lượt'); return; }
-      if (!battle.pickUp(r, c)) UI.toast('Quân này đang trong đội hình hoặc là tường');
-      onChange();
+      if (wasDrag && p && !(p.r === r && p.c === c)) {
+        battle.moveUnit(r, c, p.r, p.c);
+        onChange();
+      } else if (wasDrag) {
+        onChange();          // thả lại chỗ cũ — không tốn bước
+      }
     }
 
     mine.addEventListener('pointerup', finish);
-    mine.addEventListener('pointercancel', function () {
-      var battle = getBattle();
-      if (st && st.dragging && battle) battle.cancelPick();
-      cleanup();
-      onChange();
-    });
+    mine.addEventListener('pointercancel', function () { cleanup(); onChange(); });
   };
 
   // ---------------------------------------------------------------- nhà
@@ -347,19 +322,22 @@
     var boss = CFG.isBossDay(s.day);
     $('home-sub').innerHTML =
       (boss ? '☠ <b>Ngày BOSS.</b> ' : '') +
-      'Máu địch ×' + CFG.hpRatio(s.chapter, s.day).toFixed(2) +
+      'Máu quái ×' + CFG.hpRatio(s.chapter, s.day).toFixed(2) +
       ' · ngân sách <b>' + CFG.turnsFor(s.day) + ' lượt</b>' +
       ' · sức mạnh run ×' + CFG.runPowerMul(s.day).toFixed(2);
     $('home-prog').style.width = ((s.day - 1) / CFG.chapter.daysPerChapter * 100) + '%';
-    $('home-cap-gold').textContent = 'Vàng chương: ' + (s.chapterGold || 0) + '/' + CFG.coinMaxFor(s.chapter);
-    $('home-cap-card').textContent = 'Mảnh chương: ' + (s.chapterCards || 0) + '/' + CFG.cardMaxFor(s.chapter);
+    $('home-cap-gold').textContent = 'Vàng chương: ' + (s.chapterGold || 0) +
+      '/' + CFG.coinMaxFor(s.chapter);
+    $('home-cap-card').textContent = 'Mảnh chương: ' + (s.chapterCards || 0) +
+      '/' + CFG.cardMaxFor(s.chapter);
     $('btn-winbox').disabled = !eco.canWinBox();
     $('btn-winbox').textContent = 'Rương thắng trận (' +
       (CFG.economy.winBoxPerDay - (s.winBoxToday || 0)) + ' lần hôm nay)';
 
     var offer = eco.triggeredOffer();
     $('home-offer').innerHTML = offer
-      ? '<div class="offer"><b>' + offer.name + '</b><div class="meta" style="font-size:12px;color:var(--dim);margin:4px 0 8px">' +
+      ? '<div class="offer"><b>' + offer.name + '</b>' +
+        '<div class="meta" style="font-size:12px;color:var(--dim);margin:4px 0 8px">' +
         offer.desc + '</div><button class="btn small primary" id="btn-offer">Nhận</button></div>'
       : '';
   };
@@ -376,18 +354,18 @@
       var own = s.owned[id];
       var inDeck = s.deck.indexOf(id) >= 0;
       var st = DATA.statAt(h, own.level);
+      var head = root.Atlas && root.Atlas.head(h.id);
       var el = document.createElement('div');
       el.className = 'item';
-      var art = root.Atlas && root.Atlas.unit(h.id);
       el.innerHTML =
-        (art ? '<i class="thumb u-' + h.color + '" style="background-image:url(' +
-               JSON.stringify(art) + ')"></i>' : '') +
+        (head ? '<i class="thumb u-' + h.color + '" style="background-image:url(' +
+                JSON.stringify(head) + ')"></i>' : '') +
         '<div class="grow"><div class="name">' + h.name +
         (h.named ? '' : '<span title="tên suy từ slug trong APK, chưa xác nhận">*</span>') +
-        '<span class="tag ' + h.rarity + '">' + (DATA.RARITY_VI[h.rarity] || h.rarity) + '</span></div>' +
-        '<div class="meta">' + h.klass + ' · ' + DATA.COLOR_VI[h.color] +
-        ' · cấp ' + own.level + ' · máu ' + st.hp + ' · lực ' + st.power +
-        ' · nạp ' + h.charge + ' lượt</div></div>' +
+        '<span class="tag ' + h.rarity + '">' + (DATA.RARITY_VI[h.rarity] || h.rarity) +
+        '</span></div>' +
+        '<div class="meta">' + DATA.COLOR_VI[h.color] + ' · cấp ' + own.level +
+        ' · lực ' + st.power + ' · máu ' + st.hp + '</div></div>' +
         '<button class="btn small' + (inDeck ? '' : ' primary') + '" data-deck="' + id + '">' +
         (inDeck ? 'Bỏ ra' : 'Mang') + '</button>';
       list.appendChild(el);
@@ -396,7 +374,12 @@
 
   // ---------------------------------------------------------------- nâng cấp
 
-  UI.heroUpCost = function (level) { return 120 * level * level; };
+  /* [TUNE] 60*L^2, KHÔNG phải 120*L^2 như bản đầu.
+   * Vàng cả game bị chặn bởi coin_max mỗi chương [APK]: hết chương 2 người chơi mới
+   * có tổng 460 vàng. Với giá cũ thì cấp 3 tốn 480 -> đứng nguyên cấp 2 suốt hai
+   * chương đầu, và mô phỏng cho ra chương 2 chỉ 25% thắng trong khi chương 3 lại 100%.
+   * Giá này cho nhịp ~1 cấp/chương ở đoạn đầu, khớp với enemyPowerChapterMul. */
+  UI.heroUpCost = function (level) { return 60 * level * level; };
   UI.unitUpCost = function (level) { return 60 * level; };
 
   UI.renderUpgrade = function (s) {
@@ -422,11 +405,15 @@
       var c = UI.unitUpCost(own.level);
       var full = own.level >= 5;
       var st = DATA.statAt(h, own.level);
+      var head = root.Atlas && root.Atlas.head(h.id);
       var el = document.createElement('div');
       el.className = 'item';
       el.innerHTML =
+        (head ? '<i class="thumb u-' + h.color + '" style="background-image:url(' +
+                JSON.stringify(head) + ')"></i>' : '') +
         '<div class="grow"><div class="name">' + h.name + '</div>' +
-        '<div class="meta">cấp ' + own.level + '/5 · máu ' + st.hp + ' · lực ' + st.power + '</div></div>' +
+        '<div class="meta">cấp ' + own.level + '/5 · lực ' + st.power +
+        ' · máu ' + st.hp + '</div></div>' +
         '<button class="btn small" data-unitup="' + id + '"' +
         (full || s.gold < c ? ' disabled' : '') + '>' +
         (full ? 'Tối đa' : '🪙' + c) + '</button>';

@@ -390,12 +390,18 @@ window.HUB_GAMES = [
   {
     id: "slimeclash",
     title: "SlimeClash",
-    tagline: "Ghép ô theo lượt trên hai lưới 6×6 xếp chồng dọc. Ba bước mỗi lượt: xếp 3 quân cùng màu theo cột thành đội hình tấn công, theo hàng thành tường. Đòn bay thẳng theo cột, xuyên qua từng quân rồi mới tới hero địch. Mười ngày một chương, boss ở ngày 5 và ngày 10 — và nó báo trước đúng 10 bước. Thắng thua nằm ở chỗ có đủ sát thương trong ngần ấy lượt hay không, chứ không ở chỗ né được hay không.",
+    tagline: "Một lưới 6×6, một con quái to. Ba bước mỗi lượt: kéo quân như game merge, xếp 3 con cùng loại cùng cấp thành hàng để gộp lên cấp — và nó đổi hình luôn. Hết bước thì cả sân bắn vào quái, rồi quái nện xuống một cột nó đã báo trước. Mười ngày một chương, boss ở ngày 5 và ngày 10. Thắng thua nằm ở chỗ có đủ sát thương trong ngần ấy lượt hay không, chứ không ở chỗ né được hay không.",
     thumbnail: "assets/thumbnails/slimeclash.svg",
     path: "games/slimeclash/index.html",
-    // Ghép cơ chế của hai game: tiến trình + kinh tế của Slime Legion (Perfeggs, 2023),
-    // chiến đấu lưới của Might & Magic: Clash of Heroes (Capybara/Ubisoft, 2009).
-    // Bỏ hẳn pha thủ thành auto-battle của Slime Legion, thay bằng trận theo lượt.
+    // Cơ chế GỘP + tiến trình + kinh tế của Slime Legion (Perfeggs, 2023), bỏ hẳn pha thủ
+    // thành auto-battle, thay bằng trận theo lượt lấy cảm hứng từ Might & Magic: Clash of
+    // Heroes (Capybara/Ubisoft, 2009).
+    //
+    // Bản đầu dựng đúng theo Clash of Heroes — HAI sân đối đầu, mỗi quân một bộ đếm lượt
+    // nạp trên đầu — và đã bị bỏ: hai sân đối đầu là hình dạng của một game PvP chứ không
+    // phải PvE. Bản đang chạy chỉ người chơi có sân; đối thủ là MỘT con quái có thanh máu
+    // riêng, đánh trả vào một cột đã báo trước, và đòn của nó đếm theo BƯỚC chứ không theo
+    // lượt — càng thao tác nhiều thì đòn tới càng nhanh.
     //
     // SỐ CÂN BẰNG LÀ SỐ ĐO THẬT, không phải phỏng đoán: mổ APK Slime Legion 4.5.0 rồi đọc
     // ba bộ cấu hình quên mã hoá (config_t1, config_t3, dungeon, elitechapter). Từ đó ra:
@@ -403,7 +409,10 @@ window.HUB_GAMES = [
     // x1.15/ngày nhưng sát thương quái KHÔNG tăng (attack_ratio = 1), trần giảm sát thương
     // 80%, boss báo trước 10 bước (boss_forecast_step), máu thành 1000 bất biến ở cả 1744
     // dòng cấu hình ải, trần vàng/mảnh theo chương (coin_max 220->1800, hero_card_max
-    // 25/35/45), bảng trọng số rơi hộp kỹ năng, và 59 hero kèm id + tên.
+    // 25/35/45), bảng trọng số rơi hộp kỹ năng, xác suất thưởng khi gộp 3 ô và 4 ô (đều
+    // 0.5), và 96 hero kèm id + slug. Mỗi hero còn có đủ 6 khung sprite theo cấp trong
+    // res/heroes — gộp lên cấp là thấy con vật lột xác ngay, đó là phần thưởng thị giác
+    // của cả cơ chế.
     // Ghi chép đầy đủ kèm cách lấy: games/slimeclash/_research/ (12 tài liệu).
     //
     // CHƯA LẤY ĐƯỢC: chỉ số gốc từng hero, giá nâng cấp, tỉ lệ gacha, stamina — nằm trong
@@ -419,8 +428,15 @@ window.HUB_GAMES = [
     // qua đúng trần chương của bản gốc, cộng ngân sách "Phiếu Ưu Đãi" 8/ngày và trần kim
     // cương 180/ngày. Lý lẽ đầy đủ: _research/economy-design.md.
     //
-    // Kiểm: node games/slimeclash/_test/sim.js — bot đấu bot, kiểm bất biến bàn cờ, đo nhịp
-    // trận (7-10 lượt ~ 2.0-2.8 phút) và kiểm các trần kinh tế có thủng không.
+    // Kiểm: node games/slimeclash/_test/sim.js — kiểm luật gộp, kiểm bất biến bàn cờ, rồi
+    // cho bot chơi và đo tỉ lệ thắng theo chương/ngày (cấp Hero trong mô phỏng SUY TỪ trần
+    // vàng [APK], không bịa). Và node games/slimeclash/_test/browser.js — Chrome headless
+    // qua DevTools Protocol, không cần npm: kiểm kéo thả thật sự đổi bàn cờ và tốn bước,
+    // bấm Đánh thì quái mất máu, và màn trận không tràn quá một màn hình.
+    //
+    // Mô phỏng bắt được bốn lỗi cân bằng mà đọc code không thấy — đáng chú ý nhất:
+    // gradePowerMul PHẢI lớn hơn minRun, để 2.2 với minRun 3 thì gộp là LỖ và nước đi tối
+    // ưu thành "không bao giờ gộp". Suy dẫn ghi ngay trong js/config.js.
     status: "available",
     tags: ["Ghép ô", "Theo lượt", "Màn dọc", "Một tay", "Chiến thuật"]
   }

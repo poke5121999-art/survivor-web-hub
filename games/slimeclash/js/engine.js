@@ -1,18 +1,22 @@
 /*
  * SlimeClash — engine trận đấu.
  *
- * Mô hình: HAI bàn 6x6 giống hệt nhau về logic (_research/00-tong-hop-thiet-ke.md mục 3.2:
- * bố cục hai lưới xếp chồng dọc, đúng như bản DS gốc của Clash of Heroes). Bàn địch chỉ
- * khác ở chỗ render lật ngược. Nhờ vậy toàn bộ luật dưới đây dùng chung cho cả hai bên.
+ * MÔ HÌNH: merge của Slime Legion, KHÔNG phải đội hình-nạp của Clash of Heroes.
+ * Bản đầu tôi dựng theo CoH (hai sân đối đầu, mỗi quân có bộ đếm lượt nạp trên đầu) —
+ * sai. Sân địch bị bỏ, bộ đếm trên đầu quân bị bỏ.
  *
- * Quy ước toạ độ: r = 0 là hàng SAU (xa địch nhất), r = rows-1 là hàng TRƯỚC (giáp mặt địch).
- * Quân rơi về phía hàng TRƯỚC (trọng lực hướng ra mặt trận), nên chồng quân luôn liền mạch
- * từ rows-1 đi ngược lên. "Đầu chồng" (front) = chỉ số r lớn nhất còn quân.
+ * Vòng lặp một lượt:
+ *   1. Người chơi tiêu `movesPerTurn` bước. Mỗi bước = kéo một quân sang ô khác
+ *      (ô trống thì dời, ô có quân thì đổi chỗ).
+ *   2. Xếp được >= 3 quân CÙNG LOẠI CÙNG CẤP thành hàng ngang hoặc dọc -> GỘP thành
+ *      MỘT quân cấp cao hơn. Gộp xong có thể lại thành hàng mới -> gộp dây chuyền.
+ *   3. Hết bước: MỌI quân trên sân bắn vào quái, sát thương = tổng lực.
+ *   4. Quái đánh trả vào một CỘT đã báo trước; quân trong cột đó chịu đòn, dư thì
+ *      trừ máu người chơi.
+ *   5. Sinh thêm quân mới vào ô trống, sang lượt kế.
  *
- * Khác bản gốc Clash of Heroes ở đúng một chỗ, cố ý:
- *   - CoH chỉ cho nhấc quân ở hàng đáy. Ở đây nhấc được MỌI quân rảnh (không thuộc đội
- *     hình, không phải tường). Lý do: màn cảm ứng 6 cột, bắt người chơi lùa quân xuống đáy
- *     trước khi nhấc là thao tác thừa và dễ bấm nhầm (_research/mobile-adaptation.md).
+ * Vì sao gộp mới là cốt lõi: lực tăng theo CẤP số nhân (gradePowerMul^(cấp-1)), nên
+ * ba con cấp 1 gộp lại mạnh hơn hẳn ba con để rời. Đó là toàn bộ bài toán của người chơi.
  */
 (function (root) {
   'use strict';
@@ -20,12 +24,9 @@
   var CFG = root.CFG || require('./config.js');
   var DATA = root.DATA || require('./data.js');
 
-  // RNG tất định — cùng seed ra cùng ván. Cần cho test headless và cho việc chơi lại ải.
-  function RNG(seed) {
-    this.s = (seed >>> 0) || 1;
-  }
+  // RNG tất định — cùng seed ra cùng ván. Cần cho test headless.
+  function RNG(seed) { this.s = (seed >>> 0) || 1; }
   RNG.prototype.next = function () {
-    // xorshift32
     var x = this.s;
     x ^= x << 13; x >>>= 0;
     x ^= x >> 17;
@@ -36,7 +37,6 @@
   RNG.prototype.int = function (n) { return Math.floor(this.next() * n); };
   RNG.prototype.pick = function (a) { return a[this.int(a.length)]; };
   RNG.prototype.chance = function (p) { return this.next() < p; };
-  // Chọn theo trọng số: bảng [[key, weight], ...]
   RNG.prototype.weighted = function (table) {
     var total = 0, i;
     for (i = 0; i < table.length; i++) total += table[i][1];
@@ -51,252 +51,184 @@
   // ---------------------------------------------------------------- Board
 
   function Board(deck, rng, powerMul) {
-    this.powerMul = powerMul || 1;
     this.cols = CFG.board.cols;
     this.rows = CFG.board.rows;
-    this.deck = deck;            // [{hero, level}]
+    this.deck = deck;
     this.rng = rng;
+    this.powerMul = powerMul || 1;
     this.cells = [];
-    for (var r = 0; r < this.rows; r++) {
-      this.cells.push(new Array(this.cols).fill(null));
-    }
-    this.nextFormationId = 1;
-    this.pending = [];           // đội hình đang nạp
+    for (var r = 0; r < this.rows; r++) this.cells.push(new Array(this.cols).fill(null));
   }
 
-  Board.prototype.get = function (r, c) { return this.cells[r][c]; };
+  Board.prototype.get = function (r, c) {
+    return (r >= 0 && r < this.rows && c >= 0 && c < this.cols) ? this.cells[r][c] : null;
+  };
   Board.prototype.set = function (r, c, v) { this.cells[r][c] = v; };
 
-  Board.prototype.inside = function (r, c) {
-    return r >= 0 && r < this.rows && c >= 0 && c < this.cols;
-  };
-
-  // Chỉ số r lớn nhất còn quân trong cột (đầu chồng, chỗ hứng đòn trước tiên).
-  Board.prototype.frontRow = function (c) {
-    for (var r = this.rows - 1; r >= 0; r--) if (this.cells[r][c]) return r;
-    return -1;
-  };
-
-  Board.prototype.spawnUnit = function () {
-    var cores = this.deck.filter(function (d) { return d.hero.klass === 'core'; });
-    var others = this.deck.filter(function (d) { return d.hero.klass !== 'core'; });
-    // Elite/champion hiếm hơn hẳn core, nếu không bàn cờ toàn quân to.
-    var d = (others.length && this.rng.chance(0.12)) ? this.rng.pick(others) : this.rng.pick(cores);
+  Board.prototype.makeUnit = function (deckEntry, grade) {
+    var d = deckEntry || this.rng.pick(this.deck);
     var st = DATA.statAt(d.hero, d.level);
-    return {
+    var g = grade || 1;
+    var u = {
       heroId: d.hero.id, name: d.hero.name, color: d.hero.color, klass: d.hero.klass,
-      level: d.level,
-      hp: Math.max(1, Math.round(st.hp * this.powerMul)),
-      maxHp: Math.max(1, Math.round(st.hp * this.powerMul)),
-      power: Math.max(1, Math.round(st.power * this.powerMul)),
-      charge: 0, fid: 0, kind: 'idle', grade: 1
+      level: d.level, grade: g,
+      basePower: Math.max(1, Math.round(st.power * this.powerMul)),
+      baseHp: Math.max(1, Math.round(st.hp * this.powerMul))
     };
-  };
-
-  // Trọng lực: dồn mọi quân về phía hàng TRƯỚC (r lớn), giữ nguyên thứ tự tương đối.
-  Board.prototype.settle = function () {
-    for (var c = 0; c < this.cols; c++) {
-      var stack = [];
-      for (var r = 0; r < this.rows; r++) if (this.cells[r][c]) stack.push(this.cells[r][c]);
-      for (var r2 = 0; r2 < this.rows; r2++) this.cells[r2][c] = null;
-      // stack[0] là quân ở sau nhất -> đặt sao cho quân cuối cùng nằm ở rows-1
-      var start = this.rows - stack.length;
-      for (var i = 0; i < stack.length; i++) this.cells[start + i][c] = stack[i];
-    }
-  };
-
-  // Đổ đầy bàn: mỗi cột được bù quân mới cho tới khi đủ `fillTo` quân.
-  Board.prototype.refill = function (fillTo) {
-    var target = fillTo == null ? this.rows - 1 : fillTo;
-    for (var c = 0; c < this.cols; c++) {
-      var count = 0;
-      for (var r = 0; r < this.rows; r++) if (this.cells[r][c]) count++;
-      while (count < target) {
-        // chèn vào hàng sau cùng còn trống
-        var placed = false;
-        for (var rr = 0; rr < this.rows; rr++) {
-          if (!this.cells[rr][c]) { this.cells[rr][c] = this.spawnUnit(); placed = true; break; }
-        }
-        if (!placed) break;
-        count++;
-      }
-    }
-    this.settle();
-  };
-
-  Board.prototype.countUnits = function () {
-    var n = 0;
-    for (var r = 0; r < this.rows; r++)
-      for (var c = 0; c < this.cols; c++) if (this.cells[r][c]) n++;
-    return n;
-  };
-
-  // Quân rảnh: nhấc lên được (không thuộc đội hình đang nạp, không phải tường).
-  Board.prototype.isFree = function (r, c) {
-    var u = this.cells[r][c];
-    return !!u && u.kind === 'idle';
-  };
-
-  Board.prototype.removeAt = function (r, c) {
-    var u = this.cells[r][c];
-    this.cells[r][c] = null;
-    this.settle();
+    applyGrade(u);
     return u;
   };
 
-  // Thả một quân vào cột: nằm ở hàng SAU cùng còn trống rồi rơi xuống.
-  Board.prototype.dropInto = function (c, unit) {
-    for (var r = 0; r < this.rows; r++) {
-      if (!this.cells[r][c]) { this.cells[r][c] = unit; this.settle(); return true; }
-    }
-    return false;
+  function applyGrade(u) {
+    var m = Math.pow(CFG.merge.gradePowerMul, u.grade - 1);
+    u.power = Math.max(1, Math.round(u.basePower * m));
+    u.maxHp = Math.max(1, Math.round(u.baseHp * m));
+    if (u.hp == null || u.hp > u.maxHp) u.hp = u.maxHp;
+  }
+
+  Board.prototype.emptyCells = function () {
+    var out = [];
+    for (var r = 0; r < this.rows; r++)
+      for (var c = 0; c < this.cols; c++) if (!this.cells[r][c]) out.push({ r: r, c: c });
+    return out;
   };
 
-  /*
-   * Dò đội hình mới sinh ra.
-   *  - Dọc, 3+ quân cùng màu liền nhau trong 1 cột  -> ĐỘI HÌNH TẤN CÔNG
-   *  - Ngang, 3+ quân cùng màu liền nhau trong 1 hàng -> TƯỜNG
-   *  - Elite cần `need` core cùng màu ngay phía sau; champion cần 4.
-   * Trả về danh sách đội hình vừa tạo (để tính hộp kỹ năng).
-   */
-  Board.prototype.detectFormations = function () {
-    var made = [];
-    var c, r, i;
+  Board.prototype.units = function () {
+    var out = [];
+    for (var r = 0; r < this.rows; r++)
+      for (var c = 0; c < this.cols; c++) if (this.cells[r][c]) out.push(this.cells[r][c]);
+    return out;
+  };
 
-    // --- dọc: tấn công
-    for (c = 0; c < this.cols; c++) {
-      r = this.rows - 1;
-      while (r >= 0) {
-        var u = this.cells[r][c];
-        if (!u || u.kind !== 'idle') { r--; continue; }
-        var run = [{ r: r, c: c }];
-        var rr = r - 1;
-        while (rr >= 0) {
-          var v = this.cells[rr][c];
-          if (v && v.kind === 'idle' && v.color === u.color) { run.push({ r: rr, c: c }); rr--; }
-          else break;
-        }
-        if (run.length >= 3) {
-          made.push(this._makeAttack(run));
-          r = rr;
-        } else {
-          r--;
-        }
-      }
+  Board.prototype.totalPower = function () {
+    var s = 0;
+    this.units().forEach(function (u) { s += u.power; });
+    return s;
+  };
+
+  // Sinh n quân mới vào ô trống ngẫu nhiên.
+  Board.prototype.spawn = function (n) {
+    var free = this.emptyCells();
+    var made = 0;
+    for (var i = 0; i < n && free.length; i++) {
+      var k = this.rng.int(free.length);
+      var p = free.splice(k, 1)[0];
+      this.cells[p.r][p.c] = this.makeUnit();
+      made++;
     }
-
-    // --- ngang: tường
-    for (r = 0; r < this.rows; r++) {
-      c = 0;
-      while (c < this.cols) {
-        var u2 = this.cells[r][c];
-        if (!u2 || u2.kind !== 'idle') { c++; continue; }
-        var run2 = [{ r: r, c: c }];
-        var cc = c + 1;
-        while (cc < this.cols) {
-          var v2 = this.cells[r][cc];
-          if (v2 && v2.kind === 'idle' && v2.color === u2.color) { run2.push({ r: r, c: cc }); cc++; }
-          else break;
-        }
-        if (run2.length >= 3) { made.push(this._makeWall(run2)); c = cc; }
-        else c++;
-      }
-    }
-
     return made;
   };
 
-  Board.prototype._makeAttack = function (run) {
-    var fid = this.nextFormationId++;
-    var lead = this.cells[run[0].r][run[0].c];       // quân ở đầu chồng dẫn đòn
-    var power = 0, self = this;
-    run.forEach(function (p) { power += self.cells[p.r][p.c].power; });
-
-    // [APK] ghép 4 ô -> 50% được +1 cấp (HeroFourMergeExtraGradeProbability)
-    var grade = 1;
-    if (run.length >= 4 && this.rng.chance(CFG.merge.extraGradeChance)) {
-      grade = CFG.merge.gradeMul;
-    }
-    var charge = CFG.charge[lead.klass] || CFG.charge.core;
-
-    run.forEach(function (p) {
-      var u = self.cells[p.r][p.c];
-      u.kind = 'charging'; u.fid = fid; u.charge = charge; u.grade = grade;
-    });
-    return {
-      fid: fid, kind: 'attack', col: run[0].c, color: lead.color,
-      size: run.length, power: Math.round(power * grade), charge: charge,
-      cells: run
-    };
-  };
-
-  Board.prototype._makeWall = function (run) {
-    var fid = this.nextFormationId++;
-    var hp = 0, self = this;
-    run.forEach(function (p) { hp += self.cells[p.r][p.c].maxHp; });
-    run.forEach(function (p) {
-      var u = self.cells[p.r][p.c];
-      u.kind = 'wall'; u.fid = fid; u.hp = hp; u.maxHp = hp;
-    });
-    return { fid: fid, kind: 'wall', size: run.length, hp: hp, cells: run };
-  };
-
-  // Đội hình tấn công đã nạp xong, gom theo fid.
-  Board.prototype.readyFormations = function () {
-    var map = {}, r, c;
-    for (r = 0; r < this.rows; r++) {
-      for (c = 0; c < this.cols; c++) {
-        var u = this.cells[r][c];
-        if (u && u.kind === 'charging' && u.charge <= 0) {
-          if (!map[u.fid]) map[u.fid] = { fid: u.fid, col: c, power: 0, cells: [], grade: u.grade };
-          map[u.fid].power += u.power;
-          map[u.fid].cells.push({ r: r, c: c });
-        }
-      }
-    }
-    return Object.keys(map).map(function (k) {
-      var f = map[k];
-      f.power = Math.round(f.power * (f.grade || 1));
-      return f;
-    });
-  };
-
-  Board.prototype.tickCharge = function (amount) {
-    var n = amount == null ? 1 : amount;
-    for (var r = 0; r < this.rows; r++)
-      for (var c = 0; c < this.cols; c++) {
-        var u = this.cells[r][c];
-        if (u && u.kind === 'charging') u.charge = Math.max(0, u.charge - n);
-      }
-  };
-
-  Board.prototype.clearFormation = function (fid) {
-    for (var r = 0; r < this.rows; r++)
-      for (var c = 0; c < this.cols; c++) {
-        var u = this.cells[r][c];
-        if (u && u.fid === fid) this.cells[r][c] = null;
-      }
-    this.settle();
+  /* Đổi chỗ / dời quân. Trả về true nếu bàn cờ có thay đổi. */
+  Board.prototype.move = function (r1, c1, r2, c2) {
+    if (r1 === r2 && c1 === c2) return false;
+    var a = this.get(r1, c1);
+    if (!a) return false;
+    var b = this.get(r2, c2);
+    this.cells[r2][c2] = a;
+    this.cells[r1][c1] = b;      // b có thể null -> thành dời chỗ
+    return true;
   };
 
   /*
-   * Nhận một đòn `power` vào cột `col`. Sát thương xuyên tuyến: trừ dần máu từng quân
-   * từ đầu chồng đi ngược về sau; quân chết thì biến mất; dư bao nhiêu trả về cho hero.
-   * ([CoH] _research/clash-of-heroes-combat.md mục 6)
+   * Tìm mọi hàng >= minRun quân CÙNG heroId CÙNG grade (ngang hoặc dọc) rồi gộp.
+   * Gộp lặp cho tới khi không còn hàng nào — gộp dây chuyền.
+   * Trả về danh sách sự kiện gộp để UI/kỹ năng dùng.
    */
-  Board.prototype.takeHit = function (col, power, opts) {
-    var ignoreWall = opts && opts.ignoreWall;
-    var left = power, killed = 0;
+  Board.prototype.resolveMerges = function () {
+    var events = [];
+    var guard = 0;
+    while (guard++ < 24) {
+      var run = this.findRun();
+      if (!run) break;
+      events.push(this.mergeRun(run));
+    }
+    return events;
+  };
+
+  Board.prototype.findRun = function () {
+    var minRun = CFG.merge.minRun;
+    var r, c, i;
+    // ngang
+    for (r = 0; r < this.rows; r++) {
+      c = 0;
+      while (c < this.cols) {
+        var u = this.cells[r][c];
+        if (!u) { c++; continue; }
+        var run = [{ r: r, c: c }];
+        var cc = c + 1;
+        while (cc < this.cols) {
+          var v = this.cells[r][cc];
+          if (v && v.heroId === u.heroId && v.grade === u.grade) { run.push({ r: r, c: cc }); cc++; }
+          else break;
+        }
+        if (run.length >= minRun) return { dir: 'h', cells: run };
+        c = cc > c ? cc : c + 1;
+      }
+    }
+    // dọc
+    for (c = 0; c < this.cols; c++) {
+      r = 0;
+      while (r < this.rows) {
+        var u2 = this.cells[r][c];
+        if (!u2) { r++; continue; }
+        var run2 = [{ r: r, c: c }];
+        var rr = r + 1;
+        while (rr < this.rows) {
+          var v2 = this.cells[rr][c];
+          if (v2 && v2.heroId === u2.heroId && v2.grade === u2.grade) { run2.push({ r: rr, c: c }); rr++; }
+          else break;
+        }
+        if (run2.length >= minRun) return { dir: 'v', cells: run2 };
+        r = rr > r ? rr : r + 1;
+      }
+    }
+    return null;
+  };
+
+  Board.prototype.mergeRun = function (run) {
+    var cells = run.cells;
+    var first = this.cells[cells[0].r][cells[0].c];
+    var mid = cells[Math.floor(cells.length / 2)];
+    var self = this;
+
+    // dọn cả hàng
+    cells.forEach(function (p) { self.cells[p.r][p.c] = null; });
+
+    var grade = first.grade + 1;
+    var extraGrade = false;
+    // [APK] HeroFourMergeExtraGradeProbability = 0.5 — gộp 4 ô thì 50% được thêm 1 cấp
+    if (cells.length >= 4 && this.rng.chance(CFG.merge.extraGradeChance)) {
+      grade++; extraGrade = true;
+    }
+
+    var merged = this.makeUnit(
+      { hero: DATA.BY_ID[first.heroId], level: first.level }, grade);
+    this.cells[mid.r][mid.c] = merged;
+
+    // [APK] HeroThreeMergeOneMoreProbability = 0.5 — gộp 3 ô thì 50% sinh thêm 1 quân
+    var extraUnit = false;
+    if (cells.length === 3 && this.rng.chance(CFG.merge.extraUnitChance)) {
+      extraUnit = this.spawn(1) > 0;
+    }
+
+    return {
+      size: cells.length, grade: grade, at: mid, name: merged.name,
+      extraGrade: extraGrade, extraUnit: extraUnit, power: merged.power
+    };
+  };
+
+  // Quái đánh vào một cột: trừ máu từng quân trong cột, dư thì trả về cho người chơi.
+  Board.prototype.hitColumn = function (col, dmg) {
+    var left = dmg, killed = 0;
     for (var r = this.rows - 1; r >= 0 && left > 0; r--) {
       var u = this.cells[r][col];
       if (!u) continue;
-      if (ignoreWall && u.kind === 'wall') continue;
-      var absorbed = Math.min(left, u.hp);
-      u.hp -= absorbed;
-      left -= absorbed;
+      var take = Math.min(left, u.hp);
+      u.hp -= take;
+      left -= take;
       if (u.hp <= 0) { this.cells[r][col] = null; killed++; }
     }
-    this.settle();
     return { overflow: left, killed: killed };
   };
 
@@ -310,36 +242,47 @@
     this.turn = 1;
     this.movesLeft = CFG.movesPerTurn;
 
-    // Sức mạnh người chơi = nhân theo NGÀY trong run (roguelike) x nhân vĩnh viễn từ cấp Hero.
-    // Sức mạnh địch = chỉ nhân theo CHƯƠNG — [APK] attack_ratio = 1, sát thương địch
-    // không tăng theo ngày.
     this.playerPowerMul = CFG.runPowerMul(this.day) * CFG.metaPowerMul(opts.heroLevel);
-    this.enemyPowerMul = Math.pow(CFG.enemyPowerChapterMul, this.chapter - 1);
-    this.player = new Board(opts.deck, this.rng, this.playerPowerMul);
-    this.enemy = new Board(opts.enemyDeck, this.rng, this.enemyPowerMul);
-    this.player.refill();
-    this.enemy.refill();
-    this.player.detectFormations();   // dọn đội hình sinh sẵn lúc đổ bàn
-    this.enemy.detectFormations();
-
-    var ratio = CFG.hpRatio(this.chapter, this.day);
-    this.enemyHpMax = Math.round(CFG.hero.enemyHpBase * ratio);
-    this.enemyHp = this.enemyHpMax;
-    this.playerHpMax = CFG.playerMaxHp(opts.heroLevel);
-    this.playerHp = this.playerHpMax;
+    this.board = new Board(opts.deck, this.rng, this.playerPowerMul);
+    this.board.spawn(CFG.board.startUnits);
+    this.board.resolveMerges();
 
     this.isBoss = CFG.isBossDay(this.day);
-    // [APK] boss_forecast_step = 10 — boss báo trước đúng 10 bước.
-    this.bossCountdown = this.isBoss ? CFG.bossForecastSteps : 0;
-    this.bossHit = Math.round(this.playerHpMax * 0.45);   // [TUNE] đủ đau để phải chặn
+    var ratio = CFG.hpRatio(this.chapter, this.day);
+    var chapMul = Math.pow(CFG.enemyPowerChapterMul, this.chapter - 1);
 
-    this.skills = [];          // kỹ năng đang giữ, trần CFG.retainSkillLimit
-    this.buffs = { atkMul: 1, pierce: false, jackpot: false };
-    this.dryStreak = 0;        // đếm hộp liên tiếp không ra gì tốt -> bảo hiểm
+    // MỘT con quái, không phải một sân địch.
+    this.foe = {
+      name: opts.foeName || 'Quái',
+      art: opts.foeArt || null,
+      hpMax: Math.round(CFG.hero.enemyHpBase * ratio * (this.isBoss ? CFG.foe.bossHpMul : 1)),
+      // Nhân CẢ runPowerMul: quân của người chơi cũng dày máu lên theo ngày, nếu đòn
+      // quái đứng yên thì bàn không bao giờ thủng và ngày cuối chương hoá ra dễ nhất.
+      atk: Math.round(CFG.foe.atkBase * chapMul * CFG.runPowerMul(this.day) *
+                      (this.isBoss ? CFG.foe.bossAtkMul : 1)),
+      targetCol: this.rng.int(CFG.board.cols),
+      // [APK] boss_forecast_step = 10 — boss báo trước 10 BƯỚC. Quái thường báo ngắn hơn.
+      fuse: this.isBoss ? CFG.bossForecastSteps : CFG.foe.normalForecastSteps,
+      countdown: this.isBoss ? CFG.bossForecastSteps : CFG.foe.normalForecastSteps
+    };
+    this.foe.hp = this.foe.hpMax;
+
+    /* Máu người chơi CŨNG phải nhân hệ số run theo ngày.
+     * Bản trước chỉ nhân cho quân và cho đòn quái, còn máu người chơi đứng yên -> tới
+     * ngày 8-9 một đòn tràn là chết, trận kết thúc ở lượt 4 và người chơi thua vì BỊ
+     * GIẾT chứ không vì hết giờ. Trái hẳn kết luận [APK]: "bài toán đủ DPS trong ngần
+     * ấy bước, không phải né chết". Nhân đều cả ba (quân, đòn quái, máu người chơi)
+     * thì hệ số run triệt tiêu trên trục sống-chết, chỉ còn tác dụng trên trục DPS. */
+    this.playerHpMax = Math.round(CFG.playerMaxHp(opts.heroLevel) * CFG.runPowerMul(this.day));
+    this.playerHp = this.playerHpMax;
+
+    this.skills = [];
+    this.buffs = { atkMul: 1 };
+    this.dryStreak = 0;
     this.log = [];
     this.over = false;
     this.won = false;
-    this.pickedUp = null;      // { unit, r, c }
+    this.lastMerges = [];
   }
 
   Battle.prototype._log = function (s) {
@@ -347,70 +290,48 @@
     if (this.log.length > 60) this.log.shift();
   };
 
-  Battle.prototype.canAct = function () {
-    return !this.over && this.movesLeft > 0;
+  Battle.prototype.canAct = function () { return !this.over && this.movesLeft > 0; };
+
+  Battle.prototype.totalPower = function () {
+    return Math.round(this.board.totalPower() * this.buffs.atkMul);
   };
 
-  Battle.prototype.pickUp = function (r, c) {
-    if (!this.canAct() || this.pickedUp) return false;
-    if (!this.player.isFree(r, c)) return false;
-    this.pickedUp = { unit: this.player.removeAt(r, c), from: { r: r, c: c } };
-    return true;
-  };
+  /* Kéo quân: (r1,c1) -> (r2,c2). Tốn 1 bước. */
+  Battle.prototype.moveUnit = function (r1, c1, r2, c2) {
+    if (!this.canAct()) return false;
+    if (!this.board.get(r1, c1)) return false;
+    if (!this.board.move(r1, c1, r2, c2)) return false;
 
-  Battle.prototype.cancelPick = function () {
-    if (!this.pickedUp) return false;
-    // trả về đúng cột cũ, không tốn move ([MOB] thả hụt không bị phạt)
-    this.player.dropInto(this.pickedUp.from.c, this.pickedUp.unit);
-    this.pickedUp = null;
-    return true;
-  };
-
-  Battle.prototype.dropAt = function (col) {
-    if (!this.pickedUp) return false;
-    var u = this.pickedUp.unit;
-    if (!this.player.dropInto(col, u)) { this.cancelPick(); return false; }
-    this.pickedUp = null;
     this.movesLeft--;
-    this._afterBoardChange(this.player, true);
-    return true;
-  };
-
-  // Xoá 1 quân, tốn 1 move ([CoH] xoá quân cũng là một move)
-  Battle.prototype.deleteAt = function (r, c) {
-    if (!this.canAct() || this.pickedUp) return false;
-    if (!this.player.isFree(r, c)) return false;
-    this.player.removeAt(r, c);
-    this.movesLeft--;
-    this._afterBoardChange(this.player, true);
-    return true;
-  };
-
-  Battle.prototype._afterBoardChange = function (board, isPlayer) {
-    var made = board.detectFormations();
-    if (isPlayer) {
-      for (var i = 0; i < made.length; i++) this._grantSkillBox(made[i]);
-      // [APK] ghép 3 -> 50% sinh thêm 1 quân (HeroThreeMergeOneMoreProbability)
-      for (var j = 0; j < made.length; j++) {
-        if (made[j].kind === 'attack' && made[j].size === 3 &&
-            this.rng.chance(CFG.merge.extraUnitChance)) {
-          board.refill(board.rows);
-        }
-      }
-      if (this.isBoss && this.bossCountdown > 0) this.bossCountdown--;
+    var merges = this.board.resolveMerges();
+    this.lastMerges = merges;
+    for (var i = 0; i < merges.length; i++) {
+      var m = merges[i];
+      this._log('gộp ' + m.size + ' → ' + m.name + ' cấp ' + m.grade +
+                (m.extraGrade ? ' (+1 cấp thưởng)' : '') + (m.extraUnit ? ' (+1 quân)' : ''));
+      this._grantSkillBox(m.size);
     }
-    board.refill();
+    // mỗi thao tác đưa đòn của quái tới gần hơn — [APK] boss_forecast_step đếm theo BƯỚC
+    this.foe.countdown = Math.max(0, this.foe.countdown - 1);
+    return true;
   };
 
-  Battle.prototype._grantSkillBox = function (f) {
-    var table = CFG.skillBox[Math.min(5, f.size)] || CFG.skillBox[3];
+  Battle.prototype.deleteAt = function (r, c) {
+    if (!this.canAct()) return false;
+    if (!this.board.get(r, c)) return false;
+    this.board.set(r, c, null);
+    this.movesLeft--;
+    this.foe.countdown = Math.max(0, this.foe.countdown - 1);
+    return true;
+  };
+
+  Battle.prototype._grantSkillBox = function (size) {
+    var table = CFG.skillBox[Math.min(5, size)] || CFG.skillBox[3];
     var key = this.rng.weighted(table);
-    // [APK] SafetySkills — chuỗi xui quá dài thì ép ra kỹ năng bảo hiểm.
     if (key === 'atk' || key === 'charge') this.dryStreak++; else this.dryStreak = 0;
     if (this.dryStreak >= CFG.safetySkillAfterMisses) { key = 'heal'; this.dryStreak = 0; }
     if (this.skills.length >= CFG.retainSkillLimit) this.skills.shift();
     this.skills.push(key);
-    this._log('nhận kỹ năng ' + (DATA.SKILLS[key] ? DATA.SKILLS[key].name : key));
   };
 
   Battle.prototype.useSkill = function (idx) {
@@ -418,122 +339,78 @@
     var key = this.skills[idx];
     if (!key) return false;
     this.skills.splice(idx, 1);
-    var b = this.player;
+    var b = this.board;
     switch (key) {
       case 'atk': this.buffs.atkMul *= 1.25; break;
-      case 'charge': b.tickCharge(1); break;
+      case 'charge': this.foe.countdown = Math.min(this.foe.fuse, this.foe.countdown + 3); break;
       case 'wall':
-        for (var r = 0; r < b.rows; r++) for (var c = 0; c < b.cols; c++) {
-          var u = b.get(r, c);
-          if (u && u.kind === 'wall') { u.hp *= 2; u.maxHp *= 2; }
-        }
+        b.units().forEach(function (u) { u.hp = u.maxHp; });
         break;
-      case 'pierce': this.buffs.pierce = true; break;
+      case 'pierce': this.foe.hp -= Math.round(this.totalPower() * 0.5); break;
       case 'heal':
-        this.playerHp = Math.min(this.playerHpMax, this.playerHp + Math.round(this.playerHpMax * 0.15));
+        this.playerHp = Math.min(this.playerHpMax,
+          this.playerHp + Math.round(this.playerHpMax * 0.15));
         break;
       case 'grade': {
-        var fs = [];
-        for (var r2 = 0; r2 < b.rows; r2++) for (var c2 = 0; c2 < b.cols; c2++) {
-          var v = b.get(r2, c2);
-          if (v && v.kind === 'charging') fs.push(v);
-        }
-        if (fs.length) {
-          var target = this.rng.pick(fs).fid;
-          for (var r3 = 0; r3 < b.rows; r3++) for (var c3 = 0; c3 < b.cols; c3++) {
-            var w = b.get(r3, c3);
-            if (w && w.fid === target) w.grade = (w.grade || 1) * CFG.merge.gradeMul;
-          }
+        var us = b.units();
+        if (us.length) {
+          var t = this.rng.pick(us);
+          t.grade++; applyGrade(t);
         }
         break;
       }
-      case 'jackpot': this.buffs.jackpot = true; break;
+      case 'jackpot': this.buffs.atkMul *= 2; break;
     }
     this._log('dùng ' + (DATA.SKILLS[key] ? DATA.SKILLS[key].name : key));
+    if (this.foe.hp <= 0) { this.over = true; this.won = true; }
     return true;
   };
 
   /*
-   * Bắn toàn bộ đội hình đã nạp xong của `from` sang `to`.
-   * [CoH] fusion (2 đội hình cùng cột) x3; link (>=2 đội hình bắn cùng lượt) x3.3.
+   * Hết bước -> giải quyết lượt:
+   *   quân bắn quái  ->  quái bắn vào cột đã báo  ->  sinh quân mới  ->  lượt kế
    */
-  Battle.prototype._fire = function (from, to, isPlayer) {
-    var ready = from.readyFormations();
-    if (!ready.length) return 0;
-
-    var byCol = {};
-    ready.forEach(function (f) { (byCol[f.col] = byCol[f.col] || []).push(f); });
-
-    var mul = 1;
-    var cols = Object.keys(byCol);
-    var anyFusion = cols.some(function (k) { return byCol[k].length >= 2; });
-    if (anyFusion) mul = CFG.fusionMul;
-    else if (ready.length >= 2) mul = CFG.linkMul;
-
-    if (isPlayer) {
-      mul *= this.buffs.atkMul;
-      if (this.buffs.jackpot) mul *= 2;
-    }
-
-    var total = 0, self = this;
-    cols.forEach(function (k) {
-      var col = parseInt(k, 10);
-      var power = 0;
-      byCol[k].forEach(function (f) { power += f.power; });
-      power = Math.round(power * mul);
-      var res = to.takeHit(col, power, { ignoreWall: isPlayer && self.buffs.pierce });
-      total += res.overflow;
-      byCol[k].forEach(function (f) { from.clearFormation(f.fid); });
-    });
-
-    if (isPlayer) { this.buffs.atkMul = 1; this.buffs.jackpot = false; this.buffs.pierce = false; }
-    from.refill();
-    return total;
-  };
-
   Battle.prototype.endTurn = function () {
-    if (this.over) return;
-    if (this.pickedUp) this.cancelPick();
+    if (this.over) return null;
+    var report = { dealt: 0, taken: 0, killed: 0, foeHit: false, col: this.foe.targetCol };
 
-    // 1. người chơi bắn
-    var dmg = this._fire(this.player, this.enemy, true);
-    if (dmg > 0) {
-      this.enemyHp -= dmg;
-      this._log('bạn gây ' + dmg + ' lên hero địch');
-    }
-    if (this.enemyHp <= 0) { this.over = true; this.won = true; return; }
-
-    // 2. địch đi
-    if (root.SlimeAI) root.SlimeAI.takeTurn(this);
-    var edmg = this._fire(this.enemy, this.player, false);
-    if (edmg > 0) {
-      this.playerHp -= edmg;
-      this._log('địch gây ' + edmg + ' lên bạn');
+    // 1. mọi quân trên sân bắn
+    report.dealt = this.totalPower();
+    this.foe.hp -= report.dealt;
+    this._log('bắn ' + report.dealt + ' vào ' + this.foe.name);
+    this.buffs.atkMul = 1;
+    if (this.foe.hp <= 0) {
+      this.foe.hp = 0;
+      this.over = true; this.won = true;
+      return report;
     }
 
-    // 3. boss đếm ngược
-    if (this.isBoss) {
-      this.bossCountdown--;
-      if (this.bossCountdown <= 0) {
-        this.playerHp -= this.bossHit;
-        this._log('BOSS RA ĐÒN LỚN: -' + this.bossHit);
-        this.bossCountdown = CFG.bossForecastSteps;
-      }
+    // 2. quái đánh trả nếu đã hết ngòi
+    if (this.foe.countdown <= 0) {
+      var res = this.board.hitColumn(this.foe.targetCol, this.foe.atk);
+      report.foeHit = true;
+      report.killed = res.killed;
+      report.taken = res.overflow;
+      this.playerHp -= res.overflow;
+      this._log(this.foe.name + ' đánh cột ' + (this.foe.targetCol + 1) +
+                ': mất ' + res.killed + ' quân, chịu ' + res.overflow + ' sát thương');
+      this.foe.targetCol = this.rng.int(CFG.board.cols);
+      this.foe.countdown = this.foe.fuse;
     }
 
-    if (this.playerHp <= 0) { this.over = true; this.won = false; return; }
+    if (this.playerHp <= 0) { this.playerHp = 0; this.over = true; this.won = false; return report; }
 
-    // 4. sang lượt mới
-    this.player.tickCharge(1);
-    this.enemy.tickCharge(1);
+    // 3. quân mới + sang lượt
+    this.board.spawn(CFG.board.spawnPerTurn);
+    this.board.resolveMerges();
     this.turn++;
     this.movesLeft = CFG.movesPerTurn;
 
-    // [APK] hết ngân sách bước mà chưa hạ được địch = thua.
-    // "Độ khó là bài toán đủ DPS trong 6 bước" — datamine mục 5.
+    // [APK] hết ngân sách lượt mà chưa hạ được quái = thua
     if (this.turn > this.maxTurns) { this.over = true; this.won = false; }
+    return report;
   };
 
-  root.SlimeEngine = { Board: Board, Battle: Battle, RNG: RNG };
+  root.SlimeEngine = { Board: Board, Battle: Battle, RNG: RNG, applyGrade: applyGrade };
   if (typeof module === 'object' && module.exports) module.exports = root.SlimeEngine;
 })(typeof window !== 'undefined' ? window : globalThis);

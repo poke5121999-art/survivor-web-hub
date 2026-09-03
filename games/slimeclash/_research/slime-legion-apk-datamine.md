@@ -365,8 +365,16 @@ hiếm thương mại*, và chúng mâu thuẫn. Đừng ai dùng file này đ�
 | Thứ | Nguồn | Ghi chú |
 |---|---|---|
 | 94 chân dung hero | `Headicon_<bậc>_<id>` trong `ui/avataricon.bytes`, gốc 208×208 | thiếu `122`, `134` |
-| Hoạt ảnh vũ khí | `res/heroes/<id>_<slug>.bytes`, khung `_0.._6`, 256×256 | **không phải nhân vật** — đã thử nhầm |
+| **Nhân vật theo CẤP** | `res/heroes/<id>_<slug>.bytes`, sprite `<slug>_1` … `<slug>_6`, 256×256 | cấp 1→6, càng cao càng nhiều giáp — **đây mới là art chính** |
+| Dạng trứng/sơ khai | cùng file, sprite `<slug>_0` | khung này làm tôi kết luận nhầm cả bộ là "vũ khí", xem ghi chú dưới |
 | Chưa dùng | `res/skillicon` (973), `res/enemyicon` (250), `res/enemies/spines` (308), `res/terrain` (35), `ui/gameplay.bytes`, `res/audios` (525) | |
+
+> **Đính chính.** Bản ghi trước của mục này viết rằng khung `_0.._6` trong `res/heroes`
+> là *hoạt ảnh vũ khí/đạn, không phải nhân vật*. Sai, và sai vì phương pháp: tôi chỉ lấy mẫu
+> **một** khung — khung `_0` — mà khung đó là dạng trứng/sơ khai nên nhìn không ra ai. Khi dump
+> đủ cả bảy khung thì `_1` … `_6` hiện rõ là **cùng một nhân vật ở cấp 1 đến 6**. Đây là bộ art
+> quan trọng nhất trong APK cho một game có cơ chế gộp, và tôi suýt vứt nó đi.
+> Bài học: đừng kết luận về một dải sprite từ một khung của nó.
 
 Chỉ **8/8344** file `.bytes` trong pack bị mã hoá — toàn bộ art đọc được bằng UnityPy,
 không cần khoá XXTEA.

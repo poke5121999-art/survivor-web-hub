@@ -51,16 +51,13 @@
   </section>
 
   <!-- ============ TRẬN ============
-       Bố cục theo HUD thật của Slime Legion, đọc từ ui/gameplay.bytes (GamePlayLayer):
-         Top        : ButtonAccelerate | ButtonPause | ImageSwapBg(Step) | ImageDayBg(Day)
-         TopDay     : ray ngày cuộn ngang, DayItem cho từng ngày
-         giữa       : chiến trường
-         SelfHpNode : thanh máu mình + LordSkillBtnL/R + EnergyBar
-       Khác bản gốc ở chỗ giữa là HAI lưới đối đầu thay cho quái đi bộ xuống thành. -->
+       MỘT con quái, không phải một sân địch. Người chơi có sân; hết bước thì mọi quân
+       trên sân bắn vào quái, rồi quái đánh trả vào một cột đã báo trước.
+       HUD theo GamePlayLayer của Slime Legion (ui/gameplay.bytes). -->
   <section class="screen" id="s-battle">
 
     <div class="hud-top">
-      <button class="hud-btn" id="btn-speed" title="Tăng tốc">⏩<span id="speed-x">1×</span></button>
+      <button class="hud-btn" id="btn-speed" title="Tự sang lượt">⏩<span id="speed-x">AUTO</span></button>
       <button class="hud-btn" id="btn-pause" title="Tạm dừng">⏸</button>
       <span class="spacer"></span>
       <div class="hud-box step" id="box-step"><i>👣</i><b id="hud-step">3</b></div>
@@ -69,18 +66,21 @@
 
     <div class="dayrail" id="dayrail"></div>
 
-    <div class="hpbar foe big"><i id="foe-hp" style="width:100%"></i>
-      <span><b id="foe-name">Địch</b> <em id="foe-hp-txt"></em></span></div>
-    <div class="board foe" id="board-foe"></div>
+    <div class="foepanel">
+      <div class="foe-art" id="foe-art"></div>
+      <div class="foe-info">
+        <div class="foe-head"><b id="foe-name">Quái</b><span id="foe-atk"></span></div>
+        <div class="hpbar foe big"><i id="foe-hp" style="width:100%"></i>
+          <span><em id="foe-hp-txt"></em></span></div>
+        <div class="intent" id="foe-intent"></div>
+      </div>
+    </div>
 
-    <div class="midline" id="mid-note">đòn bay theo cột</div>
+    <div class="midline" id="mid-note">kéo quân · xếp 3 con giống nhau thành hàng để gộp</div>
 
+    <div class="threatbar" id="threatbar"></div>
     <div class="board mine" id="board-mine"></div>
-    <div class="dropbar" id="dropbar"></div>
 
-    <div id="boss-warn"></div>
-
-    <!-- SelfHpNode: máu mình + hai nút kỹ năng hai bên, đúng như LordNode của bản gốc -->
     <div class="selfhp">
       <button class="lordbtn" id="skill-l" disabled>—</button>
       <div class="selfhp-mid">
@@ -95,7 +95,7 @@
       <button class="btn small" id="btn-erase">Xoá quân</button>
       <button class="btn small" id="btn-skills">🎁 <b id="skill-n">0</b></button>
       <span class="spacer"></span>
-      <button class="btn small primary" id="btn-end">Kết thúc lượt</button>
+      <button class="btn small primary" id="btn-end">Đánh</button>
     </div>
   </section>
 
@@ -154,8 +154,8 @@
 <script src="js/config.js"></script>
 <script src="js/roster.js"></script>
 <script src="js/data.js"></script>
+<script src="js/foes.js"></script>
 <script src="js/engine.js"></script>
-<script src="js/ai.js"></script>
 <script src="js/economy.js"></script>
 <script src="js/save.js"></script>
 <script src="js/ui.js"></script>

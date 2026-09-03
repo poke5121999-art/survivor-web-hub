@@ -72,15 +72,17 @@
     };
   }
 
-  // Kỹ năng nhặt trong trận. Khoá khớp bảng trọng số trong CFG.skillBox.
+  /* Kỹ năng nhặt trong trận. Khoá khớp bảng trọng số trong CFG.skillBox, và mô tả
+   * phải khớp ĐÚNG việc Battle.useSkill làm — bản trước còn nói "tường", "đội hình",
+   * "bỏ qua tường địch", đều là chữ của mô hình hai-sân đã bỏ. */
   var SKILLS = {
-    atk:     { name: 'Cường Kích', desc: '+25% sát thương mọi đội hình lượt này', icon: '⚔' },
-    charge:  { name: 'Thúc Trận', desc: 'Giảm 1 lượt nạp cho mọi đội hình', icon: '⏩' },
-    wall:    { name: 'Thành Luỹ', desc: 'Tường của bạn +100% máu', icon: '🧱' },
-    pierce:  { name: 'Xuyên Phá', desc: 'Đòn kế bỏ qua tường địch', icon: '🏹' },
-    heal:    { name: 'Hồi Phục', desc: 'Hồi 15% máu tối đa', icon: '💚' },
-    grade:   { name: 'Thăng Cấp', desc: 'Một đội hình ngẫu nhiên +1 cấp', icon: '⭐' },
-    jackpot: { name: 'Đại Cát', desc: 'Sát thương x2 cho đòn kế tiếp', icon: '🎰' }
+    atk:     { name: 'Cường Kích', desc: '+25% sát thương cho loạt bắn cuối lượt', icon: '⚔' },
+    charge:  { name: 'Hoãn Đòn',  desc: 'Đẩy lùi đòn của quái thêm 3 bước', icon: '⏳' },
+    wall:    { name: 'Thành Luỹ', desc: 'Hồi đầy máu cho mọi quân trên sân', icon: '🧱' },
+    pierce:  { name: 'Xuyên Phá', desc: 'Bắn ngay một đòn bằng 50% lực sân', icon: '🏹' },
+    heal:    { name: 'Hồi Phục', desc: 'Hồi 15% máu tối đa của bạn', icon: '💚' },
+    grade:   { name: 'Thăng Cấp', desc: 'Một quân ngẫu nhiên +1 cấp', icon: '⭐' },
+    jackpot: { name: 'Đại Cát', desc: 'Sát thương x2 cho loạt bắn cuối lượt', icon: '🎰' }
   };
 
   // [APK] DefaultHeroIds = 101|102|104|106
