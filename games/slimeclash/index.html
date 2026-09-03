@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>SlimeClash</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar">
+    <span class="res gold">🪙<b id="r-gold">0</b></span>
+    <span class="res gem">💎<b id="r-gem">0</b></span>
+    <span class="res shard">🧩<b id="r-shard">0</b></span>
+    <span class="res ticket">🎫<b id="r-ticket">0</b></span>
+    <span class="spacer"></span>
+    <span class="chip" id="r-progress">C1 · N1</span>
+  </div>
+
+  <!-- ============ NHÀ ============ -->
+  <section class="screen on" id="s-home">
+    <div class="card">
+      <h2 id="home-title">Chương 1 · Ngày 1</h2>
+      <p class="sub" id="home-sub"></p>
+      <div class="hpbar"><i id="home-prog" style="width:0%"></i></div>
+      <div class="row" style="margin-top:10px">
+        <span class="chip" id="home-cap-gold"></span>
+        <span class="chip" id="home-cap-card"></span>
+      </div>
+    </div>
+
+    <div id="home-offer"></div>
+
+    <button class="btn primary" id="btn-fight">Vào trận</button>
+    <button class="btn" id="btn-deck">Đội hình</button>
+    <button class="btn" id="btn-upgrade">Nâng cấp</button>
+    <button class="btn" id="btn-shop">Cửa hàng</button>
+    <button class="btn ghost small" id="btn-winbox">Rương thắng trận</button>
+
+    <p class="note">
+      Bản dựng lại cho web. Cơ chế lấy từ <b>Slime Legion</b> (ghép ô, tiến trình, kinh tế)
+      và <b>Might &amp; Magic: Clash of Heroes</b> (đội hình dọc, tường ngang, sát thương xuyên tuyến).
+      Mọi gói trong Cửa hàng đều <b>miễn phí</b> — giá gạch ngang chỉ để so độ lớn.
+      Số cân bằng và nguồn: thư mục <code>_research/</code>.
+    </p>
+  </section>
+
+  <!-- ============ TRẬN ============ -->
+  <section class="screen" id="s-battle">
+    <div class="side">
+      <div class="side-label"><span>Địch</span><span id="foe-hp-txt"></span></div>
+      <div class="hpbar foe"><i id="foe-hp" style="width:100%"></i></div>
+    </div>
+    <div class="board foe" id="board-foe"></div>
+
+    <div class="midline" id="mid-note">đòn bay theo cột</div>
+
+    <div class="board mine" id="board-mine"></div>
+    <div class="dropbar" id="dropbar"></div>
+
+    <div class="side" style="margin-top:8px">
+      <div class="side-label"><span>Bạn</span><span id="me-hp-txt"></span></div>
+      <div class="hpbar"><i id="me-hp" style="width:100%"></i></div>
+    </div>
+
+    <div id="boss-warn"></div>
+
+    <div class="movebar">
+      <span>Lượt <b id="turn-no">1</b>/<b id="turn-max">12</b></span>
+      <span class="spacer"></span>
+      <span>Bước:</span>
+      <span class="dot" id="d0"></span><span class="dot" id="d1"></span><span class="dot" id="d2"></span>
+    </div>
+
+    <div class="skills" id="skills"></div>
+
+    <div class="row">
+      <button class="btn small" id="btn-erase">Xoá quân</button>
+      <span class="spacer"></span>
+      <button class="btn small primary" id="btn-end">Kết thúc lượt</button>
+    </div>
+
+    <div class="log" id="log"></div>
+    <button class="btn ghost small" id="btn-flee" style="margin-top:8px">Bỏ trận</button>
+  </section>
+
+  <!-- ============ ĐỘI HÌNH ============ -->
+  <section class="screen" id="s-deck">
+    <h2>Đội hình</h2>
+    <p class="sub">Mang tối đa 5 loại quân. Cần ít nhất 2 loại <b>core</b> để bàn cờ có quân thường mà ghép.</p>
+    <div class="list" id="deck-list"></div>
+    <button class="btn ghost" data-back>Quay lại</button>
+  </section>
+
+  <!-- ============ NÂNG CẤP ============ -->
+  <section class="screen" id="s-upgrade">
+    <h2>Nâng cấp</h2>
+    <p class="sub">
+      Cấp Hero là <b>nguồn sức mạnh vĩnh viễn duy nhất</b>, mua bằng vàng — mà vàng bị chặn bởi
+      trần mỗi chương. Đó là chỗ kinh tế khoá vào độ khó.
+    </p>
+    <div class="card" id="up-hero"></div>
+    <h2 style="margin-top:16px">Quân trong đội hình</h2>
+    <div class="list" id="up-units"></div>
+    <button class="btn ghost" data-back>Quay lại</button>
+  </section>
+
+  <!-- ============ CỬA HÀNG ============ -->
+  <section class="screen" id="s-shop">
+    <h2>Cửa hàng</h2>
+    <p class="sub">
+      Mọi gói <b>miễn phí</b>. Thứ giới hạn là <b>Phiếu Ưu Đãi</b> (🎫), nạp lại mỗi ngày.
+      Vàng và mảnh hero nhận được vẫn phải đi qua trần của chương hiện tại.
+    </p>
+    <div class="list" id="shop-list"></div>
+    <button class="btn ghost" data-back>Quay lại</button>
+  </section>
+
+</div>
+
+<div class="overlay" id="overlay"><div class="dialog" id="dialog"></div></div>
+<div class="toast" id="toast"></div>
+
+<!--
+  Cầu lưu cloud của hub. Mở game ngoài hub thì file này 404, window.HubSave không tồn tại,
+  và save.js tự rơi về localStorage. Xem games/BRIDGE.md.
+-->
+<script src="../../js/supabase-config.js" onerror="void 0"></script>
+<script src="../../js/save-sync.js" onerror="void 0"></script>
+
+<script src="js/config.js"></script>
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/economy.js"></script>
+<script src="js/save.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

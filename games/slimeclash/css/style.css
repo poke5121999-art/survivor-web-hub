@@ -1,0 +1,213 @@
+/* SlimeClash — giao diện dọc, một tay.
+ * Bố cục: lưới địch TRÊN, lưới người chơi DƯỚI (nửa dưới = vùng ngón cái với tới).
+ * Đây đúng là bố cục của bản Clash of Heroes trên Nintendo DS (màn trên = địch,
+ * màn dưới = ta) — xem _research/00-tong-hop-thiet-ke.md mục 3.2. */
+
+:root {
+  --bg: #12141c;
+  --panel: #1b1f2b;
+  --panel2: #232838;
+  --line: #2f364a;
+  --ink: #e8ecf6;
+  --dim: #8c96ae;
+  --gold: #f2c14e;
+  --gem: #5ad2ff;
+  --shard: #c48cff;
+  --ticket: #7ef2a8;
+  --red: #ff6b6b;
+  --danger: #ff4d5e;
+  --u-red: #e8574a;
+  --u-green: #47c26a;
+  --u-blue: #4a90e8;
+  --cell: 46px;
+  --gap: 4px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none; user-select: none;
+}
+
+#app {
+  max-width: 420px; margin: 0 auto; min-height: 100%;
+  display: flex; flex-direction: column;
+}
+
+/* ---------- thanh tài nguyên ---------- */
+.topbar {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  padding: 8px 10px; background: var(--panel); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+.res { display: flex; align-items: center; gap: 4px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.res b { font-weight: 600; }
+.res.gold b { color: var(--gold); }
+.res.gem b { color: var(--gem); }
+.res.shard b { color: var(--shard); }
+.res.ticket b { color: var(--ticket); }
+.spacer { flex: 1; }
+.chip {
+  padding: 2px 8px; border-radius: 999px; background: var(--panel2);
+  border: 1px solid var(--line); font-size: 12px; color: var(--dim);
+}
+
+/* ---------- màn hình ---------- */
+.screen { display: none; padding: 12px; flex: 1; }
+.screen.on { display: block; }
+
+h2 { margin: 0 0 10px; font-size: 17px; }
+.sub { color: var(--dim); font-size: 13px; margin: 0 0 12px; line-height: 1.5; }
+
+.btn {
+  display: block; width: 100%; padding: 13px; margin: 8px 0;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel2); color: var(--ink);
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: #2f6df0; border-color: #2f6df0; }
+.btn.ghost { background: transparent; font-weight: 500; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.small { display: inline-block; width: auto; padding: 7px 12px; font-size: 13px; margin: 0; }
+
+.row { display: flex; gap: 8px; align-items: center; }
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px; margin-bottom: 10px;
+}
+
+/* ---------- bàn cờ ---------- */
+.hpbar {
+  height: 16px; border-radius: 8px; background: var(--panel2);
+  border: 1px solid var(--line); overflow: hidden; position: relative;
+}
+.hpbar > i { display: block; height: 100%; background: linear-gradient(90deg, #3ecf6b, #7ef2a8); }
+.hpbar.foe > i { background: linear-gradient(90deg, #d8483d, #ff8a7a); }
+.hpbar > span {
+  position: absolute; inset: 0; text-align: center; font-size: 11px;
+  line-height: 14px; color: #061018; font-weight: 700;
+}
+
+.side { margin-bottom: 6px; }
+.side-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); margin-bottom: 4px; }
+
+.board {
+  display: grid; gap: var(--gap);
+  grid-template-columns: repeat(6, 1fr);
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: var(--gap);
+}
+.cell {
+  aspect-ratio: 1 / 1; border-radius: 8px;
+  background: #161a24; border: 1px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #0d1017; position: relative;
+}
+.cell.empty { background: #14171f; }
+.u-red { background: var(--u-red); }
+.u-green { background: var(--u-green); }
+.u-blue { background: var(--u-blue); }
+.cell.charging { box-shadow: inset 0 0 0 2px #fff6; }
+.cell.charging::after {
+  content: attr(data-charge); position: absolute; top: 1px; right: 3px;
+  font-size: 10px; color: #fff; text-shadow: 0 1px 2px #000;
+}
+.cell.wall { border-radius: 3px; box-shadow: inset 0 0 0 2px #000a; filter: saturate(.6) brightness(.85); }
+.cell.elite::before, .cell.champion::before {
+  content: '◆'; position: absolute; left: 3px; top: 1px; font-size: 9px; color: #fff;
+}
+.cell.champion::before { content: '★'; }
+.cell.picked { outline: 2px solid #fff; outline-offset: -2px; }
+.cell.hint { border-color: #ffffff66; }
+
+/* vùng chạm nới rộng — [MOB] Material >=48dp, Apple HIG >=44pt */
+.board.mine .cell { cursor: pointer; }
+.board.mine .cell::after { }
+
+.dropbar { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--gap); margin: 6px 0 2px; }
+.dropbar button {
+  padding: 9px 0; border-radius: 8px; border: 1px dashed var(--line);
+  background: #1a2030; color: var(--dim); font-size: 12px; cursor: pointer;
+}
+.dropbar button.on { border-style: solid; border-color: #fff; color: var(--ink); background: #26304a; }
+
+.midline {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  color: var(--dim); font-size: 11px; margin: 8px 0;
+}
+.midline::before, .midline::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
+}
+
+.movebar { display: flex; gap: 6px; align-items: center; font-size: 13px; margin: 8px 0; }
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.dot.on { background: #7ef2a8; }
+
+.skills { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; min-height: 34px; }
+.skill {
+  padding: 6px 9px; border-radius: 8px; background: var(--panel2);
+  border: 1px solid var(--line); font-size: 12px; cursor: pointer;
+}
+.skill:active { background: #33405e; }
+
+.bosswarn {
+  background: #3a1720; border: 1px solid #6b2233; color: #ffb3bd;
+  border-radius: 10px; padding: 8px 10px; font-size: 13px; margin: 8px 0;
+}
+.bosswarn b { color: #fff; }
+
+.log {
+  background: #10131b; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px; height: 76px; overflow-y: auto; font-size: 11px;
+  color: var(--dim); line-height: 1.5;
+}
+
+/* ---------- danh sách / cửa hàng ---------- */
+.list { display: flex; flex-direction: column; gap: 8px; }
+.item {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px;
+}
+.item .grow { flex: 1; min-width: 0; }
+.item .name { font-size: 14px; font-weight: 600; }
+.item .meta { font-size: 12px; color: var(--dim); margin-top: 2px; }
+.tag {
+  display: inline-block; padding: 1px 6px; border-radius: 5px;
+  font-size: 11px; margin-left: 6px; vertical-align: 1px;
+}
+.tag.starter { background: #2b3446; color: #9fb0cc; }
+.tag.common { background: #2f4033; color: #8fd6a3; }
+.tag.rare { background: #2e3550; color: #9db4ff; }
+.tag.epic { background: #43304f; color: #d6a6ff; }
+.price-old { text-decoration: line-through; color: var(--dim); font-size: 12px; }
+.price-free { color: var(--ticket); font-weight: 700; font-size: 13px; margin-left: 6px; }
+
+.offer {
+  background: #22304a; border: 1px solid #3a5686; border-radius: 10px;
+  padding: 10px; margin-bottom: 10px;
+}
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px;
+  background: #0c0f16; border: 1px solid var(--line); color: var(--ink);
+  padding: 9px 14px; border-radius: 999px; font-size: 13px; z-index: 60;
+  opacity: 0; pointer-events: none; transition: opacity .18s; max-width: 90vw; text-align: center;
+}
+.toast.on { opacity: 1; }
+
+.overlay {
+  position: fixed; inset: 0; background: #0a0c12e0; z-index: 50;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.overlay.on { display: flex; }
+.dialog {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 18px; max-width: 340px; width: 100%;
+}
+.dialog h3 { margin: 0 0 8px; font-size: 18px; }
+.note { font-size: 11px; color: var(--dim); line-height: 1.6; margin-top: 10px; }

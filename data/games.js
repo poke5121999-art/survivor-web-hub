@@ -386,5 +386,42 @@ window.HUB_GAMES = [
     // Checks: node games/orbit/tools/smoke.js
     status: "available",
     tags: ["Dây chuyền", "Dựng thử", "Màn dọc", "Một tay"]
+  },
+  {
+    id: "slimeclash",
+    title: "SlimeClash",
+    tagline: "Ghép ô theo lượt trên hai lưới 6×6 xếp chồng dọc. Ba bước mỗi lượt: xếp 3 quân cùng màu theo cột thành đội hình tấn công, theo hàng thành tường. Đòn bay thẳng theo cột, xuyên qua từng quân rồi mới tới hero địch. Mười ngày một chương, boss ở ngày 5 và ngày 10 — và nó báo trước đúng 10 bước. Thắng thua nằm ở chỗ có đủ sát thương trong ngần ấy lượt hay không, chứ không ở chỗ né được hay không.",
+    thumbnail: "assets/thumbnails/slimeclash.svg",
+    path: "games/slimeclash/index.html",
+    // Ghép cơ chế của hai game: tiến trình + kinh tế của Slime Legion (Perfeggs, 2023),
+    // chiến đấu lưới của Might & Magic: Clash of Heroes (Capybara/Ubisoft, 2009).
+    // Bỏ hẳn pha thủ thành auto-battle của Slime Legion, thay bằng trận theo lượt.
+    //
+    // SỐ CÂN BẰNG LÀ SỐ ĐO THẬT, không phải phỏng đoán: mổ APK Slime Legion 4.5.0 rồi đọc
+    // ba bộ cấu hình quên mã hoá (config_t1, config_t3, dungeon, elitechapter). Từ đó ra:
+    // lưới 6x6 (BoardInitColumnCount/RowCount), ngân sách bước 10/10/6 mỗi ngày, máu quái
+    // x1.15/ngày nhưng sát thương quái KHÔNG tăng (attack_ratio = 1), trần giảm sát thương
+    // 80%, boss báo trước 10 bước (boss_forecast_step), máu thành 1000 bất biến ở cả 1744
+    // dòng cấu hình ải, trần vàng/mảnh theo chương (coin_max 220->1800, hero_card_max
+    // 25/35/45), bảng trọng số rơi hộp kỹ năng, và 59 hero kèm id + tên.
+    // Ghi chép đầy đủ kèm cách lấy: games/slimeclash/_research/ (12 tài liệu).
+    //
+    // CHƯA LẤY ĐƯỢC: chỉ số gốc từng hero, giá nâng cấp, tỉ lệ gacha, stamina — nằm trong
+    // config/table.bytes mã hoá XXTEA, khoá chưa dò ra (đã vét literal C#, metadata IL2CPP,
+    // mọi section của libil2cpp.so, 12 thư viện .so khác, 9 file DEX). Bốn agent research
+    // wiki xác nhận các số này KHÔNG tồn tại ở bất kỳ nguồn công khai nào. Nên chỉ số quân
+    // trong js/data.js dựng theo thang 38 unit của Clash of Heroes, và header file đó GHI RÕ
+    // rằng đấy không phải số của Slime Legion — đừng ai đọc nhầm.
+    //
+    // IAP: giữ nguyên bộ máy gói nạp kích-theo-hành-vi của bản gốc (gói tân thủ, gói sau 3
+    // lần thua, gói khi thiếu vàng) nhưng mua đều MIỄN PHÍ. Bỏ giá đi thì cooldown một mình
+    // cho phép ~276 lượt mở gói/ngày và game sụp trong một buổi chiều, nên phần thưởng đi
+    // qua đúng trần chương của bản gốc, cộng ngân sách "Phiếu Ưu Đãi" 8/ngày và trần kim
+    // cương 180/ngày. Lý lẽ đầy đủ: _research/economy-design.md.
+    //
+    // Kiểm: node games/slimeclash/_test/sim.js — bot đấu bot, kiểm bất biến bàn cờ, đo nhịp
+    // trận (7-10 lượt ~ 2.0-2.8 phút) và kiểm các trần kinh tế có thủng không.
+    status: "available",
+    tags: ["Ghép ô", "Theo lượt", "Màn dọc", "Một tay", "Chiến thuật"]
   }
 ];
