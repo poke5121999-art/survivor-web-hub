@@ -1206,6 +1206,16 @@ async function skillEffectSuite(b) {
   // Dựng lại bàn cờ trước mỗi phép đo: dọn quái, đặt lại người chơi giữa phòng.
   const setup = () => p.evaluate(() => {
     const S = REPO.S, pl = S.player;
+    // HUỶ CẮT CẢNH TRƯỚC ĐÃ, và bật lại cờ chạy.
+    //
+    // step() bị chặn HOÀN TOÀN khi S.cut còn (xem frameStep: `if (S.running && !S.dead && !S.cut)`),
+    // nên nếu một ca phía trên vừa để lại một đoạn cắt cảnh — xe tải tới, xe tải đi, đổi màn — thì
+    // cả cụm đo dưới đây chạy trên một thế giới ĐỨNG HÌNH. Triệu chứng của nó là hai ca kỹ năng
+    // xanh-đỏ thất thường: cả vế đối chứng lẫn vế có kỹ năng đều đọc ra 0 máu, và 0 == 0 thì bộ đo
+    // không chứng minh được gì cả — đúng cái bẫy chú thích ở putFoes đã cảnh báo, chỉ đến từ một
+    // hướng khác. Đây là lý do hai ca ấy đỏ khoảng một lần trong ba lần chạy.
+    REPO.cancelCut();
+    S.running = true;
     // Gửi tổ ba người về xe tải và cho đứng đó. Từ bản này đồng đội biết lái xe máy và húc
     // quái (BIKE_RAM_KNOCK = 430, gần 18 ô/giây), nên một con bot chạy ngang qua là đủ thổi
     // bay con quái đang đo hoặc giết luôn con ma gương — phép đo đỏ vì một thứ không liên
@@ -1297,42 +1307,104 @@ async function skillEffectSuite(b) {
   // ---- 4. Tàng Hình: quái không thấy -> không mất máu ----
   // Ghim quái sát người chơi MỖI KHUNG HÌNH trong lúc đo: quái phải thật sự ở trong
   // tầm đánh (22px) thì con số mất máu mới có nghĩa.
-  const doMau = () => p.evaluate(async () => {
+  // CỬA SỔ ĐO PHẢI DÀI HƠN THÌ VUNG TAY.
+  //
+  // Từ 2026-09-03 không con quái nào đánh trúng ở đúng khung hình nó chạm vào người chơi nữa: nó
+  // đứng khựng lại vung tay d.wind giây trước đã (Kẻ bám 0.52s), rồi mới kiểm xem còn trong tầm
+  // không. Cửa sổ 1800ms cũ đủ cho luật cũ — trừ máu ngay khung hình đầu — nhưng nằm sát ranh với
+  // luật mới, và ca ĐỐI CHỨNG đọc ra 0 máu. Cả hai ca kỹ năng khi đó xanh vì cả hai vế đều bằng 0,
+  // tức là xanh mà không chứng minh được gì; đúng cái bẫy mà chú thích ở putFoes đã cảnh báo.
+  //
+  // 3200ms là chỗ cho ít nhất hai đòn trọn vẹn của con chậm tay nhất trong bảng.
+  const DO_MAU_MS = 3200;
+  // Ca ĐỐI CHỨNG chờ tới khi THẬT SỰ dính đòn, không đo theo cửa sổ cố định.
+  //
+  // Nó phải trả lời đúng một câu — 'không bấm kỹ năng thì có mất máu không' — và câu đó không có
+  // hạn chót nào cả. Đo bằng cửa sổ cố định thì nó lẫn thêm một câu thứ hai, 'mất máu trong bao
+  // lâu', mà câu ấy phụ thuộc vào tốc độ trang chạy bộ kiểm: đo được nhịp ghim chỉ chạy 44 lần
+  // trong 3200ms (~14Hz thay vì 62Hz) khi máy đang gánh nhiều trang cùng lúc, và với thì vung
+  // 0.52s của Kẻ bám thì chừng ấy nhịp không đủ cho một đòn trọn vẹn. Ca kỹ năng thì vẫn đo theo
+  // cửa sổ cố định, vì câu của nó ĐÚNG LÀ 'trong ngần này giây có mất điểm nào không'.
+  const DO_MAU_CHO_MS = 9000;
+  const doMau = (choDinhDon) => p.evaluate(async ({ ms, cho }) => {
     const S = REPO.S, pl = S.player;
     // Cộng dồn từng lần máu TỤT, chứ không lấy hiệu đầu-cuối. Đổi tướng dẫn đoàn có thể kéo
     // theo một nhịp đồng bộ lại chỉ số làm máu nhảy LÊN giữa lúc đo, và một phép đo đầu-cuối
     // sẽ đọc ra số âm rồi báo hỏng vì một lý do không liên quan gì tới tàng hình.
     let mat = 0, truoc = pl.hp;
+    let vung = 0, canNhat = 1e9, alertMax = 0, nFoe = 0, cut = 0, chay = 0, tgt = '?';
     const iv = setInterval(() => {
       if (pl.hp < truoc) mat += truoc - pl.hp;
       truoc = pl.hp;
+      nFoe = S.monsters.length; if (S.cut) cut++; if (S.running) chay++;
+      // GIỮ CỜ CHẠY SUỐT CỬA SỔ ĐO. Chẩn đoán bắt được: trong 3200ms chỉ có 33 trên 200 nhịp là
+      // S.running còn bật — thế giới đứng hình 84% thời gian, nên cú vung tay khơi mào rồi mà không
+      // bao giờ hoàn tất, và ca ĐỐI CHỨNG đọc ra 0 máu. Một thứ nào đó phía trên trong bộ kiểm (mở
+      // tủ đồ, mở sổ tay) tắt cờ này và không phải lúc nào cũng bật lại kịp. Ghim nó ở đây cùng chỗ
+      // đang ghim vị trí quái: cả hai đều là 'giữ nguyên sân đo', không phải sửa cái đang đo.
+      S.running = true; S.cut = null;
+      // ĐẨY ĐỒNG ĐỘI RA XA NGƯỜI CHƠI trong lúc đo.
+      //
+      // Con quái nhắm vào foeTarget(m), và cái đó CÓ THỂ chọn một người trong tổ chứ không nhất
+      // thiết là người chơi. setup() dồn cả tổ về chỗ xe tải — mà người chơi cũng bắt đầu ở ngay
+      // đó, nên ba con quái được ghim quanh người chơi lại đứng cạnh cả tổ, và cú đánh giáng vào
+      // một đồng đội. Máu người chơi không tụt một điểm nào, ca ĐỐI CHỨNG đọc ra 0, và hai ca kỹ
+      // năng xanh-đỏ thất thường tuỳ ai đứng gần hơn nửa pixel.
+      //
+      // Luật cũ giấu chuyện này: nó trừ máu ngay khung hình đầu tiên lọt vào tầm, nên mục tiêu bị
+      // bốc lại mỗi khung và người chơi vẫn dính vài cú. Luật mới chốt mục tiêu ở cuối thì vung,
+      // nên bốc trúng đồng đội một lần là mất nguyên cú đó.
+      (S.mates || []).forEach(a => { a.x = pl.x + 3000; a.y = pl.y + 3000; });
+      tgt = (S.monsters[0] && S.monsters[0].target === pl) ? 'player'
+          : (S.monsters[0] && S.monsters[0].target) ? 'mate' : 'none';
       S.monsters.forEach((m, i) => {
         const a = i / S.monsters.length * Math.PI * 2;
         m.x = pl.x + Math.cos(a) * 14; m.y = pl.y + Math.sin(a) * 14;
+        // GHIM CẢ CÚ HẤT, không chỉ ghim toạ độ.
+        //
+        // Từ 2026-09-03 một đòn cần con quái Ở TRONG TẦM SUỐT cả thì vung (Kẻ bám 0.52s), chứ không
+        // còn là trúng ngay khung hình đầu tiên nó chạm tới. Ghim toạ độ mỗi 16ms là đủ cho luật cũ
+        // — một khung hình trong tầm là xong — nhưng KHÔNG đủ cho luật mới: bất cứ thứ gì hất con
+        // quái ra giữa chừng (cú hất của nút Đẩy, cái Lồng Sắt mà ca ngay phía trên vừa dựng, lực
+        // tách thân giữa ba con) đều làm cú vung hụt, và ca ĐỐI CHỨNG đọc ra 0 máu. Đó là chỗ hai
+        // ca kỹ năng đỏ khoảng một lần trong ba lần chạy: 0 == 0 thì không chứng minh được gì.
+        m.kx = 0; m.ky = 0; m.stun = 0;
+        if ((m.swing || 0) > 0) vung++;
+        alertMax = Math.max(alertMax, m.alert || 0);
+        canNhat = Math.min(canNhat, Math.hypot(m.x - pl.x, m.y - pl.y));
         // KHONG ep alert/state o day: de bo may tu quyet dinh no con thay minh khong.
         // Ep vao la tu tay xoa mat dieu dang can do.
       });
     }, 16);
-    await new Promise(r => setTimeout(r, 1800));
+    if (cho){
+      const han = performance.now() + ms;
+      while (performance.now() < han && mat === 0) await new Promise(r => setTimeout(r, 40));
+    } else {
+      await new Promise(r => setTimeout(r, ms));
+    }
     clearInterval(iv);
     if (pl.hp < truoc) mat += truoc - pl.hp;
-    return mat;
-  });
+    return { mat, vung, nFoe, cut, chay, tgt, alertMax:+alertMax.toFixed(1),
+             canNhat: canNhat === 1e9 ? null : Math.round(canNhat),
+             invuln: +(pl.invulnT||0).toFixed(1), invis: +(pl.invisT||0).toFixed(1) };
+  }, { ms: choDinhDon ? DO_MAU_CHO_MS : DO_MAU_MS, cho: !!choDinhDon });
   await setup(); await putFoes(3, 1.2);
-  const mauChuan = await doMau();
+  const chuan = await doMau(true); const mauChuan = chuan.mat;
   await setup(); await putFoes(3, 1.2);
   await useLead('linh');
-  const mauTangHinh = await doMau();
+  const tang = await doMau(); const mauTangHinh = tang.mat;
   check('Tàng Hình: quái không đánh trúng nữa', mauChuan > 0 && mauTangHinh === 0,
-    'không bấm mất ' + mauChuan + ' máu · có bấm mất ' + mauTangHinh);
+    'không bấm mất ' + mauChuan + ' máu · có bấm mất ' + mauTangHinh +
+    ' · đối chứng: ' + JSON.stringify(chuan));
 
   // ---- 5. Thiên Thần: cả tổ thật sự không chết được ----
   await setup(); await putFoes(3, 1.2);
   await useLead('tuyet');
-  const batTu = await doMau();
+  const tt = await doMau(); const batTu = tt.mat;
   const guc = await p.evaluate(() => REPO.S.player.down);
   check('Thiên Thần: không mất một máu nào', mauChuan > 0 && batTu === 0 && !guc,
-    'đối chứng mất ' + mauChuan + ' · có bấm mất ' + batTu + (guc ? ', vẫn gục' : ''));
+    'đối chứng mất ' + mauChuan + ' · có bấm mất ' + batTu + (guc ? ', vẫn gục' : '') +
+    ' · đối chứng: ' + JSON.stringify(chuan));
 
   // ---- 6. Mở Toang: cửa KHOÁ phải bung ----
   // Dời người chơi tới CỬA chứ không trông chờ nhà tự sinh ra cửa ở gần: bố cục nhà
@@ -1868,6 +1940,128 @@ async function escapeSuite(b) {
 }
 
 // =====================================================================
+// KHÔNG CÓ ĐÒN NÀO GIÁNG NGAY LÚC CHẠM.
+//
+// Chủ dự án, 2026-09-03: "không có con quái nào khi chạm vào sẽ gây sát thương ngay lập tức mà
+// chúng sẽ cần anim dùng tay đánh hay cắn để user còn có đường né, chạy" — vì "cảm giác cứ ủn vào
+// là đau rất khó chịu". Và: "quái sau 1 lúc dí chạy phải mệt, ngu đi để user còn chạy thoát".
+//
+// Bộ này đo ba thứ, và cả ba đều HỎNG trên mã trước bản vá:
+//   1. giữa lúc con quái bắt đầu vung và lúc máu tụt phải có một quãng thời gian THẬT;
+//   2. lùi ra trong quãng đó thì không mất một điểm máu nào — nếu không thì cái quãng ấy chỉ là
+//      hiệu ứng, không phải một đường thoát;
+//   3. Bom con không được đánh ai, nó tự nổ.
+async function meleeSuite(b) {
+  results.push('\n── đòn đánh phải báo trước, và đuổi lâu thì mệt ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+  // Dựng sân đo: một ván sạch, không đồng đội, không cắt cảnh. cancelCut() là bắt buộc —
+  // step() bị chặn hoàn toàn khi S.cut còn, nên thiếu dòng này thì mọi con số đọc ra đều là 0
+  // và bộ đo sẽ báo xanh cho một thế giới đang đứng hình.
+  const san = () => p.evaluate(() => {
+    REPO.S.level = 1; REPO.startLevel(1234); REPO.S.running = true; REPO.cancelCut();
+    REPO.S.monsters.length = 0;
+    (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
+    REPO.S.player.hp = REPO.S.player.hpMax; REPO.S.hurtLog = [];
+    REPO.S.noiseOverride = 0;
+  });
+
+  // --- 1. mỗi loài phải có quãng báo trước ---
+  for (const loai of ['patrol', 'stalk', 'heavy']) {
+    await san();
+    const r = await p.evaluate(async (t) => {
+      REPO.spawnFoe(t, 20, 0);
+      const pl = REPO.S.player, bd = performance.now();
+      let tVung = null, tDon = null;
+      const iv = setInterval(() => {
+        const m = REPO.S.monsters.find(q => q.type === t); if (!m) return;
+        m.alert = 9;
+        if (tVung === null && (m.swing || 0) > 0) tVung = performance.now();
+        if (tDon === null && REPO.S.hurtLog.some(x => x.src === t)) tDon = performance.now();
+      }, 8);
+      await new Promise(r => setTimeout(r, 3000));
+      clearInterval(iv);
+      return { bao: (tVung !== null && tDon !== null) ? +((tDon - tVung) / 1000).toFixed(2) : null,
+               wind: REPO.MONSTERS[t].wind, don: REPO.S.hurtLog.filter(x => x.src === t).length };
+    }, loai);
+    check(loai + ': có vung tay rồi mới trúng, không trúng ngay lúc chạm',
+      r.don > 0 && r.bao !== null && r.bao >= r.wind * 0.6,
+      'báo trước ' + r.bao + 's / thì vung ' + r.wind + 's, ' + r.don + ' đòn');
+  }
+
+  // --- 2. lùi ra trong lúc nó vung thì không mất máu ---
+  await san();
+  const ne = await p.evaluate(async () => {
+    REPO.spawnFoe('heavy', 20, 0);
+    const pl = REPO.S.player;
+    const iv = setInterval(() => {
+      const m = REPO.S.monsters.find(q => q.type === 'heavy'); if (!m) return;
+      m.alert = 9;
+      if ((m.swing || 0) > 0) {                       // nó vừa ngoác tay: LÙI RA
+        const a = Math.atan2(pl.y - m.y, pl.x - m.x);
+        pl.x = m.x + Math.cos(a) * 40; pl.y = m.y + Math.sin(a) * 40;
+      }
+    }, 8);
+    await new Promise(r => setTimeout(r, 3200));
+    clearInterval(iv);
+    return Math.round(pl.hpMax - pl.hp);
+  });
+  check('lùi ra lúc nó vung thì không mất một điểm máu nào', ne === 0, ne + ' máu');
+
+  // --- 3. Bom con: không đánh, chỉ tự nổ ---
+  await san();
+  const bom = await p.evaluate(async () => {
+    REPO.spawnFoe('banger', 20, 0);
+    const iv = setInterval(() => {
+      const m = REPO.S.monsters.find(q => q.type === 'banger'); if (m) m.alert = 9; }, 16);
+    await new Promise(r => setTimeout(r, 4500));
+    clearInterval(iv);
+    return { canChien: REPO.S.hurtLog.filter(x => x.src === 'banger').length,
+             no: REPO.S.hurtLog.filter(x => x.src === 'bomb').length,
+             conSong: !!REPO.S.monsters.find(q => q.type === 'banger'),
+             speed: REPO.MONSTERS.banger.speed,
+             nhanhHonNguoi: REPO.MONSTERS.banger.speed >= Math.round(REPO.playerSpeed(REPO.S.player)) };
+  });
+  check('Bom con không vung tay vào ai bao giờ', bom.canChien === 0, bom.canChien + ' cú');
+  check('mà nó tự nổ và tự chết', bom.no > 0 && !bom.conSong,
+    bom.no + ' vụ nổ, ' + (bom.conSong ? 'vẫn còn sống' : 'đã tự huỷ'));
+  check('và nó chậm hơn người chơi, nên chạy là thoát được',
+    !bom.nhanhHonNguoi, 'quái ' + bom.speed);
+
+  // --- 4. đuổi lâu thì mệt ---
+  await san();
+  const met = await p.evaluate(async () => {
+    REPO.S.noiseOverride = 2.6;
+    REPO.spawnFoe('patrol', 200, 0);
+    const mau = [];
+    const iv = setInterval(() => {
+      const m = REPO.S.monsters.find(q => q.type === 'patrol'); if (!m) return;
+      m.alert = 9;
+      mau.push({ t: +(m.chaseT || 0).toFixed(1), met: +(m.tired || 0).toFixed(2) });
+    }, 200);
+    await new Promise(r => setTimeout(r, 11000));
+    clearInterval(iv);
+    REPO.S.noiseOverride = null;
+    const dau = mau.find(x => x.t >= 1 && x.t <= 2), cuoi = mau[mau.length - 1];
+    return { dau, cuoi };
+  });
+  check('đuổi một lúc thì quái ĐUỐI, không giữ nguyên sức mãi',
+    met.dau && met.cuoi && met.dau.met === 0 && met.cuoi.met > 0.7,
+    'giây ' + (met.dau && met.dau.t) + ' mệt ' + (met.dau && met.dau.met) +
+    ' -> giây ' + (met.cuoi && met.cuoi.t) + ' mệt ' + (met.cuoi && met.cuoi.met));
+
+  await p.evaluate(() => { REPO.S.noiseOverride = null; });
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đòn đánh: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 // ĐÈN PIN CHIẾU LÊN TƯỜNG.
 //
 // Đa giác tầm nhìn dựng từ các GÓC của vật cản nên biên của nó nằm đúng trên MẶT tường, và ô
@@ -2162,6 +2356,7 @@ async function lightSuite(_khongDung) {
   try { await metaRulesSuite(b); } catch (e) { check('sổ sách & luật ván: bộ test chạy trọn', false, e.message); }
   try { await wikiSuite(b); } catch (e) { check('sổ tay: bộ test chạy trọn', false, e.message); }
   try { await escapeSuite(b); } catch (e) { check('pha chạy: bộ test chạy trọn', false, e.message); }
+  try { await meleeSuite(b); } catch (e) { check('đòn đánh: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));

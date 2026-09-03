@@ -946,15 +946,15 @@ const MONSTERS = {
   // cai cam giac "co thu gi do dang di lai trong nay". Sat thuong sung duoc keo len MANH
   // HON ti le nay (xem SUNG ben duoi), nen thoi gian ha mot con KHONG dai ra - chi la moi
   // phat ban gio dang mot phat ban.
-  patrol:  { name:'Kẻ đi tuần', hp: 85,  dmg:10,  cd:0.9, speed: 58, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad',
+  patrol:  { name:'Kẻ đi tuần', hp: 85,  dmg:10,  cd:0.9, speed: 58, wind:0.42, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad',
              wiki:'Nhìn bằng mắt, ĐIẾC ĐẶC. Chạy ầm ầm sau lưng nó cũng không sao — nhưng đi vào nón nhìn thì nó thấy ngay. Nấp sau tường là xong chuyện.' },
-  listen:  { name:'Kẻ nghe',    hp:150,  dmg:32,  cd:1.6, speed: 74, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6',
+  listen:  { name:'Kẻ nghe',    hp:150,  dmg:32,  cd:1.6, speed: 74, wind:0.58, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6',
              wiki:'MÙ hẳn, nhưng nghe rất xa. Vòng nghe vẽ đúng bằng tiếng bạn đang gây ra: đứng yên thì vòng co lại gần bằng không. Rón rén đi ngang mặt nó vẫn thoát.' },
-  stalk:   { name:'Kẻ bám',     hp:130,  dmg:30,  cd:1.1, speed: 66, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6',
+  stalk:   { name:'Kẻ bám',     hp:130,  dmg:30,  cd:1.1, speed: 66, wind:0.52, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6',
              wiki:'Mắt xa nhất nhà và đi nhanh. Mất dấu thì nó không về chỗ cũ mà dời sang một phòng gần bạn — nên chỗ vừa cắt đuôi nó không còn an toàn nữa.' },
-  bomber:  { name:'Kẻ nổ',      hp: 60,  dmg:14,  cd:0.9, speed: 62, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8',
+  bomber:  { name:'Kẻ nổ',      hp: 60,  dmg:14,  cd:0.9, speed: 62, wind:0.46, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8',
              wiki:'Ít máu nhất, nhưng CHẾT LÀ NỔ. Đừng hạ nó khi đang ôm đồ hoặc đứng cạnh xe đẩy — vụ nổ làm vỡ hàng, và tiền vỡ thì không lấy lại được.' },
-  heavy:   { name:'Kẻ nặng',    hp:620,  dmg:100, cd:1.8, speed: 40, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8',
+  heavy:   { name:'Kẻ nặng',    hp:620,  dmg:100, cd:1.8, speed: 40, wind:0.90, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8',
              wiki:'Sáu trăm máu và một đòn gần trăm sát thương. Bù lại nó CHẬM: chạy là thoát, đánh là thua. Không có món nào trong tủ đáng đổi lấy việc đứng lại với nó.' },
   // Kẻ húc. It does not chase and it does not touch you while walking: its whole threat is one
   // straight line, announced three seconds before it is fired. Everything about it is built so the
@@ -979,14 +979,14 @@ const MONSTERS = {
   // BOM CON. Thấy người là châm ngòi, và ngòi đã cháy thì KHÔNG tắt được — nó lao theo bạn với
   // một cái đồng hồ trên đầu. Đánh chết trước khi ngòi cháy hết thì nổ nhỏ, nên vụt cho nó bay
   // ra xa rồi mới giết là nước đi đúng. Vụ nổ làm vỡ đồ và kích luôn con bom bên cạnh.
-  banger:  { name:'Bom con',    hp: 26,  dmg: 0,  cd:0.9, speed: 84, sight:6.0, hear:4.5, col:'#6a4630', eye:'#ff9a3c', rim:'#f0c090',
-             pack:4, noLoot:true, knockMul:3.4,
-             wiki:'Đi bốn con một đàn. Thấy người là CHÂM NGÒI, và ngòi cháy rồi thì không tắt được — câu hỏi đổi từ giết nó thế nào sang giết nó Ở ĐÂU. Một cú vụt hất nó bay rất xa; đẩy ra chỗ trống rồi hạ.' },
+  banger:  { name:'Bom con',    hp: 26,  dmg: 0,  cd:0.9, speed: 54, sight:6.0, hear:4.5, col:'#6a4630', eye:'#ff9a3c', rim:'#f0c090',
+             pack:4, noLoot:true, knockMul:3.4, noMelee:true, body:6, tire:false,
+             wiki:'Đi bốn con một đàn và KHÔNG đánh ai bao giờ. Thấy người là châm ngòi, áp được vào người thì cắm chân xuống đếm nốt ba phần tư giây rồi tự nổ. Nó chậm hơn bạn nhiều — chạy là thoát. Một cú vụt hất nó bay rất xa; đẩy ra chỗ trống rồi hạ.' },
   // GNOME. Không giết được ai, nhưng chuyên đập vào món bạn đang ôm — mối đe doạ của nó là VÍ
   // TIỀN chứ không phải thanh máu. Chạy tới giẫm lên là chết, nên cái giá của chúng là bạn
   // phải liên tục di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.
-  gnome:   { name:'Gnome',      hp: 18,  dmg: 5,  cd:0.7, speed: 88, sight:7.0, hear:5.0, col:'#5a4a6a', eye:'#8cf0a0', rim:'#cfe6d6',
-             pack:3, noLoot:true, knockMul:3.4, lootDmg:9, stomp:true,
+  gnome:   { name:'Gnome',      hp: 18,  dmg: 5,  cd:0.7, speed: 76, sight:7.0, hear:5.0, col:'#5a4a6a', eye:'#8cf0a0', rim:'#cfe6d6',
+             pack:3, noLoot:true, knockMul:3.4, lootDmg:9, stomp:true, wind:0.34, body:6,
              wiki:'Ba con một đàn, gần như không làm bạn đau — nhưng cái búa của nó nhắm vào MÓN BẠN ĐANG ÔM. Chạy tới giẫm lên là chết, nên cái giá của chúng là bạn phải liên tục di chuyển.' }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
@@ -1054,10 +1054,12 @@ const FOE_SEP_PUSH = 26;     // px/s of drift out of an overlap - a third of wal
 // and next frame there is nothing left to correct.
 const FOE_BODY = 9;          // the radius every monster already moves with
 
+function foeBody(m){ const d = MONSTERS[m.type]; return (d && d.body) || FOE_BODY; }
 function separateFoes(){
-  const ms = S.monsters, want = FOE_BODY*2;
+  const ms = S.monsters;
   for (let i=0; i<ms.length; i++) for (let j=i+1; j<ms.length; j++){
     const a = ms[i], b = ms[j];
+    const want = foeBody(a) + foeBody(b);      // hai thân, mỗi thân bán kính của chính loài nó
     // A rook mid-dash cannot steer and does not stop for bodies - it rams them. Nudging it here
     // would bend the one straight line its whole design is built on.
     if (a.rook === 'dash' || b.rook === 'dash') continue;
@@ -1065,8 +1067,8 @@ function separateFoes(){
     if (d >= want) continue;
     if (d < 0.01){ dx = (i & 1) ? 1 : 0; dy = (i & 1) ? 0 : 1; d = 1; }
     const push = (want-d)*0.5, ux = dx/d*push, uy = dy/d*push;
-    moveEnt(a, -ux, -uy, FOE_BODY);
-    moveEnt(b,  ux,  uy, FOE_BODY);
+    moveEnt(a, -ux, -uy, foeBody(a));
+    moveEnt(b,  ux,  uy, foeBody(b));
   }
 }
 
@@ -1095,6 +1097,38 @@ function foeSeparation(m){
 // from a walkover to a coin flip. It is a nudge toward the player's half of the map, not a spawn.
 // Strictly inside the 22 px a monster must be within to strike — see the note at the shove itself.
 const PUSH_R = 20;
+// TẦM ĐÁNH và HAI THÌ CỦA MỘT CÚ ĐÁNH. Xem chú thích dài ở chỗ dùng, trong stepMonsters.
+const FOE_REACH = 22;        // tầm khơi mào một cú vung
+const FOE_WHIFF = 1.30;      // tầm kiểm lúc đòn giáng: rộng hơn, nên phải lùi hẳn một bước mới né
+const FOE_WIND  = 0.45;      // thì vung mặc định, giây — bảng MONSTERS đè lên bằng `wind`
+
+// ĐUỔI LÂU THÌ MỆT, VÀ NGU ĐI — chủ dự án, 2026-09-03: "quái sau 1 lúc dí chạy phải mệt, ngu đi
+// để user còn chạy thoát".
+//
+// Trước bản này một cuộc đuổi không có hồi kết theo bất cứ nghĩa nào: chừng nào còn thấy hoặc còn
+// nghe được bạn thì m.alert được nạp lại 2.6 giây MỖI KHUNG HÌNH, tốc độ giữ nguyên nhân 1.25, và
+// m.tx/m.ty bám đúng chỗ bạn đứng. Cắt đuôi chỉ xảy ra khi bạn khuất hẳn tầm — mà trong một căn nhà
+// mở thì điều đó hiếm. Kết quả là chạy không thoát, và người chơi không có lựa chọn nào ngoài đánh.
+//
+// Ba nấc, và cả ba đều nhìn thấy được chứ không phải một con số giấu trong máy:
+//   1. Hai giây rưỡi đầu nó chạy hết sức, y như cũ — một cuộc rượt phải đáng sợ ở đoạn đầu.
+//   2. Từ đó tới FOE_TIRE_FULL nó ĐUỐI DẦN: tốc độ tụt về FOE_TIRE_SPD, và nó NGU ĐI theo đúng
+//      nghĩa cơ học — chỗ nó nhắm tới thôi cập nhật mỗi khung hình mà chỉ làm mới mỗi FOE_TIRE_LAG
+//      giây, nên nó chạy về chỗ bạn VỪA Ở chứ không phải chỗ bạn đang ở, và cắt cua thì trượt ra
+//      ngoài. Đây là chỗ 'ngu đi' rẻ nhất và đọc ra rõ nhất: nó vẫn lao, chỉ là lao trượt.
+//   3. Quá FOE_GIVEUP giây liền thì nó BỎ CUỘC hẳn: alert về 0, quay lại đi tuần, và phải nghỉ
+//      FOE_REST giây mới đuổi hết sức lại được. Không có nấc này thì nấc 2 chỉ là giảm tốc vĩnh
+//      viễn, và con quái vẫn lẽo đẽo sau lưng bạn suốt cả ván.
+//
+// Kẻ húc có cái đầu riêng và Bom con thì cả đời chỉ sống được vài giây (`tire:false`), nên cả hai
+// đứng ngoài luật này.
+const FOE_TIRE_AFTER = 2.5;  // giây chạy hết sức trước khi bắt đầu đuối
+const FOE_TIRE_FULL  = 8.0;  // tới đây là mệt hết cỡ
+const FOE_TIRE_SPD   = 0.60; // hệ số tốc độ lúc mệt hết cỡ
+const FOE_TIRE_LAG   = 0.85; // lúc mệt, bao lâu mới làm mới chỗ nhắm một lần
+const FOE_GIVEUP     = 12.0; // đuổi liền chừng này giây là bỏ cuộc
+const FOE_REST       = 6.0;  // và nghỉ chừng này giây mới lại sung
+function foeTired(m){ return m.tired || 0; }
 const RELOCATE_AFTER = 40;      // seconds since it last detected the player
 const RELOCATE_MIN_D = 16*TILE; // and it has to be genuinely on the other side of the house
 const RELOCATE_NEAR  = [9*TILE, 15*TILE];   // a room or two away, never the next doorway
@@ -2382,6 +2416,9 @@ function makeMonster(type,x,y){
            rook: type === 'rook' ? 'walk' : null, // the rook's own state machine
            goal: null, path: null, pi: 0, pathT: 0, windT: 0, dashLeft: 0,
            stun: 0, charging: false, rammed: null, linger: 0,
+           swing: 0, swingDir: 0,        // thì vung tay: giây còn lại, và hướng nó nhắm
+           planted: false,               // Bom con: đã áp sát và cắm chân xuống đếm ngược
+           chaseT: 0, tired: 0,          // đuổi bao lâu rồi, và mệt tới đâu (0..1)
            guardA: Math.random()*Math.PI*2 };    // its own place on the ring around the truck
 }
 function makeCart(x,y){
@@ -4160,7 +4197,14 @@ function stepMonsters(dt){
       // The moment it turns onto you is the moment worth hearing. Only the FIRST frame of it —
       // an alert that keeps refreshing while it chases you would fire this every step.
       if (m.alert <= 0){ SFX.sting(); fxShake(2.2); }
-      m.alert = 2.6; m.tx = p.x; m.ty = p.y;                 // target updates ONLY on detection
+      m.alert = 2.6;
+      // MỆT THÌ NHẮM CHẬM. Lúc sung nó cập nhật chỗ bạn đứng mỗi khung hình; lúc mệt nó chỉ làm
+      // mới mỗi FOE_TIRE_LAG giây, nên nó đuổi theo cái BÓNG của bạn — đó là 'ngu đi' của con này.
+      m.aimT = (m.aimT || 0) - dt;
+      if ((m.tired || 0) < 0.05 || m.aimT <= 0){
+        m.tx = p.x; m.ty = p.y;                              // target updates ONLY on detection
+        m.aimT = FOE_TIRE_LAG * (m.tired || 0);
+      }
       m.lost = 0;
     }
     else { m.alert = Math.max(0, m.alert - dt); m.lost += dt; }
@@ -4170,6 +4214,24 @@ function stepMonsters(dt){
       if (relocateFoe(m, Math.random)) SFX.thud();          // something moved, somewhere behind you
       else m.lost = RELOCATE_AFTER * 0.5;                   // nowhere to go; try again shortly
     }
+
+    // Đồng hồ đuổi. Chạy lên khi đang đuổi, chạy xuống khi không — nên cắt đuôi được vài giây là
+    // nó lại sung, và một cuộc rượt thứ hai vẫn đáng sợ như cuộc thứ nhất.
+    if (d.tire === false){ m.chaseT = 0; m.tired = 0; }
+    else if (m.alert > 0 && m.state !== 'patrol'){
+      m.chaseT = (m.chaseT || 0) + dt;
+      if (m.chaseT >= FOE_GIVEUP){
+        m.alert = 0; m.lost = RELOCATE_AFTER * 0.5;
+        m.chaseT = -FOE_REST;                       // âm = đang nghỉ, chưa đuổi lại được
+        m.tired = 1;
+        if (Math.hypot(m.x-S.player.x, m.y-S.player.y) < 12*TILE) SFX.thud();
+      }
+    } else if ((m.chaseT || 0) < 0){
+      m.chaseT = Math.min(0, m.chaseT + dt);        // đang nghỉ: đếm ngược về 0
+    } else {
+      m.chaseT = Math.max(0, (m.chaseT || 0) - dt*1.6);   // hồi sức nhanh gấp rưỡi lúc mệt đi
+    }
+    m.tired = clamp(((m.chaseT || 0) - FOE_TIRE_AFTER) / (FOE_TIRE_FULL - FOE_TIRE_AFTER), 0, 1);
 
     if (m.alert > 0){ m.state = 'chase'; }
     else if (S.levelDone || S.shiftLost){
@@ -4200,7 +4262,11 @@ function stepMonsters(dt){
     // slowT: Dong Bang lam quai le chan. Day la cho DUY NHAT toc do quai duoc quyet,
     // nen mot truong "slow" gan tu ngoai vao ma khong sua dong nay la truong chet.
     const slowMul = (m.slowT || 0) > 0 ? FREEZE_SLOW_MUL : 1;
-    const spd = m.speed * slowMul * (m.state === 'chase' ? 1.25 : m.state === 'hunt' ? 1.0 : 0.7);
+    // Đang vung tay thì ĐỨNG YÊN. Đây là nửa quan trọng của cú telegraph: một con vừa vung vừa
+    // bám theo bạn thì cái vung ấy chỉ là hiệu ứng, không phải một cửa sổ để né.
+    const metMul = 1 - (1 - FOE_TIRE_SPD) * (m.tired || 0);
+    const spd = (m.swing || 0) > 0 ? 0
+              : m.speed * slowMul * metMul * (m.state === 'chase' ? 1.25 : m.state === 'hunt' ? 1.0 : 0.7);
     // Never step PAST the thing being walked to, and stop a body short of a live target.
     const standOff = m.state === 'chase' ? FOE_STANDOFF : 0;
     const step = Math.max(0, Math.min(spd*dt, am - standOff));
@@ -4211,20 +4277,57 @@ function stepMonsters(dt){
     // hướng nó định đi. Đón đầu phải tính trên cái nó đang làm, không phải cái nó đang muốn:
     // một con bị tường chặn vẫn "muốn" lao thẳng, mà thật ra nó đứng yên.
     const ox = m.x, oy = m.y;
-    if (mx || my) moveEnt(m, mx, my, 9);
+    if (mx || my) moveEnt(m, mx, my, d.body || FOE_BODY);
     if (dt > 0){ m.vx = (m.x - ox)/dt; m.vy = (m.y - oy)/dt; }
 
     // Tang hinh chan CA CU DANH, khong chi chan viec nhin thay. foeTarget() bo qua
     // nguoi dang tang hinh, nhung mot con dang o giua co CHASE thi van giu m.target
     // cu va van vung tay trong tam 22px - do thuc: 30 mau mot giay ruoi vao mot
     // nguoi dang "vo hinh". Cai minh khong thay thi khong danh trung duoc.
-    if (dist < 22 && m.hit <= 0 && !S.dead && !p.down && m.alert > 0 && !((p.invisT || 0) > 0)){
-      m.hit = d.cd || 0.9;
-      hurtActor(p, m.dmg, m.type, m.x, m.y);
-      // a monster hitting you also hits what you are carrying. Gnome đảo ngược tỉ lệ đó: đòn của
-      // nó gần như không đau, nhưng cái búa chim của nó nhắm vào MÓN ĐỒ. Với một loài không giết
-      // được ai, đó là cách duy nhất nó còn là một mối đe doạ.
-      if (p.held) damageLoot(p.held, m.dmg * (d.lootDmg || 4));
+    // KHÔNG CON NÀO ĐƯỢC ĐÁNH TRÚNG Ở ĐÚNG KHUNG HÌNH NÓ CHẠM VÀO BẠN — chủ dự án, 2026-09-03:
+    // "không có con quái nào khi chạm vào sẽ gây sát thương ngay lập tức mà chúng sẽ cần anim dùng
+    // tay đánh hay cắn để user còn có đường né, chạy", vì "cảm giác cứ ủn vào là đau rất khó chịu".
+    //
+    // Luật cũ là một dòng: lọt vào 22px + hết nguội = trừ máu, ngay khung hình đó. Không có một
+    // khoảnh khắc nào giữa 'nó tới gần' và 'bạn mất máu', nên không có gì để né — người chơi chỉ
+    // biết mình bị đánh SAU KHI đã bị đánh. Đo bằng Kẻ nặng: đứng cạnh nó, 72 máu bay trong đúng
+    // một khung hình, không có tín hiệu nào trước đó.
+    //
+    // Nay mỗi cú đánh có HAI THÌ. Thì một: nó đứng khựng lại và vung tay, kéo dài d.wind giây —
+    // càng đau càng vung lâu, Kẻ nặng 0.90s còn Gnome 0.34s. Nó KHÔNG DI CHUYỂN trong thì này
+    // (xem chỗ tính spd), và đó mới là thứ tạo ra đường thoát: bạn có đúng chừng ấy giây để lùi ra.
+    // Thì hai: hết giờ mới kiểm lại — còn trong tầm thì ăn đòn, ra khỏi tầm thì HỤT.
+    //
+    // Tầm kiểm ở thì hai rộng hơn tầm khơi mào một chút (FOE_WHIFF), nếu không thì nhích nửa pixel
+    // cũng thoát và cả bảng quái thành vô hại. Lùi được một bước mới thoát.
+    const tam = d.reach || FOE_REACH;
+    if ((m.swing || 0) > 0){
+      m.swing -= dt;
+      if (m.swing <= 0){
+        m.swing = 0;
+        m.hit = d.cd || 0.9;
+        const conTrongTam = Math.hypot(p.x-m.x, p.y-m.y) < tam*FOE_WHIFF;
+        if (conTrongTam && !S.dead && !p.down && !((p.invisT || 0) > 0)){
+          hurtActor(p, m.dmg, m.type, m.x, m.y);
+          // a monster hitting you also hits what you are carrying. Gnome đảo ngược tỉ lệ đó: đòn của
+          // nó gần như không đau, nhưng cái búa chim của nó nhắm vào MÓN ĐỒ. Với một loài không giết
+          // được ai, đó là cách duy nhất nó còn là một mối đe doạ.
+          if (p.held) damageLoot(p.held, m.dmg * (d.lootDmg || 4));
+        } else if (p === S.player){
+          // Né được thì phải THẤY là mình vừa né được, nếu không thì cú né đọc ra 'nó đánh trượt
+          // ngẫu nhiên' chứ không đọc ra 'mình vừa làm đúng'.
+          fxPop(m.x, m.y - 16, 'HỤT', '#cfe6ff', 11);
+        }
+      }
+    }
+    // Khơi mào một cú vung. `noMelee` là loài không có đòn nào cả — Bom con: cái nó làm với bạn là
+    // tự nổ, nên một cú vung tay 0 sát thương của nó vẫn hất bạn văng ra, rung màn, loè máu đỏ và
+    // kêu tiếng ăn đòn. Đo được bốn cú như thế mỗi 0.9 giây trước bản này.
+    else if (!d.noMelee && m.dmg > 0 && dist < tam && m.hit <= 0 && !S.dead && !p.down &&
+             m.alert > 0 && !((p.invisT || 0) > 0)){
+      m.swing = d.wind || FOE_WIND;
+      m.swingDir = Math.atan2(p.y-m.y, p.x-m.x);
+      if (p === S.player && Math.hypot(m.x-S.player.x, m.y-S.player.y) < 12*TILE) SFX.strain();
     }
   }
 }
@@ -4242,6 +4345,8 @@ const BANGER_R      = TILE*3.0;
 const BANGER_EARLY  = 0.45;   // hệ số nổ khi bị giết lúc ngòi còn cháy
 const BANGER_CHAIN  = 0.22;   // ngòi của quả bị kích dây chuyền, để thấy được nó là DÂY CHUYỀN
 const BANGER_NOISE  = 9*TILE; // tiếng nổ gọi cả nhà tới
+const BANGER_TOUCH_R = 26;    // tới đây là coi như đã áp được vào người
+const BANGER_TOUCH   = 0.75;  // và ngòi rút còn chừng này giây — vẫn đủ để lùi ra nếu nhanh tay
 
 function blowBanger(m, pow, fuse){
   S.bombs.push({ x:m.x, y:m.y, t:0, fuse:fuse || 0, r:BANGER_R, pow:pow, done:false, owner:'foe' });
@@ -4260,6 +4365,28 @@ function stepBangers(dt){
       if (Math.hypot(m.x-S.player.x, m.y-S.player.y) < 12*TILE) SFX.strain();
       continue;
     }
+    // ÁP SÁT LÀ TỰ HUỶ. Chủ dự án, 2026-09-03: "đụng vào là gây sát thương cho player thay vì tự
+    // hủy và phát nổ sau 1 khoảng thời gian".
+    //
+    // Con này chưa bao giờ được phép đánh ai (`dmg: 0`), nhưng nó vẫn chạy nhánh đánh cận chiến,
+    // và hurtPlayer(0) vẫn làm đủ năm thứ: hất bạn văng ra, rung màn, khựng khung hình, loè vệt
+    // máu đỏ và kêu tiếng ăn đòn. Đo được bốn cú như thế trong 2.8 giây, `n:0` cả bốn. Máu không
+    // tụt một điểm nào, mà trên màn hình thì đó LÀ ăn đòn. Nay `noMelee` chặn nhánh ấy từ gốc.
+    //
+    // Thứ thay vào chỗ đó là cái đúng ra nó phải làm: tới sát người thì cắm chân xuống, ngòi rút
+    // còn BANGER_TOUCH giây, rồi tự nổ tự chết. Ngòi rút ngắn CHỨ KHÔNG nổ ngay — nổ ngay lúc
+    // chạm thì lại đúng cái 'ủn vào là đau' đang phải bỏ, chỉ đổi tên. Chừng ấy giây là đủ để lùi
+    // ra khỏi bán kính nổ nếu bạn phản xạ kịp.
+    const gan = Math.hypot(m.x-S.player.x, m.y-S.player.y);
+    if (gan < BANGER_TOUCH_R && !S.dead && !S.player.down){
+      if (!m.planted){
+        m.planted = true;
+        m.fuse = Math.min(m.fuse, BANGER_TOUCH);
+        SFX.tick(6);
+        fxPop(m.x, m.y - 16, 'XÌIII', '#ffc98a', 11);
+      }
+    }
+    if (m.planted) m.speed = 0;                     // cắm chân: nó không đuổi nữa, nó chỉ đếm
     m.fuse -= dt;
     // một nhịp mỗi nửa giây, nhanh dần — nghe được cái ngòi là biết còn bao lâu mà không phải nhìn
     const nhip = m.fuse < 1.2 ? 0.18 : 0.42;
@@ -4286,7 +4413,13 @@ function stepBangers(dt){
 // con gnome tự lao vào chân mình rồi tự chết, và loài này lại thành vô hại theo một đường khác.
 // p.noise là câu trả lời sẵn có của bộ máy cho đúng câu hỏi đó, và nó có bốn bậc: đứng yên 0, rón
 // rén 0,25, đi 1, chạy 2,6. Lấy mốc ở bậc ĐI, nên rón rén qua một con gnome thì nó sống.
-const STOMP_R     = 15;
+// Bán kính giẫm. 15 là một con số KHÔNG VỚI TỚI: một con đang đuổi dừng lại ở FOE_STANDOFF = 18px
+// tính từ bạn, nên khoảng cách gần nhất đo được suốt sáu giây đi thẳng vào nó là đúng 18.0 — cú
+// giẫm chưa từng một lần nổ ra, và cả dòng "chạy tới giẫm lên là chết" trong sổ tay là một lời hứa
+// suông. Nâng lên 20: vẫn NHỎ HƠN tầm đánh 22 (luật cũ ghi ở dưới vẫn còn nguyên giá trị), mà đã
+// nằm ngoài cái chốt 18 kia nên với tới được. Cộng với thì vung tay 0.34s của gnome, nó vẫn kịp
+// khơi mào một cú đánh trước khi bị giẫm — nên đây không phải là biến nó thành vô hại.
+const STOMP_R     = 20;
 const STOMP_NOISE = 1;        // phải đi hẳn, không phải rón rén, và không phải đứng yên
 function stepStomp(dt){
   const p = S.player;
@@ -4515,6 +4648,7 @@ function stepRook(m, dt, dist){
 const HIT_MAX_FRAC = 0.72;
 function hurtPlayer(n, src, fromX, fromY){
   const p = S.player;
+  if (!(n > 0)) return;                  // xem chú thích ở hurtActor
   // hurtActor da chan, nhung hurtPlayer con duoc goi THANG o nhieu cho (bom, nga,
   // Ke Huc), nen la chan phai dung o ca hai cua chu khong chi mot.
   if ((p.invulnT || 0) > 0) return;
@@ -6371,8 +6505,15 @@ function spawnCrew(){
 // ---------------------------------------------------------------- damage, death, heads
 // One damage path for everyone. hurtPlayer stays as the player's door into it because a dozen
 // call sites and every test already know that name.
+// Một cú đánh KHÔNG LẤY GÌ thì không phải một cú đánh, và không được để lại dấu vết nào.
+//
+// Bom con khai `dmg: 0` nhưng vẫn chạy nhánh đánh, nên hurtPlayer(0) chạy đủ năm thứ: hất người
+// chơi văng ra, rung màn, khựng khung hình, loè vệt máu đỏ và kêu tiếng ăn đòn. Máu không tụt một
+// điểm nào mà trên màn hình thì đó LÀ ăn đòn — chính là "đụng vào là gây sát thương" trong báo cáo.
+// `noMelee` đã chặn ở gốc rồi; dòng này là cái chốt thứ hai, cho mọi nguồn sát thương 0 về sau.
 function hurtActor(a, n, src, fromX, fromY){
   if (!a || a.down) return;
+  if (!(n > 0)) return;
   if ((a.invulnT || 0) > 0) return;      // "khong the chet" cua Thien Than / Buoc Hut
   if (a === S.player){ hurtPlayer(n, src, fromX, fromY); return; }
   a.hp -= n; a.hurt = 0.45;
@@ -9009,18 +9150,97 @@ function drawLoot(c){
     wText(money(l.value), l.x, y - l.r - 5, l.value < l.value0 ? '#d98a7a' : '#e2e8ec', 11);
   }
 }
+// CÚ VUNG TAY, VẼ RA. Luật hai thì ở stepMonsters chỉ có nghĩa nếu người chơi NHÌN THẤY thì một —
+// một cửa sổ né vô hình thì y hệt như không có cửa sổ nào.
+//
+// Vẽ trước thân, trong hệ toạ độ của con quái, và đọc theo tiến độ của chính cú vung: cánh tay
+// ngoác ra sau rồi quật tới, cộng một vòng cung sáng dần ở đúng hướng nó nhắm. Vòng cung là thứ
+// trả lời câu duy nhất người chơi cần trả lời trong 0.4 giây đó: nó đang nhắm về PHÍA NÀO.
+// HAI CÁNH TAY, và chỉ con nào CHẠY LẠI ĐÁNH mới có. Chủ dự án, 2026-09-03: "quái nào chạy lại
+// đánh vì vẽ thêm 2 cái tay ra, bức tượng thì không cần".
+//
+// Tay không phải đồ trang trí ở đây, nó là cái làm cho luật hai thì đọc được: một khối bóng phình
+// ra rồi trừ máu thì vẫn là 'ủn vào là đau', chỉ chậm hơn. Có hai cánh tay đung đưa lúc đi, và một
+// trong hai ngoác hẳn ra sau lúc vung, thì mắt đọc ra 'nó sắp đấm' trước khi cú đấm tới — mà đó
+// đúng là toàn bộ mục đích của thì vung.
+//
+// Loài KHÔNG có tay: Bom con (`noMelee` — nó không đánh, nó tự nổ) và AEngel, tức bức tượng, vốn
+// vẽ ở hàm riêng của nó chứ không đi qua đây.
+function drawArms(c, m, d){
+  const dai = (d.reach || FOE_REACH) * 0.50, day = 2.6;
+  const tong = d.wind || FOE_WIND;
+  const k = (m.swing || 0) > 0 ? clamp(1 - m.swing / tong, 0, 1) : -1;
+  // đi thì hai tay đung đưa ngược pha nhau; đứng thì buông
+  const du = Math.sin(m.wob * 2.2) * 0.42;
+  c.save(); c.rotate((m.swing || 0) > 0 ? m.swingDir : m.dir);
+  c.strokeStyle = (d && d.rim) || '#e8b9ad';
+  c.lineCap = 'round'; c.lineWidth = day;
+  for (const ben of [-1, 1]){
+    let goc;
+    if (k < 0) goc = ben*0.95 + du*ben;                 // đi bình thường
+    else if (ben > 0) goc = k < 0.62 ? 0.95 + (k/0.62)*1.5      // tay thuận ngoác ra sau
+                                     : 0.95 + 1.5 - ((k-0.62)/0.38)*2.9;   // rồi quật tới
+    else goc = -0.95 - du*0.5;                          // tay kia giữ thăng bằng
+    const vx = Math.cos(goc)*dai, vy = Math.sin(goc)*dai;
+    c.beginPath();
+    c.moveTo(1, ben*4.5 - 3);
+    c.quadraticCurveTo(vx*0.55 + 1, ben*4.5 + vy*0.4 - 3, vx, vy*0.9 + ben*2.0 - 3);
+    c.stroke();
+    // bàn tay
+    c.fillStyle = (d && d.rim) || '#e8b9ad';
+    c.beginPath(); c.arc(vx, vy*0.9 + ben*2.0 - 3, day*0.78, 0, Math.PI*2); c.fill();
+  }
+  c.lineCap = 'butt';
+  c.restore();
+}
+// Vòng cung báo hướng của cú vung. Nó trả lời câu duy nhất người chơi cần trả lời trong khoảnh
+// khắc đó: nó đang nhắm về PHÍA NÀO — vì né là né sang bên, không phải né lùi.
+function drawSwing(c, m, d){
+  const tong = d.wind || FOE_WIND;
+  const k = clamp(1 - m.swing / tong, 0, 1);         // 0 lúc mới ngoác, 1 lúc sắp giáng
+  const tam = d.reach || FOE_REACH;
+  c.save(); c.rotate(m.swingDir);
+  c.strokeStyle = `rgba(255,${180 - k*90|0},${120 - k*80|0},${0.24 + k*0.52})`;
+  c.lineWidth = 2 + k*2.6;
+  c.beginPath(); c.arc(0, 0, tam*0.88, -0.8 + k*0.3, 0.8 + k*0.3); c.stroke();
+  c.restore();
+}
 function drawMonsters(c){
   for (const m of S.monsters){
     const d = MONSTERS[m.type], s = Math.sin(m.wob)*1.5;
+    const co = (d && d.body || FOE_BODY) / FOE_BODY;    // thân nhỏ thì vẽ nhỏ theo
     c.save(); c.translate(m.x, m.y);
     c.fillStyle = 'rgba(0,0,0,0.45)';
-    c.beginPath(); c.ellipse(0,9,10,4.5,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.ellipse(0,9*co,10*co,4.5*co,0,0,Math.PI*2); c.fill();
+    if ((m.swing || 0) > 0) drawSwing(c, m, d);
+    // Tay chỉ mọc ra khi nó ĐANG LAO VÀO ĐÁNH, không mọc lúc đi tuần.
+    //
+    // Hai lý do, và lý do thứ hai mới là lý do thật. Một: mấy loài này đều có bộ hình pixel riêng
+    // đã vẽ sẵn tay trong đó, nên gắn thêm một cặp tay vector suốt ngày là hai bộ tay chồng nhau.
+    // Hai: cặp tay này là một TÍN HIỆU, không phải giải phẫu — nó có nghĩa 'con này đang tới lấy
+    // mạng bạn'. Một tín hiệu bật suốt thì không còn là tín hiệu.
+    const coTay = !d.noMelee && m.type !== 'rook' && (d.dmg || 0) > 0 &&
+                  ((m.swing || 0) > 0 || m.state === 'chase');
+    // MỆT thì thở dốc. Cùng lý do với cú vung: cửa sổ chạy thoát phải nhìn thấy được, nếu không
+    // thì người chơi không bao giờ biết lúc nào nên bỏ chạy. Ba dấu chấm phập phồng trên đầu,
+    // đậm dần theo m.tired, cộng cái thân chùng xuống một chút.
+    if ((m.tired || 0) > 0.25){
+      const t = (m.tired - 0.25) / 0.75;
+      c.fillStyle = `rgba(210,225,235,${0.20 + t*0.42})`;
+      for (let k = 0; k < 3; k++){
+        const ph = Math.sin(S.time*5.5 + k*1.5) * 0.5 + 0.5;
+        c.beginPath();
+        c.arc(-6 + k*6, -20 - ph*3.5, 1.2 + ph*1.1, 0, Math.PI*2); c.fill();
+      }
+    }
+    if (co !== 1) c.scale(co, co);
+    if ((m.tired || 0) > 0.25) c.translate(0, (m.tired - 0.25) * 1.6);
     // Nhap trang mot nhip khi vua an don. Bot dong doi da co cai nay tu lau (a.hurt), con
     // quai thi khong - nen ban trung mot con quai la mot viec khong de lai dau vet gi tren
     // man hinh. Day la nua con lai cua bai "ban yeu + giay qua", nua kia la con so sat thuong.
     c.fillStyle = (m.flash || 0) > 0 ? '#ffe4d8' : d.col;
     // Co bo hinh pixel thi ve bang hinh (sprites.js), khong thi roi ve dang khoi cu.
-    if (window.REPO_SKIN && REPO_SKIN.foe(c, m, d)){ c.restore(); continue; }
+    if (window.REPO_SKIN && REPO_SKIN.foe(c, m, d)){ if (coTay) drawArms(c, m, d); c.restore(); continue; }
     if (m.type === 'rook'){
       // Bulk, and a nose. It is the only thing in the house whose FACING is a threat on its own,
       // so the silhouette has to say which way it is pointed from across a dark room.
@@ -9048,6 +9268,14 @@ function drawMonsters(c){
     // A rim on the silhouette. The body is dark on purpose; without an edge it dissolves into a
     // dark floor even while standing in the beam.
     c.strokeStyle = d.rim; c.lineWidth = 1.5; c.globalAlpha = 0.75; c.stroke(); c.globalAlpha = 1;
+    if (m.planted){
+      // Đã áp sát và đang đếm ngược. Vòng nhấp nháy nhanh dần chính là cái đồng hồ, và nó vẽ đúng
+      // bằng bán kính nổ chia bốn — đủ để nói 'đứng đây là dính' mà không che mất căn phòng.
+      const ph = Math.sin(S.time * (m.fuse < 0.35 ? 34 : 18)) * 0.5 + 0.5;
+      c.strokeStyle = `rgba(255,${120 + ph*90|0},60,${0.55 + ph*0.4})`;
+      c.lineWidth = 1.6 + ph*1.4;
+      c.beginPath(); c.arc(0, 0, 13 + ph*4, 0, Math.PI*2); c.stroke();
+    }
     if (m.sleep > 0){
       c.strokeStyle = 'rgba(150,190,220,0.9)'; c.lineWidth = 1.4;
       c.beginPath(); c.moveTo(-4,-9); c.lineTo(-1.6,-9); c.moveTo(1.6,-9); c.lineTo(4,-9); c.stroke();
@@ -9057,6 +9285,7 @@ function drawMonsters(c){
       c.fillStyle = m.state === 'chase' ? d.eye : 'rgba(190,170,150,0.9)';
       c.fillRect(-4.4,-9.4,3.2,3.2); c.fillRect(1.4,-9.4,3.2,3.2);
     }
+    if (coTay) drawArms(c, m, d);
     c.restore();
   }
 }
