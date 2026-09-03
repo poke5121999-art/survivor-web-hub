@@ -379,7 +379,11 @@ async function repoSquadSuite(b) {
 // ĐẬP ĐÈN PIN + SỨC NỔ CỦA BOM
 // Đo bằng thế giới thật: đặt quái ở đúng khoảng cách rồi xem máu tụt bao nhiêu, bị
 // hất đi bao xa, và cú chạm nhẹ vào cần gạt phải có tự quay sang con quái không.
-async function meleeSuite(b) {
+// Tên phải KHÁC meleeSuite. Bộ 'đòn đánh phải báo trước' thêm sau cũng lấy đúng cái tên đó, mà
+// khai báo hàm thì cái sau đè cái trước — nên suốt mấy lần chạy vừa rồi bộ này KHÔNG hề chạy:
+// chỗ gọi nó gọi nhầm sang bộ kia, và bộ kia chạy hai lần. Bảng kết quả vẫn xanh, vì một bài
+// test không chạy thì cũng không hỏng — đó mới đúng là chỗ nguy.
+async function dapDenSuite(b) {
   results.push('\n── đập đèn pin & sức nổ của bom ──');
   const { ctx, p, errs } = await openGame(b, R2D, { width: 390, height: 844 });
   await p.click('#veilBtn');
@@ -1684,6 +1688,9 @@ async function boardingSuite(b) {
 //   3. ở Biệt Đội, tấm màn nằm dưới hai luật CSS đang cố giấu nó (#menu z-8 và
 //      `body:not(.in-run) #veil{display:none}`) — bảng dựng đủ 21 hàng mà vẫn vô hình.
 //      Đó chính là cái bug đã gặp, nên nó phải có test riêng đo BỀ NGANG THẬT.
+// Mã của bảy con quái Biệt Đội. Viết thẳng ra chứ không đọc từ SQ.FOES: bài test phải HỎNG khi
+// ai đó xoá một con khỏi bảng, chứ không lặng lẽ đổi kỳ vọng theo.
+const SQ_MA = ['rook', 'patrol', 'angel', 'hunter', 'nhen', 'quanca', 'bongden'];
 async function wikiSuite(b) {
   results.push('\n── sổ tay (bảng tra quái & chiêu) ──');
 
@@ -1793,6 +1800,62 @@ async function wikiSuite(b) {
       m.hang + ' hàng');
     check('mục thứ hai là chiêu, không phải đồ nghề', /Chiêu/.test(m.dau[1] || ''), m.dau.join(' / '));
 
+    // ---------------------------------------------------------------- ô hình động
+    //
+    // Ba bài, và cả ba đều bắt được một lỗi ĐÃ TỪNG xảy ra thật trong lần dựng phần này:
+    //
+    //   1. Ô động phải nằm CẠNH chân dung, không thay chỗ nó. Bản đầu thay, và chủ dự án báo
+    //      lại đúng câu 'gif nên nằm kế bên hình chứ đừng thay thế'.
+    //   2. Ô phải có thứ để nhìn. Bản đầu bỏ trường `hp` khỏi bảng chỉ số nặn cho quái Biệt Đội,
+    //      nên `m.hp > 0` sai và cả bảy ô vẽ nhánh 'nó vừa nổ xong' — một quầng cam đứng im.
+    //   3. Ô phải ĐỘNG. Đây là bài khó gian nhất: một ô vẽ sai vẫn có thể đầy điểm ảnh, nên phải
+    //      so hai thời điểm và đòi chúng khác nhau.
+    const oHinh = async () => await p.evaluate(() => {
+      const bam = (c) => {
+        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        let n = 0, s = 0;
+        for (let i = 0; i < d.length; i += 8){
+          if (Math.abs(d[i]-26) + Math.abs(d[i+1]-28) + Math.abs(d[i+2]-32) > 24) n++;
+          s = (s*31 + d[i] + d[i+1]*7) % 2147483647;
+        }
+        return { n, s };
+      };
+      const hang = Array.prototype.map.call(document.querySelectorAll('.wk-row'), r => ({
+        ten: (r.querySelector('b') || {}).textContent || '?',
+        // thứ tự thật trong hàng: chân dung <i> phải đứng TRƯỚC <canvas>
+        thu: Array.prototype.filter.call(r.children, e => /wk-art/.test(e.className || ''))
+               .map(e => e.tagName).join(',')
+      }));
+      const o = Array.prototype.map.call(document.querySelectorAll('canvas.wk-art'), c => {
+        const r = bam(c);
+        return { ma: c.getAttribute('data-foe') ||
+                     (JSON.parse(c.getAttribute('data-sk') || '{}').id) || '?',
+                 px: r.n, s: r.s };
+      });
+      return { hang, o };
+    });
+    await p.evaluate(() => REPO.showWiki());
+    await p.waitForTimeout(700);
+    const A = await oHinh();
+    const quai = await p.evaluate(() => Object.keys(SQ.FOES).length);
+    const thieu = A.hang.filter(h => h.thu !== 'I,CANVAS').map(h => h.ten + '[' + h.thu + ']');
+    check('mỗi hàng có ĐỦ chân dung rồi tới ô động, đúng thứ tự đó',
+      thieu.length === 0, thieu.slice(0, 3).join(' / ') || (A.hang.length + ' hàng'));
+    check('cả quái lẫn chiêu đều có ô động', A.o.length === A.hang.length,
+      A.o.length + ' ô / ' + A.hang.length + ' hàng');
+    const rong = A.o.filter(x => x.px < 60).map(x => x.ma);
+    check('không ô nào trống trơn', rong.length === 0,
+      rong.slice(0, 4).join(', ') || 'ít nhất 60 điểm có hình mỗi ô');
+    await p.waitForTimeout(1500);
+    const Bp = await oHinh();
+    const dung = A.o.filter((x, i) => Bp.o[i] && Bp.o[i].s === x.s).map(x => x.ma);
+    check('không ô nào đứng hình sau 1,5 giây', dung.length === 0,
+      dung.slice(0, 5).join(', ') || (A.o.length + ' ô đều đổi khung'));
+    // So theo THỨ TỰ, không lọc theo tập hợp: 'angel' vừa là mã một con quái vừa là mã chiêu
+    // Bất Tử, nên một phép lọc 'có nằm trong SQ_MA không' đếm ra tám và bài test hỏng oan.
+    check('bảy con quái Biệt Đội đều có ô riêng, đúng thứ tự bảng',
+      A.o.slice(0, quai).map(x => x.ma).join(',') === SQ_MA.join(','),
+      A.o.slice(0, quai).map(x => x.ma).join(','));
     await p.locator('#veilBtn').click();
     await p.waitForTimeout(400);
     check('đóng sổ ở màn menu thì menu hiện lại nguyên vẹn',
@@ -2372,12 +2435,17 @@ async function lightSuite(_khongDung) {
 
 // =====================================================================
 (async () => {
-  const b = await chromium.launch();
+  // --allow-file-access-from-files: mở file:// bằng Chromium thì mỗi tấm PNG là một 'gốc' khác
+  //   nhau, nên vẽ một con quái lên canvas là canvas đó bị NHIỄM và getImageData ném
+  //   SecurityError. Bộ đèn pin thoát được vì nó đọc lớp tối, lớp chưa từng có hình nào vẽ lên;
+  //   bộ sổ tay thì đọc thẳng ô có con quái nên đâm vào ngay. Cờ này chỉ nới CORS cho file://,
+  //   đúng bằng thứ mà một máy chủ tĩnh cho sẵn — nó không đổi hành vi nào đang được đo.
+  const b = await chromium.launch({ args: ['--allow-file-access-from-files'] });
   try { await repo2dSuite(b); } catch (e) { check('repo2d: bộ test chạy trọn', false, e.message); }
   try { await boardingSuite(b); } catch (e) { check('đứng chờ xe: bộ test chạy trọn', false, e.message); }
   try { await repoSquadSuite(b); } catch (e) { check('repo-squad: bộ test chạy trọn', false, e.message); }
   try { await ghostDoorSuite(b); } catch (e) { check('ma gương/phang cửa: bộ test chạy trọn', false, e.message); }
-  try { await meleeSuite(b); } catch (e) { check('đập đèn pin: bộ test chạy trọn', false, e.message); }
+  try { await dapDenSuite(b); } catch (e) { check('đập đèn pin: bộ test chạy trọn', false, e.message); }
   try { await stashSuite(b); } catch (e) { check('tủ đồ: bộ test chạy trọn', false, e.message); }
   try { await rotateSuite(b); } catch (e) { check('nút xoay tay: bộ test chạy trọn', false, e.message); }
   try { await hudGeomSuite(b); } catch (e) { check('hình học HUD: bộ test chạy trọn', false, e.message); }

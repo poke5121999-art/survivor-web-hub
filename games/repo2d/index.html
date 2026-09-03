@@ -256,6 +256,11 @@
   .wk-art{flex:0 0 auto;display:block;background-repeat:no-repeat;
     image-rendering:pixelated;border-radius:2px;}
   .wk-art.wk-none{border:1.5px solid rgba(255,255,255,0.3);border-radius:42% 42% 30% 30%;}
+  /* Ô hình động vẽ bằng canvas ở gấp đôi mật độ rồi thu lại, nên nó cần lọc MƯỢT.
+     .wk-art đặt image-rendering:pixelated cho mấy ô sprite pixel — để nguyên luật đó ở đây
+     thì bản thu nhỏ lấy điểm ảnh gần nhất, và mọi nét cong thành răng cưa. */
+  .wk-art.wk-live,.wk-art.wk-skill{image-rendering:auto;border:1px solid var(--line);
+    background:#1a1c20;}
   .wk-art.wk-chip{display:flex;align-items:center;justify-content:center;text-align:center;
     background:#141a21;border:1px solid var(--line);border-radius:3px;font-family:var(--mono);
     font-size:11px;font-style:normal;color:var(--ink-dim);letter-spacing:.04em;padding:0 3px;}
@@ -410,9 +415,9 @@
 })();
 </script>
 
-<script src="sprites.js?v=20260903d"></script>
-<script src="game.js?v=20260903d"></script>
-<script src="bot.js?v=20260903d"></script>
+<script src="sprites.js?v=20260903e"></script>
+<script src="game.js?v=20260903e"></script>
+<script src="bot.js?v=20260903e"></script>
 <script>window.__boot && window.__boot();</script>
 <script>
 // Doc dau build TU HAI PHIA roi so:

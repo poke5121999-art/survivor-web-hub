@@ -962,7 +962,7 @@ const MONSTERS = {
   // straight line, announced three seconds before it is fired. Everything about it is built so the
   // counter-play is a step sideways and a wall between you, never a health bar.
   rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4',
-             scale:1.6,
+             scale:1.6, noArms:1,
              wiki:'Không đuổi và không đụng bạn lúc đi. Nó ngắm MỘT đường thẳng, gồng ba giây lộ liễu rồi lao — và không bẻ lái được. Bước sang ngang một bước là xong; đứng sau tường thì càng chắc.' },
 
   // ------------------------------------------------------------------ hai loài đi theo ĐÀN
@@ -9315,9 +9315,13 @@ function drawRookTell(c, m, tx, ty){
 // riêng — ảnh chụp, GIF quay sẵn, hay một hàm vẽ thứ hai — thì nó lệch với thứ người chơi gặp
 // trong nhà ngay lần sửa art kế tiếp, và một bảng tra sai còn tệ hơn không có bảng tra. Ở đây chỉ
 // có một nguồn sự thật: sửa cách con quái vung tay là sổ tay đổi theo trong cùng một lần sửa.
-function drawFoeOne(c, m){
+function drawFoeOne(c, m, dIn){
   {
-    const d = MONSTERS[m.type], s = Math.sin(m.wob)*1.5;
+    // `dIn`: bảng chỉ số ĐƯA TỪ NGOÀI VÀO, cho sổ tay của Biệt Đội. Quái bên đó nằm trong
+    // SQ.FOES chứ không nằm trong MONSTERS, nên MONSTERS[m.type] trả về undefined và cả hàm
+    // này nổ ở dòng `d.noMelee`. Truyền thẳng def vào là cách rẻ nhất để một hàm vẽ dùng
+    // được cho cả hai bảng quái, mà không phải trộn hai bảng lại làm một.
+    const d = dIn || MONSTERS[m.type], s = Math.sin(m.wob)*1.5;
     // CỠ VẼ tách khỏi CỠ THÂN.
     //
     // `body` là bán kính va chạm — nới nó ra là con quái bắt đầu kẹt ở lối một ô và ở khe giữa hai
@@ -9336,7 +9340,12 @@ function drawFoeOne(c, m){
     // đã vẽ sẵn tay trong đó, nên gắn thêm một cặp tay vector suốt ngày là hai bộ tay chồng nhau.
     // Hai: cặp tay này là một TÍN HIỆU, không phải giải phẫu — nó có nghĩa 'con này đang tới lấy
     // mạng bạn'. Một tín hiệu bật suốt thì không còn là tín hiệu.
-    const coTay = !d.noMelee && m.type !== 'rook' && (d.dmg || 0) > 0 &&
+    // Ai KHÔNG mọc tay là chuyện của bảng chỉ số, không phải của cái mã loài. Trước đây câu
+    // này viết thẳng 'm.type !== rook' — đúng cho Kẻ húc bên Ca Trực Đêm, vốn húc bằng sừng.
+    // Nhưng Biệt Đội cũng có một con mang mã 'rook' mà là con khác hẳn (Con Ngồi, mù, bò dưới
+    // đất, đánh bằng tay), và nó bị câu này cắt mất cặp tay theo. Hai bảng quái dùng chung một
+    // hàm vẽ thì điều kiện phải hỏi bảng, không hỏi tên.
+    const coTay = !d.noMelee && !d.noArms && (d.dmg || 0) > 0 &&
                   ((m.swing || 0) > 0 || m.state === 'chase');
     // MỆT thì thở dốc. Cùng lý do với cú vung: cửa sổ chạy thoát phải nhìn thấy được, nếu không
     // thì người chơi không bao giờ biết lúc nào nên bỏ chạy. Ba dấu chấm phập phồng trên đầu,
@@ -10404,7 +10413,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260903d';
+const BUILD = '20260903e';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -10584,6 +10593,11 @@ const WIKI_CANH = {
     m.fuse = t >= 1.1 ? Math.max(0.02, 0.75 - (t - 1.1)) : 2;
     if (t > 2.6) m.hp = 0;
   }},
+  tuong: { chuKy: 3.4, zoom: 0.92, dien(m, t){
+    m.state = 'patrol'; m.alert = 0; m.wob = 0;      // đứng thẳng, không thở, không lắc
+    m.nhinT = t;                                     // vòng lặp vẽ con mắt theo trường này
+    m.x = t < 1.5 ? -26 : (t < 2.1 ? -26 + (t-1.5)/0.6*24 : -2);
+  }},
   met: { chuKy: 3.2, dien(m, t){
     m.state = 'chase'; m.alert = 2; m.wob = t*5;
     m.tired = clamp((t - 0.6) / 1.6, 0, 1);
@@ -10593,22 +10607,40 @@ const WIKI_CANH = {
 // là thứ vừa đổi luật hôm nay.
 const WIKI_CANH_CUA = { rook:'huc', banger:'bom', gnome:'vung', heavy:'vung',
                         patrol:'vung', listen:'vung', stalk:'vung', bomber:'vung' };
-// Ô hình RỘNG GẤP ĐÔI ô sprite cũ. Ô cũ vừa khít một cái thân đứng yên, mà mấy cảnh ở đây có thứ
-// DI CHUYỂN: Kẻ húc lao qua hết chiều ngang, Bom con đi tới rồi cắm chân. Để nguyên bề ngang cũ
-// thì hai con đó diễn ngoài khung — đo lần đầu: ô Kẻ húc trống trơn, ô Bom con còn đúng một vệt
-// ở mép trái.
-function wikiChieuO(ch){
+// Quái của Biệt Đội. Chúng nằm ở bảng khác (SQ.FOES) nên phải tra riêng — và một con trong đó
+// có luật riêng hẳn: Tượng chỉ nhúc nhích khi KHÔNG bị nhìn, nên diễn nó bằng cú vung tay là
+// nói dối người đọc. Cảnh của nó phải là con mắt nhắm lại rồi nó nhảy tới.
+const WIKI_CANH_SQ = { angel:'tuong' };
+// Ô hình động RỘNG HƠN ô chân dung. Ô chân dung (48px) vừa khít một cái thân đứng yên, mà mấy
+// cảnh ở đây có thứ DI CHUYỂN: Kẻ húc lao qua hết chiều ngang, Bom con đi tới rồi cắm chân. Để
+// nguyên bề ngang cũ thì hai con đó diễn ngoài khung — đo lần đầu: ô Kẻ húc trống trơn, ô Bom
+// con còn đúng một vệt ở mép trái.
+//
+// Không rộng gấp đôi như bản đầu nữa: từ nay ô này nằm CẠNH chân dung chứ không thay chỗ nó
+// (chủ dự án, 2026-09-03: "gif nên nằm kế bên hình chứ đừng thay thế"), nên hai ô cộng lại phải
+// còn chừa đủ chỗ cho chữ trên màn dọc của điện thoại. 48 + 78 + 9 khe = 135px, còn lại là chữ.
+const WIKI_ANIM_W = 78;
+function wikiAnimCao(){
   const K = (window.REPO_SKIN && REPO_SKIN.cell) || { w:96, h:144 };
-  const w = Math.round(K.w * WIKI_SCALE) * 2, h = Math.round(K.h * WIKI_SCALE);
+  return Math.round(K.h * WIKI_SCALE);
+}
+function wikiChieuO(ch){
+  const w = WIKI_ANIM_W, h = wikiAnimCao();
   return '<canvas class="wk-art wk-skill" data-hue="' + (ch.hue || 45) + '" ' +
-         'data-sk="' + wikiEsc(JSON.stringify({ radius: ch.skill.radius || 0, dur: ch.skill.dur || 0 })) + '" ' +
+         'data-sk="' + wikiEsc(JSON.stringify({ id: ch.skill.id,
+                                                radius: ch.skill.radius || 0,
+                                                dur: ch.skill.dur || 0 })) + '" ' +
          'width="' + (w*2) + '" height="' + (h*2) + '" ' +
          'style="width:' + w + 'px;height:' + h + 'px"></canvas>';
 }
-function wikiSong(type){
-  const K = (window.REPO_SKIN && REPO_SKIN.cell) || { w:96, h:144 };
-  const w = Math.round(K.w * WIKI_SCALE) * 2, h = Math.round(K.h * WIKI_SCALE);
+// `def` chỉ truyền khi con quái KHÔNG có trong MONSTERS — tức là quái của Biệt Đội. Gửi kèm
+// ngay trong thẻ thay vì tra lại lúc vẽ: vòng vẽ chỉ có cái canvas trong tay, không có ngữ cảnh
+// nào để biết hàng này ra từ bảng nào.
+function wikiSong(type, def, canh){
+  const w = WIKI_ANIM_W, h = wikiAnimCao();
   return '<canvas class="wk-art wk-live" data-foe="' + wikiEsc(type) + '" ' +
+         (def ? 'data-def="' + wikiEsc(JSON.stringify(def)) + '" ' : '') +
+         (canh ? 'data-canh="' + wikiEsc(canh) + '" ' : '') +
          'width="' + (w*2) + '" height="' + (h*2) + '" ' +
          'style="width:' + w + 'px;height:' + h + 'px"></canvas>';
 }
@@ -10624,90 +10656,334 @@ function wikiAnimStart(){
   wikiT0 = performance.now();
   const ve = (now) => {
     const giay = (now - wikiT0) / 1000;
+    // LỆCH PHA từng ô. Mọi cảnh đều bắt đầu ở cùng một mốc, nên không lệch thì cả trang vung
+    // tay cùng một nhịp — bảy con quái nhấp nháy đồng loạt đọc ra như một lỗi vẽ chứ không
+    // như bảy con vật. Ảnh chụp lần đầu bắt đúng khoảnh khắc đó: bảy ô cùng loé viền đỏ.
+    let thuTu = 0;
     for (const cv of oList){
-      const type = cv.getAttribute('data-foe'), d = MONSTERS[type];
+      const type = cv.getAttribute('data-foe');
+      let d = MONSTERS[type];
+      const raw = cv.getAttribute('data-def');
+      if (raw){ try { d = JSON.parse(raw); } catch(e){ d = null; } }
       if (!d) continue;
-      const ten = WIKI_CANH_CUA[type] || 'vung', canh = WIKI_CANH[ten];
-      const t = giay % canh.chuKy;
-      const m = { type, x:0, y:0, dir:0, wob:0, hp:d.hp, hpMax:d.hp, dmg:d.dmg,
+      const ten = cv.getAttribute('data-canh') || WIKI_CANH_CUA[type] || 'vung',
+            canh = WIKI_CANH[ten] || WIKI_CANH.vung;
+      const t = (giay + (thuTu++) * 0.43) % canh.chuKy;
+      // Một đối tượng DÙNG LẠI cho mỗi ô, không nặn mới mỗi khung. sprites.js đếm khung bước
+      // chân theo QUÃNG ĐƯỜNG con quái đã đi (colFor lưu `_sx/_sy` ngay trên đối tượng), nên
+      // một đối tượng mới toanh mỗi khung thì lần nào cũng 'vừa đứng yên' và chân không bao giờ
+      // đảo. Giữ lại đối tượng là Bom con đi tới và Kẻ húc lao qua có bước chân thật.
+      const m = cv._wkM || (cv._wkM = {});
+      Object.assign(m, { type, x:0, y:0, dir:0, wob:0, hp:d.hp, hpMax:d.hp, dmg:d.dmg,
                   state:'patrol', alert:0, hit:0, sleep:0, flash:0, swing:0, swingDir:0,
                   tired:0, stompT:0, planted:false, fuse:null, rook: type==='rook'?'walk':null,
-                  windT:0, seen:true, reveal:1 };
+                  windT:0, seen:true, reveal:1, nhinT:null });
       canh.dien(m, t, d);
       const c = cv.getContext('2d');
       c.setTransform(1,0,0,1,0,0);
       c.clearRect(0,0,cv.width,cv.height);
       // Nền tối như trong nhà: mấy con này vẽ để nổi trên sàn tối, đặt lên nền trắng là mất viền.
       c.fillStyle = 'rgb(26,28,32)'; c.fillRect(0,0,cv.width,cv.height);
-      const k = cv.height / 62;                       // 62 đơn vị thế giới lọt vừa ô
+      // Cỡ vẽ theo CHIỀU CAO ô, rồi mỗi cảnh kéo nhỏ thêm nếu nó cần chỗ đi lại. Kẻ húc lao
+      // hết 62 đơn vị mà thân nó đã rộng 38, nên ở cỡ mặc định hai đầu đường lao nằm ngoài mép.
+      const k = (cv.height / 62) * (canh.zoom || 1);
       c.setTransform(k,0,0,k, cv.width/2, cv.height*0.62);
-      if (type === 'rook' && m.rook === 'wind') drawRookTell(c, m, 34, 0);
-      if (m.hp > 0) drawFoeOne(c, m);
+      if (type === 'rook' && !raw && m.rook === 'wind') drawRookTell(c, m, 34, 0);
+      if (m.nhinT != null) wikiVeMat(c, cv, k, m.nhinT);
+      if (m.hp > 0) drawFoeOne(c, m, raw ? d : null);
       else { c.fillStyle = 'rgba(255,190,120,0.9)';
              c.beginPath(); c.arc(m.x, 0, 16, 0, Math.PI*2); c.fill(); }
     }
+    let thuTuC = 0;
     for (const cv of oChieu){
       let sk; try { sk = JSON.parse(cv.getAttribute('data-sk')); } catch(e){ continue; }
-      veChieu(cv, sk, +cv.getAttribute('data-hue'), giay);
+      veChieu(cv, sk, +cv.getAttribute('data-hue'), giay + (thuTuC++) * 0.37);
     }
     wikiRaf = requestAnimationFrame(ve);
   };
   wikiRaf = requestAnimationFrame(ve);
 }
+// Con mắt của cảnh Tượng: mở thì Tượng đứng chết, nhắm thì nó nhảy tới. Vẽ ở góc trên ô, ngoài
+// hệ toạ độ thế giới, vì nó là một CÁI NHÃN chứ không phải một vật trong phòng.
+function wikiVeMat(c, cv, k, t){
+  const mo = t < 1.5;
+  c.save(); c.setTransform(1,0,0,1,0,0);
+  const x = cv.width*0.5, y = cv.height*0.16, r = cv.height*0.075;
+  c.strokeStyle = mo ? 'rgba(255,225,160,0.95)' : 'rgba(150,160,175,0.75)';
+  c.lineWidth = Math.max(1.4, cv.height*0.016);
+  c.beginPath();
+  if (mo){
+    c.moveTo(x-r*1.6, y); c.quadraticCurveTo(x, y-r*1.5, x+r*1.6, y);
+    c.quadraticCurveTo(x, y+r*1.5, x-r*1.6, y); c.stroke();
+    c.fillStyle = 'rgba(255,225,160,0.95)';
+    c.beginPath(); c.arc(x, y, r*0.55, 0, Math.PI*2); c.fill();
+  } else {
+    c.moveTo(x-r*1.6, y); c.quadraticCurveTo(x, y+r*1.1, x+r*1.6, y); c.stroke();
+  }
+  c.restore();
+}
 function wikiAnimStop(){ if (wikiRaf) cancelAnimationFrame(wikiRaf); wikiRaf = 0; }
-// Ô hình của MỘT CHIÊU. Vẽ sơ đồ trên LƯỚI Ô, không vẽ hiệu ứng thật.
+// Ô hình của MỘT CHIÊU.
 //
-// Lý do không dựng lại hiệu ứng thật: mỗi chiêu là một đoạn mã riêng ăn sâu vào trạng thái ván
-// đấu (Chói Loà đọc danh sách quái, Mở Toang đọc danh sách cửa, Tàng Hình đọc bộ đếm của người
-// chơi). Dựng lại chúng trong một ô 96px là viết bản thứ hai của tám thứ, và bản thứ hai thì sẽ
-// lệch bản thứ nhất — đúng cái bẫy mà ô hình con quái tránh được bằng cách dùng chung drawFoeOne.
+// Bản đầu vẽ CHUNG một sơ đồ cho cả mười bốn chiêu: lưới ô, một vòng nở ra tới đúng tầm, một
+// người ở tâm. Nó trả lời được đúng một câu — 'rộng chừng nào' — mà đó lại là câu mấy con số
+// ngay bên cạnh đã trả lời rồi. Chói Loà, Vòng Hồi và Mở Toang khác nhau hoàn toàn về việc
+// chúng LÀM GÌ, mà ba ô nhìn y hệt nhau. Chủ dự án nói đúng: "gif của player skill chưa rõ
+// ràng".
 //
-// Thứ ô này trả lời là câu mà mấy con số ở ngay bên cạnh KHÔNG trả lời được: 'rộng chừng nào'.
-// 'Tầm 5,5 ô' là một con số trừu tượng; một vòng tròn phủ lên lưới ô có kích thước bằng đúng ô sàn
-// trong nhà thì đọc một cái là biết. Và nó phân biệt được ba dáng chiêu — phủ một VÙNG quanh mình,
-// chỉ tác động lên CHÍNH MÌNH, hay đánh một PHÁT rồi thôi — thứ mà bảng số không nói.
+// Nay mỗi chiêu một hình riêng, và hình đó diễn đúng cái ĐỘNG TỪ của nó: Chói Loà làm quái
+// đứng hình, Kéo Đồ hút đồ về, Lồng Sắt dựng song chắn, Chớp là biến mất rồi hiện ra chỗ khác.
+// Vòng tầm vẫn còn ở mấy chiêu có tầm, nhưng nó lùi xuống làm NỀN chứ không còn là nội dung.
+//
+// Vẫn KHÔNG dựng lại hiệu ứng thật của game — khác hẳn ô con quái, vốn gọi thẳng drawFoeOne.
+// Mỗi chiêu là một đoạn mã ăn sâu vào trạng thái ván đấu (Chói Loà đọc danh sách quái, Mở Toang
+// đọc danh sách cửa, Kéo Về đọc ai đang gục), dựng lại chúng trong một ô 78px là viết bản thứ
+// hai của mười bốn thứ, và bản thứ hai thì sẽ lệch bản thứ nhất. Đây là SƠ ĐỒ, và sơ đồ thì
+// được phép đơn giản hơn thứ nó mô tả — miễn là nó không nói sai.
+function skNguoi(c, x, y, a){
+  c.globalAlpha = a;
+  c.fillStyle = 'rgba(226,232,238,0.94)';
+  c.beginPath(); c.ellipse(x, y+0.10, 0.20, 0.30, 0, 0, Math.PI*2); c.fill();
+  c.beginPath(); c.arc(x, y-0.26, 0.17, 0, Math.PI*2); c.fill();
+  c.globalAlpha = 1;
+}
+// Một con quái con, đủ để đọc ra 'thứ này là kẻ địch'. `kieu` là chuyện đang xảy ra với nó.
+function skQuai(c, x, y, kieu){
+  c.fillStyle = kieu === 'dong' ? 'rgba(150,205,235,0.95)'
+              : kieu === 'mo'   ? 'rgba(190,150,150,0.45)'
+                                : 'rgba(226,138,118,0.95)';
+  c.beginPath();
+  c.moveTo(x-0.23, y+0.25); c.lineTo(x-0.18, y-0.20); c.lineTo(x, y-0.31);
+  c.lineTo(x+0.18, y-0.20); c.lineTo(x+0.23, y+0.25); c.closePath(); c.fill();
+  if (kieu === 'choang'){                            // đứng hình: sao quay trên đầu
+    // KHÁC hẳn nét băng của 'dong', và cố ý. Chói Loà làm quái ĐỨNG HÌNH, Đóng Băng làm quái
+    // ĐÓNG BĂNG — hai chiêu khác nhau, hai ô hình phải khác nhau, nếu không thì việc tách mười
+    // bốn sơ đồ ra chẳng giải quyết được gì cho đúng hai ô này.
+    c.fillStyle = 'rgba(255,230,150,0.95)';
+    for (let q = 0; q < 3; q++){ const a = q*2.1;
+      c.beginPath(); c.arc(x + Math.cos(a)*0.24, y - 0.48 + Math.sin(a)*0.09, 0.07, 0, Math.PI*2);
+      c.fill(); }
+  } else if (kieu === 'dong'){
+    c.strokeStyle = 'rgba(220,245,255,0.9)'; c.lineWidth = 0.06;
+    for (let q = 0; q < 3; q++){ const a = q*Math.PI/3;
+      c.beginPath();
+      c.moveTo(x-Math.cos(a)*0.34, y-Math.sin(a)*0.34);
+      c.lineTo(x+Math.cos(a)*0.34, y+Math.sin(a)*0.34); c.stroke(); }
+  } else if (kieu === 'hoi'){                       // mất dấu: dấu hỏi trên đầu
+    c.fillStyle = 'rgba(235,235,205,0.9)';
+    c.fillRect(x-0.05, y-0.64, 0.10, 0.20); c.fillRect(x-0.05, y-0.38, 0.10, 0.08);
+  } else if (kieu === 'thay'){                      // thấy người: dấu than
+    c.fillStyle = 'rgba(255,120,100,0.95)';
+    c.fillRect(x-0.05, y-0.68, 0.10, 0.25); c.fillRect(x-0.05, y-0.37, 0.10, 0.09);
+  }
+}
+function skMui(c, x1, y1, x2, y2, mau){            // mũi tên: hướng đi của thứ đang chuyển
+  c.strokeStyle = mau; c.lineWidth = 0.09; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+  const g = Math.atan2(y2-y1, x2-x1);
+  c.beginPath();
+  c.moveTo(x2, y2); c.lineTo(x2 - Math.cos(g-0.5)*0.22, y2 - Math.sin(g-0.5)*0.22);
+  c.moveTo(x2, y2); c.lineTo(x2 - Math.cos(g+0.5)*0.22, y2 - Math.sin(g+0.5)*0.22);
+  c.stroke(); c.lineCap = 'butt';
+}
+let SK_CAT = false;                                // vòng tầm đang bị khung cắt bớt?
+function skVong(c, r, vien, nen){                  // vòng tầm, làm nền
+  if (nen){ c.fillStyle = nen; c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.fill(); }
+  c.strokeStyle = vien; c.lineWidth = 0.09;
+  if (SK_CAT) c.setLineDash([0.22, 0.16]);
+  c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.stroke();
+  c.setLineDash([]);
+}
+// Mười bốn động từ. `u` chạy 0..1 trong một vòng lặp, `R` là tầm đã kẹp vừa khung, `M(a)` là
+// màu riêng của nhân vật đó. Trả về số = độ mờ của người; trả về {dich} = người đứng chỗ khác.
+const SK_HINH = {
+  flash(c, u, R, M){                               // Chói Loà: quái đứng hình
+    const r = R * (1 - Math.pow(1 - clamp(u/0.3,0,1), 3));
+    skVong(c, r, M(0.8), M(0.10));
+    if (u < 0.3){
+      c.strokeStyle = M(1 - u/0.3); c.lineWidth = 0.1;
+      for (let q = 0; q < 8; q++){ const a = q*Math.PI/4;
+        c.beginPath();
+        c.moveTo(Math.cos(a)*0.5, Math.sin(a)*0.5);
+        c.lineTo(Math.cos(a)*r*0.92, Math.sin(a)*r*0.92); c.stroke(); }
+    }
+    for (let q = 0; q < 3; q++){ const a = q*2.1 + 0.4;
+      skQuai(c, Math.cos(a)*R*0.62, Math.sin(a)*R*0.62, u > 0.3 ? 'choang' : 'thay'); }
+  },
+  healring(c, u, R, M){                            // Vòng Hồi: dấu cộng bay lên trong vòng
+    skVong(c, R, M(0.75), M(0.12));
+    for (let q = 0; q < 4; q++){
+      const ph = (u*1.6 + q*0.25) % 1, x = (q-1.5)*0.44, y = 0.45 - ph*1.55;
+      c.globalAlpha = 1 - ph; c.fillStyle = M(0.95);
+      c.fillRect(x-0.06, y-0.20, 0.12, 0.40); c.fillRect(x-0.20, y-0.06, 0.40, 0.12);
+    }
+    c.globalAlpha = 1;
+  },
+  gong(c, u, R, M){                                // Gồng: vác nặng mà vẫn đi nhanh
+    const ph = 0.5 + 0.5*Math.sin(u*Math.PI*4);
+    c.strokeStyle = M(0.30 + ph*0.5); c.lineWidth = 0.1;
+    c.beginPath(); c.arc(0, 0, 0.68 + ph*0.14, 0, Math.PI*2); c.stroke();
+    c.fillStyle = 'rgba(196,158,108,0.95)'; c.fillRect(-0.32, -0.92, 0.64, 0.40);
+    c.strokeStyle = M(0.7); c.lineWidth = 0.08;
+    for (let q = 0; q < 3; q++){ const y = -0.3 + q*0.32;
+      c.beginPath(); c.moveTo(-0.95 - ph*0.32, y); c.lineTo(-0.5, y); c.stroke(); }
+  },
+  unlock(c, u, R, M){                              // Mở Toang: cửa bung hai cánh
+    skVong(c, R, M(0.65), M(0.07));
+    const mo = clamp((u-0.25)/0.3, 0, 1);
+    for (let q = 0; q < 3; q++){ const a = q*2.1 + 0.6;
+      c.save();
+      c.translate(Math.cos(a)*R*0.72, Math.sin(a)*R*0.72); c.rotate(a);
+      c.fillStyle = 'rgba(178,138,94,0.95)';
+      c.save(); c.rotate(-mo*1.15); c.fillRect(0, -0.44, 0.13, 0.44); c.restore();
+      c.save(); c.rotate( mo*1.15); c.fillRect(0,  0,    0.13, 0.44); c.restore();
+      c.restore(); }
+  },
+  vanish(c, u, R, M){                              // Tàng Hình: quái mất dấu
+    for (let q = 0; q < 2; q++) skQuai(c, (q?1.2:-1.2), -0.1, u > 0.35 ? 'hoi' : 'thay');
+    c.strokeStyle = M(0.8); c.lineWidth = 0.08; c.setLineDash([0.14, 0.14]);
+    c.beginPath(); c.ellipse(0, 0.02, 0.31, 0.47, 0, 0, Math.PI*2); c.stroke();
+    c.setLineDash([]);
+    return u > 0.35 ? 0.10 : 1 - u/0.35*0.9;
+  },
+  shock(c, u, R, M){                               // Xung Chấn: một phát, hất văng
+    const r = R * clamp(u/0.28, 0, 1), tan = 1 - clamp((u-0.28)/0.4, 0, 1);
+    skVong(c, r, M(0.9*tan), null);
+    for (let q = 0; q < 3; q++){
+      const a = q*2.1 + 0.4, d = 0.7 + clamp(u/0.42, 0, 1)*R*0.62;
+      if (u < 0.55) skMui(c, Math.cos(a)*0.8, Math.sin(a)*0.8,
+                          Math.cos(a)*(d+0.42), Math.sin(a)*(d+0.42), M(0.75));
+      skQuai(c, Math.cos(a)*d, Math.sin(a)*d, 'thuong');
+    }
+  },
+  decoy(c, u, R, M){                               // Mồi Nhử: quái quay sang chỗ khác
+    const dx = 1.55;
+    c.fillStyle = M(0.22);
+    c.beginPath(); c.arc(dx, 0, 0.72 + 0.13*Math.sin(u*Math.PI*4), 0, Math.PI*2); c.fill();
+    c.strokeStyle = M(0.9); c.lineWidth = 0.09; c.setLineDash([0.12, 0.12]);
+    c.beginPath(); c.ellipse(dx, 0.02, 0.29, 0.45, 0, 0, Math.PI*2); c.stroke();
+    c.setLineDash([]);
+    for (let q = 0; q < 2; q++){
+      const y = q ? 1.05 : -1.05, x = -1.5 + clamp(u/0.7, 0, 1)*2.0;
+      skMui(c, x + 0.34, y*0.92, dx - 0.5, y*0.42, M(0.6));
+      skQuai(c, x, y, 'thuong');
+    }
+    return { dich: -1.5 };
+  },
+  rescue(c, u, R, M){                              // Kéo Về: lôi người gục về chỗ mình
+    const k = clamp((u-0.15)/0.55, 0, 1), x = 1.9*(1-k) + 0.55;
+    c.fillStyle = 'rgba(206,148,148,0.9)';
+    c.beginPath(); c.ellipse(x, 0.42, 0.36, 0.17, 0, 0, Math.PI*2); c.fill();
+    c.beginPath(); c.arc(x + 0.42, 0.34, 0.15, 0, Math.PI*2); c.fill();
+    skMui(c, x + 0.05, 0.05, 0.45, -0.02, M(0.85));
+  },
+  cage(c, u, R, M){                                // Lồng Sắt: song chắn mọc lên
+    const k = clamp(u/0.3, 0, 1);
+    c.strokeStyle = M(0.85); c.lineWidth = 0.1;
+    for (let q = 0; q < 8; q++){ const a = q*Math.PI/4;
+      c.beginPath();
+      c.moveTo(Math.cos(a)*1.2, Math.sin(a)*1.2 - 0.58*k);
+      c.lineTo(Math.cos(a)*1.2, Math.sin(a)*1.2 + 0.34*k); c.stroke(); }
+    skQuai(c, -1.95, 0, 'thuong');
+    if (k > 0.85) skMui(c, -1.6, 0, -1.34, 0, M(0.5));
+  },
+  blink(c, u, R, M){                               // Chớp: biến mất, hiện ra chỗ khác
+    const sang = u < 0.5 ? -1.5 : 1.5;
+    c.strokeStyle = M(0.5); c.lineWidth = 0.08; c.setLineDash([0.16, 0.16]);
+    c.beginPath(); c.moveTo(-1.5, 0); c.lineTo(1.5, 0); c.stroke(); c.setLineDash([]);
+    c.strokeStyle = M(0.85); c.lineWidth = 0.09;
+    c.beginPath(); c.arc(-sang, 0, 0.32 + (u % 0.5)*0.9, 0, Math.PI*2); c.stroke();
+    return { dich: sang };
+  },
+  reveal(c, u, R, M){                              // Thấu Thị: thấy cả thứ sau tường
+    c.fillStyle = 'rgba(118,120,132,0.55)'; c.fillRect(0.6, -1.7, 0.4, 3.4);
+    const hien = clamp((u-0.2)/0.35, 0, 1);
+    c.globalAlpha = hien;
+    for (let q = 0; q < 2; q++){ const y = q ? 0.8 : -0.8;
+      c.strokeStyle = M(0.9); c.lineWidth = 0.08;
+      c.beginPath(); c.arc(1.62, y, 0.52, 0, Math.PI*2); c.stroke();
+      skQuai(c, 1.62, y, 'thuong'); }
+    c.globalAlpha = 1;
+  },
+  freeze(c, u, R, M){                              // Đóng Băng: quái cứng đờ
+    skVong(c, R, 'rgba(170,225,250,0.85)', 'rgba(150,210,245,0.13)');
+    for (let q = 0; q < 3; q++){ const a = q*2.1 + 0.4;
+      skQuai(c, Math.cos(a)*R*0.6, Math.sin(a)*R*0.6, u > 0.3 ? 'dong' : 'thuong'); }
+  },
+  pull(c, u, R, M){                                // Kéo Đồ: đồ tự bay về
+    skVong(c, R, M(0.5), null);
+    for (let q = 0; q < 4; q++){
+      const a = q*Math.PI/2 + 0.5, ph = (u*1.3 + q*0.2) % 1, d = R*(1-ph)*0.82 + 0.55;
+      if (ph < 0.78) skMui(c, Math.cos(a)*d, Math.sin(a)*d,
+                           Math.cos(a)*(d-0.5), Math.sin(a)*(d-0.5), M(0.45));
+      c.fillStyle = 'rgba(230,198,120,' + (0.35 + 0.6*ph).toFixed(2) + ')';
+      c.fillRect(Math.cos(a)*d - 0.16, Math.sin(a)*d - 0.16, 0.32, 0.32);
+    }
+  },
+  angel(c, u, R, M){                               // Bất Tử: đòn đánh dội ngược ra
+    const ph = 0.5 + 0.5*Math.sin(u*Math.PI*4);
+    c.strokeStyle = M(0.5 + ph*0.45); c.lineWidth = 0.13;
+    c.beginPath(); c.arc(0, 0, 0.88, 0, Math.PI*2); c.stroke();
+    c.strokeStyle = 'rgba(255,240,190,0.95)'; c.lineWidth = 0.09;
+    c.beginPath(); c.ellipse(0, -0.66, 0.29, 0.10, 0, 0, Math.PI*2); c.stroke();
+    const den = clamp(u/0.45, 0, 1);
+    skQuai(c, -1.85 + den*0.72, 0, 'thuong');
+    if (u > 0.45) skMui(c, -1.0, -0.12, -1.6, -0.55, M(0.85));
+  }
+};
 function veChieu(cv, sk, hue, t){
   const c = cv.getContext('2d');
   c.setTransform(1,0,0,1,0,0);
   c.clearRect(0,0,cv.width,cv.height);
   c.fillStyle = 'rgb(26,28,32)'; c.fillRect(0,0,cv.width,cv.height);
   const R0 = sk.radius || 0;
-  // Khung nhìn: đủ chứa cả vòng, tối thiểu 3 ô để chiêu tự-thân vẫn có lưới mà so.
-  const oNhin = Math.max(3.2, (R0 || 0) + 1.1);
-  const k = (cv.height/2) / oNhin;              // điểm ảnh trên một Ô
+  // Khung nhìn KHÔNG bám theo tầm thật. Đây là chỗ bản trước hỏng: nó zoom ra đủ để vòng tầm
+  // lọt trọn, nên Mồi Nhử (tầm 16 ô) và Chói Loà (5,5 ô) thu người với quái xuống còn ba bốn
+  // điểm ảnh — đúng nghĩa 'chưa rõ ràng'. Một ô 78px chỉ chứa được chừng ba ô rưỡi mà vẫn còn
+  // đọc được hình.
+  //
+  // Nên: giữ khung gần, và khi vòng tầm KHÔNG lọt thì nói thẳng ra bằng nét đứt cộng ba mũi
+  // chevron chỉ ra ngoài, thay vì lặng lẽ vẽ một vòng nhỏ hơn sự thật. Con số 'TẦM 16 ô' nằm
+  // ngay bên cạnh mới là chỗ nói đúng độ lớn; ô hình lo phần 'nó làm gì'.
+  const oNhin = clamp(R0 + 0.7, 2.7, 3.6);
+  const k = (cv.height/2) / oNhin;                 // điểm ảnh trên một Ô
   c.setTransform(k,0,0,k, cv.width/2, cv.height/2);
-  // lưới ô, mờ
   c.strokeStyle = 'rgba(255,255,255,0.07)'; c.lineWidth = 1/k;
   const n = Math.ceil(oNhin);
   c.beginPath();
-  for (let i = -n; i <= n; i++){ c.moveTo(i, -n); c.lineTo(i, n); c.moveTo(-n, i); c.lineTo(n, i); }
+  for (let i = -n; i <= n; i++){ c.moveTo(i,-n); c.lineTo(i,n); c.moveTo(-n,i); c.lineTo(n,i); }
   c.stroke();
-  const chuKy = 2.8, u = (t % chuKy) / chuKy;
-  const mau = (a) => `hsla(${hue||45},80%,64%,${a})`;
-  if (R0 > 0){
-    // VÙNG: vòng nở ra tới đúng tầm rồi giữ, rồi tan
-    const no = clamp(u/0.34, 0, 1), giu = clamp((0.84 - u)/0.2, 0, 1);
-    const r = R0 * (1 - Math.pow(1-no, 3));
-    c.fillStyle = mau(0.10 * giu);
-    c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.fill();
-    c.strokeStyle = mau(0.85 * giu); c.lineWidth = 2.4/k;
-    c.beginPath(); c.arc(0,0,r,0,Math.PI*2); c.stroke();
-  } else {
-    // CHỈ MÌNH: quầng bám sát thân, phập phồng theo nhịp
-    const ph = 0.5 + 0.5*Math.sin(u*Math.PI*2*2);
-    c.strokeStyle = mau(0.28 + ph*0.5); c.lineWidth = 2.2/k;
-    c.beginPath(); c.arc(0,0, 0.62 + ph*0.16, 0, Math.PI*2); c.stroke();
+  const chuKy = 3.0, u = (t % chuKy) / chuKy;
+  const M = (a) => 'hsla(' + (hue||45) + ',80%,66%,' + a + ')';
+  const Rve = Math.min(R0 || 2.3, oNhin - 0.5);
+  SK_CAT = R0 > Rve + 0.05;
+  const ve = SK_HINH[sk.id];
+  let mo = 1, dich = 0;
+  if (ve){
+    const r = ve(c, u, Rve, M);
+    if (typeof r === 'number') mo = r;
+    else if (r && r.dich != null) dich = r.dich;
+  } else if (R0 > 0){
+    skVong(c, Rve * clamp(u/0.32, 0, 1), M(0.8), M(0.1));
   }
-  // người: một khối nhỏ ở tâm, để mắt biết vòng kia lấy AI làm gốc
-  c.fillStyle = 'rgba(226,232,238,0.92)';
-  c.beginPath(); c.ellipse(0, 0.10, 0.20, 0.30, 0, 0, Math.PI*2); c.fill();
-  c.beginPath(); c.arc(0, -0.26, 0.17, 0, Math.PI*2); c.fill();
+  skNguoi(c, dich, 0, mo);
+  if (R0 > Rve + 0.05){                            // vòng bị cắt: ba chevron chỉ ra ngoài
+    c.strokeStyle = M(0.55); c.lineWidth = 0.08;
+    for (let q = 0; q < 3; q++){
+      const a = -0.5 + q*0.5, r = Rve + 0.16;
+      c.beginPath();
+      c.moveTo(Math.cos(a)*r - Math.sin(a)*0.16, Math.sin(a)*r + Math.cos(a)*0.16);
+      c.lineTo(Math.cos(a)*(r+0.22), Math.sin(a)*(r+0.22));
+      c.lineTo(Math.cos(a)*r + Math.sin(a)*0.16, Math.sin(a)*r - Math.cos(a)*0.16);
+      c.stroke();
+    }
+  }
   // thanh THỜI GIAN KÉO DÀI chạy dưới đáy ô, nếu chiêu có thời hạn
   if (sk.dur){
     c.setTransform(1,0,0,1,0,0);
     const w = cv.width - 12, y = cv.height - 7;
     c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(6, y, w, 3);
-    c.fillStyle = mau(0.9); c.fillRect(6, y, w * clamp(u/0.84, 0, 1), 3);
+    c.fillStyle = M(0.9); c.fillRect(6, y, w * clamp(u/0.85, 0, 1), 3);
   }
 }
 function wikiStat(k, v){
@@ -10733,7 +11009,21 @@ function wikiHtml(){
   if (SQd && SQd.FOES){
     for (const k in SQd.FOES){
       const f = SQd.FOES[k];
-      h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '', { col:f.color, eye:'#ffb46a' }),
+      // Quái Biệt Đội cũng phải có ô ĐỘNG. Bản đầu bỏ sót đúng nhánh này, nên người chơi Biệt
+      // Đội mở sổ ra thấy toàn hình đứng — "không thấy gif của bọn quái". Chúng không nằm trong
+      // MONSTERS nên phải nặn một def tối thiểu từ chính SQ.FOES rồi đưa vào drawFoeOne.
+      // `hp` phải có: drawFoeOne không đọc nó, nhưng vòng vẽ của sổ tay đọc — `m.hp > 0` là
+      // cái công tắc giữa 'vẽ con quái' và 'vẽ cụm khói nó nổ'. Thiếu trường này thì cả bảy con
+      // của Biệt Đội hiện ra dưới dạng một quầng cam đứng im, và đó đúng là thứ đo được ở lần
+      // chạy đầu: bảy ô, mười hai lần lấy mẫu, một khung hình duy nhất.
+      // `rim` là màu của CẶP TAY (drawArms đọc đúng trường này). Trắng mờ thì tay chìm nghỉm
+      // vào cái viền đỏ mà sprites.js nướng sẵn quanh mọi con quái, và cú vung — thứ cả ô hình
+      // này dựng ra để khoe — thành ra không nhìn thấy. Một màu ấm đặc thì nổi trên cả viền đỏ
+      // lẫn nền tối.
+      const fd = { col: f.color, eye: '#ffb46a', rim: '#f0dccc',
+                   hp: f.hp, dmg: f.dmg, wind: 0.5, noMelee: k === 'angel' ? 1 : 0 };
+      h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '', { col:f.color, eye:'#ffb46a' }) +
+                   wikiSong(k, fd, WIKI_CANH_SQ[k] || 'vung'),
         f.name, '',
         wikiStat('Máu', f.hp) + wikiStat('Đòn', f.dmg) + wikiStat('Chạy', f.spd) +
         wikiStat('Mắt', wikiO(f.sight)) + wikiStat('Tai', wikiO(f.hear)),
@@ -10742,7 +11032,8 @@ function wikiHtml(){
   } else {
     for (const k in MONSTERS){
       const d = MONSTERS[k];
-      h += wikiRow(wikiSong(k),
+      h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '',
+                            { col:d.col, eye:d.eye, rim:d.rim }) + wikiSong(k),
         d.name, d.pack ? 'đi ' + d.pack + ' con một đàn' : '',
         wikiStat('Máu', d.hp) + wikiStat('Đòn', d.dmg) + wikiStat('Chạy', d.speed) +
         wikiStat('Mắt', wikiO(d.sight)) + wikiStat('Tai', wikiO(d.hear)) +
@@ -10754,7 +11045,10 @@ function wikiHtml(){
   if (SQd && SQd.CHARS){
     h += '<h3 class="wk-h">Chiêu của từng xác</h3>';
     for (const ch of SQd.CHARS){
-      h += wikiRow(wikiChieuO(ch),
+      // Chân dung TRƯỚC, sơ đồ chiêu SAU. Hàng này nói về một cái chiêu, nhưng người đọc tìm
+      // hàng bằng KHUÔN MẶT — đó là thứ họ vừa nhìn ở màn chọn đội. Bỏ mặt đi thì mười bốn hàng
+      // thành mười bốn ô đồ hoạ na ná nhau, không hàng nào neo vào ai.
+      h += wikiRow(wikiFace(url('crewUrl', ch.id), { col:'#3a4450' }) + wikiChieuO(ch),
         ch.skill.name, ch.name + ' — ' + ch.epithet,
         wikiStat('Hồi', ch.skill.cd + 's') +
         (ch.skill.dur ? wikiStat('Kéo dài', ch.skill.dur + 's') : '') +
