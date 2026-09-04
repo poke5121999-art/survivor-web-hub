@@ -113,6 +113,11 @@ async function repo2dSuite(b) {
     }
     if (ang === null) return { ok: false, why: 'không có hướng nhìn thông' };
     S.monsters.length = 1; m.sleep = 0; m.hp = 100; m.alert = 3; m.state = 'chase';
+    // KHÓA SÚNG CỦA NÓ trong lúc đo. Cả bài này nói về viên đạn CỦA BẠN — nó có ra khỏi
+    // nòng không, và nó bay về hướng nào. Con quái ở đây được đặt cách 3 ô, alert 3, thông
+    // tầm nhìn — tức là đúng điều kiện để một Kẻ bắn bóp cò ngay giữa cửa sổ đo. Gặp
+    // đúng hôm bốc ra nó thì bài test hỏng ngẫu nhiên, mà không hỏng vì cái nó đang đo.
+    m.gunCd = 99; m.gunAim = 0;
     pl.dir = ang + Math.PI; pl.cooldown = 0; pl.down = false; S.dead = false;
     S.bullets.length = 0;
     return { ok: true };
@@ -129,7 +134,11 @@ async function repo2dSuite(b) {
     await p.evaluate(() => {
       window.__daBan = null;
       window.__rinh = setInterval(() => {
-        const b = REPO.S.bullets[0];
+        // Lọc `!x.foe`: từ khi có Kẻ bắn, ĐẠN CỦA QUÁI nằm chung một mảng với đạn của
+        // bạn. `bullets[0]` vì thế không còn chắc là viên bạn vừa bắn, và bài đo hướng ở
+        // dưới sẽ so góc của một viên do con quái bắn ra — hỏng ngẫu nhiên, tùy xem con
+        // trong phòng có kịp bóp cò trước bạn hay không.
+        const b = REPO.S.bullets.find(x => !x.foe);
         if (b && !window.__daBan) window.__daBan = { vx: b.vx, vy: b.vy };
       }, 4);
     });
@@ -138,7 +147,7 @@ async function repo2dSuite(b) {
     await p.waitForTimeout(25);
     const shot = await p.evaluate(() => {
       clearInterval(window.__rinh);
-      const S = REPO.S, pl = S.player, b = S.bullets[0] || window.__daBan;
+      const S = REPO.S, pl = S.player, b = S.bullets.find(x => !x.foe) || window.__daBan;
       if (!b) return { ban: false, vi: { o: pl.inv.map(x => x && x.kind + 'x' + x.uses),
                                          aim: pl.aimSlot, cd: +pl.cooldown.toFixed(2),
                                          chay: S.running, guc: pl.down } };
@@ -399,7 +408,7 @@ async function dapDenSuite(b) {
     const S = REPO.S, pl = S.player;
     S.monsters.length = 0;
     pl.swingCd = 0; pl.dir = 0; pl.str = 30;
-    const m = REPO.spawnFoe('listen', 30, 0);        // ngay trước mặt, trong tầm với
+    const m = REPO.spawnFoe('gunner', 30, 0);        // ngay trước mặt, trong tầm với
     m.hp = 400; m.kx = 0; m.ky = 0;
     const truoc = { hp: m.hp, x: m.x };
     REPO.meleeSwing(pl, null);
@@ -416,8 +425,8 @@ async function dapDenSuite(b) {
   const hut = await p.evaluate(() => {
     const S = REPO.S, pl = S.player;
     S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.stam = pl.stamMax;
-    const sau = REPO.spawnFoe('listen', -30, 0);     // ngay SAU lưng
-    const xa  = REPO.spawnFoe('listen', 90, 0);      // trước mặt nhưng ngoài tầm
+    const sau = REPO.spawnFoe('gunner', -30, 0);     // ngay SAU lưng
+    const xa  = REPO.spawnFoe('gunner', 90, 0);      // trước mặt nhưng ngoài tầm
     sau.hp = 400; xa.hp = 400;
     REPO.meleeSwing(pl, null);
     return { sauLung: 400 - sau.hp, ngoaiTam: 400 - xa.hp };
@@ -440,7 +449,7 @@ async function dapDenSuite(b) {
     const S = REPO.S, pl = S.player;
     S.monsters.length = 0; pl.swingCd = 0; pl.stam = pl.stamMax;
     pl.dir = Math.PI;                                 // đang quay LƯNG lại phía nó
-    const m = REPO.spawnFoe('listen', 34, 0);         // nó ở bên phải mình
+    const m = REPO.spawnFoe('gunner', 34, 0);         // nó ở bên phải mình
     // Ghim nó đứng yên: thế giới vẫn đang chạy, và một con quái đi lang thang trong
     // lúc đo thì góc tới nó đổi vài phần mười radian — phép đo sẽ đỏ vì con quái
     // nhúc nhích chứ không phải vì cú quay sai.
@@ -478,7 +487,7 @@ async function dapDenSuite(b) {
     const S = REPO.S, pl = S.player;
     S.monsters.length = 0; pl.swingCd = 0; pl.stam = pl.stamMax; pl.sprint = false;
     pl.dir = Math.PI;
-    const m = REPO.spawnFoe('listen', 34, 0);
+    const m = REPO.spawnFoe('gunner', 34, 0);
     m.hp = 400; m.kx = 0; m.speed = 0; m.state = 'idle'; m.alert = 0;
   });
   await p.touchscreen.tap(nutDanh.x, nutDanh.y);
@@ -497,7 +506,7 @@ async function dapDenSuite(b) {
   await p.evaluate(() => {
     const S = REPO.S, pl = S.player;
     S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.stam = pl.stamMax;
-    const m = REPO.spawnFoe('listen', 34, 0); m.hp = 400;
+    const m = REPO.spawnFoe('gunner', 34, 0); m.hp = 400;
   });
   await p.mouse.move(canGat.x, canGat.y);
   await p.mouse.down();
@@ -516,7 +525,7 @@ async function dapDenSuite(b) {
     const S = REPO.S, pl = S.player, out = {};
     [30, 53].forEach(v => {
       S.monsters.length = 0; pl.swingCd = 0; pl.dir = 0; pl.str = v; pl.stam = pl.stamMax;
-      const m = REPO.spawnFoe('listen', 30, 0); m.hp = 400;
+      const m = REPO.spawnFoe('gunner', 30, 0); m.hp = 400;
       REPO.meleeSwing(pl, null);
       out[v] = 400 - m.hp;
     });
@@ -543,12 +552,12 @@ async function dapDenSuite(b) {
     S.monsters.length = 0; pl.dir = 0; pl.str = 30;
     // đầy thể lực
     pl.stam = pl.stamMax; pl.swingCd = 0;
-    let m = REPO.spawnFoe('listen', 30, 0); m.hp = 400;
+    let m = REPO.spawnFoe('gunner', 30, 0); m.hp = 400;
     REPO.meleeSwing(pl, null);
     const khoe = { mat: 400 - m.hp, cd: pl.swingCd };
     // cạn thể lực
     S.monsters.length = 0; pl.stam = 0; pl.swingCd = 0;
-    m = REPO.spawnFoe('listen', 30, 0); m.hp = 400;
+    m = REPO.spawnFoe('gunner', 30, 0); m.hp = 400;
     REPO.meleeSwing(pl, null);
     return { khoe: khoe, met: { mat: 400 - m.hp, cd: pl.swingCd } };
   });
@@ -626,14 +635,14 @@ async function dapDenSuite(b) {
   const bom = await p.evaluate(async () => {
     const S = REPO.S;
     S.monsters.length = 0; S.bombs.length = 0;
-    const m = REPO.spawnFoe('listen', 40, 0);         // Kẻ nghe, 75 máu
+    const m = REPO.spawnFoe('gunner', 40, 0);         // Kẻ bắn, 110 máu
     const goc = m.hp;
     S.bombs.push({ x: m.x, y: m.y, t: 0, fuse: 0, r: REPO.TILE * 3.4, done: false, owner: 'player' });
     await new Promise(k => setTimeout(k, 300));
     return { goc: goc, con: S.monsters.indexOf(m) >= 0 };
   });
   check('bom nổ sát chân thì giết gọn con dày máu nhất', !bom.con,
-    'Kẻ nghe ' + bom.goc + ' máu');
+    'Kẻ bắn ' + bom.goc + ' máu');
 
   const e = errs.filter(x => !/favicon/.test(x));
   check('đập đèn pin: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
@@ -1254,7 +1263,7 @@ async function skillEffectSuite(b) {
     }
     for (let i = 0; i < n; i++) {
       const a = goc.length ? goc[i % goc.length] : i / n * Math.PI * 2;
-      const m = REPO.spawnFoe('stalk', Math.cos(a) * r * REPO.TILE, Math.sin(a) * r * REPO.TILE);
+      const m = REPO.spawnFoe('gunner', Math.cos(a) * r * REPO.TILE, Math.sin(a) * r * REPO.TILE);
       m.hp = 400; m.state = 'chase'; m.alert = 3; m.lost = 0;
       m.tx = pl.x; m.ty = pl.y; m.seen = true; m.reveal = 1; m.hit = 0;
       out.push({ x: m.x, y: m.y });
@@ -1596,7 +1605,7 @@ async function metaRulesSuite(b) {
     REPO.cancelCut(); REPO.S.running = true;
     REPO.S.monsters.length = 0;
     (REPO.S.mates || []).forEach(a => {
-      const m = REPO.spawnFoe('patrol', 0, 0);
+      const m = REPO.spawnFoe('gunner', 0, 0);
       m.x = a.x + 30; m.y = a.y; m.hp = 4000; m.hpMax = 4000; m.state = 'chase'; m.alert = 3;
     });
     for (let i = 0; i < 24; i++) {
@@ -1688,9 +1697,17 @@ async function boardingSuite(b) {
 //   3. ở Biệt Đội, tấm màn nằm dưới hai luật CSS đang cố giấu nó (#menu z-8 và
 //      `body:not(.in-run) #veil{display:none}`) — bảng dựng đủ 21 hàng mà vẫn vô hình.
 //      Đó chính là cái bug đã gặp, nên nó phải có test riêng đo BỀ NGANG THẬT.
-// Mã của bảy con quái Biệt Đội. Viết thẳng ra chứ không đọc từ SQ.FOES: bài test phải HỎNG khi
-// ai đó xoá một con khỏi bảng, chứ không lặng lẽ đổi kỳ vọng theo.
-const SQ_MA = ['rook', 'patrol', 'angel', 'hunter', 'nhen', 'quanca', 'bongden'];
+// SÁU thứ trong nhà, đúng thứ tự sổ tay xếp ra. Viết thẳng ra chứ không đọc từ MONSTERS:
+// bài test phải HỎNG khi ai đó thêm hay bớt một con, chứ không lặng lẽ đổi kỳ vọng theo.
+//
+// Bốn cái THÂN đứng trước (chúng nằm trong MONSTERS), rồi hai SỰ KIỆN — Tượng và cặp
+// Gương — vốn không có máu nên cố ý nằm ngoài mảng quái, và sổ tay khai chúng bằng tay.
+//
+// Bảng cũ ở đây là bảy con của SQ.FOES. Chúng bị xoá cả bảng: tra ra thì SQ.FOES chỉ được
+// đọc ở sổ tay và ở cái nhãn 'Quái:' của màn chọn map, không chỗ nào nạp vào bộ máy, nên
+// bảy con đó chưa từng sinh ra trong một ván nào. Bài test cũ vì thế khẳng định rất chắc
+// chắn một điều sai: rằng sổ tay liệt kê đúng bọn quái người chơi sẽ gặp.
+const WIKI_MA = ['gunner', 'rook', 'banger', 'gnome', 'angel', 'mirror'];
 async function wikiSuite(b) {
   results.push('\n── sổ tay (bảng tra quái & chiêu) ──');
 
@@ -1724,8 +1741,11 @@ async function wikiSuite(b) {
     }));
     check('bảng hiện ra và CHIẾM MÀN HÌNH', mo.hien && mo.rong > 200, mo.rong + 'px');
     check('có đủ hai mục: quái, và thứ bạn dùng được', mo.dau.length === 2, mo.dau.join(' / '));
-    check('mỗi con quái một hàng, cộng đồ nghề',
-      mo.hang === (await p.evaluate(() => Object.keys(REPO.MONSTERS).length + REPO.GEAR.length)),
+    // +2: Tượng và cặp Gương. Cả hai đếm là quái (EVENT_KINDS — một căn nhà chứa ba THỨ)
+    // nhưng cố ý nằm ngoài MONSTERS, vì chúng không có máu và không bắn được. Sổ tay khai
+    // chúng bằng tay, nên số hàng không còn bằng đúng kích thước của bảng quái nữa.
+    check('mỗi thứ trong nhà một hàng, cộng đồ nghề',
+      mo.hang === (await p.evaluate(() => Object.keys(REPO.MONSTERS).length + 2 + REPO.GEAR.length)),
       mo.hang + ' hàng');
     check('mở sổ thì THẾ GIỚI ĐỨNG LẠI', mo.running === false);
 
@@ -1795,8 +1815,8 @@ async function wikiSuite(b) {
     check('ở màn menu, sổ tay vẫn HIỆN (không bị display:none)',
       m.disp !== 'none' && m.rong > 200 && m.cao > 200, m.disp + ' ' + m.rong + 'x' + m.cao);
     check('và nằm TRÊN menu, không khuất bên dưới', m.trongVeil, 'trên cùng: ' + m.tren);
-    check('quái lấy từ SQ.FOES, chiêu lấy từ SQ.CHARS',
-      m.hang === (await p.evaluate(() => Object.keys(SQ.FOES).length + SQ.CHARS.length)),
+    check('quái lấy từ MONSTERS + 2 sự kiện, chiêu lấy từ SQ.CHARS',
+      m.hang === (await p.evaluate(() => Object.keys(REPO.MONSTERS).length + 2 + SQ.CHARS.length)),
       m.hang + ' hàng');
     check('mục thứ hai là chiêu, không phải đồ nghề', /Chiêu/.test(m.dau[1] || ''), m.dau.join(' / '));
 
@@ -1837,7 +1857,7 @@ async function wikiSuite(b) {
     await p.evaluate(() => REPO.showWiki());
     await p.waitForTimeout(700);
     const A = await oHinh();
-    const quai = await p.evaluate(() => Object.keys(SQ.FOES).length);
+    const quai = WIKI_MA.length;
     const thieu = A.hang.filter(h => h.thu !== 'I,CANVAS').map(h => h.ten + '[' + h.thu + ']');
     check('mỗi hàng có ĐỦ chân dung rồi tới ô động, đúng thứ tự đó',
       thieu.length === 0, thieu.slice(0, 3).join(' / ') || (A.hang.length + ' hàng'));
@@ -1853,8 +1873,8 @@ async function wikiSuite(b) {
       dung.slice(0, 5).join(', ') || (A.o.length + ' ô đều đổi khung'));
     // So theo THỨ TỰ, không lọc theo tập hợp: 'angel' vừa là mã một con quái vừa là mã chiêu
     // Bất Tử, nên một phép lọc 'có nằm trong SQ_MA không' đếm ra tám và bài test hỏng oan.
-    check('bảy con quái Biệt Đội đều có ô riêng, đúng thứ tự bảng',
-      A.o.slice(0, quai).map(x => x.ma).join(',') === SQ_MA.join(','),
+    check('sáu thứ trong nhà đều có ô riêng, đúng thứ tự bảng',
+      A.o.slice(0, quai).map(x => x.ma).join(',') === WIKI_MA.join(','),
       A.o.slice(0, quai).map(x => x.ma).join(','));
     await p.locator('#veilBtn').click();
     await p.waitForTimeout(400);
@@ -2035,7 +2055,11 @@ async function meleeSuite(b) {
   });
 
   // --- 1. mỗi loài phải có quãng báo trước ---
-  for (const loai of ['patrol', 'stalk', 'heavy']) {
+  // Chỉ còn MỘT loài đánh cận chiến trong nhà. Ba con cũ trong vòng lặp này (Kẻ đi tuần,
+  // Kẻ bám, Kẻ nặng) đã bị cắt, và bị cắt CHÍNH VÌ điều bài test này vô tình chứng minh:
+  // ba con khác tên chạy qua đúng một nhánh mã, nên ba lần đo ra ba kết quả giống nhau.
+  // Kẻ bắn có bài riêng ở dưới (nó ngắm chứ không vung), Kẻ húc có bài riêng của nó.
+  for (const loai of ['gnome']) {
     await san();
     const r = await p.evaluate(async (t) => {
       REPO.spawnFoe(t, 20, 0);
@@ -2060,10 +2084,11 @@ async function meleeSuite(b) {
   // --- 2. lùi ra trong lúc nó vung thì không mất máu ---
   await san();
   const ne = await p.evaluate(async () => {
-    REPO.spawnFoe('heavy', 20, 0);
+    const bag = REPO.spawnFoe('gnome', 20, 0);
+    bag.hp = bag.hpMax = 4000;            // đừng để nó chết vì bị giẫm giữa lúc đang đo
     const pl = REPO.S.player;
     const iv = setInterval(() => {
-      const m = REPO.S.monsters.find(q => q.type === 'heavy'); if (!m) return;
+      const m = REPO.S.monsters.find(q => q.type === 'gnome'); if (!m) return;
       m.alert = 9;
       if ((m.swing || 0) > 0) {                       // nó vừa ngoác tay: LÙI RA
         const a = Math.atan2(pl.y - m.y, pl.x - m.x);
@@ -2100,10 +2125,10 @@ async function meleeSuite(b) {
   await san();
   const met = await p.evaluate(async () => {
     REPO.S.noiseOverride = 2.6;
-    REPO.spawnFoe('patrol', 200, 0);
+    REPO.spawnFoe('gunner', 200, 0);
     const mau = [];
     const iv = setInterval(() => {
-      const m = REPO.S.monsters.find(q => q.type === 'patrol'); if (!m) return;
+      const m = REPO.S.monsters.find(q => q.type === 'gunner'); if (!m) return;
       m.alert = 9;
       mau.push({ t: +(m.chaseT || 0).toFixed(1), met: +(m.tired || 0).toFixed(2) });
     }, 200);
@@ -2121,6 +2146,142 @@ async function meleeSuite(b) {
   await p.evaluate(() => { REPO.S.noiseOverride = null; });
   const e = errs.filter(x => !/favicon/.test(x));
   check('đòn đánh: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// KẺ BẮN.
+//
+// Con duy nhất trong nhà đánh từ xa, và bộ này tồn tại vì một lý do rất cụ thể: cả loài này
+// ra đời từ chỗ SỔ TAY NÓI SAI. Chủ dự án, 2026-09-04: "wiki về quái sai so với skill của
+// quái ... nó không nói lên quái có skill gì cả", rồi "tại tui nhớ có mấy con quái ngắm lắm
+// mà không có quái nào bắn à".
+//
+// Cái nhớ đó đúng: art/foe/gunner.png (trước là patrol.png) vẽ một tay súng chĩa khẩu lục ra
+// ở cả mười hai khung, mà mã thì cho nó vung tay như mọi con khác. Bốn bài dưới đây ghim đúng
+// bốn câu mà sổ tay đang hứa, để lần sau chữ với mã không tách nhau ra được nữa.
+async function gunnerSuite(b) {
+  results.push('\n── Kẻ bắn: nó BẮN, và bức tường chặn được đạn ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+  const san = async () => await p.evaluate(() => {
+    REPO.S.level = 1; REPO.startLevel(1234); REPO.S.running = true; REPO.cancelCut();
+    REPO.S.monsters.length = 0; REPO.S.bullets.length = 0;
+    (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
+    REPO.S.player.hp = REPO.S.player.hpMax; REPO.S.hurtLog = [];
+  });
+
+  // --- 1. nó bắn thật, và nó bắn TỪ XA ---
+  // Đo cả hai vế trong một lần chạy: có mất máu KHÔNG, và lúc mất máu thì nó đứng cách bao xa.
+  // Vế thứ hai mới là vế đáng đo — một con làm bạn mất máu ở tầm 20px thì đó là đấm, không
+  // phải bắn, và bài test chỉ đo vế đầu sẽ xanh với cả hai.
+  await san();
+  const ban = await p.evaluate(async () => {
+    const T = REPO.TILE, pl = REPO.S.player;
+    // PHẢI tìm một chỗ THÔNG TẦM NHÌN, không được đặt bừa ở "sáu ô sang phải". Lần dựng đầu
+    // đặt bừa đúng như thế và cả ba bài đo ra 0 — không phải vì con quái không bắn, mà vì nó
+    // đứng sau một bức tường, tức là bài test vừa đo đúng cái luật ở bài số 3.
+    let m = null;
+    for (let r = 5; r <= 7 && !m; r++)
+      for (let i = 0; i < 32 && !m; i++) {
+        const a = i / 32 * Math.PI * 2;
+        const x = pl.x + Math.cos(a) * r * T, y = pl.y + Math.sin(a) * r * T;
+        if (REPO.hitsSolid(x, y, 9)) continue;
+        if (!REPO.losClear(pl.x, pl.y, x, y)) continue;
+        m = REPO.spawnFoe('gunner', x - pl.x, y - pl.y);
+      }
+    if (!m) return { boQua: true };
+    let xaNhat = 0, dan = 0;
+    const iv = setInterval(() => {
+      m.alert = 9; m.hp = 999;                       // giữ nó sống và luôn thấy bạn
+      dan = Math.max(dan, REPO.S.bullets.filter(x => x.foe).length);
+      if (REPO.S.hurtLog.some(x => x.src === 'gunner'))
+        xaNhat = Math.max(xaNhat, Math.hypot(m.x - pl.x, m.y - pl.y));
+    }, 16);
+    await new Promise(r => setTimeout(r, 6000));
+    clearInterval(iv);
+    return { mat: Math.round(pl.hpMax - pl.hp), dan,
+             oXa: +(xaNhat / T).toFixed(1),
+             vung: m.swing || 0 };
+  });
+  check('dựng được thế đứng thông tầm nhìn để đo', !ban.boQua);
+  check('Kẻ bắn làm mất máu thật', !ban.boQua && ban.mat > 0, ban.mat + ' máu');
+  check('và có viên đạn của quái bay trên sàn', !ban.boQua && ban.dan > 0, ban.dan + ' viên');
+  check('nó bắn TỪ XA, không phải đấm — lúc trúng nó đứng cách hơn 3 ô',
+    !ban.boQua && ban.oXa > 3, ban.oXa + ' ô');
+
+  // --- 2. nó KHÔNG BAO GIỜ đánh tay, kể cả khi bị dí sát mặt ---
+  // Đây là nửa còn lại của thiết kế: áp sát nó phải là một nước đi ĐÚNG. Một con vừa bắn vừa
+  // đấm thì nước đi ấy biến mất và cả loài rút xuống thành "trừ máu theo thời gian".
+  await san();
+  const sat = await p.evaluate(async () => {
+    const m = REPO.spawnFoe('gunner', 16, 0);
+    const pl = REPO.S.player;
+    let vungToiDa = 0, xaMin = 999;
+    const iv = setInterval(() => {
+      m.alert = 9; m.hp = 999;
+      m.x = pl.x + 16; m.y = pl.y;                   // dí nó vào mặt mình, mỗi khung một lần
+      vungToiDa = Math.max(vungToiDa, m.swing || 0);
+    }, 16);
+    await new Promise(r => setTimeout(r, 2500));
+    clearInterval(iv);
+    return { vung: vungToiDa, tam: REPO.MONSTERS.gunner.noMelee === true };
+  });
+  check('dí sát mặt suốt 2,5s mà nó không vung tay một lần nào',
+    sat.vung === 0, 'swing đỉnh ' + sat.vung);
+  check('và bảng chỉ số khai đúng điều đó (noMelee)', sat.tam === true);
+
+  // --- 3. NẤP SAU TƯỜNG giữa lúc nó ngắm thì huỷ hẳn ---
+  // Không phải "ít sát thương hơn" mà là "không phát nào". Cắt đường ngắm bằng cách bịt
+  // losClear: đặt nó ở bên kia một ô đặc, đúng thứ mà stepGunner hỏi trước khi bóp cò.
+  await san();
+  const tuong = await p.evaluate(async () => {
+    const T = REPO.TILE, pl = REPO.S.player;
+    // tìm một ô đặc quanh người chơi, rồi đứng con quái ngay phía sau nó
+    let m = null;
+    for (let r = 2; r <= 6 && !m; r++)
+      for (let i = 0; i < 24 && !m; i++) {
+        const a = i / 24 * Math.PI * 2;
+        const wx = pl.x + Math.cos(a) * r * T, wy = pl.y + Math.sin(a) * r * T;
+        if (!REPO.hitsSolid(wx, wy, 6)) continue;
+        const bx = pl.x + Math.cos(a) * (r + 2) * T, by = pl.y + Math.sin(a) * (r + 2) * T;
+        if (REPO.hitsSolid(bx, by, 9)) continue;
+        if (REPO.losClear(pl.x, pl.y, bx, by)) continue;      // phải THẬT SỰ khuất
+        m = REPO.spawnFoe('gunner', bx - pl.x, by - pl.y);
+      }
+    if (!m) return { boQua: true };
+    const iv = setInterval(() => { m.alert = 9; m.hp = 999; m.gunCd = 0; }, 16);
+    await new Promise(r => setTimeout(r, 4000));
+    clearInterval(iv);
+    return { mat: Math.round(pl.hpMax - pl.hp),
+             ban: REPO.S.hurtLog.filter(x => x.src === 'gunner').length };
+  });
+  check('khuất sau tường thì nó không bắn trúng phát nào',
+    tuong.boQua || (tuong.mat === 0 && tuong.ban === 0),
+    tuong.boQua ? 'không dựng được thế đứng' : tuong.mat + ' máu / ' + tuong.ban + ' phát');
+
+  // --- 4. nó GIỮ KHOẢNG: bị áp sát thì lùi ra, không chống trả ---
+  await san();
+  const lui = await p.evaluate(async () => {
+    const T = REPO.TILE, pl = REPO.S.player;
+    const m = REPO.spawnFoe('gunner', T * 1.2, 0);
+    const d0 = Math.hypot(m.x - pl.x, m.y - pl.y);
+    const iv = setInterval(() => { m.alert = 9; m.hp = 999; }, 16);
+    await new Promise(r => setTimeout(r, 2500));
+    clearInterval(iv);
+    return { d0: +(d0 / T).toFixed(1), d1: +(Math.hypot(m.x - pl.x, m.y - pl.y) / T).toFixed(1),
+             keep: +(REPO.GUNNER_KEEP / T).toFixed(1) };
+  });
+  check('bị áp sát thì nó LÙI RA chứ không xông vào',
+    lui.d1 > lui.d0 + 0.8, lui.d0 + ' ô -> ' + lui.d1 + ' ô (neo ở ' + lui.keep + ' ô)');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('Kẻ bắn: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
   await ctx.close();
 }
 
@@ -2454,6 +2615,7 @@ async function lightSuite(_khongDung) {
   try { await wikiSuite(b); } catch (e) { check('sổ tay: bộ test chạy trọn', false, e.message); }
   try { await escapeSuite(b); } catch (e) { check('pha chạy: bộ test chạy trọn', false, e.message); }
   try { await meleeSuite(b); } catch (e) { check('đòn đánh: bộ test chạy trọn', false, e.message); }
+  try { await gunnerSuite(b); } catch (e) { check('Kẻ bắn: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));

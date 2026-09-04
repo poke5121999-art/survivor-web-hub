@@ -9,6 +9,14 @@ Tài liệu này **không** phải đề xuất làm lại Robbery Bob. Nó tr�
 *trong bốn hệ thống làm nên Robbery Bob, cái nào lắp được vào luật đã có của `repo2d`
 và `repo-squad`, và lắp vào đâu.*
 
+> **BẢNG QUÁI TRONG BÀI NÀY ĐÃ CŨ, từ 2026-09-04.** Mọi chỗ nhắc tới Kẻ đi tuần, Kẻ nghe,
+> Kẻ bám, Kẻ nổ, Kẻ nặng là nói về bảng cũ tám con. Năm con ấy đã bị cắt — bốn trong năm
+> không có một dòng mã riêng nào, chúng chạy chung một vòng AI và chỉ khác nhau ở chỉ số.
+> Nay trong nhà có đúng sáu thứ: bốn cái thân (**Kẻ bắn** — chính là `patrol` cũ, nay bắn
+> thật; **Kẻ húc**; **Bom con**; **Gnome**) cộng hai sự kiện (**Tượng**, **cặp Gương**).
+> Những phân tích về MỐI QUAN HỆ giữa nghe/nhìn/nấp thì vẫn đúng; những `[ĐỀ XUẤT]` gắn
+> tên một con đã cắt thì không còn địa chỉ để lắp vào.
+
 Quy ước đánh dấu:
 - không dấu — **có nguồn**, dẫn ở cuối bài.
 - `[ĐỀ XUẤT]` — thiết kế do tài liệu này nghĩ ra, **không** có trong game gốc.

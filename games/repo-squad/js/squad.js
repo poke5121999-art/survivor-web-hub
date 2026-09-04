@@ -9,6 +9,12 @@
  *   bản cũ chỉ là một vòng tròn bán kính), thể lực, tủ đồ, ba ô trên tay, đồ dùng,
  *   bắn thử. Bảng quái cũng khác: id `rook` có ở cả hai nhưng NGƯỢC nhau — repo2d
  *   là Kẻ húc (mắt 9 ô, không nghe), bản cũ là Con Ngồi (mù, nghe 9 ô).
+ *
+ *   CÁI BẢNG QUÁI RIÊNG ẤY ĐÃ BỎ, 2026-09-04. Nó không phải một bảng cân bằng khác — nó
+ *   chưa bao giờ được nạp vào bộ máy. Tra cả kho mã thì `SQ.FOES` chỉ được đọc ở sổ tay và
+ *   ở cái nhãn 'Quái:' của màn chọn map, nên bảy con trong đó chưa từng sinh ra trong một
+ *   ván nào: Biệt Đội vốn đã chạy đúng `MONSTERS` của repo2d ngay từ đầu. Đó là đúng cái
+ *   bệnh mà dòng SEE ở dưới cảnh báo, chỉ khác là nữa kia của luật không tồn tại để mà lệch.
  *   Mà repo2d VỐN ĐÃ có tổ đội: MATE_COUNT, makeMate(), crew(), crewAlive().
  *   Nên Biệt Đội = repo2d + kỹ năng + chọn tổ + gacha, chứ không phải một trò khác.
  * SEE: chú thích trong data/games.js về bản Unity — "một luật sửa ở một bên và

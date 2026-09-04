@@ -163,7 +163,12 @@ async function hucSuite(b) {
     if (!pl.riding) return { boQua: true };
     S.monsters.length = 0; S.noFoes = false;
     const bk = pl.riding; bk.spd = 195; bk.dir = 0; bk.fuel = 20;
-    const m = REPO.spawnFoe('heavy', 0, 0);
+    // Bao cát: `heavy` (620 máu) đã bị cắt khỏi bảng quái, nên chỗ này lấy một con thật
+    // rồi bơm máu lên. Bài test cần một cái thân đứng yên chịu được cú húc, không cần
+    // đúng loài nào — mà một con 110 máu thì chết trước khi đo xong và `mất bao nhiêu máu`
+    // bị chặn trần ở đúng số máu của nó.
+    const m = REPO.spawnFoe('gunner', 0, 0);
+    m.hp = m.hpMax = 620;
     m.x = pl.x + 30; m.y = pl.y; m.speed = 0; m.state = 'patrol'; m.alert = 0; m.kx = 0;
     const hp0 = m.hp;
     await new Promise(r => setTimeout(r, 400));
@@ -182,7 +187,8 @@ async function hucSuite(b) {
     S.monsters.length = 0;
     const bk = pl.riding; if (!bk) return { boQua: true };
     bk.spd = REPO.BIKE_RAM_MIN * 0.5; bk.dir = 0; bk.fuel = 20;
-    const m = REPO.spawnFoe('heavy', 0, 0);
+    const m = REPO.spawnFoe('gunner', 0, 0);
+    m.hp = m.hpMax = 620;
     m.x = pl.x + 26; m.y = pl.y; m.speed = 0; m.state = 'patrol'; m.alert = 0;
     const hp0 = m.hp;
     await new Promise(r => setTimeout(r, 300));

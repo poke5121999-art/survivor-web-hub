@@ -268,31 +268,17 @@ const bot = {
         this.state = ST.FLEE;
         return { vx:0, vy:0, push:0, look };
       }
-      // Against a blind hunter the answer is silence, not speed — it is faster than a
-      // loaded player, so running only feeds it a fresh fix on where you are.
-      // Freezing beats a blind hunter, but standing still while something that can SEE
-      // you is also on you is just dying quietly. Only hold still when nothing is watching.
-      const watched = S.monsters.some(m2 =>
-        m2 !== th.m && (window.REPO, true) && m2.state === 'chase' &&
-        Math.hypot(m2.x-p.x, m2.y-p.y) < 5*A.TILE && m2.type !== 'listen');
-      if (th.m.type === 'listen' && !watched){
-        this.state = ST.FLEE; this.path = null;
-        this.freezeT += dt;
-        if (this.freezeT < 3.0) return { vx:0, vy:0, push:0, look };
-        this.creepT = 2.0; this.freezeT = 0;
-      }
-      if (this.creepT > 0 && th.m.type === 'listen'){
-        this.creepT -= dt;
-        const ax = p.x-th.m.x, ay = p.y-th.m.y, am = Math.hypot(ax,ay)||1;
-        let bestA = Math.atan2(ay,ax), bestScore = -1;
-        for (let i=-3;i<=3;i++){
-          const a = Math.atan2(ay,ax) + i*0.42;
-          const clear = this.clearWalk(p.x,p.y,p.x+Math.cos(a)*A.TILE*2.5,p.y+Math.sin(a)*A.TILE*2.5);
-          const sc = (clear?10:0) - Math.abs(i)*0.5;
-          if (sc > bestScore){ bestScore = sc; bestA = a; }
-        }
-        return { vx:Math.cos(bestA), vy:Math.sin(bestA), push:0.3, look };   // sneak, stays quiet
-      }
+      // ĐỨNG YÊN RỒI RÓN RÉN — ĐÃ BỎ HẲN, và bỏ vì không còn gì để rón rén qua.
+      //
+      // Đoạn này dạy con bot một nước đi đúng cho ĐÚNG MỘT loài: Kẻ nghe, con mù hẳn mà
+      // nghe rất xa. Với nó thì im lặng thắng tốc độ, vì nó nhanh hơn một người đang ôm
+      // hàng và chạy chỉ là tự khai báo chỗ đứng. Kẻ nghe đã bị cắt (2026-09-04) cùng bốn con
+      // không có chiêu khác, và trong nhà không còn con nào săn bằng TAI nữa — cả bốn loài
+      // còn lại đều nhìn bằng mắt. Nhánh này vì thế không bao giờ chạy nữa, và giữ một nhánh
+      // chết lại thì lần đọc sau nó trông như một chiến thuật đang có hiệu lực.
+      //
+      // Câu trả lời cho bốn con mới không phải im lặng mà là BỨC TƯỜNG, và đó đúng là thứ
+      // nhánh chạy ngay dưới đã làm sẵn: nó chọn làn thông và cắt tầm nhìn.
       // Loot is worth less than the run. A loaded player cannot outrun anything.
       // The two radii below were 2.6 and 3.4 tiles, set when the player ran at 132 px/s and could
       // stroll away from anything in the house. At 92 the walk tier is a dead heat with a patrol's
@@ -328,8 +314,9 @@ const bot = {
         }
         const route = this.follow(dt);
         if (route){
-          const quietRun = th.m.type === 'listen' && th.d > 2.2*A.TILE;
-          return { vx:route.x, vy:route.y, push: quietRun ? 0.3 : 1, look };
+          // Chạy HẾT SỨC. Bản cũ giảm còn 0,3 khi con đuổi là Kẻ nghe — loài mù — vì đi chậm
+          // thì ít tiếng hơn. Không còn loài nào săn bằng tai, nên đi chậm bây giờ chỉ là đi chậm.
+          return { vx:route.x, vy:route.y, push: 1, look };
         }
         // No route out: fall back to the old "pick the clearest lane and commit to it".
         const stale = this.fleeT <= 0 || this.fleeA === undefined ||
@@ -348,8 +335,7 @@ const bot = {
           }
           this.fleeA = bestA; this.fleeT = 0.8;
         }
-        const quiet = th.m.type === 'listen' && th.d > 2.2*A.TILE;
-        return { vx:Math.cos(this.fleeA), vy:Math.sin(this.fleeA), push: quiet ? 0.3 : 1, look };
+        return { vx:Math.cos(this.fleeA), vy:Math.sin(this.fleeA), push: 1, look };
       }
     }
 

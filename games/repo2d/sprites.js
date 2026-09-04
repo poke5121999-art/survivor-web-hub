@@ -82,24 +82,23 @@
   // — đúng nửa giây đắt nhất trong game này. Thiếu cả ba thì crewIdOf trả về một mã không có
   // trong kho, drawCrew trả false, và màn rơi về hình khối cũ — không vỡ.
   const MATE_LOOK = ['hue', 'tam', 'ky'];
-  const FOE_IDS = ['patrol', 'listen', 'stalk', 'bomber', 'heavy', 'rook', 'angel',
-    'crawler', 'quanca', 'bongden'];
-
-  // Hai game dùng chung thư mục hình nhưng BỘ QUÁI KHÁC NHAU, và tệ hơn: có mã trùng
-  // tên mà khác hẳn con. `rook` bên Ca Trực Đêm là Kẻ húc — con thú ngắm một đường rồi
-  // lao; bên Biệt Đội là Con Ngồi — mù, chỉ nghe, ngồi thu lu một chỗ, đứng im thì nó
-  // đi qua. Một cái tên, hai luật, nên không thể để chung một tấm hình.
+  // BA tấm, và danh sách này là danh sách TẢI VỀ nên mỗi tên không có tệp tương ứng là
+  // một request 404 thật trên mạng. Bảy tấm kia đã xoá cùng bảy con quái bị cắt
+  // (2026-09-04): năm con không có chiêu của Ca Trực Đêm, và ba tấm chỉ dùng cho bảng quái
+  // của Biệt Đội — bảng mà không chỗ nào trong bộ máy đọc tới, xem wikiHtml.
   //
-  // Bảng này chỉ áp cho trang Biệt Đội, và nó gắn lại theo LUẬT của con quái chứ không
-  // theo cái tên: cục ngồi thu lu cho Con Ngồi, con sói không quên mùi cho Thợ Săn,
-  // con nhện cho Nhện Trần. Ba tấm đó vẽ sẵn từ lâu, chỉ là đang treo nhầm chỗ.
-  const SQUAD_FOE_ART = {
-    rook:   'crawler',   // Con Ngồi   — thứ ngồi thu lu dưới đất
-    hunter: 'rook',      // Thợ Săn    — con sói mắt đỏ, đánh hơi và không quên
-    nhen:   'listen'     // Nhện Trần  — con nhện
-  };
-  // Nạp lúc trang mở thì `window.SQ` chưa có (content.js nạp sau), nên phải hỏi lúc VẼ.
-  const foeArt = (t) => (window.SQ && SQUAD_FOE_ART[t]) || t;
+  // `gunner.png` chính là `patrol.png` cũ, đổi tên chứ không vẽ lại: tấm ấy từ đầu đã là một
+  // tay súng đội mũ cao bồi cầm khẩu lục chĩa ra ở cả mười hai khung. Cái sai nằm ở mã, không
+  // nằm ở hình, nên cái được sửa là mã.
+  const FOE_IDS = ['gunner', 'rook', 'angel'];
+
+  // KHÔNG CÒN BẢNG GẮN LẠI RIÊNG cho Biệt Đội. Nó từng tồn tại vì hai game có hai bảng
+  // quái khác nhau mà trùng mã (`rook` bên này là Kẻ húc, bên kia là Con Ngồi), nên một cái
+  // tên trỏ vào hai con. Nay chỉ còn MỘT bảng quái cho cả hai game — SQ.FOES đã bỏ, vì
+  // không chỗ nào nạp nó vào bộ máy và bảy con trong đó chưa từng sinh ra trong một ván
+  // nào — nên một mã lại trỏ vào đúng một con, và chỗ gắn lại này không còn việc.
+  const foeArt = (t) => t;
+
 
   function cvs(w, h) {
     const c = document.createElement('canvas');

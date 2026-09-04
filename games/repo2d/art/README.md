@@ -65,20 +65,37 @@ thành hai lớp viền. Bản đóng băng (chiêu của Vân) cũng do game t�
 | `hai` | Hải | Từ Trường | 5★ |
 | `tuyet` | Tuyết | Bất Tử | 5★ |
 
-`foe/<mã>.png` — 6 giống quái. Mô tả là luật thật trong game, vẽ theo cho khớp:
+`foe/<mã>.png` — **ba tấm**, dùng chung cho cả hai game. Mô tả là luật thật trong game,
+vẽ theo cho khớp:
 
 | Mã | Tên | Nó là gì |
 |---|---|---|
-| `patrol` | Kẻ đi tuần | Nhìn thấy là đuổi. Không nghe được gì. |
-| `listen` | Kẻ nghe | Mù hoàn toàn, chỉ nghe. Đứng im thì nó đi qua. |
-| `stalk` | Kẻ bám | Thấy bạn là bám riết, dai hơn Kẻ đi tuần. |
-| `bomber` | Kẻ nổ | Máu ít, ôm thùng, tới sát là nổ. |
-| `heavy` | Kẻ nặng | 620 máu, đi chậm, một đòn gần chết. |
-| `rook` | Kẻ húc | Không đuổi. Nó ngắm một đường thẳng rồi lao, báo trước ba giây. |
-| `angel` | Tượng thiên thần | Sự kiện riêng: đứng yên khi bị nhìn, quay lưng đi là nó tới. |
+| `gunner` | Kẻ bắn | Con duy nhất đánh TỪ XA. Thấy bạn thì đứng lại ngắm một giây — có vạch trên sàn — rồi bắn. Không bao giờ đánh tay. |
+| `rook` | Kẻ húc | Không đuổi. Nó ngắm một đường thẳng rồi lao, báo trước ba giây bằng ba nhịp giậm chân. |
+| `angel` | Tượng | Sự kiện của căn nhà: không bắn được, không có máu. Rọi đèn pin đủ lâu thì nó đi. |
 
-Còn `foe/crawler.png` nằm sẵn trong thư mục nhưng **chưa có chỗ trong luật** — để dành
-cho giống quái tiếp theo, game không nạp nó.
+Hai loài còn lại — **Bom con** (`banger`) và **Gnome** (`gnome`) — cố ý KHÔNG có sprite: cả hai
+đi đàn, cỡ nhỏ (`body: 6`), và code vẽ thẳng bằng hình khối. Một đàn bốn cục nhỏ phải đọc ra
+là MỘT ĐÀN chứ không phải bốn con quái, và bốn bộ sprite ở cỡ ấy chỉ thành bốn vệt nhòe.
+Cặp **Gương** (`mirror`) cũng không có hình: nó là hai tấm kính, không phải một con vật.
+
+### Bảy tấm đã xoá, 2026-09-04
+
+`patrol.png` đổi tên thành `gunner.png` — không vẽ lại một điểm ảnh nào. Tấm ấy vốn là một tay
+súng đội mũ cao bồi **cầm khẩu lục chĩa ra ở cả mười hai khung**, mà mã thì cho nó vung tay
+như mấy con cận chiến khác. Cái sai nằm ở mã, nên cái được sửa là mã.
+
+Xóa hẳn: `listen.png`, `stalk.png`, `bomber.png`, `heavy.png` (bốn con không có chiêu — chúng
+chạy chung một vòng AI và chỉ khác nhau ở máu/đòn/chạy/mắt/tai), cùng `crawler.png`,
+`quanca.png`, `bongden.png` (ba tấm chỉ dùng cho bảng quái riêng của Biệt Đội — bảng mà không
+chỗ nào trong bộ máy đọc tới, nên bảy con trong đó chưa từng sinh ra trong một ván nào).
+
+**KHÔNG CÒN `SQUAD_FOE_ART`.** Bảng gắn lại ấy tồn tại vì hai game có hai bảng quái khác nhau
+mà trùng mã (`rook` bên này là Kẻ húc, bên kia là Con Ngồi). Nay hai game dùng chung đúng
+một bảng quái, nên một mã trỏ vào đúng một con và chỗ gắn lại không còn việc.
+
+Thêm mã mới thì nhớ thêm cả vào `FOE_IDS` trong `sprites.js`, không thì game không nạp và lặng
+lẽ vẽ lại hình khối — và mỗi tên trong `FOE_IDS` không có tệp tương ứng là một request 404 thật.
 
 ## Bộ hiện tại từ đâu ra
 
@@ -107,22 +124,8 @@ ra** (file 4–5 KB), hoặc chưa có file nào:
 | `hai` | Hải — Từ Trường | 5★ |
 | `tuyet` | Tuyết — Bất Tử | 5★ |
 
-**Quái của Biệt Đội — xong hết từ 2026-08-29.** Bảy giống, bảy tấm hình, và mỗi tấm
-được chọn theo **luật của con quái** chứ không theo cái tên trùng:
-
-| Mã | Tên | Lấy hình từ đâu | Vì sao |
-|---|---|---|---|
-| `rook` | Con Ngồi | `crawler.png` (qua bảng đổi) | Mù, ngồi thu lu — đúng thứ đang ngồi bệt dưới đất |
-| `patrol` | Kẻ Tuần | `patrol.png` | Gã đội mũ cầm súng, đi theo tuyến |
-| `angel` | Tượng | `angel.png` | Pho tượng cầm kiếm |
-| `hunter` | Thợ Săn | `rook.png` (qua bảng đổi) | Con sói mắt đỏ — đánh hơi và không quên |
-| `nhen` | Nhện Trần | `listen.png` (qua bảng đổi) | Con nhện đã vẽ sẵn từ lâu, chỉ là treo nhầm chỗ |
-| `quanca` | Quản Ca | `quanca.png` mới | Bông hoa hình cái kèn — thấy bạn là cả nhà biết |
-| `bongden` | Bóng Đen | `bongden.png` mới | Con ma đảo sáng thành bóng, chỉ còn hai con mắt |
-
-**Bảng đổi nằm ở `SQUAD_FOE_ART` trong `sprites.js` và CHỈ áp cho trang Biệt Đội.**
-Lý do phải có nó: `rook` bên Ca Trực Đêm là Kẻ húc (con thú lao thẳng), bên Biệt Đội là
-Con Ngồi (mù, ngồi im). Một cái tên, hai luật, không thể chung một tấm hình.
+**Quái — không thiếu tấm nào.** Ba mã có sprite (`gunner`, `rook`, `angel`) đều đủ hình; ba
+thứ còn lại trong nhà (Bom con, Gnome, cặp Gương) cố ý vẽ bằng code — xem phần trên.
 
 Hai tấm mới dựng bằng `tools/import_foe_packs.py` từ gói hình rời trong
 `CharREPO/MostersFREE`. Thêm mã mới thì nhớ thêm cả vào `FOE_IDS`, không thì game

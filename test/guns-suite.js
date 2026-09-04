@@ -134,7 +134,10 @@ async function nongNganSuite(b) {
     REPO.S.monsters.length = 0; REPO.S.bullets.length = 0;
     const pl = REPO.S.player;
     pl.recoilT = 0; pl.kx = 0; pl.ky = 0; pl.cooldown = 0;
-    const m = REPO.spawnFoe('heavy', o * REPO.TILE, 0);   // 300 máu, đứng yên, đủ để hứng hết
+    // Bao cát 620 máu, đứng yên, đủ để hứng cả bảy viên mà không chết giữa chừng — nếu nó
+    // chết thì `mất bao nhiêu máu` bị chặn trần ở số máu của nó và phép so gần/xa vô nghĩa.
+    const m = REPO.spawnFoe('gunner', o * REPO.TILE, 0);
+    m.hp = m.hpMax = 620;
     m.state = 'patrol'; m.alert = 0; m.speed = 0;
     const hp0 = m.hp;
     REPO.fireShotgun(pl, 0);
@@ -186,7 +189,8 @@ async function laserSuite(b) {
   const xuyen = await p.evaluate(() => {
     REPO.S.monsters.length = 0;
     const ms = [2, 4, 6].map(o => {
-      const m = REPO.spawnFoe('heavy', o * REPO.TILE, 0);
+      const m = REPO.spawnFoe('gunner', o * REPO.TILE, 0);
+      m.hp = m.hpMax = 620;
       m.state = 'patrol'; m.alert = 0; m.speed = 0; return m;
     });
     const hp0 = ms.map(m => m.hp);
@@ -339,7 +343,7 @@ async function ngamSuite(b) {
   // 1. ĐÓN ĐẦU: con quái chạy ngang thì phải ngắm TRƯỚC mặt nó, không phải vào chỗ nó đang đứng.
   const don = await p.evaluate(() => {
     REPO.S.monsters.length = 0;
-    const m = REPO.spawnFoe('patrol', REPO.TILE * 6, 0);
+    const m = REPO.spawnFoe('gunner', REPO.TILE * 6, 0);
     m.state = 'patrol'; m.alert = 0;
     m.vx = 0; m.vy = 150;                              // đang chạy xuống với tốc độ thật
     const thang = Math.atan2(m.y - REPO.S.player.y, m.x - REPO.S.player.x);
@@ -352,7 +356,7 @@ async function ngamSuite(b) {
   // ...và đứng yên thì KHÔNG được đón đầu, nếu không là bắn hụt một con đứng im.
   const yen = await p.evaluate(() => {
     REPO.S.monsters.length = 0;
-    const m = REPO.spawnFoe('patrol', REPO.TILE * 6, 0);
+    const m = REPO.spawnFoe('gunner', REPO.TILE * 6, 0);
     m.state = 'patrol'; m.alert = 0; m.vx = 0; m.vy = 0;
     const thang = Math.atan2(m.y - REPO.S.player.y, m.x - REPO.S.player.x);
     return Math.abs(REPO.angDiff(REPO.autoAimAngle(REPO.S.player, 'gun', 0), thang));
@@ -364,8 +368,8 @@ async function ngamSuite(b) {
   //    đứng sau lưng mà gần hơn thì cú bấm quay ngoắt người chơi lại và bắn ra sau.
   const sauLung = await p.evaluate(() => {
     REPO.S.monsters.length = 0;
-    const sau = REPO.spawnFoe('patrol', -REPO.TILE * 2.5, 0);   // gần hơn, nhưng ở SAU LƯNG
-    const truoc = REPO.spawnFoe('patrol', REPO.TILE * 5, 0);    // xa hơn, nhưng ở TRƯỚC MẶT
+    const sau = REPO.spawnFoe('gunner', -REPO.TILE * 2.5, 0);   // gần hơn, nhưng ở SAU LƯNG
+    const truoc = REPO.spawnFoe('gunner', REPO.TILE * 5, 0);    // xa hơn, nhưng ở TRƯỚC MẶT
     [sau, truoc].forEach(m => { m.state = 'patrol'; m.alert = 0; m.vx = 0; m.vy = 0; });
     const ang = REPO.autoAimAngle(REPO.S.player, 'gun', 0);     // đang nhìn sang phải
     return { ang, raSau: Math.abs(REPO.angDiff(ang, 0)) > Math.PI / 2 };
@@ -384,7 +388,7 @@ async function ngamSuite(b) {
         if (!REPO.solidAt((x / T) | 0, (y / T) | 0)) continue;
         const bx = pl.x + Math.cos(a) * (d + T * 1.5), by = pl.y + Math.sin(a) * (d + T * 1.5);
         if (REPO.solidAt((bx / T) | 0, (by / T) | 0)) continue;
-        const m = REPO.spawnFoe('patrol', bx - pl.x, by - pl.y);
+        const m = REPO.spawnFoe('gunner', bx - pl.x, by - pl.y);
         m.state = 'patrol'; m.alert = 0; m.vx = 0; m.vy = 0;
         return { co: true, nhan: REPO.aimTargets(pl, 'gun').length };
       }
@@ -397,7 +401,7 @@ async function ngamSuite(b) {
   // 4. TRỢ NGẮM: kéo lệch ít thì hút vào, kéo lệch nhiều thì để yên cho người chơi.
   const tro = await p.evaluate(() => {
     REPO.S.monsters.length = 0;
-    const m = REPO.spawnFoe('patrol', REPO.TILE * 5, 0);
+    const m = REPO.spawnFoe('gunner', REPO.TILE * 5, 0);
     m.state = 'patrol'; m.alert = 0; m.vx = 0; m.vy = 0;
     const thang = Math.atan2(m.y - REPO.S.player.y, m.x - REPO.S.player.x);
     const gan = REPO.aimAssist(REPO.S.player, 'gun', thang + 0.14);   // lệch 8°
@@ -415,9 +419,9 @@ async function ngamSuite(b) {
     const T = REPO.TILE, pl = REPO.S.player;
     REPO.S.monsters.length = 0;
     // ba con xếp một hàng sang phải, một con lẻ ở gần hơn nhưng chếch xuống
-    [3, 5, 7].forEach(o => { const m = REPO.spawnFoe('patrol', o * T, 0);
+    [3, 5, 7].forEach(o => { const m = REPO.spawnFoe('gunner', o * T, 0);
                              m.state = 'patrol'; m.alert = 0; m.vx = 0; m.vy = 0; });
-    const le = REPO.spawnFoe('patrol', T * 2, T * 2);
+    const le = REPO.spawnFoe('gunner', T * 2, T * 2);
     le.state = 'patrol'; le.alert = 0; le.vx = 0; le.vy = 0;
     const ang = REPO.autoAimAngle(pl, 'laser', 0);
     return { ang, xuyen: REPO.pierceCount(pl, ang) };
@@ -430,7 +434,8 @@ async function ngamSuite(b) {
     REPO.S.monsters.length = 0; REPO.S.bullets.length = 0;
     const pl = REPO.S.player;
     pl.cooldown = 0; pl.recoilT = 0;
-    const m = REPO.spawnFoe('heavy', REPO.TILE * 5, 0);
+    const m = REPO.spawnFoe('gunner', REPO.TILE * 5, 0);
+    m.hp = m.hpMax = 620;
     m.state = 'patrol'; m.alert = 0; m.speed = 0; m.vx = 0; m.vy = 0;
     const hp0 = m.hp;
     pl.inv[0] = { kind: 'gun', uses: 20 };
@@ -486,7 +491,7 @@ async function sucBenSuite(b) {
     [1, 5, 10, 20].forEach(lv => {
       REPO.S.level = lv;
       REPO.S.monsters.length = 0;
-      const m = REPO.spawnFoe('heavy', REPO.TILE * 3, 0);
+      const m = REPO.spawnFoe('gunner', REPO.TILE * 3, 0);
       d[lv] = m.dmg;
       REPO.S.monsters.length = 0;
     });

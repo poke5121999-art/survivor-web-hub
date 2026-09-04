@@ -176,7 +176,7 @@ const STICK_DEAD = 0.14;
 
 // Getting hit shoves you. The screen already shook and flashed, but nothing MOVED — so a hit read
 // as a number changing rather than as a thing that happened to your body. Scaled by the damage, so
-// a patrol's swipe nudges and the heavy one throws you.
+// a Gnome's tap nudges and a Rook's charge throws you.
 const HIT_KNOCK_BASE = 150, HIT_KNOCK_PER_DMG = 3, HIT_KNOCK_MAX = 370;
 
 // A cursor that has not moved for this long has stopped aiming — the desktop equivalent of taking
@@ -198,7 +198,7 @@ const MOUSE_LOOK_MIN = 2.2 * TILE;
 const RUSH_DELAY  = 1.0;    // seconds of unbroken sprinting before the bolt kicks in
 const RUSH_GAIN   = 0.28;   // extra top speed per upgrade level
 const RUSH_STAM   = 1.7;    // stamina burns this much faster while sprinting
-const RUSH_NOISE  = 3.0;    // and you are this loud, which is what the blind hunter listens for
+const RUSH_NOISE  = 3.0;    // and you are this loud — the number the two đàn species hear you by
 
 
 // ============================================================ sound
@@ -417,6 +417,14 @@ const SFX = (() => {
              tone(196, 0.02, 0.55, 0.16, 'sawtooth');
              tone(208, 0.02, 0.55, 0.14, 'sawtooth'); },
     tick(i){ tone(620 + i*70, 0.004, 0.07, 0.20, 'square'); },
+    // Phát súng của Kẻ bắn. Theo đúng luật của cả bộ này — "cái gì căn nhà làm thì ngắn, khô
+    // và CAO; cái gì con quái làm thì dài và THẤP" — nên nó không phải một tiếng 'pằng' sắc
+    // như súng của bạn: một cú đập thấp, một đuôi nhiễu tối kéo theo. Nghe được là biết ngay
+    // vừa có thứ gì đó BẮN, chứ không nhầm với tiếng nhà cửa kêu răng rắc.
+    gunshot(){ if (mus) mus.duckT = Math.max(mus.duckT, 0.5);
+               noise(0.16, 0.42, 'lowpass', 1400, 1);
+               tone(150, 0.003, 0.16, 0.30, 'square', 52);
+               tone(74,  0.004, 0.30, 0.20, 'sine', 40, 0.02); },
     chime(){ tone(523, 0.01, 0.30, 0.20, 'sine');
              tone(659, 0.01, 0.32, 0.18, 'sine', null, 0.09);
              tone(784, 0.01, 0.50, 0.20, 'sine', null, 0.18); },
@@ -436,7 +444,7 @@ const SFX = (() => {
     // but it is never allowed to sound like the thing that would actually kill you.
 
     // Your own boots. `k` is the noise the simulation says you are making, which is the same
-    // number the blind hunter listens to - so what you hear IS what it hears.
+    // number Bom con và Gnome listen to - so what you hear IS what they hear.
     step(k){ const v = 0.05 + 0.16*clamp(k/3, 0, 1);
              noise(0.055 + 0.02*k, v, 'bandpass', 300 + Math.random()*140, 1.4);
              if (k >= 2.4) tone(70, 0.004, 0.07, v*0.5, 'sine', 44); },
@@ -656,7 +664,7 @@ function stepFx(dt){
   stepCasts(dt);
   const want = threatLevel();
   // Rises fast and falls slow, like the feeling does. A dread that drained as quickly as it
-  // filled would flicker every time a patrol stepped behind a wall.
+  // filled would flicker every time a monster stepped behind a wall.
   FX.dread = mix(FX.dread, want, Math.min(1, dt * (want > FX.dread ? 3.4 : 1.0)));
 
   // The heart runs ALWAYS, because it is drawn on the HUD and a heart that stops is a dead one.
@@ -933,45 +941,67 @@ const SIZES = [
 // ============================================================ monsters
 // Doc B3: each monster is four properties — how it detects, how it moves, what it does,
 // and what the player can do about it.
-// HOW MANY ROUNDS EACH ONE TAKES is the number that matters, not the health. A pistol round is
-// 25, and the owner's expectation — stated twice — is that a monster normally goes down in one to
-// three. So: patrol 40 (2), bomber 30 (2), stalk 60 (3), Kẻ nghe 75 (3), Kẻ húc 75 (3).
-// Kẻ nặng is the deliberate exception at 300 (12): it is the thing you are supposed to run from,
-// and a house where everything dies to three rounds has nothing left to be frightened of.
+//
+// BỐN LOÀI, MỖI LOÀI HỎI MỘT CÂU KHÁC. Chủ dự án, 2026-09-04: "quái nên chỉ có bomb,
+// gnom, mirror, angel, rook, gunner".
+//
+// Cái bị cắt là năm con KHÔNG CÓ CHIÊU: Kẻ đi tuần, Kẻ nghe, Kẻ bám, Kẻ nổ, Kẻ nặng. Đếm
+// lại thì bốn trong năm con ấy không có MỘT DÒNG MÃ RIÊNG nào cả — chúng chạy chung một
+// vòng AI và chỉ khác nhau ở máu/đòn/chạy/mắt/tai. Đó là lý do sổ tay đọc ra rỗng tuếch:
+// nó không nói được con quái có chiêu gì, vì chúng không có chiêu nào để mà nói. Một bảng
+// tám con mà bốn con là bản sao đổi số thì không phải tám mối đe doạ — nó là bốn mối đe
+// doạ và bốn cái tên.
+//
+// Còn lại đúng bốn cái THÂN, mỗi con một cơ chế riêng:
+//   Kẻ bắn  — bắn từ xa      → "bức tường nào chặn được đường đạn?"
+//   Kẻ húc  — lao một đường  → "bước sang bên nào?"
+//   Bom con — tự nổ           → "giết nó Ở ĐÂU?"
+//   Gnome   — đập vào món đồ   → "bỏ đồ xuống hay ôm mà chạy?"
+// Cộng hai sự kiện của căn nhà — Tượng và cặp Gương — vốn không nằm trong bảng này vì
+// chúng không có máu và không bắn được (xem EVENT_KINDS), là đủ sáu thứ trong nhà.
+//
+// HOW MANY ROUNDS EACH ONE TAKES is the number that matters, not the health. Khẩu lục mua ở
+// trạm bắn 62 một phát, nên: Kẻ bắn 110 (2), Kẻ húc 160 (3), Bom con 26 (1), Gnome 18 (1).
 // SEE: docs/proposals/repo-2d-topdown.md F22-2.
 const MONSTERS = {
-  // `col` was near-black on all five, which is atmospheric and unreadable: a thing standing in your
-  // own torch beam has to be a SHAPE, not a suggestion. Lifted enough to read against a lit floor,
-  // still dark enough to vanish outside the beam — which is where the fear lives.
-  // MAU GAP DOI so voi ban truoc. Chu du an: "may con quai giay qua".
-  // Mot con chet vi mot cu cham nhe thi khong bao gio nang duoc, va ca can nha mat luon
-  // cai cam giac "co thu gi do dang di lai trong nay". Sat thuong sung duoc keo len MANH
-  // HON ti le nay (xem SUNG ben duoi), nen thoi gian ha mot con KHONG dai ra - chi la moi
-  // phat ban gio dang mot phat ban.
-  patrol:  { name:'Kẻ đi tuần', hp: 85,  dmg:10,  cd:0.9, speed: 58, wind:0.42, sight:7.5, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad',
-             wiki:'Nhìn bằng mắt, ĐIẾC ĐẶC. Chạy ầm ầm sau lưng nó cũng không sao — nhưng đi vào nón nhìn thì nó thấy ngay. Nấp sau tường là xong chuyện.' },
-  // danh:'ham' — bộ hình của nó là một con NHỆN, không có vai. Xem veHam.
-  listen:  { name:'Kẻ nghe',   danh:'ham',    hp:150,  dmg:32,  cd:1.6, speed: 74, wind:0.58, sight:0,   hear:9.0, col:'#4a5566', eye:'#8fd4f0', rim:'#bcd6e6',
-             wiki:'MÙ hẳn, nhưng nghe rất xa. Vòng nghe vẽ đúng bằng tiếng bạn đang gây ra: đứng yên thì vòng co lại gần bằng không. Rón rén đi ngang mặt nó vẫn thoát.' },
-  stalk:   { name:'Kẻ bám',     hp:130,  dmg:30,  cd:1.1, speed: 66, wind:0.52, sight:8.5, hear:0,   col:'#453a5c', eye:'#cf87f0', rim:'#d3c0e6',
-             wiki:'Mắt xa nhất nhà và đi nhanh. Mất dấu thì nó không về chỗ cũ mà dời sang một phòng gần bạn — nên chỗ vừa cắt đuôi nó không còn an toàn nữa.' },
-  // danh:'ham' — cái cây có mồm, cũng không có vai. Xem veHam.
-  bomber:  { name:'Kẻ nổ',     danh:'ham',      hp: 60,  dmg:14,  cd:0.9, speed: 62, wind:0.46, sight:6.5, hear:3.0, col:'#6d5a33', eye:'#ffc25a', rim:'#e8d4a8',
-             wiki:'Ít máu nhất, nhưng CHẾT LÀ NỔ. Đừng hạ nó khi đang ôm đồ hoặc đứng cạnh xe đẩy — vụ nổ làm vỡ hàng, và tiền vỡ thì không lấy lại được.' },
-  heavy:   { name:'Kẻ nặng',    hp:620,  dmg:100, cd:1.8, speed: 40, wind:0.90, sight:6.0, hear:6.0, col:'#3f4b4e', eye:'#ff5a45', rim:'#c8d6d8',
-             wiki:'Sáu trăm máu và một đòn gần trăm sát thương. Bù lại nó CHẬM: chạy là thoát, đánh là thua. Không có món nào trong tủ đáng đổi lấy việc đứng lại với nó.' },
-  // Kẻ húc. It does not chase and it does not touch you while walking: its whole threat is one
-  // straight line, announced three seconds before it is fired. Everything about it is built so the
+  // `col` was near-black on all of them, which is atmospheric and unreadable: a thing standing in
+  // your own torch beam has to be a SHAPE, not a suggestion. Lifted enough to read against a lit
+  // floor, still dark enough to vanish outside the beam — which is where the fear lives.
+
+  // ------------------------------------------------------------------ KẺ BẮN
+  //
+  // Con DUY NHẤT trong nhà đánh từ xa, và vì thế là con duy nhất mà một bức tường cứu được
+  // bạn HOÀN TOÀN chứ không phải cứu được một nửa.
+  //
+  // Nó không phải con mới. Nó là `patrol` — "Kẻ đi tuần" — được trả lại đúng thứ tấm hình
+  // của nó đã hứa từ đầu: art/foe/gunner.png là một tay súng đội mũ cao bồi CẦM KHẨU LỤC
+  // CHĨA RA, cả mười hai khung đều chĩa. Mà mã thì cho nó đứng vung tay như mấy con cận
+  // chiến khác. Chủ dự án, 2026-09-04: "tại tui nhớ có mấy con quái ngắm lắm mà không có
+  // quái nào bắn à". Cái nhớ đó không sai: bộ hình đã nói "nó bắn" suốt từ lúc vẽ, chỉ có
+  // mã là chưa bao giờ trả.
+  //
+  // `noMelee` — nó KHÔNG đánh tay bao giờ, kể cả khi bạn đứng dí vào mặt. Áp sát nó là một
+  // nước đi ĐÚNG, và một con vừa bắn vừa đấm thì nước đi ấy biến mất. `dmg` ở đây là sát
+  // thương CỦA VIÊN ĐẠN chứ không phải của một cú vụt — xem stepGunner.
+  gunner:  { name:'Kẻ bắn',    hp:110,  dmg:22,  cd:0.9, speed: 58, sight:9.0, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad',
+             gun:1, noMelee:true,
+             wiki:'CHIÊU: BẮN. Thứ duy nhất trong nhà làm bạn đau mà không cần chạm vào bạn. Thấy bạn là nó ĐỨNG LẠI ngắm 1,05 giây — có vạch đỏ kẻ trên sàn từ nòng súng tới chỗ bạn đứng — rồi mới bóp cò. Hướng đạn chốt ĐÚNG LÚC BẮN chứ không chốt lúc bắt đầu ngắm, nên đứng yên là trúng: phải đang đi ngang đúng lúc nó bắn, hoặc phải khuất sau tường. Mất dấu giữa lúc ngắm là huỷ hẳn. Đạn bị TƯỜNG và CỬA CHÈN chặn, đồ đạc thì không chặn được. Nó giữ khoảng 6 ô và KHÔNG bao giờ đánh tay — nên áp sát mặt nó là chỗ AN TOÀN NHẤT trên sàn: nó chỉ biết lùi.' },
+
+  // ------------------------------------------------------------------ KẺ HÚC
+  // It does not chase and it does not touch you while walking: its whole threat is one straight
+  // line, announced three seconds before it is fired. Everything about it is built so the
   // counter-play is a step sideways and a wall between you, never a health bar.
   rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4',
              scale:1.6, noArms:1,
-             wiki:'Không đuổi và không đụng bạn lúc đi. Nó ngắm MỘT đường thẳng, gồng ba giây lộ liễu rồi lao — và không bẻ lái được. Bước sang ngang một bước là xong; đứng sau tường thì càng chắc.' },
+             wiki:'CHIÊU: LAO MỘT ĐƯỜNG THẮNG. Nó KHÔNG đuổi và KHÔNG đụng bạn lúc đi — đứng cạnh nó cả phút cũng không mất một điểm máu. Nó chọn một đường thẳng, gồng 3 giây với ba nhịp GIẬM CHÂN gấp dần, rồi lao — đã lao thì KHÔNG BẺ LÁI được, và nó đi quá chỗ bạn đứng tới gấp rưỡi – gấp đôi. Bước sang ngang MỘT bước là xong. Nấp sau tường giữa lúc nó gồng thì cú gồng mất trắng. Lao trúng tường thì nó TỰ CHOÁNG 6 giây — đó là cửa sổ bắn nó miễn phí. Ủi bạn VÀO TƯỜNG thì bạn choáng 2 giây và ăn thêm sát thương. Nó húc trúng cả quái khác đứng trong làn — và không dừng lại.' },
 
   // ------------------------------------------------------------------ hai loài đi theo ĐÀN
   //
-  // Mọi con trên đây đi một mình: bộ sinh màn lấy đúng một con cho mỗi loài (xem chỗ đặt quái
-  // trong buildLevel). Hai loài dưới đây phá luật đó — chúng chỉ đáng sợ khi đông, và mỗi con
-  // lẻ thì gần như vô hại. `pack` là số con đặt quanh một chỗ.
+  // Hai loài dưới đây chỉ đáng sợ khi đông, mỗi con lẻ thì gần như vô hại. `pack` là số con
+  // đặt quanh một chỗ. Cả hai CỠ NHỎ — `body: 6` so với 9 của con thường, và `scale` đi theo
+  // `body` nên nét vẽ cũng nhỏ theo. Chủ dự án, 2026-09-04: "kích thước bomb với gnom đều
+  // nhỏ". Đúng, và đó là cố ý: cả hai luồn được qua khe mà bạn không luồn được, cả hai khó
+  // bắn trúng hơn hẳn, và một đàn bốn cục nhỏ đọc ra là MỘT ĐÀN chứ không phải bốn con quái.
   //
   // Cả hai KHÔNG rơi đồ (`noLoot`). Bản gốc R.E.P.O. cũng vậy: đây là hai loài duy nhất không
   // để lại soul orb, vì chúng không phải mối đe doạ để đổi lấy phần thưởng, chúng là thời tiết
@@ -981,18 +1011,19 @@ const MONSTERS = {
   // `lootDmg` thay hệ số mặc định 4 khi con quái đập vào món đang ôm trên tay.
   // SEE: đàn bom + đàn gnome, 2026-08-31
 
-  // BOM CON. Thấy người là châm ngòi, và ngòi đã cháy thì KHÔNG tắt được — nó lao theo bạn với
-  // một cái đồng hồ trên đầu. Đánh chết trước khi ngòi cháy hết thì nổ nhỏ, nên vụt cho nó bay
-  // ra xa rồi mới giết là nước đi đúng. Vụ nổ làm vỡ đồ và kích luôn con bom bên cạnh.
+  // BOM CON. Thấy người là châm ngòi, và ngòi đã cháy thì KHÔNG tắt được — nó lao theo bạn
+  // với một cái đồng hồ trên đầu. Đánh chết trước khi ngòi cháy hết thì nổ nhỏ, nên vụt cho
+  // nó bay ra xa rồi mới giết là nước đi đúng. Vụ nổ làm vỡ đồ và kích luôn quả bên cạnh.
   banger:  { name:'Bom con',    hp: 26,  dmg: 0,  cd:0.9, speed: 54, sight:6.0, hear:4.5, col:'#6a4630', eye:'#ff9a3c', rim:'#f0c090',
              pack:4, noLoot:true, knockMul:3.4, noMelee:true, body:6, tire:false,
-             wiki:'Đi bốn con một đàn và KHÔNG đánh ai bao giờ. Thấy người là châm ngòi, áp được vào người thì cắm chân xuống đếm nốt ba phần tư giây rồi tự nổ. Nó chậm hơn bạn nhiều — chạy là thoát. Một cú vụt hất nó bay rất xa; đẩy ra chỗ trống rồi hạ.' },
-  // GNOME. Không giết được ai, nhưng chuyên đập vào món bạn đang ôm — mối đe doạ của nó là VÍ
-  // TIỀN chứ không phải thanh máu. Chạy tới giẫm lên là chết, nên cái giá của chúng là bạn
-  // phải liên tục di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.
+             wiki:'CHIÊU: TỰ NỔ. Nó không đánh ai bao giờ — đòn của nó là 0. Thấy người là châm ngòi 3,2 giây, và ngòi đã cháy thì KHÔNG TẮT ĐƯỢC. Áp được vào người thì nó cắm chân xuống, ngòi rút còn 0,75 giây (kêu "XÌIII") rồi nổ bán kính 3 ô. Câu hỏi của con này không phải "làm sao giết nó" mà là "giết nó Ở ĐÂU": hạ lúc ngòi đang cháy thì VẪN NỔ, chỉ yếu hơn. Một cú vụt đèn pin hất nó bay rất xa — đẩy ra chỗ trống rồi hạ. Nổ làm vỡ món bạn đang ôm, kích dây chuyền cả đàn, và tiếng nổ gọi cả nhà tới. Chạy là thoát: nó chậm hơn bạn nhiều — nhưng nó KHÔNG BIẾT MỆT, không bỏ cuộc như những con khác.' },
+
+  // GNOME. Không giết được ai, nhưng chuyên đập vào món bạn đang ôm — mối đe doạ của nó là
+  // VÍ TIỀN chứ không phải thanh máu. Chạy tới giẫm lên là chết, nên cái giá của chúng là
+  // bạn phải liên tục di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.
   gnome:   { name:'Gnome',      hp: 18,  dmg: 5,  cd:0.7, speed: 76, sight:7.0, hear:5.0, col:'#5a4a6a', eye:'#8cf0a0', rim:'#cfe6d6',
              pack:3, noLoot:true, knockMul:3.4, lootDmg:9, stomp:true, wind:0.34, body:6,
-             wiki:'Ba con một đàn, gần như không làm bạn đau — nhưng cái búa của nó nhắm vào MÓN BẠN ĐANG ÔM. Chạy tới giẫm lên là chết, nên cái giá của chúng là bạn phải liên tục di chuyển.' }
+             wiki:'CHIÊU: ĐẬP VÀO MÓN BẠN ĐANG ÔM. Đòn vào người chỉ 5 sát thương — gần như không đau — nhưng cái búa của nó ăn vào món hàng gấp CHÍN lần con khác. Nó không giết bạn, nó làm bạn LỖ. Ba con một đàn, chạy 76 — nhanh hơn cả Kẻ bắn lẫn Kẻ húc, nên không chạy thoát được. Đổi lại: đi bộ tới GIẪM LÊN là nó chết ngay, không cần đánh — nhưng phải ĐANG ĐI HẲN, rón rén hoặc đứng yên thì không ăn thua. Nên cái giá của chúng là bạn phải liên tục di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.' }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
@@ -1007,7 +1038,7 @@ for (const k in MONSTERS){
 // there teaches nothing; the growth belongs later, where the quota is already asking for it.
 // The FIRST shift is empty. Owner's call, 2026-08-23: the house is quiet for one level and then
 // it is a horror game again. The same shape as the jammed doors, which also start at level 2 - the
-// first shift is where the loop is learned, and a player who dies to a patrol before they know what
+// first shift is where the loop is learned, and a player who dies to a monster before they know what
 // a pad is has learned nothing.
 // It is a DEFAULT, not a rule: pressing the monster button on level 1 still lets them in.
 const FOES_FROM_LEVEL = 1;   // the first shift is no longer the empty one
@@ -1134,6 +1165,31 @@ const FOE_TIRE_LAG   = 0.85; // lúc mệt, bao lâu mới làm mới chỗ nh�
 const FOE_GIVEUP     = 12.0; // đuổi liền chừng này giây là bỏ cuộc
 const FOE_REST       = 6.0;  // và nghỉ chừng này giây mới lại sung
 function foeTired(m){ return m.tired || 0; }
+// ============================================================ Kẻ bắn: mấy con số của khẩu súng
+//
+// Luật của con này là ĐƯỜNG NGẮM, không phải viên đạn. Viên đạn chỉ là cái kết luận; thứ người
+// chơi thật sự chơi với là 1,05 giây nó đứng chết một chỗ với một vạch đỏ kẻ ra từ nòng súng.
+// Ba con số dưới đây phải đọc cùng nhau, nếu không con này thành một cái vòi phun không né được:
+//
+//   NGẮM 1,05s   — đủ dài để thấy, quay đầu, và bước ra khỏi vạch. Ngắn hơn 0,8 thì không có
+//                  cửa sổ nào cả; dài hơn 1,4 thì nó chỉ đứng đó cho bạn bắn.
+//   ĐẠN 300px/s  — chậm. Ở tầm 6 ô viên đạn bay 0,48 giây, đủ để một người ĐANG ĐI NGANG
+//                  (78px/s) lệch 37px, tức là gần ba lần bán kính trúng. Nên đứng yên thì
+//                  ăn đủ, còn đang đi thì thường hụt: cái đó dạy đúng một câu, "đừng đứng lại".
+//   HỒI 2,4s     — một phát mỗi 2,4 giây. Với 22 sát thương thì nó gặm ~9 máu/giây nếu bạn
+//                  đứng phơi ra, và bằng 0 nếu bạn đứng sau một bức tường.
+//
+// GIỮ KHOẢNG là nửa còn lại. Nó neo ở 6 ô và không có đòn tay, nên áp sát mặt nó là chỗ AN
+// TOÀN NHẤT trên sàn — một con bắn tỉa mà cận chiến cũng đau thì việc xông vào không còn là
+// một quyết định nữa, và cả loài này rút xuống thành "trừ máu bạn theo thời gian".
+const GUNNER_AIM   = 1.05;    // giây đứng ngắm, có vạch trên sàn
+const GUNNER_CD    = 2.4;     // giây giữa hai phát
+const GUNNER_RANGE = 9*TILE;  // xa hơn thì nó không bắn, nó đi tới
+const GUNNER_KEEP  = 6*TILE;  // chỗ nó muốn đứng: xa hơn thì tiến, gần hơn thì LÙI
+const GUNNER_SPEED = 300;     // px/s của viên đạn
+const GUNNER_LIFE  = 1.7;     // giây bay tối đa (~12,5 ô) trước khi tự tắt
+const GUNNER_HIT_R = 12;      // bán kính trúng người
+
 const RELOCATE_AFTER = 40;      // seconds since it last detected the player
 const RELOCATE_MIN_D = 16*TILE; // and it has to be genuinely on the other side of the house
 const RELOCATE_NEAR  = [9*TILE, 15*TILE];   // a room or two away, never the next doorway
@@ -1147,28 +1203,35 @@ const EXTRACT_NOISE_R = 30*TILE;
 // thread — the point is a squeeze, not a wall.
 const TRUCK_GUARD_R = 3.8*TILE;
 
+// Thứ tự bốn cái thân ĐƯỢC PHÉP xuất hiện theo số nhà, và nó là thứ tự DẠY:
+// một đàn nhỏ vô hại trước, rồi cái đe doạ ví tiền, rồi đường lao, rồi khẩu súng.
+// Bảng này không còn quyết định căn nhà nào có gì (xem stockKinds ngay dưới) nhưng
+// escKinds vẫn đọc nó, và nó ghi lại thứ tự mấy thứ này đáng lẽ phải tới.
 const LEVEL_MONSTERS = [
-  ['patrol'],
-  ['patrol','listen'],
-  ['patrol','listen','bomber'],
-  ['patrol','listen','bomber','stalk','rook'],
-  ['patrol','listen','bomber','stalk','heavy','rook']
+  ['banger'],
+  ['banger','gnome'],
+  ['banger','gnome','rook'],
+  ['banger','gnome','rook','gunner'],
+  ['banger','gnome','rook','gunner']
 ];
 
 // What actually gets stocked, which is no longer the table above.
 //
-// The owner's call, 2026-08-26: every house holds THREE, they are three DIFFERENT kinds, the plain
-// patroller is not one of them, and one of them is always a Rook. The table above ramped the roster
-// by house number, which meant the interesting monsters were something you had to grind four houses
-// to meet — and with only three bodies in a house, a random draw from a ramped pool served the same
-// patroller three times over. The table stays because other code still reads it, and because it
-// records the order these things were meant to arrive in.
+// The owner's call, 2026-08-26: every house holds THREE, they are three DIFFERENT kinds, and one
+// of them is always a Rook. The table above ramped the roster by house number, which meant the
+// interesting monsters were something you had to grind four houses to meet.
 //
 // WHY a Rook is guaranteed rather than merely possible: it is the only one that changes how a ROOM
 // is read — a corridor with a Rook in it is a lane you do not stand in — and one that turns up in
 // one house out of five is a rule nobody learns.
+//
+// STOCK_NEVER giờ RỖNG, và đó là hệ quả trực tiếp của việc cắt bảng quái xuống bốn loài. Nó
+// từng chứa 'patrol': con đi tuần bị cấm sinh ra vì nó không có gì để dạy — một cái thân biết
+// vung tay, giữa một bảng toàn những con biết vung tay. Nay `patrol` đã thành `gunner` và có
+// một chiêu thật, nên không còn con nào đáng bị cấm: cả bốn loài đều là một câu hỏi khác nhau.
+// Giữ lại cái tên và cái chốt ở stockFrom vì nó rẻ, và vì ngày nào đó lại có một con phải cấm.
 const STOCK_ALWAYS = 'rook';
-const STOCK_NEVER  = 'patrol';
+const STOCK_NEVER  = '';
 // The AEngel and the pair of mirrors COUNT AS MONSTERS - the owner's call, 2026-08-27. Both were
 // built as house events, each on a clock of its own, so both arrived in every house whatever else
 // was already in it: "how dangerous is this house" was answered by three bodies, and then two more
@@ -1265,7 +1328,7 @@ const GEAR = [
   // `test` = you may try it on the shop floor before buying. Only things that SHOOT something you
   // can watch fly: a bandage tests nothing you could see, and a grenade tests the shop.
   // TWENTY rounds, not six. Owner's call, 2026-08-23: "bắn hay bom gì cũng không xi nhê". Six is
-  // 150 damage, which does not kill Kẻ nặng (300) and barely dents a pair of anything, so the
+  // 150 damage, which barely dented the fattest thing in the house or a pair of anything, so the
   // pistol read as a toy whatever you did with it. Twenty is 500 — enough that a gun is a decision
   // about whether to spend it rather than a thing that never works.
   { key:'gun',     name:'Súng lục',        short:'Súng', desc:'Bắn thẳng theo hướng kéo. 20 viên.',                   uses:20, price: 9000,  stock:4, aim:true, test:true },
@@ -3984,9 +4047,9 @@ function populateFoes(){
 //
 // A monster that dies drops money, and how much is HOW HARD IT WAS. Derived rather than authored,
 // so retuning a monster's health or its hit retunes what it drops and the two can never drift
-// apart. The weights put the plain patroller at about the price of a small vase and the heavy at
-// about the price of the biggest thing in the house - which is the whole point of the heavy:
-// twelve pistol rounds is an investment, and until now it had no payout at all.
+// apart. The weights put Kẻ bắn at about the price of a small vase and Kẻ húc — three pistol
+// rounds and a lane you have to read — at several times that. Đàn species pay nothing at all
+// (`noLoot`): they are weather, not a threat you trade a magazine for.
 const FOE_LOOT_PER_HP  = 9;
 const FOE_LOOT_PER_DMG = 60;
 const FOE_LOOT_SPREAD  = 0.18;      // plus or minus, so one kind is not one fixed number
@@ -4208,7 +4271,7 @@ function stepMonsters(dt){
     //
     // WHY THE RADIUS IS SMALLER THAN THE STRIKE RANGE, and this is the whole rule: it used to be
     // 26 against a strike range of 22, so a monster was thrown back BEFORE it could ever reach the
-    // distance at which it is allowed to hit you. Measured: with the upgrade bought, a patrol shoved
+    // distance at which it is allowed to hit you. Measured: with the upgrade bought, a monster shoved
     // at a standing player for ten seconds and did ZERO damage, oscillating between 27 and 46 px and
     // never once crossing 26. That is not "buys you room", that is immunity, and it is what the
     // owner saw as "quái ủi ủi vào người mà không gây sát thương, cứ tự knockback ngược lại".
@@ -4298,6 +4361,16 @@ function stepMonsters(dt){
         }
       }
     }
+    // KẺ BẮN NEO Ở TẦM, không xông vào. Nó đi tới chỗ CÁCH bạn đúng GUNNER_KEEP chứ không đi
+    // tới chỗ bạn đứng, nên một dòng này vừa là "tiến lên khi ở xa" vừa là "lùi ra khi bị áp
+    // sát" — không cần hai nhánh và không cần một trạng thái 'kite' riêng.
+    // Chỉ khi ĐANG ĐUỔI: lúc đi tuần nó vẫn lang thang như mọi con khác, nếu không thì một
+    // căn nhà yên tĩnh có một gã cứ đứng cách bạn đúng sáu ô, và đó là hình ảnh của một lỗi.
+    if (d.gun && m.state === 'chase'){
+      const gA = Math.atan2(m.y - p.y, m.x - p.x);
+      m.tx = p.x + Math.cos(gA)*GUNNER_KEEP;
+      m.ty = p.y + Math.sin(gA)*GUNNER_KEEP;
+    }
     const ax = m.tx-m.x, ay = m.ty-m.y, am = Math.hypot(ax,ay) || 1;
     m.dir = Math.atan2(ay,ax);
     // slowT: Dong Bang lam quai le chan. Day la cho DUY NHAT toc do quai duoc quyet,
@@ -4306,10 +4379,14 @@ function stepMonsters(dt){
     // Đang vung tay thì ĐỨNG YÊN. Đây là nửa quan trọng của cú telegraph: một con vừa vung vừa
     // bám theo bạn thì cái vung ấy chỉ là hiệu ứng, không phải một cửa sổ để né.
     const metMul = 1 - (1 - FOE_TIRE_SPD) * (m.tired || 0);
-    const spd = (m.swing || 0) > 0 ? 0
+    // Đang NGẮM cũng đứng yên, đúng như đang vung tay và vì đúng một lý do: cửa sổ để né chỉ
+    // tồn tại nếu con quái trả giá bằng việc không đi được trong lúc đó.
+    const spd = ((m.swing || 0) > 0 || (m.gunAim || 0) > 0) ? 0
               : m.speed * slowMul * metMul * (m.state === 'chase' ? 1.25 : m.state === 'hunt' ? 1.0 : 0.7);
     // Never step PAST the thing being walked to, and stop a body short of a live target.
-    const standOff = m.state === 'chase' ? FOE_STANDOFF : 0;
+    // Kẻ bắn KHÔNG có standoff: m.tx của nó đã là một điểm cách người chơi 6 ô rồi, nên trừ
+    // thêm 18px nữa là nó dừng sớm 18px so với chỗ nó định đứng, mỗi khung hình một lần.
+    const standOff = (m.state === 'chase' && !d.gun) ? FOE_STANDOFF : 0;
     const step = Math.max(0, Math.min(spd*dt, am - standOff));
     let mx = ax/am*step, my = ay/am*step;
     const sep = foeSeparation(m);
@@ -4331,16 +4408,19 @@ function stepMonsters(dt){
     //
     // Luật cũ là một dòng: lọt vào 22px + hết nguội = trừ máu, ngay khung hình đó. Không có một
     // khoảnh khắc nào giữa 'nó tới gần' và 'bạn mất máu', nên không có gì để né — người chơi chỉ
-    // biết mình bị đánh SAU KHI đã bị đánh. Đo bằng Kẻ nặng: đứng cạnh nó, 72 máu bay trong đúng
+    // biết mình bị đánh SAU KHI đã bị đánh. Đo bằng Kẻ nặng (loài nay đã cắt): đứng cạnh nó, 72 máu bay trong đúng
     // một khung hình, không có tín hiệu nào trước đó.
     //
     // Nay mỗi cú đánh có HAI THÌ. Thì một: nó đứng khựng lại và vung tay, kéo dài d.wind giây —
-    // càng đau càng vung lâu, Kẻ nặng 0.90s còn Gnome 0.34s. Nó KHÔNG DI CHUYỂN trong thì này
+    // càng đau càng vung lâu; nay chỉ còn Gnome đánh tay, 0.34s. Nó KHÔNG DI CHUYỂN trong thì này
     // (xem chỗ tính spd), và đó mới là thứ tạo ra đường thoát: bạn có đúng chừng ấy giây để lùi ra.
     // Thì hai: hết giờ mới kiểm lại — còn trong tầm thì ăn đòn, ra khỏi tầm thì HỤT.
     //
     // Tầm kiểm ở thì hai rộng hơn tầm khơi mào một chút (FOE_WHIFF), nếu không thì nhích nửa pixel
     // cũng thoát và cả bảng quái thành vô hại. Lùi được một bước mới thoát.
+    // Kẻ bắn rẽ ra khỏi cả hai thì của cú vung. `noMelee` một mình đã chặn được nhánh dưới,
+    // nhưng gọi ở đây và `continue` luôn thì đọc rõ hơn hẳn: con này đánh bằng một hệ khác.
+    if (d.gun){ stepGunner(m, d, p, dt, dist); continue; }
     const tam = d.reach || FOE_REACH;
     if ((m.swing || 0) > 0){
       m.swing -= dt;
@@ -4370,6 +4450,61 @@ function stepMonsters(dt){
       m.swingDir = Math.atan2(p.y-m.y, p.x-m.x);
       if (p === S.player && Math.hypot(m.x-S.player.x, m.y-S.player.y) < 12*TILE) SFX.strain();
     }
+  }
+}
+
+// ============================================================ Kẻ bắn
+//
+// HAI THÌ, giống hệt cú vung tay của mấy con cận chiến, và cố ý giống: cả căn nhà chỉ có MỘT
+// ngữ pháp cho "cái gì đó sắp làm bạn đau", và người chơi học nó một lần rồi đọc được mọi con.
+// Thì một: đứng khựng lại và ngắm, có vạch trên sàn, kéo dài GUNNER_AIM giây. Thì hai: bóp cò.
+//
+// BA THỨ CỨU ĐƯỢC BẠN, và ba thứ đó là toàn bộ lối chơi của con này:
+//   1. BỨC TƯỜNG — mất đường ngắm giữa lúc ngắm là HUỶ HẲN, không phải hoãn. Cú ngắm mất
+//      trắng và nó phải chờ hết hồi chiêu mới ngắm lại. Đây là cùng một luật với Kẻ húc, và
+//      hai con dùng chung một luật là hai con dạy lẫn nhau.
+//   2. ĐI NGANG — hướng chốt ở khung hình BÓP CÒ chứ không phải khung hình bắt đầu ngắm.
+//      Chốt sớm thì "đứng yên" là câu trả lời đúng, mà đứng yên không nên là câu trả lời cho
+//      một khẩu súng — nó là câu trả lời cho Kẻ nghe, con đã bị cắt.
+//   3. ÁP SÁT — nó không có đòn tay và nó chỉ biết lùi. Xông thẳng vào mặt là hợp lệ.
+//
+// SEE: chú thích dài ở stepMonsters về hai thì của cú vung — cùng một bài học, khác vũ khí.
+function stepGunner(m, d, p, dt, dist){
+  m.gunCd    = Math.max(0, (m.gunCd || 0) - dt);
+  m.gunFlash = Math.max(0, (m.gunFlash || 0) - dt);
+  // Điều kiện để BẮN, không phải để thấy. Nó nghiêm hơn m.alert: alert còn cháy 2,6 giây sau
+  // khi bạn khuất sau tường, và bắn xuyên tường trong 2,6 giây đó là đúng cái làm cả luật số 1
+  // ở trên thành lời hứa suông.
+  const banDuoc = m.alert > 0 && dist < GUNNER_RANGE && !S.dead && !p.down &&
+                  !((p.invisT || 0) > 0) && losClear(m.x, m.y, p.x, p.y);
+  if ((m.gunAim || 0) > 0){
+    if (!banDuoc){
+      // Mất dấu giữa lúc ngắm: cú ngắm mất trắng, và nó vẫn phải chờ hồi chiêu. Không hoàn
+      // lại thời gian đã ngắm — hoàn lại thì nấp sau tường chỉ là hoãn, chứ không phải thắng.
+      m.gunAim = 0; m.gunCd = Math.max(m.gunCd, GUNNER_CD*0.5);
+      return;
+    }
+    m.gunAim -= dt;
+    m.dir = Math.atan2(p.y-m.y, p.x-m.x);      // vẫn dõi theo trong lúc ngắm
+    if (m.gunAim <= 0){
+      m.gunAim = 0;
+      m.gunCd  = GUNNER_CD;
+      m.gunFlash = 0.10;
+      const a = m.dir;
+      // `foe:1` là thứ tách viên này khỏi đạn của người chơi ở stepProjectiles. Dùng chung
+      // S.bullets chứ không dựng một mảng thứ hai: va tường, va cửa chèn, hết tuổi thọ và
+      // cách vẽ đều đã đúng sẵn ở đó, và một hệ đạn thứ hai là một hệ nữa để quên sửa.
+      S.bullets.push({ x: m.x + Math.cos(a)*11, y: m.y + Math.sin(a)*11,
+                       vx: Math.cos(a)*GUNNER_SPEED, vy: Math.sin(a)*GUNNER_SPEED,
+                       life: GUNNER_LIFE, kind:'foe', foe:1, dmg: m.dmg });
+      makeNoise(m.x, m.y, 8*TILE, 2);           // một phát súng gọi cả nhà, y như tiếng nổ
+      if (Math.hypot(m.x-S.player.x, m.y-S.player.y) < 15*TILE){ SFX.gunshot(); fxShake(1.8); }
+    }
+    return;
+  }
+  if (banDuoc && m.gunCd <= 0){
+    m.gunAim = GUNNER_AIM;
+    if (Math.hypot(m.x-S.player.x, m.y-S.player.y) < 13*TILE) SFX.strain();
   }
 }
 
@@ -4973,7 +5108,7 @@ const SHOTGUN_CD      = 0.95;
 // Laser: giữ càng lâu càng mạnh, và cái giá của một phát đầy là đứng chôn chân gần một giây.
 const LASER_FULL      = 1.10;      // giây để sạc đầy
 const LASER_DMG_MIN   = 48;
-const LASER_DMG_MAX   = 215;      // sạc đầy: một tia hạ gọn Kẻ bám / Kẻ húc, và xuyên qua cả hàng
+const LASER_DMG_MAX   = 215;      // sạc đầy: một tia hạ gọn Kẻ bắn (110) lẫn Kẻ húc (160), xuyên cả hàng
 const LASER_RANGE     = TILE * 14;
 const LASER_RECOIL_MIN= 0.25;
 const LASER_RECOIL_MAX= 0.90;
@@ -5273,6 +5408,22 @@ function stepProjectiles(dt){
     // SEE: docs/proposals/repo-2d-topdown.md F22-3.
     if (b.life <= 0 || solidAt((nx/TILE)|0,(ny/TILE)|0) || doorHits(nx, ny, 2)){ S.bullets.splice(i,1); continue; }
     b.x = nx; b.y = ny;
+    // ĐẠN CỦA QUÁI đi ngược chiều: nó tìm người, không tìm quái. Cùng một mảng, cùng một vòng
+    // lặp, cùng luật va tường ở trên — chỉ khác đúng cái danh sách nó dò qua.
+    //
+    // Nó KHÔNG phá gương, và đó không phải chuyện lười. Cặp gương là một câu đố người chơi phải
+    // tự trả bằng cách đập vỡ chúng; một tay súng bắn hụt mà tiện tay giải hộ câu đố thì căn nhà
+    // vừa tự dọn lấy mình. Cùng lý do, nó không bắn trúng quái khác: một đàn Bom con đứng trong
+    // làn đạn sẽ nổ dây chuyền và dọn sạch cả phòng giùm bạn.
+    if (b.foe){
+      let trung = null;
+      for (const a of crewAlive()) if (Math.hypot(a.x-b.x, a.y-b.y) < GUNNER_HIT_R){ trung = a; break; }
+      if (trung){
+        hurtActor(trung, b.dmg || 22, 'gunner', b.x - b.vx*0.05, b.y - b.vy*0.05);
+        S.bullets.splice(i,1);
+      }
+      continue;
+    }
     // Glass is the one thing in this game a tranq dart is as good as a bullet on.
     if (damageMirror(b.x, b.y, 25)){ S.bullets.splice(i,1); continue; }
     for (const m of S.monsters){
@@ -8024,7 +8175,7 @@ function step(dt){
   if (sprinting){ p.stam = Math.max(0, p.stam - STAM_DRAIN*dt*(p.rushing ? RUSH_STAM : 1)); }
   else {
     // Hồi thể lực nhanh: standing still is already the fastest recovery; the upgrade
-    // widens that gap, so holding position near a blind hunter pays twice.
+    // widens that gap, so holding position near anything that hears you pays twice.
     const idle = !moving || tier === 0;
     p.stam = Math.min(p.stamMax, p.stam + STAM_REGEN*dt*(tier===0?1.4:1)*(idle ? 1 + S.upg.regen*0.5 : 1));
   }
@@ -8037,7 +8188,7 @@ function step(dt){
     const bx = p.x, by = p.y;
     const stopped = moveEnt(p, vx*sp*dt, vy*sp*dt, 7.5);
     // Footsteps, spaced by distance travelled rather than by a timer, so a slow walk gives slow
-    // steps for free. The volume is p.noise - the SAME number the blind hunter listens to - so
+    // steps for free. The volume is p.noise - the SAME number the đàn species listen to - so
     // what you hear is exactly what it hears. That is the stealth rule made audible; before this
     // the loudest thing you could do in the game had no sound of its own.
     p.stepD = (p.stepD || 0) + Math.hypot(p.x-bx, p.y-by);
@@ -8940,11 +9091,19 @@ function drawHighlights(c){
   //   2. BỤI của cú giậm chân, tung ngược về phía sau nó.
   //   3. Thân nó rướn về sau và cái sừng hạ xuống (xem drawMonsters).
   for (const m of S.monsters){
-    if (m.type !== 'rook' || !foeVisible(m)) continue;
-    if (m.rook === 'wind'){ drawRookTell(c, m, p.x, p.y); }
-    else if (m.rook === 'stun'){
-      glowRing(c, m.x, m.y, 15, [230,200,120], 0.24, 1.6);
+    if (!foeVisible(m)) continue;
+    if (m.type === 'rook'){
+      if (m.rook === 'wind'){ drawRookTell(c, m, p.x, p.y); }
+      else if (m.rook === 'stun'){
+        glowRing(c, m.x, m.y, 15, [230,200,120], 0.24, 1.6);
+      }
+      continue;
     }
+    // Vạch ngắm CHỈ vẽ khi con quái đang nhìn thấy được. Vẽ một cái vạch đỏ mọc ra từ bóng tối
+    // thì nó thành ra một tín hiệu miễn phí báo có quái ở đâu — mà cả game này dựng trên việc
+    // bạn KHÔNG biết trong phòng bên có gì.
+    if ((m.gunAim || 0) > 0) drawGunnerTell(c, m, p.x, p.y);
+    if ((m.gunFlash || 0) > 0) drawGunnerFlash(c, m);
   }
 
   drawHeadGlow(c);
@@ -9397,6 +9556,62 @@ function drawRookTell(c, m, tx, ty){
     c.restore();
   }
 }
+// VẠCH NGẮM của Kẻ bắn. Tách ra vì sổ tay vẽ lại đúng cú này trong một ô nhỏ, cùng lý do với
+// drawRookTell ở trên.
+//
+// Đây LÀ một đường kẻ, và đó là chỗ nó khác hẳn Kẻ húc. Vết cày trên sàn của Kẻ húc cố ý KHÔNG
+// đọc ra 'có ai đang ngắm' — vì Kẻ húc không ngắm, nó chọn một làn rồi lao. Kẻ bắn thì ngắm
+// thật, bằng một khẩu súng thật, và thứ người chơi phải đọc được trong một phần tư giây là
+// "cái vạch này đang trỏ vào tôi hay trỏ ra sau lưng tôi". Chỉ có một đường thẳng trả lời được
+// câu đó.
+//
+// Ba tầng, và cả ba đều đo tiến độ ngắm `k` để cú bóp cò không tới bất ngờ:
+//   1. Vạch đứt nét chạy từ nòng súng tới đích, đậm dần.
+//   2. Cái ĐẦU RUỒI ở cuối vạch: một vòng tròn CO LẠI theo k. Vòng khép kín là phát súng.
+//   3. Chớp lửa đầu nòng sau khi bắn (m.gunFlash), ngắn thôi — nó chỉ để nói 'vừa nổ ở đây'.
+function drawGunnerTell(c, m, tx, ty){
+  const k = clamp(1 - (m.gunAim || 0)/GUNNER_AIM, 0, 1);
+  const a = Math.atan2(ty-m.y, tx-m.x), xa = Math.hypot(tx-m.x, ty-m.y);
+  const ux = Math.cos(a), uy = Math.sin(a);
+  c.save();
+  // vạch đứt nét: nét dài dần và khe ngắn dần, nên lúc gần bắn nó gần như liền mạch
+  c.strokeStyle = `rgba(255,96,64,${0.16 + k*0.44})`;
+  c.lineWidth = 1 + k*1.4;
+  c.setLineDash([3 + k*9, 7 - k*4.5]);
+  c.beginPath();
+  c.moveTo(m.x + ux*12, m.y + uy*12);
+  c.lineTo(m.x + ux*xa, m.y + uy*xa);
+  c.stroke();
+  c.setLineDash([]);
+  // đầu ruồi: khép lại quanh đích
+  const r = 13 - k*7.5;
+  c.strokeStyle = `rgba(255,140,100,${0.28 + k*0.5})`;
+  c.lineWidth = 1.4;
+  c.beginPath(); c.arc(tx, ty, r, 0, Math.PI*2); c.stroke();
+  for (const g of [0, Math.PI/2, Math.PI, -Math.PI/2]){
+    c.beginPath();
+    c.moveTo(tx + Math.cos(g)*(r-3.5), ty + Math.sin(g)*(r-3.5));
+    c.lineTo(tx + Math.cos(g)*(r+3.5), ty + Math.sin(g)*(r+3.5));
+    c.stroke();
+  }
+  c.restore();
+}
+// CHỚP LỬA ĐẦU NÒNG. Rời khỏi drawGunnerTell vì nó sống tiếp SAU khi cú ngắm kết thúc.
+function drawGunnerFlash(c, m){
+  const b = (m.gunFlash || 0) / 0.10;
+  if (b <= 0) return;
+  const ux = Math.cos(m.dir), uy = Math.sin(m.dir);
+  const fx = m.x + ux*13, fy = m.y + uy*13;
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  const g = c.createRadialGradient(fx, fy, 0, fx, fy, 16*b);
+  g.addColorStop(0, `rgba(255,246,214,${0.9*b})`);
+  g.addColorStop(0.5, `rgba(255,168,84,${0.5*b})`);
+  g.addColorStop(1, 'rgba(255,120,40,0)');
+  c.fillStyle = g; c.fillRect(fx-18, fy-18, 36, 36);
+  c.restore();
+}
+
 // MỘT con quái, vẽ tại gốc toạ độ của chính nó.
 //
 // Tách ra khỏi vòng lặp để SỔ TAY dùng lại được đúng mã này. Bảng tra mà vẽ bằng một bộ hình
@@ -9625,6 +9840,20 @@ function drawProjectiles(c){
   // Viên hoa cải nhỏ hơn và ngả đỏ: nhìn một cái là biết mình vừa bắn khẩu nào, và biết cái
   // nón đó với tới đâu — thứ duy nhất dạy được người chơi rằng khẩu này là khẩu SÁT MẶT.
   for (const b of S.bullets){
+    // Đạn của QUÁI phải đọc khác đạn của bạn trong một phần mười giây, nếu không thì một màn
+    // hình đầy chấm vàng không nói được cái nào đang bay về phía mình. Đỏ, to hơn, và có một
+    // cái đuôi kéo theo hướng bay — cái đuôi mới là thứ nói được nó ĐANG ĐI ĐÂU.
+    if (b.foe){
+      const l = 9;
+      c.strokeStyle = 'rgba(255,110,70,0.55)'; c.lineWidth = 2.2;
+      c.beginPath();
+      c.moveTo(b.x, b.y);
+      c.lineTo(b.x - b.vx/GUNNER_SPEED*l, b.y - b.vy/GUNNER_SPEED*l);
+      c.stroke();
+      c.fillStyle = '#ffd9c0';
+      c.beginPath(); c.arc(b.x, b.y, 3.0, 0, Math.PI*2); c.fill();
+      continue;
+    }
     c.fillStyle = b.kind === 'shot' ? '#ffb87a' : '#ffe9a8';
     c.beginPath(); c.arc(b.x, b.y, b.kind === 'shot' ? 1.8 : 2.6, 0, Math.PI*2); c.fill();
   }
@@ -10663,7 +10892,12 @@ const WIKI_CANH = {
     else                      { m.swing = 0; }
     m.wob = t * 5;
   }},
-  huc: { chuKy: 4.4, dien(m, t){
+  // `zoom` 0,72: Kẻ húc vẽ ở `scale` 1.6 — to nhất nhà — rồi còn lao hết 62 đơn vị ngang.
+  // Ở cỡ mặc định thì cả hai đầu đường lao nằm ngoài mép và ô hình chỉ còn một nửa cái thân
+  // đứng dính bên trái — đo ảnh chụp: bảy khung liên tiếp đều bị xén. Cả ô này dựng ra để
+  // nói một câu — 'nó lao theo một ĐƯỜNG THẮNG' — mà không thấy được cả đường thì không
+  // câu nào được nói.
+  huc: { chuKy: 4.4, zoom: 0.72, dien(m, t){
     m.state = 'chase'; m.alert = 2;
     if (t < ROOK_WIND){
       m.rook = 'wind'; m.windT = t; m.x = -30;
@@ -10681,24 +10915,83 @@ const WIKI_CANH = {
     m.fuse = t >= 1.1 ? Math.max(0.02, 0.75 - (t - 1.1)) : 2;
     if (t > 2.6) m.hp = 0;
   }},
+  // KẺ BẮN: đứng, ngắm (vạch dài dần + đầu ruồi khép lại), chớp lửa, viên đạn bay hết ô.
+  // Cảnh này KHÔNG có cú vung tay nào cả, và đó chính là điều nó phải nói: con này không
+  // bao giờ với tay tới bạn.
+  ban: { chuKy: 3.6, zoom: 0.94, dien(m, t){
+    m.state = 'chase'; m.alert = 2; m.wob = t*4; m.x = -22; m.dir = 0;
+    const t0 = 0.55;                                   // đứng một nhịp trước khi giơ súng
+    if (t < t0){ m.gunAim = 0; m.gunFlash = 0; }
+    else if (t < t0 + GUNNER_AIM){ m.gunAim = (t0 + GUNNER_AIM) - t; }
+    else {
+      m.gunAim = 0;
+      const sau = t - (t0 + GUNNER_AIM);
+      m.gunFlash = Math.max(0, 0.10 - sau);
+      // Viên đạn: đi hết bề ngang ô rồi biến. `wkDan` là toạ độ x của nó, vòng vẽ đọc.
+      if (sau < 0.95) m.wkDan = -11 + sau/0.95 * 62;
+    }
+  }},
+  // GNOME: nó KHÔNG đánh bạn, nó đập vào MÓN ĐỒ. Cảnh cũ cho nó vung tay vào không khí, đúng
+  // y như bảy con còn lại — tức là ô hình nói sai về con duy nhất trong nhà nhắm vào ví tiền
+  // chứ không nhắm vào thanh máu. Nay trong ô có một MÓN HÀNG, và cái búa bổ xuống đúng nó.
+  dapdo: { chuKy: 2.4, dien(m, t, d){
+    const w = d.wind || FOE_WIND;
+    m.state = 'chase'; m.alert = 2; m.wob = t*6; m.x = -13; m.dir = 0;
+    m.wkProp = { x: 13, y: 4, r: 9 };                  // món đồ nằm trong ô, bên phải nó
+    if (t < 0.7)            { m.swing = 0; }
+    else if (t < 0.7 + w)   { m.swing = (0.7 + w) - t; m.swingDir = 0; }
+    else                    { m.swing = 0; m.wkProp.nut = clamp((t - (0.7+w)) / 0.5, 0, 1); }
+  }},
   tuong: { chuKy: 3.4, zoom: 0.92, dien(m, t){
     m.state = 'patrol'; m.alert = 0; m.wob = 0;      // đứng thẳng, không thở, không lắc
     m.nhinT = t;                                     // vòng lặp vẽ con mắt theo trường này
     m.x = t < 1.5 ? -26 : (t < 2.1 ? -26 + (t-1.5)/0.6*24 : -2);
   }},
-  met: { chuKy: 3.2, dien(m, t){
-    m.state = 'chase'; m.alert = 2; m.wob = t*5;
-    m.tired = clamp((t - 0.6) / 1.6, 0, 1);
-  }}
+  // GƯƠNG: hai tấm kính, một cái bóng bước ra khỏi tấm gần, đi tới — rồi tấm kính vỡ và cái
+  // bóng tan theo. Đây là cảnh DUY NHẤT tự vẽ lấy (`ve`) thay vì mượn drawFoeOne: cặp gương
+  // không nằm trong S.monsters, không có máu, không có bộ hình, và cái phải diễn ở đây không
+  // phải một con vật mà là một QUAN HỆ giữa hai vật.
+  guong: { chuKy: 4.2, dien(m, t){ m.wkT = t; },
+    ve(c, m, t){
+      const vo = t > 2.9, nut = clamp((t - 2.9) / 0.5, 0, 1);
+      // tấm kính gần (trái) và tấm xa (phải)
+      for (const [gx, gan] of [[-24, 1], [24, 0]]){
+        c.save(); c.translate(gx, -2);
+        c.fillStyle = gan && vo ? `rgba(70,80,96,${1-nut*0.7})` : 'rgba(96,126,150,0.85)';
+        c.strokeStyle = 'rgba(198,222,238,0.9)'; c.lineWidth = 1.6;
+        c.beginPath(); c.ellipse(0, 0, 9, 15, 0, 0, Math.PI*2); c.fill(); c.stroke();
+        if (gan && vo){                       // vết nứt hình sao trên tấm bị đập
+          c.strokeStyle = `rgba(255,255,255,${0.9*nut})`; c.lineWidth = 1;
+          c.beginPath();
+          for (let i=0;i<6;i++){ const a = i*Math.PI/3 + 0.3;
+            c.moveTo(0,0); c.lineTo(Math.cos(a)*8*nut, Math.sin(a)*13*nut); }
+          c.stroke();
+        }
+        c.restore();
+      }
+      if (t < 0.8 || vo) return;              // 0,8s kính đứng không trước khi có gì bước ra
+      const k = clamp((t - 0.8) / 2.1, 0, 1);
+      const bx = -24 + k*30, mo = (t > 2.6 ? 0 : 1) * (0.35 + k*0.5);
+      c.save();
+      c.fillStyle = `rgba(0,0,0,0.35)`;
+      c.beginPath(); c.ellipse(bx, 11, 8, 3.5, 0, 0, Math.PI*2); c.fill();
+      c.fillStyle = `rgba(186,206,224,${mo})`;
+      c.beginPath(); c.ellipse(bx, 0, 7.5, 13, 0, 0, Math.PI*2); c.fill();
+      c.fillStyle = `rgba(255,240,210,${mo})`;
+      c.beginPath(); c.arc(bx-2.6, -4, 1.5, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(bx+2.6, -4, 1.5, 0, Math.PI*2); c.fill();
+      c.restore();
+    }
+  }
 };
-// Con nào diễn cảnh nào. Mặc định là cú vung tay, vì đó là thứ mọi loài đánh cận chiến đều làm và
-// là thứ vừa đổi luật hôm nay.
-const WIKI_CANH_CUA = { rook:'huc', banger:'bom', gnome:'vung', heavy:'vung',
-                        patrol:'vung', listen:'vung', stalk:'vung', bomber:'vung' };
-// Quái của Biệt Đội. Chúng nằm ở bảng khác (SQ.FOES) nên phải tra riêng — và một con trong đó
-// có luật riêng hẳn: Tượng chỉ nhúc nhích khi KHÔNG bị nhìn, nên diễn nó bằng cú vung tay là
-// nói dối người đọc. Cảnh của nó phải là con mắt nhắm lại rồi nó nhảy tới.
-const WIKI_CANH_SQ = { angel:'tuong' };
+// Con nào diễn cảnh nào — và từ nay MỖI CON MỘT CẢNH RIÊNG, không còn cái mặc định 'vung'.
+//
+// Bản trước có tám con dùng chung năm cảnh, trong đó năm con dùng chung ĐÚNG MỘT cảnh vung tay.
+// Chủ dự án, 2026-09-04: "đoạn gif cũng phải show rõ skill của quái". Một ô hình mà năm con
+// diễn giống hệt nhau thì nó không show skill của con nào cả — nó chỉ chứng minh rằng năm con
+// ấy giống nhau, đó là lý do năm con ấy bị cắt.
+const WIKI_CANH_CUA = { gunner:'ban', rook:'huc', banger:'bom', gnome:'dapdo',
+                        angel:'tuong', mirror:'guong' };
 // Ô hình động RỘNG HƠN ô chân dung. Ô chân dung (48px) vừa khít một cái thân đứng yên, mà mấy
 // cảnh ở đây có thứ DI CHUYỂN: Kẻ húc lao qua hết chiều ngang, Bom con đi tới rồi cắm chân. Để
 // nguyên bề ngang cũ thì hai con đó diễn ngoài khung — đo lần đầu: ô Kẻ húc trống trơn, ô Bom
@@ -10765,7 +11058,10 @@ function wikiAnimStart(){
       Object.assign(m, { type, x:0, y:0, dir:0, wob:0, hp:d.hp, hpMax:d.hp, dmg:d.dmg,
                   state:'patrol', alert:0, hit:0, sleep:0, flash:0, swing:0, swingDir:0,
                   tired:0, stompT:0, planted:false, fuse:null, rook: type==='rook'?'walk':null,
-                  windT:0, seen:true, reveal:1, nhinT:null });
+                  windT:0, seen:true, reveal:1, nhinT:null,
+                  // của Kẻ bắn và của cảnh Gnome. Phải nằm TRONG Object.assign này: một cảnh
+                  // để sót trường của khung trước thì ô hình mọc ra một viên đạn đứng im.
+                  gunAim:0, gunFlash:0, gunCd:0, wkDan:null, wkProp:null, wkT:0 });
       canh.dien(m, t, d);
       const c = cv.getContext('2d');
       c.setTransform(1,0,0,1,0,0);
@@ -10776,11 +11072,39 @@ function wikiAnimStart(){
       // hết 62 đơn vị mà thân nó đã rộng 38, nên ở cỡ mặc định hai đầu đường lao nằm ngoài mép.
       const k = (cv.height / 62) * (canh.zoom || 1);
       c.setTransform(k,0,0,k, cv.width/2, cv.height*0.62);
+      // Cảnh tự vẽ lấy (cặp Gương): nó không có con quái nào để đưa qua drawFoeOne.
+      if (canh.ve){ canh.ve(c, m, t); continue; }
       if (type === 'rook' && !raw && m.rook === 'wind') drawRookTell(c, m, 34, 0);
       if (m.nhinT != null) wikiVeMat(c, cv, k, m.nhinT);
+      // MÓN ĐỒ của cảnh Gnome. Vẽ TRƯỚC con quái để cái búa bổ xuống nằm đè lên nó.
+      if (m.wkProp){
+        const pr = m.wkProp, nut = pr.nut || 0;
+        c.save();
+        c.fillStyle = `rgb(${168 - nut*60|0},${116 - nut*40|0},${64 - nut*20|0})`;
+        c.strokeStyle = 'rgba(230,206,168,0.75)'; c.lineWidth = 1.2;
+        c.beginPath(); c.rect(pr.x - pr.r, pr.y - pr.r, pr.r*2, pr.r*2); c.fill(); c.stroke();
+        if (nut > 0){            // mảnh vỡ bắn ra, và một vết nứt ở lại
+          c.strokeStyle = `rgba(255,236,200,${0.9*(1-nut)})`; c.lineWidth = 1;
+          c.beginPath();
+          for (let i=0;i<5;i++){ const a = i*1.26 + 0.4, r0 = pr.r*0.3, r1 = pr.r*(0.9 + nut*1.6);
+            c.moveTo(pr.x + Math.cos(a)*r0, pr.y + Math.sin(a)*r0);
+            c.lineTo(pr.x + Math.cos(a)*r1, pr.y + Math.sin(a)*r1); }
+          c.stroke();
+        }
+        c.restore();
+      }
       if (m.hp > 0) drawFoeOne(c, m, raw ? d : null);
       else { c.fillStyle = 'rgba(255,190,120,0.9)';
              c.beginPath(); c.arc(m.x, 0, 16, 0, Math.PI*2); c.fill(); }
+      // Vạch ngắm + chớp lửa + viên đạn của Kẻ bắn, vẽ SAU cái thân để chớp lửa nằm trên nòng.
+      if ((m.gunAim || 0) > 0) drawGunnerTell(c, m, 30, 0);
+      if ((m.gunFlash || 0) > 0) drawGunnerFlash(c, m);
+      if (m.wkDan != null){
+        c.strokeStyle = 'rgba(255,110,70,0.55)'; c.lineWidth = 2.2;
+        c.beginPath(); c.moveTo(m.wkDan, 0); c.lineTo(m.wkDan - 9, 0); c.stroke();
+        c.fillStyle = '#ffd9c0';
+        c.beginPath(); c.arc(m.wkDan, 0, 3, 0, Math.PI*2); c.fill();
+      }
     }
     let thuTuC = 0;
     for (const cv of oChieu){
@@ -11087,52 +11411,72 @@ function wikiRow(face, ten, phu, stats, mo){
 function wikiHtml(){
   const SK = window.REPO_SKIN, SQd = window.SQ;
   const url = (fn, id) => { try { return SK && SK[fn] ? SK[fn](id) : ''; } catch(e){ return ''; } };
-  // Con nào THẬT SỰ có tấm hình trong kho. Hỏi thẳng thay vì đoán theo tên, vì hai game
-  // có mã trùng tên mà khác con và sprites.js gắn lại một bảng riêng cho Biệt Đội.
-  const CO_HINH = { patrol:1, listen:1, stalk:1, bomber:1, heavy:1, rook:1, angel:1,
-                    crawler:1, quanca:1, bongden:1, hunter:1, nhen:1 };
+  // Con nào THẬT SỰ có tấm hình trong kho — hỏi thẳng thay vì đoán theo tên. Cặp Gương không
+  // có, và không cần: nó tự vẽ lấy cả ô (xem WIKI_CANH.guong).
+  const CO_HINH = { gunner:1, rook:1, angel:1 };
   let h = '<div class="wk">';
 
+  // HAI GAME, MỘT BẢNG QUÁI. Trước đây nhánh này rẽ đôi: Biệt Đội đọc SQ.FOES (bảy con), Ca
+  // Trực Đêm đọc MONSTERS. Mà SQ.FOES chỉ được đọc ở đúng hai chỗ trong cả kho mã — ở đây, và
+  // ở cái nhãn "Quái: ..." của màn chọn map — nghĩa là KHÔNG CHỖ NÀO nạp nó vào bộ máy. Bảy con
+  // ấy chưa từng sinh ra trong một ván nào; người chơi Biệt Đội mở sổ tay ra và đọc bảy con
+  // quái mà họ sẽ không bao giờ gặp, trong lúc bốn con họ THẬT SỰ gặp thì không có dòng nào.
+  // Một bảng tra sai còn tệ hơn không có bảng tra. Nay chỉ còn một bảng, và nó là bảng chạy thật.
   h += '<h3 class="wk-h">Trong nhà có gì</h3>';
-  if (SQd && SQd.FOES){
-    for (const k in SQd.FOES){
-      const f = SQd.FOES[k];
-      // Quái Biệt Đội cũng phải có ô ĐỘNG. Bản đầu bỏ sót đúng nhánh này, nên người chơi Biệt
-      // Đội mở sổ ra thấy toàn hình đứng — "không thấy gif của bọn quái". Chúng không nằm trong
-      // MONSTERS nên phải nặn một def tối thiểu từ chính SQ.FOES rồi đưa vào drawFoeOne.
-      // `hp` phải có: drawFoeOne không đọc nó, nhưng vòng vẽ của sổ tay đọc — `m.hp > 0` là
-      // cái công tắc giữa 'vẽ con quái' và 'vẽ cụm khói nó nổ'. Thiếu trường này thì cả bảy con
-      // của Biệt Đội hiện ra dưới dạng một quầng cam đứng im, và đó đúng là thứ đo được ở lần
-      // chạy đầu: bảy ô, mười hai lần lấy mẫu, một khung hình duy nhất.
-      // `rim` là màu của CẶP TAY (drawArms đọc đúng trường này). Trắng mờ thì tay chìm nghỉm
-      // vào cái viền đỏ mà sprites.js nướng sẵn quanh mọi con quái, và cú vung — thứ cả ô hình
-      // này dựng ra để khoe — thành ra không nhìn thấy. Một màu ấm đặc thì nổi trên cả viền đỏ
-      // lẫn nền tối.
-      // Con nào BÒ thì ngoạm, con nào đứng thì đấm. Bên này phải tự khai vì SQ.FOES không có
-      // trường đó: Con Ngồi bò dưới đất, Thợ Săn là con sói, Nhện Trần là con nhện, Quản Ca là
-      // cái cây — bốn con không có vai để mọc tay ra.
-      const HAM_SQ = { rook:1, hunter:1, nhen:1, quanca:1 };
-      const fd = { col: f.color, eye: '#ffb46a', rim: '#f0dccc',
-                   hp: f.hp, dmg: f.dmg, wind: 0.5, danh: HAM_SQ[k] ? 'ham' : 'tay',
-                   noMelee: k === 'angel' ? 1 : 0 };
-      h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '', { col:f.color, eye:'#ffb46a' }) +
-                   wikiSong(k, fd, WIKI_CANH_SQ[k] || 'vung'),
-        f.name, '',
-        wikiStat('Máu', f.hp) + wikiStat('Đòn', f.dmg) + wikiStat('Chạy', f.spd) +
-        wikiStat('Mắt', wikiO(f.sight)) + wikiStat('Tai', wikiO(f.hear)),
-        f.desc || '');
-    }
-  } else {
-    for (const k in MONSTERS){
-      const d = MONSTERS[k];
-      h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '',
-                            { col:d.col, eye:d.eye, rim:d.rim }) + wikiSong(k),
-        d.name, d.pack ? 'đi ' + d.pack + ' con một đàn' : '',
-        wikiStat('Máu', d.hp) + wikiStat('Đòn', d.dmg) + wikiStat('Chạy', d.speed) +
-        wikiStat('Mắt', wikiO(d.sight)) + wikiStat('Tai', wikiO(d.hear)) +
-        (d.noLoot ? wikiStat('Rơi đồ', 'không') : ''),
-        d.wiki || '');
-    }
+  for (const k in MONSTERS){
+    const d = MONSTERS[k];
+    h += wikiRow(wikiFace(CO_HINH[k] ? url('foeUrl', k) : '',
+                          { col:d.col, eye:d.eye, rim:d.rim }) + wikiSong(k),
+      d.name, d.pack ? 'đi ' + d.pack + ' con một đàn' : (d.gun ? 'đánh từ xa' : ''),
+      wikiStat('Máu', d.hp) + wikiStat(d.gun ? 'Đạn' : 'Đòn', d.dmg) +
+      wikiStat('Chạy', d.speed) +
+      wikiStat('Mắt', wikiO(d.sight)) + wikiStat('Tai', wikiO(d.hear)) +
+      (d.noLoot ? wikiStat('Rơi đồ', 'không') : ''),
+      d.wiki || '');
+  }
+
+  // HAI SỰ KIỆN CỦA CĂN NHÀ. Chúng đếm là quái (xem EVENT_KINDS: một căn nhà chứa ba THỨ, và
+  // một bức tượng lấy mất đèn pin của bạn được phép là một trong ba) nhưng chúng không nằm
+  // trong MONSTERS, vì cả hai không có máu và không bắn được — giữ chúng ngoài mảng đó là cách
+  // làm cho "miễn nhiễm mọi thứ" thành đúng theo cấu trúc, chứ không phải theo một cái cờ mà
+  // mọi chỗ gây sát thương phải nhớ kiểm. Nên sổ tay phải khai chúng bằng tay ở đây.
+  //
+  // `def` gửi thẳng trong thẻ: vòng vẽ chỉ có cái canvas trong tay, MONSTERS['angel'] là
+  // undefined, và drawFoeOne sẽ nổ ở dòng `d.noMelee` nếu không có def.
+  const SU_KIEN = [
+    { k:'angel', name:'Tượng', phu:'sự kiện — không bắn được',
+      def:{ col:'#b9b3a6', eye:'#ffd9a0', rim:'#f0dccc', hp:1, dmg:ANGEL_DMG, wind:0.5, noMelee:1 },
+      st: wikiStat('Máu', '—') + wikiStat('Đòn', ANGEL_DMG) +
+          wikiStat('Ghé mỗi', ANGEL_EVERY[0] + '–' + ANGEL_EVERY[1] + 's') +
+          wikiStat('Rọi đèn', ANGEL_CHARGE + 's'),
+      mo: 'CHIÊU: đứng yên khi bị ĐÈN PIN rọi. Nó hiện ra ngay trước mặt bạn và KHÔNG bắn được, ' +
+          'không đánh được, không có máu — súng đạn vô nghĩa với nó. Cách duy nhất là RỌI ĐÈN vào ' +
+          'nó cho đủ ' + ANGEL_CHARGE + ' giây liền: đủ thì nó bay đi và để lại một vùng sáng cháy ' +
+          ANGEL_LIGHT_T + ' giây — thứ ánh sáng miễn phí duy nhất trong nhà. Rời đèn đi thì cái đã ' +
+          'rọi được rỉ ngược ra hết trong ' + ANGEL_DRAIN + ' giây. Để nó cạn và không bị rọi ' +
+          ANGEL_PATIENCE + ' giây thì nó tới, cào ' + ANGEL_DMG + ' máu, và bạn mất đèn pin cộng ' +
+          'chân nặng trong ' + ANGEL_PUNISH + ' giây. Nó là con duy nhất bắt bạn phải NHÌN nó.' },
+    { k:'mirror', name:'Cặp gương', phu:'sự kiện — bắn cái GƯƠNG, không bắn cái bóng',
+      // Cảnh 'guong' tự vẽ lấy nên không đụng tới def này, nhưng VÒNG VẺ thì có: nó tra
+      // MONSTERS['mirror'] trước, không thấy gì thì `continue` và ô hình ở trống.
+      def:{ col:'#6f8a9c', eye:'#cfe0ee', rim:'#dfeaf2', hp:MIRROR_HP, dmg:0, noMelee:1 },
+      st: wikiStat('Máu kính', MIRROR_HP) + wikiStat('Ghé mỗi', MIRROR_EVERY[0] + '–' + MIRROR_EVERY[1] + 's') +
+          wikiStat('Chạy', MIRROR_SPEED) +
+          wikiStat('Rơi', '$' + MIRROR_LOOT[0].toLocaleString('vi-VN') + '–' + MIRROR_LOOT[1].toLocaleString('vi-VN')),
+      mo: 'CHIÊU: hai tấm kính, một cái bóng. Một tấm hiện gần bạn, một tấm ở phòng khác; ' +
+          MIRROR_EMERGE + ' giây sau có thứ bước ra khỏi tấm gần và đi tới. Cái bóng đó KHÔNG ' +
+          'giết được — đạn xuyên qua nó. Thứ bắn được là TẤM KÍNH: ' + MIRROR_HP + ' máu, hai viên ' +
+          'súng lục hoặc sáu nhát đèn pin, đập vỡ tấm nào cũng xong và nó rơi ra tiền. Không có ' +
+          'súng thì vẫn có hai đường: ĐI XA khỏi tấm gương nó chui ra (càng xa càng chậm, xuống ' +
+          'tận ' + Math.round(MIRROR_SLOW_FLOOR*100) + '% tốc độ) và RỌI ĐÈN vào nó (còn ' +
+          Math.round(MIRROR_TORCH_MUL*100) + '%). Để nó chạm được vào bạn thì nó không đánh — nó ' +
+          'ĐẨY BẠN QUA tấm gương kia, sang tận phòng bên.' }
+  ];
+  for (const e of SU_KIEN){
+    h += wikiRow(wikiFace(CO_HINH[e.k] ? url('foeUrl', e.k) : '',
+                          { col:(e.def && e.def.col) || '#7d8a96', eye:'#cfe0ee' }) +
+                 wikiSong(e.k, e.def, WIKI_CANH_CUA[e.k]),
+      e.name, e.phu, e.st, e.mo);
   }
 
   if (SQd && SQd.CHARS){
@@ -11851,6 +12195,9 @@ window.REPO = {
   showWiki, closeWiki, wikiHtml,
   casts(){ return (S.casts || []).map(f => ({ kind:f.kind, x:f.x, y:f.y, r:f.r, t:+f.t.toFixed(2) })); },
   FOES_FROM_LEVEL, FOES_MAX, PUSH_R,
+  // Kẻ bắn: bộ test đọc mấy số này để khỏi chép tay lại — một con số chép tay trong test là
+  // một chỗ nữa để quên sửa, và bài test sẽ vẫn xanh trong khi luật đã đổi.
+  GUNNER_AIM, GUNNER_CD, GUNNER_RANGE, GUNNER_KEEP, GUNNER_SPEED,
   FOE: { STANDOFF:FOE_STANDOFF, SEP_R:FOE_SEP_R, SEP_PUSH:FOE_SEP_PUSH, BODY:FOE_BODY },
   doors(){ return (S.doors || []).map(d => ({ x:d.x, y:d.y, gx:d.gx, gy:d.gy, open:d.open,
                                               vertical:d.vertical, locked:!!d.locked,

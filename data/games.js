@@ -244,7 +244,12 @@ window.HUB_GAMES = [
     // sáu ô lắp cho từng xác kèm bộ đồ 2/4 món, hai băng gacha (xác + trang bị) có bảo hiểm,
     // cửa hàng nạp GIẢ (bấm là có ngọc, không có cổng thanh toán), nhiệm vụ ngày/tuần/thành tựu.
     // Map lớn KHÔNG lặp vô hạn: 9 map, số tầng chạy vòng 3 → 4 → 5 rồi lặp lại từ 3 với quái
-    // khoẻ hơn và thêm giống quái mới (Nhện Trần, Quản Ca, Bóng Đen). Hết tầng cuối là phá đảo.
+    // khoẻ hơn. Hết tầng cuối là phá đảo.
+    // Câu này từng hứa thêm ba giống quái riêng cho bản này — Nhện Trần, Quản Ca, Bóng Đen.
+    // Ba con đó (và bốn con nữa) có trong một bảng dữ liệu mà KHÔNG CHỖ NÀO nạp vào bộ máy,
+    // nên chúng chưa từng sinh ra trong một ván nào — chúng chỉ là chữ trong sổ tay. Đã xoá cả
+    // bảng, 2026-09-04. Hai bản dùng chung đúng MỘT bảng quái: bốn cái thân (Kẻ bắn, Kẻ húc,
+    // Bom con, Gnome) cộng hai sự kiện của căn nhà (Tượng, cặp Gương).
     // Ships with an in-game bot; docs/tests/browser/test_repo_squad.py lái nó qua đúng cử chỉ
     // người chơi (kéo cần gạt, bấm nút kỹ năng, bấm nút trong menu) và kiểm luật — 50 checks,
     // 0 console errors, có một ván phá đảo trọn vẹn map 3 tầng.

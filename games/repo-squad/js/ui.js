@@ -405,7 +405,11 @@
         '<div class="map-s">' +
           '<span class="' + (power >= m.power ? 'ok' : 'bad') + '">⚡ khuyên ' + money(m.power) + '</span>' +
           '<span>Chỉ tiêu tầng 1: ' + money(m.quotaBase) + '</span>' +
-          '<span>Quái: ' + m.foes.map(f => SQ.FOES[f].name).join(', ') + '</span>' +
+          // KHÔNG liệt kê tên quái ở đây nữa. Dòng cũ đọc `m.foes` — một danh sách viết tay
+          // trong content.js mà bộ sinh màn không hề đọc tới — nên nó hứa những con quái mà màn
+          // chơi không giao. Luật THẬT thì ngắn hơn và đúng hơn: mỗi tầng bốc ngẫu nhiên ba
+          // thứ trong nhà, và một trong ba luôn là Kẻ húc (xem STOCK_ALWAYS bên repo2d).
+          '<span>Quái: 3 thứ mỗi tầng, luôn có Kẻ húc</span>' +
         '</div>' +
         '<div class="map-r">Phá đảo: ' + rewardText(m.clear) + (st.cleared ? '' : ' · <b>Lần đầu:</b> ' + rewardText(m.first)) + '</div>';
       if (st.cleared) row.appendChild(el('div', 'map-badge', '✔ ĐÃ PHÁ ĐẢO'));

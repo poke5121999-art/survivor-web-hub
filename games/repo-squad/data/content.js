@@ -287,14 +287,21 @@
   //   power: lực chiến khuyên nên có. quotaBase: chỉ tiêu tầng 1.
   // ---------------------------------------------------------------------------
   // MAP LỚN — số tầng chạy theo vòng 3 → 4 → 5, rồi lặp lại từ 3 với một vòng khó hơn:
-  // quái cùng loại nhưng khoẻ hơn, cộng thêm một giống quái chưa từng gặp.
+  // cùng bấy nhiêu giống quái nhưng khoẻ hơn và đông hơn.
+  //
+  // `desc` KHÔNG ĐƯỢC HỨA TÊN MỘT CON QUÁI. Bốn dòng ở đây từng hứa Thợ Săn, Nhện Trần,
+  // Quản Ca, Bóng Đen — bốn con nằm trong SQ.FOES, bảng mà không chỗ nào nạp vào bộ máy, nên
+  // chúng chưa từng sinh ra trong một ván nào. Người chơi đọc câu "Nhện Trần rơi xuống đúng
+  // lúc bạn ngẩng lên", vào màn, rồi không gặp con nào như thế cả. Bộ sinh màn bốc ngẫu nhiên
+  // ba thứ cho mỗi tầng (xem stockKinds bên repo2d), nên một căn nhà cụ thể có gì là thứ file
+  // dữ liệu này KHÔNG biết. `desc` nói về CĂN NHÀ — thứ nó thực sự quyết định — và chỉ thế.
   // WHY: người chơi đo được sức mình bằng cùng một thước (3-4-5 tầng) qua từng vòng,
   //      nên "mình mạnh lên bao nhiêu" là câu hỏi có câu trả lời, không phải cảm giác.
   SQ.MAPS = [
     // ---------------- VÒNG 1 — học nghề ----------------
     {
       id: 'k3', name: 'Khu Tập Thể K3', cycle: 1, floors: 3, power: 0, tier: 1,
-      quotaBase: 4200, quotaStep: 0.35, foes: ['rook'], foeBase: 2, foePer: 0.5,
+      quotaBase: 4200, quotaStep: 0.35,
       pal: { floor: '#14161a', wall: '#343c48', accent: '#4b5768' },
       desc: 'Ba tầng nhà cũ, đèn hành lang chập chờn. Chỗ dạy nghề.',
       first: { gold: 3000, gem: 300, ticketX: 1 },
@@ -302,7 +309,7 @@
     },
     {
       id: 'cho', name: 'Chợ Đêm Bến Cũ', cycle: 1, floors: 4, power: 4000, tier: 2,
-      quotaBase: 7000, quotaStep: 0.34, foes: ['rook', 'patrol'], foeBase: 3, foePer: 1,
+      quotaBase: 7000, quotaStep: 0.34,
       pal: { floor: '#17150f', wall: '#3d3527', accent: '#5c4e37' },
       desc: 'Sạp gỗ, thùng cá, và một thứ đi lại giữa các quầy.',
       first: { gold: 6000, gem: 500, ticketE: 2 },
@@ -310,59 +317,59 @@
     },
     {
       id: 'bv', name: 'Bệnh Viện Bỏ Hoang', cycle: 1, floors: 5, power: 8000, tier: 3,
-      quotaBase: 11000, quotaStep: 0.33, foes: ['rook', 'patrol', 'angel'], foeBase: 3, foePer: 1,
+      quotaBase: 11000, quotaStep: 0.33,
       pal: { floor: '#121818', wall: '#2f3f3c', accent: '#456158' },
       desc: 'Hành lang trắng. Đừng quay lưng lại con đứng yên.',
       first: { gold: 12000, gem: 800, ticketX: 2 },
       clear: { gold: 3200, gem: 45 }
     },
 
-    // ---------------- VÒNG 2 — quái khoẻ hơn, thêm Thợ Săn rồi Nhện ----------------
+    // ---------------- VÒNG 2 — cùng bấy nhiêu giống quái, khoẻ hơn ----------------
     {
       id: 'det', name: 'Nhà Máy Dệt', cycle: 2, floors: 3, power: 10000, tier: 4,
-      quotaBase: 17000, quotaStep: 0.32, foes: ['patrol', 'angel', 'hunter'], foeBase: 4, foePer: 1,
+      quotaBase: 17000, quotaStep: 0.32,
       pal: { floor: '#161113', wall: '#3f303a', accent: '#5c4250' },
-      desc: 'Vòng hai bắt đầu lại từ ba tầng — nhưng thứ trong nhà thì không quay lại như cũ. Thợ Săn nghe được cả tiếng bạn thở.',
+      desc: 'Vòng hai bắt đầu lại từ ba tầng — nhưng thứ trong nhà thì không quay lại như cũ. Không gian củi, ồn, và không chỗ nào đứng khuất được lâu.',
       first: { gold: 20000, gem: 1200, ticketE: 3 },
       clear: { gold: 5200, gem: 60 }
     },
     {
       id: 'kho', name: 'Kho Lạnh Bến Xe', cycle: 2, floors: 4, power: 13000, tier: 5,
-      quotaBase: 24000, quotaStep: 0.31, foes: ['hunter', 'angel', 'nhen'], foeBase: 4, foePer: 1,
+      quotaBase: 24000, quotaStep: 0.31,
       pal: { floor: '#111419', wall: '#2b3a50', accent: '#3d5474' },
-      desc: 'Trần thấp, ống lạnh chạy dọc. Nhện Trần rơi xuống đúng lúc bạn ngẩng lên.',
+      desc: 'Trần thấp, ống lạnh chạy dọc. Đứng thẳng lên là chạm đầu, và không ai nghe thấy tiếng bạn ở đây.',
       first: { gold: 30000, gem: 1500, ticketX: 2, ticketE: 2 },
       clear: { gold: 7000, gem: 75 }
     },
     {
       id: 'bt', name: 'Biệt Thự Đồi Sương', cycle: 2, floors: 5, power: 17000, tier: 6,
-      quotaBase: 33000, quotaStep: 0.30, foes: ['angel', 'hunter', 'nhen', 'patrol'], foeBase: 5, foePer: 1,
+      quotaBase: 33000, quotaStep: 0.30,
       pal: { floor: '#141020', wall: '#37304f', accent: '#4e4270' },
       desc: 'Đồ ở đây đắt gấp đôi chỗ khác. Có lý do cả.',
       first: { gold: 45000, gem: 2000, ticketX: 3 },
       clear: { gold: 10000, gem: 95 }
     },
 
-    // ---------------- VÒNG 3 — thêm Quản Ca rồi Bóng Đen ----------------
+    // ---------------- VÒNG 3 — nhà to hơn, chỉ tiêu nặng hơn ----------------
     {
       id: 'ga', name: 'Ga Hàng Cũ', cycle: 3, floors: 3, power: 20000, tier: 7,
-      quotaBase: 44000, quotaStep: 0.30, foes: ['hunter', 'nhen', 'quanca'], foeBase: 5, foePer: 1,
+      quotaBase: 44000, quotaStep: 0.30,
       pal: { floor: '#14110d', wall: '#3a3428', accent: '#564936' },
-      desc: 'Lại ba tầng, lại từ đầu. Quản Ca thấy bạn một cái là cả nhà biết bạn ở đâu.',
+      desc: 'Lại ba tầng, lại từ đầu. Sân ga dài, thẳng, không có góc nào để cắt đuôi.',
       first: { gold: 70000, gem: 2600, ticketE: 4 },
       clear: { gold: 15000, gem: 120 }
     },
     {
       id: 'tau', name: 'Xưởng Đóng Tàu', cycle: 3, floors: 4, power: 23000, tier: 8,
-      quotaBase: 58000, quotaStep: 0.29, foes: ['quanca', 'hunter', 'nhen', 'bongden'], foeBase: 5, foePer: 1,
+      quotaBase: 58000, quotaStep: 0.29,
       pal: { floor: '#0f1518', wall: '#2a4049', accent: '#3b5c68' },
-      desc: 'Vỏ tàu dựng đứng trong bóng tối. Bóng Đen chỉ hiện ra khi đã sát mặt.',
+      desc: 'Vỏ tàu dựng đứng trong bóng tối. Đèn pin ở đây không tới được trần.',
       first: { gold: 95000, gem: 3200, ticketX: 4 },
       clear: { gold: 21000, gem: 150 }
     },
     {
       id: 'hh', name: 'Tầng Hầm Không Tên', cycle: 3, floors: 5, power: 26000, tier: 9,
-      quotaBase: 76000, quotaStep: 0.28, foes: ['bongden', 'quanca', 'angel', 'nhen', 'hunter'], foeBase: 6, foePer: 1,
+      quotaBase: 76000, quotaStep: 0.28,
       pal: { floor: '#0e0e11', wall: '#2c2c34', accent: '#41414e' },
       desc: 'Không có trên bản đồ nào. Xe tải đỗ ở đây thì tắt máy chờ.',
       first: { gold: 150000, gem: 5000, ticketX: 5, ticketE: 5 },
@@ -373,28 +380,25 @@
   SQ.MAPS.forEach(m => { SQ.MAP_BY_ID[m.id] = m; });
 
   // ---------------------------------------------------------------------------
-  // QUÁI. hp/dmg nhân theo tier của map.
+  // QUÁI: KHÔNG CÒN BẢNG RIÊNG Ở ĐÂY
   // ---------------------------------------------------------------------------
-  SQ.FOES = {
-    rook:   { id: 'rook',   name: 'Con Ngồi',  hp: 70,  dmg: 9, spd: 62,  sight: 0,   hear: 9,  color: '#8a6b4f',
-              desc: 'Mù. Chỉ nghe. Đứng im thì nó đi qua.' },
-    patrol: { id: 'patrol', name: 'Kẻ Tuần',   hp: 95,  dmg: 16, spd: 74,  sight: 8.5, hear: 6,  color: '#6f7d99',
-              desc: 'Đi theo tuyến. Thấy là đuổi, đuổi lâu.' },
-    angel:  { id: 'angel',  name: 'Tượng',     hp: 150, dmg: 30, spd: 130, sight: 12,  hear: 3,  color: '#b9b3a6',
-              desc: 'Đứng yên khi có người nhìn. Quay lưng đi là nó tới.' },
-    hunter: { id: 'hunter', name: 'Thợ Săn',   hp: 130, dmg: 26, spd: 88,  sight: 10,  hear: 11, color: '#9a4a44',
-              desc: 'Nghe được cả tiếng bạn thở. Nó không quên.' },
-    // --- vòng 2 ---
-    nhen:   { id: 'nhen',   name: 'Nhện Trần', hp: 85,  dmg: 32, spd: 118, sight: 6,   hear: 12, color: '#6b4a72',
-              desc: 'Máu ít, chạy nhanh, cắn đau. Nó rơi xuống từ trần.' },
-    // --- vòng 3 ---
-    quanca: { id: 'quanca', name: 'Quản Ca',   hp: 260, dmg: 24, spd: 58,  sight: 13,  hear: 7,  color: '#8a8f6a',
-              alert: 1,
-              desc: 'Đi chậm, dai. Nó thấy bạn một cái là cả nhà biết bạn đứng đâu.' },
-    bongden:{ id: 'bongden', name: 'Bóng Đen', hp: 175, dmg: 34, spd: 96,  sight: 11,  hear: 9,  color: '#3d3a4a',
-              hidden: 4, stunProof: 1,
-              desc: 'Chỉ hiện ra khi đã sát mặt. Choáng không ăn thua với nó.' }
-  };
+  // Ở đây từng có `SQ.FOES` với bảy con: Con Ngồi, Kẻ Tuần, Tượng, Thợ Săn, Nhện Trần,
+  // Quản Ca, Bóng Đen. Bảy con đó ĐÃ BỊ XOÁ, và lý do đáng ghi lại: tra cả kho mã thì bảng
+  // ấy chỉ được đọc ở ĐÚNG HAI CHỖ — sổ tay (wikiHtml) và cái nhãn "Quái: ..." ở màn chọn
+  // map. KHÔNG chỗ nào nạp nó vào bộ máy cả.
+  //
+  // Nghĩa là bảy con đó chưa từng sinh ra trong một ván nào. Biệt Đội chạy trên bộ máy của
+  // repo2d (xem js/squad.js), nên quái thật vẫn là `MONSTERS` của bên đó, lấy qua rosterForLevel.
+  // Người chơi mở sổ tay ra đọc bảy con họ sẽ không bao giờ gặp, còn bốn con họ THẬT SỰ
+  // gặp thì không có dòng nào. Đó là cái sai mà chủ dự án chỉ ra, 2026-09-04: "wiki về quái sai
+  // so với skill của quái ... nó không nói lên quái có skill gì cả".
+  //
+  // Một bảng chỉ để đọc, không ai chạy, thì không có gì bắt nó đúng — và nó trôi xa dần theo
+  // từng lần sửa bên kia mà không ai hay. Cùng một bài học đã ghi ở data/games.js về bản Unity:
+  // "một luật sửa ở một bên và không sửa ở bên kia là một luật không ai tin được nữa."
+  //
+  // Trường `foes` của từng map cũng bỏ theo, vì cùng một lý do: nó hứa với người chơi rằng
+  // map này có những con này, mà bộ sinh màn thì bốc ngẫu nhiên ba thứ cho mỗi tầng.
 
   // ---------------------------------------------------------------------------
   // ĐỒ ĂN TIỀN trong nhà: cỡ (khối lượng) và chất liệu (giá).
