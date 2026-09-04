@@ -1682,7 +1682,12 @@
     //
     // y = GROUND_Y + 92, không phải sát đường ray: dải ray vẽ dày tới GROUND_Y + 26 và
     // mái bạt quầy cao 60 đơn vị — đặt gần hơn thì cái mái chui vào trong đường ray.
-    st.shop = { x: base + 150, y: GROUND_Y + 92, r: SHOP_R, seed: Math.random(), stock: [] };
+    // x = base − 180, tức là NGANG VỚI ĐOÀN TÀU chứ không phải phía trước đầu máy.
+    // Đặt ở base + 150 thì quầy nằm trước mũi tàu, mà lúc đỗ khung hình nhìn NGƯỢC về
+    // phía đuôi tàu (người chơi đứng ở toa cuối) — nên cái quầy dạt hẳn ra rìa phải,
+    // nấp sau nút Bắn. Ngang thân tàu thì nó nằm giữa khung ngay lúc vừa đỗ, và đúng
+    // với lời hứa "ghé được trong lúc chạy đi chạy về".
+    st.shop = { x: base - 180, y: GROUND_Y + 92, r: SHOP_R, seed: Math.random(), stock: [] };
     const SHOP_CLEAR = 170;      // bán kính cấm dựng nhà quanh quầy
 
     const n = 3 + ((Math.random() * 3) | 0) + Math.floor(R.map.tier / 3);
@@ -1807,7 +1812,15 @@
       const back = R.dist - (viewW / zoom()) * 0.5;
       tx = p.x - (viewW / zoom()) * 0.5 + (R.dist > p.x ? 60 : -60);
       tx = Math.max(tx, back - 260);
-      ty = p.y - (viewH / zoom()) * 0.5;
+      // Đang đứng TRÊN TÀU ở ga thì đừng căn vào người chơi: sàn tàu ở −48, mà thị trấn
+      // trải từ mặt đất 96 xuống tới 188 (chỗ cái quầy). Căn vào người chơi thì đáy khung
+      // dừng ở 167 — cái quầy nằm ngay dưới mép, tức là thứ đáng làm nhất ở ga lại là
+      // thứ duy nhất không nhìn thấy lúc vừa tới nơi.
+      //
+      // Nên khi còn trên tàu thì nhìn vào KHOẢNG GIỮA sàn tàu và thị trấn; nhảy xuống
+      // rồi thì camera bám người chơi như bình thường. Chuyển mượt vì camera vốn đã nội suy.
+      const focusY = p.onTrain ? (deckMidY() + GROUND_Y + 60) * 0.5 : p.y;
+      ty = focusY - (viewH / zoom()) * 0.5;
     }
     const k = Math.min(1, dt * (R.phase === 'chay' ? 14 : 6.5));
     cam.x += (tx - cam.x) * k;

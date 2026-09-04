@@ -401,14 +401,14 @@ canvas#game {
 <script src="../../js/supabase-auth.js"></script>
 <script src="../../js/save-sync.js"></script>
 
-<script src="data/content.js?v=20260904c"></script>
-<script src="js/meta.js?v=20260904c"></script>
-<script src="js/art.js?v=20260904c"></script>
-<script src="js/train-art.js?v=20260904c"></script>
-<script src="js/fx.js?v=20260904c"></script>
-<script src="js/game.js?v=20260904c"></script>
-<script src="js/hud.js?v=20260904c"></script>
-<script src="js/ui.js?v=20260904c"></script>
+<script src="data/content.js?v=20260904d"></script>
+<script src="js/meta.js?v=20260904d"></script>
+<script src="js/art.js?v=20260904d"></script>
+<script src="js/train-art.js?v=20260904d"></script>
+<script src="js/fx.js?v=20260904d"></script>
+<script src="js/game.js?v=20260904d"></script>
+<script src="js/hud.js?v=20260904d"></script>
+<script src="js/ui.js?v=20260904d"></script>
 
 <script>
 (function () {
@@ -416,7 +416,7 @@ canvas#game {
   // Dấu bản dựng nằm TRONG mã, và cũng nằm trên thẻ script. Trang tự so hai số: lệch
   // nhau nghĩa là trình duyệt đang giữ một tệp js cũ trong bộ nhớ đệm, và người chơi
   // cần biết điều đó thay vì ngồi thắc mắc vì sao bản vá không có tác dụng.
-  const BUILD = '20260904c';
+  const BUILD = '20260904d';
   const tag = document.getElementById('buildtag');
   const scr = [].slice.call(document.querySelectorAll('script[src*="game.js"]'))[0];
   const m = scr && scr.src.match(/[?&]v=([^&]+)/);
