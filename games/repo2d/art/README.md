@@ -111,6 +111,8 @@ game để cho nó đẹp + sinh động hơn"*.
 
 Luật chọn: **mỗi tấm phải gắn vào một sự kiện ĐÃ CÓ SẮN**, không rắc thêm cho lấp lánh.
 
+### CĂN NHÀ — mười một tấm, nạp ở **cả hai** game
+
 | Mã | Khung | Nổ ra khi nào | Lớp |
 |---|---|---|---|
 | `warm-explosion` | 15 | mọi vụ nổ — Bom con, lựu đạn | sáng |
@@ -121,16 +123,52 @@ Luật chọn: **mỗi tấm phải gắn vào một sự kiện ĐÃ CÓ SẮN*
 | `electric-impact` | 14 | và lúc nó trúng người | sáng |
 | `rift-portal` | 16 | hai tấm kính của cặp Gương (lặp, mờ dần theo máu kính) | sáng |
 | `spectral-bloom` | 16 | Tượng bay đi sau khi bị rọi đèn đủ lâu | sáng |
+| `beam-cutoff-burst` | 14 | đầu tia laser — chỗ nó DỪNG, không phải ở nòng | sáng |
+| `ember-jet` | 14 | lửa đầu nòng súng hoa cải, xoay theo hướng bắn | sáng |
+| `acid-splash` | 14 | phi tiêu thuốc mê cắm vào con quái | sáng |
+
+### CHIÊU CỦA BIỆT ĐỘI — mười một tấm, **chỉ** nạp ở trang Biệt Đội
+
+| Mã | Chiêu |
+|---|---|
+| `solar-shrapnel` | Chói Loà |
+| `radiant-heal` | Vòng Hồi |
+| `focus-charge` | Gồng |
+| `arcane-parry` | Mở Toang |
+| `void-implosion` | Tàng Hình, và đầu đi của Chớp |
+| `smoke-puff` | Mồi Nhử rơi xuống (lớp tối) |
+| `venom-ward` | Lồng Sắt |
+| `lattice-beam` | Thấu Thị |
+| `frost-nova` | Đóng Băng |
+| `leaf-gust` | Kéo Đồ, Kéo Về |
+| `splash-crown` | Thiên Thần |
+
+Ca Trực Đêm không có chiêu nào nên **không tải** mười một tấm dưới — hơn trăm KB. Phân bảng ở
+`VFX_SHEETS` / `VFX_SKILL` trong `sprites.js`, chọn bằng đường dẫn trang (`LA_SQUAD`) chứ không
+bằng `window.SQ`: tệp này nạp trước content.js nên lúc ấy SQ chưa tồn tại.
 
 **Một khuôn cho cả tám:** khung 96×96, xếp 5 cột, chạy 20 khung/giây. Chỉ khác hai thứ — số
 khung, và cái **chân** (`py` trong `VFX_SHEETS` ở `sprites.js`, lấy thẳng từ manifest của bộ gốc).
 `py` quan trọng hơn vẻ ngoài của nó: vụ nổ neo ở tâm (58) còn đám bụi neo ở đáy (70), nên vẽ cả
 hai từ giữa khung thì đám bụi lơ lửng trên không cách sàn nửa ô.
 
-**Hai lớp, và phải hai lớp.** *Sáng* = vẽ sau khi đã nhân ánh sáng vào, cho thứ TỰ PHÁT SÁNG (lửa,
-điện, cổng gương). *Tối* = vẽ cùng lớp với người và quái, cho bụi và đất — chỗ tối thì không thấy
-bụi, và đó mới đúng. Rắc tất cả vào lớp cộng sáng thì đám bụi thành một quầng vàng lơ lửng trong
-bóng tối: nó đọc ra là phép thuật, không đọc ra là bụi.
+**BA lớp vẽ**, và cả ba đều sinh ra từ một lỗi đo được bằng ảnh chụp:
+
+- **tối** (`sang: false`) — vẽ cùng lớp với người và quái, chịu ánh sáng. Bụi, đất, khói. Chỗ tối
+  thì không thấy bụi, và đó mới đúng — rắc nó vào lớp cộng sáng thì đám bụi của Kẻ húc thành
+  một quầng vàng lơ lửng trong bóng tối: đọc ra là phép thuật, không đọc ra là bụi.
+- **sáng** (`sang: true`) — cộng sáng sau khi đã nhân đèn. Lửa, điện, cổng gương, viên đạn. Chúng
+  VỐN là nguồn sáng, và nét vẽ của chúng tối, nên cộng lên không cháy.
+- **giữ màu** (`giuMau: true`) — một lượt vẽ THƯỌNG sau khi nhân đèn, cộng thêm một lượt sáng
+  mờ 30% để vẫn có quyệng. **Mọi chiêu của Biệt Đội dùng lớp này.** Lý do: cộng sáng là CỘNG,
+  mà mấy tấm phép thuật vốn đã trắng sẵn — cộng lên nền đã được đèn rọi thì chạm trần 255 và
+  bạc ra trắng. Đo ảnh chụp lần đầu: Chói Loà, Mở Toang và Đóng Băng ra ba cái đĩa trắng
+  giống hệt nhau.
+
+**CỠ KHÔNG ĐO THEO BÁN KÍNH.** Bản đầu của mấy chiêu viết `scale: d.radius * TILE / 40` cho ô
+hình trùm đúng vùng chiêu ăn tới. Nghe thì đúng, nhìn thì hỏng: Đóng Băng tầm 8 ô ra scale 4,8,
+tức là tấm 96px kéo lên 460px — mất hết nét pixel. Phân vai đúng là: **lớp vector nói bán kính,
+bộ hình nói cú bấm** — nên bộ hình giữ cỡ gần như cố định, cỡ 1–2 ô.
 
 **Hiệu ứng KHÔNG được nói dối về luật chơi.** Vụ nổ giữ nguyên cái vòng xung kích vẽ tay — nó
 nói "tới đây là còn ăn đòn", một thông tin mà bộ hình không mang — và ngọn lửa co theo đúng

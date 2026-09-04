@@ -28,6 +28,40 @@
   const H = REPO.hooks, S = REPO.S, TILE = REPO.TILE;
   const SD = SQ.squad = {};
 
+  // ---------------------------------------------------------------------------
+  // HIỆU ỨNG CỦA CHIÊU
+  // ---------------------------------------------------------------------------
+  // Mỗi chiêu được thêm MỘT ô hình, ĐẶT CHỒNG LÊN hiệu ứng vector đã có chứ không thay nó.
+  //
+  // Hai lớp ấy nói hai chuyện khác nhau, và bỏ lớp nào cũng mất một nửa:
+  //   vector (castFx) — nói PHẠM VI và THỜI GIAN. Cái vòm của Lồng Sắt đứng đúng 9 giây ở
+  //                     đúng bán kính 4 ô, nên nhìn là biết đứng đâu thì an toàn.
+  //   bộ hình         — nói CÚ BẤM. Nó là cái đấm vào mắt ở đúng khung hình bạn thả ngón tay,
+  //                     thứ mà một cái vòng tròn nở ra không bao giờ làm được.
+  // Đây đúng là luật đã dùng cho vụ nổ bên repo2d: giữ cái vòng xung kích vì nó mang thông
+  // tin, thêm ngọn lửa vì nó mang cảm giác.
+  //
+  // `sang: true` cho gần hết — chiêu bấm trong nhà tối, và một hiệu ứng bị lớp bóng tối nhân
+  // xuống thì bấm xong không thấy gì. Chỉ Mồi Nhử là bụi nên để `false`.
+  // CỠ KHÔNG ĐO THEO BÁN KÍNH, và đây là bài học đắt nhất của cả lần lắp này.
+  //
+  // Bản đầu viết `scale: d.radius * TILE / 40`, nghĩa là ô hình trùm đúng vùng chiêu ăn tới.
+  // Nghe thì đúng, nhìn thì hỏng: Đóng Băng có tầm 8 ô nên scale ra 4,8 — tấm 96px kéo lên
+  // 460px, mất hết nét pixel và cháy trắng cả góc màn hình vì nó vẽ ở lớp cộng sáng. Đo ảnh
+  // chụp: Chói Loà, Xung Chấn và Đóng Băng ra ba vũng trắng giống hệt nhau.
+  //
+  // Phân vai lại cho đúng: LỚP VECTOR nói bán kính (nó vẽ đúng `d.radius`, mỏng, không cháy),
+  // BỘ HÌNH nói cú bấm — nên nó giữ một cỡ gần như cố định, cỡ 1–2 ô. Một cú đấm vào mắt
+  // không cần to bằng vùng sát thương mới đọc ra là mạnh.
+  // `giuMau` cho TẤT CẢ: mấy tấm này vốn đã sáng và đã có màu riêng, cộng sáng chúng lên nền
+  // thì cả mười bốn chiêu ra cùng một cái đĩa trắng — đo được bằng ảnh chụp. Xem chú thích
+  // dài ở drawVfx bên repo2d.
+  const fx = (id, x, y, o) => {
+    if (!REPO.spawnVfx) return;
+    const opt = Object.assign({ giuMau: true }, o || {});
+    REPO.spawnVfx(id, x, y, opt);
+  };
+
   // Ván đang chạy: map nào, tầng mấy. null = đang ở menu.
   let run = null;
   SD.run = () => run;
@@ -232,6 +266,7 @@
       // con quái ở đó đứng hình tới đó — người chơi đọc được TẦM của kỹ năng chứ không phải
       // đoán. REPO.fxFlash làm sáng cả màn một nhịp, đúng nghĩa loé đèn vào mặt.
       REPO.castFx('burst', p.x, p.y, { r: d.radius * TILE, col: '255,252,225', tia: 16, dur: 0.55 });
+      fx('solar-shrapnel', p.x, p.y, { scale: 1.15 });
       REPO.fxFlash(0.4, '255,250,225');
       return bi.length ? 'Loé vào mặt ' + bi.length + ' con' : 'Không con nào nhìn thấy';
     },
@@ -252,6 +287,7 @@
         }
       });
       REPO.castFx('dome', cx, cy, { r: R, col: '150,240,180', dur: d.dur });
+      fx('radiant-heal', cx, cy, { scale: 0.8 });
       return 'Vòng hồi ' + d.dur + 's';
     },
 
@@ -262,6 +298,7 @@
       p.hasteT = Math.max(p.hasteT || 0, d.dur);
       p.stam = p.stamMax;
       REPO.castFx('aura', p.x, p.y, { col: '255,205,110', dur: 0.6 });
+      fx('focus-charge', p.x, p.y - 6, { scale: 0.55 });
       return 'Gồng ' + d.dur + 's';
     },
 
@@ -274,6 +311,11 @@
         if (Math.hypot(dr.x - p.x, dr.y - p.y) > d.radius * TILE) return;
         if (REPO.breakDoorAt(dr)) n++;
       });
+      // Mở Toang chưa từng có hiệu ứng nào: bấm xong chỉ có một dòng chữ hiện lên, và mấy
+      // cánh cửa thì bung ở tận đâu ngoài tầm nhìn. Vòng xung này ít nhất nói được 'cú bấm
+      // ĐÃ ăn', thứ mà một kỹ năng 22 giây hồi chiêu buộc phải nói.
+      REPO.castFx('burst', p.x, p.y, { r: d.radius * TILE, col: '210,225,245', tia: 10, dur: 0.5 });
+      fx('arcane-parry', p.x, p.y, { scale: 0.7, alpha: 0.8 });
       return n ? 'Bung ' + n + ' cửa' : 'Không có cửa khoá gần đây';
     },
 
@@ -282,6 +324,7 @@
       p.invisT = Math.max(p.invisT || 0, d.dur);
       foes().forEach(f => { if (f.target === p) { f.target = null; f.alert = 0; } });
       REPO.castFx('implode', p.x, p.y, { r: TILE * 2.6, col: '190,170,240', tia: 8, dur: 0.5 });
+      fx('void-implosion', p.x, p.y, { scale: 0.55 });
       return 'Biến mất ' + d.dur + 's';
     },
 
@@ -296,6 +339,7 @@
         REPO.foeKnock(f, Math.atan2(f.y - p.y, f.x - p.x), 240);
       });
       REPO.castFx('burst', p.x, p.y, { r: d.radius * TILE, col: '255,170,110', tia: 12, dur: 0.45 });
+      fx('electric-impact', p.x, p.y, { scale: 1.15 });
       REPO.fxShake(6);
       return bi.length ? 'Nện ' + bi.length + ' con' : 'Nện hụt';
     },
@@ -315,6 +359,9 @@
         t: d.dur, kind: 'decoy', x: x, y: y, r: 14,
         tick: dt => { beat -= dt; if (beat <= 0) { REPO.makeNoise(x, y, d.radius * TILE, 3); beat = 0.8; } }
       });
+      // Bụi ở chỗ HỘP RƠI, không phải ở chỗ mình đứng: cả kỹ năng này là 'quái nhìn sang
+      // đằng kia', nên cái mắt người chơi phải bị kéo sang đằng kia luôn.
+      fx('smoke-puff', x, y, { scale: 0.5, sang: false });
       return 'Ném hộp ra xa';
     },
 
@@ -327,6 +374,7 @@
         n++; if (!first) first = a;
       });
       if (first) REPO.reviveActor(first);
+      fx('leaf-gust', p.x, p.y, { scale: 0.7 });
       return n ? 'Kéo về ' + n + ' người' : 'Không ai đang gục';
     },
 
@@ -349,6 +397,7 @@
         }
       });
       REPO.castFx('dome', cx, cy, { r: R, col: '150,205,255', dur: d.dur });
+      fx('venom-ward', cx, cy, { scale: 1.1 });
       return 'Dựng lồng ' + d.dur + 's';
     },
 
@@ -366,6 +415,11 @@
       // CHUYỂN — người chơi chỉ thấy mình bỗng đứng chỗ khác.
       REPO.castFx('implode', ox, oy, { r: TILE * 2.2, col: '200,190,255', tia: 8, dur: 0.42 });
       REPO.castFx('burst',   p.x, p.y, { r: TILE * 2.2, col: '230,225,255', tia: 8, dur: 0.42 });
+      // HAI ô hình khác nhau, không phải một cái nhân đôi: chỗ vừa rời thì HÚT VÀO, chỗ vừa
+      // tới thì NỞ RA. Cùng một hình ở hai đầu thì mắt đọc ra 'hai vụ nổ', không đọc ra 'một
+      // người vừa đi từ đây sang kia'.
+      fx('void-implosion', ox, oy, { scale: 0.5 });
+      fx('spectral-bloom', p.x, p.y, { scale: 0.5 });
       return 'Chớp';
     },
 
@@ -376,6 +430,8 @@
       REPO.revealAll();
       REPO.crew().forEach(a => { if (a) a.sightMul = 1.5; });
       addFx({ t: d.dur, kind: 'reveal', end: () => { REPO.crew().forEach(a => { if (a) a.sightMul = 1; }); } });
+      // Thấu Thị cũng chưa từng có gì để nhìn — nó chỉ lặng lẽ vén màn sương trên bản đồ nhỏ.
+      fx('lattice-beam', p.x, p.y, { scale: 0.8, alpha: 0.85 });
       return 'Thấu thị ' + d.dur + 's';
     },
 
@@ -386,6 +442,7 @@
       const bi = near(p.x, p.y, d.radius);
       bi.forEach(f => { REPO.foeSleep(f, d.dur); REPO.foeSlow(f, d.dur); });
       REPO.castFx('burst', p.x, p.y, { r: d.radius * TILE, col: '175,235,255', tia: 6, dur: 0.6 });
+      fx('frost-nova', p.x, p.y, { scale: 1.25 });
       return bi.length ? 'Đông cứng ' + bi.length + ' con' : 'Không có quái gần đây';
     },
 
@@ -401,6 +458,7 @@
         if (REPO.deliverLoot(l, pad)) n++;
       });
       REPO.castFx('implode', p.x, p.y, { r: d.radius * TILE, col: '245,215,120', tia: 12, dur: 0.55 });
+      fx('leaf-gust', p.x, p.y, { scale: 0.7 });
       return n ? 'Giao thẳng ' + n + ' món lên bệ' : 'Không có đồ rơi gần đây';
     },
 
@@ -413,6 +471,7 @@
         a.invulnT = Math.max(a.invulnT || 0, d.dur);
       });
       REPO.castFx('dome', p.x, p.y, { r: TILE * 5, col: '255,240,190', dur: Math.min(d.dur, 1.4) });
+      fx('splash-crown', p.x, p.y, { scale: 0.8 });
       REPO.fxFlash(0.3, '255,245,205');
       return n ? 'Đỡ dậy ' + n + ' người, cả tổ bất tử ' + d.dur + 's' : 'Cả tổ bất tử ' + d.dur + 's';
     }
@@ -434,6 +493,10 @@
       REPO.toast(d.skill.name + (msg ? ' — ' + msg : ''));
     }
   };
+  // Bộ test gọi thẳng từng chiêu qua cửa này. H.skill.use() chỉ bấm được chiêu của TỔ TRƯỞNG,
+  // nên nếu chỉ có mỗi cửa đó thì muốn kiểm cả mười bốn chiêu phải xếp lại đội hình mười bốn
+  // lần — và một bài test đắt tới mức đó là một bài test không ai chịu chạy.
+  SD.skills = SKILLS;
   SD.skillIcon = () => { const d = leadDef(); H.skill.icon = d ? (SQ.ui.faceOf ? SQ.ui.faceOf(d) : '✳') : '✳'; };
 
   // ---------------------------------------------------------------------------

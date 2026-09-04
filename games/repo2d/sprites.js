@@ -69,6 +69,7 @@
   // `py` là chỗ hiệu ứng "chạm đất" trong khung 96px, lấy thẳng từ manifest của bộ gốc. Nó
   // quan trọng hơn vẻ ngoài của nó: vụ nổ neo ở tâm (58) còn đám bụi neo ở đáy (70), nên nếu
   // vẽ cả hai từ giữa khung thì đám bụi lơ lửng trên không cách sàn nửa ô.
+  // CĂN NHÀ — mười một tấm này nạp ở CẢ HAI game, vì cả hai chạy chung một bộ máy.
   const VFX_SHEETS = {
     'warm-explosion':     { n: 15, py: 58 },   // mọi vụ nổ
     'landing-dust':       { n: 14, py: 70 },   // Kẻ húc giậm chân
@@ -77,7 +78,34 @@
     'magical-projectile': { n: 12, py: 50 },   // viên đạn của Kẻ bắn
     'electric-impact':    { n: 14, py: 54 },   // và lúc nó trúng
     'rift-portal':        { n: 16, py: 48 },   // hai tấm kính của cặp Gương (lặp)
-    'spectral-bloom':     { n: 16, py: 64 }    // Tượng bay đi
+    'spectral-bloom':     { n: 16, py: 64 },   // Tượng bay đi
+    'beam-cutoff-burst':  { n: 14, py: 48 },   // đầu tia laser
+    'ember-jet':          { n: 14, py: 56 },   // họng súng hoa cải
+    'acid-splash':        { n: 14, py: 64 }    // phi tiêu thuốc mê cắm vào con quái
+  };
+
+  // CHIÊU CỦA BIỆT ĐỘI — mười một tấm này CHỈ nạp ở trang Biệt Đội.
+  //
+  // Ca Trực Đêm không có chiêu nào (chỗ đó là mấy món mua ở cửa hàng), nên tải mười một tấm
+  // về rồi không dùng tới là hơn trăm KB ném đi trên một game chạy bằng 3G trong quán cà phê.
+  //
+  // Hỏi ĐƯỜNG DẪN TRANG chứ không hỏi `window.SQ`: tệp này nạp trước content.js nên lúc chạy
+  // tới đây thì SQ chưa tồn tại — đúng cái bẫy đã ghi ở chú thích foeArt bên dưới. Và hỏi sai
+  // thì hỏng NHẸ về cả hai phía: đoán nhầm ở Biệt Đội thì mấy chiêu rơi về hiệu ứng vector cũ
+  // (vẫn chạy, chỉ kém đẹp), đoán nhầm ở Ca Trực Đêm thì phí băng thông. Không bên nào vỡ.
+  const LA_SQUAD = /repo-squad/.test(location.pathname);
+  const VFX_SKILL = {
+    'solar-shrapnel':     { n: 14, py: 56 },   // Chói Loà
+    'radiant-heal':       { n: 14, py: 67 },   // Vòng Hồi
+    'focus-charge':       { n: 14, py: 48 },   // Gồng
+    'arcane-parry':       { n: 16, py: 72 },   // Mở Toang
+    'void-implosion':     { n: 14, py: 50 },   // Tàng Hình, và đầu đi của Chớp
+    'smoke-puff':         { n: 14, py: 48 },   // Mồi Nhử rơi xuống
+    'venom-ward':         { n: 16, py: 48 },   // Lồng Sắt (lặp)
+    'lattice-beam':       { n: 16, py: 48 },   // Thấu Thị (lặp)
+    'frost-nova':         { n: 13, py: 61 },   // Đóng Băng
+    'leaf-gust':          { n: 14, py: 62 },   // Kéo Đồ, Kéo Về
+    'splash-crown':       { n: 14, py: 70 }    // Thiên Thần
   };
   const VFX_F = 96;          // cạnh một khung
   const VFX_COLS = 5;        // số cột trong tấm
@@ -265,13 +293,17 @@
   // Hiệu ứng KHÔNG đi qua bakeRim: cái viền đỏ ấy dựng ra để tách con quái khỏi nền tối, còn
   // một vụ nổ thì tự nó đã là chỗ sáng nhất màn hình. Nướng viền vào nó chỉ được một cái quầng
   // đỏ bám quanh ngọn lửa.
-  for (const id in VFX_SHEETS) {
-    (function (id) {
-      load(HERE + 'art/vfx/' + id + '.png' + VER, function (im) {
-        vfx[id] = { img: im, n: VFX_SHEETS[id].n, py: VFX_SHEETS[id].py };
-      });
-    })(id);
+  function napVfx(bang) {
+    for (const id in bang) {
+      (function (id, d) {
+        load(HERE + 'art/vfx/' + id + '.png' + VER, function (im) {
+          vfx[id] = { img: im, n: d.n, py: d.py };
+        });
+      })(id, bang[id]);
+    }
   }
+  napVfx(VFX_SHEETS);
+  if (LA_SQUAD) napVfx(VFX_SKILL);
 
   // ---------------------------------------------------------------- đồ vật
   // Món đồ ăn tiền và cái đèn trong tay. Không phải charset: đồ vật không có hướng nhìn,

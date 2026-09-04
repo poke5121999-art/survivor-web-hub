@@ -630,6 +630,7 @@ function spawnVfx(id, x, y, o){
                ang:   opt.ang || 0,
                alpha: opt.alpha == null ? 1 : opt.alpha,
                sang:  opt.sang !== false,
+               giuMau: !!opt.giuMau,
                fps:   opt.fps || VFX_FPS });
 }
 function stepVfx(dt){
@@ -644,13 +645,31 @@ function stepVfx(dt){
     if (f.t * f.fps >= n) S.vfx.splice(i,1);
   }
 }
-function drawVfx(c, sang){
+// BA LỚP, không phải hai. Lớp thứ ba (`giuMau`) sinh ra từ một lỗi đo được bằng ảnh chụp:
+// mười bốn chiêu của Biệt Đội vẽ ở lớp cộng sáng thì Chói Loà, Mở Toang và Đóng Băng ra ba
+// cái ĐĨA TRẮNG giống hệt nhau — mất sạch cả hình lẫn màu.
+//
+// Lý do: cộng sáng là CỘNG. Bộ hình này vốn đã sáng, cộng nó lên một cái sàn đã được đèn rọi
+// thì mọi điểm trên mức trung bình đều chạm trần 255 và bạc ra trắng. Đúng cho ngọn lửa và tia
+// điện — chúng VỐN là nguồn sáng, và nét vẽ của chúng tối — nhưng sai cho mấy tấm phép thuật
+// vốn đã trắng sẵn.
+//
+//   `sang: false`            — vẽ cùng lớp với người và quái, chịu ánh sáng. Bụi, đất, khói.
+//   `sang: true`             — cộng sáng sau khi đã nhân đèn. Lửa, điện, cổng gương, viên đạn.
+//   `giuMau: true`           — vẽ THƯỌNG sau khi nhân đèn (nên không bị tối đi), cộng thêm một lớp
+//                              sáng mờ 30% để vẫn có quyệng. Mấy chiêu của Biệt Đội.
+// `moNhan` nhân vào độ mờ, cho lượt quệng sáng của lớp `mau` — xem chỗ gọi trong draw().
+// Nhân chứ không đè: `alpha` của từng hiệu ứng là một ý đồ riêng (cú vụt lúc đuối tay chỉ còn
+// 45%), nên lượt quệng phải nhạt theo nó chứ không được đặt lại tất cả về cùng một mức.
+function drawVfx(c, lop, moNhan){
   const K = window.REPO_SKIN;
   if (!K || !K.vfx) return;
+  const k = moNhan == null ? 1 : moNhan;
   for (const f of S.vfx){
-    if (!!f.sang !== !!sang) continue;
+    const cua = f.giuMau ? 'mau' : (f.sang ? 'sang' : 'toi');
+    if (cua !== lop) continue;
     c.save(); c.translate(f.x, f.y);
-    K.vfx(c, f.id, f.t * f.fps, { scale: f.scale, ang: f.ang, alpha: f.alpha });
+    K.vfx(c, f.id, f.t * f.fps, { scale: f.scale, ang: f.ang, alpha: f.alpha * k });
     c.restore();
   }
 }
@@ -5356,6 +5375,10 @@ function fireShotgun(p, ang){
   applyRecoil(p, ang, SHOTGUN_KNOCK, SHOTGUN_RECOIL);
   fxShake(9);
   SFX.crack();
+  // Lửa đầu nòng, xoay theo hướng bắn. Đặt cách người 14px chứ không đặt trên người: khẩu này
+  // là khẩu SÁT MẶT, và cái nón lửa phải chỉ ra ngoài để nói tầm với của nó bắt đầu từ đâu.
+  spawnVfx('ember-jet', p.x + Math.cos(ang)*14, p.y + Math.sin(ang)*14,
+           { scale: 0.6, ang: ang });
 }
 
 // Laser: một tia tức thời, XUYÊN qua mọi con trên đường, dừng ở bức tường đầu tiên. Sạc quyết
@@ -5381,6 +5404,10 @@ function fireLaser(p, ang, charge){
     if (m.hp <= 0) killMonster(m);
   }
   S.beams.push({ x0:p.x, y0:p.y, x1:ex, y1:ey, t:0, life:0.20, k:k });
+  // Bùng ở ĐẦU TIA, không bùng ở nòng. Tia laser là một đường tức thời — thứ người chơi cần
+  // đọc được là nó DỪNG Ở ĐÂU, vì đó là chỗ bức tường bắt đầu và là chỗ con quái cuối cùng
+  // đứng. Cỡ theo mức sạc: một phát nhấp nhẹ nở nhỏ, một phát đầy nở gấp rưỡi.
+  spawnVfx('beam-cutoff-burst', ex, ey, { scale: 0.34 + 0.22*k });
   // Sạc đầy thì đứng chôn chân gần một giây. Đây là toàn bộ cái giá của một phát 95 sát thương
   // xuyên hết cả hàng — không có nó thì giữ nút một giây là câu trả lời cho mọi tình huống.
   applyRecoil(p, ang, 40 + 90*k, mix(LASER_RECOIL_MIN, LASER_RECOIL_MAX, k));
@@ -5521,6 +5548,10 @@ function stepProjectiles(dt){
         if (b.kind === 'tranq'){
           // Source game's Tranq Gun: non-lethal, it just takes the thing out of the fight.
           m.sleep = 12; m.alert = 0; m.state = 'sleep';
+          // Vệt xanh lá, và màu ấy là cả lý do chọn tấm này: mọi thứ làm con quái ĐAU trong
+          // nhà đều đỏ hoặc cam. Phi tiêu thuốc mê không làm nó đau — nó làm con quái NGỦ —
+          // nên nó phải trông khác hẳn, ngay trong một phần tư giây đầu.
+          spawnVfx('acid-splash', m.x, m.y, { scale: 0.42 });
           toast(MONSTERS[m.type].name + ' ngủ rồi');
         } else {
           foeHit(m, b.dmg || 62, Math.atan2(b.vy, b.vx), b.kind === 'shot' ? 90 : 150);
@@ -8470,7 +8501,7 @@ function draw(){
   worldTransform(c);
   c.drawImage(S.worldCv, 0, 0, WPX, HPX);   // ảnh nền vẽ ở SS lần, thu về đúng khổ thế giới
   drawPads(c); drawButton(c); drawBikes(c); drawCart(c); drawLoot(c); drawCar(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawDoors(c); drawProjectiles(c); drawPlayer(c);
-  drawVfx(c, false);            // bụi và đất: chịu ánh sáng như mọi vật thể khác
+  drawVfx(c, 'toi');            // bụi và đất: chịu ánh sáng như mọi vật thể khác
 
   buildLight();
   c.setTransform(1,0,0,1,0,0);
@@ -8481,8 +8512,17 @@ function draw(){
   worldTransform(c);
   drawMemory(c);
   drawCasts(c);
-  drawVfx(c, true);             // lửa, điện, cổng gương: tự phát sáng
+  drawVfx(c, 'sang');           // lửa, điện, cổng gương: tự phát sáng
   drawHighlights(c);
+
+  // LỚP GIỮ MÀU: hai lượt, và phải theo đúng thứ tự này.
+  //   lượt 1 — vẽ THƯỌNG. Ở đây là sau khi đèn đã nhân vào, nên nó không bị phòng tối nuốt
+  //             mất, mà cũng không cộng dồn lên nền thành mảng trắng. Màu và nét giữ nguyên.
+  //   lượt 2 — cộng sáng 30%. Đủ để có quyệng hắt ra nền, không đủ để cháy.
+  c.globalCompositeOperation = 'source-over';
+  drawVfx(c, 'mau');
+  c.globalCompositeOperation = 'lighter';
+  drawVfx(c, 'mau', 0.30);
 
   c.setTransform(1,0,0,1,0,0);
   c.globalCompositeOperation = 'source-over';

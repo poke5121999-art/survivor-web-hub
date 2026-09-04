@@ -2162,8 +2162,26 @@ async function meleeSuite(b) {
 // Và bài cuối là bài quan trọng nhất: S.vfx phải RỖNG LẠI. Một mảng chỉ thêm mà không bớt là
 // một chỗ rò trí nhớ chạy suốt ca, và triệu chứng của nó không phải là hình xấu — là máy nóng
 // dần rồi khung hình tụt, sau mười phút chơi.
+// Mười một tấm của CĂN NHÀ — nạp ở cả hai game.
 const VFX_MA = ['warm-explosion', 'landing-dust', 'earth-rupture', 'crescent-slash',
-                'magical-projectile', 'electric-impact', 'rift-portal', 'spectral-bloom'];
+                'magical-projectile', 'electric-impact', 'rift-portal', 'spectral-bloom',
+                'beam-cutoff-burst', 'ember-jet', 'acid-splash'];
+// Mười một tấm của CHIÊU — chỉ nạp ở Biệt Đội. Ca Trực Đêm không có chiêu nào, nên tải chúng
+// về đó là hơn trăm KB ném đi. Bài "Ca Trực Đêm KHÔNG nạp bảng chiêu" ở dưới canh đúng chỗ đó,
+// và nó là loại bài dễ mục nhất: thêm một tấm vào nhầm bảng thì game vẫn chạy y hệt, chỉ là
+// từ hôm ấy mọi người chơi Ca Trực Đêm tải thêm một tấm họ không bao giờ nhìn thấy.
+const VFX_MA_SQ = ['solar-shrapnel', 'radiant-heal', 'focus-charge', 'arcane-parry',
+                   'void-implosion', 'smoke-puff', 'venom-ward', 'lattice-beam',
+                   'frost-nova', 'leaf-gust', 'splash-crown'];
+// Chiêu nào ra hiệu ứng nào. Viết thẳng ra chứ không đọc từ mã: bài test phải HỎNG khi ai đó
+// gỡ một dòng spawnVfx, chứ không lặng lẽ đổi kỳ vọng theo.
+const CHIEU_FX = {
+  flash: 'solar-shrapnel', healring: 'radiant-heal', gong: 'focus-charge',
+  unlock: 'arcane-parry',  vanish: 'void-implosion', shock: 'electric-impact',
+  decoy: 'smoke-puff',     rescue: 'leaf-gust',      cage: 'venom-ward',
+  blink: 'spectral-bloom', reveal: 'lattice-beam',   freeze: 'frost-nova',
+  pull: 'leaf-gust',       angel: 'splash-crown'
+};
 async function vfxSuite(b) {
   results.push('\n── hiệu ứng: đúng lúc, và có tắt ──');
   const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
@@ -2249,7 +2267,25 @@ async function vfxSuite(b) {
   check('rọi đủ đèn thì Tượng bay đi trong một đoá sáng',
     tuong.thay.indexOf('spectral-bloom') >= 0, tuong.thay.join(', ') || 'không có gì');
 
-  // --- 7. không rò: chờ cho mọi thứ chạy hết rồi đếm lại ---
+  // --- 7. ba món vũ khí ---
+  const hoaCai = await gom(`const pl = S.player; pl.recoilT = 0; REPO.fireShotgun(pl, 0);`, 900);
+  check('súng hoa cải có lửa đầu nòng', hoaCai.thay.indexOf('ember-jet') >= 0,
+    hoaCai.thay.join(', ') || 'không có gì');
+  const laser = await gom(`const pl = S.player; pl.recoilT = 0; REPO.fireLaser(pl, 0, REPO.LASER_FULL);`, 900);
+  check('tia laser bùng ở ĐẦU TIA', laser.thay.indexOf('beam-cutoff-burst') >= 0,
+    laser.thay.join(', ') || 'không có gì');
+  const me = await gom(`const pl = S.player;
+    const m = REPO.spawnFoe('gunner', 40, 0); m.hp = 999;
+    S.bullets.push({ x: pl.x + 8, y: pl.y, vx: 520, vy: 0, life: 1.0, kind: 'tranq' });`, 900);
+  check('phi tiêu thuốc mê để lại vệt XANH, không phải vệt đỏ như đòn gây đau',
+    me.thay.indexOf('acid-splash') >= 0, me.thay.join(', ') || 'không có gì');
+
+  // --- 8. Ca Trực Đêm KHÔNG nạp bảng hiệu ứng của chiêu ---
+  const thua = await p.evaluate(ma => ma.filter(id => REPO_SKIN.vfxN(id) > 0), VFX_MA_SQ);
+  check('Ca Trực Đêm không tải mười một tấm của chiêu Biệt Đội',
+    thua.length === 0, thua.join(', ') || 'không tải thừa tấm nào');
+
+  // --- 9. không rò: chờ cho mọi thứ chạy hết rồi đếm lại ---
   await p.waitForTimeout(1500);
   const con = await p.evaluate(() => REPO.S.vfx.length);
   check('chạy xong thì mảng hiệu ứng rỗng lại, không rò', con === 0, con + ' cái còn treo');
@@ -2392,6 +2428,73 @@ async function gunnerSuite(b) {
 
   const e = errs.filter(x => !/favicon/.test(x));
   check('Kẻ bắn: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// MƯỜI BỐN CHIÊU CỦA BIỆT ĐỘI, MỖI CHIÊU MỘT HIỆU ỨNG.
+//
+// Trước đây cả mười bốn chiêu chia nhau đúng BỐN hình vector — burst, dome, implode, aura —
+// nên bấm Chói Loà hay bấm Xung Chấn thì trên màn hình là cùng một cái vòng nở ra, chỉ khác
+// màu. Với một trò mà cả lớp gacha dựng trên "mỗi xác một chiêu riêng", đó là lời hứa bị nuốt
+// ngay ở chỗ người chơi nhìn vào.
+//
+// Hiệu ứng mới ĐẶT CHỒNG LÊN lớp vector chứ không thay: lớp vector nói PHẠM VI và THỜI GIAN
+// (cái vòm Lồng Sắt đứng đúng 9 giây ở đúng 4 ô), bộ hình nói CÚ BẤM. Bỏ lớp nào cũng mất một
+// nửa, nên bài dưới đây canh cả hai đều còn.
+async function vfxSquadSuite(b) {
+  results.push('\n── mười bốn chiêu, mười bốn hiệu ứng ──');
+  const { ctx, p, errs } = await openGame(b, SQ, { width: 844, height: 390 });
+  await p.evaluate(() => { SQ.autoFill(); SQ.squad.enter('k3'); });
+  await p.waitForTimeout(1000);
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  const nap = await p.evaluate(ma => ma.filter(id => !REPO_SKIN.vfxN(id)), VFX_MA_SQ);
+  check('Biệt Đội nạp đủ mười một tấm của chiêu', nap.length === 0, nap.join(', ') || 'đủ cả');
+
+  const ra = await p.evaluate(async () => {
+    const S = REPO.S, out = {};
+    for (const ch of SQ.CHARS) {
+      S.vfx.length = 0;
+      const fn = SQ.squad.skills[ch.skill.id];
+      if (!fn) { out[ch.skill.id] = '(không có hàm)'; continue; }
+      try { fn(S.player, ch.skill); } catch (e) { out[ch.skill.id] = 'LỖI: ' + e.message; continue; }
+      const thay = new Set(); const t0 = performance.now();
+      while (performance.now() - t0 < 260) {
+        S.vfx.forEach(f => thay.add(f.id));
+        await new Promise(r => requestAnimationFrame(r));
+      }
+      out[ch.skill.id] = [...thay];
+    }
+    return out;
+  });
+  const sai = Object.keys(CHIEU_FX).filter(k => !(ra[k] || []).length ||
+                                                (ra[k] || []).indexOf(CHIEU_FX[k]) < 0);
+  check('cả mười bốn chiêu đều nổ ra ĐÚNG hiệu ứng của nó', sai.length === 0,
+    sai.length ? sai.map(k => k + '→' + (ra[k] || '?')).join(' · ')
+               : Object.keys(CHIEU_FX).length + ' chiêu');
+  // Chớp là chiêu duy nhất có HAI cú, hai chỗ: chỗ vừa rời hút vào, chỗ vừa tới nở ra. Một cú
+  // thôi thì mắt đọc ra 'người này bỗng đứng chỗ khác', không đọc ra 'người này vừa dịch chuyển'.
+  check('riêng Chớp có đủ hai cú — chỗ đi và chỗ đến',
+    (ra.blink || []).length === 2, (ra.blink || []).join(' + '));
+
+  // Lớp vector phải CÒN NGUYÊN: nó mới là thứ mang phạm vi và thời gian.
+  const vec = await p.evaluate(async () => {
+    const S = REPO.S; S.casts.length = 0;
+    SQ.squad.skills.cage(S.player, SQ.CHARS.find(c => c.skill.id === 'cage').skill);
+    await new Promise(r => setTimeout(r, 60));
+    return S.casts.map(f => f.kind + '@' + Math.round(f.r));
+  });
+  check('và lớp vector vẫn còn — cái vòm Lồng Sắt không bị hiệu ứng mới nuốt mất',
+    vec.some(x => /^dome@/.test(x)), vec.join(', ') || 'mất hết');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('hiệu ứng chiêu: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
   await ctx.close();
 }
 
@@ -2727,6 +2830,7 @@ async function lightSuite(_khongDung) {
   try { await meleeSuite(b); } catch (e) { check('đòn đánh: bộ test chạy trọn', false, e.message); }
   try { await gunnerSuite(b); } catch (e) { check('Kẻ bắn: bộ test chạy trọn', false, e.message); }
   try { await vfxSuite(b); } catch (e) { check('hiệu ứng: bộ test chạy trọn', false, e.message); }
+  try { await vfxSquadSuite(b); } catch (e) { check('hiệu ứng chiêu: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));
