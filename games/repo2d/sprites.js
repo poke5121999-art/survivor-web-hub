@@ -60,15 +60,22 @@
 
   // ================================================================= HIỆU ỨNG
   //
-  // Bộ `pvfx-foundry-thirteen`, giấy phép CC0 1.0 (art/vfx/LICENSE.txt) — dùng được không cần
-  // ghi công, nhưng ghi ở đây vì một tấm hình không rõ nguồn gốc là một tấm hình không dám sửa.
+  // HAI BỘ, hai giấy phép, và phải ghi rõ cái nào là cái nào:
   //
-  // Cả tám tấm CÙNG MỘT KHUÔN, và đó là lý do bảng này ngắn: khung 96×96, xếp 5 cột, chạy
-  // 20 khung/giây. Khác nhau đúng hai thứ — số khung, và cái CHÂN (`py`).
+  //   pvfx-foundry-thirteen  — CC0 1.0 (art/vfx/LICENSE.txt). Không cần ghi công.
+  //   Super Pixel Effects Gigapack (Free) — Will Tice / unTied Games
+  //                            (art/vfx/LICENSE-untiedgames.txt). BẮT BUỘC ghi công; xem
+  //                            mục "Hình lấy từ đâu" ở cuối sổ tay, chỗ đó là chỗ trả nợ.
   //
-  // `py` là chỗ hiệu ứng "chạm đất" trong khung 96px, lấy thẳng từ manifest của bộ gốc. Nó
-  // quan trọng hơn vẻ ngoài của nó: vụ nổ neo ở tâm (58) còn đám bụi neo ở đáy (70), nên nếu
-  // vẽ cả hai từ giữa khung thì đám bụi lơ lửng trên không cách sàn nửa ô.
+  // Mỗi tấm khai bốn số:
+  //   n    số khung
+  //   f    cạnh một khung (mặc định 96 — cả bộ pvfx đều thế)
+  //   cols số cột trong tấm (mặc định 5; bộ Gigapack phần lớn là một DẢI NGANG nên cols = n)
+  //   py   chỗ hiệu ứng "chạm đất" trong khung, tính từ mép trên
+  //
+  // `py` quan trọng hơn vẻ ngoài của nó: vụ nổ neo ở tâm (58) còn đám bụi neo ở đáy (70), nên
+  // vẽ cả hai từ giữa khung thì đám bụi lơ lửng trên không cách sàn nửa ô. Bộ pvfx cho sẵn số
+  // này trong manifest; bộ Gigapack thì không, nên mấy tấm bên đó neo ở giữa khung (f/2).
   // CĂN NHÀ — mười một tấm này nạp ở CẢ HAI game, vì cả hai chạy chung một bộ máy.
   const VFX_SHEETS = {
     'warm-explosion':     { n: 15, py: 58 },   // mọi vụ nổ
@@ -81,7 +88,13 @@
     'spectral-bloom':     { n: 16, py: 64 },   // Tượng bay đi
     'beam-cutoff-burst':  { n: 14, py: 48 },   // đầu tia laser
     'ember-jet':          { n: 14, py: 56 },   // họng súng hoa cải
-    'acid-splash':        { n: 14, py: 64 }    // phi tiêu thuốc mê cắm vào con quái
+    'acid-splash':        { n: 14, py: 64 },   // phi tiêu thuốc mê cắm vào con quái
+    // ---- Gigapack: năm tấm bù đúng năm chỗ mà bộ pvfx không có ----
+    'blood-hit':    { n:  8, f: 32, cols:  8, py: 16 },   // quái ăn đòn — bắn theo hướng đánh
+    'blood-kill':   { n: 10, f: 32, cols: 10, py: 16 },   // và lúc nó chết
+    'muzzle-flash': { n:  6, f: 32, cols:  4, py: 16 },   // chớp nòng súng lục
+    'wall-impact':  { n:  7, f: 48, cols:  7, py: 24 },   // viên đạn cắm vào tường
+    'alert-mark':   { n: 14, f: 40, cols: 14, py: 40 }    // dấu "!" trên đầu con vừa thấy bạn
   };
 
   // CHIÊU CỦA BIỆT ĐỘI — mười một tấm này CHỈ nạp ở trang Biệt Đội.
@@ -297,7 +310,7 @@
     for (const id in bang) {
       (function (id, d) {
         load(HERE + 'art/vfx/' + id + '.png' + VER, function (im) {
-          vfx[id] = { img: im, n: d.n, py: d.py };
+          vfx[id] = { img: im, n: d.n, py: d.py, f: d.f || VFX_F, cols: d.cols || VFX_COLS };
         });
       })(id, bang[id]);
     }
@@ -439,14 +452,21 @@
     if (!s) return false;
     const opt = o || {};
     const i = Math.floor(khung) % s.n;
-    const co = opt.scale == null ? 1 : opt.scale;
-    const w = VFX_F * co, h = VFX_F * co;
+    // Hai bộ hình, hai khổ khung, hai kiểu xếp — nên KHÔNG được đọc VFX_F/VFX_COLS ở đây nữa
+    // mà phải đọc của chính tấm đang vẽ. Bản đầu đọc hằng số chung, và một tấm 32px xếp một
+    // dải ngang thì nó cắt ra một ô 96px vắt qua ba khung liền nhau.
+    const F = s.f, CO = s.cols;
+    // `scale` là cỡ SO VỚI KHUNG 96px của bộ pvfx, không phải so với khung của chính tấm này.
+    // Nếu không quy về một mối thì `scale: 0.5` nghĩa là 48px ở tấm này và 16px ở tấm kia, và
+    // mọi con số cỡ đã căn suốt từ đầu sẽ sai hết ở năm tấm mới.
+    const co = (opt.scale == null ? 1 : opt.scale) * (VFX_F / F);
+    const w = F * co, h = F * co;
     c.save();
     if (opt.alpha != null) c.globalAlpha = opt.alpha;
     if (opt.ang) c.rotate(opt.ang);
     c.imageSmoothingEnabled = false;
     // Neo theo CHÂN chứ không theo giữa khung: xem chú thích `py` ở VFX_SHEETS.
-    c.drawImage(s.img, (i % VFX_COLS) * VFX_F, ((i / VFX_COLS) | 0) * VFX_F, VFX_F, VFX_F,
+    c.drawImage(s.img, (i % CO) * F, ((i / CO) | 0) * F, F, F,
       -w / 2, -s.py * co, w, h);
     c.restore();
     return true;

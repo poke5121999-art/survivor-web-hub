@@ -105,9 +105,20 @@ lẽ vẽ lại hình khối — và mỗi tên trong `FOE_IDS` không có tệp
 
 ## Hiệu ứng — `vfx/<mã>.png`
 
-Tám tấm, lấy từ bộ **pvfx-foundry-thirteen**, giấy phép **CC0 1.0** (`vfx/LICENSE.txt`). Chủ dự án
-gửi cả một thư mục VFX, 2026-09-04: *"có mấy cái fx ở đây nè có gì thấy cái nào xài đc thì bỏ vào
-game để cho nó đẹp + sinh động hơn"*.
+Chủ dự án gửi cả một thư mục VFX, 2026-09-04: *"có mấy cái fx ở đây nè có gì thấy cái nào xài đc
+thì bỏ vào game để cho nó đẹp + sinh động hơn"*.
+
+**HAI BỘ, HAI GIẤY PHÉP** — và phải ghi rõ cái nào là cái nào:
+
+| Bộ | Số tấm | Giấy phép | Ghi công |
+|---|---|---|---|
+| **PVFX Foundry Thirteen** | 22 | CC0 1.0 (`vfx/LICENSE.txt`) | không bắt buộc |
+| **Super Pixel Effects Gigapack (Free)** | 5 | `vfx/LICENSE-untiedgames.txt` | **BẮT BUỘC** |
+
+Dòng ghi công nằm ở **chân Sổ tay** (`wikiHtml`, lớp `.wk-nguon`) — trò này không có màn
+credits, mà Sổ tay là trang dài nhất người chơi thật sự mở ra đọc. **Đừng xoá dòng đó.** Nó
+ghi cả bộ CC0 nữa dù bộ ấy không bắt: một danh sách chỉ liệt kê những thứ *bắt phải* liệt kê
+thì lần sau không ai biết mấy tấm còn lại ở đâu ra.
 
 Luật chọn: **mỗi tấm phải gắn vào một sự kiện ĐÃ CÓ SẮN**, không rắc thêm cho lấp lánh.
 
@@ -126,6 +137,25 @@ Luật chọn: **mỗi tấm phải gắn vào một sự kiện ĐÃ CÓ SẮN*
 | `beam-cutoff-burst` | 14 | đầu tia laser — chỗ nó DỪNG, không phải ở nòng | sáng |
 | `ember-jet` | 14 | lửa đầu nòng súng hoa cải, xoay theo hướng bắn | sáng |
 | `acid-splash` | 14 | phi tiêu thuốc mê cắm vào con quái | sáng |
+
+Năm tấm từ bộ **Gigapack**, bù đúng năm khoảnh khắc đắt nhất của trò này mà cho tới hôm nay
+**không có gì trên sàn để nhìn**:
+
+| Mã | Khung | Nổ ra khi nào | Lớp |
+|---|---|---|---|
+| `blood-hit` | 8 | đánh trúng quái — bắn theo ĐÚNG HƯỚNG đòn đi | tối |
+| `blood-kill` | 10 | và lúc nó chết | tối |
+| `muzzle-flash` | 6 | chớp nòng khẩu lục | sáng |
+| `wall-impact` | 7 | viên đạn cắm vào tường — bắn trượt cũng phải thấy | sáng |
+| `alert-mark` | 14 | dấu **"!"** trên đầu con quái vừa THẤY bạn | sáng |
+
+Máu để ở **lớp tối**: máu không tự phát sáng. Bắn một con quái trong phòng tối thì bạn *nghe*
+thấy chứ không *nhìn* thấy — đúng cho một trò dựng trên chuyện không nhìn thấy gì.
+
+Dấu `"!"` là tấm đáng giá nhất trong năm: trước đây khoảnh khắc bị phát hiện chỉ có tiếng sting
+và một cú rung màn — hai thứ nói *"có chuyện"* mà không nói *"con nào"*. Trong một căn nhà có ba
+thứ đi lại và một cái đèn pin soi được đúng một hướng, câu hỏi đắt nhất không phải *"có bị
+thấy không"* mà là **"CON NÀO vừa thấy mình"**.
 
 ### CHIÊU CỦA BIỆT ĐỘI — mười một tấm, **chỉ** nạp ở trang Biệt Đội
 
@@ -147,7 +177,15 @@ Ca Trực Đêm không có chiêu nào nên **không tải** mười một tấm
 `VFX_SHEETS` / `VFX_SKILL` trong `sprites.js`, chọn bằng đường dẫn trang (`LA_SQUAD`) chứ không
 bằng `window.SQ`: tệp này nạp trước content.js nên lúc ấy SQ chưa tồn tại.
 
-**Một khuôn cho cả tám:** khung 96×96, xếp 5 cột, chạy 20 khung/giây. Chỉ khác hai thứ — số
+**Không còn một khuôn chung.** Bộ pvfx là khung 96×96 xếp 5 cột; bộ Gigapack là 32/40/48px và
+phần lớn xếp một **dải ngang**. Nên mỗi tấm tự khai `f` (cạnh khung) và `cols` (số cột) trong
+`VFX_SHEETS`, và hàm vẽ đọc của **chính tấm đang vẽ** chứ không đọc hằng số chung nữa — một
+tấm 32px mà bị cắt bằng thước 96px thì nó vắt qua ba khung liền nhau, sai mà không ném lỗi.
+
+`scale` vẫn quy về **khung 96px của bộ pvfx** cho cả hai bộ. Nếu không quy về một mối thì
+`scale: 0.5` nghĩa là 48px ở tấm này và 16px ở tấm kia, và mọi con số cỡ đã căn từ đầu sai hết.
+
+Cả hai bộ đều chạy 20 khung/giây. Chỉ khác hai thứ — số
 khung, và cái **chân** (`py` trong `VFX_SHEETS` ở `sprites.js`, lấy thẳng từ manifest của bộ gốc).
 `py` quan trọng hơn vẻ ngoài của nó: vụ nổ neo ở tâm (58) còn đám bụi neo ở đáy (70), nên vẽ cả
 hai từ giữa khung thì đám bụi lơ lửng trên không cách sàn nửa ô.

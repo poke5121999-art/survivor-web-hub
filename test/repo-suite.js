@@ -2165,7 +2165,12 @@ async function meleeSuite(b) {
 // Mười một tấm của CĂN NHÀ — nạp ở cả hai game.
 const VFX_MA = ['warm-explosion', 'landing-dust', 'earth-rupture', 'crescent-slash',
                 'magical-projectile', 'electric-impact', 'rift-portal', 'spectral-bloom',
-                'beam-cutoff-burst', 'ember-jet', 'acid-splash'];
+                'beam-cutoff-burst', 'ember-jet', 'acid-splash',
+                // năm tấm từ bộ Gigapack — KHÁC KHỔ KHUNG và khác kiểu xếp so với bộ pvfx
+                // (32/40/48px, phần lớn là một dải ngang thay vì lưới 5 cột). Chúng nằm đây
+                // để canh luôn cái đó: một tấm 32px mà bị cắt bằng thước 96px thì `vfxN` vẫn trả
+                // đúng số khung, chỉ có hình là vắt qua ba khung liền nhau — sai mà không ném lỗi.
+                'blood-hit', 'blood-kill', 'muzzle-flash', 'wall-impact', 'alert-mark'];
 // Mười một tấm của CHIÊU — chỉ nạp ở Biệt Đội. Ca Trực Đêm không có chiêu nào, nên tải chúng
 // về đó là hơn trăm KB ném đi. Bài "Ca Trực Đêm KHÔNG nạp bảng chiêu" ở dưới canh đúng chỗ đó,
 // và nó là loại bài dễ mục nhất: thêm một tấm vào nhầm bảng thì game vẫn chạy y hệt, chỉ là
@@ -2195,7 +2200,7 @@ async function vfxSuite(b) {
   // --- 1. cả tám tấm nạp được ---
   const nap = await p.evaluate(ma => ma.map(id => [id, REPO_SKIN.vfxN(id)]), VFX_MA);
   const thieu = nap.filter(x => !x[1]).map(x => x[0]);
-  check('cả tám tấm hiệu ứng nạp được', thieu.length === 0,
+  check('cả ' + VFX_MA.length + ' tấm hiệu ứng của căn nhà nạp được', thieu.length === 0,
     thieu.join(', ') || nap.map(x => x[0] + ':' + x[1] + 'khung').join(' · '));
 
   // Gom mọi mã hiệu ứng CHẠY QUA trong lúc làm một việc gì đó. Phải lấy mẫu từng khung hình
@@ -2280,12 +2285,32 @@ async function vfxSuite(b) {
   check('phi tiêu thuốc mê để lại vệt XANH, không phải vệt đỏ như đòn gây đau',
     me.thay.indexOf('acid-splash') >= 0, me.thay.join(', ') || 'không có gì');
 
-  // --- 8. Ca Trực Đêm KHÔNG nạp bảng hiệu ứng của chiêu ---
+  // --- 8. năm tấm của bộ Gigapack ---
+  // Bốn thứ dưới đây đều là những khoảnh khắc ĐẮT NHẤT của trò này mà cho tới hôm nay
+  // không có gì trên sàn để nhìn: đánh trúng, giết được, bắn ra một viên đạn, và bị phát hiện.
+  const anDon = await gom(`const m = REPO.spawnFoe('gunner', 40, 0); m.hp = 9999; REPO.hurtFoe(m, 20);`, 900);
+  check('đánh trúng quái thì có MÁU, không chỉ một con số bay lên',
+    anDon.thay.indexOf('blood-hit') >= 0, anDon.thay.join(', ') || 'không có gì');
+  const chet = await gom(`const m = REPO.spawnFoe('gnome', 40, 0); REPO.hurtFoe(m, 999);`, 900);
+  check('và lúc nó chết thì là một vệt khác hẳn', chet.thay.indexOf('blood-kill') >= 0,
+    chet.thay.join(', ') || 'không có gì');
+  const sung = await gom(`const pl = S.player; pl.cooldown = 0; pl.inv[0] = { kind: 'gun', uses: 9 };
+    REPO.useSlot(pl, 0, 0);`, 900);
+  check('khẩu lục có chớp nòng — món đắt nhất trong tủ và trước giờ bắn ra như búng tay',
+    sung.thay.indexOf('muzzle-flash') >= 0, sung.thay.join(', ') || 'không có gì');
+  check('và viên đạn cắm vào tường cũng toé ra một cái',
+    sung.thay.indexOf('wall-impact') >= 0, sung.thay.join(', '));
+  const thay0 = await gom(`const pl = S.player; const m = REPO.spawnFoe('gunner', 60, 0);
+    m.hp = 9999; m.alert = 0; m.dir = Math.atan2(pl.y - m.y, pl.x - m.x);`, 1600);
+  check('con quái vừa THẤY bạn thì mọc dấu "!" trên đầu CHÍNH NÓ',
+    thay0.thay.indexOf('alert-mark') >= 0, thay0.thay.join(', ') || 'không có gì');
+
+  // --- 9. Ca Trực Đêm KHÔNG nạp bảng hiệu ứng của chiêu ---
   const thua = await p.evaluate(ma => ma.filter(id => REPO_SKIN.vfxN(id) > 0), VFX_MA_SQ);
   check('Ca Trực Đêm không tải mười một tấm của chiêu Biệt Đội',
     thua.length === 0, thua.join(', ') || 'không tải thừa tấm nào');
 
-  // --- 9. không rò: chờ cho mọi thứ chạy hết rồi đếm lại ---
+  // --- 10. không rò: chờ cho mọi thứ chạy hết rồi đếm lại ---
   await p.waitForTimeout(1500);
   const con = await p.evaluate(() => REPO.S.vfx.length);
   check('chạy xong thì mảng hiệu ứng rỗng lại, không rò', con === 0, con + ' cái còn treo');

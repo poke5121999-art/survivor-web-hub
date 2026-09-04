@@ -4384,7 +4384,14 @@ function stepMonsters(dt){
     if (detects){
       // The moment it turns onto you is the moment worth hearing. Only the FIRST frame of it —
       // an alert that keeps refreshing while it chases you would fire this every step.
-      if (m.alert <= 0){ SFX.sting(); fxShake(2.2); }
+      if (m.alert <= 0){
+        SFX.sting(); fxShake(2.2);
+        // Dấu "!" TRÊN ĐẦU CHÍNH CON ĐÓ. Trước đây khoảnh khắc bị phát hiện chỉ có tiếng
+        // sting và một cú rung màn — hai thứ nói 'có chuyện' mà không nói 'con nào'. Trong
+        // một căn nhà có ba thứ đi lại và một cái đèn pin soi được đúng một hướng, câu hỏi
+        // đắt nhất không phải 'có bị thấy không' mà là 'CON NÀO vừa thấy mình'.
+        spawnVfx('alert-mark', m.x, m.y - 22, { scale: 0.32, fps: 14 });
+      }
       m.alert = 2.6;
       // MỆT THÌ NHẮM CHẬM. Lúc sung nó cập nhật chỗ bạn đứng mỗi khung hình; lúc mệt nó chỉ làm
       // mới mỗi FOE_TIRE_LAG giây, nên nó đuổi theo cái BÓNG của bạn — đó là 'ngu đi' của con này.
@@ -4990,6 +4997,17 @@ function foeHit(m, n, ang, knock){
     m.ky = (m.ky || 0) + Math.sin(ang)*knock;
   }
   fxPop(m.x, m.y - 16, '-' + Math.round(n), chet ? '#ffd08a' : '#ffb0a0', chet ? 15 : 12);
+  // MÁU. Cho tới bản này, đánh trúng một con quái để lại đúng ba thứ: một con số bay lên, một
+  // nhịp nháy trắng, và một cú rung màn. Cả ba đều là ngôn ngữ của GIAO DIỆN, không phải của
+  // căn nhà — nên một cú đánh ăn và một cú đánh hụt trông gần như nhau trên sàn.
+  //
+  // Vệt máu bắn theo ĐÚNG HƯỚNG đòn đi (`ang`), nên nó cũng nói luôn 'cú này vào từ đâu'. Đòn
+  // không có hướng — bom, tia laser xuyên — thì bắn toả, vì bịa ra một hướng còn tệ hơn.
+  // `sang: false`: máu không tự phát sáng. Bắn một con quái trong phòng tối thì bạn nghe thấy,
+  // không nhìn thấy, và đó là điều đúng cho một trò dựng trên chuyện không nhìn thấy gì.
+  if (chet) spawnVfx('blood-kill', m.x, m.y, { scale: 0.75, sang: false });
+  else spawnVfx('blood-hit', m.x, m.y,
+                { scale: 0.6, sang: false, ang: ang == null ? Math.random()*6.283 : ang });
   // Khung hinh khung lai mot nhip - dung cai lam cu danh "cham" vao duoc. Do bang REAL time
   // trong frame(), nen no khong bao gio dung han dong ho.
   FX.hitstop = Math.max(FX.hitstop, chet ? 0.10 : Math.min(0.07, 0.02 + n*0.0006));
@@ -5429,6 +5447,11 @@ function useSlot(p, i, aimed){
     // 62 chu khong phai 25. Mot khau sung phai la mot CAU TRA LOI, khong phai mot thu de
     // banh nhe vao con quai roi van phai chay. Ke di tuan: hai phat. Ke bam: ba phat.
     S.bullets.push({ x:p.x, y:p.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:0.9, kind:'gun', dmg:62 });
+    // Khẩu lục là món đắt nhất trong tủ và cho tới bản này nó KHÔNG CÓ MỘT HIỆU ỨNG NÀO: bấm
+    // xong chỉ có một chấm vàng bay đi, không lửa, không khói, không cả tiếng súng. Khẩu súng
+    // duy nhất trả lời được con Kẻ nặng mà bắn ra như búng tay.
+    spawnVfx('muzzle-flash', p.x + Math.cos(ang)*12, p.y + Math.sin(ang)*12,
+             { scale: 0.5, ang: ang });
     applyRecoil(p, ang, 55, 0.22);
     it.uses--; p.cooldown = 0.45;
   } else if (it.kind === 'shotgun'){
@@ -5522,7 +5545,12 @@ function stepProjectiles(dt){
     // door deliberately does not touch the grid — so without this line it is the one thing in the
     // house you can shoot through but not see through, which is a rule nobody could ever guess.
     // SEE: docs/proposals/repo-2d-topdown.md F22-3.
-    if (b.life <= 0 || solidAt((nx/TILE)|0,(ny/TILE)|0) || doorHits(nx, ny, 2)){ S.bullets.splice(i,1); continue; }
+    if (b.life <= 0 || solidAt((nx/TILE)|0,(ny/TILE)|0) || doorHits(nx, ny, 2)){
+      // Bắn trượt cũng phải THẤY được là mình vừa bắn trượt. Chỉ vẽ khi viên đạn đâm vào cái
+      // gì đó — hết tuổi thọ giữa không trung thì thôi, vì ở đó không có gì để mà toé.
+      if (b.life > 0) spawnVfx('wall-impact', nx, ny, { scale: 0.34 });
+      S.bullets.splice(i,1); continue;
+    }
     b.x = nx; b.y = ny;
     // ĐẠN CỦA QUÁI đi ngược chiều: nó tìm người, không tìm quái. Cùng một mảng, cùng một vòng
     // lặp, cùng luật va tường ở trên — chỉ khác đúng cái danh sách nó dò qua.
@@ -11691,6 +11719,23 @@ function wikiHtml(){
         g.desc);
     }
   }
+
+  // ---------------------------------------------------------------- ghi công
+  //
+  // Đây KHÔNG phải một mục cho đủ lễ. Giấy phép của bộ Super Pixel Effects Gigapack đòi ghi
+  // công "trong credits hoặc chỗ nào phù hợp", và trò này không có màn credits nào cả — Sổ tay là
+  // trang dài nhất mà người chơi thật sự mở ra đọc, nên chỗ phù hợp là ở đây.
+  //
+  // Ghi cả bộ CC0 nữa, dù bộ đó không bắt: một danh sách chỉ liệt kê những thứ BẮT PHẢI liệt kê
+  // thì lần sau không ai biết mấy tấm còn lại ở đâu ra, và một tấm hình không rõ nguồn gốc là
+  // một tấm hình không ai dám sửa.
+  // CHÂN TRANG, không phải một mục. Cố ý không dùng `wk-h` và `wk-row`: hai cái lớp đó có
+  // NGHĨA — một thứ trong nhà, một chiêu, một món đồ nghề — và có bốn bài test đếm chúng để
+  // canh đúng cái nghĩa ấy. Nhét một dòng ghi công vào đó thì sổ tay có thêm "một thứ trong
+  // nhà" tên là Hiệu ứng — đúng kiểu sai mà bốn bài đó dựng ra để bắt.
+  h += '<p class="wk-nguon">Hình hiệu ứng: Super Pixel Effects Gigapack — Will Tice / unTied Games' +
+       ' · PVFX Foundry Thirteen (CC0 1.0)</p>';
+
   return h + '</div>';
 }
 let wikiWasRunning = false;
