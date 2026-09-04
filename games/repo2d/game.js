@@ -985,7 +985,12 @@ const MONSTERS = {
   // thương CỦA VIÊN ĐẠN chứ không phải của một cú vụt — xem stepGunner.
   gunner:  { name:'Kẻ bắn',    hp:110,  dmg:22,  cd:0.9, speed: 58, sight:9.0, hear:0,   col:'#6b4a45', eye:'#ff6a4e', rim:'#e8b9ad',
              gun:1, noMelee:true,
-             wiki:'CHIÊU: BẮN. Thứ duy nhất trong nhà làm bạn đau mà không cần chạm vào bạn. Thấy bạn là nó ĐỨNG LẠI ngắm 1,05 giây — có vạch đỏ kẻ trên sàn từ nòng súng tới chỗ bạn đứng — rồi mới bóp cò. Hướng đạn chốt ĐÚNG LÚC BẮN chứ không chốt lúc bắt đầu ngắm, nên đứng yên là trúng: phải đang đi ngang đúng lúc nó bắn, hoặc phải khuất sau tường. Mất dấu giữa lúc ngắm là huỷ hẳn. Đạn bị TƯỜNG và CỬA CHÈN chặn, đồ đạc thì không chặn được. Nó giữ khoảng 6 ô và KHÔNG bao giờ đánh tay — nên áp sát mặt nó là chỗ AN TOÀN NHẤT trên sàn: nó chỉ biết lùi.' },
+             // `wikiSo` là MỘT HÀM chứ không phải một mảng, và bắt buộc phải thế: nó đọc
+             // GUNNER_AIM, ROOK_WIND, BANGER_FUSE — mấy hằng số khai báo mãi DƯỚI bảng này.
+             // Viết thành mảng thì chúng bị đọc ngay lúc dựng MONSTERS, tức là trước khi chúng
+             // tồn tại, và cả trang chết ngay dòng đầu với một ReferenceError.
+             wikiSo: () => [['Ngắm', GUNNER_AIM + 's'], ['Hồi', GUNNER_CD + 's'], ['Giữ khoảng', '6 ô']],
+             wiki:'CHIÊU: BẮN — thứ duy nhất làm bạn đau mà không cần chạm vào bạn. Nó đứng lại, kẻ một vạch đỏ trên sàn, rồi mới bóp cò; hướng chốt lúc BẮN nên phải đang đi ngang mới né được. Khuất sau tường là cú ngắm mất trắng. Nó không đánh tay bao giờ và chỉ biết lùi, nên áp sát mặt nó là chỗ an toàn nhất.' },
 
   // ------------------------------------------------------------------ KẺ HÚC
   // It does not chase and it does not touch you while walking: its whole threat is one straight
@@ -993,7 +998,8 @@ const MONSTERS = {
   // counter-play is a step sideways and a wall between you, never a health bar.
   rook:    { name:'Kẻ húc',     hp:160,  dmg:26,  cd:1.2, speed: 54, sight:9.0, hear:0,   col:'#5b4a30', eye:'#ffc94e', rim:'#e2cfa4',
              scale:1.6, noArms:1,
-             wiki:'CHIÊU: LAO MỘT ĐƯỜNG THẮNG. Nó KHÔNG đuổi và KHÔNG đụng bạn lúc đi — đứng cạnh nó cả phút cũng không mất một điểm máu. Nó chọn một đường thẳng, gồng 3 giây với ba nhịp GIẬM CHÂN gấp dần, rồi lao — đã lao thì KHÔNG BẺ LÁI được, và nó đi quá chỗ bạn đứng tới gấp rưỡi – gấp đôi. Bước sang ngang MỘT bước là xong. Nấp sau tường giữa lúc nó gồng thì cú gồng mất trắng. Lao trúng tường thì nó TỰ CHOÁNG 6 giây — đó là cửa sổ bắn nó miễn phí. Ủi bạn VÀO TƯỜNG thì bạn choáng 2 giây và ăn thêm sát thương. Nó húc trúng cả quái khác đứng trong làn — và không dừng lại.' },
+             wikiSo: () => [['Gồng', ROOK_WIND + 's'], ['Tự choáng', ROOK_SELF_STUN + 's']],
+             wiki:'CHIÊU: LAO MỘT ĐƯỜNG THẲNG. Nó không đuổi và không đụng bạn lúc đi — đứng cạnh nó cả phút cũng không mất máu. Nó ngắm một đường, giậm chân ba nhịp báo trước, rồi lao và KHÔNG BẺ LÁI được: bước sang ngang một bước là xong. Nấp sau tường lúc nó gồng thì cú gồng mất trắng. Lao trượt vào tường thì nó nằm choáng — đó là lúc bắn nó.' },
 
   // ------------------------------------------------------------------ hai loài đi theo ĐÀN
   //
@@ -1016,14 +1022,16 @@ const MONSTERS = {
   // nó bay ra xa rồi mới giết là nước đi đúng. Vụ nổ làm vỡ đồ và kích luôn quả bên cạnh.
   banger:  { name:'Bom con',    hp: 26,  dmg: 0,  cd:0.9, speed: 54, sight:6.0, hear:4.5, col:'#6a4630', eye:'#ff9a3c', rim:'#f0c090',
              pack:4, noLoot:true, knockMul:3.4, noMelee:true, body:6, tire:false,
-             wiki:'CHIÊU: TỰ NỔ. Nó không đánh ai bao giờ — đòn của nó là 0. Thấy người là châm ngòi 3,2 giây, và ngòi đã cháy thì KHÔNG TẮT ĐƯỢC. Áp được vào người thì nó cắm chân xuống, ngòi rút còn 0,75 giây (kêu "XÌIII") rồi nổ bán kính 3 ô. Câu hỏi của con này không phải "làm sao giết nó" mà là "giết nó Ở ĐÂU": hạ lúc ngòi đang cháy thì VẪN NỔ, chỉ yếu hơn. Một cú vụt đèn pin hất nó bay rất xa — đẩy ra chỗ trống rồi hạ. Nổ làm vỡ món bạn đang ôm, kích dây chuyền cả đàn, và tiếng nổ gọi cả nhà tới. Chạy là thoát: nó chậm hơn bạn nhiều — nhưng nó KHÔNG BIẾT MỆT, không bỏ cuộc như những con khác.' },
+             wikiSo: () => [['Ngòi', BANGER_FUSE + 's'], ['Nổ', '3 ô'], ['Biết mệt', 'không']],
+             wiki:'CHIÊU: TỰ NỔ. Nó không đánh ai bao giờ. Thấy người là châm ngòi, và ngòi đã cháy thì không tắt được — hạ nó giữa chừng thì VẪN NỔ, chỉ yếu hơn. Nên câu hỏi là giết nó Ở ĐÂU: một cú vụt đèn pin hất nó bay rất xa, đẩy ra chỗ trống rồi mới hạ. Nổ làm vỡ đồ bạn đang ôm và kích luôn quả bên cạnh.' },
 
   // GNOME. Không giết được ai, nhưng chuyên đập vào món bạn đang ôm — mối đe doạ của nó là
   // VÍ TIỀN chứ không phải thanh máu. Chạy tới giẫm lên là chết, nên cái giá của chúng là
   // bạn phải liên tục di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.
   gnome:   { name:'Gnome',      hp: 18,  dmg: 5,  cd:0.7, speed: 76, sight:7.0, hear:5.0, col:'#5a4a6a', eye:'#8cf0a0', rim:'#cfe6d6',
              pack:3, noLoot:true, knockMul:3.4, lootDmg:9, stomp:true, wind:0.34, body:6,
-             wiki:'CHIÊU: ĐẬP VÀO MÓN BẠN ĐANG ÔM. Đòn vào người chỉ 5 sát thương — gần như không đau — nhưng cái búa của nó ăn vào món hàng gấp CHÍN lần con khác. Nó không giết bạn, nó làm bạn LỖ. Ba con một đàn, chạy 76 — nhanh hơn cả Kẻ bắn lẫn Kẻ húc, nên không chạy thoát được. Đổi lại: đi bộ tới GIẪM LÊN là nó chết ngay, không cần đánh — nhưng phải ĐANG ĐI HẲN, rón rén hoặc đứng yên thì không ăn thua. Nên cái giá của chúng là bạn phải liên tục di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.' }
+             wikiSo: () => [['Đập vào đồ', 'x9'], ['Giẫm lên', 'chết ngay']],
+             wiki:'CHIÊU: ĐẬP MÓN BẠN ĐANG ÔM. Đòn vào người gần như không đau, nhưng búa của nó ăn vào món hàng gấp chín lần con khác — nó không giết bạn, nó làm bạn LỖ. Nó chạy nhanh hơn bạn nên không cắt đuôi được; đổi lại, đi bộ tới GIẪM LÊN là nó chết ngay. Cái giá của nó là bạn phải luôn di chuyển, đúng lúc bạn muốn đứng yên mà khiêng đồ.' }
 };
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
@@ -6515,19 +6523,38 @@ function drawMirrors(c){
   c.save(); c.translate(m.x, m.y);
   c.fillStyle = 'rgba(0,0,0,0.45)';
   c.beginPath(); c.ellipse(0, 9, 10, 4.5, 0, 0, Math.PI*2); c.fill();
-  c.fillStyle = m.lit ? '#7d8ba0' : '#59617a';
-  c.beginPath();
-  c.moveTo(-8, 11); c.lineTo(-6, -12); c.lineTo(0, -17); c.lineTo(6, -12); c.lineTo(8, 11);
-  c.closePath(); c.fill();
-  c.strokeStyle = '#cfe0f0'; c.lineWidth = 1.5; c.globalAlpha = 0.8; c.stroke(); c.globalAlpha = 1;
-  if ((m.sleep || 0) > 0){
-    // Bi choi mat: hai vet gach thay cho hai con mat, cung ky hieu quai thuong dung.
-    c.strokeStyle = 'rgba(223,240,255,0.9)'; c.lineWidth = 1.6;
-    c.beginPath(); c.moveTo(-4.6,-9.8); c.lineTo(-1.2,-9.8);
-                   c.moveTo(1.2,-9.8);  c.lineTo(4.6,-9.8); c.stroke();
-  } else {
-  c.fillStyle = '#dff0ff';
-  c.fillRect(-4.4, -11.4, 3.2, 3.2); c.fillRect(1.4, -11.4, 3.2, 3.2);
+  // Bộ hình art/foe/mirror.png: con ma đen tuyền còn hai con mắt — tấm đã vẽ sẵn từ lâu, chỉ
+  // là chưa treo vào đâu. Nó đi qua drawFoe như mọi con khác, nên được luôn cả bước chân theo
+  // quãng đường đi và ký hiệu 'z' lúc bị choáng, không phải viết lại lần nữa ở đây.
+  //
+  // `lit` (đang bị đèn pin rọi, tức là ĐANG ĐI CHẬM) vẫn phải đọc được, mà bộ hình thì cố định.
+  // Nên nó thành một quầng sáng quanh nó chứ không phải một màu thân khác: cùng ngôn ngữ với
+  // mọi vòng sáng khác trong nhà, và không tốn một tấm hình thứ hai.
+  if (m.lit){
+    c.save(); c.globalCompositeOperation = 'lighter';
+    const lg = c.createRadialGradient(0, 0, 0, 0, 0, 20);
+    lg.addColorStop(0, 'rgba(190,220,255,0.30)');
+    lg.addColorStop(1, 'rgba(190,220,255,0)');
+    c.fillStyle = lg; c.fillRect(-20, -20, 40, 40);
+    c.restore();
+  }
+  // Bản vẽ tay GIỮ NGUYÊN làm đường lui: ảnh có thể tải hỏng (404, mạng, cache), và một căn nhà
+  // thiếu mất con ma thì không đọc ra là 'thiếu hình', nó đọc ra là 'chẳng có gì cả'.
+  if (!(window.REPO_SKIN && REPO_SKIN.foe(c, m, { eye:'#cfe0f0' }))){
+    c.fillStyle = m.lit ? '#7d8ba0' : '#59617a';
+    c.beginPath();
+    c.moveTo(-8, 11); c.lineTo(-6, -12); c.lineTo(0, -17); c.lineTo(6, -12); c.lineTo(8, 11);
+    c.closePath(); c.fill();
+    c.strokeStyle = '#cfe0f0'; c.lineWidth = 1.5; c.globalAlpha = 0.8; c.stroke(); c.globalAlpha = 1;
+    if ((m.sleep || 0) > 0){
+      // Bi choi mat: hai vet gach thay cho hai con mat, cung ky hieu quai thuong dung.
+      c.strokeStyle = 'rgba(223,240,255,0.9)'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(-4.6,-9.8); c.lineTo(-1.2,-9.8);
+                     c.moveTo(1.2,-9.8);  c.lineTo(4.6,-9.8); c.stroke();
+    } else {
+      c.fillStyle = '#dff0ff';
+      c.fillRect(-4.4, -11.4, 3.2, 3.2); c.fillRect(1.4, -11.4, 3.2, 3.2);
+    }
   }
   c.restore();
 }
@@ -11413,7 +11440,8 @@ function wikiHtml(){
   const url = (fn, id) => { try { return SK && SK[fn] ? SK[fn](id) : ''; } catch(e){ return ''; } };
   // Con nào THẬT SỰ có tấm hình trong kho — hỏi thẳng thay vì đoán theo tên. Cặp Gương không
   // có, và không cần: nó tự vẽ lấy cả ô (xem WIKI_CANH.guong).
-  const CO_HINH = { gunner:1, rook:1, angel:1 };
+  // Sáu thứ, sáu tấm — từ 2026-09-04 không còn ô chân dung nào là cái bóng hình khối nữa.
+  const CO_HINH = { gunner:1, rook:1, angel:1, banger:1, gnome:1, mirror:1 };
   let h = '<div class="wk">';
 
   // HAI GAME, MỘT BẢNG QUÁI. Trước đây nhánh này rẽ đôi: Biệt Đội đọc SQ.FOES (bảy con), Ca
@@ -11431,7 +11459,14 @@ function wikiHtml(){
       wikiStat('Máu', d.hp) + wikiStat(d.gun ? 'Đạn' : 'Đòn', d.dmg) +
       wikiStat('Chạy', d.speed) +
       wikiStat('Mắt', wikiO(d.sight)) + wikiStat('Tai', wikiO(d.hear)) +
-      (d.noLoot ? wikiStat('Rơi đồ', 'không') : ''),
+      (d.noLoot ? wikiStat('Rơi đồ', 'không') : '') +
+      // `wikiSo`: mấy con số RIÊNG của chiêu con này. Chúng ở đây chứ không nằm trong câu chữ,
+      // và đó là cách đoạn mô tả ngắn lại được. Chủ dự án, 2026-09-04: "desc của quái quá dài
+      // cần tóm tắt dễ hiểu và đủ thông tin" — hai vế ấy chỉ hoà được với nhau nếu tách ra:
+      // hàng chỉ số trả lời BAO NHIÊU (liếc một cái là ra), câu chữ trả lời CHUYỆN GÌ XẢY RA
+      // và LÀM GÌ ĐỂ SỐNG (phải đọc). Nhét con số vào giữa câu thì câu dài gấp đôi mà vẫn khó
+      // tra, vì phải đọc hết câu mới thấy nó.
+      (d.wikiSo ? d.wikiSo() : []).map(x => wikiStat(x[0], x[1])).join(''),
       d.wiki || '');
   }
 
@@ -11446,31 +11481,30 @@ function wikiHtml(){
   const SU_KIEN = [
     { k:'angel', name:'Tượng', phu:'sự kiện — không bắn được',
       def:{ col:'#b9b3a6', eye:'#ffd9a0', rim:'#f0dccc', hp:1, dmg:ANGEL_DMG, wind:0.5, noMelee:1 },
-      st: wikiStat('Máu', '—') + wikiStat('Đòn', ANGEL_DMG) +
+      st: wikiStat('Máu', 'bắn không thủng') + wikiStat('Cào', ANGEL_DMG) +
           wikiStat('Ghé mỗi', ANGEL_EVERY[0] + '–' + ANGEL_EVERY[1] + 's') +
-          wikiStat('Rọi đèn', ANGEL_CHARGE + 's'),
-      mo: 'CHIÊU: đứng yên khi bị ĐÈN PIN rọi. Nó hiện ra ngay trước mặt bạn và KHÔNG bắn được, ' +
-          'không đánh được, không có máu — súng đạn vô nghĩa với nó. Cách duy nhất là RỌI ĐÈN vào ' +
-          'nó cho đủ ' + ANGEL_CHARGE + ' giây liền: đủ thì nó bay đi và để lại một vùng sáng cháy ' +
-          ANGEL_LIGHT_T + ' giây — thứ ánh sáng miễn phí duy nhất trong nhà. Rời đèn đi thì cái đã ' +
-          'rọi được rỉ ngược ra hết trong ' + ANGEL_DRAIN + ' giây. Để nó cạn và không bị rọi ' +
-          ANGEL_PATIENCE + ' giây thì nó tới, cào ' + ANGEL_DMG + ' máu, và bạn mất đèn pin cộng ' +
-          'chân nặng trong ' + ANGEL_PUNISH + ' giây. Nó là con duy nhất bắt bạn phải NHÌN nó.' },
+          wikiStat('Rọi đủ', ANGEL_CHARGE + 's') +
+          wikiStat('Hết kiên nhẫn', ANGEL_PATIENCE + 's') +
+          wikiStat('Để lại sáng', ANGEL_LIGHT_T + 's'),
+      mo: 'CHIÊU: bắt bạn phải NHÌN nó. Không có máu, súng đạn vô nghĩa. Cách duy nhất là rọi ' +
+          'đèn pin vào cho đủ lâu — đủ thì nó đi, và để lại một vùng sáng cháy rất lâu, thứ ánh ' +
+          'sáng miễn phí duy nhất trong nhà. Rời đèn đi thì cái đã rọi được rỉ ngược ra hết; để ' +
+          'cạn quá lâu là nó tới cào bạn và lấy luôn cây đèn.' },
     { k:'mirror', name:'Cặp gương', phu:'sự kiện — bắn cái GƯƠNG, không bắn cái bóng',
       // Cảnh 'guong' tự vẽ lấy nên không đụng tới def này, nhưng VÒNG VẺ thì có: nó tra
       // MONSTERS['mirror'] trước, không thấy gì thì `continue` và ô hình ở trống.
       def:{ col:'#6f8a9c', eye:'#cfe0ee', rim:'#dfeaf2', hp:MIRROR_HP, dmg:0, noMelee:1 },
-      st: wikiStat('Máu kính', MIRROR_HP) + wikiStat('Ghé mỗi', MIRROR_EVERY[0] + '–' + MIRROR_EVERY[1] + 's') +
+      st: wikiStat('Máu kính', MIRROR_HP + '  (2 viên súng)') +
+          wikiStat('Ghé mỗi', MIRROR_EVERY[0] + '–' + MIRROR_EVERY[1] + 's') +
           wikiStat('Chạy', MIRROR_SPEED) +
+          wikiStat('Đi xa', Math.round(MIRROR_SLOW_FLOOR*100) + '% tốc') +
+          wikiStat('Rọi đèn', Math.round(MIRROR_TORCH_MUL*100) + '% tốc') +
           wikiStat('Rơi', '$' + MIRROR_LOOT[0].toLocaleString('vi-VN') + '–' + MIRROR_LOOT[1].toLocaleString('vi-VN')),
-      mo: 'CHIÊU: hai tấm kính, một cái bóng. Một tấm hiện gần bạn, một tấm ở phòng khác; ' +
-          MIRROR_EMERGE + ' giây sau có thứ bước ra khỏi tấm gần và đi tới. Cái bóng đó KHÔNG ' +
-          'giết được — đạn xuyên qua nó. Thứ bắn được là TẤM KÍNH: ' + MIRROR_HP + ' máu, hai viên ' +
-          'súng lục hoặc sáu nhát đèn pin, đập vỡ tấm nào cũng xong và nó rơi ra tiền. Không có ' +
-          'súng thì vẫn có hai đường: ĐI XA khỏi tấm gương nó chui ra (càng xa càng chậm, xuống ' +
-          'tận ' + Math.round(MIRROR_SLOW_FLOOR*100) + '% tốc độ) và RỌI ĐÈN vào nó (còn ' +
-          Math.round(MIRROR_TORCH_MUL*100) + '%). Để nó chạm được vào bạn thì nó không đánh — nó ' +
-          'ĐẨY BẠN QUA tấm gương kia, sang tận phòng bên.' }
+      mo: 'CHIÊU: hai tấm kính, một cái bóng. Một tấm hiện gần bạn, một tấm ở phòng khác, rồi ' +
+          'có thứ bước ra khỏi tấm gần và đi tới. Cái bóng đó bắn không chết — thứ bắn được là ' +
+          'TẤM KÍNH, vỡ tấm nào cũng xong và nó rơi ra tiền. Không có súng thì đi xa khỏi tấm nó ' +
+          'chui ra, hoặc rọi đèn vào nó: cả hai đều làm nó chậm hẳn lại. Để nó chạm được vào bạn ' +
+          'thì nó không đánh — nó đẩy bạn qua tấm gương kia, sang tận phòng bên.' }
   ];
   for (const e of SU_KIEN){
     h += wikiRow(wikiFace(CO_HINH[e.k] ? url('foeUrl', e.k) : '',

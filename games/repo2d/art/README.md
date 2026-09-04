@@ -65,19 +65,25 @@ thành hai lớp viền. Bản đóng băng (chiêu của Vân) cũng do game t�
 | `hai` | Hải | Từ Trường | 5★ |
 | `tuyet` | Tuyết | Bất Tử | 5★ |
 
-`foe/<mã>.png` — **ba tấm**, dùng chung cho cả hai game. Mô tả là luật thật trong game,
+`foe/<mã>.png` — **sáu tấm**, dùng chung cho cả hai game. Mô tả là luật thật trong game,
 vẽ theo cho khớp:
 
-| Mã | Tên | Nó là gì |
-|---|---|---|
-| `gunner` | Kẻ bắn | Con duy nhất đánh TỪ XA. Thấy bạn thì đứng lại ngắm một giây — có vạch trên sàn — rồi bắn. Không bao giờ đánh tay. |
-| `rook` | Kẻ húc | Không đuổi. Nó ngắm một đường thẳng rồi lao, báo trước ba giây bằng ba nhịp giậm chân. |
-| `angel` | Tượng | Sự kiện của căn nhà: không bắn được, không có máu. Rọi đèn pin đủ lâu thì nó đi. |
+| Mã | Tên | Lấy từ tấm nào | Nó là gì |
+|---|---|---|---|
+| `gunner` | Kẻ bắn | `patrol.png` cũ | Tay súng đội mũ cao bồi, cầm khẩu lục chĩa ra. Đánh TỪ XA, không bao giờ đánh tay. |
+| `rook` | Kẻ húc | `rook.png` | Con thú to. Không đuổi — nó ngắm một đường thẳng rồi lao, báo trước ba giây. |
+| `angel` | Tượng | `angel.png` | Pho tượng cầm kiếm. Không bắn được, không có máu; rọi đèn đủ lâu thì nó đi. |
+| `banger` | Bom con | `bomber.png` cũ | Củ cà rốt có chân. Nhỏ, tức cười, chạy tới rồi tự nổ. |
+| `gnome` | Gnome | `stalk.png` cũ | Búp bê nhỏ **cầm một cái lưỡi** — nó không giết ai, nó bổ vào món hàng bạn đang ôm. |
+| `mirror` | Cái bóng ra khỏi gương | `bongden.png` cũ | Bóng ma đen tuyền chỉ còn hai con mắt. Bắn không chết — phải đập tấm kính. |
 
-Hai loài còn lại — **Bom con** (`banger`) và **Gnome** (`gnome`) — cố ý KHÔNG có sprite: cả hai
-đi đàn, cỡ nhỏ (`body: 6`), và code vẽ thẳng bằng hình khối. Một đàn bốn cục nhỏ phải đọc ra
-là MỘT ĐÀN chứ không phải bốn con quái, và bốn bộ sprite ở cỡ ấy chỉ thành bốn vệt nhòe.
-Cặp **Gương** (`mirror`) cũng không có hình: nó là hai tấm kính, không phải một con vật.
+Ba tấm cuối được chọn theo **luật của con quái** chứ không theo cái tên cũ của tệp, và ba tấm ấy
+đều đã vẽ sẵn từ lâu — không tấm nào vẽ mới. Chủ dự án, 2026-09-04: *"có sẵn hình mấy con quái
+cũ ấy lấy nó mà gắn vào bomb, gnom, mirror"*.
+
+Cặp **Gương** (hai tấm kính) vẫn vẽ bằng code: nó là đồ vật, không phải con vật. `mirror.png`
+là hình của CÁI BÓNG bước ra khỏi nó. Bản vẽ tay cũ của cái bóng vẫn còn trong `drawMirrors`
+làm đường lui nếu ảnh tải hỏng.
 
 ### Bảy tấm đã xoá, 2026-09-04
 
@@ -124,8 +130,8 @@ ra** (file 4–5 KB), hoặc chưa có file nào:
 | `hai` | Hải — Từ Trường | 5★ |
 | `tuyet` | Tuyết — Bất Tử | 5★ |
 
-**Quái — không thiếu tấm nào.** Ba mã có sprite (`gunner`, `rook`, `angel`) đều đủ hình; ba
-thứ còn lại trong nhà (Bom con, Gnome, cặp Gương) cố ý vẽ bằng code — xem phần trên.
+**Quái — không thiếu tấm nào.** Sáu mã, sáu tấm, không con nào còn rơi về hình khối — xem
+bảng ở phần trên. Riêng hai tấm kính của cặp Gương vẽ bằng code, cố ý.
 
 Hai tấm mới dựng bằng `tools/import_foe_packs.py` từ gói hình rời trong
 `CharREPO/MostersFREE`. Thêm mã mới thì nhớ thêm cả vào `FOE_IDS`, không thì game

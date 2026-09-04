@@ -82,15 +82,23 @@
   // — đúng nửa giây đắt nhất trong game này. Thiếu cả ba thì crewIdOf trả về một mã không có
   // trong kho, drawCrew trả false, và màn rơi về hình khối cũ — không vỡ.
   const MATE_LOOK = ['hue', 'tam', 'ky'];
-  // BA tấm, và danh sách này là danh sách TẢI VỀ nên mỗi tên không có tệp tương ứng là
-  // một request 404 thật trên mạng. Bảy tấm kia đã xoá cùng bảy con quái bị cắt
-  // (2026-09-04): năm con không có chiêu của Ca Trực Đêm, và ba tấm chỉ dùng cho bảng quái
-  // của Biệt Đội — bảng mà không chỗ nào trong bộ máy đọc tới, xem wikiHtml.
+  // SÁU tấm — đúng sáu thứ trong nhà, mỗi thứ một tấm. Danh sách này là danh sách TẢI VỀ nên
+  // mỗi tên không có tệp tương ứng là một request 404 thật trên mạng.
   //
-  // `gunner.png` chính là `patrol.png` cũ, đổi tên chứ không vẽ lại: tấm ấy từ đầu đã là một
-  // tay súng đội mũ cao bồi cầm khẩu lục chĩa ra ở cả mười hai khung. Cái sai nằm ở mã, không
-  // nằm ở hình, nên cái được sửa là mã.
-  const FOE_IDS = ['gunner', 'rook', 'angel'];
+  // Cả sáu tấm đều là hình VẼ SẴN TỪ TRƯỚC, không tấm nào vẽ mới. Chủ dự án, 2026-09-04: "có
+  // sẵn hình mấy con quái cũ ấy lấy nó mà gắn vào bomb, gnom, mirror". Ba tấm cuối được chọn
+  // theo LUẬT của con quái chứ không theo cái tên cũ của tệp:
+  //
+  //   gunner ← patrol.png   tay súng đội mũ cao bồi, cầm khẩu lục chĩa ra ở cả mười hai khung.
+  //                         Tấm này đã hứa một khẩu súng từ lúc vẽ; mã mới là thứ trả lời nó.
+  //   banger ← bomber.png   củ cà rốt có chân, nhỏ và tức cười — đúng thứ chạy tới rồi tự nổ.
+  //   gnome  ← stalk.png    con búp bê nhỏ CẦM MỘT CÁI LƯỠI. Gnome không giết ai, nó bổ vào
+  //                         món hàng bạn đang ôm, nên nó phải cầm cái gì đó trong tay.
+  //   mirror ← bongden.png  bóng ma đen tuyền chỉ còn hai con mắt — thứ bước ra khỏi tấm kính.
+  //
+  // Bốn tấm còn lại của bảng cũ (listen/heavy/crawler/quanca) không có chỗ trong sáu thứ này
+  // nên vẫn nằm ngoài kho.
+  const FOE_IDS = ['gunner', 'rook', 'angel', 'banger', 'gnome', 'mirror'];
 
   // KHÔNG CÒN BẢNG GẮN LẠI RIÊNG cho Biệt Đội. Nó từng tồn tại vì hai game có hai bảng
   // quái khác nhau mà trùng mã (`rook` bên này là Kẻ húc, bên kia là Con Ngồi), nên một cái
