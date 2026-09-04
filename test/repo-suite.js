@@ -2150,6 +2150,116 @@ async function meleeSuite(b) {
 }
 
 // =====================================================================
+// HIỆU ỨNG VẼ BẰNG BỘ HÌNH.
+//
+// Tám tấm từ bộ pvfx-foundry (CC0), gắn vào tám sự kiện đã có sẵn. Bộ này canh đúng một
+// thứ: hiệu ứng phải NỔ RA ĐÚNG LÚC SỰ KIỆN XẢY RA, và phải TẮT.
+//
+// Vì sao đáng một bộ test riêng: hiệu ứng là loại mã hỏng mà không ai thấy. Đổi tên một tệp,
+// sửa một hằng số, gõ nhầm một mã — game vẫn chạy, vẫn không lỗi console, chỉ là từ hôm đó
+// vụ nổ không còn ngọn lửa nào. Không có ngoại lệ nào ném ra để mà bắt.
+//
+// Và bài cuối là bài quan trọng nhất: S.vfx phải RỖNG LẠI. Một mảng chỉ thêm mà không bớt là
+// một chỗ rò trí nhớ chạy suốt ca, và triệu chứng của nó không phải là hình xấu — là máy nóng
+// dần rồi khung hình tụt, sau mười phút chơi.
+const VFX_MA = ['warm-explosion', 'landing-dust', 'earth-rupture', 'crescent-slash',
+                'magical-projectile', 'electric-impact', 'rift-portal', 'spectral-bloom'];
+async function vfxSuite(b) {
+  results.push('\n── hiệu ứng: đúng lúc, và có tắt ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- 1. cả tám tấm nạp được ---
+  const nap = await p.evaluate(ma => ma.map(id => [id, REPO_SKIN.vfxN(id)]), VFX_MA);
+  const thieu = nap.filter(x => !x[1]).map(x => x[0]);
+  check('cả tám tấm hiệu ứng nạp được', thieu.length === 0,
+    thieu.join(', ') || nap.map(x => x[0] + ':' + x[1] + 'khung').join(' · '));
+
+  // Gom mọi mã hiệu ứng CHẠY QUA trong lúc làm một việc gì đó. Phải lấy mẫu từng khung hình
+  // chứ không đọc một phát lúc cuối: cú vụt chỉ sống 0,22 giây, ngắn hơn cả một lần chụp màn.
+  const gom = async (dung, ms) => await p.evaluate(async ([js, ms]) => {
+    const S = REPO.S;
+    S.vfx.length = 0; S.monsters.length = 0; S.bullets.length = 0; S.bombs.length = 0;
+    (S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
+    // eslint-disable-next-line no-new-func
+    new Function('REPO', 'S', 'T', js)(REPO, S, REPO.TILE);
+    const thay = new Set(); let dinh = 0; const t0 = performance.now();
+    while (performance.now() - t0 < ms) {
+      S.vfx.forEach(f => thay.add(f.id));
+      dinh = Math.max(dinh, S.vfx.length);
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { thay: [...thay], dinh, conLai: S.vfx.length };
+  }, [dung, ms]);
+
+  // --- 2. vụ nổ ---
+  const no = await gom(`const pl = S.player;
+    S.bombs.push({ x: pl.x + 60, y: pl.y, t: 0, fuse: 0, r: T * 3, done: false, owner: 'foe' });`, 1500);
+  check('bom nổ thì có ngọn lửa', no.thay.indexOf('warm-explosion') >= 0, no.thay.join(', ') || 'không có gì');
+  check('và ngọn lửa TẮT, không nằm lại trên sàn', no.conLai === 0, no.conLai + ' cái còn lại');
+
+  // --- 3. cú vụt đèn pin ---
+  const vut = await gom(`const pl = S.player; pl.swingCd = 0; pl.stam = 99; REPO.meleeSwing(pl, 0);`, 1200);
+  check('vụt đèn pin thì có lưỡi chém', vut.thay.indexOf('crescent-slash') >= 0, vut.thay.join(', ') || 'không có gì');
+  check('lưỡi chém cũng tắt', vut.conLai === 0, vut.conLai + ' cái còn lại');
+
+  // --- 4. đạn của Kẻ bắn trúng người ---
+  const dan = await gom(`const pl = S.player;
+    S.bullets.push({ x: pl.x + 18, y: pl.y, vx: -300, vy: 0, life: 1.7, kind: 'foe', foe: 1, dmg: 22 });`, 1200);
+  check('đạn quái trúng người thì loé lên một cái', dan.thay.indexOf('electric-impact') >= 0,
+    dan.thay.join(', ') || 'không có gì');
+
+  // --- 5. Kẻ húc: giậm chân rồi lao trúng tường ---
+  // Phải đặt nó GẦN (dưới 3 ô) và thông tầm nhìn: rookSees đòi người chơi nằm trong nón nhìn
+  // của nó, TRỪ KHI dưới 3 ô thì bỏ qua góc. Đặt xa hơn thì nó quay lưng đi tuần và cả bài
+  // đo ra số không — không phải vì hiệu ứng hỏng, mà vì con quái chưa từng gồng.
+  const huc = await gom(`const pl = S.player; let m = null;
+    for (let r0 = 2; r0 <= 3 && !m; r0++)
+      for (let i = 0; i < 32 && !m; i++) {
+        const a = i / 32 * Math.PI * 2, x = pl.x + Math.cos(a) * r0 * T, y = pl.y + Math.sin(a) * r0 * T;
+        if (REPO.hitsSolid(x, y, 10)) continue;
+        if (!REPO.losClear(pl.x, pl.y, x, y)) continue;
+        m = REPO.spawnFoe('rook', x - pl.x, y - pl.y);
+      }
+    if (m) { m.hp = 9999; const iv = setInterval(() => {
+      const q = S.monsters.find(x => x.type === 'rook');
+      if (q) { q.hp = 9999; q.alert = 9; } else clearInterval(iv); }, 16);
+      setTimeout(() => clearInterval(iv), 9000); }`, 9000);
+  check('Kẻ húc giậm chân thì tung bụi', huc.thay.indexOf('landing-dust') >= 0, huc.thay.join(', ') || 'không có gì');
+  check('và lao trúng tường thì nứt cả nền', huc.thay.indexOf('earth-rupture') >= 0, huc.thay.join(', '));
+
+  // --- 6. Tượng bay đi ---
+  const tuong = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.vfx.length = 0; S.monsters.length = 0;
+    const thay = new Set(); const t0 = performance.now();
+    while (performance.now() - t0 < 12000) {
+      if (!S.angel) S.angelTimer = 0;                 // ép nó thử lại mỗi khung
+      else { S.angel.phase = 'stand'; S.angel.armed = true; S.angel.charge = 1; }
+      S.vfx.forEach(f => thay.add(f.id));
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { thay: [...thay], co: !!S.angel };
+  });
+  check('rọi đủ đèn thì Tượng bay đi trong một đoá sáng',
+    tuong.thay.indexOf('spectral-bloom') >= 0, tuong.thay.join(', ') || 'không có gì');
+
+  // --- 7. không rò: chờ cho mọi thứ chạy hết rồi đếm lại ---
+  await p.waitForTimeout(1500);
+  const con = await p.evaluate(() => REPO.S.vfx.length);
+  check('chạy xong thì mảng hiệu ứng rỗng lại, không rò', con === 0, con + ' cái còn treo');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('hiệu ứng: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 // KẺ BẮN.
 //
 // Con duy nhất trong nhà đánh từ xa, và bộ này tồn tại vì một lý do rất cụ thể: cả loài này
@@ -2616,6 +2726,7 @@ async function lightSuite(_khongDung) {
   try { await escapeSuite(b); } catch (e) { check('pha chạy: bộ test chạy trọn', false, e.message); }
   try { await meleeSuite(b); } catch (e) { check('đòn đánh: bộ test chạy trọn', false, e.message); }
   try { await gunnerSuite(b); } catch (e) { check('Kẻ bắn: bộ test chạy trọn', false, e.message); }
+  try { await vfxSuite(b); } catch (e) { check('hiệu ứng: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));

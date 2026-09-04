@@ -103,6 +103,45 @@ một bảng quái, nên một mã trỏ vào đúng một con và chỗ gắn l
 Thêm mã mới thì nhớ thêm cả vào `FOE_IDS` trong `sprites.js`, không thì game không nạp và lặng
 lẽ vẽ lại hình khối — và mỗi tên trong `FOE_IDS` không có tệp tương ứng là một request 404 thật.
 
+## Hiệu ứng — `vfx/<mã>.png`
+
+Tám tấm, lấy từ bộ **pvfx-foundry-thirteen**, giấy phép **CC0 1.0** (`vfx/LICENSE.txt`). Chủ dự án
+gửi cả một thư mục VFX, 2026-09-04: *"có mấy cái fx ở đây nè có gì thấy cái nào xài đc thì bỏ vào
+game để cho nó đẹp + sinh động hơn"*.
+
+Luật chọn: **mỗi tấm phải gắn vào một sự kiện ĐÃ CÓ SẮN**, không rắc thêm cho lấp lánh.
+
+| Mã | Khung | Nổ ra khi nào | Lớp |
+|---|---|---|---|
+| `warm-explosion` | 15 | mọi vụ nổ — Bom con, lựu đạn | sáng |
+| `earth-rupture` | 20 | Kẻ húc lao trúng tường (cửa sổ bắn nó miễn phí) | tối |
+| `landing-dust` | 14 | ba nhịp giậm chân lúc Kẻ húc gồng | tối |
+| `crescent-slash` | 10 | cú vụt đèn pin | sáng |
+| `magical-projectile` | 12 | viên đạn của Kẻ bắn đang bay | sáng |
+| `electric-impact` | 14 | và lúc nó trúng người | sáng |
+| `rift-portal` | 16 | hai tấm kính của cặp Gương (lặp, mờ dần theo máu kính) | sáng |
+| `spectral-bloom` | 16 | Tượng bay đi sau khi bị rọi đèn đủ lâu | sáng |
+
+**Một khuôn cho cả tám:** khung 96×96, xếp 5 cột, chạy 20 khung/giây. Chỉ khác hai thứ — số
+khung, và cái **chân** (`py` trong `VFX_SHEETS` ở `sprites.js`, lấy thẳng từ manifest của bộ gốc).
+`py` quan trọng hơn vẻ ngoài của nó: vụ nổ neo ở tâm (58) còn đám bụi neo ở đáy (70), nên vẽ cả
+hai từ giữa khung thì đám bụi lơ lửng trên không cách sàn nửa ô.
+
+**Hai lớp, và phải hai lớp.** *Sáng* = vẽ sau khi đã nhân ánh sáng vào, cho thứ TỰ PHÁT SÁNG (lửa,
+điện, cổng gương). *Tối* = vẽ cùng lớp với người và quái, cho bụi và đất — chỗ tối thì không thấy
+bụi, và đó mới đúng. Rắc tất cả vào lớp cộng sáng thì đám bụi thành một quầng vàng lơ lửng trong
+bóng tối: nó đọc ra là phép thuật, không đọc ra là bụi.
+
+**Hiệu ứng KHÔNG được nói dối về luật chơi.** Vụ nổ giữ nguyên cái vòng xung kích vẽ tay — nó
+nói "tới đây là còn ăn đòn", một thông tin mà bộ hình không mang — và ngọn lửa co theo đúng
+bán kính sát thương thật (`scale: b.r / 48`). Vạch ngắm của Kẻ bắn không đụng tới.
+
+Thêm một hiệu ứng mới thì thêm một dòng vào `VFX_SHEETS` (`sprites.js`) và gọi `spawnVfx(...)` ở
+chỗ sự kiện xảy ra. Nhớ thêm cả vào `VFX_MA` trong `test/repo-suite.js` — bộ test ở đó canh
+đúng hai việc: hiệu ứng NỔ RA đúng lúc sự kiện xảy ra, và nó TẮT. Hiệu ứng là loại mã hỏng mà
+không ai thấy: gõ nhầm một mã thì game vẫn chạy, vẫn không lỗi console, chỉ là từ hôm đó vụ nổ
+không còn ngọn lửa nào.
+
 ## Bộ hiện tại từ đâu ra
 
 Chủ dự án gửi 18 ảnh JPEG (mỗi ảnh một lưới 3×4, có nền). `../tools/import_art.py` bóc

@@ -599,6 +599,61 @@ function threatLevel(){
 //   aura    — bó sát người thi triển: "hiệu ứng nằm trên NGƯỜI này" (gồng, đóng băng)
 // Vẽ ở lớp cộng sáng nên nó tự phát sáng trong tối, chỗ mà phần lớn kỹ năng được bấm.
 // SEE: fx lúc cast kỹ năng, 2026-08-31
+// ================================================== HIỆU ỨNG VẼ BẰNG BỘ HÌNH
+//
+// Chủ dự án gửi một thư mục VFX, 2026-09-04: "có mấy cái fx ở đây nè có gì thấy cái nào xài
+// đc thì bỏ vào game để cho nó đẹp + sinh động hơn". Tám tấm được lấy, và mỗi tấm phải gắn
+// vào MỘT SỰ KIỆN ĐÃ CÓ SẴN chứ không phải rắc thêm cho lấp lánh:
+//
+//   nổ         → mọi vụ nổ (Bom con, lựu đạn)      earth-rupture → Kẻ húc lao trúng tường
+//   giậm chân  → ba nhịp gồng của Kẻ húc            crescent     → cú vụt đèn pin
+//   đạn        → viên đạn của Kẻ bắn                electric     → và lúc nó trúng người
+//   rift       → hai tấm kính của cặp Gương         spectral     → Tượng bay đi
+//
+// LUẬT: hiệu ứng KHÔNG được nói dối về luật chơi. Vụ nổ giữ nguyên cái vòng xung kích vẽ tay
+// — nó nói "tới đây là còn ăn đòn", một thông tin mà bộ hình không mang. Bộ hình thay phần
+// lõi và mấy tia, tức là phần chỉ để cho đẹp. Cùng lý do, vạch ngắm của Kẻ bắn không đụng tới.
+//
+// HAI LỚP, và phải hai lớp:
+//   `sang: true`  — vẽ ở lớp CỘNG SÁNG sau khi đã nhân ánh sáng vào. Thứ TỰ PHÁT SÁNG: lửa,
+//                   tia điện, cổng gương, hồn bay. Chúng sáng cả trong phòng tối, đúng như
+//                   một ngọn lửa nên thế.
+//   `sang: false` — vẽ cùng lớp với người và quái, TRƯỚC khi nhân ánh sáng. Bụi và đất không
+//                   tự phát sáng: chỗ tối thì không thấy bụi, và đó mới đúng.
+// Rắc tất cả vào lớp cộng sáng thì đám bụi của Kẻ húc thành một quầng vàng lơ lửng trong bóng
+// tối — nó đọc ra là phép thuật, không đọc ra là bụi.
+const VFX_FPS = 20;            // bộ gốc xuất ở 50ms/khung, giữ nguyên
+function spawnVfx(id, x, y, o){
+  const opt = o || {};
+  S.vfx.push({ id, x, y, t: 0,
+               scale: opt.scale == null ? 1 : opt.scale,
+               ang:   opt.ang || 0,
+               alpha: opt.alpha == null ? 1 : opt.alpha,
+               sang:  opt.sang !== false,
+               fps:   opt.fps || VFX_FPS });
+}
+function stepVfx(dt){
+  const K = window.REPO_SKIN;
+  for (let i = S.vfx.length-1; i >= 0; i--){
+    const f = S.vfx[i];
+    f.t += dt;
+    // Số khung hỏi THẲNG bộ hình chứ không chép lại vào đây: chép ra là một chỗ nữa để quên
+    // sửa, và lúc quên thì hiệu ứng cụt mất mấy khung cuối mà không ai thấy sai ở đâu.
+    const n = (K && K.vfxN) ? K.vfxN(f.id) : 0;
+    if (!n){ if (f.t > 1.2) S.vfx.splice(i,1); continue; }   // ảnh chưa nạp: đợi, rồi bỏ
+    if (f.t * f.fps >= n) S.vfx.splice(i,1);
+  }
+}
+function drawVfx(c, sang){
+  const K = window.REPO_SKIN;
+  if (!K || !K.vfx) return;
+  for (const f of S.vfx){
+    if (!!f.sang !== !!sang) continue;
+    c.save(); c.translate(f.x, f.y);
+    K.vfx(c, f.id, f.t * f.fps, { scale: f.scale, ang: f.ang, alpha: f.alpha });
+    c.restore();
+  }
+}
 const CAST_T = 0.5;
 function castFx(kind, x, y, opt){
   const o = opt || {};
@@ -662,6 +717,7 @@ function drawCasts(c){
 
 function stepFx(dt){
   stepCasts(dt);
+  stepVfx(dt);
   const want = threatLevel();
   // Rises fast and falls slow, like the feeling does. A dread that drained as quickly as it
   // filled would flicker every time a monster stepped behind a wall.
@@ -1901,6 +1957,7 @@ const S = {
   button: { x:0, y:0, r:0 }, cut: null,
   angel: null, angelTimer: 0, angelFx: null, lightZones: [],
   mirror: null, mirrorTimer: 0, mirrorFx: null,
+  vfx: [],                                   // hiệu ứng vẽ bằng bộ hình — xem spawnVfx
   mates: [], crewOn: true, spectate: -1,
   doors: [],
   time: 0, message: '', messageT: 0,
@@ -1941,7 +1998,7 @@ function buildLevel(seed){
   S.grid = new Uint8Array(MW*MH);
   S.explored = new Uint8Array(MW*MH);
   S.rooms = []; S.loot = []; S.monsters = []; S.pads = [];
-  S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.bikes = []; S.casts = [];
+  S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.bikes = []; S.casts = []; S.vfx = [];
   // WHY: the doors of the PREVIOUS house survived until buildDoors ran at the very end of this
   // function, and everything in between - loot placement, monster posts, the cart route repair -
   // asks whether a point is clear. A jammed door from the last level answering that question is a
@@ -4691,6 +4748,12 @@ function rookCrash(m, what){
   m.charging = false; m.state = 'patrol'; m.alert = 0;
   m.path = null; m.rammed = null;
   fxShake(what === 'wall' ? 9 : 6); SFX.thud();
+  // Cú này là khoảnh khắc ĐẮT NHẤT của con Kẻ húc với người chơi: nó vừa hụt, và sáu giây tới
+  // là cửa sổ bắn miễn phí. Trước đây nó chỉ có một cái rung màn và một tiếng thịch — không có
+  // gì trên sàn nói rằng chuyện vừa xảy ra là chuyện TỐT. Nay có một đám đất nứt tung ngay
+  // trước mũi nó, đúng chỗ nó vừa đâm vào.
+  spawnVfx('earth-rupture', m.x + Math.cos(m.dir)*14, m.y + Math.sin(m.dir)*14 + 4,
+           { scale: 0.75, sang: false });
 }
 
 function rookSlam(m, who){
@@ -4781,6 +4844,11 @@ function stepRook(m, dt, dist){
       const t = nhip * ROOK_WIND;
       if (truoc < t && m.windT >= t){
         m.stompT = 0.28;                         // bụi tung lên, tắt dần trong ngần này giây
+        // Bụi thật, tung ra sau lưng nó — cùng chỗ với mấy chấm bụi vẽ tay ở drawRookTell,
+        // chỉ là dày hơn. `sang: false` vì bụi không tự phát sáng: giậm chân trong phòng tối
+        // thì không thấy gì, và đó đúng là điều nên thấy.
+        spawnVfx('landing-dust', m.x - Math.cos(m.dir)*10, m.y - Math.sin(m.dir)*10 + 4,
+                 { scale: 0.55, sang: false });
         const xa = Math.hypot(m.x-S.player.x, m.y-S.player.y);
         if (xa < 13*TILE){ SFX.thud(); fxShake(1.4 + nhip*2.2); }
       }
@@ -5024,6 +5092,19 @@ function meleeSwing(p, ang){
   p.swingCd = MELEE_CD * (duoi ? MELEE_TIRED_CD : 1);
   p.swingT  = MELEE_T;
   p.swingDir = p.dir;
+  // Lưỡi chém đặt Ở TẦM VỚI, không đặt trên người: nó phải nói tầm với 40px của cú vụt tới
+  // đâu, vì đó là câu hỏi duy nhất người chơi hỏi khi bấm nút này. Đuối tay thì mờ hẳn đi —
+  // cùng một tín hiệu với sát thương giảm một nửa, chỉ là nhìn thấy được.
+  //
+  // `fps` ĐẶT RIÊNG, và đây là chỗ duy nhất phải đặt. Bộ hình 10 khung chạy ở 20 hình/giây là
+  // nửa giây, mà cú vụt chỉ dài MELEE_T = 0,22 giây. Để nguyên thì lưỡi chém còn đang ở mấy
+  // khung đầu — nhạt và ngắn — thì cú vụt đã xong từ lâu, rồi nó sáng lên sau lưng một việc
+  // đã kết thúc. Đo ảnh chụp lần đầu: ba khung hình liên tiếp gần như trống. Ép cả 10 khung
+  // vào đúng MELEE_T thì lưỡi chém NẰM ĐÚNG TRÊN cú đánh, không sớm không muộn.
+  spawnVfx('crescent-slash', p.x + Math.cos(p.dir)*MELEE_R*0.55,
+                             p.y + Math.sin(p.dir)*MELEE_R*0.55,
+           { scale: 0.8, ang: p.dir, alpha: duoi ? 0.45 : 1,
+             fps: ((window.REPO_SKIN && REPO_SKIN.vfxN('crescent-slash')) || 10) / MELEE_T });
   if (duoi && S.time - (p.tiredMsgT || -9) > 5){
     p.tiredMsgT = S.time;
     toast('Đuối tay — đánh nhẹ và chậm hẳn. Đứng thở một nhịp đã.');
@@ -5428,6 +5509,7 @@ function stepProjectiles(dt){
       for (const a of crewAlive()) if (Math.hypot(a.x-b.x, a.y-b.y) < GUNNER_HIT_R){ trung = a; break; }
       if (trung){
         hurtActor(trung, b.dmg || 22, 'gunner', b.x - b.vx*0.05, b.y - b.vy*0.05);
+        spawnVfx('electric-impact', b.x, b.y, { scale: 0.42 });
         S.bullets.splice(i,1);
       }
       continue;
@@ -5460,6 +5542,10 @@ function stepProjectiles(dt){
     if (b.t >= b.fuse && !b.done){
       b.done = true;
       const pow = b.pow || 1;          // Bom con bị giết giữa chừng nổ yếu hơn ngòi cháy hết
+      // Cỡ vẽ đo theo BÁN KÍNH SÁT THƯƠNG thật: một khung 96px vẽ ở scale 1 phủ đúng 4 ô, mà
+      // bán kính nổ là b.r — nên co về b.r/48 thì ngọn lửa trùm đúng vùng làm bạn đau, không
+      // hơn không kém. Một hiệu ứng to hơn vùng sát thương là một lời nói dối tốn máu.
+      spawnVfx('warm-explosion', b.x, b.y, { scale: b.r / 48 });
       for (const m of S.monsters.slice()){
         const d = Math.hypot(m.x-b.x, m.y-b.y);
         // 90 -> 165: mot qua lu dan gia 7.000 ma khong giet duoc mot con Ke nghe
@@ -5954,7 +6040,7 @@ function buildShop(){
   S.rooms = [];
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++)
     S.rooms.push({ name:'Trạm dịch vụ', cx, cy, seen: cx===SHOP_COL });
-  S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.casts = [];
+  S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.casts = []; S.vfx = [];
   S.bikes = [];
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
   S.levelDone = false; S.dead = false; S.shiftLost = false; S.hurtLog = [];
@@ -6510,6 +6596,15 @@ function drawMirrors(c){
     c.fillRect(-12, -20, 24, 34);                    // the frame
     c.fillStyle = '#c9d7e6';
     c.fillRect(-9, -17, 18, 28);                     // the glass
+    // Cái cổng quay TRÊN mặt kính. Bộ hình này lặp vô hạn (loop_mode: loop trong manifest),
+    // nên nó ăn theo đồng hồ thế giới chứ không có tuổi riêng — hai tấm quay cùng pha, và đó
+    // là điều đúng: chúng là MỘT cặp, không phải hai vật rời nhau.
+    //
+    // Mờ dần theo máu tấm kính: đập vỡ dần thì cái cổng tắt dần, nên "còn mấy nhát nữa" đọc
+    // được từ chính chỗ bạn đang nhắm chứ không phải từ một thanh máu ở đâu đó.
+    if (window.REPO_SKIN && REPO_SKIN.vfx){
+      REPO_SKIN.vfx(c, 'rift-portal', S.time * VFX_FPS, { scale: 0.34, alpha: 0.55 * (1 - hurt) });
+    }
     if (hurt > 0.02){
       c.strokeStyle = `rgba(40,46,58,${0.5 + hurt*0.5})`; c.lineWidth = 1.2;
       c.beginPath();
@@ -8375,6 +8470,7 @@ function draw(){
   worldTransform(c);
   c.drawImage(S.worldCv, 0, 0, WPX, HPX);   // ảnh nền vẽ ở SS lần, thu về đúng khổ thế giới
   drawPads(c); drawButton(c); drawBikes(c); drawCart(c); drawLoot(c); drawCar(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawDoors(c); drawProjectiles(c); drawPlayer(c);
+  drawVfx(c, false);            // bụi và đất: chịu ánh sáng như mọi vật thể khác
 
   buildLight();
   c.setTransform(1,0,0,1,0,0);
@@ -8385,6 +8481,7 @@ function draw(){
   worldTransform(c);
   drawMemory(c);
   drawCasts(c);
+  drawVfx(c, true);             // lửa, điện, cổng gương: tự phát sáng
   drawHighlights(c);
 
   c.setTransform(1,0,0,1,0,0);
@@ -8627,6 +8724,10 @@ function spawnAngel(){
 
 function angelRise(a){
   a.phase = 'rise'; a.rise = 0;
+  // Rọi đủ đèn thì nó đi — và đây là một trong hai kết cục của pho tượng, kết cục TỐT. Nó phải
+  // trông khác hẳn cái kết cục kia (cú cào, SFX.screech, màn hình giật). Một đoá sáng nở ra
+  // rồi tan, ngay chỗ nó vừa đứng.
+  spawnVfx('spectral-bloom', a.x, a.y, { scale: 0.9 });
   S.lightZones.push({ x:a.x, y:a.y, r:ANGEL_LIGHT_R, t:ANGEL_LIGHT_T });
   // The room it was standing in is now a room you have seen.
   const rt = Math.ceil(ANGEL_LIGHT_R/TILE);
@@ -9871,6 +9972,18 @@ function drawProjectiles(c){
     // hình đầy chấm vàng không nói được cái nào đang bay về phía mình. Đỏ, to hơn, và có một
     // cái đuôi kéo theo hướng bay — cái đuôi mới là thứ nói được nó ĐANG ĐI ĐÂU.
     if (b.foe){
+      // Viên đạn là một hiệu ứng ĐANG CHẠY chứ không phải một cái chấm: bộ hình quay vòng theo
+      // tuổi của viên đạn, và cả khung xoay theo hướng bay. Vẽ ở đây chứ không đẩy vào S.vfx vì
+      // nó phải bám theo viên đạn từng khung hình, mà S.vfx thì đứng yên một chỗ.
+      const K = window.REPO_SKIN;
+      if (K && K.vfx){
+        c.save(); c.translate(b.x, b.y);
+        K.vfx(c, 'magical-projectile', (GUNNER_LIFE - b.life) * VFX_FPS * 1.5,
+              { scale: 0.30, ang: Math.atan2(b.vy, b.vx) });
+        c.restore();
+        continue;
+      }
+      // Đường lui khi ảnh chưa nạp xong: cái chấm đỏ có đuôi, như bản đầu.
       const l = 9;
       c.strokeStyle = 'rgba(255,110,70,0.55)'; c.lineWidth = 2.2;
       c.beginPath();
@@ -12147,6 +12260,9 @@ window.REPO = {
   roster(){ return (S.roster || []).slice(); },
   rosterAt(lv){ return rosterForLevel(lv, Math.random); },
   rosterHas, bodyKinds, stockKinds, stockBodies,
+  // Bộ test và con bot gọi thẳng được: một hiệu ứng chỉ đúng khi NÓ CHẠY ĐƯỢC, và cách duy
+  // nhất kiểm được điều đó bằng máy là gọi nó rồi đếm khung.
+  spawnVfx, VFX_FPS,
   // ---- what a body leaves behind, and when it comes back
   FOE_LOOT: { PER_HP:FOE_LOOT_PER_HP, PER_DMG:FOE_LOOT_PER_DMG, SPREAD:FOE_LOOT_SPREAD,
               MAX:FOE_DROP_MAX, RESPAWN:FOE_RESPAWN },

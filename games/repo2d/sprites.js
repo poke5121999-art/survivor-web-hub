@@ -58,6 +58,31 @@
     return m ? '?v=' + m[1] : '';
   })();
 
+  // ================================================================= HIỆU ỨNG
+  //
+  // Bộ `pvfx-foundry-thirteen`, giấy phép CC0 1.0 (art/vfx/LICENSE.txt) — dùng được không cần
+  // ghi công, nhưng ghi ở đây vì một tấm hình không rõ nguồn gốc là một tấm hình không dám sửa.
+  //
+  // Cả tám tấm CÙNG MỘT KHUÔN, và đó là lý do bảng này ngắn: khung 96×96, xếp 5 cột, chạy
+  // 20 khung/giây. Khác nhau đúng hai thứ — số khung, và cái CHÂN (`py`).
+  //
+  // `py` là chỗ hiệu ứng "chạm đất" trong khung 96px, lấy thẳng từ manifest của bộ gốc. Nó
+  // quan trọng hơn vẻ ngoài của nó: vụ nổ neo ở tâm (58) còn đám bụi neo ở đáy (70), nên nếu
+  // vẽ cả hai từ giữa khung thì đám bụi lơ lửng trên không cách sàn nửa ô.
+  const VFX_SHEETS = {
+    'warm-explosion':     { n: 15, py: 58 },   // mọi vụ nổ
+    'landing-dust':       { n: 14, py: 70 },   // Kẻ húc giậm chân
+    'earth-rupture':      { n: 20, py: 71 },   // Kẻ húc lao trúng tường
+    'crescent-slash':     { n: 10, py: 50 },   // cú vụt đèn pin
+    'magical-projectile': { n: 12, py: 50 },   // viên đạn của Kẻ bắn
+    'electric-impact':    { n: 14, py: 54 },   // và lúc nó trúng
+    'rift-portal':        { n: 16, py: 48 },   // hai tấm kính của cặp Gương (lặp)
+    'spectral-bloom':     { n: 16, py: 64 }    // Tượng bay đi
+  };
+  const VFX_F = 96;          // cạnh một khung
+  const VFX_COLS = 5;        // số cột trong tấm
+  const vfx = Object.create(null);
+
   const crew = Object.create(null);
   const foe = Object.create(null);
   let pending = 0, failed = 0;
@@ -237,6 +262,17 @@
     load(HERE + 'art/foe/' + id + '.png' + VER, function (im) { foe[id] = bakeRim(im); });
   });
 
+  // Hiệu ứng KHÔNG đi qua bakeRim: cái viền đỏ ấy dựng ra để tách con quái khỏi nền tối, còn
+  // một vụ nổ thì tự nó đã là chỗ sáng nhất màn hình. Nướng viền vào nó chỉ được một cái quầng
+  // đỏ bám quanh ngọn lửa.
+  for (const id in VFX_SHEETS) {
+    (function (id) {
+      load(HERE + 'art/vfx/' + id + '.png' + VER, function (im) {
+        vfx[id] = { img: im, n: VFX_SHEETS[id].n, py: VFX_SHEETS[id].py };
+      });
+    })(id);
+  }
+
   // ---------------------------------------------------------------- đồ vật
   // Món đồ ăn tiền và cái đèn trong tay. Không phải charset: đồ vật không có hướng nhìn,
   // nên mỗi tệp là một DẢI NGANG các ô vuông. Một căn nhà có vài chục món; gộp thành ba
@@ -361,15 +397,40 @@
     return true;
   }
 
+  // Vẽ MỘT khung hiệu ứng, tại gốc toạ độ đang có, đã xoay và đã co theo `o.scale`.
+  //
+  // Trả về false khi tấm chưa nạp xong (hoặc nạp hỏng) — chỗ gọi phải tự lo phần vẽ tay của
+  // mình, đúng như drawFoe. Một hiệu ứng thiếu thì mất đẹp; một hiệu ứng NÉM LỖI thì mất cả
+  // khung hình, và nó sẽ ném đúng vào giây đầu tiên của ván trong lúc ảnh còn đang tải.
+  function drawVfx(c, id, khung, o) {
+    const s = vfx[id];
+    if (!s) return false;
+    const opt = o || {};
+    const i = Math.floor(khung) % s.n;
+    const co = opt.scale == null ? 1 : opt.scale;
+    const w = VFX_F * co, h = VFX_F * co;
+    c.save();
+    if (opt.alpha != null) c.globalAlpha = opt.alpha;
+    if (opt.ang) c.rotate(opt.ang);
+    c.imageSmoothingEnabled = false;
+    // Neo theo CHÂN chứ không theo giữa khung: xem chú thích `py` ở VFX_SHEETS.
+    c.drawImage(s.img, (i % VFX_COLS) * VFX_F, ((i / VFX_COLS) | 0) * VFX_F, VFX_F, VFX_F,
+      -w / 2, -s.py * co, w, h);
+    c.restore();
+    return true;
+  }
+
   root.REPO_SKIN = {
     crew: drawCrew,
     halo: drawCrewHalo,
     foe: drawFoe,
+    vfx: drawVfx,
+    vfxN: function (id) { return vfx[id] ? vfx[id].n : 0; },
     loot: lootIcon,
     lamp: lamp,
     ready: function () { return pending === 0; },
     failed: function () { return failed; },
-    have: function () { return Object.keys(crew).length + Object.keys(foe).length; },
+    have: function () { return Object.keys(crew).length + Object.keys(foe).length + Object.keys(vfx).length; },
     frame: function (e) { return e._sc; },
     // Xác nào đang được mượn cho một con bot. Mở ra để kiểm được bằng máy: so ảnh
     // chụp thì hai lần vẽ y hệt nhau vẫn ra pixel khác nhau, nên phải hỏi thẳng tên.
