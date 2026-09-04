@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Chuyến Tàu Cuối">
+  <!-- Vẽ tay, không tệp ngoài, không phông ngoài. Cảnh: đoàn tàu chạy đêm qua sa mạc,
+       đèn pha quét về phía trước, khói phụt ngược ra sau. -->
+  <defs>
+    <linearGradient id="ct-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141a26"/>
+      <stop offset="0.55" stop-color="#241a1c"/>
+      <stop offset="1" stop-color="#0d0b0a"/>
+    </linearGradient>
+    <linearGradient id="ct-sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a3a26"/>
+      <stop offset="1" stop-color="#241c14"/>
+    </linearGradient>
+    <radialGradient id="ct-head" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe9b8" stop-opacity="0.85"/>
+      <stop offset="0.45" stop-color="#e0b055" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#8a6a2c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ct-fire" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff9a3c" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#c03a10" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="320" height="180" fill="url(#ct-sky)"/>
+
+  <!-- trăng -->
+  <circle cx="262" cy="34" r="13" fill="#c9c2a8" opacity="0.5"/>
+  <circle cx="266" cy="30" r="11" fill="#141a26" opacity="0.85"/>
+
+  <!-- núi xa, hai lớp, tốc độ khác nhau nên hình dáng cũng khác -->
+  <path d="M0 96 L38 66 L74 96 L112 60 L152 96 L196 70 L238 96 L286 68 L320 96 L320 120 L0 120 Z" fill="#2a2028" opacity="0.75"/>
+  <path d="M0 106 L46 84 L88 106 L134 82 L182 106 L228 86 L276 106 L320 88 L320 130 L0 130 Z" fill="#332419" opacity="0.8"/>
+
+  <!-- mặt cát -->
+  <rect x="0" y="112" width="320" height="68" fill="url(#ct-sand)"/>
+
+  <!-- xương rồng và cây khô -->
+  <g fill="#1d1810">
+    <path d="M22 124 h5 v-16 h4 v10 h4 v-14 h4 v20 h4 v16 h-21 z"/>
+    <path d="M296 128 l3-14 l4 9 l5-13 l2 18 z"/>
+  </g>
+
+  <!-- đường ray: hai vạch thép và dãy tà vẹt, tương phản thấp cố ý -->
+  <g>
+    <rect x="0" y="138" width="320" height="18" fill="#33281c"/>
+    <g fill="#2a2018">
+      <rect x="4" y="136" width="4" height="22"/><rect x="26" y="136" width="4" height="22"/>
+      <rect x="48" y="136" width="4" height="22"/><rect x="70" y="136" width="4" height="22"/>
+      <rect x="92" y="136" width="4" height="22"/><rect x="114" y="136" width="4" height="22"/>
+      <rect x="136" y="136" width="4" height="22"/><rect x="158" y="136" width="4" height="22"/>
+      <rect x="180" y="136" width="4" height="22"/><rect x="202" y="136" width="4" height="22"/>
+      <rect x="224" y="136" width="4" height="22"/><rect x="246" y="136" width="4" height="22"/>
+      <rect x="268" y="136" width="4" height="22"/><rect x="290" y="136" width="4" height="22"/>
+      <rect x="312" y="136" width="4" height="22"/>
+    </g>
+    <rect x="0" y="139" width="320" height="2.5" fill="#5a5248"/>
+    <rect x="0" y="153" width="320" height="2.5" fill="#4a4238"/>
+  </g>
+
+  <!-- khói: phụt lên rồi bị bẻ ngược ra sau, nở dần -->
+  <g fill="#6a6258" opacity="0.42">
+    <circle cx="214" cy="46" r="7"/>
+    <circle cx="196" cy="38" r="9.5"/>
+    <circle cx="172" cy="32" r="12"/>
+    <circle cx="142" cy="28" r="15"/>
+    <circle cx="106" cy="26" r="18"/>
+  </g>
+
+  <!-- đoàn tàu: một toa và đầu máy, nhìn 3/4 -->
+  <g>
+    <!-- toa -->
+    <rect x="86" y="96" width="76" height="34" fill="#2f2318"/>
+    <rect x="88" y="98" width="72" height="30" fill="#4a3626"/>
+    <rect x="92" y="100" width="64" height="4" fill="#5f4632"/>
+    <rect x="86" y="130" width="76" height="10" fill="#1b1d22"/>
+    <circle cx="102" cy="140" r="6" fill="#15161a"/><circle cx="102" cy="140" r="2" fill="#3a4048"/>
+    <circle cx="146" cy="140" r="6" fill="#15161a"/><circle cx="146" cy="140" r="2" fill="#3a4048"/>
+    <!-- thanh biên: NẰM NGANG, không xoay -->
+    <rect x="102" y="139" width="44" height="2.6" fill="#5d6672"/>
+
+    <!-- đầu máy -->
+    <rect x="166" y="92" width="96" height="38" fill="#241a12"/>
+    <rect x="168" y="94" width="92" height="34" fill="#3d2c1c"/>
+    <rect x="196" y="96" width="62" height="28" fill="#2c3138"/>
+    <rect x="198" y="98" width="58" height="5" fill="#434a54"/>
+    <rect x="206" y="96" width="4" height="28" fill="#b8862f"/>
+    <rect x="230" y="96" width="4" height="28" fill="#b8862f"/>
+    <!-- cabin -->
+    <rect x="168" y="94" width="30" height="34" fill="#7a4526"/>
+    <rect x="173" y="99" width="12" height="11" fill="#2a3c46"/>
+    <!-- ống khói -->
+    <rect x="222" y="76" width="12" height="18" fill="#1b1d22"/>
+    <!-- gầm + bánh chủ động -->
+    <rect x="166" y="130" width="96" height="10" fill="#1b1d22"/>
+    <circle cx="186" cy="139" r="8" fill="#15161a"/><circle cx="186" cy="139" r="2.6" fill="#3a4048"/>
+    <circle cx="214" cy="139" r="8" fill="#15161a"/><circle cx="214" cy="139" r="2.6" fill="#3a4048"/>
+    <circle cx="248" cy="141" r="5" fill="#15161a"/>
+    <rect x="186" y="137.6" width="28" height="3" fill="#5d6672"/>
+    <!-- gạt bò -->
+    <path d="M262 98 L278 111 L262 124 Z" fill="#1b1d22"/>
+  </g>
+
+  <!-- lửa lò hắt ra -->
+  <circle cx="196" cy="112" r="20" fill="url(#ct-fire)" opacity="0.55"/>
+  <!-- đèn pha quét về trước -->
+  <ellipse cx="292" cy="111" rx="58" ry="30" fill="url(#ct-head)"/>
+
+  <!-- bóng người đứng trên nóc toa -->
+  <g fill="#0f0c0a">
+    <rect x="120" y="82" width="6" height="14" rx="2"/>
+    <circle cx="123" cy="79" r="4"/>
+    <rect x="116" y="76" width="14" height="2.2" rx="1"/>
+  </g>
+
+  <!-- hai bóng ở mép sáng -->
+  <g fill="#140f0e" opacity="0.9">
+    <rect x="276" y="126" width="5" height="12" rx="2"/><circle cx="278.5" cy="123" r="3.4"/>
+    <rect x="300" y="130" width="5" height="11" rx="2"/><circle cx="302.5" cy="127" r="3.2"/>
+  </g>
+
+  <text x="12" y="26" font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="#e8c86a">CHUYẾN TÀU CUỐI</text>
+  <text x="12" y="41" font-family="system-ui, sans-serif" font-size="9.5" fill="#9a9080">Bắn từ trên xuống · Viễn Tây · xác sống</text>
+</svg>

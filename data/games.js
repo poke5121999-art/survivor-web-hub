@@ -444,5 +444,44 @@ window.HUB_GAMES = [
     // ưu thành "không bao giờ gộp". Suy dẫn ghi ngay trong js/config.js.
     status: "available",
     tags: ["Ghép ô", "Theo lượt", "Màn dọc", "Một tay", "Chiến thuật"]
+  },
+  {
+    id: "chuyen-tau",
+    title: "Chuyến Tàu Cuối",
+    tagline: "Bắn từ trên xuống, màn hình ngang. Một đoàn tàu hơi nước chạy qua sa mạc Viễn Tây đầy xác sống: tàu chạy thì bạn đi trên nóc toa mà thủ, tàu dừng ga thì xuống lục soát nhà với một cái đồng hồ đếm ngược trên đầu — và tàu chạy tiếp dù có bạn hay không. Ngày không có một con quái nào, đêm mới đổ ra, và có bốn loại đêm khác nhau. Gacha ra NGƯỜI: mười nhân vật, mỗi người một chiêu bấm được không ai trùng ai — chặn đạn, húc, móc kéo, vách chắn, thời gian chậm, gom quái, tàng hình hai bước, quay ngược bốn giây, tiêm hồi máu bấm được cả khi đang choáng, thả chó ghim quái. Ngoài ván thì nâng trang bị, nâng toa tàu, tiến hoá. Chín chuyến, ba tới năm chặng mỗi chuyến.",
+    thumbnail: "assets/thumbnails/chuyen-tau.svg",
+    path: "games/chuyen-tau/index.html",
+    rev: "20260904b",
+    // Dựng lại Dead Rails (RCM Games, Roblox 2025) ở dạng 2D nhìn từ trên xuống. KHÔNG
+    // lấy một tệp ảnh hay âm thanh nào của bản gốc; cái được lấy là LUẬT CHƠI, tra từ
+    // wiki chính thức của game (qua api.php, vì fandom chặn tải trang thường).
+    //
+    // Bốn luật chép nguyên vì chúng là phần hay nhất của bản gốc:
+    //   1. Ban ngày KHÔNG spawn một con quái nào. Áp lực ban ngày do lòng tham người chơi
+    //      tự tạo; áp lực ban đêm do hệ thống áp đặt. Đây là nhịp tim của cả game.
+    //   2. Nhiên liệu tiêu theo THỜI GIAN chứ không theo quãng đường — nên đi chậm là đốt
+    //      tiền, và "dừng lại lục soát" thành một quyết định có giá thật.
+    //   3. Xác quái vừa là nhiên liệu vừa là tiền, nên giết quái không bao giờ công cốc,
+    //      và hết than giữa sa mạc là một cú sợ chứ không phải một ngõ cụt.
+    //   4. Quái sinh ra ở trạng thái ĐANG NGỦ, thức theo bán kính tiếng động tăng dần, và
+    //      đánh cận chiến không đánh thức con nào khác — cả một lớp chơi lén miễn phí.
+    //
+    // Chỗ CỐ Ý lệch bản gốc: bản gốc đo 80 km và một ván 30-45 phút (chính tác giả đã phải
+    // làm chế độ Bite-Sized nén còn 40 km). Ở đây KHÔNG đo bằng km mà bằng CHẶNG — 3/4/5
+    // chặng theo vòng, một ván 5-10 phút, và vòng sau không dài hơn, chỉ nặng hơn. Km vẫn
+    // hiện lên đồng hồ vì đó là con số người chơi khoe với nhau.
+    //
+    // ART: dùng chung bộ hình của repo2d (charset 288x576, 3x4, bốn hướng) cho người và
+    // quái — `foe/gunner.png` vốn đã là một tay súng đội mũ vành rộng cầm khẩu lục, đúng
+    // bài không sửa gì. Nền sa mạc, xương rồng, cây khô mượn dragonproj. Hiệu ứng là bộ
+    // PVFX Foundry Thirteen (CC0). ĐOÀN TÀU thì vẽ 100% bằng mã: tra cả 710 tệp ảnh của
+    // kho, 3.363 sprite HoloCure và 1.178 khung atlas bên stardew đều không có lấy một
+    // tấm tàu hoả nào. Nguồn của từng con số nằm ngay tại chỗ dùng nó trong
+    // games/chuyen-tau/data/content.js, gắn nhãn [DR] (tra từ wiki bản gốc) hoặc
+    // [ĐỀ XUẤT] / [ĐO TRONG REPO] (tự cân, có ghi cách tính).
+    //
+    // Kiểm: node test/chuyen-tau-suite.js
+    status: "available",
+    tags: ["Bắn súng", "Nhìn từ trên xuống", "Màn ngang", "Roguelite", "Gacha", "Viễn Tây"]
   }
 ];

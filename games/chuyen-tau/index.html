@@ -1,0 +1,559 @@
+<meta charset="utf-8">
+<!--
+  CHUYẾN TÀU CUỐI
+
+  Game chạy NẰM NGANG. Không dùng screen.orientation.lock(): Safari trên iPhone không
+  cài đặt nó, và trên Android nó chỉ chạy khi đang toàn màn hình — tức người bị kẹt nhất
+  (iPhone bật khoá xoay) lại đúng là người mà API đó không giúp được. Thay vào đó có một
+  nút xoay cả vỏ game bằng CSS, chỉ hiện trên máy cảm ứng.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0b0a">
+<title>Chuyến Tàu Cuối</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🚂</text></svg>">
+
+<style>
+/*
+  touch-action đặt ở HAI CẤP, và cả hai đều cần. Trên iPhone, hai cú chạm nhanh liên
+  tiếp là lệnh PHÓNG TO của Safari — mà bắn tự ngắm chính là chạm nhanh liên tiếp. Đặt
+  trên canvas thôi chưa đủ: Safari quyết định ở cấp TRANG.
+*/
+html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+html { -webkit-touch-callout: none; }
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: #0a0908; color: #e8e2d4; overflow: hidden;
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  user-select: none; -webkit-user-select: none;
+  height: 100dvh;
+}
+
+.shell { position: fixed; inset: 0; display: flex; flex-direction: column; }
+body.force-land .shell {
+  position: fixed; top: 0; left: 0;
+  width: 100vh; height: 100vw;
+  transform-origin: 0 0; transform: rotate(90deg) translate(0, -100%);
+}
+@supports (width: 100dvh) {
+  body.force-land .shell { width: 100dvh; height: 100dvw; }
+}
+
+/* Khung game: chiếm hết chỗ, trừ vùng an toàn của tai thỏ.
+   Ở màn NẰM NGANG thì inset trái/phải mới khác 0 — đúng trường hợp của game này. */
+#stage {
+  position: relative; flex: 1 1 auto; min-height: 0; background: #0d0b0a;
+  overflow: hidden;
+}
+@supports (padding: max(0px)) {
+  #stage {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+}
+canvas#game {
+  display: block; width: 100%; height: 100%;
+  touch-action: none;            /* tắt mọi thao tác cuộn/phóng của trình duyệt */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ---- menu ---- */
+#menu {
+  position: absolute; inset: 0; display: none; flex-direction: column;
+  background: linear-gradient(180deg, #14100d, #0a0908);
+  overflow: hidden;
+}
+#menu.on { display: flex; }
+.topbar {
+  flex: 0 0 auto; display: flex; gap: 6px; padding: 8px 10px; flex-wrap: wrap;
+  background: rgba(0,0,0,0.35); border-bottom: 1px solid #241d16;
+}
+.cur { display: flex; gap: 4px; align-items: center; font-size: 12px;
+       background: #1a1512; border: 1px solid #2c231a; border-radius: 999px;
+       padding: 3px 9px; }
+.cur-i { font-size: 12px; } .cur-v { color: #e6d8b8; font-weight: 700; }
+
+.screen-b { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px 16px;
+            -webkit-overflow-scrolling: touch; }
+.nav { flex: 0 0 auto; display: flex; background: #120e0b; border-top: 1px solid #241d16; }
+.nav-i { flex: 1; text-align: center; padding: 6px 2px 7px; opacity: 0.55; cursor: pointer; }
+.nav-i.on { opacity: 1; background: #1c1611; }
+.nav-ic { font-size: 18px; } .nav-l { font-size: 10px; color: #b8ac94; }
+
+.hero { padding: 14px 4px 10px; }
+.hero-t { font-size: 26px; font-weight: 800; letter-spacing: 1px; color: #e8c86a; }
+.hero-s { color: #9a9080; font-size: 13px; margin-top: 3px; }
+
+.card { background: #16120e; border: 1px solid #2a2118; border-radius: 10px;
+        padding: 10px 12px; margin: 8px 0; }
+.card-h { font-weight: 700; color: #d8c9a4; margin-bottom: 6px; font-size: 13px; }
+.sec-h { font-weight: 700; color: #9a8f78; font-size: 12px; text-transform: uppercase;
+         letter-spacing: 0.6px; margin: 14px 2px 6px; }
+.note { color: #8d8474; font-size: 12px; margin-top: 6px; }
+.note.good { color: #8fbf72; } .note.dim { opacity: 0.7; }
+.err { color: #e08070; padding: 10px; }
+.empty-note { color: #6e675b; font-size: 12px; padding: 10px; }
+
+.btn { display: block; width: 100%; margin: 6px 0 0; padding: 9px 12px;
+       background: #241c14; color: #e0d5bd; border: 1px solid #3a2e21;
+       border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
+.btn:active { transform: translateY(1px); }
+.btn.main { background: #4a3418; border-color: #6b4c22; color: #ffe9b8; }
+.btn.danger { background: #3a1d18; border-color: #5c2c22; color: #f0b6a8; }
+.btn.off { opacity: 0.45; }
+.btn.big { padding: 13px; font-size: 15px; }
+
+.rows { display: flex; flex-direction: column; gap: 3px; }
+.row { display: flex; justify-content: space-between; font-size: 13px; }
+.row-k { color: #928872; } .row-v { color: #e0d5bd; font-weight: 600; }
+
+.who { display: flex; gap: 10px; align-items: center; }
+.who-f { font-size: 34px; }
+.who-n { font-weight: 700; color: #e8dcc0; }
+.who-r { color: #988d78; font-size: 12px; }
+.who-p { color: #c9a13a; font-size: 12px; font-weight: 700; }
+.sk-line { color: #a89c86; font-size: 12px; margin-top: 5px; }
+.sk-big { font-size: 16px; font-weight: 700; color: #e8c86a; }
+.sk-num { color: #8fc6f0; font-size: 12px; margin-top: 2px; }
+.sk-awake { color: #e8a03c; font-size: 12px; margin-top: 5px; font-weight: 600; }
+
+.car-strip { display: flex; gap: 4px; overflow-x: auto; padding: 4px 0; }
+.car-strip.big .car { min-width: 74px; }
+.car { flex: 0 0 auto; min-width: 42px; text-align: center; padding: 8px 4px;
+       background: #1d1710; border: 1px solid #2f251a; border-radius: 8px;
+       cursor: pointer; font-size: 18px; }
+.car.loco { background: #2a1f14; border-color: #4a3620; }
+.car.empty { opacity: 0.4; }
+.car-i { font-size: 20px; } .car-n { font-size: 10px; color: #9a9080; }
+.car-l { font-size: 10px; color: #c9a13a; }
+
+.char-row { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; }
+.ch { flex: 0 0 auto; width: 72px; text-align: center; padding: 6px 3px;
+      background: #17130e; border: 2px solid #2a2118; border-radius: 9px; cursor: pointer;
+      position: relative; }
+.ch.on { border-color: #c9a13a; }
+.ch.no { opacity: 0.34; }
+.ch.s4 { background: #1a1420; } .ch.s5 { background: #211a10; }
+.ch-f { font-size: 24px; } .ch-n { font-size: 11px; color: #ddd2b8; }
+.ch-s { font-size: 9px; color: #c9a13a; }
+.ch-sh { position: absolute; top: 2px; right: 4px; font-size: 9px; color: #8fc6f0; }
+
+.eq-row { display: flex; gap: 5px; }
+.eqs { flex: 1; text-align: center; padding: 7px 2px; background: #1a1510;
+       border: 1px solid #2c2219; border-radius: 8px; cursor: pointer; }
+.eqs.sel { border-color: #c9a13a; }
+.eqs.empty { opacity: 0.5; }
+.eqs-i { font-size: 17px; } .eqs-n { font-size: 10px; color: #9a9080; }
+
+.inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px; }
+.inv { text-align: center; padding: 7px 2px; background: #1a1510; border: 2px solid #2c2219;
+       border-radius: 8px; cursor: pointer; position: relative; }
+.inv.s4 { border-color: #6a4f8a; } .inv.s5 { border-color: #b0862f; }
+.inv-i { font-size: 17px; } .inv-l { font-size: 10px; color: #c9a13a; }
+.inv-w { position: absolute; top: 2px; right: 3px; font-size: 8px; color: #6fa84f; }
+
+.map { background: #16120e; border: 1px solid #2a2118; border-radius: 10px;
+       padding: 10px 12px; margin: 8px 0; }
+.map.lock { opacity: 0.5; } .map.done { border-color: #3d5a2c; }
+.map-h { display: flex; justify-content: space-between; align-items: baseline; }
+.map-n { font-weight: 700; color: #e8dcc0; font-size: 15px; }
+.map-c { color: #7d7462; font-size: 11px; }
+.map-d { color: #9a9080; font-size: 12px; margin: 4px 0 6px; font-style: italic; }
+.map-s { font-size: 12px; color: #a89c86; }
+.ok { color: #8fbf72; } .bad { color: #d88a6a; }
+
+.bank { border-width: 2px; }
+.rate { background: #100d0a; border: 1px solid #2a2118; border-radius: 8px;
+        padding: 8px 10px; margin: 7px 0; font-size: 12px; line-height: 1.6; }
+.rate b { color: #e8c86a; } .rate .dim { color: #7d7462; font-size: 11px; margin-top: 3px; }
+.pull-row { display: flex; gap: 6px; }
+.pull-row .btn { margin-top: 4px; }
+.pull-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.pr { text-align: center; padding: 9px 4px; background: #1a1510; border: 2px solid #2c2219;
+      border-radius: 9px; }
+.pr.s4 { border-color: #6a4f8a; } .pr.s5 { border-color: #d8a83a; background: #221a0e; }
+.pr-s { color: #c9a13a; font-size: 11px; } .pr-n { font-size: 12px; color: #e0d5bd; }
+.pr-d { font-size: 10px; color: #8fc6f0; }
+
+.fakebox { background: #2a1a10; border: 2px solid #7a4a1e; border-radius: 9px;
+           padding: 10px 12px; color: #f0c89a; font-size: 12.5px; line-height: 1.5; }
+.pack { background: #16120e; border: 1px solid #2a2118; border-radius: 10px;
+        padding: 9px 12px; margin: 7px 0; position: relative; }
+.pack-tag { position: absolute; top: -8px; right: 10px; background: #7a2a1e;
+            color: #ffd8c0; font-size: 10px; padding: 1px 8px; border-radius: 999px; }
+.pack-n { font-weight: 700; color: #e0d5bd; }
+.pack-g { color: #a67fd8; font-weight: 700; font-size: 15px; }
+.pack-x2 { color: #e8a03c; font-size: 11px; font-weight: 700; }
+.pack-p { color: #8d8474; font-size: 11px; }
+.ex { display: flex; align-items: center; gap: 8px; background: #16120e;
+      border: 1px solid #2a2118; border-radius: 9px; padding: 7px 10px; margin: 5px 0; }
+.ex-t { flex: 1; font-size: 13px; } .ex-l { color: #8d8474; font-size: 11px; }
+.ex .btn { width: auto; margin: 0; padding: 5px 12px; }
+
+.quest { display: flex; align-items: center; gap: 8px; background: #16120e;
+         border: 1px solid #2a2118; border-radius: 9px; padding: 7px 10px; margin: 5px 0; }
+.quest.done { border-color: #3d5a2c; } .quest.got { opacity: 0.5; }
+.q-t { flex: 1; min-width: 0; } .q-n { font-size: 12.5px; color: #ddd2b8; }
+.q-bar { height: 4px; background: #241d16; border-radius: 999px; margin: 3px 0 2px; }
+.q-fill { height: 100%; background: #6b8f4a; border-radius: 999px; }
+.q-p { font-size: 10px; color: #8d8474; }
+.q-r { font-size: 11px; color: #c9a13a; white-space: nowrap; }
+.q-ok { color: #6fa84f; font-size: 16px; }
+.quest .btn { width: auto; margin: 0; padding: 5px 12px; font-size: 12px; }
+
+.evol { display: flex; align-items: center; gap: 8px; background: #16120e;
+        border: 1px solid #2a2118; border-radius: 9px; padding: 7px 10px; margin: 5px 0; }
+.ev-i { font-size: 19px; } .ev-t { flex: 1; min-width: 0; }
+.ev-n { font-size: 12.5px; color: #ddd2b8; font-weight: 600; }
+.ev-d { font-size: 11px; color: #8d8474; }
+.ev-max { color: #c9a13a; font-size: 11px; font-weight: 700; }
+.evol .btn { width: auto; margin: 0; padding: 5px 10px; font-size: 12px; white-space: nowrap; }
+
+/* ---- cửa sổ nổi ---- */
+.pop-wrap { position: fixed; inset: 0; background: rgba(0,0,0,0.62);
+            display: flex; align-items: center; justify-content: center; z-index: 40;
+            padding: 12px; }
+.pop { background: #14110d; border: 1px solid #33291d; border-radius: 12px;
+       width: 100%; max-width: 420px; max-height: 92%; display: flex; flex-direction: column; }
+.pop.wide { max-width: 640px; }
+/* BA TẦNG: đầu / thân cuộn / chân TĨNH. Chân trang dính có nền chuyển sắc trong suốt
+   là một cái bẫy bấm nhầm vô hình — hàng đầu tiên vẫn nhìn thấy dưới thanh và trông như
+   bấm được, nhưng cú chạm rơi vào nút Đóng nằm trên. */
+.pop-h { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+         padding: 10px 12px; border-bottom: 1px solid #2a2118; }
+.pop-t { font-weight: 700; color: #e8dcc0; }
+.pop-x { background: none; border: none; color: #9a9080; font-size: 18px; cursor: pointer;
+         padding: 2px 6px; }
+.pop-b { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px;
+         -webkit-overflow-scrolling: touch; }
+.pop-f { flex: 0 0 auto; display: flex; gap: 6px; padding: 10px 0 2px;
+         border-top: 1px solid #2a2118; margin-top: 10px; }
+.pop-f .btn { margin: 0; }
+.big { font-size: 17px; font-weight: 700; text-align: center; padding: 6px 0 10px; }
+.big.win { color: #8fbf72; } .big.lose { color: #d88a6a; }
+.chips { display: flex; gap: 5px; }
+.chip { padding: 4px 12px; background: #1d1710; border: 1px solid #2f251a;
+        border-radius: 999px; font-size: 12px; cursor: pointer; }
+.chip.on { background: #4a3418; border-color: #6b4c22; color: #ffe9b8; }
+
+/* ---- hai khẩu súng trong bao tải ---- */
+.gun-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.gun { flex: 1 1 0; display: flex; align-items: center; gap: 9px; padding: 9px 11px;
+       background: #16120c; border: 1px solid #2a2118; border-radius: 9px; min-width: 0; }
+.gun.main { border-color: #6b4c22; background: #1e1810; }
+.gun.empty { opacity: 0.5; }
+.gun-i { font-size: 20px; flex: 0 0 auto; }
+.gun-i.dim { opacity: 0.45; }
+.gun-m { flex: 1 1 auto; min-width: 0; }
+.gun-n { font-weight: 700; color: #e8dcc0; font-size: 13px;
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gun-s { color: #8a8072; font-size: 11px; }
+.gun-tag { flex: 0 0 auto; font-size: 9px; letter-spacing: 0.06em; color: #7a6a4a;
+           text-transform: uppercase; }
+.gun.main .gun-tag { color: #c9a13a; }
+.btn.wide-btn { width: 100%; margin: 0 0 10px; }
+
+/* ---- quầy hàng và cửa lò ---- */
+.money-bar { display: flex; align-items: baseline; gap: 14px; padding: 8px 11px;
+             background: #16120c; border: 1px solid #2a2118; border-radius: 9px;
+             margin-bottom: 9px; }
+.money-bar b { color: #ffd06a; font-size: 17px; }
+.money-bar span { color: #9a9080; font-size: 12px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 9px; flex-wrap: wrap; }
+/* .btn nền là display:block/width:100% — hợp cho nút xếp chồng ở menu, sai hoàn toàn
+   cho một dãy tab. Ghi đè cả hai chứ không chỉ ghi đè width. */
+.btn.tab { display: inline-block; width: auto; flex: 0 0 auto;
+           margin: 0; padding: 5px 14px; font-size: 12px; background: #1a150e;
+           border: 1px solid #2a2118; color: #8a8072; }
+.btn.tab.on { background: #4a3418; border-color: #6b4c22; color: #ffe9b8; }
+.shop-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.shop-row { display: flex; align-items: center; gap: 10px; padding: 9px 11px;
+            background: #16120c; border: 1px solid #2a2118; border-radius: 9px;
+            cursor: pointer; }
+.shop-row:active { background: #241c12; }
+.shop-row.off { opacity: 0.42; }
+.sr-i { font-size: 19px; flex: 0 0 24px; text-align: center; }
+.sr-m { flex: 1 1 auto; min-width: 0; }
+.sr-n { font-weight: 700; color: #e8dcc0; font-size: 13px; }
+.sr-d { color: #8a8072; font-size: 11px; line-height: 1.35; }
+.sr-r { flex: 0 0 auto; text-align: right; }
+.sr-p { color: #ffd06a; font-weight: 700; font-size: 13px; }
+.sr-l { color: #6e675b; font-size: 10px; }
+.gauge { height: 12px; background: #16120c; border: 1px solid #2a2118; border-radius: 999px;
+         overflow: hidden; margin-bottom: 8px; }
+.gauge-f { height: 100%; transition: width 0.18s linear; }
+
+/* ---- sổ tay ---- */
+.wiki-body { display: flex; flex-direction: column; gap: 2px; }
+.wk-h { font-weight: 700; color: #e8c86a; font-size: 13px; margin: 12px 0 6px;
+        letter-spacing: 0.02em; }
+.wk-h:first-child { margin-top: 0; }
+.wk-note { color: #8a8072; font-size: 12px; line-height: 1.5; margin-bottom: 8px; }
+.wk-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+.wk-li { color: #c4bba8; font-size: 12.5px; line-height: 1.55; padding-left: 13px;
+         position: relative; }
+.wk-li::before { content: '·'; position: absolute; left: 3px; color: #6b4c22;
+                 font-weight: 700; }
+.wk-li b { color: #e8dcc0; }
+.wk-foe { padding: 9px 11px; background: #16120c; border: 1px solid #2a2118;
+          border-radius: 9px; margin-bottom: 6px; }
+.wk-foe.locked { opacity: 0.55; }
+.wk-foe-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.wk-foe-n { font-weight: 700; color: #e8dcc0; font-size: 13.5px; }
+.wk-foe-s { color: #7a7266; font-size: 11px; margin-left: auto;
+            font-variant-numeric: tabular-nums; }
+.wk-foe-d { color: #a89e8c; font-size: 12px; line-height: 1.5; margin-top: 3px; }
+.wk-sk { color: #b4ab98; font-size: 12px; line-height: 1.5; margin-top: 5px;
+         padding-left: 2px; }
+.wk-sk b { color: #e8c86a; }
+.wk-sk.pas b { color: #8fc6f0; }
+.wk-lock { color: #7a6a4a; font-size: 11px; margin-top: 5px; font-style: italic; }
+.wk-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.tag { font-size: 10px; padding: 2px 8px; border-radius: 999px; background: #1d1710;
+       border: 1px solid #2f251a; color: #8a8072; }
+.tag.good { color: #8fbf72; border-color: #33421f; }
+.tag.bad  { color: #d88a6a; border-color: #4a2a1f; }
+.tag.gold { color: #ffd06a; border-color: #4a3418; }
+
+/* ---- ba cửa sổ trong ván: màn hình nằm ngang chỉ cao 390px ---- */
+.shop-wrap, .fire-wrap, .wiki-wrap { padding: 8px 10px; }
+.shop-wrap .sec-h, .fire-wrap .sec-h {
+  text-transform: none; font-size: 11.5px; letter-spacing: 0;
+  margin: 8px 0 5px; line-height: 1.4; }
+.shop-wrap .money-bar { padding: 6px 10px; margin-bottom: 7px; }
+.shop-wrap .money-bar b { font-size: 15px; }
+.shop-wrap .shop-row, .fire-wrap .shop-row { padding: 7px 10px; }
+.shop-wrap .tabs, .fire-wrap .tabs, .wiki-wrap .tabs { margin-bottom: 7px; }
+.wiki-wrap .wk-h { margin: 10px 0 5px; }
+.wiki-wrap .wk-foe { padding: 7px 10px; margin-bottom: 5px; }
+/* Đầu cửa sổ và chân cửa sổ ĐỨNG YÊN, chỉ ruột cuộn — nếu không thì cuộn tới giữa là
+   mất cả số tiền lẫn nút đóng. */
+.pop { max-height: calc(100% - 16px); }
+
+/* ---- bao tải / tủ ---- */
+.bag-wrap { display: flex; flex-direction: column; }
+.hand-row { display: flex; gap: 6px; }
+.hand { flex: 1; text-align: center; padding: 8px 3px; background: #1a1510;
+        border: 2px dashed #33291d; border-radius: 9px; min-height: 62px; }
+.hand.empty { opacity: 0.55; }
+.hand.over { border-color: #c9a13a; background: #241c10; }
+.hand-i { font-size: 20px; } .hand-i.dim { color: #4a4238; }
+.hand-n { font-size: 10px; color: #9a9080; } .hand-c { font-size: 11px; color: #c9a13a; }
+
+.bag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+            gap: 5px; padding: 4px; border: 1px dashed #2a2118; border-radius: 9px;
+            min-height: 60px; }
+.bag-grid.small { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+.bag-grid.over { border-color: #c9a13a; background: #1a1408; }
+.cell { background: #1a1510; border: 1px solid #2c2219; border-radius: 8px;
+        padding: 6px 4px; text-align: center; cursor: grab; }
+.cell.wide { grid-column: span 2; }
+.cell.src { opacity: 0.35; }
+.cell-i { font-size: 15px; } .cell-n { font-size: 10px; color: #b8ac94;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-v { font-size: 10px; color: #c9a13a; }
+.stash-box { border: 1px dashed #2a2118; border-radius: 9px; padding: 4px; }
+.stash-box.off { opacity: 0.4; } .stash-box.over { border-color: #c9a13a; background: #1a1408; }
+.dragging { position: fixed; pointer-events: none; z-index: 90; opacity: 0.9;
+            transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+
+/* ---- thông báo ---- */
+.toasts { position: fixed; left: 50%; bottom: 12%; transform: translateX(-50%);
+          z-index: 60; display: flex; flex-direction: column; gap: 5px; align-items: center;
+          pointer-events: none; }
+.toast { background: rgba(22,18,14,0.94); border: 1px solid #3a2e21; color: #e0d5bd;
+         padding: 7px 14px; border-radius: 999px; font-size: 12.5px; max-width: 80vw;
+         text-align: center; transition: opacity 0.4s, transform 0.4s; }
+.toast.good { border-color: #4a6b32; color: #cfe8b8; }
+.toast.out { opacity: 0; transform: translateY(-8px); }
+
+/* ---- nút xoay + nhãn bản dựng ---- */
+/* Nút xoay nằm ở góc dưới phải của #stage — mà đáy #stage chính là chỗ thanh điều
+   hướng đứng. Ở bottom: 8px nó ĐÈ LÊN tab cuối cùng ("Sổ tay", và cả "Việc" trên màn
+   hẹp), tức là hai mục cuối bấm không được. Nâng lên trên thanh nav.
+   Và chỉ hiện khi máy đang DỰNG: đã nằm ngang rồi thì cái nút này vô nghĩa, nó chỉ
+   còn là một vật che mất góc màn hình suốt cả ván. */
+.rotbtn { position: absolute; right: 8px; bottom: 56px; z-index: 30; display: none;
+          background: rgba(20,16,12,0.9); border: 1px solid #3a2e21; color: #d8c9a4;
+          padding: 6px 12px; border-radius: 999px; font: inherit; font-size: 12px; }
+@media (pointer: coarse) and (orientation: portrait) { .rotbtn { display: block; } }
+.buildtag { position: absolute; left: 6px; bottom: 4px; z-index: 5; font-size: 10px;
+            color: #4a443a; pointer-events: none; }   /* KHÔNG được nuốt cú chạm nào */
+.loading { position: absolute; inset: 0; display: flex; align-items: center;
+           justify-content: center; color: #7d7462; font-size: 13px; }
+</style>
+
+<div class="shell">
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div id="menu" class="on"></div>
+    <div class="buildtag" id="buildtag"></div>
+    <button class="rotbtn" id="rotbtn">⟳ Xoay ngang</button>
+  </div>
+</div>
+
+<!-- Bốn script của hub, ĐÚNG THỨ TỰ NÀY. Thiếu session.js thì HubSession không tồn tại,
+     memberSession() trả null, isAvailable() luôn false, và lưu đám mây chết câm — không
+     lỗi, không báo, chỉ là từ hôm đó không ai đồng bộ được gì. -->
+<script src="../../js/session.js"></script>
+<script src="../../js/supabase-config.js"></script>
+<script src="../../js/supabase-auth.js"></script>
+<script src="../../js/save-sync.js"></script>
+
+<script src="data/content.js?v=20260904b"></script>
+<script src="js/meta.js?v=20260904b"></script>
+<script src="js/art.js?v=20260904b"></script>
+<script src="js/train-art.js?v=20260904b"></script>
+<script src="js/fx.js?v=20260904b"></script>
+<script src="js/game.js?v=20260904b"></script>
+<script src="js/hud.js?v=20260904b"></script>
+<script src="js/ui.js?v=20260904b"></script>
+
+<script>
+(function () {
+  'use strict';
+  // Dấu bản dựng nằm TRONG mã, và cũng nằm trên thẻ script. Trang tự so hai số: lệch
+  // nhau nghĩa là trình duyệt đang giữ một tệp js cũ trong bộ nhớ đệm, và người chơi
+  // cần biết điều đó thay vì ngồi thắc mắc vì sao bản vá không có tác dụng.
+  const BUILD = '20260904b';
+  const tag = document.getElementById('buildtag');
+  const scr = [].slice.call(document.querySelectorAll('script[src*="game.js"]'))[0];
+  const m = scr && scr.src.match(/[?&]v=([^&]+)/);
+  tag.textContent = 'b' + BUILD + (m && m[1] !== BUILD ? '  ⚠ dinh cache' : '');
+
+  const CT = window.CT;
+  const cv = document.getElementById('game');
+  const menu = document.getElementById('menu');
+  const ctx = CT.HUD.attach(cv);
+
+  CT.UI.mount(menu);
+  CT.load();
+  CT.FX.setOpt({ fx: CT.M.opt.fx, shake: CT.M.opt.shake });
+
+  // ---- chặn cử chỉ hệ thống ----
+  // touch-action ở CSS chưa đủ; Safari vẫn phóng to khi có hai cú chạm nhanh liên tiếp.
+  // Lớp JS này chỉ chặn khi cú chạm rơi TRÊN CANVAS — nút trong menu vẫn cần cú click
+  // bình thường, và nuốt touchend của chúng là nuốt luôn cái nút.
+  let lastTap = 0;
+  document.addEventListener('touchend', function (e) {
+    const t = e.target;
+    if (!t || !t.closest || !t.closest('canvas')) return;
+    const now = Date.now();
+    if (now - lastTap < 350) { e.preventDefault(); }
+    lastTap = now;
+  }, { passive: false });
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (g) {
+    document.addEventListener(g, function (e) { e.preventDefault(); }, { passive: false });
+  });
+  // Vuốt từ mép trái là lệnh "quay lại" của Safari. Chỉ chặn trong lề 20px, và chỉ trên
+  // canvas — chặn cả trang thì menu không cuộn được nữa.
+  document.addEventListener('touchstart', function (e) {
+    const t = e.target;
+    if (!t || !t.closest || !t.closest('canvas')) return;
+    const x = e.touches[0].pageX;
+    if (x > 20 && x < window.innerWidth - 20) return;
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+
+  // ---- xoay ngang bằng CSS ----
+  document.getElementById('rotbtn').addEventListener('click', function () {
+    document.body.classList.toggle('force-land');
+    // hai nhịp: ngay và sau 60ms, vì trình duyệt cập nhật kích thước không đồng bộ
+    window.dispatchEvent(new Event('resize'));
+    setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 60);
+  });
+
+  // Xin toàn màn hình ở cú chạm đầu tiên. Nằm ngang thì thanh địa chỉ ăn khoảng một
+  // phần bảy chiều cao khung — mà chiều cao là thứ khan hiếm nhất ở tư thế này.
+  // API này BẮT BUỘC phải gọi trong một cử chỉ của người dùng.
+  let askedFs = false;
+  document.addEventListener('pointerdown', function () {
+    if (askedFs) return;
+    askedFs = true;
+    const d = document.documentElement;
+    try { (d.requestFullscreen || d.webkitRequestFullscreen || function () { }).call(d); }
+    catch (e) { /* trình duyệt từ chối thì thôi, game vẫn chạy */ }
+  }, { once: true });
+
+  // ---- nối HUD với giao diện ----
+  CT.HUD.onBag   = function () { CT.UI.openBag(); };
+  CT.HUD.onStash = function () { CT.GAME.dumpAll(); };
+  CT.HUD.onPause = function () { CT.UI.openPause(); };
+  CT.HUD.onWiki  = function () { CT.UI.openWiki(); };
+  // Hai cửa sổ do THẾ GIỚI mở ra, không do nút bấm: đứng đúng chỗ rồi bấm ⓐ.
+  CT.GAME.onShop = function () { CT.UI.openShop(); };
+  CT.GAME.onFire = function () { CT.UI.openFire(); };
+  CT.GAME.onOver = function (R) { showMenu(true); CT.UI.openResult(R); };
+
+  function showMenu(on) {
+    menu.classList.toggle('on', !!on);
+    if (on) CT.UI.render();
+  }
+  CT.UI.startRun = function (mapId) {
+    CT.inRun = true;
+    CT.GAME.newRun(mapId, CT.M.active);
+    CT.HUD.resetInput();
+    showMenu(false);
+  };
+  CT.UI.home = (function (orig) {
+    return function () { CT.inRun = false; CT.GAME.reset(); showMenu(true); orig(); };
+  })(CT.UI.home);
+
+  // ---- vòng lặp ----
+  // Bước cố định 1/60 với bộ dồn, kẹp dt ở 0,25 giây và trần 240 bước mỗi khung.
+  // requestAnimationFrame gọi trong FINALLY: đặt nó ở dòng cuối thì một ngoại lệ duy
+  // nhất là chết vòng lặp vĩnh viễn, và người chơi thấy một khung hình đứng im mà không
+  // có nút nào bấm được.
+  const FIXED = 1 / 60;
+  let acc = 0, last = performance.now(), fails = 0;
+
+  function frame(now) {
+    try {
+      CT.HUD.fit();
+      let dt = (now - last) / 1000;
+      last = now;
+      if (dt > 0.25) dt = 0.25;
+      acc += dt;
+      let steps = 0;
+      while (acc >= FIXED && steps < 240) {
+        CT.HUD.poll(FIXED);
+        CT.GAME.step(FIXED);
+        acc -= FIXED; steps++;
+      }
+      if (steps >= 240) acc = 0;
+
+      // Canvas có kích thước THẬT là W*dpr; mọi thứ bên trong vẽ bằng đơn vị CSS, nên
+      // đặt lại ma trận rồi nhân dpr đúng một lần mỗi khung.
+      const d = Math.min(2, window.devicePixelRatio || 1);
+      ctx.setTransform(d, 0, 0, d, 0, 0);
+      const v = CT.GAME.view();
+      ctx.clearRect(0, 0, v.w, v.h);
+      const R = CT.GAME.R();
+      if (R) { CT.GAME.draw(ctx); CT.HUD.draw(ctx); }
+      fails = 0;
+    } catch (e) {
+      fails++;
+      if (fails === 1) console.error(e);
+      if (fails > 8) {
+        // Tầng phòng thủ cuối: tám khung liên tiếp ném lỗi thì bày lối ra thay vì để
+        // người chơi ngồi trước một màn hình chết.
+        showMenu(true);
+        CT.UI.toast('Có lỗi trong ván — đã về ga.');
+        CT.inRun = false; CT.GAME.reset();
+        fails = 0;
+      }
+    } finally {
+      requestAnimationFrame(frame);
+    }
+  }
+  requestAnimationFrame(frame);
+
+  // Lưu ngay khi rời trang — người chơi đóng tab giữa chừng không được mất tiến độ.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) CT.save(true);
+  });
+
+  showMenu(true);
+})();
+</script>
