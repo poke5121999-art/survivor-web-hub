@@ -536,7 +536,8 @@ const FX = {
   dread: 0, beat: 0, beat2: false, beatPulse: 0, rate: 1.15,
   houseT: 4, peak: 0, foeSnd: 0,
   shake: 0, hitstop: 0,
-  flash: 0, flashCol: '255,255,255',
+  flash: 0, flashTo: 0, flashCol: '255,255,255', flashNghi: 0,
+  shakeA: 0, shakeT: 0,           // trục và mốc thời gian của cú rung đang chạy
   hurtT: 0, hurtDir: 0,
   tickPulse: 0, lastTick: -1,
   // The jolt of SEEING one. It is its own channel rather than a nudge to dread, because dread is
@@ -549,12 +550,74 @@ let shakeX = 0, shakeY = 0;
 function fxReset(){
   FX.houseT = 4; FX.peak = 0; FX.foeSnd = 0;
   FX.dread = FX.beat = FX.beatPulse = FX.shake = FX.hitstop = 0;
+  FX.shakeA = FX.shakeT = 0;
   FX.beat2 = false; FX.rate = 1.15;
-  FX.flash = FX.hurtT = FX.tickPulse = FX.spotT = 0; FX.lastTick = -1;
+  FX.flash = FX.flashTo = FX.flashNghi = FX.hurtT = FX.tickPulse = FX.spotT = 0;
+  FX.lastTick = -1;
   FX.pops.length = 0;
 }
-function fxShake(n){ FX.shake = Math.min(14, Math.max(FX.shake, n)); }
-function fxFlash(a, col){ if (a > FX.flash){ FX.flash = a; FX.flashCol = col; } }
+// RUNG MÀN HÌNH — cùng một lý do với cú loé ở trên.
+//
+// Bản cũ bốc MỘT HƯỚNG NGẪU NHIÊN MỚI MỖI KHUNG HÌNH, nên cả màn nhảy tới một chỗ hoàn toàn
+// khác 60 lần một giây, suốt gần một giây liền (rung 14 tắt ở tốc độ 16/s). Đó không phải một
+// cú rung, đó là nhiễu trắng — mắt không bám được vào cái gì cả, và nó mỏi y như nhìn đèn nháy.
+//
+// Nay hướng được bốc MỘT LẦN lúc cú rung bắt đầu, rồi cả màn đưa ĐI VỀ trên đúng cái trục ấy
+// theo một nhịp 5,4Hz tắt dần. Cùng biên độ, cùng thời lượng, cùng sức nặng — nhưng mắt bám
+// được, vì bây giờ nó là một chuyển động chứ không phải một chuỗi cú giật rời rạc.
+const SHAKE_NHIP = 34;                 // rad/s ~ 5,4Hz: nhanh để ra 'rung', chậm để còn bám được
+function fxShake(n){
+  // Bốc hướng mới chỉ khi cú rung này THẬT SỰ mới. Đang rung dở mà bốc lại thì cả màn lại giật
+  // ngang một cái — đúng cái tật vừa bỏ, chỉ là thưa hơn.
+  if (FX.shake <= 0.05){ FX.shakeA = Math.random()*Math.PI*2; FX.shakeT = S.time; }
+  FX.shake = Math.min(12, Math.max(FX.shake, n));
+}
+// ---------------------------------------------------------------- CHỚP CẢ MÀN HÌNH
+//
+// Chủ dự án, 2026-09-04: "bớt chớp chớp để tránh đau mắt user".
+//
+// Cú loé cả màn là hiệu ứng đắt nhất trong trò này — nó nói 'vừa có chuyện lớn' mà không cần
+// người chơi đang nhìn đúng chỗ. Nhưng bản cũ có ba tật, và cả ba cộng lại thì nó không còn là
+// một cú loé nữa mà là một cái đèn nháy:
+//
+//   1. QUÁ SÁNG — trần 0,6, tức là hơn nửa màn phủ trắng.
+//   2. QUÁ GẤP — alpha nhảy từ 0 lên đỉnh trong ĐÚNG một khung hình. Cái làm nhức mắt không
+//      phải độ sáng mà là CẠNH LÊN dốc đứng; cùng một độ sáng ấy mà dựng trong 40ms thì mắt
+//      đọc là 'quầng sáng', dựng trong 16ms thì đọc là 'cú giật'.
+//   3. CHỒNG NHAU — ba quả bom nổ liên tiếp là ba cú loé cách nhau chừng 0,15s, tức là một cái
+//      đèn nháy quãng 6Hz. Đó đúng là dải tần khó chịu nhất, và cũng là dải mà hướng dẫn về
+//      nội dung nhấp nháy (WCAG 2.3.1: ba lần một giây) bảo đừng chạm vào.
+//
+// Cả ba sửa ở ĐÚNG MỘT CHỖ này, nên mọi nơi gọi fxFlash — kể cả bên Biệt Đội qua REPO.fxFlash —
+// đều được hưởng mà không phải sửa một dòng nào.
+const FLASH_TRAN = 0.26;   // trần alpha (cũ: 0,60)
+const FLASH_HE   = 0.45;   // hạ chung mọi lời gọi cũ: 0,5 thành 0,225 — vẫn thấy, không còn chói
+const FLASH_LEN  = 6.0;    // alpha mỗi giây lúc dựng lên: tới đỉnh trong ~43ms
+// TỐC ĐỘ TẮT không chỉ là chuyện 'đừng tắt gấp'. Nó còn là thứ quyết định một CHUỖI nổ đọc ra
+// thành cái gì: tắt trong 0,26s thì cú loé sau (bị quãng nghỉ hạ xuống còn ~0,10) rơi vào lúc cú
+// trước còn đang sáng cỡ đó — không có khe tối nào ở giữa, nên ba quả bom cho một quầng sáng dài
+// chứ không cho ba nhịp. Tắt gấp hơn là khe tối quay lại, và cùng với nó là cái đèn nháy.
+const FLASH_TAT  = 0.85;   // ~0,26s để tắt hẳn (cũ: 3,4 — chưa tới 0,07s)
+const FLASH_NGHI = 0.55;   // sau một cú loé, chừng này giây là quãng NGHỈ
+
+function fxFlash(a, col){
+  // QUÃNG NGHỈ. Cú loé thứ hai trong cùng một cái chớp mắt chỉ được một phần tư sức, rồi mạnh
+  // dần lại. Một chuỗi nổ vì thế đọc thành MỘT quầng sáng kéo dài chứ không thành đèn nháy —
+  // và cái tin cần nói ('có chuyện lớn') thì một quầng nói cũng đủ.
+  const suc = FX.flashNghi > 0 ? 0.25 + 0.75*(1 - FX.flashNghi/FLASH_NGHI) : 1;
+  const muon = Math.min(FLASH_TRAN, a * FLASH_HE * suc);
+  if (muon > FX.flashTo){ FX.flashTo = muon; FX.flashCol = col; }
+  FX.flashNghi = FLASH_NGHI;
+}
+// Trộn hai màu #rrggbb. Có mặt vì mấy nhịp nháy trong trò này đều viết theo lối BẬT/TẮT CỨNG
+// giữa hai màu, mà bật/tắt cứng chính là thứ làm mỏi mắt. Cùng hai màu ấy chuyển dần thì đọc ra
+// y hệt — vẫn là 'cái này đang nhấp nháy' — mà không còn cái cạnh vuông.
+function troMau(a, b, k){
+  if (!a || a[0] !== '#' || a.length < 7) return k > 0.5 ? b : a;
+  const doc = (t, i) => parseInt(t.substr(i, 2), 16);
+  const r = [1,3,5].map(i => Math.round(doc(a,i) + (doc(b,i) - doc(a,i)) * clamp(k, 0, 1)));
+  return 'rgb(' + r.join(',') + ')';
+}
 function fxPop(x, y, text, col, size){
   FX.pops.push({ x, y, t:0, life:1.4, text, col, size: size || 13 });
   if (FX.pops.length > 24) FX.pops.shift();
@@ -783,7 +846,12 @@ function stepFx(dt){
 
   FX.beatPulse = Math.max(0, FX.beatPulse - dt*2.6);
   FX.shake     = Math.max(0, FX.shake - dt*16);
-  FX.flash     = Math.max(0, FX.flash - dt*3.4);
+  // `flashTo` là ĐỘ SÁNG MUỐN CÓ và nó tắt dần; `flash` là độ sáng ĐANG VẼ và nó ĐUỔI THEO.
+  // Tách đôi ra chỉ để có được cái cạnh lên mềm — xem chú thích dài ở fxFlash.
+  FX.flashNghi = Math.max(0, FX.flashNghi - dt);
+  FX.flashTo   = Math.max(0, FX.flashTo - dt*FLASH_TAT);
+  FX.flash     = FX.flash < FX.flashTo ? Math.min(FX.flashTo, FX.flash + dt*FLASH_LEN)
+                                       : FX.flashTo;
   FX.hurtT     = Math.max(0, FX.hurtT - dt*1.6);
   FX.tickPulse = Math.max(0, FX.tickPulse - dt*3.2);
   FX.spotT     = Math.max(0, FX.spotT - dt*1.5);
@@ -1488,7 +1556,8 @@ function bikeDef(b){ return BIKE_KINDS[b.kind]; }
 function bikeValue(b){ return b.items.reduce((a,l)=> a + (l.gone?0:l.value), 0); }
 function bikeFits(b, l){
   const d = bikeDef(b);
-  return d.slots > 0 && b.items.length < d.slots && l.value < CART_MAX_VALUE;
+  return d.slots > 0 && b.items.length < d.slots &&
+         (loaiTruTranGia(l) || l.value < CART_MAX_VALUE);
 }
 // Tầm leo lên xe HẸP HƠN tầm nhặt đồ, và cố ý.
 //
@@ -1540,6 +1609,24 @@ const PRY_REACH = 2.2*TILE;   // how far in front of you the bar reaches for a j
 // Lay l.value chu khong phai l.value0: mon vua bi me mot goc gia con 18.000 thi cho
 //   len xe duoc that - gia tri no dang co moi la thu quan trong.
 const CART_MAX_VALUE  = 20000;
+
+// NGOẠI LỆ DUY NHẤT: BỊCH TIỀN QUÁI RƠI RA (`l.fromFoe`) thì bao nhiêu cũng lên xe được.
+//
+// Chủ dự án, 2026-09-04: "với bịch tiền dù cost bao nhiêu vẫn nên nhét vừa xe".
+//
+// Luật trần giá trị ở trên vẫn đúng nguyên vẹn cho ĐỒ ĐẠC TRONG NHÀ. Lý do của nó là lý do về
+// cái NHÀ: món càng đắt thì càng phải tự tay ôm về, và đó là cách trò này bắt bạn trả giá cho
+// một ván lãi to. Nhưng thứ rơi ra từ xác một con quái không phải đồ đạc trong nhà — nó là
+// PHẦN THƯỞNG CHO MỘT TRẬN ĐÁNH, và trận đánh ấy bạn đã trả giá xong rồi, bằng máu.
+//
+// Cái giá của việc quên ngoại lệ này rất cụ thể: hạ con Kẻ húc là việc khó nhất trong một căn
+// nhà, phần thưởng của nó thường vượt trần, nên phần thưởng cho việc khó nhất hoá ra lại là
+// một món KHÔNG chất lên xe được — bạn phải ôm nó về, đi chậm, hai tay bận, giữa một căn nhà
+// vừa nghe thấy tiếng đánh nhau. Luật đang phạt đúng cái nó nên thưởng.
+//
+// Chỉ có hai chỗ gắn cờ này: xác quái (dropFoeLoot) và tấm gương vỡ (breakMirror). Cả hai đều
+// là thứ bạn phải đánh mới có.
+function loaiTruTranGia(l){ return !!(l && l.fromFoe); }
 
 // ============================================================ cửa giữa các phòng
 // A door leaf in every opening between two rooms.
@@ -2581,7 +2668,7 @@ function makeCart(x,y){
 function cartLoad(cart){ return cart.items.reduce((a,l)=> a + (l.gone?0:l.mass), 0); }
 function cartValue(cart){ return cart.items.reduce((a,l)=> a + (l.gone?0:l.value), 0); }
 function cartFits(cart, l){
-  return cart.items.length < CART_SLOTS && l.value < CART_MAX_VALUE;
+  return cart.items.length < CART_SLOTS && (loaiTruTranGia(l) || l.value < CART_MAX_VALUE);
 }
 
 // ---- wall segments (merged runs) for the visibility polygon
@@ -3982,7 +4069,9 @@ function dropHeld(p){
       toast('Chất lên thùng: ' + money(l.value) + ' (' + b.items.length + '/' + bikeDef(b).slots + ')');
       return;
     }
-    toast(l.value >= CART_MAX_VALUE
+    // Không nói "đắt quá" về món ĐƯỢC MIỄN trần: với nó thì lý do duy nhất không lên được là
+    // hết chỗ, và nói sai lý do còn tệ hơn không nói gì — người chơi sẽ đi thả bớt đồ khác.
+    toast(!loaiTruTranGia(l) && l.value >= CART_MAX_VALUE
       ? 'Món ' + money(l.value) + ' — đắt quá, phải ôm tay'
       : 'Thùng sau đầy rồi');
     break;
@@ -3995,7 +4084,7 @@ function dropHeld(p){
       toast('Chất lên xe: ' + money(l.value) + ' (' + cart.items.length + '/' + CART_SLOTS + ')');
       return;
     }
-    toast(l.value >= CART_MAX_VALUE
+    toast(!loaiTruTranGia(l) && l.value >= CART_MAX_VALUE
       ? 'Món ' + money(l.value) + ' — đắt quá, phải ôm tay. Xe chỉ chở dưới ' + money(CART_MAX_VALUE)
       : 'Xe đầy rồi');
   }
@@ -5142,7 +5231,10 @@ function meleeSwing(p, ang){
                              p.y + Math.sin(p.dir)*MELEE_R*0.55,
            { scale: 0.8, ang: p.dir, alpha: duoi ? 0.45 : 1,
              fps: ((window.REPO_SKIN && REPO_SKIN.vfxN('crescent-slash')) || 10) / MELEE_T });
-  if (duoi && S.time - (p.tiredMsgT || -9) > 5){
+  // Dòng nhắc này là nhắc NGƯỜI CHƠI về thanh thể lực của chính họ. Đồng đội cũng đuối tay
+  // (cùng một luật), nhưng bắn cái dòng ấy ra khi Tổ 3 vung hụt ở phòng bên thì nó đọc thành
+  // "thể lực CỦA BẠN đang cạn" — một câu sai, ngay giữa lúc người chơi đang cần tin đúng.
+  if (duoi && p === S.player && S.time - (p.tiredMsgT || -9) > 5){
     p.tiredMsgT = S.time;
     toast('Đuối tay — đánh nhẹ và chậm hẳn. Đứng thở một nhịp đã.');
   }
@@ -6351,19 +6443,59 @@ function carDrawOffset(){
 }
 // And where the PLAYER is drawn: stepping out of the back on the way in, climbing in on the way
 // out. Returns null when they are inside the van and should not be drawn at all.
+// TÀNG HÌNH THÌ PHẢI MỜ ĐI. Chủ dự án, 2026-09-04: "skill tàng hình nên fade out char nhìn
+// cho thực tế".
+//
+// Trước bản này `invisT` là một trường HOÀN TOÀN VÔ HÌNH theo nghĩa xấu: quái thôi đuổi, thôi
+// đánh, thôi nhắm — mà trên màn hình không có một điểm ảnh nào đổi. Người chơi bấm một chiêu
+// hồi 24 giây rồi phải tin rằng nó đã chạy.
+//
+// Hình dạng của nó, và ba mốc đều có việc:
+//   TAN (0,3s đầu)  — mờ nhanh xuống đáy. Đủ nhanh để đọc ra là "vừa biến mất", không nhanh
+//                     tới mức nhìn như một khung hình bị rớt.
+//   ĐÁY             — KHÔNG phải 0. Người chơi vẫn phải lái được cái thân ấy, mà một cái thân
+//                     trong suốt hoàn toàn giữa một căn nhà tối thì không lái được. Đồng đội
+//                     mờ sâu hơn (bạn không lái họ) nhưng vẫn còn để bạn biết họ ở đâu.
+//   HIỆN LẠI (0,6s cuối) — mờ dần NGƯỢC lên. Đây là mốc đáng giá nhất: nó là cái đồng hồ đếm
+//                     ngược duy nhất của chiêu này. Không có nó thì tàng hình hết hạn giữa
+//                     một đám quái mà không báo trước một tiếng nào.
+const INVIS_TAN   = 0.30;   // giây để mờ hẳn đi
+const INVIS_HIEN  = 0.60;   // và mấy giây cuối thì hiện dần lại
+// ĐÁY LÀ ĐÁY, KHÔNG PHẢI SỐ KHÔNG. Chủ dự án nói lại cho rõ, 2026-09-04: "fade out char nhưng
+// vẫn mờ mờ chứ không mất hẳn nha". Đúng, và có hai lý do rời nhau cùng dẫn tới đó:
+//   — LÁI ĐƯỢC. Một cái thân trong suốt hoàn toàn giữa một căn nhà tối là một cái thân không
+//     lái được; chiêu này để trốn, không phải để mất quyền điều khiển.
+//   — ĐỌC ĐƯỢC LÀ MÌNH. Bóng mờ ấy còn phải nói 'đây vẫn là tôi, và tôi đang quay mặt hướng
+//     kia' — hướng nhìn là thứ quyết định cú đánh tiếp theo.
+const INVIS_DAY   = 0.30;   // đáy của người chơi — mờ hẳn, nhưng nhìn là thấy
+const INVIS_DAY_M = 0.20;   // đáy của đồng đội — mờ sâu hơn (bạn không lái họ), vẫn còn thấy
+function alphaTangHinh(a, day){
+  const t = (a && a.invisT) || 0;
+  if (t <= 0) return 1;
+  const san = day == null ? INVIS_DAY : day;
+  // `invisT` đếm NGƯỢC về 0, nên mấy giây cuối chính là lúc t nhỏ.
+  if (t < INVIS_HIEN) return mix(1, san, t / INVIS_HIEN);
+  // Lúc mới bấm thì chưa biết chiêu dài bao nhiêu — chỉ biết t đang lớn. Dùng `invisT0` mà
+  // chiêu ghi lại lúc cast; thiếu nó thì coi như đã tan xong, vì thà mờ sớm còn hơn không mờ.
+  const t0 = (a && a.invisT0) || 0;
+  if (t0 > 0 && t0 - t < INVIS_TAN) return mix(1, san, (t0 - t) / INVIS_TAN);
+  return san;
+}
+
 function playerDrawPos(){
   const p = S.player, c = S.cut;
-  if (!c) return { x:p.x, y:p.y, alpha:1 };
+  const mo = alphaTangHinh(p);
+  if (!c) return { x:p.x, y:p.y, alpha: mo };
   const off = carDrawOffset();
   const cx = S.car.x + off.dx, cy = S.car.y + off.dy;
   if (c.kind === 'arrive'){
     if (c.t < CUT_STEP_OUT[0]) return null;
     const k = ease(span(c.t, CUT_STEP_OUT[0], CUT_STEP_OUT[1]));
-    return { x: mix(cx, p.x, k), y: mix(cy, p.y, k), alpha: Math.min(1, k*2.2) };
+    return { x: mix(cx, p.x, k), y: mix(cy, p.y, k), alpha: Math.min(1, k*2.2) * mo };
   }
   const k = ease(span(c.t, 0, CUT_DOOR_SHUT[0] + 0.18));
   if (k >= 1) return null;
-  return { x: mix(p.x, cx, k), y: mix(p.y, cy, k), alpha: 1 - k*0.4 };
+  return { x: mix(p.x, cx, k), y: mix(p.y, cy, k), alpha: (1 - k*0.4) * mo };
 }
 
 // The card. Name of the place first, because knowing where you have been dropped is the one thing
@@ -6771,6 +6903,38 @@ const MATE_FUMBLE    = 0.09;      // per second, while carrying: they put it dow
 const MATE_BREATHER  = [1.6, 4.0]; // and they stand about after every delivery
 const MATE_NAMES     = ['Tổ 2', 'Tổ 3', 'Tổ 4'];
 
+// ---------------------------------------------------------------- ĐÁNH TRẢ
+//
+// Chủ dự án, 2026-09-04: "bot bị quái vây chưa biết đánh lại à, kiểu như gnom yếu xìu mà cũng kẹt".
+//
+// Đúng, và tệ hơn cái tên gọi: đồng đội KHÔNG HỀ CÓ đường nào để đánh. `meleeSwing` từ đầu tới
+// giờ chỉ được gọi cho `S.player`, và AI của họ có đúng một phản ứng với con quái — chạy. Với
+// một con Gnome (18 máu, đòn 5, gần như vô hại) thì nước đi ấy không bao giờ kết thúc: cú giẫm
+// chỉ áp cho người chơi (xem stepStomp), nên một con bot đứng cạnh một con gnome KHÔNG CÓ CÁCH
+// NÀO làm nó biến mất. Ba con gnome dồn vào góc là một con bot mất tích tới hết tầng, và cứ mỗi
+// vòng lặp nó lại thả món đồ đang vác xuống.
+//
+// Nhưng họ vẫn phải DỞ HƠN BẠN, vì "3 con bot ngu ngu" là chủ ý từ đầu và một đồng đội đánh
+// giỏi là một đồng đội chơi hộ ván đấu. Nên luật là CHẠY TRƯỚC, ĐÁNH SAU, và chỉ đánh trong
+// đúng hai trường hợp:
+//
+//   1. Con quái ẤY YẾU (máu tối đa dưới MATE_FIGHT_HP). Một người bị con lùn làm vườn dồn vào
+//      góc thì đánh con lùn, không chạy vòng quanh nhà. Ngưỡng 40 phủ đúng Gnome (18) và Bom
+//      con (26); Kẻ bắn (110) và Kẻ húc (160) nằm ngoài, nên với hai con đó họ vẫn chỉ biết
+//      chạy — đúng như trước.
+//   2. CHẠY KHÔNG ĂN THUA. Chạy liền MATE_FIGHT_AFTER giây mà con quái vẫn dính trong tầm với
+//      thì nghĩa là không còn đường nào — bị kẹt góc, hoặc bị vây. Lúc đó quay lại đánh là
+//      nước đi duy nhất còn lại, kể cả với con to.
+//
+// Sức đánh: MATE_STR 34 x MELEE_STR 0.47 = 16 sát thương. Hai nhát hạ một con Gnome hay một
+// quả Bom con; bảy nhát mới xong Kẻ bắn và mười nhát mới xong Kẻ húc. Nghĩa là họ dọn được
+// đúng cái thứ đang làm phiền họ, và không bao giờ thay bạn xử lý một mối đe doạ thật.
+const MATE_STAM        = 60;    // ít hơn người chơi (100): họ đuối tay sớm hơn
+const MATE_STAM_REGEN  = 13;    // và hồi chậm hơn (người chơi 16)
+const MATE_FIGHT_R     = 30;    // trong ngần này thì cân nhắc quay lại đánh
+const MATE_FIGHT_AFTER = 1.4;   // chạy liền chừng này giây mà nó vẫn bám sát thì quay lại
+const MATE_FIGHT_HP    = 40;    // máu tối đa dưới mức này thì đánh luôn, không thèm chạy
+
 // What they say, drawn as a speech bubble over their head rather than as a toast.
 //
 // WHY a bubble and not the message line: the message line is where the GAME talks to you — a pad
@@ -6790,7 +6954,10 @@ const MATE_CHAT = {
   flee:   ['😱', 'chạy!', '💀', 'ối', 'nó tới kìa', '🏃‍♂️💨', 'không không không'],
   head:   ['🪦', 'còn cái đầu nè', 'chờ tí, tui tới', '😰', 'đừng chết nha'],
   drop:   ['😵', 'ơ, rơi mất', '🙃', 'tay tui sao vậy'],
-  hurt:   ['🤕', 'đau!', '😖', 'ai đánh tui vậy']
+  hurt:   ['🤕', 'đau!', '😖', 'ai đánh tui vậy'],
+  // Đánh trả là việc HIẾM và là việc ĐÁNG THẤY: nó có nghĩa là con bot ấy đã hết đường chạy.
+  // Một câu thoại ở đúng chỗ đó rẻ hơn bất kỳ chỉ báo nào trên HUD.
+  fight:  ['🔦💥', 'lại đây!', 'cút!', '😤', 'ăn đèn này', 'tránh ra!']
 };
 const MATE_COLS      = [
   { body:'#5c6f8a', rim:'#b9cbe0', torch:'#ffe0a0' },
@@ -6813,6 +6980,12 @@ function makeMate(i, x, y){
     x, y, dir: Math.random()*Math.PI*2,
     hp: MATE_HP, hpMax: MATE_HP, str: MATE_STR, speed: MATE_SPEED,
     held: null, down: false, hurt: 0, hit: 0, kx: 0, ky: 0, wob: Math.random()*7,
+    // Mấy trường của CÚ VUNG. Chúng phải có mặt ở đây chứ không mọc ra lúc chạy: meleeSwing()
+    // đọc `p.stam` và `p.stam || 0` cho ra 0, tức là MỌI cú vung của đồng đội đều bị tính là
+    // "đuối tay" — nửa sát thương và nguội lâu gấp rưỡi — một cách âm thầm và vĩnh viễn.
+    stam: MATE_STAM, stamMax: MATE_STAM,
+    swingCd: 0, swingT: 0, swingDir: 0, stunT: 0,
+    fightT: 0,                           // đã chạy bao lâu mà con quái vẫn dính trong tầm với
     riding: null, pushing: false,        // đồng đội cũng lái xe và đẩy xe được như người chơi
 
     // "ngu ngu", in four numbers: a reaction delay, a chance of dithering, a plan that is only
@@ -7181,6 +7354,11 @@ function stepMates(dt){
     a.hit = Math.max(0, a.hit - dt);
     a.sayT = Math.max(0, a.sayT - dt);
     a.bubbleT = Math.max(0, a.bubbleT - dt);
+    // Cùng ba đồng hồ mà người chơi có (xem stepPlayer), vì họ dùng chung meleeSwing().
+    a.swingCd = Math.max(0, (a.swingCd || 0) - dt);
+    a.swingT  = Math.max(0, (a.swingT  || 0) - dt);
+    a.stunT   = Math.max(0, (a.stunT   || 0) - dt);
+    a.stam = Math.min(a.stamMax || MATE_STAM, (a.stam || 0) + MATE_STAM_REGEN*dt);
     if (a.bubbleT <= 0) a.bubble = '';
     if (a.kx || a.ky){
       moveEnt(a, a.kx*dt, a.ky*dt, 8);
@@ -7221,6 +7399,24 @@ function stepMates(dt){
       // Drop anything heavy — except a head. They will not leave a colleague on the floor, which
       // is the one thing about them that is not dumb.
       if (a.held && !a.held.isHead && a.held.mass > 20) dropHeld(a);
+      // ĐÁNH TRẢ. Xem chú thích dài ở MATE_FIGHT_HP: chạy trước, đánh sau, và chỉ đánh khi
+      // con quái ấy yếu hoặc khi chạy đã chứng minh là không ăn thua.
+      //
+      // `fightT` đếm thời gian con quái DÍNH TRONG TẦM VỚI, không phải thời gian chạy. Hai
+      // thứ đó khác nhau: chạy mười giây mà cắt được đuôi thì không sao, còn chạy một giây
+      // rưỡi mà nó vẫn ở cách 30px thì nghĩa là không có chỗ nào để chạy tới.
+      const trongTam = th.d < MATE_FIGHT_R;
+      a.fightT = trongTam ? (a.fightT || 0) + dt : 0;
+      const yeu = th.m.hpMax != null && th.m.hpMax <= MATE_FIGHT_HP;
+      // Con ma của cặp Gương KHÔNG giết được — đánh nó chỉ để đẩy nó lùi, và meleeSwing đã
+      // làm đúng thế. Nên nó vẫn được tính là đáng đánh khi đã bị dồn, chứ không phải là
+      // một con "yếu" để xông vào.
+      if (trongTam && (yeu || a.fightT >= MATE_FIGHT_AFTER)){
+        a.dir = Math.atan2(th.m.y - a.y, th.m.x - a.x);
+        if (meleeSwing(a, a.dir)) mateChat(a, 'fight');
+        a.noise = MELEE_NOISE;
+        continue;                        // đứng lại mà đánh: vừa chạy vừa vung là không trúng
+      }
       a.fleeT -= dt;
       if (a.fleeT <= 0){
         const base = Math.atan2(a.y-th.m.y, a.x-th.m.x);
@@ -7233,6 +7429,11 @@ function stepMates(dt){
           const sc = (clear ? 10 : 0) - Math.abs(i)*0.5;
           if (sc > bestScore){ bestScore = sc; best = ang; }
         }
+        // KHÔNG CÓ LÀN NÀO THÔNG (`bestScore < 0`): cả bảy hướng đều đâm vào tường, tức là
+        // đang kẹt góc. Trước đây nhánh này vẫn trả về `base` — chạy thẳng vào bức tường sau
+        // lưng — và con bot ép mình vào đó cho tới hết tầng. Nay nó tính là "chạy không ăn
+        // thua" ngay lập tức, nên vòng sau sẽ quay lại đánh.
+        if (bestScore < 0) a.fightT = MATE_FIGHT_AFTER;
         a.fleeA = best; a.fleeT = 0.7;
         mateChat(a, 'flee');
       }
@@ -7550,6 +7751,11 @@ function drawMates(c){
       }
     }
     c.save(); c.translate(a.x, a.y);
+    // Đồng đội cũng bấm Tàng Hình được (xem mateCast bên Biệt Đội), nên họ cũng phải mờ đi —
+    // và mờ sâu hơn bạn, vì bạn không cần lái họ.
+    const moA = alphaTangHinh(a, INVIS_DAY_M);
+    const a0m = c.globalAlpha;
+    if (moA < 1) c.globalAlpha = a0m * moA;
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0, 8, 9, 4, 0, 0, Math.PI*2); c.fill();
     const skin = window.REPO_SKIN && REPO_SKIN.crew(c, a, false);
@@ -7563,6 +7769,16 @@ function drawMates(c){
       c.strokeStyle = a.col.rim; c.lineWidth = 1.2; c.stroke();
     }
     if (!mLamp){ c.fillStyle = a.col.torch; c.fillRect(5.5, -1.4, 4.5, 2.8); }
+    // CÚ VUNG CỦA ĐỒNG ĐỘI. Cùng vệt quét với người chơi (xem drawPlayer), nhỏ hơn một
+    // chút và nhạt hơn một chút. Thiếu nó thì cả cái luật đánh trả là vô hình: con quái ở
+    // phòng bên tự nhiên mất máu rồi chết, mà không có gì trên sàn nói là ai vừa làm điều đó.
+    const msw = (a.swingT || 0) / MELEE_T;
+    if (msw > 0){
+      c.globalAlpha = msw * 0.55 * moA;
+      c.strokeStyle = a.col.torch; c.lineWidth = 2.2;
+      c.beginPath(); c.arc(0, 0, MELEE_R*0.62, -MELEE_HALF, MELEE_HALF); c.stroke();
+    }
+    c.globalAlpha = a0m;
     c.restore();
   }
 }
@@ -8518,8 +8734,8 @@ function markExplored(){
 function draw(){
   const cv = CV(), c = cv.getContext('2d');
   if (FX.shake > 0.05){
-    const a = Math.random()*Math.PI*2;
-    shakeX = Math.cos(a)*FX.shake; shakeY = Math.sin(a)*FX.shake;
+    const ph = Math.sin((S.time - FX.shakeT) * SHAKE_NHIP) * FX.shake;
+    shakeX = Math.cos(FX.shakeA)*ph; shakeY = Math.sin(FX.shakeA)*ph;
   } else { shakeX = shakeY = 0; }
   c.setTransform(1,0,0,1,0,0);
   c.globalCompositeOperation = 'source-over';
@@ -9863,7 +10079,10 @@ function drawFoeOne(c, m, dIn){
     // Nhap trang mot nhip khi vua an don. Bot dong doi da co cai nay tu lau (a.hurt), con
     // quai thi khong - nen ban trung mot con quai la mot viec khong de lai dau vet gi tren
     // man hinh. Day la nua con lai cua bai "ban yeu + giay qua", nua kia la con so sat thuong.
-    c.fillStyle = (m.flash || 0) > 0 ? '#ffe4d8' : d.col;
+    // Nhịp nháy trắng lúc ăn đòn: TẮT DẦN chứ không tắt phụt. Bắn liên thanh vào một con quái
+    // là bật/tắt một mảng trắng chừng hai lần mỗi giây, và cái mảng ấy trước đây tắt trong đúng
+    // một khung hình.
+    c.fillStyle = troMau(d.col, '#ffe4d8', (m.flash || 0) / 0.14);
     // Co bo hinh pixel thi ve bang hinh (sprites.js), khong thi roi ve dang khoi cu.
     if (window.REPO_SKIN && REPO_SKIN.foe(c, m, d)){ if (coTay) drawArms(c, m, d); c.restore(); return; }
     if (m.type === 'rook'){
@@ -9914,9 +10133,12 @@ function drawFoeOne(c, m, dIn){
     if (m.planted){
       // Đã áp sát và đang đếm ngược. Vòng nhấp nháy nhanh dần chính là cái đồng hồ, và nó vẽ đúng
       // bằng bán kính nổ chia bốn — đủ để nói 'đứng đây là dính' mà không che mất căn phòng.
-      const ph = Math.sin(S.time * (m.fuse < 0.35 ? 34 : 18)) * 0.5 + 0.5;
-      c.strokeStyle = `rgba(255,${120 + ph*90|0},60,${0.55 + ph*0.4})`;
-      c.lineWidth = 1.6 + ph*1.4;
+      // Nhịp: 2,4Hz lúc thường và 1,3Hz lúc sắp nổ — cũ là 5,4Hz và 2,9Hz, tức là vượt ngưỡng
+      // ba lần một giây. Cái tin 'sắp rồi' nằm ở chỗ nhịp NHANH GẤP ĐÔI, mà tỉ lệ ấy giữ nguyên;
+      // chỉ có tần số nền hạ xuống, và biên độ sáng/tối thu hẹp lại.
+      const ph = Math.sin(S.time * (m.fuse < 0.35 ? 15 : 8)) * 0.5 + 0.5;
+      c.strokeStyle = `rgba(255,${140 + ph*70|0},70,${0.5 + ph*0.28})`;
+      c.lineWidth = 1.7 + ph*1.0;
       c.beginPath(); c.arc(0, 0, 13 + ph*4, 0, Math.PI*2); c.stroke();
     }
     if (m.sleep > 0){
@@ -10104,10 +10326,16 @@ function drawProjectiles(c){
       c.beginPath(); c.fillStyle = `rgba(40,30,26,${0.30*t*(1-t)*4})`;
       c.arc(b.x,b.y,b.r*(0.5+t*0.7),0,Math.PI*2); c.fill();
     } else {
-      // Ngòi đang cháy: chớp nhanh dần khi sắp hết, cùng nhịp với tiếng tick.
+      // Ngòi đang cháy: sáng dần / tối dần nhanh hơn khi sắp hết, cùng nhịp với tiếng tick.
+      //
+      // Bản cũ là một SÓNG VUÔNG 8Hz — `Math.floor(b.t*16)%2` bật tắt cứng giữa cam sáng và gần
+      // đen. Đó là cái chớp gắt nhất trong cả trò: tần số cao nhất, tương phản cao nhất, và nó
+      // chạy liên tục suốt mấy giây chứ không phải một nhịp rồi thôi.
       const con = Math.max(0, b.fuse - b.t);
-      const nhanh = con < 0.5 ? 16 : 8;
-      c.beginPath(); c.fillStyle = (Math.floor(b.t*nhanh)%2) ? '#ffb45a' : '#3a2a26';
+      const nhanh = con < 0.5 ? 15 : 8;              // rad/s → ~2,4Hz và ~1,3Hz
+      const ph = 0.5 + 0.5*Math.sin(b.t*nhanh);
+      c.beginPath();
+      c.fillStyle = `rgb(${90 + ph*165|0},${58 + ph*122|0},${44 + ph*46|0})`;
       c.arc(b.x,b.y,5,0,Math.PI*2); c.fill();
     }
   }
@@ -10181,7 +10409,11 @@ function drawVignette(c){
   if (dread > 0.05 && beat > 0){
     const bg = c.createRadialGradient(w/2,h/2,R*0.30,w/2,h/2,R*0.78);
     bg.addColorStop(0,'rgba(120,10,10,0)');
-    bg.addColorStop(1,`rgba(130,14,12,${beat*dread*0.30})`);
+    // Lúc sợ nhất nhịp tim chạy gần ba nhịp một giây, nên quầng đỏ này là thứ nhấp nháy LÂU
+    // NHẤT trong cả ván — nó chạy suốt một pha rượt đuổi chứ không phải một khoảnh khắc. Cái
+    // đang cần nói là 'có thứ đang bám sát', và VÒNG SÁNG KHÉP LẠI ở trên đã nói xong rồi;
+    // quầng này chỉ cần thở nhẹ theo, không cần đập.
+    bg.addColorStop(1,`rgba(130,14,12,${beat*dread*0.15})`);
     c.fillStyle = bg; c.fillRect(0,0,w,h);
   }
 
@@ -10228,7 +10460,7 @@ function drawVignette(c){
   }
 
   if (FX.flash > 0.002){
-    c.fillStyle = `rgba(${FX.flashCol},${Math.min(0.6, FX.flash)})`;
+    c.fillStyle = `rgba(${FX.flashCol},${Math.min(FLASH_TRAN, FX.flash)})`;
     c.fillRect(0,0,w,h);
   }
 }
@@ -10938,7 +11170,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260903f';
+const BUILD = '20260904a';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -12232,6 +12464,9 @@ window.REPO = {
   rushing(){ return !!(S.player && S.player.rushing); },
   fx(){ return { dread:FX.dread, shake:FX.shake, hitstop:FX.hitstop, flash:FX.flash,
                  hurtT:FX.hurtT, tickPulse:FX.tickPulse, spotT:FX.spotT,
+                 // `shakeA` là TRỤC của cú rung. Nó có mặt ở đây vì thứ cần canh không phải
+                 // biên độ mà là chuyện cái trục ấy ĐỨNG YÊN suốt một cú rung — xem fxShake.
+                 shakeA:FX.shakeA, flashTo:FX.flashTo,
                  pops:FX.pops.map(q=>q.text) }; },
   threat(){ return threatLevel(); },
   spawnAngel, litByTorch, spawnAnchor, breakMirror,

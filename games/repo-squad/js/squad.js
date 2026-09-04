@@ -322,6 +322,10 @@
     // Tàng Hình — invisT giờ được foeTarget đọc thật: quái bỏ qua bạn hoàn toàn.
     vanish: (p, d) => {
       p.invisT = Math.max(p.invisT || 0, d.dur);
+      // Ghi lại ĐỘ DÀI ban đầu để phần vẽ biết lúc nào là "vừa mới tan đi" và lúc nào là
+      // "sắp hiện lại" — xem alphaTangHinh() bên game.js. Không có con số này thì bộ vẽ chỉ
+      // thấy một cái đồng hồ đang đếm ngược mà không biết nó đếm từ đâu.
+      p.invisT0 = p.invisT;
       foes().forEach(f => { if (f.target === p) { f.target = null; f.alert = 0; } });
       REPO.castFx('implode', p.x, p.y, { r: TILE * 2.6, col: '190,170,240', tia: 8, dur: 0.5 });
       fx('void-implosion', p.x, p.y, { scale: 0.55 });

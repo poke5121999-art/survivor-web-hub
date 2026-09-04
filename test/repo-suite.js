@@ -2150,6 +2150,312 @@ async function meleeSuite(b) {
 }
 
 // =====================================================================
+// ĐỒNG ĐỘI BIẾT ĐÁNH TRẢ — NHƯNG CHỈ KHI HẾT ĐƯỜNG CHẠY.
+//
+// Chủ dự án, 2026-09-04: "bot bị quái vây chưa biết đánh lại à, kiểu như gnom yếu xìu mà cũng
+// kẹt". Đúng, và tệ hơn cái tên gọi: `meleeSwing` từ đầu tới giờ chỉ được gọi cho `S.player`,
+// nên đồng đội KHÔNG HỀ CÓ đường nào để đánh. Cú giẫm cũng chỉ áp cho người chơi (stepStomp),
+// nên một con bot đứng cạnh một con Gnome không có cách nào làm nó biến mất.
+//
+// Bộ này canh HAI VẾ, và vế thứ hai mới là vế dễ mục:
+//   1. Bị con YẾU vây thì đánh, và đánh cho tới khi sạch.
+//   2. Gặp con TO ở chỗ thoáng thì VẪN CHỈ BIẾT CHẠY. Đây là chỗ dễ hỏng nhất khi ai đó chỉnh
+//      MATE_FIGHT_HP lên cho "bot đỡ ngu": lúc ấy ba con bot bắt đầu dọn nhà hộ người chơi, và
+//      cả luật "3 con bot ngu ngu" — chủ ý từ đầu — biến mất mà bảng test vẫn xanh.
+async function mateFightSuite(b) {
+  results.push('\n── đồng đội: biết đánh trả, nhưng chỉ khi hết đường ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- 1. ba con Gnome vây một đồng đội ---
+  const vay = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    const a = (S.mates || [])[0];
+    if (!a) return { boQua: true };
+    S.monsters.length = 0;
+    const px = S.player.x, py = S.player.y;
+    a.x = px + T * 3; a.y = py; a.down = false; a.hp = a.hpMax;
+    for (let i = 0; i < 3; i++) {
+      const ang = i / 3 * Math.PI * 2;
+      const m = REPO.spawnFoe('gnome', a.x + Math.cos(ang) * 22 - px, a.y + Math.sin(ang) * 22 - py);
+      m.alert = 9;
+    }
+    let vung = 0; const mau0 = a.hp; const t0 = performance.now();
+    while (performance.now() - t0 < 9000) {
+      S.monsters.forEach(m => { m.alert = 9; });
+      if ((a.swingT || 0) > 0.2) vung++;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { con: S.monsters.filter(m => m.hp > 0).length, vung: vung > 0,
+             song: !a.down, mat: Math.round(mau0 - a.hp) };
+  });
+  check('dựng được cảnh: ba con Gnome vây một đồng đội', !vay.boQua);
+  check('đồng đội VUNG ĐÈN chứ không chạy vòng quanh mãi', !vay.boQua && vay.vung, 'không vung lần nào');
+  // ĐO CÁI GÌ Ở ĐÂY. Bản đầu đòi `con === 0` và nó chập chờn thật — chạy tay ra lúc 0 lúc 1,
+  // vì cú vung có văng, và một con Gnome bị đẩy ra khỏi tầm với đúng lúc thanh thể lực cạn thì
+  // phải mất thêm vài giây mới quay lại. Con số ấy là con số của CÚ VĂNG, không phải của điều
+  // đang cần chứng minh.
+  //
+  // Điều đang cần chứng minh là: đồng đội GIẾT ĐƯỢC, chứ không phải vung suông. Trước bản đánh
+  // trả, con số này luôn là 3 — mãi mãi là 3, đó chính là cái bug. Nên ngưỡng đặt ở đó, và số
+  // con còn lại vẫn in ra để một lần tụt về 2 vẫn đọc thấy ngay trên bảng.
+  check('và dọn được cái đàn ấy chứ không vung suông', !vay.boQua && vay.con < 3,
+    vay.con + '/3 con còn lại');
+  check('mà vẫn sống — Gnome đau ít, đây là con đáng đánh', !vay.boQua && vay.song,
+    'mất ' + vay.mat + ' máu');
+
+  // --- 2. gặp con TO ở chỗ thoáng thì vẫn chạy ---
+  const to = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    const a = (S.mates || [])[0];
+    if (!a) return { boQua: true };
+    S.monsters.length = 0;
+    a.hp = a.hpMax; a.fightT = 0; a.swingCd = 0; a.down = false;
+    const px = S.player.x, py = S.player.y;
+    a.x = px + T * 3; a.y = py;
+    const g = REPO.spawnFoe('gunner', a.x - px + 26, a.y - py);
+    let vung = 0, xa = 0; const t0 = performance.now();
+    while (performance.now() - t0 < 4000) {
+      g.hp = 9999; g.alert = 9;
+      if ((a.swingT || 0) > 0.2) vung++;
+      xa = Math.max(xa, Math.hypot(a.x - g.x, a.y - g.y));
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { vung: vung > 0, xa: Math.round(xa / T * 10) / 10 };
+  });
+  check('gặp Kẻ bắn ở chỗ thoáng thì KHÔNG đánh — đó là việc của bạn',
+    !to.boQua && !to.vung, to.vung ? 'nó có vung' : 'không vung lần nào');
+  check('nó chạy, và chạy được thật', !to.boQua && to.xa > 3, 'xa nhất ' + to.xa + ' ô');
+
+  // --- 3. bị dồn thì đánh cả con to ---
+  // Ghim chân con bot lại từng khung hình: đó là cái "không có chỗ nào để chạy tới" mà luật
+  // thứ hai nói tới, dựng ra mà không cần tìm một góc tường thật.
+  const don = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    const a = (S.mates || [])[0];
+    if (!a) return { boQua: true };
+    S.monsters.length = 0;
+    a.hp = a.hpMax; a.fightT = 0; a.swingCd = 0; a.down = false;
+    const px = S.player.x, py = S.player.y;
+    const gx = px + T * 3, gy = py;
+    const g = REPO.spawnFoe('gunner', gx - px, gy - py);
+    g.hp = 9999;                 // bơm MỘT LẦN ở đây, không phải trong vòng lặp — xem dưới
+    let vung = 0, mau = 0; const t0 = performance.now();
+    while (performance.now() - t0 < 5000) {
+      // ĐỌC TRƯỚC KHI BƠM MÁU LẠI. Bản đầu gán g.hp = 9999 ở đầu mỗi khung hình rồi mới đọc
+      // sát thương ở cuối vòng — tức là mỗi vòng lặp xoá sạch đúng cái con số nó định đo, và
+      // bài test báo '0 sát thương' về một cú đánh có ăn máu thật.
+      mau = Math.max(mau, 9999 - g.hp);
+      g.hp = 9999; g.alert = 9; g.x = gx; g.y = gy;
+      a.x = gx - 20; a.y = gy; a.hp = a.hpMax;      // ghim chân: hết đường lùi
+      if ((a.swingT || 0) > 0.2) vung++;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { vung: vung > 0, mau: Math.round(mau) };
+  });
+  check('nhưng bị dồn không lùi được thì nó quay lại đánh, kể cả con to',
+    !don.boQua && don.vung, don.vung ? '' : 'vẫn không vung');
+  check('và cú đánh ấy ăn máu thật', !don.boQua && don.mau > 0, don.mau + ' sát thương');
+
+  // --- 4. đuối tay của ĐỒNG ĐỘI không được nói thành đuối tay của BẠN ---
+  const nhac = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    const a = (S.mates || [])[0];
+    if (!a) return { boQua: true };
+    S.monsters.length = 0; S.message = ''; S.messageT = 0;
+    a.stam = 0;                                     // ép nó đuối tay
+    const px = S.player.x, py = S.player.y;
+    a.x = px + T * 3; a.y = py; a.down = false; a.hp = a.hpMax;
+    const m = REPO.spawnFoe('gnome', a.x - px + 20, a.y - py);
+    let thay = '';
+    const t0 = performance.now();
+    while (performance.now() - t0 < 3000) {
+      if (S.monsters[0]) { S.monsters[0].alert = 9; S.monsters[0].hp = 999; }
+      if (/\u0110u\u1ed1i tay/.test(S.message || '')) thay = S.message;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { thay };
+  });
+  check('đồng đội đuối tay thì KHÔNG bắn ra dòng nhắc thể lực của người chơi',
+    !nhac.boQua && !nhac.thay, nhac.thay || 'không có dòng nào');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('đồng đội đánh trả: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// BỊCH TIỀN LÊN ĐƯỢC XE, VÀ TÀNG HÌNH THÌ MỜ ĐI.
+//
+// Hai luật nhỏ, cùng một tật: cả hai đều là loại HỎNG MÀ KHÔNG AI THẤY. Bỏ mất ngoại lệ trần
+// giá thì không có lỗi nào, chỉ là một dòng "đắt quá, phải ôm tay" mà không ai để ý là sai;
+// bỏ mất cái mờ thì kỹ năng 24 giây hồi chiêu vẫn chạy đúng từng con số, chỉ là trên màn hình
+// không có gì đổi cả — đúng y tình trạng trước bản này.
+async function xeVaTangHinhSuite(b) {
+  results.push('\n── bịch tiền lên xe · tàng hình thì mờ ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- 1. trần giá vẫn còn, nhưng bịch tiền được miễn ---
+  const xe = await p.evaluate(() => {
+    const xeRong = { items: [] };
+    const dat  = { value: REPO.CART_MAX_VALUE + 15000 };            // cái lọ sứ trong nhà
+    const bich = { value: REPO.CART_MAX_VALUE + 15000, fromFoe: true };  // thứ con quái để lại
+    const re   = { value: 500 };
+    return { nha: REPO.cartFits(xeRong, dat),
+             quai: REPO.cartFits(xeRong, bich),
+             thuong: REPO.cartFits(xeRong, re),
+             tran: REPO.CART_MAX_VALUE };
+  });
+  check('trần giá của xe VẪN CÒN — món đắt trong nhà vẫn phải ôm tay',
+    xe.nha === false, 'trần ' + xe.tran);
+  check('nhưng thứ con quái để lại thì bao nhiêu cũng lên xe được', xe.quai === true);
+  check('và món rẻ thì vẫn lên bình thường', xe.thuong === true);
+
+  // Cờ `fromFoe` phải có thật trên đồ rơi thật, không chỉ trong bài test này.
+  const roi = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.loot.length = 0; S.monsters.length = 0; S.foeDrops = 0;
+    // KHÔNG dùng Gnome hay Bom con ở đây: cả hai đi theo đàn nên khai `noLoot` — giết bao
+    // nhiêu con cũng không rơi gì, và bài test sẽ báo hỏng về một luật hoàn toàn khác.
+    const m = REPO.spawnFoe('gunner', REPO.TILE * 2, 0);
+    for (let i = 0; i < 40 && m.hp > 0; i++) REPO.hurtFoe(m, 999);
+    await new Promise(r => setTimeout(r, 400));
+    const l = S.loot.filter(x => x.fromFoe);
+    return { rot: S.loot.length, co: l.length };
+  });
+  check('đồ quái rơi ra ngoài đời thật cũng mang cờ ấy',
+    roi.co > 0, roi.co + '/' + roi.rot + ' món có cờ');
+
+  // --- 2. tàng hình: mờ đi, chạm đáy, rồi hiện lại — và đáy KHÔNG phải số không ---
+  const mo = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    const doc = () => REPO.playerDrawPos().alpha;
+    pl.invisT = 0; pl.invisT0 = 0;
+    const thuong = doc();
+    pl.invisT = 6; pl.invisT0 = 6;
+    const vuaBam = doc();                       // vừa bấm: chưa kịp mờ
+    await new Promise(r => setTimeout(r, 600));
+    const day = doc();                          // đã tan hẳn: đáy
+    pl.invisT = 0.30; pl.invisT0 = 6;           // 0,3s cuối: đang hiện lại
+    const hienLai = doc();
+    pl.invisT = 0; pl.invisT0 = 0;
+    const xong = doc();
+    const r = (v) => Math.round(v * 100) / 100;
+    return { thuong: r(thuong), vuaBam: r(vuaBam), day: r(day),
+             hienLai: r(hienLai), xong: r(xong) };
+  });
+  check('không tàng hình thì vẽ đặc như thường', mo.thuong === 1, String(mo.thuong));
+  check('bấm xong thì MỜ ĐI thật', mo.day < mo.vuaBam - 0.2,
+    mo.vuaBam + ' -> ' + mo.day);
+  check('nhưng VẪN MỜ MỜ, không mất hẳn — còn phải lái được cái thân ấy',
+    mo.day > 0.12, 'đáy ' + mo.day);
+  check('mấy giây cuối thì hiện dần lại — đó là cái đồng hồ đếm ngược duy nhất của chiêu',
+    mo.hienLai > mo.day + 0.15 && mo.hienLai < 1, 'đáy ' + mo.day + ' -> ' + mo.hienLai);
+  check('hết chiêu thì đặc lại hoàn toàn', mo.xong === 1, String(mo.xong));
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('bịch tiền & tàng hình: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// DỊU MẮT: KHÔNG CHỚP, KHÔNG GIẬT.
+//
+// Chủ dự án, 2026-09-04: "bớt chớp chớp để tránh đau mắt user".
+//
+// Bộ này canh hai thứ, và cả hai đều là loại DỄ MỌC LẠI. Cú loé cả màn và cú rung màn là hai
+// công cụ rẻ nhất để làm một sự kiện 'đã tay hơn', nên mỗi lần thêm một cái nổ mới là một lần
+// có người gọi fxFlash(0.6) hay fxShake(20). Không có bộ canh thì cái trần lặng lẽ trôi lên
+// lại, từng chút một, và không có một lỗi nào để mà thấy.
+//
+// Điều KHÔNG canh ở đây: hai hiệu ứng ấy còn tồn tại hay không. Chúng phải còn — một cú nổ mà
+// màn hình không phản ứng gì là một cú nổ đọc như hỏng. Bộ này canh ĐỘ, không canh CÓ.
+async function matDiuSuite(b) {
+  results.push('\n── dịu mắt: cú loé và cú rung ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  for (let i = 0; i < 30; i++) {
+    if (await p.evaluate(() => REPO.S.ticks || 0)) break;
+    await p.waitForTimeout(150);
+    await p.evaluate(() => { const v = document.getElementById('veilBtn');
+      if (v && !document.getElementById('veil').hidden) v.click(); });
+  }
+
+  // --- 1. gọi loé hết cỡ, liên tục: độ sáng vẽ ra vẫn phải nằm dưới trần ---
+  const tran = await p.evaluate(async () => {
+    let dinh = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 1200) {
+      REPO.fxFlash(0.6, '255,255,255');      // to hơn mọi lời gọi thật trong mã
+      dinh = Math.max(dinh, REPO.fx().flash);
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return Math.round(dinh * 1000) / 1000;
+  });
+  check('gọi loé hết cỡ liên tục thì màn vẫn không sáng quá trần', tran <= 0.30,
+    'đỉnh ' + tran);
+  check('nhưng vẫn CÓ loé — đây là bớt chớp, không phải bỏ hiệu ứng', tran > 0.08,
+    'đỉnh ' + tran);
+
+  // --- 2. một CHUỖI nổ không được thành đèn nháy ---
+  // Đếm số lần độ sáng ĐI LÊN qua ngưỡng. Mã cũ cho đúng 5 nhịp rời nhau ở đây; mã mới cho
+  // một quầng sáng, nên chỉ có một lần vượt ngưỡng.
+  const chuoi = await p.evaluate(async () => {
+    const NGUONG = 0.14;
+    let lan = 0, tren = false, dinh = 0, ke = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 1000) {
+      const q = performance.now() - t0;
+      if (q > ke){ REPO.fxFlash(0.5, '255,190,120'); ke += 150; }   // 5 quả cách nhau 0,15s
+      const f = REPO.fx().flash;
+      dinh = Math.max(dinh, f);
+      if (f > NGUONG && !tren){ lan++; tren = true; }
+      else if (f < NGUONG * 0.7) tren = false;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { lan, dinh: Math.round(dinh * 1000) / 1000 };
+  });
+  check('năm cú nổ liền nhau đọc thành MỘT quầng sáng, không thành năm nhịp',
+    chuoi.lan <= 2, chuoi.lan + ' lần vượt ngưỡng');
+
+  // --- 3. cú rung đi trên MỘT trục, không nhảy lung tung từng khung hình ---
+  const truc = await p.evaluate(async () => {
+    REPO.fx();                                  // chắc chắn có hook
+    const cho = () => new Promise(r => requestAnimationFrame(r));
+    // đợi cú rung đang chạy dở (nếu có) tắt hẳn, để bốc được một trục mới sạch
+    for (let i = 0; i < 240 && REPO.fx().shake > 0.05; i++) await cho();
+    REPO.fxShake(11);
+    const goc = new Set();
+    let n = 0;
+    const t0 = performance.now();
+    while (performance.now() - t0 < 600) {
+      const f = REPO.fx();
+      if (f.shake > 0.05){ goc.add(Math.round(f.shakeA * 1000)); n++; }
+      REPO.fxShake(11);                         // giữ cho nó rung suốt quãng đo
+      await cho();
+    }
+    return { soTruc: goc.size, khung: n };
+  });
+  check('đo được cú rung', truc.khung > 10, truc.khung + ' khung');
+  check('cả cú rung đi trên ĐÚNG MỘT trục, không bốc hướng mới mỗi khung hình',
+    truc.soTruc === 1, truc.soTruc + ' trục khác nhau');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('dịu mắt: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 // HIỆU ỨNG VẼ BẰNG BỘ HÌNH.
 //
 // Tám tấm từ bộ pvfx-foundry (CC0), gắn vào tám sự kiện đã có sẵn. Bộ này canh đúng một
@@ -2426,7 +2732,14 @@ async function gunnerSuite(b) {
         m = REPO.spawnFoe('gunner', bx - pl.x, by - pl.y);
       }
     if (!m) return { boQua: true };
-    const iv = setInterval(() => { m.alert = 9; m.hp = 999; m.gunCd = 0; }, 16);
+    // GHIM CHÂN NÓ LẠI. Điều bài này khẳng định là "không thông tầm nhìn thì không bóp cò",
+    // chứ không phải "nó không bao giờ tìm được đường vòng" — mà đuổi thì nó vòng thật, và
+    // trong 4 giây nó vòng qua được hay không thì tuỳ hình căn nhà của hạt giống hôm ấy. Để
+    // nguyên thì bài này chập chờn theo bản đồ và nói dối cả hai chiều.
+    const gx = m.x, gy = m.y;
+    const iv = setInterval(() => {
+      m.alert = 9; m.hp = 999; m.gunCd = 0; m.x = gx; m.y = gy;
+    }, 16);
     await new Promise(r => setTimeout(r, 4000));
     clearInterval(iv);
     return { mat: Math.round(pl.hpMax - pl.hp),
@@ -2854,6 +3167,9 @@ async function lightSuite(_khongDung) {
   try { await escapeSuite(b); } catch (e) { check('pha chạy: bộ test chạy trọn', false, e.message); }
   try { await meleeSuite(b); } catch (e) { check('đòn đánh: bộ test chạy trọn', false, e.message); }
   try { await gunnerSuite(b); } catch (e) { check('Kẻ bắn: bộ test chạy trọn', false, e.message); }
+  try { await mateFightSuite(b); } catch (e) { check('đồng đội đánh trả: bộ test chạy trọn', false, e.message); }
+  try { await xeVaTangHinhSuite(b); } catch (e) { check('bịch tiền & tàng hình: bộ test chạy trọn', false, e.message); }
+  try { await matDiuSuite(b); } catch (e) { check('dịu mắt: bộ test chạy trọn', false, e.message); }
   try { await vfxSuite(b); } catch (e) { check('hiệu ứng: bộ test chạy trọn', false, e.message); }
   try { await vfxSquadSuite(b); } catch (e) { check('hiệu ứng chiêu: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
