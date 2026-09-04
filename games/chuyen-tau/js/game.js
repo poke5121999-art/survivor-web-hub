@@ -110,7 +110,7 @@
       // phải một thanh tự đầy.
       coal: 1, dryT: 0, shovels: 0,
       // ga
-      station: null, timer: 0, warned: {}, boarded: true,
+      station: null, timer: 0, warned: {}, arrWarn: {}, boarded: true,
       // tổng kết
       kills: 0, lootVal: 0, skills: 0, scrap: 0, goldEarned: 0,
       msg: '', msgT: 0, timers: [],
@@ -166,7 +166,7 @@
   function setPhase(ph) {
     R.phase = ph; R.phaseT = 0;
     if (ph === 'chay') {
-      R.station = null; R.warned = {};
+      R.station = null; R.warned = {}; R.arrWarn = {};
       R.p.onTrain = true;
     } else if (ph === 'ga') {
       R.spd = 0;
@@ -321,6 +321,21 @@
     // tới ga
     if (R.phase === 'chay') {
       R.phaseT += dt;
+
+      // BÁO TRƯỚC. Người chơi không có nút dừng tàu — tàu tự dừng — nên nếu không báo
+      // gì thì trải nghiệm là "đang bắn thì tự nhiên đứng khựng". Cái cần báo không
+      // phải là "sắp dừng" mà là "chuẩn bị nhảy xuống": ba mốc, và mốc cuối đủ sớm để
+      // kịp chạy về cuối tàu.
+      const left = CT.LEG.runSec - R.phaseT;
+      CT.LEG.arriveAt.forEach(sc => {
+        if (left <= sc && !R.arrWarn[sc]) {
+          R.arrWarn[sc] = 1;
+          say(sc >= 8 ? ('Ga phía trước — ' + sc + ' giây nữa tàu đỗ.')
+                      : ('SẮP ĐỖ — ' + sc + '. Xuống ở mép sàn.'), 1.5);
+          if (G.onSfx) G.onSfx('whistle');
+        }
+      });
+
       if (R.phaseT >= CT.LEG.runSec && R.fuel > 0) setPhase('ga');
     }
 
@@ -1775,7 +1790,18 @@
     if (R.phase === 'chay') {
       // khoá vào đoàn tàu; mũi tàu nằm ở 76% bề ngang
       tx = R.dist - (viewW / zoom()) * 0.76;
-      ty = -TA.DECK_H * 0.5 + 26;
+      // ty là MÉP TRÊN của khung, không phải tâm — nhánh 'ga' bên dưới tính đúng như vậy
+      // (p.y trừ đi nửa khung). Nhánh này trước đây gán thẳng −22 như thể đó là tâm, mà
+      // nóc toa nằm ở −96: hậu quả là 74 đơn vị trên cùng của sàn tàu bị đẩy ra ngoài mép
+      // trên, còn nửa dưới màn hình là cát trống. Người chơi đứng trên nóc toa mà nóc toa
+      // bị cắt.
+      //
+      // Căn ĐÚNG GIỮA vào sàn tàu — tức là vào chính chỗ người chơi đứng suốt cả pha
+      // này. Có thử căn vào "dải có việc xảy ra" (nóc toa xuống tới dưới đường ray) để
+      // thấy được nhiều mặt đất hơn, nhưng làm vậy thì đoàn tàu bị đẩy lên khoảng 44%
+      // chiều cao khung, và thứ người chơi nhìn suốt ván lại không nằm ở chỗ mắt nhìn
+      // vào. Đất trống phía trên là cái giá phải trả, và nó rẻ hơn.
+      ty = deckMidY() - (viewH / zoom()) * 0.5;
     } else {
       // theo người chơi, nhưng nhìn trước 22% về phía đoàn tàu để lối về luôn trong khung
       const back = R.dist - (viewW / zoom()) * 0.5;
@@ -2096,6 +2122,20 @@
     c.restore();
     c.textAlign = 'left';
   }
+
+  // Còn bao nhiêu giây nữa tàu đỗ. Trả null nếu chưa tới lúc cần báo.
+  //
+  // Đây là thứ THAY THẾ cho ý định ban đầu là dựng một cái tháp nước ở chỗ tàu sẽ đỗ để
+  // người chơi nhìn thấy ga lớn dần lên. Ý đó không dùng được: khung hình đặt mũi tàu ở
+  // 76% bề ngang, nên chỉ còn 223 đơn vị thế giới nằm trước mũi — ở 168 đơn vị mỗi giây
+  // thì đó là 1,3 giây đường ray. Mọi cột mốc đặt ở chỗ tàu SẼ đỗ đều nằm ngoài khung
+  // cho tới đúng lúc nó đã tới nơi. Nên tín hiệu phải nằm TRÊN MÀN HÌNH, không nằm
+  // trong thế giới.
+  G.arriveIn = function () {
+    if (!R || R.phase !== 'chay') return null;
+    const left = CT.LEG.runSec - R.phaseT;
+    return (left <= CT.LEG.seeAheadSec && left >= 0) ? left : null;
+  };
 
   function drawStation(c) {
     const st = R.station;

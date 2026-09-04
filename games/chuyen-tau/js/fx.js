@@ -226,17 +226,26 @@
   // toàn bộ cách làm khói trôi ngược: không cộng vận tốc âm cho hạt, chỉ đừng gắn nó vào
   // con tàu.
   F.chuff = function (x, y, speedN, ring) {
-    const n = 12 + ((Math.random() * 4) | 0);
-    const bend = 1 + speedN * 4;            // 0,12 → 0,6 khi bị bẻ ngang
+    const n = 7 + ((Math.random() * 3) | 0);
     const dark = ring != null ? ring : 0.4; // 0 trắng, 1 đen — thang Ringelmann
     const g0 = Math.round(245 - dark * 200);
     for (let i = 0; i < n; i++) {
+      // Hạt nở TỚI ĐÂU là chuyện phải kẹp lại. Bản đầu cho r2 = r × 2 × bend, mà bend
+      // lên tới 5 lúc chạy hết tốc — thành hạt bán kính 90 đơn vị, trong khi cả sàn tàu
+      // chỉ cao 96. Kết quả là một đám mây trắng nuốt trọn đầu máy: không nhìn thấy cửa
+      // lò, không thấy cabin, không thấy người đứng đâu.
+      //
+      // Cái mà tốc độ làm với luồng khói KHÔNG phải là thổi phồng nó lên đều mọi phía —
+      // mà là kéo nó về sau và dẹp nó xuống. Phần kéo về sau đã có sẵn miễn phí: hạt
+      // đứng yên trong thế giới còn khung hình chạy theo tàu, nên nó tự trôi ngược.
+      // Nên ở đây chỉ cần cho nó nở vừa phải.
+      const r0 = 4 + Math.random() * 3;
       part({ x: x + (Math.random() - 0.5) * 9, y: y + (Math.random() - 0.5) * 6,
              vx: (Math.random() - 0.5) * 26, vy: -(42 + Math.random() * 48),
              g: -34, drag: 6.3,
-             r: 5 + Math.random() * 4, r2: (5 + Math.random() * 4) * 2 * bend,
+             r: r0, r2: r0 * (1.7 + speedN * 1.1),
              life: 1.2 + Math.random() * 1.3,
-             col: g0 + ',' + (g0 - 4) + ',' + (g0 - 12), a: 0.5 });
+             col: g0 + ',' + (g0 - 4) + ',' + (g0 - 12), a: 0.30 });
     }
   };
 

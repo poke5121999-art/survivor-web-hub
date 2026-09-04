@@ -456,6 +456,38 @@
     }
 
 
+    // --- GA SẮP TỚI ---
+    // Người chơi không có nút dừng tàu, nên thứ duy nhất họ cần biết là "còn mấy giây
+    // nữa thì được nhảy xuống". Biển nằm ở mép PHẢI vì đó là hướng tàu đang đi.
+    const arr = G.arriveIn ? G.arriveIn() : null;
+    if (arr != null) {
+      const sec = Math.max(0, arr);
+      const soon = sec <= 3;
+      // Nép ở mép PHẢI thì đè lên hàng ô tay — cả rìa phải màn hình đã là nút. Dời sang
+      // CỘT TRÁI, ngay dưới dòng than: cùng một họ thông tin với "Chặng 1/3 · 0,17 km",
+      // và cột trái là chỗ duy nhất còn trống thật.
+      const bw = 104 * K, bh = 32 * K;
+      const bx0 = hx - 4 * K, by0 = dy + dr + 41 * K;
+      c.save();
+      c.globalAlpha = Math.min(1, (CT.LEG.seeAheadSec - sec) * 1.6);
+      c.fillStyle = 'rgba(14,12,10,0.82)';
+      c.fillRect(bx0, by0, bw, bh);
+      // Vạch màu bên trái là thanh tiến trình: nó ĐẦY DẦN lên khi tàu tới gần, nên đọc
+      // được bằng đuôi mắt mà không cần đọc số.
+      c.textAlign = 'left';
+      c.font = '700 ' + Math.round(12 * K) + 'px system-ui, sans-serif';
+      c.fillStyle = soon ? '#ff9a3c' : '#cfc6b4';
+      c.fillText('GA ' + R.leg + ' — đỗ sau ' + sec.toFixed(1) + 's', bx0 + 7 * K, by0 + 14 * K);
+      // Thanh ĐẦY DẦN khi tàu tới gần, đọc được bằng đuôi mắt mà không cần đọc số.
+      const k = 1 - sec / CT.LEG.seeAheadSec;
+      c.fillStyle = 'rgba(255,255,255,0.10)';
+      c.fillRect(bx0 + 7 * K, by0 + 21 * K, bw - 14 * K, 4 * K);
+      c.fillStyle = soon ? '#ff9a3c' : '#8fc6f0';
+      c.fillRect(bx0 + 7 * K, by0 + 21 * K, (bw - 14 * K) * k, 4 * K);
+      c.restore();
+      c.textAlign = 'right';
+    }
+
     // --- lời nhắn ---
     if (R.msgT > 0) {
       c.textAlign = 'center';

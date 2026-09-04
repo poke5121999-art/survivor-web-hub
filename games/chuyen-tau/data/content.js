@@ -29,10 +29,30 @@
   // mình bằng cùng một cái thước qua từng vòng. Vòng sau KHÔNG dài hơn, chỉ nặng hơn —
   // map thứ chín mà dài 25 phút là mất đúng nhóm người chơi điện thoại mình đang nhắm.
   CT.LEG = {
-    runSec: 40,          // pha tàu chạy: 40 giây phòng thủ
+    // runSec 10, không phải 40.
+    //
+    // Bản đầu để 40 giây với lý do "pha phòng thủ trên tàu". Lý do đó chỉ đúng vào BAN
+    // ĐÊM — mà ban ngày thì luật cốt lõi là KHÔNG sinh một con quái nào, nên một cú
+    // chạy ban ngày 40 giây là 40 giây đứng nhìn cát trôi qua, không có một việc gì để
+    // làm. Đó không phải là nhịp nghỉ, đó là thời gian chết.
+    //
+    // Cái giá của việc rút xuống 10: đêm gần như không còn rơi vào lúc tàu đang chạy
+    // nữa, tức là "phòng thủ trên nóc toa" sẽ biến mất. Nên vòng ngày-đêm bên dưới
+    // được thu nhỏ theo cho vừa MỘT chặng (74 giây so với chặng 72 giây) — mỗi chặng
+    // đi qua trọn một ngày và một đêm, và cái đêm đó vắt qua cả lúc chạy lẫn lúc đỗ.
+    // Không thu nhỏ vòng thì trời sẽ sáng suốt cả ván ngắn.
+    runSec: 10,
     stationSec: 62,      // pha dừng ga: 62 giây đếm ngược để xuống lục soát
-    warnAt: [30, 10, 5, 4, 3, 2, 1],  // mốc đọc còi báo, dày dần
-    kmPerLeg: 9.5,       // [DR] pháo đài bản gốc cách nhau ~10 km
+    warnAt: [30, 10, 5, 4, 3, 2, 1],  // mốc đọc còi báo lúc ĐỖ, dày dần
+
+    // Người chơi KHÔNG có nút dừng tàu — tàu tự đỗ. Nên phải báo trước, nếu không thì
+    // trải nghiệm là "đang bắn thì tàu tự nhiên đứng khựng".
+    //   seeAheadSec: còn mấy giây thì tháp nước và biển tên ga hiện ra ở mép phải.
+    //                7 giây × 168 đơn vị/giây ≈ 1.180 đơn vị — cái mốc lớn dần lên
+    //                trong khung chứ không bật ra.
+    //   arriveAt:    mốc báo bằng chữ. 5 giây đủ để chạy hết chiều dài đoàn tàu.
+    seeAheadSec: 7, arriveAt: [5],
+
     boardGrace: 1.4      // giây ân xá sau khi hết giờ, tính từ lúc chạm bậc lên tàu
     // WHY boardGrace: Lethal Company chỉ tính "mất tích" khi CỬA ĐÓNG HẲN. Một cú nước
     // rút tuyệt vọng phải có khả năng thành công, nếu không người chơi thấy bất công
@@ -51,10 +71,16 @@
   // nếu không cần".
   //
   // Một chặng ~102 giây nên chu kỳ phải nén, giữ nguyên tỉ lệ 2:1.
+  // Tổng vòng = 40 + 4 + 26 + 4 = 74 giây, so với một chặng 10 + 62 = 72 giây. Cố ý
+  // gần bằng nhau chứ không bằng chằn chặn: lệch 2 giây thì mỗi chặng trời tối ở một
+  // chỗ khác nhau một chút, nên không ván nào lặp lại y hệt ván trước.
+  //
+  // Đêm chiếm 26/74 = 35% thời gian, so với 30% của bản 113 giây trước — nhỉnh hơn một
+  // chút vì chặng đã ngắn đi, tổng thời gian phơi mặt ra trước quái vẫn giảm.
   CT.DAY = {
-    daySec: 68, nightSec: 34,
-    duskSec: 6,            // hoàng hôn: 6 giây chuyển màu, và tiếng sói tru rơi vào đây
-    dawnSec: 5
+    daySec: 40, nightSec: 26,
+    duskSec: 4,            // hoàng hôn: chuyển màu, và tiếng sói tru rơi vào đây
+    dawnSec: 4
   };
 
   // [DR] Bốn loại đêm, nhận ra bằng MÀU TRỜI chứ không bằng chữ. Số quái tăng theo đêm
@@ -139,9 +165,14 @@
     //
     // Bản đầu cho khởi đầu 0,72 bình = 1728, và hậu quả là KHÔNG chuyến nào cần tiếp
     // than lấy một lần — cái lò, cái toa than, cái xẻng, cái xác đốt được đều thành đồ
-    // trang trí. 0,34 bình = 816 thì chuyến ngắn vừa đủ đi một mạch, chuyến dài không
-    // còn đường nào khác ngoài tiếp than.
-    start: 0.34,
+    // trang trí.
+    //
+    // Cân lại lần hai sau khi chặng rút từ 40 giây xuống 10: một chặng giờ chỉ tốn
+    // 10 × 3,75 = 37,5 lúc chạy, cộng 62 × 0,35 × 3,75 = 81 lúc đỗ, tổng 119. Chuyến
+    // ngắn nhất (3 chặng) tốn 357; chuyến dài nhất (5 chặng) tốn 595. Khởi đầu 0,19
+    // bình = 456 giữ nguyên ý đồ cũ: chuyến ngắn vừa đủ đi một mạch, chuyến dài bắt
+    // buộc phải tiếp than ít nhất một lần.
+    start: 0.19,
 
     // [DR] Bản gốc đốt cả lúc dừng. Đó chính là thứ khiến "nán lại lục thêm một căn nhà
     // nữa" có giá phải trả. Cầm chừng 0,35 vì lò đứng chỉ giữ hơi, không kéo tải.

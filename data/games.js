@@ -451,7 +451,7 @@ window.HUB_GAMES = [
     tagline: "Bắn từ trên xuống, màn hình ngang. Một đoàn tàu hơi nước chạy qua sa mạc Viễn Tây đầy xác sống: tàu chạy thì bạn đi trên nóc toa mà thủ, tàu dừng ga thì xuống lục soát nhà với một cái đồng hồ đếm ngược trên đầu — và tàu chạy tiếp dù có bạn hay không. Ngày không có một con quái nào, đêm mới đổ ra, và có bốn loại đêm khác nhau. Gacha ra NGƯỜI: mười nhân vật, mỗi người một chiêu bấm được không ai trùng ai — chặn đạn, húc, móc kéo, vách chắn, thời gian chậm, gom quái, tàng hình hai bước, quay ngược bốn giây, tiêm hồi máu bấm được cả khi đang choáng, thả chó ghim quái. Ngoài ván thì nâng trang bị, nâng toa tàu, tiến hoá. Chín chuyến, ba tới năm chặng mỗi chuyến.",
     thumbnail: "assets/thumbnails/chuyen-tau.svg",
     path: "games/chuyen-tau/index.html",
-    rev: "20260904b",
+    rev: "20260904c",
     // Dựng lại Dead Rails (RCM Games, Roblox 2025) ở dạng 2D nhìn từ trên xuống. KHÔNG
     // lấy một tệp ảnh hay âm thanh nào của bản gốc; cái được lấy là LUẬT CHƠI, tra từ
     // wiki chính thức của game (qua api.php, vì fandom chặn tải trang thường).
