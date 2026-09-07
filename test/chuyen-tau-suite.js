@@ -1156,6 +1156,82 @@ async function suiteFeel(browser) {
 }
 
 // ---------------------------------------------------------------------------
+async function suiteMenuLook(browser) {
+  out.push('\n[20] Menu: chữ tiếng Việt, chân dung thật, không còn emoji thay mặt người');
+  const { ctx, page } = await open(browser, 844, 390);
+  try {
+    await page.waitForTimeout(700);   // chờ charset nạp
+
+    // --- 1. FONT HIỂN THỊ PHẢI PHỦ TIẾNG VIỆT -------------------------------
+    // Kiểm bằng DANH SÁCH TÊN chứ không bằng máy đang chạy: máy chạy bộ kiểm có thể
+    // cài đúng font hoặc không, còn LUẬT thì phải giữ ở mọi máy. Bản đầu đặt Rockwell
+    // và Georgia lên đầu chuỗi và tên game hiện ra "CHUYÊ´N TÀU CUÔ´I" — hai font ấy
+    // dừng ở Latin Extended-A, không có Ế (U+1EBE) và Ố (U+1ED0).
+    const font = await page.evaluate(() => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue('--disp').trim();
+      const fams = v.split(',').map(x => x.trim().replace(/^["']|["']$/g, ''));
+      let can = null;
+      try { can = document.fonts.check('16px ' + v, 'ẾỐỘỰỡ'); } catch (e) { }
+      return { v, first: fams[0], fams, can };
+    });
+    // Họ font có phủ ĐỦ dải Latin Extended Additional (tra bảng ký tự của từng họ).
+    const OK_VN = ['Cambria', 'Palatino Linotype', 'Noto Serif', 'Times New Roman',
+                   'Constantia', 'Charter', 'serif'];
+    // Họ font ĐẸP nhưng KHÔNG phủ — cấm đứng ở bất cứ đâu trong chuỗi, vì fallback là
+    // theo TỪNG CHỮ: chỉ cần nó đứng trước một họ có phủ là mấy chữ có dấu vẫn hỏng.
+    const BAD_VN = ['Rockwell', 'Georgia', 'Bookman Old Style', 'Baskerville',
+                    'Copperplate', 'Playbill'];
+    check('font hiển thị mở đầu bằng một họ CÓ phủ tiếng Việt',
+          OK_VN.indexOf(font.first) >= 0, font.first);
+    const bad = font.fams.filter(f => BAD_VN.indexOf(f) >= 0);
+    check('trong chuỗi font không có họ nào thiếu dấu tiếng Việt',
+          bad.length === 0, bad.length ? 'còn ' + bad.join(', ') : font.v);
+
+    // KHÔNG đo bề rộng chữ Ế để đoán xem font có phủ hay không. Đã thử: cả khi font
+    // thiếu chữ, trình duyệt vẫn trả về một bề rộng hợp lệ (của chữ thay thế), nên
+    // phép đo ấy đạt trong CẢ HAI trường hợp — một bài kiểm luôn xanh là một lời báo
+    // an toàn giả, tệ hơn không có bài kiểm nào. `font.can` ở trên chỉ để ghi lại.
+
+    // --- 2. CHÂN DUNG THẬT --------------------------------------------------
+    // Bản trước dùng emoji 🤠 cho CẢ MƯỜI người và 🔒 cho người chưa có, nên trong màn
+    // chọn người của game không có lấy một hình nào của chính game.
+    const por = await page.evaluate(async () => {
+      const c = CT.ART.portrait('man.mai', 38, 57);
+      const d = CT.ART.portrait('man.mai', 38, 57, { dim: true });
+      document.body.appendChild(c); document.body.appendChild(d);
+      await new Promise(r => setTimeout(r, 700));
+      const opaque = cv => {
+        const px = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+        let n = 0, r = 0, g = 0, b = 0;
+        for (let i = 0; i < px.length; i += 4) if (px[i + 3] > 200) { n++; r += px[i]; g += px[i + 1]; b += px[i + 2]; }
+        return { n, r: n ? r / n : 0, g: n ? g / n : 0, b: n ? b / n : 0 };
+      };
+      const a = opaque(c), bo = opaque(d);
+      c.remove(); d.remove();
+      return { a, bo };
+    });
+    check('chân dung vẽ ra hình thật, không phải một ô trống',
+          por.a.n > 200, por.a.n + ' điểm ảnh đặc');
+    check('người CHƯA CÓ vẫn ra bóng người, không phải một ổ khoá',
+          por.bo.n > 200 && Math.abs(por.bo.r - por.bo.g) < 26 && por.bo.r < 120,
+          por.bo.n + ' điểm ảnh, màu ' +
+            [por.bo.r, por.bo.g, por.bo.b].map(v => v.toFixed(0)).join(','));
+
+    // --- 3. Không còn emoji nào đứng thay mặt người -------------------------
+    const emoji = await page.evaluate(() => {
+      CT.UI.go('char');
+      const txt = document.getElementById('menu').textContent;
+      return { cow: (txt.match(/🤠/g) || []).length, lock: (txt.match(/🔒/g) || []).length,
+               por: document.querySelectorAll('#menu canvas.por').length };
+    });
+    check('không còn emoji mặt cười nào đứng thay chân dung', emoji.cow === 0,
+          emoji.cow + ' cái 🤠');
+    check('mỗi người trong danh sách có một chân dung riêng', emoji.por >= 10,
+          emoji.por + ' chân dung, ' + emoji.lock + ' con dấu khoá');
+  } finally { await ctx.close(); }
+}
+
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 (async function main() {
   const browser = await chromium.launch({
@@ -1165,7 +1241,7 @@ async function suiteFeel(browser) {
                   suiteGacha, suiteShop, suiteBag, suiteSave, suiteTouch,
                   suiteArt, suiteSafety,
                   suiteShopFlow, suiteSellFlow, suiteFuelFlow, suiteCarryFlow,
-                  suiteWiki, suiteGunFlow, suiteFeel];
+                  suiteWiki, suiteGunFlow, suiteFeel, suiteMenuLook];
   for (const s of suites) {
     try { await s(browser); }
     catch (e) { check(s.name + ' — cả bộ ném lỗi', false, String(e.message).slice(0, 160)); }

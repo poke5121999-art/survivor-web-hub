@@ -765,6 +765,36 @@
   }
   U.row = row;
 
+  // Một dòng chỉ số CÓ THANH. Danh sách khoá-giá trị căn hai mép là bố cục của màn
+  // Cài Đặt trong điện thoại — đúng chỗ để tra một con số, sai chỗ để SO hai nhân vật.
+  // Thanh thì so được bằng mắt, không cần đọc chữ.
+  //   `k` nhãn · `v` chữ hiện ra · `p` tỉ lệ đầy 0..1
+  //
+  // TÊN là `statBar` chứ không phải `bar`: trong tệp này ĐÃ CÓ một `function bar()`
+  // dựng thanh tiền ở đầu màn. Đặt trùng tên thì cả hai cùng được hoisted, cái khai
+  // báo SAU thắng, và màn chỉ số hiện ra ba dòng tiền vàng-kim-cương-ốc-vít. Không
+  // lỗi console, không cảnh báo — chỉ là sai hình.
+  function statBar(k, v, p) {
+    const r = el('div', 'row bar-row');
+    r.appendChild(el('div', 'row-k', k));
+    const w = el('div', 'bar');
+    const f = el('div', 'bar-f');
+    f.style.width = Math.max(2, Math.min(100, p * 100)) + '%';
+    w.appendChild(f);
+    r.appendChild(w);
+    r.appendChild(el('div', 'row-v', v));
+    return r;
+  }
+  U.statBar = statBar;
+
+  // Chân dung thật, cắt từ charset của chính nhân vật đó. Xem A.portrait.
+  function face(cd, have, w, h) {
+    const c = CT.ART.portrait('man.' + cd.art, w, h, have ? null : { dim: true });
+    if (!have) c.classList.add('locked');
+    return c;
+  }
+  U.face = face;
+
   // ---------------------------------------------------------------------------
   // TỔNG KẾT
   // ---------------------------------------------------------------------------
@@ -860,7 +890,20 @@
      ['wiki', '📖', 'Sổ tay']]
       .forEach(([id, ic, lb]) => {
         const t = el('div', 'nav-i' + (screen === id ? ' on' : ''));
-        t.appendChild(el('div', 'nav-ic', ic));
+        // Ô "Người" đeo CHÂN DUNG của người đang chọn thay cho một emoji mặt cười.
+        // Hai lý do, và lý do thứ hai mới là lý do thật:
+        //   1. Cái mặt cười vàng 🤠 không có mặt ở bất cứ đâu trong game — nó là hình
+        //      của hệ điều hành, và một hình của hệ điều hành nằm giữa màn hình game
+        //      là thứ làm cả màn đọc ra là một cái app.
+        //   2. Nó nói được một điều mà emoji không nói được: ĐANG CẦM AI. Trước đây
+        //      muốn biết mình đang chọn ai thì phải mở tab ra xem.
+        if (id === 'char') {
+          const w = el('div', 'nav-ic nav-por');
+          w.appendChild(CT.ART.portrait('man.' + CT.CHAR_BY_ID[M().active].art, 16, 22));
+          t.appendChild(w);
+        } else {
+          t.appendChild(el('div', 'nav-ic', ic));
+        }
         t.appendChild(el('div', 'nav-l', lb));
         // Sổ tay là một CỬA SỔ chứ không phải một trang: mở ra rồi đóng lại là về đúng
         // chỗ cũ. Tra cứu không được làm mất chỗ người ta đang đứng.
@@ -883,7 +926,9 @@
     const card = el('div', 'card');
     card.appendChild(el('div', 'card-h', 'Đang chọn'));
     const who = el('div', 'who');
-    who.appendChild(el('div', 'who-f', '🤠'));
+    const wf = el('div', 'who-f');
+    wf.appendChild(face(cd, true, 44, 66));
+    who.appendChild(wf);
     const wt = el('div', 'who-t');
     wt.appendChild(el('div', 'who-n', cd.name + '  ' + '★'.repeat(cd.star)));
     wt.appendChild(el('div', 'who-r', cd.role));
@@ -945,7 +990,8 @@
     CT.CHARS.forEach(cd => {
       const have = !!m.chars[cd.id];
       const t = el('div', 'ch s' + cd.star + (selChar === cd.id ? ' on' : '') + (have ? '' : ' no'));
-      t.appendChild(el('div', 'ch-f', have ? '🤠' : '🔒'));
+      t.appendChild(face(cd, have, 38, 57));
+      if (!have) t.appendChild(el('div', 'ch-lock', '🔒'));
       t.appendChild(el('div', 'ch-n', cd.name));
       t.appendChild(el('div', 'ch-s', '★'.repeat(cd.star)));
       if (have && m.chars[cd.id].shard) t.appendChild(el('div', 'ch-sh', '◈' + m.chars[cd.id].shard));
@@ -961,11 +1007,17 @@
 
     const card = el('div', 'card');
     card.appendChild(el('div', 'card-h', cd.name + ' — ' + cd.role));
-    const g = el('div', 'rows');
-    g.appendChild(row('Máu', Math.round(st.hp)));
-    g.appendChild(row('Sát thương', '×' + st.dmg.toFixed(2)));
-    g.appendChild(row('Tốc chạy', '×' + st.spd.toFixed(2)));
-    g.appendChild(row('Bao tải', st.bag + ' ô'));
+    const g = el('div', 'rows stats');
+    // Mốc đầy thang: lấy CAO NHẤT trong cả mười người rồi nới 10%, nên thanh đầy nghĩa
+    // là "khoẻ nhất bảng" chứ không phải một con số ai đó nghĩ ra. Nới 10% để người
+    // đứng đầu vẫn còn chỗ trống — một thanh đầy tràn đọc ra là đã tối đa, mà chỉ số
+    // còn lên được khi nâng trang bị.
+    const all = CT.CHARS.map(x => CT.statsOf(x.id));
+    const top = f => Math.max.apply(null, all.map(f)) * 1.1;
+    g.appendChild(statBar('Máu', Math.round(st.hp), st.hp / top(a => a.hp)));
+    g.appendChild(statBar('Sát thương', '×' + st.dmg.toFixed(2), st.dmg / top(a => a.dmg)));
+    g.appendChild(statBar('Tốc chạy', '×' + st.spd.toFixed(2), st.spd / top(a => a.spd)));
+    g.appendChild(statBar('Bao tải', st.bag + ' ô', st.bag / top(a => a.bag)));
     g.appendChild(row('Lực chiến', '⚡ ' + CT.money(CT.powerOf(selChar))));
     card.appendChild(g);
     b.appendChild(card);
@@ -1219,7 +1271,7 @@
       const g = el('div', 'char-row');
       CT.CHARS.forEach(cd => {
         const t = el('div', 'ch s' + cd.star);
-        t.appendChild(el('div', 'ch-f', '🤠'));
+        t.appendChild(face(cd, true, 38, 57));
         t.appendChild(el('div', 'ch-n', cd.name));
         t.appendChild(el('div', 'ch-s', '★'.repeat(cd.star)));
         on(t, 'click', () => {

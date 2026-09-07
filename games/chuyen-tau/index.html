@@ -21,6 +21,32 @@
 html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
 html { -webkit-touch-callout: none; }
 * { box-sizing: border-box; }
+/*
+  HAI HỌ CHỮ, và lý do phải có hai.
+  Chữ ĐỌC (mô tả, chỉ số, ghi chú) giữ font hệ thống: đó là font duy nhất chắc chắn
+  có đủ dấu tiếng Việt trên mọi máy, và một dấu ngã vẽ hỏng thì đẹp cỡ nào cũng vứt.
+  Chữ NHÌN (tên game, tên màn, chữ trên nút) đổi sang một họ CHÂN CÓ GÓC — đó là thứ
+  nói "đây là một tấm biển gỗ Viễn Tây" chứ không phải "đây là một mục trong danh sách".
+  KHÔNG tải font từ mạng: cả game này là file tĩnh chạy được từ file://, thêm một
+  đường dẫn ra ngoài là thêm một chỗ hỏng khi mất mạng.
+
+  ⚠ LUẬT CHỌN FONT CHO TIẾNG VIỆT — bản đầu của chính khối này đã sai và phải sửa.
+  Chuỗi đầu tiên viết ra là `Rockwell, "Roboto Slab", Georgia, …` và tên game hiện lên
+  màn hình thành "CHUYÊ´N TÀU CUÔ´I": Rockwell và Georgia KHÔNG có sẵn chữ Ế (U+1EBE)
+  và Ố (U+1ED0) — chúng dừng ở Latin Extended-A, còn tiếng Việt nằm ở Latin Extended
+  Additional (U+1EA0–U+1EF9). Trình duyệt không bỏ qua chữ thiếu; nó TỰ GHÉP lấy một
+  cái Ê rồi dán thêm dấu sắc rời bên cạnh, và kết quả nhìn như lỗi gõ chứ không như
+  lỗi font — nên không ai đi tìm nguyên nhân ở đúng chỗ.
+  Vậy: font ĐẦU chuỗi phải là font PHỦ ĐỦ TIẾNG VIỆT, không phải font đẹp nhất.
+  Cambria và Palatino Linotype kèm sẵn Windows và phủ đủ; Noto Serif là mặc định của
+  Android; Times New Roman phủ đủ và có ở gần như mọi nơi kể cả iOS. Bộ kiểm khoá lại
+  luật này bằng document.fonts.check() trên đúng hai chữ ấy.
+*/
+:root {
+  --disp: Cambria, "Palatino Linotype", "Noto Serif", "Times New Roman", serif;
+  --vien: #5a4227;      /* mép ván */
+  --dong: #c9a13a;      /* đồng thau */
+}
 body {
   margin: 0; background: #0a0908; color: #e8e2d4; overflow: hidden;
   font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -59,60 +85,145 @@ canvas#game {
 }
 
 /* ---- menu ---- */
+/*
+  NỀN. Bản trước là một mảng đen chuyển sắc — đúng nền mặc định của một cái app.
+  Đây lát ĐÚNG TẤM CÁT mà trong ván đang chạy, rồi phủ tối và ám nâu lên trên. Kết
+  quả: mở menu ra vẫn là đang ở giữa sa mạc, chỉ là trời đã tối. Ảnh nằm cùng ổ đĩa
+  (mượn của dragonproj, y như trong ván), không phải một đường dẫn ra mạng.
+  Ba lớp xếp từ trên xuống: quầng tối bốn góc · ám nâu · tấm cát lát lặp.
+*/
 #menu {
   position: absolute; inset: 0; display: none; flex-direction: column;
-  background: linear-gradient(180deg, #14100d, #0a0908);
+  background:
+    radial-gradient(125% 95% at 50% 28%, rgba(0,0,0,0) 38%, rgba(0,0,0,0.88) 100%),
+    linear-gradient(180deg, rgba(30,19,11,0.82), rgba(10,7,5,0.95)),
+    url("../dragonproj/assets/spr/BG_newgrass__c704_64_s_p6f5330d3b47e.png");
+  background-size: cover, cover, 112px 112px;
+  background-repeat: no-repeat, no-repeat, repeat;
+  image-rendering: pixelated;
   overflow: hidden;
 }
 #menu.on { display: flex; }
 .topbar {
-  flex: 0 0 auto; display: flex; gap: 6px; padding: 8px 10px; flex-wrap: wrap;
-  background: rgba(0,0,0,0.35); border-bottom: 1px solid #241d16;
+  flex: 0 0 auto; display: flex; gap: 6px; padding: 7px 10px; flex-wrap: wrap;
+  background: linear-gradient(180deg, rgba(48,33,20,0.94), rgba(16,11,7,0.94));
+  border-bottom: 2px solid #0a0705;
+  box-shadow: inset 0 1px 0 rgba(214,176,110,0.22);
 }
-.cur { display: flex; gap: 4px; align-items: center; font-size: 12px;
-       background: #1a1512; border: 1px solid #2c231a; border-radius: 999px;
+/* Thẻ tiền = một đồng xu dập, không phải cái pill bo tròn của app: viền đồng, mặt
+   lồi, và số đếm dùng chữ số ĐỀU BỀ RỘNG để nó không nhảy qua nhảy lại lúc tiền đổi. */
+.cur { display: flex; gap: 5px; align-items: center; font-size: 12px;
+       background: linear-gradient(180deg, #3d2e1c, #221810);
+       border: 1px solid #6b5028; border-radius: 4px;
+       box-shadow: inset 0 1px 0 rgba(226,190,120,0.28), 0 1px 0 #0a0705;
        padding: 3px 9px; }
-.cur-i { font-size: 12px; } .cur-v { color: #e6d8b8; font-weight: 700; }
+.cur-i { font-size: 12px; }
+.cur-v { color: #f0dca8; font-weight: 700; font-variant-numeric: tabular-nums;
+         letter-spacing: 0.3px; }
 
 .screen-b { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px 16px;
             -webkit-overflow-scrolling: touch; }
-.nav { flex: 0 0 auto; display: flex; background: #120e0b; border-top: 1px solid #241d16; }
-.nav-i { flex: 1; text-align: center; padding: 6px 2px 7px; opacity: 0.55; cursor: pointer; }
-.nav-i.on { opacity: 1; background: #1c1611; }
-.nav-ic { font-size: 18px; } .nav-l { font-size: 10px; color: #b8ac94; }
+/* Thanh dưới vẫn là thanh tab — đổi cả cách đi lại thì rủi ro lớn mà không giải
+   đúng chỗ đau. Đổi cái NHÌN: một tấm ván gỗ có mép sáng ở trên và khe chia giữa các
+   ô; ô đang mở được một ngọn đèn HẮT LÊN từ dưới chứ không phải một mảng xám. Đèn
+   hắt lên là ngôn ngữ của chính game này — cả ván chơi là chuyện đèn và bóng tối. */
+.nav { flex: 0 0 auto; display: flex;
+       background: linear-gradient(180deg, #3c2b1a, #1a1209 60%, #120c07);
+       border-top: 2px solid #0a0705;
+       box-shadow: inset 0 1px 0 rgba(214,176,110,0.25); }
+.nav-i { flex: 1; text-align: center; padding: 6px 2px 7px; opacity: 0.5;
+         cursor: pointer; border-left: 1px solid rgba(0,0,0,0.45);
+         box-shadow: inset 1px 0 0 rgba(214,176,110,0.06); }
+.nav-i:first-child { border-left: 0; box-shadow: none; }
+.nav-i.on { opacity: 1;
+            background: radial-gradient(80% 125% at 50% 118%, rgba(232,168,60,0.45), rgba(232,168,60,0) 72%);
+            box-shadow: inset 0 -2px 0 var(--dong); }
+.nav-ic { font-size: 18px; }
+/* Ô chân dung trong thanh nav cao hơn ô emoji (30 so với ~22), nên phải kéo nó lên
+   cho đỉnh đầu ngang với đỉnh emoji — nếu không thì một ô trong bảy ô tụt xuống và
+   cả hàng nhìn lệch. */
+.nav-por { height: 22px; line-height: 0; }
+.nav-por .por { margin: 0 auto; }
+.nav-l { font-size: 10px; color: #d6c4a0; font-family: var(--disp); letter-spacing: 0.3px; }
 
 .hero { padding: 14px 4px 10px; }
-.hero-t { font-size: 26px; font-weight: 800; letter-spacing: 1px; color: #e8c86a; }
-.hero-s { color: #9a9080; font-size: 13px; margin-top: 3px; }
+/* Tên game: chữ chân có góc, giãn chữ, và một cái bóng CỨNG lệch xuống dưới — dấu
+   hiệu của chữ ĐỤC vào ván. Bóng mờ toả đều là ngôn ngữ của giao diện phẳng; bóng
+   cứng lệch một hướng là ngôn ngữ của biển hiệu. */
+.hero-t { font-family: var(--disp); font-size: 30px; font-weight: 700;
+          letter-spacing: 2px; color: #efc964;
+          text-shadow: 0 2px 0 #6b3f14, 0 3px 0 rgba(0,0,0,0.55); }
+.hero-s { color: #a99c85; font-size: 13px; margin-top: 5px; font-style: italic; }
 
-.card { background: #16120e; border: 1px solid #2a2118; border-radius: 10px;
-        padding: 10px 12px; margin: 8px 0; }
-.card-h { font-weight: 700; color: #d8c9a4; margin-bottom: 6px; font-size: 13px; }
-.sec-h { font-weight: 700; color: #9a8f78; font-size: 12px; text-transform: uppercase;
-         letter-spacing: 0.6px; margin: 14px 2px 6px; }
+/* Thẻ = một tấm ván. Bốn thứ tạo ra cảm giác ván: mặt chuyển sắc (trên sáng dưới
+   tối), viền 2 điểm màu gỗ, một vạch sáng ở mép TRÊN CÙNG bên trong, và góc bo NHỎ.
+   Góc bo 10 điểm là góc của thẻ trong app; 3 điểm là góc của một miếng gỗ cắt ra. */
+.card { background: linear-gradient(180deg, rgba(54,38,23,0.94), rgba(22,16,10,0.94));
+        border: 2px solid var(--vien); border-radius: 3px;
+        box-shadow: inset 0 1px 0 rgba(214,176,110,0.20), 0 2px 0 rgba(0,0,0,0.5);
+        padding: 10px 12px; margin: 9px 0; }
+.card-h { font-family: var(--disp); font-weight: 700; color: #e4cf9e;
+          margin-bottom: 7px; font-size: 14px; letter-spacing: 0.4px;
+          border-bottom: 1px solid rgba(214,176,110,0.18); padding-bottom: 5px; }
+.sec-h { font-family: var(--disp); font-weight: 700; color: #b3a184; font-size: 13px;
+         text-transform: uppercase; letter-spacing: 1.4px; margin: 14px 2px 6px;
+         text-shadow: 0 1px 0 rgba(0,0,0,0.6); }
 .note { color: #8d8474; font-size: 12px; margin-top: 6px; }
 .note.good { color: #8fbf72; } .note.dim { opacity: 0.7; }
 .err { color: #e08070; padding: 10px; }
 .empty-note { color: #6e675b; font-size: 12px; padding: 10px; }
 
+/* Nút cũng là gỗ, và có ĐỘ DÀY — mép dưới đậm 2 điểm; bấm xuống thì mép ấy biến mất
+   và cả nút tụt xuống đúng 2 điểm. Đó là toàn bộ khác biệt giữa "một vùng bấm được"
+   và "một cái nút bấm vào thấy đã". */
 .btn { display: block; width: 100%; margin: 6px 0 0; padding: 9px 12px;
-       background: #241c14; color: #e0d5bd; border: 1px solid #3a2e21;
-       border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
-.btn:active { transform: translateY(1px); }
-.btn.main { background: #4a3418; border-color: #6b4c22; color: #ffe9b8; }
+       background: linear-gradient(180deg, #3c2b1a, #241a11);
+       color: #e6d9bd; border: 1px solid #4e3a22;
+       border-radius: 3px; font: inherit; font-weight: 600; cursor: pointer;
+       font-family: var(--disp); letter-spacing: 0.4px;
+       box-shadow: inset 0 1px 0 rgba(214,176,110,0.20), 0 2px 0 #0d0906; }
+.btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(214,176,110,0.14); }
+.btn.main { background: linear-gradient(180deg, #7a5520, #4a3113);
+            border-color: #9a6f2c; color: #ffeec0;
+            box-shadow: inset 0 1px 0 rgba(255,214,140,0.30), 0 2px 0 #2a1a08; }
 .btn.danger { background: #3a1d18; border-color: #5c2c22; color: #f0b6a8; }
 .btn.off { opacity: 0.45; }
 .btn.big { padding: 13px; font-size: 15px; }
 
 .rows { display: flex; flex-direction: column; gap: 3px; }
 .row { display: flex; justify-content: space-between; font-size: 13px; }
-.row-k { color: #928872; } .row-v { color: #e0d5bd; font-weight: 600; }
+.row-k { color: #a1957c; } .row-v { color: #e8dcc0; font-weight: 600;
+         font-variant-numeric: tabular-nums; }
+/* Dòng chỉ số CÓ THANH. Danh sách khoá-trái/giá-trị-phải là bố cục của màn Cài Đặt —
+   đúng chỗ để TRA một con số, sai chỗ để SO hai nhân vật. Nhãn và số giữ bề rộng cố
+   định để mười người xếp thành một cột thẳng, thanh ăn hết chỗ còn lại. */
+.bar-row { align-items: center; gap: 8px; }
+.bar-row .row-k { flex: 0 0 74px; }
+.bar-row .row-v { flex: 0 0 60px; text-align: left; }
+/* Cả bảng chỉ số căn về MỘT cột trái, kể cả dòng không có thanh (Lực chiến). Trộn
+   hai kiểu căn trong cùng một bảng năm dòng thì dòng lạc kiểu nhìn ra ngay, và nó
+   đọc thành "dòng này quan trọng hơn" — trong khi nó chỉ là dòng không vẽ được thanh. */
+.stats .row { justify-content: flex-start; gap: 8px; align-items: center; }
+.stats .row-k { flex: 0 0 74px; }
+.bar { flex: 0 1 300px; height: 9px; border-radius: 2px;
+       background: #120d08; border: 1px solid #3a2c1c;
+       box-shadow: inset 0 1px 2px rgba(0,0,0,0.7); overflow: hidden; }
+.bar-f { height: 100%;
+         background: linear-gradient(180deg, #e8b954, #a3701d);
+         box-shadow: inset 0 1px 0 rgba(255,232,180,0.45); }
 
-.who { display: flex; gap: 10px; align-items: center; }
-.who-f { font-size: 34px; }
-.who-n { font-weight: 700; color: #e8dcc0; }
-.who-r { color: #988d78; font-size: 12px; }
-.who-p { color: #c9a13a; font-size: 12px; font-weight: 700; }
+.who { display: flex; gap: 11px; align-items: center; }
+/* Khung chân dung trên trang chính: một cái hốc tối có viền, để nhân vật đứng trong
+   đó chứ không dán lên mặt thẻ. */
+.who-f { flex: 0 0 auto; padding: 3px 5px 0;
+         background: radial-gradient(70% 80% at 50% 100%, #4a3722, #17110b);
+         border: 1px solid #4e3a22; border-radius: 3px;
+         box-shadow: inset 0 2px 6px rgba(0,0,0,0.6); }
+.who-n { font-weight: 700; color: #f0e2c4; font-family: var(--disp); font-size: 16px;
+         letter-spacing: 0.4px; }
+.who-r { color: #a2967f; font-size: 12px; font-style: italic; }
+.who-p { color: var(--dong); font-size: 12px; font-weight: 700;
+         font-variant-numeric: tabular-nums; }
 .sk-line { color: #a89c86; font-size: 12px; margin-top: 5px; }
 .sk-big { font-size: 16px; font-weight: 700; color: #e8c86a; }
 .sk-num { color: #8fc6f0; font-size: 12px; margin-top: 2px; }
@@ -128,16 +239,41 @@ canvas#game {
 .car-i { font-size: 20px; } .car-n { font-size: 10px; color: #9a9080; }
 .car-l { font-size: 10px; color: #c9a13a; }
 
-.char-row { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; }
-.ch { flex: 0 0 auto; width: 72px; text-align: center; padding: 6px 3px;
-      background: #17130e; border: 2px solid #2a2118; border-radius: 9px; cursor: pointer;
+/* CHÂN DUNG. Đây là chỗ "nhìn như app" rõ nhất của bản trước: cả mười nhân vật dùng
+   chung một emoji 🤠, và người chưa quay trúng thì hiện một ổ khoá 🔒 — tức không có
+   lấy một hình nào của chính game xuất hiện trong màn chọn người của game.
+   Nay cắt thẳng từ charset của từng người (xem A.portrait). Ảnh pixel nên phải TẮT
+   khử răng cưa, nếu không thì phóng lên là nhoè thành một vệt màu. */
+.por { display: block; margin: 0 auto; image-rendering: pixelated;
+       image-rendering: crisp-edges; }
+
+.char-row { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 10px; }
+/* Ô người = một tấm thẻ bài: nền chuyển sắc, viền hai lớp, và một khoảng tối ở đáy
+   để chân nhân vật có chỗ đứng. Bo góc 4 chứ không phải 9. */
+.ch { flex: 0 0 auto; width: 74px; text-align: center; padding: 6px 3px 5px;
+      background: linear-gradient(180deg, #332516, #14100b);
+      border: 2px solid #3d2f1e; border-radius: 4px; cursor: pointer;
+      box-shadow: inset 0 1px 0 rgba(214,176,110,0.16), 0 2px 0 rgba(0,0,0,0.5);
       position: relative; }
-.ch.on { border-color: #c9a13a; }
-.ch.no { opacity: 0.34; }
-.ch.s4 { background: #1a1420; } .ch.s5 { background: #211a10; }
-.ch-f { font-size: 24px; } .ch-n { font-size: 11px; color: #ddd2b8; }
-.ch-s { font-size: 9px; color: #c9a13a; }
+/* Người đang chọn: viền đồng CỘNG một quầng sáng. Chỉ đổi màu viền thì trên một hàng
+   mười ô cuộn ngang, mắt không bắt được ô nào đang sáng. */
+.ch.on { border-color: var(--dong);
+         box-shadow: inset 0 1px 0 rgba(255,214,140,0.30), 0 0 0 1px rgba(201,161,58,0.45),
+                     0 0 12px rgba(201,161,58,0.35); }
+.ch.no { opacity: 0.55; }
+/* Hạng 4 và 5 sao được nền riêng — tím than và nâu ánh vàng. Đây là quy ước gacha:
+   hạng đọc được TRƯỚC KHI đọc chữ. */
+.ch.s4 { background: linear-gradient(180deg, #2b2136, #140f18); border-color: #453357; }
+.ch.s5 { background: linear-gradient(180deg, #3d2c12, #171107); border-color: #6b4f1c; }
+.ch-n { font-size: 11px; color: #e2d6bb; font-family: var(--disp); line-height: 1.2;
+        margin-top: 2px; }
+.ch-s { font-size: 9px; color: var(--dong); letter-spacing: 1px; }
 .ch-sh { position: absolute; top: 2px; right: 4px; font-size: 9px; color: #8fc6f0; }
+/* Ổ khoá không còn THAY cho mặt người nữa — nó là một con dấu nhỏ đóng ĐÈ lên cái
+   bóng. Bóng nói "có một người ở đây, bạn chưa gặp"; ổ khoá nói "chưa mở". Hai câu
+   khác nhau, và bản trước chỉ nói được câu thứ hai. */
+.ch-lock { position: absolute; top: 26px; left: 0; right: 0; font-size: 17px;
+           text-shadow: 0 1px 3px #000; pointer-events: none; }
 
 .eq-row { display: flex; gap: 5px; }
 .eqs { flex: 1; text-align: center; padding: 7px 2px; background: #1a1510;
@@ -153,12 +289,19 @@ canvas#game {
 .inv-i { font-size: 17px; } .inv-l { font-size: 10px; color: #c9a13a; }
 .inv-w { position: absolute; top: 2px; right: 3px; font-size: 8px; color: #6fa84f; }
 
-.map { background: #16120e; border: 1px solid #2a2118; border-radius: 10px;
+/* Thẻ chuyến: cùng ngôn ngữ ván gỗ với .card, nhưng chuyến đã phá đảo thì được một
+   mép xanh ở CẠNH TRÁI thay vì đổi màu cả viền — cạnh trái là chỗ mắt quét qua đầu
+   tiên khi lướt một danh sách dọc. */
+.map { background: linear-gradient(180deg, rgba(54,38,23,0.94), rgba(22,16,10,0.94));
+       border: 2px solid var(--vien); border-radius: 3px;
+       box-shadow: inset 0 1px 0 rgba(214,176,110,0.18), 0 2px 0 rgba(0,0,0,0.5);
        padding: 10px 12px; margin: 8px 0; }
-.map.lock { opacity: 0.5; } .map.done { border-color: #3d5a2c; }
+.map.lock { opacity: 0.5; }
+.map.done { border-left: 5px solid #5c8a3c; }
 .map-h { display: flex; justify-content: space-between; align-items: baseline; }
-.map-n { font-weight: 700; color: #e8dcc0; font-size: 15px; }
-.map-c { color: #7d7462; font-size: 11px; }
+.map-n { font-weight: 700; color: #f0e2c4; font-size: 17px; font-family: var(--disp);
+         letter-spacing: 0.5px; }
+.map-c { color: #8d8370; font-size: 11px; font-family: var(--disp); }
 .map-d { color: #9a9080; font-size: 12px; margin: 4px 0 6px; font-style: italic; }
 .map-s { font-size: 12px; color: #a89c86; }
 .ok { color: #8fbf72; } .bad { color: #d88a6a; }
@@ -401,14 +544,14 @@ canvas#game {
 <script src="../../js/supabase-auth.js"></script>
 <script src="../../js/save-sync.js"></script>
 
-<script src="data/content.js?v=20260907a"></script>
-<script src="js/meta.js?v=20260907a"></script>
-<script src="js/art.js?v=20260907a"></script>
-<script src="js/train-art.js?v=20260907a"></script>
-<script src="js/fx.js?v=20260907a"></script>
-<script src="js/game.js?v=20260907a"></script>
-<script src="js/hud.js?v=20260907a"></script>
-<script src="js/ui.js?v=20260907a"></script>
+<script src="data/content.js?v=20260907b"></script>
+<script src="js/meta.js?v=20260907b"></script>
+<script src="js/art.js?v=20260907b"></script>
+<script src="js/train-art.js?v=20260907b"></script>
+<script src="js/fx.js?v=20260907b"></script>
+<script src="js/game.js?v=20260907b"></script>
+<script src="js/hud.js?v=20260907b"></script>
+<script src="js/ui.js?v=20260907b"></script>
 
 <script>
 (function () {
@@ -416,7 +559,7 @@ canvas#game {
   // Dấu bản dựng nằm TRONG mã, và cũng nằm trên thẻ script. Trang tự so hai số: lệch
   // nhau nghĩa là trình duyệt đang giữ một tệp js cũ trong bộ nhớ đệm, và người chơi
   // cần biết điều đó thay vì ngồi thắc mắc vì sao bản vá không có tác dụng.
-  const BUILD = '20260907a';
+  const BUILD = '20260907b';
   const tag = document.getElementById('buildtag');
   const scr = [].slice.call(document.querySelectorAll('script[src*="game.js"]'))[0];
   const m = scr && scr.src.match(/[?&]v=([^&]+)/);

@@ -426,6 +426,51 @@
   };
 
   // ---------------------------------------------------------------------------
+  // CHÂN DUNG cho các màn ngoài ván
+  // ---------------------------------------------------------------------------
+  // Menu đang dùng emoji 🤠 làm mặt cho CẢ MƯỜI nhân vật và 🔒 cho người chưa có —
+  // tức mười người khác nhau ra cùng một cái mặt cười vàng, và cái mặt cười đó không
+  // có mặt trong game. Đó là thứ làm màn chọn người đọc ra là một cái app danh bạ.
+  //
+  // Kho đã có sẵn charset của đúng mười hai người ấy (`man.<art>`), nạp sẵn từ lúc mở
+  // trang. Việc còn lại chỉ là cắt ô ĐỨNG NHÌN THẲNG (cột 1, hàng 0) ra một canvas.
+  //
+  // Ảnh nạp BẤT ĐỒNG BỘ, mà menu thì dựng ngay khi mở trang, nên hàm này trả về một
+  // canvas RỖNG rồi tự vẽ vào khi ảnh tới. Cách khác là bắt mọi chỗ gọi phải chờ, và
+  // chỗ gọi thì có ba, còn menu thì dựng lại sau mỗi thao tác — tự vá lấy rẻ hơn nhiều.
+  //
+  // `dim` = vẽ thành BÓNG ĐEN thay vì hình thật: dùng cho người chưa quay trúng. Bóng
+  // đen nói "có một người ở đây, bạn chưa gặp"; một ổ khoá thì nói "cái ô này hỏng".
+  A.portrait = function (key, w, h, opt) {
+    opt = opt || {};
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.className = 'por' + (opt.cls ? ' ' + opt.cls : '');
+    let tries = 0;
+    const paint = () => {
+      const s = sheets[key];
+      if (!s || !s.ok) {
+        if (++tries < 60) { setTimeout(paint, 100); return; }
+        return;                                   // ảnh hỏng: để trống, CSS lo phần nền
+      }
+      const x = c.getContext('2d');
+      x.imageSmoothingEnabled = false;
+      // Vừa khung theo cạnh CHẬT nhất, neo xuống ĐÁY — người đứng trên sàn ô, không
+      // lơ lửng giữa ô.
+      const k = Math.min(w / s.cw, h / s.ch);
+      const dw = s.cw * k, dh = s.ch * k;
+      x.drawImage(s.img, 1 * s.cw, 0, s.cw, s.ch, (w - dw) / 2, h - dh, dw, dh);
+      if (opt.dim) {
+        x.globalCompositeOperation = 'source-atop';
+        x.fillStyle = opt.dim === true ? '#4a3f31' : opt.dim;
+        x.fillRect(0, 0, w, h);
+      }
+    };
+    paint();
+    return c;
+  };
+
+  // ---------------------------------------------------------------------------
   // CON SÓI — vẽ 100% bằng mã, giống đoàn tàu, và vì cùng một lý do.
   // ---------------------------------------------------------------------------
   // Cả kho không có một con vật bốn chân nào: 6 tấm trong repo2d/art/foe/ và 294 tệp
