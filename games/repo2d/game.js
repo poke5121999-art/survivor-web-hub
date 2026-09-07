@@ -1604,6 +1604,18 @@ function handUse(p, ang){
 // trong. O 9px thi mot khau sung luc va mot khau hoa cai chi khac nhau o CHIEU DAI NONG - nen
 // do chinh la thu duoc ve to nhat tren moi khau.
 function gearIcon(c, key, x, y, r, mo){
+  // CÓ TỆP HÌNH THÌ DÙNG TỆP. `art/item/gear.png` là một dải ngang, mỗi ô một món, thứ tự ghi ở
+  // GEAR_ORDER trong sprites.js và ở art/README.md. Chưa có tệp — hoặc tấm mới vẽ được vài ô —
+  // thì rơi xuống hình vector bên dưới, nên không có ngày nào cái nút bị trống.
+  // Chủ dự án, 2026-09-07: "sau này tui vẽ đè lên cho". Đây là chỗ cái vẽ đè ấy cắm vào.
+  const K = window.REPO_SKIN;
+  if (K && K.gear){
+    const a0 = c.globalAlpha;
+    if (mo != null) c.globalAlpha = a0 * mo;
+    const xong = K.gear(c, key, x, y, r*2.1);
+    c.globalAlpha = a0;
+    if (xong) return;
+  }
   c.save();
   c.translate(x, y);
   c.scale(r/12, r/12);

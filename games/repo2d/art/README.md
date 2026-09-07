@@ -218,6 +218,41 @@ chỗ sự kiện xảy ra. Nhớ thêm cả vào `VFX_MA` trong `test/repo-suit
 không ai thấy: gõ nhầm một mã thì game vẫn chạy, vẫn không lỗi console, chỉ là từ hôm đó vụ nổ
 không còn ngọn lửa nào.
 
+## Đồ trên tay — `item/gear.png`
+
+MỘT tấm cho cả mười một món, và nó là một **lưới**: mỗi **cột** một món, mỗi **hàng** một
+khung hình. Ô **96 × 96**, nền trong suốt, hình canh giữa ô.
+
+Thứ tự cột cố định, khớp `GEAR_ORDER` trong `sprites.js`:
+
+| cột | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| mã | `fist` | `gun` | `shotgun` | `laser` | `tranq` | `bomb` | `heal` | `tracker` | `float` | `shield` | `pry` |
+
+Mấy luật phải theo:
+
+- **Hàng 0 là hình đứng im của mọi món.** Một tấm chỉ có đúng một hàng vẫn chạy bình thường —
+  thêm hàng là thêm cử động, không phải đổi khuôn và không phải vẽ lại tấm cũ.
+- Món nào cử động thì phải khai số khung ở `GEAR_FRAMES` trong `sprites.js` (hiện là
+  `{ bomb: 4 }`). Không có tên trong bảng = một khung. Tốc độ chung ở `GEAR_FPS`, đang để
+  10 khung/giây. Khai bằng bảng chứ không dò ô trống trên chính tấm hình, vì dò thì phải
+  đọc pixel qua `getImageData`, mà mở bằng `file://` là Chrome ném `SecurityError`.
+- **Vũ khí phải chĩa sang PHẢI.** Món có cờ `aim` trong `GEAR` được xoay theo hướng ngắm,
+  và góc 0 là bên phải.
+- Món cử động thì các khung canh **ĐÁY-GIỮA** với nhau, đừng canh tâm: thân quả bom phải
+  đứng yên, chỉ tia lửa chạy lên. Canh tâm là quả bom nảy lên nảy xuống.
+- Thiếu tấm — hoặc tấm mới vẽ được vài cột — thì mấy món còn lại tự rơi về hình vector
+  trong `gearIcon()` của `game.js`. Nên không có ngày nào cái nút bấm nhiều nhất trò chơi
+  bị trống trơn.
+
+### Tấm đang cắm vào là hình KÊ CHỖ, lấy từ Soul Knight
+
+Ghép từ sprite của **Soul Knight 8.5.1 (ChillyRoom)** theo yêu cầu của chủ dự án, để xem bố
+cục chạy có đã tay không trước khi bỏ công vẽ bộ riêng.
+
+**Art này không phải của dự án.** Vẽ hoặc gen một bộ đè lên đúng khuôn ghi ở trên là thay
+được ngay, không phải sửa một dòng mã nào.
+
 ## Bộ hiện tại từ đâu ra
 
 Chủ dự án gửi 18 ảnh JPEG (mỗi ảnh một lưới 3×4, có nền). `../tools/import_art.py` bóc

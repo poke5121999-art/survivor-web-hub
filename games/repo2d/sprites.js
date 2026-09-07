@@ -335,6 +335,59 @@
     lampStrip = { img: im, n: Math.max(1, Math.round(im.width / ITEM)) };
   });
 
+  // HÌNH MÓN ĐỒ CẦM TAY — một LƯỚI: mỗi CỘT một món (thứ tự GEAR_ORDER), mỗi HÀNG một khung.
+  //
+  // Chủ dự án, 2026-09-07: "sau này tui vẽ đè lên cho". Đây là cái móc để làm đúng việc đó —
+  // cùng một luật với người, quái và cái đèn, và cùng một câu đã ghi ở đầu art/README.md:
+  // vẽ tay đè lên đúng khuôn thì game nhận ngay, không phải sửa một dòng mã nào.
+  //
+  // KHÔNG CÓ TỆP CŨNG KHÔNG SAO, và đó là phần quan trọng: `gear()` trả về false, chỗ gọi tự
+  // vẽ hình vector đang chạy. Nên hôm nay thiếu tệp thì game vẫn đủ hình, mai có tệp thì nó
+  // thay lấy, và không có ngày nào ở giữa mà nút bấm trống trơn.
+  //
+  // Một tệp một tấm chứ không phải mười một tệp rời: mười một request trên mạng 3G là mười một
+  // dịp hỏng, mà một cái nút thiếu hình thì cả nút vô nghĩa.
+  const GEAR_ORDER = ['fist', 'gun', 'shotgun', 'laser', 'tranq', 'bomb',
+                      'heal', 'tracker', 'float', 'shield', 'pry'];
+
+  // MÓN NÀO NHÚC NHÍCH THÌ GHI Ở ĐÂY, kèm số khung. Không có tên trong bảng = một khung, đứng im.
+  //
+  // Hàng 0 vẫn là hình đứng im của mọi món, nên một tấm CHỈ CÓ MỘT HÀNG chạy y hệt như trước —
+  // thêm hàng là thêm cử động, không phải đổi định dạng và không phải vẽ lại tấm cũ.
+  //
+  // Ghi thành bảng chứ không dò ô trống trên chính tấm hình: dò thì phải đọc pixel qua
+  // getImageData, mà mở bằng file:// thì Chrome coi ảnh là khác nguồn và ném SecurityError —
+  // tức là cách dò sẽ gãy đúng ở chỗ hay mở thử nhất. Một dòng bảng thì không gãy ở đâu.
+  const GEAR_FRAMES = { bomb: 4 };            // quả bom: ngòi cháy, 4 khung chạy vòng
+  const GEAR_FPS = 10;
+  let gearStrip = null;
+  load(HERE + 'art/item/gear.png' + VER, function (im) {
+    gearStrip = { img:  im,
+                  n:    Math.max(1, Math.round(im.width  / ITEM)),
+                  rows: Math.max(1, Math.round(im.height / ITEM)) };
+  });
+
+  // Vẽ MỘT món, vuông, tâm ở (x,y), cạnh `size`. Trả về false khi chưa có tệp hoặc khi món này
+  // nằm ngoài số ô mà tấm đang có — nên một tấm vẽ dở (mới có sáu ô) vẫn dùng được: sáu món đầu
+  // lấy hình vẽ tay, năm món còn lại rơi về vector cho tới khi vẽ nốt.
+  //
+  // Khung chạy theo ĐỒNG HỒ chứ không theo tham số truyền vào: chỗ gọi bên game.js chỉ biết
+  // "vẽ quả bom ở đây", không biết và không cần biết quả bom có mấy khung. Cho một món biết cử
+  // động vì thế là sửa đúng hai chỗ trong tệp này, không đụng một dòng nào của game.js.
+  function gear(c, key, x, y, size) {
+    if (!gearStrip) return false;
+    const i = GEAR_ORDER.indexOf(key);
+    if (i < 0 || i >= gearStrip.n) return false;
+    // Số khung THẬT = bảng khai bao nhiêu, nhưng không quá số hàng tấm hình đang có. Tấm cũ một
+    // hàng gặp bảng khai bom 4 khung thì vẫn vẽ hàng 0, chứ không lôi về một ô rỗng.
+    const kh = Math.min(GEAR_FRAMES[key] || 1, gearStrip.rows);
+    const r  = kh > 1 ? Math.floor(performance.now() / (1000 / GEAR_FPS)) % kh : 0;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(gearStrip.img, i * ITEM, r * ITEM, ITEM, ITEM,
+      Math.round(x - size / 2), Math.round(y - size / 2), size, size);
+    return true;
+  }
+
   const SZ_KEY = ['nho', 'vua', 'to'];
 
   // Món nào ra hình nào phải CỐ ĐỊNH theo món, không bốc lại mỗi khung hình. `bob` là số
@@ -480,6 +533,8 @@
     vfxN: function (id) { return vfx[id] ? vfx[id].n : 0; },
     loot: lootIcon,
     lamp: lamp,
+    gear: gear,
+    gearOrder: function () { return GEAR_ORDER.slice(); },
     ready: function () { return pending === 0; },
     failed: function () { return failed; },
     have: function () { return Object.keys(crew).length + Object.keys(foe).length + Object.keys(vfx).length; },
