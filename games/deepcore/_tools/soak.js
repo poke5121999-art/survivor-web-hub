@@ -1,0 +1,191 @@
+/*
+ * soak.js — chạy nhanh trọn một ván trong trình duyệt, KHÔNG vẽ.
+ *
+ * Tiêm vào trang qua drive.js. Không kiểm "chơi có vui không" — kiểm ba thứ máy
+ * tự bắt được:
+ *   1. cả 600 giây không ném lỗi nào;
+ *   2. các mốc thật sự xảy ra (lên cấp, swarm, mini-boss, boss, chạy thoát);
+ *   3. không chỉ số nào chạy loạn (NaN, quái vô hạn, linh thú lạc mất).
+ *
+ * NGƯỜI CHƠI GIẢ ở đây cố ý chỉ giỏi VỪA ĐỦ, ba luật:
+ *   - quái tới gần thì lùi ra (người thật ai cũng làm)
+ *   - không có quái thì đi tới vỉa quặng gần nhất mà đục
+ *   - không thấy quặng thì đi lang thang
+ * Bot đi giỏi quá thì không bao giờ chạm vào chỗ mà người thật hay chết; bot
+ * ngu quá thì mọi phép đo cân bằng đều vô nghĩa vì nó chết vì lý do của riêng nó.
+ */
+(function () {
+  var G = window.DC;
+  var g = G.game;
+  var picks = [];
+
+  // Tự chọn thẻ thay người. GỌI ĐỒNG BỘ — vòng lặp dưới chạy liền một mạch nên
+  // setTimeout sẽ không bao giờ tới lượt, và thẻ coi như không được chọn.
+  G.Screens.levelUp = function (cards, cb) {
+    var hurt = g.player.hp < g.run.st.hp * 0.55;
+    var c = (hurt && cards.filter(function (x) {
+              return x.kind === 'self' && (x.id === 'heal' || x.id === 'hp');
+            })[0]) ||
+            cards.filter(function (x) { return x.kind === 'summon'; })[0] ||
+            cards.filter(function (x) { return x.kind === 'tier'; })[0] ||
+            cards[0];
+    picks.push(c.kind + ':' + c.id);
+    cb(c);
+  };
+  G.Screens.results = function (res, rw) { window.__RESULT = { res: res, rw: rw }; };
+  G.Screens.hideAll = function () {};
+
+  var biome = window.__BIOME || 'dirt';
+  var lvl = window.__LEVEL || 1;
+  g.startRun(biome, lvl);
+
+  // Chế độ bất tử: dùng để kiểm RIÊNG đoạn cuối (boss, chạy thoát, bảng kết
+  // quả) mà không phụ thuộc chuyện cân bằng sát thương. Hai thứ đó hỏng vì hai
+  // lý do khác nhau, nên phải đo tách ra.
+  if (window.__GOD) {
+    g.hurtPlayer = function () { return 0; };
+    g.player.hurt = function () { return 0; };
+  }
+
+  var T = 16;
+  var wanderA = 0, wanderT = 0;
+
+  g.readDir = function () {
+    var p = g.player, w = g.world;
+    // 0) đang chạy thoát thì chỉ có một việc: về khoang
+    if (g.escaping && g.exit) {
+      var ex = g.exit.x - p.x, ey = g.exit.y - p.y;
+      var em = Math.hypot(ex, ey) || 1;
+      return { x: ex / em, y: ey / em };
+    }
+    // 0b) boss đang lên gân nhảy -> tránh khỏi vòng đích. Người thật nhìn vòng
+    //     báo trước là né; bot không biết né thì mọi phép đo về boss đều sai.
+    if (g.boss && !g.boss.dead && g.boss.state === 'squash') {
+      var bx = p.x - g.boss.markX, by = p.y - g.boss.markY;
+      var bm = Math.hypot(bx, by) || 1;
+      if (bm < 90) return { x: bx / bm, y: by / bm };
+    }
+    for (var z = 0; z < g.enemies.length; z++) {
+      var ez = g.enemies[z];
+      // né luôn con sắp nổ và con đang tích lao
+      if (!ez.dead && (ez.state === 'fuse' || ez.state === 'wind')) {
+        var fx2 = p.x - ez.x, fy2 = p.y - ez.y;
+        var fm = Math.hypot(fx2, fy2) || 1;
+        if (fm < 78) return { x: fx2 / fm, y: fy2 / fm };
+      }
+    }
+
+    // 1) CHỈ lùi khi quái đã chạm người (≤34px). Bản trước lùi từ 70px và hoá
+    //    ra đó là một con bot rất tệ: chạy liên tục thì kéo cả bầy linh thú ra
+    //    khỏi tầm đánh, không con nào giết được gì, rồi bị dồn vào vách. Người
+    //    thật giữ quái ở tầm trung chứ không chạy trốn — và luật "kề bên"
+    //    (+25% sát thương lên quái gần chủ) cũng thưởng đúng cách chơi đó.
+    // Giữ quái ở khoảng 60px: đủ xa để không bị gõ liên tục, đủ gần để vẫn nằm
+    // trong vùng "kề bên" 120px (linh thú +25% sát thương lên quái quanh chủ).
+    // Đó chính là chỗ đứng mà game muốn dạy, nên bot cũng phải chơi như vậy —
+    // để 34px thì bot chỉ đang đo xem "đứng yên cho quái gõ" sống được bao lâu.
+    var near = null, nd = 60;
+    for (var i = 0; i < g.enemies.length; i++) {
+      var e = g.enemies[i];
+      if (e.dead || e.harmless) continue;
+      var d = Math.hypot(e.x - p.x, e.y - p.y);
+      if (d < nd) { nd = d; near = e; }
+    }
+    if (near) {
+      // lùi CHÉO chứ không lùi thẳng: lùi thẳng hay dí lưng vào vách rồi kẹt
+      var a = Math.atan2(p.y - near.y, p.x - near.x) + 0.7;
+      return { x: Math.cos(a), y: Math.sin(a) };
+    }
+    // 1b) đông quái quanh mình thì bấm GỌI
+    var cnt = 0;
+    for (var j = 0; j < g.enemies.length; j++) {
+      if (!g.enemies[j].dead &&
+          Math.hypot(g.enemies[j].x - p.x, g.enemies[j].y - p.y) < 140) cnt++;
+    }
+    if (cnt >= 3 && g.run.rallyCd <= 0) g.rally();
+    // 2) vỉa quặng gần nhất trong 8 ô -> tới đục. Tám ô là xấp xỉ vùng đèn
+    //    của người chơi thật; cho bot ra-đa 14 ô thì nó gom quặng nhanh gấp
+    //    đôi người và mọi phép đo về độ dài ván đều lệch.
+    var tx = p.tileX(), ty = p.tileY(), best = null, bd = 1e9;
+    for (var y = ty - 8; y <= ty + 8; y++) {
+      for (var x = tx - 8; x <= tx + 8; x++) {
+        if (!w.inside(x, y) || w.kind[w.idx(x, y)] !== G.TK.ORE) continue;
+        var dd = (x - tx) * (x - tx) + (y - ty) * (y - ty);
+        if (dd < bd) { bd = dd; best = [x, y]; }
+      }
+    }
+    if (best) {
+      var gx = best[0] * T + 8 - p.x, gy = best[1] * T + 8 - p.y;
+      var m = Math.hypot(gx, gy) || 1;
+      return { x: gx / m, y: gy / m };
+    }
+    // 3) không thấy quặng quanh mình -> ĐI THEO MŨI TÊN NHIỆM VỤ, đúng như
+    //    người chơi thật làm. Bot cũ chỉ đi lang thang, nên chỉ tiêu Morkite
+    //    xong được đúng một trên sáu ván — con số đó đo con bot chứ không đo
+    //    cái game.
+    var qt = g.hud.questTarget(g);
+    if (qt) {
+      var qx = qt.x - p.x, qy = qt.y - p.y;
+      var qm = Math.hypot(qx, qy) || 1;
+      return { x: qx / qm, y: qy / qm };
+    }
+    // 4) lang thang
+    wanderT -= 1 / 60;
+    if (wanderT <= 0) { wanderT = 1.4 + Math.random(); wanderA = Math.random() * 6.283; }
+    return { x: Math.cos(wanderA), y: Math.sin(wanderA) };
+  };
+
+  var marks = [], lastPhase = '', maxEnemies = 0, nan = 0, lost = 0;
+  var maxParts = 0, hpLow = 1e9;
+  var DT = 1 / 60;
+  var STEPS = 60 * 660;
+  var t = 0;
+  for (var i = 0; i < STEPS; i++) {
+    if (g.state === 'over') break;
+    if (g.state === 'levelup') g.state = 'play';
+    t += DT;
+    try {
+      g.update(DT);
+    } catch (e) {
+      return JSON.stringify({ CRASH: String(e && e.stack || e), giay: +t.toFixed(1) });
+    }
+    if (g.dir.phase !== lastPhase) {
+      lastPhase = g.dir.phase;
+      marks.push(t.toFixed(0) + 's→' + lastPhase);
+    }
+    if (g.enemies.length > maxEnemies) maxEnemies = g.enemies.length;
+    if (g.fx.parts.length > maxParts) maxParts = g.fx.parts.length;
+    if (g.player.hp < hpLow) hpLow = g.player.hp;
+    if (!isFinite(g.player.x) || !isFinite(g.player.hp)) { nan++; break; }
+    for (var k = 0; k < g.pets.length; k++) {
+      var q = g.pets[k];
+      if (Math.hypot(q.x - g.player.x, q.y - g.player.y) > (q.def.leash || 200) * 2.2) lost++;
+    }
+  }
+
+  var dug = 0;
+  for (var o in g.player.carry) dug += g.player.carry[o];
+
+  return JSON.stringify({
+    ketThuc: g.state,
+    giay: +t.toFixed(1),
+    cap: g.player.level,
+    mauCuoi: Math.round(g.player.hp) + '/' + Math.round(g.run.st.hp),
+    mauThapNhat: Math.round(hpLow),
+    giet: g.run.kills,
+    quangDaoDuoc: dug,
+    tuiQuang: g.player.carry,
+    nhiemVu: g.mission.type.id + ' ' + g.mission.have + '/' + g.mission.need +
+             (g.mission.done ? ' XONG' : ''),
+    linhThu: g.pets.map(function (p) { return p.def.id + '.b' + p.tier; }),
+    theDaChon: picks,
+    quaiToiDa: maxEnemies,
+    hatToiDa: maxParts,
+    linhThuLac: lost,
+    nan: nan,
+    moc: marks,
+    ketQua: window.__RESULT ? (window.__RESULT.res.won ? 'THẮNG' : 'THUA') + ' — ' +
+            window.__RESULT.res.why : null,
+    thuong: window.__RESULT ? window.__RESULT.rw : null
+  });
+})()

@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180" role="img" aria-label="Lõi Sâu">
+  <!-- Vẽ tay, không tệp ngoài, không phông ngoài. Cảnh: một quầng đèn ấm giữa
+       hang tối, người thợ đứng giữa, bốn linh thú vây quanh, vỉa quặng lấp lánh
+       trong vách đá. Đúng ba thứ mà cả game xoay quanh: BÓNG TỐI, CÁI ĐÈN, và
+       cái bầy đánh hộ. -->
+  <defs>
+    <radialGradient id="dc-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe0a0" stop-opacity="0.52"/>
+      <stop offset="0.42" stop-color="#c88a3c" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#3a2410" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dc-dark" cx="0.4875" cy="0.522" r="0.62">
+      <stop offset="0" stop-color="#07060a" stop-opacity="0"/>
+      <stop offset="0.22" stop-color="#07060a" stop-opacity="0.14"/>
+      <stop offset="0.52" stop-color="#07060a" stop-opacity="0.66"/>
+      <stop offset="1" stop-color="#07060a" stop-opacity="0.94"/>
+    </radialGradient>
+    <linearGradient id="dc-rock" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a2a1c"/>
+      <stop offset="1" stop-color="#150e0a"/>
+    </linearGradient>
+    <linearGradient id="dc-floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6a4c38"/>
+      <stop offset="1" stop-color="#3a2618"/>
+    </linearGradient>
+  </defs>
+
+  <!-- đá đặc: nền của cả thế giới -->
+  <rect width="320" height="180" fill="url(#dc-rock)"/>
+  <g fill="#000" opacity="0.35">
+    <rect x="0" y="0" width="320" height="4"/>
+    <rect x="0" y="176" width="320" height="4"/>
+  </g>
+  <!-- vân đá -->
+  <g stroke="#4a3524" stroke-width="1.4" opacity="0.55" fill="none">
+    <path d="M6 22 q22 10 44 2 t40 8"/>
+    <path d="M232 16 q26 12 52 0"/>
+    <path d="M12 158 q30 -10 58 2 t44 -4"/>
+    <path d="M212 164 q34 -12 66 2"/>
+    <path d="M0 96 q18 -14 34 -2"/>
+    <path d="M292 104 q16 -12 28 0"/>
+  </g>
+
+  <!-- hang đã khoét: một khoang tròn méo -->
+  <path d="M92 44 q34 -16 70 -6 q40 10 56 34 q14 24 2 48 q-16 30 -56 34 q-42 4 -68 -16
+           q-26 -20 -22 -50 q4 -30 18 -44 z" fill="url(#dc-floor)"/>
+  <path d="M92 44 q34 -16 70 -6 q40 10 56 34 q14 24 2 48 q-16 30 -56 34 q-42 4 -68 -16
+           q-26 -20 -22 -50 q4 -30 18 -44 z" fill="none" stroke="#241609" stroke-width="3" opacity="0.8"/>
+  <!-- hạt sàn -->
+  <g fill="#a87a58" opacity="0.5">
+    <rect x="108" y="72" width="3" height="3"/><rect x="186" y="60" width="3" height="3"/>
+    <rect x="132" y="128" width="3" height="3"/><rect x="196" y="120" width="3" height="3"/>
+    <rect x="150" y="52" width="3" height="3"/><rect x="112" y="112" width="3" height="3"/>
+  </g>
+
+  <!-- vỉa quặng trong vách: đúng ba loại của một ván -->
+  <g>
+    <!-- Morkite (nhiệm vụ) -->
+    <g fill="#57e8c8">
+      <rect x="228" y="52" width="5" height="5"/><rect x="236" y="58" width="4" height="4"/>
+      <rect x="232" y="64" width="5" height="5"/><rect x="242" y="50" width="4" height="4"/>
+    </g>
+    <circle cx="235" cy="58" r="16" fill="#57e8c8" opacity="0.13"/>
+    <!-- Nitra (tiếp tế) -->
+    <g fill="#ff7a3c">
+      <rect x="56" y="112" width="5" height="5"/><rect x="64" y="118" width="4" height="4"/>
+      <rect x="52" y="122" width="4" height="4"/>
+    </g>
+    <circle cx="59" cy="118" r="15" fill="#ff7a3c" opacity="0.13"/>
+    <!-- Đường Đỏ (hồi máu) -->
+    <g fill="#ff5a72">
+      <rect x="268" y="126" width="5" height="5"/><rect x="276" y="132" width="4" height="4"/>
+    </g>
+    <circle cx="272" cy="130" r="13" fill="#ff5a72" opacity="0.12"/>
+  </g>
+
+  <!-- quầng đèn: thứ quan trọng nhất trong ảnh -->
+  <circle cx="156" cy="94" r="58" fill="url(#dc-glow)"/>
+
+  <!-- bóng tối: tối dần từ tâm quầng đèn ra mép. Bản đầu dùng một đường
+       fill-rule="evenodd" khoét lỗ tròn, nhưng khoang hang méo và rộng hơn cái
+       lỗ, nên cả khoang thành một mảng be phẳng lì. Một dải tối tròn thì bám
+       đúng theo quầng đèn. -->
+  <rect width="320" height="180" fill="url(#dc-dark)"/>
+
+  <!-- người thợ: dáng người điểm ảnh, đội mũ, cầm cuốc -->
+  <g>
+    <ellipse cx="156" cy="112" rx="9" ry="3.5" fill="#000" opacity="0.35"/>
+    <ellipse cx="156" cy="112" rx="9" ry="3.5" fill="none" stroke="#fff2cf" stroke-width="1.2" opacity="0.5"/>
+    <rect x="150" y="92" width="12" height="14" fill="#3c7a46"/>       <!-- áo -->
+    <rect x="150" y="104" width="12" height="6" fill="#5a6a86"/>       <!-- quần -->
+    <rect x="151" y="82" width="10" height="10" fill="#e0b48c"/>       <!-- mặt -->
+    <rect x="149" y="78" width="14" height="6" fill="#b4581e"/>        <!-- mũ -->
+    <rect x="153" y="86" width="2" height="2" fill="#1a2030"/>
+    <rect x="158" y="86" width="2" height="2" fill="#1a2030"/>
+    <!-- cuốc -->
+    <g transform="rotate(-32 166 96)">
+      <rect x="164" y="88" width="2" height="16" fill="#8a5a2c"/>
+      <rect x="160" y="86" width="10" height="3" fill="#c8ccd4"/>
+    </g>
+  </g>
+
+  <!-- bốn linh thú vây quanh, mỗi con một vòng chân theo VAI -->
+  <g>
+    <!-- rùa đá (chặn) -->
+    <ellipse cx="128" cy="104" rx="7" ry="3" fill="none" stroke="#8ad8ff" stroke-width="1.2" opacity="0.5"/>
+    <rect x="123" y="94" width="10" height="8" rx="3" fill="#4a8a6a"/>
+    <rect x="125" y="92" width="6" height="3" fill="#7ab890"/>
+    <!-- chó mỏ (cận chiến) -->
+    <ellipse cx="184" cy="106" rx="6" ry="2.6" fill="none" stroke="#ff9a6a" stroke-width="1.2" opacity="0.5"/>
+    <rect x="180" y="98" width="9" height="6" rx="2" fill="#c86a34"/>
+    <rect x="187" y="95" width="4" height="4" fill="#e08a4a"/>
+    <!-- mọt lửa (nổ diện) -->
+    <ellipse cx="146" cy="72" rx="5" ry="2.4" fill="none" stroke="#ffb04a" stroke-width="1.2" opacity="0.5"/>
+    <circle cx="146" cy="67" r="4" fill="#ff9a3c"/>
+    <circle cx="146" cy="67" r="7" fill="#ff9a3c" opacity="0.18"/>
+    <!-- hồn quặng (dây chuyền) -->
+    <ellipse cx="172" cy="74" rx="5" ry="2.4" fill="none" stroke="#9affd8" stroke-width="1.2" opacity="0.5"/>
+    <rect x="169" y="68" width="6" height="6" rx="2" fill="#7ae0b0"/>
+  </g>
+
+  <!-- quái mò tới từ trong tối: vòng chân đỏ -->
+  <g opacity="0.95">
+    <ellipse cx="238" cy="106" rx="6" ry="2.6" fill="none" stroke="#d0404a" stroke-width="1.3"/>
+    <rect x="234" y="96" width="8" height="9" fill="#3a4a70"/>
+    <rect x="235" y="92" width="6" height="5" fill="#6a5a3c"/>
+    <ellipse cx="74" cy="80" rx="6" ry="2.6" fill="none" stroke="#d0404a" stroke-width="1.3"/>
+    <rect x="70" y="70" width="8" height="9" fill="#3a4a70"/>
+    <rect x="71" y="66" width="6" height="5" fill="#6a5a3c"/>
+  </g>
+
+  <!-- tên -->
+  <g font-family="ui-monospace, Consolas, monospace" font-weight="700">
+    <text x="160" y="26" text-anchor="middle" font-size="19" fill="#ffd98a"
+          letter-spacing="5" opacity="0.96">LÕI SÂU</text>
+    <text x="160" y="168" text-anchor="middle" font-size="8.5" fill="#c8b08a"
+          letter-spacing="1.6" opacity="0.85">một tầng · mười phút · bầy đánh hộ</text>
+  </g>
+</svg>

@@ -1,0 +1,173 @@
+/* ui.css — vỏ ngoài kiểu GAME DI ĐỘNG, không phải trang web.
+ *
+ * Ba luật giữ cho nó không "ra dáng web":
+ *   1. Khoá màn hình: khung 9:16 cố định, canvas lấp đầy, không cuộn, không zoom.
+ *   2. Nút to: mọi thứ bấm được đều >= 56px cao — ngón cái chứ không phải chuột.
+ *   3. Không có chữ nhỏ li ti, không có gạch chân, không có con trỏ chữ I.
+ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #07060a;
+  color: #f2e6d0;
+  font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
+  font-weight: 700;
+  user-select: none; -webkit-user-select: none;
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+img, canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* ---------------------------------------------------------------- khung game */
+#app {
+  position: fixed; inset: 0;
+  margin: auto;
+  width: 100%; height: 100%;
+  max-width: min(100vw, calc(100vh * 9 / 16));
+  max-height: min(100vh, calc(100vw * 16 / 9));
+  background: #0b0910;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #241d2e, 0 0 60px #000 inset;
+}
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#ui { position: absolute; inset: 0; pointer-events: none; }
+#ui > * { pointer-events: auto; }
+
+/* ---------------------------------------------------------------- khởi động */
+#boot {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px;
+  background: radial-gradient(ellipse at 50% 42%, #1d1526 0%, #07060a 70%);
+  transition: opacity .45s;
+}
+#boot.gone { opacity: 0; pointer-events: none; }
+.boot-logo {
+  font-size: 40px; letter-spacing: 10px; color: #ffd98a;
+  text-shadow: 0 3px 0 #7a4a12, 0 0 26px #ff9a3c88;
+}
+.boot-bar { width: 62%; max-width: 300px; height: 14px; background: #150f1c; border: 2px solid #3a2c48; }
+.boot-bar i { display: block; height: 100%; width: 0; background: linear-gradient(#ffce7a, #e08a2a); transition: width .2s; }
+.boot-tip { font-size: 12px; color: #8a7f9c; letter-spacing: 2px; }
+
+/* ---------------------------------------------------------------- xoay máy */
+#rotate {
+  position: fixed; inset: 0; z-index: 200; display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: #07060a; color: #ffd98a; font-size: 16px; letter-spacing: 2px;
+}
+.rot-icon { font-size: 64px; animation: tilt 1.6s ease-in-out infinite; }
+@keyframes tilt { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(90deg); } }
+@media (orientation: landscape) and (max-height: 520px) {
+  #rotate { display: flex; }
+}
+
+/* ---------------------------------------------------------------- màn hình DOM */
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  background: linear-gradient(#140f1c, #0a0710);
+  padding: calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom));
+  gap: 10px;
+  overflow: hidden;
+}
+.screen.sheet { background: rgba(8, 6, 12, .93); }
+
+/* thanh tiền tệ trên đỉnh */
+.wallet { display: flex; gap: 8px; align-items: center; }
+.wallet .sp { flex: 1; }
+.coin {
+  display: flex; align-items: center; gap: 6px;
+  background: #1b1426; border: 2px solid #392b4c; border-radius: 6px;
+  padding: 6px 12px; font-size: 15px; min-height: 38px;
+}
+.coin b { color: #ffd98a; }
+.coin.gem b { color: #8ad8ff; }
+.coin i { width: 16px; height: 16px; display: block; background-size: cover; font-style: normal; }
+
+/* tiêu đề */
+.htitle { font-size: 22px; letter-spacing: 6px; color: #ffd98a; text-shadow: 0 2px 0 #6a3f10; }
+.hsub { font-size: 12px; color: #9a8fae; letter-spacing: 1px; line-height: 1.5; }
+
+/* nút to, bo góc nhẹ, có gờ nổi — bấm bằng ngón cái */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 60px; padding: 0 18px;
+  font: inherit; font-size: 18px; letter-spacing: 2px; color: #fff3d8;
+  background: linear-gradient(#4a3a20, #2c2113);
+  border: 2px solid #7a5c2c; border-bottom-width: 5px; border-radius: 9px;
+  cursor: pointer; transition: transform .06s, filter .12s;
+}
+.btn:active { transform: translateY(3px); border-bottom-width: 2px; filter: brightness(1.15); }
+.btn.primary { background: linear-gradient(#c8862c, #8a5312); border-color: #ffce7a; color: #fff; font-size: 20px; }
+.btn.ghost { background: linear-gradient(#241b32, #171021); border-color: #4a3a63; }
+.btn.wide { width: 100%; }
+.btn[disabled] { filter: grayscale(1) brightness(.6); pointer-events: none; }
+.btn .sub { font-size: 11px; opacity: .8; letter-spacing: 1px; }
+
+/* lưới thẻ */
+.grid { display: grid; gap: 8px; }
+.grid.c2 { grid-template-columns: 1fr 1fr; }
+.grid.c3 { grid-template-columns: repeat(3, 1fr); }
+.grid.c4 { grid-template-columns: repeat(4, 1fr); }
+
+.card {
+  position: relative;
+  background: linear-gradient(#20182e, #150f1f);
+  border: 2px solid #3c2e52; border-radius: 8px;
+  padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-height: 92px; cursor: pointer;
+}
+.card.sel { border-color: #ffce7a; box-shadow: 0 0 0 2px #ffce7a55, 0 0 18px #ff9a3c44; }
+.card .cname { font-size: 11px; letter-spacing: 0; text-align: center; line-height: 1.25; }
+.card .lv { position: absolute; top: 3px; right: 5px; font-size: 10px; color: #ffd98a; }
+.card canvas { display: block; }
+
+/* bậc hiếm */
+.r1 { border-color: #5a6a55; } .r2 { border-color: #4a7ab0; }
+.r3 { border-color: #9a5ed0; } .r4 { border-color: #e0902c; }
+.r5 { border-color: #e04a4a; box-shadow: 0 0 14px #e04a4a55; }
+
+/* vùng cuộn được duy nhất trong game */
+.scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-right: 2px; }
+.scroll::-webkit-scrollbar { width: 5px; }
+.scroll::-webkit-scrollbar-thumb { background: #3c2e52; border-radius: 3px; }
+
+/* tab dưới đáy — dấu hiệu nhận biết của game di động */
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-height: 62px; font-size: 11px; letter-spacing: 1px;
+  background: linear-gradient(#241b32, #150f1f); border: 2px solid #3c2e52;
+  border-radius: 8px; color: #9a8fae; cursor: pointer;
+}
+.tab .ic { font-size: 20px; line-height: 1; }
+.tab.on { color: #ffd98a; border-color: #ffce7a; background: linear-gradient(#3a2a1a, #221708); }
+.badge {
+  position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px;
+  background: #e0402c; border: 2px solid #ffb0a0; border-radius: 9px;
+  font-size: 10px; display: flex; align-items: center; justify-content: center; color: #fff;
+}
+
+/* hộp thoại giữa màn */
+.modal {
+  position: absolute; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(4, 3, 8, .8);
+}
+.panel {
+  width: 100%; max-width: 340px;
+  background: linear-gradient(#221a30, #140e1e);
+  border: 3px solid #5a4478; border-radius: 12px;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+  box-shadow: 0 12px 40px #000a;
+}
+.panel h3 { font-size: 17px; color: #ffd98a; letter-spacing: 3px; text-align: center; }
+.row { display: flex; gap: 8px; align-items: center; }
+.stat { display: flex; justify-content: space-between; font-size: 12px; color: #b6a9c8; }
+.stat b { color: #ffe7b8; }
+.hr { height: 2px; background: #3c2e52; }

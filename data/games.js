@@ -483,5 +483,63 @@ window.HUB_GAMES = [
     // Kiểm: node test/chuyen-tau-suite.js
     status: "available",
     tags: ["Bắn súng", "Nhìn từ trên xuống", "Màn ngang", "Roguelite", "Gacha", "Viễn Tây"]
+  },
+  {
+    id: "deepcore",
+    title: "Lõi Sâu",
+    tagline: "Đào hầm nhìn từ trên xuống, màn hình dọc, một cần gạt. Bạn KHÔNG tự đánh: mỗi món mang theo là một con linh thú tự đi, tự chọn mục tiêu, tự đánh — mười con, mỗi con một luật ngắm in thẳng lên thẻ. Việc của bạn là đi, đào, và đứng đúng chỗ. Một ván là MỘT TẦNG khoảng mười phút: nhận nhiệm vụ, đục đá tìm quặng, sống qua mấy đợt bầy có báo trước, hạ chủ hang rồi chạy về khoang thoát trong lúc cả hang đổ ra chặn đầu. Đèn là một ô trang bị riêng vì ngoài quầng sáng là đen đặc. Ngoài ván: hai loại tiền, quay trứng linh thú, nâng bậc, sáu ô trang bị — mũ, áo, quần đổi luôn hình nhân vật.",
+    thumbnail: "assets/thumbnails/deepcore.svg",
+    path: "games/deepcore/index.html",
+    rev: "20260907a",
+    // Trộn ba game: Deep Rock Galactic (nhịp đi hang, nhiệm vụ, bầy có báo trước,
+    // chạy thoát) + Deep Rock Galactic: Survivor (lên cấp chọn 1 trong 3, vũ khí tự
+    // đánh, tự đào) + Core Keeper (đá đặc, khoét hang, vỉa quặng, bóng tối, art).
+    // Ghi chép đầy đủ kèm nguồn: games/deepcore/research/ (bốn tài liệu, ~4.000 dòng,
+    // hơn 340 nhãn [NGUỒN] kèm URL) và games/deepcore/DESIGN.md.
+    //
+    // ART: sprite THẬT rút từ Core Keeper đang cài trên máy
+    // (D:\Steam\steamapps\common\Core Keeper). 6.969 texture + 7.642 sprite được
+    // bóc bằng UnityPy, lọc còn 478 khoá đóng thành 2,45 MB atlas. Đường ống giữ đúng
+    // luật của dragonproj: TRONG CODE KHÔNG CÓ MỘT TÊN TỆP ẢNH NÀO, chỉ có khoá kiểu
+    // 'mob.caveling.move'. Đổi art = sửa danh mục trong _tools/build_atlas.py rồi chạy
+    // lại, không đụng code.
+    //
+    // Ba chỗ phải giải mã mới dùng được bộ art (xem games/deepcore/assets/ASSETS.md):
+    //   1. Nhân vật là PAPERDOLL: 293 lớp trang bị cùng khổ 234x156, cùng một bảng
+    //      39 khung 26x26. Nhờ thế "đội mũ vào thì thấy cái mũ" là chuyện miễn phí —
+    //      chỉ là vẽ thêm một lớp nữa, không phải hiệu ứng.
+    //   2. Nhiều sinh vật (chó, mèo, rùa, bọ cuộn, slime...) được tô màu bằng BẢNG
+    //      DẢI MÀU: ảnh gốc chỉ là mặt nạ độ sáng, màu thật nằm trong một texture
+    //      256x1 tên gm_<tên>. Không áp bảng thì cả đàn vẽ ra thành khối đen.
+    //   3. Số khung của mỗi dải anim không nằm trong dữ liệu nào đọc được (game dùng
+    //      ECS chứ không dùng AnimationClip của Unity), nên phải DÒ bằng ảnh: ba dấu
+    //      hiệu cộng lại (khe cắt, lệch tâm, tỉ lệ), sai chỗ nào thì ghi đè tay.
+    //
+    // BỐN CHỖ CỐ Ý LỆCH BẢN GỐC:
+    //   1. MỘT TẦNG chứ không leo năm tầng như DRG:Survivor — giống DRG gốc hơn, và
+    //      một ván mười phút trên điện thoại không chứa nổi năm đường cong độ khó.
+    //   2. QUÁI KHÔNG RƠI VIÊN KINH NGHIỆM. Kinh nghiệm cộng thẳng, và phần lớn đến
+    //      từ ĐÀO chứ không từ giết — nên cây cuốc không bao giờ là việc phụ, và
+    //      không ai phải hút sạch sàn sau mỗi đợt bằng một ngón cái.
+    //   3. NGƯỜI CHƠI KHÔNG TỰ ĐÁNH. Cả sát thương đến từ linh thú (lớp summoner).
+    //      Để việc đó vẫn có chiều sâu: quái đứng trong 120px quanh người chơi thì ăn
+    //      thêm 25% sát thương (chép Meat Shield của Path of Exile), nên VỊ TRÍ thay
+    //      cho việc ngắm. Một nút duy nhất: GỌI — gom bầy về, hồi cho chúng, và cộng
+    //      35% sát thương trong hai giây.
+    //   4. Glurch tách ra slime con khi máu ≤ 50%. Bản gốc chỉ có MỘT chiêu (nhảy vồ
+    //      + vũng nhớt), đủ cho một sandbox nhưng phẳng lì khi nó là cao trào đóng màn
+    //      của một ván mười phút.
+    //
+    // CÂN BẰNG ĐO BẰNG MÁY chứ không đoán: _tools/soak.js chạy trọn một ván không vẽ,
+    // với một người chơi giả biết né đòn báo trước và giữ quái ở tầm trung. Sáu lượt
+    // ải 1: thắng 4/6, ván trung bình 6 phút 38, cấp 17,7. Bốn lỗi nặng chỉ bị lộ nhờ
+    // bộ đo này chứ không nhờ chơi tay: quặng do CHÍNH người chơi đào không được tính
+    // vào nhiệm vụ; đào đá thường không cho kinh nghiệm nên vòng tiến bộ không khởi
+    // động được; mảnh linh thú rơi cho cả mười con thay vì chỉ đội đã ra trận; và 60
+    // giây chạy thoát là không đủ băng qua bản đồ.
+    //
+    // Kiểm: node test/deepcore-suite.js
+    status: "available",
+    tags: ["Đào hầm", "Nhìn từ trên xuống", "Màn dọc", "Roguelite", "Triệu hồi", "Gacha"]
   }
 ];

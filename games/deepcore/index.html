@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#100d14">
+<title>Lõi Sâu</title>
+<link rel="stylesheet" href="css/ui.css?v=1">
+</head>
+<body>
+
+<!-- Toàn bộ game nằm trong khung dọc này. Khung tự co cho vừa màn hình,
+     tỉ lệ khoá 9:16 để trên máy tính vẫn ra dáng điện thoại. -->
+<div id="app">
+  <canvas id="cv"></canvas>
+  <div id="ui"></div>
+</div>
+
+<!-- Nằm ngang thì che lại, game này chỉ chơi dọc. -->
+<div id="rotate">
+  <div class="rot-icon">▯</div>
+  <div>Xoay dọc máy để chơi</div>
+</div>
+
+<div id="boot">
+  <div class="boot-logo">LÕI SÂU</div>
+  <div class="boot-bar"><i id="bootfill"></i></div>
+  <div class="boot-tip" id="boottip">đang đào xuống…</div>
+</div>
+
+<script src="assets/atlas-data.js?v=1"></script>
+<script src="js/atlas.js?v=1"></script>
+<script src="js/rng.js?v=1"></script>
+<script src="data/biomes.js?v=1"></script>
+<script src="data/pets.js?v=1"></script>
+<script src="data/enemies.js?v=1"></script>
+<script src="data/perks.js?v=1"></script>
+<script src="data/equip.js?v=1"></script>
+<script src="data/missions.js?v=1"></script>
+<script src="js/world.js?v=1"></script>
+<script src="js/fx.js?v=1"></script>
+<script src="js/actor.js?v=1"></script>
+<script src="js/player.js?v=1"></script>
+<script src="js/pets.js?v=1"></script>
+<script src="js/enemies.js?v=1"></script>
+<script src="js/boss.js?v=1"></script>
+<script src="js/director.js?v=1"></script>
+<script src="js/hud.js?v=1"></script>
+<script src="js/meta.js?v=1"></script>
+<script src="js/screens.js?v=1"></script>
+<script src="js/game.js?v=1"></script>
+</body>
+</html>
