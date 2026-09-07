@@ -480,9 +480,16 @@
     const rx = bx - L.R * 5.9;
     c.fillText('🎒 ' + G.bagUsed() + '/' + (R.bagMax + (R.spec.bagPlus || 0)), rx, 20 * K);
     if (R.gun) {
-      c.fillStyle = R.reloadT > 0 ? '#c9a13a' : '#cfc6b4';
+      // Dòng này KHÔNG còn là chỗ duy nhất nói số đạn — nút Bắn đã nói rồi (xem btnFire).
+      // Việc của nó bây giờ là nói TÊN KHẨU và SỐ DỰ TRỮ, tức thứ quyết định "có nên
+      // nạp bây giờ không". Vẫn to lên một nấc và đổi màu khi cạn, vì đây là chỗ người
+      // chơi liếc lúc ĐANG YÊN, còn nút Bắn là chỗ liếc lúc đang đánh nhau.
       const am = R.ammo[R.gun.ammo] | 0;
-      c.fillText(R.gun.name + '  ' + (R.reloadT > 0 ? 'nạp…' : R.gunMag + ' / ' + am), rx, 38 * K);
+      const canDu = am <= R.gun.mag;            // dự trữ không đủ nạp đầy một băng nữa
+      c.fillStyle = R.reloadT > 0 ? '#8fc6f0' : canDu ? '#e8a03c' : '#cfc6b4';
+      c.font = '700 ' + Math.round(14 * K) + 'px system-ui, sans-serif';
+      c.fillText(R.gun.name + '  ' + (R.reloadT > 0 ? 'đang nạp…' : R.gunMag + ' / ' + am), rx, 38 * K);
+      c.font = '600 ' + Math.round(12 * K) + 'px system-ui, sans-serif';
       // Khẩu đeo lưng in mờ ngay dưới. Không có nút đổi súng trên màn hình — đổi trong
       // bao tải hoặc phím Q — nên dòng này là chỗ DUY NHẤT nhắc rằng còn khẩu thứ hai.
       if (R.gunAlt) {
@@ -546,7 +553,7 @@
     if (stickR) drawStick(c, { x: stickR.ox, y: stickR.oy, r: L.ring }, stickR, true);
 
     // --- nút ---
-    btn(c, L.fire, '🔫', 'Bắn', '#c96a3a');
+    btnFire(c, L.fire);
     btnCd(c, L.dodge, '💨', R.p.dodgeCh, CT.DODGE.charges, R.p.dodgeCd, CT.DODGE.cd, '#6aa8d8');
     btnCd(c, L.skill, R.sk.icon, R.p.skillCh, R.sk.charges || 1, R.p.skillCd, R.sk.cd, '#d8a83a');
     // Nút ⓐ nói ra việc nó sắp làm. Nhãn lấy từ đúng cái hàm quyết định hành động, nên
@@ -616,6 +623,161 @@
       c.font = '700 ' + Math.round(b.r * 0.38) + 'px system-ui, sans-serif';
       c.fillStyle = '#cfc6b4';
       c.fillText(sub, b.x, b.y + b.r * 0.72);
+    }
+    c.restore();
+  }
+
+  // ---------------------------------------------------------------------------
+  // NÚT BẮN — số đạn nằm TRÊN NÚT, không nằm ở góc màn hình
+  // ---------------------------------------------------------------------------
+  // Bản trước: nút Bắn vẽ một khẩu 🔫 và chữ "Bắn", còn số đạn thì nằm ở GÓC TRÊN PHẢI
+  // dưới dạng "Súng Lục  6 / 48" cỡ 12 điểm. Hai chỗ ấy cách nhau gần hết chiều cao màn
+  // hình, mà lúc sắp bấm bắn thì mắt đang ở ngón cái. Kết quả là người chơi bấm mới biết
+  // hết đạn — tức biết SAU khi đã trả giá, chứ không phải trước.
+  //
+  // Ba tầng thông tin, cố ý xếp theo thứ tự mắt bắt được từ xa tới gần:
+  //   1. VÒNG VIÊN ĐẠN quanh vành — đọc được bằng ĐUÔI MẮT, không cần nhìn thẳng và
+  //      không cần đọc chữ. Sáu vạch sáng là sáu viên. Cả sáu khẩu trong game đều có
+  //      băng 2-6 viên nên vạch rời lúc nào cũng đếm được; băng to hơn 14 (nếu sau này
+  //      nâng lên) thì tự đổi sang một cung liền để khỏi thành một hàng rào.
+  //   2. SỐ TO ở giữa nút — thay cho cái emoji khẩu súng. Emoji chỉ nói "đây là nút
+  //      bắn", mà điều đó thì vị trí nút đã nói rồi; con số nói thứ chưa ai nói.
+  //   3. Số đạn DỰ TRỮ in nhỏ bên dưới, cùng chỗ chữ "Bắn" cũ.
+  //
+  // Màu đi theo trục CAM (fx.js luật 4): đủ đạn cam đất, sắp hết cam sáng, hết băng thì
+  // xám và chữ "NẠP" nói thay. KHÔNG dùng đỏ — đỏ trong game này đã là màu viền của
+  // địch, mượn sang đây thì hai thứ khác hẳn nhau lại nói cùng một câu.
+  // Phần QUYẾT ĐỊNH tách khỏi phần VẼ, và không phải để cho gọn — để KIỂM ĐƯỢC.
+  // Chữ trên nút Bắn là thứ duy nhất nói cho người chơi biết còn bao nhiêu đạn, mà một
+  // dòng chữ đã vẽ lên canvas thì không bài kiểm nào đọc lại được. Trả về một object
+  // thì bộ kiểm gọi thẳng H.fireState() và so từng trạng thái một.
+  H.fireState = function () {
+    const R = G.R();
+    if (!R) return null;
+    const g = R.gun;
+    const reserve = g ? (R.ammo[g.ammo] | 0) : 0;
+    const mag = g ? R.gunMag : 0;
+    const magMax = g ? g.mag : 0;
+    const loading = R.reloadT > 0;
+    const barehand = !g;                    // tay không: bấm là đấm, không có gì để đếm
+    const empty = !barehand && mag <= 0;
+    // "Sắp hết" = còn không quá một phần ba băng. Một phần ba chứ không phải một con số
+    // cứng, vì băng trong game chạy từ 2 tới 6 viên: "còn 2" là bình thường với khẩu
+    // Cưa Nòng (băng 2) nhưng là báo động với khẩu Lục (băng 6).
+    const low = !barehand && !empty && mag <= Math.max(1, Math.ceil(magMax * 0.34));
+
+    let kind, big, sub, col;
+    if (barehand)      { kind = 'tay';     big = '✊';  sub = 'Đấm';        col = '#8a9aa8'; }
+    else if (loading)  { kind = 'dangnap'; big = R.reloadT.toFixed(1); sub = 'nạp'; col = '#8fc6f0'; }
+    else if (empty && reserve > 0) { kind = 'nap';  big = 'NẠP'; sub = 'còn ' + reserve; col = '#7d8288'; }
+    else if (empty)    { kind = 'sach';    big = 'HẾT'; sub = 'tìm đạn';    col = '#7d8288'; }
+    else               { kind = low ? 'sap' : 'day'; big = String(mag); sub = '/ ' + reserve;
+                         col = low ? '#e8a03c' : '#c96a3a'; }
+    return { kind, big, sub, col, mag, magMax, reserve, barehand, loading, empty, low };
+  };
+
+  function btnFire(c, b) {
+    const R = G.R();
+    const st = H.fireState();
+    const g = R.gun;
+    const { mag, magMax, reserve, barehand, loading, empty, low, col } = st;
+
+    c.save();
+    c.globalAlpha = 0.92;
+    c.fillStyle = 'rgba(18,18,22,0.66)';
+    c.beginPath(); c.arc(b.x, b.y, b.r, 0, TAU); c.fill();
+    c.strokeStyle = col; c.lineWidth = 2.5;
+    c.beginPath(); c.arc(b.x, b.y, b.r - 1, 0, TAU); c.stroke();
+
+    // --- tầng 1: vòng viên đạn ---
+    if (!barehand && magMax > 0) {
+      const rr = b.r + 5.5;
+      if (magMax <= 14) {
+        // Vạch rời, bắt đầu từ ĐỈNH và chạy THEO CHIỀU KIM ĐỒNG HỒ — cùng chiều với
+        // quạt hồi chiêu của hai nút bên cạnh, để ba nút nói cùng một thứ tiếng.
+        // Khe giữa hai vạch: 22% của một bước. Thử 0,16 rad trước (15%) và trên ảnh
+        // chụp thật thì sáu vạch dính lại thành một cái vòng liền — đếm được bằng cách
+        // đọc số ở giữa chứ không đếm được bằng mắt, tức mất đúng công dụng của nó.
+        const gap = TAU / magMax * 0.22;         // khe giữa hai vạch, tính bằng radian
+        const step = TAU / magMax;
+        for (let i = 0; i < magMax; i++) {
+          const a0 = -Math.PI / 2 + i * step + gap / 2;
+          const a1 = a0 + step - gap;
+          const on = i < mag;
+          c.strokeStyle = on ? col : 'rgba(255,255,255,0.14)';
+          c.lineWidth = on ? 4.5 : 2.5;
+          c.beginPath(); c.arc(b.x, b.y, rr, a0, a1); c.stroke();
+        }
+      } else {
+        c.strokeStyle = 'rgba(255,255,255,0.14)'; c.lineWidth = 2.5;
+        c.beginPath(); c.arc(b.x, b.y, rr, 0, TAU); c.stroke();
+        c.strokeStyle = col; c.lineWidth = 4.5;
+        c.beginPath();
+        c.arc(b.x, b.y, rr, -Math.PI / 2, -Math.PI / 2 + TAU * (mag / magMax));
+        c.stroke();
+      }
+    }
+
+    // --- đang nạp: một cung SÁNG DẦN, không phải một quạt tối phủ dần ---------
+    // Hai nút kia phủ tối vì thứ đang chờ là "hồi lại một lượt đã tiêu". Ở đây thứ
+    // đang chờ là BĂNG ĐẠN ĐẦY LÊN, nên hình phải là một cái gì đó lớn dần.
+    if (loading) {
+      const k = 1 - R.reloadT / g.reload;
+      c.strokeStyle = '#8fc6f0'; c.lineWidth = 4.5;
+      c.beginPath();
+      c.arc(b.x, b.y, b.r + 5.5, -Math.PI / 2, -Math.PI / 2 + TAU * k);
+      c.stroke();
+    }
+
+    // --- tầng 2: con số ---
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    if (barehand) {
+      c.fillStyle = '#f0e6d2';
+      c.font = Math.round(b.r * 0.9) + 'px system-ui, sans-serif';
+      c.fillText(st.big, b.x, b.y - b.r * 0.06);
+      c.font = '700 ' + Math.round(b.r * 0.34) + 'px system-ui, sans-serif';
+      c.fillStyle = '#cfc6b4';
+      c.fillText(st.sub, b.x, b.y + b.r * 0.64);
+    } else if (loading) {
+      // ĐANG nạp: hiện ĐỒNG HỒ ĐẾM NGƯỢC, không hiện lại chữ "NẠP".
+      // Trạng thái "hết băng, bấm để nạp" ở nhánh dưới cũng ghi "NẠP", và hai trạng
+      // thái khác hẳn nhau mà dùng chung một chữ thì người chơi phải đọc thêm màu và
+      // thêm cái vòng mới phân biệt được — tức phải làm ba việc để biết một điều.
+      // Con số đếm ngược nói đúng thứ đang thiếu: còn bao lâu nữa thì bắn được.
+      c.fillStyle = '#a8d4f4';
+      c.font = '800 ' + Math.round(b.r * 0.86) + 'px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+      c.fillText(st.big, b.x, b.y - b.r * 0.08);
+      c.font = '700 ' + Math.round(b.r * 0.32) + 'px system-ui, sans-serif';
+      c.fillStyle = '#8ba6ba';
+      c.fillText(st.sub, b.x, b.y + b.r * 0.62);
+    } else if (empty) {
+      // Hết băng. Nói ra VIỆC PHẢI LÀM chứ không nói tình trạng: còn dự trữ thì bấm là
+      // tự nạp, hết sạch thì bấm cũng vô ích và phải đi tìm đạn.
+      // Chữ "HẾT" dùng đỏ gạch, và điều đó KHÔNG phá luật trục màu ở fx.js luật 4.
+      // Luật ấy nói về VIỀN THỰC THỂ — địch viền đỏ, của mình đi trục lam-cam — để
+      // người mù màu đỏ-lục vẫn phân biệt được ai là ai giữa trận. Đây là một dòng
+      // CHỮ trên nút của chính mình, không phải viền của một con quái, và nó còn kèm
+      // sẵn một từ đọc được cùng một dòng giải thích bên dưới. Màu chọn là #e07a68
+      // chứ không phải #ff3b30 của viền địch, nên hai thứ không lẫn được.
+      c.fillStyle = reserve > 0 ? '#e8c86a' : '#e07a68';
+      c.font = '800 ' + Math.round(b.r * 0.54) + 'px system-ui, sans-serif';
+      c.fillText(st.big, b.x, b.y - b.r * 0.04);
+      // 0,30 chứ không phải 0,34: ở độ cao 0,62·r thì dây cung chỉ còn rộng 62 điểm,
+      // và "đi tìm đạn" ở cỡ 0,34 đo được 60 — tức chạm mép vòng. Rút chữ xuống
+      // "tìm đạn" và hạ cỡ một nấc thì còn dư chỗ ở cả máy hẹp nhất.
+      c.font = '700 ' + Math.round(b.r * 0.30) + 'px system-ui, sans-serif';
+      c.fillStyle = '#b0a894';
+      c.fillText(st.sub, b.x, b.y + b.r * 0.62);
+    } else {
+      // Số viên trong băng: to nhất trên cả nút. Chữ số ĐỀU BỀ RỘNG để con số không
+      // nhảy ngang mỗi lần bắn — một con số nhấp nháy vị trí thì mắt phải bắt lại từ
+      // đầu sau mỗi phát.
+      c.fillStyle = low ? '#ffd08a' : '#f4ead6';
+      c.font = '800 ' + Math.round(b.r * 1.0) + 'px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+      c.fillText(st.big, b.x, b.y - b.r * 0.10);
+      c.font = '700 ' + Math.round(b.r * 0.34) + 'px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+      c.fillStyle = reserve > 0 ? '#b8ac94' : '#9a7060';
+      c.fillText(st.sub, b.x, b.y + b.r * 0.60);
     }
     c.restore();
   }

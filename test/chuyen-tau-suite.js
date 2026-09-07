@@ -1232,6 +1232,66 @@ async function suiteMenuLook(browser) {
 }
 
 // ---------------------------------------------------------------------------
+async function suiteAmmo(browser) {
+  out.push('\n[21] Số đạn: nút Bắn phải nói ra còn bao nhiêu viên TRƯỚC khi bấm');
+  const { ctx, page } = await open(browser, 844, 390);
+  try {
+    await page.evaluate(() => { CT.GAME.newRun('m1', 'hai'); document.getElementById('menu').classList.remove('on'); });
+    await page.waitForTimeout(120);
+
+    // Đọc trạng thái nút qua H.fireState() — cùng một object mà hàm vẽ dùng, nên
+    // không có đường nào để bài kiểm và màn hình nói lệch nhau.
+    const at = (mag, res, reload) => page.evaluate(a => {
+      const R = CT.GAME.R();
+      R.gunMag = a[0]; R.ammo[R.gun.ammo] = a[1]; R.reloadT = a[2];
+      return CT.HUD.fireState();
+    }, [mag, res, reload]);
+
+    const full = await at(6, 48, 0);
+    check('băng đầy: số TO trên nút đúng bằng số viên trong băng',
+          full.kind === 'day' && full.big === '6' && full.sub === '/ 48',
+          full.big + '  ' + full.sub);
+
+    const low = await at(2, 48, 0);
+    check('còn ≤ 1/3 băng thì đổi màu báo trước, chưa cần bấm mới biết',
+          low.kind === 'sap' && low.big === '2' && low.col !== full.col,
+          low.big + ' · ' + low.col + ' (đầy là ' + full.col + ')');
+
+    const rel = await at(0, 30, 0);
+    check('hết băng mà còn dự trữ: nút nói VIỆC PHẢI LÀM và còn bao nhiêu',
+          rel.kind === 'nap' && rel.big === 'NẠP' && rel.sub === 'còn 30',
+          rel.big + ' / ' + rel.sub);
+
+    const dry = await at(0, 0, 0);
+    check('hết sạch: nói HẾT chứ không nói NẠP — bấm cũng không nạp được',
+          dry.kind === 'sach' && dry.big === 'HẾT', dry.big + ' / ' + dry.sub);
+
+    const load = await at(0, 30, 1.4);
+    check('đang nạp: đếm ngược, KHÔNG dùng lại chữ NẠP của trạng thái trên',
+          load.kind === 'dangnap' && load.big === '1.4' && load.big !== rel.big,
+          load.big + ' / ' + load.sub);
+
+    // Tay không vẫn phải bấm được, và nút không được hiện một con số bịa ra.
+    const bare = await page.evaluate(() => {
+      const R = CT.GAME.R(); R.gun = null; R.gunMag = 0; R.reloadT = 0;
+      return CT.HUD.fireState();
+    });
+    check('tay không: nút thành nút đấm, không hiện số đạn nào',
+          bare.kind === 'tay' && bare.barehand === true && bare.magMax === 0,
+          bare.big + ' / ' + bare.sub);
+
+    // Vòng vạch đạn chỉ đếm được khi băng đủ nhỏ. Khoá lại giả định ấy: nếu sau này có
+    // khẩu băng 30 thì bài kiểm này hỏng và người sửa biết phải xem lại nhánh vẽ cung.
+    const mags = await page.evaluate(() => CT.GUNS.map(g => ({ id: g.id, mag: g.mag })));
+    const big = mags.filter(m => m.mag > 14);
+    check('mọi khẩu đều có băng ≤ 14 viên nên vòng vạch rời luôn đếm được',
+          big.length === 0,
+          big.length ? big.map(m => m.id + ':' + m.mag).join(', ')
+                     : mags.length + ' khẩu, băng lớn nhất ' + Math.max.apply(null, mags.map(m => m.mag)));
+  } finally { await ctx.close(); }
+}
+
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 (async function main() {
   const browser = await chromium.launch({
@@ -1241,7 +1301,7 @@ async function suiteMenuLook(browser) {
                   suiteGacha, suiteShop, suiteBag, suiteSave, suiteTouch,
                   suiteArt, suiteSafety,
                   suiteShopFlow, suiteSellFlow, suiteFuelFlow, suiteCarryFlow,
-                  suiteWiki, suiteGunFlow, suiteFeel, suiteMenuLook];
+                  suiteWiki, suiteGunFlow, suiteFeel, suiteMenuLook, suiteAmmo];
   for (const s of suites) {
     try { await s(browser); }
     catch (e) { check(s.name + ' — cả bộ ném lỗi', false, String(e.message).slice(0, 160)); }
