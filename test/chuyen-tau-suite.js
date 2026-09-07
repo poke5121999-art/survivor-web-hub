@@ -31,8 +31,13 @@ function check(name, ok, detail) {
   else { fail++; out.push('  ✘ ' + name + (detail ? '  — ' + detail : '')); }
 }
 
-async function open(browser, w, h) {
-  const ctx = await browser.newContext({
+// `desktop` = dựng một MÁY TÍNH thật: không hasTouch, không isMobile. Bắt buộc phải
+// có một cửa riêng, vì nhánh chuột trong hud.js bị `touchSeen` khoá lại vĩnh viễn ngay
+// khi có một cú chạm đầu tiên — chạy nhánh chuột trên context cảm ứng là đo nhầm.
+async function open(browser, w, h, desktop) {
+  const ctx = await browser.newContext(desktop
+    ? { viewport: { width: w || 844, height: h || 390 }, deviceScaleFactor: 1 }
+    : {
     viewport: { width: w || 844, height: h || 390 },   // điện thoại NẰM NGANG
     deviceScaleFactor: 2, hasTouch: true, isMobile: true
   });
@@ -1342,7 +1347,12 @@ async function suiteBoard(browser) {
       const chay = R.foes.map(f => f.sleep);
       const trongSan = R.foes.filter(f => f.y > -CT.TRAIN_ART.DECK_H && f.y < 0).length;
       R.foes.length = 0;
-      R.phase = 'ga'; R.waveQuota = 6; R.burstT = 0;
+      // Tàu phải ĐỨNG HẲN. Cuối mỗi G.step có một tiếng động của đoàn tàu đang lăn
+      // (bán kính tới 150 đơn vị, đúng luật của bản gốc: "A moving Train. Variable
+      // radius depending on speed") — và nó chạy SAU stepSpawn, nên nó đánh thức luôn
+      // mấy con vừa sinh ra ở ngay khung đó. Không đặt spd = 0 thì bài kiểm này chập
+      // chờn: đo lần đầu ra 2/2 con ngủ, lần sau ra 1/2.
+      R.phase = 'ga'; R.spd = 0; R.waveQuota = 6; R.burstT = 0;
       G.step(1 / 60);
       const ga = R.foes.map(f => f.sleep);
       R.phase = 'chay';
@@ -1426,6 +1436,83 @@ async function suiteBoard(browser) {
 }
 
 // ---------------------------------------------------------------------------
+async function suiteMouse(browser) {
+  out.push('\n[23] Máy tính: ngắm bằng chuột, và chuột không lái nhân vật');
+  const { ctx, page } = await open(browser, 844, 390, true);
+  try {
+    await page.evaluate(() => {
+      CT.GAME.newRun('m1', 'hai');
+      document.getElementById('menu').classList.remove('on');
+      const R = CT.GAME.R(); R.legs = 99; R.fuel = 1e9;
+    });
+    await page.waitForTimeout(1500);            // tàu chạy, camera vào nếp
+
+    // --- 1. Ngắm từ NHÂN VẬT, không từ giữa màn hình ------------------------
+    // Ở pha chạy, camera khoá vào ĐOÀN TÀU chứ không vào người, nên người chơi trượt
+    // dọc sàn toa từ 29% tới 76% bề ngang. Gốc ngắm ghim ở 50% thì chỉ đúng lúc người
+    // đứng đúng giữa. Đo ở BA vị trí dọc sàn, và vị trí giữa phải KHÔNG được là vị trí
+    // duy nhất đúng.
+    const errs = [];
+    for (const frac of [0.08, 0.5, 0.92]) {
+      for (const pt of [[700, 120], [150, 120], [700, 320], [420, 60]]) {
+        await page.evaluate(f => {
+          const R = CT.GAME.R(), s = CT.GAME.deckSpan();
+          R.p.x = s.a + (s.b - s.a) * f; R.p.y = -48;
+        }, frac);
+        await page.mouse.move(pt[0], pt[1]);
+        await page.waitForTimeout(60);
+        const d = await page.evaluate(m => {
+          const G = CT.GAME, R = G.R(), v = G.view();
+          const wx = G.cam.x + m[0] / v.zoom, wy = G.cam.y + m[1] / v.zoom;
+          const dung = Math.atan2(wy - R.p.y, wx - R.p.x);
+          let e = R.p.aim - dung;
+          while (e > Math.PI) e -= Math.PI * 2;
+          while (e < -Math.PI) e += Math.PI * 2;
+          return Math.abs(e * 180 / Math.PI);
+        }, pt);
+        errs.push({ frac, d });
+      }
+    }
+    const worst = errs.reduce((a, b) => a.d > b.d ? a : b);
+    const dau = errs.filter(e => e.frac !== 0.5).reduce((a, b) => a.d > b.d ? a : b);
+    check('nòng súng chỉ đúng chỗ con trỏ, ở MỌI vị trí dọc sàn toa',
+          worst.d < 1.0, 'lệch lớn nhất ' + worst.d.toFixed(1) + '° (ở vị trí ' + worst.frac + ')');
+    check('và đứng ở hai ĐẦU sàn cũng đúng, không chỉ đứng giữa',
+          dau.d < 1.0, 'lệch lớn nhất ngoài chỗ giữa: ' + dau.d.toFixed(1) + '°');
+
+    // --- 2. Bấm chuột ở nửa dưới KHÔNG được lái nhân vật --------------------
+    const lay = await page.evaluate(() => CT.HUD.layout());
+    const drive = await page.evaluate(async l => {
+      const G = CT.GAME;
+      G.IN.mx = 0; G.IN.my = 0;
+      return { thumbY: l.thumbY };
+    }, lay);
+    // bấm sâu trong dải cần gạt, nửa TRÁI — đúng chỗ cần đi lẽ ra sinh ra
+    await page.mouse.move(140, Math.round(drive.thumbY + (390 - drive.thumbY) * 0.6));
+    await page.mouse.down();
+    await page.waitForTimeout(120);
+    const held = await page.evaluate(() => ({ mx: CT.GAME.IN.mx, my: CT.GAME.IN.my,
+                                              fire: CT.GAME.IN.fire }));
+    await page.mouse.up();
+    check('bấm chuột ở dải cần gạt KHÔNG làm nhân vật đi',
+          Math.hypot(held.mx, held.my) < 0.01,
+          'mx,my = ' + held.mx.toFixed(2) + ',' + held.my.toFixed(2));
+    check('mà vẫn bắn — bấm chuột là bắn, không phải là đi',
+          held.fire === true, 'fire = ' + held.fire);
+
+    // --- 3. Con trỏ rời khung thì trả quyền cho tự-ngắm ---------------------
+    await page.mouse.move(500, 200);
+    await page.waitForTimeout(60);
+    const before = await page.evaluate(() => CT.GAME.IN.aiming);
+    await page.mouse.move(500, -5);      // ra khỏi khung
+    await page.waitForTimeout(120);
+    const after = await page.evaluate(() => CT.GAME.IN.aiming);
+    check('con trỏ rời khung thì thôi ngắm tay, không đóng băng hướng súng',
+          before === true && after === false, before + ' → ' + after);
+  } finally { await ctx.close(); }
+}
+
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 (async function main() {
   const browser = await chromium.launch({
@@ -1435,7 +1522,7 @@ async function suiteBoard(browser) {
                   suiteGacha, suiteShop, suiteBag, suiteSave, suiteTouch,
                   suiteArt, suiteSafety,
                   suiteShopFlow, suiteSellFlow, suiteFuelFlow, suiteCarryFlow,
-                  suiteWiki, suiteGunFlow, suiteFeel, suiteMenuLook, suiteAmmo, suiteBoard];
+                  suiteWiki, suiteGunFlow, suiteFeel, suiteMenuLook, suiteAmmo, suiteBoard, suiteMouse];
   for (const s of suites) {
     try { await s(browser); }
     catch (e) { check(s.name + ' — cả bộ ném lỗi', false, String(e.message).slice(0, 160)); }

@@ -101,7 +101,9 @@
     // "điều khiển không hợp lý", và nó là một lỗi hình học chứ không phải một vấn đề gu.
     //
     // Luật từ nay: THỨ VẼ RA VÀ THỨ BẮT ĐƯỢC PHẢI LÀ MỘT.
-    const thumbY = h - pad - ring * 2;
+    // Hở thêm 10 điểm trên đỉnh vòng, chép của repo2d (`h − (pad + 2R + 10)`): đúng
+    // bằng vạch thì một cú chạm ngay trên viền vòng rơi vào khoảng không giữa hai lớp.
+    const thumbY = h - pad - ring * 2 - 10;
 
     const left  = { x: pad + ring, y: h - pad - ring, r: ring };
     const rightZone = { x: w - pad - ring, y: h - pad - ring, r: ring };
@@ -243,6 +245,16 @@
     const b = pickButton(r.x, r.y);
     if (b) { b.fn(); if (b.b === lay.fire) firePtr = e.pointerId; return; }
 
+    // CHUỘT KHÔNG DỰNG CẦN GẠT.
+    //
+    // Bản trước không chặn chỗ này, nên trên máy tính một cú bấm chuột vào 28% dưới
+    // cùng của màn hình sinh ra một cần gạt ảo: bấm ở nửa trái thì NHÂN VẬT ĐI về phía
+    // con trỏ, bấm ở nửa phải thì ghi đè luôn hướng ngắm mà chuột vừa đặt. Người chơi
+    // bấm để BẮN một con quái ở góc dưới, và nhân vật đi tới chỗ nó.
+    // Trên máy tính, bàn phím lo việc đi và chuột lo việc ngắm — cần gạt vẽ trên màn
+    // hình là thứ của ngón tay, không phải của con trỏ.
+    if (e.pointerType === 'mouse') return;
+
     // Dưới dải ngón cái mới là cần gạt.
     if (r.y > lay.thumbY) {
       if (r.x < lay.w * 0.5) {
@@ -362,10 +374,28 @@
   function onMouseMove(e) {
     // LUẬT VÀNG: allow-list DƯƠNG. MouseEvent thuần có pointerType undefined.
     if (touchSeen || e.pointerType === 'touch') return;
+    const R = G.R();
+    if (!R || !R.p) return;
     const r = ptr(e);
-    const L = lay;
+    // ĐỔI CON TRỎ SANG TOẠ ĐỘ THẾ GIỚI RỒI NGẮM TỪ NHÂN VẬT.
+    //
+    // ROOT-CAUSE của bản trước: nó lấy `r.x − w/2, r.y − h/2`, tức ngắm từ GIỮA MÀN
+    // HÌNH. Nhưng nhân vật KHÔNG đứng giữa màn hình: ở pha chạy, camera khoá vào đoàn
+    // tàu (mũi tàu ở 76% bề ngang) chứ không khoá vào người, nên người chơi trượt dọc
+    // sàn toa từ 29% tới 76% bề ngang trong khi gốc ngắm vẫn ghim ở 50%.
+    // Đo thật, khung 844×390, ba vị trí dọc sàn × bốn điểm chuột: lệch 1,4° khi đứng
+    // giữa (đúng chỗ giả định cũ vô tình khớp) và LỆCH TỚI 54,8° khi đứng ở đầu sàn.
+    // Nửa số phép đo lệch quá 10°. Ở tầm 300 đơn vị thì 30° là trượt 150 đơn vị —
+    // người chơi trỏ vào đúng con quái và đạn bay đi chỗ khác.
+    //
+    // Cách đúng là cách repo2d dùng: world = cam + screen / zoom, rồi lấy hiệu với vị
+    // trí nhân vật. Không có hằng số nào phải cân, và nó tự đúng ở mọi cỡ khung, mọi
+    // mức thu phóng, cả hai pha.
+    const v = G.view();
+    const wx = G.cam.x + r.x / v.zoom;
+    const wy = G.cam.y + r.y / v.zoom;
     G.IN.aiming = true;
-    G.IN.ax = r.x - L.w * 0.5; G.IN.ay = r.y - L.h * 0.5;
+    G.IN.ax = wx - R.p.x; G.IN.ay = wy - R.p.y;
   }
 
   // ---------------------------------------------------------------------------
@@ -375,6 +405,11 @@
     cv = canvas; ctx = cv.getContext('2d');
     cv.addEventListener('pointerdown', onDown, { passive: false });
     cv.addEventListener('pointermove', onMove, { passive: false });
+    // Con trỏ rời khung chơi thì NGỪNG ngắm tay, trả quyền cho tự-ngắm. Không có dòng
+    // này thì hướng súng đóng băng ở chỗ con trỏ vừa đi ra, và nó đóng băng im lặng.
+    cv.addEventListener('pointerleave', e => {
+      if (e.pointerType === 'mouse' && !touchSeen) G.IN.aiming = false;
+    });
     cv.addEventListener('pointerup', onUp);
     cv.addEventListener('pointercancel', onUp);          // mỏ neo 1
     cv.addEventListener('lostpointercapture', onUp);     // mỏ neo 2 — sự kiện DUY NHẤT báo mất capture
