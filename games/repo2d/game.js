@@ -7836,9 +7836,11 @@ function drawMates(c){
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0, 8, 9, 4, 0, 0, Math.PI*2); c.fill();
     const skin = window.REPO_SKIN && REPO_SKIN.crew(c, a, false);
-    // Đèn của đồng đội, cùng luật với đèn người chơi: chạy quanh theo hướng, không xoay.
+    // Đèn của đồng đội, cùng luật với đèn người chơi: chạy quanh theo hướng, không xoay, và
+    // nhấc lên lúc quay lưng để khỏi che đầu — xem lampY(). Đồng đội dùng CHUNG bộ hình người
+    // với người chơi (cùng drawCrew, cùng cỡ), nên cùng một cái đầu bị che, cùng một cách chữa.
     const mLamp = window.REPO_SKIN && REPO_SKIN.lamp &&
-      REPO_SKIN.lamp(c, Math.cos(a.dir) * 9, Math.sin(a.dir) * 9 - 2, 13, S.time + a.id);
+      REPO_SKIN.lamp(c, Math.cos(a.dir) * 9, lampY(a.dir, 9, -2), 13, S.time + a.id);
     c.rotate(a.dir);
     if (!skin){
       c.fillStyle = a.hurt > 0 ? '#c86a60' : a.col.body;
@@ -10421,6 +10423,28 @@ function drawProjectiles(c){
     }
   }
 }
+// CÁI ĐÈN NHẤC LÊN KHI QUAY LƯNG.
+//
+// Chủ dự án: "lúc xoay mặt lên trên, cái đèn che mất đầu của char -> đẩy cao lên để nó đừng che".
+//
+// Đo trên chính bộ hình chứ không ướm mắt. Ô người cao 48px gốc vẽ ra 38,4 đơn vị thế giới và
+// neo ở CHÂN (y = 8), nhưng mực trong ô chỉ bắt đầu từ hàng 44/144 — nên ĐỈNH ĐẦU, thật ra là
+// đỉnh cái nơ đỏ, nằm ở y = -18,7. Cái đèn lúc quay lên có tâm ở y = -13 và thân cao 16, tức nó
+// trải từ -20,5 xuống -5,5: đúng một cái cột dựng chắn giữa đầu. Ba hướng kia không sao — quay
+// ngang thì đèn đứng cạnh người, quay xuống thì nó rơi xuống chân váy.
+//
+// Phần nhấc chỉ ăn theo PHẦN NGƯỚC LÊN của hướng nhìn: `max(0, -sin)` bằng 1 lúc quay thẳng
+// lưng lên, 0 lúc quay ngang, và 0 suốt nửa dưới. NHÂN chứ không phải một câu `if` ở mốc 45°:
+// hướng nhìn là một số thực chạy liên tục, nên một câu `if` sẽ làm cái đèn NHẢY nguyên 14px
+// đúng lúc người chơi xoay qua mốc đó — mà xoay qua mốc đó là việc xảy ra suốt cả ván.
+//
+// 14 là con số ĐO ĐƯỢC: nhấc 14 thì đáy đèn của người chơi lên -19,5 và đáy đèn (nhỏ hơn một
+// cỡ) của đồng đội lên -18,9, tức cả hai vừa vượt qua đỉnh nơ -18,7. Thấp hơn thì còn liếm vào
+// cái nơ, cao hơn thì cái đèn bắt đầu trôi lơ lửng tách hẳn khỏi tay.
+const LAMP_LIFT = 14;
+function lampY(ang, xa, dy){
+  return Math.sin(ang) * xa + dy - Math.max(0, -Math.sin(ang)) * LAMP_LIFT;
+}
 function drawPlayer(c){
   const p = S.player;
   if (p.down) return;                    // your head is on the floor, drawn with the loot
@@ -10442,7 +10466,7 @@ function drawPlayer(c){
   const swp = (p.swingT || 0) / MELEE_T;
   const lampA = p.dir + (swp > 0 ? (-MELEE_HALF + (1 - swp) * MELEE_HALF * 2) * 0.85 : 0);
   const lampOk = window.REPO_SKIN && REPO_SKIN.lamp &&
-    REPO_SKIN.lamp(c, Math.cos(lampA) * 10, Math.sin(lampA) * 10 - 3, 16, S.time);
+    REPO_SKIN.lamp(c, Math.cos(lampA) * 10, lampY(lampA, 10, -3), 16, S.time);
 
   c.rotate(p.dir);
   if (!skin){
@@ -11255,7 +11279,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260907c';
+const BUILD = '20260907d';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
