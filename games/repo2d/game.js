@@ -1075,6 +1075,23 @@ const MATERIALS = [
   { key:'gỗ',      frag:0.50, thresh:155,  col:'#a8743f', edge:'#6f4a26', shatter:false },
   { key:'kim loại',frag:0.18, thresh:260,  col:'#98a0a8', edge:'#5f676f', shatter:false }
 ];
+// ORB HỒN — chất liệu của thứ con quái để lại, và nó KHÔNG NẰM TRONG `MATERIALS`.
+//
+// Cố ý để ngoài mảng: `MATERIALS[(rnd()*MATERIALS.length)|0]` được gọi ở bốn chỗ để bốc chất
+// liệu cho đồ trong nhà, nên thêm một dòng vào mảng là cái ấm trong bếp có thể bốc trúng "hồn"
+// rồi phát nổ. Một chất liệu chỉ thuộc về một nguồn thì đừng bỏ vào cái rổ chung.
+//
+// Số của nó nói đúng một câu: DỄ VỠ NHẤT NHÀ. Ngưỡng 55 (gốm 95, gỗ 155, kim loại 260) nên gần
+// như va chạm nào cũng ăn vào, và `frag` 1,6 (gốm 1,0) nên mỗi cú ăn sâu hơn hẳn. Bản gốc gọi
+// orb là "incredibly fragile and should be handled with care"; đây là câu đó viết bằng ba con số.
+// `shatter` để nó vỡ hẳn về 0 thay vì mòn dần thành một quả cầu vô giá trị — mà vỡ hẳn mới là
+// lúc có vụ nổ, nên một quả orb không bao giờ nổ được thì cả cơ chế này không tồn tại.
+const ORB_MAT = { key:'hồn', frag:1.60, thresh: 55, col:'#a9ecff', edge:'#3f9fc4', shatter:true };
+// Mấy giây đầu KHÔNG VỠ ĐƯỢC, và người chơi phải nhìn thấy là nó đang trong mấy giây ấy (orb vẽ
+// mờ và nhấp nháy — xem drawLoot). Bản gốc cho 5 giây "translucent, signaling its invulnerability".
+// Lý do nó cần tồn tại: orb rơi ra GIỮA một trận đánh, thường là ngay dưới chân thứ vừa giết con
+// quái đó — không có nó thì viên đạn cuối cùng của bạn cũng là thứ thổi bay phần thưởng.
+const ORB_GRACE = 5;
 const SIZES = [
   { key:'nhỏ',   r: 7, mass: 8,  vmin: 400,  vmax: 1100 },
   { key:'vừa',   r:11, mass: 24, vmin: 1400, vmax: 3200 },
@@ -1695,6 +1712,12 @@ const DOOR_DRAG     = 2.2;        // 1/s, how fast a flung leaf loses the swing 
 // chạm thật (7,5) một chút: hai vai và cái đèn trong tay cũng đẩy được cửa, và một con số sát
 // quá thì đi đúng giữa lại không chạm cánh nào.
 const BODY_ON_DOOR  = 10;
+// Tốc độ tối đa một cái thân người bẻ được cánh, tính bằng "cả tầm mở" mỗi giây. Chỉ có tác
+// dụng lúc ĐỔI CHIỀU — xem chú thích ở stepDoors. 8 nghĩa là quay hết một bên mất 0,125 giây,
+// mà cái thân đi nhanh nhất trong nhà (xe trinh sát, 205px/s) cũng chỉ ép cánh mở thêm 0,071
+// mỗi khung: nên lúc đi bình thường cái trần này KHÔNG BAO GIỜ chạm tới, và luật "cánh mở đúng
+// bằng phần bạn đã đẩy" giữ nguyên không suy suyển.
+const DOOR_TURN     = 8;
 const DOOR_HOLD     = 2.5;        // seconds a leaf keeps the angle you left it at
 const DOOR_SAG_T    = 9;          // and how long the hinge then takes to sag it shut, wide to zero
 
@@ -1987,17 +2010,50 @@ function stepDoors(dt){
         if (that && across*mv <= 0) xo[i] = Math.max(xo[i], Math.abs(mv)/Math.max(dt, 1e-4));
       }
     }
+    // MỘT GÓC CÓ DẤU, không phải một cặp (bên, độ mở). Đây là cả chỗ sửa.
+    //
+    // `lside` + `leaf` vốn đã LÀ một góc có dấu bị tách làm hai nửa, và tách ra thì "đổi chiều
+    // mở" trở thành một cú lật tức thời: cánh đang nằm bẹp bên đông nhảy sang nằm bẹp bên tây
+    // trong một khung hình, quét xuyên qua đúng cái thân vừa đẩy nó. Bản cũ chặn cú lật ấy bằng
+    // điều kiện `leaf < 0.12` — chỉ cho đổi chiều khi cánh gần như đã khép — và CHÍNH ĐIỀU KIỆN
+    // ẤY là con bọ chủ dự án thấy: "cửa bị đẩy sai chiều player tiến tới".
+    //
+    // ROOT-CAUSE, đo bằng mô phỏng lại đúng hai công thức này: đi qua một cánh cửa rồi quay lại,
+    // cánh giữ nguyên góc 2,5 giây (DOOR_HOLD) rồi mới rũ xuống trong 9 giây (DOOR_SAG_T), nên
+    // phải đứng chờ ~12 GIÂY thì `leaf` mới tụt dưới 0,12. Sớm hơn thế thì `lside` giữ nguyên
+    // chiều cũ, và cánh bật NGƯỢC vào mặt người đang đi tới. Đi qua rồi quay lại là việc xảy ra
+    // vài chục lần mỗi tầng — nhặt hụt một món, nghe tiếng ở phòng sau, bị dồn phải lùi.
+    //
+    // Gộp lại thành một góc chạy từ -1 tới +1 thì đổi chiều là một cú QUAY QUA 0: cánh khép lại
+    // rồi bật sang bên kia, đúng như một cánh cửa hai chiều thật, và không có khung hình nào nó
+    // nằm chồng lên người đẩy. Không cần cấm gì nữa, nên không còn cái điều kiện sinh ra bọ.
     for (let i = 0; i < 2; i++){
-      // Cánh xoay THEO chiều người đẩy đang đi. Chỉ đổi chiều khi cánh gần như đã khép: một cánh
-      // đang mở dở mà lật chiều là nó quét xuyên qua chính cái thân vừa đẩy nó.
-      if (huong[i] && d.leaf[i] < 0.12) d.lside[i] = d.vertical ? -huong[i] : huong[i];
+      // Chiều cái thân này MUỐN cánh mở về: theo hướng nó đang đi, không theo chỗ nó đang đứng.
+      const muon = huong[i] ? (d.vertical ? -huong[i] : huong[i]) : 0;
+      let goc = d.lside[i] * d.leaf[i];
+      // Cú hất giữ nguyên luật cũ, chỉ là nó cộng vào góc THEO CHIỀU ĐANG BỊ ĐẨY — nên một cú
+      // lao vào cánh đang mở ngược cũng giúp bẻ nó về, thay vì hất nó xa thêm.
+      const ben = muon || d.lside[i];
       if (xo[i] > DOOR_SLAM) d.lvel[i] = Math.max(d.lvel[i], xo[i]/DOOR_SWING);
       if (d.lvel[i] > 0){
-        d.leaf[i] = clamp(d.leaf[i] + d.lvel[i]*dt, 0, 1);
+        goc = clamp(goc + ben*d.lvel[i]*dt, -1, 1);
         d.lvel[i] = Math.max(0, d.lvel[i] - DOOR_DRAG*d.lvel[i]*dt);
-        if (d.lvel[i] < 0.02 || d.leaf[i] >= 1) d.lvel[i] = 0;
+        if (d.lvel[i] < 0.02 || Math.abs(goc) >= 1) d.lvel[i] = 0;
       }
-      if (cham[i] > d.leaf[i]) d.leaf[i] = cham[i];   // bề ngang thân, không bao giờ kéo ngược lại
+      if (muon){
+        // Bề ngang thân đẩy góc TỚI `muon*cham` và không bao giờ kéo ngược lại. DOOR_TURN chỉ
+        // là cái trần cho một khung hình: lúc đi bình thường nó không chạm tới (xem chú thích ở
+        // hằng số), lúc đổi chiều thì nó là thứ biến cú lật thành một cú quay nhìn thấy được.
+        const dich = muon * cham[i];
+        if (muon*dich > muon*goc){
+          const buoc = DOOR_TURN * dt;
+          goc = Math.abs(dich - goc) <= buoc ? dich : goc + Math.sign(dich - goc)*buoc;
+        }
+      } else if (cham[i] > Math.abs(goc)){
+        goc = d.lside[i] * cham[i];    // đứng yên trong tầm với: vẫn chèn cánh như cũ
+      }
+      if (goc !== 0) d.lside[i] = goc > 0 ? 1 : -1;
+      d.leaf[i] = Math.abs(goc);
       if (cham[i] > 0 || d.lvel[i] > 0) d.lidle[i] = 0; else d.lidle[i] += dt;
       if (d.lidle[i] > DOOR_HOLD) d.leaf[i] = Math.max(0, d.leaf[i] - dt/DOOR_SAG_T);
     }
@@ -3768,7 +3824,10 @@ function damageLoot(l, impulse){
     if (S.player.held === l) S.player.held = null;
     fxFlash(0.30, '255,225,215'); fxShake(Math.min(11, 5 + before/700));
     SFX.shatter();
-    toast('Vỡ mất ' + money(before));
+    // Một quả orb vỡ thì không chỉ mất tiền — xem orbBurst(). Đặt SAU `l.gone = true` là cố ý:
+    // vòng nổ bỏ qua mọi món đã `gone`, nên quả orb không tự kích lại chính nó thành vòng lặp.
+    if (l.orb){ orbBurst(l); toast('Orb vỡ — ' + money(before) + ' và một vụ nổ'); }
+    else toast('Vỡ mất ' + money(before));
   } else if (lost > 0.5) SFX.crack();
   return lost;
 }
@@ -4291,15 +4350,52 @@ function sizeForValue(v){
 function dropFoeItem(x, y, value){
   if ((S.foeDrops || 0) >= FOE_DROP_MAX) return null;
   const size = SIZES[sizeForValue(value)];
-  const mat  = MATERIALS[(Math.random()*MATERIALS.length)|0];
-  const l = makeLoot(x, y, size, mat, value);
+  // MỘT QUẢ ORB, KHÔNG PHẢI MỘT MÓN ĐỒ BỐC NGẪU NHIÊN. Chủ dự án, sau khi đọc lại bản gốc:
+  // "các loot rớt ra từ quái nên là cục orb có value dựa trên độ mạnh yếu của quái, và khi orb
+  // bể thì tạo ra 1 vụ nổ có sát thương".
+  //
+  // Chất liệu bốc ngẫu nhiên là thứ phải bỏ đi trước tiên: một quả orb kim loại (ngưỡng 260,
+  // frag 0,18) gần như không vỡ nổi, còn một quả gốm thì vỡ ngay — cùng một con quái, hai cơ
+  // chế khác hẳn nhau, và người chơi không có cách nào biết mình đang cầm quả nào. Một cơ chế
+  // mà người chơi không đọc được thì nó không phải cơ chế, nó là xúc xắc.
+  //
+  // CỠ vẫn suy từ GIÁ TRỊ, mà giá trị suy từ máu và đòn của con quái (xem foeLootValue) — nên
+  // dây chuyền "quái mạnh -> orb đắt -> orb to -> nổ mạnh" đã liền một mạch, đúng cái bậc thang
+  // của bản gốc (quái cấp 1 rơi orb nhỏ, cấp 2 vừa, cấp 3 to).
+  const l = makeLoot(x, y, size, ORB_MAT, value);
   l.fromFoe = true;
-  l.grace = S.time + 3;          // it lands in the middle of a fight; three seconds before it can break
+  l.orb = true;
+  l.grace = S.time + ORB_GRACE;  // rơi giữa trận đánh: xem chú thích ở ORB_GRACE
   S.loot.push(l);
   S.foeDrops = (S.foeDrops || 0) + 1;
   return l;
 }
 function foeDropsLeft(){ return Math.max(0, FOE_DROP_MAX - (S.foeDrops || 0)); }
+
+// ORB VỠ = MỘT VỤ NỔ. Ba cỡ, ba sức, theo đúng bậc thang của bản gốc (nhỏ ~50, vừa ~100, to
+// ~150 sát thương, "đủ một phát hạ gọn phần lớn quái cấp 1 và một số quái cấp 2").
+//
+// Quy về `pow` của quả lựu đạn thay vì đặt một bộ số thứ hai: cả vòng nổ ở stepBombs đã tính
+// sát thương quái, sát thương người, phá cửa kẹt, làm hỏng đồ quanh đó, quầng sáng và cú rung
+// theo `pow` rồi. Đặt số riêng ở đây là dựng một bảng cân bằng thứ hai chạy song song, và hai
+// bảng thì sớm muộn cũng lệch nhau. Lựu đạn là `pow` 1: nên orb vừa nổ đúng bằng một quả lựu
+// đạn (55 lên người, 340 lên quái), orb nhỏ bằng nửa, orb to mạnh hơn một nửa.
+//
+// Ba hệ quả ĐI KÈM và đều là cố ý, vì chúng là chỗ cơ chế này trở nên đáng chơi:
+//   - orb nổ làm hỏng đồ quanh nó, kể cả orb khác — nên một đống orb là một dây thuốc nổ;
+//   - orb nổ trong tay bạn thì bạn ăn trọn, vì `l.x/l.y` lúc đó là ngay trước mặt bạn;
+//   - orb nổ phá được cả cửa kẹt, y như lựu đạn. Đó là một cách mở cửa không mất tiền mua xà beng.
+const ORB_POW = [0.55, 1.00, 1.45];   // theo cỡ: nhỏ / vừa / to
+const ORB_BAN = [2.2,  2.9,  3.6];    // bán kính nổ, tính bằng ô
+function orbBurst(l){
+  const i = clamp(l.sizeIdx | 0, 0, ORB_POW.length - 1);
+  // `fuse: 0` nên nó nổ ở lần chạy stepBombs kế tiếp chứ không nổ ngay trong lúc đang duyệt
+  // danh sách — đó cũng là thứ chặn đệ quy khi một quả orb kích quả bên cạnh: quả mới xếp vào
+  // cuối mảng, mà vòng lặp đang chạy giật lùi, nên nó chờ khung sau. Dây chuyền vẫn nổ, chỉ là
+  // nổ thành từng nhịp đọc được thay vì tất cả trong một khung hình.
+  S.bombs.push({ x:l.x, y:l.y, t:0, fuse:0, r:TILE*ORB_BAN[i], pow:ORB_POW[i],
+                 done:false, owner:'orb' });
+}
 function dropFoeLoot(x, y, type){
   const base = foeLootValue(type);
   if (base <= 0) return null;
@@ -5156,7 +5252,7 @@ function killMonster(m){
   // the money is not yours until the thing is standing on a pad, and saying a number here is the
   // same lie the floating "+$" was.
   const name = MONSTERS[m.type].name;
-  toast(name + (bag ? ' chết — rơi món ' + bag.size : ' chết — hết đồ rơi')
+  toast(name + (bag ? ' chết — rơi orb ' + bag.size : ' chết — hết đồ rơi')
              + (back ? ', quay lại sau ' + FOE_RESPAWN + 's' : ''));
 }
 
@@ -9284,6 +9380,9 @@ const HL_ASLEEP = [130, 170, 200];  // tranquillised: not a danger, so not the d
 const HL_CART   = [224, 192, 122];
 const HL_TRUCK  = [140, 190, 230];
 const HL_TARGET = [150, 230, 170];   // green: the one thing the grab button would actually take
+// Xanh băng, cố ý KHÔNG trùng với vàng của đồ (HL_LOOT) lẫn xanh lá của món sắp nhặt (HL_TARGET):
+// quả orb là loại thứ ba, và nó là loại duy nhất phát nổ.
+const HL_ORB    = [150, 232, 255];
 
 // Is this point inside the light the player is casting right now?
 // Whose eyes the frame is drawn from. The player, unless the player is a head on the floor, in
@@ -9517,6 +9616,21 @@ function drawHighlights(c){
   // và chỉ đồng đội mới có viền, nên người không viền chính là mình.
   // Còn máu thì đã có thanh máu trên HUD và trái tim đập theo nhịp; không cần nói lần thứ ba.
   // SEE: bỏ viền người chơi, 2026-08-31
+
+  // QUẦNG CỦA ORB HỒN. Vẽ ở đây, tức lớp CỘNG SÁNG sau khi đèn đã nhân vào, nên nó TỰ SÁNG
+  // trong phòng tối — một ngoại lệ có chủ ý với luật "đồ đạc chịu ánh sáng như mọi thứ khác".
+  // Lý do đáng phá luật: quả orb là thứ duy nhất trên sàn vừa là tiền vừa là một quả bom đang
+  // nằm chờ, và giấu nó trong bóng tối thì người chơi đá phải nó rồi mới biết nó ở đó.
+  //
+  // Khác hai vòng dưới ở chỗ nó KHÔNG bỏ qua món đang cầm: một quả orb trong tay vẫn phải sáng,
+  // vì lúc đó nó nguy hiểm nhất — nó nổ ngay trước mặt bạn.
+  for (const l of S.loot){
+    if (l.gone || !l.orb) continue;
+    if (!l.held && !inSight(l.x, l.y)) continue;
+    const non = S.time < l.grace;             // còn trong mấy giây chưa vỡ được
+    glowRing(c, l.x, l.y, l.r + 3 + beat*(non ? 3.2 : 1.2), HL_ORB,
+             non ? 0.26 + beat*0.30 : 0.44, non ? 2.4 : 3.0);
+  }
 
   for (const l of S.loot){
     if (l.gone || l.held || l.inCart || l.onPad) continue;
@@ -9840,10 +9954,26 @@ function drawLoot(c){
     // Cai vong mau van ve trong ca hai truong hop, va no khong phai trang tri: mau noi
     // mon nay lam bang gi (gom vo de, kim loai khong vo) va ban kinh noi no to co nao —
     // hai thu quyet dinh vac gi va trach cai gi. Bo vong di la bo mat luat.
-    const iconed = !l.good && !l.isBag && window.REPO_SKIN && REPO_SKIN.loot &&
+    // ORB HỒN không đi qua bộ hình đồ vật: nó không phải một món trong nhà, nó là thứ vừa rơi
+    // ra từ một cái xác, và phải đọc ra như thế ngay từ đầu kia căn phòng. Mờ và nhấp nháy suốt
+    // mấy giây bất tử đầu — đó là câu "ĐỪNG BẮN VÀO ĐÂY LÚC NÀY", vì lúc nó vỡ là một vụ nổ chứ
+    // không phải một tiếng loảng xoảng. Bản gốc dùng đúng tín hiệu ấy: orb trong suốt 5 giây.
+    const a00 = c.globalAlpha;
+    if (l.orb && S.time < l.grace) c.globalAlpha = a00 * (0.42 + 0.22*Math.sin(S.time*9));
+    const iconed = !l.orb && !l.good && !l.isBag && window.REPO_SKIN && REPO_SKIN.loot &&
                    REPO_SKIN.loot(c, { x:l.x, y:y, r:l.r, sizeIdx:l.sizeIdx, bob:l.bob });
     c.beginPath();
-    if (!iconed){
+    if (l.orb){
+      // Lệch tâm một chút cho ra khối cầu chứ không ra cái đĩa: chỗ sáng nhất nằm trên-trái,
+      // rìa tối dần — cùng một mẹo với mọi quả cầu vẽ tay, và nó là toàn bộ phần "khối".
+      const g = c.createRadialGradient(l.x - l.r*0.32, y - l.r*0.36, l.r*0.12, l.x, y, l.r*1.1);
+      g.addColorStop(0, '#f4feff');
+      g.addColorStop(0.42, l.mat.col);
+      g.addColorStop(1, 'rgba(46,132,170,0.28)');
+      c.fillStyle = g;
+      c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
+      c.beginPath(); c.arc(l.x, y, l.r, 0, Math.PI*2);
+    } else if (!iconed){
       c.fillStyle = l.good ? (l.good.kind === 'up' ? '#d3a04a' : '#5aa3ab') : l.isBag ? '#c8a33c' : l.mat.col;
       c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
     } else {
@@ -9852,6 +9982,7 @@ function drawLoot(c){
     c.lineWidth = 2;
     c.strokeStyle = l.good ? (l.good.kind === 'up' ? '#8a6222' : '#2f6a71') : l.isBag ? '#8a6d1e' : l.mat.edge;
     c.stroke();
+    c.globalAlpha = a00;
     if (l.good){
       // A price with no name on it is a number, not an offer.
       wText(l.good.name, l.x, y + l.r + 12, '#dfe6ea', 10);
@@ -11279,7 +11410,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260907d';
+const BUILD = '20260907e';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -12696,6 +12827,13 @@ window.REPO = {
   FOE_LOOT: { PER_HP:FOE_LOOT_PER_HP, PER_DMG:FOE_LOOT_PER_DMG, SPREAD:FOE_LOOT_SPREAD,
               MAX:FOE_DROP_MAX, RESPAWN:FOE_RESPAWN },
   foeLootValue,
+  // Orb: mở ra cho bộ kiểm hỏi thẳng, vì mọi con số của nó đều là con số cân bằng.
+  ORB_MAT, ORB_GRACE, ORB_POW, ORB_BAN, orbBurst, foeLootValue, sizeForValue,
+  orbs(){ return S.loot.filter(l => l.orb && !l.gone).map(l => ({
+            size:l.size, sizeIdx:l.sizeIdx, value:l.value, value0:l.value0,
+            pow:ORB_POW[clamp(l.sizeIdx|0,0,ORB_POW.length-1)],
+            r:TILE*ORB_BAN[clamp(l.sizeIdx|0,0,ORB_BAN.length-1)],
+            armed: S.time >= l.grace, held:!!l.held, x:l.x, y:l.y })); },
   drops(){ return { used: S.foeDrops || 0, left: foeDropsLeft(), max: FOE_DROP_MAX,
                     bags: S.loot.filter(l => l.fromFoe && !l.gone)
                                 .map(l => ({ x:l.x, y:l.y, value:l.value, value0:l.value0,
