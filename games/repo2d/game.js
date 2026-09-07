@@ -1482,8 +1482,11 @@ const GEAR = [
   // 150 damage, which barely dented the fattest thing in the house or a pair of anything, so the
   // pistol read as a toy whatever you did with it. Twenty is 500 — enough that a gun is a decision
   // about whether to spend it rather than a thing that never works.
-  { key:'gun',     name:'Súng lục',        short:'Súng', desc:'Bắn thẳng theo hướng kéo. 20 viên.',                   uses:20, price: 9000,  stock:4, aim:true, test:true },
-  { key:'tranq',   name:'Súng gây mê',     short:'Mê',   desc:'Không giết, nhưng ru con quái trúng đạn ngủ 12 giây.', uses:3, price: 12000, stock:3, aim:true, test:true },
+  // `ammo` = ĐÂY LÀ MỘT KHẨU SÚNG, và đạn của nó nạp đầy lại mỗi đầu ca (xem napDanLai).
+  // Đánh dấu bằng một lá cờ chứ không đoán theo tên hay theo `aim`: lựu đạn cũng có `aim:true`,
+  // và một cái tên tiếng Việt sửa một chữ là luật gãy mà không ai thấy nó gãy ở đâu.
+  { key:'gun',     name:'Súng lục',        short:'Súng', desc:'Bắn thẳng theo hướng kéo. 20 viên, nạp đầy mỗi đầu ca.',uses:20, price: 9000,  stock:4, aim:true, test:true, ammo:true },
+  { key:'tranq',   name:'Súng gây mê',     short:'Mê',   desc:'Không giết, nhưng ru con quái trúng đạn ngủ 12 giây.', uses:3, price: 12000, stock:3, aim:true, test:true, ammo:true },
   { key:'bomb',    name:'Lựu đạn',         short:'Bom',  desc:'Ném ra, nổ sau 1,4 giây. Nổ gần đồ là mất tiền.',      uses:2, price: 7000,  stock:5, aim:true },
   { key:'heal',    name:'Băng cứu thương', short:'Máu',  desc:'Hồi 45 máu ngay lập tức.',                             uses:2, price: 4500,  stock:6 },
   { key:'tracker', name:'Máy dò bệ',       short:'Dò',   desc:'Hiện những bệ bạn chưa tìm ra, và vẽ đường tới chúng.',uses:1, price: 6000,  stock:2, passive:true },
@@ -1496,14 +1499,35 @@ const GEAR = [
   // đắt, và giật kinh khủng. Ở đây cái giật được dịch thành hai thứ người chơi thấy ngay: thân bị
   // đẩy lùi, và chân chậm lại một nhịp. Nên nó là khẩu súng của một quyết định, không phải khẩu
   // súng để bấm liên tục — bắn hụt ở khoảng cách xa là mất một viên đắt tiền mà chẳng được gì.
-  { key:'shotgun', name:'Súng nòng ngắn',  short:'Hoa cải', desc:'Bảy viên toé ra một nón ngắn. Sát mặt thì nát, xa thì phí đạn. Giật lùi và làm bạn chậm một nhịp.', uses:6, price: 26000, stock:2, aim:true, test:true },
+  { key:'shotgun', name:'Súng nòng ngắn',  short:'Hoa cải', desc:'Bảy viên toé ra một nón ngắn. Sát mặt thì nát, xa thì phí đạn. Giật lùi và làm bạn chậm một nhịp.', uses:6, price: 26000, stock:2, aim:true, test:true, ammo:true },
   // Khẩu này KHÔNG có trong bản gốc — nó là của chủ dự án. Cơ chế sạc dựng thẳng lên cử chỉ ngắm
   // đã có sẵn: giữ ô đồ là đang sạc, buông tay là bắn. Không thêm một nút nào, không thêm một luật
   // nào phải dạy — cái người chơi vốn đã làm để ngắm giờ mang thêm ý nghĩa.
-  { key:'laser',   name:'Súng laser sạc',  short:'Laser', desc:'Giữ để sạc, buông là bắn. Tia xuyên thẳng qua mọi thứ trên đường. Sạc đầy thì mạnh gấp bốn, nhưng vét sạch hơi.', uses:5, price: 22000, stock:2, aim:true, test:true, charge:true }
+  { key:'laser',   name:'Súng laser sạc',  short:'Laser', desc:'Giữ để sạc, buông là bắn. Tia xuyên thẳng qua mọi thứ trên đường. Sạc đầy thì mạnh gấp bốn, nhưng vét sạch hơi.', uses:5, price: 22000, stock:2, aim:true, test:true, charge:true, ammo:true }
 ];
 const GEAR_BY_KEY = {};
 for (const g of GEAR) GEAR_BY_KEY[g.key] = g;
+
+// NẠP LẠI ĐẠN, đầu mỗi tầng, cho mọi khẩu súng đang có — trên tay lẫn trong tủ.
+//
+// Chủ dự án: "đồ trong tủ + hand qua màn bị mất -> phải giữ, súng thì qua màn reset số lượng đạn
+// lại". Vế sau là hàm này. Cùng một luật với bình xăng hai chiếc xe máy (xem buildLevel): thứ gì
+// tiêu hao trong một tầng thì đầy lại lúc sang tầng mới.
+//
+// CHỈ súng, không phải mọi món đếm bằng `uses`. Băng cứu thương, lựu đạn, keo bọc, bình phản
+// trọng lực và xà beng cũng đếm bằng `uses`, nhưng chúng là đồ TIÊU HAO: nạp lại hết thì một lần
+// mua băng là máu vô hạn cho cả run, và cái quầy hàng ở trạm dịch vụ mất luôn lý do tồn tại.
+// Súng thì khác — nó là món đắt nhất trong tủ, và thứ người chơi bỏ 9.000 đến 26.000 ra mua là
+// KHẨU SÚNG, không phải hai mươi viên đạn.
+function napDanLai(){
+  const nap = it => {
+    if (!it) return;
+    const def = GEAR_BY_KEY[it.kind];
+    if (def && def.ammo) it.uses = def.uses;
+  };
+  if (S.player && S.player.inv) S.player.inv.forEach(nap);
+  S.stash.forEach(nap);
+}
 
 // ============================================================ xe máy
 // HAI CHIẾC, đúng như bản gốc: bản cập nhật 07/05/2026 của R.E.P.O. thêm đúng hai xe, mỗi
@@ -2395,6 +2419,8 @@ function buildLevel(seed){
   S.player.riding = null;
   S.player.kx = 0; S.player.ky = 0;
   S.player.down = false; S.player.stunT = 0; S.spectate = -1;
+  // Đạn đầy lại đúng lúc sang tầng mới — cùng một câu với bình xăng hai chiếc xe máy ở dưới.
+  napDanLai();
   // The crew is placed around the player, so it has to come AFTER the player has a position.
   // It used to sit up with the AEngel reset, which runs before the truck exists — spawnCrew read
   // x off a null player and took the whole level build down with it.
@@ -5622,7 +5648,12 @@ function useSlot(p, i, aimed){
     toast('Phá được cửa');
   } else return false;
   S.lastUse = { kind: it.kind, angle: ang, t: S.time };   // a bullet can hit a wall within one frame
-  if (it.uses <= 0) p.inv[i] = null;              // used up, and the slot frees for the locker
+  // Hết đạn thì KHẨU SÚNG VẪN NẰM LẠI trong ô, chỉ là rỗng — nó đầy lại đầu tầng sau, xem
+  // napDanLai(). Trước bản này dòng này xoá luôn cả khẩu súng: bắn hết hai mươi viên là mất
+  // trắng món đắt nhất trong tủ, giữa tầng, không báo một câu nào. Đó là một nửa của cái
+  // "đồ tự nhiên biến mất" mà chủ dự án thấy.
+  // Đồ TIÊU HAO thì vẫn biến mất, vì hết là hết thật: đó là cả cái giá của nó.
+  if (it.uses <= 0 && !(def && def.ammo)) p.inv[i] = null;
   return true;
 }
 // Fire the thing in your hands, for show. Spends nothing: it is the shop's stock, you have not
@@ -6279,16 +6310,23 @@ function buildShop(){
   S.cart = null;
 
   S.player = S.player || newPlayer();
-  // Xe về tới trạm thì ba ô trên tay TRẢ HẾT về tủ — đúng câu ghi trong bảng tủ đồ
-  // ("ba ô trên tay bắt đầu ca nào cũng rỗng") và đúng chú thích ở newPlayer().
-  // ROOT-CAUSE: trước bản này inv chỉ bị dọn ở resetRun(), tức là chỉ khi bắt đầu
-  //   một run mới. Đồ cầm từ ca 1 nằm lại trong tay mãi, nên tới ca 3 là đủ ba ô;
-  //   lúc đó bấm món trong tủ chỉ chạy vào nhánh `free < 0` rồi im lặng thoát ra —
-  //   người chơi thấy "mua đồ xong không trang bị được, đồ kẹt luôn trong tủ".
-  // Không mất gì: đồ về tủ, và tủ giữ nguyên qua mọi ca.
-  for (let i = 0; i < S.player.inv.length; i++) {
-    if (S.player.inv[i]) { S.stash.push(S.player.inv[i]); S.player.inv[i] = null; }
-  }
+  // BA Ô TRÊN TAY ĐI THEO BẠN, qua trạm dịch vụ và sang tầng sau. Chủ dự án: "đồ trong tủ +
+  // hand qua màn bị mất -> phải giữ".
+  //
+  // Chỗ này trước đây dốc sạch ba ô xuống tủ mỗi lần xe về trạm. Xét theo sổ sách thì KHÔNG
+  // MẤT GÌ — đồ nằm trong tủ, tủ giữ nguyên qua mọi ca — nhưng người chơi mở tầng sau ra thấy
+  // tay không, và "tay không" đọc ra là MẤT ĐỒ chứ không đọc ra là "đồ đang nằm trong tủ".
+  // Cái giá thật của nó là một thủ tục lặp lại: mỗi tầng một lần đi tới xe, mở tủ, bấm lại ba
+  // món, chỉ để trở về đúng cái trạng thái vừa rời tầng trước.
+  //
+  // Cú dốc ấy vốn là BẢN VÁ cho một lỗi khác: hồi đó bấm một món trong tủ mà ba ô đã đầy thì
+  // hàm lặng lẽ thoát ra ở nhánh `free < 0`, nên người chơi thấy "mua đồ xong không trang bị
+  // được, đồ kẹt luôn trong tủ". Lỗi đó nay đã sửa ĐÚNG CHỖ CỦA NÓ — showStash() báo thành
+  // lời: "Ba ô trên tay đã đầy — bấm một ô ở trên để trả món đó về tủ, rồi lấy món này."
+  // Bản vá hết việc, mà giữ lại thì nó đang lấy đi đúng thứ người chơi muốn giữ.
+  //
+  // Tủ vẫn mở được ngay tại trạm (nút tủ đứng cạnh xe, xem nearTruck), nên ai muốn đổi đồ
+  // trước khi vào nhà thì vẫn đổi — chỉ là không còn BỊ ép đổi nữa.
   S.player.x = truck.x - TILE*1.0; S.player.y = truck.y + TILE*2.0;
   S.player.held = null; S.player.aimSlot = -1; S.player.aimId = -1;
   S.player.pushing = false; S.player.runT = 0; S.player.rushing = false;
@@ -7898,7 +7936,10 @@ function setupInput(){
       const it = p && p.inv[i], def = it && GEAR_BY_KEY[it.kind];
       // Khẩu sạc thì GIỮ phím là sạc, NHẢ phím là bắn — đối xứng với cách ngón tay làm trên
       // điện thoại. Phím giữ thì trình duyệt bắn keydown liên tục, nên phải chốt lần đầu.
-      if (def && def.charge){
+      // `uses > 0` là điều kiện MỚI, và nó phải có từ lúc súng hết đạn không còn tự biến mất:
+      // không có nó thì một khẩu laser rỗng vẫn ăn cả giây sạc rồi im lặng không bắn. Đường
+      // chạm trên điện thoại đã chặn đúng chỗ này từ đầu (xem hud.slots), bàn phím thì chưa.
+      if (def && def.charge && it.uses > 0){
         if (p.chargeSlot !== i){ p.chargeSlot = i; p.chargeT = 0; }
         keys.add(k);
         return;
@@ -11214,7 +11255,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260907b';
+const BUILD = '20260907c';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -12143,7 +12184,7 @@ function showStash(warn){
     return `<button class="up" data-slot="${i}" ${it?'':'disabled'}>
       <span class="t">Ô ${i+1} — ${def ? def.name : 'trống'}</span>
       <span class="d">${def ? def.desc : 'Chọn một món bên dưới để đưa vào ô này.'}</span>
-      <span class="p">${it ? 'x'+it.uses+' · bấm để TRẢ LẠI TỦ' : 'còn trống'}</span>
+      <span class="p">${it ? 'x'+it.uses + (it.uses <= 0 && def && def.ammo ? ' · hết đạn, đầy lại đầu ca sau' : '') + ' · bấm để TRẢ LẠI TỦ' : 'còn trống'}</span>
     </button>`;
   }).join('');
   // Mot mon ma bang do khong nhan ra thi VE NO RA, khong ngoac.
@@ -12165,7 +12206,7 @@ function showStash(warn){
     return `<button class="gear" data-stash="${i}">
       <span class="t">${def.name}</span>
       <span class="d">${def.desc}</span>
-      <span class="p">x${it.uses} · ${full ? 'hết ô — trả một món ở trên xuống trước' : 'bấm để cầm lên'}</span>
+      <span class="p">x${it.uses}${it.uses <= 0 && def.ammo ? ' · hết đạn, đầy lại đầu ca sau' : ''} · ${full ? 'hết ô — trả một món ở trên xuống trước' : 'bấm để cầm lên'}</span>
     </button>`;
   }).join('') || `<div class="empty">Tủ trống. Đồ mua ở trạm dịch vụ sẽ nằm ở đây.</div>`;
 
@@ -12177,7 +12218,7 @@ function showStash(warn){
     ? `<div class="empty" style="color:#e0a35a;border-color:#5a4320">⚠ Có ${laCount} món trong tủ mà bản game này không nhận ra. Bấm vào để bỏ đi.</div>` : '';
 
   showVeil('Tủ đồ trên xe',
-    'Về tới trạm là ba ô trên tay tự trả hết về tủ. Lấy lại đồ trước khi vào nhà; thứ để lại vẫn còn nguyên cho ca sau.',
+    'Đồ trên tay theo bạn sang ca sau, thứ để lại trong tủ cũng còn nguyên. Súng nạp đầy đạn mỗi đầu ca; băng, bom, keo và xà beng thì hết là hết.',
     'Đóng tủ', closeStash,
     `<div class="wallet">Ví: ${money(S.wallet)}</div>
      ${warnRow}${laRow}
