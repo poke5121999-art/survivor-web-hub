@@ -5227,9 +5227,25 @@ function meleeSwing(p, ang){
   // khung đầu — nhạt và ngắn — thì cú vụt đã xong từ lâu, rồi nó sáng lên sau lưng một việc
   // đã kết thúc. Đo ảnh chụp lần đầu: ba khung hình liên tiếp gần như trống. Ép cả 10 khung
   // vào đúng MELEE_T thì lưỡi chém NẰM ĐÚNG TRÊN cú đánh, không sớm không muộn.
-  spawnVfx('crescent-slash', p.x + Math.cos(p.dir)*MELEE_R*0.55,
-                             p.y + Math.sin(p.dir)*MELEE_R*0.55,
-           { scale: 0.8, ang: p.dir, alpha: duoi ? 0.45 : 1,
+  //
+  // XOAY THÊM MỘT PHẦN TƯ VÒNG, và đây mới là chỗ quyết định cú vụt đọc ra là chém NGANG hay chém DỌC.
+  // Tấm hình vẽ một cung "⌒": bụng cung quay LÊN trong khung. Xoay đúng bằng `p.dir` thì người
+  // nhìn sang đông mà lưỡi chém lại ngoác lên phía bắc — vuông góc với hướng đánh. Nó đọc
+  // ra là một nhát bổ tụt xuống cạnh người chứ không phải một nhát quét TỚI chỗ đang ngắm.
+  // Cộng +90° thì bụng cung quay về đúng hướng vung, thành cung ")" ôm lấy tầm với.
+  //
+  // Cái được thêm: bản thân bộ hình ĐÃ QUÉT sẵn (đo hộp mực từng khung: khung 1 chỉ có một
+  // nét ở mép trái, tới khung 5 mới đủ cả cung). Sau cú xoay này, mép trái của khung rơi vào
+  // phía -MELEE_HALF và mép phải rơi vào +MELEE_HALF — tức lưỡi chém quét CÙNG CHIỀU với cây
+  // đèn ở drawPlayer, chứ không phải ngược chiều với nó.
+  //
+  // Ba con số dưới đây đi liền một bộ, đừng sửa lẻ một cái. Đo trên tấm: mực nằm trong
+  // x 18..90, y 22..58 của khung 96, mà chốt neo là (48, 50) — nên sau cú xoay, cung nằm từ
+  // -8 tới +28 (nhân `scale`) so với chỗ đặt. Đặt chốt ở 0,40 tầm với và phóng 0,95 thì
+  // lưỡi chém trải từ ~8px tới ~43px trước mặt: đúng cái vành 40px của MELEE_R.
+  spawnVfx('crescent-slash', p.x + Math.cos(p.dir)*MELEE_R*0.40,
+                             p.y + Math.sin(p.dir)*MELEE_R*0.40,
+           { scale: 0.95, ang: p.dir + Math.PI/2, alpha: duoi ? 0.45 : 1,
              fps: ((window.REPO_SKIN && REPO_SKIN.vfxN('crescent-slash')) || 10) / MELEE_T });
   // Dòng nhắc này là nhắc NGƯỜI CHƠI về thanh thể lực của chính họ. Đồng đội cũng đuối tay
   // (cùng một luật), nhưng bắn cái dòng ấy ra khi Tổ 3 vung hụt ở phòng bên thì nó đọc thành
@@ -11170,7 +11186,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260904a';
+const BUILD = '20260907a';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
