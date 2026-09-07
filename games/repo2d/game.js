@@ -5158,6 +5158,29 @@ const MELEE_CD     = 1.10;    // giay giua hai cu vung
 const MELEE_T      = 0.22;    // cu vung ve trong bao lau
 const MELEE_KNOCK  = 320;     // hat lui - phan quan trong nhat cua don nay
 const MELEE_NOISE  = 1.5;     // vung den pin la co tieng: khong danh len duoc
+
+// VỆT QUÉT VẼ TAY, và câu hỏi nó còn sống hay không.
+//
+// Trước khi có bộ hình, cú vụt được vẽ bằng một cung sáng dựng bằng `c.arc` — ở drawPlayer cho
+// người chơi, ở drawMates cho đồng đội. Giờ `crescent-slash` đã nằm đúng chỗ và đúng hướng, hai
+// thứ đó CHỒNG LÊN NHAU: hai cung sáng, hai bán kính lệch nhau (0,72 và 0,62 tầm với), cùng nói
+// một câu. Chủ dự án: "nếu đánh đã có fx rồi thì bỏ cái hình lúc đánh hiện ra lúc trước đi".
+//
+// Bỏ HẲN thì không được, và đây là lý do: bộ hình nạp qua mạng. Nạp hỏng — 404, mạng rớt giữa
+// chừng, hay chỉ là giây đầu tiên của ván lúc ảnh còn đang về — thì drawVfx trả false và KHÔNG
+// VẼ GÌ. Lúc đó không còn gì trên sàn nói là ai vừa vung tay, mà cái luật đánh trả của đồng đội
+// thì vô hình hoàn toàn: con quái ở phòng bên tự nhiên mất máu rồi chết.
+//
+// Nên vệt quét vẽ tay tụt xuống làm CÁI ĐỠ, đúng một luật với `skin`, `lampOk` và `mLamp` ở ngay
+// hai hàm vẽ ấy: có hình thì dùng hình, không có thì vẽ tay. Bình thường người chơi không bao
+// giờ thấy nó nữa.
+//
+// Hỏi THẲNG bộ hình mỗi khung chứ không giữ một lá cờ riêng: ảnh nạp xong lúc nào không ai báo,
+// nên một lá cờ đặt một lần lúc khởi động sẽ mãi mãi nói "chưa có".
+function coLuoiChem(){
+  const K = window.REPO_SKIN;
+  return !!(K && K.vfxN && K.vfxN('crescent-slash'));
+}
 // DEN PIN LA THU YEU NHAT TRONG TAY BAN, va no phai duoc CAM THAY nhu vay.
 // Chu du an: "nerf sat thuong danh bang den pin xuong + cham lai".
 // Hai con so cung di xuong mot luc, va chung nhan nhau: 0,47 suc moi nhat va 1,1 giay moi
@@ -7785,11 +7808,12 @@ function drawMates(c){
       c.strokeStyle = a.col.rim; c.lineWidth = 1.2; c.stroke();
     }
     if (!mLamp){ c.fillStyle = a.col.torch; c.fillRect(5.5, -1.4, 4.5, 2.8); }
-    // CÚ VUNG CỦA ĐỒNG ĐỘI. Cùng vệt quét với người chơi (xem drawPlayer), nhỏ hơn một
-    // chút và nhạt hơn một chút. Thiếu nó thì cả cái luật đánh trả là vô hình: con quái ở
-    // phòng bên tự nhiên mất máu rồi chết, mà không có gì trên sàn nói là ai vừa làm điều đó.
+    // CÚ VUNG CỦA ĐỒNG ĐỘI. Đồng đội gọi CHUNG meleeSwing() với người chơi, nên họ cũng nhả ra
+    // lưỡi chém của bộ hình — vệt quét vẽ tay ở đây tụt xuống làm cái đỡ y như bên drawPlayer,
+    // và vì cùng một lý do: thiếu cả hai thì luật đánh trả thành vô hình, con quái ở phòng bên
+    // tự nhiên mất máu rồi chết mà không có gì trên sàn nói là ai vừa làm điều đó.
     const msw = (a.swingT || 0) / MELEE_T;
-    if (msw > 0){
+    if (msw > 0 && !coLuoiChem()){
       c.globalAlpha = msw * 0.55 * moA;
       c.strokeStyle = a.col.torch; c.lineWidth = 2.2;
       c.beginPath(); c.arc(0, 0, MELEE_R*0.62, -MELEE_HALF, MELEE_HALF); c.stroke();
@@ -10395,11 +10419,15 @@ function drawPlayer(c){
       c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,7,3);
       c.restore();
     }
-    // Vet quet: mot cung sang mo dan, cho biet don vua di qua dau.
-    c.globalAlpha = a0 * at.alpha * sw * 0.5;
-    c.strokeStyle = 'rgba(255,232,180,0.9)'; c.lineWidth = 2.4;
-    c.beginPath(); c.arc(0, 0, MELEE_R * 0.72, -MELEE_HALF, MELEE_HALF); c.stroke();
-    c.globalAlpha = a0 * at.alpha;
+    // Vet quet: mot cung sang mo dan, cho biet don vua di qua dau. CHI khi bo hinh vang mat —
+    // xem coLuoiChem(). Co bo hinh thi luoi chem cua no da noi dung cau nay roi, va ve ca hai
+    // thi ra hai cung sang le nhau mot chut, doc nhu mot loi ve.
+    if (!coLuoiChem()){
+      c.globalAlpha = a0 * at.alpha * sw * 0.5;
+      c.strokeStyle = 'rgba(255,232,180,0.9)'; c.lineWidth = 2.4;
+      c.beginPath(); c.arc(0, 0, MELEE_R * 0.72, -MELEE_HALF, MELEE_HALF); c.stroke();
+      c.globalAlpha = a0 * at.alpha;
+    }
   } else if (!lampOk){
     c.fillStyle = '#ffe6a8'; c.fillRect(6,-1.5,5,3);
   }
@@ -11186,7 +11214,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260907a';
+const BUILD = '20260907b';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
