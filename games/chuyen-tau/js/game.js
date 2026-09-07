@@ -141,7 +141,10 @@
       skillCd: 0, skillCh: sk.charges || 1, skillT: 0, skillLock: 0,
       atkCd: 0, hurtT: 0, flash: 0, iframe: 0, stun: 0,
       invis: 0, blinkAt: null, slowT: 0, hot: 0, hotT: 0, spdBuff: 0,
-      ghost: [], firing: 0
+      ghost: [], firing: 0,
+      // Bao lâu nữa thì THÂN NGƯỜI còn quay về hướng NÒNG SÚNG thay vì hướng đi.
+      // Xem drawPlayer để biết vì sao cần con số này.
+      faceT: 0
     };
     // ba ô tay: cho sẵn một băng và một cuộn băng gạc
     R.hand[0] = { id: 'bang', n: 2 };
@@ -446,6 +449,10 @@
       hpMax: def.hp * (1 + (R.map.tier - 1) * 0.24),
       r: def.r, dead: false, sleep: true, wake: 0,
       dirX: -1, dirY: 0, dist: 0, flash: 0, stun: 0, stopT: 0,
+      // Bước chân suy từ tốc độ danh nghĩa của chính con này, tính MỘT LẦN lúc sinh.
+      // Xem A.stepLen: nó là thứ giữ mọi con quái ở nhịp ~105ms một khung chân, thay vì
+      // để con nhanh rung chân và con chậm giậm chân tại chỗ.
+      step: A.stepLen(def.spd),
       tx: x, ty: y, cd: 0, state: 'sleep', pin: 0,
       // painchance: quái càng mạnh càng KHÓ làm choáng, nhưng khi choáng được thì choáng
       // LÂU HƠN. Đó là cách biến "làm choáng" thành phần thưởng chứ không phải cái khoá.
@@ -598,6 +605,7 @@
       }
     }
     p.firing = Math.max(0, p.firing - dt);
+    if (p.faceT > 0) p.faceT -= dt;
     if (IN.fire && p.carry && p.atkCd <= 0) {
       // Hai tay đang bận. Không câm lặng: nói ra lý do, mỗi giây rưỡi một lần.
       p.atkCd = 1.5;
@@ -653,6 +661,7 @@
     p.atkCd = g.rof;
     R.gunMag--;
     p.firing = 0.08;
+    p.faceT = 0.5;
 
     const dmgMul = R.st.dmg * (pa.mul || 1) *
                    (pa.perLostPct ? 1 + (1 - p.hp / p.hpMax) * 100 * pa.perLostPct : 1);
@@ -696,6 +705,7 @@
   function melee() {
     const p = R.p, M = CT.MELEE;
     p.atkCd = M.cd;
+    p.faceT = 0.5;
     const dmg = M.dmg * R.st.dmg * (R.cd.passive && R.cd.passive.mul || 1);
     for (const f of R.foes) {
       if (f.dead) continue;
@@ -808,8 +818,14 @@
     // Xác giết cực ngắn thay vì dừng lâu — để cái xác bay đi ngay, đọc ra là "đứt phựt".
     FX.hitstop(0.02);
     if (f.def.corpse) {
+      // `fall` = giây để ngã hết, `fdir` = ngã về bên nào (theo hướng viên đạn tới).
+      // Trước bản này cái xác hiện ra ĐÃ NẰM SẴN ở đúng khung con quái vừa đứng: một
+      // con đang chạy tới thì biến mất và một cái xác nằm ngang xuất hiện tại chỗ, không
+      // có một khung nào ở giữa. Cú bắn hạ được nó là cú đáng xem nhất của cả trận, mà
+      // lại là cú duy nhất không có hình.
       R.corpses.push({ x: f.x, y: f.y, t: 0, life: 12, fade: 3.6, art: f.def.art,
                        row: A.rowFor(f.dirX, f.dirY), seed: f.seed, scale: f.def.scale || 1,
+                       fall: 0.26, fdir: Math.cos(ang) >= 0 ? 1 : -1,
                        bounty: f.def.bounty || 0, onTrain: !!f.onTrain });
       // trần 24 xác: đầy thì cho xác cũ nhất bắt đầu mờ NGAY, không xoá phựt
       if (R.corpses.length > 24) { const o = R.corpses.shift(); }
@@ -852,6 +868,27 @@
       const f = R.foes[i];
       if (f.dead) { R.foes.splice(i, 1); continue; }
       if (f.flash > 0) f.flash = Math.max(0, f.flash - dt * 7);
+
+      // ĐẨY LÙI. `f.vx`/`f.vy` được BA chỗ ghi vào — trúng đạn (hurtFoe), chiêu gom quái,
+      // và cú húc của người chơi — nhưng cho tới bản này KHÔNG chỗ nào đọc ra, nên cả ba
+      // cơ chế đó không dịch con quái đi một điểm ảnh nào. Bắn một băng vào một cái xác
+      // sống mà nó vẫn trôi tới đều đặn thì khẩu súng đọc ra là không có trọng lượng.
+      //
+      // Áp ở NGAY ĐẦU vòng lặp, TRƯỚC cả nhánh đứng hình và nhánh choáng: đúng lúc con
+      // quái đang cứng người mới là lúc cú đẩy nhìn thấy được. Đặt sau hai nhánh đó thì
+      // cú đẩy bị `continue` nuốt mất và ta quay lại đúng chỗ cũ.
+      //
+      // Hệ số cản 9/giây: một cú trúng thường (130 đơn vị/giây) đẩy đi ~14 điểm ảnh rồi
+      // tắt trong khoảng 0,35 giây — bằng đúng quãng thời gian đứng hình cộng choáng vi
+      // mô, nên cú đẩy và cú khựng là MỘT sự kiện chứ không phải hai.
+      if (f.vx || f.vy) {
+        f.x += f.vx * dt; f.y += f.vy * dt;
+        const kb = Math.exp(-9 * dt);
+        f.vx *= kb; f.vy *= kb;
+        if (Math.abs(f.vx) < 2) f.vx = 0;
+        if (Math.abs(f.vy) < 2) f.vy = 0;
+      }
+
       if (f.stopT > 0) { f.stopT -= dt; continue; }      // đứng hình vì vừa ăn đòn
       if (f.stun > 0) { f.stun -= dt; continue; }
       if (f.pin > 0) { f.pin -= dt; continue; }          // bị chó ghim
@@ -1989,9 +2026,15 @@
     for (const co of R.corpses) {
       const k = co.t < co.life ? 1 : 1 - (co.t - co.life) / co.fade;
       if (k <= 0) continue;
+      // Cú ngã: từ đứng thẳng về nằm nghiêng trong 0,26 giây. Đường cong dùng luỹ thừa
+      // 0,6 chứ không tuyến tính — ngã là một cú ĐỔ, nhanh lúc đầu rồi dừng lại, không
+      // phải một cái cần gạt quay đều. Xác cũ (fall == null) vẫn vẽ như trước.
+      const fp = co.fall ? Math.min(1, Math.pow(co.t / co.fall, 0.6)) : 1;
+      const fd = co.fdir || 1;
       if (!A.drawActor(c, 'foe.' + co.art, { x: co.x, y: co.y, row: co.row, col: 1,
-                                             foe: true, alpha: k * 0.9, rot: 0.42,
-                                             squash: { x: 1.06, y: 0.86 }, scale: co.scale })) {
+                                             foe: true, alpha: k * 0.9, rot: 0.42 * fp * fd,
+                                             squash: { x: 1 + 0.06 * fp, y: 1 - 0.14 * fp },
+                                             scale: co.scale })) {
         c.globalAlpha = k * 0.7; c.fillStyle = '#3a2a24';
         c.beginPath(); c.ellipse(co.x, co.y, 14, 7, 0, 0, TAU); c.fill(); c.globalAlpha = 1;
       }
@@ -2210,14 +2253,33 @@
   function drawFoe(c, f) {
     const def = f.def;
     const key = 'foe.' + def.art;
+    // Bóng đổ trước thân. Không có nó thì con quái trôi trên mặt cát chứ không đứng
+    // trên nó — và ở một game mà quái bâu vào từ bốn phía, cái bóng còn là thứ duy
+    // nhất nói cho người chơi biết con nào đang đứng gần hơn con nào.
+    A.shadow(c, f.x, f.y, f.r * (def.scale || 1) * 0.95, f.sleep ? 0.20 : 0.30);
+
+    if (def.draw === 'wolf') {
+      A.wolf(c, f.x, f.y, f.dirX, f.dirY, f.dist,
+             { scale: def.scale || 1, flash: f.flash, sleep: f.sleep,
+               alpha: f.sleep ? 0.72 : 1 });
+    } else {
+    // DÁNG LÊ: nghiêng người qua lại theo đúng nhịp chân của charset (cùng phép chia
+    // với colFor), nên cái nghiêng và cái bước là một, không phải hai đồng hồ chạy lệch.
+    // Đứng im thì dist đứng im thì người cũng thẳng lại — không có chuyện một cái xác
+    // đang bị ghim chân vẫn tự lắc lư.
+    const lu = def.lurch
+      ? Math.sin(f.dist / f.step * Math.PI) * def.lurch
+      : 0;
     const ok = A.drawActor(c, key, {
-      x: f.x, y: f.y, dist: f.dist, dirX: f.dirX, dirY: f.dirY,
+      x: f.x, y: f.y, dist: f.dist, step: f.step, dirX: f.dirX, dirY: f.dirY,
       foe: true, rim: true, flash: f.flash, scale: def.scale || 1,
+      rot: lu,
       alpha: f.sleep ? 0.72 : 1
     });
     if (!ok) {
       c.fillStyle = f.flash > 0.2 ? '#ffffff' : '#7a3a30';
       c.beginPath(); c.arc(f.x, f.y - f.r, f.r, 0, TAU); c.fill();
+    }
     }
     // đang ngủ: một dấu hiệu nhỏ, đủ để người chơi biết mình còn được lén
     if (f.sleep) {
@@ -2284,14 +2346,55 @@
       A.drawActor(c, 'man.' + R.cd.art, { x: g.x, y: g.y, col: 1, row: 0, alpha: 0.28 });
       c.globalAlpha = 1;
     }
+    // Bóng đổ. Cùng lý do với bóng của quái — mà với người chơi còn thêm một việc nữa:
+    // lúc đứng trên nóc toa, cái bóng là thứ nói cho biết mình đang đứng TRÊN tàu chứ
+    // không phải đang lơ lửng cạnh nó.
+    A.shadow(c, p.x, p.y, p.dodgeT > 0 ? 12 : 9, p.invis > 0 ? 0.10 : 0.30);
+
     // vũng khói của kẻ trộm
     if (p.blinkAt) {
       c.save(); c.globalAlpha = 0.4; c.fillStyle = '#5a6470';
       c.beginPath(); c.arc(p.blinkAt.x, p.blinkAt.y, 30, 0, TAU); c.fill(); c.restore();
     }
     const alpha = p.invis > 0 ? 0.35 : 1;
+
+    // THÂN NGƯỜI QUAY VỀ ĐÂU.
+    // Trước bản này thân LUÔN quay theo hướng ĐI. Nhưng game có tự ngắm, nên chuyện
+    // thường xảy ra nhất là: chạy sang trái, súng nhả đạn sang phải, và trên màn hình
+    // là một người quay lưng lại phía mình đang bắn. Đạn bay ra từ sau gáy.
+    //
+    // Cách đúng của thể loại là tách LÀM HAI LỚP — chân theo hướng đi, thân trên theo
+    // hướng ngắm. Ở đây chỉ có MỘT tấm charset bốn hướng, không tách được, nên phải
+    // chọn: trong 0,5 giây sau mỗi phát bắn (và suốt lúc đang ngắm tay) thì hướng NGẮM
+    // thắng; ngoài quãng đó thì hướng ĐI thắng. Đi lại vẫn đọc đúng, mà không phát nào
+    // bắn ra từ sau lưng.
+    const aimFace = p.faceT > 0 || IN.aiming;
+    const faceX = aimFace ? Math.cos(p.aim) : (p.dirX || Math.cos(p.aim));
+    const faceY = aimFace ? Math.sin(p.aim) : (p.dirY || Math.sin(p.aim));
+
+    // GIẬT LÙI. Ba điểm ảnh, tắt trong 80ms — cùng cái đồng hồ với chớp nòng, nên cú
+    // giật và cái loé là một sự kiện. Đây là thứ rẻ nhất biến một phát súng từ "một
+    // tấm ảnh loé lên" thành "một cú đẩy vào vai".
+    const rec = p.firing > 0 ? (p.firing / 0.08) * 3 : 0;
+
+    // CÚ LĂN. Trước bản này lướt là 0,2 giây trượt ngang với ĐÚNG tấm hình đang đi bộ:
+    // nhân vật giữ nguyên dáng đi rồi bị kéo đi 94 điểm ảnh như bị gió thổi. Ở đây khoá
+    // nhịp chân lại (col 1 — cột đứng), ngả người theo chiều lăn và ép dẹt xuống, cả ba
+    // theo một hình sin nở ra rồi khép lại đúng bằng thời lượng cú lướt.
+    let rollRot = 0, rollSq = null, rollCol;
+    if (p.dodgeT > 0) {
+      const g0 = 1 - p.dodgeT / CT.DODGE.dur;
+      const sn = Math.sin(g0 * Math.PI);
+      rollRot = sn * 0.7 * (p.ddx >= 0 ? 1 : -1);
+      rollSq = { x: 1 + sn * 0.18, y: 1 - sn * 0.26 };
+      rollCol = 1;
+    }
+
     const ok = A.drawActor(c, 'man.' + R.cd.art, {
-      x: p.x, y: p.y, dist: p.dist, dirX: p.dirX || Math.cos(p.aim), dirY: p.dirY || Math.sin(p.aim),
+      x: p.x - Math.cos(p.aim) * rec, y: p.y - Math.sin(p.aim) * rec,
+      dist: p.dist, step: A.stepLen(176 * R.st.spd),
+      dirX: faceX, dirY: faceY,
+      col: rollCol, rot: rollRot, squash: rollSq,
       flash: p.flash, alpha
     });
     if (!ok) {

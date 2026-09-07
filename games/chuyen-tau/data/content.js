@@ -281,11 +281,16 @@
   CT.NOISE = { chan: 34, keo: 60, sprint: 96, tau: 150, sung: 300, no: 460 };
 
   CT.FOES = [
+    // `lurch` = biên độ NGHIÊNG NGƯỜI theo nhịp chân, tính bằng radian. Xác sống đi
+    // bằng cùng một charset với người sống, nên nếu không nghiêng thì nó TRƯỢT trên cát
+    // y như một người đang đi bộ bình thường — mà "đi bộ bình thường" đúng là thứ duy
+    // nhất một cái xác không làm được. 0,13 rad ≈ 7,5 độ: đủ để đọc ra là lảo đảo, chưa
+    // tới mức đọc ra là ngã.
     { id: 'bo',     name: 'Kẻ Lê Bước',  hp: 100, dmg: 8,  spd: 46,  sight: 150, r: 11,
-      art: 'zombie', bounty: 0, corpse: true,
+      art: 'zombie', lurch: 0.13, bounty: 0, corpse: true,
       wiki: 'Đi chậm, không nghĩ gì. Nguy hiểm nằm ở chỗ nó không bao giờ dừng.' },
     { id: 'chay',   name: 'Kẻ Chạy',     hp: 100, dmg: 8,  spd: 88,  sight: 190, r: 11,
-      art: 'zombie', bounty: 0, corpse: true, weave: 0.9,
+      art: 'zombie', lurch: 0.19, bounty: 0, corpse: true, weave: 0.9,
       wiki: 'Lảo đảo trái phải lúc đuổi. Chậm hơn đường thẳng, nhưng khó bắn trúng đầu.' },
     { id: 'nomin',  name: 'Kẻ Ôm Mìn',   hp: 60,  dmg: 0,  spd: 62,  sight: 200, r: 10,
       art: 'banger', bounty: 0, corpse: false, fuse: 2.4, blast: { dmg: 70, r: 82 },
@@ -293,8 +298,10 @@
     { id: 'cao',    name: 'Cao Bồi',     hp: 100, dmg: 22, spd: 40,  sight: 340, r: 11,
       art: 'gunner', bounty: 350, corpse: true, gun: { rof: 1.15, range: 300, spread: 0.16 },
       wiki: 'Đứng xa bắn tới. Không bao giờ đánh tay. Xác nó bán được ở đồn cảnh sát.' },
+    // `draw:'wolf'` cho drawFoe biết vẽ bằng A.wolf thay vì dán charset. `art` vẫn giữ
+    // 'rook' vì CÁI XÁC còn dùng tới nó — một cái xác sói nằm im thì không ai đọc kỹ.
     { id: 'soi',    name: 'Sói Hoang',   hp: 90,  dmg: 14, spd: 104, sight: 220, r: 12,
-      art: 'rook', bounty: 0, corpse: true, pack: 4,
+      art: 'rook', draw: 'wolf', bounty: 0, corpse: true, pack: 4,
       wiki: 'Đi đàn ba tới bảy con. Nhỏ và nhanh, khó bắn từ xa.' },
     { id: 'thu',    name: 'Con Húc',     hp: 320, dmg: 30, spd: 58,  sight: 260, r: 18, scale: 1.5,
       art: 'rook', bounty: 0, corpse: true, dash: { wind: 1.1, spd: 300, dur: 0.85 },

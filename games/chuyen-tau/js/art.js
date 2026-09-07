@@ -111,11 +111,39 @@
     return c;
   }
 
+  // Nướng một bản ĐỔI BẢNG MÀU của cả tấm. Dùng cho xác sống: kho không có lấy một
+  // tấm zombie nào (tra hết 6 tấm foe của repo2d và 294 tệp spr của dragonproj), nên
+  // xác sống phải mượn charset NGƯỜI — và một xác sống trông y hệt một người sống thì
+  // người chơi không phân biệt được cái gì đang đuổi mình với cái gì mình đang cứu.
+  //
+  // Công thức: 'multiply' phủ màu lên cả tấm rồi 'destination-in' cắt lại theo đúng mặt
+  // nạ alpha của ảnh gốc. Bước cắt là BẮT BUỘC — 'multiply' là chế độ HOÀ TRỘN chứ
+  // không phải chế độ GHÉP, nên nó tô màu vào cả vùng trong suốt và bỏ qua bước đó thì
+  // được một khối chữ nhật đặc.
+  //
+  // KHÔNG dùng ctx.filter cho việc này, cùng lý do đã ghi ở bakeWhite: iOS Safari tắt
+  // mặc định từ bản 18.0.
+  function bakeTint(img, col) {
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const x = c.getContext('2d');
+    x.imageSmoothingEnabled = false;
+    x.drawImage(img, 0, 0);
+    x.globalCompositeOperation = 'multiply';
+    x.fillStyle = col;
+    x.fillRect(0, 0, c.width, c.height);
+    x.globalCompositeOperation = 'destination-in';
+    x.drawImage(img, 0, 0);
+    return c;
+  }
+
   function addSheet(key, url, opt) {
     opt = opt || {};
     sheets[key] = { ok: false };
-    loadImg(url, im => {
+    loadImg(url, im0 => {
       const s = sheets[key];
+      // Đổi màu TRƯỚC khi nướng viền và bóng trắng, để cả ba bản cùng một gốc.
+      const im = opt.tint ? bakeTint(im0, opt.tint) : im0;
       s.img = im; s.ok = true;
       s.cw = im.width / COLS; s.ch = im.height / ROWS;
       s.white = bakeWhite(im);
@@ -144,8 +172,13 @@
   // lục chĩa ra ở cả mười hai khung — đúng bài cho một game Viễn Tây, không sửa gì.
   const FOE_ART = ['gunner', 'rook', 'mirror', 'banger', 'angel', 'gnome'];
   FOE_ART.forEach(id => addSheet('foe.' + id, R2D + 'foe/' + id + '.png', { rim: true }));
-  // Xác sống chưa có tấm riêng: mượn charset người, đổi bảng màu lúc vẽ (xem tintZombie).
-  addSheet('foe.zombie', R2D + 'crew/ky.png', { rim: true });
+  // Xác sống không có tấm riêng trong cả kho, nên mượn charset người và ĐỔI BẢNG MÀU
+  // lúc nạp (bakeTint). Màu chọn là một cái xám ngả lục nhạt: nhân vào thì da xuống
+  // xanh tái, quần áo xuống bạc phếch, và cái bóng đen của thân vẫn còn — tức vẫn đọc
+  // ra là một người, chỉ là một người đã chết. Đây là bản vá cho chỗ bản trước hứa
+  // trong chú thích ('xem tintZombie') mà chưa bao giờ viết: hai con quái ĐÔNG NHẤT
+  // game — Kẻ Lê Bước và Kẻ Chạy — vẫn đang hiện ra dưới hình một người sống bình thường.
+  addSheet('foe.zombie', R2D + 'crew/ky.png', { rim: true, tint: '#8fae86' });
 
   // Đồ vật: dải ngang 96×96.
   addStrip('item.lantern', R2D + 'item/lantern.png',  { frames: 4, w: 96, h: 96, ox: 48, oy: 60, fps: 6 });
@@ -226,10 +259,40 @@
 
   // Cột chọn theo QUÃNG ĐƯỜNG đã đi, không theo đồng hồ. Đứng im thì đứng yên thật,
   // chạy nhanh thì chân đảo nhanh, và một con đang bị choáng không tự múa.
-  function colFor(dist) {
-    return CYCLE[Math.floor(Math.abs(dist) / 8) % 4];
+  //
+  // BƯỚC CHÂN LÀ MỘT SỐ RIÊNG CHO TỪNG CON, không phải hằng số 8 dùng chung.
+  // ROOT-CAUSE của bản trước: một con đi 176 điểm ảnh mỗi giây với bước 8 thì đổi khung
+  // 22 lần mỗi giây — 45ms một khung. Chuẩn của hoạt hoạ pixel là 80-150ms cho đi bộ và
+  // 50-80ms cho chạy, nên 45ms không đọc ra là bước chân, nó đọc ra là RUNG. Còn con Kẻ
+  // Lê Bước đi 46 điểm ảnh mỗi giây thì cùng bước 8 lại thành 174ms — lê thật, nhưng
+  // chỉ là ăn may, không phải chủ ý.
+  //
+  // Cách chữa: suy bước chân TỪ TỐC ĐỘ DANH NGHĨA của con đó, sao cho khi nó chạy hết
+  // sức thì cadence rơi đúng vào STEP_S. Chạy chậm hơn tốc độ danh nghĩa (vác xác, bị
+  // làm chậm) thì chân tự chậm theo, vì colFor vẫn đo bằng quãng đường THẬT.
+  const STEP_S = 0.105;              // giây mỗi khung chân ở tốc độ danh nghĩa
+  A.stepLen = function (spd) {
+    const v = spd * STEP_S;
+    return v < 4.5 ? 4.5 : v > 26 ? 26 : v;
+  };
+  function colFor(dist, step) {
+    return CYCLE[Math.floor(Math.abs(dist) / (step || 8)) % 4];
   }
   A.colFor = colFor;
+
+  // Bóng đổ dưới chân. Trước bản này CHỈ cái xác và món đồ rơi có bóng, còn người sống
+  // và quái thì không — nên nhân vật đứng trên cát mà đọc ra là một hình dán trôi trên
+  // nền, không phải một người đứng trên mặt đất. Vẽ TRƯỚC thân, ở lớp thường (bóng chịu
+  // ánh sáng chứ không tự phát sáng).
+  A.shadow = function (c, x, y, rx, alpha) {
+    c.save();
+    c.globalAlpha = alpha == null ? 0.30 : alpha;
+    c.fillStyle = '#000';
+    c.beginPath();
+    c.ellipse(x, y, rx, rx * 0.42, 0, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  };
 
   A.have = key => !!(sheets[key] && sheets[key].ok) || !!(strips[key] && strips[key].ok);
 
@@ -241,7 +304,7 @@
     const src = (o.rim && s.rim) ? s.rim : s.img;
     const pad = (o.rim && s.rim) ? s.pad : 0;
     const cw = s.cw + pad * 2, ch = s.ch + pad * 2;
-    const col = o.col != null ? o.col : colFor(o.dist || 0);
+    const col = o.col != null ? o.col : colFor(o.dist || 0, o.step);
     const row = o.row != null ? o.row : rowFor(o.dirX || 0, o.dirY || 1);
     const k = (o.scale || 1) * (o.foe ? FOE_SCALE : MAN_SCALE);
     const w = cw * k, h = ch * k;
@@ -358,6 +421,113 @@
         c.ellipse(Math.cos(a) * d, Math.sin(a) * d * 0.55, r * 0.4, r * 0.24, a, 0, 6.283);
         c.fill();
       }
+    }
+    c.restore();
+  };
+
+  // ---------------------------------------------------------------------------
+  // CON SÓI — vẽ 100% bằng mã, giống đoàn tàu, và vì cùng một lý do.
+  // ---------------------------------------------------------------------------
+  // Cả kho không có một con vật bốn chân nào: 6 tấm trong repo2d/art/foe/ và 294 tệp
+  // trong dragonproj/assets/spr/ đều là hình NGƯỜI hoặc đồ vật. Bản trước cho Sói Hoang
+  // mượn tấm `rook` — cùng tấm với Con Húc — nên một BẦY BỐN CON sói hiện ra dưới hình
+  // bốn người, và người chơi đọc chúng là bốn Con Húc nhỏ. Sai cả loài lẫn cách đánh:
+  // Con Húc lao một đường thẳng có báo trước, sói thì bâu vào từ bốn phía.
+  //
+  // Thứ phân biệt một con thú với một con người ở góc nhìn từ trên xuống là BÓNG DÁNG,
+  // không phải chi tiết: người thì cao và hẹp, thú thì DÀI và THẤP. Nên hình này dựng
+  // trên một thân dài gấp đôi bề ngang, nằm sát đất, mũi chúc về hướng đi.
+  //
+  // Bốn chân đảo theo QUÃNG ĐƯỜNG như charset, không theo đồng hồ — cùng một luật với
+  // colFor, nên một con sói bị ghim chân thì đứng yên thật.
+  A.wolf = function (c, x, y, dirX, dirY, dist, o) {
+    o = o || {};
+    // 1,35 chứ không phải 1,15: đo trên ảnh chụp thật, ở cỡ cũ con sói dài 31 điểm ảnh
+    // trên màn 390 và nằm cạnh Con Húc cao 49 — nó đọc ra là một vệt bẩn chứ không phải
+    // một con vật. Thú bốn chân vốn THẤP, nên bù lại bằng chiều DÀI, không bằng chiều cao.
+    const k = (o.scale || 1) * 1.35;
+    const a = Math.atan2(dirY || 0, dirX || -1);
+    const alpha = o.alpha == null ? 1 : o.alpha;
+    const ph = (dist || 0) / 9;              // nhịp chân
+    const sw = Math.sin(ph);                 // chân trước trái / sau phải
+    const L = 15 * k, W = 7.4 * k;           // nửa thân: dài gấp đôi bề ngang
+
+    c.save();
+    c.translate(x, y);
+    c.globalAlpha = alpha;
+    c.rotate(a);
+
+    // Viền đỏ: quy ước "đây là địch" của cả game. Vẽ bằng một lớp thân PHÌNH RA nằm
+    // dưới, không bằng stroke — stroke trên bảy hình rời thì các đường viền cắt qua
+    // nhau ở mọi khớp.
+    c.fillStyle = '#ff3b30';
+    c.beginPath(); c.ellipse(0, 0, L + 3, W + 3, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(L * 0.86, 0, 8.2 * k, 7.2 * k, 0, 0, Math.PI * 2); c.fill();
+
+    // Đuôi — cong ra sau, ve vẩy nhẹ theo nhịp chân.
+    c.strokeStyle = '#5a5145';
+    c.lineWidth = 4.4 * k; c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(-L * 0.9, 0);
+    c.quadraticCurveTo(-L * 1.5, sw * 4 * k, -L * 1.9, sw * 8 * k);
+    c.stroke();
+
+    // Bốn chân. Hai cặp lệch pha nửa vòng — đó là dáng chạy nước kiệu của loài bốn chân.
+    c.fillStyle = '#453d33';
+    const leg = (lx, ly, s) => {
+      c.beginPath();
+      c.ellipse(lx + s * 3.4 * k, ly, 3.1 * k, 2.3 * k, 0, 0, Math.PI * 2);
+      c.fill();
+    };
+    leg(L * 0.55, -W * 0.85,  sw);
+    leg(L * 0.55,  W * 0.85, -sw);
+    leg(-L * 0.55, -W * 0.85, -sw);
+    leg(-L * 0.55,  W * 0.85,  sw);
+
+    // Thân: lưng sẫm, bụng nhạt — cho ra khối, không phải một vết dán phẳng.
+    c.fillStyle = '#6f6454';
+    c.beginPath(); c.ellipse(0, 0, L, W, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#9a8d78';
+    c.beginPath(); c.ellipse(-L * 0.1, W * 0.3, L * 0.8, W * 0.5, 0, 0, Math.PI * 2); c.fill();
+
+    // Đầu, tai, mõm.
+    const hx = L * 0.86;
+    c.fillStyle = '#7d7160';
+    c.beginPath(); c.ellipse(hx, 0, 7 * k, 6 * k, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#4e463b';
+    [-1, 1].forEach(sgn => {
+      c.beginPath();
+      c.moveTo(hx - 1 * k, sgn * 5.4 * k);
+      c.lineTo(hx - 4.6 * k, sgn * 8.6 * k);
+      c.lineTo(hx + 1.6 * k, sgn * 7.6 * k);
+      c.closePath(); c.fill();
+    });
+    c.fillStyle = '#2b251f';
+    c.beginPath(); c.ellipse(hx + 6 * k, 0, 3.6 * k, 2.6 * k, 0, 0, Math.PI * 2); c.fill();
+    // Sống lưng sáng chạy dọc thân. Đây là thứ tách con vật ra khỏi cái bóng đổ của
+    // chính nó khi nó đi qua chỗ tối — một khối một màu thì dù đúng bóng dáng vẫn đọc
+    // ra là một vệt bẩn.
+    c.fillStyle = '#8e8270';
+    c.beginPath(); c.ellipse(-L * 0.05, -W * 0.34, L * 0.72, W * 0.22, 0, 0, Math.PI * 2); c.fill();
+
+    // Mắt: chỉ sáng khi con này ĐANG THỨC. Một bầy sói đang ngủ mà mắt vẫn cháy vàng
+    // thì cái dấu 'z' bên trên nói một đằng, cái mặt nói một nẻo.
+    if (!o.sleep) {
+      c.fillStyle = '#ffcf6a';
+      [-1, 1].forEach(sgn => {
+        c.beginPath();
+        c.ellipse(hx + 2.6 * k, sgn * 2.7 * k, 1.5 * k, 1.1 * k, 0, 0, Math.PI * 2);
+        c.fill();
+      });
+    }
+
+    // Nhấp trắng lúc trúng đòn — cùng ngôn ngữ với drawActor, làm bằng một lớp phủ
+    // theo đúng bóng dáng thân chứ không phải một vòng tròn.
+    if (o.flash > 0) {
+      c.globalAlpha = alpha * o.flash;
+      c.fillStyle = '#fff';
+      c.beginPath(); c.ellipse(0, 0, L, W, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(hx, 0, 7 * k, 6 * k, 0, 0, Math.PI * 2); c.fill();
     }
     c.restore();
   };

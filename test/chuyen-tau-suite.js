@@ -1025,6 +1025,137 @@ async function suiteGunFlow(browser) {
 }
 
 // ---------------------------------------------------------------------------
+async function suiteFeel(browser) {
+  out.push('\n[19] Điều khiển và cảm giác: hình học cần gạt, đẩy lùi, nhịp chân');
+  const { ctx, page } = await open(browser, 844, 390);
+  try {
+    await page.evaluate(() => { CT.GAME.newRun('m1', 'hai'); document.getElementById('menu').classList.remove('on'); });
+    await page.waitForTimeout(100);
+
+    // --- 1. THỨ VẼ RA VÀ THỨ BẮT ĐƯỢC PHẢI LÀ MỘT ---------------------------
+    // Vòng cần gạt vẽ ở tâm `left` bán kính `ring`. onDown chỉ tạo cần gạt khi
+    // r.y > thumbY. Vậy ĐỈNH vòng phải nằm dưới thumbY — nếu không thì phần vòng
+    // nhô lên trên là phần người chơi NHÌN THẤY mà KHÔNG bấm được.
+    const g = await page.evaluate(() => {
+      const L = CT.HUD.layout();
+      // mul lấy đúng từ pickButton — đo vùng BẮT, không phải vùng VẼ
+      const catches = [[L.fire, 1.2], [L.dodge, 1.25], [L.skill, 1.25], [L.act, 1.25],
+                       [L.bag, 1.3]].concat(L.slots.map(s => [s, 1.6]));
+      let worst = -1e9;
+      catches.forEach(c => { const bot = c[0].y + c[0].r * c[1]; if (bot > worst) worst = bot; });
+      return {
+        ringTop: L.left.y - L.left.r, ringTopR: L.rightZone.y - L.rightZone.r,
+        thumbY: L.thumbY, ring: L.ring, lowestCatch: worst,
+        rows: Array.from(new Set([L.fire, L.dodge, L.skill, L.act, L.bag]
+                 .concat(L.slots).map(b => Math.round(b.y)))).length
+      };
+    });
+    check('cả vòng lái TRÁI nằm dưới vạch ngón cái',
+          g.ringTop >= g.thumbY - 0.5,
+          'đỉnh vòng ' + g.ringTop.toFixed(0) + ' ≥ vạch ' + g.thumbY.toFixed(0));
+    check('cả vòng ngắm PHẢI nằm dưới vạch ngón cái',
+          g.ringTopR >= g.thumbY - 0.5,
+          'đỉnh vòng ' + g.ringTopR.toFixed(0) + ' ≥ vạch ' + g.thumbY.toFixed(0));
+    check('không nút nào có VÙNG BẮT thò xuống dải cần gạt',
+          g.lowestCatch <= g.thumbY,
+          'đáy vùng bắt thấp nhất ' + g.lowestCatch.toFixed(0) + ' ≤ vạch ' + g.thumbY.toFixed(0));
+    check('cụm nút còn đúng hai hàng', g.rows === 2, g.rows + ' hàng');
+
+    // --- 2. Chạm vào NỬA TRÊN của vòng lái phải lái được ---------------------
+    // Bài kiểm cho đúng cái lỗi vừa sửa: bản trước vạch ngón cái cắt ngang giữa
+    // vòng, nên đặt ngón lên nửa trên là nhân vật đứng im.
+    const lay = await page.evaluate(() => CT.HUD.layout());
+    const client = await page.context().newCDPSession(page);
+    const ux = lay.left.x, uy = lay.left.y - lay.ring * 0.8;
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchStart', touchPoints: [{ x: ux, y: uy, id: 7 }]
+    });
+    await page.waitForTimeout(60);
+    const up = await page.evaluate(() => ({ mx: CT.GAME.IN.mx, my: CT.GAME.IN.my }));
+    await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    check('đặt ngón vào NỬA TRÊN vòng lái thì nhân vật đi lên',
+          up.my < -0.4, 'my = ' + up.my.toFixed(2));
+
+    // --- 3. ĐẨY LÙI: đạn phải dịch được con quái ----------------------------
+    // Dựng cảnh tất định: một con Kẻ Lê Bước ăn một phát từ BÊN TRÁI, rồi bị khoá
+    // `stopT` dài để nó không tự đi — nên mọi dịch chuyển đo được sau đó chỉ có
+    // thể đến từ cú đẩy.
+    const kb = await page.evaluate(async () => {
+      const G = CT.GAME, R = G.R(), def = CT.FOE_BY_ID['bo'];
+      const p = R.p;
+      const f = {
+        def, id: def.id, x: p.x + 220, y: p.y, vx: 0, vy: 0,
+        hp: 9999, hpMax: 9999, r: def.r, dead: false, sleep: false, wake: 0,
+        dirX: -1, dirY: 0, dist: 0, flash: 0, stun: 0, stopT: 0,
+        step: CT.ART.stepLen(def.spd),
+        tx: p.x, ty: p.y, cd: 0, state: 'chase', pin: 0,
+        pain: 0, painDur: 0, onTrain: false, climb: 0, seed: 0.5
+      };
+      R.foes.length = 0; R.foes.push(f);
+      const x0 = f.x;
+      G.hurtFoe(f, 30, f.x - 100, f.y, true);   // bắn từ bên TRÁI → phải bị đẩy sang PHẢI
+      const v0 = f.vx;
+      f.stopT = 5;                               // khoá chân, cô lập cú đẩy
+      // 700ms chứ không phải 350: đồng hồ ở đây là đồng hồ TƯỜNG, còn cú đẩy tắt
+      // theo THỜI GIAN MÔ PHỎNG, và hai cái không bằng nhau — trình duyệt bỏ khung,
+      // dt bị kẹp trần, nên 350ms tường chỉ đẩy được ~270ms mô phỏng. Đo lần đầu ra
+      // đúng như thế: vx còn 5,9 thay vì 2,8 như phép tính exp(−9·0,35) hứa hẹn.
+      await new Promise(r => setTimeout(r, 700));
+      return { v0, moved: f.x - x0, vNow: f.vx };
+    });
+    check('trúng đạn thì quái có vận tốc đẩy', kb.v0 > 50, 'vx = ' + kb.v0.toFixed(0));
+    check('và vận tốc đó THẬT SỰ dịch con quái đi',
+          kb.moved > 6 && kb.moved < 40, 'dịch ' + kb.moved.toFixed(1) + ' điểm ảnh');
+    check('cú đẩy tắt hẳn chứ không trôi mãi', Math.abs(kb.vNow) < 2.1,
+          'vx còn ' + kb.vNow.toFixed(1));
+
+    // --- 4. NHỊP CHÂN nằm trong dải đọc được -------------------------------
+    // Chuẩn hoạt hoạ pixel: 80–150ms một khung cho đi bộ. Dưới 80ms thì đọc ra là
+    // RUNG chứ không phải bước. Kiểm cho CẢ dải tốc độ có trong game, vì lỗi cũ là
+    // một hằng số bước chân dùng chung cho mọi con.
+    const cad = await page.evaluate(() => {
+      const A = CT.ART;
+      const speeds = [176].concat(CT.FOES.map(f => f.spd));   // 176 = tốc người chơi
+      return speeds.map(v => ({ v, ms: A.stepLen(v) / v * 1000 }));
+    });
+    const bad = cad.filter(c => c.ms < 80 || c.ms > 155);
+    check('mọi tốc độ trong game đều cho nhịp chân 80–155ms',
+          bad.length === 0,
+          bad.length ? bad.map(b => b.v + '→' + b.ms.toFixed(0) + 'ms').join(', ')
+                     : cad.length + ' tốc độ, ' + cad[0].ms.toFixed(0) + 'ms');
+
+    // --- 5. Xác sống phải KHÁC người sống ----------------------------------
+    // Hai con quái đông nhất game mượn charset NGƯỜI. Không đổi bảng màu thì người
+    // chơi không phân biệt được cái đang đuổi mình với cái mình đang cứu.
+    const tint = await page.evaluate(() => {
+      const grab = key => {
+        const c = document.createElement('canvas');
+        c.width = 8; c.height = 8;
+        const x = c.getContext('2d');
+        const ok = CT.ART.drawActor(x, key, { x: 4, y: 12, col: 1, row: 0, foe: key !== 'man.ky' });
+        if (!ok) return null;
+        const d = x.getImageData(0, 0, 8, 8).data;
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+        return n ? { r: r / n, g: g / n, b: b / n, n } : null;
+      };
+      return { z: grab('foe.zombie'), m: grab('man.ky') };
+    });
+    const okTint = tint.z && tint.m &&
+      (Math.abs(tint.z.r - tint.m.r) + Math.abs(tint.z.g - tint.m.g) + Math.abs(tint.z.b - tint.m.b)) > 30;
+    check('xác sống KHÔNG dùng chung bảng màu với người sống', okTint,
+          tint.z && tint.m
+            ? 'zombie ' + [tint.z.r, tint.z.g, tint.z.b].map(v => v.toFixed(0)).join(',') +
+              ' vs người ' + [tint.m.r, tint.m.g, tint.m.b].map(v => v.toFixed(0)).join(',')
+            : 'chưa nạp được ảnh');
+
+    // --- 6. Con sói phải có hình riêng --------------------------------------
+    check('Sói Hoang có hàm vẽ riêng, không mượn tấm của Con Húc',
+          await page.evaluate(() => CT.FOE_BY_ID['soi'].draw === 'wolf' && typeof CT.ART.wolf === 'function'));
+  } finally { await ctx.close(); }
+}
+
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 (async function main() {
   const browser = await chromium.launch({
@@ -1034,7 +1165,7 @@ async function suiteGunFlow(browser) {
                   suiteGacha, suiteShop, suiteBag, suiteSave, suiteTouch,
                   suiteArt, suiteSafety,
                   suiteShopFlow, suiteSellFlow, suiteFuelFlow, suiteCarryFlow,
-                  suiteWiki, suiteGunFlow];
+                  suiteWiki, suiteGunFlow, suiteFeel];
   for (const s of suites) {
     try { await s(browser); }
     catch (e) { check(s.name + ' — cả bộ ném lỗi', false, String(e.message).slice(0, 160)); }

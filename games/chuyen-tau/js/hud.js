@@ -52,6 +52,14 @@
  * 12. BỐN MỎ NEO DỌN DẸP: pointercancel dùng CHUNG handler với pointerup;
  *     lostpointercapture; contextmenu → preventDefault; blur + visibilitychange.
  *     Một cú pointerup lạc mất là hỏng vĩnh viễn cho tới lúc tải lại trang.
+ *
+ * 13. THỨ VẼ RA VÀ THỨ BẮT ĐƯỢC PHẢI LÀ MỘT — và phép so là với BÁN KÍNH BẮT (r × mul),
+ *     không phải bán kính vẽ. Luật này ra đời vì hai chỗ lệch nhau cùng lúc trong cùng
+ *     một hàm layout(): vạch ngón cái cắt ngang giữa vòng cần gạt (43% vòng vẽ ra không
+ *     bắt được gì), và vùng bắt của nút Bắn thò xuống dưới vạch 0,32R. Cả hai đều không
+ *     ném lỗi, không hiện ra ở bảng test, và không nhìn thấy được trên ảnh chụp — chỉ
+ *     người cầm máy mới biết, dưới dạng "sao cái vòng này không nghe lời".
+ *     Cách kiểm rẻ nhất: viết ra bất đẳng thức giữa hai số rồi giải, đừng ướm mắt.
  */
 (function (root) {
   'use strict';
@@ -80,8 +88,20 @@
     const ring = R * 1.9;                    // bán kính vòng cần gạt
     const pad = 20 * K;
 
-    // dải ngón cái: dưới vạch này chỉ có cần gạt
-    const thumbY = h - (pad + ring + 8 * K);
+    // DẢI NGÓN CÁI — dưới vạch này chỉ có cần gạt.
+    //
+    // Vạch này phải nằm ở ĐỈNH VÒNG VẼ RA, không phải ở giữa vòng.
+    // ROOT-CAUSE của bản trước: vòng cần gạt vẽ ở tâm (h − pad − ring) với bán kính
+    // `ring`, tức đỉnh vòng ở h − pad − 2·ring; nhưng vạch lại đặt ở h − pad − ring − 8K.
+    // Chênh nhau đúng (ring − 8K) = 49K, trên tổng đường kính 114K — tức 43% CÁI VÒNG
+    // NGƯỜI CHƠI NHÌN THẤY nằm trên vạch, mà onDown chỉ tạo cần gạt khi `r.y > thumbY`.
+    // Hậu quả đo được: đặt ngón vào nửa TRÊN của vòng lái thì nhân vật không nhúc nhích
+    // (bên trái), hoặc bắn một phát rồi thôi (bên phải, vì vùng bắt của nút Bắn với xuống
+    // tận đó). Người chơi nhìn thấy một cái vòng và cái vòng không nghe lời — đó chính là
+    // "điều khiển không hợp lý", và nó là một lỗi hình học chứ không phải một vấn đề gu.
+    //
+    // Luật từ nay: THỨ VẼ RA VÀ THỨ BẮT ĐƯỢC PHẢI LÀ MỘT.
+    const thumbY = h - pad - ring * 2;
 
     const left  = { x: pad + ring, y: h - pad - ring, r: ring };
     const rightZone = { x: w - pad - ring, y: h - pad - ring, r: ring };
@@ -97,26 +117,46 @@
     // ngoài cùng bên phải. Càng lên trên càng ít dùng.
     const S = R * 3.5;
     const cx = w - pad - R * 1.1;
-    const y0 = thumbY - R * 1.3;              // hàng dưới
-    const y1 = y0 - S, y2 = y1 - S;           // hàng giữa, hàng trên
+    // Hàng dưới phải hở khỏi vạch ngón cái đúng bằng BÁN KÍNH BẮT của nút to nhất, không
+    // phải bán kính VẼ của nó. Nút Bắn vẽ 1,35R nhưng bắt ở 1,35 × 1,2 = 1,62R, và bản
+    // trước đặt hàng dưới cách vạch có 1,3R — nên vùng bắt của nút Bắn thò xuống dưới
+    // vạch 0,32R và nuốt mất một khoanh của cần gạt phải. pickButton chạy TRƯỚC nhánh
+    // tạo cần gạt, nên khoanh đó không có đường nào thắng lại được.
+    const y0 = thumbY - R * 1.62 - 4 * K;     // hàng dưới
+    const y1 = y0 - S;                        // hàng trên
     const b = (x, y, k) => ({ x, y, r: R * (k || 1) });
 
+    // HAI HÀNG, KHÔNG PHẢI BA. Vạch ngón cái vừa dâng lên 49K để trả lại cả cái vòng
+    // lái; ba hàng nút thì hàng trên cùng bị đẩy lên y ≈ 3K, tức ra ngoài màn hình. Đây
+    // không phải chuyện thẩm mỹ mà là chuyện chỗ: bố cục cũ đặt nhiều nút hơn số chỗ
+    // thật sự có.
+    //
+    // Cắt cái gì: nút 🗄️ "nhét hết vô tủ". Nó KHÔNG mất đi — đúng hành động đó đã có
+    // sẵn một nút chữ trong màn 🎒 ("Nhét hết vô tủ") và một phím Tab. Nó là nút duy
+    // nhất trong chín nút trùng lặp với một chỗ khác, nên nó là nút đúng để cắt.
+    //
+    // Xếp lại theo mức dùng: hàng DƯỚI (ngón cái nghỉ tới được dễ nhất) giữ bốn thứ bấm
+    // giữa lúc đánh nhau; hàng TRÊN giữ ba ô tay và cái túi. Bản trước để ⓐ ở hàng giữa
+    // trong khi ⓐ là nút bấm nhiều nhất của cả pha ga.
     const fire  = b(cx,             y0, 1.35);
-    const dodge = b(cx - S,         y0);
-    const skill = b(cx - S * 2,     y0);
-    const act   = b(cx,             y1);
-    const slots = [b(cx - S,     y1), b(cx - S * 2, y1), b(cx - S * 3, y1)];
-    // Hai nút ít dùng nhất lên hàng trên cùng — vẫn thuộc tay phải, vẫn trên dải ngón
-    // cái, chỉ là xa hơn. "Nhét hết vô tủ" là hành động TRONG ván nên nó phải ở đây chứ
-    // không được đẩy sang mép trái cùng với nút tạm dừng.
-    const stash = b(cx,             y2, 0.86);
-    const bag   = b(cx - S,         y2, 0.86);
+    const act   = b(cx - S,         y0);
+    const dodge = b(cx - S * 2,     y0);
+    const skill = b(cx - S * 3,     y0);
+    const bag   = b(cx,             y1, 0.86);
+    const slots = [b(cx - S, y1), b(cx - S * 2, y1), b(cx - S * 3, y1)];
     // Tạm dừng là nút MENU, không phải nút trong ván — nó đóng băng thế giới ngay khi
-    // bấm — nên nó được phép nằm ở góc trái trên, xa mọi ngón đang bận.
-    const pause = { x: pad + R * 0.9, y: pad + R * 0.8, r: R * 0.78 };
+    // bấm — nên nó được phép nằm ở mép trên, xa mọi ngón đang bận.
+    //
+    // NGAY SAU THANH MÁU, không phải đè lên nó. Bản trước đặt ở x = pad + 0,9R = 47K
+    // trong khi thanh máu chạy từ 16K tới 206K ở cùng độ cao — nên cái nút ngồi đúng
+    // giữa thanh máu, che mất con số "100 / 100" và cả dòng "Chặng 1/3". Hai con số ở
+    // góc đó là hai con số người chơi liếc nhiều nhất cả ván.
+    // Hai số 16 và 190 dưới đây là hx và hw của thanh máu trong drawHud — chỗ duy nhất
+    // trong tệp này phải khớp tay với một chỗ khác, nên nếu đổi thanh máu thì đổi cả đây.
+    const pause = { x: (16 + 190) * K + R * 1.1, y: pad + R * 0.8, r: R * 0.78 };
 
     return { w, h, K, R, thumbY, left, rightZone, fire, dodge, skill, act, slots,
-             bag, stash, pause, ring };
+             bag, pause, ring };
   }
   H.layout = () => lay;
 
@@ -171,7 +211,6 @@
     add(L.act, 1.25, true, () => { G.IN.act = true; return 'tap'; });
     L.slots.forEach((s, i) => add(s, 1.6, true, () => { G.IN.use = i; return 'tap'; }));
     add(L.bag, 1.3, true, () => { if (H.onBag) H.onBag(); return 'tap'; });
-    add(L.stash, 1.3, true, () => { if (H.onStash) H.onStash(); return 'tap'; });
     add(L.pause, 1.3, true, () => { if (H.onPause) H.onPause(); return 'tap'; });
 
     let best = null, bd = 1;
@@ -399,7 +438,7 @@
     c.fillText(R.isNight ? R.night.name : 'Ban ngày', dx + dr + 8 * K, dy);
 
     // TIỀN và THAN. Hai con số này quyết định mọi thứ ở ga. Chúng ở cột TRÁI vì cột phải
-    // nằm ngay dưới hàng nút 🎒/🗄️ — chữ đè lên nút là chữ không ai đọc.
+    // nằm ngay dưới hàng ô tay — chữ đè lên nút là chữ không ai đọc.
     const my = dy + dr + 14 * K;
     c.font = '700 ' + Math.round(13 * K) + 'px system-ui, sans-serif';
     c.fillStyle = '#ffd06a';
@@ -434,8 +473,10 @@
     c.font = '600 ' + Math.round(12 * K) + 'px system-ui, sans-serif';
     const bx = L.w - 16 * K;
     c.fillStyle = '#cfc6b4';
-    // Cột phải phải dừng lại TRƯỚC mép trái của nút 🎒. Nút 🎒 nằm ở cx − 3,5R với
-    // cx = w − pad − 1,1R, nên mép trái của nó là w − pad − 5,6R. Lấy 5,9R cho có khe.
+    // Cột phải dừng lại trước cụm nút bên dưới. Từ bản hai-hàng thì hàng nút trên cùng
+    // đã tụt xuống y ≈ 3,6·R, tức không còn ngang hàng với ba dòng chữ này nữa, nên 5,9R
+    // giờ là một khoảng thừa chứ không phải một ràng buộc sát. Giữ nguyên: nới thêm chỉ
+    // để dòng "sau lưng: …" bò tới sát mép nút.
     const rx = bx - L.R * 5.9;
     c.fillText('🎒 ' + G.bagUsed() + '/' + (R.bagMax + (R.spec.bagPlus || 0)), rx, 20 * K);
     if (R.gun) {
@@ -536,7 +577,6 @@
       btn(c, s, u ? u.icon : '·', u ? String(it.n) : '', u ? '#8a7a5a' : '#3a3a3a', !u);
     });
     btn(c, L.bag, '🎒', '', '#5a6470');
-    btn(c, L.stash, '🗄️', '', G.nearTrain() ? '#5a6470' : '#333');
     btn(c, L.pause, '⏸', '', '#4a4a4a');
 
     c.restore();
