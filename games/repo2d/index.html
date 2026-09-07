@@ -207,9 +207,73 @@
   .up .p{color:var(--amber);}
   .gear .p{color:var(--teal);}
   .shop .empty{background:var(--panel);padding:11px;font-size:11.5px;color:var(--ink-faint);}
+  .empty{background:var(--panel);border:1px solid var(--line);padding:9px 11px;
+         font-size:11px;line-height:1.45;color:var(--ink-faint);width:100%;text-align:left;}
   .seg{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
        color:var(--ink-faint);width:100%;text-align:left;margin-top:4px;}
   .wallet{font-family:var(--mono);font-size:12.5px;color:var(--amber);letter-spacing:.06em;}
+
+  /* BA O TREN TAY, trong bang tu do. Ba o VUONG dat canh nhau, cung hinh dang voi ba o tren
+     HUD, de "tren tay" trong bang va "tren tay" ngoai tran danh doc ra la cung mot thu.
+     touch-action:none la BAT BUOC chu khong phai trang tri: khong co no thi trinh duyet nuot
+     pointermove de cuon trang, va cu keo chet ngay o pixel thu hai tren dien thoai. */
+  .handrow{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+           border:1px solid var(--line);width:100%;}
+  .hcell{position:relative;background:var(--panel);padding:8px 6px 7px;text-align:center;
+         cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;
+         display:flex;flex-direction:column;align-items:center;gap:3px;min-height:78px;
+         justify-content:center;border:1px solid transparent;}
+  .hcell:hover{background:#171c23;}
+  /* O DANG CAM. Vien ho phach va nen am hon: no phai doc duoc tu xa mot cai, vi day la cau
+     tra loi cho "nut dung ngoai kia dang la cai gi". */
+  .hcell.on{background:#231a12;border-color:var(--amber);}
+  .hcell.empty{cursor:default;}
+  .hcell.drop{border-color:#7fd4e8;background:#12242a;}
+  .hpic{height:34px;display:flex;align-items:center;justify-content:center;}
+  .hpic img{width:34px;height:34px;image-rendering:auto;}
+  .hcell.empty .hpic::after{content:'';width:16px;height:16px;border:1px dashed #3a444e;}
+  .hname{font-size:10.5px;line-height:1.25;color:var(--ink);}
+  .hcell.empty .hname{color:var(--ink-faint);}
+  .hnum{font-family:var(--mono);font-size:9.5px;color:var(--teal);min-height:11px;}
+  /* Nut tra ve tu: nho, goc tren phai cua o, vung cham noi rong bang padding chu khong bang co
+     chu - mot chu × 10px la mot dich cham 10px, va khong ngon tay nao trung duoc no. */
+  .hx{position:absolute;top:0;right:0;width:22px;height:22px;line-height:1;
+      background:transparent;border:none;color:var(--ink-faint);font-size:13px;cursor:pointer;}
+  .hx:hover{color:#e0a35a;}
+  .handhint{font-size:10px;color:var(--ink-faint);line-height:1.45;padding:1px 2px 0;}
+  /* CAI TU VE THANH MOT CAI BA LO: luoi bon cot, moi o mot mon, nhan ra bang HINH.
+     Cung ngon ngu hinh dang voi hang ba o tren tay ngay phia tren - do la thu lam cho cu keo
+     tu tu len tay tro thanh mot viec nguoi choi tu doan ra. */
+  .bag{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+       border:1px solid var(--line);width:100%;}
+  .bcell{position:relative;background:var(--panel);padding:7px 3px 6px;text-align:center;
+         cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;
+         display:flex;flex-direction:column;align-items:center;gap:2px;min-height:74px;
+         justify-content:center;border:1px solid transparent;}
+  .bcell:hover{background:#171c23;}
+  .bcell.drop{border-color:#7fd4e8;background:#12242a;}
+  /* O TRONG: khong bam duoc, khong sang len, va nhat han - no la CHO TRONG chu khong phai mot
+     mon do mo. Van ve ra vi hinh dang co dinh cua cai tu chinh la thu noi "con cho". */
+  .bcell.blank{cursor:default;background:#0d1014;}
+  .bcell.blank:hover{background:#0d1014;}
+  .bcell.bad .bpic{font-family:var(--mono);font-size:20px;color:#e0a35a;}
+  .bpic{height:32px;display:flex;align-items:center;justify-content:center;}
+  .bpic img{width:32px;height:32px;}
+  .bname{font-size:9.5px;line-height:1.2;color:var(--ink-dim);
+         max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bnum{font-family:var(--mono);font-size:9px;color:var(--teal);}
+  .bnum.het{color:#c8756a;}
+  .bag.drop{outline:1px solid #7fd4e8;outline-offset:-1px;}
+  /* Mot dong duy nhat ta mon DANG CAM. Ca doan mo ta cua tung mon khong con cho trong o vuong
+     nua, ma no van la tin can doc - nen no doi cho: thay vi tam doan van cung luc, la mot doan
+     ve dung cai nguoi choi dang quan tam. */
+  .baginfo{font-size:10.5px;line-height:1.5;color:var(--ink-dim);padding:2px 2px 0;}
+  .baginfo b{color:var(--ink);font-weight:600;}
+  /* Cai bong bam theo ngon tay. pointer-events:none de elementFromPoint nhin XUYEN QUA no -
+     khong co dong do thi dich tha luon luon la chinh cai bong, va khong bao gio tha duoc. */
+  .dragghost{position:fixed;left:0;top:0;z-index:99;pointer-events:none;
+             transform:translate(-50%,-50%);opacity:.9;filter:drop-shadow(0 2px 6px #000);}
+  .dragghost img{width:40px;height:40px;}
 
   .foot{
     display:flex;align-items:center;gap:13px;flex-wrap:wrap;
@@ -419,8 +483,8 @@
 })();
 </script>
 
-<script src="sprites.js?v=20260907e"></script>
-<script src="game.js?v=20260907e"></script>
+<script src="sprites.js?v=20260907f"></script>
+<script src="game.js?v=20260907f"></script>
 <script src="bot.js?v=20260904a"></script>
 <script>window.__boot && window.__boot();</script>
 <script>

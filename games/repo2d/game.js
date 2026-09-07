@@ -1525,6 +1525,198 @@ const GEAR = [
 const GEAR_BY_KEY = {};
 for (const g of GEAR) GEAR_BY_KEY[g.key] = g;
 
+// ============================================================ MOT BAN TAY, KHONG PHAI BA O
+//
+// Chu du an: "hien tai 3 slot item dang qua kho de chon roi thao tac nen gio se bat chuoc giong
+// Soul Knight - 1 nut dung item bao gom ca danh thuong, 1 nut de swap item".
+//
+// Soul Knight bay dung bon nut: can di ben trai, con ben phai la DANH, doi vu khi, va chieu. Cai
+// no KHONG co la mot hang o do de chon - vu khi dang cam la mot thu, va nut danh luon dung dung
+// thu do. O day ba o do bat ngon cai phai NHAM VAO DUNG MOT O trong ba o nho nam tren vong cung,
+// giua luc co thu dang duoi - tuc moi lan dung do la mot lan phai nhin xuong HUD.
+//
+// Nay ban tay la MOT CON TRO chay vong: nam dam -> o 1 -> o 2 -> o 3 -> nam dam. Nut dung luon
+// dung cai dang cam, nen no la mot nut TO, o mot cho co dinh, bam khong can nhin.
+//
+// NAM DAM LUON CO MAT trong vong, va do la thu lam ca co che nay an toan: danh thuong khong bao
+// gio bien mat khoi tay, nen khong co trang thai nao nguoi choi bam nut dung ma khong co gi xay
+// ra. Cung vi the ma nut "Danh" rieng biet bi bo di - no da nam trong vong roi.
+//
+// `p.hand` chi la mot GOI Y, khong phai nguon su that. Mon trong o co the bien mat giua chung
+// (dung het, tra ve tu, thua ca), nen moi cho doc deu di qua handNow() va tu roi ve nam dam.
+// Giu mot con tro "dung" bang cach sua no o moi cho co the lam no sai la cach chac chan de quen
+// mot cho; hoi lai moi lan thi khong co cho nao de quen.
+function handSlots(p){
+  const out = [-1];                                    // -1 = nam dam, luon dung dau vong
+  if (p && p.inv) for (let i = 0; i < p.inv.length; i++) if (p.inv[i]) out.push(i);
+  return out;
+}
+function handNow(p){
+  if (!p || !p.inv) return -1;
+  const h = p.hand == null ? -1 : p.hand;
+  return (h >= 0 && p.inv[h]) ? h : -1;
+}
+// Cai se cam neu bam swap. Ve len chinh nut swap, dung nhu Soul Knight ve khau kia len nut doi
+// vu khi: nguoi choi biet minh sap doi sang cai gi TRUOC KHI bam, nen doi vu khi khong con la
+// mot canh bac phai bam may lan cho toi khi trung cai minh muon.
+function handNext(p){
+  const ds = handSlots(p);
+  if (ds.length < 2) return null;
+  return ds[(ds.indexOf(handNow(p)) + 1) % ds.length];
+}
+function handSwap(p){
+  const n = handNext(p);
+  if (n == null) return false;
+  p.hand = n;
+  return true;
+}
+function handDef(p, h){
+  const i = (h === undefined || h === null) ? handNow(p) : h;
+  if (i < 0) return null;
+  const it = p.inv[i];
+  return it ? (GEAR_BY_KEY[it.kind] || null) : null;
+}
+// Bam nut dung. Nam dam thi vung tay (tu ngam sang con gan nhat, y nhu nut Danh cu), co do thi
+// dung do. Mot cua vao cho ca hai, vi tren man hinh chung LA mot nut.
+function handUse(p, ang){
+  if (!p) return false;
+  const h = handNow(p);
+  if (h < 0){
+    const t = meleeTarget(p);
+    return meleeSwing(p, ang != null ? ang : (t ? Math.atan2(t.y - p.y, t.x - p.x) : null));
+  }
+  return useSlot(p, h, ang);
+}
+
+// ============================================================ HINH CUA MON DO
+//
+// Chu du an: "thieu hinh thi gen them hinh cho ro vi du nhu sung cac loai, bomb".
+//
+// Ve BANG MA chu khong them tep anh, va day la mot lua chon chu khong phai duong tat:
+//   - cung mot ham phuc vu ba cho co ba co khac han nhau (nut dung ~26px, mon tren tay nhan
+//     vat ~9px, bang tu do ~34px). Mot tam sprite thi hoac mo o cho to hoac bet o cho nho;
+//   - ca HUD cua tro nay von da ve bang vector, nen hinh ve tay se la thu duy nhat lac dieu;
+//   - them tep anh la them mot request co the 404 tren mang 3G, va luc no 404 thi nut dung -
+//     nut bam nhieu nhat tro choi - thanh mot cai dia trong.
+//
+// Moi hinh ve trong mot khung 24x24 quy uoc (toa do -12..12), roi co ve ban kinh duoc yeu cau.
+// Doc duoc o co nho nhat la rang buoc that: hai ba mang dac, khong net manh, khong chi tiet ben
+// trong. O 9px thi mot khau sung luc va mot khau hoa cai chi khac nhau o CHIEU DAI NONG - nen
+// do chinh la thu duoc ve to nhat tren moi khau.
+function gearIcon(c, key, x, y, r, mo){
+  c.save();
+  c.translate(x, y);
+  c.scale(r/12, r/12);
+  c.globalAlpha *= (mo == null ? 1 : mo);
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  const kim = '#cdd6dc', tham = '#7c878f', go = '#a8743f', sang = '#ffd98a';
+  const R = (col, x0, y0, w, h) => { c.fillStyle = col; c.fillRect(x0, y0, w, h); };
+  const C = (col, x0, y0, rr) => { c.fillStyle = col; c.beginPath(); c.arc(x0, y0, rr, 0, Math.PI*2); c.fill(); };
+  // Hop BO GOC, dung tay bang quadraticCurveTo chu khong goi c.roundRect(): ham do moi co tu
+  // Chrome 99 / Safari 16, ma day la mot tro choi chay tren dien thoai cu trong quan ca phe.
+  // Mot ham thieu o day khong ra mot cai nut xau, no NEM LOI ngay giua vong ve.
+  const RR = (col, x0, y0, w, h, rad, vien) => {
+    const q = Math.min(rad, w/2, h/2);
+    c.beginPath();
+    c.moveTo(x0+q, y0);
+    c.lineTo(x0+w-q, y0); c.quadraticCurveTo(x0+w, y0, x0+w, y0+q);
+    c.lineTo(x0+w, y0+h-q); c.quadraticCurveTo(x0+w, y0+h, x0+w-q, y0+h);
+    c.lineTo(x0+q, y0+h);   c.quadraticCurveTo(x0, y0+h, x0, y0+h-q);
+    c.lineTo(x0, y0+q);     c.quadraticCurveTo(x0, y0, x0+q, y0);
+    c.closePath();
+    c.fillStyle = col; c.fill();
+    if (vien){ c.strokeStyle = vien; c.lineWidth = 1.1; c.stroke(); }
+  };
+  switch (key){
+    // NAM DAM NHIN NGHIENG, khop huong ra truoc - tuc cung chieu voi huong nhan vat dang nhin.
+    //
+    // Ba kieu da dung ra roi soi o 9/26/34px: "bon u khop tren mot khoi tay" doc ra la mot cai
+    // ban tay chai, "bon ngon rieng biet" doc ra la mot cai luoc, con kieu nghieng nay la kieu
+    // duy nhat con ra hinh mot NAM DAM o ca ba co. Cai lam nen no khong phai may ngon tay ma la
+    // BONG: mot khoi vuong, mot mau khop dam hon o dau truoc, mot ngon cai chia ra ben suon.
+    case 'fist':
+      RR('#e6c3a0', -6, -5, 12, 10, 3.2, '#4a3a2e');    // khoi ban tay
+      RR('#c79c78',  2.2, -5, 3.8, 10, 2.2);            // mat khop, huong ra truoc
+      c.strokeStyle = '#4a3a2e'; c.lineWidth = 0.9;
+      for (let i = 0; i < 3; i++){
+        c.beginPath(); c.moveTo(2.4, -3.2 + i*3.2); c.lineTo(5.8, -3.2 + i*3.2); c.stroke();
+      }
+      RR('#c79c78', -6.6, -1.2, 4.6, 4.2, 1.8, '#4a3a2e');   // ngon cai gap ngang suon
+      RR('#b98c66', -7.6,  3.2, 5.2, 3.4, 1.4, '#4a3a2e');   // co tay
+      break;
+    case 'gun':                                    // SUNG LUC: nong ngan, bang day
+      R(kim, -7, -3.2, 12, 3.6);                   // nong
+      R(tham, -6, 0.4, 4.5, 7);                    // bang
+      R(sang,  5, -2.6, 2.2, 2.2);                 // dau ruoi, cham sang duy nhat
+      break;
+    case 'shotgun':                                // HOA CAI: NONG DAI HAN - dau hieu doc o 9px
+      R(kim, -11, -2.8, 19, 3.0);
+      R(kim, -11, -0.2, 19, 1.4);                  // nong doi
+      R(go,  -11, 1.6, 7.5, 4.2);                  // op go
+      R(tham, -9, 4.4, 4.2, 5);                    // bang
+      break;
+    case 'laser':                                  // LASER: than vuong + cuon sac phat sang
+      R(tham, -8, -3.4, 14, 5.4);
+      R(sang, -3.5, -2.2, 6, 3);                   // o sac
+      R('#9fe8ff', 6, -2.2, 4.5, 3);               // hong tia
+      R(tham, -7, 2.2, 4.2, 6);
+      break;
+    case 'tranq':                                  // SUNG ME: nong manh + phi tieu lo ra
+      R(tham, -7, -2.2, 11, 2.6);
+      R('#9fdc8a', 4, -1.6, 5.5, 1.4);             // mui tiem, xanh thuoc
+      R(tham, -6, 0.6, 4, 6.4);
+      break;
+    case 'bomb':                                   // LUU DAN: qua tron + ngoi cong dang chay
+      C('#4e5a5f', -0.5, 2, 7);
+      R('#39434a', -2.4, -5.6, 4.6, 3.4);          // co
+      c.strokeStyle = '#b8905a'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(0, -5.6); c.quadraticCurveTo(4.5, -8.5, 6.5, -5); c.stroke();
+      C('#ffcf6a', 6.8, -5.2, 2.1);                // tia lua o dau ngoi
+      break;
+    case 'heal':                                   // BANG: chu thap tren nen trang
+      R('#e9eef0', -7, -7, 14, 14);
+      R('#d0524a', -1.9, -5, 3.8, 10);
+      R('#d0524a', -5, -1.9, 10, 3.8);
+      break;
+    case 'tracker':                                // MAY DO: hop + ang ten + hai vach song
+      R(tham, -5, -1, 10, 8);
+      R('#8ce0a8', -3.2, 0.6, 6.4, 4);             // man hinh
+      R(kim, -0.6, -7, 1.4, 6);
+      c.strokeStyle = '#8ce0a8'; c.lineWidth = 1.4;
+      c.beginPath(); c.arc(0, -7, 3.4, -2.5, -0.6); c.stroke();
+      c.beginPath(); c.arc(0, -7, 5.6, -2.5, -0.6); c.stroke();
+      break;
+    case 'float':                                  // BINH PHAN TRONG LUC: binh khi + mui ten len
+      R('#5f8fa8', -4.5, -4, 9, 11);
+      R(tham, -2, -7.5, 4, 3.5);                   // van
+      c.fillStyle = '#d9f2ff';
+      c.beginPath(); c.moveTo(0, -1.5); c.lineTo(3.2, 2.5); c.lineTo(-3.2, 2.5); c.closePath(); c.fill();
+      break;
+    case 'shield':                                 // KEO BOC: cuon bang dinh, nhin tu canh
+      C('#d8b45c', 0, 0, 7.5);
+      C('#2a2f33', 0, 0, 3);                       // loi rong
+      R('#efd493', 6, -2.2, 5, 4.4);               // mep bang vua keo ra
+      break;
+    // XA BENG: thanh cheo + DAU MOC QUAT NGUOC. Ban dau dau moc ve bang mot duong cong, va o
+    // 26px no bien mat han - chi con lai mot cai gach cheo do. Be thanh hai doan gap khuc thi
+    // cai moc con lai that.
+    case 'pry':
+      c.strokeStyle = '#c25f63'; c.lineJoin = 'round'; c.lineCap = 'round';
+      c.lineWidth = 3.4; c.beginPath(); c.moveTo(-8.5, 7); c.lineTo(3.5, -2.5); c.stroke();
+      c.lineWidth = 3.0; c.beginPath(); c.moveTo(3.5, -2.5); c.lineTo(8.5, -6.5); c.stroke();
+      c.lineWidth = 2.4; c.beginPath(); c.moveTo(8.5, -6.5); c.lineTo(9.5, -2.0); c.stroke();
+      RR('#7d3f45', -9.5, 4.6, 4.0, 4.0, 1.4);          // go tay
+      break;
+    default:                                       // mon la: mot hop co dau hoi, khong bao gio ngoac
+      R(tham, -6, -6, 12, 12);
+      c.fillStyle = '#e6ebee'; c.font = '600 13px ui-sans-serif, system-ui';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('?', 0, 0.5);
+      c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+  }
+  c.restore();
+}
+
 // NẠP LẠI ĐẠN, đầu mỗi tầng, cho mọi khẩu súng đang có — trên tay lẫn trong tủ.
 //
 // Chủ dự án: "đồ trong tủ + hand qua màn bị mất -> phải giữ, súng thì qua màn reset số lượng đạn
@@ -2163,6 +2355,9 @@ function newPlayer(){
     // The hands start EMPTY, like the source game: everything you carry into a house was
     // bought at the station and taken out of the truck's locker first.
     inv: [ null, null, null ],
+    // Ban tay dang cam cai gi: -1 la nam dam, 0..2 la o do. Xem handSlots().
+    // Di theo nguoi choi qua ca tang lan tram dich vu, y nhu ba o do.
+    hand: -1,
     aimSlot: -1, aimId: -1, aimX: 0, aimY: 0, cooldown: 0,
     pushing: false, runT: 0, rushing: false, blindT: 0, slowT: 0, kx: 0, ky: 0,
     recoilT: 0, chargeSlot: -1, chargeT: 0, riding: null,
@@ -8026,11 +8221,20 @@ function setupInput(){
     if (k === 'e'){ pickUp(S.player); return; }
     if (k === 'f'){ toggleStash(); return; }
     if (k === ' '){ toggleSprint(); return; }
-    if (k === 'q'){ const t = meleeTarget(S.player);
-                    meleeSwing(S.player, t ? Math.atan2(t.y - S.player.y, t.x - S.player.x) : null);
-                    return; }
+    // 'q' gio la NUT DUNG, khong con rieng la danh thuong: nam dam thi vung, co do thi dung do.
+    // Cung mot cua vao voi nut tren man hinh, nen khong co duong nao chay rieng.
+    if (k === 'q'){ handUse(S.player); return; }
+    // TAB / R = swap, doi xung voi nut swap tren man hinh.
+    if (k === 'r' || k === 'tab'){
+      if (S.player && !S.shopMode) handSwap(S.player);
+      return;
+    }
     if (k === '1' || k === '2' || k === '3'){
       const i = +k - 1, p = S.player;
+      // Ban phim van nhay THANG toi o do - o do khong phai thu phai tim tren ban phim. Nhung
+      // no cung DAT LAI ban tay, de cai ve tren HUD va cai tren tay nhan vat khop voi cai
+      // phim vua bam. Hai duong vao, mot trang thai.
+      if (p && p.inv[i]) p.hand = i;
       const it = p && p.inv[i], def = it && GEAR_BY_KEY[it.kind];
       // Khẩu sạc thì GIỮ phím là sạc, NHẢ phím là bắn — đối xứng với cách ngón tay làm trên
       // điện thoại. Phím giữ thì trình duyệt bắn keydown liên tục, nên phải chốt lần đầu.
@@ -8114,9 +8318,10 @@ function setupInput(){
     // nhánh nhả ngón ở pointerup — nhưng một hành động mà cách duy nhất để gọi nó là "chạm rồi
     // nhả trong 280ms mà đừng kéo quá xa" thì không ai đọc ra được từ màn hình. meleeSwing tự
     // canh hồi chiêu, choáng, đang lái xe và chế độ shop, nên cứ gọi thẳng.
-    add(hud.melee,  1.25, S.player && !S.shopMode,          () => {
-      const t = meleeTarget(S.player);
-      meleeSwing(S.player, t ? Math.atan2(t.y - S.player.y, t.x - S.player.x) : null);
+    // NUT SWAP. Chi doi con tro tay, khong dung gi ca - nen no khong bao gio "an" mot luot
+    // danh, va bam nham no thi chi mat mot cu bam chu khong mat mot cu vung.
+    add(hud.swap,   1.25, S.player && !S.shopMode, () => {
+      if (!handSwap(S.player)) toast('Chua co mon nao trong tay - mo tu do o xe lay truoc');
     });
     add(hud.stash,  1.25, S.player && nearTruck(S.player),  () => toggleStash());
     add(hud.test,   1.25, S.shopMode && !!S.player,         () => {
@@ -8130,31 +8335,33 @@ function setupInput(){
       fxShake(2.5);
       HOOKS.skill.use();
     });
-    // Ba ô đồ: một cú chạm BẮT ĐẦU trên ô đồ là đang ngắm, không phải đang nhìn
-    // (doc C2-5). Danh sách này rỗng hẳn khi ở trạm dịch vụ — chúng là nút của
-    // căn nhà — nên phải duyệt theo độ dài của nó chứ không theo một con số cứng.
-    // SEE: docs/proposals/repo-2d-topdown.md F14-1.
-    for (let i = 0; i < hud.slots.length; i++){
-      const sl = hud.slots[i];
-      add(sl, 1.6, !!S.player, () => {
-        const it = S.player.inv[i];
-        const def = it && GEAR_BY_KEY[it.kind];
-        if (!it || it.uses <= 0) return;
-        if (def && def.passive) return;                 // the tracker works by being carried
-        // A thing that happens to you has nowhere to point: its slot is a plain button.
-        if (!def || !def.aim){ useSlot(S.player, i); return; }
-        S.player.aimSlot = i; S.player.aimId = e.pointerId;
-        S.player.aimX = p.x; S.player.aimY = p.y;
-        // Giữ ô đồ của một khẩu sạc LÀ đang sạc. Không thêm nút nào, không thêm luật nào phải
-        // dạy: cái ngón cái vốn đã làm để ngắm bây giờ mang thêm một ý nghĩa thứ hai.
-        if (def.charge){ S.player.chargeSlot = i; S.player.chargeT = 0; }
-        // CHỈ huỷ cần nhìn nếu chính ngón tay này đang giữ nó. Trước đây dòng này xoá thẳng,
-        // nên ngón cái thứ hai bấm một ô đồ là giết cần nhìn của ngón thứ nhất: ngón đó vẫn
-        // đang đặt trên kính, mọi pointermove của nó không khớp với gì nữa, và cú nhả tay của
-        // nó cũng không khớp — cần nhìn nằm chết cho tới khi nhấc tay lên đặt lại.
-        if (stickR && stickR.id === e.pointerId) stickR = null;
-      });
-    }
+    // NUT DUNG. Mot cu cham BAT DAU tren no la dang NGAM, khong phai dang nhin (doc C2-5) -
+    // y nguyen luat cu cua ba o do, chi khac la gio chi co mot nut va no dung CAI DANG CAM.
+    //
+    // Nam dam thi bam la vung ngay: mot cu dam khong co gi de ngam, va bat nguoi choi keo mot
+    // can ngam de dam la them mot thao tac vao dung cai hanh dong dang can nhanh nhat.
+    add(hud.use, 1.6, S.player && !S.shopMode, () => {
+      const pl = S.player;
+      const h  = handNow(pl);
+      if (h < 0){ handUse(pl); return; }                 // nam dam: dam luon, tu ngam
+      const it = pl.inv[h], def = it && GEAR_BY_KEY[it.kind];
+      if (!it) return;
+      if (def && def.passive){ toast('May do chay san khi mang theo, khong can bam'); return; }
+      if (it.uses <= 0){
+        // Noi thanh loi thay vi im lang: mot nut bam khong ra gi doc y het mot nut hong.
+        toast(def && def.ammo ? 'Het dan - day lai dau ca sau' : 'Het roi');
+        return;
+      }
+      // Mot thu xay ra VOI BAN thi khong co cho nao de chi: o do cua no la mot nut thuong.
+      if (!def || !def.aim){ useSlot(pl, h); return; }
+      pl.aimSlot = h; pl.aimId = e.pointerId;
+      pl.aimX = p.x; pl.aimY = p.y;
+      // Giu nut dung cua mot khau sac LA dang sac. Khong them nut nao, khong them luat nao phai
+      // day: cai ngon cai von da lam de ngam bay gio mang them mot y nghia thu hai.
+      if (def.charge){ pl.chargeSlot = h; pl.chargeT = 0; }
+      // CHI huy can nhin neu chinh ngon tay nay dang giu no - xem chu thich cu.
+      if (stickR && stickR.id === e.pointerId) stickR = null;
+    });
     if (btns.length){
       btns.sort((x, y) => x.d - y.d);
       btns[0].run();
@@ -8481,10 +8688,9 @@ function hudLayout(){
   const RR = R * 0.72;
   const left  = { x: pad + R,  y: h - pad - R,  r: R };
   const right = { x: w - pad - RR, y: h - pad - RR, r: RR };
-  // Đánh thường: ở ngay cạnh cần xoay, trong dải ngón cái, vào chỗ cần xoay vừa nhả ra. Vẫn giữ
-  // được lối chạm nhẹ lên cần xoay để đánh — hai đường vào cùng một hành động, và phép chọn nút
-  // gần nhất lo phần tranh chấp.
-  const melee = { x: w - pad - RR - R*1.5, y: h - pad - R*0.62, r: sr*1.02 };
+  // Nut Danh rieng da bi bo: danh thuong nay la mot muc trong vong tay, va nut dung lo no.
+  // Van giu loi cham nhe len can xoay de danh - xem nhanh nha ngon o pointerup.
+  const melee = null;
 
   // Everything below this line belongs to the sticks. Buttons start above it.
   const thumbY = h - (pad + 2*R + 10);
@@ -8506,12 +8712,35 @@ function hudLayout(){
   // three dead buttons on the edge of the screen are three things in the way. They are replaced by
   // one button that fires whatever you have picked up off the shelf.
   // Hand-placed: an arc sweeping up and left out of the bottom-right corner, rather than a column.
-  const SLOT_AT = [ {x:-55, y:196}, {x:-120, y:184}, {x:-173, y:144} ];   // x is inset from the RIGHT
-  const slots = S.shopMode ? [] : [0,1,2].map(i => ({
-    x: w + SLOT_AT[i].x*K,
-    y: h - SLOT_AT[i].y*K,
-    r: sr, i
-  }));
+  // ------------------------------------------------------------------ NUT DUNG + NUT SWAP
+  //
+  // Thay cho ba o do va nut Danh rieng. Xem chu thich dai o handSlots().
+  //
+  // `slots` VAN LA MOT MANG BA PHAN TU, va ca ba nam DUNG MOT CHO - ngay tren nut dung. Nghe
+  // vo ly nhung day la cho khon nhat cua ban sua nay: toan bo bo may NGAM (keo tu nut ra de
+  // ngam, tro ngam, vong sac laser, tha tay la ban) doc `hud.slots[p.aimSlot]` o BON cho khac
+  // nhau - pointerup, drawAim, drawLockOn, drawHud. Giu nguyen hinh dang cua mang thi bon cho
+  // do khong phai sua mot chu, va cu keo-de-ngam van do tu dung cai nut ngon cai dang dat len.
+  // Rut mang xuong con mot phan tu la phai doi y nghia cua `aimSlot` tu "o thu may trong tui"
+  // sang "nut thu may tren man hinh" o ca bon cho - va do la kieu sua de sot mot cho.
+  //
+  // Chi nut dung duoc BAT CHAM (xem pointerdown), nen ba phan tu chong nhau khong tranh nhau.
+  // CAP NUT NAY NGOI VAO DUNG CHO BA O DO VUA NHA RA, chu khong ngoi vao cho nut Danh cu.
+  //
+  // Cho nut Danh cu (canh can xoay, sat day) do ra khong con chua duoc mot nut TO: no ke vai
+  // voi can xoay ben phai va voi cot Nhat/Chay/Tu do ben trai, ma nut dung nay rong gap ruoi
+  // nut Danh. Do bang may tren sau co khung: o cho cu, cai dia nut dung an vao vong can xoay
+  // 4px VA cham vao nut Chay. Ca hai deu la loi that - can xoay la thu ngon cai dat len suot
+  // van, con bam nham Chay giua luc dinh danh la mat ca luot danh.
+  //
+  // Cho cua ba o do cu thi vua trong ra, no o cao hon mot bac va lech vao trong - dung tam mot
+  // cu quet ngon cai. Hai so nay do theo khung 540 nhu ca khoi nay, va da chay lai tren sau co
+  // khung: khe hep nhat con lai la 6,9px (swap voi Tu do tren iPhone 14).
+  const use  = { x: w -  96*K, y: h - 178*K, r: sr*1.62 };
+  // Nut swap NHO HON va nam CHEO LEN-TRAI: swap va dung la MOT CAP, dat cheo nhau thi ngon cai
+  // doc ra ngay la hai nut cua cung mot viec, ma van du xa de khong bam nham nhau.
+  const swap = { x: w - 168*K, y: h - 226*K, r: sr*1.02 };
+  const slots = S.shopMode ? [] : [0,1,2].map(i => ({ x: use.x, y: use.y, r: use.r, i }));
   // Bắn thử ngồi vào ô của nút Chạy — xem chú thích dài ở bố cục ngang. Ở bố cục dọc hai nút
   // này trước đây cách nhau đúng 1,4px, tức là cũng chồng nhau, chỉ chưa lộ ra.
   const test = { x: 295*K, y: h - 58*K, r: sr*1.25 };
@@ -8538,7 +8767,7 @@ function hudLayout(){
   //   cú chạm: ở màn dọc, bản Biệt Đội KHÔNG mở được tủ đồ. Thứ tự hỏi giờ cũng đã
   //   đổi cho tủ đồ đứng trước, nên kể cả có đè cũng không cướp được nữa.
   const skill = HOOKS.skill ? { x: w - 120*K, y: h - 265*K, r: sr*1.45 } : null;
-  return { w, h, left, right, melee, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
+  return { w, h, left, right, melee, use, swap, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: Math.min(stash.y - stash.r, heart.y - heart.r) - 14 };
 }
 
@@ -8560,9 +8789,8 @@ function hudLayoutLandscape(w, h){
   const RR = R * 0.72;
   const left  = { x: pad + R,  y: h - pad - R,  r: R };
   const right = { x: w - pad - RR, y: h - pad - RR, r: RR };
-  // Chéo lên trái so với cần xoay: hàng nút và vòng cung ô đồ vẫn dựng quanh R cũ nên chỗ này
-  // trống thật, và nó nằm sâu bên phải nên không đụng luật "giữa màn hình để trống".
-  const melee = { x: w - pad - R - R*0.58, y: h - pad - R - R*0.58, r: sr*0.88 };
+  // Nut Danh rieng da bi bo - xem bo cuc doc.
+  const melee = null;
   const thumbY = h - (pad + 2*R + 10);
 
   // MỌI NÚT BẤM TRONG LÚC CHẠY ĐỀU THUỘC TAY PHẢI. Tay trái ôm cần di chuyển và
@@ -8584,11 +8812,12 @@ function hudLayoutLandscape(w, h){
   const ring = R * 1.80;                  // bán kính vòng cung, đủ hở khỏi mép cần gạt
   const at = (deg, r) => ({ x: cx + ring*Math.cos(deg*Math.PI/180),
                             y: cy - ring*Math.sin(deg*Math.PI/180), r: r });
-  const slots = S.shopMode ? [] : [
-    Object.assign(at(180, sr*1.10), { i: 0 }),
-    Object.assign(at(140, sr*1.10), { i: 1 }),
-    Object.assign(at(100, sr*1.10), { i: 2 })
-  ];
+  // Nut dung ngoi vao dung cho vong cung ba o do vua nha ra: cheo len-trai khoi can xoay, tam
+  // ngon cai phai, va van sat le phai nen giua man hinh KHONG CO GI - luat cua bo cuc nay.
+  // Ba phan tu `slots` chong len nhau ngay tren no; xem chu thich o bo cuc doc.
+  const use  = at(150, sr*1.62);
+  const swap = at(96, sr*1.02);          // 96 chu khong 103: o 103 hai cai dia cham nhau
+  const slots = S.shopMode ? [] : [0,1,2].map(i => ({ x: use.x, y: use.y, r: use.r, i }));
   const rowY = h * 0.37;                  // trên vòng cung, dưới bản đồ nhỏ
   // Giãn từ 2,65 lên 3,0 lần bán kính nút: vùng BẮT CHẠM là r*1,25 chứ không phải r,
   // nên ở mức 2,65 hai nút cạnh nhau đã chồng vùng chạm 6px — nút bên phải luôn
@@ -8623,7 +8852,7 @@ function hudLayoutLandscape(w, h){
   // Nút kỹ năng nối vào ĐẦU TRONG của vòng cung, sát cần phải nhất — nó là nút bấm
   // nhiều nhất của bản Biệt Đội nên phải nằm chỗ ngón cái với gần nhất.
 
-  return { w, h, left, right, melee, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
+  return { w, h, left, right, melee, use, swap, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: heart.y - heart.r - 12 };
 }
 // Scaled with the truck: the locker button appears when you are standing AT it, and "at it" got
@@ -10599,6 +10828,39 @@ function drawPlayer(c){
   const lampOk = window.REPO_SKIN && REPO_SKIN.lamp &&
     REPO_SKIN.lamp(c, Math.cos(lampA) * 10, lampY(lampA, 10, -3), 16, S.time);
 
+  // MON DO DANG CAM, ve NGOAI THE GIOI ngay truoc cai den.
+  //
+  // Chu du an: "phia truoc cai den player thi can show ro item dang cam, an di khi dang vac do".
+  //
+  // Ly do no dang gia mot cho tren man hinh: sau ban sua nay, "dang cam cai gi" la thu quyet
+  // dinh nut dung se lam gi - ma nut dung thi nam o goc duoi phai, con mat nguoi choi thi dan
+  // vao nhan vat. Bat mat chay xuong goc man hinh de biet minh dang cam gi la dung cai viec ma
+  // ba o do cu bat lam.
+  //
+  // AN KHI DANG VAC DO, va do khong phai chi de do roi: hai tay dang om mot mon hang thi khong
+  // cam sung duoc - useSlot() cung khong chan viec do, nhung mon hang duoc ve ngay truoc mat va
+  // hai hinh se chong len nhau thanh mot mo. Dang day xe hay dang lai xe cung the.
+  //
+  // VU KHI NGAM THI XOAY THEO HUONG NGAM, mon khac thi DUNG THANG - cung mot luat voi cai den o
+  // tren, va cung mot ly do: huong cua mot khau sung LA tin tuc, con huong cua mot cuon bang
+  // dinh thi khong, no chi lam nguoi choi tuong minh dang chi vao dau do.
+  const hCam = handNow(p);
+  const dCam = hCam >= 0 ? GEAR_BY_KEY[p.inv[hCam].kind] : null;
+  if (hCam >= 0 && !p.held && !p.pushing && !p.riding){
+    const xa = 15;
+    const gx = Math.cos(p.dir)*xa, gy = Math.sin(p.dir)*xa - 2;
+    c.save();
+    c.translate(gx, gy);
+    if (dCam && dCam.aim) c.rotate(p.dir);
+    // Vien toi mong duoi hinh: san nha sang mau thi mot khau sung xam bien mat vao no.
+    c.save(); c.globalAlpha = a0 * at.alpha * 0.4;
+    c.beginPath(); c.ellipse(0, 1.5, 8, 5.5, 0, 0, Math.PI*2);
+    c.fillStyle = 'rgba(0,0,0,0.55)'; c.fill();
+    c.restore();
+    gearIcon(c, p.inv[hCam].kind, 0, 0, 8.5, 1);
+    c.restore();
+  }
+
   c.rotate(p.dir);
   if (!skin){
     c.fillStyle = '#cfcbb9'; c.beginPath(); c.arc(0,0,7,0,Math.PI*2); c.fill();
@@ -10774,39 +11036,70 @@ function drawHud(c){
     c.fillText(def ? def.short : '—', t.x, t.y + t.r*0.62);
     c.textAlign = 'left';
   }
-  // item slots
-  for (let i=0;i<hud.slots.length;i++){
-    const s = hud.slots[i], it = p.inv[i];
-    const usable = it && it.uses > 0;
-    // Vành sạc vẽ NGAY TRÊN CÁI NÚT ĐANG GIỮ, giống hệt cách vành thể lực bám nút Chạy và
-    // vành hồi chiêu bám nút kỹ năng. Người chơi không phải nhìn đi đâu khác để biết đã đủ chưa.
-    if (p.chargeSlot === i){
+  // ------------------------------------------------------------------ NUT DUNG + NUT SWAP
+  //
+  // Mot nut TO ve cai dang cam, mot nut NHO ve cai sap doi sang. Do la toan bo bo dieu khien
+  // do dac, va no la bo cua Soul Knight: nut danh luon dung vu khi dang cam, nut doi vu khi ve
+  // san khau tiep theo. Nguoi choi khong con phai nham vao mot trong ba o nho giua luc bi duoi.
+  //
+  // Ba phan tu hud.slots nam chong nhau ngay tren nut dung nen chi ve MOT LAN, tu hud.use.
+  if (hud.use && !S.shopMode){
+    const s   = hud.use;
+    const h   = handNow(p);
+    const it  = h >= 0 ? p.inv[h] : null;
+    const def = it ? GEAR_BY_KEY[it.kind] : null;
+    // "Bam duoc bay gio khong": nam dam hoi hoi chieu cua cu vung, mon do hoi con luot khong.
+    const cd   = clamp(1 - (p.swingCd || 0) / MELEE_CD, 0, 1);
+    const san  = h < 0 ? (cd >= 1 && (p.stunT || 0) <= 0 && !p.riding)
+                       : (it.uses > 0 && (p.cooldown || 0) <= 0 && !p.riding);
+    // Vanh sac ve NGAY TREN cai nut dang giu - giu nguyen luat cu, chi doi cho.
+    if (p.chargeSlot === h && h >= 0){
       const k = clamp((p.chargeT || 0) / LASER_FULL, 0, 1);
       c.beginPath();
       c.strokeStyle = k >= 1 ? 'rgba(190,245,255,0.95)' : 'rgba(120,200,235,0.8)';
       c.lineWidth = 3.5;
       c.arc(s.x, s.y, s.r + 5, -Math.PI/2, -Math.PI/2 + Math.PI*2*k);
       c.stroke();
-      if (k >= 1){                                   // đầy rồi thì nói thành lời, đừng bắt đoán
+      if (k >= 1){
         c.beginPath(); c.strokeStyle = 'rgba(190,245,255,0.35)'; c.lineWidth = 1.5;
         c.arc(s.x, s.y, s.r + 9 + Math.sin(S.time*9)*1.5, 0, Math.PI*2); c.stroke();
       }
     }
-    // A filled disc behind it: a ring alone over a dark room is hard to find with a thumb, and
-    // these are the only three buttons that ever hold something worth finding in a hurry.
     c.beginPath();
-    c.fillStyle = usable ? 'rgba(38,16,15,0.72)' : 'rgba(16,18,20,0.55)';
+    c.fillStyle = san ? 'rgba(40,20,18,0.74)' : 'rgba(16,18,20,0.55)';
     c.arc(s.x, s.y, s.r, 0, Math.PI*2); c.fill();
-    ring(c, s.x, s.y, s.r, usable ? 'rgba(200,70,60,0.85)' : 'rgba(90,70,68,0.5)');
-    c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
-    c.fillStyle = usable ? '#e6ebee' : '#6a6f74';
-    const label = it ? (GEAR_BY_KEY[it.kind] ? GEAR_BY_KEY[it.kind].short : it.kind) : '—';
-    c.fillText(label, s.x, s.y - 1);
-    if (it){
-      c.font = '600 9.5px ui-monospace, monospace';
-      c.fillText('x'+it.uses, s.x, s.y + s.r*0.62);
+    // Dong ho hoi chieu cua cu vung tay, giu nguyen tu nut Danh cu.
+    if (h < 0 && cd < 1){
+      c.beginPath(); c.strokeStyle = 'rgba(214,120,90,0.85)'; c.lineWidth = 3;
+      c.arc(s.x, s.y, s.r + 3, -Math.PI/2, -Math.PI/2 + Math.PI*2*cd); c.stroke();
     }
-    c.textAlign = 'left';
+    ring(c, s.x, s.y, s.r, san ? 'rgba(228,120,92,0.9)' : 'rgba(96,74,68,0.5)');
+    gearIcon(c, h < 0 ? 'fist' : it.kind, s.x, s.y - s.r*0.10, s.r*0.62, san ? 1 : 0.42);
+    // So dan nam DUOI hinh. Nam dam khong co so - no khong bao gio het.
+    if (it){
+      c.font = '600 9.5px ui-monospace, monospace'; c.textAlign = 'center';
+      c.fillStyle = it.uses > 0 ? '#e6ebee' : '#c8756a';
+      c.fillText('x'+it.uses, s.x, s.y + s.r*0.74);
+      c.textAlign = 'left';
+    }
+  }
+  if (hud.swap && !S.shopMode){
+    const s = hud.swap;
+    const n = handNext(p);
+    const co = n != null;                        // co gi de doi sang khong
+    c.beginPath();
+    c.fillStyle = co ? 'rgba(26,30,36,0.74)' : 'rgba(16,18,20,0.5)';
+    c.arc(s.x, s.y, s.r, 0, Math.PI*2); c.fill();
+    ring(c, s.x, s.y, s.r, co ? 'rgba(150,180,205,0.85)' : 'rgba(80,88,96,0.45)');
+    if (co){
+      const it2 = n >= 0 ? p.inv[n] : null;
+      gearIcon(c, n < 0 ? 'fist' : it2.kind, s.x, s.y, s.r*0.60, 0.95);
+    }
+    // Hai mui ten vong tron o goc: cai nut nay LA nut doi, ke ca luc trong tay khong co gi.
+    c.strokeStyle = co ? 'rgba(170,200,225,0.9)' : 'rgba(90,98,106,0.6)';
+    c.lineWidth = 1.5;
+    c.beginPath(); c.arc(s.x, s.y, s.r*0.86, 0.5, 2.6); c.stroke();
+    c.beginPath(); c.arc(s.x, s.y, s.r*0.86, 3.64, 5.74); c.stroke();
   }
   if (p.aimSlot >= 0) drawAim(c, hud, p);
 
@@ -10850,24 +11143,8 @@ function drawHud(c){
     c.fillText(p.sprint ? 'Đang chạy' : 'Chạy', sp.x, sp.y+4);
   }
 
-  // Đánh thường. Vòng hồi chiêu vẽ ngay trên nút, cùng cách nút Chạy vẽ thanh thể lực và nút
-  // Kỹ năng vẽ vòng hồi: con số quyết định bấm có ăn thua không thì vẽ lên chính cái được bấm.
-  if (hud.melee && !S.shopMode && p){
-    const mb = hud.melee;
-    const cd = clamp(1 - (p.swingCd || 0) / MELEE_CD, 0, 1);
-    const san = cd >= 1 && (p.stunT || 0) <= 0 && !p.riding;
-    c.beginPath();
-    c.fillStyle = san ? 'rgba(40,20,18,0.72)' : 'rgba(16,18,20,0.5)';
-    c.arc(mb.x, mb.y, mb.r, 0, Math.PI*2); c.fill();
-    if (cd < 1){
-      c.beginPath(); c.strokeStyle = 'rgba(214,120,90,0.85)'; c.lineWidth = 3;
-      c.arc(mb.x, mb.y, mb.r + 3, -Math.PI/2, -Math.PI/2 + Math.PI*2*cd); c.stroke();
-    }
-    ring(c, mb.x, mb.y, mb.r, san ? 'rgba(228,120,92,0.9)' : 'rgba(96,74,68,0.45)');
-    c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
-    c.fillStyle = san ? '#ffd6c4' : '#6a6f74';
-    c.fillText('Đánh', mb.x, mb.y+4);
-  }
+  // Nut "Danh" rieng da bi bo: danh thuong nay la mot muc trong vong tay va nut dung o tren ve
+  // no roi. `hud.melee` giu lai bang null de moi cho hoi toi no im lang bo qua thay vi ngoac.
 
   // skill button — bản Biệt Đội mới có. Vành ngoài là đồng hồ hồi chiêu, vẽ ngay
   // trên chính cái nút phải bấm, giống hệt cách vành thể lực bám nút Chạy.
@@ -11410,7 +11687,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260907e';
+const BUILD = '20260907f';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -12285,6 +12562,33 @@ function applyUpgrades(){
 // and the start room needs a button to open it. Nothing is carried automatically — you walk
 // to the truck and choose what goes in your three slots, and whatever you leave behind is
 // still there next level.
+// HINH MON DO DUOI DANG ANH, cho bang tu do dung. Bang tu do la HTML chu khong phai canvas,
+// nen no khong goi thang gearIcon() duoc - ve ra mot canvas roi rot ra data URL la cach duy nhat
+// giu MOT NGUON hinh cho ca ba cho (nut dung, tren tay nhan vat, bang tu do). Neu ve lai bang
+// SVG hay emoji o day thi som muon hai ben lech nhau, va luc do nguoi choi thay hai hinh khac
+// nhau cho cung mot mon.
+//
+// Co nho theo (ma mon + co + do phan giai): mot lan ve, dung mai. renderStash() dung lai ca
+// bang sau MOI cu bam, nen khong co bo nho nay thi moi lan bam mot mon la mot lan ve lai ca
+// chuc canvas - dung tren dien thoai thi thay giat.
+const ICON_URL = Object.create(null);
+function gearIconURL(key, px){
+  const k2 = Math.min(3, Math.round(devicePixelRatio || 1));
+  const ma = key + '@' + px + 'x' + k2;
+  if (ICON_URL[ma]) return ICON_URL[ma];
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = px*k2; cv.height = px*k2;
+    const c = cv.getContext('2d');
+    c.setTransform(k2, 0, 0, k2, 0, 0);
+    gearIcon(c, key, px/2, px/2, px*0.42, 1);
+    return (ICON_URL[ma] = cv.toDataURL());
+  } catch (e){
+    // Mot cai canvas khong dung duoc thi bang tu do van phai mo ra duoc. Tra ve chuoi rong
+    // va cho <img> hong - chu chu van con, nguoi choi van lay do duoc.
+    return (ICON_URL[ma] = '');
+  }
+}
 function toggleStash(){
   if (S.stashOpen){ closeStash(); return; }
   if (!S.player || S.dead || S.player.down || !S.running) return;   // never over the shop or the intro veil
@@ -12320,6 +12624,10 @@ function renderStash(warn){
 }
 function closeStash(){
   S.stashOpen = false;
+  // Go bo may keo tha TRUOC khi go tam man: dong tu dung giua mot cu keo la mot viec that
+  // (nguoi choi bam ra ngoai bang), va neu khong go thi cai bong nam lai tren man hinh de cho
+  // mot cu pointerup khong bao gio toi.
+  if (keoGo){ keoGo(); keoGo = null; }
   hideVeil();
   if (!S.dead) S.running = true;
 }
@@ -12333,37 +12641,71 @@ function showStash(warn){
   const box = el('veilExtra');
   const scr = (box && S.stashOpen) ? box.scrollTop : 0;
   const full = p.inv.every(it => it);
-  const slotRows = [0,1,2].map(i => {
+  // BA O TREN TAY, ve thanh MOT HANG O VUONG co hinh chu khong phai ba dong chu.
+  //
+  // Chu du an: "mo tu len thi phai the hien ke ben tu UI item player dang hold, co the drag de
+  // equip, swap".
+  //
+  // Ba dong chu cu doc duoc nhung khong THAO TAC duoc: chung khong noi duoc "keo cai nay sang
+  // day". Mot hang o vuong thi noi duoc, vi no cung hinh dang voi ba o tren HUD - va cai o dang
+  // sang vien la cai nut dung ngoai kia dang cam.
+  const canh = handNow(p);
+  const handRow = [0,1,2].map(i => {
     const it = p.inv[i];
     const def = it ? GEAR_BY_KEY[it.kind] : null;
-    return `<button class="up" data-slot="${i}" ${it?'':'disabled'}>
-      <span class="t">Ô ${i+1} — ${def ? def.name : 'trống'}</span>
-      <span class="d">${def ? def.desc : 'Chọn một món bên dưới để đưa vào ô này.'}</span>
-      <span class="p">${it ? 'x'+it.uses + (it.uses <= 0 && def && def.ammo ? ' · hết đạn, đầy lại đầu ca sau' : '') + ' · bấm để TRẢ LẠI TỦ' : 'còn trống'}</span>
-    </button>`;
+    const hinh = it ? `<img src="${gearIconURL(it.kind, 34)}" alt="">` : '';
+    const ten  = def ? def.name : (it ? 'Món hỏng' : 'trống');
+    const so   = it ? ('x' + it.uses + (it.uses <= 0 && def && def.ammo ? ' · hết đạn' : '')) : '';
+    return `<div class="hcell${canh === i ? ' on' : ''}${it ? '' : ' empty'}"
+                 data-hand="${i}" ${it ? 'data-drag="hand:'+i+'"' : ''}>
+      <div class="hpic">${hinh}</div>
+      <div class="hname">${ten}</div>
+      <div class="hnum">${so}</div>
+      ${it ? '<button class="hx" data-back="'+i+'" title="Trả về tủ">×</button>' : ''}
+    </div>`;
   }).join('');
+  const slotRows = `<div class="handrow" id="handRow">${handRow}</div>
+    <div class="handhint">KÉO một món từ tủ lên một ô để lắp · kéo giữa hai ô để đổi chỗ · kéo xuống tủ để cất. Bấm một ô là cầm nó lên tay.</div>`;
   // Mot mon ma bang do khong nhan ra thi VE NO RA, khong ngoac.
   // Truoc day dong nay la `GEAR_BY_KEY[it.kind].name` khong cho chan: mot mon la lam
   // ngoac ca ham, va vi toggleStash() da dong bang the gioi tu truoc nen ca van chet
   // theo. Mot mon hong khong duoc phep giet ca ca truc - no chi duoc phep la mot dong
   // xau trong danh sach, kem mot cai nut de vut no di.
+  // TỦ VẼ THÀNH MỘT CÁI BA LÔ: nhiều ô vuông, mỗi ô một món, nhận ra bằng HÌNH.
+  //
+  // Chủ dự án: "làm lại UI slot tủ nhìn giống game đi kiểu như backbag á — nhiều ô, mỗi ô 1
+  // item thể hiện bằng icon".
+  //
+  // Bản cũ là một danh sách dòng chữ, mỗi dòng ba câu. Nó đọc được nhưng nó là một BẢNG BIỂU,
+  // không phải một cái tủ: muốn biết trong tủ có gì phải đọc từ trên xuống, và một cái tủ tám
+  // món là tám đoạn văn. Một lưới ô thì trả lời câu "trong tủ có gì" bằng một cái liếc, và —
+  // quan trọng hơn cho bản này — nó CÙNG HÌNH DẠNG với ba ô trên tay ngay phía trên, nên "kéo
+  // món này lên ô kia" là một câu người chơi tự đọc ra được mà không cần ai dặn.
+  //
+  // Ô TRỐNG VẼ SẴN cho đủ lưới, không phải để cho đẹp: một cái tủ có hình dạng cố định thì chỗ
+  // trống trong nó cũng là tin tức ("còn chỗ"), và nó cho cú kéo một cái đích để nhắm vào.
   let laCount = 0;
-  const stashRows = S.stash.map((it,i) => {
+  const oTu = S.stash.map((it,i) => {
     const def = it && GEAR_BY_KEY[it.kind];
     if (!def){
       laCount++;
-      return `<button class="gear" data-drop="${i}">
-        <span class="t">Món hỏng${it && it.kind ? ' (' + String(it.kind).slice(0,24) + ')' : ''}</span>
-        <span class="d">Bản game không nhận ra món này — dùng không được.</span>
-        <span class="p">bấm để bỏ đi</span>
-      </button>`;
+      return `<div class="bcell bad" data-drop="${i}" title="Bản game không nhận ra món này — bấm để bỏ đi">
+        <div class="bpic">?</div><div class="bname">Món hỏng</div><div class="bnum">bỏ đi</div>
+      </div>`;
     }
-    return `<button class="gear" data-stash="${i}">
-      <span class="t">${def.name}</span>
-      <span class="d">${def.desc}</span>
-      <span class="p">x${it.uses}${it.uses <= 0 && def.ammo ? ' · hết đạn, đầy lại đầu ca sau' : ''} · ${full ? 'hết ô — trả một món ở trên xuống trước' : 'bấm để cầm lên'}</span>
-    </button>`;
-  }).join('') || `<div class="empty">Tủ trống. Đồ mua ở trạm dịch vụ sẽ nằm ở đây.</div>`;
+    const het = it.uses <= 0;
+    return `<div class="bcell" data-stash="${i}" data-drag="stash:${i}"
+                 title="${def.name} — ${def.desc}">
+      <div class="bpic"><img src="${gearIconURL(def.key, 32)}" alt=""></div>
+      <div class="bname">${def.short || def.name}</div>
+      <div class="bnum${het ? ' het' : ''}">x${it.uses}</div>
+    </div>`;
+  });
+  // Lưới luôn đủ hàng: tối thiểu tám ô, và luôn tròn hàng bốn.
+  const O_HANG = 4, O_MIN = 8;
+  const tong = Math.max(O_MIN, Math.ceil((oTu.length + 1) / O_HANG) * O_HANG);
+  while (oTu.length < tong) oTu.push('<div class="bcell blank"></div>');
+  const stashRows = oTu.join('');
 
   // Lời nhắc phải nằm TRONG bảng. toast() vẽ lên canvas, mà bảng này là một lớp phủ
   // đục 94% trùm kín canvas, nên mọi câu báo lỗi gửi qua toast đều rơi vào hư không.
@@ -12377,18 +12719,57 @@ function showStash(warn){
     'Đóng tủ', closeStash,
     `<div class="wallet">Ví: ${money(S.wallet)}</div>
      ${warnRow}${laRow}
-     <div class="seg">Ba ô trên tay${full ? ' — ĐÃ ĐẦY' : ''}</div><div class="shop">${slotRows}</div>
-     <div class="seg">Trong tủ (${S.stash.length})</div><div class="shop">${stashRows}</div>`,
+     <div class="seg">Trên tay${full ? ' — ĐÃ ĐẦY' : ''}</div>${slotRows}
+     <div class="seg">Trong tủ (${S.stash.length})</div>
+     <div class="bag" id="stashList">${stashRows}</div>
+     <div class="baginfo">${
+       (() => {
+         const h2 = handNow(p), it2 = h2 >= 0 ? p.inv[h2] : null;
+         const d2 = it2 && GEAR_BY_KEY[it2.kind];
+         return d2 ? `<b>${d2.name}</b> — ${d2.desc}`
+                   : 'Đang tay không: nút dùng sẽ vụt đèn pin. Kéo một món từ tủ lên một ô trên tay để cầm.';
+       })()
+     }</div>`,
     closeStash);        // bấm ra khoảng trống cũng đóng — tủ đồ không mất gì khi đóng
 
   if (scr){ const b2 = el('veilExtra'); if (b2) b2.scrollTop = scr; }
-  el('veilExtra').querySelectorAll('[data-slot]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const i = +btn.dataset.slot;
-      if (!p.inv[i]) return;
-      S.stash.push(p.inv[i]); p.inv[i] = null;
-      renderStash();
-    });
+
+  // ---------------------------------------------------------------- BA VIEC TREN BA O TREN TAY
+  // Bam mot o = CAM no. Day la viec lam nhieu nhat trong bang nay ke tu khi tay khong con bi
+  // doc sach moi ca, nen no duoc cu cham re nhat: mot cu cham vao chinh cai o.
+  const capTay = (i) => {
+    if (!p.inv[i]) return;
+    p.hand = i;
+    renderStash();
+  };
+  const traVeTu = (i) => {
+    if (!p.inv[i]) return;
+    S.stash.push(p.inv[i]); p.inv[i] = null;
+    renderStash();
+  };
+  // Doi cho hai o tren tay. Keo o rong sang o co do cung chay qua day va van dung, vi hoan vi
+  // hai gia tri thi khong quan tam cai nao null.
+  const doiO = (a2, b2) => {
+    if (a2 === b2) return;
+    const t = p.inv[a2]; p.inv[a2] = p.inv[b2]; p.inv[b2] = t;
+    renderStash();
+  };
+  // Lap mot mon TU TU vao DUNG mot o. Khac voi bam (tim o trong dau tien): keo la mot cu chi co
+  // dia chi, nguoi choi da chi ro o nao, nen mon dang nam do phai nhuong cho va lui ve tu.
+  const lapVaoO = (si, hi) => {
+    if (si < 0 || si >= S.stash.length) return;
+    const mon = S.stash.splice(si, 1)[0];
+    if (p.inv[hi]) S.stash.push(p.inv[hi]);
+    p.inv[hi] = mon;
+    p.hand = hi;
+    renderStash();
+  };
+
+  el('veilExtra').querySelectorAll('[data-hand]').forEach(o => {
+    o.addEventListener('click', () => { if (!keoVuaXong) capTay(+o.dataset.hand); });
+  });
+  el('veilExtra').querySelectorAll('[data-back]').forEach(o => {
+    o.addEventListener('click', ev => { ev.stopPropagation(); traVeTu(+o.dataset.back); });
   });
   el('veilExtra').querySelectorAll('[data-drop]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -12399,13 +12780,120 @@ function showStash(warn){
   });
   el('veilExtra').querySelectorAll('[data-stash]').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (keoVuaXong) return;
       const i = +btn.dataset.stash;
       const free = p.inv.findIndex(it => !it);
       if (free < 0){ renderStash('Ba ô trên tay đã đầy — bấm một ô ở trên để trả món đó về tủ, rồi lấy món này.'); return; }
       p.inv[free] = S.stash.splice(i,1)[0];
+      p.hand = free;
       renderStash();
     });
   });
+  napKeoTha(p, { capTay, traVeTu, doiO, lapVaoO });
+}
+
+// ============================================================ KEO THA TRONG BANG TU DO
+//
+// Chu du an: "co the drag de equip, swap".
+//
+// VIET BANG POINTER EVENT, khong dung HTML5 drag-and-drop. Day la quyet dinh quan trong nhat cua
+// ca doan nay: `draggable="true"` + dragstart/drop KHONG CHAY tren man hinh cam ung. Ca tro nay
+// la mot tro choi dien thoai, nen mot co che keo tha chi chay bang chuot la mot co che KHONG
+// TON TAI voi phan lon nguoi choi. Pointer event chay ca hai, cung mot doan ma.
+//
+// `keoVuaXong` la cai chot chong "keo xong roi an them mot cu bam": trinh duyet ban `click` sau
+// `pointerup`, nen khong co no thi moi lan keo mot mon la no vua duoc tha DUNG CHO vua bi cu
+// click chay theo lam mot viec thu hai.
+let keoVuaXong = false;
+// Go bo cua LAN NAP TRUOC. renderStash() dung lai ca bang sau MOI cu bam, nen napKeoTha() chay
+// lai moi lan - va neu chi cong them mot cap listener len window moi lan thi sau ba chuc thao
+// tac trong tu la ba chuc cap listener chet nam do, moi cai giu mot closure tro vao mot cai
+// bang da bi vut. Khong the choi bang removeEventListener khan khong: phai giu lai dung cai ham
+// da gan. Day la chuyen mot con tro, khong phai mot mang - luc nao cung chi co MOT bang tu do.
+let keoGo = null;
+function napKeoTha(p, act){
+  if (keoGo){ keoGo(); keoGo = null; }
+  const hop = el('veilExtra');
+  if (!hop) return;
+  let keo = null;      // { tu:'hand'|'stash', i, ma, x0, y0, that, bong, dich }
+
+  const dichDuoi = (x, y) => {
+    const e2 = document.elementFromPoint(x, y);
+    if (!e2) return null;
+    const o = e2.closest('[data-hand]');
+    if (o) return { loai:'hand', i:+o.dataset.hand, el:o };
+    // Ca danh sach tu la MOT dich duy nhat: tha vao bat cu cho nao trong tu deu la "cat di",
+    // vi thu tu trong tu khong mang y nghia gi ca. Bat nguoi choi tha trung mot hang cu the la
+    // doi ho chinh xac hon muc can thiet.
+    if (e2.closest('#stashList')) return { loai:'stash', el: el('stashList') };
+    return null;
+  };
+  const xoaSang = () => {
+    hop.querySelectorAll('.drop').forEach(o => o.classList.remove('drop'));
+  };
+
+  hop.querySelectorAll('[data-drag]').forEach(o => {
+    o.addEventListener('pointerdown', ev => {
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+      const [tu, i] = o.dataset.drag.split(':');
+      keo = { tu, i:+i, x0:ev.clientX, y0:ev.clientY, that:false, bong:null, dich:null, id:ev.pointerId };
+      keoVuaXong = false;
+    });
+  });
+
+  const move = ev => {
+    if (!keo || ev.pointerId !== keo.id) return;
+    const dx = ev.clientX - keo.x0, dy = ev.clientY - keo.y0;
+    // NGUONG 8px truoc khi coi la dang keo. Duoi nguong thi day van la mot cu bam, va bang nay
+    // co danh sach CUON DUOC - bat dau keo ngay tu pixel dau tien la cuon danh sach cung bi
+    // hieu thanh keo mon do.
+    if (!keo.that && Math.hypot(dx, dy) < 8) return;
+    if (!keo.that){
+      keo.that = true;
+      const mon = keo.tu === 'hand' ? p.inv[keo.i] : S.stash[keo.i];
+      const b3 = document.createElement('div');
+      b3.className = 'dragghost';
+      if (mon) b3.innerHTML = '<img src="' + gearIconURL(mon.kind, 40) + '" alt="">';
+      document.body.appendChild(b3);
+      keo.bong = b3;
+    }
+    if (ev.cancelable) ev.preventDefault();
+    keo.bong.style.left = ev.clientX + 'px';
+    keo.bong.style.top  = ev.clientY + 'px';
+    xoaSang();
+    keo.dich = dichDuoi(ev.clientX, ev.clientY);
+    if (keo.dich && keo.dich.el) keo.dich.el.classList.add('drop');
+  };
+  const up = ev => {
+    if (!keo || ev.pointerId !== keo.id) return;
+    const k = keo; keo = null;
+    if (k.bong) k.bong.remove();
+    xoaSang();
+    if (!k.that) return;                 // chua qua nguong: de cu click lo, dung lam gi o day
+    keoVuaXong = true;
+    setTimeout(() => { keoVuaXong = false; }, 0);
+    const d = k.dich;
+    if (!d) return;                      // tha ra ngoai: khong lam gi, va do la mot cau tra loi
+    if (k.tu === 'hand'){
+      if (d.loai === 'stash') act.traVeTu(k.i);
+      else if (d.loai === 'hand') act.doiO(k.i, d.i);
+    } else {
+      if (d.loai === 'hand') act.lapVaoO(k.i, d.i);
+    }
+  };
+  // CA BA bat o WINDOW chu khong o trong bang. Ngon tay hoan toan co the truot ra ngoai bang
+  // giua chung mot cu keo - bat trong bang thi cai bong dung yen luc ngon tay ra khoi mep, va
+  // neu nha tay ngoai do thi no o lai tren man hinh vinh vien.
+  addEventListener('pointermove', move, { passive:false });
+  addEventListener('pointerup', up);
+  addEventListener('pointercancel', up);
+  keoGo = () => {
+    removeEventListener('pointermove', move, { passive:false });
+    removeEventListener('pointerup', up);
+    removeEventListener('pointercancel', up);
+    if (keo && keo.bong) keo.bong.remove();     // dong bang giua mot cu keo: dung bo lai cai bong
+    keo = null;
+  };
 }
 
 // Sáu ô này nằm trong index.html, mà MỘT tệp game.js phục vụ HAI trang html được sửa độc lập.
