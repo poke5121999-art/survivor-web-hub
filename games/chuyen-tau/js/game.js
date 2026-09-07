@@ -109,6 +109,8 @@
       // nhiên liệu — đó là lý do cái lò là một chỗ người chơi phải quay lại, chứ không
       // phải một thanh tự đầy.
       coal: 1, dryT: 0, shovels: 0,
+      // ĐỢT QUÁI của đêm nay. Xem stepSpawn.
+      waveQuota: 0, waveTotal: 0, waveN: 0, burstT: 0, boardSayT: 0,
       // ga
       station: null, timer: 0, warned: {}, arrWarn: {}, boarded: true,
       // tổng kết
@@ -161,6 +163,68 @@
   const DECK_TOP = -TA.DECK_H;
   const DECK_BOT = 0;
   function deckMidY() { return DECK_TOP + TA.DECK_H * 0.5; }
+
+  // ---------------------------------------------------------------------------
+  // QUÁI LEO LÊN TÀU
+  // ---------------------------------------------------------------------------
+  // [DR] Wiki bản gốc, trang Basic Zombies: "They are able to climb onto the Train or
+  // on top of most buildings. It takes a short moment for them to fully climb onto or
+  // drop down from something." Và trang Train, mục Trivia: "All enemies excluding
+  // Wolves and enemies on horse[back] have a high chance of falling off."
+  //
+  // Trước bản này hai trường `climb` và `onTrain` ĐÃ CÓ trên mỗi con quái — được gán
+  // 0/false lúc sinh — nhưng KHÔNG chỗ nào đọc ra và KHÔNG chỗ nào gán lại. Nên chuyện
+  // "quái lên tàu" chưa bao giờ xảy ra: một con đi vào dải sàn cũng chỉ đứng đó, và vì
+  // chỉ NGƯỜI CHƠI được cộng quãng đường tàu vừa đi (xem stepPlayer), con quái bị tàu
+  // bỏ lại phía sau trong vài giây.
+  //
+  // Cộng thêm một con số nữa: con nhanh nhất trong bảng là Sói 104 đơn vị/giây, tàu
+  // chạy 168. KHÔNG con nào đuổi kịp tàu. Ở bản gốc chênh còn nặng hơn (Runner 18
+  // stud/s so với tàu 65 — gấp 3,6 lần), và cách bản gốc giải là quái KHÔNG đuổi theo
+  // tàu: chúng đứng sẵn trên đường, tàu lao tới chỗ chúng. Nên ở đây cũng vậy — quái
+  // sinh ra PHÍA TRƯỚC tàu, và cửa sổ để leo lên là quãng tàu lướt qua chỗ nó:
+  // trainLen / spd = 862 / 168 ≈ 5,1 giây.
+  const SKIRT_BOT   = DECK_BOT + TA.SKIRT_H;   // mép dưới vách hông, y = 30
+  const CLIMB_DUR   = 0.55;   // "a short moment" — đủ lâu để bắn rụng, đủ ngắn để không hụt
+  const CLIMB_REACH = 34;     // với tới thành tàu từ khoảng cách này
+  // Xác suất TRƯỢT TAY mỗi giây ở tốc độ tối đa. 4,5%/giây nghĩa là một con bám được
+  // trung bình 22 giây — dài hơn cả một đợt, nên nó là gia vị chứ không phải cái đồng
+  // hồ đếm ngược; thứ thật sự hất chúng xuống là cú đẩy của người chơi.
+  const SLIP_PS     = 0.045;
+  // Tàu cán: [DR] trang Train, mục usage — "Can run over entities, dealing rapid damage
+  // to them until they die". Đây là thứ làm cho việc LEO có nghĩa: đứng chắn đường ray
+  // là chết, nên muốn lên tàu thì phải lên từ BÊN HÔNG.
+  const RUNOVER_DPS  = 300;
+  const RUNOVER_NOSE = 40;    // bề dài mũi tàu tính từ đầu đoàn
+
+  // Rơi khỏi tàu: xuống đất, choáng một nhịp, và bụi bốc lên để nhìn là biết chuyện gì
+  // vừa xảy ra chứ không phải con quái tự dưng biến mất.
+  function dropOff(f) {
+    f.onTrain = false;
+    f.climb = 0;
+    f.y = GROUND_Y - 4 + rnd(-8, 26);
+    f.stun = Math.max(f.stun, 0.45);
+    f.vx *= 0.3; f.vy = 0;
+    FX.dust(f.x, f.y, 4, 0.6);
+  }
+
+  // Một con đang đứng trên tàu: được cộng thẳng quãng đường tàu vừa đi, y hệt người
+  // chơi. Đây là toàn bộ lý do "đứng trên tàu" có nghĩa.
+  //
+  // Gọi ở ĐẦU thân vòng lặp chứ không phải cuối: thân vòng lặp có tám lối `continue`
+  // (lao, bắn, ngòi nổ, chớp, choáng, ghim…) và nhét việc dọn vào cả tám chỗ là tám cơ
+  // hội quên một chỗ. Kẹp ở đầu khung sau tức là chậm một khung — 16ms, không ai thấy.
+  function rideTrain(f, dt) {
+    f.x += (R.dist - R.prevDist);
+    const s = deckSpan();
+    // Bị đẩy văng khỏi hai đầu toa, hoặc khỏi mép trên/dưới sàn → rơi.
+    if (f.x < s.a - 6 || f.x > s.b + 6 || f.y < DECK_TOP - 8 || f.y > DECK_BOT + 8) {
+      dropOff(f); return;
+    }
+    if (R.spd > 20 && Math.random() < SLIP_PS * (R.spd / 168) * dt) { dropOff(f); return; }
+    f.x = clamp(f.x, s.a + 6, s.b - 6);
+    f.y = clamp(f.y, DECK_TOP + 8, DECK_BOT - 6);
+  }
   const GROUND_Y = 96;          // mặt đất bên dưới đường ray, chỗ người chơi xuống ga
 
   // ---------------------------------------------------------------------------
@@ -238,7 +302,18 @@
       R.night = CT.NIGHTS[R.nightIdx];
       say(R.night.name + ' — ' + R.night.hint, 3.2);
       if (R.night.storm) R.nextBolt = rnd(CT.STORM.boltEvery[0], CT.STORM.boltEvery[1]);
+
+      // QUÂN SỐ CỦA CẢ ĐÊM, chốt một lần ngay lúc trời tối. Xem stepSpawn để biết vì
+      // sao đây là một con số CỐ ĐỊNH chứ không phải một cái trần.
+      const nn = Math.min(4, R.nightNo - 1);
+      R.waveTotal = R.waveQuota = (R.night.count[nn] || 0) + R.map.tier * 2;
+      R.waveN = 0;
+      R.burstT = 1.4;                     // nhịp thở trước đợt đầu
     }
+    // Trời sáng: thu hồi phần quân chưa kịp thả. Ban ngày không một con nào — đó là
+    // luật gốc, và một hàng chờ còn sót lại sẽ phá luật ấy ngay đầu ngày hôm sau.
+    if (!R.isNight && wasNight) { R.waveQuota = 0; R.waveN = 0; }
+    if (R.boardSayT > 0) R.boardSayT -= dt;
 
     // độ sáng nền: mượt qua hoàng hôn/bình minh chứ không bật tắt
     const d = R.clock;
@@ -380,6 +455,9 @@
     const back = R.cars.length ? carX(R.cars.length - 1) : R.dist - TA.LOCO_W;
     return { a: back, b: front };
   }
+  // Xuất ra cho bộ kiểm: mọi luật leo tàu đều đo theo dải này, nên bài kiểm phải đọc
+  // được ĐÚNG dải mà bộ máy dùng chứ không tự tính lại một bản riêng.
+  G.deckSpan = deckSpan;
 
   function stepTurret(c, dt) {
     const i = R.cars.indexOf(c);
@@ -414,30 +492,77 @@
     return list;
   }
 
+  // ---------------------------------------------------------------------------
+  // ĐỢT QUÁI
+  // ---------------------------------------------------------------------------
+  // [DR] Wiki bản gốc ghi quân số theo ĐÊM THỨ MẤY, và đó là TỔNG SỐ CON của đêm ấy:
+  //   Đêm Mây   6 / 12 / 18 / 24 / 30 con
+  //   Đêm Sói   2 /  4 /  6 /  8 / 10 con
+  //   Đêm Máu   3 /  6 /  9 / 12 / 15 con
+  // Bảng ấy đã được chép đúng vào CT.NIGHTS từ trước. Chỗ sai là cách DÙNG nó: bản
+  // trước lấy con số ấy làm TRẦN ĐỒNG THỜI rồi thả một con mới mỗi 1,9 giây cho tới
+  // hết đêm. Hậu quả là giết một con chỉ để chỗ cho con kế tiếp — đêm không bao giờ
+  // vơi đi, và không có cái gì để gọi là "một đợt".
+  //
+  // Nay: chốt quân số một lần lúc trời tối, thả thành BA đợt cách nhau 7 giây, mỗi đợt
+  // có báo trước bằng chữ. Dọn sạch sớm thì được yên tới sáng — đó là phần thưởng, và
+  // là thứ bản trước không có cách nào trả.
+  const WAVE_BURSTS = 3;
+  const WAVE_GAP    = 7.0;
+  const ALIVE_CAP   = 30;     // trần để giữ khung hình, không phải trần thiết kế
+
   function stepSpawn(dt) {
     if (R.phase === 'xong') return;
     // BAN NGÀY KHÔNG SPAWN. Đây là luật, không phải một con số cân bằng.
     if (!R.isNight) return;
-    R.spawnT = (R.spawnT || 0) - dt;
-    if (R.spawnT > 0) return;
+    if (!R.night.foes.length) return;          // đêm bão: nguy hiểm rơi từ trên trời
+    if (R.waveQuota <= 0) return;              // đã thả hết quân của đêm nay
 
-    const nightN = Math.min(4, R.nightNo - 1);
-    const cap = (R.night.count[nightN] || 8) + R.map.tier * 2;
-    if (R.foes.length >= cap) { R.spawnT = 1.2; return; }
-    R.spawnT = Math.max(0.35, 1.9 - R.map.tier * 0.13);
+    R.burstT -= dt;
+    if (R.burstT > 0) return;
+    if (R.foes.length >= ALIVE_CAP) { R.burstT = 0.9; return; }
 
-    const id = pick(roster());
-    const def = CT.FOE_BY_ID[id];
-    const n = def.pack ? 1 + ((Math.random() * def.pack) | 0) : 1;
-    for (let i = 0; i < n; i++) spawnFoe(def);
+    const size = Math.max(2, Math.ceil(R.waveTotal / WAVE_BURSTS));
+    let n = Math.min(R.waveQuota, size);
+    R.waveQuota -= n;
+    R.waveN++;
+    R.burstT = WAVE_GAP;
+
+    while (n > 0) {
+      const def = CT.FOE_BY_ID[pick(roster())];
+      // Con đi đàn tính theo ĐẦU CON, không phải theo lượt gọi — nếu không thì một đêm
+      // Sói quota 4 sẽ thả ra tới mười sáu con.
+      const k = def.pack ? Math.min(n, 1 + ((Math.random() * def.pack) | 0)) : 1;
+      for (let i = 0; i < k; i++) spawnFoe(def);
+      n -= k;
+    }
+    say('Đợt ' + R.waveN + ' — bám chắc.', 2.0);
+    if (G.onSfx) G.onSfx('wave');
   }
 
   function spawnFoe(def) {
     let x, y;
     if (R.phase === 'chay') {
-      // sinh phía trước tàu, ngoài khung nhìn, rồi tàu chạy tới chỗ nó
+      // Sinh phía TRƯỚC tàu, ngoài khung nhìn, rồi tàu chạy tới chỗ nó. Không con nào
+      // đuổi kịp tàu (nhanh nhất 104 so với 168) nên đây là cách duy nhất chúng gặp
+      // được đoàn tàu — cũng đúng cách bản gốc làm.
       x = R.dist + rnd(viewW / zoom() * 0.55, viewW / zoom() * 0.95);
-      y = rnd(-40, GROUND_Y + 60);
+      // Và sinh ở BÊN NGOÀI thân tàu, không sinh vào giữa dải sàn.
+      // Bản trước lấy y trong khoảng −40 … 156, mà sàn tàu là −96 … 0 — tức một phần
+      // tư số quái hiện ra ĐANG ĐỨNG SẴN GIỮA NÓC TOA mà không hề leo lên. Nhìn thì
+      // giống "quái lên được tàu", nhưng chúng không được tàu chở nên trôi tuột về sau
+      // trong vài giây, và người chơi đọc ra là quái tự dưng lùi.
+      // Và đứng SÁT thân tàu, vì cửa sổ để leo rất hẹp: đoàn tàu dài 862 lướt qua một
+      // điểm đứng yên trong 862/168 ≈ 5,1 giây, mà trong 5,1 giây ấy con quái vừa phải
+      // đi ngang lại vừa bị trôi về sau. Đứng cách thành tàu 130 điểm là không bao giờ
+      // với tới. Ba phần tư ở dưới (chỗ khung nhìn rộng), một phần tư ở trên.
+      //
+      // Dải dưới cố ý CHỜM vào vùng mũi tàu cán: con nào đứng đúng đường ray thì bị
+      // húc (khoảng 72 sát thương, không chết ngay), con nào đứng nhích ra thì leo
+      // được. Đó là chỗ hai cơ chế gặp nhau, và là lý do người chơi thấy có con bị
+      // hất tung còn có con bám được lên.
+      y = Math.random() < 0.75 ? rnd(DECK_BOT + 6, SKIRT_BOT + 74)
+                               : rnd(DECK_TOP - 56, DECK_TOP - 8);
     } else {
       const p = R.p;
       const a = Math.random() * TAU, d = rnd(340, 520);
@@ -447,7 +572,16 @@
       def, id: def.id, x, y, vx: 0, vy: 0,
       hp: def.hp * (1 + (R.map.tier - 1) * 0.24),
       hpMax: def.hp * (1 + (R.map.tier - 1) * 0.24),
-      r: def.r, dead: false, sleep: true, wake: 0,
+      // NGỦ hay THỨC tuỳ chỗ sinh ra, và đây là một luật chép từ bản gốc chứ không
+      // phải một con số cân bằng. Wiki, trang Basic Zombies: "When a zombie spawns in,
+      // they will spawn in sleeping (UNLESS SPAWNED BY THE CLOUDY NIGHT)" — tức quái
+      // của ĐỢT ĐÊM thì đổ ra và xông thẳng tới, còn quái nằm sẵn quanh nhà ở ga mới
+      // là quái ngủ.
+      // Đo được trước khi sửa: cho chạy 70 giây, 10 con sinh ra, KHÔNG con nào leo lên
+      // tàu, không con nào bị giết, toa không mất một điểm máu — vì cả mười con đều
+      // đang ngủ và tiếng động của tàu (bán kính 150) chỉ với tới chúng khi đầu tàu đã
+      // đi qua rồi.
+      r: def.r, dead: false, sleep: R.phase !== 'chay', wake: 0,
       dirX: -1, dirY: 0, dist: 0, flash: 0, stun: 0, stopT: 0,
       // Bước chân suy từ tốc độ danh nghĩa của chính con này, tính MỘT LẦN lúc sinh.
       // Xem A.stepLen: nó là thứ giữ mọi con quái ở nhịp ~105ms một khung chân, thay vì
@@ -889,6 +1023,44 @@
         if (Math.abs(f.vy) < 2) f.vy = 0;
       }
 
+      // --- ĐANG ĐỨNG TRÊN TÀU: được tàu chở đi (xem rideTrain) --------------
+      // Chạy TRƯỚC mọi nhánh `continue` bên dưới, vì một con đang choáng vẫn phải đi
+      // theo tàu — không thì đánh choáng nó lại thành cách dễ nhất để hất nó xuống.
+      if (f.onTrain) rideTrain(f, dt);
+
+      // --- ĐANG LEO ---------------------------------------------------------
+      // Leo là một trạng thái RIÊNG, không đánh không đi được, và nhìn thấy rõ. Đó là
+      // cửa sổ để người chơi bắn rụng nó trước khi nó lên tới nơi.
+      if (f.climb > 0) {
+        f.climb -= dt;
+        if (R.phase === 'chay') f.x += (R.dist - R.prevDist);   // bám thành, đi theo tàu
+        const kc = clamp(1 - f.climb / CLIMB_DUR, 0, 1);
+        f.y = f.cy0 + (f.cy1 - f.cy0) * kc;
+        const sc = deckSpan();
+        if (f.x < sc.a || f.x > sc.b) { f.climb = 0; f.y = f.cy0; }   // trượt tay, rơi lại
+        else if (f.climb <= 0) { f.climb = 0; f.onTrain = true; f.y = f.cy1; }
+        continue;
+      }
+
+      // --- BỊ TÀU CÁN -------------------------------------------------------
+      // [DR] "Can run over entities, dealing rapid damage to them until they die."
+      // Sát thương ghi THẲNG vào máu chứ không qua hurtFoe: hurtFoe kéo theo đứng hình,
+      // rung màn và một cú hitstop, mà ở đây nó được gọi 60 lần một giây — cả màn hình
+      // sẽ giật liên tục suốt lúc cán. Máu, nhấp trắng và tiếng động vẫn có, chỉ tiết
+      // chế nhịp lại.
+      if (R.phase === 'chay' && R.spd > 30 && !f.onTrain && !f.def.boss) {
+        const nose = R.dist;
+        if (f.x > nose - RUNOVER_NOSE && f.x < nose + 20 &&
+            f.y > DECK_TOP - 12 && f.y < SKIRT_BOT + 26) {
+          f.hp -= RUNOVER_DPS * dt;
+          f.flash = Math.max(f.flash, 0.55);
+          f.vx -= 260 * dt; f.sleep = false;
+          f.roT = (f.roT || 0) - dt;
+          if (f.roT <= 0) { f.roT = 0.14; FX.blood(f.x, f.y - 6, Math.PI, 10); }
+          if (f.hp <= 0) { killFoe(f, Math.PI); continue; }
+        }
+      }
+
       if (f.stopT > 0) { f.stopT -= dt; continue; }      // đứng hình vì vừa ăn đòn
       if (f.stun > 0) { f.stun -= dt; continue; }
       if (f.pin > 0) { f.pin -= dt; continue; }          // bị chó ghim
@@ -1038,19 +1210,40 @@
       }
       if (f.wireCd > 0) f.wireCd -= dt;
 
-      // trèo lên tàu và đánh toa
-      if (R.phase === 'chay') {
+      // --- BÁM ĐƯỢC THÀNH TÀU THÌ LEO ---------------------------------------
+      // Điều kiện: đang ở trong bề dài đoàn tàu, và đủ gần MÉP TRÊN hoặc MÉP DƯỚI của
+      // sàn. Không leo được từ phía trước — phía trước là chỗ bị cán.
+      if (R.phase === 'chay' && !f.onTrain && f.climb <= 0 && !f.sleep) {
         const s2 = deckSpan();
-        if (f.x > s2.a && f.x < s2.b && f.y > DECK_TOP && f.y < DECK_BOT) {
-          const idx = carIndexAt(f.x);
-          if (idx >= 0 && R.cars[idx].hp > 0 && (f.carCd || 0) <= 0) {
-            f.carCd = 1.2;
-            const c = R.cars[idx];
-            c.hp -= def.dmg * 0.5;
-            c.hurt = 1;
-            FX.shake('tau');
-            if (c.hp <= 0) say('Toa ' + (idx + 1) + ' hỏng.', 2);
+        if (f.x > s2.a + 6 && f.x < s2.b - 6) {
+          const duoi = f.y >= DECK_BOT && f.y < SKIRT_BOT + CLIMB_REACH;
+          const tren = f.y <= DECK_TOP && f.y > DECK_TOP - CLIMB_REACH;
+          if (duoi || tren) {
+            f.climb = CLIMB_DUR;
+            f.cy0 = f.y;
+            f.cy1 = duoi ? DECK_BOT - 10 : DECK_TOP + 12;
+            FX.dust(f.x, duoi ? f.y : f.y + 10, 3, 0.5);
+            // Nói ra MỘT LẦN mỗi bốn giây. Không nói thì người chơi đang nhìn phía
+            // trước không biết sau lưng có gì; nói mỗi con thì mười con thành mười
+            // dòng chữ đè lên nhau.
+            if ((R.boardSayT || 0) <= 0) { R.boardSayT = 4; say('Nó bám lên tàu!', 1.6); }
           }
+        }
+      }
+
+      // --- CÀO TOA ----------------------------------------------------------
+      // Chỉ con ĐANG Ở TRÊN TÀU mới phá được toa. Bản trước xét theo dải y của sàn, mà
+      // trước bản này không con nào lên được tàu, nên điều kiện ấy chỉ khớp với những
+      // con tình cờ sinh ra đúng dải sàn rồi bị tàu bỏ lại sau vài giây.
+      if (f.onTrain) {
+        const idx = carIndexAt(f.x);
+        if (idx >= 0 && R.cars[idx].hp > 0 && (f.carCd || 0) <= 0) {
+          f.carCd = 1.2;
+          const c = R.cars[idx];
+          c.hp -= def.dmg * 0.5;
+          c.hurt = 1;
+          FX.shake('tau');
+          if (c.hp <= 0) say('Toa ' + (idx + 1) + ' hỏng.', 2);
         }
       }
       if (f.carCd > 0) f.carCd -= dt;

@@ -451,7 +451,7 @@ window.HUB_GAMES = [
     tagline: "Bắn từ trên xuống, màn hình ngang. Một đoàn tàu hơi nước chạy qua sa mạc Viễn Tây đầy xác sống: tàu chạy thì bạn đi trên nóc toa mà thủ, tàu dừng ga thì xuống lục soát nhà với một cái đồng hồ đếm ngược trên đầu — và tàu chạy tiếp dù có bạn hay không. Ngày không có một con quái nào, đêm mới đổ ra, và có bốn loại đêm khác nhau. Gacha ra NGƯỜI: mười nhân vật, mỗi người một chiêu bấm được không ai trùng ai — chặn đạn, húc, móc kéo, vách chắn, thời gian chậm, gom quái, tàng hình hai bước, quay ngược bốn giây, tiêm hồi máu bấm được cả khi đang choáng, thả chó ghim quái. Ngoài ván thì nâng trang bị, nâng toa tàu, tiến hoá. Chín chuyến, ba tới năm chặng mỗi chuyến.",
     thumbnail: "assets/thumbnails/chuyen-tau.svg",
     path: "games/chuyen-tau/index.html",
-    rev: "20260907c",
+    rev: "20260907d",
     // Dựng lại Dead Rails (RCM Games, Roblox 2025) ở dạng 2D nhìn từ trên xuống. KHÔNG
     // lấy một tệp ảnh hay âm thanh nào của bản gốc; cái được lấy là LUẬT CHƠI, tra từ
     // wiki chính thức của game (qua api.php, vì fandom chặn tải trang thường).
@@ -465,6 +465,18 @@ window.HUB_GAMES = [
     //      và hết than giữa sa mạc là một cú sợ chứ không phải một ngõ cụt.
     //   4. Quái sinh ra ở trạng thái ĐANG NGỦ, thức theo bán kính tiếng động tăng dần, và
     //      đánh cận chiến không đánh thức con nào khác — cả một lớp chơi lén miễn phí.
+    //      NGOẠI TRỪ quái của đợt ban đêm: wiki bản gốc ghi "they will spawn in sleeping
+    //      (unless spawned by the Cloudy Night)", nên quái đổ ra lúc trời tối thì xông
+    //      thẳng tới, còn quái nằm quanh nhà ở ga mới là quái ngủ.
+    //   5. Quái LEO ĐƯỢC LÊN TÀU đang chạy: "They are able to climb onto the Train...
+    //      It takes a short moment for them to fully climb onto or drop down from
+    //      something", và "All enemies ... have a high chance of falling off". Bảng
+    //      count trong CT.NIGHTS là TỔNG QUÂN CỦA CẢ ĐÊM (6/12/18/24/30 con cho Đêm
+    //      Mây), thả thành ba đợt — không phải một cái trần đồng thời rồi rỉ giọt tới
+    //      sáng. Và đầu tàu CÁN chết thứ đứng chắn đường ray ("can run over entities,
+    //      dealing rapid damage to them until they die"), nên muốn lên tàu phải lên từ
+    //      bên hông. Tốc độ bản gốc: tàu 65 stud/s, Walker 12, Runner 18 — quái không
+    //      bao giờ đuổi kịp tàu, chúng đứng sẵn trên đường và tàu lao tới chỗ chúng.
     //
     // Chỗ CỐ Ý lệch bản gốc: bản gốc đo 80 km và một ván 30-45 phút (chính tác giả đã phải
     // làm chế độ Bite-Sized nén còn 40 km). Ở đây KHÔNG đo bằng km mà bằng CHẶNG — 3/4/5

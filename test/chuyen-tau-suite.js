@@ -1292,6 +1292,140 @@ async function suiteAmmo(browser) {
 }
 
 // ---------------------------------------------------------------------------
+async function suiteBoard(browser) {
+  out.push('\n[22] Đợt quái và leo lên tàu lúc tàu đang chạy');
+  const { ctx, page } = await open(browser, 844, 390);
+  try {
+    // Dựng cảnh: đêm, tàu chạy, ván không kết thúc giữa chừng.
+    await page.evaluate(() => {
+      CT.GAME.newRun('m1', 'hai');
+      document.getElementById('menu').classList.remove('on');
+      const R = CT.GAME.R();
+      R.legs = 99; R.fuel = 1e9;
+    });
+    await page.waitForTimeout(1600);        // để tàu đạt tốc
+
+    // --- 1. ĐỢT: quân số của cả đêm là một con số CHỐT, không phải trần đồng thời ---
+    const wave = await page.evaluate(async () => {
+      const R = CT.GAME.R();
+      R.clock = 39.6;                        // sát giờ tối (ban ngày 40 giây)
+      await new Promise(r => setTimeout(r, 900));
+      const tier = R.map.tier, nn = Math.min(4, R.nightNo - 1);
+      return { total: R.waveTotal, quota: R.waveQuota, dung: R.night.count[nn] + tier * 2,
+               dem: R.nightNo, ten: R.night.name };
+    });
+    check('trời tối là chốt quân số của CẢ ĐÊM theo bảng của bản gốc',
+          wave.total === wave.dung && wave.total > 0,
+          wave.ten + ' đêm ' + wave.dem + ': ' + wave.total + ' con (bảng nói ' + wave.dung + ')');
+
+    // Thả hết quota rồi thì DỪNG. Đây là chỗ bản trước sai: nó thả một con mới mỗi
+    // 1,9 giây cho tới sáng, nên giết một con chỉ để chỗ cho con kế tiếp.
+    const drained = await page.evaluate(async () => {
+      const R = CT.GAME.R();
+      R.waveQuota = 2; R.waveTotal = 2; R.burstT = 0;
+      await new Promise(r => setTimeout(r, 700));
+      const a = R.foes.length;
+      await new Promise(r => setTimeout(r, 2500));
+      return { quota: R.waveQuota, sauKhiThaHet: a, sau2s5: R.foes.length };
+    });
+    check('thả hết quota thì NGỪNG, không rỉ giọt tới sáng',
+          drained.quota === 0 && drained.sau2s5 <= drained.sauKhiThaHet,
+          'quota ' + drained.quota + ', số con ' + drained.sauKhiThaHet + ' → ' + drained.sau2s5);
+
+    // --- 2. Quái của ĐỢT sinh ra ĐÃ THỨC, quái ở GA thì NGỦ -------------------
+    const wake = await page.evaluate(() => {
+      const R = CT.GAME.R();
+      const G = CT.GAME;
+      R.foes.length = 0;
+      R.phase = 'chay'; R.waveQuota = 6; R.waveTotal = 6; R.burstT = 0;
+      G.step(1 / 60);
+      const chay = R.foes.map(f => f.sleep);
+      const trongSan = R.foes.filter(f => f.y > -CT.TRAIN_ART.DECK_H && f.y < 0).length;
+      R.foes.length = 0;
+      R.phase = 'ga'; R.waveQuota = 6; R.burstT = 0;
+      G.step(1 / 60);
+      const ga = R.foes.map(f => f.sleep);
+      R.phase = 'chay';
+      return { chayNgu: chay.filter(Boolean).length, chayN: chay.length,
+               gaNgu: ga.filter(Boolean).length, gaN: ga.length, trongSan };
+    });
+    check('quái của đợt (pha chạy) sinh ra ĐÃ THỨC',
+          wake.chayN > 0 && wake.chayNgu === 0, wake.chayNgu + '/' + wake.chayN + ' con còn ngủ');
+    check('quái quanh nhà ở ga vẫn sinh ra ĐANG NGỦ — lớp chơi lén còn nguyên',
+          wake.gaN > 0 && wake.gaNgu === wake.gaN, wake.gaNgu + '/' + wake.gaN + ' con ngủ');
+    check('không con nào sinh ra ĐANG ĐỨNG SẴN giữa nóc toa',
+          wake.trongSan === 0, wake.trongSan + ' con nằm trong dải sàn');
+
+    // --- 3. LEO: sát thành tàu thì bám lên, và lên rồi thì ĐƯỢC TÀU CHỞ -------
+    const climb = await page.evaluate(async () => {
+      const R = CT.GAME.R(), TA = CT.TRAIN_ART, G = CT.GAME;
+      R.foes.length = 0;
+      const s = G.deckSpan();
+      const def = CT.FOE_BY_ID['bo'];
+      const f = {
+        def, id: 'bo', x: (s.a + s.b) / 2, y: 16, vx: 0, vy: 0,
+        hp: 9999, hpMax: 9999, r: def.r, dead: false, sleep: false, wake: 0,
+        dirX: -1, dirY: -1, dist: 40, flash: 0, stun: 0, stopT: 0,
+        step: CT.ART.stepLen(def.spd), tx: R.p.x, ty: R.p.y, cd: 0, state: 'chase',
+        pin: 0, pain: 0, painDur: 0, onTrain: false, climb: 0, seed: 0.4
+      };
+      R.foes.push(f);
+      let sawClimb = false;
+      for (let i = 0; i < 6; i++) { G.step(1 / 60); if (f.climb > 0) sawClimb = true; }
+      await new Promise(r => setTimeout(r, 900));       // đủ dài hơn CLIMB_DUR
+      const on = !!f.onTrain;
+      // Đã lên tàu thì khoảng cách tới MŨI TÀU phải giữ nguyên — đó là định nghĩa của
+      // "đang đứng trên tàu" trong hệ toạ độ này (xem chú thích đầu game.js).
+      const d0 = f.x - R.dist;
+      await new Promise(r => setTimeout(r, 700));
+      const d1 = f.x - R.dist;
+      return { sawClimb, on, d0: Math.round(d0), d1: Math.round(d1), y: Math.round(f.y),
+               troi: Math.round(Math.abs(d1 - d0)), spd: Math.round(R.spd) };
+    });
+    check('đứng sát thành tàu thì chuyển sang trạng thái LEO', climb.sawClimb);
+    check('leo xong thì đứng được trên nóc toa', climb.on && climb.y < 0,
+          'onTrain=' + climb.on + ', y=' + climb.y);
+    check('đứng trên tàu thì ĐƯỢC TÀU CHỞ, không bị bỏ lại phía sau',
+          climb.on && climb.troi < 60,
+          'trôi ' + climb.troi + ' điểm trong 0,7s (tàu chạy ' + climb.spd + '/giây)');
+
+    // --- 4. Bị hất khỏi sàn thì RƠI xuống đất ---------------------------------
+    const knock = await page.evaluate(async () => {
+      const R = CT.GAME.R(), G = CT.GAME;
+      const f = R.foes[0];
+      if (!f || !f.onTrain) return null;
+      f.y = 40;                       // đẩy văng khỏi mép dưới sàn
+      G.step(1 / 60);
+      return { on: !!f.onTrain, y: Math.round(f.y), stun: +f.stun.toFixed(2) };
+    });
+    check('bị hất khỏi mép sàn thì rơi xuống đất và choáng một nhịp',
+          knock && knock.on === false && knock.y > 60,
+          knock ? 'onTrain=' + knock.on + ', y=' + knock.y + ', choáng ' + knock.stun + 's' : 'không dựng được cảnh');
+
+    // --- 5. TÀU CÁN: đứng đúng mũi tàu thì mất máu ----------------------------
+    const run = await page.evaluate(async () => {
+      const R = CT.GAME.R(), G = CT.GAME;
+      R.foes.length = 0;
+      const def = CT.FOE_BY_ID['bo'];
+      const f = {
+        def, id: 'bo', x: R.dist - 8, y: 20, vx: 0, vy: 0,
+        hp: 1000, hpMax: 1000, r: def.r, dead: false, sleep: false, wake: 0,
+        dirX: -1, dirY: 0, dist: 0, flash: 0, stun: 0, stopT: 0,
+        step: CT.ART.stepLen(def.spd), tx: R.p.x, ty: R.p.y, cd: 0, state: 'chase',
+        pin: 0, pain: 0, painDur: 0, onTrain: false, climb: 0, seed: 0.4
+      };
+      R.foes.push(f);
+      const hp0 = f.hp;
+      // giữ nó đúng trước mũi tàu trong 10 khung
+      for (let i = 0; i < 10; i++) { f.x = R.dist - 8; f.y = 20; f.onTrain = false; f.climb = 0; G.step(1 / 60); }
+      return { mat: Math.round(hp0 - f.hp), spd: Math.round(R.spd) };
+    });
+    check('đứng chắn mũi tàu thì bị cán, mất máu nhanh',
+          run.mat > 20, 'mất ' + run.mat + ' máu trong 10 khung (tàu chạy ' + run.spd + '/giây)');
+  } finally { await ctx.close(); }
+}
+
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 (async function main() {
   const browser = await chromium.launch({
@@ -1301,7 +1435,7 @@ async function suiteAmmo(browser) {
                   suiteGacha, suiteShop, suiteBag, suiteSave, suiteTouch,
                   suiteArt, suiteSafety,
                   suiteShopFlow, suiteSellFlow, suiteFuelFlow, suiteCarryFlow,
-                  suiteWiki, suiteGunFlow, suiteFeel, suiteMenuLook, suiteAmmo];
+                  suiteWiki, suiteGunFlow, suiteFeel, suiteMenuLook, suiteAmmo, suiteBoard];
   for (const s of suites) {
     try { await s(browser); }
     catch (e) { check(s.name + ' — cả bộ ném lỗi', false, String(e.message).slice(0, 160)); }
