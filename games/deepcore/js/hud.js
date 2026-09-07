@@ -150,6 +150,21 @@
       var pt = g.mission.points[m];
       if (!pt.done) put(pt.x, pt.y, '#ffd24a', 2.6, true);
     }
+    /* Dấu hốc kín. Chỉ hiện khi hốc nằm trong 11 ô quanh người chơi — đủ gần
+     * để "có cái gì đó dưới kia" thành một lời mời cụ thể, đủ xa để không biến
+     * cả bản đồ thành một danh sách việc phải làm. Không có dấu này thì hốc
+     * chôn trong đá là phần thưởng không ai biết mà tìm, và việc đục vào lòng
+     * khối đá lại quay về chỗ vô nghĩa như cũ. */
+    var cl = g.world.caches || [];
+    var ptx = g.player.tileX(), pty = g.player.tileY();
+    for (var ci = 0; ci < cl.length; ci++) {
+      var cc = cl[ci];
+      if (cc.taken) continue;
+      if (Math.abs(cc.tx - ptx) > 11 || Math.abs(cc.ty - pty) > 11) continue;
+      c.globalAlpha = 0.5 + 0.4 * Math.sin(performance.now() / 300 + ci);
+      put(cc.x, cc.y, '#ffd98a', 2.4, true);
+      c.globalAlpha = 1;
+    }
     // cửa thoát
     if (g.exit) put(g.exit.x, g.exit.y, g.escaping ? '#7dff9a' : '#6a8a7a', 3, g.escaping);
     // boss
@@ -190,14 +205,25 @@
     }
 
     // ---- TRÊN-TRÁI: bản thân
-    var bw = Math.min(160, W * 0.44);
-    bar(c, pad, top, bw, 13, p.hp / p.st.hp, '#ff6a5a', '#a02030',
+    /* Không còn thanh kinh nghiệm và không còn chữ "Cấp N": trong ván đã bỏ
+     * hẳn cấp độ. Chỗ trống dành cho thanh máu to hơn — thứ duy nhất ở góc này
+     * mà người chơi thật sự phải liếc giữa lúc đánh nhau. Bên dưới là số HỐC
+     * KÍN đã tìm được, vì đó mới là đường sức mạnh của ván bây giờ. */
+    var bw = Math.min(170, W * 0.46);
+    bar(c, pad, top, bw, 17, p.hp / p.st.hp, '#ff6a5a', '#a02030',
         Math.ceil(p.hp) + ' / ' + Math.round(p.st.hp));
-    bar(c, pad, top + 18, bw, 7, p.xp / p.xpNeed, '#8ad8ff', '#3a70c0');
+    // Thanh mốc quặng: đầy thì bầy mạnh lên một nấc. Đây là thứ thay chỗ thanh
+    // kinh nghiệm cũ, nhưng nó đo đúng cái người chơi đang làm — đục đá.
+    var per = 16;
+    var k = ((g.run.oreMined || 0) % per) / per;
+    bar(c, pad, top + 21, bw, 6, k, '#7dff9a', '#2a8a4a');
+    var cs = g.world.caches || [];
+    var got = 0;
+    for (var ci = 0; ci < cs.length; ci++) if (cs[ci].taken) got++;
     c.font = 'bold 11px ui-monospace, monospace';
     c.textAlign = 'left';
-    c.fillStyle = '#ffd98a';
-    c.fillText('Cấp ' + p.level, pad, top + 38);
+    c.fillStyle = got ? '#ffd98a' : '#8a7f9c';
+    c.fillText('Hốc kín ' + got + '/' + cs.length, pad, top + 40);
 
     // ---- TRÊN-PHẢI: bản đồ nhỏ + đồng hồ
     var ms = Math.min(112, W * 0.30);

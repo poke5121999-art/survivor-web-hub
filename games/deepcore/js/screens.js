@@ -625,47 +625,6 @@
 
   // ---------------------------------------------------------------- lên cấp
 
-  function levelUp(cards, cb) {
-    clear();
-    var sh = el('div', 'screen sheet');
-    var h = el('div', 'htitle', 'LÊN CẤP');
-    h.style.textAlign = 'center';
-    sh.appendChild(h);
-    sh.appendChild(el('div', 'hsub', 'Chọn một.'));
-    var box = el('div');
-    box.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center';
-    cards.forEach(function (cd) {
-      var c = el('div', 'card');
-      c.style.cssText = 'flex-direction:row;align-items:center;gap:12px;padding:12px;' +
-        'min-height:92px;text-align:left;' +
-        (cd.big ? 'border-color:#ffce7a;box-shadow:0 0 18px #ff9a3c44' : '');
-      c.appendChild(cd.art ? petIcon(cd.art, 52) : icon(cd.icon || 152, 44));
-      var t = el('div');
-      t.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:3px';
-      var tag = el('div', null, cd.role || '');
-      tag.style.cssText = 'font-size:9px;color:#9ad8ff;letter-spacing:1px';
-      t.appendChild(tag);
-      var nm = el('div', null, cd.name);
-      nm.style.cssText = 'font-size:14px;color:#ffd98a';
-      t.appendChild(nm);
-      cd.lines.forEach(function (l) {
-        var d = el('div', null, l);
-        d.style.cssText = 'font-size:10px;color:#d8ccec;line-height:1.35';
-        t.appendChild(d);
-      });
-      if (cd.txt) {
-        var d2 = el('div', null, cd.txt);
-        d2.style.cssText = 'font-size:9px;color:#8a7f9c;line-height:1.3';
-        t.appendChild(d2);
-      }
-      c.appendChild(t);
-      c.onclick = function () { hideAll(); cb(cd); };
-      box.appendChild(c);
-    });
-    sh.appendChild(box);
-    root.appendChild(sh);
-  }
-
   // ---------------------------------------------------------------- kết ván
 
   function results(res, reward) {
@@ -779,7 +738,6 @@
     home: function () { tab = 'hang'; render(); },
     render: render,
     hideAll: hideAll,
-    levelUp: levelUp,
     results: results,
     doll: doll,
     icon: icon

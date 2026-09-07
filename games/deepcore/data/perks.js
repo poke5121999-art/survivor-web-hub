@@ -1,5 +1,14 @@
 /*
- * data/perks.js — thẻ lên cấp: chọn 1 trong 3.
+ * data/perks.js — bảng hiệu ứng của BÙA ĐÁ.
+ *
+ * Trước đây đây là bộ thẻ "lên cấp, chọn 1 trong 3". Màn chọn thẻ đã bỏ hẳn:
+ * nó dừng hình quá nhiều lần một ván, và nó khiến sức mạnh trong ván không dính
+ * gì tới bản đồ — cứ đủ điểm là hộp thoại bật ra, đứng ở đâu cũng vậy.
+ *
+ * Bảng SELF ở dưới sống tiếp, nhưng giờ là phần thưởng của hốc BÙA ĐÁ chôn dưới
+ * đá: đục tới thì nhận ngay một hiệu ứng, không có ba lựa chọn nào cả. Các bảng
+ * triệu hồi / lên bậc / hiến tế thì bỏ, vì hốc TỔ và hốc ĐÀI CỔ đã làm việc đó
+ * theo cách gắn với chỗ đứng trên bản đồ.
  *
  * Bốn loại thẻ, và mỗi loại làm một việc khác nhau về mặt CẢM GIÁC:
  *   TRIỆU   gọi thêm một linh thú chưa có   -> mở rộng đội hình
@@ -35,8 +44,8 @@
       apply: function (s) { s.nearR *= 1.30; } },
     { id: 'armor', name: 'Giáp Vá', icon: 455, txt: '+8% giảm sát thương',
       apply: function (s) { s.armor = Math.min(0.7, s.armor + 0.08); } },
-    { id: 'xp', name: 'Sổ Ghi Mẫu', icon: 152, txt: '+20% kinh nghiệm',
-      apply: function (s) { s.xpMul *= 1.20; } },
+    { id: 'xp', name: 'Sổ Ghi Mẫu', icon: 152, txt: '+20% vàng thu về',
+      apply: function (s) { s.goldMul *= 1.20; } },
     { id: 'petatk', name: 'Còi Thúc', icon: 586, txt: 'Mọi linh thú +10% tốc đánh',
       apply: function (s) { s.petRate *= 1.10; } },
     { id: 'petdmg', name: 'Mài Nanh', icon: 988, txt: 'Mọi linh thú +12% sát thương',

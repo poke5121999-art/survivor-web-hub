@@ -45,6 +45,8 @@
 
     this.rooms = [];
     this.hazards = [];
+    this.caches = [];                  // hốc kín chôn sâu, đục tới mới thấy
+    this.depth = new Int16Array(n);    // độ sâu ô đá tính từ hang gần nhất
     return this;
   };
 
@@ -134,8 +136,9 @@
     }
     this.paintSub(far.x, far.y, 22 + r.i(0, 8));
 
-    // 7) Vỉa quặng + máu ô tường.
+    // 7) Vỉa quặng + hốc kín + máu ô tường.
     this.seedOres(level);
+    this.placeCaches(level);
     this.rollHp();
 
     // 8) Trang trí sàn + mối nguy.
@@ -224,68 +227,222 @@
   /* Vỉa quặng mọc thành CỤM, và chỉ mọc ở ô đá có ít nhất một mặt giáp hang —
    * quặng chôn sâu trong đá thì người chơi không bao giờ thấy, đặt vào chỉ tổ
    * phí. Đây đúng là cách Core Keeper rải quặng: nhìn thấy rồi mới thèm. */
+  /*
+   * ĐỘ SÂU của một ô đá = số bước ngắn nhất ra tới ô sàn gần nhất (BFS bốn
+   * hướng, xuất phát cùng lúc từ MỌI ô sàn). Ô sàn sâu 0, ô đá kề hang sâu 1,
+   * càng vào trong càng lớn. Đây là thước đo trung tâm của cả việc đặt quặng
+   * lẫn đặt hốc kín — không có nó thì "sâu" chỉ là cảm giác chứ không đo được.
+   */
+  World.prototype.computeDepth = function () {
+    var W = this.W, H = this.H, n = W * H, d = this.depth, i;
+    var q = new Int32Array(n), head = 0, tail = 0;
+    for (i = 0; i < n; i++) {
+      if (this.kind[i] === FLOOR || this.kind[i] === LIQ) { d[i] = 0; q[tail++] = i; }
+      else d[i] = -1;
+    }
+    while (head < tail) {
+      var id = q[head++], x = id % W, y = (id / W) | 0, k;
+      for (k = 0; k < 4; k++) {
+        var nx = x + (k === 0 ? 1 : k === 1 ? -1 : 0);
+        var ny = y + (k === 2 ? 1 : k === 3 ? -1 : 0);
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        var ni = ny * W + nx;
+        if (d[ni] !== -1) continue;
+        d[ni] = d[id] + 1;
+        q[tail++] = ni;
+      }
+    }
+    return d;
+  };
+
+  /*
+   * ĐẶT QUẶNG THEO ĐỘ SÂU.
+   *
+   * Bản trước gieo vỉa từ danh sách `edges` — các ô đá KỀ SÀN. Đo lại bản đồ đã
+   * sinh: 738 ô quặng ở độ sâu 1, 383 ở độ sâu 2, 94 ở độ sâu 3, 16 ở độ sâu 4,
+   * và KHÔNG CÓ GÌ sâu hơn — trong khi bản đồ có 2.500-3.400 ô đá ở độ sâu từ 6
+   * trở lên. Nói cách khác toàn bộ phần ruột của mọi khối đá đều rỗng tuếch, và
+   * men theo mép hang là nhặt sạch. Đục vào trong vừa không được gì vừa mất
+   * thời gian, nên không ai đục — đúng như người chơi báo lại.
+   *
+   * Ba luật mới, mượn thẳng của Core Keeper:
+   *
+   *   1. VỈA MỌC TỪ NGOÀI VÀO. Hạt giống nằm nông nên nhìn thấy được từ trong
+   *      hang, nhưng khi lớn thì vỉa ƯU TIÊN ĐI VỀ PHÍA SÂU HƠN. Thấy một cục
+   *      lấp ló ở vách, đục vào, vỉa chạy tiếp — chứ không phải nhặt một cục
+   *      rồi hết.
+   *   2. CÀNG QUÝ CÀNG CHÔN SÂU. Mỗi loại có ngưỡng độ sâu tối thiểu xếp theo
+   *      giá trị: Đường Đỏ nằm ngay vách, Thiên Hà và Nhật Diệu chỉ có ở lòng
+   *      khối đá.
+   *   3. MORKITE — quặng nhiệm vụ — nằm khoảng giữa: đủ nông để tìm ra mà vẫn
+   *      phải đục vào. Bản đồ nhỏ vẫn lộ Morkite kể cả vùng chưa đi qua, nên nó
+   *      thành cái la bàn dò quặng chứ không thành trò mò kim đáy bể.
+   */
+  var ORE_MIN_DEPTH = {
+    redsugar: 1, nitra: 1, copper: 2, tin: 2,
+    morkite: 2, iron: 3, scarlet: 4, octarine: 5, galaxite: 6, solarite: 7
+  };
+
   World.prototype.seedOres = function (level) {
-    var r = this.rng, W = this.W, H = this.H;
+    var r = this.rng, W = this.W, i;
     var list = this.oreList;
-    var budget = {};
-    var floorCount = 0, i;
+    var d = this.computeDepth();
+
+    var floorCount = 0;
     for (i = 0; i < this.kind.length; i++) if (this.kind[i] === FLOOR) floorCount++;
     var scale = floorCount / 3200;
 
-    list.forEach(function (o) {
-      // Đo trong máy: với mức cũ (26/22/14/12 cụm), đục 60 ô tường mới ra
-      // trúng chưa tới một vỉa — tức là chỉ tiêu 11 Morkite không thể xong
-      // trong mười phút, và cây kinh nghiệm cũng đứng. Nhân đôi rưỡi.
-      /* Trữ lượng chỉ nhích nhẹ so với bản đầu (96 -> 124 Morkite).
-     *
-     * Có một lần thử tăng thẳng lên 230 để đỡ chỉ tiêu mới, và nó phản tác
-     * dụng đúng như đáng lẽ phải đoán được: cái quyết định độ dài một ván
-     * không phải thời gian ĐỤC mà là thời gian ĐI TÌM. Rải thêm quặng thì
-     * quãng đường giữa hai vỉa ngắn lại, và ván ngắn đi chứ không dài ra —
-     * đo được 84 Morkite xong ở giây 198, gần y hệt 56 Morkite trước đó. */
-    var base = (o === 'nitra') ? 88 : (o === 'morkite') ? 150 : (o === 'redsugar') ? 50 : 40;
-      budget[o] = Math.max(8, Math.round(base * scale));
-    });
-
-    var edges = [];
-    for (var y = 3; y < H - 3; y++) {
-      for (var x = 3; x < W - 3; x++) {
-        if (this.kind[this.idx(x, y)] !== WALL) continue;
-        if (this.at(x + 1, y) === FLOOR || this.at(x - 1, y) === FLOOR ||
-            this.at(x, y + 1) === FLOOR || this.at(x, y - 1) === FLOOR) {
-          edges.push(y * W + x);
-        }
-      }
+    // Gom ô đá theo độ sâu để bốc hạt giống cho nhanh.
+    var byDepth = [];
+    for (i = 0; i < this.kind.length; i++) {
+      if (this.kind[i] !== WALL) continue;
+      var dp = d[i];
+      if (dp < 1) continue;
+      var b = Math.min(12, dp);
+      (byDepth[b] || (byDepth[b] = [])).push(i);
     }
-    r.shuffle(edges);
-    var ei = 0;
+    for (i = 1; i <= 12; i++) if (byDepth[i]) r.shuffle(byDepth[i]);
+    var cursor = new Int32Array(13);
+
+    function takeSeed(minD, maxD) {
+      for (var dd = minD; dd <= maxD; dd++) {
+        var arr = byDepth[dd];
+        if (!arr) continue;
+        if (cursor[dd] < arr.length) return arr[cursor[dd]++];
+      }
+      return -1;
+    }
 
     for (var li = 0; li < list.length; li++) {
       var oid = list[li];
       var oi = li + 1;
-      for (var c = 0; c < budget[oid] && ei < edges.length; c++) {
-        var start = edges[ei++];
-        var sx = start % W, sy = (start / W) | 0;
-        var size = r.i(2, 5);
-        var open = [[sx, sy]], placed = 0, guard = 0;
-        while (open.length && placed < size && guard++ < 60) {
-          var k = r.i(0, open.length - 1);
-          var p = open.splice(k, 1)[0];
-          var id = this.idx(p[0], p[1]);
-          if (this.kind[id] !== WALL) continue;
-          this.kind[id] = ORE;
-          this.ore[id] = oi;
+      var base = (oid === 'nitra') ? 88 : (oid === 'morkite') ? 150
+               : (oid === 'redsugar') ? 50 : 40;
+      var want = Math.max(8, Math.round(base * scale));
+      var minD = ORE_MIN_DEPTH[oid] || 2;
+      var placed = 0, guard = 0;
+
+      while (placed < want && guard++ < want * 8) {
+        var seed = takeSeed(minD, Math.min(12, minD + 3));
+        if (seed < 0) break;
+        if (this.kind[seed] !== WALL) continue;
+
+        // Vỉa quặng quý dài hơn, để công đục sâu có chỗ được trả lại.
+        var size = r.i(3, 5) + (minD >= 4 ? r.i(1, 4) : 0);
+        var open = [seed];
+        while (open.length && placed < want && size > 0) {
+          // Bốc ô SÂU NHẤT đang chờ chứ không bốc ngẫu nhiên: chính chỗ này
+          // khiến vỉa chạy vào lòng đá thay vì loang dọc theo vách.
+          var bi = 0;
+          for (var q = 1; q < open.length; q++) {
+            if (d[open[q]] > d[open[bi]]) bi = q;
+          }
+          var id2 = open.splice(bi, 1)[0];
+          if (this.kind[id2] !== WALL) continue;
+          this.kind[id2] = ORE;
+          this.ore[id2] = oi;
           placed++;
-          var nb = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-          for (var d = 0; d < 4; d++) {
-            var nx = p[0] + nb[d][0], ny = p[1] + nb[d][1];
-            if (this.inside(nx, ny) && this.kind[this.idx(nx, ny)] === WALL && r.chance(0.65)) {
-              open.push([nx, ny]);
-            }
+          size--;
+          var x2 = id2 % W, y2 = (id2 / W) | 0;
+          for (var k = 0; k < 4; k++) {
+            var nx = x2 + (k === 0 ? 1 : k === 1 ? -1 : 0);
+            var ny = y2 + (k === 2 ? 1 : k === 3 ? -1 : 0);
+            if (!this.inside(nx, ny)) continue;
+            var ni = this.idx(nx, ny);
+            if (this.kind[ni] !== WALL) continue;
+            // Nghiêng hẳn về phía sâu hơn; ra phía nông thì hiếm khi nhận.
+            var deeper = d[ni] >= d[id2];
+            if (r.chance(deeper ? 0.86 : 0.16)) open.push(ni);
           }
         }
       }
     }
+  };
+
+  /*
+   * HỐC KÍN — lý do để đục vào lòng đá, và là thứ THAY CHO thẻ lên cấp.
+   *
+   * Mỗi hốc là một buồng 2-4 ô nằm sâu trong khối đá, KHÔNG nối với mạng hành
+   * lang: không đục thì không có đường vào. Bên trong đặt một phần thưởng,
+   * quanh miệng rải một vòng quặng quý để lúc đục tới còn có tín hiệu.
+   *
+   * Đây là chỗ toàn bộ sức mạnh trong ván chuyển tới sau khi bỏ màn "chọn 1
+   * trong 3": trước đây đủ điểm là dừng hình và hiện ba tấm thẻ; giờ phần
+   * thưởng nằm trong lòng đất và phải đào mới có. Vẫn trao đúng ngần ấy sức
+   * mạnh, nhưng trao bằng động từ trung tâm của game thay vì bằng hộp thoại.
+   */
+  var CACHE_KINDS = ['to', 'dai', 'bua', 'ruong'];
+
+  World.prototype.placeCaches = function (level) {
+    var r = this.rng, W = this.W, i;
+    var d = this.depth;
+    var deep = [];
+    for (i = 0; i < this.kind.length; i++) {
+      if (this.kind[i] === WALL && d[i] >= 3) deep.push(i);
+    }
+    if (!deep.length) return;
+    r.shuffle(deep);
+
+    var want = 13 + Math.min(5, (level / 2) | 0);
+    var minGap = 11;
+    var used = [];
+    var rich = this.oreList.length;              // loại quý nhất của quần thể
+
+    for (var t = 0; t < deep.length && this.caches.length < want; t++) {
+      var id = deep[t];
+      var x = id % W, y = (id / W) | 0;
+      var ok = true;
+      for (i = 0; i < used.length; i++) {
+        if (Math.hypot(used[i][0] - x, used[i][1] - y) < minGap) { ok = false; break; }
+      }
+      if (!ok) continue;
+      used.push([x, y]);
+
+      /* KHÔNG khoét buồng sẵn.
+       *
+       * Bản đầu khoét luôn 2-4 ô thành sàn rồi mới đặt phần thưởng vào. Buồng
+       * ấy đúng là kín — quanh nó vẫn là đá — nhưng ô của chính cái hốc thì đã
+       * là sàn ngay từ giây đầu, nên vòng sáng của nó hiện xuyên qua đá và
+       * người chơi nhìn thấy phần thưởng trước cả khi đục. Mất sạch cái không
+       * biết, mà không biết mới chính là thứ khiến việc đục vào lòng đá đáng
+       * làm. Bộ kiểm bắt được: "0/11 còn kín".
+       *
+       * Giờ hốc nằm nguyên trong đá, và ô của nó là một ô QUẶNG QUÝ NHẤT của
+       * quần thể, có thêm một vòng quặng quý bao quanh. Người chơi đang đục
+       * thấy vỉa quý dày lên bất thường — đó là tín hiệu — đục nốt thì hốc bật
+       * ra. Đúng nhịp "đục vào chỗ không biết rồi tìm thấy thứ gì đó" của Core
+       * Keeper, chứ không phải nhặt một cái hộp phát sáng đã thấy từ xa.
+       */
+      this.kind[id] = ORE;
+      this.ore[id] = rich;
+      /* Vầng quặng quý bán kính 2 quanh hốc. Bán kính 1 thì cả cụm nằm lọt
+       * trong đá và người đứng ngoài hành lang không thấy gì để mà tò mò; bán
+       * kính 2 thì mấy ô ngoài cùng chạm tới độ sâu 1-2, tức là NHÌN THẤY ĐƯỢC
+       * từ trong hang. Đó chính là cái mồi: thấy một vầng quặng quý dày bất
+       * thường, đục vào, và hốc nằm ở tâm. Đo bằng máy trước khi nới: người
+       * chơi giả chỉ mở được 1 hốc trong năm phút. */
+      for (var oy = -2; oy <= 2; oy++) {
+        for (var ox = -2; ox <= 2; ox++) {
+          if (!ox && !oy) continue;
+          var ax = x + ox, ay = y + oy;
+          if (!this.inside(ax, ay)) continue;
+          var ai = this.idx(ax, ay);
+          if (this.kind[ai] !== WALL) continue;
+          var far = Math.max(Math.abs(ox), Math.abs(oy));
+          if (r.chance(far === 1 ? 0.9 : 0.5)) {
+            this.kind[ai] = ORE;
+            this.ore[ai] = rich;
+          }
+        }
+      }
+
+      this.caches.push({
+        x: x * T + 8, y: y * T + 8, tx: x, ty: y,
+        kind: CACHE_KINDS[this.caches.length % CACHE_KINDS.length],
+        taken: false, t: 0
+      });
+    }
+    r.shuffle(this.caches);
   };
 
   /* Máu ô tường. KHÔNG nhân theo ải — ải sau khó hơn bằng QUÁI, không bằng
@@ -390,9 +547,14 @@
     return { ore: oreName, x: x, y: y };
   };
 
+  /* Bán kính 2 chứ không phải 1: wallFrame() nhìn tới ô cách hai bước về phía
+   * bắc (để biết mình là hàng thứ mấy tính từ mặt trên khối đá), nên đục một ô
+   * có thể đổi khung của ô cách đó hai bước. Để nguyên bán kính 1 thì thỉnh
+   * thoảng còn sót lại một vệt sáng mép trên nằm giữa lòng đá cho tới khi khối
+   * đệm đó tình cờ được vẽ lại. */
   World.prototype.dirtyAround = function (x, y) {
-    for (var j = -1; j <= 1; j++) {
-      for (var i = -1; i <= 1; i++) {
+    for (var j = -2; j <= 2; j++) {
+      for (var i = -2; i <= 2; i++) {
         var cx = ((x + i) / CH) | 0, cy = ((y + j) / CH) | 0;
         if (cx >= 0 && cy >= 0 && cx < this.chunksX && cy < this.chunksY) {
           var c = this.chunks[cy * this.chunksX + cx];
@@ -413,6 +575,59 @@
       ore: 'tile.' + b.id + '.ore',
       crack: 'tile.' + b.id + '.crack'
     };
+  };
+
+  /*
+   * CHỌN KHUNG CHO Ô TƯỜNG / Ô SÀN — bộ 20 khung KHÔNG phải 20 biến thể.
+   *
+   * Vùng cắt trong tileset gốc của Core Keeper là một khối 5 cột × 4 hàng, và
+   * đo độ sáng từng mép của từng khung (cả chín quần thể) cho ra cùng một cấu
+   * trúc: đây là một bộ NINE-SLICE 3×3 có nhân đôi biến thể.
+   *
+   *      cột 0      mép TÂY        (mép trái tối/sáng riêng)
+   *      cột 1..3   ruột, 3 biến thể
+   *      cột 4      mép ĐÔNG
+   *      hàng 0     mép BẮC        (vành trên bắt sáng)
+   *      hàng 1     ngay dưới mép bắc
+   *      hàng 2     ruột sâu       (tối nhất phần thân)
+   *      hàng 3     mép NAM        (gờ dưới tối hẳn — mặt đứng nhìn thấy được)
+   *
+   * Số đo, quần thể `dirt`, trung bình 5 cột:
+   *      hàng 0  trên 82,2  giữa 95,0  dưới  99,9
+   *      hàng 3  trên 88,4  giữa 77,2  dưới  63,1   <- gờ dưới tối rõ rệt
+   * và `mold`: cột 0 mép trái 44,3 so với 98,4 của các cột giữa.
+   *
+   * Bản cũ bốc `hash*20` — tức là rải ngẫu nhiên cả hai mươi khung. Hậu quả là
+   * vành sáng của mép bắc rơi vào giữa lòng khối đá, gờ tối của mép nam nằm
+   * lửng lơ, còn rìa hang thì lại là ruột đá phẳng lì. Khối đá vì thế trông
+   * như một miếng dán nhiễu chứ không ra một khối có bề dày — và cách chữa
+   * trước đây là vẽ tay thêm viền 2px, càng làm nó giống hình vẽ web.
+   *
+   * Mép NAM được ưu tiên cao nhất: trong góc nhìn từ trên xuống hơi chếch, mặt
+   * đứng người chơi thật sự nhìn thấy là mặt quay xuống dưới.
+   */
+  World.prototype.wallFrame = function (tx, ty, h) {
+    var col = !this.solid(tx - 1, ty) ? 0
+            : !this.solid(tx + 1, ty) ? 4
+            : 1 + ((h * 3) | 0);
+    var row = !this.solid(tx, ty + 1) ? 3
+            : !this.solid(tx, ty - 1) ? 0
+            : !this.solid(tx, ty - 2) ? 1
+            : 2;
+    return row * 5 + col;
+  };
+
+  /* Ô sàn dùng cùng bộ nine-slice nhưng ĐẢO LẠI: dải tối nằm ở phía có ĐÁ.
+   * Nhờ thế bóng chân tường là một phần của bộ art chứ không phải một dải
+   * gradient vẽ tay đè lên — thứ trước đây làm mọi mép hang trông như nhau. */
+  World.prototype.floorFrame = function (tx, ty, h) {
+    var col = this.solid(tx - 1, ty) ? 0
+            : this.solid(tx + 1, ty) ? 4
+            : 1 + ((h * 3) | 0);
+    var row = this.solid(tx, ty - 1) ? 0
+            : this.solid(tx, ty + 1) ? 3
+            : 1 + ((h * 2) | 0);
+    return row * 5 + col;
   };
 
   World.prototype.renderChunk = function (cx, cy) {
@@ -444,7 +659,7 @@
         h = G.hash2(tx, ty);
 
         if (k === FLOOR || k === LIQ) {
-          A.draw(g, keys.floor, (h * 20) | 0, px, py, { ax: 0, ay: 0 });
+          A.draw(g, keys.floor, this.floorFrame(tx, ty, h), px, py, { ax: 0, ay: 0 });
           if (k === LIQ) {
             g.fillStyle = this.ore[id] === 254 ? 'rgba(255,90,30,.72)' : 'rgba(60,150,255,.55)';
             g.fillRect(px, py, T, T);
@@ -452,12 +667,22 @@
             A.draw(g, keys.decor, this.deco[id] - 1, px, py, { ax: 0, ay: 0 });
           }
         } else if (k === ROCK) {
-          A.draw(g, keys.wall, (h * 20) | 0, px, py, { ax: 0, ay: 0 });
+          A.draw(g, keys.wall, this.wallFrame(tx, ty, h), px, py, { ax: 0, ay: 0 });
           g.fillStyle = 'rgba(0,0,0,.55)';
           g.fillRect(px, py, T, T);
         } else {
-          A.draw(g, keys.wall, (h * 20) | 0, px, py, { ax: 0, ay: 0 });
-          if (k === ORE) {
+          A.draw(g, keys.wall, this.wallFrame(tx, ty, h), px, py, { ax: 0, ay: 0 });
+          /* Chỉ vẽ quặng khi ô đá này CÓ MẶT LỘ RA hang.
+            *
+            * Core Keeper sinh trường quặng cho mọi vị trí kể cả trong lòng đá
+            * đặc (tài liệu mod chính chủ: ba bit alpha của mỗi điểm ảnh bản đồ
+            * là loại quặng tại vị trí đó), nhưng chỉ VẼ ở ô có cạnh lộ ra —
+            * wiki mô tả người chơi nhận ra quặng nhờ "đốm lấp lánh trắng trên
+            * vách". Nhờ vậy lòng khối đá là một ẩn số thật: đục vào mới biết
+            * có gì. Bản trước vẽ mọi ô quặng, nên chỉ cần đèn sáng là nhìn
+            * xuyên qua đá thấy hết vỉa, và chẳng còn gì để tò mò. */
+          if (k === ORE && (!this.solid(tx - 1, ty) || !this.solid(tx + 1, ty) ||
+                            !this.solid(tx, ty - 1) || !this.solid(tx, ty + 1))) {
             A.draw(g, keys.ore, (this.ore[id] * 2 + ((h * 2) | 0)) % 6, px, py, { ax: 0, ay: 0 });
             var o = G.ORE[this.oreList[this.ore[id] - 1]];
             if (o) {
@@ -483,28 +708,24 @@
       }
     }
 
-    // Lớp 2: viền tối ở mép đá và bóng đổ xuống sàn. Đây là thứ làm khối đá
-    // trông có bề dày thay vì như một miếng dán phẳng.
-    g.fillStyle = 'rgba(0,0,0,.45)';
+    /* Lớp 2: CHỈ còn bóng đổ mềm xuống sàn ngay dưới chân khối đá.
+     *
+     * Ba đường viền 2px vẽ tay ở bản trước đã bỏ: bộ nine-slice đã có sẵn mép
+     * tây/đông/bắc/nam vẽ đúng chất liệu của từng quần thể, nên kẻ thêm một
+     * đường đen đều tăm tắp lên trên chỉ tổ dìm mất chi tiết và làm cái hang
+     * trông như hình vẽ vector. Bóng thì vẫn giữ, vì nó là thứ duy nhất chạy
+     * RA NGOÀI ô đá, mà một tấm sprite 16x16 thì không tự làm được. */
     for (y = 0; y < CH; y++) {
       for (x = 0; x < CH; x++) {
         tx = x0 + x; ty = y0 + y;
         if (!this.inside(tx, ty)) continue;
+        if (this.solid(tx, ty) || !this.solid(tx, ty - 1)) continue;
         px = x * T; py = y * T;
-        var me = this.solid(tx, ty);
-        if (me) {
-          if (!this.solid(tx, ty - 1)) g.fillRect(px, py, T, 2);
-          if (!this.solid(tx - 1, ty)) g.fillRect(px, py, 2, T);
-          if (!this.solid(tx + 1, ty)) g.fillRect(px + T - 2, py, 2, T);
-        } else if (this.solid(tx, ty - 1)) {
-          // bóng của khối đá phía trên hắt xuống sàn
-          var gr = g.createLinearGradient(0, py, 0, py + 7);
-          gr.addColorStop(0, 'rgba(0,0,0,.55)');
-          gr.addColorStop(1, 'rgba(0,0,0,0)');
-          g.fillStyle = gr;
-          g.fillRect(px, py, T, 7);
-          g.fillStyle = 'rgba(0,0,0,.45)';
-        }
+        var gr = g.createLinearGradient(0, py, 0, py + 6);
+        gr.addColorStop(0, 'rgba(0,0,0,.42)');
+        gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr;
+        g.fillRect(px, py, T, 6);
       }
     }
     c.dirty = false;

@@ -17,21 +17,9 @@
 (function () {
   var G = window.DC;
   var g = G.game;
-  var picks = [];
 
-  // Tự chọn thẻ thay người. GỌI ĐỒNG BỘ — vòng lặp dưới chạy liền một mạch nên
-  // setTimeout sẽ không bao giờ tới lượt, và thẻ coi như không được chọn.
-  G.Screens.levelUp = function (cards, cb) {
-    var hurt = g.player.hp < g.run.st.hp * 0.55;
-    var c = (hurt && cards.filter(function (x) {
-              return x.kind === 'self' && (x.id === 'heal' || x.id === 'hp');
-            })[0]) ||
-            cards.filter(function (x) { return x.kind === 'summon'; })[0] ||
-            cards.filter(function (x) { return x.kind === 'tier'; })[0] ||
-            cards[0];
-    picks.push(c.kind + ':' + c.id);
-    cb(c);
-  };
+  // Không còn màn chọn thẻ nào để tự bấm: hệ "lên cấp chọn 1 trong 3" đã bỏ,
+  // sức mạnh giữa ván nay nằm trong các hốc kín chôn dưới đá và nhận tự động.
   G.Screens.results = function (res, rw) { window.__RESULT = { res: res, rw: rw }; };
   G.Screens.hideAll = function () {};
 
@@ -118,10 +106,26 @@
           Math.hypot(g.enemies[j].x - p.x, g.enemies[j].y - p.y) < 140) cnt++;
     }
     if (cnt >= 3 && g.run.rallyCd <= 0) g.rally();
-    // 2) vỉa quặng gần nhất trong 8 ô -> tới đục. Tám ô là xấp xỉ vùng đèn
-    //    của người chơi thật; cho bot ra-đa 14 ô thì nó gom quặng nhanh gấp
-    //    đôi người và mọi phép đo về độ dài ván đều lệch.
+    // 2) HỐC KÍN hiện dấu trên bản đồ nhỏ -> đục thẳng tới. Bot dùng ĐÚNG luật
+    //    mà bản đồ nhỏ dùng để hiện dấu (trong 11 ô), nên nó biết đúng ngần ấy
+    //    thứ mà người chơi biết, không hơn. Không có bước này thì bot không bao
+    //    giờ có lý do đục vào lòng đá, và phép đo sẽ nói là "bỏ thẻ lên cấp làm
+    //    game sập" trong khi thật ra chỉ là con bot không biết đường đi.
     var tx = p.tileX(), ty = p.tileY(), best = null, bd = 1e9;
+    var cl = w.caches || [], ci;
+    for (ci = 0; ci < cl.length; ci++) {
+      var cc = cl[ci];
+      if (cc.taken) continue;
+      if (Math.abs(cc.tx - tx) > 11 || Math.abs(cc.ty - ty) > 11) continue;
+      var cd = (cc.tx - tx) * (cc.tx - tx) + (cc.ty - ty) * (cc.ty - ty);
+      if (cd < bd) { bd = cd; best = [cc.tx, cc.ty]; }
+    }
+    if (best) {
+      var cx2 = best[0] * T + 8 - p.x, cy2 = best[1] * T + 8 - p.y;
+      var cm = Math.hypot(cx2, cy2) || 1;
+      return { x: cx2 / cm, y: cy2 / cm };
+    }
+    bd = 1e9;
     for (var y = ty - 8; y <= ty + 8; y++) {
       for (var x = tx - 8; x <= tx + 8; x++) {
         if (!w.inside(x, y) || w.kind[w.idx(x, y)] !== G.TK.ORE) continue;
@@ -184,7 +188,8 @@
   return JSON.stringify({
     ketThuc: g.state,
     giay: +t.toFixed(1),
-    cap: g.player.level,
+    hocDaMo: g.world.caches.filter(function (c) { return c.taken; }).length +
+           '/' + g.world.caches.length,
     mauCuoi: Math.round(g.player.hp) + '/' + Math.round(g.run.st.hp),
     mauThapNhat: Math.round(hpLow),
     giet: g.run.kills,
@@ -193,7 +198,7 @@
     nhiemVu: g.mission.type.id + ' ' + g.mission.have + '/' + g.mission.need +
              (g.mission.done ? ' XONG' : ''),
     linhThu: g.pets.map(function (p) { return p.def.id + '.b' + p.tier; }),
-    theDaChon: picks,
+
     quaiToiDa: maxEnemies,
     hatToiDa: maxParts,
     linhThuLac: lost,

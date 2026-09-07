@@ -35,48 +35,10 @@
     this.swing = 0;             // 0..1 pha vung cuốc, để vẽ
     this.walkT = 0;
     this.moving = false;
-    this.xp = 0; this.level = 1;
-    this.xpNeed = 60;
     this.carry = {};            // quặng đã đào trong ván
     this.lightR = stats.light;
     this.lightPulse = 0;
     return this;
-  };
-
-  Player.prototype.gainXp = function (n) {
-    this.xp += n;
-    var ups = 0;
-    while (this.xp >= this.xpNeed) {
-      this.xp -= this.xpNeed;
-      this.level++;
-      // Đường cong TUYẾN TÍNH, không phải bậc hai. Đo trong một ván 10 phút:
-      // đào ~250 ô tường + ~60 vỉa quặng + ~150 con quái ra tổng cỡ 1200 điểm.
-      // Với 18 + 6·cấp thì cộng dồn tới cấp 16 là ~1000 — vừa khớp. Dùng bậc hai
-      // như bản đầu thì tới cấp 15 phải cần gần 3000 điểm, tức là cả ván chỉ lên
-      // được 6-7 cấp và người chơi không bao giờ dựng nổi đội hình.
-      /* Bậc thang dốc hơn nhiều. Thang cũ (18 + 6·cấp) sinh ra cấp 15 trong
-        * chưa đầy ba phút — cứ mười một giây lại một lần dừng hình chọn thẻ.
-        * Lên cấp là NHỊP của ván chứ không phải phần thưởng vặt: dồn dập quá
-        * thì mỗi lần lên cấp chẳng còn nghĩa gì, mà mạch chơi thì đứt liên tục.
-        * Thang mới cho khoảng mười hai bậc một ván — chừng ba mươi lăm giây
-        * một lần, đủ thưa để mỗi lần chọn thẻ là một quyết định thật.
-        *
-        * Nhưng không được dốc quá tay: thẻ lên cấp KHÔNG chỉ là nhịp, nó là
-        * toàn bộ đường sức mạnh của ván — mỗi thẻ là một linh thú mới hoặc một
-        * bậc linh thú. Lần chỉnh đầu dựng thang 34+26·cấp, rơi từ mười bảy thẻ
-        * xuống tám, và tỉ lệ thắng đo được tụt từ 4/6 còn 1/6: tới lúc gặp
-        * boss thì đàn linh thú mới có nửa quân số. Mức này cho mười một tới
-        * mười ba thẻ — thưa hơn hẳn bản đầu mà vẫn đủ quân.
-        *
-        * Số hạng bình phương lo riêng cái đuôi. Nhiệm vụ trục vớt và nhặt
-        * trứng không bị chặn bởi tốc đào nên kéo tới chín phút, và với thang
-        * thuần tuyến tính thì đo được cấp 28 — hai mươi bảy lần dừng hình
-        * trong một ván. Bậc thang cong lên khiến những cấp cuối đắt hẳn: đầu
-        * ván vẫn thưởng đều tay, còn cuối ván thì thôi ngắt mạch liên tục. */
-      this.xpNeed = Math.round(30 + this.level * 17 + this.level * this.level * 0.8);
-      ups++;
-    }
-    return ups;
   };
 
   Player.prototype.addOre = function (name, n) {
@@ -131,17 +93,38 @@
     var mag = Math.hypot(dir.x, dir.y);
     if (mag < 0.25) { this.mineTile = null; this.swing = 0; return; }
 
+    /* TẦM VỚI của cuốc.
+     *
+     * Bản trước dò đúng MỘT điểm cách tâm người `bán kính + 5` px — chưa tới
+     * một ô — nên phải dí sát mặt vào vách mới đục được, và chỉ cần nhích ra
+     * nửa ô là nhát cuốc rơi vào khoảng không. Trên màn cảm ứng, nơi cần gạt
+     * không cho đứng yên đúng một chỗ, điều đó có nghĩa là cứ đục vài nhát lại
+     * mất nhịp một cái mà không hiểu vì sao.
+     *
+     * Giờ quét dọc theo hướng đang nhắm, lấy ô ĐỤC ĐƯỢC đầu tiên trong tầm
+     * `mineR` (mặc định 30px, gần hai ô). Đứng lùi ra vẫn đục tới.
+     */
     var dx = dir.x / mag, dy = dir.y / mag;
-    var probe = this.r + 5;
-    var tx = ((this.x + dx * probe) / T) | 0;
-    var ty = ((this.y + dy * probe) / T) | 0;
-
-    if (!w.diggable(tx, ty)) {
-      // thử trục trội, tránh chuyện đứng chéo thì không đục được gì
-      tx = ((this.x + (Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) * probe : 0)) / T) | 0;
-      ty = ((this.y + (Math.abs(dy) >= Math.abs(dx) ? Math.sign(dy) * probe : 0)) / T) | 0;
-      if (!w.diggable(tx, ty)) { this.mineTile = null; this.swing = 0; return; }
+    var reach = this.st.mineR || 30;
+    var tx = -1, ty = -1;
+    for (var pr = this.r + 2; pr <= reach; pr += 4) {
+      var qx = ((this.x + dx * pr) / T) | 0;
+      var qy = ((this.y + dy * pr) / T) | 0;
+      if (w.diggable(qx, qy)) { tx = qx; ty = qy; break; }
     }
+    if (tx < 0) {
+      // Không trúng gì thì thử trục trội — đứng chéo trước một góc tường thì
+      // tia thẳng lọt qua khe, mà người chơi thì thấy rõ ràng là mình đang
+      // hướng vào đá.
+      var ax = Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) : 0;
+      var ay = ax === 0 ? Math.sign(dy) : 0;
+      for (var pr2 = this.r + 2; pr2 <= reach; pr2 += 4) {
+        var rx = ((this.x + ax * pr2) / T) | 0;
+        var ry = ((this.y + ay * pr2) / T) | 0;
+        if (w.diggable(rx, ry)) { tx = rx; ty = ry; break; }
+      }
+    }
+    if (tx < 0) { this.mineTile = null; this.swing = 0; return; }
 
     var id = w.idx(tx, ty);
     var isOre = w.kind[id] === G.TK.ORE;
@@ -161,7 +144,6 @@
     if (this.mineT >= rate) {
       this.mineT = 0;
       var res = w.dig(tx, ty, this.st.minePower);
-      this.pendingXp = (this.pendingXp || 0) + 0.12 * this.st.xpMul;   // mỗi nhát cuốc
       var cx = tx * T + 8, cy = ty * T + 8;
       fx.burst(cx - dx * 5, cy - dy * 5, 4,
         { col: oreDef ? oreDef.col : '#8a7360', spd: 55, life: 0.35, r: 1.6 });
@@ -175,16 +157,8 @@
   };
 
   Player.prototype.onBreak = function (res, oreDef, fx, cx, cy) {
-    // Đục vỡ một ô ĐÁ THƯỜNG cũng cho kinh nghiệm. Không cho thì cái động từ
-    // trung tâm của game — đào — lại không nuôi tiến bộ, và người chơi cấp 1
-    // đứng đào cả phút vẫn cấp 1 rồi chết vì chưa kịp gọi linh thú nào.
-    if (!res.ore) {
-      this.pendingXp = (this.pendingXp || 0) + 0.45 * this.st.xpMul;
-      return;
-    }
+    if (!res.ore) return;
     this.addOre(res.ore, 1);
-    var xp = oreDef.xp * this.st.xpMul;
-    this.pendingXp = (this.pendingXp || 0) + xp;
     // Báo cho nhiệm vụ. Không có dòng này thì chỉ tiêu Morkite chỉ nhích khi
     // LINH THÚ đào hộ — người chơi tự tay đào cả ván mà bảng vẫn 0/18. Lỗi này
     // ẩn được lâu vì bản chạy thử nào có con Gấu Nước trong đội thì vẫn xong.

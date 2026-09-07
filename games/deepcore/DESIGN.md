@@ -179,6 +179,81 @@ lấy khúc trên cho mũ, khúc giữa cho áo, khúc dưới cho quần. Trư�
 dùng chung một icon, nên hai bộ khác nhau nhìn y hệt nhau trong kho và chẳng ăn
 nhập gì với thứ hiện ra trên nhân vật.
 
+## 5b. Vẽ tường theo bộ ghép cạnh, và quặng phải nằm SÂU
+
+**Bộ 20 khung tường KHÔNG phải 20 biến thể.** Vùng cắt trong tileset gốc là một
+khối 5 cột × 4 hàng, và đo độ sáng từng mép của từng khung (cả chín quần thể)
+cho ra cùng một cấu trúc — đây là một bộ **nine-slice 3×3 có nhân đôi biến thể**:
+
+```
+cột 0     mép TÂY           hàng 0   mép BẮC (vành trên bắt sáng)
+cột 1..3  ruột, 3 biến thể  hàng 1   ngay dưới mép bắc
+cột 4     mép ĐÔNG          hàng 2   ruột sâu
+                            hàng 3   mép NAM (gờ dưới tối hẳn)
+```
+
+Số đo, quần thể `dirt`, trung bình 5 cột: hàng 0 `trên 82,2 / giữa 95,0 / dưới
+99,9`; hàng 3 `trên 88,4 / giữa 77,2 / dưới 63,1`. Quần thể `mold`: cột 0 mép
+trái `44,3` so với `98,4` của các cột giữa.
+
+Bản đầu bốc `hash × 20`, tức là rải ngẫu nhiên cả hai mươi khung: vành sáng mép
+bắc rơi vào giữa lòng đá, gờ tối mép nam nằm lửng lơ, rìa hang thì lại là ruột
+đá phẳng lì. Cách chữa lúc đó là kẻ thêm viền đen 2px quanh mọi ô — càng làm cái
+hang giống hình vẽ vector. Nay bỏ hẳn viền vẽ tay; chỉ giữ **bóng đổ mềm xuống
+sàn**, vì đó là thứ duy nhất chạy RA NGOÀI ô đá mà một sprite 16×16 không tự làm
+được. Mép nam ưu tiên cao nhất: trong góc nhìn từ trên xuống hơi chếch, mặt đứng
+người chơi thật sự nhìn thấy là mặt quay xuống dưới.
+
+*Đã tra Core Keeper làm gì [NGUỒN]:* bản thật dùng **bitmask 8 hướng với bảng
+tra 256 mục** (`dir_bits_available: 0xFF`, thứ tự bit `E,SE,S,SW,W,NW,N,NE`),
+nở ra từ một bộ nguồn vẽ tay 23 ô, và tách hẳn **`wallFront` — mặt đứng cao đúng
+16px chỉ autotile theo Đông/Tây**. Cộng đồng hay bảo Core Keeper dùng
+"dual-grid"; không phải, bài dual-grid của jess::codes không hề nhắc tới nó. Bản
+này dừng ở nine-slice 4 hướng vì vùng art đã bóc không có mấy ô góc lõm; hệ quả
+là góc lõm hiện ra hơi vuông. Ghi lại để lần sau bóc thêm thì nâng lên được.
+
+**Quặng: đo trước, rồi mới sửa.** Người chơi báo *"các loại quặng toàn lộ thiên,
+bên trong thì lại không có gì → không có mục đích đào vào sâu"*. Đo bản đồ đã
+sinh, tính độ sâu từng ô đá bằng BFS từ mọi ô sàn:
+
+| độ sâu | 1 | 2 | 3 | 4 | 5 | 6+ |
+|---|---|---|---|---|---|---|
+| ô đá có | 1.171 | 957 | 758 | 635 | 525 | 2.571 |
+| **ô quặng (bản cũ)** | **738** | 383 | 94 | 16 | 1 | **0** |
+| **ô quặng (bản mới)** | 135 | 187 | 139 | 78 | 29 | 7 |
+
+Đúng y như báo: toàn bộ ruột của mọi khối đá rỗng tuếch, men theo mép hang là
+nhặt sạch. Ba luật mới, mượn thẳng của Core Keeper:
+
+1. **Vỉa mọc từ ngoài vào.** Hạt giống nằm nông nên thấy được từ trong hang,
+   nhưng khi lớn thì vỉa luôn bốc ô SÂU NHẤT đang chờ — vỉa chạy vào lòng đá
+   thay vì loang dọc vách.
+2. **Càng quý càng chôn sâu.** Mỗi loại có ngưỡng độ sâu tối thiểu xếp theo giá
+   trị: Đường Đỏ ở ngay vách, Thiên Hà và Nhật Diệu chỉ có ở lòng khối đá.
+3. **Chỉ VẼ quặng ở ô có mặt lộ ra hang.** Tài liệu mod chính chủ của Core
+   Keeper cho biết trường quặng được sinh cho *mọi* vị trí kể cả trong đá đặc
+   (ba bit alpha của mỗi điểm ảnh bản đồ), còn wiki thì mô tả người chơi nhận ra
+   quặng nhờ "đốm lấp lánh trắng trên vách". Nhờ vậy lòng khối đá là một ẩn số
+   thật. Bản trước vẽ mọi ô quặng nên chỉ cần đèn sáng là nhìn xuyên qua đá thấy
+   hết vỉa.
+
+**Hốc kín** thì nằm nguyên trong đá, ô của nó là quặng quý nhất của quần thể và
+có một vầng quặng quý bán kính 2 bao quanh — mấy ô ngoài cùng chạm tới độ sâu
+1-2 nên **nhìn thấy được từ trong hang**. Đó là cái mồi. (Bản đầu khoét sẵn
+buồng 2-4 ô; bộ kiểm bắt ngay: *"0/11 còn kín"* — vòng sáng hiện xuyên qua đá,
+mất sạch cái không biết.) Bản đồ nhỏ nhấp nháy dấu hốc trong bán kính 11 ô, đủ
+gần để thành lời mời cụ thể, đủ xa để không thành danh sách việc phải làm.
+
+Core Keeper cũng chôn rương thẳng trong khối đá đúng như vậy — *Hidden Turf
+Chest* và *Hidden Clay Chest* (tối đa 3 mỗi loại), *Sand Ruins*, hai rương vàng
+trong khối đền sa mạc [NGUỒN: wiki Scenes].
+
+**Tầm với của cuốc.** Bản trước dò đúng MỘT điểm cách tâm người `bán kính + 5`
+px — chưa tới một ô — nên phải dí sát mặt vào vách. Trên màn cảm ứng, nơi cần
+gạt không cho đứng yên đúng một chỗ, điều đó nghĩa là cứ vài nhát lại hụt một
+cái mà không hiểu vì sao. Giờ quét dọc theo hướng nhắm và lấy ô đục được đầu
+tiên trong 30px (gần hai ô).
+
 ## 6. Đọc được trên màn hình dọc
 
 Bài học đắt nhất của DRG:Survivor: *"as the dorf gets stronger the screen gets
@@ -268,34 +343,32 @@ Không cái nào lộ ra khi chơi tay vài phút:
 
 ### Hai chỗ phải chỉnh đi chỉnh lại
 
-**Đường cong kinh nghiệm — chỉnh ba lần.** Bản đầu dùng hàm bậc hai, tới cấp 15
-cần gần 3.000 điểm: cả ván lên được 6–7 cấp và không bao giờ dựng nổi đội hình.
-Đổi sang tuyến tính `18 + 6·cấp` thì ngược lại — sau khi tốc đào tăng gấp ba,
-đo được **cấp 15 trong chưa đầy ba phút**, cứ mười một giây một lần dừng hình
-chọn thẻ. Lần chỉnh thứ hai dựng thang `34 + 26·cấp` và hỏng theo một kiểu khác:
-thẻ lên cấp **không chỉ là nhịp, nó là toàn bộ đường sức mạnh của ván** — mỗi
-thẻ là một linh thú mới hoặc một bậc linh thú. Rơi từ mười bảy thẻ xuống tám thì
-tới lúc gặp boss đàn linh thú mới có nửa quân số, và tỉ lệ thắng đo được tụt từ
-4/6 còn 1/6.
+**Bỏ hẳn màn "LÊN CẤP — chọn 1 trong 3".** Đường cong kinh nghiệm đã chỉnh ba
+lần (bậc hai → `18+6·cấp` → `34+26·cấp` → `30+17·cấp+0,8·cấp²`) và lần nào cũng
+chỉ dời được cái tật đi chỗ khác. Tật thật nằm ở chính hình thức của nó:
 
-Mức chốt là `30 + 17·cấp + 0,8·cấp²`. Phần tuyến tính giữ mười một tới mười ba
-thẻ cho một ván đào; số hạng bình phương lo riêng cái đuôi — nhiệm vụ trục vớt
-và nhặt trứng không bị chặn bởi tốc đào nên kéo tới chín phút, và với thang
-thuần tuyến tính thì đo được cấp 28, tức hai mươi bảy lần ngắt mạch trong một
-ván.
+- nó **dừng hình** — đo được có ván ngắt hai mươi bảy lần trong chín phút;
+- nó **tách phần thưởng khỏi việc chơi**: một con số vô hình tự dâng lên rồi hộp
+  thoại tự bật ra, đứng ở đâu trên bản đồ cũng vậy;
+- và vì mọi sức mạnh đều tới từ thanh điểm ấy, **việc đục vào lòng khối đá thành
+  vô nghĩa** — không có gì trong đó đáng để đi tìm.
 
-**Tốc đào.** Máu ô tường hạ từ `26 × cứng × (1 + 0,02·ải)` xuống thẳng `14 ×
-cứng`, bỏ hẳn phần nhân theo ải: đục lâu không phải là *khó*, chỉ là *chậm*, và
-khi cái động từ trung tâm của game chậm thì cả ván ì theo. Ải sau khó hơn bằng
-**quái**, không bằng đá cứng. Một ô đất thường giờ mất ~0,6 giây thay vì 1,5;
-một vỉa Morkite ~0,8 thay vì 2,9.
+Nên bỏ hẳn. Không còn `xp`, không còn `level`, không còn `Screens.levelUp`.
+Đường sức mạnh trong ván chia làm hai, và cả hai đều gắn vào **việc đào**:
 
-Hệ quả phải trả kèm: chỉ tiêu đào tăng theo (24+3·ải → 62+5·ải), và điểm kinh
-nghiệm mỗi nhát cuốc giảm (0,35 → 0,12; vỡ một ô tường trơn 1,2 → 0,45). Có một
-lần thử tăng mật độ quặng lên 230 để đỡ chỉ tiêu mới và nó phản tác dụng: thứ
-quyết định độ dài một ván là thời gian **đi tìm**, không phải thời gian **đục** —
-rải thêm quặng thì quãng đường giữa hai vỉa ngắn lại, đo được 84 Morkite xong ở
-giây 198, gần y hệt 56 Morkite trước đó.
+| | | |
+|---|---|---|
+| **Mốc quặng** | cứ 16 ô quặng | bầy lớn thêm một con, hết quân thì nâng bậc con yếu nhất |
+| **Hốc kín** | 13-15 cái/bản đồ, chôn sâu | tổ linh thú / đài cổ (+2 bậc) / bùa đá / rương của |
+
+Không dừng hình, không có gì phải chọn — chạm vào là nhận, kèm một dải băng báo.
+
+**Đây là chỗ suýt hỏng cả game, và chỉ phép đo bắt được.** Gỡ màn chọn thẻ xong,
+tỉ lệ thắng đo được rơi từ **5/8 xuống 1/8**, có ván chết ở giây thứ 49. Hoá ra
+mười mấy tấm thẻ mỗi ván không chỉ là nhịp — nó LÀ toàn bộ việc bầy linh thú lớn
+lên, và mười ba cái hốc kín không gánh nổi (một ván trung bình chỉ đục trúng vài
+cái). Phải thêm mốc-quặng, và phải cho **cả đội hình đã sở hữu ra trận ngay từ
+đầu** thay vì hai con, thì mới về lại 8/10.
 
 **Chỉ tiêu nhiệm vụ + mật độ quặng** — hai cái bẫy ở hai đầu:
 

@@ -64,10 +64,6 @@ async function open(browser) {
 async function fastForward(page, sec, opts) {
   return page.evaluate(([sec, opts]) => {
     const G = window.DC, g = G.game;
-    if (opts.autoCard) {
-      G.Screens.levelUp = (cards, cb) => cb(
-        cards.find(c => c.kind === 'summon') || cards.find(c => c.kind === 'tier') || cards[0]);
-    }
     if (opts.god) { g.hurtPlayer = () => 0; g.player.hurt = () => 0; }
     if (opts.bot) {
       let wa = 0, wt = 0;
@@ -89,6 +85,21 @@ async function fastForward(page, sec, opts) {
         }
         const tx = p.tileX(), ty = p.tileY();
         let best = null, bd = 1e9;
+        // Hốc kín có dấu trên bản đồ nhỏ trong 11 ô -> đục thẳng tới. Bot dùng
+        // ĐÚNG luật mà bản đồ nhỏ dùng, nên nó biết đúng ngần ấy thứ mà người
+        // chơi biết. Thiếu bước này thì bot không có lý do đục vào lòng đá.
+        for (const cc of (w.caches || [])) {
+          if (cc.taken) continue;
+          if (Math.abs(cc.tx - tx) > 11 || Math.abs(cc.ty - ty) > 11) continue;
+          const cd = (cc.tx - tx) ** 2 + (cc.ty - ty) ** 2;
+          if (cd < bd) { bd = cd; best = [cc.tx, cc.ty]; }
+        }
+        if (best) {
+          const cx = best[0] * 16 + 8 - p.x, cy = best[1] * 16 + 8 - p.y;
+          const cm = Math.hypot(cx, cy) || 1;
+          return { x: cx / cm, y: cy / cm };
+        }
+        bd = 1e9;
         for (let y = ty - 8; y <= ty + 8; y++) for (let x = tx - 8; x <= tx + 8; x++) {
           if (!w.inside(x, y) || w.kind[w.idx(x, y)] !== G.TK.ORE) continue;
           const dd = (x - tx) ** 2 + (y - ty) ** 2;
@@ -106,7 +117,6 @@ async function fastForward(page, sec, opts) {
     }
     let maxParts = 0, maxEnemies = 0;
     for (let i = 0; i < sec * 60 && g.state !== 'over'; i++) {
-      if (g.state === 'levelup') g.state = 'play';
       g.update(1 / 60);
       if (g.fx.parts.length > maxParts) maxParts = g.fx.parts.length;
       if (g.enemies.length > maxEnemies) maxEnemies = g.enemies.length;
@@ -308,27 +318,34 @@ async function suiteRunStart(browser) {
 
 // ---------------------------------------------------------------------------
 async function suiteMining(browser) {
-  out.push('\n[6] Đào — nguồn kinh nghiệm chính, và là thứ chấm nhiệm vụ');
+  out.push('\n[6] Đào — tầm với, và là thứ chấm nhiệm vụ');
   const { ctx, page } = await open(browser);
   try {
     await page.click('#ui .btn.primary');
     await page.waitForFunction(() => DC.game.state === 'play', null, { timeout: 8000 });
 
-    // LỖI ĐÃ TỪNG CÓ: đục vỡ đá THƯỜNG không cho kinh nghiệm, nên người chơi
-    // cấp 1 đứng đào cả phút vẫn cấp 1 rồi chết vì chưa gọi nổi linh thú nào.
-    const plain = await page.evaluate(() => {
-      const g = DC.game, w = g.world;
-      // dựng cảnh: khoét sạch quanh người chơi rồi dựng lại một ô đá thường sát bên
-      const tx = g.player.tileX() + 1, ty = g.player.tileY();
+    // NGƯỜI CHƠI BÁO: "chỉ cần lại gần là bắt đầu đập tường được rồi, đừng bắt
+    // dí sát". Bản cũ dò đúng một điểm cách tâm người `bán kính + 5` px — chưa
+    // tới một ô — nên nhích ra nửa ô là nhát cuốc rơi vào khoảng không.
+    // Bài này khoá tầm với: đứng cách vách HAI ô vẫn phải đục được.
+    const reach = await page.evaluate(() => {
+      const g = DC.game, w = g.world, T = DC.TILE;
+      const ty = g.player.tileY();
+      const tx = g.player.tileX() + 2;
+      // dọn trống ô ở giữa để chắc chắn không phải nhờ ô kề bên
+      w.kind[w.idx(tx - 1, ty)] = DC.TK.FLOOR;
       w.kind[w.idx(tx, ty)] = DC.TK.WALL;
       w.ore[w.idx(tx, ty)] = 0;
       w.hp[w.idx(tx, ty)] = w.hpMax[w.idx(tx, ty)] = 1;
-      const xp0 = g.player.xp + (g.player.level - 1) * 1000;
+      w.dirtyAround(tx, ty);
+      g.player.x = (tx - 2) * T + 8;
+      g.player.y = ty * T + 8;
       g.readDir = () => ({ x: 1, y: 0 });
       for (let i = 0; i < 90; i++) g.update(1 / 60);
-      return { gained: (g.player.xp + (g.player.level - 1) * 1000) - xp0 };
+      return { vo: w.kind[w.idx(tx, ty)] === DC.TK.FLOOR,
+               tam: Math.round(g.run.st.mineR || 30) };
     });
-    check('đục vỡ đá thường CÓ cho kinh nghiệm', plain.gained > 0, '+' + plain.gained.toFixed(1));
+    check('đứng cách hai ô vẫn đục được vách', reach.vo, 'tầm ' + reach.tam + 'px');
 
     // LỖI ĐÃ TỪNG CÓ: quặng do CHÍNH người chơi đào không được báo cho nhiệm vụ,
     // chỉ quặng do linh thú đào hộ mới tính — bảng đứng 0/27 suốt ván.
@@ -435,34 +452,128 @@ async function suitePets(browser) {
 }
 
 // ---------------------------------------------------------------------------
-async function suiteLevelUp(browser) {
-  out.push('\n[8] Lên cấp — chọn 1 trong 3, BẤM THẬT');
+async function suiteCaches(browser) {
+  out.push('\n[8] Hốc kín — thứ THAY CHO màn chọn 1 trong 3');
   const { ctx, page } = await open(browser);
   try {
     await page.click('#ui .btn.primary');
     await page.waitForFunction(() => DC.game.state === 'play', null, { timeout: 8000 });
-    await page.evaluate(() => { DC.game.giveXp(100000); });
-    await page.waitForSelector('#ui .card', { timeout: 5000 });
 
-    const cards = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('#ui .card')).map(e => e.textContent.trim()));
-    check('hiện đúng ba thẻ', cards.length === 3, cards.length + ' thẻ');
-    check('thẻ có in luật ngắm hoặc hiệu lực',
-      cards.every(t => t.length > 12), cards.map(t => t.slice(0, 18)).join(' | '));
-
-    const before = await page.evaluate(() => DC.game.pets.length);
-    await (await page.$$('#ui .card'))[0].click();
-    await page.waitForFunction(() => DC.game.state === 'play', null, { timeout: 5000 });
-    const after = await page.evaluate(() => ({
-      pets: DC.game.pets.length,
-      tiers: DC.game.pets.map(p => p.tier).join(','),
-      vis: DC.game.pets.filter(p => p.visible).length
+    // Màn "LÊN CẤP — chọn 1 trong 3" phải BIẾN MẤT hoàn toàn, không chỉ là ít
+    // hiện đi. Người chơi yêu cầu bỏ hẳn, nên bài này khoá chuyện đó lại.
+    const gone = await page.evaluate(() => ({
+      screen: typeof DC.Screens.levelUp,
+      queue: typeof DC.game.queueLevelUp,
+      xp: DC.game.player.xp,
+      level: DC.game.player.level
     }));
-    check('bấm thẻ thì ván chạy tiếp', true);
-    check('bấm thẻ có tác dụng thật', after.pets > before || after.tiers !== '1,1',
-      before + ' → ' + after.pets + ' con, bậc ' + after.tiers);
+    check('không còn màn chọn thẻ', gone.screen === 'undefined' && gone.queue === 'undefined',
+      'Screens.levelUp=' + gone.screen + ' queueLevelUp=' + gone.queue);
+    check('không còn cấp độ trong ván',
+      gone.xp === undefined && gone.level === undefined,
+      'xp=' + gone.xp + ' level=' + gone.level);
+
+    // Hốc phải nằm KÍN trong đá lúc mới vào: nếu sinh ra đã hở thì mất sạch lý
+    // do đục vào lòng khối đá.
+    const seal = await page.evaluate(() => {
+      const w = DC.game.world;
+      let kin = 0;
+      for (const c of w.caches) if (w.solid(c.tx, c.ty)) kin++;
+      return { tong: w.caches.length, kin };
+    });
+    check('bản đồ có ít nhất 10 hốc kín', seal.tong >= 10, seal.tong + ' hốc');
+    check('mọi hốc đều kín trong đá lúc mới vào', seal.kin === seal.tong,
+      seal.kin + '/' + seal.tong + ' còn kín');
+
+    // Đục tới nơi thì nhận thưởng — và phần thưởng phải CÓ TÁC DỤNG THẬT.
+    const took = await page.evaluate(() => {
+      const g = DC.game, w = g.world, T = DC.TILE;
+      const c = w.caches.find(q => q.kind === 'to') || w.caches[0];
+      const before = { pets: g.pets.length, tiers: g.pets.map(p => p.tier).join(',') };
+      w.kind[w.idx(c.tx, c.ty)] = DC.TK.FLOOR;
+      w.dirtyAround(c.tx, c.ty);
+      g.player.x = c.x; g.player.y = c.y;
+      g.readDir = () => ({ x: 0, y: 0 });
+      for (let i = 0; i < 30; i++) g.update(1 / 60);
+      return { before, taken: c.taken, kind: c.kind,
+               pets: g.pets.length, tiers: g.pets.map(p => p.tier).join(','),
+               state: g.state, vis: g.pets.filter(p => p.visible).length };
+    });
+    check('chạm hốc đã lộ thì nhận được', took.taken, 'loại ' + took.kind);
+    check('nhận hốc KHÔNG dừng hình', took.state === 'play', took.state);
+    check('hốc có tác dụng thật',
+      took.pets > took.before.pets || took.tiers !== took.before.tiers,
+      took.before.pets + ' → ' + took.pets + ' con, bậc ' + took.tiers);
     check('không bao giờ hiện hình quá ' + PET_VISIBLE_MAX + ' con',
-      after.vis <= PET_VISIBLE_MAX, after.vis + ' con hiện hình');
+      took.vis <= PET_VISIBLE_MAX, took.vis + ' con hiện hình');
+  } finally { await ctx.close(); }
+}
+
+// ---------------------------------------------------------------------------
+async function suiteOreDepth(browser) {
+  out.push('\n[8b] Quặng phải nằm SÂU trong đá, không lộ thiên');
+  const { ctx, page } = await open(browser);
+  try {
+    await page.waitForFunction(() => !!DC.World, null, { timeout: 8000 });
+    // NGƯỜI CHƠI BÁO: "các loại quặng toàn lộ thiên, bên trong thì lại không có
+    // gì -> không có mục đích đào vào sâu". Đo bản cũ: 738 ô quặng ở độ sâu 1,
+    // 16 ô ở độ sâu 4, và KHÔNG CÓ GÌ sâu hơn. Bài này khoá phân bố mới lại.
+    const d = await page.evaluate(() => {
+      const hist = [0, 0, 0, 0, 0, 0, 0];
+      let sum = 0, n = 0, sau = 0;
+      for (let s = 0; s < 3; s++) {
+        const w = new DC.World();
+        w.rooms = [];
+        w.init(94, 126, 'dirt', 4000 + s);
+        w.generate(1);
+        for (let i = 0; i < w.kind.length; i++) {
+          if (w.kind[i] !== DC.TK.ORE) continue;
+          const dp = w.depth[i];
+          hist[Math.min(6, Math.max(1, dp))]++;
+          sum += dp; n++;
+          if (dp >= 3) sau++;
+        }
+      }
+      return { hist: hist.slice(1), tb: sum / n, tyLeSau: sau / n, n };
+    });
+    check('quặng có mặt ở mọi tầng sâu 1..6', d.hist.every(v => v > 0), d.hist.join('/'));
+    check('độ sâu trung bình của quặng >= 2', d.tb >= 2, d.tb.toFixed(2));
+    check('ít nhất 30% quặng nằm sâu từ 3 ô trở lên',
+      d.tyLeSau >= 0.30, (d.tyLeSau * 100).toFixed(0) + '%');
+  } finally { await ctx.close(); }
+}
+
+// ---------------------------------------------------------------------------
+async function suiteTileArt(browser) {
+  out.push('\n[8c] Ô tường dùng đúng bộ ghép cạnh, không bốc ngẫu nhiên');
+  const { ctx, page } = await open(browser);
+  try {
+    await page.waitForFunction(() => !!DC.World, null, { timeout: 8000 });
+    // Bộ 20 khung là nine-slice 3x3: cột 0 mép tây, cột 4 mép đông, hàng 0 mép
+    // bắc, hàng 3 mép nam. Bản cũ bốc hash*20 nên vành sáng mép trên rơi vào
+    // giữa lòng đá còn rìa hang lại là ruột phẳng.
+    const f = await page.evaluate(() => {
+      const w = new DC.World();
+      w.rooms = [];
+      w.init(60, 60, 'dirt', 7);
+      // dựng tay một khối đá 5x5 giữa sàn để biết chắc từng ô phải ra khung nào
+      for (let i = 0; i < w.kind.length; i++) w.kind[i] = DC.TK.FLOOR;
+      for (let y = 20; y < 25; y++) for (let x = 20; x < 25; x++) {
+        w.kind[w.idx(x, y)] = DC.TK.WALL;
+      }
+      const F = (x, y) => w.wallFrame(x, y, 0.5);
+      return {
+        tayBac: F(20, 20), bac: F(22, 20), dongBac: F(24, 20),
+        tay: F(20, 22), ruot: F(22, 22), dong: F(24, 22),
+        nam: F(22, 24), tayNam: F(20, 24)
+      };
+    });
+    check('mép bắc lấy hàng 0', f.bac >= 0 && f.bac <= 4, 'khung ' + f.bac);
+    check('mép nam lấy hàng 3', f.nam >= 15 && f.nam <= 19, 'khung ' + f.nam);
+    check('mép tây lấy cột 0', f.tay % 5 === 0, 'khung ' + f.tay);
+    check('mép đông lấy cột 4', f.dong % 5 === 4, 'khung ' + f.dong);
+    check('góc tây-bắc lấy đúng cả hai mép', f.tayBac === 0, 'khung ' + f.tayBac);
+    check('ruột sâu lấy hàng giữa', f.ruot >= 5 && f.ruot <= 14, 'khung ' + f.ruot);
   } finally { await ctx.close(); }
 }
 
@@ -498,7 +609,7 @@ async function suiteDirector(browser) {
       '+' + warn.rightAfterWarn + ' con');
     check('vài giây sau thì bầy mới đổ ra', warn.afterWait > 4, '+' + warn.afterWait + ' con');
 
-    const cap = await fastForward(page, 240, { god: true, bot: true, autoCard: true });
+    const cap = await fastForward(page, 240, { god: true, bot: true, bot: true });
     check('trần hạt không bao giờ vượt ' + PARTICLE_CAP, cap.maxParts <= PARTICLE_CAP,
       'đỉnh ' + cap.maxParts + ' hạt');
     check('số quái cùng lúc còn đọc được (≤ 45)', cap.maxEnemies <= 45,
@@ -673,23 +784,24 @@ async function suiteSafety(browser) {
     check('hang liên thông ≥ 92% ô sàn', d.ratio >= 0.92,
       d.reach + '/' + d.floors + ' ô (' + (d.ratio * 100).toFixed(0) + '%)');
 
-    const long = await fastForward(page, 300, { god: true, bot: true, autoCard: true });
+    const long = await fastForward(page, 300, { god: true, bot: true, bot: true });
     const num = await page.evaluate(() => {
       const g = DC.game;
       const bad = [];
       if (!isFinite(g.player.x) || !isFinite(g.player.y)) bad.push('vị trí người chơi');
       if (!isFinite(g.player.hp) || g.player.hp > g.run.st.hp + 0.01) bad.push('máu');
-      if (!isFinite(g.player.xp) || g.player.xp < 0) bad.push('kinh nghiệm');
       for (const q of g.pets) {
         if (!isFinite(q.x) || !isFinite(q.hp)) bad.push('linh thú ' + q.def.id);
       }
       for (const e of g.enemies) if (!isFinite(e.x) || !isFinite(e.hp)) bad.push('quái ' + e.key);
-      return { bad, projs: g.projs.length, fx: g.fx.parts.length, level: g.player.level };
+      let hoc = 0;
+      for (const c of g.world.caches) if (c.taken) hoc++;
+      return { bad, projs: g.projs.length, fx: g.fx.parts.length, hoc };
     });
     check('chạy 5 phút không ném lỗi', long.state !== 'crash');
     check('không chỉ số nào thành NaN', num.bad.length === 0, num.bad.slice(0, 3).join(', '));
     check('đạn không rò rỉ (< 200 viên)', num.projs < 200, num.projs + ' viên');
-    check('5 phút lên được ít nhất cấp 8', num.level >= 8, 'cấp ' + num.level);
+    check('5 phút mở được ít nhất 2 hốc kín', num.hoc >= 2, num.hoc + ' hốc');
   } finally { await ctx.close(); }
 }
 
@@ -699,7 +811,7 @@ async function suiteSafety(browser) {
     args: ['--allow-file-access-from-files', '--autoplay-policy=no-user-gesture-required']
   });
   const suites = [suiteBoot, suiteArt, suiteMenu, suiteGacha, suiteRunStart,
-                  suiteMining, suitePets, suiteLevelUp, suiteDirector,
+                  suiteMining, suitePets, suiteCaches, suiteOreDepth, suiteTileArt, suiteDirector,
                   suiteEndgame, suiteMobile, suiteSave, suiteSafety];
   for (const s of suites) {
     try { await s(browser); }

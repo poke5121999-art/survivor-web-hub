@@ -38,7 +38,10 @@
       // vì 2,9 giây, chỉ tiêu 27 xong ở giây 140 và cả cái vòng cung boss –
       // chạy thoát ập xuống trước khi người chơi kịp ngồi vào ván. Ải một giờ
       // là 56, để pha làm việc dài ra lại đúng bảy phút như trước.
-      amount: function (lv) { return 62 + lv * 5; },
+      // Hạ lại sau khi quặng chuyển vào sâu trong đá: đo được ải 1 đục hết
+      // chín phút vẫn mới 62/67. Gom quặng giờ tốn cả công ĐI TÌM lẫn công ĐỤC
+      // VÀO, nên chỉ tiêu phải trả lại phần chênh đó.
+      amount: function (lv) { return 40 + lv * 5; },
       hint: 'Morkite là vỉa màu xanh ngọc. Bản đồ nhỏ có chấm xanh.'
     },
     eggs: {

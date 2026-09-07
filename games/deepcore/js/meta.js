@@ -124,6 +124,10 @@
       // "tay không": đào được và nhìn được, chỉ là kém hơn mọi cây cuốc/đèn
       // quay ra được. Cuốc Gỗ là 14/2,6 và Đuốc là 88.
       minePower: 11, mineRate: 2.2, pickTier: 0, pickIcon: 643,
+      // Tầm với của cuốc, tính bằng px (một ô = 16). Lại gần là đục được, không
+      // phải dí sát mặt vào vách — trên màn cảm ứng thì cần gạt không cho đứng
+      // yên đúng một chỗ, nên tầm với ngắn nghĩa là cứ vài nhát lại hụt một cái.
+      mineR: 30,
       light: 76,
       petDmg: 1, petHp: 1, petRate: 1,
       nearR: 120, rallyCd: 6, pickR: 34,
@@ -306,6 +310,7 @@
       S.stats.dug += res.carry[k];
     }
     gold += res.kills * 2;
+    gold += res.bonusGold || 0;   // rương trong hốc kín
     if (res.won) gold = Math.round(gold * 1.5);
     gold = Math.round(gold * buildStats().goldMul);
     S.gold += gold;

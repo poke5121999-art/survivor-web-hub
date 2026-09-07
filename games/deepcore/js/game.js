@@ -196,7 +196,10 @@
     var f = this.world.nearestFloor(start.x, start.y);
     this.player = new G.Player().init(f.x * T + 8, f.y * T + 8, st, save.look);
     var self = this;
-    this.player.onOreBroken = function (ore) { self.mission.onOre(ore); };
+    this.player.onOreBroken = function (ore) {
+      self.mission.onOre(ore);
+      self.onOreMined();
+    };
     this.exit = { x: this.player.x, y: this.player.y };   // khoang hạ đúng chỗ vào
 
     this.level = level;
@@ -236,12 +239,20 @@
     };
     if (!this.run.petPool.length) this.run.petPool = ['rua', 'cho'];
 
-    // HAI con đầu ra trận ngay, phần còn lại phải "gọi" bằng thẻ lên cấp.
-    // Vì sao hai chứ không phải một: đo trong máy, vào ván với đúng một con thì
-    // sát thương quá thấp để dọn kịp lứa quái đầu, người chơi chết trước khi
-    // lên nổi cấp 2 — tức là vòng tiến bộ không bao giờ khởi động. Hai con là
-    // ngưỡng thấp nhất mà ván tự đứng được.
-    this.run.petPool.slice(0, 2).forEach(function (id) {
+    /* CẢ ĐỘI HÌNH ĐÃ SỞ HỮU ra trận ngay từ đầu.
+    *
+    * Bản trước chỉ thả hai con, phần còn lại phải "gọi" bằng thẻ lên cấp. Bỏ
+    * thẻ lên cấp mà giữ nguyên chỗ này thì cả ván đánh bằng đúng hai con: đo
+    * được tỉ lệ thắng rơi từ 5/8 xuống 1/6, và mấy ải sau chết ở giây thứ 49.
+    *
+    * Giờ gacha ngoài ván quyết định quân số vào trận — đúng như bản thiết kế
+    * gốc muốn ("nâng ngoài ván cho mạnh để vào ải dễ hơn") — còn các hốc kín
+    * chôn dưới đá lo phần mạnh thêm GIỮA ván. */
+    var own = save.team.filter(function (id) {
+      return save.pets[id] && save.pets[id].own;
+    });
+    if (own.length < 2) own = this.run.petPool.slice(0, 2);
+    own.forEach(function (id) {
       this.addPet(id, save.pets[id] ? save.pets[id].tier : 1);
     }, this);
 
@@ -309,10 +320,9 @@
   Game.prototype.onKill = function (e) {
     this.run.kills++;
     if (e.onDeath) e.onDeath(this.ctx());
-    // Quái KHÔNG rơi viên kinh nghiệm để nhặt. Kinh nghiệm cộng thẳng, và phần
-    // lớn kinh nghiệm đến từ ĐÀO chứ không từ giết — nhờ thế cây cuốc không bao
-    // giờ là việc phụ, và người chơi không phải hút sạch sàn sau mỗi đợt.
-    if (!e.noXp) this.giveXp((e.xp || 3) * this.run.st.xpMul);
+    // Quái không rơi gì để nhặt và cũng không còn cho kinh nghiệm: trong ván
+    // KHÔNG CÒN cấp độ nào cả. Toàn bộ sức mạnh kiếm thêm giữa ván nằm trong
+    // các HỐC KÍN chôn dưới đá — xem takeCache().
     if (e.isBoss) {
       this.fx.screenFlash('#fff', 0.7);
       this.fx.hit(3);
@@ -320,11 +330,6 @@
       this.banner('HẠ ĐƯỢC CHỦ HANG', '#ffd24a', 3);
     }
     if (e.isMini) this.banner('HẠ MINI-BOSS', '#7dff9a', 2);
-  };
-
-  Game.prototype.giveXp = function (n) {
-    var ups = this.player.gainXp(n);
-    if (ups > 0) this.queueLevelUp(ups);
   };
 
   Game.prototype.hurtPlayer = function (dmg, sx, sy, kb) {
@@ -403,6 +408,7 @@
       carry: this.player.carry,
       kills: this.run.kills,
       level: this.level,
+      bonusGold: this.run.bonusGold || 0,     // vàng nhặt trong các hốc RƯƠNG
       biome: this.biomeId,
       // Chỉ những con THẬT SỰ RA TRẬN mới được mảnh, không phải cả bể. Bể trong
       // ván gồm cả mười con (để hệ thẻ có gì mà mời), nên lấy nhầm bể là phát
@@ -430,81 +436,223 @@
     if (!res.ore) return;
     var o = G.ORE[res.ore];
     this.player.addOre(res.ore, 1);
-    this.giveXp(o.xp * this.run.st.xpMul);
     this.mission.onOre(res.ore);
+    this.onOreMined();
     this.fx.text(res.x * T + 8, res.y * T, '+' + o.name, o.col);
   };
 
-  // ---------------------------------------------------------------- lên cấp
+  /*
+   * BẦY MẠNH LÊN THEO SỐ QUẶNG ĐÀO ĐƯỢC.
+   *
+   * Bỏ màn "chọn 1 trong 3" là đúng, nhưng bỏ luôn cả đường sức mạnh thì không:
+   * đo bằng máy ngay sau khi gỡ, tỉ lệ thắng rơi từ 5/8 xuống 1/8 và có ván
+   * chết ở giây thứ 49. Hoá ra mười mấy tấm thẻ mỗi ván không chỉ là nhịp — nó
+   * LÀ toàn bộ việc bầy linh thú lớn lên. Mười một cái hốc kín không gánh nổi
+   * chỗ đó, vì trung bình một ván chỉ đục trúng vài cái.
+   *
+   * Nên đường sức mạnh quay lại, nhưng gắn vào ĐÀO thay vì vào một thanh điểm
+   * vô hình: cứ mỗi 16 ô quặng thì bầy mạnh lên một nấc. Khác biệt so với cái
+   * đã bỏ nằm ở hai chỗ, và cả hai đều là chỗ người chơi kêu:
+   *   - KHÔNG DỪNG HÌNH, không có ba tấm thẻ phải đọc rồi chọn;
+   *   - phần thưởng đến từ việc đục đá, tức là từ chỗ mình đang đứng và việc
+   *     mình đang làm, chứ không từ một con số tự dâng lên.
+   *
+   * Ưu tiên gọi thêm quân khi bầy còn mỏng, rồi mới nâng bậc — vì một con mới
+   * đổi cục diện nhiều hơn hẳn một bậc cho con đã có.
+   */
+  var ORE_PER_BOOST = 16;
 
-  Game.prototype.queueLevelUp = function (n) {
-    this.pendingLevels = (this.pendingLevels || 0) + n;
-    if (this.state === 'play') this.openLevelUp();
+  Game.prototype.onOreMined = function () {
+    this.run.oreMined = (this.run.oreMined || 0) + 1;
+    if (this.run.oreMined % ORE_PER_BOOST) return;
+    this.packBoost();
   };
 
-  Game.prototype.openLevelUp = function () {
-    if (!this.pendingLevels) return;
-    this.pendingLevels--;
-    this.state = 'levelup';
-    var cards = G.rollPerks(this.run, this.rng);
-    this.lastCards = cards;
-    var self = this;
-    G.Screens.levelUp(cards, function (card) {
-      self.applyCard(card);
-      self.state = 'play';
-      if (self.pendingLevels > 0) setTimeout(function () { self.openLevelUp(); }, 120);
-    });
-  };
-
-  Game.prototype.applyCard = function (card) {
+  Game.prototype.packBoost = function () {
     var save = G.Meta.s;
-    if (card.kind === 'summon') {
-      var tier = (save.pets[card.id] && save.pets[card.id].own)
-        ? save.pets[card.id].tier : 1;
-      var p = this.addPet(card.id, tier);
-      if (p) {
-        this.fx.ring(p.x, p.y, 4, 40, '#ffd98a', 0.5);
-        this.banner('TRIỆU: ' + card.name, '#ffd98a', 2);
-      }
-    } else if (card.kind === 'tier') {
-      for (var i = 0; i < this.pets.length; i++) {
-        if (this.pets[i].def.id === card.id) {
-          var q = this.pets[i];
-          q.tier = Math.min(5, q.tier + 1);
-          q.st = G.petStats(q.def, q.tier);
-          var ratio = q.hp / q.hpMax;
-          q.hpMax = q.def.hp * G.PET_TIER[q.tier - 1].hp * this.run.st.petHp;
-          q.hp = q.hpMax * Math.min(1, ratio + 0.25);
-          this.fx.ring(q.x, q.y, 3, 26, '#7dff9a', 0.4);
+    if (this.pets.length < 6) {
+      var have = {};
+      for (var i = 0; i < this.pets.length; i++) have[this.pets[i].def.id] = 1;
+      var pool = this.run.petPool.filter(function (id) { return !have[id]; });
+      if (pool.length) {
+        var id = pool[0];
+        var d = G.PET[id];
+        var tier = (save.pets[id] && save.pets[id].own) ? save.pets[id].tier : 1;
+        var p = this.addPet(id, tier);
+        if (p) {
+          this.fx.ring(p.x, p.y, 4, 40, '#ffd98a', 0.5);
+          this.banner('BẦY LỚN THÊM — ' + (d ? d.name : id), '#ffd98a', 2);
         }
+        return;
       }
-      for (var j = 0; j < this.run.pets.length; j++) {
-        if (this.run.pets[j].id === card.id) {
-          this.run.pets[j].tier = Math.min(5, this.run.pets[j].tier + 1);
-        }
-      }
-    } else if (card.kind === 'self') {
-      var d = G.PERK_SELF_BY[card.id];
-      if (d) { d.apply(this.run.st, this.player); this.run.taken[card.id] = true; }
-      if (card.id === 'hp' || card.id === 'heal') {
-        this.player.hp = Math.min(this.run.st.hp, this.player.hp);
-      }
-    } else if (card.kind === 'sacrifice') {
-      for (var k = this.pets.length - 1; k >= 0; k--) {
-        if (this.pets[k].def.id === card.id) {
-          this.fx.burst(this.pets[k].x, this.pets[k].y, 18,
-            { col: '#ff5a5a', spd: 150, life: 0.6, r: 2.5, prio: 2 });
-          this.pets.splice(k, 1);
-        }
-      }
-      this.run.pets = this.run.pets.filter(function (p) { return p.id !== card.id; });
-      this.run.sacBonus = (this.run.sacBonus || 1) * 1.35;
-      this.banner('HY SINH — CẢ BẦY MẠNH LÊN', '#ff8a5a', 2.4);
     }
-    // sắp lại ô hiện hình
-    for (var m = 0; m < this.pets.length; m++) {
-      this.pets[m].slot = m;
-      this.pets[m].visible = m < G.PET_VISIBLE_MAX;
+    // Bầy đã đủ quân: nâng bậc cho con yếu nhất.
+    var best = null;
+    for (var j = 0; j < this.pets.length; j++) {
+      if (this.pets[j].tier >= 5) continue;
+      if (!best || this.pets[j].tier < best.tier) best = this.pets[j];
+    }
+    if (!best) return;
+    this.tierUp(best);
+    this.banner('BẦY MẠNH LÊN — ' + best.def.name + ' BẬC ' + best.tier, '#7dff9a', 2);
+  };
+
+  /* Nâng một bậc cho một con, đồng bộ cả bản ghi trong ván lẫn máu tối đa. */
+  Game.prototype.tierUp = function (q) {
+    q.tier = Math.min(5, q.tier + 1);
+    q.st = G.petStats(q.def, q.tier);
+    var ratio = q.hp / q.hpMax;
+    q.hpMax = q.def.hp * G.PET_TIER[q.tier - 1].hp * this.run.st.petHp;
+    q.hp = q.hpMax * Math.min(1, ratio + 0.3);
+    for (var j = 0; j < this.run.pets.length; j++) {
+      if (this.run.pets[j].id === q.def.id) {
+        this.run.pets[j].tier = Math.min(5, this.run.pets[j].tier + 1);
+      }
+    }
+    this.fx.ring(q.x, q.y, 3, 28, '#7dff9a', 0.4);
+  };
+
+  // ------------------------------------------------------------- hốc kín
+  /*
+   * HỐC KÍN thay cho màn "LÊN CẤP — chọn 1 trong 3".
+   *
+   * Màn chọn thẻ có ba tật, và cả ba đều nặng dần lên khi tốc đào tăng:
+   *   - nó DỪNG HÌNH. Đo được có ván ngắt hai mươi bảy lần trong chín phút.
+   *   - nó tách phần thưởng ra khỏi việc chơi: điểm tự dâng lên, hộp thoại tự
+   *     bật ra, người chơi không làm gì để xứng đáng với nó cả.
+   *   - nó khiến việc đục vào lòng đá thành vô nghĩa, vì mọi sức mạnh đều tới
+   *     từ thanh kinh nghiệm chứ không từ chỗ nào trên bản đồ.
+   *
+   * Giờ cùng ngần ấy phần thưởng nằm trong mười một cái hốc chôn sâu trong đá,
+   * không có lối vào. Muốn mạnh lên thì phải đục vào tìm. Không dừng hình,
+   * không chọn lựa — chạm vào là nhận, kèm một dải băng báo.
+   */
+  var CACHE_INFO = {
+    to:    { ten: 'TỔ LINH THÚ',  col: '#ffd98a' },
+    dai:   { ten: 'ĐÀI CỔ',       col: '#7dff9a' },
+    bua:   { ten: 'BÙA ĐÁ',       col: '#8ad8ff' },
+    ruong: { ten: 'RƯƠNG CỦA',    col: '#ffb04a' }
+  };
+  G.CACHE_INFO = CACHE_INFO;
+
+  Game.prototype.updateCaches = function (dt) {
+    var list = this.world.caches;
+    if (!list) return;
+    var p = this.player;
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (c.taken) continue;
+      c.t += dt;
+      // Chỉ mở khi ô của nó đã lộ ra — tức là đã đục tới nơi.
+      if (this.world.solid(c.tx, c.ty)) continue;
+      if (Math.hypot(p.x - c.x, p.y - c.y) < 20) this.takeCache(c);
+    }
+  };
+
+  Game.prototype.takeCache = function (c) {
+    c.taken = true;
+    var info = CACHE_INFO[c.kind] || CACHE_INFO.ruong;
+    this.fx.ring(c.x, c.y, 4, 46, info.col, 0.6);
+    this.fx.burst(c.x, c.y, 22, { col: info.col, spd: 130, life: 0.7, r: 2.4, prio: 2 });
+    this.hud.alarm();
+
+    if (c.kind === 'to') this.cacheSummon(c, info);
+    else if (c.kind === 'dai') this.cacheTier(c, info);
+    else if (c.kind === 'bua') this.cacheCharm(c, info);
+    else this.cacheChest(c, info);
+  };
+
+  /* Tổ: gọi thêm một linh thú chưa ra trận. Đây là thứ trước đây thẻ "triệu"
+   * làm, và nó vẫn là phần thưởng đáng giá nhất của một ván. */
+  Game.prototype.cacheSummon = function (c, info) {
+    var save = G.Meta.s;
+    var have = {};
+    for (var i = 0; i < this.pets.length; i++) have[this.pets[i].def.id] = 1;
+    var pool = G.PETS.filter(function (d) { return !have[d.id]; });
+    if (!pool.length) { this.cacheTier(c, info); return; }
+    var d = pool[(this.rng.f() * pool.length) | 0];
+    var tier = (save.pets[d.id] && save.pets[d.id].own) ? save.pets[d.id].tier : 1;
+    var p = this.addPet(d.id, tier);
+    if (p) {
+      p.x = c.x; p.y = c.y;
+      this.fx.ring(p.x, p.y, 4, 40, info.col, 0.5);
+    }
+    this.banner('TỔ LINH THÚ — ' + d.name + ' NHẬP BẦY', info.col, 2.4);
+  };
+
+  /* Đài cổ: nâng một bậc cho con YẾU NHẤT. Nhắm vào con yếu nhất chứ không
+   * ngẫu nhiên, vì phần thưởng ngẫu nhiên rơi trúng con đã tối đa thì người
+   * chơi vừa đục cả nửa phút để nhận về đúng con số không. */
+  Game.prototype.cacheTier = function (c, info) {
+    var best = null;
+    for (var i = 0; i < this.pets.length; i++) {
+      if (this.pets[i].tier >= 5) continue;
+      if (!best || this.pets[i].tier < best.tier) best = this.pets[i];
+    }
+    if (!best) { this.cacheChest(c, info); return; }
+    // Hốc ĐÀI CỔ cho HAI bậc: công đục vào tận lòng đá phải hơn hẳn một mốc
+    // quặng thường, nếu không thì chẳng ai buồn đi tìm.
+    this.tierUp(best);
+    if (best.tier < 5) this.tierUp(best);
+    this.banner('ĐÀI CỔ — ' + best.def.name + ' LÊN BẬC ' + best.tier, info.col, 2.4);
+  };
+
+  /* Bùa: một hiệu ứng vĩnh viễn cho cả ván, lấy từ chính bảng thẻ "bản thân"
+   * cũ. Không cho chọn — bốc một cái chưa có. */
+  Game.prototype.cacheCharm = function (c, info) {
+    var taken = this.run.taken || (this.run.taken = {});
+    var pool = G.PERK_SELF.filter(function (d) { return !taken[d.id]; });
+    if (!pool.length) { this.cacheChest(c, info); return; }
+    var d = pool[(this.rng.f() * pool.length) | 0];
+    d.apply(this.run.st, this.player);
+    taken[d.id] = true;
+    this.player.hp = Math.min(this.run.st.hp, this.player.hp);
+    this.banner('BÙA ĐÁ — ' + d.name, info.col, 2.4);
+  };
+
+  /* Rương: vàng, máu, và một nắm quặng. Phần thưởng "chắc chắn có ích" để
+   * không bao giờ đục tới nơi mà nhận về thứ mình đang không cần. */
+  Game.prototype.cacheChest = function (c, info) {
+    var gold = 40 + this.level * 12;
+    this.run.bonusGold = (this.run.bonusGold || 0) + gold;
+    this.player.hp = Math.min(this.run.st.hp, this.player.hp + this.run.st.hp * 0.35);
+    var ores = this.world.oreList;
+    var pick = ores[(this.rng.f() * ores.length) | 0];
+    this.player.addOre(pick, 6);
+    this.mission.onOre(pick);
+    this.mission.onOre(pick);
+    this.mission.onOre(pick);
+    this.fx.text(c.x, c.y - 10, '+' + gold + ' vàng', info.col);
+    this.banner('RƯƠNG CỦA — +' + gold + ' VÀNG, HỒI MÁU', info.col, 2.2);
+  };
+
+  /* Vẽ hốc: chỉ hiện khi ô của nó đã bị đục lộ ra. Trước lúc đó nó nằm trong
+   * đá và người chơi không được biết gì — cái không biết ấy chính là thứ khiến
+   * việc đục vào lòng đá còn đáng làm. */
+  Game.prototype.drawCaches = function (c) {
+    var list = this.world.caches;
+    if (!list) return;
+    for (var i = 0; i < list.length; i++) {
+      var q = list[i];
+      if (q.taken || this.world.solid(q.tx, q.ty)) continue;
+      var info = CACHE_INFO[q.kind] || CACHE_INFO.ruong;
+      var pulse = 1 + Math.sin(q.t * 3.4) * 0.12;
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      c.globalAlpha = 0.42;
+      c.fillStyle = info.col;
+      c.beginPath(); c.arc(q.x, q.y, 15 * pulse, 0, 6.2832); c.fill();
+      c.restore();
+      var k = q.kind === 'to' ? G.Atlas.pick('items')
+            : G.Atlas.pick('items');
+      var icon = q.kind === 'to' ? 244 : q.kind === 'dai' ? 979
+               : q.kind === 'bua' ? 152 : 981;
+      if (k) G.Atlas.draw(c, k, icon, q.x, q.y + 6, { scale: 0.8 });
+      c.strokeStyle = info.col;
+      c.lineWidth = 1;
+      c.globalAlpha = 0.8;
+      c.beginPath(); c.arc(q.x, q.y, 9 * pulse, 0, 6.2832); c.stroke();
+      c.globalAlpha = 1;
     }
   };
 
@@ -517,7 +665,7 @@
     if (this.state === 'play') {
       if (this.slowmo > 0) { this.slowmo -= dt; dt *= 0.35; }
       this.update(dt);
-    } else if (this.state === 'levelup' || this.state === 'over') {
+    } else if (this.state === 'over') {
       this.fx.update(dt * 0.25);
     }
     if (this.world) this.draw();
@@ -536,7 +684,7 @@
 
     var d = this.readDir();
     this.player.update(dt, this.world, d, this.fx);
-    if (this.player.pendingXp) { this.giveXp(this.player.pendingXp); this.player.pendingXp = 0; }
+    this.updateCaches(dt);
     if (this.player.moving) this.player.speedBoost = this.run.auraSpd;
     this.world.reveal(this.player.tileX(), this.player.tileY(),
                       Math.round(this.lightRadius() / T) + 2);
@@ -646,6 +794,7 @@
     // no dan de len nguoi choi dung o day dau van.
     this.drawExit(c);
     this.drawObjectives(c);
+    this.drawCaches(c);
     this.fx.draw(c);
 
     // sắp theo trục Y để cái ở dưới che cái ở trên — bắt buộc với góc nhìn này
@@ -680,7 +829,7 @@
       c.fillRect(0, 0, this.cssW, this.cssH);
       c.globalAlpha = 1;
     }
-    if (this.state === 'play' || this.state === 'levelup') {
+    if (this.state === 'play') {
       this.hud.draw(c, this, this.cssW, this.cssH);
     }
   };
@@ -790,8 +939,13 @@
           // chỉ quặng trong ~7 ô mới hắt sáng; xa hơn thì để tối, nếu không
           // cả hang sáng trưng và bóng tối — thứ làm nên cảm giác Core Keeper —
           // biến mất sạch
+          // ...và chỉ quặng ĐÃ LỘ MẶT mới hắt sáng. Quặng nằm kín trong lòng
+          // đá thì không vẽ (xem renderChunk), nên nếu vẫn cho nó khoét lỗ
+          // sáng thì hang lại lỗ chỗ những đốm sáng không có gì ở đó.
+          var lo = !w.solid(tx - 1, ty) || !w.solid(tx + 1, ty) ||
+                   !w.solid(tx, ty - 1) || !w.solid(tx, ty + 1);
           var dd = (tx - ptx) * (tx - ptx) + (ty - pty) * (ty - pty);
-          if (dd < 56) hole(tx * T + 8, ty * T + 8, 10, 0.05);
+          if (lo && dd < 56) hole(tx * T + 8, ty * T + 8, 10, 0.05);
         }
         else if (w.kind[id] === G.TK.LIQ && w.ore[id] === 254) hole(tx * T + 8, ty * T + 8, 22, 0.05);
       }
