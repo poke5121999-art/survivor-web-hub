@@ -53,6 +53,54 @@
     return c;
   }
 
+  /* Biểu tượng một món trang bị.
+   *
+   * Với ba món GIÁP, biểu tượng không phải một hình chung chung trong bảng
+   * vật phẩm — nó là ĐÚNG CÁI LỚP sẽ vẽ lên người ('pc.helm.iron'...), cắt
+   * lấy khúc tương ứng của khung 26x26: mũ lấy khúc trên, áo lấy khúc giữa,
+   * quần lấy khúc dưới. Trước đây mọi cái mũ đều dùng chung icon 454, nên
+   * trong kho hai bộ khác nhau nhìn y hệt nhau và chẳng ăn nhập gì với thứ
+   * hiện ra trên nhân vật. Giờ nhìn ô đồ là biết mặc vào sẽ thành cái gì.
+   *
+   * Cuốc / đèn / nhẫn vẫn lấy hình trong bảng vật phẩm vì chúng không có lớp
+   * mặc trên người. */
+  var BAND = {
+    helm:  [0.00, 0.46],
+    chest: [0.30, 0.76],
+    pants: [0.52, 1.00]
+  };
+
+  /* Tên ngắn cho ô trong kho. Cắt trần ở dấu gạch dài thì "Kiểm Lâm — Áo" và
+   * "Kiểm Lâm — Mũ" ra cùng một chữ "Kiểm Lâm", nằm cạnh nhau trong lưới mà
+   * không phân biệt được. Giữ lại một chữ báo ô. */
+  function shortName(d) {
+    var base = d.name.split(' — ')[0];
+    if (!d.armorSet) return base;
+    return base + ' ' + (d.slot === 'helm' ? 'Mũ' : d.slot === 'chest' ? 'Áo' : 'Quần');
+  }
+
+  function gearIcon(id, size) {
+    var d = size || 32;
+    var def = G.EQ_ALL[id];
+    if (!def || !def.armorSet) return icon(G.eqIcon(id), d);
+    var key = 'pc.' + def.slot + '.' + def.set;
+    if (!G.Atlas.has(key)) return icon(G.eqIcon(id), d);
+
+    var c = document.createElement('canvas');
+    c.width = d; c.height = d;
+    var g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    var sz = G.Atlas.size(key, 0);            // 26x26
+    var b = BAND[def.slot];
+    var bandH = (b[1] - b[0]) * sz[1];
+    var sc = Math.max(1, Math.min(3, Math.floor(d / bandH)));
+    // Kéo khúc cần xem vào giữa ô: neo giữa khung rồi dời theo chênh lệch tâm.
+    var mid = (b[0] + b[1]) / 2;
+    var oy = d / 2 + (0.5 - mid) * sz[1] * sc;
+    G.Atlas.draw(g, key, 0, d / 2, oy, { scale: sc, ax: 0.5, ay: 0.5 });
+    return c;
+  }
+
   /* Hình nhân vật ghép lớp — đây là chỗ phô ra chuyện "đội mũ vào thì thấy mũ".
    * Cùng đúng hàm layers() mà lúc chơi dùng, nên không bao giờ lệch. */
   function doll(size, frame) {
@@ -406,7 +454,7 @@
       var id = s.eq[sl.id];
       var c = el('div', 'card');
       c.style.cssText = 'min-height:52px;width:52px;padding:4px;gap:2px';
-      c.appendChild(icon(id ? G.eqIcon(id) : sl.icon, 26));
+      c.appendChild(id ? gearIcon(id, 26) : icon(sl.icon, 26));
       var nm = el('div', 'cname', id ? '+' + s.inv[id].lv : sl.name);
       nm.style.fontSize = '9px';
       c.appendChild(nm);
@@ -420,7 +468,7 @@
     stage.appendChild(slotsR);
     sc.appendChild(stage);
     sc.appendChild(el('div', 'hsub',
-      'Mũ, áo, quần đổi luôn hình nhân vật. Cuốc quyết định đào nhanh hay chậm và đào nổi đá cứng hay không. Đèn quyết định bạn thấy được bao xa.'));
+      'Mũ, áo, quần đổi luôn hình nhân vật — ô đồ trong kho chính là mảnh sẽ hiện lên người. Cuốc nào cũng đục được mọi loại đá, cuốc xịn thì nhanh hơn. Đèn quyết định bạn thấy được bao xa.'));
 
     sc.appendChild(el('div', 'hr'));
     sc.appendChild(el('div', 'htitle', 'KHO ĐỒ'));
@@ -435,14 +483,18 @@
       var c = el('div', 'card r' + rare +
         (s.eq[d.slot] === id ? ' sel' : ''));
       c.style.minHeight = '74px';
-      c.appendChild(icon(G.eqIcon(id), 28));
-      var nm = el('div', 'cname', d.name.split(' — ')[0]);
+      c.appendChild(gearIcon(id, 28));
+      var nm = el('div', 'cname', shortName(d));
       nm.style.fontSize = '9px';
       c.appendChild(nm);
       c.appendChild(el('div', 'lv', '+' + s.inv[id].lv));
       c.onclick = function () { G.Meta.equip(d.slot, id); render(); };
       grid.appendChild(c);
     });
+    if (!ids.length) {
+      sc.appendChild(el('div', 'hsub',
+        'Kho trống. Mọi trang bị đều quay ở QUẦY mà ra — mặc món đầu tiên vào là thấy nhân vật đổi hình ngay.'));
+    }
     sc.appendChild(grid);
     return sc;
   }
@@ -464,8 +516,8 @@
         ? G.EQ_SETS.filter(function (x) { return x.id === d.set; })[0].rare : d.rare;
       var c = el('div', 'card r' + rare + (s.eq[sl.id] === id ? ' sel' : ''));
       c.style.minHeight = '84px';
-      c.appendChild(icon(G.eqIcon(id), 28));
-      var nm = el('div', 'cname', d.name.split(' — ')[0]);
+      c.appendChild(gearIcon(id, 28));
+      var nm = el('div', 'cname', shortName(d));
       nm.style.fontSize = '9px';
       c.appendChild(nm);
       c.appendChild(el('div', 'lv', '+' + s.inv[id].lv));
@@ -544,7 +596,7 @@
     out.forEach(function (r) {
       var c = el('div', 'card r' + r.rare);
       c.style.minHeight = '92px';
-      c.appendChild(r.kind === 'pet' ? petIcon(r.art, 38) : icon(r.icon, 30));
+      c.appendChild(r.kind === 'pet' ? petIcon(r.art, 38) : gearIcon(r.id, 30));
       var nm = el('div', 'cname', r.name.split(' — ')[0]);
       nm.style.fontSize = '9px';
       c.appendChild(nm);

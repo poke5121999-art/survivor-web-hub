@@ -34,7 +34,11 @@
       //             dài chính là lúc chết nhiều nhất.
       // Lời giải là VỈA DÀY + CHỈ TIÊU CAO: quặng gặp ngay trên đường đang đi,
       // nhưng phải đào nhiều. Đo được: xong ở khoảng phút 6-7.
-      amount: function (lv) { return 24 + lv * 3; },
+      // Chỉ tiêu buộc phải đi cùng tốc đào. Khi đục một vỉa còn 0,8 giây thay
+      // vì 2,9 giây, chỉ tiêu 27 xong ở giây 140 và cả cái vòng cung boss –
+      // chạy thoát ập xuống trước khi người chơi kịp ngồi vào ván. Ải một giờ
+      // là 56, để pha làm việc dài ra lại đúng bảy phút như trước.
+      amount: function (lv) { return 62 + lv * 5; },
       hint: 'Morkite là vỉa màu xanh ngọc. Bản đồ nhỏ có chấm xanh.'
     },
     eggs: {

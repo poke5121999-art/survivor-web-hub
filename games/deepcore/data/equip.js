@@ -7,9 +7,8 @@
  * đúng như vậy. Màn hình trang bị phải phô ra được điều đó.
  *
  * Ba ô CÔNG CỤ:
- *   cuốc  sức đào + tốc đào + BẬC CUỐC (đá cứng cần bậc cao, thiếu bậc thì đào
- *         chậm chứ không phải không đào được — chặn cứng làm người chơi kẹt mà
- *         không hiểu vì sao)
+ *   cuốc  sức đào + tốc đào. Không có bậc chặn: cuốc nào cũng đục được mọi
+ *         loại đá, cuốc xịn chỉ đục nhanh hơn.
  *   đèn   bán kính nhìn. Trong hang tối, tầm nhìn LÀ sức mạnh.
  *   nhẫn  linh tinh: máu, giáp, tốc chạy, sức linh thú.
  */
@@ -65,15 +64,19 @@
     { id: 'godsent',   name: 'Thiên Tứ',    rare: 5 }
   ];
 
+  /* Cuốc. KHÔNG CÒN "bậc cuốc" chặn cửa: mọi cây cuốc đục được mọi loại đá, cây
+   * xịn chỉ đục nhanh hơn. Bậc cuốc là một cái cửa vô hình — người chơi đứng đục
+   * mãi không vỡ mà chẳng ai nói cho biết vì sao, và cảm giác chỉ là "game này
+   * đào chậm". `tier` giữ lại để hiển thị chứ không còn ảnh hưởng gì tới tốc độ. */
   var CUOC = [
-    { id: 'p_wood',     name: 'Cuốc Gỗ',        rare: 1, tier: 0, power: 10, rate: 1.7, icon: 643 },
-    { id: 'p_copper',   name: 'Cuốc Đồng',      rare: 1, tier: 1, power: 15, rate: 1.9, icon: 577 },
-    { id: 'p_tin',      name: 'Cuốc Thiếc',     rare: 2, tier: 1, power: 21, rate: 2.1, icon: 577 },
-    { id: 'p_iron',     name: 'Cuốc Sắt',       rare: 2, tier: 2, power: 29, rate: 2.3, icon: 577 },
-    { id: 'p_scarlet',  name: 'Cuốc Chu Sa',    rare: 3, tier: 2, power: 40, rate: 2.5, icon: 577 },
-    { id: 'p_octarine', name: 'Cuốc Bát Sắc',   rare: 4, tier: 3, power: 55, rate: 2.8, icon: 577 },
-    { id: 'p_galaxite', name: 'Cuốc Thiên Hà',  rare: 4, tier: 3, power: 74, rate: 3.1, icon: 577 },
-    { id: 'p_solarite', name: 'Cuốc Nhật Diệu', rare: 5, tier: 4, power: 98, rate: 3.4, icon: 577 }
+    { id: 'p_wood',     name: 'Cuốc Gỗ',        rare: 1, tier: 0, power: 14, rate: 2.6, icon: 643 },
+    { id: 'p_copper',   name: 'Cuốc Đồng',      rare: 1, tier: 1, power: 19, rate: 2.8, icon: 577 },
+    { id: 'p_tin',      name: 'Cuốc Thiếc',     rare: 2, tier: 1, power: 25, rate: 3.0, icon: 577 },
+    { id: 'p_iron',     name: 'Cuốc Sắt',       rare: 2, tier: 2, power: 33, rate: 3.2, icon: 577 },
+    { id: 'p_scarlet',  name: 'Cuốc Chu Sa',    rare: 3, tier: 2, power: 44, rate: 3.4, icon: 577 },
+    { id: 'p_octarine', name: 'Cuốc Bát Sắc',   rare: 4, tier: 3, power: 58, rate: 3.6, icon: 577 },
+    { id: 'p_galaxite', name: 'Cuốc Thiên Hà',  rare: 4, tier: 3, power: 76, rate: 3.8, icon: 577 },
+    { id: 'p_solarite', name: 'Cuốc Nhật Diệu', rare: 5, tier: 4, power: 98, rate: 4.0, icon: 577 }
   ];
 
   var DEN = [

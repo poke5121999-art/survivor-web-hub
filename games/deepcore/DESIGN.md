@@ -156,9 +156,28 @@ không phải cái mở khoá *việc chơi*, nó chỉ quyết định con nào
 
 **Sáu ô trang bị.** Ba ô giáp (mũ/áo/quần) **đổi luôn hình nhân vật** — không
 phải hiệu ứng, mà là thật, vì paperdoll gốc làm đúng như vậy. Ba ô công cụ: cuốc
-(sức đào + tốc đào + **bậc cuốc**; thiếu bậc thì đào *chậm* chứ không phải không
-đào được — chặn cứng làm người chơi kẹt mà không hiểu vì sao), đèn (**tầm nhìn
-LÀ sức mạnh** trong hang tối), nhẫn (linh tinh).
+(sức đào + tốc đào), đèn (**tầm nhìn LÀ sức mạnh** trong hang tối), nhẫn (linh
+tinh).
+
+**Vào game là người trần.** Kho rỗng, sáu ô trống, mọi món phải quay ở Quầy mà
+ra. Bản đầu phát sẵn một bộ gỗ và đó là một sai lầm nhỏ mà hậu quả không nhỏ:
+hai ô đầu đã kín, nên món đầu tiên quay được chẳng làm nhân vật đổi gì, và thứ
+đáng khoe nhất của bộ art này — mặc vào là thấy trên người — trôi qua đúng lúc
+đáng lẽ nó phải xảy ra. Đổi lại, **chỉ số gốc phải tự nó đủ chơi**: 186 máu, 6%
+giáp, sức đào 11, đèn 76. Trang bị là phần cộng thêm, không phải phần bắt buộc
+có. (Đo được: để nguyên mức cũ 145 máu / 0 giáp thì từ ải 3 trở lên thua sạch.)
+
+**Không có bậc cuốc.** Bản đầu bắt đá cứng phải cuốc đủ bậc, thiếu bậc thì tốc
+đào còn 42%. Về lý thì hợp, về tay chơi thì đó là một cái cửa vô hình: không ai
+nói cho người chơi biết vì sao cây cuốc của họ đục mãi không vỡ, và cảm giác duy
+nhất còn lại là *"game này đào chậm"*. Giờ cuốc nào cũng đục được mọi loại đá,
+cuốc xịn chỉ nhanh hơn — chênh lệch nằm ở hai con số nhìn thấy được.
+
+**Ô đồ trong kho là chính mảnh sẽ hiện lên người.** Biểu tượng một món giáp
+không lấy từ bảng vật phẩm mà cắt thẳng từ lớp paperdoll (`pc.helm.iron`…),
+lấy khúc trên cho mũ, khúc giữa cho áo, khúc dưới cho quần. Trước đó mọi cái mũ
+dùng chung một icon, nên hai bộ khác nhau nhìn y hệt nhau trong kho và chẳng ăn
+nhập gì với thứ hiện ra trên nhân vật.
 
 ## 6. Đọc được trên màn hình dọc
 
@@ -169,11 +188,27 @@ trần thì hạt ưu tiên thấp bị đạp ra. Đo được: đỉnh 56–15
 Bốn góc, mỗi góc một loại tin:
 
 ```
-trên-trái  BẢN THÂN    máu, cấp, kinh nghiệm
-trên-phải  KHÔNG GIAN  bản đồ nhỏ + đồng hồ
-giữa-trên  ĐE DOẠ      băng cảnh báo — hiếm khi hiện, hiện thì to
-dưới       ĐIỀU KHIỂN  cần gạt, nút GỌI, hàng linh thú
+trên-trái   BẢN THÂN    máu, cấp, kinh nghiệm
+trên-phải   KHÔNG GIAN  bản đồ nhỏ + đồng hồ
+dưới hai    NHIỆM VỤ    ô nhiệm vụ, thanh Nitra, hàng linh thú, mách nước
+giữa        ĐE DOẠ      băng cảnh báo — hiếm khi hiện, hiện thì to
+dưới-phải   ĐIỀU KHIỂN  nút GỌI + nút TIẾP TẾ
+còn lại     cần gạt mọc ngay chỗ ngón tay chạm
 ```
+
+**Tin ở trên, nút ở dưới-phải — không có ngoại lệ.** Chơi dọc một tay thì cả
+nửa dưới màn hình nằm dưới lòng bàn tay. Bản đầu để hàng linh thú, dòng mách
+nước và ô "gọi tiếp tế" ở đáy màn hình, tức là đúng chỗ bị che: người chơi
+không bao giờ thấy con linh thú nào sắp chết. Và ô tiếp tế thì tệ theo cả hai
+chiều — nó vừa bị che, vừa nằm ở thanh Nitra tận trên cùng, xa ngón cái. Giờ
+tách hẳn hai vai: nửa trên **chỉ để đọc**, góc dưới-phải **chỉ để bấm**.
+
+**Nét ảnh.** Hai chỗ làm mờ pixel art mà không ai để ý ngay: (1) chặn `dpr` ở 2
+trong khi điện thoại phổ thông có `dpr` 3, nên khung ảnh bị kéo lên 1,5 lần —
+một điểm ảnh art thành một-rưỡi điểm ảnh máy; (2) gốc toạ độ máy quay là số lẻ,
+nên mọi sprite rơi vào giữa hai điểm ảnh. Cả hai đều được sửa bằng cách chốt về
+số nguyên: lấy đúng `dpr` (trần 3), ép khổ CSS bằng `pw/dpr`, và
+`Math.round()` gốc toạ độ trước khi `setTransform`.
 
 Và một luật: **mọi thứ nhịp nhanh là thanh hoặc vòng, không phải số.**
 
@@ -233,10 +268,34 @@ Không cái nào lộ ra khi chơi tay vài phút:
 
 ### Hai chỗ phải chỉnh đi chỉnh lại
 
-**Đường cong kinh nghiệm.** Bản đầu dùng hàm bậc hai, tới cấp 15 cần gần 3.000
-điểm — cả ván lên được 6–7 cấp và người chơi không bao giờ dựng nổi đội hình. Đo
-được một ván thật có ~250 ô tường + ~60 vỉa quặng + ~150 con quái ≈ 1.200 điểm,
-nên đổi sang **tuyến tính** `18 + 6·cấp`: cộng dồn tới cấp 16 là ~1.000.
+**Đường cong kinh nghiệm — chỉnh ba lần.** Bản đầu dùng hàm bậc hai, tới cấp 15
+cần gần 3.000 điểm: cả ván lên được 6–7 cấp và không bao giờ dựng nổi đội hình.
+Đổi sang tuyến tính `18 + 6·cấp` thì ngược lại — sau khi tốc đào tăng gấp ba,
+đo được **cấp 15 trong chưa đầy ba phút**, cứ mười một giây một lần dừng hình
+chọn thẻ. Lần chỉnh thứ hai dựng thang `34 + 26·cấp` và hỏng theo một kiểu khác:
+thẻ lên cấp **không chỉ là nhịp, nó là toàn bộ đường sức mạnh của ván** — mỗi
+thẻ là một linh thú mới hoặc một bậc linh thú. Rơi từ mười bảy thẻ xuống tám thì
+tới lúc gặp boss đàn linh thú mới có nửa quân số, và tỉ lệ thắng đo được tụt từ
+4/6 còn 1/6.
+
+Mức chốt là `30 + 17·cấp + 0,8·cấp²`. Phần tuyến tính giữ mười một tới mười ba
+thẻ cho một ván đào; số hạng bình phương lo riêng cái đuôi — nhiệm vụ trục vớt
+và nhặt trứng không bị chặn bởi tốc đào nên kéo tới chín phút, và với thang
+thuần tuyến tính thì đo được cấp 28, tức hai mươi bảy lần ngắt mạch trong một
+ván.
+
+**Tốc đào.** Máu ô tường hạ từ `26 × cứng × (1 + 0,02·ải)` xuống thẳng `14 ×
+cứng`, bỏ hẳn phần nhân theo ải: đục lâu không phải là *khó*, chỉ là *chậm*, và
+khi cái động từ trung tâm của game chậm thì cả ván ì theo. Ải sau khó hơn bằng
+**quái**, không bằng đá cứng. Một ô đất thường giờ mất ~0,6 giây thay vì 1,5;
+một vỉa Morkite ~0,8 thay vì 2,9.
+
+Hệ quả phải trả kèm: chỉ tiêu đào tăng theo (24+3·ải → 62+5·ải), và điểm kinh
+nghiệm mỗi nhát cuốc giảm (0,35 → 0,12; vỡ một ô tường trơn 1,2 → 0,45). Có một
+lần thử tăng mật độ quặng lên 230 để đỡ chỉ tiêu mới và nó phản tác dụng: thứ
+quyết định độ dài một ván là thời gian **đi tìm**, không phải thời gian **đục** —
+rải thêm quặng thì quãng đường giữa hai vỉa ngắn lại, đo được 84 Morkite xong ở
+giây 198, gần y hệt 56 Morkite trước đó.
 
 **Chỉ tiêu nhiệm vụ + mật độ quặng** — hai cái bẫy ở hai đầu:
 

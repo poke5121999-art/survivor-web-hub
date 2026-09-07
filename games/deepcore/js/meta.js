@@ -52,15 +52,21 @@
 
   function fresh() {
     return {
-      v: 1,
-      gold: 400, gem: 60,
+      v: 2,
+      gold: 400, gem: 180,
       frag: {},
       pets: { rua: { own: true, tier: 1 }, cho: { own: true, tier: 1 } },
       team: ['rua', 'cho'],
-      inv: { 'p_wood': { lv: 1 }, 'l_torch': { lv: 1 }, 'wood:helm': { lv: 1 },
-             'wood:chest': { lv: 1 }, 'wood:pants': { lv: 1 } },
-      eq: { pick: 'p_wood', lamp: 'l_torch',
-            helm: 'wood:helm', chest: 'wood:chest', pants: 'wood:pants', ring: null },
+      /* Vào game là NGƯỜI TRẦN: không mũ, không áo, không cuốc. Mọi món đều
+       * phải quay ở Quầy mà ra. Phát sẵn một bộ gỗ thì hai ô đầu tiên đã kín,
+       * người chơi quay được món mới cũng chẳng thấy khác gì trên người, và
+       * cái chuyện "mặc vào là đổi hình" — thứ đáng khoe nhất của bộ art này —
+       * mất luôn lần đầu tiên đáng lẽ nó phải xảy ra.
+       *
+       * Đổi lại, chỉ số gốc ở buildStats() là "tay không" đủ chơi: đào được,
+       * nhìn được. Trang bị là phần cộng thêm, không phải phần bắt buộc có. */
+      inv: {},
+      eq: { pick: null, lamp: null, helm: null, chest: null, pants: null, ring: null },
       look: { hair: '1', female: false },
       up: {},
       stage: { dirt: 1 },
@@ -79,6 +85,19 @@
     // vá bản lưu cũ: thiếu trường nào thì lấy của bản mới
     var f = fresh();
     for (var k in f) if (S[k] === undefined) S[k] = f[k];
+    // v1 -> v2: thu lại bộ gỗ phát sẵn, trả bằng ngọc để tự quay. Chỉ gỡ đúng
+    // năm món khởi đầu và chỉ khi còn +1 (chưa nâng), không đụng đồ quay được.
+    if (S.v < 2) {
+      ['p_wood', 'l_torch', 'wood:helm', 'wood:chest', 'wood:pants'].forEach(function (id) {
+        if (S.inv[id] && S.inv[id].lv === 1) {
+          delete S.inv[id];
+          for (var sl in S.eq) if (S.eq[sl] === id) S.eq[sl] = null;
+        }
+      });
+      S.gem += 120;
+      S.v = 2;
+      save();
+    }
     return S;
   }
 
@@ -97,9 +116,15 @@
   /* Gộp: chỉ số gốc + trang bị + nâng cấp vĩnh viễn -> bảng dùng trong ván. */
   function buildStats() {
     var st = {
-      hp: 145, speed: 118, armor: 0,
-      minePower: 10, mineRate: 1.7, pickTier: 0, pickIcon: 643,
-      light: 88,
+      // Ngưỡng người-trần phải tự nó đứng được: từ khi bỏ bộ gỗ phát sẵn thì
+      // đây là chỉ số THẬT của mọi ván đầu tiên, không còn là con số nền lý
+      // thuyết nữa. Đo bằng máy: để nguyên 145/0 giáp thì ải 3 trở lên thua
+      // sạch. 186 máu + 6% giáp là mức người mới đi được vài ải rồi mới cần đồ.
+      hp: 186, speed: 118, armor: 0.06,
+      // "tay không": đào được và nhìn được, chỉ là kém hơn mọi cây cuốc/đèn
+      // quay ra được. Cuốc Gỗ là 14/2,6 và Đuốc là 88.
+      minePower: 11, mineRate: 2.2, pickTier: 0, pickIcon: 643,
+      light: 76,
       petDmg: 1, petHp: 1, petRate: 1,
       nearR: 120, rallyCd: 6, pickR: 34,
       xpMul: 1, goldMul: 1,
@@ -212,6 +237,9 @@
       S.inv[id].lv = Math.min(10, S.inv[id].lv + 1);
     } else {
       S.inv[id] = { lv: 1 };
+      // Ô còn trống thì mặc luôn. Quay lần đầu mà phải mò vào tận màn trang bị
+      // mới thấy mình vừa được gì thì hụt mất đúng cái khoảnh khắc đáng giá.
+      if (!S.eq[d.slot]) S.eq[d.slot] = id;
     }
     var rr = d.armorSet ? G.EQ_SETS.filter(function (s) { return s.id === d.set; })[0].rare : d.rare;
     return { kind: 'gear', id: id, name: d.name, rare: rr, icon: G.eqIcon(id),

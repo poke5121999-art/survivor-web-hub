@@ -136,7 +136,7 @@
 
     // 7) Vỉa quặng + máu ô tường.
     this.seedOres(level);
-    this.rollHp(level);
+    this.rollHp();
 
     // 8) Trang trí sàn + mối nguy.
     this.decorate();
@@ -236,7 +236,14 @@
       // Đo trong máy: với mức cũ (26/22/14/12 cụm), đục 60 ô tường mới ra
       // trúng chưa tới một vỉa — tức là chỉ tiêu 11 Morkite không thể xong
       // trong mười phút, và cây kinh nghiệm cũng đứng. Nhân đôi rưỡi.
-      var base = (o === 'nitra') ? 74 : (o === 'morkite') ? 96 : (o === 'redsugar') ? 44 : 34;
+      /* Trữ lượng chỉ nhích nhẹ so với bản đầu (96 -> 124 Morkite).
+     *
+     * Có một lần thử tăng thẳng lên 230 để đỡ chỉ tiêu mới, và nó phản tác
+     * dụng đúng như đáng lẽ phải đoán được: cái quyết định độ dài một ván
+     * không phải thời gian ĐỤC mà là thời gian ĐI TÌM. Rải thêm quặng thì
+     * quãng đường giữa hai vỉa ngắn lại, và ván ngắn đi chứ không dài ra —
+     * đo được 84 Morkite xong ở giây 198, gần y hệt 56 Morkite trước đó. */
+    var base = (o === 'nitra') ? 88 : (o === 'morkite') ? 150 : (o === 'redsugar') ? 50 : 40;
       budget[o] = Math.max(8, Math.round(base * scale));
     });
 
@@ -281,15 +288,23 @@
     }
   };
 
-  World.prototype.rollHp = function (level) {
-    var hard = this.bio.hard * (1 + level * 0.02);
+  /* Máu ô tường. KHÔNG nhân theo ải — ải sau khó hơn bằng QUÁI, không bằng
+   * việc bắt đứng đục lâu hơn. Đục lâu không phải là khó, chỉ là chậm; và cái
+   * động từ trung tâm của game mà chậm thì cả ván ì theo.
+   *
+   * Thang cũ là 26 × độ-cứng-quần-thể × (1 + 0,02·ải): một ô đất thường mất
+   * 1,5 giây, một vỉa Morkite mất 2,9 giây. Nhân với vài trăm ô mỗi ván thì
+   * phần lớn thời gian là đứng chờ. Thang mới 14: ô thường ~0,4 giây, vỉa
+   * ~0,8 giây. */
+  World.prototype.rollHp = function () {
+    var hard = this.bio.hard;
     for (var i = 0; i < this.kind.length; i++) {
       var k = this.kind[i];
       if (k === WALL) {
-        this.hp[i] = this.hpMax[i] = 26 * hard;
+        this.hp[i] = this.hpMax[i] = 14 * hard;
       } else if (k === ORE) {
         var o = G.ORE[this.oreList[this.ore[i] - 1]];
-        this.hp[i] = this.hpMax[i] = 26 * hard * (o ? o.hp : 2);
+        this.hp[i] = this.hpMax[i] = 14 * hard * (o ? o.hp : 1.4);
       }
     }
   };

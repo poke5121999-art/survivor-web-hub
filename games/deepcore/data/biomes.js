@@ -7,8 +7,9 @@
  * bản đồ để hang không đơn điệu — đó là mẹo của Core Keeper: biome này ăn sang
  * biome kia bằng những mảng loang, không có đường kẻ.
  *
- * hard  = độ cứng đá, nhân vào máu ô tường. Cuốc xịn thì đào tuốt, cuốc dỏm thì
- *         ải sau đứng đục cả buổi — đó là chỗ để "nâng ngoài ván" phát huy.
+ * hard  = độ cứng đá, nhân vào máu ô tường. Dải hẹp (1,00-1,30) và KHÔNG nhân
+ *         thêm theo ải: quần thể sau nghe khác một chút chứ không biến việc đào
+ *         thành việc đứng chờ. Ải sau khó hơn bằng QUÁI, không bằng đá cứng.
  * dp    = ngân sách quái mỗi đợt (Difficulty Point, mượn thẳng của DRG).
  */
 (function (G) {
@@ -35,7 +36,7 @@
     {
       id: 'clay', name: 'Hang Sét', sub: 'dirt',
       desc: 'Vách sét nung đỏ. Ấu trùng làm tổ trong các hốc.',
-      hard: 1.15, dark: 0.94, fog: '#120a0a', glow: '#ffb070',
+      hard: 1.05, dark: 0.94, fog: '#120a0a', glow: '#ffb070',
       ores: ['nitra', 'morkite', 'redsugar', 'copper', 'tin'],
       pool: ['swarmer', 'swarmerRed', 'grunt', 'caveling', 'exploder', 'skirmisher'],
       elite: ['brute', 'shaman'],
@@ -45,7 +46,7 @@
     {
       id: 'nature', name: 'Rừng Ngầm', sub: 'mold',
       desc: 'Rễ cây khổng lồ xuyên qua đá. Có thứ săn mồi trong đám lá.',
-      hard: 1.25, dark: 0.9, fog: '#08120c', glow: '#b8ff9a',
+      hard: 1.1, dark: 0.9, fog: '#08120c', glow: '#b8ff9a',
       ores: ['nitra', 'morkite', 'redsugar', 'tin', 'iron'],
       pool: ['swarmer', 'grunt', 'caveling', 'hunter', 'flyer', 'skirmisher'],
       elite: ['brute', 'shaman', 'charger'],
@@ -55,7 +56,7 @@
     {
       id: 'mold', name: 'Ổ Nấm Mốc', sub: 'nature',
       desc: 'Bào tử dày tới mức đèn không xuyên nổi. Mọi thứ ở đây đều nhiễm.',
-      hard: 1.3, dark: 0.96, fog: '#0a1210', glow: '#8fe6c8',
+      hard: 1.12, dark: 0.96, fog: '#0a1210', glow: '#8fe6c8',
       ores: ['nitra', 'morkite', 'redsugar', 'iron'],
       pool: ['swarmer', 'grunt', 'infected', 'exploder', 'flyer', 'assassin'],
       elite: ['brute', 'scholar', 'charger'],
@@ -65,7 +66,7 @@
     {
       id: 'hive', name: 'Tổ Ấu Trùng', sub: 'clay',
       desc: 'Sàn mềm và ấm. Không nên hỏi vì sao nó ấm.',
-      hard: 1.2, dark: 0.94, fog: '#140c08', glow: '#ffbc6a',
+      hard: 1.08, dark: 0.94, fog: '#140c08', glow: '#ffbc6a',
       ores: ['nitra', 'morkite', 'redsugar', 'iron', 'scarlet'],
       pool: ['swarmer', 'swarmerRed', 'grunt', 'gruntVamp', 'exploder', 'acid'],
       elite: ['brute', 'shaman', 'roller'],
@@ -75,7 +76,7 @@
     {
       id: 'desert', name: 'Sa Mạc Ngầm', sub: 'clay',
       desc: 'Cát chảy qua trần hang. Bọ ẩn dưới mặt cát.',
-      hard: 1.35, dark: 0.88, fog: '#141008', glow: '#ffe0a0',
+      hard: 1.15, dark: 0.88, fog: '#141008', glow: '#ffe0a0',
       ores: ['nitra', 'morkite', 'redsugar', 'iron', 'scarlet'],
       pool: ['swarmer', 'grunt', 'acid', 'skirmisher', 'hunter', 'exploder'],
       elite: ['brute', 'golem', 'charger'],
@@ -85,7 +86,7 @@
     {
       id: 'sea', name: 'Biển Chìm', sub: 'crystal',
       desc: 'Nước ngập tới mắt cá. Cái gì bơi được ở đây thì đừng lại gần.',
-      hard: 1.4, dark: 0.91, fog: '#08101a', glow: '#9fd8ff',
+      hard: 1.18, dark: 0.91, fog: '#08101a', glow: '#9fd8ff',
       ores: ['nitra', 'morkite', 'redsugar', 'scarlet', 'octarine'],
       pool: ['swarmer', 'grunt', 'flyer', 'hunter', 'roller', 'pest'],
       elite: ['brute', 'golem', 'shaman'],
@@ -95,7 +96,7 @@
     {
       id: 'crystal', name: 'Hang Pha Lê', sub: 'sea',
       desc: 'Tinh thể tự phát sáng — và tự nổ khi bị chạm.',
-      hard: 1.5, dark: 0.86, fog: '#0a0c1c', glow: '#a0e8ff',
+      hard: 1.24, dark: 0.86, fog: '#0a0c1c', glow: '#a0e8ff',
       ores: ['nitra', 'morkite', 'redsugar', 'octarine', 'galaxite'],
       pool: ['swarmer', 'grunt', 'charger', 'pest', 'hunter', 'golem'],
       elite: ['brute', 'golem', 'roller'],
@@ -105,7 +106,7 @@
     {
       id: 'lava', name: 'Mỏ Nham', sub: 'crystal',
       desc: 'Đá nóng tới mức cuốc kêu. Dưới sàn là thứ không nên rơi xuống.',
-      hard: 1.7, dark: 0.9, fog: '#180806', glow: '#ff9a5a',
+      hard: 1.3, dark: 0.9, fog: '#180806', glow: '#ff9a5a',
       ores: ['nitra', 'morkite', 'redsugar', 'galaxite', 'solarite'],
       pool: ['grunt', 'charger', 'exploder', 'golem', 'roller', 'pest'],
       elite: ['brute', 'golem', 'shaman'],

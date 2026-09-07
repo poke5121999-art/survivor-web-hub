@@ -36,7 +36,7 @@
     this.walkT = 0;
     this.moving = false;
     this.xp = 0; this.level = 1;
-    this.xpNeed = 22;
+    this.xpNeed = 60;
     this.carry = {};            // quặng đã đào trong ván
     this.lightR = stats.light;
     this.lightPulse = 0;
@@ -54,7 +54,26 @@
       // Với 18 + 6·cấp thì cộng dồn tới cấp 16 là ~1000 — vừa khớp. Dùng bậc hai
       // như bản đầu thì tới cấp 15 phải cần gần 3000 điểm, tức là cả ván chỉ lên
       // được 6-7 cấp và người chơi không bao giờ dựng nổi đội hình.
-      this.xpNeed = Math.round(18 + this.level * 6);
+      /* Bậc thang dốc hơn nhiều. Thang cũ (18 + 6·cấp) sinh ra cấp 15 trong
+        * chưa đầy ba phút — cứ mười một giây lại một lần dừng hình chọn thẻ.
+        * Lên cấp là NHỊP của ván chứ không phải phần thưởng vặt: dồn dập quá
+        * thì mỗi lần lên cấp chẳng còn nghĩa gì, mà mạch chơi thì đứt liên tục.
+        * Thang mới cho khoảng mười hai bậc một ván — chừng ba mươi lăm giây
+        * một lần, đủ thưa để mỗi lần chọn thẻ là một quyết định thật.
+        *
+        * Nhưng không được dốc quá tay: thẻ lên cấp KHÔNG chỉ là nhịp, nó là
+        * toàn bộ đường sức mạnh của ván — mỗi thẻ là một linh thú mới hoặc một
+        * bậc linh thú. Lần chỉnh đầu dựng thang 34+26·cấp, rơi từ mười bảy thẻ
+        * xuống tám, và tỉ lệ thắng đo được tụt từ 4/6 còn 1/6: tới lúc gặp
+        * boss thì đàn linh thú mới có nửa quân số. Mức này cho mười một tới
+        * mười ba thẻ — thưa hơn hẳn bản đầu mà vẫn đủ quân.
+        *
+        * Số hạng bình phương lo riêng cái đuôi. Nhiệm vụ trục vớt và nhặt
+        * trứng không bị chặn bởi tốc đào nên kéo tới chín phút, và với thang
+        * thuần tuyến tính thì đo được cấp 28 — hai mươi bảy lần dừng hình
+        * trong một ván. Bậc thang cong lên khiến những cấp cuối đắt hẳn: đầu
+        * ván vẫn thưởng đều tay, còn cuối ván thì thôi ngắt mạch liên tục. */
+      this.xpNeed = Math.round(30 + this.level * 17 + this.level * this.level * 0.8);
       ups++;
     }
     return ups;
@@ -129,10 +148,10 @@
     var oreName = isOre ? w.oreList[w.ore[id] - 1] : null;
     var oreDef = oreName ? G.ORE[oreName] : null;
 
-    // Cuốc yếu thì đá cứng đục rất chậm chứ không phải không đục được — chặn
-    // cứng thì người chơi kẹt và không hiểu vì sao; chậm thì hiểu ngay.
-    var tierGap = (oreDef && oreDef.hp > 2.4 ? 2 : 1) - this.st.pickTier;
-    var pen = tierGap > 0 ? Math.pow(0.42, tierGap) : 1;
+    // KHÔNG còn hình phạt "thiếu bậc cuốc". Trước đây cuốc thấp bậc đục đá cứng
+    // chỉ còn 42% tốc độ, và người chơi không có cách nào biết điều đó — họ chỉ
+    // thấy "game này đào chậm". Giờ mọi cuốc đục được mọi thứ, cuốc xịn chỉ
+    // nhanh hơn. Chênh lệch nằm ở `power` và `rate`, hai con số nhìn thấy được.
 
     this.mineTile = { x: tx, y: ty };
     this.mineT += dt;
@@ -141,8 +160,8 @@
 
     if (this.mineT >= rate) {
       this.mineT = 0;
-      var res = w.dig(tx, ty, this.st.minePower * pen);
-      this.pendingXp = (this.pendingXp || 0) + 0.35 * this.st.xpMul;   // mỗi nhát cuốc
+      var res = w.dig(tx, ty, this.st.minePower);
+      this.pendingXp = (this.pendingXp || 0) + 0.12 * this.st.xpMul;   // mỗi nhát cuốc
       var cx = tx * T + 8, cy = ty * T + 8;
       fx.burst(cx - dx * 5, cy - dy * 5, 4,
         { col: oreDef ? oreDef.col : '#8a7360', spd: 55, life: 0.35, r: 1.6 });
@@ -160,7 +179,7 @@
     // trung tâm của game — đào — lại không nuôi tiến bộ, và người chơi cấp 1
     // đứng đào cả phút vẫn cấp 1 rồi chết vì chưa kịp gọi linh thú nào.
     if (!res.ore) {
-      this.pendingXp = (this.pendingXp || 0) + 1.2 * this.st.xpMul;
+      this.pendingXp = (this.pendingXp || 0) + 0.45 * this.st.xpMul;
       return;
     }
     this.addOre(res.ore, 1);

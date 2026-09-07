@@ -35,8 +35,23 @@
   G.Screens.results = function (res, rw) { window.__RESULT = { res: res, rw: rw }; };
   G.Screens.hideAll = function () {};
 
-  var biome = window.__BIOME || 'dirt';
-  var lvl = window.__LEVEL || 1;
+  // Cũng đọc từ chuỗi truy vấn (?b=lava&lv=4) để chạy được cả loạt đo bằng
+  // một dòng lệnh mà không phải sinh ra mỗi ván một tệp kịch bản riêng.
+  var Q = new URLSearchParams(location.search);
+  var biome = window.__BIOME || Q.get('b') || 'dirt';
+  var lvl = window.__LEVEL || parseInt(Q.get('lv'), 10) || 1;
+
+  /* Ải cao thì phải đo NGƯỜI CÓ ĐỒ.
+   *
+   * Từ khi bản lưu mới vào game với kho rỗng, chạy đo ải 5 bằng người trần là
+   * đo một tình huống không ai gặp: muốn mở tới ải 5 thì đã chơi hàng chục ván
+   * và quay được cả mớ trang bị. Bản đo trước bỏ qua chuyện này và cho ra 5/6
+   * ván thua — con số đúng về mặt máy móc mà vô nghĩa về mặt trò chơi.
+   * Bốn lần quay cho mỗi ải là mức đi kèm tự nhiên với vàng/ngọc kiếm được. */
+  if (lvl > 1) {
+    G.Meta.s.gem += (lvl - 1) * 4 * 160;
+    for (var gq = 0; gq < (lvl - 1) * 4; gq++) G.Meta.pull('gear', 1);
+  }
   g.startRun(biome, lvl);
 
   // Chế độ bất tử: dùng để kiểm RIÊNG đoạn cuối (boss, chạy thoát, bảng kết

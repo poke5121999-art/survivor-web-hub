@@ -2,14 +2,19 @@
  * hud.js — mọi thứ vẽ ở TOẠ ĐỘ MÀN HÌNH: cần điều khiển, thanh máu, bản đồ nhỏ,
  * ô nhiệm vụ, băng cảnh báo, hàng linh thú.
  *
- * Bố cục chia theo BỐN GÓC, mỗi góc một loại tin (bài học của DRG:Survivor —
- * trên màn nhỏ, cái người chơi cần là biết PHẢI NHÌN ĐÂU, không phải nhìn được
- * nhiều thứ):
+ * LUẬT BỐ CỤC: TIN Ở TRÊN, NÚT Ở DƯỚI-PHẢI. Không có ngoại lệ.
  *
- *      trên-trái  BẢN THÂN   máu, cấp, kinh nghiệm
- *      trên-phải  KHÔNG GIAN bản đồ nhỏ + đồng hồ
- *      giữa-trên  ĐE DOẠ     băng cảnh báo, hiếm khi hiện, hiện thì to
- *      dưới       ĐIỀU KHIỂN cần gạt, nút GỌI, hàng linh thú
+ * Chơi dọc bằng một tay thì cả nửa dưới màn hình nằm dưới lòng bàn tay và ngón
+ * cái. Bản trước để hàng linh thú, dòng mách nước và ô "gọi tiếp tế" ở dưới —
+ * đúng chỗ bị che — nên người chơi không bao giờ thấy con nào sắp chết, và cái
+ * ô tiếp tế thì vừa bị che vừa nằm tận trên cùng lúc còn ở thanh Nitra, xa
+ * ngón tay. Giờ tách hẳn:
+ *
+ *   NỬA TRÊN = chỉ để ĐỌC   máu, cấp, đồng hồ, bản đồ nhỏ, nhiệm vụ, Nitra,
+ *                            hàng linh thú, mách nước — không có gì bấm được
+ *   GIỮA     = ĐE DOẠ       băng cảnh báo, hiếm khi hiện, hiện thì to
+ *   DƯỚI-PHẢI= chỉ để BẤM   nút GỌI và nút TIẾP TẾ, ngay dưới ngón cái
+ *   còn lại  = cần gạt       chạm chỗ nào cũng thành cần gạt tại chỗ đó
  *
  * Và một luật: MỌI THỨ NHỊP NHANH LÀ THANH HOẶC VÒNG, KHÔNG PHẢI SỐ. Số chỉ
  * dùng cho thứ đọc thong thả (chỉ tiêu nhiệm vụ, đồng hồ).
@@ -211,11 +216,14 @@
     // mà không cần mở menu — DRG in mục tiêu ngay trên HUD vì đúng lý do đó.
     this.drawQuest(c, g, pad, top + 46, W - pad * 2 - ms - 8);
 
+    // ---- hàng linh thú: NGAY DƯỚI KHỐI TIN, không phải dưới đáy màn hình.
+    // Đây là thứ phải liếc thấy giữa lúc đánh nhau; để dưới đáy thì bàn tay che
+    // mất và người chơi chỉ biết linh thú chết khi nó đã chết rồi.
+    var petY = Math.max(top + ms + 26, top + 136);
+    this.drawPets(c, g, W, petY);
+
     // ---- GIỮA-TRÊN: băng cảnh báo
     this.drawBanners(c, W, H * 0.30);
-
-    // ---- DƯỚI: hàng linh thú
-    this.drawPets(c, g, W, H);
 
     // ---- mũi tên chỉ mục tiêu: chạy thoát thì chỉ khoang, còn lại chỉ mốc
     // nhiệm vụ gần nhất. Không có nó thì trên màn dọc người chơi đi lạc cả ván.
@@ -235,7 +243,7 @@
       c.globalAlpha = a;
       c.font = 'bold 11px ui-monospace, monospace';
       c.textAlign = 'center';
-      var ty = H - (g.safeBot || 0) - 118;
+      var ty = petY + 52;
       var tw = c.measureText(this.note.text).width + 20;
       panel(c, W / 2 - tw / 2, ty - 14, tw, 22, 0.72);
       c.fillStyle = '#d8ccec';
@@ -272,8 +280,10 @@
     c.font = 'bold 10px ui-monospace, monospace';
     c.fillStyle = n >= need ? '#7dff9a' : '#c8a070';
     c.fillText('NITRA ' + Math.min(n, need) + '/' + need +
-               (n >= need ? '  — CHẠM ĐỂ GỌI TIẾP TẾ' : '  → tiếp tế'), x + 8, y2 + 14);
-    this.supplyBox = { x: x, y: y2, w: w, h: 20, ready: n >= need };
+               (n >= need ? '  — ĐỦ RỒI, BẤM NÚT TIẾP TẾ' : '  → tiếp tế'), x + 8, y2 + 14);
+    bar(c, x + 8, y2 + 17, w - 16, 2, n / need, '#7dff9a', '#2a8a4a');
+    // Chỉ để ĐỌC. Nút bấm nằm dưới-phải cùng nút GỌI — xem drawRally().
+    this.supplyReady = n >= need;
   };
 
   Hud.prototype.drawBanners = function (c, W, y) {
@@ -298,14 +308,13 @@
 
   /* Hàng linh thú: ảnh + thanh máu + bậc. Đủ để biết con nào sắp chết mà về gọi,
    * không đủ để rối. */
-  Hud.prototype.drawPets = function (c, g, W, H) {
+  Hud.prototype.drawPets = function (c, g, W, y) {
     var list = g.pets;
     if (!list.length) return;
     var n = Math.min(list.length, 6);
     var cw = 34, gap = 4;
     var tot = n * cw + (n - 1) * gap;
     var x0 = W / 2 - tot / 2;
-    var y = H - (g.safeBot || 0) - 92;
     for (var i = 0; i < n; i++) {
       var p = list[i];
       var x = x0 + i * (cw + gap);
@@ -408,10 +417,34 @@
   /* Nút GỌI — nút DUY NHẤT trong ván. Gom linh thú về, hồi cho chúng, và tăng
    * sát thương 2 giây. Một nút thì người chơi không phải học gì, mà vẫn có một
    * quyết định thật để đưa ra. */
+  /* Hai nút duy nhất của màn chơi, xếp dọc ở góc dưới-phải — vùng ngón cái
+   * phải với tới được. Mọi thứ CHỈ ĐỂ ĐỌC đã dời hết lên nửa trên. */
   Hud.prototype.drawRally = function (c, g, W, H) {
     var r = 34;
-    var x = W - r - 22, y = H - (g.safeBot || 0) - r - 22;
+    var x = W - r - 22, y = H - (g.safeBot || 0) - r - 30;
     this.rallyBox = { x: x, y: y, r: r + 8 };
+
+    // ---- nút TIẾP TẾ, nằm ngay trên nút GỌI, chỉ hiện khi đủ Nitra
+    var sr = 27, sy = y - r - sr - 14;
+    this.supplyBox = { x: x, y: sy, r: sr + 8, ready: !!this.supplyReady };
+    if (this.supplyReady) {
+      c.save();
+      var pulse = 0.5 + 0.5 * Math.sin(performance.now() / 240);
+      c.fillStyle = 'rgba(10,8,14,.78)';
+      c.beginPath(); c.arc(x, sy, sr, 0, 6.2832); c.fill();
+      c.strokeStyle = '#7dff9a';
+      c.lineWidth = 3;
+      c.globalAlpha = 0.6 + 0.4 * pulse;
+      c.beginPath(); c.arc(x, sy, sr, 0, 6.2832); c.stroke();
+      c.globalAlpha = 1;
+      c.font = 'bold 10px ui-monospace, monospace';
+      c.textAlign = 'center';
+      c.fillStyle = '#bfffd0';
+      c.fillText('TIẾP', x, sy - 1);
+      c.fillText('TẾ', x, sy + 10);
+      c.restore();
+    }
+
     var k = 1 - Math.max(0, g.run.rallyCd) / g.run.st.rallyCd;
     c.save();
     c.fillStyle = 'rgba(10,8,14,.72)';

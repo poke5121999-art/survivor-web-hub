@@ -502,7 +502,7 @@ window.HUB_GAMES = [
     tagline: "Đào hầm nhìn từ trên xuống, màn hình dọc, một cần gạt. Bạn KHÔNG tự đánh: mỗi món mang theo là một con linh thú tự đi, tự chọn mục tiêu, tự đánh — mười con, mỗi con một luật ngắm in thẳng lên thẻ. Việc của bạn là đi, đào, và đứng đúng chỗ. Một ván là MỘT TẦNG khoảng mười phút: nhận nhiệm vụ, đục đá tìm quặng, sống qua mấy đợt bầy có báo trước, hạ chủ hang rồi chạy về khoang thoát trong lúc cả hang đổ ra chặn đầu. Đèn là một ô trang bị riêng vì ngoài quầng sáng là đen đặc. Ngoài ván: hai loại tiền, quay trứng linh thú, nâng bậc, sáu ô trang bị — mũ, áo, quần đổi luôn hình nhân vật.",
     thumbnail: "assets/thumbnails/deepcore.svg",
     path: "games/deepcore/index.html",
-    rev: "20260907a",
+    rev: "20260907e",
     // Trộn ba game: Deep Rock Galactic (nhịp đi hang, nhiệm vụ, bầy có báo trước,
     // chạy thoát) + Deep Rock Galactic: Survivor (lên cấp chọn 1 trong 3, vũ khí tự
     // đánh, tự đào) + Core Keeper (đá đặc, khoét hang, vỉa quặng, bóng tối, art).

@@ -22,6 +22,9 @@ const url = process.argv[2];
 const out = process.argv[3] || 'shot.png';
 const wait = parseFloat(process.argv[4] || '4');
 const doArg = (process.argv.find(a => a.startsWith('--do=')) || '').slice(5);
+// --dofile=<path>: nạp nguyên một tệp JS làm biểu thức. Kịch bản đo tải (soak)
+// dài vài trăm dòng, nhét vào một tham số dòng lệnh thì dấu nháy vỡ hết.
+const doFile = (process.argv.find(a => a.startsWith('--dofile=')) || '').slice(9);
 const sizeArg = (process.argv.find(a => a.startsWith('--size=')) || '--size=420x760').slice(7);
 const [VW, VH] = sizeArg.split('x').map(Number);
 
@@ -92,9 +95,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await send('Page.navigate', { url });
   await sleep(wait * 1000);
 
-  if (doArg) {
+  const expr = doFile ? fs.readFileSync(doFile, 'utf8') : doArg;
+  if (expr) {
     const r = await send('Runtime.evaluate',
-      { expression: doArg, awaitPromise: true, returnByValue: true });
+      { expression: expr, awaitPromise: true, returnByValue: true });
     if (r && r.exceptionDetails) {
       errors.push('--do: ' + JSON.stringify(r.exceptionDetails.exception));
     } else if (r && r.result && r.result.value !== undefined) {

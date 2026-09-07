@@ -26,7 +26,7 @@
     this.uiEl = document.getElementById('ui');
     this.fx = new G.Fx();
     this.hud = new G.Hud();
-    this.dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.dpr = 1;   // resize() tính lại theo màn hình thật
     this.state = 'boot';
     this.lastT = 0;
     this.slowmo = 0;
@@ -63,9 +63,24 @@
   Game.prototype.resize = function () {
     var app = document.getElementById('app');
     var r = app.getBoundingClientRect();
-    this.cssW = r.width; this.cssH = r.height;
-    this.cv.width = Math.round(r.width * this.dpr);
-    this.cv.height = Math.round(r.height * this.dpr);
+    /* Khung ảnh phải trùng ĐÚNG lưới điểm ảnh thật của màn hình.
+     *
+     * Bản trước chặn dpr ở 2. Điện thoại phổ thông có dpr 3, nên khung ảnh
+     * 2x bị màn hình kéo lên 1,5 lần: một điểm ảnh của art thành một-rưỡi
+     * điểm ảnh máy, hàng thì dày hàng thì mỏng, và cả bộ pixel art trông
+     * nhoè hẳn đi. Lấy đúng dpr (trần 3) thì khung ảnh và màn hình là 1:1.
+     *
+     * Khổ CSS cũng phải ép tay bằng đúng pw/dpr. Để trình duyệt tự căn theo
+     * `width:100%` thì ô CSS lẻ vài phần mười điểm ảnh so với khung ảnh, và
+     * chỉ chừng đó cũng đủ làm nhoè. */
+    this.dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+    var pw = Math.floor(r.width * this.dpr);
+    var ph = Math.floor(r.height * this.dpr);
+    this.cv.width = pw;
+    this.cv.height = ph;
+    this.cv.style.width = (pw / this.dpr) + 'px';
+    this.cv.style.height = (ph / this.dpr) + 'px';
+    this.cssW = pw / this.dpr; this.cssH = ph / this.dpr;
     this.lightCv.width = this.cv.width;
     this.lightCv.height = this.cv.height;
     // ~16 ô lọt bề ngang
@@ -96,8 +111,9 @@
       var rb = self.hud.rallyBox;
       if (rb && Math.hypot(p.x - rb.x, p.y - rb.y) < rb.r) { self.rally(); return; }
       var sb = self.hud.supplyBox;
-      if (sb && sb.ready && p.x > sb.x && p.x < sb.x + sb.w &&
-          p.y > sb.y && p.y < sb.y + sb.h) { self.callSupply(); return; }
+      if (sb && sb.ready && Math.hypot(p.x - sb.x, p.y - sb.y) < sb.r) {
+        self.callSupply(); return;
+      }
       var s = self.input.stick;
       if (s.active) return;
       s.active = true; s.id = id; s.ox = p.x; s.oy = p.y; s.dx = 0; s.dy = 0;
@@ -612,7 +628,17 @@
       shx = (Math.random() - 0.5) * this.fx.shake * S;
       shy = (Math.random() - 0.5) * this.fx.shake * S;
     }
-    c.setTransform(S, 0, 0, S, -this.cam.x * S + W / 2 + shx, -this.cam.y * S + H / 2 + shy);
+    /* LÀM TRÒN gốc toạ độ về số nguyên điểm ảnh máy.
+     *
+     * Máy quay chạy mượt nên cam.x là số lẻ; nhân với S rồi đưa thẳng vào
+     * setTransform thì mọi sprite rơi vào giữa hai điểm ảnh, trình duyệt phải
+     * nội suy lại, và toàn bộ art nhìn mờ và rung nhẹ khi đi. Chốt về số
+     * nguyên là cách duy nhất để pixel art sắc. Máy quay vẫn mượt như cũ —
+     * chỉ là nó dừng ở nấc nguyên thay vì nấc lẻ. */
+    var ox = Math.round(-this.cam.x * S + W / 2 + shx);
+    var oy = Math.round(-this.cam.y * S + H / 2 + shy);
+    this.camOx = ox; this.camOy = oy;
+    c.setTransform(S, 0, 0, S, ox, oy);
 
     this.world.draw(c, this.cam, W, H);
     this.player.drawMineMark(c, this.world);
@@ -644,7 +670,7 @@
     }
     this.fx.drawText(c);
 
-    this.drawLight(c, W, H, S, shx, shy);
+    this.drawLight(c, W, H, S, ox, oy);
 
     // HUD vẽ ở đơn vị "điểm ảnh CSS" để cỡ chữ không đổi theo máy
     c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
@@ -716,7 +742,7 @@
 
   /* Ánh sáng: một lớp tối phủ kín rồi khoét lỗ. Vẽ ở toạ độ MÀN HÌNH (không
    * theo camera) để gradient không bị kéo méo khi phóng. */
-  Game.prototype.drawLight = function (c, W, H, S, shx, shy) {
+  Game.prototype.drawLight = function (c, W, H, S, ox, oy) {
     var lg = this.lightG, bio = this.world.bio;
     var self = this;
     lg.setTransform(1, 0, 0, 1, 0, 0);
@@ -729,8 +755,10 @@
     lg.globalCompositeOperation = 'destination-out';
 
     function hole(wx, wy, r, soft) {
-      var sx = (wx - self.cam.x) * S + W / 2 + shx;
-      var sy = (wy - self.cam.y) * S + H / 2 + shy;
+      // Dùng đúng gốc toạ độ đã chốt của lượt vẽ này, nếu không lỗ sáng lệch
+      // khỏi ngọn đuốc đúng một điểm ảnh và viền tối trông như bị bóc.
+      var sx = wx * S + ox;
+      var sy = wy * S + oy;
       var R = r * S;
       if (sx < -R || sy < -R || sx > W + R || sy > H + R) return;
       var g = lg.createRadialGradient(sx, sy, R * (soft === undefined ? 0.22 : soft), sx, sy, R);
@@ -776,8 +804,8 @@
 
     // quầng ấm trên nguồn sáng — chi tiết nhỏ nhưng nó là cả cái "cảm giác hang"
     c.globalCompositeOperation = 'lighter';
-    var px = (this.player.x - this.cam.x) * S + W / 2 + shx;
-    var py = (this.player.y - this.cam.y) * S + H / 2 + shy;
+    var px = this.player.x * S + ox;
+    var py = this.player.y * S + oy;
     var gg = c.createRadialGradient(px, py, 0, px, py, this.player.lightR * S * 0.8);
     gg.addColorStop(0, bio.glow + '30');
     gg.addColorStop(1, 'rgba(0,0,0,0)');
