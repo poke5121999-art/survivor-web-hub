@@ -71,12 +71,31 @@
     be_tong:    [11, 11],
     go_xuongca: [11, 13]
   };
-  // TƯỜNG: hàng trên của khối. Thân = (5, r) — bản không viền hông, lát ngang bao nhiêu cũng
-  // liền. Mặt = (1, r+1) — có dải chân tường sẵn ở đáy, tức đã có sẵn cái "mặt đứng nhìn thấy"
-  // mà bản vẽ bằng mã phải đắp bằng một dốc sáng.
+  // TƯỜNG — [hàng trên của khối, độ lệch cắt mặt trên].
+  //
+  // Chủ dự án: "phần wall bạn phải dựng kiểu soul knight như vậy nè", kèm ảnh: tường là một
+  // dãy KHỐI, mỗi khối có mặt trên tối và một mặt trước sáng ở cạnh dưới.
+  //
+  // Bản trước dán nguyên một mặt tường phẳng lên mọi ô, và đó là chỗ sai: bộ Modern Interiors
+  // vẽ tường cho khung nhìn ĐỨNG (một bức tường cao hai ô, có phào trên và chân tường dưới),
+  // còn game này nhìn từ trên xuống với tường dày đúng một ô. Dán thẳng thì bức tường không có
+  // bề dày — và tệ hơn, cái dải trang trí nằm ngang của giấy dán tường lặp lại ở MỌI ô của một
+  // bức tường dọc, thành một cái thang sọc.
+  //
+  // Nay mỗi ô tường dựng bằng hai lượt:
+  //   1. MẶT TRÊN  — mảng tường trơn, làm tối. Đây là đỉnh khối nhìn từ phía khuất.
+  //   2. MẶT TRƯỚC — nửa dưới của mặt tường (dải trang trí + chân tường), chỉ vẽ khi ô ngay
+  //      dưới là khoảng trống. Đó đúng là cái mặt đứng mà người chơi nhìn thấy.
+  //
+  // ĐỘ LỆCH là con số cứu lượt 1. Trong khối tường cao 96 điểm ảnh (hai hàng ở cột 1), không
+  // có ô 48 nào trơn tuyệt đối, nhưng CÓ một cửa sổ mà hàng đầu và hàng cuối trùng màu — lát
+  // dọc bao nhiêu ô cũng không lộ mối. Bốn số 24/27/31 dưới đây là đo ra: quét cả 49 vị trí,
+  // chấm bằng tổng biến động trong cửa sổ cộng ba lần độ lệch giữa hàng đầu và hàng cuối.
+  // Ba nước sơn có dải trang trí (hồng đất, kem, ngọc) chấm 200-350; năm nước còn lại 12-42,
+  // tức gần như trơn hẳn. Đổi tấm png thì phải đo lại, đừng đoán.
   const TUONG = {
-    hong_dat: 5, kem: 7, ngoc: 9, go_nhat: 11,
-    go_vua: 13, go_do: 15, xam_lam: 17, reu: 19
+    hong_dat: [5, 24], kem: [7, 24], ngoc: [9, 24], go_nhat: [11, 27],
+    go_vua: [13, 27], go_do: [15, 27], xam_lam: [17, 31], reu: [19, 31]
   };
 
   // ---------------------------------------------------------------- MIẾNG ĐỒ
@@ -192,19 +211,34 @@
     return true;
   }
 
-  // `mat` = ô ngay dưới là sàn, tức bức tường này đang quay mặt xuống một căn phòng.
+  // `mat` = ô ngay dưới là khoảng trống, tức bức tường này đang quay mặt xuống một căn phòng.
   function veTuong(c, x, y, ki, gx, gy, T, mat){
     const k = KIEU[ki];
     if (!k || !xong(RB)) return false;
-    const r = TUONG[k.tuong];
-    if (mat) c.drawImage(RB, 1 * O, (r + 1) * O, O, O, x, y, T, T);
-    else     c.drawImage(RB, 5 * O, r * O,       O, O, x, y, T, T);
+    const t = TUONG[k.tuong], r = t[0], lech = t[1];
+    // 1. MẶT TRÊN. Cắt ở độ lệch đã đo nên hai ô chồng lên nhau không lộ mối, rồi phủ một lớp
+    //    tối: đỉnh tường là mặt quay đi khỏi nguồn sáng, và nó phải TỐI HƠN mặt trước thì cả
+    //    bức mới đọc ra một khối có bề dày. Đây cũng là quy ước sẵn có của game (xem chỗ vẽ
+    //    dốc mặt sau trong prerenderWorld).
+    c.drawImage(RB, 1 * O, r * O + lech, O, O, x, y, T, T);
+    c.fillStyle = 'rgba(8,6,4,0.40)';
+    c.fillRect(x, y, T, T);
+    // 2. MẶT TRƯỚC, nửa dưới ô. Lấy đúng nửa DƯỚI của mặt tường nguồn — chỗ có dải trang trí
+    //    và chân tường — chứ không thu cả mặt tường vào nửa ô: thu là méo, cắt là nét.
+    if (mat){
+      const nua = O >> 1;
+      c.drawImage(RB, 1 * O, (r + 2) * O - nua, O, nua, x, y + T / 2, T, T / 2);
+      // Một vạch tối ở chỗ mặt trên gặp mặt trước. Không có nó thì hai mảng cùng nước sơn
+      // dính vào nhau và cái gờ biến mất — mà chính cái gờ là thứ nói 'đây là một khối'.
+      c.fillStyle = 'rgba(0,0,0,0.42)';
+      c.fillRect(x, y + T / 2 - 0.5, T, 1);
+    }
     return true;
   }
 
   // ---------------------------------------------------------------- ĐỒ ĐẠC THEO DÃY
   //
-  // Mẫu phòng viết đồ thành DÃY NGANG: 'TTT', 'SSSSSSS'. Nếu mỗi ô tự bốc một miếng thì cái ghế
+  // Mẫu phòng viết đồ thành DÃY — ngang ('TTT') lẫn dọc. Nếu mỗi ô tự bốc một miếng thì cái ghế
   // sofa rộng ba ô không bao giờ dùng được, và một dãy bảy ô kệ ra bảy cái kệ giống hệt nhau
   // dính vào nhau.
   //
@@ -216,14 +250,36 @@
   // Đắt hơn (một dãy dài 19 ô thì tính 19 lần) nhưng đổi lại paintProp() vẫn là một hàm thuần:
   // vẽ lại một ô bất kỳ, ở bất kỳ thứ tự nào, vẫn ra đúng cái đã có. Vẽ nền chỉ chạy một lần
   // mỗi màn, nên cái giá ấy là vài trăm phép tính cho cả căn nhà.
-  function veDo(c, x, y, ki, ch, gx, gy, T, dau, dai){
+  function veDo(c, x, y, ki, ch, gx, gy, T, dauX, dai, dauY, cao){
     const k = KIEU[ki];
     if (!k || !xong(IT)) return false;
-    const ds = k.do[ch];
-    if (!ds || !ds.length) return false;
-    let i = dau;                                  // ô đang xét, tính từ đầu dãy
+    const ds0 = k.do[ch];
+    if (!ds0 || !ds0.length) return false;
+
+    // ---- CẮT DÃY DỌC TRƯỚC
+    //
+    // ROOT-CAUSE của lỗi 'đồ chồng lên nhau thành một vệt': bản trước chỉ cắt theo HÀNG NGANG.
+    // Mẫu phòng có cả cột dọc ('S' nằm chồng nhau bốn hàng), và mỗi ô trong cột ấy đều tự vẽ
+    // một miếng cao hai ô — mà miếng cao hai ô thì tràn LÊN TRÊN, đè đúng vào ô vừa vẽ xong.
+    // Bốn ô liên tiếp là bốn cái tủ cắt ngang nhau. Thấy rõ ở phòng khách, thư phòng, nhà kho.
+    //
+    // Cắt từ ĐÁY dãy lên: đáy là ô neo, rồi cứ mỗi `buoc` ô lại một ô neo. Ô không phải neo thì
+    // đã nằm trong bụng miếng phía dưới, không vẽ gì. Neo từ đáy chứ không từ đỉnh vì miếng đồ
+    // đặt đáy ở đáy ô — phần thừa của một dãy lẻ phải rơi lên ĐỈNH, chỗ nó tràn ra ngoài dãy và
+    // dựa vào bức tường phía trên, đúng như một cái tủ dựa tường.
+    const buoc = ds0.reduce((m, p) => Math.max(m, p[3]), 1);
+    const duoi = dauY + cao - 1;
+    if (buoc > 1 && ((duoi - gy) % buoc)) return true;
+    // Còn đủ chỗ cho một miếng cao trọn vẹn thì BẮT BUỘC lấy miếng cao. Lấy miếng thấp ở đây là
+    // để hở đúng cái ô phía trên vừa bị tuyên bố 'đã có người phủ'.
+    const conDoc = gy - dauY + 1;
+    const ds = (buoc > 1 && conDoc >= buoc) ? ds0.filter(m => m[3] === buoc) : ds0;
+    if (!ds.length) return false;
+
+    // ---- RỒI CẮT DÃY NGANG
+    let i = dauX;
     while (i <= gx){
-      const conLai = dau + dai - i;
+      const conLai = dauX + dai - i;
       // Bốc trong số những miếng KHÔNG rộng quá chỗ còn lại. Không lọc thì cái sofa ba ô rơi
       // vào hai ô cuối dãy và thò một phần ba sang ô của bức tường bên cạnh.
       let vua = ds;

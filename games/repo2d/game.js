@@ -2455,6 +2455,22 @@ function buildLevel(seed){
   // nha, ca nuoc son lan tuong vach. Mot van co the choi lai y het la thu ca bo test dua vao.
   const kieuBai = KHO_KIEU.slice();
   for (let i = kieuBai.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [kieuBai[i],kieuBai[j]] = [kieuBai[j],kieuBai[i]]; }
+  // GIU RIENG MOT LA DA cho mau ham mo TRUOC KHI chia.
+  //
+  // Bo bai co bon la da tren muoi ba, ma mau ham mo thi co the roi vao phong thu chin. Do
+  // that: mot hat giong cho ra tam phong dau an het bon la da, phong thu chin la ham mo,
+  // khong con la nao de rut - va no phai lay tam KHO_DA[ri % 4], mot nuoc da DA duoc chia
+  // cho phong khac. Ket qua la hai phong cung mot nuoc, dung cai ma bo bai sinh ra de chan.
+  //
+  // Chi mot phong duoc mang co `da` trong mot van: `order` la mot hoan vi cua ROOMS va chin
+  // phong doc chin muc khac nhau cua no, nen mau ham mo xuat hien nhieu nhat mot lan.
+  let laMo = -1;
+  for (let ri = 0; ri < GX*GY; ri++){
+    if (!ROOMS[order[ri % order.length]].da) continue;
+    const j = kieuBai.findIndex(kieuDa);
+    if (j >= 0) laMo = kieuBai.splice(j, 1)[0];
+    break;
+  }
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
     const ri = cy*GX+cx;
     const t = ROOMS[order[ri % order.length]];
@@ -2473,12 +2489,9 @@ function buildLevel(seed){
     // no chi doc `KHO_DA[ri % 4]` thi cai nuoc ay hoan toan co the DA duoc chia cho mot
     // phong truoc do - do that: hat giong mac dinh cho ra hai phong cung nuoc 'da cat'.
     // Rut ra khoi bo bai thi mot la chi ra mot lan, va chin phong ra chin kieu khac nhau.
-    if (t.da){
-      const j = kieuBai.findIndex(kieuDa);
-      S.roomStyle[ri] = j >= 0 ? kieuBai.splice(j, 1)[0] : KHO_DA[ri % KHO_DA.length];
-    } else {
-      S.roomStyle[ri] = kieuBai.length ? kieuBai.shift() : KHO_KIEU[ri % KHO_KIEU.length];
-    }
+    if (t.da && laMo >= 0){ S.roomStyle[ri] = laMo; laMo = -1; }
+    else if (t.da)        { S.roomStyle[ri] = KHO_DA[ri % KHO_DA.length]; }
+    else                  { S.roomStyle[ri] = kieuBai.length ? kieuBai.shift() : KHO_KIEU[ri % KHO_KIEU.length]; }
     // TEN PHONG DI THEO CAI MAT, khong di theo mau. Mau chi bo tri do dac ('day ban ap
     // tuong'), con thu nguoi choi NHIN THAY la nuoc son va mon do: cung mot mau 'Hanh lang'
     // lat gach men voi day quay bep thi no la cai bep. Ban do goc man ma ghi 'Hanh lang'
@@ -3651,13 +3664,22 @@ function dayDo(kind, gx, gy){
   let b = gx; while (cung(b+1)) b++;
   return [a, b-a+1];
 }
+// ...va do dai DAY DOC. Mot cai tu cao hai o tran LEN TREN, nen neu ca mot cot deu la 'S' thi
+// moi o trong cot tu ve mot cai tu de len cai vua ve xong. veDo() can biet cot nay dai bao
+// nhieu de cat no thanh tung doan hai o, y het viec no dang lam voi day ngang.
+function cotDo(kind, gx, gy){
+  const cung = ay => ay >= 0 && ay < MH && S.grid[ay*MW+gx] === PROP && S.deco && S.deco[ay*MW+gx] === kind;
+  let a = gy; while (cung(a-1)) a--;
+  let b = gy; while (cung(b+1)) b++;
+  return [a, b-a+1];
+}
 function paintProp(c, x, y, kind, n, gx, gy, ki){
   // DO LAT BANG TILE TRUOC, va chi khi kieu phong nay co mot mon cho dung chu ay.
   if (ki != null && window.REPO_PHONG && FLOORS[ki] && FLOORS[ki].phong != null){
     const ch = CH_PROP[kind];
     if (ch){
-      const d = dayDo(kind, gx, gy);
-      if (REPO_PHONG.veDo(c, x, y, FLOORS[ki].phong, ch, gx, gy, TILE, d[0], d[1])) return;
+      const d = dayDo(kind, gx, gy), v = cotDo(kind, gx, gy);
+      if (REPO_PHONG.veDo(c, x, y, FLOORS[ki].phong, ch, gx, gy, TILE, d[0], d[1], v[0], v[1])) return;
     }
   }
   const T = TILE;
@@ -11821,7 +11843,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260908b';
+const BUILD = '20260908c';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
