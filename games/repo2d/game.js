@@ -74,9 +74,30 @@ const P_TOMB = 6, P_RUBBLE = 7, P_URN = 8;
 // Đổi chữ thì phải sửa lại toàn bộ mẫu phòng đã vẽ tay, mà cái đổi ở đây là NƯỚC SƠN.
 const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_LOCKER,
                   K:P_TOMB, R:P_RUBBLE, U:P_URN };
+// CHIN KIEU PHONG LAT BANG TILE THAT (8..16) noi tiep bon nuoc son nha (0..3) va bon nuoc
+// ham mo (4..7). Chung deu chi la CHI SO vao FLOORS/WALLS nhu cu; cai moi la moi kieu tu 8
+// tro len con mang them mot truong `phong` - so thu tu cua no trong REPO_PHONG.KIEU.
+// Thieu tep hinh thi truong do van con nhung REPO_PHONG khong ton tai, va ca chin kieu roi
+// ve mau to dac ghi trong FLOORS/WALLS. Khong co man nao vo vi thieu mot tam png.
 const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3,
-                      stone:4, da_cat:5, da_sam:6, da_thau:7 };
-const STONE_TU = 4;   // từ chỉ số này trở đi là đá
+                      stone:4, da_cat:5, da_sam:6, da_thau:7,
+                      khach:8, bep:9, ngu:10, tam:11, kho:12,
+                      thu:13, tiem:14, lop:15, hoang:16 };
+// Kho kieu de BOC NGAU NHIEN cho tung phong. Chin kieu tile dung rieng le, con ham mo vao
+// kho bang CA BON nuoc da cua no: bon nuoc ay von de chin phong khoi doc ra mot hanh lang
+// dai, va gio thi chung lam dung viec ay o quy mo nho hon - hai gian mo canh nhau van khac
+// nhau mot nac sang.
+const KHO_KIEU = [8,9,10,11,12,13,14,15,16, 4,5,6,7];
+const KHO_DA   = [4,5,6,7];
+// Ten cua bon nuoc da. Mot phong lay nuoc da ma van mang ten cua MAU ('Bep', 'Lop hoc') la
+// mot cau noi doi lo lieu: tren man hinh la quan tai va da vun, con ban do goc man ghi 'Bep'.
+// Bon ten thay vi mot, vi bon nuoc da von sinh ra de hai gian mo canh nhau khong doc ra mot.
+const TEN_MO   = ['Hầm mộ', 'Gian mộ', 'Nhà mồ', 'Hầm mộ sâu'];
+// 'Kieu nay co phai da khong'. Truoc day cau hoi ay duoc hoi bang `>= STONE_TU`, tuc bang
+// CHO NGOI trong mang - dung chung nao khong ai them dong nao vao sau. Chin kieu moi nam
+// ngay sau bon nuoc da, nen phep so ay se tra loi 'phai' cho ca chin. Hoi bang co `stone`
+// cua chinh nuoc son do thi them bao nhieu kieu nua cung khong hong.
+function kieuDa(i){ const f = FLOORS[i]; return !!(f && f.stone); }
 
 // WHY 92 and not the 132 this shipped with: at 132 a walking player outran every chasing monster
 // in the game (the fastest chase in MONSTERS is 74*1.25 = 92.5 px/s), so being seen cost nothing —
@@ -1049,7 +1070,10 @@ const ROOMS = [
   //
   // Bốn gian đều mở toang về phía hành lang ngang, không có cửa hẹp: xe đẩy rộng 40 điểm ảnh, mà
   // một lối một ô chỉ có 24 — bịt lại thành ra bốn gian mà cả vòng khuân đồ không vào được.
-  { name:'Hầm mộ', floor:'stone', rows:[
+  // `da:1` — mau phong DUY NHAT bat buoc phai lay nuoc da. Ba chu K, R, U trong day chi ton
+  // tai o ham mo (quan tai, da vun, vo gom) va khong co tile nao trong bo Modern Interiors
+  // ve chung ca. Boc trung mot kieu lat gach cho no thi ra mot cai bep co bon day quan tai.
+  { name:'Hầm mộ', floor:'stone', da:1, rows:[
     '#####################',
     '#K.K.K.K#...#K.K.K.K#',
     '#.......#...#.......#',
@@ -2427,12 +2451,43 @@ function buildLevel(seed){
 
   S.deco = new Uint8Array(MW*MH);
   S.roomStyle = new Uint8Array(GX*GY);
+  // Xao bo bai kieu phong bang CHINH `rnd` - dong nghia mot hat giong van cho ra mot can
+  // nha, ca nuoc son lan tuong vach. Mot van co the choi lai y het la thu ca bo test dua vao.
+  const kieuBai = KHO_KIEU.slice();
+  for (let i = kieuBai.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [kieuBai[i],kieuBai[j]] = [kieuBai[j],kieuBai[i]]; }
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
     const ri = cy*GX+cx;
     const t = ROOMS[order[ri % order.length]];
     const fx = rnd()<0.5, fy = rnd()<0.5;
-    S.rooms.push({ name:t.name, cx, cy, seen:false });
-    S.roomStyle[ri] = FLOOR_STYLE[t.floor || 'wood'];
+    // MOI PHONG MOT KIEU, BOC TU MOT BO BAI DA XAO. Chu du an: '1 map random nhieu room
+    // style khac nhau'.
+    //
+    // Chia bai chu khong tung xuc xac tung phong: xuc xac doc lap thi chin phong hoan toan
+    // co the ra bay cai bep, va lan choi ay mat sach cai ma ca he thong nay sinh ra de co.
+    // Bo bai co 13 la cho 9 phong, nen khong phong nao trung phong nao, va con bon la thua
+    // de hai van lien tiep khong giong nhau.
+    //
+    // Rieng mau HAM MO thi khong boc: no doi lay nuoc da, va lay mot trong bon nuoc theo
+    // vi tri phong de hai gian mo canh nhau van khac nhau mot nac sang.
+    // RUT KHOI BO BAI, khong phai doc theo chi so. Mau ham mo doi lay mot nuoc da, va neu
+    // no chi doc `KHO_DA[ri % 4]` thi cai nuoc ay hoan toan co the DA duoc chia cho mot
+    // phong truoc do - do that: hat giong mac dinh cho ra hai phong cung nuoc 'da cat'.
+    // Rut ra khoi bo bai thi mot la chi ra mot lan, va chin phong ra chin kieu khac nhau.
+    if (t.da){
+      const j = kieuBai.findIndex(kieuDa);
+      S.roomStyle[ri] = j >= 0 ? kieuBai.splice(j, 1)[0] : KHO_DA[ri % KHO_DA.length];
+    } else {
+      S.roomStyle[ri] = kieuBai.length ? kieuBai.shift() : KHO_KIEU[ri % KHO_KIEU.length];
+    }
+    // TEN PHONG DI THEO CAI MAT, khong di theo mau. Mau chi bo tri do dac ('day ban ap
+    // tuong'), con thu nguoi choi NHIN THAY la nuoc son va mon do: cung mot mau 'Hanh lang'
+    // lat gach men voi day quay bep thi no la cai bep. Ban do goc man ma ghi 'Hanh lang'
+    // trong khi tren man hinh la mot cai bep la mot cau noi doi nho, lap lai ca van.
+    const st0 = S.roomStyle[ri], kp = FLOORS[st0];
+    const tenPhong = kieuDa(st0)  ? (TEN_MO[st0 - 4] || TEN_MO[0])
+                   : (window.REPO_PHONG && kp && kp.phong != null) ? REPO_PHONG.ten(kp.phong)
+                   : t.name;
+    S.rooms.push({ name:tenPhong, cx, cy, seen:false });
     for (let y=0; y<RH; y++) for (let x=0; x<RW; x++){
       const sx = fx ? RW-1-x : x, sy = fy ? RH-1-y : y;
       const ch = (t.rows[sy] || '')[sx] || '.';
@@ -3020,7 +3075,21 @@ const FLOORS = [
   { base:[118,132,126],alt:[124,138,131], stone:1 },  // 4 đá lục  — nước gốc, lấy thẳng từ tranh
   { base:[132,130,118],alt:[138,136,123], stone:1 },  // 5 đá cát  — ngả vàng, ấm hơn một nấc
   { base:[104,114,112],alt:[110,120,117], stone:1 },  // 6 đá sẫm  — tối nhất, cho phòng sâu
-  { base:[124,120,128],alt:[130,126,134], stone:1 }   // 7 đá thau — ngả tím rất nhạt, lạnh nhất
+  { base:[124,120,128],alt:[130,126,134], stone:1 },  // 7 đá thau — ngả tím rất nhạt, lạnh nhất
+  // 8..16 - CHIN KIEU LAT BANG TILE. Mau ghi o day la mau TRUNG BINH cua chinh khoi tile
+  // tuong ung, do bang cach cong het diem anh cua khoi 3x2 roi chia - khong phai mau uoc
+  // chung. Vi sao phai dung so do: neu tam png khong ve duoc (mang hong, giay phep bi go)
+  // thi can nha van phai co chin nuoc san khac nhau, va nguoi choi van phai nhin nuoc san
+  // ma biet minh dang o phong nao. Mot mau uoc chung se pha dung cai do.
+  { base:[154, 87, 68], alt:[162, 93, 74], phong:0 },   //  8 phong khach - go xuong ca
+  { base:[222,216,160], alt:[228,222,168], phong:1 },   //  9 bep         - gach men kem
+  { base:[154, 87, 68], alt:[162, 93, 74], phong:2 },   // 10 phong ngu   - go xuong ca
+  { base:[151,198,199], alt:[158,204,205], phong:3 },   // 11 phong tam   - gach men ngoc
+  { base:[160,166,170], alt:[166,172,176], phong:4 },   // 12 nha kho     - be tong
+  { base:[154, 87, 68], alt:[162, 93, 74], phong:5 },   // 13 thu phong   - go xuong ca
+  { base:[154, 87, 84], alt:[162, 93, 90], phong:6 },   // 14 tiem tap hoa- gach do
+  { base:[222,216,160], alt:[228,222,168], phong:7 },   // 15 lop hoc     - gach men kem
+  { base:[160,166,170], alt:[166,172,176], phong:8 }    // 16 bo hoang    - be tong
 ];
 // Chọn lại mặt tường, 2026-08-31. Bốn màu cũ nằm gọn trong khoảng sáng 74..84/255 — chênh nhau
 // 10 mức trên 255, tức là mắt không phân biệt nổi, và sau khi lớp tối NHÂN lên thì cả bốn ra
@@ -3059,7 +3128,19 @@ const WALLS = [
   [128,142,135], // 4 đá lục   — nhỉnh hơn sàn cùng phòng chừng 8%, đúng luật ở trên
   [142,140,127], // 5 đá cát
   [113,124,121], // 6 đá sẫm
-  [134,130,138]  // 7 đá thau
+  [134,130,138], // 7 đá thau
+  // 8..16 - mau trung binh cua chinh mieng THAN TUONG tung kieu (o (5,r) trong Room_Builder).
+  // Van giu duoc luat 'mat tuong nhinh hon san cung phong': do lai thi chenh 4..40 muc,
+  // rieng go xuong ca chenh nhieu nhat vi san no toi ma tuong reu thi sang.
+  [190,187,171], //  8 tuong reu      (phong khach)
+  [212,242,232], //  9 tuong ngoc     (bep)
+  [207,136,105], // 10 tuong hong dat (phong ngu)
+  [212,242,232], // 11 tuong ngoc     (phong tam)
+  [182,133, 82], // 12 go nhat        (nha kho)
+  [168, 91, 63], // 13 go do          (thu phong)
+  [239,226,156], // 14 tuong kem      (tiem tap hoa)
+  [171,174,190], // 15 xam lam        (lop hoc)
+  [145,105, 86]  // 16 go vua         (bo hoang)
 ];
 // LỚP THẾ GIỚI VẼ Ở ĐỘ PHÂN GIẢI GẤP ĐÔI, 2026-09-03 — "làm sao cho chi tiết + rõ nét nhất".
 //
@@ -3088,8 +3169,8 @@ function prerenderWorld(rnd){
     const i = gy*MW+gx, v = S.grid[i], x = gx*TILE, y = gy*TILE, n = rnd();
     if (v === FLOOR){
       const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
-      const st = FLOORS[S.roomStyle ? S.roomStyle[ri] : 0] || FLOORS[0];
-      paintFloor(c, x, y, st, gx, gy, n);
+      const ki = S.roomStyle ? S.roomStyle[ri] : 0;
+      paintFloor(c, x, y, FLOORS[ki] || FLOORS[0], gx, gy, n, ki);
     } else if (v === WALL){
       // "wallpaper follows the room, so a wall tells you which room you are looking into" — câu này
       // là ý định gốc, và tới 2026-09-03 thì mã ở đây vẫn làm NGƯỢC lại nó.
@@ -3109,10 +3190,19 @@ function prerenderWorld(rnd){
       const duoi = gy+1 < MH && S.grid[(gy+1)*MW+gx] !== WALL ? gy+1 : gy;
       const ri = ((duoi/RH)|0)*GX + ((gx/RW)|0);
       const ki = S.roomStyle ? S.roomStyle[ri] : 0;
-      const w = WALLS[ki] || WALLS[0];
-      c.fillStyle = `rgb(${(w[0]+n*12)|0},${(w[1]+n*11)|0},${(w[2]+n*10)|0})`;
-      c.fillRect(x,y,TILE,TILE);
-      paintWallSkin(c, x, y, ki, gx, gy, n);
+      // LAT BANG TILE NEU KIEU NAY CO TILE. `duoi !== gy` chinh la cau 'buc tuong nay co
+      // dang quay mat xuong mot khoang trong khong' - dong tren vua tinh no de biet lay
+      // nuoc son cua phong nao, va no cung tra loi luon cau nay. Co mat thi dan mieng co
+      // chan tuong; khong thi dan mieng than tuong tron.
+      const mat = duoi !== gy;
+      const lat = !!(window.REPO_PHONG && FLOORS[ki] && FLOORS[ki].phong != null &&
+                     REPO_PHONG.veTuong(c, x, y, FLOORS[ki].phong, gx, gy, TILE, mat));
+      if (!lat){
+        const w = WALLS[ki] || WALLS[0];
+        c.fillStyle = `rgb(${(w[0]+n*12)|0},${(w[1]+n*11)|0},${(w[2]+n*10)|0})`;
+        c.fillRect(x,y,TILE,TILE);
+        paintWallSkin(c, x, y, ki, gx, gy, n);
+      }
       // Shading follows the EXPOSED FACES of a wall run, not every tile in it. Painted per tile,
       // a run of wall came out a ladder of stripes and the eye counted tiles instead of reading one
       // wall - which is most of why a two-tile partition looked like a slab. A face is exposed when
@@ -3125,7 +3215,9 @@ function prerenderWorld(rnd){
       // MÉP DƯỚI của ô tường là MẶT TRƯỚC — cái mặt đứng mà người chơi nhìn thấy — nên nó sáng;
       // mép trên là đỉnh tường nhìn từ phía khuất nên nó chìm. Bóng đổ xuống sàn không nằm ở đây:
       // paintWallContact vẽ nó lên chính ô sàn bên dưới, đúng chỗ của nó.
-      if (!isW(gx,gy+1)){
+      // CÁI DỐC SÁNG NÀY CHỬ CHO TƯỜNG VẼ BẰNG MÃ. Miếng tile đã có sẵn dải chân tường
+      // vẽ trong nó; đắp thêm một vạch tối nữa là bức tường có hai chân.
+      if (!lat && !isW(gx,gy+1)){
         // mặt trước: sáng dần xuống mép, rồi một vạch chân tường tối để mặt không dính vào sàn
         const fg = c.createLinearGradient(0, y+TILE-9, 0, y+TILE-1);
         fg.addColorStop(0, 'rgba(255,244,224,0)');
@@ -3160,9 +3252,9 @@ function prerenderWorld(rnd){
       if (!isW(gx+1,gy)){ c.fillStyle = 'rgba(0,0,0,0.26)'; c.fillRect(x+TILE-2,y,2,TILE); }
     } else {
       const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
-      const st = FLOORS[S.roomStyle ? S.roomStyle[ri] : 0] || FLOORS[0];
-      paintFloor(c, x, y, st, gx, gy, n);                 // furniture stands ON the floor
-      paintProp(c, x, y, S.deco ? S.deco[i] : P_BLOCK, n);
+      const ki = S.roomStyle ? S.roomStyle[ri] : 0;
+      paintFloor(c, x, y, FLOORS[ki] || FLOORS[0], gx, gy, n, ki);   // furniture stands ON the floor
+      paintProp(c, x, y, S.deco ? S.deco[i] : P_BLOCK, n, gx, gy, ki);
     }
   }
   paintStoneInlay(c);
@@ -3181,7 +3273,7 @@ function prerenderWorld(rnd){
 // chứ không đọc ra vật liệu — đúng cái bẫy sàn nhà đã dính một lần rồi.
 // SEE: docs/patches/phase-5.4-patch-29-repo-wall-light.md
 function paintWallSkin(c, x, y, style, gx, gy, n){
-  if (style >= STONE_TU){
+  if (kieuDa(style)){
     // ĐÁ HẦM MỘ. Hàng đá cao 8 điểm ảnh, mạch dọc so le giữa hai hàng.
     //
     // Cả hai loại mạch đều tính từ TOẠ ĐỘ THẾ GIỚI, không tính từ góc ô: hàng đá nằm ở mọi y
@@ -3321,7 +3413,7 @@ function paintStoneInlay(c){
     if (gx < 0 || gy < 0 || gx >= MW || gy >= MH) return false;
     if (S.grid[gy*MW+gx] !== FLOOR) return false;
     const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
-    return (S.roomStyle ? S.roomStyle[ri] : 0) >= STONE_TU;
+    return kieuDa(S.roomStyle ? S.roomStyle[ri] : 0);
   };
   const kimCuong = (mx, my, r) => {
     c.strokeStyle = 'rgba(0,0,0,0.26)'; c.lineWidth = 1.4;
@@ -3404,7 +3496,7 @@ function paintStoneFrieze(c){
     if (S.grid[gy*MW+gx] !== WALL) return false;
     if (S.grid[(gy+1)*MW+gx] === WALL) return false;          // phải lộ mặt xuống một khoảng trống
     const ri = (((gy+1)/RH)|0)*GX + ((gx/RW)|0);
-    return (S.roomStyle ? S.roomStyle[ri] : 0) >= STONE_TU;
+    return kieuDa(S.roomStyle ? S.roomStyle[ri] : 0);
   };
   for (let gy = 0; gy < MH; gy++){
     let gx = 0;
@@ -3499,7 +3591,13 @@ function paintWallContact(c){
     c.fillStyle = g; c.fillRect(x, y, TILE, 6);
   }
 }
-function paintFloor(c, x, y, st, gx, gy, n){
+function paintFloor(c, x, y, st, gx, gy, n, ki){
+  // LAT BANG TILE TRUOC. Sau bien the trong khoi 3x2 duoc boc theo TOA DO O - cung dung
+  // cai luat ma ca ham nay duoc viet ra de giu: 'to mau tung o theo dong ngau nhien thi
+  // san nha thanh mot tam nguy trang'. Boc theo toa do thi mot o duoc ve lai bao nhieu
+  // lan cung ra dung mot mat gach.
+  if (ki != null && window.REPO_PHONG && st && st.phong != null &&
+      REPO_PHONG.veSan(c, x, y, st.phong, gx, gy, TILE)) return;
   // The pattern has to come from the GRID, not from the random stream. Tinting each tile at
   // random turned a floor into camouflage: the eye read the blotches as objects and the room
   // as clutter. Planks run in rows, tiles checker, and the randomness is demoted to a faint
@@ -3537,7 +3635,31 @@ function paintFloor(c, x, y, st, gx, gy, n){
     c.fillStyle = 'rgba(0,0,0,0.10)'; c.fillRect(x+((n*53)%16), y+((n*29)%16), 6, 3);
   }
 }
-function paintProp(c, x, y, kind, n){
+// Chu trong mau phong -> chu trong bang do cua REPO_PHONG. Day la duong di NGUOC cua
+// PROP_CH: mau phong noi bang chu, luoi noi bang so, con bang do lai noi bang chu.
+// Ba mon ham mo (K quan tai, R da vun, U vo gom) co y khong co mat: chung khong co tile
+// nao trong bo Modern Interiors, va ham mo van la kieu ve bang ma.
+const CH_PROP = { 1:'x', 2:'T', 3:'S', 4:'C', 5:'P' };
+// Do dai DAY NGANG cua cung mot mon do. Mau phong viet do thanh day ('TTT', 'SSSSSSS'),
+// va mot cai sofa rong ba o chi dat duoc khi biet day dai bao nhieu va minh dang dung o
+// dau. Day khong bao gio vuot khoi phong: ranh giua hai phong la mot o TUONG, con cua thi
+// la o SAN - ca hai deu khong phai PROP nen vong lap dung lai o do.
+function dayDo(kind, gx, gy){
+  const i0 = gy*MW;
+  const cung = ax => ax >= 0 && ax < MW && S.grid[i0+ax] === PROP && S.deco && S.deco[i0+ax] === kind;
+  let a = gx; while (cung(a-1)) a--;
+  let b = gx; while (cung(b+1)) b++;
+  return [a, b-a+1];
+}
+function paintProp(c, x, y, kind, n, gx, gy, ki){
+  // DO LAT BANG TILE TRUOC, va chi khi kieu phong nay co mot mon cho dung chu ay.
+  if (ki != null && window.REPO_PHONG && FLOORS[ki] && FLOORS[ki].phong != null){
+    const ch = CH_PROP[kind];
+    if (ch){
+      const d = dayDo(kind, gx, gy);
+      if (REPO_PHONG.veDo(c, x, y, FLOORS[ki].phong, ch, gx, gy, TILE, d[0], d[1])) return;
+    }
+  }
   const T = TILE;
   const box = (ix,iy,w,h,top,side,edge) => {
     c.fillStyle = side; c.fillRect(x+ix, y+iy, w, h);
@@ -11699,7 +11821,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260908a';
+const BUILD = '20260908b';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -12499,8 +12621,13 @@ function wikiHtml(){
   // NGHĨA — một thứ trong nhà, một chiêu, một món đồ nghề — và có bốn bài test đếm chúng để
   // canh đúng cái nghĩa ấy. Nhét một dòng ghi công vào đó thì sổ tay có thêm "một thứ trong
   // nhà" tên là Hiệu ứng — đúng kiểu sai mà bốn bài đó dựng ra để bắt.
+  // Bo Modern Interiors vao day cung mot ly do, cong mot ly do nua: giay phep ban free cua no
+  // la PHI THUONG MAI. Mot rang buoc nhu the ma chi nam trong mot dong chu thich trong ma nguon
+  // thi ngay hub nay ban ve se khong ai nho ra. Viet len mat trang thi no con o do.
   h += '<p class="wk-nguon">Hình hiệu ứng: Super Pixel Effects Gigapack — Will Tice / unTied Games' +
-       ' · PVFX Foundry Thirteen (CC0 1.0)</p>';
+       ' · PVFX Foundry Thirteen (CC0 1.0)<br>' +
+       'Sàn, tường và đồ đạc trong nhà: Modern Interiors (bản free) — LimeZu, chỉ dùng cho dự án phi thương mại<br>' +
+       'Khung tủ đồ: Free Inventory — ElvGames</p>';
 
   return h + '</div>';
 }
