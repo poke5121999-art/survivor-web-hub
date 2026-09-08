@@ -1,41 +1,56 @@
-// KIỂU PHÒNG — sàn, tường và đồ đạc lấy từ tấm tile thật.
+// KIỂU PHÒNG — sàn, tường, đồ đạc, tranh treo và thảm, lấy từ tấm tile thật.
 //
-// Chủ dự án: "dùng Modern_Interiors dàn nhiều room style mới... nhớ gắn các tile cho hợp lý.
-// sau đó thì 1 map random nhiều room style khác nhau. room style cũ hiện tại (cổ mộ) thì cứ
-// giữ lại để làm 1 style riêng."
+// Chủ dự án, lần lượt qua mấy vòng sửa:
+//   "dùng Modern_Interiors dàn nhiều room style mới... nhớ gắn các tile cho hợp lý"
+//   "phần wall bạn phải dựng kiểu soul knight như vậy nè"
+//   "Interiors_free nhìn rõ từng object mà nhỉ, bạn cắt ra đc mà phải không, đừng có cắt đều"
+//   "có cửa kiếng, cửa sổ, bức tranh, thảm, bàn, ghế, tủ... ráng mà xài cho hết, đừng bỏ phí"
+//   "mấy cái bàn bạn có thể dàn bự ra xong để decor lên trên cho đẹp — như để chậu bông, quả địa cầu"
+//   "giảm số lượng cột, decor lại, hiện tại các phòng đang nhiều quá, cần thoáng hơn"
 //
 // Bộ hình: Modern Interiors (free v2.2) của LimeZu — https://limezu.itch.io/moderninteriors
-// Giấy phép ở art/room/LICENSE-limezu.txt: **CHỈ DỰ ÁN PHI THƯƠNG MẠI**. Bản free không được
-// dùng cho dự án thương mại, kể cả bản đã sửa. Ngày nào hub này bán vé thì phải mua bản đầy đủ
-// (1,20$) hoặc gỡ tệp này ra — game vẫn chạy, mọi phòng rơi về nước sơn vẽ bằng mã.
+// Giấy phép ở art/room/LICENSE-limezu.txt: **CHỈ DỰ ÁN PHI THƯƠNG MẠI**, kể cả bản đã sửa.
+// Ngày nào hub này bán vé thì mua bản đầy đủ (1,20$) thay hai tệp png, hoặc gỡ tệp này ra — game
+// vẫn chạy, mọi phòng rơi về nước sơn vẽ bằng mã ghi trong FLOORS/WALLS.
 //
-// ============================================================ VÌ SAO LÀ BẢN 48×48
+// ============================================================ CẮT THEO OBJECT, KHÔNG CẮT THEO LƯỚI
 //
-// prerenderWorld() vẽ cả thế giới ở SS=2, tức mỗi ô 24 đơn vị thế giới được 48 điểm ảnh để vẽ.
-// Bộ này có sẵn ba cỡ 16/32/48, nên bản 48 dán vào ĐÚNG MỘT ĐỔI MỘT: không phóng, không thu,
-// không một điểm ảnh nào bị nội suy. Chọn bản 16 rồi phóng lên 3 lần cũng ra hình đó, nhưng khi
-// ấy mọi nét chéo trong tấm gỗ xương cá đều phải qua một lần lọc — mà thứ duy nhất bộ tile này
-// bán cho ta là NÉT.
+// Bảng `M` dưới đây ghi mỗi miếng bằng **điểm ảnh của chính nó** — `[x, y, rộng, cao]` — chứ không
+// phải "ô số mấy, rộng mấy ô". Đó là chỗ khác căn bản so với bản đầu, và là chỗ bản đầu sai: cắt
+// theo lưới 48 thì cái tủ cao 111 điểm ảnh bị xén còn 96, cây dừa cao 93 bị xén còn 48, và chủ dự
+// án nhìn phát ra ngay ("mấy cây dừa, cột, tủ sách, bàn bị cắt kìa").
 //
-// ============================================================ BA THỨ MỘT KIỂU PHÒNG PHẢI KHAI
+// Mấy con số này KHÔNG gõ tay. Chúng do một lượt loang vùng điểm ảnh liền nhau trên chính tấm
+// interiors.png sinh ra: 269 vùng, mỗi vùng một món đồ, lấy hộp bao sát của nó. Chỗ duy nhất phải
+// cắt tay là mấy DÃY đồ dính liền nhau trên tấm nguồn (dãy quầy bar chín ô liền một vệt, dãy kệ
+// hàng, dãy ghế sofa) — ở đó phép loang gộp tất cả làm một khối nên phải cắt trong khung ô.
 //
-//   san    một khối 3×2 ô trong Room_Builder = SÁU biến thể lát được, bốc theo toạ độ ô.
-//   tuong  một khối 2 hàng. Hàng trên (cột 5) là thân tường không viền hông; hàng dưới (cột 1)
-//          là mặt tường, có sẵn chân tường ở đáy.
+// Vẽ ra thì mỗi miếng giữ đúng tỉ lệ điểm ảnh của nó (1 điểm ảnh nguồn = nửa đơn vị thế giới, vì
+// prerenderWorld vẽ ở SS=2 và ô game rộng 24), CHÂN nó chiếm `round(rộng/48)` ô, và nó đứng giữa
+// cái chân ấy, đáy chạm đáy ô. Cao hơn một ô thì phần thừa tràn LÊN TRÊN — đúng cách một cái tủ
+// được nhìn từ 3/4, và vì prerenderWorld quét từ trên xuống nên phần tràn đè lên ô đã vẽ xong.
+//
+// ============================================================ NĂM THỨ MỘT KIỂU PHÒNG KHAI
+//
+//   san    khối 3×2 ô trong Room_Builder = sáu biến thể lát được, bốc theo toạ độ ô.
+//   tuong  [hàng trên của khối, độ lệch cắt mặt trên] — xem chú thích ở bảng TUONG.
 //   do     mỗi chữ trong mẫu phòng (T bàn, S kệ, C thùng, P tủ/chậu, x khối) ứng với một danh
-//          sách miếng đồ. Nhờ vậy MỘT mẫu phòng vẽ tay chạy được với MỌI kiểu: chữ 'T' trong
-//          bếp ra cái quầy, cũng chữ ấy trong lớp học ra cái bàn học sinh.
+//          sách miếng. Một mẫu phòng vẽ tay chạy được với MỌI kiểu: chữ 'T' trong bếp ra cái quầy,
+//          cũng chữ ấy trong lớp học ra cái bàn học sinh.
+//   ban    những miếng trong `do` được coi là MẶT BÀN — đồ trang trí sẽ đứng lên trên chúng.
+//   treo   tranh, gương, cửa sổ — treo lên MẶT TƯỜNG, không phải đồ đặc, không chắn đường.
+//   tham   thảm trải sàn, neo ở góc dưới-phải một mảng sàn trống.
 //
-// Hầm mộ KHÔNG có mặt trong bảng này. Nó vẫn là kiểu vẽ bằng mã trong game.js (paintStone,
-// paintStoneInlay, paintStoneFrieze, mấy món quan tài/vò/đá vụn) — giữ nguyên, và nó là một
-// kiểu ngang hàng với chín kiểu ở đây chứ không phải cái bị thay.
+// Hầm mộ KHÔNG có trong bảng này. Nó vẫn là kiểu vẽ bằng mã trong game.js (paintStone,
+// paintStoneInlay, paintStoneFrieze, quan tài / đá vụn / vò gốm) — giữ nguyên, và là một kiểu
+// ngang hàng với chín kiểu ở đây chứ không phải cái bị thay.
 (function (root) {
   'use strict';
   if (root.REPO_PHONG) return;
 
-  // Đường dẫn và dấu ?v= suy ra từ chính thẻ script này — cùng một mẹo với sprites.js, và vì
-  // cùng một lý do: MỘT tệp js phục vụ hai trang nằm ở hai thư mục khác nhau, còn ảnh thì không
-  // có dấu chống cache nào của riêng nó.
+  // Đường dẫn và dấu ?v= suy ra từ chính thẻ script này — cùng một mẹo với sprites.js, và vì cùng
+  // một lý do: MỘT tệp js phục vụ hai trang nằm ở hai thư mục khác nhau, còn ảnh thì không có dấu
+  // chống cache nào của riêng nó.
   const HERE = (function () {
     const s = document.currentScript;
     if (s && s.src) return s.src.replace(/[^/]*(\?.*)?$/, '');
@@ -50,7 +65,6 @@
   const O = 48;                       // cạnh một ô trên tấm nguồn
   function nap(tep){
     const im = new Image();
-    im.onerror = () => { im._hong = true; };
     im.src = HERE + tep + VER;
     return im;
   }
@@ -58,12 +72,9 @@
   const IT = nap('art/room/interiors.png');      // đồ đạc
   const xong = im => !!(im && im.complete && im.naturalWidth > 0);
 
-  // ---------------------------------------------------------------- BẢNG Ô NGUỒN
-  // Toạ độ tính bằng Ô, không bằng điểm ảnh, và trùng khít với lưới của bản 16×16 — nên soi
-  // bảng này bằng bản 16 rồi dùng cho bản 48 vẫn đúng số.
-  //
-  // SÀN: goc trên trái của khối 3×2. Sáu ô trong khối là sáu biến thể của CÙNG một mặt sàn
-  // (gạch lệch mạch, vệt mòn khác chỗ), lát cạnh nhau thế nào cũng liền.
+  // ---------------------------------------------------------------- SÀN VÀ TƯỜNG
+  // Toạ độ hai bảng này tính bằng Ô (trùng lưới với bản 16×16 của bộ gốc), khác bảng đồ đạc. Sàn
+  // và tường LÀ ô lưới thật — chúng sinh ra để lát kín một mặt phẳng — nên ở đây đếm ô là đúng.
   const SAN = {
     gach_do:    [11, 5],
     men_kem:    [11, 7],
@@ -73,135 +84,170 @@
   };
   // TƯỜNG — [hàng trên của khối, độ lệch cắt mặt trên].
   //
-  // Chủ dự án: "phần wall bạn phải dựng kiểu soul knight như vậy nè", kèm ảnh: tường là một
-  // dãy KHỐI, mỗi khối có mặt trên tối và một mặt trước sáng ở cạnh dưới.
+  // Bộ Modern Interiors vẽ tường cho khung nhìn ĐỨNG: một bức cao hai ô, phào ở trên, chân tường ở
+  // dưới. Game này nhìn từ trên xuống, tường dày đúng một ô. Dán thẳng một mặt tường phẳng lên thì
+  // bức tường mất bề dày, và dải trang trí nằm ngang của giấy dán tường lặp lại ở MỌI ô của một
+  // bức tường DỌC, thành một cái thang sọc.
   //
-  // Bản trước dán nguyên một mặt tường phẳng lên mọi ô, và đó là chỗ sai: bộ Modern Interiors
-  // vẽ tường cho khung nhìn ĐỨNG (một bức tường cao hai ô, có phào trên và chân tường dưới),
-  // còn game này nhìn từ trên xuống với tường dày đúng một ô. Dán thẳng thì bức tường không có
-  // bề dày — và tệ hơn, cái dải trang trí nằm ngang của giấy dán tường lặp lại ở MỌI ô của một
-  // bức tường dọc, thành một cái thang sọc.
+  // Nên mỗi ô tường dựng bằng hai lượt: mặt trên (tối) và mặt trước (chỉ khi ô dưới là chỗ trống).
+  // Xem veTuong().
   //
-  // Nay mỗi ô tường dựng bằng hai lượt:
-  //   1. MẶT TRÊN  — mảng tường trơn, làm tối. Đây là đỉnh khối nhìn từ phía khuất.
-  //   2. MẶT TRƯỚC — nửa dưới của mặt tường (dải trang trí + chân tường), chỉ vẽ khi ô ngay
-  //      dưới là khoảng trống. Đó đúng là cái mặt đứng mà người chơi nhìn thấy.
-  //
-  // ĐỘ LỆCH là con số cứu lượt 1. Trong khối tường cao 96 điểm ảnh (hai hàng ở cột 1), không
-  // có ô 48 nào trơn tuyệt đối, nhưng CÓ một cửa sổ mà hàng đầu và hàng cuối trùng màu — lát
-  // dọc bao nhiêu ô cũng không lộ mối. Bốn số 24/27/31 dưới đây là đo ra: quét cả 49 vị trí,
-  // chấm bằng tổng biến động trong cửa sổ cộng ba lần độ lệch giữa hàng đầu và hàng cuối.
-  // Ba nước sơn có dải trang trí (hồng đất, kem, ngọc) chấm 200-350; năm nước còn lại 12-42,
-  // tức gần như trơn hẳn. Đổi tấm png thì phải đo lại, đừng đoán.
+  // ĐỘ LỆCH là số ĐO ra, không đoán: quét cả 49 vị trí trong khối tường cao 96 điểm ảnh ở cột 1,
+  // chấm bằng tổng biến động trong cửa sổ cộng ba lần độ lệch giữa hàng đầu và hàng cuối. Ba nước
+  // sơn có dải trang trí chấm 200-350; năm nước còn lại 12-42, gần như trơn hẳn. Cửa sổ được chọn
+  // có hàng đầu trùng màu hàng cuối, tức lát dọc bao nhiêu ô cũng không lộ mối.
   const TUONG = {
     hong_dat: [5, 24], kem: [7, 24], ngoc: [9, 24], go_nhat: [11, 27],
     go_vua: [13, 27], go_do: [15, 27], xam_lam: [17, 31], reu: [19, 31]
   };
 
-  // ---------------------------------------------------------------- MIẾNG ĐỒ
-  // [cột, hàng, rộng, cao] tính bằng ô. Cao 2 nghĩa là món đồ ĐỨNG: nó chiếm ô của nó và tràn
-  // một ô LÊN TRÊN. Đó không phải lỗi mà là cách một cái tủ được nhìn từ 3/4 — và vì
-  // prerenderWorld() quét từ trên xuống nên phần tràn ấy đè lên ô đã vẽ xong, đúng thứ tự xa-gần.
-  //
-  // KHÔNG có miếng nào cao 3. Hàng đồ trong mẫu phòng thường nằm ngay sát tường trên, mà tràn
-  // ba ô là nuốt trọn bức tường ấy — cái tủ khi đó không dựa vào tường, nó THAY tường.
+  // ---------------------------------------------------------------- BẢNG MIẾNG ĐỒ
+  // [x, y, rộng, cao] tính bằng ĐIỂM ẢNH trên interiors.png. Sinh bằng máy, xem đầu tệp.
   const M = {
-    // thùng, hòm — cao 1 ô, đặt đâu cũng được
-    thung:      [[4,31,1,1],[5,31,1,1],[6,31,1,1],[7,31,1,1],
-                 [4,32,1,1],[5,32,1,1],[6,32,1,1],[7,32,1,1]],
-    thung_nho:  [[12,11,1,1]],
-    // quầy bar / quầy bếp — dãy ngang, ghép bao nhiêu cái cũng liền mạch
-    quay:       [[0,33,1,2],[1,33,1,2],[3,33,1,2],[4,33,1,2],[6,33,1,2],[7,33,1,2]],
-    quay_guong: [[2,33,1,2],[5,33,1,2]],
-    quay_ngan:  [[0,57,1,2],[1,57,1,2],[2,57,1,2]],
-    ghe:        [[9,31,1,2],[10,31,1,2],[12,33,1,2]],
-    ghe_go:     [[12,62,1,2],[13,62,1,2]],
-    ban_hoc:    [[0,36,1,2],[1,36,1,2],[2,36,1,2],[3,36,1,2],[4,36,1,2]],
-    tu_sat:     [[12,40,1,2]],
-    bang:       [[13,40,2,2],[6,36,2,2],[13,38,2,2]],
-    cay:        [[13,44,1,2],[11,44,1,2],[0,49,1,2]],
-    cay_nho:    [[12,45,1,1]],
-    tu_go:      [[11,48,2,2],[13,48,2,2]],
-    tu_thap:    [[0,59,2,2],[2,59,2,2]],
-    den_ban:    [[14,51,1,2],[15,51,1,2],[11,53,1,2],[12,53,1,2]],
-    den_dung:   [[12,57,1,2]],
-    tu_trang:   [[1,16,2,2],[3,16,2,2]],
-    tu_le:      [[1,16,1,2],[2,16,1,2],[3,16,1,2],[4,16,1,2]],
-    ke_do:      [[2,19,2,2],[4,19,2,2]],
-    ke_le:      [[2,19,1,2],[3,19,1,2],[4,19,1,2],[5,19,1,2]],
-    gia_sat:    [[6,19,1,2],[7,19,1,2]],
-    ke_hang:    [[10,69,2,2],[12,69,2,2],[14,69,2,2],
-                 [10,72,2,2],[12,72,2,2],[14,72,2,2]],
-    sofa:       [[1,72,3,2],[4,72,3,2],[7,72,3,2]],
-    ghe_bet:    [[1,74,2,2],[3,74,2,2]],
-    bep_lo:     [[12,79,2,2],[14,79,2,2]],
-    nat_dung:   [[7,59,1,2],[9,61,1,2]],
-    nat_bet:    [[2,62,2,2],[4,62,2,2],[8,59,2,2]],
-    vo_gom:     [[0,67,1,1],[1,67,1,1],[2,67,1,1]]
+    thung_go:   [[195,1491,42,42],[243,1491,42,42],[291,1491,42,42],[339,1491,42,42],
+                 [195,1539,42,42],[243,1539,42,42],[291,1539,42,42],[339,1539,42,42]],
+    thung:      [[531,510,45,39],[579,531,45,39],[195,1491,42,42]],
+    quay:       [[0,1584,48,48],[48,1584,48,81],[96,1584,48,81],[144,1584,48,48],
+                 [192,1584,48,81],[240,1584,48,81],[288,1584,48,48],[336,1584,48,81],
+                 [384,1584,48,81]],
+    quay_ngan:  [[0,2751,48,60],[48,2751,48,60],[96,2751,48,60]],
+    bep_quay:   [[576,3792,96,72],[672,3792,96,72]],
+    bep_lo:     [[672,4032,96,72],[432,4128,96,120],[672,4128,96,120]],
+    ghe:        [[243,1491,42,42],[291,1491,42,42],[339,1491,42,42],[438,1491,39,63],
+                 [486,1491,39,63],[534,1491,39,63],[582,1491,39,63],[624,1491,30,63],
+                 [672,1491,30,63],[720,1491,30,63],[195,1539,42,42],[243,1539,42,42],
+                 [291,1539,42,42],[339,1539,42,42],[435,1587,39,63],[483,1587,39,63],
+                 [531,1587,39,63],[579,1587,39,63],[642,1587,30,63],[690,1587,30,63],
+                 [738,1587,30,63],[582,2979,36,66],[630,2979,36,66],[531,3912,42,45],
+                 [531,4011,42,42],[579,4038,42,63],[627,4038,42,63],[531,4107,42,42],
+                 [579,4131,42,66],[627,4134,42,63],[291,627,42,42],[531,3819,42,42],
+                 [294,1026,39,75],[339,1026,39,75]],
+    ban_hoc:    [[3,1716,42,69],[105,1827,39,66],[147,1827,36,63],[201,1827,39,66],
+                 [249,1827,66,66],[51,1851,42,48],[363,1854,84,66],[117,1923,66,66],
+                 [192,1923,39,66],[249,1923,36,63],[288,1923,39,66]],
+    ban_gv:     [[357,1713,72,105],[531,1713,72,105],[246,1749,84,75],[363,1941,84,75],
+                 [240,2772,96,60]],
+    bang:       [[630,1941,84,69],[624,1848,93,63]],
+    tu_sat:     [[576,1923,45,93]],
+    tu_trang:   [[48,720,48,99],[96,759,48,84],[144,759,48,84],[192,774,45,45]],
+    ke_le:      [[96,888,48,93],[144,888,48,93],[192,888,48,96],[240,888,48,96]],
+    ke:         [[306,891,63,93],[96,888,48,93],[144,888,48,93],[192,888,48,96],[240,888,48,96]],
+    gia_sat:    [[306,891,30,93],[336,891,33,93]],
+    ke_hang:    [[480,3282,96,102],[576,3282,96,102],[672,3282,96,102],[480,3426,96,102],
+                 [576,3426,96,102],[672,3426,96,102]],
+    tu_cao:     [[9,2181,78,111],[351,2190,114,111],[192,2211,48,93],[243,2211,90,93],
+                 [342,2316,81,117],[438,2352,81,81],[342,2460,81,117],[432,2460,144,117],
+                 [486,2748,81,117],[672,2841,48,111],[687,3003,69,93]],
+    tu_thap:    [[528,1161,96,84],[192,2112,96,78],[576,2478,96,66],[393,2694,81,78],
+                 [384,2793,96,69],[57,2847,81,69],[156,2847,75,63],[240,2847,96,63],
+                 [0,2847,48,60]],
+    giuong:     [[39,483,114,111],[279,483,114,111],[384,864,144,78],[102,2337,84,90],
+                 [198,2337,84,90]],
+    sofa:       [[351,648,114,63],[99,2136,90,54],[243,2163,90,45],[111,2247,66,54],
+                 [99,2481,90,54],[195,2481,90,54]],
+    sofa_lon:   [[48,3471,144,81],[192,3471,144,81],[336,3474,144,78]],
+    ghe_bet:    [[48,3552,96,84],[144,3552,96,84]],
+    cay:        [[639,2112,69,93],[501,2139,54,93],[579,2166,42,69],[576,2568,45,99],
+                 [579,2712,39,99],[624,2712,45,99]],
+    cay_nho:    [[6,2370,36,42]],
+    den:        [[726,2475,36,57],[678,2481,36,51],[528,2568,45,72],[678,2760,36,54]],
+    guong:      [[723,2859,45,93],[402,3192,60,96],[306,3240,60,96],[402,3336,60,96]],
+    qua_cau:    [[627,1731,39,63],[675,1731,39,63],[579,3171,39,63]],
+    vo_gom:     [[3,3204,45,48],[51,3204,45,48],[3,3300,45,48],[51,3300,45,48],[99,3189,93,66],
+                 [435,3000,42,57],[51,2565,42,54],[99,2565,42,54],[3,2568,45,51],
+                 [48,2469,48,66],[288,2469,48,66]],
+    nat:        [[585,2856,81,108],[339,2880,45,63],[528,2889,48,78],[390,2892,75,69],
+                 [480,2895,48,63],[336,2976,60,63],[480,2985,48,78],[354,3075,60,36]],
+    treo_nho:   [[480,672,48,48],[672,720,48,48],[18,990,63,42],[495,1038,63,39],
+                 [18,1086,63,42],[390,1086,84,39],[18,1182,63,42],[114,1182,63,42],
+                 [480,1275,36,48],[540,1275,36,48],[438,1371,36,48],[432,1716,39,57],
+                 [489,1716,39,57],[9,2448,27,48],[6,3390,39,45],[54,3390,39,45],
+                 [102,3390,39,45],[6,3486,39,45],[6,3678,39,45]],
+    treo_to:    [[9,702,78,54],[342,1371,84,63],[624,1848,93,63],[630,1941,84,69],
+                 [9,1968,78,39],[480,3195,96,57],[39,1269,114,75]],
+    cua_so:     [[156,651,75,45],[345,1173,75,60],[441,1173,75,60]],
+    tham:       [[543,762,72,54],[540,858,72,54],[540,954,72,54],[390,990,84,39],
+                 [633,1002,72,54],[636,1098,72,54],[489,1353,78,84],[576,1353,48,84],
+                 [9,2022,129,84],[144,2022,144,84]],
+    ban_to:     [[351,648,114,63],[384,864,144,78],[99,2136,90,54],[243,2163,90,45],
+                 [99,2481,90,54],[195,2481,90,54],[0,2751,144,60],[57,2847,81,69],
+                 [156,2847,75,63],[240,2847,96,63]],
+    tren_ban:   [[540,636,27,27],[588,639,27,24],[537,681,33,33],[588,681,27,30],
+                 [51,2565,42,54],[99,2565,42,54],[3,2568,45,51],[627,1731,39,63],
+                 [675,1731,39,63],[579,3171,39,63],[6,2370,36,42],[156,2784,75,48],
+                 [435,3000,42,57],[3,3300,45,48],[51,3300,45,48],[531,3819,42,42],
+                 [726,2475,36,57],[678,2481,36,51]]
   };
   const gop = (...ten) => [].concat(...ten.map(t => M[t]));
 
-  // LUAT MOT O: MOI ho do duoi day PHAI co it nhat mot mieng rong dung mot o.
-  //
-  // Day khong phai lam cho dep. veDo() cat mot day ngang thanh tung mieng; toi cuoi day,
-  // neu cho con lai hep hon mieng hep nhat thi no bo cuoc va tra false, va paintProp() roi
-  // ve cai hop xam ve bang ma. Do duoc: mot ho toan mieng rong hai o, gap day le ('SSS'),
-  // cho ra hai cai ke hang tu te roi mot cai hop xam dung canh - dung mot o cuoi cua MOI
-  // day le trong ca can nha. Mot mieng rong mot o thi cai o thua ay luon co cho lap.
-  //
-  // Kiem lai bang tay khi them kieu moi: doc theo cot, moi dong phai co it nhat mot ten ho
-  // ma mieng dau tien cua no ket thuc bang `,1,` hoac `,1,1]`.
+  // Chân của một miếng, tính bằng Ô. `round` chứ không `ceil`: cái ghế rộng 42 điểm ảnh vẫn là một
+  // cái ghế đứng trong một ô, còn cái sofa rộng 144 thì chiếm đúng ba.
+  const rongO = m => Math.max(1, Math.round(m[2] / O));
+  const caoO  = m => Math.max(1, Math.round(m[3] / O));
 
   // ---------------------------------------------------------------- CHÍN KIỂU PHÒNG
-  // Mỗi kiểu là một CĂN PHÒNG CÓ NGHỀ, không phải một bảng màu: sàn, tường và đồ phải cùng kể
-  // một câu. Đó là chỗ "gắn các tile cho hợp lý" nằm — cái quầy bếp chỉ xuất hiện trên nền gạch
-  // men, cái kệ hàng chỉ đứng trên nền gạch đỏ của tiệm tạp hoá.
+  // Mỗi kiểu là một CĂN PHÒNG CÓ NGHỀ, không phải một bảng màu: sàn, tường và đồ phải cùng kể một
+  // câu. Bộ đồ của mỗi kiểu lấy theo đúng mấy CỤM mà tấm free_overview.png của bộ gốc đã xếp sẵn —
+  // bộ phòng ngủ nằm một cụm, bộ lớp học một cụm, bộ tiệm một cụm.
   //
-  // Chín kiểu này KHÔNG dùng lại một cặp sàn+tường nào: chỉ có năm mặt sàn trong bộ free, nên
-  // sàn phải lặp, nhưng cặp sàn-tường thì mỗi kiểu một cặp riêng. Nhìn nước tường là biết đang
-  // ở phòng nào, kể cả khi hai phòng cùng lát một thứ gỗ.
+  // LUẬT MỘT Ô: mỗi họ đồ dùng cho một chữ PHẢI có ít nhất một miếng chân rộng đúng một ô. veDo()
+  // cắt dãy ngang thành từng miếng; tới cuối dãy, nếu chỗ còn lại hẹp hơn miếng hẹp nhất thì nó bỏ
+  // cuộc và paintProp() rơi về cái hộp xám vẽ bằng mã — đúng một ô cuối của MỌI dãy lẻ trong nhà.
   const KIEU = [
-    { ma:'khach', ten:'Phòng khách', san:'go_xuongca', tuong:'reu', do:{
-        T: gop('sofa','ghe_bet','ghe_go'), S: gop('tu_go','tu_thap','tu_le'),
-        C: gop('thung'), P: gop('cay','cay_nho'), x: gop('ghe_go') } },
-    { ma:'bep', ten:'Bếp', san:'men_kem', tuong:'ngoc', do:{
-        T: gop('quay'), S: gop('bep_lo','tu_go','tu_le'),
-        C: gop('thung'), P: gop('cay','cay_nho'), x: gop('quay_ngan') } },
-    { ma:'ngu', ten:'Phòng ngủ', san:'go_xuongca', tuong:'hong_dat', do:{
-        T: gop('ghe_bet','tu_thap','ghe_go'), S: gop('tu_go','tu_le'),
-        C: gop('thung'), P: gop('den_ban','cay','cay_nho'), x: gop('ghe_go','den_dung') } },
-    { ma:'tam', ten:'Phòng tắm', san:'men_ngoc', tuong:'ngoc', do:{
-        T: gop('quay_guong'), S: gop('tu_trang','tu_le'),
-        C: gop('thung'), P: gop('cay','cay_nho'), x: gop('quay_ngan') } },
-    { ma:'kho', ten:'Nhà kho', san:'be_tong', tuong:'go_nhat', do:{
-        T: gop('tu_thap','quay_ngan'), S: gop('gia_sat','ke_do','ke_le'),
-        C: gop('thung','thung_nho'), P: gop('tu_sat','tu_le'), x: gop('thung') } },
-    { ma:'thu', ten:'Thư phòng', san:'go_xuongca', tuong:'go_do', do:{
-        T: gop('ban_hoc','ghe_go'), S: gop('tu_go','tu_thap','ke_le'),
-        C: gop('thung'), P: gop('cay','cay_nho'), x: gop('ghe_go','den_dung') } },
-    { ma:'tiem', ten:'Tiệm tạp hoá', san:'gach_do', tuong:'kem', do:{
-        T: gop('quay_ngan'), S: gop('ke_hang','ke_le'),
-        C: gop('thung','thung_nho'), P: gop('tu_sat','cay'), x: gop('thung') } },
-    { ma:'lop', ten:'Lớp học', san:'men_kem', tuong:'xam_lam', do:{
-        T: gop('ban_hoc'), S: gop('bang','tu_sat'),
-        C: gop('thung'), P: gop('tu_sat'), x: gop('ghe') } },
-    { ma:'hoang', ten:'Phòng bỏ hoang', san:'be_tong', tuong:'go_vua', do:{
-        T: gop('nat_bet','nat_dung'), S: gop('nat_bet','nat_dung'),
-        C: gop('nat_dung','thung'), P: gop('vo_gom'), x: gop('nat_dung') } }
+    { ma:'khach', ten:'Phòng khách', san:'go_xuongca', tuong:'reu',
+      do:{ T: gop('sofa_lon','ghe_bet','sofa','ghe'), S: gop('tu_thap','ke'),
+           C: gop('thung_go'), P: gop('cay','den','cay_nho'), x: gop('ghe','ban_to') },
+      ban: gop('ban_to'), treo: gop('treo_to','treo_nho','cua_so'), tham: gop('tham') },
+    { ma:'bep', ten:'Bếp', san:'men_kem', tuong:'ngoc',
+      do:{ T: gop('quay'), S: gop('bep_quay','bep_lo','tu_trang'),
+           C: gop('thung_go'), P: gop('cay_nho','cay'), x: gop('quay_ngan') },
+      ban: gop('quay_ngan'), treo: gop('treo_nho','cua_so'), tham: [] },
+    { ma:'ngu', ten:'Phòng ngủ', san:'go_xuongca', tuong:'hong_dat',
+      do:{ T: gop('giuong','ghe'), S: gop('tu_cao','tu_thap'),
+           C: gop('thung_go'), P: gop('den','cay','guong'), x: gop('ghe','tu_thap') },
+      ban: gop('tu_thap'), treo: gop('treo_nho','cua_so'), tham: gop('tham') },
+    { ma:'tam', ten:'Phòng tắm', san:'men_ngoc', tuong:'ngoc',
+      do:{ T: gop('tu_trang'), S: gop('tu_trang','guong'),
+           C: gop('thung_go'), P: gop('cay_nho','cay'), x: gop('quay_ngan') },
+      ban: gop('quay_ngan'), treo: gop('treo_nho'), tham: [] },
+    { ma:'kho', ten:'Nhà kho', san:'be_tong', tuong:'go_nhat',
+      do:{ T: gop('tu_thap','quay_ngan'), S: gop('gia_sat','ke_le','ke'),
+           C: gop('thung_go','thung'), P: gop('tu_sat','tu_trang'), x: gop('thung_go') },
+      ban: gop('tu_thap'), treo: gop('treo_nho'), tham: [] },
+    { ma:'thu', ten:'Thư phòng', san:'go_xuongca', tuong:'go_do',
+      do:{ T: gop('ban_hoc','ban_gv'), S: gop('ke','tu_cao','tu_thap'),
+           C: gop('thung_go'), P: gop('cay','ke'), x: gop('ghe','qua_cau','den') },
+      ban: gop('ban_gv','ban_to'), treo: gop('treo_to','treo_nho'), tham: gop('tham') },
+    { ma:'tiem', ten:'Tiệm tạp hoá', san:'gach_do', tuong:'kem',
+      do:{ T: gop('quay_ngan'), S: gop('ke_hang','ke_le'),
+           C: gop('thung_go','thung'), P: gop('tu_sat','vo_gom'), x: gop('thung_go') },
+      ban: gop('quay_ngan'), treo: gop('treo_nho'), tham: [] },
+    { ma:'lop', ten:'Lớp học', san:'men_kem', tuong:'xam_lam',
+      do:{ T: gop('ban_hoc'), S: gop('bang','ban_gv','tu_sat'),
+           C: gop('thung_go'), P: gop('tu_sat'), x: gop('ghe') },
+      ban: gop('ban_gv'), treo: gop('treo_to','treo_nho'), tham: [] },
+    { ma:'hoang', ten:'Phòng bỏ hoang', san:'be_tong', tuong:'go_vua',
+      do:{ T: gop('nat'), S: gop('nat'),
+           C: gop('nat','thung_go'), P: gop('vo_gom'), x: gop('nat') },
+      ban: [], treo: gop('treo_nho'), tham: [] }
   ];
-
+  // Đồ để LÊN MẶT BÀN — chậu bông, quả địa cầu, giỏ trái cây, cái đèn. Chủ dự án: "mấy cái bàn bạn
+  // có thể dàn bự ra xong để decor lên trên cho đẹp — như để chậu bông, quả địa cầu, vv".
+  // Chung cho mọi kiểu: một quả địa cầu trên bàn thư phòng và trên bàn giáo viên vẫn là một quả địa
+  // cầu; chia riêng từng kiểu chỉ để lặp lại chính mấy dòng này chín lần.
+  const TREN_BAN = M.tren_ban;
 
   // ---------------------------------------------------------------- BỐC BIẾN THỂ
-  // Bốc theo TOẠ ĐỘ Ô, không theo dòng ngẫu nhiên. Đây là cái luật đã có sẵn trong game.js cho
-  // sàn vẽ bằng mã ("vân ngẫu nhiên từng ô biến bức tường thành vệt loang"), và nó áp cho cả
-  // đồ đạc: một cái tủ bốc lại kiểu mỗi lần vẽ là một cái tủ nhấp nháy.
+  // Bốc theo TOẠ ĐỘ Ô, không theo dòng ngẫu nhiên — cùng cái luật đã có sẵn trong game.js cho sàn
+  // vẽ bằng mã ("vân ngẫu nhiên từng ô biến bức tường thành vệt loang"), và nó áp cho cả đồ đạc:
+  // một cái tủ bốc lại kiểu mỗi lần vẽ là một cái tủ nhấp nháy.
   function bam(a, b, c){
     let h = (a * 374761393 + b * 668265263 + c * 2246822519) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
     return ((h ^ (h >>> 16)) >>> 0);
   }
 
-  // ---------------------------------------------------------------- VẼ
+  // ---------------------------------------------------------------- SÀN
   function veSan(c, x, y, ki, gx, gy, T){
     const k = KIEU[ki];
     if (!k || !xong(RB)) return false;
@@ -211,44 +257,50 @@
     return true;
   }
 
+  // ---------------------------------------------------------------- TƯỜNG
   // `mat` = ô ngay dưới là khoảng trống, tức bức tường này đang quay mặt xuống một căn phòng.
   function veTuong(c, x, y, ki, gx, gy, T, mat){
     const k = KIEU[ki];
     if (!k || !xong(RB)) return false;
     const t = TUONG[k.tuong], r = t[0], lech = t[1];
-    // 1. MẶT TRÊN. Cắt ở độ lệch đã đo nên hai ô chồng lên nhau không lộ mối, rồi phủ một lớp
-    //    tối: đỉnh tường là mặt quay đi khỏi nguồn sáng, và nó phải TỐI HƠN mặt trước thì cả
-    //    bức mới đọc ra một khối có bề dày. Đây cũng là quy ước sẵn có của game (xem chỗ vẽ
-    //    dốc mặt sau trong prerenderWorld).
+    // 1. MẶT TRÊN. Cắt ở độ lệch đã đo nên hai ô chồng lên nhau không lộ mối, rồi phủ một lớp tối:
+    //    đỉnh tường là mặt quay đi khỏi nguồn sáng, và nó phải TỐI HƠN mặt trước thì cả bức mới đọc
+    //    ra một khối có bề dày. Đây cũng là quy ước sẵn có của game (xem dốc mặt sau trong
+    //    prerenderWorld).
     c.drawImage(RB, 1 * O, r * O + lech, O, O, x, y, T, T);
     c.fillStyle = 'rgba(8,6,4,0.40)';
     c.fillRect(x, y, T, T);
-    // 2. MẶT TRƯỚC, nửa dưới ô. Lấy đúng nửa DƯỚI của mặt tường nguồn — chỗ có dải trang trí
-    //    và chân tường — chứ không thu cả mặt tường vào nửa ô: thu là méo, cắt là nét.
+    // 2. MẶT TRƯỚC, nửa dưới ô. Lấy đúng nửa DƯỚI của mặt tường nguồn — chỗ có dải trang trí và
+    //    chân tường — chứ không thu cả mặt tường vào nửa ô: thu là méo, cắt là nét.
     if (mat){
       const nua = O >> 1;
       c.drawImage(RB, 1 * O, (r + 2) * O - nua, O, nua, x, y + T / 2, T, T / 2);
-      // Một vạch tối ở chỗ mặt trên gặp mặt trước. Không có nó thì hai mảng cùng nước sơn
-      // dính vào nhau và cái gờ biến mất — mà chính cái gờ là thứ nói 'đây là một khối'.
+      // Một vạch tối ở chỗ mặt trên gặp mặt trước. Không có nó thì hai mảng cùng nước sơn dính vào
+      // nhau và cái gờ biến mất — mà chính cái gờ là thứ nói "đây là một khối".
       c.fillStyle = 'rgba(0,0,0,0.42)';
       c.fillRect(x, y + T / 2 - 0.5, T, 1);
     }
     return true;
   }
 
-  // ---------------------------------------------------------------- ĐỒ ĐẠC THEO DÃY
+  // ---------------------------------------------------------------- VẼ MỘT MIẾNG
+  // Giữ đúng tỉ lệ điểm ảnh của miếng, đứng giữa cái chân `chan` ô, đáy chạm đáy ô.
+  // `nangDay` để nhấc món lên khỏi mặt sàn — dùng khi đặt đồ LÊN MẶT BÀN hoặc treo lên tường.
+  function veMieng(c, m, x, y, T, chan, nangDay){
+    const k = T / O;                      // 1 điểm ảnh nguồn = nửa đơn vị thế giới
+    const w = m[2] * k, h = m[3] * k;
+    c.drawImage(IT, m[0], m[1], m[2], m[3],
+                x + (chan * T - w) / 2, y + T - h - (nangDay || 0), w, h);
+  }
+
+  // ---------------------------------------------------------------- ĐỒ ĐẠC
   //
   // Mẫu phòng viết đồ thành DÃY — ngang ('TTT') lẫn dọc. Nếu mỗi ô tự bốc một miếng thì cái ghế
-  // sofa rộng ba ô không bao giờ dùng được, và một dãy bảy ô kệ ra bảy cái kệ giống hệt nhau
-  // dính vào nhau.
+  // sofa rộng ba ô không bao giờ dùng được, và một dãy dọc bốn ô ra bốn cái tủ đè lên nhau.
   //
-  // Nên chỗ này CẮT CẢ DÃY một lần: đi từ đầu dãy, mỗi bước bốc một miếng vừa chỗ còn lại, cộng
-  // bề rộng của nó rồi bước tiếp. Ô nào rơi đúng chỗ bắt đầu một miếng thì vẽ miếng đó; ô nào
-  // nằm giữa một miếng đã vẽ thì không vẽ gì — nó đã bị phủ rồi.
-  //
-  // Phép cắt ấy được TÍNH LẠI TỪ ĐẦU DÃY cho từng ô, chứ không nhớ trạng thái giữa hai lần gọi.
-  // Đắt hơn (một dãy dài 19 ô thì tính 19 lần) nhưng đổi lại paintProp() vẫn là một hàm thuần:
-  // vẽ lại một ô bất kỳ, ở bất kỳ thứ tự nào, vẫn ra đúng cái đã có. Vẽ nền chỉ chạy một lần
+  // Nên chỗ này CẮT CẢ HAI CHIỀU, và tính lại từ đầu dãy cho từng ô chứ không nhớ trạng thái giữa
+  // hai lần gọi. Đắt hơn (một dãy 19 ô thì tính 19 lần) nhưng đổi lại paintProp() vẫn là một hàm
+  // thuần: vẽ lại một ô bất kỳ, ở bất kỳ thứ tự nào, vẫn ra đúng cái đã có. Vẽ nền chỉ chạy một lần
   // mỗi màn, nên cái giá ấy là vài trăm phép tính cho cả căn nhà.
   function veDo(c, x, y, ki, ch, gx, gy, T, dauX, dai, dauY, cao){
     const k = KIEU[ki];
@@ -258,55 +310,115 @@
 
     // ---- CẮT DÃY DỌC TRƯỚC
     //
-    // ROOT-CAUSE của lỗi 'đồ chồng lên nhau thành một vệt': bản trước chỉ cắt theo HÀNG NGANG.
-    // Mẫu phòng có cả cột dọc ('S' nằm chồng nhau bốn hàng), và mỗi ô trong cột ấy đều tự vẽ
-    // một miếng cao hai ô — mà miếng cao hai ô thì tràn LÊN TRÊN, đè đúng vào ô vừa vẽ xong.
-    // Bốn ô liên tiếp là bốn cái tủ cắt ngang nhau. Thấy rõ ở phòng khách, thư phòng, nhà kho.
+    // ROOT-CAUSE của lỗi "đồ chồng lên nhau thành một vệt": bản trước chỉ cắt theo hàng ngang. Mẫu
+    // phòng có cả cột dọc, và mỗi ô trong cột đều tự vẽ một miếng cao hơn một ô — mà miếng cao thì
+    // tràn LÊN TRÊN, đè đúng vào ô vừa vẽ xong.
     //
-    // Cắt từ ĐÁY dãy lên: đáy là ô neo, rồi cứ mỗi `buoc` ô lại một ô neo. Ô không phải neo thì
-    // đã nằm trong bụng miếng phía dưới, không vẽ gì. Neo từ đáy chứ không từ đỉnh vì miếng đồ
-    // đặt đáy ở đáy ô — phần thừa của một dãy lẻ phải rơi lên ĐỈNH, chỗ nó tràn ra ngoài dãy và
-    // dựa vào bức tường phía trên, đúng như một cái tủ dựa tường.
-    const buoc = ds0.reduce((m, p) => Math.max(m, p[3]), 1);
+    // Cắt từ ĐÁY dãy lên: đáy là ô neo, rồi cứ mỗi `buoc` ô lại một ô neo. Neo từ đáy chứ không từ
+    // đỉnh vì miếng đồ đặt đáy ở đáy ô — phần thừa của một dãy lẻ phải rơi lên ĐỈNH, chỗ nó tràn ra
+    // ngoài dãy và dựa vào bức tường phía trên, đúng như một cái tủ dựa tường.
+    const buoc = ds0.reduce((m, p) => Math.max(m, caoO(p)), 1);
     const duoi = dauY + cao - 1;
     if (buoc > 1 && ((duoi - gy) % buoc)) return true;
-    // Còn đủ chỗ cho một miếng cao trọn vẹn thì BẮT BUỘC lấy miếng cao. Lấy miếng thấp ở đây là
-    // để hở đúng cái ô phía trên vừa bị tuyên bố 'đã có người phủ'.
+    // Còn đủ chỗ cho một miếng cao trọn vẹn thì BẮT BUỘC lấy miếng cao. Lấy miếng thấp ở đây là để
+    // hở đúng cái ô phía trên vừa bị tuyên bố "đã có người phủ".
     const conDoc = gy - dauY + 1;
-    const ds = (buoc > 1 && conDoc >= buoc) ? ds0.filter(m => m[3] === buoc) : ds0;
+    const ds = (buoc > 1 && conDoc >= buoc) ? ds0.filter(m => caoO(m) === buoc) : ds0;
     if (!ds.length) return false;
 
     // ---- RỒI CẮT DÃY NGANG
     let i = dauX;
     while (i <= gx){
       const conLai = dauX + dai - i;
-      // Bốc trong số những miếng KHÔNG rộng quá chỗ còn lại. Không lọc thì cái sofa ba ô rơi
-      // vào hai ô cuối dãy và thò một phần ba sang ô của bức tường bên cạnh.
+      // Bốc trong số những miếng KHÔNG rộng quá chỗ còn lại. Không lọc thì cái sofa ba ô rơi vào
+      // hai ô cuối dãy và thò một phần ba sang ô của bức tường bên cạnh.
       let vua = ds;
       if (conLai < 3){
-        vua = ds.filter(m => m[2] <= conLai);
-        if (!vua.length) vua = ds.filter(m => m[2] === 1);
+        vua = ds.filter(m => rongO(m) <= conLai);
+        if (!vua.length) vua = ds.filter(m => rongO(m) === 1);
         if (!vua.length) return false;
       }
       const m = vua[bam(i, gy, ki + 29) % vua.length];
+      const r = rongO(m);
       if (i === gx){
-        // Đáy miếng đặt ở đáy ô; cao 2 thì tràn một ô lên trên.
-        c.drawImage(IT, m[0] * O, m[1] * O, m[2] * O, m[3] * O,
-                    x, y - (m[3] - 1) * T, m[2] * T, m[3] * T);
+        veMieng(c, m, x, y, T, r);
+        // ĐỒ ĐỂ LÊN MẶT BÀN. Chỉ những miếng nằm trong danh sách `ban` của kiểu này mới được nhận —
+        // để một quả địa cầu không mọc trên nóc cái tủ lạnh. Nhấc lên 55% chiều cao miếng bàn thì
+        // nó đứng đúng trên mặt bàn chứ không lửng lơ giữa thân bàn.
+        if (k.ban && k.ban.indexOf(m) >= 0 && TREN_BAN.length){
+          const h2 = bam(i, gy, ki + 71);
+          if (h2 % 100 < 62){
+            const d = TREN_BAN[(h2 >>> 7) % TREN_BAN.length];
+            veMieng(c, d, x, y, T, r, m[3] * (T / O) * 0.55);
+          }
+        }
         return true;
       }
-      i += m[2];
+      i += r;
     }
     return true;                                  // ô này nằm trong bụng một miếng đã vẽ
   }
 
+  // ---------------------------------------------------------------- TRANH, GƯƠNG, CỬA SỔ
+  //
+  // Treo lên MẶT TƯỜNG, nên chỉ những ô tường đang quay mặt xuống một căn phòng mới nhận. Không
+  // phải đồ đặc: nó không chắn đường, không chắn tầm nhìn, và game.js không đụng gì tới lưới va
+  // chạm khi gọi hàm này.
+  //
+  // `rongTuong` là số ô tường liền mặt còn lại tính từ ô này sang PHẢI — game.js đếm hộ, vì nó là
+  // đứa giữ lưới. Không có nó thì bức tranh rộng ba ô treo lên đoạn tường chỉ còn hai ô và thò một
+  // phần ba ra ngoài trời.
+  function veTreo(c, x, y, ki, gx, gy, T, rongTuong){
+    const k = KIEU[ki];
+    if (!k || !xong(IT) || !k.treo || !k.treo.length) return false;
+    const h = bam(gx, gy, ki + 53);
+    if (h % 100 >= 22) return false;              // thưa: chừng bốn ô tường mới có một món
+    const vua = k.treo.filter(m => rongO(m) <= rongTuong);
+    if (!vua.length) return false;
+    const m = vua[(h >>> 7) % vua.length];
+    // Treo CAO: đáy tranh nằm quanh giữa ô tường, tức trên dải chân tường. Đặt sát đáy ô thì nó
+    // đứng trên sàn và đọc ra một tấm ván dựa tường chứ không phải một bức tranh treo.
+    veMieng(c, m, x, y, T, rongO(m), T * 0.30);
+    return true;
+  }
+
+  // ---------------------------------------------------------------- THẢM
+  //
+  // Neo ở góc DƯỚI-PHẢI của mảng sàn, không phải góc trên-trái. Lý do là thứ tự vẽ: prerenderWorld
+  // quét từ trên xuống, trái sang phải, nên tấm thảm chỉ được phép tràn về phía đã vẽ xong. Neo
+  // trên-trái thì mấy ô bên phải vẽ sau sẽ tô sàn đè lên chính tấm thảm.
+  //
+  // `trong(w, h)` là câu hỏi gửi ngược cho game.js: hình chữ nhật w×h ô kết thúc ở ô này có sạch
+  // không (toàn sàn, không đồ, cùng một phòng). Phải hỏi vì trải thảm đè lên một cái tủ đã vẽ xong
+  // thì cái tủ biến mất.
+  function veTham(c, x, y, ki, gx, gy, T, trong){
+    const k = KIEU[ki];
+    if (!k || !xong(IT) || !k.tham || !k.tham.length) return false;
+    // Neo tren mot LUOI THUA 6x5 chu khong ra o nao cung duoc. Chi tha ngau nhien thi hai tam
+    // tham canh nhau cung do va de len nhau — do that o thu phong: hai tam chong nhau giua
+    // phong, tam duoi thanh mot cai vien vo nghia. Luoi thua thi hai neo cach nhau it nhat sau
+    // o, con tam rong nhat chi ba o.
+    if ((gx % 6) !== 3 || (gy % 5) !== 3) return false;
+    const h = bam(gx, gy, ki + 97);
+    if (h % 100 >= 45) return false;
+    const m = k.tham[(h >>> 7) % k.tham.length];
+    const rw = rongO(m), rh = caoO(m);
+    if (!trong(rw, rh)) return false;
+    const kk = T / O, w = m[2] * kk, hh = m[3] * kk;
+    // Trải PHẲNG: căn giữa cả bề ngang lẫn bề dọc của mảng ô, không đặt đáy chạm đáy ô như đồ đứng.
+    // Thảm nằm trên mặt sàn, nó không có mặt đứng để mà neo.
+    c.drawImage(IT, m[0], m[1], m[2], m[3],
+                x + T - (rw * T + w) / 2, y + T - (rh * T + hh) / 2, w, hh);
+    return true;
+  }
+
   root.REPO_PHONG = {
-    KIEU, veSan, veTuong, veDo,
+    KIEU, veSan, veTuong, veDo, veTreo, veTham,
     so: KIEU.length,
     ten: i => (KIEU[i] && KIEU[i].ten) || '',
     ma:  i => (KIEU[i] && KIEU[i].ma) || '',
-    // Bảng có sẵn hay chưa. game.js hỏi câu này để biết nên vẽ bằng tile hay rơi về nước sơn
-    // vẽ bằng mã — và nó hỏi ở MỖI Ô chứ không hỏi một lần, vì ảnh nạp xong lúc nào không biết.
+    // Bảng có sẵn hay chưa. game.js hỏi câu này để biết nên vẽ bằng tile hay rơi về nước sơn vẽ
+    // bằng mã — và nó hỏi ở MỖI Ô chứ không hỏi một lần, vì ảnh nạp xong lúc nào không biết.
     sanSang: () => xong(RB) && xong(IT)
   };
 })(window);

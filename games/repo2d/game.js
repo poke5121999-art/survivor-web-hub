@@ -88,6 +88,10 @@ const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3,
 // dai, va gio thi chung lam dung viec ay o quy mo nho hon - hai gian mo canh nhau van khac
 // nhau mot nac sang.
 const KHO_KIEU = [8,9,10,11,12,13,14,15,16, 4,5,6,7];
+// Bao nhieu phan cua may day do trong mot phong lat tile bi bo di. 0,5 do bang mat tren anh
+// chup ca chin phong: duoi 0,35 thi phong van chat, tren 0,65 thi phong trong khong con doc ra
+// mot can phong co nguoi o. Do KHONG ap cho ham mo.
+const BO_DO = 0.35;
 const KHO_DA   = [4,5,6,7];
 // Ten cua bon nuoc da. Mot phong lay nuoc da ma van mang ten cua MAU ('Bep', 'Lop hoc') la
 // mot cau noi doi lo lieu: tren man hinh la quan tai va da vun, con ban do goc man ghi 'Bep'.
@@ -2520,6 +2524,30 @@ function buildLevel(seed){
       if (v === FLOOR && ch === 'L') lootSpots.push({gx,gy,ri});
       if (v === FLOOR && ch === 'M') monSpots.push({gx,gy,ri});
     }
+
+    // LAM THOANG. Chu du an: 'giam so luong cot, decor lai, hien tai cac phong dang nhieu
+    // qua, can thoang hon'.
+    //
+    // Bo theo CA DAY chu khong bo tung o: may mau phong nay viet do thanh day ('SSSSSSS'), va
+    // boc ngau nhien tung o thi mot day bay o ra bon manh cut, tro nen giong mot dong do vo
+    // hon la mot bo ban ghe. Bo ca day thi cai con lai van nguyen hinh.
+    //
+    // Chi ap cho kieu lat tile. Ham mo giu nguyen mat do cu — bon day quan tai xep sat nhau la
+    // hinh dang cua no, thua ra thi khong con la ham mo nua.
+    if (kp && kp.phong != null){
+      for (let y=1; y<RH-1; y++){
+        let x = 1;
+        while (x < RW-1){
+          const i0 = (cy*RH+y)*MW + cx*RW;
+          const loai = S.grid[i0+x] === PROP ? S.deco[i0+x] : 0;
+          if (!loai){ x++; continue; }
+          let n = 1;
+          while (x+n < RW-1 && S.grid[i0+x+n] === PROP && S.deco[i0+x+n] === loai) n++;
+          if (rnd() < BO_DO) for (let j=0; j<n; j++){ S.grid[i0+x+j] = FLOOR; S.deco[i0+x+j] = 0; }
+          x += n;
+        }
+      }
+    }
   }
 
   // Doc: rooms meet at authored door points; unused doors get sealed. Here every shared
@@ -3171,7 +3199,31 @@ const WALLS = [
 // 6048x4320 = 26 triệu điểm ảnh, tức 104MB một tấm — quá trần diện tích canvas của Safari trên
 // iOS (16.7 triệu) và quá sức bộ nhớ điện thoại. SS=2 là 3024x2160, 26MB, cấp một lần cho cả ván.
 const SS = 2;
+// Hinh chu nhat w x h o KET THUC o (gx,gy) co sach khong: toan san, khong do, cung mot phong.
+// Cau hoi nay cua tam tham. Phai hoi vi trai tham de len mot cai tu DA VE XONG thi cai tu bien
+// mat - va no bien mat mot cach im lang, khong loi nao bao.
+function sanSachTraiTren(gx, gy, w, h, ri){
+  if (gx-w+1 < 0 || gy-h+1 < 0) return false;
+  for (let y = gy-h+1; y <= gy; y++) for (let x = gx-w+1; x <= gx; x++){
+    if (S.grid[y*MW+x] !== FLOOR) return false;
+    if (((y/RH)|0)*GX + ((x/RW)|0) !== ri) return false;
+  }
+  return true;
+}
+// Con bao nhieu o tuong LIEN MAT noi tiep sang phai, ke ca o nay. 'Lien mat' = van la tuong,
+// van co khoang trong ngay duoi, va van mang nuoc son cua cung mot phong.
+function matTuongPhai(gx, gy, ki){
+  let n = 0;
+  for (let x = gx; x < MW && n < 4; x++){
+    if (S.grid[gy*MW+x] !== WALL) break;
+    if (gy+1 >= MH || S.grid[(gy+1)*MW+x] === WALL) break;
+    if ((S.roomStyle ? S.roomStyle[(((gy+1)/RH)|0)*GX + ((x/RW)|0)] : 0) !== ki) break;
+    n++;
+  }
+  return n;
+}
 function prerenderWorld(rnd){
+
   if (!S.worldCv){ S.worldCv = document.createElement('canvas'); S.worldCv.width = WPX*SS; S.worldCv.height = HPX*SS; }
   const c = S.worldCv.getContext('2d');
   c.setTransform(SS,0,0,SS,0,0);
@@ -3184,6 +3236,12 @@ function prerenderWorld(rnd){
       const ri = ((gy/RH)|0)*GX + ((gx/RW)|0);
       const ki = S.roomStyle ? S.roomStyle[ri] : 0;
       paintFloor(c, x, y, FLOORS[ki] || FLOORS[0], gx, gy, n, ki);
+      // THAM. Neo o goc DUOI-PHAI mot mang san sach, vi vong nay quet tu tren xuong trai sang
+      // phai - tam tham chi duoc phep tran ve phia DA VE XONG. Neo tren-trai thi may o ben
+      // phai ve sau se to san de len chinh no.
+      if (window.REPO_PHONG && FLOORS[ki] && FLOORS[ki].phong != null)
+        REPO_PHONG.veTham(c, x, y, FLOORS[ki].phong, gx, gy, TILE,
+                          (w, h) => sanSachTraiTren(gx, gy, w, h, ri));
     } else if (v === WALL){
       // "wallpaper follows the room, so a wall tells you which room you are looking into" — câu này
       // là ý định gốc, và tới 2026-09-03 thì mã ở đây vẫn làm NGƯỢC lại nó.
@@ -3228,6 +3286,11 @@ function prerenderWorld(rnd){
       // MÉP DƯỚI của ô tường là MẶT TRƯỚC — cái mặt đứng mà người chơi nhìn thấy — nên nó sáng;
       // mép trên là đỉnh tường nhìn từ phía khuất nên nó chìm. Bóng đổ xuống sàn không nằm ở đây:
       // paintWallContact vẽ nó lên chính ô sàn bên dưới, đúng chỗ của nó.
+      // TRANH, GUONG, CUA SO. Chi treo len mat tuong quay xuong phong, va chi khi mat tuong ay
+      // do NGAY CAI PHONG NAY so huu - `duoi` da tinh san o tren de biet lay nuoc son cua phong
+      // nao, nen chi can dem xem con bao nhieu o tuong cung mat noi tiep sang phai.
+      if (lat && mat && window.REPO_PHONG)
+        REPO_PHONG.veTreo(c, x, y, FLOORS[ki].phong, gx, gy, TILE, matTuongPhai(gx, gy, ki));
       // CÁI DỐC SÁNG NÀY CHỬ CHO TƯỜNG VẼ BẰNG MÃ. Miếng tile đã có sẵn dải chân tường
       // vẽ trong nó; đắp thêm một vạch tối nữa là bức tường có hai chân.
       if (!lat && !isW(gx,gy+1)){
@@ -11843,7 +11906,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260908c';
+const BUILD = '20260908e';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
