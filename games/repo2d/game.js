@@ -91,7 +91,51 @@ const KHO_KIEU = [8,9,10,11,12,13,14,15,16, 4,5,6,7];
 // Bao nhieu phan cua may day do trong mot phong lat tile bi bo di. 0,5 do bang mat tren anh
 // chup ca chin phong: duoi 0,35 thi phong van chat, tren 0,65 thi phong trong khong con doc ra
 // mot can phong co nguoi o. Do KHONG ap cho ham mo.
-const BO_DO = 0.35;
+// Bo bao nhieu phan cua may day do trong mot phong lat tile — HAI so, khong phai mot.
+//
+// Day TUA TUONG thi gan nhu giu het, day NAM GIUA PHONG thi gan nhu bo het. Do khong phai
+// de thua ra mot cach ngau nhien ma de dung mot bo cuc: do dac ap vao vach, giua phong de
+// trong. Hai anh chu du an gui lam mau (phong trung bay buom, quan ca phe) deu dung dung
+// cach do, va mot nguoi soi lai chin gian phong da noi thang cai dang thieu: 'khong mon nao
+// tua tuong, moi mon deu noi lung giua san theo luoi o, khong doc ra dau la canh phong'.
+//
+// Mot dai cong dung: giua phong trong thi xe day di duoc, ma xe day rong 40 diem anh la thu
+// kho chieu nhat trong ca vong khuan do.
+const BO_TUA  = 0.10;      // day dua vao vach
+const BO_GIUA = 0.55;      // day dung tro giua phong
+// 'Dua vao vach' tinh trong VONG HAI O, khong phai ke sat. May mau phong ve tay xep do thanh
+// vanh cach tuong mot toi hai o de chua loi di sat chan tuong — do sat thi dem duoc 0 day nao
+// la 'tua', va ca can nha bi don sach. Do that o tiem tap hoa: ke sat thi con ba mon tren ca
+// gian phong.
+const TAM_TUA = 2;
+
+// ============================================================ HINH PHONG
+// Chu du an: "phong khong nhat thiet luon 1 hinh, co the tron, vuong dai, doc dc ma".
+//
+// Bo dung nha chia ban do thanh luoi 3x3, moi o luoi 21x15 o game, va toi nay MOI mau phong
+// lap kin o luoi cua no — nen chin phong nao cung la mot hinh chu nhat y het nhau. Cai doi o
+// day KHONG phai mau phong ma la mot MAT NA de len no: o nao roi ra ngoai hinh thi thanh
+// tuong, do dac va cho dat do tren o do bien mat theo. Mot mat na hai dong thay duoc ca chin
+// mau phong ve tay, va khong mau nao phai sua.
+//
+// MOT LUAT KHONG DUOC PHA: dai CHU THAP giua phong — cot 9-11 suot chieu cao, hang 6-8 suot
+// chieu ngang — luon phai thong. Cua duoc khoet o GIUA moi canh chung, va xe day rong 40 diem
+// anh can mot loi ba o, nen chu thap ay chinh la bon loi ra vao cua phong. Moi mat na deu
+// duoc HOP voi no chu khong thay no. Bo cai hop ay di thi mot phong tron thanh mot phong kin,
+// va luot va cua bo dung se phai duc lai — vua ton vua ra mot hanh lang thang bang xau hon.
+//
+// Toa do u, v chay 0..1 trong o luoi. O luoi rong 21 cao 15 nen hinh 'tron' ra mot HINH BAU
+// DUC nam ngang chu khong phai duong tron — dung y: mot phong tron hoan hao trong mot o chu
+// nhat thi bon goc thua ra qua nhieu.
+const HINH = [
+  { ma:'vuong', f: () => true },
+  { ma:'tron',  f: (u,v) => (u-0.5)*(u-0.5) + (v-0.5)*(v-0.5) <= 0.25 },
+  { ma:'bat',   f: (u,v) => Math.abs(u-0.5) + Math.abs(v-0.5) <= 0.70 },
+  { ma:'doc',   f: (u)   => u >= 0.26 && u <= 0.74 },
+  { ma:'ngang', f: (u,v) => v >= 0.20 && v <= 0.80 },
+  { ma:'thap',  f: (u,v) => (u >= 0.26 && u <= 0.74) || (v >= 0.20 && v <= 0.80) },
+  { ma:'goc',   f: (u,v) => !(u > 0.56 && v > 0.60) }
+];
 const KHO_DA   = [4,5,6,7];
 // Ten cua bon nuoc da. Mot phong lay nuoc da ma van mang ten cua MAU ('Bep', 'Lop hoc') la
 // mot cau noi doi lo lieu: tren man hinh la quan tai va da vun, con ban do goc man ghi 'Bep'.
@@ -2500,6 +2544,14 @@ function buildLevel(seed){
     // tuong'), con thu nguoi choi NHIN THAY la nuoc son va mon do: cung mot mau 'Hanh lang'
     // lat gach men voi day quay bep thi no la cai bep. Ban do goc man ma ghi 'Hanh lang'
     // trong khi tren man hinh la mot cai bep la mot cau noi doi nho, lap lai ca van.
+    // HINH cua phong nay. Hai cho giu nguyen hinh chu nhat:
+    //   - phong so 0 la phong co XE TAI: tu do, xe day va bai do deu dung o day, va bo dung
+    //     con khoet mot khoang 7x5 o giua no cho cai xe. Boc trung hinh tron thi cai khoang
+    //     ay an thung ra khoi buc tuong vua dung len.
+    //   - mau HAM MO da tu no la mot hinh chu thap co bon gian o bon goc; de mot mat na len
+    //     nua thi bon gian ay bi gam mat, ma chung chinh la cai mau do.
+    const hinh = (ri === 0 || t.da) ? HINH[0] : HINH[(rnd()*HINH.length)|0];
+    const giuaX = RW>>1, giuaY = RH>>1;
     const st0 = S.roomStyle[ri], kp = FLOORS[st0];
     const tenPhong = kieuDa(st0)  ? (TEN_MO[st0 - 4] || TEN_MO[0])
                    : (window.REPO_PHONG && kp && kp.phong != null) ? REPO_PHONG.ten(kp.phong)
@@ -2519,6 +2571,10 @@ function buildLevel(seed){
       // SEE: wall + door pass, 2026-08-31
       if (x===RW-1 || y===RH-1 || (x===0 && cx===0) || (y===0 && cy===0)) v = WALL;
       else if (x===0 || y===0) v = FLOOR;                  // the neighbour's wall already stands here
+      // MAT NA HINH PHONG. Chi bit them, khong bao gio khoet them: o dang la tuong thi cu de
+      // nguyen la tuong. Dai chu thap giua phong mien tru, xem chu thich o bang HINH.
+      if (v !== WALL && !(Math.abs(x-giuaX) <= 1 || Math.abs(y-giuaY) <= 1) &&
+          !hinh.f(x/(RW-1), y/(RH-1))) v = WALL;
       S.grid[gy*MW+gx] = v;
       if (v === PROP) S.deco[gy*MW+gx] = prop;
       if (v === FLOOR && ch === 'L') lootSpots.push({gx,gy,ri});
@@ -2543,7 +2599,19 @@ function buildLevel(seed){
           if (!loai){ x++; continue; }
           let n = 1;
           while (x+n < RW-1 && S.grid[i0+x+n] === PROP && S.deco[i0+x+n] === loai) n++;
-          if (rnd() < BO_DO) for (let j=0; j<n; j++){ S.grid[i0+x+j] = FLOOR; S.deco[i0+x+j] = 0; }
+          // Day nay co cham vach nao khong? Du MOT o trong day ke tuong la ca day duoc giu lai:
+          // mot bo ban ghe dua tuong bi cat mat nua ngoai thi phan con lai khong con dua vao gi.
+          let tua = false;
+          for (let j=0; j<n && !tua; j++){
+            const gx2 = cx*RW + x + j, gy2 = cy*RH + y;
+            for (let d=1; d<=TAM_TUA && !tua; d++)
+              tua = (gy2-d >= 0 && S.grid[(gy2-d)*MW+gx2] === WALL) ||
+                    (gy2+d < MH && S.grid[(gy2+d)*MW+gx2] === WALL) ||
+                    (gx2-d >= 0 && S.grid[gy2*MW+gx2-d]   === WALL) ||
+                    (gx2+d < MW && S.grid[gy2*MW+gx2+d]   === WALL);
+          }
+          if (rnd() < (tua ? BO_TUA : BO_GIUA))
+            for (let j=0; j<n; j++){ S.grid[i0+x+j] = FLOOR; S.deco[i0+x+j] = 0; }
           x += n;
         }
       }
@@ -3742,7 +3810,10 @@ function paintProp(c, x, y, kind, n, gx, gy, ki){
     const ch = CH_PROP[kind];
     if (ch){
       const d = dayDo(kind, gx, gy), v = cotDo(kind, gx, gy);
-      if (REPO_PHONG.veDo(c, x, y, FLOORS[ki].phong, ch, gx, gy, TILE, d[0], d[1], v[0], v[1])) return;
+      // O ngay tren co mot mon KHAC LOAI dang dung khong. veDo() can biet de khong vuon cao de len no.
+      const iT = (gy-1)*MW + gx;
+      const chat = gy > 0 && S.grid[iT] === PROP && S.deco && S.deco[iT] !== kind;
+      if (REPO_PHONG.veDo(c, x, y, FLOORS[ki].phong, ch, gx, gy, TILE, d[0], d[1], v[0], v[1], chat)) return;
     }
   }
   const T = TILE;
@@ -11906,7 +11977,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260908e';
+const BUILD = '20260908j';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm

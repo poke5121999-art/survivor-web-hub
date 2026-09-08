@@ -104,11 +104,11 @@
   // ---------------------------------------------------------------- BẢNG MIẾNG ĐỒ
   // [x, y, rộng, cao] tính bằng ĐIỂM ẢNH trên interiors.png. Sinh bằng máy, xem đầu tệp.
   const M = {
-    thung_go:   [[195,1491,42,42],[243,1491,42,42],[291,1491,42,42],[339,1491,42,42],
-                 [195,1539,42,42],[243,1539,42,42],[291,1539,42,42],[339,1539,42,42]],
+    thung_go:   [[192,1491,48,90],[240,1491,48,90],[288,1491,48,90],[336,1491,48,90],
+                 [192,1491,48,90],[240,1491,48,90],[288,1491,48,90],[336,1491,48,90]],
     thung:      [[531,510,45,39],[579,531,45,39],[195,1491,42,42]],
-    quay:       [[0,1584,48,48],[48,1584,48,81],[96,1584,48,81],[144,1584,48,48],
-                 [192,1584,48,81],[240,1584,48,81],[288,1584,48,48],[336,1584,48,81],
+    quay:       [[0,1584,48,81],[48,1584,48,81],[96,1584,48,81],[144,1584,48,81],
+                 [192,1584,48,81],[240,1584,48,81],[288,1584,48,81],[336,1584,48,81],
                  [384,1584,48,81]],
     quay_ngan:  [[0,2751,48,60],[48,2751,48,60],[96,2751,48,60]],
     bep_quay:   [[576,3792,96,72],[672,3792,96,72]],
@@ -127,14 +127,14 @@
                  [192,1923,39,66],[249,1923,36,63],[288,1923,39,66]],
     ban_gv:     [[357,1713,72,105],[531,1713,72,105],[246,1749,84,75],[363,1941,84,75],
                  [240,2772,96,60]],
-    bang:       [[630,1941,84,69],[624,1848,93,63]],
-    tu_sat:     [[576,1923,45,93]],
-    tu_trang:   [[48,720,48,99],[96,759,48,84],[144,759,48,84],[192,774,45,45]],
-    ke_le:      [[96,888,48,93],[144,888,48,93],[192,888,48,96],[240,888,48,96]],
-    ke:         [[306,891,63,93],[96,888,48,93],[144,888,48,93],[192,888,48,96],[240,888,48,96]],
-    gia_sat:    [[306,891,30,93],[336,891,33,93]],
-    ke_hang:    [[480,3282,96,102],[576,3282,96,102],[672,3282,96,102],[480,3426,96,102],
-                 [576,3426,96,102],[672,3426,96,102]],
+    bang:       [[624,1848,96,162],[624,1848,96,162]],
+    tu_sat:     [[576,1923,48,93]],
+    tu_trang:   [[48,720,48,123],[96,720,48,123],[144,720,48,123],[192,720,48,123]],
+    ke_le:      [[96,888,48,96],[144,888,48,96],[192,888,48,96],[240,888,48,96]],
+    ke:         [[306,891,63,93],[54,2352,42,96],[288,2352,45,96]],
+    gia_sat:    [[288,891,48,93],[336,891,48,93]],
+    ke_hang:    [[480,3282,96,246],[576,3282,96,246],[672,3282,96,246],[480,3282,96,246],
+                 [576,3282,96,246],[672,3282,96,246]],
     tu_cao:     [[9,2181,78,111],[351,2190,114,111],[192,2211,48,93],[243,2211,90,93],
                  [342,2316,81,117],[438,2352,81,81],[342,2460,81,117],[432,2460,144,117],
                  [486,2748,81,117],[672,2841,48,111],[687,3003,69,93]],
@@ -145,13 +145,13 @@
                  [198,2337,84,90]],
     sofa:       [[351,648,114,63],[99,2136,90,54],[243,2163,90,45],[111,2247,66,54],
                  [99,2481,90,54],[195,2481,90,54]],
-    sofa_lon:   [[48,3471,144,81],[192,3471,144,81],[336,3474,144,78]],
+    sofa_lon:   [[48,3471,144,81],[192,3471,144,81],[336,3471,144,81]],
     ghe_bet:    [[48,3552,96,84],[144,3552,96,84]],
-    cay:        [[639,2112,69,93],[501,2139,54,93],[579,2166,42,69],[576,2568,45,99],
-                 [579,2712,39,99],[624,2712,45,99]],
+    cay:        [[639,2112,69,93],[501,2139,54,93],[579,2166,42,69]],
     cay_nho:    [[6,2370,36,42]],
-    den:        [[726,2475,36,57],[678,2481,36,51],[528,2568,45,72],[678,2760,36,54]],
-    guong:      [[723,2859,45,93],[402,3192,60,96],[306,3240,60,96],[402,3336,60,96]],
+    den:        [[726,2475,36,57],[678,2481,36,51],[528,2568,45,72],[678,2760,36,54],
+                 [576,2568,45,99],[579,2712,39,99],[624,2712,45,99]],
+    guong:      [[402,3192,60,96],[306,3240,60,96],[402,3336,60,96]],
     qua_cau:    [[627,1731,39,63],[675,1731,39,63],[579,3171,39,63]],
     vo_gom:     [[3,3204,45,48],[51,3204,45,48],[3,3300,45,48],[51,3300,45,48],[99,3189,93,66],
                  [435,3000,42,57],[51,2565,42,54],[99,2565,42,54],[3,2568,45,51],
@@ -190,6 +190,11 @@
   // câu. Bộ đồ của mỗi kiểu lấy theo đúng mấy CỤM mà tấm free_overview.png của bộ gốc đã xếp sẵn —
   // bộ phòng ngủ nằm một cụm, bộ lớp học một cụm, bộ tiệm một cụm.
   //
+  // LUẬT BỐN MIẾNG: mỗi chữ trong mỗi kiểu phải có ÍT NHẤT bốn miếng để bốc. Ít hơn thì cả căn
+  // phòng lát lại đúng một hình, và mắt đọc ra giấy dán tường chứ không đọc ra đồ đạc. Đo được:
+  // lớp học từng khai `P: gop('tu_sat')` — đúng một cái tủ sắt — và một gian ra mười lăm cái tủ
+  // sắt giống hệt nhau xếp thành lưới.
+  //
   // LUẬT MỘT Ô: mỗi họ đồ dùng cho một chữ PHẢI có ít nhất một miếng chân rộng đúng một ô. veDo()
   // cắt dãy ngang thành từng miếng; tới cuối dãy, nếu chỗ còn lại hẹp hơn miếng hẹp nhất thì nó bỏ
   // cuộc và paintProp() rơi về cái hộp xám vẽ bằng mã — đúng một ô cuối của MỌI dãy lẻ trong nhà.
@@ -199,11 +204,11 @@
            C: gop('thung_go'), P: gop('cay','den','cay_nho'), x: gop('ghe','ban_to') },
       ban: gop('ban_to'), treo: gop('treo_to','treo_nho','cua_so'), tham: gop('tham') },
     { ma:'bep', ten:'Bếp', san:'men_kem', tuong:'ngoc',
-      do:{ T: gop('quay'), S: gop('bep_quay','bep_lo','tu_trang'),
+      do:{ T: gop('quay'), S: gop('bep_quay','bep_quay','bep_lo','bep_lo','tu_trang'),
            C: gop('thung_go'), P: gop('cay_nho','cay'), x: gop('quay_ngan') },
       ban: gop('quay_ngan'), treo: gop('treo_nho','cua_so'), tham: [] },
     { ma:'ngu', ten:'Phòng ngủ', san:'go_xuongca', tuong:'hong_dat',
-      do:{ T: gop('giuong','ghe'), S: gop('tu_cao','tu_thap'),
+      do:{ T: gop('giuong','giuong','ghe'), S: gop('tu_cao','tu_thap'),
            C: gop('thung_go'), P: gop('den','cay','guong'), x: gop('ghe','tu_thap') },
       ban: gop('tu_thap'), treo: gop('treo_nho','cua_so'), tham: gop('tham') },
     { ma:'tam', ten:'Phòng tắm', san:'men_ngoc', tuong:'ngoc',
@@ -211,31 +216,51 @@
            C: gop('thung_go'), P: gop('cay_nho','cay'), x: gop('quay_ngan') },
       ban: gop('quay_ngan'), treo: gop('treo_nho'), tham: [] },
     { ma:'kho', ten:'Nhà kho', san:'be_tong', tuong:'go_nhat',
-      do:{ T: gop('tu_thap','quay_ngan'), S: gop('gia_sat','ke_le','ke'),
-           C: gop('thung_go','thung'), P: gop('tu_sat','tu_trang'), x: gop('thung_go') },
+      do:{ T: gop('thung_go','tu_thap'), S: gop('gia_sat','gia_sat','ke_le'),
+           C: gop('thung_go','thung'), P: gop('tu_sat','thung_go'), x: gop('thung_go') },
       ban: gop('tu_thap'), treo: gop('treo_nho'), tham: [] },
     { ma:'thu', ten:'Thư phòng', san:'go_xuongca', tuong:'go_do',
       do:{ T: gop('ban_hoc','ban_gv'), S: gop('ke','tu_cao','tu_thap'),
            C: gop('thung_go'), P: gop('cay','ke'), x: gop('ghe','qua_cau','den') },
       ban: gop('ban_gv','ban_to'), treo: gop('treo_to','treo_nho'), tham: gop('tham') },
     { ma:'tiem', ten:'Tiệm tạp hoá', san:'gach_do', tuong:'kem',
-      do:{ T: gop('quay_ngan'), S: gop('ke_hang','ke_le'),
+      do:{ T: gop('quay_ngan'), S: gop('ke_hang','ke_hang','ke_le'),
            C: gop('thung_go','thung'), P: gop('tu_sat','vo_gom'), x: gop('thung_go') },
       ban: gop('quay_ngan'), treo: gop('treo_nho'), tham: [] },
     { ma:'lop', ten:'Lớp học', san:'men_kem', tuong:'xam_lam',
-      do:{ T: gop('ban_hoc'), S: gop('bang','ban_gv','tu_sat'),
-           C: gop('thung_go'), P: gop('tu_sat'), x: gop('ghe') },
+      do:{ T: gop('ban_hoc'), S: gop('bang','bang','ban_gv','tu_sat'),
+           C: gop('thung_go'), P: gop('tu_sat','ke_le','cay','ban_gv'), x: gop('ghe') },
       ban: gop('ban_gv'), treo: gop('treo_to','treo_nho'), tham: [] },
+    // Do vo la GIA VI, khong phai ca can phong. Ban truoc cho ca nam chu deu tro vao mot ho
+    // `nat`, va ket qua la mot can phong lat kin bang tam manh do vo lap di lap lai — doc ra
+    // giay dan tuong chu khong doc ra mot can nha bi bo. Chu du an: 'khong he hop ly'.
+    //
+    // Mot can nha bo hoang van la MOT CAN NHA: van co tu, co ban, co ke — chi la chung sut
+    // gay va phu bui. Nen bo do dac binh thuong lam nen, do vo chi chen vao chu 'x' va mot
+    // phan chu 'C'.
     { ma:'hoang', ten:'Phòng bỏ hoang', san:'be_tong', tuong:'go_vua',
-      do:{ T: gop('nat'), S: gop('nat'),
-           C: gop('nat','thung_go'), P: gop('vo_gom'), x: gop('nat') },
-      ban: [], treo: gop('treo_nho'), tham: [] }
+      do:{ T: gop('ban_to','tu_thap'), S: gop('tu_cao','ke_le'),
+           C: gop('thung_go','nat'), P: gop('vo_gom','cay'), x: gop('nat') },
+      ban: gop('ban_to','tu_thap'), treo: gop('treo_nho'), tham: [] }
   ];
-  // Đồ để LÊN MẶT BÀN — chậu bông, quả địa cầu, giỏ trái cây, cái đèn. Chủ dự án: "mấy cái bàn bạn
-  // có thể dàn bự ra xong để decor lên trên cho đẹp — như để chậu bông, quả địa cầu, vv".
-  // Chung cho mọi kiểu: một quả địa cầu trên bàn thư phòng và trên bàn giáo viên vẫn là một quả địa
-  // cầu; chia riêng từng kiểu chỉ để lặp lại chính mấy dòng này chín lần.
-  const TREN_BAN = M.tren_ban;
+  // ĐỒ ĐỂ LÊN MẶT BÀN — chậu bông, quả địa cầu, giỏ trái cây, cái đèn. Chủ dự án: "mấy cái bàn
+  // bạn có thể dàn bự ra xong để decor lên trên cho đẹp — như để chậu bông, quả địa cầu, vv".
+  //
+  // CHIA THEO KIỂU PHÒNG, không dùng chung một rổ. Bản trước dùng chung, và một người soi lại
+  // đã bắt đúng chỗ đó: trên quầy của tiệm tạp hoá mọc ra một quả địa cầu. Quả địa cầu là đồ
+  // của lớp học và thư phòng; giỏ trái cây là đồ của tiệm và bếp; cái đèn thì ở đâu cũng được.
+  const BAN_CHUNG = gop('den', 'cay_nho');
+  const TREN_BAN = {
+    khach: gop('den','cay_nho','vo_gom'),
+    bep:   gop('cay_nho').concat(M.tren_ban.slice(0, 7)),
+    ngu:   gop('den','cay_nho'),
+    tam:   gop('cay_nho'),
+    kho:   gop('thung'),
+    thu:   gop('qua_cau','den','cay_nho'),
+    tiem:  M.tren_ban.slice(0, 7).concat(gop('cay_nho')),
+    lop:   gop('qua_cau'),
+    hoang: gop('vo_gom')
+  };
 
   // ---------------------------------------------------------------- BỐC BIẾN THỂ
   // Bốc theo TOẠ ĐỘ Ô, không theo dòng ngẫu nhiên — cùng cái luật đã có sẵn trong game.js cho sàn
@@ -302,7 +327,7 @@
   // hai lần gọi. Đắt hơn (một dãy 19 ô thì tính 19 lần) nhưng đổi lại paintProp() vẫn là một hàm
   // thuần: vẽ lại một ô bất kỳ, ở bất kỳ thứ tự nào, vẫn ra đúng cái đã có. Vẽ nền chỉ chạy một lần
   // mỗi màn, nên cái giá ấy là vài trăm phép tính cho cả căn nhà.
-  function veDo(c, x, y, ki, ch, gx, gy, T, dauX, dai, dauY, cao){
+  function veDo(c, x, y, ki, ch, gx, gy, T, dauX, dai, dauY, cao, chatTren){
     const k = KIEU[ki];
     if (!k || !xong(IT)) return false;
     const ds0 = k.do[ch];
@@ -323,7 +348,15 @@
     // Còn đủ chỗ cho một miếng cao trọn vẹn thì BẮT BUỘC lấy miếng cao. Lấy miếng thấp ở đây là để
     // hở đúng cái ô phía trên vừa bị tuyên bố "đã có người phủ".
     const conDoc = gy - dauY + 1;
-    const ds = (buoc > 1 && conDoc >= buoc) ? ds0.filter(m => caoO(m) === buoc) : ds0;
+    let ds = (buoc > 1 && conDoc >= buoc) ? ds0.filter(m => caoO(m) === buoc) : ds0;
+    // Ô NGAY TRÊN ĐÃ CÓ MÓN KHÁC LOẠI đứng rồi thì món ở đây phải LÙN. Dãy dọc ở trên chỉ cắt
+    // theo cùng một loại đồ, nên hai loại xếp chồng nhau ('S' nằm ngay trên 'T') vẫn lọt: cả
+    // hai đều tưởng mình đứng một mình và cùng vươn cao hai ô. Người soi lại đếm được mười ba
+    // bản sao chồng lên nhau kiểu đó ở riêng thư phòng.
+    if (chatTren){
+      const lun = ds.filter(m => caoO(m) === 1);
+      if (lun.length) ds = lun;
+    }
     if (!ds.length) return false;
 
     // ---- RỒI CẮT DÃY NGANG
@@ -345,10 +378,11 @@
         // ĐỒ ĐỂ LÊN MẶT BÀN. Chỉ những miếng nằm trong danh sách `ban` của kiểu này mới được nhận —
         // để một quả địa cầu không mọc trên nóc cái tủ lạnh. Nhấc lên 55% chiều cao miếng bàn thì
         // nó đứng đúng trên mặt bàn chứ không lửng lơ giữa thân bàn.
-        if (k.ban && k.ban.indexOf(m) >= 0 && TREN_BAN.length){
+        const tb = TREN_BAN[k.ma] || BAN_CHUNG;
+        if (k.ban && k.ban.indexOf(m) >= 0 && tb.length){
           const h2 = bam(i, gy, ki + 71);
           if (h2 % 100 < 62){
-            const d = TREN_BAN[(h2 >>> 7) % TREN_BAN.length];
+            const d = tb[(h2 >>> 7) % tb.length];
             veMieng(c, d, x, y, T, r, m[3] * (T / O) * 0.55);
           }
         }
