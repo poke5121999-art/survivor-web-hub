@@ -11699,7 +11699,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260907f';
+const BUILD = '20260908a';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -11750,6 +11750,11 @@ function showVeil(title, body, btnText, onClick, extraHtml, onBackdrop){
   // Bảng có danh sách thì bố cục đổi hẳn: hàng nút thành chân trang thật, danh sách là phần
   // duy nhất cuộn. Xem chú thích .veil.panel trong index.html.
   el('veil').classList.toggle('panel', !!extraHtml);
+  // Va GO lop `stash` ra. Bo hinh go (tu-do.css) rao sau `.veil.stash`, ma tam man
+  // nay dung chung cho ca tram dich vu lan bang tra quai: khong go o day thi mo tu
+  // mot lan la hai bang kia mac go theo cho toi het ca truc. showStash() gan lai
+  // ngay sau khi goi ham nay.
+  el('veil').classList.remove('stash');
   // "Để bot chơi" CHỈ thuộc về màn tiêu đề, và màn tiêu đề không đi qua hàm này.
   // ROOT-CAUSE của bug "bấm nút thứ hai trên màn chết là đông cứng cả game": dòng cũ là
   //   `b2.hidden = !!extraHtml`, mà hai bảng kết ca (crewWiped / endLostShift) không truyền
@@ -12743,6 +12748,12 @@ function showStash(warn){
        })()
      }</div>`,
     closeStash);        // bấm ra khoảng trống cũng đóng — tủ đồ không mất gì khi đóng
+
+  // BO KHUNG GO CUA CAI TU. Ca luat hinh nam o tu-do.css, rao sau `.veil.stash`, va
+  // day la cho DUY NHAT gan lop do - showVeil() vua go no ra o dong tren cung.
+  // Gan bang classList chu khong dung them mot doi so cho showVeil(): showVeil co sau
+  // nguoi goi trong tep nay, them mot doi so la sua ca sau cho de phuc vu mot cho.
+  el('veil').classList.add('stash');
 
   if (scr){ const b2 = el('veilExtra'); if (b2) b2.scrollTop = scr; }
 
