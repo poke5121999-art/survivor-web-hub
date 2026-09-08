@@ -88,6 +88,13 @@ const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3,
 // dai, va gio thi chung lam dung viec ay o quy mo nho hon - hai gian mo canh nhau van khac
 // nhau mot nac sang.
 const KHO_KIEU = [8,9,10,11,12,13,14,15,16, 4,5,6,7];
+// MOT MAN MOT THEME. Chu du an: "cho tat ca room trong 1 map cung theme di, khi sang map
+// tiep theo thi random ra theme khac". Muoi la: chin kieu lat tile, cong CA BO HAM MO tinh
+// la mot la (`4` chi la la dai dien — man ham mo van chay bon nuoc da theo vi tri phong, vi
+// bon nuoc ay chinh la cai theme do).
+const KHO_THEME = [8,9,10,11,12,13,14,15,16, 4];
+// Theme cua man truoc, de man sau khong lap lai. Nam ngoai `S` vi `S` bi dung lai moi man.
+let themeTruoc = -1;
 // Bao nhieu phan cua may day do trong mot phong lat tile bi bo di. 0,5 do bang mat tren anh
 // chup ca chin phong: duoi 0,35 thi phong van chat, tren 0,65 thi phong trong khong con doc ra
 // mot can phong co nguoi o. Do KHONG ap cho ham mo.
@@ -101,15 +108,15 @@ const KHO_KIEU = [8,9,10,11,12,13,14,15,16, 4,5,6,7];
 //
 // Mot dai cong dung: giua phong trong thi xe day di duoc, ma xe day rong 40 diem anh la thu
 // kho chieu nhat trong ca vong khuan do.
-const BO_TUA  = 0.06;      // day dua vao vach
-const BO_GIUA = 0.45;      // day dung tro giua phong
+const BO_TUA  = 0.03;      // day dua vao vach
+const BO_GIUA = 0.24;      // day dung tro giua phong
 // 'Dua vao vach' tinh trong VONG HAI O, khong phai ke sat. May mau phong ve tay xep do thanh
 // vanh cach tuong mot toi hai o de chua loi di sat chan tuong — do sat thi dem duoc 0 day nao
 // la 'tua', va ca can nha bi don sach. Do that o tiem tap hoa: ke sat thi con ba mon tren ca
 // gian phong.
 const TAM_TUA = 2;
 // Bao nhieu phan cua may day o sat tuong MOI (sau khi cat hinh) duoc rai lai do dua tuong.
-const VIEN_DO = 0.7;
+const VIEN_DO = 0.85;
 
 
 // ============================================================ HINH PHONG
@@ -2504,8 +2511,16 @@ function buildLevel(seed){
   S.roomStyle = new Uint8Array(GX*GY);
   // Xao bo bai kieu phong bang CHINH `rnd` - dong nghia mot hat giong van cho ra mot can
   // nha, ca nuoc son lan tuong vach. Mot van co the choi lai y het la thu ca bo test dua vao.
-  const kieuBai = KHO_KIEU.slice();
-  for (let i = kieuBai.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [kieuBai[i],kieuBai[j]] = [kieuBai[j],kieuBai[i]]; }
+  // MOT THEME CHO CA CAN NHA. Ban truoc chia moi phong mot kieu tu mot bo bai da xao; gio
+  // ca chin phong dung chung mot kieu, va man sau moi doi.
+  //
+  // LUAT KHONG LAP: theme man nay phai khac man truoc. Chin phong cung mot nuoc son thi cai
+  // giong nhau nhin thay ngay tu phong dau — hai man lien tiep trung theme la nguoi choi doc
+  // ra "van con o man cu".
+  const bai = KHO_THEME.filter(k => k !== themeTruoc);
+  const theme = bai[(rnd()*bai.length)|0];
+  themeTruoc = theme;
+  const themeDa = kieuDa(theme);
   // GIU RIENG MOT LA DA cho mau ham mo TRUOC KHI chia.
   //
   // Bo bai co bon la da tren muoi ba, ma mau ham mo thi co the roi vao phong thu chin. Do
@@ -2515,12 +2530,12 @@ function buildLevel(seed){
   //
   // Chi mot phong duoc mang co `da` trong mot van: `order` la mot hoan vi cua ROOMS va chin
   // phong doc chin muc khac nhau cua no, nen mau ham mo xuat hien nhieu nhat mot lan.
-  let laMo = -1;
-  for (let ri = 0; ri < GX*GY; ri++){
-    if (!ROOMS[order[ri % order.length]].da) continue;
-    const j = kieuBai.findIndex(kieuDa);
-    if (j >= 0) laMo = kieuBai.splice(j, 1)[0];
-    break;
+  // MAU HAM MO CHI DUNG TRONG MAN HAM MO. Mot mau `da` la day quan tai xep sat nhau va bon
+  // gian mo o bon goc; dat no tren nen gach men cua cai bep thi phong ay co quan tai giua bep.
+  // Nen man khong phai ham mo thi loai han may mau ay ra khoi bo mau.
+  if (!themeDa){
+    const sach = order.filter(i => !ROOMS[i].da);
+    if (sach.length) order.length = 0, order.push(...sach);
   }
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++){
     const ri = cy*GX+cx;
@@ -2540,9 +2555,10 @@ function buildLevel(seed){
     // no chi doc `KHO_DA[ri % 4]` thi cai nuoc ay hoan toan co the DA duoc chia cho mot
     // phong truoc do - do that: hat giong mac dinh cho ra hai phong cung nuoc 'da cat'.
     // Rut ra khoi bo bai thi mot la chi ra mot lan, va chin phong ra chin kieu khac nhau.
-    if (t.da && laMo >= 0){ S.roomStyle[ri] = laMo; laMo = -1; }
-    else if (t.da)        { S.roomStyle[ri] = KHO_DA[ri % KHO_DA.length]; }
-    else                  { S.roomStyle[ri] = kieuBai.length ? kieuBai.shift() : KHO_KIEU[ri % KHO_KIEU.length]; }
+    // Man ham mo van chay bon nuoc da theo vi tri phong — bon nuoc ay la cai theme, va hai
+    // gian mo canh nhau khac nhau mot nac sang thi ham mo moi ra ham mo. Man lat tile thi ca
+    // chin phong dung dung mot kieu.
+    S.roomStyle[ri] = themeDa ? KHO_DA[ri % KHO_DA.length] : theme;
     // TEN PHONG DI THEO CAI MAT, khong di theo mau. Mau chi bo tri do dac ('day ban ap
     // tuong'), con thu nguoi choi NHIN THAY la nuoc son va mon do: cung mot mau 'Hanh lang'
     // lat gach men voi day quay bep thi no la cai bep. Ban do goc man ma ghi 'Hanh lang'
@@ -12039,7 +12055,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260908l';
+const BUILD = '20260908m';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
