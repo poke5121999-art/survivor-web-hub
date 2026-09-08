@@ -101,13 +101,16 @@ const KHO_KIEU = [8,9,10,11,12,13,14,15,16, 4,5,6,7];
 //
 // Mot dai cong dung: giua phong trong thi xe day di duoc, ma xe day rong 40 diem anh la thu
 // kho chieu nhat trong ca vong khuan do.
-const BO_TUA  = 0.10;      // day dua vao vach
-const BO_GIUA = 0.55;      // day dung tro giua phong
+const BO_TUA  = 0.06;      // day dua vao vach
+const BO_GIUA = 0.45;      // day dung tro giua phong
 // 'Dua vao vach' tinh trong VONG HAI O, khong phai ke sat. May mau phong ve tay xep do thanh
 // vanh cach tuong mot toi hai o de chua loi di sat chan tuong — do sat thi dem duoc 0 day nao
 // la 'tua', va ca can nha bi don sach. Do that o tiem tap hoa: ke sat thi con ba mon tren ca
 // gian phong.
 const TAM_TUA = 2;
+// Bao nhieu phan cua may day o sat tuong MOI (sau khi cat hinh) duoc rai lai do dua tuong.
+const VIEN_DO = 0.7;
+
 
 // ============================================================ HINH PHONG
 // Chu du an: "phong khong nhat thiet luon 1 hinh, co the tron, vuong dai, doc dc ma".
@@ -2615,6 +2618,42 @@ function buildLevel(seed){
           x += n;
         }
       }
+
+      // VIEN DO DUA TUONG. Mat na hinh phong o tren cat di ca mot vanh o quanh phong — ma do
+      // dac cua chin mau phong nay phan lon nam DUNG O VANH DO, dua lung vao vach cu. Cai con
+      // lai la phan giua, va tren anh chup no doc ra mot cai kho trong co vai mon do dung tro
+      // giua san. Nen sau khi cat hinh xong thi RAI LAI mot vien theo tuong MOI.
+      //
+      // Chi rai chu 'S'. Nam chu khong thay nhau duoc: 'T' la ban ghe (con phai co cho di vong
+      // quanh), 'C' la do lat vat, con 'S' la do CAO ve tu day o len — dua lung vao vach dung
+      // la tu the cua no.
+      //
+      // Tru dai chu thap giua phong: cua duoc khoet o giua moi canh, dat mot cai tu ngay do la
+      // bit loi ra vao, va xe day rong 40 diem anh thi khong lach qua duoc.
+      const cam = new Set();
+      for (const p of lootSpots) if (p.ri === ri) cam.add(p.gy*MW+p.gx);
+      for (const p of monSpots)  if (p.ri === ri) cam.add(p.gy*MW+p.gx);
+      for (let y=1; y<RH-1; y++){
+        const gy2 = cy*RH+y;
+        const duocDat = ax => {
+          const i = gy2*MW + cx*RW + ax;
+          return S.grid[i] === FLOOR && !cam.has(i) &&
+                 Math.abs(ax-giuaX) > 1 && Math.abs(y-giuaY) > 1 &&
+                 S.grid[i-MW] === WALL && gy2+1 < MH && S.grid[i+MW] !== WALL;
+        };
+        let x = 1;
+        while (x < RW-1){
+          if (!duocDat(x)){ x++; continue; }
+          let n = 1;
+          while (n < 4 && x+n < RW-1 && duocDat(x+n)) n++;
+          if (n >= 2 && rnd() < VIEN_DO)
+            for (let j=0; j<n; j++){
+              const i = gy2*MW + cx*RW + x + j;
+              S.grid[i] = PROP; S.deco[i] = P_SHELF;
+            }
+          x += n;
+        }
+      }
     }
   }
 
@@ -3266,6 +3305,26 @@ const WALLS = [
 // KHÔNG lên SS=3 hay 4: 4 sẽ là nét đúng từng điểm ảnh trên máy để bàn, nhưng ảnh nền khi đó là
 // 6048x4320 = 26 triệu điểm ảnh, tức 104MB một tấm — quá trần diện tích canvas của Safari trên
 // iOS (16.7 triệu) và quá sức bộ nhớ điện thoại. SS=2 là 3024x2160, 26MB, cấp một lần cho cả ván.
+// MOT LOP TUONG, NGOAI RA LA VOID DEN. Chu du an: "may phong hinh chu thap thi chi can 1 lop
+// tuong thoi, ben ngoai la void den dc r" — "nhu soul knight thoi".
+//
+// Tu khi phong co hinh rieng (tron, chu thap, phong goc), phan o luoi bi mat na cat di tro
+// thanh mot khoi tuong dac to tuong — co cho day nam o. Ve het khoi ay ra thi can nha doc ra
+// mot cuc be tong co duc lo, chu khong doc ra may can phong. Soul Knight giai dung bai nay:
+// phong va hanh lang noi tren nen DEN, moi mang duoc vien dung mot lop.
+//
+// Hoi bang tam 1 o va CA TAM HUONG (ke ca cheo): thieu bon huong cheo thi bon goc trong cua
+// mot phong tron bi thung, va cai lo thung ay nam dung cho mat nguoi choi bam vao de doc ra
+// hinh can phong.
+function tuongLoRa(gx, gy){
+  for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++){
+    if (!dx && !dy) continue;
+    const x = gx+dx, y = gy+dy;
+    if (x < 0 || y < 0 || x >= MW || y >= MH) continue;
+    if (S.grid[y*MW+x] !== WALL) return true;
+  }
+  return false;
+}
 const SS = 2;
 // Hinh chu nhat w x h o KET THUC o (gx,gy) co sach khong: toan san, khong do, cung mot phong.
 // Cau hoi nay cua tam tham. Phai hoi vi trai tham de len mot cai tu DA VE XONG thi cai tu bien
@@ -3311,6 +3370,9 @@ function prerenderWorld(rnd){
         REPO_PHONG.veTham(c, x, y, FLOORS[ki].phong, gx, gy, TILE,
                           (w, h) => sanSachTraiTren(gx, gy, w, h, ri));
     } else if (v === WALL){
+      // Tuong nam sau mot lop tuong khac thi khong ai nhin thay no bao gio — bo qua, de nguyen
+      // nen den. Day cung la thu lam cho may phong hinh la (tron, chu thap) doc ra hinh cua no.
+      if (!tuongLoRa(gx, gy)) continue;
       // "wallpaper follows the room, so a wall tells you which room you are looking into" — câu này
       // là ý định gốc, và tới 2026-09-03 thì mã ở đây vẫn làm NGƯỢC lại nó.
       //
@@ -11977,7 +12039,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260908j';
+const BUILD = '20260908l';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
