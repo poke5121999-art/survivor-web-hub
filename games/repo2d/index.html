@@ -213,6 +213,39 @@
        color:var(--ink-faint);width:100%;text-align:left;margin-top:4px;}
   .wallet{font-family:var(--mono);font-size:12.5px;color:var(--amber);letter-spacing:.06em;}
 
+  /* MAN TIEU DE = MOT CAI MENU, va o trai cua no la CHINH NHAN VAT.
+     Chu du an, 2026-09-09: "ben ngoai menu thi cung the hien char ro rang di dung dung icon nua".
+     `.menuchar` la mot <canvas> that, game ve bo hinh nguoi vao do moi khung (xem veCharMenu):
+     nguoi dung yen, quay mat ra, cam ngon den va cam luon mon vua mua o cua hang. */
+  .menu{display:flex;gap:11px;align-items:stretch;width:100%;text-align:left;
+        background:var(--panel);border:1px solid var(--line);padding:10px;}
+  .menuchar{flex:0 0 auto;width:108px;height:150px;background:#0b0e12;
+            border:1px solid var(--line);image-rendering:pixelated;}
+  .menuside{flex:1 1 auto;display:flex;flex-direction:column;gap:5px;min-width:0;}
+  .menuwho{font-size:13px;font-weight:600;color:var(--ink);line-height:1.3;}
+  .menuwho span{display:block;margin-top:3px;font-size:10.5px;font-weight:400;
+                color:var(--ink-dim);line-height:1.45;}
+  .menumang{background:#0e1116;border:1px solid var(--line);padding:6px 8px;}
+  .menumang b{font-size:12px;color:var(--ink);font-weight:600;}
+  .menumang i{display:block;margin-top:2px;font-style:normal;font-family:var(--mono);
+              font-size:9.5px;line-height:1.5;color:var(--ink-faint);}
+  .menumang.trong{font-size:11px;line-height:1.45;color:var(--ink-faint);}
+  .menuket{font-family:var(--mono);font-size:11.5px;color:var(--amber);
+           letter-spacing:.05em;margin-top:auto;}
+  /* Huong dan gap lai. No van o day cho ai can, nhung no thoi lam cai nen ma may cai nut bi
+     chim vao - do la ca ly do cua ban sua nay. */
+  .menuhelp{width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);}
+  .menuhelp summary{cursor:pointer;padding:7px 10px;font-family:var(--mono);font-size:10px;
+                    letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);}
+  .menuhelp summary:hover{color:var(--ink);}
+  .menuhelp[open] summary{border-bottom:1px solid var(--line);}
+  .menuhelp .in{padding:8px 10px;font-family:var(--mono);font-size:10.5px;line-height:1.7;
+                color:var(--ink-faint);}
+  .menuhelp .in kbd{font-size:9.5px;}
+  /* Man ngang: khung chi cao 390px nen o nhan vat phai nho lai, khong thi ca bang khong con
+     cho cho dong chu nao. */
+  body.landscape .menuchar{width:84px;height:116px;}
+
   /* CUA HANG NGOAI MENU - mot luoi THE, moi the MOT HINH TO.
      Chu du an, 2026-09-09: "cac do ban trong shop can hinh thu ro rang". Nen cai hinh la thu
      to nhat trong the (46px, gap ruoi cai o trong tu do), ten va gia xep duoi no - chu khong
@@ -310,7 +343,7 @@
      `.veil.stash #veilExtra` va `.veil.panel #veilExtra` co DO UU TIEN BANG NHAU (mot id,
      hai lop), nen cai nao dung sau thi cai do thang. Keo len tren la khung go van hien
      nhung be ngang va padding cua bang thi van la cua ban cu. -->
-<link rel="stylesheet" href="tu-do.css?v=20260909b">
+<link rel="stylesheet" href="tu-do.css?v=20260909d">
 </head>
 <body>
 
@@ -457,9 +490,9 @@
 
 <!-- phong.js phai dung TRUOC game.js: no chi dat window.REPO_PHONG roi thoi, con game.js
      hoi bang do ngay tu luot ve nen dau tien. -->
-<script src="phong.js?v=20260909b"></script>
-<script src="sprites.js?v=20260909b"></script>
-<script src="game.js?v=20260909b"></script>
+<script src="phong.js?v=20260909d"></script>
+<script src="sprites.js?v=20260909d"></script>
+<script src="game.js?v=20260909d"></script>
 <script src="bot.js?v=20260904a"></script>
 <script>window.__boot && window.__boot();</script>
 <script>

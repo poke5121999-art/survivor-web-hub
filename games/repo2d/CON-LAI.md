@@ -1,7 +1,7 @@
 # Còn lại — bàn giao 2026-09-09
 
 Bản vừa push: **ném đồ · đường chỉ lối trên sàn · loot vẽ lại · cửa hàng ngoài menu**.
-Dấu build lên `?v=20260909b` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Dấu build lên `?v=20260909d` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 ---
@@ -127,3 +127,40 @@ phải `git rm --cached` tệp ấy trước, không thì git thấy nội dung 
 - **`bot-suite` vốn đã hỏng 10 phép từ trước.** Đã đối chứng ở HEAD cũ, kết quả y hệt. Đừng mất
   buổi tối đi sửa tưởng là mình vừa làm hỏng.
 - **Ba ca chập chờn ở mục 3** — ghim hạt giống là xong.
+
+---
+
+## 7. BẢN SAU (2026-09-09, cùng ngày) — ánh sáng trên đồ đạc, và cái menu
+
+### 7.1. Ánh sáng cắt ngang bàn / ghế / cây dừa
+Chủ dự án: *"phần ánh sáng lúc nhìn lên bàn, ghế, cây dừa chưa hợp lý"*. Số đo, cái bẫy và ba
+cái chốt của bản vá: **`art/room/README.md`**, mục "Miếng đồ CAO HƠN ô của nó". Tóm tắt: lưới
+đánh dấu một ô, hình chiếm hai tới ba ô; đèn đi theo lưới nên cắt ngang thân món đồ, chênh
+215/255 qua một vạch rộng 1–2 đơn vị. Nay `S.propUp` ghi lại phần tràn và `themONhoDo()` nới
+đường clip lên đúng chỗ ấy — chênh trung bình còn 20/255 trên 65 món.
+
+**Không đụng `slabExit` / `marchSolid` / `WALL_DEEP`.** Ba thứ đó là đường chung của tường, và
+hai phép thử độ sáng mặt tường trong `repo-suite` đo thẳng vào chúng.
+
+### 7.2. Màn tiêu đề dựng lại thành một cái MENU
+Chủ dự án: *"chưa thấy chỗ mua/xài weapon ngoài menu"* và *"bên ngoài menu thì cũng thể hiện
+char rõ ràng đi đừng dùng icon nữa"*.
+
+Nút "Cửa hàng" chưa từng bị ẩn — đo trên bốn khổ màn hình thì lần nào nó cũng nằm trong khung
+nhìn. Chụp ảnh ra mới thấy vì sao không ai thấy nó: màn tiêu đề là **mười lăm dòng chữ hướng
+dẫn** chảy từ trên xuống, và ba cái nút TRÔI GIỮA đống chữ ấy. *"Nằm trong khung nhìn"* và
+*"nhìn thấy được"* là hai chuyện khác nhau — đáng nhớ cho lần sau.
+
+Nay nó là một bảng (`showVeil` có `extraHtml` → lớp `.veil.panel` → hàng nút thành chân trang
+dính đáy, cùng bản vá đã cứu tủ đồ), phần hướng dẫn gập lại, và **ô bên trái là chính nhân vật**
+— `veCharMenu()` vẽ bộ hình người vào một `<canvas>` thật mỗi khung: đứng yên, quay mặt ra, cầm
+ngọn đèn, và **cầm luôn món vừa mua ở cửa hàng**. Khối "Đang mang theo" trong cửa hàng cũng vẽ
+bằng người cầm nó chứ không bằng một biểu tượng nằm trong ô.
+
+`moManDau()` được gọi ngay trong `__boot` — thiếu dòng ấy thì menu mới chỉ hiện khi QUAY LẠI từ
+cửa hàng, còn lần đầu mở game vẫn là tấm màn tĩnh trong index.html.
+
+### 7.3. Một bẫy nữa cho lần sau
+`gearIconURL()` từng trả chuỗi rỗng dưới `file://` (canvas vấy bẩn). Cùng cái bẫy ấy chặn luôn
+**mọi phép đo bằng `getImageData`**: muốn đo điểm ảnh thì chạy qua một máy chủ tĩnh
+(`python -m http.server`) hoặc mở Chromium với `--allow-file-access-from-files`.

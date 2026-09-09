@@ -256,3 +256,82 @@ nhà**, không thì lượt vẽ rơi về nước sơn vẽ bằng mã — gọ
 
 Nhớ bơm `BUILD` trong `game.js` và dấu `?v=` trên thẻ `<script>` của **cả hai** trang html cho
 khớp nhau, không thì Pages trả bản cũ. Pages mất khoảng 70 giây sau khi push.
+
+## Miếng đồ CAO HƠN ô của nó, và cái bẫy ánh sáng đi kèm
+
+[ĐO TRONG REPO] 2026-09-09, đo trên chính `interiors.png` và bảng `M` của `phong.js`.
+
+**145 trên 194 mục trong bảng cao hơn 48 điểm ảnh nguồn**, tức cao hơn một ô. Phần thừa tràn
+**lên trên**, đúng cách một cái tủ được nhìn từ 3/4:
+
+| họ | cao (px nguồn) | tràn lên |
+|---|---|---|
+| `bep_lo` | 120 | 1,50 ô |
+| `tu_cao` | 111–117 | 1,31–1,44 ô |
+| `ke_hang` | 102 | 1,12 ô |
+| `den` (cột đèn) | 99 | 1,06 ô |
+| `ke_le`, `guong` | 96 | 1,00 ô |
+| **`cay` (cây dừa)** | **93** | **0,94 ô** |
+| `giuong` | 90 | 0,88 ô |
+| `quay`, `sofa_lon` | 81 | 0,69 ô |
+| `ghe_*` | 63–75 | 0,31–0,56 ô |
+| `thung_go` | 42 | **0** — không tràn |
+
+Mực trong ô nguồn nằm ở **x 3..92, y 3..92 của khung 96** (đo 172 miếng duy nhất), tức phủ
+0,94 cạnh ô. Alpha gần như nhị phân — **không có bóng đổ mềm vẽ sẵn ngoài thân hình**. Nhưng
+CÓ shading nướng theo một hướng đèn cố định **trên-trái**: 74% miếng mặt trên sáng hơn mặt dưới
+(trung bình +9,1), 73% nửa trái sáng hơn nửa phải (+2,9).
+
+### Cái bẫy
+
+`S.grid` chỉ đánh dấu **một** ô là `PROP` — ô CHÂN. Phần tràn không được đánh dấu gì cả. Mà lớp
+ánh sáng đọc đúng cái lưới ấy: `solidAt()` coi PROP là đặc, `buildSegments()` sinh cạnh chắn
+đúng mép ô, và `slabExit()` cho tia ăn vào khối đặc **đúng một ô** rồi dừng ở `gy*TILE`.
+
+Hệ quả đo được (đứng dưới soi lên, thang 255 trên chính `lightCv`):
+
+```
+trong ô PROP (chân cây dừa)  222
+ĐÚNG biên ô gy*24            168
+ngay trên biên ô               7   ← trần tối rgb(6,7,9)
+```
+
+**Chênh 215/255 qua một vạch rộng 1–2 đơn vị thế giới**, cắt ngang giữa thân món đồ. Ảnh nền hai
+bên vạch gần như giống hệt (95↔100): **nét vẽ đi tiếp qua vạch, chỉ có đèn là dừng**.
+
+Ba điều đáng nhớ về nó:
+
+- **Chỉ hỏng đúng MỘT hướng.** Soi từ dưới lên thì đèn tắt ở mép TRÊN của ô — mà art lại tràn
+  lên trên. Ba hướng kia tắt ở phía SAU món đồ nên không thấy gì. Và "từ dưới lên" là hướng
+  người chơi hay đứng nhất.
+- **Cột đồ hai ô PROP thì KHÔNG hỏng**: nửa trên rơi vào một ô PROP nữa, mà ô PROP thì có được
+  soi. Vấn đề không phải "đồ cao", mà là "art tràn ra khỏi khối ô đặc".
+- 63–70% ô PROP mỗi map thuộc nhóm có thể bị cắt (ô phía trên không phải PROP cùng loại).
+
+### Cách đã vá
+
+`phong.js` báo mọi miếng vừa vẽ ra ngoài qua móc `REPO_PHONG.onMieng(x, y, w, h)`; `game.js`
+gom thành `S.propUp[i]` — bao nhiêu đơn vị thế giới mà hình đứng trên ô này vươn lên trên mép ô.
+`buildLight()` thêm hình chữ nhật phần tràn ấy **vào chính đường clip** của đa giác tầm nhìn
+(`themONhoDo`), nên mọi lượt tô đèn tự tràn vào đó với đúng độ sáng của chỗ ngay cạnh.
+
+Ba cái chốt, và **cả ba đều là bản vá cho một lỗi đã đo được**, đừng gỡ:
+
+1. `polyThuan()` — `clip()` chạy luật nonzero, hình con quay ngược chiều thì chỗ chồng nhau bị
+   TRỪ. Phải đo chiều quay của đa giác rồi phát hình chữ nhật cùng chiều.
+2. `tranBiChan()` — hình chữ nhật dừng ở mặt xa của bức tường đầu tiên. Đồ cao phần lớn kê sát
+   tường (viền đồ đặt chúng ngay dưới ô tường với xác suất 0,85), và không có chốt này thì nó
+   thò sang phòng bên.
+3. `oDoSang()` dò xuống tối đa hai ô, và **chỉ dò qua ô `PROP`, không dò qua ô `WALL`**. Vế đầu
+   là để soi được quả địa cầu đặt trên mặt bàn (`nangDay` nhấc nó lên hẳn ô phía trên, nên hỏi
+   thẳng ô đó thì bao giờ cũng "không thấy"). Vế sau là vì `solidAt` gộp cả tường: bỏ nó thì
+   một món đồ đứng SAU bức tường nhận ô tường làm chỗ tựa và tự nhận là đang được nhìn thấy.
+
+Kết quả đo lại trên 8 hạt giống, 80 món:
+
+| nhóm | số món | chênh trung bình qua mép ô | trên 60/255 |
+|---|---|---|---|
+| có tràn (`propUp > 1,5`) | 65 | **20** | 5 |
+| không tràn | 15 | 94 — và đây là ĐÚNG | 7 |
+
+Món không tràn thì mép cứng ở biên ô là đúng: art dừng ở đó thật.

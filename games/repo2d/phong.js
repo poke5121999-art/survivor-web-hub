@@ -301,11 +301,23 @@
   // ---------------------------------------------------------------- VẼ MỘT MIẾNG
   // Giữ đúng tỉ lệ điểm ảnh của miếng, đứng giữa cái chân `chan` ô, đáy chạm đáy ô.
   // `nangDay` để nhấc món lên khỏi mặt sàn — dùng khi đặt đồ LÊN MẶT BÀN hoặc treo lên tường.
+  // BÁO RA MỖI MIẾNG VỪA VẼ — `onMieng(x, y, rộng, cao)` trong toạ độ thế giới.
+  //
+  // Vì sao tệp này phải nói ra: lưới ô của game chỉ đánh dấu MỘT ô là "có đồ", mà 145 trên 194
+  // miếng trong bảng `M` CAO HƠN một ô — cây dừa 93 điểm ảnh nguồn tràn 0,94 ô, cái tủ 117 tràn
+  // 1,44 ô, cái bếp lò 120 tràn 1,5 ô. Lớp ánh sáng bên game.js dựng theo lưới, nên nó soi đúng
+  // một ô rồi tắt, cắt ngang thân món đồ. Nó không thể tự biết: `bam(...)` bốc một miếng ở dòng
+  // dưới rồi vứt đi, chiều cao thật không được lưu vào đâu cả.
+  //
+  // Một cái móc một chiều chứ không phải một mảng trả về: `veDo` vẽ nhiều miếng ở nhiều ô trong
+  // một lần gọi (dãy ngang, cột dọc, đồ đặt lên bàn), nên gom lại thành giá trị trả về là dựng
+  // một cấu trúc thứ hai để rồi bên kia tháo ra. Ai cần thì gắn móc, không ai gắn thì không tốn gì.
   function veMieng(c, m, x, y, T, chan, nangDay){
     const k = T / O;                      // 1 điểm ảnh nguồn = nửa đơn vị thế giới
     const w = m[2] * k, h = m[3] * k;
-    c.drawImage(IT, m[0], m[1], m[2], m[3],
-                x + (chan * T - w) / 2, y + T - h - (nangDay || 0), w, h);
+    const dx = x + (chan * T - w) / 2, dy = y + T - h - (nangDay || 0);
+    c.drawImage(IT, m[0], m[1], m[2], m[3], dx, dy, w, h);
+    if (root.REPO_PHONG && root.REPO_PHONG.onMieng) root.REPO_PHONG.onMieng(dx, dy, w, h);
   }
 
   // ---------------------------------------------------------------- ĐỒ ĐẠC

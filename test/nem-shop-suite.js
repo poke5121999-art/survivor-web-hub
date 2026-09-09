@@ -246,11 +246,109 @@ async function nemSuite(b) {
   await ctx.close();
 }
 
+// =====================================================================
+// ÁNH SÁNG TRÊN ĐỒ ĐẠC
+//
+// Chủ dự án, 2026-09-09: "phần ánh sáng lúc nhìn lên bàn, ghế, cây dừa chưa hợp lý".
+//
+// Gốc rễ và số đo đầy đủ: `games/repo2d/art/room/README.md`, mục "Miếng đồ CAO HƠN ô của nó".
+// Tóm tắt: lưới đánh dấu MỘT ô là có đồ, mà 145/194 miếng hình cao hơn một ô. Đèn đi theo lưới
+// nên nó tắt đúng ở mép ô, cắt ngang thân cái tủ / cây dừa — đo được 222 tụt xuống 7 trên 255,
+// qua một vạch rộng 1–2 đơn vị thế giới.
+//
+// PHÉP ĐO BUỘC HAI CON SỐ VÀO NHAU, và đó là chỗ khiến nó không mục:
+//   - món CÓ tràn ra khỏi ô (`propUp > 1,5`) thì mép sáng phải MƯỢT;
+//   - món KHÔNG tràn thì mép cứng ở biên ô là ĐÚNG, không phải lỗi — art dừng ở đó thật.
+// Một phép chỉ đòi "mọi mép đều mượt" là đòi sai, và cách duy nhất làm nó xanh sẽ là soi sáng
+// bừa cả những chỗ chẳng có gì.
+async function anhSangDoSuite(b) {
+  results.push('\n── ánh sáng trên đồ đạc: đèn phải trùm hết món, không cắt ngang nó ──');
+  const { ctx, p, errs } = await moGame(b);
+  check('vào được ca để đo ánh sáng', await vaoCa(p));
+
+  const gom = { tran: [], phang: [] };
+  for (const seed of [4242, 1234, 99]) {
+    const kq = await p.evaluate(async (seed) => {
+      // Chộp ma trận thế giới ngay lúc game đặt nó, để đổi toạ độ thế giới ra điểm ảnh.
+      const proto = CanvasRenderingContext2D.prototype;
+      if (!proto.__vaSetT) {
+        proto.__vaSetT = proto.setTransform;
+        proto.setTransform = function (a) {
+          if (typeof a === 'number' && a !== 1)
+            window.__M = { a, d: arguments[3], e: arguments[4], f: arguments[5] };
+          return proto.__vaSetT.apply(this, arguments);
+        };
+      }
+      REPO.resetRun(); REPO.startLevel(seed); REPO.S.cut = null; REPO.S.running = true;
+      await new Promise(r => setTimeout(r, 350));
+      const S = REPO.S, T = REPO.TILE, MW = REPO.MW, MH = REPO.MH;
+      // Ô đồ đạc có ô trên KHÔNG đặc (nhóm có thể bị cắt) và ba ô sàn dưới để đứng soi lên.
+      const ds = [];
+      for (let gy = 3; gy < MH - 5; gy++) for (let gx = 2; gx < MW - 2; gx++) {
+        if (!S.deco[gy * MW + gx] || !REPO.solidAt(gx, gy)) continue;
+        if (REPO.solidAt(gx, gy - 1)) continue;
+        if (REPO.solidAt(gx, gy + 1) || REPO.solidAt(gx, gy + 2) || REPO.solidAt(gx, gy + 3)) continue;
+        ds.push({ gx, gy, up: +(REPO.propUp(gx, gy) || 0).toFixed(1) });
+      }
+      const out = [];
+      const cv = document.getElementById('game'), c = cv.getContext('2d');
+      for (const o of ds) {
+        const pl = S.player;
+        pl.x = (o.gx + 0.5) * T; pl.y = (o.gy + 3.2) * T;
+        pl.dir = -Math.PI / 2;                       // soi THẲNG LÊN vào mặt món đồ
+        pl.held = null; pl.hand = -1; pl.kx = pl.ky = 0;
+        S.monsters.length = 0; S.mates.length = 0;
+        let ok = false;
+        for (let t = 0; t < 40 && !ok; t++) {        // đợi camera bắt kịp chỗ vừa đặt xuống
+          await new Promise(r => requestAnimationFrame(r));
+          const M = window.__M;
+          if (!M) continue;
+          const px = M.a * (o.gx + 0.5) * T + M.e;
+          ok = px > 30 && px < cv.width - 30;
+        }
+        if (!ok) continue;
+        await new Promise(r => setTimeout(r, 110));
+        const M = window.__M;
+        const px = Math.round(M.a * (o.gx + 0.5) * T + M.e);
+        const yMep = Math.round(M.d * (o.gy * T) + M.f);
+        if (yMep - 20 < 0 || yMep + 20 > cv.height) continue;
+        const lay = y => { const d = c.getImageData(px, y, 1, 1).data;
+                           return Math.round((d[0] + d[1] + d[2]) / 3); };
+        out.push({ up: o.up, chenh: Math.abs(lay(yMep + 6) - lay(yMep - 6)) });
+        if (out.length >= 8) break;
+      }
+      return out;
+    }, seed);
+    for (const r of kq) (r.up > 1.5 ? gom.tran : gom.phang).push(r.chenh);
+  }
+  const tb = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : -1;
+  check('đo được đủ nhiều món có phần tràn ra khỏi ô', gom.tran.length >= 12,
+    gom.tran.length + ' món');
+  // Ngưỡng 45 chứ không phải 0: thân món đồ vốn có vân sáng tối của chính nó, và mép ô vẫn là
+  // chỗ hai ô sàn khác nhau gặp nhau. Trước bản vá, con số này là 120–190.
+  check('đèn KHÔNG còn cắt ngang thân món đồ có phần tràn',
+    gom.tran.length >= 12 && tb(gom.tran) < 45,
+    'chênh trung bình qua mép ô: ' + tb(gom.tran) + '/255');
+  check('quá nửa số món ấy mượt hẳn (dưới 30/255)',
+    gom.tran.length >= 12 && gom.tran.filter(v => v < 30).length * 2 >= gom.tran.length,
+    gom.tran.filter(v => v < 30).length + '/' + gom.tran.length);
+  // Vế thứ hai, và nó chống lại đúng cách sửa sai: soi sáng bừa cả chỗ không có gì.
+  check('món KHÔNG tràn thì mép vẫn cứng ở biên ô — đèn không tràn ra chỗ trống',
+    gom.phang.length === 0 || tb(gom.phang) > 45,
+    gom.phang.length ? tb(gom.phang) + '/255 trên ' + gom.phang.length + ' món' : 'không gặp món nào');
+  check('ánh sáng đồ đạc: không lỗi console', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 (async () => {
-  const b = await chromium.launch();
+  // `--allow-file-access-from-files`: không có nó thì mọi ảnh `file://` vẽ lên canvas đều làm
+  // canvas "vấy bẩn" và `getImageData` ném SecurityError — tức bộ đo ánh sáng ở trên không chạy
+  // được một dòng nào. Ghi ở art/README.md, và đây là chỗ thứ hai cùng cái bẫy ấy cắn.
+  const b = await chromium.launch({ args: ['--allow-file-access-from-files'] });
   try {
     await cuaHangSuite(b);
     await nemSuite(b);
+    await anhSangDoSuite(b);
   } catch (e) {
     check('bộ test chạy trọn', false, (e && e.message) || String(e));
   }

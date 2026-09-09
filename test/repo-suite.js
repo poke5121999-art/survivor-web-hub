@@ -2886,11 +2886,25 @@ async function lightSuite(_khongDung) {
 
   // Một hành lang dọc: ba ô sàn đi lên rồi tới tường. Đứng dưới cùng, ngửa đèn lên.
   const cho = await doVan(mep => {
-    const T = REPO.TILE;
+    const T = REPO.TILE, S = REPO.S, MW = REPO.MW;
     for (let gy = mep; gy < REPO.MH - mep; gy++) for (let gx = mep; gx < REPO.MW - mep; gx++) {
       let ok = true;
       for (let k = 0; k < 3; k++) if (REPO.solidAt(gx, gy - k)) { ok = false; break; }
-      if (!ok || !REPO.solidAt(gx, gy - 3)) continue;
+      // CUỐI HÀNH LANG PHẢI LÀ TƯỜNG THẬT, và ô sau nó phải là SÀN THẬT.
+      //
+      // `solidAt` gộp cả ĐỒ ĐẠC vào với tường, và ca này từng bốc trúng một cái kệ (deco 3)
+      // làm "bức tường": ô ngay sau nó rồi được đo là "sàn sau tường", trong khi thứ nằm ở đó
+      // là NỬA TRÊN CỦA CHÍNH CÁI KỆ — hình cao hơn ô nên tràn lên trên 12 đơn vị.
+      //
+      // Từ 2026-09-09 đèn biết trùm hết phần tràn ấy (`S.propUp` + `themONhoDo`), nên chỗ đó
+      // sáng lên và ca này đỏ — báo một cái rò sáng xuyên tường KHÔNG hề tồn tại. Đo được ở
+      // cùng thế đứng, hạt giống 1234, ô (27,12): cuối hành lang là PROP deco 3 với propUp 12,
+      // ô "sau tường" là FLOOR, và tắt phần tràn đi thì 6/255 còn bật lên thì 62/255.
+      //
+      // Ca này canh ĐÚNG MỘT luật — ánh sáng không lọt qua TƯỜNG — nên nó phải đứng trước một
+      // bức tường. Không nới lỏng phép đo, chỉ dựng đúng cái thế đứng mà tên nó nói.
+      if (!ok || S.grid[(gy - 3) * MW + gx] !== 1) continue;
+      if (S.grid[(gy - 4) * MW + gx] !== 0) continue;
       const px = (gx + 0.5) * T, py = (gy + 0.5) * T;
       if (REPO.hitsSolid(px, py, 10)) continue;
       REPO.warp(px, py);

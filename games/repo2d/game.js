@@ -3399,7 +3399,37 @@ function matTuongPhai(gx, gy, ki){
   }
   return n;
 }
+// BẢN ĐỒ PHẦN TRÀN CỦA ĐỒ ĐẠC — bao nhiêu đơn vị thế giới mà hình đứng trên ô này vươn LÊN
+// TRÊN mép ô, và thò ra ngoài hai bên bao nhiêu. Điền một lần mỗi màn, lúc vẽ ảnh nền.
+//
+// Nó tồn tại vì lưới `S.grid` chỉ biết "ô này có đồ", còn hình thì cao hơn ô. Lớp ánh sáng
+// đọc lưới, nên không có bảng này thì nó soi đúng một ô rồi tắt — xem themONhoDo().
+function ghiTranDo(x, y, w, h){
+  if (!S.propUp) return;
+  const gy = Math.floor((y + h - 0.01) / TILE);        // hàng ô mà ĐÁY miếng đứng lên
+  if (gy < 0 || gy >= MH) return;
+  const len = gy*TILE - y;                             // vươn lên trên mép ô bao nhiêu
+  if (!(len > 0)) return;
+  // GHI CHO MỌI CỘT Ô MÀ MIẾNG ĐI QUA, không chỉ cột chứa ô PROP.
+  //
+  // Đó là cả cách bề ngang được lo: 17 miếng trong bảng RỘNG HƠN cái chân một ô của mình (cây
+  // dừa thừa 5,25 đơn vị mỗi bên, cái bàn to 4,5), và cái ghế kê cạnh bàn còn bị đặt lệch hẳn
+  // 0,3 ô sang trái — nên phần thân của chúng đứng trên một ô mà lưới coi là SÀN. Quét theo
+  // hộp bao của miếng thì mấy ô ấy cũng có tên trong bảng, và vùng sáng phủ trọn món đồ thay
+  // vì cắt DỌC nó ở mép ô.
+  //
+  // Không cần một bảng "thừa ngang" riêng: `g0` lấy bằng floor nên mép trái của miếng luôn
+  // nằm TRONG ô g0, và mép phải nằm trong ô g1. Phủ trọn cả hai ô là đã phủ hết bề ngang.
+  const g0 = Math.max(0, Math.floor(x / TILE));
+  const g1 = Math.min(MW - 1, Math.floor((x + w - 0.01) / TILE));
+  for (let gx = g0; gx <= g1; gx++){
+    const i = gy*MW + gx;
+    if (len > S.propUp[i]) S.propUp[i] = len;
+  }
+}
 function prerenderWorld(rnd){
+  S.propUp = new Float32Array(MW*MH);
+  if (window.REPO_PHONG) REPO_PHONG.onMieng = ghiTranDo;
 
   if (!S.worldCv){ S.worldCv = document.createElement('canvas'); S.worldCv.width = WPX*SS; S.worldCv.height = HPX*SS; }
   const c = S.worldCv.getContext('2d');
@@ -3517,6 +3547,9 @@ function prerenderWorld(rnd){
   paintStoneFrieze(c);
   paintWallContact(c);
   paintDoorFrames(c);
+  // Gỡ móc ra ngay. Nó chỉ đúng trong lượt vẽ nền này; để nguyên thì một lượt vẽ khác đi qua
+  // phong.js (bảng sổ tay, một bản vá sau này) sẽ ghi bậy vào bản đồ chiều cao của căn nhà.
+  if (window.REPO_PHONG) REPO_PHONG.onMieng = null;
 }
 // Vân mặt tường. Đây là nửa còn lại của việc "soi đèn vào tường cho ra hồn", và là nửa mà hình
 // học ánh sáng không làm thay được: lớp tối NHÂN lên bức tường, mà một màu tô đặc nhân với bất
@@ -4296,9 +4329,29 @@ function lipInto(pts, i, ox, oy, dx, dy, best, s){
   pts[i*2]   = hx + dx*them;
   pts[i*2+1] = hy + dy*them;
 }
-function pathPoly(c, pts){
-  c.beginPath(); c.moveTo(pts[0],pts[1]);
+function polyVao(c, pts){
+  c.moveTo(pts[0],pts[1]);
   for (let i=2;i<pts.length;i+=2) c.lineTo(pts[i],pts[i+1]);
+  c.closePath();
+}
+function pathPoly(c, pts){ c.beginPath(); polyVao(c, pts); }
+// Chiều quay của một đa giác, đo bằng diện tích có dấu.
+//
+// `clip()` chạy luật NONZERO: hai hình con quay NGƯỢC chiều nhau thì chỗ chồng nhau bị TRỪ đi,
+// mà cái cần ở đây là HỢP. Đa giác tầm nhìn dựng từ các góc đã sắp theo góc quay nên chiều của
+// nó cố định — nhưng "cố định" không phải "biết", và đoán sai thì kết quả là một cái LỖ THỦNG
+// đúng ngay chỗ vừa đi vá. Nên đo.
+function polyThuan(pts){
+  let a = 0;
+  for (let i = 0; i < pts.length; i += 2){
+    const j = (i + 2) % pts.length;
+    a += pts[i]*pts[j+1] - pts[j]*pts[i+1];
+  }
+  return a >= 0;
+}
+function rectVao(c, x, y, w, h, thuan){
+  if (thuan){ c.moveTo(x, y); c.lineTo(x+w, y); c.lineTo(x+w, y+h); c.lineTo(x, y+h); }
+  else      { c.moveTo(x, y); c.lineTo(x, y+h); c.lineTo(x+w, y+h); c.lineTo(x+w, y); }
   c.closePath();
 }
 function losClear(x0,y0,x1,y1){
@@ -9803,7 +9856,11 @@ function buildLight(){
   c.fillRect(p.x - bodyHalo, hy - bodyHalo, bodyHalo * 2, bodyHalo * 2);
 
   const master = visPoly(p.x, p.y, LOS_R, 80);
-  c.save(); pathPoly(c, master); c.clip();
+  c.save();
+  c.beginPath();
+  polyVao(c, master);
+  themONhoDo(c, p, master);
+  c.clip();
 
   // small pool at your feet
   // Sáng hẳn ngay dưới chân, rồi tụt về đúng mức cũ trong vòng nửa ô. Lý do: lớp tối
@@ -10279,6 +10336,96 @@ function glowDisc(c, x, y, rx, rgb, a, lw){
   c.lineWidth = lw || 2;
   c.ellipse(x, y, rx, rx*0.44, 0, 0, Math.PI*2);
   c.stroke();
+}
+
+// ĐỒ ĐẠC CAO HƠN CÁI Ô CỦA NÓ — nới vùng sáng lên đúng phần hình vươn ra.
+//
+// Chủ dự án, 2026-09-09: "phần ánh sáng lúc nhìn lên bàn, ghế, cây dừa chưa hợp lý".
+//
+// GỐC RỄ, đo được: lưới chỉ đánh dấu MỘT ô là `PROP`, trong khi 145 trên 194 miếng hình trong
+// bảng của phong.js CAO HƠN một ô — cây dừa 93 điểm ảnh nguồn tràn 0,94 ô, cái tủ 117 tràn
+// 1,44 ô, cái bếp lò 120 tràn 1,5 ô. Đa giác tầm nhìn dựng theo LƯỚI, và `slabExit()` cho tia
+// ăn vào khối đặc đúng MỘT ô rồi dừng ở `gy*TILE`. Nên NỬA DƯỚI cây dừa nằm trong vùng sáng
+// còn NGỌN của nó rơi vào bóng của chính nó — ranh giới là một đường ngang thẳng băng đúng mép
+// ô, cắt ngang thân món đồ. Đây là cùng một cái bẫy với "đừng để cho tường cắt hình char"
+// (xem quầng `bodyHalo` ở buildLight), chỉ khác là lần này nó xảy ra với đồ đạc.
+//
+// NỚI CHỖ CLIP, KHÔNG NỚI TỪNG TIA. `visPoly` bắn 80 tia đều một vòng, tức một tia mỗi 4,5°:
+// nới từng tia thì phần được soi ra một cái QUẠT RĂNG CƯA, không ra cái hình chữ nhật mà miếng
+// art thật sự chiếm. Thêm hẳn hình chữ nhật vào đường clip thì vùng sáng đúng bằng chỗ hình
+// đang đứng, và mọi lượt tô đèn bên dưới — vũng dưới chân, ba lớp nón, đèn quái, vùng sáng
+// Tượng — tự tràn vào đó với đúng độ sáng của chỗ ngay cạnh. Không phải tính lại độ sáng, nên
+// cũng không có chỗ nào để hai công thức rẽ đôi.
+//
+// KHÔNG ĐỤNG `slabExit` / `marchSolid` / `WALL_DEEP`. Ba thứ đó là đường chung của TƯỜNG, và
+// hai phép thử về độ sáng mặt tường trong repo-suite đo thẳng vào chúng.
+//
+// CHỈ NỚI CHO MÓN ĐANG NHÌN THẤY: không có chốt ấy thì mọi cái tủ trong nhà tự phát sáng xuyên
+// tường, mà cả trò chơi này dựng trên việc không biết phòng bên có gì.
+const TRAN_MIN = 1.5;      // đơn vị thế giới: thấp hơn mức này thì không bõ thêm một hình
+function themONhoDo(c, p, master){
+  if (!S.propUp) return;
+  const thuan = polyThuan(master);
+  const gx0 = Math.max(0, ((p.x - LOS_R)/TILE)|0), gx1 = Math.min(MW-1, ((p.x + LOS_R)/TILE)|0);
+  const gy0 = Math.max(0, ((p.y - LOS_R)/TILE)|0), gy1 = Math.min(MH-1, ((p.y + LOS_R)/TILE)|0);
+  for (let gy = gy0; gy <= gy1; gy++) for (let gx = gx0; gx <= gx1; gx++){
+    const i = gy*MW + gx, up = S.propUp[i];
+    if (!(up > TRAN_MIN)) continue;
+    if (!oDoSang(p, gx, gy)) continue;
+    const cao = tranBiChan(gx, gy, up);
+    if (cao > 0) rectVao(c, gx*TILE, gy*TILE - cao, TILE, cao, thuan);
+  }
+}
+// PHẦN TRÀN KHÔNG ĐƯỢC LỌT QUA TƯỜNG.
+//
+// Đồ cao phần lớn kê SÁT TƯỜNG — viền đồ đặt chúng vào ô ngay dưới một ô tường với xác suất
+// 0,85 — nên một cái tủ tràn 34 đơn vị đứng dưới bức tường dày 24 thì hình chữ nhật của nó thò
+// 10 đơn vị sang PHÒNG BÊN. Đo được ngay ở lần chạy đầu: phép "sàn NGAY SAU bức tường vẫn tối
+// như cũ" nhảy từ 6 lên 62 trên thang 255 — tức căn phòng chưa ai mở đã lộ ra một vệt sáng, và
+// đó là thứ cả trò chơi này dựng lên để giấu.
+//
+// Nên hình chữ nhật dừng ở MẶT XA của bức tường đầu tiên nó gặp: mặt tường ấy vẫn được soi —
+// đúng, vì nửa trên cái tủ đang được vẽ trên đó — còn phía sau nó thì không.
+function tranBiChan(gx, gy, up){
+  for (let n = 1; n*TILE < up + 0.001; n++){
+    const y = gy - n;
+    if (y < 0) return n*TILE;
+    if (S.grid[y*MW+gx] === WALL) return Math.min(up, n*TILE);
+  }
+  return up;
+}
+// Món đồ đứng ở ô này có đang nhìn thấy được không.
+//
+// Đo bằng ĐIỂM GẦN NGƯỜI CHƠI NHẤT trên mặt ô, nhích ra ngoài vài điểm ảnh — KHÔNG phải tâm ô.
+// Tâm ô nằm bên trong khối đặc nên `losClear` bao giờ cũng trả về false, và kết quả sẽ là không
+// món đồ nào được soi cả: một bản vá im lặng không làm gì.
+function oDoSang(p, gx, gy){
+  // HAI Ô, KHÔNG PHẢI MỘT: hỏi chính ô này, và nếu không thấy thì hỏi cái ô nó ĐỨNG LÊN.
+  //
+  // Lý do có vế thứ hai: đồ trang trí đặt trên mặt bàn được nhấc lên 0,55 chiều cao cái bàn
+  // (phong.js), mà cái bàn cao hơn một ô — nên ĐÁY quả địa cầu đã nằm hẳn trên ô phía trên.
+  // Ô ấy là ô SÀN và nó bị chính cái bàn che, nên hỏi thẳng nó thì bao giờ cũng "không thấy",
+  // và quả địa cầu ở lại trong bóng tối đúng như trước khi vá. Nhưng thứ đang đứng dưới nó là
+  // một món đồ ĐANG ĐƯỢC SOI, và một vật đặt trên một vật được soi thì cũng được soi.
+  for (let n = 0; n < 3; n++){
+    const y = gy + n;
+    if (y >= MH) break;
+    // CHỈ được tựa lên một ô ĐỒ ĐẠC, không phải một ô đặc bất kỳ.
+    // ROOT-CAUSE đo được: `solidAt` gộp cả TƯỜNG, nên một món đồ đứng SAU bức tường thấy ô
+    // tường ngay dưới nó là "chỗ tựa", hỏi tới mặt gần của bức tường ấy — mặt mà người chơi
+    // đang soi thẳng vào — rồi tự nhận là mình đang được nhìn thấy. Vệt sáng của nó tràn sang
+    // căn phòng chưa ai mở: phép "sàn NGAY SAU bức tường vẫn tối như cũ" nhảy 3 -> 73.
+    // Một quả địa cầu đặt trên cái bàn thì tựa lên CÁI BÀN. Không ai đặt đồ lên một bức tường.
+    if (n > 0 && S.grid[y*MW+gx] !== PROP) break;
+    const cx = clamp(p.x, gx*TILE, (gx+1)*TILE);
+    const cy = clamp(p.y, y*TILE, (y+1)*TILE);
+    const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy);
+    if (d > LOS_R) return false;
+    if (d < 3) return true;                       // đang đứng dí mặt vào nó
+    const k = 3 / d;
+    if (losClear(p.x, p.y, cx + dx*k, cy + dy*k)) return true;
+  }
+  return false;
 }
 
 // ---- what THEY can see
@@ -12464,7 +12611,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260909b';
+const BUILD = '20260909d';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -13944,15 +14091,128 @@ function mangDoVaoCa(){
   return def;
 }
 
+// ---------------------------------------------------------------- NHÂN VẬT, VẼ TO, TRONG MENU
+//
+// Chủ dự án, 2026-09-09: "bên ngoài menu thì cũng thể hiện char rõ ràng đi đừng dùng icon nữa".
+//
+// Bản đầu của cái menu này nói "bạn đang mang khẩu súng lục" bằng một biểu tượng 34px nằm trong
+// một cái ô — tức là bằng một CÁI NHÃN. Nhưng thứ người chơi sắp bấm "Vào ca" cùng không phải
+// một cái nhãn: nó là MỘT NGƯỜI đang cầm một khẩu súng. Bộ hình ấy đã có sẵn và chạy suốt cả ca
+// trực rồi; ở đây chỉ là vẽ nó TO lên, đứng yên, quay mặt ra nhìn người chơi, và đặt khẩu súng
+// vừa mua vào đúng bàn tay nó.
+//
+// Vẽ vào một <canvas> THẬT trong DOM chứ không đi qua gearIconURL():
+//   - không có `toDataURL()` nào ở đây nên không dính cái bẫy vấy bẩn canvas dưới `file://`
+//     (xem art/README.md);
+//   - và quan trọng hơn: hình ĐỘNG được. Ngọn đèn lay, và bộ charset tự chọn đúng khung đứng.
+//     Một `<img>` tĩnh thì không, mà một người đứng chết cứng trong menu đọc ra là một bức ảnh
+//     chứ không phải nhân vật của mình.
+//
+// Bộ hình nạp bất đồng bộ, nên hàm này phải chịu được lúc `REPO_SKIN.crew` chưa có gì để vẽ:
+// nó trả về false và vòng lặp ở chayCharMenu() cứ vẽ lại mỗi khung cho tới khi tấm hình về.
+const MENU_CHAR_K = 2.8;      // bộ hình cao ~38 đơn vị thế giới -> ~108px trong ô 108x150
+function veCharMenu(cv, kind){
+  if (!cv || !cv.getContext) return false;
+  const dpr = Math.min(3, Math.round(devicePixelRatio || 1));
+  const W = cv.clientWidth || 108, H = cv.clientHeight || 150;
+  if (cv.width !== W*dpr || cv.height !== H*dpr){ cv.width = W*dpr; cv.height = H*dpr; }
+  const c = cv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, W, H);
+  // Một vũng sáng dưới chân. Không phải trang trí: thiếu nó thì nhân vật lơ lửng giữa một ô
+  // đen, và cả cái menu đọc ra như một hình bị lỗi nền.
+  const fy = H - 26;
+  const g = c.createRadialGradient(W/2, fy, 2, W/2, fy, W*0.55);
+  g.addColorStop(0, 'rgba(158,178,198,0.18)');
+  g.addColorStop(1, 'rgba(158,178,198,0)');
+  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.save();
+  c.translate(W/2, fy);
+  c.scale(MENU_CHAR_K, MENU_CHAR_K);
+  c.fillStyle = 'rgba(0,0,0,0.45)';
+  c.beginPath(); c.ellipse(0, 8, 10, 4.5, 0, 0, Math.PI*2); c.fill();
+  // QUAY MẶT XUỐNG, tức nhìn thẳng ra người chơi. `dir = PI/2` là hàng DOWN của charset —
+  // cùng cái hàng mà nhân vật dùng lúc đi về phía đáy màn hình trong ca trực.
+  const a = { x:0, y:0, dir: Math.PI/2, hurt:0, _sx:0, _sy:0 };
+  const co = !!(window.REPO_SKIN && REPO_SKIN.crew && REPO_SKIN.crew(c, a, true));
+  if (!co){                                   // chưa có tấm hình: vẽ tạm cái vẫn có hình người
+    c.fillStyle = '#cfcbb9';
+    c.beginPath(); c.ellipse(0, -16, 6, 7, 0, 0, Math.PI*2); c.fill();
+    c.fillStyle = '#6d7a86';
+    c.beginPath(); c.ellipse(0, -3, 8, 10, 0, 0, Math.PI*2); c.fill();
+  }
+  // Ngọn đèn ở tay trái. Trong ca trực chỗ của nó chạy quanh người theo hướng nhìn; ở đây
+  // hướng nhìn là cố định nên chỗ của nó cũng cố định — đặt hẳn vào tay cho ra dáng cầm.
+  if (window.REPO_SKIN && REPO_SKIN.lamp)
+    REPO_SKIN.lamp(c, -11, -5, 15, performance.now()/1000);
+  // KHẨU SÚNG NẰM TRONG TAY PHẢI, không nằm trong một cái ô riêng ở đâu đó. Đây chính là câu
+  // "đừng dùng icon nữa": cùng một hình ấy, nhưng gắn vào người cầm nó.
+  if (kind){
+    c.save(); c.globalAlpha = 0.42;
+    c.beginPath(); c.ellipse(12, -6.5, 8, 5, 0, 0, Math.PI*2);
+    c.fillStyle = '#000'; c.fill(); c.restore();
+    gearIcon(c, kind, 12, -8, 9.5, 1);
+  }
+  c.restore();
+  return co;
+}
+// Vòng vẽ của cái ô nhân vật. Tự tắt khi thẻ canvas không còn trong trang — tấm màn phủ bị
+// showVeil() ghi đè cả `innerHTML`, nên không có sự kiện "đóng" nào để mà nghe.
+let menuCharRaf = 0;
+function chayCharMenu(kind){
+  if (menuCharRaf) cancelAnimationFrame(menuCharRaf);
+  const buoc = () => {
+    const cv = el('menuChar');
+    if (!cv || !cv.isConnected){ menuCharRaf = 0; return; }
+    veCharMenu(cv, kind);
+    menuCharRaf = requestAnimationFrame(buoc);
+  };
+  buoc();
+}
+
 // ---------------------------------------------------------------- màn tiêu đề và cửa hàng của nó
 let manDau = null;          // chữ của tấm màn tiêu đề, chụp lại một lần lúc khởi động
+// MÀN TIÊU ĐỀ LÀ MỘT CÁI MENU, KHÔNG PHẢI MỘT BÀI ĐỌC.
+//
+// Chủ dự án, 2026-09-09: "chưa thấy chỗ mua/xài weapon ngoài menu để mang vào trận".
+//
+// Nút "Cửa hàng" đã có mặt từ bản trước và nó KHÔNG hề bị ẩn — đo trên bốn khổ màn hình thì
+// lần nào nó cũng nằm trong khung nhìn. Nhưng chụp màn hình ra thì thấy ngay vì sao chủ dự án
+// không thấy nó: màn tiêu đề là mười lăm dòng chữ hướng dẫn chảy tràn từ trên xuống dưới, và
+// ba cái nút TRÔI GIỮA đống chữ ấy — cái nút đọc ra như một dòng trong bài, không đọc ra như
+// một cái nút. "Nằm trong khung nhìn" và "nhìn thấy được" là hai chuyện khác nhau.
+//
+// Nên nó dựng lại thành một cái bảng: showVeil() có `extraHtml` thì tấm màn nhận lớp `.panel`,
+// và lớp ấy biến hàng nút thành CHÂN TRANG THẬT dính đáy (xem `.veil.panel` trong index.html) —
+// cùng cái bản vá đã cứu tủ đồ hồi tháng trước. Phần hướng dẫn chui vào một khối gập lại: nó
+// vẫn ở đó cho ai cần, nhưng nó thôi làm cái nền mà mấy cái nút bị chìm vào.
 function moManDau(){
   if (!manDau) return false;
-  showVeil(manDau.t, manDau.b, 'Vào ca', vaoCa);
+  const k = khoDoc();
+  const def = k.mang && GEAR_BY_KEY[k.mang.kind];
+  const mang = def
+    ? '<div class="menumang"><b>' + escHtml(def.name) + '</b>' +
+      '<i>còn ' + k.mang.uses + ' lần dùng · vào ca là nó nằm sẵn trên tay</i></div>'
+    : '<div class="menumang trong">Tay không. Nút đánh sẽ vụt đèn pin — và nếu đang ôm đồ ' +
+      'thì nó ném món ấy đi.</div>';
+  showVeil(manDau.t, manDau.b, 'Vào ca', vaoCa,
+    '<div class="menu">' +
+      '<canvas class="menuchar" id="menuChar"></canvas>' +
+      '<div class="menuside">' +
+        '<div class="menuwho">Người của bạn<span>Một cây đèn pin, ba đồng đội, và một căn nhà ' +
+        'có thứ khác đang đi lại trong đó.</span></div>' +
+        '<div class="seg">Mang vào ca</div>' + mang +
+        '<div class="menuket">Két: ' + money(k.tien) + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<details class="menuhelp"><summary>Cách chơi &amp; phím</summary>' +
+      '<div class="in">' + (manDau.keys || '') + '</div></details>');
   const b2 = el('veilBtn2'); if (b2) b2.hidden = false;
   veNutCuaHang();
+  chayCharMenu(def ? def.key : null);
   return true;
 }
+
 function vaoCa(){
   SFX.wake();
   const def = mangDoVaoCa();
@@ -13979,9 +14239,9 @@ function veNutCuaHang(){
   if (!b) return;                      // bản Biệt Đội không có cái nút này, và không nên có
   b.hidden = !khoOn();
   if (b.hidden) return;
-  const k = khoDoc();
-  const def = k.mang && GEAR_BY_KEY[k.mang.kind];
-  b.textContent = 'Cửa hàng · ' + money(k.tien) + (def ? ' · mang ' + (def.short || def.name) : '');
+  // Không in số tiền lên nút nữa: cái bảng ngay trên nó đã có dòng "Két: $X", và một con số
+  // xuất hiện hai lần cách nhau ba centimet thì lần thứ hai chỉ làm cái nút dài ra.
+  b.textContent = 'Cửa hàng';
   b.onclick = () => moCuaHang();
 }
 const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -13999,12 +14259,18 @@ function moCuaHang(nhac){
            '<span class="mnum">x' + def.uses + '</span>' +
            '<span class="mgia">' + money(h.gia) + '</span></button>';
   }).join('');
+  // "ĐANG MANG THEO" VẼ BẰNG NGƯỜI CẦM NÓ, không bằng một biểu tượng nằm trong ô.
+  // Cùng lý lẽ với màn tiêu đề — xem chú thích ở veCharMenu(). Ô "Hàng bán" bên dưới thì vẫn
+  // là biểu tượng, và đúng phải thế: ở đó câu hỏi là "món này là cái gì", còn ở đây câu hỏi là
+  // "tôi sẽ bước vào nhà trong hình dạng nào".
   const hang = dang
-    ? '<div class="mshop"><div class="mitem have">' +
-      '<img src="' + gearIconURL(k.mang.kind, 46) + '" alt="">' +
-      '<span class="mname">' + escHtml(dang.name) + '</span>' +
-      '<span class="mnum">x' + k.mang.uses + '</span>' +
-      '<button class="mbo" data-bo="1">Bỏ ra · hoàn ' + money(k.mang.gia || 0) + '</button>' +
+    ? '<div class="menu"><canvas class="menuchar" id="menuChar"></canvas>' +
+      '<div class="menuside">' +
+        '<div class="menuwho">' + escHtml(dang.name) +
+        '<span>' + escHtml(dang.desc) + '</span></div>' +
+        '<div class="menumang"><b>Còn ' + k.mang.uses + ' lần dùng</b>' +
+        '<i>vào ca là nó nằm sẵn trên tay, và hết ca là mất</i></div>' +
+        '<button class="mbo" data-bo="1">Bỏ ra · hoàn ' + money(k.mang.gia || 0) + '</button>' +
       '</div></div>'
     : '<div class="empty">Chưa mang gì. Mua một món dưới đây — vào ca là nó nằm sẵn trên tay.</div>';
   showVeil('Cửa hàng',
@@ -14019,6 +14285,7 @@ function moCuaHang(nhac){
     '<div class="empty">Trạm dịch vụ giữa các màn vẫn bán đủ mười một món như cũ, kể cả băng, ' +
     'keo bọc và xà beng — cửa hàng này không thay nó, nó chỉ lo đúng khúc đầu ca.</div>',
     moManDau);
+  chayCharMenu(dang ? dang.key : null);
   const box = el('veilExtra');
   if (!box) return;
   box.querySelectorAll('[data-mua]').forEach(b => {
@@ -14078,7 +14345,10 @@ window.__boot = function(){
   // Chữ của màn tiêu đề nằm trong index.html chứ không trong tệp này, mà showVeil() ghi đè lên
   // đúng hai thẻ ấy. Chụp lại một lần ở đây là cách duy nhất để dựng lại được nó sau khi người
   // chơi ghé cửa hàng — xem moManDau().
-  manDau = { t: el('veilTitle').textContent, b: el('veilBody').textContent };
+  // Chụp cả PHẦN HƯỚNG DẪN: từ bản này nó không còn nằm trần trên màn tiêu đề nữa mà chui vào
+  // một khối gập lại trong bảng, nên moManDau() phải có nó trong tay để dựng lại.
+  manDau = { t: el('veilTitle').textContent, b: el('veilBody').textContent,
+             keys: (el('veilKeys') || {}).innerHTML || '' };
   el('veilBtn').onclick = vaoCa;
   el('sndBtn').onclick = () => {
     const on = !SFX.on;
@@ -14107,6 +14377,15 @@ window.__boot = function(){
   };
   paintFoeBtn();
   veNutCuaHang();
+  // DỰNG LẠI MÀN TIÊU ĐỀ BẰNG CHÍNH moManDau(), ngay từ lần đầu.
+  //
+  // Thiếu dòng này thì cái menu mới chỉ hiện ra khi người chơi QUAY LẠI từ cửa hàng hoặc từ
+  // bảng kết ca — còn lần đầu mở game, thứ đứng trên màn hình vẫn là tấm màn tĩnh viết thẳng
+  // trong index.html: mười lăm dòng hướng dẫn với ba cái nút trôi giữa đống chữ. Tức là đúng
+  // cái màn hình mà chủ dự án không tìm ra chỗ mua súng, và là lần xem quan trọng nhất.
+  // Gọi SAU khi đã gắn xong nút "Để bot chơi" và nút "Cửa hàng": moManDau() bật hai nút ấy hiện
+  // lên, mà một cái nút hiện lên trước khi có việc để làm thì bấm vào không ra gì.
+  moManDau();
   el('botBtn').onclick = () => setBot(!window.__botActive);
   // Nút sổ tay nằm trên THANH TRÊN chứ không trong HUD canvas: HUD đã chật, và mọi
   // toạ độ trong đó đang bị hudGeomSuite/rotateSuite đo từng pixel. Một nút để đọc
@@ -14164,6 +14443,11 @@ window.REPO = {
   },
   // turnRate / coneRadius take the player, like playerSpeed above; handWeight / pushWeight are
   // the zero-argument hooks the patch's contract names, and read the current player.
+  // Đo ánh sáng trên đồ đạc: chuyển toạ độ thế giới ra điểm ảnh màn hình, và bảng phần tràn
+  // của đồ. Hai thứ này không có đường nào khác để hỏi từ ngoài, mà không hỏi được thì lỗi
+  // "ánh sáng cắt ngang cây dừa" chỉ kiểm bằng mắt.
+  scrX, scrY, themONhoDo, oDoSang,
+  propUp(gx, gy){ return S.propUp ? S.propUp[gy*MW+gx] : 0; },
   cartPassable, floodCart, routeToObjective, turnRate, coneRadius, carriedWeight,
   route(){ return routeToObjective(); },
   visibleRoute(){ return visibleRoute(); },
