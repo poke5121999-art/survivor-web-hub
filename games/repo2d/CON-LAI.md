@@ -1,7 +1,7 @@
 # Còn lại — bàn giao 2026-09-09
 
 Bản vừa push: **ném đồ · đường chỉ lối trên sàn · loot vẽ lại · cửa hàng ngoài menu**.
-Dấu build lên `?v=20260909a` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Dấu build lên `?v=20260909b` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 ---
@@ -47,8 +47,13 @@ xanh không thay được chỗ này.
 ### 2.3. Ném đồ
 Bảng số, nguồn của bản gốc và lý lẽ: **RESEARCH.md mục 7**. Tóm tắt: sát thương = động lượng,
 và cú va ăn ngược vào chính món đồ (ném bình gốm vào quái thì gần như chắc chắn mất phần lớn
-tiền của nó; món gốm nhỏ vỡ hẳn). Vào bằng `handUse()` khi tay không cầm đồ nghề — ô đồ vẫn
-bắn được như cũ trong lúc vác, không lấy đi thứ gì.
+tiền của nó; món gốm nhỏ vỡ hẳn; và ngay cả cục kim loại — thứ không vỡ bao giờ — cũng sứt 8%
+mỗi cú, nhờ một cái SÀN ở `throwLand()`). Vào bằng `handUse()` khi tay không cầm đồ nghề — ô đồ
+vẫn bắn được như cũ trong lúc vác, không lấy đi thứ gì.
+
+Cái sàn ấy vá một lỗ hổng **đo được trên bản 20260909a đã lên Pages**: món to bằng kim loại ném
+rất chậm nên cú va rơi dưới ngưỡng 260 của nó — ăn 200 sát thương, mất ĐÚNG 0 đồng, nhặt lên ném
+lại vô hạn. `nem-shop-suite` có một phép riêng giữ chỗ này.
 
 ### 2.4. Cửa hàng ngoài menu + két sắt
 `localStorage['repo2d.kho.v1']`. Tiền vào két là **12% số đã giao lên bệ** mỗi khi hết ván. Bán
@@ -82,7 +87,7 @@ lúc. **Muốn sửa cho hết chập chờn thì phải ghim hạt giống tron
 
 Mười hai ca hỏng còn lại là hỏng từ trước (đã đối chứng, y hệt danh sách cũ).
 
-`node test/nem-shop-suite.js` → **22 đạt / 0 hỏng**. Bộ mới, chỉ đo hai cơ chế của bản này
+`node test/nem-shop-suite.js` → **23 đạt / 0 hỏng**. Bộ mới, chỉ đo hai cơ chế của bản này
 (mở cửa hàng → mua → vào ca → ném vào quái → ném vào đồng đội → ném cái đầu → thang sát thương).
 Tách khỏi `repo-suite` vì bộ kia đã dài mười mấy phút, mà hai thứ này còn đang sửa tới sửa lui.
 

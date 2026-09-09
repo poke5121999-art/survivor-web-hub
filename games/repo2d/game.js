@@ -4476,14 +4476,25 @@ const THROW_SPD_MIN = 70;     // px/s: chậm hơn mức này thì cú chạm l�
 // lại, nó là hai vận tốc cộng vào nhau — cùng lý do một cú va chạm trực diện nát hơn hẳn một
 // cú tông vào đuôi. Đâm vào tường thì tường đứng yên, nên tường vẫn dùng nguyên vận tốc.
 //
+// SÀN, và nó tồn tại vì một lỗ hổng đo được trên bản đã đẩy lên Pages: món TO bằng KIM LOẠI
+// ném đi rất chậm (130 px/s, đã chạm sàn tốc độ tối thiểu), nên cú va của nó là 169 — dưới
+// ngưỡng 260 của kim loại. Kết quả: nó ăn 200 sát thương, mất ĐÚNG 0 đồng, và nhặt lên ném
+// lại được vô hạn. Một khẩu súng không đạn, không hồi chiêu, không giá — tức là hỏng.
+//
+// Nên cú va vào một cái thân LUÔN được tính ít nhất bằng 2,2 lần ngưỡng của vật liệu ấy. Đó
+// không phải một con số vá víu: nó nói "đập một món đồ vào người thì món đồ ấy sứt", và mức
+// sứt vẫn do chính `frag` của vật liệu quyết định — gốm 42%, gỗ 21%, kim loại 8%. Đâm TƯỜNG
+// thì không có sàn này: tường đứng yên, và luật cũ ở đó vẫn đúng nguyên.
+const THROW_SELF    = 1.75;
+const THROW_SELF_MIN = 2.2;   // nhân với ngưỡng vỡ của vật liệu — xem chú thích ngay trên
+
 // [ĐO TRONG REPO] phần giá trị mất trong MỘT cú ném trúng, sức gốc 30:
 //        │ gốm          │ gỗ    │ kim loại
-//   nhỏ  │ VỠ TAN       │ 34%   │ 5%
-//   vừa  │ 62%          │ 12%   │ ~0
-//   to   │ 27%          │ 2%    │ ~0
-// Tức là: ném đồ gốm vào mặt quái gần như chắc chắn mất phần lớn tiền, và món gốm nhỏ thì
-// vỡ hẳn ngay tại chỗ. Kim loại thì chỉ móp — đúng cái mà `frag` và `hit` của nó vốn đã nói.
-const THROW_SELF    = 1.75;
+//   nhỏ  │ VỠ TAN       │ 34%   │ 8%
+//   vừa  │ 62%          │ 21%   │ 8%
+//   to   │ 42%          │ 21%   │ 8%
+// Tức là: ném đồ gốm vào mặt quái là mất gần hết tiền của nó, món gốm nhỏ thì vỡ hẳn ngay tại
+// chỗ, và ngay cả cục kim loại — thứ không vỡ bao giờ — cũng sứt mỗi lần. Ném luôn có giá.
 const THROW_STAM    = 6;
 const THROW_NOISE   = 1.5;
 
@@ -4566,7 +4577,8 @@ function throwLand(l, spd){
   l.flyT = 0; l.flyBy = null;
   l.vx *= -0.18; l.vy *= -0.18;
   l.invuln = 0; l.grace = 0;
-  damageLoot(l, spd * THROW_SELF);
+  const nguong = (l.mat && l.mat.thresh) || 95;
+  damageLoot(l, Math.max(spd * THROW_SELF, nguong * THROW_SELF_MIN));
 }
 
 // Carried things — loot in your hands, or the cart you are pushing — are PINNED to the ray
@@ -12452,7 +12464,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260909a';
+const BUILD = '20260909b';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm

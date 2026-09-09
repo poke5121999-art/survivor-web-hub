@@ -391,16 +391,22 @@ Hệ số ăn ngược là **1,75**, tức LỚN HƠN 1, và lý lẽ là: cú v
 lại không phải một cú dừng lại, nó là hai vận tốc cộng vào nhau. Đâm tường thì tường đứng yên,
 nên tường vẫn dùng nguyên vận tốc.
 
+Cộng thêm một **sàn**: cú va vào một cái thân luôn được tính ít nhất bằng **2,2 lần ngưỡng vỡ**
+của vật liệu ấy. Sàn này không phải để cho đẹp — nó vá một lỗ hổng **đo được trên bản đã đẩy lên
+Pages**: món TO bằng KIM LOẠI ném đi rất chậm (130 px/s, đã chạm tốc độ tối thiểu) nên cú va của
+nó chỉ là 169, dưới ngưỡng 260 của kim loại. Nó ăn 200 sát thương và mất **đúng 0 đồng** — nhặt
+lên ném lại được vô hạn, tức một khẩu súng không đạn, không hồi chiêu, không giá.
+
 **[ĐO TRONG REPO]** phần giá trị mất trong MỘT cú ném trúng:
 
 | | gốm | gỗ | kim loại |
 |---|---|---|---|
-| nhỏ | **VỠ TAN** | 34% | 5% |
-| vừa | 62% | 12% | ~0 |
-| to  | 27% | 2% | ~0 |
+| nhỏ | **VỠ TAN** | 34% | 8% |
+| vừa | 62% | 21% | 8% |
+| to  | 42% | 21% | 8% |
 
-Ném cái bình gốm vào mặt con quái là mất phần lớn tiền của nó, và món gốm nhỏ thì vỡ hẳn ngay
-tại chỗ. Kim loại chỉ móp — đúng cái mà `frag` và `hit` của nó vốn đã nói. Nên ném là một
+Ném cái bình gốm vào mặt con quái là mất gần hết tiền của nó, món gốm nhỏ thì vỡ hẳn ngay tại
+chỗ, và ngay cả cục kim loại — thứ không vỡ bao giờ — cũng sứt mỗi lần. Nên ném là một
 **quyết định**, không phải một nút bấm miễn phí.
 
 ### 7.4. Hai chỗ cố ý KHÁC bản gốc

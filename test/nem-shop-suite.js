@@ -197,7 +197,36 @@ async function nemSuite(b) {
     dau.boQua || (!dau.conCam && dau.dmg === 0),
     dau.boQua ? 'chưa có ai gục để lấy đầu — bỏ qua' : dau.dmg + ' sát thương');
 
-  // --- 4. thang đo: món nặng đau hơn món nhẹ, cùng một sức
+  // --- 4. KIM LOẠI cũng phải sứt. Lỗ hổng đo được trên bản đã đẩy lên Pages: món to bằng kim
+  // loại ném rất chậm nên cú va rơi dưới ngưỡng 260 của nó — ăn 200 sát thương, mất ĐÚNG 0 đồng,
+  // nhặt lên ném lại vô hạn. Sàn ở throwLand() vá chỗ đó, và đây là phép giữ nó.
+  const kim = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.monsters.length = 0;
+    const pl = S.player;
+    pl.hand = -1; pl.swingCd = 0; pl.dir = 0;
+    const l = S.loot.find(x => !x.gone && !x.isHead && !x.held);
+    if (!l) return { boQua: true };
+    l.x = pl.x + 14; l.y = pl.y; l.onPad = null; l.inCart = false;
+    l.mass = 58; l.r = 16; l.sizeIdx = 2;                 // món TO nhất, ném chậm nhất
+    l.value = l.value0 = 9000; l.cracks = 0;
+    l.mat = { key:'kim loại', frag:0.18, thresh:260, col:'#98a0a8', edge:'#5f676f',
+              shatter:false, hit:1.25 };
+    REPO.pickUp(pl);
+    if (pl.held !== l) return { boQua: true };
+    const m = REPO.spawnFoe('gnome', 0, 0);
+    m.hp = m.hpMax = 900; m.sleep = 99; m.x = pl.x + 34; m.y = pl.y;
+    const hp0 = m.hp, gia0 = l.value;
+    REPO.throwHeld(pl, 0);
+    const t0 = performance.now();
+    while (performance.now() - t0 < 1500) await new Promise(r => requestAnimationFrame(r));
+    return { dmg: Math.round(hp0 - m.hp), gia0, gia: Math.round(l.value), nut: l.cracks };
+  });
+  check('món TO bằng KIM LOẠI vẫn đau, mà cũng vẫn phải trả giá',
+    !kim.boQua && kim.dmg > 0 && kim.gia < kim.gia0,
+    kim.boQua ? 'bỏ qua' : kim.dmg + ' sát thương · ' + kim.gia0 + ' → ' + kim.gia);
+
+  // --- 5. thang đo: món nặng đau hơn món nhẹ, cùng một sức
   const thang = await p.evaluate(() => {
     const gia = (mass, r, hit) => {
       const l = { mass, r, mat: { hit } };
