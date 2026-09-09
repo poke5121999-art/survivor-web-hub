@@ -343,7 +343,7 @@
      `.veil.stash #veilExtra` va `.veil.panel #veilExtra` co DO UU TIEN BANG NHAU (mot id,
      hai lop), nen cai nao dung sau thi cai do thang. Keo len tren la khung go van hien
      nhung be ngang va padding cua bang thi van la cua ban cu. -->
-<link rel="stylesheet" href="tu-do.css?v=20260909d">
+<link rel="stylesheet" href="tu-do.css?v=20260909e">
 </head>
 <body>
 
@@ -354,6 +354,11 @@
     <a class="back" href="../../index.html">&larr; Hub</a>
     <button class="rot" id="rotBtn" type="button" aria-pressed="false" title="Xoay ngang">⟳</button>
     <button class="wikibtn" id="wikiBtn" type="button" title="Sổ tay: quái và luật của chúng">☉ Sổ tay</button>
+    <!-- Cua hang: nut nay o day chu khong chi o man tieu de, vi man tieu de bien mat ngay khi
+         bam "Vao ca" — xem chu thich moCuaHangTuBar() trong game.js. `hidden` cho toi khi
+         game.js bat no len: ban Biet Doi dung chung game.js nhung khong co ket sat nay. -->
+    <button class="wikibtn" id="shopTopBtn" type="button" hidden
+            title="Cửa hàng: mua sẵn một món mang vào ca">⛨ Cửa hàng</button>
     <span class="name">Ca Trực Đêm</span>
     <span><span class="k">Màn</span><span class="v" id="hLevel">1</span></span>
     <span><span class="k">Chỉ tiêu</span><span class="v quota" id="hQuota">$0 / $0</span></span>
@@ -490,9 +495,9 @@
 
 <!-- phong.js phai dung TRUOC game.js: no chi dat window.REPO_PHONG roi thoi, con game.js
      hoi bang do ngay tu luot ve nen dau tien. -->
-<script src="phong.js?v=20260909d"></script>
-<script src="sprites.js?v=20260909d"></script>
-<script src="game.js?v=20260909d"></script>
+<script src="phong.js?v=20260909e"></script>
+<script src="sprites.js?v=20260909e"></script>
+<script src="game.js?v=20260909e"></script>
 <script src="bot.js?v=20260904a"></script>
 <script>window.__boot && window.__boot();</script>
 <script>

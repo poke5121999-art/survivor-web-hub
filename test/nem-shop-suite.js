@@ -247,6 +247,104 @@ async function nemSuite(b) {
 }
 
 // =====================================================================
+// CỬA VÀO CỬA HÀNG, VÀ ĐẠN PHẢI KHỚP VỚI KHẨU SÚNG
+//
+// Chủ dự án, 2026-09-09 (lần thứ hai): "chưa thấy chỗ mua weapon để trang bị bên ngoài, cái
+// loại đạn bắn ra chưa khớp với weapon, bomb cũng vậy".
+//
+// Vế đầu KHÔNG phải lỗi bố cục — đo bốn khổ màn hình, kể cả 375x553 đã trừ thanh địa chỉ, thì
+// nút "Cửa hàng" trên màn tiêu đề lần nào cũng nằm trong khung nhìn. Lỗi là màn tiêu đề chỉ
+// sống vài giây rồi mất, và sau đó đường duy nhất quay lại nó là chết hoặc tải lại trang. Nên
+// phép thử ở đây đo đúng cái đã thiếu: **mở được cửa hàng TRONG LÚC ĐANG CHƠI**.
+async function cuaVaCoSuite(b) {
+  results.push('\n── cửa hàng phải mở được giữa ca, và đạn phải ra hình khẩu súng ──');
+  const { ctx, p, errs } = await moGame(b);
+  check('vào được ca để đo', await vaoCa(p));
+
+  const nut = await p.evaluate(() => {
+    const t = document.getElementById('shopTopBtn');
+    if (!t) return null;
+    const r = t.getBoundingClientRect();
+    return { an: t.hidden, chu: t.textContent.trim(),
+             thay: r.top >= 0 && r.bottom <= innerHeight && r.width > 10 };
+  });
+  check('thanh trên có nút Cửa hàng, và nó nhìn thấy được GIỮA CA',
+    !!nut && !nut.an && nut.thay, nut ? nut.chu : 'không có nút');
+
+  await p.click('#shopTopBtn');
+  await p.waitForTimeout(450);
+  const giua = await p.evaluate(() => ({
+    hien: !document.getElementById('veil').hidden,
+    tieuDe: document.getElementById('veilTitle').textContent,
+    noiRo: /giữa ca/i.test(document.getElementById('veilBody').textContent),
+    dung: !REPO.S.running,
+    hang: document.querySelectorAll('.mitem[data-mua]').length }));
+  check('bấm giữa ca thì mở đúng bảng cửa hàng', giua.hien && giua.tieuDe === 'Cửa hàng' && giua.hang === 5,
+    JSON.stringify(giua));
+  // Cùng luật với Sổ tay: bảng bấm được giữa ca thì thế giới phải DỪNG. Để con quái đi lại sau
+  // tấm màn trong lúc người chơi đang chọn hàng là một cái bẫy, không phải một tính năng.
+  check('và thế giới dừng lại trong lúc chọn hàng', giua.dung);
+  check('bảng nói rõ món mua bây giờ là của CA SAU', giua.noiRo);
+  await p.click('#veilBtn');                       // "Quay lại"
+  await p.waitForTimeout(450);
+  const ve = await p.evaluate(() => ({ an: document.getElementById('veil').hidden, chay: REPO.S.running }));
+  check('đóng lại thì về đúng ca đang chơi, KHÔNG nhảy về màn tiêu đề', ve.an && ve.chay,
+    JSON.stringify(ve));
+
+  // ---- đạn: mỗi khẩu một hình, đo trên MỘT CANVAS SẠCH
+  //
+  // Đo trên khung hình thật thì không được, và đã thử: chỗ viên đạn bay qua nằm trong lõi nón
+  // đèn pin, vốn đã cháy trắng trước khi viên đạn được vẽ lên, nên điểm sáng nhất trả về
+  // rgb(255,255,255) cho mọi loại đạn. Chụp hai lần rồi trừ nhau cũng không xong: cả lớp
+  // hiệu ứng lẫn HUD đều nhúc nhích giữa hai lần chụp và phần lệch của chúng át phần lệch của
+  // viên đạn.
+  //
+  // `veDan()` là một hàm THUẦN — nhận ngữ cảnh và một viên đạn, vẽ ra. Gọi thẳng nó lên một
+  // canvas trống là đo đúng cái đang cần đo: HÌNH của viên đạn, không kèm gì khác.
+  const mau = await p.evaluate(() => {
+    const ve = kind => {
+      const cv = document.createElement('canvas');
+      cv.width = 60; cv.height = 40;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#000'; c.fillRect(0, 0, 60, 40);
+      REPO.veDan(c, { x: 30, y: 20, vx: 500, vy: 0, kind });
+      const d = c.getImageData(0, 0, 60, 40).data;
+      let best = [0, 0, 0], bestS = -1;
+      for (let i = 0; i < d.length; i += 4) {
+        const t = d[i] + d[i + 1] + d[i + 2];
+        if (t > bestS) { bestS = t; best = [d[i], d[i + 1], d[i + 2]]; }
+      }
+      // và tổng mực, để biết viên đạn có vẽ ra cái gì không
+      let muc = 0;
+      for (let i = 0; i < d.length; i += 4) muc += (d[i] + d[i + 1] + d[i + 2]) > 30 ? 1 : 0;
+      return { sang: best, muc };
+    };
+    return { gun: ve('gun'), tranq: ve('tranq'), shot: ve('shot') };
+  });
+  const g = mau.gun.sang, t = mau.tranq.sang, sh = mau.shot.sang;
+  check('cả ba loại đạn đều vẽ ra một hình thật',
+    mau.gun.muc > 20 && mau.tranq.muc > 20 && mau.shot.muc > 5,
+    'mực: lục ' + mau.gun.muc + ' · mê ' + mau.tranq.muc + ' · hoa cải ' + mau.shot.muc);
+  check('đạn súng lục ra màu ĐỒNG ẤM (đỏ trội hơn xanh lá)', g[0] > g[1] + 6,
+    'rgb(' + g.join(',') + ')');
+  check('đạn súng gây mê ra màu XANH của mũi tiêm (xanh lá trội hơn đỏ)', t[1] > t[0] + 6,
+    'rgb(' + t.join(',') + ')');
+  // Hoa cải khác súng lục ở CỠ, không ở độ sáng: nó là một hạt chì ngắn ngủn với vệt gần như
+  // không có, còn khẩu lục là một viên đạn có vệt sáng kéo dài. Đo bằng lượng mực chứ đừng đo
+  // bằng điểm sáng nhất — cái chấm bắt sáng trên hạt chì vẫn sáng ngang đầu đạn đồng, và bảy
+  // hạt cùng lúc phải đọc ra là MỘT NÓN chứ không phải bảy phát bắn.
+  check('hạt hoa cải ngắn hơn hẳn viên đạn súng lục',
+    mau.gun.muc > mau.shot.muc * 1.5,
+    'mực: lục ' + mau.gun.muc + ' · hoa cải ' + mau.shot.muc);
+  check('ba khẩu KHÔNG còn dùng chung một cái chấm',
+    (g[0] - g[1]) - (t[0] - t[1]) > 20,
+    'lệch đỏ-lục: súng lục ' + (g[0] - g[1]) + ' · mê ' + (t[0] - t[1]));
+
+  check('cửa hàng giữa ca + đạn: không lỗi console', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 // ÁNH SÁNG TRÊN ĐỒ ĐẠC
 //
 // Chủ dự án, 2026-09-09: "phần ánh sáng lúc nhìn lên bàn, ghế, cây dừa chưa hợp lý".
@@ -348,6 +446,7 @@ async function anhSangDoSuite(b) {
   try {
     await cuaHangSuite(b);
     await nemSuite(b);
+    await cuaVaCoSuite(b);
     await anhSangDoSuite(b);
   } catch (e) {
     check('bộ test chạy trọn', false, (e && e.message) || String(e));

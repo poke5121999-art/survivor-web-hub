@@ -1,7 +1,7 @@
 # Còn lại — bàn giao 2026-09-09
 
 Bản vừa push: **ném đồ · đường chỉ lối trên sàn · loot vẽ lại · cửa hàng ngoài menu**.
-Dấu build lên `?v=20260909d` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Dấu build lên `?v=20260909e` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 ---
@@ -164,3 +164,40 @@ cửa hàng, còn lần đầu mở game vẫn là tấm màn tĩnh trong index.
 `gearIconURL()` từng trả chuỗi rỗng dưới `file://` (canvas vấy bẩn). Cùng cái bẫy ấy chặn luôn
 **mọi phép đo bằng `getImageData`**: muốn đo điểm ảnh thì chạy qua một máy chủ tĩnh
 (`python -m http.server`) hoặc mở Chromium với `--allow-file-access-from-files`.
+
+---
+
+## 8. BẢN THỨ BA CÙNG NGÀY — cửa vào cửa hàng, và đạn theo từng khẩu
+
+### 8.1. "Chưa thấy chỗ mua weapon" — tôi đã đi tìm lỗi sai chỗ
+Lần đầu tôi đo **cái nút có nhìn thấy được không**, bốn khổ màn hình kể cả 375×553 đã trừ thanh
+địa chỉ — lần nào nó cũng nằm trong khung nhìn. Đo đúng, kết luận sai.
+
+Lỗi là cái nút ấy **chỉ sống trên màn tiêu đề**, một màn hình người chơi nhìn vài giây rồi bấm
+"Vào ca" là mất. Sau đó đường duy nhất quay lại là CHẾT hoặc tải lại trang. Một cửa hàng chỉ mở
+được trước khi vào ca thì với người đang chơi, nó không tồn tại.
+
+Nay có cửa thứ hai ở **thanh trên, cạnh nút Sổ tay**, luôn ở đó. Cùng bộ máy với Sổ tay: dừng
+thế giới, mở bảng, đóng thì chạy tiếp — vì cùng một lý do, bảng này bấm được giữa ca. Mua giữa
+ca thì bảng nói thẳng: món ấy nằm sẵn trên tay ở **ca sau**, vì luật "tối đa một món mỗi ca"
+nằm ở `mangDoVaoCa()`, chạy đúng lúc một ván bắt đầu.
+
+`khiDongCuaHang` giữ đường VỀ — hai cửa vào có hai đường về khác nhau.
+
+### 8.2. Đạn phải ra hình khẩu súng bắn nó
+Cả ba thứ người chơi bắn ra chỉ có **hai mặt**: một chấm vàng nhạt r=2,6 dùng chung cho **súng
+lục VÀ súng gây mê**, một chấm cam nhỏ hơn cho hoa cải. Khẩu mê có mũi tiêm xanh trên biểu
+tượng, trên nút dùng, trong tủ, trên cửa hàng — rồi bắn ra một chấm vàng y hệt khẩu lục. Nó có
+ba viên cho cả ca, nên bắn nhầm khẩu là mất một phần ba số đạn ấy.
+
+Nay `veDan()`: đầu đạn đồng có vệt sáng dài (lục) · hạt chì ngắn ngủn (hoa cải) · mũi tiêm xanh
+có cánh đuôi (mê), cả ba xoay theo hướng bay. Quả **lựu đạn** đang bay vẽ bằng chính
+`gearIcon('bomb')` và lăn theo đường ném — trước đây nó là một hình tròn r=5 nhấp nháy cam. Đồng
+hồ ngòi lên lớp cộng sáng ở `drawHighlights`, cùng chỗ với ngòi của Bom con.
+
+### 8.3. Đo màu của đạn thì đừng đo trên khung hình thật
+Thử hai lần đều sai: điểm sáng nhất quanh viên đạn trả về `rgb(255,255,255)` vì chỗ ấy nằm
+trong lõi nón đèn pin, vốn đã cháy trắng; chụp hai lần rồi trừ nhau cũng hỏng vì lớp hiệu ứng
+và HUD nhúc nhích giữa hai lần chụp và át mất phần lệch của viên đạn. Cách chạy được:
+`veDan()` là hàm thuần, gọi thẳng nó lên một canvas trống 60×40. `REPO.veDan` xuất ra để làm
+đúng việc ấy.

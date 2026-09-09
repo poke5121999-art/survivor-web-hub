@@ -10750,6 +10750,16 @@ function drawHighlights(c){
     if ((m.gunFlash || 0) > 0) drawGunnerFlash(c, m);
   }
 
+  // NGÒI CỦA QUẢ LỰU ĐẠN VỪA NÉM. Cùng lý lẽ với cái ngòi trên đầu Bom con ở trên: một cái
+  // đồng hồ đang đếm ngược phải đọc được từ đuôi mắt, và trong một căn phòng tối thì nó chỉ đọc
+  // được nếu nó TỰ SÁNG. Nhịp nháy y hệt nhịp cũ — nhanh gấp đôi trong nửa giây cuối.
+  for (const b of S.bombs){
+    if (b.done || b.owner === 'foe') continue;
+    const con = Math.max(0, b.fuse - b.t);
+    const ph = 0.5 + 0.5*Math.sin(b.t * (con < 0.5 ? 15 : 8));
+    glowRing(c, b.x, b.y, 5.5 + ph*3.5, [255, 168, 78], 0.26 + ph*0.34, 1.8);
+  }
+
   drawHeadGlow(c);
   drawMirrorGlow(c);
   drawEventFoeGlow(c);
@@ -11597,6 +11607,52 @@ function drawDoorWreck(c, d){
   c.restore();
 }
 
+// ĐẠN PHẢI RA HÌNH CỦA KHẨU SÚNG BẮN NÓ.
+//
+// Chủ dự án, 2026-09-09: "cái loại đạn bắn ra chưa khớp với weapon, bomb cũng vậy".
+//
+// Trước bản này cả ba thứ người chơi bắn ra chỉ có HAI mặt: một chấm vàng nhạt bán kính 2,6
+// dùng chung cho SÚNG LỤC VÀ SÚNG GÂY MÊ, và một chấm cam nhỏ hơn cho hoa cải. Khẩu mê có một
+// mũi tiêm XANH trên biểu tượng, trên nút dùng, trong tủ đồ, trên cửa hàng — rồi bắn ra một
+// chấm vàng y hệt khẩu lục.
+//
+// Đó không phải chuyện thẩm mỹ. Khẩu mê có ba viên cho cả ca, và bắn nhầm khẩu là mất một
+// phần ba số đạn ấy — mà cách duy nhất để biết mình vừa bắn khẩu nào là NHÌN cái vừa bay ra.
+// Một cái chấm dùng chung thì không trả lời được câu đó.
+//
+// Mỗi loại một hình, và hình ấy lấy đúng cái đã có sẵn trên biểu tượng của nó:
+//   lục     — đầu đạn đồng nhọn, vệt sáng dài kéo sau: nhanh, gọn, nóng.
+//   hoa cải — hạt chì nhỏ và sẫm, vệt cực ngắn, nên bảy hạt cùng lúc đọc ra là MỘT NÓN chứ
+//             không phải bảy phát bắn.
+//   mê      — mũi tiêm có cánh đuôi, xoay theo hướng bay, đúng màu #9fdc8a của cái kim trong
+//             gearIcon('tranq').
+// Cả ba đều XOAY THEO HƯỚNG BAY, và đó là thứ khiến chúng đọc ra là vật đang bay chứ không
+// phải một cái chấm được dời chỗ mỗi khung hình.
+function veDan(c, b){
+  c.save();
+  c.translate(b.x, b.y);
+  c.rotate(Math.atan2(b.vy, b.vx));
+  if (b.kind === 'tranq'){
+    c.fillStyle = 'rgba(126,222,142,0.26)'; c.fillRect(-9, -0.9, 8, 1.8);      // vệt thuốc
+    c.fillStyle = '#7fc46a';                                                    // cánh đuôi
+    c.beginPath(); c.moveTo(-4.4,-1.1); c.lineTo(-7.0,-3.1); c.lineTo(-5.0,-0.9); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-4.4, 1.1); c.lineTo(-7.0, 3.1); c.lineTo(-5.0, 0.9); c.closePath(); c.fill();
+    c.fillStyle = '#3f7a4c'; c.fillRect(-4.6, -1.2, 6.2, 2.4);                  // thân ống
+    c.fillStyle = '#9fdc8a'; c.fillRect(1.6, -0.7, 4.6, 1.4);                   // kim
+  } else if (b.kind === 'shot'){
+    c.fillStyle = 'rgba(255,168,110,0.26)'; c.fillRect(-4.5, -0.6, 4.5, 1.2);
+    c.fillStyle = '#c08246';
+    c.beginPath(); c.arc(0, 0, 1.7, 0, Math.PI*2); c.fill();
+    c.fillStyle = '#f0c08a';
+    c.beginPath(); c.arc(-0.4, -0.5, 0.7, 0, Math.PI*2); c.fill();
+  } else {
+    c.fillStyle = 'rgba(255,220,150,0.30)'; c.fillRect(-12, -1.0, 11, 2.0);    // vệt sáng
+    c.fillStyle = '#b98a3c'; c.fillRect(-3.4, -1.35, 4.8, 2.7);                // vỏ đồng
+    c.fillStyle = '#ffeab0';                                                    // đầu đạn
+    c.beginPath(); c.moveTo(1.4, -1.35); c.lineTo(3.9, 0); c.lineTo(1.4, 1.35); c.closePath(); c.fill();
+  }
+  c.restore();
+}
 function drawProjectiles(c){
   // Tia laser: một vệt sáng đang tàn. Vẽ TRƯỚC đạn để mấy viên hoa cải nổi lên trên nó.
   if (S.beams) for (const bm of S.beams){
@@ -11642,8 +11698,7 @@ function drawProjectiles(c){
       c.beginPath(); c.arc(b.x, b.y, 3.0, 0, Math.PI*2); c.fill();
       continue;
     }
-    c.fillStyle = b.kind === 'shot' ? '#ffb87a' : '#ffe9a8';
-    c.beginPath(); c.arc(b.x, b.y, b.kind === 'shot' ? 1.8 : 2.6, 0, Math.PI*2); c.fill();
+    veDan(c, b);
   }
   // VỤ NỔ. Trước đây là đúng một hình tròn phẳng nở ra rồi mờ đi — cùng một hình với vệt sáng,
   // với vòng highlight, với mọi thứ tròn khác trong game, nên nó không đọc ra là một vụ nổ. Bốn
@@ -11684,17 +11739,26 @@ function drawProjectiles(c){
       c.beginPath(); c.fillStyle = `rgba(40,30,26,${0.30*t*(1-t)*4})`;
       c.arc(b.x,b.y,b.r*(0.5+t*0.7),0,Math.PI*2); c.fill();
     } else {
-      // Ngòi đang cháy: sáng dần / tối dần nhanh hơn khi sắp hết, cùng nhịp với tiếng tick.
+      // QUẢ LỰU ĐẠN ĐANG BAY, vẽ bằng CHÍNH cái hình của nó.
       //
-      // Bản cũ là một SÓNG VUÔNG 8Hz — `Math.floor(b.t*16)%2` bật tắt cứng giữa cam sáng và gần
-      // đen. Đó là cái chớp gắt nhất trong cả trò: tần số cao nhất, tương phản cao nhất, và nó
-      // chạy liên tục suốt mấy giây chứ không phải một nhịp rồi thôi.
-      const con = Math.max(0, b.fuse - b.t);
-      const nhanh = con < 0.5 ? 15 : 8;              // rad/s → ~2,4Hz và ~1,3Hz
-      const ph = 0.5 + 0.5*Math.sin(b.t*nhanh);
-      c.beginPath();
-      c.fillStyle = `rgb(${90 + ph*165|0},${58 + ph*122|0},${44 + ph*46|0})`;
-      c.arc(b.x,b.y,5,0,Math.PI*2); c.fill();
+      // Trước bản này nó là một hình tròn bán kính 5 nhấp nháy cam — cùng một cái chấm với vòng
+      // highlight, với vệt sáng, với mọi thứ tròn khác trong trò. Người chơi ném ra một quả bom
+      // và thấy bay đi một cái chấm. gearIcon('bomb') thì đã có sẵn từ lâu và tấm gear.png còn
+      // khai bốn khung ngòi cháy cho nó, nên quả bom trên tay, quả bom trên nút bấm và quả bom
+      // đang bay giờ là MỘT vật — không phải ba thứ trông khác nhau cùng tên.
+      //
+      // LĂN THEO ĐƯỜNG BAY: một vật ném ra thì nó quay, và cái quay chính là thứ nói "đang bay"
+      // thay cho cái chấm nhấp nháy cũ. Chiều lăn theo hướng ném, nên ném sang trái thì nó lăn
+      // sang trái — ngược lại thì mắt đọc ra là nó đang bị kéo giật lùi.
+      //
+      // Còn cái ĐỒNG HỒ NGÒI thì lên lớp cộng sáng ở drawHighlights, cùng chỗ với ngòi của Bom
+      // con: một cái đồng hồ đang chạy phải đọc được từ xa TRONG BÓNG TỐI, mà lớp này thì bị
+      // lớp tối nhân xuống.
+      c.save();
+      c.translate(b.x, b.y);
+      c.rotate(b.t * 7 * (b.vx < 0 ? -1 : 1));
+      gearIcon(c, 'bomb', 0, 0, 7.5, 1);
+      c.restore();
     }
   }
 }
@@ -12611,7 +12675,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260909d';
+const BUILD = '20260909e';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -14242,9 +14306,44 @@ function veNutCuaHang(){
   // Không in số tiền lên nút nữa: cái bảng ngay trên nó đã có dòng "Két: $X", và một con số
   // xuất hiện hai lần cách nhau ba centimet thì lần thứ hai chỉ làm cái nút dài ra.
   b.textContent = 'Cửa hàng';
-  b.onclick = () => moCuaHang();
+  b.onclick = () => { khiDongCuaHang = moManDau; moCuaHang(); };
 }
 const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+// CỬA HÀNG PHẢI CÓ MỘT CÁI CỬA LÚC NÀO CŨNG MỞ ĐƯỢC.
+//
+// Chủ dự án, 2026-09-09, lần thứ hai: "chưa thấy chỗ mua weapon để trang bị bên ngoài".
+//
+// Lần đầu tôi đi tìm lỗi ở chỗ CÁI NÚT có nhìn thấy được không, và đo bốn khổ màn hình — kể cả
+// khổ điện thoại đã trừ thanh địa chỉ, 375x553 — thì lần nào nó cũng nằm trong khung nhìn.
+// Đo sai chỗ. Cái nút ấy chỉ sống trên MÀN TIÊU ĐỀ, tức là trên một màn hình người chơi nhìn
+// đúng vài giây rồi bấm "Vào ca" là mất. Sau đó đường duy nhất quay lại nó là CHẾT, hoặc tải
+// lại trang. Một cửa hàng chỉ mở trước khi vào ca thì với người đang chơi, nó không tồn tại.
+//
+// Nên nó có thêm một cửa nữa, ở THANH TRÊN, cạnh nút Sổ tay: luôn ở đó, mọi lúc. Cùng bộ máy
+// với Sổ tay — dừng thế giới lại, mở bảng, đóng thì chạy tiếp — vì cùng một lý do: bảng này
+// bấm được GIỮA CA, và để con quái đi lại sau tấm màn trong lúc người chơi đang chọn hàng là
+// một cái bẫy.
+//
+// `khiDongCuaHang` giữ đường VỀ, vì hai cửa vào có hai đường về khác nhau: từ màn tiêu đề thì
+// quay lại màn tiêu đề, từ giữa ca thì quay lại đúng chỗ vừa dừng.
+let khiDongCuaHang = null;
+let shopWasRunning = false;
+function moCuaHangTuBar(){
+  if (S.stashOpen || S.cut || S.dead) return;
+  khiDongCuaHang = dongCuaHangVeCa;
+  shopWasRunning = !!S.running;
+  S.running = false;
+  document.body.classList.add('wiki-open');   // xem chú thích body.wiki-open trong index.html
+  moCuaHang();
+}
+function dongCuaHangVeCa(){
+  document.body.classList.remove('wiki-open');
+  if (shopWasRunning && !S.dead){
+    hideVeil();
+    S.running = true; last = performance.now();
+  } else if (!moManDau()) hideVeil();
+  shopWasRunning = false;
+}
 function moCuaHang(nhac){
   const k = khoDoc();
   const dang = k.mang && GEAR_BY_KEY[k.mang.kind];
@@ -14273,18 +14372,23 @@ function moCuaHang(nhac){
         '<button class="mbo" data-bo="1">Bỏ ra · hoàn ' + money(k.mang.gia || 0) + '</button>' +
       '</div></div>'
     : '<div class="empty">Chưa mang gì. Mua một món dưới đây — vào ca là nó nằm sẵn trên tay.</div>';
+  // Mua GIỮA CA thì món ấy không nhảy vào tay ngay — nó chờ ca sau, vì luật "tối đa một món
+  // mỗi ca" nằm ở mangDoVaoCa(), chạy đúng lúc một ván bắt đầu. Nói thẳng ra ở đây, chứ không
+  // để người chơi mua xong rồi ngồi tìm khẩu súng trong ba ô đồ.
+  const giuaCa = shopWasRunning;
   showVeil('Cửa hàng',
     'Mua sẵn MỘT món mang vào ca. Mang vào là MẤT: hết ca hay hỏng ca đều không lấy lại được. ' +
     'Tiền ở đây là tiền lương — hết mỗi ván bạn giữ lại ' + Math.round(KHO_CUT*100) +
-    '% số đã giao lên bệ trong ván đó.',
-    'Quay lại', moManDau,
+    '% số đã giao lên bệ trong ván đó.' +
+    (giuaCa ? ' Đang giữa ca: món mua bây giờ nằm sẵn trên tay ở CA SAU, không phải ca này.' : ''),
+    'Quay lại', khiDongCuaHang || moManDau,
     '<div class="wallet">Két: ' + money(k.tien) + '</div>' +
     (nhac ? '<div class="empty" style="color:#e0a35a;border-color:#5a4320">' + escHtml(nhac) + '</div>' : '') +
     '<div class="seg">Đang mang theo</div>' + hang +
     '<div class="seg">Hàng bán</div><div class="mshop">' + o + '</div>' +
     '<div class="empty">Trạm dịch vụ giữa các màn vẫn bán đủ mười một món như cũ, kể cả băng, ' +
     'keo bọc và xà beng — cửa hàng này không thay nó, nó chỉ lo đúng khúc đầu ca.</div>',
-    moManDau);
+    khiDongCuaHang || moManDau);
   chayCharMenu(dang ? dang.key : null);
   const box = el('veilExtra');
   if (!box) return;
@@ -14391,6 +14495,8 @@ window.__boot = function(){
   // toạ độ trong đó đang bị hudGeomSuite/rotateSuite đo từng pixel. Một nút để đọc
   // không đáng phải chen vào chỗ ngón cái đang bận.
   { const w = el('wikiBtn'); if (w) w.onclick = showWiki; }
+  // Cửa thứ hai vào cửa hàng, và là cửa DUY NHẤT còn mở sau khi đã vào ca — xem moCuaHangTuBar().
+  { const w = el('shopTopBtn'); if (w){ w.hidden = !khoOn(); w.onclick = moCuaHangTuBar; } }
 
   last = performance.now();
   requestAnimationFrame(frame);
@@ -14420,6 +14526,7 @@ window.REPO = {
     items:b.items.length, value:bikeValue(b), riding: !!b.rider, downed:b.downed })); },
   riding(){ const p = S.player; return p && p.riding ? p.riding.kind : null; },
   toggleStash, rollShop, startShop, leaveShop, togglePay, testHeld,
+  moCuaHangTuBar, dongCuaHangVeCa, veDan,
   // ném đồ + két sắt ngoài menu
   throwHeld, throwSpeed, throwDamage, THROW_V0, THROW_DMG_K, THROW_LIVE,
   khoDoc, khoGhi, khoThem, mangDoVaoCa, moCuaHang, moManDau, veMenu, KHO_HANG, KHO_CUT, KHO_KEY,
