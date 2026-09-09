@@ -377,3 +377,99 @@ nút ĐI CA, bấm thẳng vào ô là mua được, và số con trực tiếp 
 Cả bộ: `nem-shop-suite` 78/78 · `bike-suite` 36/36 · `guns-suite` 46/52 (6 bài sạc laser hỏng
 sẵn từ trước, đo lại trên bản HEAD ra đúng sáu bài ấy).
 
+## 11. PHO TƯỢNG VIẾT LẠI, VÀ ĐỒNG MINH TÀNG HÌNH
+
+Chủ dự án, hai câu: *"làm cho con thiên thần lúc xuất hiện mà bị thấy là countdown liền, xuất
+hiện chuẩn xác hơn để force phải nhìn, kể cả bot. làm cách xuất hiện, anim vfx nhìn horror
+hơn."* và *"làm cho đồng minh lúc không rọi đèn pin vào thì sẽ không thấy để tăng độ sợ"*.
+
+### 11.1. Đồng hồ chạy từ lúc BỊ THẤY, không phải từ lúc bị rọi đèn
+Bản 2026-08-22 khoá đồng hồ lại cho tới khi người chơi chủ động rọi đèn vào nó, vì lúc ấy nó
+hay hiện ra sau lưng rồi cào người ta vì một chuyện họ chưa từng được thấy.
+
+Cú sửa hôm nay tấn công **cùng vấn đề đó từ đầu kia**, và mạnh hơn: nó không hiện sau lưng nữa.
+`ANGEL_ARC` bắt nó đứng chính giữa tầm mắt — đo 40 lần liên tiếp: lệch trung bình **0,031 rad**
+(1,8°), 40/40 lần nằm trong 0,3 rad, cách 3,2–4,8 ô. Bản cũ bắn đều trong ±0,45 rad rồi lấy chỗ
+ĐẦU TIÊN đứng được. Nên "bị thấy" giờ là chuyện chắc chắn xảy ra, và một khi đã thấy thì đồng
+hồ chạy ngay.
+
+`ANGEL_SETTLE = 3` (ba giây ân huệ) biến mất hẳn; chỗ nó là `ANGEL_ARRIVE = 1,15s`, thuần tuý
+một đoạn anim.
+
+### 11.2. Đồng hồ phải NHÌN THẤY ĐƯỢC
+Một cái đồng hồ chạy mà không hiện ra thì với người chơi nó không tồn tại — họ chỉ thấy mình bị
+cào vì một chuyện không ai báo. `veDongHoTuong()` vẽ một vòng trên đầu nó, hai trạng thái nói
+hai câu khác nhau:
+
+- **trắng-xanh, đứng yên** — đang có người nhìn. Đồng hồ bị giữ, chưa mất gì. Nếu người giữ là
+  bot thì có thêm chữ `BOT GIỮ`, vì đó là một tin có hạn dùng.
+- **đỏ, vơi dần + số giây** — không ai nhìn nữa. Ba giây cuối kêu thành tiếng (`SFX.dread`).
+
+Vòng nạp (vàng, ở lớp thế giới) là chuyện khác và vẫn ở chỗ cũ: nó là đường THOÁT.
+
+### 11.3. "Kể cả bot" — và cái bẫy khoá cứng ván
+Bot trong 9 ô mà có đường nhìn thì **đứng khựng lại, quay mặt về phía nó**, và cái nhìn ấy GIỮ
+đồng hồ. Đây là thứ duy nhất khiến một con bot bỏ giữa chừng việc nó đang làm mà không phải vì
+có gì đang cắn nó.
+
+Cái bẫy sập ngay ở bài test đầu tiên: **một con bot chớp mắt thì con kế bên vẫn đang nhìn.** Với
+ba con bot đứng cùng phòng, đồng hồ không bao giờ chạy hết — pho tượng đứng đó vĩnh viễn và sự
+kiện đáng sợ nhất căn nhà thành đồ trang trí. Chớp mắt lệch pha nhau không cứu được, chỉ làm nó
+khó thấy hơn.
+
+Nên có **hai** đồng hồ chứ không phải một:
+- `ANGEL_BOT_HOLD` — mỗi con bot chịu được 2,8–4,6 giây rồi chớp mắt (`ANGEL_BOT_BLINK`).
+- `ANGEL_BOT_TOTAL` — **cả tổ chung một quỹ 6 giây** cho mỗi lần nó ghé. Hết quỹ là cả tổ rời
+  mắt hẳn và từ đó chỉ còn người chơi giữ được.
+
+Cái thứ hai mới là thứ bảo đảm ván chơi kết thúc được. Bài test canh đúng nó.
+
+Luật để lại: **một cơ chế "giữ được bằng cách nhìn" mà có nhiều người nhìn thì phải có TRẦN
+CHUNG, không chỉ trần từng người.** Trần từng người chỉ đổi bài toán thành "xác suất tất cả cùng
+chớp mắt", mà với ba người thì xác suất ấy gần bằng không.
+
+### 11.4. Cú cào phải nhắm đúng người ĐÃ THẤY nó
+Hệ quả kéo theo, và nó là một lỗi thật chứ không phải chuyện đẹp xấu: pho tượng mọc quanh CẢ TỔ
+(`spawnAnchor` bốc ngẫu nhiên trong tổ), nên nó có thể hiện ra trước mặt Tổ 2 ở phòng bên, đồng
+hồ chạy vì con bot ấy nhìn thấy, con bot chớp mắt — rồi **người chơi ăn ba mươi máu cho một
+chuyện họ chưa từng thấy.** Đúng cái sai mà bản 2026-08-22 đã sửa một lần, chỉ là đi vào từ cửa
+khác.
+
+Nay `a.banDaThay` nhớ người chơi đã từng nhìn thấy nó chưa. Chưa thấy lần nào thì nó cào con bot
+đang trợn mắt, và người chơi nghe tiếng hét ở phòng bên — đáng sợ hơn hẳn, và công bằng.
+
+### 11.5. Cú hiện hình
+Ba nhịp, và không nhịp nào là một vụ nổ — vụ nổ là thứ vui mắt:
+
+| giây | lớp thế giới | lớp cộng sáng | tiếng |
+|---|---|---|---|
+| 0,00–0,40 | sàn **thủng**: vũng đen loang ra + vết nứt | quầng tím nở | tầng ù thấp dâng lên |
+| 0,15–0,80 | **bóng đen** mọc lên từ vũng, RUNG vài điểm ảnh mỗi khung | | tiếng trượt xuống đáy |
+| 0,55–1,15 | bóng tan ra thành tượng đá | **hai con mắt** sáng lên | cú đóng dưới ngưỡng nghe |
+
+Hai con mắt ở lại sau đó: âm ỉ khi đang bị nhìn, đỏ rực và nhấp nhanh dần theo đồng hồ khi không
+ai nhìn. Chúng nằm ở **lớp cộng sáng** vì lớp thế giới bị nhân với ánh sáng — trong phòng tối
+thì mọi thứ vẽ ở đó đều đen thui, kể cả thứ đáng lẽ phải phát sáng.
+
+`SFX.appear()` xếp ba lớp **lệch pha** nhau: cùng lúc thì tai đọc ra một tiếng động, lệch pha
+thì nó đọc ra một thứ đang tới gần.
+
+### 11.6. Đồng minh tàng hình khi không có đèn
+Trước bản này lớp tối chỉ làm họ MỜ đi, mà mờ thì mắt vẫn bám được — nên đi cả ca vẫn luôn biết
+ba cái bóng kia ở đâu. Nay `mateSang()`: chỉ hiện khi nằm trong nón đèn của bạn, hoặc đứng trong
+vùng sáng pho tượng để lại, hoặc ở sát bên (2,3 ô). Mờ vào/hiện ra trong 0,22 giây — bật tắt
+phựt thì đọc ra là lỗi vẽ.
+
+Hai chỗ luật này **dừng lại**, và cả hai đều phải có bài test canh:
+- **người GỤC thì luôn thấy.** Không thấy thì không đỡ dậy được, và cả cơ chế cứu đồng đội chết
+  theo. Đây là chỗ "đáng sợ" đổi thành "hỏng".
+- **sát bên thì vẫn thấy.** Mất dấu người đang đứng cạnh khuỷu tay mình là bực, không phải sợ.
+
+Đồng hồ mờ/hiện chạy trong `stepMates` chứ không trong vòng vẽ: vòng vẽ không có `dt`, và một
+hiệu ứng đo bằng khung hình thì máy nhanh máy chậm ra hai tốc độ.
+
+### 11.7. Test
+`test/nem-shop-suite.js` thêm `tuongSuite` (12 bài) và `boTaiSuite` (7 bài). Cả bộ **98/98**.
+`bike-suite` 36/36 · `repo-suite` 296/308 · `guns-suite` 46/52 · `bot-suite` 17/28 — ba bộ sau
+đo lại trên bản HEAD ra **đúng cùng số bài hỏng**, tức không bộ nào hỏng thêm vì bản này.
+

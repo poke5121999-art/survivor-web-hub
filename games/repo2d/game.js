@@ -496,6 +496,19 @@ const SFX = (() => {
              tone(196, 0.02, 0.55, 0.16, 'sawtooth');
              tone(208, 0.02, 0.55, 0.14, 'sawtooth'); },
     tick(i){ tone(620 + i*70, 0.004, 0.07, 0.20, 'square'); },
+    // PHO TƯỢNG HIỆN HÌNH. Không phải một tiếng "bụp" — nó là thứ đáng sợ nhất trong nhà nên
+    // nó được cả một cú NUỐT ÂM: nhạc nền tụt xuống một giây rưỡi, một tầng ù thấp dâng lên,
+    // rồi tới lúc hình rõ mặt mới là cú đóng dưới ngưỡng nghe cộng một mảnh kính vỡ trên cao.
+    // Ba lớp lệch pha nhau chứ không cùng lúc: cùng lúc thì tai đọc ra MỘT tiếng động, còn
+    // lệch pha thì nó đọc ra một thứ đang tới gần.
+    appear(){ if (mus) mus.duckT = Math.max(mus.duckT, 1.6);
+              noise(0.70, 0.17, 'lowpass',  240, 0.9);
+              tone(150, 0.28, 0.62, 0.12, 'sawtooth', 40);
+              noise(0.26, 0.20, 'bandpass', 820, 0.9, 0.55);
+              tone(36,  0.01, 0.95, 0.27, 'sine', 25, 0.56);
+              tone(1240, 0.004, 0.20, 0.045, 'triangle', 320, 0.58); },
+    // Nhịp trong ngực lúc đang bị nó nhìn lại. Nhanh dần theo đồng hồ đếm ngược.
+    dread(k){ tone(43, 0.02, 0.30, 0.07 + 0.11*k, 'sine', 28); },
     // Phát súng của Kẻ bắn. Theo đúng luật của cả bộ này — "cái gì căn nhà làm thì ngắn, khô
     // và CAO; cái gì con quái làm thì dài và THẤP" — nên nó không phải một tiếng 'pằng' sắc
     // như súng của bạn: một cú đập thấp, một đuôi nhiễu tối kéo theo. Nghe được là biết ngay
@@ -710,9 +723,9 @@ function threatLevel(){
   let best = 0;
   // A statue standing in front of you, running out of patience, outranks anything with legs.
   const a = S.angel;
-  if (a && a.phase === 'stand' && a.t >= ANGEL_SETTLE)
-    // Unarmed it is a presence, not a threat — its clock has not started. Half the dread, and flat,
-    // so a room you have not pointed a torch at yet does not sit at chase-level tension forever.
+  if (a && a.phase === 'stand')
+    // Chưa bị thấy thì nó là một sự hiện diện, chưa phải một mối đe doạ — đồng hồ chưa chạy.
+    // Nửa mức căng, và phẳng, để một căn phòng chưa ai nhìn vào không ngồi mãi ở mức bị đuổi.
     best = a.armed ? 0.45 + 0.5 * clamp(a.unlitT / ANGEL_PATIENCE, 0, 1) : 0.32;
   for (const m of S.monsters){
     if (m.sleep > 0) continue;
@@ -8342,6 +8355,11 @@ function stepMates(dt){
   if (S.shopMode || !S.mates || !S.mates.length) return;
   for (const a of S.mates){
     a.wob += dt*4;
+    // Mờ vào / hiện ra theo ánh đèn — xem mateSang(). Chạy ở đây chứ không ở vòng vẽ, vì vòng
+    // vẽ không có `dt` và một hiệu ứng đo bằng khung hình thì máy nhanh máy chậm ra hai tốc độ.
+    { const dich = mateSang(a) ? 1 : 0;
+      const b = a.hien == null ? dich : a.hien;
+      a.hien = b + (dich - b) * Math.min(1, dt / MATE_MO_T); }
     a.hurt = Math.max(0, a.hurt - dt);
     a.hit = Math.max(0, a.hit - dt);
     a.sayT = Math.max(0, a.sayT - dt);
@@ -8382,6 +8400,12 @@ function stepMates(dt){
     a.react = Math.max(0, a.react - dt);
     a.pathT -= dt;
     a.idleT = Math.max(0, a.idleT - dt);
+
+    // ---- 0. PHO TƯỢNG. Chủ dự án: "force phải nhìn, kể cả bot".
+    // Đứng khựng lại và quay mặt về phía nó. Đây là thứ duy nhất trên đời khiến một con bot bỏ
+    // giữa chừng cái việc nó đang làm mà không phải vì có gì đang cắn nó — và nó chỉ giữ được
+    // vài giây, vì bot chớp mắt (xem angelStare).
+    if (angelStare(a, dt)){ a.noise = 0; continue; }
 
     // ---- 1. something is on them. This is the only thing that outranks the job.
     const th = mateThreat(a);
@@ -8728,10 +8752,36 @@ function mateDrop(a, pad){
 }
 
 // ---------------------------------------------------------------- drawing
+// ĐỒNG MINH CHỈ HIỆN RA KHI CÓ ÁNH ĐÈN TRÊN NGƯỜI HỌ.
+//
+// Chủ dự án, 2026-09-09: "làm cho đồng minh lúc không rọi đèn pin vào thì sẽ không thấy để
+// tăng độ sợ". Trước bản này lớp tối của căn nhà chỉ làm họ MỜ đi, mà mờ thì mắt vẫn bám
+// được — nên đi cả ca vẫn luôn biết ba cái bóng kia đang ở đâu, và căn nhà bớt đi một nửa.
+//
+// Ba lối ra khỏi bóng tối, và cả ba đều là "có ánh sáng thật trên người họ":
+//   - nằm trong nón đèn của bạn (litByTorch),
+//   - đứng trong vùng sáng pho tượng để lại (S.lightZones),
+//   - hoặc ở sát bên bạn — vũng sáng dưới chân bạn cũng là ánh sáng, và mất dấu người đang
+//     đứng cạnh khuỷu tay mình thì đó là bực chứ không phải sợ.
+// GỤC thì luôn hiện: một cái xác không tìm ra là một cái xác không đỡ dậy được, và cả cơ chế
+// cứu đồng đội chết theo. Đó là chỗ luật này DỪNG lại.
+const MATE_HIEN_R  = 2.3*TILE;    // sát thế này thì thấy dù không rọi
+const MATE_MO_T    = 0.22;        // mờ vào / hiện ra trong ngần này giây, không bật tắt phựt
+function mateSang(a){
+  if (a.down) return true;
+  if (litByTorch(a.x, a.y)) return true;
+  const p = S.player;
+  if (p && Math.hypot(a.x-p.x, a.y-p.y) < MATE_HIEN_R) return true;
+  for (const z of S.lightZones)
+    if (Math.hypot(a.x-z.x, a.y-z.y) < z.r && losClear(z.x, z.y, a.x, a.y)) return true;
+  return false;
+}
 function drawMates(c){
   if (S.shopMode || !S.mates) return;
   for (const a of S.mates){
     if (a.down) continue;
+    // `a.hien` chạy trong stepMates, chỗ có `dt` thật. Ở đây chỉ đọc.
+    if (a.hien != null && a.hien < 0.02) continue;
     if (a.bubble && a.bubbleT > 0){
       // Drawn in the WORLD pass, so a colleague chattering two rooms away in the dark is a sound
       // you do not get to read. You have to be near them, or have a light on them.
@@ -8745,7 +8795,7 @@ function drawMates(c){
     c.save(); c.translate(a.x, a.y);
     // Đồng đội cũng bấm Tàng Hình được (xem mateCast bên Biệt Đội), nên họ cũng phải mờ đi —
     // và mờ sâu hơn bạn, vì bạn không cần lái họ.
-    const moA = alphaTangHinh(a, INVIS_DAY_M);
+    const moA = alphaTangHinh(a, INVIS_DAY_M) * (a.hien == null ? 1 : a.hien);
     const a0m = c.globalAlpha;
     if (moA < 1) c.globalAlpha = a0m * moA;
     c.fillStyle = 'rgba(0,0,0,0.45)';
@@ -9995,7 +10045,12 @@ function cone(c,p,r,half,alpha,rgb){
 // that array is what makes "immune to everything" true by construction rather than by a flag every
 // damage site has to remember to check.
 const ANGEL_EVERY    = [30, 60];   // seconds between visits
-const ANGEL_SETTLE   = 3;          // it just stands there first; nothing you do counts yet
+// CÚ HIỆN HÌNH kéo dài ngần này, và đó là một đoạn ANIM chứ không phải một khoảng ân huệ.
+//
+// Bản cũ có `ANGEL_SETTLE = 3`: ba giây đầu "không có gì bạn làm được tính". Chủ dự án bỏ luật
+// ấy — "lúc xuất hiện mà bị thấy là countdown liền". Nên ba giây kia biến mất hẳn: đồng hồ
+// chạy từ khoảnh khắc có người NHÌN THẤY nó, kể cả khi nó còn đang hiện hình dở.
+const ANGEL_ARRIVE   = 1.15;       // cú hiện hình dài bao lâu (chỉ là hình, không phải ân huệ)
 const ANGEL_CHARGE   = 5;          // seconds of torch on it, to fill
 const ANGEL_DRAIN    = 6;          // seconds for a full charge to bleed back out
 const ANGEL_PATIENCE = 6;          // empty, and unlit for this long, and it comes for you
@@ -10003,7 +10058,33 @@ const ANGEL_LIGHT_T  = 30;         // how long the light it leaves behind burns
 const ANGEL_LIGHT_R  = 7*TILE;
 const ANGEL_DMG      = 30;         // out of 100
 const ANGEL_PUNISH   = 6;          // seconds of no torch and heavy legs afterwards
-const ANGEL_NEAR     = [3.5, 5.5]; // how far in front of you it lands, in tiles
+const ANGEL_NEAR     = [3.2, 4.8]; // how far in front of you it lands, in tiles
+// CHỖ ĐỨNG PHẢI CHÍNH GIỮA TẦM MẮT. Chủ dự án: "xuất hiện chuẩn xác hơn để force phải nhìn".
+// Bản cũ bắn một góc ngẫu nhiên trong ±0,45 rad rồi lấy chỗ đầu tiên đứng được — nên nó hay
+// rơi ra rìa nón đèn, tức là hiện ra ở chỗ mắt người chơi không đặt vào. Nay thử theo VÒNG:
+// hẹp trước, nới dần, và trong mỗi vòng lấy chỗ LỆCH ÍT NHẤT so với hướng đang nhìn.
+const ANGEL_ARC      = [0.22, 0.48, 0.90, Math.PI];
+const ANGEL_PERIPH   = 3.2*TILE;   // sát thế này thì thấy kể cả ngoài nón đèn
+// ĐỒNG ĐỘI CŨNG PHẢI NHÌN. "force phải nhìn, kể cả bot" — bot trong tầm này mà có đường nhìn
+// thì đứng khựng lại và quay mặt về phía nó, và trong lúc đứng nhìn thì đồng hồ cào bị GIỮ.
+//
+// Nhưng bot CHỚP MẮT. Nếu không thì một con bot đứng nhìn là khoá cứng cả cảnh: đồng hồ không
+// bao giờ chạy hết, pho tượng không bao giờ đi, ván treo ở đó. Mỗi con chịu được một khoảng
+// riêng rồi rời mắt một nhịp — đủ để mua thời gian cho người chơi, không đủ để thay người chơi.
+const ANGEL_BOT_R    = 9*TILE;
+const ANGEL_BOT_HOLD = [2.8, 4.6]; // MỘT con bot nhìn được bao lâu trước khi chớp mắt
+const ANGEL_BOT_BLINK= 1.35;       // và rời mắt bao lâu
+// TRẦN CHUNG CỦA CẢ TỔ, và không có nó thì cơ chế này khoá cứng ván chơi.
+//
+// Bẫy đã sập ngay ở bài test đầu tiên: một con bot chớp mắt thì con kế bên vẫn đang nhìn, nên
+// với ba con bot đứng cùng phòng thì đồng hồ KHÔNG BAO GIỜ chạy hết — pho tượng đứng đó vĩnh
+// viễn, người chơi đi làm việc khác, và cái sự kiện đáng sợ nhất căn nhà thành một món đồ trang
+// trí. Chớp mắt lệch pha nhau không cứu được chuyện đó, chỉ làm nó khó thấy hơn.
+//
+// Nên cả tổ CHUNG một quỹ: giữ hộ được ngần này giây cho mỗi lần nó ghé, hết quỹ là cả tổ rời
+// mắt và từ đó chỉ còn người chơi giữ được. Đó cũng là câu đúng về mặt luật chơi: đồng đội mua
+// thời gian cho bạn, đồng đội không chơi thay bạn.
+const ANGEL_BOT_TOTAL= 6;          // cả tổ cộng lại giữ hộ được ngần này giây mỗi lần nó ghé
 
 function angelNextIn(){ return mix(ANGEL_EVERY[0], ANGEL_EVERY[1], Math.random()); }
 
@@ -10019,28 +10100,108 @@ function litByTorch(x, y){
   return losClear(p.x, p.y, x, y);
 }
 
+// Nó đứng được ở đây không? Một chỗ đứng hợp lệ là một ô SÀN, không đè vào tường hay đồ, và
+// có đường nhìn thẳng từ chỗ người chơi tới nó — không có đường nhìn thì cả cú hiện hình là
+// một chuyện xảy ra sau lưng, tức là không xảy ra.
+function angelChoDung(p, ang, d){
+  const x = p.x + Math.cos(ang)*d, y = p.y + Math.sin(ang)*d;
+  const gx = (x/TILE)|0, gy = (y/TILE)|0;
+  if (gx < 1 || gy < 1 || gx >= MW-1 || gy >= MH-1) return null;
+  if (S.grid[gy*MW+gx] !== FLOOR) return null;
+  if (hitsSolid(x, y, 12)) return null;
+  if (!losClear(p.x, p.y, x, y)) return null;
+  return { x, y };
+}
 function spawnAngel(){
   const p = spawnAnchor();      // xem chú thích ở spawnAnchor()
-  // In front of you, and IN VIEW: the whole effect is that it was not there a moment ago.
-  for (let i = 0; i < 60; i++){
-    const wide = i < 40 ? 0.9 : Math.PI;          // widen the arc if you are facing a wall
-    const a = p.dir + (Math.random()-0.5)*wide;
-    const d = mix(ANGEL_NEAR[0], ANGEL_NEAR[1], Math.random()) * TILE;
-    const x = p.x + Math.cos(a)*d, y = p.y + Math.sin(a)*d;
-    const gx = (x/TILE)|0, gy = (y/TILE)|0;
-    if (gx < 1 || gy < 1 || gx >= MW-1 || gy >= MH-1) continue;
-    if (S.grid[gy*MW+gx] !== FLOOR) continue;
-    if (hitsSolid(x, y, 12)) continue;
-    if (!losClear(p.x, p.y, x, y)) continue;
-    S.angel = { x, y, t:0, charge:0, marked:false, armed:false, unlitT:0, phase:'stand', rise:0,
+  // CHÍNH GIỮA TẦM MẮT TRƯỚC. Thử vòng hẹp nhất, và trong vòng ấy lấy chỗ lệch ít nhất so với
+  // hướng đang nhìn; hết chỗ mới nới ra vòng sau. Vòng cuối là cả 360° — thà nó hiện sau lưng
+  // còn hơn không hiện, vì cái đồng hồ thăm viếng đã chạy hết rồi.
+  for (let ai = 0; ai < ANGEL_ARC.length; ai++){
+    const arc = ANGEL_ARC[ai];
+    let tot = null, totLech = 9;
+    // Vòng hẹp được thử NHIỀU hơn hẳn: mỗi lần rơi xuống vòng sau là một lần nó hiện ra lệch
+    // khỏi tâm mắt, nên bỏ công tìm ở vòng hẹp rẻ hơn nhiều so với chấp nhận một chỗ lệch.
+    const soLan = ai === 0 ? 90 : ai === 1 ? 50 : 26;
+    for (let i = 0; i < soLan; i++){
+      const lech = (Math.random()*2-1) * arc;
+      const d = mix(ANGEL_NEAR[0], ANGEL_NEAR[1], Math.random()) * TILE;
+      const c = angelChoDung(p, p.dir + lech, d);
+      if (!c) continue;
+      if (Math.abs(lech) < totLech){ tot = c; totLech = Math.abs(lech); }
+      if (totLech < 0.06) break;                   // đủ thẳng mặt rồi, khỏi tìm nữa
+    }
+    if (!tot) continue;
+    S.angel = { x: tot.x, y: tot.y, t:0, charge:0, marked:false, armed:false, unlitT:0,
+                phase:'stand', rise:0,
+                arrive: 0,                          // 0..ANGEL_ARRIVE: cú hiện hình
+                seenBy: null,                       // 'ban' | 'bot' — ai đang nhìn nó
+                banDaThay: false,                   // người chơi đã từng nhìn thấy nó chưa
+                botHold: 0, botHet: false,          // quỹ giữ-hộ của cả tổ, xem ANGEL_BOT_TOTAL
+                moc: { x:p.x, y:p.y, dir:p.dir, laBan: p === S.player },
+                nanNhan: null,                      // con bot đang trợn mắt nhìn nó
+                tick: 99,                           // giây cuối vừa kêu, để không kêu hai lần
                 spotT: SPOT_FX_T,                   // the same "there it is" ring a body gets
-                face: Math.atan2(p.y-y, p.x-x) };   // it is looking at you
-    S.angelFx = { x, y, t:0 };
-    fxShake(5); FX.spotT = 1; SFX.warp();
+                face: Math.atan2(p.y-tot.y, p.x-tot.x) };   // it is looking at you
+    S.angelFx = { x: tot.x, y: tot.y, t:0 };
+    // CÚ HIỆN HÌNH. Ba lớp, và không lớp nào là "một vụ nổ": màn hình giật rồi TỐI đi một
+    // nhịp, tiếng nuốt cả nhạc nền, và cái vòng đỏ "nó kia kìa" nở ra sau cùng.
+    fxShake(9); fxFlash(0.30, '24,10,34'); FX.spotT = 1; SFX.appear();
     return true;
   }
   S.angelTimer = 3;                                // nowhere to stand; try again shortly
   return false;
+}
+// AI ĐANG NHÌN NÓ. Trả về 'ban' (người chơi), 'bot' (một đồng đội đang trợn mắt), hoặc null.
+//
+// Chủ dự án, 2026-09-09: "lúc xuất hiện mà bị thấy là countdown liền ... force phải nhìn, kể
+// cả bot". Nên "bị thấy" ở đây không còn là "bị rọi đèn": người chơi thấy nó khi nó nằm trong
+// nón đèn, HOẶC khi nó đứng sát tới mức không nhìn cũng thấy (ANGEL_PERIPH).
+//
+// Người chơi được ưu tiên trong giá trị trả về vì chỉ ánh đèn của người chơi mới NẠP được nó;
+// bot chỉ GIỮ được đồng hồ chứ không đuổi được nó đi.
+function angelBiThay(a){
+  const p = S.player;
+  if (p && !p.down){
+    if (litByTorch(a.x, a.y)) return 'ban';
+    const d = Math.hypot(a.x-p.x, a.y-p.y);
+    if (d < ANGEL_PERIPH && losClear(p.x, p.y, a.x, a.y)) return 'ban';
+  }
+  if ((a.botHold || 0) >= ANGEL_BOT_TOTAL) return null;   // cả tổ hết dám nhìn
+  for (const m of (S.mates || [])){
+    if (m.down || (m.blinkT || 0) > 0) continue;
+    if (Math.hypot(a.x-m.x, a.y-m.y) > ANGEL_BOT_R) continue;
+    if (!losClear(m.x, m.y, a.x, a.y)) continue;
+    a.nanNhan = m;                 // ai đang trợn mắt: nếu người chơi chưa từng thấy nó, nó cào con này
+    return 'bot';
+  }
+  return null;
+}
+// ĐỒNG ĐỘI ĐỨNG NHÌN. Gọi từ stepMates, trả true nghĩa là "con này đang bận trợn mắt, đừng
+// cho nó đi đâu cả lượt này".
+//
+// Con quái có chân vẫn ĐÈ LÊN luật này: đứng như trời trồng trong lúc bị cắn thì không phải
+// sợ, đó là chết vì một cái luật hình ảnh.
+function angelStare(a, dt){
+  const an = S.angel;
+  a.blinkT = Math.max(0, (a.blinkT || 0) - dt);
+  if (!an || an.phase !== 'stand'){ a.stareT = 0; return false; }
+  if ((an.botHold || 0) >= ANGEL_BOT_TOTAL){ a.stareT = 0; return false; }
+  if (Math.hypot(an.x-a.x, an.y-a.y) > ANGEL_BOT_R) { a.stareT = 0; return false; }
+  if (!losClear(a.x, a.y, an.x, an.y)) { a.stareT = 0; return false; }
+  const th = mateThreat(a);
+  if (th && th.d < MATE_FLEE_R){ a.stareT = 0; return false; }
+  if (a.blinkT > 0) return false;                  // vừa chớp mắt: quay đi làm việc tiếp
+  a.dir = Math.atan2(an.y-a.y, an.x-a.x);          // quay mặt về phía nó
+  a.stareT = (a.stareT || 0) + dt;
+  if (!a.stareMax) a.stareMax = mix(ANGEL_BOT_HOLD[0], ANGEL_BOT_HOLD[1], Math.random());
+  if (a.stareT >= a.stareMax){
+    a.stareT = 0;
+    a.stareMax = mix(ANGEL_BOT_HOLD[0], ANGEL_BOT_HOLD[1], Math.random());
+    a.blinkT = ANGEL_BOT_BLINK;
+    mateSay(a, 'Tôi… phải chớp mắt.');
+  }
+  return true;
 }
 
 function angelRise(a){
@@ -10068,20 +10229,39 @@ function angelRise(a){
   toast('Nó no ánh sáng rồi — bay đi, để lại một vùng sáng.');
 }
 
+// NÓ CÀO AI? Người đã NHÌN THẤY nó, không phải người đang cầm tay cầm.
+//
+// Bản cũ luôn cào người chơi. Với luật mới thì đó là một cái bẫy: pho tượng mọc quanh CẢ TỔ
+// (xem spawnAnchor), nên nó có thể hiện ra trước mặt Tổ 2 ở phòng bên, đồng hồ chạy vì con bot
+// ấy nhìn thấy nó, con bot chớp mắt — rồi người chơi ăn ba mươi máu cho một chuyện họ chưa
+// từng thấy. Đúng cái sai mà bản 2026-08-22 đã sửa một lần, chỉ là từ cửa khác đi vào.
+//
+// Nên: người chơi đã thấy nó thì nó tới tìm người chơi. Chưa thấy lần nào thì nó cào con bot
+// đang trợn mắt nhìn nó — và người chơi nghe thấy tiếng ấy ở phòng bên, đó mới là thứ đáng sợ.
 function angelClaw(a){
   const p = S.player;
-  // One step, one swipe, gone. It does not chase and it does not linger.
-  a.x = p.x + Math.cos(p.dir)*10; a.y = p.y + Math.sin(p.dir)*10;
+  const nan = a.banDaThay ? p
+            : (a.nanNhan && !a.nanNhan.down ? a.nanNhan : p);
+  a.x = nan.x + Math.cos(nan.dir)*10; a.y = nan.y + Math.sin(nan.dir)*10;
   S.angelFx = { x:a.x, y:a.y, t:0 };
-  hurtPlayer(ANGEL_DMG, 'angel', a.x, a.y);
-  p.blindT = ANGEL_PUNISH;
-  p.slowT  = ANGEL_PUNISH;
-  fxShake(13); fxFlash(0.5, '180,40,60');
+  if (nan === p){
+    hurtPlayer(ANGEL_DMG, 'angel', a.x, a.y);
+    p.blindT = ANGEL_PUNISH;
+    p.slowT  = ANGEL_PUNISH;
+    fxShake(13); fxFlash(0.5, '180,40,60');
+    toast('Nó cào một phát rồi biến mất. Đèn tắt ' + ANGEL_PUNISH + ' giây.');
+  } else {
+    hurtActor(nan, ANGEL_DMG, 'angel', a.x, a.y);
+    nan.blindT = ANGEL_PUNISH;
+    nan.slowT  = ANGEL_PUNISH;
+    fxShake(7);
+    mateSay(nan, 'AAAA—', true);
+    toast(nan.name + ' vừa hét lên ở đâu đó trong nhà.');
+  }
   SFX.screech();
   S.angel = null;
   S.angelTimer = angelNextIn();
   S.angelGone = true;
-  toast('Nó cào một phát rồi biến mất. Đèn tắt ' + ANGEL_PUNISH + ' giây.');
 }
 
 function stepAngel(dt){
@@ -10104,6 +10284,7 @@ function stepAngel(dt){
   }
   const a = S.angel;
   a.t += dt;
+  a.arrive = Math.min(ANGEL_ARRIVE, (a.arrive || 0) + dt);
   a.spotT = Math.max(0, (a.spotT || 0) - dt);
   if (a.phase === 'rise'){
     a.rise += dt;
@@ -10111,36 +10292,56 @@ function stepAngel(dt){
     return;
   }
   a.face = Math.atan2(S.player.y-a.y, S.player.x-a.x);   // always looking at you
-  if (a.t < ANGEL_SETTLE) return;                        // the grace: it is only standing there
 
-  const lit = litByTorch(a.x, a.y);
+  const nhin = angelBiThay(a);                           // 'ban' | 'bot' | null
+  a.seenBy = nhin;
+  if (nhin === 'ban') a.banDaThay = true;
+  const lit = nhin === 'ban' && litByTorch(a.x, a.y);    // chỉ đèn NGƯỜI CHƠI mới nạp được nó
 
-  // It stands there. Indefinitely. The clock that ends in a swipe does not start until the player
-  // has PUT A TORCH ON IT once — after that, and only after that, darkness counts against them.
-  // WHY: before this the timer started on its own three seconds after it appeared, so a thing that
-  // teleported in behind you clawed you for a mistake you were never shown. Now the punishment is
-  // only ever for looking away from something you had already looked at, which is a decision the
-  // player made rather than one the spawn made for them.
-  // ROOT-CAUSE: the patience clock was keyed to time-since-spawn instead of to the interaction
-  // that gives the player the information the clock is about.
-  // SEE: owner feedback 2026-08-22 — "cho nó xuất hiện xong rồi đứng luôn ở đó cho tới khi có
-  // người rọi đèn vào thì nó mới đếm cái thời gian bị tối".
+  // ĐỒNG HỒ CHẠY TỪ LÚC BỊ THẤY, không phải từ lúc bị rọi đèn.
+  //
+  // Bản 2026-08-22 khoá đồng hồ lại cho tới khi người chơi chủ động rọi đèn vào nó, vì lúc ấy
+  // nó hay hiện ra sau lưng rồi cào người ta vì một chuyện họ chưa từng được thấy. Cú sửa hôm
+  // nay tấn công cùng vấn đề đó từ đầu kia và mạnh hơn: nó KHÔNG hiện sau lưng nữa
+  // (`ANGEL_ARC` bắt nó đứng chính giữa tầm mắt), nên "bị thấy" giờ là một chuyện chắc chắn
+  // xảy ra chứ không phải một chuyện may rủi — và một khi đã thấy thì đồng hồ chạy ngay.
+  // SEE: chủ dự án 2026-09-09 — "lúc xuất hiện mà bị thấy là countdown liền".
   if (!a.armed){
-    if (!lit) return;
+    if (!nhin) return;
     a.armed = true;
     a.marked = true;
-    toast('Nó vừa nhìn thấy bạn. Giờ nó nhớ mặt — đừng rời đèn khỏi nó.');
+    a.unlitT = 0;
+    SFX.sting();
+    toast(nhin === 'bot' ? 'Đồng đội nhìn thấy nó. Đồng hồ chạy rồi — họ giữ được vài giây thôi.'
+                         : 'Nó nhìn lại bạn. Rọi đèn cho no ánh sáng, hoặc nó tới.');
   }
 
   if (lit){
     a.unlitT = 0;
     a.charge = Math.min(1, a.charge + dt/ANGEL_CHARGE);
     if (a.charge >= 1) angelRise(a);
-  } else {
-    a.unlitT += dt;
-    a.charge = Math.max(0, a.charge - dt/ANGEL_DRAIN);
-    if (a.charge <= 0 && a.unlitT >= ANGEL_PATIENCE) angelClaw(a);
+    return;
   }
+  // Bot đang nhìn thì GIỮ đồng hồ, không lùi nó. Bot mua thời gian, bot không cứu được ai:
+  // chỉ ánh đèn của người chơi mới nạp được pho tượng, mà nạp đầy mới là đường thoát.
+  if (nhin === 'bot'){
+    a.charge = Math.max(0, a.charge - dt/(ANGEL_DRAIN*2.5));
+    a.botHold = (a.botHold || 0) + dt;
+    if (a.botHold >= ANGEL_BOT_TOTAL && !a.botHet){
+      a.botHet = true;
+      for (const m of (S.mates || [])) if (!m.down){ m.blinkT = ANGEL_BOT_BLINK; m.stareT = 0; }
+      mateSay(S.mates.find(m => !m.down) || S.mates[0], 'Tôi không nhìn nổi nữa…', true);
+      toast('Cả tổ rời mắt khỏi nó. Từ giờ chỉ có bạn giữ được nó.');
+    }
+    return;
+  }
+  a.unlitT += dt;
+  a.charge = Math.max(0, a.charge - dt/ANGEL_DRAIN);
+  // Ba giây cuối thì đếm THÀNH TIẾNG. Một cái vòng vơi dần trên đầu nó là thứ phải nhìn mới
+  // thấy, mà đúng lúc ấy người chơi đang nhìn chỗ khác — đó là cả lý do đồng hồ đang chạy.
+  const con = Math.ceil(ANGEL_PATIENCE - a.unlitT);
+  if (con <= 3 && con >= 1 && con !== a.tick){ a.tick = con; SFX.dread(1 - con/4); }
+  if (a.charge <= 0 && a.unlitT >= ANGEL_PATIENCE) angelClaw(a);
 }
 
 // A statue, brightening as it fills. Drawn in the world pass so the room's own darkness applies to
@@ -10153,9 +10354,56 @@ function drawAngel(c){
   const alpha = 1 - lift;
   if (alpha <= 0.01) return;
 
+  // CÚ HIỆN HÌNH, lớp tối. Ba nhịp, và không nhịp nào là một vụ nổ — vụ nổ là thứ vui mắt,
+  // còn thứ này phải làm người ta không muốn nhìn:
+  //   0,00–0,40  cái sàn THỦNG. Một vũng đen loang ra cùng mấy vết nứt chạy ra ngoài.
+  //   0,15–0,80  một bóng đen dựng lên từ vũng ấy, RUNG — mỗi khung một chỗ khác nhau vài
+  //              điểm ảnh, đúng kiểu giật hình của phim kinh dị.
+  //   0,55–1,15  bóng tan ra thành pho tượng đá.
+  // Phần SÁNG của cú này (hai con mắt, quầng tím, mảnh vỡ) nằm ở lớp cộng sáng — xem
+  // drawAngelFx — vì trong một căn phòng tối thì lớp thế giới không sáng lên được.
+  const arr = clamp((a.arrive || 0) / ANGEL_ARRIVE, 0, 1);
+  if (arr < 1){
+    const lo = clamp(arr/0.40, 0, 1), ra = clamp((arr-0.55)/0.45, 0, 1);
+    c.save();
+    c.translate(a.x, a.y);
+    // vũng thủng: nở nhanh rồi khép lại
+    const rv = 26 * (lo < 0.75 ? lo/0.75 : 1) * (1 - ra*0.8);
+    if (rv > 0.5){
+      const g = c.createRadialGradient(0, 6, 0, 0, 6, rv);
+      g.addColorStop(0,   'rgba(0,0,0,0.92)');
+      g.addColorStop(0.7, 'rgba(6,2,10,0.72)');
+      g.addColorStop(1,   'rgba(6,2,10,0)');
+      c.fillStyle = g;
+      c.beginPath(); c.ellipse(0, 6, rv, rv*0.44, 0, 0, Math.PI*2); c.fill();
+      // vết nứt — góc cố định theo toạ độ chỗ đứng, nên nó không nhảy múa mỗi khung
+      c.strokeStyle = `rgba(0,0,0,${0.7*(1-ra)})`; c.lineWidth = 1.3;
+      for (let i = 0; i < 7; i++){
+        const ang = (a.x*0.7 + a.y*1.3 + i*0.897) % (Math.PI*2);
+        c.beginPath(); c.moveTo(Math.cos(ang)*rv*0.3, 6 + Math.sin(ang)*rv*0.13);
+        c.lineTo(Math.cos(ang)*rv*1.35, 6 + Math.sin(ang)*rv*0.6); c.stroke();
+      }
+    }
+    c.restore();
+  }
+
   c.save();
   c.translate(a.x, a.y - lift*46);
   c.globalAlpha = alpha;
+  // GIẬT HÌNH. Chỉ trong lúc hiện, và chỉ vài điểm ảnh: dịch nhiều hơn thì nó thành một thứ
+  // đang nhảy, mà cái đáng sợ là một thứ ĐỨNG YÊN nhưng mỗi lần chớp mắt lại khác đi một tí.
+  if (arr < 0.85){
+    const j = (1 - arr/0.85) * 2.6;
+    c.translate((Math.random()-0.5)*j, (Math.random()-0.5)*j*0.6);
+  }
+  // Chưa dựng xong thì chưa có gì đứng đó cả.
+  if (arr < 0.12){ c.restore(); drawAngelFx(c, a, arr); return; }
+  // Bóng đen dựng lên trước, tượng hiện ra sau — hai lớp chồng nhau ở quãng giữa.
+  const hienRa = clamp((arr - 0.55)/0.45, 0, 1);
+  const dungLen = clamp((arr - 0.12)/0.5, 0, 1);
+  c.globalAlpha = alpha * (0.35 + 0.65*hienRa);
+  c.save();
+  c.scale(1, 0.35 + 0.65*ease(dungLen));      // mọc lên từ vũng thủng
 
   c.fillStyle = 'rgba(0,0,0,0.45)';
   c.beginPath(); c.ellipse(0, 13, 13, 5, 0, 0, Math.PI*2); c.fill();
@@ -10191,32 +10439,86 @@ function drawAngel(c){
   c.strokeStyle = `rgba(30,28,26,${0.55*(1-k)})`; c.lineWidth = 1.2; c.stroke();
   }
 
+  // BÓNG ĐEN đè lên tượng trong lúc còn đang hiện: cùng một hình, tô đen, mờ dần đi.
+  if (hienRa < 1){
+    c.save();
+    c.globalAlpha = alpha * (1 - hienRa) * 0.95;
+    c.fillStyle = '#05030a';
+    c.beginPath();
+    c.moveTo(-9, 13); c.lineTo(-5, -7); c.lineTo(5, -7); c.lineTo(9, 13);
+    c.closePath(); c.fill();
+    c.beginPath(); c.arc(0, -11, 6.2, 0, Math.PI*2); c.fill();
+    c.restore();
+  }
+  c.restore();          // hết phần mọc lên
+
   // the charge arc above its head — the mechanic has to be legible or it is just a random mauling
-  if (a.t >= ANGEL_SETTLE && k > 0.001){
+  if (k > 0.001){
     c.beginPath();
     c.strokeStyle = `rgba(255,240,190,0.95)`; c.lineWidth = 2.4; c.lineCap = 'round';
     c.arc(0, -10, 12, -Math.PI/2, -Math.PI/2 + Math.PI*2*k);
     c.stroke(); c.lineCap = 'butt';
   }
   c.restore();
+  drawAngelFx(c, a, arr);
+}
 
-  // the teleport burst — Enderman's trick: it was not there, and then it was
+// PHẦN SÁNG của pho tượng, vẽ trong toạ độ THẾ GIỚI nhưng bằng phép CỘNG — nên trong một căn
+// phòng tối nó vẫn sáng, y như cái vòng đỏ của con quái.
+//
+// Ba thứ ở đây, và cả ba đều nói một câu mà lớp tối không nói được:
+//   quầng tím  — "chỗ này vừa có chuyện",
+//   HAI CON MẮT — "nó đang nhìn bạn", và đây là thứ ăn tiền nhất của cả cú hiện hình,
+//   mảnh vỡ    — cái vòng cũ, giữ lại nhưng kéo dài và thưa ra cho bớt vui mắt.
+function drawAngelFx(c, a, arr){
+  const mo = c.globalCompositeOperation;
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  const dang = arr < 1;
+  if (dang){
+    const q = Math.sin(arr*Math.PI);                       // nở rồi tắt
+    const g = c.createRadialGradient(a.x, a.y, 2, a.x, a.y, 60);
+    g.addColorStop(0, `rgba(120,60,190,${0.30*q})`);
+    g.addColorStop(1, 'rgba(120,60,190,0)');
+    c.fillStyle = g; c.fillRect(a.x-60, a.y-60, 120, 120);
+  }
+  // HAI CON MẮT. Sáng lên ở nhịp cuối của cú hiện hình rồi ở lại — âm ỉ khi nó đang bị nhìn,
+  // và đỏ rực dần lên theo đồng hồ khi không ai nhìn nó nữa.
+  if (arr > 0.5 && a.phase === 'stand'){
+    const vao = clamp((arr-0.5)/0.35, 0, 1);
+    const gap = a.armed ? clamp(a.unlitT/ANGEL_PATIENCE, 0, 1) : 0;
+    const nhay = a.armed && !a.seenBy ? 0.72 + 0.28*Math.sin(S.time*(6 + gap*10)) : 0.85;
+    const R = a.armed && !a.seenBy ? 255 : 226;
+    const G = Math.round(mix(200, 40, gap)), B = Math.round(mix(255, 40, gap));
+    const ex = Math.cos(a.face), ey = Math.sin(a.face);
+    const nx = -ey, ny = ex;
+    for (const sg of [-1, 1]){
+      const x = a.x + ex*3.4 + nx*sg*2.3, y = a.y - 11 + ey*3.4 + ny*sg*2.3;
+      const g2 = c.createRadialGradient(x, y, 0, x, y, 7 + gap*5);
+      g2.addColorStop(0, `rgba(${R},${G},${B},${0.95*vao*nhay})`);
+      g2.addColorStop(1, `rgba(${R},${G},${B},0)`);
+      c.fillStyle = g2; c.fillRect(x-12, y-12, 24, 24);
+      c.fillStyle = `rgba(255,240,240,${0.85*vao*nhay})`;
+      c.beginPath(); c.arc(x, y, 1.15, 0, Math.PI*2); c.fill();
+    }
+  }
+  // mảnh vỡ của cú hiện hình — cái vòng cũ, thưa ra và chậm lại
   if (S.angelFx){
     const t = S.angelFx.t / 0.85;
-    c.save();
-    c.globalAlpha = 1 - t;
-    c.strokeStyle = 'rgba(186,140,240,0.9)'; c.lineWidth = 2;
-    c.beginPath(); c.arc(S.angelFx.x, S.angelFx.y, 8 + t*46, 0, Math.PI*2); c.stroke();
-    c.beginPath(); c.arc(S.angelFx.x, S.angelFx.y, 4 + t*24, 0, Math.PI*2); c.stroke();
-    for (let i = 0; i < 9; i++){
-      const ang = i*0.698 + t*1.6, r0 = 6 + t*34;
+    c.globalAlpha = (1 - t) * 0.9;
+    c.strokeStyle = 'rgba(150,96,220,0.85)'; c.lineWidth = 1.6;
+    c.beginPath(); c.arc(S.angelFx.x, S.angelFx.y, 6 + t*54, 0, Math.PI*2); c.stroke();
+    for (let i = 0; i < 6; i++){
+      const ang = i*1.047 + t*0.9, r0 = 8 + t*46;
       c.beginPath();
-      c.moveTo(S.angelFx.x + Math.cos(ang)*r0, S.angelFx.y + Math.sin(ang)*r0);
-      c.lineTo(S.angelFx.x + Math.cos(ang)*(r0+9), S.angelFx.y + Math.sin(ang)*(r0+9));
+      c.moveTo(S.angelFx.x + Math.cos(ang)*r0, S.angelFx.y + Math.sin(ang)*r0*0.72);
+      c.lineTo(S.angelFx.x + Math.cos(ang)*(r0+13), S.angelFx.y + Math.sin(ang)*(r0+13)*0.72);
       c.stroke();
     }
-    c.restore();
+    c.globalAlpha = 1;
   }
+  c.restore();
+  c.globalCompositeOperation = mo;
 }
 
 // ============================================================ highlights
@@ -10527,7 +10829,7 @@ function angelDanger(){
   if (!a || a.phase !== 'stand' || !p) return null;
   if (!losClear(p.x, p.y, a.x, a.y)) return null;
   return { marked: true,
-           hot: a.t < ANGEL_SETTLE || (a.armed && !litByTorch(a.x, a.y)),
+           hot: !a.armed || (a.armed && !a.seenBy),
            spotT: a.spotT || 0, t: a.t };
 }
 
@@ -10554,6 +10856,7 @@ function drawEventFoeGlow(c){
              hot ? 0.70 + beat*0.3 : 0.40, hot ? 3.0 : 2.0);
     spotFx(c, an.x, an.y, an.spotT || 0);
     if (hot) alertMark(c, an.x, an.y - 6);
+    veDongHoTuong(c, an);
   }
   const mr = S.mirror, mm = mr && mr.m;
   if (mm && (inSight(mm.x, mm.y) || (mm.reveal || 0) > 0.02)){
@@ -10563,6 +10866,46 @@ function drawEventFoeGlow(c){
     spotFx(c, mm.x, mm.y, mm.spotT || 0);
     alertMark(c, mm.x, mm.y);
   }
+}
+
+// ĐỒNG HỒ ĐẾM NGƯỢC CỦA PHO TƯỢNG, một vòng trên đầu nó cộng số giây còn lại.
+//
+// Chủ dự án: "lúc xuất hiện mà bị thấy là countdown liền". Một cái đồng hồ chạy mà không hiện
+// ra thì với người chơi nó không tồn tại — họ chỉ thấy mình bị cào vì một chuyện không ai báo.
+// Nên nó phải ĐẾM ĐƯỢC, và phải nói rõ hai trạng thái khác nhau:
+//   trắng-xanh, ĐỨNG YÊN  — đang có người nhìn nó. Đồng hồ bị giữ, chưa mất gì.
+//   đỏ, VƠI DẦN + số giây — không ai nhìn nữa. Cái này kết thúc bằng một cú cào.
+// Vòng nạp (vàng, ở lớp thế giới) là chuyện khác và vẫn nằm chỗ cũ: nó là đường THOÁT.
+function veDongHoTuong(c, a){
+  if (!a.armed || a.phase !== 'stand') return;
+  const con = Math.max(0, ANGEL_PATIENCE - a.unlitT);
+  const k = clamp(con / ANGEL_PATIENCE, 0, 1);
+  const giu = !!a.seenBy;
+  const y = a.y - 26;
+  c.save();
+  c.lineCap = 'round';
+  c.strokeStyle = 'rgba(255,255,255,0.13)'; c.lineWidth = 3;
+  c.beginPath(); c.arc(a.x, y, 9, 0, Math.PI*2); c.stroke();
+  const col = giu ? '186,232,255' : `255,${Math.round(mix(40, 170, k))},${Math.round(mix(34, 90, k))}`;
+  c.strokeStyle = `rgba(${col},${giu ? 0.85 : 0.95})`;
+  c.lineWidth = giu ? 2.6 : 3.4;
+  c.beginPath(); c.arc(a.x, y, 9, -Math.PI/2, -Math.PI/2 + Math.PI*2*k); c.stroke();
+  c.lineCap = 'butt';
+  // Số giây chỉ hiện khi đồng hồ ĐANG CHẠY. Hiện cả lúc bị giữ thì con số đứng im, mà một con
+  // số đứng im đọc ra là một cái nhãn trang trí chứ không phải một cái đếm ngược.
+  if (!giu){
+    c.font = '900 11px ui-monospace, monospace'; c.textAlign = 'center';
+    c.fillStyle = `rgba(255,232,226,${0.75 + 0.25*Math.sin(S.time*9)})`;
+    c.fillText(String(Math.ceil(con)), a.x, y + 4);
+    c.textAlign = 'left';
+  } else if (a.seenBy === 'bot'){
+    // "Đồng đội đang giữ giùm" là một tin quan trọng và có hạn dùng: họ sắp chớp mắt.
+    c.font = '700 8px ui-monospace, monospace'; c.textAlign = 'center';
+    c.fillStyle = 'rgba(186,232,255,0.85)';
+    c.fillText('BOT GIỮ', a.x, y + 3);
+    c.textAlign = 'left';
+  }
+  c.restore();
 }
 
 // ============================================================ ĐƯỜNG CHỈ LỐI, VẼ TRÊN SÀN
@@ -12764,7 +13107,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260909g';
+const BUILD = '20260909j';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -13501,12 +13844,17 @@ function wikiHtml(){
       st: wikiStat('Máu', 'bắn không thủng') + wikiStat('Cào', ANGEL_DMG) +
           wikiStat('Ghé mỗi', ANGEL_EVERY[0] + '–' + ANGEL_EVERY[1] + 's') +
           wikiStat('Rọi đủ', ANGEL_CHARGE + 's') +
-          wikiStat('Hết kiên nhẫn', ANGEL_PATIENCE + 's') +
+          wikiStat('Đếm ngược', ANGEL_PATIENCE + 's') +
+          wikiStat('Cả tổ giữ hộ', ANGEL_BOT_TOTAL + 's') +
           wikiStat('Để lại sáng', ANGEL_LIGHT_T + 's'),
-      mo: 'CHIÊU: bắt bạn phải NHÌN nó. Không có máu, súng đạn vô nghĩa. Cách duy nhất là rọi ' +
-          'đèn pin vào cho đủ lâu — đủ thì nó đi, và để lại một vùng sáng cháy rất lâu, thứ ánh ' +
-          'sáng miễn phí duy nhất trong nhà. Rời đèn đi thì cái đã rọi được rỉ ngược ra hết; để ' +
-          'cạn quá lâu là nó tới cào bạn và lấy luôn cây đèn.' },
+      mo: 'CHIÊU: bắt bạn phải NHÌN nó. Không có máu, súng đạn vô nghĩa. Nó hiện ra CHÍNH GIỮA ' +
+          'tầm mắt một người trong tổ, và giây nào có người nhìn thấy nó thì đồng hồ chạy ngay ' +
+          'giây ấy — cái vòng trên đầu nó là số giây còn lại. Còn người nhìn thì đồng hồ đứng; ' +
+          'không ai nhìn nữa thì nó vơi, và cạn là nó cào. Đồng đội cũng giữ giùm được, nhưng ' +
+          'BOT CHỚP MẮT, và cả tổ cộng lại chỉ giữ hộ được ' + ANGEL_BOT_TOTAL + ' giây mỗi lần ' +
+          'nó ghé — họ mua cho bạn vài giây, không thay được bạn. Đường thoát duy nhất là ' +
+          'rọi đèn pin vào cho đủ lâu: đủ thì nó đi và để lại một vùng sáng cháy rất lâu, thứ ' +
+          'ánh sáng miễn phí duy nhất trong nhà.' },
     { k:'mirror', name:'Cặp gương', phu:'sự kiện — bắn cái GƯƠNG, không bắn cái bóng',
       // Cảnh 'guong' tự vẽ lấy nên không đụng tới def này, nhưng VÒNG VẺ thì có: nó tra
       // MONSTERS['mirror'] trước, không thấy gì thì `continue` và ô hình ở trống.
@@ -14720,7 +15068,7 @@ window.REPO = {
                  shakeA:FX.shakeA, flashTo:FX.flashTo,
                  pops:FX.pops.map(q=>q.text) }; },
   threat(){ return threatLevel(); },
-  spawnAngel, litByTorch, spawnAnchor, breakMirror,
+  spawnAngel, litByTorch, spawnAnchor, breakMirror, mateSang, angelStare,
   // tổ ba người
   crew, crewAlive, downActor, reviveFromPad, truckPatchUp, spawnCrew, viewer, cycleSpectate,
   CREW: { COUNT:MATE_COUNT, HP:MATE_HP, SPEED:MATE_SPEED, FLEE_R:MATE_FLEE_R,
@@ -14896,10 +15244,19 @@ window.REPO = {
   HL: { FOE:HL_FOE, HUNT:HL_HUNT, ASLEEP:HL_ASLEEP },
   angel(){ const a = S.angel;
            return a ? { x:a.x, y:a.y, t:a.t, charge:a.charge, marked:a.marked, armed:!!a.armed,
-                        unlitT:a.unlitT, phase:a.phase } : null; },
+                        unlitT:a.unlitT, phase:a.phase, arrive:a.arrive || 0,
+                        seenBy:a.seenBy || null, banDaThay:!!a.banDaThay,
+                        botHold:+(a.botHold || 0).toFixed(2), botHet:!!a.botHet,
+                        moc:a.moc || null,
+                        conLai: a.armed ? Math.max(0, ANGEL_PATIENCE - a.unlitT) : null } : null; },
+  angelBiThay(){ return S.angel ? angelBiThay(S.angel) : null; },
+  mateStare(){ return (S.mates || []).map(m => ({ id:m.id, stareT:+(m.stareT||0).toFixed(2),
+                                                  blinkT:+(m.blinkT||0).toFixed(2), dir:m.dir })); },
   lightZones(){ return S.lightZones.map(z => ({ x:z.x, y:z.y, r:z.r, t:z.t })); },
   angelTimer(){ return S.angelTimer; },
-  ANGEL: { EVERY:ANGEL_EVERY, SETTLE:ANGEL_SETTLE, CHARGE:ANGEL_CHARGE, DRAIN:ANGEL_DRAIN,
+  ANGEL: { EVERY:ANGEL_EVERY, ARRIVE:ANGEL_ARRIVE, CHARGE:ANGEL_CHARGE, DRAIN:ANGEL_DRAIN,
+           BOT_R:ANGEL_BOT_R, BOT_BLINK:ANGEL_BOT_BLINK, PERIPH:ANGEL_PERIPH,
+           BOT_HOLD:ANGEL_BOT_HOLD, BOT_TOTAL:ANGEL_BOT_TOTAL,
            PATIENCE:ANGEL_PATIENCE, LIGHT_T:ANGEL_LIGHT_T, DMG:ANGEL_DMG, PUNISH:ANGEL_PUNISH },
   inSight, highlighted(){
     const p = S.player;

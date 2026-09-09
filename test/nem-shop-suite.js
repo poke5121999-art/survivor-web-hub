@@ -5,6 +5,8 @@
  *   3. BA CHIẾC XE lấy từ Soul Knight — tám hướng mỗi chiếc, và góc phải khớp hướng.
  *   4. MẶT XÁC bên Biệt Đội — chân dung vẽ bằng charset thật, không phải emoji.
  *   5. CỬA HÀNG ĐỒ NGHỀ bên Biệt Đội — cùng luật, ví riêng.
+ *   6. PHO TƯỢNG — hiện giữa tầm mắt, thấy là đếm, và bot cũng phải nhìn (có hạn).
+ *   7. ĐỒNG MINH tàng hình khi không có đèn trên người.
  *
  * Chạy: node test/nem-shop-suite.js
  * Tách khỏi repo-suite.js vì repo-suite đã dài mười mấy phút, và hai thứ này là hai cơ chế
@@ -741,6 +743,204 @@ async function khoSquadSuite(b) {
   await ctx.close();
 }
 
+// =====================================================================
+// PHO TƯỢNG: HIỆN CHÍNH GIỮA TẦM MẮT, ĐỒNG HỒ CHẠY TỪ LÚC BỊ THẤY
+// Chủ dự án: "làm cho con thiên thần lúc xuất hiện mà bị thấy là countdown liền, xuất hiện
+// chuẩn xác hơn để force phải nhìn, kể cả bot".
+//
+// Ba vế, ba nhóm bài. Vế thứ ba là vế dễ hỏng nhất và cũng khó thấy nhất bằng mắt: bot phải
+// GIỮ được đồng hồ, nhưng phải giữ CÓ HẠN — một con bot giữ mãi là khoá cứng cả ván.
+async function tuongSuite(b) {
+  results.push('\n── pho tượng: hiện giữa tầm mắt, thấy là đếm, bot cũng phải nhìn ──');
+  const { ctx, p, errs } = await moGame(b);
+  check('vào được ca để đo pho tượng', await vaoCa(p));
+
+  // ---- 1. CHỖ ĐỨNG. Đo LỆCH so với hướng nhìn của chính cái mốc nó mọc quanh (spawnAnchor
+  // bốc ngẫu nhiên trong tổ, nên đo theo người chơi là đo nhầm người).
+  const cho = await p.evaluate(() => {
+    const S = REPO.S, out = [];
+    for (let i = 0; i < 40; i++) {
+      S.angel = null;
+      if (!REPO.spawnAngel() || !S.angel) continue;
+      const a = S.angel, m = a.moc;
+      let d = Math.atan2(a.y - m.y, a.x - m.x) - m.dir;
+      while (d > Math.PI) d -= Math.PI * 2;
+      while (d < -Math.PI) d += Math.PI * 2;
+      out.push({ lech: Math.abs(d), xa: Math.hypot(a.x - m.x, a.y - m.y) / REPO.TILE });
+    }
+    S.angel = null;
+    if (!out.length) return null;
+    return { n: out.length,
+             tb: +(out.reduce((s, o) => s + o.lech, 0) / out.length).toFixed(3),
+             max: +Math.max.apply(null, out.map(o => o.lech)).toFixed(3),
+             giua: out.filter(o => o.lech < 0.3).length,
+             xaMin: +Math.min.apply(null, out.map(o => o.xa)).toFixed(2),
+             xaMax: +Math.max.apply(null, out.map(o => o.xa)).toFixed(2) };
+  });
+  check('mọc được đủ nhiều lần để đo', !!cho && cho.n >= 30, cho ? cho.n + ' lần' : 'không mọc được');
+  // 0,25 rad ~ 14 độ. Bản cũ bắn ngẫu nhiên trong ±0,45 rad rồi lấy chỗ ĐẦU TIÊN đứng được,
+  // nên nó hay rơi ra rìa nón đèn — tức là hiện ra ở chỗ mắt người ta không đặt vào.
+  // Đo bằng PHẦN TRĂM chứ không bằng lần lệch nhất, và cố ý: căn nhà sinh ngẫu nhiên nên có
+  // thế đứng quay mặt vào tường, và lúc ấy spawnAngel BUỘC phải nới vòng ra chứ không được
+  // bỏ cuộc — thà nó hiện lệch còn hơn cái đồng hồ thăm viếng chạy hết mà không có gì mọc.
+  // Bản cũ bắn đều trong ±0,45 rad nên lệch trung bình ~0,22 và chỉ ~2/3 số lần nằm trong 0,3.
+  check('nó hiện ra CHÍNH GIỮA tầm mắt, không phải rìa nón đèn',
+    !!cho && cho.tb < 0.12 && cho.giua >= cho.n * 0.9,
+    cho ? 'lệch trung bình ' + cho.tb + ' rad · ' + cho.giua + '/' + cho.n +
+          ' lần trong 0,3 rad · xa nhất ' + cho.max : '—');
+  check('và đứng đúng tầm 3–5 ô, không dí vào mặt cũng không tít đằng xa',
+    !!cho && cho.xaMin >= 3.0 && cho.xaMax <= 5.2, cho ? cho.xaMin + '–' + cho.xaMax + ' ô' : '—');
+
+  // ---- 2. ĐỒNG HỒ. Bị thấy là chạy — không cần rọi đèn vào nữa.
+  const dh = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.mates.forEach(m => { m.down = true; });      // đo riêng người chơi
+    S.angel = null; S.angelTimer = 0;
+    REPO.spawnAngel();
+    const a = S.angel;
+    const truoc = { armed: a.armed, unlitT: a.unlitT };
+    S.player.dir = Math.atan2(a.y - S.player.y, a.x - S.player.x);
+    for (let i = 0; i < 20; i++) await new Promise(r => requestAnimationFrame(r));
+    const sau = REPO.angel();
+    // quay lưng: đồng hồ phải CHẠY
+    S.player.dir += Math.PI;
+    const u0 = REPO.angel().unlitT;
+    await new Promise(r => setTimeout(r, 800));
+    const t2 = REPO.angel();
+    const chay = t2 ? t2.unlitT - u0 : 0;
+    // quay lại nhìn: đồng hồ phải ĐỨNG
+    S.player.dir -= Math.PI;
+    await new Promise(r => setTimeout(r, 300));
+    const u1 = REPO.angel() ? REPO.angel().unlitT : 0;
+    await new Promise(r => setTimeout(r, 500));
+    const t3 = REPO.angel();
+    S.mates.forEach(m => { m.down = false; m.hp = m.hpMax || 80; });
+    return { truoc, armed: !!(sau && sau.armed), seenBy: sau && sau.seenBy,
+             conLai: sau && sau.conLai, chay: +chay.toFixed(2),
+             dung: t3 ? +(t3.unlitT - u1).toFixed(2) : null };
+  });
+  check('vừa mọc thì đồng hồ CHƯA chạy', dh.truoc.armed === false && dh.truoc.unlitT === 0,
+    JSON.stringify(dh.truoc));
+  check('bị người chơi THẤY là đồng hồ chạy ngay — không phải chờ rọi đèn',
+    dh.armed && dh.seenBy === 'ban', JSON.stringify({ armed: dh.armed, seenBy: dh.seenBy }));
+  check('và đồng hồ có ĐẾM thật khi không ai nhìn nó nữa', dh.chay > 0.5,
+    dh.chay + 's trong 0,8s');
+  check('nhìn lại thì đồng hồ ĐỨNG, không chạy tiếp', dh.dung !== null && dh.dung < 0.08,
+    dh.dung + 's trong 0,5s');
+
+  // ---- 3. BOT. Nhìn thì giữ, nhưng CÓ HẠN: bot chớp mắt.
+  const bot = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    S.angel = null; S.angelTimer = 0;
+    REPO.spawnAngel();
+    const a = S.angel;
+    S.player.x = a.x + 1400; S.player.y = a.y;       // người chơi đi thật xa
+    const m = S.mates[0];
+    m.down = false; m.hp = m.hpMax || 80;
+    const ghim = () => { m.x = a.x + T * 2.0; m.y = a.y; };
+    ghim();
+    let coBot = false, coChop = false, coTrong = false, quayVe = 0, n = 0;
+    let hetQuy = false, giuMax = 0, daCao = false;
+    for (let i = 0; i < 700 && S.angel; i++) {
+      ghim();
+      await new Promise(r => requestAnimationFrame(r));
+      if (!S.angel) break;
+      n++;
+      if (S.angel.seenBy === 'bot') coBot = true;
+      if (S.angel.seenBy === null) coTrong = true;
+      if ((m.blinkT || 0) > 0) coChop = true;
+      if (S.angel.botHet) hetQuy = true;
+      giuMax = Math.max(giuMax, S.angel.botHold || 0);
+      // lúc đang trợn mắt thì mặt nó phải quay về phía pho tượng
+      if ((m.stareT || 0) > 0.2 && (m.blinkT || 0) <= 0) {
+        let d = m.dir - Math.atan2(a.y - m.y, a.x - m.x);
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        if (Math.abs(d) < 0.15) quayVe++;
+      }
+    }
+    return { coBot, coChop, coTrong, quayVe, n, conTuong: !!S.angel,
+             botHet: hetQuy, botHold: +giuMax.toFixed(2) };
+  });
+  check('bot NHÌN nó, và cái nhìn ấy giữ được đồng hồ', bot.coBot, JSON.stringify(bot));
+  check('bot bị ép QUAY MẶT về phía nó trong lúc nhìn', bot.quayVe > 20,
+    bot.quayVe + '/' + bot.n + ' khung');
+  // Đây là bài canh cái bẫy chết ván: bot giữ mãi thì đồng hồ không bao giờ chạy hết.
+  check('nhưng bot CHỚP MẮT — không giữ mãi được', bot.coChop, 'có chớp mắt: ' + bot.coChop);
+  // BÀI CANH CÁI BẪY CHẾT VÁN. Một con bot chớp mắt thì con kế bên vẫn đang nhìn, nên với ba
+  // con bot đứng cùng phòng thì đồng hồ không bao giờ chạy hết và pho tượng đứng đó vĩnh viễn.
+  // Cả tổ chung MỘT quỹ giữ-hộ; hết quỹ là cả tổ rời mắt.
+  check('cả tổ chỉ giữ hộ được có hạn, rồi rời mắt hẳn',
+    bot.coTrong && bot.botHet, JSON.stringify({ roiMat: bot.coTrong, hetQuy: bot.botHet,
+                                                daGiu: bot.botHold }));
+
+  check('pho tượng: không lỗi console', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// ĐỒNG MINH TÀNG HÌNH KHI KHÔNG CÓ ĐÈN
+// Chủ dự án: "làm cho đồng minh lúc không rọi đèn pin vào thì sẽ không thấy để tăng độ sợ".
+//
+// Bài này phải đo được cả hai đầu, vì luật nào cũng có chỗ nó phải DỪNG lại: người gục thì
+// vẫn phải thấy (không thấy thì không đỡ dậy được, và cả cơ chế cứu đồng đội chết theo).
+async function boTaiSuite(b) {
+  results.push('\n── đồng minh chỉ hiện ra khi có ánh đèn trên người họ ──');
+  const { ctx, p, errs } = await moGame(b);
+  check('vào được ca để đo', await vaoCa(p));
+
+  const kq = await p.evaluate(async () => {
+    const S = REPO.S, T = REPO.TILE;
+    S.angel = null;
+    const m = S.mates[0];
+    m.down = false; m.hp = m.hpMax || 80;
+    // tìm một hướng trống 3 ô: đặt bừa là đâm tường, đường nhìn đứt, đo hỏng
+    const gx = S.player.x, gy = S.player.y;
+    let ang = null;
+    for (let i = 0; i < 40; i++) {
+      const th = i * 0.157;
+      const x = gx + Math.cos(th) * T * 3.0, y = gy + Math.sin(th) * T * 3.0;
+      if (!REPO.hitsSolid(x, y, 9) && REPO.losClear(gx, gy, x, y)) { ang = th; break; }
+    }
+    if (ang === null) return { boQua: 'không tìm được chỗ trống 3 ô' };
+    const ghim = () => { m.x = gx + Math.cos(ang) * T * 3.0; m.y = gy + Math.sin(ang) * T * 3.0;
+                         S.player.x = gx; S.player.y = gy; m.job = 'idle'; m.path = null; };
+    ghim(); S.player.dir = ang;
+    for (let i = 0; i < 40; i++) { ghim(); await new Promise(r => requestAnimationFrame(r)); }
+    const trongNon = REPO.litByTorch(m.x, m.y);
+    const sang = m.hien;
+    S.player.dir = ang + Math.PI;                          // quay lưng
+    for (let i = 0; i < 60; i++) { ghim(); await new Promise(r => requestAnimationFrame(r)); }
+    const toi = m.hien;
+    // sát bên thì vẫn thấy — mất dấu người đứng cạnh khuỷu tay là bực, không phải sợ
+    const sat = () => { m.x = gx + Math.cos(ang) * T * 1.2; m.y = gy + Math.sin(ang) * T * 1.2;
+                        S.player.x = gx; S.player.y = gy; };
+    for (let i = 0; i < 40; i++) { sat(); await new Promise(r => requestAnimationFrame(r)); }
+    const ganBen = m.hien;
+    // GỤC thì luôn thấy
+    m.x = gx + Math.cos(ang) * T * 3.0; m.y = gy + Math.sin(ang) * T * 3.0;
+    m.down = true;
+    for (let i = 0; i < 20; i++) await new Promise(r => requestAnimationFrame(r));
+    const gucRoi = REPO.mateSang(m);
+    m.down = false; m.hp = m.hpMax || 80;
+    return { trongNon, sang: +sang.toFixed(2), toi: +toi.toFixed(2),
+             ganBen: +ganBen.toFixed(2), gucRoi };
+  });
+  if (kq.boQua) {
+    check('đo được độ hiện của đồng minh', false, kq.boQua);
+  } else {
+    check('dựng được cảnh: đồng đội đứng trong nón đèn', kq.trongNon);
+    check('rọi đèn vào thì họ HIỆN RÕ', kq.sang > 0.9, 'độ hiện ' + kq.sang);
+    check('quay lưng đi thì họ BIẾN MẤT', kq.toi < 0.05, 'độ hiện ' + kq.toi);
+    check('nhưng đứng sát bên thì vẫn thấy — luật dừng ở chỗ nó thành bực mình',
+      kq.ganBen > 0.9, 'độ hiện ' + kq.ganBen);
+    check('và người GỤC thì luôn thấy, nếu không thì không ai đỡ dậy được', kq.gucRoi === true,
+      String(kq.gucRoi));
+  }
+  check('đồng minh tàng hình: không lỗi console', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 (async () => {
   // `--allow-file-access-from-files`: không có nó thì mọi ảnh `file://` vẽ lên canvas đều làm
   // canvas "vấy bẩn" và `getImageData` ném SecurityError — tức bộ đo ánh sáng ở trên không chạy
@@ -754,6 +954,8 @@ async function khoSquadSuite(b) {
     await xeSuite(b);
     await matSuite(b);
     await khoSquadSuite(b);
+    await tuongSuite(b);
+    await boTaiSuite(b);
   } catch (e) {
     check('bộ test chạy trọn', false, (e && e.message) || String(e));
   }
