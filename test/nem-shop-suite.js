@@ -2,6 +2,7 @@
  * Bộ kiểm thử cho hai thứ thêm vào Ca Trực Đêm ngày 2026-09-09:
  *   1. NÉM MÓN ĐANG ÔM — sát thương lên quái và lên đồng đội, và cái giá phải trả bằng chính món đồ.
  *   2. CỬA HÀNG NGOÀI MENU — két sắt trong localStorage, mua sẵn một món, mang vào ca là mất.
+ *   3. BA CHIẾC XE lấy từ Soul Knight — tám hướng mỗi chiếc, và góc phải khớp hướng.
  *
  * Chạy: node test/nem-shop-suite.js
  * Tách khỏi repo-suite.js vì repo-suite đã dài mười mấy phút, và hai thứ này là hai cơ chế
@@ -309,15 +310,20 @@ async function cuaVaCoSuite(b) {
       c.fillStyle = '#000'; c.fillRect(0, 0, 60, 40);
       REPO.veDan(c, { x: 30, y: 20, vx: 500, vy: 0, kind });
       const d = c.getImageData(0, 0, 60, 40).data;
-      let best = [0, 0, 0], bestS = -1;
+      // MÀU TRUNG BÌNH của phần có mực, KHÔNG phải điểm sáng nhất.
+      //
+      // Bản cũ lấy điểm sáng nhất, và nó hỏng ngay ngày viên đạn đổi từ hình vector sang
+      // sprite Soul Knight: hình vẽ tay có chỗ sáng nhất là cái lõi đồng, còn sprite thật
+      // có một CHẤM BẮT SÁNG trắng tinh ở mũi — nên phép đo trả về rgb(255,255,255) cho
+      // khẩu lục, tức là "viên đạn màu trắng", tức là bài test đo cái chấm chứ không đo
+      // viên đạn. Trung bình thì một hai điểm trắng không lật được cả nắm điểm vàng.
+      let r = 0, g2 = 0, b2 = 0, muc = 0;
       for (let i = 0; i < d.length; i += 4) {
-        const t = d[i] + d[i + 1] + d[i + 2];
-        if (t > bestS) { bestS = t; best = [d[i], d[i + 1], d[i + 2]]; }
+        if (d[i] + d[i + 1] + d[i + 2] <= 30) continue;
+        r += d[i]; g2 += d[i + 1]; b2 += d[i + 2]; muc++;
       }
-      // và tổng mực, để biết viên đạn có vẽ ra cái gì không
-      let muc = 0;
-      for (let i = 0; i < d.length; i += 4) muc += (d[i] + d[i + 1] + d[i + 2]) > 30 ? 1 : 0;
-      return { sang: best, muc };
+      const n = Math.max(1, muc);
+      return { sang: [Math.round(r / n), Math.round(g2 / n), Math.round(b2 / n)], muc };
     };
     return { gun: ve('gun'), tranq: ve('tranq'), shot: ve('shot') };
   });
@@ -438,6 +444,119 @@ async function anhSangDoSuite(b) {
   await ctx.close();
 }
 
+// =====================================================================
+// BA CHIẾC XE LẤY TỪ SOUL KNIGHT
+// Chủ dự án: "dùng 2 miner cart trong soul knight để làm 2 xe của repo", rồi "lấy cart to
+// nhất để làm cart đẩy". Nên bài này kiểm ba điều, và điều thứ ba mới là điều dễ sai nhất:
+//   1. tấm `xe.png` về tới nơi và ba chiếc là BA hình khác nhau;
+//   2. mỗi chiếc đủ TÁM HƯỚNG và tám hướng ấy khác nhau thật (không phải một khung nhân tám);
+//   3. `huongKhung()` đổi góc ra đúng hàng — sai một nhịp là xe chạy sang phải mà quay đầu
+//      lên trời, và không có bài test nào khác trong repo bắt được chuyện đó.
+async function xeSuite(b) {
+  results.push('\n── ba chiếc xe: hình Soul Knight, tám hướng, và hướng phải khớp góc ──');
+  const { ctx, p, errs } = await moGame(b);
+  check('vào được ca để đo xe', await vaoCa(p));
+
+  const do1 = await p.evaluate(() => {
+    if (!window.REPO_SKIN || !REPO_SKIN.xe) return { thieu: true };
+    const ve = (kind, h) => {
+      const cv = document.createElement('canvas');
+      cv.width = 96; cv.height = 96;
+      const c = cv.getContext('2d');
+      const oke = REPO_SKIN.xe(c, kind, h, 48, 48, 96);
+      const d = c.getImageData(0, 0, 96, 96).data;
+      let r = 0, g = 0, bl = 0, n = 0, bam = '';
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 128) continue;
+        r += d[i]; g += d[i + 1]; bl += d[i + 2]; n++;
+      }
+      // dấu vân của khung: lưới 12×12 ô, mỗi ô một chữ số độ phủ — đủ để phân biệt hai hướng
+      for (let gy = 0; gy < 12; gy++) for (let gx = 0; gx < 12; gx++) {
+        let dem = 0;
+        for (let y = gy * 8; y < gy * 8 + 8; y++)
+          for (let x = gx * 8; x < gx * 8 + 8; x++)
+            if (d[(y * 96 + x) * 4 + 3] >= 128) dem++;
+        bam += (dem >> 3);
+      }
+      const k = Math.max(1, n);
+      return { oke, n, mau: [Math.round(r / k), Math.round(g / k), Math.round(bl / k)], bam };
+    };
+    const out = {};
+    for (const kind of ['scout', 'haul', 'day']) {
+      out[kind] = [];
+      for (let h = 0; h < 8; h++) out[kind].push(ve(kind, h));
+    }
+    out.la = ve('khong-co-chiec-nay', 0).oke;      // khoá lạ thì phải từ chối, không được ném lỗi
+    return out;
+  });
+
+  if (do1.thieu) {
+    check('sprites.js có xuất hàm xe()', false, 'REPO_SKIN.xe không tồn tại');
+  } else {
+    const dem = k => do1[k].reduce((a, x) => a + (x.oke && x.n > 200 ? 1 : 0), 0);
+    check('mỗi chiếc đủ TÁM hướng và hướng nào cũng vẽ ra hình',
+      dem('scout') === 8 && dem('haul') === 8 && dem('day') === 8,
+      'scout ' + dem('scout') + ' · haul ' + dem('haul') + ' · đẩy ' + dem('day'));
+    // Tám hướng phải là TÁM hình. Nếu ai đó lỡ ghép tấm sai (một khung nhân tám, hoặc chỉ
+    // đủ bốn rồi lặp lại) thì trong game xe vẫn "chạy", chỉ là quay đầu không đổi hình —
+    // một lỗi im lặng. Đếm số dấu vân khác nhau là bắt được nó.
+    for (const k of ['scout', 'haul', 'day']) {
+      const rieng = new Set(do1[k].map(x => x.bam)).size;
+      check('chiếc "' + k + '": tám hướng là tám hình khác nhau', rieng >= 6,
+        rieng + '/8 khung riêng biệt');
+    }
+    // Ba chiếc phải đọc ra là BA chiếc. Đo bằng màu trung bình của phần có hình.
+    const m = k => do1[k][2].mau;                   // hướng đông, khung nhìn ngang rõ nhất
+    const sc = m('scout'), ha = m('haul'), da = m('day');
+    check('xe trinh sát ra màu HỒNG (xanh dương trội hơn xanh lá)', sc[2] > sc[1] + 8,
+      'rgb(' + sc.join(',') + ')');
+    check('xe chở đồ ra màu CAM GỖ (xanh lá trội hơn hẳn xanh dương)', ha[1] > ha[2] + 20,
+      'rgb(' + ha.join(',') + ')');
+    check('ba chiếc là ba màu, không phải một tấm dùng chung',
+      Math.abs(sc[0] - ha[0]) > 25 && Math.abs(ha[2] - da[2]) > 15,
+      'scout rgb(' + sc.join(',') + ') · haul rgb(' + ha.join(',') + ') · đẩy rgb(' + da.join(',') + ')');
+    // "lấy cart to nhất để làm cart đẩy" — kiểm đúng câu ấy: chiếc đẩy phải phủ nhiều điểm
+    // ảnh hơn cả hai chiếc kia, vì nó vốn là khung to nhất trong cả bộ xe goòng.
+    const nn = k => Math.max.apply(null, do1[k].map(x => x.n));
+    check('xe đẩy là chiếc TO NHẤT trong ba chiếc', nn('day') > nn('haul') && nn('haul') > nn('scout'),
+      'đẩy ' + nn('day') + ' > chở ' + nn('haul') + ' > trinh sát ' + nn('scout') + ' điểm ảnh');
+    check('khoá lạ thì xe() từ chối chứ không vẽ bừa', do1.la === false, String(do1.la));
+  }
+
+  // huongKhung(): góc canvas (0 sang phải, dương là theo chiều kim đồng hồ) ra số hàng.
+  const hk = await p.evaluate(() => {
+    const P2 = Math.PI;
+    return {
+      bac:   REPO.huongKhung(-P2 / 2),
+      dong:  REPO.huongKhung(0),
+      nam:   REPO.huongKhung(P2 / 2),
+      tay:   REPO.huongKhung(P2),
+      dnam:  REPO.huongKhung(P2 / 4),
+      quanh: REPO.huongKhung(P2 * 3 / 2),
+      am:    REPO.huongKhung(-P2)
+    };
+  });
+  check('huongKhung: lên = hàng 0, phải = 2, xuống = 4, trái = 6',
+    hk.bac === 0 && hk.dong === 2 && hk.nam === 4 && hk.tay === 6, JSON.stringify(hk));
+  check('huongKhung: chéo xuống-phải = hàng 3', hk.dnam === 3, String(hk.dnam));
+  check('huongKhung: góc quá một vòng vẫn về đúng hàng',
+    hk.quanh === 0 && hk.am === 6, JSON.stringify({ quanh: hk.quanh, am: hk.am }));
+
+  // Và vẽ thật: cả hai chiếc xe máy lẫn chiếc xe đẩy phải nằm trong ván, và khung hình vẫn
+  // chạy trơn sau khi đổi cách vẽ chúng.
+  const thuc = await p.evaluate(async () => {
+    const S = REPO.S;
+    const t0 = S.ticks;
+    for (let i = 0; i < 20; i++) await new Promise(r => requestAnimationFrame(r));
+    return { xe: (S.bikes || []).length, day: !!S.cart, chay: S.ticks > t0 };
+  });
+  check('ván vẫn có đủ hai chiếc xe máy và một chiếc xe đẩy',
+    thuc.xe === 2 && thuc.day, JSON.stringify(thuc));
+  check('khung hình vẫn chạy sau khi đổi cách vẽ xe', thuc.chay);
+  check('xe: không lỗi console', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 (async () => {
   // `--allow-file-access-from-files`: không có nó thì mọi ảnh `file://` vẽ lên canvas đều làm
   // canvas "vấy bẩn" và `getImageData` ném SecurityError — tức bộ đo ánh sáng ở trên không chạy
@@ -448,6 +567,7 @@ async function anhSangDoSuite(b) {
     await nemSuite(b);
     await cuaVaCoSuite(b);
     await anhSangDoSuite(b);
+    await xeSuite(b);
   } catch (e) {
     check('bộ test chạy trọn', false, (e && e.message) || String(e));
   }

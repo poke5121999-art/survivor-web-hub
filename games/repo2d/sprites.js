@@ -388,6 +388,58 @@
     return true;
   }
 
+  // VIÊN ĐẠN — `art/item/dan.png`, một dải ngang, mỗi ô một loại, ô 96×96.
+  //
+  // Cùng khuôn và cùng luật với `gear.png`: nền trong suốt, hình canh giữa ô, và **đạn chĩa
+  // sang PHẢI** — game.js xoay ngữ cảnh theo hướng bay trước khi gọi, mà góc 0 là bên phải.
+  //
+  // Thiếu tệp thì `dan()` trả về false và game.js tự vẽ hình vector của nó, y như cách
+  // `gear()` đang làm. Nên không có ngày nào viên đạn biến mất giữa lúc đang bắn.
+  const DAN_ORDER = ['gun', 'shot', 'tranq'];
+  let danStrip = null;
+  load(HERE + 'art/item/dan.png' + VER, function (im) {
+    danStrip = { img: im, n: Math.max(1, Math.round(im.width / ITEM)) };
+  });
+  function dan(c, kind, x, y, size) {
+    if (!danStrip) return false;
+    const i = DAN_ORDER.indexOf(kind);
+    if (i < 0 || i >= danStrip.n) return false;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(danStrip.img, i * ITEM, 0, ITEM, ITEM,
+      Math.round(x - size / 2), Math.round(y - size / 2), size, size);
+    return true;
+  }
+
+  // BA CHIẾC XE — `art/item/xe.png`, một LƯỚI: mỗi **cột** một chiếc (thứ tự `XE_ORDER`),
+  // mỗi **hàng** một HƯỚNG. Ô 96×96.
+  //
+  // Khác hẳn `gear.png` và `dan.png` ở một điểm, và điểm đó là cả lý do tấm này tồn tại:
+  // xe KHÔNG xoay bằng `c.rotate`. Nó là hình nghiêng ba-phần-tư nhìn từ trên xuống, mà thứ
+  // đó xoay bằng ma trận thì mặt đáy sẽ ngửa lên trời khi xe quay đầu. Soul Knight vẽ sẵn
+  // tám hướng cho mỗi chiếc xe goòng của thợ mỏ, nên ở đây dùng đúng tám hướng ấy.
+  //
+  // Hàng 0 quay LÊN, rồi đi THEO CHIỀU KIM ĐỒNG HỒ:
+  //   0 bắc · 1 đông-bắc · 2 đông · 3 đông-nam · 4 nam · 5 tây-nam · 6 tây · 7 tây-bắc
+  // game.js đổi góc ra số hàng bằng `huongKhung()`.
+  const XE_ORDER = ['scout', 'haul', 'day'];
+  let xeStrip = null;
+  load(HERE + 'art/item/xe.png' + VER, function (im) {
+    xeStrip = { img: im,
+                n:    Math.max(1, Math.round(im.width  / ITEM)),
+                rows: Math.max(1, Math.round(im.height / ITEM)) };
+  });
+  function xe(c, kind, huong, x, y, size) {
+    if (!xeStrip) return false;
+    const i = XE_ORDER.indexOf(kind);
+    if (i < 0 || i >= xeStrip.n) return false;
+    const h = (((huong | 0) % 8) + 8) % 8;
+    if (h >= xeStrip.rows) return false;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(xeStrip.img, i * ITEM, h * ITEM, ITEM, ITEM,
+      Math.round(x - size / 2), Math.round(y - size / 2), size, size);
+    return true;
+  }
+
   const SZ_KEY = ['nho', 'vua', 'to'];
 
   // Món nào ra hình nào phải CỐ ĐỊNH theo món, không bốc lại mỗi khung hình. `bob` là số
@@ -542,6 +594,10 @@
     lootCo: lootCo,
     lamp: lamp,
     gear: gear,
+    dan: dan,
+    xe: xe,
+    xeOrder: function () { return XE_ORDER.slice(); },
+    danOrder: function () { return DAN_ORDER.slice(); },
     gearOrder: function () { return GEAR_ORDER.slice(); },
     ready: function () { return pending === 0; },
     failed: function () { return failed; },

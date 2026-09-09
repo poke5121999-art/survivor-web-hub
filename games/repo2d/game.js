@@ -10856,6 +10856,18 @@ function drawCar(c){
   c.strokeRect(x0, y0, L, W);
   c.globalAlpha = a;
 }
+// Góc ra số HÀNG trên tấm `xe.png`. Hàng 0 quay lên, rồi theo chiều kim đồng hồ.
+//
+// Góc trong game đo theo kiểu canvas: 0 là sang PHẢI, và y tăng xuống dưới nên góc dương
+// là quay theo chiều kim đồng hồ. Quay lên là -π/2. Cộng π/2 rồi chia π/4 là ra hàng, và
+// `& 7` lo phần vòng lại — thử: -π/2 → 0 (bắc), 0 → 2 (đông), π/2 → 4 (nam), π → 6 (tây).
+function huongKhung(a){
+  return Math.round((a + Math.PI/2) / (Math.PI/4)) & 7;
+}
+// Cỡ vẽ: bề rộng cái ô 96 quy ra đơn vị thế giới. Xe trong tấm nằm gọn khoảng 60/96 ô, nên
+// một chiếc xe rộng ~40 điểm ảnh cần ô 64. Xe đẩy to hơn vì nó vốn là chiếc to nhất.
+const XE_CO      = BIKE_R * 4.3;
+const XE_DAY_CO  = CART_R * 4.0;
 // Xe vẽ TRƯỚC người: người ngồi lên nó, nên nó phải nằm dưới. Hình dáng nói ra ba thứ mà
 // người chơi cần biết từ xa: nó là chiếc nào, nó còn xăng không, và nó có đang nằm không.
 function drawBikes(c){
@@ -10864,6 +10876,35 @@ function drawBikes(c){
     c.save(); c.translate(b.x, b.y);
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0, b.r*0.6, b.r*0.95, b.r*0.4, 0, 0, Math.PI*2); c.fill();
+    // HÌNH THẬT TRƯỚC, HÌNH VECTOR SAU. Chủ dự án: "dùng 2 miner cart trong soul knight để
+    // làm 2 xe của repo". Hai chiếc là hai skin xe goòng của thợ mỏ trong Soul Knight, mỗi
+    // chiếc đủ tám hướng — nên KHÔNG `c.rotate(b.dir)` ở nhánh này: hướng nằm trong khung
+    // hình rồi, xoay thêm là xe lật ngửa. Chỉ còn cú nghiêng lúc ngã là vẫn xoay bằng mã.
+    c.save();
+    if (b.downed > 0) c.rotate(1.15);
+    if (b.fuel <= 0) c.globalAlpha = 0.62;            // máy chết thì cả chiếc xe tối đi
+    const coHinh = !!(window.REPO_SKIN && REPO_SKIN.xe &&
+                      REPO_SKIN.xe(c, b.kind, huongKhung(b.dir), 0, 0, XE_CO));
+    c.restore();
+    if (coHinh){
+      // Hai thứ hình vector nói được mà tấm hình thì không, nên vẽ đè lên: ai đang ngồi,
+      // và thùng sau có gì. Vòng dưới gầm là "chiếc này đang có người".
+      if (b.rider){
+        c.save(); c.globalAlpha = 0.42;
+        c.strokeStyle = d.rim; c.lineWidth = 2;
+        c.beginPath(); c.ellipse(0, b.r*0.6, b.r*1.02, b.r*0.44, 0, 0, Math.PI*2); c.stroke();
+        c.restore();
+      }
+      if (d.slots > 0 && b.items.length){
+        c.fillStyle = '#e0c07a';
+        for (let i = 0; i < Math.min(b.items.length, 4); i++)
+          c.fillRect(-b.r*0.36 + (i%2)*b.r*0.40, -b.r*0.34 + ((i/2)|0)*b.r*0.36,
+                     b.r*0.30, b.r*0.26);
+      }
+      c.restore();
+      goiNhanXe(b, d);
+      continue;
+    }
     c.rotate(b.dir + (b.downed > 0 ? 1.15 : 0));      // nằm nghiêng khi vừa ngã
     // hai bánh
     c.fillStyle = '#1e2329';
@@ -10885,16 +10926,19 @@ function drawBikes(c){
       c.strokeRect(-b.r*1.15, -b.r*0.42, b.r*0.42, b.r*0.84);
     }
     c.restore();
-    // Nhãn: chỉ hiện khi ĐÁNG hiện — đang ngồi lên nó, hoặc đứng đủ gần để lên xe. Một cái nhãn
-    // luôn hiện trên mọi vật trong nhà là một cách chắc chắn để không ai đọc cái nào.
-    const p = S.player;
-    const gan = p && Math.hypot(p.x-b.x, p.y-b.y) < TILE*3;
-    if (!gan && b.rider !== p) continue;
-    const pct = Math.round(b.fuel / b.fuelMax * 100);
-    wText(d.name + ' · xăng ' + pct + '%' + (d.slots ? '  ' + b.items.length + '/' + d.slots : ''),
-          b.x, b.y - b.r - 7,
-          b.fuel <= 0 ? '#b8544a' : pct < 25 ? '#e0a35a' : '#9fb0c0', 10);
+    goiNhanXe(b, d);
   }
+}
+// Nhãn: chỉ hiện khi ĐÁNG hiện — đang ngồi lên nó, hoặc đứng đủ gần để lên xe. Một cái nhãn
+// luôn hiện trên mọi vật trong nhà là một cách chắc chắn để không ai đọc cái nào.
+function goiNhanXe(b, d){
+  const p = S.player;
+  const gan = p && Math.hypot(p.x-b.x, p.y-b.y) < TILE*3;
+  if (!gan && b.rider !== p) return;
+  const pct = Math.round(b.fuel / b.fuelMax * 100);
+  wText(d.name + ' · xăng ' + pct + '%' + (d.slots ? '  ' + b.items.length + '/' + d.slots : ''),
+        b.x, b.y - b.r - 7,
+        b.fuel <= 0 ? '#b8544a' : pct < 25 ? '#e0a35a' : '#9fb0c0', 10);
 }
 
 function drawCart(c){
@@ -10904,12 +10948,34 @@ function drawCart(c){
   c.save(); c.translate(cart.x, cart.y);
   c.fillStyle = 'rgba(0,0,0,0.45)';
   c.beginPath(); c.ellipse(0, r*0.75, r*1.05, r*0.45, 0, 0, Math.PI*2); c.fill();
-  c.fillStyle = '#4a525c'; c.fillRect(-r, -r*0.8, r*2, r*1.6);
-  c.strokeStyle = cart.held ? '#d0a253' : '#79838f'; c.lineWidth = 2.4;
-  c.strokeRect(-r, -r*0.8, r*2, r*1.6);
-  c.fillStyle = '#2b3138';
-  c.fillRect(-r*0.85, r*0.62, r*0.5, r*0.34); c.fillRect(r*0.35, r*0.62, r*0.5, r*0.34);
-  // the handle bar marks the front — the face you must grab for STRONG mode
+  // Chủ dự án: "lấy cart to nhất để làm cart đẩy". Chiếc thép có gai của thợ mỏ trong Soul
+  // Knight là khung to nhất trong cả bộ (57×71), và nó đúng là thứ chiếc xe này cần trông
+  // giống: nặng, chở được sáu món, và húc vào chân người đẩy thì đau thật.
+  const coHinh = !!(window.REPO_SKIN && REPO_SKIN.xe &&
+                    REPO_SKIN.xe(c, 'day', huongKhung(cart.face), 0, 0, XE_DAY_CO));
+  if (coHinh){
+    // Hàng nằm trong thùng — tấm hình vẽ cái thùng RỖNG, nên chất bao nhiêu phải tự vẽ.
+    if (cart.items.length){
+      c.fillStyle = '#e0c07a';
+      for (let i = 0; i < Math.min(cart.items.length, CART_SLOTS); i++)
+        c.fillRect(-r*0.52 + (i%3)*r*0.38, -r*0.30 + ((i/3)|0)*r*0.34, r*0.26, r*0.24);
+    }
+    if (cart.held){
+      c.save(); c.globalAlpha = 0.45;
+      c.strokeStyle = '#d0a253'; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(0, r*0.72, r*1.06, r*0.46, 0, 0, Math.PI*2); c.stroke();
+      c.restore();
+    }
+  } else {
+    c.fillStyle = '#4a525c'; c.fillRect(-r, -r*0.8, r*2, r*1.6);
+    c.strokeStyle = cart.held ? '#d0a253' : '#79838f'; c.lineWidth = 2.4;
+    c.strokeRect(-r, -r*0.8, r*2, r*1.6);
+    c.fillStyle = '#2b3138';
+    c.fillRect(-r*0.85, r*0.62, r*0.5, r*0.34); c.fillRect(r*0.35, r*0.62, r*0.5, r*0.34);
+  }
+  // the handle bar marks the front — the face you must grab for STRONG mode.
+  // Vẫn vẽ dù đã có tấm hình: đây không phải trang trí mà là một luật chơi — nắm đúng mặt
+  // này thì đẩy khoẻ, nắm hông thì yếu, và người chơi phải NHÌN ra được mặt nào là mặt đó.
   c.rotate(cart.face);
   c.strokeStyle = cart.mode === 'weak' && cart.held ? '#b8544a' : '#e0c07a';
   c.lineWidth = 3;
@@ -11620,6 +11686,11 @@ function drawDoorWreck(c, d){
 // phần ba số đạn ấy — mà cách duy nhất để biết mình vừa bắn khẩu nào là NHÌN cái vừa bay ra.
 // Một cái chấm dùng chung thì không trả lời được câu đó.
 //
+// Chủ dự án, ngay sau đó: "lấy trong soul knight mà nhét vào cho hợp". Nên hình viên đạn đi
+// cùng đường ống với `gear.png`: ghép từ chính sprite Soul Knight 8.5.1 thành
+// `art/item/dan.png` (xem art/README.md và sk-ref/build_dan.py), và khẩu súng với viên đạn nó
+// bắn ra giờ là art của cùng một tay. Hình vector bên dưới ở lại làm đường lui.
+//
 // Mỗi loại một hình, và hình ấy lấy đúng cái đã có sẵn trên biểu tượng của nó:
 //   lục     — đầu đạn đồng nhọn, vệt sáng dài kéo sau: nhanh, gọn, nóng.
 //   hoa cải — hạt chì nhỏ và sẫm, vệt cực ngắn, nên bảy hạt cùng lúc đọc ra là MỘT NÓN chứ
@@ -11628,25 +11699,43 @@ function drawDoorWreck(c, d){
 //             gearIcon('tranq').
 // Cả ba đều XOAY THEO HƯỚNG BAY, và đó là thứ khiến chúng đọc ra là vật đang bay chứ không
 // phải một cái chấm được dời chỗ mỗi khung hình.
+// Ba con số của mỗi loại: cỡ vẽ (bề rộng cái ô 96 quy ra đơn vị thế giới), và cái VỆT kéo
+// sau nó — dài bao nhiêu, dày bao nhiêu, màu gì.
+//
+// Vệt vẽ bằng mã chứ không lấy từ tấm hình, và đó là cố ý: viên đạn bay 620 điểm ảnh mỗi giây,
+// tức nó nhảy hơn mười đơn vị mỗi khung hình. Không có vệt thì mắt chỉ bắt được một chuỗi chấm
+// rời nhau, và một tấm sprite tĩnh không sửa được chuyện đó — cái sửa được nó là một vệt NỐI
+// hai khung liền nhau lại. Bản gốc Soul Knight cũng làm thế: hình viên đạn là hình viên đạn,
+// còn cái đuôi là một thứ khác vẽ chồng lên.
+const DAN_VE = {
+  gun:   { co: 15.0, dai: 12, day: 2.0, vet: 'rgba(255,220,150,0.30)' },
+  shot:  { co:  8.5, dai:  5, day: 1.2, vet: 'rgba(255,168,110,0.26)' },
+  tranq: { co: 14.0, dai:  9, day: 1.8, vet: 'rgba(126,222,142,0.26)' }
+};
 function veDan(c, b){
+  const D = DAN_VE[b.kind] || DAN_VE.gun;
   c.save();
   c.translate(b.x, b.y);
   c.rotate(Math.atan2(b.vy, b.vx));
+  c.fillStyle = D.vet;
+  c.fillRect(-D.dai, -D.day/2, D.dai - 1, D.day);
+  // CÓ TẤM HÌNH THÌ DÙNG TẤM HÌNH. `art/item/dan.png` ghép từ chính sprite Soul Knight, cùng
+  // một bộ với `gear.png` — nên viên đạn bay ra và khẩu súng bắn nó là art của cùng một tay.
+  // Thiếu tấm thì rơi xuống hình vector bên dưới, và hình ấy vẫn phải đúng: nó là thứ chạy
+  // trên máy nào tấm hình chưa về kịp.
+  if (window.REPO_SKIN && REPO_SKIN.dan && REPO_SKIN.dan(c, b.kind, 0, 0, D.co)){ c.restore(); return; }
   if (b.kind === 'tranq'){
-    c.fillStyle = 'rgba(126,222,142,0.26)'; c.fillRect(-9, -0.9, 8, 1.8);      // vệt thuốc
     c.fillStyle = '#7fc46a';                                                    // cánh đuôi
     c.beginPath(); c.moveTo(-4.4,-1.1); c.lineTo(-7.0,-3.1); c.lineTo(-5.0,-0.9); c.closePath(); c.fill();
     c.beginPath(); c.moveTo(-4.4, 1.1); c.lineTo(-7.0, 3.1); c.lineTo(-5.0, 0.9); c.closePath(); c.fill();
     c.fillStyle = '#3f7a4c'; c.fillRect(-4.6, -1.2, 6.2, 2.4);                  // thân ống
     c.fillStyle = '#9fdc8a'; c.fillRect(1.6, -0.7, 4.6, 1.4);                   // kim
   } else if (b.kind === 'shot'){
-    c.fillStyle = 'rgba(255,168,110,0.26)'; c.fillRect(-4.5, -0.6, 4.5, 1.2);
     c.fillStyle = '#c08246';
     c.beginPath(); c.arc(0, 0, 1.7, 0, Math.PI*2); c.fill();
     c.fillStyle = '#f0c08a';
     c.beginPath(); c.arc(-0.4, -0.5, 0.7, 0, Math.PI*2); c.fill();
   } else {
-    c.fillStyle = 'rgba(255,220,150,0.30)'; c.fillRect(-12, -1.0, 11, 2.0);    // vệt sáng
     c.fillStyle = '#b98a3c'; c.fillRect(-3.4, -1.35, 4.8, 2.7);                // vỏ đồng
     c.fillStyle = '#ffeab0';                                                    // đầu đạn
     c.beginPath(); c.moveTo(1.4, -1.35); c.lineTo(3.9, 0); c.lineTo(1.4, 1.35); c.closePath(); c.fill();
@@ -12675,7 +12764,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260909e';
+const BUILD = '20260909f';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -14526,7 +14615,7 @@ window.REPO = {
     items:b.items.length, value:bikeValue(b), riding: !!b.rider, downed:b.downed })); },
   riding(){ const p = S.player; return p && p.riding ? p.riding.kind : null; },
   toggleStash, rollShop, startShop, leaveShop, togglePay, testHeld,
-  moCuaHangTuBar, dongCuaHangVeCa, veDan,
+  moCuaHangTuBar, dongCuaHangVeCa, veDan, huongKhung,
   // ném đồ + két sắt ngoài menu
   throwHeld, throwSpeed, throwDamage, THROW_V0, THROW_DMG_K, THROW_LIVE,
   khoDoc, khoGhi, khoThem, mangDoVaoCa, moCuaHang, moManDau, veMenu, KHO_HANG, KHO_CUT, KHO_KEY,

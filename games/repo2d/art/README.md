@@ -253,6 +253,87 @@ cục chạy có đã tay không trước khi bỏ công vẽ bộ riêng.
 **Art này không phải của dự án.** Vẽ hoặc gen một bộ đè lên đúng khuôn ghi ở trên là thay
 được ngay, không phải sửa một dòng mã nào.
 
+## Viên đạn — `item/dan.png`
+
+Một **dải ngang**, mỗi ô một loại đạn, ô **96 × 96**, nền trong suốt, hình canh giữa ô.
+Thứ tự cột khớp `DAN_ORDER` trong `sprites.js`:
+
+| cột | 0 | 1 | 2 |
+|---|---|---|---|
+| mã | `gun` | `shot` | `tranq` |
+| là gì | đầu đạn đồng của khẩu lục | hạt chì của hoa cải | mũi tiêm xanh của súng gây mê |
+
+- **Đạn phải chĩa sang PHẢI**, cùng luật với vũ khí trong `gear.png`: `veDan()` xoay ngữ cảnh
+  theo `atan2(vy, vx)` trước khi vẽ, và góc 0 là bên phải.
+- Thiếu tấm thì `dan()` trả về `false` và `veDan()` tự vẽ hình vector của nó. Hình vector ấy
+  phải giữ cho đúng — nó là thứ chạy trên máy nào tấm hình chưa về kịp.
+- **Cái VỆT kéo sau viên đạn vẫn vẽ bằng mã**, và đừng gom nó vào tấm hình. Viên đạn bay 620
+  điểm ảnh mỗi giây, tức nhảy hơn mười đơn vị mỗi khung hình; không có vệt thì mắt chỉ bắt
+  được một chuỗi chấm rời nhau, mà một sprite tĩnh không sửa được chuyện đó — cái sửa được nó
+  là một vệt NỐI hai khung liền nhau. Ba con số của vệt nằm ở `DAN_VE` trong `game.js`.
+
+## Ba chiếc xe — `item/xe.png`
+
+Một **lưới**: mỗi **cột** một chiếc (khớp `XE_ORDER` trong `sprites.js`), mỗi **hàng** một
+HƯỚNG. Ô **96 × 96**. Hiện là 3 cột × 8 hàng.
+
+| cột | 0 | 1 | 2 |
+|---|---|---|---|
+| mã | `scout` | `haul` | `day` |
+| là gì | Xe trinh sát | Xe chở đồ | Xe đẩy |
+
+**Tấm này KHÔNG xoay bằng `c.rotate`, và đó là cả lý do nó có tám hàng.** Xe là hình nghiêng
+ba-phần-tư nhìn từ trên xuống; xoay thứ đó bằng ma trận thì xe quay đầu là ngửa cả mặt đáy
+lên trời. Soul Knight vẽ sẵn tám hướng cho mỗi chiếc xe goòng của thợ mỏ, nên ở đây dùng đúng
+tám hướng ấy — `huongKhung()` trong `game.js` đổi góc ra số hàng.
+
+Hàng 0 quay **LÊN**, rồi đi **theo chiều kim đồng hồ**:
+
+| hàng | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|
+| hướng | bắc | đông-bắc | đông | đông-nam | nam | tây-nam | tây | tây-bắc |
+
+Cách kiểm thứ tự ấy mà không cần tin ai: chiếc `haul` có **đèn pha**. Khung 0 đèn hắt lên,
+khung 2 đèn hắt sang phải, khung 4 đèn hắt xuống. Sai một nhịp là thấy ngay.
+
+Mấy luật còn lại:
+
+- **Cả tám khung của một chiếc phải cùng MỘT hệ số phóng**, tính từ khung to nhất, và canh
+  **giữa-giữa** ô. Để mỗi khung tự phóng theo cỡ riêng thì chiếc xe phình ra thu vào mỗi lần
+  quay đầu.
+- Thiếu tấm thì `xe()` trả về `false` và `drawBikes()`/`drawCart()` rơi về hình vector cũ —
+  hai cái khung chữ nhật có bánh. Giữ nguyên nhánh ấy.
+- Tấm hình vẽ **thùng rỗng**, nên "chở được mấy món" phải tự vẽ đè: mấy ô vuông vàng ở giữa
+  thùng. Cũng vậy với vòng dưới gầm (đang có người ngồi / đang có người đẩy) và **thanh nắm**
+  của xe đẩy — thanh nắm là một luật chơi (nắm đúng mặt thì đẩy khoẻ), không phải trang trí,
+  nên nó vẫn vẽ bằng mã đè lên tấm hình.
+
+### Hai tấm này cũng là hình KÊ CHỖ, cùng nguồn với `gear.png`
+
+Chủ dự án: *"lấy trong soul knight mà nhét vào cho hợp"*, rồi *"dùng 2 miner cart trong soul
+knight để làm 2 xe của repo"*, rồi *"lấy cart to nhất để làm cart đẩy"*.
+
+Ghép từ sprite **Soul Knight 8.5.1 (ChillyRoom)** bằng `sk-ref/build_dan.py` và
+`sk-ref/build_xe.py` — cùng đường ống với `build_gear.py`. Nguồn từng ô:
+
+| ô | tệp nguồn Soul Knight |
+|---|---|
+| `dan` / `gun`   | `bullet403` — đầu đạn đồng 22×7 |
+| `dan` / `shot`  | `bullet2_88` — hạt chì 10×5 |
+| `dan` / `tranq` | `bullet2_68` — mũi tiêm 5×11, **xoay −90°** cho chĩa sang phải |
+| `xe` / `scout`  | `skin/character/miner/skin_3` — phao bơi hồng hình hạc, 8 hướng |
+| `xe` / `haul`   | `common/miner_car_*` — xe goòng gỗ có đèn pha và có thùng, 8 hướng |
+| `xe` / `day`    | `skin/character/miner/skin_5` — xe goòng thép có gai, 8 hướng |
+
+Vì sao chia như thế: `haul` cần **cái thùng** nên phải là chiếc xe goòng gỗ; `day` là *"cart
+to nhất"* nên phải là chiếc thép (57×71, khung lớn nhất trong cả bộ xe goòng); `scout` còn
+lại phải chọn trong đám skin vui mắt, và phao hạc thắng vì ba lẽ **đo được**: nó có cái đầu
+nên nhìn là biết đang quay hướng nào (xe trinh sát thì hướng là thứ quan trọng nhất), nó
+**không** trùng màu cam với chiếc `haul` đỗ ngay cạnh, và nó nhỏ nhất trong ba chiếc — đọc ra
+là "nhanh". Đổi ý chiếc nào thì sửa đúng một dòng trong `PICKS` của `build_xe.py` rồi chạy lại.
+
+**Art này không phải của dự án.** Vẽ đè lên đúng khuôn ghi ở trên là thay được ngay.
+
 ## Bộ hiện tại từ đâu ra
 
 Chủ dự án gửi 18 ảnh JPEG (mỗi ảnh một lưới 3×4, có nền). `../tools/import_art.py` bóc

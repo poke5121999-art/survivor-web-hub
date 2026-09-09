@@ -201,3 +201,77 @@ trong lõi nón đèn pin, vốn đã cháy trắng; chụp hai lần rồi tr�
 và HUD nhúc nhích giữa hai lần chụp và át mất phần lệch của viên đạn. Cách chạy được:
 `veDan()` là hàm thuần, gọi thẳng nó lên một canvas trống 60×40. `REPO.veDan` xuất ra để làm
 đúng việc ấy.
+
+## 9. BẢN THỨ TƯ CÙNG NGÀY — art Soul Knight cho viên đạn và cho ba chiếc xe
+
+Chủ dự án, ba câu liền nhau: *"lấy trong soul knight mà nhét vào cho hợp"* · *"dùng 2 miner
+cart trong soul knight để làm 2 xe của repo"* · *"lấy cart to nhất để làm cart đẩy"*.
+
+Hai tấm mới, cùng đường ống với `gear.png` — ghép ở `~/Downloads/sk-ref` (ngoài git, **không
+commit**), chỉ tấm ghép ra mới vào repo. Khuôn và luật đầy đủ ở `art/README.md`.
+
+- `art/item/dan.png` — dải ngang 3 ô, `DAN_ORDER = ['gun','shot','tranq']`.
+- `art/item/xe.png` — lưới 3 cột × 8 hàng, `XE_ORDER = ['scout','haul','day']`.
+
+### 9.1. Xe KHÔNG xoay bằng `c.rotate` — nó có tám hàng
+Đây là chỗ khác hẳn `gear.png` và `dan.png`, và là cả lý do tấm `xe.png` có hình dạng ấy.
+Vũ khí với viên đạn là hình nhìn ngang, xoay bằng ma trận thì vẫn đúng. Chiếc xe là hình
+nghiêng ba-phần-tư nhìn từ trên xuống: xoay nó 180° là ngửa cả mặt đáy lên trời.
+
+Soul Knight vẽ sẵn tám hướng cho mỗi chiếc xe goòng của thợ mỏ (`miner_car_0..7`), nên ở đây
+dùng đúng tám hướng ấy. `huongKhung(a)` trong `game.js` đổi góc canvas ra số hàng:
+
+```js
+function huongKhung(a){ return Math.round((a + Math.PI/2) / (Math.PI/4)) & 7; }
+```
+
+Hàng 0 quay lên, rồi theo chiều kim đồng hồ. Cách kiểm mà không cần tin ai: chiếc `haul` có
+**đèn pha** — khung 0 đèn hắt lên, khung 2 hắt sang phải, khung 4 hắt xuống.
+
+### 9.2. Tấm hình vẽ được HÌNH, không vẽ được TRẠNG THÁI
+Hình vector cũ nói ba thứ cùng lúc mà tấm hình không nói được cái nào: chiếc này còn xăng
+không, có ai đang ngồi không, thùng sau có gì. Nên nhánh dùng sprite phải vẽ đè lại đủ ba:
+`globalAlpha 0.62` khi cạn bình · vòng ê-líp màu vành xe dưới gầm khi có người · mấy ô vuông
+vàng giữa thùng khi có hàng. Với xe đẩy còn một thứ nữa, và thứ này là **luật chơi** chứ không
+phải trang trí: **thanh nắm** đánh dấu mặt trước — nắm đúng mặt ấy thì đẩy khoẻ, nắm hông thì
+yếu (`cartGrabMode`), nên người chơi phải nhìn ra được mặt nào là mặt đó.
+
+Luật chung: thiếu tấm thì `dan()` / `xe()` trả `false` và cả hai chỗ rơi về hình vector cũ.
+Đừng xoá nhánh vector — nó là thứ chạy trên máy nào tấm hình chưa về kịp.
+
+### 9.3. Bẫy: đo màu bằng "điểm sáng nhất" thì sprite thật sẽ làm sập bài test
+Bài test màu đạn ở `test/nem-shop-suite.js` đang lấy **điểm sáng nhất** trên canvas. Nó đúng
+với hình vẽ tay, vì chỗ sáng nhất của hình vector chính là cái lõi màu. Đổi sang sprite Soul
+Knight là hỏng ngay: viên đạn thật có một **chấm bắt sáng trắng tinh** ở mũi, nên phép đo trả
+về `rgb(255,255,255)` — "viên đạn màu trắng". Nó đo cái chấm, không đo viên đạn.
+
+Sửa ở phía bài test, không phải phía hình: lấy **màu trung bình của phần có mực**. Một hai
+điểm trắng không lật được cả nắm điểm vàng. Đây là lần thứ ba cùng một bài học trong tệp ấy:
+*đo cái đang cần khẳng định, đừng đo cái dễ lấy nhất.*
+
+### 9.4. Chọn chiếc nào cho xe nào — và vì sao
+Trong bộ `miner_car` của Soul Knight chỉ có **hai** chiếc trông ra một chiếc xe thật (goòng
+gỗ ở `common`, goòng thép có gai ở `skin_5`); tám bản còn lại là skin vui mắt (cà rốt, phao
+hạc, bánh kem, bong bóng, bướm, mõm quái). Mà repo cần **ba**. Nên phải có một chiếc lấy skin
+vui mắt, không tránh được — chuyện là chọn chiếc nào và đưa cho ai.
+
+- `day` ← **goòng thép** `skin_5`: chủ dự án nói thẳng *"cart to nhất"*, và 57×71 đúng là
+  khung lớn nhất trong cả bộ (goòng gỗ 57×62).
+- `haul` ← **goòng gỗ** `common`: nó là chiếc duy nhất còn lại **có thùng**, mà xe chở đồ thì
+  cái thùng không phải trang trí.
+- `scout` ← **phao hạc** `skin_3`, chọn theo ba lẽ đo được: có cái đầu nên nhìn là biết đang
+  quay hướng nào (với xe trinh sát thì hướng là thứ quan trọng nhất, và bong bóng `skin_4`
+  trượt đúng chỗ này — tám khung gần như một); màu hồng nên không lẫn với chiếc `haul` màu
+  cam đỗ ngay cạnh; và nó nhỏ nhất trong ba chiếc, đọc ra là "nhanh".
+
+Đổi ý chiếc nào thì sửa đúng một dòng trong `PICKS` của `sk-ref/build_xe.py` rồi chạy lại —
+mã không cần đụng tới.
+
+### 9.5. Test
+`test/nem-shop-suite.js` thêm mục `xeSuite` (17 bài): tám hướng của mỗi chiếc phải là **tám
+hình khác nhau** (dấu vân lưới 12×12) — bắt được cái lỗi im lặng "ghép một khung nhân tám";
+ba chiếc phải ra ba màu; xe đẩy phải phủ nhiều điểm ảnh nhất trong ba chiếc (kiểm đúng câu
+*"cart to nhất"*); và `huongKhung()` phải khớp bốn hướng chính cộng hai góc quá một vòng.
+
+Cả bộ: `nem-shop-suite` 57/57 · `bike-suite` 36/36.
+
