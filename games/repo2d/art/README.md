@@ -306,3 +306,21 @@ sàn màu 93 rơi xuống còn 57, và bộ hình vẽ tay ra một cục xám. 
 thứ đổi là bạn nhìn rõ mình và người đứng cạnh mình.
 
 Bài kiểm giữ ba luật này: `docs/tests/browser/test_repo2d_sprites.py` (mục [3b], [4b], [4c]).
+
+## Bẫy: `toDataURL()` và tấm hình mở bằng `file://`
+
+[ĐO TRONG REPO] 2026-09-09. Tủ đồ và cửa hàng ngoài menu vẽ biểu tượng món đồ ra `<img>` bằng
+`gearIconURL()` → `canvas.toDataURL()`. Cái canvas ấy vừa vẽ `art/item/gear.png` lên.
+
+Mở trang bằng **`file://`** (nhấp đúp vào `index.html`) thì Chrome coi mọi ảnh `file://` là
+**khác nguồn**: canvas bị "vấy bẩn" và `toDataURL()` ném `SecurityError`. Triệu chứng: cả tủ đồ
+lẫn cửa hàng **không còn một cái hình nào**, mà console thì im lặng vì lỗi đã bị `catch`.
+
+Trên GitHub Pages thì không sao — cùng nguồn. Nên lỗi này chỉ hiện ra **đúng ở chỗ hay mở thử
+nhất**, và không bao giờ hiện ra ở chỗ người chơi thật đang chơi.
+
+Cách thoát đang dùng: `gearIconURL()` thử **hai lần** — lần đầu có tấm PNG, hỏng thì vẽ lại
+bằng hình vector (`gearIcon(..., veTay = true)`), thứ không đụng vào một tệp nào nên không có
+gì để vấy bẩn. Cùng một cái bẫy sẽ đợi sẵn bất kỳ đường nào khác định xuất một canvas có vẽ
+tấm hình lên — `getImageData()` cũng ném đúng lỗi ấy (xem chú thích `GEAR_FRAMES` trong
+`sprites.js`).

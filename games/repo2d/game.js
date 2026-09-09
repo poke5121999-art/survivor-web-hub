@@ -1152,10 +1152,14 @@ const ROOMS = [
 // ============================================================ loot presets
 // Doc C3-1: value, durability and audio are SEPARATE presets, so a ceramic vase and a
 // stone bust can be worth the same money at completely different risk.
+// `hit` = hệ số SÁT THƯƠNG khi món này bay vào mặt ai đó — xem throwDamage(). Nó đi NGƯỢC với
+// `frag`, và đó là toàn bộ ý: cái bình gốm vỡ tan nên trả lại ít lực nhất, cục kim loại không
+// vỡ nên trả lại gần hết. Một con số riêng chứ không suy ra từ `frag`: hai thứ ấy tình cờ
+// ngược nhau ở ba vật liệu này, nhưng chúng trả lời hai câu khác nhau và sẽ có ngày rẽ đôi.
 const MATERIALS = [
-  { key:'gốm',     frag:1.00, thresh: 95,  col:'#cfd8dc', edge:'#8fa2ab', shatter:true  },
-  { key:'gỗ',      frag:0.50, thresh:155,  col:'#a8743f', edge:'#6f4a26', shatter:false },
-  { key:'kim loại',frag:0.18, thresh:260,  col:'#98a0a8', edge:'#5f676f', shatter:false }
+  { key:'gốm',     frag:1.00, thresh: 95,  col:'#cfd8dc', edge:'#8fa2ab', shatter:true,  hit:0.85 },
+  { key:'gỗ',      frag:0.50, thresh:155,  col:'#a8743f', edge:'#6f4a26', shatter:false, hit:1.00 },
+  { key:'kim loại',frag:0.18, thresh:260,  col:'#98a0a8', edge:'#5f676f', shatter:false, hit:1.25 }
 ];
 // ORB HỒN — chất liệu của thứ con quái để lại, và nó KHÔNG NẰM TRONG `MATERIALS`.
 //
@@ -1168,7 +1172,7 @@ const MATERIALS = [
 // orb là "incredibly fragile and should be handled with care"; đây là câu đó viết bằng ba con số.
 // `shatter` để nó vỡ hẳn về 0 thay vì mòn dần thành một quả cầu vô giá trị — mà vỡ hẳn mới là
 // lúc có vụ nổ, nên một quả orb không bao giờ nổ được thì cả cơ chế này không tồn tại.
-const ORB_MAT = { key:'hồn', frag:1.60, thresh: 55, col:'#a9ecff', edge:'#3f9fc4', shatter:true };
+const ORB_MAT = { key:'hồn', frag:1.60, thresh: 55, col:'#a9ecff', edge:'#3f9fc4', shatter:true, hit:1.10 };
 // Mấy giây đầu KHÔNG VỠ ĐƯỢC, và người chơi phải nhìn thấy là nó đang trong mấy giây ấy (orb vẽ
 // mờ và nhấp nháy — xem drawLoot). Bản gốc cho 5 giây "translucent, signaling its invulnerability".
 // Lý do nó cần tồn tại: orb rơi ra GIỮA một trận đánh, thường là ngay dưới chân thứ vừa giết con
@@ -1664,6 +1668,11 @@ function handUse(p, ang){
   if (!p) return false;
   const h = handNow(p);
   if (h < 0){
+    // ĐANG ÔM ĐỒ THÌ NẮM ĐẤM LÀ CÚ NÉM. Không thêm một nút nào, và không lấy đi thứ gì: ô đồ
+    // vẫn bắn được như cũ trong lúc vác (cả hệ "vác nặng thì chậm" dựng trên chuyện đó), chỉ
+    // riêng cái tay KHÔNG cầm gì mới đổi việc — mà "vụt đèn pin trong lúc đang ôm cái bình"
+    // vốn đã là một câu vô nghĩa.
+    if (p.held) return throwHeld(p, ang);
     const t = meleeTarget(p);
     return meleeSwing(p, ang != null ? ang : (t ? Math.atan2(t.y - p.y, t.x - p.x) : null));
   }
@@ -1685,12 +1694,14 @@ function handUse(p, ang){
 // Doc duoc o co nho nhat la rang buoc that: hai ba mang dac, khong net manh, khong chi tiet ben
 // trong. O 9px thi mot khau sung luc va mot khau hoa cai chi khac nhau o CHIEU DAI NONG - nen
 // do chinh la thu duoc ve to nhat tren moi khau.
-function gearIcon(c, key, x, y, r, mo){
+// `veTay` = ĐỪNG ĐỤNG TỚI TỆP HÌNH, vẽ bằng mã thôi. Chỉ có đúng một chỗ truyền cờ này, và
+// nó tồn tại vì một lý do rất cụ thể — xem gearIconURL().
+function gearIcon(c, key, x, y, r, mo, veTay){
   // CÓ TỆP HÌNH THÌ DÙNG TỆP. `art/item/gear.png` là một dải ngang, mỗi ô một món, thứ tự ghi ở
   // GEAR_ORDER trong sprites.js và ở art/README.md. Chưa có tệp — hoặc tấm mới vẽ được vài ô —
   // thì rơi xuống hình vector bên dưới, nên không có ngày nào cái nút bị trống.
   // Chủ dự án, 2026-09-07: "sau này tui vẽ đè lên cho". Đây là chỗ cái vẽ đè ấy cắm vào.
-  const K = window.REPO_SKIN;
+  const K = veTay ? null : window.REPO_SKIN;
   if (K && K.gear){
     const a0 = c.globalAlpha;
     if (mo != null) c.globalAlpha = a0 * mo;
@@ -1737,6 +1748,26 @@ function gearIcon(c, key, x, y, r, mo){
       }
       RR('#c79c78', -6.6, -1.2, 4.6, 4.2, 1.8, '#4a3a2e');   // ngon cai gap ngang suon
       RR('#b98c66', -7.6,  3.2, 5.2, 3.4, 1.4, '#4a3a2e');   // co tay
+      break;
+    // NÉM: món đồ đang bay, cộng vệt gió sau lưng nó. Vẽ ra khối đang bay chứ không vẽ cánh
+    // tay — ở 9px một cánh tay chỉ còn là một cục thịt, còn một khối cộng ba vệt thì ở cỡ nào
+    // cũng đọc ra "cái này đang bay đi".
+    case 'throw':
+      c.strokeStyle = '#9fb4c0'; c.lineWidth = 1.6;
+      for (let i = 0; i < 3; i++){
+        c.beginPath(); c.moveTo(-10, -4.5 + i*4.5); c.lineTo(-3.5 + i*0.8, -4.5 + i*4.5); c.stroke();
+      }
+      C('#cfd8dc', 4.2, -1.6, 5.4);
+      C('#8fa2ab', 6.0, -3.4, 1.7);              // cham sang tren khoi
+      break;
+    // NÂNG CẤP: một tấm bảng với hai mũi nhọn chỉ lên. Nó không phải một món đồ nên nó không
+    // được giống một món đồ nào — cái nó phải nói là "cái này làm BẠN khoẻ lên", và hai mũi
+    // nhọn chỉ lên là câu ấy trong mọi trò chơi từ ba mươi năm nay.
+    case 'nangcap':
+      RR('#3a3020', -8.5, -8.5, 17, 17, 3.4, '#8a6222');
+      c.strokeStyle = '#ffcf6a'; c.lineWidth = 2.4; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.beginPath(); c.moveTo(-4.6, -0.6); c.lineTo(0, -5.4); c.lineTo(4.6, -0.6); c.stroke();
+      c.beginPath(); c.moveTo(-4.6,  5.4); c.lineTo(0,  0.6); c.lineTo(4.6,  5.4); c.stroke();
       break;
     case 'gun':                                    // SUNG LUC: nong ngan, bang day
       R(kim, -7, -3.2, 12, 3.6);                   // nong
@@ -3137,7 +3168,10 @@ function makeLoot(x,y,size,mat,v0){
   return { x, y, vx:0, vy:0, r:size.r, mass:size.mass, size:size.key, sizeIdx:SIZES.indexOf(size),
            mat, value0:v0, value:v0, held:false, invuln:0, grace:0,
            onPad:null, inCart:false, cracks:0, gone:false, bob: Math.random()*6,
-           freeX:x, freeY:y, holdD:0 };
+           freeX:x, freeY:y, holdD:0,
+           // Còn mấy giây nữa thì món này thôi là một vật đang BAY và trở lại thành đồ nằm trên
+           // sàn, và ai đã ném nó đi. Xem throwHeld().
+           flyT:0, flyBy:null };
 }
 // SAT THUONG CUA QUAI TANG THEO MAN.
 // Chu du an: "de len map khac thi quai cung se tang st len".
@@ -4395,6 +4429,146 @@ function damageLoot(l, impulse){
   return lost;
 }
 
+// ============================================================ NÉM MÓN ĐANG ÔM
+//
+// Chủ dự án, 2026-09-09: "khi user đang cầm loot có thể ném loot ra bằng cách bấm phím đánh.
+// loot bay vào mặt đồng minh hay quái đều gây sát thương dựa trên thang đo gì đó — research
+// repo gốc".
+//
+// BẢN GỐC R.E.P.O. ĐO ĐƯỢC GÌ (tra 2026-09-09; cả bảng số và nguồn ở RESEARCH.md mục 7):
+//   - Quăng đồ vào quái ăn **5 tới 120** sát thương, "depending on the item and any physics
+//     damage applied". Tức KHÔNG có bảng số theo từng món: nó là món ĐÓ bay NHANH thế nào.
+//   - Riêng ba cỡ soul orb có số chốt: nhỏ ~50, vừa ~100, to ~150 — "enough to 1 shot most
+//     level 1 monsters".
+//   - Cú va làm đau CẢ HAI. Con Rugrat cướp đồ rồi quăng vào người chơi, "dealing damage to
+//     both the player and the item"; hai món cùng lúc thì một phát chết cả người lẫn đồ.
+//
+// NÊN THANG ĐO Ở ĐÂY LÀ ĐỘNG LƯỢNG — khối lượng nhân vận tốc, đúng thứ mà bản gốc để engine
+// vật lý tự tính. Một công thức, và nó tự đẻ ra mọi thứ đáng có mà không phải chép bảng nào:
+//   - đồ to ném đi chậm hơn nhiều nhưng nặng hơn nhiều, nên vẫn là cú đau nhất;
+//   - ném vào mặt và ném lúc món sắp rơi xuống sàn không còn giống nhau — vận tốc đã tụt;
+//   - `p.str` (nâng cấp được ở trạm) vào thẳng công thức qua tốc độ ném, không phải cộng riêng.
+//
+// ĐO LẠI TRONG REPO với sức gốc 30, ở tầm chạm ~0,15 giây sau khi rời tay:
+//   nhỏ 39 (gốm) … 58 (kim loại) · vừa 68 … 100 · to 105 … 154.
+//   Ba cỡ ORB HỒN: 51 · 88 · 136 — rơi đúng vào dải 50/100/150 của bản gốc.
+// Cả dải nằm gọn trong 5..120 của bản gốc, trừ đúng món to bằng kim loại, và món ấy đáng thế.
+//
+// CÁI GIÁ: món bay vào tường thì vỡ theo đúng luật cũ (đâm mạnh thì hỏng), và cú đập vào người
+// hay quái cũng ăn ngược vào chính nó. Ném cái bình đắt nhất nhà vào con quái là một QUYẾT
+// ĐỊNH — không phải một nút bấm miễn phí.
+const THROW_V0      = 560;    // px/s: tốc độ rời tay khi món nhẹ không đáng kể
+const THROW_VMIN    = 130;    // px/s: món nặng nhất nhà vẫn phải đẩy ra khỏi tay được
+const THROW_MASSK   = 2.2;    // khối lượng cản tốc độ ném, so với sức người ném
+const THROW_DRAG    = 0.14;   // hệ số hãm MỖI GIÂY lúc đang bay (đồ nằm sàn là 0.02)
+const THROW_DMG_K   = 0.022;  // sát thương = khối lượng * vận tốc * hệ số này
+const THROW_DMG_MIN = 5, THROW_DMG_MAX = 200;
+const THROW_LIVE    = 1.1;    // giây: quá đây thì nó thôi là vật đang bay, chỉ còn là đồ trên sàn
+const THROW_SPD_MIN = 70;     // px/s: chậm hơn mức này thì cú chạm là chạm, không phải cú va
+// PHẦN ĂN NGƯỢC VÀO CHÍNH MÓN ĐỒ khi nó đập trúng ai đó. LỚN HƠN 1 là cố ý.
+//
+// Chủ dự án, 2026-09-09: "loot ném vào quái có thể mất giá hoặc bể lun nha". Ở 0,85 thì gần
+// như không: cú va đo bằng vận tốc lúc chạm, mà vận tốc ấy đã tụt, nên một cái bình gốm vừa
+// nện vào mặt con quái chỉ sứt vài phần trăm. Đọc ra là "ném đồ miễn phí", tức mất luôn cái
+// quyết định mà cả cơ chế này sinh ra để tạo.
+//
+// Lý lẽ để nó lớn hơn 1: cú va vào một cái THÂN ĐANG LAO NGƯỢC LẠI không phải một cú dừng
+// lại, nó là hai vận tốc cộng vào nhau — cùng lý do một cú va chạm trực diện nát hơn hẳn một
+// cú tông vào đuôi. Đâm vào tường thì tường đứng yên, nên tường vẫn dùng nguyên vận tốc.
+//
+// [ĐO TRONG REPO] phần giá trị mất trong MỘT cú ném trúng, sức gốc 30:
+//        │ gốm          │ gỗ    │ kim loại
+//   nhỏ  │ VỠ TAN       │ 34%   │ 5%
+//   vừa  │ 62%          │ 12%   │ ~0
+//   to   │ 27%          │ 2%    │ ~0
+// Tức là: ném đồ gốm vào mặt quái gần như chắc chắn mất phần lớn tiền, và món gốm nhỏ thì
+// vỡ hẳn ngay tại chỗ. Kim loại thì chỉ móp — đúng cái mà `frag` và `hit` của nó vốn đã nói.
+const THROW_SELF    = 1.75;
+const THROW_STAM    = 6;
+const THROW_NOISE   = 1.5;
+
+function throwSpeed(p, l){
+  const str = Math.max(10, (p && p.str) || 30);
+  const m   = Math.max(1, l.mass || 8);
+  return Math.max(THROW_VMIN, THROW_V0 * str / (str + m*THROW_MASSK));
+}
+function throwDamage(l, spd){
+  const he = (l.mat && l.mat.hit) || 1;
+  return clamp(Math.round((l.mass || 8) * spd * THROW_DMG_K * he), THROW_DMG_MIN, THROW_DMG_MAX);
+}
+// Rời tay. Trả về false khi không ném được, để nút bấm còn rơi xuống việc khác.
+function throwHeld(p, ang){
+  if (!p || !p.held || p.down || S.dead || !S.running) return false;
+  if (p.riding) return false;                  // hai tay đang giữ ghi đông — xem useSlot()
+  if ((p.stunT || 0) > 0) return false;
+  if ((p.swingCd || 0) > 0) return false;
+  const l = p.held;
+  if (ang != null) p.dir = ang;
+  const cs = Math.cos(p.dir), sn = Math.sin(p.dir);
+  const v  = throwSpeed(p, l);
+  // Ra khỏi tay ở ĐÚNG chỗ nó đang được ôm (holdD), không phải ở một điểm dựng sẵn phía trước:
+  // đứng dí mặt vào tường thì holdInFront đã kéo món về sát người rồi, và đặt nó ra xa hơn chỗ
+  // ấy là đẩy nó XUYÊN QUA bức tường trong đúng một khung hình.
+  const d = Math.max(l.r*0.6, Math.min(l.holdD || (l.r + 12), l.r + 12));
+  l.held = false; l.holder = null; p.held = null;
+  l.onPad = null; l.inCart = false;
+  l.x = p.x + cs*d; l.y = p.y + sn*d;
+  l.freeX = l.x; l.freeY = l.y;
+  l.vx = cs*v; l.vy = sn*v;
+  l.flyT = THROW_LIVE; l.flyBy = p;
+  // Đủ để rời khỏi bàn tay, không đủ để bay vào tường miễn phí. dropHeld cho 0,35 giây vì thả
+  // xuống chân mình thì không có cú va nào; ném thì cú va là cả điểm của việc này.
+  l.grace = S.time + 0.08; l.invuln = 0;
+  p.stam = Math.max(0, (p.stam || 0) - THROW_STAM);
+  p.swingCd = MELEE_CD;
+  makeNoise(p.x, p.y, TILE*3.5, THROW_NOISE);
+  SFX.strain();
+  if (p === S.player) fxShake(1.6);
+  return true;
+}
+// Món đang bay đập trúng ai. Gọi mỗi bước trong THROW_LIVE giây đầu, và chỉ ăn MỘT lần —
+// cú va tự tắt cờ bay, nên một quả cầu không thể lia qua cả đàn mà trừ máu từng con.
+function throwStrike(l){
+  const spd = Math.hypot(l.vx, l.vy);
+  if (spd < THROW_SPD_MIN){ l.flyT = 0; l.flyBy = null; return; }
+  const ang = Math.atan2(l.vy, l.vx);
+  for (const m of foesAll()){
+    if (!m || typeof m.hp !== 'number' || m.hp <= 0) continue;
+    if (Math.hypot(m.x - l.x, m.y - l.y) > l.r + foeBody(m) + 2) continue;
+    const n = l.isHead ? 0 : throwDamage(l, spd);
+    if (n > 0) foeHit(m, n, ang, 80 + n*1.3);
+    else { m.alert = 3; m.flash = 0.12; }        // cái đầu đồng đội không phải vũ khí, xem dưới
+    throwLand(l, spd);
+    return;
+  }
+  // ĐỒNG ĐỘI VÀ CHÍNH MÌNH. Bản gốc cho đồ bay vào mặt người chơi đau y như bay vào mặt quái,
+  // nên ở đây cũng thế — trừ một chốt: HIT_MAX_FRAC, cái luật "không chết từ máu đầy" vốn đã
+  // có ở hurtPlayer. Áp luôn cho đồng đội, vì một cú ném lỡ tay không được phép là cả tổ mất
+  // một người trong một khung hình.
+  //
+  // CÁI ĐẦU CỦA ĐỒNG ĐỘI KHÔNG GÂY SÁT THƯƠNG. Nó đi qua đường ống loot nên ném được — và ném
+  // được là thứ đáng giá, vì đó là cách đưa một người qua phòng hoặc lên bệ mà không phải vác.
+  // Nhưng nó là một NGƯỜI, không phải một hòn đá: cho nó đánh gục người thứ hai là biến một cú
+  // cứu hộ thành một tai nạn.
+  for (const a of crew()){
+    if (!a || a.down || a === l.flyBy) continue;
+    if (Math.hypot(a.x - l.x, a.y - l.y) > l.r + 9 + 2) continue;
+    if (!l.isHead){
+      const n = Math.min(throwDamage(l, spd), Math.floor((a.hpMax || 100) * HIT_MAX_FRAC));
+      hurtActor(a, n, 'loot-nem', l.x - l.vx*0.05, l.y - l.vy*0.05);
+    }
+    throwLand(l, spd);
+    return;
+  }
+}
+// Hạ cánh sau khi trúng thứ gì đó: nảy ngược lại một chút, hết đời bay, và ăn ngược cú va.
+function throwLand(l, spd){
+  l.flyT = 0; l.flyBy = null;
+  l.vx *= -0.18; l.vy *= -0.18;
+  l.invuln = 0; l.grace = 0;
+  damageLoot(l, spd * THROW_SELF);
+}
+
 // Carried things — loot in your hands, or the cart you are pushing — are PINNED to the ray
 // straight in front of the player. They never trail behind, never swing out to the side, and
 // never end up somewhere the sight cone is not pointing.
@@ -4439,7 +4613,12 @@ function stepLoot(l, dt){
     if (impulse > 0) damageLoot(l, impulse);
     return;
   }
-  l.vx *= Math.pow(0.02, dt); l.vy *= Math.pow(0.02, dt);
+  // HAI HỆ SỐ HÃM, và đây là chỗ duy nhất phân biệt "đồ đang bay" với "đồ đang lăn trên sàn".
+  // 0.02 mỗi giây là hệ số của một món bị hất ra hay bị thả rơi: nó trượt chưa tới sáu ô rồi
+  // nằm im — đúng cho một khối đá trên sàn nhà, sai hoàn toàn cho một cú ném. THROW_DRAG cho
+  // món ném đi được khoảng mười ô, tức qua được một căn phòng, tức đủ để là một hành động.
+  const ham = l.flyT > 0 ? THROW_DRAG : 0.02;
+  l.vx *= Math.pow(ham, dt); l.vy *= Math.pow(ham, dt);
   if (Math.abs(l.vx) < 1) l.vx = 0;
   if (Math.abs(l.vy) < 1) l.vy = 0;
   const pvx = l.vx, pvy = l.vy;
@@ -4448,7 +4627,11 @@ function stepLoot(l, dt){
   if (hitsSolid(l.x, l.y + l.vy*dt, l.r*0.7)){ l.vy = -l.vy*0.25; hitWall = true; } else l.y += l.vy*dt;
   if (hitWall){
     const impulse = Math.hypot(pvx - l.vx, pvy - l.vy);
+    l.flyT = 0; l.flyBy = null;                         // đập tường là hết đời bay
     damageLoot(l, impulse);
+  } else if (l.flyT > 0){
+    l.flyT -= dt;
+    if (l.flyT > 0) throwStrike(l); else l.flyBy = null;
   }
   l.invuln = Math.max(l.invuln, 0);
 }
@@ -6506,6 +6689,10 @@ function completePad(pad){
   makeNoise(pad.x, pad.y, EXTRACT_NOISE_R, 2.2);
   const taken = pad.value;
   S.wallet += taken;
+  // Tổng số đã GIAO trong cả ván, không phải số còn trong ví: ví thì tiêu ở trạm dịch vụ nên
+  // nó tụt về gần không sau mỗi lần mua, mà tiền lương chảy vào két lại phải đo CÔNG SỨC của
+  // cả ván. Xem khoThem() và veMenu().
+  S.earned = (S.earned || 0) + taken;
   if (HOOKS.onPayout) HOOKS.onPayout(taken, S.padIndex >= S.pads.length - 1);
   const surplus = taken - pad.quota;
   for (const l of pad.placed){ l.gone = true; }
@@ -6790,10 +6977,12 @@ function endLostShift(){
   // nút "Làm lại từ màn 1" bên dưới gọi startLevel(), mà HOOKS.levelIndex() lại ép về
   // ĐÚNG TẦNG VỪA TRƯỢT: thua không mất gì, cày lại được vô hạn ngay tại chỗ.
   if (HOOKS.onShiftLost && HOOKS.onShiftLost() === true) return;
+  const luong = khoThem((S.earned || 0) * KHO_CUT);
   showVeil('Ca này hỏng rồi',
     'Số đồ còn lại trong nhà không đủ để đạt chỉ tiêu màn ' + S.level + ' nữa, nên ca này coi như trượt. ' +
-    'Doc B4: trượt chỉ tiêu là mất cả run — tiền, nâng cấp và tủ đồ.',
-    'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
+    'Doc B4: trượt chỉ tiêu là mất cả run — tiền, nâng cấp và tủ đồ.' +
+    (luong ? ' Lương ca: ' + money(luong) + ' vào két, tiêu ở cửa hàng ngoài menu.' : ''),
+    'Về menu', veMenu);
 }
 // Going down. WHY this is no longer `S.dead = true`: the shift now belongs to a crew of four,
 // and one of them hitting zero pops their head off rather than closing the level. The shift is
@@ -6805,7 +6994,7 @@ function die(){
 // Doc B4: losing a run costs everything — money, upgrades, and the locker. That is what
 // gives the quota weight; if a loss only cost one level nobody would fear it.
 function resetRun(){
-  S.level = 1; S.wallet = 0;
+  S.level = 1; S.wallet = 0; S.earned = 0;
   // So cong CA CA VAN (khong phai tung tang): lop ngoai can no de tinh thuong va
   // dem nhiem vu. Dat o day chu khong o buildLevel vi buildLevel chay moi tang.
   S.kills = 0; S.revives = 0;
@@ -7893,9 +8082,11 @@ function crewWiped(){
   //   mat gi, cay lai duoc vo han ngay tai cho.
   if (HOOKS.onCrewWiped && HOOKS.onCrewWiped() === true){ S.dead = true; S.running = false; return; }
   S.dead = true; S.running = false;
+  const luong = khoThem((S.earned || 0) * KHO_CUT);
   showVeil('Ca trực kết thúc',
-    'Cả tổ gục ở màn ' + S.level + '. Còn một người đứng là còn cứu được — hết cả tổ thì mất cả ca.',
-    'Làm lại từ màn 1', () => { resetRun(); startLevel(); });
+    'Cả tổ gục ở màn ' + S.level + '. Còn một người đứng là còn cứu được — hết cả tổ thì mất cả ca.' +
+    (luong ? ' Lương ca: ' + money(luong) + ' vào két, tiêu ở cửa hàng ngoài menu.' : ''),
+    'Về menu', veMenu);
 }
 
 // An extraction that completes with a head standing in it puts that worker back up. One point of
@@ -8584,7 +8775,7 @@ function setupInput(){
     // bảng đang mở, kể cả khi bảng đó tự dựng lỗi.
     if (k === 'escape'){ if (S.stashOpen) closeStash(); return; }
     if (skipCut()) return;
-    if (k === 'r'){ resetRun(); startLevel(); return; }
+    if (k === 'r'){ vanMoi(); return; }
     if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
     if (k === 'e'){ pickUp(S.player); return; }
     if (k === 'f'){ toggleStash(); return; }
@@ -9533,6 +9724,7 @@ function draw(){
   drawMemory(c);
   drawCasts(c);
   drawVfx(c, 'sang');           // lửa, điện, cổng gương: tự phát sáng
+  drawFloorRoute(c);            // mũi chỉ lối sơn trên sàn — vẽ dưới mọi vòng highlight
   drawHighlights(c);
 
   // LỚP GIỮ MÀU: hai lượt, và phải theo đúng thứ tự này.
@@ -10055,6 +10247,28 @@ function glowRing(c, x, y, r, rgb, a, lw){
   c.stroke();
 }
 
+// VÒNG SÁNG NẰM TRÊN SÀN, không phải một cái vành treo quanh người món đồ.
+//
+// Chủ dự án, 2026-09-09: "vòng tròn highlight trên loot không nên cắt sprite của loot".
+// Nới bán kính cho to hơn cái sprite thì hết cắt thật, nhưng đổi lại là một cái vành lơ lửng
+// ngang đầu món đồ — vì món đồ vẽ ĐỨNG THẲNG trong một thế giới nhìn chếch. Cái vòng đúng cho
+// một thế giới như thế là cái bóng: một hình bầu dục dưới chân, y như mọi game 3/4 khác làm.
+// Nó không bao giờ cắt được sprite, vì nó không đi qua chỗ sprite đứng.
+function glowDisc(c, x, y, rx, rgb, a, lw){
+  const g = c.createRadialGradient(x, y, rx*0.5, x, y, rx*1.7);
+  g.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a*0.26})`);
+  g.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  c.save();
+  c.translate(x, y); c.scale(1, 0.46); c.translate(-x, -y);
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, rx*1.7, 0, Math.PI*2); c.fill();
+  c.restore();
+  c.beginPath();
+  c.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
+  c.lineWidth = lw || 2;
+  c.ellipse(x, y, rx, rx*0.44, 0, 0, Math.PI*2);
+  c.stroke();
+}
+
 // ---- what THEY can see
 // Owner's call, 2026-08-27. Every monster in this game is answered by geometry — a wall, a corner,
 // one step sideways — and until now the geometry was invisible: the player was asked to guess at a
@@ -10192,6 +10406,67 @@ function drawEventFoeGlow(c){
   }
 }
 
+// ============================================================ ĐƯỜNG CHỈ LỐI, VẼ TRÊN SÀN
+//
+// Chủ dự án, 2026-09-09: "path chỉ đường nên đc vẽ trên nền đất lun".
+//
+// Con đường ấy xưa nay chỉ tồn tại trên bản đồ nhỏ ở góc màn hình — tức muốn biết rẽ lối nào
+// thì phải rời mắt khỏi căn phòng, đọc một hình vẽ bé bằng con tem, rồi dịch nó ngược lại
+// thành "rẽ trái". Trong một trò mà thứ giết bạn đi lại trong CHÍNH căn phòng ấy, mỗi lần
+// liếc lên góc là một lần không nhìn cái đang tới.
+//
+// Nên nó xuống sàn: một hàng mũi nhọn chạy dọc đúng lối bfsPath đã tìm, trôi về phía đích.
+// Ba luật giữ cho nó không thành rác trên màn hình:
+//   1. CÙNG MỘT ĐƯỜNG với bản đồ nhỏ — visibleRoute(), tức vẫn bị cắt ở ô đầu tiên chưa khám
+//      phá. Nó không được phép vẽ hộ ai lối đi vào một căn phòng chưa mở.
+//   2. CHỪA CHÂN NGƯỜI CHƠI: quãng đầu bỏ trống, không thì mũi tên nằm ngay dưới đế giày.
+//   3. NHẠT DẦN THEO KHOẢNG CÁCH rồi tắt hẳn, nên nó chỉ ra HƯỚNG chứ không trải sẵn cả sơ đồ
+//      căn nhà ra sàn.
+//
+// Vẽ ở lớp CỘNG SÁNG, cùng lớp với mọi vòng highlight, chứ không ở lớp thế giới: nó là một tín
+// hiệu giao diện sơn lên sàn, không phải một vật trong nhà — một mũi chỉ đường tắt ngóm trong
+// phòng tối thì đúng lúc cần nhất là lúc không có.
+const ROUTE_STEP = 21;     // px giữa hai mũi nhọn
+const ROUTE_SKIP = 34;     // px đầu tiên bỏ trống, chỗ bàn chân người chơi đứng
+const ROUTE_FAR  = 300;    // px: quá tầm này thì đường tắt hẳn
+const ROUTE_FLOW = 34;     // px/s: mũi nhọn trôi về phía đích
+function routeChevron(c, x, y, ang, a){
+  c.save();
+  c.translate(x, y); c.rotate(ang); c.scale(1, 0.62);   // nằm bẹp xuống sàn: đây là góc nhìn chếch
+  c.strokeStyle = 'rgba(126,226,178,' + a.toFixed(3) + ')';
+  c.lineWidth = 2.2; c.lineCap = 'round'; c.lineJoin = 'round';
+  c.beginPath(); c.moveTo(-3.4, -4.2); c.lineTo(3.0, 0); c.lineTo(-3.4, 4.2); c.stroke();
+  c.restore();
+}
+function drawFloorRoute(c){
+  const p = S.player;
+  if (!p || S.dead || S.shopMode) return;
+  // Cùng một cái cổng với đường trên bản đồ nhỏ. Hai chỗ vẽ CÙNG một con đường thì phải mở
+  // và đóng cùng lúc, không thì "Máy dò bệ" mua về chỉ thắp một nửa số thứ nó hứa.
+  if (!(MINIMAP_ROUTE_ALWAYS || hasGear(p, 'tracker') || S.levelDone)) return;
+  const r = visibleRoute();
+  if (r.length < 2) return;
+  let acc = (S.time * ROUTE_FLOW) % ROUTE_STEP;   // trôi tới: mốc đầu tiên chạy về phía đích
+  let run = 0;                                    // đã đi được bao xa dọc con đường
+  for (let i = 0; i + 1 < r.length; i++){
+    const ax = r[i].x, ay = r[i].y;
+    const seg = Math.hypot(r[i+1].x - ax, r[i+1].y - ay);
+    if (seg < 0.001) continue;
+    const ux = (r[i+1].x - ax)/seg, uy = (r[i+1].y - ay)/seg;
+    const ang = Math.atan2(uy, ux);
+    while (acc < seg){
+      const along = run + acc;
+      const x = ax + ux*acc, y = ay + uy*acc;
+      acc += ROUTE_STEP;
+      if (along < ROUTE_SKIP) continue;
+      const k = 1 - (along - ROUTE_SKIP)/ROUTE_FAR;
+      if (k <= 0) return;                         // hết tầm: phần còn lại của đường không vẽ nữa
+      routeChevron(c, x, y, ang, 0.18 + 0.44*k*k);
+    }
+    acc -= seg; run += seg;
+  }
+}
+
 function drawHighlights(c){
   const p = S.player;
   if (!p || S.dead) return;
@@ -10235,7 +10510,11 @@ function drawHighlights(c){
     const isT = l === target;
     // The one the grab button would take is called out in a different colour and a wider ring, so
     // "there is loot over there" and "this is the one I am about to pick up" are not the same signal.
-    glowRing(c, l.x, l.y, l.r + (isT ? 7 + beat*2.5 : 4.5),
+    // Bán kính và chỗ đặt lấy từ HÌNH HỌC NHÌN THẤY mà drawLoot vừa đo (xem lootArt): vòng nằm
+    // dưới chân món đồ và rộng hơn cái sprite, nên nó không còn cắt qua món đồ nữa.
+    glowDisc(c, l.artX != null ? l.artX : l.x,
+                l.artFoot != null ? l.artFoot : l.y + l.r*0.62,
+                (l.artR != null ? l.artR : l.r) * 1.16 + (isT ? 5 + beat*2.2 : 2.5),
              isT ? HL_TARGET : (l.isBag ? [235,205,110] : HL_LOOT),
              isT ? 0.55 + beat*0.35 : 0.30, isT ? 2.4 : 1.6);
   }
@@ -10526,6 +10805,94 @@ function drawPads(c){
     }
   }
 }
+// ============================================================ HÌNH HỌC NHÌN THẤY CỦA MÓN ĐỒ
+//
+// `l.r` là bán kính VA CHẠM — thứ mà bức tường, bàn tay và cú ném đo bằng. Từ lúc đồ đạc được
+// vẽ bằng sprite thật thì cái mắt nhìn thấy không còn nằm ở đó nữa: lootIcon() vẽ một ô vuông
+// cạnh 2,6·r, neo ở 0,78 chiều cao PHÍA TRÊN tâm va chạm.
+//
+// [ĐO TRONG REPO] art/item/loot-{nho,vua,to}.png, cả 21 ô, 2026-09-09: mực nằm trong x 3..92,
+// y 3..92 của khung 96 — tức phủ 90/96 = 0,94 cạnh ô. Suy ra:
+//     nửa bề ngang nhìn thấy = 0,94 · 1,3 · r ≈ 1,24 r
+//     tâm nhìn thấy          = y − 0,73 r
+//     chân (chỗ chạm sàn)    ≈ y + 0,49 r
+// Cái vòng highlight vẽ theo `l.r` vì thế CẮT NGANG BỤNG món đồ — chủ dự án, 2026-09-09: "vòng
+// tròn highlight trên loot không nên cắt sprite của loot".
+//
+// Ba chỗ cần đúng hình học này (vòng highlight, vết nứt, dòng giá tiền) nằm ở BA LỚP VẼ khác
+// nhau và chạy cách nhau cả trăm dòng, nên nó được tính MỘT LẦN mỗi khung, ngay lúc vẽ món đồ,
+// rồi gắn lên chính món đồ. Tính lại ở từng chỗ là ba bản sao của một công thức sẽ rẽ đôi.
+const ART_R = 1.24, ART_Y = -0.73;
+function lootArt(l, y, coHinh, rNhin){
+  l.artX = l.x;
+  l.artY = rNhin != null ? y : (coHinh ? y + l.r*ART_Y : y);
+  l.artR = rNhin != null ? rNhin : (coHinh ? l.r*ART_R : l.r);
+  l.artFoot = y + l.r*0.62;          // chỗ món đồ chạm sàn: chân đế và vòng sáng nằm ở đây
+}
+// BÓNG ĐỔ. Một mảng đen phẳng đọc ra là một cái đĩa đen nằm cạnh món đồ; một vệt mờ dần từ
+// giữa ra thì đọc ra là bóng. Cùng một hình bầu dục, khác hẳn chỗ nó đặt món đồ xuống.
+function lootShadow(c, x, y, rx, a){
+  const g = c.createRadialGradient(x, y, 0, x, y, rx);
+  g.addColorStop(0,    'rgba(0,0,0,' + a.toFixed(3) + ')');
+  g.addColorStop(0.55, 'rgba(0,0,0,' + (a*0.66).toFixed(3) + ')');
+  g.addColorStop(1,    'rgba(0,0,0,0)');
+  c.save();
+  c.translate(x, y); c.scale(1, 0.46); c.translate(-x, -y);
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, rx, 0, Math.PI*2); c.fill();
+  c.restore();
+}
+// CHÂN ĐẾ — cái vòng màu vật liệu, NẰM XUỐNG SÀN.
+//
+// Vòng ấy không phải trang trí: màu nói món này làm bằng gì (gốm vỡ, kim loại không) và bán
+// kính nói nó to cỡ nào — hai thứ quyết định vác gì và trách cái gì. Bỏ đi là bỏ mất luật.
+// Nhưng vẽ nó QUANH một sprite đứng thẳng thì nó là một cái vành kẻ ngang bụng món đồ.
+//
+// Nên nó nằm xuống sàn và vẽ TRƯỚC món đồ: sprite che mất nửa sau, và phần còn lại đọc ra là
+// cái bệ mà món đồ đang đứng trên. Vẫn đúng màu, vẫn đúng cỡ, và không cắt cái gì cả.
+function lootPlinth(c, x, y, r, mat){
+  c.save();
+  c.translate(x, y); c.scale(1, 0.44); c.translate(-x, -y);
+  const g = c.createRadialGradient(x, y, r*0.15, x, y, r);
+  g.addColorStop(0, 'rgba(255,255,255,0.055)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, Math.PI*2); c.fill();
+  c.restore();
+  c.beginPath();
+  c.strokeStyle = mat.edge; c.globalAlpha *= 0.72; c.lineWidth = 1.6;
+  c.ellipse(x, y, r, r*0.44, 0, 0, Math.PI*2); c.stroke();
+  c.globalAlpha /= 0.72;
+}
+// VẾT NỨT — tinh lại. Chủ dự án, 2026-09-09: "vết nứt tinh tế lại".
+//
+// Bản cũ là một gạch đen thẳng, dày 1,2 và đậm 0,60, kéo từ giữa món đồ ra gần mép. Ở cỡ
+// một món nhỏ (r = 7) thì ba cái gạch ấy phủ gần hết mặt món đồ — nó đọc ra là "món này bị
+// gạch xoá", không đọc ra là "món này đã nứt".
+//
+// Ba thứ đổi, và cả ba đều là cách một vết nứt THẬT đọc ra:
+//   1. mảnh hơn và mờ hẳn (1,2/0,60 → 0,85/0,26) — vết nứt là một khe hở, không phải một nét vẽ;
+//   2. gãy làm hai đoạn thay vì một gạch thẳng — không có vết nứt nào đi thẳng;
+//   3. thêm một nét sáng chạy song song lệch một điểm ảnh: cái mép bắt sáng của khe hở, thứ
+//      làm nó lõm XUỐNG thay vì nằm ĐÈ lên.
+// Và chúng vẽ quanh TÂM NHÌN THẤY — trước bản này ba vết nứt của một cái tủ nằm gọn dưới chân nó.
+function drawCracks(c, l){
+  const cx = l.artX, cy = l.artY, R = l.artR;
+  c.save();
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  for (let i = 0; i < l.cracks; i++){
+    const a0 = i*2.1 + l.bob, a1 = a0 + 0.42, a2 = a0 + 0.95;
+    const x0 = cx + Math.cos(a0)*R*0.14, y0 = cy + Math.sin(a0)*R*0.14;
+    const x1 = cx + Math.cos(a1)*R*0.46, y1 = cy + Math.sin(a1)*R*0.46;
+    const x2 = cx + Math.cos(a2)*R*0.80, y2 = cy + Math.sin(a2)*R*0.80;
+    c.strokeStyle = 'rgba(236,242,246,0.18)'; c.lineWidth = 0.85;
+    c.beginPath(); c.moveTo(x0+0.7, y0-0.7); c.lineTo(x1+0.7, y1-0.7); c.lineTo(x2+0.7, y2-0.7); c.stroke();
+    c.strokeStyle = 'rgba(16,18,20,0.26)';   c.lineWidth = 0.85;
+    c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+  }
+  c.restore();
+}
+// Bán kính vẽ của một MÓN HÀNG trong trạm dịch vụ. To hơn hẳn bán kính va chạm (7) vì món hàng
+// phải đọc được từ đầu kia gian hàng — xem chú thích ở nhánh `l.good` trong drawLoot.
+const GOOD_ICON_R = 13;
 function drawLoot(c){
   for (const l of S.loot){
     if (l.gone) continue;
@@ -10533,8 +10900,8 @@ function drawLoot(c){
     // A colleague's head. It goes through the loot pipeline because it has to be carried, dropped,
     // loaded and stood on a pad — but it must never LOOK like something you sell.
     if (l.isHead){
-      c.beginPath(); c.fillStyle = 'rgba(0,0,0,0.45)';
-      c.ellipse(l.x, y + l.r*0.7, l.r*0.9, l.r*0.42, 0, 0, Math.PI*2); c.fill();
+      lootArt(l, y, false);
+      lootShadow(c, l.x, y + l.r*0.7, l.r*1.0, 0.42);
       c.beginPath(); c.fillStyle = '#cfcbb9';
       c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
       c.lineWidth = 1.6; c.strokeStyle = '#7d4a46'; c.stroke();
@@ -10545,54 +10912,75 @@ function drawLoot(c){
       wText('Đầu ' + (l.whoName || ''), l.x, y - l.r - 5, '#e6b8b0', 10);
       continue;
     }
-    c.beginPath(); c.fillStyle = 'rgba(0,0,0,0.4)';
-    c.ellipse(l.x, y + l.r*0.7, l.r*0.9, l.r*0.42, 0, 0, Math.PI*2); c.fill();
+    // HÀNG TRONG TRẠM DỊCH VỤ PHẢI CÓ HÌNH THÙ.
+    //
+    // Chủ dự án, 2026-09-09: "các đồ bán trong shop cần hình thù rõ ràng". Cho tới bản này một
+    // khẩu hoa cải 26.000 và một cuộn băng dính 4.500 là HAI HÌNH TRÒN CÙNG CỠ, khác nhau đúng
+    // một dòng chữ nhỏ dưới chân — nên đi chợ là ĐỌC, không phải NHÌN, và người chơi phải bước
+    // tới sát từng món mới biết mình đang đứng trước cái gì.
+    //
+    // gearIcon() đã vẽ sẵn mười một món cho cái nút dùng và cho tủ đồ, cùng một hàm cho cả ba
+    // cỡ. Đây là chỗ thứ ba gọi nó. Vẽ TO HƠN bán kính va chạm (13 so với 7) là cố ý: cái thân
+    // 7 điểm ảnh là để món hàng nhặt lên và xếp lên bệ cho gọn, còn cái hình là để nhìn.
+    if (l.good){
+      lootArt(l, y - 3, false, GOOD_ICON_R*1.02);
+      lootShadow(c, l.x, y + 9, GOOD_ICON_R*0.86, 0.34);
+      gearIcon(c, l.good.kind === 'up' ? 'nangcap' : l.good.key, l.x, y - 3, GOOD_ICON_R);
+      wText(l.good.name, l.x, y + 20, '#dfe6ea', 10);
+      wText(money(l.value), l.x, l.artY - l.artR - 5, '#e2e8ec', 11);
+      continue;
+    }
+    lootShadow(c, l.x, y + l.r*0.7, l.r*1.02, l.held ? 0.26 : 0.40);
     // Co bo hinh do vat thi ve MON DO that; khong thi roi ve dang khoi tron cu.
-    // Cai vong mau van ve trong ca hai truong hop, va no khong phai trang tri: mau noi
-    // mon nay lam bang gi (gom vo de, kim loai khong vo) va ban kinh noi no to co nao —
-    // hai thu quyet dinh vac gi va trach cai gi. Bo vong di la bo mat luat.
     // ORB HỒN không đi qua bộ hình đồ vật: nó không phải một món trong nhà, nó là thứ vừa rơi
     // ra từ một cái xác, và phải đọc ra như thế ngay từ đầu kia căn phòng. Mờ và nhấp nháy suốt
     // mấy giây bất tử đầu — đó là câu "ĐỪNG BẮN VÀO ĐÂY LÚC NÀY", vì lúc nó vỡ là một vụ nổ chứ
     // không phải một tiếng loảng xoảng. Bản gốc dùng đúng tín hiệu ấy: orb trong suốt 5 giây.
     const a00 = c.globalAlpha;
     if (l.orb && S.time < l.grace) c.globalAlpha = a00 * (0.42 + 0.22*Math.sin(S.time*9));
-    const iconed = !l.orb && !l.good && !l.isBag && window.REPO_SKIN && REPO_SKIN.loot &&
-                   REPO_SKIN.loot(c, { x:l.x, y:y, r:l.r, sizeIdx:l.sizeIdx, bob:l.bob });
-    c.beginPath();
-    if (l.orb){
-      // Lệch tâm một chút cho ra khối cầu chứ không ra cái đĩa: chỗ sáng nhất nằm trên-trái,
-      // rìa tối dần — cùng một mẹo với mọi quả cầu vẽ tay, và nó là toàn bộ phần "khối".
-      const g = c.createRadialGradient(l.x - l.r*0.32, y - l.r*0.36, l.r*0.12, l.x, y, l.r*1.1);
-      g.addColorStop(0, '#f4feff');
-      g.addColorStop(0.42, l.mat.col);
-      g.addColorStop(1, 'rgba(46,132,170,0.28)');
-      c.fillStyle = g;
-      c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
-      c.beginPath(); c.arc(l.x, y, l.r, 0, Math.PI*2);
-    } else if (!iconed){
-      c.fillStyle = l.good ? (l.good.kind === 'up' ? '#d3a04a' : '#5aa3ab') : l.isBag ? '#c8a33c' : l.mat.col;
-      c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
-    } else {
-      c.arc(l.x, y, l.r, 0, Math.PI*2);
-    }
-    c.lineWidth = 2;
-    c.strokeStyle = l.good ? (l.good.kind === 'up' ? '#8a6222' : '#2f6a71') : l.isBag ? '#8a6d1e' : l.mat.edge;
-    c.stroke();
-    c.globalAlpha = a00;
-    if (l.good){
-      // A price with no name on it is a number, not an offer.
-      wText(l.good.name, l.x, y + l.r + 12, '#dfe6ea', 10);
-    }
-    for (let i=0;i<l.cracks;i++){
-      c.beginPath(); c.strokeStyle = 'rgba(20,20,20,0.6)'; c.lineWidth = 1.2;
-      const a = i*2.1 + l.bob;
-      c.moveTo(l.x + Math.cos(a)*l.r*0.2, y + Math.sin(a)*l.r*0.2);
-      c.lineTo(l.x + Math.cos(a+0.7)*l.r*0.9, y + Math.sin(a+0.7)*l.r*0.9);
+    // HỎI TRƯỚC, VẼ SAU. Cái chân đế phải nằm DƯỚI món đồ, mà muốn thế thì phải biết món này
+    // có sprite hay không TRƯỚC khi vẽ nó. REPO_SKIN.loot() thì vừa hỏi vừa vẽ, nên sprites.js
+    // có thêm lootCo() chỉ để trả lời câu hỏi mà không đụng vào canvas.
+    const coHinh = !l.orb && !l.good && !l.isBag &&
+                   !!(window.REPO_SKIN && REPO_SKIN.lootCo && REPO_SKIN.lootCo(l));
+    if (coHinh) lootPlinth(c, l.x, y + l.r*0.66, l.r*1.14, l.mat);
+    const iconed = coHinh && REPO_SKIN.loot(c, { x:l.x, y:y, r:l.r, sizeIdx:l.sizeIdx, bob:l.bob });
+    lootArt(l, y, iconed);
+    if (!iconed){
+      c.beginPath();
+      if (l.orb){
+        // Lệch tâm một chút cho ra khối cầu chứ không ra cái đĩa: chỗ sáng nhất nằm trên-trái,
+        // rìa tối dần — cùng một mẹo với mọi quả cầu vẽ tay, và nó là toàn bộ phần "khối".
+        const g = c.createRadialGradient(l.x - l.r*0.32, y - l.r*0.36, l.r*0.12, l.x, y, l.r*1.1);
+        g.addColorStop(0, '#f4feff');
+        g.addColorStop(0.42, l.mat.col);
+        g.addColorStop(1, 'rgba(46,132,170,0.28)');
+        c.fillStyle = g;
+        c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
+      } else {
+        // Cùng cái mẹo ấy, cho cả những món chưa có sprite: tô một màu phẳng rồi phủ lên đúng
+        // đường tròn vừa vẽ một lớp sáng-tối lệch tâm. Không phải phép trộn màu nào cả — một
+        // lượt fill thứ hai trên cùng path — nhưng nó là khác biệt giữa một cái ĐĨA và một KHỐI.
+        c.fillStyle = l.isBag ? '#c8a33c' : l.mat.col;
+        c.arc(l.x, y, l.r, 0, Math.PI*2); c.fill();
+        const g = c.createRadialGradient(l.x - l.r*0.34, y - l.r*0.38, l.r*0.06, l.x, y, l.r*1.08);
+        g.addColorStop(0,    'rgba(255,255,255,0.40)');
+        g.addColorStop(0.44, 'rgba(255,255,255,0.05)');
+        g.addColorStop(1,    'rgba(0,0,0,0.30)');
+        c.fillStyle = g; c.fill();
+      }
+      // Vòng viền của một khối tròn là MÉP CỦA CHÍNH NÓ, không phải một cái vòng đeo quanh nó —
+      // nên nó ở lại đúng chỗ cũ. Món có sprite thì mép nằm ở chỗ khác, và cái vòng ấy đã
+      // xuống sàn thành chân đế ở trên.
+      c.lineWidth = 2;
+      c.strokeStyle = l.isBag ? '#8a6d1e' : l.mat.edge;
       c.stroke();
     }
+    c.globalAlpha = a00;
+    if (l.cracks > 0) drawCracks(c, l);
     // C3-8 step 2: the value must be visible or losing it reads as the game cheating
-    wText(money(l.value), l.x, y - l.r - 5, l.value < l.value0 ? '#d98a7a' : '#e2e8ec', 11);
+    wText(money(l.value), l.artX, l.artY - l.artR - 5,
+          l.value < l.value0 ? '#d98a7a' : '#e2e8ec', 11);
   }
 }
 // CÚ VUNG TAY, VẼ RA. Luật hai thì ở stepMonsters chỉ có nghĩa nếu người chơi NHÌN THẤY thì một —
@@ -11442,7 +11830,16 @@ function drawHud(c){
       c.arc(s.x, s.y, s.r + 3, -Math.PI/2, -Math.PI/2 + Math.PI*2*cd); c.stroke();
     }
     ring(c, s.x, s.y, s.r, san ? 'rgba(228,120,92,0.9)' : 'rgba(96,74,68,0.5)');
-    gearIcon(c, h < 0 ? 'fist' : it.kind, s.x, s.y - s.r*0.10, s.r*0.62, san ? 1 : 0.42);
+    // ĐANG ÔM ĐỒ THÌ NÚT NÀY LÀ NÚT NÉM, nên nó phải NÓI thế. handUse() đã đổi việc rồi (xem
+    // chú thích ở đó); một cái nút đổi việc mà không đổi mặt là một cái nút nói dối.
+    const nem = h < 0 && !!p.held;
+    gearIcon(c, h < 0 ? (nem ? 'throw' : 'fist') : it.kind, s.x, s.y - s.r*0.10, s.r*0.62, san ? 1 : 0.42);
+    if (nem){
+      c.font = '600 9.5px ui-sans-serif, system-ui'; c.textAlign = 'center';
+      c.fillStyle = san ? '#e6ebee' : '#6a6f74';
+      c.fillText('Ném', s.x, s.y + s.r*0.74);
+      c.textAlign = 'left';
+    }
     // So dan nam DUOI hinh. Nam dam khong co so - no khong bao gio het.
     if (it){
       c.font = '600 9.5px ui-monospace, monospace'; c.textAlign = 'center';
@@ -12055,7 +12452,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260908m';
+const BUILD = '20260909a';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -12121,6 +12518,11 @@ function showVeil(title, body, btnText, onClick, extraHtml, onBackdrop){
   //   đông cứng và trên màn hình không còn một cái nút nào để bấm.
   const b2 = el('veilBtn2');
   if (b2) b2.hidden = true;
+  // Cùng lý lẽ với nút trên: nút "Cửa hàng" CHỈ thuộc về màn tiêu đề. Để nó hiện trên bảng
+  // kết ca thì người chơi mở cửa hàng từ một tấm màn mà nút "Quay lại" của nó dựng lại MÀN
+  // TIÊU ĐỀ — tức bảng kết ca biến mất và ván đã chết trở thành một ván đang chờ vào.
+  const bs = el('shopBtn');
+  if (bs) bs.hidden = true;
   const b = el('veilBtn');
   b.textContent = btnText;
   // Một cú click là BÓNG MA của chính cú chạm vừa mở bảng này ra thì không phải là người chơi
@@ -12950,22 +13352,34 @@ function applyUpgrades(){
 // bang sau MOI cu bam, nen khong co bo nho nay thi moi lan bam mot mon la mot lan ve lai ca
 // chuc canvas - dung tren dien thoai thi thay giat.
 const ICON_URL = Object.create(null);
+// HAI LẦN THỬ, và lần thứ hai không phải để cho có.
+//
+// [ĐO TRONG REPO] 2026-09-09: mở trang bằng `file://` thì `art/item/gear.png` là ảnh KHÁC
+// NGUỒN theo mắt Chrome, nên mọi canvas từng vẽ nó lên đều bị "vấy bẩn" và `toDataURL()` ném
+// SecurityError. Bản cũ bắt lỗi rồi trả về chuỗi rỗng — tức là mở game bằng cách nhấp đúp vào
+// tệp thì CẢ TỦ ĐỒ, cả cửa hàng ngoài menu, không còn một cái hình nào. Trên GitHub Pages thì
+// không sao (cùng nguồn), nên lỗi này chỉ hiện ra đúng ở chỗ hay mở thử nhất.
+//
+// Cách thoát không phải là bỏ tấm hình đi: nó là bản vẽ tay và nó đẹp hơn. Nó là VẼ LẠI BẰNG
+// MÃ khi tấm hình làm hỏng cú xuất — hình vector vốn đã có sẵn cho cả mười một món, và nó
+// không đụng tới một tệp nào nên không có gì để mà vấy bẩn.
 function gearIconURL(key, px){
   const k2 = Math.min(3, Math.round(devicePixelRatio || 1));
   const ma = key + '@' + px + 'x' + k2;
   if (ICON_URL[ma]) return ICON_URL[ma];
-  try {
-    const cv = document.createElement('canvas');
-    cv.width = px*k2; cv.height = px*k2;
-    const c = cv.getContext('2d');
-    c.setTransform(k2, 0, 0, k2, 0, 0);
-    gearIcon(c, key, px/2, px/2, px*0.42, 1);
-    return (ICON_URL[ma] = cv.toDataURL());
-  } catch (e){
-    // Mot cai canvas khong dung duoc thi bang tu do van phai mo ra duoc. Tra ve chuoi rong
-    // va cho <img> hong - chu chu van con, nguoi choi van lay do duoc.
-    return (ICON_URL[ma] = '');
+  for (const veTay of [false, true]){
+    try {
+      const cv = document.createElement('canvas');
+      cv.width = px*k2; cv.height = px*k2;
+      const c = cv.getContext('2d');
+      c.setTransform(k2, 0, 0, k2, 0, 0);
+      gearIcon(c, key, px/2, px/2, px*0.42, 1, veTay);
+      return (ICON_URL[ma] = cv.toDataURL());
+    } catch (e){ /* vấy bẩn vì tấm PNG: thử lại bằng hình vector */ }
   }
+  // Ca canvas hong han thi bang tu do van phai mo ra duoc. Tra ve chuoi rong va cho <img>
+  // hong - chu chu van con, nguoi choi van lay do duoc.
+  return (ICON_URL[ma] = '');
 }
 function toggleStash(){
   if (S.stashOpen){ closeStash(); return; }
@@ -13417,6 +13831,217 @@ function frameStep(now){
 }
 
 // ============================================================ boot
+// ============================================================ KÉT SẮT + CỬA HÀNG NGOÀI MENU
+//
+// Chủ dự án, 2026-09-09: "Bên ngoài menu có 1 shop để bán sẵn các weapon, user có thể cầm tối
+// đa 1 weapon sẵn vào trận, mang vào xong là mất."
+//
+// TRẠM DỊCH VỤ TRONG CA VÀ CỬA HÀNG NGOÀI MENU LÀ HAI THỨ KHÁC NHAU, và cái phân biệt chúng
+// không phải chỗ đặt nút — mà là ĐỒNG TIỀN:
+//   - Trạm dịch vụ tiêu `S.wallet`, và doc B4 nói rõ: trượt chỉ tiêu là mất sạch — tiền, nâng
+//     cấp, tủ đồ. Đó là thứ làm cho chỉ tiêu có sức nặng, và nó ở lại nguyên vẹn.
+//   - Cửa hàng ngoài menu tiêu KÉT SẮT: một cái ví thứ hai, sống qua mọi lần thua, nằm trong
+//     localStorage của chính máy người chơi.
+// Không có cái két thì cửa hàng này không có gì để bán, vì ván nào cũng bắt đầu từ số không —
+// "mua sẵn một khẩu" là một câu không thể xảy ra trong luật cũ.
+//
+// TIỀN VÀO KÉT LÀ TIỀN LƯƠNG, không phải tiền lãi: hết một ván, người chơi giữ lại KHO_CUT
+// phần số đã GIAO LÊN BỆ trong ván đó. Nên một ván thua vẫn để lại một thứ gì đó, mà vẫn không
+// bõ để cố tình thua — 12% của một ván ngắn thì ít hơn hẳn 12% của một ván dài.
+//
+// MỘT MÓN, VÀ MANG VÀO LÀ MẤT. Luật của chủ dự án, và nó chính là thứ giữ cho cửa hàng này
+// không nuốt mất ván chơi: khẩu súng mua sẵn là một CÁI VÉ, tiêu đúng một lần. Nó rút ngắn
+// đúng khúc đầu — quãng tay không trước cái trạm dịch vụ đầu tiên — chứ không thay cho trạm ấy.
+//
+// KHÔNG CÓ Ở BẢN BIỆT ĐỘI. Bản đó có menu riêng, tiền riêng và tủ riêng (js/meta.js); cắm thêm
+// một cái két thứ hai vào đó là hai hệ tiền tệ cãi nhau trên cùng một màn hình. `khoOn()` đọc
+// đúng cái cờ mà bản ấy vốn đã dựng để nói "tôi có menu của tôi".
+const KHO_KEY = 'repo2d.kho.v1';
+const KHO_CUT = 0.12;     // phần số đã giao trong ván được giữ lại làm lương
+const KHO_DAU = 3200;     // két lần đầu: vừa đúng một khẩu súng lục, xem chú thích ở khoDoc()
+function khoOn(){ return !HOOKS.menuMode; }
+// ĐỌC KÉT. Mọi thứ đọc lên đều bị siết lại về đúng dạng: cái tệp này đọc một chuỗi do NGƯỜI
+// DÙNG sở hữu và sửa được bằng devtools, nên một `uses: 99999` hay một `kind: "khong-co-that"`
+// không được phép đi quá dòng này.
+function khoDoc(){
+  let o = null;
+  try { o = JSON.parse(localStorage.getItem(KHO_KEY) || 'null'); } catch (e){ o = null; }
+  // LẦN ĐẦU MỞ GAME thì két không rỗng, nó có đúng một khẩu súng lục tiền.
+  // WHY: một cửa hàng năm món mà cả năm đều xám ngoét vì "$0" thì đọc ra là một cái nút hỏng,
+  // không đọc ra là "đi kiếm tiền đã". Cho vừa đủ MỘT món là dạy được cả vòng lặp trong một
+  // lần bấm: mua, mang vào, dùng hết, và phát hiện ra là muốn có nữa thì phải đi làm.
+  if (!o || typeof o !== 'object') return khoGhi({ tien: KHO_DAU, mang: null });
+  const k = { tien: Math.max(0, Math.round(+o.tien || 0)), mang: null };
+  const m = o.mang;
+  if (m && GEAR_BY_KEY[m.kind]){
+    const def = GEAR_BY_KEY[m.kind];
+    k.mang = { kind: m.kind,
+               uses: clamp(Math.round(+m.uses || 0), 1, def.uses),
+               gia:  Math.max(0, Math.round(+m.gia || 0)) };
+  }
+  return k;
+}
+function khoGhi(k){
+  try { localStorage.setItem(KHO_KEY, JSON.stringify(k)); } catch (e){}
+  return k;                                  // chế độ riêng tư tắt localStorage: game vẫn chạy
+}
+function khoThem(n){
+  if (!khoOn() || !(n > 0)) return 0;
+  const k = khoDoc();
+  k.tien += Math.round(n);
+  khoGhi(k);
+  return Math.round(n);
+}
+// HÀNG BÁN — đúng năm món BẮN hoặc NÉM ĐƯỢC trong bảng GEAR.
+//
+// Băng cứu thương, máy dò bệ, keo bọc, bình phản trọng lực và xà beng không có mặt ở đây: chủ
+// dự án nói "bán sẵn các weapon", mà một cuộn băng dính thì không phải weapon. Chúng vẫn bán ở
+// trạm dịch vụ như cũ — cửa hàng này không thay trạm, nó chỉ bắc một cây cầu qua khúc đầu ca.
+//
+// GIÁ bằng khoảng 35% giá ở trạm. Không phải giảm giá: đồng tiền ở đây kiếm chậm hơn hẳn —
+// 12% mỗi ván, so với 100% số giao được tiêu ngay tại trạm — nên 35% giá là để một ván tử tế
+// đổi được một món, chứ không phải để món ở đây rẻ hơn.
+const KHO_HANG = [
+  { key:'bomb',    gia: 2400 },
+  { key:'gun',     gia: 3200 },
+  { key:'tranq',   gia: 4200 },
+  { key:'laser',   gia: 7600 },
+  { key:'shotgun', gia: 8800 }
+];
+// LẮP MÓN MUA SẴN LÊN TAY, rồi XOÁ NÓ KHỎI KÉT. Gọi đúng một lần cho mỗi ván, ở chỗ ván thật
+// sự bắt đầu — xem vaoCa() và vanMoi().
+//
+// XOÁ TRƯỚC KHI LẮP, và thứ tự ấy là cố ý: nếu ghi két sau khi lắp thì một cú ngoặc ở giữa để
+// lại món VỪA LẮP mà két VẪN CÒN — tức một cái máy nhân bản đồ. Hỏng theo chiều ngược lại thì
+// người chơi mất một món; hỏng theo chiều kia thì hỏng cả trò chơi.
+function mangDoVaoCa(){
+  if (!khoOn()) return null;
+  const k = khoDoc();
+  if (!k.mang) return null;
+  const def = GEAR_BY_KEY[k.mang.kind];
+  const uses = k.mang.uses;
+  k.mang = null; khoGhi(k);
+  const p = S.player;
+  if (!def || !p) return null;
+  const i = p.inv.indexOf(null);
+  // Ba ô đầy thì món xuống tủ trên xe chứ không bốc hơi. Không xảy ra ở đầu ca một (ba ô luôn
+  // rỗng), nhưng "Ca mới" bấm giữa chừng thì có, và mất một món đã trả tiền là không chấp nhận được.
+  if (i < 0){ S.stash.push({ kind:def.key, uses }); return def; }
+  p.inv[i] = { kind:def.key, uses };
+  p.hand = i;
+  return def;
+}
+
+// ---------------------------------------------------------------- màn tiêu đề và cửa hàng của nó
+let manDau = null;          // chữ của tấm màn tiêu đề, chụp lại một lần lúc khởi động
+function moManDau(){
+  if (!manDau) return false;
+  showVeil(manDau.t, manDau.b, 'Vào ca', vaoCa);
+  const b2 = el('veilBtn2'); if (b2) b2.hidden = false;
+  veNutCuaHang();
+  return true;
+}
+function vaoCa(){
+  SFX.wake();
+  const def = mangDoVaoCa();
+  S.running = true;
+  hideVeil();
+  startCut('arrive', 'Màn ' + S.level, 'Chỉ tiêu ' + money(S.quotaTotal));
+  if (def) toast('Mang theo: ' + def.name + ' — hết là hết, ca sau phải mua lại.');
+}
+// Bắt đầu ngay một ván mới, KHÔNG qua màn tiêu đề: phím R và nút "Ca mới". Món mua sẵn vẫn phải
+// được lắp lên tay ở đây — hai lối vào cùng một ván mà cho hai kết quả khác nhau là một cái bẫy.
+function vanMoi(){ resetRun(); startLevel(); mangDoVaoCa(); }
+// VỀ MÀN TIÊU ĐỀ thay vì lao thẳng vào ván sau. Cửa hàng nằm ở màn tiêu đề, nên nút "Làm lại từ
+// màn 1" cũ là một cái nút ĐI VÒNG QUA cửa hàng: người chơi vừa được trả lương xong mà không có
+// chỗ nào tiêu, và đúng lúc họ cần một khẩu súng nhất.
+function veMenu(){
+  resetRun();
+  startLevel();          // dựng sẵn căn nhà của ván mới, y như lúc khởi động
+  S.running = false;     // ...rồi giữ nó đứng yên sau tấm màn cho tới khi bấm "Vào ca"
+  S.cut = null;          // và nuốt đoạn "xe tải tới" mà startLevel vừa xếp hàng — vaoCa() chạy lại nó
+  if (!moManDau()) S.running = true;   // không có màn tiêu đề (bản khác) thì đừng bỏ ai đứng giữa hư không
+}
+function veNutCuaHang(){
+  const b = el('shopBtn');
+  if (!b) return;                      // bản Biệt Đội không có cái nút này, và không nên có
+  b.hidden = !khoOn();
+  if (b.hidden) return;
+  const k = khoDoc();
+  const def = k.mang && GEAR_BY_KEY[k.mang.kind];
+  b.textContent = 'Cửa hàng · ' + money(k.tien) + (def ? ' · mang ' + (def.short || def.name) : '');
+  b.onclick = () => moCuaHang();
+}
+const escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+function moCuaHang(nhac){
+  const k = khoDoc();
+  const dang = k.mang && GEAR_BY_KEY[k.mang.kind];
+  const o = KHO_HANG.map(h => {
+    const def = GEAR_BY_KEY[h.key];
+    if (!def) return '';
+    const mua = !k.mang && k.tien >= h.gia;
+    return '<button class="mitem' + (mua ? '' : ' off') + '" data-mua="' + h.key + '"' +
+           (mua ? '' : ' disabled') + ' title="' + escHtml(def.desc) + '">' +
+           '<img src="' + gearIconURL(h.key, 46) + '" alt="">' +
+           '<span class="mname">' + escHtml(def.name) + '</span>' +
+           '<span class="mnum">x' + def.uses + '</span>' +
+           '<span class="mgia">' + money(h.gia) + '</span></button>';
+  }).join('');
+  const hang = dang
+    ? '<div class="mshop"><div class="mitem have">' +
+      '<img src="' + gearIconURL(k.mang.kind, 46) + '" alt="">' +
+      '<span class="mname">' + escHtml(dang.name) + '</span>' +
+      '<span class="mnum">x' + k.mang.uses + '</span>' +
+      '<button class="mbo" data-bo="1">Bỏ ra · hoàn ' + money(k.mang.gia || 0) + '</button>' +
+      '</div></div>'
+    : '<div class="empty">Chưa mang gì. Mua một món dưới đây — vào ca là nó nằm sẵn trên tay.</div>';
+  showVeil('Cửa hàng',
+    'Mua sẵn MỘT món mang vào ca. Mang vào là MẤT: hết ca hay hỏng ca đều không lấy lại được. ' +
+    'Tiền ở đây là tiền lương — hết mỗi ván bạn giữ lại ' + Math.round(KHO_CUT*100) +
+    '% số đã giao lên bệ trong ván đó.',
+    'Quay lại', moManDau,
+    '<div class="wallet">Két: ' + money(k.tien) + '</div>' +
+    (nhac ? '<div class="empty" style="color:#e0a35a;border-color:#5a4320">' + escHtml(nhac) + '</div>' : '') +
+    '<div class="seg">Đang mang theo</div>' + hang +
+    '<div class="seg">Hàng bán</div><div class="mshop">' + o + '</div>' +
+    '<div class="empty">Trạm dịch vụ giữa các màn vẫn bán đủ mười một món như cũ, kể cả băng, ' +
+    'keo bọc và xà beng — cửa hàng này không thay nó, nó chỉ lo đúng khúc đầu ca.</div>',
+    moManDau);
+  const box = el('veilExtra');
+  if (!box) return;
+  box.querySelectorAll('[data-mua]').forEach(b => {
+    b.onclick = () => {
+      const key = b.getAttribute('data-mua');
+      const h = KHO_HANG.find(x => x.key === key), def = GEAR_BY_KEY[key];
+      if (!h || !def) return;
+      // Đọc lại két TẠI ĐÂY chứ không dùng bản đã đọc lúc dựng bảng: bảng có thể đã nằm trên
+      // màn hình một lúc, và cùng một tab mở hai lần thì hai bảng cùng tiêu một túi tiền.
+      const k2 = khoDoc();
+      if (k2.mang){ moCuaHang('Chỉ mang được MỘT món. Bỏ món đang mang ra trước đã.'); return; }
+      if (k2.tien < h.gia){
+        moCuaHang('Không đủ tiền: cần ' + money(h.gia) + ', két có ' + money(k2.tien) + '.');
+        return;
+      }
+      k2.tien -= h.gia;
+      k2.mang = { kind:key, uses:def.uses, gia:h.gia };
+      khoGhi(k2); SFX.chime();
+      moCuaHang('Đã mua ' + def.name + '. Bấm "Quay lại" rồi vào ca.');
+    };
+  });
+  box.querySelectorAll('[data-bo]').forEach(b => {
+    b.onclick = () => {
+      const k2 = khoDoc();
+      if (!k2.mang) return;
+      const def = GEAR_BY_KEY[k2.mang.kind];
+      // HOÀN ĐỦ. Chưa mang vào ca thì chưa tiêu gì cả, và một khoản phí đổi ý chỉ dạy người
+      // chơi đúng một điều: đừng bấm vào cái cửa hàng này nữa.
+      k2.tien += (k2.mang.gia || 0);
+      k2.mang = null; khoGhi(k2);
+      moCuaHang('Đã bỏ ' + (def ? def.name : 'món đó') + ' ra, hoàn đủ tiền.');
+    };
+  });
+}
+
 window.__boot = function(){
   setupInput();
   resize();
@@ -13438,10 +14063,11 @@ window.__boot = function(){
   buildLevel((Math.random()*999999)|0);
   S.running = false;
 
-  el('veilBtn').onclick = () => {
-    SFX.wake(); S.running = true; hideVeil();
-    startCut('arrive', 'Màn ' + S.level, 'Chỉ tiêu ' + money(S.quotaTotal));
-  };
+  // Chữ của màn tiêu đề nằm trong index.html chứ không trong tệp này, mà showVeil() ghi đè lên
+  // đúng hai thẻ ấy. Chụp lại một lần ở đây là cách duy nhất để dựng lại được nó sau khi người
+  // chơi ghé cửa hàng — xem moManDau().
+  manDau = { t: el('veilTitle').textContent, b: el('veilBody').textContent };
+  el('veilBtn').onclick = vaoCa;
   el('sndBtn').onclick = () => {
     const on = !SFX.on;
     SFX.setOn(on); SFX.wake();
@@ -13450,7 +14076,7 @@ window.__boot = function(){
   };
   el('veilBtn2').hidden = false;
   el('veilBtn2').onclick = () => { S.running = true; hideVeil(); setBot(true); };
-  el('newBtn').onclick = () => { resetRun(); startLevel(); };
+  el('newBtn').onclick = vanMoi;
   // The label says what a press WILL DO, because the button is the only thing on screen that
   // tells you whether the house has anything in it - and it now starts with the house empty.
   const paintFoeBtn = () => {
@@ -13468,6 +14094,7 @@ window.__boot = function(){
     }
   };
   paintFoeBtn();
+  veNutCuaHang();
   el('botBtn').onclick = () => setBot(!window.__botActive);
   // Nút sổ tay nằm trên THANH TRÊN chứ không trong HUD canvas: HUD đã chật, và mọi
   // toạ độ trong đó đang bị hudGeomSuite/rotateSuite đo từng pixel. Một nút để đọc
@@ -13502,6 +14129,9 @@ window.REPO = {
     items:b.items.length, value:bikeValue(b), riding: !!b.rider, downed:b.downed })); },
   riding(){ const p = S.player; return p && p.riding ? p.riding.kind : null; },
   toggleStash, rollShop, startShop, leaveShop, togglePay, testHeld,
+  // ném đồ + két sắt ngoài menu
+  throwHeld, throwSpeed, throwDamage, THROW_V0, THROW_DMG_K, THROW_LIVE,
+  khoDoc, khoGhi, khoThem, mangDoVaoCa, moCuaHang, moManDau, veMenu, KHO_HANG, KHO_CUT, KHO_KEY,
   TRUCK_BOARD_T, TRUCK_BOARD_R, inTruck,
   boarding(){ return { t: +(S.board || 0).toFixed(2), of: TRUCK_BOARD_T,
                        show: !!S.countdownActive, label: S.countdownLabel }; },

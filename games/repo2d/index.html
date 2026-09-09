@@ -213,6 +213,27 @@
        color:var(--ink-faint);width:100%;text-align:left;margin-top:4px;}
   .wallet{font-family:var(--mono);font-size:12.5px;color:var(--amber);letter-spacing:.06em;}
 
+  /* CUA HANG NGOAI MENU - mot luoi THE, moi the MOT HINH TO.
+     Chu du an, 2026-09-09: "cac do ban trong shop can hinh thu ro rang". Nen cai hinh la thu
+     to nhat trong the (46px, gap ruoi cai o trong tu do), ten va gia xep duoi no - chu khong
+     phai mot dong chu keo theo mot cham mau. Hinh do gearIconURL() ve ra, cung mot ham voi
+     nut dung va tu do, nen ba cho ay khong bao gio le nhau mot mon. */
+  .mshop{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px;width:100%;}
+  .mitem{background:var(--panel);border:1px solid var(--line);border-radius:2px;
+         padding:9px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;
+         text-align:center;cursor:pointer;color:inherit;font:inherit;}
+  .mitem:hover{background:#171c23;border-color:#3a434f;}
+  .mitem.off{opacity:.42;cursor:not-allowed;}
+  .mitem.have{border-color:var(--amber);cursor:default;}
+  .mitem img{width:46px;height:46px;display:block;}
+  .mitem .mname{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.25;}
+  .mitem .mnum{font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);}
+  .mitem .mgia{font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.04em;}
+  .mbo{margin-top:4px;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+       color:var(--ink-dim);background:#0e1116;border:1px solid var(--line);border-radius:2px;
+       padding:5px 8px;cursor:pointer;}
+  .mbo:hover{color:var(--ink);border-color:#3a434f;}
+
   /* BA O TREN TAY va CAI BA LO: ca khoi luat da doi sang tu-do.css, gan bang <link> ngay
      duoi khoi <style> nay. Ly do o dau tep do: MOT game.js phuc vu HAI trang, ma khoi luat
      nay xua nay chi co o day - mo tu ben Biet Doi la ra mot dong div tran. */
@@ -289,7 +310,7 @@
      `.veil.stash #veilExtra` va `.veil.panel #veilExtra` co DO UU TIEN BANG NHAU (mot id,
      hai lop), nen cai nao dung sau thi cai do thang. Keo len tren la khung go van hien
      nhung be ngang va padding cua bang thi van la cua ban cu. -->
-<link rel="stylesheet" href="tu-do.css?v=20260908m">
+<link rel="stylesheet" href="tu-do.css?v=20260909a">
 </head>
 <body>
 
@@ -318,7 +339,10 @@
       <p id="veilBody">Vào nhà, khuân đồ giá trị ra bệ giao hàng cho đủ chỉ tiêu, rồi tìm bệ tiếp theo. Đồ càng nặng càng đắt, và càng dễ vỡ khi bạn đâm vào tường. Trong đó có thứ khác đang đi lại.</p>
       <p style="font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)" id="veilKeys">
         <kbd>W A S D</kbd> đi &nbsp;·&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;·&nbsp; <kbd>Shift</kbd> chạy &nbsp;·&nbsp; <kbd>E</kbd> nhặt/thả/đẩy xe<br>
-        <kbd>F</kbd> tủ đồ trên xe &nbsp;·&nbsp; <kbd>Q</kbd> đập đèn pin &nbsp;·&nbsp; <kbd>1 2 3</kbd> dùng đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>R</kbd> chơi lại<br>
+        <kbd>F</kbd> tủ đồ trên xe &nbsp;·&nbsp; <kbd>Q</kbd> đập đèn pin / <b>ném món đang ôm</b> &nbsp;·&nbsp; <kbd>1 2 3</kbd> dùng đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>R</kbd> chơi lại<br>
+        <span style="opacity:.8"><b>Ném đồ:</b> đang ôm một món mà tay không cầm đồ nghề thì nút đánh thành nút <b>Ném</b>. Món bay vào quái hay vào đồng đội đều gây sát thương theo <b>động lượng</b> — món càng nặng, bay càng nhanh thì càng đau. Và nó đau cả hai chiều: món đập vào ai, hay đập vào tường, đều mất giá trị. Cái đầu đồng đội thì ném được mà không làm ai đau — dùng để đưa người qua phòng hoặc lên thẳng bệ.</span><br>
+        <span style="opacity:.8"><b>Cửa hàng ngoài menu:</b> tiêu tiền lương giữ lại sau mỗi ván, mua sẵn <b>một</b> món mang vào ca. Mang vào là mất.</span><br>
+        <span style="opacity:.8"><b>Mũi chỉ lối</b> giờ sơn thẳng xuống sàn, chạy về phía bệ đang mở — nó chỉ vẽ tới đúng chỗ bạn đã đi qua.</span><br>
         <span style="opacity:.8">Đồ ném được: giữ ô đồ để hiện cần định hướng, thả tay là dùng; kéo lên dấu ✕ góc trên bên phải để bỏ. Kéo gần đúng phía con quái là đủ — nòng súng tự hút vào nó.</span><br>
         <span style="opacity:.8"><b>Súng laser sạc:</b> giữ ô đồ (hoặc giữ phím <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>) để sạc — vành sáng chạy quanh nút cho biết đã đủ chưa — buông tay là bắn một tia xuyên qua cả hàng. Sạc càng đầy càng mạnh, nhưng bắn xong đứng chôn chân lâu hơn.</span><br>
         <span style="opacity:.8"><b>Súng nòng ngắn:</b> bảy viên toé ra một nón ngắn. Sát mặt thì nát, xa thì phí đạn — và mỗi phát đẩy bạn lùi lại, chân chậm một nhịp.</span><br>
@@ -337,6 +361,7 @@
       <div id="veilExtra"></div>
       <div class="veil-acts" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
         <button class="btn" id="veilBtn">Vào ca</button>
+        <button class="btn ghost" id="shopBtn" hidden>Cửa hàng</button>
         <button class="btn ghost" id="veilBtn2" hidden>Để bot chơi</button>
       </div>
     </div>
@@ -432,9 +457,9 @@
 
 <!-- phong.js phai dung TRUOC game.js: no chi dat window.REPO_PHONG roi thoi, con game.js
      hoi bang do ngay tu luot ve nen dau tien. -->
-<script src="phong.js?v=20260908m"></script>
-<script src="sprites.js?v=20260908m"></script>
-<script src="game.js?v=20260908m"></script>
+<script src="phong.js?v=20260909a"></script>
+<script src="sprites.js?v=20260909a"></script>
+<script src="game.js?v=20260909a"></script>
 <script src="bot.js?v=20260904a"></script>
 <script>window.__boot && window.__boot();</script>
 <script>

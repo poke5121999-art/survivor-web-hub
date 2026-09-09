@@ -338,6 +338,83 @@ Hai thứ khác cần cân nhắc chứ không lấy thẳng:
 
 ---
 
+## 7. Ném đồ — thang sát thương, và nó lấy từ đâu
+
+Mục này **không** nói về Robbery Bob. Nó nói về **R.E.P.O.**, tức bản gốc của chính `repo2d`, và
+nó có mặt ở đây vì chủ dự án hỏi thẳng: *"loot bay vào mặt đồng minh hay quái đều gây sát thương
+dựa trên thang đo gì đó — research repo gốc"* (2026-09-09).
+
+### 7.1. Bản gốc làm gì
+
+| | |
+|---|---|
+| **Đồ thường quăng vào quái** | **5 tới 120** sát thương, *"depending on the item and any physics damage applied from the monster bouncing around"*. Tức là KHÔNG có bảng số theo từng món — nó là món ĐÓ bay NHANH thế nào, do engine vật lý tính. |
+| **Soul orb** | Ba cỡ có số chốt: **nhỏ ~50 · vừa ~100 · to ~150**, *"enough to 1 shot most level 1 monsters and some level 2 monsters"*. |
+| **Cú va làm đau CẢ HAI** | Con **Rugrat** cướp đồ rồi quăng vào người chơi, *"dealing damage to both the player and the item"*. Nó bê được hai món một lúc, và hai món cùng lúc thì *"can one-shot a player, the item, or both"*. |
+| **Quái đánh nhau hộ mình** | Bản gốc cho phép *"make the Huntsman inflict damage on other monsters by dropping valuables"*. Ném đồ là một cách xử lý quái, không chỉ là một trò nghịch. |
+
+Không nguồn nào nói ra công thức. Cái nói ra được là **hình dạng** của nó: sát thương tỉ lệ với
+cỡ/khối lượng món đồ và với tốc độ va chạm — tức là **động lượng**.
+
+### 7.2. Cách dịch sang `repo2d`
+
+Một công thức, không một bảng số nào:
+
+```
+sát thương = khối lượng × vận tốc lúc chạm × 0,022 × hệ số vật liệu
+tốc độ ném = 560 × sức / (sức + khối lượng × 2,2),  không dưới 130 px/s
+```
+
+Nó tự đẻ ra mọi thứ đáng có:
+- đồ **to** ném đi chậm hơn nhiều nhưng nặng hơn nhiều → vẫn là cú đau nhất;
+- ném vào mặt ≠ ném lúc món sắp rơi xuống sàn: vận tốc đã tụt, sát thương tụt theo;
+- `p.str` — nâng cấp mua được ở trạm — vào thẳng công thức qua tốc độ ném, không phải cộng riêng.
+
+**[ĐO TRONG REPO] 2026-09-09**, sức gốc 30, ở tầm chạm ~0,15 giây sau khi rời tay:
+
+| | gốm | gỗ | kim loại | orb hồn |
+|---|---|---|---|---|
+| nhỏ | 39 | 46 | 58 | **51** |
+| vừa | 68 | 80 | 100 | **88** |
+| to  | 105 | 124 | 154 | **136** |
+
+Ba cột đầu nằm gọn trong dải **5–120** của bản gốc (trừ đúng món to bằng kim loại, và món ấy
+đáng thế). Cột orb rơi đúng vào **50/100/150** của bản gốc mà không phải đặt tay con số nào.
+
+### 7.3. Món đồ cũng chịu cú va ấy
+
+Chủ dự án, cùng hôm: *"loot ném vào quái có thể mất giá hoặc bể lun nha"* — và đó chính là vế
+"damage to both" của bản gốc. Cú va ăn ngược vào chính món đồ qua `damageLoot()`, cùng cái hàm
+mà đâm tường vẫn dùng.
+
+Hệ số ăn ngược là **1,75**, tức LỚN HƠN 1, và lý lẽ là: cú va vào một cái thân đang lao ngược
+lại không phải một cú dừng lại, nó là hai vận tốc cộng vào nhau. Đâm tường thì tường đứng yên,
+nên tường vẫn dùng nguyên vận tốc.
+
+**[ĐO TRONG REPO]** phần giá trị mất trong MỘT cú ném trúng:
+
+| | gốm | gỗ | kim loại |
+|---|---|---|---|
+| nhỏ | **VỠ TAN** | 34% | 5% |
+| vừa | 62% | 12% | ~0 |
+| to  | 27% | 2% | ~0 |
+
+Ném cái bình gốm vào mặt con quái là mất phần lớn tiền của nó, và món gốm nhỏ thì vỡ hẳn ngay
+tại chỗ. Kim loại chỉ móp — đúng cái mà `frag` và `hit` của nó vốn đã nói. Nên ném là một
+**quyết định**, không phải một nút bấm miễn phí.
+
+### 7.4. Hai chỗ cố ý KHÁC bản gốc
+
+- **Không một phát gục đồng đội từ máu đầy.** Bản gốc cho một cú ném one-shot người chơi. Ở đây
+  cú ném vào tổ viên bị chặn ở `HIT_MAX_FRAC` (72% máu tối đa) — cùng cái luật vốn đã bảo vệ
+  người chơi ở `hurtPlayer()`. Một cú lỡ tay không được phép là cả tổ mất một người trong một
+  khung hình.
+- **Cái đầu đồng đội không gây sát thương.** Nó đi qua đường ống loot nên ném được, và ném được
+  là thứ đáng giá: đó là cách đưa một người qua phòng hoặc lên thẳng bệ mà không phải vác. Nhưng
+  nó là một NGƯỜI, không phải một hòn đá.
+
+---
+
 ## Nguồn
 
 - [Game Mechanics — Robbery Bob Wiki (Fandom)](https://robberybob.fandom.com/wiki/Game_Mechanics)
@@ -350,6 +427,15 @@ Hai thứ khác cần cân nhắc chứ không lấy thẳng:
 - [Robbery Bob — Wikipedia](https://en.wikipedia.org/wiki/Robbery_Bob)
 - [Robbery Bob 2: Double Trouble — Wikipedia](https://en.wikipedia.org/wiki/Robbery_Bob_2:_Double_Trouble)
 - [Robbery Bob 2 — NamuWiki](https://en.namu.wiki/w/Robbery%20Bob%202)
+
+Cho mục 7 (ném đồ, bản gốc **R.E.P.O.** chứ không phải Robbery Bob):
+
+- [Valuables — Repo Wiki (Fandom)](https://repo-2025horror.fandom.com/wiki/Valuables)
+- [Enemy Valuable — Repo Wiki (Fandom)](https://repo-2025horror.fandom.com/wiki/Enemy_Valuable)
+- [Monsters — Repo Wiki (Fandom)](https://repo-2025horror.fandom.com/wiki/Monsters)
+- [R.E.P.O. — The Full Guide (Steam Community)](https://steamcommunity.com/sharedfiles/filedetails/?id=3449852510)
+- [R.E.P.O. Monsters, Upgrades, and Weapons Guide (Steam Community)](https://steamcommunity.com/sharedfiles/filedetails/?id=3482961802)
+- [All Creatures And How To Handle Them In R.E.P.O — TheGamer](https://www.thegamer.com/repo-all-monsters-explained-guide-how-to-avoid/)
 
 Ghi chú về nguồn: Fandom và NamuWiki chặn truy cập trực tiếp (HTTP 402/403) tại thời điểm viết,
 nên nội dung wiki ở trên lấy qua kết quả tìm kiếm chứ không phải đọc thẳng trang. Các con số

@@ -393,6 +393,13 @@
   // Món nào ra hình nào phải CỐ ĐỊNH theo món, không bốc lại mỗi khung hình. `bob` là số
   // ngẫu nhiên gắn vào món lúc sinh ra và không đổi nữa, nên dùng nó làm hạt giống: cùng
   // một cái ấm thì lúc nào cũng là cái ấm, kể cả sau khi bị vác đi rồi thả xuống.
+  // CÓ TẤM HÌNH CHO CỠ NÀY CHƯA — hỏi mà không vẽ.
+  //
+  // game.js cần biết câu trả lời TRƯỚC khi vẽ, vì cái chân đế của món đồ phải nằm DƯỚI nó:
+  // vẽ chân đế sau thì nó là một cái vòng kẻ ngang qua bụng món đồ, đúng cái vừa đi sửa.
+  // lootIcon() thì vừa hỏi vừa vẽ, nên không dùng để hỏi được.
+  function lootCo(l) { return !!lootStrip[SZ_KEY[l.sizeIdx | 0] || 'vua']; }
+
   function lootIcon(c, l) {
     const s = lootStrip[SZ_KEY[l.sizeIdx | 0] || 'vua'];
     if (!s) return false;
@@ -532,6 +539,7 @@
     vfx: drawVfx,
     vfxN: function (id) { return vfx[id] ? vfx[id].n : 0; },
     loot: lootIcon,
+    lootCo: lootCo,
     lamp: lamp,
     gear: gear,
     gearOrder: function () { return GEAR_ORDER.slice(); },
