@@ -330,19 +330,6 @@
     }
     b.appendChild(line);
 
-    // DẢI "MANG VÀO CA". Không phải trang trí: nó là cửa thứ hai vào chỗ bán, và là chỗ duy
-    // nhất trên đường đi tới nút ĐI CA nói cho người chơi biết họ đang cầm gì vào ca.
-    const mang = SQ.doNghe ? SQ.doNghe() : null;
-    const md = el('div', 'mangbar' + (mang ? ' on' : ''));
-    const mdef = mang ? SQ.gearDef(mang.kind) : null;
-    md.innerHTML = '<div class="mg-l">MANG VÀO CA</div>' +
-      (mang ? '<div class="mg-i">' + gearImg(mang.kind, 26) + '</div>' +
-              '<div class="mg-n">' + (mdef ? mdef.name : mang.kind) + ' ×' + mang.uses + '</div>'
-            : '<div class="mg-n empty">tay không — bấm để mua một món</div>') +
-      '<div class="mg-go">›</div>';
-    on(md, 'click', () => UI.go('shop'));
-    b.appendChild(md);
-
     // — thanh chọn map, kiểu chọn chương —
     const map = curMap();
     const st = M.maps[map.id];
@@ -365,8 +352,28 @@
     pick.appendChild(prev); pick.appendChild(mid); pick.appendChild(next);
     b.appendChild(pick);
 
-    // — nút vào trận —
-    b.appendChild(btn('▶ ĐI CA', 'cta', () => SQ.squad.enter(map.id)));
+    // — nút vào trận, và ngay cạnh nó là món đồ nghề sẽ đi cùng —
+    //
+    // Chủ dự án: "để cái shop weapon đó kế bên nút đi ca đi, tự nhiên phóng to cái nút đó ra
+    // chi vậy?". Bản trước tôi làm nó thành một DẢI rộng hết màn, và dải ấy sai hai đường:
+    // nó to ngang cái nút chính trong khi nó không phải việc chính, và nó thêm một đứa con
+    // thứ năm vào cái lưới bốn hàng của khung ngang (`body.landscape .stage.is-home`).
+    //
+    // Nay nó là một ô vuông nhỏ NẰM TRONG CÙNG MỘT HÀNG với nút ĐI CA: đọc ra là "cái này đi
+    // kèm cú bấm kia", không giành chỗ, và lưới khung ngang vẫn đúng bốn đứa con.
+    const mang = SQ.doNghe ? SQ.doNghe() : null;
+    const mdef = mang ? SQ.gearDef(mang.kind) : null;
+    const hangDi = el('div', 'gorow');
+    const nutMang = el('div', 'gomang' + (mang ? ' on' : ''));
+    nutMang.innerHTML = mang
+      ? '<div class="gm-i">' + gearImg(mang.kind, 28) + '</div><div class="gm-n">×' + mang.uses + '</div>'
+      : '<div class="gm-p">+</div><div class="gm-n">đồ nghề</div>';
+    nutMang.title = mang ? (mdef ? mdef.name : mang.kind) + ' ×' + mang.uses + ' — bấm để đổi'
+                         : 'Mua sẵn một món mang vào ca';
+    on(nutMang, 'click', () => UI.go('shop'));
+    hangDi.appendChild(nutMang);
+    hangDi.appendChild(btn('▶ ĐI CA', 'cta', () => SQ.squad.enter(map.id)));
+    b.appendChild(hangDi);
 
     const foot = el('div', 'foot-note');
     foot.appendChild(el('span', '', 'Tiến độ lưu trên máy bạn.'));

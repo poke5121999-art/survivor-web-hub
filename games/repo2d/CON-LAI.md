@@ -329,8 +329,22 @@ Biệt Đội gọi thẳng trong `SD.enter()` — **sau** `REPO.startLevel()`, 
 **Hai cửa vào chỗ bán, và đó là bài học của lần trước.** Lần trước tôi đo "cái nút có nhìn thấy
 được không" trên bốn khổ màn hình và kết luận là ổn — trong khi lỗi thật là cái nút chỉ sống
 trên một màn hình người chơi ghé vài giây. Nên ở đây: khối bán nằm **trên cùng** màn Cửa Hàng,
-**và** màn chính có một dải luôn nói rõ đang mang gì, nằm ngay trên đường tới nút ĐI CA, bấm
-vào là tới thẳng chỗ bán.
+**và** màn chính có một ô đồ nghề ngay **kế bên nút ĐI CA**, bấm vào là tới thẳng chỗ bán.
+
+Bản đầu tôi làm cái ô ấy thành một **dải rộng hết màn**, và chủ dự án bác ngay: *"để cái shop
+weapon đó kế bên nút đi ca đi, tự nhiên phóng to cái nút đó ra chi vậy?"*. Đúng, và nó sai hai
+đường chứ không phải một:
+
+- **Cỡ nói sai việc.** Một dải rộng bằng nút chính đọc ra là "hai việc ngang nhau", trong khi
+  mua đồ nghề chỉ là thứ ĐI KÈM cú bấm ĐI CA. Một ô vuông 66px nằm cùng hàng nói đúng quan hệ ấy.
+- **Nó phá lưới khung ngang.** `body.landscape .stage.is-home` là một `grid` **bốn hàng** với
+  từng đứa con được chỉ định chỗ (`>.lineup`, `>.chapter`, `>.b.cta`, `>.foot-note`). Thêm một
+  đứa con thứ năm là nó tự đẻ hàng mới ngoài thiết kế. Bọc nút ĐI CA vào `.gorow` thì số con
+  vẫn là bốn — nên luật lưới chỉ cần đổi tên đứa con, không phải viết lại.
+
+Để lại một luật cho lần sau: **thêm gì vào màn chính của Biệt Đội thì đếm lại số con trực tiếp
+của `.stage.is-home`.** Khung dọc là flex nên thêm bao nhiêu cũng "trông vẫn ổn"; khung ngang
+là grid có chỉ định chỗ, và nó hỏng im lặng.
 
 ### 10.3. Một trang đừng ghi trạng thái nó không sở hữu
 Bài test "hai cái ví tách hẳn" bắt được một thứ tôi không ngờ: mở trang **Biệt Đội** thôi cũng
@@ -342,7 +356,8 @@ không sở hữu, và đúng loại thứ khó lần ra khi nó thành nguyên 
 TRẢ VỀ két mặc định cho mọi người gọi, nhưng chỉ GHI xuống ở trang có két.
 
 ### 10.4. Test
-`test/nem-shop-suite.js` thêm `matSuite` (6 bài) và `khoSquadSuite` (11 bài).
-Cả bộ: `nem-shop-suite` 74/74 · `bike-suite` 36/36 · `guns-suite` 46/52 (6 bài sạc laser hỏng
+`test/nem-shop-suite.js` thêm `matSuite` (6 bài) và `khoSquadSuite` (13 bài — hai bài mới đo
+đúng lời chỉnh: ô ấy phải nằm CÙNG HÀNG với nút ĐI CA và phải NHỎ hơn nửa bề ngang của nó).
+Cả bộ: `nem-shop-suite` 76/76 · `bike-suite` 36/36 · `guns-suite` 46/52 (6 bài sạc laser hỏng
 sẵn từ trước, đo lại trên bản HEAD ra đúng sáu bài ấy).
 

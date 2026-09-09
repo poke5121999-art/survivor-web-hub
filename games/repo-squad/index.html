@@ -367,14 +367,20 @@
   .wep .wp-n{font-size:11.5px;font-weight:700;color:var(--ink);margin-top:3px}
   .wep .wp-u{font-size:10px;color:var(--ink-faint)}
   .wep .wp-p{font-size:11.5px;font-weight:700;color:#e0c07a;margin-top:3px;font-family:var(--mono)}
-  .mangbar{display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 10px;
-    border:1px solid var(--line);border-radius:9px;background:#10141a;cursor:pointer}
-  .mangbar.on{border-color:#c8a052}
-  .mangbar .mg-l{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--ink-faint)}
-  .mangbar .mg-i{width:26px;height:26px;display:flex;align-items:center;justify-content:center}
-  .mangbar .mg-n{flex:1 1 auto;font-size:12px;font-weight:700;color:var(--ink)}
-  .mangbar .mg-n.empty{font-weight:400;color:var(--ink-faint)}
-  .mangbar .mg-go{color:var(--ink-faint);font-size:16px}
+  /* Ô đồ nghề nằm KẾ BÊN nút ĐI CA, không phải một dải riêng: nó đi kèm cú bấm ấy chứ
+     không giành chỗ với nó. `.gorow` là đứa con thay chỗ `.b.cta` trong lưới khung ngang. */
+  .gorow{display:flex;align-items:stretch;gap:8px}
+  .gorow>.b.cta{flex:1 1 auto;width:auto}
+  .gomang{flex:0 0 auto;width:66px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:1px;cursor:pointer;border-radius:11px;
+    background:linear-gradient(180deg,#212a36,#141a22);border:1px solid var(--line2);
+    box-shadow:0 3px 0 #0a0d12}
+  .gomang:active{transform:translateY(2px);box-shadow:0 1px 0 #0a0d12}
+  .gomang.on{border-color:#c8a052;background:linear-gradient(180deg,#2b2418,#181309)}
+  .gomang .gm-i{height:28px;display:flex;align-items:center;justify-content:center}
+  .gomang .gm-p{font-size:20px;line-height:1;color:var(--ink-faint)}
+  .gomang .gm-n{font-family:var(--mono);font-size:9px;color:var(--ink-faint);letter-spacing:.04em}
+  .gomang.on .gm-n{color:#e0c07a;font-weight:700;font-size:10px}
 
 
   .sc-name{position:relative;font-family:var(--display);font-size:22px;color:#f4ead4;margin-top:2px}
@@ -759,7 +765,9 @@
   body.landscape .rb-n{font-size:8.5px}
   body.landscape .stage.is-home>.lineup{grid-column:2;align-self:end}
   body.landscape .stage.is-home>.chapter{grid-column:2;margin-top:0}
-  body.landscape .stage.is-home>.b.cta{grid-column:2;padding:11px;font-size:15px}
+  body.landscape .stage.is-home>.gorow{grid-column:2}
+  body.landscape .gorow>.b.cta{padding:11px;font-size:15px}
+  body.landscape .gomang{width:54px}
   body.landscape .stage.is-home>.foot-note{grid-column:2;align-self:start}
   /* Vùng cuộn khi nằm ngang chỉ còn ~260px, nên tiêu đề tấm và giàn đồ phải gọn lại,
      nếu không thì mở màn Trang Bị ra đã phải cuộn mới thấy được cái ô đầu tiên. */
@@ -1013,7 +1021,7 @@
 <!-- TẦNG META của Biệt Đội: gacha, trang bị, tiến hoá, tổ năm người, kỹ năng -->
 <script src="data/content.js?v=20260904a"></script>
 <script src="js/meta.js?v=20260909g"></script>
-<script src="js/ui.js?v=20260909g"></script>
+<script src="js/ui.js?v=20260909h"></script>
 <script src="js/squad.js?v=20260909g"></script>
 
 <script>

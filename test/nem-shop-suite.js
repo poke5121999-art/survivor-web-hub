@@ -646,27 +646,38 @@ async function khoSquadSuite(b) {
   await p.goto(SQUAD);
   await p.waitForTimeout(2200);
 
-  // CỬA THỨ NHẤT: dải trên màn chính. Đây chính là bài học của lần trước — chỗ bán nằm ở một
-  // màn hình người chơi không ghé thì với họ nó không tồn tại.
+  // CỬA THỨ NHẤT: ô đồ nghề KẾ BÊN nút ĐI CA. Đây là bài học của lần trước — chỗ bán nằm ở
+  // một màn hình người chơi không ghé thì với họ nó không tồn tại — cộng lời chỉnh của chủ dự
+  // án: "để cái shop weapon đó kế bên nút đi ca đi, tự nhiên phóng to cái nút đó ra chi vậy?".
+  // Nên bài này đo cả BA vế: có, thấy được, và ĐÚNG LÀ nằm cạnh nút ĐI CA chứ không phải một
+  // dải rộng bằng nó.
   const bar = await p.evaluate(() => {
-    const d = document.querySelector('.mangbar');
-    if (!d) return null;
-    const r = d.getBoundingClientRect();
+    const d = document.querySelector('.gomang');
+    const cta = document.querySelector('.gorow > .b.cta');
+    if (!d || !cta) return null;
+    const r = d.getBoundingClientRect(), c = cta.getBoundingClientRect();
     return { chu: d.textContent.replace(/\s+/g, ' ').trim(),
-             thay: r.width > 0 && r.height > 0 && r.top < innerHeight && r.bottom > 0 };
+             thay: r.width > 0 && r.height > 0 && r.top < innerHeight && r.bottom > 0,
+             cungHang: Math.abs(r.top - c.top) < 4 && r.right <= c.left + 1,
+             beHon: r.width < c.width / 2,
+             rong: Math.round(r.width), rongCta: Math.round(c.width) };
   });
-  check('màn chính có dải "MANG VÀO CA", và nó nằm trong khung nhìn',
-    !!bar && bar.thay, bar ? bar.chu : 'không có dải');
+  check('màn chính có ô đồ nghề, và nó nằm trong khung nhìn',
+    !!bar && bar.thay, bar ? bar.chu : 'không có ô');
+  check('ô ấy nằm KẾ BÊN nút ĐI CA, trên cùng một hàng', !!bar && bar.cungHang,
+    bar ? JSON.stringify({ rong: bar.rong, rongCta: bar.rongCta }) : '—');
+  check('và nó NHỎ hơn hẳn nút ĐI CA — không giành chỗ với việc chính',
+    !!bar && bar.beHon, bar ? bar.rong + 'px so với ' + bar.rongCta + 'px' : '—');
 
-  // CỬA THỨ HAI: bấm dải là sang thẳng chỗ bán.
+  // CỬA THỨ HAI: bấm ô là sang thẳng chỗ bán.
   const sang = await p.evaluate(async () => {
-    document.querySelector('.mangbar').click();
+    document.querySelector('.gomang').click();
     await new Promise(r => setTimeout(r, 400));
     return { hang: document.querySelectorAll('.wep').length,
              tren: !!document.querySelector('.sheet-b > h3') &&
                    document.querySelector('.sheet-b > h3').textContent.indexOf('Đồ nghề') >= 0 };
   });
-  check('bấm dải thì mở đúng chỗ bán, và nó nằm TRÊN CÙNG màn Cửa Hàng',
+  check('bấm ô thì mở đúng chỗ bán, và nó nằm TRÊN CÙNG màn Cửa Hàng',
     sang.hang === 5 && sang.tren, JSON.stringify(sang));
   check('năm món đều có HÌNH thật, không phải ô trống',
     await p.evaluate(() => [...document.querySelectorAll('.wep img')]
