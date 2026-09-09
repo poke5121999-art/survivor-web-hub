@@ -12764,7 +12764,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260909f';
+const BUILD = '20260909g';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -14182,7 +14182,14 @@ function khoDoc(){
   // WHY: một cửa hàng năm món mà cả năm đều xám ngoét vì "$0" thì đọc ra là một cái nút hỏng,
   // không đọc ra là "đi kiếm tiền đã". Cho vừa đủ MỘT món là dạy được cả vòng lặp trong một
   // lần bấm: mua, mang vào, dùng hết, và phát hiện ra là muốn có nữa thì phải đi làm.
-  if (!o || typeof o !== 'object') return khoGhi({ tien: KHO_DAU, mang: null });
+  // ...nhưng chỉ GHI cái két ấy xuống ở trang CÓ két. Trang Biệt Đội cũng nạp game.js và
+  // `moManDau()` bên trong `__boot` vẫn đọc két một lần, nên bản cũ gieo một cái két $3.200 vào
+  // localStorage của một trang không bao giờ bày nó ra. Không vỡ gì, nhưng là một trang ghi
+  // trạng thái nó không sở hữu — và đó đúng là thứ khó lần ra khi nó thành nguyên nhân thật.
+  if (!o || typeof o !== 'object'){
+    const moi = { tien: KHO_DAU, mang: null };
+    return khoOn() ? khoGhi(moi) : moi;
+  }
   const k = { tien: Math.max(0, Math.round(+o.tien || 0)), mang: null };
   const m = o.mang;
   if (m && GEAR_BY_KEY[m.kind]){
@@ -14230,16 +14237,25 @@ function mangDoVaoCa(){
   if (!khoOn()) return null;
   const k = khoDoc();
   if (!k.mang) return null;
-  const def = GEAR_BY_KEY[k.mang.kind];
-  const uses = k.mang.uses;
+  const kind = k.mang.kind, uses = k.mang.uses;
   k.mang = null; khoGhi(k);
+  return lapDoLenTay(kind, uses);
+}
+// LẮP MỘT MÓN LÊN TAY. Tách riêng khỏi mangDoVaoCa() vì bản Biệt Đội cũng cần đúng việc này
+// mà KHÔNG đi qua két của Ca Trực Đêm: bên ấy có ví riêng (vàng), tủ riêng và menu riêng, nên
+// nó tự giữ món mua sẵn trong bản lưu của nó rồi gọi thẳng vào đây lúc vào ca.
+//
+// Chủ dự án, 2026-09-09: "repo squad cũng chưa có shop weapon".
+function lapDoLenTay(kind, uses){
+  const def = GEAR_BY_KEY[kind];
   const p = S.player;
   if (!def || !p) return null;
+  const n = clamp(Math.round(+uses || def.uses), 1, def.uses);
   const i = p.inv.indexOf(null);
   // Ba ô đầy thì món xuống tủ trên xe chứ không bốc hơi. Không xảy ra ở đầu ca một (ba ô luôn
   // rỗng), nhưng "Ca mới" bấm giữa chừng thì có, và mất một món đã trả tiền là không chấp nhận được.
-  if (i < 0){ S.stash.push({ kind:def.key, uses }); return def; }
-  p.inv[i] = { kind:def.key, uses };
+  if (i < 0){ S.stash.push({ kind:def.key, uses:n }); return def; }
+  p.inv[i] = { kind:def.key, uses:n };
   p.hand = i;
   return def;
 }
@@ -14618,7 +14634,8 @@ window.REPO = {
   moCuaHangTuBar, dongCuaHangVeCa, veDan, huongKhung,
   // ném đồ + két sắt ngoài menu
   throwHeld, throwSpeed, throwDamage, THROW_V0, THROW_DMG_K, THROW_LIVE,
-  khoDoc, khoGhi, khoThem, mangDoVaoCa, moCuaHang, moManDau, veMenu, KHO_HANG, KHO_CUT, KHO_KEY,
+  khoDoc, khoGhi, khoThem, mangDoVaoCa, lapDoLenTay, gearIcon, gearIconURL,
+  moCuaHang, moManDau, veMenu, KHO_HANG, KHO_CUT, KHO_KEY,
   TRUCK_BOARD_T, TRUCK_BOARD_R, inTruck,
   boarding(){ return { t: +(S.board || 0).toFixed(2), of: TRUCK_BOARD_T,
                        show: !!S.countdownActive, label: S.countdownLabel }; },

@@ -338,6 +338,45 @@
            transform:translate(-50%,-62%);
            background:radial-gradient(circle,hsl(var(--hue,40) 70% 55% / .26),transparent 66%)}
   .sc-face{position:relative;font-size:78px;line-height:1.1;filter:drop-shadow(0 8px 18px rgba(0,0,0,.75))}
+  /* CHÂN DUNG XÁC vẽ bằng <canvas> — xem veMat() trong js/ui.js.
+     Khổ vẽ ĐẶT Ở ĐÂY chứ không trong JS: canvas lấy clientWidth/clientHeight làm khổ, nên
+     mấy dòng dưới là nguồn duy nhất. Đổi cỡ một ô chân dung thì sửa đúng ở đây. */
+  canvas.mat{display:block;margin:0 auto;image-rendering:pixelated}
+  .mat-to{width:140px;height:188px}    /* sân khấu giữa màn chính */
+  .mat-eq{width:74px;height:100px}     /* đầu bảng Trang Bị */
+  .mat-vua{width:34px;height:46px}     /* thẻ xác, ô xếp tổ */
+  .mat-nho{width:30px;height:42px}     /* hàng năm người */
+  .mat-ti{width:24px;height:32px}      /* thẻ kết quả gacha */
+  .mat-dau{width:24px;height:24px;border-radius:50%}   /* chip góc trên: cắt lấy đầu */
+  .mat-chip{display:inline-block;width:15px;height:21px;margin:0 3px -6px 0}  /* nằm giữa dòng chữ */
+  /* ĐỒ NGHỀ MANG VÀO CA — khối bán ở màn Cửa Hàng, và dải nhắc ở màn chính. */
+  .mangbox{display:flex;align-items:center;gap:10px;border:1px solid var(--line);
+    border-radius:10px;background:#10141a;padding:9px 11px;margin:6px 0 10px}
+  .mangbox.on{border-color:#c8a052;background:#171410}
+  .mangbox .mb-i{flex:0 0 auto;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
+  .mangbox .mb-b{flex:1 1 auto;min-width:0}
+  .mangbox .mb-n{font-size:13px;font-weight:700;color:var(--ink)}
+  .mangbox .mb-s{font-size:10.5px;color:var(--ink-faint);margin-top:2px}
+  .wep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-bottom:12px}
+  .wep{border:1px solid var(--line);border-radius:9px;background:#10141a;padding:9px 5px 8px;
+    text-align:center;cursor:pointer}
+  .wep:active{transform:translateY(1px)}
+  .wep.ngheo{opacity:.45}
+  .wep.off{opacity:.32;pointer-events:none}
+  .wep .wp-i{height:46px;display:flex;align-items:center;justify-content:center}
+  .wep .wp-n{font-size:11.5px;font-weight:700;color:var(--ink);margin-top:3px}
+  .wep .wp-u{font-size:10px;color:var(--ink-faint)}
+  .wep .wp-p{font-size:11.5px;font-weight:700;color:#e0c07a;margin-top:3px;font-family:var(--mono)}
+  .mangbar{display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 10px;
+    border:1px solid var(--line);border-radius:9px;background:#10141a;cursor:pointer}
+  .mangbar.on{border-color:#c8a052}
+  .mangbar .mg-l{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--ink-faint)}
+  .mangbar .mg-i{width:26px;height:26px;display:flex;align-items:center;justify-content:center}
+  .mangbar .mg-n{flex:1 1 auto;font-size:12px;font-weight:700;color:var(--ink)}
+  .mangbar .mg-n.empty{font-weight:400;color:var(--ink-faint)}
+  .mangbar .mg-go{color:var(--ink-faint);font-size:16px}
+
+
   .sc-name{position:relative;font-family:var(--display);font-size:22px;color:#f4ead4;margin-top:2px}
   .sc-ep{font-family:var(--body);font-size:11px;color:var(--dim)}
   .sc-star{position:relative;color:var(--gold);font-size:13px;letter-spacing:.14em}
@@ -705,6 +744,9 @@
   body.landscape .foot-note{font-size:8.5px}
   body.landscape .stage.is-home>.showcase{grid-row:1 / span 4;min-height:0;padding:10px 68px}
   body.landscape .sc-face{font-size:52px}
+  body.landscape .mat-to{width:96px;height:128px}
+  body.landscape .mat-eq{width:54px;height:74px}
+  body.landscape .mat-nho{width:26px;height:36px}
   body.landscape .sc-name{font-size:18px}
   body.landscape .sc-skill{font-size:9.5px;margin-top:3px;padding-top:4px}
   /* Khung ngang chỉ rộng chứ không cao, mà cột phím tắt bên phải nằm đè lên hàng năm
@@ -809,7 +851,7 @@
      `.veil.stash #veilExtra` va `.veil.panel #veilExtra` co DO UU TIEN BANG NHAU (mot id,
      hai lop), nen cai nao dung sau thi cai do thang. Keo len tren la khung go van hien
      nhung be ngang va padding cua bang thi van la cua ban cu. -->
-<link rel="stylesheet" href="../repo2d/tu-do.css?v=20260909f">
+<link rel="stylesheet" href="../repo2d/tu-do.css?v=20260909g">
 </head>
 <body>
 
@@ -963,16 +1005,16 @@
 <!-- BỘ MÁY: dùng CHUNG với games/repo2d. Không có bản sao thứ hai của luật chơi. -->
 <!-- phong.js phai dung TRUOC game.js: no chi dat window.REPO_PHONG roi thoi, con game.js
      hoi bang do ngay tu luot ve nen dau tien. -->
-<script src="../repo2d/phong.js?v=20260909f"></script>
-<script src="../repo2d/sprites.js?v=20260909f"></script>
-<script src="../repo2d/game.js?v=20260909f"></script>
+<script src="../repo2d/phong.js?v=20260909g"></script>
+<script src="../repo2d/sprites.js?v=20260909g"></script>
+<script src="../repo2d/game.js?v=20260909g"></script>
 <script src="../repo2d/bot.js?v=20260904a"></script>
 
 <!-- TẦNG META của Biệt Đội: gacha, trang bị, tiến hoá, tổ năm người, kỹ năng -->
 <script src="data/content.js?v=20260904a"></script>
-<script src="js/meta.js?v=20260904a"></script>
-<script src="js/ui.js?v=20260904a"></script>
-<script src="js/squad.js?v=20260904a"></script>
+<script src="js/meta.js?v=20260909g"></script>
+<script src="js/ui.js?v=20260909g"></script>
+<script src="js/squad.js?v=20260909g"></script>
 
 <script>
   window.__boot && window.__boot();          // bộ máy dựng khung, gắn phím, gắn chạm

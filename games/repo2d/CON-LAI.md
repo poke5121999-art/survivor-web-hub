@@ -275,3 +275,74 @@ ba chiếc phải ra ba màu; xe đẩy phải phủ nhiều điểm ảnh nhấ
 
 Cả bộ: `nem-shop-suite` 57/57 · `bike-suite` 36/36.
 
+## 10. BẢN THỨ NĂM CÙNG NGÀY — BIỆT ĐỘI: mặt xác thật, và cửa hàng đồ nghề
+
+Chủ dự án mở trang Biệt Đội rồi hỏi ba câu liền: *"ủa repo squad chưa update nữa hả?"* ·
+*"tui thấy char vẫn đang là mấy cái icon"* · *"repo squad cũng chưa có shop weapon"*.
+
+Câu đầu thì đúng là đã update — `?v=` của Biệt Đội lên `20260909f` cùng lúc với Ca Trực Đêm,
+vì hai trang dùng chung `game.js`/`sprites.js`. Nhưng hai câu sau mới là cái thật: **hai việc
+đã làm cho Ca Trực Đêm chưa từng được làm cho Biệt Đội**, mà hai bản dùng chung bộ máy nên rất
+dễ tưởng là làm một lần là xong. Không phải: mọi thứ nằm ở LỚP MENU thì mỗi bản một cái.
+
+### 10.1. Mặt xác: emoji → charset thật
+`faceOf()` trong `js/ui.js` trả về một emoji cho từng xác (`bao: '🔦'`, `hue: '💉'`, ...), dùng
+ở tám chỗ. Trong khi mười bốn xác **đều đã có charset thật** ở `../repo2d/art/crew/<id>.png`,
+`sprites.js` đã nạp sẵn cả mười bốn, và `REPO_SKIN.crew()` chọn theo `a.charId` — mà `charId`
+chính là `SQ.CHARS[].id`. Nên đây không phải việc vẽ mới, chỉ là việc gọi ra.
+
+Nay `matHTML(id, lop)` đẻ ra một `<canvas class="mat mat-*" data-char="...">`, `veMat()` vẽ
+vào đó, `chayMat()` vẽ lại cho tới khi tấm hình về **rồi tự tắt** — không có vòng rAF nào chạy
+suốt phiên chỉ để canh một tấm ảnh.
+
+Ba điều đáng nhớ:
+
+- **Khổ vẽ lấy từ CSS.** Canvas đọc `clientWidth/clientHeight` làm khổ vẽ, nên mấy lớp
+  `.mat-*` trong `index.html` là nguồn duy nhất. Đặt cỡ trong JS là có hai chỗ nói hai kiểu.
+- **Ô nhỏ thì cắt lấy ĐẦU.** Chip góc trên chỉ 24px; cả người thu vào đó chỉ còn một vệt. Lớp
+  `.mat-dau` xén trong ô rồi phóng to phần đầu — một cái mặt 24px đọc được, một cái người
+  24px thì không.
+- **Emoji chưa chết.** Chỗ nào nó nằm GIỮA MỘT DÒNG CHỮ (huy hiệu "ai đang đeo món này", danh
+  sách trong Sổ tay, nút kỹ năng trong ca) thì giữ nguyên: chen một canvas vào giữa dòng chỉ
+  làm chữ xô lệch. Đổi đúng chỗ nào là MỘT Ô CHÂN DUNG.
+
+Bẫy để lại cho lần sau: bài test dễ viết nhất là "có vẽ ra cái gì không", mà cái sai dễ xảy ra
+nhất lại là **vẽ được nhưng ai cũng như ai** — `charId` không tới nơi và cả lưới rơi về một xác
+mặc định. Bài test lấy dấu vân từng ô rồi đếm số hình KHÁC NHAU, phải đủ 14/14.
+
+### 10.2. Cửa hàng đồ nghề: cùng luật, ví riêng
+Ca Trực Đêm có cái này từ bản trước, chạy trên một **két riêng** trong localStorage
+(`repo2d.kho.v1`) với đồng tiền lương 12% của nó. Cắm nguyên cái két ấy sang Biệt Đội là hai
+hệ tiền tệ cãi nhau trên cùng một màn hình — đúng lý do `khoOn()` bên kia tắt nó đi khi có
+menu Biệt Đội.
+
+Nên bên này: **cùng mặt hàng và cùng giá** (`REPO.KHO_HANG` — một bảng giá duy nhất cho cả hai
+bản, chép ra là hai bảng và hai bảng thì một cái luôn cũ), nhưng trả bằng **vàng** của Biệt Đội
+và cất trong chính bản lưu của nó (`M.mang`). Giá giữ nguyên vì hai bên kiếm được xấp xỉ nhau
+mỗi ván: bên kia 12% số giao được (~1.000/ván), bên này 900–3.000 vàng một lần qua map cộng
+nhiệm vụ ngày.
+
+Phần lắp món lên tay tách khỏi `mangDoVaoCa()` thành `lapDoLenTay(kind, uses)` và xuất ra, để
+Biệt Đội gọi thẳng trong `SD.enter()` — **sau** `REPO.startLevel()`, vì trước đó chưa có
+`S.player` để mà lắp vào.
+
+**Hai cửa vào chỗ bán, và đó là bài học của lần trước.** Lần trước tôi đo "cái nút có nhìn thấy
+được không" trên bốn khổ màn hình và kết luận là ổn — trong khi lỗi thật là cái nút chỉ sống
+trên một màn hình người chơi ghé vài giây. Nên ở đây: khối bán nằm **trên cùng** màn Cửa Hàng,
+**và** màn chính có một dải luôn nói rõ đang mang gì, nằm ngay trên đường tới nút ĐI CA, bấm
+vào là tới thẳng chỗ bán.
+
+### 10.3. Một trang đừng ghi trạng thái nó không sở hữu
+Bài test "hai cái ví tách hẳn" bắt được một thứ tôi không ngờ: mở trang **Biệt Đội** thôi cũng
+đủ gieo một cái két $3.200 vào `localStorage['repo2d.kho.v1']`. Vì trang ấy cũng nạp `game.js`,
+`__boot` vẫn gọi `moManDau()`, và `khoDoc()` khi không thấy két thì **ghi** một cái mới.
+
+Không vỡ gì — trang ấy không bao giờ bày cái két ra. Nhưng nó là một trang ghi trạng thái nó
+không sở hữu, và đúng loại thứ khó lần ra khi nó thành nguyên nhân thật. Nay `khoDoc()` vẫn
+TRẢ VỀ két mặc định cho mọi người gọi, nhưng chỉ GHI xuống ở trang có két.
+
+### 10.4. Test
+`test/nem-shop-suite.js` thêm `matSuite` (6 bài) và `khoSquadSuite` (11 bài).
+Cả bộ: `nem-shop-suite` 74/74 · `bike-suite` 36/36 · `guns-suite` 46/52 (6 bài sạc laser hỏng
+sẵn từ trước, đo lại trên bản HEAD ra đúng sáu bài ấy).
+

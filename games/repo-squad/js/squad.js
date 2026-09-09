@@ -585,6 +585,15 @@
       try { SQ.ui.render(); } catch (_) {}
       return false;
     }
+    // MÓN MUA SẴN lên tay, và chỉ SAU khi ván đã dựng xong — trước đó chưa có S.player để mà
+    // lắp vào. Lấy ra là xoá khỏi bản lưu ngay trong SQ.layDoNghe(): "mang vào là mất".
+    try {
+      const m = SQ.layDoNghe && SQ.layDoNghe();
+      if (m && REPO.lapDoLenTay) {
+        const def = REPO.lapDoLenTay(m.kind, m.uses);
+        if (def) REPO.toast('Mang theo: ' + def.name + ' ×' + m.uses);
+      }
+    } catch (e) { console.error('Lắp đồ nghề mua sẵn không được:', e); }
     document.body.classList.add('in-run');
     return true;
   };

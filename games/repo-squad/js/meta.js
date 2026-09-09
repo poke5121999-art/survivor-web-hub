@@ -49,7 +49,9 @@
                   pulls: 0, revives: 0, upgrades: 0, spendVnd: 0 },
       week: { runs: 0, wins: 0, loot: 0, kills: 0, upgrades: 0 },
       day: { runs: 0, loot: 0, skills: 0, kills: 0, floors: 0, pulls: 0, revives: 0 },
-      seenIntro: false
+      seenIntro: false,
+      // MỘT món đồ nghề mua sẵn, mang vào ca sau là mất. Xem SQ.muaDoNghe().
+      mang: null                 // null | { kind, uses }
     };
     SQ.EVOL.forEach(e => { M.evol[e.id] = 0; });
     SQ.MAPS.forEach(m => { M.maps[m.id] = { floor: 0, cleared: false, best: 0 }; });
@@ -116,6 +118,7 @@
     SQ.EVOL.forEach(e => { if (out.evol[e.id] == null) out.evol[e.id] = 0; });
     SQ.MAPS.forEach(m => { if (!out.maps[m.id]) out.maps[m.id] = { floor: 0, cleared: false, best: 0 }; });
     out.counters = Object.assign(base.counters, out.counters || {});
+    out.mang = doNgheHopLe(out.mang);
     out.day = Object.assign(base.day, out.day || {});
     out.week = Object.assign(base.week, out.week || {});
     return scrub(out);
@@ -202,6 +205,67 @@
     save();
   }
   SQ.can = can; SQ.spend = spend; SQ.grant = grant;
+
+  // ---------------------------------------------------------------------------
+  // ĐỒ NGHỀ MANG VÀO CA — một món, mang vào là mất
+  //
+  // Chủ dự án, 2026-09-09: "repo squad cũng chưa có shop weapon". Ca Trực Đêm đã có cái này
+  // từ bản trước, nhưng nó chạy trên một cái KÉT RIÊNG trong localStorage (`repo2d.kho.v1`)
+  // với đồng tiền lương 12% của chính nó. Cắm nguyên cái két ấy vào đây là hai hệ tiền tệ cãi
+  // nhau trên cùng một màn hình — chính lý do `khoOn()` bên kia tắt nó đi khi có menu Biệt Đội.
+  //
+  // Nên ở đây: cùng MẶT HÀNG và cùng GIÁ (`REPO.KHO_HANG`, một bảng giá duy nhất cho cả hai
+  // bản), nhưng trả bằng VÀNG của Biệt Đội và cất trong chính bản lưu này. Giá giữ nguyên vì
+  // hai bên kiếm được xấp xỉ nhau mỗi ván: bên kia 12% số giao được (~1.000/ván), bên này
+  // 900–3.000 vàng một lần qua map cộng nhiệm vụ ngày.
+  //
+  // Bảng hàng lấy từ bộ máy chứ không chép lại: chép ra là hai bảng, và hai bảng thì một cái
+  // luôn cũ.
+  function khoHang() { return (window.REPO && REPO.KHO_HANG) || []; }
+  function gearDef(k) { return (window.REPO && REPO.GEAR_BY_KEY && REPO.GEAR_BY_KEY[k]) || null; }
+  // Bản lưu là một chuỗi NGƯỜI DÙNG sửa được bằng devtools, nên mọi thứ đọc lên phải siết lại:
+  // một `uses: 99999` hay một `kind` không có thật không được đi quá dòng này.
+  function doNgheHopLe(m) {
+    if (!m || typeof m !== 'object') return null;
+    const h = khoHang().filter(x => x.key === m.kind)[0];
+    const def = gearDef(m.kind);
+    if (!h || !def) return null;
+    return { kind: m.kind,
+             uses: Math.max(1, Math.min(def.uses, Math.round(+m.uses || def.uses))),
+             gia:  Math.max(0, Math.round(+m.gia || h.gia)) };
+  }
+  SQ.KHO_HANG = khoHang;
+  SQ.gearDef = gearDef;
+  SQ.doNghe = function () { return (M.mang = doNgheHopLe(M.mang)); };
+  SQ.muaDoNghe = function (key) {
+    const h = khoHang().filter(x => x.key === key)[0];
+    const def = gearDef(key);
+    if (!h || !def) return { ok: false, why: 'Không có món này.' };
+    if (M.mang) return { ok: false, why: 'Tối đa MỘT món mỗi ca — bỏ món đang giữ rồi mua lại.' };
+    if (!spend({ gold: h.gia })) return { ok: false, why: 'Không đủ vàng.' };
+    M.mang = { kind: key, uses: def.uses, gia: h.gia };
+    save();
+    return { ok: true, def: def };
+  };
+  // BỎ RA thì HOÀN ĐỦ. Đây không phải một cú giao dịch có lời có lỗ, nó là một cái ô chọn: bấm
+  // nhầm món rồi bị phạt tiền là một cái bẫy, không phải một luật chơi.
+  SQ.boDoNghe = function () {
+    const m = SQ.doNghe();
+    if (!m) return { ok: false, why: 'Chưa mua gì.' };
+    M.mang = null;
+    grant({ gold: m.gia });
+    save();
+    return { ok: true };
+  };
+  // LẤY RA VÀ XOÁ, gọi đúng một lần lúc ván bắt đầu.
+  // XOÁ TRƯỚC KHI LẮP, và thứ tự ấy là cố ý: ghi bản lưu sau khi lắp thì một cú ngoặc ở giữa
+  // để lại món VỪA LẮP mà bản lưu VẪN CÒN — tức một cái máy nhân bản đồ.
+  SQ.layDoNghe = function () {
+    const m = SQ.doNghe();
+    if (!m) return null;
+    M.mang = null; save(true);
+    return m;
+  };
 
   // ---------------------------------------------------------------------------
   // XÁC: cấp, mảnh, chỉ số

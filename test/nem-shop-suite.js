@@ -3,6 +3,8 @@
  *   1. NÉM MÓN ĐANG ÔM — sát thương lên quái và lên đồng đội, và cái giá phải trả bằng chính món đồ.
  *   2. CỬA HÀNG NGOÀI MENU — két sắt trong localStorage, mua sẵn một món, mang vào ca là mất.
  *   3. BA CHIẾC XE lấy từ Soul Knight — tám hướng mỗi chiếc, và góc phải khớp hướng.
+ *   4. MẶT XÁC bên Biệt Đội — chân dung vẽ bằng charset thật, không phải emoji.
+ *   5. CỬA HÀNG ĐỒ NGHỀ bên Biệt Đội — cùng luật, ví riêng.
  *
  * Chạy: node test/nem-shop-suite.js
  * Tách khỏi repo-suite.js vì repo-suite đã dài mười mấy phút, và hai thứ này là hai cơ chế
@@ -19,6 +21,7 @@ const { chromium } = require(PW);
 const path = require('path');
 const root = 'file:///' + path.resolve(__dirname, '..').split(path.sep).join('/');
 const R2D = root + '/games/repo2d/index.html';
+const SQUAD = root + '/games/repo-squad/index.html';
 
 let pass = 0, fail = 0;
 const results = [];
@@ -557,6 +560,163 @@ async function xeSuite(b) {
   await ctx.close();
 }
 
+// =====================================================================
+// BIỆT ĐỘI: MẶT XÁC PHẢI LÀ HÌNH THẬT
+// Chủ dự án: "bên ngoài menu thì cũng thể hiện char rõ ràng đi đừng dùng icon nữa", rồi khi
+// bản Ca Trực Đêm đã sửa mà bên này chưa: "tui thấy char vẫn đang là mấy cái icon".
+//
+// Bài này đo ĐÚNG cái ấy: mọi ô chân dung phải là <canvas> CÓ MỰC, và mười bốn xác phải ra
+// mười bốn hình khác nhau — vì cái bẫy dễ dính nhất không phải "không vẽ được" mà là "vẽ
+// được nhưng ai cũng như ai", tức `charId` không tới nơi và cả lưới rơi về một xác mặc định.
+async function matSuite(b) {
+  results.push('\n── Biệt Đội: mặt xác là hình thật, không phải emoji ──');
+  const ctx = await b.newContext({ viewport: { width: 420, height: 820 }, deviceScaleFactor: 2, hasTouch: true });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
+  p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
+  await p.goto(SQUAD);
+  await p.waitForTimeout(2200);
+
+  const muc = cv => `` ;   // giữ chỗ, đo trong trang
+
+  const nha = await p.evaluate(() => {
+    const ds = [...document.querySelectorAll('canvas.mat')];
+    return ds.map(cv => {
+      const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 40) n++;
+      return { lop: cv.className, char: cv.dataset.char,
+               phu: Math.round(n / (cv.width * cv.height) * 100) };
+    });
+  });
+  check('màn chính có ô chân dung, và ô nào cũng là <canvas>', nha.length >= 2, nha.length + ' ô');
+  check('ô nào cũng vẽ ra hình thật, không ô nào trống',
+    nha.length >= 2 && nha.every(o => o.phu >= 8),
+    nha.map(o => o.lop.replace('mat ', '') + ' ' + o.phu + '%').join(' · '));
+  check('không còn emoji nào trong ô chân dung của màn chính',
+    await p.evaluate(() => {
+      const t = (q) => [...document.querySelectorAll(q)].map(e => e.textContent.trim()).join('');
+      return !/[\uD800-\uDFFF←-⯿]/.test(t('.sc-face') + t('.lu-f:not(.lu.empty .lu-f)') + t('.me-av'));
+    }), 'đo trên .sc-face + .lu-f + .me-av');
+
+  // Mười bốn xác, mười bốn hình. Mở tab Biệt đội để cả lưới cùng hiện.
+  await p.evaluate(() => SQ.ui.go('squad'));
+  await p.waitForTimeout(900);
+  const lua = await p.evaluate(async () => {
+    for (let i = 0; i < 40; i++) {
+      const ds = [...document.querySelectorAll('canvas.mat')];
+      if (ds.length && ds.every(cv => cv.dataset.xong === '1')) break;
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    const bam = new Map();
+    for (const cv of document.querySelectorAll('canvas.mat[data-char]')) {
+      if (bam.has(cv.dataset.char)) continue;
+      const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+      let s = '';
+      for (let i = 3; i < d.length; i += 4) s += d[i] > 40 ? '1' : '0';
+      // rút gọn thành một số để so cho rẻ
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+      bam.set(cv.dataset.char, h);
+    }
+    return { soXac: bam.size, soHinh: new Set(bam.values()).size };
+  });
+  check('lưới Biệt đội bày đủ mười bốn xác', lua.soXac >= 14, lua.soXac + ' xác');
+  check('mười bốn xác ra mười bốn hình KHÁC NHAU — charId tới đúng nơi',
+    lua.soHinh >= 14, lua.soHinh + '/' + lua.soXac + ' hình riêng biệt');
+  check('mặt xác: không lỗi console', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
+// BIỆT ĐỘI: CỬA HÀNG ĐỒ NGHỀ
+// Chủ dự án: "repo squad cũng chưa có shop weapon".
+//
+// Cùng luật với bên Ca Trực Đêm — một món, mang vào là mất — nhưng trả bằng VÀNG của Biệt Đội
+// và cất trong bản lưu của nó, không đụng tới két `repo2d.kho.v1`. Bài này kiểm cả hai vế:
+// luật chơi đúng, VÀ hai cái ví không dính vào nhau.
+async function khoSquadSuite(b) {
+  results.push('\n── Biệt Đội: cửa hàng đồ nghề mang vào ca ──');
+  const ctx = await b.newContext({ viewport: { width: 420, height: 820 }, deviceScaleFactor: 2, hasTouch: true });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
+  p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
+  await p.goto(SQUAD);
+  await p.waitForTimeout(2200);
+
+  // CỬA THỨ NHẤT: dải trên màn chính. Đây chính là bài học của lần trước — chỗ bán nằm ở một
+  // màn hình người chơi không ghé thì với họ nó không tồn tại.
+  const bar = await p.evaluate(() => {
+    const d = document.querySelector('.mangbar');
+    if (!d) return null;
+    const r = d.getBoundingClientRect();
+    return { chu: d.textContent.replace(/\s+/g, ' ').trim(),
+             thay: r.width > 0 && r.height > 0 && r.top < innerHeight && r.bottom > 0 };
+  });
+  check('màn chính có dải "MANG VÀO CA", và nó nằm trong khung nhìn',
+    !!bar && bar.thay, bar ? bar.chu : 'không có dải');
+
+  // CỬA THỨ HAI: bấm dải là sang thẳng chỗ bán.
+  const sang = await p.evaluate(async () => {
+    document.querySelector('.mangbar').click();
+    await new Promise(r => setTimeout(r, 400));
+    return { hang: document.querySelectorAll('.wep').length,
+             tren: !!document.querySelector('.sheet-b > h3') &&
+                   document.querySelector('.sheet-b > h3').textContent.indexOf('Đồ nghề') >= 0 };
+  });
+  check('bấm dải thì mở đúng chỗ bán, và nó nằm TRÊN CÙNG màn Cửa Hàng',
+    sang.hang === 5 && sang.tren, JSON.stringify(sang));
+  check('năm món đều có HÌNH thật, không phải ô trống',
+    await p.evaluate(() => [...document.querySelectorAll('.wep img')]
+      .filter(i => i.src.length > 200).length) === 5);
+
+  // MUA: đúng giá, và giá lấy từ MỘT bảng chung với Ca Trực Đêm.
+  const mua = await p.evaluate(() => {
+    const gia = REPO.KHO_HANG.filter(h => h.key === 'bomb')[0].gia;
+    const truoc = SQ.M.gold;
+    const r = SQ.muaDoNghe('bomb');
+    return { ok: r.ok, gia: gia, tru: truoc - SQ.M.gold, mang: SQ.M.mang };
+  });
+  check('mua thì trừ đúng số vàng ghi trên thẻ', mua.ok && mua.tru === mua.gia,
+    'trừ ' + mua.tru + ' / giá ' + mua.gia);
+  check('và bản lưu giữ lại đúng món ấy', !!mua.mang && mua.mang.kind === 'bomb',
+    JSON.stringify(mua.mang));
+  const hai = await p.evaluate(() => SQ.muaDoNghe('gun'));
+  check('mua rồi thì không mua thêm món thứ hai — "tối đa 1"', hai.ok === false, hai.why);
+
+  // BỎ RA thì hoàn ĐỦ. Bấm nhầm rồi bị phạt tiền là một cái bẫy, không phải một luật chơi.
+  const bo = await p.evaluate(() => {
+    const truoc = SQ.M.gold;
+    const r = SQ.boDoNghe();
+    return { ok: r.ok, hoan: SQ.M.gold - truoc, mang: SQ.M.mang };
+  });
+  check('bỏ ra thì hoàn ĐỦ tiền, không phạt', bo.ok && bo.hoan === mua.gia && !bo.mang,
+    'hoàn ' + bo.hoan + ' / giá ' + mua.gia);
+
+  // VÀO CA: món lên tay, và bản lưu rỗng ngay — "mang vào là mất".
+  const vao = await p.evaluate(async () => {
+    SQ.muaDoNghe('gun');
+    const ok = SQ.squad.enter(SQ.MAPS[0].id);
+    await new Promise(r => setTimeout(r, 600));
+    const pl = REPO.S.player;
+    return { ok: ok, tay: pl ? pl.inv.map(x => x ? x.kind + 'x' + x.uses : null) : null,
+             conLai: SQ.M.mang };
+  });
+  check('vào ca thì món mua sẵn nằm ngay trên tay', vao.ok && vao.tay && vao.tay[0] === 'gunx20',
+    JSON.stringify(vao.tay));
+  check('và bản lưu KHÔNG còn giữ nó — "mang vào là mất"', vao.conLai === null,
+    JSON.stringify(vao.conLai));
+
+  // Hai cái ví không dính vào nhau: két của Ca Trực Đêm phải không bị đụng tới ở đây.
+  const ket = await p.evaluate(() => localStorage.getItem(REPO.KHO_KEY));
+  check('không đụng tới két của Ca Trực Đêm — hai hệ tiền tệ tách hẳn', ket === null,
+    ket === null ? 'localStorage["' + '"] chưa từng được ghi' : String(ket).slice(0, 60));
+  check('cửa hàng đồ nghề: không lỗi console', errs.length === 0, errs.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 (async () => {
   // `--allow-file-access-from-files`: không có nó thì mọi ảnh `file://` vẽ lên canvas đều làm
   // canvas "vấy bẩn" và `getImageData` ném SecurityError — tức bộ đo ánh sáng ở trên không chạy
@@ -568,6 +728,8 @@ async function xeSuite(b) {
     await cuaVaCoSuite(b);
     await anhSangDoSuite(b);
     await xeSuite(b);
+    await matSuite(b);
+    await khoSquadSuite(b);
   } catch (e) {
     check('bộ test chạy trọn', false, (e && e.message) || String(e));
   }

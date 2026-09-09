@@ -56,7 +56,7 @@
     ov.appendChild(card);
     UI._closer = UI.closePopup;          // bấm ra ngoài đóng — xem listener gắn một lần ở dưới
     ov.className = 'modal show';
-    try { build(body); }
+    try { build(body); chayMat(); }
     catch (e) {
       console.error('Dựng cửa sổ "' + title + '" không được:', e);
       body.appendChild(el('div', 'mline', 'Cửa sổ này dựng lỗi: ' + ((e && e.message) || 'không rõ') +
@@ -195,6 +195,7 @@
     wrap.appendChild(frag);
     stage.dataset.scr = screenName;
     if (scrollTop) stage.scrollTop = scrollTop;
+    chayMat();
   }
 
   function questPending() {
@@ -208,7 +209,7 @@
     const lead = (M.squad.lead && SQ.CHAR_BY_ID[M.squad.lead]) || null;
     const me = el('div', 'me');
     me.innerHTML =
-      '<div class="me-av">' + (lead ? faceOf(lead) : '👤') + '</div>' +
+      '<div class="me-av">' + (lead ? matHTML(lead.id, 'mat-dau') : '👤') + '</div>' +
       '<div class="me-b"><div class="me-n">' + (lead ? lead.name : 'Tổ trưởng') + '</div>' +
       '<div class="me-p">⚡ ' + money(SQ.squadPower()) + '</div></div>';
     on(me, 'click', () => UI.go('squad'));
@@ -298,7 +299,7 @@
       show.style.borderColor = SQ.RARITY[leadDef.star].color;
       show.innerHTML =
         '<div class="sc-glow"></div>' +
-        '<div class="sc-face">' + faceOf(leadDef) + '</div>' +
+        '<div class="sc-face">' + matHTML(leadDef.id, 'mat-to') + '</div>' +
         '<div class="sc-name">' + leadDef.name + '<span class="sc-ep"> · ' + leadDef.epithet + '</span></div>' +
         '<div class="sc-star">' + '★'.repeat(leadDef.star) + '</div>' +
         '<div class="sc-skill"><b>' + leadDef.skill.name + '</b> — ' + leadDef.skill.desc + '</div>';
@@ -317,7 +318,7 @@
         const d = el('div', 'lu' + (m.player ? ' is-me' : ''));
         d.style.setProperty('--hue', c.hue);
         d.style.borderColor = SQ.RARITY[c.star].color;
-        d.innerHTML = '<div class="lu-f">' + faceOf(c) + '</div><div class="lu-n">' + c.name + '</div>' +
+        d.innerHTML = '<div class="lu-f">' + matHTML(c.id, 'mat-nho') + '</div><div class="lu-n">' + c.name + '</div>' +
           '<div class="lu-t">' + (m.player ? 'BẠN CẦM' : SQ.TACTIC_BY_ID[m.tactic].icon + ' ' + SQ.TACTIC_BY_ID[m.tactic].name) + '</div>';
         on(d, 'click', () => UI.go('squad'));
         line.appendChild(d);
@@ -328,6 +329,19 @@
       }
     }
     b.appendChild(line);
+
+    // DẢI "MANG VÀO CA". Không phải trang trí: nó là cửa thứ hai vào chỗ bán, và là chỗ duy
+    // nhất trên đường đi tới nút ĐI CA nói cho người chơi biết họ đang cầm gì vào ca.
+    const mang = SQ.doNghe ? SQ.doNghe() : null;
+    const md = el('div', 'mangbar' + (mang ? ' on' : ''));
+    const mdef = mang ? SQ.gearDef(mang.kind) : null;
+    md.innerHTML = '<div class="mg-l">MANG VÀO CA</div>' +
+      (mang ? '<div class="mg-i">' + gearImg(mang.kind, 26) + '</div>' +
+              '<div class="mg-n">' + (mdef ? mdef.name : mang.kind) + ' ×' + mang.uses + '</div>'
+            : '<div class="mg-n empty">tay không — bấm để mua một món</div>') +
+      '<div class="mg-go">›</div>';
+    on(md, 'click', () => UI.go('shop'));
+    b.appendChild(md);
 
     // — thanh chọn map, kiểu chọn chương —
     const map = curMap();
@@ -372,7 +386,7 @@
     const d = el('div', 'cc s' + c.star);
     d.style.setProperty('--hue', c.hue);
     d.innerHTML =
-      '<div class="cc-face"><span class="cc-emo">' + faceOf(c) + '</span></div>' +
+      '<div class="cc-face">' + matHTML(c.id, 'mat-vua') + '</div>' +
       '<div class="cc-n">' + c.name + '</div>' +
       '<div class="cc-s">' + '★'.repeat(c.star) + ' · Lv' + (own ? own.lv : 1) + '</div>' +
       (isLead ? '<div class="cc-tag lead">BẠN CẦM</div>'
@@ -382,6 +396,80 @@
     if (fn) on(d, 'click', fn);
     return d;
   }
+
+  // ---------------------------------------------------------------------------
+  // MẶT XÁC — hình THẬT, không phải emoji.
+  //
+  // Chủ dự án, 2026-09-09: "bên ngoài menu thì cũng thể hiện char rõ ràng đi đừng dùng icon
+  // nữa". Bản Ca Trực Đêm sửa rồi, bên này thì chưa, và chủ dự án thấy ngay: "tui thấy char
+  // vẫn đang là mấy cái icon".
+  //
+  // Không phải vẽ mới cái gì cả. Mười bốn xác của Biệt Đội đều đã có charset thật ở
+  // `../repo2d/art/crew/<id>.png`, và `sprites.js` — tờ này nạp chung — đã tải sẵn cả mười
+  // bốn. `REPO_SKIN.crew()` chọn theo `a.charId`, mà `charId` chính là `SQ.CHARS[].id`. Nên
+  // việc ở đây chỉ là gọi nó ra đúng chỗ mà trước giờ đang để một cái emoji.
+  //
+  // Vẽ vào <canvas> THẬT trong DOM chứ không đi qua `toDataURL()`: không dính bẫy vấy bẩn
+  // canvas dưới `file://` (xem repo2d/art/README.md), và không phải sinh một chuỗi base64
+  // cho mỗi ô mỗi lần dựng lại menu.
+  //
+  // KHỔ VẼ LẤY TỪ CSS, không đặt trong JS: canvas đọc `clientWidth/clientHeight`, nên mấy
+  // lớp `.mat-*` trong index.html là nguồn duy nhất — đổi cỡ ô thì sửa ở đó, một chỗ.
+  const MAT_CAO = 38;                  // charset cao ~38 đơn vị thế giới
+  function matHTML(id, lop) {
+    return '<canvas class="mat ' + lop + '" data-char="' + id + '"></canvas>';
+  }
+  function veMat(cv) {
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !H) return false;        // chưa gắn vào trang / đang bị ẩn: để lượt sau
+    const dpr = Math.min(3, Math.round(devicePixelRatio || 1));
+    if (cv.width !== W * dpr || cv.height !== H * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+    const c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, W, H);
+    const a = { x: 0, y: 0, dir: Math.PI / 2, hurt: 0, _sx: 0, _sy: 0, charId: cv.dataset.char };
+    c.save();
+    if (cv.classList.contains('mat-dau')) {
+      // Ô 26px thì cả người thu lại chỉ còn một vệt. Cắt lấy ĐẦU: cùng bộ hình ấy, phóng to
+      // rồi xén trong ô. Một cái mặt 26px đọc được, một cái người 26px thì không.
+      c.beginPath(); c.rect(0, 0, W, H); c.clip();
+      const k = H / 17;
+      c.translate(W / 2, H / 2); c.scale(k, k); c.translate(0, 16);
+    } else {
+      // Cả người, chân chạm đáy ô. Vũng bóng dưới chân không phải trang trí: thiếu nó thì
+      // nhân vật lơ lửng giữa một ô rỗng và cả cái thẻ đọc ra như hình bị lỗi nền.
+      const k = H * 0.74 / MAT_CAO;
+      c.translate(W / 2, H - H * 0.13); c.scale(k, k);
+      c.fillStyle = 'rgba(0,0,0,0.40)';
+      c.beginPath(); c.ellipse(0, 8, 10, 4.5, 0, 0, Math.PI * 2); c.fill();
+    }
+    // QUAY MẶT XUỐNG (`dir = PI/2` là hàng DOWN của charset), tức nhìn thẳng ra người chơi.
+    const co = !!(window.REPO_SKIN && REPO_SKIN.crew && REPO_SKIN.crew(c, a, false));
+    c.restore();
+    if (!co) c.clearRect(0, 0, W, H);  // chưa có tấm: để trống, đừng để lại cái bóng cụt
+    return co;
+  }
+  // Bộ hình nạp bất đồng bộ, nên một ô dựng ra lúc tấm chưa về sẽ trống. Vòng này vẽ lại cho
+  // tới khi tấm về rồi TỰ TẮT — không có vòng rAF nào chạy suốt phiên chỉ để canh một tấm ảnh.
+  let matRaf = 0;
+  function chayMat() {
+    if (matRaf) cancelAnimationFrame(matRaf);
+    const buoc = () => {
+      let con = false;
+      const ds = document.querySelectorAll('canvas.mat');
+      for (let i = 0; i < ds.length; i++) {
+        const cv = ds[i];
+        if (cv.dataset.xong === '1') continue;
+        if (veMat(cv)) cv.dataset.xong = '1'; else con = true;
+      }
+      matRaf = con ? requestAnimationFrame(buoc) : 0;
+    };
+    buoc();
+  }
+
+  // Emoji CHƯA chết: mấy chỗ nó còn nằm giữa một dòng chữ (chip chọn xác, huy hiệu "ai đang
+  // đeo món này", danh sách trong Sổ tay, và nút kỹ năng trong ca trực) thì một cái canvas
+  // chen vào giữa dòng chỉ làm chữ xô lệch. Chỗ nào là MỘT Ô CHÂN DUNG thì dùng matHTML().
   function faceOf(c) {
     return { bao: '🔦', hue: '💉', tam: '💪', ky: '🔑', linh: '🌑', dung: '🔨', mai: '🔔',
              phuc: '🚑', son: '🧱', nga: '⚡', khoi: '👁️', van: '❄️', hai: '🧲', tuyet: '🕊️' }[c.id] || '🙂';
@@ -474,7 +562,7 @@
       const g2 = el('div', 'char-grid dimmed');
       missing.forEach(c => {
         const d = el('div', 'cc s' + c.star + ' unknown');
-        d.innerHTML = '<div class="cc-face"><span class="cc-emo">' + faceOf(c) + '</span></div>' +
+        d.innerHTML = '<div class="cc-face">' + matHTML(c.id, 'mat-vua') + '</div>' +
           '<div class="cc-n">' + c.name + '</div><div class="cc-s">' + '★'.repeat(c.star) + '</div>' +
           '<div class="cc-tag">' + c.skill.name + '</div>';
         d.style.borderColor = SQ.RARITY[c.star].color;
@@ -490,7 +578,7 @@
       box.appendChild(el('div', 'slot-l', label));
       if (id) {
         const c = SQ.CHAR_BY_ID[id];
-        box.appendChild(el('div', 'slot-f', faceOf(c)));
+        box.appendChild(el('div', 'slot-f', matHTML(c.id, 'mat-vua')));
         box.appendChild(el('div', 'slot-n', c.name));
         if (!isLead) {
           const t = SQ.M.tactics[id] || 'loot';
@@ -582,7 +670,8 @@
     const pickRow = el('div', 'char-strip');
     SQ.CHARS.forEach(c => {
       if (!M.chars[c.id]) return;
-      const t = el('div', 'chip' + (sel.char === c.id ? ' on' : ''), faceOf(c) + ' ' + c.name);
+      const t = el('div', 'chip' + (sel.char === c.id ? ' on' : ''),
+        matHTML(c.id, 'mat-chip') + ' ' + c.name);
       t.style.borderColor = SQ.RARITY[c.star].color;
       on(t, 'click', () => { sel.char = c.id; UI.render(); });
       pickRow.appendChild(t);
@@ -600,7 +689,7 @@
     body.style.setProperty('--hue', def.hue);
     body.style.borderColor = SQ.RARITY[def.star].color;
     body.innerHTML =
-      '<div class="eb-f">' + faceOf(def) + '</div>' +
+      '<div class="eb-f">' + matHTML(def.id, 'mat-eq') + '</div>' +
       '<div class="eb-n">' + def.name + '</div>' +
       '<div class="eb-s">' + '★'.repeat(def.star) + ' · Lv' + own.lv + '</div>' +
       '<div class="eb-p">⚡ ' + money(st.power) + '</div>';
@@ -881,7 +970,7 @@
       const d = el('div', 'pcard s' + star);
       d.style.borderColor = SQ.RARITY[star].color;
       if (it.kind === 'char') {
-        d.innerHTML = '<div class="pc-f">' + faceOf(it.char) + '</div><div class="pc-n">' + it.char.name + '</div>' +
+        d.innerHTML = '<div class="pc-f">' + matHTML(it.char.id, 'mat-ti') + '</div><div class="pc-n">' + it.char.name + '</div>' +
           '<div class="pc-s">' + '★'.repeat(star) + '</div>' +
           '<div class="pc-t">' + (it.isNew ? '<b class="new">XÁC MỚI</b>' : '+' + it.shard + ' mảnh') + '</div>';
       } else {
@@ -895,12 +984,79 @@
     card.appendChild(g);
     card.appendChild(btn('Xong', 'big', () => { ov.className = 'modal'; UI.render(); }));
     ov.appendChild(card);
+    chayMat();
   }
 
   // ---------------------------------------------------------------------------
   // CỬA HÀNG
   // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // ĐỒ NGHỀ MANG VÀO CA — bảng bán, dùng ở màn Cửa Hàng
+  //
+  // Chủ dự án, 2026-09-09: "repo squad cũng chưa có shop weapon".
+  //
+  // Bài học từ lần trước, bên Ca Trực Đêm: chỗ bán nằm ở một màn hình người chơi chỉ ghé qua
+  // vài giây thì với họ nó KHÔNG TỒN TẠI ("chưa thấy chỗ mua weapon"). Nên ở đây có hai cửa:
+  // khối này nằm TRÊN CÙNG màn Cửa Hàng, và màn chính có một dải luôn nói rõ đang mang gì —
+  // bấm vào dải ấy là tới thẳng đây.
+  function khoiDoNghe(b) {
+    const hang = SQ.KHO_HANG();
+    if (!hang.length) return;              // bộ máy chưa nạp xong: đừng bày một cái khung rỗng
+    const dang = SQ.doNghe();
+    b.appendChild(el('h3', '', 'Đồ nghề mang vào ca'));
+    b.appendChild(el('p', 'hint',
+      'Mua sẵn <b>MỘT</b> món, vào ca là nó nằm ngay trên tay. <b>Mang vào là mất</b> — hết ca ' +
+      'hay bỏ ca đều không lấy lại được. Trạm dịch vụ giữa các tầng vẫn bán đủ mười một món như cũ; ' +
+      'chỗ này chỉ lo đúng khúc đầu ca, lúc còn tay không.'));
+
+    const ô = el('div', 'mangbox' + (dang ? ' on' : ''));
+    if (dang) {
+      const def = SQ.gearDef(dang.kind);
+      ô.innerHTML = '<div class="mb-i">' + gearImg(dang.kind, 40) + '</div>' +
+        '<div class="mb-b"><div class="mb-n">' + (def ? def.name : dang.kind) + ' ×' + dang.uses + '</div>' +
+        '<div class="mb-s">Đang giữ — vào ca là nằm sẵn trên tay.</div></div>';
+      ô.appendChild(btn('Bỏ ra', 'ghost', () => {
+        const r = SQ.boDoNghe();
+        UI.toast(r.ok ? 'Đã bỏ ra, hoàn đủ vàng.' : r.why, r.ok);
+        UI.render();
+      }));
+    } else {
+      ô.innerHTML = '<div class="mb-b"><div class="mb-n">Chưa mang gì</div>' +
+        '<div class="mb-s">Chọn một món dưới đây — tối đa một món mỗi ca.</div></div>';
+    }
+    b.appendChild(ô);
+
+    const g = el('div', 'wep-grid');
+    hang.forEach(h => {
+      const def = SQ.gearDef(h.key);
+      if (!def) return;
+      const du = (SQ.M.gold || 0) >= h.gia;
+      const d = el('div', 'wep' + (dang ? ' off' : du ? '' : ' ngheo'));
+      d.innerHTML = '<div class="wp-i">' + gearImg(h.key, 44) + '</div>' +
+        '<div class="wp-n">' + def.name + '</div>' +
+        '<div class="wp-u">×' + def.uses + '</div>' +
+        '<div class="wp-p">' + SQ.WALLET_ICON.gold + ' ' + money(h.gia) + '</div>';
+      d.title = def.desc || '';
+      on(d, 'click', () => {
+        const r = SQ.muaDoNghe(h.key);
+        UI.toast(r.ok ? 'Đã mua ' + r.def.name + ' — vào ca là nằm sẵn trên tay.' : r.why, r.ok);
+        UI.render();
+      });
+      g.appendChild(d);
+    });
+    b.appendChild(g);
+  }
+  // Hình món đồ lấy thẳng từ bộ máy. `REPO.gearIconURL` tự lo cái bẫy canvas bị vấy bẩn dưới
+  // `file://` (thử tấm PNG trước, hỏng thì vẽ lại bằng vector) — xem repo2d/art/README.md.
+  function gearImg(key, px) {
+    const u = (window.REPO && REPO.gearIconURL) ? REPO.gearIconURL(key, px) : '';
+    return u ? '<img src="' + u + '" alt="" width="' + px + '" height="' + px + '">' : '';
+  }
+
   function scrShop(b) {
+    khoiDoNghe(b);
+
     b.appendChild(el('div', 'fakebox', '⚠️ <b>Nạp ở đây là giả.</b> Không có cổng thanh toán, không mất tiền thật — bấm là ngọc vào ví. Đây là bản chơi thử của cơ chế nạp.'));
 
     const tick = el('div', 'stat-bar');
@@ -1022,6 +1178,6 @@
     });
   };
 
-  UI.el = el; UI.btn = btn; UI.faceOf = faceOf;
+  UI.el = el; UI.btn = btn; UI.faceOf = faceOf; UI.matHTML = matHTML; UI.veMat = chayMat;
 
 })(window);
