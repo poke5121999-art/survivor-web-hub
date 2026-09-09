@@ -352,26 +352,58 @@
     pick.appendChild(prev); pick.appendChild(mid); pick.appendChild(next);
     b.appendChild(pick);
 
-    // — nút vào trận, và ngay cạnh nó là món đồ nghề sẽ đi cùng —
+    // — CHỖ BÁN ĐỒ NGHỀ, rồi tới nút vào trận —
     //
-    // Chủ dự án: "để cái shop weapon đó kế bên nút đi ca đi, tự nhiên phóng to cái nút đó ra
-    // chi vậy?". Bản trước tôi làm nó thành một DẢI rộng hết màn, và dải ấy sai hai đường:
-    // nó to ngang cái nút chính trong khi nó không phải việc chính, và nó thêm một đứa con
-    // thứ năm vào cái lưới bốn hàng của khung ngang (`body.landscape .stage.is-home`).
+    // Chủ dự án, hai lượt sửa liền: "để cái shop weapon đó kế bên nút đi ca đi, tự nhiên phóng
+    // to cái nút đó ra chi vậy?", rồi "ôi trời tui kêu bạn bưng luôn cái shop ra chứ có phải
+    // là thêm 1 nút tắt đâu".
     //
-    // Nay nó là một ô vuông nhỏ NẰM TRONG CÙNG MỘT HÀNG với nút ĐI CA: đọc ra là "cái này đi
-    // kèm cú bấm kia", không giành chỗ, và lưới khung ngang vẫn đúng bốn đứa con.
+    // Nên ở đây là CHỖ BÁN THẬT, không phải lối tắt sang chỗ bán: năm món bày sẵn, bấm một cái
+    // là mua, bấm lại vào món đang mang là bỏ ra và hoàn đủ tiền. Không phải rời màn hình này
+    // một bước nào — chọn xong là bấm ĐI CA ngay bên dưới.
+    //
+    // Hai thứ phải giữ khi sửa khối này:
+    //   1. `.gorow` bọc CẢ dải bán lẫn nút ĐI CA, nên `.stage.is-home` vẫn đúng BỐN đứa con.
+    //      Khung ngang của nó là một `grid` bốn hàng có chỉ định chỗ cho từng đứa
+    //      (`body.landscape .stage.is-home`), thêm một đứa con thứ năm là nó tự đẻ hàng ngoài
+    //      thiết kế — mà khung dọc là flex nên nhìn vẫn "ổn", hỏng im lặng.
+    //   2. Bán ở đây KHÔNG thay cho khối trong màn Cửa Hàng. Khối kia có phần chữ nói rõ luật
+    //      "một món, mang vào là mất"; dải này chỉ đủ chỗ cho hình với giá.
     const mang = SQ.doNghe ? SQ.doNghe() : null;
     const mdef = mang ? SQ.gearDef(mang.kind) : null;
     const hangDi = el('div', 'gorow');
-    const nutMang = el('div', 'gomang' + (mang ? ' on' : ''));
-    nutMang.innerHTML = mang
-      ? '<div class="gm-i">' + gearImg(mang.kind, 28) + '</div><div class="gm-n">×' + mang.uses + '</div>'
-      : '<div class="gm-p">+</div><div class="gm-n">đồ nghề</div>';
-    nutMang.title = mang ? (mdef ? mdef.name : mang.kind) + ' ×' + mang.uses + ' — bấm để đổi'
-                         : 'Mua sẵn một món mang vào ca';
-    on(nutMang, 'click', () => UI.go('shop'));
-    hangDi.appendChild(nutMang);
+    const hang = SQ.KHO_HANG ? SQ.KHO_HANG() : [];
+    if (hang.length) {
+      const dai = el('div', 'wepbar' + (mang ? ' on' : ''));
+      const dau = el('div', 'wb-h');
+      dau.innerHTML = '<div class="wb-l">ĐỒ NGHỀ MANG VÀO CA</div>' +
+        '<div class="wb-s">' + (mang ? (mdef ? mdef.name : mang.kind) + ' ×' + mang.uses +
+                                        ' — bấm lại để bỏ ra'
+                                     : 'bấm một món để mua, tối đa một món') + '</div>' +
+        '<div class="wb-g">' + SQ.WALLET_ICON.gold + ' ' + money(SQ.M.gold || 0) + '</div>';
+      dai.appendChild(dau);
+      const row = el('div', 'wq-row');
+      hang.forEach(h => {
+        const def = SQ.gearDef(h.key);
+        if (!def) return;
+        const dangMon = !!mang && mang.kind === h.key;
+        const du = (SQ.M.gold || 0) >= h.gia;
+        const q = el('div', 'wq' + (dangMon ? ' on' : mang ? ' mo' : du ? '' : ' ngheo'));
+        q.innerHTML = gearImg(h.key, 26) +
+          '<b>' + (dangMon ? '×' + mang.uses : money(h.gia)) + '</b>';
+        q.title = def.name + ' ×' + def.uses + (def.desc ? ' — ' + def.desc : '');
+        on(q, 'click', () => {
+          const r = dangMon ? SQ.boDoNghe() : SQ.muaDoNghe(h.key);
+          UI.toast(r.ok ? (dangMon ? 'Đã bỏ ra, hoàn đủ vàng.'
+                                   : 'Mang theo ' + def.name + ' — vào ca là nằm sẵn trên tay.')
+                        : r.why, r.ok);
+          UI.render();
+        });
+        row.appendChild(q);
+      });
+      dai.appendChild(row);
+      hangDi.appendChild(dai);
+    }
     hangDi.appendChild(btn('▶ ĐI CA', 'cta', () => SQ.squad.enter(map.id)));
     b.appendChild(hangDi);
 

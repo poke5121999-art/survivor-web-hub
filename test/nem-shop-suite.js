@@ -646,50 +646,63 @@ async function khoSquadSuite(b) {
   await p.goto(SQUAD);
   await p.waitForTimeout(2200);
 
-  // CỬA THỨ NHẤT: ô đồ nghề KẾ BÊN nút ĐI CA. Đây là bài học của lần trước — chỗ bán nằm ở
-  // một màn hình người chơi không ghé thì với họ nó không tồn tại — cộng lời chỉnh của chủ dự
-  // án: "để cái shop weapon đó kế bên nút đi ca đi, tự nhiên phóng to cái nút đó ra chi vậy?".
-  // Nên bài này đo cả BA vế: có, thấy được, và ĐÚNG LÀ nằm cạnh nút ĐI CA chứ không phải một
-  // dải rộng bằng nó.
+  // CHỖ BÁN NẰM NGAY TRÊN MÀN CHÍNH, ngay trên nút ĐI CA. Đây là bài học của lần trước — chỗ
+  // bán nằm ở một màn hình người chơi không ghé thì với họ nó không tồn tại — cộng hai lượt
+  // chỉnh của chủ dự án: "để cái shop weapon đó kế bên nút đi ca đi", rồi "ôi trời tui kêu bạn
+  // bưng luôn cái shop ra chứ có phải là thêm 1 nút tắt đâu".
+  //
+  // Nên bài này đo đúng chữ ấy: năm món phải bày SẴN ở màn chính (không phải một nút dẫn đi
+  // đâu đó), và mua được ngay tại chỗ.
   const bar = await p.evaluate(() => {
-    const d = document.querySelector('.gomang');
+    const d = document.querySelector('.wepbar');
     const cta = document.querySelector('.gorow > .b.cta');
     if (!d || !cta) return null;
     const r = d.getBoundingClientRect(), c = cta.getBoundingClientRect();
-    return { chu: d.textContent.replace(/\s+/g, ' ').trim(),
+    const q = [...document.querySelectorAll('.wepbar .wq')];
+    return { o: q.length,
+             hinh: q.filter(x => { const i = x.querySelector('img'); return i && i.src.length > 200; }).length,
+             gia: q.map(x => x.textContent.trim()).join(' '),
              thay: r.width > 0 && r.height > 0 && r.top < innerHeight && r.bottom > 0,
-             cungHang: Math.abs(r.top - c.top) < 4 && r.right <= c.left + 1,
-             beHon: r.width < c.width / 2,
-             rong: Math.round(r.width), rongCta: Math.round(c.width) };
+             ngayTren: c.top >= r.bottom - 1 && c.top - r.bottom < 24,
+             con: [...document.querySelector('.stage.is-home').children].length,
+             tran: document.querySelector('.stage.is-home').scrollHeight -
+                   document.querySelector('.stage.is-home').clientHeight };
   });
-  check('màn chính có ô đồ nghề, và nó nằm trong khung nhìn',
-    !!bar && bar.thay, bar ? bar.chu : 'không có ô');
-  check('ô ấy nằm KẾ BÊN nút ĐI CA, trên cùng một hàng', !!bar && bar.cungHang,
-    bar ? JSON.stringify({ rong: bar.rong, rongCta: bar.rongCta }) : '—');
-  check('và nó NHỎ hơn hẳn nút ĐI CA — không giành chỗ với việc chính',
-    !!bar && bar.beHon, bar ? bar.rong + 'px so với ' + bar.rongCta + 'px' : '—');
+  check('màn chính bày SẴN cả năm món, không phải một nút dẫn đi chỗ khác',
+    !!bar && bar.o === 5, bar ? bar.o + ' ô: ' + bar.gia : 'không có dải bán');
+  check('năm ô ấy đều có HÌNH thật', !!bar && bar.hinh === 5, bar ? bar.hinh + '/5' : '—');
+  check('dải bán nằm NGAY TRÊN nút ĐI CA, và nằm trong khung nhìn',
+    !!bar && bar.thay && bar.ngayTren, bar ? JSON.stringify({ thay: bar.thay, ngayTren: bar.ngayTren }) : '—');
+  // Khung ngang của màn chính là một grid BỐN hàng có chỉ định chỗ cho từng đứa con; thêm một
+  // đứa con thứ năm là nó tự đẻ hàng ngoài thiết kế, mà khung dọc là flex nên nhìn vẫn "ổn".
+  // Đây là cái bẫy đã sập một lần, nên nó phải có một bài canh.
+  check('màn chính vẫn đúng số con trực tiếp — không phá lưới khung ngang',
+    !!bar && bar.con === 7, bar ? bar.con + ' con (2 rail + 5 khối)' : '—');
+  check('và màn chính không phải cuộn thêm vì cái dải ấy', !!bar && bar.tran <= 0,
+    bar ? 'tràn ' + bar.tran + 'px' : '—');
 
-  // CỬA THỨ HAI: bấm ô là sang thẳng chỗ bán.
+  // MUA NGAY TẠI CHỖ, không rời màn hình. Giá lấy từ MỘT bảng chung với Ca Trực Đêm.
+  const mua = await p.evaluate(async () => {
+    const gia = REPO.KHO_HANG.filter(h => h.key === 'bomb')[0].gia;
+    const truoc = SQ.M.gold;
+    document.querySelectorAll('.wepbar .wq')[0].click();     // ô đầu = món rẻ nhất = lựu đạn
+    await new Promise(r => setTimeout(r, 400));
+    return { ok: !!SQ.M.mang, gia: gia, tru: truoc - SQ.M.gold, mang: SQ.M.mang,
+             sang: !!document.querySelector('.wepbar .wq.on') };
+  });
+  check('bấm thẳng vào ô trên màn chính là MUA ĐƯỢC, không phải rời màn hình',
+    mua.ok && mua.sang, JSON.stringify(mua.mang));
+
+  // Khối đầy đủ trong màn Cửa Hàng vẫn còn: nó là chỗ có phần chữ nói rõ luật.
   const sang = await p.evaluate(async () => {
-    document.querySelector('.gomang').click();
+    SQ.ui.go('shop');
     await new Promise(r => setTimeout(r, 400));
     return { hang: document.querySelectorAll('.wep').length,
              tren: !!document.querySelector('.sheet-b > h3') &&
                    document.querySelector('.sheet-b > h3').textContent.indexOf('Đồ nghề') >= 0 };
   });
-  check('bấm ô thì mở đúng chỗ bán, và nó nằm TRÊN CÙNG màn Cửa Hàng',
+  check('màn Cửa Hàng vẫn giữ khối đầy đủ, và nó nằm TRÊN CÙNG',
     sang.hang === 5 && sang.tren, JSON.stringify(sang));
-  check('năm món đều có HÌNH thật, không phải ô trống',
-    await p.evaluate(() => [...document.querySelectorAll('.wep img')]
-      .filter(i => i.src.length > 200).length) === 5);
-
-  // MUA: đúng giá, và giá lấy từ MỘT bảng chung với Ca Trực Đêm.
-  const mua = await p.evaluate(() => {
-    const gia = REPO.KHO_HANG.filter(h => h.key === 'bomb')[0].gia;
-    const truoc = SQ.M.gold;
-    const r = SQ.muaDoNghe('bomb');
-    return { ok: r.ok, gia: gia, tru: truoc - SQ.M.gold, mang: SQ.M.mang };
-  });
   check('mua thì trừ đúng số vàng ghi trên thẻ', mua.ok && mua.tru === mua.gia,
     'trừ ' + mua.tru + ' / giá ' + mua.gia);
   check('và bản lưu giữ lại đúng món ấy', !!mua.mang && mua.mang.kind === 'bomb',
