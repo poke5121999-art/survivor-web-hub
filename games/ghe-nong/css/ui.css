@@ -966,3 +966,98 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
   border-color:#dff3c4;box-shadow:0 3px 0 #4e8c07}
 .hop.sang .hop-chan .nut.do{background:linear-gradient(180deg,#ff9ba8,#d9455c);color:#fff;
   border-color:#ffdde2;box-shadow:0 3px 0 #a02c40}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BẢNG XẾP HẠNG bản SÁNG.
+   Bảng này xuất hiện ở hai chỗ và cả hai đều thuộc thế giới màu Uma: một trang
+   trong màn CLB, và một hộp thoại mở từ rail màn huấn luyện. Bản gốc `.bx-*` là
+   màu tối (dựng cho bố cục TFM2 cũ) nên lọt vào giữa màn sáng là chữ đen trên nền
+   đen. Ghi đè ở đây chứ không sửa `.bx-*` gốc, để nếu sau này có màn tối nào cần
+   dùng lại bảng thì vẫn còn.
+   ═══════════════════════════════════════════════════════════════════════════ */
+#man-clb .bx-tab button,.hop.sang .bx-tab button{border:3px solid #e6e2ef;background:#f7f6fb;
+  color:#6b5c68;font-weight:900;border-radius:99px;box-shadow:0 2px 0 #d9d4e6}
+#man-clb .bx-tab button:hover,.hop.sang .bx-tab button:hover{background:#fff;color:#4a3f48}
+#man-clb .bx-tab button.chon,.hop.sang .bx-tab button.chon{
+  background:linear-gradient(180deg,#8fd8ff,#3f8fd0);color:#fff;border-color:#d9efff;
+  box-shadow:0 2px 0 #2f6ba0}
+#man-clb .bx-nhan,.hop.sang .bx-nhan{color:#8a7f8f;font-weight:800}
+#man-clb .bx-ghi,.hop.sang .bx-ghi{color:#8a7f8f}
+
+#man-clb .bx-bang,.hop.sang .bx-bang{border:2px solid #e6e2ef;border-radius:14px;background:#fff;
+  box-shadow:0 2px 0 #dcd7e8}
+#man-clb .bx-hang,.hop.sang .bx-hang{border-bottom:1px solid #eee9f6}
+#man-clb .bx-hang:hover,.hop.sang .bx-hang:hover{background:#f7f6fb}
+#man-clb .bx-hang.dau,.hop.sang .bx-hang.dau{background:#4962a2}
+#man-clb .bx-hang.dau:hover,.hop.sang .bx-hang.dau:hover{background:#4962a2}
+#man-clb .bx-hang.dau .bx-o,.hop.sang .bx-hang.dau .bx-o{color:#dfe8f5}
+#man-clb .bx-hang.ta,.hop.sang .bx-hang.ta{background:#eaf7ef;box-shadow:inset 3px 0 0 #3d9c63}
+#man-clb .bx-hang.ta:hover,.hop.sang .bx-hang.ta:hover{background:#e0f3e8}
+#man-clb .bx-hang.top .bx-o.hang,.hop.sang .bx-hang.top .bx-o.hang{color:#c8891a}
+#man-clb .bx-o,.hop.sang .bx-o{color:#4a3f48}
+#man-clb .bx-o.hang,.hop.sang .bx-o.hang{color:#8a7f8f}
+#man-clb .bx-o.t,.hop.sang .bx-o.t{color:#3d9c63}
+#man-clb .bx-o.h,.hop.sang .bx-o.h{color:#8a7f8f}
+#man-clb .bx-suc,.hop.sang .bx-suc{color:#a09aa8}
+#man-clb .bx-p.t,.hop.sang .bx-p.t{background:#dff3e6;color:#2e7d4f}
+#man-clb .bx-p.h,.hop.sang .bx-p.h{background:#fbe3e6;color:#c23a4a}
+
+#man-clb .bx-tin-o,.hop.sang .bx-tin-o{background:#fff;border:2px solid #e6e2ef;border-radius:12px}
+#man-clb .bx-tin-o:hover,.hop.sang .bx-tin-o:hover{border-color:#cfd9ee}
+#man-clb .bx-tin-o.chon,.hop.sang .bx-tin-o.chon{border-color:#8fd8ff;background:#f2faff}
+#man-clb .bx-tin-o.moi,.hop.sang .bx-tin-o.moi{border-left:4px solid #e8a81c}
+#man-clb .bx-tin-loai,.hop.sang .bx-tin-loai{color:#3f8fd0;font-weight:800}
+#man-clb .bx-tin-dau,.hop.sang .bx-tin-dau{color:#4a3f48;font-weight:900}
+#man-clb .bx-tin-luot,.hop.sang .bx-tin-luot{color:#a09aa8}
+
+#man-clb .bx-lich-o,.hop.sang .bx-lich-o{background:#fff;border:2px solid #e6e2ef;border-radius:12px}
+#man-clb .bx-lich-o.thang,.hop.sang .bx-lich-o.thang{border-color:#a8dcbb;background:#f2fbf5}
+#man-clb .bx-lich-o.thua,.hop.sang .bx-lich-o.thua{border-color:#f0bcc3;background:#fdf3f4}
+#man-clb .bx-lich-luot,.hop.sang .bx-lich-luot{color:#8a7f8f;font-weight:800}
+#man-clb .bx-lich-o b,.hop.sang .bx-lich-o b{color:#4a3f48}
+#man-clb .bx-lich-phu,.hop.sang .bx-lich-phu{color:#8a7f8f}
+#man-clb .bx-lich-kq,.hop.sang .bx-lich-kq{color:#4a3f48}
+
+/* cột phải của bảng xếp hạng — thẻ đội, thân tin, ô số. Bản sáng dùng ở màn CLB và
+   trong hộp thoại `.hop.sang`; ngoài hai chỗ đó thì rơi về màu tối như cũ. */
+.bx-dau{font-size:15px;font-weight:900;line-height:1.4;margin:6px 0 10px}
+.bx-than{font-size:12.5px;line-height:1.7;margin-bottom:9px;color:#a9b6c6}
+.bx-ta-dong{font-weight:900;margin-bottom:6px;color:var(--xanh)}
+.bx-doi{background:#111926;border:1px solid var(--vien);border-radius:11px;padding:9px;
+  margin-bottom:7px;cursor:pointer}
+.bx-doi-dau{display:flex;align-items:center;gap:7px}
+.bx-doi-dau i{width:9px;height:9px;border-radius:3px;flex:none}
+.bx-doi-dau b{font-size:13px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.bx-doi-dau span{font-size:10px;color:#5a6675;flex:none}
+.bx-doi-so{font-size:11px;color:#8b98a9;margin-top:3px}
+.bx-doi-tieu{font-size:11px;color:#7f8b9c;margin-top:4px;line-height:1.55}
+.bx-ta{background:#111926;border:1px solid var(--vien);border-radius:11px;padding:10px}
+.bx-ta b{display:block;font-size:18px;font-weight:900}
+.bx-ta-phu{font-size:12px;color:#8b98a9;margin-top:4px}
+.bx-ta-nhac{font-size:11.5px;margin-top:6px;line-height:1.5;color:#f2c94c}
+.bx-ta.top .bx-ta-nhac{color:var(--xanh)}
+.bx-so-o{text-align:center;background:#111926;border:1px solid var(--vien);border-radius:9px;
+  padding:7px}
+.bx-so-o span{display:block;font-size:10px;color:#8b98a9}
+.bx-so-o b{display:block;font-size:17px;font-weight:900}
+
+#man-clb .bx-than,.hop.sang .bx-than{color:#6b5c68}
+#man-clb .bx-dau,.hop.sang .bx-dau{color:#4a3f48}
+#man-clb .bx-ta-dong,.hop.sang .bx-ta-dong{color:#3d9c63}
+#man-clb .bx-doi,.hop.sang .bx-doi{background:#fff;border:2px solid #e6e2ef;border-radius:12px;
+  box-shadow:0 2px 0 #dcd7e8}
+#man-clb .bx-doi:hover,.hop.sang .bx-doi:hover{border-color:#cfd9ee}
+#man-clb .bx-doi-dau b,.hop.sang .bx-doi-dau b{color:#4a3f48}
+#man-clb .bx-doi-dau span,.hop.sang .bx-doi-dau span{color:#a09aa8}
+#man-clb .bx-doi-so,.hop.sang .bx-doi-so{color:#8a7f8f}
+#man-clb .bx-doi-so b,.hop.sang .bx-doi-so b{color:#3f6ab8}
+#man-clb .bx-doi-tieu,.hop.sang .bx-doi-tieu{color:#8a7f8f}
+#man-clb .bx-ta,.hop.sang .bx-ta{background:#f2fbf5;border:2px solid #a8dcbb;border-radius:14px}
+#man-clb .bx-ta b,.hop.sang .bx-ta b{color:#2e7d4f}
+#man-clb .bx-ta-phu,.hop.sang .bx-ta-phu{color:#8a7f8f}
+#man-clb .bx-ta-nhac,.hop.sang .bx-ta-nhac{color:#a8761a}
+#man-clb .bx-ta.top .bx-ta-nhac,.hop.sang .bx-ta.top .bx-ta-nhac{color:#2e7d4f}
+#man-clb .bx-so-o,.hop.sang .bx-so-o{background:#f7f6fb;border:2px solid #e6e2ef;border-radius:12px}
+#man-clb .bx-so-o span,.hop.sang .bx-so-o span{color:#8a7f8f}
+#man-clb .bx-so-o b,.hop.sang .bx-so-o b{color:#4a3f48}

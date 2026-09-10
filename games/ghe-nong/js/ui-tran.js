@@ -937,8 +937,11 @@
           (doi === 'xanh' ? '#3ddc97' : '#e5484d') }));
         d.appendChild(th);
 
+        /* NĂM ô, không phải sáu: mỗi nhánh trang bị là một đường ghép và mua tầng sau
+           thay tầng trước, nên một người giữ tối đa đúng năm món — một món mỗi nhánh.
+           Vẽ sáu ô thì ô cuối vĩnh viễn trống, nhìn như đang thiếu đồ. */
         var do_ = G.el('div.the-do');
-        for (var i = 0; i < 6; i++) {
+        for (var i = 0; i < 5; i++) {
           var m = n.do[i];
           var o = G.el('span' + (m ? '.co' : ''));
           if (m) {

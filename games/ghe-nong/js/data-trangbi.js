@@ -163,9 +163,20 @@
     if (ct.lopTuong === 'phep' || ct.lopTuong === 'ho') uu.luoi = (uu.luoi || 0) * 0.15;
     if (ct.lopTuong === 'xa' || ct.lopTuong === 'sat') uu.ngoc = (uu.ngoc || 0) * 0.15;
 
-    /* không dồn quá 2 món cùng nhánh thủ, không quá 3 nhánh chính */
-    ['thep', 'lua'].forEach(function (n) { if (soMon[n] >= 2) uu[n] *= 0.25; });
-    ['luoi', 'gio', 'ngoc'].forEach(function (n) { if (soMon[n] >= 3) uu[n] *= 0.3; });
+    /* Mỗi nhánh là một ĐƯỜNG GHÉP: mua tầng sau thì tầng trước bị thay ra, nên
+       `soMon[nhanh]` không bao giờ vượt 1. Hai cái chặn cũ ở đây ("không dồn quá 2 món
+       cùng nhánh") vì thế là code chết — nó không bao giờ đúng. Cái cần chặn thật là
+       ĐỪNG MỞ CẢ HAI ĐƯỜNG THỦ khi không bị đánh chết, vì mở là mất chỗ của đường sát
+       thương: một người chỉ giữ được năm món, mỗi nhánh một món. */
+    if (soMon.thep && soMon.lua) { uu.thep *= 0.4; uu.lua *= 0.4; }
+
+    /* ĐI HẾT ĐƯỜNG ĐÃ MỞ. Không có dòng này thì ai cũng rải mỗi nhánh một món tầng 1–2
+       và bốn món tầng 4 gần như không bao giờ xuất hiện — đo được: trong 30 trận, Màn
+       Huỷ Diệt ra 0 lần, Thành Trì Bất Khả ra 2 lần. */
+    /* Đo: để hệ số 0.9 thì đội nào giàu hơn ăn được món tầng 4 trước và cuốn luôn trận —
+       tỉ lệ vô địch thế giới tụt từ 25% xuống 13%. 0.45 vẫn đủ để bốn món tầng 4 xuất
+       hiện mà không biến chênh vàng thành quả cầu tuyết. */
+    for (var nh in tangCao) if (tangCao[nh]) uu[nh] = (uu[nh] || 0) + 0.45 * tangCao[nh];
 
     /* 5. NÃO thấp thì thỉnh thoảng mua theo thói quen, bỏ qua tính toán */
     if (rng() > 0.35 + 0.6 * quyet) {

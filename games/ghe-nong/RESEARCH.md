@@ -584,10 +584,19 @@ Bottom   +20% gold gained
 Support  -30% experience and -10% gold gained. On last hit, the nearest ally receives the gold
 ```
 
-`[ĐO TRONG REPO]` Ghế Nóng đã có: Bottom +20% vàng, Support −30% kinh nghiệm, Mid +20% kinh
-nghiệm, Jungle +20% tốc chạy ngoài giao tranh. **Còn thiếu**: Top hồi 1% máu mỗi giây ngoài
-giao tranh, Jungle hành quyết quái lớn dưới ngưỡng máu, và Support chuyển vàng last-hit cho
-đồng đội gần nhất. Ba cái này nằm trong danh sách việc còn lại của `DESIGN.md`.
+`[ĐO TRONG REPO]` Ghế Nóng có **đủ cả sáu**, cài ở `js/sim.js`:
+
+| buff | chỗ cài |
+|---|---|
+| Top hồi 1.5% máu/giây ngoài giao tranh | vòng `tran.nguoi.forEach`, mốc `tran.t - n.lanCuoi > 6` |
+| Jungle +20% tốc chạy ngoài giao tranh | cùng vòng đó, `n.vt === 'rung'` |
+| Jungle **hành quyết** quái lớn khi máu ≤ 700 | sau đòn đánh thường, chỉ áp cho thứ có `hienRa` (tức Rồng / Chúa Hang), không áp cho tướng hay trụ |
+| Mid +20% kinh nghiệm | `chiaExp()` |
+| Bottom +20% vàng | `xuLyChet()` nhánh lính |
+| Support −30% kinh nghiệm, −15% vàng, **chuyển vàng last-hit** | `chiaExp()` và `xuLyChet()`: hỗ trợ ăn lính thì tiền sang tay đồng đội gần nhất trong 520 đơn vị |
+
+Cái hành quyết là thứ đổi hẳn cách tranh mục tiêu: bên nào có người đi rừng đứng gần là
+Rồng của bên kia mất, không cần đếm sát thương nữa.
 
 ---
 
@@ -776,7 +785,127 @@ Món dài mà mảnh (kiếm, trượng) dán ngang chỉ chiếm một dải gi
 
 ---
 
-## 6. Nguồn
+## 6. Đợt soi lại cả game — cái đã khai mà chưa ai chạy `[ĐO TRONG REPO]`
+
+Lỗi hay gặp nhất của repo này không phải lỗi chạy sai, mà là **hệ thống được khai đầy đủ
+trong bảng dữ liệu nhưng bộ mô phỏng không hề đọc**: không lỗi, không cảnh báo, chỉ là bảng
+mô tả hứa với người chơi một thứ không tồn tại. Đợt trước đã bắt được LỰC/BỀN, bốn nhóm
+chiến thuật, atlas `fx.png` và cấp thẻ. Đợt này viết một bộ soi (`_tools/`-ngoài-repo, xem
+mã trong lịch sử) rà tự động:
+
+1. Mọi khoá `G.<tên> = …` rồi đếm số lần được ĐỌC ở nơi khác.
+2. Mọi khoá trong `noi.h` của `data-tuong.js` đối chiếu với `sim.js`.
+3. Mọi thẻ `dac` của `data-trangbi.js` đối chiếu với `sim.js`.
+
+### 6.1 Ba trang bị chỉ là cục chỉ số
+
+`cs.dac` mang bảy thẻ, `sim.js` đọc **một** (`domino`). Bốn thẻ khác thực ra có chạy nhưng
+dò bằng **id món** (`n.do.indexOf('luoi4')`), còn ba thẻ này thì không ai đọc:
+
+| món | thẻ | bảng mô tả hứa | thực tế trước khi sửa |
+|---|---|---|---|
+| Quạ Hoàng Hôn | `chan_phep` | chặn một kỹ năng, 60 giây/lần | `satThuong()` đọc `bi.hieu.chanPhep` nhưng **không ai gán** nó |
+| Màn Huỷ Diệt | `giam_hoi` | địch quanh mình giảm 40% hồi máu | không có dòng nào |
+| Tiên Tri Vực Thẳm | `no_dien` | kỹ năng +12% sát thương | không có dòng nào |
+
+Đã đưa **cả bảy** về một cửa duy nhất — hàm `coDac(n, thẻ)` đọc `G.TB_THEO_ID[id].dac`.
+Dò bằng id món thì đổi id hay thêm món mới là sót ngay, mà sót kiểu này không ai thấy.
+
+Cái chặn kỹ năng phải đặt **trước** khi tính sát thương, trong `dungChieu()`, để chặn luôn
+cả choáng/làm chậm đi kèm — chặn sau thì người chơi bị khống chế xong mới thấy "chặn được".
+
+### 6.2 Hai cái chặn trong `nghiDo()` không bao giờ đúng
+
+```js
+['thep','lua'].forEach(n => { if (soMon[n] >= 2) uu[n] *= 0.25; });   // chết
+['luoi','gio','ngoc'].forEach(n => { if (soMon[n] >= 3) uu[n] *= 0.3; });  // chết
+```
+
+Mỗi nhánh là một **đường ghép**: mua tầng sau thì `n.do.splice()` bỏ tầng trước. Nên
+`soMon[nhánh]` không bao giờ vượt **1** và hai dòng trên không bao giờ chạy. Hệ quả kéo dài:
+
+- Một người chỉ giữ tối đa **5 món** (một món mỗi nhánh), mà thẻ tuyển thủ trong trận vẽ
+  **6 ô** → ô thứ sáu vĩnh viễn trống, nhìn như đang thiếu đồ. Đã sửa còn 5 ô.
+- Không có gì thưởng cho việc ĐI HẾT một đường, nên ai cũng rải mỗi nhánh một món tầng 1–2.
+  Đo 30 trận: Màn Huỷ Diệt ra **0** lần, Thành Trì Bất Khả ra **2** lần — tức là bốn món
+  tầng 4 gần như không tồn tại trong game.
+
+Thay bằng: cộng `0.45 × tầng đang có` vào điểm ưu tiên của nhánh ấy, và giảm 60% cả hai
+nhánh thủ nếu đã mở cả hai. Đo lại 40 trận: cả 20 món đều xuất hiện, tầng 4 ra
+`luoi4 103 · gio4 12 · ngoc4 14 · lua4 3 · thep4 1`.
+
+Hệ số này là một cái dao hai lưỡi: để **0.9** thì đội nào giàu hơn ăn món tầng 4 trước và
+cuốn luôn trận — tỉ lệ vô địch thế giới tụt từ 25% xuống 13%. 0.45 vừa đủ.
+
+### 6.3 Buff `atk`/`ap` là số CỘNG THẲNG, các buff khác là PHẦN TRĂM
+
+`chiSoNguoi()` trước đây:
+
+```js
+atk: ((cs.atk + d.atk) * he + b.atk) * kL,          // cộng thẳng
+giap: (cs.giap + d.giap) * he * (1 + (b.giap||0)),  // phần trăm
+```
+
+Nên một chiêu khai `buff: { atk: 0.30 }` chỉ cộng **0.3 điểm công** — chiêu vô dụng mà
+không có dấu hiệu gì. Đã thống nhất: **mọi khoá buff là phần trăm**.
+
+### 6.4 Cân lại 20 tướng sau khi ba trang bị kia sống lại
+
+`_tools/canbang.js 400`, mỗi tướng ~200 trận. Trước khi cân, bốn con lệch quá 9%:
+
+| tướng | trước | sửa | sau |
+|---|---|---|---|
+| Pháp Sét | 37.3% | choáng mỗi 3 đòn thay vì 4; Tia Chớp 0.70→0.92 hệ số; Bão Sét 3→4 nhịp | 46–50% |
+| Thánh Kiếm | 39.7% | nội tại 0.55→0.75 giáp; atk 88→92; Thánh Vực 3.5→4.5%/giây | 47–51% |
+| Phá Cổ | 59.9% | Búa Nặng 4%→3% máu tối đa mỗi đòn | 53–56% |
+| Kỵ Nhân | 59.4% | Xung Thương 1.20→1.05 hệ số | 51–53% |
+
+Vòng hai kéo bốn con nữa về giữa: Nhạc Sĩ 43.2→50.0, Cuồng Chiến 42.9→50.0 (phải sửa lỗi
+6.3 trước, không thì buff không có tác dụng), Hiệp Sĩ 57.5→54.3, Bom Xích 56.8→54.3.
+
+**Cân tướng làm mùa giải KHÓ HƠN, không phải dễ hơn.** Đo `_tools/tileThang.js`: chung kết
+thế giới từ 30% xuống 8%. Vì bộ đo cho người chơi pick trước, đội máy lấy phần còn lại —
+nên mấy con vốn quá mạnh chính là mấy con người chơi hay lấy, và 30% cũ được kê bằng sự
+mất cân ấy. Chỗ chữa đúng là **độ sâu bảng thông thạo của đội máy**, không phải chỉ số tướng:
+bậc 5 cũ `['UR','SSR','SSR','SR']` cho cả bốn tướng của một vị trí từ SR trở lên, tức cấm gì
+họ cũng còn một con thạo. Đổi thành `['UR','SSR','SR','R']`: ngôi sao của họ vẫn bất khả xâm
+phạm, nhưng cấm đúng con đó là kéo họ về mặt đất — đúng thứ màn cấm chọn đang mời người chơi làm.
+
+### 6.6 Đường cong chốt lại sau đợt soi
+
+| giải | thể thức | nhóm đội | thắng |
+|---|---|---|---|
+| Vòng bảng — Lượt 1 | Bo1 | ai_low | 75% |
+| Vòng bảng — Lượt 2 | Bo1 | ai_low | 85% |
+| Play-off quốc nội | Bo3 | ai_mid | 57% |
+| Chung kết quốc nội | Bo3 | ai_mid | 75% |
+| CKTG — Tứ kết | Bo3 | ai_hi | 43% |
+| CKTG — Bán kết | Bo5 | ai_hi | 53% |
+| CKTG — Tranh vé chung kết | Bo5 | ai_top | 25% |
+| CHUNG KẾT THẾ GIỚI | Bo5 | ai_top | 20% |
+
+`_tools/tileThang.js`, 40 giải mỗi dòng, lối chơi `tham`, thẻ tuyển thủ **bậc R chưa nuôi**.
+Đó là mùa ĐẦU TIÊN: 20% vô địch thế giới ngay mùa một là đúng ý — thẻ lên cấp, huấn luyện
+viên uncap và bảng thông thạo dày lên qua từng mùa mới là đường đi tới cúp.
+
+Bộ đo dùng hạt giống cố định nên hai lần chạy ra y hệt. **Số không nhảy không có nghĩa là nó
+chính xác** — 40 giải Bo5 vẫn là mẫu nhỏ, lệch 5% thì đừng vội sửa.
+
+### 6.5 Bẫy công cụ: `lai.js` dùng cổng gỡ lỗi CỐ ĐỊNH
+
+`const PORT = 9333`. Chạy hai bản đo song song thì bản thứ hai không bind được cổng, rồi nó
+**attach vào browser của bản thứ nhất** — chụp ra ảnh của trang khác và kịch bản treo, không
+báo lỗi gì. Đã sập một lần khi vừa đo cân bằng vừa chụp ảnh màn CLB: ảnh chụp ra là màn CLB
+bản CŨ, làm tưởng CSS bị cache. Sửa: `PORT = 9200 + (process.pid % 700)`.
+
+Bẫy thứ hai, cùng loại: `_tools/tuchoi.js` dò thẻ bấm được bằng `style*="cursor:pointer"`.
+Đổi màn CLB sang lớp CSS là bộ dò ấy **chết lặng** — kịch bản đứng ở màn CLB tới hết giờ mà
+báo `loi: []`, tức "không có lỗi". Bộ tự chơi phải dò bằng LỚP (`.uc-the.bam`), và khi nó
+báo `luotDaTap: 0` thì đó là lỗi của bộ đo, không phải game đứng.
+
+---
+
+## 7. Nguồn
 
 - Steam — Teamfight Manager 2: https://store.steampowered.com/app/3009300/
 - Steam — Teamfight Manager: https://store.steampowered.com/app/1372810/

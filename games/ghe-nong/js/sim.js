@@ -193,9 +193,13 @@
     n.buff.forEach(function (x) { for (var k in x.cs) b[k] = (b[k] || 0) + x.cs[k]; });
     var kL = heLuc(n) * heCuoiTran(n);
 
+    /* MỌI khoá buff là PHẦN TRĂM, kể cả atk và ap. Trước đây atk/ap cộng thẳng còn
+       giáp/kháng/tốc nhân phần trăm — nên một chiêu khai `buff: { atk: 0.30 }` chỉ cộng
+       0.3 điểm công, tức là không có gì. Lệch luật giữa các khoá là cái bẫy im lặng:
+       không lỗi, không cảnh báo, chỉ là chiêu đó vô dụng. */
     return {
-      atk: ((cs.atk + d.atk) * he + b.atk) * kL,
-      ap: ((cs.ap + d.ap) * he + b.ap) * kL,
+      atk: (cs.atk + d.atk) * he * (1 + (b.atk || 0)) * kL,
+      ap: (cs.ap + d.ap) * he * (1 + (b.ap || 0)) * kL,
       hpMax: (cs.hp + d.hp) * he * heBen(n),
       giap: (cs.giap + d.giap) * he * (1 + (b.giap || 0)),
       khang: (cs.khang + d.khang) * he * (1 + (b.khang || 0)),
@@ -224,17 +228,31 @@
     return v;
   }
 
+  /* Mọi hiệu ứng đặc biệt của trang bị đọc qua THẺ `dac`, không phải qua id món.
+     Trước đây bốn hiệu ứng dò `n.do.indexOf('luoi4')`, ba hiệu ứng còn lại thì KHÔNG AI
+     ĐỌC — tức Quạ Hoàng Hôn, Màn Huỷ Diệt và Tiên Tri Vực Thẳm chỉ là cục chỉ số, mà
+     bảng mô tả vẫn hứa với người chơi là có tác dụng. Một cửa vào duy nhất thì đổi id
+     món hay thêm món mới cũng không sót. */
+  function coDac(n, the) {
+    if (!n || !n.do || !n.do.length) return false;
+    for (var i = 0; i < n.do.length; i++) {
+      var m = G.TB_THEO_ID[n.do[i]];
+      if (m && m.dac === the) return true;
+    }
+    return false;
+  }
+
   function satThuong(tran, ke, bi, luong, loai, ghiNhan) {
     var csK = chiSoNguoi ? null : null;
     var giam;
     var csB = bi.tuong ? chiSoNguoi(bi) : { giap: bi.giap || 0, khang: bi.khang || 0 };
     if (loai === 'pt') {
       var kh = csB.khang || 0;
-      if (ke.tuong && ke.do && ke.do.indexOf('ngoc3') >= 0) kh *= 0.8;
+      if (coDac(ke, 'xuyenkhang')) kh *= 0.8;             /* Trượng Mê Hoặc */
       giam = 100 / (100 + kh);
     } else {
       var gi = csB.giap || 0;
-      if (ke.tuong && ke.do && ke.do.indexOf('luoi4') >= 0) gi *= 0.75;
+      if (coDac(ke, 'xuyengiap')) gi *= 0.75;             /* Phán Quyết Bá Vương */
       giam = 100 / (100 + gi);
     }
     var thuc = luong * giam;
@@ -249,14 +267,13 @@
     if (bi.tuong && bi.hieu) {
       if (bi.hieu.giamNhan) thuc *= (1 - (bi.mucGiamNhan || 0.25));      /* Hiệp Sĩ: Chốt Chặn */
       if (bi.hieu.chan1) { delete bi.hieu.chan1; thuc = 0; }             /* Tử Chiến: Phản Kích */
-      if (bi.hieu.chanPhep && loai === 'pt') { delete bi.hieu.chanPhep; thuc = 0; }  /* đồ Quạ Hoàng Hôn */
     }
     /* đồ Trọng Giáp Hắc Kỵ: phản 12% sát thương vật lý */
-    if (bi.tuong && loai === 'vl' && ke.tuong && bi.do && bi.do.indexOf('thep3') >= 0) {
+    if (bi.tuong && loai === 'vl' && ke.tuong && coDac(bi, 'phandon')) {
       ke.hp -= thuc * 0.12;
     }
     /* đồ Thành Trì Bất Khả: xuống dưới 30% máu thì bật một lá chắn lớn, 90 giây một lần */
-    if (bi.tuong && bi.do && bi.do.indexOf('thep4') >= 0 && (bi.hp - thuc) < bi.hpMax * 0.3 &&
+    if (bi.tuong && coDac(bi, 'chan_khi_thap') && (bi.hp - thuc) < bi.hpMax * 0.3 &&
         (!bi.chanKhiThap || tran.t - bi.chanKhiThap > 90)) {
       bi.chanKhiThap = tran.t;
       bi.hp += bi.hpMax * 0.22;
@@ -773,6 +790,16 @@
             });
             if (ben2) satThuong(tran, n, ben2, luong * 0.4, 'vl');
           }
+          /* Buff vị trí ĐI RỪNG của Teamfight Manager 2: "Execute epic monsters on hit
+             when their HP is at or below 700". Cắt máu còn dưới ngưỡng thì đòn tiếp theo
+             của người đi rừng LẤY LUÔN — nên tranh Rồng / Chúa Hang mà bên kia có người
+             đi rừng đứng gần là mất, không cần tính sát thương nữa. Chỉ áp cho quái lớn
+             (có `hienRa`), không áp cho tướng hay trụ. */
+          if (n.vt === 'rung' && muc.hienRa != null && muc.hp > 0 && muc.hp <= 700) {
+            muc.hp = 0;
+            hieuUng(tran, { loai: 'cuoi', x: n.x, y: n.y, x2: muc.x, y2: muc.y,
+              doi: n.doi, dien: true });
+          }
           xuLyChet(tran, n, muc);
         }
 
@@ -911,6 +938,8 @@
       hoi: !!h.hoi, chan: !!h.chan, kc: !!h.kc, doi: n.doi, ten: kn.ten
     });
     var suc = h.dmg ? ((h.dmg.loai === 'pt' ? cs.ap : cs.atk) * (h.dmg.g || 0) + (h.dmg.c || 0)) : 0;
+    /* đồ Tiên Tri Vực Thẳm (dac `no_dien`): kỹ năng gây thêm 12% sát thương */
+    if (coDac(n, 'no_dien')) suc *= 1.12;
     var lap = h.lap || 1;
 
     var dsMuc = [muc];
@@ -936,6 +965,25 @@
         if (xa(muc, m) < 200) nay.push(m);
       });
       dsMuc = nay;
+    }
+
+    /* đồ Quạ Hoàng Hôn (dac `chan_phep`): chặn đứng một kỹ năng, 60 giây một lần.
+       Chặn ở ĐÂY, trước khi tính sát thương, để chặn cả sát thương lẫn hiệu ứng đi kèm
+       (choáng, làm chậm) — chặn sau thì người bị khống chế xong mới thấy mình "chặn được".
+       Trước đây `bi.hieu.chanPhep` được satThuong() đọc nhưng KHÔNG AI GÁN nó. */
+    var chanBoi = null;
+    if (h.dmg || h.kc || h.khoa || h.muMat) {
+      for (var iC = 0; iC < dsMuc.length && !chanBoi; iC++) {
+        var mc = dsMuc[iC];
+        if (mc && mc.tuong && coDac(mc, 'chan_phep') && (mc.cdChanPhep || 0) <= tran.t) chanBoi = mc;
+      }
+    }
+    if (chanBoi) {
+      chanBoi.cdChanPhep = tran.t + 60;
+      tran.bay.push({ x: chanBoi.x, y: chanBoi.y, chu: 'chặn', loai: 'ne', t: tran.t });
+      if (G.veFX) { /* hiệu ứng khiên vẽ ở ui-tran qua hieuUng bên trên */ }
+      tran.suKien.push({ t: tran.t, loai: 'chanPhep', ai: chanBoi.i, ten: kn.ten });
+      return;
     }
 
     dsMuc.forEach(function (m, iM) {
@@ -977,6 +1025,15 @@
     if (h.hoi) {
       var luong = (h.hoi.g || 0) * cs.ap + (h.hoi.c || 0);
       luong *= hesoDoi(tran, n.doi, 'hoi');
+      /* đồ Màn Huỷ Diệt (dac `giam_hoi`): kẻ địch đứng quanh người mang nó bị giảm 40%
+         hiệu quả hồi máu. Đây là món phản đội có Thầy Thuốc — không có dòng này thì cả
+         nhánh LỤA tầng 4 chỉ là một cục kháng phép. */
+      var camHoi = 0;
+      tran.nguoi.forEach(function (m) {
+        if (m.doi === n.doi || m.chet > 0) return;
+        if (coDac(m, 'giam_hoi') && xa(n, m) < 320) camHoi = 1;
+      });
+      if (camHoi) luong *= 0.6;
       var ds = h.doi ? tran.nguoi.filter(function (m) { return m.doi === n.doi && m.chet <= 0 && xa(n, m) < 200; }) : [nguoiYeuNhat(tran, n)];
       ds.forEach(function (m) {
         if (!m) return;
@@ -1127,7 +1184,22 @@
       if (ke.vt === 'duoi') them *= 1.2;      /* buff vị trí: xạ thủ +20% vàng */
       if (ke.vt === 'ho') them *= 0.85;
       them *= 0.92 + 0.16 * G.kep((ke.cs && ke.cs.luc || 0) / 1200, 0, 1);   /* LỰC: tốc độ farm */
-      ke.vang += them;
+
+      /* Buff vị trí HỖ TRỢ của Teamfight Manager 2: "On last hit, the nearest ally
+         receives the gold". Người hỗ trợ ăn lính thì tiền sang tay ĐỒNG ĐỘI GẦN NHẤT,
+         không vào ví mình — đó là cái làm cho hỗ trợ đứng cạnh xạ thủ có ích thật, chứ
+         không phải chỉ là một người ít vàng. Không có ai gần thì đành tự giữ. */
+      var nhan = ke;
+      if (ke.vt === 'ho') {
+        var ganNhat = null, dGan = 1e9;
+        tran.nguoi.forEach(function (m) {
+          if (m.doi !== ke.doi || m === ke || m.chet > 0) return;
+          var d = xaXY(m.x, m.y, bi.x, bi.y);
+          if (d < 520 && d < dGan) { dGan = d; ganNhat = m; }
+        });
+        if (ganNhat) nhan = ganNhat;
+      }
+      nhan.vang += them;
       tran.vang[ke.doi] += them;
       chiaExp(tran, ke, bi.exp, bi);
     }

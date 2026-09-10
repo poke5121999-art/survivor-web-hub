@@ -687,12 +687,14 @@ Uma cho "đứt ca" là hết. Ở đây `[ĐỀ XUẤT]` thêm **1 "vé cứu"*
 4. **Meta trôi**: mỗi mùa tự buff/nerf 3–5 tướng theo tỉ lệ thắng mùa trước, kèm bản tin cập
    nhật. Chủ dự án chốt: **để sau**, và sệ dùng để buộc người chơi đổi huấn luyện viên +
    tuyển thủ giữa các mùa. `_tools/canbang.js` đã có sẵn cách đo.
-5. **Ba buff vị trí còn thiếu** so với TFM2 (`RESEARCH.md` §2.16): Đường Trên hồi 1% máu mỗi
-   giây ngoài giao tranh, Đi Rừng hành quyết quái lớn dưới ngưỡng máu, Hỗ Trợ chuyển vàng
-   last-hit cho đồng đội gần nhất.
-6. **Hiệu ứng chiêu**: atlas `fx.png` đã dựng nhưng bộ vẽ chưa gọi tới.
+5. ~~Ba buff vị trí còn thiếu~~ — **xong**, đủ cả sáu buff của TFM2; bảng chỗ cài ở
+   `RESEARCH.md` §2.16.
+6. ~~Hiệu ứng chiêu~~ — **xong**, xem §15.
 7. **Vé chơi (`ve`)** khai báo trong bản lưu nhưng chưa dùng để giới hạn gì.
 8. **Đồng bộ đám mây** qua `window.HubSave` — mã đã sẵn, chưa gắn.
+9. **Ô đồ thứ sáu**: một người chỉ giữ được năm món (mỗi nhánh một món, mua tầng sau thay
+   tầng trước). Muốn có ô thứ sáu thì phải cho giữ hai món cùng nhánh — đổi luật ghép, không
+   chỉ đổi con số.
 
 Mỗi giai đoạn **chơi được** ở cuối giai đoạn đó, và đẩy lên Pages để chủ dự án bấm thử.
 
@@ -810,3 +812,60 @@ nền hai nhà → cây → viền và chữ chỉ đường (`ĐƯỜNG TRÊN/G
 > Cây phải đứng **trong** bốn vạt rừng và cách đường ít nhất 132 đơn vị. Bản đầu rải 150 cây khắp
 > bản đồ với khoảng cách 78, chụp ảnh ra thì cây phủ lên cả ba đường và che mất người — **nền đẹp
 > mà không đọc được trận thì vô dụng**.
+
+---
+
+## 15. Art: lấy ở đâu, ghép thế nào
+
+Toàn bộ art là **sprite thật**, không có hình học vẽ tay nào còn sót trong đường vẽ chính.
+Hai kho nguồn, cả hai **ngoài git**:
+
+| kho | dùng cho |
+|---|---|
+| `D:\HoloCureAssets\GameSprites` | 20 tướng, chân dung huấn luyện viên và tuyển thủ |
+| `~/Downloads/sk-ref` (Soul Knight 8.5.1) | trụ, lính, quái rừng, đạn, hiệu ứng, 20 trang bị, nền phòng tập |
+
+Bảy atlas, sinh bằng `python _tools/build_art.py`:
+
+| tệp | nội dung | ô |
+|---|---|---|
+| `tuong.png` | 20 tướng × 4 khung | 64, canh đáy-giữa |
+| `nguoi.png` | 15 HLV + 24 tuyển thủ | 64, canh đáy-giữa |
+| `quai.png` | 2 loại lính, 4 loại bãi quái, Rồng, Chúa Hang | 64, canh đáy-giữa |
+| `tru.png` | trụ · nhà · lõi, mỗi thứ hai màu | 64, canh đáy-giữa |
+| `dan.png` | 6 loại đạn, đầu chĩa sang phải | 64, canh tâm |
+| `fx.png` | 10 hiệu ứng | 64, canh tâm |
+| `do.png` | 20 trang bị | 64, canh tâm |
+| `nen-ca.png` | nền phòng tập cho màn huấn luyện | 1280 rộng |
+
+**Luật không đổi**: trong code không có tên tệp ảnh nào, chỉ có khoá kiểu `tuong.kiemsi`.
+Bảng tra ở `art/asset-map.js`. Thiếu ảnh thì mọi hàm vẽ trả `false` và chỗ gọi tự rơi về
+hình học cũ — game không bao giờ vỡ vì thiếu art.
+
+Ba chi tiết phải nhớ khi thêm art mới (chi tiết và cách sập ở `RESEARCH.md` §5.3):
+
+1. Sprite gốc chỉ 18–22px, phải **phóng cho gần đầy ô**, và một hệ số chung cho cả bộ khung.
+2. Atlas nào cũng xếp **cột = khoá, hàng = khung** — kể cả `fx.png`.
+3. Ảnh dán vào thẻ HTML phải **cắt bỏ mép trên** (build_art đo sẵn và ghi vào asset-map) rồi
+   **kéo ngang vào giữa**, không thì nhân vật nằm dưới đáy và lệch ra ngoài khung.
+
+---
+
+## 16. Hai thế giới màu
+
+Game có hai nửa lấy từ hai nguồn khác nhau, và mỗi nửa giữ nguyên bảng màu của nguồn:
+
+| nửa | màn | bảng màu |
+|---|---|---|
+| **nuôi quân** — Uma Musume | CLB, tuyển mộ, huấn luyện, bảng xếp hạng | SÁNG: nền `#dfe8f5`, thẻ trắng bo 14px có gờ dưới, tiêu đề dải xanh `#4962a2`, nút chính xanh lá `#6ec409`, nhấn hồng `#e5548c` |
+| **thi đấu** — Teamfight Manager 2 | cấm chọn, chiến thuật, trận đấu | TỐI: nền `#0b0f14`, viền `#26303f`, chữ `#c8d3e0` |
+
+Mọi màu ở nửa sáng **đo trực tiếp** trên ảnh Steam của Uma
+(`~/Downloads/esport-ref/uma/steam/shot05.jpg`, `sheets_guide/sheet001.jpg`) — không tự chọn.
+
+Hộp thoại phải theo màu của màn đang mở: `G.hop({ sang: true })` cho nửa sáng. Mở hộp trắng
+trên màn trận thì trông như cửa sổ của một game khác. Bảng xếp hạng xuất hiện ở cả hai nửa
+nên `.bx-*` có **hai bản**: bản tối là gốc, bản sáng ghi đè dưới `#man-clb` và `.hop.sang`.
+
+Điều hướng cũng khác nhau theo nguồn: nửa Uma dùng **hàng nút lớn ở đáy** (Uma không có menu
+dọc), nửa TFM2 dùng thanh trên + cột phải như bản gốc.

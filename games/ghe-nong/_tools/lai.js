@@ -21,7 +21,11 @@ const fs = require('fs');
 const http = require('http');
 
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const PORT = 9333;
+/* Cổng gỡ lỗi phải RIÊNG CHO TỪNG TIẾN TRÌNH. Để cố định 9333 thì chạy hai bản đo song
+   song là bản thứ hai không bind được cổng, rồi nó ATTACH VÀO BROWSER CỦA BẢN THỨ NHẤT —
+   nên chụp ra ảnh của trang khác và kịch bản treo, mà không báo lỗi gì cả. Đã sập một lần
+   khi vừa đo cân bằng vừa chụp ảnh màn CLB. */
+const PORT = 9200 + (process.pid % 700);
 
 const url = process.argv[2];
 const out = process.argv[3] || 'shot.png';

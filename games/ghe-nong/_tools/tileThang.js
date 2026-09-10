@@ -10,8 +10,17 @@
  * chơi thật (`G._thu`), mỗi bên tự lấy tướng thông thạo nhất theo vị trí, rồi chạy trận không vẽ.
  * Thể thức Bo1/Bo3/Bo5 tính đúng luật.
  *
- * Đích nhắm: vòng bảng ~85%, play-off ~70%, chung kết quốc nội ~60%, CKTG ~45%, chung kết ~35%.
- * Cửa ải cuối phải khó, nhưng thua ngay giải đầu thì không ai chơi tiếp.
+ * Đích nhắm: vòng bảng 75–85%, play-off ~60%, chung kết quốc nội ~75%, CKTG tứ/bán 43–53%,
+ * tranh vé ~25%, CHUNG KẾT THẾ GIỚI ~20%. Cửa ải cuối phải khó, nhưng thua ngay giải đầu thì
+ * không ai chơi tiếp.
+ *
+ * Hai chỗ dễ đọc sai con số này:
+ *   1. Bộ đo cho NGƯỜI CHƠI pick trước, đội máy lấy phần còn lại. Nên cân lại chỉ số tướng
+ *      làm lệch luôn cả bảng này: buff một con người chơi không hay lấy = buff cho đội máy.
+ *      Cân tướng thì đo lại bằng canbang.js, còn độ khó mùa giải thì chỉnh ở THEO_BAC
+ *      (js/giai.js) và `suc` của nhóm đội (js/data-giai.js), đừng chỉnh chỉ số tướng.
+ *   2. Bộ đo dùng HẠT GIỐNG CỐ ĐỊNH nên hai lần chạy ra y hệt nhau. Số không nhảy KHÔNG
+ *      có nghĩa là nó chính xác — 40 giải Bo5 vẫn là mẫu nhỏ; lệch 5% thì đừng vội sửa.
  */
 (function () {
   'use strict';

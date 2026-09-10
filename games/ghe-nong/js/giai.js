@@ -23,12 +23,18 @@
            Đo bằng máy trước khi sửa: năm thẻ khởi đầu của người chơi cao nhất chỉ SR, trong khi
            mọi đội máy — kể cả Mèo Đá ở giải đầu tiên — đều có bốn người UR. Kết quả: thắng 0/40
            ở tất cả tám giải. Không phải người chơi dở, là bảng số sai. */
+        /* Bảng thông thạo của đội máy theo bậc giải. Bốn ô = bốn tướng của vị trí ấy,
+           xếp ngẫu nhiên — nên ĐỘ SÂU quan trọng hơn đỉnh: bậc 5 cũ cho cả bốn tướng từ
+           SR trở lên, tức là người chơi cấm gì họ cũng còn một con thạo, và chung kết
+           thế giới rơi xuống 8% (đo bằng _tools/tileThang.js). Giờ bậc 5 có MỘT con UR
+           còn lại mỏng dần: ngôi sao của họ vẫn bất khả xâm phạm, nhưng cấm đúng con đó
+           là kéo họ về mặt đất — đúng thứ màn cấm chọn đang mời người chơi làm. */
         var THEO_BAC = {
           1: ['R', 'R', 'N', 'N'],
           2: ['SR', 'SR', 'R', 'N'],
           3: ['SSR', 'SR', 'SR', 'R'],
           4: ['SSR', 'SSR', 'SR', 'R'],
-          5: ['UR', 'SSR', 'SSR', 'SR']
+          5: ['UR', 'SSR', 'SR', 'R']
         };
         var thang = THEO_BAC[giai.bac] || THEO_BAC[1];
         var ds = G.tuongTheoViTri(vt);
