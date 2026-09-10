@@ -47,45 +47,47 @@
     <div class="man" id="man-chuanbi" hidden></div>
 
     <!-- ══ MÀN HUẤN LUYỆN ══ -->
+    <!-- ══ MÀN HUẤN LUYỆN ══
+         Bố cục dựng theo màn Career của Uma Musume, bản PC (ảnh steam/shot05.jpg):
+           [ khung game ] [ panel Log ] [ rail icon dọc ]
+         Trong khung game, từ trên xuống: badge số lượt · mục tiêu + thanh thể lực cầu vồng ·
+         tâm trạng · nhân vật đứng giữa cảnh · bảng năm chỉ số · hai hàng nút viên thuốc. -->
     <div class="man" id="man-ca" hidden>
-      <div class="ca-tren">
-        <div class="ca-luot"><b id="ca-luot-so">1</b><span>/<i id="ca-luot-tong">24</i> lượt</span></div>
-        <div class="ca-mucteu">
-          <span class="nhan">Mục tiêu</span>
-          <b id="ca-mucteu-chu">—</b>
-          <button class="nut-nho" id="ca-nut-lich">Lịch ▾</button>
-        </div>
-        <div class="ca-luc">
-          <span class="nhan">Thể lực</span>
-          <div class="thanh-luc"><i id="ca-luc-thanh"></i><em id="ca-luc-so">100/100</em></div>
-        </div>
-        <div class="ca-tam" id="ca-tam">THƯỜNG</div>
-      </div>
+      <div class="uma-san">
+        <div class="uma-nen" id="ca-canh-nen"></div>
+        <div class="ca-bay" id="ca-bay"></div>
 
-      <div class="ca-than">
-        <!-- cột trái: chỉ số + tuyển thủ -->
-        <div class="ca-trai">
-          <div class="bang-chiso" id="bang-chiso"></div>
-          <div class="bang-doi" id="bang-doi"></div>
-        </div>
-
-        <!-- cột giữa: sân tập + hành động -->
-        <div class="ca-giua">
-          <div class="ca-canh" id="ca-canh">
-            <div class="ca-canh-nen" id="ca-canh-nen"></div>
-            <div class="ca-bay" id="ca-bay"></div>
+        <div class="uma-tren">
+          <div class="uma-luot"><b id="ca-luot-so">1</b><span>/<i id="ca-luot-tong">24</i> lượt</span></div>
+          <div class="uma-mt">
+            <div class="uma-goal">
+              <span class="ic">◉</span>
+              <b id="ca-mucteu-chu">—</b>
+              <button id="ca-nut-lich">Lịch</button>
+            </div>
+            <div class="uma-luc">
+              <span>Thể lực</span>
+              <div class="uma-thanh"><i id="ca-luc-thanh"></i></div>
+              <em id="ca-luc-so">100/100</em>
+            </div>
           </div>
-          <div class="hang-san" id="hang-san"></div>
-          <div class="ca-hong" id="ca-hong" hidden>Hỏng: <b>0%</b></div>
-          <div class="hang-viec" id="hang-viec"></div>
+          <div class="uma-tam" id="ca-tam">THƯỜNG</div>
         </div>
 
-        <!-- cột phải: nhật ký -->
-        <div class="ca-phai">
-          <div class="nk-dau">Nhật ký</div>
-          <div class="nk-than" id="nk-than"></div>
+        <div class="uma-duoi">
+          <div class="uma-chiso" id="bang-chiso"></div>
+          <div class="uma-san-nut" id="hang-san"></div>
+          <div class="uma-hong" id="ca-hong" hidden>Hỏng: <b>0%</b></div>
+          <div class="uma-viec" id="hang-viec"></div>
         </div>
       </div>
+
+      <div class="uma-log">
+        <div class="uma-log-dau">Nhật ký</div>
+        <div class="uma-log-than" id="nk-than"></div>
+      </div>
+
+      <nav class="uma-rail" id="ca-rail"></nav>
     </div>
 
     <!-- ══ MÀN BAN/PICK ══ -->

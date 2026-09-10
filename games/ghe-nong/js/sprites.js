@@ -76,6 +76,29 @@
     return true;
   };
 
+  /* Ảnh tướng cho DOM — màn cấm chọn cần ảnh thật trong thẻ HTML, không phải trên canvas.
+     Atlas xếp cột = tướng, hàng = khung hoạt ảnh, nên lấy khung 0 của đúng cột ấy. */
+  G.anhTuong = function (id, cao) {
+    if (!MAP || !MAP.tuong || !MAP.tuong[id]) return null;
+    var O = o();
+    var cot = MAP.tuong[id][0];
+    var soCot = Object.keys(MAP.tuong).length;
+    var soHang = 0;
+    for (var k in MAP.tuong) soHang = Math.max(soHang, MAP.tuong[k][1] || 1);
+    var kh = cao / O;
+    return 'background-image:url(art/tuong.png?v=20260910b);' +
+      'background-position:' + (-cot * O * kh) + 'px 0;' +
+      'background-size:' + (soCot * O * kh) + 'px ' + (soHang * O * kh) + 'px;' +
+      'image-rendering:pixelated';
+  };
+
+  /** phần tử <i> ảnh tướng; trả null nếu thiếu atlas để chỗ gọi tự xử */
+  G.oAnhTuong = function (id, cao) {
+    var st = G.anhTuong(id, cao || 44);
+    if (!st) return null;
+    return G.el('i', { style: st + ';display:block;width:' + (cao || 44) + 'px;height:' + (cao || 44) + 'px' });
+  };
+
   /** chân dung cho DOM: trả về style background dùng cho một ô vuông cạnh `cao` */
   G.anhNguoi = function (id, cao) {
     if (!MAP || !MAP.nguoi || !MAP.nguoi[id]) return null;

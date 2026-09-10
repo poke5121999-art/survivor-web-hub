@@ -504,3 +504,240 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .ca-tin{position:relative;padding:5px 12px;border-radius:9px;border:1px solid var(--vien);
   background:#111926;color:var(--chu-mo);font-size:12px;font-family:inherit;cursor:pointer}
 .ca-tin:hover{color:var(--chu);border-color:#3b485a}
+
+/* ───────────── chiến thuật: bốn thế trận kiểu Uma ───────────── */
+.ct-the{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;padding:10px;align-content:start}
+.ct-o-the{background:#111926;border:1px solid var(--vien);border-radius:12px;padding:11px 12px;
+  cursor:pointer;transition:transform .08s,border-color .12s}
+.ct-o-the:hover{transform:translateY(-2px);border-color:#3b485a}
+.ct-o-the.chon{border-color:var(--xanh);background:#16202e;box-shadow:0 0 0 2px #3ddc9733}
+.ct-the-dau{display:flex;align-items:baseline;gap:7px}
+.ct-the-dau b{font-size:16px}
+.ct-the-uma{font-size:10px;color:#5a6675;letter-spacing:.06em}
+.ct-the-nk{margin-left:auto;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.ct-the-mo{font-size:11.5px;color:#a9b6c6;line-height:1.55;margin:5px 0 6px}
+.ct-the-duoc{font-size:11px;color:#3ddc97;line-height:1.5}
+.ct-the-mat{font-size:11px;color:#e5848a;line-height:1.5;margin-top:2px}
+.ct-the-chat{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:7px;
+  border-top:1px solid #1b2431;padding-top:6px;font-size:10.5px}
+.ct-the-chat span{font-weight:800}
+.ct-the-chat em{font-style:normal;color:#8b98a9;background:#0a1017;border-radius:4px;padding:1px 5px}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MÀN HUẤN LUYỆN — dựng theo đúng màn Career của Uma Musume.
+
+   Mọi con số màu dưới đây ĐO TRỰC TIẾP trên ảnh Steam gốc
+   (~/Downloads/esport-ref/uma/steam/shot05.jpg, 1920×1080), không tự chọn:
+
+     xanh lá header/nút   #8fd409 → #7bca0d → #6ec409     (thanh "Log", nút Rest, Skip)
+     xanh chỉ số          #4962a2                          (dải tiêu đề bảng Speed/Stamina/…)
+     nền panel            #ffffff                          viền #e8e6f0
+     nền trang            #f2effa / #f8f7fd                (lavender rất nhạt)
+     thanh Energy         #2dbcfe → #9ef200 → #ff5122      (xanh → lá → đỏ)
+     vòng hạng chữ        #d7d5da
+     tím Infirmary        #7351a7    cam Recreation #fed26f    hồng Races #a03e64
+     tâm trạng            #d09a20
+
+   Bố cục lấy đúng bản PC của Uma trong cùng ảnh ấy:
+     [ khung game ] [ panel Log ] [ rail icon dọc ]
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#man-ca{background:#f2effa;color:#5b4a55;
+  display:grid;grid-template-columns:1fr 396px 116px;gap:0}
+
+/* ── cột 1: khung game ── */
+.uma-san{position:relative;overflow:hidden;background:#dfe8f5}
+.uma-nen{position:absolute;inset:0}
+
+/* ── thanh trên: badge lượt · mục tiêu + thể lực · tâm trạng ── */
+.uma-tren{position:relative;z-index:3;display:grid;grid-template-columns:auto 1fr auto;
+  gap:9px;align-items:start;padding:9px 10px}
+
+.uma-luot{background:#fff;border:3px solid #cfd9ee;border-radius:13px;padding:2px 12px 4px;
+  text-align:center;box-shadow:0 3px 0 #c3cde2,0 6px 12px #0002;position:relative;flex:none}
+.uma-luot::before,.uma-luot::after{content:'';position:absolute;top:-7px;width:9px;height:8px;
+  background:#8ea6d8;border-radius:3px}
+.uma-luot::before{left:14px}
+.uma-luot::after{right:14px}
+.uma-luot b{display:block;font-size:30px;line-height:1;font-weight:900;color:#3f6ab8;
+  font-variant-numeric:tabular-nums}
+.uma-luot span{font-size:10px;color:#8a93a8;font-weight:700}
+.uma-luot i{font-style:normal}
+
+.uma-mt{display:flex;flex-direction:column;gap:6px;min-width:0}
+.uma-goal{display:flex;align-items:center;gap:7px;background:#fff;border:2px solid #e6e2ef;
+  border-radius:99px;padding:4px 7px 4px 5px;box-shadow:0 2px 0 #dcd6e8}
+.uma-goal .ic{width:22px;height:22px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:linear-gradient(180deg,#ffd76e,#f0a72c);color:#fff;font-size:12px;
+  box-shadow:inset 0 -2px 0 #d2891c}
+.uma-goal b{font-size:12.5px;color:#5b4a55;flex:1;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;font-weight:800}
+.uma-goal button{border:0;background:#eceaf4;color:#7a6b78;border-radius:99px;
+  padding:3px 10px;font-size:11px;font-weight:800;font-family:inherit;cursor:pointer;flex:none}
+.uma-goal button:hover{background:#dedaeb}
+
+.uma-luc{display:flex;align-items:center;gap:7px}
+.uma-luc>span{font-size:11px;font-weight:800;color:#6b5c68;flex:none}
+.uma-thanh{flex:1;height:17px;background:#fff;border:3px solid #57584f;border-radius:99px;
+  overflow:hidden;box-shadow:0 2px 0 #cfcada}
+.uma-thanh i{display:block;height:100%;
+  background:linear-gradient(90deg,#2dbcfe,#42d7c0 26%,#9ef200 54%,#ffd23f 78%,#ff5122)}
+.uma-luc em{font-style:normal;font-size:11px;font-weight:800;color:#6b5c68;flex:none;
+  font-variant-numeric:tabular-nums}
+
+.uma-tam{flex:none;border-radius:99px;padding:5px 13px;font-size:11.5px;font-weight:900;
+  color:#fff;letter-spacing:.03em;background:linear-gradient(180deg,#f5b942,#d09a20);
+  box-shadow:0 3px 0 #a97c17,0 5px 10px #0002;white-space:nowrap}
+.uma-tam.t-bad{background:linear-gradient(180deg,#7f8ea8,#5d6a80);box-shadow:0 3px 0 #47525f}
+.uma-tam.t-great{background:linear-gradient(180deg,#ff9ec4,#e5548c);box-shadow:0 3px 0 #b83d6c}
+
+/* ── khối dưới: bảng chỉ số + nút ── */
+.uma-duoi{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:0 10px 10px}
+
+.uma-chiso{display:grid;grid-template-columns:repeat(5,1fr) 74px;gap:0;background:#fff;
+  border:3px solid #cfd9ee;border-radius:12px;overflow:hidden;
+  box-shadow:0 3px 0 #c3cde2,0 6px 14px #0002;margin-bottom:9px}
+.uma-cs{border-right:1px solid #e8e6f0}
+.uma-cs:last-child{border-right:0}
+.uma-cs-dau{background:#4962a2;color:#fff;font-size:10px;font-weight:800;text-align:center;
+  padding:3px 0;display:flex;align-items:center;justify-content:center;gap:4px}
+.uma-cs-dau i{width:11px;height:11px;border-radius:3px;display:block}
+.uma-cs-than{display:flex;align-items:center;justify-content:center;gap:5px;padding:4px 2px 5px}
+.uma-hang{width:25px;height:25px;border-radius:50%;background:#d7d5da;color:#fff;
+  font-size:11px;font-weight:900;display:grid;place-items:center;flex:none;
+  box-shadow:inset 0 -2px 0 #0002}
+.uma-hang.h-S{background:linear-gradient(180deg,#ffd76e,#e8a81c)}
+.uma-hang.h-A{background:linear-gradient(180deg,#ff9ec4,#e5548c)}
+.uma-hang.h-B{background:linear-gradient(180deg,#a77bf3,#7351a7)}
+.uma-hang.h-C{background:linear-gradient(180deg,#6fc4f0,#3f8fd0)}
+.uma-hang.h-D{background:linear-gradient(180deg,#7de3a0,#3d9c63)}
+.uma-cs-so{line-height:1.05;text-align:left}
+.uma-cs-so b{display:block;font-size:17px;font-weight:900;color:#4a3f48;
+  font-variant-numeric:tabular-nums}
+.uma-cs-so span{font-size:9.5px;color:#9a90a0;font-weight:700}
+.uma-cs.kn .uma-cs-dau{background:#6b5c68}
+.uma-cs.kn .uma-cs-than{justify-content:center}
+
+/* nút giáo án và nút việc — viên thuốc bo tròn, có icon nhô lên góc */
+.uma-san-nut{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:7px}
+.uma-viec{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.uma-nut{position:relative;border:3px solid #fff;border-radius:99px;padding:17px 6px 7px;
+  text-align:center;cursor:pointer;box-shadow:0 4px 0 #0003,0 7px 14px #0003;
+  transition:transform .07s}
+.uma-nut:hover{transform:translateY(-2px)}
+.uma-nut:active{transform:translateY(2px);box-shadow:0 2px 0 #0003}
+.uma-nut b{display:block;font-size:14px;font-weight:900;color:#fff;line-height:1;
+  text-shadow:0 2px 0 #0005,0 0 4px #0004}
+.uma-nut em{display:block;font-style:normal;font-size:9.5px;color:#ffffffd8;margin-top:3px;
+  font-weight:700;text-shadow:0 1px 0 #0004}
+.uma-nut .ic-tron{position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  width:38px;height:38px;border-radius:50%;background:#fff;border:3px solid #fff;
+  box-shadow:0 3px 7px #0004;display:grid;place-items:center;font-size:19px;overflow:hidden}
+.uma-nut.co{background:linear-gradient(180deg,#ff8d8d,#e5484d);border-color:#ffd9d9}
+.uma-nut.ben{background:linear-gradient(180deg,#8fd8ff,#3f8fd0);border-color:#d9efff}
+.uma-nut.luc{background:linear-gradient(180deg,#ffc46e,#e8912c);border-color:#ffeed2}
+.uma-nut.li{background:linear-gradient(180deg,#ff9ec4,#d9457f);border-color:#ffdfec}
+.uma-nut.nao{background:linear-gradient(180deg,#a5e86a,#5aa32a);border-color:#e4f8d2}
+.uma-nut.v-nghi{background:linear-gradient(180deg,#a5e86a,#6ec409);border-color:#e4f8d2}
+.uma-nut.v-xahoi{background:linear-gradient(180deg,#ffd76e,#e8a81c);border-color:#fff2d2}
+.uma-nut.v-yte{background:linear-gradient(180deg,#b79ae0,#7351a7);border-color:#e8ddf7}
+.uma-nut.v-giaoan{background:linear-gradient(180deg,#7fd6ff,#3f7fd0);border-color:#d9efff}
+.uma-nut.v-giaohuu{background:linear-gradient(180deg,#ff9ba8,#a03e64);border-color:#ffdde2}
+.uma-nut.tat{filter:grayscale(.7) brightness(.85);cursor:default}
+.uma-nut.chon{outline:4px solid #ffd54a;outline-offset:1px}
+
+/* cấp sân + mặt tuyển thủ đứng trên nút, y như thẻ hỗ trợ của Uma */
+.uma-cap{position:absolute;top:4px;right:9px;display:flex;gap:2px}
+.uma-cap i{width:5px;height:5px;border-radius:50%;background:#ffffff55;display:block}
+.uma-cap i.co{background:#ffd54a;box-shadow:0 0 3px #ffd54a}
+.uma-mat{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);
+  display:flex;gap:-4px;justify-content:center}
+.uma-mat span{width:22px;height:22px;border-radius:50%;border:2px solid #fff;overflow:hidden;
+  background:#e8e6f0;margin-left:-6px;box-shadow:0 2px 4px #0004;display:block;position:relative}
+.uma-mat span:first-child{margin-left:0}
+.uma-mat span.cam{border-color:#ffb03a;box-shadow:0 0 0 2px #ffb03a88,0 2px 4px #0004}
+.uma-mat span i{position:absolute;inset:0;display:block}
+
+.uma-hong{text-align:center;font-size:11.5px;font-weight:800;color:#8a6a20;
+  background:#fff6dc;border:2px solid #f0d896;border-radius:99px;padding:3px 0;margin-bottom:7px}
+.uma-hong.nguy{color:#a3252b;background:#ffe6e6;border-color:#f0a0a0}
+
+/* ── cột 2: Log ── */
+.uma-log{background:#f8f7fd;border-left:1px solid #e2def0;display:flex;flex-direction:column;
+  min-height:0;padding:9px}
+.uma-log-dau{background:linear-gradient(180deg,#8fd409,#6ec409);color:#fff;font-weight:900;
+  font-size:14px;text-align:center;border-radius:99px;padding:6px 0;flex:none;
+  box-shadow:0 3px 0 #56990a,0 5px 10px #0002;letter-spacing:.02em}
+.uma-log-than{flex:1;overflow:auto;margin-top:9px;background:#fff;border:2px solid #eae6f4;
+  border-radius:12px;padding:7px}
+
+/* ── cột 3: rail icon dọc ── */
+.uma-rail{background:#eeebf6;border-left:1px solid #e2def0;padding:7px 5px;
+  display:flex;flex-direction:column;gap:4px;overflow:auto}
+.uma-rail button{border:0;background:none;border-radius:11px;padding:7px 2px 6px;
+  font-family:inherit;font-size:10px;font-weight:800;color:#6b5c68;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:4px;line-height:1.2;position:relative}
+.uma-rail button:hover{background:#e4dff2}
+.uma-rail button.chon{background:linear-gradient(180deg,#a5e86a,#7bca0d);color:#fff;
+  box-shadow:0 3px 0 #5f9e0a}
+.uma-rail .ic-to{width:38px;height:38px;border-radius:10px;background:#fff;display:grid;
+  place-items:center;font-size:20px;box-shadow:0 2px 0 #d6d0e4,0 3px 6px #0001}
+.uma-rail .cham{position:absolute;top:3px;right:6px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:99px;background:#e5484d;color:#fff;font-size:10px;font-weight:900;
+  display:flex;align-items:center;justify-content:center}
+
+/* ── cảnh trong khung game: sáng, nhân vật lớn giữa màn, như màn Career của Uma ──
+   Ảnh gốc là ảnh 3D sân trường hoa anh đào; ở đây dựng bằng gradient + vệt sáng cho nhẹ.
+   Ghi đè bản tối cũ vì màn huấn luyện giờ là theme sáng. */
+#man-ca .ca-canh-nen.co-nguoi{position:absolute;inset:0;display:flex;align-items:flex-end;
+  justify-content:center;gap:12px;padding:64px 26px 172px;
+  background:
+    radial-gradient(120% 78% at 50% 8%, #ffe9f4 0%, #f3e6ff 42%, #dfe8f5 100%),
+    linear-gradient(180deg, #ffffff00 60%, #cbd8ea 100%)}
+#man-ca .ca-canh-nen.co-nguoi::before{content:"";position:absolute;left:0;right:0;top:62%;bottom:150px;
+  background:linear-gradient(180deg,#c9d9ee00,#b9cbe4aa);border-top:2px solid #ffffff88}
+#man-ca .ca-canh-nen.co-nguoi::after{content:"";position:absolute;left:6%;right:6%;top:12%;height:0;
+  border:0}
+/* tán hoa mờ hai bên cho khỏi trống */
+#man-ca .uma-san::before{content:"";position:absolute;left:-40px;top:-30px;width:280px;height:230px;
+  border-radius:50%;background:radial-gradient(circle,#ffd7ea 0%,#ffd7ea00 70%);z-index:1}
+#man-ca .uma-san::after{content:"";position:absolute;right:-50px;top:-20px;width:250px;height:210px;
+  border-radius:50%;background:radial-gradient(circle,#e2d6ff 0%,#e2d6ff00 70%);z-index:1}
+#man-ca .canh-hlv{margin-right:0}
+#man-ca .canh-hlv::after,#man-ca .canh-tt::after{background:radial-gradient(ellipse,#7a6a8055,#7a6a8000 70%)}
+#man-ca .canh-ten{font-size:10.5px;color:#5b4a55;font-weight:800;text-shadow:0 1px 0 #fff}
+#man-ca .canh-tt.vang{opacity:.32;filter:grayscale(1)}
+#man-ca .canh-tt.sang{filter:none;transform:translateY(-9px) scale(1.1)}
+
+/* ── thẻ nhật ký kiểu Uma: nền trắng, viền nhạt, số cộng màu lá ── */
+#man-ca .nk-the{background:#fff;border:2px solid #eae6f4;border-radius:11px;padding:7px 9px;
+  margin-bottom:6px;box-shadow:0 2px 0 #f0ecf8}
+#man-ca .nk-tieu{font-size:10.5px;color:#9a90a0;font-weight:800;margin-bottom:3px}
+#man-ca .nk-dong{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#6b5c68;
+  padding:1px 0}
+#man-ca .nk-dong b{font-variant-numeric:tabular-nums;color:#3d9c63;font-weight:900}
+#man-ca .nk-dong.xau b{color:#d0454b}
+#man-ca .nk-dong.vang b{color:#d99a1c}
+
+/* nút: chừa chỗ cho icon tròn ở trên và mặt tuyển thủ ở dưới */
+.uma-san-nut .uma-nut{padding:22px 6px 16px}
+.uma-viec .uma-nut{padding:20px 6px 8px}
+.uma-mat{bottom:3px}
+.uma-cap{top:5px;right:10px}
+
+
+/* ── sửa lại nút giáo án cho khớp Uma: icon tròn nhô ở góc TRÊN-TRÁI, mặt thẻ hỗ trợ
+      xếp ở góc TRÊN-PHẢI, hạt cấp sân ở đáy. Bản trước để cả ba thứ chồng lên chữ. ── */
+.uma-nut .ic-tron{left:8px;transform:none;top:-15px;width:40px;height:40px;font-size:20px}
+.uma-san-nut .uma-nut{padding:15px 8px 13px 8px;min-height:62px}
+.uma-viec .uma-nut{padding:13px 8px 10px;min-height:50px}
+.uma-nut b{margin-left:26px;font-size:13.5px}
+.uma-nut em{margin-left:26px;font-size:9.5px}
+.uma-mat{left:auto;right:6px;bottom:auto;top:-11px;transform:none}
+.uma-mat span{width:24px;height:24px}
+.uma-cap{top:auto;bottom:5px;right:9px}
+.uma-cap i{width:6px;height:6px}
+
+/* nhân vật trong cảnh: to lên hẳn, đúng tinh thần "nhân vật là trung tâm" của Uma */
+#man-ca .ca-canh-nen.co-nguoi{padding:34px 24px 216px;align-items:flex-end}
+#man-ca .canh-hlv{transform:translateY(6px)}

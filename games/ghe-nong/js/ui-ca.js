@@ -21,7 +21,7 @@
   };
 
   function veTatCa() {
-    veTren(); veChiSo(); veDoi(); veSan(); veViec(); veNhatKy(); veCanh();
+    veTren(); veRail(); veChiSo(); veSan(); veViec(); veNhatKy(); veCanh();
   }
 
   /** khung cảnh giữa màn: huấn luyện viên đứng lớn, tuyển thủ có mặt hôm nay đứng quanh */
@@ -31,7 +31,7 @@
     e.className = 'ca-canh-nen co-nguoi';
 
     var hlv = G.el('div.canh-hlv');
-    var a = G.oAnh && G.oAnh(ca.hlvId, 132);
+    var a = G.oAnh && G.oAnh(ca.hlvId, 196);
     if (a) hlv.appendChild(a);
     hlv.appendChild(G.el('div.canh-ten', { text: G.HLV_THEO_ID[ca.hlvId].biet }));
     e.appendChild(hlv);
@@ -41,7 +41,7 @@
       var g = G.TUYENTHU_THEO_ID[id];
       var o = G.el('div.canh-tt' + (ca.oSan[i] < 0 ? '.vang' : '') +
         (sanDangXem >= 0 && ca.oSan[i] === sanDangXem ? '.sang' : ''));
-      var b = G.oAnh && G.oAnh(id, 72);
+      var b = G.oAnh && G.oAnh(id, 96);
       if (b) o.appendChild(b);
       o.appendChild(G.el('div.canh-ten', { text: g.biet + (ca.oSan[i] >= 0 ? ' · ' + G.TEN_CHISO[ca.oSan[i]] : ' · vắng') }));
       if (G.cauVong(ca, i, ca.oSan[i])) o.appendChild(G.el('div.canh-cv', { text: '🌈' }));
@@ -51,38 +51,18 @@
     e.appendChild(hang);
   }
 
-  /** hai nút nhỏ trên thanh mục tiêu: hạng hiện tại và số tin chưa đọc */
-  function veNutBXH() {
-    var mt = G.$('.ca-mucteu'); if (!mt) return;
-    var cu = G.$$('.ca-tin', mt);
-    cu.forEach(function (x) { x.remove(); });
-    if (!G.mua) return;
-
-    var ht = G.hangTa();
-    var b1 = G.el('button.ca-tin', { text: 'Hạng ' + ht.hang + '/' + ht.tong });
-    b1.addEventListener('click', function () { G.tieng('cham'); G.moBXH(); });
-    mt.appendChild(b1);
-
-    var so = G.soTinMoi();
-    var b2 = G.el('button.ca-tin', { text: 'Bản tin' });
-    if (so) b2.appendChild(G.el('i.bx-cham', { text: so }));
-    b2.addEventListener('click', function () { G.tieng('cham'); G.moBXH('tin'); });
-    mt.appendChild(b2);
-  }
-
-  /* ── thanh trên ── */
+  /* ══════════ thanh trên: badge lượt · mục tiêu · thể lực · tâm trạng ══════════
+     Bốn khối này lấy đúng của màn Career Uma (ảnh steam/shot05.jpg): badge số lượt có hai
+     tai kẹp ở trên, viên thuốc mục tiêu có nút "Chi tiết", thanh thể lực CẦU VỒNG viền đậm,
+     và chip tâm trạng bo tròn nằm góc phải. */
   function veTren() {
     var muc = G.LICH[ca.luot - 1] || {};
-    G.$('#ca-luot-so').textContent = ca.luot;
+    G.$('#ca-luot-so').textContent = ca.soLuot - ca.luot + 1;
     G.$('#ca-luot-tong').textContent = ca.soLuot;
 
     var mt = muc.giai ? ('Hôm nay có trận: ' + muc.giai.ten)
       : (muc.gd || '') + ' — trận kế: ' + (tenGiaiKe() || 'hết mùa');
     G.$('#ca-mucteu-chu').textContent = mt;
-
-    /* Thứ hạng và bản tin phải thấy được từ trong phòng tập. Để nó nằm tận màn CLB thì
-       người chơi chỉ xem mỗi mùa một lần, và 24 đội kia lại thành vô hình như cũ. */
-    veNutBXH();
 
     var p = ca.theluc / ca.thelucMax;
     G.$('#ca-luc-thanh').style.width = (p * 100) + '%';
@@ -91,7 +71,7 @@
     var t = G.TAM[ca.tam];
     var e = G.$('#ca-tam');
     e.textContent = t.ten;
-    e.className = 'ca-tam ' + t.lop;
+    e.className = 'uma-tam ' + t.lop;
   }
 
   function tenGiaiKe() {
@@ -99,141 +79,134 @@
     return null;
   }
 
-  /* ── cột trái: chỉ số ── */
+  /* ══════════ rail icon dọc bên phải ══════════ */
+  var RAIL = [
+    { id: 'bxh', ten: 'Bảng\nxếp hạng', ic: '🏆' },
+    { id: 'tin', ten: 'Bản tin', ic: '📰' },
+    { id: 'lich', ten: 'Lịch', ic: '📅' },
+    { id: 'doi', ten: 'Tuyển thủ', ic: '👥' },
+    { id: 'giaoan', ten: 'Kỹ năng', ic: '📗' },
+    { id: 'so', ten: 'Sổ tay', ic: '📘' }
+  ];
+
+  function veRail() {
+    var r = G.xoa(G.$('#ca-rail'));
+    RAIL.forEach(function (x) {
+      var b = G.el('button');
+      b.appendChild(G.el('span.ic-to', { text: x.ic }));
+      x.ten.split('\n').forEach(function (d) { b.appendChild(G.el('span', { text: d })); });
+      if (x.id === 'tin') {
+        var so = G.soTinMoi && G.soTinMoi();
+        if (so) b.appendChild(G.el('i.cham', { text: so }));
+      }
+      if (x.id === 'bxh' && G.hangTa) {
+        var ht = G.hangTa();
+        b.appendChild(G.el('span', { text: 'hạng ' + ht.hang, style: 'color:#3f8fd0' }));
+      }
+      b.addEventListener('click', function () {
+        G.tieng('cham');
+        if (x.id === 'bxh') return G.moBXH();
+        if (x.id === 'tin') return G.moBXH('tin');
+        if (x.id === 'lich') return G.moBXH('lich');
+        if (x.id === 'doi') return moDoiHinh();
+        if (x.id === 'giaoan') return moGiaoAn();
+        if (x.id === 'so') return G.dayLai && G.dayLai('ca');
+      });
+      r.appendChild(b);
+    });
+  }
+
+  /* ══════════ bảng năm chỉ số ══════════
+     Đúng cấu trúc của Uma: mỗi ô có dải tiêu đề xanh, dưới là VÒNG TRÒN HẠNG CHỮ rồi số
+     hiện tại và "/trần". Ô cuối là điểm kỹ năng, tách riêng bằng màu tiêu đề khác. */
+  var MAU_CS = ['#ff8d8d', '#8fd8ff', '#ffc46e', '#ff9ec4', '#a5e86a'];
+
   function veChiSo() {
     var b = G.xoa(G.$('#bang-chiso'));
     var xt = sanDangXem >= 0 ? G.xemTruoc(ca, sanDangXem) : null;
 
     for (var i = 0; i < 5; i++) {
       var v = ca.chiso[i], hang = G.hangChu(v), goc = G.hangChuGoc(v);
-      var d = G.el('div.cs-dong');
-      d.appendChild(G.el('div.cs-ten', { text: G.TEN_CHISO[i] }));
-      d.appendChild(G.el('div.cs-hang.h-' + goc, { text: hang }));
-      var th = G.el('div.cs-thanh');
-      th.appendChild(G.el('i', { style: 'width:' + (v / ca.tran[i] * 100) + '%' }));
-      d.appendChild(th);
-      var so = G.el('div.cs-so');
-      so.textContent = v;
-      if (xt && xt.an[i]) so.appendChild(G.el('span.cs-them', { text: ' +' + xt.an[i] }));
-      d.appendChild(so);
-      b.appendChild(d);
+      var o = G.el('div.uma-cs');
+      var dau = G.el('div.uma-cs-dau');
+      dau.appendChild(G.el('i', { style: 'background:' + MAU_CS[i] }));
+      dau.appendChild(G.el('span', { text: G.TEN_CHISO[i] }));
+      o.appendChild(dau);
+
+      var than = G.el('div.uma-cs-than');
+      than.appendChild(G.el('div.uma-hang.h-' + goc, { text: hang }));
+      var so = G.el('div.uma-cs-so');
+      var bb = G.el('b', { text: String(v) });
+      if (xt && xt.an[i]) {
+        bb.textContent = v + '';
+        bb.appendChild(G.el('em', { text: ' +' + xt.an[i],
+          style: 'font-style:normal;font-size:12px;color:#3d9c63' }));
+      }
+      so.appendChild(bb);
+      so.appendChild(G.el('span', { text: '/' + ca.tran[i] }));
+      than.appendChild(so);
+      o.appendChild(than);
+      b.appendChild(o);
     }
 
-    var dm = G.el('div.cs-diem');
-    dm.appendChild(G.el('span', { text: 'Điểm kỹ năng' }));
-    var bb = G.el('b', { text: String(ca.diemKN) });
-    if (xt && xt.diemKN) bb.textContent = ca.diemKN + ' (+' + xt.diemKN + ')';
-    dm.appendChild(bb);
-    b.appendChild(dm);
-
-    if (ca.trangThai.length) {
-      var tt = G.el('div.cs-diem', { style: 'border-color:#5a2a2a' });
-      tt.appendChild(G.el('span', { text: 'Trạng thái xấu' }));
-      tt.appendChild(G.el('b', { text: ca.trangThai.map(function (x) { return G.TEN_TRANGTHAI[x]; }).join(', '), style: 'color:#f0a0a0;font-size:11px' }));
-      b.appendChild(tt);
-    }
+    var kn = G.el('div.uma-cs.kn');
+    kn.appendChild(G.el('div.uma-cs-dau', { text: 'Điểm KN' }));
+    var t2 = G.el('div.uma-cs-than');
+    var bk = G.el('b', { text: String(ca.diemKN), style: 'font-size:17px;font-weight:900;color:#4a3f48' });
+    if (xt && xt.diemKN) bk.appendChild(G.el('em', { text: ' +' + xt.diemKN,
+      style: 'font-style:normal;font-size:12px;color:#3d9c63' }));
+    t2.appendChild(bk);
+    kn.appendChild(t2);
+    b.appendChild(kn);
   }
 
-  /* ── cột trái dưới: 5 tuyển thủ ── */
-  function veDoi() {
-    var b = G.xoa(G.$('#bang-doi'));
-    b.appendChild(G.el('h4', { text: 'Tuyển thủ trong ca' }));
-    ca.tt.forEach(function (id, i) {
-      var g = G.TUYENTHU_THEO_ID[id]; if (!g) return;
-      var cv = ca.than[i] >= 80;
-      var the = G.el('div.tt-the' + (cv ? '.cam' : ''));
-      var oAnh = G.el('div.tt-anh');
-      var anh = G.oAnh && G.oAnh(id, 34);
-      if (anh) oAnh.appendChild(anh); else oAnh.textContent = g.biet.slice(0, 1);
-      the.appendChild(oAnh);
-      var ph = G.el('div');
-      var ten = G.el('div.tt-ten');
-      ten.appendChild(G.el('span', { text: g.biet }));
-      ten.appendChild(G.el('span.tt-loai.' + G.TT_LOAI_LOP[g.loai], { text: G.TT_LOAI_TEN[g.loai] }));
-      ten.appendChild(G.el('span.tt-loai', { text: G.VITRI_THEO_ID[g.vt].tat }));
-      ph.appendChild(ten);
-      var th = G.el('div.tt-than');
-      th.appendChild(G.el('i', { style: 'width:' + ca.than[i] + '%' }));
-      ph.appendChild(th);
-      ph.appendChild(G.el('div', { text: ca.than[i] + '/100' + (ca.oSan[i] >= 0 ? ' · ' + G.TEN_CHISO[ca.oSan[i]] : ' · vắng'),
-        style: 'font-size:10px;color:#8b98a9;margin-top:2px' }));
-      the.appendChild(ph);
-      the.addEventListener('click', function () { xemTuyenThu(id, i); });
-      b.appendChild(the);
-    });
-  }
+  /* ══════════ năm nút giáo án ══════════
+     Viên thuốc bo tròn, icon tròn nhô lên giữa mép trên, cấp sân là chuỗi hạt ở góc, và
+     MẶT TUYỂN THỦ có mặt hôm nay xếp thành cụm dưới đáy nút — y như thẻ hỗ trợ đứng trên
+     nút tập của Uma. Viền vàng = đang xem trước. */
+  var IC_SAN = ['🖱️', '🫀', '💪', '🔥', '🧠'];
+  var KHOA_SAN = ['co', 'ben', 'luc', 'li', 'nao'];
 
-  function xemTuyenThu(id, i) {
-    var g = G.TUYENTHU_THEO_ID[id];
-    var b = G.coTT(id) || { cap: 1, uncap: 0 };
-    var n = G.el('div');
-    n.appendChild(G.el('div', { html: '<b>' + g.ten + '</b> · ' + g.bac + ' · cấp ' + b.cap +
-      ' · ' + G.VITRI_THEO_ID[g.vt].ten + ' ' + '★'.repeat(g.vtSao) }));
-    n.appendChild(G.el('div', { text: g.tieu, style: 'color:#8b98a9;margin:6px 0 10px' }));
-    n.appendChild(G.el('div', { html: '<b>Chất chơi (khoá cứng):</b> ' +
-      g.chat.map(function (c) { return G.CHAT[c].ten; }).join(' · ') + ' — cái tôi ' + g.ego }));
-    n.appendChild(G.el('div', { text: g.chat.map(function (c) { return G.CHAT[c].mo; }).join(' '),
-      style: 'color:#8b98a9;margin:4px 0 10px;font-size:12.5px' }));
-
-    var tt = G.el('div', { html: '<b>Thông thạo tướng</b>' });
-    var lst = G.el('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px' });
-    G.tuongTheoViTri(g.vt).forEach(function (t) {
-      var bac = G.thongThao(b.id ? b : { id: id }, t.id) || 'N';
-      var m = G.TT_THEO_ID[bac];
-      lst.appendChild(G.el('span', { text: t.ten + ' ' + bac,
-        style: 'padding:3px 8px;border-radius:6px;background:#111926;border:1px solid #26303f;font-size:12px;color:' + m.mau }));
-    });
-    tt.appendChild(lst);
-    n.appendChild(tt);
-
-    n.appendChild(G.el('div', { html: '<b>Dạy kỹ năng:</b> ' +
-      (g.goiY || []).map(function (k) { return (G.knTatCa(k) || {}).ten || k; }).join(', '),
-      style: 'margin-top:10px' }));
-
-    G.hop({ dau: g.biet + ' — ' + G.TT_LOAI_TEN[g.loai], node: n });
-  }
-
-  /* ── cột giữa: 5 sân ── */
   function veSan() {
     var h = G.xoa(G.$('#hang-san'));
     for (var s = 0; s < 5; s++) (function (s) {
       var xt = G.xemTruoc(ca, s);
-      var cv = xt.cauVong;
-      var d = G.el('div.san' + (sanDangXem === s ? '.chon' : '') + (cv ? '.cauvong' : ''));
+      var b = G.el('div.uma-nut.' + KHOA_SAN[s] + (sanDangXem === s ? '.chon' : ''));
 
-      if (sanDangXem === s) {
-        var xem = G.el('div.san-xem');
-        for (var i = 0; i < 5; i++) if (xt.an[i]) xem.appendChild(G.el('span', { text: '+' + xt.an[i] + ' ' + G.TEN_CHISO[i] }));
-        d.appendChild(xem);
-      }
+      b.appendChild(G.el('span.ic-tron', { text: IC_SAN[s] }));
 
-      d.appendChild(G.el('div.san-ten', { text: G.TEN_CHISO[s] }));
-      d.appendChild(G.el('div.san-cap', { text: 'Cấp ' + xt.cap + ' · ' + (xt.hao > 0 ? '+' : '') + xt.hao + ' thể lực' }));
+      var cap = G.el('div.uma-cap');
+      for (var k = 0; k < 5; k++) cap.appendChild(G.el('i' + (k < xt.cap ? '.co' : '')));
+      b.appendChild(cap);
 
-      var ng = G.el('div.san-nguoi');
+      b.appendChild(G.el('b', { text: G.TEN_CHISO[s] }));
+      b.appendChild(G.el('em', { text: (xt.hao > 0 ? '+' : '') + xt.hao + ' thể lực' }));
+
+      var mat = G.el('div.uma-mat');
       xt.nguoi.forEach(function (i) {
-        var g = G.TUYENTHU_THEO_ID[ca.tt[i]];
-        var sp = G.el('span' + (G.cauVong(ca, i, s) ? '.cam' : ''), { text: g.biet.slice(0, 1) });
-        if (ca.goiY[i]) sp.appendChild(G.el('em', { text: '!' }));
-        ng.appendChild(sp);
+        var cv = G.cauVong(ca, i, s);
+        var o = G.el('span' + (cv ? '.cam' : ''));
+        var a = G.oAnh && G.oAnh(ca.tt[i], 22);
+        if (a) o.appendChild(a);
+        else o.appendChild(G.el('i', { style: 'background:#cfc8dc' }));
+        mat.appendChild(o);
       });
-      d.appendChild(ng);
+      b.appendChild(mat);
 
-      if (sanDangXem === s) d.appendChild(G.el('div.san-mui', { text: '▼' }));
-
-      d.addEventListener('click', function () { chamSan(s); });
-      h.appendChild(d);
+      b.addEventListener('click', function () { chamSan(s); });
+      h.appendChild(b);
     })(s);
 
     var hg = G.$('#ca-hong');
     if (sanDangXem >= 0) {
       var xt2 = G.xemTruoc(ca, sanDangXem);
       hg.hidden = false;
-      hg.className = 'ca-hong' + (xt2.hong >= 25 ? ' nguy' : '');
+      hg.className = 'uma-hong' + (xt2.hong >= 25 ? ' nguy' : '');
       G.xoa(hg);
-      hg.appendChild(document.createTextNode('Hỏng: '));
+      hg.appendChild(document.createTextNode('Tỉ lệ hỏng '));
       hg.appendChild(G.el('b', { text: xt2.hong + '%' }));
-      hg.appendChild(document.createTextNode('  —  chạm lần nữa để tập'));
+      hg.appendChild(document.createTextNode(xt2.cauVong ? '  —  🌈 CẦU VỒNG! chạm lần nữa để tập'
+        : '  —  chạm lần nữa để tập'));
     } else {
       hg.hidden = true;
     }
@@ -244,20 +217,24 @@
     lamViec({ loai: 'tap', san: s });
   }
 
-  /* ── cột giữa dưới: nút việc ── */
+  /* ══════════ năm nút việc ══════════ */
+  var VIEC = [
+    { id: 'nghi', ten: 'Nghỉ', ic: '🛏️', phu: 'hồi thể lực' },
+    { id: 'xahoi', ten: 'Xả hơi', ic: '🎡', phu: 'lên tâm trạng' },
+    { id: 'yte', ten: 'Y tế', ic: '💊', phu: 'chữa trạng thái' },
+    { id: 'giaoan', ten: 'Kỹ năng', ic: '📗', phu: 'tiêu điểm KN' },
+    { id: 'giaohuu', ten: 'Giao hữu', ic: '🎮', phu: 'điểm KN + fan' }
+  ];
+
   function veViec() {
     var h = G.xoa(G.$('#hang-viec'));
-    var ds = [
-      { id: 'nghi', ten: 'Nghỉ' },
-      { id: 'xahoi', ten: 'Xả hơi' },
-      { id: 'yte', ten: 'Phòng y tế' },
-      { id: 'giaoan', ten: 'Giáo án' },
-      { id: 'giaohuu', ten: 'Kèo giao hữu' }
-    ];
-    ds.forEach(function (v) {
-      var b = G.el('button.viec', { text: v.ten });
-      if (v.id === 'giaohuu' && ca.theluc < 20) b.disabled = true;
-      b.addEventListener('click', function () {
+    VIEC.forEach(function (v) {
+      var tat = v.id === 'giaohuu' && ca.theluc < 20;
+      var b = G.el('div.uma-nut.v-' + v.id + (tat ? '.tat' : ''));
+      b.appendChild(G.el('span.ic-tron', { text: v.ic }));
+      b.appendChild(G.el('b', { text: v.ten }));
+      b.appendChild(G.el('em', { text: v.phu }));
+      if (!tat) b.addEventListener('click', function () {
         if (v.id === 'giaoan') { moGiaoAn(); return; }
         lamViec({ loai: v.id });
       });
@@ -265,22 +242,46 @@
     });
   }
 
-  /* ── cột phải: nhật ký ── */
+  /* ══════════ đội hình: hộp thoại từ rail ══════════ */
+  function moDoiHinh() {
+    var n = G.el('div');
+    ca.tt.forEach(function (id, i) {
+      var g = G.TUYENTHU_THEO_ID[id];
+      var than = ca.than[i], cv = than >= 80;
+      var d = G.el('div', { style: 'display:flex;gap:9px;align-items:center;padding:7px;' +
+        'border-radius:11px;background:' + (cv ? '#fff6e2' : '#f6f4fb') +
+        ';border:2px solid ' + (cv ? '#f0c56e' : '#eae6f4') + ';margin-bottom:6px' });
+      var a = G.oAnh && G.oAnh(id, 40);
+      if (a) { a.style.borderRadius = '50%'; a.style.flex = 'none'; d.appendChild(a); }
+      var ph = G.el('div', { style: 'flex:1;min-width:0' });
+      ph.appendChild(G.el('div', { text: g.biet + ' · ' + G.VITRI_THEO_ID[g.vt].ten,
+        style: 'font-weight:800;font-size:13px;color:#4a3f48' }));
+      var th = G.el('div', { style: 'height:7px;background:#e6e2ef;border-radius:99px;margin-top:4px;overflow:hidden' });
+      th.appendChild(G.el('i', { style: 'display:block;height:100%;width:' + than + '%;background:' +
+        (cv ? 'linear-gradient(90deg,#ffd76e,#f0932c)' : 'linear-gradient(90deg,#8fd8ff,#3f8fd0)') }));
+      ph.appendChild(th);
+      ph.appendChild(G.el('div', { text: 'Thân thiết ' + than + '/100' + (cv ? '  🌈 đã mở cầu vồng' : ''),
+        style: 'font-size:10.5px;color:#8a7f8f;margin-top:3px' }));
+      d.appendChild(ph);
+      d.appendChild(G.el('div', { text: G.TT_LOAI_TEN[g.loai],
+        style: 'font-size:11px;font-weight:800;color:#6b5c68;flex:none' }));
+      d.addEventListener('click', function () { xemTuyenThu(id, i); });
+      n.appendChild(d);
+    });
+    G.hop({ dau: 'Tuyển thủ trong ca', node: n, rong: 520 });
+  }
+
   function veNhatKy() {
     var b = G.xoa(G.$('#nk-than'));
     var ds = ca.log.slice(-14).reverse();
     ds.forEach(function (k, idx) {
-      var kh = G.el('div.nk-khoi' + (idx === 0 ? '.moi' : ''));
+      var kh = G.el('div.nk-the' + (idx === 0 ? '.moi' : ''));
       kh.appendChild(G.el('div.nk-tieu', { text: 'Lượt ' + k.luot + ' · ' + k.tieu }));
       (k.dong || []).forEach(function (d) {
-        var dg = G.el('div.nk-dong');
+        var dg = G.el('div.nk-dong' + (d.vang ? '.vang' : (d.v < 0 || d.xau ? '.xau' : '')));
         dg.appendChild(G.el('span', { text: d.t }));
-        if (d.v) {
-          dg.appendChild(G.el('b', { text: (d.v > 0 ? '+' : '') + d.v,
-            class: d.vang ? 'vang' : (d.v > 0 ? 'len' : 'xuong') }));
-        } else if (d.xau) {
-          dg.appendChild(G.el('b', { text: '!', class: 'xuong' }));
-        }
+        if (d.v) dg.appendChild(G.el('b', { text: (d.v > 0 ? '+' : '') + d.v }));
+        else if (d.xau) dg.appendChild(G.el('b', { text: '!' }));
         kh.appendChild(dg);
       });
       b.appendChild(kh);

@@ -304,59 +304,85 @@
   };
 
   /* ══════════════════ MÀN CHIẾN THUẬT ══════════════════ */
-  var NHOM_CT = [
-    { id: 'lane', ten: 'Trọng tâm đường', chon: [
-      { id: 'tren', ten: 'Trên / Giữa', mo: 'Dồn người lên nửa trên bản đồ, ép sớm ở đường trên.' },
-      { id: 'duoi', ten: 'Giữa / Dưới', mo: 'Dồn xuống nửa dưới, nuôi xạ thủ và tranh rồng.' },
-      { id: 'deu', ten: 'Cả ba đường', mo: 'Không dồn đâu cả; chắc chân nhưng ít tạo được đột biến.' } ] },
-    { id: 'rung', ten: 'Kiểu đi rừng', chon: [
-      { id: 'farm', ten: 'Farm / giữ bãi', mo: 'Ăn quái cho chắc, ít can thiệp đường.' },
-      { id: 'gank', ten: 'Đi kèo', mo: 'Bỏ bãi để lên bắt người. Ăn thì lời to, hụt thì mất nhịp.' },
-      { id: 'cuop', ten: 'Cướp rừng', mo: 'Sang ăn bãi của đối thủ. Rủi ro cao, làm nghẹt người đi rừng bên kia.' } ] },
-    { id: 'rong', ten: 'Rồng sớm', chon: [
-      { id: 'luon', ten: 'Luôn tranh', mo: 'Rồng nào cũng đánh, kể cả khi chưa đủ người.' },
-      { id: 'tuy', ten: 'Tuỳ tình hình', mo: 'Đánh khi thấy ăn được.' },
-      { id: 'nhuong', ten: 'Nhường', mo: 'Bỏ rồng, đổi lấy lính và trụ ở đường.' } ] },
-    { id: 'linh', ten: 'Quản lý lính', chon: [
-      { id: 'linh', ten: 'Ưu tiên lính', mo: 'Dọn sạch lính trước khi tụ. Kinh tế tốt, chậm nhịp.' },
-      { id: 'tu', ten: 'Ưu tiên tụ', mo: 'Bỏ lính để có mặt cùng đội. Nhanh nhịp, hụt tiền.' } ] },
-    { id: 'mucTieu', ten: 'Vào mục tiêu', chon: [
-      { id: 'poke', ten: 'Rỉa, giữ khoảng cách', mo: 'Đánh xa cho tới khi đối thủ mỏng máu.' },
-      { id: 'lao', ten: 'Lao thẳng', mo: 'Mở giao tranh ngay. Ăn to hoặc mất cả đội.' } ] },
-    { id: 'tru', ten: 'Đẩy trụ', chon: [
-      { id: 'poke', ten: 'Rỉa trụ', mo: 'Chỉ đánh khi trụ không bắn được. An toàn, chậm.' },
-      { id: 'dive', ten: 'Dive vào trụ', mo: 'Chấp nhận ăn đạn trụ để kết liễu người.' } ] },
-    { id: 'ket', ten: 'Kết trận', chon: [
-      { id: 'chac', ten: 'Chắc chân', mo: 'Chỉ vào khi chắc thắng.' },
-      { id: 'linh_hoat', ten: 'Linh hoạt', mo: 'Tuỳ tình hình mà quyết.' },
-      { id: 'lieu', ten: 'Liều', mo: 'Thấy khe là lao vào nhà.' } ] }
+  /* ══════════════════ CHIẾN THUẬT ══════════════════
+
+     Bản đầu có bảy nhóm × hai ba lựa chọn, và **bốn trong bảy nhóm không được bộ mô phỏng đọc**
+     (`sim.js` chỉ dùng `ct.rong`, `ct.rung`, `ct.mucTieu`) — tức là bốn hàng nút bấm cho vui.
+     Chủ dự án chốt: làm gọn kiểu Uma, chỉ chọn **lối chạy**.
+
+     Uma có bốn lối chạy Front / Pace / Late / End, và mỗi ngựa có **năng khiếu riêng cho từng
+     lối** hạng G→S. Ghế Nóng đã có sẵn đúng bốn thế trận ấy trong `nk.the` của mỗi huấn luyện
+     viên (DESIGN.md §2.3) mà trước giờ chỉ dùng để lấy hạng CAO NHẤT một cách tự động. Giờ người
+     chơi chọn, và **năng khiếu của đúng lối được chọn** mới là hệ số áp vào trận — hệt Uma.
+
+     Một lối chọn ra ba thiết lập mà bộ mô phỏng thật sự đọc, cộng thêm hệ số theo giai đoạn
+     trận qua `heso.ds` (`hesoDoi` trong sim.js đọc loai 'sat'/'chiu' theo pha dau/giua/cuoi). */
+  var THE_TRAN = [
+    { id: 'baodau', ten: 'Bạo Đầu', uma: 'Front',
+      mo: 'Dồn hết vào mười phút đầu: đi kèo sớm, tranh mọi con quái lớn, thấy khe là lao.',
+      duoc: 'Mạnh nhất trước phút 10 (+10% sát thương giai đoạn đầu).',
+      mat: 'Đuối rõ nếu trận kéo dài (−8% sát thương giai đoạn cuối).',
+      ct: { rong: 'luon', rung: 'gank', mucTieu: 'lao' },
+      heso: [{ loai: 'sat', pha: 'dau', muc: 0.10 }, { loai: 'sat', pha: 'cuoi', muc: -0.08 }],
+      chat: ['lao', 'gank', 'fight', 'solo'] },
+
+    { id: 'bamnhip', ten: 'Bám Nhịp', uma: 'Pace',
+      mo: 'Giữ thế cân bằng, ăn từng mục tiêu nhỏ, không nhường cũng không cố.',
+      duoc: 'Không có giai đoạn nào yếu (+6% chịu đòn suốt trận).',
+      mat: 'Cũng không có giai đoạn nào mạnh vượt trội.',
+      ct: { rong: 'tuy', rung: 'farm', mucTieu: 'poke' },
+      heso: [{ loai: 'chiu', pha: 'luon', muc: 0.06 }],
+      chat: ['mt', 'lead', 'poke', 'farm'] },
+
+    { id: 'nuoimuon', ten: 'Nuôi Muộn', uma: 'Late',
+      mo: 'Chịu trận nửa đầu, đổi tài nguyên lấy farm, bung từ phút 25.',
+      duoc: 'Chịu đòn tốt lúc đầu (+9%) và đánh mạnh về cuối (+12%).',
+      mat: 'Nhường quái lớn sớm, dễ bị đẩy trụ trước phút 15.',
+      ct: { rong: 'nhuong', rung: 'farm', mucTieu: 'poke' },
+      heso: [{ loai: 'chiu', pha: 'dau', muc: 0.09 }, { loai: 'sat', pha: 'cuoi', muc: 0.12 }],
+      chat: ['farm', 'thu', 'le', 'poke'] },
+
+    { id: 'bungcuoi', ten: 'Bùng Cuối', uma: 'End',
+      mo: 'Nhường hẳn nửa đầu, dồn tất cả vào giao tranh tổng cuối trận.',
+      duoc: 'Sát thương giai đoạn cuối tăng vọt (+18%).',
+      mat: 'Yếu rõ nửa đầu (−7% sát thương giai đoạn đầu). Ăn to hoặc thua đậm.',
+      ct: { rong: 'nhuong', rung: 'farm', mucTieu: 'poke' },
+      heso: [{ loai: 'sat', pha: 'cuoi', muc: 0.18 }, { loai: 'sat', pha: 'dau', muc: -0.07 }],
+      chat: ['fight', 'thu', 'mt', 'lead'] }
   ];
+  G.THE_TRAN = THE_TRAN;
+  G.theTheoId = function (id) {
+    for (var i = 0; i < THE_TRAN.length; i++) if (THE_TRAN[i].id === id) return THE_TRAN[i];
+    return THE_TRAN[1];
+  };
+
+  /** đổi một thế trận thành thiết lập mà sim.js đọc được */
+  G.chotChienThuat = function (id) {
+    var t = G.theTheoId(id);
+    return { the: t.id, rong: t.ct.rong, rung: t.ct.rung, mucTieu: t.ct.mucTieu };
+  };
 
   G.moChienThuat = function (ca, doiMay, pick, giai) {
     return new Promise(function (xong) {
-      var ct = ca.chienThuat ? JSON.parse(JSON.stringify(ca.chienThuat)) : {};
-      NHOM_CT.forEach(function (n) { if (!ct[n.id]) ct[n.id] = n.chon[Math.floor(n.chon.length / 2)].id; });
+      /* mặc định: lối mà huấn luyện viên có năng khiếu cao nhất */
+      var chon = (ca.chienThuat && ca.chienThuat.the) || null;
+      if (!chon) {
+        var caoNhat = -1;
+        THE_TRAN.forEach(function (t) {
+          var k = G.THU_TU_NK.indexOf(ca.nk.the[t.id] || 'C');
+          if (k > caoNhat) { caoNhat = k; chon = t.id; }
+        });
+      }
 
       var m = G.xoa(G.$('#man-chienthuat'));
-      m.appendChild(G.el('div.ct-tren', { html: '<b>Chiến thuật</b> <span style="color:#8b98a9;font-size:12px">— ' +
-        'đây chỉ là lời khuyên: người có cái tôi cao vẫn chơi theo ý mình</span>' }));
+      m.appendChild(G.el('div.ct-tren', {
+        html: '<b>Chọn thế trận</b> <span style="color:#8b98a9;font-size:12px">— một lựa chọn, ' +
+          'giống lối chạy của Uma. Năng khiếu của huấn luyện viên cho đúng lối này là hệ số áp ' +
+          'vào cả đội, và người có cái tôi cao vẫn chơi theo chất của mình.</span>'
+      }));
 
       var than = G.el('div.ct-than');
-      var luoi = G.el('div.ct-luoi');
-      NHOM_CT.forEach(function (n) {
-        var k = G.el('div.ct-nhom');
-        k.appendChild(G.el('div.ct-nhom-ten', { text: n.ten }));
-        n.chon.forEach(function (c) {
-          var b = G.el('button.ct-nut' + (ct[n.id] === c.id ? '.chon' : ''), { text: c.ten });
-          b.addEventListener('click', function () {
-            ct[n.id] = c.id;
-            G.$('#ct-giai').textContent = c.mo;
-            ve();
-          });
-          k.appendChild(b);
-        });
-        luoi.appendChild(k);
-      });
+      var luoi = G.el('div.ct-the#ct-the');
       than.appendChild(luoi);
 
       var phai = G.el('div.ct-phai');
@@ -375,31 +401,79 @@
         phai.appendChild(d);
       });
       phai.appendChild(G.el('div.ct-nhom-ten', { text: 'Trang bị', style: 'margin-top:10px' }));
-      phai.appendChild(G.el('div', { text: 'Không ai chọn đồ hộ. Trong trận, mỗi người tự nhìn đội địch đánh bằng gì, ' +
-        'mình đang thắng hay bị dí, rồi mua. NÃO của huấn luyện viên quyết định họ đọc trận chuẩn tới đâu.',
-        style: 'font-size:11.5px;color:#8b98a9;line-height:1.6' }));
+      phai.appendChild(G.el('div', {
+        text: 'Không ai chọn đồ hộ. Trong trận, mỗi người tự nhìn đội địch đánh bằng gì, ' +
+          'mình đang thắng hay bị dí, rồi mua. NÃO của huấn luyện viên quyết định họ đọc trận chuẩn tới đâu.',
+        style: 'font-size:11.5px;color:#8b98a9;line-height:1.6'
+      }));
+      phai.appendChild(G.el('div.ct-nhom-ten', { text: 'Đối thủ ưa lối', style: 'margin-top:10px' }));
+      phai.appendChild(G.el('div', {
+        html: '<b style="color:#e5484d">' + doiMay.ten + '</b> đá <b>' +
+          (G.TEN_THE[doiMay.goc.the] || doiMay.goc.the) + '</b>. ' + doiMay.goc.tieu,
+        style: 'font-size:11.5px;color:#8b98a9;line-height:1.6'
+      }));
       than.appendChild(phai);
       m.appendChild(than);
 
-      m.appendChild(G.el('div.ct-giai#ct-giai', { text: 'Chạm một lựa chọn để xem nó làm gì.' }));
-
       var day = G.el('div.ct-day');
       day.appendChild(G.el('button.nut', { text: 'Giao cho trợ lý', onclick: function () {
-        NHOM_CT.forEach(function (n) { ct[n.id] = n.chon[Math.floor(ca.rng() * n.chon.length)].id; });
-        xong(ct);
+        /* trợ lý luôn chọn lối mà huấn luyện viên khoẻ nhất */
+        var cao = -1, id = 'bamnhip';
+        THE_TRAN.forEach(function (t) {
+          var k = G.THU_TU_NK.indexOf(ca.nk.the[t.id] || 'C');
+          if (k > cao) { cao = k; id = t.id; }
+        });
+        xong(G.chotChienThuat(id));
       } }));
-      day.appendChild(G.el('button.nut.chinh', { text: 'BẮT ĐẦU TRẬN ➜', onclick: function () { xong(ct); } }));
+      day.appendChild(G.el('button.nut.chinh', { text: 'BẮT ĐẦU TRẬN ➜',
+        onclick: function () { xong(G.chotChienThuat(chon)); } }));
       m.appendChild(day);
 
       G.hienMan('man-chienthuat');
+      ve();
 
       function ve() {
-        G.$$('.ct-nhom').forEach(function (k, idx) {
-          var n = NHOM_CT[idx];
-          G.$$('button', k).forEach(function (b, j) {
-            b.classList.toggle('chon', ct[n.id] === n.chon[j].id);
+        var e = G.xoa(G.$('#ct-the'));
+        THE_TRAN.forEach(function (t) {
+          var hang = ca.nk.the[t.id] || 'C';
+          var he = G.hesoNangKhieu(hang);
+          var khop = ca.tt.filter(function (id) {
+            var g = G.TUYENTHU_THEO_ID[id];
+            return g.chat.some(function (c) { return t.chat.indexOf(c) >= 0; });
           });
+
+          var o = G.el('div.ct-o-the' + (chon === t.id ? '.chon' : ''));
+          var dau = G.el('div.ct-the-dau');
+          dau.appendChild(G.el('b', { text: t.ten }));
+          dau.appendChild(G.el('span.ct-the-uma', { text: t.uma }));
+          dau.appendChild(G.el('span.ct-the-nk', {
+            text: hang + '  ×' + he.toFixed(2),
+            style: 'color:' + mauHang(hang)
+          }));
+          o.appendChild(dau);
+
+          o.appendChild(G.el('div.ct-the-mo', { text: t.mo }));
+          o.appendChild(G.el('div.ct-the-duoc', { text: '＋ ' + t.duoc }));
+          o.appendChild(G.el('div.ct-the-mat', { text: '－ ' + t.mat }));
+
+          var kh = G.el('div.ct-the-chat');
+          kh.appendChild(G.el('span', {
+            text: khop.length + '/5 người hợp chất',
+            style: 'color:' + (khop.length >= 3 ? '#3ddc97' : khop.length >= 2 ? '#f2c94c' : '#e5484d')
+          }));
+          khop.forEach(function (id) {
+            kh.appendChild(G.el('em', { text: G.TUYENTHU_THEO_ID[id].biet }));
+          });
+          o.appendChild(kh);
+
+          o.addEventListener('click', function () { chon = t.id; G.tieng('chon'); ve(); });
+          e.appendChild(o);
         });
+      }
+
+      function mauHang(h) {
+        return h === 'S' ? '#ffd76e' : h === 'A' ? '#3ddc97' : h === 'B' ? '#7fd6ff'
+          : h === 'C' ? '#c8d3e0' : h === 'D' ? '#f2903c' : '#e5484d';
       }
     });
   };
