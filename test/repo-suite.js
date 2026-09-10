@@ -2846,6 +2846,122 @@ async function vfxSquadSuite(b) {
 //
 // Và phải khoá cả hai đầu: tường SÁNG lên, mà sàn NGAY SAU tường thì KHÔNG — nới rộng vùng sáng
 // mà không chặn được ở đó thì thành nhìn xuyên tường, tức là đổi một lỗi lấy một lỗi tệ hơn.
+// ============================================================ xe lao qua tường vào nhà
+// Đoạn phim mở màn chạy trên ĐỒNG HỒ THẬT, tự lái camera, và cả cú húc lẫn đám gạch bay chỉ dài
+// chừng hai phần mười giây — nên nó KHÔNG đo được bằng cách chờ rồi chụp: mỗi lần chụp trễ
+// chừng 250ms, tức là trễ hơn cả thứ cần đo. Cách đo ở đây là ĐÓNG BĂNG requestAnimationFrame
+// rồi bơm từng khung một với mốc thời gian tự đặt — vừa đúng mốc, vừa không phụ thuộc máy nhanh
+// hay chậm.
+async function xeHucTuongSuite(b) {
+  results.push('\n── xe lao qua tường vào nhà ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 390, height: 844 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+
+  const CUT = await p.evaluate(() => REPO.CUT);
+  check('mốc thời gian của đoạn phim mở ra cho bộ đo', !!CUT && CUT.HIT > 0,
+    CUT ? JSON.stringify(CUT) : 'không có');
+
+  // Đóng băng đồng hồ TRƯỚC khi dựng màn, để khung hình đầu tiên của đoạn phim không trôi mất.
+  const batDau = () => p.evaluate(() => {
+    window.__q = []; window.__t = performance.now();
+    window.requestAnimationFrame = (cb) => { window.__q.push(cb); return 1; };
+    REPO.S.level = 1; REPO.startLevel(4242);
+  });
+  const toi = (tt) => p.evaluate((t) => {
+    for (let i = 0; i < 900; i++) {
+      const cb = window.__q.shift(); if (!cb) break;
+      window.__t += 16.7; cb(window.__t);
+      if (!REPO.S.cut || REPO.S.cut.t >= t) break;
+    }
+    const S = REPO.S, off = REPO.carDrawOffset(), fr = REPO.frame();
+    const xa = a => {
+      const q = a === S.player ? REPO.playerDrawPos() : REPO.mateDrawPos(a);
+      return q ? +Math.hypot(q.x - a.x, q.y - a.y).toFixed(1) : -1;
+    };
+    const sc = REPO.screenOf(S.player.x, S.player.y);
+    return { t: S.cut ? +S.cut.t.toFixed(3) : null,
+             xeY: +(S.car.y + off.dy).toFixed(1),
+             rot: +off.rot.toFixed(3), cua: +off.door.toFixed(2),
+             bay: S.cut ? S.cut.gach.length : 0,
+             san: (S.gach || []).length, seo: !!S.tuongVo,
+             xa: [xa(S.player)].concat((S.mates || []).map(xa)),
+             man: { y: sc.y / (window.devicePixelRatio || 1), h: fr.h } };
+  }, tt);
+
+  await batDau();
+  const dau = await toi(0.05);
+  check('khung hình đầu: xe còn ở NGOÀI mép bản đồ, trên đường',
+    dau.xeY < -60, 'tâm xe y = ' + dau.xeY);
+  check('và mũi xe chúi XUỐNG, không nằm ngang như lúc đậu',
+    Math.abs(dau.rot - Math.PI / 2) < 0.2, 'góc ' + dau.rot);
+  check('cả tổ ngồi TRÊN XE chứ không đứng sẵn quanh chỗ đậu',
+    dau.xa.length > 1 && dau.xa.every(v => v > 60), 'cách chỗ đứng thật: ' + dau.xa.join(' · '));
+  check('cửa sau còn ĐÓNG trong lúc xe chạy', dau.cua === 0, 'cửa ' + dau.cua);
+
+  // Không nhảy tốc độ ở mốc húc: đo quãng đi được của hai khung liền kề hai bên mốc.
+  const trc = await toi(CUT.HIT - 0.05), tai = await toi(CUT.HIT + 0.001);
+  const sau = await toi(CUT.HIT + 0.05);
+  const vTruoc = Math.abs(tai.xeY - trc.xeY) / Math.max(0.001, tai.t - trc.t);
+  const vSau = Math.abs(sau.xeY - tai.xeY) / Math.max(0.001, sau.t - tai.t);
+  check('vận tốc không NHẢY ở đúng mốc húc — xe không tăng tốc nhờ cú đâm',
+    vSau <= vTruoc * 1.15, Math.round(vTruoc) + ' -> ' + Math.round(vSau) + ' px/s');
+
+  check('húc phát là gạch VĂNG RA', tai.bay > 10, tai.bay + ' mảnh');
+  check('và bức tường mang vết sẹo', tai.seo);
+  check('cửa xe vẫn chưa mở lúc vừa húc — mở là việc SAU đó', tai.cua === 0, 'cửa ' + tai.cua);
+
+  const mo = await toi(CUT.DOOR[1]);
+  check('húc xong mới tới lượt cửa sau mở toang', mo.cua === 1, 'cửa ' + mo.cua);
+
+  // Khung hình CUỐI CÙNG còn đoạn phim: ai cũng phải bước xuống xong ở đây. Đo sau khi nó
+  // đóng thì phép đo thành vô nghĩa — hết phim là chỗ vẽ trả về đúng chỗ đứng thật.
+  const cuoi = await toi(CUT.ARRIVE - 0.03);
+  check('người cuối cùng cũng kịp xuống xe TRƯỚC khi phim đóng',
+    cuoi.t !== null && cuoi.xa.every(v => v === 0), cuoi.t + 's · ' + cuoi.xa.join(' · '));
+
+  const het = await toi(CUT.ARRIVE + 0.2);
+  const doY = await p.evaluate(() => REPO.S.car.y);
+  check('hết phim: đoạn cắt tự đóng', het.t === null, String(het.t));
+  check('xe đứng ĐÚNG chỗ đậu, nằm ngang lại',
+    Math.abs(het.xeY - doY) < 0.5 && het.rot === 0,
+    'y ' + het.xeY + ' · góc ' + het.rot);
+  check('gạch vỡ NẰM LẠI trên sàn, không biến mất cùng đoạn phim',
+    het.san > 0, het.san + ' mảnh');
+  check('và máy quay trả về giữa khung, không kẹt lại trên đường',
+    Math.abs(het.man.y - het.man.h / 2) < het.man.h * 0.25,
+    Math.round(het.man.y) + ' / ' + Math.round(het.man.h));
+
+  // Bỏ qua giữa chừng: không được để camera treo lơ lửng ngoài mép bản đồ.
+  await batDau();
+  await toi(0.4);
+  const bo = await p.evaluate(() => {
+    REPO.skipCut();
+    const S = REPO.S, fr = REPO.frame();
+    const sc = REPO.screenOf(S.player.x, S.player.y);
+    return { cut: !!S.cut, seo: !!S.tuongVo,
+             y: sc.y / (window.devicePixelRatio || 1), h: fr.h };
+  });
+  check('bỏ qua giữa chừng thì đoạn phim tắt hẳn', !bo.cut);
+  check('và máy quay dán ngay vào người chơi, không lia nửa giây',
+    Math.abs(bo.y - bo.h / 2) < bo.h * 0.25, Math.round(bo.y) + ' / ' + Math.round(bo.h));
+  check('bỏ qua rồi thì bức tường vẫn mang vết húc — xe vào bằng đường nào đó', bo.seo);
+
+  // Trạm dịch vụ KHÔNG có cú húc: sảnh trạm bày hàng suốt dọc hành lang.
+  const tram = await p.evaluate(() => {
+    REPO.startShop();
+    const h = REPO.xeDiemHuc();
+    return { tuong: h.tuong, seo: !!REPO.S.tuongVo, gach: (REPO.S.gach || []).length };
+  });
+  check('vào TRẠM thì không húc tường', tram.tuong === false);
+  check('và trạm không có gạch vỡ nào của ván trước sót lại',
+    !tram.seo && tram.gach === 0, tram.gach + ' mảnh');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('xe lao qua tường: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
 async function lightSuite(_khongDung) {
   results.push('\n── đèn pin phải soi sáng được tường ──');
   // Trình duyệt RIÊNG, vì bộ này đọc pixel bằng getImageData mà art nạp qua file:// làm canvas
@@ -2874,7 +2990,11 @@ async function lightSuite(_khongDung) {
   const doVan = async (timFn) => {
     for (const seed of [1234, 7, 42, 99, 512, 2026, 31337, 8080, 606, 1717]) {
       const r = await p.evaluate(g => {
-        REPO.S.level = 4; REPO.startLevel(g.seed);
+        REPO.S.level = 4; REPO.startLevel(g.seed); REPO.cancelCut();
+        // cancelCut() CHỨ KHÔNG PHẢI chỉ `S.cut = null`, và nó bắt buộc từ bản
+        // 20260910a: đoạn phim xe vào nhà nay TỰ LÁI CAMERA (camTheoXe), nên để nó
+        // chạy là mọi điểm đo tính bằng screenOf rơi ra ngoài mép bản đồ — cả sáu
+        // phép trong bộ này đọc ra 0/255 và tố cáo một lỗi ánh sáng không có thật.
         REPO.S.monsters.length = 0;
         (REPO.S.mates || []).forEach(m => { m.x = -9999; m.y = -9999; });
         return eval('(' + g.fn + ')')(g.mep);
@@ -3186,6 +3306,7 @@ async function lightSuite(_khongDung) {
   try { await matDiuSuite(b); } catch (e) { check('dịu mắt: bộ test chạy trọn', false, e.message); }
   try { await vfxSuite(b); } catch (e) { check('hiệu ứng: bộ test chạy trọn', false, e.message); }
   try { await vfxSquadSuite(b); } catch (e) { check('hiệu ứng chiêu: bộ test chạy trọn', false, e.message); }
+  try { await xeHucTuongSuite(b); } catch (e) { check('xe lao qua tường: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));

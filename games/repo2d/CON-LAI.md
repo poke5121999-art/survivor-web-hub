@@ -1,8 +1,62 @@
-# Còn lại — bàn giao 2026-09-09
+# Còn lại — bàn giao 2026-09-10
 
-Bản vừa push: **ném đồ · đường chỉ lối trên sàn · loot vẽ lại · cửa hàng ngoài menu**.
-Dấu build lên `?v=20260909e` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Bản vừa push: **xe lao qua tường vào nhà** (mục 0). Trước đó: ném đồ · đường chỉ lối trên sàn ·
+loot vẽ lại · cửa hàng ngoài menu (mục 2).
+Dấu build lên `?v=20260910a` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
+
+---
+
+## 0. BẢN 20260910a — XE LAO QUA TƯỜNG
+
+Chủ dự án, 2026-09-10: *"lúc đầu tất cả player + bot đang bồng bềnh trên đường sau đó lao vào bức
+tường của map, gạch bể văng ra, sau đó cửa xe mở ra."*
+
+Đoạn phim vào nhà (`startCut('arrive', ...)`) dài 3,25 giây, bỏ qua được bằng một cú chạm bất kỳ
+như cũ. Bốn nhịp:
+
+| giây | nhịp |
+|---|---|
+| 0 → 1,00 | Xe chạy trên con đường phía trên bản đồ, mũi chúi xuống, nhún theo giảm xóc. Người chơi và cả ba bot ngồi trên thùng, mỗi người nhún lệch pha. Đèn pha rọi tới bức tường. Bảng tên màn hiện rồi tắt trong quãng này. |
+| 1,00 | **Húc.** Rung màn, chớp nhẹ, `SFX.crash()`, 34 mảnh gạch văng ra (phần lớn theo đà xe vào trong nhà, một phần năm bật ngược ra đường), 11 cụm bụi. Đèn pha lúc này mới tràn được vào phòng — trước đó bị chính bức tường chặn. |
+| 1,00 → 2,00 | Xe trượt tiếp, đuôi quăng ngang từ thế chúi xuống về thế nằm, lố một nhịp rồi về đúng chỗ đậu. |
+| 2,05 → 3,20 | Cửa sau mở, rồi từng người bước xuống: ghế → miệng cửa sau → chỗ đứng thật. |
+
+Để lại: **`S.gach`** (tối đa 22 mảnh nằm trên sàn tới hết ca) và **`S.tuongVo`** (vết sẹo trên
+tường). Cả hai xoá ở `buildLevel` và `buildShop`.
+
+**Trạm dịch vụ không có cú húc.** Sảnh trạm là hành lang dọc, hàng bày trên sàn từ hàng 9 tới
+hàng 21, xe đậu ở hàng 27 — lao từ trên xuống là cán qua cả gian hàng. Ở đó xe giữ đúng cú
+trượt ngang của bản cũ (`xeDiemHuc()` trả `tuong: false`).
+
+### 0.1. Ba thứ ĐO MỚI BIẾT, dùng lại được cho mọi đoạn phim sau
+
+**a) Trong đoạn phim, `step()` KHÔNG chạy — nên camera và cú rung màn đều đứng hình.**
+`frame()` chặn hẳn: `if (S.running && !S.dead && !S.cut)`. Hệ quả có hai vế, và cả hai đều
+từng âm thầm sai:
+
+- *Camera*: `cam.x/cam.y` chỉ được kéo trong `step()`, nên suốt đoạn phim nó nằm nguyên ở chỗ
+  ván TRƯỚC bỏ lại. Bản cũ không lộ vì cái xe trượt vào đúng giữa khung sẵn. Đoạn phim nào có
+  thứ để nhìn thì phải TỰ LÁI camera — xem `camTheoXe()` — và `camSnap()` khi bị cắt ngang.
+- *Rung màn*: `fxShake()` ghi `FX.shakeT = S.time`, còn `draw()` lấy pha bằng `S.time -
+  FX.shakeT`. `S.time` đứng thì pha đóng băng và biên không tụt: cả khung hình lệch đi một
+  quãng CỐ ĐỊNH cho tới hết đoạn phim, chứ không rung. Chữa ở `rungTheoGioThat()` — lùi
+  `shakeT` theo dt thật, hạ biên đúng nhịp `dt*16` mà `step()` vẫn dùng.
+
+**b) Từ chỗ đậu xe, chỉ có tường TRÊN và DƯỚI là nằm trong khung.** Khung nhìn rộng 14 ô
+(`VIEW_W_WORLD`), khung máy 9:16 nên cao 24,9 ô: nửa khung ngang 7 ô, nửa khung dọc 12,4 ô. Xe
+luôn đậu giữa phòng 0 (`carRoom = 0`), cách mép trên 7,5 ô và cách hai mép trái/phải 10,5 ô.
+Nên xe lao **từ trên xuống**; lao từ trái sang thì bức tường bị húc nằm ngoài khung.
+
+**c) Ngoài mép bản đồ là chỗ vẽ được.** `worldCv` chỉ vẽ đúng khổ bản đồ, nền khung là màu đen,
+nên mọi thứ vẽ ở `y < 0` không đè lên một điểm ảnh nào của căn nhà — con đường nằm ở đó. Nhưng
+**lớp tối vẫn nhân xuống cả vùng ấy**, nên phải có nguồn sáng đi kèm (`denXeVao()` trong
+`buildLight`), không thì cả cú lao diễn ra trong bóng tối tuyệt đối.
+
+Còn một luật nữa, thuộc về luật chơi chứ không phải phần vẽ: **ô lưới của mép bản đồ KHÔNG bị
+đục**. Mép bản đồ mà thủng thì quái đi ra ngoài trời, đồ rơi ra ngoài trời, `flood()` coi cả
+vùng hư không là đi được. Nên `S.tuongVo` vẽ cái lỗ ở dạng **đã bị gạch vụn lấp**, chứ không vẽ
+thông thống — vẽ thông thống là mời người chơi đi xuyên tường rồi đâm phải một bức tường vô hình.
 
 ---
 
@@ -17,6 +71,7 @@ xanh không thay được chỗ này.
 
 | Nhìn cái gì | Làm sao thấy | Câu hỏi |
 |---|---|---|
+| **Xe lao qua tường** | Vào ca, đừng chạm màn hình 3 giây rưỡi đầu | Cú húc có ĐÃ không? Gạch văng ra có đọc ra là gạch không? Bốn người ngồi trên thùng có nhún ra dáng "đang đi đường" không, hay chỉ là bốn hình dán? Xe trượt xong đứng vào chỗ có mượt không? |
 | Mũi chỉ lối trên sàn | Vào ca, nhìn xuống chân | Hàng mũi nhọn có ĐỌC RA LÀ ĐƯỜNG ĐI không, hay nó chỉ là rác trên sàn? Dày quá hay thưa quá? |
 | Vòng highlight quanh loot | Đứng cạnh một món to | Cái vòng còn cắt ngang người món đồ nữa không? Nằm dưới chân đọc có rõ hơn không? |
 | Vết nứt | Đâm một cái bình vào tường hai lần | Đã "tinh tế" chưa, hay nay mờ quá đến mức không thấy đồ đang hỏng? |
@@ -118,6 +173,18 @@ diff cả tệp là một cú xung đột chắc chắn.
 Cách thoát: `git -c core.autocrlf=false add games/repo2d/game.js`. Nếu git đã ghi nhầm rồi thì
 phải `git rm --cached` tệp ấy trước, không thì git thấy nội dung y hệt nên không băm lại.
 (`sprites.js` cũng CRLF. `index.html` thì LF — đừng đổi.)
+
+**Thêm một cửa của chính cái bẫy ấy, sập ngày 2026-09-10: `sed -i` NUỐT CRLF.** Đổi đúng một
+chữ trong `game.js` bằng `sed -i` là cả tệp về LF — `git diff --stat` nhảy lên *15.787 thêm /
+15.373 bớt* dù chỉ sửa một dòng. Python mở bằng `io.open(..., newline='')` cả lúc đọc lẫn lúc
+ghi thì giữ nguyên; `sed -i` thì không có cách nào giữ. Luật: **`game.js` và `sprites.js` chỉ
+sửa bằng script Python có `newline=''`, đừng đụng `sed -i` vào chúng.** Lỡ rồi thì đổi ngược
+lại trước khi `add`:
+
+```python
+b = io.open(f,'rb').read().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n')
+io.open(f,'wb').write(b)
+```
 
 ---
 
