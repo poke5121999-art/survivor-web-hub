@@ -3049,6 +3049,218 @@ async function xeHucTuongSuite(b) {
   await ctx.close();
 }
 
+// ============================================================ chuột-phím, và ba cái lỗi
+// Ba phần rời nhau nhưng đi chung một trình duyệt vì cả ba đều cần MỘT khung KHÔNG CẢM ỨNG:
+// openGame() ở đầu tệp luôn bật hasTouch, mà chạm một cái là chế độ máy tính tắt vĩnh viễn
+// (xem pcMode) — nên bộ này tự mở lấy ngữ cảnh của mình.
+async function pcSuite(b) {
+  results.push('\n── chuột-phím trên máy tính ──');
+  const ctx = await b.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+  const p = await ctx.newPage();
+  const errs = [];
+  p.on('pageerror', e => errs.push('PAGEERROR ' + e.message));
+  p.on('console', m => { if (m.type() === 'error') errs.push('CONSOLE ' + m.text()); });
+  await p.goto(R2D);
+  await p.waitForTimeout(1100);
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 1; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+  });
+
+  // --- 1. nhận ra máy tính, và cả hai thứ "to ra" ---
+  const bo = await p.evaluate(() => {
+    const h = REPO.hudLayout();
+    return { pc: h.pc, K: +REPO.uiK().toFixed(2), w: h.w, h: h.h,
+             oNho: REPO.frame().worldW / REPO.TILE };
+  });
+  check('khung có chuột thật thì vào chế độ máy tính', bo.pc === true, JSON.stringify(bo));
+  check('lớp HUD phóng to theo màn hình, không giữ cỡ điện thoại', bo.K > 1.2, 'K = ' + bo.K);
+  check('và khung nhìn lùi ra, không còn là cái lỗ khoá 9,5 ô của điện thoại cầm ngang',
+    bo.oNho > 15, bo.oNho.toFixed(1) + ' ô ngang');
+
+  // --- 2. nút của ngón tay không còn bắt chuột ---
+  // Bấm giữa khung: ở bộ cũ chỗ ấy là dải cần gạt, nên một cú bấm sinh ra một cần gạt và
+  // KHÔNG bắn. Ở đây nó phải là một phát đạn.
+  const ban = await p.evaluate(async () => {
+    const S = REPO.S, pl = S.player;
+    if (S.stashOpen) REPO.closeStash();
+    REPO.warp(S.car.x, S.car.y + REPO.TILE*3);
+    pl.inv[0] = { kind:'gun', uses:20 }; pl.hand = 0; pl.cooldown = 0;
+    return { dan: pl.inv[0].uses };
+  });
+  await p.mouse.move(1000, 700);           // dải dưới cùng: chỗ cần gạt cũ ngồi
+  await p.mouse.down(); await p.waitForTimeout(40); await p.mouse.up();
+  await p.waitForTimeout(140);
+  const sauBan = await p.evaluate(() => ({ dan: REPO.S.player.inv[0].uses,
+                                           can: !!REPO.stick() }));
+  check('bấm chuột trong dải cần gạt cũ thì BẮN, không sinh ra cần gạt',
+    sauBan.dan === ban.dan - 1 && !sauBan.can, ban.dan + ' -> ' + sauBan.dan +
+    (sauBan.can ? ' (còn sinh ra cần gạt)' : ''));
+
+  // --- 3. lăn chuột đổi ô đồ, vòng qua cả nắm đấm ---
+  const lan = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
+    pl.inv[1] = { kind:'bomb', uses:2 }; pl.inv[2] = null; pl.hand = 0;
+    const cv = document.getElementById('game');
+    const ra = [pl.hand];
+    for (let i = 0; i < 3; i++){
+      cv.dispatchEvent(new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true }));
+      ra.push(pl.hand);
+    }
+    return ra;
+  });
+  check('lăn chuột đi hết vòng tay: hai ô có đồ và nắm đấm',
+    lan.join(',') === '0,1,-1,0', lan.join(','));
+
+  // --- 4. Q là phím tương tác, E là phím kỹ năng ---
+  const q = await p.evaluate(() => {
+    const S = REPO.S;
+    REPO.warp(S.car.x, S.car.y + REPO.TILE*1.2);
+    const truoc = !!S.stashOpen;
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
+    const sau = !!S.stashOpen;
+    if (S.stashOpen) REPO.closeStash();
+    return { truoc, sau, nhan: REPO.nhanTuongTac(S.player, true) };
+  });
+  check('Q đứng cạnh xe tải thì mở tủ đồ', !q.truoc && q.sau, JSON.stringify(q));
+  check('và dòng nhắc nói đúng việc Q sắp làm', q.nhan === 'Mở tủ', q.nhan);
+
+  const e = await p.evaluate(() => {
+    let n = 0;
+    REPO.hooks.skill = { icon:'⚡', label: () => 'Thử', ready: () => true, cool: () => 1,
+                         use: () => { n++; } };
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
+    const co = n;
+    REPO.hooks.skill = null;                       // Ca Trực Đêm vốn không có kỹ năng nào
+    const nhat = REPO.S.loot.length;
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
+    return { co, khong: REPO.S.loot.length === nhat };
+  });
+  check('E bấm kỹ năng khi bản đang chạy có kỹ năng', e.co === 1, 'gọi ' + e.co + ' lần');
+  check('bản không có kỹ năng thì E không ném lỗi, rơi về việc nhặt', e.khong);
+
+  // --- 5. LỖI: với xuyên tường ---
+  const xuyen = await p.evaluate(() => {
+    const S = REPO.S, T = REPO.TILE;
+    // tìm một ô tường có sàn ở cả hai bên, rồi đứng một bên và đặt món đồ ở bên kia
+    for (let gy = 2; gy < REPO.MH-2; gy++) for (let gx = 2; gx < REPO.MW-2; gx++){
+      if (S.grid[gy*REPO.MW+gx] !== 1) continue;
+      if (S.grid[gy*REPO.MW+gx-1] !== 0 || S.grid[gy*REPO.MW+gx+1] !== 0) continue;
+      const l = S.loot.find(x => !x.gone && !x.held && !x.onPad);
+      if (!l) return null;
+      // người đứng SÁT mặt tường bên trái, món đồ TỰA vào mặt tường bên phải
+      REPO.warp((gx)*T - 9, (gy+0.5)*T);
+      l.x = (gx+1)*T + 9; l.y = (gy+0.5)*T; l.inCart = false; l.onPad = null;
+      const d = Math.hypot(l.x - S.player.x, l.y - S.player.y);
+      return { d: +d.toFixed(1), tam: +REPO.grabRange(S.player).toFixed(1),
+               voiToi: REPO.nearestLoot(S.player) === l };
+    }
+    return null;
+  });
+  check('dựng được thế đứng: người một bên tường, món đồ bên kia', !!xuyen, JSON.stringify(xuyen));
+  if (xuyen){
+    check('món đồ ấy nằm TRONG tầm với, tức là phép đo có ý nghĩa',
+      xuyen.d < xuyen.tam, xuyen.d + ' < ' + xuyen.tam);
+    check('nhưng KHÔNG với qua tường được', xuyen.voiToi === false);
+  }
+
+  // --- 6. LỖI: bắn súng vào cửa kẹt thì cửa bể ---
+  const cua = await p.evaluate(async () => {
+    const S = REPO.S;
+    for (const seed of [3, 11, 42, 99, 512]){
+      S.level = 4; REPO.startLevel(seed); REPO.cancelCut();
+      S.running = true; S.noFoes = true; S.monsters.length = 0;
+      S.mates.length = 0;                     // đồng đội đứng cạnh là tự phang vỡ cửa
+      const d = (S.doors||[]).find(q => q.locked && !q.broken);
+      if (!d) continue;
+      const pl = S.player;
+      const dx = d.vertical ? REPO.TILE*1.1 : 0, dy = d.vertical ? 0 : REPO.TILE*1.1;
+      REPO.warp(d.x + dx, d.y + dy);
+      pl.dir = Math.atan2(-dy, -dx);
+      pl.inv[0] = { kind:'gun', uses:20 }; pl.hand = 0;
+      const nhat = [];
+      for (let i = 0; i < 6 && !d.broken; i++){
+        pl.cooldown = 0; pl.chargeSlot = -1;
+        REPO.useSlot(pl, 0, pl.dir);
+        await new Promise(r => setTimeout(r, 240));
+        nhat.push(+(d.pry||0).toFixed(1));
+      }
+      return { seed, be: !!d.broken, phat: nhat.length, nhat };
+    }
+    return null;
+  });
+  check('dựng được một cửa kẹt để bắn', !!cua, JSON.stringify(cua));
+  if (cua){
+    check('bắn súng vào cửa kẹt thì cửa BỂ', cua.be === true, JSON.stringify(cua.nhat));
+    check('nhưng không phải một phát ăn ngay — vẫn tốn đạn', cua.phat >= 2, cua.phat + ' phát');
+  }
+
+  const err = errs.filter(x => !/favicon/.test(x));
+  check('chuột-phím: không lỗi console', err.length === 0, err.slice(0,2).join(' | '));
+  await ctx.close();
+}
+
+// ============================================================ người chơi gục thì bot phải gỡ được ván
+// Chủ dự án: "bot chưa biết cách extract sau khi player chết r -> stuck". Đây là một NGÕ CỤT
+// KÍN, nên nó đáng một bộ đo riêng: người chơi nằm thì chính họ cũng không tự gỡ được.
+async function botGoVanSuite(b) {
+  results.push('\n── người chơi gục: bot phải tự gỡ được ván ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 844, height: 390 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+
+  const dung = async (cuu) => p.evaluate((coCuu) => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 1; REPO.startLevel(777); REPO.cancelCut();
+    REPO.S.running = true; REPO.S.noFoes = true; REPO.S.monsters.length = 0;
+    REPO.S.pads.forEach(q => { q.quota = 0; });       // đủ chỉ tiêu ngay, khỏi phải khuân
+    REPO.killPlayer();
+    if (!coCuu) REPO.S.loot.filter(l => l.isHead).forEach(l => { l.gone = true; });
+    return { down: REPO.S.player.down, mates: (REPO.S.mates||[]).length };
+  }, cuu);
+  const doc = () => p.evaluate(() => {
+    const S = REPO.S;
+    return { done: S.pads.filter(q => q.done).length, tong: S.pads.length,
+             levelDone: !!S.levelDone, board: +(S.board||0).toFixed(1),
+             nam: !!S.player.down, shop: !!S.shopMode,
+             trong: (S.mates||[]).filter(m => !m.down &&
+                      Math.hypot(m.x-S.car.x, m.y-S.car.y) < REPO.TILE*2.4).length };
+  });
+  const cho = async (xong, giay) => {
+    for (let i = 0; i < giay*2; i++){
+      await p.waitForTimeout(500);
+      const d = await doc();
+      if (xong(d)) return d;
+    }
+    return doc();
+  };
+
+  // --- 1. có cứu được: bot vác đầu lên bệ, đạp nút, và người chơi ĐỨNG DẬY ---
+  const d0 = await dung(true);
+  check('dựng được thế: người chơi nằm, ba bot còn đứng', d0.down && d0.mates === 3,
+    JSON.stringify(d0));
+  const a = await cho(d => d.done >= d.tong, 40);
+  check('bot tự chốt được bệ giao hàng dù người chơi đang nằm',
+    a.done === a.tong && a.levelDone, JSON.stringify(a));
+  check('và bệ chốt xong thì người chơi đứng dậy — đầu đã được vác lên bệ',
+    a.nam === false, JSON.stringify(a));
+
+  // --- 2. không cứu được: bot vẫn phải LÊN XE để ván còn có lối ra ---
+  const d1 = await dung(false);
+  check('dựng được thế thứ hai: người chơi nằm và không cứu được', d1.down);
+  const c = await cho(d => d.board > 1 || d.shop, 50);
+  check('bot chốt bệ rồi TỰ VỀ ĐỨNG TRONG THÙNG XE',
+    c.shop || (c.levelDone && c.trong > 0), JSON.stringify(c));
+  check('và đồng hồ lên xe chạy — ván có lối ra, không treo',
+    c.shop || c.board > 1, JSON.stringify(c));
+
+  const err = errs.filter(x => !/favicon/.test(x));
+  check('người chơi gục: không lỗi console', err.length === 0, err.slice(0,2).join(' | '));
+  await ctx.close();
+}
+
 async function lightSuite(_khongDung) {
   results.push('\n── đèn pin phải soi sáng được tường ──');
   // Trình duyệt RIÊNG, vì bộ này đọc pixel bằng getImageData mà art nạp qua file:// làm canvas
@@ -3394,6 +3606,8 @@ async function lightSuite(_khongDung) {
   try { await vfxSuite(b); } catch (e) { check('hiệu ứng: bộ test chạy trọn', false, e.message); }
   try { await vfxSquadSuite(b); } catch (e) { check('hiệu ứng chiêu: bộ test chạy trọn', false, e.message); }
   try { await xeHucTuongSuite(b); } catch (e) { check('xe lao qua tường: bộ test chạy trọn', false, e.message); }
+  try { await pcSuite(b); } catch (e) { check('chuột-phím: bộ test chạy trọn', false, e.message); }
+  try { await botGoVanSuite(b); } catch (e) { check('người chơi gục: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));

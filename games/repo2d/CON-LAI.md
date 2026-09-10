@@ -1,9 +1,74 @@
 # Còn lại — bàn giao 2026-09-10
 
-Bản vừa push: **xe lao qua tường vào nhà, và cả tổ chạy lên xe lúc thoát** (mục 0). Trước đó: ném đồ · đường chỉ lối trên sàn ·
+Bản vừa push: **bộ chuột-phím cho máy tính, và ba cái lỗi** (mục 00). Trước đó: xe lao qua
+tường vào nhà, cả tổ chạy lên xe lúc thoát (mục 0). Trước đó: ném đồ · đường chỉ lối trên sàn ·
 loot vẽ lại · cửa hàng ngoài menu (mục 2).
-Dấu build lên `?v=20260910b` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Dấu build lên `?v=20260910c` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
+
+---
+
+## 00. BẢN 20260910c — CHUỘT-PHÍM, VÀ BA CÁI LỖI
+
+### 00.1. Chế độ máy tính
+
+Chủ dự án, 2026-09-10: *"khi chơi trên web pc, UI, minimap cần to ra, ẩn các nút không cần bấm
+đi, vẫn show countdown skill, bấm E cast skill, Q để interact tủ - xe - cart, roll chuột để đổi
+weapon/item."*
+
+`pcMode()` bật khi trình duyệt nói có chuột thật (`hover: hover` + `pointer: fine`) và **tắt
+vĩnh viễn ngay khi thấy ngón tay đầu tiên** — laptop có màn cảm ứng vì thế mở ra ở bộ chuột-phím
+rồi tự chuyển sang bộ ngón tay đúng lúc người ta chạm vào. Không có công tắc nào phải đi tìm.
+
+| | điện thoại | máy tính |
+|---|---|---|
+| đi | cần gạt trái | `W A S D` |
+| nhìn | cần gạt phải | con trỏ chuột |
+| dùng / đánh / ném | nút Dùng (kéo ra để ngắm) | **chuột trái** (giữ = sạc, nhả = bắn) |
+| đổi ô đồ | nút Swap | **lăn chuột**, hoặc `1 2 3` |
+| nhặt · lên xe máy · đẩy xe đẩy · mở tủ | nút Nhặt + nút Tủ | **`Q`** (một phím, tự đổi việc theo cái đang đứng cạnh) |
+| kỹ năng | nút kỹ năng | **`E`** |
+| chạy | nút Chạy | `Shift` (giữ) / `Space` (bật tắt) |
+
+Ẩn đi: hai cần gạt, nút Dùng, nút Swap, nút Nhặt, nút Chạy, nút Tủ, nút kỹ năng, trái tim ở chỗ
+cũ. Giữ lại và **phóng to theo `uiK()`**: thanh máu/thể lực, dải đồng đội, thanh bệ, bản đồ nhỏ,
+mọi dòng chữ. `uiK()` = cạnh ngắn / 620, chặn ở 2,2.
+
+Thay cho cụm nút là **một thanh dưới màn hình để ĐỌC, không để bấm** (`drawPcHud`): nhịp tim,
+nắm đấm + ba ô đồ (ô đang cầm viền vàng, số phím ở góc, số lần dùng ở góc kia, vành sạc chạy
+quanh ô), đồng hồ hồi chiêu với chữ `E`, và **một dòng nhắc cho phím `Q`** chỉ hiện khi Q thật
+sự làm được gì.
+
+**Khung nhìn cũng lùi ra một nấc** (`VIEW_W_WORLD_PC` = 13 ô). Con số 9,5 ô của bố cục ngang đo
+cho điện thoại cầm ngang; cũng con số ấy trên màn 900px cho ô 95px, tức phóng to gấp bốn, và
+khung nhìn tụt xuống 15x9,5 ô trong khi người cầm điện thoại **dọc** thấy 14x24,9. Người ngồi
+máy tính hoá ra nhìn được ÍT HƠN, mà cả trò này là trò nghe ngóng.
+
+`R` cũng đổi: nó dựng lại cả ván từ màn 1 mà không hỏi câu nào, trong khi ở phần lớn game bắn
+thì `R` là nạp đạn. Nay phải bấm **hai lần trong hai giây**.
+
+### 00.2. Ba cái lỗi
+
+**a) Bot không biết đạp nút giao hàng khi người chơi nằm → ván treo vĩnh viễn.**
+*"bot chưa biết cách extract sau khi player chết r -> stuck"*. `stepExtraction` đã mở sẵn quyền
+đạp thay từ lâu, nhưng bảng việc của bot (truck, push, cart, deliver, head, loot, roam, idle)
+**không có việc nào dẫn chân họ tới cái nút**. Nên: chỉ tiêu đầy, `du` bật, không ai đứng lên
+nút, bệ không chốt, `S.levelDone` không bật, không ai về xe — mà người chơi thì đang nằm nên
+cũng không tự gỡ được. Ngõ cụt kín. Thêm việc `dap` (xem `mateNenDap`), ba luật: chỉ khi người
+chơi không còn đứng, chỉ khi đã đủ chỉ tiêu, và chỉ MỘT người đi. Đứng sau việc vác đầu về, để
+bệ chốt xong thì người ấy đứng dậy luôn.
+
+**b) Với xuyên tường.** `nearestLoot` miễn phép tia nhìn trong tầm tay (≤ 1,1 ô) với lý lẽ
+"bên kia bức tường thì phải cách ít nhất 38px". Phép đo ấy tính món đồ nằm GIỮA ô, còn món đồ
+**tựa vào tường** thì tâm nó chỉ cách mặt tường đúng bán kính của nó — đo lại được 42px, lọt
+vào trong tầm với 45,6px. Nay ngoại lệ tầm-tay hỏi thêm đúng một câu: `tuongGiua()` — giữa hai
+bên có ô tường nào không. Cùng câu hỏi cho xe đẩy và xe máy.
+
+**c) Cửa kẹt: nhìn không ra, và bắn không thủng.** Thêm `drawDoorGlow` (viền hổ phách bám sát
+mép cửa, vẽ ở lớp cộng sáng nên đọc được trong phòng tối; dày và nhấp nháy khi đã vào tầm
+phang) và `banVaoCua` (một viên đạn ăn bằng ba nhát phang; ba-bốn phát súng lục là bung, một
+phát hoa cải bảy viên hoặc một tia laser thì bung ngay). Đạn của QUÁI thì không phá được —
+một tay súng bắn hụt mà tiện tay mở hộ cả căn nhà là căn nhà tự dọn lấy mình.
 
 ---
 
@@ -117,6 +182,8 @@ xanh không thay được chỗ này.
 |---|---|---|
 | **Xe lao qua tường** | Vào ca, đừng chạm màn hình 3 giây rưỡi đầu | Cú húc có ĐÃ không? Gạch văng ra có đọc ra là gạch không? Bốn người ngồi trên thùng có nhún ra dáng "đang đi đường" không, hay chỉ là bốn hình dán? Xe trượt xong đứng vào chỗ có mượt không? |
 | **Khúc thoát** | Đủ chỉ tiêu, đứng vào thùng xe chờ hết giờ | Có ĐẾM ĐƯỢC đủ người leo lên xe không? Có ra dáng CHẠY không, hay vẫn trượt? Nhà có tối lại sau lưng không? Xe đi có đọc ra là "đi mất" không? |
+| **Bộ chuột-phím** | Mở trên máy tính, không chạm vào màn hình | Thanh máu/bản đồ đã đủ to chưa hay quá to? Thanh ô đồ dưới đáy có đọc ra ngay không? `Q` có luôn làm đúng cái mình đang định làm không? Khung nhìn 13 ô có rộng quá không? |
+| **Cửa kẹt** | Vào màn 2 trở lên, đi tìm một cửa bị chèn | Cái viền có đủ để nhận ra "phá được" không, hay chỉ là thêm một vệt sáng nữa? |
 | Mũi chỉ lối trên sàn | Vào ca, nhìn xuống chân | Hàng mũi nhọn có ĐỌC RA LÀ ĐƯỜNG ĐI không, hay nó chỉ là rác trên sàn? Dày quá hay thưa quá? |
 | Vòng highlight quanh loot | Đứng cạnh một món to | Cái vòng còn cắt ngang người món đồ nữa không? Nằm dưới chân đọc có rõ hơn không? |
 | Vết nứt | Đâm một cái bình vào tường hai lần | Đã "tinh tế" chưa, hay nay mờ quá đến mức không thấy đồ đang hỏng? |

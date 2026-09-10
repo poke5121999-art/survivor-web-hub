@@ -121,6 +121,25 @@
   body.landscape .veil p{font-size:11px;max-width:60ch}
   body.landscape #veilKeys{font-size:9.5px}
   body.landscape .veil kbd{font-size:9px;padding:1px 4px}
+  /* Máy tính không phải cái điện thoại cầm ngang. Cụm luật `body.landscape` ngay trên đây
+     bóp hai thanh chữ xuống 9px để nhường từng pixel chiều cao lại cho khung game — đúng
+     khi cả màn hình chỉ cao 390px, sai khi nó cao 900px: ở đó 9px là cỡ chữ phải nheo mắt
+     mới đọc, mà chiều cao thì đang dư ra. Trả lại cỡ chữ và nới thêm một nấc.
+     Lọc bằng CHIỀU CAO thật cộng với "có chuột thật" — đúng phép thử mà pcMode() trong
+     game.js dùng — nên vỏ trang và lớp HUD trong khung không bao giờ nói hai chuyện khác
+     nhau về việc đang ngồi trước máy nào. */
+  @media (min-height: 620px) and (hover: hover) and (pointer: fine){
+    body.landscape .bar,body.landscape .foot{padding-top:7px;padding-bottom:7px;font-size:13px;gap:14px}
+    body.landscape .bar .btn,body.landscape .foot .ctl{padding:4px 10px;font-size:12px}
+    body.landscape .bar .name{font-size:20px}
+    body.landscape .bar .k{font-size:11px}
+    body.landscape #footHint,body.landscape .bar .grow~span{display:inline}
+    body.landscape .veil{padding:20px 24px 0;gap:10px;line-height:1.55}
+    body.landscape .veil h2{font-size:26px}
+    body.landscape .veil p{font-size:14px;max-width:66ch}
+    body.landscape #veilKeys{font-size:12.5px}
+    body.landscape .veil kbd{font-size:12px;padding:2px 6px}
+  }
   /* Hang nut cua tam man phu DINH DAY, o CA HAI huong man hinh.
      ROOT-CAUSE cua bug "toi man 3 mo tu la stuck": tu do la mot tam man phu cuon
      duoc, va den man 3 thi tu da co 7-8 mon. Do thuc o khung 390x844: bang cao
@@ -343,7 +362,7 @@
      `.veil.stash #veilExtra` va `.veil.panel #veilExtra` co DO UU TIEN BANG NHAU (mot id,
      hai lop), nen cai nao dung sau thi cai do thang. Keo len tren la khung go van hien
      nhung be ngang va padding cua bang thi van la cua ban cu. -->
-<link rel="stylesheet" href="tu-do.css?v=20260910b">
+<link rel="stylesheet" href="tu-do.css?v=20260910c">
 </head>
 <body>
 
@@ -376,8 +395,10 @@
       <h2 id="veilTitle">Ca Trực Đêm</h2>
       <p id="veilBody">Vào nhà, khuân đồ giá trị ra bệ giao hàng cho đủ chỉ tiêu, rồi tìm bệ tiếp theo. Đồ càng nặng càng đắt, và càng dễ vỡ khi bạn đâm vào tường. Trong đó có thứ khác đang đi lại.</p>
       <p style="font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)" id="veilKeys">
-        <kbd>W A S D</kbd> đi &nbsp;·&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;·&nbsp; <kbd>Shift</kbd> chạy &nbsp;·&nbsp; <kbd>E</kbd> nhặt/thả/đẩy xe<br>
-        <kbd>F</kbd> tủ đồ trên xe &nbsp;·&nbsp; <kbd>Q</kbd> đập đèn pin / <b>ném món đang ôm</b> &nbsp;·&nbsp; <kbd>1 2 3</kbd> dùng đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>R</kbd> chơi lại<br>
+        <kbd>W A S D</kbd> đi &nbsp;·&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;·&nbsp; <kbd>chuột trái</kbd> đánh / bắn / ném &nbsp;·&nbsp; <kbd>Shift</kbd> chạy<br>
+        <kbd>Q</kbd> nhặt · lên xe máy · đẩy xe đẩy · mở tủ trên xe tải &nbsp;·&nbsp; <kbd>E</kbd> kỹ năng <span style="opacity:.75">(bản không có kỹ năng thì E cũng là nhặt)</span><br>
+        <kbd>lăn chuột</kbd> hoặc <kbd>1 2 3</kbd> đổi ô đồ &nbsp;·&nbsp; <kbd>F</kbd> tủ đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>Space</kbd> bật/tắt chạy &nbsp;·&nbsp; <kbd>R R</kbd> chơi lại (bấm hai lần)<br>
+        <span style="opacity:.8"><b>Ngồi máy tính</b> thì hai cần gạt và cụm nút tròn tự ẩn đi, còn thanh máu, bản đồ nhỏ và ba ô đồ tự to lên theo màn hình. Chạm tay vào màn hình một cái là bộ nút quay lại.</span><br>
         <span style="opacity:.8"><b>Ném đồ:</b> đang ôm một món mà tay không cầm đồ nghề thì nút đánh thành nút <b>Ném</b>. Món bay vào quái hay vào đồng đội đều gây sát thương theo <b>động lượng</b> — món càng nặng, bay càng nhanh thì càng đau. Và nó đau cả hai chiều: món đập vào ai, hay đập vào tường, đều mất giá trị. Cái đầu đồng đội thì ném được mà không làm ai đau — dùng để đưa người qua phòng hoặc lên thẳng bệ.</span><br>
         <span style="opacity:.8"><b>Cửa hàng ngoài menu:</b> tiêu tiền lương giữ lại sau mỗi ván, mua sẵn <b>một</b> món mang vào ca. Mang vào là mất.</span><br>
         <span style="opacity:.8"><b>Mũi chỉ lối</b> giờ sơn thẳng xuống sàn, chạy về phía bệ đang mở — nó chỉ vẽ tới đúng chỗ bạn đã đi qua.</span><br>
@@ -495,9 +516,9 @@
 
 <!-- phong.js phai dung TRUOC game.js: no chi dat window.REPO_PHONG roi thoi, con game.js
      hoi bang do ngay tu luot ve nen dau tien. -->
-<script src="phong.js?v=20260910b"></script>
-<script src="sprites.js?v=20260910b"></script>
-<script src="game.js?v=20260910b"></script>
+<script src="phong.js?v=20260910c"></script>
+<script src="sprites.js?v=20260910c"></script>
+<script src="game.js?v=20260910c"></script>
 <script src="bot.js?v=20260904a"></script>
 <script>window.__boot && window.__boot();</script>
 <script>

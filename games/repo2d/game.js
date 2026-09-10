@@ -38,8 +38,15 @@ const VIEW_W_WORLD = 14 * TILE;
 // kiểu camera MOBA trên điện thoại — cạnh ngắn lúc nằm ngang vốn ngắn hơn lúc cầm dọc,
 // giữ nguyên con số thì người bé đi thấy rõ.
 const VIEW_W_WORLD_LAND = 9.5 * TILE;
+// ...VÀ MÁY TÍNH THÌ LÙI RA MỘT NẤC NỮA. Con số 9,5 ô ở trên đo cho một cái điện thoại cầm
+// ngang: cạnh ngắn lúc ấy chỉ chừng 390px, chia cho 9,5 ô là ô 41px — vừa đủ đọc ra người.
+// Cũng con số ấy trên màn 900px cho ô 95px, tức là phóng to gấp bốn: nhìn thì đã mắt, nhưng
+// khung nhìn tụt xuống còn 15x9,5 ô trong khi người cầm điện thoại DỌC thấy 14x24,9. Người
+// ngồi máy tính hoá ra nhìn được ít hơn hẳn, mà cả trò chơi này là trò nghe ngóng xem cái gì
+// đang tới. 13 ô kéo diện tích nhìn thấy về gần bằng bản dọc, và ô vẫn còn 69px.
+const VIEW_W_WORLD_PC = 13 * TILE;
 const zoom = () => Math.min(viewW, viewH) /
-  (viewW > viewH ? VIEW_W_WORLD_LAND : VIEW_W_WORLD);
+  (viewW > viewH ? (pcMode() ? VIEW_W_WORLD_PC : VIEW_W_WORLD_LAND) : VIEW_W_WORLD);
 
 // A corridor the generator carves to repair a walled-off room. Doors are already 3 tiles wide;
 // this is the same width, so a repaired room is a room the cart can still be pushed into.
@@ -1965,7 +1972,8 @@ function nearestBike(p, extra){
   for (const b of (S.bikes || [])){
     if (b.rider && b.rider !== p) continue;
     const d = Math.hypot(b.x-p.x, b.y-p.y);
-    if (d < bd && d < b.r + BIKE_MOUNT_R + (extra||0)){ bd = d; best = b; }
+    if (d < bd && d < b.r + BIKE_MOUNT_R + (extra||0) &&
+        !tuongGiua(p.x, p.y, b.x, b.y)){ bd = d; best = b; }
   }
   return best;
 }
@@ -2447,15 +2455,36 @@ function doorBlocks(x0, y0, x1, y1){
 // layered on top of the grid without the pathing, the cart route validator and the generator each
 // needing a second truth about the same tile, and a leaf that swung bodies around would undo that.
 // A jammed door is safe to make solid because it never moves and never opens on its own.
-function doorHits(x, y, r){
-  if (!S.doors) return false;
+function doorAtPoint(x, y, r){
+  if (!S.doors) return null;
   for (const d of S.doors){
     if (!d.locked || d.broken) continue;
     const hx = d.vertical ? DOOR_THICK*0.5 : DOOR_LEAF;
     const hy = d.vertical ? DOOR_LEAF : DOOR_THICK*0.5;
-    if (Math.abs(x-d.x) < hx + r && Math.abs(y-d.y) < hy + r) return true;
+    if (Math.abs(x-d.x) < hx + r && Math.abs(y-d.y) < hy + r) return d;
   }
-  return false;
+  return null;
+}
+function doorHits(x, y, r){ return !!doorAtPoint(x, y, r); }
+// ĐẠN BẮN VÀO CỬA KẸT THÌ CỬA BỂ. Chủ dự án: "nếu lấy súng hay nổ cửa đều bể banh."
+//
+// Trước bản này viên đạn chỉ TẮT ở mặt cửa — đúng về mặt vật lý (cửa chặn đạn y như chặn mắt)
+// nhưng sai về mặt luật chơi: bom đã phá được cửa kẹt từ lâu, xà beng phá được, phang đèn pin
+// chín nhát cũng phá được, riêng khẩu súng trong tay thì bắn cả băng vào tấm ván mà tấm ván
+// không suy suyển. Một cái cửa gỗ đóng đinh chịu được đạn là thứ không ai đoán ra.
+//
+// Đếm bằng chính `d.pry` — cùng cái đồng hồ của xà beng và của những nhát phang — nên vạch
+// tiến độ đang có (xem drawDoorJam) tự nó chạy, không phải vẽ thêm gì. Ba viên súng lục là
+// bung; một phát hoa cải bảy viên hay một tia laser thì bung ngay tại chỗ.
+const DOOR_SHOT_HITS = 3;              // một viên đạn ăn bằng ba nhát phang (DOOR_PRY_HITS = 9)
+function banVaoCua(x, y, r, manh){
+  const d = doorAtPoint(x, y, r);
+  if (!d) return null;
+  d.pry = (d.pry || 0) + (manh || DOOR_SHOT_HITS);
+  d.warned = 3;
+  if (d.pry >= DOOR_PRY_HITS) breakDoor(d, 'shot');
+  else SFX.strain();
+  return d;
 }
 // Same question in tiles, for anything that plans a route rather than walks one.
 function doorBlockedTile(gx, gy){
@@ -6509,6 +6538,9 @@ function fireLaser(p, ang, charge){
   const trung = [];
   for (let d = LASER_STEP; d <= LASER_RANGE; d += LASER_STEP){
     const x = p.x + dx*d, y = p.y + dy*d;
+    // Tia laser xuyên qua cả hàng quái, nên nó cũng không việc gì phải dừng ở một tấm ván:
+    // một tia đủ bung cửa ngay tại chỗ (DOOR_PRY_HITS), rồi mới dừng ở khung hình này.
+    if (banVaoCua(x, y, 2, DOOR_PRY_HITS)) break;
     if (solidAt((x/TILE)|0, (y/TILE)|0) || doorHits(x, y, 2)) break;
     ex = x; ey = y;
     damageMirror(x, y, 30);                       // kính trên đường đi thì vỡ, y như đạn
@@ -6650,6 +6682,10 @@ function stepProjectiles(dt){
     // door deliberately does not touch the grid — so without this line it is the one thing in the
     // house you can shoot through but not see through, which is a rule nobody could ever guess.
     // SEE: docs/proposals/repo-2d-topdown.md F22-3.
+    // Đạn CỦA NGƯỜI phá được cửa kẹt; đạn của quái thì không — một tay súng bắn hụt mà tiện
+    // tay mở hộ cả căn nhà cho đồng bọn là căn nhà tự dọn lấy mình, cùng luật với chuyện đạn
+    // quái không phá gương ở dưới.
+    if (!b.foe && b.life > 0) banVaoCua(nx, ny, 2);
     if (b.life <= 0 || solidAt((nx/TILE)|0,(ny/TILE)|0) || doorHits(nx, ny, 2)){
       // Bắn trượt cũng phải THẤY được là mình vừa bắn trượt. Chỉ vẽ khi viên đạn đâm vào cái
       // gì đó — hết tuổi thọ giữa không trung thì thôi, vì ở đó không có gì để mà toé.
@@ -8987,6 +9023,23 @@ function stepMates(dt){
       mateWalk(a, dt, spd);
       continue;
     }
+    if (a.job === 'dap'){
+      const pd = S.pads[S.padIndex];
+      if (!pd || pd.done || !pd.btn){ a.job = 'idle'; a.path = null; continue; }
+      // ĐỨNG HẲN LÊN NÚT, không đứng cạnh. stepExtraction đo bằng `pad.btn.r + 9`, mà một con
+      // bot dừng ở "gần tới" thì rơi ra ngoài vành ấy — và một cái đồng hồ đếm ngược đứng yên
+      // là thứ không ai đọc ra được là hỏng. Nửa bán kính là chỗ dừng an toàn.
+      if (Math.hypot(a.x-pd.btn.x, a.y-pd.btn.y) < pd.btn.r*0.5){
+        mateOffBike(a, null);
+        a.dir = Math.atan2(pd.y-a.y, pd.x-a.x);
+        a.noise = 0.2;
+        continue;
+      }
+      mateOffBike(a, pd.btn.x, pd.btn.y);
+      if (!a.path && !matePath(a, pd.btn.x, pd.btn.y)){ a.noise = 0; continue; }
+      mateWalk(a, dt, spd);
+      continue;
+    }
     if (a.job === 'truck'){
       if (Math.hypot(a.x-S.car.x, a.y-S.car.y) < TILE*2.2){ mateOffBike(a, null); a.noise = 0; continue; }
       if (!a.riding) mateTryBike(a, S.car.x, S.car.y);
@@ -9017,6 +9070,38 @@ function stepMates(dt){
       if (a.think <= 0){ a.think = 1.2 + Math.random()*2; a.dir = Math.random()*Math.PI*2; }
     }
   }
+}
+
+// AI ĐI ĐẠP NÚT GIAO HÀNG. Chủ dự án, 2026-09-10: "bot chưa biết cách extract sau khi player
+// chết r -> stuck".
+//
+// stepExtraction đã mở sẵn quyền ấy từ lâu — "người chơi đang nằm thì một đồng đội còn đứng
+// làm thay" — nhưng trong cả bảng việc của bot (truck, push, cart, deliver, head, loot, roam,
+// idle) KHÔNG CÓ việc nào dẫn chân họ tới cái nút. Nên cái quyền đó chưa bao giờ dùng được, và
+// hệ quả là một ngõ cụt kín hoàn toàn: người chơi gục, ba con bot khuân nốt cho đủ chỉ tiêu,
+// `du` bật lên... rồi không ai đứng lên nút. Bệ không chốt, S.levelDone không bật, không ai về
+// xe, đồng hồ ca trực không chạy nữa. Người chơi thì đang nằm nên cũng không tự gỡ được — chỉ
+// còn nước tải lại trang, và mất cả ca.
+//
+// Ba luật, và mỗi luật vá đúng một cách hỏng:
+//   1. CHỈ KHI NGƯỜI CHƠI KHÔNG CÒN ĐỨNG. Lúc họ còn sống thì "bấm lúc nào" là quyền của họ
+//      (xem chú thích ở EXTRACT_HOLD: đặt nốt món cuối rồi bị đồng hồ lôi đi là mất quyền ấy).
+//   2. CHỈ KHI ĐÃ ĐỦ CHỈ TIÊU. Đứng lên nút sớm thì `du` sai, đồng hồ không chạy, mà con bot
+//      thì đứng đó thay vì đi khuân — tự khoá mình vào một việc vô nghĩa.
+//   3. CHỈ MỘT NGƯỜI ĐI. Cái nút cần đúng một bàn chân; ba đứa chen nhau vào một ô thì đứa bị
+//      đẩy ra ngoài vành `pad.btn.r + 9` lại không tính là đang đứng trên nút.
+function mateNenDap(a, pad){
+  const p = S.player;
+  if (!pad || pad.done || !pad.btn) return false;
+  if (p && !p.down) return false;
+  if (pad.value < pad.quota) return false;
+  let best = null, bd = 1e9;
+  for (const o of (S.mates || [])){
+    if (o.down) continue;
+    const d = Math.hypot(o.x-pad.btn.x, o.y-pad.btn.y);
+    if (d < bd){ bd = d; best = o; }
+  }
+  return best === a;
 }
 
 // What a mate decides to do next. The order is the whole personality: a colleague on the floor
@@ -9054,6 +9139,13 @@ function mateChooseJob(a){
     // đường lại từ đầu, và với MATE_DITHER thì nửa số lần đó là đứng ngẩn ra một nhịp.
     if (a.job !== 'push'){ a.job = 'push'; a.path = null; }
     a.target = null; return;
+  }
+
+  // Nút giao hàng đứng SAU việc vác đầu về: cái đầu phải nằm trên bệ trước lúc bệ chốt thì
+  // completePad mới dựng người ấy dậy (xem reviveFromPad). Đạp trước là chốt bệ với đồng đội
+  // vẫn còn nằm ngoài sàn.
+  if (mateNenDap(a, pad) && !looseHeads().length && !headBeingCarried().length){
+    a.job = 'dap'; a.target = null; a.path = null; return;
   }
 
   const heads = looseHeads();
@@ -9277,6 +9369,87 @@ function drawHeadGlow(c){
 // ============================================================ toast
 function toast(msg){ S.message = msg; S.messageT = 3.2; }
 
+// ============================================================ CHẾ ĐỘ MÁY TÍNH
+//
+// Chủ dự án, 2026-09-10: "khi chơi trên web pc, UI, minimap cần to ra, ẩn các nút không cần
+// bấm đi, vẫn show countdown skill, bấm E cast skill, Q để interact tủ - xe - cart, roll chuột
+// để đổi weapon/item."
+//
+// Cả bộ điều khiển của trò này dựng cho HAI NGÓN CÁI: hai cần gạt ăn trọn dải dưới màn hình,
+// sáu cái nút tròn bám mép phải, ba ô đồ chồng lên nhau thành một nút "dùng" kéo ra để ngắm.
+// Trên một cái màn 27 inch có chuột và bàn phím thì cả cụm ấy vừa vô dụng vừa che mất sân chơi
+// — mà cùng lúc đó thanh máu 168px và bản đồ nhỏ 210px thì bé như hạt đỗ.
+//
+// PC MODE KHÔNG PHẢI MỘT BỘ MÀN HÌNH KHÁC. Nó là đúng hai câu:
+//   1. nút nào chỉ tồn tại vì ngón tay thì không vẽ và không bắt chuột nữa;
+//   2. thứ nào là TIN (máu, thể lực, bản đồ, ô đồ, hồi chiêu) thì to lên theo khung.
+// Mọi luật chơi giữ nguyên: cùng handUse, cùng pickUp, cùng useSlot, cùng một trạng thái.
+//
+// NHẬN MÁY: hỏi trình duyệt trước ("có chuột thật không"), rồi ĐỔI SANG CẢM ỨNG VĨNH VIỄN ngay
+// khi thấy ngón tay đầu tiên (touchSeen). Máy hai chế độ — laptop có màn cảm ứng — vì thế mở ra
+// ở bộ chuột-phím và tự chuyển sang bộ ngón tay đúng lúc người ta chạm vào, chứ không bắt ai
+// phải đi tìm một cái công tắc.
+let pcHint = null;
+function pcMode(){
+  if (touchSeen) return false;
+  if (pcHint == null)
+    pcHint = !!(window.matchMedia && matchMedia('(hover: hover) and (pointer: fine)').matches);
+  return pcHint;
+}
+// Cỡ của lớp HUD. 1 trên điện thoại — mọi con số cũ đã căn theo cỡ ấy — và giãn theo CẠNH NGẮN
+// của khung khi ngồi máy tính. Cạnh ngắn chứ không phải bề ngang: màn siêu rộng thì bề ngang là
+// thứ duy nhất đang dư, giãn theo nó là chữ to bằng nắm tay. Chặn ở 2,2 để màn 4K không nuốt
+// mất sân chơi.
+function uiK(){
+  return pcMode() ? clamp(Math.min(viewW, viewH)/620, 1, 2.2) : 1;
+}
+
+// MỘT PHÍM CHO MỌI THỨ ĐỨNG CẠNH: "Q để interact tủ - xe - cart".
+// pickUp() vốn đã gộp sẵn nhặt đồ / lên xe máy / cầm càng xe đẩy / buông ra; thứ duy nhất nó
+// không biết là cái TỦ trên xe tải, vì trên điện thoại cái tủ có nút riêng. Ở đây nối nốt: khi
+// quanh chân không còn gì để nhặt mà mình đang đứng cạnh xe tải thì Q mở tủ.
+function tuongTac(p){
+  if (!p) return false;
+  if (p.held || p.pushing || p.riding || p.down) return pickUp(p);
+  if (!nearestLoot(p) && !nearestBike(p) && !nearCart(p) && nearTruck(p)){ toggleStash(); return true; }
+  return pickUp(p);
+}
+// Q ĐANG LÀM GÌ BÂY GIỜ — một dòng chữ, để người chơi không phải bấm thử mới biết.
+// `coTu` = có tính cả cái tủ hay không: nút Nhặt trên điện thoại KHÔNG mở tủ (tủ có nút riêng),
+// nên nó hỏi bản không-tủ. Hai đường vào, một bảng chữ.
+function nhanTuongTac(p, coTu){
+  if (!p) return 'Nhặt';
+  if (p.down) return 'Xem';
+  if (p.riding) return 'Xuống xe';
+  if (p.pushing) return 'Buông';
+  if (p.held) return 'Thả';
+  const gan = nearestLoot(p);
+  if (!gan && nearestBike(p)) return 'Lên xe';
+  if (!gan && nearCart(p)) return 'Đẩy xe';
+  if (!gan && coTu && nearTruck(p)) return S.stashOpen ? 'Đóng tủ' : 'Mở tủ';
+  return 'Nhặt';
+}
+// Bấm kỹ năng. Trả về false khi bản đang chạy KHÔNG có kỹ năng nào (Ca Trực Đêm không có), để
+// phím E còn rơi xuống được việc cũ của nó thay vì thành một phím chết.
+function capSkill(){
+  if (!HOOKS.skill || !S.player || S.shopMode) return false;
+  if (HOOKS.skill.ready && !HOOKS.skill.ready()){ toast('Kỹ năng chưa hồi xong'); return true; }
+  // Tin hieu CHUNG cho moi ky nang, ban ngay tai cho bam. Tung ky nang ban them hinh rieng
+  // qua REPO.castFx; day la cai luoi do, de khong ky nang nao im lang.
+  castFx('aura', S.player.x, S.player.y, { col:'210,235,255', dur:0.42 });
+  fxShake(2.5);
+  HOOKS.skill.use();
+  return true;
+}
+// Lăn chuột đổi ô đồ. handSwap() chỉ đi được MỘT chiều; bánh xe thì có hai.
+function doiTay(p, d){
+  const ds = handSlots(p);
+  if (ds.length < 2) return false;
+  const i = ds.indexOf(handNow(p));
+  p.hand = ds[(((i < 0 ? 0 : i + d) % ds.length) + ds.length) % ds.length];
+  return true;
+}
+
 // ============================================================ input
 const keys = new Set();
 let stickL = null, stickR = null;   // {id, ox, oy, x, y}
@@ -9296,19 +9469,29 @@ function setupInput(){
     // bảng đang mở, kể cả khi bảng đó tự dựng lỗi.
     if (k === 'escape'){ if (S.stashOpen) closeStash(); return; }
     if (skipCut()) return;
-    if (k === 'r'){ vanMoi(); return; }
-    if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
-    if (k === 'e'){ pickUp(S.player); return; }
-    if (k === 'f'){ toggleStash(); return; }
-    if (k === ' '){ toggleSprint(); return; }
-    // 'q' gio la NUT DUNG, khong con rieng la danh thuong: nam dam thi vung, co do thi dung do.
-    // Cung mot cua vao voi nut tren man hinh, nen khong co duong nao chay rieng.
-    if (k === 'q'){ handUse(S.player); return; }
-    // TAB / R = swap, doi xung voi nut swap tren man hinh.
-    if (k === 'r' || k === 'tab'){
-      if (S.player && !S.shopMode) handSwap(S.player);
+    // R LÀ MỘT CÁI NÚT XOÁ VÁN, nên nó phải hỏi lại. Trong phần lớn game bắn thì R là NẠP ĐẠN,
+    // và ở đây nó dựng lại cả ván từ màn 1 — không hỏi một câu nào. Một ngón tay quen tay là
+    // mất sạch. Bấm hai lần trong hai giây thì mới chạy, và lần đầu nói ra thành lời.
+    if (k === 'r'){
+      if (S.rConfirm && performance.now() - S.rConfirm < 2000){ S.rConfirm = 0; vanMoi(); }
+      else { S.rConfirm = performance.now(); toast('Bấm R lần nữa để bỏ ván này và chơi lại từ màn 1'); }
       return;
     }
+    if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
+    // E = KỸ NĂNG, Q = TƯƠNG TÁC. Chủ dự án, 2026-09-10.
+    //
+    // Bản cũ: E nhặt, Q dùng-đồ/đánh, F tủ. Bộ mới gom lại theo đúng cách một trò chơi trên máy
+    // tính vẫn bày: chuột trái là "dùng cái đang cầm", E là chiêu, Q là "chạm vào cái trước
+    // mặt" — và cái trước mặt gồm luôn cả tủ đồ, nên F thành một lối tắt chứ không còn là
+    // đường duy nhất.
+    //
+    // E RƠI VỀ Q KHI KHÔNG CÓ KỸ NĂNG: Ca Trực Đêm không có chiêu nào (HOOKS.skill = null), mà
+    // một phím bấm không ra gì thì đọc y hệt một phím hỏng — và E vốn là phím nhặt đồ của bản
+    // cũ, nên tay người chơi cũ vẫn nhớ nó.
+    if (k === 'e'){ if (!capSkill()) tuongTac(S.player); return; }
+    if (k === 'q'){ tuongTac(S.player); return; }
+    if (k === 'f'){ toggleStash(); return; }
+    if (k === ' '){ toggleSprint(); return; }
     if (k === '1' || k === '2' || k === '3'){
       const i = +k - 1, p = S.player;
       // Ban phim van nhay THANG toi o do - o do khong phai thu phai tim tren ban phim. Nhung
@@ -9386,6 +9569,36 @@ function setupInput(){
     // Vùng bắt chạm là r*1,25 (ô đồ rộng hơn: 1,6 vì chúng còn là cần ngắm), và
     // khoảng cách được CHIA CHO bán kính trước khi so, nên "gần" nghĩa là gần theo
     // tỉ lệ của chính nút đó — nút to không hút mất cú chạm của nút nhỏ bên cạnh.
+    // ---------------------------------------------------------------- CHUỘT TRÁI Ở CHẾ ĐỘ MÁY TÍNH
+    // Không có nút nào để bấm nhầm, nên cú bấm chỉ có một nghĩa: DÙNG CÁI ĐANG CẦM, nhắm theo
+    // con trỏ (hướng nhìn đã bám con trỏ sẵn — xem mouseWorldNow). Giữ chuột trên khẩu sạc là
+    // đang sạc, nhả ra là bắn: đúng cái luật ngón cái vẫn làm trên điện thoại, chỉ đổi ngón.
+    //
+    // Nút "Bắn thử" ở trạm dịch vụ là ngoại lệ DUY NHẤT còn bắt chuột: nó không có phím tắt
+    // nào, và trạm thì không phải chỗ có gì để bấm nhầm.
+    if (hud.pc){
+      const pl = S.player;
+      if (S.shopMode){
+        if (hud.test && Math.hypot(p.x-hud.test.x, p.y-hud.test.y) < hud.test.r*1.25){
+          if (!testHeld(pl)) toast('Cầm một khẩu súng lên rồi bấm thử.');
+        }
+        return;
+      }
+      if (!pl || pl.down) return;
+      const h = handNow(pl);
+      const it = h >= 0 ? pl.inv[h] : null, def = it && GEAR_BY_KEY[it.kind];
+      if (def && def.charge && it.uses > 0){
+        pl.chargeSlot = h; pl.chargeT = 0; pcCharge = e.pointerId;
+        return;
+      }
+      if (def && def.passive){ toast('May do chay san khi mang theo, khong can bam'); return; }
+      if (it && it.uses <= 0){
+        toast(def && def.ammo ? 'Het dan - day lai dau ca sau' : 'Het roi');
+        return;
+      }
+      handUse(pl);
+      return;
+    }
     const btns = [];
     const add = (o, mul, ok, run) => {
       if (!o || !ok) return;
@@ -9407,14 +9620,7 @@ function setupInput(){
     add(hud.test,   1.25, S.shopMode && !!S.player,         () => {
       if (!testHeld(S.player)) toast('Cầm một khẩu súng lên rồi bấm thử.');
     });
-    add(hud.skill,  1.25, hud.skill && S.player && !S.shopMode, () => {
-      if (HOOKS.skill.ready && !HOOKS.skill.ready()) { toast('Kỹ năng chưa hồi xong'); return; }
-      // Tin hieu CHUNG cho moi ky nang, ban ngay tai cho bam. Tung ky nang ban them hinh rieng
-      // qua REPO.castFx; day la cai luoi do, de khong ky nang nao im lang.
-      castFx('aura', S.player.x, S.player.y, { col:'210,235,255', dur:0.42 });
-      fxShake(2.5);
-      HOOKS.skill.use();
-    });
+    add(hud.skill,  1.25, hud.skill && S.player && !S.shopMode, capSkill);
     // NUT DUNG. Mot cu cham BAT DAU tren no la dang NGAM, khong phai dang nhin (doc C2-5) -
     // y nguyen luat cu cua ba o do, chi khac la gio chi co mot nut va no dung CAI DANG CAM.
     //
@@ -9481,6 +9687,20 @@ function setupInput(){
     if (stickR && stickR.id === e.pointerId){ stickR.x = p.x; stickR.y = p.y; }
   });
   const up = e => {
+    // Nhả chuột trái khi đang sạc = bắn, cùng luật với nhả phím số.
+    if (pcCharge === e.pointerId){
+      pcCharge = -1;
+      const pl = S.player;
+      if (pl && pl.chargeSlot >= 0){
+        const it = pl.inv[pl.chargeSlot];
+        pl.chargeUsed = pl.chargeT;
+        useSlot(pl, pl.chargeSlot, autoAimAngle(pl, it && it.kind, pl.dir));
+        pl.chargeUsed = null;
+        pl.chargeSlot = -1; pl.chargeT = 0;
+      }
+      releasePointer(e.pointerId);
+      return;
+    }
     if (e.pointerType === 'touch'){
       canvasTouchDown = Math.max(0, canvasTouchDown - 1);
       lastTouchAt = performance.now();
@@ -9554,6 +9774,15 @@ function setupInput(){
   // A cursor that leaves the play area has stopped looking at anything.
   cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') mouseScreen = null; });
 
+  // LĂN CHUỘT ĐỔI Ô ĐỒ. Chủ dự án: "roll chuột để đổi weapon/item". Cùng vòng với nút swap và
+  // với ba phím số — `p.hand` là một trạng thái, không phải ba.
+  cv.addEventListener('wheel', e => {
+    if (HOOKS.menuMode && HOOKS.menuMode()) return;
+    if (!S.player || S.shopMode || S.stashOpen || S.cut) return;
+    e.preventDefault();
+    doiTay(S.player, e.deltaY > 0 ? 1 : -1);
+  }, { passive: false });
+
   // ---- dọn dẹp: mọi lối mà một cú nhả tay hay một phím có thể lạc mất
   // Trình duyệt tước quyền bắt con trỏ (đổi tab, gọi điện đến, cuộn của hệ điều hành) thì
   // pointerup KHÔNG bao giờ tới. Đây là sự kiện duy nhất báo chuyện đó.
@@ -9591,6 +9820,7 @@ function aimAngle(p, hud){
 // ROOT-CAUSE: a screen-space input was stored in world space, so camera motion became input.
 // It got worse the moment the camera stopped being clamped to the map and started following.
 let mouseScreen = null, mouseMovedAt = -1e9, touchSeen = false, lastTouchAt = -1e9;
+let pcCharge = -1;                  // con trỏ đang GIỮ một khẩu sạc ở chế độ máy tính
 let lastTouchX = -1e9, lastTouchY = -1e9;   // điểm ngón tay chạm gần nhất, theo toạ độ TRANG
 // Bao nhiêu ngón tay đang đặt trên KHUNG CHƠI ngay lúc này. Chỉ dùng để biết một tấm màn phủ
 // có ra đời ở giữa một cú chạm hay không — xem chú thích ở showVeil().
@@ -9847,7 +10077,7 @@ function hudLayout(){
   //   cú chạm: ở màn dọc, bản Biệt Đội KHÔNG mở được tủ đồ. Thứ tự hỏi giờ cũng đã
   //   đổi cho tủ đồ đứng trước, nên kể cả có đè cũng không cướp được nữa.
   const skill = HOOKS.skill ? { x: w - 120*K, y: h - 265*K, r: sr*1.45 } : null;
-  return { w, h, left, right, melee, use, swap, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
+  return { w, h, pc: pcMode(), left, right, melee, use, swap, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: Math.min(stash.y - stash.r, heart.y - heart.r) - 14 };
 }
 
@@ -9932,7 +10162,7 @@ function hudLayoutLandscape(w, h){
   // Nút kỹ năng nối vào ĐẦU TRONG của vòng cung, sát cần phải nhất — nó là nút bấm
   // nhiều nhất của bản Biệt Đội nên phải nằm chỗ ngón cái với gần nhất.
 
-  return { w, h, left, right, melee, use, swap, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
+  return { w, h, pc: pcMode(), left, right, melee, use, swap, slots, grab, sprint, stash, cancel, heart, test, skill, pad, thumbY, aimR: R,
            msgY: heart.y - heart.r - 12 };
 }
 // Scaled with the truck: the locker button appears when you are standing AT it, and "at it" got
@@ -11394,6 +11624,46 @@ function drawFloorRoute(c){
   }
 }
 
+// VIỀN CỦA CÁI CỬA. Chủ dự án, 2026-09-10: "mấy cái cửa, cửa bị block cần highlight sát viền
+// để biết là interact đc".
+//
+// Cửa kẹt trước bản này là một tấm ván nâu sẫm nằm giữa một khung cửa nâu sẫm, trong một căn
+// nhà tối, vẽ ở lớp CHỊU ÁNH SÁNG — nên ở rìa nón đèn nó gần như không tồn tại. Người chơi đi
+// tới, khựng lại, và đọc ra là "chỗ này đi không được" chứ không đọc ra là "cái này phá được".
+// Một dòng chữ báo có sẵn (xem chỗ `stopped` trong step) nhưng nó chỉ hiện SAU khi đã đâm vào.
+//
+// Cái viền này vẽ ở lớp CỘNG SÁNG, tức là nó sáng cả trong phòng tối — cùng lối với vòng
+// highlight của món đồ và của xe tải, và cùng lý do: thứ tương tác được thì phải đọc được từ
+// xa, không phải sờ vào mới biết.
+//
+// Hai mức, vì hai câu hỏi khác nhau:
+//   XA  — nét mảnh, mờ: "đằng kia có một cái cửa kẹt". Đủ để đổi đường đi.
+//   GẦN — nét dày, nhấp nháy theo nhịp tim của mọi highlight khác trong trò: "đứng đây phang
+//         được / cạy được". Ngưỡng lấy đúng DOOR_PRY_R, tức tầm với thật của cú phang.
+// Cửa THƯỜNG chỉ hiện viền lúc đứng sát: chúng tự mở khi mình đi vào, không cần ai đi tìm.
+const DOOR_GLOW_NEAR = [232, 176, 96];    // hổ phách, cùng màu với vạch tiến độ phang cửa
+const DOOR_GLOW_FAR  = [150, 168, 190];   // xám lam, cùng màu với viền cửa thường
+function drawDoorGlow(c, beat){
+  if (!S.doors || S.shopMode) return;
+  const p = S.player;
+  for (const d of S.doors){
+    if (d.broken) continue;
+    const xa = Math.hypot(d.x-p.x, d.y-p.y);
+    const gan = xa < DOOR_PRY_R + TILE*0.6;
+    if (!d.locked && !gan) continue;                 // cửa thường: chỉ nói khi đã tới nơi
+    if (!inSight(d.x, d.y)) continue;
+    const hx = (d.vertical ? DOOR_THICK : DOOR_LEAF*2) * 0.5;
+    const hy = (d.vertical ? DOOR_LEAF*2 : DOOR_THICK) * 0.5;
+    const col = d.locked ? DOOR_GLOW_NEAR : DOOR_GLOW_FAR;
+    const a = d.locked ? (gan ? 0.42 + beat*0.34 : 0.20) : 0.16 + beat*0.10;
+    const lw = d.locked && gan ? 2.6 : 1.5;
+    c.save();
+    c.strokeStyle = `rgba(${col[0]},${col[1]},${col[2]},${a})`;
+    c.lineWidth = lw;
+    c.strokeRect(d.x-hx, d.y-hy, hx*2, hy*2);
+    c.restore();
+  }
+}
 function drawHighlights(c){
   const p = S.player;
   if (!p || S.dead) return;
@@ -11401,6 +11671,7 @@ function drawHighlights(c){
   const beat = 0.62 + 0.38*Math.sin(S.time*3.2);
   // First, so every ring below sits on top of it rather than inside it.
   drawFoeVision(c);
+  drawDoorGlow(c, beat);
 
   // NGƯỜI CHƠI KHÔNG CÓ VIỀN, và đây từng là chỗ vẽ nó.
   //
@@ -12996,19 +13267,144 @@ function drawVignette(c){
 }
 
 // ---------- HUD (canvas, so the layout is exact on every device)
+// ---------------------------------------------------------------- thanh dưới của chế độ máy tính
+// Cái này KHÔNG phải mấy cái nút cũ vẽ nhỏ lại. Nút là chỗ để bấm; đây là chỗ để ĐỌC — không
+// một ô nào trong này bắt chuột, vì mọi việc đã có phím. Nó chỉ trả lời bốn câu mà bàn phím
+// không tự trả lời được:
+//   — tay đang cầm gì, còn mấy phát, và phím nào đổi sang cái khác;
+//   — chiêu hồi xong chưa (chủ dự án: "vẫn show countdown skill");
+//   — bấm Q lúc này thì được cái gì;
+//   — và cái nhịp tim, thứ duy nhất trên màn hình nói "có gì đó đang tới gần" mà không cần
+//     nhìn thấy nó. Trên điện thoại nó nằm giữa hai cần gạt; ở đây nó về đầu thanh.
+const PC_O = 44, PC_KHE = 10;          // cỡ một ô và khe giữa hai ô, tính theo K
+function pcODo(hud, K){
+  const s = PC_O*K, g = PC_KHE*K;
+  const n = 4;                                     // nắm đấm + ba ô đồ
+  const wSkill = HOOKS.skill ? s + g*1.6 : 0;
+  const wTim   = s*0.9 + g;
+  const tong = wTim + n*s + (n-1)*g + wSkill;
+  const x0 = hud.w/2 - tong/2, y = hud.h - 26*K - s/2;
+  return { s, g, x0, y, wTim, tong };
+}
+function drawPcHud(c, hud, K){
+  const p = S.player;
+  if (!p || S.shopMode) return;
+  const L = pcODo(hud, K);
+  const s = L.s, g = L.g;
+
+  // nhịp tim ở đầu thanh
+  drawHeart(c, L.x0 + s*0.45, L.y, s*0.42);
+
+  const tay = handNow(p);
+  for (let i = -1; i < 3; i++){
+    const cx = L.x0 + L.wTim + (i+1)*(s+g) + s/2, cy = L.y;
+    const it = i >= 0 ? p.inv[i] : null;
+    const def = it ? GEAR_BY_KEY[it.kind] : null;
+    const dang = tay === i;
+    c.fillStyle = dang ? 'rgba(34,30,18,0.86)' : 'rgba(12,14,18,0.68)';
+    c.fillRect(cx-s/2, cy-s/2, s, s);
+    c.strokeStyle = dang ? 'rgba(230,180,80,0.95)' : 'rgba(96,104,112,0.45)';
+    c.lineWidth = dang ? 2.2 : 1.2;
+    c.strokeRect(cx-s/2, cy-s/2, s, s);
+    if (i < 0){
+      // Nắm đấm: cùng một mục trong vòng đổi tay, nên nó cũng có một ô. Vành trong là hồi
+      // chiêu của cú vụt — cùng con số nút Dùng trên điện thoại vẫn vẽ.
+      c.textAlign = 'center';
+      c.font = '600 ' + Math.round(s*0.42) + 'px ui-sans-serif, system-ui';
+      c.fillStyle = dang ? '#ffe6a8' : '#8a9198';
+      c.fillText('✊', cx, cy + s*0.14);
+      const cd = clamp(1 - (p.swingCd || 0)/MELEE_CD, 0, 1);
+      if (cd < 1){
+        c.strokeStyle = 'rgba(230,180,80,0.8)'; c.lineWidth = 2.4;
+        c.beginPath(); c.arc(cx, cy, s*0.56, -Math.PI/2, -Math.PI/2 + Math.PI*2*cd); c.stroke();
+      }
+    } else if (it){
+      gearIcon(c, it.kind, cx, cy - s*0.06, s*0.3, 1);
+      c.textAlign = 'right';
+      c.font = '600 ' + Math.round(s*0.24) + 'px ui-monospace, monospace';
+      c.fillStyle = it.uses > 0 ? '#d8dee4' : '#b8544a';
+      c.fillText(def && def.passive ? '∞' : String(it.uses), cx + s*0.42, cy + s*0.42);
+      // vành sạc: cùng chỗ, cùng ý nghĩa với vành quanh nút Dùng trên điện thoại
+      if (p.chargeSlot === i){
+        const k = clamp((p.chargeT || 0)/LASER_FULL, 0, 1);
+        c.strokeStyle = k >= 1 ? 'rgba(255,220,140,0.95)' : 'rgba(160,210,255,0.85)';
+        c.lineWidth = 2.6;
+        c.beginPath(); c.arc(cx, cy, s*0.58, -Math.PI/2, -Math.PI/2 + Math.PI*2*k); c.stroke();
+      }
+    } else {
+      c.textAlign = 'center';
+      c.font = '600 ' + Math.round(s*0.3) + 'px ui-monospace, monospace';
+      c.fillStyle = '#4e555c';
+      c.fillText('—', cx, cy + s*0.1);
+    }
+    if (i >= 0){
+      c.textAlign = 'left';
+      c.font = '600 ' + Math.round(s*0.24) + 'px ui-monospace, monospace';
+      c.fillStyle = dang ? '#e0c07a' : '#6a7178';
+      c.fillText(String(i+1), cx - s*0.42, cy - s*0.28);
+    }
+  }
+
+  // ĐỒNG HỒ HỒI CHIÊU. Nút kỹ năng bị giấu đi cùng mọi nút khác, nhưng cái ĐỒNG HỒ của nó thì
+  // không phải nút — nó là thứ quyết định lát nữa mình có chiêu để dùng hay không.
+  if (HOOKS.skill){
+    const cx = L.x0 + L.tong - s/2, cy = L.y, r = s*0.5;
+    const ready = !HOOKS.skill.ready || HOOKS.skill.ready();
+    const cool = HOOKS.skill.cool ? clamp(HOOKS.skill.cool(), 0, 1) : 1;
+    c.beginPath();
+    c.fillStyle = ready ? 'rgba(46,32,58,0.86)' : 'rgba(14,16,20,0.7)';
+    c.arc(cx, cy, r, 0, Math.PI*2); c.fill();
+    if (cool < 1){
+      c.beginPath(); c.strokeStyle = 'rgba(166,120,216,0.9)'; c.lineWidth = 3;
+      c.arc(cx, cy, r + 3, -Math.PI/2, -Math.PI/2 + Math.PI*2*cool); c.stroke();
+    }
+    ring(c, cx, cy, r, ready ? 'rgba(200,150,255,0.95)' : 'rgba(88,76,100,0.45)');
+    c.textAlign = 'center';
+    c.font = '600 ' + Math.round(r*0.8) + 'px ui-sans-serif, system-ui';
+    c.fillStyle = ready ? '#f0e2ff' : '#6a6f74';
+    c.fillText(HOOKS.skill.icon || '✳', cx, cy + r*0.2);
+    c.font = '600 ' + Math.round(11*K) + 'px ui-monospace, monospace';
+    c.fillStyle = ready ? '#c9b3e0' : '#5a5f64';
+    c.fillText('E', cx, cy - r - 4*K);
+    c.font = '600 ' + Math.round(10*K) + 'px ui-sans-serif, system-ui';
+    c.fillText(HOOKS.skill.label ? HOOKS.skill.label() : 'Kỹ năng', cx, cy + r + 12*K);
+  }
+
+  // MỘT DÒNG CHO PHÍM Q, và chỉ khi Q thật sự làm được gì. Một dòng nhắc luôn hiện là một dòng
+  // không ai đọc; một dòng chỉ hiện đúng lúc là một cái nút.
+  const co = p.down || p.held || p.pushing || p.riding ||
+             nearestLoot(p) || nearestBike(p) || nearCart(p) || nearTruck(p);
+  if (co){
+    const nhan = nhanTuongTac(p, true);
+    const y = L.y - s*0.5 - 16*K;
+    c.textAlign = 'center';
+    c.font = '600 ' + Math.round(13*K) + 'px ui-sans-serif, system-ui';
+    const w = c.measureText(nhan).width + 46*K;
+    c.fillStyle = 'rgba(10,12,14,0.72)';
+    c.fillRect(hud.w/2 - w/2, y - 13*K, w, 22*K);
+    c.fillStyle = '#e0c07a';
+    c.font = '700 ' + Math.round(12*K) + 'px ui-monospace, monospace';
+    c.fillText('Q', hud.w/2 - w/2 + 14*K, y + 4*K);
+    c.fillStyle = '#d8dee4';
+    c.font = '600 ' + Math.round(13*K) + 'px ui-sans-serif, system-ui';
+    c.fillText(nhan, hud.w/2 + 8*K, y + 4*K);
+  }
+  c.textAlign = 'left';
+}
 function drawHud(c){
   const p = S.player, hud = hudLayout(), k = dpr;
+  const pc = hud.pc, K = uiK();
   c.save(); c.scale(k,k);
   // Nothing to steer during a cutscene, so nothing that steers is drawn.
   if (S.cut){ drawCutscene(c, hud); c.restore(); return; }
 
   // health + stamina, top-left. The heart is NOT here any more — see the controls, below.
-  const bx = 14, by = 14, bw = Math.min(168, hud.w*0.42), bh = 9;
-  c.fillStyle = 'rgba(10,12,14,0.72)'; c.fillRect(bx-3,by-3,bw+6,bh*2+9);
+  const bx = 14*K, by = 14*K, bw = Math.min(168*K, hud.w*0.42), bh = 9*K;
+  c.fillStyle = 'rgba(10,12,14,0.72)'; c.fillRect(bx-3*K,by-3*K,bw+6*K,bh*2+9*K);
   c.fillStyle = '#3a1f1c'; c.fillRect(bx,by,bw,bh);
   c.fillStyle = '#b8433a'; c.fillRect(bx,by,bw*clamp(p.hp/p.hpMax,0,1),bh);
-  c.fillStyle = '#1c2a2c'; c.fillRect(bx,by+bh+4,bw,bh-3);
-  c.fillStyle = '#4c8f96'; c.fillRect(bx,by+bh+4,bw*clamp(p.stam/p.stamMax,0,1),bh-3);
+  c.fillStyle = '#1c2a2c'; c.fillRect(bx,by+bh+4*K,bw,bh-3*K);
+  c.fillStyle = '#4c8f96'; c.fillRect(bx,by+bh+4*K,bw*clamp(p.stam/p.stamMax,0,1),bh-3*K);
 
   drawMinimap(c, hud);
   drawCrewStrip(c, hud);
@@ -13019,15 +13415,16 @@ function drawHud(c){
   if (S.countdownActive) drawCountdown(c, hud);
   if (S.messageT > 0){
     // Above the thumb sticks, not under them: the sticks own the bottom band of a portrait frame.
-    c.font = '600 14px ui-sans-serif, system-ui'; c.textAlign = 'center';
+    c.font = '600 ' + Math.round(14*K) + 'px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = `rgba(226,232,236,${Math.min(1,S.messageT)})`;
-    c.fillText(S.message, hud.w/2, hud.msgY);
+    c.fillText(S.message, hud.w/2, pc ? hud.h - 150*K : hud.msgY);
     c.textAlign = 'left';
   }
 
   // Both rings are painted where they LIVE and stay there. The left one is the move stick's actual
   // origin; the right one is a home marker for a stick that works on drag, and its knob shows which
   // way the character is currently facing while nobody is dragging it.
+  if (!pc){
   ring(c, hud.left.x, hud.left.y, hud.left.r, stickL ? 'rgba(210,140,50,0.7)' : 'rgba(210,140,50,0.3)');
   const lk = stickL ? { x:clamp(stickL.x-stickL.ox,-hud.left.r,hud.left.r), y:clamp(stickL.y-stickL.oy,-hud.left.r,hud.left.r) } : {x:0,y:0};
   dot(c, hud.left.x+lk.x, hud.left.y+lk.y, hud.left.r*0.3, stickL ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
@@ -13049,6 +13446,7 @@ function drawHud(c){
   c.lineTo(hud.right.x + fa*hud.right.r*1.06, hud.right.y + fb*hud.right.r*1.06);
   c.stroke();
   dot(c, hud.right.x+rk.x, hud.right.y+rk.y, hud.right.r*0.3, stickR ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
+  }
 
   if (S.shopMode){
     const def = testableInHand(p);
@@ -13071,7 +13469,7 @@ function drawHud(c){
   // san khau tiep theo. Nguoi choi khong con phai nham vao mot trong ba o nho giua luc bi duoi.
   //
   // Ba phan tu hud.slots nam chong nhau ngay tren nut dung nen chi ve MOT LAN, tu hud.use.
-  if (hud.use && !S.shopMode){
+  if (hud.use && !S.shopMode && !pc){
     const s   = hud.use;
     const h   = handNow(p);
     const it  = h >= 0 ? p.inv[h] : null;
@@ -13120,7 +13518,7 @@ function drawHud(c){
       c.textAlign = 'left';
     }
   }
-  if (hud.swap && !S.shopMode){
+  if (hud.swap && !S.shopMode && !pc){
     const s = hud.swap;
     const n = handNext(p);
     const co = n != null;                        // co gi de doi sang khong
@@ -13142,9 +13540,10 @@ function drawHud(c){
 
   // The heart. Big, low, and in the middle: it is the DISTANCE read-out and its rate is the whole
   // message, so it is worth more room than a status icon.
-  drawHeart(c, hud.heart.x, hud.heart.y, hud.heart.r);
+  if (!pc) drawHeart(c, hud.heart.x, hud.heart.y, hud.heart.r);
 
   // grab button, left side
+  if (!pc){
   const near = p.down ? null : nearestLoot(p);
   const grabLit = p.down ? (S.mates || []).some(a => !a.down)
                         : !!(near || p.held || p.pushing || nearCart(p));
@@ -13154,14 +13553,12 @@ function drawHud(c){
   ring(c, hud.grab.x, hud.grab.y, hud.grab.r, grabLit ? 'rgba(80,190,120,0.9)' : 'rgba(70,90,78,0.45)');
   c.font = '600 11px ui-sans-serif, system-ui'; c.textAlign = 'center';
   c.fillStyle = grabLit ? '#e6ebee' : '#6a6f74';
-  const grabLabel = p.down ? 'Xem' : p.riding ? 'Xuống xe' : p.pushing ? 'Buông' : p.held ? 'Thả'
-                   : (!near && nearestBike(p)) ? 'Lên xe'
-                   : nearCart(p) && !near ? 'Đẩy xe' : 'Nhặt';
-  c.fillText(grabLabel, hud.grab.x, hud.grab.y+4);
+  c.fillText(nhanTuongTac(p, false), hud.grab.x, hud.grab.y+4);
+  }
 
   // sprint button. Three states worth telling apart at a glance while something is chasing you:
   // off, on-and-burning, and empty (the bar ran out and you are back to a plain run).
-  if (!S.shopMode){
+  if (!S.shopMode && !pc){
     const sp = hud.sprint;
     const empty = p.stam < RUN_MIN_STAM;
     const live = p.sprinting;
@@ -13185,7 +13582,7 @@ function drawHud(c){
 
   // skill button — bản Biệt Đội mới có. Vành ngoài là đồng hồ hồi chiêu, vẽ ngay
   // trên chính cái nút phải bấm, giống hệt cách vành thể lực bám nút Chạy.
-  if (hud.skill && !S.shopMode){
+  if (hud.skill && !S.shopMode && !pc){
     const sk = hud.skill;
     const ready = !HOOKS.skill.ready || HOOKS.skill.ready();
     const cool = HOOKS.skill.cool ? clamp(HOOKS.skill.cool(), 0, 1) : 1;
@@ -13208,7 +13605,7 @@ function drawHud(c){
   }
 
   // locker button — only while you are standing at the truck
-  if (nearTruck(p)){
+  if (nearTruck(p) && !pc){
     c.beginPath();
     c.fillStyle = 'rgba(14,24,38,0.72)';
     c.arc(hud.stash.x, hud.stash.y, hud.stash.r, 0, Math.PI*2); c.fill();
@@ -13228,6 +13625,7 @@ function drawHud(c){
   // Xăng là thứ quyết định còn đi được bao xa, nên nó phải nằm chỗ mắt đã nhìn sẵn.
   if (p.riding) badges.push(bikeDef(p.riding).name + ' ' +
     Math.round(p.riding.fuel / p.riding.fuelMax * 100) + '%');
+  if (pc) drawPcHud(c, hud, K);
   if (badges.length){
     c.font = '600 11px ui-monospace, monospace';
     c.fillStyle = '#8fd0b4';
@@ -13242,11 +13640,12 @@ function drawHud(c){
 // banner underneath is the only place the game explains what being dead now means.
 function drawCrewStrip(c, hud){
   if (S.shopMode || !S.mates || !S.mates.length) return;
-  const x = 14, y0 = 40, w = Math.min(120, hud.w*0.30), h = 5;
-  c.font = '600 9px ui-monospace, monospace';
+  const K = uiK();
+  const x = 14*K, y0 = 40*K, w = Math.min(120*K, hud.w*0.30), h = 5*K;
+  c.font = '600 ' + Math.round(9*K) + 'px ui-monospace, monospace';
   for (let i = 0; i < S.mates.length; i++){
-    const a = S.mates[i], y = y0 + i*11;
-    c.fillStyle = 'rgba(10,12,14,0.6)'; c.fillRect(x-3, y-3, w+34, h+5);
+    const a = S.mates[i], y = y0 + i*11*K;
+    c.fillStyle = 'rgba(10,12,14,0.6)'; c.fillRect(x-3*K, y-3*K, w+34*K, h+5*K);
     c.fillStyle = a.down ? '#5a3030' : '#24303c';
     c.fillRect(x, y, w, h);
     if (!a.down){
@@ -13254,7 +13653,7 @@ function drawCrewStrip(c, hud){
       c.fillRect(x, y, w*clamp(a.hp/a.hpMax, 0, 1), h);
     }
     c.fillStyle = a.down ? '#e08a8a' : '#9fb2c4';
-    c.fillText(a.down ? a.name + ' ✝' : a.name, x + w + 5, y + h);
+    c.fillText(a.down ? a.name + ' ✝' : a.name, x + w + 5*K, y + h);
   }
   const p = S.player;
   if (p.down){
@@ -13264,14 +13663,15 @@ function drawCrewStrip(c, hud){
               : carried ? 'Đồng đội đang vác đầu bạn tới bệ.'
                         : 'Bạn gục rồi. Chờ đồng đội tới nhặt đầu bạn mang ra bệ.';
     const watching = viewer();
-    c.font = '600 13px ui-sans-serif, system-ui'; c.textAlign = 'center';
+    c.font = '600 ' + Math.round(13*K) + 'px ui-sans-serif, system-ui'; c.textAlign = 'center';
     c.fillStyle = 'rgba(8,10,13,0.72)';
-    c.fillRect(0, hud.h*0.32, hud.w, 46);
+    c.fillRect(0, hud.h*0.32, hud.w, 46*K);
     c.fillStyle = '#e6b8b0';
-    c.fillText(msg, hud.w/2, hud.h*0.32 + 20);
+    c.fillText(msg, hud.w/2, hud.h*0.32 + 20*K);
     if (watching && watching !== p){
-      c.font = '600 11px ui-monospace, monospace'; c.fillStyle = '#9fb2c4';
-      c.fillText('đang xem ' + watching.name + ' — bấm Xem để đổi', hud.w/2, hud.h*0.32 + 38);
+      c.font = '600 ' + Math.round(11*K) + 'px ui-monospace, monospace'; c.fillStyle = '#9fb2c4';
+      c.fillText('đang xem ' + watching.name + ' — bấm ' + (hud.pc ? 'Q' : 'Xem') + ' để đổi',
+                 hud.w/2, hud.h*0.32 + 38*K);
     }
     c.textAlign = 'left';
   }
@@ -13288,7 +13688,8 @@ function drawCrewStrip(c, hud){
 // the current pad would read as "almost done" on the second of four.
 function drawExtractBar(c, hud){
   if (S.shopMode || S.cut || !S.pads || !S.pads.length) return;
-  const x = 14, y = 84, w = Math.min(200, hud.w*0.52), h = 9;
+  const K = uiK();
+  const x = 14*K, y = 84*K, w = Math.min(200*K, hud.w*0.52), h = 9*K;
   const n = S.pads.length;
   const done = S.pads.filter(q => q.done).length;
   const pad = S.pads[S.padIndex];
@@ -13297,9 +13698,9 @@ function drawExtractBar(c, hud){
   const tick = FX.tickPulse > 0.5;
 
   c.fillStyle = 'rgba(10,12,14,0.72)';
-  c.fillRect(x-3, y-14, w+6, h+20);
+  c.fillRect(x-3*K, y-14*K, w+6*K, h+20*K);
 
-  c.font = '600 9px ui-monospace, monospace';
+  c.font = '600 ' + Math.round(9*K) + 'px ui-monospace, monospace';
   let head, col;
   if (S.shiftLost)            { head = 'CA HỎNG — VỀ XE';  col = 'rgba(226,140,130,0.95)'; }
   else if (S.levelDone && S.esc){ head = tick ? 'CHẠY ĐI' : 'CHẠY VỀ XE';
@@ -13310,14 +13711,14 @@ function drawExtractBar(c, hud){
   else                        { head = 'BỆ ' + Math.min(done+1, n) + '/' + n;
                                 col = 'rgba(150,190,170,0.95)'; }
   c.fillStyle = col;
-  c.fillText(head, x, y - 5);
+  c.fillText(head, x, y - 5*K);
 
   // The two numbers are the PAD's, not the shift's: what you have put down against what this one
   // is asking for, which is the number you act on when deciding whether to go back out.
   if (pad && !pad.done && !S.shiftLost){
     c.textAlign = 'right';
     c.fillStyle = 'rgba(140,172,192,0.9)';
-    c.fillText(money(pad.value) + ' / ' + money(pad.quota), x + w, y - 5);
+    c.fillText(money(pad.value) + ' / ' + money(pad.quota), x + w, y - 5*K);
     c.textAlign = 'left';
   }
 
@@ -13573,7 +13974,9 @@ function drawHeart(c, cx, cy, r){
   c.restore();
 }
 function nearCart(p){
-  return S.cart && Math.hypot(S.cart.x-p.x, S.cart.y-p.y) < S.cart.r + grabRange(p);
+  // Cùng luật với nhặt đồ: cái càng xe cũng không với qua tường được.
+  return !!S.cart && Math.hypot(S.cart.x-p.x, S.cart.y-p.y) < S.cart.r + grabRange(p) &&
+         !tuongGiua(p.x, p.y, S.cart.x, S.cart.y);
 }
 function ring(c,x,y,r,col){ c.beginPath(); c.strokeStyle = col; c.lineWidth = 2.5; c.arc(x,y,r,0,Math.PI*2); c.stroke(); }
 function dot(c,x,y,r,col){ c.beginPath(); c.fillStyle = col; c.arc(x,y,r,0,Math.PI*2); c.fill(); }
@@ -13581,6 +13984,23 @@ function dot(c,x,y,r,col){ c.beginPath(); c.fillStyle = col; c.arc(x,y,r,0,Math.
 // grab itself takes it. They used to be two loops with two different filters — the label lit up
 // for loot riding on your own cart, and neither of them asked whether a wall was in the way.
 // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
+// CÓ TƯỜNG NẰM GIỮA HAI ĐIỂM KHÔNG? Rẻ và thô: rọi một chuỗi điểm dọc đoạn thẳng rồi hỏi
+// lưới. Khác với losClear() ở chỗ nó CHỈ hỏi tường thật (WALL), không hỏi đồ đạc và không
+// hỏi cửa — cái cần chặn ở đây là "với qua bức tường", chứ không phải "nhìn thấy hay không".
+//
+// Bước 4 điểm ảnh: bức tường mỏng nhất trong nhà dày trọn một ô 24px, nên không có cách nào
+// một đoạn thẳng xuyên qua nó mà cả sáu điểm mẫu đều rơi ra ngoài.
+function tuongGiua(x0, y0, x1, y1){
+  const dx = x1-x0, dy = y1-y0;
+  const n = Math.max(2, Math.ceil(Math.hypot(dx, dy)/4));
+  for (let i = 1; i < n; i++){
+    const x = x0 + dx*i/n, y = y0 + dy*i/n;
+    const gx = (x/TILE)|0, gy = (y/TILE)|0;
+    if (gx < 0 || gy < 0 || gx >= MW || gy >= MH) return true;
+    if (S.grid[gy*MW+gx] === WALL) return true;
+  }
+  return false;
+}
 function nearestLoot(p){
   let best = null, bd = grabRange(p);
   for (const l of S.loot){
@@ -13598,19 +14018,35 @@ function nearestLoot(p){
     // the thing you are grabbing. Demanding sight at every distance broke normal play instead of
     // the exploit: loot resting against a wall stopped being pickable from some angles, and the bot
     // spent a whole 130 s level stuck in the "picking up" state.
-    if (d < bd && (d <= TILE * 1.1 || losClear(p.x, p.y, l.x, l.y))){ bd = d; best = l; }
+    //
+    // ...NHƯNG "38 px" LÀ MỘT PHÉP ĐO SAI, và chủ dự án bắt được: "bug có thể lấy đồ xuyên
+    // tường". Nó tính món đồ nằm giữa ô bên kia, trong khi món đồ TỰA VÀO TƯỜNG thì tâm nó chỉ
+    // cách mặt tường đúng bán kính của nó. Đo lại: người đứng sát tường (tâm cách mặt tường
+    // ~11px) với một cái bình bán kính 9 tựa vào mặt bên kia (tâm cách mặt ~9px) chỉ cách nhau
+    // 11+24+9 = 44... trừ khi cả hai cùng nằm ở một góc chéo, và khi ấy khoảng cách tụt xuống
+    // dưới 26,4px của cái ngoại lệ này. Nên ngoại lệ tầm-tay giữ nguyên, chỉ thêm đúng một câu
+    // hỏi: GIỮA HAI BÊN CÓ TƯỜNG KHÔNG. Câu ấy không bao giờ sai vì bức tường mỏng nhất vẫn
+    // dày trọn một ô, và nó không đụng tới cái nó vốn được dựng lên để cứu (món tựa tường
+    // trong CÙNG một phòng: giữa hai bên không có ô tường nào).
+    const trongTam = d <= TILE * 1.1 && !tuongGiua(p.x, p.y, l.x, l.y);
+    if (d < bd && (trongTam || losClear(p.x, p.y, l.x, l.y))){ bd = d; best = l; }
   }
   return best;
 }
 function drawMinimap(c, hud){
   const big = S.bigMap;
-  let w = big ? Math.min(hud.w*0.6, 460) : Math.min(hud.w*0.34, 210);
+  // "minimap cần to ra". Trần 210px là trần của một cái điện thoại; trên màn 27 inch nó là một
+  // con tem. Giãn theo uiK() — cùng hệ số với mọi thứ khác trong lớp HUD — nên nó to lên đúng
+  // bằng cái màn hình chứ không phải bằng một con số ai đó gõ vào.
+  const K = uiK();
+  let w = big ? Math.min(hud.w*0.6, 460*K) : Math.min(hud.w*0.34, 210*K);
   let h = w * (MH/MW);
   // Nằm ngang thì khung chỉ cao ~320px, mà bản đồ nhỏ vuông 210px ăn hai phần ba
   // chiều cao đó và đè lên cụm nút bên phải. Chặn theo CHIỀU CAO chứ không chỉ bề ngang.
-  const capH = hud.h * (big ? 0.8 : (hud.w > hud.h ? 0.22 : 0.34));
+  // Ở chế độ máy tính thì cụm nút ấy không còn, nên trần cao cũng nới ra theo.
+  const capH = hud.h * (big ? 0.8 : (hud.w > hud.h ? 0.22*Math.min(K, 1.9) : 0.34));
   if (h > capH) { h = capH; w = h * (MW/MH); }
-  const x = big ? (hud.w-w)/2 : hud.w - w - 14, y = big ? (hud.h-h)/2 : 14;
+  const x = big ? (hud.w-w)/2 : hud.w - w - 14*K, y = big ? (hud.h-h)/2 : 14*K;
 
   // Rather than move it — every corner is somebody's corner — it gets out of the way: while
   // something that can hurt you is drawn behind it, it drops to a ghost and back.
@@ -13634,6 +14070,10 @@ function drawMinimap(c, hud){
   c.fillStyle = 'rgba(8,10,13,0.82)'; c.fillRect(x-3,y-3,w+6,h+6);
   c.strokeStyle = 'rgba(90,120,170,0.7)'; c.lineWidth = 1.5; c.strokeRect(x-3,y-3,w+6,h+6);
   const sx = w/MW, sy = h/MH;
+  // Khung to ra mà chấm vẫn 4px thì thành ra nhìn còn khó hơn cũ: cùng chừng ấy mực rải trên
+  // gấp đôi diện tích. Chấm giãn theo, nhưng chặn ở 1,7 — quá nữa thì cái đầu người chết phủ
+  // kín cả căn phòng nó đang nằm, và bản đồ hết nói được nó nằm ĐÂU trong phòng.
+  const Mk = Math.min(K, 1.7);
   // blit the real tile layout of every room already entered, walls and all
   if (S.mapCv){
     const smooth = c.imageSmoothingEnabled;
@@ -13652,7 +14092,7 @@ function drawMinimap(c, hud){
     const gi = (((l.y/TILE)|0)*MW + ((l.x/TILE)|0));
     if (!S.explored[gi]) continue;
     c.fillStyle = l.isBag ? '#e0b64a' : '#cfd8dc';
-    c.fillRect(x + l.x/TILE*sx - 1.2, y + l.y/TILE*sy - 1.2, 2.4, 2.4);
+    c.fillRect(x + l.x/TILE*sx - 1.2*Mk, y + l.y/TILE*sy - 1.2*Mk, 2.4*Mk, 2.4*Mk);
   }
   // The Extraction Tracker is a bought tool in the source game ("tells you where to escape").
   // What it sells here is DISCOVERY: the pads you have not opened yet. The way to the pad you
@@ -13662,14 +14102,14 @@ function drawMinimap(c, hud){
   for (const pad of S.pads){
     if (!tracked && !pad.active && !pad.done && !(S.rooms[pad.ri] && S.rooms[pad.ri].seen)) continue;
     c.fillStyle = pad.done ? '#3d5a4c' : pad.active ? '#5ecf95' : '#6a747f';
-    c.fillRect(x + pad.x/TILE*sx - 3, y + pad.y/TILE*sy - 3, 6, 6);
+    c.fillRect(x + pad.x/TILE*sx - 3*Mk, y + pad.y/TILE*sy - 3*Mk, 6*Mk, 6*Mk);
   }
   if (S.cart){
     c.fillStyle = '#d0a253';
-    c.fillRect(x + S.cart.x/TILE*sx - 2.5, y + S.cart.y/TILE*sy - 2.5, 5, 5);
+    c.fillRect(x + S.cart.x/TILE*sx - 2.5*Mk, y + S.cart.y/TILE*sy - 2.5*Mk, 5*Mk, 5*Mk);
   }
   c.fillStyle = '#7fb6e0';
-  c.fillRect(x + S.car.x/TILE*sx - 3.5, y + S.car.y/TILE*sy - 3.5, 7, 7);
+  c.fillRect(x + S.car.x/TILE*sx - 3.5*Mk, y + S.car.y/TILE*sy - 3.5*Mk, 7*Mk, 7*Mk);
 
   // The crew. Heads are drawn ALWAYS, explored or not, and they pulse: this is the R.E.P.O. rule
   // that a dead colleague shows on the map as a red dot, and it is the only way a player who has
@@ -13678,12 +14118,12 @@ function drawMinimap(c, hud){
   for (const a of (S.mates || [])){
     if (a.down) continue;
     c.fillStyle = a.col.rim;
-    c.fillRect(x + a.x/TILE*sx - 2, y + a.y/TILE*sy - 2, 4, 4);
+    c.fillRect(x + a.x/TILE*sx - 2*Mk, y + a.y/TILE*sy - 2*Mk, 4*Mk, 4*Mk);
   }
   for (const l of S.loot){
     if (!l.isHead || l.gone) continue;
     c.fillStyle = `rgba(240,90,90,${0.55 + pulse*0.45})`;
-    c.fillRect(x + l.x/TILE*sx - 3, y + l.y/TILE*sy - 3, 6, 6);
+    c.fillRect(x + l.x/TILE*sx - 3*Mk, y + l.y/TILE*sy - 3*Mk, 6*Mk, 6*Mk);
   }
   // The real path, walked tile by tile around the walls — never a straight line through them.
   // SEE: docs/patches/phase-5.4-patch-25-repo2d-playtest-fixes.md
@@ -13700,8 +14140,8 @@ function drawMinimap(c, hud){
     const route = visibleRoute();
     if (route.length > 1){
       const dash = c.getLineDash ? c.getLineDash() : null;
-      c.setLineDash([3,3]);
-      c.strokeStyle = 'rgba(120,220,170,0.75)'; c.lineWidth = 1.4;
+      c.setLineDash([3*Mk,3*Mk]);
+      c.strokeStyle = 'rgba(120,220,170,0.75)'; c.lineWidth = 1.4*Mk;
       c.beginPath();
       for (let i=0;i<route.length;i++){
         const px = x + route[i].x/TILE*sx, py = y + route[i].y/TILE*sy;
@@ -13712,7 +14152,7 @@ function drawMinimap(c, hud){
     }
   }
   c.fillStyle = '#ffd98a';
-  c.fillRect(x + S.player.x/TILE*sx - 2, y + S.player.y/TILE*sy - 2, 4, 4);
+  c.fillRect(x + S.player.x/TILE*sx - 2*Mk, y + S.player.y/TILE*sy - 2*Mk, 4*Mk, 4*Mk);
   c.globalAlpha = alpha0;
 }
 
@@ -13724,7 +14164,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260910b';
+const BUILD = '20260910c';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -15663,6 +16103,9 @@ window.REPO = {
   resetInput, cancelGestures, closeStash, unstick,
   stuck(){ return { paused: pausedWithNoWayOut(), veilUsable: veilUsable(), forSec: stuckT }; },
   carDrawOffset, playerDrawPos, mateDrawPos, xeDiemHuc,
+  // Chế độ máy tính: bộ đo phải hỏi được "đang ở bộ điều khiển nào" và "phóng to bao nhiêu",
+  // vì cả hai đổi theo cái MÁY đang mở chứ không theo một cờ ai đó bật.
+  pcMode, uiK, tuongTac, nhanTuongTac, doiTay, capSkill,
   // Mốc thời gian của đoạn phim mở màn. Mở ra vì bộ đo phải bơm từng khung tới ĐÚNG mốc húc,
   // và một bộ đo chép tay mấy con số này là một bộ đo nói dối ngay lần đầu ai đó chỉnh chúng.
   CUT: { ARRIVE: CUT_ARRIVE, HIT: CUT_HIT, SKID: CUT_SKID,
