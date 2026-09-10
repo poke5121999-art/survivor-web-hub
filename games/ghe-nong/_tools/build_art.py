@@ -206,6 +206,21 @@ def he_phong(anhs):
     return float(int(k)) if k >= 2 else k
 
 
+def mep_tren(im, cot, hang):
+    """Phần trăm chiều cao ô mà mép trên sprite bỏ trống, tính trên KHUNG CAO NHẤT.
+
+    Sprite canh đáy-giữa nên nửa trên ô thường trống. Phía DOM cần biết con số này để
+    cắt đúng dải có người rồi phóng cho đầy thẻ — không có nó thì phải đoán một con số
+    chung, mà đoán thì hoặc người bé tí nằm dưới đáy, hoặc bị cụt đầu."""
+    tren = O
+    for h in range(hang):
+        o = im.crop((cot * O, h * O, cot * O + O, h * O + O))
+        bb = o.getbbox()
+        if bb:
+            tren = min(tren, bb[1])
+    return round(max(0, min(O - 8, tren)) / float(O), 3)
+
+
 def lam_bang(ds, ten_ra, nhieu_khung):
     thieu = []
     hang = KHUNG if nhieu_khung else 1
@@ -219,7 +234,7 @@ def lam_bang(ds, ten_ra, nhieu_khung):
         for h in range(hang):
             f = fs[min(h, len(fs) - 1)]
             dat(im, Image.open(f).convert('RGBA'), i, h)
-        ban_do[khoa] = [i, min(len(fs), KHUNG) if nhieu_khung else 1]
+        ban_do[khoa] = [i, min(len(fs), KHUNG) if nhieu_khung else 1, mep_tren(im, i, hang)]
     im.save(os.path.join(RA, ten_ra))
     return ban_do, thieu
 
@@ -310,6 +325,52 @@ def lam_tru():
     return ban_do, thieu
 
 
+def lam_nen_ca():
+    """NỀN PHÒNG TẬP cho màn huấn luyện — art thật, không phải gradient vẽ tay.
+
+    Nguồn: `all/hero_room/hall/skin_0/room_bg.png` của Soul Knight — đúng dáng cần: nhìn
+    NGANG, tường sau có cửa sổ / đèn / tranh, dưới là sàn gỗ. Bản gốc là quán trọ tối
+    màu; ở đây làm sáng lên và giảm bão hoà để nằm cùng bảng màu Uma (kem, hồng phấn).
+    Ghép lại thành 1280 rộng: dải TƯỜNG kéo ngang ở trên, dải SÀN kéo ngang ở dưới —
+    phóng cả tấm thì tường mỏng dính mà sàn thì méo.
+    """
+    f = os.path.join(SKG, 'all', 'hero_room', 'hall', 'skin_0', 'room_bg.png')
+    if not os.path.isfile(f):
+        return False, f
+    import colorsys
+    src = Image.open(f).convert('RGBA')
+    px = src.load()
+    for y in range(src.height):
+        for x in range(src.width):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            h, s2, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+            r2, g2, b2 = colorsys.hsv_to_rgb(h, min(1.0, s2 * 0.60), min(1.0, 0.45 + 0.55 * v))
+            px[x, y] = (int(r2 * 255), int(g2 * 255), int(b2 * 255), a)
+
+    W, CAO_TUONG, CAO_SAN = 1280, 275, 375
+    tuong = src.crop((0, 0, src.width, 152)).resize((W, CAO_TUONG), Image.NEAREST)
+    san = src.crop((0, 156, src.width, src.height)).resize((W, CAO_SAN), Image.NEAREST)
+    ra = Image.new('RGBA', (W, CAO_TUONG + CAO_SAN), (0, 0, 0, 0))
+    ra.alpha_composite(tuong, (0, 0))
+    ra.alpha_composite(san, (0, CAO_TUONG))
+
+    # Mờ dần MÉP TRÊN ngay trong ảnh. Làm bằng gradient CSS phủ lên thì vẫn thấy một
+    # đường cắt ngang (thứ tự vẽ của ::before/::after không chắc phủ hết), còn ramp alpha
+    # ở đây thì chắc chắn: ảnh tự tan vào nền, không cần lớp phủ nào.
+    MO = 110
+    px2 = ra.load()
+    for y in range(MO):
+        k = y / float(MO)
+        for x in range(W):
+            r, g, b, a = px2[x, y]
+            if a:
+                px2[x, y] = (r, g, b, int(a * k))
+    ra.save(os.path.join(RA, 'nen-ca.png'))
+    return True, None
+
+
 def lam_do():
     """20 icon trang bị — mọi tệp nằm thẳng trong SK, mỗi món một khung, xoay theo bảng."""
     thieu = []
@@ -355,6 +416,7 @@ def main():
     bd['tru'] = tr
     dd, thieu_dd = lam_do()
     bd['do'] = dd
+    nen_ok, nen_thieu = lam_nen_ca()
     bd['_o'] = O
     bd['_khung'] = KHUNG
 
@@ -373,6 +435,7 @@ def main():
     print('dan    :', len(dn), '/', len(DAN))
     print('tru    :', len(tr), '/', len(TRU))
     print('do     :', len(dd), '/', len(DO))
+    print('nen-ca :', 'ok' if nen_ok else 'THIEU ' + str(nen_thieu))
     for nhan, ds in (('tuong', thieu_t), ('nguoi', thieu_n1), ('quai', thieu_q), ('fx', thieu_fx),
                      ('dan', thieu_dn), ('tru', thieu_tr), ('do', thieu_dd)):
         for x in ds:

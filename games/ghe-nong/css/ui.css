@@ -689,15 +689,23 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 /* ── cảnh trong khung game: sáng, nhân vật lớn giữa màn, như màn Career của Uma ──
    Ảnh gốc là ảnh 3D sân trường hoa anh đào; ở đây dựng bằng gradient + vệt sáng cho nhẹ.
    Ghi đè bản tối cũ vì màn huấn luyện giờ là theme sáng. */
+/* Nền là ART THẬT (art/nen-ca.png — phòng lớn của Soul Knight, đã làm sáng): tường sau
+   có cửa sổ, đèn, tranh; dưới là sàn gỗ. Dán ở ĐÁY, phía trên phủ gradient trời cho khỏi
+   cụt. Trước đây chỗ này chỉ là hai lớp gradient nên nửa trên màn trống hoác. */
 #man-ca .ca-canh-nen.co-nguoi{position:absolute;inset:0;display:flex;align-items:flex-end;
-  justify-content:center;gap:12px;padding:64px 26px 172px;
-  background:
-    radial-gradient(120% 78% at 50% 8%, #ffe9f4 0%, #f3e6ff 42%, #dfe8f5 100%),
-    linear-gradient(180deg, #ffffff00 60%, #cbd8ea 100%)}
-#man-ca .ca-canh-nen.co-nguoi::before{content:"";position:absolute;left:0;right:0;top:62%;bottom:150px;
-  background:linear-gradient(180deg,#c9d9ee00,#b9cbe4aa);border-top:2px solid #ffffff88}
-#man-ca .ca-canh-nen.co-nguoi::after{content:"";position:absolute;left:6%;right:6%;top:12%;height:0;
-  border:0}
+  justify-content:center;gap:12px;padding:64px 22px 228px;
+  background-image:url(../art/nen-ca.png?v=20260910c),
+    linear-gradient(180deg,#ffe9f4 0%,#f6e9ff 46%,#e6ddf2 100%);
+  background-repeat:no-repeat,no-repeat;
+  background-position:center bottom 148px,center;
+  background-size:100% auto,cover;
+  image-rendering:pixelated}
+/* làm mờ mép trên của tấm nền cho khỏi thấy đường cắt ngang, và rọi sáng chỗ sàn nơi
+   nhân vật đứng — nếu không thì tấm ảnh nằm đè lên gradient như một miếng dán */
+#man-ca .ca-canh-nen.co-nguoi::before{content:"";position:absolute;left:0;right:0;
+  bottom:148px;height:270px;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 100%,#fff8fc99 0%,#fff8fc00 62%)}
+#man-ca .ca-canh-nen.co-nguoi::after{content:none}
 /* tán hoa mờ hai bên cho khỏi trống */
 #man-ca .uma-san::before{content:"";position:absolute;left:-40px;top:-30px;width:280px;height:230px;
   border-radius:50%;background:radial-gradient(circle,#ffd7ea 0%,#ffd7ea00 70%);z-index:1}
@@ -739,7 +747,7 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .uma-cap i{width:6px;height:6px}
 
 /* nhân vật trong cảnh: to lên hẳn, đúng tinh thần "nhân vật là trung tâm" của Uma */
-#man-ca .ca-canh-nen.co-nguoi{padding:34px 24px 216px;align-items:flex-end}
+#man-ca .ca-canh-nen.co-nguoi{padding:34px 24px 232px;align-items:flex-end}
 #man-ca .canh-hlv{transform:translateY(6px)}
 
 /* ── thẻ tuyển thủ trong trận: ảnh tướng + KDA + sáu ô đồ, bấm để camera bám theo ── */
@@ -825,3 +833,136 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .dr-buoc.cam b{color:var(--do)}
 .dr-buoc.ta{border-left:3px solid var(--xanh)}
 .dr-buoc.dich{border-left:3px solid var(--do)}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MÀN CLB kiểu Uma Musume
+   Đọc màu từ ảnh esport-ref/uma/sheets_guide/sheet001.jpg: nền xanh-xám nhạt
+   #dfe8f5, thẻ trắng viền #e6e2ef bo 14px, tiêu đề dải xanh #4962a2, nút chính
+   xanh lá #6ec409, nhấn hồng #e5548c. KHÔNG tự chế màu — cùng bảng với màn tập.
+   ══════════════════════════════════════════════════════════════════════════ */
+#man-clb.uma-clb{display:grid;grid-template-rows:50px 1fr 88px;background:#dfe8f5;
+  background-image:radial-gradient(circle at 12% 8%,#eef3fb 0,#dfe8f5 42%),
+    radial-gradient(circle at 88% 92%,#e9eefb 0,#dfe8f5 46%)}
+#man-clb.uma-clb[hidden]{display:none}
+
+.uc-tren{display:flex;align-items:center;gap:9px;padding:0 12px;background:#fff;
+  border-bottom:2px solid #cfd9ee;box-shadow:0 2px 5px #0000000d}
+.uc-crest{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;
+  font-size:11px;font-weight:900;color:#fff;background:linear-gradient(180deg,#6fc4f0,#3f8fd0);
+  box-shadow:0 2px 0 #2f6ba0}
+.uc-ten{display:flex;align-items:baseline;gap:8px;flex:1;min-width:0}
+.uc-ten b{font-size:15px;font-weight:900;color:#4a3f48;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.uc-ten span{font-size:11px;font-weight:800;color:#8a7f8f;flex:none}
+.uc-vi{display:flex;gap:6px;flex:none}
+.uc-dong{display:flex;align-items:center;gap:5px;background:#f4f2f9;border:2px solid #e6e2ef;
+  border-radius:99px;padding:3px 11px 3px 7px}
+.uc-dong i{font-style:normal;font-size:12px;line-height:1}
+.uc-dong b{font-size:12px;font-weight:900;color:#4a3f48}
+
+.uc-than{display:grid;grid-template-columns:1fr 296px;min-height:0}
+.uc-giua{overflow:auto;padding:12px 14px}
+.uc-phai{overflow:auto;padding:12px 14px 12px 0}
+
+/* thanh nút lớn ở đáy — Uma điều hướng bằng hàng này */
+.uc-day{display:grid;grid-auto-flow:column;gap:8px;align-items:stretch;
+  padding:9px 12px 12px;background:#fff;border-top:2px solid #cfd9ee;
+  box-shadow:0 -2px 6px #00000010}
+.uc-day button{position:relative;border:3px solid #e6e2ef;background:#f7f6fb;border-radius:16px;
+  padding:5px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:2px;transition:transform .08s,background .12s;
+  box-shadow:0 3px 0 #d9d4e6}
+.uc-day button:hover{transform:translateY(-2px)}
+.uc-day button:active{transform:translateY(2px);box-shadow:0 1px 0 #d9d4e6}
+.uc-day button i{font-style:normal;font-size:19px;line-height:1}
+.uc-day button span{font-size:11px;font-weight:900;color:#6b5c68;line-height:1.15;text-align:center}
+.uc-day button.chon{background:linear-gradient(180deg,#8fd8ff,#3f8fd0);border-color:#d9efff;
+  box-shadow:0 3px 0 #2f6ba0}
+.uc-day button.chon span{color:#fff}
+.uc-day button em{position:absolute;top:-5px;right:-3px;font-style:normal;min-width:16px;
+  height:16px;border-radius:99px;background:#e5484d;color:#fff;font-size:9.5px;font-weight:900;
+  display:grid;place-items:center;padding:0 4px;box-shadow:0 1px 0 #a8262a}
+
+/* ── khối chữ và thẻ dùng chung trong màn CLB ── */
+.uc-tieu{font-size:19px;font-weight:900;color:#4a3f48;margin-bottom:2px}
+.uc-mo{font-size:12.5px;color:#8a7f8f;line-height:1.6;margin-bottom:11px}
+.uc-nhan{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:900;color:#6b5c68;
+  letter-spacing:.06em;margin:13px 0 7px}
+.uc-nhan::after{content:'';flex:1;height:2px;background:#d6dcec;border-radius:2px}
+.uc-luoi{display:grid;gap:9px}
+.uc-the{background:#fff;border:2px solid #e6e2ef;border-radius:14px;padding:10px;
+  box-shadow:0 2px 0 #dcd7e8}
+.uc-the.chon{border-color:#ffc46e;background:#fffaf0;box-shadow:0 2px 0 #eab95f,0 0 0 3px #ffd76e55}
+.uc-the.bam{cursor:pointer;transition:transform .08s}
+.uc-the.bam:hover{transform:translateY(-2px)}
+.uc-the b{color:#4a3f48}
+.uc-phu{font-size:11.5px;color:#8a7f8f;line-height:1.55}
+.uc-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:800;
+  background:#f2f0f8;border:1px solid #e2ddee;border-radius:99px;padding:1px 7px;color:#6b5c68}
+.uc-chips{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+.uc-thanh{height:7px;background:#e6e2ef;border-radius:99px;overflow:hidden;margin-top:5px}
+.uc-thanh i{display:block;height:100%;border-radius:99px}
+.uc-sao{color:#e8a81c;font-size:12px;font-weight:900;letter-spacing:.5px}
+
+/* nút viên thuốc kiểu Uma, dùng ở cột phải và trong các thẻ */
+.uc-nut{border:3px solid #dff3c4;border-radius:99px;padding:9px 16px;cursor:pointer;
+  font-size:13.5px;font-weight:900;color:#fff;background:linear-gradient(180deg,#a5e86a,#6ec409);
+  box-shadow:0 3px 0 #4e8c07;transition:transform .08s;width:100%}
+.uc-nut:hover{transform:translateY(-2px)}
+.uc-nut:active{transform:translateY(2px);box-shadow:0 1px 0 #4e8c07}
+.uc-nut.phu{background:linear-gradient(180deg,#fff,#eee9f6);color:#6b5c68;border-color:#fff;
+  box-shadow:0 3px 0 #d9d4e6}
+.uc-nut.cam{background:linear-gradient(180deg,#ffc46e,#e8912c);border-color:#fff2d2;
+  box-shadow:0 3px 0 #b06d12}
+.uc-nut.do{background:linear-gradient(180deg,#ff9ba8,#d9455c);border-color:#ffdde2;
+  box-shadow:0 3px 0 #a02c40}
+.uc-nut.tat{opacity:.5;cursor:default;transform:none!important}
+.uc-nut-nho{border:2px solid #e6e2ef;border-radius:99px;padding:4px 12px;cursor:pointer;
+  font-size:11.5px;font-weight:900;color:#6b5c68;background:#f7f6fb;box-shadow:0 2px 0 #d9d4e6}
+.uc-nut-nho:hover{background:#fff}
+
+/* thẻ hành động bên cột phải */
+.uc-hop{background:#fff;border:2px solid #e6e2ef;border-radius:16px;overflow:hidden;
+  box-shadow:0 3px 0 #dcd7e8;margin-bottom:10px}
+.uc-hop-dau{background:linear-gradient(180deg,#5a76b8,#4962a2);color:#fff;font-size:11.5px;
+  font-weight:900;letter-spacing:.06em;padding:6px 11px}
+.uc-hop-than{padding:11px}
+
+/* ── banner tuyển mộ ── */
+.uc-banner{position:relative;border-radius:18px;overflow:hidden;margin-bottom:12px;
+  border:3px solid #fff;box-shadow:0 4px 0 #cdd6ea}
+.uc-bn-nen{position:absolute;inset:0}
+.uc-bn-mat{position:relative;display:flex;align-items:flex-end;gap:0;padding:8px 12px 0;height:140px}
+.uc-bn-mat i{display:block;flex:none;margin-right:-14px;filter:drop-shadow(0 3px 5px #0004)}
+.uc-bn-chu{position:relative;padding:9px 12px 11px;background:#ffffffea;
+  border-top:2px solid #ffffff}
+.uc-bn-chu h4{margin:0;font-size:16px;font-weight:900;color:#4a3f48}
+.uc-bn-hang{display:flex;gap:8px;align-items:center;margin-top:8px}
+.uc-bn-hang .uc-nut{width:auto;flex:none}
+.uc-bn-ve{flex:1;min-width:90px}
+.uc-bn-ve span{font-size:10.5px;font-weight:800;color:#8a7f8f}
+
+/* lưới kết quả quay, 2 hàng 5 cột như Uma */
+.uc-kq{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.uc-kq-o{border-radius:12px;padding:7px 5px;text-align:center;border:3px solid #e6e2ef;
+  background:#fff}
+.uc-kq-o.b2{border-color:#b79ae0;background:#f7f2ff}
+.uc-kq-o.b3{border-color:#ffd76e;background:#fffaeb}
+.uc-kq-o i{display:block;margin:0 auto 3px}
+.uc-kq-o b{display:block;font-size:12px;font-weight:900;color:#4a3f48}
+.uc-kq-o em{font-style:normal;font-size:9.5px;font-weight:800;color:#8a7f8f}
+.uc-kq-o em.moi{color:#3d9c63}
+
+/* hộp thoại bản SÁNG — dùng cho màn CLB và màn huấn luyện (thế giới màu Uma) */
+.hop.sang{background:#fff;border:3px solid #cfd9ee;box-shadow:0 10px 30px #2a3a5a33}
+.hop.sang .hop-dau{background:linear-gradient(180deg,#5a76b8,#4962a2);color:#fff;
+  border-bottom:0;font-weight:900}
+.hop.sang .hop-than{color:#4a3f48}
+.hop.sang .hop-than b{color:#3f6ab8}
+.hop.sang .hop-chan{background:#f7f6fb;border-top:2px solid #e6e2ef}
+.hop.sang .hop-chan .nut{border:3px solid #fff;border-radius:99px;font-weight:900;
+  background:linear-gradient(180deg,#fff,#eee9f6);color:#6b5c68;box-shadow:0 3px 0 #d9d4e6}
+.hop.sang .hop-chan .nut.chinh{background:linear-gradient(180deg,#a5e86a,#6ec409);color:#fff;
+  border-color:#dff3c4;box-shadow:0 3px 0 #4e8c07}
+.hop.sang .hop-chan .nut.do{background:linear-gradient(180deg,#ff9ba8,#d9455c);color:#fff;
+  border-color:#ffdde2;box-shadow:0 3px 0 #a02c40}

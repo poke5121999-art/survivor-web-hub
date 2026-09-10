@@ -109,12 +109,15 @@
     var soCot = Object.keys(MAP.tuong).length;
     var soHang = 0;
     for (var k in MAP.tuong) soHang = Math.max(soHang, MAP.tuong[k][1] || 1);
-    var t0 = tren == null ? 0.24 : tren;          /* bỏ 24% trên cùng của ô */
+    var t0 = tren != null ? tren : (MAP.tuong[id][2] != null ? MAP.tuong[id][2] : 0.24);
     var kh = cao / (O * (1 - t0));
+    /* Cắt mép trên xong thì ô đã phóng rộng hơn thẻ (O*kh > cao). Không kéo ngang vào
+       giữa thì thẻ chỉ thấy phần bên TRÁI của ô — nhân vật lệch hẳn ra ngoài khung. */
+    var lech = (O * kh - cao) / 2;
     return 'background-image:url(art/tuong.png?v=20260910c);' +
-      'background-position:' + (-cot * O * kh) + 'px ' + (-t0 * O * kh) + 'px;' +
+      'background-position:' + (-cot * O * kh - lech) + 'px ' + (-t0 * O * kh) + 'px;' +
       'background-size:' + (soCot * O * kh) + 'px ' + (soHang * O * kh) + 'px;' +
-      'image-rendering:pixelated'; 
+      'background-repeat:no-repeat;image-rendering:pixelated'; 
   };
 
   /** style nền cho icon TRANG BỊ trong thẻ HTML (ô đồ ở thẻ tuyển thủ, bảng cửa hàng) */
@@ -142,21 +145,26 @@
     return G.el('i', { style: st + ';display:block;width:' + (cao || 44) + 'px;height:' + (cao || 44) + 'px' });
   };
 
-  /** chân dung cho DOM: trả về style background dùng cho một ô vuông cạnh `cao` */
-  G.anhNguoi = function (id, cao) {
+  /** Chân dung cho DOM. `tren` cắt bỏ bấy nhiêu phần trăm mép trên rồi phóng cho đầy ô —
+      sprite canh đáy-giữa nên phần trên ô toàn khoảng trống; dán nguyên ô vào một vòng
+      tròn 40px thì người bé tí nằm sát đáy, nửa trên trống trơn. Mặc định 0.18. */
+  G.anhNguoi = function (id, cao, tren) {
     if (!MAP || !MAP.nguoi || !MAP.nguoi[id]) return null;
     var O = o();
     var cot = MAP.nguoi[id][0];
-    var k = cao / O;
+    /* mép trên đo sẵn lúc ghép atlas (build_art.py ghi phần tử thứ ba) — không đoán */
+    var t0 = tren != null ? tren : (MAP.nguoi[id][2] != null ? MAP.nguoi[id][2] : 0.18);
+    var k = cao / (O * (1 - t0));
+    var lech = (O * k - cao) / 2;
     return 'background-image:url(art/nguoi.png?v=20260910c);' +
-      'background-position:' + (-cot * O * k) + 'px 0;' +
+      'background-position:' + (-cot * O * k - lech) + 'px ' + (-t0 * O * k) + 'px;' +
       'background-size:' + (MAP.nguoi ? Object.keys(MAP.nguoi).length * O * k : 0) + 'px ' + (O * k) + 'px;' +
-      'image-rendering:pixelated';
+      'background-repeat:no-repeat;image-rendering:pixelated';
   };
 
   /** phần tử <i> chân dung, dùng khắp các màn DOM */
-  G.oAnh = function (id, cao) {
-    var st = G.anhNguoi(id, cao || 34);
+  G.oAnh = function (id, cao, tren) {
+    var st = G.anhNguoi(id, cao || 34, tren);
     var e = G.el('i', { style: (st || '') + ';display:block;width:' + (cao || 34) + 'px;height:' + (cao || 34) + 'px' });
     return st ? e : null;
   };

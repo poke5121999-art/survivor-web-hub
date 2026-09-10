@@ -1,6 +1,11 @@
-/* ui-clb.js — màn CLB: menu dọc bên trái, nội dung ở giữa, tóm tắt bên phải.
-   Bố cục bê nguyên của Teamfight Manager 2 (RESEARCH.md §2.1) vì nó hợp màn ngang:
-   menu dọc · nội dung · nút hành động chính ở góc phải. */
+/* ui-clb.js — màn CLB, dựng theo màn Menu / Trainee Select của Uma Musume.
+   (ảnh esport-ref/uma/sheets_guide/sheet001.jpg, RESEARCH.md §2)
+
+   Bản trước bê bố cục TFM2: menu dọc bên trái, thẻ phẳng màu tối. Nhìn ra một cái app
+   quản trị chứ không ra game. Uma điều hướng bằng HÀNG NÚT LỚN Ở ĐÁY, nội dung là thẻ
+   trắng bo tròn có bóng đổ dày, nút là viên thuốc có gờ dưới, và mọi chỗ đều có mặt
+   nhân vật. Ở đây làm đúng thế: thanh trên sáng · nội dung · cột phải là thẻ hành động
+   · thanh nút ở đáy. Cùng bảng màu với màn huấn luyện, không thêm màu mới. */
 (function (G) {
   'use strict';
 
@@ -8,13 +13,14 @@
   var chon = { hlv: null, tt: [], cuu: [] };
 
   var MENU = [
-    { id: 'ca', ten: 'Ca huấn luyện' },
-    { id: 'bxh', ten: 'Bảng xếp hạng' },
-    { id: 'gacha', ten: 'Tuyển mộ' },
-    { id: 'hlv', ten: 'Huấn luyện viên' },
-    { id: 'tt', ten: 'Tuyển thủ' },
-    { id: 'cuu', ten: 'Gia phả' },
-    { id: 'ky', ten: 'Sổ tay' }
+    { id: 'ca', ten: ['Ca huấn', 'luyện'], ic: '🏟️' },
+    { id: 'bxh', ten: ['Bảng xếp', 'hạng'], ic: '🏆' },
+    { id: 'gacha', ten: ['Tuyển mộ'], ic: '🎁' },
+    { id: 'hlv', ten: ['Huấn luyện', 'viên'], ic: '📋' },
+    { id: 'tt', ten: ['Tuyển thủ'], ic: '👥' },
+    { id: 'cuu', ten: ['Gia phả'], ic: '🌳' },
+    { id: 'ky', ten: ['Sổ tay'], ic: '📘' },
+    { id: 'cai', ten: ['Cài đặt'], ic: '⚙️' }
   ];
 
   G.moManCLB = function (t) {
@@ -35,12 +41,32 @@
   function veMenu() {
     var m = G.xoa(G.$('#clb-menu'));
     MENU.forEach(function (x) {
-      m.appendChild(G.el('button' + (trang === x.id ? '.chon' : ''), {
-        text: x.ten, onclick: function () { trang = x.id; veMenu(); veGiua(); vePhai(); }
-      }));
+      var b = G.el('button' + (trang === x.id ? '.chon' : ''));
+      b.appendChild(G.el('i', { text: x.ic }));
+      x.ten.forEach(function (d) { b.appendChild(G.el('span', { text: d })); });
+      /* chấm đỏ trên nút Bảng xếp hạng khi có tin chưa đọc — Uma đánh dấu mục có việc
+         cần xem bằng chấm đỏ ở góc nút, không bắt người chơi tự đi soi từng mục */
+      if (x.id === 'bxh' && G.soTinMoi) {
+        var so = G.soTinMoi();
+        if (so) b.appendChild(G.el('em', { text: String(so) }));
+      }
+      b.addEventListener('click', function () {
+        G.tieng('cham');
+        if (x.id === 'cai') return moCaiDat();
+        trang = x.id; veMenu(); veGiua(); vePhai();
+      });
+      m.appendChild(b);
     });
-    m.appendChild(G.el('div.vach'));
-    m.appendChild(G.el('button', { text: 'Cài đặt', onclick: moCaiDat }));
+  }
+
+  /** một thẻ trắng có dải tiêu đề xanh, kiểu panel của Uma */
+  function hop(dau) {
+    var h = G.el('div.uc-hop');
+    h.appendChild(G.el('div.uc-hop-dau', { text: dau }));
+    var t = G.el('div.uc-hop-than');
+    h.appendChild(t);
+    h._than = t;
+    return h;
   }
 
   function vePhai() {
@@ -51,49 +77,91 @@
     if (trang === 'bxh' && G.veBXHPhai) { G.veBXHPhai(p); return; }
 
     if (S.ca) {
-      p.appendChild(G.el('div', { text: 'CA ĐANG CHẠY', style: 'font-size:11px;color:#8b98a9;letter-spacing:.08em' }));
       var g = G.HLV_THEO_ID[S.ca.hlvId];
-      p.appendChild(G.el('div', { text: g.ten, style: 'font-size:17px;font-weight:800;margin:6px 0' }));
-      p.appendChild(G.el('div', { text: 'Lượt ' + S.ca.luot + '/' + S.ca.soLuot, style: 'color:#8b98a9;font-size:12px' }));
-      var th = G.el('div', { style: 'height:6px;background:#0a1017;border-radius:99px;overflow:hidden;margin:8px 0 14px' });
-      th.appendChild(G.el('i', { style: 'display:block;height:100%;width:' + (S.ca.luot / S.ca.soLuot * 100) + '%;background:#3ddc97' }));
-      p.appendChild(th);
-      p.appendChild(G.el('button.nut.chinh', { text: '▶  Vào ca', style: 'width:100%', onclick: function () {
-        G.moManCa(hoiSinhCa(S.ca));
-      } }));
-      p.appendChild(G.el('button.nut', { text: 'Bỏ ca này', style: 'width:100%;margin-top:8px', onclick: function () {
-        G.hop({ dau: 'Bỏ ca?', html: 'Mọi thứ đã nuôi trong ca sẽ mất, không để lại gì cả.',
-          nut: [{ chu: 'Bỏ', do: true, gt: 1 }, { chu: 'Thôi', gt: 0, chinh: true }] })
-          .then(function (r) { if (r) { G.S.ca = null; G.luu(); G.moManCLB(); } });
-      } }));
+      var h1 = hop('CA ĐANG CHẠY'), t1 = h1._than;
+      var dau = G.el('div', { style: 'display:flex;align-items:center;gap:10px' });
+      var a1 = G.oAnh && G.oAnh(g.id, 52);
+      if (a1) {
+        a1.style.borderRadius = '13px'; a1.style.flex = 'none';
+        a1.style.border = '2px solid #e6e2ef';
+        dau.appendChild(a1);
+      }
+      var ph1 = G.el('div', { style: 'min-width:0' });
+      ph1.appendChild(G.el('div', { text: g.ten, style: 'font-size:15px;font-weight:900;color:#4a3f48' }));
+      ph1.appendChild(G.el('div.uc-phu', { text: 'Lượt ' + S.ca.luot + '/' + S.ca.soLuot }));
+      dau.appendChild(ph1);
+      t1.appendChild(dau);
+      var th = G.el('div.uc-thanh', { style: 'margin:9px 0 12px' });
+      th.appendChild(G.el('i', { style: 'width:' + (S.ca.luot / S.ca.soLuot * 100) +
+        '%;background:linear-gradient(90deg,#a5e86a,#6ec409)' }));
+      t1.appendChild(th);
+      t1.appendChild(G.el('button.uc-nut', { text: '▶  Vào ca',
+        onclick: function () { G.tieng('chon'); G.moManCa(hoiSinhCa(S.ca)); } }));
+      t1.appendChild(G.el('button.uc-nut.phu', { text: 'Bỏ ca này', style: 'margin-top:8px',
+        onclick: function () {
+          G.hop({ sang: true, dau: 'Bỏ ca?', html: 'Mọi thứ đã nuôi trong ca sẽ mất, không để lại gì cả.',
+            nut: [{ chu: 'Bỏ', do: true, gt: 1 }, { chu: 'Thôi', gt: 0, chinh: true }] })
+            .then(function (r) { if (r) { G.S.ca = null; G.luu(); G.moManCLB(); } });
+        } }));
+      p.appendChild(h1);
+      p.appendChild(hopThuHang());
       return;
     }
 
-    p.appendChild(G.el('div', { text: 'BẮT ĐẦU MÙA MỚI', style: 'font-size:11px;color:#8b98a9;letter-spacing:.08em' }));
-    p.appendChild(G.el('div', { text: 'Chọn 1 huấn luyện viên, 5 tuyển thủ đủ 5 vị trí, và 2 cựu huấn luyện viên để kế thừa.',
-      style: 'font-size:12.5px;color:#8b98a9;margin:8px 0 12px;line-height:1.6' }));
+    var h2 = hop('BẮT ĐẦU MÙA MỚI'), t2 = h2._than;
+    t2.appendChild(G.el('div.uc-phu', { text: 'Chọn 1 huấn luyện viên, 5 tuyển thủ đủ 5 vị trí, ' +
+      'và 2 cựu huấn luyện viên để kế thừa.', style: 'margin-bottom:10px' }));
 
-    var ok = chon.hlv && chon.tt.length === 5 && G.duDoiHinh(chon.tt).du;
-    var b = G.el('button.nut' + (ok ? '.chinh' : ''), { text: 'Bắt đầu ca', style: 'width:100%' });
-    if (!ok) { b.disabled = true; b.style.opacity = .45; }
-    b.addEventListener('click', batDauCa);
-    p.appendChild(b);
-
-    p.appendChild(G.el('div', { html: trangThaiChon(), style: 'font-size:12px;color:#8b98a9;margin-top:12px;line-height:1.7' }));
-  }
-
-  function trangThaiChon() {
-    var s = [];
-    s.push('HLV: ' + (chon.hlv ? '<b style="color:#e6edf5">' + G.HLV_THEO_ID[chon.hlv].ten + '</b>' : '—'));
-    s.push('Tuyển thủ: <b style="color:#e6edf5">' + chon.tt.length + '/5</b>');
-    if (chon.tt.length) {
-      var d = G.duDoiHinh(chon.tt);
-      if (!d.du) s.push('<span style="color:#e5484d">Thiếu: ' + d.thieu.map(function (v) { return G.VITRI_THEO_ID[v].ten; }).join(', ') + '</span>');
-      if (d.thua.length) s.push('<span style="color:#f2c94c">Trùng vị trí: ' + d.thua.map(function (v) { return G.VITRI_THEO_ID[v].ten; }).join(', ') + '</span>');
+    /* Ba dòng kiểm, mỗi dòng có dấu ✓ — Uma luôn cho biết còn thiếu gì ngay cạnh nút,
+       không để nút xám trơ mà không nói vì sao bấm không được. */
+    var d = chon.tt.length ? G.duDoiHinh(chon.tt) : { du: false, thieu: [], thua: [] };
+    dongKiem(t2, 'Huấn luyện viên', chon.hlv ? G.HLV_THEO_ID[chon.hlv].ten : 'chưa chọn', !!chon.hlv);
+    dongKiem(t2, 'Tuyển thủ', chon.tt.length + '/5', chon.tt.length === 5 && d.du);
+    dongKiem(t2, 'Cựu HLV', chon.cuu.length + '/2', true);
+    if (chon.tt.length && !d.du) {
+      t2.appendChild(G.el('div', { text: 'Thiếu: ' + d.thieu.map(function (v) {
+        return G.VITRI_THEO_ID[v].ten; }).join(', '),
+        style: 'font-size:11.5px;font-weight:800;color:#d9455c;margin-top:5px' }));
     }
-    s.push('Cựu HLV: <b style="color:#e6edf5">' + chon.cuu.length + '/2</b>');
-    return s.join('<br>');
+    if (chon.tt.length && d.thua && d.thua.length) {
+      t2.appendChild(G.el('div', { text: 'Trùng vị trí: ' + d.thua.map(function (v) {
+        return G.VITRI_THEO_ID[v].ten; }).join(', '),
+        style: 'font-size:11.5px;font-weight:800;color:#c8891a;margin-top:3px' }));
+    }
+
+    var ok = chon.hlv && chon.tt.length === 5 && d.du;
+    var b = G.el('button.uc-nut' + (ok ? '' : '.tat'), { text: 'Bắt đầu ca', style: 'margin-top:11px' });
+    if (ok) b.addEventListener('click', batDauCa);
+    t2.appendChild(b);
+    p.appendChild(h2);
+    p.appendChild(hopThuHang());
   }
+
+  function dongKiem(v, nhan, gt, ok) {
+    var r = G.el('div', { style: 'display:flex;align-items:center;gap:6px;padding:3px 0' });
+    r.appendChild(G.el('span', { text: ok ? '✓' : '·', style: 'width:14px;flex:none;font-weight:900;' +
+      'color:' + (ok ? '#3d9c63' : '#b8b0c2') }));
+    r.appendChild(G.el('span', { text: nhan, style: 'font-size:11.5px;color:#8a7f8f;flex:1' }));
+    r.appendChild(G.el('b', { text: gt, style: 'font-size:12px;color:#4a3f48' }));
+    v.appendChild(r);
+  }
+
+  /** thẻ nhỏ: mình đang đứng hạng mấy — có ở mọi trang để nhắc giải đang chạy */
+  function hopThuHang() {
+    var h = hop('VỊ THẾ CỦA TA'), t = h._than;
+    if (!G.hangTa) { t.appendChild(G.el('div.uc-phu', { text: 'Chưa có mùa nào chạy.' })); return h; }
+    var x = G.hangTa();
+    var r = G.el('div', { style: 'display:flex;align-items:baseline;gap:8px' });
+    r.appendChild(G.el('b', { text: '#' + x.hang, style: 'font-size:27px;font-weight:900;color:#3f6ab8' }));
+    r.appendChild(G.el('span.uc-phu', { text: 'trên ' + x.tong + ' đội quốc nội' }));
+    t.appendChild(r);
+    t.appendChild(G.el('div.uc-phu', { text: (x.h.thang || 0) + ' thắng · ' + (x.h.thua || 0) + ' thua',
+      style: 'margin-top:3px' }));
+    t.appendChild(G.el('button.uc-nut-nho', { text: 'Xem bảng xếp hạng', style: 'margin-top:9px',
+      onclick: function () { trang = 'bxh'; veMenu(); veGiua(); vePhai(); } }));
+    return h;
+  }
+
 
   /* ══════════ trang giữa ══════════ */
   function veGiua() {
@@ -108,8 +176,8 @@
   }
 
   function tieu(g, chu, phu) {
-    g.appendChild(G.el('div', { text: chu, style: 'font-size:17px;font-weight:800' }));
-    if (phu) g.appendChild(G.el('div', { text: phu, style: 'font-size:12.5px;color:#8b98a9;margin:4px 0 12px' }));
+    g.appendChild(G.el('div.uc-tieu', { text: chu }));
+    if (phu) g.appendChild(G.el('div.uc-mo', { text: phu }));
   }
 
   /* ── chọn đội cho ca ── */
@@ -120,8 +188,8 @@
     }
     tieu(g, 'Chuẩn bị mùa giải', 'Vị trí của tuyển thủ là khoá cứng — phải đủ 5 vị trí mới ra sân được.');
 
-    g.appendChild(G.el('div', { text: 'HUẤN LUYỆN VIÊN', style: nhanNho() }));
-    var h = G.el('div', { style: luoi(148) });
+    nhanNho(g, 'HUẤN LUYỆN VIÊN');
+    var h = G.el('div.uc-luoi', { style: luoi(158) });
     G.S.khoHLV.forEach(function (b) {
       var goc = G.HLV_THEO_ID[b.id];
       h.appendChild(theHLV(goc, b, chon.hlv === b.id, function () {
@@ -130,8 +198,8 @@
     });
     g.appendChild(h);
 
-    g.appendChild(G.el('div', { text: 'TUYỂN THỦ  (chọn 5, đủ 5 vị trí)', style: nhanNho() }));
-    var t = G.el('div', { style: luoi(132) });
+    nhanNho(g, 'TUYỂN THỦ  ·  chọn 5, đủ 5 vị trí');
+    var t = G.el('div.uc-luoi', { style: luoi(146) });
     var theoVT = { tren: [], rung: [], giua: [], duoi: [], ho: [] };
     G.S.khoTT.forEach(function (b) {
       var goc = G.TUYENTHU_THEO_ID[b.id]; if (goc) theoVT[goc.vt].push(b);
@@ -150,8 +218,8 @@
     g.appendChild(t);
 
     if (G.S.cuu.length) {
-      g.appendChild(G.el('div', { text: 'CỰU HUẤN LUYỆN VIÊN  (chọn tối đa 2)', style: nhanNho() }));
-      var c = G.el('div', { style: luoi(160) });
+      nhanNho(g, 'CỰU HUẤN LUYỆN VIÊN  ·  chọn tối đa 2');
+      var c = G.el('div.uc-luoi', { style: luoi(172) });
       G.S.cuu.slice(0, 12).forEach(function (hs, i) {
         c.appendChild(theCuu(hs, i, chon.cuu.indexOf(i) >= 0, function () {
           var k = chon.cuu.indexOf(i);
@@ -164,21 +232,31 @@
     }
   }
 
-  function nhanNho() { return 'font-size:11px;color:#8b98a9;letter-spacing:.08em;margin:14px 0 7px'; }
-  function luoi(w) { return 'display:grid;grid-template-columns:repeat(auto-fill,minmax(' + w + 'px,1fr));gap:8px'; }
+  /* Nhãn nhóm và lưới thẻ đều dùng lớp trong css/ui.css (.uc-nhan / .uc-luoi) chứ không
+     nhồi style vào từng chỗ gọi — bản trước mỗi thẻ tự khai màu tối nên đổi sang bảng màu
+     Uma phải sửa hai chục chỗ. */
+  function nhanNho(g, chu) { g.appendChild(G.el('div.uc-nhan', { text: chu })); }
+  function luoi(w) { return 'grid-template-columns:repeat(auto-fill,minmax(' + w + 'px,1fr))'; }
 
   function theHLV(goc, b, dangChon, cb) {
-    var d = G.el('div', { style: 'padding:9px;border-radius:11px;background:#111926;cursor:pointer;border:1px solid ' +
-      (dangChon ? '#3ddc97' : '#26303f') + (dangChon ? ';box-shadow:0 0 0 2px #3ddc9744' : '') });
-    d.appendChild(G.el('div', { text: '★'.repeat(goc.sao), style: 'color:#f2c94c;font-size:12px' }));
-    var anh1 = G.oAnh && G.oAnh(goc.id, 56);
-    if (anh1) { anh1.style.margin = '2px auto'; d.appendChild(anh1); }
-    d.appendChild(G.el('div', { text: goc.ten, style: 'font-weight:800;font-size:13px;margin:2px 0' }));
-    d.appendChild(G.el('div', { text: '"' + goc.biet + '"' + (b.uncap ? '  ✦' + b.uncap : ''), style: 'font-size:11px;color:#8b98a9' }));
+    var d = G.el('div.uc-the.bam' + (dangChon ? '.chon' : ''), { style: 'text-align:center' });
+    d.appendChild(G.el('div.uc-sao', { text: '★'.repeat(goc.sao) + (b.uncap ? '  ✦' + b.uncap : '') }));
+    var anh1 = G.oAnh && G.oAnh(goc.id, 62);
+    if (anh1) {
+      anh1.style.margin = '3px auto';
+      anh1.style.borderRadius = '50%';
+      anh1.style.border = '3px solid ' + (dangChon ? '#ffd76e' : '#eae6f4');
+      anh1.style.backgroundColor = '#f4f2f9';
+      d.appendChild(anh1);
+    }
+    d.appendChild(G.el('div', { text: goc.ten, style: 'font-weight:900;font-size:13.5px;color:#4a3f48' }));
+    d.appendChild(G.el('div.uc-phu', { text: '"' + goc.biet + '"' }));
     var nk = goc.nk;
-    d.appendChild(G.el('div', { html: 'Thế trận: <b>' + tenTheManh(nk.the) + '</b><br>Sân: <b>' + tenTheManh(nk.san, G.TEN_SAN) + '</b>',
-      style: 'font-size:11px;color:#8b98a9;margin-top:5px;line-height:1.5' }));
-    d.addEventListener('click', cb);
+    var ch = G.el('div.uc-chips', { style: 'justify-content:center' });
+    ch.appendChild(G.el('span.uc-chip', { text: tenTheManh(nk.the) }));
+    ch.appendChild(G.el('span.uc-chip', { text: tenTheManh(nk.san, G.TEN_SAN) }));
+    d.appendChild(ch);
+    d.addEventListener('click', function () { G.tieng('cham'); cb(); });
     return d;
   }
 
@@ -192,36 +270,43 @@
     return t + ' ' + nhom[best];
   }
 
+  var MAU_BAC = { UR: '#e5548c', SSR: '#e8a81c', SR: '#7351a7', R: '#3f8fd0', N: '#8a7f8f' };
+
   function theTT(goc, b, dangChon, cb) {
-    var d = G.el('div', { style: 'padding:8px;border-radius:10px;background:#111926;cursor:pointer;border:1px solid ' +
-      (dangChon ? '#3ddc97' : '#26303f') + (dangChon ? ';box-shadow:0 0 0 2px #3ddc9744' : '') });
-    var h = G.el('div', { style: 'display:flex;justify-content:space-between;align-items:center' });
-    var anh2 = G.oAnh && G.oAnh(goc.id, 30);
-    if (anh2) { anh2.style.flex = 'none'; h.appendChild(anh2); }
-    h.appendChild(G.el('b', { text: goc.biet, style: 'font-size:13px;flex:1;margin-left:6px' }));
-    h.appendChild(G.el('span', { text: goc.bac, style: 'font-size:10px;padding:1px 5px;border-radius:4px;background:#1d2838;color:' +
-      (goc.bac === 'SSR' ? '#ffd76e' : goc.bac === 'SR' ? '#b08af0' : '#8b98a9') }));
+    var d = G.el('div.uc-the.bam' + (dangChon ? '.chon' : ''));
+    var h = G.el('div', { style: 'display:flex;align-items:center;gap:7px' });
+    var anh2 = G.oAnh && G.oAnh(goc.id, 34);
+    if (anh2) {
+      anh2.style.flex = 'none'; anh2.style.borderRadius = '50%';
+      anh2.style.border = '2px solid #eae6f4'; anh2.style.backgroundColor = '#f4f2f9';
+      h.appendChild(anh2);
+    }
+    h.appendChild(G.el('b', { text: goc.biet, style: 'font-size:13.5px;flex:1;min-width:0' }));
+    h.appendChild(G.el('span.uc-chip', { text: goc.bac,
+      style: 'color:' + (MAU_BAC[goc.bac] || '#8a7f8f') }));
     d.appendChild(h);
-    d.appendChild(G.el('div', { text: G.VITRI_THEO_ID[goc.vt].ten + ' · ' + G.TT_LOAI_TEN[goc.loai] + ' · c' + b.cap,
-      style: 'font-size:11px;color:#8b98a9;margin-top:3px' }));
-    d.appendChild(G.el('div', { text: goc.chat.map(function (c) { return G.CHAT[c].ten; }).join(' · '),
-      style: 'font-size:10.5px;color:#6fc4f0;margin-top:3px' }));
-    d.addEventListener('click', cb);
+    d.appendChild(G.el('div.uc-phu', { text: G.VITRI_THEO_ID[goc.vt].ten + ' · ' +
+      G.TT_LOAI_TEN[goc.loai] + ' · cấp ' + b.cap, style: 'margin-top:4px' }));
+    var ch = G.el('div.uc-chips');
+    goc.chat.forEach(function (c) { ch.appendChild(G.el('span.uc-chip', { text: G.CHAT[c].ten })); });
+    d.appendChild(ch);
+    d.addEventListener('click', function () { G.tieng('cham'); cb(); });
     return d;
   }
 
   function theCuu(hs, i, dangChon, cb) {
-    var d = G.el('div', { style: 'padding:8px;border-radius:10px;background:#111926;cursor:pointer;border:1px solid ' +
-      (dangChon ? '#f2c94c' : '#26303f') });
-    d.appendChild(G.el('b', { text: hs.ten, style: 'font-size:12.5px' }));
-    d.appendChild(G.el('div', { text: 'Mùa ' + hs.mua + ' · thắng ' + hs.thang + ' giải', style: 'font-size:11px;color:#8b98a9;margin:3px 0' }));
-    var sp = G.el('div', { style: 'display:flex;gap:4px;flex-wrap:wrap;margin-top:4px' });
-    (hs.sparks || []).forEach(function (s) {
-      var mau = s.mau === 'xanh' ? '#4a9df8' : s.mau === 'hong' ? '#ff8fb0' : s.mau === 'la' ? '#3ddc97' : '#c8d3e0';
-      sp.appendChild(G.el('span', { text: tenSpark(s), style: 'font-size:10px;padding:1px 5px;border-radius:4px;background:#0a1017;color:' + mau }));
+    var d = G.el('div.uc-the.bam' + (dangChon ? '.chon' : ''));
+    d.appendChild(G.el('b', { text: hs.ten, style: 'font-size:13px' }));
+    d.appendChild(G.el('div.uc-phu', { text: 'Mùa ' + hs.mua + ' · thắng ' + hs.thang + ' giải',
+      style: 'margin-top:3px' }));
+    var sp = G.el('div.uc-chips');
+    (hs.sparks || []).forEach(function (x) {
+      var mau = x.mau === 'xanh' ? '#3f8fd0' : x.mau === 'hong' ? '#e5548c'
+        : x.mau === 'la' ? '#3d9c63' : '#8a7f8f';
+      sp.appendChild(G.el('span.uc-chip', { text: tenSpark(x), style: 'color:' + mau }));
     });
     d.appendChild(sp);
-    d.addEventListener('click', cb);
+    d.addEventListener('click', function () { G.tieng('cham'); cb(); });
     return d;
   }
 
@@ -255,39 +340,84 @@
   }
   G.luuCa = luuCa; G.hoiSinhCa = hoiSinhCa;
 
-  /* ── gacha ── */
+  /* ── tuyển mộ ──
+     Uma bày banner là MỘT TẤM ART TO: nhân vật đứng chồng lớp trên nền gradient, tên
+     banner nằm dưới, rồi nút cam "quay 10" nổi bật hẳn so với nút quay 1 (ảnh
+     esport-ref/uma/sheets_gacha/g001.jpg). Bản trước ở đây chỉ là một cái panel chữ —
+     mở ra không có gì để muốn bấm. */
+  var NEN_BANNER = {
+    hlv: 'linear-gradient(135deg,#ffd6a8 0%,#ff9ec4 45%,#b79ae0 100%)',
+    tt: 'linear-gradient(135deg,#a8e0ff 0%,#8fb8ff 45%,#b79ae0 100%)'
+  };
+
   function veGacha(g) {
     if (G.day) G.day('gacha');
-    tieu(g, 'Tuyển mộ', 'Tỉ lệ lấy đúng của Uma Musume: bậc cao nhất 3%, giữa 18%, thấp 79%. Quay 10 chắc chắn có ít nhất một cái bậc 2 trở lên. Đủ 200 vé thì tự chọn.');
+    tieu(g, 'Tuyển mộ', 'Tỉ lệ lấy đúng của Uma Musume: bậc cao nhất 3%, giữa 18%, thấp 79%. ' +
+      'Quay 10 chắc chắn có ít nhất một cái bậc 2 trở lên. Đủ 200 vé thì tự chọn.');
 
-    [['hlv', 'Banner Huấn Luyện Viên', G.HLV, 'sao'], ['tt', 'Banner Tuyển Thủ', G.TUYENTHU, 'bac']].forEach(function (x) {
-      var loai = x[0];
-      var k = G.el('div', { style: 'padding:12px;border-radius:12px;background:linear-gradient(135deg,#16202c,#101823);' +
-        'border:1px solid #26303f;margin-bottom:12px' });
-      k.appendChild(G.el('div', { text: x[1], style: 'font-size:15px;font-weight:800' }));
-      k.appendChild(G.el('div', { text: 'Vé đổi: ' + G.S.ve[loai] + '/200', style: 'font-size:12px;color:#8b98a9;margin:4px 0 8px' }));
-      var th = G.el('div', { style: 'height:6px;background:#0a1017;border-radius:99px;overflow:hidden;margin-bottom:10px' });
-      th.appendChild(G.el('i', { style: 'display:block;height:100%;width:' + (G.S.ve[loai] / 200 * 100) + '%;background:linear-gradient(90deg,#4a9df8,#ffd76e)' }));
-      k.appendChild(th);
-      var hang = G.el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' });
-      hang.appendChild(G.el('button.nut', { text: 'Quay 1 · 150 xu', onclick: function () { quay(loai, 1); } }));
-      hang.appendChild(G.el('button.nut.chinh', { text: 'Quay 10 · 1500 xu', onclick: function () { quay(loai, 10); } }));
-      hang.appendChild(G.el('button.nut', { text: 'Xem tỉ lệ', onclick: function () {
-        G.hop({ dau: 'Tỉ lệ', html:
-          '<table style="width:100%;font-size:13px"><tr><td>Bậc cao (SSR / 3★)</td><td align="right"><b>3.000%</b></td></tr>' +
-          '<tr><td>Bậc giữa (SR / 2★)</td><td align="right"><b>18.000%</b></td></tr>' +
-          '<tr><td>Bậc thấp (R / 1★)</td><td align="right"><b>79.000%</b></td></tr></table>' +
-          '<div style="margin-top:10px;color:#8b98a9">Quay 10 lần bảo đảm ít nhất một cái bậc giữa trở lên. ' +
-          'Mỗi lần quay được 1 vé; đủ 200 vé thì tự chọn một cái bậc cao. Vé không mang sang banner khác.</div>' });
-      } }));
-      k.appendChild(hang);
+    [['hlv', 'Banner Huấn Luyện Viên', G.HLV], ['tt', 'Banner Tuyển Thủ', G.TUYENTHU]].forEach(function (x) {
+      var loai = x[0], kho = x[2];
+      var k = G.el('div.uc-banner');
+      k.appendChild(G.el('div.uc-bn-nen', { style: 'background:' + NEN_BANNER[loai] }));
+
+      /* năm gương mặt bậc cao nhất, xếp chồng lệch nhau như poster banner */
+      var mat = G.el('div.uc-bn-mat');
+      var cao = kho.filter(function (m) { return loai === 'hlv' ? m.sao === 3 : m.bac === 'SSR'; });
+      if (!cao.length) cao = kho.slice(0, 5);
+      cao.slice(0, 5).forEach(function (m, i) {
+        /* cắt sát hơn (12% mép trên) và phóng to hơn ô thường: đây là poster, người
+           phải cao gần bằng khung banner mới ra dáng banner */
+        var a = G.oAnh && G.oAnh(m.id, 132 - i * 11);
+        if (a) {
+          a.className = '';
+          a.style.cssText += ';flex:none;margin-right:-22px;z-index:' + (9 - i) +
+            ';filter:drop-shadow(0 3px 5px #0004)';
+          mat.appendChild(a);
+        }
+      });
+      mat.appendChild(G.el('div', { text: cao.length + ' cái bậc cao trong lượt này',
+        style: 'margin-left:auto;align-self:flex-start;background:#ffffffdd;border-radius:99px;' +
+          'padding:3px 11px;font-size:11px;font-weight:900;color:#6b5c68' }));
+      k.appendChild(mat);
+
+      var chu = G.el('div.uc-bn-chu');
+      chu.appendChild(G.el('h4', { text: x[1] }));
+      var hang = G.el('div.uc-bn-hang');
+      var ve = G.el('div.uc-bn-ve');
+      ve.appendChild(G.el('span', { text: 'Vé đổi ' + G.S.ve[loai] + '/200' }));
+      var th = G.el('div.uc-thanh');
+      th.appendChild(G.el('i', { style: 'width:' + (G.S.ve[loai] / 200 * 100) +
+        '%;background:linear-gradient(90deg,#8fd8ff,#ffd76e)' }));
+      ve.appendChild(th);
+      hang.appendChild(ve);
+      hang.appendChild(G.el('button.uc-nut.phu', { text: 'Quay 1 · 150',
+        onclick: function () { quay(loai, 1); } }));
+      hang.appendChild(G.el('button.uc-nut.cam', { text: 'Quay 10 · 1500',
+        onclick: function () { quay(loai, 10); } }));
+      hang.appendChild(G.el('button.uc-nut-nho', { text: 'Tỉ lệ', onclick: xemTiLe }));
+      chu.appendChild(hang);
+      k.appendChild(chu);
       g.appendChild(k);
     });
   }
 
+  function xemTiLe() {
+    G.hop({ sang: true, dau: 'Tỉ lệ', html:
+      '<table style="width:100%;font-size:13px">' +
+      '<tr><td>Bậc cao (SSR / 3★)</td><td align="right"><b>3.000%</b></td></tr>' +
+      '<tr><td>Bậc giữa (SR / 2★)</td><td align="right"><b>18.000%</b></td></tr>' +
+      '<tr><td>Bậc thấp (R / 1★)</td><td align="right"><b>79.000%</b></td></tr></table>' +
+      '<div style="margin-top:10px;color:#8a7f8f">Quay 10 lần bảo đảm ít nhất một cái bậc giữa ' +
+      'trở lên. Mỗi lần quay được 1 vé; đủ 200 vé thì tự chọn một cái bậc cao. Vé không mang ' +
+      'sang banner khác.</div>' });
+  }
+
   function quay(loai, n) {
     var gia = n === 10 ? 1500 : 150;
-    if (G.S.clb.xu < gia) { G.hop({ dau: 'Không đủ xu', html: 'Cần ' + gia + ' xu. Thắng giải để có thêm.' }); return; }
+    if (G.S.clb.xu < gia) {
+      G.hop({ sang: true, dau: 'Không đủ xu', html: 'Cần ' + gia + ' xu. Thắng giải để có thêm.' });
+      return;
+    }
     G.S.clb.xu -= gia;
 
     var rng = G.Rng((Date.now() ^ (Math.random() * 1e9)) & 0x7fffffff);
@@ -308,36 +438,49 @@
     hienKetQuaQuay(kq, loai);
   }
 
+  /* Lưới 5 cột — quay 10 thì ra đúng hai hàng năm ô, y như bảng kết quả của Uma. */
   function hienKetQuaQuay(kq, loai) {
     var n = G.el('div');
-    var l = G.el('div', { style: 'display:grid;grid-template-columns:repeat(5,1fr);gap:8px' });
+    var l = G.el('div.uc-kq');
     kq.forEach(function (x) {
-      var mau = x.bac === 3 ? '#ffd76e' : x.bac === 2 ? '#b08af0' : '#7d8794';
-      var d = G.el('div', { style: 'padding:8px;border-radius:10px;background:#0d1420;border:1px solid ' + mau +
-        ';text-align:center' });
-      d.appendChild(G.el('div', { text: '★'.repeat(x.bac), style: 'color:' + mau + ';font-size:11px' }));
-      d.appendChild(G.el('div', { text: x.biet || x.ten, style: 'font-weight:700;font-size:12px;margin-top:3px' }));
-      d.appendChild(G.el('div', { text: x.moi ? 'MỚI' : (x.thua ? '+xu' : '✦' + x.uncap),
-        style: 'font-size:10px;color:' + (x.moi ? '#3ddc97' : '#8b98a9') }));
+      var d = G.el('div.uc-kq-o.b' + x.bac);
+      var a = G.oAnh && G.oAnh(x.id, 46);
+      if (a) { a.style.borderRadius = '50%'; a.style.margin = '0 auto 4px'; d.appendChild(a); }
+      d.appendChild(G.el('div.uc-sao', { text: '★'.repeat(x.bac) }));
+      d.appendChild(G.el('b', { text: x.biet || x.ten }));
+      d.appendChild(G.el('em' + (x.moi ? '.moi' : ''),
+        { text: x.moi ? 'MỚI' : (x.thua ? '+xu' : '✦' + x.uncap) }));
       l.appendChild(d);
     });
     n.appendChild(l);
     if (kq.some(function (x) { return x.bac === 3; })) { G.phaoHoa(50); G.rung('to'); }
-    G.hop({ dau: 'Kết quả', node: n, nut: [{ chu: 'Xong', chinh: true }] }).then(function () { G.moManCLB('gacha'); });
+    G.hop({ sang: true, rong: 640, dau: 'Kết quả', node: n, nut: [{ chu: 'Xong', chinh: true }] })
+      .then(function () { G.moManCLB('gacha'); });
   }
 
   /* ── kho ── */
   function veKhoHLV(g) {
     tieu(g, 'Huấn luyện viên', 'Đây là thứ được nuôi trong ca. Năng khiếu quyết định đội hợp lối chơi nào.');
-    var l = G.el('div', { style: luoi(200) });
+    var l = G.el('div.uc-luoi', { style: luoi(214) });
     G.S.khoHLV.forEach(function (b) {
       var goc = G.HLV_THEO_ID[b.id];
-      var d = G.el('div', { style: 'padding:10px;border-radius:11px;background:#111926;border:1px solid #26303f' });
-      d.appendChild(G.el('div', { text: '★'.repeat(goc.sao) + (b.uncap ? '  ✦' + b.uncap : ''), style: 'color:#f2c94c;font-size:12px' }));
-      d.appendChild(G.el('b', { text: goc.ten, style: 'font-size:14px' }));
-      d.appendChild(G.el('div', { text: goc.tieu, style: 'font-size:11.5px;color:#8b98a9;margin:5px 0 7px;line-height:1.5' }));
+      var d = G.el('div.uc-the');
+      var dh = G.el('div', { style: 'display:flex;align-items:center;gap:9px' });
+      var a = G.oAnh && G.oAnh(goc.id, 46);
+      if (a) {
+        a.style.flex = 'none'; a.style.borderRadius = '50%';
+        a.style.border = '2px solid #eae6f4'; a.style.backgroundColor = '#f4f2f9';
+        dh.appendChild(a);
+      }
+      var dp = G.el('div', { style: 'min-width:0' });
+      dp.appendChild(G.el('div.uc-sao', { text: '★'.repeat(goc.sao) + (b.uncap ? '  ✦' + b.uncap : '') }));
+      dp.appendChild(G.el('b', { text: goc.ten, style: 'font-size:14.5px' }));
+      dh.appendChild(dp);
+      d.appendChild(dh);
+      d.appendChild(G.el('div.uc-phu', { text: goc.tieu, style: 'margin:6px 0 7px' }));
       var kn = G.KN_RIENG[goc.kn];
-      d.appendChild(G.el('div', { html: '<b style="color:#3ddc97">' + kn.ten + '</b> — ' + kn.mota, style: 'font-size:11.5px;line-height:1.5' }));
+      d.appendChild(G.el('div', { html: '<b style="color:#3d9c63">' + kn.ten + '</b> — ' + kn.mota,
+        style: 'font-size:11.5px;line-height:1.55;color:#6b5c68' }));
       d.appendChild(bangNK(goc.nk));
       l.appendChild(d);
     });
@@ -348,18 +491,21 @@
     var w = G.el('div', { style: 'margin-top:8px;display:flex;flex-direction:column;gap:3px' });
     [['Sân', nk.san, G.TEN_SAN], ['Nhịp', nk.nhip, G.TEN_NHIP], ['Thế', nk.the, G.TEN_THE]].forEach(function (r) {
       var h = G.el('div', { style: 'display:flex;gap:4px;align-items:center' });
-      h.appendChild(G.el('span', { text: r[0], style: 'font-size:10px;color:#8b98a9;width:28px' }));
+      h.appendChild(G.el('span', { text: r[0], style: 'font-size:10px;color:#8a7f8f;width:28px;flex:none' }));
       for (var k in r[1]) {
         var hang = r[1][k];
-        h.appendChild(G.el('span', { text: (r[2][k] || k) + ' ' + hang,
-          style: 'font-size:10px;padding:1px 5px;border-radius:4px;background:#0a1017;color:' + mauHang(hang) }));
+        h.appendChild(G.el('span.uc-chip', { text: (r[2][k] || k) + ' ' + hang,
+          style: 'color:' + mauHang(hang) }));
       }
       w.appendChild(h);
     });
     return w;
   }
+  /* Cùng bảng màu với vòng hạng chữ ở màn huấn luyện (.uma-hang.h-S…) — cùng một hạng
+     thì ở đâu cũng phải cùng màu, không thì người chơi phải học hai bộ màu. */
   function mauHang(h) {
-    return { S: '#ff8fb0', A: '#ffd76e', B: '#b08af0', C: '#7aaad8', D: '#7ad0d8', E: '#a9d87a', F: '#d8a07a', G: '#9aa' }[h] || '#9aa';
+    return { S: '#c8891a', A: '#c23a70', B: '#7351a7', C: '#2f6ba0', D: '#2e7d4f',
+      E: '#5c7a2a', F: '#8a6a2a', G: '#8a7f8f' }[h] || '#8a7f8f';
   }
 
   function veKhoTT(g) {
@@ -368,28 +514,43 @@
     ['tren', 'rung', 'giua', 'duoi', 'ho'].forEach(function (vt) {
       var ds = G.S.khoTT.filter(function (b) { return (G.TUYENTHU_THEO_ID[b.id] || {}).vt === vt; });
       if (!ds.length) return;
-      g.appendChild(G.el('div', { text: G.VITRI_THEO_ID[vt].ten.toUpperCase(), style: nhanNho() }));
-      var l = G.el('div', { style: luoi(210) });
+      nhanNho(g, G.VITRI_THEO_ID[vt].ten.toUpperCase());
+      var l = G.el('div.uc-luoi', { style: luoi(222) });
       ds.forEach(function (b) {
         var goc = G.TUYENTHU_THEO_ID[b.id];
-        var d = G.el('div', { style: 'padding:10px;border-radius:11px;background:#111926;border:1px solid #26303f' });
-        var h = G.el('div', { style: 'display:flex;justify-content:space-between;align-items:center' });
-        h.appendChild(G.el('b', { text: goc.ten, style: 'font-size:13px' }));
-        h.appendChild(G.el('span', { text: goc.bac + (b.uncap ? ' ✦' + b.uncap : ''), style: 'font-size:11px;color:#f2c94c' }));
+        var d = G.el('div.uc-the');
+        var h = G.el('div', { style: 'display:flex;align-items:center;gap:8px' });
+        var a = G.oAnh && G.oAnh(b.id, 40);
+        if (a) {
+          a.style.flex = 'none'; a.style.borderRadius = '50%';
+          a.style.border = '2px solid #eae6f4'; a.style.backgroundColor = '#f4f2f9';
+          h.appendChild(a);
+        }
+        var hp = G.el('div', { style: 'flex:1;min-width:0' });
+        hp.appendChild(G.el('b', { text: goc.ten, style: 'font-size:13.5px' }));
+        hp.appendChild(G.el('div.uc-phu', { text: G.TT_LOAI_TEN[goc.loai] + ' · ' + '★'.repeat(goc.vtSao) }));
+        h.appendChild(hp);
+        h.appendChild(G.el('span.uc-chip', { text: goc.bac + (b.uncap ? ' ✦' + b.uncap : ''),
+          style: 'color:' + (MAU_BAC[goc.bac] || '#8a7f8f') }));
         d.appendChild(h);
-        d.appendChild(G.el('div', { text: 'Cấp ' + b.cap + '/' + G.tranCap(goc.bac, b.uncap) + ' · ' + G.TT_LOAI_TEN[goc.loai] +
-          ' · ' + '★'.repeat(goc.vtSao), style: 'font-size:11px;color:#8b98a9;margin:4px 0' }));
-        d.appendChild(G.el('div', { text: goc.chat.map(function (c) { return G.CHAT[c].ten; }).join(' · ') + ' · tôi ' + goc.ego,
-          style: 'font-size:11px;color:#6fc4f0' }));
-        var tt = G.el('div', { style: 'display:flex;gap:4px;flex-wrap:wrap;margin-top:6px' });
+        var ch = G.el('div.uc-chips');
+        goc.chat.forEach(function (c) { ch.appendChild(G.el('span.uc-chip', { text: G.CHAT[c].ten })); });
+        ch.appendChild(G.el('span.uc-chip', { text: 'tôi ' + goc.ego }));
+        d.appendChild(ch);
+        /* thông thạo tướng: hiện ảnh tướng kèm bậc, xem một cái là biết tủ của người này */
+        var tt = G.el('div.uc-chips');
         G.tuongTheoViTri(goc.vt).forEach(function (t) {
           var bac = G.thongThao(b, t.id);
-          tt.appendChild(G.el('span', { text: t.ten + ' ' + bac,
-            style: 'font-size:10px;padding:1px 5px;border-radius:4px;background:#0a1017;color:' + G.TT_THEO_ID[bac].mau }));
+          var o = G.el('span.uc-chip', { style: 'color:' + (MAU_BAC[bac] || '#8a7f8f') +
+            ';padding-left:2px', title: t.ten + ' — ' + bac });
+          var at = G.oAnhTuong && G.oAnhTuong(t.id, 18);
+          if (at) { at.style.borderRadius = '50%'; o.appendChild(at); }
+          o.appendChild(G.el('b', { text: bac, style: 'font-size:10px' }));
+          tt.appendChild(o);
         });
         d.appendChild(tt);
         d.appendChild(thanhCap(b, goc));
-        var nb = G.el('button.nut-nho', { text: 'Nuôi thẻ', style: 'width:100%;margin-top:7px' });
+        var nb = G.el('button.uc-nut-nho', { text: 'Nuôi thẻ', style: 'width:100%;margin-top:8px' });
         nb.addEventListener('click', function () { G.tieng('cham'); moNuoiThe(b); });
         d.appendChild(nb);
         l.appendChild(d);
@@ -401,10 +562,10 @@
   function veGiaPha(g) {
     tieu(g, 'Gia phả', 'Mỗi mùa xong để lại một hồ sơ. Chọn 2 hồ sơ làm cựu HLV thì mùa sau được thừa hưởng spark của họ.');
     if (!G.S.cuu.length) {
-      g.appendChild(G.el('div', { text: 'Chưa có mùa nào hoàn tất.', style: 'color:#8b98a9' }));
+      g.appendChild(G.el('div.uc-phu', { text: 'Chưa có mùa nào hoàn tất.' }));
       return;
     }
-    var l = G.el('div', { style: luoi(210) });
+    var l = G.el('div.uc-luoi', { style: luoi(222) });
     G.S.cuu.forEach(function (hs, i) { l.appendChild(theCuu(hs, i, false, function () {})); });
     g.appendChild(l);
   }
@@ -424,15 +585,15 @@
     var lai = G.el('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px' });
     [['ca', 'Một ngày ở trung tâm'], ['draft', 'Cấm và chọn'], ['tran', 'Xem trận'],
      ['gacha', 'Tuyển mộ'], ['ketthua', 'Thua là hết mùa']].forEach(function (x) {
-      lai.appendChild(G.el('button.nut', { text: x[1], style: 'padding:6px 11px;font-size:12px',
+      lai.appendChild(G.el('button.uc-nut-nho', { text: x[1],
         onclick: function () { G.dayLai(x[0]); } }));
     });
     g.appendChild(lai);
 
     muc.forEach(function (m) {
-      var d = G.el('div', { style: 'padding:9px 11px;border-radius:10px;background:#111926;border:1px solid #26303f;margin-bottom:7px' });
-      d.appendChild(G.el('b', { text: m[0], style: 'font-size:13px' }));
-      d.appendChild(G.el('div', { text: m[1], style: 'font-size:12.5px;color:#8b98a9;margin-top:3px;line-height:1.6' }));
+      var d = G.el('div.uc-the', { style: 'margin-bottom:8px' });
+      d.appendChild(G.el('b', { text: m[0], style: 'font-size:13.5px' }));
+      d.appendChild(G.el('div.uc-phu', { text: m[1], style: 'margin-top:3px' }));
       g.appendChild(d);
     });
   }
@@ -447,13 +608,14 @@
     var can = G.expCap(b.cap);
     var p = b.cap >= tran ? 1 : G.kep((b.exp || 0) / can, 0, 1);
     var d = G.el('div', { style: 'margin-top:6px' });
-    var h = G.el('div', { style: 'display:flex;justify-content:space-between;font-size:10.5px;color:#8b98a9' });
+    var h = G.el('div', { style: 'display:flex;justify-content:space-between;font-size:10.5px;' +
+      'font-weight:800;color:#8a7f8f' });
     h.appendChild(G.el('span', { text: 'Cấp ' + b.cap + '/' + tran }));
     h.appendChild(G.el('span', { text: b.cap >= tran ? 'đã tối đa' : (b.exp || 0) + '/' + can + ' kn' }));
     d.appendChild(h);
-    var t = G.el('div', { style: 'height:5px;background:#0a1017;border-radius:99px;overflow:hidden;margin-top:3px' });
-    t.appendChild(G.el('i', { style: 'display:block;height:100%;width:' + (p * 100) + '%;background:' +
-      (b.cap >= tran ? '#f2c94c' : '#4a9df8') }));
+    var t = G.el('div.uc-thanh', { style: 'height:6px;margin-top:3px' });
+    t.appendChild(G.el('i', { style: 'width:' + (p * 100) + '%;background:' +
+      (b.cap >= tran ? 'linear-gradient(90deg,#ffd76e,#e8a81c)' : 'linear-gradient(90deg,#8fd8ff,#3f8fd0)') }));
     d.appendChild(t);
     return d;
   }
@@ -471,16 +633,15 @@
       var a = G.oAnh && G.oAnh(b.id, 54);
       if (a) tren.appendChild(a);
       var ph = G.el('div', { style: 'flex:1' });
-      ph.appendChild(G.el('div', { text: goc.ten, style: 'font-weight:800;font-size:15px' }));
-      ph.appendChild(G.el('div', {
+      ph.appendChild(G.el('div', { text: goc.ten, style: 'font-weight:900;font-size:15px;color:#4a3f48' }));
+      ph.appendChild(G.el('div.uc-phu', {
         text: goc.bac + (b.uncap ? ' ✦' + b.uncap : '') + ' · ' + G.VITRI_THEO_ID[goc.vt].ten +
-          ' · ' + G.TT_LOAI_TEN[goc.loai],
-        style: 'font-size:11.5px;color:#8b98a9;margin-top:2px'
+          ' · ' + G.TT_LOAI_TEN[goc.loai]
       }));
       tren.appendChild(ph);
       tren.appendChild(G.el('div', {
         text: 'Cấp ' + b.cap + '/' + tran,
-        style: 'font-size:20px;font-weight:800;color:' + (toiDa ? '#f2c94c' : '#e6edf5')
+        style: 'font-size:21px;font-weight:900;color:' + (toiDa ? '#c8891a' : '#3f6ab8')
       }));
       n.appendChild(tren);
 
@@ -488,8 +649,8 @@
         n.appendChild(G.el('div', {
           html: 'Thẻ đã tới trần cấp. Muốn nuôi tiếp thì phải <b>uncap</b> — quay trúng thẻ này ' +
             'lần nữa ở banner tuyển thủ, mỗi lần uncap mở thêm 5 cấp.',
-          style: 'font-size:12.5px;color:#f2c94c;line-height:1.7;background:#1d1a10;' +
-            'border:1px solid #4a3d18;border-radius:10px;padding:10px'
+          style: 'font-size:12.5px;color:#8a6a2a;line-height:1.7;background:#fffaeb;' +
+            'border:2px solid #f0dfae;border-radius:12px;padding:10px'
         }));
       } else {
         var muaDuoc = G.capMuaDuoc(b);
@@ -497,15 +658,15 @@
         if (tran - b.cap > 10) moc.push(tran - b.cap);
         else if (moc.indexOf(tran - b.cap) < 0) moc.push(tran - b.cap);
 
-        n.appendChild(G.el('div', { text: 'THUÊ CHUYÊN GIA KÈM', style: nhanNho() }));
+        nhanNho(n, 'THUÊ CHUYÊN GIA KÈM');
         var hang = G.el('div', { style: 'display:flex;gap:7px;flex-wrap:wrap' });
         moc.forEach(function (so) {
           var t = G.giaNhieuCap(b, so);
           var du = t.xu <= G.S.clb.xu;
-          var nb = G.el('button.nut' + (du ? '.chinh' : ''), {
-            text: '+' + t.so + ' cấp  ·  ' + G.so(t.xu) + ' xu'
+          var nb = G.el('button.uc-nut' + (du ? '' : '.tat'), {
+            text: '+' + t.so + ' cấp  ·  ' + G.so(t.xu) + ' xu',
+            style: 'width:auto;flex:none;padding:8px 14px;font-size:12.5px'
           });
-          if (!du) { nb.disabled = true; nb.style.opacity = .45; }
           nb.addEventListener('click', function () {
             var len = G.nangCapTT(b, so);
             if (len) { G.tieng('tapTot'); ve(); veGiua(); vePhai(); }
@@ -513,37 +674,39 @@
           hang.appendChild(nb);
         });
         n.appendChild(hang);
-        n.appendChild(G.el('div', {
+        n.appendChild(G.el('div.uc-phu', {
           text: 'Đang có ' + G.so(G.S.clb.xu) + ' xu — đủ cho ' + muaDuoc + ' cấp.',
-          style: 'font-size:11.5px;color:#8b98a9;margin-top:6px'
+          style: 'margin-top:6px'
         }));
 
         /* trước → sau, tính trên số cấp mua nổi (hoặc 5 cấp nếu chưa đủ xu) */
         var xem = Math.max(1, Math.min(muaDuoc || 5, tran - b.cap));
-        n.appendChild(G.el('div', { text: 'NẾU LÊN ' + xem + ' CẤP', style: nhanNho() }));
-        var bang = G.el('div', { style: 'background:#0d131c;border:1px solid #26303f;border-radius:10px;padding:4px 9px' });
+        nhanNho(n, 'NẾU LÊN ' + xem + ' CẤP');
+        var bang = G.el('div', { style: 'background:#f7f6fb;border:2px solid #e6e2ef;' +
+          'border-radius:12px;padding:4px 10px' });
         G.soHieu(b, b.cap + xem).forEach(function (x) {
           if (Math.abs(x.b - x.a) < (x.pt ? 0.0005 : 0.5)) return;
           var r = G.el('div', { style: 'display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px' });
-          r.appendChild(G.el('span', { text: x.ten, style: 'color:#8b98a9' }));
+          r.appendChild(G.el('span', { text: x.ten, style: 'color:#8a7f8f' }));
           var v = G.el('span');
-          v.appendChild(G.el('span', { text: so1(x.a, x.pt), style: 'color:#7f8b9c' }));
-          v.appendChild(G.el('span', { text: '  →  ', style: 'color:#5a6675' }));
-          v.appendChild(G.el('b', { text: so1(x.b, x.pt), style: 'color:#3ddc97' }));
+          v.appendChild(G.el('span', { text: so1(x.a, x.pt), style: 'color:#a09aa8' }));
+          v.appendChild(G.el('span', { text: '  →  ', style: 'color:#c4bed0' }));
+          v.appendChild(G.el('b', { text: so1(x.b, x.pt), style: 'color:#3d9c63' }));
           r.appendChild(v);
           bang.appendChild(r);
         });
         n.appendChild(bang);
       }
 
-      n.appendChild(G.el('div', {
+      n.appendChild(G.el('div.uc-phu', {
         html: 'Đường lên cấp thứ hai <b>không mua được</b>: cho thẻ này vào đội hình và chạy hết ' +
           'một mùa. Càng thắng nhiều giải càng nhiều kinh nghiệm.',
-        style: 'font-size:11.5px;color:#7f8b9c;line-height:1.7;margin-top:10px'
+        style: 'margin-top:10px'
       }));
     }
     ve();
-    return G.hop({ dau: 'Nuôi thẻ — ' + goc.biet, node: n, nut: [{ chu: 'Xong', chinh: true }] });
+    return G.hop({ sang: true, dau: 'Nuôi thẻ — ' + goc.biet, node: n,
+      nut: [{ chu: 'Xong', chinh: true }] });
   }
 
   function so1(v, pt) {
@@ -568,13 +731,14 @@
     });
     r2.appendChild(cb2); r2.appendChild(G.el('span', { text: 'Tiếng' }));
     n.appendChild(r2);
-    n.appendChild(G.el('div', { text: 'Bản lưu nằm trong máy này. Xoá là mất hết.', style: 'color:#8b98a9;font-size:12px;margin:10px 0' }));
-    G.hop({ dau: 'Cài đặt', node: n, nut: [
+    n.appendChild(G.el('div.uc-phu', { text: 'Bản lưu nằm trong máy này. Xoá là mất hết.',
+      style: 'margin:10px 0' }));
+    G.hop({ sang: true, dau: 'Cài đặt', node: n, nut: [
       { chu: 'Xoá bản lưu', do: true, gt: 'xoa' },
       { chu: 'Đóng', chinh: true, gt: null }
     ] }).then(function (v) {
       if (v === 'xoa') {
-        G.hop({ dau: 'Chắc chưa?', html: 'Xoá là mất sạch huấn luyện viên, tuyển thủ, gia phả.',
+        G.hop({ sang: true, dau: 'Chắc chưa?', html: 'Xoá là mất sạch huấn luyện viên, tuyển thủ, gia phả.',
           nut: [{ chu: 'Xoá', do: true, gt: 1 }, { chu: 'Thôi', gt: 0, chinh: true }] })
           .then(function (x) { if (x) { G.xoaSave(); chon = { hlv: null, tt: [], cuu: [] }; G.moManCLB('ca'); } });
       }

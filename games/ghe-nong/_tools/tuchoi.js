@@ -33,18 +33,21 @@
   }
   function bam(e) { if (e) { e.click(); return true; } return false; }
 
-  /* chọn 1 HLV + 5 tuyển thủ đủ 5 vị trí bằng cách BẤM đúng thẻ trên màn, không đụng vào
-     biến trong closure — có vậy mới kiểm được luôn cả phần chọn đội. */
+  /* Chọn 1 HLV + 5 tuyển thủ đủ 5 vị trí bằng cách BẤM đúng thẻ trên màn, không đụng vào
+     biến trong closure — có vậy mới kiểm được luôn cả phần chọn đội.
+     Thẻ bấm được nhận ra bằng lớp `.uc-the.bam`. Trước đây dò `style*="cursor:pointer"`;
+     đổi màn CLB sang bảng màu Uma là style rời vào file css nên bộ dò ấy chết lặng, mà
+     chết lặng thì kịch bản đứng ở màn CLB tới hết giờ mà KHÔNG báo lỗi gì. */
   function chonDoi(g) {
-    var the = G.$$('div[style*="cursor:pointer"]', g);
+    var the = G.$$('.uc-the.bam', g);
     if (!bam(the[0])) return false;                       /* thẻ HLV đầu tiên */
     var can = { tren: 1, rung: 1, giua: 1, duoi: 1, ho: 1 }, xong = 0;
     G.S.khoTT.forEach(function (b) {
       var goc = G.TUYENTHU_THEO_ID[b.id];
       if (!goc || !can[goc.vt]) return;
       can[goc.vt] = 0;
-      var t = G.$$('div[style*="cursor:pointer"]', g).filter(function (d) {
-        return d.textContent.indexOf(goc.biet) === 0 || (d.querySelector('b') || {}).textContent === goc.biet;
+      var t = G.$$('.uc-the.bam', g).filter(function (d) {
+        return (d.querySelector('b') || {}).textContent === goc.biet;
       })[0];
       if (bam(t)) xong++;
     });
@@ -109,7 +112,11 @@
     if (m === 'man-clb') {
       var vao = nut(document.getElementById('clb-phai'), /Vào ca/);
       if (vao) { bam(vao); return; }
-      var bd = nut(document.getElementById('clb-phai'), /Bắt đầu ca/);
+      /* nút "Bắt đầu ca" chưa đủ điều kiện thì mang lớp .tat và không gắn onclick —
+         bấm vào cũng không sao, nhưng phải chọn đội trước cho khỏi bấm hoài */
+      var bd = G.$$('#clb-phai button').filter(function (b) {
+        return /Bắt đầu ca/.test(b.textContent) && !b.classList.contains('tat');
+      })[0];
       if (bd) { bam(bd); return; }
       chonDoi(document.getElementById('clb-giua'));
       return;

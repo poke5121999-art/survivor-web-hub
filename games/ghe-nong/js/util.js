@@ -152,7 +152,10 @@
     return new Promise(function (xong) {
       var phu = G.$('#lop-phu');
       G.xoa(phu);
-      var h = G.el('div.hop');
+      /* `sang: true` → hộp trắng kiểu Uma. Game có hai thế giới màu: menu và huấn luyện
+         theo Uma (sáng), cấm chọn và trận đấu theo TFM2 (tối). Hộp thoại phải theo màu
+         của màn đang mở, không thì mở hộp trắng trên màn trận trông như lỗi. */
+      var h = G.el('div.hop' + (opt.sang ? '.sang' : ''));
       /* hộp rộng hơn cho bảng xếp hạng: một cái bảng bảy cột nhét vào 560px thì cột phong độ
          bị cắt, và khung đọc tin bị đẩy ra ngoài màn */
       if (opt.rong) h.style.width = opt.rong + 'px';
