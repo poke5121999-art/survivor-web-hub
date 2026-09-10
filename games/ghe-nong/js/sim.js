@@ -54,6 +54,16 @@
     chua:  { ten: 'Chúa Hang', x: 300, y: 300, hp: 9000, atk: 105, dau: 420, lap: 300, vang: 320, exp: 90 }
   };
 
+  /* Hiệu ứng cho phần VẼ: đạn bay, vệt chém, vòng diện rộng, tia trụ bắn. Chỉ là dự liệu
+     trình bày — không đọc lại trong luồng tính toán nên không đổi kết quả trận. Trước đây
+     không có gì cả: cả trận chỉ thấy người đứng cạnh nhau và số trừ bay lên, nên nhìn như
+     bảng tính chứ không như trận đấu. */
+  function hieuUng(tran, o) {
+    o.t = tran.t;
+    tran.hieu.push(o);
+    if (tran.hieu.length > 300) tran.hieu.shift();
+  }
+
   function xa(a, b) { var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy); }
   function xaXY(x1, y1, x2, y2) { var dx = x1 - x2, dy = y1 - y2; return Math.sqrt(dx * dx + dy * dy); }
 
@@ -90,7 +100,7 @@
       rng: rng, t: 0, tick: 0, daiToiDa: dai, xong: false, thang: null,
       cau: cau,
       nguoi: [], linh: [], tru: [], quai: [], quaiLon: {},
-      suKien: [], thoai: [], bay: [],
+      suKien: [], thoai: [], bay: [], hieu: [],
       vang: { xanh: 0, do: 0 }, mang: { xanh: 0, do: 0 },
       truHa: { xanh: 0, do: 0 }, rongHa: { xanh: 0, do: 0 }, chuaHa: { xanh: 0, do: 0 },
       chart: [], buff: { xanh: {}, do: {} },
@@ -745,6 +755,9 @@
 
           if (n.hieu.danhTru && !muc.tuong && muc.hpMax >= 3000) luong *= 1 + (n.mucDanhTru || 1.2);
           var thuc = satThuong(tran, n, muc, luong, loaiDon);
+          hieuUng(tran, cs.tam > 45
+            ? { loai: 'dan', x: n.x, y: n.y, x2: muc.x, y2: muc.y, lop: n.tuong.lop, doi: n.doi }
+            : { loai: 'chem', x: muc.x, y: muc.y, goc: Math.atan2(muc.y - n.y, muc.x - n.x), doi: n.doi });
           if (cs.hut) n.hp = Math.min(n.hpMax, n.hp + thuc * cs.hut);
           if (n.hieu.hutMau) n.hp = Math.min(n.hpMax, n.hp + n.hpMax * (n.mucHutMau || 0.03));
 
@@ -837,7 +850,11 @@
           var d = xaXY(r.x, r.y, m.x, m.y); if (d < gd) { gd = d; muc = m; }
         });
       }
-      if (muc) { r.danh = 1.2; satThuong(tran, r, muc, r.atk, 'vl'); xuLyChet(tran, r, muc); }
+      if (muc) {
+        r.danh = 1.2;
+        hieuUng(tran, { loai: 'tia', x: r.x, y: r.y, x2: muc.x, y2: muc.y, doi: r.doi });
+        satThuong(tran, r, muc, r.atk, 'vl'); xuLyChet(tran, r, muc);
+      }
     });
 
     /* ── quái lớn đánh trả ── */
@@ -886,6 +903,13 @@
   /* ══════════════════ chiêu ══════════════════ */
   function dungChieu(tran, n, muc, kn, cs) {
     var h = kn.h || {};
+    hieuUng(tran, {
+      loai: kn.loai === 'cuoi' ? 'cuoi' : 'chieu',
+      x: n.x, y: n.y,
+      x2: (muc && muc.x) || n.x, y2: (muc && muc.y) || n.y,
+      dien: !!(h.dmg && h.dmg.dien), pt: !!(h.dmg && h.dmg.loai === 'pt'),
+      hoi: !!h.hoi, chan: !!h.chan, kc: !!h.kc, doi: n.doi, ten: kn.ten
+    });
     var suc = h.dmg ? ((h.dmg.loai === 'pt' ? cs.ap : cs.atk) * (h.dmg.g || 0) + (h.dmg.c || 0)) : 0;
     var lap = h.lap || 1;
 

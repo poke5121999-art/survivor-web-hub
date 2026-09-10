@@ -83,6 +83,8 @@
 
   G.NHANH_TEN = { luoi: 'Lưỡi', gio: 'Gió', thep: 'Thép', lua: 'Lụa', ngoc: 'Ngọc' };
   G.NHANH_MAU = { luoi: '#f0a86f', gio: '#6fc4f0', thep: '#c8d3e0', lua: '#b08af0', ngoc: '#5fe0b0' };
+  /* dấu vẽ trên ô đồ ở thẻ tuyển thủ trong trận */
+  G.NHANH_DAU = { luoi: '⚔', gio: '➳', thep: '⛨', lua: '✦', ngoc: '◈' };
 
   /** món kế tiếp trong cùng nhánh (null nếu đã tầng 4) */
   G.monKe = function (nhanh, tang) {

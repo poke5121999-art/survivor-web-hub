@@ -741,3 +741,33 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 /* nhân vật trong cảnh: to lên hẳn, đúng tinh thần "nhân vật là trung tâm" của Uma */
 #man-ca .ca-canh-nen.co-nguoi{padding:34px 24px 216px;align-items:flex-end}
 #man-ca .canh-hlv{transform:translateY(6px)}
+
+/* ── thẻ tuyển thủ trong trận: ảnh tướng + KDA + sáu ô đồ, bấm để camera bám theo ── */
+.the-tren{display:flex;align-items:center;gap:5px}
+.the-anh{width:26px;height:26px;border-radius:6px;flex:none;background:#0a1017}
+.the-tren .the-ten{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.the-kda{font-size:10px;color:#8b98a9;font-variant-numeric:tabular-nums;flex:none}
+.the-nguoi{cursor:pointer}
+.the-nguoi.theo{outline:2px solid #ffd76e;outline-offset:1px}
+.the-do{display:flex;gap:2px;margin-top:3px}
+.the-do span{flex:1;height:15px;border-radius:4px;background:#0d131c;border:1px solid #1e2836;
+  position:relative;display:flex;align-items:center;justify-content:center}
+.the-do span.co{border-color:#3a4a5f}
+.the-do span i{font-style:normal;font-size:10px;color:#0b0f14;line-height:1}
+.the-do span em{position:absolute;bottom:0;right:1px;font-style:normal;font-size:7px;
+  color:#0b0f14;font-weight:900}
+
+/* nút camera */
+.tr-cam{display:flex;flex-direction:column;gap:5px;margin-bottom:6px}
+.tr-zoom{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
+.tr-zoom button{border:1px solid var(--vien);background:#141c27;color:var(--chu-mo);
+  border-radius:7px;padding:4px 2px;font-size:10px;font-family:inherit;cursor:pointer}
+.tr-zoom button:hover{color:var(--chu)}
+.tr-zoom button.chon{background:#1d3346;color:#fff;border-color:#3ddc97}
+.tr-canvas{cursor:grab}
+.tr-canvas:active{cursor:grabbing}
+
+/* #man-ca dùng display:grid nên phải trả lại display:none khi bị ẩn — không thì màn huấn
+   luyện đè lên mọi màn khác. Bắt được lúc chụp ảnh màn trận: thanh trên của phòng tập
+   nằm chồng lên thanh tỉ số. */
+#man-ca[hidden]{display:none}

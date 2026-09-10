@@ -79,8 +79,8 @@
     if (m === 'man-ca') {
       var so = (G.$('#ca-luc-so') || {}).textContent || '0/100';
       var luc = parseInt(so.split('/')[0], 10) || 0;
-      if (luc < 32) { bam(G.$$('#hang-viec button').filter(function (b) { return /Nghỉ|Xả hơi/.test(b.textContent); })[0]); return; }
-      var san = G.$$('#hang-san .san');
+      if (luc < 32) { bam(G.$$('#hang-viec .uma-nut').filter(function (b) { return /Nghỉ|Xả hơi/.test(b.textContent); })[0]); return; }
+      var san = G.$$('#hang-san .uma-nut');
       if (!san.length) return;
       /* Chọn giáo án như một người biết chơi: điểm = tổng chỉ số ăn được × (1 − tỉ lệ hỏng).
          Đọc thẳng bằng G.xemTruoc trên ca đang chạy, thay vì đoán qua chữ trên màn hình. */
@@ -101,7 +101,7 @@
         i = (luotDaTap + Math.floor(luotDaTap / 5)) % san.length;
       }
       san[i].click();                                                  /* lần 1: xem trước */
-      var lai = G.$$('#hang-san .san')[i];
+      var lai = G.$$('#hang-san .uma-nut')[i];
       if (lai) { lai.click(); luotDaTap++; }                           /* lần 2: tập thật */
       return;
     }
