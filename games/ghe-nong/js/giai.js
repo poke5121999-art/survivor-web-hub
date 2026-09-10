@@ -137,6 +137,23 @@
     n.appendChild(G.el('div', { html: 'Đối thủ: <b>' + doiMay.ten + '</b> — lối chơi <b>' +
       (G.TEN_THE[doiMay.goc.the] || doiMay.goc.the) + '</b>', style: 'margin-bottom:6px' }));
 
+    /* Họ đang đứng thứ mấy và đang thắng hay đang thua — thứ duy nhất biến một cái tên thành
+       một đối thủ. Không có dòng này thì bảng xếp hạng chỉ là một trang để xem cho vui. */
+    if (G.hangDoi) {
+      var hd = G.hangDoi(doiMay.goc.id);
+      var ht2 = G.hangTa ? G.hangTa() : null;
+      var ph = hd && hd.h.phong.length ? hd.h.phong.slice(0, 5).join('') : '—';
+      n.appendChild(G.el('div', {
+        html: 'Họ đang hạng <b style="color:#ffd76e">' + (hd ? hd.hang : '?') + '</b>' +
+          (hd ? ' (' + hd.h.thang + 'T ' + hd.h.thua + 'H)' : '') +
+          ' · phong độ <b>' + ph + '</b>' +
+          (ht2 ? '  —  ta đang hạng <b style="color:#3ddc97">' + ht2.hang + '/' + ht2.tong + '</b>' : ''),
+        style: 'font-size:12px;color:#8b98a9;margin-bottom:6px'
+      }));
+      n.appendChild(G.el('div', { text: '“' + doiMay.goc.tieu + '”',
+        style: 'font-size:12px;color:#7f8b9c;font-style:italic;margin-bottom:10px' }));
+    }
+
     /* lộ bao nhiêu người phụ thuộc NÃO của huấn luyện viên — vai trò của analyst */
     var lo = 2 + Math.floor(ca.chiso[4] / 300);
     n.appendChild(G.el('div', { text: 'Ban phân tích đọc được ' + Math.min(5, lo) + '/5 người của họ (NÃO càng cao càng lộ nhiều).',
@@ -226,6 +243,7 @@
       var thang = thangTa > thangDich;
       ca.thanhTich.push({ id: giai.id, ten: giai.ten, thang: thang, doi: doiMay.ten,
         ti: thangTa + '-' + thangDich });
+      if (G.ghiGiaiCuaTa) { try { G.ghiGiaiCuaTa(giai, doiMay, thangTa, thangDich); } catch (e) {} }
       if (thang) {
         G.S.clb.xu += giai.thuong.xu;
         G.S.clb.fan += giai.thuong.fan;

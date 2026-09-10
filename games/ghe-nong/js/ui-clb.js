@@ -9,6 +9,7 @@
 
   var MENU = [
     { id: 'ca', ten: 'Ca huấn luyện' },
+    { id: 'bxh', ten: 'Bảng xếp hạng' },
     { id: 'gacha', ten: 'Tuyển mộ' },
     { id: 'hlv', ten: 'Huấn luyện viên' },
     { id: 'tt', ten: 'Tuyển thủ' },
@@ -45,6 +46,9 @@
   function vePhai() {
     var p = G.xoa(G.$('#clb-phai'));
     var S = G.S;
+
+    /* trang bảng xếp hạng chiếm luôn cột phải để làm khung đọc tin, y như TFM2 */
+    if (trang === 'bxh' && G.veBXHPhai) { G.veBXHPhai(p); return; }
 
     if (S.ca) {
       p.appendChild(G.el('div', { text: 'CA ĐANG CHẠY', style: 'font-size:11px;color:#8b98a9;letter-spacing:.08em' }));
@@ -94,6 +98,7 @@
   /* ══════════ trang giữa ══════════ */
   function veGiua() {
     var g = G.xoa(G.$('#clb-giua'));
+    if (trang === 'bxh') return G.veBXH(g, function () { veGiua(); vePhai(); });
     if (trang === 'ca') return veChonCa(g);
     if (trang === 'gacha') return veGacha(g);
     if (trang === 'hlv') return veKhoHLV(g);
@@ -358,7 +363,8 @@
   }
 
   function veKhoTT(g) {
-    tieu(g, 'Tuyển thủ', 'Vị trí và chất chơi là khoá cứng. Bảng thông thạo quyết định họ cầm tướng nào cho ra hồn.');
+    tieu(g, 'Tuyển thủ', 'Vị trí và chất chơi là khoá cứng. Cấp thẻ quyết định hiệu ứng mạnh tới đâu — '
+      + 'thẻ cấp 1 chỉ chạy ở 40% sức.');
     ['tren', 'rung', 'giua', 'duoi', 'ho'].forEach(function (vt) {
       var ds = G.S.khoTT.filter(function (b) { return (G.TUYENTHU_THEO_ID[b.id] || {}).vt === vt; });
       if (!ds.length) return;
@@ -382,6 +388,10 @@
             style: 'font-size:10px;padding:1px 5px;border-radius:4px;background:#0a1017;color:' + G.TT_THEO_ID[bac].mau }));
         });
         d.appendChild(tt);
+        d.appendChild(thanhCap(b, goc));
+        var nb = G.el('button.nut-nho', { text: 'Nuôi thẻ', style: 'width:100%;margin-top:7px' });
+        nb.addEventListener('click', function () { G.tieng('cham'); moNuoiThe(b); });
+        d.appendChild(nb);
         l.appendChild(d);
       });
       g.appendChild(l);
@@ -425,6 +435,119 @@
       d.appendChild(G.el('div', { text: m[1], style: 'font-size:12.5px;color:#8b98a9;margin-top:3px;line-height:1.6' }));
       g.appendChild(d);
     });
+  }
+
+  /* ══════════ nuôi thẻ tuyển thủ ══════════
+     Uma cho thẻ hỗ trợ lên tới cấp 50 và mọi hiệu ứng nội suy theo cấp; ở đây cũng vậy
+     (`hesoCap` chạy từ 40% tới 100%). Nên chỗ này không phải màn phụ: một thẻ SSR cấp 1
+     yếu hơn thẻ SR đã nuôi. Hộp thoại phải nói rõ "trước → sau", không để người chơi
+     tiêu 3000 xu rồi tự đoán mình được gì. */
+  function thanhCap(b, goc) {
+    var tran = G.tranCap(goc.bac, b.uncap);
+    var can = G.expCap(b.cap);
+    var p = b.cap >= tran ? 1 : G.kep((b.exp || 0) / can, 0, 1);
+    var d = G.el('div', { style: 'margin-top:6px' });
+    var h = G.el('div', { style: 'display:flex;justify-content:space-between;font-size:10.5px;color:#8b98a9' });
+    h.appendChild(G.el('span', { text: 'Cấp ' + b.cap + '/' + tran }));
+    h.appendChild(G.el('span', { text: b.cap >= tran ? 'đã tối đa' : (b.exp || 0) + '/' + can + ' kn' }));
+    d.appendChild(h);
+    var t = G.el('div', { style: 'height:5px;background:#0a1017;border-radius:99px;overflow:hidden;margin-top:3px' });
+    t.appendChild(G.el('i', { style: 'display:block;height:100%;width:' + (p * 100) + '%;background:' +
+      (b.cap >= tran ? '#f2c94c' : '#4a9df8') }));
+    d.appendChild(t);
+    return d;
+  }
+
+  function moNuoiThe(b) {
+    var goc = G.TUYENTHU_THEO_ID[b.id];
+    var n = G.el('div', { style: 'width:520px;max-width:86vw' });
+
+    function ve() {
+      G.xoa(n);
+      var tran = G.tranCap(goc.bac, b.uncap);
+      var toiDa = b.cap >= tran;
+
+      var tren = G.el('div', { style: 'display:flex;align-items:center;gap:10px;margin-bottom:10px' });
+      var a = G.oAnh && G.oAnh(b.id, 54);
+      if (a) tren.appendChild(a);
+      var ph = G.el('div', { style: 'flex:1' });
+      ph.appendChild(G.el('div', { text: goc.ten, style: 'font-weight:800;font-size:15px' }));
+      ph.appendChild(G.el('div', {
+        text: goc.bac + (b.uncap ? ' ✦' + b.uncap : '') + ' · ' + G.VITRI_THEO_ID[goc.vt].ten +
+          ' · ' + G.TT_LOAI_TEN[goc.loai],
+        style: 'font-size:11.5px;color:#8b98a9;margin-top:2px'
+      }));
+      tren.appendChild(ph);
+      tren.appendChild(G.el('div', {
+        text: 'Cấp ' + b.cap + '/' + tran,
+        style: 'font-size:20px;font-weight:800;color:' + (toiDa ? '#f2c94c' : '#e6edf5')
+      }));
+      n.appendChild(tren);
+
+      if (toiDa) {
+        n.appendChild(G.el('div', {
+          html: 'Thẻ đã tới trần cấp. Muốn nuôi tiếp thì phải <b>uncap</b> — quay trúng thẻ này ' +
+            'lần nữa ở banner tuyển thủ, mỗi lần uncap mở thêm 5 cấp.',
+          style: 'font-size:12.5px;color:#f2c94c;line-height:1.7;background:#1d1a10;' +
+            'border:1px solid #4a3d18;border-radius:10px;padding:10px'
+        }));
+      } else {
+        var muaDuoc = G.capMuaDuoc(b);
+        var moc = [1, 5, 10].filter(function (x) { return x <= tran - b.cap; });
+        if (tran - b.cap > 10) moc.push(tran - b.cap);
+        else if (moc.indexOf(tran - b.cap) < 0) moc.push(tran - b.cap);
+
+        n.appendChild(G.el('div', { text: 'THUÊ CHUYÊN GIA KÈM', style: nhanNho() }));
+        var hang = G.el('div', { style: 'display:flex;gap:7px;flex-wrap:wrap' });
+        moc.forEach(function (so) {
+          var t = G.giaNhieuCap(b, so);
+          var du = t.xu <= G.S.clb.xu;
+          var nb = G.el('button.nut' + (du ? '.chinh' : ''), {
+            text: '+' + t.so + ' cấp  ·  ' + G.so(t.xu) + ' xu'
+          });
+          if (!du) { nb.disabled = true; nb.style.opacity = .45; }
+          nb.addEventListener('click', function () {
+            var len = G.nangCapTT(b, so);
+            if (len) { G.tieng('tapTot'); ve(); veGiua(); vePhai(); }
+          });
+          hang.appendChild(nb);
+        });
+        n.appendChild(hang);
+        n.appendChild(G.el('div', {
+          text: 'Đang có ' + G.so(G.S.clb.xu) + ' xu — đủ cho ' + muaDuoc + ' cấp.',
+          style: 'font-size:11.5px;color:#8b98a9;margin-top:6px'
+        }));
+
+        /* trước → sau, tính trên số cấp mua nổi (hoặc 5 cấp nếu chưa đủ xu) */
+        var xem = Math.max(1, Math.min(muaDuoc || 5, tran - b.cap));
+        n.appendChild(G.el('div', { text: 'NẾU LÊN ' + xem + ' CẤP', style: nhanNho() }));
+        var bang = G.el('div', { style: 'background:#0d131c;border:1px solid #26303f;border-radius:10px;padding:4px 9px' });
+        G.soHieu(b, b.cap + xem).forEach(function (x) {
+          if (Math.abs(x.b - x.a) < (x.pt ? 0.0005 : 0.5)) return;
+          var r = G.el('div', { style: 'display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px' });
+          r.appendChild(G.el('span', { text: x.ten, style: 'color:#8b98a9' }));
+          var v = G.el('span');
+          v.appendChild(G.el('span', { text: so1(x.a, x.pt), style: 'color:#7f8b9c' }));
+          v.appendChild(G.el('span', { text: '  →  ', style: 'color:#5a6675' }));
+          v.appendChild(G.el('b', { text: so1(x.b, x.pt), style: 'color:#3ddc97' }));
+          r.appendChild(v);
+          bang.appendChild(r);
+        });
+        n.appendChild(bang);
+      }
+
+      n.appendChild(G.el('div', {
+        html: 'Đường lên cấp thứ hai <b>không mua được</b>: cho thẻ này vào đội hình và chạy hết ' +
+          'một mùa. Càng thắng nhiều giải càng nhiều kinh nghiệm.',
+        style: 'font-size:11.5px;color:#7f8b9c;line-height:1.7;margin-top:10px'
+      }));
+    }
+    ve();
+    return G.hop({ dau: 'Nuôi thẻ — ' + goc.biet, node: n, nut: [{ chu: 'Xong', chinh: true }] });
+  }
+
+  function so1(v, pt) {
+    return pt ? (Math.round(v * 1000) / 10) + '%' : String(Math.round(v));
   }
 
   function moCaiDat() {

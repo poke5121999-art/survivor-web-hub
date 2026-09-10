@@ -13,6 +13,11 @@
     G.hienMan('man-ca');
     veTatCa();
     if (G.day) G.day('ca');
+    var nl = G.$('#ca-nut-lich');
+    if (nl && !nl._daGan) {
+      nl._daGan = 1;
+      nl.addEventListener('click', function () { G.tieng('cham'); G.moBXH('lich'); });
+    }
   };
 
   function veTatCa() {
@@ -46,6 +51,25 @@
     e.appendChild(hang);
   }
 
+  /** hai nút nhỏ trên thanh mục tiêu: hạng hiện tại và số tin chưa đọc */
+  function veNutBXH() {
+    var mt = G.$('.ca-mucteu'); if (!mt) return;
+    var cu = G.$$('.ca-tin', mt);
+    cu.forEach(function (x) { x.remove(); });
+    if (!G.mua) return;
+
+    var ht = G.hangTa();
+    var b1 = G.el('button.ca-tin', { text: 'Hạng ' + ht.hang + '/' + ht.tong });
+    b1.addEventListener('click', function () { G.tieng('cham'); G.moBXH(); });
+    mt.appendChild(b1);
+
+    var so = G.soTinMoi();
+    var b2 = G.el('button.ca-tin', { text: 'Bản tin' });
+    if (so) b2.appendChild(G.el('i.bx-cham', { text: so }));
+    b2.addEventListener('click', function () { G.tieng('cham'); G.moBXH('tin'); });
+    mt.appendChild(b2);
+  }
+
   /* ── thanh trên ── */
   function veTren() {
     var muc = G.LICH[ca.luot - 1] || {};
@@ -55,6 +79,10 @@
     var mt = muc.giai ? ('Hôm nay có trận: ' + muc.giai.ten)
       : (muc.gd || '') + ' — trận kế: ' + (tenGiaiKe() || 'hết mùa');
     G.$('#ca-mucteu-chu').textContent = mt;
+
+    /* Thứ hạng và bản tin phải thấy được từ trong phòng tập. Để nó nằm tận màn CLB thì
+       người chơi chỉ xem mỗi mùa một lần, và 24 đội kia lại thành vô hình như cũ. */
+    veNutBXH();
 
     var p = ca.theluc / ca.thelucMax;
     G.$('#ca-luc-thanh').style.width = (p * 100) + '%';

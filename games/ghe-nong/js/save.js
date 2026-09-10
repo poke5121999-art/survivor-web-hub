@@ -17,6 +17,7 @@
       cuu: [],             /* hồ sơ HLV đã tốt nghiệp — dùng làm cựu HLV kế thừa */
       ve: { hlv: 0, tt: 0 },   /* vé pity từng banner */
       ca: null,            /* ca đang chạy */
+      mua: null,           /* bảng xếp hạng + bản tin của mùa này (mua.js tự dựng nếu thiếu) */
       lichSu: [],          /* kết quả các mùa đã xong */
       cai: { rung: true, mucSim: 'day', tocDo: 1 },
       day: { hienDraft: false, hienKeThua: false, hienChienThuat: false },

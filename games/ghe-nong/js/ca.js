@@ -409,6 +409,9 @@
   /** kết thúc lượt: tăng số lượt, rải lại người, trả về giải nếu lượt vừa xong có trận */
   G.sangLuot = function (ca) {
     var muc = G.LICH[ca.luot - 1];
+    /* Thế giới chạy tiếp dù ta đang tập: 24 đội máy đánh nhau một vòng, bảng xếp hạng
+       đổi, bản tin có cái mới. Rẻ vì tính bằng số, không dựng trận thật. */
+    if (G.vongDoiMay) { try { G.vongDoiMay(ca.rng, ca.luot); } catch (e) { /* thiếu mua.js thì bỏ qua */ } }
     ca.luot++;
     if (ca.luot > ca.soLuot) ca.xong = true;
     G.raiNguoi(ca);
@@ -469,6 +472,17 @@
         ban.nen[i] = Math.max(ban.nen[i], Math.floor(ca.chiso[i] * 0.06));
       }
     }
+    /* Năm tuyển thủ đã chạy hết mùa thì lên cấp thẻ — đường lên cấp KHÔNG mua được bằng xu.
+       Thắng nhiều giải thì ăn dày hơn, nên chạy một mùa tỉ mỉ còn lại thứ gì của riêng nó. */
+    var soThang = ca.thanhTich.filter(function (t) { return t.thang; }).length;
+    var exp = 120 + soThang * 55 + (ca.dut ? 0 : 60);
+    ca.lenCapThe = [];
+    ca.tt.forEach(function (id) {
+      var bt = G.coTT(id); if (!bt || !G.themExpTT) return;
+      var len = G.themExpTT(bt, exp);
+      ca.lenCapThe.push({ id: id, exp: exp, len: len, cap: bt.cap });
+    });
+
     /* hồ sơ cựu HLV để đời sau kế thừa */
     var hs = G.taoHoSoCuu(ca);
     S.cuu.unshift(hs);

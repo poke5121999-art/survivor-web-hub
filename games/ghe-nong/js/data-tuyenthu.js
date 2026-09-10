@@ -337,6 +337,115 @@
     return r;
   };
 
+  /* ══════════════════ NUÔI THẺ ══════════════════
+     Trước đây `cap` của thẻ chỉ để đọc: gacha ra thẻ cấp 1 rồi nó ở cấp 1 tới hết game, mà
+     `hesoCap` lại nhân hiệu ứng theo cấp — nghĩa là mọi thẻ đều chạy ở 40% sức. Có hai đường
+     lên cấp, và cả hai đều phải có, vì chúng trả lời hai câu khác nhau:
+
+       XU       — "tôi có 2000 xu, tiêu vào đâu bây giờ?"  → chủ động, tức thì, có giá rõ ràng
+       KINH NGHIỆM — "chạy một mùa nữa để được gì?"        → thưởng cho việc chơi, không mua được
+
+     Trần cấp do bậc thẻ và uncap quyết định (`tranCap`), nên thẻ SSR uncap 4 mới lên nổi 60. */
+
+  /** giá xu để lên MỘT cấp từ cấp hiện tại; null nếu đã tới trần */
+  G.giaCap = function (ban) {
+    var g = G.TUYENTHU_THEO_ID[ban.id]; if (!g) return null;
+    if (ban.cap >= G.tranCap(g.bac, ban.uncap)) return null;
+    var heBac = g.bac === 'SSR' ? 1.35 : g.bac === 'SR' ? 1.15 : 1;
+    return Math.round((30 + ban.cap * 7) * heBac);
+  };
+
+  /** kinh nghiệm cần để lên một cấp */
+  G.expCap = function (cap) { return 40 + cap * 14; };
+
+  /** tổng xu để lên `so` cấp — hiện trước khi bấm, không để người chơi bấm mò */
+  G.giaNhieuCap = function (ban, so) {
+    var g = G.TUYENTHU_THEO_ID[ban.id]; if (!g) return { so: 0, xu: 0 };
+    var tran = G.tranCap(g.bac, ban.uncap);
+    var cap = ban.cap, xu = 0, n = 0;
+    var heBac = g.bac === 'SSR' ? 1.35 : g.bac === 'SR' ? 1.15 : 1;
+    while (n < so && cap < tran) {
+      xu += Math.round((30 + cap * 7) * heBac);
+      cap++; n++;
+    }
+    return { so: n, xu: xu };
+  };
+
+  /** số cấp tối đa mua được với số xu đang có */
+  G.capMuaDuoc = function (ban) {
+    var g = G.TUYENTHU_THEO_ID[ban.id]; if (!g) return 0;
+    var tran = G.tranCap(g.bac, ban.uncap);
+    var heBac = g.bac === 'SSR' ? 1.35 : g.bac === 'SR' ? 1.15 : 1;
+    var cap = ban.cap, con = G.S.clb.xu, n = 0;
+    while (cap < tran) {
+      var gia = Math.round((30 + cap * 7) * heBac);
+      if (gia > con) break;
+      con -= gia; cap++; n++;
+    }
+    return n;
+  };
+
+  /** tiêu xu để lên cấp; trả về số cấp thật sự lên được */
+  G.nangCapTT = function (ban, so) {
+    var t = G.giaNhieuCap(ban, so);
+    if (!t.so || t.xu > G.S.clb.xu) return 0;
+    G.S.clb.xu -= t.xu;
+    ban.cap += t.so;
+    G.luu();
+    return t.so;
+  };
+
+  /** cộng kinh nghiệm (từ việc chạy hết một ca) và tự lên cấp; trả về số cấp lên được */
+  G.themExpTT = function (ban, exp) {
+    var g = G.TUYENTHU_THEO_ID[ban.id]; if (!g) return 0;
+    var tran = G.tranCap(g.bac, ban.uncap);
+    ban.exp = (ban.exp || 0) + exp;
+    var len = 0;
+    while (ban.cap < tran && ban.exp >= G.expCap(ban.cap)) {
+      ban.exp -= G.expCap(ban.cap);
+      ban.cap++; len++;
+    }
+    if (ban.cap >= tran) ban.exp = 0;
+    return len;
+  };
+
+  /** so sánh hiệu ứng ở hai cấp — để màn nuôi thẻ hiện được "trước → sau" */
+  G.soHieu = function (ban, capMoi) {
+    var g = G.TUYENTHU_THEO_ID[ban.id];
+    var a = G.hieuThuc(ban);
+    var b = G.hieuThuc({ id: ban.id, cap: capMoi, uncap: ban.uncap });
+    var ds = [];
+    Object.keys(g.hieu).forEach(function (k) {
+      if (k === 'dau') return;                       /* chỉ số khởi điểm gộp riêng bên dưới */
+      if (typeof g.hieu[k] === 'number') {
+        ds.push({ ten: G.TEN_HIEU[k] || k, a: a[k] || 0, b: b[k] || 0, pt: PHAN_TRAM[k] !== false });
+      } else {
+        for (var k2 in g.hieu[k]) {
+          ds.push({ ten: (G.TEN_HIEU[k] || k) + ' ' + (G.TEN_CHISO[G.SAN_IDX[k2]] || k2),
+            a: (a[k] || {})[k2] || 0, b: (b[k] || {})[k2] || 0, pt: PHAN_TRAM[k] !== false });
+        }
+      }
+    });
+    if (g.hieu.dau) {
+      var ta = 0, tb = 0;
+      for (var k3 in g.hieu.dau) { ta += (a.dau || {})[k3] || 0; tb += (b.dau || {})[k3] || 0; }
+      ds.push({ ten: 'Chỉ số khởi điểm (tổng)', a: ta, b: tb, pt: false });
+    }
+    return ds;
+  };
+
+  var PHAN_TRAM = { dau: false, capGoiY: false, hoiNao: false };
+
+  G.TEN_HIEU = {
+    than: 'Thân thiết', tinhthan: 'Tinh thần', congGiaoAn: 'Cộng giáo án',
+    hieuqua: 'Hiệu quả tập', dau: 'Chỉ số khởi điểm', thanDau: 'Thân thiết khởi điểm',
+    thuongGiai: 'Thưởng thi đấu', thuongFan: 'Thưởng danh tiếng', capGoiY: 'Cấp gợi ý',
+    tanSuatGoiY: 'Tần suất gợi ý', uuTien: 'Ưu tiên đúng sân', chongHong: 'Chống hỏng',
+    giamHao: 'Giảm hao thể lực', congDiemKN: 'Cộng điểm kỹ năng', hoiNao: 'Hồi lực khi tập Não'
+  };
+
+  G.SAN_IDX = { co: 0, ben: 1, luc: 2, li: 3, nao: 4 };
+
   /** bậc thông thạo của tuyển thủ với một tướng */
   G.thongThao = function (ban, idTuong) {
     var g = G.TUYENTHU_THEO_ID[ban.id];

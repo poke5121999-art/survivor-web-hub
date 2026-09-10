@@ -103,6 +103,22 @@
     n.appendChild(G.el('div', { text: 'Thắng ' + thang + '/' + ca.thanhTich.length + ' giải',
       style: 'color:#8b98a9;margin-bottom:8px' }));
 
+    /* Kết toán bảng xếp hạng: mùa này ta đứng thứ mấy, ai vô địch quốc nội, ai đứng đầu thế giới */
+    if (G.ketMuaBXH) {
+      var kb = G.ketMuaBXH();
+      if (kb) {
+        var bx = G.el('div', { style: 'background:#111926;border:1px solid #26303f;border-radius:11px;padding:9px;margin:8px 0' });
+        bx.appendChild(G.el('div', { text: 'BẢNG XẾP HẠNG CUỐI MÙA',
+          style: 'font-size:10px;color:#8b98a9;letter-spacing:.08em;margin-bottom:6px' }));
+        bx.appendChild(G.el('div', { html: 'Quốc nội: ta hạng <b style="color:#3ddc97">' + kb.ta.hang + '/' + kb.ta.tong +
+          '</b> · vô địch <b>' + (kb.vn[0] ? kb.vn[0].ten : '?') + '</b>',
+          style: 'font-size:12.5px;margin-bottom:3px' }));
+        bx.appendChild(G.el('div', { html: 'Đứng đầu thế giới: <b>' + (kb.qt[0] ? kb.qt[0].ten : '?') + '</b>',
+          style: 'font-size:12.5px;color:#8b98a9' }));
+        n.appendChild(bx);
+      }
+    }
+
     var hs = G.ketCa(ca);
     n.appendChild(G.el('div', { text: 'Hồ sơ để lại cho đời sau:', style: 'font-size:12px;color:#8b98a9;margin-top:10px' }));
     var sp = G.el('div', { style: 'display:flex;gap:5px;flex-wrap:wrap;margin-top:5px' });
@@ -130,7 +146,7 @@
       G.moManCa(ca);
       return;
     }
-    if (['gacha', 'hlv', 'tt', 'cuu', 'ky'].indexOf(h) >= 0) return G.moManCLB(h);
+    if (['gacha', 'hlv', 'tt', 'cuu', 'ky', 'bxh'].indexOf(h) >= 0) return G.moManCLB(h);
 
     /* #tran và #draft: dựng một ca giả rồi nhảy thẳng vào khâu thi đấu, để soi giao diện */
     if (h === 'tran' || h === 'draft' || h === 'giai') {
