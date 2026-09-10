@@ -557,18 +557,19 @@ window.HUB_GAMES = [
   {
     id: "ghe-nong",
     title: "Ghế Nóng",
-    tagline: "Quản lý đội tuyển esport. Nuôi huấn luyện viên kiểu Uma Musume: 5 giáo án CƠ/BỀN/LỰC/LÌ/NÃO, thể lực, tâm trạng, tỉ lệ hỏng hiện sẵn, thân thiết tới 80 thì nổ cầu vồng. Vào ca chọn 1 huấn luyện viên + 5 tuyển thủ + 2 cựu huấn luyện viên để kế thừa. Một mùa 24 lượt: 5 ngày tập rồi 1 giải, tới chung kết thế giới thì 1 ngày tập 1 trận. Thi đấu là cấm/chọn 20 tướng rồi xem trận 5v5 tự đánh — bản đồ ba đường, rồng, chúa hang, trụ, mua đồ, biểu đồ chênh lệch vàng.",
+    tagline: "Quản lý đội tuyển esport. Nuôi huấn luyện viên kiểu Uma Musume: 5 giáo án CƠ/BỀN/LỰC/LÌ/NÃO, thể lực, tâm trạng, tỉ lệ hỏng hiện sẵn, thân thiết tới 80 thì nổ cầu vồng. Vào ca chọn 1 huấn luyện viên + 5 tuyển thủ + 2 cựu huấn luyện viên để kế thừa, nuôi thẻ tuyển thủ bằng xu và bằng kinh nghiệm chạy mùa. Một mùa 24 lượt: 5 ngày tập rồi 1 giải, tới chung kết thế giới thì 1 ngày tập 1 trận. 24 đội máy có tên, có ngôi sao, có bảng xếp hạng chạy song song và bản tin sinh từ chính chuyện đang xảy ra — kết quả gây sốc, chuỗi thắng, chuyển nhượng làm đổi sức đội thật. Thi đấu là cấm/chọn 20 tướng rồi xem trận 5v5 tự đánh trên bản đồ hình thoi ba đường, bốn vạt rừng, rồng, chúa hang, trụ, mua đồ, biểu đồ chênh lệch vàng.",
     thumbnail: "assets/thumbnails/ghe-nong.svg",
     path: "games/ghe-nong/index.html",
-    rev: "20260910a",
+    rev: "20260910b",
     // Nuôi quân theo Uma Musume (Cygames 2021), thi đấu theo Teamfight Manager 2 (Early Access
     // 2026-05-25). KHÔNG dùng một tệp ảnh/âm thanh nào của hai game đó. Cái lấy là DỮ LIỆU
     // THIẾT KẾ, đọc từ ảnh chụp trong game: 7 ảnh Steam của TFM2, 4 ảnh Umamusume, ba trailer,
     // và 35 phút gameplay YouTube ghép thành 44 bảng ảnh liên hoàn bằng ffmpeg (fps=1/10 +
     // tile=4x3) để duyệt hết bằng mắt. Mỗi con số trong games/ghe-nong/RESEARCH.md đều ghi rõ
     // đọc từ tệp ảnh nào: mood 5 bậc ±20%, trần chỉ số 1200, tỉ lệ gacha 3/18/79 + pity 200 vé,
-    // 12 nhóm chiến thuật, buff theo vị trí (đường trên hồi 1.5% máu/giây, xạ thủ +20% vàng...),
-    // bảng đồ 5 tầng có đường ghép, và bảng kết quả có biểu đồ chênh lệch vàng.
+    // 12 nhóm chiến thuật, buff theo vị trí (đường trên hồi 1% máu/giây, xạ thủ +20% vàng,
+    // hỗ trợ −30% kinh nghiệm...), bảng xếp hạng 6 cột Rankings + khung đọc News, và bảng kết
+    // quả có biểu đồ chênh lệch vàng.
     //
     // BA CHỖ CỐ Ý KHÁC BẢN GỐC:
     //   1. VỊ TRÍ VÀ CHẤT CHƠI CỦA TUYỂN THỦ LÀ KHOÁ CỨNG. Không kéo xạ thủ lên đường trên,
@@ -578,15 +579,25 @@ window.HUB_GAMES = [
     //   2. KHÔNG AI CHỌN ĐỒ HỘ. Trong trận mỗi tuyển thủ tự đọc đội địch đánh bằng gì, mình
     //      đang thắng hay bị dí, chất chơi của mình, rồi mua (G.nghiDo trong data-trangbi.js).
     //   3. Một mùa gọn 24 lượt thay vì 70 lượt như Uma — một phiên trên điện thoại không
-    //      chứa nổi 70 lượt.
+    //      chứa nổi 70 lượt. Bù lại giáo án ăn dày gấp đôi Uma, và bảng xếp hạng của 24 đội
+    //      máy chạy một vòng đấu mỗi ba lượt nên hết mùa mọi đội đều đá 7–8 trận, so được
+    //      với 8 giải của người chơi.
     //
-    // CÂN BẰNG ĐO BẰNG MÁY: _tools/canbang.js chạy 400 trận không vẽ, in tỉ lệ thắng từng
-    // tướng (đúng kiểu bảng Champ Stats mà TFM2 dùng để tự buff/nerf mỗi mùa). Bốn lỗi nặng
-    // chỉ lộ nhờ bộ đo này: mỗi tick đội xanh luôn được xử lý trước nên kèo hoàn toàn cân mà
-    // xanh thắng 12/12; trụ không có giáp nên đổ trong 6 giây; mười người gặp nhau ở giây 20
-    // và trận mở màn bằng bảy mạng; và đội thua bị cuốn chiếu không gượng nổi. Sau khi chữa:
-    // 20 phút/trận, ~95 mạng, 20 tướng đều nằm trong ±12% quanh 50%.
+    // CÂN BẰNG ĐO BẰNG MÁY, KHÔNG ĐOÁN. Bốn bộ đo trong games/ghe-nong/_tools/: lai.js lái
+    // Chrome headless bằng CDP, tuchoi.js tự chơi hết một mùa qua giao diện thật, duongcong.js
+    // đo đường cong chỉ số theo ba lối chơi, tileThang.js đo tỉ lệ thắng từng giải, canbang.js
+    // chạy 500 trận không vẽ để in tỉ lệ thắng từng tướng (đúng kiểu bảng Champ Stats mà TFM2
+    // dùng để tự buff/nerf mỗi mùa). Lần tự chơi đầu tiên trên bản Pages thua 0/40 ở cả tám
+    // giải, và hoá ra là năm lỗi cộng lại, không lỗi nào nhìn ảnh mà thấy được: bản đồ trong
+    // sim.js không đối xứng nên kèo hoàn toàn cân mà bên xanh chỉ thắng 8/30; LỰC và BỀN
+    // không xuất hiện một lần nào trong bộ mô phỏng, tức hai trong năm giáo án là tập không
+    // công; bùa Chúa Hang ghi mốc hết hạn nhưng chỗ đọc chỉ xem có hay không nên đội ăn Chúa
+    // đầu tiên có lính mạnh 1.4× tới hết trận; mọi đội máy đều có bốn người thông thạo UR kể
+    // cả đội yếu nhất giải đầu; và thang thông thạo cũ 0.82…1.22 ăn trùm cả 24 lượt huấn
+    // luyện. Sau khi chữa: 20 phút/trận, ~92 mạng, 20 tướng đều nằm trong 41–58%, và tỉ lệ
+    // thắng tám giải đi đúng đường 75/85/73/85/55/60/33/30% (đo với năm thẻ khởi đầu, không
+    // gacha, không mua kỹ năng, không kế thừa).
     status: "available",
-    tags: ["Quản lý", "Nuôi quân", "Gacha", "Esport", "MOBA", "Mô phỏng", "Màn ngang"]
+    tags: ["Quản lý", "Nuôi quân", "Gacha", "Esport", "MOBA", "Mô phỏng", "Bảng xếp hạng", "Màn ngang"]
   }
 ];

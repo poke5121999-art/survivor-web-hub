@@ -21,7 +21,7 @@
       var im = new Image();
       im.onload = function () { ANH[t] = im; if (++xong >= can) { G.ART.sanSang = true; if (cb) cb(true); } };
       im.onerror = function () { if (++xong >= can) { G.ART.sanSang = true; if (cb) cb(true); } };
-      im.src = 'art/' + t + '.png?v=20260910a';
+      im.src = 'art/' + t + '.png?v=20260910b';
     });
   };
 
@@ -82,7 +82,7 @@
     var O = o();
     var cot = MAP.nguoi[id][0];
     var k = cao / O;
-    return 'background-image:url(art/nguoi.png?v=20260910a);' +
+    return 'background-image:url(art/nguoi.png?v=20260910b);' +
       'background-position:' + (-cot * O * k) + 'px 0;' +
       'background-size:' + (MAP.nguoi ? Object.keys(MAP.nguoi).length * O * k : 0) + 'px ' + (O * k) + 'px;' +
       'image-rendering:pixelated';
