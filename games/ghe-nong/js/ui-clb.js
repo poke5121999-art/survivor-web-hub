@@ -227,7 +227,7 @@
   function batDauCa() {
     var cuu = chon.cuu.map(function (i) { return G.S.cuu[i]; });
     var ca = G.moCa(chon.hlv, chon.tt, cuu);
-    G.S.ca = luuCa(ca);
+    G.S.ca = ca;               /* giữ nguyên tham chiếu: JSON.stringify tự bỏ qua hàm rng */
     G.luu();
     G.moManCa(ca);
   }

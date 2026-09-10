@@ -130,7 +130,54 @@
       G.moManCa(ca);
       return;
     }
-    if (['gacha', 'hlv', 'tt', 'cuu', 'ky'].indexOf(h) >= 0) G.moManCLB(h);
+    if (['gacha', 'hlv', 'tt', 'cuu', 'ky'].indexOf(h) >= 0) return G.moManCLB(h);
+
+    /* #tran và #draft: dựng một ca giả rồi nhảy thẳng vào khâu thi đấu, để soi giao diện */
+    if (h === 'tran' || h === 'draft' || h === 'giai') {
+      var tt2 = G.S.khoTT.slice(0, 5).map(function (x) { return x.id; });
+      if (!G.duDoiHinh(tt2).du) return;
+      var ca2 = G.moCa(G.S.khoHLV[0].id, tt2, []);
+      /* cho sẵn chỉ số để trận không phải toàn hạng G */
+      ca2.chiso = [720, 640, 700, 600, 680];
+      var giai2 = G.LICH[4].giai;
+      if (h === 'giai') return G.chayGiai(ca2, giai2);
+      if (h === 'tran') {
+        /* vào thẳng một trận mẫu: bỏ qua báo cáo, cấm chọn, chiến thuật */
+        var VT2 = ['tren', 'rung', 'giua', 'duoi', 'ho'];
+        var lam = function (ten, mau, muc, lech) {
+          return {
+            ten: ten, mau: mau, heso: { ds: [] }, chienThuat: { rong: 'tuy', rung: 'gank', mucTieu: 'poke' },
+            nguoi: VT2.map(function (vt, i) {
+              var ds = G.tuongTheoViTri(vt);
+              return { vt: vt, tuyenthuId: G.S.khoTT[i] && G.S.khoTT[i].id, tuongId: ds[(i + lech) % ds.length].id,
+                tt: ['SSR', 'SR', 'UR', 'SR', 'R'][i], ten: G.TEN_MAY[i + lech * 5],
+                chat: ['fight', 'farm'], ego: 45,
+                cs: { co: muc, ben: muc, luc: muc, li: muc, nao: muc } };
+            })
+          };
+        };
+        var tr2 = G.taoTran({ ta: lam(G.S.clb.ten, '#3ddc97', 780, 0), dich: lam('Hổ Xám', '#e5484d', 700, 1), nhip: 'ngan' }, 42);
+        /* #tran:600 → chạy sẵn 600 tick rồi mới mở màn, để chụp được trận đang giữa chừng */
+        var boQua = parseInt((location.hash.split(':')[1] || '0'), 10);
+        for (var q = 0; q < boQua && !tr2.xong; q++) G.tickTran(tr2);
+        return G.moManTran(tr2, function () { G.moManCLB('ca'); });
+      }
+      if (h === 'draft') return G.moDraft(ca2, taoDichMau(ca2), giai2, { ta: [], dich: [] }, 0, 0, 3);
+      /* #tran: bỏ qua cấm chọn, vào thẳng trận */
+      return G.chayGiai(ca2, giai2);
+    }
+  }
+
+  function taoDichMau(ca) {
+    var VT = ['tren', 'rung', 'giua', 'duoi', 'ho'];
+    return {
+      goc: G.DOI_AI[4], ten: G.DOI_AI[4].ten, mau: G.DOI_AI[4].mau,
+      nguoi: VT.map(function (vt, i) {
+        var ds = G.tuongTheoViTri(vt), tt = {};
+        tt[ds[0].id] = 'UR'; tt[ds[1].id] = 'SSR';
+        return { vt: vt, ten: G.TEN_MAY[i], tt: tt, chat: ['fight'], ego: 50 };
+      })
+    };
   }
   G.moNhanh = moNhanh;
 
@@ -153,7 +200,7 @@
           G.moManCLB('ca');
           /* #ca / #gacha / #tt … : mở thẳng một màn để soi giao diện lúc dựng game.
              Chỉ chạy khi có dấu # trên URL, người chơi bình thường không chạm tới. */
-          var h = (location.hash || '').replace('#', '');
+          var h = (location.hash || '').replace('#', '').split(':')[0];
           if (h) moNhanh(h);
         }, 260);
       }

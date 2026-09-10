@@ -247,7 +247,7 @@
     if (kq.hong) G.rung('to');
 
     veTatCa();
-    G.luu();
+    luuCa();
 
     var chuoi = Promise.resolve();
     if (kq.moCauVong) chuoi = chuoi.then(function () { return G.bangLon('CẦU VỒNG MỞ!', 'tập đúng sân của người ấy để ăn dày', 1300); });
@@ -296,7 +296,7 @@
 
   function ketLuot() {
     var r = G.sangLuot(ca);
-    G.luu();
+    luuCa();
 
     var chuoi = Promise.resolve();
     if (r.camHung) {
@@ -312,7 +312,9 @@
       chuoi = chuoi.then(function () { return G.vaoGiai(ca, r.giai); });
     }
     chuoi.then(function () {
-      if (ca.xong) return G.ketThucMua(ca);
+      if (ca.xong || ca.dut) return G.ketThucMua(ca);
+      /* sau giải thì đang đứng ở màn trận / màn kết quả — phải quay lại màn huấn luyện */
+      G.hienMan('man-ca');
       veTatCa();
     });
   }
@@ -355,6 +357,13 @@
     n.appendChild(lst);
 
     G.hop({ dau: 'Giáo án — mua kỹ năng', node: n, nut: [{ chu: 'Xong', chinh: true }] });
+  }
+
+  /** lưu ca kèm hạt ngẫu nhiên hiện tại */
+  function luuCa() {
+    if (ca && ca.rng) ca.hat = ca.rng.hat();
+    G.S.ca = ca;
+    G.luu();
   }
 
   /* các màn khác gọi lại để vẽ lại */
