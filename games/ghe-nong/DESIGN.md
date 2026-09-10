@@ -660,13 +660,25 @@ Uma cho "đứt ca" là hết. Ở đây `[ĐỀ XUẤT]` thêm **1 "vé cứu"*
 | giai đoạn | nội dung | trạng thái |
 |---|---|---|
 | 0 | Nghiên cứu + ảnh + tài liệu (`RESEARCH.md`, `DESIGN.md`) | **xong** |
-| 1 | Khung game: dữ liệu tướng/HLV/tuyển thủ, lưu, khung màn ngang | |
-| 2 | Vòng huấn luyện đủ: 5 giáo án, thể lực, tâm trạng, hỏng, cầu vồng, sự kiện, nhật ký | |
-| 3 | Ban/pick + giao tướng + chiến thuật | |
-| 4 | Mô phỏng trận + trình bày (bản đồ, lời thoại, VFX, biểu đồ) | |
-| 5 | Gacha 2 banner + uncap + kho | |
-| 6 | Kế thừa, spark, gia phả | |
-| 7 | Mùa giải, BXH 24 đội AI, meta trôi, tin tức | |
-| 8 | Dạy chơi, âm thanh, đánh bóng, tối ưu di động | |
+| 1 | Khung game: dữ liệu tướng/HLV/tuyển thủ, lưu, khung màn ngang | **xong** |
+| 2 | Vòng huấn luyện đủ: 5 giáo án, thể lực, tâm trạng, hỏng, cầu vồng, sự kiện, nhật ký | **xong** |
+| 3 | Cấm chọn + chiến thuật | **xong** (chưa có bước giao tướng riêng — vị trí khoá cứng nên chọn tướng đã là giao người) |
+| 4 | Mô phỏng trận + trình bày (bản đồ, lời thoại, VFX, biểu đồ) | **xong** |
+| 5 | Gacha 2 banner + uncap + kho | **xong** |
+| 6 | Kế thừa, spark, gia phả | **xong** |
+| 7 | Mùa giải, BXH 24 đội AI, meta trôi, tin tức | còn: bảng xếp hạng, meta trôi, tin tức |
+| 8 | Dạy chơi, âm thanh, đánh bóng, tối ưu di động | dạy chơi và âm thanh **xong**; còn đánh bóng |
+
+### Việc còn lại, xếp theo mức đáng làm
+
+1. **Bảng xếp hạng và tin tức** — 24 đội máy hiện chỉ là con số `suc`. Cho họ thành tích trôi
+   theo mùa, có bảng xếp hạng, có tin chuyển nhượng đọc được. Đây là thứ làm thế giới sống.
+2. **Meta trôi**: mỗi mùa tự buff/nerf 3–5 tướng theo tỉ lệ thắng mùa trước, kèm bản tin cập
+   nhật. `_tools/canbang.js` đã có sẵn cách đo.
+3. **Nuôi thẻ tuyển thủ**: hiện cấp thẻ chỉ đọc, chưa có chỗ tiêu tài nguyên để lên cấp.
+4. **Nền bản đồ trận** vẫn là màu phẳng — ghép tile của Soul Knight vào.
+5. **Hiệu ứng chiêu**: atlas `fx.png` đã dựng nhưng bộ vẽ chưa gọi tới.
+6. **Vé chơi (`ve`)** khai báo trong bản lưu nhưng chưa dùng để giới hạn gì.
+7. **Đồng bộ đám mây** qua `window.HubSave` — mã đã sẵn, chưa gắn.
 
 Mỗi giai đoạn **chơi được** ở cuối giai đoạn đó, và đẩy lên Pages để chủ dự án bấm thử.
