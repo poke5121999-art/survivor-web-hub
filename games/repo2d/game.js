@@ -724,6 +724,20 @@ function troMau(a, b, k){
   const r = [1,3,5].map(i => Math.round(doc(a,i) + (doc(b,i) - doc(a,i)) * clamp(k, 0, 1)));
   return 'rgb(' + r.join(',') + ')';
 }
+// MẤY CÁI ĐỒNG HỒ TẮT DẦN của lớp hiệu ứng, gom về một chỗ vì có HAI nơi phải hạ chúng:
+// step() cho lúc chơi, và stepCut() cho lúc đoạn phim chạy (step() bị chặn hoàn toàn khi
+// S.cut còn — xem fxTheoGioThat()).
+//
+// `flashTo` là ĐỘ SÁNG MUỐN CÓ và nó tắt dần; `flash` là độ sáng ĐANG VẼ và nó ĐUỔI THEO.
+// Tách đôi ra chỉ để có được cái cạnh lên mềm — xem chú thích dài ở fxFlash.
+function haFX(dt){
+  FX.beatPulse = Math.max(0, FX.beatPulse - dt*2.6);
+  FX.shake     = Math.max(0, FX.shake - dt*16);
+  FX.flashNghi = Math.max(0, FX.flashNghi - dt);
+  FX.flashTo   = Math.max(0, FX.flashTo - dt*FLASH_TAT);
+  FX.flash     = FX.flash < FX.flashTo ? Math.min(FX.flashTo, FX.flash + dt*FLASH_LEN)
+                                       : FX.flashTo;
+}
 function fxPop(x, y, text, col, size){
   FX.pops.push({ x, y, t:0, life:1.4, text, col, size: size || 13 });
   if (FX.pops.length > 24) FX.pops.shift();
@@ -950,14 +964,7 @@ function stepFx(dt){
     }
   }
 
-  FX.beatPulse = Math.max(0, FX.beatPulse - dt*2.6);
-  FX.shake     = Math.max(0, FX.shake - dt*16);
-  // `flashTo` là ĐỘ SÁNG MUỐN CÓ và nó tắt dần; `flash` là độ sáng ĐANG VẼ và nó ĐUỔI THEO.
-  // Tách đôi ra chỉ để có được cái cạnh lên mềm — xem chú thích dài ở fxFlash.
-  FX.flashNghi = Math.max(0, FX.flashNghi - dt);
-  FX.flashTo   = Math.max(0, FX.flashTo - dt*FLASH_TAT);
-  FX.flash     = FX.flash < FX.flashTo ? Math.min(FX.flashTo, FX.flash + dt*FLASH_LEN)
-                                       : FX.flashTo;
+  haFX(dt);
   FX.hurtT     = Math.max(0, FX.hurtT - dt*1.6);
   FX.tickPulse = Math.max(0, FX.tickPulse - dt*3.2);
   FX.spotT     = Math.max(0, FX.spotT - dt*1.5);
@@ -7481,7 +7488,7 @@ function stepCut(dt){
       for (const m of (S.mates || [])) m.dir = huong;
     }
     stepGach(c, dt);
-    rungTheoGioThat(dt);
+    fxTheoGioThat(dt);
     camTheoXe(c);
     if (c.t >= CUT_ARRIVE){ giuGachLai(c); const f = c.then; S.cut = null; if (f) f(); }
   } else {
@@ -7496,21 +7503,27 @@ const easeBack = t => { if (t <= 0) return 0; if (t >= 1) return 1;
                         const u = t - 1; return 1 + 2.3*u*u*u + 1.3*u*u; };
 const span = (t, a, b) => clamp((t-a)/(b-a), 0, 1);
 
-// RUNG MÀN HÌNH TRONG LÚC ĐOẠN PHIM CHẠY — và nó KHÔNG tự chạy được, đây là chỗ phải biết.
+// LỚP HIỆU ỨNG ĐÓNG BĂNG TRONG LÚC ĐOẠN PHIM CHẠY — và nó không tự chạy được, đây là chỗ
+// phải biết. Cả cú RUNG lẫn cú LOÉ đều dính, vì cùng một lý do.
 //
 // Đo trong repo: fxShake ghi `FX.shakeT = S.time`, còn draw() lấy pha bằng `S.time - FX.shakeT`
-// và biên bằng FX.shake; hai thứ ấy chỉ nhúc nhích trong step(), mà step() thì BỊ CHẶN HOÀN
-// TOÀN khi S.cut còn (xem frame(): `if (S.running && !S.dead && !S.cut)`). Nên một cú rung gọi
-// từ stepCut đứng hình: pha đóng băng, biên không tụt, cả khung hình lệch đi một quãng cố định
-// cho tới hết đoạn phim. Bản cũ có đúng lỗi này ở cú `fxShake(13)` lúc xe đáp, chỉ là 13 điểm
-// ảnh lệch một chỗ thì không ai đọc ra là hỏng.
+// và biên bằng FX.shake; cú loé thì có ba số `flash / flashTo / flashNghi`. Cả năm số ấy chỉ
+// nhúc nhích trong step(), mà step() thì BỊ CHẶN HOÀN TOÀN khi S.cut còn (xem frame():
+// `if (S.running && !S.dead && !S.cut)`). Hệ quả:
 //
-// Chữa bằng chính hai con số ấy, trên đồng hồ THẬT: lùi mốc `shakeT` đúng dt (pha chạy tới) và
-// trừ biên đúng nhịp step() vẫn dùng (dt*16, xem chỗ hạ FX.shake).
-function rungTheoGioThat(dt){
-  if (FX.shake <= 0.05) return;
-  FX.shakeT -= dt;
-  FX.shake = Math.max(0, FX.shake - dt*16);
+//   — cú rung gọi từ stepCut đứng hình: pha đóng băng, biên không tụt, cả khung hình lệch đi
+//     một quãng CỐ ĐỊNH cho tới hết đoạn phim. Bản cũ có đúng lỗi này ở cú `fxShake(13)` lúc
+//     xe đáp, chỉ là 13 điểm ảnh lệch một chỗ thì không ai đọc ra là hỏng.
+//   — cú loé còn tệ hơn: `flash` đuổi theo `flashTo` bằng chính dòng bị chặn ấy, nên nó KHÔNG
+//     BAO GIỜ SÁNG LÊN — cú loé của cú húc tường lẽ ra không thấy một điểm ảnh nào. Rồi
+//     `flashNghi` (quãng nghỉ chống nháy) đứng nguyên 0,55 tới hết phim, và cú loé THẬT đầu
+//     tiên sau đó bị hạ xuống còn một phần tư sức. Bộ đo dịu mắt bắt được: đỉnh tụt 0,09 -> 0,072.
+//
+// Chữa trên đồng hồ THẬT: lùi mốc `shakeT` đúng dt (pha chạy tới), rồi hạ cả cụm bằng đúng
+// hàm mà step() vẫn dùng.
+function fxTheoGioThat(dt){
+  if (FX.shake > 0.05) FX.shakeT -= dt;
+  haFX(dt);
 }
 
 // Xe húc vào ĐÂU: tâm xe tại đúng khung hình mũi xe chạm mặt tường, và có tường thật hay không.

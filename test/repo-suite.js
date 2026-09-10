@@ -2914,11 +2914,24 @@ async function xeHucTuongSuite(b) {
   const mo = await toi(CUT.DOOR[1]);
   check('húc xong mới tới lượt cửa sau mở toang', mo.cua === 1, 'cửa ' + mo.cua);
 
-  // Khung hình CUỐI CÙNG còn đoạn phim: ai cũng phải bước xuống xong ở đây. Đo sau khi nó
-  // đóng thì phép đo thành vô nghĩa — hết phim là chỗ vẽ trả về đúng chỗ đứng thật.
-  const cuoi = await toi(CUT.ARRIVE - 0.03);
+  // Khung hình CUỐI CÙNG còn đoạn phim: ai cũng phải bước xuống xong ở đây. Đo sau khi nó đóng
+  // thì phép đo thành vô nghĩa — hết phim là chỗ vẽ trả về đúng chỗ đứng thật, nên ca này sẽ
+  // xanh kể cả khi người ngồi ghế cuối bị bỏ rơi giữa đường. Và KHÔNG bơm khung tới mốc ấy:
+  // bơm thì mốc dừng lệch vài phần trăm giây tuỳ khung đầu rơi vào đâu, có lượt vọt qua 3,25
+  // và ca này đỏ oan. Chỗ vẽ là hàm thuần của `t`, nên đặt thẳng `t` là đo được đúng khung cần.
+  const cuoi = await p.evaluate((t) => {
+    if (!REPO.S.cut) return null;
+    REPO.S.cut.t = t;
+    const S = REPO.S;
+    const xa = a => {
+      const q = a === S.player ? REPO.playerDrawPos() : REPO.mateDrawPos(a);
+      return q ? +Math.hypot(q.x - a.x, q.y - a.y).toFixed(1) : -1;
+    };
+    return { t, xa: [xa(S.player)].concat((S.mates || []).map(xa)) };
+  }, CUT.ARRIVE - 0.02);
   check('người cuối cùng cũng kịp xuống xe TRƯỚC khi phim đóng',
-    cuoi.t !== null && cuoi.xa.every(v => v === 0), cuoi.t + 's · ' + cuoi.xa.join(' · '));
+    !!cuoi && cuoi.xa.every(v => v === 0),
+    cuoi ? cuoi.t + 's · ' + cuoi.xa.join(' · ') : 'phim đã đóng mất');
 
   const het = await toi(CUT.ARRIVE + 0.2);
   const doY = await p.evaluate(() => REPO.S.car.y);

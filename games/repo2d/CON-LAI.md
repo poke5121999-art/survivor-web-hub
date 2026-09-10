@@ -40,8 +40,15 @@ từng âm thầm sai:
   thứ để nhìn thì phải TỰ LÁI camera — xem `camTheoXe()` — và `camSnap()` khi bị cắt ngang.
 - *Rung màn*: `fxShake()` ghi `FX.shakeT = S.time`, còn `draw()` lấy pha bằng `S.time -
   FX.shakeT`. `S.time` đứng thì pha đóng băng và biên không tụt: cả khung hình lệch đi một
-  quãng CỐ ĐỊNH cho tới hết đoạn phim, chứ không rung. Chữa ở `rungTheoGioThat()` — lùi
-  `shakeT` theo dt thật, hạ biên đúng nhịp `dt*16` mà `step()` vẫn dùng.
+  quãng CỐ ĐỊNH cho tới hết đoạn phim, chứ không rung.
+- *Cú loé* còn tệ hơn, và chỗ này chỉ lòi ra nhờ bộ đo: `FX.flash` đuổi theo `FX.flashTo`
+  bằng chính dòng bị chặn ấy, nên trong đoạn phim nó **không bao giờ sáng lên** — cú loé của
+  cú húc tường lẽ ra không thấy một điểm ảnh nào. Tệ hơn nữa, `FX.flashNghi` (quãng nghỉ
+  chống nháy) đứng nguyên 0,55 tới hết phim, nên cú loé THẬT đầu tiên sau đó chỉ còn một
+  phần tư sức: bộ `dịu mắt` đo được đỉnh tụt **0,09 → 0,072** và đỏ lên.
+
+Chữa cả hai ở `fxTheoGioThat()`: lùi `shakeT` theo dt thật, rồi hạ cả cụm bằng `haFX()` —
+đúng cái hàm `step()` vẫn dùng, tách ra để hai bên không trôi khỏi nhau.
 
 **b) Từ chỗ đậu xe, chỉ có tường TRÊN và DƯỚI là nằm trong khung.** Khung nhìn rộng 14 ô
 (`VIEW_W_WORLD`), khung máy 9:16 nên cao 24,9 ô: nửa khung ngang 7 ô, nửa khung dọc 12,4 ô. Xe
