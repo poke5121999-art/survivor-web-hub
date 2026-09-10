@@ -19,23 +19,23 @@
      gấp ba, nếu không cuối mùa vẫn còn hạng F. Số dưới đây căn để: dồn 2–3 chỉ số thì cuối
      mùa chạm hạng A/S, dàn đều cả 5 thì chỉ tới B — đúng ý "phải chọn". */
   var BASE = {
-    co:  [24, 31, 38, 47, 58],
-    ben: [22, 29, 36, 44, 55],
-    luc: [22, 29, 36, 44, 55],
-    li:  [21, 28, 35, 43, 54],
-    nao: [15, 20, 25, 31, 38]     /* ăn ít hơn, bù lại không tốn thể lực (đúng như Wit của Uma) */
+    co:  [42, 58, 77, 100, 128],
+    ben: [39, 54, 72,  94, 120],
+    luc: [39, 54, 72,  94, 120],
+    li:  [37, 51, 68,  89, 114],
+    nao: [27, 37, 49,  64,  82]   /* ăn ít hơn, bù lại không tốn thể lực (đúng như Wit của Uma) */
   };
   /* chỉ số phụ ăn kèm: [chỉ số phụ, số điểm] */
   var PHU = {
-    co:  [['luc', 10]],
-    ben: [['li', 8]],
-    luc: [['co', 10], ['ben', 6]],
-    li:  [['ben', 8], ['co', 6]],
-    nao: [['co', 5]]
+    co:  [['luc', 18]],
+    ben: [['li', 14]],
+    luc: [['co', 18], ['ben', 11]],
+    li:  [['ben', 14], ['co', 11]],
+    nao: [['co', 9]]
   };
   var HAO = { co: -16, ben: -15, luc: -16, li: -17, nao: 4 };   /* thể lực; Não hoàn lại */
   var DIEM_KN = { co: 3, ben: 3, luc: 3, li: 3, nao: 6 };
-  var THAN_MOI_BUOI = 14;        /* 20 lượt tập mà mỗi buổi chỉ +7 thì cầu vồng không kịp nổ */
+  var THAN_MOI_BUOI = 20;        /* 20 lượt tập mà mỗi buổi chỉ +7 thì cầu vồng không kịp nổ */
 
   var TAM = [
     { id: 'rat_te', ten: 'RẤT TỆ', he: 0.80, lop: 't-bad' },
@@ -336,9 +336,9 @@
           }
         });
 
-        /* lên cấp sân sau mỗi 4 lần tập */
+        /* lên cấp sân sau mỗi 3 lần tập */
         ca.sanDem[viec.san]++;
-        if (ca.sanDem[viec.san] % 4 === 0 && ca.sanCap[viec.san] < 5) {
+        if (ca.sanDem[viec.san] % 3 === 0 && ca.sanCap[viec.san] < 5) {
           ca.sanCap[viec.san]++;
           ghi.push({ t: 'Sân ' + G.TEN_CHISO[viec.san] + ' lên cấp ' + ca.sanCap[viec.san], v: 0, vang: true });
           kq.lenCap = viec.san;

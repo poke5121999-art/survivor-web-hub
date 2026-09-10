@@ -553,7 +553,117 @@ Lớp: **Melee · Ranged · Mage · Support · Assassin**.
 
 ---
 
-## 4. Nguồn
+---
+
+## 4. Đo cân bằng bằng máy — cái đoán sai và cái đo ra
+
+Phần này không lấy từ hai game nguồn. Đây là **số đo trên chính game này**, và quan trọng hơn: là
+danh sách những chỗ tưởng đã làm mà thật ra chưa chạy. Ghi lại để lần sau đừng tin mắt.
+
+### 4.1 Bộ đo
+
+Bốn tệp trong `_tools/`, chạy được từ `file://` lẫn từ bản trên Pages:
+
+| tệp | đo cái gì | lệnh |
+|---|---|---|
+| `lai.js` | lái Chrome headless bằng CDP, in mọi lỗi trang, chụp ảnh | `node _tools/lai.js <url> ra.png 6 [--dofile=x.js]` |
+| `tuchoi.js` | **tự chơi hết một mùa** qua giao diện thật, báo cáo đường đi và mọi lỗi | `--dofile=_tools/tuchoi.js` |
+| `duongcong.js` | đường cong chỉ số theo ba lối chơi (dồn/tham/đều) so với sức đội máy | `--dofile=_tools/duongcong.js` |
+| `tileThang.js` | **tỉ lệ thắng từng giải** trong mùa, đúng thể thức Bo1/Bo3/Bo5 | `--dofile=_tools/tileThang.js` |
+| `canbang.js` | tỉ lệ thắng từng tướng (bảng Champ Stats của TFM2) | `node _tools/canbang.js 500` |
+
+`tileThang.js` cần `G._thu` — cửa sau chỉ-đọc ở cuối `giai.js` để dựng đội máy và cấu hình trận y
+như lúc chơi thật. Không có nó thì phải dựng lại một bản "gần giống" rồi đo nhầm.
+
+### 4.2 Năm chỗ hỏng mà chỉ số đo mới lộ ra
+
+Trước khi đo, game **thua 0/40 ở cả tám giải**. Không phải một lỗi, là năm lỗi cộng lại:
+
+1. **Bản đồ không đối xứng.** Kèo hoàn toàn cân (cùng tướng, cùng chỉ số, cùng thông thạo) mà bên
+   xanh chỉ thắng **8/30**, phá 3.5 trụ so với 6.4. Ba đường trong `sim.js` được vẽ tay nên lệch
+   nhau vài chục điểm ảnh, và tám bãi quái đặt theo **đối xứng tâm** trong khi ba đường lại gần
+   **đối xứng qua đường chéo y = x**. Hai kiểu đối xứng đánh nhau, không kiểu nào đúng.
+   → Chốt: **mọi thứ đối xứng qua y = x**. Điểm thứ *i* của một đường, lật `(x,y)→(y,x)`, phải
+   trùng điểm thứ *(n−1−i)* của chính đường đó. Bãi quái đỏ = ảnh lật của bãi xanh, không đặt tay.
+   Sau khi sửa: **10–11/20, mạng 52–52**.
+   *Bài học*: sai số hình học vài phần trăm không tự triệt tiêu qua 20 phút đánh nhau — nó cộng dồn.
+   Kiểm đối xứng bằng **vòng lặp so toạ độ**, đừng kiểm bằng cách nhìn ảnh.
+
+2. **LỰC và BỀN không được bộ mô phỏng đọc.** `grep "cs\." sim.js` chỉ ra `co`, `li`, `nao` —
+   hai trong năm giáo án là **tập không công**, trái hẳn §2.1 của `DESIGN.md`. Cả một mùa nuôi quân
+   gần như không đổi được kết quả trận: chỉ số lệch hết cỡ (1200 so với 100) mà chỉ thắng 16/20.
+   → Đưa vào `chiSoNguoi()` một chỗ duy nhất: LỰC ±14% sát thương và tốc farm, BỀN +14% máu kèm
+   chống tụt sức sau phút 18, CƠ +12% tốc đánh. Sau khi sửa: 1200 so với 100 → **20/20**.
+
+3. **Bùa Chúa Hang không bao giờ hết hạn.** `tran.buff[doi].linh = tran.t + 60` ghi mốc hết hạn,
+   nhưng chỗ đọc lại là `tran.buff[doi].linh ? 1 : 0` — tức là **đội ăn Chúa Hang đầu tiên có lính
+   mạnh 1.4× tới hết trận**. Đây là lý do biểu đồ vàng luôn gãy ở phút 7–8, đúng lúc Chúa Hang hiện
+   ra lần đầu.
+
+4. **Đội máy nào cũng có bốn người thông thạo UR.** `taoDoiMay()` phát UR/SSR cho mọi đội, kể cả
+   Mèo Đá ở giải đầu tiên, trong khi **năm thẻ khởi đầu của người chơi cao nhất chỉ SR**. Người chơi
+   vào giải nào cũng lép vế một bậc thông thạo.
+   → Bảng thông thạo theo **bậc giải**: bậc 1 `R/R/N/N` … bậc 5 `UR/SSR/SSR/SR`.
+
+5. **Thang thông thạo ăn trùm cả mùa huấn luyện.** Thang cũ `0.82 … 1.22` nhân thẳng vào mọi chỉ số
+   chiến đấu: UR gặp N thắng 20/20, còn chỉ số huấn luyện lệch hết cỡ chỉ thắng 16/20 — nghĩa là
+   một dòng bảng thông thạo đáng hơn cả 24 lượt tập.
+   → Thu về `0.90 … 1.12`. Vẫn đáng để **cấm theo người**, nhưng không còn quyết định thay người chơi.
+
+### 4.3 Số chốt sau khi cân (đo trên bản đã sửa)
+
+**Sức đội máy** (`data-giai.js`, thang 0–1200 quy đổi): vòng bảng 58–74 · play-off và chung kết
+quốc nội 150–186 · CKTG 258–288 · chung kết 330–352.
+
+**Đường cong chỉ số** — 24 ca, chọn giáo án theo tổng chỉ số ăn được × (1 − tỉ lệ hỏng):
+
+| lối chơi | trung bình 5 chỉ số ở lượt 24 | chỉ số cao nhất | thứ hai |
+|---|---|---|---|
+| dồn (bám 2 giáo án) | 371 | **1137 (A+)** | 334 (E) |
+| tham (lượt nào ăn nhiều nhất) | 370 | 1111 (A+) | 330 (E) |
+| đều (xoay vòng cả 5) | 278 | 381 (E+) | 322 (E) |
+
+Đúng ý "phải chọn": dồn thì có một chỉ số hạng A+, dàn đều thì cả năm hạng E.
+
+**Tỉ lệ thắng từng giải** — 40 lần mỗi giải, **chỉ với năm thẻ khởi đầu, không gacha, không mua kỹ
+năng, không kế thừa**. Người chơi thật sẽ cao hơn:
+
+| giải | thể thức | thắng |
+|---|---|---|
+| Vòng bảng lượt 1 | Bo1 | 75% |
+| Vòng bảng lượt 2 | Bo1 | 85% |
+| Play-off quốc nội | Bo3 | 73% |
+| Chung kết quốc nội | Bo3 | 85% |
+| CKTG tứ kết | Bo3 | 63% |
+| CKTG bán kết | Bo5 | 65% |
+| CKTG tranh vé | Bo5 | 45% |
+| **CHUNG KẾT THẾ GIỚI** | Bo5 | **28%** |
+
+Vô địch cả mùa ngay lần đầu ≈ **2.4%** (chưa tính vé cứu). Đúng mức "hiếm nhưng có thật" của một ca
+Uma đầu tiên.
+
+**Tướng** (`node _tools/canbang.js 500`): cả 20 con nằm trong 41.2% – 58.1%, không con nào lệch quá
+12% so với 50%. Một trận trung bình 19.6 phút, 92 mạng, 62k vàng hai đội — khớp với số đọc được từ
+ảnh chụp TFM2 ở §2.12.
+
+### 4.4 Bẫy công cụ trong đợt đo này
+
+- **Không có `puppeteer` trên máy.** Node 22 đã có `WebSocket` trong lõi nên lái Chrome bằng CDP
+  chỉ mất ~120 dòng (`_tools/lai.js`, chép từ `games/deepcore/_tools/drive.js`). Đừng cài gói vào
+  một repo HTML tĩnh.
+- **Hộp thoại sự kiện đặt nút trong `.hop-than`, không phải `.hop-chan`.** Kịch bản tự chơi bản đầu
+  chỉ quét `.hop-chan button` nên bấm 2176 lần mà hộp không đóng, tập được 4 lượt trong 4 phút.
+  Quét cả `#lop-phu button` và **bỏ qua nút `.do`** (bỏ ca / xoá bản lưu).
+- **`Math.min`/`sort` với `undefined` không báo lỗi**, chỉ trả `NaN` rồi để nguyên thứ tự — bảng
+  thông thạo sai mà không văng ra. Luôn `|| 0` trong hàm so sánh.
+- **Ảnh chụp màn trận bị hộp dạy chơi che.** Truyền `--do="(function(){var b=window.$('#lop-phu button');if(b)b.click();return 1;})()"`.
+- **`#tran:<số tick>`** chạy sẵn n tick rồi mới mở màn — cách duy nhất chụp được trận đang giữa chừng.
+- **Sông vẽ trùng đường giữa.** Sông cũ chạy từ (30,970) tới (970,30) — đúng hướng đường giữa nên
+  đè mất nó. Sông phải chạy theo **đường chéo còn lại**, qua đúng chỗ hai con quái lớn.
+
+---
+
+## 5. Nguồn
 
 - Steam — Teamfight Manager 2: https://store.steampowered.com/app/3009300/
 - Steam — Teamfight Manager: https://store.steampowered.com/app/1372810/

@@ -43,13 +43,18 @@
 
 ### 2.1 Năm chỉ số của HLV — nuôi trong ca
 
-| chỉ số | tên đầy đủ | ảnh hưởng trong trận |
-|---|---|---|
-| **CƠ** | Cơ bản / thao tác | tỉ lệ trúng chiêu, né chiêu, last-hit, tốc độ ra chiêu |
-| **BỀN** | Thể lực | giữ phong độ về cuối trận; chống tụt chỉ số ở phút 20+ |
-| **LỰC** | Sức đánh | sát thương gây ra, tốc độ farm, khả năng solo kill |
-| **LÌ** | Bản lĩnh | chịu áp lực khi thua, tỉ lệ lật kèo, không hoảng khi bị gank |
-| **NÃO** | Tư duy | quyết định macro: timing quái lớn, cắm mắt, đổi lane, gọi giao tranh |
+| chỉ số | tên đầy đủ | ảnh hưởng trong trận | chỗ cài trong `sim.js` |
+|---|---|---|---|
+| **CƠ** | Cơ bản / thao tác | né chiêu, thoát khống chế, hồi chiêu nhanh, **+0…12% tốc đánh** | `heCo()`, và ba ngưỡng né/gỡ |
+| **BỀN** | Thể lực | **+0…14% máu**, và **chống tụt sức**: từ phút 18, BỀN thấp mất tới 25% sức đánh | `heBen()`, `heCuoiTran()` |
+| **LỰC** | Sức đánh | **±14% sát thương** gây ra và **±8% tốc farm** (vàng từ lính) | `heLuc()`, nhánh lính trong `xuLyChet()` |
+| **LÌ** | Bản lĩnh | ngưỡng về nhà, dám ở lại 1v1, không co rúm khi thua đậm | ba ngưỡng trong `chonHanhDong()` |
+| **NÃO** | Tư duy | đếm quân đúng, biết trước quái lớn, nghe lệnh, đọc trận để mua đồ | `ngheLenh()`, `thayDung`, `biet`, `G.nghiDo` |
+
+> **Biên của chỉ số phải hẹp.** Cả năm cộng lại chỉ đổi được ±14% "số", còn lại là đổi **quyết
+> định** — đúng nguyên tắc của Teamfight Manager. Nhưng hẹp **không có nghĩa là bỏ**: bản đầu tiên
+> quên cài LỰC và BỀN, và đo ra thì cả một mùa nuôi quân gần như không đổi được kết quả trận
+> (chỉ số lệch hết cỡ vẫn chỉ thắng 16/20). Xem `RESEARCH.md` §4.2.
 
 Trần chỉ số **1200** (lấy nguyên của Uma), hiển thị kèm **hạng chữ** `G → F → E → D → C → B → A → S`
 theo ngưỡng: `<150 G · 150 F · 300 E · 450 D · 600 C · 800 B · 1000 A · 1150 S`. `[ĐỀ XUẤT]`
@@ -148,11 +153,16 @@ Mỗi tuyển thủ có bảng thông thạo riêng. Trong trận:
 
 | bậc | hệ số chỉ số tướng | ghi chú |
 |---|---|---|
-| **N** | ×0.82 | chưa từng tập, hay lỗi thao tác |
-| **R** | ×0.90 | biết chơi |
+| **N** | ×0.90 | chưa từng tập, hay lỗi thao tác |
+| **R** | ×0.95 | biết chơi |
 | **SR** | ×1.00 | chuẩn |
-| **SSR** | ×1.10 | tủ |
-| **UR** | ×1.22 | **tướng ruột**, có thêm hiệu ứng riêng của tuyển thủ |
+| **SSR** | ×1.06 | tủ |
+| **UR** | ×1.12 | **tướng ruột**, có thêm hiệu ứng riêng của tuyển thủ |
+
+> Thang này **thu lại** từ `0.82 … 1.22` sau khi đo: với thang cũ, một dòng bảng thông thạo
+> đáng hơn cả 24 lượt huấn luyện (UR gặp N thắng 20/20, chỉ số lệch hết cỡ chỉ thắng 16/20).
+> Đội máy cũng chỉ thạo theo **bậc giải** — giải đầu tiên không được phép ai cũng có tướng UR.
+> `RESEARCH.md` §4.2.
 
 Thông thạo **lên được** khi tuyển thủ dùng tướng đó trong trận (+1 điểm/trận thắng, +0.5 thua), và
 khi tập ở giáo án có sự kiện "ôn tướng". `[ĐỀ XUẤT]`

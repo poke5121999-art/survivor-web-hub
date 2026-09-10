@@ -53,25 +53,25 @@
 
   G.DOI_AI = [
     /* nhóm yếu — vòng bảng */
-    D('d_meo', 'Mèo Đá', 'MĐ', 430, 'bamnhip', ['kiemsi', 'xathu', 'thaythuoc', 'gaosu', 'phaposu'], '#6fc4f0'),
-    D('d_bao', 'Báo Đen', 'BĐ', 470, 'baodau', ['cuongchien', 'bongma', 'nodoc', 'nhacsi', 'phapset'], '#b08af0'),
-    D('d_song', 'Sóng Xanh', 'SX', 450, 'nuoimuon', ['hiepsi', 'sungtruong', 'khienhon', 'thoisan', 'phaposu'], '#5fe0b0'),
-    D('d_dieu', 'Diều Hâu', 'DH', 490, 'bamnhip', ['thanhkiem', 'bomxich', 'nhacsi', 'bongma', 'bongdem'], '#f0a86f'),
+    D('d_meo', 'Mèo Đá', 'MĐ', 58, 'bamnhip', ['kiemsi', 'xathu', 'thaythuoc', 'gaosu', 'phaposu'], '#6fc4f0'),
+    D('d_bao', 'Báo Đen', 'BĐ', 68, 'baodau', ['cuongchien', 'bongma', 'nodoc', 'nhacsi', 'phapset'], '#b08af0'),
+    D('d_song', 'Sóng Xanh', 'SX', 62, 'nuoimuon', ['hiepsi', 'sungtruong', 'khienhon', 'thoisan', 'phaposu'], '#5fe0b0'),
+    D('d_dieu', 'Diều Hâu', 'DH', 74, 'bamnhip', ['thanhkiem', 'bomxich', 'nhacsi', 'bongma', 'bongdem'], '#f0a86f'),
 
     /* nhóm giữa — play-off, chung kết quốc nội */
-    D('d_ho', 'Hổ Xám', 'HX', 640, 'baodau', ['cuongchien', 'kynhan', 'xathu', 'hiepsi', 'bongdem'], '#e5484d'),
-    D('d_ran', 'Rắn Lục', 'RL', 680, 'nuoimuon', ['phaco', 'nodoc', 'phapset', 'khienhon', 'thoisan'], '#3ddc97'),
-    D('d_soi', 'Sói Tuyết', 'ST', 700, 'bamnhip', ['thanhkiem', 'gaosu', 'phaposu', 'sungtruong', 'thaythuoc'], '#7fd6ff'),
-    D('d_quy', 'Quỷ Đỏ', 'QĐ', 720, 'bungcuoi', ['phaco', 'bongma', 'phapset', 'xathu', 'khienhon'], '#ff8fb0'),
+    D('d_ho', 'Hổ Xám', 'HX', 150, 'baodau', ['cuongchien', 'kynhan', 'xathu', 'hiepsi', 'bongdem'], '#e5484d'),
+    D('d_ran', 'Rắn Lục', 'RL', 162, 'nuoimuon', ['phaco', 'nodoc', 'phapset', 'khienhon', 'thoisan'], '#3ddc97'),
+    D('d_soi', 'Sói Tuyết', 'ST', 172, 'bamnhip', ['thanhkiem', 'gaosu', 'phaposu', 'sungtruong', 'thaythuoc'], '#7fd6ff'),
+    D('d_quy', 'Quỷ Đỏ', 'QĐ', 186, 'bungcuoi', ['phaco', 'bongma', 'phapset', 'xathu', 'khienhon'], '#ff8fb0'),
 
     /* nhóm mạnh — CKTG */
-    D('d_rong', 'Rồng Vàng', 'RV', 880, 'bamnhip', ['thanhkiem', 'kynhan', 'phaposu', 'sungtruong', 'khienhon'], '#ffd76e'),
-    D('d_phuong', 'Phượng Bạc', 'PB', 900, 'bungcuoi', ['hiepsi', 'gaosu', 'phapset', 'xathu', 'nhacsi'], '#c8d3e0'),
-    D('d_lang', 'Lang Vương', 'LV', 940, 'baodau', ['cuongchien', 'bongma', 'bongdem', 'nodoc', 'nhacsi'], '#a77bf3'),
+    D('d_rong', 'Rồng Vàng', 'RV', 258, 'bamnhip', ['thanhkiem', 'kynhan', 'phaposu', 'sungtruong', 'khienhon'], '#ffd76e'),
+    D('d_phuong', 'Phượng Bạc', 'PB', 270, 'bungcuoi', ['hiepsi', 'gaosu', 'phapset', 'xathu', 'nhacsi'], '#c8d3e0'),
+    D('d_lang', 'Lang Vương', 'LV', 288, 'baodau', ['cuongchien', 'bongma', 'bongdem', 'nodoc', 'nhacsi'], '#a77bf3'),
 
     /* nhóm đỉnh — chung kết */
-    D('d_thanh', 'Thánh Chiến', 'TC', 1030, 'bamnhip', ['thanhkiem', 'kynhan', 'phapset', 'xathu', 'thaythuoc'], '#f2c94c'),
-    D('d_vuong', 'Vương Triều', 'VT', 1080, 'nuoimuon', ['phaco', 'gaosu', 'phaposu', 'sungtruong', 'khienhon'], '#4a9df8')
+    D('d_thanh', 'Thánh Chiến', 'TC', 330, 'bamnhip', ['thanhkiem', 'kynhan', 'phapset', 'xathu', 'thaythuoc'], '#f2c94c'),
+    D('d_vuong', 'Vương Triều', 'VT', 352, 'nuoimuon', ['phaco', 'gaosu', 'phaposu', 'sungtruong', 'khienhon'], '#4a9df8')
   ];
 
   G.DOI_THEO_ID = {};

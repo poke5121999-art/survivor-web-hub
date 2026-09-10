@@ -64,11 +64,11 @@
     T('thanhkiem', 'Thánh Kiếm', 'can', 'tren',
       [88, 20, 22, 7, 980, 96, 28, 7, 22, 5, 30, 1.10, 73],
       N('Giáp Thành Kiếm', 'Sát thương đòn đánh cộng thêm 25% giá trị giáp của mình (sát thương phép).',
-        { dmgTheoGiap: 0.25 }),
-      C('Kiếm Sáng', 'Chém ra sóng ánh sáng bay xa: 55 + 80% sát thương vật lý, xuyên hàng.', 7,
-        { dmg: { g: 0.80, c: 55, loai: 'vl' }, dac: 'xuyen' }),
-      U('Thánh Vực', 'Vùng thánh 5 giây: đồng đội trong đó hồi 2% máu mỗi giây, kẻ địch bị chậm 25%.', 85,
-        { hoi: { g: 0, c: 0, phanTramMau: 0.02 }, doi: true, cham: { muc: 0.25, giay: 5 }, lap: 5 }),
+        { dmgTheoGiap: 0.55 }),
+      C('Kiếm Sáng', 'Chém ra sóng ánh sáng bay xa: 65 + 95% sát thương vật lý, xuyên hàng.', 7,
+        { dmg: { g: 0.95, c: 65, loai: 'vl' }, dac: 'xuyen' }),
+      U('Thánh Vực', 'Vùng thánh 5 giây: đồng đội trong đó hồi 3.5% máu mỗi giây, kẻ địch bị chậm 25%.', 85,
+        { hoi: { g: 0, c: 0, phanTramMau: 0.035 }, doi: true, cham: { muc: 0.25, giay: 5 }, lap: 5 }),
       ['toa', 'hoi'], 'Nửa đỡ đòn nửa gây sát thương, không giỏi nhất việc nào.'),
 
     /* ═══════════ ĐI RỪNG ═══════════ */
@@ -114,11 +114,11 @@
 
     /* ═══════════ ĐƯỜNG GIỮA ═══════════ */
     T('phaposu', 'Pháp Sư', 'phep', 'giua',
-      [58, 12, 46, 14, 780, 76, 17, 4, 20, 4, 55, 1.05, 71],
+      [58, 12, 48, 15, 860, 86, 18, 4, 21, 4, 58, 1.05, 73],
       N('Tàn Lửa', 'Kỹ năng gây bỏng thêm 20% sát thương phép trong 2 giây.',
-        { dot: { g: 0.32, giay: 2, loai: 'pt' } }),
-      C('Cầu Lửa', 'Ném cầu lửa: 70 + 80% sức mạnh phép.', 5,
-        { dmg: { g: 0.80, c: 70, loai: 'pt' } }),
+        { dot: { g: 0.42, giay: 2, loai: 'pt' } }),
+      C('Cầu Lửa', 'Ném cầu lửa: 80 + 92% sức mạnh phép.', 5,
+        { dmg: { g: 0.92, c: 80, loai: 'pt' } }),
       U('Thiên Thạch', 'Gọi thiên thạch xuống sau 1.2 giây: 200 + 110% sức mạnh phép diện rộng.', 65,
         { dmg: { g: 1.10, c: 200, loai: 'pt', dien: true }, tre: 1.2 }),
       ['toa', 'pk'], 'Dọn lính, dọn người, dọn cả hy vọng.'),
@@ -155,7 +155,7 @@
 
     /* ═══════════ XẠ THỦ ═══════════ */
     T('xathu', 'Xạ Thủ', 'xa', 'duoi',
-      [78, 22, 0, 0, 780, 76, 18, 5, 14, 3, 62, 1.35, 72],
+      [76, 20, 0, 0, 770, 75, 18, 5, 14, 3, 62, 1.28, 72],
       N('Nhịp Bắn', 'Mỗi đòn đánh cộng dồn +6% tốc đánh, tối đa 5 lần, mất khi ngừng bắn 3 giây.',
         { congDon: { tocdanh: 0.06, lan: 5 } }),
       C('Mũi Xuyên', 'Bắn xuyên hàng: 50 + 90% sát thương vật lý.', 8,
@@ -198,11 +198,11 @@
     T('hiepsi', 'Hiệp Sĩ', 'can', 'ho',
       [72, 15, 0, 0, 1000, 98, 32, 8, 21, 4, 26, 1.00, 72],
       N('Vai Kề Vai', 'Đồng đội đứng cạnh nhận thêm 8% giáp và kháng phép.',
-        { hao: { giap: 0.04, khang: 0.04 }, doi: true }),
+        { hao: { giap: 0.03, khang: 0.03 }, doi: true }),
       C('Khiên Dội', 'Húc mục tiêu: 40 + 70% sát thương vật lý và hất tung 0.8 giây.', 10,
         { dmg: { g: 0.70, c: 40, loai: 'vl' }, kc: 0.8 }),
-      U('Chốt Chặn', 'Cắm cờ 4 giây: đồng đội trong vùng giảm 25% sát thương nhận.', 70,
-        { giamNhan: 0.16, giay: 4, doi: true }),
+      U('Chốt Chặn', 'Cắm cờ 4 giây: đồng đội trong vùng giảm 12% sát thương nhận.', 70,
+        { giamNhan: 0.12, giay: 4, doi: true }),
       ['kc', 'lao', 'hoi'], 'Cái khiên của đội. Vào trước, chết sau.'),
 
     T('thaythuoc', 'Thầy Thuốc', 'ho', 'ho',
@@ -226,13 +226,13 @@
       ['hoi', 'kc'], 'Không hồi máu, nhưng không cho mất máu.'),
 
     T('nhacsi', 'Nhạc Sĩ', 'ho', 'ho',
-      [52, 11, 32, 10, 840, 82, 20, 5, 22, 5, 56, 1.05, 73],
+      [52, 11, 34, 11, 890, 88, 22, 5, 23, 5, 58, 1.05, 74],
       N('Khúc Hành', 'Đồng đội quanh mình luôn được +10% tốc chạy.',
         { hao: { tocchay: 0.10, tocdanh: 0.07 }, doi: true }),
-      C('Nốt Ru', 'Ru ngủ một mục tiêu 1.6 giây: 60 + 70% sức mạnh phép, tỉnh dậy thì nhận thêm 20% sát thương.', 12,
-        { dmg: { g: 0.70, c: 60, loai: 'pt' }, kc: 1.6, danhThuc: 0.20 }),
-      U('Đại Hợp Xướng', 'Toàn đội +34% tốc đánh và +18% tốc chạy trong 7 giây.', 72,
-        { buff: { tocdanh: 0.34, tocchay: 0.18, giay: 7, doi: true } }),
+      C('Nốt Ru', 'Ru ngủ một mục tiêu 2.1 giây: 60 + 70% sức mạnh phép, tỉnh dậy thì nhận thêm 20% sát thương.', 12,
+        { dmg: { g: 0.70, c: 60, loai: 'pt' }, kc: 2.1, danhThuc: 0.28 }),
+      U('Đại Hợp Xướng', 'Toàn đội +42% tốc đánh và +22% tốc chạy trong 9 giây.', 72,
+        { buff: { tocdanh: 0.42, tocchay: 0.22, giay: 9, doi: true } }),
       ['hoi', 'kc'], 'Buff cả đội, ai cũng nhanh hơn một nhịp.')
   ];
 
@@ -252,12 +252,16 @@
   G.LOP_TEN = { can: 'Cận Chiến', xa: 'Xạ Thủ', phep: 'Pháp Sư', ho: 'Hỗ Trợ', sat: 'Sát Thủ' };
 
   /* thông thạo: N < R < SR < SSR < UR (DESIGN.md §3.4) */
+  /* Hệ số nhân thẳng vào mọi chỉ số chiến đấu của tướng. Đo bằng máy: với thang cũ
+     (0.82 … 1.22) thì UR gặp N thắng 20/20, còn chỉ số huấn luyện viên lệch hết cỡ (1200 so
+     với 100) cũng chỉ thắng 16/20 — tức là cả mùa nuôi quân thua một dòng bảng thông thạo.
+     Thu lại còn 0.90 … 1.12: thông thạo vẫn đáng để cấm theo người, nhưng không còn ăn trùm. */
   G.THONG_THAO = [
-    { id: 'N', ten: 'N', heso: 0.82, mau: '#7d8794' },
-    { id: 'R', ten: 'R', heso: 0.90, mau: '#6fc4f0' },
+    { id: 'N', ten: 'N', heso: 0.90, mau: '#7d8794' },
+    { id: 'R', ten: 'R', heso: 0.95, mau: '#6fc4f0' },
     { id: 'SR', ten: 'SR', heso: 1.00, mau: '#b08af0' },
-    { id: 'SSR', ten: 'SSR', heso: 1.10, mau: '#ffd76e' },
-    { id: 'UR', ten: 'UR', heso: 1.22, mau: '#ff8fb0' }
+    { id: 'SSR', ten: 'SSR', heso: 1.06, mau: '#ffd76e' },
+    { id: 'UR', ten: 'UR', heso: 1.12, mau: '#ff8fb0' }
   ];
   G.TT_THEO_ID = {};
   G.THONG_THAO.forEach(function (t) { G.TT_THEO_ID[t.id] = t; });

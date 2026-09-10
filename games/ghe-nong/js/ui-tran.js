@@ -223,10 +223,12 @@
     ctx.fillStyle = g;
     ctx.fillRect(p0[0], p0[1], 1000 * s, 1000 * s);
 
-    /* sông chéo (vẽ trước, không thì nó đè mất đường giữa) */
+    /* Sông chạy theo đường chéo CÒN LẠI — tức là cắt ngang đường giữa, không nằm trùng
+       lên nó. Vẽ trùng thì đường giữa biến mất dưới dải xanh, chụp ảnh màn trận là thấy ngay.
+       Đi qua đúng chỗ hai con quái lớn đứng (300,300) và (700,700), giống mọi bản đồ MOBA. */
     ctx.strokeStyle = 'rgba(74,157,248,.16)'; ctx.lineWidth = 62 * s;
     ctx.beginPath();
-    var sa = toaDo(30, 970), sb = toaDo(970, 30);
+    var sa = toaDo(30, 30), sb = toaDo(970, 970);
     ctx.moveTo(sa[0], sa[1]); ctx.lineTo(sb[0], sb[1]);
     ctx.stroke();
 

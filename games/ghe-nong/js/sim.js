@@ -18,10 +18,17 @@
   var NHA = { xanh: [120, 880], do: [880, 120] };
 
   /* ── đường đi ── */
+  /* Ba đường phải ĐỐI XỨNG QUA ĐƯỜNG CHÉO y = x: điểm thứ i lật (x,y)→(y,x) phải
+     trùng điểm thứ (n−1−i) của chính đường đó. Có vậy chỗ đứng của người đi đường trên bên
+     xanh mới là ảnh gương của người đi đường trên bên đỏ.
+
+     Bản cũ lệch chỉ vài chục điểm ảnh, trông thì cân, nhưng đo bằng máy thì kèo gương
+     tuyệt đối xanh chỉ thắng 8/30. Sai số hình học nằm dưới ba mươi phút đánh nhau thì không
+     triệt tiêu, nó cộng dồn. */
   var DUONG = {
-    tren: [[120, 880], [120, 620], [120, 340], [140, 160], [360, 120], [640, 120], [880, 120]],
+    tren: [[120, 880], [120, 620], [120, 360], [140, 140], [360, 120], [620, 120], [880, 120]],
     giua: [[120, 880], [280, 720], [420, 580], [500, 500], [580, 420], [720, 280], [880, 120]],
-    duoi: [[120, 880], [360, 900], [640, 900], [860, 860], [880, 640], [880, 360], [880, 120]]
+    duoi: [[120, 880], [360, 900], [620, 900], [860, 860], [900, 620], [900, 360], [880, 120]]
   };
 
   /* trụ: [lane, phần trăm dọc đường, đội] — 2 trụ + 1 trụ lõi mỗi bên */
@@ -37,7 +44,8 @@
   /* bãi quái rừng: [x, y, đội nào gần hơn] */
   var BAI = [
     [300, 700, 'xanh'], [240, 540, 'xanh'], [420, 780, 'xanh'], [180, 420, 'xanh'],
-    [700, 300, 'do'], [760, 460, 'do'], [580, 220, 'do'], [820, 580, 'do']
+    /* lật qua đường chéo y = x của bốn bãi trên, không được đặt tay */
+    [700, 300, 'do'], [540, 240, 'do'], [780, 420, 'do'], [420, 180, 'do']
   ];
 
   /* hai quái lớn — tên lấy tinh thần của Serpen / Morgard trong Teamfight Manager 2 */
@@ -104,7 +112,8 @@
           cs: n.cs || { co: 600, ben: 600, luc: 600, li: 600, nao: 600 },
           heso: cau[ben].heso || {},
           cap: 1, exp: 0, vang: 500, do: [],
-          hp: cs.hp * heTT, hpMax: cs.hp * heTT,
+          hp: cs.hp * heTT * (1 + 0.14 * G.kep((n.cs && n.cs.ben || 0) / 1200, 0, 1)),
+          hpMax: cs.hp * heTT * (1 + 0.14 * G.kep((n.cs && n.cs.ben || 0) / 1200, 0, 1)),
           x: v[0], y: v[1], nha: NHA[doi].slice(),
           cd: { chieu: 0, cuoi: 0 }, danh: 0,
           k: 0, d: 0, a: 0, dmg: 0, nhan: 0, hoi: 0,
@@ -146,21 +155,42 @@
 
   /* ══════════════════ tiện ích ══════════════════ */
 
+  /* Đọc năm chỉ số của huấn luyện viên vào thân thể tuyển thủ.
+
+     Trước đây chỉ CƠ, LÌ, NÃO được dùng, và chỉ để nắn ngưỡng ra quyết định. LỰC và
+     BỀN không xuất hiện một lần nào trong sim — tức là hai trong năm giáo án là tập không công,
+     trái hẳn §2.1 của DESIGN.md. Đo bằng máy thì lộ ra ngay: cả mùa nuôi quân gần như
+     không đổi được kết quả trận.
+
+     Vẫn giữ tinh thần "chỉ số đổi quyết định, không đổi số sát thương" của Teamfight Manager:
+     biên ở đây hẹp (±14%), nhỏ hơn nhiều so với cái mà một quyết định macro sai giá phải trả. */
+  function heLuc(n) { return 0.86 + 0.28 * G.kep((n.cs && n.cs.luc || 0) / 1200, 0, 1); }
+  function heBen(n) { return 1 + 0.14 * G.kep((n.cs && n.cs.ben || 0) / 1200, 0, 1); }
+  function heCo(n) { return 1 + 0.12 * G.kep((n.cs && n.cs.co || 0) / 1200, 0, 1); }
+  /** tụt sức cuối trận: từ phút 18 trở đi mỗi phút mất 1.5% sức đánh, BỀN cao thì gần như không mất */
+  function heCuoiTran(n) {
+    var thua = ((n.tTran || 0) - 18 * 60) / 60;
+    if (thua <= 0) return 1;
+    return 1 - Math.min(0.25, thua * 0.015 * (1 - G.kep((n.cs && n.cs.ben || 0) / 1200, 0, 1)));
+  }
+  G.heBenNguoi = heBen;
+
   function chiSoNguoi(n) {
     var cs = G.tuongOCap(n.tuong, n.cap);
     var d = G.congDo(n.do);
     var he = n.heTT;
     var b = { atk: 0, ap: 0, hp: 0, giap: 0, khang: 0, tocdanh: 0, tocchay: 0 };
     n.buff.forEach(function (x) { for (var k in x.cs) b[k] = (b[k] || 0) + x.cs[k]; });
+    var kL = heLuc(n) * heCuoiTran(n);
 
     return {
-      atk: (cs.atk + d.atk) * he + b.atk,
-      ap: (cs.ap + d.ap) * he + b.ap,
-      hpMax: (cs.hp + d.hp) * he,
+      atk: ((cs.atk + d.atk) * he + b.atk) * kL,
+      ap: ((cs.ap + d.ap) * he + b.ap) * kL,
+      hpMax: (cs.hp + d.hp) * he * heBen(n),
       giap: (cs.giap + d.giap) * he * (1 + (b.giap || 0)),
       khang: (cs.khang + d.khang) * he * (1 + (b.khang || 0)),
       tam: cs.tam,
-      tocdanh: cs.tocdanh * (1 + d.tocdanh + (b.tocdanh || 0)),
+      tocdanh: cs.tocdanh * (1 + d.tocdanh + (b.tocdanh || 0)) * heCo(n),
       tocchay: cs.tocchay * (1 + d.tocchay + (b.tocchay || 0)) * (n.cham > 0 ? 0.65 : 1),
       hut: d.hut, dac: d.dac
     };
@@ -567,7 +597,10 @@
             hp: xa2 ? 380 : 520, hpMax: xa2 ? 380 : 520,
             atk: xa2 ? 34 : 26, tam: xa2 ? 110 : 40, danh: 0,
             giap: 12, khang: 8, vang: xa2 ? 26 : 20, exp: 46, xa: xa2,
-            buff: tran.buff[doi].linh ? 1 : 0
+            /* bùa Chúa Hang có HẠN: so với đồng hồ trận, không phải chỉ xem có hay không.
+               Để nguyên `? 1 : 0` thì đội ăn Chúa Hang đầu tiên có lính mạnh 1.4× tới hết trận — đo được:
+               kèo gương mà bên nào ăn Chúa trước thì phá 6.4 trụ, bên kia 3.5. */
+            buff: (tran.buff[doi].linh || 0) > tran.t ? 1 : 0
           });
         }
       });
@@ -603,6 +636,8 @@
        Thứ tự duyệt phải ĐẢO mỗi tick. Nếu luôn duyệt xanh trước thì xanh luôn ra đòn trước
        trong mọi pha đổi mạng — đo bằng máy: kèo hoàn toàn cân mà xanh thắng 12/12. */
     var thuTu = tran.nguoi.slice();
+    /* dấu thời gian để heCuoiTran() biết đang ở phút thứ mấy */
+    tran.nguoi.forEach(function (n) { n.tTran = tran.t; });
     if (tran.tick % 2 === 0) thuTu.reverse();
     thuTu.forEach(function (n) {
       if (n.chet > 0) {
@@ -1067,6 +1102,7 @@
       var them = bi.vang;
       if (ke.vt === 'duoi') them *= 1.2;      /* buff vị trí: xạ thủ +20% vàng */
       if (ke.vt === 'ho') them *= 0.85;
+      them *= 0.92 + 0.16 * G.kep((ke.cs && ke.cs.luc || 0) / 1200, 0, 1);   /* LỰC: tốc độ farm */
       ke.vang += them;
       tran.vang[ke.doi] += them;
       chiaExp(tran, ke, bi.exp, bi);
@@ -1099,7 +1135,7 @@
       n.exp -= can; n.cap++;
       var cs = G.tuongOCap(n.tuong, n.cap);
       var truoc = n.hpMax;
-      n.hpMax = (cs.hp + G.congDo(n.do).hp) * n.heTT;
+      n.hpMax = (cs.hp + G.congDo(n.do).hp) * n.heTT * G.heBenNguoi(n);
       n.hp += n.hpMax - truoc;
       can = 120 + n.cap * 95;
     }

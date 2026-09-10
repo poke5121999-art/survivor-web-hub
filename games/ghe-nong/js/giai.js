@@ -17,14 +17,24 @@
     return {
       goc: goc, ten: goc.ten, mau: goc.mau,
       nguoi: VT.map(function (vt, i) {
-        /* mỗi người máy có bảng thông thạo riêng, để việc cấm tướng có ý nghĩa */
+        /* Mỗi người máy có bảng thông thạo riêng, để việc cấm tướng có ý nghĩa. BẬC CỦA GIẢI
+           quyết định họ thạo tới đâu: đội vòng bảng không được phép ai cũng có tướng UR.
+
+           Đo bằng máy trước khi sửa: năm thẻ khởi đầu của người chơi cao nhất chỉ SR, trong khi
+           mọi đội máy — kể cả Mèo Đá ở giải đầu tiên — đều có bốn người UR. Kết quả: thắng 0/40
+           ở tất cả tám giải. Không phải người chơi dở, là bảng số sai. */
+        var THEO_BAC = {
+          1: ['R', 'R', 'N', 'N'],
+          2: ['SR', 'SR', 'R', 'N'],
+          3: ['SSR', 'SR', 'SR', 'R'],
+          4: ['SSR', 'SSR', 'SR', 'R'],
+          5: ['UR', 'SSR', 'SSR', 'SR']
+        };
+        var thang = THEO_BAC[giai.bac] || THEO_BAC[1];
         var ds = G.tuongTheoViTri(vt);
         var tron = rng.tron(ds);
         var tt = {};
-        tt[tron[0].id] = 'UR';
-        tt[tron[1].id] = 'SSR';
-        tt[tron[2].id] = rng.duoc(0.5) ? 'SR' : 'R';
-        if (tron[3]) tt[tron[3].id] = 'N';
+        tron.forEach(function (t, k) { if (thang[k]) tt[t.id] = thang[k]; });
         return {
           vt: vt, ten: ten[i], tt: tt,
           chat: [rng.chon(['fight', 'farm', 'le', 'gank', 'thu', 'poke', 'lao', 'mt', 'solo', 'lead'])],
@@ -255,5 +265,10 @@
         });
     }
   };
+
+  /* cửa sau cho bộ đo `_tools/tileThang.js`: muốn biết giải nào dễ, giải nào khó thì
+     phải dựng được đội máy và cấu hình trận y như lúc chơi thật, không phải dựng lại một bản gần
+     giống rồi đo nhầm. Chỉ đọc, không sửa gì. */
+  G._thu = { taoDoiMay: taoDoiMay, cauHinhTa: cauHinhTa, cauHinhDich: cauHinhDich };
 
 })(window);
