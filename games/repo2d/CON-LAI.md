@@ -1,8 +1,8 @@
 # Còn lại — bàn giao 2026-09-10
 
-Bản vừa push: **xe lao qua tường vào nhà** (mục 0). Trước đó: ném đồ · đường chỉ lối trên sàn ·
+Bản vừa push: **xe lao qua tường vào nhà, và cả tổ chạy lên xe lúc thoát** (mục 0). Trước đó: ném đồ · đường chỉ lối trên sàn ·
 loot vẽ lại · cửa hàng ngoài menu (mục 2).
-Dấu build lên `?v=20260910a` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Dấu build lên `?v=20260910b` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 ---
@@ -24,6 +24,36 @@ như cũ. Bốn nhịp:
 
 Để lại: **`S.gach`** (tối đa 22 mảnh nằm trên sàn tới hết ca) và **`S.tuongVo`** (vết sẹo trên
 tường). Cả hai xoá ở `buildLevel` và `buildShop`.
+
+### 0.0. Khúc thoát (2,65 giây)
+
+Chủ dự án, 2026-09-10: *"khúc thoát thì cho bot chạy lên xe cùng player chạy đi mất."* Bản
+trước hút cả tổ vào thùng xe trong 0,28 giây bằng một cú nội suy thẳng — không ai chạy cả, mấy
+cái bóng trôi ngang qua sàn rồi tắt.
+
+| giây | nhịp |
+|---|---|
+| 0 → 1,05 | Từng người **chạy** tới cửa sau rồi leo lên thùng, lệch nhau 0,10 giây. Đèn thùng ở miệng cửa sáng lên; đèn pin của mỗi người đi theo họ. |
+| 1,10 → 1,50 | Cửa sau đóng, người trong thùng mờ dần rồi khuất hẳn. Đèn của người chơi tụt xuống còn 12% — **căn nhà tối lại sau lưng**. |
+| 1,55 → 2,60 | Đèn pha bật, xe quay mũi lên và **vọt ra bằng chính cái lỗ nó húc vào lúc tới**, tăng tốc (quãng đi theo bình phương thời gian) rồi khuất khỏi mép trên khung. |
+
+Ở **trạm dịch vụ** thì vẫn lùi ngang ra như bản cũ — ở đó không có lỗ nào (`xeDiemHuc()` trả
+`tuong: false` khi `S.shopMode`).
+
+Ba thứ phải sửa kèm, và cả ba đều thuộc loại "chỗ vẽ khác chỗ đứng":
+
+- **Chân không đảo.** `colFor()` bên `sprites.js` chọn khung chân theo quãng đường của chính
+  vật được truyền vào, mà toạ độ thật của cả tổ đứng yên suốt đoạn phim. Chữa bằng `voVe()`:
+  một cái vỏ mang toạ độ VẼ, giữ trên `a._ve` để nó là cùng một vật qua các khung. Ngưỡng 1,5
+  điểm ảnh/khung tách "đang chạy" khỏi "ngồi nhún trên thùng" mà không cần cờ.
+- **Đèn pin và viền người đứng lại giữa sàn.** `mateLights()` và `drawHeadGlow()` vẽ ở toạ độ
+  thật, nên có mấy cái viền người xanh lơ đứng chôn chân quanh chỗ đậu trong khi chính mấy
+  người ấy đang chạy về xe. Cả hai nay hỏi `mateDrawPos()` khi có đoạn phim.
+- **Xếp chỗ ngồi phải đổi theo THẾ CỦA XE.** Hình người vẽ đứng thẳng, cao 38 đơn vị, rộng 19.
+  Hai người cách nhau 23 đơn vị theo chiều DỌC màn hình thì người sau chỉ hở cái đầu — đo ở
+  khúc thoát bản đầu: bốn người leo lên thùng, ảnh chụp đếm ra HAI. Nay xe dựng thì xếp hai cột
+  ba hàng, xe nằm thì xếp một hàng dàn dọc thân, và hai cách ấy được TRỘN theo `|sin(góc xe)|`
+  để lúc xe quay không ai bị nhảy chỗ.
 
 **Trạm dịch vụ không có cú húc.** Sảnh trạm là hành lang dọc, hàng bày trên sàn từ hàng 9 tới
 hàng 21, xe đậu ở hàng 27 — lao từ trên xuống là cán qua cả gian hàng. Ở đó xe giữ đúng cú
@@ -60,6 +90,13 @@ nên mọi thứ vẽ ở `y < 0` không đè lên một điểm ảnh nào củ
 **lớp tối vẫn nhân xuống cả vùng ấy**, nên phải có nguồn sáng đi kèm (`denXeVao()` trong
 `buildLight`), không thì cả cú lao diễn ra trong bóng tối tuyệt đối.
 
+**d) `const` ở đầu tệp mà đọc hằng khai báo dưới cuối tệp thì cả `game.js` chết.** Vùng chết
+của `const`: `const XE_THUNG_GIUA = -TRUCK_L*0.15;` đặt ở khối đoạn phim (dòng ~7600) đọc
+`TRUCK_L` khai báo ở phần vẽ (dòng ~11400) — ném `ReferenceError` ngay lúc nạp tệp, và triệu
+chứng duy nhất nhìn thấy được là `REPO is not defined`, tức là trông y như tệp không tải. Trong
+HÀM thì không sao, vì hàm chỉ chạy sau khi cả tệp đã nạp. Mọi con số đo theo `TRUCK_L`/`TILE`
+ở nửa trên tệp phải nằm trong hàm.
+
 Còn một luật nữa, thuộc về luật chơi chứ không phải phần vẽ: **ô lưới của mép bản đồ KHÔNG bị
 đục**. Mép bản đồ mà thủng thì quái đi ra ngoài trời, đồ rơi ra ngoài trời, `flood()` coi cả
 vùng hư không là đi được. Nên `S.tuongVo` vẽ cái lỗ ở dạng **đã bị gạch vụn lấp**, chứ không vẽ
@@ -79,6 +116,7 @@ xanh không thay được chỗ này.
 | Nhìn cái gì | Làm sao thấy | Câu hỏi |
 |---|---|---|
 | **Xe lao qua tường** | Vào ca, đừng chạm màn hình 3 giây rưỡi đầu | Cú húc có ĐÃ không? Gạch văng ra có đọc ra là gạch không? Bốn người ngồi trên thùng có nhún ra dáng "đang đi đường" không, hay chỉ là bốn hình dán? Xe trượt xong đứng vào chỗ có mượt không? |
+| **Khúc thoát** | Đủ chỉ tiêu, đứng vào thùng xe chờ hết giờ | Có ĐẾM ĐƯỢC đủ người leo lên xe không? Có ra dáng CHẠY không, hay vẫn trượt? Nhà có tối lại sau lưng không? Xe đi có đọc ra là "đi mất" không? |
 | Mũi chỉ lối trên sàn | Vào ca, nhìn xuống chân | Hàng mũi nhọn có ĐỌC RA LÀ ĐƯỜNG ĐI không, hay nó chỉ là rác trên sàn? Dày quá hay thưa quá? |
 | Vòng highlight quanh loot | Đứng cạnh một món to | Cái vòng còn cắt ngang người món đồ nữa không? Nằm dưới chân đọc có rõ hơn không? |
 | Vết nứt | Đâm một cái bình vào tường hai lần | Đã "tinh tế" chưa, hay nay mờ quá đến mức không thấy đồ đang hỏng? |

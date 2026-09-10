@@ -7429,13 +7429,20 @@ function stepShop(dt){
 // Ở TRẠM DỊCH VỤ thì KHÔNG có cú húc — và không phải vì ngại: sảnh trạm là một hành lang dọc
 // có hàng hoá bày trên sàn suốt từ hàng 9 tới hàng 21, mà xe thì đậu ở hàng 27. Lao từ trên
 // xuống ở đó nghĩa là cán qua toàn bộ gian hàng. Trạm giữ đúng cú trượt ngang của bản cũ.
-const CUT_ARRIVE = 3.25, CUT_DEPART = 2.1;
+const CUT_ARRIVE = 3.25, CUT_DEPART = 2.65;
 const CUT_HIT   = 1.00;                         // giây xe chạm tường (ở trạm: bắt đầu thắng)
 const CUT_SKID  = 1.00;                         // rồi trượt thêm bấy nhiêu nữa mới đứng hẳn
 const CUT_DOOR_OPEN = [2.05, 2.60];             // the back doors
 const CUT_STEP_OUT  = [2.50, 3.20];             // and you, walking out of them
-const CUT_DOOR_SHUT = [0.10, 0.60];             // leaving: doors first
-const CUT_DRIVE_OFF = [0.60, 1.75];             // then the van
+// KHÚC THOÁT. Chủ dự án, 2026-09-10: "khúc thoát thì cho bot chạy lên xe cùng player chạy đi
+// mất." Bản trước hút cả tổ vào thùng xe trong 0,28 giây bằng một cú nội suy thẳng — không ai
+// CHẠY cả, bốn cái bóng trôi ngang qua sàn rồi tắt. Nay nó là câu chuyện lúc tới kể ngược:
+// chạy tới cửa sau, leo lên, cửa đóng, rồi xe vọt ra bằng ĐÚNG cái lỗ nó húc vào lúc tới.
+const CUT_LEN_CHAY  = 0.60;                     // một người chạy từ chỗ đứng tới ghế mất ngần này
+const CUT_LEN_LECH  = 0.10;                     // và người sau bắt đầu chậm hơn người trước
+const CUT_LEN_DAU   = 0.05;                     // người đầu tiên nhấc chân lúc này
+const CUT_DOOR_SHUT = [1.10, 1.50];             // leaving: doors first
+const CUT_DRIVE_OFF = [1.55, 2.60];             // then the van
 
 // Off by default for nobody, but switchable: an automated run drives the game through hundreds of
 // level starts and should not sit through three seconds of van for each of them.
@@ -7450,7 +7457,9 @@ function startCut(kind, label, sub, then){
             // Chốt điểm húc NGAY LÚC NÀY chứ không hỏi lại mỗi khung: carDrawOffset() chạy
             // vài lần một khung (xe, người chơi, từng bot, đèn), mà S.shopMode thì đổi được
             // giữa chừng. Một đoạn phim phải kể cùng một câu chuyện từ đầu tới cuối.
-            huc: kind === 'arrive' ? xeDiemHuc() : null, gach: [], bui: [] };
+            // Cả lúc ĐI cũng cần: xe ra bằng đúng cái lỗ nó vào, mà trạm dịch vụ thì không
+            // có lỗ nào — ở đó nó lùi ngang ra như bản cũ.
+            huc: xeDiemHuc(), gach: [], bui: [] };
   if (kind === 'arrive') SFX.engine();
 }
 // HUỶ một cảnh cắt mà KHÔNG chạy callback của nó. Khác hẳn skipCut(): skipCut nghĩa là
@@ -7492,7 +7501,14 @@ function stepCut(dt){
     camTheoXe(c);
     if (c.t >= CUT_ARRIVE){ giuGachLai(c); const f = c.then; S.cut = null; if (f) f(); }
   } else {
+    if (!c.dong && c.t >= CUT_DOOR_SHUT[0]){ c.dong = true; SFX.hinge(false); }
     if (!c.shut && c.t >= CUT_DOOR_SHUT[1]){ c.shut = true; SFX.thud(); }
+    if (!c.no   && c.t >= CUT_DRIVE_OFF[0]){ c.no = true; SFX.engine(); }
+    fxTheoGioThat(dt);
+    // Máy quay đứng yên trên người chơi cho xe VỌT RA KHỎI KHUNG — bám theo thì nó cứ nằm
+    // giữa màn và không đi đâu cả. Vẫn phải gọi mỗi khung: step() không chạy, mà camera thì
+    // chỉ nhúc nhích trong step().
+    camSnap();
     if (c.t >= CUT_DEPART){ const f = c.then; S.cut = null; if (f) f(); }
   }
 }
@@ -7574,29 +7590,72 @@ function carDrawOffset(){
     }
     return { dx: lac, dy: y - S.car.y, rot: rot + xoc, door, alpha:1 };
   }
-  const k = ease(span(c.t, CUT_DRIVE_OFF[0], CUT_DRIVE_OFF[1]));
-  return { dx: run*k, dy:0, rot:0, door: 1 - span(c.t, CUT_DOOR_SHUT[0], CUT_DOOR_SHUT[1]), alpha:1 };
+  const hucRa = c.huc || xeDiemHuc();
+  const door = 1 - span(c.t, CUT_DOOR_SHUT[0], CUT_DOOR_SHUT[1]);
+  // ĐI THÌ TĂNG TỐC, không phải hãm. easeOutCubic (thứ bản cũ dùng cho cả hai chiều) nghĩa là
+  // vọt ngay ở khung đầu rồi chậm dần — đọc ra là xe đang PHANH. Bình phương thì ngược lại:
+  // nhích một cái rồi mới lao, và ra tới mép khung thì nhanh gấp đôi tốc độ trung bình.
+  const u = span(c.t, CUT_DRIVE_OFF[0], CUT_DRIVE_OFF[1]), k = u*u;
+  if (!hucRa.tuong) return { dx: run*k, dy:0, rot:0, door, alpha:1 };
+  // Ra bằng chính cái lỗ đã húc vào: quay mũi lên trước, rồi vọt thẳng lên và ra khỏi mép
+  // trên khung. Quãng đi = từ chỗ đậu tới mặt tường, cộng nửa khung nữa cho khuất hẳn.
+  const xa = (S.car.y - hucRa.y) + vwH()*0.65;
+  return { dx: 0, dy: -xa*k, door, alpha: 1,
+           rot: -Math.PI/2 * ease(span(c.t, CUT_DRIVE_OFF[0] - 0.20, CUT_DRIVE_OFF[0] + 0.30)) };
 }
 
 // ---------------------------------------------------------------- ai ngồi chỗ nào trên thùng xe
-// SÁU chỗ — ba hàng, hai cột — đo trong hệ toạ độ CỦA CHIẾC XE (x dọc thân, mũi ở +x; y ngang
-// thân). Cả sáu nằm gọn trong thùng hàng: thùng chiếm từ -L/2 tới L/2 - cabL, tức -0,50L tới
-// +0,20L. SÁU chứ không bốn vì Ca Trực Đêm đi bốn người (MATE_COUNT = 3) nhưng Biệt Đội đi
-// NĂM (`SQ.squadList` trả một người dẫn + bốn bot) — bốn ghế thì người thứ năm ngồi đè lên
-// người thứ hai, và trên màn hình đó là một cái bóng nhân đôi chứ không phải một lỗi ai đọc ra.
-const XE_GHE = [[-0.38, -0.20], [-0.38, 0.20],
-                [-0.20, -0.20], [-0.20, 0.20],
-                [-0.02, -0.20], [-0.02, 0.20]];
+// SÁU chỗ, đo trong hệ toạ độ CỦA CHIẾC XE (x dọc thân, mũi ở +x; y ngang thân). Cả sáu nằm
+// gọn trong thùng hàng: thùng chiếm từ -L/2 tới L/2 - cabL, tức -0,50L tới +0,20L. SÁU chứ
+// không bốn vì Ca Trực Đêm đi bốn người (MATE_COUNT = 3) nhưng Biệt Đội đi NĂM (`SQ.squadList`
+// trả một người dẫn + bốn bot) — bốn ghế thì người thứ năm ngồi đè lên người thứ hai.
+//
+// CÁCH XẾP ĐỔI THEO THẾ CỦA XE, và đây là chỗ dễ tưởng là làm màu. Hình người vẽ ĐỨNG THẲNG,
+// cao 38 đơn vị, neo ở chân, mà chỉ rộng chừng 19. Hai người cách nhau 23 đơn vị theo chiều
+// DỌC màn hình thì người sau chỉ còn hở mỗi cái đầu; cách nhau chừng ấy theo chiều NGANG thì
+// rời hẳn nhau. Đo được ở khúc thoát bản đầu: bốn người leo lên thùng, trên ảnh chụp đếm ra
+// HAI — hai cặp chồng lên nhau.
+//
+// Nên luật là: LUÔN GIÃN NGƯỜI THEO CHIỀU NGANG MÀN HÌNH.
+//   — xe dựng (lúc lao vào nhà): ngang màn hình là BỀ RỘNG thùng  -> hai cột, ba hàng.
+//   — xe nằm  (lúc đậu, lúc đi): ngang màn hình là CHIỀU DÀI thùng -> một hàng, sáu chỗ,
+//     so le nhẹ lên xuống để còn đọc ra từng người.
+// Hai cách ấy được TRỘN theo |sin(góc xe)| chứ không đổi phắt ở một mốc: xe quay từ thế chúi
+// mũi về thế nằm ngay giữa lúc cả tổ còn ngồi trên thùng, mà đổi phắt thì cả bốn người nhảy
+// sang chỗ mới trong một khung hình.
+// `n` là TỔ CÓ MẤY NGƯỜI, và nó ở đây để cả tổ nằm GIỮA thùng chứ không dồn về đuôi: xếp
+// cứng sáu chỗ rồi chỉ dùng bốn thì bốn người ấy chụm hết ở mép sau, còn nửa thùng trước bỏ
+// không. Giãn cách cũng theo `n` — bốn người thì rộng tay, sáu người thì đứng sát lại.
+function gheXeLocal(i, dung, n){
+  // Tâm thùng hàng, tính TRONG HÀM chứ không thành một hằng ở đầu tệp: TRUCK_L khai báo mãi
+  // dưới phần vẽ, mà một `const` ở đây đọc nó lúc nạp tệp thì rơi vào vùng chết của `const` —
+  // ReferenceError ngay dòng đầu, cả game.js chết theo, và triệu chứng chỉ là "REPO is not
+  // defined". Trong hàm thì nó chỉ chạy lúc được gọi, tức là sau khi cả tệp đã nạp xong.
+  const giua = -TRUCK_L*0.15;
+  if (dung){
+    const hang = Math.max(1, Math.ceil(n/2));
+    const c = i % 2, r = Math.min((i/2)|0, hang-1);
+    return { lx: giua + (r - (hang-1)/2)*TRUCK_L*0.18, ly: (c - 0.5)*TRUCK_W*0.44 };
+  }
+  const cach = Math.min(TRUCK_L*0.16, TRUCK_L*0.62/Math.max(1, n-1));
+  const k = i % XE_GHE_N;
+  return { lx: giua + (k - (n-1)/2)*cach, ly: (k & 1) ? TRUCK_W*0.10 : -TRUCK_W*0.10 };
+}
+const XE_GHE_N = 6;                     // ghế 0 của người chơi, 1..5 cho bot
 // Một chỗ ngồi quy ra toạ độ thế giới. `i` là số ghế, `t` là đồng hồ của đoạn phim.
 // Cú nhún riêng của từng người lệch pha nhau (i*1.9) — bốn cái đầu nhún cùng nhịp thì đó là
 // một món đồ chở trên xe, lệch nhịp thì đó là bốn người đang ngồi.
 function gheXe(i, off, t){
-  const g = XE_GHE[i % XE_GHE.length];
   const cs = Math.cos(off.rot), sn = Math.sin(off.rot);
-  const lx = g[0]*TRUCK_L, ly = g[1]*TRUCK_W;
+  const dung = Math.min(1, Math.abs(sn)*1.4);          // 1 = xe dựng, 0 = xe nằm
+  const n = clamp(1 + ((S.mates || []).length), 1, XE_GHE_N);
+  const a = gheXeLocal(i % XE_GHE_N, true, n), b = gheXeLocal(i % XE_GHE_N, false, n);
+  const lx = mix(b.lx, a.lx, dung), ly = mix(b.ly, a.ly, dung);
   // Trước cú húc: nhún đều. Sau: hết nhún, nhưng bị NÉM VỀ PHÍA MŨI XE một nhịp rồi dội lại.
   let nhun = 0, dua = 0;
-  if (t < CUT_HIT) nhun = Math.sin(t*15 + i*1.9) * 2.4;
+  const vao = !S.cut || S.cut.kind === 'arrive';
+  if (!vao) nhun = Math.sin(t*15 + i*1.9) * 1.4;   // lúc đi: xe nổ máy đứng chờ, nhún nhẹ hơn
+  else if (t < CUT_HIT) nhun = Math.sin(t*15 + i*1.9) * 2.4;
   else {
     const u = Math.max(0, 1 - (t - CUT_HIT)/0.5);
     nhun = Math.sin(t*15 + i*1.9) * 2.4 * u;
@@ -7626,17 +7685,50 @@ function xuongXe(i, a, off, t, mo){
   const u = ease((k - 0.4)/0.6);
   return { x: mix(mieng.x, a.x, u), y: mix(mieng.y, a.y, u), alpha: mo };
 }
+// CHẠY LÊN XE — câu chuyện của xuongXe() kể ngược, và là cả yêu cầu "cho bot chạy lên xe
+// cùng player". Ba chặng: đứng chờ tới lượt -> chạy tới miệng cửa sau -> leo lên ghế. Rồi cửa
+// đóng và họ mờ đi: cái thùng kín rồi thì không còn nhìn thấy ai ngồi trong nữa.
+//
+// Chặng chạy nội suy THẲNG (không ease): một cú chạy có tốc độ đều, còn ease-out đọc ra là
+// người ta lao ra rồi hãm lại ngay trước cửa xe.
+function lenXe(i, a, off, t, mo){
+  // Cửa đóng tới đâu thì người mờ tới đó, và mờ xong TRƯỚC lúc cửa khép hẳn.
+  const kin = mo * (1 - span(t, CUT_DOOR_SHUT[0], mix(CUT_DOOR_SHUT[0], CUT_DOOR_SHUT[1], 0.7)));
+  if (kin <= 0.01) return null;
+  const t0 = CUT_LEN_DAU + i*CUT_LEN_LECH;
+  const k = span(t, t0, t0 + CUT_LEN_CHAY);
+  const ghe = gheXe(i, off, t);
+  if (k >= 1) return { x: ghe.x, y: ghe.y, alpha: kin };
+  const bat = choChay(a);
+  if (k <= 0) return { x: bat.x, y: bat.y, alpha: kin };
+  const cs = Math.cos(off.rot), sn = Math.sin(off.rot);
+  const mieng = { x: S.car.x + off.dx - cs*(TRUCK_L*0.5 + 8),
+                  y: S.car.y + off.dy - sn*(TRUCK_L*0.5 + 8) };
+  if (k < 0.72){
+    const u = k/0.72;
+    return { x: mix(bat.x, mieng.x, u), y: mix(bat.y, mieng.y, u), alpha: kin };
+  }
+  const u = ease((k - 0.72)/0.28);
+  return { x: mix(mieng.x, ghe.x, u), y: mix(mieng.y, ghe.y, u), alpha: kin };
+}
+// Chỗ một người BẮT ĐẦU chạy. Ai đang đứng trong khung thì chạy từ đúng chỗ mình đứng; ai ở
+// xa hơn thì kéo về sát ngoài mép khung — chứ KHÔNG kéo về một vòng cố định quanh xe, vì làm
+// thế là họ hiện ra giữa màn hình từ hư không. Kéo ra ngoài mép thì mắt đọc ra là "vừa chạy
+// vào khung", và đó cũng gần đúng: hết ca thì đồng đội vốn đã tự tìm đường về xe (xem
+// stepMates), nên chuyện phải kéo là chuyện hiếm.
+function choChay(a){
+  const bx = vwW()*0.5 + TILE, by = vwH()*0.5 + TILE;
+  return { x: S.car.x + clamp(a.x - S.car.x, -bx, bx),
+           y: S.car.y + clamp(a.y - S.car.y, -by, by) };
+}
 // Ghế của một bot. Ghế 0 là của người chơi, nên bot bắt đầu từ 1.
 function mateDrawPos(a){
   const c = S.cut;
   const mo = alphaTangHinh(a, INVIS_DAY_M) * (a.hien == null ? 1 : a.hien);
   if (!c) return { x:a.x, y:a.y, alpha: mo };
   const off = carDrawOffset();
-  if (c.kind === 'arrive') return xuongXe(1 + (((a.id|0) % (XE_GHE.length - 1))), a, off, c.t, mo);
-  // Lúc rời nhà thì họ leo lên xe rồi biến mất trong thùng, y như người chơi.
-  const k = ease(span(c.t, 0, CUT_DOOR_SHUT[0] + 0.18));
-  if (k >= 1) return null;
-  return { x: mix(a.x, S.car.x + off.dx, k), y: mix(a.y, S.car.y + off.dy, k), alpha: (1 - k*0.4) * mo };
+  const ghe = 1 + (((a.id|0) % (XE_GHE_N - 1)));
+  return c.kind === 'arrive' ? xuongXe(ghe, a, off, c.t, mo) : lenXe(ghe, a, off, c.t, mo);
 }
 
 // ---------------------------------------------------------------- cú húc, và cái nó để lại
@@ -7788,13 +7880,10 @@ function playerDrawPos(){
   const mo = alphaTangHinh(p);
   if (!c) return { x:p.x, y:p.y, alpha: mo };
   const off = carDrawOffset();
-  const cx = S.car.x + off.dx, cy = S.car.y + off.dy;
   // Vào nhà thì KHÔNG còn ai nằm trong thùng kín: người chơi ngồi trên xe từ khung hình đầu
   // tiên, nhún theo đường, rồi mới bước xuống. Đó là cả nửa yêu cầu "bồng bềnh trên đường".
-  if (c.kind === 'arrive') return xuongXe(0, p, off, c.t, mo);
-  const k = ease(span(c.t, 0, CUT_DOOR_SHUT[0] + 0.18));
-  if (k >= 1) return null;
-  return { x: mix(p.x, cx, k), y: mix(p.y, cy, k), alpha: (1 - k*0.4) * mo };
+  // Lúc đi thì ngược lại: chạy tới cửa sau rồi leo lên, cùng lượt với mấy con bot.
+  return c.kind === 'arrive' ? xuongXe(0, p, off, c.t, mo) : lenXe(0, p, off, c.t, mo);
 }
 
 // The card. Name of the place first, because knowing where you have been dropped is the one thing
@@ -9103,7 +9192,7 @@ function drawMates(c){
     if (moA < 1) c.globalAlpha = a0m * moA;
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0, 8, 9, 4, 0, 0, Math.PI*2); c.fill();
-    const skin = window.REPO_SKIN && REPO_SKIN.crew(c, a, false);
+    const skin = window.REPO_SKIN && REPO_SKIN.crew(c, S.cut ? voVe(a, cho.x, cho.y) : a, false);
     // Đèn của đồng đội, cùng luật với đèn người chơi: chạy quanh theo hướng, không xoay, và
     // nhấc lên lúc quay lưng để khỏi che đầu — xem lampY(). Đồng đội dùng CHUNG bộ hình người
     // với người chơi (cùng drawCrew, cùng cỡ), nên cùng một cái đầu bị che, cùng một cách chữa.
@@ -9139,11 +9228,18 @@ function mateLights(c){
   for (const a of S.mates){
     if (a.down) continue;
     if (Math.hypot(a.x-S.player.x, a.y-S.player.y) > LOS_R*1.1) continue;
+    // Trong đoạn phim thì cái đèn phải đi theo CHỖ VẼ. Toạ độ thật của họ đứng yên suốt đoạn
+    // phim, nên bốn cái đèn nằm lại giữa sàn trong khi bốn người chạy về xe — mà đèn pin thì
+    // cầm trên tay. Đây cũng là thứ làm cú chạy ĐỌC ĐƯỢC: trong nhà tối, cái đi động là ánh
+    // sáng chứ không phải cái bóng.
+    const q = S.cut ? mateDrawPos(a) : null;
+    if (S.cut && !q) continue;
+    const lx = q ? q.x : a.x, ly = q ? q.y : a.y;
     const r = 3.2*TILE;
-    const g = c.createRadialGradient(a.x, a.y, 2, a.x, a.y, r);
+    const g = c.createRadialGradient(lx, ly, 2, lx, ly, r);
     g.addColorStop(0, 'rgba(226,214,180,0.34)');
     g.addColorStop(1, 'rgba(226,214,180,0)');
-    c.fillStyle = g; c.fillRect(a.x-r, a.y-r, r*2, r*2);
+    c.fillStyle = g; c.fillRect(lx-r, ly-r, r*2, r*2);
   }
 }
 
@@ -9161,13 +9257,20 @@ function drawHeadGlow(c){
   }
   for (const a of (S.mates || [])){
     if (a.down) continue;
-    if (!inSight(a.x, a.y)) continue;
+    // CÁI VIỀN CŨNG PHẢI ĐI THEO NGƯỜI. Nó vẽ ở toạ độ THẬT, mà trong đoạn phim thì toạ độ
+    // thật đứng yên — nên trước bản này, suốt cảnh xe tới và cảnh xe đi có mấy cái viền người
+    // xanh lơ đứng chôn chân quanh chỗ đậu trong khi chính mấy người ấy đang ngồi trên xe.
+    // Đo bằng ảnh chụp khúc thoát: một cái viền trắng đứng giữa sàn, không có ai bên trong.
+    const q = S.cut ? mateDrawPos(a) : null;
+    if (S.cut && !q) continue;
+    const hx = q ? q.x : a.x, hy = q ? q.y : a.y;
+    if (!inSight(hx, hy)) continue;
     // Cùng luật với người chơi: viền bó sát, xanh lạnh để phân biệt với màu máu của mình.
-    c.save(); c.translate(a.x, a.y);
+    c.save(); c.translate(hx, hy);
     const veDuoc = window.REPO_SKIN && REPO_SKIN.halo &&
                    REPO_SKIN.halo(c, a, false, 'rgb(150,200,235)', 0.62);
     c.restore();
-    if (!veDuoc) glowRing(c, a.x, a.y, 13, [150,200,235], 0.28, 1.6);
+    if (!veDuoc) glowRing(c, hx, hy, 13, [150,200,235], 0.28, 1.6);
   }
 }
 
@@ -10200,6 +10303,17 @@ function buildLight(){
   // dựng ngược lên trên, nên đặt ở chân thì tới cái đầu là quầng đã tắt gần hết — đo được
   // 10/255 ở tầm đầu, tức vẫn còn nguyên vệt cắt. Nâng tâm lên thì cùng một bán kính trùm
   // đủ từ chân tới đỉnh đầu, và rò qua tường ít hơn là nới rộng bán kính.
+  // ĐÈN CỦA NGƯỜI CHƠI MỜ ĐI TRONG ĐOẠN PHIM, và nó không phải chuyện thẩm mỹ:
+  //   — Lúc TỚI: người chơi đang ngồi trên xe ngoài đường, nhưng toạ độ THẬT của họ đã nằm sẵn
+  //     ở chỗ đậu trong nhà. Để nguyên thì căn phòng sáng sẵn từ trước khi xe húc vào, và cú
+  //     "đèn pha tràn vào qua lỗ thủng" chẳng mở ra được gì — nó rọi vào một chỗ đã sáng.
+  //   — Lúc ĐI: cả tổ lên xe rồi mà cái đèn vẫn nằm lại giữa sàn soi cho một căn nhà không còn
+  //     ai. Nhà phải TỐI LẠI sau lưng, đó là câu cuối của cả ca trực.
+  // Không tắt hẳn: đa giác tầm nhìn vẫn tính từ chỗ ấy, và một khung hình đen thui thì đọc ra
+  // là mất hình chứ không đọc ra là "đèn đã lên xe".
+  const nguoiMo = denNguoiMo();
+  const alphaCu = c.globalAlpha;
+  if (nguoiMo < 1) c.globalAlpha = alphaCu * nguoiMo;
   const bodyHalo = 30, bodyMid = 13;
   const hy = p.y - bodyMid;
   const hg = c.createRadialGradient(p.x, hy, 2, p.x, hy, bodyHalo);
@@ -10208,6 +10322,7 @@ function buildLight(){
   hg.addColorStop(1, 'rgba(90,100,110,0)');
   c.fillStyle = hg;
   c.fillRect(p.x - bodyHalo, hy - bodyHalo, bodyHalo * 2, bodyHalo * 2);
+  c.globalAlpha = alphaCu;          // đèn XE ở dưới không được ăn theo cú mờ của đèn NGƯỜI
 
   // Đèn pha của chiếc xe đang lao vào. Phải nằm NGOÀI cú clip ở dưới: đa giác tầm nhìn tính từ
   // chỗ người chơi đứng, mà chỗ ấy lúc này là chỗ đậu xe — trong nhà, sau bức tường sắp vỡ.
@@ -10226,6 +10341,7 @@ function buildLight(){
   // xuống còn 2..41, tức là bộ hình vẽ tay bị nhân cho tối đi tới 20 lần và người chơi
   // chỉ thấy một cục đen. Chỗ sáng thêm gói trong bán kính người chơi, nên cả căn nhà
   // vẫn tối y như trước — thứ đổi là bạn nhìn rõ mình và người đứng cạnh mình.
+  if (nguoiMo < 1) c.globalAlpha = alphaCu * nguoiMo;
   let g = c.createRadialGradient(p.x,p.y,2,p.x,p.y,PERIPH_R);
   g.addColorStop(0,'rgba(206,212,216,0.94)');
   g.addColorStop(0.30,'rgba(196,202,206,0.82)');
@@ -10239,6 +10355,7 @@ function buildLight(){
     cone(c, p, cr,      ch*1.10, 0.34, [244,226,182]);
     cone(c, p, cr*0.94, ch,      0.66, [255,238,198]);
   }
+  c.globalAlpha = alphaCu;
 
   // The monsters carry lights too — the owner's words were "kiểu như đèn pin gắn vào mắt quái".
   // WHY it is a real light and not the faint overlay it shipped as: drawn additively on top of the
@@ -11523,8 +11640,8 @@ const DUONG_BE  = TILE*3.6;      // nửa bề rộng lòng đường
 const DUONG_VACH = 64;           // một nhịp vạch giữa đường
 function drawDuongVao(c){
   const cut = S.cut;
-  if (!cut || cut.kind !== 'arrive' || !(cut.huc && cut.huc.tuong)) return;
-  const mo = 1 - span(cut.t, CUT_STEP_OUT[0], CUT_ARRIVE - 0.10);
+  if (!cut || !(cut.huc && cut.huc.tuong)) return;
+  const mo = denXeMo(cut);
   if (mo <= 0.01) return;
   const a0 = c.globalAlpha; c.globalAlpha = a0*mo;
   const x = S.car.x, y0 = Math.min(cam.y, 0) - TILE*2, h = -y0;
@@ -11604,12 +11721,50 @@ function drawGachBay(c){
 // người chơi lúc này đang ngồi TRÊN XE, còn thứ phải nhìn thấy là con đường và bức tường trước
 // mũi xe. Không có nó thì cả cú lao diễn ra trong bóng tối tuyệt đối: lớp tối nhân xuống cả
 // khung hình, và ngoài mép bản đồ thì chẳng có nguồn sáng nào.
+// Độ sáng của đèn pha, và cũng là độ đậm của con đường ngoài nhà: hai thứ ấy sống chết cùng
+// nhau, vì con đường chỉ nhìn thấy được nhờ đèn xe.
+//   VÀO — sáng từ khung đầu, tắt dần trong lúc cả tổ bước xuống.
+//   ĐI  — tối cho tới lúc cửa đóng, rồi bật lên đúng lúc xe chuẩn bị vọt. Bật sớm hơn thì cả
+//         khúc "chạy lên xe" bị rọi sáng trưng, mà khúc ấy vốn thuộc về căn nhà tối.
+// Đèn của người chơi còn bao nhiêu phần. Xem chú thích ở chỗ dùng, trong buildLight.
+const DEN_NGUOI_DAY = 0.12;
+function denNguoiMo(){
+  const cut = S.cut;
+  if (!cut) return 1;
+  if (cut.kind === 'arrive') return mix(DEN_NGUOI_DAY, 1, span(cut.t, CUT_HIT, CUT_STEP_OUT[1]));
+  return mix(1, DEN_NGUOI_DAY, span(cut.t, CUT_LEN_DAU, CUT_DOOR_SHUT[1]));
+}
+function denXeMo(cut){
+  if (!cut) return 0;
+  return cut.kind === 'arrive' ? 1 - span(cut.t, CUT_STEP_OUT[0], CUT_ARRIVE - 0.15)
+                               : span(cut.t, CUT_DOOR_SHUT[0], CUT_DRIVE_OFF[0]);
+}
+// ĐÈN THÙNG: một quầng ấm ở MIỆNG CỬA SAU, sống đúng quãng cửa còn mở.
+//
+// Nó không phải đồ trang trí. Đèn pha rọi về phía TRƯỚC, mà cả hai việc đáng nhìn — bước
+// xuống lúc tới, chạy lên lúc đi — đều diễn ra ở phía SAU xe. Đo bằng ảnh chụp khúc thoát:
+// không có nó thì trong bốn người leo lên xe chỉ đếm được hai, hai người kia ngồi trong một
+// cái thùng màu than giữa một căn nhà tối.
+function denThungXe(c, cut, off, mo){
+  if (mo <= 0.01) return;
+  const cs = Math.cos(off.rot), sn = Math.sin(off.rot);
+  const x = S.car.x + off.dx - cs*TRUCK_L*0.34, y = S.car.y + off.dy - sn*TRUCK_L*0.34;
+  const r = TILE*3.0;
+  const g = c.createRadialGradient(x, y, 2, x, y, r);
+  g.addColorStop(0, `rgba(236,214,168,${0.66*mo})`);
+  g.addColorStop(0.55, `rgba(206,186,146,${0.30*mo})`);
+  g.addColorStop(1, 'rgba(120,110,90,0)');
+  c.fillStyle = g; c.fillRect(x-r, y-r, r*2, r*2);
+}
 function denXeVao(c){
   const cut = S.cut;
-  if (!cut || cut.kind !== 'arrive') return;
-  const mo = 1 - span(cut.t, CUT_STEP_OUT[0], CUT_ARRIVE - 0.15);
+  if (!cut) return;
+  const off0 = carDrawOffset();
+  // Đèn thùng chạy theo CỬA, không theo đèn pha: mở tới đâu sáng tới đó.
+  denThungXe(c, cut, off0, off0.door);
+  const mo = denXeMo(cut);
   if (mo <= 0.01) return;
-  const off = carDrawOffset();
+  const off = off0;
   const x = S.car.x + off.dx, y = S.car.y + off.dy;
   const p = { x: x + Math.cos(off.rot)*TRUCK_L*0.5, y: y + Math.sin(off.rot)*TRUCK_L*0.5,
               dir: off.rot };
@@ -11623,7 +11778,7 @@ function denXeVao(c){
   // cú húc — cái "mở toang" đó chính là phần thưởng của cú húc.
   const huc = cut.huc || xeDiemHuc();
   c.save();
-  if (huc.tuong){
+  if (huc.tuong && cut.kind === 'arrive'){
     const day = mix(TILE, TILE + vwH()*2, span(cut.t, CUT_HIT, CUT_HIT + 0.18));
     c.beginPath(); c.rect(x - vwW(), -vwH()*3, vwW()*2, vwH()*3 + day); c.clip();
   }
@@ -12654,6 +12809,30 @@ const LAMP_LIFT = 14;
 function lampY(ang, xa, dy){
   return Math.sin(ang) * xa + dy - Math.max(0, -Math.sin(ang)) * LAMP_LIFT;
 }
+// CHÂN PHẢI ĐẢO KHI NGƯỜI ĐANG CHẠY, kể cả khi người ấy không thật sự đi đâu cả.
+//
+// `colFor()` bên sprites.js chọn khung chân theo QUÃNG ĐƯỜNG mà chính vật được truyền vào đã
+// đi, và nó ghi mốc lên chính vật ấy (`_sx/_sy/_sd`). Trong đoạn phim thì toạ độ THẬT của cả
+// tổ đứng yên — thứ chạy ngang qua màn hình là CHỖ VẼ — nên truyền thẳng nhân vật vào là quãng
+// đường luôn bằng 0: bốn cái bóng trượt tới cửa xe trong tư thế đứng nghiêm.
+//
+// Cái vỏ này mang toạ độ VẼ, và nó phải là CÙNG MỘT vật qua các khung hình (giữ trên `a._ve`)
+// chứ không phải một vật mới mỗi khung, không thì quãng đường lại về 0.
+//
+// NGƯỠNG 1,5: dưới ngưỡng thì ép về khung đứng. Ngồi trên thùng xe vẫn nhún 0,6 điểm ảnh mỗi
+// khung — đủ để colFor() coi là "đang đi" và cho bốn người ngồi đó dậm chân tại chỗ suốt quãng
+// đường. Một cú chạy thì nhanh gấp mấy lần chỗ ấy (đo được 4..5 điểm ảnh mỗi khung), nên một
+// con số ở giữa tách được hai việc mà không cần ai truyền cờ vào.
+const VE_CHAY = 1.5;
+function voVe(a, x, y){
+  const v = a._ve || (a._ve = { x, y, dir: a.dir });
+  const dx = x - v.x, dy = y - v.y, d2 = dx*dx + dy*dy;
+  if (d2 > VE_CHAY*VE_CHAY) v.dir = Math.atan2(dy, dx);   // chạy thì quay mặt về hướng chạy
+  v.x = x; v.y = y;
+  if (d2 <= VE_CHAY*VE_CHAY){ v._sx = x; v._sy = y; }     // đứng: ép colFor() về khung giữa
+  v.hurt = a.hurt; v.charId = a.charId; v.id = a.id;
+  return v;
+}
 function drawPlayer(c){
   const p = S.player;
   if (p.down) return;                    // your head is on the floor, drawn with the loot
@@ -12666,7 +12845,7 @@ function drawPlayer(c){
   c.beginPath(); c.ellipse(0,8,10,4.5,0,0,Math.PI*2); c.fill();
   // Hinh nguoi ve TRUOC khi xoay: no dung thang, huong nam o hang trong charset.
   // Den pin va cu vung thi van xoay theo dir - do la tin hieu choi, khong phai trang tri.
-  const skin = window.REPO_SKIN && REPO_SKIN.crew(c, p, true);
+  const skin = window.REPO_SKIN && REPO_SKIN.crew(c, S.cut ? voVe(p, at.x, at.y) : p, true);
 
   // Cái đèn: VỊ TRÍ chạy quanh người theo hướng nhìn, còn bản thân cái đèn thì luôn
   // DỰNG ĐỨNG. Vẽ nó sau `c.rotate` thì cả cái đèn bị quay theo, và nhìn xuống là cái
@@ -13545,7 +13724,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260910a';
+const BUILD = '20260910b';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -15487,7 +15666,9 @@ window.REPO = {
   // Mốc thời gian của đoạn phim mở màn. Mở ra vì bộ đo phải bơm từng khung tới ĐÚNG mốc húc,
   // và một bộ đo chép tay mấy con số này là một bộ đo nói dối ngay lần đầu ai đó chỉnh chúng.
   CUT: { ARRIVE: CUT_ARRIVE, HIT: CUT_HIT, SKID: CUT_SKID,
-         DOOR: CUT_DOOR_OPEN.slice(), OUT: CUT_STEP_OUT.slice() },
+         DOOR: CUT_DOOR_OPEN.slice(), OUT: CUT_STEP_OUT.slice(),
+         DEPART: CUT_DEPART, LEN: [CUT_LEN_DAU, CUT_LEN_CHAY, CUT_LEN_LECH],
+         SHUT: CUT_DOOR_SHUT.slice(), OFF: CUT_DRIVE_OFF.slice() },
   // Một điểm trong nhà nằm ở đâu trên khung vẽ (tính bằng pixel THẬT của canvas, đã
   // nhân dpr). Bộ test cần nó để soi đúng ô người chơi đang đứng: camera bị chặn ở rìa
   // bản đồ nên "người chơi luôn ở giữa màn" là sai, và đo nhầm ô thì đo ra sàn tối.

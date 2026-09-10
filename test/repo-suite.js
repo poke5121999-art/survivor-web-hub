@@ -2863,9 +2863,16 @@ async function xeHucTuongSuite(b) {
     CUT ? JSON.stringify(CUT) : 'không có');
 
   // Đóng băng đồng hồ TRƯỚC khi dựng màn, để khung hình đầu tiên của đoạn phim không trôi mất.
+  // ĐÓNG BĂNG ĐÚNG MỘT LẦN. Đặt lại `__q = []` ở lần thứ hai là VỨT MẤT cái callback đang
+  // chờ — mà cái đang chờ chính là vòng lặp khung hình, thứ duy nhất tự xếp mình vào hàng lại.
+  // Vứt nó đi thì hàng đợi rỗng vĩnh viễn: mọi phép đo sau đó đọc ra t = 0 và "xe không chạy",
+  // trong khi cái sai nằm ở chính bộ đo.
   const batDau = () => p.evaluate(() => {
-    window.__q = []; window.__t = performance.now();
-    window.requestAnimationFrame = (cb) => { window.__q.push(cb); return 1; };
+    if (!window.__dongBang){
+      window.__dongBang = true;
+      window.__q = []; window.__t = performance.now();
+      window.requestAnimationFrame = (cb) => { window.__q.push(cb); return 1; };
+    }
     REPO.S.level = 1; REPO.startLevel(4242);
   });
   const toi = (tt) => p.evaluate((t) => {
@@ -2969,6 +2976,73 @@ async function xeHucTuongSuite(b) {
   check('vào TRẠM thì không húc tường', tram.tuong === false);
   check('và trạm không có gạch vỡ nào của ván trước sót lại',
     !tram.seo && tram.gach === 0, tram.gach + ' mảnh');
+
+  // ---------------------------------------------------------------- khúc thoát
+  // Chủ dự án: "khúc thoát thì cho bot chạy lên xe cùng player chạy đi mất."
+  results.push('\n── khúc thoát: cả tổ chạy lên xe rồi xe đi ──');
+  // Dựng lại một ván THẬT trước đã: mấy phép trên vừa để lại trạm dịch vụ, mà trạm thì không
+  // có bot nào và cũng không có lỗ tường nào để xe chui ra.
+  await batDau();
+  await p.evaluate(() => { REPO.cancelCut(); REPO.S.running = true; REPO.finishLevel(); });
+  const di = (tt) => p.evaluate((t) => {
+    for (let i = 0; i < 900; i++) {
+      const cb = window.__q.shift(); if (!cb) break;
+      window.__t += 16.7; cb(window.__t);
+      if (!REPO.S.cut || REPO.S.cut.t >= t) break;
+    }
+    const S = REPO.S, off = REPO.carDrawOffset();
+    const xa = a => {
+      const q = a === S.player ? REPO.playerDrawPos() : REPO.mateDrawPos(a);
+      return q ? +Math.hypot(q.x - a.x, q.y - a.y).toFixed(1) : -1;   // -1 = đã khuất trong thùng
+    };
+    const ghe = a => {
+      const q = a === S.player ? REPO.playerDrawPos() : REPO.mateDrawPos(a);
+      return q ? +Math.hypot(q.x - S.car.x - off.dx, q.y - S.car.y - off.dy).toFixed(1) : -1;
+    };
+    return { t: S.cut ? +S.cut.t.toFixed(3) : null, kind: S.cut ? S.cut.kind : null,
+             tram: !!S.shopMode,
+             dx: +off.dx.toFixed(1), dy: +off.dy.toFixed(1),
+             rot: +off.rot.toFixed(3), cua: +off.door.toFixed(2),
+             xa: [xa(S.player)].concat((S.mates || []).map(xa)),
+             ghe: [ghe(S.player)].concat((S.mates || []).map(ghe)) };
+  }, tt);
+
+  const TILE_ = await p.evaluate(() => REPO.TILE);
+  const TREN_XE = TILE_*2.6;        // nửa chiều dài thùng xe, tính rộng ra một chút
+
+  const d0 = await di(0.02);
+  check('khúc thoát mở ra được', d0.kind === 'depart', String(d0.kind));
+  check('khung đầu: ai đứng đâu vẫn ở đó, chưa ai bị hút vào xe',
+    d0.xa.every(v => v === 0), d0.xa.join(' · '));
+  check('và cửa sau còn mở toang để người ta còn leo lên', d0.cua === 1, 'cửa ' + d0.cua);
+
+  const dGiua = await di(CUT.LEN[0] + CUT.LEN[1]*0.5);
+  check('giữa chừng thì cả tổ ĐANG TRÊN ĐƯỜNG tới xe, không ai đứng yên',
+    dGiua.xa.filter(v => v > 1).length >= 1, dGiua.xa.join(' · '));
+  check('xe vẫn đứng im trong lúc người còn đang chạy tới',
+    dGiua.dx === 0 && dGiua.dy === 0, dGiua.dx + ' / ' + dGiua.dy);
+
+  const dLen = await di(CUT.SHUT[0] - 0.02);
+  check('tới lúc cửa bắt đầu đóng thì ai cũng đã lên tới thùng xe',
+    dLen.ghe.every(v => v >= 0 && v < TREN_XE), dLen.ghe.join(' · '));
+
+  const dDong = await di(CUT.SHUT[1]);
+  check('cửa đóng hẳn rồi thì không còn nhìn thấy ai — thùng kín mà',
+    dDong.cua === 0 && dDong.xa.every(v => v === -1), 'cửa ' + dDong.cua + ' · ' + dDong.xa.join(' · '));
+  check('và tới lúc ấy xe VẪN chưa lăn bánh — đóng cửa trước, chạy sau',
+    dDong.dy === 0 && dDong.dx === 0, dDong.dx + ' / ' + dDong.dy);
+
+  const dChay = await di(CUT.OFF[1] - 0.02);
+  check('rồi xe VỌT RA bằng chính cái lỗ nó húc vào — lên trên, không sang ngang',
+    dChay.dy < -TILE_*8 && Math.abs(dChay.dx) < 1, 'dy ' + dChay.dy + ' · dx ' + dChay.dx);
+  check('và nó quay mũi lên trước khi đi', Math.abs(dChay.rot + Math.PI/2) < 0.15, 'góc ' + dChay.rot);
+
+  // KHÔNG kiểm "S.cut === null" ở đây: hết khúc thoát thì cái `then` của nó mở luôn trạm dịch
+  // vụ, mà trạm dịch vụ lại có đoạn phim xe TỚI của riêng nó. Đo nhầm chỗ này thì bộ đo báo
+  // "xe không bao giờ đi" trong khi thật ra nó đã đi, đã tới nơi, và đang đỗ ở trạm.
+  const dHet = await di(CUT.DEPART + 0.2);
+  check('hết khúc thoát thì xe giao lại sân cho trạm dịch vụ',
+    dHet.kind !== 'depart' && dHet.tram, dHet.kind + ' · trạm ' + dHet.tram);
 
   const e = errs.filter(x => !/favicon/.test(x));
   check('xe lao qua tường: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
