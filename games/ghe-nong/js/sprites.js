@@ -15,13 +15,13 @@
 
   G.taiArt = function (cb) {
     if (!MAP) { if (cb) cb(false); return; }
-    var ds = ['tuong', 'nguoi', 'quai', 'fx'];
+    var ds = ['tuong', 'nguoi', 'quai', 'fx', 'dan', 'tru', 'do'];
     can = ds.length;
     ds.forEach(function (t) {
       var im = new Image();
       im.onload = function () { ANH[t] = im; if (++xong >= can) { G.ART.sanSang = true; if (cb) cb(true); } };
       im.onerror = function () { if (++xong >= can) { G.ART.sanSang = true; if (cb) cb(true); } };
-      im.src = 'art/' + t + '.png?v=20260910b';
+      im.src = 'art/' + t + '.png?v=20260910c';
     });
   };
 
@@ -61,35 +61,78 @@
     return veO(ctx, 'quai', m[0], (khung | 0) % (m[1] || 1), x, y, cao || 26, false);
   };
 
-  G.veFX = function (ctx, id, x, y, cao, khung) {
-    if (!MAP || !MAP.fx || !MAP.fx[id]) return false;
-    var m = MAP.fx[id];
-    var im = ANH.fx;
+  /** vẽ một ô atlas canh TÂM tại (x, y) — hiệu ứng, đạn, icon: thứ không đứng trên đất.
+      `goc` (radian) thì xoay quanh tâm, dùng cho viên đạn bay theo hướng. */
+  function veTam(ctx, bang, cot, hang, x, y, cao, goc) {
+    var im = ANH[bang];
     if (!im || !im.width) return false;
     var O = o();
-    var c = (khung | 0) % (m[1] || 1);
     var k = (cao || 40) / O, w = O * k, h = O * k;
     ctx.save();
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(im, c * O, m[0] * O, O, O, x - w / 2, y - h / 2, w, h);
+    ctx.translate(x, y);
+    if (goc) ctx.rotate(goc);
+    ctx.drawImage(im, cot * O, hang * O, O, O, -w / 2, -h / 2, w, h);
     ctx.restore();
     return true;
+  }
+
+  /* Mọi atlas đều xếp CỘT = khoá, HÀNG = khung — kể cả fx. Bản trước fx xếp ngược lại
+     nên veFX phải tra chéo; giờ thống nhất một luật cho cả bảy tệp. */
+  G.veFX = function (ctx, id, x, y, cao, khung, goc) {
+    if (!MAP || !MAP.fx || !MAP.fx[id]) return false;
+    var m = MAP.fx[id];
+    return veTam(ctx, 'fx', m[0], (khung | 0) % (m[1] || 1), x, y, cao || 40, goc);
+  };
+
+  /** viên đạn: `goc` là hướng bay tính bằng radian, ảnh gốc chĩa sang phải */
+  G.veDan = function (ctx, id, x, y, cao, goc) {
+    if (!MAP || !MAP.dan || !MAP.dan[id]) return false;
+    return veTam(ctx, 'dan', MAP.dan[id][0], 0, x, y, cao || 14, goc);
+  };
+
+  /** trụ / nhà chính / lõi: canh ĐÁY-GIỮA vì nó đứng trên mặt đất */
+  G.veTru = function (ctx, id, x, y, cao) {
+    if (!MAP || !MAP.tru || !MAP.tru[id]) return false;
+    return veO(ctx, 'tru', MAP.tru[id][0], 0, x, y, cao || 48, false);
   };
 
   /* Ảnh tướng cho DOM — màn cấm chọn cần ảnh thật trong thẻ HTML, không phải trên canvas.
      Atlas xếp cột = tướng, hàng = khung hoạt ảnh, nên lấy khung 0 của đúng cột ấy. */
-  G.anhTuong = function (id, cao) {
+  /* Sprite trong atlas canh ĐÁY-GIỮA nên nhân vật chỉ chiếm phần dưới của ô 64px; dán nguyên ô
+     vào thẻ 42px thì người bé tí nằm dưới đáy, trông như thiếu art. Cắt lấy dải CAO → ĐÁY
+     (từ điểm phần trăm `tren` trở xuống) rồi phóng cho đầy ô. */
+  G.anhTuong = function (id, cao, tren) {
     if (!MAP || !MAP.tuong || !MAP.tuong[id]) return null;
     var O = o();
     var cot = MAP.tuong[id][0];
     var soCot = Object.keys(MAP.tuong).length;
     var soHang = 0;
     for (var k in MAP.tuong) soHang = Math.max(soHang, MAP.tuong[k][1] || 1);
-    var kh = cao / O;
-    return 'background-image:url(art/tuong.png?v=20260910b);' +
-      'background-position:' + (-cot * O * kh) + 'px 0;' +
+    var t0 = tren == null ? 0.24 : tren;          /* bỏ 24% trên cùng của ô */
+    var kh = cao / (O * (1 - t0));
+    return 'background-image:url(art/tuong.png?v=20260910c);' +
+      'background-position:' + (-cot * O * kh) + 'px ' + (-t0 * O * kh) + 'px;' +
       'background-size:' + (soCot * O * kh) + 'px ' + (soHang * O * kh) + 'px;' +
+      'image-rendering:pixelated'; 
+  };
+
+  /** style nền cho icon TRANG BỊ trong thẻ HTML (ô đồ ở thẻ tuyển thủ, bảng cửa hàng) */
+  G.anhDo = function (id, cao) {
+    if (!MAP || !MAP['do'] || !MAP['do'][id]) return null;
+    var O = o(), cot = MAP['do'][id][0];
+    var soCot = Object.keys(MAP['do']).length;
+    var kh = cao / O;
+    return 'background-image:url(art/do.png?v=20260910c);' +
+      'background-position:' + (-cot * O * kh) + 'px 0;' +
+      'background-size:' + (soCot * O * kh) + 'px ' + (O * kh) + 'px;' +
       'image-rendering:pixelated';
+  };
+
+  G.oAnhDo = function (id, cao) {
+    var st = G.anhDo(id, cao || 22);
+    if (!st) return null;
+    return G.el('i', { style: st + ';display:block;width:' + (cao || 22) + 'px;height:' + (cao || 22) + 'px' });
   };
 
   /** phần tử <i> ảnh tướng; trả null nếu thiếu atlas để chỗ gọi tự xử */
@@ -105,7 +148,7 @@
     var O = o();
     var cot = MAP.nguoi[id][0];
     var k = cao / O;
-    return 'background-image:url(art/nguoi.png?v=20260910b);' +
+    return 'background-image:url(art/nguoi.png?v=20260910c);' +
       'background-position:' + (-cot * O * k) + 'px 0;' +
       'background-size:' + (MAP.nguoi ? Object.keys(MAP.nguoi).length * O * k : 0) + 'px ' + (O * k) + 'px;' +
       'image-rendering:pixelated';

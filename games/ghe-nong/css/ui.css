@@ -358,7 +358,7 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .dr-o-tuong{font-size:11px;color:#7fd6ff;margin-top:2px}
 .dr-o-tt{font-size:10px;font-weight:800;margin-top:1px}
 
-.dr-giua{display:grid;grid-template-rows:1fr 216px;min-height:0}
+.dr-giua{display:grid;grid-template-rows:1fr 172px;min-height:0}
 .dr-luoi{overflow:auto;padding:8px}
 .dr-nhom+.dr-nhom{margin-top:7px}
 .dr-nhom-ten{font-size:10px;color:var(--chu-mo);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
@@ -750,12 +750,12 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .the-nguoi{cursor:pointer}
 .the-nguoi.theo{outline:2px solid #ffd76e;outline-offset:1px}
 .the-do{display:flex;gap:2px;margin-top:3px}
-.the-do span{flex:1;height:15px;border-radius:4px;background:#0d131c;border:1px solid #1e2836;
-  position:relative;display:flex;align-items:center;justify-content:center}
-.the-do span.co{border-color:#3a4a5f}
+.the-do span{flex:1;height:20px;border-radius:4px;background:#0d131c;border:1px solid #1e2836;
+  position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.the-do span.co{border-color:#3a4a5f;background:#131c28}
 .the-do span i{font-style:normal;font-size:10px;color:#0b0f14;line-height:1}
-.the-do span em{position:absolute;bottom:0;right:1px;font-style:normal;font-size:7px;
-  color:#0b0f14;font-weight:900}
+.the-do span em{position:absolute;bottom:-1px;right:1px;font-style:normal;font-size:8px;
+  color:#ffd76e;font-weight:900;text-shadow:0 1px 2px #000,0 0 3px #000}
 
 /* nút camera */
 .tr-cam{display:flex;flex-direction:column;gap:5px;margin-bottom:6px}
@@ -771,3 +771,57 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
    luyện đè lên mọi màn khác. Bắt được lúc chụp ảnh màn trận: thanh trên của phòng tập
    nằm chồng lên thanh tỉ số. */
 #man-ca[hidden]{display:none}
+
+/* ── màn cấm chọn: ô tướng có ẢNH và hai nhãn thông thạo TA / ĐỊCH ──
+   Chủ dự án: "tướng phải có art, phải biết tuyển thủ thành thục con nào để còn biết mà cấm".
+   Bản trước chỉ có tên chữ, và mức thông thạo nằm trong hộp chi tiết phải chạm mới thấy. */
+.dr-than{grid-template-columns:186px 1fr 186px}
+.dr-hang{grid-template-columns:repeat(4,1fr);gap:7px}
+.dr-t{display:flex;gap:7px;align-items:center;padding:6px 7px;text-align:left}
+.dr-t-anh{width:42px;height:42px;flex:none;border-radius:9px;background:#0a1017;
+  border:1px solid #1e2836}
+.dr-t-chu{flex:1;min-width:0}
+.dr-t-ten{font-size:12.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dr-t-lop{font-size:9.5px;color:var(--chu-mo)}
+.dr-t-tt{display:flex;gap:4px;margin-top:3px}
+.dr-nhan{display:flex;align-items:center;gap:3px;background:#0a1017;border:1px solid #1e2836;
+  border-radius:5px;padding:1px 5px}
+.dr-nhan i{font-style:normal;font-size:8px;color:#6b7788;letter-spacing:.04em}
+.dr-nhan b{font-size:10px;font-weight:900}
+.dr-nhan.ssr{border-color:#6b5a20;background:#191505}
+.dr-nhan.ur{border-color:#7a3350;background:#210911}
+.dr-t.doa{border-color:#e5484d;box-shadow:0 0 0 2px #e5484d33}
+.dr-nhom-ten{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dr-nhom-ten em{font-style:normal;font-size:10px;color:#6b7788;text-transform:none;letter-spacing:0}
+
+.dr-o{padding:7px}
+.dr-o-dau{display:flex;align-items:center;gap:5px}
+.dr-o-anh{width:26px;height:26px;border-radius:50%;flex:none;background:#0a1017}
+.dr-o-vt{font-size:9px;color:var(--chu-mo);flex:none}
+.dr-o-ten{font-size:12px;font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.dr-o-pick{display:flex;align-items:center;gap:6px;margin-top:5px}
+.dr-o-pick i{width:30px;height:30px;border-radius:7px;flex:none}
+.dr-o-pick b{display:block;font-size:11.5px;color:#7fd6ff}
+.dr-o-pick span{font-size:10px;font-weight:800}
+.dr-o-tu{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+.dr-tu{position:relative;display:block;border-radius:6px;overflow:hidden;
+  border:1px solid #222d3d;background:#0a1017}
+.dr-tu.ssr{border-color:#6b5a20;background:#191505}
+.dr-tu.ur{border-color:#7a3350;background:#210911}
+.dr-tu b{position:absolute;bottom:0;right:0;font-size:7px;font-weight:900;line-height:1.5;
+  background:#000c;padding:0 2px;border-radius:3px 0 0 0}
+.dr-an{font-size:10px;color:#5a6675}
+
+/* dòng lượt cấm/chọn ở đáy màn draft */
+.dr-luot-day{display:flex;gap:5px;flex-wrap:wrap;padding:8px 4px 2px}
+.dr-buoc{min-width:52px;border-radius:9px;border:1px solid var(--vien);background:#111926;
+  padding:5px 6px;text-align:center;opacity:.5}
+.dr-buoc b{display:block;font-size:11px;font-weight:900}
+.dr-buoc span{font-size:9px;color:var(--chu-mo)}
+.dr-buoc i{display:block;width:26px;height:26px;margin:3px auto 0;border-radius:6px}
+.dr-buoc.xong{opacity:1}
+.dr-buoc.dang{opacity:1;border-color:var(--vang);box-shadow:0 0 0 2px #f2c94c44}
+.dr-buoc.cam b{color:var(--do)}
+.dr-buoc.ta{border-left:3px solid var(--xanh)}
+.dr-buoc.dich{border-left:3px solid var(--do)}

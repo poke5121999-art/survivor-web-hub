@@ -31,6 +31,14 @@
       var dangXem = null;
       var khoaLap = giai.bac >= 3;        /* từ chung kết thế giới trở lên: luật Không Lặp */
 
+      /* Số người bên kia mà ban phân tích đọc được — cùng luật với báo cáo trước trận:
+         2 + NÃO/300, tối đa 5. Không đọc được thì bảng thông thạo của họ hiện dấu hỏi, nên
+         NÃO cao là thứ trực tiếp giúp CẤM ĐÚNG. */
+      var loSo = Math.min(5, 2 + Math.floor(ca.chiso[4] / 300));
+      var loVT = {};
+      doiMay.nguoi.forEach(function (p, k) { if (k < loSo) loVT[p.vt] = 1; });
+
+
       var m = G.xoa(G.$('#man-draft'));
       var tren = G.el('div.dr-tren');
       tren.appendChild(G.el('button.nut-nho', { text: 'Giao cho trợ lý', onclick: function () {
@@ -72,60 +80,142 @@
           ? 'LƯỢT CẤM ' + (i + 1) + '/4'
           : 'LƯỢT CHỌN — ' + G.VITRI_THEO_ID[l.vt].ten;
         G.$('#dr-huong').textContent = l.ben === 'ta'
-          ? (l.loai === 'cam' ? 'Chạm một tướng để cấm' : 'Chạm một tướng để giao cho ' + tenNguoi(l.vt))
+          ? (l.loai === 'cam' ? 'Chạm một tướng để cấm' : 'Chạm một tướng để giao cho ' + ((nguoiTa(l.vt) || {}).goc || {}).biet)
           : 'Đối thủ đang chọn…';
         G.$('#man-draft').className = 'man ' + (l.ben === 'ta' ? 'luot-ta' : 'luot-dich');
       }
 
-      function tenNguoi(vt) {
+      function nguoiTa(vt) {
         var id = ca.tt.filter(function (x) { return G.TUYENTHU_THEO_ID[x].vt === vt; })[0];
-        return id ? G.TUYENTHU_THEO_ID[id].biet : vt;
+        return id ? { id: id, goc: G.TUYENTHU_THEO_ID[id], ban: G.coTT(id) || { id: id } } : null;
+      }
+      function nguoiDich(vt) {
+        return doiMay.nguoi.filter(function (p) { return p.vt === vt; })[0];
+      }
+      /** bậc thông thạo của người mình ở vị trí ấy với tướng t */
+      function ttTa(t) {
+        var n = nguoiTa(t.vt);
+        return n ? G.thongThao(n.ban, t.id) : null;
+      }
+      /** bậc của người bên kia — null nếu chưa đọc được */
+      function ttDich(t) {
+        if (!loVT[t.vt]) return null;
+        var p = nguoiDich(t.vt);
+        return p ? (p.tt[t.id] || 'N') : null;
       }
 
+      /* ── hai cột: năm người mỗi bên, kèm bảng thông thạo của chính họ ── */
       function veCot() {
         [['ta', '#dr-cot-ta'], ['dich', '#dr-cot-dich']].forEach(function (x) {
           var e = G.xoa(G.$(x[1]));
+          var laTa = x[0] === 'ta';
           VT.forEach(function (vt) {
             var o = G.el('div.dr-o');
-            var ten = x[0] === 'ta' ? tenNguoi(vt)
-              : (doiMay.nguoi.filter(function (p) { return p.vt === vt; })[0] || {}).ten;
-            o.appendChild(G.el('div.dr-o-vt', { text: G.VITRI_THEO_ID[vt].tat }));
-            o.appendChild(G.el('div.dr-o-ten', { text: ten }));
+            var tn = laTa ? nguoiTa(vt) : null;
+            var pd = laTa ? null : nguoiDich(vt);
+
+            var dau = G.el('div.dr-o-dau');
+            var anh = laTa && tn && G.oAnh ? G.oAnh(tn.id, 26) : null;
+            if (anh) { anh.className = 'dr-o-anh'; dau.appendChild(anh); }
+            dau.appendChild(G.el('div.dr-o-vt', { text: G.VITRI_THEO_ID[vt].tat }));
+            dau.appendChild(G.el('div.dr-o-ten', { text: laTa ? (tn ? tn.goc.biet : '—') : (pd ? pd.ten : '—') }));
+            o.appendChild(dau);
+
+            /* tướng đã chọn cho vị trí này */
             var t = pick[x[0]][vt];
-            o.appendChild(G.el('div.dr-o-tuong', { text: t ? G.TUONG_THEO_ID[t].ten : '—',
-              style: t ? '' : 'color:#5a6675' }));
-            if (t && x[0] === 'ta') {
-              var id = ca.tt.filter(function (y) { return G.TUYENTHU_THEO_ID[y].vt === vt; })[0];
-              var b = G.coTT(id) || { id: id };
-              var bac = G.thongThao(b, t);
-              o.appendChild(G.el('div.dr-o-tt', { text: bac, style: 'color:' + G.TT_THEO_ID[bac].mau }));
+            if (t) {
+              var ch = G.el('div.dr-o-pick');
+              var at = G.oAnhTuong && G.oAnhTuong(t, 30);
+              if (at) ch.appendChild(at);
+              var ph = G.el('div');
+              ph.appendChild(G.el('b', { text: G.TUONG_THEO_ID[t].ten }));
+              if (laTa && tn) {
+                var bac = G.thongThao(tn.ban, t);
+                ph.appendChild(G.el('span', { text: bac + ' ×' + G.TT_THEO_ID[bac].heso.toFixed(2),
+                  style: 'color:' + G.TT_THEO_ID[bac].mau }));
+              } else if (pd) {
+                var bd = loVT[vt] ? (pd.tt[t] || 'N') : '?';
+                ph.appendChild(G.el('span', { text: bd,
+                  style: 'color:' + (G.TT_THEO_ID[bd] ? G.TT_THEO_ID[bd].mau : '#5a6675') }));
+              }
+              ch.appendChild(ph);
+              o.appendChild(ch);
+            } else {
+              /* chưa chọn: hiện tủ của người này để biết mà cấm / mà chọn */
+              var ds = G.el('div.dr-o-tu');
+              /* Ba con thuần nhất của người ấy — trước chỉ hiện UR/SSR nên ai chưa có tủ xin
+                 thì cột bỏ trống hết, nhìn như lỗi. Luôn hiện ba con cao nhất. */
+              var BAC_SO = { N: 0, R: 1, SR: 2, SSR: 3, UR: 4 };
+              var tu3 = G.tuongTheoViTri(vt).map(function (tu) {
+                var bac2 = laTa ? (tn ? G.thongThao(tn.ban, tu.id) : 'N')
+                  : (loVT[vt] ? (pd ? (pd.tt[tu.id] || 'N') : 'N') : null);
+                return bac2 == null ? null : { t: tu, b: bac2 };
+              }).filter(Boolean).sort(function (a, b) { return BAC_SO[b.b] - BAC_SO[a.b]; }).slice(0, 3);
+              tu3.forEach(function (x) {
+                var it = G.el('span.dr-tu' + (x.b === 'UR' ? '.ur' : x.b === 'SSR' ? '.ssr' : ''));
+                var a2 = G.oAnhTuong && G.oAnhTuong(x.t.id, 22);
+                if (a2) it.appendChild(a2);
+                /* nhãn bậc dùng <b> chứ KHÔNG dùng <i>: G.oAnhTuong trả về chính một thẻ <i>,
+                   dùng chung tag thì CSS `.dr-tu i{position:absolute}` đè luôn lên ảnh. */
+                it.appendChild(G.el('b', { text: x.b, style: 'color:' + G.TT_THEO_ID[x.b].mau }));
+                it.setAttribute('title', x.t.ten + ' — ' + x.b);
+                ds.appendChild(it);
+              });
+              if (!laTa && !loVT[vt]) ds.appendChild(G.el('span.dr-an', { text: 'chưa đọc được' }));
+              o.appendChild(ds);
             }
             e.appendChild(o);
           });
         });
       }
 
+      /* ── lưới tướng: có ẢNH, và hai nhãn thông thạo TA / ĐỊCH ── */
       function veLuoi() {
         var e = G.xoa(G.$('#dr-luoi'));
         var l = luot[i];
         VT.forEach(function (vt) {
           var nhom = G.el('div.dr-nhom');
-          nhom.appendChild(G.el('div.dr-nhom-ten', { text: G.VITRI_THEO_ID[vt].ten }));
+          var nt = nguoiTa(vt), nd = nguoiDich(vt);
+          var dau = G.el('div.dr-nhom-ten');
+          dau.appendChild(G.el('span', { text: G.VITRI_THEO_ID[vt].ten }));
+          dau.appendChild(G.el('em', { text: (nt ? nt.goc.biet : '?') + '  vs  ' +
+            (nd ? nd.ten : '?') + (loVT[vt] ? '' : '  (chưa đọc được)') }));
+          nhom.appendChild(dau);
+
           var hang = G.el('div.dr-hang');
           G.tuongTheoViTri(vt).forEach(function (t) {
             var biCam = cam.indexOf(t.id) >= 0;
             var daLay = pick.ta[t.vt] === t.id || pick.dich[t.vt] === t.id;
             var lapLai = khoaLap && (daDung.ta.indexOf(t.id) >= 0 || daDung.dich.indexOf(t.id) >= 0);
+            var bTa = ttTa(t), bDich = ttDich(t);
+            var dangCam = l && l.loai === 'cam' && l.ben === 'ta';
+            var dang = !biCam && !daLay && !lapLai;
+            /* lúc cấm: làm nổi con nào là tủ của đối thủ */
+            var doa = dangCam && (bDich === 'UR' || bDich === 'SSR');
+
             var o = G.el('div.dr-t' + (biCam ? '.cam' : '') + (daLay ? '.lay' : '') +
-              (lapLai ? '.lap' : '') + (dangXem === t.id ? '.xem' : ''));
-            o.appendChild(G.el('div.dr-t-ten', { text: t.ten }));
-            o.appendChild(G.el('div.dr-t-lop', { text: G.LOP_TEN[t.lop] }));
+              (lapLai ? '.lap' : '') + (dangXem === t.id ? '.xem' : '') + (doa ? '.doa' : ''));
+
+            var a = G.oAnhTuong && G.oAnhTuong(t.id, 42);
+            if (a) { a.className = 'dr-t-anh'; o.appendChild(a); }
+            else o.appendChild(G.el('div.dr-t-anh'));
+
+            var ph = G.el('div.dr-t-chu');
+            ph.appendChild(G.el('div.dr-t-ten', { text: t.ten }));
+            ph.appendChild(G.el('div.dr-t-lop', { text: G.LOP_TEN[t.lop] }));
+            var bd = G.el('div.dr-t-tt');
+            bd.appendChild(nhanTT('TA', bTa));
+            bd.appendChild(nhanTT('ĐỊCH', bDich));
+            ph.appendChild(bd);
+            o.appendChild(ph);
+
             if (biCam) o.appendChild(G.el('div.dr-t-dau', { text: '⊘' }));
-            if (lapLai && !biCam && !daLay) o.appendChild(G.el('div.dr-t-so', { text: '↺' }));
+            if (lapLai && dang) o.appendChild(G.el('div.dr-t-so', { text: '↺' }));
+
             o.addEventListener('click', function () {
               dangXem = t.id; veLuoi(); veChiTiet();
               if (!l || l.ben !== 'ta') return;
-              if (biCam || daLay || lapLai) return;
+              if (!dang) return;
               if (l.loai === 'chon' && t.vt !== l.vt) return;
               chonTuong(t.id);
             });
@@ -136,11 +226,38 @@
         });
       }
 
+      function nhanTT(nhan, bac) {
+        var d = G.el('span.dr-nhan' + (bac === 'UR' ? '.ur' : bac === 'SSR' ? '.ssr' : ''));
+        d.appendChild(G.el('i', { text: nhan }));
+        d.appendChild(G.el('b', { text: bac == null ? '?' : bac,
+          style: 'color:' + (bac && G.TT_THEO_ID[bac] ? G.TT_THEO_ID[bac].mau : '#5a6675') }));
+        return d;
+      }
+
       function veChiTiet() {
         var e = G.xoa(G.$('#dr-chitiet'));
         if (!dangXem) {
-          e.appendChild(G.el('div', { text: 'Chạm một tướng để xem chỉ số, ba kỹ năng, và mức thông thạo của người sẽ cầm nó.',
-            style: 'color:#8b98a9;font-size:12.5px;padding:10px' }));
+          /* Chưa chọn gì thì hiện DÒNG LƯỢT — đang ở bước nào, còn mấy bước, ai đi tiếp.
+             Để trống một mảng đen to như bản trước thì màn cấm chọn nhìn rỗng hoác. */
+          var d = G.el('div.dr-luot-day');
+          luot.forEach(function (x, k) {
+            var o = G.el('div.dr-buoc' + (k === i ? '.dang' : (k < i ? '.xong' : '')) +
+              (x.ben === 'ta' ? '.ta' : '.dich') + (x.loai === 'cam' ? '.cam' : ''));
+            o.appendChild(G.el('b', { text: x.loai === 'cam' ? 'CẤM' : G.VITRI_THEO_ID[x.vt].tat }));
+            o.appendChild(G.el('span', { text: x.ben === 'ta' ? 'ta' : 'địch' }));
+            if (x.loai === 'cam' && cam[Math.floor(k)] && k < i) {
+              var a = G.oAnhTuong && G.oAnhTuong(cam[k], 26);
+              if (a) o.appendChild(a);
+            } else if (x.loai === 'chon' && k < i && pick[x.ben][x.vt]) {
+              var a2 = G.oAnhTuong && G.oAnhTuong(pick[x.ben][x.vt], 26);
+              if (a2) o.appendChild(a2);
+            }
+            d.appendChild(o);
+          });
+          e.appendChild(d);
+          e.appendChild(G.el('div', { text: 'Chạm một tướng để xem chỉ số, ba kỹ năng, và mức thông thạo của người sẽ cầm nó. ' +
+            'Ô viền đỏ là tủ của đối thủ — cấm mấy con đó mới đáng.',
+            style: 'color:#8b98a9;font-size:12.5px;padding:10px 4px' }));
           return;
         }
         var t = G.TUONG_THEO_ID[dangXem];

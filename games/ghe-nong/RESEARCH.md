@@ -712,7 +712,71 @@ Uma đầu tiên.
 
 ---
 
-## 5. Nguồn
+## 5. Kho art Soul Knight — dò được gì, cắm vào đâu `[ĐO TRONG REPO]`
+
+Kho ở `~/Downloads/sk-ref` (ngoài git, **không commit** — xem
+`games/repo2d/art/room/SOULKNIGHT-TILEMAP.md`). Ba thư mục dùng được:
+
+| thư mục | có gì | dùng cho |
+|---|---|---|
+| `sprites/` | 10.894 hình phẳng của bundle `common` + `weapon` | trang bị, đạn, hiệu ứng |
+| `all/<bundle>/` | 94.070 hình, chia theo AssetBundle | `defence` (trụ), `boss` (Rồng, Chúa Hang) |
+| `tilemap/sprites/level__1__a/` | tầng **RỪNG** | lính, quái rừng |
+
+### 5.1 Cách dò: bảng liên hoàn có đánh số
+
+Tên tệp trong kho **không nói gì** (`weapons5_45.png`, `____3_1.png`, `enemy27_0.png`) nên
+không thể chọn bằng cách grep. Viết `_tools/bang.py` dán một dãy sprite thành ảnh lưới
+10 cột **có in số thứ tự lên từng ô**, xem ảnh rồi tra số về tên tệp:
+
+    python _tools/bang.py ~/Downloads/sk-ref/sprites "weapons5_*.png" ra.png 120 96 > ra.txt
+
+120 ô một bảng, ô 96px — đủ to để đọc số. Nhiều hơn thì số bé không đọc nổi, ít hơn thì
+phải xem quá nhiều bảng.
+
+### 5.2 Chốt lại đã lấy gì
+
+- **Trụ** — bundle `all/defence` (chế độ thủ thành). Tên tệp gốc là tiếng Trung, bị lọc
+  còn toàn dấu gạch dưới; ghi lại đây để lần sau khỏi dò 510 hình nữa:
+  `____1__2.png` tháp pha lê nhỏ · `_____2__4.png` tháp lớn có đèn · `______1.png` khối pha lê.
+- **Hai bên KHÔNG lấy hai hình khác nhau.** Bên đỏ là bản **nhuộm** của chính hình bên
+  xanh (`nhuom_do()`: xoay hue 180°, bỏ qua pixel bão hoà < 0.18 để giữ chất kim loại xám).
+  Cùng bóng dáng thì người xem đọc ra "trụ đối xứng"; khác dáng thì đọc ra "hai công trình".
+- **Lính / quái rừng** — `level__1__a`: `enemy22` orc khiên (lính cận), `enemy23` orc cung
+  (lính xa), `enemy20` nấm, `enemy27` lợn rừng, `enemy29` rùa, `enemy_fire_sacrifice` yêu tinh.
+  Chỉ lấy **4 khung đầu**: khung cuối mỗi bộ là khung nằm chết, lồng vào vòng đứng yên thì
+  con vật gục xuống một nhịp.
+- **Rồng** `boss/boss12` (dơi bay có sừng) · **Chúa Hang** `boss/boss05` (thú sừng tím).
+- **Đạn** — `bullet2_69` tia cam (đòn thường), `bullet403` mũi tên, `bullet_laser_light2`
+  cầu tím (phép), `bullet2_5` mảnh băng, `bullet2_68` tia độc, `bullet_laser_light_1` cầu xanh (trụ).
+- **Hiệu ứng** — `effect_axe_0..5` lưỡi trăng lam (vệt chém), `bullet_eye_0..4` vết cào,
+  `effect_2_*` tia lửa trúng đòn, `effect_0_*` chớp sao, `bullet_druid_s8_0_*` lốc xoáy.
+
+### 5.3 Ba cái bẫy đã sập
+
+1. **`dat()` chỉ THU, không PHÓNG.** Sprite Soul Knight chỉ 18–22px; dán nguyên cỡ vào ô
+   atlas 64px thì trong trận con lính bé như hạt gạo, nhìn tưởng thiếu art. Phải có
+   `he_phong()` phóng cho gần đầy ô — và **một hệ số chung cho cả bộ khung**, tính từ khung
+   to nhất, chứ mỗi khung tự co giãn thì con vật phình ra thu vào theo nhịp hoạt ảnh.
+2. **`int(k)` khi k = 1.9 là đứng nguyên cỡ.** Phóng bội số nguyên cho nét pixel, nhưng chỉ
+   khi bội số ≥ 2; dưới đó phải chịu phóng lẻ. Không thì con orc khiên (k=3) đứng cạnh con
+   orc cung (k=1.9→1) to nhỏ khác hẳn nhau.
+3. **`fx.png` xếp NGƯỢC với các atlas khác.** Bản cũ: cột = khung, hàng = khoá — trong khi
+   `tuong.png`/`quai.png` là cột = khoá, hàng = khung, nên `veFX` phải tra chéo. Đã thống
+   nhất một luật cho cả bảy tệp: **cột = khoá, hàng = khung**.
+
+Thêm một cái nữa, ở phía DOM: **sprite canh ĐÁY-GIỮA thì không dán nguyên ô vào thẻ HTML
+được.** Nhân vật chỉ chiếm nửa dưới ô 64px, dán cả ô vào thẻ 42px thì người bé tí nằm dưới
+đáy. `G.anhTuong(id, cao, tren)` cắt lấy dải từ `tren`% trở xuống (mặc định 24%) rồi phóng
+cho đầy — đó là lý do màn cấm chọn trước đó nhìn như thiếu art.
+
+Món dài mà mảnh (kiếm, trượng) dán ngang chỉ chiếm một dải giữa ô, trông như cọng tăm; bảng
+`DO` có cột **góc xoay**, xoay 45° cho lưỡi kiếm chạy hết đường chéo. Xoay thì phải **phóng
+4× trước rồi mới xoay**, xoay ảnh 10px bằng NEAREST thì răng cưa ăn mất nửa lưỡi.
+
+---
+
+## 6. Nguồn
 
 - Steam — Teamfight Manager 2: https://store.steampowered.com/app/3009300/
 - Steam — Teamfight Manager: https://store.steampowered.com/app/1372810/
