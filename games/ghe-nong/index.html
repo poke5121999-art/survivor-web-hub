@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d1117">
+<title>Ghế Nóng</title>
+<link rel="stylesheet" href="css/ui.css?v=20260910a">
+</head>
+<body>
+
+<!-- Toàn bộ game vẽ trong khung 1280x720 rồi phóng to bằng transform:scale.
+     Lý do: mọi toạ độ trong code là toạ độ cố định, không phải tính lại theo màn hình. -->
+<div id="san">
+  <div id="khung">
+
+    <!-- ══ MÀN CHỜ / TẢI ══ -->
+    <div class="man" id="man-tai">
+      <div class="tai-giua">
+        <div class="tai-logo">GHẾ NÓNG</div>
+        <div class="tai-phu">quản lý đội tuyển · mùa giải không có chỗ cho người hiền</div>
+        <div class="tai-thanh"><i></i></div>
+      </div>
+    </div>
+
+    <!-- ══ MÀN CHÍNH (CLB) ══ -->
+    <div class="man" id="man-clb" hidden>
+      <div class="thanh-tren">
+        <div class="tt-trai"><span class="tt-logo">GN</span><b id="clb-ten">CLB Chưa Đặt Tên</b>
+          <span class="tt-mua" id="clb-mua">Mùa 1</span></div>
+        <div class="tt-phai">
+          <span class="vi" title="Xu"><i class="ic ic-xu"></i><b id="vi-xu">0</b></span>
+          <span class="vi" title="Vé chơi"><i class="ic ic-ve"></i><b id="vi-ve">5/5</b></span>
+          <span class="vi" title="Danh tiếng"><i class="ic ic-fan"></i><b id="vi-fan">0</b></span>
+        </div>
+      </div>
+      <div class="clb-than">
+        <nav class="menu-doc" id="clb-menu"></nav>
+        <div class="clb-giua" id="clb-giua"></div>
+        <aside class="clb-phai" id="clb-phai"></aside>
+      </div>
+    </div>
+
+    <!-- ══ MÀN CHUẨN BỊ CA (chọn 1 HLV + 5 tuyển thủ + 2 cựu HLV) ══ -->
+    <div class="man" id="man-chuanbi" hidden></div>
+
+    <!-- ══ MÀN HUẤN LUYỆN ══ -->
+    <div class="man" id="man-ca" hidden>
+      <div class="ca-tren">
+        <div class="ca-luot"><b id="ca-luot-so">1</b><span>/<i id="ca-luot-tong">24</i> lượt</span></div>
+        <div class="ca-mucteu">
+          <span class="nhan">Mục tiêu</span>
+          <b id="ca-mucteu-chu">—</b>
+          <button class="nut-nho" id="ca-nut-lich">Lịch ▾</button>
+        </div>
+        <div class="ca-luc">
+          <span class="nhan">Thể lực</span>
+          <div class="thanh-luc"><i id="ca-luc-thanh"></i><em id="ca-luc-so">100/100</em></div>
+        </div>
+        <div class="ca-tam" id="ca-tam">THƯỜNG</div>
+      </div>
+
+      <div class="ca-than">
+        <!-- cột trái: chỉ số + tuyển thủ -->
+        <div class="ca-trai">
+          <div class="bang-chiso" id="bang-chiso"></div>
+          <div class="bang-doi" id="bang-doi"></div>
+        </div>
+
+        <!-- cột giữa: sân tập + hành động -->
+        <div class="ca-giua">
+          <div class="ca-canh" id="ca-canh">
+            <div class="ca-canh-nen" id="ca-canh-nen"></div>
+            <div class="ca-bay" id="ca-bay"></div>
+          </div>
+          <div class="hang-san" id="hang-san"></div>
+          <div class="ca-hong" id="ca-hong" hidden>Hỏng: <b>0%</b></div>
+          <div class="hang-viec" id="hang-viec"></div>
+        </div>
+
+        <!-- cột phải: nhật ký -->
+        <div class="ca-phai">
+          <div class="nk-dau">Nhật ký</div>
+          <div class="nk-than" id="nk-than"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ MÀN BAN/PICK ══ -->
+    <div class="man" id="man-draft" hidden></div>
+
+    <!-- ══ MÀN CHIẾN THUẬT ══ -->
+    <div class="man" id="man-chienthuat" hidden></div>
+
+    <!-- ══ MÀN TRẬN ĐẤU ══ -->
+    <div class="man" id="man-tran" hidden></div>
+
+    <!-- ══ MÀN GACHA ══ -->
+    <div class="man" id="man-gacha" hidden></div>
+
+    <!-- ══ LỚP PHỦ: hộp thoại, sự kiện, thông báo ══ -->
+    <div id="lop-phu" hidden></div>
+    <div id="banner-lon" hidden></div>
+    <div id="phao-hoa"></div>
+  </div>
+</div>
+
+<!-- nhắc xoay ngang -->
+<div id="nhac-xoay" hidden>
+  <div class="xoay-hop">
+    <div class="xoay-icon">▭</div>
+    <div class="xoay-chu">Xoay ngang máy để chơi</div>
+    <button id="xoay-bo">Cứ chơi dọc</button>
+  </div>
+</div>
+
+<script src="js/util.js?v=20260910a"></script>
+<script src="js/data-kynang.js?v=20260910a"></script>
+<script src="js/data-tuong.js?v=20260910a"></script>
+<script src="js/data-trangbi.js?v=20260910a"></script>
+<script src="js/data-hlv.js?v=20260910a"></script>
+<script src="js/data-tuyenthu.js?v=20260910a"></script>
+<script src="js/data-giai.js?v=20260910a"></script>
+<script src="js/data-sukien.js?v=20260910a"></script>
+<script src="js/save.js?v=20260910a"></script>
+<script src="js/ca.js?v=20260910a"></script>
+<script src="js/ui-ca.js?v=20260910a"></script>
+<script src="js/ui-clb.js?v=20260910a"></script>
+<script src="js/main.js?v=20260910a"></script>
+</body>
+</html>
