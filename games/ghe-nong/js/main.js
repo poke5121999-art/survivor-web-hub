@@ -188,6 +188,8 @@
 
     G.taiSave();
     G.CAI.rung = !!G.S.cai.rung;
+    if (G.taiArt) G.taiArt();
+    if (G.tatTieng) G.tatTieng(G.S.cai.tieng === false);
 
     var t = G.$('#man-tai .tai-thanh i');
     var p = 0;

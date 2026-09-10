@@ -166,6 +166,8 @@
     var d = G.el('div', { style: 'padding:9px;border-radius:11px;background:#111926;cursor:pointer;border:1px solid ' +
       (dangChon ? '#3ddc97' : '#26303f') + (dangChon ? ';box-shadow:0 0 0 2px #3ddc9744' : '') });
     d.appendChild(G.el('div', { text: '★'.repeat(goc.sao), style: 'color:#f2c94c;font-size:12px' }));
+    var anh1 = G.oAnh && G.oAnh(goc.id, 56);
+    if (anh1) { anh1.style.margin = '2px auto'; d.appendChild(anh1); }
     d.appendChild(G.el('div', { text: goc.ten, style: 'font-weight:800;font-size:13px;margin:2px 0' }));
     d.appendChild(G.el('div', { text: '"' + goc.biet + '"' + (b.uncap ? '  ✦' + b.uncap : ''), style: 'font-size:11px;color:#8b98a9' }));
     var nk = goc.nk;
@@ -189,7 +191,9 @@
     var d = G.el('div', { style: 'padding:8px;border-radius:10px;background:#111926;cursor:pointer;border:1px solid ' +
       (dangChon ? '#3ddc97' : '#26303f') + (dangChon ? ';box-shadow:0 0 0 2px #3ddc9744' : '') });
     var h = G.el('div', { style: 'display:flex;justify-content:space-between;align-items:center' });
-    h.appendChild(G.el('b', { text: goc.biet, style: 'font-size:13px' }));
+    var anh2 = G.oAnh && G.oAnh(goc.id, 30);
+    if (anh2) { anh2.style.flex = 'none'; h.appendChild(anh2); }
+    h.appendChild(G.el('b', { text: goc.biet, style: 'font-size:13px;flex:1;margin-left:6px' }));
     h.appendChild(G.el('span', { text: goc.bac, style: 'font-size:10px;padding:1px 5px;border-radius:4px;background:#1d2838;color:' +
       (goc.bac === 'SSR' ? '#ffd76e' : goc.bac === 'SR' ? '#b08af0' : '#8b98a9') }));
     d.appendChild(h);
@@ -226,6 +230,7 @@
 
   function batDauCa() {
     var cuu = chon.cuu.map(function (i) { return G.S.cuu[i]; });
+    G.tieng('batdau');
     var ca = G.moCa(chon.hlv, chon.tt, cuu);
     G.S.ca = ca;               /* giữ nguyên tham chiếu: JSON.stringify tự bỏ qua hàm rng */
     G.luu();
@@ -247,6 +252,7 @@
 
   /* ── gacha ── */
   function veGacha(g) {
+    if (G.day) G.day('gacha');
     tieu(g, 'Tuyển mộ', 'Tỉ lệ lấy đúng của Uma Musume: bậc cao nhất 3%, giữa 18%, thấp 79%. Quay 10 chắc chắn có ít nhất một cái bậc 2 trở lên. Đủ 200 vé thì tự chọn.');
 
     [['hlv', 'Banner Huấn Luyện Viên', G.HLV, 'sao'], ['tt', 'Banner Tuyển Thủ', G.TUYENTHU, 'bac']].forEach(function (x) {
@@ -293,6 +299,7 @@
       G.S.ve[loai]++;
     }
     G.luu();
+    G.tieng(kq.some(function (x) { return x.bac === 3; }) ? 'quaySSR' : 'quay');
     hienKetQuaQuay(kq, loai);
   }
 
@@ -404,6 +411,14 @@
       ['Trang bị', 'Không ai chọn đồ hộ. Trong trận, mỗi tuyển thủ tự nhìn đội địch đánh bằng gì, mình đang thắng hay bị dí, rồi mua.'],
       ['Kế thừa', 'Hai cựu HLV mang theo spark: xanh cộng chỉ số, hồng nâng năng khiếu, lá truyền kỹ năng riêng, trắng cho gợi ý.']
     ];
+    var lai = G.el('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px' });
+    [['ca', 'Một ngày ở trung tâm'], ['draft', 'Cấm và chọn'], ['tran', 'Xem trận'],
+     ['gacha', 'Tuyển mộ'], ['ketthua', 'Thua là hết mùa']].forEach(function (x) {
+      lai.appendChild(G.el('button.nut', { text: x[1], style: 'padding:6px 11px;font-size:12px',
+        onclick: function () { G.dayLai(x[0]); } }));
+    });
+    g.appendChild(lai);
+
     muc.forEach(function (m) {
       var d = G.el('div', { style: 'padding:9px 11px;border-radius:10px;background:#111926;border:1px solid #26303f;margin-bottom:7px' });
       d.appendChild(G.el('b', { text: m[0], style: 'font-size:13px' }));
@@ -420,6 +435,16 @@
     cb.addEventListener('change', function () { G.S.cai.rung = cb.checked; G.CAI.rung = cb.checked; G.luu(); });
     r.appendChild(cb); r.appendChild(G.el('span', { text: 'Rung khi có khoảnh khắc lớn' }));
     n.appendChild(r);
+
+    var r2 = G.el('label', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:10px' });
+    var cb2 = G.el('input', { type: 'checkbox' });
+    cb2.checked = G.S.cai.tieng !== false;
+    cb2.addEventListener('change', function () {
+      G.S.cai.tieng = cb2.checked; G.tatTieng(!cb2.checked); G.luu();
+      if (cb2.checked) G.tieng('chon');
+    });
+    r2.appendChild(cb2); r2.appendChild(G.el('span', { text: 'Tiếng' }));
+    n.appendChild(r2);
     n.appendChild(G.el('div', { text: 'Bản lưu nằm trong máy này. Xoá là mất hết.', style: 'color:#8b98a9;font-size:12px;margin:10px 0' }));
     G.hop({ dau: 'Cài đặt', node: n, nut: [
       { chu: 'Xoá bản lưu', do: true, gt: 'xoa' },

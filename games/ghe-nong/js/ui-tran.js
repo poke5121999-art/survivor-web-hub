@@ -25,6 +25,7 @@
     thoaiHD = []; bayHD = []; hieuHD = [];
     G.hienMan('man-tran');
     dungKhung();
+    if (G.day) G.day('tran');
     truoc = performance.now();
     requestAnimationFrame(vong);
   };
@@ -139,11 +140,14 @@
           noi(ke, 'hagục');
         } else banner(bi.ten + ' đã gục', bi.doi === 'xanh' ? 'do' : 'xanh');
         noi(bi, 'biGiet');
+        G.tieng(ke && ke.doi === 'xanh' ? 'mangTa' : 'mang');
         G.rung('vua');
       } else if (s.loai === 'quaiLon') {
+        G.tieng('quaiLon');
         banner((s.doi === 'xanh' ? tran.cau.ta.ten : tran.cau.dich.ten) + ' hạ ' +
           (s.quai === 'rong' ? 'RỒNG' : 'CHÚA HANG') + '!', s.doi);
       } else if (s.loai === 'tru') {
+        G.tieng('tru');
         if (s.loi) banner('NHÀ CHÍNH ĐỔ!', s.doi);
       } else if (s.loai === 'quaiHien') {
         var ai = tran.nguoi[Math.floor(tran.rng() * 10)];
@@ -244,8 +248,10 @@
     tran.quai.forEach(function (q) {
       if (!q.song) return;
       var p = toaDo(q.x, q.y);
-      ctx.fillStyle = '#5a4a2a';
-      ctx.beginPath(); ctx.arc(p[0], p[1], 6 * s * 1.6, 0, 7); ctx.fill();
+      if (!G.veQuai || !G.veQuai(ctx, 'bai', p[0], p[1] + 3, 18, Math.floor(tran.t * 2 + q.i))) {
+        ctx.fillStyle = '#5a4a2a';
+        ctx.beginPath(); ctx.arc(p[0], p[1], 6 * s * 1.6, 0, 7); ctx.fill();
+      }
     });
 
     /* quái lớn */
@@ -253,9 +259,11 @@
       var q = tran.quaiLon[k];
       var p = toaDo(q.x, q.y);
       if (q.song) {
-        ctx.fillStyle = k === 'rong' ? '#7a3f8f' : '#8f3f3f';
-        ctx.beginPath(); ctx.arc(p[0], p[1], 15 * s * 1.6, 0, 7); ctx.fill();
-        ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = 2; ctx.stroke();
+        if (!G.veQuai || !G.veQuai(ctx, k, p[0], p[1] + 10, 44, Math.floor(tran.t * 2))) {
+          ctx.fillStyle = k === 'rong' ? '#7a3f8f' : '#8f3f3f';
+          ctx.beginPath(); ctx.arc(p[0], p[1], 15 * s * 1.6, 0, 7); ctx.fill();
+          ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = 2; ctx.stroke();
+        }
         thanhMau(p[0], p[1] - 20 * s, 36 * s, q.hp / q.hpMax, '#ffd76e');
       } else {
         ctx.strokeStyle = 'rgba(255,255,255,.15)'; ctx.lineWidth = 1;
@@ -291,15 +299,23 @@
       if (n.chet > 0) return;
       var p = toaDo(n.x, n.y);
       var r = 7 * s * 1.6;
-      /* vòng đội */
-      ctx.beginPath(); ctx.arc(p[0], p[1], r + 2.5, 0, 7);
-      ctx.fillStyle = n.doi === 'xanh' ? 'rgba(61,220,151,.25)' : 'rgba(229,72,77,.25)';
+      /* vòng đội dưới chân */
+      ctx.save();
+      ctx.scale(1, 0.45);
+      ctx.beginPath(); ctx.arc(p[0], (p[1] + 2) / 0.45, r + 3, 0, 7);
+      ctx.fillStyle = n.doi === 'xanh' ? 'rgba(61,220,151,.35)' : 'rgba(229,72,77,.35)';
       ctx.fill();
-      ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 7);
-      ctx.fillStyle = mauLop(n.tuong.lop);
-      ctx.fill();
-      ctx.strokeStyle = n.doi === 'xanh' ? '#3ddc97' : '#e5484d';
-      ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+
+      var khung = Math.floor(tran.t * 3 + n.i * 1.3);
+      var lat = n.mucTieu && n.mucTieu.x < n.x;
+      if (!G.veTuong || !G.veTuong(ctx, n.tuong.id, p[0], p[1] + 4, 30, khung, lat)) {
+        ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, 7);
+        ctx.fillStyle = mauLop(n.tuong.lop);
+        ctx.fill();
+        ctx.strokeStyle = n.doi === 'xanh' ? '#3ddc97' : '#e5484d';
+        ctx.lineWidth = 2; ctx.stroke();
+      }
       thanhMau(p[0], p[1] - r - 6, 26 * s * 1.6, n.hp / n.hpMax, n.doi === 'xanh' ? '#3ddc97' : '#e5484d');
       ctx.fillStyle = '#fff'; ctx.font = '9px system-ui'; ctx.textAlign = 'center';
       ctx.fillText(n.ten + ' ' + n.cap, p[0], p[1] + r + 10);
@@ -425,6 +441,7 @@
   /* ══════════ kết thúc ══════════ */
   function ketThuc() {
     var kq = G.ketQua(tran);
+    G.tieng(kq.thang === 'xanh' ? 'thang' : 'thua');
     G.bangLon(kq.thang === 'xanh' ? 'THẮNG!' : 'THUA', dinhDangGio(kq.thoiGian) + (kq.hetGio ? ' · hết giờ' : ''), 1600)
       .then(function () {
         if (kq.thang === 'xanh') G.phaoHoa(60);

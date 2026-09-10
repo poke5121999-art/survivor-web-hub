@@ -60,6 +60,7 @@
 
       G.hienMan('man-draft');
       veTatCa();
+      if (G.day) G.day('draft');
 
       /* ── vẽ ── */
       function veTatCa() { veTren(); veCot(); veLuoi(); veChiTiet(); }

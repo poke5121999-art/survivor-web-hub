@@ -141,8 +141,8 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .ca-canh{position:relative;flex:1;min-height:0;overflow:hidden;
   background:linear-gradient(180deg,#15202e 0%,#0e161f 100%)}
 .ca-canh-nen{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.9}
-.ca-canh::after{content:"";position:absolute;inset:0;
-  background:radial-gradient(120% 80% at 50% 110%,transparent 40%,#0b0f14 100%)}
+.ca-canh::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 80% at 50% 110%,transparent 45%,rgba(11,15,20,.75) 100%)}
 .ca-bay{position:absolute;inset:0;pointer-events:none;z-index:4}
 .so-bay{position:absolute;font-size:22px;font-weight:900;text-shadow:0 2px 0 #000,0 0 12px currentColor;
   animation:bay 1.1s ease-out forwards}
@@ -411,3 +411,33 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
   border-top:1px solid var(--vien)}
 .ct-day{height:52px;flex:none;display:flex;gap:10px;align-items:center;justify-content:flex-end;
   padding:0 14px;background:#0d131c;border-top:1px solid var(--vien)}
+
+/* người trong khung cảnh màn huấn luyện */
+/* Phòng tập: tường tối, dải đèn trần, sàn gạch chạy về phía người xem.
+   Vẽ hết bằng CSS — không tốn thêm một tệp ảnh nào cho một khung nền tĩnh. */
+.ca-canh-nen.co-nguoi{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;gap:10px;
+  padding:0 18px 14px;overflow:hidden;
+  background:
+    linear-gradient(180deg, transparent 0 58%, rgba(0,0,0,.35) 58% 100%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 2px, transparent 2px 64px),
+    linear-gradient(180deg,#16222f 0%, #16222f 58%, #23313f 58%, #1a2632 100%)}
+.ca-canh-nen.co-nguoi::before{content:"";position:absolute;left:0;right:0;top:58%;bottom:0;
+  background:repeating-linear-gradient(90deg, rgba(0,0,0,.22) 0 1px, transparent 1px 56px);
+  transform:perspective(240px) rotateX(52deg);transform-origin:top center;opacity:.8}
+.ca-canh-nen.co-nguoi::after{content:"";position:absolute;left:8%;right:8%;top:5%;height:5px;border-radius:99px;
+  background:linear-gradient(90deg,transparent,rgba(127,214,255,.55),transparent);
+  box-shadow:0 0 26px 8px rgba(127,214,255,.16)}
+.canh-hlv,.canh-hang{position:relative;z-index:2}
+.canh-hlv{position:relative;text-align:center;margin-right:auto;opacity:.95}
+.canh-hang{display:flex;gap:6px;align-items:flex-end}
+.canh-tt{position:relative;text-align:center;transition:transform .15s,filter .15s;filter:saturate(.85)}
+.canh-tt::after,.canh-hlv::after{content:"";position:absolute;left:50%;bottom:14px;width:44px;height:9px;
+  transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.45);filter:blur(3px);z-index:-1}
+.canh-hlv::after{width:76px;height:13px;bottom:16px}
+.canh-tt.sang{transform:translateY(-8px) scale(1.08);filter:none;
+  text-shadow:0 0 10px #3ddc97}
+.canh-tt.vang{opacity:.28;filter:grayscale(1)}
+.canh-ten{font-size:10px;color:#c8d3e0;margin-top:2px;text-shadow:0 1px 3px #000;white-space:nowrap}
+.canh-cv{position:absolute;top:-4px;right:-2px;font-size:14px}
+.canh-goiy{position:absolute;top:-2px;left:-2px;background:var(--do);color:#fff;font-size:10px;
+  font-weight:800;border-radius:99px;padding:0 5px;line-height:14px}

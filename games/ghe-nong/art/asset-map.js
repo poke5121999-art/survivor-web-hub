@@ -1,0 +1,293 @@
+/* SINH TU DONG bang _tools/build_art.py - dung sua tay */
+window.ART_MAP = {
+ "tuong": {
+  "kiemsi": [
+   0,
+   4
+  ],
+  "cuongchien": [
+   1,
+   4
+  ],
+  "phaco": [
+   2,
+   4
+  ],
+  "thanhkiem": [
+   3,
+   4
+  ],
+  "kynhan": [
+   4,
+   3
+  ],
+  "gaosu": [
+   5,
+   4
+  ],
+  "bongma": [
+   6,
+   4
+  ],
+  "thoisan": [
+   7,
+   4
+  ],
+  "phaposu": [
+   8,
+   4
+  ],
+  "phapset": [
+   9,
+   4
+  ],
+  "bongdem": [
+   10,
+   4
+  ],
+  "tuchien": [
+   11,
+   4
+  ],
+  "xathu": [
+   12,
+   3
+  ],
+  "sungtruong": [
+   13,
+   4
+  ],
+  "nodoc": [
+   14,
+   4
+  ],
+  "bomxich": [
+   15,
+   4
+  ],
+  "hiepsi": [
+   16,
+   4
+  ],
+  "thaythuoc": [
+   17,
+   4
+  ],
+  "khienhon": [
+   18,
+   3
+  ],
+  "nhacsi": [
+   19,
+   4
+  ]
+ },
+ "nguoi": {
+  "hlv_lua": [
+   0,
+   1
+  ],
+  "hlv_thep": [
+   1,
+   1
+  ],
+  "hlv_mat": [
+   2,
+   1
+  ],
+  "hlv_vang": [
+   3,
+   1
+  ],
+  "hlv_tan": [
+   4,
+   1
+  ],
+  "hlv_nhip": [
+   5,
+   1
+  ],
+  "hlv_nha": [
+   6,
+   1
+  ],
+  "hlv_vi": [
+   7,
+   1
+  ],
+  "hlv_quan": [
+   8,
+   1
+  ],
+  "hlv_dai": [
+   9,
+   1
+  ],
+  "hlv_tre": [
+   10,
+   1
+  ],
+  "hlv_cu": [
+   11,
+   1
+  ],
+  "hlv_may": [
+   12,
+   1
+  ],
+  "hlv_ly": [
+   13,
+   1
+  ],
+  "hlv_vui": [
+   14,
+   1
+  ],
+  "tt_bao": [
+   15,
+   1
+  ],
+  "tt_nui": [
+   16,
+   1
+  ],
+  "tt_lua": [
+   17,
+   1
+  ],
+  "tt_thep": [
+   18,
+   1
+  ],
+  "tt_oc": [
+   19,
+   1
+  ],
+  "tt_gio": [
+   20,
+   1
+  ],
+  "tt_dan": [
+   21,
+   1
+  ],
+  "tt_song": [
+   22,
+   1
+  ],
+  "tt_kien": [
+   23,
+   1
+  ],
+  "tt_minh": [
+   24,
+   1
+  ],
+  "tt_hai": [
+   25,
+   1
+  ],
+  "tt_phong": [
+   26,
+   1
+  ],
+  "tt_an": [
+   27,
+   1
+  ],
+  "tt_khanh": [
+   28,
+   1
+  ],
+  "tt_duy": [
+   29,
+   1
+  ],
+  "tt_tam": [
+   30,
+   1
+  ],
+  "tt_nam": [
+   31,
+   1
+  ],
+  "tt_long": [
+   32,
+   1
+  ],
+  "tt_son": [
+   33,
+   1
+  ],
+  "tt_vy": [
+   34,
+   1
+  ],
+  "tt_hung": [
+   35,
+   1
+  ],
+  "tt_thu": [
+   36,
+   1
+  ],
+  "tt_dat": [
+   37,
+   1
+  ],
+  "tt_lam": [
+   38,
+   1
+  ]
+ },
+ "quai": {
+  "bai": [
+   0,
+   2
+  ],
+  "rong": [
+   1,
+   2
+  ],
+  "chua": [
+   2,
+   2
+  ],
+  "linh_can": [
+   3,
+   2
+  ],
+  "linh_xa": [
+   4,
+   2
+  ],
+  "penguin": [
+   5,
+   2
+  ]
+ },
+ "fx": {
+  "chem": [
+   0,
+   6
+  ],
+  "set": [
+   1,
+   6
+  ],
+  "no": [
+   2,
+   6
+  ],
+  "chan": [
+   3,
+   5
+  ],
+  "hoi": [
+   4,
+   1
+  ]
+ },
+ "_o": 64,
+ "_khung": 4
+};

@@ -12,10 +12,38 @@
     sanDangXem = -1;
     G.hienMan('man-ca');
     veTatCa();
+    if (G.day) G.day('ca');
   };
 
   function veTatCa() {
-    veTren(); veChiSo(); veDoi(); veSan(); veViec(); veNhatKy();
+    veTren(); veChiSo(); veDoi(); veSan(); veViec(); veNhatKy(); veCanh();
+  }
+
+  /** khung cảnh giữa màn: huấn luyện viên đứng lớn, tuyển thủ có mặt hôm nay đứng quanh */
+  function veCanh() {
+    var e = G.$('#ca-canh-nen'); if (!e) return;
+    G.xoa(e);
+    e.className = 'ca-canh-nen co-nguoi';
+
+    var hlv = G.el('div.canh-hlv');
+    var a = G.oAnh && G.oAnh(ca.hlvId, 132);
+    if (a) hlv.appendChild(a);
+    hlv.appendChild(G.el('div.canh-ten', { text: G.HLV_THEO_ID[ca.hlvId].biet }));
+    e.appendChild(hlv);
+
+    var hang = G.el('div.canh-hang');
+    ca.tt.forEach(function (id, i) {
+      var g = G.TUYENTHU_THEO_ID[id];
+      var o = G.el('div.canh-tt' + (ca.oSan[i] < 0 ? '.vang' : '') +
+        (sanDangXem >= 0 && ca.oSan[i] === sanDangXem ? '.sang' : ''));
+      var b = G.oAnh && G.oAnh(id, 72);
+      if (b) o.appendChild(b);
+      o.appendChild(G.el('div.canh-ten', { text: g.biet + (ca.oSan[i] >= 0 ? ' · ' + G.TEN_CHISO[ca.oSan[i]] : ' · vắng') }));
+      if (G.cauVong(ca, i, ca.oSan[i])) o.appendChild(G.el('div.canh-cv', { text: '🌈' }));
+      if (ca.goiY[i]) o.appendChild(G.el('div.canh-goiy', { text: '!' }));
+      hang.appendChild(o);
+    });
+    e.appendChild(hang);
   }
 
   /* ── thanh trên ── */
@@ -86,7 +114,10 @@
       var g = G.TUYENTHU_THEO_ID[id]; if (!g) return;
       var cv = ca.than[i] >= 80;
       var the = G.el('div.tt-the' + (cv ? '.cam' : ''));
-      the.appendChild(G.el('div.tt-anh', { text: g.biet.slice(0, 1) }));
+      var oAnh = G.el('div.tt-anh');
+      var anh = G.oAnh && G.oAnh(id, 34);
+      if (anh) oAnh.appendChild(anh); else oAnh.textContent = g.biet.slice(0, 1);
+      the.appendChild(oAnh);
       var ph = G.el('div');
       var ten = G.el('div.tt-ten');
       ten.appendChild(G.el('span', { text: g.biet }));
@@ -181,7 +212,7 @@
   }
 
   function chamSan(s) {
-    if (sanDangXem !== s) { sanDangXem = s; veSan(); veChiSo(); return; }
+    if (sanDangXem !== s) { sanDangXem = s; G.tieng('cham'); veSan(); veChiSo(); veCanh(); return; }
     lamViec({ loai: 'tap', san: s });
   }
 
@@ -243,8 +274,11 @@
       G.soBay(bay, (d.v > 0 ? '+' : '') + d.v + ' ' + d.t, mau, 26 + i * 11, 46 + (i % 3) * 8);
     });
 
-    if (kq.cauVong) { G.rung('vua'); G.phaoHoa(24); }
-    if (kq.hong) G.rung('to');
+    if (kq.hong) { G.tieng('hong'); G.rung('to'); }
+    else if (kq.cauVong) { G.tieng('cauvong'); G.rung('vua'); G.phaoHoa(24); }
+    else if (v.loai === 'tap') G.tieng('tap');
+    else G.tieng('chon');
+    if (kq.moCauVong) G.tieng('tapTot');
 
     veTatCa();
     luuCa();
@@ -302,6 +336,7 @@
     if (r.camHung) {
       chuoi = chuoi.then(function () {
         var ghi = G.camHung(ca);
+        G.tieng('camhung');
         G.phaoHoa(60);
         G.rung('to');
         veTatCa();
