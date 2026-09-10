@@ -560,7 +560,7 @@ window.HUB_GAMES = [
     tagline: "Quản lý đội tuyển esport. Nuôi huấn luyện viên kiểu Uma Musume: 5 giáo án CƠ/BỀN/LỰC/LÌ/NÃO, thể lực, tâm trạng, tỉ lệ hỏng hiện sẵn, thân thiết tới 80 thì nổ cầu vồng. Vào ca chọn 1 huấn luyện viên + 5 tuyển thủ + 2 cựu huấn luyện viên để kế thừa, nuôi thẻ tuyển thủ bằng xu và bằng kinh nghiệm chạy mùa. Một mùa 24 lượt: 5 ngày tập rồi 1 giải, tới chung kết thế giới thì 1 ngày tập 1 trận. 24 đội máy có tên, có ngôi sao, có bảng xếp hạng chạy song song và bản tin sinh từ chính chuyện đang xảy ra — kết quả gây sốc, chuỗi thắng, chuyển nhượng làm đổi sức đội thật. Thi đấu là cấm/chọn 20 tướng — mỗi tướng có ảnh, kèm hai nhãn thông thạo TA/ĐỊCH để biết mà cấm đúng tủ đối thủ — rồi xem trận 5v5 tự đánh trên bản đồ hình thoi ba đường, bốn vạt rừng, rồng, chúa hang. Trụ, lính, quái rừng, viên đạn, hiệu ứng chiêu và cả hai mươi món đồ đều có art thật, bốn mức zoom và camera bám theo người mình chọn. Menu và phòng tập theo Uma: thẻ trắng bo tròn, thanh nút lớn ở đáy, banner tuyển mộ có poster, phòng tập có tường và sàn thật.",
     thumbnail: "assets/thumbnails/ghe-nong.svg",
     path: "games/ghe-nong/index.html",
-    rev: "20260910c",
+    rev: "20260910d",
     // Nuôi quân theo Uma Musume (Cygames 2021), thi đấu theo Teamfight Manager 2 (Early Access
     // 2026-05-25). KHÔNG dùng một tệp ảnh/âm thanh nào của hai game đó. Cái lấy là DỮ LIỆU
     // THIẾT KẾ, đọc từ ảnh chụp trong game: 7 ảnh Steam của TFM2, 4 ảnh Umamusume, ba trailer,

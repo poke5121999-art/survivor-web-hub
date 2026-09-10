@@ -21,7 +21,7 @@
       var im = new Image();
       im.onload = function () { ANH[t] = im; if (++xong >= can) { G.ART.sanSang = true; if (cb) cb(true); } };
       im.onerror = function () { if (++xong >= can) { G.ART.sanSang = true; if (cb) cb(true); } };
-      im.src = 'art/' + t + '.png?v=20260910c';
+      im.src = 'art/' + t + '.png?v=20260910d';
     });
   };
 
@@ -114,7 +114,7 @@
     /* Cắt mép trên xong thì ô đã phóng rộng hơn thẻ (O*kh > cao). Không kéo ngang vào
        giữa thì thẻ chỉ thấy phần bên TRÁI của ô — nhân vật lệch hẳn ra ngoài khung. */
     var lech = (O * kh - cao) / 2;
-    return 'background-image:url(art/tuong.png?v=20260910c);' +
+    return 'background-image:url(art/tuong.png?v=20260910d);' +
       'background-position:' + (-cot * O * kh - lech) + 'px ' + (-t0 * O * kh) + 'px;' +
       'background-size:' + (soCot * O * kh) + 'px ' + (soHang * O * kh) + 'px;' +
       'background-repeat:no-repeat;image-rendering:pixelated'; 
@@ -126,7 +126,7 @@
     var O = o(), cot = MAP['do'][id][0];
     var soCot = Object.keys(MAP['do']).length;
     var kh = cao / O;
-    return 'background-image:url(art/do.png?v=20260910c);' +
+    return 'background-image:url(art/do.png?v=20260910d);' +
       'background-position:' + (-cot * O * kh) + 'px 0;' +
       'background-size:' + (soCot * O * kh) + 'px ' + (O * kh) + 'px;' +
       'image-rendering:pixelated';
@@ -156,7 +156,7 @@
     var t0 = tren != null ? tren : (MAP.nguoi[id][2] != null ? MAP.nguoi[id][2] : 0.18);
     var k = cao / (O * (1 - t0));
     var lech = (O * k - cao) / 2;
-    return 'background-image:url(art/nguoi.png?v=20260910c);' +
+    return 'background-image:url(art/nguoi.png?v=20260910d);' +
       'background-position:' + (-cot * O * k - lech) + 'px ' + (-t0 * O * k) + 'px;' +
       'background-size:' + (MAP.nguoi ? Object.keys(MAP.nguoi).length * O * k : 0) + 'px ' + (O * k) + 'px;' +
       'background-repeat:no-repeat;image-rendering:pixelated';

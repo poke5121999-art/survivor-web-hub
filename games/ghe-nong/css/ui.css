@@ -694,7 +694,7 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
    cụt. Trước đây chỗ này chỉ là hai lớp gradient nên nửa trên màn trống hoác. */
 #man-ca .ca-canh-nen.co-nguoi{position:absolute;inset:0;display:flex;align-items:flex-end;
   justify-content:center;gap:12px;padding:64px 22px 228px;
-  background-image:url(../art/nen-ca.png?v=20260910c),
+  background-image:url(../art/nen-ca.png?v=20260910d),
     linear-gradient(180deg,#ffe9f4 0%,#f6e9ff 46%,#e6ddf2 100%);
   background-repeat:no-repeat,no-repeat;
   background-position:center bottom 148px,center;
