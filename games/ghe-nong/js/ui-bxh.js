@@ -244,10 +244,10 @@
   G.moBXH = function (moTab) {
     if (moTab) { tab = moTab; if (tab === 'tin') G.docHetTin(); }
     G._bxhTrongHop = 1;
-    var n = G.el('div', { style: 'width:940px;max-width:88vw' });
+    var n = G.el('div');
     function ve() {
       G.xoa(n);
-      var l = G.el('div', { style: 'display:grid;grid-template-columns:1fr 290px;gap:12px;align-items:start' });
+      var l = G.el('div', { style: 'display:grid;grid-template-columns:1fr 268px;gap:12px;align-items:start' });
       var giua = G.el('div');
       var phai = G.el('div', { style: 'background:#0d131c;border:1px solid #26303f;border-radius:11px;padding:10px' });
       G.veBXH(giua, ve);
@@ -256,7 +256,8 @@
       n.appendChild(l);
     }
     ve();
-    return G.hop({ dau: 'Bảng xếp hạng & bản tin', node: n, nut: [{ chu: 'Đóng', chinh: true }] })
+    return G.hop({ dau: 'Bảng xếp hạng & bản tin', node: n, rong: 1080, cao: '506px',
+      nut: [{ chu: 'Đóng', chinh: true }] })
       .then(function (r) { G._bxhTrongHop = 0; return r; });
   };
 

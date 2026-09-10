@@ -153,8 +153,12 @@
       var phu = G.$('#lop-phu');
       G.xoa(phu);
       var h = G.el('div.hop');
+      /* hộp rộng hơn cho bảng xếp hạng: một cái bảng bảy cột nhét vào 560px thì cột phong độ
+         bị cắt, và khung đọc tin bị đẩy ra ngoài màn */
+      if (opt.rong) h.style.width = opt.rong + 'px';
       if (opt.dau) h.appendChild(G.el('div.hop-dau', { text: opt.dau }));
       var than = G.el('div.hop-than');
+      if (opt.cao) than.style.maxHeight = opt.cao;
       if (opt.node) than.appendChild(opt.node);
       else than.innerHTML = opt.html || '';
       h.appendChild(than);

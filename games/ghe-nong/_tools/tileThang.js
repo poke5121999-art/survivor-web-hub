@@ -16,6 +16,9 @@
 (function () {
   'use strict';
   var G = window;
+  /* Tắt phần giải đấu của 24 đội máy: nó rút số từ `ca.rng` nên làm lệch chuỗi ngẫu nhiên
+     của phần huấn luyện, và ghi bản tin vào bản lưu cả trăm lần trong một lần đo. */
+  G.vongDoiMay = null;
   var SO_LAN = 40;                 /* mỗi giải chạy ngần này lần */
   var LOI = 'tham';                /* lối chơi giả lập: xem duongcong.js */
   var VT = ['tren', 'rung', 'giua', 'duoi', 'ho'];

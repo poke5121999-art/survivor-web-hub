@@ -17,6 +17,9 @@
 (function () {
   'use strict';
   var G = window;
+  /* Tắt phần giải đấu của 24 đội máy: nó rút số từ `ca.rng` nên làm lệch chuỗi ngẫu nhiên
+     của phần huấn luyện, và ghi bản tin vào bản lưu cả trăm lần trong một lần đo. */
+  G.vongDoiMay = null;
   var SO_CA = 24;
 
   function doiHinh() {
