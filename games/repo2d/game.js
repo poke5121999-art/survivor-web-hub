@@ -9372,7 +9372,7 @@ function toast(msg){ S.message = msg; S.messageT = 3.2; }
 // ============================================================ CHẾ ĐỘ MÁY TÍNH
 //
 // Chủ dự án, 2026-09-10: "khi chơi trên web pc, UI, minimap cần to ra, ẩn các nút không cần
-// bấm đi, vẫn show countdown skill, bấm E cast skill, Q để interact tủ - xe - cart, roll chuột
+// bấm đi, vẫn show countdown skill, cast skill, interact tủ - xe - cart bằng phím, roll chuột
 // để đổi weapon/item."
 //
 // Cả bộ điều khiển của trò này dựng cho HAI NGÓN CÁI: hai cần gạt ăn trọn dải dưới màn hình,
@@ -9429,8 +9429,9 @@ function nhanTuongTac(p, coTu){
   if (!gan && coTu && nearTruck(p)) return S.stashOpen ? 'Đóng tủ' : 'Mở tủ';
   return 'Nhặt';
 }
-// Bấm kỹ năng. Trả về false khi bản đang chạy KHÔNG có kỹ năng nào (Ca Trực Đêm không có), để
-// phím E còn rơi xuống được việc cũ của nó thay vì thành một phím chết.
+// Bấm kỹ năng. Trả về false khi bản đang chạy KHÔNG có kỹ năng nào — Ca Trực Đêm không có, và
+// ở đó phím R đơn giản là im. Nó KHÔNG rơi xuống việc gì khác: một phím im còn đọc ra được là
+// "bản này không có chiêu", chứ một phím lặng lẽ làm việc khác thì không ai đoán nổi.
 function capSkill(){
   if (!HOOKS.skill || !S.player || S.shopMode) return false;
   if (HOOKS.skill.ready && !HOOKS.skill.ready()){ toast('Kỹ năng chưa hồi xong'); return true; }
@@ -9469,27 +9470,23 @@ function setupInput(){
     // bảng đang mở, kể cả khi bảng đó tự dựng lỗi.
     if (k === 'escape'){ if (S.stashOpen) closeStash(); return; }
     if (skipCut()) return;
-    // R LÀ MỘT CÁI NÚT XOÁ VÁN, nên nó phải hỏi lại. Trong phần lớn game bắn thì R là NẠP ĐẠN,
-    // và ở đây nó dựng lại cả ván từ màn 1 — không hỏi một câu nào. Một ngón tay quen tay là
-    // mất sạch. Bấm hai lần trong hai giây thì mới chạy, và lần đầu nói ra thành lời.
-    if (k === 'r'){
-      if (S.rConfirm && performance.now() - S.rConfirm < 2000){ S.rConfirm = 0; vanMoi(); }
-      else { S.rConfirm = performance.now(); toast('Bấm R lần nữa để bỏ ván này và chơi lại từ màn 1'); }
-      return;
-    }
     if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
-    // E = KỸ NĂNG, Q = TƯƠNG TÁC. Chủ dự án, 2026-09-10.
+    // E = NHẶT, R = KỸ NĂNG. Chủ dự án, 2026-09-10: "phím nhặt là E vậy mấy cái trùng E move
+    // qua R đi".
     //
-    // Bản cũ: E nhặt, Q dùng-đồ/đánh, F tủ. Bộ mới gom lại theo đúng cách một trò chơi trên máy
-    // tính vẫn bày: chuột trái là "dùng cái đang cầm", E là chiêu, Q là "chạm vào cái trước
-    // mặt" — và cái trước mặt gồm luôn cả tủ đồ, nên F thành một lối tắt chứ không còn là
-    // đường duy nhất.
+    // Vòng trước tôi đặt E làm chiêu và Q làm tương tác. Sai ở chỗ: E ĐÃ LÀ phím nhặt của bản
+    // cũ, tay người chơi nhớ nó rồi, và trí nhớ ngón tay thì không đọc bảng phím mới. Nên E
+    // trả về đúng việc cũ của nó — nhặt, và "nhặt" ở đây gồm cả mở tủ, đẩy xe đẩy, leo xe máy,
+    // vác đầu lên, vì tất cả đều là "chạm vào cái trước mặt". Q giữ nguyên làm lối thứ hai cho
+    // ai đã quen vòng trước; hai phím một việc thì không ai bấm nhầm được.
     //
-    // E RƠI VỀ Q KHI KHÔNG CÓ KỸ NĂNG: Ca Trực Đêm không có chiêu nào (HOOKS.skill = null), mà
-    // một phím bấm không ra gì thì đọc y hệt một phím hỏng — và E vốn là phím nhặt đồ của bản
-    // cũ, nên tay người chơi cũ vẫn nhớ nó.
-    if (k === 'e'){ if (!capSkill()) tuongTac(S.player); return; }
-    if (k === 'q'){ tuongTac(S.player); return; }
+    // CHIÊU DỌN SANG R, và R thì phải nhường chỗ cho nó. R cũ là "bỏ ván, chơi lại từ màn 1" —
+    // một việc không thuộc về bàn phím ngay từ đầu: nó xoá sạch công của cả ca trực, mà cái nút
+    // "Ca mới" nằm sẵn dưới chân trang lúc nào cũng thấy. Không gán nó vào Shift+R: Shift là
+    // phím CHẠY, người chơi giữ nó gần như suốt ván, nên Shift+R chính là "đang chạy thì bấm R"
+    // — đúng cái tai nạn vừa đi tránh.
+    if (k === 'e' || k === 'q'){ tuongTac(S.player); return; }
+    if (k === 'r'){ capSkill(); return; }
     if (k === 'f'){ toggleStash(); return; }
     if (k === ' '){ toggleSprint(); return; }
     if (k === '1' || k === '2' || k === '3'){
@@ -9574,14 +9571,17 @@ function setupInput(){
     // con trỏ (hướng nhìn đã bám con trỏ sẵn — xem mouseWorldNow). Giữ chuột trên khẩu sạc là
     // đang sạc, nhả ra là bắn: đúng cái luật ngón cái vẫn làm trên điện thoại, chỉ đổi ngón.
     //
-    // Nút "Bắn thử" ở trạm dịch vụ là ngoại lệ DUY NHẤT còn bắt chuột: nó không có phím tắt
-    // nào, và trạm thì không phải chỗ có gì để bấm nhầm.
+    // Ở TRẠM DỊCH VỤ, CHUỘT TRÁI CHÍNH LÀ "BẮN THỬ". Chủ dự án: "bắn thử là chuột trái lun á".
+    // Cái nút tròn từng là chỗ duy nhất trong game bắt người ngồi máy tính rê chuột đi tìm một
+    // cái nút — trong khi ngay cạnh đó, cùng khẩu súng ấy, ngoài ca thì bấm chuột là bắn. Hai
+    // luật cho một hành động, chia nhau bởi một cánh cửa. Nay bấm chỗ nào trong sảnh cũng là
+    // bóp cò; sảnh không có gì khác để bấm nên không cú bấm nào bị cướp mất.
     if (hud.pc){
       const pl = S.player;
       if (S.shopMode){
-        if (hud.test && Math.hypot(p.x-hud.test.x, p.y-hud.test.y) < hud.test.r*1.25){
-          if (!testHeld(pl)) toast('Cầm một khẩu súng lên rồi bấm thử.');
-        }
+        // Không cầm gì thì nói ra. Đang trong nhịp hồi thì im — người chơi vừa bắn xong, họ
+        // biết vì sao phát thứ hai chưa nổ, và một dòng nhắc ở đó chỉ là tiếng ồn.
+        if (!testHeld(pl) && !testableInHand(pl)) toast('Cầm một khẩu súng lên rồi bấm thử.');
         return;
       }
       if (!pl || pl.down) return;
@@ -13273,7 +13273,7 @@ function drawVignette(c){
 // không tự trả lời được:
 //   — tay đang cầm gì, còn mấy phát, và phím nào đổi sang cái khác;
 //   — chiêu hồi xong chưa (chủ dự án: "vẫn show countdown skill");
-//   — bấm Q lúc này thì được cái gì;
+//   — bấm E lúc này thì được cái gì;
 //   — và cái nhịp tim, thứ duy nhất trên màn hình nói "có gì đó đang tới gần" mà không cần
 //     nhìn thấy nó. Trên điện thoại nó nằm giữa hai cần gạt; ở đây nó về đầu thanh.
 const PC_O = 44, PC_KHE = 10;          // cỡ một ô và khe giữa hai ô, tính theo K
@@ -13286,9 +13286,38 @@ function pcODo(hud, K){
   const x0 = hud.w/2 - tong/2, y = hud.h - 26*K - s/2;
   return { s, g, x0, y, wTim, tong };
 }
+// Một viên thuốc chữ nằm giữa đáy màn hình: một phím bên trái, một câu bên phải. Dùng chung
+// cho dòng nhắc của phím E ngoài ca và dòng "chuột trái = bắn thử" ở trạm, để hai chỗ không
+// trôi thành hai kiểu khác nhau.
+function pcNhac(c, hud, K, phim, chu, y, sang){
+  c.textAlign = 'center';
+  c.font = '600 ' + Math.round(13*K) + 'px ui-sans-serif, system-ui';
+  const wPhim = (() => { c.font = '700 ' + Math.round(12*K) + 'px ui-monospace, monospace';
+                         return c.measureText(phim).width; })();
+  c.font = '600 ' + Math.round(13*K) + 'px ui-sans-serif, system-ui';
+  const w = c.measureText(chu).width + wPhim + 34*K;
+  c.fillStyle = 'rgba(10,12,14,0.72)';
+  c.fillRect(hud.w/2 - w/2, y - 13*K, w, 22*K);
+  c.textAlign = 'left';
+  c.fillStyle = sang === false ? '#6a7178' : '#e0c07a';
+  c.font = '700 ' + Math.round(12*K) + 'px ui-monospace, monospace';
+  c.fillText(phim, hud.w/2 - w/2 + 12*K, y + 4*K);
+  c.fillStyle = sang === false ? '#767d84' : '#d8dee4';
+  c.font = '600 ' + Math.round(13*K) + 'px ui-sans-serif, system-ui';
+  c.fillText(chu, hud.w/2 - w/2 + 12*K + wPhim + 10*K, y + 4*K);
+  c.textAlign = 'left';
+}
 function drawPcHud(c, hud, K){
   const p = S.player;
-  if (!p || S.shopMode) return;
+  if (!p) return;
+  // Ở trạm thì thanh ô đồ không có việc gì để nói — ba ô trên tay rỗng theo luật của ca mới,
+  // và món đang xem thì đang nằm trong tay chứ không nằm trong ô. Chỉ còn đúng một câu.
+  if (S.shopMode){
+    const def = testableInHand(p);
+    pcNhac(c, hud, K, 'chuột trái', def ? 'Bắn thử — ' + def.short : 'cầm một khẩu súng lên rồi bắn thử',
+           hud.h - 26*K, !!def);
+    return;
+  }
   const L = pcODo(hud, K);
   const s = L.s, g = L.g;
 
@@ -13365,30 +13394,16 @@ function drawPcHud(c, hud, K){
     c.fillText(HOOKS.skill.icon || '✳', cx, cy + r*0.2);
     c.font = '600 ' + Math.round(11*K) + 'px ui-monospace, monospace';
     c.fillStyle = ready ? '#c9b3e0' : '#5a5f64';
-    c.fillText('E', cx, cy - r - 4*K);
+    c.fillText('R', cx, cy - r - 4*K);
     c.font = '600 ' + Math.round(10*K) + 'px ui-sans-serif, system-ui';
     c.fillText(HOOKS.skill.label ? HOOKS.skill.label() : 'Kỹ năng', cx, cy + r + 12*K);
   }
 
-  // MỘT DÒNG CHO PHÍM Q, và chỉ khi Q thật sự làm được gì. Một dòng nhắc luôn hiện là một dòng
+  // MỘT DÒNG CHO PHÍM E, và chỉ khi E thật sự làm được gì. Một dòng nhắc luôn hiện là một dòng
   // không ai đọc; một dòng chỉ hiện đúng lúc là một cái nút.
   const co = p.down || p.held || p.pushing || p.riding ||
              nearestLoot(p) || nearestBike(p) || nearCart(p) || nearTruck(p);
-  if (co){
-    const nhan = nhanTuongTac(p, true);
-    const y = L.y - s*0.5 - 16*K;
-    c.textAlign = 'center';
-    c.font = '600 ' + Math.round(13*K) + 'px ui-sans-serif, system-ui';
-    const w = c.measureText(nhan).width + 46*K;
-    c.fillStyle = 'rgba(10,12,14,0.72)';
-    c.fillRect(hud.w/2 - w/2, y - 13*K, w, 22*K);
-    c.fillStyle = '#e0c07a';
-    c.font = '700 ' + Math.round(12*K) + 'px ui-monospace, monospace';
-    c.fillText('Q', hud.w/2 - w/2 + 14*K, y + 4*K);
-    c.fillStyle = '#d8dee4';
-    c.font = '600 ' + Math.round(13*K) + 'px ui-sans-serif, system-ui';
-    c.fillText(nhan, hud.w/2 + 8*K, y + 4*K);
-  }
+  if (co) pcNhac(c, hud, K, 'E', nhanTuongTac(p, true), L.y - s*0.5 - 16*K, true);
   c.textAlign = 'left';
 }
 function drawHud(c){
@@ -13448,7 +13463,7 @@ function drawHud(c){
   dot(c, hud.right.x+rk.x, hud.right.y+rk.y, hud.right.r*0.3, stickR ? 'rgba(230,160,60,0.9)' : 'rgba(210,140,50,0.45)');
   }
 
-  if (S.shopMode){
+  if (S.shopMode && !pc){
     const def = testableInHand(p);
     const t = hud.test;
     c.beginPath();
@@ -13670,7 +13685,7 @@ function drawCrewStrip(c, hud){
     c.fillText(msg, hud.w/2, hud.h*0.32 + 20*K);
     if (watching && watching !== p){
       c.font = '600 ' + Math.round(11*K) + 'px ui-monospace, monospace'; c.fillStyle = '#9fb2c4';
-      c.fillText('đang xem ' + watching.name + ' — bấm ' + (hud.pc ? 'Q' : 'Xem') + ' để đổi',
+      c.fillText('đang xem ' + watching.name + ' — bấm ' + (hud.pc ? 'E' : 'Xem') + ' để đổi',
                  hud.w/2, hud.h*0.32 + 38*K);
     }
     c.textAlign = 'left';
@@ -14164,7 +14179,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260910c';
+const BUILD = '20260910d';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm

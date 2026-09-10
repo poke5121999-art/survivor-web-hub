@@ -889,7 +889,7 @@
      `.veil.stash #veilExtra` va `.veil.panel #veilExtra` co DO UU TIEN BANG NHAU (mot id,
      hai lop), nen cai nao dung sau thi cai do thang. Keo len tren la khung go van hien
      nhung be ngang va padding cua bang thi van la cua ban cu. -->
-<link rel="stylesheet" href="../repo2d/tu-do.css?v=20260910c">
+<link rel="stylesheet" href="../repo2d/tu-do.css?v=20260910d">
 </head>
 <body>
 
@@ -919,9 +919,9 @@
       <p id="veilBody">Vào nhà, khuân đồ giá trị ra bệ giao hàng cho đủ chỉ tiêu, rồi tìm bệ tiếp theo. Đồ càng nặng càng đắt, và càng dễ vỡ khi bạn đâm vào tường. Trong đó có thứ khác đang đi lại.</p>
       <p style="font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)" id="veilKeys">
         <kbd>W A S D</kbd> đi &nbsp;·&nbsp; <kbd>chuột</kbd> hướng nhìn &nbsp;·&nbsp; <kbd>chuột trái</kbd> đánh / bắn / ném &nbsp;·&nbsp; <kbd>Shift</kbd> chạy<br>
-        <kbd>Q</kbd> nhặt · lên xe máy · đẩy xe đẩy · mở tủ trên xe tải &nbsp;·&nbsp; <kbd>E</kbd> <b>kỹ năng của tổ trưởng</b><br>
-        <kbd>lăn chuột</kbd> hoặc <kbd>1 2 3</kbd> đổi ô đồ &nbsp;·&nbsp; <kbd>F</kbd> tủ đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>Space</kbd> bật/tắt chạy &nbsp;·&nbsp; <kbd>R R</kbd> chơi lại (bấm hai lần)<br>
-        <span style="opacity:.8"><b>Ngồi máy tính</b> thì hai cần gạt và cụm nút tròn tự ẩn đi; thanh máu, bản đồ nhỏ, ba ô đồ và đồng hồ hồi chiêu tự to lên theo màn hình. Chạm tay vào màn hình một cái là bộ nút quay lại.</span><br>
+        <kbd>E</kbd> nhặt · lên xe máy · đẩy xe đẩy · mở tủ trên xe tải <span style="opacity:.75">(<kbd>Q</kbd> cũng được)</span> &nbsp;·&nbsp; <kbd>R</kbd> <b>kỹ năng của tổ trưởng</b><br>
+        <kbd>lăn chuột</kbd> hoặc <kbd>1 2 3</kbd> đổi ô đồ &nbsp;·&nbsp; <kbd>F</kbd> tủ đồ &nbsp;·&nbsp; <kbd>Tab</kbd> bản đồ to &nbsp;·&nbsp; <kbd>Space</kbd> bật/tắt chạy &nbsp;·&nbsp; nút <b>Ca mới</b> dưới chân trang để bỏ ván và chơi lại<br>
+        <span style="opacity:.8"><b>Ngồi máy tính</b> thì hai cần gạt và cụm nút tròn tự ẩn đi; thanh máu, bản đồ nhỏ, ba ô đồ và đồng hồ hồi chiêu tự to lên theo màn hình. Ở trạm dịch vụ, bấm <b>chuột trái</b> là bắn thử khẩu đang cầm — bấm chỗ nào cũng được. Chạm tay vào màn hình một cái là bộ nút quay lại.</span><br>
         <span style="opacity:.8">Đồ ném được: giữ ô đồ để hiện cần định hướng, thả tay là dùng; kéo lên dấu ✕ góc trên bên phải để bỏ. Kéo gần đúng phía con quái là đủ — nòng súng tự hút vào nó.</span><br>
         <span style="opacity:.8"><b>Súng laser sạc:</b> giữ ô đồ (hoặc giữ phím <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>) để sạc — vành sáng chạy quanh nút cho biết đã đủ chưa — buông tay là bắn một tia xuyên qua cả hàng. Sạc càng đầy càng mạnh, nhưng bắn xong đứng chôn chân lâu hơn.</span><br>
         <span style="opacity:.8"><b>Súng nòng ngắn:</b> bảy viên toé ra một nón ngắn. Sát mặt thì nát, xa thì phí đạn — và mỗi phát đẩy bạn lùi lại, chân chậm một nhịp.</span><br>
@@ -1045,16 +1045,16 @@
 <!-- BỘ MÁY: dùng CHUNG với games/repo2d. Không có bản sao thứ hai của luật chơi. -->
 <!-- phong.js phai dung TRUOC game.js: no chi dat window.REPO_PHONG roi thoi, con game.js
      hoi bang do ngay tu luot ve nen dau tien. -->
-<script src="../repo2d/phong.js?v=20260910c"></script>
-<script src="../repo2d/sprites.js?v=20260910c"></script>
-<script src="../repo2d/game.js?v=20260910c"></script>
+<script src="../repo2d/phong.js?v=20260910d"></script>
+<script src="../repo2d/sprites.js?v=20260910d"></script>
+<script src="../repo2d/game.js?v=20260910d"></script>
 <script src="../repo2d/bot.js?v=20260904a"></script>
 
 <!-- TẦNG META của Biệt Đội: gacha, trang bị, tiến hoá, tổ năm người, kỹ năng -->
 <script src="data/content.js?v=20260904a"></script>
-<script src="js/meta.js?v=20260910c"></script>
-<script src="js/ui.js?v=20260910c"></script>
-<script src="js/squad.js?v=20260910c"></script>
+<script src="js/meta.js?v=20260910d"></script>
+<script src="js/ui.js?v=20260910d"></script>
+<script src="js/squad.js?v=20260910d"></script>
 
 <script>
   window.__boot && window.__boot();          // bộ máy dựng khung, gắn phím, gắn chạm

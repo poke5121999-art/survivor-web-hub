@@ -3,12 +3,12 @@
 Bản vừa push: **bộ chuột-phím cho máy tính, và ba cái lỗi** (mục 00). Trước đó: xe lao qua
 tường vào nhà, cả tổ chạy lên xe lúc thoát (mục 0). Trước đó: ném đồ · đường chỉ lối trên sàn ·
 loot vẽ lại · cửa hàng ngoài menu (mục 2).
-Dấu build lên `?v=20260910c` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Dấu build lên `?v=20260910d` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 ---
 
-## 00. BẢN 20260910c — CHUỘT-PHÍM, VÀ BA CÁI LỖI
+## 00. BẢN 20260910c–d — CHUỘT-PHÍM, VÀ BA CÁI LỖI
 
 ### 00.1. Chế độ máy tính
 
@@ -25,10 +25,12 @@ rồi tự chuyển sang bộ ngón tay đúng lúc người ta chạm vào. Kh�
 | đi | cần gạt trái | `W A S D` |
 | nhìn | cần gạt phải | con trỏ chuột |
 | dùng / đánh / ném | nút Dùng (kéo ra để ngắm) | **chuột trái** (giữ = sạc, nhả = bắn) |
+| bắn thử ở trạm dịch vụ | nút Bắn thử | **chuột trái**, bấm chỗ nào trong sảnh cũng được |
 | đổi ô đồ | nút Swap | **lăn chuột**, hoặc `1 2 3` |
-| nhặt · lên xe máy · đẩy xe đẩy · mở tủ | nút Nhặt + nút Tủ | **`Q`** (một phím, tự đổi việc theo cái đang đứng cạnh) |
-| kỹ năng | nút kỹ năng | **`E`** |
+| nhặt · lên xe máy · đẩy xe đẩy · mở tủ | nút Nhặt + nút Tủ | **`E`** (hoặc `Q`) — một phím, tự đổi việc theo cái đang đứng cạnh |
+| kỹ năng | nút kỹ năng | **`R`** |
 | chạy | nút Chạy | `Shift` (giữ) / `Space` (bật tắt) |
+| bỏ ván, chơi lại | — | nút **Ca mới** dưới chân trang (không còn phím) |
 
 Ẩn đi: hai cần gạt, nút Dùng, nút Swap, nút Nhặt, nút Chạy, nút Tủ, nút kỹ năng, trái tim ở chỗ
 cũ. Giữ lại và **phóng to theo `uiK()`**: thanh máu/thể lực, dải đồng đội, thanh bệ, bản đồ nhỏ,
@@ -44,8 +46,26 @@ cho điện thoại cầm ngang; cũng con số ấy trên màn 900px cho ô 95p
 khung nhìn tụt xuống 15x9,5 ô trong khi người cầm điện thoại **dọc** thấy 14x24,9. Người ngồi
 máy tính hoá ra nhìn được ÍT HƠN, mà cả trò này là trò nghe ngóng.
 
-`R` cũng đổi: nó dựng lại cả ván từ màn 1 mà không hỏi câu nào, trong khi ở phần lớn game bắn
-thì `R` là nạp đạn. Nay phải bấm **hai lần trong hai giây**.
+### 00.1.b. Vòng sửa thứ hai (bản `d`)
+
+Chủ dự án đọc bảng phím trên rồi trả về hai câu:
+
+*"bắn thử là chuột trái lun á"* — cái nút tròn "Bắn thử" ở trạm là chỗ **duy nhất** trong game
+còn bắt người ngồi máy tính rê chuột đi tìm một cái nút, trong khi ngay bên kia cánh cửa, cùng
+khẩu súng ấy, bấm chuột là bắn. Hai luật cho một hành động, chia nhau bởi một cánh cửa. Nay
+trong sảnh bấm chỗ nào cũng là bóp cò; nút tròn chỉ còn vẽ cho ngón tay. Thay nó là một viên
+thuốc chữ giữa đáy màn hình, cùng kiểu với dòng nhắc phím `E`: `chuột trái — Bắn thử — Hoa cải`,
+xám đi khi trên tay không có gì bắn được.
+
+*"phím nhặt là E vậy mấy cái trùng E move qua R đi"* — vòng trước tôi đặt `E` làm chiêu và `Q`
+làm tương tác. Sai ở chỗ **`E` đã là phím nhặt của bản cũ**: trí nhớ ngón tay không đọc bảng
+phím mới. Nên `E` trả về đúng việc cũ của nó, `Q` giữ lại làm lối thứ hai, và chiêu dọn sang `R`.
+
+`R` cũ là *"bỏ ván, chơi lại từ màn 1"* — vòng trước tôi bọc nó bằng một cái chốt bấm-hai-lần,
+nhưng việc ấy vốn không thuộc về bàn phím: nó xoá sạch công của cả ca trực, mà nút **Ca mới**
+thì nằm sẵn dưới chân trang, lúc nào cũng thấy. Nên bỏ phím, giữ nút.
+**Không** gán nó vào `Shift+R`: `Shift` là phím CHẠY, người chơi giữ nó gần như suốt ván, nên
+`Shift+R` chính là "đang chạy thì lỡ tay bấm R" — đúng cái tai nạn vừa đi tránh.
 
 ### 00.2. Ba cái lỗi
 

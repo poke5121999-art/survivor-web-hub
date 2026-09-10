@@ -3114,32 +3114,60 @@ async function pcSuite(b) {
   check('lăn chuột đi hết vòng tay: hai ô có đồ và nắm đấm',
     lan.join(',') === '0,1,-1,0', lan.join(','));
 
-  // --- 4. Q là phím tương tác, E là phím kỹ năng ---
+  // --- 4. E là phím nhặt (Q cũng thế), R là phím kỹ năng ---
   const q = await p.evaluate(() => {
     const S = REPO.S;
     REPO.warp(S.car.x, S.car.y + REPO.TILE*1.2);
     const truoc = !!S.stashOpen;
-    dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
     const sau = !!S.stashOpen;
     if (S.stashOpen) REPO.closeStash();
-    return { truoc, sau, nhan: REPO.nhanTuongTac(S.player, true) };
+    // Q phải làm ĐÚNG cái E vừa làm — hai phím một việc, để tay ai quen phím nào cũng chạy.
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
+    const cungQ = !!S.stashOpen;
+    if (S.stashOpen) REPO.closeStash();
+    return { truoc, sau, cungQ, nhan: REPO.nhanTuongTac(S.player, true) };
   });
-  check('Q đứng cạnh xe tải thì mở tủ đồ', !q.truoc && q.sau, JSON.stringify(q));
-  check('và dòng nhắc nói đúng việc Q sắp làm', q.nhan === 'Mở tủ', q.nhan);
+  check('E đứng cạnh xe tải thì mở tủ đồ', !q.truoc && q.sau, JSON.stringify(q));
+  check('Q làm y hệt E, không phải một phím chết', q.cungQ === true, JSON.stringify(q));
+  check('và dòng nhắc nói đúng việc E sắp làm', q.nhan === 'Mở tủ', q.nhan);
 
   const e = await p.evaluate(() => {
     let n = 0;
     REPO.hooks.skill = { icon:'⚡', label: () => 'Thử', ready: () => true, cool: () => 1,
                          use: () => { n++; } };
-    dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
     const co = n;
     REPO.hooks.skill = null;                       // Ca Trực Đêm vốn không có kỹ năng nào
-    const nhat = REPO.S.loot.length;
-    dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
-    return { co, khong: REPO.S.loot.length === nhat };
+    const man = REPO.S.level, tien = REPO.S.wallet;
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+    // R KHÔNG còn xoá ván: cái đó về nút "Ca mới" dưới chân trang.
+    return { co, yen: REPO.S.level === man && REPO.S.wallet === tien };
   });
-  check('E bấm kỹ năng khi bản đang chạy có kỹ năng', e.co === 1, 'gọi ' + e.co + ' lần');
-  check('bản không có kỹ năng thì E không ném lỗi, rơi về việc nhặt', e.khong);
+  check('R bấm kỹ năng khi bản đang chạy có kỹ năng', e.co === 1, 'gọi ' + e.co + ' lần');
+  check('bản không có kỹ năng thì R im, và KHÔNG dựng lại ván', e.yen);
+
+  // --- 4b. ở trạm dịch vụ, bấm chuột trái chỗ nào cũng là bắn thử ---
+  // Chuột THẬT của Playwright, không phải PointerEvent bịa: pointerdown gọi setPointerCapture,
+  // và một pointerId không có thật thì hàm ấy ném NotFoundError trước khi tới được nhánh cần đo.
+  const truocBan = await p.evaluate(() => {
+    const S = REPO.S;
+    S.shopMode = true;
+    S.player.held = { good: { kind:'gear', key:'gun' } };
+    S.player.cooldown = 0; S.bullets.length = 0;
+    return S.bullets.length;
+  });
+  const box = await p.locator('#game').boundingBox();
+  await p.mouse.move(box.x + box.width*0.5, box.y + box.height*0.35);
+  await p.mouse.down(); await p.mouse.up();
+  await p.waitForTimeout(120);
+  const sauTram = await p.evaluate(() => {
+    const n = REPO.S.bullets.length;
+    REPO.S.shopMode = false; REPO.S.player.held = null; REPO.S.bullets.length = 0;
+    return n;
+  });
+  check('ở trạm, bấm chuột trái giữa khung là bắn thử — không phải đi tìm cái nút tròn',
+    sauTram === truocBan + 1, truocBan + ' -> ' + sauTram);
 
   // --- 5. LỖI: với xuyên tường ---
   const xuyen = await p.evaluate(() => {
