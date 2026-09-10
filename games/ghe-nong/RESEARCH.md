@@ -542,6 +542,55 @@ Lớp: **Melee · Ranged · Mage · Support · Assassin**.
 
 ---
 
+### 2.15 Bảng xếp hạng và bản tin — đọc từ ảnh `tfm2/sheets/sheet007` và `sheet008` `[ẢNH]`
+
+**Rankings** có ba tab: `League · International · Career`, kèm hai ô chọn `Korea` và `2026`.
+Tiêu đề bảng: *2026 KR Div 1 Spring*. Trên bảng là một dải năm ô dẫn đầu: `MVP · Kills ·
+Assists · Solo Kills · Avg Rating`. Bảng chính đúng sáu cột:
+
+```
+Rankings | Team | Matches | Wins | Losses | Set Diff
+```
+
+Mười đội, mỗi đội có logo nhỏ bên trái tên. `Set Diff` là hiệu số **ván** (không phải mạng),
+hiện dạng `+0`.
+
+**News** (ảnh `sheet008`): danh sách bên trái nhóm **theo ngày** (`Wednesday, 1, 1, 2026 (3)`
+— con số trong ngoặc là số tin của ngày đó), mỗi dòng có nhãn loại ở trên (`Transfer Market
+News`, `Scouting Report`, `Weekly Solo Rank Analysis Report`, `Transfer Offer for …`,
+`Practice Match Request from …`) và giờ ở bên phải (`09:00`). Chọn một tin thì **khung bên
+phải** hiện tiêu đề, thân tin, và thẻ nhân vật liên quan kèm hợp đồng.
+
+**Schedule** (ảnh `sheet007`) là lịch tuần: mỗi ô là một trận `2026 KR Div 1 Spring Round 1 /
+HANJIN BRION vs DN SOOPers`.
+
+Cột trái của TFM2 có 15 mục: `News · Roster · Coaching Staff · Training · Schedule · Rankings
+· Recruitment · Solo Rank · Facilities · Finance · Team Info · Game Info · Statistics ·
+Records · Gaming House`.
+
+> `[ĐỀ XUẤT]` Ghế Nóng lấy sáu cột của Rankings và thêm **cột phong độ 5 trận** (`TTHTT`) —
+> thứ hạng cho biết họ ở đâu, phong độ cho biết họ đang đi lên hay đi xuống, và đó mới là
+> thông tin dùng được lúc chuẩn bị gặp họ. Bỏ ô chọn khu vực/năm vì chỉ có một giải quốc nội
+> và một bảng thế giới.
+
+### 2.16 Buff theo vị trí — đọc nguyên văn từ `Game Info → Game Rules` `[ẢNH]`
+
+```
+Top      Restore 1% of max HP every second
+Jungle   +20% movement speed when out of combat in the jungle.
+         Execute epic monsters on hit when their HP is at or below 700
+Mid      +20% experience gained
+Bottom   +20% gold gained
+Support  -30% experience and -10% gold gained. On last hit, the nearest ally receives the gold
+```
+
+`[ĐO TRONG REPO]` Ghế Nóng đã có: Bottom +20% vàng, Support −30% kinh nghiệm, Mid +20% kinh
+nghiệm, Jungle +20% tốc chạy ngoài giao tranh. **Còn thiếu**: Top hồi 1% máu mỗi giây ngoài
+giao tranh, Jungle hành quyết quái lớn dưới ngưỡng máu, và Support chuyển vàng last-hit cho
+đồng đội gần nhất. Ba cái này nằm trong danh sách việc còn lại của `DESIGN.md`.
+
+---
+
 ## 3. Những chỗ hai game **không** đưa được cho mình
 
 1. **Uma không có ban/pick**, TFM2 **không có gacha/kế thừa**. Chỗ nối hai hệ là phần phải tự thiết

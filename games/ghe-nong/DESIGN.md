@@ -676,19 +676,137 @@ Uma cho "đứt ca" là hết. Ở đây `[ĐỀ XUẤT]` thêm **1 "vé cứu"*
 | 4 | Mô phỏng trận + trình bày (bản đồ, lời thoại, VFX, biểu đồ) | **xong** |
 | 5 | Gacha 2 banner + uncap + kho | **xong** |
 | 6 | Kế thừa, spark, gia phả | **xong** |
-| 7 | Mùa giải, BXH 24 đội AI, meta trôi, tin tức | còn: bảng xếp hạng, meta trôi, tin tức |
+| 7 | Mùa giải, BXH 24 đội AI, meta trôi, tin tức | bảng xếp hạng + tin tức **xong** (§12); meta trôi để sau |
 | 8 | Dạy chơi, âm thanh, đánh bóng, tối ưu di động | dạy chơi và âm thanh **xong**; còn đánh bóng |
 
 ### Việc còn lại, xếp theo mức đáng làm
 
-1. **Bảng xếp hạng và tin tức** — 24 đội máy hiện chỉ là con số `suc`. Cho họ thành tích trôi
-   theo mùa, có bảng xếp hạng, có tin chuyển nhượng đọc được. Đây là thứ làm thế giới sống.
-2. **Meta trôi**: mỗi mùa tự buff/nerf 3–5 tướng theo tỉ lệ thắng mùa trước, kèm bản tin cập
-   nhật. `_tools/canbang.js` đã có sẵn cách đo.
-3. **Nuôi thẻ tuyển thủ**: hiện cấp thẻ chỉ đọc, chưa có chỗ tiêu tài nguyên để lên cấp.
-4. **Nền bản đồ trận** vẫn là màu phẳng — ghép tile của Soul Knight vào.
-5. **Hiệu ứng chiêu**: atlas `fx.png` đã dựng nhưng bộ vẽ chưa gọi tới.
-6. **Vé chơi (`ve`)** khai báo trong bản lưu nhưng chưa dùng để giới hạn gì.
-7. **Đồng bộ đám mây** qua `window.HubSave` — mã đã sẵn, chưa gắn.
+1. ~~Bảng xếp hạng và tin tức~~ — **xong**, xem §12.
+2. ~~Nuôi thẻ tuyển thủ~~ — **xong**, xem §13.
+3. ~~Nền bản đồ trận~~ — **xong**, xem §14.
+4. **Meta trôi**: mỗi mùa tự buff/nerf 3–5 tướng theo tỉ lệ thắng mùa trước, kèm bản tin cập
+   nhật. Chủ dự án chốt: **để sau**, và sệ dùng để buộc người chơi đổi huấn luyện viên +
+   tuyển thủ giữa các mùa. `_tools/canbang.js` đã có sẵn cách đo.
+5. **Ba buff vị trí còn thiếu** so với TFM2 (`RESEARCH.md` §2.16): Đường Trên hồi 1% máu mỗi
+   giây ngoài giao tranh, Đi Rừng hành quyết quái lớn dưới ngưỡng máu, Hỗ Trợ chuyển vàng
+   last-hit cho đồng đội gần nhất.
+6. **Hiệu ứng chiêu**: atlas `fx.png` đã dựng nhưng bộ vẽ chưa gọi tới.
+7. **Vé chơi (`ve`)** khai báo trong bản lưu nhưng chưa dùng để giới hạn gì.
+8. **Đồng bộ đám mây** qua `window.HubSave` — mã đã sẵn, chưa gắn.
 
 Mỗi giai đoạn **chơi được** ở cuối giai đoạn đó, và đẩy lên Pages để chủ dự án bấm thử.
+
+---
+
+## 12. Mùa giải: 24 đội, bảng xếp hạng, bản tin
+
+### 12.1 Vì sao phải có
+
+Chủ dự án: *"cần thể hiện rõ để tạo tính cạnh tranh"*. Đúng vấn đề: 24 đội máy bản đầu chỉ là
+một con số `suc` trong `data-giai.js`, gặp xong rồi biến mất. Người chơi không biết mình đứng
+thứ mấy, không biết Hổ Xám đang thắng mấy trận liền, nên thắng một giải cũng chẳng có cảm giác
+gì. **Thứ tạo ra cạnh tranh không phải trận đấu, mà là cái bảng người ta soi trước và sau mỗi
+trận.**
+
+### 12.2 Hai khu, 24 đội
+
+| khu | số đội | vai trò |
+|---|---|---|
+| `vn` quốc nội | 11 đội + CLB người chơi = **12** | đá vòng tròn suốt mùa, 4 suất đi chung kết thế giới |
+| `qt` quốc tế | **13** | chỉ gặp ở CKTG, nhưng có bảng riêng chạy song song |
+
+Mỗi đội có `sao` (tên ngôi sao) và `tieu` (một câu nhận diện) — hai trường này là thứ biến một
+cái tên thành một đối thủ. `tieu` dùng ở cả bản tin và báo cáo trước trận.
+
+### 12.3 Lịch: vòng tròn, ba lượt một vòng
+
+Lịch dựng bằng **phương pháp vòng xoay** (circle method): n đội → n−1 vòng, mỗi vòng mỗi đội đá
+đúng một trận, số đội lẻ thì mỗi vòng có một đội nghỉ. Một vòng chạy **cứ ba lượt tập một lần**
+→ 24 lượt ra 8 vòng, **đúng bằng 8 giải của người chơi**, nên điểm trên bảng so được với nhau.
+
+> Bản đầu ghép cặp ngẫu nhiên mỗi vòng và bảng thành vô nghĩa: hết mùa có đội đá 7 trận, đội khác
+> đá 18 trận, và Mèo Đá yếu nhất giải lại đứng hạng 5 chỉ vì được ra sân nhiều. Một cái bảng
+> không công bằng thì không ai soi.
+
+Trận của máy với nhau **không dựng trận thật** — tính bằng thang Elo (`150` điểm sức = gấp mười
+lần cửa) rồi chạy Bo3 bằng số. Rẻ tới mức chạy mỗi lượt cũng không thấy. Thang 220 làm bảng quốc
+tế phẳng dính (đội mạnh nhất và yếu nhất cùng 3 thắng), nên chốt 150.
+
+### 12.4 Bản tin sinh từ chuyện đang xảy ra
+
+Không có tin viết sẵn. Bốn nguồn:
+
+1. **Gây sốc** — đội yếu hơn 60 điểm sức mà thắng.
+2. **Phong độ** — chuỗi bốn thắng hoặc bốn thua (mỗi đội mỗi mùa chỉ kể một lần).
+3. **Chuyển nhượng** — từ vòng 3 trở đi, 34% mỗi vòng: một đội ký ngôi sao của đội khác cùng khu.
+   Việc này **đổi `suc` thật**: đội mua +10…26, đội bán −80% con số đó. Nên bảng xếp hạng trôi
+   thật chứ không chỉ đọc cho vui. Đây cũng là chỗ sau này gắn meta trôi vào.
+4. **CLB của ta** — mỗi giải người chơi đá xong, kèm hạng mới sau trận đó.
+
+### 12.5 Chỗ nhìn thấy
+
+- Màn CLB, tab **Bảng xếp hạng**: bảng ở giữa, khung đọc tin ở cột phải (đúng bố cục Rankings +
+  News của TFM2, `RESEARCH.md` §2.15). Bốn tab: Quốc nội · Quốc tế · Bản tin · Lịch của ta.
+- **Trong phòng tập**: hai nút trên thanh mục tiêu — hạng hiện tại (`Hạng 9/12`) và `Bản tin` có
+  đếm tin chưa đọc. Để tận màn CLB thì người chơi chỉ xem mỗi mùa một lần và 24 đội kia lại thành
+  vô hình như cũ.
+- **Báo cáo trước trận**: đối thủ đang hạng mấy, phong độ 5 trận, và câu `tieu` của họ.
+- **Kết mùa**: ta hạng mấy, ai vô địch quốc nội, ai đứng đầu thế giới.
+
+---
+
+## 13. Nuôi thẻ tuyển thủ
+
+`hesoCap` nội suy hiệu ứng thẻ từ **40% ở cấp 1 tới 100% ở cấp trần**, mà bản đầu không có chỗ
+nào lên cấp — nghĩa là mọi thẻ trong game đều chạy ở 40% sức. Hai đường lên cấp, và cả hai đều
+phải có vì chúng trả lời hai câu khác nhau:
+
+| đường | trả lời câu | tính chất |
+|---|---|---|
+| **Xu** — thuê chuyên gia kèm | *"tôi có 2000 xu, tiêu vào đâu?"* | chủ động, tức thì, giá hiện rõ |
+| **Kinh nghiệm** — chạy hết một mùa | *"chạy mùa nữa để được gì?"* | không mua được, thắng nhiều giải thì ăn dày |
+
+Giá một cấp: `(30 + cấp × 7) × hệ bậc` (R ×1, SR ×1.15, SSR ×1.35). Thẻ R từ cấp 1 lên trần 30
+tốn ≈ 3.900 xu — một mùa thắng đủ giải được ≈ 9.350 xu, tức **hai thẻ mỗi mùa**, đủ chậm để phải
+chọn nuôi ai. Kinh nghiệm hết mùa: `120 + 55 × số giải thắng + 60 nếu không đứt mùa`, chia cho cả
+năm người trong đội hình.
+
+Hộp thoại nuôi thẻ **luôn hiện bảng "trước → sau"** của từng dòng hiệu ứng. Không để người chơi
+tiêu 3.900 xu rồi tự đoán mình được gì.
+
+Trần cấp do bậc thẻ và uncap quyết định (`tranCap`: R 30 · SR 35 · SSR 40, cộng 5 mỗi bậc uncap),
+nên tới trần rồi thì đường duy nhất là quay trúng thẻ đó lần nữa.
+
+---
+
+## 14. Bản đồ trận: vẽ thành hình thoi
+
+Chủ dự án: *"Nền bản đồ trận phải làm kỹ cho rõ là map 3 lane, rừng"*.
+
+Bộ mô phỏng dùng toạ độ vuông 0..1000 với hai nhà ở hai góc đối nhau. Vẽ thẳng ra thì được một
+hình vuông 566×566 nằm giữa khung 830×566 — hai bên đen thui, và ba đường chồng chéo nhau nhìn
+không ra đường nào.
+
+**Xoay 45°**: lấy `u = (x−y)/1000` làm trục ngang, `v = (x+y)/2000` làm trục dọc. Mọi thứ vào
+đúng chỗ:
+
+- hai nhà nằm ở **đỉnh trái và đỉnh phải** → dùng hết chiều ngang của màn ngang
+- **đường giữa** thành một đường ngang chạy giữa màn
+- **đường trên** vòng lên trên, **đường dưới** vòng xuống dưới → thấy ngay là ba đường
+- **sông** chạy dọc giữa, cắt ngang đường giữa; hai con quái lớn nằm đúng trên sông
+- **bốn vạt rừng** rơi vào bốn góc của hình thoi
+
+Đây cũng là cách mọi bản đồ MOBA được vẽ trên minimap, nên không ai phải học lại cách đọc.
+`toaDoMini` dùng đúng phép xoay ấy — hai hình khác hướng nhau thì minimap thành vô dụng.
+
+Nền là **tĩnh**, nên vẽ một lần vào canvas riêng rồi dán lại mỗi khung; chỉ dựng lại khi đổi cỡ.
+Vẽ lại cả trăm cái cây mỗi khung thì tụt xuống 20 khung/giây.
+
+Chín lớp, theo thứ tự: sàn sân khấu tối ngoài hình thoi → mặt đất có vệt cỏ → bốn vạt rừng tối →
+sông và gợn nước → hố hai con quái lớn → ba đường (vai tối rồi lòng đường sáng) → bụi rậm → sân
+nền hai nhà → cây → viền và chữ chỉ đường (`ĐƯỜNG TRÊN/GIỮA/DƯỚI`, `RỪNG` ×4, `CHÚA HANG`,
+`RỒNG`, `NHÀ TA`, `NHÀ ĐỊCH`).
+
+> Cây phải đứng **trong** bốn vạt rừng và cách đường ít nhất 132 đơn vị. Bản đầu rải 150 cây khắp
+> bản đồ với khoảng cách 78, chụp ảnh ra thì cây phủ lên cả ba đường và che mất người — **nền đẹp
+> mà không đọc được trận thì vô dụng**.

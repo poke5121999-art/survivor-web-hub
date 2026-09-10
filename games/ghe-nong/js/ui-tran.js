@@ -202,49 +202,256 @@
   }
 
   /* ══════════ vẽ bản đồ ══════════ */
+  /* ══════════ toạ độ: bản đồ vẽ thành HÌNH THOI ══════════
+
+     Bộ mô phỏng dùng toạ độ vuông 0..1000, hai nhà ở hai góc đối nhau (120,880) và (880,120).
+     Vẽ thẳng ra thì được một hình vuông 566×566 nằm giữa khung 830×566, hai bên đen thui, và
+     ba đường chồng chéo nhìn không ra đường nào.
+
+     Xoay 45° (lấy u = x−y làm trục ngang, v = x+y làm trục dọc) thì mọi thứ vào đúng chỗ:
+       · hai nhà nằm ở hai ĐỈNH TRÁI và PHẢI  → dùng hết chiều ngang của màn ngang
+       · đường giữa thành một đường ngang chạy giữa màn
+       · đường trên vòng lên trên, đường dưới vòng xuống dưới  → thấy ngay là ba đường
+       · sông chạy dọc giữa, cắt ngang đường giữa, hai con quái lớn nằm trên sông
+     Đây cũng là cách mọi bản đồ MOBA được vẽ trên minimap. */
   function toaDo(x, y) {
-    var s = Math.min(canvas.width, canvas.height) / 1000;
-    var ox = (canvas.width - 1000 * s) / 2, oy = (canvas.height - 1000 * s) / 2;
-    return [ox + x * s, oy + y * s, s];
+    var W = canvas.width, H = canvas.height, m = 24;
+    var u = (x - y) / 1000;             /* −1 … 1 */
+    var v = (x + y) / 2000;             /*  0 … 1 */
+    return [W / 2 + u * (W / 2 - m), m + v * (H - 2 * m), H / 1000];
+  }
+
+  /* ══════════ nền tĩnh, vẽ một lần rồi dán lại mỗi khung ══════════
+     Nền có cả trăm cái cây và vệt cỏ. Vẽ lại mỗi khung thì tụt xuống 20 khung/giây trên
+     điện thoại — đo bằng máy. Nên vẽ vào một canvas riêng, chỉ dựng lại khi đổi cỡ. */
+  var nenC = null, nenKey = '';
+
+  function dungNen() {
+    var W = canvas.width, H = canvas.height;
+    var key = W + 'x' + H;
+    if (nenC && nenKey === key) return nenC;
+    nenC = document.createElement('canvas');
+    nenC.width = W; nenC.height = H;
+    nenKey = key;
+    var c = nenC.getContext('2d');
+    var rng = G.Rng(20260910);          /* cùng hạt giống → cây mọc đúng chỗ cũ mỗi lần */
+
+    function P(x, y) { return toaDo(x, y); }
+    function duongDan(lane, dai) {
+      var wp = G.SIM_DUONG[lane];
+      c.beginPath();
+      wp.forEach(function (p, i) {
+        var q = P(p[0], p[1]);
+        if (i === 0) c.moveTo(q[0], q[1]); else c.lineTo(q[0], q[1]);
+      });
+      c.lineWidth = dai; c.lineCap = 'round'; c.lineJoin = 'round';
+      c.stroke();
+    }
+
+    /* ── 0. ngoài hình thoi: sàn sân khấu tối ── */
+    c.fillStyle = '#080b10';
+    c.fillRect(0, 0, W, H);
+
+    /* ── 1. mặt đất trong hình thoi ── */
+    c.save();
+    c.beginPath();
+    var g0 = P(0, 0), g1 = P(1000, 0), g2 = P(1000, 1000), g3 = P(0, 1000);
+    c.moveTo(g0[0], g0[1]); c.lineTo(g1[0], g1[1]); c.lineTo(g2[0], g2[1]); c.lineTo(g3[0], g3[1]);
+    c.closePath();
+    c.clip();
+
+    var nen = c.createLinearGradient(0, 0, 0, H);
+    nen.addColorStop(0, '#16301f'); nen.addColorStop(0.5, '#132a1b'); nen.addColorStop(1, '#16301f');
+    c.fillStyle = nen;
+    c.fillRect(0, 0, W, H);
+
+    /* vệt cỏ cho mặt đất không phẳng lì */
+    for (var i = 0; i < 260; i++) {
+      var gx = rng() * 1000, gy = rng() * 1000, p = P(gx, gy);
+      c.fillStyle = rng.duoc(0.5) ? 'rgba(255,255,255,.018)' : 'rgba(0,0,0,.05)';
+      c.beginPath();
+      c.ellipse(p[0], p[1], 8 + rng() * 22, 3 + rng() * 7, 0, 0, 7);
+      c.fill();
+    }
+
+    /* ── 2. bốn vạt rừng: tối hơn mặt đất, và có cây ── */
+    /* Tâm bốn vạt rừng — đúng bốn góc của hình thoi sau khi xoay: rừng trên và rừng dưới
+       của mỗi bên, nằm giữa đường giữa và đường biên. So lại được bằng toạ độ tám bãi
+       quái trong sim.js: bãi xanh (240,540) và (180,420) nằm trong rừng trên bên xanh, còn
+       (420,780) nằm trong rừng dưới. */
+    var TAM_RUNG = [[205, 480], [385, 760], [520, 240], [795, 615]];
+    TAM_RUNG.forEach(function (t) {
+      var p2 = P(t[0], t[1]);
+      var gr = c.createRadialGradient(p2[0], p2[1], 6, p2[0], p2[1], 150);
+      gr.addColorStop(0, 'rgba(6,20,11,.55)');
+      gr.addColorStop(1, 'rgba(6,20,11,0)');
+      c.fillStyle = gr;
+      c.fillRect(0, 0, W, H);
+    });
+
+    /* ── 3. sông: chạy dọc giữa, qua đúng chỗ hai con quái lớn ── */
+    var sa = P(20, 20), sb = P(980, 980);
+    c.strokeStyle = 'rgba(26,52,74,.70)'; c.lineWidth = 34 * (H / 1000) * 1.9;
+    c.beginPath(); c.moveTo(sa[0], sa[1]); c.lineTo(sb[0], sb[1]); c.stroke();
+    c.strokeStyle = 'rgba(74,157,248,.13)'; c.lineWidth = 24 * (H / 1000) * 1.9;
+    c.beginPath(); c.moveTo(sa[0], sa[1]); c.lineTo(sb[0], sb[1]); c.stroke();
+    /* gợn nước */
+    c.strokeStyle = 'rgba(160,215,255,.16)'; c.lineWidth = 1.5;
+    for (var w = 0; w < 26; w++) {
+      var t2 = 40 + w * 36, lech = (w % 2 ? 1 : -1) * (9 + rng() * 9);
+      var q1 = P(t2 + lech, t2 - lech), q2 = P(t2 + lech + 26, t2 - lech + 26);
+      c.beginPath(); c.moveTo(q1[0], q1[1]); c.lineTo(q2[0], q2[1]); c.stroke();
+    }
+
+    /* ── 4. hố quái lớn ── */
+    [[300, 300, 'CHÚA HANG'], [700, 700, 'RỒNG']].forEach(function (o) {
+      var p3 = P(o[0], o[1]);
+      c.save();
+      c.translate(p3[0], p3[1]); c.scale(1, 0.5);
+      c.beginPath(); c.arc(0, 0, 54, 0, 7);
+      c.fillStyle = 'rgba(12,26,18,.8)'; c.fill();
+      c.lineWidth = 4; c.strokeStyle = 'rgba(180,150,90,.35)'; c.stroke();
+      c.restore();
+    });
+
+    /* ── 5. ba đường: vai tối rồi lòng đường sáng ── */
+    ['tren', 'giua', 'duoi'].forEach(function (lane) {
+      c.strokeStyle = 'rgba(8,18,12,.55)'; duongDan(lane, 42 * (H / 1000) * 1.9);
+      c.strokeStyle = '#3c5b40';          duongDan(lane, 32 * (H / 1000) * 1.9);
+      c.strokeStyle = '#5c7a4e';          duongDan(lane, 22 * (H / 1000) * 1.9);
+      c.strokeStyle = 'rgba(190,180,120,.13)'; duongDan(lane, 10 * (H / 1000) * 1.9);
+    });
+
+    /* ── 6. bụi rậm cạnh đường ── */
+    var BUI = [[210, 700], [320, 830], [700, 300], [790, 180], [420, 480], [580, 520],
+               [180, 250], [250, 170], [820, 750], [750, 830]];
+    BUI.forEach(function (b) {
+      var p4 = P(b[0], b[1]);
+      c.save();
+      c.translate(p4[0], p4[1]); c.scale(1, 0.5);
+      c.beginPath(); c.arc(0, 0, 26, 0, 7);
+      c.fillStyle = 'rgba(20,58,32,.85)'; c.fill();
+      c.lineWidth = 2; c.strokeStyle = 'rgba(120,190,130,.14)'; c.stroke();
+      c.restore();
+    });
+
+    /* ── 7. hai nhà: sân nền màu đội ── */
+    [['xanh', G.SIM_NHA.xanh, '61,220,151'], ['do', G.SIM_NHA.do, '229,72,77']].forEach(function (b) {
+      var p5 = P(b[1][0], b[1][1]);
+      var gr2 = c.createRadialGradient(p5[0], p5[1], 4, p5[0], p5[1], 120);
+      gr2.addColorStop(0, 'rgba(' + b[2] + ',.30)');
+      gr2.addColorStop(0.6, 'rgba(' + b[2] + ',.10)');
+      gr2.addColorStop(1, 'rgba(' + b[2] + ',0)');
+      c.fillStyle = gr2; c.fillRect(0, 0, W, H);
+      c.save();
+      c.translate(p5[0], p5[1]); c.scale(1, 0.5);
+      c.beginPath(); c.arc(0, 0, 46, 0, 7);
+      c.lineWidth = 3; c.strokeStyle = 'rgba(' + b[2] + ',.45)'; c.stroke();
+      c.restore();
+    });
+
+    /* ── 8. cây: mọc trong rừng, tránh đường, tránh sông ── */
+    function xaDuong(x, y) {
+      var gan = 1e9;
+      ['tren', 'giua', 'duoi'].forEach(function (lane) {
+        G.SIM_DUONG[lane].forEach(function (p6, k, ds) {
+          if (!k) return;
+          var a = ds[k - 1], bb = p6;
+          /* khoảng cách tới đoạn thẳng a→bb */
+          var dx = bb[0] - a[0], dy = bb[1] - a[1];
+          var l2 = dx * dx + dy * dy || 1;
+          var t3 = G.kep(((x - a[0]) * dx + (y - a[1]) * dy) / l2, 0, 1);
+          var cx = a[0] + dx * t3, cy = a[1] + dy * t3;
+          var d = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+          if (d < gan) gan = d;
+        });
+      });
+      return gan;
+    }
+    /* Cây chỉ đứng TRONG bốn vạt rừng và phải cách đường thật xa. Bản đầu rải 150 cây khắp
+       bản đồ với khoảng cách 78, chụp ảnh ra thì cây phủ lên cả ba đường và che mất người —
+       nền đẹp mà không đọc được trận thì vô dụng. */
+    var cay = [];
+    for (var n2 = 0; n2 < 3400 && cay.length < 104; n2++) {
+      var cx2 = 60 + rng() * 880, cy2 = 60 + rng() * 880;
+      if (xaDuong(cx2, cy2) < 132) continue;                 /* sát đường thì thôi */
+      if (Math.abs(cx2 - cy2) < 120) continue;               /* trên sông thì thôi */
+      var trongRung = false, xaTam = 1e9;
+      TAM_RUNG.forEach(function (t6) {
+        var d2 = Math.sqrt((cx2 - t6[0]) * (cx2 - t6[0]) + (cy2 - t6[1]) * (cy2 - t6[1]));
+        if (d2 < xaTam) xaTam = d2;
+        if (d2 < 205) trongRung = true;
+      });
+      if (!trongRung) continue;                              /* ngoài vạt rừng thì thôi */
+      if (xaTam < 46) continue;                              /* để trống chỗ viết chữ RỪNG */
+      cay.push([cx2, cy2, 8 + rng() * 6]);
+    }
+    /* vẽ từ trên xuống để cây gần che cây xa */
+    cay.sort(function (a, b) { return (a[0] + a[1]) - (b[0] + b[1]); });
+    cay.forEach(function (t4) {
+      var p7 = P(t4[0], t4[1]), r2 = t4[2] * (H / 1000) * 1.9;
+      /* bóng */
+      c.save();
+      c.translate(p7[0], p7[1] + r2 * 0.5); c.scale(1, 0.4);
+      c.beginPath(); c.arc(0, 0, r2 * 0.95, 0, 7);
+      c.fillStyle = 'rgba(0,0,0,.28)'; c.fill();
+      c.restore();
+      /* thân */
+      c.fillStyle = '#2a1f14';
+      c.fillRect(p7[0] - r2 * 0.13, p7[1] - r2 * 0.2, r2 * 0.26, r2 * 0.7);
+      /* tán ba lớp */
+      c.beginPath(); c.arc(p7[0], p7[1] - r2 * 0.55, r2, 0, 7);
+      c.fillStyle = '#1b4426'; c.fill();
+      c.beginPath(); c.arc(p7[0] - r2 * 0.25, p7[1] - r2 * 0.8, r2 * 0.72, 0, 7);
+      c.fillStyle = '#215230'; c.fill();
+      c.beginPath(); c.arc(p7[0] + r2 * 0.2, p7[1] - r2 * 0.95, r2 * 0.5, 0, 7);
+      c.fillStyle = '#2a6839'; c.fill();
+    });
+
+    c.restore();   /* hết vùng cắt hình thoi */
+
+    /* ── 9. viền hình thoi và chữ chỉ đường ── */
+    c.beginPath();
+    c.moveTo(g0[0], g0[1]); c.lineTo(g1[0], g1[1]); c.lineTo(g2[0], g2[1]); c.lineTo(g3[0], g3[1]);
+    c.closePath();
+    c.lineWidth = 2; c.strokeStyle = 'rgba(140,170,150,.20)'; c.stroke();
+
+    c.font = 'bold 10px system-ui'; c.textAlign = 'center';
+    c.fillStyle = 'rgba(210,230,215,.30)';
+    var nhan = [['tren', 500, 60, 'ĐƯỜNG TRÊN'], ['giua', 500, 500, 'ĐƯỜNG GIỮA'],
+                ['duoi', 500, 940, 'ĐƯỜNG DƯỚI']];
+    nhan.forEach(function (x2) {
+      var p8 = toaDo(x2[1], x2[2]);
+      c.fillText(x2[3], p8[0], p8[1] - 12);
+    });
+    c.fillStyle = 'rgba(170,215,180,.42)';
+    TAM_RUNG.forEach(function (t5) {
+      var p9 = toaDo(t5[0], t5[1]);
+      c.fillText('RỪNG', p9[0], p9[1]);
+    });
+    c.fillStyle = 'rgba(255,215,110,.34)';
+    [[300, 300, 'CHÚA HANG'], [700, 700, 'RỒNG']].forEach(function (o2) {
+      var pa = toaDo(o2[0], o2[1]);
+      c.fillText(o2[2], pa[0], pa[1] + 30);
+    });
+    c.fillStyle = 'rgba(61,220,151,.45)';
+    var pn = toaDo(G.SIM_NHA.xanh[0], G.SIM_NHA.xanh[1]);
+    c.fillText('NHÀ TA', pn[0], pn[1] + 34);
+    c.fillStyle = 'rgba(229,72,77,.45)';
+    var pd = toaDo(G.SIM_NHA.do[0], G.SIM_NHA.do[1]);
+    c.fillText('NHÀ ĐỊCH', pd[0], pd[1] + 34);
+
+    return nenC;
   }
 
   function veBanDo() {
     if (!canvas) return;
     if (!ctx) ctx = canvas.getContext('2d');
     var W = canvas.width, H = canvas.height;
+    var s = H / 1000;
 
-    ctx.fillStyle = '#0b0f14';
-    ctx.fillRect(0, 0, W, H);
-
-    var p0 = toaDo(0, 0), s = p0[2];
-    /* nền rừng */
-    var g = ctx.createLinearGradient(p0[0], p0[1], p0[0] + 1000 * s, p0[1] + 1000 * s);
-    g.addColorStop(0, '#16301f'); g.addColorStop(0.5, '#12261a'); g.addColorStop(1, '#16301f');
-    ctx.fillStyle = g;
-    ctx.fillRect(p0[0], p0[1], 1000 * s, 1000 * s);
-
-    /* Sông chạy theo đường chéo CÒN LẠI — tức là cắt ngang đường giữa, không nằm trùng
-       lên nó. Vẽ trùng thì đường giữa biến mất dưới dải xanh, chụp ảnh màn trận là thấy ngay.
-       Đi qua đúng chỗ hai con quái lớn đứng (300,300) và (700,700), giống mọi bản đồ MOBA. */
-    ctx.strokeStyle = 'rgba(74,157,248,.16)'; ctx.lineWidth = 62 * s;
-    ctx.beginPath();
-    var sa = toaDo(30, 30), sb = toaDo(970, 970);
-    ctx.moveTo(sa[0], sa[1]); ctx.lineTo(sb[0], sb[1]);
-    ctx.stroke();
-
-    /* đường */
-    ['tren', 'giua', 'duoi'].forEach(function (lane) {
-      var wp = G.SIM_DUONG[lane];
-      ctx.strokeStyle = '#2c4a35'; ctx.lineWidth = 34 * s; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.beginPath();
-      wp.forEach(function (p, i) {
-        var q = toaDo(p[0], p[1]);
-        if (i === 0) ctx.moveTo(q[0], q[1]); else ctx.lineTo(q[0], q[1]);
-      });
-      ctx.stroke();
-      ctx.strokeStyle = '#3a6045'; ctx.lineWidth = 22 * s;
-      ctx.stroke();
-    });
+    /* nền tĩnh: đất, rừng, sông, ba đường, hố quái, hai nhà, cây, chữ chỉ đường */
+    ctx.drawImage(dungNen(), 0, 0);
 
     /* quái rừng */
     tran.quai.forEach(function (q) {
@@ -418,20 +625,59 @@
     });
   }
 
+  /* Minimap dùng đúng phép xoay của bản đồ lớn — hai hình khác hướng nhau thì minimap
+     thành vô dụng, nhìn một cái không biết điểm ấy ứng với chỗ nào trên sân. */
+  function toaDoMini(x, y, W, H) {
+    var m = 5;
+    return [W / 2 + ((x - y) / 1000) * (W / 2 - m), m + ((x + y) / 2000) * (H - 2 * m)];
+  }
+
   function veMini() {
     var c = G.$('#tr-mini'); if (!c) return;
     var x = c.getContext('2d');
-    x.fillStyle = '#0e1a12'; x.fillRect(0, 0, 150, 150);
-    var s = 150 / 1000;
+    var W = 150, H = 150;
+    x.fillStyle = '#080b10'; x.fillRect(0, 0, W, H);
+
+    /* hình thoi + ba đường, để minimap cũng đọc được là map ba đường */
+    var g0 = toaDoMini(0, 0, W, H), g1 = toaDoMini(1000, 0, W, H),
+        g2 = toaDoMini(1000, 1000, W, H), g3 = toaDoMini(0, 1000, W, H);
+    x.beginPath();
+    x.moveTo(g0[0], g0[1]); x.lineTo(g1[0], g1[1]); x.lineTo(g2[0], g2[1]); x.lineTo(g3[0], g3[1]);
+    x.closePath();
+    x.fillStyle = '#12251a'; x.fill();
+    x.strokeStyle = 'rgba(140,170,150,.18)'; x.lineWidth = 1; x.stroke();
+
+    x.strokeStyle = '#3a5a3e'; x.lineWidth = 5; x.lineCap = 'round'; x.lineJoin = 'round';
+    ['tren', 'giua', 'duoi'].forEach(function (lane) {
+      x.beginPath();
+      G.SIM_DUONG[lane].forEach(function (p, i) {
+        var q = toaDoMini(p[0], p[1], W, H);
+        if (i === 0) x.moveTo(q[0], q[1]); else x.lineTo(q[0], q[1]);
+      });
+      x.stroke();
+    });
+    /* sông */
+    var sa = toaDoMini(20, 20, W, H), sb = toaDoMini(980, 980, W, H);
+    x.strokeStyle = 'rgba(74,157,248,.22)'; x.lineWidth = 7;
+    x.beginPath(); x.moveTo(sa[0], sa[1]); x.lineTo(sb[0], sb[1]); x.stroke();
+
     tran.tru.forEach(function (r) {
       if (!r.song) return;
+      var p = toaDoMini(r.x, r.y, W, H);
       x.fillStyle = r.doi === 'xanh' ? '#2b8fd6' : '#c8393e';
-      x.fillRect(r.x * s - 2, r.y * s - 2, 4, 4);
+      x.fillRect(p[0] - 2, p[1] - 2, 4, 4);
+    });
+    ['rong', 'chua'].forEach(function (k) {
+      var q = tran.quaiLon[k]; if (!q || !q.song) return;
+      var p = toaDoMini(q.x, q.y, W, H);
+      x.fillStyle = '#ffd76e';
+      x.beginPath(); x.arc(p[0], p[1], 3, 0, 7); x.fill();
     });
     tran.nguoi.forEach(function (n) {
       if (n.chet > 0) return;
+      var p = toaDoMini(n.x, n.y, W, H);
       x.fillStyle = n.doi === 'xanh' ? '#3ddc97' : '#e5484d';
-      x.beginPath(); x.arc(n.x * s, n.y * s, 3, 0, 7); x.fill();
+      x.beginPath(); x.arc(p[0], p[1], 3, 0, 7); x.fill();
     });
   }
 
