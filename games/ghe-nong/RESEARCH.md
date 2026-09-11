@@ -1037,7 +1037,189 @@ báo `luotDaTap: 0` thì đó là lỗi của bộ đo, không phải game đứ
 
 ---
 
-## 7. Nguồn
+## 7. Khâu XEM TRẬN — đợt làm lại theo Teamfight Manager 2 `[ĐO TRONG REPO]`
+
+Chủ dự án: *"phần simulate chưa tốt, quá nhanh, chưa đầy đủ anim. các kỹ năng riêng phải có
+fx riêng, chưa dàn giống teamfight manager 2"*, và *"phải thể hiện rõ là tướng đang làm gì,
+skill gì, có anim rõ ràng. lính đánh thường thì thêm cây spear vào cầm trên tay thọc thọc
+nhau. bắn xa thì cầm súng, thấy rõ đạn. quái rừng cũng vậy, đều phải đầy đủ anim + fx chứ
+không phải chỉ idle cho có lệ."*
+
+### 7.1 "Quá nhanh" — đo ra con số
+
+| | Ghế Nóng (cũ) | TFM2 ×1 | Ghế Nóng (mới) |
+|---|---:|---:|---:|
+| tick/giây thật ở ×1 | 40 | — | **12** |
+| nhanh gấp mấy lần thật | **×10** | ~×1,4 | **×3** |
+| một trận trung bình | 2 phút | ~11 phút | **6,5 phút** |
+
+`[ĐO TRONG REPO]` Một trận dài trung bình **1166 giây trong trận** (10 trận, 915–1560).
+Ở 40 tick/giây thì một tick (0,25 giây trong trận) trôi qua trong 25 ms — nhanh hơn một
+khung hình. Nghĩa là **không có chỗ nào cho một cú vung tay dài 0,2 giây tồn tại**: mọi
+động tác đều bị nuốt giữa hai khung. Chậm lại là điều kiện CẦN để có hoạt ảnh.
+
+Nút tốc độ giờ là `0.5 · ×1 · ×2 · ×3 · ×6`. `0.5` cho ra ~1,5 lần thật, tức đúng nhịp ×1
+của TFM2; `×6` cho lại đúng nhịp của bản cũ cho ai muốn xem vèo.
+
+### 7.2 Nội suy — thứ phải có, không thì chậm lại chỉ càng lộ
+
+Bộ mô phỏng chạy 12 lần/giây, màn hình vẽ ~56 khung/giây. Vẽ thẳng `x/y` thì người không
+đi mà **nhảy** từng quãng 0,25 giây. Sửa: `tickTran()` chụp `px/py` ở đầu mỗi tick, phần
+vẽ nội suy theo tỉ lệ đã đi của tick hiện tại.
+
+`[ĐO TRONG REPO]` lấy một con lính (thứ đi liên tục), đo 90 khung liền:
+`{"soBuocKhac0":89,"buocTB":0.5,"buocMax":2.85}` — **89/89 khung đều dịch chuyển**. Không
+nội suy thì con số ấy phải là ~22/89 (chỉ nhảy ở mép tick).
+
+Đổi lại là trễ đúng một tick = 0,25 giây trong trận. Không ai thấy.
+
+### 7.3 Hoạt ảnh khi sprite gốc chỉ có bốn khung ĐỨNG YÊN
+
+Sprite tướng lấy của HoloCure (`spr_<tên>_idle`) — bốn khung, đều là đứng. Không có khung
+vung tay, và không thể vẽ tay 20 tướng × 5 trạng thái. Cách giải: **phép biến hình + một
+lớp vũ khí rời**.
+
+| trạng thái | bộ mô phỏng ghi gì | phần vẽ làm gì |
+|---|---|---|
+| đi | `px/py` khác `x/y` | nhún chân theo nhịp, khung chạy 7/giây thay vì 3 |
+| ra đòn | `danhLuc`, `danhGoc` | chồm tới theo hướng đánh + vũ khí vung/thọc/giật |
+| niệm chiêu | `niemLuc`, `niemTen`, `niemCuoi` | phình người, bọc sáng theo màu chiêu, **hiện tên chiêu trên đầu** |
+| ăn đòn | `dinhLuc` | chớp trắng một nhịp (vẽ chồng ở `globalCompositeOperation='lighter'`) |
+| chết | `chet > 0` | bia mộ + đếm giây hồi sinh tại chỗ ngã |
+| hồi sinh | `hoiLuc` | luồng sáng dựng từ đất lên |
+
+**Vũ khí cầm tay** (`art/vukhi.png`, 20 khoá) là mấu chốt. Ba nhóm ba động tác khác hẳn:
+
+- **ĐÂM** (giáo, thương, dao) → thọc tới rồi rút về. Chủ dự án gọi đúng tên: *"thọc thọc nhau"*.
+- **VUNG** (kiếm, rìu, búa) → quét một cung từ sau ra trước.
+- **BẮN** (cung, nỏ, súng, bom, phi tiêu) → giật lùi một nhịp, khói đầu nòng, viên đạn bay ra.
+
+Lính cận chiến cầm `thuong`, lính bắn xa cầm `sung_ngan`. Tướng tra `G.VUKHI_TUONG` theo id,
+thiếu thì rơi về `G.VUKHI_LOP` theo lớp — **không bao giờ để tay không**.
+
+### 7.4 Bốn mươi chiêu, bốn mươi bộ mặt
+
+Bản trước cả 40 chiêu dùng chung hai hình: một vòng loang nếu `dien`, một tia nếu không.
+Không thể vẽ 40 bộ sprite, nên `art/fx.png` giữ **26 DÁNG** gốc và `js/fx-chieu.js` ghép
+*dáng + màu + kiểu bày* cho từng chiêu (khoá `'<id tướng>:chieu' | ':cuoi'`).
+
+Mười một **kiểu bày**, mỗi kiểu một hàm vẽ riêng:
+
+```
+vong  vòng loang dưới chân      no    nổ tại mục tiêu
+tia   chùm sáng tới mục tiêu    lao   lao/thọc tới mục tiêu
+ban   một phát bắn có khói nòng roi   rơi từ trời, có vòng ngắm trước
+mua   n phát rơi rải trong vùng xich  nảy gãy khúc qua nhiều mục tiêu
+khoi  đám mây đọng lại          aura  hào quang quanh người / cả đội
+chan  bong bóng khiên           hoi   lấp lánh hồi máu bay lên
+```
+
+Nhờ thế mà *Thiên Thạch* (rơi, cam, rung màn) và *Bão Sét* (mưa 6 phát, vàng) và *Tia Chớp*
+(xích 3 nhịp) là ba thứ khác nhau hẳn, dù đều là chiêu phép diện rộng.
+
+Kèm theo: **tên chiêu hiện ngay trên đầu người dùng** 1,25 giây, màu theo chiêu, chiêu cuối
+có thêm dấu `★`. Đây là câu trả lời trực tiếp cho *"phải thể hiện rõ tướng đang làm gì,
+skill gì"* — không cần đọc bảng số bên phải.
+
+### 7.5 Kỹ năng riêng của huấn luyện viên — trước đây vô hình
+
+Mười kỹ năng ở `G.KN_RIENG` vào tới bộ mô phỏng dưới dạng **một con số** trong `heso.ds`.
+Người chơi chọn huấn luyện viên phần lớn VÌ kỹ năng ấy, mà cả trận không thấy nó xuất hiện
+lần nào. Sửa:
+
+- `hesoTu()` (giai.js) gắn kèm `heso.rieng = {id, ten, pha, dk}`;
+- `knRieng()` (sim.js) canh đúng **mép bật lên** của điều kiện — vào giai đoạn của nó, hoặc
+  đội bắt đầu bị dí về vàng — rồi bắn một hiệu ứng phủ cả đội;
+- phần vẽ kéo một tia từ tâm đội tới từng người còn sống, kèm tên kỹ năng, và một dòng băng
+  giữa màn `KỸ NĂNG HLV: <tên>`.
+
+Chỉ là phần trình bày: không đụng con số nào, nên không đổi kết quả trận.
+
+### 7.6 Quái rừng: `atk: 40` nằm trong dữ liệu từ đầu mà không chỗ nào đọc
+
+Tám bãi quái đứng im cho người ta đập, không vung một cái — trong khi bản ghi của chúng đã
+có sẵn `atk: 40`. Đúng cái lỗi lặp đi lặp lại của kho này (§6). Giờ chúng **đánh trả thật**,
+có chồm tới, có vuốt, có thanh máu, và thở theo nhịp khi đứng yên.
+
+Bốn bãi mỗi bên đối xứng nên thêm đòn đánh **không lệch cán cân hai đội**; nó chỉ làm người
+đi rừng phải trả giá máu khi ăn bãi.
+
+Quét mục tiêu mỗi tick cho 8 bãi × 10 người = 80 phép đo khoảng cách. Chốt lại: quét **hai
+tick một lần** và trừ `q.danh` gấp đôi — bãi quái đánh 1,4 giây một đòn nên kết quả không
+đổi, chỉ đỡ tốn máy. (Đo ra: chỗ này chỉ tốn ~9 µs/tick, tức 3%. Không phải nguyên nhân
+chính của đợt chậm — xem §7.8.)
+
+`[ĐO TRONG REPO]` Tỉ lệ thắng cả mùa sau khi quái rừng đánh trả (n=12 mỗi giải, mẫu nhỏ):
+
+| giải | thắng | đích |
+|---|---:|---:|
+| Vòng bảng L1 / L2 | 83% / 83% | 75–85% ✓ |
+| Play-off quốc nội | 67% | ~60% ✓ |
+| Chung kết quốc nội | 75% | ~75% ✓ |
+| CKTG Tứ kết | 58% | 43–53% (nhẹ hơn đích 5%) |
+| CKTG Bán kết | 50% | 43–53% ✓ |
+| Tranh vé chung kết | 25% | ~25% ✓ |
+| **CHUNG KẾT THẾ GIỚI** | **17%** | ~20% ✓ |
+
+Đường cong còn nguyên. Bốn bãi mỗi bên đối xứng nên đòn đánh của quái rừng không lệch cán
+cân hai đội, đúng như suy đoán ban đầu — nhưng vẫn phải đo mới dám nói.
+
+### 7.7 Bày lại màn trận cho khớp TFM2
+
+Hai thứ TFM2 có mà bản trước thiếu:
+
+- **Hàng mười ảnh tuyển thủ ở góc trái đáy màn** — bấm một cái là camera nhảy tới người đó
+  (bản PC còn gán `F1`–`F10`). Thiếu nó thì người xem chỉ còn cách kéo chuột đi tìm, mà
+  trận đang chạy, tìm xong thì giao tranh đã tan.
+- **Thanh thứ hai trên thẻ tuyển thủ.** TFM2 để một thanh mana dưới thanh máu. Ở đây không
+  có mana, nhưng thứ người xem thật sự cần biết là *ai sắp bung chiêu cuối*: thanh mỏng 4px,
+  đầy thì viền thẻ sáng vàng và tên có dấu `★`.
+
+`[BẪY ĐÃ SẬP]` Bản đầu của thanh ấy dày 12px và có chữ (tên chiêu / đếm giây). Cột chỉ vừa
+đúng **năm** thẻ mỗi bên, nên thẻ thứ năm rơi khỏi khung — và thẻ thứ năm là người hỗ trợ,
+đúng cái vị trí hay bị bỏ quên nhất. Phải rút thanh còn 4px, bỏ chữ, và bóp thêm ô đồ
+(16 → 11px) + bản đồ nhỏ (150 → 132px) mới đủ chỗ.
+
+---
+
+### 7.8 `[BẪY ĐÃ SẬP]` Gắn thêm thuộc tính giữa trận làm bộ mô phỏng chậm 2,4 lần
+
+Đợt này thêm vào `nguoi`/`linh`/`quai`/`tru` một loạt trường cho hoạt ảnh: `px/py` để nội
+suy, và các mốc `danhLuc · danhGoc · niemLuc · niemTen · niemCuoi · dinhLuc · hoiLuc · huong`.
+Tất cả đều được **gắn thêm giữa trận**, kiểu `n.danhLuc = tran.t` ở chỗ ra đòn.
+
+`[ĐO TRONG REPO]` 20 trận chạy bằng `chayHet()`, đo thời gian mỗi tick:
+
+| bản | µs/tick | ms/trận |
+|---|---:|---:|
+| trước đợt này | **139** | 675 |
+| sau đợt này, trường gắn thêm giữa trận | **333** | 1.677 |
+| sau khi KHAI SẴN đủ trường lúc tạo đối tượng | **~200** | ~1.020 |
+
+Nguyên nhân: V8 gán cho mỗi đối tượng một *hidden class* theo đúng thứ tự thuộc tính được
+thêm. Gắn một thuộc tính mới vào đối tượng đã dùng rồi là **đổi hidden class**; và khi một
+mảng chứa các thực thể mang hình dáng khác nhau (người đã ra đòn thì có `danhLuc`, người
+chưa thì không) thì mọi phép đọc thuộc tính trong vòng lặp nóng rơi từ đường *monomorphic*
+xuống đường tra từ điển. Cả `tickTran` chậm đi, không riêng chỗ vừa thêm.
+
+Sửa: **khai đủ mọi trường ngay trong object literal lúc tạo**, kể cả những trường vốn đã
+gắn thêm từ trước (`demDon`, `congDon`, `mucCu`, `chuoi`, `cdChanPhep`, `chanKhiThap`,
+`mucGiamNhan`, `mucHutMau`, `mucDanhTru`). Lấy lại được 1,8 lần tốc độ.
+
+Hai bài học ghi lại để lần sau đỡ dò:
+
+1. **Bất cứ vòng lặp nào thêm vào `tickTran` đều bị nhân với ~7,5 triệu tick** của bộ đo
+   tỉ lệ thắng. Nghĩ tới con số ấy trước khi viết.
+2. **Thêm trường cho một đối tượng trong luồng nóng thì phải khai ở chỗ tạo nó**, không
+   được gắn dọc đường. Đây là cái bẫy đắt nhất của đợt này, và nó không hề hiện ra ở
+   chỗ nào trong mã — chỉ có đồng hồ mới nói.
+
+Dây cuối cùng: hiệu ứng và số bay lên giờ chỉ dựng khi **`tran.veHinh`** bật (màn xem trận
+mở ra). Dữ liệu trình bày không đọc lại trong luồng tính toán, nên bỏ hẳn ở chế độ chạy
+ngầm KHÔNG đổi một con số nào của kết quả trận — mà `tran.bay` thì trước đó còn phình vô
+hạn suốt cả trận chạy ngầm, chẳng ai dọn.
+
+## 8. Nguồn
 
 - Steam — Teamfight Manager 2: https://store.steampowered.com/app/3009300/
 - Steam — Teamfight Manager: https://store.steampowered.com/app/1372810/

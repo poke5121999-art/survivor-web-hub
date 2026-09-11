@@ -452,12 +452,62 @@ Bắt buộc có, theo đúng ảnh TFM2:
    *"Thủ nhà!"*, *"Cần người!"*, *"Ăn trụ rồi rút"*. Câu chọn theo tình huống + tính cách tuyển thủ.
 2. **Băng thông báo giữa màn** khi có mạng / ăn quái lớn: `Kiên hạ gục Long!` với 2 avatar.
 3. **Số sát thương bay lên**: cam = vật lý, tím = phép, xanh = hồi máu, vàng = vàng nhận.
-4. **VFX**: mỗi kỹ năng có hiệu ứng riêng (lấy từ kho HoloCure + Soul Knight, xem mục 9).
+4. **VFX riêng cho TỪNG chiêu** — xem §6.5.7.
 5. **Thanh trên cùng**: logo hai đội, tỉ số ván, tỉ số mạng, tổng vàng, số rồng/chúa hang/trụ, hẹn
    giờ buff.
-6. **Điều khiển**: `0.5 / ×1 / ×2 / ×3 / ⚡bỏ qua`, `Ẩn bảng số`, `Tạm dừng`, `Xem kết quả luôn`.
+6. **Điều khiển**: `0.5 / ×1 / ×2 / ×3 / ×6`, `Ẩn bảng số`, `Tạm dừng`, `Xem kết quả luôn`.
 7. **Minimap** góc phải dưới có khung camera.
-8. **Nhảy camera** bằng cách chạm avatar tuyển thủ.
+8. **Nhảy camera** hai đường: chạm thẻ tuyển thủ ở cột phải, hoặc chạm một trong **mười ảnh
+   xếp ở góc trái đáy màn** (TFM2 đặt đúng chỗ ấy và gán `F1`–`F10`).
+9. **Thanh chiêu cuối** mỏng 4px dưới thanh máu trên từng thẻ. Đầy thì viền thẻ sáng vàng và
+   tên có dấu `★` — thay cho thanh mana của TFM2, vì thứ người xem cần biết là *ai sắp bung
+   chiêu cuối*.
+
+#### 6.5.7 Nhịp xem, hoạt ảnh, và hiệu ứng từng chiêu
+
+**Nhịp.** `×1` = **12 tick/giây** = nhanh gấp **3 lần thật** (một trận ~1166 giây trong trận
+→ ~6,5 phút xem). Bản đầu để 40 tick/giây, tức gấp **10 lần thật**: một tick trôi qua trong
+25 ms, nhanh hơn một khung hình, nên **không có chỗ nào cho một cú vung tay dài 0,2 giây tồn
+tại**. Nút `0.5` cho ra ~1,5 lần thật — đúng nhịp `×1` của TFM2. Chi tiết đo ở `RESEARCH.md`
+§7.1.
+
+**Nội suy.** Bộ mô phỏng 12 lần/giây, màn hình ~56 khung/giây. `tickTran()` chụp `px/py` đầu
+mỗi tick; phần vẽ nội suy theo tỉ lệ đã đi. Không có bước này thì chậm lại chỉ càng lộ cái
+nhảy giật. Đo: 89/89 khung đều dịch chuyển.
+
+**Hoạt ảnh từ sprite chỉ có bốn khung đứng yên.** Sprite tướng (HoloCure) không có khung vung
+tay. Dựng bằng phép biến hình + **một lớp vũ khí rời** (`art/vukhi.png`, 20 khoá):
+
+| trạng thái | phần vẽ làm gì |
+|---|---|
+| đi | nhún chân, khung chạy 7/giây thay vì 3 |
+| ra đòn | chồm tới theo hướng đánh; vũ khí **ĐÂM** (giáo/thương/dao) thọc tới rồi rút · **VUNG** (kiếm/rìu/búa) quét một cung · **BẮN** (cung/nỏ/súng/bom) giật lùi + khói nòng + đạn bay |
+| niệm chiêu | phình người, bọc sáng theo màu chiêu, **tên chiêu hiện trên đầu** 1,25 s |
+| ăn đòn | chớp trắng một nhịp |
+| chết | bia mộ + đếm giây hồi sinh tại chỗ ngã |
+| hồi sinh | luồng sáng dựng từ đất lên |
+
+Lính cận cầm `thuong` và thọc; lính bắn xa cầm `sung_ngan`, giật lùi rồi viên đạn bay ra.
+Quái rừng và quái lớn cũng chồm tới + vuốt khi đánh (và quái rừng giờ **đánh trả thật** —
+`atk: 40` nằm trong dữ liệu từ đầu mà không chỗ nào đọc).
+
+**Hiệu ứng từng chiêu.** Bốn mươi chiêu không thể có bốn mươi bộ sprite. `art/fx.png` giữ
+**26 dáng** gốc, `js/fx-chieu.js` ghép *dáng + màu + kiểu bày* cho từng chiêu, khoá
+`'<id tướng>:chieu' | ':cuoi'`. Mười một kiểu bày, mỗi kiểu một hàm vẽ:
+
+```
+vong  vòng loang dưới chân      no    nổ tại mục tiêu
+tia   chùm sáng tới mục tiêu    lao   lao/thọc tới mục tiêu
+ban   một phát bắn có khói nòng roi   rơi từ trời, có vòng ngắm trước
+mua   n phát rơi rải trong vùng xich  nảy gãy khúc qua nhiều mục tiêu
+khoi  đám mây đọng lại          aura  hào quang quanh người / cả đội
+chan  bong bóng khiên           hoi   lấp lánh hồi máu bay lên
+```
+
+**Kỹ năng riêng của HLV** (`G.KN_RIENG`) nổ ra ở mép bật lên của điều kiện: hào quang phủ cả
+đội, tia kéo từ tâm đội tới từng người, và băng `KỸ NĂNG HLV: <tên>`. Trước đây nó chỉ là một
+con số trong `heso.ds` — người chơi chọn huấn luyện viên vì kỹ năng ấy mà cả trận không thấy
+nó một lần.
 
 #### 6.5.6 Sau trận
 
@@ -617,8 +667,33 @@ Trên điện thoại không có chỗ cho tooltip rê chuột, nên thông tin 
 
 ### 8.4 Màn trận đấu
 
-Giống sơ đồ ở mục 6.5.5. Trên màn hẹp (< 900px CSS), **bảng số thu thành tab** và mặc định ẩn — bản
-đồ chiếm hết, đúng tinh thần nút `Hide Info UI` của TFM2.
+```
+┌ thanh trên: hai đội · tỉ số mạng · đồng hồ · rồng/chúa/trụ · vàng ───────────┐
+├────────────────────────────────────────────┬────────────────────────────────┤
+│                                            │ BẢNG ĐỐI ĐẦU 5 dòng            │
+│            BẢN ĐỒ (canvas)                 ├────────────────────────────────┤
+│   người + vũ khí trên tay + tên chiêu      │ 10 THẺ (2 cột × 5):            │
+│   + số sát thương bay lên + bia mộ         │  ảnh · Lv tên · K/D/A          │
+│                                            │  thanh máu                     │
+│                                            │  thanh CHIÊU CUỐI (4px)        │
+│  ┌ lời thoại ─────────┐                    │  5 ô đồ                        │
+│  │ GN3: Gank trên nhé │                    ├──────────────┬─────────────────┤
+├──┴────────────────────┴────────────────────┤  MINIMAP     │ Tự bám          │
+│                                            │  132×132     │ 4 mức zoom      │
+│                                            │              │ Ẩn bảng số      │
+│                                            │              │ Tạm dừng        │
+│                                            │              │ Xem kết quả luôn│
+├────────────────────────────────────────────┴──────────────┴─────────────────┤
+│ [10 ảnh nhảy camera]        0.5  ×1  ×2  ×3  ×6                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+Trên màn hẹp (< 900px CSS), **bảng số thu thành tab** và mặc định ẩn — bản đồ chiếm hết, đúng
+tinh thần nút `Hide Info UI` của TFM2.
+
+`[BẪY ĐÃ SẬP]` Cột thẻ chỉ vừa đúng **năm** người mỗi bên. Thêm thanh chiêu cuối dày 12px kèm
+chữ là thẻ thứ năm rơi khỏi khung — mà thẻ thứ năm là người hỗ trợ, đúng vị trí hay bị bỏ
+quên nhất. Phải rút thanh còn 4px, bỏ chữ, bóp ô đồ (16 → 11px) và bản đồ nhỏ (150 → 132px).
 
 ### 8.5 Quy ước UI chung `[ĐỀ XUẤT]`
 
@@ -639,7 +714,8 @@ Nguồn (đã có sẵn trên máy, dùng như các game khác trong hub):
 |---|---|---|
 | Chân dung HLV, tuyển thủ | `D:\HoloCureAssets\Sprites_by_Character` (22 nhân vật) | ảnh đứng + biểu cảm |
 | Sprite trong trận | HoloCure `GameSprites` (3.363 tệp) + Soul Knight (10.894 tệp) | tướng, quái, lính |
-| Hiệu ứng chiêu | HoloCure `Effects_VFX` + Soul Knight `_ab` | nổ, chém, băng, sét |
+| Hiệu ứng chiêu | Soul Knight `sprites/effect_*` | **26 dáng** → `art/fx.png`, ghép thành 40 mặt chiêu ở `js/fx-chieu.js` |
+| Vũ khí cầm tay | Soul Knight `sprites/weapons[2-5]_*` | **20 khoá** → `art/vukhi.png`, vẽ đè lên người để có động tác đánh |
 | Đồ đạc | Soul Knight vũ khí/vật phẩm | biểu tượng ô đồ |
 | Nền bản đồ | Soul Knight `tilemap` (đã có luật đọc ở `games/repo2d/art/room/SOULKNIGHT-TILEMAP.md`) | ghép nền MOBA |
 | Âm thanh | `~/Downloads/SFX` | click, thắng, mạng, cầu vồng |

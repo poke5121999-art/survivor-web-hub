@@ -15,13 +15,13 @@
 
   G.taiArt = function (cb) {
     if (!MAP) { if (cb) cb(false); return; }
-    var ds = ['tuong', 'nguoi', 'quai', 'fx', 'dan', 'tru', 'do'];
+    var ds = ['tuong', 'nguoi', 'quai', 'fx', 'dan', 'tru', 'do', 'vukhi'];
     can = ds.length;
     ds.forEach(function (t) {
       var im = new Image();
       im.onload = function () { ANH[t] = im; if (++xong >= can) { G.ART.sanSang = true; if (cb) cb(true); } };
       im.onerror = function () { if (++xong >= can) { G.ART.sanSang = true; if (cb) cb(true); } };
-      im.src = 'art/' + t + '.png?v=20260911a';
+      im.src = 'art/' + t + '.png?v=20260912a';
     });
   };
 
@@ -83,6 +83,35 @@
     if (!MAP || !MAP.fx || !MAP.fx[id]) return false;
     var m = MAP.fx[id];
     return veTam(ctx, 'fx', m[0], (khung | 0) % (m[1] || 1), x, y, cao || 40, goc);
+  };
+
+  /* ══════════ VŨ KHÍ CẦM TAY ══════════
+     Sprite tướng (HoloCure) chỉ có bốn khung ĐỨNG YÊN — không ai vung tay bao giờ. Nên
+     động tác đánh phải dựng bằng một lớp RỜI: vũ khí vẽ đè lên người, tự xoay và tự thọc
+     tới theo mã. Nhờ thế mà hai mươi tướng + lính + quái đều có đòn đánh nhìn thấy được
+     mà không phải vẽ lại một khung nào.
+
+     Mọi hình trong vukhi.png đều CHĨA SANG PHẢI, chuôi ở bên trái, canh giữa ô. `goc` là
+     hướng chĩa (radian). `neo` đẩy vũ khí ra xa tâm theo đúng hướng ấy — chính là độ dài
+     cánh tay, và cũng chính là cú THỌC khi nó đổi theo thời gian. */
+  G.veVuKhi = function (ctx, id, x, y, cao, goc, neo) {
+    if (!MAP || !MAP.vukhi || !MAP.vukhi[id]) return false;
+    var m = MAP.vukhi[id];
+    var g = goc || 0;
+    var n = neo || 0;
+    /* Chĩa sang trái thì lật DỌC, không thì lưỡi kiếm quay xuống đất trông như gãy tay. */
+    var lat = Math.abs(g) > Math.PI / 2;
+    var im = ANH['vukhi'];
+    if (!im || !im.width) return false;
+    var O = o(), k = (cao || 26) / O, w = O * k, h = O * k;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x + Math.cos(g) * n, y + Math.sin(g) * n);
+    ctx.rotate(g);
+    if (lat) ctx.scale(1, -1);
+    ctx.drawImage(im, m[0] * O, 0, O, O, -w / 2, -h / 2, w, h);
+    ctx.restore();
+    return true;
   };
 
   /** viên đạn: `goc` là hướng bay tính bằng radian, ảnh gốc chĩa sang phải */

@@ -59,9 +59,24 @@
      không có gì cả: cả trận chỉ thấy người đứng cạnh nhau và số trừ bay lên, nên nhìn như
      bảng tính chứ không như trận đấu. */
   function hieuUng(tran, o) {
+    /* KHÔNG AI XEM THÌ KHÔNG DỰNG.
+       `tran.veHinh` chỉ bật khi màn xem trận mở ra. Bộ đo tỉ lệ thắng chạy ~300 trận liền
+       một mạch bằng `chayHet()`; mỗi trận có hàng chục nghìn đòn đánh của lính, mà từ đợt
+       này mỗi đòn đều đẩy ra một hiệu ứng để vẽ cú thọc. Dựng hết rồi bỏ đi là tự nhân
+       thời gian đo lên nhiều lần — mà dữ liệu trình bày thì không đọc lại trong luồng
+       tính toán, nên bỏ hẳn cũng KHÔNG đổi một con số nào của kết quả trận. */
+    if (!tran.veHinh) return;
     o.t = tran.t;
     tran.hieu.push(o);
     if (tran.hieu.length > 300) tran.hieu.shift();
+  }
+
+  /** số bay lên — cũng là dữ liệu trình bày, cùng một luật với hieuUng() */
+  function soBay(tran, o) {
+    if (!tran.veHinh) return;
+    o.t = tran.t;
+    tran.bay.push(o);
+    if (tran.bay.length > 400) tran.bay.shift();
   }
 
   function xa(a, b) { var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy); }
@@ -99,6 +114,7 @@
     var tran = {
       rng: rng, t: 0, tick: 0, daiToiDa: dai, xong: false, thang: null,
       cau: cau,
+      veHinh: false,        /* bật khi màn xem trận mở — xem hieuUng() */
       nguoi: [], linh: [], tru: [], quai: [], quaiLon: {},
       suKien: [], thoai: [], bay: [], hieu: [],
       vang: { xanh: 0, do: 0 }, mang: { xanh: 0, do: 0 },
@@ -128,7 +144,20 @@
           cd: { chieu: 0, cuoi: 0 }, danh: 0,
           k: 0, d: 0, a: 0, dmg: 0, nhan: 0, hoi: 0,
           chet: 0, veNha: false, mucTieu: null, dem: 0,
-          buff: [], dot: [], hieu: {}, kc: 0, cham: 0, lanCuoi: 0
+          buff: [], dot: [], hieu: {}, kc: 0, cham: 0, lanCuoi: 0,
+          /* ── HÌNH DÁNG ĐỐI TƯỢNG PHẢI KHAI ĐỦ Ở ĐÂY ──
+             Mọi trường dưới đây trước kia được GẮN THÊM giữa trận (px/py cho nội suy, các
+             mốc thời gian cho hoạt ảnh, mấy biến đếm của nội tại). Trong V8, gắn thêm một
+             thuộc tính mới vào đối tượng đã dùng rồi là đổi hidden class, và khi cùng một
+             mảng có thực thể mang hình dáng khác nhau thì mọi phép đọc thuộc tính trong
+             vòng lặp nóng rơi xuống đường chậm.
+             [ĐO TRONG REPO] để chúng gắn thêm: 333 µs/tick. Khai sẵn ở đây: xem §7.6.
+             Bộ đo tỉ lệ thắng chạy ~7,5 triệu tick nên chỗ này là phút, không phải µs. */
+          px: v[0], py: v[1], huong: null, _h: 0,
+          danhLuc: -9, danhGoc: 0, niemLuc: -9, niemTen: '', niemCuoi: false,
+          dinhLuc: -9, hoiLuc: -9, tTran: 0,
+          demDon: 0, congDon: 0, mucCu: null, chuoi: 0, chuoi0: 0,
+          cdChanPhep: 0, chanKhiThap: 0, mucGiamNhan: 0, mucHutMau: 0, mucDanhTru: 0
         });
       });
     });
@@ -137,27 +166,32 @@
     TRU.forEach(function (r) {
       var p = diemTren(r[0], r[2] === 'xanh' ? r[1] : r[1]);
       tran.tru.push({ lane: r[0], doi: r[2], t: r[1], x: p[0], y: p[1],
-        hp: 4800, hpMax: 4800, giap: 95, khang: 95, atk: 190, tam: 130, danh: 0, song: true });
+        hp: 4800, hpMax: 4800, giap: 95, khang: 95, atk: 190, tam: 130, danh: 0, song: true,
+        nha: false, loi: false, danhLuc: -9, dinhLuc: -9 });
     });
     /* hai trụ nhà + lõi */
     ['xanh', 'do'].forEach(function (d) {
       var n = NHA[d];
       tran.tru.push({ lane: 'nha', doi: d, x: n[0] + (d === 'xanh' ? 70 : -70), y: n[1] + (d === 'xanh' ? -70 : 70),
-        hp: 6200, hpMax: 6200, giap: 120, khang: 120, atk: 240, tam: 150, danh: 0, song: true, nha: true });
+        hp: 6200, hpMax: 6200, giap: 120, khang: 120, atk: 240, tam: 150, danh: 0, song: true,
+        nha: true, loi: false, danhLuc: -9, dinhLuc: -9 });
       tran.tru.push({ lane: 'loi', doi: d, x: n[0], y: n[1],
-        hp: 8200, hpMax: 8200, giap: 140, khang: 140, atk: 180, tam: 140, danh: 0, song: true, loi: true });
+        hp: 8200, hpMax: 8200, giap: 140, khang: 140, atk: 180, tam: 140, danh: 0, song: true,
+        nha: false, loi: true, danhLuc: -9, dinhLuc: -9 });
     });
 
     /* quái rừng */
     BAI.forEach(function (b, i) {
       tran.quai.push({ i: i, x: b[0], y: b[1], gan: b[2], hp: 900, hpMax: 900, atk: 40,
-        song: true, hoi: 0, vang: 55, exp: 70 });
+        song: true, hoi: 0, vang: 55, exp: 70,
+        danh: 0, danhLuc: -9, goc: 0, dinhLuc: -9 });
     });
     /* quái lớn */
     for (var k in QUAI_LON) {
       var q = QUAI_LON[k];
       tran.quaiLon[k] = { id: k, ten: q.ten, x: q.x, y: q.y, hp: 0, hpMax: q.hp, atk: q.atk,
-        song: false, hienRa: q.dau, vang: q.vang, exp: q.exp, lap: q.lap, lan: 0 };
+        song: false, hienRa: q.dau, vang: q.vang, exp: q.exp, lap: q.lap, lan: 0,
+        danh: 0, danhLuc: -9, goc: 0, dinhLuc: -9 };
     }
 
     return tran;
@@ -277,17 +311,18 @@
         (!bi.chanKhiThap || tran.t - bi.chanKhiThap > 90)) {
       bi.chanKhiThap = tran.t;
       bi.hp += bi.hpMax * 0.22;
-      tran.bay.push({ x: bi.x, y: bi.y, chu: 'chắn!', loai: 'hoi', t: tran.t });
+      soBay(tran, { x: bi.x, y: bi.y, chu: 'chắn!', loai: 'hoi' });
     }
 
     bi.hp -= thuc;
+    bi.dinhLuc = tran.t;                    /* mốc để chớp trắng một nhịp khi ăn đòn */
     /* Cuồng Chiến: Không Lùi — không tụt xuống dưới 1 máu trong mấy giây */
     if (bi.tuong && bi.hieu && bi.hieu.batTu && bi.hp < 1) bi.hp = 1;
     if (ke.tuong) { ke.dmg += thuc; ke.lanCuoi = tran.t; }
     if (bi.tuong) bi.nhan += thuc;
 
     if (ghiNhan !== false && bi.tuong) {
-      tran.bay.push({ x: bi.x, y: bi.y, chu: Math.round(thuc), loai: loai, t: tran.t });
+      soBay(tran, { x: bi.x, y: bi.y, chu: Math.round(thuc), loai: loai });
     }
     /* hút máu */
     if (ke.tuong && ke.hutTam) { }
@@ -627,7 +662,10 @@
             /* bùa Chúa Hang có HẠN: so với đồng hồ trận, không phải chỉ xem có hay không.
                Để nguyên `? 1 : 0` thì đội ăn Chúa Hang đầu tiên có lính mạnh 1.4× tới hết trận — đo được:
                kèo gương mà bên nào ăn Chúa trước thì phá 6.4 trụ, bên kia 3.5. */
-            buff: (tran.buff[doi].linh || 0) > tran.t ? 1 : 0
+            buff: (tran.buff[doi].linh || 0) > tran.t ? 1 : 0,
+            /* cùng lý do với `nguoi` ở trên — khai đủ để hình dáng đối tượng đứng yên */
+            px: p[0] + (i - 1.5) * 8, py: p[1] + (i - 1.5) * 8,
+            huong: null, _h: 0, goc: 0, danhLuc: -9, dinhLuc: -9
           });
         }
       });
@@ -639,8 +677,20 @@
   G.tickTran = function (tran) {
     if (tran.xong) return;
     var rng = tran.rng;
+
+    /* ── CHỤP VỊ TRÍ ĐẦU TICK ──
+       Một tick là 0.25 giây trong trận, còn màn hình vẽ 60 khung một giây. Nếu vẽ thẳng
+       x/y hiện tại thì người không đi mà NHẢY: mỗi lần nhảy một quãng 0.25 giây đường
+       chạy. Chép lại vị trí cũ ở đây để ui-tran.js nội suy giữa hai tick — đây là thứ
+       làm cho trận trông như đang chuyển động chứ không phải một chuỗi ảnh chụp. */
+    if (tran.veHinh) {
+      tran.nguoi.forEach(function (n) { n.px = n.x; n.py = n.y; });
+      tran.linh.forEach(function (l) { l.px = l.x; l.py = l.y; });
+    }
+
     tran.tick++;
     tran.t += TICK;
+    knRieng(tran);
 
     /* sóng lính mỗi 30 giây */
     if (tran.t >= 30 && Math.floor(tran.t / 30) > tran.songLinh - 1) raLinh(tran);
@@ -671,7 +721,9 @@
         n.chet -= TICK;
         if (n.chet <= 0) {
           n.x = n.nha[0]; n.y = n.nha[1];
+          n.px = n.x; n.py = n.y;              /* khỏi nội suy cả quãng đường về nhà */
           n.hp = n.hpMax; n.veNha = false;
+          n.hoiLuc = tran.t;                   /* mốc để vẽ luồng sáng hồi sinh */
           muaDo(tran, n);
         }
         return;
@@ -772,9 +824,18 @@
 
           if (n.hieu.danhTru && !muc.tuong && muc.hpMax >= 3000) luong *= 1 + (n.mucDanhTru || 1.2);
           var thuc = satThuong(tran, n, muc, luong, loaiDon);
-          hieuUng(tran, cs.tam > 45
-            ? { loai: 'dan', x: n.x, y: n.y, x2: muc.x, y2: muc.y, lop: n.tuong.lop, doi: n.doi }
-            : { loai: 'chem', x: muc.x, y: muc.y, goc: Math.atan2(muc.y - n.y, muc.x - n.x), doi: n.doi });
+          /* Mốc cho hoạt ảnh: lúc nào ra đòn và ra về hướng nào. ui-tran.js đọc hai số
+             này để thọc/vung vũ khí — không có chúng thì tướng đứng im suốt trận. */
+          n.danhLuc = tran.t;
+          n.danhGoc = Math.atan2(muc.y - n.y, muc.x - n.x);
+          n.huong = n.danhGoc;
+          /* Dựng đối số TRƯỚC khi gọi thì hieuUng() bỏ đi cũng đã tốn một lần cấp phát.
+             Ở bộ đo cân bằng, ngần ấy lần cấp phát nhân với 7,5 triệu tick là hàng phút. */
+          if (tran.veHinh) hieuUng(tran, cs.tam > 45
+            ? { loai: 'dan', x: n.x, y: n.y, x2: muc.x, y2: muc.y, lop: n.tuong.lop,
+                doi: n.doi, vk: G.vuKhiCua ? G.vuKhiCua(n.tuong) : null }
+            : { loai: 'chem', x: muc.x, y: muc.y, goc: n.danhGoc, doi: n.doi,
+                vk: G.vuKhiCua ? G.vuKhiCua(n.tuong) : null });
           if (cs.hut) n.hp = Math.min(n.hpMax, n.hp + thuc * cs.hut);
           if (n.hieu.hutMau) n.hp = Math.min(n.hpMax, n.hp + n.hpMax * (n.mucHutMau || 0.03));
 
@@ -821,6 +882,7 @@
         var dx = mt.x - n.x, dy = mt.y - n.y;
         var d = Math.sqrt(dx * dx + dy * dy) || 1;
         var toc = cs.tocchay * TICK * 1.35;
+        if (d > 1) n.huong = Math.atan2(dy, dx);
         if (d > toc) { n.x += dx / d * toc; n.y += dy / d * toc; }
         else { n.x = mt.x; n.y = mt.y; }
       }
@@ -851,9 +913,27 @@
       }
       if (muc) {
         l.danh -= TICK;
-        if (l.danh <= 0) { l.danh = 1.1; satThuong(tran, l, muc, l.atk * (l.buff ? 1.4 : 1), 'vl', false); xuLyChet(tran, l, muc); }
+        if (l.danh <= 0) {
+          l.danh = 1.1;
+          /* Chủ dự án: "lính đánh thường thì thêm cây spear vào cầm trên tay thọc thọc
+             nhau, bắn xa thì cầm súng, thấy rõ đạn". Hai mốc dưới là tất cả những gì
+             phần vẽ cần để dựng được cú thọc và phát bắn. */
+          l.danhLuc = tran.t;
+          l.goc = Math.atan2(muc.y - l.y, muc.x - l.x);
+          l.huong = l.goc;
+          if (tran.veHinh) {
+            if (l.xa) hieuUng(tran, { loai: 'dan', x: l.x, y: l.y, x2: muc.x, y2: muc.y,
+              lop: 'xa', doi: l.doi, nho: 1, vk: 'sung_ngan' });
+            else hieuUng(tran, { loai: 'thoc', x: l.x, y: l.y, x2: muc.x, y2: muc.y,
+              goc: l.goc, doi: l.doi, vk: 'thuong' });
+          }
+          satThuong(tran, l, muc, l.atk * (l.buff ? 1.4 : 1), 'vl', false);
+          xuLyChet(tran, l, muc);
+        }
       } else {
-        l.t += (l.doi === 'xanh' ? 1 : -1) * 0.0016;
+        var huongDi = (l.doi === 'xanh' ? 1 : -1);
+        l.huong = null;                        /* đang đi theo đường, hướng tính từ px/py */
+        l.t += huongDi * 0.0016;
         l.t = G.kep(l.t, 0, 1);
         var p = diemTren(l.lane, l.t);
         l.x = p[0]; l.y = p[1];
@@ -879,7 +959,8 @@
       }
       if (muc) {
         r.danh = 1.2;
-        hieuUng(tran, { loai: 'tia', x: r.x, y: r.y, x2: muc.x, y2: muc.y, doi: r.doi });
+        r.danhLuc = tran.t;
+        if (tran.veHinh) hieuUng(tran, { loai: 'tia', x: r.x, y: r.y, x2: muc.x, y2: muc.y, doi: r.doi });
         satThuong(tran, r, muc, r.atk, 'vl'); xuLyChet(tran, r, muc);
       }
     });
@@ -895,7 +976,41 @@
         if (m.chet > 0) return;
         var d = xaXY(q.x, q.y, m.x, m.y); if (d < gd) { gd = d; muc = m; }
       });
-      if (muc) { q.danh = 1.0; satThuong(tran, q, muc, q.atk, 'vl'); xuLyChet(tran, q, muc); }
+      if (muc) {
+        q.danh = 1.0;
+        q.danhLuc = tran.t;
+        q.goc = Math.atan2(muc.y - q.y, muc.x - q.x);
+        if (tran.veHinh) hieuUng(tran, { loai: 'vuot', x: muc.x, y: muc.y, goc: q.goc, to: 1, doi: 'quai' });
+        satThuong(tran, q, muc, q.atk, 'vl'); xuLyChet(tran, q, muc);
+      }
+    });
+
+    /* ── QUÁI RỪNG ĐÁNH TRẢ ──
+       `atk: 40` đã nằm trong dữ liệu bãi quái từ đầu mà KHÔNG CHỖ NÀO ĐỌC: tám bãi
+       đứng im cho người ta đập, không vung một cái. Đúng cái lỗi lặp lại của kho này
+       (RESEARCH §6). Bốn bãi mỗi bên đối xứng nên thêm đòn đánh không lệch cán cân,
+       chỉ làm người đi rừng phải trả giá máu khi ăn bãi — và quan trọng hơn: nhìn vào
+       bãi quái là thấy có một trận đánh đang diễn ra. */
+    /* Quét hai tick một lần: tám bãi × mười người là tám mươi phép đo khoảng cách, mà
+       bãi quái đánh 1,4 giây một đòn nên quét mỗi tick chỉ tốn máy chứ không đổi kết quả.
+       Bộ đo tỉ lệ thắng chạy 1600 trận liền một mạch — chỗ này nhân lên là thấy ngay. */
+    if (tran.tick % 2 === 0) tran.quai.forEach(function (q) {
+      if (!q.song || q.hp <= 0) return;
+      q.danh = (q.danh || 0) - TICK * 2;
+      if (q.danh > 0) return;
+      var mucQ = null, gdQ = 70;
+      tran.nguoi.forEach(function (m) {
+        if (m.chet > 0) return;
+        var d = xaXY(q.x, q.y, m.x, m.y);
+        if (d < gdQ) { gdQ = d; mucQ = m; }
+      });
+      if (!mucQ) return;
+      q.danh = 1.4;
+      q.danhLuc = tran.t;
+      q.goc = Math.atan2(mucQ.y - q.y, mucQ.x - q.x);
+      if (tran.veHinh) hieuUng(tran, { loai: 'vuot', x: mucQ.x, y: mucQ.y, goc: q.goc, doi: 'quai' });
+      satThuong(tran, q, mucQ, q.atk, 'vl');
+      xuLyChet(tran, q, mucQ);
     });
 
     /* ── vàng và kinh nghiệm trôi đều ── */
@@ -927,15 +1042,62 @@
     }
   };
 
+  /* ══════════════════ KỸ NĂNG RIÊNG CỦA HUẤN LUYỆN VIÊN ══════════════════
+     Mười kỹ năng ở G.KN_RIENG vào tới bộ mô phỏng dưới dạng một dòng trong `heso.ds`
+     — tức là một con số nhân vào sát thương, không hơn. Người chơi chọn huấn luyện
+     viên phần lớn VÌ kỹ năng ấy, mà suốt trận không thấy nó xuất hiện lần nào.
+
+     `hesoTu()` bên giai.js giờ gắn kèm `heso.rieng = {id, ten, pha, dk}`. Ở đây canh
+     đúng lúc điều kiện của nó bật lên — bước vào giai đoạn của mình, hoặc đội bắt đầu
+     bị dí — rồi bắn ra một hào quang phủ cả đội và một dòng băng. Chỉ là phần TRÌNH
+     BÀY: không đụng vào con số nào, nên không đổi kết quả trận. */
+  function phaCua(t) {
+    return t < 600 ? 'dau' : t < 1320 ? 'giua' : 'cuoi';
+  }
+
+  function knRieng(tran) {
+    if (tran.tick % 8 !== 0) return;                 /* 2 giây một lần là đủ */
+    ['xanh', 'do'].forEach(function (doi) {
+      var ben = doi === 'xanh' ? 'ta' : 'dich';
+      var h = tran.cau[ben] && tran.cau[ben].heso;
+      var r = h && h.rieng;
+      if (!r) return;
+      var bat = (r.pha === 'luon' || r.pha === phaCua(tran.t));
+      if (bat && r.dk === 'thua') {
+        bat = (doi === 'xanh' ? tran.vang.xanh < tran.vang.do : tran.vang.do < tran.vang.xanh);
+      }
+      if (!bat) { r._dang = false; return; }
+      if (r._dang) return;                            /* chỉ nổ ở MÉP bật lên */
+      r._dang = true;
+      var song = tran.nguoi.filter(function (n) { return n.doi === doi && n.chet <= 0; });
+      if (!song.length) return;
+      var mx = 0, my = 0;
+      song.forEach(function (n) { mx += n.x; my += n.y; });
+      hieuUng(tran, { loai: 'hlv', kn: r.id, ten: r.ten, doi: doi,
+        x: mx / song.length, y: my / song.length,
+        ds: song.map(function (n) { return n.i; }) });
+      tran.suKien.push({ t: tran.t, loai: 'knRieng', doi: doi, ten: r.ten, kn: r.id });
+    });
+  }
+
   /* ══════════════════ chiêu ══════════════════ */
   function dungChieu(tran, n, muc, kn, cs) {
     var h = kn.h || {};
+    /* `tuong` + `kn` là hai trường quan trọng nhất ở đây: nhờ chúng mà ui-tran.js tra
+       được G.FX_CHIEU và vẽ ĐÚNG mặt của chiêu ấy, thay vì một cái vòng loang dùng
+       chung cho cả bốn mươi chiêu như bản trước. `ten` đi kèm để hiện tên chiêu trên
+       đầu người dùng — nhìn một cái là biết vừa bung gì. */
+    n.niemLuc = tran.t;
+    n.niemTen = kn.ten;
+    n.niemCuoi = kn.loai === 'cuoi';
+    if (muc) n.huong = Math.atan2(muc.y - n.y, muc.x - n.x);
     hieuUng(tran, {
       loai: kn.loai === 'cuoi' ? 'cuoi' : 'chieu',
+      tuong: n.tuong.id, kn: kn.loai === 'cuoi' ? 'cuoi' : 'chieu',
       x: n.x, y: n.y,
       x2: (muc && muc.x) || n.x, y2: (muc && muc.y) || n.y,
       dien: !!(h.dmg && h.dmg.dien), pt: !!(h.dmg && h.dmg.loai === 'pt'),
-      hoi: !!h.hoi, chan: !!h.chan, kc: !!h.kc, doi: n.doi, ten: kn.ten
+      hoi: !!h.hoi, chan: !!h.chan, kc: !!h.kc, doi: n.doi, ten: kn.ten, ai: n.i
     });
     var suc = h.dmg ? ((h.dmg.loai === 'pt' ? cs.ap : cs.atk) * (h.dmg.g || 0) + (h.dmg.c || 0)) : 0;
     /* đồ Tiên Tri Vực Thẳm (dac `no_dien`): kỹ năng gây thêm 12% sát thương */
@@ -980,7 +1142,7 @@
     }
     if (chanBoi) {
       chanBoi.cdChanPhep = tran.t + 60;
-      tran.bay.push({ x: chanBoi.x, y: chanBoi.y, chu: 'chặn', loai: 'ne', t: tran.t });
+      soBay(tran, { x: chanBoi.x, y: chanBoi.y, chu: 'chặn', loai: 'ne' });
       if (G.veFX) { /* hiệu ứng khiên vẽ ở ui-tran qua hieuUng bên trên */ }
       tran.suKien.push({ t: tran.t, loai: 'chanPhep', ai: chanBoi.i, ten: kn.ten });
       return;
@@ -990,7 +1152,7 @@
       if (!m || m.hp <= 0) return;
       /* CƠ của người bị đánh = né chiêu. Đây là chỗ chỉ số CƠ nói tiếng nói rõ nhất. */
       if (m.tuong && !m.hieu.mienKc && tran.rng.duoc(G.kep(m.cs.co / 1200 * 0.22, 0, 0.22))) {
-        tran.bay.push({ x: m.x, y: m.y, chu: 'né', loai: 'ne', t: tran.t });
+        soBay(tran, { x: m.x, y: m.y, chu: 'né', loai: 'ne' });
         return;
       }
       var luongM = suc * lap;
@@ -1041,7 +1203,7 @@
         var luongM2 = luong + (h.hoi.phanTramMau ? m.hpMax * h.hoi.phanTramMau * (h.lap || 1) : 0);
         m.hp = Math.min(m.hpMax, m.hp + luongM2);
         n.hoi += m.hp - truoc;
-        tran.bay.push({ x: m.x, y: m.y, chu: '+' + Math.round(m.hp - truoc), loai: 'hoi', t: tran.t });
+        soBay(tran, { x: m.x, y: m.y, chu: '+' + Math.round(m.hp - truoc), loai: 'hoi' });
       });
     }
     if (h.chan) {

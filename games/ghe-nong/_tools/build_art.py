@@ -111,6 +111,10 @@ QUAI_SK = [
 ]
 
 # ── hiệu ứng: (khoá, thư mục, danh sách tệp theo thứ tự khung) ──
+#    Mỗi CHIÊU của mỗi tướng phải nhìn ra được là chiêu nào (yêu cầu của chủ dự án), mà
+#    bốn mươi chiêu thì không thể bốn mươi bộ sprite. Cách giải: mười bốn HÌNH DÁNG gốc ở
+#    đây, rồi js/fx-chieu.js ghép dáng + màu + kiểu bày (vòng / tia / mưa / xích / lao) cho
+#    từng chiêu. Mười dòng đầu là bản cũ, giữ nguyên khoá để không vỡ chỗ nào đang gọi.
 FX = [
     ('chem', SK, ['effect_axe_%d.png' % i for i in range(6)]),   # lưỡi trăng lam, mở sang trái
     ('vuot', SK, ['bullet_eye_%d.png' % i for i in range(5)]),
@@ -122,6 +126,52 @@ FX = [
     ('sao',  SK, ['effect_0_%d.png' % i for i in range(4)]),
     ('loc',  SK, ['bullet_druid_s8_0_%d.png' % i for i in range(6)]),
     ('lua',  SK, ['effect08_seperated_%d.png' % i for i in range(3)]),
+    # ── bổ sung cho hiệu ứng chiêu ──
+    ('chemvang', SK, ['effect_slash_yellow_%d.png' % i for i in range(4)]),
+    ('chemdo',   SK, ['effect_slash_04_%d.png' % i for i in range(4)]),
+    ('dam_xuyen',SK, ['effect_stab_07_%d.png' % i for i in range(8)]),   # cú THỌC — giáo, lao
+    ('cat',      SK, ['effect_cut_%d.png' % i for i in range(5)]),
+    ('kiemkhi',  SK, ['effect_sword_%d.png' % i for i in range(6)]),
+    ('bang',     SK, ['effect_ice_glacier_%d.png' % i for i in range(3)]),
+    ('gaibang',  SK, ['effect_sting_ice_%d.png' % i for i in range(3)]),
+    ('caulua',   SK, ['effect_fireball_%d.png' % i for i in range(4)]),
+    ('nolon',    SK, ['effect_explode_%d.png' % i for i in range(8)]),
+    ('noluc',    SK, ['effect_explode_green_%d.png' % i for i in range(8)]),
+    ('nolam',    SK, ['effect_explode_cyan_%d.png' % i for i in range(8)]),
+    ('dien',     SK, ['effect_shock_yellow_%d.png' % i for i in range(8)]),
+    ('xung',     SK, ['effect_pulse_%d.png' % i for i in range(8)]),
+    ('gio',      SK, ['effect_feng_%d.png' % i for i in range(8)]),
+    ('saoroi',   SK, ['effect_star_2_%d.png' % i for i in range(8)]),
+    ('notnhac',  SK, ['effect_dead_note_%d.png' % i for i in range(6)]),
+]
+
+# ── VŨ KHÍ CẦM TAY ──
+#    Chủ dự án: "lính đánh thường thì thêm cây spear vào cầm trên tay thọc thọc nhau,
+#    bắn xa thì cầm súng, thấy rõ đạn". Sprite tướng lấy của HoloCure chỉ có bốn khung
+#    ĐỨNG YÊN — không có khung vung tay. Nên vũ khí phải là một lớp RỜI vẽ đè lên người
+#    rồi tự xoay/thọc bằng mã; như thế mới có động tác đánh mà không cần vẽ lại 20 tướng.
+#    Mọi hình đều CHĨA SANG PHẢI (chuôi bên trái) để veVuKhi() xoay theo hướng đánh.
+VUKHI = [
+    ('kiem',      SK, ['weapons4_27.png'], 0),    # kiếm chuôi vàng
+    ('kiem_to',   SK, ['weapons5_25.png'], 0),    # đại kiếm lưỡi lam
+    ('riu',       SK, ['weapons3_0.png'], 0),     # rìu
+    ('bua',       SK, ['weapons2_81.png'], 0),    # búa tạ
+    ('giao',      SK, ['weapons4_103.png'], 0),   # giáo lưỡi lam
+    ('thuong',    SK, ['weapons5_66.png'], 0),    # thương dài — lính cận chiến cầm cái này
+    ('dao',       SK, ['weapons3_148.png'], 0),   # dao găm
+    ('phi',       SK, ['weapons4_87.png'], 0),    # phi tiêu
+    ('cung',      SK, ['weapons2_107.png'], 0),   # cung gỗ
+    ('no',        SK, ['weapons5_60.png'], 0),    # nỏ
+    ('sung',      SK, ['weapons3_30.png'], 0),    # súng săn
+    ('sung_tia',  SK, ['weapons4_12.png'], 0),    # súng bắn tỉa
+    ('sung_ngan', SK, ['weapons4_68.png'], 0),    # súng ngắn — lính bắn xa cầm cái này
+    ('gay',       SK, ['weapons4_16.png'], 0),    # trượng ngọc tím
+    ('dua',       SK, ['weapons3_13.png'], 0),    # đũa phép
+    ('khien',     SK, ['weapons2_113.png'], 0),   # khiên tròn
+    ('sach',      SK, ['weapons5_17.png'], 0),    # sách phép
+    ('cuu',       SK, ['weapons5_42.png'], 0),    # túi cứu thương
+    ('dan',       SK, ['weapon_init_bard.png'], 0),  # đàn
+    ('bom',       SK, ['weapons5_148.png'], 0),   # bom
 ]
 
 # ── ĐẠN: mỗi loại một cột, MỘT khung, đầu đạn CHĨA SANG PHẢI ──
@@ -247,8 +297,11 @@ def dat_giua(im, anh, cot, hang, le=4):
     if w < 1 or h < 1:
         return
     k = (O - le * 2) / float(max(w, h))
-    if k > 1:
-        k = max(1, int(k))                       # phóng bội số nguyên → không nhoè
+    if k >= 2:
+        k = int(k)                               # phóng bội số nguyên → không nhoè
+    # 1 < k < 2 thì KHÔNG được làm tròn xuống: int(1.7) == 1 nghĩa là không phóng gì cả,
+    # và cây kiếm dài-mảnh nằm lọt thỏm giữa ô 64 trông như cọng tăm. Đúng cái bẫy đã sập
+    # một lần ở he_phong() với con cung thủ orc — ghi lại ở RESEARCH §5.3.
     anh = anh.resize((max(1, int(round(w * k))), max(1, int(round(h * k)))), Image.NEAREST)
     im.alpha_composite(anh, (cot * O + (O - anh.width) // 2,
                              hang * O + (O - anh.height) // 2))
@@ -410,6 +463,8 @@ def main():
     bd['quai'] = q
     fx, thieu_fx = lam_tep(FX, 'fx.png', giua=True, le=0)
     bd['fx'] = fx
+    vk, thieu_vk = lam_tep(VUKHI, 'vukhi.png', giua=True, le=6)
+    bd['vukhi'] = vk
     dn, thieu_dn = lam_tep(DAN, 'dan.png', giua=True, le=10)
     bd['dan'] = dn
     tr, thieu_tr = lam_tru()
@@ -432,12 +487,13 @@ def main():
     print('nguoi  :', len(n1), '/', len(HLV) + len(TT))
     print('quai   :', len(q), '/', len(QUAI_SK))
     print('fx     :', len(fx), '/', len(FX))
+    print('vukhi  :', len(vk), '/', len(VUKHI))
     print('dan    :', len(dn), '/', len(DAN))
     print('tru    :', len(tr), '/', len(TRU))
     print('do     :', len(dd), '/', len(DO))
     print('nen-ca :', 'ok' if nen_ok else 'THIEU ' + str(nen_thieu))
     for nhan, ds in (('tuong', thieu_t), ('nguoi', thieu_n1), ('quai', thieu_q), ('fx', thieu_fx),
-                     ('dan', thieu_dn), ('tru', thieu_tr), ('do', thieu_dd)):
+                     ('vukhi', thieu_vk), ('dan', thieu_dn), ('tru', thieu_tr), ('do', thieu_dd)):
         for x in ds:
             print('  THIEU', nhan, x[0], '<-', x[1])
     return 0

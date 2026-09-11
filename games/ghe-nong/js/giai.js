@@ -61,7 +61,11 @@
     var r = G.KN_RIENG[goc.kn];
     if (r) ds.push({ loai: r.hieu.loai, pha: r.hieu.pha, dk: r.hieu.dk,
       muc: r.hieu.muc * G.heKNRieng(ca.uncap) });
-    return { ds: ds };
+    /* Danh tính của kỹ năng riêng đi kèm xuống bộ mô phỏng, để nó còn BẮN RA ĐƯỢC một
+       hào quang và một dòng băng đúng lúc điều kiện bật lên. Trước đây chỉ có con số
+       `muc` đi xuống, nên suốt trận người chơi không thấy kỹ năng của huấn luyện viên
+       mình chọn xuất hiện lần nào. */
+    return { ds: ds, rieng: r ? { id: goc.kn, ten: r.ten, pha: r.hieu.pha, dk: r.hieu.dk } : null };
   }
 
   /** năng khiếu khớp giải tới đâu → hệ số chung cho cả đội (DESIGN.md §2.3) */

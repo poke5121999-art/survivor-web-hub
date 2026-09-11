@@ -301,8 +301,8 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .mu-vang.hon{color:#3ddc97} .mu-vang.kem{color:#e5484d}
 
 .tr-the{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;overflow:auto;min-height:0}
-.the-cot{display:flex;flex-direction:column;gap:5px}
-.the-nguoi{background:#111926;border:1px solid var(--vien);border-radius:8px;padding:5px 6px;position:relative}
+.the-cot{display:flex;flex-direction:column;gap:3px}
+.the-nguoi{background:#111926;border:1px solid var(--vien);border-radius:8px;padding:3px 6px;position:relative}
 .the-nguoi.chet{opacity:.42}
 .the-ten{font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .the-mau{height:5px;background:#0a1017;border-radius:99px;overflow:hidden;margin:3px 0}
@@ -311,13 +311,34 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .the-do span{width:11px;height:11px;border-radius:3px;background:#1a2330;display:inline-block}
 .the-hs{position:absolute;right:5px;top:4px;font-size:10px;color:#f2c94c;font-weight:800}
 
-.tr-duoi{flex:none;display:grid;grid-template-columns:150px 1fr;gap:8px;padding:8px;border-top:1px solid var(--vien)}
+.tr-duoi{flex:none;display:grid;grid-template-columns:132px 1fr;gap:8px;padding:6px 8px;border-top:1px solid var(--vien)}
 .tr-mini{border-radius:8px;border:1px solid var(--vien);display:block}
 .tr-nut{display:flex;flex-direction:column;gap:6px;justify-content:center}
 .tr-nut .nut{width:100%;padding:7px 10px;font-size:12px}
 
-.tr-day{height:42px;flex:none;display:flex;gap:6px;align-items:center;justify-content:center;
-  background:#0d131c;border-top:1px solid var(--vien)}
+.tr-day{height:38px;flex:none;display:flex;gap:6px;align-items:center;justify-content:center;
+  background:#0d131c;border-top:1px solid var(--vien);position:relative}
+
+/* Hàng mười ảnh tuyển thủ ở đáy — bấm một cái là camera nhảy tới người đó.
+   Bê nguyên chỗ đứng của Teamfight Manager 2: góc trái đáy màn, ngay dưới bản đồ. */
+.tr-anhday{position:absolute;left:8px;top:0;bottom:0;display:flex;gap:3px;align-items:center}
+.tr-mat{width:28px;height:28px;padding:0;border-radius:7px;cursor:pointer;overflow:hidden;
+  display:grid;place-items:center;background:#141c27;border:2px solid #222e3e}
+.tr-mat i{font-style:normal;font-size:11px;font-weight:900;color:var(--chu-mo)}
+.tr-mat.xanh{border-color:#1f6b4e}
+.tr-mat.do{border-color:#7a2f33}
+.tr-mat:hover{transform:translateY(-2px)}
+.tr-mat.theo{border-color:#ffd76e;box-shadow:0 0 0 2px #ffd76e55}
+
+/* Thanh thứ hai trên thẻ tuyển thủ: CHIÊU CUỐI, mỏng 4px.
+   TFM2 để một thanh mana ngay dưới thanh máu. Ở đây không có mana, mà thứ người xem cần
+   biết là "ai sắp bung chiêu cuối". Không kèm chữ: cột chỉ vừa đúng NĂM thẻ mỗi bên, thêm
+   một dòng chữ là thẻ thứ năm rơi khỏi khung. Đầy thì viền thẻ sáng vàng và tên có ★. */
+.the-cuoi{height:4px;background:#0a1017;border-radius:99px;overflow:hidden;margin-top:2px}
+.the-cuoi i{display:block;height:100%;background:linear-gradient(180deg,#5a6f8f,#3b4a63)}
+.the-cuoi.san i{background:linear-gradient(180deg,#ffd76e,#e8a81c)}
+.the-nguoi.san-cuoi{border-color:#ffd76e88;box-shadow:0 0 7px #ffd76e33}
+.the-nguoi.san-cuoi .the-ten{color:#ffd76e}
 .tocdo{border:1px solid var(--vien);background:#141c27;color:var(--chu-mo);border-radius:8px;
   padding:5px 15px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit}
 .tocdo.chon{background:linear-gradient(180deg,#2fae7c,#1d7a56);border-color:#3ddc97;color:#04180f}
@@ -776,8 +797,8 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .the-kda{font-size:10px;color:#8b98a9;font-variant-numeric:tabular-nums;flex:none}
 .the-nguoi{cursor:pointer}
 .the-nguoi.theo{outline:2px solid #ffd76e;outline-offset:1px}
-.the-do{display:flex;gap:2px;margin-top:3px}
-.the-do span{flex:1;height:20px;border-radius:4px;background:#0d131c;border:1px solid #1e2836;
+.the-do{display:flex;gap:2px;margin-top:2px}
+.the-do span{flex:1;height:11px;border-radius:4px;background:#0d131c;border:1px solid #1e2836;
   position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .the-do span.co{border-color:#3a4a5f;background:#131c28}
 .the-do span i{font-style:normal;font-size:10px;color:#0b0f14;line-height:1}

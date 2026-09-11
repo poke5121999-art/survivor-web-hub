@@ -16,12 +16,52 @@
   var tran = null, canvas = null, ctx = null;
   var chay = false, tocDo = 1, anBang = false, tamDung = false;
   var xongCB = null, khung = 0, lanDom = 0;
-  var TICK_GIAY = 40;             /* tick mỗi giây thật ở tốc độ ×1 → 20 phút trận ≈ 100 giây xem */
+  /* ══════════ NHỊP XEM ══════════
+     Bản trước để 40 tick/giây. Một tick là 0.25 giây trong trận, nên ×1 nghĩa là xem
+     nhanh gấp MƯỜI lần thật: một trận 20 phút trôi qua trong 2 phút, ai cũng lướt vèo
+     trên bản đồ, và không có chỗ nào cho một cú vung tay dài 0.2 giây tồn tại.
+     Teamfight Manager 2 ở ×1 chạy khoảng 1.4 lần thật.
+
+     Đo trong repo: một trận trung bình dài 1166 giây trong trận (10 trận, 915–1560).
+       12 tick/giây → ×1 nhanh gấp 3 → ~6,5 phút xem. Nút 0.5 cho ra ~1,5 lần thật,
+       tức là đúng nhịp ×1 của TFM2; nút ×6 cho lại đúng nhịp của bản cũ.
+     Chậm lại chỉ có nghĩa khi có NỘI SUY đi kèm — xem `tiLe()` bên dưới. */
+  var TICK_GIAY = 12;
   var thoaiHD = [], bayHD = [], hieuHD = [];
   var truoc = 0, dong = 0;
+  /* tỉ lệ nội suy trong tick hiện tại (0..1) và mốc giờ đã nội suy */
+  var ns = 0;
+
+  /** giờ trong trận đã nội suy — dùng cho MỌI phép tính tuổi hiệu ứng, không thì
+      hiệu ứng giật theo tick y như nhân vật trước khi có nội suy */
+  function gio() { return tran.t - (G.SIM_TICK || 0.25) * (1 - ns); }
+
+  /** vị trí đã nội suy của một thực thể có px/py */
+  function viTri(o) {
+    if (o.px == null) return [o.x, o.y];
+    return [o.px + (o.x - o.px) * ns, o.py + (o.y - o.py) * ns];
+  }
+
+  /** hướng mặt: ưu tiên hướng do bộ mô phỏng ghi, không có thì suy từ quãng vừa đi */
+  function huongCua(o) {
+    if (o.huong != null) return o.huong;
+    if (o.px == null) return 0;
+    var dx = o.x - o.px, dy = o.y - o.py;
+    if (dx * dx + dy * dy < 0.01) return o._h || 0;
+    o._h = Math.atan2(dy, dx);
+    return o._h;
+  }
+
+  /** đang đi hay đang đứng — quyết định có nhún chân hay không */
+  function dangDi(o) {
+    if (o.px == null) return false;
+    var dx = o.x - o.px, dy = o.y - o.py;
+    return dx * dx + dy * dy > 0.35;
+  }
 
   G.moManTran = function (t, cb) {
     tran = t; xongCB = cb; chay = true; tamDung = false; tocDo = 1;
+    tran.veHinh = true;            /* từ đây sim mới dựng dữ liệu hiệu ứng — xem sim.js */
     thoaiHD = []; bayHD = []; hieuHD = [];
     G.hienMan('man-tran');
     dungKhung();
@@ -63,7 +103,7 @@
     phai.appendChild(G.el('div.tr-matchup#tr-matchup'));
     phai.appendChild(G.el('div.tr-the#tr-the'));
     var duoi = G.el('div.tr-duoi');
-    duoi.appendChild(G.el('canvas.tr-mini#tr-mini', { width: 150, height: 150 }));
+    duoi.appendChild(G.el('canvas.tr-mini#tr-mini', { width: 132, height: 132 }));
     var nut = G.el('div.tr-nut');
     nut.appendChild(G.el('div.tr-cam#tr-cam'));
     nut.appendChild(G.el('button.nut', { text: 'Ẩn bảng số', onclick: function (e) {
@@ -83,9 +123,28 @@
     than.appendChild(phai);
     m.appendChild(than);
 
-    /* đáy: tốc độ */
+    /* đáy: hàng avatar nhảy camera + tốc độ.
+       Teamfight Manager 2 xếp đúng mười ảnh tuyển thủ ở góc trái đáy màn, bấm một cái là
+       camera nhảy tới người đó (bản PC còn gán phím F1–F10). Thiếu nó thì người xem chỉ
+       còn cách kéo chuột đi tìm — mà trận đang chạy, tìm xong thì giao tranh đã tan. */
     var day = G.el('div.tr-day');
-    [0.5, 1, 2, 3].forEach(function (v) {
+    var hangAnh = G.el('div.tr-anhday');
+    tran.nguoi.forEach(function (n) {
+      var b = G.el('button.tr-mat.' + n.doi + (cam.theo === n.i ? '.theo' : ''),
+        { title: n.ten + ' — ' + n.tuong.ten });
+      var am = G.oAnhTuong && G.oAnhTuong(n.tuong.id, 22);
+      if (am) b.appendChild(am);
+      else b.appendChild(G.el('i', { text: String(n.i + 1) }));
+      b.addEventListener('click', function () {
+        cam.theo = (cam.theo === n.i) ? null : n.i;
+        cam.tuDong = cam.theo == null;
+        G.tieng('cham');
+        veThe(); veNutCam(); veDayAnh();
+      });
+      hangAnh.appendChild(b);
+    });
+    day.appendChild(hangAnh);
+    [0.5, 1, 2, 3, 6].forEach(function (v) {
       day.appendChild(G.el('button.tocdo' + (v === 1 ? '.chon' : ''), { text: v === 1 ? '×1' : (v < 1 ? '0.5' : '×' + v),
         onclick: function (e) {
           tocDo = v;
@@ -121,6 +180,12 @@
         thuThoai();
       }
     }
+    /* `dong` giờ là PHẦN ĐÃ ĐI của tick kế tiếp, 0..1. Vẽ ở đúng tỉ lệ ấy giữa vị trí
+       đầu tick (px,py) và vị trí cuối tick (x,y) thì người đi mượt ở 60 khung/giây dù
+       bộ mô phỏng chỉ chạy 12 lần một giây. Đổi lại là trễ đúng một tick — 0,25 giây
+       trong trận, không ai thấy. */
+    ns = tamDung ? 1 : G.kep(dong, 0, 1);
+    G.NS_XEM = ns;                 /* để kịch bản đo kiểm được nội suy có chạy thật không */
 
     camTick(dt);
     veBanDo();
@@ -153,6 +218,11 @@
       } else if (s.loai === 'tru') {
         G.tieng('tru');
         if (s.loi) banner('NHÀ CHÍNH ĐỔ!', s.doi);
+      } else if (s.loai === 'knRieng') {
+        /* Kỹ năng riêng của huấn luyện viên bật lên — thứ người chơi đã chọn ở màn
+           ngoài, mà suốt bao lâu nay trong trận không thấy mặt mũi đâu. */
+        banner('KỸ NĂNG HLV: ' + s.ten, s.doi);
+        G.tieng('quaiLon');
       } else if (s.loai === 'quaiHien') {
         var ai = tran.nguoi[Math.floor(tran.rng() * 10)];
         if (ai) noi(ai, 'quaiLon');
@@ -509,11 +579,24 @@
          thì người xem không nhớ nổi mình vừa ăn bãi nào. Chốt theo chỉ số bãi nên hai
          nửa bản đồ đối xứng vẫn ra cùng một con ở cùng một chỗ. */
       var loaiBai = 'bai' + (1 + (q.i % 4));
-      if (!G.veQuai || !G.veQuai(ctx, loaiBai, p[0], p[1] + 3, 34 * s, Math.floor(tran.t * 2 + q.i))) {
-        bong(p[0], p[1], 13 * s);
+      var t = gio();
+      var tdq = t - (q.danhLuc == null ? -9 : q.danhLuc);
+      /* Nhún người theo nhịp thở, và CHỒM TỚI khi vừa vung — quái rừng bản trước chỉ
+         chạy bốn khung idle cho có, đứng im cho người ta đập. */
+      var chom = (tdq >= 0 && tdq < 0.3) ? Math.sin(tdq / 0.3 * Math.PI) : 0;
+      var qx = p[0] + Math.cos(q.goc || 0) * chom * 9 * s;
+      var qy = p[1] + Math.sin(q.goc || 0) * chom * 6 * s;
+      var tho = Math.sin(t * 2.2 + q.i) * 1.4 * s;
+      bong(qx, p[1], 12 * s);
+      var kq = 1 + chom * 0.12;
+      ctx.save(); ctx.translate(qx, qy); ctx.scale(kq, kq); ctx.translate(-qx, -qy);
+      if (!G.veQuai || !G.veQuai(ctx, loaiBai, qx, qy + 3 - tho, 34 * s,
+            Math.floor(t * (chom ? 9 : 3) + q.i))) {
         ctx.fillStyle = '#5a4a2a';
-        ctx.beginPath(); ctx.arc(p[0], p[1] - 6 * s, 9 * s, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(qx, qy - 6 * s, 9 * s, 0, 7); ctx.fill();
       }
+      ctx.restore();
+      if (q.hp < q.hpMax && s > .55) thanhMau(p[0], p[1] - 40 * s, 30 * s, q.hp / q.hpMax, '#c8b06e');
     });
 
     /* ── hai con quái lớn ── */
@@ -522,11 +605,20 @@
       var p = toaDo(q.x, q.y);
       if (ngoaiMan(p, 120 * s)) return;
       if (q.song) {
-        bong(p[0], p[1], 34 * s);
-        if (!G.veQuai || !G.veQuai(ctx, kk, p[0], p[1] + 8 * s, 78 * s, Math.floor(tran.t * 2))) {
+        var tl = gio();
+        var tdl = tl - (q.danhLuc == null ? -9 : q.danhLuc);
+        var chomL = (tdl >= 0 && tdl < 0.34) ? Math.sin(tdl / 0.34 * Math.PI) : 0;
+        var lx = p[0] + Math.cos(q.goc || 0) * chomL * 20 * s;
+        var ly = p[1] + Math.sin(q.goc || 0) * chomL * 12 * s;
+        bong(lx, p[1], 34 * s);
+        var kL = 1 + chomL * 0.1;
+        ctx.save(); ctx.translate(lx, ly); ctx.scale(kL, kL); ctx.translate(-lx, -ly);
+        if (!G.veQuai || !G.veQuai(ctx, kk, lx, ly + 8 * s, 78 * s,
+              Math.floor(tl * (chomL ? 10 : 2.4)))) {
           ctx.fillStyle = kk === 'rong' ? '#7a3f8f' : '#8f3f3f';
-          ctx.beginPath(); ctx.arc(p[0], p[1] - 20 * s, 26 * s, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(lx, ly - 20 * s, 26 * s, 0, 7); ctx.fill();
         }
+        ctx.restore();
         thanhMau(p[0], p[1] - 62 * s, 74 * s, q.hp / q.hpMax, '#ffd76e');
         chu(q.ten, p[0], p[1] - 68 * s, 11 * Math.max(.8, s), '#ffd76e');
       } else {
@@ -615,17 +707,38 @@
       if (r.hp < r.hpMax) thanhMau(p[0], p[1] - cao * 1.34, cao * .95, r.hp / r.hpMax, mau);
     });
 
-    /* ── lính: dùng sprite thật trong atlas (quai.linh_can / quai.linh_xa) ── */
+    /* ── LÍNH ──
+       Chủ dự án: "lính đánh thường thì thêm cây spear vào cầm trên tay thọc thọc nhau,
+       bắn xa thì cầm súng, thấy rõ đạn." Lính cận cầm THƯƠNG và thọc tới; lính xa cầm
+       SÚNG NGẮN, giật lùi một nhịp rồi viên đạn bay ra (hiệu ứng `dan` do sim đẩy). */
     tran.linh.forEach(function (l) {
-      var p = toaDo(l.x, l.y);
+      var vl = viTri(l);
+      var p = toaDo(vl[0], vl[1]);
       if (ngoaiMan(p, 40 * s)) return;
       var cao = (l.xa ? 20 : 22) * s;
+      var t = gio();
+      var tdl = t - (l.danhLuc == null ? -9 : l.danhLuc);
+      var danh = (tdl >= 0 && tdl < 0.34) ? tdl / 0.34 : -1;
+      var gocL = huongCua(l);
+      var latL = Math.cos(gocL) < 0;
+      var diL = dangDi(l);
+      var nhun = diL ? Math.abs(Math.sin(t * 11 + l.x)) * 1.6 * s : 0;
+      /* lính cận chồm theo cú thọc, lính xa giật lùi theo phát bắn */
+      var day = danh >= 0
+        ? (l.xa ? -Math.sin(danh * Math.PI) * 2.5 * s : Math.sin(danh * Math.PI) * 5 * s)
+        : 0;
+      var lx = p[0] + Math.cos(gocL) * day, ly = p[1] + Math.sin(gocL) * day * .6;
       bong(p[0], p[1], cao * .34);
-      var ok = G.veQuai && G.veQuai(ctx, l.xa ? 'linh_xa' : 'linh_can', p[0], p[1], cao,
-        Math.floor(tran.t * 4 + p[0]));
+      var ok = G.veQuai && G.veQuai(ctx, l.xa ? 'linh_xa' : 'linh_can', lx, ly - nhun, cao,
+        Math.floor(t * (diL ? 7 : 3) + l.x));
       if (!ok) {
         ctx.fillStyle = l.doi === 'xanh' ? '#7fd6ff' : '#ff9ec4';
-        ctx.beginPath(); ctx.arc(p[0], p[1] - cao * .4, cao * .3, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(lx, ly - cao * .4, cao * .3, 0, 7); ctx.fill();
+      }
+      veVuKhiTay(l.xa ? 'sung_ngan' : 'thuong', lx, ly, cao, gocL, danh, latL);
+      if (l.xa && danh >= 0 && danh < .3 && G.veFX) {
+        G.veFX(ctx, 'dam', lx + Math.cos(gocL) * cao * .75, ly - cao * .48 + Math.sin(gocL) * cao * .5,
+          cao * .6, Math.floor(danh * 12));
       }
       /* vòng màu đội dưới chân để phân biệt hai bên */
       ctx.save(); ctx.translate(p[0], p[1]); ctx.scale(1, .42);
@@ -633,19 +746,39 @@
       ctx.strokeStyle = l.doi === 'xanh' ? 'rgba(61,220,151,.85)' : 'rgba(229,72,77,.85)';
       ctx.lineWidth = Math.max(1, 1.6 * s); ctx.stroke();
       ctx.restore();
-      if (l.hp < l.hpMax && s > .6) thanhMau(p[0], p[1] - cao - 3 * s, cao * .9, l.hp / l.hpMax,
+      if (l.hp < l.hpMax && s > .6) thanhMau(lx, ly - cao - 3 * s, cao * .9, l.hp / l.hpMax,
         l.doi === 'xanh' ? '#3ddc97' : '#e5484d');
     });
 
     /* ── hiệu ứng dưới chân (vòng diện rộng) ── */
     veHieu(true, s);
 
-    /* ── tướng ── */
+    /* ══════════ TƯỚNG ══════════
+       Sprite gốc chỉ có bốn khung ĐỨNG YÊN, nên toàn bộ "đang làm gì" phải dựng bằng
+       phép biến hình + một lớp vũ khí rời:
+         đi       nhún chân theo nhịp, khung chạy nhanh hơn
+         ra đòn   chồm tới theo hướng đánh, vũ khí vung/thọc
+         niệm     phình người một nhịp, sáng lên, TÊN CHIÊU hiện trên đầu
+         ăn đòn   chớp trắng một nhịp
+         hồi sinh luồng sáng dựng từ đất lên
+       Không có mấy cái này thì trận là mười hình đứng im trượt qua nhau. */
     tran.nguoi.forEach(function (n) {
-      if (n.chet > 0) return;
-      var p = toaDo(n.x, n.y);
+      if (n.chet > 0) return veBia(n, s);
+      var vn = viTri(n);
+      var p = toaDo(vn[0], vn[1]);
       var cao = 46 * s;
-      if (ngoaiMan(p, cao * 2.4)) return;
+      if (ngoaiMan(p, cao * 2.6)) return;
+      var t = gio();
+
+      var tDanh = t - (n.danhLuc == null ? -9 : n.danhLuc);
+      var tNiem = t - (n.niemLuc == null ? -9 : n.niemLuc);
+      var tDinh = t - (n.dinhLuc == null ? -9 : n.dinhLuc);
+      var tHoi = t - (n.hoiLuc == null ? -9 : n.hoiLuc);
+      var danh = (tDanh >= 0 && tDanh < 0.32) ? tDanh / 0.32 : -1;
+      var niem = (tNiem >= 0 && tNiem < 0.42) ? tNiem / 0.42 : -1;
+      var goc = huongCua(n);
+      var lat = Math.cos(goc) < 0;
+      var di = dangDi(n);
 
       /* vòng đội dưới chân */
       ctx.save(); ctx.translate(p[0], p[1]); ctx.scale(1, .42);
@@ -657,21 +790,84 @@
       ctx.stroke();
       ctx.restore();
 
-      var khung = Math.floor(tran.t * 3 + n.i * 1.3);
-      var lat = n.mucTieu && n.mucTieu.x < n.x;
-      if (!G.veTuong || !G.veTuong(ctx, n.tuong.id, p[0], p[1] + 3 * s, cao, khung, lat)) {
-        ctx.beginPath(); ctx.arc(p[0], p[1] - cao * .4, cao * .32, 0, 7);
+      /* luồng sáng hồi sinh */
+      if (tHoi >= 0 && tHoi < 1.1) {
+        var th = tHoi / 1.1;
+        var gh = ctx.createLinearGradient(p[0], p[1], p[0], p[1] - cao * 2);
+        gh.addColorStop(0, 'rgba(255,255,255,' + (0.55 * (1 - th)) + ')');
+        gh.addColorStop(1, 'rgba(140,220,255,0)');
+        ctx.fillStyle = gh;
+        ctx.fillRect(p[0] - cao * .4, p[1] - cao * 2, cao * .8, cao * 2);
+      }
+
+      /* nhún chân khi đi; chồm tới khi ra đòn */
+      var nhun = di ? Math.abs(Math.sin(t * 9 + n.i)) * 2.4 * s : 0;
+      var day = danh >= 0 ? Math.sin(danh * Math.PI) * 6.5 * s : 0;
+      var nx = p[0] + Math.cos(goc) * day;
+      var ny = p[1] + Math.sin(goc) * day * .55;
+      var phong = niem >= 0 ? 1 + 0.2 * Math.sin(niem * Math.PI) : 1;
+      var khung = Math.floor(t * (di ? 7 : 3) + n.i * 1.3);
+
+      ctx.save();
+      ctx.translate(nx, ny); ctx.scale(phong, phong); ctx.translate(-nx, -ny);
+      var veOk = G.veTuong && G.veTuong(ctx, n.tuong.id, nx, ny + 3 * s - nhun, cao, khung, lat);
+      if (!veOk) {
+        ctx.beginPath(); ctx.arc(nx, ny - cao * .4, cao * .32, 0, 7);
         ctx.fillStyle = mauLop(n.tuong.lop); ctx.fill();
       }
+      /* chớp trắng khi vừa ăn đòn — vẽ chồng ở chế độ cộng sáng, rẻ hơn ctx.filter */
+      if (tDinh >= 0 && tDinh < 0.16 && veOk) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.8 * (1 - tDinh / 0.16);
+        G.veTuong(ctx, n.tuong.id, nx, ny + 3 * s - nhun, cao, khung, lat);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      /* đang niệm: bọc một lớp sáng theo màu của chiêu */
+      if (niem >= 0 && veOk) {
+        var fxN = G.fxChieu ? G.fxChieu(n.tuong.id, n.niemCuoi ? 'cuoi' : 'chieu') : null;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 0.55 * (1 - niem);
+        G.veTuong(ctx, n.tuong.id, nx, ny + 3 * s - nhun, cao, khung, lat);
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+        if (fxN) {
+          ctx.strokeStyle = fxN.mau;
+          ctx.lineWidth = Math.max(1.5, 3 * s * (1 - niem));
+          ctx.beginPath();
+          ctx.arc(nx, ny - cao * .45, cao * (.45 + niem * .45), 0, 7);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      /* vũ khí cầm tay — thứ làm cho đòn đánh NHÌN THẤY ĐƯỢC */
+      veVuKhiTay(G.vuKhiCua ? G.vuKhiCua(n.tuong) : null, nx, ny - nhun, cao, goc, danh, lat);
 
       thanhMau(p[0], p[1] - cao - 8 * s, cao * 1.05, n.hp / n.hpMax,
         n.doi === 'xanh' ? '#3ddc97' : '#e5484d');
-      if (s > .55) chu('Lv' + n.cap + ' ' + n.ten, p[0], p[1] - cao - 13 * s,
-        Math.max(9, 11 * s), n.doi === 'xanh' ? '#bff3dc' : '#ffc9cb');
+      /* So le nhãn theo chỉ số người: mười người xúm vào một chỗ thì mọi dòng chữ nằm
+         đúng một độ cao là chồng lên nhau thành một vũng mực, không đọc ra chữ nào. */
+      if (s > .55) chu('Lv' + n.cap + ' ' + n.ten, p[0],
+        p[1] - cao - 13 * s - (n.i % 3) * 9 * s,
+        G.kep(10 * s, 8.5, 13), n.doi === 'xanh' ? '#bff3dc' : '#ffc9cb');
+
+      /* TÊN CHIÊU trên đầu người vừa bung — nhìn một cái là biết vừa dùng gì */
+      if (tNiem >= 0 && tNiem < 1.25 && n.niemTen && s > .5) {
+        var tn = tNiem / 1.25;
+        var fxT = G.fxChieu ? G.fxChieu(n.tuong.id, n.niemCuoi ? 'cuoi' : 'chieu') : null;
+        ctx.globalAlpha = tn < .75 ? 1 : (1 - tn) * 4;
+        chu((n.niemCuoi ? '★ ' : '') + n.niemTen, p[0],
+          p[1] - cao - 34 * s - (n.i % 3) * 9 * s - tn * 12 * s,
+          G.kep((n.niemCuoi ? 13 : 11.5) * s, 10, n.niemCuoi ? 17 : 14),
+          (fxT && fxT.mau) || '#ffd76e');
+        ctx.globalAlpha = 1;
+      }
 
       if (n.kc > 0) {
         ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = Math.max(1.5, 2.5 * s);
-        ctx.beginPath(); ctx.arc(p[0], p[1] - cao * .5, cao * .5, tran.t * 5, tran.t * 5 + 4.4); ctx.stroke();
+        ctx.beginPath(); ctx.arc(p[0], p[1] - cao * .5, cao * .5, t * 5, t * 5 + 4.4); ctx.stroke();
+        if (G.veFX) G.veFX(ctx, 'sao', p[0], p[1] - cao * 1.12, cao * .5, Math.floor(t * 8));
       }
       if (n.hieu && n.hieu.chan) {
         ctx.strokeStyle = 'rgba(160,220,255,.8)'; ctx.lineWidth = Math.max(1.5, 3 * s);
@@ -764,103 +960,408 @@
     ctx.fillStyle = mau; ctx.fillText(t, x, y);
   }
 
-  /* ══════════ hiệu ứng ══════════
-     Dữ liệu do sim.js đẩy ra (tran.hieu). Vẽ hai lượt: `duoi` là thứ nằm trên mặt đất
-     (vòng diện rộng), còn lại vẽ đè lên người. */
+  /* ══════════════════ HIỆU ỨNG ══════════════════
+     Dữ liệu do sim.js đẩy ra (`tran.hieu`). Hai lượt vẽ: `duoi` là thứ nằm trên mặt đất
+     (vòng loang, đám khói) — vẽ trước người; còn lại vẽ đè lên.
+
+     Chỗ khác hẳn bản trước: chiêu KHÔNG còn dùng chung một hình. `h.tuong` + `h.kn` tra
+     ra G.FX_CHIEU, và mỗi mục ở đó nói rõ bày ra kiểu gì (vòng / nổ / tia / lao / bắn /
+     rơi / mưa / xích / khói / hào quang / khiên / hồi), dùng dáng nào trong fx.png và
+     màu gì. Bốn mươi chiêu ra bốn mươi bộ mặt. */
+
   /* lớp tướng → loại đạn trong art/dan.png */
   var DAN_LOP = { xa: 'ten', phep: 'phep', ho: 'bang', sat: 'thuong', can: 'thuong' };
 
+  /** số giả ngẫu nhiên ỔN ĐỊNH theo (hiệu ứng, chỉ số) — cùng một giọt mưa thì khung nào
+      cũng rơi đúng chỗ ấy. Dùng Math.random() ở đây là cả màn nhấp nháy loạn. */
+  function bam(h, i) {
+    var v = Math.sin((h.t * 97.13 + i * 41.7 + (h.x || 0) * 0.37)) * 43758.5453;
+    return v - Math.floor(v);
+  }
+
   function veHieu(duoi, s) {
     tran.hieu.forEach(function (h) { if (!h._v) { h._v = 1; hieuHD.push(h); } });
-    hieuHD = hieuHD.filter(function (h) { return tran.t - h.t < 0.85; });
+    var t = gio();
+    hieuHD = hieuHD.filter(function (h) { return t - h.t < (h._lau || 1.0); });
 
     hieuHD.forEach(function (h) {
-      var tuoi = (tran.t - h.t) / 0.85;
-      var laDuoi = (h.loai === 'chieu' || h.loai === 'cuoi') && h.dien;
+      var cf = null;
+      if (h.loai === 'chieu' || h.loai === 'cuoi') {
+        cf = G.fxChieu ? G.fxChieu(h.tuong, h.kn || h.loai) : null;
+      }
+      var lau = (cf && cf.lau) || (h.loai === 'hlv' ? 1.8 : 0.85);
+      h._lau = lau;
+      var tuoi = (t - h.t) / lau;
+      if (tuoi < 0) tuoi = 0;
+      if (tuoi > 1) return;
+
+      var laDuoi = cf ? (cf.kieu === 'vong' || cf.kieu === 'khoi')
+        : (h.loai === 'hlv');
       if (laDuoi !== duoi) return;
+
       var a = toaDo(h.x, h.y);
       var b = toaDo(h.x2 != null ? h.x2 : h.x, h.y2 != null ? h.y2 : h.y);
-      var mau = h.doi === 'xanh' ? '#7de3ff' : '#ff9a86';
-      ctx.globalAlpha = 1 - tuoi;
+      var mau = cf ? cf.mau : (h.doi === 'xanh' ? '#7de3ff' : h.doi === 'quai' ? '#ffcf8a' : '#ff9a86');
+      ctx.globalAlpha = 1 - tuoi * tuoi;
 
-      if (h.loai === 'dan') {
-        /* Viên đạn bay từ người bắn tới mục tiêu. Mỗi lớp một loại đạn riêng — xạ thủ
-           bắn tên, pháp sư bắn cầu phép, hỗ trợ bắn mảnh băng — nên nhìn vệt đạn là
-           đoán được ai đang đánh ai mà không cần đọc thẻ. */
-        var t2 = Math.min(1, tuoi * 2.6);
-        var x = a[0] + (b[0] - a[0]) * t2, y = a[1] + (b[1] - a[1]) * t2 - 14 * s;
-        var xd = a[0] + (b[0] - a[0]) * Math.max(0, t2 - .22);
-        var yd = a[1] + (b[1] - a[1]) * Math.max(0, t2 - .22) - 14 * s;
-        var gocBay = Math.atan2(b[1] - a[1], b[0] - a[0]);
-        var veDan = G.veDan && G.veDan(ctx, DAN_LOP[h.lop] || 'thuong', x, y, 15 * s, gocBay);
-        if (!veDan) {
-          ctx.strokeStyle = mau; ctx.lineWidth = Math.max(1.5, 3 * s); ctx.lineCap = 'round';
-          ctx.beginPath(); ctx.moveTo(xd, yd); ctx.lineTo(x, y); ctx.stroke();
-          ctx.fillStyle = '#fff';
-          ctx.beginPath(); ctx.arc(x, y, Math.max(1.6, 2.6 * s), 0, 7); ctx.fill();
-        }
-        /* tới nơi thì loé một chùm tia lửa ở chỗ trúng */
-        if (t2 >= 1 && G.veFX) {
-          G.veFX(ctx, 'dam', b[0], b[1] - 14 * s, 26 * s, Math.floor((tuoi - .38) * 12));
-        }
+      if (cf) veChieu(h, cf, a, b, tuoi, s, mau);
+      else if (h.loai === 'hlv') veKnRieng(h, a, tuoi, s);
+      else veDonGian(h, a, b, tuoi, s, mau);
 
-      } else if (h.loai === 'chem') {
-        /* Vệt chém: sprite lưỡi đao xoay đúng hướng đánh. Trước đây chỉ là một cung
-           tròn vẽ tay nên đòn cận chiến trông như cái vòng, không ra nhát chém. */
-        var cx = h.x2 != null ? b[0] : a[0], cy = (h.x2 != null ? b[1] : a[1]) - 14 * s;
-        var okChem = G.veFX && G.veFX(ctx, 'chem', cx + Math.cos(h.goc) * 10 * s,
-          cy + Math.sin(h.goc) * 10 * s, 52 * s, Math.floor(tuoi * 5), h.goc);
-        if (!okChem) {
-          var r = 26 * s * (0.6 + tuoi * 0.7);
-          ctx.strokeStyle = mau; ctx.lineWidth = Math.max(2, 5 * s * (1 - tuoi));
-          ctx.beginPath(); ctx.arc(cx, cy, r, h.goc - 0.9, h.goc + 0.9); ctx.stroke();
-        }
-
-      } else if (h.loai === 'tia') {
-        /* trụ bắn: tia thẳng, dày rồi mảnh dần, kèm viên đạn năng lượng bay dọc theo */
-        ctx.strokeStyle = h.doi === 'xanh' ? '#8fd8ff' : '#ffb0a2';
-        ctx.lineWidth = Math.max(1.5, 6 * s * (1 - tuoi));
-        ctx.beginPath();
-        ctx.moveTo(a[0], a[1] - 46 * s); ctx.lineTo(b[0], b[1] - 14 * s);
-        ctx.stroke();
-        if (G.veDan) {
-          var tt = Math.min(1, tuoi * 3);
-          G.veDan(ctx, 'tia', a[0] + (b[0] - a[0]) * tt,
-            (a[1] - 46 * s) + ((b[1] - 14 * s) - (a[1] - 46 * s)) * tt, 18 * s, 0);
-        }
-
-      } else if (h.loai === 'chieu' || h.loai === 'cuoi') {
-        var lon = h.loai === 'cuoi';
-        if (h.dien) {
-          /* vòng loang trên mặt đất */
-          var rr = (lon ? 78 : 52) * s * (0.35 + tuoi);
-          ctx.save(); ctx.translate(a[0], a[1]); ctx.scale(1, .45);
-          ctx.beginPath(); ctx.arc(0, 0, rr, 0, 7);
-          ctx.strokeStyle = h.pt ? '#c89bff' : mau;
-          ctx.lineWidth = Math.max(2, (lon ? 8 : 5) * s * (1 - tuoi));
-          ctx.stroke();
-          ctx.fillStyle = (h.pt ? 'rgba(200,155,255,' : 'rgba(125,227,255,') + (0.16 * (1 - tuoi)) + ')';
-          ctx.fill();
-          ctx.restore();
-        } else {
-          /* tia phóng tới mục tiêu + chớp sáng ở đích */
-          ctx.strokeStyle = h.pt ? '#c89bff' : mau;
-          ctx.lineWidth = Math.max(2, (lon ? 9 : 5) * s * (1 - tuoi));
-          ctx.beginPath();
-          ctx.moveTo(a[0], a[1] - 20 * s); ctx.lineTo(b[0], b[1] - 16 * s);
-          ctx.stroke();
-          var rc = (lon ? 34 : 20) * s * (0.5 + tuoi);
-          ctx.beginPath(); ctx.arc(b[0], b[1] - 16 * s, rc, 0, 7);
-          ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1.4, 2.5 * s * (1 - tuoi));
-          ctx.stroke();
-        }
-        if (lon && tuoi < .5 && G.veFX) {
-          G.veFX(ctx, 'no', b[0], b[1] - 20 * s, 90 * s, Math.floor(tuoi * 10));
-        }
-        if (h.hoi && G.veFX) G.veFX(ctx, 'hoi', b[0], b[1] - 24 * s, 56 * s, Math.floor(tuoi * 8));
-        if (h.chan && G.veFX) G.veFX(ctx, 'chan', b[0], b[1] - 24 * s, 62 * s, Math.floor(tuoi * 8));
-      }
       ctx.globalAlpha = 1;
+    });
+  }
+
+  /* ── đòn đánh thường, cú thọc, vuốt quái, tia trụ ── */
+  function veDonGian(h, a, b, tuoi, s, mau) {
+    if (h.loai === 'dan') {
+      /* Viên đạn bay từ người bắn tới mục tiêu. "Bắn xa thì cầm súng, thấy rõ đạn" —
+         nên viên đạn to hơn bản trước, có vệt đuôi, và nổ một chùm tia khi trúng. */
+      var t2 = Math.min(1, tuoi * 2.6);
+      var co = (h.nho ? 11 : 16) * s;
+      var x = a[0] + (b[0] - a[0]) * t2, y = a[1] + (b[1] - a[1]) * t2 - 14 * s;
+      var xd = a[0] + (b[0] - a[0]) * Math.max(0, t2 - .26);
+      var yd = a[1] + (b[1] - a[1]) * Math.max(0, t2 - .26) - 14 * s;
+      var gocBay = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      /* vệt đuôi */
+      ctx.strokeStyle = mau; ctx.globalAlpha *= .5;
+      ctx.lineWidth = Math.max(1, 2.2 * s); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(xd, yd); ctx.lineTo(x, y); ctx.stroke();
+      ctx.globalAlpha /= .5;
+      var veDan = G.veDan && G.veDan(ctx, DAN_LOP[h.lop] || 'thuong', x, y, co, gocBay);
+      if (!veDan) {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(x, y, Math.max(1.8, 3 * s), 0, 7); ctx.fill();
+      }
+      if (t2 >= 1 && G.veFX) G.veFX(ctx, 'dam', b[0], b[1] - 14 * s, 26 * s, Math.floor((tuoi - .38) * 12));
+
+    } else if (h.loai === 'chem') {
+      var cx = h.x2 != null ? b[0] : a[0], cy = (h.x2 != null ? b[1] : a[1]) - 14 * s;
+      var okChem = G.veFX && G.veFX(ctx, 'chem', cx + Math.cos(h.goc) * 10 * s,
+        cy + Math.sin(h.goc) * 10 * s, 52 * s, Math.floor(tuoi * 5), h.goc);
+      if (!okChem) {
+        var r = 26 * s * (0.6 + tuoi * 0.7);
+        ctx.strokeStyle = mau; ctx.lineWidth = Math.max(2, 5 * s * (1 - tuoi));
+        ctx.beginPath(); ctx.arc(cx, cy, r, h.goc - 0.9, h.goc + 0.9); ctx.stroke();
+      }
+
+    } else if (h.loai === 'thoc') {
+      /* cú thọc của lính cận chiến — một vệt đâm ngắn, không phải cung quét */
+      var tx = b[0] - Math.cos(h.goc) * 8 * s, ty = b[1] - 12 * s - Math.sin(h.goc) * 5 * s;
+      if (!G.veFX || !G.veFX(ctx, 'dam_xuyen', tx, ty, 30 * s, Math.floor(tuoi * 8), h.goc)) {
+        ctx.strokeStyle = mau; ctx.lineWidth = Math.max(1.5, 3 * s * (1 - tuoi));
+        ctx.beginPath();
+        ctx.moveTo(tx - Math.cos(h.goc) * 10 * s, ty - Math.sin(h.goc) * 10 * s);
+        ctx.lineTo(tx + Math.cos(h.goc) * 10 * s, ty + Math.sin(h.goc) * 10 * s);
+        ctx.stroke();
+      }
+
+    } else if (h.loai === 'vuot') {
+      /* vuốt của quái rừng / quái lớn */
+      var co2 = (h.to ? 70 : 40) * s;
+      if (!G.veFX || !G.veFX(ctx, 'vuot', a[0], a[1] - 16 * s, co2, Math.floor(tuoi * 6), h.goc)) {
+        ctx.strokeStyle = '#ffcf8a'; ctx.lineWidth = Math.max(2, 4 * s * (1 - tuoi));
+        for (var k = -1; k <= 1; k++) {
+          ctx.beginPath();
+          ctx.arc(a[0], a[1] - 16 * s, co2 * .35, h.goc - .7 + k * .3, h.goc + .1 + k * .3);
+          ctx.stroke();
+        }
+      }
+
+    } else if (h.loai === 'tia') {
+      ctx.strokeStyle = h.doi === 'xanh' ? '#8fd8ff' : '#ffb0a2';
+      ctx.lineWidth = Math.max(1.5, 6 * s * (1 - tuoi));
+      ctx.beginPath();
+      ctx.moveTo(a[0], a[1] - 46 * s); ctx.lineTo(b[0], b[1] - 14 * s);
+      ctx.stroke();
+      if (G.veDan) {
+        var tt = Math.min(1, tuoi * 3);
+        G.veDan(ctx, 'tia', a[0] + (b[0] - a[0]) * tt,
+          (a[1] - 46 * s) + ((b[1] - 14 * s) - (a[1] - 46 * s)) * tt, 18 * s, 0);
+      }
+    }
+  }
+
+  /* ── CHIÊU: mười một kiểu bày, tra từ G.FX_CHIEU ── */
+  function veChieu(h, cf, a, b, tuoi, s, mau) {
+    var fx = cf.fx, r = (cf.r || 40) * s, n = cf.n || 1;
+    var kh = function (k) { return Math.floor((tuoi + (k || 0)) * 9); };
+
+    if (cf.kieu === 'vong') {
+      /* vòng loang dưới chân người dùng, dẹt theo phối cảnh */
+      var rr = r * (0.30 + 0.85 * tuoi);
+      ctx.save(); ctx.translate(a[0], a[1]); ctx.scale(1, .45);
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, 7);
+      ctx.strokeStyle = mau; ctx.lineWidth = Math.max(2, 7 * s * (1 - tuoi));
+      ctx.stroke();
+      ctx.fillStyle = mau; ctx.globalAlpha *= .14 * (1 - tuoi);
+      ctx.fill(); ctx.globalAlpha /= .14 * (1 - tuoi) || 1;
+      ctx.restore();
+      /* dáng chính, và n bản sao xoay quanh vòng nếu chiêu là kiểu quét nhiều nhát */
+      for (var i = 0; i < n; i++) {
+        var g = (cf.xoay ? tuoi * 7 : 0) + i * (6.283 / n);
+        var dx = Math.cos(g) * rr * (n > 1 ? .72 : 0);
+        var dy = Math.sin(g) * rr * (n > 1 ? .32 : 0);
+        if (G.veFX) G.veFX(ctx, fx, a[0] + dx, a[1] - 16 * s + dy, r * .78, kh(i * .12), cf.xoay ? g : 0);
+      }
+      if (cf.rung && tuoi < .25) rungMan(s);
+
+    } else if (cf.kieu === 'no') {
+      if (!G.veFX || !G.veFX(ctx, fx, b[0], b[1] - 18 * s, r * (1.1 + tuoi * .7), kh())) {
+        ctx.strokeStyle = mau; ctx.lineWidth = Math.max(2, 5 * s * (1 - tuoi));
+        ctx.beginPath(); ctx.arc(b[0], b[1] - 18 * s, r * (.5 + tuoi), 0, 7); ctx.stroke();
+      }
+
+    } else if (cf.kieu === 'tia') {
+      var gr = ctx.createLinearGradient(a[0], a[1] - 20 * s, b[0], b[1] - 16 * s);
+      gr.addColorStop(0, mau + '00'); gr.addColorStop(.5, mau); gr.addColorStop(1, '#ffffff');
+      ctx.strokeStyle = gr; ctx.lineWidth = Math.max(2, 11 * s * (1 - tuoi));
+      ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(a[0], a[1] - 20 * s); ctx.lineTo(b[0], b[1] - 16 * s); ctx.stroke();
+      if (G.veFX) G.veFX(ctx, fx, b[0], b[1] - 18 * s, r * 1.6, kh(),
+        Math.atan2(b[1] - a[1], b[0] - a[0]));
+
+    } else if (cf.kieu === 'lao') {
+      /* vệt lao từ chỗ đứng tới mục tiêu, dáng chính chạy dọc theo vệt */
+      var tl = Math.min(1, tuoi * 2.2);
+      var lx = a[0] + (b[0] - a[0]) * tl, ly = a[1] + (b[1] - a[1]) * tl - 16 * s;
+      var gl = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      ctx.strokeStyle = mau; ctx.globalAlpha *= .55;
+      ctx.lineWidth = Math.max(2, 9 * s * (1 - tuoi)); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(a[0], a[1] - 16 * s); ctx.lineTo(lx, ly); ctx.stroke();
+      ctx.globalAlpha /= .55;
+      if (G.veFX) G.veFX(ctx, fx, lx, ly, r * 1.8, kh(), gl);
+
+    } else if (cf.kieu === 'ban') {
+      /* một phát bắn: khói đầu nòng, viên đạn bay, chớp ở đích */
+      var tb = Math.min(1, tuoi * (cf.xa ? 3.4 : 2.4));
+      var bx = a[0] + (b[0] - a[0]) * tb, by = a[1] + (b[1] - a[1]) * tb - 16 * s;
+      var gb = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      if (cf.xa) {
+        ctx.strokeStyle = mau; ctx.globalAlpha *= .6;
+        ctx.lineWidth = Math.max(1, 3 * s * (1 - tuoi));
+        ctx.beginPath(); ctx.moveTo(a[0], a[1] - 16 * s); ctx.lineTo(bx, by); ctx.stroke();
+        ctx.globalAlpha /= .6;
+      }
+      if (tuoi < .3 && G.veFX) G.veFX(ctx, 'dam', a[0] + Math.cos(gb) * 16 * s,
+        a[1] - 18 * s + Math.sin(gb) * 10 * s, 24 * s, Math.floor(tuoi * 14));
+      if (tb < 1) {
+        if (!G.veDan || !G.veDan(ctx, cf.dan || 'thuong', bx, by, r * .9, gb)) {
+          ctx.fillStyle = mau;
+          ctx.beginPath(); ctx.arc(bx, by, r * .3, 0, 7); ctx.fill();
+        }
+      } else if (G.veFX) {
+        G.veFX(ctx, fx, b[0], b[1] - 18 * s, r * 1.5, kh());
+      }
+
+    } else if (cf.kieu === 'roi') {
+      /* rơi từ trời: vẽ vòng ngắm trước, rồi khối rơi xuống, rồi nổ */
+      var tr0 = Math.min(1, tuoi * 1.9);
+      ctx.save(); ctx.translate(b[0], b[1]); ctx.scale(1, .45);
+      ctx.beginPath(); ctx.arc(0, 0, r * .8, 0, 7);
+      ctx.strokeStyle = mau; ctx.lineWidth = Math.max(1.5, 3 * s);
+      ctx.setLineDash([6 * s, 5 * s]); ctx.stroke(); ctx.setLineDash([]);
+      ctx.restore();
+      if (tr0 < 1) {
+        var ry = b[1] - 18 * s - (1 - tr0) * 190 * s;
+        if (G.veFX) G.veFX(ctx, fx, b[0], ry, r * .7, Math.floor(tuoi * 12));
+      } else {
+        if (G.veFX) G.veFX(ctx, fx, b[0], b[1] - 20 * s, r * 1.7, Math.floor((tuoi - .53) * 18));
+        if (cf.rung) rungMan(s);
+      }
+
+    } else if (cf.kieu === 'mua') {
+      /* n phát rơi rải trong vùng, mỗi phát lệch giờ một chút */
+      for (var j = 0; j < n; j++) {
+        var tre = j / (n + 1) * .55;
+        var tj = (tuoi - tre) / (1 - tre);
+        if (tj < 0) continue;
+        var goc2 = bam(h, j) * 6.283, ban2 = Math.sqrt(bam(h, j + 50)) * r;
+        var mx = b[0] + Math.cos(goc2) * ban2, my = b[1] + Math.sin(goc2) * ban2 * .45;
+        var td = Math.min(1, tj * 2.6);
+        if (td < 1) {
+          var y2 = my - 18 * s - (1 - td) * 150 * s;
+          if (cf.dan && G.veDan) G.veDan(ctx, cf.dan, mx, y2, 15 * s, 1.57);
+          else if (G.veFX) G.veFX(ctx, fx, mx, y2, 26 * s, Math.floor(tj * 12));
+        } else if (G.veFX) {
+          G.veFX(ctx, fx, mx, my - 16 * s, 44 * s, Math.floor((tj - .38) * 14));
+        }
+      }
+      if (cf.rung && tuoi < .5) rungMan(s);
+
+    } else if (cf.kieu === 'xich') {
+      /* tia nảy: đường gãy khúc từ người bắn tới mục tiêu rồi nảy tiếp */
+      ctx.strokeStyle = mau; ctx.lineWidth = Math.max(1.5, 4 * s * (1 - tuoi));
+      ctx.lineJoin = 'round';
+      var px0 = a[0], py0 = a[1] - 18 * s;
+      for (var m = 0; m < n; m++) {
+        var tx2 = b[0] + (bam(h, m) - .5) * r * 1.1;
+        var ty2 = b[1] - 16 * s + (bam(h, m + 20) - .5) * r * .5;
+        ctx.beginPath(); ctx.moveTo(px0, py0);
+        for (var seg = 1; seg <= 4; seg++) {
+          var k2 = seg / 4;
+          ctx.lineTo(px0 + (tx2 - px0) * k2 + (bam(h, m * 9 + seg) - .5) * 16 * s,
+                     py0 + (ty2 - py0) * k2 + (bam(h, m * 9 + seg + 7) - .5) * 16 * s);
+        }
+        ctx.stroke();
+        if (G.veFX) G.veFX(ctx, fx, tx2, ty2, 34 * s, kh(m * .1));
+        px0 = tx2; py0 = ty2;
+      }
+
+    } else if (cf.kieu === 'khoi') {
+      /* đám mây đọng lại, trôi chậm — sương độc */
+      ctx.save(); ctx.translate(b[0], b[1]); ctx.scale(1, .45);
+      ctx.beginPath(); ctx.arc(0, 0, r * .9, 0, 7);
+      ctx.fillStyle = mau; ctx.globalAlpha *= .16;
+      ctx.fill(); ctx.globalAlpha /= .16;
+      ctx.restore();
+      for (var q2 = 0; q2 < 6; q2++) {
+        var gq = bam(h, q2) * 6.283 + tuoi * 1.2;
+        var bq = (.35 + bam(h, q2 + 30) * .6) * r;
+        if (G.veFX) G.veFX(ctx, fx, b[0] + Math.cos(gq) * bq,
+          b[1] - 14 * s + Math.sin(gq) * bq * .45 - tuoi * 10 * s,
+          30 * s, Math.floor(tuoi * 8 + q2));
+      }
+
+    } else if (cf.kieu === 'aura') {
+      /* hào quang quanh người dùng (hoặc quanh mọi đồng đội nếu chiêu là buff đội) */
+      var ds = [a];
+      if (cf.doi) {
+        ds = [];
+        tran.nguoi.forEach(function (m) {
+          if (m.doi !== h.doi || m.chet > 0) return;
+          var vm = viTri(m); ds.push(toaDo(vm[0], vm[1]));
+        });
+        if (!ds.length) ds = [a];
+      }
+      ds.forEach(function (pp, iq) {
+        var nh = 0.5 + 0.5 * Math.sin(tuoi * 9 + iq);
+        ctx.save(); ctx.translate(pp[0], pp[1]); ctx.scale(1, .45);
+        ctx.beginPath(); ctx.arc(0, 0, r * (.8 + nh * .25), 0, 7);
+        ctx.strokeStyle = mau; ctx.lineWidth = Math.max(1.5, 4 * s * (1 - tuoi));
+        ctx.stroke(); ctx.restore();
+        if (G.veFX) G.veFX(ctx, fx, pp[0], pp[1] - 26 * s - tuoi * 16 * s, r * .9, kh(iq * .2));
+      });
+
+    } else if (cf.kieu === 'chan') {
+      var rb = r * (1 + tuoi * .25);
+      ctx.strokeStyle = mau; ctx.lineWidth = Math.max(2, 4 * s * (1 - tuoi));
+      ctx.beginPath(); ctx.arc(b[0], b[1] - 20 * s, rb, 0, 7); ctx.stroke();
+      ctx.fillStyle = mau; ctx.globalAlpha *= .12;
+      ctx.beginPath(); ctx.arc(b[0], b[1] - 20 * s, rb, 0, 7); ctx.fill();
+      ctx.globalAlpha /= .12;
+      if (G.veFX) G.veFX(ctx, fx, b[0], b[1] - 22 * s, r * 1.8, kh());
+
+    } else if (cf.kieu === 'hoi') {
+      for (var z = 0; z < 4; z++) {
+        var lz = (tuoi + z * .25) % 1;
+        if (G.veFX) G.veFX(ctx, fx, b[0] + (bam(h, z) - .5) * r,
+          b[1] - 14 * s - lz * 42 * s, 24 * s, 0);
+      }
+      ctx.strokeStyle = mau; ctx.lineWidth = Math.max(1.5, 3 * s * (1 - tuoi));
+      ctx.save(); ctx.translate(b[0], b[1]); ctx.scale(1, .45);
+      ctx.beginPath(); ctx.arc(0, 0, r * (.6 + tuoi * .6), 0, 7); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /* ── KỸ NĂNG RIÊNG CỦA HUẤN LUYỆN VIÊN ──
+     Phủ lên cả đội một vòng sáng và kéo một tia từ tâm đội tới từng người, kèm tên kỹ
+     năng. Đây là lần duy nhất trong trận người chơi THẤY được cái mình đã chọn ở màn
+     ngoài đang làm việc. */
+  function veKnRieng(h, a, tuoi, s) {
+    var cf = (G.FX_KN_RIENG && G.FX_KN_RIENG[h.kn]) || { fx: 'xung', mau: '#ffd76e', chu: h.ten };
+    var r = 210 * s * (0.25 + tuoi * 0.9);
+    ctx.save(); ctx.translate(a[0], a[1]); ctx.scale(1, .45);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, 7);
+    ctx.strokeStyle = cf.mau; ctx.lineWidth = Math.max(2, 9 * s * (1 - tuoi));
+    ctx.stroke();
+    ctx.restore();
+    (h.ds || []).forEach(function (idx, k) {
+      var n = tran.nguoi[idx]; if (!n || n.chet > 0) return;
+      var vn = viTri(n), pp = toaDo(vn[0], vn[1]);
+      ctx.strokeStyle = cf.mau; ctx.globalAlpha *= .45 * (1 - tuoi);
+      ctx.lineWidth = Math.max(1, 3 * s);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(pp[0], pp[1] - 14 * s); ctx.stroke();
+      ctx.globalAlpha /= .45 * (1 - tuoi) || 1;
+      if (G.veFX) G.veFX(ctx, cf.fx, pp[0], pp[1] - 30 * s, 48 * s, Math.floor(tuoi * 10 + k));
+    });
+    if (s > .45) chu(cf.chu, a[0], a[1] - 40 * s - tuoi * 20 * s,
+      Math.max(12, 16 * s), cf.mau);
+  }
+
+  /** rung nhẹ khung hình cho những chiêu đập xuống đất */
+  function rungMan(s) {
+    if (!canvas) return;
+    var d = 3 * s;
+    canvas.style.transform = 'translate(' + ((Math.random() - .5) * d).toFixed(1) + 'px,' +
+      ((Math.random() - .5) * d).toFixed(1) + 'px)';
+    clearTimeout(canvas._rung);
+    canvas._rung = setTimeout(function () { canvas.style.transform = ''; }, 90);
+  }
+
+  /* ══════════ VŨ KHÍ TRÊN TAY ══════════
+     `pha` là tiến độ của cú đánh, 0..1; −1 nghĩa là đang nghỉ.
+
+     Vũ khí ĐÂM (giáo, thương, dao) thì THỌC tới rồi rút về — chủ dự án gọi đúng tên:
+     "thọc thọc nhau". Vũ khí VUNG (kiếm, rìu, búa) thì quét một cung từ sau ra trước.
+     Vũ khí BẮN (cung, súng, bom) thì giật lùi một nhịp rồi về chỗ, còn viên đạn do
+     hiệu ứng `dan` lo. Ba nhóm ba động tác khác hẳn nhau, nên nhìn tay là biết loại. */
+  function veVuKhiTay(vk, x, y, cao, goc, pha, lat) {
+    if (!vk || !G.veVuKhi) return;
+    /* Ba con số này là "cánh tay": cao tay, độ vươn, cỡ vũ khí. Để rộng quá thì vũ khí
+       trôi lơ lửng cạnh người như một món đồ rơi; để hẹp quá thì nó lẫn vào thân. */
+    var tay = y - cao * 0.40;
+    var neo = cao * 0.21;
+    var g = goc;
+    var co = cao * 0.46;
+    var ban = G.VUKHI_BAN && G.VUKHI_BAN[vk];
+    var thoc = G.VUKHI_THOC && G.VUKHI_THOC[vk];
+
+    if (pha >= 0) {
+      var cung = Math.sin(pha * Math.PI);
+      if (ban) {
+        neo -= cung * cao * 0.10;                   /* giật lùi */
+        g = goc - cung * 0.14;
+      } else if (thoc) {
+        neo += cung * cao * 0.44;                   /* THỌC tới rồi rút */
+        co *= 1 + cung * 0.08;
+      } else {
+        g = goc - 1.15 + 2.3 * pha;                 /* VUNG một cung */
+        neo += cung * cao * 0.14;
+      }
+    } else if (!ban && !thoc) {
+      g = goc - 0.5;                                /* nghỉ: vác chếch lên vai */
+    }
+    G.veVuKhi(ctx, vk, x, tay, co, g, neo);
+  }
+
+  /* ══════════ BIA MỘ ══════════
+     Người chết biến mất tăm là mất luôn thông tin "chỗ này vừa có người ngã xuống, và
+     còn bao lâu nữa họ quay lại". Teamfight Manager 2 đếm giờ hồi sinh ngay trên bản
+     đồ nhỏ; ở đây đếm ngay tại chỗ ngã. */
+  function veBia(n, s) {
+    var p = toaDo(n.x, n.y);
+    if (ngoaiMan(p, 50 * s)) return;
+    var cao = 30 * s;
+    ctx.globalAlpha = .5;
+    ctx.fillStyle = n.doi === 'xanh' ? '#2e6b52' : '#6b2e34';
+    ctx.beginPath();
+    ctx.moveTo(p[0] - cao * .3, p[1]);
+    ctx.lineTo(p[0] - cao * .3, p[1] - cao * .55);
+    ctx.arc(p[0], p[1] - cao * .55, cao * .3, Math.PI, 0);
+    ctx.lineTo(p[0] + cao * .3, p[1]);
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    if (s > .5) chu(Math.ceil(n.chet) + 's', p[0], p[1] - cao * .95,
+      Math.max(9, 10 * s), 'rgba(255,255,255,.65)');
+  }
+
+  /** vẽ lại hàng ảnh dưới đáy (đánh dấu người đang được camera bám) */
+  function veDayAnh() {
+    var h = G.$('.tr-anhday'); if (!h) return;
+    G.$$('.tr-mat', h).forEach(function (b, i) {
+      b.classList.toggle('theo', cam.theo === i);
     });
   }
 
@@ -925,10 +1426,15 @@
       tran.nguoi.filter(function (n) { return n.doi === doi; }).forEach(function (n) {
         var d = G.el('div.the-nguoi' + (n.chet > 0 ? '.chet' : '') + (cam.theo === n.i ? '.theo' : ''));
 
+        var hoiC = (n.tuong.kn.cuoi && n.tuong.kn.cuoi.hoi) || 1;
+        var duCap = n.cap >= 5;
+        var san = duCap && n.cd.cuoi <= 0;
+        var pC = !duCap ? 0 : G.kep(1 - n.cd.cuoi / hoiC, 0, 1);
+
         var tren = G.el('div.the-tren');
         var a = G.oAnhTuong && G.oAnhTuong(n.tuong.id, 26);
         if (a) { a.className = 'the-anh'; tren.appendChild(a); }
-        tren.appendChild(G.el('div.the-ten', { text: 'Lv' + n.cap + ' ' + n.ten }));
+        tren.appendChild(G.el('div.the-ten', { text: (san ? '★ ' : '') + 'Lv' + n.cap + ' ' + n.ten }));
         tren.appendChild(G.el('div.the-kda', { text: n.k + '/' + n.d + '/' + n.a }));
         d.appendChild(tren);
 
@@ -936,6 +1442,19 @@
         th.appendChild(G.el('i', { style: 'width:' + G.kep(n.hp / n.hpMax * 100, 0, 100) + '%;background:' +
           (doi === 'xanh' ? '#3ddc97' : '#e5484d') }));
         d.appendChild(th);
+
+        /* THANH THỨ HAI = CHIÊU CUỐI.
+           Teamfight Manager 2 để một thanh mana ngay dưới thanh máu. Ở đây không có mana,
+           nhưng thứ người xem thật sự cần biết là "ai sắp bung chiêu cuối" — đó là khoảnh
+           khắc quyết định giao tranh. Đầy và sáng vàng = sẵn sàng, và ghi luôn TÊN chiêu. */
+        var tc = G.el('div.the-cuoi' + (san ? '.san' : ''), {
+          title: n.tuong.kn.cuoi.ten + (san ? ' — sẵn sàng'
+            : (!duCap ? ' — mở ở cấp 5' : ' — còn ' + Math.ceil(n.cd.cuoi) + 's')) });
+        tc.appendChild(G.el('i', { style: 'width:' + (pC * 100) + '%' }));
+        d.appendChild(tc);
+        /* Chiêu cuối đầy thì viền thẻ sáng vàng và tên có dấu ★ — một dòng chữ nữa thì
+           thẻ cao thêm, mà cột chỉ đủ chỗ cho đúng NĂM người mỗi bên. */
+        if (san) { d.classList.add('san-cuoi'); }
 
         /* NĂM ô, không phải sáu: mỗi nhánh trang bị là một đường ghép và mua tầng sau
            thay tầng trước, nên một người giữ tối đa đúng năm món — một món mỗi nhánh.
