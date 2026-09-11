@@ -164,7 +164,7 @@
   //
   // Bốn tấm còn lại của bảng cũ (listen/heavy/crawler/quanca) không có chỗ trong sáu thứ này
   // nên vẫn nằm ngoài kho.
-  const FOE_IDS = ['gunner', 'rook', 'angel', 'banger', 'gnome', 'mirror'];
+  const FOE_IDS = ['gunner', 'rook', 'angel', 'banger', 'gnome', 'mirror', 'mimic'];
 
   // KHÔNG CÒN BẢNG GẮN LẠI RIÊNG cho Biệt Đội. Nó từng tồn tại vì hai game có hai bảng
   // quái khác nhau mà trùng mã (`rook` bên này là Kẻ húc, bên kia là Con Ngồi), nên một cái
@@ -334,6 +334,33 @@
   load(HERE + 'art/item/lantern.png' + VER, function (im) {
     lampStrip = { img: im, n: Math.max(1, Math.round(im.width / ITEM)) };
   });
+
+  // DẢI BẪY + RƯƠNG — tám ô, cắt từ kho Soul Knight. Thứ tự ô là HỢP ĐỒNG với BAY_O trong
+  // game.js và với tools/lam-art.py; đổi ở một chỗ mà quên hai chỗ kia thì cái bẫy gai vẽ ra
+  // một cái rương và không ai báo lỗi.
+  //   0 gai nằm im · 1 gai nhú · 2 gai bật · 3 hộp laser tắt · 4 hộp laser bật
+  //   5 rương đóng · 6 rương mở · 7 thanh tia
+  let bayStrip = null;
+  load(HERE + 'art/item/bay.png' + VER, function (im) {
+    bayStrip = { img: im, n: Math.max(1, Math.round(im.width / ITEM)) };
+  });
+  // Neo theo CHÂN: cái bẫy nằm trên sàn, nên (x,y) là chỗ nó chạm sàn chứ không phải tâm hình.
+  // Đáy ô thả xuống dưới y một chút vì mấy miếng trong ô đều chừa vài dòng trống ở đáy.
+  function bay(c, i, x, y, w, h) {
+    if (!bayStrip || i < 0 || i >= bayStrip.n) return false;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(bayStrip.img, i * ITEM, 0, ITEM, ITEM,
+      Math.round(x - w / 2), Math.round(y + h * 0.12 - h), w, h);
+    return true;
+  }
+  // Cùng dải, nhưng neo GIỮA — cho thanh tia, thứ vừa xoay vừa bị kéo dài.
+  function bayGiua(c, i, x, y, w, h) {
+    if (!bayStrip || i < 0 || i >= bayStrip.n) return false;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(bayStrip.img, i * ITEM, 0, ITEM, ITEM,
+      Math.round(x - w / 2), Math.round(y - h / 2), w, h);
+    return true;
+  }
 
   // HÌNH MÓN ĐỒ CẦM TAY — một LƯỚI: mỗi CỘT một món (thứ tự GEAR_ORDER), mỗi HÀNG một khung.
   //
@@ -592,6 +619,8 @@
     vfxN: function (id) { return vfx[id] ? vfx[id].n : 0; },
     loot: lootIcon,
     lootCo: lootCo,
+    bay: bay,
+    bayGiua: bayGiua,
     lamp: lamp,
     gear: gear,
     dan: dan,

@@ -1707,7 +1707,7 @@ async function boardingSuite(b) {
 // đọc ở sổ tay và ở cái nhãn 'Quái:' của màn chọn map, không chỗ nào nạp vào bộ máy, nên
 // bảy con đó chưa từng sinh ra trong một ván nào. Bài test cũ vì thế khẳng định rất chắc
 // chắn một điều sai: rằng sổ tay liệt kê đúng bọn quái người chơi sẽ gặp.
-const WIKI_MA = ['gunner', 'rook', 'banger', 'gnome', 'angel', 'mirror'];
+const WIKI_MA = ['gunner', 'rook', 'banger', 'gnome', 'mimic', 'angel', 'mirror'];
 async function wikiSuite(b) {
   results.push('\n── sổ tay (bảng tra quái & chiêu) ──');
 
@@ -1873,7 +1873,7 @@ async function wikiSuite(b) {
       dung.slice(0, 5).join(', ') || (A.o.length + ' ô đều đổi khung'));
     // So theo THỨ TỰ, không lọc theo tập hợp: 'angel' vừa là mã một con quái vừa là mã chiêu
     // Bất Tử, nên một phép lọc 'có nằm trong SQ_MA không' đếm ra tám và bài test hỏng oan.
-    check('sáu thứ trong nhà đều có ô riêng, đúng thứ tự bảng',
+    check('bảy thứ trong nhà đều có ô riêng, đúng thứ tự bảng',
       A.o.slice(0, quai).map(x => x.ma).join(',') === WIKI_MA.join(','),
       A.o.slice(0, quai).map(x => x.ma).join(','));
     await p.locator('#veilBtn').click();
@@ -3730,27 +3730,31 @@ async function vienDoSuite(b) {
   check('nhà vắng thì mép màn hình không đỏ', vang.gan < 0.05 && vang.mep < 18,
     JSON.stringify(vang));
 
-  await p.evaluate(() => {
+  // LUẬT đo bằng `than` (tính thẳng mỗi khung, không làm mượt, không phụ thuộc nhịp tim), còn
+  // MÀU đo bằng điểm ảnh ở thế đứng gần. Đo màu ở cả hai khoảng cách thì bài test đang đo
+  // TÂM TRẠNG của con quái: nó chuyển sang đuổi là `than` nhảy thêm 0,32, và cái viền thở theo
+  // nhịp tim nữa — hai nguồn nhiễu cho một phép so.
+  const thang = await p.evaluate(() => {
+    const S = REPO.S, pl = S.player;
     const m = REPO.spawnFoe('gunner', 0, 6*REPO.TILE);
-    if (m){ m.sleep = 0; m.state = 'patrol'; m.alert = 0; }
+    m.sleep = 0; m.state = 'patrol'; m.alert = 0;
+    const xa = REPO.vienDo().than;
+    m.x = pl.x; m.y = pl.y + REPO.TILE*2; m.state = 'patrol'; m.alert = 0;
+    const gan = REPO.vienDo().than;
+    return { xa, gan };
   });
-  await p.waitForTimeout(1500);
-  const xa = await p.evaluate(() => {
-    const m = REPO.S.monsters[0]; if (m){ m.state = 'patrol'; m.alert = 0; }
-    return null;
-  }).then(doMep);
+  check('có quái trong tầm thì cái viền có gì để đọc', thang.xa > 0.25, 'sáu ô → ' + thang.xa);
+  check('và càng gần càng đỏ — hai ô đậm hơn sáu ô', thang.gan > thang.xa + 0.3,
+    'sáu ô ' + thang.xa + ' → hai ô ' + thang.gan);
 
   await p.evaluate(() => {
     const m = REPO.S.monsters[0], pl = REPO.S.player;
-    if (m){ m.x = pl.x; m.y = pl.y + REPO.TILE*1.6; m.state = 'patrol'; m.alert = 0; }
+    if (m){ m.x = pl.x; m.y = pl.y + REPO.TILE*2; m.state = 'patrol'; m.alert = 0; }
   });
-  await p.waitForTimeout(1500);
+  await p.waitForTimeout(1600);
   const gan = await doMep();
-
-  check('có quái trong tầm thì mép đỏ lên', xa.mep > vang.mep + 8,
-    'vắng ' + vang.mep + ' → xa ' + xa.mep);
-  check('và càng gần càng đỏ', gan.mep > xa.mep + 10 && gan.gan > xa.gan,
-    'xa ' + xa.mep + ' (gan ' + xa.gan + ') → gần ' + gan.mep + ' (gan ' + gan.gan + ')');
+  check('và cái viền ấy ĐỎ THẬT trên màn hình, không chỉ là một con số',
+    gan.mep > vang.mep + 30, 'vắng ' + vang.mep + ' → gần ' + gan.mep);
 
   // --- 3. pho tượng KHÔNG làm đỏ viền ---
   const tuong = await p.evaluate(async () => {
@@ -3791,6 +3795,187 @@ async function vienDoSuite(b) {
 }
 
 // =====================================================================
+// BẪY GAI · BẪY LASER · RƯƠNG VÀ CON RƯƠNG RĂNG.
+// Chủ dự án: "làm thêm bẫy gai, bẫy lazer, asset dùng của soul knight. thêm loot chest của
+// soul knight — khi nhặt lên có thể thành mimic dí cắn người chơi", rồi: "có tỷ lệ thôi nha
+// chứ không phải 100% mimic".
+// Câu cuối là câu bộ test này tồn tại để canh: một cái rương LUÔN LUÔN là mimic thì nó không
+// còn là cái bẫy, nó là một cái nút "sinh quái"; mà một cái rương KHÔNG BAO GIỜ là mimic thì
+// nó chỉ là một đống đồ có vỏ.
+async function baySuite(b) {
+  results.push('\n── bẫy và rương ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 480, height: 940 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+
+  // Mấy hằng số phải lấy TỪ TRONG TRANG ra biến của Node trước khi dùng: `REPO` chỉ tồn tại
+  // bên trong p.evaluate, ngoài này gọi nó là một ReferenceError.
+  const HANG = await p.evaluate(() => ({ mimic: REPO.MIMIC_KIND, ti: REPO.RUONG_MIMIC }));
+
+  // --- 1. màn 1 KHÔNG có bẫy, màn 4 thì có ---
+  const man1 = await p.evaluate(() => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 1; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.noFoes = true; REPO.S.monsters.length = 0; REPO.S.mates.length = 0;
+    return { bay: REPO.bay().length, ruong: REPO.ruong().length };
+  });
+  check('màn 1 không có bẫy nào — màn ấy đang dạy luật khuân đồ',
+    man1.bay === 0 && man1.ruong === 0, JSON.stringify(man1));
+
+  const man4 = await p.evaluate(() => {
+    REPO.S.level = 4; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.noFoes = true; REPO.S.monsters.length = 0; REPO.S.mates.length = 0;
+    const bay = REPO.bay();
+    return { gai: bay.filter(x => x.loai === 'gai').length,
+             tia: bay.filter(x => x.loai === 'tia').length,
+             ruong: REPO.ruong().length };
+  });
+  check('màn 4 có cả bẫy gai lẫn bẫy laser lẫn rương',
+    man4.gai > 0 && man4.tia > 0 && man4.ruong > 0, JSON.stringify(man4));
+
+  // --- 2. bẫy gai: giẫm → NHỊP BÁO → gai bật → ăn đòn ---
+  const gai = await p.evaluate(async () => {
+    const S = REPO.S, g = REPO.bay().find(x => x.loai === 'gai');
+    if (!g) return null;
+    S.player.hp = S.player.hpMax; S.player.invulnT = 0;
+    const hp0 = S.player.hp;
+    REPO.warp(g.x, g.y);
+    await new Promise(r => setTimeout(r, 150));
+    const pha1 = REPO.bay().find(x => x.loai === 'gai').pha;
+    const hp1 = S.player.hp;
+    await new Promise(r => setTimeout(r, 400));
+    const pha2 = REPO.bay().find(x => x.loai === 'gai').pha;
+    return { hp0, pha1, hp1, pha2, hp2: S.player.hp };
+  });
+  check('dựng được thế đứng trên bẫy gai', !!gai, JSON.stringify(gai));
+  if (gai){
+    check('giẫm lên thì có NHỊP BÁO trước, chưa đau ngay',
+      gai.pha1 === 'bao' && gai.hp1 === gai.hp0, JSON.stringify(gai));
+    check('rồi gai bật và ăn đòn thật',
+      gai.pha2 === 'ban' && gai.hp2 < gai.hp0, gai.hp0 + ' → ' + gai.hp2);
+  }
+
+  // --- 3. bẫy laser: tắt thì đi qua được, bật thì không ---
+  const tia = await p.evaluate(async () => {
+    const S = REPO.S, t = REPO.bay().find(x => x.loai === 'tia');
+    if (!t) return null;
+    S.player.hp = S.player.hpMax; S.player.invulnT = 0; S.player.tiaCd = 0;
+    // đứng NGOÀI đoạn tia, thẳng hàng nhưng quá hai cây cột: không được dính
+    const dx = t.x2 - t.x, dy = t.y2 - t.y, m = Math.hypot(dx, dy) || 1;
+    REPO.warp(t.x - dx/m*REPO.TILE*1.8, t.y - dy/m*REPO.TILE*1.8);
+    await new Promise(r => setTimeout(r, 2600));
+    const ngoai = S.player.hp;
+    REPO.warp((t.x+t.x2)/2, (t.y+t.y2)/2);
+    await new Promise(r => setTimeout(r, 3200));
+    return { day: S.player.hpMax, ngoai, tren: S.player.hp };
+  });
+  check('dựng được thế đứng với bẫy laser', !!tia, JSON.stringify(tia));
+  if (tia){
+    check('đứng THẲNG HÀNG nhưng ngoài hai cây cột thì không dính tia',
+      tia.ngoai === tia.day, tia.day + ' → ' + tia.ngoai);
+    check('đứng GIỮA hai cột thì ăn đòn', tia.tren < tia.ngoai,
+      tia.ngoai + ' → ' + tia.tren);
+  }
+
+  // --- 4. rương hiền: mở ra đồ, và đồ ấy KHÔNG nằm trong chỉ tiêu ---
+  const hien = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.level = 4; REPO.startLevel(4242); REPO.cancelCut(); S.running = true;
+    S.noFoes = true; S.monsters.length = 0; S.mates.length = 0;
+    if (!S.ruong.length) return null;
+    S.ruong[0].mimic = false;
+    REPO.warp(S.ruong[0].x, S.ruong[0].y + 18);
+    const nhan = REPO.nhanTuongTac(S.player, true);
+    const do0 = S.loot.filter(l => !l.gone).length, quota = S.quotaTotal;
+    REPO.moRuong();
+    return { nhan, do0, do1: S.loot.filter(l => !l.gone).length,
+             quota, quota2: S.quotaTotal, quai: S.monsters.length };
+  });
+  check('đứng cạnh rương thì phím E đổi việc thành "Mở rương"',
+    hien && hien.nhan === 'Mở rương', hien && hien.nhan);
+  check('mở rương hiền thì ra đồ, không ra quái',
+    hien && hien.do1 > hien.do0 && hien.quai === 0, JSON.stringify(hien));
+  check('và đồ trong rương KHÔNG cộng vào chỉ tiêu — nó là tiền thêm',
+    hien && hien.quota === hien.quota2, hien && (hien.quota + ' / ' + hien.quota2));
+
+  // --- 5. rương mimic: ra quái, và quái ấy ĐUỔI ---
+  const mim = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.level = 4; REPO.startLevel(4242); REPO.cancelCut(); S.running = true;
+    S.noFoes = false; S.monsters.length = 0; S.mates.length = 0;
+    if (!S.ruong.length) return null;
+    S.ruong[0].mimic = true;
+    REPO.warp(S.ruong[0].x, S.ruong[0].y + 18);
+    const r0 = REPO.ruong().length;
+    REPO.moRuong();
+    const m = S.monsters[0];
+    if (!m) return { r0, quai: 0 };
+    // Nó NHẮM THẲNG vào người vừa mở nó ngay ở khung hình đầu — không có nhịp ngơ ngác nào.
+    const nham = Math.hypot(m.tx - S.player.x, m.ty - S.player.y) < 1;
+    return { r0, quai: S.monsters.length, loai: m.type, nham,
+             r1: REPO.ruong().length };
+  });
+  check('mở rương mimic thì cái rương biến mất và một con Rương răng nhảy ra',
+    mim && mim.quai === 1 && mim.loai === HANG.mimic, JSON.stringify(mim));
+  check('và nó nhắm thẳng vào người vừa mở nó, không có nhịp ngơ ngác nào',
+    mim && mim.nham === true, JSON.stringify(mim));
+
+  // Cú ĐUỔI đo riêng, ở một thế đứng DỰNG SẴN. Không đo trên chính cái rương được: rương nằm
+  // đâu là do hạt giống, nên "lùi ra năm ô" có thể là lùi ra sau một bức tường — và lúc ấy con
+  // quái đứng im là ĐÚNG (nó không nhìn xuyên tường), còn phép đo thì đọc thành "nó bị liệt".
+  // Mất đúng một buổi vì chuyện này.
+  const duoi = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.monsters.length = 0;
+    // VỀ CHỖ TRỐNG trước đã: spawnFoe không hỏi ô ấy có phải tường không, nên đặt con quái bốn
+    // ô dưới chân một người đang đứng nép trong góc là đặt nó vào trong tường — ở đó nó không
+    // đi đâu được, và phép đo đọc ra thành "con này bị liệt".
+    REPO.warp(S.car.x, S.car.y + REPO.TILE*3);
+    const m = REPO.spawnFoe('mimic', 0, REPO.TILE*4);
+    S.player.dir = Math.PI/2; m.dir = -Math.PI/2;
+    m.alert = 3; m.state = 'chase'; m.tx = S.player.x; m.ty = S.player.y;
+    const xa0 = Math.hypot(m.x - S.player.x, m.y - S.player.y);
+    await new Promise(r => setTimeout(r, 1800));
+    return { xa0: +xa0.toFixed(1), xa1: +Math.hypot(m.x - S.player.x, m.y - S.player.y).toFixed(1) };
+  });
+  check('và con Rương răng ĐUỔI thật — bốn ô rút xuống còn tầm đánh',
+    duoi.xa1 < duoi.xa0 - 20, duoi.xa0 + ' → ' + duoi.xa1 + ' px');
+
+  // --- 6. TỈ LỆ: không phải cái rương nào cũng là mimic ---
+  const ti = await p.evaluate(() => {
+    const S = REPO.S;
+    let co = 0, tong = 0;
+    for (let seed = 1; seed <= 60; seed++){
+      S.level = 5; REPO.startLevel(seed * 977); REPO.cancelCut();
+      for (const r of REPO.ruong()){ tong++; if (r.mimic) co++; }
+    }
+    return { tong, co, ti: tong ? +(co/tong).toFixed(3) : 0 };
+  });
+  check('gieo 60 căn nhà: CÓ rương mimic, và cũng CÓ rương hiền',
+    ti.tong > 40 && ti.co > 0 && ti.co < ti.tong, JSON.stringify(ti));
+  check('và tỉ lệ bám quanh con số đã khai, không phải 100%',
+    Math.abs(ti.ti - HANG.ti) < 0.16,
+    'đo ' + ti.ti + ' · khai ' + HANG.ti);
+
+  // --- 7. con Rương răng không bao giờ nằm sẵn trong nhà ---
+  const trong = await p.evaluate(() => {
+    const S = REPO.S;
+    let thay = 0;
+    for (let seed = 1; seed <= 40; seed++){
+      S.level = 6; REPO.startLevel(seed * 613); REPO.cancelCut();
+      if (S.monsters.some(m => m.type === REPO.MIMIC_KIND)) thay++;
+    }
+    return thay;
+  });
+  check('40 căn nhà không căn nào CHỨA sẵn một con Rương răng — nó chỉ ra đời từ cái rương',
+    trong === 0, trong + ' căn có');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('bẫy và rương: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 (async () => {
   // --allow-file-access-from-files: mở file:// bằng Chromium thì mỗi tấm PNG là một 'gốc' khác
   //   nhau, nên vẽ một con quái lên canvas là canvas đó bị NHIỄM và getImageData ném
@@ -3822,6 +4007,7 @@ async function vienDoSuite(b) {
   try { await botGoVanSuite(b); } catch (e) { check('người chơi gục: bộ test chạy trọn', false, e.message); }
   try { await matAngelSuite(b); } catch (e) { check('khuôn mặt pho tượng: bộ test chạy trọn', false, e.message); }
   try { await vienDoSuite(b); } catch (e) { check('viền đỏ & nhiễu hình: bộ test chạy trọn', false, e.message); }
+  try { await baySuite(b); } catch (e) { check('bẫy và rương: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));

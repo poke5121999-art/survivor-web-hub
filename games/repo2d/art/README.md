@@ -103,6 +103,25 @@ một bảng quái, nên một mã trỏ vào đúng một con và chỗ gắn l
 Thêm mã mới thì nhớ thêm cả vào `FOE_IDS` trong `sprites.js`, không thì game không nạp và lặng
 lẽ vẽ lại hình khối — và mỗi tên trong `FOE_IDS` không có tệp tương ứng là một request 404 thật.
 
+## Bẫy và rương — `item/bay.png`, `foe/mimic.png`
+
+Hai tấm này **không vẽ tay**: chúng do `art/tools/lam-bay.py` cắt ra từ kho Soul Knight đã bóc ở
+`~/Downloads/sk-ref` (ngoài git). Chạy lại kịch bản ấy là sinh lại đúng hai tấm này.
+
+`item/bay.png` là một **dải ngang tám ô 96×96**, và thứ tự ô là hợp đồng ba bên — `lam-bay.py`,
+`BAY_O` trong `game.js`, và hàm `bay()` trong `sprites.js`. Đổi ở một chỗ mà quên hai chỗ kia
+thì bẫy gai vẽ ra cái rương và **không ai báo lỗi**:
+
+| Ô | Là gì |
+|---|---|
+| 0 · 1 · 2 | gai nằm im · gai nhú · gai bật hết |
+| 3 · 4 | hộp laser tắt · hộp laser bật |
+| 5 · 6 | rương đóng · rương mở |
+| 7 | thanh tia — **căng đầy ô**, vì lúc vẽ nó bị kéo thành hộp (dài tia × bề dày tia) |
+
+`foe/mimic.png` theo đúng khuôn charset 288×576 như mọi tấm quái khác. Cái rương thì không có
+lưng, nên bốn hàng dùng chung ba khung nhảy, chỉ hàng "nhìn sang trái" lật ngang.
+
 ## Hiệu ứng — `vfx/<mã>.png`
 
 Chủ dự án gửi cả một thư mục VFX, 2026-09-04: *"có mấy cái fx ở đây nè có gì thấy cái nào xài đc

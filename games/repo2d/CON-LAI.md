@@ -1,15 +1,97 @@
 # Còn lại — bàn giao 2026-09-11
 
-Bản vừa push: **viền đỏ khi quái tới gần, và nhiễu hình lúc ăn đòn** (mục 0000). Trước đó:
-khuôn mặt pho tượng (mục 000); bộ chuột-phím cho máy tính và ba cái lỗi (mục 00); xe lao qua
-tường vào nhà, cả tổ chạy lên xe lúc thoát (mục 0).
-Dấu build lên `?v=20260911b` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Bản vừa push: **bẫy gai, bẫy laser, và cái rương có thể có răng** (mục 00000). Trước đó: viền
+đỏ + nhiễu hình (mục 0000); khuôn mặt pho tượng (mục 000); bộ chuột-phím và ba cái lỗi (mục 00).
+Dấu build lên `?v=20260911c` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 Hai hồ sơ nghiên cứu nằm cạnh tệp này: **`RESEARCH.md`** (Robbery Bob — trộm, nấp, tiếng ồn) và
 **`RESEARCH-DARKWOOD.md`** (Darkwood — nỗi sợ). Cái thứ hai viết 2026-09-11, và kết luận của nó
 ngắn gọn là: căn nhà này đã đứng trên năm trong bảy cột của Darkwood rồi; thứ đáng làm tiếp và
 rẻ nhất là **cho âm thanh một cái hướng** — cả hệ tiếng hiện chạy mono, không một chữ `pan` nào.
+
+---
+
+## 00000. BẢN 20260911c — BẪY GAI, BẪY LASER, VÀ CÁI RƯƠNG CÓ RĂNG
+
+Chủ dự án, 2026-09-11: *"làm thêm bẫy gai, bẫy lazer, asset dùng của soul knight. thêm loot
+chest của soul knight — khi nhặt lên có thể thành mimic dí cắn người chơi."* Rồi ngay sau đó:
+*"có tỷ lệ thôi nha chứ không phải 100% mimic."*
+
+### Ba thứ, một câu hỏi chung
+
+Trước bản này, mọi mối nguy trong nhà đều là một **con** gì đó — tức là một thứ di chuyển, gây
+tiếng động, và hiện ra trong nón đèn. **Cái sàn thì chưa bao giờ nói dối.** Ba thứ dưới đây là
+ba cách khác nhau để sàn nói dối, và cả ba đều cố ý không phát ra tiếng gì cho tới lúc chúng bật.
+
+Cả ba chỉ có **từ màn 2 trở đi** (`BAY_TU_MAN`): màn 1 đang dạy luật khuân đồ, thêm một cái bẫy
+vào đó là dạy hai thứ cùng lúc.
+
+| | Nó hỏi gì | Trả lời bằng gì |
+|---|---|---|
+| **Bẫy gai** | phản xạ | 0,34 giây nhịp báo (`GAI_BAO`) — đủ để nhảy ra nếu đang chạy, không đủ nếu đang vác cái tủ lạnh |
+| **Bẫy laser** | kiên nhẫn | nó nói trước cả khi có ai tới gần: nhấp nháy `TIA_BAO` giây rồi bật `TIA_BAT` giây, tắt `TIA_TAT` giây |
+| **Rương** | lòng tham | 30% (`RUONG_MIMIC`) số rương là một con **Rương răng** |
+
+**Bẫy gai làm quái đau GẤP ĐÔI** người chơi. Đó không phải cân bằng số, đó là một nước đi mở
+ra: nhớ chỗ cái bẫy, rồi dụ con đang đuổi mình chạy qua đó.
+
+**Gai bật là một tiếng động THẬT** (`makeNoise`, 9 ô) — giẫm phải bẫy giữa lúc đang vác hàng vì
+thế đắt gấp đôi: mất máu, và cả nhà biết bạn đứng đâu.
+
+**Đồ trong rương KHÔNG tính vào chỉ tiêu.** `datBayVaRuong()` chạy *sau* khi chỉ tiêu đã chốt.
+Cố ý: rương là tiền **thêm**, nên mở nó luôn là nước đi có lãi kỳ vọng dương, và cái giá phải
+trả là 30% số lần bạn phải bỏ chạy.
+
+### Con Rương răng
+
+Nó có trong `MONSTERS` nhưng **bị loại khỏi mọi lượt bốc** (`stockFrom` lọc `MIMIC_KIND`). Đó
+là điều kiện để nó còn là mimic: nó không phải thứ căn nhà *chứa*, nó là thứ một cái rương *trở
+thành*. Một con Rương răng đứng sẵn giữa phòng từ đầu ván thì chỉ là một con quái hình cái hộp.
+Bộ test gieo 40 căn nhà để canh đúng câu này.
+
+Tỉ lệ **gieo sẵn lúc dựng nhà**, không quay lúc mở: cùng hạt giống thì cùng cái rương luôn là
+cùng một thứ — đo được bằng máy, và tải lại trang không đổi được số phận của nó.
+
+Hạ được nó thì nó **nhả lại đúng số đồ cái rương đang giữ**, và **không** rơi bịch tiền như quái
+thường. Nếu nó vừa nhả đồ vừa rơi tiền thì mở phải rương hoá ra lãi hơn mở phải rương hiền, và
+cả cái tỉ lệ 30% kia hết còn là một rủi ro.
+
+### Hai cái bẫy đã sập trong lúc làm
+
+**a) Con quái nghe thấy chính tiếng nắp nó vừa bật.** `makeNoise()` gán `m.tx/m.ty` = chỗ phát
+tiếng cho **mọi** con trong tầm — kể cả con vừa được đẩy vào mảng ở dòng trên. Nên con Rương
+răng quay ra đi về phía *chỗ nó đang đứng*, và đứng ngẩn ra đó. Đo được: **không nhúc nhích một
+pixel nào trong một giây rưỡi.** Sửa: gọi `makeNoise` **trước** khi push — tiếng ấy là để đánh
+thức phần còn lại của căn nhà, không phải để gọi chính nó.
+
+**b) `makeMonster` đặt `dir = 0`**, tức là nhìn sang phải. Tầm nhìn của quái là một **nón**, nên
+một con vừa bật nắp mà mặt quay đi hướng khác thì nó mất dấu người chơi ngay ở khung hình đầu.
+Sửa: quay mặt về phía người vừa mở nó.
+
+Cả hai đều KHÔNG bắt được bằng mắt — trên màn hình chỉ thấy "con mimic hơi đờ đẫn". Bắt được vì
+bộ test đo khoảng cách theo thời gian.
+
+### Hình lấy từ đâu
+
+Tám ô trong `art/item/bay.png` và cả tấm `art/foe/mimic.png` cắt từ kho **Soul Knight 8.5.1** đã
+bóc ở `~/Downloads/sk-ref` (ngoài git — xem `art/room/SOULKNIGHT-TILEMAP.md`). Kịch bản cắt nằm
+trong repo ở **`art/tools/lam-bay.py`**, chạy lại được; ảnh nguồn thì không bao giờ vào.
+
+| Trong game | Sprite gốc |
+|---|---|
+| tấm đá / gai | `sting_MMR_1` · `sting_MMR_0` (bộ Monolithic Mountains Ruins) |
+| hộp laser | `ElectricBox_0` / `_8`, cắt lấy **một tủ bên trái** của khung 53px |
+| thanh tia | `rgb_laser_0`, kéo căng cả ô |
+| rương đóng | `chest_anim_4` |
+| rương mở | dựng từ **chính khung đóng** — cắt nắp, ép dẹt, đẩy lên, khoét vũng tối |
+| Rương răng | `chest_monster1_2 / _0 / _6` xếp thành charset 288×576 |
+
+Hai chỗ đáng ghi lại: bộ `chest_anim` **không có khung mở** (bảy khung nâu là bảy nhịp le lói
+của cái khoá), nên khung mở phải dựng từ khung đóng — mà như thế lại đúng: cái rương mở và cái
+rương đóng chắc chắn là **cùng một vật**, đúng cái trò chơi cần. Và cái tên `spikes01.png` trong
+kho **không phải gai** — nó là mấy vệt loé sáng; gai thật tên là `sting`, tra ra từ bảng ký tự
+của 282 mẫu phòng (`patterns-ascii.txt`, ký tự `^`).
 
 ---
 
@@ -313,6 +395,9 @@ xanh không thay được chỗ này.
 | **Khuôn mặt pho tượng** | Đợi Tượng ghé, nhìn thẳng vào nó, rồi CỐ Ý quay đi cho đồng hồ chạy | Nó có đáng sợ không, hay chỉ vướng mắt? Còn nhìn ra pho tượng thật giữa màn không? Ba giây cuối có đọc ra là "sắp tới nơi" không? |
 | **Viền đỏ** | Đi trong nhà có quái, để ý mép màn hình thay vì nhìn bản đồ nhỏ | Nó có báo trước được "có thứ đang tới" không, hay chỉ đỏ khi đã thấy quái rồi? Có đỏ quá thường xuyên tới mức hết nghĩa không? |
 | **Nhiễu hình** | Cố tình để bị đánh vài phát, cả phát nhẹ lẫn phát nặng | Có giật đủ đô không? Có che mất con quái đúng giây phải chạy không? Bị đánh liên tiếp ba phát thì có thành không nhìn được gì nữa không? |
+| **Bẫy gai** | Màn 2 trở lên, đi vào phòng tối mà KHÔNG rọi đèn xuống sàn | 0,34 giây có đủ để nhảy ra không? Nhìn ra cái tấm đá trong tối được không, hay chỉ biết khi đã giẫm? |
+| **Bẫy laser** | Đứng chờ một chu kỳ rồi thử băng qua | Nhịp nhấp nháy có đọc ra là "sắp bật" không? Tia có sáng quá tới mức chói cả phòng không? |
+| **Rương** | Mở chừng mười cái rương qua vài ván | Ba trên mười có ra mimic không? Lúc nó bật ra có giật mình không, hay đoán được từ trước? Đuổi có gắt quá không? |
 | Mũi chỉ lối trên sàn | Vào ca, nhìn xuống chân | Hàng mũi nhọn có ĐỌC RA LÀ ĐƯỜNG ĐI không, hay nó chỉ là rác trên sàn? Dày quá hay thưa quá? |
 | Vòng highlight quanh loot | Đứng cạnh một món to | Cái vòng còn cắt ngang người món đồ nữa không? Nằm dưới chân đọc có rõ hơn không? |
 | Vết nứt | Đâm một cái bình vào tường hai lần | Đã "tinh tế" chưa, hay nay mờ quá đến mức không thấy đồ đang hỏng? |
