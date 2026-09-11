@@ -29,6 +29,15 @@
      của phần huấn luyện, và ghi bản tin vào bản lưu cả trăm lần trong một lần đo. */
   G.vongDoiMay = null;
   var SO_LAN = 40;                 /* mỗi giải chạy ngần này lần */
+  /* Hạt giống cố định nên hai lần chạy ra y hệt — tiện để so hai bản mã, nhưng KHÔNG nói
+     được con số ấy có phải nhiễu hay không. `HAT` dời cả dãy hạt sang chỗ khác để lấy một
+     mẫu độc lập: 40 giải Bo1 có sai số chuẩn ~7,5 điểm, nên chênh dưới 10 điểm giữa hai
+     lần chạy khác hạt là chuyện thường. Chỉ có trong Node mới đặt được. */
+  var HAT = (typeof process !== 'undefined' && process.env && +process.env.HAT) || 0;
+  /* `CHI=g1,g3` chỉ chạy mấy giải ấy. Đo đủ tám giải mất ~35 phút vì bốn giải cuối là Bo5;
+     lúc đang dò một con số thì chỉ cần một giải Bo1 (40 trận, ~1 phút). */
+  var CHI = ((typeof process !== 'undefined' && process.env && process.env.CHI) || '')
+    .split(',').filter(function (x) { return x; });
   var LOI = 'tham';                /* lối chơi giả lập: xem duongcong.js */
   var VT = ['tren', 'rung', 'giua', 'duoi', 'ho'];
 
@@ -101,15 +110,16 @@
   G.LICH.forEach(function (l, i) {
     if (!l.giai) return;
     var giai = l.giai;
+    if (CHI.length && CHI.indexOf(giai.id) < 0) return;
     var canThang = giai.the === 'Bo5' ? 3 : giai.the === 'Bo3' ? 2 : 1;
     var thang = 0, phut = 0, van = 0;
     for (var n = 0; n < SO_LAN; n++) {
-      var ca = nuoi(7000 + n * 91, i + 1);
+      var ca = nuoi(7000 + HAT + n * 91, i + 1);
       if (!ca) return;
       var doiMay = G._thu.taoDoiMay(ca, giai);
       var a = 0, b = 0, v = 0;
       while (a < canThang && b < canThang) {
-        if (motVan(ca, doiMay, giai, (11 + n * 7 + v * 13) & 0x7fffffff)) a++; else b++;
+        if (motVan(ca, doiMay, giai, (11 + HAT + n * 7 + v * 13) & 0x7fffffff)) a++; else b++;
         v++; van++;
       }
       if (a > b) thang++;

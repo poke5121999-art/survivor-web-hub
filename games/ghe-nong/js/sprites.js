@@ -55,6 +55,15 @@
     return veO(ctx, 'tuong', m[0], (khung | 0) % n, x, y, cao || 34, lat);
   };
 
+  /** Phần trăm khoảng TRỐNG ở mép trên ô atlas của một tướng (0..1).
+      Ô atlas cao 64 nhưng người vẽ trong đó chỉ chiếm phần dưới, nên "đỉnh đầu" không
+      nằm ở `y - cao` mà ở `y - cao * (1 - mép)`. Thiếu số này thì thanh máu treo lơ lửng
+      cách đầu nhân vật cả một thân người. */
+  G.mepTuong = function (id) {
+    var m = MAP && MAP.tuong && MAP.tuong[id];
+    return (m && m[2]) || 0;
+  };
+
   G.veQuai = function (ctx, id, x, y, cao, khung) {
     if (!MAP || !MAP.quai || !MAP.quai[id]) return false;
     var m = MAP.quai[id];

@@ -519,6 +519,63 @@ Bảng kết quả kiểu TFM2:
 - **Biểu đồ chênh lệch vàng theo phút** (đường, có mốc sự kiện lớn).
 - Nút `Tiếp ➜`.
 
+#### 6.5.8 Bộ não trong trận — ba tầng quyết định
+
+Cây quyết định ở §6.5.3 vẫn đúng, nhưng nó là cây của **một người**. Đo bằng
+`_tools/soiAI.js` thì lỗi nặng nhất không nằm trong đầu từng người mà nằm ở chỗ **không ai
+bàn với ai**: năm người tự chọn cái trụ gần mình nhất nên đẩy ba đường, mỗi đường một tí,
+và không đường nào sạch. Nên bộ não chia làm ba tầng, tầng trên ghi đè tầng dưới:
+
+| tầng | ai quyết | nhịp | quyết cái gì |
+|---|---|---|---|
+| **cửa sổ dứt điểm** | cả đội | mỗi lần nghĩ | địch gãy ≥3 người còn chờ hồi sinh >8s **và** nhà họ đang hở → tất cả vào nhà, tắt mọi luật sợ sệt (trừ ai dưới 18% máu) |
+| **kế hoạch đội** | cả đội | 8 giây (15 giây khi đang dứt điểm) | đẩy đường nào, hay thủ. Chọn theo: đường nào đã phá được nhiều trụ hơn, và trụ kế tiếp của đường ấy còn bao nhiêu máu |
+| **cây cá nhân** | từng người | ~1 giây | §6.5.3, cộng thêm `giu()` — việc **đang làm** được nhân mạnh xác suất, để đừng đổi ý ba giây một lần |
+
+Ba luật nữa nằm trong tầng cá nhân nhưng đáng ghi riêng vì chúng là chỗ hay sai nhất:
+
+- **Rút là vừa chạy vừa đánh.** Nhánh "đứng yên mà đánh" phải tách khỏi nhánh di chuyển,
+  không thì lệnh rút chỉ là cái nhãn: người mang nhãn `rut` vẫn đứng nguyên chỗ đánh tới chết.
+- **Lùi khi ĐANG ăn đạn trụ**, không phải khi *ở trong tầm trụ*. Người chơi thật vẫn áp sát
+  trụ để gõ, ăn một hai phát rồi lùi cho hết leo thang; cái phải tránh là đứng lì ăn phát
+  thứ ba thứ tư.
+- **Trụ đứng trước lính trong thứ tự ưu tiên đánh.** Để trụ sau lính thì người vây trụ vĩnh
+  viễn bận dọn quân.
+
+#### 6.5.9 Trụ phải là chỗ NGUY HIỂM
+
+Trụ trong bản đầu chỉ là cục máu có tầm bắn: đòn của nó đi **chung cái hãm ×0,22** với đòn
+tướng-đánh-tướng, nên nó bắn **85 giây mới giết nổi một người**. Cả bản đồ vì thế không có
+chỗ nào nguy hiểm, và mọi giao tranh đều có thể diễn ra ở bất cứ đâu — kể cả ngay dưới chân
+trụ địch, suốt cả trận.
+
+Ba con số làm trụ có sức nặng, đều đặt tên ở đầu `js/sim.js`:
+
+| hằng số | giá trị | nghĩa |
+|---|---:|---|
+| `HAM_TUONG` | 0,40 | hãm đòn tướng-đánh-tướng |
+| `TRU_HAM` | 0,55 | đòn trụ đi **thang riêng** — đau gấp 2,5 lần đòn tướng |
+| `TRU_LEO` | `[1 · 1,4 · 1,8 · 2,2]` | **leo thang theo số phát liên tiếp vào cùng một người** |
+| `TRU_QUEN` | 5 giây | rời mục tiêu lâu hơn thế thì trụ quên chuỗi |
+
+`HAM_TUONG` từng là 0,22 — vặn chặt như thế để chặn cảnh 130 mạng một trận, nhưng nó được
+chỉnh từ hồi bộ não chưa biết rút, chưa biết kiting, chưa biết sợ trụ. Khi đủ phanh rồi thì
+0,22 làm trận ra **12,8 mạng**, tức gần như không bao giờ có pha ba người gãy cùng lúc — mà
+đó lại là cửa sổ duy nhất để dứt điểm một trận MOBA, nên **57% số trận phải phân thắng bằng
+vàng**. Quét lại thành 0,40: 22 mạng một trận, và chỉ còn 17% hết giờ (RESEARCH.md §8.5).
+
+`TRU_LEO` mới là thứ làm trụ đáng sợ đúng kiểu MOBA, chứ không phải con số sát thương: đứng
+ăn phát thứ tư là gấp đôi phát đầu, nhưng **chia đạn cho nhiều người thì thang đặt lại** —
+nên vây trụ đông người vẫn là cách đúng, và lao một mình vẫn là tự sát.
+
+Hai luật đi kèm:
+
+- **Trụ đổi mục tiêu sang kẻ vừa đánh đồng minh** trong tầm (trong 1,5 giây). Không có luật
+  này thì trụ cứ bắn con lính đầu hàng trong khi tướng địch thoải mái giết người ngay cạnh.
+- **Tướng đập trụ mạnh hơn 80%.** Để cán cân không lật hẳn sang phía trụ: trụ vẫn đáng sợ
+  với người lao vào một mình, mà cả đội xúm vào thì một trụ vẫn đổ trong mươi giây — đúng
+  nhịp vây trụ của MOBA thật.
+
 ---
 
 ## 7. Gacha

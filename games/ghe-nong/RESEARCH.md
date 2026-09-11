@@ -1005,23 +1005,31 @@ phạm, nhưng cấm đúng con đó là kéo họ về mặt đất — đúng 
 
 ### 6.6 Đường cong chốt lại sau đợt soi
 
-| giải | thể thức | nhóm đội | thắng |
-|---|---|---|---|
-| Vòng bảng — Lượt 1 | Bo1 | ai_low | 75% |
-| Vòng bảng — Lượt 2 | Bo1 | ai_low | 85% |
-| Play-off quốc nội | Bo3 | ai_mid | 57% |
-| Chung kết quốc nội | Bo3 | ai_mid | 75% |
-| CKTG — Tứ kết | Bo3 | ai_hi | 43% |
-| CKTG — Bán kết | Bo5 | ai_hi | 53% |
-| CKTG — Tranh vé chung kết | Bo5 | ai_top | 25% |
-| CHUNG KẾT THẾ GIỚI | Bo5 | ai_top | 20% |
+| giải | thể thức | nhóm đội | chốt lần đầu | **đo lại sau đợt §8** |
+|---|---|---|---:|---:|
+| Vòng bảng — Lượt 1 | Bo1 | ai_low | 75% | **79%** |
+| Vòng bảng — Lượt 2 | Bo1 | ai_low | 85% | **86%** |
+| Play-off quốc nội | Bo3 | ai_mid | 57% | **58%** |
+| Chung kết quốc nội | Bo3 | ai_mid | 75% | **72%** |
+| CKTG — Tứ kết | Bo3 | ai_hi | 43% | **42%** |
+| CKTG — Bán kết | Bo5 | ai_hi | 53% | **42%** |
+| CKTG — Tranh vé chung kết | Bo5 | ai_top | 25% | **29%** |
+| CHUNG KẾT THẾ GIỚI | Bo5 | ai_top | 20% | **23%** |
 
-`_tools/tileThang.js`, 40 giải mỗi dòng, lối chơi `tham`, thẻ tuyển thủ **bậc R chưa nuôi**.
-Đó là mùa ĐẦU TIÊN: 20% vô địch thế giới ngay mùa một là đúng ý — thẻ lên cấp, huấn luyện
+`_tools/tileThang.js`, lối chơi `tham`, thẻ tuyển thủ **bậc R chưa nuôi**. Cột phải gộp
+**bốn dãy hạt giống cho bốn giải đầu (160 mẫu)** và hai dãy cho bốn giải CKTG (80 mẫu), sau
+khi đã chỉnh lại `THEO_BAC` — xem §8.8 để biết vì sao phải chỉnh. Chỉ còn Bán kết lệch
+11 điểm so với bảng chốt lần đầu, tức khoảng hai lần sai số chuẩn; để nguyên, ghi lại.
+
+Đó là mùa ĐẦU TIÊN: ~20% vô địch thế giới ngay mùa một là đúng ý — thẻ lên cấp, huấn luyện
 viên uncap và bảng thông thạo dày lên qua từng mùa mới là đường đi tới cúp.
 
-Bộ đo dùng hạt giống cố định nên hai lần chạy ra y hệt. **Số không nhảy không có nghĩa là nó
-chính xác** — 40 giải Bo5 vẫn là mẫu nhỏ, lệch 5% thì đừng vội sửa.
+`[BẪY ĐÃ SẬP]` Bộ đo dùng hạt giống cố định nên hai lần chạy ra y hệt, và điều đó **rất dễ
+làm tưởng con số là chắc**. 40 giải cho sai số chuẩn ±7,5 điểm, mà vì hạt cố định nên *bất
+cứ* thay đổi nào trong `sim.js` cũng xáo lại toàn bộ quỹ đạo: đợt §8 chỉ kéo tầm của MỘT
+tướng từ 50 lên 58 mà Vòng bảng Lượt 1 nhảy từ 40% lên 65% trên đúng dãy hạt cũ. Muốn chốt
+một con số thì phải chạy **nhiều dãy hạt** (`HAT=`) rồi gộp lại, chứ chạy lại cùng một dãy
+thì mãi mãi ra cùng một số sai.
 
 ### 6.5 Bẫy công cụ: `lai.js` dùng cổng gỡ lỗi CỐ ĐỊNH
 
@@ -1219,7 +1227,279 @@ mở ra). Dữ liệu trình bày không đọc lại trong luồng tính toán,
 ngầm KHÔNG đổi một con số nào của kết quả trận — mà `tran.bay` thì trước đó còn phình vô
 hạn suốt cả trận chạy ngầm, chẳng ai dọn.
 
-## 8. Nguồn
+---
+
+## 8. Đợt soi BỘ NÃO TRONG TRẬN, SỨC NẶNG CỦA TRỤ và ĐỘ RÕ CỦA MÀN TRẬN `[ĐO TRONG REPO]`
+
+Chủ dự án nêu ba chỗ hỏng cùng lúc: *"ai vẫn còn quá ngu — phân tích thêm đi, độ impact của
+trụ quá thấp — sát thương quá tệ, phi thực tế. phần render vẫn chưa rõ ràng."*
+
+Ba chỗ ấy nghe như ba việc rời nhau, nhưng đo ra thì chúng là **một vòng luẩn quẩn**: trụ
+không đau nên không ai sợ trụ; không ai sợ trụ nên mười người đứng lì dưới chân trụ đánh
+nhau suốt trận; đánh nhau suốt trận nên không ai đi phá trụ; không phá được trụ nên trận nào
+cũng phải phân thắng bằng vàng khi hết giờ. Sửa một mắt xích mà không sửa mắt còn lại thì
+chỉ đổi bệnh này lấy bệnh khác — đợt này sập đúng cái bẫy ấy **năm lần**, chép lại đủ ở §8.4.
+
+### 8.1 Bộ đo: `_tools/soiAI.js`
+
+`canbang.js` đo tướng nào mạnh hơn tướng nào. `tileThang.js` đo người chơi có qua nổi giải
+không. Cả hai đều **không nhìn thấy cách mười cái đầu trong trận ra quyết định** — mà đó
+đúng là thứ chủ dự án đang phàn nàn. Không có số thì mọi câu "AI ngu" hay "AI khá rồi" đều
+là cảm tính, nên việc đầu tiên là viết bộ đo.
+
+Mười sáu con số, mỗi con trả lời một câu cụ thể:
+
+| số | hỏi gì |
+|---|---|
+| `dai` · `mang` | trận dài bao nhiêu giây, ra bao nhiêu mạng |
+| `tapTrung` | lúc một người ngã, có mấy kẻ địch đứng trong 260? `≈1` là mười người đánh mười mục tiêu khác nhau |
+| `diDuoiTru` · `giayTrongTru` | bao nhiêu phần trăm số mạng rơi **trong tầm trụ địch**, và mỗi người đứng dưới trụ địch bao lâu |
+| `truNgoai` · `truNha` · `loiDo` | trụ đổ theo **từng tầng** — "9,6 trụ đổ" không nói được tắc ở đâu |
+| `nhaConLai` · `loiConLai` | trụ nhà / lõi còn bao nhiêu máu lúc hết trận — phân biệt "không tới nổi" với "tới rồi mà không dứt được" |
+| `hetGio` | bao nhiêu phần trăm trận phải phân thắng bằng vàng |
+| `doiMucMoiPhut` | một người đổi mục tiêu mấy lần mỗi phút — cao là "đánh một cái rồi bỏ đi" |
+| `chetKhiRut` · `solo` | bao nhiêu mạng rơi lúc nạn nhân **đang rút**, bao nhiêu mạng đổi trong cảnh 1-đấu-1 |
+
+`[BẪY ĐÃ SẬP]` **Chạy bộ đo qua trình duyệt là tự trói chân mình.** Bản đầu chạy
+`soiAI.js` qua `lai.js` (Chrome headless): 24 trận mất **8 phút**, và có lần máy đang bận
+thì 4 trận mất **3 phút 9**. Mỗi lần thử một ý là phải chờ gần mười phút — nên cả buổi chỉ
+thử được dăm ý, và mỗi ý đều phải đoán trước cho trúng.
+
+Bộ mô phỏng **không đụng một dòng DOM nào** khi `tran.veHinh` tắt. Cả cái trình duyệt chỉ
+là gánh nặng. `_tools/soiAI-node.js` dựng vài cái giả (`window`, `document`, `Image`,
+`localStorage`) rồi nạp thẳng mấy tệp dữ liệu + `sim.js` vào Node: **24 trận trong 29 giây**,
+ra **đúng từng con số** như bản chạy trong Chrome. Nhanh gấp mười sáu lần.
+
+`[BẪY ĐÃ SẬP]` **24 trận là quá ít để đọc `hetGio`.** Sai số chuẩn của một tỉ lệ ~40% trên
+24 mẫu là **±10 điểm**. Đợt này đã suýt chốt sai hai lần vì thế: một bản đo ra `hetGio` 38%,
+bản sau 46%, tưởng là "hạ máu trụ nhà làm trận dài ra"; chạy lại cùng bản ấy với **150 trận**
+thì ra 59% — hai con số kia đều là nhiễu. Từ khi có bản Node thì 150 trận chỉ mất ~3 phút,
+không có lý do gì để đo 24 nữa.
+
+### 8.2 "AI ngu" — sáu chỗ, đo ra rồi mới sửa
+
+| chỗ hỏng | số đo được | luật thiếu |
+|---|---|---|
+| mười người đánh mười mục tiêu khác nhau | `tapTrung` ≈ 1 | chấm điểm mục tiêu chung: ưu tiên kẻ sắp chết, kẻ đồng đội đang đánh, kẻ mỏng máu |
+| đổi ý 3,5 giây một lần | `doiMucMoiPhut` **171,9** | `giu()` — việc đang làm được nhân mạnh xác suất |
+| năm người đẩy ba đường | trụ ngoài đổ 8,9/12 mà **không đường nào sạch** | `keHoachDoi()` — một biến đẩy-đường cho cả đội, tính lại 8 giây một lần |
+| rút mà không chạy | **79%** số mạng rơi lúc nạn nhân *đang rút* | vừa chạy vừa đánh (kiting): tách nhánh đánh khỏi nhánh di chuyển |
+| đứng dưới trụ địch cả trận | **276 giây/người/trận**, 45% số mạng | lùi khi *đang ăn đạn trụ* — chứ không phải khi *ở trong tầm trụ* |
+| vây trụ mà quay ra gõ lính | 775 giây-người/trận đứng trong tầm trụ địch, đủ phá 48 trụ, thực tế phá **3,35/6** | trụ phải đứng **trước lính** trong thứ tự ưu tiên đánh |
+
+Chỗ cuối là chỗ bất ngờ nhất và cũng rẻ nhất: trong chuỗi chọn mục tiêu, cái trụ nằm **sau
+cùng** — sau tướng, sau quái rừng, sau quái lớn, sau lính. Nên người đứng ngay chân trụ địch
+vẫn dành cả trận để dọn lính. Đẩy một dòng lên trước nhánh lính là xong.
+
+### 8.3 "Impact của trụ quá thấp" — trụ đi thang sát thương riêng
+
+Trước đợt này, đòn trụ bị **cùng một cái hãm `×0,22`** như đòn tướng-đánh-tướng. Cái hãm ấy
+vốn để trận không tan trong hai giây (xem §4.2), nhưng áp lên trụ thì trụ bắn **85 giây mới
+giết nổi một người** — nó là đồ trang trí, và cả bản đồ mất chỗ nguy hiểm.
+
+Tách ra làm ba con số, đều nằm đầu `sim.js`:
+
+- `TRU_HAM = 0.55` — đòn trụ đi thang riêng, đau gấp 2,5 lần đòn tướng.
+- `TRU_LEO = [1, 1.4, 1.8, 2.2]` — **leo thang theo số phát liên tiếp vào cùng một người**.
+  Đây mới là thứ làm trụ đáng sợ đúng kiểu MOBA: đứng ăn phát thứ tư là gấp đôi phát đầu.
+  Chia đạn cho nhiều người thì thang đặt lại — nên vây trụ đông người vẫn là cách đúng.
+- `TRU_QUEN = 5` — quên chuỗi sau 5 giây không bắn ai.
+
+Cộng thêm hai luật: trụ **đổi mục tiêu sang kẻ vừa đánh đồng minh** trong tầm (dấu
+`danhTuongLuc`/`danhTuongAi` ghi ngay trong `satThuong`), và **tướng đập trụ mạnh hơn 80%**
+(`bi.laTru && ke.tuong → ×1,8`) để cả đội xúm vào thì trụ vẫn đổ trong mươi giây.
+
+### 8.4 `[BẪY ĐÃ SẬP]` Năm lần chữa một bệnh rồi đẻ ra bệnh nặng hơn
+
+Ghi lại đủ cả năm, vì cả năm đều *nghe rất hợp lý* lúc viết ra.
+
+1. **"Rút thì cấm đánh."** 79% số mạng rơi lúc đang rút → xoá mục tiêu khi rút. Kết quả:
+   mọi giao tranh tan ngay khi vừa chạm nhau, **138 → 19 mạng/trận, 100% hết giờ**. Rút
+   đúng là *vừa chạy vừa đánh*, không phải *cắm đầu chạy*.
+2. **"Rút sớm hơn."** Nâng ngưỡng 0,34 → 0,42 ngay sau khi sửa lỗi (1). Nhưng lệnh rút vừa
+   mới BẮT ĐẦU có hiệu lực thật, nên nâng thêm là ai cũng bỏ chạy: **18 mạng/trận, 100% hết
+   giờ**. Bài học: sửa xong một lỗi thì phải **đo lại mấy con số đã chỉnh dựa trên lỗi ấy**.
+3. **"Muốn vây trụ thì phải có lính."** Bắt chờ lính trong *mọi* trường hợp → **trụ đổ
+   10 → 5,2 mỗi trận, 100% hết giờ**. Sợ trụ tới mức không ai phá nổi trụ thì trận không
+   bao giờ kết thúc. Nới thành: có lính **hoặc** mình còn khoẻ.
+4. **Vặn số trụ quá tay.** `TRU_HAM 0,75` + thang leo tới `×3,0` làm trụ bất khả xâm phạm.
+   Chốt lại `0,55` + `[1 · 1,4 · 1,8 · 2,2]`.
+5. **Lính siêu cấp.** Thêm lính mạnh cho bên phá được nhà, tưởng sẽ giúp dứt điểm. Nhưng
+   luật đối xứng nên **cả hai bên** đều được, và phòng thủ hưởng lợi nhiều hơn tấn công:
+   **hết giờ 63% → 92%**. Đã gỡ bỏ, có ghi chú tại chỗ.
+
+Điểm chung của cả năm: **mỗi luật thêm vào đều là một cái phanh**, và bộ não này vốn đã
+thừa phanh thiếu ga. Thứ thiếu không phải "biết sợ" mà là "biết khi nào KHÔNG được sợ" —
+đó là lý do luật cuối cùng thêm vào là `cuaSoDut()` chứ không phải một con số nữa.
+
+### 8.5 Vì sao trận không chịu kết thúc — và vì sao câu trả lời lại là SÁT THƯƠNG
+
+Sau khi sửa xong sáu chỗ ở §8.2, mọi con số về *cách chơi* đều đã đẹp, nhưng **59% số trận
+vẫn phải phân thắng bằng vàng vì hết giờ** (nền cũ: 13%). Ba lần đoán đầu đều trật, và mỗi
+lần trật đều loại bỏ được một giả thuyết:
+
+1. *"Chắc là không tới nổi nhà."* Thêm `nhaConLai` vào bộ đo — trụ nhà của bên yếu bị gõ
+   xuống còn **24% máu**. Vậy là **tới rồi, gõ gần xong, rồi bỏ về**. Loại.
+2. *"Chắc là trụ nhà và lõi quá dày."* Hạ máu trụ nhà 6.200 → 5.000 và lõi 8.200 → 6.000.
+   Hết giờ **không nhúc nhích**. Loại. (Hai con số này đã trả lại như cũ.)
+3. *"Chắc là thiếu luật dứt điểm."* Thêm `cuaSoDut()`: địch gãy ≥3 người còn chờ hồi sinh
+   thì cả đội vào nhà, tắt mọi luật sợ sệt. Hết giờ 59% → **57%**. Gần như vô ích.
+
+Chỗ sai nằm ở chỗ thứ ba, nhưng không phải ở cái luật — mà ở chỗ **cái luật ấy không bao
+giờ có dịp chạy**. Trận ra **12,8 mạng**, tức trung bình hai phút mới có một người ngã. Với
+nhịp ấy thì gần như **không bao giờ có pha ba người gãy cùng lúc**, nên không bao giờ có
+cửa sổ để dứt điểm. Không đội nào *từ chối* kết thúc trận; họ **không bao giờ được trao cơ
+hội** kết thúc.
+
+Và đó đúng là chỗ chủ dự án chỉ ra bằng một câu khác: *"sát thương quá tệ, phi thực tế."*
+Cái hãm `HAM_TUONG = 0,22` vốn dựng lên để chặn cảnh 130 mạng một trận (§4.2), nhưng nó
+được chỉnh **trước khi** bộ não biết rút, biết kiting, biết sợ trụ. Khi tất cả những cái
+phanh ấy đã lắp xong thì cái hãm cũ thành ra thừa gấp đôi.
+
+`[ĐO TRONG REPO]` Quét `HAM_TUONG`, mỗi mức 100 trận:
+
+| `HAM_TUONG` | mạng/trận | dài (s) | hết giờ | lõi đổ | nhà còn lại |
+|---:|---:|---:|---:|---:|---:|
+| 0,22 | 12,8 | 1.372 | **57%** | 0,43/2 | 24% |
+| 0,28 | 16,6 | 1.335 | 50% | 0,50/2 | 22% |
+| 0,34 | 19,7 | 1.256 | 32% | 0,68/2 | 12% |
+| **0,40** | **22,3** | **1.126** | **17%** | **0,83/2** | 5% |
+| 0,46 | 26,2 | 1.030 | 13% | 0,87/2 | 2% |
+
+Chốt **0,40**, không phải 0,46. Mức 0,46 tuy ít hết giờ hơn một chút nhưng trận rút còn 17
+phút và **số trụ đổ tụt từ 9,0 xuống 8,4** — giao tranh bắt đầu nuốt mất phần vây trụ, tức
+là đổi cái hỏng này lấy cái hỏng kia y như §8.4.
+
+Bài học ghi lại: **một hằng số cân bằng chỉ đúng với bộ luật lúc nó được đo.** Sửa luật rồi
+thì phải quét lại hằng số, chứ không phải đi tìm luật mới để bù.
+
+### 8.6 "Render vẫn chưa rõ ràng" — bốn chỗ sửa
+
+Màn trận trước đợt này vẽ đúng mọi thứ, nhưng **nhìn vào không đọc ra được gì**. Bốn chỗ:
+
+1. **Không phân biệt nổi hai phe.** Cả hai bên đều là sprite anime bảng màu na ná nhau,
+   dấu hiệu phe duy nhất là cái vòng mờ dưới chân — mà lúc mười người xúm vào một chỗ thì
+   vòng dưới chân chồng lên nhau hết. Sửa: quầng viền màu đội ôm theo dáng người, dựng bằng
+   `ctx.shadowColor` + `shadowBlur` ngay trước lệnh vẽ sprite. Đúng một lần vẽ thêm.
+2. **Thanh máu 3,5px không viền chìm vào nền cỏ.** Dày lên 4–5px, thêm khung đen bao quanh
+   và một lớp trắng mờ làm nền, và **ghim vào đỉnh đầu thật** bằng `G.mepTuong(id)` (mép
+   trong của ô atlas) chứ không phải đỉnh ô sprite — trước đó thanh máu treo lơ lửng cách
+   đầu cả chục pixel ở những tướng có ô rộng.
+3. **Bốn tầng chữ chồng lên nhau trên đầu.** Tên + cấp, thanh máu, số sát thương bay lên,
+   tên chiêu — tất cả dồn lên khoảng trống phía trên đầu. Sửa theo đúng cách TFM2 bày:
+   **biển tên xuống dưới chân**, có hộp nền đậm tô theo màu đội; khoảng dưới chân gần như
+   luôn trống vì bản đồ nghiêng.
+4. **Số sát thương đè khít lên nhau.** Ba con số nổ cùng lúc trên một người thành một cục
+   mực. Sửa: xoè theo hình quạt, và độ lệch lấy từ **dấu thời gian của chính con số ấy**
+   (hàm `bam()`) nên khung nào cũng bay đúng một đường — dùng `Math.random()` ở đây thì số
+   nhảy loạn mỗi khung hình.
+
+
+### 8.7 `[BẪY ĐÃ SẬP]` Màn hình đen ở trận thứ hai
+
+Chủ dự án báo: *"lần thứ 2 render thì màn hình render đen thui."* Trận đầu vẽ đẹp, trận
+thứ hai trở đi là một khung đen — nhưng **không có lỗi nào trong console**, và mọi con số
+trên bảng vẫn chạy đúng.
+
+Nguyên nhân: `dungKhung()` dựng một thẻ `<canvas>` **mới cho mỗi trận**, còn `ctx` lại là
+biến ở tầm mô-đun, lấy đúng một lần bằng `if (!ctx) ctx = canvas.getContext('2d')`. Từ trận
+thứ hai, `canvas` đã là thẻ khác mà `ctx` vẫn trỏ vào thẻ của trận đầu — thẻ ấy đã bị gỡ
+khỏi cây DOM. Mọi nét vẽ vẫn chạy trơn tru, chỉ là chúng đi vào một tấm toan mồ côi.
+
+Đây là loại lỗi **không bao giờ lộ ra khi thử một trận**, và cũng không lộ ra trong bộ tự
+chơi vì bộ ấy bấm "Xem kết quả luôn". Cách duy nhất bắt được là **đo tỉ lệ điểm ảnh sáng
+qua ba trận liên tiếp**:
+
+| | trận 1 | trận 2 | trận 3 |
+|---|---:|---:|---:|
+| bản đã đưa lên Pages | 98,4% | **0** | **0** |
+| bản sửa | 98,4% | 98,6% | 98,5% |
+
+Sửa: lấy `ctx` ngay trong `dungKhung()` sau khi `appendChild`, và thêm một chốt trong
+`veBanDo()` — `if (!ctx || ctx.canvas !== canvas) ctx = canvas.getContext('2d')` — để dù
+sau này có ai dựng lại canvas ở chỗ khác thì vẫn không đen màn.
+
+Bài học cùng loại với §7.8: **biến ở tầm mô-đun giữ tham chiếu tới một đối tượng DOM dựng
+lại theo vòng đời màn hình là một cái bẫy**. `if (!x)` để "chỉ làm một lần" chỉ đúng khi thứ
+nó trỏ tới cũng chỉ có một lần.
+
+
+### 8.8 Đổi một hằng số trong trận thì cả MÙA lệch theo
+
+Sửa xong bộ mô phỏng thì `_tools/tileThang.js` báo một chuyện không ai ngờ: **đường cong tỉ
+lệ thắng cả mùa tụt hẳn xuống** so với bảng đã chốt ở §6.6, mà chỉ tụt ở khúc đầu và khúc
+giữa — hai giải cuối không nhúc nhích.
+
+Lý do không nằm ở chỗ nào trong `sim.js`: trước đây **57% số trận phân thắng bằng vàng khi
+hết giờ**, mà thắng bằng vàng thì đội mạnh hơn gần như chắc thắng. Giờ chỉ còn 20% hết giờ,
+tức phần lớn trận phải **phá được lõi mới thắng** — mà đó là việc nhiều rủi ro hơn nhiều.
+Nên **cửa của kèo trên hẹp lại**: ở giải đầu mùa người chơi vốn mạnh hơn, và họ mất đúng
+phần chắc ăn ấy. Ở hai giải cuối người chơi vốn là kèo dưới, nên không mất gì.
+
+`[BẪY ĐÃ SẬP]` Phản xạ đầu tiên là hạ `suc` của mấy đội máy đầu mùa. Đo ra thì **cắt `suc`
+của bốn đội `ai_low` hơn một nửa (58→20, 62→24, 68→30, 74→36) chỉ lấy lại 4–9 điểm** —
+trong khi cắt tới mức ấy sẽ làm hỏng cả bảng xếp hạng 24 đội chạy song song suốt mùa. Chỉ
+số nền **không phải** cái đang quyết định.
+
+Cái quyết định là **bảng thông thạo `THEO_BAC`** trong `giai.js`: đội máy bậc 2 có tới hai ô
+`SR` trong khi người chơi mùa một cao nhất cũng chỉ `SR`. Bớt một ô ở bậc 1 và bậc 2 là đủ,
+mà không đụng gì tới sức của 24 đội:
+
+| bậc giải | trước | Lượt 1 / Lượt 2 | sau | Lượt 1 / Lượt 2 |
+|---|---|---:|---|---:|
+| 1 (vòng bảng) | `R · R · N · N` | 58% / 70% | `N · N · N · N` | **79% / 86%** |
+| 2 (play-off, CK nội) | `SR · SR · R · N` | 37% / 61% | `SR · R · R · N` | **54% / 73%** |
+
+Đường cong thiết kế đòi 75/85 ở vòng bảng và 57/75 ở hai giải quốc nội, nên cả hai hàng đều
+về đúng chỗ. Có thử bậc 1 ở mức giữa — `R · N · N · N` — nhưng nó cho 59%/74%, tức **bớt một
+ô R gần như không đổi gì mà bớt nốt ô cuối mới ăn thua**. Hệ quả: bậc 1 không còn ô thông
+thạo nào, tức cấm tướng ở hai giải vòng bảng mất ý nghĩa. Chấp nhận có chủ ý — hai giải ấy
+là bậc tập sự; từ bậc 2 trở đi mới có ngôi sao để mà cấm.
+
+`[BẪY ĐÃ SẬP]` **40 giải một dòng là quá ít để chốt một con số.** Sai số chuẩn là ±7,5 điểm,
+và vì bộ đo dùng hạt giống cố định nên *bất cứ* thay đổi nào trong `sim.js` cũng xáo lại toàn
+bộ quỹ đạo: chỉ kéo tầm của **một** tướng từ 50 lên 58 đã làm Vòng bảng Lượt 1 nhảy từ 40%
+lên 65% trên đúng dãy hạt cũ. Vì thế `tileThang.js` giờ có thêm hai biến môi trường:
+
+- `HAT=<số>` dời cả dãy hạt giống sang chỗ khác → lấy được **mẫu độc lập**; gộp bốn dãy là
+  160 mẫu, sai số còn ±3,9 điểm.
+- `CHI=g1,g2` chỉ chạy mấy giải ấy → dò một con số mất **47 giây** thay vì 35 phút, vì bốn
+  giải cuối là Bo5 và ngốn gần hết thời gian.
+
+
+### 8.9 Số chốt của đợt này
+
+`_tools/soiAI.js`, **200 trận**, chạy trên đúng bản đem lên Pages:
+
+| số | trước đợt này | sau | nghĩa |
+|---|---:|---:|---|
+| mạng mỗi trận | 93,3 | **22,9** | 93 mạng là loạn đả, không phải MOBA |
+| trận dài | 21,0′ | **19,5′** | |
+| hết giờ (phân thắng bằng vàng) | 13% | **25%** | nền cũ thấp vì trụ là đồ trang trí, ai cũng phá được |
+| trụ đổ | 10,0 | **9,2** | |
+| lõi đổ | — | **0,76/2** | 76% số trận kết thúc bằng việc phá lõi |
+| tập trung hoả lực | 2,97 | **2,65** | mấy kẻ địch đứng quanh người vừa ngã |
+| giây đứng dưới trụ địch | 276,4 | **60,0** | |
+| số mạng rơi dưới trụ địch | 45% | **37%** | |
+| chết lúc đang rút | 79% | **32%** | |
+| đổi mục tiêu mỗi phút | 171,9 | **116,5** | |
+| mạng đổi trong cảnh 1-đấu-1 | 14% | **31%** | |
+
+Hai dòng *trông như* xấu đi mà thật ra không phải:
+
+- **hết giờ 13% → 25%.** Con số 13% của bản cũ đến từ chỗ trụ gần như không cản được ai, nên
+  trận nào cũng phá xong lõi. Trụ có sức nặng thì đương nhiên khó kết thúc hơn — 25% là cái
+  giá phải trả, và nó vẫn thấp hơn hẳn 57% lúc chưa quét lại `HAM_TUONG`.
+- **solo 14% → 31%.** Bản cũ gần như không có cảnh một-đấu-một vì lúc nào cũng có mười người
+  đứng chung một chỗ. Có đủ đường, đủ kế hoạch đẩy, đủ rút lui thì mới có pha tay đôi.
+
+Cân bằng 20 tướng (`_tools/canbang.js`, 400 trận): **không con nào lệch quá 12% so với 50%**,
+sau khi kéo tầm Bom Xích 50 → 58 (nó rơi xuống 35,7% vì là xạ thủ tầm ngắn nhất, mà đòn
+tướng-đánh-tướng thì vừa nặng lên). Tự chơi hết một mùa (`_tools/tuchoi.js`): **không lỗi**.
+
+---
+
+## 9. Nguồn
 
 - Steam — Teamfight Manager 2: https://store.steampowered.com/app/3009300/
 - Steam — Teamfight Manager: https://store.steampowered.com/app/1372810/

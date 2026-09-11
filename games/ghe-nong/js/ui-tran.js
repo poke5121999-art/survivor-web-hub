@@ -94,6 +94,12 @@
     canvas = document.createElement('canvas');
     canvas.width = 830; canvas.height = 566;
     canvas.className = 'tr-canvas';
+    /* LẤY NGỮ CẢNH NGAY TẠI ĐÂY.
+       `dungKhung()` dựng một thẻ <canvas> MỚI cho mỗi trận, còn `ctx` là biến của cả
+       mô-đun. Bản trước chỉ lấy ngữ cảnh một lần bằng `if (!ctx)` trong veBanDo(), nên
+       từ TRẬN THỨ HAI trở đi mọi nét vẽ rơi vào cái canvas cũ đã bị vứt — canvas đang
+       hiển thị không ai vẽ vào, và người chơi thấy MÀN ĐEN THUI. */
+    ctx = canvas.getContext('2d');
     trai.appendChild(canvas);
     trai.appendChild(G.el('div.tr-thoai#tr-thoai'));
     trai.appendChild(G.el('div.tr-banner#tr-banner', { hidden: 'hidden' }));
@@ -558,7 +564,9 @@
 
   function veBanDo() {
     if (!canvas) return;
-    if (!ctx) ctx = canvas.getContext('2d');
+    /* Chốt chặn thứ hai: ngữ cảnh phải thuộc về đúng canvas đang treo trên màn. Lỡ có
+       ai dựng lại khung mà quên dòng trên thì ở đây vẫn tự sửa, không đen màn nữa. */
+    if (!ctx || ctx.canvas !== canvas) ctx = canvas.getContext('2d');
     var W = canvas.width, H = canvas.height;
     var k = MUC_ZOOM[cam.iz].k;
     var s = k;                                   /* px màn cho mỗi đơn vị thế giới */
@@ -596,7 +604,7 @@
         ctx.beginPath(); ctx.arc(qx, qy - 6 * s, 9 * s, 0, 7); ctx.fill();
       }
       ctx.restore();
-      if (q.hp < q.hpMax && s > .55) thanhMau(p[0], p[1] - 40 * s, 30 * s, q.hp / q.hpMax, '#c8b06e');
+      if (q.hp < q.hpMax && s > .55) thanhMau(p[0], p[1] - 40 * s, 30 * s, q.hp / q.hpMax, '#c8b06e', 3);
     });
 
     /* ── hai con quái lớn ── */
@@ -747,7 +755,7 @@
       ctx.lineWidth = Math.max(1, 1.6 * s); ctx.stroke();
       ctx.restore();
       if (l.hp < l.hpMax && s > .6) thanhMau(lx, ly - cao - 3 * s, cao * .9, l.hp / l.hpMax,
-        l.doi === 'xanh' ? '#3ddc97' : '#e5484d');
+        l.doi === 'xanh' ? '#3ddc97' : '#e5484d', 3);
     });
 
     /* ── hiệu ứng dưới chân (vòng diện rộng) ── */
@@ -810,7 +818,15 @@
 
       ctx.save();
       ctx.translate(nx, ny); ctx.scale(phong, phong); ctx.translate(-nx, -ny);
+      /* VIỀN MÀU ĐỘI quanh người.
+         Hai bên đều là sprite anime bảng màu na ná nhau; cái vòng mờ dưới chân không đủ
+         để liếc một cái là biết ai phe nào — nhất là lúc mười người xúm vào một chỗ.
+         Bóng đổ màu của canvas cho ra đúng một quầng ôm theo dáng người, chỉ tốn thêm
+         một lần vẽ. Đây là thứ làm màn trận ĐỌC ĐƯỢC. */
+      ctx.shadowColor = n.doi === 'xanh' ? '#25e08a' : '#ff4d55';
+      ctx.shadowBlur = Math.max(4, 7 * s);
       var veOk = G.veTuong && G.veTuong(ctx, n.tuong.id, nx, ny + 3 * s - nhun, cao, khung, lat);
+      ctx.shadowBlur = 0;
       if (!veOk) {
         ctx.beginPath(); ctx.arc(nx, ny - cao * .4, cao * .32, 0, 7);
         ctx.fillStyle = mauLop(n.tuong.lop); ctx.fill();
@@ -844,13 +860,32 @@
       /* vũ khí cầm tay — thứ làm cho đòn đánh NHÌN THẤY ĐƯỢC */
       veVuKhiTay(G.vuKhiCua ? G.vuKhiCua(n.tuong) : null, nx, ny - nhun, cao, goc, danh, lat);
 
-      thanhMau(p[0], p[1] - cao - 8 * s, cao * 1.05, n.hp / n.hpMax,
-        n.doi === 'xanh' ? '#3ddc97' : '#e5484d');
-      /* So le nhãn theo chỉ số người: mười người xúm vào một chỗ thì mọi dòng chữ nằm
-         đúng một độ cao là chồng lên nhau thành một vũng mực, không đọc ra chữ nào. */
-      if (s > .55) chu('Lv' + n.cap + ' ' + n.ten, p[0],
-        p[1] - cao - 13 * s - (n.i % 3) * 9 * s,
-        G.kep(10 * s, 8.5, 13), n.doi === 'xanh' ? '#bff3dc' : '#ffc9cb');
+      /* Đặt thanh máu ngay trên ĐỈNH ĐẦU THẬT, không phải trên mép ô atlas: ô cao 64 mà
+         người chỉ vẽ ở phần dưới, nên treo theo mép ô thì thanh máu lơ lửng cách đầu cả
+         một thân người và không ai nối được thanh nào với ai. */
+      var mepT = G.mepTuong ? G.mepTuong(n.tuong.id) : 0;
+      var dinhDau = p[1] - cao * (1 - mepT) - 6 * s;
+      thanhMau(p[0], dinhDau, cao * 0.95, n.hp / n.hpMax,
+        n.doi === 'xanh' ? '#3ddc97' : '#e5484d', Math.max(4, 5 * s));
+
+      /* BIỂN SỐ NẰM DƯỚI CHÂN — đúng chỗ Teamfight Manager 2 đặt nó.
+         Bản trước dồn tên lên trên đầu, chung chỗ với thanh máu, số sát thương bay lên và
+         tên chiêu; mười người xúm lại là bốn tầng chữ chồng lên nhau thành một vũng mực.
+         Khoảng dưới chân thì gần như luôn trống, vì bản đồ nghiêng và người đứng thưa.
+
+         Vẫn phải SO LE theo chỉ số người: lúc bốn người xúm vào đúng một ô thì bốn cái
+         biển nằm cùng một độ cao là đè khít lên nhau, đọc ra đúng chữ của người trên cùng.
+         Ba bậc cách nhau một dòng là đủ tách, mà không đẩy biển đi xa khỏi chân ai. */
+      if (s > .5) {
+        var bien = 'Lv' + n.cap + ' ' + n.ten;
+        var co = G.kep(10 * s, 8.5, 12.5);
+        ctx.font = 'bold ' + co + 'px system-ui';
+        var rong = ctx.measureText(bien).width + 8;
+        var by = p[1] + 5 * s + (n.i % 3) * co * 1.35;
+        ctx.fillStyle = n.doi === 'xanh' ? 'rgba(8,30,22,.72)' : 'rgba(34,10,12,.72)';
+        ctx.fillRect(p[0] - rong / 2, by - co * .85, rong, co * 1.25);
+        chu(bien, p[0], by + co * .18, co, n.doi === 'xanh' ? '#8ff0c4' : '#ffb4b8');
+      }
 
       /* TÊN CHIÊU trên đầu người vừa bung — nhìn một cái là biết vừa dùng gì */
       if (tNiem >= 0 && tNiem < 1.25 && n.niemTen && s > .5) {
@@ -858,7 +893,7 @@
         var fxT = G.fxChieu ? G.fxChieu(n.tuong.id, n.niemCuoi ? 'cuoi' : 'chieu') : null;
         ctx.globalAlpha = tn < .75 ? 1 : (1 - tn) * 4;
         chu((n.niemCuoi ? '★ ' : '') + n.niemTen, p[0],
-          p[1] - cao - 34 * s - (n.i % 3) * 9 * s - tn * 12 * s,
+          dinhDau - 12 * s - (n.i % 2) * 11 * s - tn * 14 * s,
           G.kep((n.niemCuoi ? 13 : 11.5) * s, 10, n.niemCuoi ? 17 : 14),
           (fxT && fxT.mau) || '#ffd76e');
         ctx.globalAlpha = 1;
@@ -882,18 +917,27 @@
     tran.bay.forEach(function (b) { bayHD.push(b); });
     tran.bay.length = 0;
     bayHD = bayHD.filter(function (b) { return tran.t - b.t < 1.1; });
-    bayHD.forEach(function (b) {
+    /* Mấy con số cùng nổ ra trên một người thì chồng khít lên nhau thành một cục mực
+       ("2 2 3" đè lên nhau). Xoè chúng ra theo một quạt ỔN ĐỊNH tính từ chính dấu thời
+       gian của số ấy — cùng một số thì khung nào cũng bay đúng đường ấy, không nhấp nháy. */
+    bayHD.forEach(function (b, iB) {
       var p = toaDo(b.x, b.y);
-      if (ngoaiMan(p, 40)) return;
-      var tuoi = (tran.t - b.t) / 1.1;
-      ctx.globalAlpha = 1 - tuoi;
+      if (ngoaiMan(p, 60)) return;
+      var t = gio();
+      var tuoi = G.kep((t - b.t) / 1.1, 0, 1);
+      if (b._q == null) b._q = (bam(b, iB) - 0.5);
+      var quat = b._q;
+      ctx.globalAlpha = 1 - tuoi * tuoi;
       ctx.fillStyle = b.loai === 'pt' ? '#c89bff' : b.loai === 'hoi' ? '#7de3a0'
         : b.loai === 'ne' ? '#c8d3e0' : '#ffb36b';
-      ctx.font = 'bold ' + Math.max(11, 14 * s) + 'px system-ui';
+      var co = Math.max(11, (b.loai === 'ne' || b.loai === 'hoi' ? 12 : 14.5) * s);
+      ctx.font = 'bold ' + co + 'px system-ui';
       ctx.textAlign = 'center';
-      ctx.strokeStyle = '#000a'; ctx.lineWidth = 3;
-      ctx.strokeText(b.chu, p[0], p[1] - 22 * s - tuoi * 30);
-      ctx.fillText(b.chu, p[0], p[1] - 22 * s - tuoi * 30);
+      var bx = p[0] + quat * 46 * s * (0.35 + tuoi);
+      var by = p[1] - 30 * s - tuoi * 34 * s;
+      ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.lineWidth = 3.5;
+      ctx.strokeText(b.chu, bx, by);
+      ctx.fillText(b.chu, bx, by);
       ctx.globalAlpha = 1;
     });
   }
@@ -1369,11 +1413,18 @@
     return { can: '#e8a35a', xa: '#6fc4f0', phep: '#b08af0', ho: '#5fe0b0', sat: '#ff8fb0' }[l] || '#ccc';
   }
 
-  function thanhMau(x, y, w, p, mau) {
-    ctx.fillStyle = 'rgba(0,0,0,.6)';
-    ctx.fillRect(x - w / 2, y, w, 3.5);
+  /* Thanh máu 3,5px không viền chìm nghỉm vào nền cỏ xanh — nhìn cả màn không đọc được
+     ai còn bao nhiêu máu. TFM2 để thanh máu DÀY, có khung tối bao quanh, nằm sát đầu.
+     `day` cho phép lính/quái dùng thanh mảnh hơn tướng. */
+  function thanhMau(x, y, w, p, mau, day) {
+    var h = day || 4;
+    var x0 = Math.round(x - w / 2), y0 = Math.round(y);
+    ctx.fillStyle = 'rgba(0,0,0,.82)';
+    ctx.fillRect(x0 - 1, y0 - 1, w + 2, h + 2);
+    ctx.fillStyle = 'rgba(255,255,255,.10)';
+    ctx.fillRect(x0, y0, w, h);
     ctx.fillStyle = mau;
-    ctx.fillRect(x - w / 2, y, w * G.kep(p, 0, 1), 3.5);
+    ctx.fillRect(x0, y0, w * G.kep(p, 0, 1), h);
   }
 
   /* ══════════ bảng bên phải ══════════ */
@@ -1525,7 +1576,9 @@
   function veMini() {
     var c = G.$('#tr-mini'); if (!c) return;
     var x = c.getContext('2d');
-    var W = 150, H = 150;
+    /* Đọc kích thước THẬT của thẻ canvas, đừng chép tay: đổi cỡ bản đồ nhỏ ở một chỗ mà
+       quên chỗ kia là cả hình vẽ tràn ra ngoài khung. */
+    var W = c.width, H = c.height;
     x.fillStyle = '#080b10'; x.fillRect(0, 0, W, H);
 
     /* hình thoi + ba đường, để minimap cũng đọc được là map ba đường */

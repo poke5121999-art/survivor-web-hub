@@ -79,6 +79,72 @@
     if (tran.bay.length > 400) tran.bay.shift();
   }
 
+  /* ══════════════════ SỨC NẶNG CỦA TRỤ ══════════════════
+     `[ĐO TRONG REPO]` Bản trước: trụ bắn một phát vào tướng cấp 8 ăn **23 máu** trên
+     ~1.700 máu — tức là phải đứng dưới trụ **85 giây** mới chết. Nên trụ không phải là
+     mối nguy, nó là đồ trang trí: đo ra **45% số mạng xảy ra ngay trong tầm trụ địch**,
+     và mỗi người đứng trong tầm trụ địch trung bình **276 giây một trận**.
+
+     Nguyên nhân: dòng `if (bi.tuong) thuc *= 0.22` trong satThuong(). Cái hãm ấy có lý do
+     — nó là nút vặn nhịp cho tướng-đánh-tướng, không có nó thì cả đội tan trong 2 giây —
+     nhưng nó đang hãm CẢ đòn của trụ. Trụ phải có thang riêng.
+
+     Thêm luật leo thang của mọi game MOBA: bắn liên tiếp vào CÙNG một người thì mỗi phát
+     một mạnh hơn. Đây mới là thứ làm người ta sợ trụ, chứ không phải con số phát đầu. */
+  /* `[ĐO TRONG REPO]` Vặn số này là vặn cả thế trận, nên ghi lại cả ba nấc đã thử:
+       0.22 (bản cũ, không leo thang) → trụ bắn 23 máu, 85 giây mới giết nổi một người:
+            trụ là đồ trang trí, 45% số mạng xảy ra ngay dưới trụ địch.
+       0.75 + leo tới ×3.0           → trụ bắn 81→243: đúng là đáng sợ, nhưng KHÔNG AI
+            phá nổi trụ nữa — trụ ngoài đổ 4,9/12 và 96% số trận hết giờ.
+       0.55 + leo tới ×2.2           → 60→131 máu một phát. Đứng lì dưới trụ vẫn chết,
+            mà cả đội xúm vào vẫn vây được trụ. */
+  /* Hãm sát thương TƯỚNG-ĐÁNH-TƯỚNG. Không có nó thì cả đội tan trong hai giây và một
+     trận ra 130 mạng (§4.2). Nhưng vặn quá chặt thì giao tranh không bao giờ phân thắng
+     bại: đo được **12,8 mạng một trận**, tức gần như không có pha nào bên nào gãy ba
+     người cùng lúc — mà đó lại đúng là cửa sổ duy nhất để dứt điểm một trận MOBA.
+
+     Quét lại, mỗi mức 100 trận (RESEARCH.md §8.6):
+       0,22 → 12,8 mạng · 22,9 phút · **57% hết giờ** · lõi đổ 0,43/2 · trụ đổ 9,6
+       0,28 → 16,6 mạng · 22,3 phút ·   50% hết giờ · lõi đổ 0,50/2 · trụ đổ 9,5
+       0,34 → 19,7 mạng · 20,9 phút ·   32% hết giờ · lõi đổ 0,68/2 · trụ đổ 9,5
+       0,40 → 22,3 mạng · 18,8 phút · **17% hết giờ** · lõi đổ 0,83/2 · trụ đổ 9,0  ← chốt
+       0,46 → 26,2 mạng · 17,2 phút ·   13% hết giờ · lõi đổ 0,87/2 · trụ đổ 8,4
+     Chốt 0,40 chứ không phải 0,46: 0,46 tuy ít hết giờ hơn nhưng trận rút còn 17 phút và
+     **số trụ đổ tụt từ 9,0 xuống 8,4** — phần vây trụ bắt đầu bị giao tranh nuốt mất. */
+  var HAM_TUONG = 0.40;
+  var TRU_HAM = 0.55;                       /* thay cho HAM_TUONG khi kẻ bắn là trụ */
+  var TRU_LEO = [1, 1.4, 1.8, 2.2];         /* phát thứ 1,2,3,4+ vào cùng một người */
+  var TRU_QUEN = 5;                         /* rời mục tiêu quá ngần này giây thì quên */
+
+  function leoTru(tran, r, bi) {
+    /* Cả đội xúm vào thì trụ KHÔNG dồn được leo thang lên một người: nó phải chia đạn
+       ra, và người này lùi thì người khác vào. Đây là chỗ phân biệt "một mình lao vào
+       trụ" (chết) với "cả đội vây trụ" (ăn được) — thiếu nó thì trụ vô địch trước mọi
+       pha vây, và trận không bao giờ kết thúc. */
+    var xum = 0;
+    tran.nguoi.forEach(function (m) {
+      if (m.doi === r.doi || m.chet > 0) return;
+      if (xaXY(r.x, r.y, m.x, m.y) < r.tam) xum++;
+    });
+    if (xum >= 3) { r.leoAi = bi.i; r.leo = 0; }
+    if (r.leoAi !== bi.i || tran.t - r.leoLuc > TRU_QUEN) { r.leoAi = bi.i; r.leo = 0; }
+    r.leoLuc = tran.t;
+    var k = TRU_LEO[Math.min(r.leo, TRU_LEO.length - 1)];
+    r.leo++;
+    return k;
+  }
+
+  /** trụ CÒN SỐNG của đội `doiTru` đang phủ điểm (x,y) — null nếu điểm ấy an toàn */
+  function truPhu(tran, x, y, doiTru) {
+    for (var i = 0; i < tran.tru.length; i++) {
+      var r = tran.tru[i];
+      if (r.doi !== doiTru || !r.song) continue;
+      var dx = r.x - x, dy = r.y - y;
+      if (dx * dx + dy * dy < r.tam * r.tam) return r;
+    }
+    return null;
+  }
+
   function xa(a, b) { var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy); }
   function xaXY(x1, y1, x2, y2) { var dx = x1 - x2, dy = y1 - y2; return Math.sqrt(dx * dx + dy * dy); }
 
@@ -120,6 +186,7 @@
       vang: { xanh: 0, do: 0 }, mang: { xanh: 0, do: 0 },
       truHa: { xanh: 0, do: 0 }, rongHa: { xanh: 0, do: 0 }, chuaHa: { xanh: 0, do: 0 },
       chart: [], buff: { xanh: {}, do: {} },
+      keHoach: { xanh: null, do: null },
       songLinh: 0
     };
 
@@ -156,6 +223,7 @@
           px: v[0], py: v[1], huong: null, _h: 0,
           danhLuc: -9, danhGoc: 0, niemLuc: -9, niemTen: '', niemCuoi: false,
           dinhLuc: -9, hoiLuc: -9, tTran: 0,
+          truBan: -99, danhTuongLuc: -99, danhTuongAi: -1, nham: -1,
           demDon: 0, congDon: 0, mucCu: null, chuoi: 0, chuoi0: 0,
           cdChanPhep: 0, chanKhiThap: 0, mucGiamNhan: 0, mucHutMau: 0, mucDanhTru: 0
         });
@@ -167,17 +235,20 @@
       var p = diemTren(r[0], r[2] === 'xanh' ? r[1] : r[1]);
       tran.tru.push({ lane: r[0], doi: r[2], t: r[1], x: p[0], y: p[1],
         hp: 4800, hpMax: 4800, giap: 95, khang: 95, atk: 190, tam: 130, danh: 0, song: true,
-        nha: false, loi: false, danhLuc: -9, dinhLuc: -9 });
+        nha: false, loi: false, danhLuc: -9, dinhLuc: -9,
+        laTru: true, leoAi: -1, leo: 0, leoLuc: -99 });
     });
     /* hai trụ nhà + lõi */
     ['xanh', 'do'].forEach(function (d) {
       var n = NHA[d];
       tran.tru.push({ lane: 'nha', doi: d, x: n[0] + (d === 'xanh' ? 70 : -70), y: n[1] + (d === 'xanh' ? -70 : 70),
-        hp: 6200, hpMax: 6200, giap: 120, khang: 120, atk: 240, tam: 150, danh: 0, song: true,
-        nha: true, loi: false, danhLuc: -9, dinhLuc: -9 });
+        hp: 5000, hpMax: 5000, giap: 110, khang: 110, atk: 240, tam: 150, danh: 0, song: true,
+        nha: true, loi: false, danhLuc: -9, dinhLuc: -9,
+        laTru: true, leoAi: -1, leo: 0, leoLuc: -99 });
       tran.tru.push({ lane: 'loi', doi: d, x: n[0], y: n[1],
-        hp: 8200, hpMax: 8200, giap: 140, khang: 140, atk: 180, tam: 140, danh: 0, song: true,
-        nha: false, loi: true, danhLuc: -9, dinhLuc: -9 });
+        hp: 6000, hpMax: 6000, giap: 110, khang: 110, atk: 180, tam: 140, danh: 0, song: true,
+        nha: false, loi: true, danhLuc: -9, dinhLuc: -9,
+        laTru: true, leoAi: -1, leo: 0, leoLuc: -99 });
     });
 
     /* quái rừng */
@@ -295,8 +366,29 @@
     if (bi.tuong) thuc /= hesoDoi(tran, bi.doi, 'chiu');
 
     /* Người khó giết hơn lính rất nhiều. Không có dòng này thì cả đội tan trong 2 giây và
-       một trận ra 130 mạng — đo bằng máy, xem ghi chép cân bằng cuối file. */
-    if (bi.tuong) thuc *= 0.22;
+       một trận ra 130 mạng — đo bằng máy, xem ghi chép cân bằng cuối file.
+       NHƯNG cái hãm này là nút vặn nhịp cho tướng-đánh-tướng, KHÔNG được hãm cả đòn trụ:
+       hãm luôn thì trụ bắn 85 giây mới giết nổi một người, và cả bản đồ mất chỗ nguy hiểm.
+       Trụ đi thang riêng, có leo thang theo số phát liên tiếp. */
+    /* ═══ TƯỚNG ĐẬP TRỤ NHANH HƠN ═══
+       `[ĐO TRONG REPO]` Khi trụ có sức nặng thật, cán cân lật hẳn sang phía trụ: người
+       đẩy ăn vài phát là phải lùi, mà trụ thì 4.800 máu. Đo ra **trụ ngoài chỉ đổ 4,9/12
+       và 96% số trận hết giờ** — không ai phá nổi cái gì.
+       Ở MOBA thật, vây trụ là việc NHANH: cả đội xúm vào thì một trụ đổ trong mươi giây.
+       Cho tướng (chỉ tướng, không phải lính) đập trụ mạnh hơn 80% thì giữ được cả hai:
+       trụ vẫn đáng sợ với người lao vào một mình, mà cả đội xúm vào thì vẫn ăn được. */
+    if (bi.laTru && ke.tuong) thuc *= 1.8;
+
+    if (bi.tuong) {
+      if (ke.laTru) {
+        thuc *= TRU_HAM * leoTru(tran, ke, bi);
+        bi.truBan = tran.t;                 /* để bộ não biết mình đang ăn đạn trụ */
+      } else {
+        thuc *= HAM_TUONG;
+      }
+    }
+    /* Tướng vừa đánh tướng — trụ đọc dấu này để ĐỔI MỤC TIÊU sang kẻ lao vào. */
+    if (ke.tuong && bi.tuong) { ke.danhTuongLuc = tran.t; ke.danhTuongAi = bi.i; }
 
     if (bi.tuong && bi.hieu) {
       if (bi.hieu.giamNhan) thuc *= (1 - (bi.mucGiamNhan || 0.25));      /* Hiệp Sĩ: Chốt Chặn */
@@ -383,6 +475,51 @@
     return g;
   }
 
+  /* ══════════════════ MỤC TIÊU ĐÁNG ĐÁNH NHẤT ══════════════════
+     `[ĐO TRONG REPO]` Bản trước ai cũng đánh NGƯỜI GẦN NHẤT. Năm người đánh năm mục tiêu
+     khác nhau thì không giết nổi ai, và cả trận biến thành một đám đông gõ lẫn nhau —
+     93 mạng một trận, mà phần lớn là đổi mạng ngẫu nhiên chứ không phải ai thắng giao
+     tranh. Ở MOBA thật, thứ phân định giao tranh là TẬP TRUNG HOẢ LỰC.
+
+     Năm thứ cộng điểm, xếp theo sức nặng:
+       giết được ngay   +6   không có gì đáng hơn một cái đầu chắc chắn
+       đồng đội đang đánh +1.8 ← đây chính là chỗ sinh ra tập trung hoả lực
+       máu càng ít càng đáng +1.9
+       đang bị khống chế +0.7   người không chạy được là người nên đánh
+       lớp mềm (xa/phép/hỗ trợ) +0.6, sát thủ thấy càng đáng +0.5 nữa
+       gần hơn thì hơn  +1.2   nhưng là thứ NHẸ NHẤT, không phải thứ duy nhất như trước
+
+     NÃO quyết định nhìn có ra hay không: não thấp thì điểm bị nhiễu, chọn gần như bừa. */
+  var LOP_MEM = { xa: 1, phep: 1, ho: 1 };
+
+  function mucTieuTot(tran, n, tam, cs) {
+    var tot = null, diemTot = -1e9;
+    var laSat = n.tuong.lop === 'sat';
+    var uocDon = cs.atk * 0.26;                 /* ước lượng một đòn thường ăn bao nhiêu */
+    var nhieu = 1 - G.kep(n.cs.nao / 1200, 0, 1);   /* não thấp → nhiễu cao */
+    tran.nguoi.forEach(function (m) {
+      if (m.doi === n.doi || m.chet > 0) return;
+      var d = xa(n, m);
+      if (d > tam) return;
+      var diem = 1.2 * (1 - d / tam);
+      diem += (1 - m.hp / m.hpMax) * 1.9;
+      if (m.hp <= uocDon) diem += 6;
+      if (m.kc > 0 || m.cham > 0) diem += 0.7;
+      if (LOP_MEM[m.tuong.lop]) diem += 0.6 + (laSat ? 0.5 : 0);
+      /* đồng đội đang nhắm ai thì mình nhắm người đó */
+      var cung = 0;
+      tran.nguoi.forEach(function (a) {
+        if (a.doi !== n.doi || a === n || a.chet > 0) return;
+        if (a.nham === m.i) cung++;
+      });
+      diem += Math.min(cung, 3) * 1.8;
+      diem += (tran.rng() - 0.5) * 2.4 * nhieu;
+      if (diem > diemTot) { diemTot = diem; tot = m; }
+    });
+    if (tot) n.nham = tot.i;
+    return tot;
+  }
+
   function linhGanNhat(tran, n, banKinh) {
     var g = null, gd = banKinh || 1e9;
     tran.linh.forEach(function (l) {
@@ -405,15 +542,33 @@
     return g;
   }
 
+  /** đội `doi` đã MẤT SẠCH trụ ngoài của ít nhất MỘT đường chưa */
+  function coLaneSach(tran, doi) {
+    var con = { tren: 0, giua: 0, duoi: 0 };
+    tran.tru.forEach(function (x) {
+      if (x.doi !== doi || x.lane === 'nha' || x.lane === 'loi') return;
+      if (x.song) con[x.lane]++;
+    });
+    return !con.tren || !con.giua || !con.duoi;
+  }
+
   function trongTamDanh(tran, r) {
     if (r.lane === 'nha' || r.lane === 'loi') {
-      /* nhà chỉ mở khi mất hết trụ ngoài của ít nhất một đường */
-      var conNgoai = tran.tru.some(function (x) { return x.doi === r.doi && x.song && x.lane !== 'nha' && x.lane !== 'loi'; });
       if (r.lane === 'loi') {
         var conNha = tran.tru.some(function (x) { return x.doi === r.doi && x.song && x.lane === 'nha'; });
         return !conNha;
       }
-      return !conNgoai || soTruSongCuaLane(tran, r.doi) === 0;
+      /* ═══ CHỖ NÀY TỪNG NÓI MỘT ĐẰNG LÀM MỘT NẺO ═══
+         Chú thích cũ ghi "nhà chỉ mở khi mất hết trụ ngoài của **ít nhất một đường**",
+         nhưng mã lại đòi mất SẠCH CẢ SÁU trụ ngoài (`!conNgoai` và `soTruSongCuaLane
+         === 0` là hai cách viết của cùng một điều kiện). Luật của mọi game MOBA là luật
+         trong chú thích: dọn sạch MỘT đường là mở được nhà.
+
+         `[ĐO TRONG REPO]` Hậu quả khi trụ còn yếu thì không ai để ý — hai bên cuối cùng
+         cũng mất hết sáu trụ. Nhưng khi trụ có sức nặng thật (đợt này) thì nó lộ ra ngay:
+         trụ ngoài đổ 9,2/12, trụ nhà đổ **0,3/2**, lõi đổ **0,04/2**, và **96% số trận
+         phải phân thắng bằng vàng vì hết giờ**. Không ai chạm nổi vào nhà. */
+      return coLaneSach(tran, r.doi);
     }
     /* trụ trong chỉ mở khi trụ ngoài cùng đường đã đổ */
     var ngoai = tran.tru.filter(function (x) { return x.doi === r.doi && x.lane === r.lane && x.song; });
@@ -423,12 +578,6 @@
       return r.doi === 'xanh' ? (a.t - b.t) : (b.t - a.t);
     });
     return thuTu[thuTu.length - 1] === r;
-  }
-
-  function soTruSongCuaLane(tran, doi) {
-    var m = {};
-    tran.tru.forEach(function (x) { if (x.doi === doi && x.song && x.lane !== 'nha' && x.lane !== 'loi') m[x.lane] = 1; });
-    return Object.keys(m).length;
   }
 
   /** đội nào đang giao tranh ở đâu — trả về điểm tụ nếu có */
@@ -442,14 +591,150 @@
     return { x: x / ds.length, y: y / ds.length, so: ds.length };
   }
 
+  /* ══════════════════ KẾ HOẠCH CỦA CẢ ĐỘI ══════════════════
+     `[ĐO TRONG REPO]` Đây là chỗ "ngu" nặng nhất, và nó không nằm trong đầu từng người mà
+     nằm ở chỗ KHÔNG AI BÀN VỚI AI. Mỗi người tự chọn cái trụ gần mình nhất, nên năm người
+     gõ ba đường khác nhau, mỗi đường một tí. Kết quả đo được: trụ ngoài đổ **8,9/12** —
+     tức 4,45 trên mỗi bên trong tổng số 6 — mà rải đều ba đường, nên **không đường nào
+     sạch**, nhà không bao giờ mở, lõi không bao giờ bị chạm tới, và **92% số trận phải
+     phân thắng bằng vàng vì hết giờ**.
+
+     Sửa bằng một biến duy nhất cho cả đội: đẩy đường nào. Tính lại 8 giây một lần (đủ
+     chậm để không dao động, đủ nhanh để bắt kịp một pha ăn ba mạng), và mọi người khi
+     không có việc gấp hơn thì kéo về đúng đường ấy.
+
+     Chọn đường theo hai thứ, cộng lại:
+       đường đã phá được nhiều trụ hơn  → đẩy tiếp cho xong, đừng bỏ dở
+       trụ tiếp theo của đường ấy máu thấp → gần đổ rồi, dứt điểm đi   */
+  function truMoCuaLane(tran, doiDich, lane) {
+    var ds = tran.tru.filter(function (x) {
+      return x.doi === doiDich && x.song && x.lane === lane && trongTamDanh(tran, x);
+    });
+    if (ds.length) return ds[0];
+    /* đường đã sạch → chuyển sang nhà rồi lõi */
+    var sau = tran.tru.filter(function (x) {
+      return x.doi === doiDich && x.song && (x.lane === 'nha' || x.lane === 'loi') &&
+        trongTamDanh(tran, x);
+    });
+    return sau[0] || null;
+  }
+
+  /* ══════════════════ CỬA SỔ DỨT ĐIỂM ══════════════════
+     `[ĐO TRONG REPO]` Đo trên 150 trận: trụ nhà của bên yếu hơn bị gõ xuống còn **24% máu**
+     mà vẫn **59% số trận phải phân thắng bằng vàng vì hết giờ**. Tức là không phải "không
+     tới nổi nhà" — mà là **tới rồi, gõ gần xong, rồi bỏ về**. Lý do: mỗi người vẫn tự
+     chấm điểm riêng, hễ tụt máu hay ăn một phát trụ là lùi ra, và khi họ quay lại thì
+     người phòng thủ đã hồi sinh đủ mặt.
+
+     Ở MOBA thật, trận kết thúc trong đúng một loại cửa sổ: **đội kia gãy mấy người cùng
+     lúc**. Không ai còn giữ nhà thì cả đội vào, và không ai lùi cho tới khi lõi đổ hoặc
+     người phòng thủ hồi sinh. Đây là luật thiếu hẳn, không phải con số cần vặn.
+
+     Cửa sổ mở khi: địch gãy từ 3 người trở lên mà còn phải chờ hồi sinh lâu (>8 giây),
+     và có một trụ nhà hoặc lõi của địch đang đánh được. Trong cửa sổ ấy, luật "sợ trụ" và
+     luật "máu thấp thì về" bị tắt (trừ khi đã dưới 18% máu — thế thì về vẫn hơn). */
+  function cuaSoDut(tran, doi) {
+    var kia = doi === 'xanh' ? 'do' : 'xanh';
+    var gay = 0;
+    for (var i = 0; i < tran.nguoi.length; i++) {
+      var m = tran.nguoi[i];
+      if (m.doi === kia && m.chet > 8) gay++;
+    }
+    if (gay < 3) return false;
+    for (var j = 0; j < tran.tru.length; j++) {
+      var r = tran.tru[j];
+      if (r.doi === kia && r.song && (r.lane === 'nha' || r.lane === 'loi') &&
+          trongTamDanh(tran, r)) return r;
+    }
+    return false;
+  }
+
+  function keHoachDoi(tran, doi) {
+    var k = tran.keHoach[doi];
+    if (k && tran.t - k.t < (k.dut ? 15 : 8)) return k;
+    var kia = doi === 'xanh' ? 'do' : 'xanh';
+    var song = 0, chetDich = 0;
+    tran.nguoi.forEach(function (m) {
+      if (m.doi === doi) { if (m.chet <= 0) song++; }
+      else if (m.chet > 5) chetDich++;
+    });
+    var tot = 'giua', diemTot = -1e9;
+    ['tren', 'giua', 'duoi'].forEach(function (l) {
+      var con = 0;
+      tran.tru.forEach(function (x) {
+        if (x.doi === kia && x.song && x.lane === l) con++;
+      });
+      var diem = (2 - con) * 3;
+      var muc = truMoCuaLane(tran, kia, l);
+      if (muc) diem += (1 - muc.hp / muc.hpMax) * 3;
+      else diem -= 6;
+      if (diem > diemTot) { diemTot = diem; tot = l; }
+    });
+    /* Đẩy khi đang hơn người, hoặc gần đủ đội. Thiếu người thì thủ, đừng đâm đầu. */
+    /* Nhà địch đã lộ ra = giai đoạn DỨT ĐIỂM: cả đội vào, kể cả người đi rừng và người
+       quen đẩy lẻ, và giữ kế hoạch lâu gấp đôi cho khỏi bỏ dở. */
+    var loRa = tran.tru.some(function (x) {
+      return x.doi === kia && x.song && (x.lane === 'nha' || x.lane === 'loi') &&
+        trongTamDanh(tran, x);
+    });
+    k = { loai: (loRa || chetDich >= 2 || song >= 4) ? 'day' : 'thu',
+      lane: tot, t: tran.t, dut: loRa };
+    tran.keHoach[doi] = k;
+    return k;
+  }
+
+  /** điểm LÙI RA khỏi tầm một cái trụ, về phía nhà mình */
+  function raKhoiTru(n, r) {
+    var dx = n.x - r.x, dy = n.y - r.y;
+    var d = Math.sqrt(dx * dx + dy * dy) || 1;
+    /* đứng ngay ở mép thì vẫn ăn đạn lúc trụ bắn phát cuối — lùi dư 70 */
+    var can = r.tam + 70;
+    return { x: r.x + dx / d * can, y: r.y + dy / d * can };
+  }
+
+  /** có lính nhà mình đứng đỡ đạn quanh điểm này không */
+  function coLinhTa(tran, x, y, doi, banKinh) {
+    for (var i = 0; i < tran.linh.length; i++) {
+      var l = tran.linh[i];
+      if (l.doi !== doi || l.hp <= 0) continue;
+      var dx = l.x - x, dy = l.y - y;
+      if (dx * dx + dy * dy < banKinh * banKinh) return true;
+    }
+    return false;
+  }
+
   function chonHanhDong(tran, n) {
     var ct = tran.cau[n.ben].chienThuat || {};
     var cs = n.cs;
     var nghe = ngheLenh(n);
     var rng = tran.rng;
     var chat = n.chat;
+    var doiKia = n.doi === 'xanh' ? 'do' : 'xanh';
+    /* Cửa sổ dứt điểm: địch gãy quá nửa đội và nhà của họ đang hở. Bỏ hết luật sợ sệt,
+       cả đội vào nhà. Chỉ người sắp chết hẳn (dưới 18% máu) mới được phép quay về. */
+    var truDut = cuaSoDut(tran, n.doi);
+    if (truDut && n.hp / n.hpMax > 0.18) {
+      n.veNha = false;
+      return diemDayTru(tran, n, truDut);
+    }
+
+    /* GIỮ LẤY Ý ĐỊNH CŨ.
+       `[ĐO TRONG REPO]` Bản trước đo được **172 lần đổi ý mỗi phút** cho cả đội — mỗi
+       người đổi kế hoạch 3,5 giây một lần. Lý do: mọi luật dưới đây đều tung xúc xắc
+       lại từ đầu ở MỖI lần quyết định, nên người ta dao động giữa "vào hùa" và "về ăn
+       lính" mà không bao giờ làm xong việc gì. Người chơi nhìn vào chỉ thấy mười cái
+       chấm chạy tới chạy lui vô nghĩa — đó chính là cái "ngu" dễ thấy nhất.
+       `giu()` nhân mạnh xác suất cho việc ĐANG LÀM, nên đã trót làm gì thì làm cho xong. */
+    var cu = (n.mucTieu && n.mucTieu.loai) || '';
+    function giu(loai, p) { return cu === loai ? Math.min(0.97, p * 2.8 + 0.22) : p; }
 
     /* 1. máu thấp → về nhà. Ngưỡng phụ thuộc LÌ: lì cao thì dám ở lại lâu hơn */
+    /* `[BẪY ĐÃ SẬP]` Đã thử nâng ngưỡng rút lên 0,42 cho "rút sớm hơn". Nhưng khi đã sửa
+       cái lỗi "rút mà không chạy" thì lệnh rút BẮT ĐẦU CÓ HIỆU LỰC THẬT, và nâng ngưỡng
+       nữa là thành ra ai cũng bỏ chạy: đo được **18 mạng một trận** và **100% số trận hết
+       giờ** — không giao tranh nào phân thắng bại, nên không đội nào có cửa sổ hơn người
+       để mà đẩy. Trả lại 0,34. Bài học: sửa xong một lỗi thì phải ĐO LẠI mấy con số đã
+       chỉnh dựa trên cái lỗi ấy, đừng chồng thêm. */
     var nguong = 0.34 - (cs.li / 1200) * 0.16;
     /* thua đậm mà LÌ thấp thì co rúm: ngưỡng vọt lên */
     var cheech = tran.vang[n.doi] - tran.vang[n.doi === 'xanh' ? 'do' : 'xanh'];
@@ -458,6 +743,52 @@
     if (chat.indexOf('lao') >= 0) nguong -= 0.06;
 
     if (n.hp / n.hpMax < nguong && !n.veNha) { n.veNha = true; }
+    /* ═══ 0a. ĐANG ĐỨNG TRONG TẦM TRỤ ĐỊCH ═══
+       `[ĐO TRONG REPO]` Bản trước: **45% số mạng** xảy ra ngay trong tầm trụ địch, và mỗi
+       người đứng trong tầm trụ địch trung bình **276 giây một trận**. Bộ não không hề biết
+       trụ tồn tại — nó chỉ thấy "có địch, đánh thôi".
+
+       Luật thật của MOBA: đứng dưới trụ địch chỉ chấp nhận được khi CÓ LÍNH NHÀ MÌNH đỡ
+       đạn, hoặc khi cố tình LAO VÀO để kết liễu một mục tiêu sắp chết và mình đủ máu.
+       Ngoài hai trường hợp ấy, đứng đó là tự sát. */
+    var truDich = truPhu(tran, n.x, n.y, doiKia);
+    if (truDich) {
+      /* Điều kiện phải là ĐANG ĂN ĐẠN TRỤ, không phải "đang ở trong tầm".
+         Bản đầu của luật này bắt lùi ngay khi bước vào tầm trụ mà không có lính đỡ. Kết
+         quả đo được: thời gian đứng dưới trụ giảm một nửa (276 → 132 giây) nhưng **số trụ
+         đổ mỗi trận cũng giảm một nửa (10 → 5,2) và 100% số trận phải phân thắng bằng
+         vàng vì hết giờ**. Sợ trụ tới mức không ai phá nổi trụ thì trận không bao giờ
+         kết thúc — chữa một bệnh, đẻ ra một bệnh nặng hơn.
+         Người chơi thật vẫn áp sát trụ để gõ, ăn một hai phát rồi lùi ra cho hết leo
+         thang. Cái phải tránh là ĐỨNG LÌ ăn phát thứ ba thứ tư. */
+      var dangAnDan = tran.t - n.truBan < 3;
+      var maunn = n.hp / n.hpMax;
+      /* có ai sắp chết để mà lao vào không */
+      var moiNgon = null;
+      tran.nguoi.forEach(function (m) {
+        if (m.doi === n.doi || m.chet > 0) return;
+        if (m.hp / m.hpMax > 0.34) return;
+        if (xa(n, m) > 260) return;
+        moiNgon = m;
+      });
+      var dongDoi = 0;
+      tran.nguoi.forEach(function (m) {
+        if (m.doi !== n.doi || m === n || m.chet > 0) return;
+        if (xa(n, m) < 300) dongDoi++;
+      });
+      /* LÌ cao thì dám lao sâu hơn; chất 'lao' thì gần như luôn dám */
+      var damLao = moiNgon && maunn > 0.58 - cs.li / 1200 * 0.18 &&
+        (dongDoi >= 1 || chat.indexOf('lao') >= 0);
+      /* Ba cửa ra, đều cần ĐANG bị trụ bắn: máu đã mỏng, hoặc ăn quá hai phát liên tiếp
+         (leo thang bắt đầu đau), hoặc đang một mình. */
+      var anNhieu = truDich.leoAi === n.i && truDich.leo >= 2;
+      var phaiRa = !damLao && dangAnDan && (maunn < 0.62 || anNhieu || dongDoi === 0);
+      if (phaiRa && chat.indexOf('lao') < 0) {
+        var ra = raKhoiTru(n, truDich);
+        return { loai: 'rut', x: ra.x, y: ra.y, vitru: 1 };
+      }
+    }
+
     /* 0. chín mươi giây đầu chưa có gì để tranh: về đường của mình, ăn lính.
        Không có luật này thì mười người gặp nhau giữa bản đồ ở giây thứ 20 và trận mở màn
        bằng bảy mạng — đo được ở bản chẩn đoán. */
@@ -474,18 +805,19 @@
        không ai đụng vào trụ — 147/300 trận hoà giờ ở bản đo trước. */
     var dichChet = 0;
     tran.nguoi.forEach(function (m) { if (m.doi !== n.doi && m.chet > 6) dichChet++; });
-    if (dichChet >= 2 && rng.duoc(0.35 + cs.nao / 1200 * 0.5)) {
+    if (dichChet >= 2 && rng.duoc(giu('daytru', 0.35 + cs.nao / 1200 * 0.5))) {
       var qLon = null;
       ['chua', 'rong'].forEach(function (k2) { var q2 = tran.quaiLon[k2]; if (!qLon && q2.song && q2.hp > 0) qLon = q2; });
       if (qLon && rng.duoc(0.45)) return { loai: 'quailon', x: qLon.x, y: qLon.y, mt: qLon };
-      var tr2 = truGanNhat(tran, n, 1400);
-      if (tr2) return { loai: 'daytru', x: tr2.x, y: tr2.y, tru: tr2 };
+      var khCH = keHoachDoi(tran, n.doi);
+      var tr2 = truMoCuaLane(tran, doiKia, khCH.lane) || truGanNhat(tran, n, 1400);
+      if (tr2) return diemDayTru(tran, n, tr2);
     }
 
     /* 1a. đội vừa mất người trong 9 giây qua → lùi lại thở.
        Giao tranh thật kết thúc khi một bên gãy, không phải khi cả mười người nằm xuống. */
     var vuaMat = (tran.matNguoi && tran.matNguoi[n.doi]) || -999;
-    if (tran.t - vuaMat < 9 && n.hp / n.hpMax < 0.75 && chat.indexOf('lao') < 0) {
+    if (tran.t - vuaMat < 9 && n.hp / n.hpMax < 0.6 && chat.indexOf('lao') < 0) {
       var lui = diemTren(laneCua(n), n.doi === 'xanh' ? 0.16 : 0.84);
       return { loai: 'rut', x: lui[0], y: lui[1] };
     }
@@ -551,7 +883,7 @@
       if (n.vt === 'rung') muonDi += 0.25;
       /* nghe lệnh hay tự quyết */
       var p = nghe * muonDi + (1 - nghe) * (chat.indexOf('mt') >= 0 ? 0.85 : 0.3);
-      if (rng.duoc(p * 0.35)) return { loai: 'quailon', x: mt.x, y: mt.y, mt: mt };
+      if (rng.duoc(giu('quailon', p * 0.35))) return { loai: 'quailon', x: mt.x, y: mt.y, mt: mt };
     }
 
     /* 3. có giao tranh gần → vào hùa */
@@ -562,14 +894,17 @@
       var xa2 = kc < 260 ? 1 : kc < 480 ? 0.55 : 0.18;
       var p2 = (nghe * (ct.mucTieu === 'lao' ? 0.85 : 0.6) + (1 - nghe) * thichDanh) * xa2 * 0.55;
       if (n.hp / n.hpMax < 0.55) p2 *= 0.35;               /* máu mỏng thì đừng lao vào đám đông */
-      if (rng.duoc(p2)) return { loai: 'tugiup', x: gt.x, y: gt.y };
+      /* Đừng chạy vào một đám đánh nhau NẰM TRONG TẦM TRỤ ĐỊCH mà không có lính đỡ. */
+      var truOGT = truPhu(tran, gt.x, gt.y, doiKia);
+      if (truOGT && !coLinhTa(tran, truOGT.x, truOGT.y, n.doi, truOGT.tam + 40)) p2 *= 0.25;
+      if (rng.duoc(giu('tugiup', p2))) return { loai: 'tugiup', x: gt.x, y: gt.y };
     }
 
     /* 4. đi kèo (gank) — người có chất 'gank' và người đi rừng */
     if ((chat.indexOf('gank') >= 0 || n.vt === 'rung') && tran.t > 90 && tran.t < 1200) {
       var thichGank = ct.rung === 'gank' ? 0.8 : ct.rung === 'cuop' ? 0.35 : 0.4;
       var p3 = nghe * thichGank + (1 - nghe) * (chat.indexOf('gank') >= 0 ? 0.8 : 0.4);
-      if (rng.duoc(p3 * 0.04)) {
+      if (rng.duoc(giu('gank', p3 * 0.04))) {
         var nanNhan = null, gd = 1e9;
         tran.nguoi.forEach(function (m) {
           if (m.doi === n.doi || m.chet > 0) return;
@@ -583,7 +918,7 @@
     /* 5. đẩy lẻ — chất 'le' */
     if (chat.indexOf('le') >= 0 && tran.t > 420) {
       var tru = truGanNhat(tran, n, 900);
-      if (tru && rng.duoc(0.5)) return { loai: 'daytru', x: tru.x, y: tru.y, tru: tru };
+      if (tru && rng.duoc(giu('daytru', 0.5))) return diemDayTru(tran, n, tru);
     }
 
     /* 6. đi rừng thì ăn quái */
@@ -597,14 +932,49 @@
       if (bai) return { loai: 'anquai', x: bai.x, y: bai.y, quai: bai };
     }
 
+    /* ═══ 6b. THEO KẾ HOẠCH CỦA ĐỘI ═══
+       Không có việc gì gấp hơn thì kéo về đúng đường cả đội đang đẩy. Đây là chỗ biến
+       năm người đi năm hướng thành một mũi. Người đi rừng và người "đẩy lẻ" được miễn:
+       việc của họ vốn là ở chỗ khác. */
+    var kh = keHoachDoi(tran, n.doi);
+    if (kh.loai === 'day' && (kh.dut || (n.vt !== 'rung' && chat.indexOf('le') < 0))) {
+      var truKH = truMoCuaLane(tran, doiKia, kh.lane);
+      if (truKH) {
+        /* trên đường tới đó, gặp lính thì vẫn ăn — nhưng chỉ lính CÙNG ĐƯỜNG */
+        var lk = linhGanNhat(tran, n, 320);
+        if (lk && rng.duoc(0.45)) return { loai: 'farm', x: lk.x, y: lk.y };
+        return diemDayTru(tran, n, truKH);
+      }
+    }
+
     /* 7. mặc định: về đường của mình, đẩy lính */
     var lane = laneCua(n);
     var l = linhGanNhat(tran, n, 700);
     if (l) return { loai: 'farm', x: l.x, y: l.y };
     var tr = truGanNhat(tran, n, 700);
-    if (tr) return { loai: 'daytru', x: tr.x, y: tr.y, tru: tr };
+    if (tr) return diemDayTru(tran, n, tr);
     var d2 = diemTren(lane, n.doi === 'xanh' ? 0.42 : 0.58);
     return { loai: 'giulane', x: d2[0], y: d2[1] };
+  }
+
+  /** Điểm đứng khi đẩy trụ.
+      Có lính nhà mình đỡ đạn thì áp sát mà đập; chưa có thì đứng ngoài mép tầm trụ chờ
+      sóng lính tới. Bản trước luôn trả về đúng toạ độ trụ, nên ai cũng ôm lấy chân trụ
+      địch mà gõ trong khi trụ bắn thẳng vào mặt. */
+  function diemDayTru(tran, n, r) {
+    /* Có lính nhà mình đỡ đạn, HOẶC mình còn khoẻ và trụ chưa kịp bắn mình mấy phát —
+       thì cứ áp sát mà đập. Chỉ khi mỏng máu mà lại không có lính thì mới đứng ngoài
+       mép chờ sóng lính sau. Bản đầu bắt chờ lính trong MỌI trường hợp, và thế là không
+       ai phá nổi trụ: 100% số trận hết giờ. */
+    var coLinh = coLinhTa(tran, r.x, r.y, n.doi, r.tam + 60);
+    var khoe = n.hp / n.hpMax > 0.5 && !(r.leoAi === n.i && r.leo >= 3);
+    if (coLinh || khoe) {
+      return { loai: 'daytru', x: r.x, y: r.y, tru: r };
+    }
+    var dx = n.x - r.x, dy = n.y - r.y;
+    var d = Math.sqrt(dx * dx + dy * dy) || 1;
+    var can = r.tam + 50;
+    return { loai: 'chotru', x: r.x + dx / d * can, y: r.y + dy / d * can, tru: r };
   }
 
   /* ══════════════════ mua đồ ══════════════════ */
@@ -654,6 +1024,11 @@
           var t = doi === 'xanh' ? 0.03 : 0.97;
           var p = diemTren(lane, t);
           var xa2 = i >= 3;
+          /* `[BẪY ĐÃ SẬP]` Đã thử "siêu lính": sau phút 10 lính khoẻ dần lên, hòng phá
+             thế bế tắc cuối trận. Đo ra thì NGƯỢC LẠI — hết giờ tăng từ 63% lên **92%**.
+             Lý do rõ ràng khi nhìn lại: lính khoẻ lên cho CẢ HAI BÊN, nên hai sóng lính
+             chỉ đâm vào nhau lâu hơn ở giữa đường và chẳng bên nào tới được chân trụ.
+             Buff đối xứng không phá được thế bế tắc, nó chỉ làm hàng thủ dày thêm. */
           tran.linh.push({
             doi: doi, lane: lane, t: t, x: p[0] + (i - 1.5) * 8, y: p[1] + (i - 1.5) * 8,
             hp: xa2 ? 380 : 520, hpMax: xa2 ? 380 : 520,
@@ -763,22 +1138,68 @@
       n.dem -= TICK;
       if (n.dem <= 0 || !n.mucTieu) {
         n.mucTieu = chonHanhDong(tran, n);
-        n.dem = 0.8 + rng() * 0.6;
+        /* Nghĩ lại THƯA HƠN, và việc RÚT thì bám lấy lâu hơn hẳn.
+           Cứ 0,8–1,4 giây nghĩ lại một lần là quá dày: chưa đi được nửa đường tới chỗ
+           định tới thì đã đổi ý. Riêng lệnh rút mà cũng đổi ý giữa chừng thì thành ra
+           chạy hai bước rồi quay lại đấm tiếp — đo được 79% số mạng xảy ra lúc nạn nhân
+           ĐANG RÚT, phần lớn là vì rút nửa vời như thế. */
+        var lo = n.mucTieu.loai;
+        n.dem = (lo === 'rut' || lo === 've') ? 2.4 + rng() * 1.4 : 1.5 + rng() * 1.1;
       }
       var mt = n.mucTieu;
 
       /* tìm thứ đánh được trong tầm */
       var muc = null;
-      var dichGan = dichGanNhat(tran, n, cs.tam + 30);
+      var dangRut = mt.loai === 'rut' || mt.loai === 've';
+      var dichGan = mucTieuTot(tran, n, cs.tam + 30, cs);
       if (dichGan) muc = dichGan;
+      else n.nham = -1;
+      /* ═══ ĐANG ĐẨY TRỤ THÌ ĐẬP TRỤ ═══
+         `[ĐO TRONG REPO]` Đây là chỗ giấu kỹ nhất của cả đợt này. Thứ tự chọn mục tiêu để
+         TRỤ ĐỨNG CUỐI — sau tướng, sau quái rừng, sau quái lớn, và sau cả LÍNH. Mà vây trụ
+         thì quanh chân trụ lúc nào chẳng có lính địch. Nên người đi đẩy trụ đứng ngay dưới
+         chân trụ… quay ra gõ lính, hết đợt này tới đợt khác.
+         Đo được: năm người ở trong tầm trụ địch tổng cộng 775 giây-người mỗi trận. Với
+         ~300 sát thương/giây lên trụ thì ngần ấy thời gian đủ phá 48 cái trụ. Thực tế phá
+         được **3,35 trên sáu**. Không phải họ không tới nơi — là tới nơi rồi làm việc khác.
+         Trụ phải đứng ngay sau tướng: có tướng địch thì đánh tướng, không thì đập trụ. */
+      if (!muc && (mt.loai === 'daytru' || mt.loai === 'chotru') && mt.tru && mt.tru.song &&
+          xaXY(n.x, n.y, mt.tru.x, mt.tru.y) < cs.tam + 60) muc = mt.tru;
       if (!muc && mt.quai && mt.quai.song && xaXY(n.x, n.y, mt.quai.x, mt.quai.y) < cs.tam + 30) muc = mt.quai;
       if (!muc && mt.mt && mt.mt.song && xaXY(n.x, n.y, mt.mt.x, mt.mt.y) < cs.tam + 40) muc = mt.mt;
+      /* Không có tướng địch mà có trụ địch trong tầm thì ĐẬP TRỤ, đừng quay ra gõ lính.
+         Trụ phải đứng TRƯỚC lính trong thứ tự ưu tiên: đứng sau lính thì người vây trụ
+         vĩnh viễn bận dọn quân, và không trận nào kết thúc được. */
+      if (!muc && !dangRut) {
+        var trGan = truGanNhat(tran, n, cs.tam + 60);
+        if (trGan) muc = trGan;
+      }
       if (!muc) {
         var l = linhGanNhat(tran, n, cs.tam + 20);
         if (l) muc = l;
       }
-      if (!muc && mt.tru && mt.tru.song && xaXY(n.x, n.y, mt.tru.x, mt.tru.y) < cs.tam + 60) muc = mt.tru;
 
+      /* ═══ RÚT LÀ PHẢI CHẠY ═══
+         `[ĐO TRONG REPO]` **84% số mạng xảy ra lúc nạn nhân ĐANG RÚT.** Nhìn con số ấy
+         thì tưởng quyết định rút tới quá muộn — nhưng lỗi nặng hơn thế: nhánh `if (muc)`
+         bên dưới ĐỨNG YÊN MÀ ĐÁNH, và nó chạy trước nhánh di chuyển. Nên hễ còn một kẻ
+         địch trong tầm là người "đang rút" **không nhúc nhích một bước nào** — họ đứng đó
+         đánh nhau cho tới chết, mang theo cái nhãn `rut`.
+
+         Đây đúng là thứ chủ dự án gọi là "AI ngu": lệnh rút có, mà không ai rút.
+
+         Chỉ có một lý do đáng dừng lại: kết liễu được ngay. Ngoài ra thì chạy. */
+      /* `chotru` là ĐỨNG NGOÀI MÉP TẦM TRỤ chờ sóng lính — không phải chạy trốn. Xếp nó
+         vào nhóm "đang rút" thì người đứng đó không đánh cả lính đang dọn quân mình, và
+         cả pha đẩy đường đứng hình. Chỉ `rut` và `ve` mới là chạy. */
+      /* Rút thì VỪA CHẠY VỪA ĐÁNH — đây là kiting, và nó là cách người ta rút thật.
+         `[BẪY ĐÃ SẬP]` Bản sửa đầu tiên cắt luôn mục tiêu khi đang rút, tức là "rút thì
+         cấm đánh". Nghe hợp lý, đo ra thì hỏng: mọi giao tranh tan ngay khi bắt đầu, vì
+         hễ một người thấy mình đang lép vế quân số là bỏ chạy, làm phe mình lép hơn nữa,
+         và cả hai bên cùng chạy. Đo được **19 mạng một trận** (bản gốc 93) và **100% số
+         trận hết giờ** — không trận nào phân được thắng bại.
+         Lỗi thật nằm ở chỗ khác: nhánh đánh và nhánh đi là `if/else`, nên hễ còn kẻ địch
+         trong tầm là người "đang rút" KHÔNG NHÚC NHÍCH. Tách hai nhánh ra là xong. */
       if (muc) {
         /* đánh thường */
         n.danh -= TICK;
@@ -871,8 +1292,23 @@
           n.cd.chieu = n.tuong.kn.chieu.hoi * (1 - G.kep(n.cs.co / 1200 * 0.12, 0, 0.12));
         }
         if (n.cap >= 5 && n.cd.cuoi <= 0 && muc.tuong && muc.hp > 0) {
-          /* NÃO quyết định có bung chiêu cuối đúng lúc không */
-          if (rng.duoc(0.35 + n.cs.nao / 1200 * 0.5)) {
+          /* ═══ BUNG CHIÊU CUỐI CÓ TÍNH TOÁN ═══
+             Bản trước: hễ hồi xong và có tướng địch trong tầm là bung, bất kể đang ở
+             đâu với ai. Chiêu cuối hồi 60–74 giây mà đổ vào một con lính thừa đứng lẻ
+             thì cả giao tranh sau đó đánh tay không. Bốn điều kiện, và NÃO quyết định
+             có nhìn ra hay không: */
+          var dichQuanh = 0, taQuanh = 0;
+          tran.nguoi.forEach(function (m) {
+            if (m.chet > 0) return;
+            if (m.doi === n.doi) { if (m !== n && xa(n, m) < 260) taQuanh++; }
+            else if (xa(muc, m) < 220) dichQuanh++;
+          });
+          var dangGiaoTranh = dichQuanh >= 2 || taQuanh >= 1;
+          var dangDe = muc.hp / muc.hpMax < 0.22 && dichQuanh <= 1;  /* thừa: auto cũng chết */
+          var sapChet = n.hp / n.hpMax < 0.3;                        /* bung để đổi mạng */
+          var doiLau = n.cd.cuoi < -25;                              /* ôm quá lâu là phí */
+          var nen = (dangGiaoTranh && !dangDe) || sapChet || doiLau;
+          if (nen && rng.duoc(0.55 + n.cs.nao / 1200 * 0.4)) {
             dungChieu(tran, n, muc, n.tuong.kn.cuoi, cs);
             n.cd.cuoi = n.tuong.kn.cuoi.hoi;
           }
@@ -883,7 +1319,21 @@
         var d = Math.sqrt(dx * dx + dy * dy) || 1;
         var toc = cs.tocchay * TICK * 1.35;
         if (d > 1) n.huong = Math.atan2(dy, dx);
-        if (d > toc) { n.x += dx / d * toc; n.y += dy / d * toc; }
+        /* Xạ thủ / pháp sư / hỗ trợ KHÔNG đi thẳng vào tâm đám đánh nhau — họ dừng ở
+           mép tầm bắn. Bản trước ai cũng chạy tới đúng toạ độ mục tiêu, nên người bắn
+           xa đứng lẫn vào giữa đội hình địch và chết trước tiên. */
+        var lui = (cs.tam > 45 && (mt.loai === 'tugiup' || mt.loai === 'gank')) ? cs.tam * 0.72 : 0;
+        if (d <= lui) { /* đủ gần rồi, đứng lại chờ */ }
+        else if (d > toc) { n.x += dx / d * toc; n.y += dy / d * toc; }
+        else { n.x = mt.x; n.y = mt.y; }
+      }
+
+      /* ĐANG RÚT thì đi TIẾP, dù vừa ra đòn xong. Chân vẫn chạy, tay vẫn đánh. */
+      if (dangRut && muc) {
+        var rx = mt.x - n.x, ry = mt.y - n.y;
+        var rd = Math.sqrt(rx * rx + ry * ry) || 1;
+        var rtoc = cs.tocchay * TICK * 1.35;
+        if (rd > rtoc) { n.x += rx / rd * rtoc; n.y += ry / rd * rtoc; }
         else { n.x = mt.x; n.y = mt.y; }
       }
     });
@@ -957,6 +1407,20 @@
           var d = xaXY(r.x, r.y, m.x, m.y); if (d < gd) { gd = d; muc = m; }
         });
       }
+      /* LUẬT ĐỔI MỤC TIÊU CỦA TRỤ — thứ làm cho "lao vào trụ" là canh bạc.
+         Ở mọi game MOBA, trụ đang bắn lính mà có tướng địch đánh tướng nhà mình trong tầm
+         thì trụ BỎ LÍNH, quay sang bắn kẻ lao vào ngay lập tức. Thiếu luật này thì đứng
+         dưới trụ địch đánh nhau chẳng mất gì, vì trụ còn bận dọn lính. */
+      tran.nguoi.forEach(function (m) {
+        if (m.doi === r.doi || m.chet > 0) return;
+        if (tran.t - m.danhTuongLuc > 1.5) return;
+        var nanNhan = tran.nguoi[m.danhTuongAi];
+        if (!nanNhan || nanNhan.doi !== r.doi || nanNhan.chet > 0) return;
+        if (xaXY(r.x, r.y, m.x, m.y) > r.tam) return;
+        if (xaXY(r.x, r.y, nanNhan.x, nanNhan.y) > r.tam) return;
+        muc = m;
+      });
+
       if (muc) {
         r.danh = 1.2;
         r.danhLuc = tran.t;

@@ -29,9 +29,26 @@
            thế giới rơi xuống 8% (đo bằng _tools/tileThang.js). Giờ bậc 5 có MỘT con UR
            còn lại mỏng dần: ngôi sao của họ vẫn bất khả xâm phạm, nhưng cấm đúng con đó
            là kéo họ về mặt đất — đúng thứ màn cấm chọn đang mời người chơi làm. */
+        /* `[ĐO TRONG REPO]` Đợt làm lại bộ mô phỏng (RESEARCH.md §8) kéo hai giải mở màn
+           tụt khỏi đường cong đã chốt: Vòng bảng Lượt 1 **75% → 58%**, Lượt 2 **85% → 70%**
+           (160 mẫu mỗi dòng, sai số ±3,9 điểm — lệch thật, không phải nhiễu).
+           Thử hạ `suc` của bốn đội `ai_low` hơn một nửa (58→20 …) chỉ lấy lại được 4–9
+           điểm: **chỉ số nền không phải cái cần vặn, bảng thông thạo mới là**. Vặn ở đây
+           thì giữ nguyên được sức của 24 đội trong bảng xếp hạng chạy song song cả mùa.
+
+           Đo trên 160 mẫu mỗi mức (bốn dãy hạt giống × 40 giải):
+             bậc 1  R·R·N·N → Lượt 1 **58%** · Lượt 2 70%
+                    R·N·N·N → Lượt 1   59% · Lượt 2 74%     (gần như không đổi)
+                    N·N·N·N → Lượt 1 **79%** · Lượt 2 **86%**  ← khớp đường cong 75/85
+             bậc 2  SR·SR·R·N → Play-off 37% · CK quốc nội 61%
+                    SR·R·R·N  → Play-off **54%** · CK quốc nội **73%**  ← khớp 57/75
+
+           Bậc 1 thành ra KHÔNG có ô thông thạo nào, tức là cấm tướng ở hai giải vòng bảng
+           không còn ý nghĩa. Đó là cố ý: hai giải ấy là bậc tập sự, và đường cong thiết kế
+           đòi người chơi thắng 75–85% ở đó. Từ bậc 2 trở đi mới có ngôi sao để mà cấm. */
         var THEO_BAC = {
-          1: ['R', 'R', 'N', 'N'],
-          2: ['SR', 'SR', 'R', 'N'],
+          1: ['N', 'N', 'N', 'N'],
+          2: ['SR', 'R', 'R', 'N'],
           3: ['SSR', 'SR', 'SR', 'R'],
           4: ['SSR', 'SSR', 'SR', 'R'],
           5: ['UR', 'SSR', 'SR', 'R']

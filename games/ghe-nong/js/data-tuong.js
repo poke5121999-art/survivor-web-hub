@@ -184,8 +184,13 @@
         { noDot: { g: 0.30, c: 60, loai: 'pt' } }),
       ['pk', 'toa'], 'Không giết nhanh, nhưng ai dính cũng phải về nhà.'),
 
+    /* `[ĐO TRONG REPO]` Tầm 50 là ngắn nhất trong bốn xạ thủ (Nỏ Độc 58, Xạ Thủ 62), mà
+       Bom Xích lại là tướng đứng bắn chứ không phải tướng lao vào. Hồi trận đấu còn loãng
+       thì không sao; từ khi đòn tướng-đánh-tướng nặng lên (HAM_TUONG 0,22 → 0,40) thì đứng
+       gần thêm mười đơn vị là chết thêm hẳn: tỉ lệ thắng tụt còn **35,7%** trong khi ba con
+       cùng đường đều quanh 50%. Kéo tầm về ngang Nỏ Độc. */
     T('bomxich', 'Bom Xích', 'xa', 'duoi',
-      [76, 20, 32, 10, 820, 80, 19, 5, 16, 3, 50, 1.15, 72],
+      [76, 20, 32, 10, 820, 80, 19, 5, 16, 3, 58, 1.15, 72],
       N('Dư Chấn', 'Kỹ năng diện rộng gây thêm 15% sát thương lên lính và quái.',
         { themLinh: 0.15 }),
       C('Ném Bom', 'Bom nổ sau 1 giây: 80 + 90% sát thương phép diện rộng.', 8,
