@@ -1,15 +1,73 @@
 # Còn lại — bàn giao 2026-09-11
 
-Bản vừa push: **khuôn mặt pho tượng đè lên màn hình** (mục 000). Trước đó: bộ chuột-phím cho máy
-tính và ba cái lỗi (mục 00); xe lao qua tường vào nhà, cả tổ chạy lên xe lúc thoát (mục 0); ném
-đồ · đường chỉ lối trên sàn · loot vẽ lại · cửa hàng ngoài menu (mục 2).
-Dấu build lên `?v=20260911a` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Bản vừa push: **viền đỏ khi quái tới gần, và nhiễu hình lúc ăn đòn** (mục 0000). Trước đó:
+khuôn mặt pho tượng (mục 000); bộ chuột-phím cho máy tính và ba cái lỗi (mục 00); xe lao qua
+tường vào nhà, cả tổ chạy lên xe lúc thoát (mục 0).
+Dấu build lên `?v=20260911b` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 Hai hồ sơ nghiên cứu nằm cạnh tệp này: **`RESEARCH.md`** (Robbery Bob — trộm, nấp, tiếng ồn) và
 **`RESEARCH-DARKWOOD.md`** (Darkwood — nỗi sợ). Cái thứ hai viết 2026-09-11, và kết luận của nó
 ngắn gọn là: căn nhà này đã đứng trên năm trong bảy cột của Darkwood rồi; thứ đáng làm tiếp và
 rẻ nhất là **cho âm thanh một cái hướng** — cả hệ tiếng hiện chạy mono, không một chữ `pan` nào.
+
+---
+
+## 0000. BẢN 20260911b — VIỀN ĐỎ, VÀ NHIỄU HÌNH
+
+Chủ dự án, 2026-09-11: *"thêm hiệu ứng đỏ viền màn hình khi quái đến gần, càng gần càng đỏ. khi
+bị hurt thì player nhiễu màn hình."*
+
+### Viền đỏ theo khoảng cách
+
+**Bốn dải chứ không phải một vòng tròn**, và đó không phải chuyện thẩm mỹ. Một gradient toả tròn
+đo theo bán kính: khung dọc 480×940 thì mép trái cách tâm 240 còn góc cách tâm 528, nên đặt vòng
+đỏ chạm được tới góc thì hai mép trái phải **không dính tí nào**. Bốn dải thì màn hình nào cũng
+ra một cái viền đều, và bốn góc tự đậm lên vì hai dải chồng nhau ở đó. Cùng cách mà cái viền đỏ
+lúc ăn đòn đã dùng từ trước.
+
+**Độ đậm đi theo `k^1.5`, bề dày đi theo `k`.** Ở xa nó là một gợn đỏ ngoài rìa mắt; tới lúc con
+quái áp vào người mới thành một cái viền thật. Tuyến tính thì nửa căn nhà lúc nào cũng đỏ nhờ
+nhờ, và **một tín hiệu luôn bật là một tín hiệu không ai đọc**. Đo được ở khung 480×940: nhà vắng
+mép đỏ **0/255**, quái cách 6 ô **29**, áp sát **65**. Nó cũng thở theo nhịp tim (`FX.beatPulse`),
+không đập.
+
+**Nó đọc `FX.gan`, không đọc `FX.dread`.** Hai con số khác nhau, và chỗ khác nhau là **pho tượng**:
+`threatLevel()` tính cả Tượng (nhịp tim và dàn nhạc đọc con số ấy), còn `thanGan()` chỉ tính quái
+**có thân**. Pho tượng đã có kênh riêng của nó rồi — khuôn mặt ở mục 000 — và hai lớp đỏ chồng lên
+nhau thì không lớp nào còn nói được gì. Bộ test chốt đúng câu này lại.
+
+Và nó **không hỏi có nhìn thấy hay không**. Cảm thấy một thứ đang tới gần trong khi mắt chưa thấy
+gì mới là chỗ đáng sợ của trò này — cùng luật với nhịp tim và với tiếng `SFX.shuffle`.
+
+### Nhiễu hình lúc ăn đòn
+
+Ba lớp trong `drawNhieu()`: mấy **dải ngang bị kéo lệch** (`drawImage` với chính cái canvas nguồn —
+hợp lệ, vùng nguồn được chụp lại trước khi ghi), một lớp **hạt nhiễu** lát bằng `createPattern`, và
+hai **vệt quét** chạy dọc màn hình kiểu tín hiệu mất đồng bộ.
+
+Ba chỗ phải cẩn thận, cả ba đều đã sập một lần rồi mới ra số cuối:
+
+1. **Tấm hạt dựng MỘT LẦN.** Bốc lại 16 384 điểm ảnh ngẫu nhiên mỗi khung hình là hai mươi lần
+   `createImageData` cho mỗi cú ăn đòn. Giữ một tấm 128×128 rồi mỗi khung **dịch** nó đi một quãng
+   khác nhau — trông y hệt mà gần như không tốn gì.
+2. **Thưa tay.** Bản đầu xé 5–6 dải và rắc hạt ở alpha 0,38: đẹp trong một ảnh chụp, nhưng ăn đòn
+   là lúc người chơi **phải nhìn ra con quái đang đứng đâu để mà chạy**, và một phần ba giây không
+   thấy gì là một phần ba giây bị lấy mất quyền chơi. Xuống còn 1–4 dải, alpha đỉnh 0,28. Đo được:
+   giữa màn hình vẫn **157/255** ngay khung hình vừa ăn đòn.
+3. **Không chạy theo giờ thật.** Lúc ăn đòn có một nhịp đứng hình (`FX.hitstop`), và cú nhiễu phải
+   đứng hình **cùng** với nó — tan đi trong lúc thế giới đang đông cứng thì nó rời khỏi chính cái
+   khoảnh khắc nó đang nói về.
+
+Sàn cường độ **0,45** chứ không tỉ lệ thẳng với sát thương: một phát trầy ba máu vẫn phải giật được
+một cái, vì thứ nó nói là *"vừa có cái gì chạm vào bạn"* chứ không phải *"mất bao nhiêu máu"* —
+con số ấy thanh máu nói rồi.
+
+Vẽ **sau thế giới, trước HUD** — cùng luật với khuôn mặt pho tượng. Nên nó xé cả khuôn mặt luôn
+nếu Tượng đang đứng đó, nhưng thanh máu thì không.
+
+Số để chỉnh: `FX.gan` lên theo `dt*4.6` / xuống `dt*1.3`; `FX.nhieu` tắt theo `dt*3.6`; bề dày viền
+`min(w,h)*(0,07 + 0,10*k)`; cửa cho bộ test là `REPO.vienDo()`.
 
 ---
 
@@ -253,6 +311,8 @@ xanh không thay được chỗ này.
 | **Bộ chuột-phím** | Mở trên máy tính, không chạm vào màn hình | Thanh máu/bản đồ đã đủ to chưa hay quá to? Thanh ô đồ dưới đáy có đọc ra ngay không? `Q` có luôn làm đúng cái mình đang định làm không? Khung nhìn 13 ô có rộng quá không? |
 | **Cửa kẹt** | Vào màn 2 trở lên, đi tìm một cửa bị chèn | Cái viền có đủ để nhận ra "phá được" không, hay chỉ là thêm một vệt sáng nữa? |
 | **Khuôn mặt pho tượng** | Đợi Tượng ghé, nhìn thẳng vào nó, rồi CỐ Ý quay đi cho đồng hồ chạy | Nó có đáng sợ không, hay chỉ vướng mắt? Còn nhìn ra pho tượng thật giữa màn không? Ba giây cuối có đọc ra là "sắp tới nơi" không? |
+| **Viền đỏ** | Đi trong nhà có quái, để ý mép màn hình thay vì nhìn bản đồ nhỏ | Nó có báo trước được "có thứ đang tới" không, hay chỉ đỏ khi đã thấy quái rồi? Có đỏ quá thường xuyên tới mức hết nghĩa không? |
+| **Nhiễu hình** | Cố tình để bị đánh vài phát, cả phát nhẹ lẫn phát nặng | Có giật đủ đô không? Có che mất con quái đúng giây phải chạy không? Bị đánh liên tiếp ba phát thì có thành không nhìn được gì nữa không? |
 | Mũi chỉ lối trên sàn | Vào ca, nhìn xuống chân | Hàng mũi nhọn có ĐỌC RA LÀ ĐƯỜNG ĐI không, hay nó chỉ là rác trên sàn? Dày quá hay thưa quá? |
 | Vòng highlight quanh loot | Đứng cạnh một món to | Cái vòng còn cắt ngang người món đồ nữa không? Nằm dưới chân đọc có rõ hơn không? |
 | Vết nứt | Đâm một cái bình vào tường hai lần | Đã "tinh tế" chưa, hay nay mờ quá đến mức không thấy đồ đang hỏng? |

@@ -3693,6 +3693,104 @@ async function matAngelSuite(b) {
 }
 
 // =====================================================================
+// VIỀN ĐỎ QUANH MÀN HÌNH, VÀ NHIỄU HÌNH LÚC ĂN ĐÒN.
+// Chủ dự án: "thêm hiệu ứng đỏ viền màn hình khi quái đến gần, càng gần càng đỏ. khi bị hurt
+// thì player nhiễu màn hình". Bốn câu phải đúng:
+//   1. nhà vắng thì mép màn hình KHÔNG đỏ — một tín hiệu luôn bật là một tín hiệu không ai đọc;
+//   2. càng gần càng đỏ, và đo được thành thang chứ không phải bật/tắt;
+//   3. PHO TƯỢNG không làm đỏ viền: nó đã có khuôn mặt riêng, hai lớp đỏ chồng nhau thì hỏng cả hai;
+//   4. nhiễu hình bật lúc ăn đòn, tắt trong dưới nửa giây, và KHÔNG bịt màn hình — ăn đòn là
+//      đúng lúc phải nhìn ra con quái đứng đâu để mà chạy.
+async function vienDoSuite(b) {
+  results.push('\n── viền đỏ & nhiễu hình ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 480, height: 940 });
+  await p.click('#veilBtn');
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 2; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.monsters.length = 0; REPO.S.angel = null; REPO.S.angelTimer = 999;
+  });
+  await p.waitForTimeout(500);
+
+  const doMep = () => p.evaluate(() => {
+    const cv = document.getElementById('game'), g = cv.getContext('2d');
+    const o = (fx, fy) => {
+      const x = Math.round(cv.width*fx), y = Math.round(cv.height*fy);
+      let r = 0, t = 0, n = 0;
+      for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++){
+        const q = g.getImageData(x+i, y+j, 1, 1).data; r += q[0]; t += (q[0]+q[1]+q[2])/3; n++;
+      }
+      return { do: Math.round(r/n), sang: Math.round(t/n) };
+    };
+    return { ...REPO.vienDo(), mep: o(0.5, 0.035).do, giua: o(0.5, 0.5).sang };
+  });
+
+  const vang = await doMep();
+  check('nhà vắng thì mép màn hình không đỏ', vang.gan < 0.05 && vang.mep < 18,
+    JSON.stringify(vang));
+
+  await p.evaluate(() => {
+    const m = REPO.spawnFoe('gunner', 0, 6*REPO.TILE);
+    if (m){ m.sleep = 0; m.state = 'patrol'; m.alert = 0; }
+  });
+  await p.waitForTimeout(1500);
+  const xa = await p.evaluate(() => {
+    const m = REPO.S.monsters[0]; if (m){ m.state = 'patrol'; m.alert = 0; }
+    return null;
+  }).then(doMep);
+
+  await p.evaluate(() => {
+    const m = REPO.S.monsters[0], pl = REPO.S.player;
+    if (m){ m.x = pl.x; m.y = pl.y + REPO.TILE*1.6; m.state = 'patrol'; m.alert = 0; }
+  });
+  await p.waitForTimeout(1500);
+  const gan = await doMep();
+
+  check('có quái trong tầm thì mép đỏ lên', xa.mep > vang.mep + 8,
+    'vắng ' + vang.mep + ' → xa ' + xa.mep);
+  check('và càng gần càng đỏ', gan.mep > xa.mep + 10 && gan.gan > xa.gan,
+    'xa ' + xa.mep + ' (gan ' + xa.gan + ') → gần ' + gan.mep + ' (gan ' + gan.gan + ')');
+
+  // --- 3. pho tượng KHÔNG làm đỏ viền ---
+  const tuong = await p.evaluate(async () => {
+    const S = REPO.S;
+    S.monsters.length = 0;
+    await new Promise(r => setTimeout(r, 1600));       // cho FX.gan tụt về không
+    S.angel = null; REPO.spawnAngel();
+    const a = REPO.angel(), pl = S.player;
+    if (a) pl.dir = Math.atan2(a.y - pl.y, a.x - pl.x);
+    await new Promise(r => setTimeout(r, 1200));
+    return { co: !!REPO.angel(), threat: +REPO.threat().toFixed(2), ...REPO.vienDo() };
+  });
+  check('pho tượng làm CĂNG nhưng không làm đỏ viền — nó đã có khuôn mặt riêng',
+    !tuong.co || (tuong.threat > 0.25 && tuong.than < 0.02), JSON.stringify(tuong));
+
+  // --- 4. nhiễu hình ---
+  await p.evaluate(() => { REPO.S.angel = null; REPO.S.angelTimer = 999; });
+  await p.waitForTimeout(300);
+  const truoc = await p.evaluate(() => REPO.vienDo().nhieu);
+  await p.evaluate(() => {
+    const pl = REPO.S.player;
+    pl.invulnT = 0;
+    REPO.hurtPlayer(22, 'test', pl.x, pl.y + 40);
+  });
+  await p.waitForTimeout(60);
+  const ngay = await doMep();
+  await p.waitForTimeout(700);
+  const sau = await p.evaluate(() => REPO.vienDo().nhieu);
+  check('ăn đòn thì màn hình nhiễu', truoc === 0 && ngay.nhieu > 0.5,
+    truoc + ' → ' + ngay.nhieu);
+  check('và nhiễu tắt trong dưới nửa giây, không ở lại', sau === 0, String(sau));
+  check('nhiễu KHÔNG bịt màn hình — vẫn nhìn ra chỗ con quái đứng',
+    ngay.giua > 45, 'giữa màn ' + ngay.giua + '/255');
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('viền đỏ & nhiễu hình: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 (async () => {
   // --allow-file-access-from-files: mở file:// bằng Chromium thì mỗi tấm PNG là một 'gốc' khác
   //   nhau, nên vẽ một con quái lên canvas là canvas đó bị NHIỄM và getImageData ném
@@ -3723,6 +3821,7 @@ async function matAngelSuite(b) {
   try { await pcSuite(b); } catch (e) { check('chuột-phím: bộ test chạy trọn', false, e.message); }
   try { await botGoVanSuite(b); } catch (e) { check('người chơi gục: bộ test chạy trọn', false, e.message); }
   try { await matAngelSuite(b); } catch (e) { check('khuôn mặt pho tượng: bộ test chạy trọn', false, e.message); }
+  try { await vienDoSuite(b); } catch (e) { check('viền đỏ & nhiễu hình: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));

@@ -659,6 +659,9 @@ const FX = {
   //                giây tan đi thì vệt máu không thụt ngược về không
   //   matNhin      lúc này có ai đang nhìn nó không: không ai nhìn thì mắt nó nhấp nháy
   mat: 0, matGap: 0, matNhin: false,
+  // gan   0..1  con quái CÓ THÂN gần nhất — cái viền đỏ quanh màn hình đọc con số này
+  // nhieu 0..1  cú nhiễu hình sau khi ăn đòn, xem drawNhieu
+  gan: 0, nhieu: 0,
   // The jolt of SEEING one. It is its own channel rather than a nudge to dread, because dread is
   // recomputed every frame from how near the thing is and would swallow a one-frame bump whole.
   spotT: 0,
@@ -673,6 +676,7 @@ function fxReset(){
   FX.beat2 = false; FX.rate = 1.15;
   FX.flash = FX.flashTo = FX.flashNghi = FX.hurtT = FX.tickPulse = FX.spotT = 0;
   FX.mat = FX.matGap = 0; FX.matNhin = false;
+  FX.gan = FX.nhieu = 0;
   FX.lastTick = -1;
   FX.pops.length = 0;
 }
@@ -759,6 +763,25 @@ function fxPop(x, y, text, col, size){
 
 // How frightened the screen should look right now: the nearest awake monster, made worse if it
 // is actually hunting you. Sleeping ones do not count — a tranquillised thing is not a threat.
+// Con quái CÓ THÂN gần nhất đang ở mức nào: 0 ở mười ô, 1 khi nó đứng trên người, và một cú
+// cộng thêm nếu nó đang đuổi. Tách khỏi threatLevel() vì CÁI VIỀN ĐỎ đọc con số này, còn nhịp
+// tim với dàn nhạc thì đọc threatLevel() — trong đó có cả pho tượng. Pho tượng đã có kênh riêng
+// của nó rồi (khuôn mặt, xem drawAngelMat), và hai lớp đỏ chồng lên nhau thì không lớp nào còn
+// nói được gì.
+function thanGan(){
+  const p = S.player;
+  if (!p || S.dead) return 0;
+  let best = 0;
+  for (const m of S.monsters){
+    if (m.sleep > 0) continue;
+    const d = Math.hypot(p.x-m.x, p.y-m.y);
+    if (d > DREAD_R) continue;
+    let t = 1 - d/DREAD_R;
+    if (m.state === 'chase') t = Math.min(1, t*1.3 + 0.32);
+    if (t > best) best = t;
+  }
+  return best;
+}
 function threatLevel(){
   const p = S.player;
   if (!p || S.dead) return 0;
@@ -769,15 +792,7 @@ function threatLevel(){
     // Chưa bị thấy thì nó là một sự hiện diện, chưa phải một mối đe doạ — đồng hồ chưa chạy.
     // Nửa mức căng, và phẳng, để một căn phòng chưa ai nhìn vào không ngồi mãi ở mức bị đuổi.
     best = a.armed ? 0.45 + 0.5 * clamp(a.unlitT / ANGEL_PATIENCE, 0, 1) : 0.32;
-  for (const m of S.monsters){
-    if (m.sleep > 0) continue;
-    const d = Math.hypot(p.x-m.x, p.y-m.y);
-    if (d > DREAD_R) continue;
-    let t = 1 - d/DREAD_R;
-    if (m.state === 'chase') t = Math.min(1, t*1.3 + 0.32);
-    if (t > best) best = t;
-  }
-  return best;
+  return Math.max(best, thanGan());
 }
 
 // ============================================================ hiệu ứng lúc thi triển kỹ năng
@@ -938,6 +953,14 @@ function stepFx(dt){
   // Rises fast and falls slow, like the feeling does. A dread that drained as quickly as it
   // filled would flicker every time a monster stepped behind a wall.
   FX.dread = mix(FX.dread, want, Math.min(1, dt * (want > FX.dread ? 3.4 : 1.0)));
+  // Cái viền đỏ theo đúng luật ấy, chỉ nhanh hơn một nhịp ở chiều lên: nó trả lời câu "có thứ
+  // gì đó vừa bước vào tầm này", mà câu ấy đến muộn thì vô dụng.
+  const gWant = thanGan();
+  FX.gan = mix(FX.gan, gWant, Math.min(1, dt * (gWant > FX.gan ? 4.6 : 1.3)));
+  // Nhiễu hình tắt trong khoảng một phần ba giây. Nó KHÔNG chạy theo giờ thật: lúc ăn đòn có
+  // một nhịp đứng hình (FX.hitstop), và cú nhiễu phải đứng hình cùng với nó — tan đi trong lúc
+  // thế giới đang đông cứng thì nó rời khỏi chính cái khoảnh khắc nó đang nói về.
+  FX.nhieu = Math.max(0, FX.nhieu - dt*3.6);
 
   // KHUÔN MẶT. Nó không quyết định gì — nó ĐỌC ba con số stepAngel đã quyết xong: pho tượng
   // còn đứng đó không, người chơi đã nhìn thấy nó chưa, và đồng hồ cào chạy tới đâu.
@@ -6071,6 +6094,11 @@ function hurtPlayer(n, src, fromX, fromY){
   fxShake(3 + Math.min(9, n*0.14));
   FX.hitstop = Math.max(FX.hitstop, n >= 25 ? 0.11 : 0.07);
   FX.hurtT = 1; FX.hurtDir = (fromX === undefined) ? p.dir : Math.atan2(fromY-p.y, fromX-p.x);
+  // NHIỄU HÌNH. Chủ dự án, 2026-09-11: "khi bị hurt thì player nhiễu màn hình".
+  // Sàn 0,45 chứ không tỉ lệ thẳng với sát thương: một phát trầy ba máu vẫn phải GIẬT được một
+  // cái, vì thứ nó đang nói là "vừa có cái gì chạm vào bạn" chứ không phải "mất bao nhiêu máu"
+  // — con số ấy thanh máu nói rồi.
+  FX.nhieu = Math.max(FX.nhieu, clamp(0.45 + n/45, 0.45, 1));
   SFX.hit(n);
   if (p.hp <= 0){ p.hp = 0; SFX.thud(); die(); }
 }
@@ -10513,6 +10541,7 @@ function draw(){
   c.globalCompositeOperation = 'source-over';
   drawVignette(c);
   drawAngelMat(c);        // dưới HUD, trên mọi thứ khác — xem luật 3 ở chỗ khai MAT_VAO
+  drawNhieu(c);           // xé cả khuôn mặt pho tượng luôn, nhưng vẫn chừa HUD ra
   drawHud(c);
 }
 
@@ -13374,6 +13403,78 @@ function drawPlayer(c){
   c.restore();
   c.globalAlpha = a0;
 }
+// ---------------------------------------------------------------- NHIỄU HÌNH LÚC ĂN ĐÒN
+// Tấm hạt nhiễu dựng MỘT LẦN rồi lát ra cả màn hình bằng createPattern. Bốc lại ngần ấy điểm
+// ảnh ngẫu nhiên mỗi khung hình thì mỗi cú ăn đòn là hai mươi lần gọi createImageData — cách
+// rẻ là giữ một tấm và mỗi khung DỊCH nó đi một quãng khác nhau.
+let nhieuCv = null, nhieuPat = null;
+function nhieuTam(c){
+  if (nhieuPat) return nhieuPat;
+  const n = 128;
+  nhieuCv = document.createElement('canvas');
+  nhieuCv.width = nhieuCv.height = n;
+  const g = nhieuCv.getContext('2d');
+  const im = g.createImageData(n, n);
+  for (let i = 0; i < n*n; i++){
+    // Thưa, và chỉ hai mức sáng. Hạt dày đặc đọc ra là một lớp sương xám phủ đều; hạt thưa mà
+    // rõ mới đọc ra là màn hình đang nhiễu.
+    const v = Math.random();
+    const s = v > 0.955 ? 255 : v > 0.90 ? 128 : 0;
+    im.data[i*4] = im.data[i*4+1] = im.data[i*4+2] = s;
+    im.data[i*4+3] = s ? 255 : 0;
+  }
+  g.putImageData(im, 0, 0);
+  nhieuPat = c.createPattern(nhieuCv, 'repeat');
+  return nhieuPat;
+}
+// Vẽ SAU thế giới và TRƯỚC HUD — cùng luật với khuôn mặt pho tượng: thanh máu là thứ người chơi
+// phải đọc được đúng vào giây vừa mất máu, nên nó không được nằm trong vùng bị xé.
+function drawNhieu(c){
+  const k = FX.nhieu;
+  if (k <= 0.012) return;
+  const w = c.canvas.width, h = c.canvas.height;
+  const m = ease(clamp(k, 0, 1));
+
+  // 1. XÉ NGANG. Mấy dải ngang bị kéo lệch sang bên — cái đọc ra ngay là "tín hiệu hỏng".
+  //    drawImage với chính cái canvas nguồn là hợp lệ: vùng nguồn được chụp lại trước khi ghi.
+  // Thưa tay thôi. Bản đầu xé năm sáu dải và rắc hạt ở alpha 0,38: đẹp trong một ảnh chụp, nhưng
+  // ăn đòn là lúc người chơi PHẢI nhìn ra con quái đang đứng đâu để mà chạy, và một phần ba giây
+  // không thấy gì là một phần ba giây bị lấy mất quyền chơi.
+  const so = 1 + Math.round(m*3);
+  for (let i = 0; i < so; i++){
+    const bh = Math.max(3, (Math.random()*h*0.05)|0);
+    const sy = (Math.random()*(h-bh))|0;
+    const dx = (Math.random()-0.5) * w * 0.10 * m;
+    if (Math.abs(dx) < 1) continue;
+    c.drawImage(c.canvas, 0, sy, w, bh, dx, sy, w, bh);
+  }
+
+  // 2. HẠT. Cộng sáng, và tấm hạt dịch đi một quãng ngẫu nhiên mỗi khung.
+  const pat = nhieuTam(c);
+  if (pat){
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    c.globalAlpha = 0.09 + 0.19*m;
+    c.translate((Math.random()*128)|0, (Math.random()*128)|0);
+    c.fillStyle = pat;
+    c.fillRect(-128, -128, w + 256, h + 256);
+    c.restore();
+  }
+
+  // 3. HAI VỆT QUÉT. Một dải sáng mỏng chạy dọc màn hình, kiểu tín hiệu truyền hình mất đồng bộ.
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 2; i++){
+    const y = ((S.time*(320 + i*210) + i*h*0.5) % (h + 60)) - 30;
+    const gq = c.createLinearGradient(0, y-14, 0, y+14);
+    gq.addColorStop(0,   'rgba(120,90,100,0)');
+    gq.addColorStop(0.5, `rgba(150,104,110,${(0.12*m).toFixed(3)})`);
+    gq.addColorStop(1,   'rgba(120,90,100,0)');
+    c.fillStyle = gq; c.fillRect(0, y-14, w, 28);
+  }
+  c.restore();
+}
+
 function drawVignette(c){
   const w = c.canvas.width, h = c.canvas.height;
   const R = Math.max(w,h);
@@ -13389,6 +13490,38 @@ function drawVignette(c){
   g.addColorStop(0.6,`rgba(0,0,0,${0.13 + dread*0.16})`);
   g.addColorStop(1,`rgba(${dread > 0.02 ? '26,4,4' : '0,0,0'},${0.5 + dread*0.34})`);
   c.fillStyle = g; c.fillRect(0,0,w,h);
+
+  // ---------------------------------------------------------------- VIỀN ĐỎ THEO KHOẢNG CÁCH
+  // Chủ dự án, 2026-09-11: *"thêm hiệu ứng đỏ viền màn hình khi quái đến gần, càng gần càng đỏ"*.
+  //
+  // BỐN DẢI CHỨ KHÔNG PHẢI MỘT VÒNG TRÒN, và đó không phải chuyện thẩm mỹ. Một gradient toả
+  // tròn đo theo bán kính, mà khung dọc 480x940 thì mép trái cách tâm 240 còn góc cách tâm 528 —
+  // đặt vòng đỏ chạm được tới góc thì hai mép trái phải không dính tí nào. Bốn dải thì màn hình
+  // nào cũng ra một cái viền đều, và bốn góc tự đậm lên vì hai dải chồng nhau ở đó.
+  //
+  // ĐỘ ĐẬM đi theo k^1.5 còn BỀ DÀY đi theo k: ở xa thì nó là một gợn đỏ ngoài rìa mắt, tới lúc
+  // con quái áp vào người mới thành một cái viền thật. Tuyến tính thì nửa căn nhà lúc nào cũng
+  // đỏ nhờ nhờ, và một tín hiệu luôn bật là một tín hiệu không ai đọc.
+  //
+  // Nó đọc FX.gan — CON QUÁI, không phải pho tượng — và nó KHÔNG hỏi có nhìn thấy hay không.
+  // Cảm thấy một thứ đang tới gần trong khi mắt chưa thấy gì mới là chỗ đáng sợ của trò này.
+  if (FX.gan > 0.02){
+    const k = clamp(FX.gan, 0, 1);
+    const nhip = 1 + beat*0.20*k;                  // thở theo nhịp tim, không đập
+    const day = Math.min(w,h) * (0.07 + 0.10*k) * nhip;
+    const dam = 0.66 * Math.pow(k, 1.5);
+    const vien = (x0,y0,x1,y1, rx,ry,rw,rh) => {
+      const g2 = c.createLinearGradient(x0,y0,x1,y1);
+      g2.addColorStop(0,   `rgba(178,16,12,${dam.toFixed(3)})`);
+      g2.addColorStop(0.45,`rgba(150,12,10,${(dam*0.42).toFixed(3)})`);
+      g2.addColorStop(1,   'rgba(140,10,10,0)');
+      c.fillStyle = g2; c.fillRect(rx,ry,rw,rh);
+    };
+    vien(0,0,0,day,        0,0,w,day);             // trên
+    vien(0,h,0,h-day,      0,h-day,w,day);         // dưới
+    vien(0,0,day,0,        0,0,day,h);             // trái
+    vien(w,0,w-day,0,      w-day,0,day,h);         // phải
+  }
 
   if (dread > 0.05 && beat > 0){
     const bg = c.createRadialGradient(w/2,h/2,R*0.30,w/2,h/2,R*0.78);
@@ -14362,7 +14495,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260911a';
+const BUILD = '20260911b';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -16515,6 +16648,7 @@ window.REPO = {
                         conLai: a.armed ? Math.max(0, ANGEL_PATIENCE - a.unlitT) : null } : null; },
   angelBiThay(){ return S.angel ? angelBiThay(S.angel) : null; },
   angelMat(){ return { mat:+FX.mat.toFixed(3), gap:+FX.matGap.toFixed(3), nhin:!!FX.matNhin }; },
+  vienDo(){ return { gan:+FX.gan.toFixed(3), than:+thanGan().toFixed(3), nhieu:+FX.nhieu.toFixed(3) }; },
   mateStare(){ return (S.mates || []).map(m => ({ id:m.id, stareT:+(m.stareT||0).toFixed(2),
                                                   blinkT:+(m.blinkT||0).toFixed(2), dir:m.dir })); },
   lightZones(){ return S.lightZones.map(z => ({ x:z.x, y:z.y, r:z.r, t:z.t })); },
