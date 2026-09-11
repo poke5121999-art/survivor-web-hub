@@ -62,7 +62,7 @@
     });
     var goc = G.HLV_THEO_ID[ca.hlvId];
     var rieng = G.KN_RIENG[goc.kn];
-    if (rieng) kn += rieng.hieu.muc * 0.4;
+    if (rieng) kn += rieng.hieu.muc * G.heKNRieng(ca.uncap) * 0.4;
 
     var he = 1;
     if (giai) {

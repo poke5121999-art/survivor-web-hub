@@ -499,7 +499,11 @@ chứa"*). Người chơi tự mang mảnh sang màn **Nuôi thẻ** mà tiêu.
 
 - Tuyển thủ: trần cấp **+5** mỗi bậc (R 30→50 · SR 35→55 · SSR 40→60), và bậc 4 mở thêm
   **hiệu ứng ẩn +8% thân thiết · +6% hiệu quả tập**.
-- HLV: trần cả năm giáo án **+50** mỗi bậc.
+- HLV: trần cả năm giáo án **+50** mỗi bậc, và **kỹ năng riêng mạnh lên** ở bậc 2 (**+15%**)
+  và bậc 4 (**+20%** nữa) — `G.heKNRieng`. Ở Uma, nâng sao cho ngựa vừa cộng chỉ số nền vừa
+  làm kỹ năng riêng mạnh lên, nên bậc trần ở đây phải chạm được vào cả hai. Dòng "nâng cấp
+  kỹ năng riêng ở bậc 2 và 4" nằm trong tài liệu này từ đầu mà **không chỗ nào đọc** cho tới
+  đợt này — đúng cái lỗi lặp đi lặp lại của kho (`RESEARCH.md` §6).
 - Mở hết bốn bậc rồi thì mảnh thừa **đổi lấy xu** (200 tuyển thủ · 300 HLV).
 
 Vì sao không tự cộng như bản đầu: tự cộng thì người chơi không bao giờ gặp cái quyết định

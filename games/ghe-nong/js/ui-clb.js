@@ -1134,6 +1134,12 @@
            một đoạn chú thích riêng: hộp thoại phải vừa một màn, nút MỞ TRẦN mà rơi
            xuống dưới mép cuộn thì màn này coi như không có nút. */
         if (!laHLV && k === 4) o.appendChild(G.el('em.them', { text: '+8% thân · +6% tập' }));
+        /* HLV: bậc 2 và bậc 4 nâng kỹ năng riêng — ở Uma, nâng sao cho ngựa vừa cộng
+           chỉ số nền vừa làm kỹ năng riêng mạnh lên, nên bậc trần ở đây cũng phải
+           chạm được vào cả hai chứ không chỉ nới trần. */
+        if (laHLV && (k === 2 || k === 4)) o.appendChild(G.el('em.them', {
+          text: ((G.KN_RIENG[goc.kn] || {}).ten || 'Kỹ năng riêng') +
+            ' +' + (k === 2 ? 15 : 20) + '%' }));
         o.appendChild(G.el('em' + (xong ? '.xong' : ''), { text: xong ? 'đã mở' : '—' }));
         w.appendChild(o);
       }

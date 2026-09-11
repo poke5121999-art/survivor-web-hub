@@ -159,6 +159,21 @@
   G.TEN_NHIP = { chop: 'Chớp', ngan: 'Ngắn', dai: 'Dài', sieu: 'Siêu dài' };
   G.TEN_SAN = { lan: 'LAN', online: 'Online' };
 
+  /* Kỹ năng riêng mạnh lên theo bậc mở trần — bậc 2 và bậc 4, đúng như DESIGN §7.3
+     đã khai từ đầu. Dòng ấy nằm trong tài liệu suốt mà KHÔNG CHỖ NÀO ĐỌC: `uncap` của
+     HLV chỉ được dùng ở `ca.js` để nới trần chỉ số, còn "nâng cấp kỹ năng riêng" thì
+     không tồn tại trong mã. Đây đúng cái lỗi lặp đi lặp lại của kho này (RESEARCH §6):
+     khai một hệ thống rồi không ai chạy, không báo lỗi, chỉ có cái mô tả nói dối.
+
+     Ở Uma, nâng sao cho ngựa vừa cộng chỉ số nền vừa làm kỹ năng riêng mạnh lên — nên
+     bậc mở trần ở đây cũng phải chạm được vào cả hai. */
+  G.heKNRieng = function (uncap) {
+    var k = 1;
+    if ((uncap || 0) >= 2) k *= 1.15;
+    if ((uncap || 0) >= 4) k *= 1.20;
+    return k;
+  };
+
   /** một HLV mới toanh trong kho người chơi */
   G.taoHLV = function (id) {
     var g = G.HLV_THEO_ID[id];
