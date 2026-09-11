@@ -211,7 +211,10 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 @keyframes hopvao{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
 .hop-dau{padding:12px 16px;background:#16202c;border-bottom:1px solid var(--vien);
   font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
-.hop-than{padding:14px 16px;font-size:13.5px;line-height:1.65;max-height:420px;overflow:auto}
+/* 520 chứ không phải 420: khung game cao 720, đầu hộp ~44 và chân hộp ~62, nên 520 vẫn
+   vừa. Ở 420 thì hộp Nuôi thẻ đẩy nút MỞ TRẦN xuống dưới mép cuộn — nút chính của một
+   màn mà phải cuộn mới thấy thì coi như màn ấy không có nút. */
+.hop-than{padding:14px 16px;font-size:13.5px;line-height:1.65;max-height:520px;overflow:auto}
 .hop-chan{padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--vien);
   background:#101823;flex-wrap:wrap}
 .nut{border:1px solid var(--vien);background:#1b2634;color:var(--chu);border-radius:9px;
@@ -1026,6 +1029,60 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .uc-thanh{height:7px;background:#e6e2ef;border-radius:99px;overflow:hidden;margin-top:5px}
 .uc-thanh i{display:block;height:100%;border-radius:99px}
 .uc-sao{color:#e8a81c;font-size:12px;font-weight:900;letter-spacing:.5px}
+
+/* ── MÀN ENHANCE: tab ba kho, dải kim cương, bảng bốn bậc trần ──
+   Dựng theo màn 強化編成 / 上限解放 của Uma (esport-ref/uma/yt/gacha.mp4, 438–462s).
+   Kim cương là ký hiệu Uma dùng cho bậc mở trần; giữ nguyên ký hiệu ấy vì nó phải
+   đọc được ở cỡ 10px trên thẻ trong lưới lẫn cỡ to trong hộp thoại. */
+.uc-tab{display:flex;gap:3px;background:#e9e5f2;border-radius:99px;padding:3px;
+  margin-bottom:12px}
+.uc-tab button{position:relative;flex:1;border:0;background:none;border-radius:99px;
+  padding:7px 10px;font-family:inherit;font-size:12.5px;font-weight:900;color:#8a7f8f;
+  cursor:pointer;transition:background .1s}
+.uc-tab button:hover{background:#f2effa}
+.uc-tab button.chon{background:linear-gradient(180deg,#8fd409,#6ec409);color:#fff;
+  box-shadow:0 2px 0 #55990a}
+.uc-tab button.chon:hover{background:linear-gradient(180deg,#8fd409,#6ec409)}
+.uc-tab button{display:flex;align-items:center;justify-content:center;gap:5px}
+.uc-tab button em{font-style:normal;min-width:16px;height:16px;border-radius:99px;
+  background:#e5484d;color:#fff;font-size:9.5px;font-weight:900;display:grid;
+  place-items:center;padding:0 4px;box-shadow:0 1px 0 #a8262a;flex:none}
+.uc-tab.nho{margin:10px 0}
+
+.uc-kim{display:inline-flex;gap:1px;vertical-align:middle;margin-left:4px}
+.uc-kim i{font-style:normal;font-size:9px;line-height:1;color:#cfc8dc}
+.uc-kim i.sang{color:#3f8fd0;text-shadow:0 0 3px #9fd3ff}
+
+.uc-chip.manh-du{background:#eef8e2;border-color:#cfe9ab;color:#3f6d23}
+.uc-nut-nho.sang{background:linear-gradient(180deg,#a5e86a,#6ec409);color:#fff;
+  border-color:#dff3c4;box-shadow:0 2px 0 #4e8c07}
+.uc-nut-nho.sang:hover{background:linear-gradient(180deg,#b3ee7f,#78d40d)}
+
+.uc-nuoi-dau{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+.uc-bac{display:flex;flex-direction:column;gap:5px}
+.uc-bac-o{display:flex;align-items:center;gap:9px;background:#f3f1f8;
+  border:2px solid #e6e2ef;border-radius:10px;padding:5px 10px}
+.uc-bac-o.xong{background:#eef8e2;border-color:#cfe9ab}
+.uc-bac-o.ke{background:#fff7dd;border-color:#f0dfae;box-shadow:0 0 0 2px #ffeeb8}
+.uc-bac-kim{display:inline-flex;gap:1px;flex:none;width:42px}
+.uc-bac-kim i{font-style:normal;font-size:10px;color:#3f8fd0}
+.uc-bac-o b{flex:1;min-width:0;font-size:12px;color:#4a3f48}
+.uc-bac-o em{font-style:normal;font-size:10.5px;font-weight:900;color:#b8b0c2;flex:none}
+.uc-bac-o em.xong{color:#3d9c63}
+.uc-bac-o em.them{color:#c8891a}
+
+.uc-manh{display:flex;align-items:center;gap:11px;background:#fff;border:2px dashed #cfc8dc;
+  border-radius:14px;padding:8px 10px;margin:9px 0 8px}
+.uc-manh.du{border-style:solid;border-color:#cfe9ab;background:#fbfff5}
+.uc-manh-o{width:48px;height:48px;border-radius:12px;background:#f4f2f9;
+  border:2px solid #e6e2ef;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;flex:none;color:#cfc8dc}
+.uc-manh-o span{font-size:19px;line-height:1}
+.uc-manh-o b{font-size:11px;font-weight:900}
+.uc-manh-o.co{color:#3f8fd0;border-color:#bcdcf5;background:#eef7ff}
+.uc-manh b{font-size:13px;color:#4a3f48}
+.uc-canh{font-size:12px;font-weight:800;color:#8a6a2a;line-height:1.7;background:#fffaeb;
+  border:2px solid #f0dfae;border-radius:12px;padding:9px 11px;margin-top:9px}
 
 /* nút viên thuốc kiểu Uma, dùng ở cột phải và trong các thẻ */
 .uc-nut{border:3px solid #dff3c4;border-radius:99px;padding:9px 16px;cursor:pointer;

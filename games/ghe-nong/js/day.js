@@ -50,7 +50,9 @@
         'có ít nhất một cái bậc giữa trở lên.' +
         '<br><br>Mỗi lần quay được <b>1 vé</b>. Đủ <b>200 vé</b> thì tự chọn thẳng một cái bậc cao. ' +
         'Vé không mang sang banner khác.' +
-        '<br><br>Trùng thì lên <b>uncap</b> — mở trần cấp và mở hiệu ứng ẩn.'
+        '<br><br>Quay trúng người đã có thì <b>không mất</b>: bản trùng thành một <b>mảnh ◆</b> nằm trong kho. ' +
+        'Mang mảnh sang màn <b>Nuôi thẻ</b> để <b>mở trần</b> — bốn bậc, mỗi bậc ăn một mảnh và nới trần cấp thêm 5. ' +
+        'Bậc thứ tư mở luôn hiệu ứng ẩn.'
     },
     ketthua: {
       dau: 'Thua một giải là hết mùa',

@@ -84,6 +84,13 @@ Mỗi màn luôn có **4 thứ**: lượt còn lại · mục tiêu · thanh th�
 | Skills | tiêu điểm kỹ năng mua skill | `[NGUỒN]` gametora |
 | Races | chạy giải ngoài lịch, ăn fan + điểm kỹ năng | `[NGUỒN]` gametora |
 
+> **Sáu nút này KHÔNG bày cùng lúc với năm sân.** Bấm `Training` thì cả sáu biến mất, thay
+> bằng một hàng năm sân kèm nút `Back`, và cái nhãn ở góc trên trái đổi từ `Career` sang
+> `Training` (`[ẢNH]` `uma/key/w_285.jpg` so với `w_435.jpg`). Ghế Nóng bản trước dàn cả
+> mười nút cùng lúc — nhìn thì tưởng đầy đủ, nhưng nó xoá mất nhịp "chọn việc → chọn sân"
+> và chiếm hết chỗ của khung cảnh. Mục 1.2 và 1.12 đã viết đúng từ vòng nghiên cứu đầu;
+> cái sai nằm ở chỗ **dựng game không theo tài liệu của chính mình**.
+
 ### 1.3 Năm sân tập
 
 `[ẢNH]` `uma/key/w_435.jpg`: 5 nút tròn dưới đáy — **Speed · Stamina · Power · Guts · Wit**, mỗi nút
@@ -219,11 +226,136 @@ tiêu, Last Leg = đẩy trụ, Last Spurt = teamfight quyết định.
 `[ẢNH]` `uma/sheets_gacha/g003.jpg`: màn kết quả 10 lần là **lưới 2×5**, mỗi ô một thẻ kèm số sao và
 badge `+1 / ×3 / ×10` (mảnh dư quy đổi).
 
-### 1.12 Màn Home
+### 1.12 Màn Home — đếm đúng từng nút
 
-`[ẢNH]` `uma/steam/shot04.jpg`: trên cùng `TEAM RANK B 101900`, `TP 100/100` (vé chơi), `RP 5/5`,
-tiền `306,470`, cà rốt `280`. Đáy 5 tab: **Enhance · Story · Home · Race · Scout**. Cạnh phải xếp
-dọc: Jukebox · Sparks · Log · Career Profile · Agenda · Item Request · Menu.
+`[ẢNH]` `uma/steam/shot04.jpg` và `uma/sheets_career/sheet001.jpg` (ô 0,0):
+trên cùng `LEAP RANK B2 144402`, `TP 76/100` (vé chơi), `RP 5/5`, tiền `5.380`, cà rốt `752`.
+
+Trong khung game, từ dưới lên — **đây là toàn bộ số nút của màn ngoài, không có gì khác**:
+
+| nhóm | số nút | tên |
+|---|---:|---|
+| thanh dưới | **5** | Enhance · Story · **Home** · Race · Scout |
+| nút tròn nhỏ nổi phía trên thanh ấy | **3** | Club · Concert Theater · Shop |
+| nút lớn đứng riêng | **1** | **CAREER** |
+
+Nút giữa (Home) to hơn bốn nút kia và tô xanh. **CAREER không nằm trong thanh dưới** — nó là một
+khối riêng, to, viền vàng, có ba nhân vật đứng trên. Đó là cách Uma nói "đây là việc chính, năm
+nút kia là việc phụ" mà không cần một dòng chữ nào.
+
+Bản PC còn một cột rail dọc ở rìa phải (Jukebox · Sparks · Log · Career Profile · Agenda ·
+Item Request · Menu) và một PANEL giữa khung game với rail — panel ấy đổi nội dung theo ngữ
+cảnh: Menu ở màn Home, **Sparks** khi đang chọn kế thừa, **Log** khi đang trong ca.
+
+### 1.13 MỘT RUN LÀ MỘT CHẾ ĐỘ RIÊNG — và bốn bước để vào
+
+`[ẢNH]` `uma/sheets_guide/sheet001.jpg`, `sheet003.jpg`
+
+Đây là chỗ đọc thiếu ở vòng nghiên cứu đầu, và nó là **cấu trúc lớn nhất của Uma**:
+
+> Ở màn ngoài, bạn là NGƯỜI QUẢN LÝ TÀI KHOẢN: kho thẻ, gacha, gia phả, danh vọng.
+> Bấm CAREER là bước vào MỘT RUN. Trong run, màn ngoài **biến mất hoàn toàn** — không còn
+> thanh năm nút, không còn kho, không còn gacha. Hết run thì run ấy **đóng lại vĩnh viễn**,
+> để lại một hồ sơ vào kho, và bạn về màn ngoài.
+
+Bốn bước để vào, mỗi bước một màn con, **thanh năm nút vẫn nằm đó** và luôn có `[Back]`:
+
+| bước | màn | nội dung |
+|---|---|---|
+| 1 | **Scenario Select** | chọn kịch bản (URA Finale…), có mô tả dài → `[Next]` |
+| 2 | **Trainee Select** | người đang chọn hiện TO ở trên (sao, tên, 5 chỉ số /1200, bảng năng khiếu Track/Distance/Style), dưới là lưới thẻ đã có + bộ lọc → `[Next]` |
+| 3 | **Legacy Select** | hai ô `1st Legacy` / `2nd Legacy`, lưới hồ sơ cũ có hạng và điểm, tab `Veteran Umamusume` / `Guests`, góc phải hiện **Affinity** → `[Confirm]` |
+| 4 | **Support Formation** | `Deck 1` với **6 ô thẻ hỗ trợ** (mỗi ô ghi bậc SSR/SR và `Lvl 30`), dưới là bảng đếm theo loại (`×3 tốc, ×1 bền…`), `[Reset]` `[Auto-Select]` → `[Back]` **`[Start Career!]`** `[Perks]` |
+
+Ở bước 3 và 4, **panel bên phải là `Sparks`**: liệt kê từng spark sẽ thừa hưởng, mỗi dòng một
+dải màu và số sao — xanh = chỉ số, hồng = năng khiếu, xám = kỹ năng, xanh lá = kịch bản.
+
+Trong run, panel phải là **Log**, và rail có thêm **Career Profile** — một tờ tóm tắt run: chỉ số
+hiện tại, **cây kế thừa** (2 cha mẹ, mỗi người lại có 2 ông bà), 6 thẻ hỗ trợ, Perks, và
+`Event Bonus Total`. Tức là mọi thứ mình đã chọn ở bốn bước trên, xem lại được bất cứ lúc nào.
+
+`[ĐO TRONG REPO]` Ghế Nóng bản trước sai cả hai tầng: màn ngoài có TÁM nút bằng nhau trong đó
+"Ca huấn luyện" chỉ là một tab, và bảng xếp hạng của mùa — thứ chỉ tồn tại trong một run — lại
+sống ở màn ngoài (`G.mua()` tự dựng một mùa mới bất cứ lúc nào có ai hỏi tới). Mở game lên chưa
+vào ca nào đã thấy "Hạng 11/12 · 0 trận". Sửa: mùa **mở ở `batDauCa()`, khép ở `G.ketCa()`**,
+và `G.mua()` chỉ còn đọc chứ không dựng. Đo lại: ngoài ca trả `null`; ca 1 ra mùa 1; kết ca thì
+mùa biến mất; ca 2 ra mùa 2 với **lịch bốc khác hẳn**.
+
+---
+
+### 1.14 NÂNG CẤP THẺ — `Lv強化` và `上限解放`
+
+`[ẢNH]` `uma/yt/gacha.mp4` giây **438 → 462** (cắt bằng
+`ffmpeg -ss <t> -i yt/gacha.mp4 -frames:v 1 -vf "crop=396:720:438:0"` — khung quay điện thoại
+nằm ở dải giữa của video 1280×720, cắt đúng dải ấy ra mới đọc được chữ).
+
+#### Cửa vào: `強化編成` (Enhance) — nút số 1 của thanh dưới
+
+Bấm vào là ra một màn có **ba lối**, không hơn:
+
+| lối | là gì | Ghế Nóng |
+|---|---|---|
+| `育成ウマ娘` | người sẽ được nuôi trong run | Huấn luyện viên |
+| `サポートカード` | thẻ hỗ trợ đi kèm | Tuyển thủ |
+| `殿堂入りウマ娘` | những người đã tốt nghiệp, để làm kế thừa | Gia phả |
+
+Bấm `サポートカード` thì nó **xoè ra năm nút con**: `Lv強化` · `上限解放` · `編成` (xếp đội) ·
+`保管室` (kho chứa) · `一覧` (xem hết). Tức là Uma tách **hai việc nuôi** ra thành hai cửa
+riêng, và cũng dành hẳn một cửa cho **kho chứa bản trùng**.
+
+#### Màn `Lv強化` / `上限解放` — hai tab, chung một nửa trên
+
+Hai cửa ấy dẫn về **cùng một màn**, đổi nhau bằng hai tab ở đỉnh. Nửa trên **không đổi theo tab**:
+
+- trái: cái thẻ đang nuôi (bậc SSR, trái tim yêu thích, tên `[不沈艦の進撃] ゴールドシップ`, nút `詳細`);
+- phải: **danh sách bốn bậc trần** — `レベル上限解放 (Lv35)` · `(Lv40)` · `(Lv45)` · `(Lv50)`,
+  mỗi dòng có **dãy kim cương ◆** đếm bậc (1·2·3·4 viên) và bậc nào lấy rồi thì đóng dấu
+  `獲得済み`.
+
+Nửa dưới đổi theo tab:
+
+- **`Lv強化`** → lưới thẻ của mình để **cho ăn** (mỗi ô ghi `Lv50 / Lv30 / Lv1`), kèm bộ lọc
+  `絞り込み:OFF` `レアリティ` `降順`, nút `選択`.
+- **`上限解放`** → thanh `上限解放段階を選択` với **‹ ›** và dãy bốn viên kim cương, rồi
+  **một ô vật liệu duy nhất**: đúng **một bản trùng của chính thẻ ấy**, đếm `0/1`. Thiếu thì
+  hiện `枚数が足りません` (không đủ số lượng) và nút `上限解放` xám đi.
+
+Tức là: **trần cấp `30 → 35 → 40 → 45 → 50`, bốn bậc, mỗi bậc ăn ĐÚNG MỘT bản trùng.**
+
+#### Bản trùng KHÔNG tự dùng
+
+Màn kết quả quay ghi rõ ở chân:
+`すでに所持しているサポートカードは保管室に送られます` — *thẻ đã có thì được gửi vào kho chứa*.
+Bản trùng nằm đó chờ, người chơi phải tự mang tới màn `上限解放` mà tiêu.
+
+Chi tiết này nhỏ mà đổi hẳn cảm giác chơi: quay ra một bản trùng **vẫn là một phần thưởng
+nhìn thấy được**, và việc tiêu nó là một quyết định (dồn cho thẻ nào trước). Nếu hệ thống tự
+cộng ngay lúc quay thì người chơi chẳng bao giờ gặp cái quyết định ấy, và cũng không học được
+"◆" nghĩa là gì.
+
+`[ĐO TRONG REPO]` Ghế Nóng bản trước tự cộng `uncap` ngay trong `G.nhanTT` / `G.nhanHLV`, và
+toàn bộ hệ thống hiện ra bằng đúng một mẩu chữ `✦2` trên góc thẻ. Đã sửa theo Uma:
+
+- `G.nhanTT/nhanHLV` cộng `manh` (mảnh trùng) thay vì cộng thẳng `uncap`;
+- `G.coMoTran(ban)` · `G.moTran(ban)` · `G.doiManh(ban, loai)` trong `js/save.js`;
+- màn **Nuôi thẻ** thành cửa Enhance có **ba tab** đúng ba kho của Uma, và ba tab ấy chính là
+  ba trang đã có (`nuoi` · `hlv` · `giapha`) chứ không đẻ thêm trạng thái — nếu thêm một biến
+  `tabNuoi` nữa thì có hai nguồn sự thật cho cùng một câu hỏi, kiểu gì cũng có lúc lệch;
+- hộp nuôi thẻ có **hai tab** (`Lên cấp` · `Mở trần`) và **bảng bốn bậc trần luôn hiện ở cả
+  hai tab** — đây là chi tiết quan trọng nhất chép được: đang bấm lên cấp vẫn thấy trần tiếp
+  theo nằm ở đâu;
+- chấm đỏ trên nút Enhance ở thanh dưới đếm số thẻ **đang mở trần được** — Uma gắn đúng cái
+  chấm ấy lên `メニュー`, và nó là lý do người chơi mở màn nuôi ra xem.
+
+Đo lại bằng máy (`scratchpad/kiem_enh.js`):
+`{"b1_manh":1,"b1_uncapVanLa0":true,"b2_moTran":1,"b2_tranNoi":5,"b2_khongDuThiKhongMo":0,`
+`"c1_tenTab":["Tuyển thủ","Huấn luyện viên","Gia phả"],"c2_soBac":4,"c2_soTabHop":2,`
+`"e1_huyHieu":"1","e2_nav":5,"e2_tron":3,"e2_career":1}` — số nút ngoài vẫn đúng **5 + 3 + 1**.
+
+**Chỗ không khớp, và xử ra sao.** Uma lên cấp thẻ bằng cách **cho thẻ khác ăn**; Ghế Nóng lên
+cấp bằng **xu** và bằng **kinh nghiệm chạy hết một mùa**. Giữ nguyên đường xu/kinh nghiệm, vì
+kho thẻ ở đây nhỏ hơn Uma rất nhiều — bắt ăn thẻ khác thì người chơi sẽ không còn thẻ để xếp
+đội. Cái chép 100% là **phần mở trần**: bốn bậc, một mảnh một bậc, bảng bậc luôn nhìn thấy.
 
 ---
 

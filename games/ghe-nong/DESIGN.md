@@ -489,14 +489,22 @@ Lấy đúng số của Uma. **Quay 10 bảo đảm ≥ 1 cái bậc 2 trở lê
 Mỗi lần quay được **1 vé**; **200 vé** đổi thẳng lấy cái đang rate-up. **Vé không cộng dồn sang
 banner khác** (đúng luật Uma). Hiện **thanh vé `137/200`** ngay dưới nút quay — không giấu.
 
-### 7.3 Uncap
+### 7.3 Mảnh trùng và mở trần (Uma: `上限解放`)
 
-Trùng → **uncap +1** (tối đa 4). Uncap mở:
+Quay trúng người đã có thì **không tự dùng**: bản trùng thành **một mảnh ◆** nằm trong kho
+(Uma gọi kho ấy là `保管室`, và màn kết quả quay ghi hẳn dòng *"thẻ đã có sẽ được gửi vào kho
+chứa"*). Người chơi tự mang mảnh sang màn **Nuôi thẻ** mà tiêu.
 
-- HLV: trần chỉ số +50 mỗi bậc, và **nâng cấp kỹ năng riêng** ở bậc 2 và 4.
-- Tuyển thủ: trần cấp +5 mỗi bậc, và **mở hiệu ứng ẩn** ở bậc 4.
+**Bốn bậc, mỗi bậc ăn đúng một mảnh** — bằng số bậc và bằng giá của Uma:
 
-Trùng khi đã max → đổi thành **mảnh vạn năng**.
+- Tuyển thủ: trần cấp **+5** mỗi bậc (R 30→50 · SR 35→55 · SSR 40→60), và bậc 4 mở thêm
+  **hiệu ứng ẩn +8% thân thiết · +6% hiệu quả tập**.
+- HLV: trần cả năm giáo án **+50** mỗi bậc.
+- Mở hết bốn bậc rồi thì mảnh thừa **đổi lấy xu** (200 tuyển thủ · 300 HLV).
+
+Vì sao không tự cộng như bản đầu: tự cộng thì người chơi không bao giờ gặp cái quyết định
+"dồn mảnh cho ai trước", và cả hệ thống hiện ra bằng đúng một mẩu chữ `✦2` ở góc thẻ mà không
+ai đoán nổi nghĩa. Xem `RESEARCH.md` §1.14 cho ảnh gốc và số đo.
 
 ### 7.4 Trình bày
 
@@ -512,22 +520,43 @@ Trùng khi đã max → đổi thành **mảnh vạn năng**.
 Khung chung: **16:9**, thiết kế ở **1280×720 CSS**, co giãn theo `min(vw/16, vh/9)`. Vùng chạm tối
 thiểu **44px**. Không có thao tác nào cần hai tay cùng lúc.
 
-### 8.1 Màn chính (CLB)
+### 8.1 Màn ngoài run — đúng bộ nút của màn Home Uma
+
+Màn ngoài **không phải** một app quản trị có menu dọc. Uma Home có đúng chừng này nút, và
+Ghế Nóng có đúng chừng ấy — không thêm một nút nào (`RESEARCH.md` §1.12):
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ [logo CLB]  Mùa 3 · Tuần 7      💰 12,400   🎟 5/5   Danh tiếng 84,200  │
-├────────┬────────────────────────────────────────────────┬───────────────┤
-│ MENU   │                                                │  THẺ HLV      │
-│ dọc    │        Ảnh HLV đang nuôi + 5 tuyển thủ         │  đang chạy    │
-│        │        (đứng thành hàng, có hiệu ứng thở)      │  + tiến độ ca │
-│ Ca đấu │                                                │               │
-│ Gacha  │                                                │  Việc hôm nay │
-│ Đội    ├────────────────────────────────────────────────┤  ▸ [Vào ca]   │
-│ Kho    │  Tin tức: "Đội X vừa mua tuyển thủ Y…"         │               │
-│ Lịch   │                                                │               │
-└────────┴────────────────────────────────────────────────┴───────────────┘
+┌────────────────────────────────────────────────────────┬───────────────┐
+│ [F 0] [GN] CLB Ghế Nóng  Mùa 3        💰12,400 🎟5/5 ❤️84k │  PANEL       │
+├────────────────────────────────────────────────────────┤  đổi theo     │
+│                                                        │  ngữ cảnh:    │
+│          nội dung trang đang mở                        │  Hướng dẫn ·  │
+│          (Nhà = người đứng giữa sân, không bảng biểu)  │  Spark ·      │
+│                                                        │  Đội hình     │
+├────────────────────────────────────────────────────────┤               │
+│  ◯Huấn.viên ◯Sổ tay ◯Cài đặt          ┌──────────────┐ │               │
+│  ── ba nút tròn ──                    │   VÀO CA     │ │               │
+│                                       │ một mùa 24 lượt│               │
+├───────┬───────┬─────────┬───────┬─────┴──────────────┴─┤               │
+│ Nuôi  │ Gia   │  NHÀ    │ Giải  │ Tuyển mộ             │               │
+│ thẻ ③ │ phả   │ (to,xanh)│ đấu  │                      │               │
+└───────┴───────┴─────────┴───────┴──────────────────────┴───────────────┘
+      ── thanh dưới: ĐÚNG NĂM nút, nút giữa to hơn ──
 ```
+
+- **5** nút thanh dưới · **3** nút tròn · **1** nút CAREER đứng riêng. `VÀO CA` **không**
+  nằm trong thanh năm nút — đó là cách Uma nói "đây là việc chính" mà không cần chữ.
+- Chấm đỏ trên **Nuôi thẻ** đếm số thẻ đang mở trần được (Uma gắn chấm ấy lên `メニュー`).
+- Bấm VÀO CA thì vào **luồng bốn bước** (thể thức → HLV → cựu HLV → đội hình), thanh năm nút
+  vẫn nằm đó, ba nút tròn biến mất, và chỗ nút CAREER thành chân bước
+  `[‹ Quay lại] … [Tiếp / Xác nhận / BẮT ĐẦU CA!]`.
+- Trong ca thì màn ngoài **biến mất hẳn**. Bảng xếp hạng mùa chỉ sống bên trong một ca
+  (`RESEARCH.md` §1.13).
+
+**Trang `Nuôi thẻ` = cửa `強化編成` của Uma**: một hàng **ba tab** — Tuyển thủ · Huấn luyện
+viên · Gia phả — đúng ba lối của Uma (`サポートカード` · `育成ウマ娘` · `殿堂入りウマ娘`).
+Ba tab ấy chính là ba trang đã có của thanh dưới/nút tròn, nên bấm tab cũng là đổi trang và
+nút dưới sáng theo; không có biến "tab đang mở" thứ hai để mà lệch.
 
 ### 8.2 Màn huấn luyện (quan trọng nhất — bố trí lại Uma cho ngang)
 
@@ -544,11 +573,21 @@ thiểu **44px**. Không có thao tác nào cần hai tay cùng lúc.
 │ Não  B  830  │  └────┘└────┘└────┘└────┘└────┘     │  ─────────────      │
 │ Điểm KN 240  │   +18 +7        Hỏng: 0%            │  (cuộn lên xem cũ)  │
 ├──────────────┼─────────────────────────────────────┤                     │
-│ 5 TUYỂN THỦ  │ [Tập] [Nghỉ] [Xả hơi] [Y tế]        │                     │
-│ (avatar +    │ [Giáo án] [Giao hữu]                │                     │
-│  thanh thân) │                                     │                     │
+│ 5 TUYỂN THỦ  │ [Nghỉ] [🏋️ TẬP 🌈] [Kỹ năng]        │                     │
+│ (avatar +    │ [Y tế] [Xả hơi] [Giao hữu]          │                     │
+│  thanh thân) │        ── SÁU nút ──                │                     │
 └──────────────┴─────────────────────────────────────┴─────────────────────┘
 ```
+
+**Hai lớp nút, không bày cùng lúc.** Mặc định là **sáu** nút việc (Uma: Rest · Training ·
+Skills / Infirmary · Recreation · Races), nút `Tập` nằm giữa hàng trên và có vòng vàng vì đó
+là việc làm nhiều nhất. Bấm `Tập` thì cả sáu **biến mất**, thay bằng **năm sân** trên một hàng
+kèm nút `↩ Quay lại`, và nhãn góc trên trái đổi `Ca huấn luyện` → `Tập luyện`
+(`RESEARCH.md` §1.2, ảnh `uma/key/w_285.jpg` so với `w_435.jpg`).
+
+Bản trước dàn cả mười nút cùng lúc — nhìn thì tưởng đầy đủ, nhưng nó xoá mất nhịp *"chọn việc
+→ chọn sân"* và chiếm hết chỗ của khung cảnh. Để không biến nút `Tập` thành một cái cửa mù,
+nó mang **chấm 🌈** khi có sân nào đang nổ cầu vồng.
 
 Chạm một giáo án = **xem trước** (hiện `+18 +7`, `Hỏng: 0%`, ai đứng ở đó, ai đang cầu vồng).
 Chạm lần hai = **chốt**. Không có hộp xác nhận — chạm hai lần đã là xác nhận.
@@ -776,8 +815,17 @@ năm người trong đội hình.
 Hộp thoại nuôi thẻ **luôn hiện bảng "trước → sau"** của từng dòng hiệu ứng. Không để người chơi
 tiêu 3.900 xu rồi tự đoán mình được gì.
 
-Trần cấp do bậc thẻ và uncap quyết định (`tranCap`: R 30 · SR 35 · SSR 40, cộng 5 mỗi bậc uncap),
-nên tới trần rồi thì đường duy nhất là quay trúng thẻ đó lần nữa.
+Trần cấp do bậc thẻ và số bậc mở trần quyết định (`tranCap`: R 30 · SR 35 · SSR 40, cộng 5 mỗi
+bậc), nên tới trần rồi thì đường duy nhất là quay trúng thẻ đó lần nữa lấy mảnh.
+
+**Hộp nuôi thẻ có hai tab** — `Lên cấp` và `Mở trần` — dựng theo màn `Lv強化` / `上限解放` của
+Uma, và **bảng bốn bậc trần luôn hiện ở cả hai tab**. Đây là chi tiết đáng chép nhất của màn
+ấy: đang bấm tiêu xu lên cấp thì vẫn nhìn thấy trần tiếp theo nằm ở cấp mấy và còn cách bao xa,
+nên không bao giờ dồn xu vào một thẻ đã sát trần mà không biết.
+
+Chỗ **không khớp** với Uma: Uma lên cấp thẻ bằng cách cho thẻ khác ăn; ở đây là xu và kinh
+nghiệm. Giữ nguyên, vì kho thẻ của Ghế Nóng nhỏ hơn Uma rất nhiều — bắt ăn thẻ khác thì hết
+thẻ xếp đội. Phần chép 100% là **mở trần**: bốn bậc, một mảnh một bậc, bảng bậc luôn thấy.
 
 ---
 

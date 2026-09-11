@@ -163,7 +163,7 @@
   G.taoHLV = function (id) {
     var g = G.HLV_THEO_ID[id];
     return {
-      id: id, uncap: 0, sao: g.sao,
+      id: id, uncap: 0, manh: 0, sao: g.sao,
       /* chỉ số "nền" tích luỹ qua các ca đã tốt nghiệp — mỗi ca xong cộng một ít */
       nen: [0, 0, 0, 0, 0],
       soCa: 0, vodich: 0

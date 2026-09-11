@@ -105,6 +105,12 @@
       var b = G.el('button' + (trang === x.id && buoc < 0 ? '.chon' : '') + (x.giua ? '.giua' : ''));
       b.appendChild(G.el('i', { text: x.ic }));
       x.ten.forEach(function (d) { b.appendChild(G.el('span', { text: d })); });
+      /* Chấm đỏ trên nút Enhance khi có thẻ mở trần được — Uma gắn đúng cái chấm ấy
+         lên nút メニュー, và nó là lý do người chơi biết mở màn nuôi ra xem. */
+      if (x.id === 'nuoi') {
+        var cho = demMoTran(G.S.khoTT) + demMoTran(G.S.khoHLV);
+        if (cho) b.appendChild(G.el('em', { text: String(cho) }));
+      }
       b.addEventListener('click', function () { doiTrang(x.id); });
       m.appendChild(b);
     });
@@ -207,16 +213,17 @@
 
   function moTaTrang(t) {
     return {
-      nuoi: 'Thẻ tuyển thủ lên cấp bằng xu và bằng kinh nghiệm chạy hết một mùa. ' +
-        'Thẻ cấp 1 chỉ chạy ở 40% sức, nên nuôi thẻ là thứ mang sang được ca sau.',
+      nuoi: 'Ba kho nuôi nằm chung một cửa. Thẻ lên cấp bằng xu và bằng kinh nghiệm ' +
+        'chạy hết một mùa; quay trúng bản trùng thì được MẢNH, mang mảnh vào đây mở ' +
+        'trần cấp. Thẻ cấp 1 chỉ chạy ở 40% sức.',
       giapha: 'Mỗi ca chạy xong để lại một hồ sơ. Chọn 2 hồ sơ làm cựu huấn luyện viên ' +
         'thì ca sau được thừa hưởng spark của họ.',
       giai: 'Thể thức mùa giải, và 24 đội máy mà mình sẽ gặp. Bảng xếp hạng SỐNG chỉ ' +
         'có bên trong một ca đang chạy — vì mỗi ca là một mùa riêng.',
       gacha: 'Tỉ lệ lấy đúng của Uma Musume: bậc cao nhất 3%, giữa 18%, thấp 79%. ' +
         'Quay 10 chắc chắn có ít nhất một cái bậc 2 trở lên.',
-      hlv: 'Kho huấn luyện viên. Đây là thứ được nuôi trong ca — quay trúng trùng thì ' +
-        'được uncap, mở thêm trần.',
+      hlv: 'Kho huấn luyện viên. Đây là thứ được nuôi trong ca — mảnh trùng mở thêm ' +
+        'trần chỉ số, mỗi bậc +50 cho cả năm giáo án.',
       sotay: 'Luật chơi, viết ngắn.'
     }[t] || '';
   }
@@ -279,11 +286,9 @@
     var g = G.xoa(G.$('#clb-giua'));
     if (buoc >= 0) return veBuoc(g);
     if (trang === 'nha') return veNha(g);
-    if (trang === 'nuoi') return veKhoTT(g);
-    if (trang === 'giapha') return veGiaPha(g);
+    if (trang === 'nuoi' || trang === 'giapha' || trang === 'hlv') return veEnhance(g);
     if (trang === 'giai') return veGiaiDau(g);
     if (trang === 'gacha') return veGacha(g);
-    if (trang === 'hlv') return veKhoHLV(g);
     if (trang === 'sotay') return veSoTay(g);
   }
 
@@ -466,7 +471,10 @@
     var a = G.oAnh && G.oAnh(goc.id, 104);
     if (a) { a.className = 'uc-to-anh'; k.appendChild(a); }
     var ph = G.el('div.uc-to-chu');
-    ph.appendChild(G.el('div.uc-sao', { text: '★'.repeat(goc.sao) + ((b && b.uncap) ? '  ✦' + b.uncap : '') }));
+    var dsao = G.el('div.uc-sao');
+    dsao.appendChild(G.el('span', { text: '★'.repeat(goc.sao) }));
+    dsao.appendChild(veKim((b || {}).uncap || 0));
+    ph.appendChild(dsao);
     ph.appendChild(G.el('b', { text: goc.ten, style: 'font-size:17px' }));
     ph.appendChild(G.el('div.uc-phu', { text: '"' + goc.biet + '" — ' + goc.tieu }));
     var kn = G.KN_RIENG[goc.kn];
@@ -595,7 +603,10 @@
 
   function theHLV(goc, b, dangChon, cb) {
     var d = G.el('div.uc-the.bam' + (dangChon ? '.chon' : ''), { style: 'text-align:center' });
-    d.appendChild(G.el('div.uc-sao', { text: '★'.repeat(goc.sao) + (b.uncap ? '  ✦' + b.uncap : '') }));
+    var dsao = G.el('div.uc-sao');
+    dsao.appendChild(G.el('span', { text: '★'.repeat(goc.sao) }));
+    dsao.appendChild(veKim((b || {}).uncap || 0));
+    d.appendChild(dsao);
     var anh1 = G.oAnh && G.oAnh(goc.id, 62);
     if (anh1) {
       anh1.style.margin = '3px auto';
@@ -789,7 +800,7 @@
       var ds = kho.filter(function (x) { return (loai === 'hlv' ? x.sao : (x.bac === 'SSR' ? 3 : x.bac === 'SR' ? 2 : 1)) === bac; });
       var ra = rng.chon(ds);
       var r = loai === 'hlv' ? G.nhanHLV(ra.id) : G.nhanTT(ra.id);
-      kq.push({ id: ra.id, ten: ra.ten, biet: ra.biet, bac: bac, moi: r.moi, uncap: r.uncap, thua: r.thua });
+      kq.push({ id: ra.id, ten: ra.ten, biet: ra.biet, bac: bac, moi: r.moi, manh: r.manh });
       G.S.ve[loai]++;
     }
     G.luu();
@@ -807,8 +818,10 @@
       if (a) { a.style.borderRadius = '50%'; a.style.margin = '0 auto 4px'; d.appendChild(a); }
       d.appendChild(G.el('div.uc-sao', { text: '★'.repeat(x.bac) }));
       d.appendChild(G.el('b', { text: x.biet || x.ten }));
+      /* Trùng thì ra MẢNH chứ không tự mở trần — nói thẳng ở đây, không thì người chơi
+         tưởng bản trùng rơi vào hư không. */
       d.appendChild(G.el('em' + (x.moi ? '.moi' : ''),
-        { text: x.moi ? 'MỚI' : (x.thua ? '+xu' : '✦' + x.uncap) }));
+        { text: x.moi ? 'MỚI' : '◆ mảnh ×' + x.manh }));
       l.appendChild(d);
     });
     n.appendChild(l);
@@ -832,7 +845,10 @@
         dh.appendChild(a);
       }
       var dp = G.el('div', { style: 'min-width:0' });
-      dp.appendChild(G.el('div.uc-sao', { text: '★'.repeat(goc.sao) + (b.uncap ? '  ✦' + b.uncap : '') }));
+      var dsao = G.el('div.uc-sao');
+      dsao.appendChild(G.el('span', { text: '★'.repeat(goc.sao) }));
+      dsao.appendChild(veKim(b.uncap || 0));
+      dp.appendChild(dsao);
       dp.appendChild(G.el('b', { text: goc.ten, style: 'font-size:14.5px' }));
       dh.appendChild(dp);
       d.appendChild(dh);
@@ -841,6 +857,15 @@
       d.appendChild(G.el('div', { html: '<b style="color:#3d9c63">' + kn.ten + '</b> — ' + kn.mota,
         style: 'font-size:11.5px;line-height:1.55;color:#6b5c68' }));
       d.appendChild(bangNK(goc.nk));
+      var cmh = chipManh(b);
+      if (cmh) { var hmh = G.el('div.uc-chips'); hmh.appendChild(cmh); d.appendChild(hmh); }
+      (function (ban) {
+        var nb = G.el('button.uc-nut-nho' + (G.coMoTran(ban) ? '.sang' : ''),
+          { text: G.coMoTran(ban) ? 'Mở trần được' : 'Mở trần',
+            style: 'width:100%;margin-top:8px' });
+        nb.addEventListener('click', function () { G.tieng('cham'); moNuoiThe(ban, 'hlv'); });
+        d.appendChild(nb);
+      })(b);
       l.appendChild(d);
     });
     g.appendChild(l);
@@ -867,6 +892,63 @@
       E: '#5c7a2a', F: '#8a6a2a', G: '#8a7f8f' }[h] || '#8a7f8f';
   }
 
+  /* ══════════ MÀN ENHANCE ══════════
+     (đọc từ esport-ref/uma/yt/gacha.mp4 giây 438–462 — RESEARCH.md §1.14)
+
+     Uma gom việc nuôi vào MỘT cửa duy nhất là 強化編成, và cửa ấy mở ra đúng ba kho:
+     サポートカード (thẻ hỗ trợ) · 育成ウマ娘 (người được nuôi) · 殿堂入りウマ娘 (đã vào
+     đền). Ở đây là Tuyển thủ · Huấn luyện viên · Gia phả.
+
+     Ba tab này KHÔNG đẻ thêm trạng thái: mỗi tab chính là một trang đã có của thanh
+     dưới / nút tròn, nên bấm tab cũng là đổi trang, và nút tương ứng ở đáy sáng theo.
+     Thêm một biến `tabNuoi` nữa thì sẽ có hai nguồn sự thật cho cùng một câu hỏi
+     "đang xem kho nào", và kiểu gì cũng có lúc chúng lệch nhau. */
+  var KHO_TAB = [
+    { id: 'nuoi', ten: 'Tuyển thủ' },
+    { id: 'hlv', ten: 'Huấn luyện viên' },
+    { id: 'giapha', ten: 'Gia phả' }
+  ];
+
+  function veEnhance(g) {
+    var t = G.el('div.uc-tab');
+    KHO_TAB.forEach(function (x) {
+      var b = G.el('button' + (trang === x.id ? '.chon' : ''));
+      b.appendChild(G.el('span', { text: x.ten }));
+      var cho = x.id === 'nuoi' ? demMoTran(G.S.khoTT)
+        : x.id === 'hlv' ? demMoTran(G.S.khoHLV) : 0;
+      if (cho) b.appendChild(G.el('em', { text: String(cho) }));
+      b.addEventListener('click', function () { doiTrang(x.id); });
+      t.appendChild(b);
+    });
+    g.appendChild(t);
+    if (trang === 'hlv') return veKhoHLV(g);
+    if (trang === 'giapha') return veGiaPha(g);
+    return veKhoTT(g);
+  }
+
+  function demMoTran(ds) {
+    var n = 0;
+    (ds || []).forEach(function (b) { if (G.coMoTran(b)) n++; });
+    return n;
+  }
+
+  /** dải bốn viên kim cương của Uma: bậc đã mở thì sáng, chưa mở thì xám */
+  function veKim(uncap) {
+    var d = G.el('span.uc-kim');
+    for (var i = 1; i <= 4; i++) {
+      d.appendChild(G.el('i' + (uncap >= i ? '.sang' : ''), { text: '◆' }));
+    }
+    return d;
+  }
+
+  /** viên thông tin mảnh trên thẻ trong lưới */
+  function chipManh(b) {
+    var manh = b.manh || 0;
+    if (!manh) return null;
+    return G.el('span.uc-chip' + (G.coMoTran(b) ? '.manh-du' : ''),
+      { text: '◆' + manh + (G.coMoTran(b) ? ' mở được' : ' mảnh') });
+  }
+
   function veKhoTT(g) {
     tieu(g, 'Tuyển thủ', 'Vị trí và chất chơi là khoá cứng. Cấp thẻ quyết định hiệu ứng mạnh tới đâu — '
       + 'thẻ cấp 1 chỉ chạy ở 40% sức.');
@@ -889,8 +971,9 @@
         hp.appendChild(G.el('b', { text: goc.ten, style: 'font-size:13.5px' }));
         hp.appendChild(G.el('div.uc-phu', { text: G.TT_LOAI_TEN[goc.loai] + ' · ' + '★'.repeat(goc.vtSao) }));
         h.appendChild(hp);
-        h.appendChild(G.el('span.uc-chip', { text: goc.bac + (b.uncap ? ' ✦' + b.uncap : ''),
+        h.appendChild(G.el('span.uc-chip', { text: goc.bac,
           style: 'color:' + (MAU_BAC[goc.bac] || '#8a7f8f') }));
+        h.appendChild(veKim(b.uncap || 0));
         d.appendChild(h);
         var ch = G.el('div.uc-chips');
         goc.chat.forEach(function (c) { ch.appendChild(G.el('span.uc-chip', { text: G.CHAT[c].ten })); });
@@ -909,8 +992,14 @@
         });
         d.appendChild(tt);
         d.appendChild(thanhCap(b, goc));
-        var nb = G.el('button.uc-nut-nho', { text: 'Nuôi thẻ', style: 'width:100%;margin-top:8px' });
-        nb.addEventListener('click', function () { G.tieng('cham'); moNuoiThe(b); });
+        var cm = chipManh(b);
+        if (cm) { var hm = G.el('div.uc-chips'); hm.appendChild(cm); d.appendChild(hm); }
+        var nb = G.el('button.uc-nut-nho' + (G.coMoTran(b) ? '.sang' : ''),
+          { text: G.coMoTran(b) ? 'Nuôi thẻ · mở trần được' : 'Nuôi thẻ',
+            style: 'width:100%;margin-top:8px' });
+        (function (ban) {
+          nb.addEventListener('click', function () { G.tieng('cham'); moNuoiThe(ban, 'tt'); });
+        })(b);
         d.appendChild(nb);
         l.appendChild(d);
       });
@@ -979,93 +1068,199 @@
     return d;
   }
 
-  function moNuoiThe(b) {
-    var goc = G.TUYENTHU_THEO_ID[b.id];
-    var n = G.el('div', { style: 'width:520px;max-width:86vw' });
+  /* ══════════ HỘP NUÔI THẺ — dựng theo màn Lv強化 / 上限解放 của Uma ══════════
+     Uma để cả hai việc trong MỘT màn, đổi nhau bằng hai tab ở đỉnh, và ở cả hai tab
+     thì nửa trên vẫn là cái thẻ đang nuôi cùng DANH SÁCH BỐN BẬC TRẦN — Lv35 · Lv40 ·
+     Lv45 · Lv50 — bậc nào đã lấy thì đóng dấu 獲得済み. Nghĩa là ngay cả khi đang bấm
+     lên cấp, người chơi vẫn nhìn thấy trần cấp tiếp theo nằm ở đâu và còn bao xa.
 
-    function ve() {
-      G.xoa(n);
-      var tran = G.tranCap(goc.bac, b.uncap);
-      var toiDa = b.cap >= tran;
+     Bản trước ở đây chỉ có đường xu, còn mở trần thì chạy ngầm lúc quay gacha và được
+     tóm tắt bằng đúng một câu chữ nhỏ. Cái danh sách bốn bậc chính là thứ làm cho bản
+     trùng có nghĩa. */
 
-      var tren = G.el('div', { style: 'display:flex;align-items:center;gap:10px;margin-bottom:10px' });
-      var a = G.oAnh && G.oAnh(b.id, 54);
-      if (a) tren.appendChild(a);
-      var ph = G.el('div', { style: 'flex:1' });
-      ph.appendChild(G.el('div', { text: goc.ten, style: 'font-weight:900;font-size:15px;color:#4a3f48' }));
+  var NUOI_TAB = 'cap';          /* 'cap' | 'tran' — nhớ qua các lần mở, y Uma */
+
+  function moNuoiThe(b, loai) {
+    var laHLV = loai === 'hlv';
+    var goc = laHLV ? G.HLV_THEO_ID[b.id] : G.TUYENTHU_THEO_ID[b.id];
+    if (!goc) return;
+    if (laHLV) NUOI_TAB = 'tran';                 /* HLV không có đường lên cấp */
+    var n = G.el('div', { style: 'width:560px;max-width:88vw' });
+
+    function veDau() {
+      var tren = G.el('div.uc-nuoi-dau');
+      var a = G.oAnh && G.oAnh(b.id, 62);
+      if (a) { a.style.borderRadius = '14px'; a.style.flex = 'none'; tren.appendChild(a); }
+      var ph = G.el('div', { style: 'flex:1;min-width:0' });
+      ph.appendChild(G.el('div', { text: goc.ten,
+        style: 'font-weight:900;font-size:15px;color:#4a3f48' }));
       ph.appendChild(G.el('div.uc-phu', {
-        text: goc.bac + (b.uncap ? ' ✦' + b.uncap : '') + ' · ' + G.VITRI_THEO_ID[goc.vt].ten +
-          ' · ' + G.TT_LOAI_TEN[goc.loai]
+        text: laHLV
+          ? '★'.repeat(goc.sao) + ' · ' + goc.tieu
+          : goc.bac + ' · ' + G.VITRI_THEO_ID[goc.vt].ten + ' · ' + G.TT_LOAI_TEN[goc.loai]
       }));
+      var k = G.el('div', { style: 'margin-top:4px' });
+      k.appendChild(veKim(b.uncap || 0));
+      ph.appendChild(k);
       tren.appendChild(ph);
-      tren.appendChild(G.el('div', {
-        text: 'Cấp ' + b.cap + '/' + tran,
-        style: 'font-size:21px;font-weight:900;color:' + (toiDa ? '#c8891a' : '#3f6ab8')
-      }));
-      n.appendChild(tren);
-
-      if (toiDa) {
-        n.appendChild(G.el('div', {
-          html: 'Thẻ đã tới trần cấp. Muốn nuôi tiếp thì phải <b>uncap</b> — quay trúng thẻ này ' +
-            'lần nữa ở banner tuyển thủ, mỗi lần uncap mở thêm 5 cấp.',
-          style: 'font-size:12.5px;color:#8a6a2a;line-height:1.7;background:#fffaeb;' +
-            'border:2px solid #f0dfae;border-radius:12px;padding:10px'
+      if (!laHLV) {
+        var tran = G.tranCap(goc.bac, b.uncap || 0);
+        tren.appendChild(G.el('div', {
+          text: 'Cấp ' + b.cap + '/' + tran,
+          style: 'font-size:21px;font-weight:900;flex:none;color:' +
+            (b.cap >= tran ? '#c8891a' : '#3f6ab8')
         }));
-      } else {
-        var muaDuoc = G.capMuaDuoc(b);
-        var moc = [1, 5, 10].filter(function (x) { return x <= tran - b.cap; });
-        if (tran - b.cap > 10) moc.push(tran - b.cap);
-        else if (moc.indexOf(tran - b.cap) < 0) moc.push(tran - b.cap);
-
-        nhanNho(n, 'THUÊ CHUYÊN GIA KÈM');
-        var hang = G.el('div', { style: 'display:flex;gap:7px;flex-wrap:wrap' });
-        moc.forEach(function (so) {
-          var t = G.giaNhieuCap(b, so);
-          var du = t.xu <= G.S.clb.xu;
-          var nb = G.el('button.uc-nut' + (du ? '' : '.tat'), {
-            text: '+' + t.so + ' cấp  ·  ' + G.so(t.xu) + ' xu',
-            style: 'width:auto;flex:none;padding:8px 14px;font-size:12.5px'
-          });
-          nb.addEventListener('click', function () {
-            var len = G.nangCapTT(b, so);
-            if (len) { G.tieng('tapTot'); ve(); veGiua(); vePhai(); }
-          });
-          hang.appendChild(nb);
-        });
-        n.appendChild(hang);
-        n.appendChild(G.el('div.uc-phu', {
-          text: 'Đang có ' + G.so(G.S.clb.xu) + ' xu — đủ cho ' + muaDuoc + ' cấp.',
-          style: 'margin-top:6px'
-        }));
-
-        /* trước → sau, tính trên số cấp mua nổi (hoặc 5 cấp nếu chưa đủ xu) */
-        var xem = Math.max(1, Math.min(muaDuoc || 5, tran - b.cap));
-        nhanNho(n, 'NẾU LÊN ' + xem + ' CẤP');
-        var bang = G.el('div', { style: 'background:#f7f6fb;border:2px solid #e6e2ef;' +
-          'border-radius:12px;padding:4px 10px' });
-        G.soHieu(b, b.cap + xem).forEach(function (x) {
-          if (Math.abs(x.b - x.a) < (x.pt ? 0.0005 : 0.5)) return;
-          var r = G.el('div', { style: 'display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px' });
-          r.appendChild(G.el('span', { text: x.ten, style: 'color:#8a7f8f' }));
-          var v = G.el('span');
-          v.appendChild(G.el('span', { text: so1(x.a, x.pt), style: 'color:#a09aa8' }));
-          v.appendChild(G.el('span', { text: '  →  ', style: 'color:#c4bed0' }));
-          v.appendChild(G.el('b', { text: so1(x.b, x.pt), style: 'color:#3d9c63' }));
-          r.appendChild(v);
-          bang.appendChild(r);
-        });
-        n.appendChild(bang);
       }
+      n.appendChild(tren);
+    }
 
+    /** danh sách bốn bậc trần — luôn hiện, ở cả hai tab */
+    function veBacTran() {
+      nhanNho(n, laHLV ? 'BỐN BẬC TRẦN CHỈ SỐ' : 'BỐN BẬC MỞ TRẦN CẤP');
+      var w = G.el('div.uc-bac');
+      for (var k = 1; k <= 4; k++) {
+        var xong = (b.uncap || 0) >= k;
+        var ke = (b.uncap || 0) === k - 1;
+        var o = G.el('div.uc-bac-o' + (xong ? '.xong' : (ke ? '.ke' : '')));
+        var kim = G.el('span.uc-bac-kim');
+        for (var i = 0; i < k; i++) kim.appendChild(G.el('i', { text: '◆' }));
+        o.appendChild(kim);
+        o.appendChild(G.el('b', {
+          text: laHLV
+            ? 'Trần năm giáo án +' + (k * 50)
+            : 'Mở trần cấp — tới cấp ' + G.tranCap(goc.bac, k)
+        }));
+        /* Bậc bốn mở thêm hiệu ứng ẩn — viết thẳng con số vào dòng ấy, không đẩy xuống
+           một đoạn chú thích riêng: hộp thoại phải vừa một màn, nút MỞ TRẦN mà rơi
+           xuống dưới mép cuộn thì màn này coi như không có nút. */
+        if (!laHLV && k === 4) o.appendChild(G.el('em.them', { text: '+8% thân · +6% tập' }));
+        o.appendChild(G.el('em' + (xong ? '.xong' : ''), { text: xong ? 'đã mở' : '—' }));
+        w.appendChild(o);
+      }
+      n.appendChild(w);
+    }
+
+    /** ô vật liệu: mảnh trùng, y cái ô "0/1" ở đáy màn 上限解放 */
+    function veOManh() {
+      var manh = b.manh || 0;
+      var het = (b.uncap || 0) >= 4;
+      var o = G.el('div.uc-manh' + (het ? '' : (manh >= G.MANH_MOI_BAC ? '.du' : '.thieu')));
+      var ao = G.el('div.uc-manh-o' + (manh ? '.co' : ''));
+      ao.appendChild(G.el('span', { text: '◆' }));
+      ao.appendChild(G.el('b', { text: manh + (het ? '' : '/' + G.MANH_MOI_BAC) }));
+      o.appendChild(ao);
+      var c = G.el('div', { style: 'flex:1;min-width:0' });
+      c.appendChild(G.el('b', { text: 'Mảnh trùng: ' + manh }));
+      c.appendChild(G.el('div.uc-phu', {
+        text: het
+          ? 'Đã mở hết bốn bậc. Mảnh thừa đổi được lấy xu.'
+          : (manh >= G.MANH_MOI_BAC
+            ? 'Đủ mảnh cho bậc tiếp theo.'
+            : 'Quay trúng đúng người này lần nữa ở màn Tuyển mộ thì được một mảnh. ' +
+              'Mỗi bậc ăn ' + G.MANH_MOI_BAC + ' mảnh.')
+      }));
+      o.appendChild(c);
+      n.appendChild(o);
+
+      if (het) {
+        var db = G.el('button.uc-nut.phu' + (manh ? '' : '.tat'),
+          { text: 'Đổi 1 mảnh lấy ' + (laHLV ? 300 : 200) + ' xu' });
+        if (manh) db.addEventListener('click', function () {
+          if (G.doiManh(b, loai)) { G.tieng('chon'); ve(); veTat(); }
+        });
+        n.appendChild(db);
+        return;
+      }
+      var du = G.coMoTran(b);
+      var nb = G.el('button.uc-nut' + (du ? '.cam' : '.tat'), { text: 'MỞ TRẦN' });
+      if (du) nb.addEventListener('click', function () {
+        if (G.moTran(b)) { G.tieng('tapTot'); G.phaoHoa(18); ve(); veTat(); }
+      });
+      n.appendChild(nb);
+      if (!du) n.appendChild(G.el('div.uc-canh', { text: 'Không đủ mảnh.' }));
+    }
+
+    /** tab lên cấp — đường xu, và bảng trước → sau */
+    function veLenCap() {
+      var tran = G.tranCap(goc.bac, b.uncap || 0);
+      if (b.cap >= tran) {
+        n.appendChild(G.el('div.uc-canh', {
+          html: 'Thẻ đã tới trần cấp <b>' + tran + '</b>. Muốn nuôi tiếp thì phải mở trần — ' +
+            'xem tab bên cạnh.'
+        }));
+        return;
+      }
+      var muaDuoc = G.capMuaDuoc(b);
+      var moc = [1, 5, 10].filter(function (x) { return x <= tran - b.cap; });
+      if (moc.indexOf(tran - b.cap) < 0) moc.push(tran - b.cap);
+
+      nhanNho(n, 'THUÊ CHUYÊN GIA KÈM');
+      var hang = G.el('div', { style: 'display:flex;gap:7px;flex-wrap:wrap' });
+      moc.forEach(function (so) {
+        var t = G.giaNhieuCap(b, so);
+        var du = t.xu <= G.S.clb.xu;
+        var nb = G.el('button.uc-nut' + (du ? '' : '.tat'), {
+          text: '+' + t.so + ' cấp  ·  ' + G.so(t.xu) + ' xu',
+          style: 'width:auto;flex:none;padding:8px 14px;font-size:12.5px'
+        });
+        nb.addEventListener('click', function () {
+          if (G.nangCapTT(b, so)) { G.tieng('tapTot'); ve(); veTat(); }
+        });
+        hang.appendChild(nb);
+      });
+      n.appendChild(hang);
       n.appendChild(G.el('div.uc-phu', {
-        html: 'Đường lên cấp thứ hai <b>không mua được</b>: cho thẻ này vào đội hình và chạy hết ' +
-          'một mùa. Càng thắng nhiều giải càng nhiều kinh nghiệm.',
+        text: 'Đang có ' + G.so(G.S.clb.xu) + ' xu — đủ cho ' + muaDuoc + ' cấp.',
+        style: 'margin-top:6px'
+      }));
+
+      /* trước → sau, tính trên số cấp mua nổi (hoặc 5 cấp nếu chưa đủ xu) */
+      var xem = Math.max(1, Math.min(muaDuoc || 5, tran - b.cap));
+      nhanNho(n, 'NẾU LÊN ' + xem + ' CẤP');
+      var bang = G.el('div', { style: 'background:#f7f6fb;border:2px solid #e6e2ef;' +
+        'border-radius:12px;padding:4px 10px' });
+      G.soHieu(b, b.cap + xem).forEach(function (x) {
+        if (Math.abs(x.b - x.a) < (x.pt ? 0.0005 : 0.5)) return;
+        var r = G.el('div', { style: 'display:flex;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px' });
+        r.appendChild(G.el('span', { text: x.ten, style: 'color:#8a7f8f' }));
+        var v = G.el('span');
+        v.appendChild(G.el('span', { text: so1(x.a, x.pt), style: 'color:#a09aa8' }));
+        v.appendChild(G.el('span', { text: '  →  ', style: 'color:#c4bed0' }));
+        v.appendChild(G.el('b', { text: so1(x.b, x.pt), style: 'color:#3d9c63' }));
+        r.appendChild(v);
+        bang.appendChild(r);
+      });
+      n.appendChild(bang);
+      n.appendChild(G.el('div.uc-phu', {
+        html: 'Đường lên cấp thứ hai <b>không mua được</b>: cho thẻ này vào đội hình và chạy ' +
+          'hết một mùa. Càng thắng nhiều giải càng nhiều kinh nghiệm.',
         style: 'margin-top:10px'
       }));
     }
+
+    function ve() {
+      G.xoa(n);
+      veDau();
+      if (!laHLV) {
+        var t = G.el('div.uc-tab.nho');
+        [['cap', 'Lên cấp'], ['tran', 'Mở trần']].forEach(function (x) {
+          var bt = G.el('button' + (NUOI_TAB === x[0] ? '.chon' : ''));
+          bt.appendChild(G.el('span', { text: x[1] }));
+          if (x[0] === 'tran' && G.coMoTran(b)) bt.appendChild(G.el('em', { text: '!' }));
+          bt.addEventListener('click', function () { NUOI_TAB = x[0]; G.tieng('cham'); ve(); });
+          t.appendChild(bt);
+        });
+        n.appendChild(t);
+      }
+      veBacTran();
+      if (laHLV || NUOI_TAB === 'tran') veOManh();
+      else veLenCap();
+    }
+
     ve();
-    return G.hop({ sang: true, dau: 'Nuôi thẻ — ' + goc.biet, node: n,
-      nut: [{ chu: 'Xong', chinh: true }] });
+    return G.hop({ sang: true, rong: 620,
+      dau: (laHLV ? 'Mở trần — ' : 'Nuôi thẻ — ') + (goc.biet || goc.ten),
+      node: n, nut: [{ chu: 'Xong', chinh: true }] });
   }
 
   function so1(v, pt) {

@@ -316,7 +316,7 @@
 
   /** tạo bản ghi tuyển thủ trong kho người chơi */
   G.taoTuyenThu = function (id) {
-    return { id: id, cap: 1, uncap: 0, exp: 0 };
+    return { id: id, cap: 1, uncap: 0, manh: 0, exp: 0 };
   };
 
   /** lấy hiệu ứng thực (đã nhân hệ số cấp) */
