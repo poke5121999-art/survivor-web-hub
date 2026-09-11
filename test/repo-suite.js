@@ -3848,6 +3848,20 @@ async function baySuite(b) {
     return { hp0, pha1, hp1, pha2, hp2: S.player.hp };
   });
   check('dựng được thế đứng trên bẫy gai', !!gai, JSON.stringify(gai));
+
+  // KHUNG PHẢI CHẠY THẬT. Chủ dự án hỏi thẳng: "lazer có anim frame by frame đàng hoàng chưa,
+  // bãy gai cũng có đủ art của soul knight lun á". Tấm gai có TÁM khung thật của Soul Knight
+  // (Thorn_0..7), và bài test này canh đúng một chuyện: nó đi qua đủ tám, cả lúc nhả lẫn lúc
+  // thụt — chứ không phải hai khung nhấp nháy cho giống là đang động.
+  const khung = await p.evaluate(() => {
+    const so = REPO.gaiSo(), thay = new Set(), len = [];
+    const di = (pha, han) => { for (let t = 0; t <= han; t += 0.005){
+      const k = REPO.gaiKhung(pha, t); thay.add(k); if (len[len.length-1] !== k) len.push(k); } };
+    di('ngu', 0.1); di('bao', so.bao); di('ban', so.giu); di('thut', so.hoi);
+    return { n: thay.size, co: [...thay].sort((a,b)=>a-b).join(','), duong: len.join(' ') };
+  });
+  check('và nó chạy ĐỦ TÁM KHUNG thật của Soul Knight, không phải hai khung nhấp nháy',
+    khung.n === 8, khung.n + ' khung, chạy: ' + khung.duong);
   if (gai){
     check('giẫm lên thì có NHỊP BÁO trước, chưa đau ngay',
       gai.pha1 === 'bao' && gai.hp1 === gai.hp0, JSON.stringify(gai));

@@ -108,16 +108,28 @@ lẽ vẽ lại hình khối — và mỗi tên trong `FOE_IDS` không có tệp
 Hai tấm này **không vẽ tay**: chúng do `art/tools/lam-bay.py` cắt ra từ kho Soul Knight đã bóc ở
 `~/Downloads/sk-ref` (ngoài git). Chạy lại kịch bản ấy là sinh lại đúng hai tấm này.
 
-`item/bay.png` là một **dải ngang tám ô 96×96**, và thứ tự ô là hợp đồng ba bên — `lam-bay.py`,
+`item/bay.png` là một **dải ngang 21 ô 96×96**, và thứ tự ô là hợp đồng ba bên — `lam-bay.py`,
 `BAY_O` trong `game.js`, và hàm `bay()` trong `sprites.js`. Đổi ở một chỗ mà quên hai chỗ kia
 thì bẫy gai vẽ ra cái rương và **không ai báo lỗi**:
 
-| Ô | Là gì |
-|---|---|
-| 0 · 1 · 2 | gai nằm im · gai nhú · gai bật hết |
-| 3 · 4 | hộp laser tắt · hộp laser bật |
-| 5 · 6 | rương đóng · rương mở |
-| 7 | thanh tia — **căng đầy ô**, vì lúc vẽ nó bị kéo thành hộp (dài tia × bề dày tia) |
+| Ô | Là gì | Khung gốc |
+|---|---|---|
+| 0..7 | tấm gai, **tám khung**: đóng kín → hé nắp → gai nhả dần | `Thorn_0..7` |
+| 8 | hộp laser lúc im | `ElectricBox_0` |
+| 9..14 | hộp laser lúc bật, **sáu khung** tia điện nhảy | `ElectricBox_4..9` |
+| 15 · 16 | rương đóng · rương mở | `chest_anim_4` |
+| 17..20 | thanh tia, **bốn khung** — căng đầy ô, vì lúc vẽ nó bị kéo thành hộp (dài tia × bề dày tia) | `mythic_12_laser_beam_0..3` |
+
+**Thứ tự tám khung gai không phải 0,1,2,…** — phải đọc tấm hình mới biết: `Thorn_6` là tấm sắt
+đóng kín, `Thorn_7` là lúc nắp vừa hé thành một cái hốc đen, rồi `Thorn_5..0` mới là gai nhú dần.
+`lam-bay.py` xếp lại theo chiều "càng về sau càng nhả"; bảng `GAI_KHUNG` trong `game.js` ghi đúng
+chiều chạy.
+
+**Thanh tia đổi màu lúc dựng.** Soul Knight có bốn khung anim thật nhưng chỉ màu tím
+(`mythic_12`); bộ `rgb_laser` có đỏ nhưng bảy tấm ấy là bảy **màu**, không phải bảy **khung**.
+Nhuộm lúc dựng là cách duy nhất được cả hai. Và mỗi khung chỉ lấy **một cột sáng nhất** rồi trải
+ra cả ô: trong một khung, độ sáng dọc theo tia không đều, nên kéo cả đoạn ra sáu ô thì mấy chỗ
+tối thành mấy khúc tia bị đứt — mà tia này đốt người trên *cả* chiều dài.
 
 `foe/mimic.png` theo đúng khuôn charset 288×576 như mọi tấm quái khác. Cái rương thì không có
 lưng, nên bốn hàng dùng chung ba khung nhảy, chỉ hàng "nhìn sang trái" lật ngang.

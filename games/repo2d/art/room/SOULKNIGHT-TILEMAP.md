@@ -59,11 +59,16 @@ và chúng KHÔNG phải tile — chúng là sprite cắt thẳng, dựng bằng
 
 | Vào game thành | Sprite gốc | Ghi chú tra cứu |
 |---|---|---|
-| bẫy gai | `sting_MMR_0` / `_1` | **Đừng tìm chữ "spike"** — `spikes01.png` trong kho là vệt loé sáng, không phải gai. Tên thật là `sting`, tra ra từ bảng ký tự của 282 mẫu phòng (`patterns-ascii.txt`, ký tự `^`). |
-| hộp bẫy laser | `ElectricBox_0` / `_8` | khung gốc rộng 53px chứa HAI tủ; cắt lấy tủ trái, `0..19` |
-| thanh tia | `rgb_laser_0` | bảy màu `_0.._6`, mỗi tấm 23×12 |
+| bẫy gai | **`Thorn_0..7`** (`level__2__g`) | tám khung thật, 16×19. **Đừng tìm chữ "spike"** — `spikes01.png` là vệt loé sáng; `sting_MMR_0/_1` thì chỉ có HAI khung (tấm đá + gai) nên dựng anim phải cắt xén. Bộ đủ khung nằm ở khu máy móc, tên `Thorn`. |
+| hộp bẫy laser | `ElectricBox_0` (im) + `_4.._9` (6 khung) | khung gốc rộng 53px chứa HAI tủ; cắt lấy tủ trái, `0..21` |
+| thanh tia | **`mythic_12_laser_beam_0..3`** | bốn khung thật 16×88, màu TÍM → nhuộm đỏ lúc dựng. `rgb_laser_0.._6` là bảy MÀU của cùng một khung, không dùng làm anim được. |
 | rương | `chest_anim_4` | bảy khung nâu `_0.._6` là bảy nhịp le lói của khoá — **không có khung mở** |
 | con Rương răng | `chest_monster1_0.._16` | 17 khung, ~28×30, cùng thân rương với `chest_anim` |
+
+**Bài học tra cứu:** một cái tên nghe đúng chưa chắc là bộ đủ khung. `sting_MMR` đúng là bẫy gai
+— nhưng của khu núi đá, và khu ấy chỉ vẽ hai trạng thái. Cùng một vật ở khu máy móc (`Thorn`) thì
+có đủ tám. Trước khi dựng anim bằng cách cắt xén một khung tĩnh, **tìm xem chương khác có bộ đủ
+không đã**.
 
 Chỗ tra nhanh: `sprites/levelobjects/` giữ gần hết đồ đạc dùng chung; `sprites/level__2__g/` là
 khu máy móc (`ElectricBox`, `Pipe`, cửa `RB_Door_*`); `sprites/level__4__a/` là khu núi đá

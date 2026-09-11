@@ -1,8 +1,9 @@
 # Còn lại — bàn giao 2026-09-11
 
-Bản vừa push: **bẫy gai, bẫy laser, và cái rương có thể có răng** (mục 00000). Trước đó: viền
-đỏ + nhiễu hình (mục 0000); khuôn mặt pho tượng (mục 000); bộ chuột-phím và ba cái lỗi (mục 00).
-Dấu build lên `?v=20260911c` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Bản vừa push: **bẫy gai, bẫy laser, và cái rương có thể có răng** (mục 00000) — bản `d` thay cả
+ba bộ hình bằng khung anim thật. Trước đó: viền đỏ + nhiễu hình (mục 0000); khuôn mặt pho tượng
+(mục 000); bộ chuột-phím và ba cái lỗi (mục 00).
+Dấu build lên `?v=20260911d` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 Hai hồ sơ nghiên cứu nằm cạnh tệp này: **`RESEARCH.md`** (Robbery Bob — trộm, nấp, tiếng ồn) và
@@ -78,20 +79,48 @@ Tám ô trong `art/item/bay.png` và cả tấm `art/foe/mimic.png` cắt từ k
 bóc ở `~/Downloads/sk-ref` (ngoài git — xem `art/room/SOULKNIGHT-TILEMAP.md`). Kịch bản cắt nằm
 trong repo ở **`art/tools/lam-bay.py`**, chạy lại được; ảnh nguồn thì không bao giờ vào.
 
-| Trong game | Sprite gốc |
-|---|---|
-| tấm đá / gai | `sting_MMR_1` · `sting_MMR_0` (bộ Monolithic Mountains Ruins) |
-| hộp laser | `ElectricBox_0` / `_8`, cắt lấy **một tủ bên trái** của khung 53px |
-| thanh tia | `rgb_laser_0`, kéo căng cả ô |
-| rương đóng | `chest_anim_4` |
-| rương mở | dựng từ **chính khung đóng** — cắt nắp, ép dẹt, đẩy lên, khoét vũng tối |
-| Rương răng | `chest_monster1_2 / _0 / _6` xếp thành charset 288×576 |
+| Trong game | Sprite gốc | Số khung |
+|---|---|---|
+| tấm gai | `Thorn_0..7` (khu máy móc) | **8** |
+| hộp laser | `ElectricBox_0` (im) + `_4.._9`, cắt lấy **một tủ bên trái** của khung 53px | **1 + 6** |
+| thanh tia | `mythic_12_laser_beam_0..3`, xoay ngang + nhuộm đỏ | **4** |
+| rương đóng | `chest_anim_4` | 1 |
+| rương mở | dựng từ **chính khung đóng** — cắt nắp, ép dẹt, đẩy lên, khoét vũng tối | 1 |
+| Rương răng | `chest_monster1_2 / _0 / _6` xếp thành charset 288×576 | 3 |
 
-Hai chỗ đáng ghi lại: bộ `chest_anim` **không có khung mở** (bảy khung nâu là bảy nhịp le lói
-của cái khoá), nên khung mở phải dựng từ khung đóng — mà như thế lại đúng: cái rương mở và cái
-rương đóng chắc chắn là **cùng một vật**, đúng cái trò chơi cần. Và cái tên `spikes01.png` trong
-kho **không phải gai** — nó là mấy vệt loé sáng; gai thật tên là `sting`, tra ra từ bảng ký tự
-của 282 mẫu phòng (`patterns-ascii.txt`, ký tự `^`).
+### Vòng sửa thứ hai (bản `d`): lấy đủ khung anh em ạ
+
+Chủ dự án, ngay sau khi bản `c` lên: *"lazer có anim frame by frame đàng hoàng chưa, bãy gai
+cũng có đủ art của soul knight lun á"*. Câu trả lời lúc đó là **chưa**, và hỏi thế là đúng chỗ:
+
+- Bản `c` dựng bẫy gai từ **hai** tấm `sting_MMR` (tấm đá + gai) rồi **cắt xén** hình gai theo tỉ
+  lệ để giả ba nấc. Bản `d` dùng `Thorn_0..7` — **tám khung thật** của chính Soul Knight, và
+  chúng đi qua đủ cả tám cả lúc nhả lẫn lúc thụt (`0 1 2 3 4 5 6 7 6 5 4 3 2 1 0`, đo bằng máy).
+- Bản `c` vẽ hộp laser bằng **hai** khung (im / bật) và làm cái tia "động" bằng cách đổi alpha.
+  Bản `d`: hộp chạy **sáu khung** tia điện `ElectricBox_4..9`, thanh tia chạy **bốn khung**
+  `mythic_12_laser_beam_0..3`.
+
+**Ba cái bẫy khi cắt sprite động**, cả ba đều làm hình nhảy nếu không biết:
+
+1. **Đừng `getbbox()` từng khung.** Tám khung gai cao thấp khác nhau; cắt sát viền rồi căn đáy
+   thì cái tấm sắt tự nhảy lên nhảy xuống theo chiều cao của gai. Giữ nguyên khung gốc cho cả bộ.
+   Cùng cái bẫy ấy với sáu khung `ElectricBox` — tia điện thò ra làm khung cao thêm.
+2. **Tia phải trải theo MỘT CỘT.** Trong một khung, độ sáng dọc theo tia không đều (tia gốc nhấp
+   nháy theo chiều dài). Kéo cả đoạn ra sáu ô thì mấy chỗ tối thành mấy khúc tia bị đứt — mà tia
+   này đốt người trên *cả* chiều dài, nên một khúc trông như tắt là một lời nói dối. Lấy cột sáng
+   nhất của từng khung rồi trải ra: bốn khung vẫn khác nhau (lõi dày mỏng riêng), chỉ bỏ cái
+   nhấp nháy dọc.
+3. **Ô tia phải CĂNG ĐẦY.** Lúc vẽ nó bị kéo thành hộp (dài tia × bề dày), nên mọi điểm ảnh trống
+   trong ô đều biến thành lề thừa hai đầu tia.
+
+**Bài học tra cứu, đắt nhất trong cả đợt:** `sting_MMR` đúng là bẫy gai — nhưng của khu núi đá,
+và khu ấy chỉ vẽ hai trạng thái. Cùng một vật ở khu máy móc tên `Thorn` thì có đủ tám khung.
+Trước khi dựng anim bằng cách cắt xén một khung tĩnh, **tìm xem chương khác có bộ đủ không đã**.
+
+Hai chỗ đáng ghi lại từ bản `c` vẫn đúng: bộ `chest_anim` **không có khung mở** (bảy khung nâu là
+bảy nhịp le lói của cái khoá), nên khung mở phải dựng từ khung đóng — mà như thế lại đúng: cái
+rương mở và cái rương đóng chắc chắn là **cùng một vật**. Và `spikes01.png` trong kho **không
+phải gai**, nó là mấy vệt loé sáng.
 
 ---
 

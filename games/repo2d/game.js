@@ -12767,8 +12767,22 @@ function drawButton(c){
   c.textAlign = 'left';
 }
 // ---------------------------------------------------------------- vẽ bẫy và rương
-// Thứ tự ô trong art/item/bay.png. Hợp đồng ba bên với sprites.js và tools/lam-art.py.
-const BAY_O = { gai0:0, gai1:1, gai2:2, hop0:3, hop1:4, ruong0:5, ruong1:6, tia:7 };
+// Thứ tự ô trong art/item/bay.png. Hợp đồng ba bên với sprites.js và art/tools/lam-bay.py.
+//
+// HAI MƯƠI MỐT Ô, và cả ba cụm động đều là KHUNG THẬT của Soul Knight chứ không phải một khung
+// tĩnh được làm cho ĐỘNG bằng alpha:
+//   0..7   tấm gai — Thorn_0..7 của khu máy móc, tám khung tấm sắt thụt vào nhả ra
+//   8      hộp laser lúc im — ElectricBox_0
+//   9..14  hộp laser lúc bật — ElectricBox_4..9, sáu nhịp tia điện nhảy giữa hai trụ
+//   15/16  rương đóng / rương mở
+//   17..20 thanh tia — mythic_12_laser_beam_0..3, bốn khung, xoay ngang và nhuộm đỏ lúc dựng
+const BAY_O = { GAI0:0, HOP_TAT:8, HOP0:9, HOP_N:6, RUONG_DONG:15, RUONG_MO:16, TIA0:17, TIA_N:4 };
+// THỨ TỰ KHUNG GAI KHÔNG PHẢI 0,1,2,... và đây là chỗ phải đọc kỹ tấm hình mới biết:
+// Thorn_6 là tấm sắt ĐÓNG KÍN (nhẵn), Thorn_7 là lúc nắp vừa hé ra thành một cái hốc đen, rồi
+// Thorn_5..0 mới là gai nhú dần lên. lam-bay.py xếp lại theo chiều "càng về sau càng nhả", nên
+// trong dải này ô 1 là tấm đóng, ô 0 là cái hốc, ô 2..7 là gai. Bảng dưới ghi đúng chiều chạy.
+const GAI_KHUNG = [1, 0, 2, 3, 4, 5, 6, 7];
+const HOP_FPS = 14, TIA_FPS = 16;      // nhịp chạy khung của hộp laser và của thanh tia
 
 // LỚP THẾ GIỚI, tức là lớp có bóng tối nhân lên. Bẫy KHÔNG tự phát sáng, và đó là cả cái bẫy:
 // đi qua một căn phòng tối mà không rọi đèn xuống sàn thì không có cách nào biết dưới chân có
@@ -12780,20 +12794,29 @@ function drawBay(c){
     else { drawHopTia(c, b, b.x, b.y); drawHopTia(c, b, b.x2, b.y2); }
   }
 }
+// MỘT SỐ 0..7 nói cái tấm gai đang nhả ra tới đâu — rồi GAI_KHUNG dịch nó sang số ô thật.
+// Tách ra khỏi chỗ vẽ vì bộ test đọc con số này: "khung có chạy không" đo được, còn "trông có
+// giống gai bật không" thì phải nhìn.
+function gaiNhip(b){
+  if (b.pha === 'ngu')  return 0;
+  // NHỊP BÁO chạy qua ba khung đầu: nắp hé, gai vừa nhú. Đây là thứ người chơi phải đọc được
+  // trong 0,34 giây, nên nó phải là một đoạn CHẠY chứ không phải một khung đứng yên nhấp nháy.
+  if (b.pha === 'bao')  return clamp(Math.floor(b.t/GAI_BAO * 3), 0, 2);
+  // Bật thì chạy nốt bốn khung còn lại trong một phần tám giây rồi giữ ở khung cuối.
+  if (b.pha === 'ban')  return clamp(3 + Math.floor(b.t*32), 3, 7);
+  // Thụt: chạy ngược cả tám khung trong một phần ba quãng nghỉ, rồi nằm im.
+  return clamp(7 - Math.floor(b.t/(GAI_HOI*0.33) * 7), 0, 7);
+}
 function drawGai(c, b){
-  // Nhịp BÁO nhấp nháy giữa hai ô 0 và 1: cái tấm đá rung lên, gai mới nhú. Đó là thứ người
-  // chơi phải đọc được trong 0,34 giây, nên nó phải ĐỘNG chứ không được là một khung đứng yên.
-  const o = b.pha === 'ban'  ? BAY_O.gai2
-          : b.pha === 'bao'  ? (Math.sin(S.time*42) > 0 ? BAY_O.gai1 : BAY_O.gai0)
-          : b.pha === 'thut' ? (b.t < GAI_HOI*0.22 ? BAY_O.gai1 : BAY_O.gai0)
-          : BAY_O.gai0;
-  const w = TILE*1.2;
+  const o = BAY_O.GAI0 + GAI_KHUNG[gaiNhip(b)];
+  const w = TILE*1.25;
   if (window.REPO_SKIN && REPO_SKIN.bay && REPO_SKIN.bay(c, o, b.x, b.y, w, w)) return;
   // đường lui khi thiếu tệp hình — cùng luật với mọi chỗ khác trong tệp này
+  const k = gaiNhip(b) / 7;
   c.fillStyle = 'rgba(62,66,60,0.9)';
   c.fillRect(b.x - w*0.30, b.y - w*0.22, w*0.60, w*0.34);
-  if (o === BAY_O.gai0) return;
-  const cao = (o === BAY_O.gai2 ? 0.42 : 0.20) * w;
+  if (k <= 0.01) return;
+  const cao = k * 0.42 * w;
   c.fillStyle = '#d8dde2';
   for (const dx of [-w*0.18, 0, w*0.18]){
     c.beginPath();
@@ -12804,17 +12827,23 @@ function drawGai(c, b){
   }
 }
 function drawHopTia(c, b, x, y){
-  const o = b.bat ? BAY_O.hop1 : BAY_O.hop0;
-  const w = TILE*0.78, h = TILE*1.25;
+  // Lúc BẬT thì sáu khung tia điện chạy vòng; lúc TẮT thì đứng ở khung im. Nhịp báo — quãng
+  // TIA_BAO giây cuối trước khi bật — cho chạy luôn bộ sáu khung ấy nhưng tia thì chưa có: cái
+  // hộp nẹt điện trước, tia đến sau. Đó là lời báo, và nó phải nhìn thấy được kể cả khi người
+  // chơi đang đứng ở đầu kia căn phòng.
+  const bao = !b.bat && b.t > b.hanTat - TIA_BAO;
+  const o = (b.bat || bao) ? BAY_O.HOP0 + (Math.floor(S.time*HOP_FPS) % BAY_O.HOP_N)
+                           : BAY_O.HOP_TAT;
+  const w = TILE*0.86, h = TILE*1.3;
   if (window.REPO_SKIN && REPO_SKIN.bay && REPO_SKIN.bay(c, o, x, y, w, h)) return;
   c.fillStyle = '#4a5254'; c.fillRect(x - w*0.35, y - h*0.78, w*0.70, h*0.78);
-  c.fillStyle = b.bat ? '#ff5a44' : '#7a3028';
+  c.fillStyle = (b.bat || bao) ? '#ff5a44' : '#7a3028';
   c.fillRect(x - w*0.14, y - h*0.62, w*0.28, w*0.18);
 }
 function drawRuong(c){
   if (!S.ruong) return;
   for (const r of S.ruong){
-    const o = r.mo ? BAY_O.ruong1 : BAY_O.ruong0;
+    const o = r.mo ? BAY_O.RUONG_MO : BAY_O.RUONG_DONG;
     const w = TILE*1.05;
     if (window.REPO_SKIN && REPO_SKIN.bay && REPO_SKIN.bay(c, o, r.x, r.y, w, w)) continue;
     c.fillStyle = r.mo ? '#3a2a1c' : '#7a5a34';
@@ -12841,7 +12870,12 @@ function drawTiaSang(c){
     c.save();
     c.globalAlpha = a;
     c.translate(mx, my); c.rotate(ang);
-    if (!(window.REPO_SKIN && REPO_SKIN.bayGiua && REPO_SKIN.bayGiua(c, BAY_O.tia, 0, 0, dai, day*2))){
+    // Khung tia trong dải là một thanh ĐẶC căng hết ô (xem lam-bay.py), khác với bản trước —
+    // bản trước dùng một ô có lề trong suốt trên dưới, nên cùng một chiều cao hộp thì thanh vẽ
+    // ra mảnh hơn. Nhân 1,5 thay vì 2 để bù lại: dày hơn tầm ăn đòn một chút là đủ, dày gấp đôi
+    // thì cái tia đọc ra như một bức tường.
+    const oTia = BAY_O.TIA0 + (Math.floor(S.time*TIA_FPS) % BAY_O.TIA_N);
+    if (!(window.REPO_SKIN && REPO_SKIN.bayGiua && REPO_SKIN.bayGiua(c, oTia, 0, 0, dai, day*1.5))){
       const g = c.createLinearGradient(0, -day, 0, day);
       g.addColorStop(0,   'rgba(180,20,16,0)');
       g.addColorStop(0.5, 'rgba(255,170,160,0.95)');
@@ -14931,7 +14965,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260911c';
+const BUILD = '20260911d';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -17086,9 +17120,15 @@ window.REPO = {
   angelMat(){ return { mat:+FX.mat.toFixed(3), gap:+FX.matGap.toFixed(3), nhin:!!FX.matNhin }; },
   vienDo(){ return { gan:+FX.gan.toFixed(3), than:+thanGan().toFixed(3), nhieu:+FX.nhieu.toFixed(3) }; },
   bay(){ return (S.bay||[]).map(b => b.loai === 'gai'
-           ? { loai:'gai', x:b.x, y:b.y, pha:b.pha, t:+b.t.toFixed(2) }
+           ? { loai:'gai', x:b.x, y:b.y, pha:b.pha, t:+b.t.toFixed(2), khung:gaiNhip(b) }
            : { loai:'tia', x:b.x, y:b.y, x2:b.x2, y2:b.y2, bat:!!b.bat, t:+b.t.toFixed(2) }); },
   ruong(){ return (S.ruong||[]).map(r => ({ x:r.x, y:r.y, mo:!!r.mo, mimic:!!r.mimic, so:r.so })); },
+  // Khung gai ở một thời điểm bất kỳ của một pha bất kỳ — HÀM THUẦN, không đọc S.
+  // Mở ra vì đo bằng cách chụp trạng thái thật mỗi 40ms thì trượt mất khung: pha 'ban' chạy
+  // bốn khung trong một phần tám giây, nhanh hơn nhịp chụp. Có cửa này thì bộ test đi được
+  // trọn dòng thời gian thay vì bốc mẫu và hy vọng.
+  gaiKhung(pha, t){ return gaiNhip({ pha, t }); },
+  gaiSo(){ return { bao: GAI_BAO, giu: GAI_GIU, hoi: GAI_HOI }; },
   moRuong(){ return moRuong(S.player); },
   nearRuong(){ return !!nearRuong(S.player); },
   RUONG_MIMIC, MIMIC_KIND, BAY_TU_MAN,
