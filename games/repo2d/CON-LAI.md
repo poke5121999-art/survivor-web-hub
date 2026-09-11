@@ -6,6 +6,11 @@ loot vẽ lại · cửa hàng ngoài menu (mục 2).
 Dấu build lên `?v=20260910d` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
+Hai hồ sơ nghiên cứu nằm cạnh tệp này: **`RESEARCH.md`** (Robbery Bob — trộm, nấp, tiếng ồn) và
+**`RESEARCH-DARKWOOD.md`** (Darkwood — nỗi sợ). Cái thứ hai viết 2026-09-11, và kết luận của nó
+ngắn gọn là: căn nhà này đã đứng trên năm trong bảy cột của Darkwood rồi; thứ đáng làm tiếp và
+rẻ nhất là **cho âm thanh một cái hướng** — cả hệ tiếng hiện chạy mono, không một chữ `pan` nào.
+
 ---
 
 ## 00. BẢN 20260910c–d — CHUỘT-PHÍM, VÀ BA CÁI LỖI
