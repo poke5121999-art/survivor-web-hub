@@ -33,25 +33,36 @@
   }
   function bam(e) { if (e) { e.click(); return true; } return false; }
 
-  /* Chọn 1 HLV + 5 tuyển thủ đủ 5 vị trí bằng cách BẤM đúng thẻ trên màn, không đụng vào
-     biến trong closure — có vậy mới kiểm được luôn cả phần chọn đội.
-     Thẻ bấm được nhận ra bằng lớp `.uc-the.bam`. Trước đây dò `style*="cursor:pointer"`;
-     đổi màn CLB sang bảng màu Uma là style rời vào file css nên bộ dò ấy chết lặng, mà
-     chết lặng thì kịch bản đứng ở màn CLB tới hết giờ mà KHÔNG báo lỗi gì. */
-  function chonDoi(g) {
-    var the = G.$$('.uc-the.bam', g);
-    if (!bam(the[0])) return false;                       /* thẻ HLV đầu tiên */
-    var can = { tren: 1, rung: 1, giua: 1, duoi: 1, ho: 1 }, xong = 0;
-    G.S.khoTT.forEach(function (b) {
-      var goc = G.TUYENTHU_THEO_ID[b.id];
-      if (!goc || !can[goc.vt]) return;
-      can[goc.vt] = 0;
-      var t = G.$$('.uc-the.bam', g).filter(function (d) {
-        return (d.querySelector('b') || {}).textContent === goc.biet;
-      })[0];
-      if (bam(t)) xong++;
-    });
-    return xong === 5;
+  /* Vào một run qua ĐÚNG bốn bước như người chơi: thể thức → huấn luyện viên → cựu HLV
+     → đội hình, mỗi bước bấm nút đi tiếp ở chân. Không gọi thẳng hàm trong closure —
+     có vậy mới kiểm được luôn cả luồng vào ca.
+
+     Hai lần trước bộ dò này chết lặng vì dò theo hình thức chứ không theo cấu trúc:
+     lần đầu dò `style*="cursor:pointer"`, lần sau dò `.uc-the.bam` trong một trang
+     không còn tồn tại. Giờ dò theo CHÂN BƯỚC (`#clb-career button`) — cái luôn có
+     mặt suốt cả luồng — và có `chonDoiXong()` để biết mình đã tới đích chưa. */
+  function nutTiep() {
+    var ns = G.$$('#clb-career button');
+    return ns.length ? ns[ns.length - 1] : null;
+  }
+
+  function chonDoiXong() {
+    return G.$$('.uc-oform-o').length > 0 &&
+      G.$$('.uc-oform-o:not(.trong)').length === 5;
+  }
+
+  function diLuong() {
+    /* chưa ở trong luồng thì mở nút VÀO CA */
+    if (!G.$('.uc-buoc-dau')) return bam(G.$('.uc-career-nut'));
+    /* bước "đội hình": bấm Tự chọn cho đủ năm vị trí rồi mới đi tiếp */
+    if (G.$$('.uc-oform-o').length && !chonDoiXong()) {
+      return bam(G.$$('#clb-giua button').filter(function (x) {
+        return /Tự chọn/.test(x.textContent);
+      })[0]);
+    }
+    var t = nutTiep();
+    if (t && !t.classList.contains('tat')) return bam(t);
+    return false;
   }
 
   function buoc() {
@@ -82,8 +93,16 @@
     if (m === 'man-ca') {
       var so = (G.$('#ca-luc-so') || {}).textContent || '0/100';
       var luc = parseInt(so.split('/')[0], 10) || 0;
-      if (luc < 32) { bam(G.$$('#hang-viec .uma-nut').filter(function (b) { return /Nghỉ|Xả hơi/.test(b.textContent); })[0]); return; }
-      var san = G.$$('#hang-san .uma-nut');
+      /* Màn trong run có HAI LỚP nút, đúng như Uma: sáu nút chính, bấm "Tập" mới hiện
+         năm sân. Kịch bản phải mở lớp sân trước, không thì `#hang-san` đang `hidden`
+         và mọi cú bấm rơi vào hư không mà không báo lỗi gì. */
+      if (luc < 32) {
+        bam(G.$('#hang-viec .uma-nut.v-nghi') || G.$('#hang-viec .uma-nut.v-xahoi'));
+        return;
+      }
+      var hs = document.getElementById('hang-san');
+      if (!hs || hs.hidden) { bam(G.$('#hang-viec .uma-nut.v-tap')); return; }
+      var san = G.$$('#hang-san .uma-nut.san');
       if (!san.length) return;
       /* Chọn giáo án như một người biết chơi: điểm = tổng chỉ số ăn được × (1 − tỉ lệ hỏng).
          Đọc thẳng bằng G.xemTruoc trên ca đang chạy, thay vì đoán qua chữ trên màn hình. */
@@ -104,23 +123,12 @@
         i = (luotDaTap + Math.floor(luotDaTap / 5)) % san.length;
       }
       san[i].click();                                                  /* lần 1: xem trước */
-      var lai = G.$$('#hang-san .uma-nut')[i];
+      var lai = G.$$('#hang-san .uma-nut.san')[i];
       if (lai) { lai.click(); luotDaTap++; }                           /* lần 2: tập thật */
       return;
     }
 
-    if (m === 'man-clb') {
-      var vao = nut(document.getElementById('clb-phai'), /Vào ca/);
-      if (vao) { bam(vao); return; }
-      /* nút "Bắt đầu ca" chưa đủ điều kiện thì mang lớp .tat và không gắn onclick —
-         bấm vào cũng không sao, nhưng phải chọn đội trước cho khỏi bấm hoài */
-      var bd = G.$$('#clb-phai button').filter(function (b) {
-        return /Bắt đầu ca/.test(b.textContent) && !b.classList.contains('tat');
-      })[0];
-      if (bd) { bam(bd); return; }
-      chonDoi(document.getElementById('clb-giua'));
-      return;
-    }
+    if (m === 'man-clb') { diLuong(); return; }
   }
 
   return new Promise(function (xong) {

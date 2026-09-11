@@ -7,7 +7,7 @@
 <title>Ghế Nóng</title>
 <!-- biểu tượng nhúng thẳng: không có dòng này thì mọi lần tải đều kèm một 404 favicon.ico -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230d1117'/%3E%3Cpath d='M9 22h14v3H9z' fill='%233ddc97'/%3E%3Cpath d='M11 12h10v9H11z' fill='%23e5484d'/%3E%3Cpath d='M13 6c0 3-3 3-3 6h4c0-2 2-3 2-6z' fill='%23f2c94c'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="css/ui.css?v=20260910d">
+<link rel="stylesheet" href="css/ui.css?v=20260911a">
 </head>
 <body>
 
@@ -26,26 +26,40 @@
     </div>
 
     <!-- ══ MÀN CHÍNH (CLB) ══ -->
-    <!-- ══ MÀN CLB ══
-         Bố cục lấy của màn Menu / Trainee Select trong Uma Musume (ảnh
-         esport-ref/uma/sheets_guide/sheet001.jpg): thanh trên sáng có viên ví bo tròn,
-         nội dung ở giữa, cột phải là thẻ hành động, và THANH NÚT LỚN Ở ĐÁY — Uma điều
-         hướng bằng hàng nút dưới đáy chứ không phải menu dọc bên trái. -->
+    <!-- ══ MÀN NGOÀI RUN (Home của Uma) ══
+         Đọc từ esport-ref/uma/sheets_career/sheet001.jpg và sheets_guide/sheet001-003.jpg.
+         Bản PC của Uma chia đôi màn: "màn hình game" dọc bên trái, PANEL bên phải (Menu /
+         Sparks / Log tuỳ ngữ cảnh). Trong màn hình game, từ dưới lên:
+
+           • THANH NÚT DƯỚI — ĐÚNG 5 nút: Enhance · Story · Home · Race · Scout,
+             nút giữa (Home) to hơn và tô xanh.
+           • BA NÚT TRÒN nhỏ nổi phía trên thanh ấy: Club · Concert Theater · Shop.
+           • MỘT NÚT LỚN "CAREER" — cửa duy nhất để vào một run. Nó KHÔNG nằm trong thanh
+             nút dưới; đó là điểm mấu chốt: run là một chế độ riêng, không phải một tab.
+
+         Bản trước ở đây gộp tất cả thành tám nút ngang bằng nhau, nên "Ca huấn luyện" chỉ
+         là một tab như mọi tab khác và bảng xếp hạng của mùa (thứ chỉ tồn tại trong một
+         run) lại nằm ngoài run. Đó là chỗ lẫn. -->
     <div class="man uma-clb" id="man-clb" hidden>
-      <div class="uc-tren">
-        <span class="uc-crest">GN</span>
-        <div class="uc-ten"><b id="clb-ten">CLB Chưa Đặt Tên</b><span id="clb-mua">Mùa 1</span></div>
-        <div class="uc-vi">
-          <span class="uc-dong" title="Xu"><i>🪙</i><b id="vi-xu">0</b></span>
-          <span class="uc-dong" title="Vé chơi"><i>🎟️</i><b id="vi-ve">5/5</b></span>
-          <span class="uc-dong" title="Danh tiếng"><i>💗</i><b id="vi-fan">0</b></span>
+      <div class="uc-game">
+        <div class="uc-tren">
+          <span class="uc-hang" id="clb-hang"><b>E</b><i>0</i></span>
+          <span class="uc-crest">GN</span>
+          <div class="uc-ten"><b id="clb-ten">CLB Chưa Đặt Tên</b><span id="clb-mua">Mùa 1</span></div>
+          <div class="uc-vi">
+            <span class="uc-dong" title="Xu"><i>🪙</i><b id="vi-xu">0</b></span>
+            <span class="uc-dong" title="Vé chơi"><i>🎟️</i><b id="vi-ve">5/5</b></span>
+            <span class="uc-dong" title="Danh tiếng"><i>💗</i><b id="vi-fan">0</b></span>
+          </div>
         </div>
+        <div class="uc-noi" id="clb-giua"></div>
+        <div class="uc-duoi">
+          <div class="uc-tron" id="clb-tron"></div>
+          <div class="uc-career" id="clb-career"></div>
+        </div>
+        <nav class="uc-day" id="clb-menu"></nav>
       </div>
-      <div class="uc-than">
-        <div class="uc-giua" id="clb-giua"></div>
-        <aside class="uc-phai" id="clb-phai"></aside>
-      </div>
-      <nav class="uc-day" id="clb-menu"></nav>
+      <aside class="uc-panel" id="clb-phai"></aside>
     </div>
 
     <!-- ══ MÀN CHUẨN BỊ CA (chọn 1 HLV + 5 tuyển thủ + 2 cựu HLV) ══ -->
@@ -62,6 +76,8 @@
         <div class="uma-nen" id="ca-canh-nen"></div>
         <div class="ca-bay" id="ca-bay"></div>
 
+        <!-- nhãn góc trên trái đổi theo lớp đang mở, y như "Career" ↔ "Training" của Uma -->
+        <div class="uma-nhan" id="ca-nhan">Ca huấn luyện</div>
         <div class="uma-tren">
           <div class="uma-luot"><b id="ca-luot-so">1</b><span>/<i id="ca-luot-tong">24</i> lượt</span></div>
           <div class="uma-mt">
@@ -81,9 +97,13 @@
 
         <div class="uma-duoi">
           <div class="uma-chiso" id="bang-chiso"></div>
-          <div class="uma-san-nut" id="hang-san"></div>
           <div class="uma-hong" id="ca-hong" hidden>Hỏng: <b>0%</b></div>
+          <!-- Uma bày SÁU nút chính (Rest · Training · Skills / Infirmary · Recreation ·
+               Races); bấm Training thì cả sáu biến mất, thay bằng NĂM sân trên một hàng
+               kèm nút Back. Bản trước dàn cả mười nút cùng lúc — nhìn thì tưởng đầy đủ,
+               nhưng nó xoá mất nhịp "chọn việc → chọn sân" và chiếm hết chỗ của cảnh. -->
           <div class="uma-viec" id="hang-viec"></div>
+          <div class="uma-san-nut" id="hang-san" hidden></div>
         </div>
       </div>
 
@@ -123,29 +143,29 @@
   </div>
 </div>
 
-<script src="art/asset-map.js?v=20260910d"></script>
-<script src="js/util.js?v=20260910d"></script>
-<script src="js/sprites.js?v=20260910d"></script>
-<script src="js/tieng.js?v=20260910d"></script>
-<script src="js/data-kynang.js?v=20260910d"></script>
-<script src="js/data-tuong.js?v=20260910d"></script>
-<script src="js/data-trangbi.js?v=20260910d"></script>
-<script src="js/data-hlv.js?v=20260910d"></script>
-<script src="js/data-tuyenthu.js?v=20260910d"></script>
-<script src="js/data-giai.js?v=20260910d"></script>
-<script src="js/data-sukien.js?v=20260910d"></script>
-<script src="js/save.js?v=20260910d"></script>
-<script src="js/day.js?v=20260910d"></script>
-<script src="js/ca.js?v=20260910d"></script>
-<script src="js/ui-ca.js?v=20260910d"></script>
-<script src="js/ui-clb.js?v=20260910d"></script>
-<script src="js/data-thoai.js?v=20260910d"></script>
-<script src="js/sim.js?v=20260910d"></script>
-<script src="js/mua.js?v=20260910d"></script>
-<script src="js/giai.js?v=20260910d"></script>
-<script src="js/ui-bxh.js?v=20260910d"></script>
-<script src="js/ui-draft.js?v=20260910d"></script>
-<script src="js/ui-tran.js?v=20260910d"></script>
-<script src="js/main.js?v=20260910d"></script>
+<script src="art/asset-map.js?v=20260911a"></script>
+<script src="js/util.js?v=20260911a"></script>
+<script src="js/sprites.js?v=20260911a"></script>
+<script src="js/tieng.js?v=20260911a"></script>
+<script src="js/data-kynang.js?v=20260911a"></script>
+<script src="js/data-tuong.js?v=20260911a"></script>
+<script src="js/data-trangbi.js?v=20260911a"></script>
+<script src="js/data-hlv.js?v=20260911a"></script>
+<script src="js/data-tuyenthu.js?v=20260911a"></script>
+<script src="js/data-giai.js?v=20260911a"></script>
+<script src="js/data-sukien.js?v=20260911a"></script>
+<script src="js/save.js?v=20260911a"></script>
+<script src="js/day.js?v=20260911a"></script>
+<script src="js/ca.js?v=20260911a"></script>
+<script src="js/ui-ca.js?v=20260911a"></script>
+<script src="js/ui-clb.js?v=20260911a"></script>
+<script src="js/data-thoai.js?v=20260911a"></script>
+<script src="js/sim.js?v=20260911a"></script>
+<script src="js/mua.js?v=20260911a"></script>
+<script src="js/giai.js?v=20260911a"></script>
+<script src="js/ui-bxh.js?v=20260911a"></script>
+<script src="js/ui-draft.js?v=20260911a"></script>
+<script src="js/ui-tran.js?v=20260911a"></script>
+<script src="js/main.js?v=20260911a"></script>
 </body>
 </html>

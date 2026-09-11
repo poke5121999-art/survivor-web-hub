@@ -132,7 +132,7 @@
     if (vodich) G.phaoHoa(90);
 
     return G.hop({ dau: 'Kết mùa', node: n, nut: [{ chu: 'Về CLB', chinh: true }] })
-      .then(function () { G.moManCLB('ca'); });
+      .then(function () { G.moManCLB('nha'); });
   };
 
   /** mở nhanh một màn theo hash — dùng khi dựng game và khi chụp ảnh kiểm giao diện */
@@ -146,7 +146,11 @@
       G.moManCa(ca);
       return;
     }
-    if (['gacha', 'hlv', 'tt', 'cuu', 'ky', 'bxh'].indexOf(h) >= 0) return G.moManCLB(h);
+    /* hash cũ vẫn mở được: tt→nuoi, cuu→giapha, ky→sotay, bxh→giai (bảng xếp hạng
+       sống giờ nằm trong ca, ngoài này chỉ còn thể thức và danh sách đội) */
+    var DOI_HASH = { tt: 'nuoi', cuu: 'giapha', ky: 'sotay', bxh: 'giai' };
+    if (DOI_HASH[h]) return G.moManCLB(DOI_HASH[h]);
+    if (['nha', 'nuoi', 'giapha', 'giai', 'gacha', 'hlv', 'sotay'].indexOf(h) >= 0) return G.moManCLB(h);
 
     /* #tran và #draft: dựng một ca giả rồi nhảy thẳng vào khâu thi đấu, để soi giao diện */
     if (h === 'tran' || h === 'draft' || h === 'giai') {
@@ -176,7 +180,7 @@
         /* #tran:600 → chạy sẵn 600 tick rồi mới mở màn, để chụp được trận đang giữa chừng */
         var boQua = parseInt((location.hash.split(':')[1] || '0'), 10);
         for (var q = 0; q < boQua && !tr2.xong; q++) G.tickTran(tr2);
-        return G.moManTran(tr2, function () { G.moManCLB('ca'); });
+        return G.moManTran(tr2, function () { G.moManCLB('nha'); });
       }
       if (h === 'draft') return G.moDraft(ca2, taoDichMau(ca2), giai2, { ta: [], dich: [] }, 0, 0, 3);
       /* #tran: bỏ qua cấm chọn, vào thẳng trận */
@@ -215,7 +219,7 @@
       if (p >= 100) {
         clearInterval(id);
         setTimeout(function () {
-          G.moManCLB('ca');
+          G.moManCLB('nha');
           /* #ca / #gacha / #tt … : mở thẳng một màn để soi giao diện lúc dựng game.
              Chỉ chạy khi có dấu # trên URL, người chơi bình thường không chạm tới. */
           var h = (location.hash || '').replace('#', '').split(':')[0];

@@ -489,6 +489,9 @@
     if (S.cuu.length > 24) S.cuu.pop();
     S.clb.mua++;
     S.ca = null;
+    /* Khép mùa lại cùng lúc với ca. Một run một mùa: hết run là bảng xếp hạng ấy đóng,
+       run sau bốc lại lịch mới chứ không đá tiếp bảng cũ. */
+    if (G.dongMua) G.dongMua();
     G.luu();
     return hs;
   };

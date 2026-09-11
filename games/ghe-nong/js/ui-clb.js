@@ -6,28 +6,76 @@
    trắng bo tròn có bóng đổ dày, nút là viên thuốc có gờ dưới, và mọi chỗ đều có mặt
    nhân vật. Ở đây làm đúng thế: thanh trên sáng · nội dung · cột phải là thẻ hành động
    · thanh nút ở đáy. Cùng bảng màu với màn huấn luyện, không thêm màu mới. */
+/* ui-clb.js — MÀN NGOÀI RUN, dựng theo màn Home của Uma Musume.
+   (đọc từ esport-ref/uma/sheets_career/sheet001.jpg và sheets_guide/sheet001–003.jpg)
+
+   ┌─ VÌ SAO PHẢI DỰNG LẠI ────────────────────────────────────────────────────┐
+   │ Bản trước gộp mọi thứ thành TÁM nút ngang bằng nhau ở đáy, trong đó "Ca   │
+   │ huấn luyện" chỉ là một tab như mọi tab khác, và bảng xếp hạng của mùa —   │
+   │ thứ chỉ tồn tại bên trong MỘT run — lại nằm ngoài run. Mở game lên chưa   │
+   │ vào ca nào đã thấy "Hạng 11/12 · 0 trận": một mùa giải không tồn tại.     │
+   │ Uma không làm thế. Ở Uma, một RUN (Career) là một chế độ RIÊNG BIỆT.      │
+   └───────────────────────────────────────────────────────────────────────────┘
+
+   Uma Home có đúng chừng này nút, không hơn:
+     • THANH DƯỚI — 5 nút: Enhance · Story · Home · Race · Scout (Home ở giữa, to
+       hơn, tô xanh).
+     • BA NÚT TRÒN nổi phía trên: Club · Concert Theater · Shop.
+     • MỘT NÚT LỚN "CAREER" đứng riêng — cửa duy nhất vào một run.
+
+   Ánh xạ sang Ghế Nóng, theo CHỨC NĂNG chứ không theo tên:
+     Enhance → Nuôi thẻ   Story → Gia phả   Home → Nhà
+     Race    → Giải đấu   Scout → Tuyển mộ
+     Club    → Huấn luyện viên   Concert Theater → Sổ tay   Shop → Cài đặt
+     CAREER  → VÀO CA
+
+   Và luồng vào run cũng đúng bốn bước của Uma (Scenario → Trainee → Legacy →
+   Support Formation → Start Career!), mỗi bước có [Quay lại], thanh 5 nút vẫn
+   nằm đó, panel bên phải đổi nội dung theo bước. */
 (function (G) {
   'use strict';
 
-  var trang = 'ca';
+  var trang = 'nha';
+  var buoc = -1;                       /* -1 = không ở trong luồng vào ca */
   var chon = { hlv: null, tt: [], cuu: [] };
 
-  var MENU = [
-    { id: 'ca', ten: ['Ca huấn', 'luyện'], ic: '🏟️' },
-    { id: 'bxh', ten: ['Bảng xếp', 'hạng'], ic: '🏆' },
-    { id: 'gacha', ten: ['Tuyển mộ'], ic: '🎁' },
-    { id: 'hlv', ten: ['Huấn luyện', 'viên'], ic: '📋' },
-    { id: 'tt', ten: ['Tuyển thủ'], ic: '👥' },
-    { id: 'cuu', ten: ['Gia phả'], ic: '🌳' },
-    { id: 'ky', ten: ['Sổ tay'], ic: '📘' },
-    { id: 'cai', ten: ['Cài đặt'], ic: '⚙️' }
+  /* thanh dưới — ĐÚNG NĂM nút, không thêm bớt */
+  var NAV = [
+    { id: 'nuoi', ten: ['Nuôi thẻ'], ic: '🃏' },
+    { id: 'giapha', ten: ['Gia phả'], ic: '🌳' },
+    { id: 'nha', ten: ['Nhà'], ic: '🏠', giua: true },
+    { id: 'giai', ten: ['Giải đấu'], ic: '🏆' },
+    { id: 'gacha', ten: ['Tuyển mộ'], ic: '🎁' }
+  ];
+
+  /* ba nút tròn nhỏ nổi phía trên thanh dưới */
+  var TRON = [
+    { id: 'hlv', ten: 'Huấn luyện viên', ic: '📋' },
+    { id: 'sotay', ten: 'Sổ tay', ic: '📘' },
+    { id: 'cai', ten: 'Cài đặt', ic: '⚙️' }
+  ];
+
+  /* bốn bước vào một run, đúng thứ tự của Uma */
+  var BUOC = [
+    { id: 'the', ten: 'Chọn thể thức', nut: 'Tiếp' },
+    { id: 'hlv', ten: 'Chọn huấn luyện viên', nut: 'Tiếp' },
+    { id: 'cuu', ten: 'Chọn cựu huấn luyện viên', nut: 'Xác nhận' },
+    { id: 'doi', ten: 'Đội hình tuyển thủ', nut: 'BẮT ĐẦU CA!' }
   ];
 
   G.moManCLB = function (t) {
-    if (t) trang = t;
+    if (t) { trang = t; buoc = -1; }
     G.hienMan('man-clb');
-    veTren(); veMenu(); veGiua(); vePhai();
+    veTat();
   };
+
+  function veTat() { veTren(); veMenu(); veTron(); veCareer(); veGiua(); vePhai(); }
+
+  function doiTrang(t) {
+    trang = t; buoc = -1;
+    G.tieng('cham');
+    veTat();
+  }
 
   function veTren() {
     var S = G.S;
@@ -36,200 +84,507 @@
     G.$('#vi-xu').textContent = G.so(S.clb.xu);
     G.$('#vi-ve').textContent = S.clb.ve + '/' + S.clb.veToiDa;
     G.$('#vi-fan').textContent = G.tien(S.clb.fan);
+    /* Huy hiệu hạng ở góc trái, y như "LEAP RANK E1 / 9440" của Uma — danh vọng là
+       thứ tích luỹ QUA CÁC RUN, nên nó thuộc về màn ngoài chứ không thuộc về run. */
+    var h = G.$('#clb-hang');
+    var dv = S.clb.danhVong || 0;
+    h.querySelector('b').textContent = hangCLB(dv);
+    h.querySelector('i').textContent = G.so(dv);
   }
 
+  function hangCLB(dv) {
+    var N = [[60000, 'S'], [30000, 'A'], [14000, 'B'], [6000, 'C'], [2500, 'D'], [800, 'E'], [0, 'F']];
+    for (var i = 0; i < N.length; i++) if (dv >= N[i][0]) return N[i][1];
+    return 'F';
+  }
+
+  /* ── thanh dưới: năm nút ── */
   function veMenu() {
     var m = G.xoa(G.$('#clb-menu'));
-    MENU.forEach(function (x) {
-      var b = G.el('button' + (trang === x.id ? '.chon' : ''));
+    NAV.forEach(function (x) {
+      var b = G.el('button' + (trang === x.id && buoc < 0 ? '.chon' : '') + (x.giua ? '.giua' : ''));
       b.appendChild(G.el('i', { text: x.ic }));
       x.ten.forEach(function (d) { b.appendChild(G.el('span', { text: d })); });
-      /* chấm đỏ trên nút Bảng xếp hạng khi có tin chưa đọc — Uma đánh dấu mục có việc
-         cần xem bằng chấm đỏ ở góc nút, không bắt người chơi tự đi soi từng mục */
-      if (x.id === 'bxh' && G.soTinMoi) {
-        var so = G.soTinMoi();
-        if (so) b.appendChild(G.el('em', { text: String(so) }));
-      }
-      b.addEventListener('click', function () {
-        G.tieng('cham');
-        if (x.id === 'cai') return moCaiDat();
-        trang = x.id; veMenu(); veGiua(); vePhai();
-      });
+      b.addEventListener('click', function () { doiTrang(x.id); });
       m.appendChild(b);
     });
   }
 
-  /** một thẻ trắng có dải tiêu đề xanh, kiểu panel của Uma */
-  function hop(dau) {
-    var h = G.el('div.uc-hop');
-    h.appendChild(G.el('div.uc-hop-dau', { text: dau }));
-    var t = G.el('div.uc-hop-than');
-    h.appendChild(t);
-    h._than = t;
-    return h;
+  /* ── ba nút tròn ── */
+  function veTron() {
+    var e = G.xoa(G.$('#clb-tron'));
+    /* Trong luồng vào ca thì ba nút tròn biến mất — Uma cũng thế: luồng Career chiếm
+       lấy khu vực ấy, chỉ còn [Quay lại] và nút đi tiếp. */
+    if (buoc >= 0) return;
+    TRON.forEach(function (x) {
+      var b = G.el('button.uc-tron-nut' + (trang === x.id && buoc < 0 ? '.chon' : ''));
+      b.appendChild(G.el('i', { text: x.ic }));
+      b.appendChild(G.el('span', { text: x.ten }));
+      b.addEventListener('click', function () {
+        if (x.id === 'cai') { G.tieng('cham'); return moCaiDat(); }
+        doiTrang(x.id);
+      });
+      e.appendChild(b);
+    });
   }
 
+  /* ── nút lớn VÀO CA ──
+     Uma để CAREER đứng riêng, to, có viền vàng nhấp nháy. Đó là cách nói "đây là
+     việc chính, mấy nút kia là việc phụ" mà không cần một dòng chữ nào. */
+  function veCareer() {
+    var e = G.xoa(G.$('#clb-career'));
+    /* Đang trong luồng thì chỗ này là CHÂN BƯỚC, không phải nút CAREER. */
+    if (buoc >= 0) return veChanBuoc(e);
+    var dangCo = !!G.S.ca;
+    var b = G.el('button.uc-career-nut' + (dangCo ? '.tiep' : ''));
+    var mat = G.el('div.uc-career-mat');
+    if (dangCo) {
+      var a = G.oAnh && G.oAnh(G.S.ca.hlvId, 62);
+      if (a) mat.appendChild(a);
+    } else {
+      G.S.khoHLV.slice(0, 3).forEach(function (x, k) {
+        var a2 = G.oAnh && G.oAnh(x.id, 58 - k * 4);
+        if (a2) mat.appendChild(a2);
+      });
+    }
+    b.appendChild(mat);
+    var chu = G.el('div.uc-career-chu');
+    chu.appendChild(G.el('b', { text: dangCo ? 'CHƠI TIẾP' : 'VÀO CA' }));
+    chu.appendChild(G.el('em', { text: dangCo
+      ? 'Lượt ' + G.S.ca.luot + '/' + G.S.ca.soLuot
+      : 'một mùa 24 lượt' }));
+    b.appendChild(chu);
+    b.addEventListener('click', function () {
+      G.tieng('chon');
+      if (dangCo) return G.moManCa(hoiSinhCa(G.S.ca));
+      /* Uma mở Trainee Select là đã có sẵn một người được chọn, không để trống —
+         người chơi thấy ngay cái thẻ lớn trông thế nào rồi mới đổi. */
+      chon = { hlv: (G.S.khoHLV[0] || {}).id || null, tt: [], cuu: [] };
+      buoc = 0; veTat();
+    });
+    e.appendChild(b);
+  }
+
+  /* ── panel bên phải ── */
   function vePhai() {
     var p = G.xoa(G.$('#clb-phai'));
+    var dau = 'CLB';
+    var than = null;
+
+    if (buoc >= 0) {
+      /* Trong luồng vào ca: hai bước cuối cho xem SPARK sẽ thừa hưởng, đúng chỗ
+         Uma đặt panel Sparks. Hai bước đầu thì nói rõ bước này đang chọn gì. */
+      dau = BUOC[buoc].ten.toUpperCase();
+      than = G.el('div');
+      if (BUOC[buoc].id === 'cuu' || BUOC[buoc].id === 'doi') veSpark(than);
+      else than.appendChild(G.el('div.uc-phu', { text: moTaBuoc(BUOC[buoc].id) }));
+    } else if (trang === 'nha') {
+      dau = 'CÂU LẠC BỘ';
+      than = veNhaPhai();
+    } else {
+      dau = 'HƯỚNG DẪN';
+      than = G.el('div');
+      than.appendChild(G.el('div.uc-phu', { text: moTaTrang(trang) }));
+    }
+
+    var h = G.el('div.uc-panel-trong');
+    h.appendChild(G.el('div.uc-panel-dau', { text: dau }));
+    var t = G.el('div.uc-panel-than');
+    if (than) t.appendChild(than);
+    h.appendChild(t);
+    p.appendChild(h);
+  }
+
+  function moTaBuoc(id) {
+    return {
+      the: 'Một mùa có 24 lượt: cứ 5 ngày tập thì 1 giải, lặp bốn lần; tới chung kết ' +
+        'thế giới thì một ngày tập một trận. Hết mùa là hết ca — chỉ số nuôi được KHÔNG ' +
+        'mang sang ca sau, chỉ có hồ sơ cựu huấn luyện viên ở lại.',
+      hlv: 'Huấn luyện viên là người được nuôi trong ca này. Năng khiếu của họ quyết định ' +
+        'đội hợp thể trận nào và hợp sân nào — chọn sai là cả mùa chạy ngược gió.'
+    }[id] || '';
+  }
+
+  function moTaTrang(t) {
+    return {
+      nuoi: 'Thẻ tuyển thủ lên cấp bằng xu và bằng kinh nghiệm chạy hết một mùa. ' +
+        'Thẻ cấp 1 chỉ chạy ở 40% sức, nên nuôi thẻ là thứ mang sang được ca sau.',
+      giapha: 'Mỗi ca chạy xong để lại một hồ sơ. Chọn 2 hồ sơ làm cựu huấn luyện viên ' +
+        'thì ca sau được thừa hưởng spark của họ.',
+      giai: 'Thể thức mùa giải, và 24 đội máy mà mình sẽ gặp. Bảng xếp hạng SỐNG chỉ ' +
+        'có bên trong một ca đang chạy — vì mỗi ca là một mùa riêng.',
+      gacha: 'Tỉ lệ lấy đúng của Uma Musume: bậc cao nhất 3%, giữa 18%, thấp 79%. ' +
+        'Quay 10 chắc chắn có ít nhất một cái bậc 2 trở lên.',
+      hlv: 'Kho huấn luyện viên. Đây là thứ được nuôi trong ca — quay trúng trùng thì ' +
+        'được uncap, mở thêm trần.',
+      sotay: 'Luật chơi, viết ngắn.'
+    }[t] || '';
+  }
+
+  function veNhaPhai() {
+    var n = G.el('div');
     var S = G.S;
-
-    /* trang bảng xếp hạng chiếm luôn cột phải để làm khung đọc tin, y như TFM2 */
-    if (trang === 'bxh' && G.veBXHPhai) { G.veBXHPhai(p); return; }
-
     if (S.ca) {
-      var g = G.HLV_THEO_ID[S.ca.hlvId];
-      var h1 = hop('CA ĐANG CHẠY'), t1 = h1._than;
-      var dau = G.el('div', { style: 'display:flex;align-items:center;gap:10px' });
-      var a1 = G.oAnh && G.oAnh(g.id, 52);
-      if (a1) {
-        a1.style.borderRadius = '13px'; a1.style.flex = 'none';
-        a1.style.border = '2px solid #e6e2ef';
-        dau.appendChild(a1);
-      }
-      var ph1 = G.el('div', { style: 'min-width:0' });
-      ph1.appendChild(G.el('div', { text: g.ten, style: 'font-size:15px;font-weight:900;color:#4a3f48' }));
-      ph1.appendChild(G.el('div.uc-phu', { text: 'Lượt ' + S.ca.luot + '/' + S.ca.soLuot }));
-      dau.appendChild(ph1);
-      t1.appendChild(dau);
-      var th = G.el('div.uc-thanh', { style: 'margin:9px 0 12px' });
-      th.appendChild(G.el('i', { style: 'width:' + (S.ca.luot / S.ca.soLuot * 100) +
-        '%;background:linear-gradient(90deg,#a5e86a,#6ec409)' }));
-      t1.appendChild(th);
-      t1.appendChild(G.el('button.uc-nut', { text: '▶  Vào ca',
-        onclick: function () { G.tieng('chon'); G.moManCa(hoiSinhCa(S.ca)); } }));
-      t1.appendChild(G.el('button.uc-nut.phu', { text: 'Bỏ ca này', style: 'margin-top:8px',
+      n.appendChild(G.el('div.uc-phu', { text: 'Đang có một ca dở dang. Bấm VÀO CA để chơi tiếp, ' +
+        'hoặc bỏ ca để bắt đầu lại từ đầu.' }));
+      n.appendChild(G.el('button.uc-nut.phu', { text: 'Bỏ ca này', style: 'margin-top:10px',
         onclick: function () {
           G.hop({ sang: true, dau: 'Bỏ ca?', html: 'Mọi thứ đã nuôi trong ca sẽ mất, không để lại gì cả.',
             nut: [{ chu: 'Bỏ', do: true, gt: 1 }, { chu: 'Thôi', gt: 0, chinh: true }] })
-            .then(function (r) { if (r) { G.S.ca = null; G.luu(); G.moManCLB(); } });
+            .then(function (r) {
+              if (!r) return;
+              G.S.ca = null;
+              if (G.dongMua) G.dongMua();
+              G.luu(); G.moManCLB('nha');
+            });
         } }));
-      p.appendChild(h1);
-      p.appendChild(hopThuHang());
+      return n;
+    }
+    /* Chưa có ca: nói CLB đang có gì, và mùa gần nhất ra sao. */
+    [['Huấn luyện viên', S.khoHLV.length], ['Tuyển thủ', S.khoTT.length],
+     ['Hồ sơ gia phả', S.cuu.length], ['Mùa đã chạy', S.clb.mua - 1]].forEach(function (r) {
+      var d = G.el('div', { style: 'display:flex;justify-content:space-between;padding:4px 0' });
+      d.appendChild(G.el('span.uc-phu', { text: r[0] }));
+      d.appendChild(G.el('b', { text: String(r[1]), style: 'color:#4a3f48' }));
+      n.appendChild(d);
+    });
+    if (S.cuu.length) {
+      n.appendChild(G.el('div.uc-nhan', { text: 'MÙA GẦN NHẤT' }));
+      n.appendChild(theCuu(S.cuu[0], 0, false, function () {}));
+    }
+    return n;
+  }
+
+  /** panel Spark: hai cựu HLV đang chọn để lại những gì */
+  function veSpark(n) {
+    if (!chon.cuu.length) {
+      n.appendChild(G.el('div.uc-phu', { text: 'Chưa chọn cựu huấn luyện viên nào. ' +
+        'Mỗi người để lại spark: xanh cộng chỉ số, hồng nâng năng khiếu, lá truyền kỹ năng riêng.' }));
       return;
     }
-
-    var h2 = hop('BẮT ĐẦU MÙA MỚI'), t2 = h2._than;
-    t2.appendChild(G.el('div.uc-phu', { text: 'Chọn 1 huấn luyện viên, 5 tuyển thủ đủ 5 vị trí, ' +
-      'và 2 cựu huấn luyện viên để kế thừa.', style: 'margin-bottom:10px' }));
-
-    /* Ba dòng kiểm, mỗi dòng có dấu ✓ — Uma luôn cho biết còn thiếu gì ngay cạnh nút,
-       không để nút xám trơ mà không nói vì sao bấm không được. */
-    var d = chon.tt.length ? G.duDoiHinh(chon.tt) : { du: false, thieu: [], thua: [] };
-    dongKiem(t2, 'Huấn luyện viên', chon.hlv ? G.HLV_THEO_ID[chon.hlv].ten : 'chưa chọn', !!chon.hlv);
-    dongKiem(t2, 'Tuyển thủ', chon.tt.length + '/5', chon.tt.length === 5 && d.du);
-    dongKiem(t2, 'Cựu HLV', chon.cuu.length + '/2', true);
-    if (chon.tt.length && !d.du) {
-      t2.appendChild(G.el('div', { text: 'Thiếu: ' + d.thieu.map(function (v) {
-        return G.VITRI_THEO_ID[v].ten; }).join(', '),
-        style: 'font-size:11.5px;font-weight:800;color:#d9455c;margin-top:5px' }));
-    }
-    if (chon.tt.length && d.thua && d.thua.length) {
-      t2.appendChild(G.el('div', { text: 'Trùng vị trí: ' + d.thua.map(function (v) {
-        return G.VITRI_THEO_ID[v].ten; }).join(', '),
-        style: 'font-size:11.5px;font-weight:800;color:#c8891a;margin-top:3px' }));
-    }
-
-    var ok = chon.hlv && chon.tt.length === 5 && d.du;
-    var b = G.el('button.uc-nut' + (ok ? '' : '.tat'), { text: 'Bắt đầu ca', style: 'margin-top:11px' });
-    if (ok) b.addEventListener('click', batDauCa);
-    t2.appendChild(b);
-    p.appendChild(h2);
-    p.appendChild(hopThuHang());
+    chon.cuu.forEach(function (i, k) {
+      var hs = G.S.cuu[i]; if (!hs) return;
+      n.appendChild(G.el('div.uc-nhan', { text: (k === 0 ? 'CỰU HLV 1' : 'CỰU HLV 2') + ' · ' + hs.ten }));
+      (hs.sparks || []).forEach(function (x) {
+        var d = G.el('div.uc-spark.s-' + (x.mau || 'trang'));
+        d.appendChild(G.el('b', { text: tenSpark(x).replace(/★+$/, '').trim() }));
+        d.appendChild(G.el('em', { text: '★'.repeat(x.sao) }));
+        n.appendChild(d);
+      });
+    });
   }
 
-  function dongKiem(v, nhan, gt, ok) {
-    var r = G.el('div', { style: 'display:flex;align-items:center;gap:6px;padding:3px 0' });
-    r.appendChild(G.el('span', { text: ok ? '✓' : '·', style: 'width:14px;flex:none;font-weight:900;' +
-      'color:' + (ok ? '#3d9c63' : '#b8b0c2') }));
-    r.appendChild(G.el('span', { text: nhan, style: 'font-size:11.5px;color:#8a7f8f;flex:1' }));
-    r.appendChild(G.el('b', { text: gt, style: 'font-size:12px;color:#4a3f48' }));
-    v.appendChild(r);
-  }
-
-  /** thẻ nhỏ: mình đang đứng hạng mấy — có ở mọi trang để nhắc giải đang chạy */
-  function hopThuHang() {
-    var h = hop('VỊ THẾ CỦA TA'), t = h._than;
-    if (!G.hangTa) { t.appendChild(G.el('div.uc-phu', { text: 'Chưa có mùa nào chạy.' })); return h; }
-    var x = G.hangTa();
-    var r = G.el('div', { style: 'display:flex;align-items:baseline;gap:8px' });
-    r.appendChild(G.el('b', { text: '#' + x.hang, style: 'font-size:27px;font-weight:900;color:#3f6ab8' }));
-    r.appendChild(G.el('span.uc-phu', { text: 'trên ' + x.tong + ' đội quốc nội' }));
-    t.appendChild(r);
-    t.appendChild(G.el('div.uc-phu', { text: (x.h.thang || 0) + ' thắng · ' + (x.h.thua || 0) + ' thua',
-      style: 'margin-top:3px' }));
-    t.appendChild(G.el('button.uc-nut-nho', { text: 'Xem bảng xếp hạng', style: 'margin-top:9px',
-      onclick: function () { trang = 'bxh'; veMenu(); veGiua(); vePhai(); } }));
-    return h;
-  }
-
-
-  /* ══════════ trang giữa ══════════ */
+  /* ══════════ khung giữa ══════════ */
   function veGiua() {
     var g = G.xoa(G.$('#clb-giua'));
-    if (trang === 'bxh') return G.veBXH(g, function () { veGiua(); vePhai(); });
-    if (trang === 'ca') return veChonCa(g);
+    if (buoc >= 0) return veBuoc(g);
+    if (trang === 'nha') return veNha(g);
+    if (trang === 'nuoi') return veKhoTT(g);
+    if (trang === 'giapha') return veGiaPha(g);
+    if (trang === 'giai') return veGiaiDau(g);
     if (trang === 'gacha') return veGacha(g);
     if (trang === 'hlv') return veKhoHLV(g);
-    if (trang === 'tt') return veKhoTT(g);
-    if (trang === 'cuu') return veGiaPha(g);
-    if (trang === 'ky') return veSoTay(g);
+    if (trang === 'sotay') return veSoTay(g);
+  }
+
+  /* ── trang NHÀ: đội hình gần nhất đứng giữa sân, không có bảng biểu gì ──
+     Uma Home là nhân vật đứng giữa màn, không phải một bảng dữ liệu. */
+  function veNha(g) {
+    var S = G.S;
+    var k = G.el('div.uc-nha');
+    var hlvId = (S.ca && S.ca.hlvId) || (S.khoHLV[0] && S.khoHLV[0].id);
+    if (hlvId) {
+      var o = G.el('div.uc-nha-hlv');
+      var a = G.oAnh && G.oAnh(hlvId, 168);
+      if (a) o.appendChild(a);
+      o.appendChild(G.el('div.uc-nha-ten', { text: (G.HLV_THEO_ID[hlvId] || {}).biet || '' }));
+      k.appendChild(o);
+    }
+    var hang = G.el('div.uc-nha-hang');
+    var ds = (S.ca && S.ca.tt) || S.khoTT.slice(0, 5).map(function (x) { return x.id; });
+    ds.forEach(function (id) {
+      var goc = G.TUYENTHU_THEO_ID[id]; if (!goc) return;
+      var o2 = G.el('div.uc-nha-tt');
+      var a2 = G.oAnh && G.oAnh(id, 86);
+      if (a2) o2.appendChild(a2);
+      o2.appendChild(G.el('div.uc-nha-ten', { text: goc.biet }));
+      hang.appendChild(o2);
+    });
+    k.appendChild(hang);
+    g.appendChild(k);
+  }
+
+  /* ── trang GIẢI ĐẤU: thể thức mùa + 24 đội, KHÔNG có bảng xếp hạng sống ── */
+  function veGiaiDau(g) {
+    tieu(g, 'Giải đấu', 'Một mùa có 8 giải. Bảng xếp hạng sống nằm trong ca đang chạy — ' +
+      'mỗi ca là một mùa riêng, hết ca là bảng ấy khép lại.');
+
+    nhanNho(g, 'THỂ THỨC MỘT MÙA');
+    var l = G.el('div.uc-luoi', { style: luoi(226) });
+    G.LICH.forEach(function (x, i) {
+      if (!x.giai) return;
+      var gi = x.giai;
+      var d = G.el('div.uc-the');
+      d.appendChild(G.el('div.uc-phu', { text: 'Lượt ' + (i + 1) }));
+      d.appendChild(G.el('b', { text: gi.ten, style: 'font-size:13.5px' }));
+      var ch = G.el('div.uc-chips');
+      ch.appendChild(G.el('span.uc-chip', { text: gi.the }));
+      ch.appendChild(G.el('span.uc-chip', { text: gi.sanDau === 'lan' ? 'sân LAN' : 'thi đấu mạng' }));
+      ch.appendChild(G.el('span.uc-chip', { text: G.TEN_NHIP[gi.nhip] }));
+      d.appendChild(ch);
+      d.appendChild(G.el('div.uc-phu', { text: 'Thưởng ' + G.so(gi.thuong.xu) + ' xu · ' +
+        G.tien(gi.thuong.fan) + ' fan', style: 'margin-top:5px' }));
+      l.appendChild(d);
+    });
+    g.appendChild(l);
+
+    nhanNho(g, '24 ĐỘI MÁY');
+    var l2 = G.el('div.uc-luoi', { style: luoi(168) });
+    G.DOI_AI.forEach(function (d) {
+      var o = G.el('div.uc-the.bam');
+      var h = G.el('div', { style: 'display:flex;align-items:center;gap:6px' });
+      h.appendChild(G.el('i', { style: 'width:9px;height:9px;border-radius:3px;flex:none;background:' + d.mau }));
+      h.appendChild(G.el('b', { text: d.ten, style: 'font-size:13px;flex:1' }));
+      h.appendChild(G.el('span.uc-chip', { text: d.khu === 'vn' ? 'nội' : 'quốc tế' }));
+      o.appendChild(h);
+      o.appendChild(G.el('div.uc-phu', { text: 'sao: ' + d.sao + ' · lối ' +
+        (G.TEN_THE[d.the] || d.the), style: 'margin-top:3px' }));
+      o.addEventListener('click', function () { G.tieng('cham'); hopDoiNgoai(d); });
+      l2.appendChild(o);
+    });
+    g.appendChild(l2);
+  }
+
+  function hopDoiNgoai(d) {
+    var n = G.el('div');
+    n.appendChild(G.el('div.bx-than', { text: d.tieu }));
+    n.appendChild(G.el('div.uc-nhan', { text: 'TƯỚNG HAY LẤY' }));
+    var t = G.el('div.uc-chips');
+    d.tuong.forEach(function (id) {
+      var tu = G.TUONG_THEO_ID[id]; if (!tu) return;
+      var o = G.el('span.uc-chip', { style: 'padding-left:2px' });
+      var a = G.oAnhTuong && G.oAnhTuong(id, 18);
+      if (a) { a.style.borderRadius = '50%'; o.appendChild(a); }
+      o.appendChild(G.el('b', { text: tu.ten, style: 'font-weight:800' }));
+      t.appendChild(o);
+    });
+    n.appendChild(t);
+    G.hop({ sang: true, dau: d.ten, node: n });
+  }
+
+  /* ══════════ luồng vào ca: bốn bước ══════════ */
+  function veBuoc(g) {
+    var b = BUOC[buoc];
+    g.appendChild(G.el('div.uc-buoc-dau', {}, [
+      G.el('span', { text: 'BƯỚC ' + (buoc + 1) + '/4' }),
+      G.el('b', { text: b.ten })
+    ]));
+
+    if (b.id === 'the') veBuocThe(g);
+    if (b.id === 'hlv') veBuocHLV(g);
+    if (b.id === 'cuu') veBuocCuu(g);
+    if (b.id === 'doi') veBuocDoi(g);
+
+  }
+
+  /* chân bước: [Quay lại] [Tiếp / Xác nhận / BẮT ĐẦU CA!] — đứng đúng chỗ nút CAREER */
+  function veChanBuoc(e) {
+    var b = BUOC[buoc];
+    var chan = G.el('div.uc-buoc-chan');
+    chan.appendChild(G.el('button.uc-nut-nho', { text: '‹ Quay lại', onclick: function () {
+      G.tieng('cham');
+      if (buoc === 0) { buoc = -1; } else { buoc--; }
+      veTat();
+    } }));
+    chan.appendChild(G.el('div.uc-buoc-nhac', { text: nhacBuoc(b.id) }));
+    var ok = buocXong(b.id);
+    var np = G.el('button.uc-nut' + (b.id === 'doi' ? '.cam' : '') + (ok ? '' : '.tat'),
+      { text: b.nut, style: 'width:auto;min-width:200px' });
+    if (ok) np.addEventListener('click', function () {
+      G.tieng('chon');
+      if (buoc < 3) { buoc++; veTat(); return; }
+      batDauCa();
+    });
+    chan.appendChild(np);
+    e.appendChild(chan);
+  }
+
+  function buocXong(id) {
+    if (id === 'the') return true;
+    if (id === 'hlv') return !!chon.hlv;
+    if (id === 'cuu') return true;                       /* chọn 0 cựu HLV vẫn chạy được */
+    return chon.tt.length === 5 && G.duDoiHinh(chon.tt).du;
+  }
+
+  function nhacBuoc(id) {
+    if (id === 'hlv' && !chon.hlv) return 'Chọn một huấn luyện viên để đi tiếp.';
+    if (id === 'cuu') return 'Chọn tối đa 2 — bỏ trống cũng chạy được, chỉ là không có spark.';
+    if (id === 'doi') {
+      if (chon.tt.length !== 5) return 'Đang chọn ' + chon.tt.length + '/5 tuyển thủ.';
+      var d = G.duDoiHinh(chon.tt);
+      if (!d.du) return 'Thiếu: ' + d.thieu.map(function (v) { return G.VITRI_THEO_ID[v].ten; }).join(', ');
+      return 'Đủ năm vị trí. Bấm để vào ca.';
+    }
+    return '';
+  }
+
+  function veBuocThe(g) {
+    var k = G.el('div.uc-the', { style: 'max-width:620px' });
+    k.appendChild(G.el('b', { text: 'Mùa giải quốc nội → Chung kết thế giới', style: 'font-size:16px' }));
+    k.appendChild(G.el('div.uc-phu', { text: '24 lượt · 8 giải · một huấn luyện viên · năm tuyển thủ',
+      style: 'margin:4px 0 9px' }));
+    var ds = [
+      ['5 ngày tập rồi 1 giải', 'lặp bốn lần, tới chung kết thế giới thì một ngày tập một trận'],
+      ['Thua là hết mùa', 'từ vòng play-off trở đi, thua một giải là ca dừng ở đó'],
+      ['Chỉ số không mang sang', 'hết ca là chỉ số về 0; chỉ hồ sơ cựu HLV và cấp thẻ ở lại'],
+      ['Bảng xếp hạng sống trong ca', '24 đội máy đá song song, một vòng mỗi ba lượt']
+    ];
+    ds.forEach(function (x) {
+      var d = G.el('div', { style: 'display:flex;gap:8px;padding:5px 0;border-top:1px solid #eee9f6' });
+      d.appendChild(G.el('b', { text: x[0], style: 'flex:none;width:210px;font-size:12.5px' }));
+      d.appendChild(G.el('span.uc-phu', { text: x[1] }));
+      k.appendChild(d);
+    });
+    g.appendChild(k);
+  }
+
+  function veBuocHLV(g) {
+    /* Uma: người đang chọn hiện TO ở trên (chỉ số + năng khiếu), lưới bên dưới. */
+    if (chon.hlv) g.appendChild(theHLVTo(G.HLV_THEO_ID[chon.hlv], G.coHLV(chon.hlv)));
+    var h = G.el('div.uc-luoi', { style: luoi(158) });
+    G.S.khoHLV.forEach(function (b) {
+      var goc = G.HLV_THEO_ID[b.id];
+      h.appendChild(theHLV(goc, b, chon.hlv === b.id, function () {
+        chon.hlv = b.id; veTat();
+      }));
+    });
+    g.appendChild(h);
+  }
+
+  function theHLVTo(goc, b) {
+    var k = G.el('div.uc-to');
+    var a = G.oAnh && G.oAnh(goc.id, 104);
+    if (a) { a.className = 'uc-to-anh'; k.appendChild(a); }
+    var ph = G.el('div.uc-to-chu');
+    ph.appendChild(G.el('div.uc-sao', { text: '★'.repeat(goc.sao) + ((b && b.uncap) ? '  ✦' + b.uncap : '') }));
+    ph.appendChild(G.el('b', { text: goc.ten, style: 'font-size:17px' }));
+    ph.appendChild(G.el('div.uc-phu', { text: '"' + goc.biet + '" — ' + goc.tieu }));
+    var kn = G.KN_RIENG[goc.kn];
+    ph.appendChild(G.el('div', { html: '<b style="color:#3d9c63">' + kn.ten + '</b> — ' + kn.mota,
+      style: 'font-size:11.5px;line-height:1.55;color:#6b5c68;margin-top:5px' }));
+    ph.appendChild(bangNK(goc.nk));
+    k.appendChild(ph);
+    return k;
+  }
+
+  function veBuocCuu(g) {
+    if (!G.S.cuu.length) {
+      g.appendChild(G.el('div.uc-the', { style: 'max-width:620px' }, [
+        G.el('b', { text: 'Chưa có hồ sơ nào' }),
+        G.el('div.uc-phu', { text: 'Chạy hết một mùa thì hồ sơ huấn luyện viên ấy vào gia phả, ' +
+          'và ca sau được chọn tối đa 2 hồ sơ để thừa hưởng spark.' })
+      ]));
+      return;
+    }
+    /* hai ô trống ở trên, y như "1st Legacy / 2nd Legacy" của Uma */
+    var o = G.el('div.uc-legacy');
+    for (var k = 0; k < 2; k++) (function (k) {
+      var i = chon.cuu[k];
+      var d = G.el('div.uc-legacy-o' + (i == null ? '.trong' : ''));
+      if (i == null) d.appendChild(G.el('span', { text: 'Cựu HLV ' + (k + 1) }));
+      else {
+        var hs = G.S.cuu[i];
+        d.appendChild(G.el('b', { text: hs.ten }));
+        d.appendChild(G.el('span', { text: 'Mùa ' + hs.mua + ' · thắng ' + hs.thang + ' giải' }));
+        d.appendChild(G.el('button.uc-nut-nho', { text: 'Bỏ ra', onclick: function () {
+          chon.cuu.splice(k, 1); veTat();
+        } }));
+      }
+      o.appendChild(d);
+    })(k);
+    g.appendChild(o);
+
+    var c = G.el('div.uc-luoi', { style: luoi(172) });
+    G.S.cuu.slice(0, 18).forEach(function (hs, i) {
+      c.appendChild(theCuu(hs, i, chon.cuu.indexOf(i) >= 0, function () {
+        var k2 = chon.cuu.indexOf(i);
+        if (k2 >= 0) chon.cuu.splice(k2, 1);
+        else if (chon.cuu.length < 2) chon.cuu.push(i);
+        veTat();
+      }));
+    });
+    g.appendChild(c);
+  }
+
+  function veBuocDoi(g) {
+    /* Uma "Support Formation": lưới ô đội hình ở trên, kho ở dưới, có [Tự chọn]. */
+    var VT = ['tren', 'rung', 'giua', 'duoi', 'ho'];
+    var theoVT = {};
+    chon.tt.forEach(function (id) {
+      var goc = G.TUYENTHU_THEO_ID[id]; if (goc) theoVT[goc.vt] = id;
+    });
+
+    var o = G.el('div.uc-oform');
+    VT.forEach(function (vt) {
+      var id = theoVT[vt];
+      var d = G.el('div.uc-oform-o' + (id ? '' : '.trong'));
+      d.appendChild(G.el('div.uc-oform-vt', { text: G.VITRI_THEO_ID[vt].ten }));
+      if (id) {
+        var goc = G.TUYENTHU_THEO_ID[id], b = G.coTT(id) || {};
+        var a = G.oAnh && G.oAnh(id, 62);
+        if (a) d.appendChild(a);
+        d.appendChild(G.el('b', { text: goc.biet }));
+        d.appendChild(G.el('em', { text: goc.bac + ' · cấp ' + (b.cap || 1) }));
+        d.addEventListener('click', function () {
+          chon.tt.splice(chon.tt.indexOf(id), 1); veTat();
+        });
+      } else {
+        d.appendChild(G.el('span', { text: '+' }));
+      }
+      o.appendChild(d);
+    });
+    g.appendChild(o);
+
+    var hang = G.el('div.uc-buoc-hanh');
+    hang.appendChild(G.el('button.uc-nut-nho', { text: 'Xoá hết', onclick: function () {
+      chon.tt = []; veTat();
+    } }));
+    hang.appendChild(G.el('button.uc-nut-nho', { text: 'Tự chọn', onclick: function () {
+      chon.tt = [];
+      VT.forEach(function (vt) {
+        var ds = G.S.khoTT.filter(function (x) {
+          return (G.TUYENTHU_THEO_ID[x.id] || {}).vt === vt;
+        }).sort(function (a, b) { return (b.cap || 1) - (a.cap || 1); });
+        if (ds[0]) chon.tt.push(ds[0].id);
+      });
+      veTat();
+    } }));
+    g.appendChild(hang);
+
+    var t = G.el('div.uc-luoi', { style: luoi(146) });
+    VT.forEach(function (vt) {
+      G.S.khoTT.forEach(function (b) {
+        var goc = G.TUYENTHU_THEO_ID[b.id];
+        if (!goc || goc.vt !== vt) return;
+        t.appendChild(theTT(goc, b, chon.tt.indexOf(b.id) >= 0, function () {
+          var i = chon.tt.indexOf(b.id);
+          if (i >= 0) { chon.tt.splice(i, 1); veTat(); return; }
+          /* một vị trí chỉ một người: chọn người mới thì người cũ ra */
+          var cu = chon.tt.filter(function (x) {
+            return (G.TUYENTHU_THEO_ID[x] || {}).vt === goc.vt;
+          })[0];
+          if (cu) chon.tt.splice(chon.tt.indexOf(cu), 1);
+          if (chon.tt.length < 5) chon.tt.push(b.id);
+          veTat();
+        }));
+      });
+    });
+    g.appendChild(t);
   }
 
   function tieu(g, chu, phu) {
     g.appendChild(G.el('div.uc-tieu', { text: chu }));
     if (phu) g.appendChild(G.el('div.uc-mo', { text: phu }));
-  }
-
-  /* ── chọn đội cho ca ── */
-  function veChonCa(g) {
-    if (G.S.ca) {
-      tieu(g, 'Đang có một ca dở dang', 'Bấm "Vào ca" bên phải để chơi tiếp.');
-      return;
-    }
-    tieu(g, 'Chuẩn bị mùa giải', 'Vị trí của tuyển thủ là khoá cứng — phải đủ 5 vị trí mới ra sân được.');
-
-    nhanNho(g, 'HUẤN LUYỆN VIÊN');
-    var h = G.el('div.uc-luoi', { style: luoi(158) });
-    G.S.khoHLV.forEach(function (b) {
-      var goc = G.HLV_THEO_ID[b.id];
-      h.appendChild(theHLV(goc, b, chon.hlv === b.id, function () {
-        chon.hlv = (chon.hlv === b.id ? null : b.id); veGiua(); vePhai();
-      }));
-    });
-    g.appendChild(h);
-
-    nhanNho(g, 'TUYỂN THỦ  ·  chọn 5, đủ 5 vị trí');
-    var t = G.el('div.uc-luoi', { style: luoi(146) });
-    var theoVT = { tren: [], rung: [], giua: [], duoi: [], ho: [] };
-    G.S.khoTT.forEach(function (b) {
-      var goc = G.TUYENTHU_THEO_ID[b.id]; if (goc) theoVT[goc.vt].push(b);
-    });
-    ['tren', 'rung', 'giua', 'duoi', 'ho'].forEach(function (vt) {
-      theoVT[vt].forEach(function (b) {
-        var goc = G.TUYENTHU_THEO_ID[b.id];
-        t.appendChild(theTT(goc, b, chon.tt.indexOf(b.id) >= 0, function () {
-          var i = chon.tt.indexOf(b.id);
-          if (i >= 0) chon.tt.splice(i, 1);
-          else if (chon.tt.length < 5) chon.tt.push(b.id);
-          veGiua(); vePhai();
-        }));
-      });
-    });
-    g.appendChild(t);
-
-    if (G.S.cuu.length) {
-      nhanNho(g, 'CỰU HUẤN LUYỆN VIÊN  ·  chọn tối đa 2');
-      var c = G.el('div.uc-luoi', { style: luoi(172) });
-      G.S.cuu.slice(0, 12).forEach(function (hs, i) {
-        c.appendChild(theCuu(hs, i, chon.cuu.indexOf(i) >= 0, function () {
-          var k = chon.cuu.indexOf(i);
-          if (k >= 0) chon.cuu.splice(k, 1);
-          else if (chon.cuu.length < 2) chon.cuu.push(i);
-          veGiua(); vePhai();
-        }));
-      });
-      g.appendChild(c);
-    }
   }
 
   /* Nhãn nhóm và lưới thẻ đều dùng lớp trong css/ui.css (.uc-nhan / .uc-luoi) chứ không
@@ -321,6 +676,10 @@
   function batDauCa() {
     var cuu = chon.cuu.map(function (i) { return G.S.cuu[i]; });
     G.tieng('batdau');
+    /* MỘT RUN = MỘT MÙA. Bảng xếp hạng và bản tin dựng mới ở đây, và bị khép lại ở
+       G.ketCa — chứ không phải dựng lười lúc có ai đó hỏi tới. Không có dòng này thì
+       màn ngoài cũng gọi được G.mua() và bày ra một mùa chưa hề bắt đầu. */
+    if (G.moMua) G.S.mua = G.moMua(G.S.clb.mua);
     var ca = G.moCa(chon.hlv, chon.tt, cuu);
     G.S.ca = ca;               /* giữ nguyên tham chiếu: JSON.stringify tự bỏ qua hàm rng */
     G.luu();
@@ -740,7 +1099,7 @@
       if (v === 'xoa') {
         G.hop({ sang: true, dau: 'Chắc chưa?', html: 'Xoá là mất sạch huấn luyện viên, tuyển thủ, gia phả.',
           nut: [{ chu: 'Xoá', do: true, gt: 1 }, { chu: 'Thôi', gt: 0, chinh: true }] })
-          .then(function (x) { if (x) { G.xoaSave(); chon = { hlv: null, tt: [], cuu: [] }; G.moManCLB('ca'); } });
+          .then(function (x) { if (x) { G.xoaSave(); chon = { hlv: null, tt: [], cuu: [] }; G.moManCLB('nha'); } });
       }
     });
   }

@@ -21,6 +21,10 @@
   };
 
   function veTatCa() {
+    var hv = G.$('#hang-viec'), hs = G.$('#hang-san');
+    if (hv) hv.hidden = (mo !== 'viec');
+    if (hs) hs.hidden = (mo !== 'san');
+    veNhan();
     veTren(); veRail(); veChiSo(); veSan(); veViec(); veNhatKy(); veCanh();
   }
 
@@ -167,11 +171,34 @@
   var IC_SAN = ['🖱️', '🫀', '💪', '🔥', '🧠'];
   var KHOA_SAN = ['co', 'ben', 'luc', 'li', 'nao'];
 
+  /* `mo` = đang mở lớp nào của bảng nút:
+       'viec' — sáu nút chính (mặc định)
+       'san'  — năm sân, hiện ra sau khi bấm Tập
+     Uma đổi luôn cái nhãn ở góc trên trái theo lớp đang mở ("Career" ↔ "Training"),
+     và có nút Back để quay ra. Không có nhịp này thì người chơi không phân biệt được
+     "chọn làm gì hôm nay" với "chọn tập cái gì". */
+  var mo = 'viec';
+
+  function moLop(x) {
+    mo = x;
+    if (x === 'viec') sanDangXem = -1;
+    G.$('#hang-viec').hidden = (x !== 'viec');
+    G.$('#hang-san').hidden = (x !== 'san');
+    veSan(); veViec(); veChiSo(); veCanh(); veNhan();
+  }
+
+  /** nhãn góc trên trái: đang ở lớp nào */
+  function veNhan() {
+    var e = G.$('#ca-nhan');
+    if (e) e.textContent = mo === 'san' ? 'Tập luyện' : 'Ca huấn luyện';
+  }
+
   function veSan() {
     var h = G.xoa(G.$('#hang-san'));
+    if (mo !== 'san') return;
     for (var s = 0; s < 5; s++) (function (s) {
       var xt = G.xemTruoc(ca, s);
-      var b = G.el('div.uma-nut.' + KHOA_SAN[s] + (sanDangXem === s ? '.chon' : ''));
+      var b = G.el('div.uma-nut.san.' + KHOA_SAN[s] + (sanDangXem === s ? '.chon' : ''));
 
       b.appendChild(G.el('span.ic-tron', { text: IC_SAN[s] }));
 
@@ -197,6 +224,13 @@
       h.appendChild(b);
     })(s);
 
+    var ql = G.el('div.uma-nut.v-back');
+    ql.appendChild(G.el('span.ic-tron', { text: '↩' }));
+    ql.appendChild(G.el('b', { text: 'Quay lại' }));
+    ql.appendChild(G.el('em', { text: 'chọn việc khác' }));
+    ql.addEventListener('click', function () { G.tieng('cham'); moLop('viec'); });
+    h.appendChild(ql);
+
     var hg = G.$('#ca-hong');
     if (sanDangXem >= 0) {
       var xt2 = G.xemTruoc(ca, sanDangXem);
@@ -218,23 +252,35 @@
   }
 
   /* ══════════ năm nút việc ══════════ */
+  /* SÁU nút chính, đúng bộ của Uma: Rest · Training · Skills / Infirmary · Recreation ·
+     Races. "Tập" là nút to giữa hàng trên, vì đó là việc làm nhiều nhất. */
   var VIEC = [
     { id: 'nghi', ten: 'Nghỉ', ic: '🛏️', phu: 'hồi thể lực' },
-    { id: 'xahoi', ten: 'Xả hơi', ic: '🎡', phu: 'lên tâm trạng' },
-    { id: 'yte', ten: 'Y tế', ic: '💊', phu: 'chữa trạng thái' },
+    { id: 'tap', ten: 'Tập', ic: '🏋️', phu: 'chọn một sân', to: true },
     { id: 'giaoan', ten: 'Kỹ năng', ic: '📗', phu: 'tiêu điểm KN' },
+    { id: 'yte', ten: 'Y tế', ic: '💊', phu: 'chữa trạng thái' },
+    { id: 'xahoi', ten: 'Xả hơi', ic: '🎡', phu: 'lên tâm trạng' },
     { id: 'giaohuu', ten: 'Giao hữu', ic: '🎮', phu: 'điểm KN + fan' }
   ];
 
   function veViec() {
     var h = G.xoa(G.$('#hang-viec'));
+    if (mo !== 'viec') return;
     VIEC.forEach(function (v) {
       var tat = v.id === 'giaohuu' && ca.theluc < 20;
-      var b = G.el('div.uma-nut.v-' + v.id + (tat ? '.tat' : ''));
+      var b = G.el('div.uma-nut.v-' + v.id + (tat ? '.tat' : '') + (v.to ? '.to' : ''));
       b.appendChild(G.el('span.ic-tron', { text: v.ic }));
       b.appendChild(G.el('b', { text: v.ten }));
       b.appendChild(G.el('em', { text: v.phu }));
+      /* Chấm cầu vồng ngay trên nút Tập: có sân nào đang nổ cầu vồng thì phải thấy
+         được TRƯỚC khi mở lớp sân ra, không thì nút Tập trông như một cái cửa mù. */
+      if (v.id === 'tap') {
+        var cv = 0;
+        for (var s2 = 0; s2 < 5; s2++) if (G.xemTruoc(ca, s2).cauVong) cv++;
+        if (cv) b.appendChild(G.el('i.uma-cv', { text: '🌈' + (cv > 1 ? cv : '') }));
+      }
       if (!tat) b.addEventListener('click', function () {
+        if (v.id === 'tap') { G.tieng('cham'); return moLop('san'); }
         if (v.id === 'giaoan') { moGiaoAn(); return; }
         lamViec({ loai: v.id });
       });
@@ -294,6 +340,7 @@
     if (!kq) return;
 
     sanDangXem = -1;
+    mo = 'viec';          /* làm xong một việc thì quay về lớp sáu nút, như Uma */
 
     /* số bay lên khung cảnh */
     var bay = G.$('#ca-bay');

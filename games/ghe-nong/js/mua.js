@@ -60,20 +60,35 @@
     m.bxh.ta = hangTrong();
     var rng = G.Rng((Date.now() ^ (so * 7919)) & 0x7fffffff);
     m.lich = { vn: lichVongTron(rng, G.DOI_QUOC_NOI), qt: lichVongTron(rng, G.DOI_QUOC_TE) };
+    /* tin khai mạc phải ghi NGAY LÚC DỰNG MÙA. Trước đây G.mua() ghi hộ, mà giờ G.mua()
+       chỉ còn đọc chứ không dựng nữa. */
+    var truoc = G.S.mua;
+    G.S.mua = m;
+    if (G.tinKhaiMac) G.tinKhaiMac();
+    G.S.mua = truoc;
     return m;
   };
 
-  /** bảo đảm G.S.mua tồn tại và đúng mùa — gọi được ở bất cứ đâu */
+  /** Mùa giải của CA ĐANG CHẠY. Trả null khi không có ca nào.
+
+      Trước đây hàm này tự dựng một mùa mới bất cứ lúc nào có ai hỏi tới — kể cả khi
+      người chơi còn đang đứng ngoài, chưa vào ca nào. Hệ quả: màn ngoài bày ra
+      "Hạng 11/12 · 0 trận · 0 thắng" của một mùa không tồn tại, và hai run khác nhau
+      nhìn như đang nối tiếp một giải đấu duy nhất. MỘT RUN LÀ MỘT MÙA RIÊNG:
+      mở ở `batDauCa()`, khép ở `G.ketCa()`. */
   G.mua = function () {
     if (!G.S) return null;
-    if (!G.S.mua || G.S.mua.so !== G.S.clb.mua) {
-      G.S.mua = G.moMua(G.S.clb.mua);
-      G.tinKhaiMac();
-    }
+    if (!G.S.mua) return null;
+    if (G.S.mua.so !== G.S.clb.mua) return null;
     /* bản lưu cũ có thể thiếu đội mới thêm vào */
     G.DOI_AI.forEach(function (d) { if (!G.S.mua.bxh[d.id]) G.S.mua.bxh[d.id] = hangTrong(); });
     if (!G.S.mua.bxh.ta) G.S.mua.bxh.ta = hangTrong();
     return G.S.mua;
+  };
+
+  /** khép mùa lại khi ca kết thúc hoặc bị bỏ */
+  G.dongMua = function () {
+    G.S.mua = null;
   };
 
   /* ══════════════════ sức mạnh và tỉ lệ thắng ══════════════════ */
