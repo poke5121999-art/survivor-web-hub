@@ -3607,6 +3607,92 @@ async function lightSuite(_khongDung) {
 }
 
 // =====================================================================
+// KHUÔN MẶT PHO TƯỢNG. Chủ dự án: "player nhìn vào angle thì angle sẽ nhìn ngược lại ...
+// trên màn hình player sẽ mờ mờ dần xuất hiện hình ảnh angel to ... angle biến mất mới mất".
+// Bốn câu phải đúng, và câu thứ tư là câu dễ làm hỏng cả cơ chế nhất:
+//   1. chưa nhìn thấy thì chưa có mặt nào;
+//   2. nhìn thấy rồi thì nó lên DẦN, không bật một cái;
+//   3. nhìn đi chỗ khác KHÔNG gỡ được nó — chỉ pho tượng biến mất mới gỡ;
+//   4. và nó KHÔNG bịt mắt: giữa màn hình, chỗ người chơi với pho tượng đứng, phải còn đọc được.
+async function matAngelSuite(b) {
+  results.push('\n── khuôn mặt pho tượng ──');
+  const { ctx, p, errs } = await openGame(b, R2D, { width: 480, height: 940 });
+  await p.click('#veilBtn');            // tấm màn mở đầu che kín khung — phép đo điểm ảnh ở dưới
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    REPO.setCutscenes(false);
+    REPO.S.level = 2; REPO.startLevel(4242); REPO.cancelCut(); REPO.S.running = true;
+    REPO.S.monsters.length = 0; REPO.S.mates.length = 0;   // bot nhìn hộ thì đồng hồ không chạy
+    REPO.S.angel = null;
+    REPO.spawnAngel();
+    // quay LƯNG lại: chưa ai nhìn thấy nó
+    const a = REPO.angel(), pl = REPO.S.player;
+    if (a) pl.dir = Math.atan2(a.y - pl.y, a.x - pl.x) + Math.PI;
+  });
+  await p.waitForTimeout(500);
+  const co = await p.evaluate(() => !!REPO.angel());
+  check('dựng được pho tượng để đo', co, co ? '' : 'không dựng được');
+  if (!co){ await ctx.close(); return; }
+
+  const chua = await p.evaluate(() => ({ ...REPO.angelMat(), thay: REPO.angel().banDaThay }));
+  check('quay lưng lại thì chưa có khuôn mặt nào', chua.mat < 0.05 && !chua.thay,
+    JSON.stringify(chua));
+
+  // quay mặt về phía nó
+  await p.evaluate(() => {
+    const a = REPO.angel(), pl = REPO.S.player;
+    pl.dir = Math.atan2(a.y - pl.y, a.x - pl.x);
+  });
+  await p.waitForTimeout(700);
+  const vua = await p.evaluate(() => REPO.angelMat());
+  await p.waitForTimeout(2200);
+  const du = await p.evaluate(() => REPO.angelMat());
+  check('nhìn thấy nó thì khuôn mặt hiện DẦN, không bật một cái',
+    vua.mat > 0.05 && vua.mat < 0.95, 'sau 0,7s: ' + vua.mat);
+  check('và vài giây sau thì hiện đủ', du.mat > 0.98, String(du.mat));
+
+  // --- KHÔNG BỊT MẮT: giữa màn hình vẫn phải đọc được ---
+  const sang = await p.evaluate(() => {
+    const cv = document.getElementById('game'), g = cv.getContext('2d');
+    const doc = (fx, fy) => {
+      const x = Math.round(cv.width*fx), y = Math.round(cv.height*fy);
+      let t = 0, n = 0;
+      for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++){
+        const q = g.getImageData(x+i, y+j, 1, 1).data; t += (q[0]+q[1]+q[2])/3; n++;
+      }
+      return Math.round(t/n);
+    };
+    return { giua: doc(0.5, 0.5) };
+  });
+  check('khuôn mặt KHÔNG bịt giữa màn hình — chỗ người chơi với pho tượng vẫn đọc được',
+    sang.giua > 55, 'giữa màn ' + sang.giua + '/255');
+
+  // --- nhìn đi chỗ khác thì nó VẪN Ở ĐÓ, và máu chảy dài ra theo đồng hồ ---
+  await p.evaluate(() => { REPO.S.player.dir += Math.PI; });
+  await p.waitForTimeout(2600);
+  const quayDi = await p.evaluate(() => ({ ...REPO.angelMat(), con: REPO.angel() && REPO.angel().conLai }));
+  check('nhìn đi chỗ khác KHÔNG gỡ được nó', quayDi.mat > 0.98, JSON.stringify(quayDi));
+  check('và đồng hồ cào chạy thì khuôn mặt đọc ra con số ấy', quayDi.gap > 0.25,
+    'gap ' + quayDi.gap);
+
+  // --- pho tượng đi thì mặt mới đi ---
+  await p.evaluate(() => {
+    // rọi đèn cho no: quay lại nhìn nó và ép charge đầy
+    const a = REPO.S.angel; if (a) a.charge = 0.999;
+    const pl = REPO.S.player, ag = REPO.angel();
+    if (ag) pl.dir = Math.atan2(ag.y - pl.y, ag.x - pl.x);
+  });
+  await p.waitForTimeout(2600);
+  const xong = await p.evaluate(() => ({ ...REPO.angelMat(), angel: !!REPO.angel() }));
+  check('pho tượng đi rồi thì khuôn mặt cũng tan', !xong.angel && xong.mat < 0.05,
+    JSON.stringify(xong));
+
+  const e = errs.filter(x => !/favicon/.test(x));
+  check('khuôn mặt pho tượng: không lỗi console', e.length === 0, e.slice(0, 2).join(' | '));
+  await ctx.close();
+}
+
+// =====================================================================
 (async () => {
   // --allow-file-access-from-files: mở file:// bằng Chromium thì mỗi tấm PNG là một 'gốc' khác
   //   nhau, nên vẽ một con quái lên canvas là canvas đó bị NHIỄM và getImageData ném
@@ -3636,6 +3722,7 @@ async function lightSuite(_khongDung) {
   try { await xeHucTuongSuite(b); } catch (e) { check('xe lao qua tường: bộ test chạy trọn', false, e.message); }
   try { await pcSuite(b); } catch (e) { check('chuột-phím: bộ test chạy trọn', false, e.message); }
   try { await botGoVanSuite(b); } catch (e) { check('người chơi gục: bộ test chạy trọn', false, e.message); }
+  try { await matAngelSuite(b); } catch (e) { check('khuôn mặt pho tượng: bộ test chạy trọn', false, e.message); }
   try { await lightSuite(b); } catch (e) { check('đèn pin: bộ test chạy trọn', false, e.message); }
   await b.close();
   console.log(results.join('\n'));

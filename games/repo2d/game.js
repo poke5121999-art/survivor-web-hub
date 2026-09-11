@@ -653,6 +653,12 @@ const FX = {
   shakeA: 0, shakeT: 0,           // trục và mốc thời gian của cú rung đang chạy
   hurtT: 0, hurtDir: 0,
   tickPulse: 0, lastTick: -1,
+  // KHUÔN MẶT PHO TƯỢNG ĐÈ LÊN MÀN HÌNH — xem drawAngelMat.
+  //   mat    0..1  hiện tới đâu rồi
+  //   matGap 0..1  đồng hồ cào đã chạy tới đâu; CHỐT LẠI khi pho tượng biến mất, để trong nửa
+  //                giây tan đi thì vệt máu không thụt ngược về không
+  //   matNhin      lúc này có ai đang nhìn nó không: không ai nhìn thì mắt nó nhấp nháy
+  mat: 0, matGap: 0, matNhin: false,
   // The jolt of SEEING one. It is its own channel rather than a nudge to dread, because dread is
   // recomputed every frame from how near the thing is and would swallow a one-frame bump whole.
   spotT: 0,
@@ -666,6 +672,7 @@ function fxReset(){
   FX.shakeA = FX.shakeT = 0;
   FX.beat2 = false; FX.rate = 1.15;
   FX.flash = FX.flashTo = FX.flashNghi = FX.hurtT = FX.tickPulse = FX.spotT = 0;
+  FX.mat = FX.matGap = 0; FX.matNhin = false;
   FX.lastTick = -1;
   FX.pops.length = 0;
 }
@@ -931,6 +938,20 @@ function stepFx(dt){
   // Rises fast and falls slow, like the feeling does. A dread that drained as quickly as it
   // filled would flicker every time a monster stepped behind a wall.
   FX.dread = mix(FX.dread, want, Math.min(1, dt * (want > FX.dread ? 3.4 : 1.0)));
+
+  // KHUÔN MẶT. Nó không quyết định gì — nó ĐỌC ba con số stepAngel đã quyết xong: pho tượng
+  // còn đứng đó không, người chơi đã nhìn thấy nó chưa, và đồng hồ cào chạy tới đâu.
+  //
+  // Điều kiện hiện là `banDaThay`, KHÔNG phải "đang nhìn". Chủ dự án: *"player nhìn vào angle
+  // thì angle sẽ nhìn ngược lại ... angle biến mất mới mất"* — nhìn đi chỗ khác không gỡ được
+  // nó, và đó chính là chỗ cơ chế này cắn: cách duy nhất tắt khuôn mặt là xử lý pho tượng.
+  const pt = S.angel;
+  const hienMat = !!(pt && pt.banDaThay && pt.phase === 'stand');
+  FX.mat = clamp(FX.mat + (hienMat ? dt/MAT_VAO : -dt/MAT_RA), 0, 1);
+  if (hienMat){
+    FX.matGap = clamp(pt.armed ? pt.unlitT/ANGEL_PATIENCE : 0, 0, 1);
+    FX.matNhin = !!pt.seenBy;
+  }
 
   // The heart runs ALWAYS, because it is drawn on the HUD and a heart that stops is a dead one.
   // What changes with the danger is the RATE — about 52 beats a minute standing in an empty room,
@@ -10491,6 +10512,7 @@ function draw(){
   c.setTransform(1,0,0,1,0,0);
   c.globalCompositeOperation = 'source-over';
   drawVignette(c);
+  drawAngelMat(c);        // dưới HUD, trên mọi thứ khác — xem luật 3 ở chỗ khai MAT_VAO
   drawHud(c);
 }
 
@@ -10741,6 +10763,31 @@ const ANGEL_BOT_BLINK= 1.35;       // và rời mắt bao lâu
 // thời gian cho bạn, đồng đội không chơi thay bạn.
 const ANGEL_BOT_TOTAL= 6;          // cả tổ cộng lại giữ hộ được ngần này giây mỗi lần nó ghé
 
+// ---------------------------------------------------------------- KHUÔN MẶT TRÊN MÀN HÌNH
+// Chủ dự án, 2026-09-11: *"khi angel hiện ra và player nhìn vào angle thì angle sẽ nhìn ngược
+// lại player xong r trên màn hình player sẽ mờ mờ dần xuất hiện hình ảnh angel to đang nhìn
+// chằm chằm vào player, đôi mắt chãy ra máu. angle biến mất mới mất."*
+//
+// Nửa đầu câu ấy ĐÃ chạy từ trước: `a.face` cập nhật mỗi khung nên pho tượng luôn quay mặt về
+// phía người chơi, và dòng toast nói thẳng "Nó nhìn lại bạn". Cái thiếu là nửa sau — chuyện ấy
+// mới chỉ xảy ra ở kích cỡ một pho tượng cao ba mươi điểm ảnh đứng cách bốn ô. Khuôn mặt này
+// kéo nó ra khỏi căn phòng và đặt thẳng lên mắt người chơi.
+//
+// BA LUẬT TỰ ÁP, và cả ba đều là chuyện đã học được từ mấy lớp phủ trước trong trò này:
+//   1. KHÔNG BỊT MẮT. Pho tượng chỉ đuổi đi được bằng cách NHÌN vào nó và rọi đèn; một tấm mặt
+//      đè kín màn hình biến cơ chế ấy thành trò may rủi. Nên khối tối của nó là một cái VÀNH
+//      (đậm ở rìa đầu, rỗng ở giữa) chứ không phải một mảng đặc — giữa màn hình, chỗ người chơi
+//      và pho tượng đứng, gần như không bị đụng tới.
+//   2. NÓ PHẢI NÓI RA MỘT CON SỐ. Máu chảy dài ra và mặt áp tới gần theo đúng `unlitT` — cùng
+//      con số mà hai con mắt ngoài kia đang đổi màu theo. Một lớp phủ chỉ để doạ là một lớp phủ
+//      người chơi học cách lờ đi sau ba lần.
+//   3. VẼ DƯỚI HUD. Thanh máu, bản đồ nhỏ, đồng hồ giao hàng không được nằm sau mặt nó.
+const MAT_VAO  = 2.4;     // giây để hiện đủ — "mờ mờ dần", không phải bật một cái
+const MAT_RA   = 0.42;    // và tan trong ngần này khi pho tượng đi
+const MAT_DAM  = 0.52;    // độ đậm tối đa của vành tối
+const MAT_R    = 0.46;    // bán kính đầu, tính theo cạnh NGẮN của màn hình
+const MAT_Y    = 0.30;    // tâm đầu nằm ở đâu theo chiều cao màn hình
+
 function angelNextIn(){ return mix(ANGEL_EVERY[0], ANGEL_EVERY[1], Math.random()); }
 
 // Is this point inside the beam specifically? Not the little pool of light at your feet — the beam.
@@ -10899,6 +10946,10 @@ function angelClaw(a){
             : (a.nanNhan && !a.nanNhan.down ? a.nanNhan : p);
   a.x = nan.x + Math.cos(nan.dir)*10; a.y = nan.y + Math.sin(nan.dir)*10;
   S.angelFx = { x:a.x, y:a.y, t:0 };
+  // Thứ cuối cùng nhìn thấy trước cú cào là khuôn mặt ở mức đầy. Nó đang ở 1,0 sẵn rồi trong
+  // phần lớn trường hợp — nhưng không phải mọi trường hợp: đồng đội có thể đã giữ hộ đủ lâu để
+  // đồng hồ chạy hết trong lúc mặt còn đang hiện dở.
+  if (a.banDaThay){ FX.mat = 1; FX.matGap = 1; FX.matNhin = false; }
   if (nan === p){
     hurtPlayer(ANGEL_DMG, 'angel', a.x, a.y);
     p.blindT = ANGEL_PUNISH;
@@ -11174,6 +11225,138 @@ function drawAngelFx(c, a, arr){
   }
   c.restore();
   c.globalCompositeOperation = mo;
+}
+
+// KHUÔN MẶT NHÌN CHẰM CHẰM. Vẽ trong toạ độ MÀN HÌNH (điểm ảnh thiết bị), sau lớp tối và sau
+// vignette, TRƯỚC HUD — xem ba luật tự áp ở chỗ khai MAT_VAO.
+//
+// Cái đầu cố ý to hơn màn hình: thứ nhìn thấy là hai con mắt cộng mép vải hai bên, còn khối của
+// nó tràn lên quá mép trên. Một cái đầu vừa khít màn hình đọc ra là một cái mặt nạ dán lên kính;
+// một cái đầu tràn ra ngoài đọc ra là một thứ đang cúi xuống sát mặt mình.
+function drawAngelMat(c){
+  const k = FX.mat;
+  if (k <= 0.004) return;
+  // Đoạn phim thì không. `step()` bị chặn trong lúc có `S.cut`, nên `FX.mat` đứng nguyên ở chỗ
+  // nó đang đứng — không có cái chốt này thì một khuôn mặt còn đang tan dở treo lại suốt cả
+  // cảnh cả tổ chạy lên xe. Mà ở đó cũng chẳng có pho tượng nào: ca trực đã xong rồi.
+  if (S.cut) return;
+  const w = c.canvas.width, h = c.canvas.height, M = Math.min(w, h);
+  const gap = clamp(FX.matGap || 0, 0, 1);
+  const vao = ease(k);
+  // Càng gần lúc nó tới thì mặt càng áp sát: đầu to thêm 18%, tâm hạ xuống một chút.
+  const R  = M*MAT_R * (0.92 + 0.08*vao) * (1 + gap*0.18);
+  const cx = w/2, cy = h*MAT_Y + M*gap*0.03;
+  const RX = R*0.86, RY = R*1.18;          // đầu cao hơn rộng, kiểu tượng trùm khăn
+
+  c.save();
+  // GIẬT HÌNH, chỉ ở nhịp cuối. Vài điểm ảnh, cùng lý lẽ với cú hiện hình dưới sàn: cái đáng
+  // sợ là một thứ ĐỨNG YÊN mà mỗi lần chớp mắt lại khác đi một tí.
+  if (gap > 0.62){
+    const j = (gap-0.62)/0.38 * 3.4;
+    c.translate((Math.random()-0.5)*j, (Math.random()-0.5)*j*0.7);
+  }
+
+  // ---- 1. KHỐI ĐÁ. Rất mờ — "mờ mờ dần" là chữ của chủ dự án, và một khối đặc thì phạm luật 1.
+  //         Màu lấy đúng màu đá của pho tượng ngoài kia (stone trong drawAngel), nên hai thứ
+  //         đọc ra là CÙNG một vật ở hai cỡ, không phải hai vật.
+  const da = 0.13 * vao * (0.7 + 0.3*gap);
+  const gd = c.createRadialGradient(cx, cy - RY*0.25, RX*0.1, cx, cy, RY);
+  gd.addColorStop(0,    `rgba(150,146,138,${(da*0.95).toFixed(3)})`);
+  gd.addColorStop(0.72, `rgba(118,114,110,${(da*0.55).toFixed(3)})`);
+  gd.addColorStop(1,    'rgba(96,92,90,0)');
+  c.fillStyle = gd;
+  c.beginPath(); c.ellipse(cx, cy, RX, RY, 0, 0, Math.PI*2); c.fill();
+
+  // ---- 2. VIỀN. Cái làm một bóng đen đọc ra được là một cái ĐẦU. Ba nét chồng nhau, nét trong
+  //         cùng sáng nhất — rẻ hơn đổ bóng thật và không đụng tới bộ lọc nào.
+  for (let i = 2; i >= 0; i--){
+    c.strokeStyle = `rgba(176,172,164,${(0.075*vao*(1 - i*0.3)).toFixed(3)})`;
+    c.lineWidth = 1.6 + i*4.2;
+    c.beginPath(); c.ellipse(cx, cy, RX, RY, 0, 0, Math.PI*2); c.stroke();
+  }
+
+  // ---- 3. KHĂN TRÙM. Hai nếp vải đổ từ đỉnh đầu xuống hai bên má, và một vệt tối ngang trán:
+  //         chỗ hõm của gờ mày. Không có gờ mày thì hai con mắt đọc ra là hai bóng đèn.
+  const toi = 0.30 * vao * (0.6 + 0.4*gap);
+  c.fillStyle = `rgba(4,3,8,${toi.toFixed(3)})`;
+  c.beginPath();
+  c.moveTo(cx - RX*1.02, cy - RY*0.18);
+  c.quadraticCurveTo(cx - RX*0.96, cy - RY*0.92, cx, cy - RY*1.02);
+  c.quadraticCurveTo(cx + RX*0.96, cy - RY*0.92, cx + RX*1.02, cy - RY*0.18);
+  c.quadraticCurveTo(cx + RX*0.72, cy - RY*0.42, cx, cy - RY*0.36);
+  c.quadraticCurveTo(cx - RX*0.72, cy - RY*0.42, cx - RX*1.02, cy - RY*0.18);
+  c.closePath(); c.fill();
+
+  const ey = cy, exo = RX*0.40, er = RX*0.15;
+  // HỐC MẮT: hai vũng tối, vẽ TRƯỚC cái sáng. Con mắt sáng nằm trong một hốc tối mới ra con
+  // mắt; nằm trên nền phẳng thì ra một đốm đèn.
+  for (const sg of [-1, 1]){
+    const x = cx + exo*sg;
+    const gh = c.createRadialGradient(x, ey, 0, x, ey, er*2.1);
+    gh.addColorStop(0,   `rgba(3,2,6,${(0.72*vao).toFixed(3)})`);
+    gh.addColorStop(1,   'rgba(3,2,6,0)');
+    c.fillStyle = gh;
+    c.beginPath(); c.ellipse(x, ey, er*2.1, er*1.5, 0, 0, Math.PI*2); c.fill();
+  }
+
+  // ---- 4. HAI CON MẮT. Cùng thang màu với hai con mắt thật ngoài kia (drawAngelFx): trắng
+  //         xanh khi còn đang bị nhìn, đỏ rực dần lên theo đồng hồ.
+  const nhay = !FX.matNhin ? 0.74 + 0.26*Math.sin(S.time*(6 + gap*10)) : 0.9;
+  const ER = Math.round(mix(232, 255, gap));
+  const EG = Math.round(mix(206, 42, gap));
+  const EB = Math.round(mix(255, 38, gap));
+  c.globalCompositeOperation = 'lighter';
+  for (const sg of [-1, 1]){
+    const x = cx + exo*sg;
+    const gg = c.createRadialGradient(x, ey, 0, x, ey, er*2.6);
+    gg.addColorStop(0,    `rgba(${ER},${EG},${EB},${(0.80*vao*nhay).toFixed(3)})`);
+    gg.addColorStop(0.38, `rgba(${ER},${EG},${EB},${(0.26*vao*nhay).toFixed(3)})`);
+    gg.addColorStop(1,    `rgba(${ER},${EG},${EB},0)`);
+    c.fillStyle = gg;
+    c.fillRect(x - er*2.8, ey - er*2.8, er*5.6, er*5.6);
+    // Con ngươi: hạt nhỏ và HƠI CAO hơn rộng. Bản trước để nó nằm ngang, rộng gấp rưỡi — ra
+    // hai viên thuốc trắng, nhìn như hai cái đèn pha chứ không ra mắt.
+    c.fillStyle = `rgba(255,246,246,${(0.78*vao*nhay).toFixed(3)})`;
+    c.beginPath(); c.ellipse(x, ey, er*0.22, er*0.30, 0, 0, Math.PI*2); c.fill();
+  }
+  c.globalCompositeOperation = 'source-over';
+
+  // ---- 5. MÁU. "đôi mắt chãy ra máu". Dài ra theo đồng hồ, nên nó vừa là hình vừa là một con
+  //         số: liếc một cái là biết còn bao lâu, không phải đọc gì.
+  //         MỎNG. Bản đầu vẽ rộng bằng nửa con mắt và đặc, kết quả ra hai cây cột đỏ dựng giữa
+  //         màn hình — đọc ra là một cái cổng, không đọc ra là máu.
+  const dai = R*(0.26 + 0.92*gap) * vao;
+  if (dai > 3){
+    for (const sg of [-1, 1]){
+      const x = cx + exo*sg;
+      const rong = er*0.16;
+      // Lệch ra ngoài một chút: máu chảy theo gò má chứ không rơi thẳng.
+      const lech = sg * RX*0.10 * clamp(dai/(R*1.1), 0, 1);
+      const gm = c.createLinearGradient(x, ey, x + lech, ey + dai);
+      gm.addColorStop(0,    `rgba(196,26,28,${(0.58*vao).toFixed(3)})`);
+      gm.addColorStop(0.40, `rgba(140,12,16,${(0.40*vao).toFixed(3)})`);
+      gm.addColorStop(1,    'rgba(70,4,8,0)');
+      c.fillStyle = gm;
+      // Hai nhịp cong chứ không một đường thẳng: một vệt thẳng tắp, rộng đều, đọc ra là một
+      // cái cột sơn đỏ. Bản đầu đúng thế, và nhìn ra ngay.
+      const mx = x + lech*0.35, my = ey + dai*0.45;
+      c.beginPath();
+      c.moveTo(x - rong, ey);
+      c.quadraticCurveTo(mx - rong*0.55, my, x + lech, ey + dai);
+      c.quadraticCurveTo(mx + rong*0.55, my, x + rong, ey);
+      c.closePath(); c.fill();
+      // Giọt rơi rời khỏi vệt. Pha tính từ S.time nên nó không nhảy loạn mỗi khung hình.
+      for (let i = 0; i < 2; i++){
+        const pha = (S.time*0.42 + i*0.5 + (sg > 0 ? 0.27 : 0)) % 1;
+        const gy = ey + dai*(0.3 + pha*1.0);
+        const r2 = rong*(0.9 - pha*0.3);
+        if (r2 <= 0.25) continue;
+        c.fillStyle = `rgba(164,16,18,${(0.40*vao*(1-pha)).toFixed(3)})`;
+        c.beginPath(); c.ellipse(x + lech*1.15, gy, r2, r2*1.7, 0, 0, Math.PI*2); c.fill();
+      }
+    }
+  }
+  c.restore();
 }
 
 // ============================================================ highlights
@@ -14179,7 +14362,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260910d';
+const BUILD = '20260911a';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -16331,6 +16514,7 @@ window.REPO = {
                         moc:a.moc || null,
                         conLai: a.armed ? Math.max(0, ANGEL_PATIENCE - a.unlitT) : null } : null; },
   angelBiThay(){ return S.angel ? angelBiThay(S.angel) : null; },
+  angelMat(){ return { mat:+FX.mat.toFixed(3), gap:+FX.matGap.toFixed(3), nhin:!!FX.matNhin }; },
   mateStare(){ return (S.mates || []).map(m => ({ id:m.id, stareT:+(m.stareT||0).toFixed(2),
                                                   blinkT:+(m.blinkT||0).toFixed(2), dir:m.dir })); },
   lightZones(){ return S.lightZones.map(z => ({ x:z.x, y:z.y, r:z.r, t:z.t })); },

@@ -1,15 +1,58 @@
-# Còn lại — bàn giao 2026-09-10
+# Còn lại — bàn giao 2026-09-11
 
-Bản vừa push: **bộ chuột-phím cho máy tính, và ba cái lỗi** (mục 00). Trước đó: xe lao qua
-tường vào nhà, cả tổ chạy lên xe lúc thoát (mục 0). Trước đó: ném đồ · đường chỉ lối trên sàn ·
-loot vẽ lại · cửa hàng ngoài menu (mục 2).
-Dấu build lên `?v=20260910d` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
+Bản vừa push: **khuôn mặt pho tượng đè lên màn hình** (mục 000). Trước đó: bộ chuột-phím cho máy
+tính và ba cái lỗi (mục 00); xe lao qua tường vào nhà, cả tổ chạy lên xe lúc thoát (mục 0); ném
+đồ · đường chỉ lối trên sàn · loot vẽ lại · cửa hàng ngoài menu (mục 2).
+Dấu build lên `?v=20260911a` — ba chỗ phải bằng nhau: `repo2d/index.html`, `repo-squad/index.html`,
 và hằng `BUILD` trong `game.js`.
 
 Hai hồ sơ nghiên cứu nằm cạnh tệp này: **`RESEARCH.md`** (Robbery Bob — trộm, nấp, tiếng ồn) và
 **`RESEARCH-DARKWOOD.md`** (Darkwood — nỗi sợ). Cái thứ hai viết 2026-09-11, và kết luận của nó
 ngắn gọn là: căn nhà này đã đứng trên năm trong bảy cột của Darkwood rồi; thứ đáng làm tiếp và
 rẻ nhất là **cho âm thanh một cái hướng** — cả hệ tiếng hiện chạy mono, không một chữ `pan` nào.
+
+---
+
+## 000. BẢN 20260911a — KHUÔN MẶT PHO TƯỢNG
+
+Chủ dự án, 2026-09-11: *"khi angel hiện ra và player nhìn vào angle thì angle sẽ nhìn ngược lại
+player xong r trên màn hình player sẽ mờ mờ dần xuất hiện hình ảnh angel to đang nhìn chằm chằm
+vào player, đôi mắt chãy ra máu. angle biến mất mới mất."*
+
+**Nửa đầu câu ấy đã chạy sẵn từ trước** — `a.face` cập nhật mỗi khung nên pho tượng luôn quay mặt
+về phía người chơi, và dòng toast lúc nó bị thấy nói thẳng *"Nó nhìn lại bạn"*. Cái thiếu là nửa
+sau: chuyện "nó nhìn chằm chằm vào bạn" mới chỉ xảy ra ở cỡ một pho tượng cao ba mươi điểm ảnh
+đứng cách bốn ô. `drawAngelMat()` kéo nó ra khỏi căn phòng và đặt thẳng lên mắt người chơi.
+
+**Điều kiện hiện là `banDaThay`, không phải "đang nhìn".** Đó là chỗ cơ chế này cắn, và là chỗ
+dễ làm hỏng nhất: nhìn đi chỗ khác **không** gỡ được khuôn mặt. Cách duy nhất tắt nó là xử lý
+pho tượng — rọi đèn cho no, hoặc ăn cú cào. Đúng chữ *"angle biến mất mới mất"*.
+
+### Ba luật tự áp
+
+1. **KHÔNG BỊT MẮT.** Pho tượng chỉ đuổi đi được bằng cách NHÌN vào nó và rọi đèn; một tấm mặt
+   đè kín màn hình biến cơ chế ấy thành trò may rủi. Nên khối tối của nó là một cái **vành**
+   (đậm ở rìa đầu, rỗng ở giữa) chứ không phải mảng đặc. Đo được: giữa màn hình còn **198/255**
+   lúc khuôn mặt đã hiện đủ — bộ test chốt ngưỡng ở 55.
+2. **PHẢI NÓI RA MỘT CON SỐ.** Máu chảy dài ra, đầu to thêm 18% và giật hình ở nhịp cuối, tất cả
+   đọc theo đúng `unlitT` — cùng con số mà hai con mắt thật ngoài kia đang đổi màu theo. Một lớp
+   phủ chỉ để doạ là một lớp phủ người chơi học cách lờ đi sau ba lần.
+3. **VẼ DƯỚI HUD**, trên mọi thứ khác. Thanh máu, bản đồ nhỏ, đồng hồ giao hàng không được nằm
+   sau mặt nó.
+
+### Hai lần vẽ sai trước khi ra được cái mặt
+
+- **Lần 1 — hai cây cột đỏ.** Vệt máu rộng bằng 62% con mắt, đặc, thẳng tắp, dài gần hai lần bán
+  kính đầu. Trên màn hình nó ra một cái **cổng** chứ không ra máu. Sửa: mỏng còn 16%, hai nhịp
+  cong, đỉnh alpha 0,58 thay vì 0,80, ngắn lại còn `R*(0,26 + 0,92*gap)`.
+- **Lần 2 — hai bóng đèn pha.** Con mắt vẽ nằm ngang, rộng gấp rưỡi chiều cao, đặt trên nền
+  phẳng. Sửa: thêm **hốc mắt** (vũng tối vẽ TRƯỚC cái sáng) cộng **gờ mày** (vệt tối ngang trán),
+  và con ngươi đổi thành hạt nhỏ hơi cao hơn rộng. Một đốm sáng chỉ thành con mắt khi nó nằm
+  trong một cái hốc.
+
+Số để chỉnh: `MAT_VAO` 2,4 giây lên · `MAT_RA` 0,42 giây tan · `MAT_DAM` 0,52 · `MAT_R` 0,46 cạnh
+ngắn · `MAT_Y` 0,30 chiều cao. Trạng thái nằm trong `FX.mat` / `FX.matGap` / `FX.matNhin`, cửa cho
+bộ test là `REPO.angelMat()`.
 
 ---
 
@@ -209,6 +252,7 @@ xanh không thay được chỗ này.
 | **Khúc thoát** | Đủ chỉ tiêu, đứng vào thùng xe chờ hết giờ | Có ĐẾM ĐƯỢC đủ người leo lên xe không? Có ra dáng CHẠY không, hay vẫn trượt? Nhà có tối lại sau lưng không? Xe đi có đọc ra là "đi mất" không? |
 | **Bộ chuột-phím** | Mở trên máy tính, không chạm vào màn hình | Thanh máu/bản đồ đã đủ to chưa hay quá to? Thanh ô đồ dưới đáy có đọc ra ngay không? `Q` có luôn làm đúng cái mình đang định làm không? Khung nhìn 13 ô có rộng quá không? |
 | **Cửa kẹt** | Vào màn 2 trở lên, đi tìm một cửa bị chèn | Cái viền có đủ để nhận ra "phá được" không, hay chỉ là thêm một vệt sáng nữa? |
+| **Khuôn mặt pho tượng** | Đợi Tượng ghé, nhìn thẳng vào nó, rồi CỐ Ý quay đi cho đồng hồ chạy | Nó có đáng sợ không, hay chỉ vướng mắt? Còn nhìn ra pho tượng thật giữa màn không? Ba giây cuối có đọc ra là "sắp tới nơi" không? |
 | Mũi chỉ lối trên sàn | Vào ca, nhìn xuống chân | Hàng mũi nhọn có ĐỌC RA LÀ ĐƯỜNG ĐI không, hay nó chỉ là rác trên sàn? Dày quá hay thưa quá? |
 | Vòng highlight quanh loot | Đứng cạnh một món to | Cái vòng còn cắt ngang người món đồ nữa không? Nằm dưới chân đọc có rõ hơn không? |
 | Vết nứt | Đâm một cái bình vào tường hai lần | Đã "tinh tế" chưa, hay nay mờ quá đến mức không thấy đồ đang hỏng? |
