@@ -1604,3 +1604,158 @@ bố cục riêng cho máy hẹp (DESIGN §8.4 đã hứa bảng số tự thu d
 
 Kiểm: một bộ Playwright 15 bài bấm UI thật (tải lại giữa giải, ⚡ ba lần, ca đã xong, đổi vé,
 cấm chọn hai chạm). Chạy thêm `_tools/tuchoi.js` hết một mùa: tới "Kết mùa", không lỗi.
+
+---
+
+## 11. Tự đánh giá khâu MÔ PHỎNG: quyết định của người chơi có đổi được trận không `[ĐO TRONG REPO]`
+
+Mọi bộ đo trước đây hỏi hai câu: "AI có ngu không" (`soiAI.js`) và "tướng nào lệch" (`canbang.js`).
+Còn một câu sống còn của game quản lý thì chưa ai hỏi: **cả mùa nuôi quân, cấm chọn, chọn thế trận,
+rốt cuộc có làm trận đổi chiều không?**
+
+### 11.1 Bộ đo mới: `_tools/donhay.js`
+
+Cách đo:
+
+- Dựng hai đội giống hệt nhau, rồi đổi **đúng một biến** cho đội A.
+- Mỗi hạt giống đá hai trận, A lần lượt đứng hai bên sân, để triệt lợi thế bên sân.
+- `BIEN=goc` là đối chứng, phải ra 50%.
+- Mỗi biến chạy 160–200 trận, sai số chuẩn khoảng ±3,5 điểm.
+
+Lệnh chạy:
+
+    BIEN=li SO_TRAN=80 node _tools/soiAI-node.js _tools/donhay.js
+
+Cú pháp biến:
+
+- `ct_<thế trận>`: chỉ áp lệnh của thế trận (rồng/rừng/mục tiêu).
+- `hs_<thế trận>`: chỉ áp hệ số giai đoạn.
+- `tt_SR_R`: một bậc thông thạo, A cầm SR còn B cầm R.
+
+Bảng dưới đây là tỉ lệ thắng của A. Chỉ số so 1000 với 300, còn lại để 600.
+
+| biến | trước đợt này | sau (200 trận mỗi dòng, mã cuối trừ hai chỉnh ở §11.3) |
+|---|---:|---:|
+| đối chứng | 50% | 50% |
+| LỰC | 81% | 82,5% |
+| NÃO | **54%** — không phân biệt được với 50% | 81% |
+| CƠ | 70% | 79,5% |
+| BỀN | 69% | 66% |
+| **LÌ** | **27%** — tập LÌ làm đội YẾU đi | 66% |
+| cái tôi 10 vs 85 | 58% | 63,5% |
+| Bám Nhịp (vs không chọn gì) | — | 65,5% |
+| Bạo Đầu | 63% | 60% |
+| Nuôi Muộn | — | 54,5% |
+| **Bùng Cuối** | **41%** — thua cả không chọn | 51,5% (thưởng +24%; đã nâng +30%, chưa đo) |
+| một bậc thông thạo (SR vs R) | — | 79% |
+
+### 11.2 Năm lỗi thật — không lỗi nào nhìn trận mà thấy
+
+**1. LÌ là chỉ số LIỀU.** LÌ cao làm bốn việc:
+
+- hạ ngưỡng rút từ 0,34 xuống 0,18;
+- dám lao dưới trụ địch;
+- dám đứng lại khi thua quân số;
+- còn LÌ thấp thì được "co rúm" khi đội thua vàng, tức là rút sớm hơn. Trong bộ mô phỏng, rút sớm lại là lối AN TOÀN.
+
+Kết quả là cả phần thưởng lẫn hình phạt đều ngược.
+
+Giờ LÌ là **bản lĩnh**:
+
+- không làm ai liều hơn;
+- dưới 40% máu thì chịu đòn tốt hơn tới 25%;
+- đội thua vàng hơn 2000 thì người LÌ thấp ra đòn run tay, sức đánh tụt tới 18% (`liRun`).
+
+**2. NÃO gần như vô dụng trong trận.** Mọi chỗ NÃO chạm tới đều là xác suất nhỏ lồng trong xác suất
+khác. Giờ NÃO còn quyết định **nhịp nghĩ lại**: não 1200 đọc tình huống dày gấp khoảng 1,5 lần não 0.
+
+`[BẪY ĐÃ SẬP]` Trong vòng tick, `cs` là chỉ số của TƯỚNG (`chiSoNguoi`), không có `nao`. Viết
+`cs.nao` ra `NaN`, và `n.dem <= 0` sai mãi mãi: người ấy không bao giờ nghĩ lại. Phải dùng `n.cs.nao`.
+
+**3. Trụ ngoài của hai đội phủ lên nhau.** Trụ 0,40 / 0,60 trên đường giữa (dài ~1075) chỉ cách tâm
+đường 107, trong khi tầm bắn là 130. **Chỗ hai đợt lính gặp nhau nằm trong tầm cả hai trụ.** Đo được:
+
+- 10,3 trong 23 mạng một trận rơi trong **hai phút đầu**;
+- 57% số mạng ấy không do tướng nào hạ.
+
+Con số tổng "23 mạng một trận" trong §8 che mất chuyện này: gần một nửa là chết oan.
+
+Sửa bằng ba việc:
+
+- trụ ngoài lùi về 0,33 / 0,30, trụ trong về 0,20 / 0,17;
+- lính đứng trong tầm trụ địch không được tính là "ăn được" (`linhAnDuoc`), trừ khi lính nhà đang đỡ đạn;
+- trong tám phút đầu, đang ăn lính thì không quay sang đấm tướng, trừ khi bị đánh trước mà mình không lép máu, hoặc địch đã mỏng.
+
+Kết quả: mạng rơi trong 2 phút đầu từ **10,3 xuống 0,2**. Số mạng giữa và cuối trận gần như giữ nguyên, khoảng 12.
+
+**4. Hai thế trận là bẫy.**
+
+- Mốc giai đoạn cũ: đầu < 10 phút, cuối ≥ 22 phút. Nhưng trận trung bình chỉ dài ~20 phút, nên
+  thưởng cuối trận gần như không bao giờ tới lượt.
+- Đo tách lệnh khỏi hệ số mới thấy thủ phạm thật là lệnh **"nhường rồng" (0,15)**: riêng lệnh ấy
+  kéo xuống 25%. Rồng hồi 2 phút một lần, mỗi con 600 vàng đội, và hết giờ thì phân thắng bằng vàng.
+
+Sửa:
+
+- mốc giai đoạn thành 8 / 15 phút;
+- "nhường" 0,15 → 0,42, "luôn tranh" 0,90 → 0,70;
+- thưởng cuối của Nuôi Muộn +16%, Bùng Cuối +30%;
+- thưởng đầu của Bạo Đầu +5%.
+
+**5. Thẻ thế trận in số mà trận không dùng.** Hai chỗ lệch:
+
+- Hệ số của thế trận ("+24% từ phút 15") chưa bao giờ đi xuống trận, chỉ lệnh rồng/rừng đi xuống.
+- Năng khiếu áp vào đội luôn lấy hạng CAO NHẤT của huấn luyện viên, bất kể người chơi chọn lối nào.
+  Thẻ thì ghi "năng khiếu cho đúng lối này".
+
+Giờ `cauHinhTa` áp cả hai theo đúng lối đã chọn.
+
+### 11.3 Đo lại những gì đã chốt từ trước
+
+**Bộ não** (`soiAI.js`, 150 trận):
+
+| số | §8 | sau |
+|---|---:|---:|
+| mạng | 22,8 (10,3 trong 2 phút đầu) | 12,3 (0,2 trong 2 phút đầu) |
+| tập trung hoả lực | 2,65 | 3,87 |
+| mạng dưới trụ địch | 36% | 9% |
+| hết giờ | 23% | 15% |
+| chết khi đang rút | 31% | 54% |
+
+"Chết khi đang rút" tăng chủ yếu vì mẫu số đổi: gần mười mạng "đang ăn lính thì chết" đã biến mất.
+
+**Cân bằng 20 tướng** (`canbang.js 400`): không con nào lệch quá 12%.
+
+**Đường cong mùa.** Khi chỉ số có sức nặng thật thì chênh chỉ số quyết định trận mạnh hơn, và đường
+cong rơi: tứ kết CKTG 42% → 13%, chung kết thế giới 23% → 3%. Độ khó chỉnh ở `HE_SUC_MAY` (giai.js,
+theo bậc giải), **không** động vào `suc` của 24 đội, vì bảng xếp hạng tính bằng chính con số ấy.
+
+| giải | đích | §6.6 | sau (trung bình các dãy hạt đã chạy) |
+|---|---:|---:|---:|
+| Vòng bảng — Lượt 1 | 75–85% | 79% | 79% (2 dãy) |
+| Vòng bảng — Lượt 2 | ~85% | 86% | 89% (2 dãy) |
+| Play-off quốc nội | ~60% | 58% | 61% (2 dãy) |
+| Chung kết quốc nội | ~75% | 72% | 75% (2 dãy) |
+| CKTG — Tứ kết | 43% | 42% | 38% (3 dãy, bậc 3 = 0,52) |
+| CKTG — Bán kết | 53% | 42% | 45% (3 dãy) |
+| CKTG — Tranh vé | 25% | 29% | 20% (2 dãy, bậc 4 = 0,64) |
+| CHUNG KẾT THẾ GIỚI | 20% | 23% | 7% ở bậc 5 = 0,58 (3 dãy) |
+
+`[CHƯA ĐO]` Dòng cuối đã hạ bậc 5 từ 0,58 xuống **0,50**, và thưởng cuối trận của Bùng Cuối từ +24%
+lên **+30%**. Cả hai được commit theo yêu cầu của chủ dự án **trước khi** đợt đo kiểm kịp chạy xong.
+Việc đầu tiên của lần sau: `HAT=… CHI=w3,w4 node _tools/soiAI-node.js _tools/tileThang.js` và
+`BIEN=the_bungcuoi … donhay.js`.
+
+Bộ đo không nạp `ui-draft.js`, nên **không áp hệ số thế trận** cho người chơi giả lập. Trong game
+thật, người chơi còn được thêm hệ số ấy, tức là dễ hơn bảng này một chút.
+
+### 11.4 Chưa làm
+
+- **Lối "tham" không bao giờ tập NÃO.** Người chơi giả lập chọn sân có tổng chỉ số ăn được cao nhất,
+  và tới tứ kết CKTG thì NÃO vẫn ở 75, trong khi LỰC 883. NÃO giờ đáng giá ngang LỰC trong trận,
+  nhưng màn xem trước chỉ hiện tổng điểm cộng, nên người chơi đọc số sẽ bỏ qua NÃO. Cần cho sân NÃO
+  ăn dày hơn, hoặc cho màn xem trước nói ra giá trị trong trận.
+- **Một bậc thông thạo cho cả năm người đáng 79% tỉ lệ thắng.** Đó là đòn bẩy cấm chọn mà chủ dự án
+  muốn, nhưng mạnh hơn cả một mùa nuôi LỰC. Để nguyên, ghi lại.
+- Khoảng 12 mạng một trận là nhịp có sẵn của bộ não. Muốn trận "đông người chết" hơn thì phải chỉnh
+  giao tranh giữa trận, không phải bơm lại đợt chết oan đầu trận.

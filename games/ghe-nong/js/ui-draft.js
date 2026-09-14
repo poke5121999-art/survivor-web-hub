@@ -465,11 +465,11 @@
      trận qua `heso.ds` (`hesoDoi` trong sim.js đọc loai 'sat'/'chiu' theo pha dau/giua/cuoi). */
   var THE_TRAN = [
     { id: 'baodau', ten: 'Bạo Đầu', uma: 'Front',
-      mo: 'Dồn hết vào mười phút đầu: đi kèo sớm, tranh mọi con quái lớn, thấy khe là lao.',
-      duoc: 'Mạnh nhất trước phút 10 (+10% sát thương giai đoạn đầu).',
-      mat: 'Đuối rõ nếu trận kéo dài (−8% sát thương giai đoạn cuối).',
+      mo: 'Dồn hết vào tám phút đầu: đi kèo sớm, tranh quái lớn, thấy khe là lao.',
+      duoc: 'Mạnh nhất trước phút 8 (+5% sát thương), và tranh quái lớn hăng hơn hẳn.',
+      mat: 'Đuối rõ nếu trận kéo quá phút 15 (−8% sát thương).',
       ct: { rong: 'luon', rung: 'gank', mucTieu: 'lao' },
-      heso: [{ loai: 'sat', pha: 'dau', muc: 0.10 }, { loai: 'sat', pha: 'cuoi', muc: -0.08 }],
+      heso: [{ loai: 'sat', pha: 'dau', muc: 0.05 }, { loai: 'sat', pha: 'cuoi', muc: -0.08 }],
       chat: ['lao', 'gank', 'fight', 'solo'] },
 
     { id: 'bamnhip', ten: 'Bám Nhịp', uma: 'Pace',
@@ -481,19 +481,19 @@
       chat: ['mt', 'lead', 'poke', 'farm'] },
 
     { id: 'nuoimuon', ten: 'Nuôi Muộn', uma: 'Late',
-      mo: 'Chịu trận nửa đầu, đổi tài nguyên lấy farm, bung từ phút 25.',
-      duoc: 'Chịu đòn tốt lúc đầu (+9%) và đánh mạnh về cuối (+12%).',
-      mat: 'Nhường quái lớn sớm, dễ bị đẩy trụ trước phút 15.',
+      mo: 'Chịu trận nửa đầu, không cố tranh quái lớn, bung từ phút 15.',
+      duoc: 'Chịu đòn tốt trước phút 8 (+9%) và đánh mạnh từ phút 15 (+16%).',
+      mat: 'Hay để mất quái lớn, dễ bị dắt vàng giữa trận.',
       ct: { rong: 'nhuong', rung: 'farm', mucTieu: 'poke' },
-      heso: [{ loai: 'chiu', pha: 'dau', muc: 0.09 }, { loai: 'sat', pha: 'cuoi', muc: 0.12 }],
+      heso: [{ loai: 'chiu', pha: 'dau', muc: 0.09 }, { loai: 'sat', pha: 'cuoi', muc: 0.16 }],
       chat: ['farm', 'thu', 'le', 'poke'] },
 
     { id: 'bungcuoi', ten: 'Bùng Cuối', uma: 'End',
       mo: 'Nhường hẳn nửa đầu, dồn tất cả vào giao tranh tổng cuối trận.',
-      duoc: 'Sát thương giai đoạn cuối tăng vọt (+18%).',
-      mat: 'Yếu rõ nửa đầu (−7% sát thương giai đoạn đầu). Ăn to hoặc thua đậm.',
+      duoc: 'Từ phút 15 sát thương tăng vọt (+30%).',
+      mat: 'Yếu rõ trước phút 8 (−7% sát thương). Ăn to hoặc thua đậm.',
       ct: { rong: 'nhuong', rung: 'farm', mucTieu: 'poke' },
-      heso: [{ loai: 'sat', pha: 'cuoi', muc: 0.18 }, { loai: 'sat', pha: 'dau', muc: -0.07 }],
+      heso: [{ loai: 'sat', pha: 'cuoi', muc: 0.30 }, { loai: 'sat', pha: 'dau', muc: -0.07 }],
       chat: ['fight', 'thu', 'mt', 'lead'] }
   ];
   G.THE_TRAN = THE_TRAN;

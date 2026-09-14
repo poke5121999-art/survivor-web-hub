@@ -38,7 +38,7 @@
      lúc đang dò một con số thì chỉ cần một giải Bo1 (40 trận, ~1 phút). */
   var CHI = ((typeof process !== 'undefined' && process.env && process.env.CHI) || '')
     .split(',').filter(function (x) { return x; });
-  var LOI = 'tham';                /* lối chơi giả lập: xem duongcong.js */
+  var LOI = (typeof process !== 'undefined' && process.env && process.env.LOI) || 'tham';   /* lối chơi giả lập: tham | deu — xem duongcong.js */
   var VT = ['tren', 'rung', 'giua', 'duoi', 'ho'];
 
   function doiHinh() {
@@ -112,10 +112,11 @@
     var giai = l.giai;
     if (CHI.length && CHI.indexOf(giai.id) < 0) return;
     var canThang = giai.the === 'Bo5' ? 3 : giai.the === 'Bo3' ? 2 : 1;
-    var thang = 0, phut = 0, van = 0;
+    var thang = 0, phut = 0, van = 0, tongCS = [0, 0, 0, 0, 0];
     for (var n = 0; n < SO_LAN; n++) {
       var ca = nuoi(7000 + HAT + n * 91, i + 1);
       if (!ca) return;
+      for (var c = 0; c < 5; c++) tongCS[c] += ca.chiso[c] / SO_LAN;
       var doiMay = G._thu.taoDoiMay(ca, giai);
       var a = 0, b = 0, v = 0;
       while (a < canThang && b < canThang) {
@@ -125,7 +126,9 @@
       if (a > b) thang++;
     }
     ra.push(giai.ten.slice(0, 24) + ' (' + giai.the + ', ' + giai.doi + ') → thắng ' +
-      Math.round(thang / SO_LAN * 100) + '%  · ' + (van / SO_LAN).toFixed(1) + ' ván/giải');
+      Math.round(thang / SO_LAN * 100) + '%  · ' + (van / SO_LAN).toFixed(1) + ' ván/giải' +
+      '  · chỉ số TB CƠ/BỀN/LỰC/LÌ/NÃO ' + tongCS.map(Math.round).join('/') +
+      '  · sức đội máy ' + G._thu.taoDoiMay(nuoi(7000 + HAT, i + 1), giai).goc.suc);
   });
   return { soLan: SO_LAN, loi: LOI, ra: ra };
 })()

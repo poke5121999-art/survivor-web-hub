@@ -89,9 +89,14 @@
   G.heNangKhieu = function (ca, giai) {
     var hSan = G.hesoNangKhieu(ca.nk.san[giai.sanDau] || 'C');
     var hNhip = G.hesoNangKhieu(ca.nk.nhip[giai.nhip] || 'C');
-    /* thế trận: lấy hạng cao nhất, vì đội sẽ đá theo lối mạnh nhất của huấn luyện viên */
+    /* thế trận: năng khiếu của huấn luyện viên cho ĐÚNG lối người chơi vừa chọn — đúng như thẻ
+       thế trận ghi. `[BẪY ĐÃ SẬP]` Bản trước luôn lấy hạng CAO NHẤT dù người chơi chọn lối nào,
+       nên chọn lối mình hạng G cũng không mất gì, và con số "×hệ số" in trên thẻ là chữ suông.
+       Chưa chọn (đội máy, bộ đo) thì vẫn lấy hạng cao nhất. */
+    var daChon = ca.chienThuat && ca.chienThuat.the;
     var cao = 'G';
-    for (var k in ca.nk.the) if (G.THU_TU_NK.indexOf(ca.nk.the[k]) > G.THU_TU_NK.indexOf(cao)) cao = ca.nk.the[k];
+    if (daChon && ca.nk.the[daChon]) cao = ca.nk.the[daChon];
+    else for (var k in ca.nk.the) if (G.THU_TU_NK.indexOf(ca.nk.the[k]) > G.THU_TU_NK.indexOf(cao)) cao = ca.nk.the[k];
     var hThe = G.hesoNangKhieu(cao);
     return { san: hSan, nhip: hNhip, the: hThe, chung: (hSan * hNhip * hThe) };
   };
@@ -101,6 +106,10 @@
     var heso = hesoTu(ca);
     /* năng khiếu hợp giải thì cả đội khoẻ lên, không hợp thì yếu đi — cộng vào như một kỹ năng */
     heso.ds.push({ loai: 'hop', pha: 'luon', muc: he.chung - 1, dk: null });
+    /* `[BẪY ĐÃ SẬP]` Hệ số của thế trận ("+5% sát thương trước phút 8", "+24% từ phút 15") in trên
+       thẻ chọn thế trận nhưng chưa bao giờ đi xuống trận — chỉ có lệnh rồng/rừng đi xuống. */
+    var the = ca.chienThuat && ca.chienThuat.the && G.theTheoId && G.theTheoId(ca.chienThuat.the);
+    if (the) the.heso.forEach(function (h) { heso.ds.push({ loai: h.loai, pha: h.pha, muc: h.muc, dk: null }); });
 
     return {
       ten: G.S.clb.ten, mau: '#3ddc97', heso: heso,
@@ -124,8 +133,16 @@
     };
   }
 
+  /* Chỉ số đội máy xuống trận = `suc` × hệ số này. `suc` giữ nguyên vì bảng xếp hạng 24 đội
+     tính bằng chính con số ấy. `[ĐO TRONG REPO]` Khi LÌ và NÃO bắt đầu có sức nặng thật trong
+     trận (RESEARCH §11), chênh chỉ số quyết định trận mạnh hơn hẳn, và đường cong mùa rơi: tứ
+     kết CKTG 42% → 13%, chung kết thế giới 23% → 3%. Chỉnh độ khó ở ĐÂY, không ở chỉ số tướng. */
+  /* theo bậc giải: một hệ số chung không khớp được cả hai đầu — ở 0,75 vòng bảng thắng 90–95%
+     (đích 75–85) mà tứ kết CKTG chỉ 23% (đích 43–53) */
+  var HE_SUC_MAY = { 1: 1.0, 2: 0.72, 3: 0.52, 4: 0.64, 5: 0.50 };
+
   function cauHinhDich(doiMay, pick, giai) {
-    var suc = doiMay.goc.suc;
+    var suc = Math.round(doiMay.goc.suc * (HE_SUC_MAY[giai.bac] || 0.7));
     var ds = [];
     /* đội máy cũng có "kỹ năng huấn luyện viên" theo thế trận của họ */
     if (doiMay.goc.the === 'baodau') ds.push({ loai: 'sat', pha: 'dau', muc: 0.10 });
