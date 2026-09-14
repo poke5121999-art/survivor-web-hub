@@ -21,64 +21,9 @@
   };
 
   /* ══════════ giải đấu ══════════
-     Nếu bộ ban/pick + mô phỏng đã nạp thì đưa sang đó; chưa có thì tính kết quả gọn
-     để vòng huấn luyện vẫn chơi thông từ đầu tới cuối. */
-  G.vaoGiai = function (ca, giai) {
-    if (G.chayGiai) return G.chayGiai(ca, giai);
-
-    return new Promise(function (xong) {
-      var sucTa = G.sucManhDoi(ca);
-      var nhom = G.NHOM_DOI[giai.doi] || G.NHOM_DOI.ai_low;
-      var doi = G.DOI_THEO_ID[nhom[ca.rng.nguyen(nhom.length)]];
-      var cheech = (sucTa - doi.suc) / 300;
-      var ti = G.kep(0.5 + cheech * 0.32, 0.05, 0.95);
-      var thang = ca.rng.duoc(ti);
-
-      ca.thanhTich.push({ id: giai.id, ten: giai.ten, thang: thang, doi: doi.ten });
-      if (thang) {
-        G.S.clb.xu += giai.thuong.xu;
-        G.S.clb.fan += giai.thuong.fan;
-      } else if (giai.muc === 'thang') {
-        ca.dut = true;
-      }
-      G.luu();
-
-      G.bangLon(thang ? 'THẮNG!' : 'THUA', giai.ten + ' — ' + doi.ten, 1600).then(function () {
-        if (thang) G.phaoHoa(60);
-        xong();
-      });
-    });
-  };
-
-  /** sức mạnh đội quy đổi từ chỉ số HLV + thông thạo + năng khiếu (dùng cho kết quả gọn) */
-  G.sucManhDoi = function (ca, giai) {
-    var tb = 0, i;
-    for (i = 0; i < 5; i++) tb += ca.chiso[i];
-    tb /= 5;
-
-    var kn = 1;
-    ca.kyNang.forEach(function (id) {
-      var k = G.knTatCa(id); if (k) kn += k.hieu.muc * 0.35;
-    });
-    var goc = G.HLV_THEO_ID[ca.hlvId];
-    var rieng = G.KN_RIENG[goc.kn];
-    if (rieng) kn += rieng.hieu.muc * G.heKNRieng(ca.uncap) * 0.4;
-
-    var he = 1;
-    if (giai) {
-      he *= G.hesoNangKhieu(ca.nk.san[giai.sanDau] || 'C');
-      he *= G.hesoNangKhieu(ca.nk.nhip[giai.nhip] || 'C');
-    }
-    /* tuyển thủ: sao vị trí và cấp thẻ */
-    var tt = 0;
-    ca.tt.forEach(function (id) {
-      var g = G.TUYENTHU_THEO_ID[id]; if (!g) return;
-      var b = G.coTT(id) || { cap: 1 };
-      tt += g.vtSao * 12 + b.cap * 1.2;
-    });
-
-    return tb * kn * he + tt;
-  };
+     Từng có một nhánh "kết quả gọn" ở đây cho lúc giai.js chưa nạp, kèm bộ luật thưởng thứ
+     hai (không có vé cứu). giai.js luôn nạp nên nhánh ấy chưa bao giờ chạy — đã xoá. */
+  G.vaoGiai = function (ca, giai) { return G.chayGiai(ca, giai); };
 
   /* ══════════ kết mùa ══════════ */
   G.ketThucMua = function (ca) {
@@ -102,6 +47,8 @@
 
     n.appendChild(G.el('div', { text: 'Thắng ' + thang + '/' + ca.thanhTich.length + ' giải',
       style: 'color:#8b98a9;margin-bottom:8px' }));
+    var dongDV = G.el('div', { style: 'color:#f2c94c;margin-bottom:8px;font-weight:700' });
+    n.appendChild(dongDV);
 
     /* Kết toán bảng xếp hạng: mùa này ta đứng thứ mấy, ai vô địch quốc nội, ai đứng đầu thế giới */
     if (G.ketMuaBXH) {
@@ -120,11 +67,12 @@
     }
 
     var hs = G.ketCa(ca);
+    dongDV.textContent = '+' + G.so(ca.danhVong || 0) + ' danh vọng CLB';
     n.appendChild(G.el('div', { text: 'Hồ sơ để lại cho đời sau:', style: 'font-size:12px;color:#8b98a9;margin-top:10px' }));
     var sp = G.el('div', { style: 'display:flex;gap:5px;flex-wrap:wrap;margin-top:5px' });
     (hs.sparks || []).forEach(function (s) {
       var mau = s.mau === 'xanh' ? '#4a9df8' : s.mau === 'hong' ? '#ff8fb0' : s.mau === 'la' ? '#3ddc97' : '#c8d3e0';
-      sp.appendChild(G.el('span', { text: (s.khoa || s.kn || '') + ' ' + '★'.repeat(s.sao),
+      sp.appendChild(G.el('span', { text: G.tenSpark(s),
         style: 'font-size:11px;padding:2px 7px;border-radius:5px;background:#0a1017;color:' + mau }));
     });
     n.appendChild(sp);

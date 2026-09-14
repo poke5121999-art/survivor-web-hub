@@ -173,7 +173,7 @@
       var ph = hd && hd.h.phong.length ? hd.h.phong.slice(0, 5).join('') : '—';
       n.appendChild(G.el('div', {
         html: 'Họ đang hạng <b style="color:#ffd76e">' + (hd ? hd.hang : '?') + '</b>' +
-          (hd ? ' (' + hd.h.thang + 'T ' + hd.h.thua + 'H)' : '') +
+          (hd ? ' (' + hd.h.thang + 'T ' + hd.h.thua + 'B)' : '') +
           ' · phong độ <b>' + ph + '</b>' +
           (ht2 ? '  —  ta đang hạng <b style="color:#3ddc97">' + ht2.hang + '/' + ht2.tong + '</b>' : ''),
         style: 'font-size:12px;color:#8b98a9;margin-bottom:6px'
@@ -298,8 +298,12 @@
     }
 
     function ketMan(thang) {
+      /* giải đã có kết quả và sắp lưu: gỡ món nợ `giaiDo` (ui-ca.js) ngay trong CÙNG lần lưu,
+         không thì tắt tab lúc băng này đang hiện là mở lại phải đá lại giải đã ghi thành tích */
+      ca.giaiDo = null;
       G.luu();
-      return G.bangLon(thang ? 'VÔ ĐỊCH ' + giai.ten.toUpperCase() : 'DỪNG BƯỚC',
+      /* Bo1 vòng bảng thắng một trận mà hô "VÔ ĐỊCH VÒNG BẢNG" thì nghe như trò đùa */
+      return G.bangLon(thang ? (soVan === 1 ? 'QUA ' : 'VÔ ĐỊCH ') + giai.ten.toUpperCase() : 'DỪNG BƯỚC',
         thangTa + ' — ' + thangDich + ' trước ' + doiMay.ten, 1800)
         .then(function () {
           if (thang) {

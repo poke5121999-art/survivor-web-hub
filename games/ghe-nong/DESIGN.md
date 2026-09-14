@@ -866,7 +866,7 @@ Uma cho "đứt ca" là hết. Ở đây `[ĐỀ XUẤT]` thêm **1 "vé cứu"*
 5. ~~Ba buff vị trí còn thiếu~~ — **xong**, đủ cả sáu buff của TFM2; bảng chỗ cài ở
    `RESEARCH.md` §2.16.
 6. ~~Hiệu ứng chiêu~~ — **xong**, xem §15.
-7. **Vé chơi (`ve`)** khai báo trong bản lưu nhưng chưa dùng để giới hạn gì.
+7. ~~Vé chơi (`ve`)~~ — ô "🎟️ 5/5" không giới hạn gì nên đã **xoá** khỏi màn ngoài; vé đổi 200 lượt quay thì đã làm thật. Xem `RESEARCH.md` §10.
 8. **Đồng bộ đám mây** qua `window.HubSave` — mã đã sẵn, chưa gắn.
 9. **Ô đồ thứ sáu**: một người chỉ giữ được năm món (mỗi nhánh một món, mua tầng sau thay
    tầng trước). Muốn có ô thứ sáu thì phải cho giữ hai món cùng nhánh — đổi luật ghép, không

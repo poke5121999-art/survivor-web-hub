@@ -23,9 +23,14 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
   font-family:"Segoe UI Variable Text","Segoe UI",system-ui,"Noto Sans",sans-serif;
   -webkit-user-select:none;user-select:none;overscroll-behavior:none}
 
-#san{position:fixed;inset:0;display:grid;place-items:center;background:#05070a}
+#san{position:fixed;inset:0;background:#05070a;overflow:hidden}
+/* `[BẪY ĐÃ SẬP]` Bản trước căn giữa bằng `display:grid;place-items:center`. Khung rộng 1280px
+   làm rãnh grid NỞ theo nội dung, nên khi cửa sổ nhỏ hơn 1280×720 khung nằm ở (0,0) chứ
+   không ở giữa — rồi `scale()` co quanh tâm của chính nó, và cả khung trôi lệch lên trái:
+   điện thoại ngang chỉ thấy góc trên trái, laptop 1366×650 mất thanh nút dưới. Máy 1280×760
+   dùng để chụp kiểm thì k = 1 nên không bao giờ lộ. Neo tâm khung vào tâm màn cho chắc. */
 #khung{
-  position:relative;width:1280px;height:720px;flex:none;
+  position:absolute;left:50%;top:50%;margin:-360px 0 0 -640px;width:1280px;height:720px;
   transform-origin:center center;
   background:var(--nen);overflow:hidden;
   box-shadow:0 0 0 1px #000, 0 24px 80px rgba(0,0,0,.7);
@@ -220,6 +225,11 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .nut{border:1px solid var(--vien);background:#1b2634;color:var(--chu);border-radius:9px;
   padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .nut:hover{border-color:#3a4a5f}
+/* Chạm trên điện thoại không có hover — nút tối từng bấm xuống mà không nhúc nhích gì,
+   người chơi không biết mình đã chạm trúng chưa. Mọi nút bấm được đều lún một chút. */
+.nut:active:not(:disabled),.nut-nho:active,.tocdo:active,.sk-chon button:active,.uc-nut:active{transform:translateY(1px) scale(.98);filter:brightness(1.12)}
+.dr-t:active:not(.cam):not(.lay){transform:scale(.97)}
+.nut:disabled{cursor:default}
 .nut.chinh{background:linear-gradient(180deg,#2fae7c,#1d7a56);border-color:#3ddc97;color:#04180f}
 .nut.do{background:linear-gradient(180deg,#c8393e,#8f272b);border-color:#e5484d;color:#fff}
 .nut-nho{border:1px solid var(--vien);background:#141c27;color:var(--chu-mo);border-radius:7px;
@@ -235,7 +245,8 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .sk-chon button:hover{border-color:var(--xanh);background:#182a24}
 
 /* băng thông báo lớn */
-#banner-lon{position:absolute;left:0;right:0;top:38%;z-index:60;text-align:center;pointer-events:none}
+#banner-lon{position:absolute;left:0;right:0;top:36%;z-index:60;text-align:center;pointer-events:none;
+  padding:4px 0 12px;background:linear-gradient(90deg,transparent,#05070acc 22%,#05070acc 78%,transparent)}
 #banner-lon[hidden]{display:none}
 .bn-chu{display:inline-block;padding:14px 44px;font-size:38px;font-weight:900;letter-spacing:.06em;
   background:linear-gradient(180deg,#fff,#ffd76e);-webkit-background-clip:text;background-clip:text;
@@ -300,9 +311,12 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .mu-vang{text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
 .mu-vang.hon{color:#3ddc97} .mu-vang.kem{color:#e5484d}
 
-.tr-the{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;overflow:auto;min-height:0}
-.the-cot{display:flex;flex-direction:column;gap:3px}
-.the-nguoi{background:#111926;border:1px solid var(--vien);border-radius:8px;padding:3px 6px;position:relative}
+.tr-the{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;overflow:hidden;min-height:0}
+/* Năm thẻ chia ĐỀU chiều cao cột. Xếp flex như trước thì thẻ đang sẵn chiêu cuối (có thêm
+   dòng tên chiêu) cao hơn, và thẻ thứ năm rơi ra ngoài đáy — DESIGN §8.4 ghi bẫy này rồi mà
+   vẫn tái phát. Chia hàng cứng thì có thẻ cao cũng chỉ bị cắt chân chính nó. */
+.the-cot{display:grid;grid-template-rows:repeat(5,minmax(0,1fr));gap:3px;min-height:0}
+.the-nguoi{background:#111926;border:1px solid var(--vien);border-radius:8px;padding:3px 6px;position:relative;overflow:hidden;min-height:0}
 .the-nguoi.chet{opacity:.42}
 .the-ten{font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .the-mau{height:5px;background:#0a1017;border-radius:99px;overflow:hidden;margin:3px 0}
@@ -684,6 +698,7 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .uma-nut.v-giaoan{background:linear-gradient(180deg,#7fd6ff,#3f7fd0);border-color:#d9efff}
 .uma-nut.v-giaohuu{background:linear-gradient(180deg,#ff9ba8,#a03e64);border-color:#ffdde2}
 .uma-nut.tat{filter:grayscale(.7) brightness(.85);cursor:default}
+.uma-nut.tat:active{transform:none;box-shadow:inherit}
 .uma-nut.chon{outline:4px solid #ffd54a;outline-offset:1px}
 
 /* cấp sân + mặt tuyển thủ đứng trên nút, y như thẻ hỗ trợ của Uma */
@@ -839,6 +854,9 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .dr-nhan.ssr{border-color:#6b5a20;background:#191505}
 .dr-nhan.ur{border-color:#7a3350;background:#210911}
 .dr-t.doa{border-color:#e5484d;box-shadow:0 0 0 2px #e5484d33}
+.dr-chot{display:block;width:100%;margin:6px 0 2px;font-size:14px;padding:10px 12px}
+.dr-chot-goi{font-size:11px;color:var(--chu-mo);text-align:center;margin-bottom:6px}
+.dr-chot-goi.khong{color:#f2a14c;font-size:12px;padding:6px 0}
 .dr-nhom-ten{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .dr-nhom-ten em{font-style:normal;font-size:10px;color:#6b7788;text-transform:none;letter-spacing:0}
 
@@ -1133,7 +1151,7 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 .uc-banner{position:relative;border-radius:18px;overflow:hidden;margin-bottom:12px;
   border:3px solid #fff;box-shadow:0 4px 0 #cdd6ea}
 .uc-bn-nen{position:absolute;inset:0}
-.uc-bn-mat{position:relative;display:flex;align-items:flex-end;gap:0;padding:8px 12px 0;height:140px}
+.uc-bn-mat{position:relative;display:flex;align-items:flex-end;gap:0;padding:6px 12px 0;height:104px}
 .uc-bn-mat i{display:block;flex:none;margin-right:-14px;filter:drop-shadow(0 3px 5px #0004)}
 .uc-bn-chu{position:relative;padding:9px 12px 11px;background:#ffffffea;
   border-top:2px solid #ffffff}

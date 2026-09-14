@@ -10,8 +10,13 @@
   G.moManCa = function (c) {
     ca = c;
     sanDangXem = -1;
+    dangBan = false;
     G.hienMan('man-ca');
     veTatCa();
+    /* mở lại một ca tắt giữa chừng: lượt trước còn nợ giải / cảm hứng thì đá nốt, còn ca đã
+       hết (chung kết xong, hay đã bị loại) thì sang thẳng màn kết mùa */
+    if (ca.choCamHung || ca.giaiDo) return tiepLuot();
+    if (ca.xong || ca.dut) return G.ketThucMua(ca);
     if (G.day) G.day('ca');
     var nl = G.$('#ca-nut-lich');
     if (nl && !nl._daGan) {
@@ -64,7 +69,7 @@
     G.$('#ca-luot-so').textContent = ca.soLuot - ca.luot + 1;
     G.$('#ca-luot-tong').textContent = ca.soLuot;
 
-    var mt = muc.giai ? ('Hôm nay có trận: ' + muc.giai.ten)
+    var mt = muc.giai ? ('Hôm nay có trận: ' + muc.giai.ten + ' — làm xong một việc là vào trận')
       : (muc.gd || '') + ' — trận kế: ' + (tenGiaiKe() || 'hết mùa');
     G.$('#ca-mucteu-chu').textContent = mt;
 
@@ -195,7 +200,9 @@
 
   function veSan() {
     var h = G.xoa(G.$('#hang-san'));
-    if (mo !== 'san') return;
+    /* rời lớp sân thì dòng "Tỉ lệ hỏng — chạm lần nữa để tập" cũng phải tắt. Bản trước
+       thoát ở đây trước khi tới chỗ ẩn nó, nên dòng ấy nằm lì dưới sáu nút suốt cả ca. */
+    if (mo !== 'san') { G.$('#ca-hong').hidden = true; return; }
     for (var s = 0; s < 5; s++) (function (s) {
       var xt = G.xemTruoc(ca, s);
       var b = G.el('div.uma-nut.san.' + KHOA_SAN[s] + (sanDangXem === s ? '.chon' : ''));
@@ -335,9 +342,16 @@
   }
 
   /* ── làm một việc rồi sang lượt ── */
+  /* Chốt một lượt một việc. Băng lớn (CẦU VỒNG MỞ!, CẢM HỨNG!) không chặn chạm, và
+     `veTatCa()` vẽ lại nút trước khi băng hạ — không có cờ này thì bấm thêm được việc thứ
+     hai trên cùng lượt, `sangLuot` chạy hai lần và hai chuỗi vào giải chồng lên nhau. */
+  var dangBan = false;
+
   function lamViec(v) {
+    if (dangBan) return;
     var kq = G.lamViec(ca, v);
     if (!kq) return;
+    dangBan = true;
 
     sanDangXem = -1;
     mo = 'viec';          /* làm xong một việc thì quay về lớp sáu nút, như Uma */
@@ -361,7 +375,9 @@
 
     var chuoi = Promise.resolve();
     if (kq.moCauVong) chuoi = chuoi.then(function () { return G.bangLon('CẦU VỒNG MỞ!', 'tập đúng sân của người ấy để ăn dày', 1300); });
-    if (kq.sk) chuoi = chuoi.then(function () { return hienSuKien(kq.sk); });
+    /* để số "+44 LỰC" bay hết đã rồi mới bật hộp sự kiện — bật ngay thì khoảnh khắc được
+       thưởng bị hộp che mất */
+    if (kq.sk) chuoi = chuoi.then(function () { return G.doi(900); }).then(function () { return hienSuKien(kq.sk); });
 
     chuoi.then(function () { return ketLuot(); });
   }
@@ -370,7 +386,10 @@
     return new Promise(function (xong) {
       var n = G.el('div');
       var ng = G.el('div.sk-nguoi');
-      ng.appendChild(G.el('div.sk-anh', { text: '👤' }));
+      var anhSk = G.el('div.sk-anh');
+      var mat = sk.nguoi != null && G.oAnh && G.oAnh(ca.tt[sk.nguoi], 70);
+      if (mat) anhSk.appendChild(mat); else anhSk.textContent = '👤';
+      ng.appendChild(anhSk);
       var ph = G.el('div');
       if (sk.tenNguoi) ph.appendChild(G.el('div', { text: sk.tenNguoi, style: 'color:#7fd6ff;font-weight:700;margin-bottom:4px' }));
       ph.appendChild(G.el('div', { text: sk.chu }));
@@ -404,14 +423,27 @@
     });
   }
 
+  /* `[BẪY ĐÃ SẬP]` Bản cũ lưu NGAY sau `sangLuot` rồi mới vào giải. Tắt tab giữa giải là
+     bản lưu đã sang lượt sau mà giải chưa hề đá: thua giải "phải thắng" chỉ cần tải lại là
+     né, còn chung kết thế giới (lượt cuối, `ca.xong`) thì vào lại mọi nút đều chết — lối ra
+     duy nhất là Bỏ ca. Giờ phần còn nợ của lượt (cảm hứng, giải) ghi vào bản lưu thành
+     `ca.choCamHung` / `ca.giaiDo`, và `tiepLuot` trả nợ ấy — kể cả khi mở lại ca. */
   function ketLuot() {
     var r = G.sangLuot(ca);
+    ca.choCamHung = !!r.camHung;
+    ca.giaiDo = r.giai || null;
     luuCa();
+    return tiepLuot();
+  }
 
+  function tiepLuot() {
+    dangBan = true;
     var chuoi = Promise.resolve();
-    if (r.camHung) {
+    if (ca.choCamHung) {
       chuoi = chuoi.then(function () {
-        var ghi = G.camHung(ca);
+        G.camHung(ca);
+        ca.choCamHung = false;
+        luuCa();
         G.tieng('camhung');
         G.phaoHoa(60);
         G.rung('to');
@@ -419,10 +451,12 @@
         return G.bangLon('CẢM HỨNG!', 'di sản của người đi trước', 1700);
       });
     }
-    if (r.giai) {
-      chuoi = chuoi.then(function () { return G.vaoGiai(ca, r.giai); });
+    if (ca.giaiDo) {
+      chuoi = chuoi.then(function () { return G.vaoGiai(ca, ca.giaiDo); })
+        .then(function () { ca.giaiDo = null; luuCa(); });
     }
-    chuoi.then(function () {
+    return chuoi.then(function () {
+      dangBan = false;
       if (ca.xong || ca.dut) return G.ketThucMua(ca);
       /* sau giải thì đang đứng ở màn trận / màn kết quả — phải quay lại màn huấn luyện */
       G.hienMan('man-ca');

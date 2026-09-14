@@ -1512,3 +1512,95 @@ tướng-đánh-tướng thì vừa nặng lên). Tự chơi hết một mùa (`
 - uma.guide — Race Phases: https://uma.guide/guides/race-phases
 - umareference — Gacha: https://www.umareference.com/guide/gacha
 - Destructoid — Pity System: https://www.destructoid.com/umamusume-pretty-derby-pity-system-explained/
+
+---
+
+## 10. Đợt đánh bóng: chơi thật như người mới, rồi soi mã `[ĐO TRONG REPO]`
+
+Làm theo ba nguyên tắc: trải nghiệm trước hết, bớt trước khi thêm, chứng minh trên bản thật.
+Có hai lượt soi chạy song song.
+
+1. **Chơi thử bản Pages** với localStorage sạch, ở hai khung: 1280×760 và điện thoại ngang
+   844×390 (isMobile, hasTouch). Chụp ảnh từng màn và nhìn bằng mắt.
+2. **Đọc mã tìm lỗi trạng thái:** bấm hai lần, tải lại giữa chừng, listener không gỡ, lời hứa
+   trên màn hình mà mã không làm.
+
+Lượt chơi thử không bắt được một lỗi JS nào. Mọi thứ dưới đây chỉ lộ ra khi **nhìn** hoặc khi
+**cố tình làm sai nhịp**.
+
+### 10.1 Khung lệch khi cửa sổ nhỏ hơn 1280×720 — lỗi nặng nhất, và vì sao bộ đo không thấy
+
+`#san{display:grid;place-items:center}` chứa `#khung` rộng 1280px. Rãnh grid nở theo nội dung,
+nên khung nằm ở (0,0) chứ không ở giữa màn. Sau đó `transform:scale` co khung quanh tâm của
+chính nó, và cả khung trôi lệch. Hậu quả:
+
+- Điện thoại ngang chỉ thấy góc trên trái.
+- Laptop 1366×650 mất thanh nút dưới.
+
+`[BẪY ĐÃ SẬP]` Mọi bộ đo trong `_tools/` chụp ở 1280×760. Ở khung đó hệ số co `k = 1`, nên lỗi
+không bao giờ hiện. **Kiểm giao diện phải chạy thêm ít nhất một khung nhỏ hơn 1280×720.**
+Sửa bằng cách neo tâm: `left:50%;top:50%;margin:-360px 0 0 -640px`.
+
+Còn một việc chưa làm: ở 844×390 hệ số co là 0,54. Nút tốc độ còn khoảng 27×15px, chữ nhãn
+khoảng 5px. Khung 16:9 cố định không cho vùng chạm 44px trên điện thoại. Muốn đạt thì phải có
+bố cục riêng cho máy hẹp (DESIGN §8.4 đã hứa bảng số tự thu dưới 900px), không chỉ sửa CSS.
+
+### 10.2 Lỗi trạng thái — không cái nào hiện ra khi chơi "đúng nhịp"
+
+| lỗi | cách làm lộ | sửa |
+|---|---|---|
+| Tải lại giữa giải thì bản lưu đã sang lượt sau: thua giải "phải thắng" chỉ cần F5 là né. Riêng chung kết (lượt cuối, `ca.xong`) thì vào lại mọi nút đều chết | lưu, đặt `luot` ngay trước lượt có giải, Nghỉ, rồi tải lại | phần còn nợ của lượt ghi vào bản lưu thành `ca.giaiDo` / `ca.choCamHung`; `tiepLuot()` trả nợ, kể cả lúc mở lại ca. `ketMan` gỡ `giaiDo` **trong cùng lần lưu** với thành tích |
+| Bấm ⚡ lúc băng THẮNG/THUA đang hiện thì `xongCB` chạy hai lần: thắng cộng đôi, Bo3 xong sau một ván | bấm ⚡ ba lần liền | cờ `daKet` trong `ketThuc()` |
+| Băng CẦU VỒNG/CẢM HỨNG không chặn chạm, nên làm được hai việc trong một lượt | bấm liền hai việc | cờ `dangBan` trong `lamViec` |
+| Bài dạy "Bạn không cầm chuột" mở ra trong khi trận vẫn chạy: địch ăn mạng đầu lúc người chơi đang đọc | người mới vào trận đầu | `tamDung` cho tới khi đóng hộp |
+| `G.hop` mới đè hộp cũ mà không trả Promise của hộp cũ, nên `_bxhTrongHop` kẹt ở 1 | từ BXH bấm vào một đội | trả `undefined` cho hộp cũ |
+| Dòng "Tỉ lệ hỏng — chạm lần nữa để tập" không bao giờ tắt | tập xong một buổi | `veSan()` thoát sớm **trước** dòng ẩn nó |
+| Mỗi trận gắn thêm một cặp `pointermove`/`pointerup` vào `window` | — (rò rỉ âm thầm) | gắn một lần ở cấp mô-đun |
+
+### 10.3 Lời hứa trên màn hình mà mã không làm — nửa vời tệ hơn không có
+
+- **"Đủ 200 vé thì tự chọn"** được ghi ở ba chỗ, nhưng không có dòng mã nào để đổi vé, nên thanh
+  vé cứ thế vượt 100%. Đã làm thật: đủ vé thì hiện nút **Đổi vé**, chọn một cái bậc cao của
+  banner đó.
+- **Danh vọng CLB** không chỗ nào cộng, nên huy hiệu hạng mãi là "F 0". Giờ mỗi ca cộng
+  `trung bình chỉ số + 400 × số giải thắng + 1500 nếu vô địch thế giới`, và màn kết mùa có hiện.
+- **Ô "🎟️ 5/5"** không giới hạn gì. Đã **xoá**.
+- **Nhật ký giao hữu ghi "Cả đội ôn tướng"** trong khi không có gì được cộng. Đã **xoá** dòng ấy.
+- **Nhánh "kết quả gọn"** của `G.vaoGiai` cùng `G.sucManhDoi` chưa bao giờ chạy, vì giai.js
+  luôn được nạp. Nó còn là bộ luật thưởng thứ hai. Đã **xoá**.
+
+### 10.4 Người mới lạc
+
+- **Cấm chọn chốt ngay lần chạm đầu**, trong khi dòng hướng dẫn lại bảo "chạm để xem". Người
+  chơi thử cấm mất chính con tủ SR của mình. Giờ màn này theo luật hai chạm của phòng tập:
+  - chạm lần 1 để xem, và bảng chi tiết có nút **⊘ Cấm X** / **✓ Giao X cho Y** ở trên cùng;
+  - chạm lần 2 để chốt;
+  - không chốt được thì bảng nói thẳng lý do (sai vị trí, đã cấm, luật không lặp).
+- **Màn kết mùa in khoá nội bộ:** "co ★★", "lua_som ★★". Giờ dùng chung `G.tenSpark`.
+- **Bảng xếp hạng:** "H" nghĩa là thua nhưng người Việt đọc thành *hoà*. Chữ hiện ra đổi thành
+  **B** (bại); dữ liệu vẫn giữ `'H'`.
+- **Chữ người chơi đọc được** nhắc "Uma Musume", "Front/Pace", "spark". Đã đổi hoặc bỏ. Trong chú
+  thích mã thì vẫn giữ nguồn.
+- **Thắng một trận Bo1 vòng bảng** mà băng hô "VÔ ĐỊCH VÒNG BẢNG". Giờ ghi **QUA …**.
+- **Tên huấn luyện viên** ở bước 2 là chữ màu sáng của theme tối nằm trên thẻ trắng. Đã tô lại.
+
+### 10.5 Cảm giác
+
+- Hộp sự kiện bật lên chưa tới 0,5 giây sau khi tập, che mất số "+44" đang bay. Giờ đợi 900ms.
+- Năm tuyển thủ cùng chạm mốc thân thiết 20 gần như cùng lúc, nên cùng một đoạn thoại hiện ba
+  lượt liền cho ba người. Giờ một mốc chỉ nổ lại sau ít nhất bốn lượt. Hộp sự kiện hiện chân
+  dung thật thay cho 👤.
+- Cột thẻ trong trận làm rơi thẻ thứ năm (bẫy DESIGN §8.4 tái phát). Giờ chia năm hàng cứng.
+- Nút tối có phản hồi `:active` khi chạm. Băng lớn có dải nền nên đọc được trên bản đồ.
+
+### 10.6 Chưa làm — ghi lại để khỏi tìm lại
+
+- Bố cục riêng cho máy hẹp (§10.1).
+- Quay 10 chưa có hoạt ảnh lật theo độ hiếm. Lên cấp thẻ chưa có phản hồi.
+- "Giao cho trợ lý" nhảy thẳng sang Chiến thuật, không cho xem đội hình vừa chọn.
+- Nhật ký tập không ghi trận vừa đấu.
+- Lời thoại "Tôi sai vị trí." lặp lại. Tên nhân vật đứng gần nhau chồng lên nhau.
+- Bước 1 và 3 của luồng vào ca không có gì để chọn khi mới chơi. Nên tự bỏ qua.
+
+Kiểm: một bộ Playwright 15 bài bấm UI thật (tải lại giữa giải, ⚡ ba lần, ca đã xong, đổi vé,
+cấm chọn hai chạm). Chạy thêm `_tools/tuchoi.js` hết một mùa: tới "Kết mùa", không lỗi.

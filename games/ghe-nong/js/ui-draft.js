@@ -80,7 +80,7 @@
           ? 'LƯỢT CẤM ' + (i + 1) + '/4'
           : 'LƯỢT CHỌN — ' + G.VITRI_THEO_ID[l.vt].ten;
         G.$('#dr-huong').textContent = l.ben === 'ta'
-          ? (l.loai === 'cam' ? 'Chạm một tướng để cấm' : 'Chạm một tướng để giao cho ' + ((nguoiTa(l.vt) || {}).goc || {}).biet)
+          ? (l.loai === 'cam' ? 'Chạm hai lần để cấm một tướng' : 'Chạm hai lần để giao tướng cho ' + ((nguoiTa(l.vt) || {}).goc || {}).biet)
           : 'Đối thủ đang chọn…';
         G.$('#man-draft').className = 'man ' + (l.ben === 'ta' ? 'luot-ta' : 'luot-dich');
       }
@@ -212,12 +212,15 @@
             if (biCam) o.appendChild(G.el('div.dr-t-dau', { text: '⊘' }));
             if (lapLai && dang) o.appendChild(G.el('div.dr-t-so', { text: '↺' }));
 
+            /* Chạm lần 1 = XEM, chạm lần 2 (hoặc nút ở bảng chi tiết) = CHỐT — đúng luật của
+               phòng tập. Bản trước chốt ngay từ lần chạm đầu trong khi dòng hướng dẫn lại bảo
+               "chạm để xem": người chơi thử cấm mất chính con tủ SR của mình. */
             o.addEventListener('click', function () {
-              dangXem = t.id; veLuoi(); veChiTiet();
-              if (!l || l.ben !== 'ta') return;
-              if (!dang) return;
-              if (l.loai === 'chon' && t.vt !== l.vt) return;
-              chonTuong(t.id);
+              var lanHai = dangXem === t.id;
+              dangXem = t.id;
+              if (lanHai && !lyDoKhong(t)) return chonTuong(t.id);
+              G.tieng('cham');
+              veLuoi(); veChiTiet();
             });
             hang.appendChild(o);
           });
@@ -232,6 +235,19 @@
         d.appendChild(G.el('b', { text: bac == null ? '?' : bac,
           style: 'color:' + (bac && G.TT_THEO_ID[bac] ? G.TT_THEO_ID[bac].mau : '#5a6675') }));
         return d;
+      }
+
+      /** vì sao KHÔNG chốt được tướng t ở lượt này (null = chốt được) */
+      function lyDoKhong(t) {
+        var l = luot[i];
+        if (!l || l.ben !== 'ta') return 'Đang lượt đối thủ';
+        if (cam.indexOf(t.id) >= 0) return 'Con này đã bị cấm';
+        if (pick.ta[t.vt] === t.id || pick.dich[t.vt] === t.id) return 'Con này đã có người lấy';
+        if (khoaLap && (daDung.ta.indexOf(t.id) >= 0 || daDung.dich.indexOf(t.id) >= 0))
+          return 'Đã dùng ở ván trước — luật không lặp';
+        if (l.loai === 'chon' && t.vt !== l.vt)
+          return 'Lượt này chọn cho vị trí ' + G.VITRI_THEO_ID[l.vt].ten + ', con này đá ' + G.VITRI_THEO_ID[t.vt].ten;
+        return null;
       }
 
       function veChiTiet() {
@@ -268,6 +284,19 @@
         dau.appendChild(G.el('span', { text: G.LOP_TEN[t.lop] + ' · ' + G.VITRI_THEO_ID[t.vt].ten,
           style: 'color:#8b98a9;font-size:12px' }));
         e.appendChild(dau);
+
+        /* nút chốt nằm NGAY trên cùng — hoặc lý do không chốt được, nói thẳng */
+        var lk = lyDoKhong(t), lh = luot[i];
+        if (!lk) {
+          var cam1 = lh.loai === 'cam';
+          var ng = !cam1 && nguoiTa(lh.vt);
+          e.appendChild(G.el('button.nut' + (cam1 ? '.do' : '.chinh') + '.dr-chot', {
+            text: cam1 ? '⊘ Cấm ' + t.ten : '✓ Giao ' + t.ten + (ng ? ' cho ' + ng.goc.biet : ''),
+            onclick: function () { chonTuong(t.id); } }));
+          e.appendChild(G.el('div.dr-chot-goi', { text: 'hoặc chạm lại ô tướng để chốt' }));
+        } else if (lh && lh.ben === 'ta') {
+          e.appendChild(G.el('div.dr-chot-goi.khong', { text: lk }));
+        }
 
         var bang = G.el('div.ct-bang');
         [['Đánh', c1.atk, c12.atk], ['Phép', c1.ap, c12.ap], ['Máu', c1.hp, c12.hp],
@@ -494,7 +523,7 @@
       var m = G.xoa(G.$('#man-chienthuat'));
       m.appendChild(G.el('div.ct-tren', {
         html: '<b>Chọn thế trận</b> <span style="color:#8b98a9;font-size:12px">— một lựa chọn, ' +
-          'giống lối chạy của Uma. Năng khiếu của huấn luyện viên cho đúng lối này là hệ số áp ' +
+          'như chọn nhịp chạy cho cả trận. Năng khiếu của huấn luyện viên cho đúng lối này là hệ số áp ' +
           'vào cả đội, và người có cái tôi cao vẫn chơi theo chất của mình.</span>'
       }));
 
@@ -562,7 +591,6 @@
           var o = G.el('div.ct-o-the' + (chon === t.id ? '.chon' : ''));
           var dau = G.el('div.ct-the-dau');
           dau.appendChild(G.el('b', { text: t.ten }));
-          dau.appendChild(G.el('span.ct-the-uma', { text: t.uma }));
           dau.appendChild(G.el('span.ct-the-nk', {
             text: hang + '  ×' + he.toFixed(2),
             style: 'color:' + mauHang(hang)

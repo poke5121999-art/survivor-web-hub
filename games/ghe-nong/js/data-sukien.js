@@ -130,7 +130,7 @@
 
   /* ══════ sự kiện riêng của tuyển thủ (mở theo mốc thân thiết) ══════ */
   G.SUKIEN_TT = {
-    20: S('tt20', 'Nói chuyện riêng sau buổi tập',
+    20: S('tt20', 'Nói chuyện riêng',
       '"Thầy... em thấy em đá chưa xứng suất này."',
       [{ chu: '"Em cứ đá cái em giỏi nhất."', kq: { than: 10, cs: { li: 12 } } },
        { chu: '"Vậy thì tập tới lúc xứng."', kq: { than: 6, cs: { co: 14 }, luc: -8 } }]),
@@ -155,8 +155,14 @@
       var moc = m >= 80 ? 80 : m >= 50 ? 50 : m >= 20 ? 20 : 0;
       if (moc) {
         var khoa = ca.tt[i] + '_' + moc;
-        if (!ca._daSk[khoa] && rng.duoc(0.7)) {
+        /* Năm người cùng chạm mốc 20 gần như cùng lúc (ai cũng bắt đầu từ 0), nên bản trước
+           bắn CÙNG một đoạn thoại ba lượt liền cho ba người khác nhau. Một mốc chỉ nổ lại sau
+           ít nhất bốn lượt — người thứ hai đợi, còn lượt ấy rơi xuống sự kiện chung. */
+        ca._skMocLuot = ca._skMocLuot || {};
+        var gan = ca._skMocLuot[moc] != null && ca.luot - ca._skMocLuot[moc] < 4;
+        if (!ca._daSk[khoa] && !gan && rng.duoc(0.7)) {
           ca._daSk[khoa] = 1;
+          ca._skMocLuot[moc] = ca.luot;
           var sk = JSON.parse(JSON.stringify(G.SUKIEN_TT[moc]));
           sk.nguoi = i;
           sk.tenNguoi = G.TUYENTHU_THEO_ID[ca.tt[i]].ten;

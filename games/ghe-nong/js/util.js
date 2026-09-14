@@ -148,9 +148,15 @@
   };
 
   /* ── hộp thoại ── */
+  /* Hộp mới đè hộp cũ thì Promise của hộp cũ phải được trả (bằng undefined), không thì ai
+     đang `await` nó treo mãi — bảng xếp hạng từng kẹt `_bxhTrongHop` ở 1 vì chuyện này. */
+  var xongHopCu = null;
   G.hop = function (opt) {
-    return new Promise(function (xong) {
+    if (xongHopCu) { var cu = xongHopCu; xongHopCu = null; cu(undefined); }
+    return new Promise(function (xongGoc) {
       var phu = G.$('#lop-phu');
+      var xong = function (gt) { if (xongHopCu === xong) xongHopCu = null; xongGoc(gt); };
+      xongHopCu = xong;
       G.xoa(phu);
       /* `sang: true` → hộp trắng kiểu Uma. Game có hai thế giới màu: menu và huấn luyện
          theo Uma (sáng), cấm chọn và trận đấu theo TFM2 (tối). Hộp thoại phải theo màu
@@ -173,6 +179,9 @@
       h.appendChild(chan);
       phu.appendChild(h);
       phu.hidden = false;
+      /* bàn phím: Enter bấm nút chính */
+      var chinh = chan.querySelector('.nut.chinh') || chan.querySelector('.nut');
+      if (chinh) try { chinh.focus({ preventScroll: true }); } catch (e) {}
     });
   };
 

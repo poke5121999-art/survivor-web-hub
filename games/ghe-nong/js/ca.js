@@ -387,9 +387,8 @@
       kq.dong.push({ t: 'Điểm KN', v: them, vang: true });
       kq.dong.push({ t: 'Danh tiếng', v: fan, vang: true });
       kq.dong.push({ t: 'Thể lực', v: hao2 });
-      /* trận giao hữu cho kinh nghiệm tướng — thông thạo nhích lên */
-      kq.dong.push({ t: 'Cả đội ôn tướng', v: 0 });
-      kq.giaohuu = true;
+      /* Từng ghi thêm dòng "Cả đội ôn tướng" mà không chỗ nào cộng thông thạo — nhật ký nói
+         dối. Thông thạo chỉ nhích sau ván giải thật (giai.js), nên dòng ấy đã bỏ. */
       themLog(ca, 'Kèo giao hữu', kq.dong);
     }
 
@@ -487,6 +486,14 @@
     var hs = G.taoHoSoCuu(ca);
     S.cuu.unshift(hs);
     if (S.cuu.length > 24) S.cuu.pop();
+    /* Danh vọng — con số nuôi huy hiệu hạng CLB ở màn ngoài. Trước đây không chỗ nào cộng
+       nên huy hiệu mãi là "F 0". Mỗi ca để lại: trung bình chỉ số + 400 mỗi giải thắng,
+       thêm 1500 nếu vô địch thế giới. Một ca khá (~700 chỉ số, 4 giải) ≈ 2300 → hạng E→D sau
+       vài ca, S cần cỡ ba chục ca xuất sắc. */
+    var tbCS = 0;
+    for (var j = 0; j < 5; j++) tbCS += ca.chiso[j] / 5;
+    ca.danhVong = Math.round(tbCS + soThang * 400 + (hs.vodich ? 1500 : 0));
+    S.clb.danhVong = (S.clb.danhVong || 0) + ca.danhVong;
     S.clb.mua++;
     S.ca = null;
     /* Khép mùa lại cùng lúc với ca. Một run một mùa: hết run là bảng xếp hạng ấy đóng,

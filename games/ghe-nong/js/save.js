@@ -34,7 +34,10 @@
       try {
         var d = JSON.parse(t);
         if (d && d.v === PHIEN_BAN) { G.S = d; return G.S; }
-      } catch (e) { /* hỏng thì bỏ, tạo mới */ }
+      } catch (e) { /* hỏng thì tạo mới — nhưng giữ bản cũ ở dưới */ }
+      /* đọc không được thì lần `luu()` kế tiếp sẽ đè mất — cất chuỗi cũ sang khoá riêng trước,
+         để còn đường cứu tay chứ không mất trắng cả CLB */
+      try { localStorage.setItem(KHOA + '.hong', t); } catch (e) {}
     }
     G.S = moi();
     G.themKhoiDau();

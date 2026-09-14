@@ -82,7 +82,6 @@
     G.$('#clb-ten').textContent = S.clb.ten;
     G.$('#clb-mua').textContent = 'Mùa ' + S.clb.mua;
     G.$('#vi-xu').textContent = G.so(S.clb.xu);
-    G.$('#vi-ve').textContent = S.clb.ve + '/' + S.clb.veToiDa;
     G.$('#vi-fan').textContent = G.tien(S.clb.fan);
     /* Huy hiệu hạng ở góc trái, y như "LEAP RANK E1 / 9440" của Uma — danh vọng là
        thứ tích luỹ QUA CÁC RUN, nên nó thuộc về màn ngoài chứ không thuộc về run. */
@@ -217,10 +216,10 @@
         'chạy hết một mùa; quay trúng bản trùng thì được MẢNH, mang mảnh vào đây mở ' +
         'trần cấp. Thẻ cấp 1 chỉ chạy ở 40% sức.',
       giapha: 'Mỗi ca chạy xong để lại một hồ sơ. Chọn 2 hồ sơ làm cựu huấn luyện viên ' +
-        'thì ca sau được thừa hưởng spark của họ.',
+        'thì ca sau được thừa hưởng di sản của họ.',
       giai: 'Thể thức mùa giải, và 24 đội máy mà mình sẽ gặp. Bảng xếp hạng SỐNG chỉ ' +
         'có bên trong một ca đang chạy — vì mỗi ca là một mùa riêng.',
-      gacha: 'Tỉ lệ lấy đúng của Uma Musume: bậc cao nhất 3%, giữa 18%, thấp 79%. ' +
+      gacha: 'Tỉ lệ: bậc cao nhất 3%, giữa 18%, thấp 79%. ' +
         'Quay 10 chắc chắn có ít nhất một cái bậc 2 trở lên.',
       hlv: 'Kho huấn luyện viên. Đây là thứ được nuôi trong ca — mảnh trùng mở thêm ' +
         'trần chỉ số, mỗi bậc +50 cho cả năm giáo án.',
@@ -266,7 +265,7 @@
   function veSpark(n) {
     if (!chon.cuu.length) {
       n.appendChild(G.el('div.uc-phu', { text: 'Chưa chọn cựu huấn luyện viên nào. ' +
-        'Mỗi người để lại spark: xanh cộng chỉ số, hồng nâng năng khiếu, lá truyền kỹ năng riêng.' }));
+        'Mỗi người để lại di sản: xanh cộng chỉ số, hồng nâng năng khiếu, lá truyền kỹ năng riêng.' }));
       return;
     }
     chon.cuu.forEach(function (i, k) {
@@ -423,7 +422,7 @@
 
   function nhacBuoc(id) {
     if (id === 'hlv' && !chon.hlv) return 'Chọn một huấn luyện viên để đi tiếp.';
-    if (id === 'cuu') return 'Chọn tối đa 2 — bỏ trống cũng chạy được, chỉ là không có spark.';
+    if (id === 'cuu') return 'Chọn tối đa 2 — bỏ trống cũng chạy được, chỉ là không có di sản.';
     if (id === 'doi') {
       if (chon.tt.length !== 5) return 'Đang chọn ' + chon.tt.length + '/5 tuyển thủ.';
       var d = G.duDoiHinh(chon.tt);
@@ -475,7 +474,7 @@
     dsao.appendChild(G.el('span', { text: '★'.repeat(goc.sao) }));
     dsao.appendChild(veKim((b || {}).uncap || 0));
     ph.appendChild(dsao);
-    ph.appendChild(G.el('b', { text: goc.ten, style: 'font-size:17px' }));
+    ph.appendChild(G.el('b', { text: goc.ten, style: 'font-size:17px;color:#4a3f48' }));
     ph.appendChild(G.el('div.uc-phu', { text: '"' + goc.biet + '" — ' + goc.tieu }));
     var kn = G.KN_RIENG[goc.kn];
     ph.appendChild(G.el('div', { html: '<b style="color:#3d9c63">' + kn.ten + '</b> — ' + kn.mota,
@@ -490,7 +489,7 @@
       g.appendChild(G.el('div.uc-the', { style: 'max-width:620px' }, [
         G.el('b', { text: 'Chưa có hồ sơ nào' }),
         G.el('div.uc-phu', { text: 'Chạy hết một mùa thì hồ sơ huấn luyện viên ấy vào gia phả, ' +
-          'và ca sau được chọn tối đa 2 hồ sơ để thừa hưởng spark.' })
+          'và ca sau được chọn tối đa 2 hồ sơ để thừa hưởng di sản.' })
       ]));
       return;
     }
@@ -708,7 +707,7 @@
     c.rng = G.Rng(c.hat || 1);
     return c;
   }
-  G.luuCa = luuCa; G.hoiSinhCa = hoiSinhCa;
+  G.luuCa = luuCa; G.hoiSinhCa = hoiSinhCa; G.tenSpark = tenSpark;
 
   /* ── tuyển mộ ──
      Uma bày banner là MỘT TẤM ART TO: nhân vật đứng chồng lớp trên nền gradient, tên
@@ -722,8 +721,8 @@
 
   function veGacha(g) {
     if (G.day) G.day('gacha');
-    tieu(g, 'Tuyển mộ', 'Tỉ lệ lấy đúng của Uma Musume: bậc cao nhất 3%, giữa 18%, thấp 79%. ' +
-      'Quay 10 chắc chắn có ít nhất một cái bậc 2 trở lên. Đủ 200 vé thì tự chọn.');
+    tieu(g, 'Tuyển mộ', 'Tỉ lệ: bậc cao nhất 3%, giữa 18%, thấp 79%. ' +
+      'Quay 10 chắc chắn có ít nhất một cái bậc 2 trở lên. Mỗi lượt quay được 1 vé, đủ 200 vé thì đổi thẳng một cái bậc cao.');
 
     [['hlv', 'Banner Huấn Luyện Viên', G.HLV], ['tt', 'Banner Tuyển Thủ', G.TUYENTHU]].forEach(function (x) {
       var loai = x[0], kho = x[2];
@@ -737,7 +736,7 @@
       cao.slice(0, 5).forEach(function (m, i) {
         /* cắt sát hơn (12% mép trên) và phóng to hơn ô thường: đây là poster, người
            phải cao gần bằng khung banner mới ra dáng banner */
-        var a = G.oAnh && G.oAnh(m.id, 132 - i * 11);
+        var a = G.oAnh && G.oAnh(m.id, 100 - i * 8);
         if (a) {
           a.className = '';
           a.style.cssText += ';flex:none;margin-right:-22px;z-index:' + (9 - i) +
@@ -753,13 +752,20 @@
       var chu = G.el('div.uc-bn-chu');
       chu.appendChild(G.el('h4', { text: x[1] }));
       var hang = G.el('div.uc-bn-hang');
+      var soVe = G.S.ve[loai] || 0;
       var ve = G.el('div.uc-bn-ve');
-      ve.appendChild(G.el('span', { text: 'Vé đổi ' + G.S.ve[loai] + '/200' }));
+      ve.appendChild(G.el('span', { text: 'Vé đổi ' + Math.min(soVe, VE_DOI) + '/' + VE_DOI }));
       var th = G.el('div.uc-thanh');
-      th.appendChild(G.el('i', { style: 'width:' + (G.S.ve[loai] / 200 * 100) +
+      th.appendChild(G.el('i', { style: 'width:' + Math.min(100, soVe / VE_DOI * 100) +
         '%;background:linear-gradient(90deg,#8fd8ff,#ffd76e)' }));
       ve.appendChild(th);
       hang.appendChild(ve);
+      /* Bản trước hứa "đủ 200 vé thì tự chọn" ở ba chỗ mà không có dòng mã nào đổi vé:
+         thanh cứ thế vượt 100%. Đủ vé thì hiện nút đổi thật. */
+      if (soVe >= VE_DOI) {
+        hang.appendChild(G.el('button.uc-nut.cam', { text: '🎟️ Đổi vé',
+          onclick: function () { G.tieng('cham'); doiVe(loai); } }));
+      }
       hang.appendChild(G.el('button.uc-nut.phu', { text: 'Quay 1 · 150',
         onclick: function () { quay(loai, 1); } }));
       hang.appendChild(G.el('button.uc-nut.cam', { text: 'Quay 10 · 1500',
@@ -780,6 +786,36 @@
       '<div style="margin-top:10px;color:#8a7f8f">Quay 10 lần bảo đảm ít nhất một cái bậc giữa ' +
       'trở lên. Mỗi lần quay được 1 vé; đủ 200 vé thì tự chọn một cái bậc cao. Vé không mang ' +
       'sang banner khác.</div>' });
+  }
+
+  var VE_DOI = 200;
+
+  /** đủ 200 vé của một banner: chọn thẳng một cái bậc cao của banner ấy */
+  function doiVe(loai) {
+    var ds = (loai === 'hlv' ? G.HLV : G.TUYENTHU).filter(function (x) {
+      return loai === 'hlv' ? x.sao === 3 : x.bac === 'SSR';
+    });
+    var n = G.el('div.uc-kq');
+    ds.forEach(function (x) {
+      var coRoi = loai === 'hlv' ? G.coHLV(x.id) : G.coTT(x.id);
+      var d = G.el('div.uc-kq-o.b3', { style: 'cursor:pointer' });
+      var a = G.oAnh && G.oAnh(x.id, 46);
+      if (a) { a.style.borderRadius = '50%'; a.style.margin = '0 auto 4px'; d.appendChild(a); }
+      d.appendChild(G.el('div.uc-sao', { text: '★★★' }));
+      d.appendChild(G.el('b', { text: x.biet || x.ten }));
+      d.appendChild(G.el('em' + (coRoi ? '' : '.moi'), { text: coRoi ? 'đã có → ◆ mảnh' : 'chưa có' }));
+      d.addEventListener('click', function () {
+        if ((G.S.ve[loai] || 0) < VE_DOI) return;
+        G.S.ve[loai] -= VE_DOI;
+        var r = loai === 'hlv' ? G.nhanHLV(x.id) : G.nhanTT(x.id);
+        G.luu();
+        G.tieng('quaySSR');
+        hienKetQuaQuay([{ id: x.id, ten: x.ten, biet: x.biet, bac: 3, moi: r.moi, manh: r.manh }], loai);
+      });
+      n.appendChild(d);
+    });
+    G.hop({ sang: true, rong: 640, dau: 'Đổi ' + VE_DOI + ' vé — chọn một cái bậc cao', node: n,
+      nut: [{ chu: 'Để sau' }] });
   }
 
   function quay(loai, n) {
@@ -1008,7 +1044,7 @@
   }
 
   function veGiaPha(g) {
-    tieu(g, 'Gia phả', 'Mỗi mùa xong để lại một hồ sơ. Chọn 2 hồ sơ làm cựu HLV thì mùa sau được thừa hưởng spark của họ.');
+    tieu(g, 'Gia phả', 'Mỗi mùa xong để lại một hồ sơ. Chọn 2 hồ sơ làm cựu HLV thì mùa sau được thừa hưởng di sản của họ.');
     if (!G.S.cuu.length) {
       g.appendChild(G.el('div.uc-phu', { text: 'Chưa có mùa nào hoàn tất.' }));
       return;
@@ -1028,7 +1064,7 @@
       ['Vị trí khoá cứng', 'Tuyển thủ chỉ đá đúng một vị trí và có hai nét chất chơi cố định. Huấn luyện viên không đổi được, chỉ hướng được.'],
       ['Thông thạo tướng', 'N < R < SR < SSR < UR. Càng cao thì cầm tướng đó càng mạnh. Ban đúng tướng UR của đối thủ là ban đúng người.'],
       ['Trang bị', 'Không ai chọn đồ hộ. Trong trận, mỗi tuyển thủ tự nhìn đội địch đánh bằng gì, mình đang thắng hay bị dí, rồi mua.'],
-      ['Kế thừa', 'Hai cựu HLV mang theo spark: xanh cộng chỉ số, hồng nâng năng khiếu, lá truyền kỹ năng riêng, trắng cho gợi ý.']
+      ['Kế thừa', 'Hai cựu HLV mang theo di sản: xanh cộng chỉ số, hồng nâng năng khiếu, lá truyền kỹ năng riêng, trắng cho gợi ý.']
     ];
     var lai = G.el('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px' });
     [['ca', 'Một ngày ở trung tâm'], ['draft', 'Cấm và chọn'], ['tran', 'Xem trận'],

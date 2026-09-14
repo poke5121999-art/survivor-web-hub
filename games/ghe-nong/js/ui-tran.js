@@ -14,7 +14,7 @@
   'use strict';
 
   var tran = null, canvas = null, ctx = null;
-  var chay = false, tocDo = 1, anBang = false, tamDung = false;
+  var chay = false, tocDo = 1, anBang = false, tamDung = false, daKet = false;
   var xongCB = null, khung = 0, lanDom = 0;
   /* ══════════ NHỊP XEM ══════════
      Bản trước để 40 tick/giây. Một tick là 0.25 giây trong trận, nên ×1 nghĩa là xem
@@ -60,12 +60,20 @@
   }
 
   G.moManTran = function (t, cb) {
-    tran = t; xongCB = cb; chay = true; tamDung = false; tocDo = 1;
+    tran = t; xongCB = cb; chay = true; tamDung = false; tocDo = 1; daKet = false;
+    /* trạng thái xem của trận trước không được lọt sang trận này: bảng số đang ẩn thì lần
+       bấm đầu vô tác dụng, còn camera thì kẹt ở chỗ người xem kéo tới lần trước */
+    anBang = false;
+    cam.tuDong = true; cam.theo = null; cam.x = cam.mx = W0 / 2; cam.y = cam.my = H0 / 2;
     tran.veHinh = true;            /* từ đây sim mới dựng dữ liệu hiệu ứng — xem sim.js */
     thoaiHD = []; bayHD = []; hieuHD = [];
     G.hienMan('man-tran');
     dungKhung();
-    if (G.day) G.day('tran');
+    /* bài dạy lần đầu: trận ĐỨNG YÊN cho tới khi đóng hộp, không thì mất những giây đầu */
+    if (G.day && !(G.S.day || {}).tran) {
+      tamDung = true;
+      G.day('tran').then(function () { tamDung = false; });
+    }
     truoc = performance.now();
     requestAnimationFrame(vong);
   };
@@ -120,7 +128,9 @@
       tamDung = !tamDung; e.target.textContent = tamDung ? '▶ Chạy tiếp' : '⏸ Tạm dừng';
     } }));
     nut.appendChild(G.el('button.nut', { text: '⚡ Xem kết quả luôn', onclick: function () {
+      if (!chay) return;
       chay = false;
+      tran.veHinh = false;       /* tua hết thì khỏi dựng hàng nghìn hiệu ứng không ai xem */
       G.chayHet(tran);
       ketThuc();
     } }));
@@ -196,7 +206,8 @@
     camTick(dt);
     veBanDo();
     khung++;
-    if (khung % 12 === 0) { veMatchup(); veThe(); veTren(); veMini(); }
+    /* bảng số đang ẩn thì khỏi đập đi dựng lại hai chục nút DOM năm lần một giây */
+    if (khung % 12 === 0) { if (!anBang) { veMatchup(); veThe(); } veTren(); veMini(); }
 
     if (tran.xong) { chay = false; return ketThuc(); }
     requestAnimationFrame(vong);
@@ -944,26 +955,31 @@
 
   /* Kéo chuột để tự dọi camera, cuộn để phióng, bấm minimap để nhảy tới.
      TFM2 có cả ba, và thiếu chúng thì người xem không tự quyết định được mình muốn nhìn đâu. */
+  var keo = { dang: false, tx: 0, ty: 0, ganWin: 0 };
   function ganKeo() {
     if (!canvas || canvas._daGan) return;
     canvas._daGan = 1;
-    var dang = false, tx = 0, ty = 0;
     canvas.addEventListener('pointerdown', function (e) {
-      dang = true; tx = e.clientX; ty = e.clientY;
+      keo.dang = true; keo.tx = e.clientX; keo.ty = e.clientY;
       cam.tuDong = false; cam.theo = null;
       veNutCam(); veThe();
     });
-    window.addEventListener('pointerup', function () { dang = false; });
-    window.addEventListener('pointermove', function (e) {
-      if (!dang) return;
-      var k = MUC_ZOOM[cam.iz].k;
-      var r = canvas.getBoundingClientRect();
-      var ti = canvas.width / (r.width || canvas.width);
-      cam.mx -= (e.clientX - tx) * ti / k;
-      cam.my -= (e.clientY - ty) * ti / k;
-      cam.x = cam.mx; cam.y = cam.my;
-      tx = e.clientX; ty = e.clientY;
-    });
+    /* canvas dựng mới mỗi trận, nhưng `window` thì không — gắn hai listener này đúng MỘT
+       lần, không thì mỗi trận chồng thêm một cặp suốt cả mùa */
+    if (!keo.ganWin) {
+      keo.ganWin = 1;
+      window.addEventListener('pointerup', function () { keo.dang = false; });
+      window.addEventListener('pointermove', function (e) {
+        if (!keo.dang || !canvas) return;
+        var k = MUC_ZOOM[cam.iz].k;
+        var r = canvas.getBoundingClientRect();
+        var ti = canvas.width / (r.width || canvas.width);
+        cam.mx -= (e.clientX - keo.tx) * ti / k;
+        cam.my -= (e.clientY - keo.ty) * ti / k;
+        cam.x = cam.mx; cam.y = cam.my;
+        keo.tx = e.clientX; keo.ty = e.clientY;
+      });
+    }
     canvas.addEventListener('wheel', function (e) {
       e.preventDefault();
       cam.iz = G.kep(cam.iz + (e.deltaY > 0 ? -1 : 1), 0, MUC_ZOOM.length - 1);
@@ -1631,6 +1647,10 @@
 
   /* ══════════ kết thúc ══════════ */
   function ketThuc() {
+    /* một trận kết thúc đúng một lần — bấm ⚡ lúc băng THẮNG/THUA đang hiện từng làm
+       `xongCB` chạy hai lần: thắng cộng đôi, Bo3 xong sau một ván */
+    if (daKet) return;
+    daKet = true;
     var kq = G.ketQua(tran);
     G.tieng(kq.thang === 'xanh' ? 'thang' : 'thua');
     G.bangLon(kq.thang === 'xanh' ? 'THẮNG!' : 'THUA', dinhDangGio(kq.thoiGian) + (kq.hetGio ? ' · hết giờ' : ''), 1600)

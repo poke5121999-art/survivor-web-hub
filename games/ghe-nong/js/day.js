@@ -13,7 +13,7 @@
     ca: {
       dau: 'Một ngày ở trung tâm',
       html:
-        '<b>Mỗi lượt chọn đúng một việc.</b> Năm ô dưới là năm giáo án: ' +
+        '<b>Mỗi lượt chọn đúng một việc</b> trong sáu nút dưới. Bấm <b>Tập</b> thì mở ra năm giáo án: ' +
         '<b>CƠ</b> thao tác · <b>BỀN</b> thể lực · <b>LỰC</b> sức đánh · <b>LÌ</b> bản lĩnh · <b>NÃO</b> tư duy.' +
         '<br><br>Chạm một giáo án để <b>xem trước</b> ăn được bao nhiêu và tỉ lệ hỏng bao nhiêu. ' +
         'Chạm lần nữa là tập thật.' +
@@ -40,7 +40,7 @@
         'NÃO thấp thì đếm quân sai và đi mục tiêu sai giờ, LÌ thấp thì thua vài mạng là co rúm, ' +
         'CƠ thấp thì hay ăn chiêu.' +
         '<br><br>Đồ cũng không ai chọn hộ: mỗi người tự nhìn đội địch đánh bằng gì rồi mua.' +
-        '<br><br>Dưới đáy có tốc độ <b>0.5 → ×3</b>, và nút <b>xem kết quả luôn</b> nếu bạn vội.'
+        '<br><br>Dưới đáy có tốc độ <b>0.5 → ×6</b>, và nút <b>xem kết quả luôn</b> nếu bạn vội.'
     },
     gacha: {
       dau: 'Tuyển mộ',

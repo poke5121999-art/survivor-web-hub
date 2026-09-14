@@ -58,7 +58,7 @@
     var h = G.el('div.bx-hang.dau');
     h.appendChild(o('#'));
     h.appendChild(G.el('div.bx-o.ten', { text: 'ĐỘI' }));
-    ['TRẬN', 'T', 'H', 'HIỆU SỐ', 'PHONG ĐỘ'].forEach(function (c) { h.appendChild(o(c)); });
+    ['TRẬN', 'T', 'B', 'HIỆU SỐ', 'PHONG ĐỘ'].forEach(function (c) { h.appendChild(o(c)); });
     b.appendChild(h);
 
     ds.forEach(function (x) {
@@ -80,7 +80,7 @@
       var ph = G.el('div.bx-o.phong');
       if (!x.h.phong.length) ph.appendChild(G.el('span', { text: '—', style: 'color:#5a6675' }));
       x.h.phong.slice(0, 5).forEach(function (k) {
-        ph.appendChild(G.el('span.bx-p' + (k === 'T' ? '.t' : '.h'), { text: k }));
+        ph.appendChild(G.el('span.bx-p' + (k === 'T' ? '.t' : '.h'), { text: k === 'T' ? 'T' : 'B' }));
       });
       d.appendChild(ph);
 
@@ -197,7 +197,7 @@
     h.appendChild(G.el('span', { text: d.khu === 'vn' ? 'quốc nội' : 'quốc tế' }));
     k.appendChild(h);
     k.appendChild(G.el('div.bx-doi-so', {
-      text: (hd ? hd.h.thang + 'T ' + hd.h.thua + 'H · hạng ' + hd.hang : '') + ' · sao: ' + d.sao
+      text: (hd ? hd.h.thang + 'T ' + hd.h.thua + 'B · hạng ' + hd.hang : '') + ' · sao: ' + d.sao
     }));
     k.appendChild(G.el('div.bx-doi-tieu', { text: d.tieu }));
     k.addEventListener('click', function () { hopDoi(d); });
