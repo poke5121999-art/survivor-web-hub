@@ -16,9 +16,12 @@
        * chữ trên thanh tab. Nó cũng kèm một thanh chân có logo Unity mà không game nào khác
        * trên hub có.
        *
-       * Ở đây khung game LUÔN vừa cửa sổ và GIỮ ĐÚNG TỈ LỆ 9:16: lấy cạnh nào chật hơn làm
-       * chuẩn. Giữ tỉ lệ chứ không kéo giãn, vì giao diện trong game được dựng theo khung dọc
-       * 9:16 và kéo giãn thì chữ méo.
+       * Game KHOÁ NGANG. Cửa sổ nằm ngang: khung tràn hết cửa sổ (giao diện tự dàn theo mọi tỉ lệ
+       * ngang, điện thoại 19,5:9 thì không phí hai dải đen). Máy cảm ứng cầm dọc: khung vẫn tràn
+       * hết, và PortHost tự xoay hình 90 độ bên trong — không xoay bằng CSS được, vì Unity đọc chỗ
+       * chạm theo khung chưa xoay. Máy tính với cửa sổ dựng đứng: không ai nghiêng đầu nhìn màn
+       * hình, nên giữ một khung 16:9 nằm giữa.
+       * Tham khảo: web-hub/games/chuyen-tau (game ngang, xoay vỏ bằng CSS) và kingfall (Unity, khung ngang).
        */
       html, body {
         margin: 0; padding: 0; height: 100%; width: 100%;
@@ -29,11 +32,16 @@
         position: fixed; inset: 0;
         display: flex; align-items: center; justify-content: center;
       }
-      /* Tỉ lệ 9:16, luôn vừa cửa sổ. `min()` chọn cạnh chật hơn nên không bao giờ tràn. */
       #unity-canvas {
         display: block; background: #0c0d10; outline: none;
-        width: min(100vw, calc(100vh * 9 / 16));
-        height: min(100vh, calc(100vw * 16 / 9));
+        width: 100vw; height: 100vh;
+        touch-action: none;
+      }
+      @supports (height: 100dvh) {
+        #unity-canvas { width: 100dvw; height: 100dvh; }
+      }
+      @media (orientation: portrait) and (pointer: fine) {
+        #unity-canvas { width: 100vw; height: calc(100vw * 9 / 16); }
       }
       #unity-loading-bar {
         position: absolute; inset: 0;
@@ -114,6 +122,28 @@
       fitCanvas();
       window.addEventListener("resize", fitCanvas);
       window.addEventListener("orientationchange", function () { setTimeout(fitCanvas, 200); });
+
+      // Máy nào cho khoá thật (Android, khi đang toàn màn hình) thì khoá ngang luôn ở cú chạm đầu:
+      // hình khỏi phải xoay trong game. Safari trên iPhone không có lock() — ở đó lệnh ném lỗi, bị
+      // nuốt, và PortHost xoay khung thay. Cả hai API bắt buộc gọi trong một thao tác người dùng.
+      document.addEventListener("pointerdown", function () {
+        if (!matchMedia("(pointer: coarse)").matches) return;
+        var el = document.documentElement;
+        var fs = el.requestFullscreen || el.webkitRequestFullscreen;
+        var lock = function () {
+          try {
+            var r = screen.orientation && screen.orientation.lock && screen.orientation.lock("landscape");
+            if (r && r.catch) r.catch(function () {});
+          } catch (e) { /* không khoá được thì PortHost xoay */ }
+          setTimeout(fitCanvas, 200);
+        };
+        if (fs && !(document.fullscreenElement || document.webkitFullscreenElement)) {
+          try {
+            var p = fs.call(el, { navigationUI: "hide" });
+            if (p && p.then) p.then(lock, lock); else lock();
+          } catch (e) { lock(); }
+        } else lock();
+      }, { passive: true });
 
       var script = document.createElement("script");
       script.src = buildUrl + "/repo2d-unity.loader.js";
