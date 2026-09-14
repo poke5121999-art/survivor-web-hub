@@ -65,7 +65,6 @@
   <body>
     <div id="unity-container">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
-      <a id="back-to-hub" href="../../index.html">← Hub</a>
       <div id="unity-loading-bar">
         <div id="unity-loading-title">ĐANG TẢI</div>
         <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
@@ -73,6 +72,12 @@
       <div id="unity-warning"></div>
     </div>
 
+    <!-- Hub account + cloud save bridge (web-hub/games/BRIDGE.md Layer 0). A build overwrites index.html, so these
+         live in the template or the next build silently goes local-only. The port's PortHub.jslib calls window.HubSave. -->
+    <script src="../../js/session.js"></script>
+    <script src="../../js/supabase-config.js"></script>
+    <script src="../../js/supabase-auth.js"></script>
+    <script src="../../js/save-sync.js"></script>
     <script>
       var canvas = document.querySelector("#unity-canvas");
       var loadingBar = document.querySelector("#unity-loading-bar");
@@ -115,7 +120,8 @@
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
           progressBarFull.style.width = (100 * progress) + "%";
-        }).then(function () {
+        }).then(function (unityInstance) {
+          window.unityInstance = unityInstance;
           loadingBar.classList.add("done");
           fitCanvas();
         }).catch(function (message) {

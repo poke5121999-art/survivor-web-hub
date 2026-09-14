@@ -213,7 +213,7 @@ window.HUB_GAMES = [
   {
     id: "repo2d-unity",
     title: "Ca Trực Đêm: Biệt Đội",
-    tagline: "Bản Unity. Một tổ năm người: bạn cầm một xác, bốn xác còn lại do máy điều khiển. Ngoài trận là kho 14 xác, gacha, trang bị và 9 màn mở dần; trong trận vẫn là căn nhà tối và cái chỉ tiêu.",
+    tagline: "Bản Unity, dịch nguyên từ bản web. Tổ năm người, 14 xác, gacha, trang bị, 9 màn — và Co-op Ca vô tận: năm người thật, mỗi người mang xác của mình, không chọn map, chơi tới khi cả tổ gục.",
     thumbnail: "assets/thumbnails/repo2d-unity.svg",
     path: "games/repo2d-unity/index.html",
     // The UNITY build of the same design, kept BESIDE the plain-JS one rather than replacing it:
