@@ -5,7 +5,7 @@ Ba tệp trong thư mục này là toàn bộ hình pixel của game:
 | Tệp | Là gì |
 |---|---|
 | `picks.json` | Danh sách vai trò → sprite gốc. Đây là tệp duy nhất sửa tay. |
-| `atlas.png` | 441 khung ghép thành một tấm, 1023×1153, khoảng 340 KB. Sinh tự động. |
+| `atlas.png` | 533 khung (Soul Knight + HoloCure) ghép thành một tấm, 1024×1323. Sinh tự động. |
 | `atlas.js` | Toạ độ từng khung và nhóm hoạt ảnh (`window.HIC_SK`). Sinh tự động. |
 
 ## Giấy phép — đọc trước khi làm gì khác
@@ -18,8 +18,15 @@ Nếu có yêu cầu gỡ: **xoá cả thư mục `art/sk/`**. Game tự lùi v�
 `js/art.js`, vì `index.html` nạp `art/sk/atlas.js` ở chế độ "thiếu cũng được". Không
 phải sửa dòng mã nào.
 
-Không có asset nào của He Is Coming hay HoloCure ở đây. Âm thanh cũng không lấy từ đâu:
-`js/sfx.js` tổng hợp bằng WebAudio, vì kho bóc Soul Knight đã lọc bỏ `sound_effect.ab`.
+**HoloCure** (Kay Yu, fan game Hololive): 15 vai trò có tiền tố bundle `hc:` lấy từ
+`D:\HoloCureAssets\GameSprites\` — chữ số sát thương `ui_digit_white/yellow`, nổ `spr_Explosion`,
+`spr_GlowExplosion` (vỡ giáp), `spr_ZetaStealthHit` (trúng giáp), `vfx_smoke`, `spr_AxeFX` (vệt vung),
+`spr_spawnFX` (trùm xuất hiện), `spr_holoCoin`, `spr_deathHeart`, `spr_StatUpEffect` / `spr_statusEffects`
+(icon tăng/giảm chỉ số), `spr_debuffFX`, `hudfx_sparkle`. Cùng luật gỡ: xoá `art/sk/`.
+
+Không có asset nào của He Is Coming. **Âm thanh không lấy từ game nào**: `js/sfx.js` tổng hợp bằng
+WebAudio. Soul Knight: kho bóc đã lọc `sound_effect.ab`. HoloCure: `GameFiles/data.win` có 380 mục
+SOND nhưng chunk AUDO RỖNG — tiếng nằm trong `audiogroup*.dat`, không có trên máy `[ĐO 2026-09-15]`.
 
 ## Dựng lại atlas
 
@@ -72,6 +79,11 @@ Muốn thêm hay đổi một vai trò thì sửa `picks.json`. Có hai dạng m
 - **Rương có hai khung** (đóng/mở).
   - Đặt `anim` thì nó mở ra đóng vào liên tục trên bản đồ.
   - Rương mở ra là biến mất, nên chỉ giữ khung đóng.
+- **VFX HoloCure: khung đầu nhỏ, khung sau to.** `spr_GlowExplosion` khung 0 rộng 24px nhưng khung
+  vòng sóng rộng 93px. Nhân theo hệ số pixel chung thì quầng vỡ giáp phủ nửa màn. `fight.js` giờ
+  tính hệ số VFX theo khung LỚN NHẤT và cỡ muốn thấy (`Fight.vs(role, px)`).
+- **Chữ số HoloCure có viền đen trong sprite.** Tô bằng `source-in` thì cả số thành khối màu đặc;
+  phải nhân màu (`SPR.tintedMul`: multiply rồi destination-in).
 - **`vfx.heal` bị bỏ.** Sprite ấy chỉ có một khung, phát ở 6 hình/giây thì loé 160 ms rồi mất. Hạt xanh nhìn rõ hơn.
 - **Không tìm được sprite:**
   - `vfx.blood`, `ui.moon`: đang vẽ bằng hạt hoặc bằng mã.

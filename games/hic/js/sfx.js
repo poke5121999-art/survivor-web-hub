@@ -206,6 +206,74 @@
         noise(0.08, 0.2, 'highpass', 3000, 2000, i * 0.16);
       }
     },
+    /* Vung theo LOẠI vũ khí: lưỡi sắc rít cao và ngắn, đồ cùn trầm và dày, cung
+       bật dây. Cùng một tiếng cho mọi món là thứ làm đổi vũ khí không có cảm giác gì. */
+    swingBlade: function () {
+      if (!throttle('swing', 50)) return;
+      noise(0.09, 0.2, 'bandpass', jit(2600), 7000, 0, 2.5);
+      tone('sine', jit(1400), 700, 0.06, 0.04);
+    },
+    swingBlunt: function () {
+      if (!throttle('swing', 50)) return;
+      noise(0.18, 0.22, 'bandpass', jit(500), 1400, 0, 1.2);
+    },
+    swingBow: function () {
+      if (!throttle('swing', 50)) return;
+      tone('triangle', jit(220), 180, 0.12, 0.2);
+      tone('square', jit(440), 330, 0.05, 0.05);
+      noise(0.14, 0.12, 'highpass', 3000, 6000, 0.04);
+    },
+    swingClaw: function () {
+      if (!throttle('swing', 50)) return;
+      noise(0.12, 0.18, 'bandpass', jit(1500), 3000, 0, 1.8);
+      tone('sawtooth', jit(160), 90, 0.12, 0.05, 0.02);
+    },
+    hitBlade: function (p) {
+      if (!throttle('hit', 45)) return;
+      p = Math.min(1, p || 0.4);
+      noise(0.07, 0.35 + p * 0.25, 'highpass', 2500, 1200);
+      tone('sine', jit(240), 70, 0.12 + p * 0.08, 0.35 + p * 0.3);
+      tone('square', jit(1800), 900, 0.03, 0.05);
+    },
+    hitBlunt: function (p) {
+      if (!throttle('hit', 45)) return;
+      p = Math.min(1, p || 0.4);
+      noise(0.16, 0.4 + p * 0.3, 'lowpass', 1400, 120);
+      tone('sine', jit(120), 38, 0.22 + p * 0.1, 0.7 + p * 0.2);
+    },
+    hitFlesh: function (p) {
+      if (!throttle('hit', 45)) return;
+      p = Math.min(1, p || 0.4);
+      noise(0.1, 0.3 + p * 0.2, 'bandpass', jit(900), 400, 0, 1.5);
+      tone('sine', jit(200), 60, 0.15, 0.45 + p * 0.25);
+    },
+    armorBreak: function () {
+      noise(0.35, 0.45, 'highpass', 6000, 2000);
+      for (var i = 0; i < 7; i++) tone('triangle', jit(2400, 0.5), jit(1600, 0.5), 0.08 + Math.random() * 0.1, 0.07, i * 0.025);
+      tone('sine', 180, 60, 0.25, 0.4);
+    },
+    proc: function (i) {
+      if (!throttle('proc', 70)) return;
+      var f = [1047, 1175, 1319, 1568][(i || 0) % 4];
+      tone('sine', f, f, 0.18, 0.08);
+      tone('triangle', f * 1.5, f * 1.5, 0.12, 0.04, 0.03);
+    },
+    tweet: function () {
+      if (!throttle('tweet', 400)) return;
+      for (var i = 0; i < 3; i++) tone('sine', 2600 + i * 200, 3400, 0.05, 0.05, i * 0.08);
+    },
+    dash: function () { if (throttle('dash', 60)) noise(0.12, 0.12, 'bandpass', 700, 2600, 0, 1); },
+    thud: function () { tone('sine', 90, 40, 0.18, 0.5); noise(0.1, 0.2, 'lowpass', 600, 100); },
+    heartbeat: function () {
+      tone('sine', 60, 45, 0.12, 0.9);
+      tone('sine', 55, 40, 0.12, 0.7, 0.18);
+    },
+    roar: function () {
+      noise(0.9, 0.35, 'bandpass', 300, 140, 0, 2);
+      tone('sawtooth', 110, 70, 0.9, 0.18);
+      tone('sawtooth', 116, 72, 0.9, 0.12, 0.02);
+    },
+    coinBounce: function () { if (throttle('coinb', 35)) tone('square', jit(1760, 0.15), jit(2100, 0.1), 0.03, 0.05); },
     bubble: function () {
       for (var i = 0; i < 5; i++) tone('sine', jit(300, 0.4), jit(700, 0.3), 0.07, 0.08, i * 0.07);
     }
@@ -216,22 +284,54 @@
   /* Nhạc nền: một cây đàn gảy năm cung, thưa và buồn — đúng chất "hắn đang
      tới". Không phải một tệp lặp, nên không bao giờ nghe thấy chỗ nối.
      Đêm xuống thì chuyển sang âm giai thứ và chậm lại. */
-  var musicTimer = null, night = false, beat = 0;
+  var musicTimer = null, night = false, beat = 0, mode = 'map';
   var DAY = [262, 294, 330, 392, 440, 523, 587, 659];
   var NIGHT = [220, 247, 262, 330, 349, 440, 494, 523];
   function pluck(f, when, vol) {
     tone('triangle', f, f * 0.995, 0.9, vol, when, musicBus);
     tone('sine', f * 2, f * 2, 0.4, vol * 0.3, when, musicBus);
   }
+  function kick(when, vol) {
+    tone('sine', 110, 40, 0.16, vol, when, musicBus);
+  }
+  function hat(when, vol) {
+    if (!ac) return;
+    var t = ac.currentTime + when;
+    var s = ac.createBufferSource(); s.buffer = noiseBuf;
+    var f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000;
+    var g = ac.createGain(); env(g, t, 0.001, vol, 0.04);
+    s.connect(f); f.connect(g); g.connect(musicBus);
+    s.start(t, Math.random() * 0.5); s.stop(t + 0.08);
+  }
+  /* Ba chế độ nhạc: bản đồ (gảy thưa), trận (bass chạy + trống, nhanh gấp đôi)
+     và trùm (trống trận nặng, âm giai thứ, bass rền). Đổi chế độ không cắt tiếng
+     đang ngân — nó chỉ đổi thứ được gảy ở nhịp kế tiếp, nên chuyển cảnh mượt. */
+  var FIGHT_BASS = [110, 110, 131, 110, 147, 131, 110, 98];
+  var BOSS_BASS = [73, 73, 78, 73, 65, 73, 82, 78];
   function startMusic() {
     if (musicTimer || !ac) return;
     musicTimer = setInterval(function () {
       if (!ac || ac.state !== 'running' || !prefs.music) return;
       beat++;
+      if (mode === 'fight' || mode === 'boss') {
+        var boss = mode === 'boss';
+        var bass = boss ? BOSS_BASS : FIGHT_BASS;
+        var b = bass[beat % bass.length];
+        tone(boss ? 'sawtooth' : 'square', b, b, 0.2, boss ? 0.14 : 0.1, 0, musicBus);
+        if (beat % 2 === 0) kick(0, boss ? 0.8 : 0.5);
+        if (boss && beat % 8 === 6) { kick(0.11, 0.6); }
+        hat(0.115, boss ? 0.05 : 0.07);
+        if (beat % 4 === 3 && Math.random() < 0.6) {
+          var sc = boss ? NIGHT : DAY;
+          pluck(sc[4 + Math.floor(Math.random() * 4)], 0, 0.12);
+        }
+        return;
+      }
+      if (beat % 2) return;   // bản đồ: nửa nhịp
       var scale = night ? NIGHT : DAY;
-      if (beat % 8 === 0) { pluck(scale[0] / 2, 0, 0.35); pluck(scale[night ? 3 : 4] / 2, 0.02, 0.2); }
+      if (beat % 16 === 0) { pluck(scale[0] / 2, 0, 0.35); pluck(scale[night ? 3 : 4] / 2, 0.02, 0.2); }
       if (Math.random() < (night ? 0.35 : 0.5)) pluck(scale[Math.floor(Math.random() * scale.length)], Math.random() * 0.1, 0.18);
-    }, 460);
+    }, 230);
   }
 
   function savePrefs() { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch (e) { /* riêng tư */ } }
@@ -244,6 +344,7 @@
       if (f) { try { f(arg); } catch (e) { /* một tiếng hỏng không được làm hỏng game */ } }
     },
     setNight: function (v) { night = !!v; },
+    setMode: function (m) { mode = m || 'map'; beat = 0; },
     prefs: function () { return { sfx: prefs.sfx, music: prefs.music }; },
     toggle: function (which) {
       prefs[which] = !prefs[which];

@@ -114,6 +114,54 @@
     return { w: w, h: h };
   }
 
+  /* Tô màu kiểu NHÂN (multiply): trắng thành màu, đen giữ đen.
+     WHY: chữ số HoloCure có sẵn viền đen trong sprite. Tô bằng source-in thì cả
+     viền lẫn ruột thành một khối màu đặc — số "-2" hiện ra như một ô vuông xanh. */
+  var mulCache = {};
+  function tintedMul(id, color) {
+    var key = id + color;
+    if (mulCache[key]) return mulCache[key];
+    var r = rect(id);
+    var c = document.createElement('canvas');
+    c.width = r[2]; c.height = r[3];
+    var x = c.getContext('2d');
+    x.drawImage(img, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+    x.globalCompositeOperation = 'multiply';
+    x.fillStyle = color;
+    x.fillRect(0, 0, r[2], r[3]);
+    x.globalCompositeOperation = 'destination-in';
+    x.drawImage(img, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]);
+    mulCache[key] = c;
+    return c;
+  }
+
+  /* Vẽ quanh một điểm xoay tuỳ chọn (px, py tính theo tỉ lệ khung, 0..1).
+     Dùng cho vũ khí trên tay: điểm xoay là chuôi, không phải giữa đáy. */
+  function drawPivot(ctx, id, x, y, scale, opts) {
+    opts = opts || {};
+    var r = rect(id);
+    var w = Math.round(r[2] * scale), h = Math.round(r[3] * scale);
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    if (opts.alpha != null) ctx.globalAlpha *= opts.alpha;
+    ctx.translate(Math.round(x), Math.round(y));
+    if (opts.flip) ctx.scale(-1, 1);
+    if (opts.rot) ctx.rotate(opts.rot);
+    var dx = -Math.round(w * (opts.px == null ? 0.5 : opts.px)), dy = -Math.round(h * (opts.py == null ? 0.5 : opts.py));
+    ctx.drawImage(img, r[0], r[1], r[2], r[3], dx, dy, w, h);
+    if (opts.flash > 0) {
+      ctx.globalAlpha *= Math.min(1, opts.flash);
+      ctx.drawImage(tinted(id, opts.flashColor || '#ffffff'), dx, dy, w, h);
+    }
+    ctx.restore();
+  }
+
+  /* Khung thứ n của một vai trò (dùng cho chữ số, icon trạng thái). */
+  function frameN(role, n) {
+    var fr = framesOf(role, 'idle');
+    return fr && fr.length ? fr[((n % fr.length) + fr.length) % fr.length] : null;
+  }
+
   function draw(ctx, role, anim, t, x, y, scale, opts) {
     if (!ready) return false;
     var id = frameAt(role, anim, t, opts && opts.loop);
@@ -127,6 +175,15 @@
     if (!fr || !fr.length) return null;
     var h = (seed * 2654435761) >>> 0;
     return fr[h % fr.length];
+  }
+
+  var maxCache = {};
+  function maxDim(role) {
+    if (maxCache[role] != null) return maxCache[role];
+    var fr = framesOf(role, 'idle');
+    var m = 0;
+    (fr || []).forEach(function (id) { var r = rect(id); m = Math.max(m, r[2], r[3]); });
+    return (maxCache[role] = m);
   }
 
   function size(role, anim) {
@@ -244,7 +301,7 @@
     get ready() { return ready; },
     get failed() { return failed; },
     has: has, hasAnim: hasAnim, frames: framesOf, frameAt: frameAt, duration: animDuration,
-    draw: draw, drawId: drawId, variant: variant, size: size, rect: function (id) { return rect(id); },
+    draw: draw, drawId: drawId, drawPivot: drawPivot, frameN: frameN, tinted: function (id, c) { return tinted(id, c); }, tintedMul: tintedMul, variant: variant, size: size, maxDim: function (role) { return has(role) ? maxDim(role) : 0; }, rect: function (id) { return rect(id); },
     mobRole: mobRole, creatureRole: creatureRole, iconRole: iconRole, canvasFor: canvasFor,
     group: group
   };

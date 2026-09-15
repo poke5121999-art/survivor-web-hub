@@ -28,6 +28,45 @@
   };
 
   function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+  var FX_clamp = clamp;
+
+  /* Số sát thương bằng chữ số pixel của HoloCure (5×7, viền đen có sẵn trong
+     sprite). Không dùng strokeText: nhoè và không khớp lưới pixel. Số to thì rung
+     nhẹ trong 160ms đầu. Dấu +/- tự vẽ bằng khối vì bộ chữ số không có dấu. */
+  function drawDigits(ctx, it, p) {
+    var role = it.yellow ? 'ui.digit_y' : 'ui.digit';
+    var s = it.px;
+    var pop = it.t < 90 ? 1 + (it.big ? 0.9 : 0.6) * (1 - it.t / 90) : (it.t < 220 ? 1 + 0.12 * Math.sin((it.t - 90) / 130 * Math.PI) : 1);
+    var sc = Math.max(1, Math.round(s * pop));
+    var rise = E.outCubic(clamp(p * 1.6, 0, 1)) * it.rise + (p > 0.6 ? (p - 0.6) * it.rise * 0.6 : 0);
+    var alpha = p < 0.72 ? 1 : 1 - (p - 0.72) / 0.28;
+    var str = it.text.replace(/[^0-9]/g, '');
+    var gw = 6 * sc, total = str.length * gw;
+    var jx = it.big && it.t < 160 ? (Math.random() - 0.5) * sc * 2 : 0;
+    var x0 = Math.round(it.x + it.vx * p - total / 2 + jx), y0 = Math.round(it.y - rise);
+    ctx.save();
+    ctx.globalAlpha = clamp(alpha, 0, 1);
+    var sign = it.text.charAt(0);
+    if (sign === '+' || sign === '-') {
+      // dấu vẽ bằng khối — bộ chữ số không có dấu
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x0 - 5 * sc, y0 - 4 * sc - sc, 5 * sc, 3 * sc);
+      if (sign === '+') ctx.fillRect(x0 - 4 * sc, y0 - 6 * sc, 3 * sc, 7 * sc);
+      ctx.fillStyle = it.color;
+      ctx.fillRect(x0 - 4 * sc, y0 - 4 * sc, 3 * sc, sc);
+      if (sign === '+') ctx.fillRect(x0 - 3 * sc, y0 - 5 * sc, sc, 3 * sc);
+    }
+    for (var k = 0; k < str.length; k++) {
+      var id = SPR.frameN(role, +str[k]);
+      var gx = x0 + k * gw + 2.5 * sc, gy = y0;
+      var r = SPR.rect(id);
+      // Sprite đã có viền đen sẵn; chỉ nhuộm ruột trắng bằng phép nhân.
+      var colored = it.color && !it.yellow && it.color !== '#fff' && it.color !== '#ffffff' ? SPR.tintedMul(id, it.color) : null;
+      if (colored) ctx.drawImage(colored, Math.round(gx - r[2] * sc / 2), Math.round(gy - r[3] * sc / 2), r[2] * sc, r[3] * sc);
+      else SPR.drawPivot(ctx, id, gx, gy, sc, {});
+    }
+    ctx.restore();
+  }
   function lerp(a, b, t) { return a + (b - a) * t; }
   /* Nội suy theo thời gian thực, không phụ thuộc tốc độ khung hình:
      cùng một "độ bám" cho ra cùng một chuyển động ở 30 lẫn 120 hình/giây. */
@@ -87,7 +126,15 @@
     o = o || {};
     this.items.push({ kind: 'n', x: x + (o.dx || 0), y: y, text: String(text), color: o.color || '#fff',
       size: o.size || 22, t: 0, life: o.life || 900, big: !!o.big, vx: o.vx || 0, icon: o.icon || null,
-      rise: o.rise == null ? 46 : o.rise });
+      rise: o.rise == null ? 46 : o.rise, digits: !!o.digits && /^[+-]?\d+$/.test(String(text)),
+      px: o.px || 3, yellow: !!o.yellow });
+  };
+
+  /* Icon bật lên trên đầu (món đồ vừa kích, mũi tên tăng chỉ số): nảy to, lơ lửng, mờ. */
+  Layer.prototype.popup = function (id, x, y, scale, o) {
+    o = o || {};
+    this.items.push({ kind: 'i', id: id, x: x, y: y, scale: scale, t: 0, life: o.life || 900,
+      rise: o.rise == null ? 18 : o.rise, delay: o.delay || 0, glow: o.glow });
   };
 
   Layer.prototype.shake = function (amt) {
@@ -126,7 +173,11 @@
         if (it.glow) ctx.globalCompositeOperation = 'lighter';
         ctx.fillStyle = it.color;
         var sz = it.shrink ? it.size * (1 - p * 0.7) : it.size;
-        if (it.shape === 'circle') {
+        if (it.shape === 'plus') {
+          var u = Math.max(1, Math.round(sz / 3));
+          ctx.fillRect(Math.round(it.x - u * 1.5), Math.round(it.y - u / 2), u * 3, u);
+          ctx.fillRect(Math.round(it.x - u / 2), Math.round(it.y - u * 1.5), u, u * 3);
+        } else if (it.shape === 'circle') {
           ctx.beginPath(); ctx.arc(it.x, it.y, sz, 0, 6.2832); ctx.fill();
         } else if (it.shape === 'spark') {
           var len = Math.min(18, Math.hypot(it.vx, it.vy) * 0.045) + sz;
@@ -146,6 +197,24 @@
         if (it.add) ctx.globalCompositeOperation = 'lighter';
         SPR.drawId(ctx, fr[n], it.x, yy, it.scale, { flip: it.flip, rot: it.rot, alpha: it.alpha });
         ctx.restore();
+      } else if (it.kind === 'i') {
+        var tt = it.t - it.delay;
+        if (tt < 0) continue;
+        var pp = tt / (it.life - it.delay);
+        var bounce = tt < 220 ? E.outBack(tt / 220) : 1;
+        var ia = pp < 0.75 ? 1 : 1 - (pp - 0.75) / 0.25;
+        ctx.save();
+        if (it.glow) {
+          ctx.globalAlpha = 0.5 * ia;
+          ctx.fillStyle = it.glow;
+          ctx.beginPath();
+          ctx.arc(it.x, it.y - it.rise * E.outCubic(Math.min(1, pp * 2)), it.scale * 12 * bounce, 0, 6.2832);
+          ctx.fill();
+        }
+        ctx.restore();
+        SPR.drawPivot(ctx, it.id, it.x, it.y - it.rise * E.outCubic(Math.min(1, pp * 2)), it.scale * bounce, { alpha: FX_clamp(ia, 0, 1) });
+      } else if (it.kind === 'n' && it.digits && SPR && SPR.has('ui.digit')) {
+        drawDigits(ctx, it, p);
       } else if (it.kind === 'n') {
         var pop = it.t < 140 ? E.outBack(it.t / 140) : 1;
         var sc = (it.big ? 1.9 : 1.35) - (it.big ? 0.9 : 0.35) * pop;

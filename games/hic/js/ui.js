@@ -1627,9 +1627,13 @@
       setPill(d.spd, s.speed);
     }
 
+    if (SFX) SFX.setMode(def.boss ? 'boss' : 'fight');
     var fight = new global.HIC_Fight(scene, res, def.name, !!def.boss, {
       night: world.isNight(),
       speed: speeds[si],
+      weapon: run.inv.items[0] && run.inv.items[0].weapon ? run.inv.items[0] : null,
+      items: run.inv.items,
+      foeEffect: global.HIC_vnEffect(def.name, 'creature') || null,
       hooks: {
         snap: function (ln) {
           paintSide(0, ln.a);
@@ -1671,6 +1675,7 @@
     skip.onclick = function () { fight.skip(); };
     done.onclick = once(function () {
       fight.stop();
+      if (SFX) SFX.setMode('map');
       wrap.style.display = 'none';
       wrap.innerHTML = '';
       busy = false;

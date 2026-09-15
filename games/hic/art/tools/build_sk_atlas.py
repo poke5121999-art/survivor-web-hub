@@ -27,8 +27,15 @@ PAD = 1
 MAX_W = 1024
 
 
+HC = "D:/HoloCureAssets/GameSprites"
+
+
 def load(bundle, name):
-    p = os.path.join(SRC, *bundle.split("/"), name + ".png")
+    # "hc:<thư mục>" = sprite HoloCure (D:\HoloCureAssets\GameSprites), còn lại là kho Soul Knight.
+    if bundle.startswith("hc:"):
+        p = os.path.join(HC, bundle[3:], name + ".png")
+    else:
+        p = os.path.join(SRC, *bundle.split("/"), name + ".png")
     return Image.open(p).convert("RGBA")
 
 

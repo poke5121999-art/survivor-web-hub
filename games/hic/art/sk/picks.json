@@ -1,5 +1,5 @@
 {
- "_note": "Vai tro -> sprite trong kho boc Soul Knight 8.5.1 (~/Downloads/sk-ref/all). Chon 2026-09-15. Xem art/sk/README.md.",
+ "_note": "Vai tro -> sprite trong kho boc Soul Knight 8.5.1 (~/Downloads/sk-ref/all). Chon 2026-09-15. Xem art/sk/README.md. Khoa co tien to hc: lay tu D:/HoloCureAssets/GameSprites (sprite rip HoloCure), them 2026-09-15.",
  "hero": {
   "bundle": "skin/character/knight/skin_0",
   "face": "right",
@@ -1065,6 +1065,199 @@
   "bundle": "escape",
   "frames": [
    "Item_68"
+  ],
+  "kind": "single"
+ },
+ "vfx.boom": {
+  "bundle": "hc:spr_Explosion",
+  "frames": [
+   "spr_Explosion_0",
+   "spr_Explosion_1",
+   "spr_Explosion_2",
+   "spr_Explosion_3",
+   "spr_Explosion_4",
+   "spr_Explosion_5",
+   "spr_Explosion_6",
+   "spr_Explosion_7",
+   "spr_Explosion_8"
+  ],
+  "kind": "anim",
+  "fps": 24
+ },
+ "vfx.glow": {
+  "bundle": "hc:spr_GlowExplosion",
+  "frames": [
+   "spr_GlowExplosion_0",
+   "spr_GlowExplosion_1",
+   "spr_GlowExplosion_2",
+   "spr_GlowExplosion_3",
+   "spr_GlowExplosion_4",
+   "spr_GlowExplosion_5",
+   "spr_GlowExplosion_6"
+  ],
+  "kind": "anim",
+  "fps": 20
+ },
+ "vfx.spark": {
+  "bundle": "hc:spr_ZetaStealthHit",
+  "frames": [
+   "spr_ZetaStealthHit_0",
+   "spr_ZetaStealthHit_1",
+   "spr_ZetaStealthHit_2",
+   "spr_ZetaStealthHit_3"
+  ],
+  "kind": "anim",
+  "fps": 18
+ },
+ "vfx.smoke": {
+  "bundle": "hc:vfx_smoke",
+  "frames": [
+   "vfx_smoke_0",
+   "vfx_smoke_1",
+   "vfx_smoke_2",
+   "vfx_smoke_3",
+   "vfx_smoke_4",
+   "vfx_smoke_5"
+  ],
+  "kind": "anim",
+  "fps": 14
+ },
+ "vfx.swipe": {
+  "bundle": "hc:spr_AxeFX",
+  "frames": [
+   "spr_AxeFX_0",
+   "spr_AxeFX_1",
+   "spr_AxeFX_2",
+   "spr_AxeFX_3",
+   "spr_AxeFX_4",
+   "spr_AxeFX_5"
+  ],
+  "kind": "anim",
+  "fps": 26
+ },
+ "vfx.dash": {
+  "bundle": "hc:spr_DashVFX",
+  "frames": [
+   "spr_DashVFX_0",
+   "spr_DashVFX_1",
+   "spr_DashVFX_2",
+   "spr_DashVFX_3"
+  ],
+  "kind": "anim",
+  "fps": 18
+ },
+ "vfx.spawn": {
+  "bundle": "hc:spr_spawnFX",
+  "frames": [
+   "spr_spawnFX_0",
+   "spr_spawnFX_1",
+   "spr_spawnFX_2",
+   "spr_spawnFX_3",
+   "spr_spawnFX_4"
+  ],
+  "kind": "anim",
+  "fps": 12
+ },
+ "vfx.sparkle": {
+  "bundle": "hc:hudfx_sparkle",
+  "frames": [
+   "hudfx_sparkle_0",
+   "hudfx_sparkle_1"
+  ],
+  "kind": "anim",
+  "fps": 10
+ },
+ "vfx.heart": {
+  "bundle": "hc:spr_deathHeart",
+  "frames": [
+   "spr_deathHeart_0",
+   "spr_deathHeart_1",
+   "spr_deathHeart_2",
+   "spr_deathHeart_3"
+  ],
+  "kind": "anim",
+  "fps": 8
+ },
+ "vfx.coin": {
+  "bundle": "hc:spr_holoCoin",
+  "frames": [
+   "spr_holoCoin_0",
+   "spr_holoCoin_1",
+   "spr_holoCoin_2",
+   "spr_holoCoin_3",
+   "spr_holoCoin_4",
+   "spr_holoCoin_5",
+   "spr_holoCoin_6",
+   "spr_holoCoin_7"
+  ],
+  "kind": "anim",
+  "fps": 14
+ },
+ "vfx.debuff": {
+  "bundle": "hc:spr_debuffFX",
+  "frames": [
+   "spr_debuffFX_0",
+   "spr_debuffFX_1",
+   "spr_debuffFX_2",
+   "spr_debuffFX_3",
+   "spr_debuffFX_4",
+   "spr_debuffFX_5",
+   "spr_debuffFX_6",
+   "spr_debuffFX_7"
+  ],
+  "kind": "anim",
+  "fps": 14
+ },
+ "ui.statup": {
+  "bundle": "hc:spr_StatUpEffect",
+  "frames": [
+   "spr_StatUpEffect_0",
+   "spr_StatUpEffect_1",
+   "spr_StatUpEffect_2",
+   "spr_StatUpEffect_3",
+   "spr_StatUpEffect_4",
+   "spr_StatUpEffect_5"
+  ],
+  "kind": "single"
+ },
+ "ui.statdown": {
+  "bundle": "hc:spr_statusEffects",
+  "frames": [
+   "spr_statusEffects_0",
+   "spr_statusEffects_1",
+   "spr_statusEffects_2"
+  ],
+  "kind": "single"
+ },
+ "ui.digit": {
+  "bundle": "hc:ui_digit_white",
+  "frames": [
+   "ui_digit_white_0",
+   "ui_digit_white_1",
+   "ui_digit_white_2",
+   "ui_digit_white_3",
+   "ui_digit_white_4",
+   "ui_digit_white_5",
+   "ui_digit_white_6",
+   "ui_digit_white_7",
+   "ui_digit_white_8",
+   "ui_digit_white_9"
+  ],
+  "kind": "single"
+ },
+ "ui.digit_y": {
+  "bundle": "hc:ui_digit_yellow",
+  "frames": [
+   "ui_digit_yellow_0",
+   "ui_digit_yellow_1",
+   "ui_digit_yellow_2",
+   "ui_digit_yellow_3",
+   "ui_digit_yellow_4",
+   "ui_digit_yellow_5",
+   "ui_digit_yellow_6",
+   "ui_digit_yellow_7",
+   "ui_digit_yellow_8",
+   "ui_digit_yellow_9"
   ],
   "kind": "single"
  }
