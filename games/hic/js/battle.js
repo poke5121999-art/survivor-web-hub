@@ -116,7 +116,7 @@
   Ctx.prototype.loseHealth = function (hp) {
     this.my.hp -= hp;
     this.b.log(this.b.disp(this.src) + ': ' + this.b.name(this.i) + ' -' + hp + ' máu',
-      { k: 'dmg', i: this.i, v: hp, hp: hp, ar: 0 });
+      { k: 'dmg', i: this.i, v: hp, hp: hp, ar: 0, src: this.src });
     this.b.checkDeath();
   };
   Ctx.prototype.dealDamage = function (d) { this.b.dealDamage(d, this.e, this.src, { dealer: this.i, weapon: false }); };
@@ -175,6 +175,7 @@
       by: meta && meta.by,                // ai gay ra
       v: meta && meta.v,                  // bao nhieu
       hp: meta && meta.hp, ar: meta && meta.ar, strike: meta && meta.strike,
+      src: meta && meta.src,              // mon do / hieu ung gay ra (ten goc), de man tran danh chop sang o do
       a: { hp: Math.max(0, a.hp), maxHp: a.maxHp, armor: a.armor, attack: a.attack, speed: a.speed, thorns: a.thorns, stun: a.stunCount },
       b: { hp: Math.max(0, b.hp), maxHp: b.maxHp, armor: b.armor, attack: b.attack, speed: b.speed, thorns: b.thorns, stun: b.stunCount }
     });
@@ -237,25 +238,25 @@
     if (delta === 0) return;
     this.stats[i].armor += delta;
     this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' giáp (' + this.disp(src) + ')',
-      { k: delta > 0 ? 'armor' : 'armorloss', i: i, v: delta });
+      { k: delta > 0 ? 'armor' : 'armorloss', i: i, v: delta, src: src });
     if (delta > 0) this.fire(T.onGainArmor, i, src, delta);
   };
   Battle.prototype.adjustThorns = function (delta, i, src) {
     if (delta === 0) return;
     this.stats[i].thorns = Math.max(0, this.stats[i].thorns + delta);
     this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' gai (' + this.disp(src) + ')',
-      { k: 'thorns', i: i, v: delta });
+      { k: 'thorns', i: i, v: delta, src: src });
     this.fire(delta > 0 ? T.onGainThorns : T.onLoseThorns, i, src, delta);
   };
   Battle.prototype.adjustAttack = function (delta, i, src) {
     this.stats[i].attack = Math.max(0, this.stats[i].attack + delta);
     this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' công (' + this.disp(src) + ')',
-      { k: 'atk', i: i, v: delta });
+      { k: 'atk', i: i, v: delta, src: src });
   };
   Battle.prototype.adjustSpeed = function (delta, i, src) {
     this.stats[i].speed += delta;
     this.log(this.name(i) + ' ' + (delta > 0 ? '+' : '') + delta + ' tốc (' + this.disp(src) + ')',
-      { k: 'spd', i: i, v: delta });
+      { k: 'spd', i: i, v: delta, src: src });
   };
 
   Battle.prototype.restoreHealth = function (hp, i, src) {
@@ -265,7 +266,7 @@
     s.hp = newHp;
     if (restored > 0) {
       this.log(this.disp(src) + ': ' + this.name(i) + ' hồi ' + restored + ' máu',
-        { k: 'heal', i: i, v: restored });
+        { k: 'heal', i: i, v: restored, src: src });
       this.fire(T.onRestoreHealth, i, src, restored);
       this.fire(T.onHpChanged, i, src, restored);
     }
@@ -304,7 +305,7 @@
     this.log(this.disp(src) + ' gây ' + damage + ' lên ' + this.name(target) +
       ' (' + Math.max(0, s.hp) + '/' + s.maxHp + ' máu, ' + s.armor + ' giáp)',
       { k: 'dmg', i: target, by: dealer, v: damage, hp: hpHit, ar: armorHit,
-        strike: !!opts.weapon });
+        strike: !!opts.weapon, src: src });
     s.damageThisTurn++;
     this.checkDeath();
 

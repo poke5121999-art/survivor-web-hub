@@ -1,0 +1,1071 @@
+{
+ "_note": "Vai tro -> sprite trong kho boc Soul Knight 8.5.1 (~/Downloads/sk-ref/all). Chon 2026-09-15. Xem art/sk/README.md.",
+ "hero": {
+  "bundle": "skin/character/knight/skin_0",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "knight_0_0",
+    "knight_0_1",
+    "knight_0_2",
+    "knight_0_3",
+    "knight_0_4",
+    "knight_0_5",
+    "knight_0_6",
+    "knight_0_7"
+   ],
+   "run": [
+    "knight_0_8",
+    "knight_0_9",
+    "knight_0_10",
+    "knight_0_11",
+    "knight_0_12",
+    "knight_0_13",
+    "knight_0_14",
+    "knight_0_15"
+   ],
+   "dead": [
+    "knight_0_16"
+   ]
+  }
+ },
+ "mob.wolf": {
+  "bundle": "skin/pet/wolf_1/skin_0",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "wolf_0",
+    "wolf_1",
+    "wolf_2",
+    "wolf_3",
+    "wolf_4",
+    "wolf_5",
+    "wolf_6",
+    "wolf_7"
+   ],
+   "move": [
+    "wolf_8",
+    "wolf_9",
+    "wolf_10",
+    "wolf_11",
+    "wolf_12",
+    "wolf_13",
+    "wolf_14",
+    "wolf_15"
+   ]
+  }
+ },
+ "mob.bat": {
+  "bundle": "sprite_atlas",
+  "face": "front",
+  "anims": {
+   "idle": [
+    "pet_bat_0",
+    "pet_bat_1",
+    "pet_bat_2",
+    "pet_bat_3",
+    "pet_bat_4",
+    "pet_bat_5",
+    "pet_bat_6",
+    "pet_bat_7"
+   ]
+  }
+ },
+ "mob.bear": {
+  "bundle": "mount/bear",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "c12_bear_0",
+    "c12_bear_1",
+    "c12_bear_2",
+    "c12_bear_3",
+    "c12_bear_4",
+    "c12_bear_5"
+   ],
+   "attack": [
+    "c12_bear_6"
+   ],
+   "move": [
+    "c12_bear_7",
+    "c12_bear_8",
+    "c12_bear_9",
+    "c12_bear_10",
+    "c12_bear_11",
+    "c12_bear_12",
+    "c12_bear_13"
+   ]
+  }
+ },
+ "mob.hedgehog": {
+  "bundle": "level/1/b",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "enemy37_0",
+    "enemy37_1"
+   ],
+   "move": [
+    "enemy37_2",
+    "enemy37_3",
+    "enemy37_4",
+    "enemy37_5"
+   ],
+   "dead": [
+    "enemy37_6"
+   ]
+  }
+ },
+ "mob.spider": {
+  "bundle": "level/2/b",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "enemy09_0",
+    "enemy09_1"
+   ],
+   "move": [
+    "enemy09_2",
+    "enemy09_3",
+    "enemy09_4",
+    "enemy09_5"
+   ],
+   "dead": [
+    "enemy09_6"
+   ]
+  }
+ },
+ "mob.raven": {
+  "bundle": "skin/pet/wolf_2/skin_24",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "wolf_2_s24_4",
+    "wolf_2_s24_5",
+    "wolf_2_s24_6",
+    "wolf_2_s24_7"
+   ],
+   "move": [
+    "wolf_2_s24_0",
+    "wolf_2_s24_1",
+    "wolf_2_s24_2",
+    "wolf_2_s24_3"
+   ]
+  }
+ },
+ "mob.werewolf": {
+  "bundle": "skin/pet/wolf_1/skin_24",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "wolf_1_s24_0",
+    "wolf_1_s24_1",
+    "wolf_1_s24_2",
+    "wolf_1_s24_3",
+    "wolf_1_s24_4",
+    "wolf_1_s24_5",
+    "wolf_1_s24_6",
+    "wolf_1_s24_7"
+   ],
+   "move": [
+    "wolf_1_s24_8",
+    "wolf_1_s24_9",
+    "wolf_1_s24_10",
+    "wolf_1_s24_11",
+    "wolf_1_s24_12",
+    "wolf_1_s24_13",
+    "wolf_1_s24_14",
+    "wolf_1_s24_15"
+   ]
+  }
+ },
+ "mob.honeybear": {
+  "bundle": "mount/bear_s1",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "c12_s1_bear_0",
+    "c12_s1_bear_1",
+    "c12_s1_bear_2",
+    "c12_s1_bear_3",
+    "c12_s1_bear_4"
+   ],
+   "attack": [
+    "c12_s1_bear_5",
+    "c12_s1_bear_6",
+    "c12_s1_bear_8"
+   ],
+   "move": [
+    "c12_s1_bear_9",
+    "c12_s1_bear_10",
+    "c12_s1_bear_11",
+    "c12_s1_bear_12",
+    "c12_s1_bear_13",
+    "c12_s1_bear_14"
+   ]
+  }
+ },
+ "boss.black_knight": {
+  "bundle": "level/2/a",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "black_knight_0",
+    "black_knight_1",
+    "black_knight_2",
+    "black_knight_3"
+   ],
+   "move": [
+    "black_knight_4",
+    "black_knight_5",
+    "black_knight_6",
+    "black_knight_7"
+   ],
+   "dead": [
+    "black_knight_8"
+   ]
+  }
+ },
+ "boss.stormcloud_druid": {
+  "bundle": "level/difficulty",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "e_void_mage_0",
+    "e_void_mage_1",
+    "e_void_mage_2",
+    "e_void_mage_3",
+    "e_void_mage_4",
+    "e_void_mage_5",
+    "e_void_mage_6",
+    "e_void_mage_7"
+   ],
+   "move": [
+    "e_void_mage_8",
+    "e_void_mage_9",
+    "e_void_mage_10",
+    "e_void_mage_11",
+    "e_void_mage_12",
+    "e_void_mage_13",
+    "e_void_mage_14",
+    "e_void_mage_15"
+   ],
+   "attack": [
+    "e_void_mage_pre_cast_0",
+    "e_void_mage_pre_cast_1",
+    "e_void_mage_pre_cast_2",
+    "e_void_mage_pre_cast_3",
+    "e_void_mage_casting_0",
+    "e_void_mage_casting_1",
+    "e_void_mage_casting_2",
+    "e_void_mage_casting_3",
+    "e_void_mage_casting_4",
+    "e_void_mage_casting_5"
+   ],
+   "dead": [
+    "e_void_mage_16"
+   ]
+  }
+ },
+ "boss.brittlebark_beast": {
+  "bundle": "mount/bear_s19",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "c12_bear_0",
+    "c12_bear_1",
+    "c12_bear_2",
+    "c12_bear_3",
+    "c12_bear_4",
+    "c12_bear_5",
+    "c12_bear_6",
+    "c12_bear_7"
+   ],
+   "move": [
+    "c12_bear_8",
+    "c12_bear_9",
+    "c12_bear_10",
+    "c12_bear_11",
+    "c12_bear_12",
+    "c12_bear_13",
+    "c12_bear_14",
+    "c12_bear_15"
+   ]
+  }
+ },
+ "boss.hothead": {
+  "bundle": "mount/bear_s17",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "c12_bear_0",
+    "c12_bear_1",
+    "c12_bear_2",
+    "c12_bear_3",
+    "c12_bear_4",
+    "c12_bear_5",
+    "c12_bear_6",
+    "c12_bear_7"
+   ],
+   "move": [
+    "c12_bear_8",
+    "c12_bear_9",
+    "c12_bear_10",
+    "c12_bear_11",
+    "c12_bear_12",
+    "c12_bear_13",
+    "c12_bear_14",
+    "c12_bear_15"
+   ],
+   "attack": [
+    "c12_bear_16",
+    "c12_bear_17",
+    "c12_bear_18",
+    "c12_bear_19"
+   ]
+  }
+ },
+ "boss.ironstone_golem": {
+  "bundle": "level/4/a",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "stone_man_0",
+    "stone_man_1",
+    "stone_man_2",
+    "stone_man_3",
+    "stone_man_4",
+    "stone_man_5",
+    "stone_man_6",
+    "stone_man_7"
+   ],
+   "move": [
+    "stone_man_8",
+    "stone_man_9",
+    "stone_man_10",
+    "stone_man_11",
+    "stone_man_12",
+    "stone_man_13",
+    "stone_man_14",
+    "stone_man_15"
+   ],
+   "dead": [
+    "stone_man_16"
+   ]
+  }
+ },
+ "boss.bearserker": {
+  "bundle": "escape",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "e_escape_ape_boss_0",
+    "e_escape_ape_boss_1",
+    "e_escape_ape_boss_2",
+    "e_escape_ape_boss_3",
+    "e_escape_ape_boss_4",
+    "e_escape_ape_boss_5",
+    "e_escape_ape_boss_6",
+    "e_escape_ape_boss_7"
+   ],
+   "move": [
+    "e_escape_ape_boss_8",
+    "e_escape_ape_boss_9",
+    "e_escape_ape_boss_10",
+    "e_escape_ape_boss_11",
+    "e_escape_ape_boss_12",
+    "e_escape_ape_boss_13",
+    "e_escape_ape_boss_14",
+    "e_escape_ape_boss_15"
+   ],
+   "dead": [
+    "e_escape_ape_boss_16"
+   ]
+  }
+ },
+ "boss.gentle_giant": {
+  "bundle": "boss/boss09",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "boss09_new_0",
+    "boss09_new_1",
+    "boss09_new_2",
+    "boss09_new_3",
+    "boss09_new_4",
+    "boss09_new_5",
+    "boss09_new_6",
+    "boss09_new_7"
+   ],
+   "move": [
+    "boss09_new_8",
+    "boss09_new_9",
+    "boss09_new_10",
+    "boss09_new_11",
+    "boss09_new_12",
+    "boss09_new_13",
+    "boss09_new_14",
+    "boss09_new_15",
+    "boss09_new_16",
+    "boss09_new_17"
+   ],
+   "attack": [
+    "boss09_new_27",
+    "boss09_new_28",
+    "boss09_new_29",
+    "boss09_new_30",
+    "boss09_new_31"
+   ],
+   "dead": [
+    "boss09_new_32"
+   ]
+  }
+ },
+ "boss.granite_griffin": {
+  "bundle": "level/4/a",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "stone_eagle_0",
+    "stone_eagle_1",
+    "stone_eagle_2",
+    "stone_eagle_3",
+    "stone_eagle_4",
+    "stone_eagle_5",
+    "stone_eagle_6",
+    "stone_eagle_7"
+   ],
+   "dead": [
+    "stone_eagle_8"
+   ]
+  }
+ },
+ "boss.mountain_troll": {
+  "bundle": "boss/boss27",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "idle_0",
+    "idle_1",
+    "idle_2",
+    "idle_3"
+   ],
+   "move": [
+    "walk_0",
+    "walk_1",
+    "walk_2",
+    "walk_3",
+    "walk_4",
+    "walk_5"
+   ],
+   "attack": [
+    "heavyChop_3",
+    "heavyChop_4",
+    "heavyChop_5",
+    "heavyChop_6",
+    "heavyChop_7",
+    "heavyChop_9",
+    "heavyChop_10",
+    "heavyChop_11"
+   ]
+  }
+ },
+ "boss.razortusk_hog": {
+  "bundle": "monster_rise",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "m_Boar_Wang_0",
+    "m_Boar_Wang_1",
+    "m_Boar_Wang_2",
+    "m_Boar_Wang_3",
+    "m_Boar_Wang_4",
+    "m_Boar_Wang_5",
+    "m_Boar_Wang_6",
+    "m_Boar_Wang_7"
+   ],
+   "move": [
+    "m_Boar_Wang_8",
+    "m_Boar_Wang_9",
+    "m_Boar_Wang_10",
+    "m_Boar_Wang_11",
+    "m_Boar_Wang_12",
+    "m_Boar_Wang_13",
+    "m_Boar_Wang_14",
+    "m_Boar_Wang_15"
+   ],
+   "hit": [
+    "m_Boar_Wang_16"
+   ]
+  }
+ },
+ "boss.redwood_treant": {
+  "bundle": "aram/enemy",
+  "face": "front",
+  "anims": {
+   "idle": [
+    "treant_king_body_0",
+    "treant_king_body_1",
+    "treant_king_body_2",
+    "treant_king_body_3",
+    "treant_king_body_4",
+    "treant_king_body_5",
+    "treant_king_body_6",
+    "treant_king_body_7",
+    "treant_king_body_8",
+    "treant_king_body_9",
+    "treant_king_body_10",
+    "treant_king_body_11",
+    "treant_king_body_12",
+    "treant_king_body_13",
+    "treant_king_body_14",
+    "treant_king_body_15"
+   ],
+   "dead": [
+    "treant_king_dead"
+   ]
+  }
+ },
+ "boss.leshen": {
+  "bundle": "mount/bear_s24",
+  "face": "right",
+  "anims": {
+   "idle": [
+    "c12_s24_bear_0",
+    "c12_s24_bear_1",
+    "c12_s24_bear_2",
+    "c12_s24_bear_3",
+    "c12_s24_bear_4",
+    "c12_s24_bear_5",
+    "c12_s24_bear_6",
+    "c12_s24_bear_7"
+   ],
+   "move": [
+    "c12_s24_bear_8",
+    "c12_s24_bear_9",
+    "c12_s24_bear_10",
+    "c12_s24_bear_11",
+    "c12_s24_bear_12",
+    "c12_s24_bear_13",
+    "c12_s24_bear_14",
+    "c12_s24_bear_15"
+   ],
+   "attack": [
+    "c12_s24_bear_atk_0",
+    "c12_s24_bear_atk_1",
+    "c12_s24_bear_atk_2",
+    "c12_s24_bear_atk_3",
+    "c12_s24_bear_atk_4",
+    "c12_s24_bear_atk_5"
+   ]
+  }
+ },
+ "boss.woodland_abomination": {
+  "bundle": "monster_rise",
+  "face": "front",
+  "anims": {
+   "idle": [
+    "M_ForestNightmare_0",
+    "M_ForestNightmare_1",
+    "M_ForestNightmare_2",
+    "M_ForestNightmare_3",
+    "M_ForestNightmare_4",
+    "M_ForestNightmare_5",
+    "M_ForestNightmare_6",
+    "M_ForestNightmare_7",
+    "M_ForestNightmare_8",
+    "M_ForestNightmare_9",
+    "M_ForestNightmare_10"
+   ],
+   "attack": [
+    "M_ForestNightmare_11",
+    "M_ForestNightmare_12",
+    "M_ForestNightmare_13",
+    "M_ForestNightmare_14",
+    "M_ForestNightmare_15",
+    "M_ForestNightmare_16",
+    "M_ForestNightmare_17",
+    "M_ForestNightmare_18",
+    "M_ForestNightmare_19",
+    "M_ForestNightmare_20",
+    "M_ForestNightmare_21"
+   ],
+   "dead": [
+    "M_ForestNightmare_22"
+   ]
+  }
+ },
+ "terrain.grass": {
+  "bundle": "escape",
+  "frames": [
+   "grass_rand_0",
+   "grass_rand_1",
+   "grass_rand_4",
+   "grass_rand_5"
+  ],
+  "kind": "variants"
+ },
+ "terrain.dirt": {
+  "bundle": "escape",
+  "frames": [
+   "dirt_rand_0",
+   "dirt_rand_1",
+   "dirt_rand_2"
+  ],
+  "kind": "variants"
+ },
+ "terrain.water": {
+  "bundle": "escape",
+  "frames": [
+   "water_6"
+  ],
+  "kind": "variants"
+ },
+ "terrain.tree": {
+  "bundle": "escape",
+  "frames": [
+   "Tree_0",
+   "Tree_1"
+  ],
+  "kind": "variants"
+ },
+ "terrain.rock": {
+  "bundle": "escape",
+  "frames": [
+   "stone_0",
+   "stone_1",
+   "stone_2"
+  ],
+  "kind": "variants"
+ },
+ "terrain.flower": {
+  "bundle": "common",
+  "frames": [
+   "plant6_0",
+   "plant6_3",
+   "grass_1"
+  ],
+  "kind": "variants"
+ },
+ "event.chest": {
+  "bundle": "escape",
+  "frames": [
+   "Chest_10"
+  ],
+  "kind": "single"
+ },
+ "event.jewel": {
+  "bundle": "escape",
+  "frames": [
+   "Chest_14"
+  ],
+  "kind": "single"
+ },
+ "event.grave": {
+  "bundle": "hero_room/garden/skin_0",
+  "frames": [
+   "halloween_gravestone2"
+  ],
+  "kind": "single"
+ },
+ "event.anvil": {
+  "bundle": "hero_room/work_shop/skin_3",
+  "frames": [
+   "forge_1"
+  ],
+  "kind": "single"
+ },
+ "event.oil": {
+  "bundle": "escape",
+  "frames": [
+   "Item_28"
+  ],
+  "kind": "single"
+ },
+ "event.merchant": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "merchant_cunning_0",
+   "merchant_cunning_1",
+   "merchant_cunning_2",
+   "merchant_cunning_3",
+   "merchant_cunning_4",
+   "merchant_cunning_5",
+   "merchant_cunning_6",
+   "merchant_cunning_7"
+  ],
+  "kind": "anim",
+  "fps": 8
+ },
+ "event.fire": {
+  "bundle": "monster_rise",
+  "frames": [
+   "brazier0_0",
+   "brazier0_1",
+   "brazier0_2",
+   "brazier0_3",
+   "brazier0_4",
+   "brazier0_5",
+   "brazier0_6"
+  ],
+  "kind": "anim",
+  "fps": 10
+ },
+ "event.house": {
+  "bundle": "monster_rise",
+  "frames": [
+   "camp_house"
+  ],
+  "kind": "single"
+ },
+ "event.golem": {
+  "bundle": "level/4/a",
+  "frames": [
+   "stone_man_0",
+   "stone_man_1",
+   "stone_man_2",
+   "stone_man_3",
+   "stone_man_4",
+   "stone_man_5",
+   "stone_man_6",
+   "stone_man_7",
+   "stone_man_8",
+   "stone_man_9",
+   "stone_man_10",
+   "stone_man_11",
+   "stone_man_12",
+   "stone_man_13",
+   "stone_man_14",
+   "stone_man_15"
+  ],
+  "kind": "anim",
+  "fps": 8
+ },
+ "event.cauldron": {
+  "bundle": "common",
+  "frames": [
+   "c42StewPot"
+  ],
+  "kind": "single"
+ },
+ "event.tower": {
+  "bundle": "level/difficulty",
+  "frames": [
+   "void_totem"
+  ],
+  "kind": "single"
+ },
+ "event.well": {
+  "bundle": "hero_room/garden/skin_2",
+  "frames": [
+   "magic_well_1"
+  ],
+  "kind": "single"
+ },
+ "icon.sword": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapons_53"
+  ],
+  "kind": "single"
+ },
+ "icon.dagger": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapons_60"
+  ],
+  "kind": "single"
+ },
+ "icon.axe": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapon_storm_axe"
+  ],
+  "kind": "single"
+ },
+ "icon.hammer": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapon_380"
+  ],
+  "kind": "single"
+ },
+ "icon.spear": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapons_85"
+  ],
+  "kind": "single"
+ },
+ "icon.bow": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapons_75"
+  ],
+  "kind": "single"
+ },
+ "icon.staff": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapon_404"
+  ],
+  "kind": "single"
+ },
+ "icon.whip": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapons2_104"
+  ],
+  "kind": "single"
+ },
+ "icon.ring": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapons2_38"
+  ],
+  "kind": "single"
+ },
+ "icon.boots": {
+  "bundle": "monster_rise",
+  "frames": [
+   "movespeed"
+  ],
+  "kind": "single"
+ },
+ "icon.glove": {
+  "bundle": "monster_rise",
+  "frames": [
+   "hand"
+  ],
+  "kind": "single"
+ },
+ "icon.armor": {
+  "bundle": "escape",
+  "frames": [
+   "Item_52"
+  ],
+  "kind": "single"
+ },
+ "icon.cloak": {
+  "bundle": "escape",
+  "frames": [
+   "Item_50"
+  ],
+  "kind": "single"
+ },
+ "icon.shield": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "weapons_122"
+  ],
+  "kind": "single"
+ },
+ "icon.potion": {
+  "bundle": "escape",
+  "frames": [
+   "Item_22"
+  ],
+  "kind": "single"
+ },
+ "icon.food": {
+  "bundle": "escape",
+  "frames": [
+   "Item_43"
+  ],
+  "kind": "single"
+ },
+ "icon.honey": {
+  "bundle": "escape",
+  "frames": [
+   "Item_93"
+  ],
+  "kind": "single"
+ },
+ "icon.bomb": {
+  "bundle": "monster_rise",
+  "frames": [
+   "glorious_ending_bomb"
+  ],
+  "kind": "single"
+ },
+ "icon.gem": {
+  "bundle": "escape",
+  "frames": [
+   "Item_75"
+  ],
+  "kind": "single"
+ },
+ "icon.talisman": {
+  "bundle": "escape",
+  "frames": [
+   "Item_100"
+  ],
+  "kind": "single"
+ },
+ "icon.thorn": {
+  "bundle": "escape",
+  "frames": [
+   "Item_94"
+  ],
+  "kind": "single"
+ },
+ "icon.feather": {
+  "bundle": "escape",
+  "frames": [
+   "Item_104"
+  ],
+  "kind": "single"
+ },
+ "icon.misc": {
+  "bundle": "escape",
+  "frames": [
+   "Item_101"
+  ],
+  "kind": "single"
+ },
+ "icon.oil": {
+  "bundle": "escape",
+  "frames": [
+   "Item_28"
+  ],
+  "kind": "single"
+ },
+ "icon.whetstone": {
+  "bundle": "escape",
+  "frames": [
+   "Item_83"
+  ],
+  "kind": "single"
+ },
+ "vfx.slash": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "sword_slash_white_0",
+   "sword_slash_white_1",
+   "sword_slash_white_2",
+   "sword_slash_white_3"
+  ],
+  "kind": "anim",
+  "fps": 16
+ },
+ "vfx.hit": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "effect_1_0",
+   "effect_1_1",
+   "effect_1_2",
+   "effect_1_3"
+  ],
+  "kind": "anim",
+  "fps": 16
+ },
+ "vfx.crit": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "effect_0_0",
+   "effect_0_1",
+   "effect_0_2",
+   "effect_0_3"
+  ],
+  "kind": "anim",
+  "fps": 14
+ },
+ "vfx.armor": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "level_buff_immune_10",
+   "level_buff_immune_11",
+   "level_buff_immune_12",
+   "level_buff_immune_13",
+   "level_buff_immune_14"
+  ],
+  "kind": "anim",
+  "fps": 10
+ },
+ "vfx.stun": {
+  "bundle": "sprite_atlas",
+  "frames": [
+   "dizzy_0",
+   "dizzy_1",
+   "dizzy_2",
+   "dizzy_3"
+  ],
+  "kind": "anim",
+  "fps": 8
+ },
+ "vfx.death": {
+  "bundle": "weapon",
+  "frames": [
+   "die_3",
+   "die_4",
+   "die_5",
+   "die_6",
+   "die_7"
+  ],
+  "kind": "anim",
+  "fps": 12
+ },
+ "ui.heart": {
+  "bundle": "monster_rise",
+  "frames": [
+   "health"
+  ],
+  "kind": "single"
+ },
+ "ui.shield": {
+  "bundle": "monster_rise",
+  "frames": [
+   "shield_sign"
+  ],
+  "kind": "single"
+ },
+ "ui.attack": {
+  "bundle": "monster_rise",
+  "frames": [
+   "attackDamage"
+  ],
+  "kind": "single"
+ },
+ "ui.speed": {
+  "bundle": "monster_rise",
+  "frames": [
+   "movespeed"
+  ],
+  "kind": "single"
+ },
+ "ui.gold": {
+  "bundle": "ui",
+  "frames": [
+   "Icn_Gold_framed_shop"
+  ],
+  "kind": "single"
+ },
+ "ui.skull": {
+  "bundle": "monster_rise",
+  "frames": [
+   "sac_up_1"
+  ],
+  "kind": "single"
+ },
+ "icon.crown": {
+  "bundle": "escape",
+  "frames": [
+   "Item_103"
+  ],
+  "kind": "single"
+ },
+ "icon.earring": {
+  "bundle": "escape",
+  "frames": [
+   "Item_72"
+  ],
+  "kind": "single"
+ },
+ "icon.helmet": {
+  "bundle": "escape",
+  "frames": [
+   "Item_68"
+  ],
+  "kind": "single"
+ }
+}

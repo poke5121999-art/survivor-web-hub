@@ -348,7 +348,25 @@ window.HUB_GAMES = [
     // arrival rather than when walked over, and the battle is an animated scene
     // (lunges, shaped hit flashes, floating numbers, screen shake) instead of a
     // text log.
-    // NOT yet eyes-on verified by a human across a long session.
+    // Polish pass 2026-09-15 (owner asked for Soul Knight art, smooth motion,
+    // juicy fights, mobile-friendly landscape UI like the Steam version):
+    // - LANDSCAPE layout: day/night clock with a skull at the top, an
+    //   always-visible gear column on the left, and the map filling the rest.
+    //   Portrait screens get the column as a bottom bar instead.
+    // - Every sprite, tile, icon and VFX now comes from ONE Soul Knight atlas
+    //   (games/hic/art/sk/, 441 frames). Deleting that folder falls back to
+    //   the vector art. See art/sk/README.md for the licence note.
+    // - The hero glides between tiles, the camera follows, the fog fades in
+    //   and out, night brings a lantern glow, and monsters breathe and pop a
+    //   "!" when they spot you.
+    // - Fights play wind-up -> dash -> hit-stop -> knockback, with slash/crit
+    //   sprites and floating numbers. The gear slot that triggered lights up,
+    //   which needed a `src` field added to the combat log.
+    // - Synthesized WebAudio SFX and music, plus toggles for sound, music,
+    //   screen shake and the d-pad.
+    // - Combat rules are unchanged: the bot reaches the same week, phase and
+    //   step count for seeds 1000-1004 before and after this pass.
+    rev: "20260915a",
     status: "available",
     tags: ["Roguelite", "Auto-battler", "Chiến thuật", "Solo"]
   },
