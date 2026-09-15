@@ -10,3 +10,11 @@
   - Bài kiểm phải chờ đúng hộp mình cần, gặp hộp khác thì bấm qua. Không được coi "có hộp nào đó" là đạt.
 - Bắt đủ `pageerror`, console error, response ≥ 400.
 - Ảnh chụp phải mở ra xem bằng mắt: chữ tràn, nút bị đè, thanh không tắt đều không ném lỗi.
+- **Dịch chuyển quái tới cạnh người chơi để ép một trận: phải chọn ô đi được.**
+  - 2026-09-15, Hắn Đang Tới trên Pages báo "battle never finished" ở cỡ điện thoại.
+  - Thật ra con quái bị đặt lên ô cây. `world.step` trả "blocked" trước khi xét tới quái, nên chẳng có trận nào bắt đầu.
+  - Chạy ở máy thì xanh, chỉ vì hạt giống khác nên ô ấy tình cờ trống.
+- **Máy này `python` là shim của cmd.**
+  - Trong Bash tool, `python -c "..."` nhiều dòng báo `IndentationError ... goto :error`.
+  - Tham số có dấu `|` (regex) thì cmd cắt ngang lệnh.
+  - Cách tránh: ghi script ra tệp, và chạy lệnh có `|` bằng PowerShell tool.
