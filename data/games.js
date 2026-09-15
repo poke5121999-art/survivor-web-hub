@@ -207,7 +207,8 @@ window.HUB_GAMES = [
     // belong on a server (realm-server/), not in a page.
     // Ships with an in-game bot that plays the whole loop; docs/tests/browser/test_repo2d.py
     // drives it at 8x and asserts the level actually completes (32 checks, 0 console errors).
-    status: "available",
+    // 2026-09-15: chủ dự án tắt bản web, thay bằng bản Unity (repo2d-unity).
+    status: "build-pending",
     tags: ["Kinh dị", "Co-op", "Khuân đồ", "Prototype"]
   },
   {
@@ -257,7 +258,8 @@ window.HUB_GAMES = [
     // người chơi (kéo cần gạt, bấm nút kỹ năng, bấm nút trong menu) và kiểm luật — 50 checks,
     // 0 console errors, có một ván phá đảo trọn vẹn map 3 tầng.
     // CHƯA có người thật ngồi chơi lâu.
-    status: "available",
+    // 2026-09-15: chủ dự án tắt bản web, thay bằng bản Unity (repo2d-unity).
+    status: "build-pending",
     tags: ["Kinh dị", "Gacha", "Biệt đội", "Khuân đồ", "Solo"]
   },
   {
