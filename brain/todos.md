@@ -1,8 +1,12 @@
 # Todos
 
 ## Hắn Đang Tới
-- [ ] Kiểm bằng mắt màn trận ở cỡ dọc 390×844 sau lần chỉnh cỡ nhân vật theo `eh` (commit `dc4acbe`).
-  - Chưa chụp lại ảnh sau khi sửa. Trước khi sửa, nhân vật to bằng nửa màn và phía trên toàn trời trống.
+- [ ] Kiểm bằng mắt màn trận ở cỡ dọc 390×844 sau khi đổi `eh = min(h, w*0.9)` (commit `6c08ea3`).
+  - Với hệ số 0,62 thì nhân vật chỉ cao khoảng 48px và nửa dưới màn là cỏ trống.
+  - Đã đổi sang 0,9 nhưng chưa quay lại video để xem.
+- [ ] Chưa ai nghe âm thanh trận đánh bằng tai.
+  - Phiên máy chỉ kiểm được là không có lỗi.
+  - Cần nghe: mức to tương đối giữa các tiếng, và nhạc trận/trùm có lấn tiếng đánh không.
 - [ ] Sửa `shot.js`: khi đặt quái cạnh người chơi để ép trận, chọn ô đi được.
   - Chép bản mới của nó vào repo, để sau này chạy lại được.
 - [ ] Thay các sprite đang chọn tạm.
