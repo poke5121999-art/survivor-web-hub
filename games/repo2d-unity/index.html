@@ -50,6 +50,8 @@
       }
       #unity-loading-bar.done { display: none; }
       #unity-loading-title { font-size: 15px; letter-spacing: .12em; color: #8a949e; }
+      #unity-loading-pct { font-size: 13px; color: #cfd6dc; font-variant-numeric: tabular-nums; }
+      #unity-loading-hint { font-size: 12px; color: #8a949e; min-height: 1em; }
       #unity-progress-bar-empty {
         width: min(62vw, 280px); height: 6px; border-radius: 3px; background: #23272e;
       }
@@ -67,6 +69,11 @@
         color: #cfd6dc; background: rgba(20,22,26,.72); border: 1px solid #2c323a;
         border-radius: 8px; padding: 6px 12px; font-size: 13px; text-decoration: none;
       }
+      #unity-warning { pointer-events: auto; }
+      #unity-retry {
+        margin-left: 8px; padding: 6px 14px; font-size: 14px; border-radius: 6px;
+        border: 0; background: #e0a53c; color: #14161a; font-weight: 600;
+      }
       #back-to-hub:hover { background: rgba(32,36,42,.92); }
     </style>
   </head>
@@ -76,6 +83,8 @@
       <div id="unity-loading-bar">
         <div id="unity-loading-title">ĐANG TẢI</div>
         <div id="unity-progress-bar-empty"><div id="unity-progress-bar-full"></div></div>
+        <div id="unity-loading-pct">0%</div>
+        <div id="unity-loading-hint"></div>
       </div>
       <div id="unity-warning"></div>
     </div>
@@ -93,6 +102,8 @@
       var warningBanner = document.querySelector("#unity-warning");
 
       function unityShowBanner(msg, type) {
+        // Lỗi trước khi game chạy (loader không tải được tệp) có khi chỉ báo qua đây, không reject.
+        if (type === "error" && !window.unityInstance && typeof loadFailed === "function") { loadFailed(msg); return; }
         warningBanner.style.display = "block";
         warningBanner.textContent = msg;
         if (type !== "error") setTimeout(function () { warningBanner.style.display = "none"; }, 5000);
@@ -104,6 +115,9 @@
         frameworkUrl: buildUrl + "/repo2d-unity.framework.js.unityweb",
         codeUrl: buildUrl + "/repo2d-unity.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
+        // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
+        // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
+        devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         companyName: "HLO",
         productName: "Ca Trực Đêm Biệt Đội",
         productVersion: "1.0",
@@ -145,18 +159,72 @@
         } else lock();
       }, { passive: true });
 
+      // Tải hỏng (mạng chập chờn, điện thoại hết bộ nhớ lúc giải nén rồi trả về rỗng → "TypeError: Failed to fetch at
+      // instantiateAsync", trình duyệt tạm ngưng tab khi người chơi chuyển app giữa chừng) thì trang tự tải lại MỘT
+      // lần; lần sau vẫn hỏng thì hiện nút Tải lại thay vì để khung đen với dòng lỗi. Lần tải lại lấy tệp từ bộ nhớ
+      // đệm của Unity (dataCaching) nên nhanh hơn nhiều.
+      var RETRY_KEY = "repo2d-unity-load-retry";
+      var loadFailedOnce = false;
+      function loadFailed(message) {
+        if (loadFailedOnce) return;      // loader có thể báo cả banner lẫn reject cho cùng một lỗi
+        loadFailedOnce = true;
+        var retried = false;
+        try { retried = sessionStorage.getItem(RETRY_KEY) === "1"; } catch (e) {}
+        console.error("[load] " + message);
+        if (!retried) {
+          try { sessionStorage.setItem(RETRY_KEY, "1"); } catch (e) {}
+          location.reload();
+          return;
+        }
+        try { sessionStorage.removeItem(RETRY_KEY); } catch (e) {}
+        loadingBar.classList.add("done");
+        warningBanner.style.display = "block";
+        warningBanner.textContent = "Tải game không thành công. ";
+        var btn = document.createElement("button");
+        btn.id = "unity-retry";
+        btn.textContent = "Tải lại";
+        btn.onclick = function () { location.reload(); };
+        warningBanner.appendChild(btn);
+        var detail = document.createElement("div");
+        detail.style.cssText = "opacity:.6;font-size:11px;margin-top:6px";
+        detail.textContent = String(message).slice(0, 200);
+        warningBanner.appendChild(detail);
+      }
+
+      // Số % + thời gian + giai đoạn, để người chơi (và người debug trên điện thoại) biết đang ở đâu.
+      // Tiến độ của Unity: 0..90% là tải tệp (chủ yếu .data và .wasm, tính theo byte đã nhận), 90..100% là giải nén +
+      // khởi động engine. Kẹt một mức lâu thì hiện gợi ý thay vì để người chơi tưởng treo.
+      var loadStart = Date.now(), lastPct = -1, lastChange = Date.now();
+      var loadingTitle = document.querySelector("#unity-loading-title");
+      var loadingPct = document.querySelector("#unity-loading-pct");
+      var loadingHint = document.querySelector("#unity-loading-hint");
+      function showProgress(progress) {
+        var pct = Math.floor(100 * progress);
+        if (pct !== lastPct) { lastPct = pct; lastChange = Date.now(); }
+        loadingTitle.textContent = progress < 0.9 ? "ĐANG TẢI" : "ĐANG KHỞI ĐỘNG";
+        loadingPct.textContent = pct + "% · " + Math.round((Date.now() - loadStart) / 1000) + " s";
+      }
+      var loadTicker = setInterval(function () {
+        if (window.unityInstance) { clearInterval(loadTicker); return; }
+        showProgress(Math.max(0, lastPct) / 100);
+        var still = (Date.now() - lastChange) / 1000;
+        loadingHint.textContent = still > 15 ? (lastPct < 90 ? "Mạng chậm, vẫn đang tải…" : "Máy đang giải nén, chờ thêm chút…") : "";
+      }, 1000);
+
       var script = document.createElement("script");
       script.src = buildUrl + "/repo2d-unity.loader.js";
+      script.onerror = function () { loadFailed("Không tải được " + script.src); };
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
           progressBarFull.style.width = (100 * progress) + "%";
+          showProgress(progress);
         }).then(function (unityInstance) {
           window.unityInstance = unityInstance;
+          console.log("[load] xong sau " + ((Date.now() - loadStart) / 1000).toFixed(1) + " s");
           loadingBar.classList.add("done");
+          try { sessionStorage.removeItem(RETRY_KEY); } catch (e) {}
           fitCanvas();
-        }).catch(function (message) {
-          unityShowBanner(message, "error");
-        });
+        }).catch(loadFailed);
       };
       document.body.appendChild(script);
     </script>
