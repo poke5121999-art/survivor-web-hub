@@ -243,8 +243,11 @@ window.HUB_GAMES = [
     // meta đầy đủ kiểu game gacha: vàng + ngọc, tiến hoá (nâng chỉ số cho CẢ TỔ), trang bị
     // sáu ô lắp cho từng xác kèm bộ đồ 2/4 món, hai băng gacha (xác + trang bị) có bảo hiểm,
     // cửa hàng nạp GIẢ (bấm là có ngọc, không có cổng thanh toán), nhiệm vụ ngày/tuần/thành tựu.
-    // Map lớn KHÔNG lặp vô hạn: 9 map, số tầng chạy vòng 3 → 4 → 5 rồi lặp lại từ 3 với quái
-    // khoẻ hơn. Hết tầng cuối là phá đảo.
+    // Từ 2026-09-15 (chép ngược từ bản Unity): KHÔNG còn 9 map. Một ca là MỘT ải 5 nhà khó dần —
+    // rừng, băng, di tích, đầm lầy, hầm tối — mỗi nhà vỏ Soul Knight, loot/bẫy/quái riêng; qua nhà
+    // 5 là thắng ca, ca sau lại từ nhà 1. Có 7 loài quái mới (hồn ma, bàn tay quỷ dị, xác ướp, con nít
+    // ranh, kẻ ném đầu, kẻ gài mìn, kẻ giả mạo), tiếng thật R.E.P.O. và nhạc theo nhà.
+    // SEE: games/repo2d/AI-5-NHA.md
     // Câu này từng hứa thêm ba giống quái riêng cho bản này — Nhện Trần, Quản Ca, Bóng Đen.
     // Ba con đó (và bốn con nữa) có trong một bảng dữ liệu mà KHÔNG CHỖ NÀO nạp vào bộ máy,
     // nên chúng chưa từng sinh ra trong một ván nào — chúng chỉ là chữ trong sổ tay. Đã xoá cả

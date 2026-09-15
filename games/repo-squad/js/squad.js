@@ -116,20 +116,14 @@
   //   TUT LUI hai bac. Sang map moi ma quai it di la mot loi nguoi choi thay ngay.
   //   Va so lon nhat la 29 trong khi repo2d bao hoa o 20, nen 12 tang cuoi cua ca
   //   game giong het nhau.
-  const FLOOR0 = (function () {
-    const o = {}; let n = 0;
-    SQ.MAPS.forEach(m => { o[m.id] = n; n += m.floors; });
-    o.__total = n;                        // 36 tang cho ca chin map
-    return o;
-  })();
-  const DIFF_CAP = 20;                    // repo2d bao hoa o day: difficultyCurve() = 1.0 tu 20
+  // ẢI 5 NHÀ (2026-09-15, chép từ bản Unity): tầng của ván chính là nhà thứ mấy, và mức độ bộ máy
+  // của từng nhà nằm trong REPO.ai thay cho phép quy (map, tầng) → 1..20 của 9 map cũ.
   function levelIndex() {
     if (!run) return 1;
-    const idx = FLOOR0[run.mapId] + run.floor;                    // 1..36
-    const t = (idx - 1) / Math.max(1, FLOOR0.__total - 1);        // 0..1
-    return Math.max(1, Math.min(DIFF_CAP, Math.round(1 + t * (DIFF_CAP - 1))));
+    return REPO.ai.engineLevel(run.floor);
   }
   H.levelIndex = levelIndex;
+  H.houseIndex = () => run ? run.floor : null;
 
   H.onLevelClear = function () {
     if (!run) return false;

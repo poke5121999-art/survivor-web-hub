@@ -154,6 +154,7 @@ const bot = {
     const A = R(), S = A.S, p = S.player;
     let worst = null, wd = 1e9;
     for (const m of S.monsters){
+      if (A.foeQuiet && A.foeQuiet(m)) continue;  // kẻ giả mạo đang giả người, bàn tay đang núp
       const d = Math.hypot(m.x-p.x, m.y-p.y);
       const near = d < 4.2*A.TILE;              // you can hear it breathing, chasing or not
       if (m.state !== 'chase' && !near) continue;

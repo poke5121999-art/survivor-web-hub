@@ -118,7 +118,7 @@
     ['evol',  '🧬', 'Tiến Hoá']
   ];
   const SHEET_TITLE = {
-    maps: 'Chọn map', squad: 'Biệt đội', equip: 'Trang bị', evol: 'Tiến hoá',
+    maps: 'Ải 5 nhà', squad: 'Biệt đội', equip: 'Trang bị', evol: 'Tiến hoá',
     gacha: 'Gacha', shop: 'Cửa hàng', quest: 'Nhiệm vụ'
   };
 
@@ -273,7 +273,7 @@
     // duy nhất mở được lúc đang trong ca.
     // Mục này không phải một màn hình của UI.go — nó gọi thẳng tấm màn của engine.
     [['gacha', '🎰', 'Gacha', 0, railL],
-     ['maps', '🗺️', 'Map', 0, railL],
+     ['maps', '🗺️', 'Ải', 0, railL],
      ['wiki', '📖', 'Sổ Tay', 0, railL],
      ['quest', '📜', 'Nhiệm Vụ', questPending(), railR],
      ['shop', '🏪', 'Cửa Hàng', 0, railR]].forEach(function (r) {
@@ -330,26 +330,20 @@
     }
     b.appendChild(line);
 
-    // — thanh chọn map, kiểu chọn chương —
+    // — thanh ải 5 nhà: không còn chọn map; hiện các nhà và nhà xa nhất đã tới —
     const map = curMap();
     const st = M.maps[map.id];
-    const open = SQ.MAPS.filter(m => SQ.mapUnlocked(m.id));
-    const at = open.findIndex(m => m.id === map.id);
     const pick = el('div', 'chapter');
-    const prev = btn('‹', 'chev', () => { sel.map = open[Math.max(0, at - 1)].id; UI.render(); });
-    const next = btn('›', 'chev', () => { sel.map = open[Math.min(open.length - 1, at + 1)].id; UI.render(); });
-    if (at <= 0) prev.disabled = true;
-    if (at >= open.length - 1) next.disabled = true;
     const mid = el('div', 'ch-b');
-    const power = SQ.squadPower();
+    let pips = '';
+    for (let n = 1; n <= map.floors; n++) pips += (n <= st.floor ? '●' : '○') + (n < map.floors ? ' ' : '');
     mid.innerHTML =
       '<div class="ch-n">' + map.name + (st.cleared ? ' <span class="ch-ok">✔</span>' : '') + '</div>' +
-      '<div class="ch-s">' + map.floors + ' tầng · ⚡ khuyên ' + money(map.power) +
-        (power >= map.power ? '' : ' <span class="bad">· tổ còn yếu</span>') + '</div>' +
+      '<div class="ch-s">' + map.floors + ' nhà · ' + pips + '</div>' +
       '<div class="ch-bar"><i style="width:' + Math.min(100, st.floor / map.floors * 100) + '%"></i></div>' +
-      '<div class="ch-f">Xa nhất: tầng ' + st.floor + '/' + map.floors + ' · bấm để xem hết map</div>';
+      '<div class="ch-f">Xa nhất: nhà ' + st.floor + '/' + map.floors + ' · thắng ' + (M.counters.wins || 0) + ' lần · bấm để xem ải</div>';
     on(mid, 'click', () => UI.go('maps'));
-    pick.appendChild(prev); pick.appendChild(mid); pick.appendChild(next);
+    pick.appendChild(mid);
     b.appendChild(pick);
 
     // — CHỖ BÁN ĐỒ NGHỀ, rồi tới nút vào trận —
@@ -515,43 +509,34 @@
   }
 
   // ---------------------------------------------------------------------------
-  // CHỌN MAP LỚN
+  // ẢI 5 NHÀ — thay màn chọn 9 map (chép từ bản Unity, 2026-09-15)
   // ---------------------------------------------------------------------------
+  // Liệt kê ĐÚNG những loài bộ máy sẽ đặt vào từng nhà (REPO.ai.roster) — bảng cũ từng hứa những con
+  // quái mà màn chơi không giao, nên danh sách này đọc thẳng từ chỗ dựng nhà chứ không viết tay.
   function scrMaps(b) {
-    b.appendChild(el('p', 'hint', 'Mỗi map có số tầng cố định. Hết tầng cuối là phá đảo — không có vòng lặp vô tận. Thua giữa chừng vẫn giữ phần đã giao.'));
-    const power = SQ.squadPower();
-
-    SQ.MAPS.forEach(m => {
-      const st = SQ.M.maps[m.id];
-      const unlocked = SQ.mapUnlocked(m.id);
-      const row = el('div', 'map' + (unlocked ? '' : ' locked') + (st.cleared ? ' done' : '') +
-        (sel.map === m.id ? ' cur' : ''));
+    const map = SQ.MAPS[0];
+    const st = SQ.M.maps[map.id];
+    b.appendChild(el('p', 'hint', 'Một ca là ' + map.floors + ' căn nhà liền nhau, giữa các nhà là trạm dịch vụ. Qua nhà cuối là thắng ca; ca sau lại bắt đầu từ nhà 1. Thua giữa chừng vẫn giữ phần đã giao.'));
+    const M_ = REPO.MONSTERS || {};
+    const TEN_SU_KIEN = { angel: 'Pho tượng', mirror: 'Cặp gương' };
+    for (let n = 1; n <= map.floors; n++) {
+      const h = REPO.ai.house(n);
+      const kinds = [];
+      (REPO.ai.roster(n) || []).forEach(k => {
+        const nm = (M_[k] && M_[k].name) || TEN_SU_KIEN[k] || k;
+        if (kinds.indexOf(nm) < 0) kinds.push(nm);
+      });
+      const row = el('div', 'map' + (n <= st.floor ? ' done' : ''));
       row.innerHTML =
-        '<div class="map-h"><b>' + m.name + '</b><span class="map-f">' + m.floors + ' tầng</span></div>' +
-        '<div class="map-d">' + m.desc + '</div>' +
+        '<div class="map-h"><b>' + h.ten + '</b><span class="map-f">nhà ' + n + '</span></div>' +
         '<div class="map-s">' +
-          '<span class="' + (power >= m.power ? 'ok' : 'bad') + '">⚡ khuyên ' + money(m.power) + '</span>' +
-          '<span>Chỉ tiêu tầng 1: ' + money(m.quotaBase) + '</span>' +
-          // KHÔNG liệt kê tên quái ở đây nữa. Dòng cũ đọc `m.foes` — một danh sách viết tay
-          // trong content.js mà bộ sinh màn không hề đọc tới — nên nó hứa những con quái mà màn
-          // chơi không giao. Luật THẬT thì ngắn hơn và đúng hơn: mỗi tầng bốc ngẫu nhiên ba
-          // thứ trong nhà, và một trong ba luôn là Kẻ húc (xem STOCK_ALWAYS bên repo2d).
-          '<span>Quái: 3 thứ mỗi tầng, luôn có Kẻ húc</span>' +
-        '</div>' +
-        '<div class="map-r">Phá đảo: ' + rewardText(m.clear) + (st.cleared ? '' : ' · <b>Lần đầu:</b> ' + rewardText(m.first)) + '</div>';
-      if (st.cleared) row.appendChild(el('div', 'map-badge', '✔ ĐÃ PHÁ ĐẢO'));
-      else if (st.floor > 0) row.appendChild(el('div', 'map-badge dim', 'Xa nhất: tầng ' + st.floor));
-
-      if (unlocked) {
-        const acts = el('div', 'row');
-        acts.appendChild(btn('Chọn map này', 'ghost', () => UI.pickMap(m.id)));
-        acts.appendChild(btn('Vào ca ngay', '', () => SQ.squad.enter(m.id)));
-        row.appendChild(acts);
-      } else {
-        row.appendChild(el('div', 'lockmsg', '🔒 Phá đảo map trước để mở'));
-      }
+          '<span>Độ khó ' + REPO.ai.engineLevel(n) + '</span>' +
+          '<span>Quái: ' + (kinds.length ? kinds.join(', ') : 'bốc ngẫu nhiên') + '</span>' +
+        '</div>';
       b.appendChild(row);
-    });
+    }
+    b.appendChild(el('div', 'map-r', 'Thắng ca: ' + rewardText(map.clear) + (st.cleared ? '' : ' · <b>Lần đầu:</b> ' + rewardText(map.first))));
+    b.appendChild(btn('Vào ca ngay', '', () => SQ.squad.enter(map.id)));
   }
   function rewardText(r) {
     if (!r) return '—';
@@ -1191,9 +1176,9 @@
     UI._closer = null;                   // "Về sảnh" còn phải chạy — không cho bấm lệch ra ngoài
     ov.className = 'modal show ' + (how === 'win' ? 'win' : 'lose');
     const card = el('div', 'mcard');
-    card.appendChild(el('h3', '', how === 'win' ? '✔ Phá đảo ' + (map ? map.name : '') : 'Bỏ ca giữa chừng'));
+    card.appendChild(el('h3', '', how === 'win' ? '✔ Thắng ca ' + (map ? map.name : '') : 'Bỏ ca giữa chừng'));
     card.appendChild(el('div', 'mline', how === 'win'
-      ? 'Hết tầng cuối. Cả tổ lên xe, mang theo tất cả những gì đã giao lên bệ.'
+      ? 'Qua nhà cuối. Cả tổ lên xe, mang theo tất cả những gì đã giao lên bệ.'
       : 'Ra sớm thì chỉ giữ được phần đã giao lên bệ.'));
     if (reward) {
       const got = Object.keys(reward).filter(k => reward[k])

@@ -126,6 +126,8 @@
 
   const crew = Object.create(null);
   const foe = Object.create(null);
+  // HÌNH GỐC của con quái, KHÔNG viền đỏ — xem foeKhung.
+  const foeGoc = Object.create(null);
   let pending = 0, failed = 0;
 
   // Danh sách này là danh sách TẢI VỀ, nên mỗi tên không có file tương ứng là một request
@@ -300,7 +302,7 @@
     });
   });
   FOE_IDS.forEach(function (id) {
-    load(HERE + 'art/foe/' + id + '.png' + VER, function (im) { foe[id] = bakeRim(im); });
+    load(HERE + 'art/foe/' + id + '.png' + VER, function (im) { foe[id] = bakeRim(im); foeGoc[id] = im; });
   });
 
   // Hiệu ứng KHÔNG đi qua bakeRim: cái viền đỏ ấy dựng ra để tách con quái khỏi nền tối, còn
@@ -611,8 +613,34 @@
     return true;
   }
 
+  // HÌNH GỐC, KHÔNG viền đỏ. Viền đỏ của bakeRim để tách con quái khỏi sàn tối; một khung cắt ra
+  // phóng to lên màn hình (khuôn mặt pho tượng) hay một lượt cộng sáng đè lên chính con quái thì
+  // viền ấy chỉ còn là một vệt đỏ quanh mép. Chép từ bản Unity (Skin/Sprites.cs, 2026-09-14).
+  // (sx,sy,sw,sh) tính TRONG khung (row,col) — (0,0) là góc trái trên của ô FW x FH đó.
+  function foeKhung(c, type, row, col, sx, sy, sw, sh, dx, dy, dw, dh) {
+    const im = foeGoc[foeArt(type)];
+    if (!im) return false;
+    c.drawImage(im, col * FW + sx, row * FH + sy, sw, sh, dx, dy, dw, dh);
+    return true;
+  }
+  // Cùng chỗ, cùng cỡ, cùng khung với drawFoe — nhưng là hình gốc. Dùng để vẽ ĐÈ lên chính con
+  // quái ở chế độ cộng sáng, cho nó rõ ra trong một căn phòng tối mà không đổi hình.
+  function drawFoeGoc(c, m) {
+    const s = foe[foeArt(m.type)];
+    if (!s) return false;
+    const k = FOE_SCALE, feet = (s.ch - s.pad) * k;
+    c.imageSmoothingEnabled = false;
+    return foeKhung(c, m.type, rowFor(m.dir), colFor(m), 0, 0, FW, FH,
+      Math.round(-s.cw * k / 2) + s.pad * k, Math.round(9 - feet) + s.pad * k, FW * k, FH * k);
+  }
+
   root.REPO_SKIN = {
     crew: drawCrew,
+    foeKhung: foeKhung,
+    foeGoc: drawFoeGoc,
+    foeCo: function (type) { return !!foeGoc[foeArt(type)]; },
+    // cỡ một khung charset NGUỒN (sau SRC) — khuôn mặt pho tượng cắt theo toạ độ tệp gốc 96x144
+    src: SRC,
     halo: drawCrewHalo,
     foe: drawFoe,
     vfx: drawVfx,

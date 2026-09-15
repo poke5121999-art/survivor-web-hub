@@ -233,6 +233,28 @@
            C: gop('thung_go','nat'), P: gop('vo_gom','cay'), x: gop('nat') },
       ban: gop('ban_to','tu_thap'), treo: gop('treo_nho'), tham: [] }
   ];
+  // ẢI 5 NHÀ (Biệt Đội, chép từ bản Unity 2026-09-14): năm theme Soul Knight nối SAU chín kiểu nhà —
+  // chỉ số 9..13 = FLOORS 17..21 trong game.js. Đổi thứ tự là lệch chỉ số.
+  // Sàn/tường lấy art Soul Knight (`art/room/sk/san_<sk>.png` + `tuong.png`); đồ đạc mượn bộ của một
+  // kiểu nhà có sẵn — nhà vẫn là nhà, chỉ đổi vỏ.
+  // WHY một bộ tường nhuộm màu thay vì tường riêng từng theme: bản dump Soul Knight chỉ có MỘT bộ tường
+  // 16 px dùng chung (common_hideRoom_roomBase_wall*); tường theo chương của game gốc nằm trong tilemap
+  // nướng sẵn, không cắt ra được.
+  function theoKieu(maGoc, ma, ten, sk, nhuom){
+    const g = KIEU.find(k => k.ma === maGoc);
+    return { ma, ten, san:g.san, tuong:g.tuong, do:g.do, ban:g.ban, treo:g.treo, tham:g.tham, sk, skNhuom:nhuom };
+  }
+  KIEU.push(theoKieu('hoang', 'rung',   'Nhà rừng',    'rung',   'rgba(40,70,20,0.18)'));
+  KIEU.push(theoKieu('kho',   'bang',   'Nhà băng',    'bang',   'rgba(120,170,230,0.30)'));
+  KIEU.push(theoKieu('thu',   'ditich', 'Di tích',     'ditich', 'rgba(200,150,70,0.26)'));
+  KIEU.push(theoKieu('hoang', 'dam',    'Nhà đầm lầy', 'dam',    'rgba(20,90,80,0.30)'));
+  KIEU.push(theoKieu('kho',   'hamtoi', 'Hầm tối',     'ham',    null));
+  // Dải sàn: các ô 16x16 đặc xếp ngang, bốc biến thể theo toạ độ ô. Tường: 2 cột, mỗi cột 16x40
+  // (16 mặt trên + 24 mặt trước) — ghép bằng Tools/sk_theme_art.py bên REPO_Topdown.
+  const SK_O = 16;
+  const SK_SAN = {};
+  KIEU.forEach(k => { if (k.sk && !SK_SAN[k.sk]) SK_SAN[k.sk] = nap('art/room/sk/san_' + k.sk + '.png'); });
+  const SK_TUONG = nap('art/room/sk/tuong.png');
   // ĐỒ ĐỂ LÊN MẶT BÀN — chậu bông, quả địa cầu, giỏ trái cây, cái đèn. Chủ dự án: "mấy cái bàn
   // bạn có thể dàn bự ra xong để decor lên trên cho đẹp — như để chậu bông, quả địa cầu, vv".
   //
@@ -265,6 +287,12 @@
   // ---------------------------------------------------------------- SÀN
   function veSan(c, x, y, ki, gx, gy, T){
     const k = KIEU[ki];
+    if (k && k.sk && xong(SK_SAN[k.sk])){
+      const im = SK_SAN[k.sk];
+      const n = Math.max(1, (im.naturalWidth / SK_O) | 0);
+      c.drawImage(im, (bam(gx, gy, ki + 11) % n) * SK_O, 0, SK_O, SK_O, x, y, T, T);
+      return true;
+    }
     if (!k || !xong(RB)) return false;
     const g = SAN[k.san];
     const v = bam(gx, gy, ki + 11) % 6;
@@ -276,6 +304,22 @@
   // `mat` = ô ngay dưới là khoảng trống, tức bức tường này đang quay mặt xuống một căn phòng.
   function veTuong(c, x, y, ki, gx, gy, T, mat){
     const k = KIEU[ki];
+    if (k && k.sk && xong(SK_TUONG)){
+      // Cùng thứ tự lớp với nhánh tile dưới: mặt trên → nhuộm → lớp tối; mặt trước → nhuộm → vạch gờ.
+      const tv = bam(gx, gy, ki + 5) % 2;
+      c.drawImage(SK_TUONG, tv * SK_O, 0, SK_O, SK_O, x, y, T, T);
+      if (k.skNhuom){ c.fillStyle = k.skNhuom; c.fillRect(x, y, T, T); }
+      c.fillStyle = 'rgba(8,6,4,0.40)';
+      c.fillRect(x, y, T, T);
+      if (mat){
+        // Mặt trước 16x24 của Soul Knight: lấy nửa dưới (chân tường + gờ), cùng luật "cắt chứ không thu".
+        c.drawImage(SK_TUONG, tv * SK_O, SK_O + 12, SK_O, 12, x, y + T / 2, T, T / 2);
+        if (k.skNhuom){ c.fillStyle = k.skNhuom; c.fillRect(x, y + T / 2, T, T / 2); }
+        c.fillStyle = 'rgba(0,0,0,0.42)';
+        c.fillRect(x, y + T / 2 - 0.5, T, 1);
+      }
+      return true;
+    }
     if (!k || !xong(RB)) return false;
     const t = TUONG[k.tuong], r = t[0], lech = t[1];
     // 1. MẶT TRÊN. Cắt ở độ lệch đã đo nên hai ô chồng lên nhau không lộ mối, rồi phủ một lớp tối:

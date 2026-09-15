@@ -89,7 +89,9 @@ const PROP_CH = { x:P_BLOCK, T:P_TABLE, S:P_SHELF, C:P_CRATE, P:P_LOCKER,
 const FLOOR_STYLE = { wood:0, tile:1, concrete:2, carpet:3,
                       stone:4, da_cat:5, da_sam:6, da_thau:7,
                       khach:8, bep:9, ngu:10, tam:11, kho:12,
-                      thu:13, tiem:14, lop:15, hoang:16 };
+                      thu:13, tiem:14, lop:15, hoang:16,
+                      // ải 5 nhà (Biệt Đội): năm theme Soul Knight — xem AI_5_NHA
+                      rung:17, bang:18, ditich:19, dam:20, hamtoi:21 };
 // Kho kieu de BOC NGAU NHIEN cho tung phong. Chin kieu tile dung rieng le, con ham mo vao
 // kho bang CA BON nuoc da cua no: bon nuoc ay von de chin phong khoi doc ra mot hanh lang
 // dai, va gio thi chung lam dung viec ay o quy mo nho hon - hai gian mo canh nhau van khac
@@ -457,6 +459,149 @@ const SFX = (() => {
     node.gain.setTargetAtTime(Math.max(0.0001, want), ac.currentTime, tau || 0.25);
   }
 
+  // ================================================================ tiếng thật R.E.P.O.
+  // Chép ngược từ bản Unity (REPO_Topdown, Audio/SfxSamples.cs, 2026-09-14). Tiếng lấy từ bản R.E.P.O.
+  // trên Steam (UnityPy → WAV → ffmpeg ogg mono), đặt ở `repo2d/sfx/<cue>/*.ogg`. Chủ dự án đã chọn
+  // dùng và đẩy lên hub công khai, tự chịu rủi ro bản quyền.
+  //
+  // Cue nào có thư mục thì phát file thay cho bản tổng hợp; cue không có (tim, dread, giọt nước, drone/
+  // cluster/pursuit của nhạc nền) vẫn tổng hợp như cũ. Mỗi cue gọi `if (real('cue', vol)) return;` SAU
+  // các dòng `mus.duckT`, nên cách nhạc lùi xuống dưới một cú hù vẫn y như cũ.
+  //
+  // CHỈ BIỆT ĐỘI BẬT (HOOKS.houseIndex có gắn). Trang repo2d cũ giữ nguyên tiếng tổng hợp.
+  // Chưa nạp xong (hoặc mở bằng file://, fetch hỏng) thì real() trả false và bản tổng hợp kêu thay —
+  // không bao giờ im lặng vì thiếu tệp.
+  // Âm lượng CHƯA được nghe thử kỹ trong game (bên Unity cũng vậy): SMP_MASTER, ROOM/WHISPER/MUSIC_GAIN.
+  const SMP_FILES = {
+    appear: ['scare_impact_01','scare_impact_02'],
+    breath: ['enemy_hidden_man_breathe_in01','enemy_hidden_man_breathe_in02','enemy_hidden_man_breathe_in03','enemy_hidden_man_breathe_in04','enemy_hidden_man_breathe_in05','enemy_hidden_man_breathe_in06','enemy_hidden_man_breathe_in07','enemy_hidden_man_breathe_in08','enemy_hidden_man_breathe_out01','enemy_hidden_man_breathe_out02','enemy_hidden_man_breathe_out03','enemy_hidden_man_breathe_out04','enemy_hidden_man_breathe_out05','enemy_hidden_man_breathe_out06','enemy_hidden_man_breathe_out07','enemy_hidden_man_breathe_out08'],
+    brick: ['rock_medium_impact_light01','rock_medium_impact_light02','rock_medium_impact_light03'],
+    chime: ['extraction_point_surplus_done_ding_lvl1','extraction_point_surplus_done_ding_lvl2','extraction_point_surplus_done_ding_lvl3'],
+    crack: ['surplus_valuable_small_impact_heavy01','surplus_valuable_small_impact_heavy02','surplus_valuable_small_impact_heavy03'],
+    crash: ['door_explode01','door_explode02','door_explode03'],
+    creak: ['ambience_breaker_manor01','ambience_breaker_manor02','ambience_breaker_manor03','ambience_breaker_manor04','ambience_breaker_manor05','ambience_breaker_manor06','ambience_breaker_manor07','ambience_breaker_manor08','ambience_breaker_manor09','ambience_breaker_manor10','ambience_breaker_manor11','ambience_breaker_manor12','ambience_breaker_manor13','ambience_breaker_manor14'],
+    engine: ['truck_engine_start_success'],
+    gunshot: ['item_handgun_shoot01','item_handgun_shoot02','item_handgun_shoot03'],
+    hinge_close: ['door_close01','door_close02','door_close03'],
+    hinge_open: ['door_open01','door_open02','door_open03'],
+    hit: ['player_hurt_short01','player_hurt_short02','player_hurt_short03'],
+    hit_big: ['player_hurt_long01','player_hurt_long02','player_hurt_long03'],
+    music_arctic: ['level_music_arctic_01_2','level_music_arctic_02_2','level_music_arctic_05'],
+    music_manor: ['level_music_manor_01_2','level_music_manor_02_2','level_music_manor_04'],
+    music_museum: ['level_music_museum_01','level_music_museum_02','level_music_museum_03'],
+    music_wizard: ['level_music_wizard_01','level_music_wizard_02','level_music_wizard_03'],
+    room: ['ambience_loop_manor_default'],
+    screech: ['enemy_thin_man_attack_scream01','enemy_thin_man_attack_scream02','enemy_thin_man_attack_scream03'],
+    shatter: ['surplus_valuable_medium_break_heavy01','surplus_valuable_medium_break_heavy02','surplus_valuable_medium_break_heavy03'],
+    shuffle: ['enemy_slow_walker_move_short01','enemy_slow_walker_move_short02','enemy_slow_walker_move_short03'],
+    splinter: ['door_hinge_break01','door_hinge_break02','door_hinge_break03'],
+    step_heavy: ['footstep_wood_heavy01','footstep_wood_heavy02','footstep_wood_heavy03','footstep_wood_heavy04','footstep_wood_heavy05','footstep_wood_heavy06'],
+    step_light: ['footstep_wood_light01','footstep_wood_light02','footstep_wood_light03','footstep_wood_light04','footstep_wood_light05','footstep_wood_light06'],
+    step_medium: ['footstep_wood_medium01','footstep_wood_medium02','footstep_wood_medium03','footstep_wood_medium04','footstep_wood_medium05','footstep_wood_medium06'],
+    sting: ['scare_sighting04','scare_sighting05','scare_sighting07','scare_sighting08','scare_sighting09','scare_sighting10'],
+    strain: ['door_creak_end01','door_creak_end02','door_creak_end03'],
+    thud: ['wood_hollow_big_impact_heavy01','wood_hollow_big_impact_heavy02','wood_hollow_big_impact_heavy03'],
+    tick: ['menu_tick'],
+    warp: ['enemy_thin_man_teleport_in'],
+    whisper: ['ambience_loop_creep_whisper_close']
+  };
+  const SMP_HERE = (() => {
+    const sc = document.currentScript;
+    return (sc && sc.src) ? sc.src.replace(/[^/]*(\?.*)?$/, '') : 'games/repo2d/';
+  })();
+  const SMP_MASTER = 0.8, ROOM_GAIN = 0.9, WHISPER_GAIN = 0.35, MUSIC_GAIN = 0.4;
+  // Nhạc nền theo nhà: mỗi nhà một map nhạc của REPO. Nhà 0 (ngoài ải) và nhà rừng dùng Manor.
+  const MUSIC_OF_HOUSE = ['music_manor','music_manor','music_arctic','music_museum','music_wizard','music_museum'];
+  const smpBank = {}, smpLoading = {}, smpLast = {}, smpLive = {};
+  let smpOut = null, bedAt = null, bedDetached = false, smpPreload = false;
+  function smpDung(){ return !!(typeof HOOKS !== 'undefined' && HOOKS.houseIndex); }
+  function smpUrl(cue, f){ return SMP_HERE + 'sfx/' + cue + '/' + f + '.ogg'; }
+  function smpLoad(cue){
+    if (smpLoading[cue] || !SMP_FILES[cue] || !ac || !window.fetch) return;
+    smpLoading[cue] = true;
+    const list = smpBank[cue] = [];
+    for (const f of SMP_FILES[cue]){
+      fetch(smpUrl(cue, f))
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(b => new Promise((res, rej) => ac.decodeAudioData(b, res, rej)))
+        .then(buf => { list.push(buf); })
+        .catch(() => {});
+    }
+  }
+  function smpDich(){
+    if (!smpOut){ smpOut = ac.createGain(); smpOut.gain.value = on ? SMP_MASTER : 0; smpOut.connect(ac.destination); }
+    return smpOut;
+  }
+  function smpPick(cue, n){
+    let i = (Math.random()*n)|0;
+    if (n > 1 && i === smpLast[cue]) i = (i + 1) % n;       // không lặp đúng clip vừa phát
+    smpLast[cue] = i;
+    return i;
+  }
+  // `exclusive`: khi clip trước của cue này còn đang kêu thì không chồng thêm. Dùng cho cú hù dài vài
+  // giây: ba con cùng thấy bạn một lúc vẫn chỉ nghe một cú.
+  function real(cue, vol, exclusive){
+    if (!smpDung() || !SMP_FILES[cue] || !ready()) return false;
+    if (!smpPreload){ smpPreload = true; for (const k in SMP_FILES) if (k.indexOf('music_') !== 0) smpLoad(k); }
+    const bank = smpBank[cue];
+    if (!bank || !bank.length){ smpLoad(cue); return false; }
+    if (exclusive && smpLive[cue]) return true;
+    const src = ac.createBufferSource();
+    src.buffer = bank[smpPick(cue, bank.length)];
+    src.playbackRate.value = 1 + (Math.random()*2 - 1)*0.05;
+    const g = ac.createGain(); g.gain.value = clamp(vol == null ? 1 : vol, 0, 1);
+    src.connect(g); g.connect(smpDich());
+    smpLive[cue] = (smpLive[cue] || 0) + 1;
+    src.onended = () => { smpLive[cue] = Math.max(0, (smpLive[cue] || 1) - 1); };
+    src.start();
+    return true;
+  }
+  // Tiếng nền của nhà: `room` luôn chạy, `whisper` dâng theo độ sợ, nhạc là nhạc của map. score() gọi
+  // mỗi khung với mức mong muốn 0..1; ở đây trượt dần tới đó để không có chỗ cắt. Trả true khi tiếng
+  // phòng thật đã chạy — lúc ấy lớp room/shimmer tổng hợp được tháo ra.
+  function bed(roomLvl, whisperLvl, duck, musicLvl, house, dt){
+    if (!smpDung() || !ready()) return false;
+    const b = bedAt || (bedAt = { duck: 1, room: null, whisper: null, music: null, musicSet: null, musicWant: 0 });
+    const mv = (a, want, rate) => a < want ? Math.min(want, a + rate*dt) : Math.max(want, a - rate*dt);
+    b.duck = mv(b.duck, duck, duck < b.duck ? 6 : 1.2);
+    const k = on ? b.duck*SMP_MASTER : 0;
+    // nhạc: một thẻ <audio> thường — một bài 60-98 giây giải mã ra bộ nhớ là cả chục MB mỗi bài
+    const hi = house|0, set = MUSIC_OF_HOUSE[hi < 0 || hi >= MUSIC_OF_HOUSE.length ? 0 : hi];
+    if (!b.music){ b.music = new Audio(); b.music.preload = 'auto'; b.music.volume = 0; b.music.onended = () => { b.musicNext = true; }; }
+    if (b.musicSet !== set || b.musicNext){
+      const files = SMP_FILES[set];
+      b.musicSet = set; b.musicNext = false;
+      b.music.src = smpUrl(set, files[smpPick(set, files.length)]);
+      b.music.volume = 0;
+      const pr = b.music.play(); if (pr && pr.catch) pr.catch(() => {});
+    }
+    // Trình duyệt chặn phát trước cú chạm đầu tiên: chỉ gọi play() lại khi AudioContext đã chạy, kẻo
+    // mỗi khung một lời gọi bị từ chối.
+    if (b.music.paused && on && !b.music.ended && ac.state === 'running' && !b.musicTry){
+      b.musicTry = true;
+      const pr = b.music.play();
+      if (pr && pr.then) pr.then(() => { b.musicTry = false; }, () => { setTimeout(() => { b.musicTry = false; }, 1000); });
+      else b.musicTry = false;
+    }
+    if (!on && !b.music.paused) b.music.pause();
+    b.music.volume = clamp(mv(b.music.volume, musicLvl*k*MUSIC_GAIN, 0.25), 0, 1);
+    // phòng + thì thầm: vòng lặp giải mã sẵn (vài chục giây), phát bằng BufferSource có loop
+    smpLoad('room'); smpLoad('whisper');
+    const vong = (name) => {
+      const bank = smpBank[name];
+      if (!bank || !bank.length) return null;
+      const src = ac.createBufferSource(); src.buffer = bank[0]; src.loop = true;
+      const g = ac.createGain(); g.gain.value = 0;
+      src.connect(g); g.connect(ac.destination); src.start();
+      return { g, v: 0 };
+    };
+    if (!b.room) b.room = vong('room');
+    if (!b.whisper) b.whisper = vong('whisper');
+    if (b.room){ b.room.v = mv(b.room.v, roomLvl*k*ROOM_GAIN, 0.5); b.room.g.gain.value = b.room.v; }
+    if (b.whisper){ b.whisper.v = mv(b.whisper.v, whisperLvl*k*WHISPER_GAIN, 0.35); b.whisper.g.gain.value = b.whisper.v; }
+    return !!b.room;
+  }
+
   return {
     wake(){ ready(); },
     get on(){ return on; },
@@ -477,6 +622,15 @@ const SFX = (() => {
       ramp(mus.cluster, 'cluster', open * MUS_LEVEL.cluster * clamp((d-0.45)/0.45, 0, 1), 0.35);
       ramp(mus.pursuit, 'pursuit', open * MUS_LEVEL.pursuit * (chased ? clamp((d-0.5)/0.4, 0, 1) : 0), 0.3);
       const want = mus.duckT > 0 ? 0.25 : 1;
+      // Tiếng thật (Biệt Đội): phòng và thì thầm lấy file thật; hai lớp tổng hợp tương ứng tháo ra khỏi
+      // mix (mus.at vẫn ghi như cũ nên scoreState không đổi). Nhạc lùi xuống khi sợ dâng, để drone/
+      // cluster/pursuit tổng hợp nói thay; bị đuổi thì gần tắt.
+      const musicLvl = open * (quiet ? 0.5 : 1) * (chased ? 0.15 : 1 - 0.75*clamp((d-0.25)/0.45, 0, 1));
+      if (bed(open * (quiet ? 0.6 : 1), open * clamp((d-0.2)/0.5, 0, 1), want, musicLvl,
+              (typeof S !== 'undefined' && S.house) || 0, dt) && !bedDetached){
+        bedDetached = true;
+        mus.room.disconnect(); mus.shimmer.disconnect();
+      }
       if (Math.abs((mus.duckAt || 1) - want) > 0.01){
         mus.duckAt = want;
         mus.duck.gain.setTargetAtTime(want, ac.currentTime, want < 1 ? 0.02 : 0.35);
@@ -487,28 +641,33 @@ const SFX = (() => {
     duckScore(t){ if (mus) mus.duckT = Math.max(mus.duckT, t || 0.8); },
     // Everything out, for real, for a moment.
     hush(t){ if (mus) mus.hushT = Math.max(mus.hushT, t || 1.2); },
-    setOn(v){ on = v; if (!v && ac && master) master.gain.value = 0; else if (master) master.gain.value = 0.55; },
+    setOn(v){ on = v; if (!v && ac && master) master.gain.value = 0; else if (master) master.gain.value = 0.55;
+              if (smpOut) smpOut.gain.value = v ? SMP_MASTER : 0; },
     // two thumps, the second softer — a heart, not a drum
     heart(k){ tone(56, 0.010, 0.15, 0.22*k, 'sine', 32);
               tone(52, 0.010, 0.13, 0.13*k, 'sine', 30, 0.20); },
-    hit(n){ noise(0.20, 0.45, 'lowpass', 900, 1);
+    hit(n){ if (real(n >= 30 ? 'hit_big' : 'hit')) return;
+            noise(0.20, 0.45, 'lowpass', 900, 1);
             tone(130, 0.006, 0.22, 0.30, 'triangle', 46);
             if (n >= 30) tone(90, 0.01, 0.4, 0.18, 'sawtooth', 40); },
-    crack(){ noise(0.09, 0.32, 'bandpass', 2600, 3.5); },
-    shatter(){ noise(0.45, 0.42, 'highpass', 1700, 0.7);
+    crack(){ if (real('crack', 0.8)) return; noise(0.09, 0.32, 'bandpass', 2600, 3.5); },
+    shatter(){ if (real('shatter')) return;
+               noise(0.45, 0.42, 'highpass', 1700, 0.7);
                noise(0.14, 0.28, 'bandpass', 3600, 4, 0.03);
                tone(300, 0.005, 0.35, 0.12, 'triangle', 90); },
     // the moment something notices you: a short swell of two notes a semitone apart
     sting(){ if (mus) mus.duckT = Math.max(mus.duckT, 0.9);   // the score gets out of its way
+             if (real('sting', 0.85, true)) return;
              tone(196, 0.02, 0.55, 0.16, 'sawtooth');
              tone(208, 0.02, 0.55, 0.14, 'sawtooth'); },
-    tick(i){ tone(620 + i*70, 0.004, 0.07, 0.20, 'square'); },
+    tick(i){ if (real('tick', 0.6)) return; tone(620 + i*70, 0.004, 0.07, 0.20, 'square'); },
     // PHO TƯỢNG HIỆN HÌNH. Không phải một tiếng "bụp" — nó là thứ đáng sợ nhất trong nhà nên
     // nó được cả một cú NUỐT ÂM: nhạc nền tụt xuống một giây rưỡi, một tầng ù thấp dâng lên,
     // rồi tới lúc hình rõ mặt mới là cú đóng dưới ngưỡng nghe cộng một mảnh kính vỡ trên cao.
     // Ba lớp lệch pha nhau chứ không cùng lúc: cùng lúc thì tai đọc ra MỘT tiếng động, còn
     // lệch pha thì nó đọc ra một thứ đang tới gần.
     appear(){ if (mus) mus.duckT = Math.max(mus.duckT, 1.6);
+              if (real('appear', 1, true)) return;
               noise(0.70, 0.17, 'lowpass',  240, 0.9);
               tone(150, 0.28, 0.62, 0.12, 'sawtooth', 40);
               noise(0.26, 0.20, 'bandpass', 820, 0.9, 0.55);
@@ -521,31 +680,36 @@ const SFX = (() => {
     // như súng của bạn: một cú đập thấp, một đuôi nhiễu tối kéo theo. Nghe được là biết ngay
     // vừa có thứ gì đó BẮN, chứ không nhầm với tiếng nhà cửa kêu răng rắc.
     gunshot(){ if (mus) mus.duckT = Math.max(mus.duckT, 0.5);
+               if (real('gunshot', 0.8)) return;
                noise(0.16, 0.42, 'lowpass', 1400, 1);
                tone(150, 0.003, 0.16, 0.30, 'square', 52);
                tone(74,  0.004, 0.30, 0.20, 'sine', 40, 0.02); },
-    chime(){ tone(523, 0.01, 0.30, 0.20, 'sine');
+    chime(){ if (real('chime', 0.7)) return;
+             tone(523, 0.01, 0.30, 0.20, 'sine');
              tone(659, 0.01, 0.32, 0.18, 'sine', null, 0.09);
              tone(784, 0.01, 0.50, 0.20, 'sine', null, 0.18); },
-    thud(){ noise(0.30, 0.35, 'lowpass', 240, 1); tone(70, 0.01, 0.35, 0.22, 'sine', 38); },
+    thud(){ if (real('thud', 0.8)) return; noise(0.30, 0.35, 'lowpass', 240, 1); tone(70, 0.01, 0.35, 0.22, 'sine', 38); },
     // XE ĐANG TỚI, rồi XE HÚC VÀO TƯỜNG, rồi MỘT VIÊN GẠCH RƠI. Ba tiếng của cùng một cảnh
     // mở màn — xem khối "arriving and leaving". Máy nổ là một tiếng DÀI, nên nó là cái đuôi
     // giảm 1,4 giây chứ không phải một cú gõ; cao dần vì xe đang lao về phía người nghe.
-    engine(){ tone(52, 0.30, 1.35, 0.15, 'sawtooth', 104);
+    engine(){ if (real('engine')) return;
+              tone(52, 0.30, 1.35, 0.15, 'sawtooth', 104);
               tone(78, 0.35, 1.30, 0.07, 'square', 150);
               noise(1.45, 0.10, 'lowpass', 320, 0.8); },
     // Cú húc: một khối trầm cho sức nặng, một dải thấp cho mảng tường đổ, và hai dải cao trễ
     // nhịp cho tiếng gạch va nhau — thứ tự ấy chính là thứ tự tai người nghe được một vụ đâm.
     crash(){ if (mus) mus.duckT = Math.max(mus.duckT, 1.3);
+             if (real('crash')) return;
              tone(62, 0.008, 0.55, 0.32, 'sine', 28);
              noise(0.55, 0.46, 'lowpass', 300, 0.9);
              noise(0.24, 0.32, 'bandpass', 2300, 3, 0.05);
              noise(0.45, 0.20, 'highpass', 1500, 0.7, 0.13); },
-    brick(){ noise(0.06 + Math.random()*0.04, 0.10, 'bandpass', 1500 + Math.random()*1600, 5); },
+    brick(){ if (real('brick', 0.45)) return; noise(0.06 + Math.random()*0.04, 0.10, 'bandpass', 1500 + Math.random()*1600, 5); },
     // the AEngel arriving: a short bright warp, falling away
-    warp(){ noise(0.22, 0.34, 'bandpass', 2200, 2); tone(880, 0.005, 0.30, 0.16, 'triangle', 180); },
+    warp(){ if (real('warp', 0.8)) return; noise(0.22, 0.34, 'bandpass', 2200, 2); tone(880, 0.005, 0.30, 0.16, 'triangle', 180); },
     // and taking its swipe
     screech(){ if (mus) mus.duckT = Math.max(mus.duckT, 1.0);
+               if (real('screech', 0.9)) return;
                noise(0.42, 0.5, 'highpass', 1400, 0.8);
                tone(520, 0.01, 0.45, 0.22, 'sawtooth', 110);
                tone(300, 0.01, 0.5, 0.16, 'square', 70, 0.04); },
@@ -558,33 +722,38 @@ const SFX = (() => {
 
     // Your own boots. `k` is the noise the simulation says you are making, which is the same
     // number Bom con và Gnome listen to - so what you hear IS what they hear.
-    step(k){ const v = 0.05 + 0.16*clamp(k/3, 0, 1);
+    step(k){ if (real(k >= 2.4 ? 'step_heavy' : k >= 1.2 ? 'step_medium' : 'step_light', 0.25 + 0.5*clamp(k/3, 0, 1))) return;
+             const v = 0.05 + 0.16*clamp(k/3, 0, 1);
              noise(0.055 + 0.02*k, v, 'bandpass', 300 + Math.random()*140, 1.4);
              if (k >= 2.4) tone(70, 0.004, 0.07, v*0.5, 'sine', 44); },
 
     // The house settling: a joist, a pipe, a board. Short, dry, high - never mistakable for legs.
-    creak(){ const f = 900 + Math.random()*1400;
+    creak(){ if (real('creak', 0.55)) return;
+             const f = 900 + Math.random()*1400;
              tone(f, 0.012, 0.10 + Math.random()*0.12, 0.045, 'triangle', f*0.72);
              noise(0.06, 0.05, 'bandpass', f*1.6, 6); },
     drip(){ tone(1500 + Math.random()*600, 0.003, 0.055, 0.05, 'sine', 420); },
 
     // A door on its hinge. Rising while it swings open, falling as it falls shut.
-    hinge(opening){ const a = opening ? 420 : 300, b = opening ? 660 : 190;
+    hinge(opening){ if (real(opening ? 'hinge_open' : 'hinge_close', 0.7)) return;
+                    const a = opening ? 420 : 300, b = opening ? 660 : 190;
                     tone(a, 0.02, 0.30, 0.055, 'sawtooth', b);
                     noise(0.22, 0.05, 'bandpass', 1500, 7); },
     // Wood under load, then wood giving up.
-    strain(){ tone(150, 0.03, 0.42, 0.13, 'sawtooth', 96); noise(0.3, 0.10, 'lowpass', 500, 1); },
+    strain(){ if (real('strain', 0.7)) return; tone(150, 0.03, 0.42, 0.13, 'sawtooth', 96); noise(0.3, 0.10, 'lowpass', 500, 1); },
     splinter(){ if (mus) mus.duckT = Math.max(mus.duckT, 0.7);
+                if (real('splinter')) return;
                 noise(0.40, 0.42, 'highpass', 900, 0.7);
                 noise(0.13, 0.30, 'bandpass', 2200, 5, 0.04);
                 tone(120, 0.006, 0.40, 0.26, 'square', 44); },
 
     // Something moving in a room your torch is not pointed at. LOW and dragged, per the rule
     // above - this is the one cue that is allowed to mean "it is close and you cannot see it".
-    shuffle(k){ noise(0.20 + Math.random()*0.12, 0.05 + 0.13*k, 'lowpass', 380, 0.9);
+    shuffle(k){ if (real('shuffle', 0.2 + 0.6*k)) return;
+                noise(0.20 + Math.random()*0.12, 0.05 + 0.13*k, 'lowpass', 380, 0.9);
                 if (Math.random() < 0.35) tone(58, 0.02, 0.26, 0.05*k, 'sine', 38); },
     // and the breath of the thing, when it is very close and still out of sight
-    breath(k){ noise(0.55, 0.05 + 0.10*k, 'bandpass', 520, 1.2); },
+    breath(k){ if (real('breath', 0.2 + 0.7*k, true)) return; noise(0.55, 0.05 + 0.10*k, 'bandpass', 520, 1.2); },
 
     // What the score is doing right now, and how many times each cue has fired. Audio is the one
     // system where "it works" normally means a human listening, and a check a human has to run is
@@ -619,6 +788,10 @@ const SFX = (() => {
       }
       return n ? sum/n : null;
     },
+    // Tiếng thật đã nạp tới đâu — bộ test hỏi thẳng, vì "có kêu không" thì máy không nghe được.
+    mau(){ return { dung: smpDung(), nap: Object.keys(smpBank).filter(k => smpBank[k].length).sort(),
+                    nen: !!(bedAt && bedAt.room), nhac: bedAt ? bedAt.musicSet : null,
+                    nhacChay: !!(bedAt && bedAt.music && !bedAt.music.paused), thaoTongHop: bedDetached }; },
     scoreState(){ return mus ? { room:mus.at.room, drone:mus.at.drone, shimmer:mus.at.shimmer,
                                  cluster:mus.at.cluster, pursuit:mus.at.pursuit,
                                  hush:mus.hushT, duck:mus.duckAt === undefined ? 1 : mus.duckAt,
@@ -629,7 +802,7 @@ const SFX = (() => {
 // Wrap every cue so calling it is counted. Done out here rather than inside each one because a
 // counter you have to remember to add is a counter that is missing from the cue you needed it on.
 for (const k in SFX){
-  if (typeof SFX[k] !== 'function' || k === 'scoreState' || k === 'setOn' || k === 'wake') continue;
+  if (typeof SFX[k] !== 'function' || k === 'scoreState' || k === 'setOn' || k === 'wake' || k === 'mau') continue;
   const fn = SFX[k];
   SFX[k] = function(){ SFX.fired[k] = (SFX.fired[k] || 0) + 1; return fn.apply(SFX, arguments); };
 }
@@ -696,7 +869,9 @@ const FX = {
   //   matGap 0..1  đồng hồ cào đã chạy tới đâu; CHỐT LẠI khi pho tượng biến mất, để trong nửa
   //                giây tan đi thì vệt máu không thụt ngược về không
   //   matNhin      lúc này có ai đang nhìn nó không: không ai nhìn thì mắt nó nhấp nháy
-  mat: 0, matGap: 0, matNhin: false,
+  //   matMau 0..1  vệt máu dài tới đâu — matGap đã LÀM MƯỢT: rọi đèn vào nó thì đồng hồ về không
+  //                ngay, nhưng máu không được giật ngược lên mắt trong một khung
+  mat: 0, matGap: 0, matMau: 0, matNhin: false,
   // gan   0..1  con quái CÓ THÂN gần nhất — cái viền đỏ quanh màn hình đọc con số này
   // nhieu 0..1  cú nhiễu hình sau khi ăn đòn, xem drawNhieu
   gan: 0, nhieu: 0,
@@ -713,7 +888,7 @@ function fxReset(){
   FX.shakeA = FX.shakeT = 0;
   FX.beat2 = false; FX.rate = 1.15;
   FX.flash = FX.flashTo = FX.flashNghi = FX.hurtT = FX.tickPulse = FX.spotT = 0;
-  FX.mat = FX.matGap = 0; FX.matNhin = false;
+  FX.mat = FX.matGap = FX.matMau = 0; FX.matNhin = false;
   FX.gan = FX.nhieu = 0;
   FX.lastTick = -1;
   FX.pops.length = 0;
@@ -811,7 +986,7 @@ function thanGan(){
   if (!p || S.dead) return 0;
   let best = 0;
   for (const m of S.monsters){
-    if (m.sleep > 0) continue;
+    if (m.sleep > 0 || foeQuiet(m)) continue;   // kẻ giả mạo đang giả người không làm tim đập
     const d = Math.hypot(p.x-m.x, p.y-m.y);
     if (d > DREAD_R) continue;
     let t = 1 - d/DREAD_R;
@@ -1013,6 +1188,9 @@ function stepFx(dt){
     FX.matGap = clamp(pt.armed ? pt.unlitT/ANGEL_PATIENCE : 0, 0, 1);
     FX.matNhin = !!pt.seenBy;
   }
+  // Máu chảy xuống chậm và rút lên còn chậm hơn: nó là chất lỏng, không phải kim đồng hồ.
+  if (FX.mat <= 0) FX.matMau = 0;
+  else FX.matMau += (FX.matGap - FX.matMau) * Math.min(1, dt * (FX.matGap > FX.matMau ? 2.4 : 0.7));
 
   // The heart runs ALWAYS, because it is drawn on the HUD and a heart that stops is a dead one.
   // What changes with the danger is the RATE — about 52 beats a minute standing in an empty room,
@@ -1032,7 +1210,7 @@ function stepFx(dt){
   // `chased` is deliberately stricter than dread: dread rises for a thing standing near you in the
   // dark, and that thing deserves the drone. The tritone is for a thing that has SEEN you.
   const chased = !!S.player && !S.shopMode && !S.dead && (
-    S.monsters.some(m => m.sleep <= 0 && m.state === 'chase' && m.alert > 0 &&
+    S.monsters.some(m => m.sleep <= 0 && !foeQuiet(m) && m.state === 'chase' && m.alert > 0 &&
                          Math.hypot(S.player.x-m.x, S.player.y-m.y) < DREAD_R*1.4) ||
     !!(S.angel && S.angel.armed && S.angel.phase === 'stand'));
   // Silence, used as a layer. A chase that breaks drops EVERYTHING for a beat before the house
@@ -1307,6 +1485,930 @@ const SIZES = [
   { key:'to',    r:16, mass: 58, vmin: 4200, vmax: 9000 }
 ];
 
+// ============================================================ LOÀI QUÁI MỚI của ải 5 nhà
+// Chép ngược từ bản Unity (REPO_Topdown, G10_FoeKinds*.cs, mốc M2 2026-09-14).
+//
+// Bảy loài: hồn ma, bàn tay quỷ dị, xác ướp, con nít ranh, kẻ ném đầu, kẻ gài mìn, kẻ giả mạo. Mỗi con
+// có luật va chạm/sát thương riêng — xuyên tường, bám tường, miễn sát thương, cầm đồ, giả người. Rải từng
+// nhánh `if (m.type === …)` vào stepMonsters/drawFoeOne/foeHit thì không đọc nổi nữa, nên mỗi loài là
+// MỘT mục trong FOE_KINDS: stepMonsters chạy phần chung (đồng hồ, hất lùi, ngủ) rồi giao cho mục đó.
+// Năm loài cũ giữ nguyên mã của mình.
+//
+// Mọi loài dùng chung một bộ trường trên con quái: kPh (pha), kT/kT2 (đồng hồ pha / hồi chiêu),
+// kX/kY (điểm phụ: đầu dây tơ, chỗ chạy trốn), kWall, kVictim (người đang bị giữ), kLoot (đồ đang ôm),
+// kSkin (kẻ giả mạo đang giả ai), kHead (kẻ ném đầu còn đầu), kPopT (hãm chữ MIỄN).
+//
+// `foeQuiet(m)` = đang giả/núp/vắng mặt. MỌI chỗ đọc "có quái đe doạ" phải bỏ qua nó: tim đập, nhạc
+// rượt, tiếng bước, dấu !, nón nhìn, mateThreat, bot. Thêm chỗ đọc mới thì nhớ thêm điều kiện này.
+//
+// Người bị giữ: `a.grabBy` (1 = bàn tay chụp, 2 = tơ xác ướp kéo). Chặn ở đầu useSlot/handUse/throwHeld/
+// pickUp/meleeSwing/capSkill/tuongTac (chanKhiBiGiu); step() bỏ di chuyển. stepFoeKinds gỡ cờ nếu không
+// còn con nào giữ.
+//
+// BẪY ĐÃ SẬP bên Unity: thanh vùng vẫy bị kẹp ở 1. Trừ phần tụt dần TRƯỚC khi kiểm `>= 1` thì không bao
+// giờ thoát được — phải kiểm trước rồi mới trừ (xem pha 'grab' của bàn tay).
+const HAND_REACH = TILE*1.25, HAND_WIND = 0.28, HAND_MAX = 14, HAND_RELOCATE = 15;
+const MUMMY_RANGE = TILE*7, MUMMY_AIM = 0.6, MUMMY_CD = 4.5, MUMMY_TIP = 560, MUMMY_PULL = 250, MUMMY_PULL_MAX = 1.8, MUMMY_SWING = 320;
+const BRAT_BREATH = 2.6, BRAT_WIND = 0.45, BRAT_THROW = 560, BRAT_DMG = 18, BRAT_CD = 2.5;
+const HEAD_WIND = 0.55, HEAD_CD = 2.5;
+const HEAD_FUSE = 3.4, HEAD_BLAST_R = TILE*2.6, HEAD_REGROW = 7;
+const MINE_FEAR = TILE*6, MINE_R = TILE*2.3, MINE_ARM = 1.0, MINE_TRIG = 12, MINE_MAX = 8;
+const IMP_REVEAL = TILE*2.2, IMP_WALK = 64;
+const GAS_R = TILE*2.4, GAS_LIFE = 7, GAS_TICK = 0.5, GAS_DMG = 5, GAS_FOE_DMG = 14;
+const STRUGGLE_STEP = 0.09, STRUGGLE_DECAY = 0.22, BOT_STRUGGLE = 0.32;
+
+function addFoeKinds(M){
+  M.ghost = { name:'Hồn ma', hp:999, dmg:14, cd:1.4, speed:20, sight:14, hear:0, col:'#9fb4c8', eye:'#bfe8ff', rim:'#e6f2ff',
+    immune:true, passWalls:true, skillStunOnly:true, noLoot:true, noArms:true, tire:false, wind:0.6, knockMul:0,
+    wikiSo: () => [['Sát thương', 'miễn'], ['Tường', 'đi xuyên'], ['Khắc chế', 'skill choáng']],
+    wiki:'CHIÊU: XUYÊN TƯỜNG. Nó trôi thẳng tới bạn qua mọi bức tường, rất chậm. Súng, bom, đèn pin, bẫy đều vô tác dụng — chỉ skill làm choáng mới giữ được nó đứng yên. Đừng đứng một chỗ quá lâu.' };
+  M.wallhand = { name:'Bàn tay quỷ dị', hp:999, dmg:6, cd:1.5, speed:0, sight:0, hear:0, col:'#7a5a8a', eye:'#e070ff', rim:'#f0c8ff',
+    immune:true, wallBound:true, noLoot:true, noMelee:true, noArms:true, tire:false, knockMul:0,
+    wikiSo: () => [['Thoát', 'A/D luân phiên'], ['Đổi tường', HAND_RELOCATE + 's']],
+    wiki:'CHIÊU: CHỤP TỪ TƯỜNG. Nó núp trong tường và chụp ai đi sát qua. Bị chụp thì không đi, không dùng skill hay đồ được — bấm A và D (hoặc hai nút trên màn hình) LUÂN PHIÊN thật nhanh để giằng ra. Thoát xong nó biến mất, ' + HAND_RELOCATE + ' giây sau núp ở một bức tường khác. Không giết được.' };
+  M.mummy = { name:'Xác ướp', hp:240, dmg:18, cd:1.3, speed:34, sight:9, hear:3, col:'#6f7d6a', eye:'#c8ff9a', rim:'#d6e2c8',
+    scale:1.3, noArms:true, wind:0.55,
+    wikiSo: () => [['Tầm tơ', '7 ô'], ['Hồi tơ', MUMMY_CD + 's']],
+    wiki:'CHIÊU: BẮN TƠ. Chậm và rất trâu. Thấy bạn là nó giương tay bắn một sợi tơ: trúng người thì kéo tuột về phía nó rồi đập; trúng tường thì chính nó đu tới chỗ đó. Nấp sau tường lúc nó giương tay là tránh được. Làm nó choáng là đứt dây.' };
+  M.brat = { name:'Con nít ranh', hp:14, dmg:0, cd:1, speed:96, sight:8, hear:6, col:'#8a6a4a', eye:'#ffd070', rim:'#f0d8b0',
+    noMelee:true, noLoot:true, knockMul:3, body:6, tire:false,
+    wikiSo: () => [['Máu', 'giấy'], ['Lấy hơi', BRAT_BREATH + 's']],
+    wiki:'CHIÊU: GIẬT ĐỒ. Nhanh hơn bạn, máu giấy. Thấy người là nó chạy tới vồ món đồ gần nhất — kể cả món bạn đang ôm — rồi chạy ra xa lấy hơi và NÉM món đó vào mặt bạn: bạn mất máu, đồ vỡ. Một cú đánh là chết và nó nhả đồ ra.' };
+  M.headthrower = { name:'Kẻ ném đầu', hp:60, dmg:0, cd:1, speed:50, sight:9, hear:3, col:'#9a5a20', eye:'#ffb040', rim:'#ffd8a0',
+    noMelee:true, noArms:true,
+    wikiSo: () => [['Ngòi', HEAD_FUSE + 's'], ['Khí độc', GAS_LIFE + 's'], ['Mọc đầu', HEAD_REGROW + 's']],
+    wiki:'CHIÊU: NÉM ĐẦU. Nó ném cái đầu bí ngô nảy tưng tưng tới chỗ bạn; ít giây sau đầu nổ và để lại vũng khí độc tan chậm. Nhặt cái đầu lên NÉM NGƯỢC được: vụ nổ không làm đau chính nó, nhưng làm đau mọi con quái khác đứng gần.' };
+  M.minelayer = { name:'Kẻ gài mìn', hp:12, dmg:0, cd:1, speed:64, sight:6, hear:5, col:'#8a7a30', eye:'#ffe060', rim:'#fff0a0',
+    noMelee:true, noLoot:true, knockMul:3, body:7, tire:false,
+    wikiSo: () => [['Mìn tối đa', MINE_MAX], ['Máu', 'giấy']],
+    wiki:'CHIÊU: GÀI MÌN. Nó sợ người: đi lang thang khắp nhà, thấy ai là bỏ chạy. Thỉnh thoảng nó gài một quả mìn — người hay quái nào (trừ nó) giẫm lên đều nổ. Máu giấy, đuổi kịp là hạ được. Soi đèn xuống sàn trước khi chạy.' };
+  M.impostor = { name:'Kẻ giả mạo', hp:70, dmg:16, cd:0.9, speed:90, sight:9, hear:5, col:'#3a3a4a', eye:'#ff4040', rim:'#c0c0d0',
+    wind:0.38,
+    wikiSo: () => [['Lộ mặt', 'trong ' + (IMP_REVEAL/TILE) + ' ô']],
+    wiki:'CHIÊU: GIẢ LÀM ĐỒNG ĐỘI. Nó mang hình một người trong tổ, đi tới đi lui như đang làm việc — tim bạn không đập nhanh vì nó. Lại gần là nó lộ mặt và lao vào đánh. Đếm lại người trong tổ trước khi đứng sát ai đó.' };
+}
+
+function foeKind(m){ return (m && FOE_KINDS[m.type]) || null; }
+function foeQuiet(m){ const k = foeKind(m); return !!k && (k.quiet(m) || k.absent(m)); }
+function foeAbsent(m){ const k = foeKind(m); return !!k && k.absent(m); }
+function foeFlag(m, f){ const d = m && MONSTERS[m.type]; return !!(d && d[f]); }
+function foeImmune(m){ return foeFlag(m, 'immune'); }
+function foeUnpushable(m){ return foeFlag(m, 'passWalls') || foeFlag(m, 'wallBound'); }
+function foeSkillStunOnly(m){ return foeFlag(m, 'skillStunOnly'); }
+
+// ------------------------------------------------------------ khoá người bị giữ
+function biGiu(p){ return !!p && (p.grabBy || 0) !== 0; }
+// Chặn một hành động của người đang bị giữ. true = đã chặn.
+function chanKhiBiGiu(p){
+  if (!biGiu(p)) return false;
+  if (p === S.player && S.messageT < 2.4) toast(p.grabBy === 1 ? 'Đang bị chụp — bấm A/D luân phiên để giằng ra!' : 'Đang bị tơ kéo!');
+  return true;
+}
+// Một lần bấm vùng vẫy. Chỉ lần bấm KHÁC PHÍA lần trước mới tính — giữ một phím không thoát được.
+function struggle(p, side){
+  if (!p || p.grabBy !== 1 || p.down) return false;
+  if (side === p.strSide) return true;
+  p.strSide = side;
+  p.struggle = Math.min(1, (p.struggle || 0) + STRUGGLE_STEP);
+  if (p === S.player) fxShake(1.2);
+  return true;
+}
+
+// ------------------------------------------------------------ bước chung sau stepMonsters
+function stepFoeKinds(dt){
+  stepMines(dt);
+  stepGas(dt);
+  stepHeadBombs(dt);
+  // Lưới an toàn: người còn cờ bị giữ mà không con nào đang giữ (quái bị xoá khi dựng nhà mới, tắt quái…)
+  for (const a of crew()){
+    if (!a || !a.grabBy) continue;
+    if (!S.monsters.some(m => m.kVictim === a && (m.kPh === 'grab' || m.kPh === 'pull'))){ a.grabBy = 0; a.struggle = 0; }
+  }
+}
+
+function stepMines(dt){
+  if (!S.mines || !S.mines.length) return;
+  const nguoi = crewAlive();
+  for (let i = S.mines.length-1; i >= 0; i--){
+    const mi = S.mines[i];
+    mi.t += dt;
+    if (mi.t < MINE_ARM) continue;
+    let trig = nguoi.some(a => Math.hypot(a.x-mi.x, a.y-mi.y) < MINE_TRIG);
+    if (!trig) trig = S.monsters.some(m => m.type !== 'minelayer' && !foeUnpushable(m) && !foeAbsent(m) &&
+                                           Math.hypot(m.x-mi.x, m.y-mi.y) < foeBody(m) + 5);
+    if (!trig) continue;
+    S.mines.splice(i, 1);
+    S.bombs.push({ x:mi.x, y:mi.y, t:0, fuse:0.12, r:MINE_R, pow:0.85, done:false, owner:'foe' });
+    makeNoise(mi.x, mi.y, 9*TILE, 2);
+    SFX.tick(6);
+  }
+}
+
+function gasR(g){ return g.r0 * (0.45 + 0.55*clamp(g.life/g.life0, 0, 1)); }
+function stepGas(dt){
+  if (!S.gas || !S.gas.length) return;
+  for (let i = S.gas.length-1; i >= 0; i--){
+    const g = S.gas[i];
+    g.life -= dt; g.tick += dt;
+    if (g.life <= 0){ S.gas.splice(i, 1); continue; }
+    if (g.tick < GAS_TICK) continue;
+    g.tick -= GAS_TICK;
+    const r = gasR(g);
+    for (const a of crewAlive()) if (Math.hypot(a.x-g.x, a.y-g.y) < r) hurtActor(a, GAS_DMG, 'khi-doc');
+    for (const m of S.monsters.slice()){
+      if (m === g.spare || m.hp <= 0 || foeImmune(m)) continue;
+      if (Math.hypot(m.x-g.x, m.y-g.y) < r && foeHit(m, GAS_FOE_DMG, null, 0)) killMonster(m);
+    }
+  }
+}
+
+function stepHeadBombs(dt){
+  for (const l of S.loot){
+    if (l.gone || !l.headBomb) continue;
+    l.fuse -= dt;
+    if (l.fuse <= 0) headBoom(l);
+  }
+}
+function headBoom(l){
+  if (l.gone) return;
+  l.gone = true;
+  for (const a of crew()) if (a && a.held === l) a.held = null;
+  l.held = false; l.holder = null;
+  S.bombs.push({ x:l.x, y:l.y, t:0, fuse:0, r:HEAD_BLAST_R, pow:0.75, done:false, owner:'foe', spare:l.spare });
+  S.gas.push({ x:l.x, y:l.y, r0:GAS_R, life:GAS_LIFE, life0:GAS_LIFE, tick:0, spare:l.spare });
+  makeNoise(l.x, l.y, 9*TILE, 2);
+}
+function makeHeadBomb(owner, x, y){
+  const l = makeLoot(x, y, SIZES[0], MATERIALS[MATERIALS.length-1], 0);
+  l.value = 0; l.value0 = 0; l.headBomb = true; l.fuse = HEAD_FUSE; l.spare = owner;
+  S.loot.push(l);
+  return l;
+}
+
+// ------------------------------------------------------------ tiện ích cho các loài
+// Luật "thấy người" của stepMonsters: tầm nhìn + đường ngắm + góc, hoặc nghe tiếng.
+function kDetects(m, d, p, dist){
+  if (!p || p.down || (p.invisT || 0) > 0) return false;
+  if (d.sight > 0 && dist < d.sight*TILE && losClear(m.x, m.y, p.x, p.y)){
+    const a1 = Math.abs(angDiff(Math.atan2(p.y-m.y, p.x-m.x), m.dir));
+    if (a1 < 1.1 || dist < 3*TILE) return true;
+  }
+  return d.hear > 0 && p.noise > 0 && dist < d.hear*TILE*p.noise*0.6;
+}
+// Đi thẳng về (tx,ty), có tách đàn và chặn tường. Trả về quãng đã đi.
+function kStep(m, d, tx, ty, spd, dt, stop){
+  const ax = tx-m.x, ay = ty-m.y, am = Math.hypot(ax, ay);
+  if (am < 1e-6){ m.vx = 0; m.vy = 0; return 0; }
+  m.dir = Math.atan2(ay, ax);
+  const slow = (m.slowT || 0) > 0 ? FREEZE_SLOW_MUL : 1;
+  const st = Math.max(0, Math.min(spd*slow*dt, am - (stop || 0)));
+  let mx = ax/am*st, my = ay/am*st;
+  const sep = foeSeparation(m);
+  if (sep){ mx += sep.x*FOE_SEP_PUSH*dt; my += sep.y*FOE_SEP_PUSH*dt; }
+  const ox = m.x, oy = m.y;
+  if (mx || my) moveEnt(m, mx, my, d.body || FOE_BODY);
+  if (dt > 0){ m.vx = (m.x-ox)/dt; m.vy = (m.y-oy)/dt; }
+  return Math.hypot(m.x-ox, m.y-oy);
+}
+// Đi tới (tx,ty) theo đường sàn (BFS làm lại mỗi giây); thấy thẳng thì đi thẳng.
+function kWalkTo(m, d, tx, ty, spd, dt, stop){
+  if (losClear(m.x, m.y, tx, ty) && !hitsSolid((m.x+tx)/2, (m.y+ty)/2, 6)){ m.path = null; kStep(m, d, tx, ty, spd, dt, stop); return; }
+  m.pathT = (m.pathT || 0) - dt;
+  const tgx = clamp((tx/TILE)|0, 0, MW-1), tgy = clamp((ty/TILE)|0, 0, MH-1);
+  if (!m.path || m.pathT <= 0){
+    m.pathT = 1.0;
+    const sx = clamp((m.x/TILE)|0, 0, MW-1), sy = clamp((m.y/TILE)|0, 0, MH-1);
+    const path = bfsPath(sx, sy, (x, y) => Math.abs(x-tgx) + Math.abs(y-tgy) <= 1);
+    m.path = path ? path.map(t => ({ x:(t[0]+0.5)*TILE, y:(t[1]+0.5)*TILE })) : null;
+    m.pi = m.path ? Math.min(1, m.path.length-1) : 0;
+  }
+  if (!m.path){ kStep(m, d, tx, ty, spd, dt, stop); return; }
+  while (m.pi < m.path.length && Math.hypot(m.path[m.pi].x-m.x, m.path[m.pi].y-m.y) < 8) m.pi++;
+  if (m.pi >= m.path.length){ kStep(m, d, tx, ty, spd, dt, stop); return; }
+  kStep(m, d, m.path[m.pi].x, m.path[m.pi].y, spd, dt);
+}
+// Hai thì của cú đánh tay (vung → kiểm tầm), đúng luật của stepMonsters.
+function kMelee(m, d, p, dt, dist){
+  const tam = d.reach || FOE_REACH;
+  if ((m.swing || 0) > 0){
+    m.swing -= dt;
+    if (m.swing > 0) return;
+    m.swing = 0; m.hit = d.cd || 0.9;
+    if (Math.hypot(p.x-m.x, p.y-m.y) < tam*FOE_WHIFF && !S.dead && !p.down && !((p.invisT || 0) > 0))
+      hurtActor(p, m.dmg, m.type, m.x, m.y);
+    else if (p === S.player) fxPop(m.x, m.y - 16, 'HỤT', '#cfe6ff', 11);
+  } else if (m.dmg > 0 && dist < tam && m.hit <= 0 && !S.dead && !p.down && !((p.invisT || 0) > 0)){
+    m.swing = d.wind || FOE_WIND;
+    m.swingDir = Math.atan2(p.y-m.y, p.x-m.x);
+    if (p === S.player) SFX.strain();
+  }
+}
+// Người sống gần nhất (không cần thấy): { a, d }.
+function kNearest(x, y){
+  let a = null, best = 1e9;
+  for (const o of crewAlive()){ const dd = Math.hypot(o.x-x, o.y-y); if (dd < best){ best = dd; a = o; } }
+  return { a, d:best };
+}
+// Một ô sàn ngẫu nhiên cách (x,y) trong khoảng [lo, hi] px, không nằm trong vật cản.
+function kFloorNear(x, y, lo, hi, ok){
+  for (let tries = 0; tries < 40; tries++){
+    const a = Math.random()*Math.PI*2, r = mix(lo, hi, Math.random());
+    const px = x + Math.cos(a)*r, py = y + Math.sin(a)*r;
+    const gx = (px/TILE)|0, gy = (py/TILE)|0;
+    if (gx < 1 || gy < 1 || gx >= MW-1 || gy >= MH-1) continue;
+    if (S.grid[gy*MW+gx] !== FLOOR || hitsSolid(px, py, 9)) continue;
+    if (ok && !ok(px, py)) continue;
+    return { x:px, y:py };
+  }
+  return null;
+}
+// Luật "thấy người thì cảnh giác" chung của stepMonsters, gói lại cho các loài mới.
+function kAlert(m, d, p, dist, dt){
+  if (kDetects(m, d, p, dist)){
+    if (m.alert <= 0 && p === S.player){ SFX.sting(); fxShake(2.2); spawnVfx('alert-mark', m.x, m.y - 22, { scale:0.32, fps:14 }); }
+    m.alert = 2.6; m.tx = p.x; m.ty = p.y; m.lost = 0;
+  } else { m.alert = Math.max(0, m.alert - dt); m.lost = (m.lost || 0) + dt; }
+  m.state = m.alert > 0 ? 'chase' : 'patrol';
+}
+// Đi tuần quanh nhà của nó như stepMonsters.
+function kPatrol(m, d, dt, spdMul){
+  m.think -= dt;
+  if (m.think <= 0 || Math.hypot(m.tx-m.x, m.ty-m.y) < 14){
+    m.think = 1.4 + Math.random()*2.2;
+    if (Math.hypot(m.x-m.home.x, m.y-m.home.y) > 9*TILE){ m.tx = m.home.x; m.ty = m.home.y; }
+    else {
+      const a = Math.random()*Math.PI*2, r = 60 + Math.random()*150;
+      m.tx = clamp(m.x + Math.cos(a)*r, TILE, WPX-TILE); m.ty = clamp(m.y + Math.sin(a)*r, TILE, HPX-TILE);
+    }
+  }
+  kStep(m, d, m.tx, m.ty, m.speed*(spdMul == null ? 0.7 : spdMul), dt);
+}
+// Cất con quái ra ngoài bản đồ: mọi vòng lặp khoảng cách tự bỏ qua nó.
+function kPark(m){ m.x = -9999; m.y = -9999; m.path = null; }
+
+// ================================================================== bảng hành vi
+const FOE_KIND_BASE = { release(){}, quiet(){ return false; }, absent(){ return false; } };
+const FOE_KINDS = {};
+
+// ------------------------------------------------------------ HỒN MA
+// Trôi thẳng tới người gần nhất, xuyên tường, rất chậm. Không nhận sát thương (immune); chỉ skill
+// choáng (foeSleep) giữ nó lại — nhánh ngủ của stepMonsters chạy trước khi giao cho mục này.
+FOE_KINDS.ghost = Object.assign({}, FOE_KIND_BASE, {
+  step(m, d, p, dt){
+    m.kx = 0; m.ky = 0;
+    const n = kNearest(m.x, m.y), t = n.a, best = n.d;
+    if (!t){ m.state = 'patrol'; m.alert = 0; return; }
+    m.target = t;
+    if (best < d.sight*TILE){ m.state = 'chase'; m.alert = Math.max(m.alert, 1); }
+    else { m.state = 'patrol'; m.alert = 0; }
+    if ((m.swing || 0) <= 0 && best > 14){
+      const a = Math.atan2(t.y-m.y, t.x-m.x);
+      m.dir = a;
+      const sp = m.speed * (m.state === 'chase' ? 1 : 0.6) * ((m.slowT || 0) > 0 ? FREEZE_SLOW_MUL : 1);
+      const ox = m.x, oy = m.y;
+      m.x = clamp(m.x + Math.cos(a)*sp*dt, TILE, WPX-TILE);
+      m.y = clamp(m.y + Math.sin(a)*sp*dt, TILE, HPX-TILE);
+      if (dt > 0){ m.vx = (m.x-ox)/dt; m.vy = (m.y-oy)/dt; }
+    }
+    kMelee(m, d, t, dt, best);
+  },
+  draw(c, m){ drawGhost(c, m); }
+});
+
+// ------------------------------------------------------------ BÀN TAY QUỶ DỊ
+// hide (núp ở mép một ô tường) → reach (thò ra, cửa sổ né) → grab (giữ người, người vùng vẫy) → gone (15s) → tường khác.
+FOE_KINDS.wallhand = Object.assign({}, FOE_KIND_BASE, {
+  absent(m){ return !m.kPh || m.kPh === 'gone'; },
+  quiet(m){ return m.kPh === 'hide'; },
+  step(m, d, p, dt){
+    m.kx = 0; m.ky = 0;
+    if (!m.kPh){
+      if (handRelocate(m)){ m.kPh = 'hide'; m.kT = 1.5; } else { m.kPh = 'gone'; m.kT = 2; kPark(m); }
+      return;
+    }
+    if (m.kPh === 'gone'){
+      m.state = 'patrol'; m.alert = 0;
+      m.kT -= dt;
+      if (m.kT <= 0){ if (handRelocate(m)){ m.kPh = 'hide'; m.kT = 1.0; } else m.kT = 2; }
+      return;
+    }
+    if (m.kPh === 'hide'){
+      m.state = 'patrol'; m.alert = 0;
+      m.kT = Math.max(0, m.kT - dt);
+      if (m.kT > 0) return;
+      for (const a of crewAlive()){
+        if (a.grabBy || a.riding) continue;
+        if (Math.hypot(a.x-m.x, a.y-m.y) >= HAND_REACH) continue;
+        m.kPh = 'reach'; m.kT = HAND_WIND; m.kVictim = a;
+        if (a === S.player) SFX.strain();
+        break;
+      }
+      return;
+    }
+    if (m.kPh === 'reach'){
+      m.state = 'chase'; m.alert = 1;
+      m.kT -= dt;
+      if (m.kT > 0) return;
+      const a = m.kVictim;
+      if (a && !a.down && !a.grabBy && Math.hypot(a.x-m.x, a.y-m.y) < HAND_REACH*1.4){
+        m.kPh = 'grab'; m.kT = 0; m.kT2 = 0.6;
+        a.grabBy = 1; a.struggle = 0; a.strSide = 0; a.sprint = false; a.aimSlot = -1; a.chargeSlot = -1;
+        if (a.riding) dismountBike(a);
+        if (a.pushing) releaseCart(a);
+        fxShake(a === S.player ? 5 : 2); SFX.thud();
+        if (a === S.player) toast('Bị bàn tay chụp! Bấm A / D luân phiên để giằng ra');
+        else toast((a.name || 'Đồng đội') + ' bị bàn tay chụp');
+      } else { m.kPh = 'hide'; m.kT = 1.2; m.kVictim = null; }
+      return;
+    }
+    if (m.kPh === 'grab'){
+      m.state = 'chase'; m.alert = 1;
+      const a = m.kVictim;
+      if (!a || a.down || a.grabBy !== 1 || crew().indexOf(a) < 0){ handLet(m, false); return; }
+      const hx = m.x + Math.cos(m.dir)*9, hy = m.y + Math.sin(m.dir)*9;
+      const k = Math.min(1, dt*14);
+      a.x += (hx-a.x)*k; a.y += (hy-a.y)*k; a.kx = 0; a.ky = 0;
+      m.kT += dt; m.kT2 -= dt;
+      if (m.kT2 <= 0){ m.kT2 = d.cd; hurtActor(a, m.dmg, 'wallhand'); }
+      if (a !== S.player) a.struggle = (a.struggle || 0) + BOT_STRUGGLE*dt;
+      // Kiểm TRƯỚC khi tụt: lần bấm cuối đã chạm đầy thanh thì thoát ngay, không bị trừ ngược dưới 1.
+      if (a.struggle >= 1 || m.kT > HAND_MAX){ handLet(m, true); return; }
+      a.struggle = Math.max(0, a.struggle - STRUGGLE_DECAY*dt);
+    }
+  },
+  release(m){ if (m.kPh === 'grab' || m.kPh === 'reach') handLet(m, false); },
+  draw(c, m){ drawWallHand(c, m); }
+});
+function handLet(m, escaped){
+  const a = m.kVictim;
+  if (a && a.grabBy === 1){
+    a.grabBy = 0; a.struggle = 0; a.strSide = 0;
+    a.kx = Math.cos(m.dir)*260; a.ky = Math.sin(m.dir)*260;
+    if (escaped) fxPop(a.x, a.y - 18, 'THOÁT!', '#d8b8ff', 13);
+  }
+  m.kVictim = null;
+  m.kPh = 'gone'; m.kT = HAND_RELOCATE;
+  spawnVfx('acid-splash', m.x, m.y, { scale:0.5, sang:false });
+  kPark(m);
+}
+// Một ô tường giáp sàn, khác ô cũ, xa xe tải và xa mọi người đang đứng.
+function handRelocate(m){
+  const live = crewAlive();
+  for (let tries = 0; tries < 500; tries++){
+    const gx = 1 + ((Math.random()*(MW-2))|0), gy = 1 + ((Math.random()*(MH-2))|0);
+    const idx = gy*MW + gx;
+    if (S.grid[idx] !== WALL || idx === m.kWall) continue;
+    const k0 = (Math.random()*4)|0;
+    for (let kk = 0; kk < 4; kk++){
+      const k = (k0+kk) % 4;
+      const nx = gx + (k === 0 ? 1 : k === 1 ? -1 : 0), ny = gy + (k === 2 ? 1 : k === 3 ? -1 : 0);
+      if (nx < 1 || ny < 1 || nx >= MW-1 || ny >= MH-1 || S.grid[ny*MW+nx] !== FLOOR) continue;
+      const fx = (nx+0.5)*TILE, fy = (ny+0.5)*TILE;
+      if (hitsSolid(fx, fy, 8)) continue;
+      if (S.car && Math.hypot(fx-S.car.x, fy-S.car.y) < 8*TILE) continue;
+      if (live.some(a => Math.hypot(a.x-fx, a.y-fy) < 5*TILE)) continue;
+      m.kWall = idx;
+      m.dir = Math.atan2(ny-gy, nx-gx);
+      m.x = fx - Math.cos(m.dir)*TILE*0.3; m.y = fy - Math.sin(m.dir)*TILE*0.3;
+      m.home = { x:m.x, y:m.y }; m.tx = m.x; m.ty = m.y;
+      return true;
+    }
+  }
+  return false;
+}
+
+// ------------------------------------------------------------ XÁC ƯỚP
+// walk → aim (giương tay, mất đường ngắm là huỷ) → shoot (đầu tơ bay) → pull (kéo người) | swing (đu tới tường) | reel.
+FOE_KINDS.mummy = Object.assign({}, FOE_KIND_BASE, {
+  step(m, d, p, dt, dist){
+    m.kT2 = Math.max(0, (m.kT2 || 0) - dt);
+    const ph = m.kPh || 'walk';
+    if (ph === 'walk'){
+      kAlert(m, d, p, dist, dt);
+      if (m.state === 'chase'){
+        if (m.kT2 <= 0 && (m.swing || 0) <= 0 && dist > 2.2*TILE && dist < MUMMY_RANGE && losClear(m.x, m.y, p.x, p.y) && !p.down && !p.grabBy){
+          m.kPh = 'aim'; m.kT = MUMMY_AIM; m.kVictim = p; m.dir = Math.atan2(p.y-m.y, p.x-m.x);
+          if (S.player && Math.hypot(m.x-S.player.x, m.y-S.player.y) < 13*TILE) SFX.strain();
+          return;
+        }
+        if ((m.swing || 0) <= 0) kWalkTo(m, d, p.x, p.y, m.speed*1.1, dt, FOE_STANDOFF);
+        kMelee(m, d, p, dt, dist);
+      } else kPatrol(m, d, dt);
+      return;
+    }
+    if (ph === 'aim'){
+      m.state = 'chase';
+      const t = m.kVictim;
+      if (!t || t.down || !losClear(m.x, m.y, t.x, t.y)){ m.kPh = 'walk'; m.kT2 = MUMMY_CD*0.4; return; }
+      const want = Math.atan2(t.y-m.y, t.x-m.x);
+      m.dir += clamp(angDiff(want, m.dir), -3*dt, 3*dt);
+      m.kT -= dt;
+      if (m.kT <= 0){ m.kPh = 'shoot'; m.kX = m.x; m.kY = m.y; m.kT = 0; SFX.gunshot(); }
+      return;
+    }
+    if (ph === 'shoot'){
+      m.state = 'chase';
+      const cs = Math.cos(m.dir), sn = Math.sin(m.dir);
+      let left = MUMMY_TIP*dt;
+      while (left > 0){
+        const st = Math.min(6, left); left -= st;
+        m.kX += cs*st; m.kY += sn*st; m.kT += st;
+        for (const a of crewAlive()){
+          if (a.grabBy || Math.hypot(a.x-m.kX, a.y-m.kY) > 13) continue;
+          m.kPh = 'pull'; m.kVictim = a; m.kT = 0;
+          a.grabBy = 2; a.sprint = false;
+          if (a.riding) dismountBike(a);
+          if (a.pushing) releaseCart(a);
+          fxShake(a === S.player ? 4 : 2); SFX.thud();
+          if (a === S.player) toast('Dính tơ xác ướp — bị kéo về!');
+          return;
+        }
+        if (hitsSolid(m.kX, m.kY, 2)){
+          m.kX -= cs*12; m.kY -= sn*12;
+          m.kPh = 'swing'; m.kT = 0; SFX.thud();
+          return;
+        }
+        if (m.kT >= MUMMY_RANGE){ m.kPh = 'reel'; m.kT = 0.25; return; }
+      }
+      return;
+    }
+    if (ph === 'reel'){
+      m.kT -= dt;
+      if (m.kT <= 0){ m.kPh = 'walk'; m.kT2 = MUMMY_CD*0.6; }
+      return;
+    }
+    if (ph === 'swing'){
+      m.state = 'chase';
+      const want = MUMMY_SWING*dt;
+      const moved = kStep(m, d, m.kX, m.kY, MUMMY_SWING, dt, 4);
+      m.kT += dt;
+      if (Math.hypot(m.kX-m.x, m.kY-m.y) < 10 || moved < want*0.3 || m.kT > 1.4){ m.kPh = 'walk'; m.kT2 = MUMMY_CD; }
+      return;
+    }
+    if (ph === 'pull'){
+      m.state = 'chase'; m.alert = 2;
+      const a = m.kVictim;
+      if (!a || a.down || a.grabBy !== 2 || crew().indexOf(a) < 0){ mummyLet(m); return; }
+      m.kT += dt;
+      const dd = Math.hypot(a.x-m.x, a.y-m.y);
+      m.dir = Math.atan2(a.y-m.y, a.x-m.x);
+      if (dd < 24){
+        mummyLet(m);
+        hurtActor(a, m.dmg, 'mummy', m.x, m.y);
+        return;
+      }
+      const ang = Math.atan2(m.y-a.y, m.x-a.x);
+      moveEnt(a, Math.cos(ang)*MUMMY_PULL*dt, Math.sin(ang)*MUMMY_PULL*dt, 7.5);
+      a.kx = 0; a.ky = 0;
+      m.kX = a.x; m.kY = a.y;
+      if (m.kT > MUMMY_PULL_MAX) mummyLet(m);
+    }
+  },
+  release(m){ if (m.kPh && m.kPh !== 'walk') mummyLet(m); },
+  draw(c, m){ drawMummy(c, m); }
+});
+function mummyLet(m){
+  const a = m.kVictim;
+  if (a && a.grabBy === 2) a.grabBy = 0;
+  m.kVictim = null; m.kPh = 'walk'; m.kT2 = MUMMY_CD;
+}
+
+// ------------------------------------------------------------ CON NÍT RANH
+// seek (vồ đồ trên sàn / giật đồ trên tay) → flee (chạy lấy hơi) → wind → throw (trúng người: mất máu + đồ vỡ).
+function bratOk(l){
+  return !!l && !l.gone && !l.isHead && !l.headBomb && !l.shopGoods && !l.inCart && !l.foeCarry &&
+         (!l.onPad || !l.onPad.done);
+}
+FOE_KINDS.brat = Object.assign({}, FOE_KIND_BASE, {
+  step(m, d, p, dt, dist){
+    m.kT2 = Math.max(0, (m.kT2 || 0) - dt);
+    if (m.kLoot && (m.kLoot.gone || (!m.kLoot.foeCarry && m.kPh !== 'throw'))){ m.kLoot = null; if (m.kPh !== 'throw') m.kPh = 'seek'; }
+    const ph = m.kPh || 'seek';
+    if (ph === 'seek'){
+      kAlert(m, d, p, dist, dt);
+      if (m.alert <= 0 || m.kT2 > 0){ kPatrol(m, d, dt, m.alert > 0 ? 1 : 0.7); }
+      else {
+        let holder = null, hd = 6*TILE;
+        for (const a of crewAlive()){
+          if (!a.held || !bratOk(a.held)) continue;
+          const dd = Math.hypot(a.x-m.x, a.y-m.y);
+          if (dd < hd && losClear(m.x, m.y, a.x, a.y)){ hd = dd; holder = a; }
+        }
+        if (holder){
+          kWalkTo(m, d, holder.x, holder.y, m.speed, dt);
+          if (Math.hypot(holder.x-m.x, holder.y-m.y) < 20){
+            const l = holder.held; dropHeld(holder);
+            if (!(l.inCart || l.onPad)){                   // dropHeld vừa chất nó lên xe/bệ thì thôi
+              bratTake(m, l);
+              if (holder === S.player) toast('Con nít ranh giật mất món đồ!');
+            }
+          }
+        } else {
+          let best = null, bd = 10*TILE;
+          for (const l of S.loot){
+            if (!bratOk(l) || l.held) continue;
+            const dd = Math.hypot(l.x-m.x, l.y-m.y);
+            if (dd < bd){ bd = dd; best = l; }
+          }
+          if (best){
+            kWalkTo(m, d, best.x, best.y, m.speed, dt);
+            if (Math.hypot(best.x-m.x, best.y-m.y) < 16) bratTake(m, best);
+          } else kWalkTo(m, d, p.x, p.y, m.speed*0.6, dt, 3*TILE);
+        }
+      }
+    } else if (ph === 'flee'){
+      m.state = 'chase'; m.alert = 2;
+      m.kT -= dt;
+      const n = kNearest(m.x, m.y), near = n.a;
+      if (m.kT > 0 || !near){
+        if (near && (Math.hypot(m.kX-m.x, m.kY-m.y) < 12 || Math.hypot(m.kX-near.x, m.kY-near.y) < 3*TILE)) bratPickFlee(m, near);
+        kWalkTo(m, d, m.kX, m.kY, m.speed, dt);
+      }
+      // Lấy hơi xong: quay lại cho vừa tầm ném rồi mới ném.
+      else if (n.d < 5*TILE && losClear(m.x, m.y, near.x, near.y)){ m.kPh = 'wind'; m.kT = BRAT_WIND; m.kVictim = near; }
+      else kWalkTo(m, d, near.x, near.y, m.speed, dt);
+    } else if (ph === 'wind'){
+      m.state = 'chase';
+      const t = m.kVictim;
+      if (!t || t.down){ m.kPh = 'flee'; m.kT = 0.5; }
+      else {
+        m.dir = Math.atan2(t.y-m.y, t.x-m.x);
+        m.kT -= dt;
+        if (m.kT <= 0 && m.kLoot){
+          const l = m.kLoot;
+          l.foeCarry = false;
+          const cs = Math.cos(m.dir), sn = Math.sin(m.dir);
+          l.x = m.x + cs*10; l.y = m.y + sn*10; l.freeX = l.x; l.freeY = l.y;
+          l.vx = cs*BRAT_THROW; l.vy = sn*BRAT_THROW; l.flyT = 0; l.grace = 0; l.invuln = 0;
+          m.kPh = 'throw'; m.kT = 1.0;
+          SFX.strain();
+        }
+      }
+    } else if (ph === 'throw'){
+      const l = m.kLoot;
+      m.kT -= dt;
+      if (!l || l.gone || l.held){ bratEnd(m); }
+      else {
+        for (const a of crewAlive()){
+          if (Math.hypot(a.x-l.x, a.y-l.y) > l.r + 9) continue;
+          hurtActor(a, BRAT_DMG, 'brat', l.x - l.vx*0.05, l.y - l.vy*0.05);
+          l.invuln = 0; l.grace = 0;
+          damageLoot(l, 1e6);
+          bratEnd(m);
+          return;
+        }
+        if (m.kT <= 0 || Math.hypot(l.vx, l.vy) < 60) bratEnd(m);
+      }
+    }
+    if (m.kLoot && m.kLoot.foeCarry){
+      const l = m.kLoot;
+      l.x = m.x + Math.cos(m.dir)*7; l.y = m.y - 3; l.vx = 0; l.vy = 0; l.freeX = l.x; l.freeY = l.y;
+    }
+  },
+  release(m){
+    if (m.kLoot && m.kLoot.foeCarry){ m.kLoot.foeCarry = false; m.kLoot.vx = 0; m.kLoot.vy = 0; m.kLoot.grace = S.time + 0.3; }
+    if (m.hp <= 0 || m.kPh === 'flee' || m.kPh === 'wind'){ m.kLoot = null; m.kPh = 'seek'; m.kT2 = BRAT_CD; }
+  },
+  draw(c, m){ drawSkWalker(c, m, 'brat', 0, 7, 14, false); }
+});
+function bratTake(m, l){
+  if (l.onPad){ const i = l.onPad.placed.indexOf(l); if (i >= 0) l.onPad.placed.splice(i, 1); recomputePad(l.onPad); l.onPad = null; }
+  l.held = false; l.holder = null; l.inCart = false; l.flyT = 0; l.flyBy = null;
+  l.foeCarry = true; m.kLoot = l;
+  m.kPh = 'flee'; m.kT = BRAT_BREATH;
+  bratPickFlee(m, kNearest(m.x, m.y).a);
+  SFX.strain();
+}
+function bratPickFlee(m, near){
+  const fx = near ? near.x : m.x, fy = near ? near.y : m.y;
+  const now = Math.hypot(m.x-fx, m.y-fy);
+  const at = kFloorNear(m.x, m.y, 4*TILE, 8*TILE, (x, y) => Math.hypot(x-fx, y-fy) > now + 2*TILE) ||
+             kFloorNear(m.x, m.y, 2*TILE, 6*TILE);
+  if (at){ m.kX = at.x; m.kY = at.y; } else { m.kX = m.x; m.kY = m.y; }
+}
+function bratEnd(m){ m.kLoot = null; m.kVictim = null; m.kPh = 'seek'; m.kT2 = BRAT_CD; }
+
+// ------------------------------------------------------------ KẺ NÉM ĐẦU
+FOE_KINDS.headthrower = Object.assign({}, FOE_KIND_BASE, {
+  step(m, d, p, dt, dist){
+    m.kT2 = Math.max(0, (m.kT2 || 0) - dt);
+    if (m.kHead === undefined) m.kHead = true;
+    if (!m.kHead){ m.kT -= dt; if (m.kT <= 0){ m.kHead = true; fxPop(m.x, m.y - 20, 'mọc đầu', '#ffc070', 10); } }
+    if (m.kPh === 'wind'){
+      m.state = 'chase';
+      const t = m.kVictim || p;
+      m.dir = Math.atan2(t.y-m.y, t.x-m.x);
+      m.windT -= dt;
+      if (m.windT > 0) return;
+      const dd = clamp(Math.hypot(t.x-m.x, t.y-m.y), TILE*2, TILE*8);
+      const l = makeHeadBomb(m, m.x + Math.cos(m.dir)*10, m.y + Math.sin(m.dir)*10 - 4);
+      const v = clamp(dd*3.9, 160, 640);
+      l.vx = Math.cos(m.dir)*v; l.vy = Math.sin(m.dir)*v; l.grace = S.time + 0.2;
+      m.kHead = false; m.kT = HEAD_REGROW; m.kPh = null; m.kT2 = HEAD_CD; m.kVictim = null;
+      SFX.strain();
+      return;
+    }
+    kAlert(m, d, p, dist, dt);
+    if (m.state !== 'chase'){ kPatrol(m, d, dt); return; }
+    if (m.kHead && m.kT2 <= 0 && dist < 8*TILE && dist > 1.6*TILE && losClear(m.x, m.y, p.x, p.y) && !p.down){
+      m.kPh = 'wind'; m.windT = HEAD_WIND; m.kVictim = p;
+      return;
+    }
+    const keep = (m.kHead ? 4.5 : 7)*TILE;
+    const a = Math.atan2(m.y-p.y, m.x-p.x);
+    kWalkTo(m, d, p.x + Math.cos(a)*keep, p.y + Math.sin(a)*keep, m.speed*1.1, dt);
+  },
+  draw(c, m){ drawHeadThrower(c, m); }
+});
+
+// ------------------------------------------------------------ KẺ GÀI MÌN
+FOE_KINDS.minelayer = Object.assign({}, FOE_KIND_BASE, {
+  step(m, d, p, dt){
+    m.alert = 0;
+    if (!m.kT && !m.kPh && !m.kT2){ m.kT = mix(3, 6, Math.random()); m.kT2 = 1; }
+    if (m.kPh === 'plant'){
+      m.state = 'patrol';
+      m.windT -= dt;
+      if (m.windT > 0) return;
+      (S.mines = S.mines || []).push({ x:m.x, y:m.y + 3, t:0 });
+      m.kPh = null; m.kT = mix(7, 11, Math.random());
+      return;
+    }
+    const n = kNearest(m.x, m.y), near = n.a, nd = n.d;
+    const scared = !!near && nd < MINE_FEAR && (nd < 3*TILE || losClear(m.x, m.y, near.x, near.y));
+    if (scared){
+      m.state = 'flee';
+      if (m.kPh !== 'flee' || Math.hypot(m.kX-m.x, m.kY-m.y) < 12 || Math.hypot(m.kX-near.x, m.kY-near.y) < 3*TILE){
+        const fx = near.x, fy = near.y;
+        const at = kFloorNear(m.x, m.y, 4*TILE, 8*TILE, (x, y) => Math.hypot(x-fx, y-fy) > nd + 2*TILE);
+        if (at){ m.kX = at.x; m.kY = at.y; }
+        else { const a = Math.atan2(m.y-fy, m.x-fx); m.kX = m.x + Math.cos(a)*3*TILE; m.kY = m.y + Math.sin(a)*3*TILE; }
+        m.kPh = 'flee'; m.path = null;
+      }
+      kWalkTo(m, d, m.kX, m.kY, m.speed*1.25, dt);
+    } else {
+      if (m.kPh === 'flee'){ m.kPh = null; m.goal = null; m.path = null; }
+      m.state = 'patrol';
+      if (!m.goal && !rookPickGoal(m)){ kPatrol(m, d, dt); }
+      else if (m.goal){
+        kWalkTo(m, d, m.goal.x, m.goal.y, m.speed*0.8, dt);
+        if (Math.hypot(m.goal.x-m.x, m.goal.y-m.y) < 14) m.goal = null;
+      }
+    }
+    m.kT -= dt;
+    if (m.kT <= 0){
+      let clear = !S.mines || S.mines.length < MINE_MAX;
+      if (clear && S.mines && S.mines.some(mi => Math.hypot(mi.x-m.x, mi.y-m.y) < 2.5*TILE)) clear = false;
+      if (clear && S.car && Math.hypot(S.car.x-m.x, S.car.y-m.y) < 6*TILE) clear = false;
+      if (clear){ m.kPh = 'plant'; m.windT = 0.7; }
+      else m.kT = 2;
+    }
+  },
+  draw(c, m){ drawSkWalker(c, m, 'minelayer', 0, 6, 12, m.kPh === 'plant'); }
+});
+
+// ------------------------------------------------------------ KẺ GIẢ MẠO
+// fake (mang hình một người trong tổ, đi tới đi lui) → reveal → hunt (lao vào đánh) → mất dấu lâu thì giả lại.
+FOE_KINDS.impostor = Object.assign({}, FOE_KIND_BASE, {
+  quiet(m){ return !m.kPh || m.kPh === 'fake'; },
+  step(m, d, p, dt){
+    const n = kNearest(m.x, m.y), near = n.a, nd = n.d;
+    if (!near){ m.state = 'patrol'; return; }
+    const ph = m.kPh || 'fake';
+    if (ph === 'fake'){
+      if (m.kSkin == null) impPickSkin(m);
+      m.kPh = 'fake'; m.state = 'patrol'; m.alert = 0; m.reveal = 0;
+      if ((nd < IMP_REVEAL && losClear(m.x, m.y, near.x, near.y)) || m.hp < m.hpMax - 0.5){ impReveal(m); return; }
+      m.think -= dt;
+      if (m.think <= 0 || Math.hypot(m.tx-m.x, m.ty-m.y) < 12){
+        m.think = 1.6 + Math.random()*2.4;
+        if (nd > 7*TILE){ m.tx = near.x; m.ty = near.y; }
+        else {
+          // Điểm ở CÙNG PHÍA với nó: đi vòng qua người chơi là tự lộ mặt.
+          const mx = m.x, my = m.y;
+          const at = kFloorNear(near.x, near.y, 3.2*TILE, 6*TILE, (x, y) => Math.hypot(x-mx, y-my) < nd);
+          if (at){ m.tx = at.x; m.ty = at.y; }
+        }
+      }
+      kWalkTo(m, d, m.tx, m.ty, IMP_WALK, dt, 4);
+      return;
+    }
+    if (ph === 'reveal'){
+      m.state = 'chase'; m.alert = 2.6;
+      m.dir = Math.atan2(near.y-m.y, near.x-m.x);
+      m.kT -= dt;
+      if (m.kT <= 0){ m.kPh = 'hunt'; m.kT2 = 0; }
+      return;
+    }
+    if (ph === 'hunt'){
+      m.state = 'chase'; m.alert = 2.6; m.target = near;
+      if ((m.swing || 0) <= 0) kWalkTo(m, d, near.x, near.y, m.speed, dt, FOE_STANDOFF);
+      kMelee(m, d, near, dt, nd);
+      if (nd > 14*TILE){ m.kT2 += dt; if (m.kT2 > 8){ m.kPh = 'fake'; m.kSkin = null; m.hp = m.hpMax; } }
+      else m.kT2 = 0;
+    }
+  },
+  draw(c, m){ drawImpostor(c, m); }
+});
+function impPickSkin(m){
+  const ids = [];
+  for (const a of crew()) if (a && a.charId && ids.indexOf(a.charId) < 0) ids.push(a.charId);
+  m.kSkin = ids.length ? ids[((Math.random()*ids.length)|0) % ids.length] : '';
+}
+function impReveal(m){
+  m.kPh = 'reveal'; m.kT = 0.55; m.state = 'chase'; m.alert = 2.6;
+  spawnVfx('alert-mark', m.x, m.y - 26, { scale:0.4, fps:14 });
+  if (S.player && Math.hypot(m.x-S.player.x, m.y-S.player.y) < 12*TILE){ SFX.sting(); fxShake(4); toast('Kẻ giả mạo lộ mặt!'); }
+}
+
+// ================================================================== vẽ
+// Hình: dải khung Soul Knight ô 48x48 neo giữa-đáy (art/foe/sk/<mã>.png, ghép bằng Tools/sk_foe_art.py
+// bên REPO_Topdown). Art SK không biết nhân vật quay mặt hướng nào: skFrame lật khi cos(dir) < 0; dải nào
+// vẽ quay trái thì thêm vào SK_FACE_LEFT.
+// Xác ướp dùng hình frankenstein, kẻ ném đầu dùng người bí ngô, con nít ranh dùng khỉ trộm, kẻ gài mìn
+// dùng bombman, kẻ giả mạo dùng hiệp sĩ đen (khi đã lộ mặt).
+const SK_CELL = 48, SK_FOE_K = 1.0;
+const SK_FACE_LEFT = {};
+const skFoeImg = {};
+const SK_HERE = (() => {
+  const s = document.currentScript;
+  return (s && s.src) ? s.src.replace(/[^/]*(\?.*)?$/, '') : 'games/repo2d/';
+})();
+function skImg(key){
+  let im = skFoeImg[key];
+  if (!im){ im = new Image(); im.src = SK_HERE + 'art/foe/sk/' + key + '.png?v=' + BUILD; skFoeImg[key] = im; }
+  return im.complete && im.naturalWidth > 0 ? im : null;
+}
+// Một khung của dải SK tại gốc toạ độ, chân ở y = 10. `cutTop` bỏ bớt phần trên (px nguồn).
+function skFrame(c, key, idx, faceDir, k, cutTop){
+  const im = skImg(key);
+  if (!im) return false;
+  k = k || SK_FOE_K; cutTop = cutTop || 0;
+  const n = Math.max(1, (im.naturalWidth / SK_CELL) | 0);
+  idx = ((idx % n) + n) % n;
+  const flip = (Math.cos(faceDir) < 0) !== !!SK_FACE_LEFT[key];
+  c.save();
+  c.imageSmoothingEnabled = false;
+  if (flip) c.scale(-1, 1);
+  const w = SK_CELL*k;
+  c.drawImage(im, idx*SK_CELL, cutTop, SK_CELL, SK_CELL - cutTop, -w/2, 10 - w + cutTop*k, w, w - cutTop*k);
+  c.restore();
+  return true;
+}
+function skWalkFrame(m, n, fps){
+  if (Math.hypot(m.vx || 0, m.vy || 0) < 4) return 0;
+  return Math.floor(S.time*fps + (m.wob || 0)) % n;
+}
+// Không có tấm hình (chưa nạp) thì vẽ một khối màu, để con quái không tàng hình.
+function skFallback(c, d){
+  c.fillStyle = d ? d.col : '#888';
+  c.beginPath(); c.arc(0, -4, 9, 0, Math.PI*2); c.fill();
+  c.fillStyle = d ? d.eye : '#fff';
+  c.fillRect(-4, -7, 3, 3); c.fillRect(1, -7, 3, 3);
+}
+function drawGhost(c, m){
+  const inWall = !!S.grid && solidAt((m.x/TILE)|0, (m.y/TILE)|0);
+  const a0 = c.globalAlpha;
+  c.globalAlpha = a0 * (inWall ? 0.45 : 0.85) * (0.9 + 0.1*Math.sin(S.time*3 + (m.wob || 0)));
+  const f = m.sleep > 0 ? 4 + Math.floor(S.time*8) % 5 : Math.floor(S.time*6 + (m.wob || 0)) % 4;
+  c.translate(0, Math.sin(S.time*2.2 + (m.wob || 0))*2 - 4);
+  if (!skFrame(c, 'ghost', f, m.dir)) skFallback(c, MONSTERS.ghost);
+  c.globalAlpha = a0;
+}
+function drawWallHand(c, m){
+  if (!m.kPh || m.kPh === 'gone') return;
+  const a0 = c.globalAlpha;
+  const ra = m.kPh === 'reach' || m.kPh === 'grab';
+  c.globalAlpha = a0 * (ra ? 1 : 0.28 + 0.14*Math.sin(S.time*2 + (m.wob || 0)));
+  c.save();
+  c.rotate(m.dir);
+  // Cổ tay nằm trong tường: dải vẽ bàn tay chĩa sang phải, nên lùi về sau nửa ô.
+  const reach = m.kPh === 'reach' ? clamp(1 - m.kT/HAND_WIND, 0, 1)*6 : m.kPh === 'grab' ? 6 : 0;
+  c.translate(-10 + reach, 14);
+  const f = ra ? 8 + Math.floor(S.time*10) % 8 : Math.floor(S.time*7 + (m.wob || 0)) % 8;
+  const im = skImg('wallhand');
+  if (im){
+    c.imageSmoothingEnabled = false;
+    c.drawImage(im, f*SK_CELL, 0, SK_CELL, SK_CELL, -SK_CELL/2, -SK_CELL + 10, SK_CELL, SK_CELL);
+  } else skFallback(c, MONSTERS.wallhand);
+  c.restore();
+  c.globalAlpha = a0;
+}
+function drawMummy(c, m){
+  if (m.kPh === 'shoot' || m.kPh === 'pull' || m.kPh === 'swing'){
+    c.save();
+    c.strokeStyle = 'rgba(226,214,180,0.9)'; c.lineWidth = 2.2;
+    c.beginPath(); c.moveTo(0, -12); c.lineTo(m.kX-m.x, m.kY-m.y); c.stroke();
+    c.strokeStyle = 'rgba(120,100,70,0.6)'; c.lineWidth = 1;
+    c.setLineDash([3, 4]);
+    c.beginPath(); c.moveTo(0, -12); c.lineTo(m.kX-m.x, m.kY-m.y); c.stroke();
+    c.setLineDash([]);
+    c.restore();
+  } else if (m.kPh === 'aim'){
+    const k = clamp(1 - m.kT/MUMMY_AIM, 0, 1);
+    c.save();
+    c.strokeStyle = 'rgba(226,214,180,' + (0.15 + k*0.45) + ')'; c.lineWidth = 1 + k;
+    c.setLineDash([4, 6]);
+    c.beginPath(); c.moveTo(0, -12); c.lineTo(Math.cos(m.dir)*MUMMY_RANGE, Math.sin(m.dir)*MUMMY_RANGE - 12); c.stroke();
+    c.setLineDash([]);
+    c.restore();
+  }
+  c.scale(1.2, 1.2);
+  const f = m.kPh === 'aim' ? 0 : skWalkFrame(m, 8, 7);
+  if (m.kPh === 'aim') c.translate((Math.random()-0.5)*1.5, 0);
+  if (!skFrame(c, 'mummy', f, m.dir)) skFallback(c, MONSTERS.mummy);
+}
+function drawSkWalker(c, m, key, f0, n, fps, still){
+  const f = still ? f0 : f0 + skWalkFrame(m, n, fps);
+  if (!skFrame(c, key, f, m.dir)) skFallback(c, MONSTERS[m.type]);
+}
+function drawHeadThrower(c, m){
+  const f = m.kPh === 'wind' ? 0 : skWalkFrame(m, 8, 8);
+  if (m.kPh === 'wind') c.translate(0, -Math.sin(clamp(1 - m.windT/HEAD_WIND, 0, 1)*Math.PI)*4);
+  const coDau = m.kHead !== false;
+  // Mất đầu: chỉ vẽ phần chân (14px dưới cùng của ô) cộng một cái cổ.
+  const ok = coDau ? skFrame(c, 'headthrower', f, m.dir) : skFrame(c, 'headthrower', f, m.dir, SK_FOE_K, SK_CELL - 14);
+  if (!ok) skFallback(c, MONSTERS.headthrower);
+  if (!coDau){ c.fillStyle = '#3a5a20'; c.fillRect(-2, -7, 4, 4); }
+}
+function drawImpostor(c, m){
+  const fake = !m.kPh || m.kPh === 'fake' || (m.kPh === 'reveal' && Math.floor(S.time*14) % 2 === 0);
+  if (fake && m.kSkin && window.REPO_SKIN){
+    const a = m.kMask || (m.kMask = { id:1, hurt:0 });
+    a.charId = m.kSkin; a.x = m.x; a.y = m.y; a.dir = m.dir; a.hurt = (m.flash || 0) > 0 ? 0.3 : 0;
+    if (REPO_SKIN.crew(c, a, false)) return;
+  }
+  if (!skFrame(c, 'impostor', skWalkFrame(m, 8, 9), m.dir)) skFallback(c, MONSTERS.impostor);
+}
+// Trên sàn: mìn và khí độc. Vẽ ở lớp thế giới, dưới quái.
+function drawFoeKindFloor(c){
+  for (const g of (S.gas || [])){
+    const r = gasR(g), k = clamp(g.life / Math.min(1.2, g.life0), 0, 1);
+    const gr = c.createRadialGradient(g.x, g.y, 2, g.x, g.y, r);
+    gr.addColorStop(0, 'rgba(120,200,80,' + (0.42*k) + ')');
+    gr.addColorStop(0.7, 'rgba(90,170,60,' + (0.26*k) + ')');
+    gr.addColorStop(1, 'rgba(80,150,50,0)');
+    c.fillStyle = gr; c.fillRect(g.x-r, g.y-r, r*2, r*2);
+    c.fillStyle = 'rgba(170,240,120,' + (0.35*k) + ')';
+    for (let i = 0; i < 5; i++){
+      const a = S.time*0.6 + i*1.26, rr = r*(0.3 + 0.12*i);
+      c.beginPath(); c.arc(g.x + Math.cos(a)*rr, g.y + Math.sin(a)*rr*0.7, 2 + i*0.4, 0, Math.PI*2); c.fill();
+    }
+  }
+  for (const mi of (S.mines || [])){
+    c.fillStyle = 'rgba(0,0,0,0.4)';
+    c.beginPath(); c.ellipse(mi.x, mi.y + 2, 6, 3, 0, 0, Math.PI*2); c.fill();
+    c.fillStyle = '#3c3a32';
+    c.beginPath(); c.arc(mi.x, mi.y, 5, 0, Math.PI*2); c.fill();
+    c.strokeStyle = '#6a6452'; c.lineWidth = 1; c.stroke();
+    const on = mi.t < MINE_ARM || Math.floor(S.time*2.2 + mi.x) % 2 === 0;
+    c.fillStyle = mi.t < MINE_ARM ? '#ffd060' : on ? '#ff3a2a' : '#5a1a14';
+    c.fillRect(mi.x - 1.2, mi.y - 1.2, 2.4, 2.4);
+  }
+}
+// Đầu bí ngô trên sàn/trên tay: nảy tưng tưng khi đang lăn, vòng ngòi nhấp nháy nhanh dần.
+function drawHeadBomb(c, l){
+  const v = Math.hypot(l.vx, l.vy);
+  const hop = l.held ? 0 : Math.abs(Math.sin(S.time*11 + (l.bob || 0))) * Math.min(10, v/30);
+  c.save(); c.translate(l.x, l.y);
+  c.fillStyle = 'rgba(0,0,0,0.4)';
+  c.beginPath(); c.ellipse(0, 6, 8, 3.5, 0, 0, Math.PI*2); c.fill();
+  c.translate(0, -hop);
+  if (!skFrame(c, 'headthrower', 8, 0, 0.8)){
+    c.fillStyle = '#e07a20'; c.beginPath(); c.arc(0, 0, 8, 0, Math.PI*2); c.fill();
+  }
+  const ph = Math.sin(S.time*(l.fuse < 1.2 ? 22 : 9))*0.5 + 0.5;
+  c.strokeStyle = 'rgba(255,' + ((120 + ph*90)|0) + ',60,' + (0.45 + ph*0.4) + ')';
+  c.lineWidth = 1.5;
+  c.beginPath(); c.arc(0, -2, 11 + ph*3, 0, Math.PI*2); c.stroke();
+  c.restore();
+}
+// HUD: hai nút vùng vẫy + thanh giằng khi bị bàn tay chụp. Toạ độ HUD (hudLayout).
+function drawStruggle(c, hud, K){
+  const p = S.player;
+  if (!p || p.grabBy !== 1) return;
+  const r = 44*K, y = hud.h*0.6;
+  const pulse = Math.sin(S.time*12)*0.5 + 0.5;
+  const lab = [hud.pc ? 'A' : '<', hud.pc ? 'D' : '>'];
+  for (let i = 0; i < 2; i++){
+    const x = i === 0 ? hud.w*0.16 : hud.w*0.84;
+    const next = (i === 0 ? -1 : 1) !== p.strSide;
+    c.fillStyle = next ? 'rgba(190,120,255,' + (0.35 + pulse*0.25) + ')' : 'rgba(60,40,80,0.45)';
+    c.beginPath(); c.arc(x, y, r, 0, Math.PI*2); c.fill();
+    c.strokeStyle = 'rgba(240,220,255,0.85)'; c.lineWidth = 2.5; c.stroke();
+    c.font = '700 ' + ((30*K)|0) + 'px ui-monospace, monospace';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#fff'; c.fillText(lab[i], x, y + 1);
+  }
+  const bw = Math.min(260*K, hud.w*0.5), bh = 12*K, bx = hud.w/2 - bw/2, by = hud.h*0.28;
+  c.fillStyle = 'rgba(10,8,14,0.75)'; c.fillRect(bx-3, by-3, bw+6, bh+6);
+  c.fillStyle = '#b070ff'; c.fillRect(bx, by, bw*clamp(p.struggle || 0, 0, 1), bh);
+  c.font = '700 ' + ((13*K)|0) + 'px ui-monospace, monospace';
+  c.textAlign = 'center'; c.textBaseline = 'bottom';
+  c.fillStyle = '#f0e0ff'; c.fillText('GIẰNG RA! bấm luân phiên', hud.w/2, by - 6);
+  c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+}
+
 // ============================================================ monsters
 // Doc B3: each monster is four properties — how it detects, how it moves, what it does,
 // and what the player can do about it.
@@ -1418,6 +2520,10 @@ const MONSTERS = {
                             ['Nhả lại', 'toàn bộ đồ trong rương']],
              wiki:'CHIÊU: GIẢ LÀM RƯƠNG. Nó KHÔNG có sẵn trong nhà — mọi con Rương răng đều là một cái rương ai đó vừa mở. Nhìn từ ngoài không phân biệt được, và đó là cả thiết kế: cái giá của việc mở rương là bạn không biết mình đang mở cái gì. Nhảy ra là nó đuổi, nhanh hơn bạn đi bộ nhưng chậm hơn bạn chạy. Hạ được thì nó nhả lại ĐÚNG số đồ mà cái rương ấy đang giữ — nên nó vừa là hình phạt vừa là phần thưởng.' }
 };
+// Ải 5 nhà: bảy loài mới, hành vi ở FOE_KINDS. Chúng chỉ vào nhà qua danh sách của từng nhà (AI.roster)
+// — xem stockFrom, lượt bốc ngẫu nhiên của trang repo2d cũ không bao giờ bốc tới chúng.
+addFoeKinds(MONSTERS);
+
 // Parsed once: the additive highlight pass needs these as numbers every frame.
 for (const k in MONSTERS){
   const hex = MONSTERS[k].eye;
@@ -1492,6 +2598,7 @@ function separateFoes(){
     // A rook mid-dash cannot steer and does not stop for bodies - it rams them. Nudging it here
     // would bend the one straight line its whole design is built on.
     if (a.rook === 'dash' || b.rook === 'dash') continue;
+    if (foeUnpushable(a) || foeUnpushable(b) || foeAbsent(a) || foeAbsent(b)) continue;   // hồn ma, bàn tay
     let dx = b.x-a.x, dy = b.y-a.y, d = Math.hypot(dx, dy);
     if (d >= want) continue;
     if (d < 0.01){ dx = (i & 1) ? 1 : 0; dy = (i & 1) ? 0 : 1; d = 1; }
@@ -1504,7 +2611,7 @@ function separateFoes(){
 function foeSeparation(m){
   let sx = 0, sy = 0;
   for (const o of S.monsters){
-    if (o === m) continue;
+    if (o === m || foeUnpushable(o) || foeAbsent(o)) continue;
     const dx = m.x-o.x, dy = m.y-o.y;
     const d = Math.hypot(dx, dy);
     if (d >= FOE_SEP_R) continue;
@@ -1641,7 +2748,8 @@ function stockFrom(pool, rnd){
   // MIMIC bị loại khỏi mọi lượt bốc, và đó là điều kiện để nó còn là mimic: nó không phải thứ
   // căn nhà CHỨA, nó là thứ một cái rương TRỞ THÀNH. Một con Rương răng đứng sẵn giữa phòng từ
   // đầu ván thì chỉ là một con quái hình cái hộp.
-  const rest = pool.filter(k => k !== STOCK_ALWAYS && k !== STOCK_NEVER && k !== MIMIC_KIND);
+  // Loài của ải 5 nhà (FOE_KINDS) cũng bị loại: chúng thuộc về danh sách soạn sẵn của từng nhà.
+  const rest = pool.filter(k => k !== STOCK_ALWAYS && k !== STOCK_NEVER && k !== MIMIC_KIND && !FOE_KINDS[k]);
   for (let i = rest.length-1; i > 0; i--){ const j = (rnd()*(i+1))|0; [rest[i],rest[j]] = [rest[j],rest[i]]; }
   const picked = [STOCK_ALWAYS].concat(rest).slice(0, FOES_MAX);
   // Shuffled again so the Rook is not always the one on the first authored post, which is the post
@@ -1686,6 +2794,93 @@ function rosterForLevel(lv, rnd){
 function rosterHas(kind){ return (S.roster || []).indexOf(kind) >= 0; }
 // The roster minus the two things that are not bodies: what actually gets built into S.monsters.
 function bodyKinds(roster){ return (roster || []).filter(k => !!MONSTERS[k]); }
+
+// ============================================================ ải 5 nhà
+// Chép ngược từ bản Unity (REPO_Topdown, StageData/StageRules, 2026-09-14). Chủ dự án bỏ 9 map mở
+// khoá dần: Biệt Đội chỉ còn MỘT ải = 5 căn nhà khó dần, qua nhà cuối là thắng ca, ca sau lại từ nhà 1.
+// Tiến bộ nằm ở nhân vật chứ không nằm ở ải.
+//
+// Mỗi nhà KHÔNG viết lại đường cong độ khó: nó chọn một `mucDo` (S.level cũ, 1..20) để chỉ tiêu, trần
+// loot, số bệ, bẫy vẫn là đường cong đã cân — rồi nhân thêm hệ số riêng của nhà. Hệ số 1 và `quai`
+// rỗng là giữ nguyên bộ máy.
+//
+// Nhà 0 = không chơi trong ải (trang repo2d cũ, bài kiểm cũ): mọi hàm dưới đây trả giá trị trung tính,
+// nên trang ấy chạy y như trước. Chỉ Biệt Đội gắn HOOKS.houseIndex.
+//
+// Quái MỞ DẦN: nhà 1 con nít ranh; nhà 2 kẻ gài mìn + hồn ma; nhà 3 kẻ ném đầu + bàn tay; nhà 4 xác
+// ướp + kẻ giả mạo; nhà 5 đủ cả. `kieuNha` 17..21 = năm theme Soul Knight trong FLOOR_STYLE.
+// `vatLieu` = tỉ trọng gốm, gỗ, kim loại (thứ tự MATERIALS).
+const AI_5_NHA = {
+  ten: 'Ca Trực Đêm',
+  thuongVang: 1800, thuongNgoc: 30,      // mỗi lần thắng ca
+  lanDauVang: 3000, lanDauNgoc: 300,     // thêm cho lần thắng đầu tiên
+  nha: [
+    { ten:'Nhà rừng',  mucDo:1,  kieuNha:17, vatLieu:[1,3,1], soBun:2,
+      quai:['banger','brat','angel'] },
+    { ten:'Nhà băng',  mucDo:3,  kieuNha:18, vatLieu:[3,1,1], tiaMul:1.5,
+      quai:['banger','gnome','minelayer','ghost','angel'] },
+    { ten:'Di tích',   mucDo:6,  kieuNha:19, vatLieu:[1,1,3], giaTriMul:1.2, gaiMul:1.5, soDoc:1,
+      quai:['rook','gnome','headthrower','wallhand','banger','angel'], hpMul:1.15, dmgMul:1.1 },
+    { ten:'Đầm lầy',   mucDo:10, kieuNha:20, vatLieu:[1,2,1], soBun:4, soDoc:2,
+      quai:['rook','gunner','mummy','impostor','brat','gnome','angel'], soQuai:7, hpMul:1.3, dmgMul:1.2 },
+    { ten:'Hầm tối',   mucDo:15, kieuNha:21, vatLieu:[2,1,2], giaTriMul:1.3, gaiMul:1.5, tiaMul:1.5, soDoc:2,
+      quai:['rook','gunner','mummy','headthrower','wallhand','impostor','ghost','minelayer','mirror','angel'],
+      soQuai:10, hpMul:1.5, dmgMul:1.35 }
+  ]
+};
+const AI = {
+  data: AI_5_NHA,
+  count(){ return AI_5_NHA.nha.length; },
+  // nhà thứ n (1-based), kẹp vào [1, count]; null khi n < 1
+  house(n){ return n >= 1 ? AI_5_NHA.nha[Math.min(AI.count(), Math.floor(n)) - 1] : null; },
+  engineLevel(n){ const h = AI.house(n); return h ? clamp(h.mucDo || 1, 1, 20) : 1; },
+  pos(v){ return v > 0 ? v : 1; },
+  hpMul(n){ const h = AI.house(n); return AI.pos(h && h.hpMul); },
+  dmgMul(n){ const h = AI.house(n); return AI.pos(h && h.dmgMul); },
+  quotaMul(n){ const h = AI.house(n); return AI.pos(h && h.chiTieuMul); },
+  lootValueMul(n){ const h = AI.house(n); return AI.pos(h && h.giaTriMul); },
+  spikeMul(n){ const h = AI.house(n); return h && h.gaiMul >= 0 ? h.gaiMul : 1; },
+  beamMul(n){ const h = AI.house(n); return h && h.tiaMul >= 0 ? h.tiaMul : 1; },
+  poisonPools(n){ const h = AI.house(n); return Math.max(0, (h && h.soDoc) || 0); },
+  mudPools(n){ const h = AI.house(n); return Math.max(0, (h && h.soBun) || 0); },
+  pads(n){ const h = AI.house(n); return h && h.soBe > 0 ? h.soBe : null; },
+  theme(n){ const h = AI.house(n); return h && h.kieuNha >= 0 ? h.kieuNha : null; },
+  // danh sách loài đã nhân đủ `soQuai` chỗ (xoay vòng theo thứ tự), hoặc null để bộ máy tự bốc
+  roster(n){
+    const h = AI.house(n);
+    const kinds = h && h.quai ? h.quai.filter(Boolean) : [];
+    if (!kinds.length) return null;
+    const total = h.soQuai > 0 ? h.soQuai : kinds.length;
+    const r = [];
+    for (let i = 0; i < total; i++) r.push(kinds[i % kinds.length]);
+    return r;
+  },
+  // Chỉ số vào MATERIALS theo tỉ trọng của nhà. `roll` là số đã rút sẵn — hàm không tự rút, để chuỗi
+  // ngẫu nhiên của căn nhà giữ nguyên dù nhà có cấu hình tỉ trọng hay không.
+  lootMaterial(n, roll, count){
+    const h = AI.house(n), w = h && h.vatLieu;
+    if (!w || !w.length || count <= 0) return null;
+    const W = i => (i < w.length && w[i] > 0) ? w[i] : 0;
+    let sum = 0;
+    for (let i = 0; i < count; i++) sum += W(i);
+    if (sum <= 0) return null;
+    let at = roll * sum, last = -1;
+    for (let i = 0; i < count; i++){
+      const wi = W(i);
+      if (wi <= 0) continue;
+      last = i;
+      if (at < wi) return i;
+      at -= wi;
+    }
+    return last;
+  },
+  // "Nhà 3/5" trong ải, "Màn 6" ngoài ải
+  label(house, level){
+    return house >= 1 ? 'Nhà ' + Math.min(AI.count(), Math.floor(house)) + '/' + AI.count() : 'Màn ' + level;
+  }
+};
+function levelLabel(){ return AI.label(S.house || 0, S.level); }
+function houseText(){ return S.house >= 1 ? Math.floor(S.house) + '/' + AI.count() : String(S.level); }
 
 // ============================================================ shop
 // The source game's Service Station rolls a DIFFERENT stock every visit, split into two
@@ -1809,6 +3004,7 @@ function handDef(p, h){
 // dung do. Mot cua vao cho ca hai, vi tren man hinh chung LA mot nut.
 function handUse(p, ang){
   if (!p) return false;
+  if (chanKhiBiGiu(p)) return false;   // bị bàn tay chụp / tơ kéo
   const h = handNow(p);
   if (h < 0){
     // ĐANG ÔM ĐỒ THÌ NẮM ĐẤM LÀ CÚ NÉM. Không thêm một nút nào, và không lấy đi thứ gì: ô đồ
@@ -2601,6 +3797,7 @@ function doorBlockedTile(gx, gy){
 // ============================================================ state
 const S = {
   seed: 0, level: 1, wallet: 0,
+  house: 0,             // ải 5 nhà: nhà thứ mấy (1-based), 0 = ngoài ải — xem AI
   grid: null, rooms: [], segs: [], explored: null,
   worldCv: null,
   loot: [], monsters: [], pads: [], bullets: [], bombs: [], corpses: [],
@@ -2671,6 +3868,7 @@ function buildLevel(seed){
   S.grid = new Uint8Array(MW*MH);
   S.explored = new Uint8Array(MW*MH);
   S.rooms = []; S.loot = []; S.monsters = []; S.pads = [];
+  S.mines = []; S.gas = [];              // mìn của kẻ gài mìn, khí độc của đầu bí ngô — xem FOE_KINDS
   S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.bikes = []; S.casts = []; S.vfx = [];
   S.gach = []; S.tuongVo = null;         // nhà mới thì bức tường của nó chưa bị ai húc
   S.bay = []; S.ruong = [];              // và chưa có cái bẫy nào bị giẫm, chưa cái rương nào bị mở
@@ -2698,7 +3896,8 @@ function buildLevel(seed){
   // WHY it draws from a stream of its own rather than from `rnd`: `rnd` lays out this whole house,
   // and taking three numbers out of the front of it would move every wall, every valuable and every
   // door in every seeded house the tests pin.
-  S.roster = rosterForLevel(S.level, mulberry32(seed ^ 0x2f7a1c3d));
+  // Nhà trong ải có danh sách quái riêng thì dùng danh sách ấy (AI.roster).
+  S.roster = AI.roster(S.house || 0) || rosterForLevel(S.level, mulberry32(seed ^ 0x2f7a1c3d));
   S.esc = null;           // căn nhà chưa trở mặt; startEscape() dựng cái này lúc chốt bệ cuối
   S.respawns = [];        // bodies the house owes you back, each with its own clock
   S.foeDrops = 0;         // how many times something has dropped money in this house
@@ -2718,7 +3917,11 @@ function buildLevel(seed){
   // giong nhau nhin thay ngay tu phong dau — hai man lien tiep trung theme la nguoi choi doc
   // ra "van con o man cu".
   const bai = KHO_THEME.filter(k => k !== themeTruoc);
-  const theme = bai[(rnd()*bai.length)|0];
+  let theme = bai[(rnd()*bai.length)|0];
+  // ẢI 5 NHÀ: nhà có kiểu cố định thì dùng kiểu đó. Vẫn rút `rnd` ở trên để mọi thứ dựng sau (tường,
+  // loot, cửa) giữ nguyên chuỗi số — nhà cấu hình kiểu hay không thì bố cục vẫn theo hạt giống.
+  const kieuAi = AI.theme(S.house || 0);
+  if (kieuAi != null && kieuAi < FLOORS.length) theme = kieuAi;
   themeTruoc = theme;
   const themeDa = kieuDa(theme);
   // GIU RIENG MOT LA DA cho mau ham mo TRUOC KHI chia.
@@ -2935,7 +4138,7 @@ function buildLevel(seed){
   // ROOT-CAUSE this fixes: loot spawned in the truck room was free money you could bank
   // without entering the house, and loot spawned in a pad's room turned that pad's quota into
   // a walk of three metres. Both hollow out the haul the whole game is built on.
-  const padCount = padsForLevel(S.level);
+  const padCount = AI.pads(S.house || 0) || padsForLevel(S.level);
   const roomAt = (cx,cy) => (cx<0||cy<0||cx>=GX||cy>=GY) ? -1 : cy*GX+cx;
   const roomPoint = ri => {
     const r = S.rooms[ri];
@@ -3038,8 +4241,11 @@ function buildLevel(seed){
     if (sizeIdx === 2 && capBig >= cap.big) sizeIdx = 1;
     if (sizeIdx === 1 && capMed >= cap.med) sizeIdx = 0;
     const size = SIZES[sizeIdx];
-    const mat  = MATERIALS[ (rnd()*MATERIALS.length)|0 ];
-    const v0   = Math.round(mix(size.vmin, size.vmax, rnd()) / 50) * 50;
+    const matRoll = rnd();
+    // Ải 5 nhà: nhà có tỉ trọng chất liệu riêng (rừng nhiều gỗ, băng nhiều gốm...). Cùng một số rút.
+    const matAi = AI.lootMaterial(S.house || 0, matRoll, MATERIALS.length);
+    const mat  = MATERIALS[ matAi != null ? matAi : (matRoll*MATERIALS.length)|0 ];
+    const v0   = Math.round(mix(size.vmin, size.vmax, rnd()) * AI.lootValueMul(S.house || 0) / 50) * 50;
     // The value ceiling stops the level dead — the last piece is allowed to cross it, so a house
     // is never one crate short of its own cap on a rounding accident.
     if (capValue >= cap.value) break;
@@ -3057,7 +4263,7 @@ function buildLevel(seed){
   // hơn hẳn: ba người kia còn mang thêm tay khuân và chia lửa với quái.
   const crewN = clamp(1 + (S.crewOn ? hookMateCount() : 0), 1, 8);
   const crewMul = 0.4 + 0.15 * Math.min(crewN, 4);
-  S.quotaTotal = Math.round(totalValue * QUOTA_FACTOR * difficultyCurve(S.level) * crewMul);
+  S.quotaTotal = Math.round(totalValue * QUOTA_FACTOR * difficultyCurve(S.level) * crewMul * AI.quotaMul(S.house || 0));
   const per = Math.round(S.quotaTotal / Math.max(1, S.pads.length));
   S.pads.forEach(p => { p.quota = per; });
 
@@ -3128,7 +4334,7 @@ function buildLevel(seed){
   prerenderWorld(mulberry32(seed ^ 0x9e3779b9));
   prerenderMinimap();
   S.time = 0;
-  toast('Màn ' + S.level + ' — cần ' + money(S.quotaTotal) + ' qua ' + S.pads.length + ' bệ');
+  toast(levelLabel() + ' — cần ' + money(S.quotaTotal) + ' qua ' + S.pads.length + ' bệ');
 }
 
 // ĐẶT BẪY VÀ RƯƠNG. Chạy SAU khi chỉ tiêu đã chốt, và đó là một quyết định chứ không phải thứ
@@ -3141,11 +4347,16 @@ function buildLevel(seed){
 //     trong một căn phòng bịt kín.
 function datBayVaRuong(rnd, reach){
   S.bay = []; S.ruong = [];
-  if (S.level < BAY_TU_MAN) return;
+  // Ải 5 nhà: vũng độc/bùn theo theme có cả ở nhà mức độ 1; gai/tia/rương vẫn chỉ từ BAY_TU_MAN.
+  // Không có vũng và chưa tới mức có bẫy thì trả về sớm như cũ — giữ nguyên chuỗi `rnd`.
+  const house = S.house || 0;
+  const soDoc = AI.poisonPools(house), soBun = AI.mudPools(house);
+  const coBayCu = S.level >= BAY_TU_MAN;
+  if (!coBayCu && !soDoc && !soBun) return;
   const k = clamp((S.level - BAY_TU_MAN) / 6, 0, 1);        // dày lên dần theo màn
-  const soGai   = Math.round(mix(GAI_SO[0],   GAI_SO[1],   k));
-  const soTia   = Math.round(mix(TIA_SO[0],   TIA_SO[1],   k));
-  const soRuong = Math.round(mix(RUONG_SO[0], RUONG_SO[1], k));
+  const soGai   = coBayCu ? Math.round(mix(GAI_SO[0],   GAI_SO[1],   k) * AI.spikeMul(house)) : 0;
+  const soTia   = coBayCu ? Math.round(mix(TIA_SO[0],   TIA_SO[1],   k) * AI.beamMul(house)) : 0;
+  const soRuong = coBayCu ? Math.round(mix(RUONG_SO[0], RUONG_SO[1], k)) : 0;
 
   const oTrong = [];
   for (let gy=1; gy<MH-1; gy++) for (let gx=1; gx<MW-1; gx++){
@@ -3178,6 +4389,10 @@ function datBayVaRuong(rnd, reach){
     if (!o) break;
     S.bay.push(makeGai(o.x, o.y));
   }
+
+  // Vũng theo theme — đặt sau gai, trước tia, cách mọi thứ ít nhất hai ô rưỡi.
+  for (let i = 0; i < soDoc; i++){ const o = lay(TILE*2.6); if (!o) break; S.bay.push(makeDoc(o.x, o.y)); }
+  for (let i = 0; i < soBun; i++){ const o = lay(TILE*2.6); if (!o) break; S.bay.push(makeBun(o.x, o.y)); }
 
   // BẪY LASER cần MỘT ĐOẠN TRỐNG, không phải một ô trống: hai cây cột và cả quãng giữa chúng
   // đều phải nằm trên sàn đi được, nếu không thì cái tia cắm xuyên qua tường và người chơi
@@ -3436,11 +4651,12 @@ function makeLoot(x,y,size,mat,v0){
 // o hurtPlayer(), ket qua la o man cuoi mot don van khong giet duoc ban tu day mau - nhung
 // don thu hai thi co, va khoang cach giua hai don ay chinh la thu bi bop lai dan.
 const FOE_DMG_PER_LEVEL = 0.05;
-function foeDmgScale(){ return 1 + Math.max(0, (S.level || 1) - 1) * FOE_DMG_PER_LEVEL; }
+function foeDmgScale(){ return (1 + Math.max(0, (S.level || 1) - 1) * FOE_DMG_PER_LEVEL) * AI.dmgMul(S.house || 0); }
 
 function makeMonster(type,x,y){
   const d = MONSTERS[type];
-  return { type, x, y, hp:d.hp, hpMax:d.hp,
+  const hpAi = d.hp * AI.hpMul(S.house || 0);      // ải 5 nhà: nhà sau quái trâu hơn
+  return { type, x, y, hp:hpAi, hpMax:hpAi,
            dmg: Math.round(d.dmg * foeDmgScale()), speed:d.speed, dir:0,
            state:'patrol', tx:x, ty:y, think:0, alert:0, hit:0, home:{x,y}, wob:Math.random()*7,
            sleep:0, kx:0, ky:0, vx:0, vy:0, flash:0,
@@ -3455,7 +4671,9 @@ function makeMonster(type,x,y){
            stompT: 0,                    // Kẻ húc: bụi của cú giậm chân vừa rồi
            planted: false,               // Bom con: đã áp sát và cắm chân xuống đếm ngược
            chaseT: 0, tired: 0,          // đuổi bao lâu rồi, và mệt tới đâu (0..1)
-           guardA: Math.random()*Math.PI*2 };    // its own place on the ring around the truck
+           guardA: Math.random()*Math.PI*2,      // its own place on the ring around the truck
+           // ải 5 nhà: trạng thái chung của FOE_KINDS (pha, hai đồng hồ, điểm phụ, người/đồ đang giữ...)
+           kPh: null, kT: 0, kT2: 0, kX: 0, kY: 0, kWall: -1, kVictim: null, kLoot: null, kSkin: null, kHead: true, kPopT: 0 };
 }
 function makeCart(x,y){
   return { x, y, r:CART_R, items:[], held:false, holder:null, mode:'strong',
@@ -3541,7 +4759,14 @@ const FLOORS = [
   { base:[154, 87, 68], alt:[162, 93, 74], phong:5 },   // 13 thu phong   - go xuong ca
   { base:[154, 87, 84], alt:[162, 93, 90], phong:6 },   // 14 tiem tap hoa- gach do
   { base:[222,216,160], alt:[228,222,168], phong:7 },   // 15 lop hoc     - gach men kem
-  { base:[160,166,170], alt:[166,172,176], phong:8 }    // 16 bo hoang    - be tong
+  { base:[160,166,170], alt:[166,172,176], phong:8 },   // 16 bo hoang    - be tong
+  // 17..21 — ải 5 nhà: sàn/tường theme Soul Knight (art/room/sk, xem phong.js). Màu là màu trung
+  // bình đo từ dải sàn, dùng khi ảnh chưa nạp — cùng luật với 8..16 ở trên.
+  { base:[112, 78, 44], alt:[120, 84, 48], phong:9 },   // 17 rung       - dat rung
+  { base:[158,182,208], alt:[164,188,214], phong:10 },  // 18 bang       - bang tuyet
+  { base:[150,112, 60], alt:[158,118, 64], phong:11 },  // 19 di tich    - gach cat
+  { base:[ 22, 70, 80], alt:[ 26, 76, 86], phong:12 },  // 20 dam lay    - nuoc dam
+  { base:[ 72, 60, 66], alt:[ 78, 64, 70], phong:13 }   // 21 ham toi    - da ham
 ];
 // Chọn lại mặt tường, 2026-08-31. Bốn màu cũ nằm gọn trong khoảng sáng 74..84/255 — chênh nhau
 // 10 mức trên 255, tức là mắt không phân biệt nổi, và sau khi lớp tối NHÂN lên thì cả bốn ra
@@ -3592,7 +4817,13 @@ const WALLS = [
   [168, 91, 63], // 13 go do          (thu phong)
   [239,226,156], // 14 tuong kem      (tiem tap hoa)
   [171,174,190], // 15 xam lam        (lop hoc)
-  [145,105, 86]  // 16 go vua         (bo hoang)
+  [145,105, 86], // 16 go vua         (bo hoang)
+  // 17..21 — ải 5 nhà (theme Soul Knight): màu dự phòng khi ảnh tường chưa nạp
+  [128, 96, 62], // 17 rung
+  [176,196,220], // 18 bang
+  [170,134, 84], // 19 di tich
+  [ 58, 96, 88], // 20 dam lay
+  [100, 84, 90]  // 21 ham toi
 ];
 // LỚP THẾ GIỚI VẼ Ở ĐỘ PHÂN GIẢI GẤP ĐÔI, 2026-09-03 — "làm sao cho chi tiết + rõ nét nhất".
 //
@@ -4417,7 +5648,8 @@ function prerenderMinimap(){
 }
 
 // ============================================================ visibility
-function visPoly(ox,oy,R,uniform){
+function visPoly(ox,oy,R,uniform,segs){
+  // `segs` có = chỉ những đoạn biên này chặn (wallSegs: tường, bỏ đồ đạc) — lớp đèn dùng, luật thì không.
   const local = [];
   // Closed doors join the wall list for this frame. Without this the lighting would pour straight
   // through a shut door while every sight TEST said it was blocked — the rule would be real and
@@ -4430,7 +5662,7 @@ function visPoly(ox,oy,R,uniform){
       g.cua = 1;                                  // đánh dấu để lipInto biết đây là cánh cửa, không phải tường
       shut.push(g);
     }
-  for (const s of S.segs.concat(shut)){
+  for (const s of (segs || S.segs).concat(shut)){
     if (s.minX>ox+R || s.maxX<ox-R || s.minY>oy+R || s.maxY<oy-R) continue;
     local.push(s);
   }
@@ -4694,6 +5926,7 @@ function grabRange(p){ return (1.9 + S.upg.range*0.55) * TILE; }
 function damageLoot(l, impulse){
   if (l.gone) return 0;
   if (l.isHead) return 0;            // a colleague does not lose value by being dropped
+  if (l.headBomb) return 0;          // đầu bí ngô không vỡ, nó nổ theo ngòi
   if (l.shopGoods) return 0;         // stock on a shop floor is not yours to break yet
   // Being in the cart is a STATE of the loot, not a property of the collision that happened to
   // it, so the guard sits at the damage entry point: a bomb blast or a monster swipe cannot
@@ -4819,6 +6052,7 @@ function throwHeld(p, ang){
   if (!p || !p.held || p.down || S.dead || !S.running) return false;
   if (p.riding) return false;                  // hai tay đang giữ ghi đông — xem useSlot()
   if ((p.stunT || 0) > 0) return false;
+  if (chanKhiBiGiu(p)) return false;   // bị bàn tay chụp / tơ kéo
   if ((p.swingCd || 0) > 0) return false;
   const l = p.held;
   if (ang != null) p.dir = ang;
@@ -4853,6 +6087,8 @@ function throwStrike(l){
   for (const m of foesAll()){
     if (!m || typeof m.hp !== 'number' || m.hp <= 0) continue;
     if (Math.hypot(m.x - l.x, m.y - l.y) > l.r + foeBody(m) + 2) continue;
+    if (foeAbsent(m)) continue;
+    if (l.headBomb){ headBoom(l); return; }    // ném đầu bí ngô trúng quái là nổ ngay
     const n = l.isHead ? 0 : throwDamage(l, spd);
     if (n > 0) foeHit(m, n, ang, 80 + n*1.3);
     else { m.alert = 3; m.flash = 0.12; }        // cái đầu đồng đội không phải vũ khí, xem dưới
@@ -4927,6 +6163,7 @@ function holdInFront(o, dt, wantD, radius){
 function stepLoot(l, dt){
   if (l.gone) return;
   if (l.inCart) return;                                 // the cart carries it; see stepCart
+  if (l.foeCarry) return;                               // con nít ranh đang ôm
   if (l.held){
     const impulse = holdInFront(l, dt, l.r + 12, l.r);
     if (impulse > 0) damageLoot(l, impulse);
@@ -5161,6 +6398,7 @@ function bikeCrash(p, b){
 
 function pickUp(p){
   if (p.down) return cycleSpectate();  // a head on the floor has nothing to grab with — it watches
+  if (chanKhiBiGiu(p)) return false;   // bị bàn tay chụp / tơ kéo
   if (p.riding){ dismountBike(p); return true; }
   if (p.pushing){ releaseCart(p); return true; }
   if (p.held){ dropHeld(p); return true; }
@@ -5270,6 +6508,12 @@ function makeTia(x, y, x2, y2, rnd){
 function makeRuong(x, y, laMimic, so){
   return { x, y, r:RUONG_R, mo:false, mimic:!!laMimic, so: so, t:0 };
 }
+// Ải 5 nhà: hai bẫy theo theme. Không có nhịp báo như gai — cả hai nằm lộ trên sàn, đọc được khi
+// rọi đèn, và cái giá là đi vòng (đường dài hơn khi đang vác đồ) chứ không phải phản xạ.
+const DOC_R = TILE*1.1, DOC_TICK = 0.6, DOC_DMG = 4;
+const BUN_R = TILE*1.3, BUN_GIU = 0.25;
+function makeDoc(x, y){ return { loai:'doc', x, y, r:DOC_R, pha:'bat', t:0 }; }
+function makeBun(x, y){ return { loai:'bun', x, y, r:BUN_R, pha:'bat', t:0 }; }
 
 // Khoảng cách từ một điểm tới một ĐOẠN thẳng. Tia laser là một đoạn, không phải một đường:
 // đứng thẳng hàng nhưng ở NGOÀI hai cây cột thì không dính, và đó là chỗ người chơi nấp.
@@ -5289,8 +6533,24 @@ function stepBay(dt){
   const quai = S.monsters.filter(m => m.sleep <= 0 && m.hp > 0);
   for (const b of S.bay){
     if (b.loai === 'gai') stepGai(b, dt, nguoi, quai);
+    else if (b.loai === 'doc') stepDoc(b, dt, nguoi);
+    else if (b.loai === 'bun') stepBun(b, nguoi, quai);
     else stepTia(b, dt, nguoi, quai);
   }
+}
+
+// Vũng độc: mỗi DOC_TICK giây, ai đứng trong mất DOC_DMG máu. Quái không bị — độc là của căn nhà,
+// không phải vũ khí.
+function stepDoc(b, dt, nguoi){
+  b.t += dt;
+  if (b.t < DOC_TICK) return;
+  b.t -= DOC_TICK;
+  for (const a of nguoi) if (Math.hypot(a.x-b.x, a.y-b.y) <= b.r) hurtActor(a, DOC_DMG, 'doc', b.x, b.y);
+}
+// Vũng bùn: ai đứng trong bị chậm (người và quái cùng dùng slowT), giữ thêm BUN_GIU giây sau khi bước ra.
+function stepBun(b, nguoi, quai){
+  for (const a of nguoi) if (Math.hypot(a.x-b.x, a.y-b.y) <= b.r) a.slowT = Math.max(a.slowT || 0, BUN_GIU);
+  for (const m of quai)  if (Math.hypot(m.x-b.x, m.y-b.y) <= b.r) m.slowT = Math.max(m.slowT || 0, BUN_GIU);
 }
 
 // BẪY GAI. Bốn nhịp: nằm im → NGHE TIẾNG ĐÁ TRƯỢT → gai bật → thụt xuống nghỉ.
@@ -5746,7 +7006,7 @@ function stepFoeSound(dt){
   if (FX.foeSnd > 0) return;
   let near = null, nd = FOE_HEARD_R;
   for (const m of S.monsters){
-    if (m.sleep > 0) continue;
+    if (m.sleep > 0 || foeQuiet(m)) continue;   // kẻ giả mạo/bàn tay đang núp không có tiếng
     const d = Math.hypot(p.x-m.x, p.y-m.y);
     if (d < nd && !inSight(m.x, m.y)){ nd = d; near = m; }
   }
@@ -5764,7 +7024,7 @@ const SPOT_FORGET = 2.5;      // out of sight for this long, and the next look i
 function stepFoeSpotted(m, dt){
   m.spotT = Math.max(0, (m.spotT || 0) - dt);
   if (m.sleep > 0) return;
-  const vis = inSight(m.x, m.y) || (m.reveal || 0) > 0.02;
+  const vis = (inSight(m.x, m.y) || (m.reveal || 0) > 0.02) && !foeQuiet(m);   // đồ giả không làm giật mình
   if (vis){
     m.unseenT = 0;
     if (!m.seen){
@@ -5791,6 +7051,7 @@ function stepMonsters(dt){
     stepFoeSpotted(m, dt);
 
     // knockback decays wherever it came from — a tranq dart, a bomb, or a shove
+    if ((m.kx || m.ky) && foeUnpushable(m)){ m.kx = 0; m.ky = 0; }   // hồn ma, bàn tay không bị hất
     if (m.kx || m.ky){
       moveEnt(m, m.kx*dt, m.ky*dt, 9);
       m.kx *= Math.pow(0.02, dt); m.ky *= Math.pow(0.02, dt);
@@ -5805,6 +7066,7 @@ function stepMonsters(dt){
     m.deafT   = Math.max(0, (m.deafT || 0) - dt);
     if (m.sleep > 0){
       m.sleep -= dt; m.alert = 0; m.state = 'sleep';
+      const ngu = foeKind(m); if (ngu) ngu.release(m);   // choáng là nhả người/đồ đang giữ
       continue;                       // tranquillised: it neither hunts nor hits
     }
 
@@ -5830,6 +7092,10 @@ function stepMonsters(dt){
       m.ky = Math.sin(a) * shove;
       m.shoveCd = 0.5;
     }
+
+    // Ải 5 nhà: loài mới chạy máy trạng thái riêng — xem FOE_KINDS.
+    const loaiMoi = foeKind(m);
+    if (loaiMoi){ loaiMoi.step(m, d, p, dt, dist); continue; }
 
     // Kẻ húc runs its own head: no chase, no contact damage, one straight line at a time.
     if (m.type === 'rook'){ stepRook(m, dt, dist); continue; }
@@ -6288,7 +7554,7 @@ function stepRook(m, dt, dist){
     // Another monster in the lane takes half of what you would have taken, and the rook does NOT
     // stop for it. One per dash each, so a body it is standing on is not hit sixty times a second.
     for (const o of S.monsters.slice()){
-      if (o === m || o.sleep > 0) continue;
+      if (o === m || o.sleep > 0 || foeImmune(o)) continue;
       if (m.rammed && m.rammed.has(o)) continue;
       if (Math.hypot(o.x-nx, o.y-ny) > 20) continue;
       if (m.rammed) m.rammed.add(o);
@@ -6441,6 +7707,7 @@ function foeDamage(m, n){
   // thanh bat tu THAT SU, khong con dap vo guong cung khong xong.
   if (typeof m.hp !== 'number') return false;
   if (m.hp <= 0) return false;
+  if (foeImmune(m)) return false;                  // hồn ma, bàn tay
   m.hp -= n * ((m.vulnT || 0) > 0 ? FREEZE_VULN_MUL : 1);
   return m.hp <= 0;
 }
@@ -6455,6 +7722,11 @@ function foeDamage(m, n){
 // chung (ke ca sat thuong ri ra tung khung hinh cua ky nang, thu khong duoc phep nhay so).
 function foeHit(m, n, ang, knock){
   if (!m || typeof m.hp !== 'number' || m.hp <= 0) return false;
+  if (foeImmune(m)){
+    // Miễn sát thương. Nói ra, nhưng không mỗi viên đạn một chữ.
+    if ((m.kPopT || 0) <= S.time && !foeAbsent(m)){ m.kPopT = S.time + 0.8; fxPop(m.x, m.y - 16, 'MIỄN', '#cfd8ff', 11); }
+    return false;
+  }
   const chet = foeDamage(m, n);
   m.alert = 3;
   m.flash = 0.14;                                  // nhap trang mot nhip
@@ -6486,6 +7758,7 @@ function killMonster(m){
   S.kills = (S.kills || 0) + 1;
   const i = S.monsters.indexOf(m);
   if (i >= 0) S.monsters.splice(i,1);
+  const loaiMoi = foeKind(m); if (loaiMoi) loaiMoi.release(m);   // nhả người/đồ đang giữ
   if (m.type === 'bomber'){
     S.bombs.push({ x:m.x, y:m.y, t:0, fuse:0, r:TILE*3.2, done:false, owner:'foe' });
   }
@@ -6618,6 +7891,7 @@ function meleeTarget(p){
 // ang = null thi vung theo huong dang nhin.
 function meleeSwing(p, ang){
   if (!p || p.down || S.dead || !S.running || S.shopMode) return false;
+  if (chanKhiBiGiu(p)) return false;          // bị bàn tay chụp / tơ kéo
   if (p.riding) return false;                 // hai tay đang giữ ghi đông — xem chú thích ở useSlot()
   if ((p.swingCd || 0) > 0) return false;
   if ((p.stunT || 0) > 0) return false;
@@ -6955,6 +8229,7 @@ function fireLaser(p, ang, charge){
 }
 
 function useSlot(p, i, aimed){
+  if (chanKhiBiGiu(p)) return false;   // bị bàn tay chụp / tơ kéo
   const it = p.inv[i];
   if (!it || it.uses <= 0 || p.cooldown > 0 || S.dead || p.down) return false;
   // "cannot wield items while driving" — luật của bản gốc, và là toàn bộ cái giá của việc đi xe.
@@ -7102,6 +8377,7 @@ function stepProjectiles(dt){
     if (damageMirror(b.x, b.y, 25)){ S.bullets.splice(i,1); continue; }
     for (const m of S.monsters){
       if (Math.hypot(m.x-b.x, m.y-b.y) < 13){
+        if (b.kind === 'tranq' && foeSkillStunOnly(m)){ S.bullets.splice(i,1); break; }   // hồn ma: chỉ skill giữ được
         if (b.kind === 'tranq'){
           // Source game's Tranq Gun: non-lethal, it just takes the thing out of the fight.
           m.sleep = 12; m.alert = 0; m.state = 'sleep';
@@ -7135,6 +8411,7 @@ function stepProjectiles(dt){
       // hơn không kém. Một hiệu ứng to hơn vùng sát thương là một lời nói dối tốn máu.
       spawnVfx('warm-explosion', b.x, b.y, { scale: b.r / 48 });
       for (const m of S.monsters.slice()){
+        if (b.spare && m === b.spare) continue;   // đầu bí ngô tha quái gốc
         const d = Math.hypot(m.x-b.x, m.y-b.y);
         // 90 -> 165: mot qua lu dan gia 7.000 ma khong giet duoc mot con Ke nghe
         // (75 mau) dung ngay tam bom thi khong ai mua lan thu hai. Gio no giet gon
@@ -7554,6 +8831,8 @@ function startLevel(seed){
   // số độ khó rồi ép vào đây, để đường cong khó/chỉ tiêu/quái vẫn là đường cong của
   // repo2d chứ không phải một đường cong thứ hai viết lại.
   if (HOOKS.levelIndex) S.level = HOOKS.levelIndex();
+  // Ải 5 nhà: nhà thứ mấy quyết định quái/hệ số/theme của căn nhà sắp dựng (AI). 0 = ngoài ải.
+  S.house = HOOKS.houseIndex ? (HOOKS.houseIndex() || 0) : 0;
   // MỞ ĐƯỜNG RA TRƯỚC, DỰNG THẾ GIỚI SAU — cùng một luật với toggleStash().
   // ROOT-CAUSE: thứ tự cũ là buildLevel() rồi mới hideVeil(). buildLevel() ném lỗi thì
   //   tấm màn phủ ĐANG HIỆN không bao giờ được gỡ, mà nút trên nó vừa gọi đúng cái hàm
@@ -7577,7 +8856,7 @@ function startLevel(seed){
   }
   buildFails = 0;
   S.running = true; S.dead = false;
-  startCut('arrive', 'Màn ' + S.level, 'Chỉ tiêu ' + money(S.quotaTotal));
+  startCut('arrive', levelLabel(), 'Chỉ tiêu ' + money(S.quotaTotal));
 }
 
 
@@ -7634,7 +8913,7 @@ function buildShop(){
   S.rooms = [];
   for (let cy=0; cy<GY; cy++) for (let cx=0; cx<GX; cx++)
     S.rooms.push({ name:'Trạm dịch vụ', cx, cy, seen: cx===SHOP_COL });
-  S.loot = []; S.monsters = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.casts = []; S.vfx = [];
+  S.loot = []; S.monsters = []; S.mines = []; S.gas = []; S.pads = []; S.bullets = []; S.bombs = []; S.corpses = []; S.beams = []; S.casts = []; S.vfx = [];
   S.bikes = []; S.gach = []; S.tuongVo = null; S.bay = []; S.ruong = [];
   S.padIndex = 0; S.countdown = 0; S.countdownActive = false;
   S.levelDone = false; S.dead = false; S.shiftLost = false; S.hurtLog = [];
@@ -8834,6 +10113,7 @@ const HOOKS = {
   onLevelClear: null,   // ()  -> true nếu lớp ngoài tự lo phần sau (chặn vào trạm)
   onPayout: null,       // (soTien, laBeCuoi) -> void, mỗi lần giao xong một bệ
   levelIndex: null,     // ()  -> số, ép độ khó của tầng sắp dựng (map hữu hạn tự tính)
+  houseIndex: null,     // ()  -> nhà thứ mấy trong ải 5 nhà (1-based), null = ngoài ải — xem AI
   onCrewWiped: null,    // ()  -> true nếu lớp ngoài tự lo phần thua (cả tổ gục)
   onShiftLost: null,    // ()  -> true nếu lớp ngoài tự lo phần trượt chỉ tiêu
   onEngineError: null,  // (e) -> true nếu lớp ngoài tự lo khi bộ máy vấp lỗi
@@ -9027,7 +10307,7 @@ function headBeingCarried(){
 function mateThreat(a){
   let worst = null, wd = 1e9;
   for (const m of S.monsters){
-    if (m.sleep > 0) continue;
+    if (m.sleep > 0 || foeQuiet(m)) continue;
     const d = Math.hypot(m.x-a.x, m.y-a.y);
     if (m.state !== 'chase' && d > 3*TILE) continue;
     if (d < wd){ wd = d; worst = m; }
@@ -9720,6 +11000,14 @@ function mateLights(c){
     g.addColorStop(0, 'rgba(226,214,180,0.34)');
     g.addColorStop(1, 'rgba(226,214,180,0)');
     c.fillStyle = g; c.fillRect(lx-r, ly-r, r*2, r*2);
+    // Đồng đội cầm đèn thì phải thấy TIA đèn của họ quét qua phòng, không chỉ một vũng quanh chân. Cắt
+    // theo tầm nhìn của chính họ (tường chặn), dịu hơn đèn người chơi để không lẫn đèn nào của ai.
+    const mr = coneRadius(a);
+    if (mr > 1 && !S.cut){
+      c.save(); pathPoly(c, visPoly(lx, ly, mr, 40, wallSegs())); c.clip();
+      coneSoft(c, lx, ly, a.dir, mr, coneHalf(a), 0.46, [236,222,186]);
+      c.restore();
+    }
   }
 }
 
@@ -9798,6 +11086,7 @@ function uiK(){
 // quanh chân không còn gì để nhặt mà mình đang đứng cạnh xe tải thì Q mở tủ.
 function tuongTac(p){
   if (!p) return false;
+  if (chanKhiBiGiu(p)) return true;          // bị giữ thì không tương tác
   if (p.held || p.pushing || p.riding || p.down) return pickUp(p);
   // Cái rương đứng TRƯỚC tủ xe và SAU món đồ rời: món đồ nằm ngay dưới chân thì nhặt nó, còn
   // rương thì phải bước tới tận nơi mới với được, nên hai thứ gần như không bao giờ tranh nhau.
@@ -9826,6 +11115,7 @@ function nhanTuongTac(p, coTu){
 // "bản này không có chiêu", chứ một phím lặng lẽ làm việc khác thì không ai đoán nổi.
 function capSkill(){
   if (!HOOKS.skill || !S.player || S.shopMode) return false;
+  if (chanKhiBiGiu(S.player)) return true;   // bị giữ thì không dùng skill
   if (HOOKS.skill.ready && !HOOKS.skill.ready()){ toast('Kỹ năng chưa hồi xong'); return true; }
   // Tin hieu CHUNG cho moi ky nang, ban ngay tai cho bam. Tung ky nang ban them hinh rieng
   // qua REPO.castFx; day la cai luoi do, de khong ky nang nao im lang.
@@ -9862,6 +11152,11 @@ function setupInput(){
     // bảng đang mở, kể cả khi bảng đó tự dựng lỗi.
     if (k === 'escape'){ if (S.stashOpen) closeStash(); return; }
     if (skipCut()) return;
+    // Ải 5 nhà: bị bàn tay chụp thì A/D (hoặc hai phím mũi tên ngang) là vùng vẫy.
+    if (S.player && S.player.grabBy === 1 && (k === 'a' || k === 'd' || k === 'arrowleft' || k === 'arrowright')){
+      struggle(S.player, k === 'a' || k === 'arrowleft' ? -1 : 1);
+      return;
+    }
     if (k === 'tab'){ S.bigMap = !S.bigMap; return; }
     // E = NHẶT, R = KỸ NĂNG. Chủ dự án, 2026-09-10: "phím nhặt là E vậy mấy cái trùng E move
     // qua R đi".
@@ -9947,6 +11242,8 @@ function setupInput(){
     claimPointer(e.pointerId);
     const p = canvasPoint(e);
     const hud = hudLayout();
+    // Ải 5 nhà: bị bàn tay chụp thì nửa trái/phải màn hình là hai nút vùng vẫy.
+    if (S.player && S.player.grabBy === 1){ struggle(S.player, p.x < hud.w/2 ? -1 : 1); return; }
     // ------------------------------------------------------------------ nút
     // NÚT GẦN NHẤT THẮNG, không phải nút đứng đầu danh sách.
     // ROOT-CAUSE của cách cũ: đây là một chuỗi `if ... return` nên khi hai vùng bắt
@@ -10352,8 +11649,7 @@ function resize(){
   if (wMoi !== viewW || hMoi !== viewH) cancelGestures();
   viewW = wMoi; viewH = hMoi;
   cv.width = Math.round(viewW*dpr); cv.height = Math.round(viewH*dpr);
-  if (!lightCv) lightCv = document.createElement('canvas');
-  lightCv.width = cv.width; lightCv.height = cv.height;
+  sizeLight(cv.width, cv.height);   // lớp đèn nửa độ phân giải — xem LIGHT_SCALE
 }
 function worldTransform(c){
   const k = dpr*zoom();
@@ -10652,6 +11948,8 @@ function step(dt){
   // Rook's slam pins you where you landed. Nothing you press moves you while it lasts.
   p.stunT = Math.max(0, (p.stunT || 0) - dt);
   if (p.stunT > 0){ vx = 0; vy = 0; push = 0; p.sprint = false; }
+  // Ải 5 nhà: bị bàn tay chụp hay tơ kéo thì chân không phải của mình.
+  if (p.grabBy){ vx = 0; vy = 0; push = 0; p.sprint = false; }
   // And a head on the floor steers nothing at all. The run keeps going without you.
   if (p.down){ vx = 0; vy = 0; push = 0; p.sprint = false; p.held = null; }
 
@@ -10774,7 +12072,7 @@ function step(dt){
     // TRƯỚC stepMonsters: stepEscape chỉ đi gắn m.tx/m.alert bằng makeNoise, để sau thì cả
     // đàn ăn tin chậm đúng một khung — nghe thấy tiếng còi rồi mới quay đầu ở nhịp sau.
     stepEscape(dt);
-    if (!S.noFoes){ stepMonsters(dt); stepBangers(dt); stepStomp(dt); separateFoes(); stepFoeSound(dt); stepRespawns(dt); }
+    if (!S.noFoes){ stepMonsters(dt); stepBangers(dt); stepStomp(dt); separateFoes(); stepFoeSound(dt); stepRespawns(dt); stepFoeKinds(dt); }
     stepBay(dt);              // bẫy chạy KỂ CẢ khi tắt quái: nó là đồ vật, không phải con vật
     stepAngel(dt);
     stepMirror(dt);
@@ -10856,13 +12154,16 @@ function draw(){
   worldTransform(c);
   c.drawImage(S.worldCv, 0, 0, WPX, HPX);   // ảnh nền vẽ ở SS lần, thu về đúng khổ thế giới
   drawDuongVao(c); drawTuongVo(c); drawGachSan(c);
-  drawPads(c); drawButton(c); drawBay(c); drawRuong(c); drawBikes(c); drawCart(c); drawLoot(c); drawCar(c); drawGachBay(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawDoors(c); drawProjectiles(c); drawPlayer(c);
+  drawPads(c); drawButton(c); drawBay(c); drawFoeKindFloor(c); drawRuong(c); drawBikes(c); drawCart(c); drawLoot(c); drawCar(c); drawGachBay(c); drawMirrors(c); drawMates(c); drawMonsters(c); drawAngel(c); drawDoors(c); drawProjectiles(c); drawPlayer(c);
   drawVfx(c, 'toi');            // bụi và đất: chịu ánh sáng như mọi vật thể khác
 
   buildLight();
+  blurLight();                  // mép nón/bóng/tường mềm đi — xem LIGHT_SCALE
   c.setTransform(1,0,0,1,0,0);
   c.globalCompositeOperation = 'multiply';
-  c.drawImage(lightCv, 0, 0);
+  const tron = c.imageSmoothingEnabled; c.imageSmoothingEnabled = true;
+  c.drawImage(lightCv, 0, 0, cv.width, cv.height);
+  c.imageSmoothingEnabled = tron;
 
   c.globalCompositeOperation = 'lighter';
   worldTransform(c);
@@ -10889,6 +12190,143 @@ function draw(){
   drawHud(c);
 }
 
+// ============================================================ ánh sáng đèn pin mềm
+// Chép ngược từ bản Unity (REPO_Topdown, G10_Light.cs, 2026-09-14). Chủ dự án: "cải thiện ánh sáng đèn
+// pin chiếu vào vật thể + tường, phần render chưa ok". Bài chụp LightCapture bên ấy cho thấy bốn chỗ
+// đọc ra sai:
+//   1. Nón đèn là ba hình quạt cắt sắc chồng lên nhau: mép nón là ba bậc thẳng băng, không có vùng rìa.
+//   2. Bóng tối cũng cắt sắc từng điểm ảnh, nên một món đồ hay con quái đứng ở mép bóng bị chém đôi.
+//   3. Bàn, ghế, giường thấp đổ một vệt bóng ĐEN KỊT dài tới hết tầm đèn. Game nhìn từ trên xuống, nên
+//      cái bàn không che được sàn phía sau nó như một bức tường. Giờ chỉ tường và cửa đóng chặn hẳn ánh
+//      sáng; phía sau đồ đạc vẫn tối, nhưng chỉ tối một phần (PROP_SHADE).
+//   4. Đồng đội cầm đèn mà không có tia đèn, chỉ có một vũng sáng nhỏ quanh chân.
+//
+// Cách làm: lớp đèn vẽ ở NỬA độ phân giải rồi làm mờ nhẹ (hai lượt tách trục). Mép nón, mép bóng và mép
+// tường mềm đi mà không phải tính bóng mềm theo hình học. Nón đèn vẽ thành nhiều lát mỏng, độ sáng mỗi
+// lát tắt dần theo góc lệch khỏi tâm.
+// Luật chơi KHÔNG đổi: losClear/inSight vẫn coi đồ đạc là vật chắn. Chỉ phần HÌNH của ánh sáng đổi.
+// Muốn thêm nguồn sáng mới thì vẽ trong buildLight bằng toạ độ thế giới — đừng tự setTransform/
+// worldTransform trên lớp đèn: nó nhỏ hơn canvas game LIGHT_SCALE lần (xem lightTransform).
+const LIGHT_SCALE = 0.5;     // lớp đèn vẽ ở tỉ lệ này so với canvas game rồi phóng lại (lọc song tuyến)
+const LIGHT_BLUR  = 1.25;    // khoảng lệch mỗi nhịp làm mờ, điểm ảnh của lớp đèn (5 nhịp mỗi trục)
+const PROP_SHADE  = 0.42;    // phần đèn còn lọt qua phía sau đồ đạc thấp (0 = đen kịt như cũ, 1 = không bóng)
+let lightCv2 = null;
+
+// worldTransform của lớp đèn
+function lightTransform(c){
+  const k = dpr*zoom()*LIGHT_SCALE;
+  c.setTransform(k, 0, 0, k, (-cam.x + shakeX)*k, (-cam.y + shakeY)*k);
+}
+function sizeLight(w, h){
+  const lw = Math.max(1, Math.ceil(w*LIGHT_SCALE)), lh = Math.max(1, Math.ceil(h*LIGHT_SCALE));
+  if (!lightCv) lightCv = document.createElement('canvas');
+  if (!lightCv2) lightCv2 = document.createElement('canvas');
+  if (lightCv.width !== lw || lightCv.height !== lh){ lightCv.width = lw; lightCv.height = lh; }
+  if (lightCv2.width !== lw || lightCv2.height !== lh){ lightCv2.width = lw; lightCv2.height = lh; }
+}
+// Làm mờ lớp đèn: 5 nhịp ngang vào lightCv2, rồi 5 nhịp dọc về lightCv. Mỗi nhịp là một lần vẽ đè
+// "source-over" với alpha 1/n, nên kết quả là trung bình cộng thật chứ không cộng dồn thành cháy sáng.
+const BLUR_TAPS = [0, -1, 1, -2, 2];
+function blurLight(){
+  if (!lightCv || !lightCv2) return;
+  blurPass(lightCv, lightCv2, 1, 0);
+  blurPass(lightCv2, lightCv, 0, 1);
+}
+function blurPass(src, dst, ux, uy){
+  const b = dst.getContext('2d');
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.globalCompositeOperation = 'source-over';
+  b.imageSmoothingEnabled = true;
+  for (let i = 0; i < BLUR_TAPS.length; i++){
+    const o = BLUR_TAPS[i]*LIGHT_BLUR;
+    b.globalAlpha = 1/(i + 1);
+    b.drawImage(src, ux*o, uy*o);
+  }
+  b.globalAlpha = 1;
+}
+// Các đoạn biên chỉ của TƯỜNG (ô WALL và ngoài bản đồ), bỏ qua ô đồ đạc. Dựng lại khi S.segs đổi.
+let wallSegsCache = null, wallSegsOf = null;
+function wallSegs(){
+  if (wallSegsCache && wallSegsOf === S.segs) return wallSegsCache;
+  wallSegsOf = S.segs;
+  const wall = (x, y) => x < 0 || y < 0 || x >= MW || y >= MH || S.grid[y*MW+x] === WALL;
+  const out = [];
+  for (const side of [-1, 1])
+    for (let y = 0; y < MH; y++){
+      let x = 0;
+      while (x < MW){
+        if (wall(x, y) && !wall(x, y + side)){
+          let x2 = x; while (x2 + 1 < MW && wall(x2 + 1, y) && !wall(x2 + 1, y + side)) x2++;
+          const yy = (side === -1 ? y : y + 1)*TILE;
+          out.push(seg(x*TILE, yy, (x2 + 1)*TILE, yy));
+          x = x2 + 1;
+        } else x++;
+      }
+    }
+  for (const side of [-1, 1])
+    for (let x = 0; x < MW; x++){
+      let y = 0;
+      while (y < MH){
+        if (wall(x, y) && !wall(x + side, y)){
+          let y2 = y; while (y2 + 1 < MH && wall(x, y2 + 1) && !wall(x + side, y2 + 1)) y2++;
+          const xx = (side === -1 ? x : x + 1)*TILE;
+          out.push(seg(xx, y*TILE, xx, (y2 + 1)*TILE));
+          y = y2 + 1;
+        } else y++;
+      }
+    }
+  wallSegsCache = out;
+  return out;
+}
+// Một nón đèn có rìa mềm theo góc. Gradient theo bán kính giống cone() cũ; thêm độ tắt theo góc lệch bằng
+// cách chia nón thành CONE_SLICES lát, mỗi lát một globalAlpha. Mở rộng tới CONE_OUTER lần nửa góc; độ
+// sáng giữ nguyên tới CONE_CORE lần rồi tắt dần.
+const CONE_SLICES = 18, CONE_CORE = 0.72, CONE_OUTER = 1.38;
+function coneSoft(c, px, py, pdir, r, half, alpha, rgb){
+  if (r <= 1 || half <= 0) return;
+  const g = c.createRadialGradient(px, py, TILE*0.3, px, py, r);
+  const rgbS = rgb[0] + ',' + rgb[1] + ',' + rgb[2];
+  g.addColorStop(0, 'rgba(' + rgbS + ',1)');
+  g.addColorStop(0.45, 'rgba(' + rgbS + ',0.86)');
+  g.addColorStop(0.8, 'rgba(' + rgbS + ',0.5)');
+  g.addColorStop(1, 'rgba(' + rgbS + ',0)');
+  c.fillStyle = g;
+  const a0 = c.globalAlpha, outer = half*CONE_OUTER, step = outer*2/CONE_SLICES;
+  for (let i = 0; i < CONE_SLICES; i++){
+    const lo = -outer + i*step, hi = lo + step, mid = (lo + hi)/2;
+    const t = Math.abs(mid)/half;
+    const k = t <= CONE_CORE ? 1 : t >= CONE_OUTER ? 0 : 1 - smooth01((t - CONE_CORE)/(CONE_OUTER - CONE_CORE));
+    if (k <= 0.004) continue;
+    c.globalAlpha = a0*alpha*k;
+    // nới mỗi lát một chút để hai lát kề nhau không để lại khe khử răng cưa
+    c.beginPath(); c.moveTo(px, py); c.arc(px, py, r, pdir + lo - 0.004, pdir + hi + 0.004); c.closePath(); c.fill();
+  }
+  c.globalAlpha = a0;
+}
+function smooth01(t){ t = clamp(t, 0, 1); return t*t*(3 - 2*t); }
+// Vũng sáng dưới chân + nón đèn của người chơi, nhân `a` (một trong hai lượt ở buildLight).
+function denNguoi(c, p, a, nguoiMo){
+  // small pool at your feet
+  // Sáng hẳn ngay dưới chân, rồi tụt về đúng mức cũ trong vòng nửa ô. Lý do: lớp tối
+  // được NHÂN lên cả khung hình, kể cả lên chính nhân vật — đo được là màu sàn 106 rơi
+  // xuống còn 2..41, tức là bộ hình vẽ tay bị nhân cho tối đi tới 20 lần và người chơi
+  // chỉ thấy một cục đen. Chỗ sáng thêm gói trong bán kính người chơi, nên cả căn nhà
+  // vẫn tối y như trước — thứ đổi là bạn nhìn rõ mình và người đứng cạnh mình.
+  c.globalAlpha = a*(nguoiMo < 1 ? nguoiMo : 1);
+  const g = c.createRadialGradient(p.x,p.y,2,p.x,p.y,PERIPH_R);
+  g.addColorStop(0,'rgba(206,212,216,0.94)');
+  g.addColorStop(0.30,'rgba(196,202,206,0.82)');
+  g.addColorStop(0.55,'rgba(150,160,168,0.46)');
+  g.addColorStop(1,'rgba(90,100,110,0)');
+  c.fillStyle = g; c.fillRect(p.x-PERIPH_R,p.y-PERIPH_R,PERIPH_R*2,PERIPH_R*2);
+  const cr = coneRadius(p), ch = coneHalf(p);
+  // Một nón rìa mềm thay cho ba hình quạt cắt sắc chồng nhau (mép nón thành ba bậc). Gốc nón lùi ra sau
+  // lưng 0,8 ô: nón bắt đầu từ chỗ ngang người đã có bề rộng, không thắt eo ngay trước mặt (vũng dưới
+  // chân và nón gặp nhau thành một cổ chai tối hai bên).
+  const LUI = TILE*0.8;
+  if (cr > 1) coneSoft(c, p.x - Math.cos(p.dir)*LUI, p.y - Math.sin(p.dir)*LUI, p.dir, cr*1.04 + LUI, ch*0.94, 1.0, [255,236,194]);
+}
+
 function buildLight(){
   const c = lightCv.getContext('2d');
   // Same rule as the camera: while you are down, the room you can see is the room your colleague
@@ -10902,13 +12340,13 @@ function buildLight(){
     // Lit, but only inside the four walls. Lighting the whole canvas showed the solid rock the room
     // is carved out of as a grey field twice the size of the shop, which read as a bug.
     c.fillStyle = 'rgb(4,5,7)'; c.fillRect(0,0,lightCv.width,lightCv.height);
-    worldTransform(c);
+    lightTransform(c);
     c.fillStyle = 'rgb(198,194,186)';
     c.fillRect(SHOP_COL*RW*TILE, 0, RW*TILE, (SHOP_ROWS+1)*TILE);
     return;
   }
   c.fillStyle = 'rgb(6,7,9)'; c.fillRect(0,0,lightCv.width,lightCv.height);
-  worldTransform(c);
+  lightTransform(c);
   c.globalCompositeOperation = 'lighter';
 
   // Quầng sáng bám THÂN NGƯỜI, và nó cố ý nằm NGOÀI phần bị đa giác tầm nhìn cắt.
@@ -10954,32 +12392,25 @@ function buildLight(){
   denXeVao(c);
 
   const master = visPoly(p.x, p.y, LOS_R, 80);
+  // Đèn của chính người chơi vẽ HAI lượt. Lượt một chỉ bị TƯỜNG chặn, sáng PROP_SHADE phần; lượt hai
+  // bị cả đồ đạc chặn, sáng nốt phần còn lại. Chỗ khuất sau bàn ghế vì thế tối đi chứ không đen kịt —
+  // nhìn từ trên xuống thì cái bàn không che nổi sàn phía sau như một bức tường.
+  const tuongPoly = visPoly(p.x, p.y, LOS_R, 80, wallSegs());
+  c.save();
+  c.beginPath();
+  polyVao(c, tuongPoly);
+  themONhoDo(c, p, tuongPoly);
+  c.clip();
+  denNguoi(c, p, alphaCu*PROP_SHADE, nguoiMo);
+  c.globalAlpha = alphaCu;
+  c.restore();
+
   c.save();
   c.beginPath();
   polyVao(c, master);
   themONhoDo(c, p, master);
   c.clip();
-
-  // small pool at your feet
-  // Sáng hẳn ngay dưới chân, rồi tụt về đúng mức cũ trong vòng nửa ô. Lý do: lớp tối
-  // được NHÂN lên cả khung hình, kể cả lên chính nhân vật — đo được là màu sàn 106 rơi
-  // xuống còn 2..41, tức là bộ hình vẽ tay bị nhân cho tối đi tới 20 lần và người chơi
-  // chỉ thấy một cục đen. Chỗ sáng thêm gói trong bán kính người chơi, nên cả căn nhà
-  // vẫn tối y như trước — thứ đổi là bạn nhìn rõ mình và người đứng cạnh mình.
-  if (nguoiMo < 1) c.globalAlpha = alphaCu * nguoiMo;
-  let g = c.createRadialGradient(p.x,p.y,2,p.x,p.y,PERIPH_R);
-  g.addColorStop(0,'rgba(206,212,216,0.94)');
-  g.addColorStop(0.30,'rgba(196,202,206,0.82)');
-  g.addColorStop(0.55,'rgba(150,160,168,0.46)');
-  g.addColorStop(1,'rgba(90,100,110,0)');
-  c.fillStyle = g; c.fillRect(p.x-PERIPH_R,p.y-PERIPH_R,PERIPH_R*2,PERIPH_R*2);
-
-  const cr = coneRadius(p), ch = coneHalf(p);
-  if (cr > 1){
-    cone(c, p, cr*1.06, ch*1.32, 0.20, [232,214,170]);
-    cone(c, p, cr,      ch*1.10, 0.34, [244,226,182]);
-    cone(c, p, cr*0.94, ch,      0.66, [255,238,198]);
-  }
+  denNguoi(c, p, alphaCu*(1 - PROP_SHADE), nguoiMo);
   c.globalAlpha = alphaCu;
 
   // The monsters carry lights too — the owner's words were "kiểu như đèn pin gắn vào mắt quái".
@@ -10997,7 +12428,7 @@ function buildLight(){
   // head uses, so the two never say different things about the same monster.
   for (const m of S.monsters){
     const md = MONSTERS[m.type];
-    if (m.sleep > 0 || !md.sight) continue;
+    if (m.sleep > 0 || !md.sight || foeQuiet(m)) continue;
     const R = md.sight*TILE;
     if (Math.hypot(m.x-p.x, m.y-p.y) > LOS_R + R) continue;
     const half = foeConeHalf(m), mp = { x:m.x, y:m.y, dir:m.dir };
@@ -11146,20 +12577,28 @@ const ANGEL_BOT_TOTAL= 6;          // cả tổ cộng lại giữ hộ được
 // mới chỉ xảy ra ở kích cỡ một pho tượng cao ba mươi điểm ảnh đứng cách bốn ô. Khuôn mặt này
 // kéo nó ra khỏi căn phòng và đặt thẳng lên mắt người chơi.
 //
-// BA LUẬT TỰ ÁP, và cả ba đều là chuyện đã học được từ mấy lớp phủ trước trong trò này:
-//   1. KHÔNG BỊT MẮT. Pho tượng chỉ đuổi đi được bằng cách NHÌN vào nó và rọi đèn; một tấm mặt
-//      đè kín màn hình biến cơ chế ấy thành trò may rủi. Nên khối tối của nó là một cái VÀNH
-//      (đậm ở rìa đầu, rỗng ở giữa) chứ không phải một mảng đặc — giữa màn hình, chỗ người chơi
-//      và pho tượng đứng, gần như không bị đụng tới.
-//   2. NÓ PHẢI NÓI RA MỘT CON SỐ. Máu chảy dài ra và mặt áp tới gần theo đúng `unlitT` — cùng
+// Chủ dự án, 2026-09-14 (bên bản Unity, chép ngược về đây): *"dùng art thật của thiên thần để hiện
+// rõ giữa map chứ đừng vẽ nữa, cho thiên thần rõ ra, máu chãy từ mắt thiên thần mượt vào"*. Bản trước
+// vẽ tay một cái đầu trùm khăn bằng gradient, mờ tới 13% — đọc ra là một vệt khói có hai đốm đèn,
+// không đọc ra là CHÍNH pho tượng ngoài kia. Nay lấy thẳng khung chính diện của angel.png, cắt từ mũ
+// trùm tới ngực, phóng to và đặt giữa màn hình. ĐỪNG quay lại vẽ bằng gradient.
+//
+// HAI LUẬT còn giữ:
+//   1. NÓ PHẢI NÓI RA MỘT CON SỐ. Máu chảy dài ra và mặt áp tới gần theo đúng `unlitT` — cùng
 //      con số mà hai con mắt ngoài kia đang đổi màu theo. Một lớp phủ chỉ để doạ là một lớp phủ
 //      người chơi học cách lờ đi sau ba lần.
-//   3. VẼ DƯỚI HUD. Thanh máu, bản đồ nhỏ, đồng hồ giao hàng không được nằm sau mặt nó.
+//   2. VẼ DƯỚI HUD. Thanh máu, bản đồ nhỏ, đồng hồ giao hàng không được nằm sau mặt nó.
+// Luật cũ "KHÔNG BỊT MẮT" (chỉ vẽ một cái vành, rỗng ở giữa) bỏ theo lời chủ dự án ở trên; phần
+// ngực mờ dần về trong suốt nên nửa dưới màn hình vẫn nhìn xuyên qua được.
 const MAT_VAO  = 2.4;     // giây để hiện đủ — "mờ mờ dần", không phải bật một cái
 const MAT_RA   = 0.42;    // và tan trong ngần này khi pho tượng đi
-const MAT_DAM  = 0.52;    // độ đậm tối đa của vành tối
-const MAT_R    = 0.46;    // bán kính đầu, tính theo cạnh NGẮN của màn hình
-const MAT_Y    = 0.30;    // tâm đầu nằm ở đâu theo chiều cao màn hình
+const MAT_DAM  = 0.86;    // độ rõ tối đa của hình pho tượng
+const MAT_CAO  = 0.66;    // chiều cao phần cắt, tính theo chiều cao màn hình
+const MAT_Y    = 0.38;    // hai con mắt nằm ở đâu theo chiều cao màn hình
+// Phần cắt trong khung chính diện (hàng 0, cột 1) của angel.png, đơn vị điểm ảnh của tệp GỐC 96x144,
+// và chỗ hai con mắt trong khung ấy — hai chấm tối hai bên sống mũi, dưới vành mũ trùm. Đo bên Unity.
+const MAT_CAT = [26, 38, 60, 62];              // x, y, rộng, cao
+const MAT_MAT = [53.2, 61.7, 58.9, 61.7];      // mắt trái x,y — mắt phải x,y
 
 function angelNextIn(){ return mix(ANGEL_EVERY[0], ANGEL_EVERY[1], Math.random()); }
 
@@ -11561,6 +13000,18 @@ function drawAngelFx(c, a, arr){
     g.addColorStop(1, 'rgba(120,60,190,0)');
     c.fillStyle = g; c.fillRect(a.x-60, a.y-60, 120, 120);
   }
+  // PHO TƯỢNG RÕ RA. Chủ dự án, 2026-09-14: "cho thiên thần rõ ra". Tượng đá xám đứng trong phòng
+  // tối thì chìm vào sàn; một lượt cộng sáng CHÍNH hình gốc của nó đè lên (không viền đỏ, xem foeGoc)
+  // làm nó sáng lên đúng theo dáng, không thêm một cái vòng hay quầng nào.
+  if (a.phase === 'stand' && arr > 0.62 && window.REPO_SKIN && REPO_SKIN.foeGoc){
+    const ro = clamp((arr - 0.62)/0.38, 0, 1);
+    c.save();
+    c.translate(a.x, a.y);
+    c.globalAlpha = 0.36*ro;
+    REPO_SKIN.foeGoc(c, a.__goc || (a.__goc = { type:ANGEL_KIND, x:a.x, y:a.y, dir:a.face, sleep:0, state:'idle' }));
+    a.__goc.x = a.x; a.__goc.y = a.y; a.__goc.dir = a.face;
+    c.restore();
+  }
   // HAI CON MẮT. Sáng lên ở nhịp cuối của cú hiện hình rồi ở lại — âm ỉ khi nó đang bị nhìn,
   // và đỏ rực dần lên theo đồng hồ khi không ai nhìn nó nữa.
   if (arr > 0.5 && a.phase === 'stand'){
@@ -11571,8 +13022,11 @@ function drawAngelFx(c, a, arr){
     const G = Math.round(mix(200, 40, gap)), B = Math.round(mix(255, 40, gap));
     const ex = Math.cos(a.face), ey = Math.sin(a.face);
     const nx = -ey, ny = ex;
+    // Có hình thì mắt nằm ở chỗ mắt của HÌNH (dòng 62/144 của khung, cỡ FOE_SCALE) — cao hơn hẳn cái
+    // đầu tròn của bản vẽ tay. Để -11 thì hai con mắt sáng rực nằm giữa ngực pho tượng.
+    const matY = (window.REPO_SKIN && REPO_SKIN.foeCo && REPO_SKIN.foeCo(ANGEL_KIND)) ? 19.5 : 11;
     for (const sg of [-1, 1]){
-      const x = a.x + ex*3.4 + nx*sg*2.3, y = a.y - 11 + ey*3.4 + ny*sg*2.3;
+      const x = a.x + ex*3.4 + nx*sg*2.3, y = a.y - matY + ey*3.4 + ny*sg*2.3;
       const g2 = c.createRadialGradient(x, y, 0, x, y, 7 + gap*5);
       g2.addColorStop(0, `rgba(${R},${G},${B},${0.95*vao*nhay})`);
       g2.addColorStop(1, `rgba(${R},${G},${B},0)`);
@@ -11601,25 +13055,58 @@ function drawAngelFx(c, a, arr){
 }
 
 // KHUÔN MẶT NHÌN CHẰM CHẰM. Vẽ trong toạ độ MÀN HÌNH (điểm ảnh thiết bị), sau lớp tối và sau
-// vignette, TRƯỚC HUD — xem ba luật tự áp ở chỗ khai MAT_VAO.
+// vignette, TRƯỚC HUD — xem hai luật ở chỗ khai MAT_VAO.
 //
-// Cái đầu cố ý to hơn màn hình: thứ nhìn thấy là hai con mắt cộng mép vải hai bên, còn khối của
-// nó tràn lên quá mép trên. Một cái đầu vừa khít màn hình đọc ra là một cái mặt nạ dán lên kính;
-// một cái đầu tràn ra ngoài đọc ra là một thứ đang cúi xuống sát mặt mình.
+// Hình là KHUNG THẬT của angel.png (chính diện, mũ trùm tới ngực), phóng to theo điểm ảnh gốc —
+// không làm mịn, vì đó là tranh pixel và làm mịn thì ra một vệt nhoè. Ngực mờ dần về trong suốt
+// để mép dưới không thành một đường cắt ngang màn hình.
+let matCv = null;                      // khung đã cắt + đã tô mờ mép, nướng một lần
+const MAT_SC = 4;                      // nướng dư 4 lần để mép mờ mịn mà hình vẫn nét
+function matChanDung(){
+  if (matCv) return matCv;
+  const SK = window.REPO_SKIN;
+  if (!SK || !SK.foeKhung) return null;
+  const cw = MAT_CAT[2]*MAT_SC, ch = MAT_CAT[3]*MAT_SC;
+  const cv = document.createElement('canvas');
+  cv.width = cw; cv.height = ch;
+  const x = cv.getContext('2d');
+  x.imageSmoothingEnabled = false;
+  if (!SK.foeKhung(x, ANGEL_KIND, 0, 1, MAT_CAT[0], MAT_CAT[1], MAT_CAT[2], MAT_CAT[3], 0, 0, cw, ch)) return null;   // hình chưa nạp: khung sau thử lại
+  x.globalCompositeOperation = 'destination-in';
+  const doc = x.createLinearGradient(0, 0, 0, ch);
+  doc.addColorStop(0, 'rgba(0,0,0,1)');
+  doc.addColorStop(0.58, 'rgba(0,0,0,1)');
+  doc.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = doc; x.fillRect(0, 0, cw, ch);
+  const ngang = x.createLinearGradient(0, 0, cw, 0);
+  ngang.addColorStop(0, 'rgba(0,0,0,0)');
+  ngang.addColorStop(0.16, 'rgba(0,0,0,1)');
+  ngang.addColorStop(0.84, 'rgba(0,0,0,1)');
+  ngang.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = ngang; x.fillRect(0, 0, cw, ch);
+  x.globalCompositeOperation = 'source-over';
+  matCv = cv;
+  return matCv;
+}
+function matMuot(a, b, v){ const t = clamp((v - a)/(b - a), 0, 1); return t*t*(3 - 2*t); }
+
 function drawAngelMat(c){
-  const k = FX.mat;
-  if (k <= 0.004) return;
+  const k0 = FX.mat;
+  if (k0 <= 0.004) return;
   // Đoạn phim thì không. `step()` bị chặn trong lúc có `S.cut`, nên `FX.mat` đứng nguyên ở chỗ
   // nó đang đứng — không có cái chốt này thì một khuôn mặt còn đang tan dở treo lại suốt cả
   // cảnh cả tổ chạy lên xe. Mà ở đó cũng chẳng có pho tượng nào: ca trực đã xong rồi.
   if (S.cut) return;
-  const w = c.canvas.width, h = c.canvas.height, M = Math.min(w, h);
+  const w = c.canvas.width, h = c.canvas.height;
   const gap = clamp(FX.matGap || 0, 0, 1);
-  const vao = ease(k);
-  // Càng gần lúc nó tới thì mặt càng áp sát: đầu to thêm 18%, tâm hạ xuống một chút.
-  const R  = M*MAT_R * (0.92 + 0.08*vao) * (1 + gap*0.18);
-  const cx = w/2, cy = h*MAT_Y + M*gap*0.03;
-  const RX = R*0.86, RY = R*1.18;          // đầu cao hơn rộng, kiểu tượng trùm khăn
+  const vao = ease(k0);
+  // Càng gần lúc nó tới thì mặt càng áp sát: to thêm 14%. Neo ở GIỮA HAI CON MẮT, nên phóng to
+  // ra thì mắt đứng yên còn mũ và ngực nở ra quanh nó.
+  const H = h*MAT_CAO * (0.94 + 0.06*vao) * (1 + gap*0.14);
+  const k = H / MAT_CAT[3];                          // điểm ảnh màn hình trên một điểm ảnh tệp
+  const mx = (MAT_MAT[0] + MAT_MAT[2])/2, my = (MAT_MAT[1] + MAT_MAT[3])/2;
+  const ax = w/2, ay = h*MAT_Y + h*gap*0.02;
+  const x0 = ax - (mx - MAT_CAT[0])*k, y0 = ay - (my - MAT_CAT[1])*k;
 
   c.save();
   // GIẬT HÌNH, chỉ ở nhịp cuối. Vài điểm ảnh, cùng lý lẽ với cú hiện hình dưới sàn: cái đáng
@@ -11629,107 +13116,130 @@ function drawAngelMat(c){
     c.translate((Math.random()-0.5)*j, (Math.random()-0.5)*j*0.7);
   }
 
-  // ---- 1. KHỐI ĐÁ. Rất mờ — "mờ mờ dần" là chữ của chủ dự án, và một khối đặc thì phạm luật 1.
-  //         Màu lấy đúng màu đá của pho tượng ngoài kia (stone trong drawAngel), nên hai thứ
-  //         đọc ra là CÙNG một vật ở hai cỡ, không phải hai vật.
-  const da = 0.13 * vao * (0.7 + 0.3*gap);
-  const gd = c.createRadialGradient(cx, cy - RY*0.25, RX*0.1, cx, cy, RY);
-  gd.addColorStop(0,    `rgba(150,146,138,${(da*0.95).toFixed(3)})`);
-  gd.addColorStop(0.72, `rgba(118,114,110,${(da*0.55).toFixed(3)})`);
-  gd.addColorStop(1,    'rgba(96,92,90,0)');
-  c.fillStyle = gd;
-  c.beginPath(); c.ellipse(cx, cy, RX, RY, 0, 0, Math.PI*2); c.fill();
+  // ---- 1. NỀN TỐI sau đầu. Pho tượng màu đá xám; đặt thẳng lên một căn phòng xám thì nó chìm.
+  //         Một quầng tối mềm sau lưng là thứ làm nó RÕ RA mà không phải tô đậm hình.
+  const gn = c.createRadialGradient(ax, ay - 4*k, 0, ax, ay - 4*k, 34*k);
+  gn.addColorStop(0,   `rgba(4,3,8,${(0.55*vao).toFixed(3)})`);
+  gn.addColorStop(0.6, `rgba(4,3,8,${(0.30*vao).toFixed(3)})`);
+  gn.addColorStop(1,   'rgba(4,3,8,0)');
+  c.fillStyle = gn;
+  c.fillRect(ax - 34*k, ay - 38*k, 68*k, 68*k);
 
-  // ---- 2. VIỀN. Cái làm một bóng đen đọc ra được là một cái ĐẦU. Ba nét chồng nhau, nét trong
-  //         cùng sáng nhất — rẻ hơn đổ bóng thật và không đụng tới bộ lọc nào.
-  for (let i = 2; i >= 0; i--){
-    c.strokeStyle = `rgba(176,172,164,${(0.075*vao*(1 - i*0.3)).toFixed(3)})`;
-    c.lineWidth = 1.6 + i*4.2;
-    c.beginPath(); c.ellipse(cx, cy, RX, RY, 0, 0, Math.PI*2); c.stroke();
+  // ---- 2. PHO TƯỢNG. Khung thật, phóng to không làm mịn.
+  const cv = matChanDung();
+  if (cv){
+    c.globalAlpha = MAT_DAM * vao * (0.88 + 0.12*gap);
+    c.imageSmoothingEnabled = false;
+    c.drawImage(cv, 0, 0, cv.width, cv.height, x0, y0, MAT_CAT[2]*k, MAT_CAT[3]*k);
+    c.globalAlpha = 1;
   }
 
-  // ---- 3. KHĂN TRÙM. Hai nếp vải đổ từ đỉnh đầu xuống hai bên má, và một vệt tối ngang trán:
-  //         chỗ hõm của gờ mày. Không có gờ mày thì hai con mắt đọc ra là hai bóng đèn.
-  const toi = 0.30 * vao * (0.6 + 0.4*gap);
-  c.fillStyle = `rgba(4,3,8,${toi.toFixed(3)})`;
-  c.beginPath();
-  c.moveTo(cx - RX*1.02, cy - RY*0.18);
-  c.quadraticCurveTo(cx - RX*0.96, cy - RY*0.92, cx, cy - RY*1.02);
-  c.quadraticCurveTo(cx + RX*0.96, cy - RY*0.92, cx + RX*1.02, cy - RY*0.18);
-  c.quadraticCurveTo(cx + RX*0.72, cy - RY*0.42, cx, cy - RY*0.36);
-  c.quadraticCurveTo(cx - RX*0.72, cy - RY*0.42, cx - RX*1.02, cy - RY*0.18);
-  c.closePath(); c.fill();
-
-  const ey = cy, exo = RX*0.40, er = RX*0.15;
-  // HỐC MẮT: hai vũng tối, vẽ TRƯỚC cái sáng. Con mắt sáng nằm trong một hốc tối mới ra con
-  // mắt; nằm trên nền phẳng thì ra một đốm đèn.
-  for (const sg of [-1, 1]){
-    const x = cx + exo*sg;
-    const gh = c.createRadialGradient(x, ey, 0, x, ey, er*2.1);
-    gh.addColorStop(0,   `rgba(3,2,6,${(0.72*vao).toFixed(3)})`);
-    gh.addColorStop(1,   'rgba(3,2,6,0)');
-    c.fillStyle = gh;
-    c.beginPath(); c.ellipse(x, ey, er*2.1, er*1.5, 0, 0, Math.PI*2); c.fill();
+  // ---- 3. MÁU. "đôi mắt chãy ra máu", và chảy MƯỢT: dài ra theo FX.matMau (đồng hồ đã làm mượt),
+  //         mép cong theo gò má, đầu vệt phồng thành một giọt rồi rứt ra rơi xuống. Mọi thứ tính
+  //         từ S.time liên tục, nên không có gì nhảy cóc giữa hai khung.
+  //         Đọc FX.matMau chứ KHÔNG đọc thẳng matGap: unlitT về 0 ngay khi rọi đèn, nên máu sẽ giật.
+  const mau = clamp(FX.matMau || 0, 0, 1);
+  const dai = k*(2.5 + 33*mau) * ease(vao);
+  for (let e = 0; e < 2; e++){
+    const sg = e === 0 ? -1 : 1;
+    const ex = x0 + (MAT_MAT[e*2] - MAT_CAT[0])*k, ey = y0 + (MAT_MAT[e*2+1] - MAT_CAT[1])*k;
+    if (dai > 2) veVetMau(c, ex, ey, sg, dai, k, vao, mau);
   }
 
-  // ---- 4. HAI CON MẮT. Cùng thang màu với hai con mắt thật ngoài kia (drawAngelFx): trắng
-  //         xanh khi còn đang bị nhìn, đỏ rực dần lên theo đồng hồ.
+  // ---- 4. HAI CON MẮT, vẽ SAU máu để chỗ máu rỉ ra nằm dưới ánh mắt. Cùng thang màu với hai con
+  //         mắt thật ngoài kia (drawAngelFx): trắng xanh khi còn bị nhìn, đỏ rực dần theo đồng hồ.
   const nhay = !FX.matNhin ? 0.74 + 0.26*Math.sin(S.time*(6 + gap*10)) : 0.9;
   const ER = Math.round(mix(232, 255, gap));
   const EG = Math.round(mix(206, 42, gap));
   const EB = Math.round(mix(255, 38, gap));
   c.globalCompositeOperation = 'lighter';
-  for (const sg of [-1, 1]){
-    const x = cx + exo*sg;
-    const gg = c.createRadialGradient(x, ey, 0, x, ey, er*2.6);
-    gg.addColorStop(0,    `rgba(${ER},${EG},${EB},${(0.80*vao*nhay).toFixed(3)})`);
-    gg.addColorStop(0.38, `rgba(${ER},${EG},${EB},${(0.26*vao*nhay).toFixed(3)})`);
+  for (let e = 0; e < 2; e++){
+    const ex = x0 + (MAT_MAT[e*2] - MAT_CAT[0])*k, ey = y0 + (MAT_MAT[e*2+1] - MAT_CAT[1])*k;
+    const gr = k*(2.6 + 1.6*gap);
+    const gg = c.createRadialGradient(ex, ey, 0, ex, ey, gr);
+    gg.addColorStop(0,    `rgba(${ER},${EG},${EB},${(0.85*vao*nhay).toFixed(3)})`);
+    gg.addColorStop(0.35, `rgba(${ER},${EG},${EB},${(0.30*vao*nhay).toFixed(3)})`);
     gg.addColorStop(1,    `rgba(${ER},${EG},${EB},0)`);
     c.fillStyle = gg;
-    c.fillRect(x - er*2.8, ey - er*2.8, er*5.6, er*5.6);
-    // Con ngươi: hạt nhỏ và HƠI CAO hơn rộng. Bản trước để nó nằm ngang, rộng gấp rưỡi — ra
-    // hai viên thuốc trắng, nhìn như hai cái đèn pha chứ không ra mắt.
-    c.fillStyle = `rgba(255,246,246,${(0.78*vao*nhay).toFixed(3)})`;
-    c.beginPath(); c.ellipse(x, ey, er*0.22, er*0.30, 0, 0, Math.PI*2); c.fill();
+    c.fillRect(ex - gr, ey - gr, gr*2, gr*2);
+    c.fillStyle = `rgba(255,246,246,${(0.85*vao*nhay).toFixed(3)})`;
+    c.beginPath(); c.ellipse(ex, ey, k*0.42, k*0.55, 0, 0, Math.PI*2); c.fill();
   }
   c.globalCompositeOperation = 'source-over';
+  c.restore();
+}
 
-  // ---- 5. MÁU. "đôi mắt chãy ra máu". Dài ra theo đồng hồ, nên nó vừa là hình vừa là một con
-  //         số: liếc một cái là biết còn bao lâu, không phải đọc gì.
-  //         MỎNG. Bản đầu vẽ rộng bằng nửa con mắt và đặc, kết quả ra hai cây cột đỏ dựng giữa
-  //         màn hình — đọc ra là một cái cổng, không đọc ra là máu.
-  const dai = R*(0.26 + 0.92*gap) * vao;
-  if (dai > 3){
-    for (const sg of [-1, 1]){
-      const x = cx + exo*sg;
-      const rong = er*0.16;
-      // Lệch ra ngoài một chút: máu chảy theo gò má chứ không rơi thẳng.
-      const lech = sg * RX*0.10 * clamp(dai/(R*1.1), 0, 1);
-      const gm = c.createLinearGradient(x, ey, x + lech, ey + dai);
-      gm.addColorStop(0,    `rgba(196,26,28,${(0.58*vao).toFixed(3)})`);
-      gm.addColorStop(0.40, `rgba(140,12,16,${(0.40*vao).toFixed(3)})`);
-      gm.addColorStop(1,    'rgba(70,4,8,0)');
+// MỘT VỆT MÁU từ (ex,ey) chảy xuống. Một đường bao DUY NHẤT (mép trái xuống, vòng qua giọt ở đầu,
+// mép phải lên) — hai hình chồng nhau với màu bán trong suốt thì chỗ chồng đậm lên thành một vết.
+function veVetMau(c, ex, ey, sg, dai, k, vao, mau){
+  const bw = k*0.78;                                   // nửa bề ngang ở chỗ rỉ ra
+  const N = 18;
+  // Đường giữa: lệch dần ra ngoài theo gò má, cộng một nhịp lượn cố định theo chiều dài (không
+  // theo thời gian — vệt máu không ngoằn ngoèo, nó chỉ dài ra).
+  const phan = clamp(dai/(k*35), 0, 1);               // cong theo ĐỘ DÀI thật: vệt ngắn thì thẳng
+  const gx = t => ex + (sg*k*1.8*t*t + Math.sin(t*4.6 + sg*1.3)*k*0.4*t) * phan;
+  const hw = t => bw*(1 - 0.28*t);
+  const chuKy = 1.9, pha = (S.time/chuKy + (sg > 0 ? 0.43 : 0)) % 1;
+  const dayGiot = matMuot(0.12, 0.35, mau);            // máu còn ít thì chưa đủ nặng để nhỏ giọt
+  const rB = hw(1)*(1.15 + 0.7*pha*dayGiot);           // đầu vệt phồng dần trước khi rứt
+  const yT = ey + dai, xT = gx(1);
+  const T9 = 0.86;
+
+  for (let lop = 0; lop < 2; lop++){
+    // lớp 0: vệt thấm tối, rộng hơn — chỗ máu đã chảy qua để lại trên đá
+    // lớp 1: dòng máu tươi
+    const sc = lop === 0 ? 1.7 : 1;
+    c.beginPath();
+    c.moveTo(gx(0) - hw(0)*sc, ey - bw*0.4);
+    for (let i = 1; i <= N; i++){ const t = T9*i/N; c.lineTo(gx(t) - hw(t)*sc, ey + dai*t); }
+    const rb = rB*(lop === 0 ? 1.35 : 1);
+    const xL = gx(T9) - hw(T9)*sc, xR = gx(T9) + hw(T9)*sc, yB = ey + dai*T9;
+    c.bezierCurveTo(xL, yB + (yT - yB)*0.6, xT - rb*1.25, yT - rb*0.1, xT - rb*0.2, yT + rb*0.95);
+    c.quadraticCurveTo(xT, yT + rb*1.12, xT + rb*0.2, yT + rb*0.95);
+    c.bezierCurveTo(xT + rb*1.25, yT - rb*0.1, xR, yB + (yT - yB)*0.6, xR, yB);
+    for (let i = N; i >= 0; i--){ const t = T9*i/N; c.lineTo(gx(t) + hw(t)*sc, i === 0 ? ey - bw*0.4 : ey + dai*t); }
+    c.closePath();
+    if (lop === 0){
+      c.fillStyle = `rgba(52,0,6,${(0.38*vao).toFixed(3)})`;
+    } else {
+      const gm = c.createLinearGradient(ex, ey, ex, yT + rb);
+      gm.addColorStop(0,    `rgba(236,34,38,${(0.95*vao).toFixed(3)})`);
+      gm.addColorStop(0.45, `rgba(176,12,20,${(0.93*vao).toFixed(3)})`);
+      gm.addColorStop(1,    `rgba(112,4,12,${(0.92*vao).toFixed(3)})`);
       c.fillStyle = gm;
-      // Hai nhịp cong chứ không một đường thẳng: một vệt thẳng tắp, rộng đều, đọc ra là một
-      // cái cột sơn đỏ. Bản đầu đúng thế, và nhìn ra ngay.
-      const mx = x + lech*0.35, my = ey + dai*0.45;
-      c.beginPath();
-      c.moveTo(x - rong, ey);
-      c.quadraticCurveTo(mx - rong*0.55, my, x + lech, ey + dai);
-      c.quadraticCurveTo(mx + rong*0.55, my, x + rong, ey);
-      c.closePath(); c.fill();
-      // Giọt rơi rời khỏi vệt. Pha tính từ S.time nên nó không nhảy loạn mỗi khung hình.
-      for (let i = 0; i < 2; i++){
-        const pha = (S.time*0.42 + i*0.5 + (sg > 0 ? 0.27 : 0)) % 1;
-        const gy = ey + dai*(0.3 + pha*1.0);
-        const r2 = rong*(0.9 - pha*0.3);
-        if (r2 <= 0.25) continue;
-        c.fillStyle = `rgba(164,16,18,${(0.40*vao*(1-pha)).toFixed(3)})`;
-        c.beginPath(); c.ellipse(x + lech*1.15, gy, r2, r2*1.7, 0, 0, Math.PI*2); c.fill();
-      }
+    }
+    c.fill();
+  }
+
+  // Ánh ướt: một sợi sáng mảnh chạy dọc mép trong, và một đốm sáng trôi xuống theo dòng. Đốm sáng
+  // mờ ở hai đầu chu kỳ nên lúc nó quay về đỉnh không ai thấy nó nhảy.
+  c.strokeStyle = `rgba(255,140,140,${(0.30*vao).toFixed(3)})`;
+  c.lineWidth = Math.max(1, k*0.18); c.lineCap = 'round';
+  c.beginPath();
+  for (let i = 1; i <= N; i++){
+    const t = 0.9*i/N, px = gx(t) - sg*hw(t)*0.35, py = ey + dai*t;
+    if (i === 1) c.moveTo(px, py); else c.lineTo(px, py);
+  }
+  c.stroke(); c.lineCap = 'butt';
+  const troi = (S.time*0.55 + (sg > 0 ? 0.3 : 0.8)) % 1;
+  const ta = Math.sin(troi*Math.PI);
+  const ty = ey + dai*troi*0.95;
+  const gs = c.createRadialGradient(gx(troi), ty, 0, gx(troi), ty, bw*1.6);
+  gs.addColorStop(0, `rgba(255,170,170,${(0.45*vao*ta).toFixed(3)})`);
+  gs.addColorStop(1, 'rgba(255,170,170,0)');
+  c.fillStyle = gs; c.fillRect(gx(troi) - bw*1.6, ty - bw*1.6, bw*3.2, bw*3.2);
+
+  // GIỌT RỨT RA. Sinh ra đúng ở đầu vệt, rơi nhanh dần, tan trước khi hết chu kỳ.
+  if (dayGiot > 0){
+    const tg = pha*chuKy;
+    const gy = yT + rB*0.9 + 0.5*46*k*tg*tg;
+    const ga = vao*dayGiot*matMuot(0, 0.03, pha)*(1 - matMuot(0.32, 0.62, pha));
+    const gr = hw(1)*1.45*(1 - 0.35*pha);
+    if (ga > 0.01){
+      c.fillStyle = `rgba(170,10,18,${(0.92*ga).toFixed(3)})`;
+      c.beginPath(); c.ellipse(xT + sg*k*0.2*pha, gy, gr, gr*(1.25 + 0.5*matMuot(0, 0.2, pha)), 0, 0, Math.PI*2); c.fill();
     }
   }
-  c.restore();
 }
 
 // ============================================================ highlights
@@ -11969,7 +13479,7 @@ function foeHearR(m){
 }
 function drawFoeVision(c){
   for (const m of S.monsters){
-    if (m.sleep > 0 || !foeVisible(m)) continue;
+    if (m.sleep > 0 || !foeVisible(m) || foeQuiet(m)) continue;
     const d = MONSTERS[m.type];
     const hot = foeAlerted(m);
     const rgb = hot ? '236,52,40' : '224,168,74';
@@ -12291,7 +13801,7 @@ function drawHighlights(c){
   // hiệu ĐỘNG đó mới là thứ cái vòng thực sự mang, và chúng ở lại.
   // SEE: bỏ vòng tròn trên quái, 2026-08-31
   for (const m of S.monsters){
-    if (!foeVisible(m) || m.sleep > 0) continue;
+    if (!foeVisible(m) || m.sleep > 0 || foeQuiet(m)) continue;
     spotFx(c, m.x, m.y, m.spotT || 0);
     if (foeAlerted(m)) alertMark(c, m.x, m.y);
     // NGÒI ĐANG CHÁY. Đây là cái đồng hồ duy nhất trong game chạy trên đầu một con quái, và nó
@@ -12791,8 +14301,29 @@ function drawBay(c){
   if (!S.bay) return;
   for (const b of S.bay){
     if (b.loai === 'gai') drawGai(c, b);
+    else if (b.loai === 'doc' || b.loai === 'bun') drawVung(c, b);
     else { drawHopTia(c, b, b.x, b.y); drawHopTia(c, b, b.x2, b.y2); }
   }
+}
+// Ải 5 nhà: vũng độc (lục, sủi bọt) / vũng bùn (nâu, gợn chậm). Vẽ bằng mã, không rút số ngẫu nhiên.
+function drawVung(c, b){
+  const doc = b.loai === 'doc', r = b.r;
+  c.save();
+  c.fillStyle = doc ? 'rgba(70,160,60,0.55)' : 'rgba(92,64,36,0.72)';
+  c.beginPath(); c.ellipse(b.x, b.y, r, r*0.72, 0, 0, Math.PI*2); c.fill();
+  c.fillStyle = doc ? 'rgba(140,230,90,0.45)' : 'rgba(130,96,58,0.55)';
+  c.beginPath(); c.ellipse(b.x - r*0.15, b.y - r*0.1, r*0.62, r*0.42, 0, 0, Math.PI*2); c.fill();
+  const n = doc ? 5 : 3;
+  c.lineWidth = 1;
+  c.strokeStyle = doc ? 'rgba(200,255,150,0.9)' : 'rgba(170,130,90,0.8)';
+  for (let i = 0; i < n; i++){
+    const pha = (S.time*(doc ? 0.9 : 0.35) + i*0.37 + Math.abs(b.x)*0.013) % 1;
+    const ang = i*2.39996 + b.y*0.01;
+    const bx = b.x + Math.cos(ang)*r*0.5, by = b.y + Math.sin(ang)*r*0.32;
+    c.globalAlpha = 1 - pha;
+    c.beginPath(); c.arc(bx, by, (doc ? 2.2 : 3.2) + pha*(doc ? 2.5 : 4), 0, Math.PI*2); c.stroke();
+  }
+  c.restore();
 }
 // MỘT SỐ 0..7 nói cái tấm gai đang nhả ra tới đâu — rồi GAI_KHUNG dịch nó sang số ô thật.
 // Tách ra khỏi chỗ vẽ vì bộ test đọc con số này: "khung có chạy không" đo được, còn "trông có
@@ -13020,6 +14551,7 @@ const GOOD_ICON_R = 13;
 function drawLoot(c){
   for (const l of S.loot){
     if (l.gone) continue;
+    if (l.headBomb){ drawHeadBomb(c, l); continue; }   // đầu bí ngô của kẻ ném đầu
     const y = l.held ? l.y : l.y + Math.sin(S.time*2.4 + l.bob)*1.2;
     // A colleague's head. It goes through the loot pipeline because it has to be carried, dropped,
     // loaded and stood on a pad — but it must never LOOK like something you sell.
@@ -13369,6 +14901,17 @@ function drawFoeOne(c, m, dIn){
     // đang quay mặt đi đâu. Bom con và Gnome thì ngược lại, nhỏ theo đúng cỡ thân của chúng.
     const co = (d && d.scale != null) ? d.scale : (d && d.body || FOE_BODY) / FOE_BODY;
     c.save(); c.translate(m.x, m.y);
+    // Ải 5 nhà: loài mới tự vẽ bằng dải khung SK (hồn ma và bàn tay không có bóng dưới chân).
+    const loaiMoi = foeKind(m);
+    if (loaiMoi){
+      if (!d.passWalls && !d.wallBound){
+        c.fillStyle = 'rgba(0,0,0,0.45)';
+        c.beginPath(); c.ellipse(0,9*co,10*co,4.5*co,0,0,Math.PI*2); c.fill();
+      }
+      if ((m.swing || 0) > 0) drawSwing(c, m, d);
+      loaiMoi.draw(c, m, d);
+      c.restore(); return;
+    }
     c.fillStyle = 'rgba(0,0,0,0.45)';
     c.beginPath(); c.ellipse(0,9*co,10*co,4.5*co,0,0,Math.PI*2); c.fill();
     if ((m.swing || 0) > 0) drawSwing(c, m, d);
@@ -14427,6 +15970,7 @@ function drawHud(c){
   if (p.riding) badges.push(bikeDef(p.riding).name + ' ' +
     Math.round(p.riding.fuel / p.riding.fuelMax * 100) + '%');
   if (pc) drawPcHud(c, hud, K);
+  drawStruggle(c, hud, K);   // nút vùng vẫy khi bị bàn tay chụp
   if (badges.length){
     c.font = '600 11px ui-monospace, monospace';
     c.fillStyle = '#8fd0b4';
@@ -14808,7 +16352,7 @@ function nearestLoot(p){
     // On a SHOP checkout you may take something back off — that is changing your mind, and it is
     // the whole point of a shop. On a house's extraction pad you may not, because that would be
     // un-banking a haul the level has already paid you for.
-    if (l.gone || l.held || l.inCart) continue;
+    if (l.gone || l.held || l.inCart || l.foeCarry) continue;
     // Trên bệ rút hàng thì vẫn nhấc lại được CHỪNG NÀO bệ chưa chốt. Trước đây cấm hẳn ngoài shop,
     // nên đặt nhầm một món lên bệ là mất luôn phần chênh — mà cả ván chơi là bài toán xếp hàng cho
     // đủ chỉ tiêu với ít giá trị nhất. Bệ đã done thì thôi: tiền đã vào ví rồi.
@@ -14965,7 +16509,7 @@ function drawMinimap(c, hud){
 // Trang html khai `game.js?v=...`, nen neu HTML moi thi JS chac chan moi. Cai co the cu la
 // chinh TRANG HTML. So DAU BUILD trong tep nay voi dau `?v=` tren the <script> la biet ngay:
 // hai so khac nhau nghia la trinh duyet dang chay mot to HTML cu.
-const BUILD = '20260911d';
+const BUILD = '20260915a';
 function el(id){ return document.getElementById(id); }
 let veilShownAt = -1e9, veilBornInTouch = false;
 const VEIL_CLICK_GRACE = 900;      // ms: cửa sổ sự kiện chuột "tương thích" của một cú chạm
@@ -16216,7 +17760,7 @@ function napKeoTha(p, act){
 // Xoá một cái span ở một trang là khung hình kế tiếp ném lỗi ngay trong vòng vẽ.
 function setText(id, v){ const n = el(id); if (n) n.textContent = v; }
 function updateBar(){
-  setText('hLevel', S.shopMode ? 'Trạm' : S.level);
+  setText('hLevel', S.shopMode ? 'Trạm' : houseText());
   const pad = S.pads[S.padIndex];
   const q = el('hQuota');
   if (!q){ setText('hWallet', money(S.wallet)); return; }
@@ -16593,7 +18137,7 @@ function vaoCa(){
   const def = mangDoVaoCa();
   S.running = true;
   hideVeil();
-  startCut('arrive', 'Màn ' + S.level, 'Chỉ tiêu ' + money(S.quotaTotal));
+  startCut('arrive', levelLabel(), 'Chỉ tiêu ' + money(S.quotaTotal));
   if (def) toast('Mang theo: ' + def.name + ' — hết là hết, ca sau phải mua lại.');
 }
 // Bắt đầu ngay một ván mới, KHÔNG qua màn tiêu đề: phím R và nút "Ca mới". Món mua sẵn vẫn phải
@@ -16821,6 +18365,9 @@ function setBot(on){
 
 // ============================================================ hooks for tests + bot
 window.REPO = {
+  ai: AI,               // ải 5 nhà: dữ liệu + luật đọc từng nhà, Biệt Đội dựng map/màn ải từ đây
+  foeQuiet,             // quái đang giả/núp/vắng mặt: bot không coi là mối đe doạ
+  FOE_KINDS, headBoom, struggle,
   BUILD,
   S, TILE, MW, MH, RW, RH, GX, GY, WPX, HPX,
   solidAt, losClear, hitsSolid, money, clamp, angDiff,
@@ -17121,6 +18668,7 @@ window.REPO = {
   vienDo(){ return { gan:+FX.gan.toFixed(3), than:+thanGan().toFixed(3), nhieu:+FX.nhieu.toFixed(3) }; },
   bay(){ return (S.bay||[]).map(b => b.loai === 'gai'
            ? { loai:'gai', x:b.x, y:b.y, pha:b.pha, t:+b.t.toFixed(2), khung:gaiNhip(b) }
+           : (b.loai === 'doc' || b.loai === 'bun') ? { loai:b.loai, x:b.x, y:b.y, r:b.r }
            : { loai:'tia', x:b.x, y:b.y, x2:b.x2, y2:b.y2, bat:!!b.bat, t:+b.t.toFixed(2) }); },
   ruong(){ return (S.ruong||[]).map(r => ({ x:r.x, y:r.y, mo:!!r.mo, mimic:!!r.mimic, so:r.so })); },
   // Khung gai ở một thời điểm bất kỳ của một pha bất kỳ — HÀM THUẦN, không đọc S.
@@ -17182,6 +18730,7 @@ window.REPO = {
   relocateFoe(i){ return relocateFoe(S.monsters[i||0], Math.random); },
   soundOn(){ return SFX.on; },
   audio(){ return SFX.scoreState(); },
+  amThat(){ return SFX.mau(); },
   audioLevel(){ return SFX.level(); },
   audioBand(lo, hi){ return SFX.band(lo, hi); },
   audioFired(){ return Object.assign({}, SFX.fired); },

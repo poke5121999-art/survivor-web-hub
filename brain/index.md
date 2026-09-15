@@ -7,6 +7,7 @@
 - [[codebase/hic-map]]
 - [[codebase/hub-deploy-rev]]
 - [[codebase/multi-agent-git]]
+- [[codebase/repo-squad-ai-5-nha]]
 - [[codebase/ui-test-gotchas]]
 
 ## Other

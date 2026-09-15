@@ -283,99 +283,24 @@
   ];
 
   // ---------------------------------------------------------------------------
-  // MAP LỚN. KHÔNG lặp vô hạn: mỗi map có số tầng cố định, hết tầng là THẮNG.
-  //   power: lực chiến khuyên nên có. quotaBase: chỉ tiêu tầng 1.
+  // ẢI DUY NHẤT — 5 NHÀ (chép từ bản Unity REPO_Topdown, 2026-09-14)
   // ---------------------------------------------------------------------------
-  // MAP LỚN — số tầng chạy theo vòng 3 → 4 → 5, rồi lặp lại từ 3 với một vòng khó hơn:
-  // cùng bấy nhiêu giống quái nhưng khoẻ hơn và đông hơn.
-  //
-  // `desc` KHÔNG ĐƯỢC HỨA TÊN MỘT CON QUÁI. Bốn dòng ở đây từng hứa Thợ Săn, Nhện Trần,
-  // Quản Ca, Bóng Đen — bốn con nằm trong SQ.FOES, bảng mà không chỗ nào nạp vào bộ máy, nên
-  // chúng chưa từng sinh ra trong một ván nào. Người chơi đọc câu "Nhện Trần rơi xuống đúng
-  // lúc bạn ngẩng lên", vào màn, rồi không gặp con nào như thế cả. Bộ sinh màn bốc ngẫu nhiên
-  // ba thứ cho mỗi tầng (xem stockKinds bên repo2d), nên một căn nhà cụ thể có gì là thứ file
-  // dữ liệu này KHÔNG biết. `desc` nói về CĂN NHÀ — thứ nó thực sự quyết định — và chỉ thế.
-  // WHY: người chơi đo được sức mình bằng cùng một thước (3-4-5 tầng) qua từng vòng,
-  //      nên "mình mạnh lên bao nhiêu" là câu hỏi có câu trả lời, không phải cảm giác.
-  SQ.MAPS = [
-    // ---------------- VÒNG 1 — học nghề ----------------
-    {
-      id: 'k3', name: 'Khu Tập Thể K3', cycle: 1, floors: 3, power: 0, tier: 1,
-      quotaBase: 4200, quotaStep: 0.35,
+  // Chủ dự án bỏ 9 map mở khoá dần: game chỉ còn một ải, qua nhà cuối là thắng ca, và lần sau chơi
+  // lại từ nhà 1. Tiến bộ nằm ở nhân vật. Dữ liệu từng nhà (theme, quái, hệ số) ở bộ máy — REPO.ai
+  // trong repo2d/game.js — vì chính bộ máy dựng căn nhà. SQ.MAPS vẫn là một danh sách để sổ sách cũ
+  // (M.maps, finishRun, thắng lần đầu) đọc y như trước; nó chỉ còn đúng một dòng.
+  // Sổ lưu cũ có k3/cho/bv...: meta.js tự bỏ các mã map không còn trong bảng này.
+  SQ.STAGE_MAP_ID = 'ai';
+  SQ.MAPS = [(function () {
+    const d = REPO.ai.data;
+    return {
+      id: SQ.STAGE_MAP_ID, name: d.ten, cycle: 1, floors: d.nha.length, power: 0, tier: 1,
       pal: { floor: '#14161a', wall: '#343c48', accent: '#4b5768' },
-      desc: 'Ba tầng nhà cũ, đèn hành lang chập chờn. Chỗ dạy nghề.',
-      first: { gold: 3000, gem: 300, ticketX: 1 },
-      clear: { gold: 900, gem: 20 }
-    },
-    {
-      id: 'cho', name: 'Chợ Đêm Bến Cũ', cycle: 1, floors: 4, power: 4000, tier: 2,
-      quotaBase: 7000, quotaStep: 0.34,
-      pal: { floor: '#17150f', wall: '#3d3527', accent: '#5c4e37' },
-      desc: 'Sạp gỗ, thùng cá, và một thứ đi lại giữa các quầy.',
-      first: { gold: 6000, gem: 500, ticketE: 2 },
-      clear: { gold: 1800, gem: 30 }
-    },
-    {
-      id: 'bv', name: 'Bệnh Viện Bỏ Hoang', cycle: 1, floors: 5, power: 8000, tier: 3,
-      quotaBase: 11000, quotaStep: 0.33,
-      pal: { floor: '#121818', wall: '#2f3f3c', accent: '#456158' },
-      desc: 'Hành lang trắng. Đừng quay lưng lại con đứng yên.',
-      first: { gold: 12000, gem: 800, ticketX: 2 },
-      clear: { gold: 3200, gem: 45 }
-    },
-
-    // ---------------- VÒNG 2 — cùng bấy nhiêu giống quái, khoẻ hơn ----------------
-    {
-      id: 'det', name: 'Nhà Máy Dệt', cycle: 2, floors: 3, power: 10000, tier: 4,
-      quotaBase: 17000, quotaStep: 0.32,
-      pal: { floor: '#161113', wall: '#3f303a', accent: '#5c4250' },
-      desc: 'Vòng hai bắt đầu lại từ ba tầng — nhưng thứ trong nhà thì không quay lại như cũ. Không gian củi, ồn, và không chỗ nào đứng khuất được lâu.',
-      first: { gold: 20000, gem: 1200, ticketE: 3 },
-      clear: { gold: 5200, gem: 60 }
-    },
-    {
-      id: 'kho', name: 'Kho Lạnh Bến Xe', cycle: 2, floors: 4, power: 13000, tier: 5,
-      quotaBase: 24000, quotaStep: 0.31,
-      pal: { floor: '#111419', wall: '#2b3a50', accent: '#3d5474' },
-      desc: 'Trần thấp, ống lạnh chạy dọc. Đứng thẳng lên là chạm đầu, và không ai nghe thấy tiếng bạn ở đây.',
-      first: { gold: 30000, gem: 1500, ticketX: 2, ticketE: 2 },
-      clear: { gold: 7000, gem: 75 }
-    },
-    {
-      id: 'bt', name: 'Biệt Thự Đồi Sương', cycle: 2, floors: 5, power: 17000, tier: 6,
-      quotaBase: 33000, quotaStep: 0.30,
-      pal: { floor: '#141020', wall: '#37304f', accent: '#4e4270' },
-      desc: 'Đồ ở đây đắt gấp đôi chỗ khác. Có lý do cả.',
-      first: { gold: 45000, gem: 2000, ticketX: 3 },
-      clear: { gold: 10000, gem: 95 }
-    },
-
-    // ---------------- VÒNG 3 — nhà to hơn, chỉ tiêu nặng hơn ----------------
-    {
-      id: 'ga', name: 'Ga Hàng Cũ', cycle: 3, floors: 3, power: 20000, tier: 7,
-      quotaBase: 44000, quotaStep: 0.30,
-      pal: { floor: '#14110d', wall: '#3a3428', accent: '#564936' },
-      desc: 'Lại ba tầng, lại từ đầu. Sân ga dài, thẳng, không có góc nào để cắt đuôi.',
-      first: { gold: 70000, gem: 2600, ticketE: 4 },
-      clear: { gold: 15000, gem: 120 }
-    },
-    {
-      id: 'tau', name: 'Xưởng Đóng Tàu', cycle: 3, floors: 4, power: 23000, tier: 8,
-      quotaBase: 58000, quotaStep: 0.29,
-      pal: { floor: '#0f1518', wall: '#2a4049', accent: '#3b5c68' },
-      desc: 'Vỏ tàu dựng đứng trong bóng tối. Đèn pin ở đây không tới được trần.',
-      first: { gold: 95000, gem: 3200, ticketX: 4 },
-      clear: { gold: 21000, gem: 150 }
-    },
-    {
-      id: 'hh', name: 'Tầng Hầm Không Tên', cycle: 3, floors: 5, power: 26000, tier: 9,
-      quotaBase: 76000, quotaStep: 0.28,
-      pal: { floor: '#0e0e11', wall: '#2c2c34', accent: '#41414e' },
-      desc: 'Không có trên bản đồ nào. Xe tải đỗ ở đây thì tắt máy chờ.',
-      first: { gold: 150000, gem: 5000, ticketX: 5, ticketE: 5 },
-      clear: { gold: 32000, gem: 220 }
-    }
-  ];
+      desc: d.nha.length + ' căn nhà, mỗi nhà một kiểu, khó dần. Qua nhà cuối là thắng ca.',
+      first: { gold: d.lanDauVang, gem: d.lanDauNgoc },
+      clear: { gold: d.thuongVang, gem: d.thuongNgoc }
+    };
+  })()];
   SQ.MAP_BY_ID = {};
   SQ.MAPS.forEach(m => { SQ.MAP_BY_ID[m.id] = m; });
 
