@@ -111,13 +111,16 @@
 
       var buildUrl = "Build";
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-e6a0415881.data.unityweb",
-        frameworkUrl: buildUrl + "/repo2d-unity-e6a0415881.framework.js.unityweb",
-        codeUrl: buildUrl + "/repo2d-unity-e6a0415881.wasm.unityweb",
+        dataUrl: buildUrl + "/repo2d-unity-5547905d31.data.unityweb",
+        frameworkUrl: buildUrl + "/repo2d-unity-5547905d31.framework.js.unityweb",
+        codeUrl: buildUrl + "/repo2d-unity-5547905d31.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
         devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        // Kế hoạch 03 phase 2: trang tự đặt cỡ bộ đệm (fitCanvas, theo ngân sách điểm ảnh + hệ số tự điều chỉnh).
+        // Để Unity tự khớp thì mỗi khung nó đặt lại canvas.width = cỡ CSS × devicePixelRatio và đè mất tỉ lệ ấy.
+        matchWebGLToCanvasSize: false,
         companyName: "HLO",
         productName: "Ca Trực Đêm Biệt Đội",
         productVersion: "1.0",
@@ -127,12 +130,27 @@
       // Bộ đệm vẽ phải khớp cỡ THẬT của canvas trên màn hình, nhân với độ nét của máy.
       // Không đặt thì Unity vẽ ở cỡ mặc định rồi trình duyệt phóng lên — chữ nhoè và
       // chỗ chạm lệch với chỗ nhìn thấy.
+      //
+      // Kế hoạch 03 phase 2 — NGÂN SÁCH ĐIỂM ẢNH. Tỉ lệ vẽ = min(dpr (trần 2), √(ngân sách / diện tích CSS)) × hệ số,
+      // kẹp [0,5; dpr]. Ngân sách ~1080p: màn 1080p dpr2 hay 1440p không còn vẽ 8,3 / 3,7 triệu điểm mỗi khung. Hệ số do
+      // PortHost (RenderScale) gửi xuống qua PortSetRenderScale: khung chậm kéo dài thì hạ, máy khoẻ thì nâng dần tới
+      // trọn dpr (chữ 4K nét). PortHost chia bộ đệm cho cỡ CSS để ra dpr thật nên toạ độ chạm và cỡ giao diện tự đúng.
+      // ?renderScale=0 tắt tự điều chỉnh (hệ số 1) để đo so sánh.
+      var NGAN_SACH_PX = 1920 * 1080;
+      window.__repoHeSo = 1;
+      window.__repoTuChinh = !/[?&]renderScale=0/.test(location.search);
+      function tiLeNganSach(r) { return Math.sqrt(NGAN_SACH_PX / Math.max(1, r.width * r.height)); }
       function fitCanvas() {
         var r = canvas.getBoundingClientRect();
         var dpr = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = Math.round(r.width * dpr);
-        canvas.height = Math.round(r.height * dpr);
+        var k = Math.max(0.5, Math.min(dpr, tiLeNganSach(r) * window.__repoHeSo));
+        var w = Math.max(1, Math.round(r.width * k)), h = Math.max(1, Math.round(r.height * k));
+        if (canvas.width !== w) canvas.width = w;
+        if (canvas.height !== h) canvas.height = h;
+        window.__repoTiLeVe = k;
+        return k / tiLeNganSach(r);          // hệ số THỰC SỰ dùng sau khi kẹp
       }
+      window.__repoFitCanvas = fitCanvas;
       fitCanvas();
       window.addEventListener("resize", fitCanvas);
       window.addEventListener("orientationchange", function () { setTimeout(fitCanvas, 200); });
@@ -212,7 +230,7 @@
       }, 1000);
 
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-e6a0415881.loader.js";
+      script.src = buildUrl + "/repo2d-unity-5547905d31.loader.js";
       script.onerror = function () { loadFailed("Không tải được " + script.src); };
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
