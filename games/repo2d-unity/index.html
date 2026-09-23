@@ -63,18 +63,11 @@
         color: #e6ebee; background: rgba(20,22,26,.92); padding: 10px 14px; border-radius: 8px;
         font-size: 13px; max-width: 86vw; display: none;
       }
-      /* Nút về hub — mấy game khác trên hub đều có, bản Unity trước đây thì không. */
-      #back-to-hub {
-        position: absolute; right: 10px; top: 10px; z-index: 5;   /* bên phải: bên trái là chỗ tiêu đề của game */
-        color: #cfd6dc; background: rgba(20,22,26,.72); border: 1px solid #2c323a;
-        border-radius: 8px; padding: 6px 12px; font-size: 13px; text-decoration: none;
-      }
       #unity-warning { pointer-events: auto; }
       #unity-retry {
         margin-left: 8px; padding: 6px 14px; font-size: 14px; border-radius: 6px;
         border: 0; background: #e0a53c; color: #14161a; font-weight: 600;
       }
-      #back-to-hub:hover { background: rgba(32,36,42,.92); }
     </style>
   </head>
   <body>
@@ -111,9 +104,9 @@
 
       var buildUrl = "Build";
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-28d9693ff1.data.unityweb",
-        frameworkUrl: buildUrl + "/repo2d-unity-28d9693ff1.framework.js.unityweb",
-        codeUrl: buildUrl + "/repo2d-unity-28d9693ff1.wasm.unityweb",
+        dataUrl: buildUrl + "/repo2d-unity-886645d3dc.data.unityweb",
+        frameworkUrl: buildUrl + "/repo2d-unity-886645d3dc.framework.js.unityweb",
+        codeUrl: buildUrl + "/repo2d-unity-886645d3dc.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -230,7 +223,7 @@
       }, 1000);
 
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-28d9693ff1.loader.js";
+      script.src = buildUrl + "/repo2d-unity-886645d3dc.loader.js";
       script.onerror = function () { loadFailed("Không tải được " + script.src); };
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
