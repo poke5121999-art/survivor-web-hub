@@ -211,3 +211,10 @@ tượng bộ đàm gọi khoang, cũng tĩnh — `AnimationClip EscapePod_Radio
 Vòng sáng quanh khoang trong bản gốc là `ParticleSystem` 3D (glow/ring/god-rays…), không xuất
 được kiểu sprite — dựng lại bằng VFX glow đã có sẵn trong `VFX` (`LightCircle`, `PointLightFX`,
 `E_Glow_*`) nếu cần hiệu ứng tương tự.
+
+## Cano, súng, trang bị, quán sushi
+
+Hai công cụ bóc riêng, ghi chép và bẫy nằm ở tệp riêng:
+
+- `tools/rip_boat.py` → `art/boat/`, `art/gear/`, `audio/boat_*`, `audio/gun_*`, `audio/ui_*`, `data/boat_assets.js`, `data/gear_sheet.js`. Xem `README-boat.md`.
+- `tools/rip_bar.py` → `art/bar/`, `audio/bar_*`, `data/bar_assets.js`. Xem `README-bar.md`.
