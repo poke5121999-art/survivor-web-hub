@@ -26,3 +26,8 @@
 - [ ] Quay 10 chưa có hoạt ảnh lật thẻ; lên cấp thẻ chưa có phản hồi.
 - [ ] "Giao cho trợ lý" chưa cho xem đội hình vừa chọn.
 - [ ] Lời thoại trong trận lặp ("Tôi sai vị trí."); tên nhân vật đứng gần chồng lên nhau.
+
+## Hố Xanh
+- [ ] `tools/rip.py audio` hỏng: `rip_audio()` dùng `AUDIO` mà không nơi nào định nghĩa (agent bóc cano báo 2026-09-24).
+- [ ] `rip.py` `rip_dave` căn giữa khung đã cắt thay vì đặt đúng chỗ như game gốc, nên khung Dave lệch vài px.
+- [ ] Bộ nạp phụ thuộc dùng chung của `rip.py` giữ mọi tổ hợp bundle trong bộ nhớ. `rip_bar.py` phải tự viết bộ nạp riêng để khỏi tràn RAM.
