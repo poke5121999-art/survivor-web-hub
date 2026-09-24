@@ -23,6 +23,9 @@
     Atlantic_Bonito: 'Cá ngừ sọc', White_Trevally: 'Cá khế trắng', CuttleFish: 'Mực nang', Dusky_Grouper: 'Cá mú nâu',
     Atlantic_Mackerel: 'Cá thu Đại Tây Dương', Giant_Trevally: 'Cá khế vây vàng', Great_Barracuda: 'Cá nhồng lớn',
     Atlantic_Anglerfish: 'Cá vây chân', Devil_ScorpionFish: 'Cá mù làn quỷ', Blackfin_Barracuda: 'Cá nhồng vây đen', SpearSquid: 'Mực ống giáo',
+    Chambered_Nautilus: 'Ốc anh vũ', Fangtooth: 'Cá răng nanh', GreatSpiderCrab: 'Cua nhện khổng lồ', Clione: 'Thiên thần biển',
+    Sea_Toad: 'Cá cóc biển', Pacificfanfish: 'Cá quạt Thái Bình Dương', Threetooth_Puffer: 'Cá nóc ba răng', Comb_Jelly: 'Sứa lược',
+    Bloodbelly_Comb_Jelly: 'Sứa lược bụng máu', Red_Bream: 'Cá tráp đỏ',
   };
 
   function displayName(sp) { return VI_NAMES[sp.id] || sp.name.replace(/_/g, ' '); }
@@ -49,7 +52,7 @@
   function loadAll(onProgress) {
     assetMgr = assetMgr || new spine.AssetManager('art/');
     var env = window.HX_ASSETS.spineEnv;
-    var list = SPECIES.concat(Object.keys(env).map(function (k) { var e = env[k]; return { id: 'env:' + k, skel: e.skel, atlas: e.atlas }; }))
+    var list = SPECIES.concat(Object.keys(env).map(function (k) { return { id: 'env:' + k, skel: env[k].skel, atlas: env[k].atlas }; }))
       .filter(function (s) { return !skelData[s.id]; });
     list.forEach(function (s) { assetMgr.loadBinary(s.skel); assetMgr.loadTextureAtlas(s.atlas); });
     return new Promise(function (res, rej) {
@@ -354,10 +357,10 @@
     this.frozen = false;
   }
 
-  function pickSpecies(depth, rnd) {
-    var pB = depth < FT.zoneBDepth ? 0 : Math.min(0.75, (depth - FT.zoneBDepth) / (FT.zoneBFull - FT.zoneBDepth) * 0.75);
-    var zone = rnd() < pB ? 'B' : 'A';
-    var pool = SPECIES.filter(function (s) { return s.zone === zone && s.rank > 0; });
+  // Cá của đúng vùng đang lặn (A nông, B tầng giữa, C vực sâu); sát ranh giới thì lẫn một ít cá tầng kế bên.
+  function pickSpecies(area, rnd) {
+    var pool = SPECIES.filter(function (s) { return s.zone === area && s.rank > 0; });
+    if (!pool.length) pool = SPECIES.filter(function (s) { return s.zone === 'A' && s.rank > 0; });
     var tot = 0, w = pool.map(function (s) { var x = s.rank >= 3 ? FT.rareWeight : 1; tot += x; return x; });
     var r = rnd() * tot;
     for (var i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) return pool[i]; }
@@ -377,7 +380,7 @@
       var x = cam.x + Math.cos(a) * r, y = cam.y + Math.sin(a) * r * 0.7;
       if (y > T.water.surfaceY - 1.2 || y < W.box.minY) continue;
       if (!W.open(x, y, 0.6)) continue;
-      var sp = pickSpecies(T.water.surfaceY - y, Math.random);
+      var sp = pickSpecies(G.stack.layerAt(y + (Math.random() - 0.5) * 12).area, Math.random);
       var lead = this.spawnAt(sp, x, y);
       if (sp.hp <= FT.schoolMaxHp && sp.size === 0 && Math.random() < 0.6) {
         var n = FT.school[0] + Math.floor(Math.random() * (FT.school[1] - FT.school[0] + 1));
@@ -394,8 +397,7 @@
   };
 
   Fishes.prototype.target = function () {
-    var depth = T.water.surfaceY - this.G.gfx.camera.position.y;
-    var k = Math.min(1, Math.max(0, depth / 40));
+    var k = Math.min(1, this.G.stack.depth(this.G.gfx.camera.position.y) / 100);
     return Math.round(FT.alive[0] + (FT.alive[1] - FT.alive[0]) * k);
   };
 

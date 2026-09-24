@@ -1,9 +1,9 @@
-// Va chạm 2D trên mặt z=0: đa giác PolygonCollider2D của cảnh gốc.
+// Va chạm 2D trên mặt z=0: đa giác PolygonCollider2D của cảnh gốc, mọi tầng của chuyến lặn đã xếp chồng.
 (function (HX) {
   'use strict';
 
-  function World(level) {
-    this.polys = level.walls.map(function (pts) {
+  function World(walls) {
+    this.polys = walls.map(function (pts) {
       var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
       for (var i = 0; i < pts.length; i++) {
         var p = pts[i];

@@ -36,6 +36,14 @@
       el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
     },
 
+    podHint: function (on) { $('pod-hint').classList.toggle('show', on); },
+
+    area: function (title, sub) {
+      $('area-t').textContent = title; $('area-s').textContent = sub;
+      var el = $('area');
+      el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    },
+
     toast: function (s) {
       var el = $('toast');
       el.textContent = s;
@@ -82,12 +90,13 @@
       if (gun) g.style.transform = 'translate(' + Math.round(gx) + 'px,' + Math.round(gy) + 'px) rotate(' + (-ang).toFixed(3) + 'rad)';
     },
 
-    result: function (outcome, kept, all, onAgain) {
+    result: function (outcome, kept, all, onAgain, maxDepth) {
       var el = $('result');
-      $('r-title').textContent = outcome === 'dead' ? 'Bạn ngất đi…' : 'Lên bờ rồi!';
+      $('r-title').textContent = outcome === 'dead' ? 'Bạn ngất đi…' : outcome === 'pod' ? 'Khoang cứu hộ đưa bạn lên!' : 'Lên bờ rồi!';
       $('r-sub').textContent = outcome === 'dead'
         ? (all.length ? 'Thợ lặn kéo bạn lên thuyền. Chỉ giữ lại được 1 con trong ' + all.length + ' con đã bắt.' : 'Thợ lặn kéo bạn lên thuyền. Lần này tay trắng.')
         : (all.length ? 'Mang về ' + all.length + ' con cá.' : 'Chuyến này chưa xiên được con nào.');
+      if (maxDepth) $('r-sub').textContent += ' Sâu nhất ' + Math.round(maxDepth) + ' m.';
       var groups = {}, order = [];
       kept.forEach(function (id) { if (!groups[id]) { groups[id] = 0; order.push(id); } groups[id]++; });
       order.sort(function (a, b) { return HX.fish.BY_ID[b].rank - HX.fish.BY_ID[a].rank; });

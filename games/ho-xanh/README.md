@@ -1,6 +1,10 @@
 # Hố Xanh
 
-Dựng lại cảm giác vòng lặn xiên cá ở vùng nông Hố Xanh của Dave the Diver. Hình Dave, cá Spine, bản đồ 3D, hiệu ứng và tiếng đều lấy từ bản gốc (xem `tools/README.md`). Mỗi lượt lặn chọn ngẫu nhiên một trong sáu bản đồ A01..A06. Lên tới mặt nước là mang cả túi cá về. Cạn dưỡng khí là ngất, chỉ giữ được một con.
+Dựng lại vòng lặn xiên cá ở Hố Xanh của Dave the Diver. Hình Dave, cá Spine, bản đồ 3D, san hô đặt tay, số liệu ánh sáng, hiệu ứng và tiếng đều lấy từ bản gốc (xem `tools/README.md`).
+
+Một lượt lặn là một trục dọc liền mạch ghép từ các tầng của bản gốc: vùng nông A (0–50 m), tầng giữa B (50–130 m), vực sâu C (130–250 m). Tầng dưới chỉ ghép được khi khớp miệng nối với tầng trên, giống cách bản gốc đổi bản đồ mỗi ngày. Mỗi lượt đổi sang một chủ đề khác lượt trước: ban ngày, rừng tảo (A06), chiều tà, trời mưa, lặn đêm (chỉ tới tầng giữa, có đèn đội đầu).
+
+Lên tới mặt nước hoặc bơi lên vào khoang cứu hộ là mang cả túi cá về. Cạn dưỡng khí là ngất, chỉ giữ được một con.
 
 ## Điều khiển
 
@@ -14,7 +18,9 @@ Dựng lại cảm giác vòng lặn xiên cá ở vùng nông Hố Xanh của D
 | Dao | F hoặc chuột phải | nút **Dao** |
 | Tạm dừng / tắt tiếng | P hoặc Esc / M | nút ‖ / nút loa |
 
-Hòm dưỡng khí tự mở khi chạm vào. Thêm `?map=A03` vào URL để chọn cố định một bản đồ.
+Hòm dưỡng khí tự mở khi chạm vào. Khoang cứu hộ: tới sát rồi bơi lên.
+
+Tham số URL: `?theme=night` (day, kelp, evening, rain, night) ép chủ đề; `?map=A03` ép tầng trên cùng; `?route=A03,B04,C03` ép cả lộ trình.
 
 ## Tệp
 
@@ -22,19 +28,22 @@ Hòm dưỡng khí tự mở khi chạm vào. Thêm `?map=A03` vào URL để ch
 |---|---|
 | `index.html` | Khung trang, CSS, HUD bằng DOM. Mọi `<script>`/ảnh gắn `?v=<rev>` |
 | `data/tuning.js` | Mọi con số, nhãn `[DtD]` (bản gốc) hoặc `[ĐỀ XUẤT]` (tự chọn) |
-| `js/world.js` | Va chạm 2D trên đa giác vách gốc: trong/ngoài, trượt theo vách, tia xiên, mép đá ngửa lên |
-| `js/gfx.js` | Vẽ vào khung thấp rồi phóng nearest; bộ đổ màu nước theo độ sâu dùng chung cho đá, sprite, Spine |
-| `js/level.js` | Nạp glb, trang trí san hô/rong trên mép đá, vệt nắng, bụi, mặt nước, hòm dưỡng khí |
+| `data/zones.js` | Sinh bởi `tools/level.py`: 16 tầng, mỗi tầng vách va chạm, hòm O₂, khoang cứu hộ, rong Spine, mã miệng nối và số liệu ánh sáng gốc |
+| `js/dive.js` | Bảng chủ đề, ghép lộ trình theo miệng nối, xếp chồng các tầng, độ sâu hiển thị, ánh sáng theo độ cao |
+| `js/world.js` | Va chạm 2D trên đa giác vách gốc của mọi tầng đã xếp chồng: trong/ngoài, trượt theo vách, tia xiên |
+| `js/gfx.js` | Vẽ ở độ phân giải thật có khử răng cưa; bộ đổ màu nước (sương, ánh sáng, đèn đội đầu) dùng chung cho đá, sprite, Spine; lớp chỉnh màu cuối theo Volume gốc |
+| `js/level.js` | Nạp glb từng tầng, gán vật liệu theo vai (đá, san hô, hải quỳ, rong…), rong Spine, vệt nắng, bụi, mặt nước, hòm O₂, khoang cứu hộ |
 | `js/dave.js` | Sprite Dave + lớp tay súng, máy trạng thái người lặn |
 | `js/harpoon.js` | Mũi xiên và dây |
 | `js/fish.js` | Nạp Spine, máy trạng thái cá, bộ sinh cá quanh camera, ảnh nhỏ cho thẻ bắt cá |
 | `js/fx.js` | Hạt hiệu ứng theo bảng `KINDS` |
 | `js/hud.js`, `js/audio.js` | DOM phủ trên cảnh; Web Audio |
-| `js/main.js` | Các pha, nhập liệu, camera, móc `window.HX_DEBUG` cho bộ kiểm |
+| `js/main.js` | Các pha, nhập liệu, camera, cập nhật ánh sáng mỗi khung, móc `window.HX_DEBUG` cho bộ kiểm |
+| `tools/route-check.js` | Loang từ chỗ xuống nước qua mọi lộ trình hợp lệ, xác nhận bơi được tới tầng cuối |
 
 ## Máy trạng thái
 
-- Pha: `title → loading → dive → result`, rồi "Lặn tiếp" quay lại `loading`.
+- Pha: `title → loading → dive → result`, rồi "Lặn tiếp" quay lại `loading`. Tầng trên cùng nạp trước; các tầng dưới nạp ngầm trong lúc lặn.
 - Dave: `enter | swim | dash | aim | shoot | reel | tug | melee | hurt | surfaced | dead`. Tăng tốc là cờ của `swim`.
 - Xiên: `ready → flying → (stuck | returning) → ready`.
 - Cá: `wander | flee | chase | defend | hooked | dying | reeled`. Cá nóc dùng `defend` (phồng gai).
@@ -48,18 +57,31 @@ Hòm dưỡng khí tự mở khi chạm vào. Thêm `?map=A03` vào URL để ch
 - **Đá glb nhô ra trước mặt phẳng chơi z=0 từ 2 tới 10 m** (trung vị 4,5 m), đo bằng tia bắn dọc −z trên các điểm nằm trong đa giác vách.
   - Camera phải lùi ≥ 12 m, nếu không đá tiền cảnh phình to che nửa màn hình.
   - Vẫn còn chỗ đá che Dave. Mảnh đá có z > 0,8 được lưới điểm thưa dần quanh Dave (`view.cutRadius`).
-- **Mép trên `cameraBound` của cả sáu bản đồ là y=19.** Vách hai bên cao tới y≈29. Mặt nước đặt ở y=20,5 `[ĐỀ XUẤT]`.
-- **Đáy các bản đồ A để hở ở y≈−36.** Dave bị chặn cứng ở `box.minY + 0,4`.
+- **Mép trên `cameraBound` của các bản đồ A là y=19.** Vách hai bên cao tới y≈29. Mặt nước đặt ở y=20,5 `[ĐỀ XUẤT]`.
+- **Đáy các bản đồ A để hở ở y≈−36, và đó là lối xuống tầng giữa.** Bản trước chặn cứng Dave ở đáy, nhìn xuống chỉ thấy khoảng trống, trông như lỗi.
+  - Mỗi tầng là một cảnh riêng có toạ độ riêng (A y −36..29, B −70..29, C −108..27). Game đặt tầng dưới sao cho mép y=19 của nó chạm đáy tầng trên (`dive.entryY`).
+  - `tools/route-check.js` xác nhận cả 17 lộ trình hợp lệ đều bơi được tới đáy tầng cuối (ngày: y≈−245; đêm: y≈−124).
+- **Tên cảnh mã hoá miệng nối: `<map>_<trên>_<dưới>`.** `A03_01_02` có đáy kiểu 02, nên chỉ ghép được với B có miệng trên 02 (B03, B04, B06).
+- **Mọi cảnh gốc tắt `multiFog`.** Sương chỉ có một màu, nội suy theo độ cao y. Các màu mid/far là giá trị mặc định, dùng vào là sai màu.
+- **URP gốc chiếu sáng, trộn sương và chỉnh màu trên màu tuyến tính.** Ảnh và màu trong dữ liệu lưu dạng gamma.
+  - Làm thẳng trên màu gamma thì ánh sáng môi trường 0,78 tối đi 22% thay vì ~11%.
+  - Vực sâu có phơi sáng −0,9 và tương phản 25. Chỉnh quanh 0,5 trên màu gamma thì cả màn đen kịt. URP chỉnh quanh xám 18% tuyến tính.
+- **Vực sâu gốc sáng nhờ hàng chục đèn điểm đặt trong cảnh** (cường độ 10–20, y≈−55..−95), không rút được. Game bù bằng nền sáng tối thiểu `dive.ambientFloor` và đèn đội đầu.
+- **Đèn đội đầu phải tính như đèn 2D trên mặt màn hình.** Vách sau lưng Dave lùi 5–10 m theo z. Tính khoảng cách 3D thì chùm đèn chiếu trượt qua, đá quanh Dave vẫn tối.
+- **gltfpack lượng tử hoá uv và ghi phép co giãn vào `KHR_texture_transform`.** GLTFLoader để nó trong `map.matrix`. Shader tự viết mà quên nhân ma trận này thì đá mất hết vân, chỉ còn một màu.
+- **Khoang cứu hộ kích hoạt khi chạm thì hay kết thúc lượt ngoài ý muốn.** Lúc thử bơi xuống, Dave lướt qua một khoang ở 99 m và lượt lặn kết thúc. Giờ phải bơi lên vào khoang.
 - **Hòm dưỡng khí của A06 lơ lửng** 0,8 m và 1,4 m trên đá. Game hạ hòm xuống mặt đá gần nhất bên dưới trong vòng 3 m.
 - **Hàng `Cheer` (hàng 6) trong sheet Dave là Dave mặc đồ trên bờ**, không phải đồ lặn. Lúc trồi lên dùng `Relief` rồi `Idle`.
 - **Trường `icon` của cả 55 loài cá đều là null.** Thẻ bắt cá tự vẽ ảnh nhỏ từ khung đầu của hoạt ảnh bơi.
 - Ô `HookAttackArm` đặt chung gốc với ô thân `HookAttackReady` là khớp vai. Đầu nòng cách khớp vai (0,14; −0,06) m.
-- Nhiều ảnh san hô gốc là trắng xám; bản gốc tô bằng `SpriteRenderer.color`. Game tô bằng bảng màu `CORAL_TINTS` `[ĐỀ XUẤT]`.
+- Nhiều ảnh san hô gốc là trắng xám; bản gốc tô bằng `SpriteRenderer.color`. `level.py` ghi màu đó vào màu đỉnh của atlas san hô.
 
 ## Chọn khác bản gốc [ĐỀ XUẤT]
 
-- Góc nhìn 26° thay cho 38° của MainCamera gốc. Không biết khoảng cách camera gốc. Với 38° thì hoặc Dave quá nhỏ, hoặc đá tiền cảnh phình to. 26° ở 14 m giữ Dave cao ~8% màn hình (đo trên ảnh chụp 720p: ~55 px).
-- Khung vẽ thấp giữ 100 px/m ở mặt z=0 (đúng mật độ sprite gốc): cao 650 dòng, thấp hơn nếu màn thấp hơn. Màn 1080p phóng ~1,7 lần.
+- Camera theo bản gốc: phối cảnh 38°, lùi 18,5 m (`CinemachineFramingTransposer.m_CameraDistance`), khung nhìn cao ~12,7 m. Màn thấp (điện thoại ngang) kéo lại còn 12,5 m cho Dave khỏi bé.
+- Camera nhìn trước theo vận tốc 0,45 giây; bản gốc tắt lookahead. Bơi xuống thì thấy trước chỗ sắp tới.
+- Ánh sáng đá nhân thêm 1,4 lần (`dive.lightGain`), loá sáng lấy mẫu mipmap thay cho chuỗi làm mờ của URP. Cả hai chỉnh bằng mắt, đặt cạnh ảnh chụp Steam.
+- Lặn đêm mượn bộ màu Evening như cảnh gốc, rồi tối thêm (`dim` 0,55) và luôn bật đèn đội đầu.
 - Dave chết thì giữ con cá hạng cao nhất. Bản gốc cho người chơi tự chọn một món.
 
 ## Kiểm
@@ -68,4 +90,8 @@ Hòm dưỡng khí tự mở khi chạm vào. Thêm `?map=A03` vào URL để ch
 node test/ho-xanh-suite.js      # SHOTS=<thư mục> để đổi chỗ lưu ảnh
 ```
 
-Chạy ở 1280×720 và 844×390 trên bản đồ A01. Bộ kiểm có các bài: nạp glb đủ 166 mảnh, Dave có trên hình, bơi vào vách không lọt đá, xiên và dao bắt được cá, tiếng được gọi đúng, ngất giữ đúng một con, lên bờ giữ cả túi, không lỗi trang.
+Chạy ở 1280×720 và 844×390 trên lộ trình A01 → B01 → C03. Các bài: ghép đúng lộ trình, glb A01 đủ vai (đá, san hô, hải quỳ, rong, san hô 2D), Dave có trên hình, bơi vào vách không lọt đá, xiên và dao bắt được cá, cá hướng đầu theo chiều bơi, độ sâu đúng dải, nạp ngầm đủ ba tầng, băng tên vùng, đèn đội đầu ở vực sâu, ngất giữ đúng một con, lên bờ và vào khoang cứu hộ giữ cả túi, không lỗi trang. Thêm một trang không ép lộ trình: ba lượt liền nhau đổi chủ đề và ghép khớp miệng nối.
+
+```
+node games/ho-xanh/tools/route-check.js   # mọi lộ trình bơi được tới tầng cuối (~35 giây)
+```

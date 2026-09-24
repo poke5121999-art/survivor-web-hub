@@ -2285,685 +2285,345 @@ window.HX_ASSETS = {
     74,
     20
    ]
-  }
- ],
- "spineEnv": {
-  "B_Seaweed_Side01": {
-   "skel": "env/spine/B_Seaweed_Side01/B_Seaweed_Side01.skel",
-   "atlas": "env/spine/B_Seaweed_Side01/B_Seaweed_Side01.atlas",
+  },
+  {
+   "skel": "fish/Chambered_Nautilus/Chambered_Nautilus.skel",
+   "atlas": "fish/Chambered_Nautilus/Chambered_Nautilus.atlas",
    "pages": [
-    "B_Seaweed_Side01.png"
+    "Chambered_Nautilus.png"
    ],
    "pma": false,
+   "tid": 2010201,
+   "id": "Chambered_Nautilus",
+   "name": "Chambered Nautilus",
+   "zone": "C",
+   "hp": 32,
+   "damage": 0,
+   "aggressive": false,
+   "size": 0,
+   "cm": 25,
+   "rank": 5,
+   "icon": null,
    "anims": {
-    "idle": 4.667
+    "die": 1.667,
+    "sprint": 0.5,
+    "swim": 2
    },
    "skins": [
     "default"
    ],
    "bounds": [
-    -1,
-    -1,
+    -28,
+    -9,
+    39,
+    22
+   ]
+  },
+  {
+   "skel": "fish/Fangtooth/Fangtooth.skel",
+   "atlas": "fish/Fangtooth/Fangtooth.atlas",
+   "pages": [
+    "Fangtooth.png"
+   ],
+   "pma": false,
+   "tid": 2010202,
+   "id": "Fangtooth",
+   "name": "Fangtooth",
+   "zone": "C",
+   "hp": 80,
+   "damage": 20,
+   "aggressive": false,
+   "size": 0,
+   "cm": 15,
+   "rank": 5,
+   "icon": null,
+   "anims": {
+    "die": 1.667,
+    "sprint": 0.633,
+    "swim": 2
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -21,
+    -7,
     37,
-    43
+    18
    ]
   },
-  "B_Seaweed_Side02": {
-   "skel": "env/spine/B_Seaweed_Side02/B_Seaweed_Side02.skel",
-   "atlas": "env/spine/B_Seaweed_Side02/B_Seaweed_Side02.atlas",
+  {
+   "skel": "fish/GreatSpiderCrab/Great_Spider_Crab.skel",
+   "atlas": "fish/GreatSpiderCrab/Great_Spider_Crab.atlas",
    "pages": [
-    "B_Seaweed_Side02.png"
+    "Great_Spider_Crab.png"
    ],
    "pma": false,
+   "tid": 2010208,
+   "id": "GreatSpiderCrab",
+   "name": "Great Spider Crab",
+   "zone": "C",
+   "hp": 1,
+   "damage": 30,
+   "aggressive": false,
+   "size": 1,
+   "cm": 200,
+   "rank": 6,
+   "icon": null,
    "anims": {
-    "idle": 5
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -1,
-    -3,
-    56,
-    48
-   ]
-  },
-  "B_Seaweed_Side03": {
-   "skel": "env/spine/B_Seaweed_Side03/B_Seaweed_Side03.skel",
-   "atlas": "env/spine/B_Seaweed_Side03/B_Seaweed_Side03.atlas",
-   "pages": [
-    "B_Seaweed_Side03.png"
-   ],
-   "pma": false,
-   "anims": {
-    "idle": 6
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -1,
-    -1,
-    41,
-    50
-   ]
-  },
-  "B_Seaweed_Side04": {
-   "skel": "env/spine/B_Seaweed_Side04/B_Seaweed_Side04.skel",
-   "atlas": "env/spine/B_Seaweed_Side04/B_Seaweed_Side04.atlas",
-   "pages": [
-    "B_Seaweed_Side04.png"
-   ],
-   "pma": false,
-   "anims": {
-    "idle": 6
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -1,
-    -1,
-    37,
-    31
-   ]
-  },
-  "Bladderwrack": {
-   "skel": "env/spine/Bladderwrack/Bladderwrack.skel",
-   "atlas": "env/spine/Bladderwrack/Bladderwrack.atlas",
-   "pages": [
-    "Bladderwrack.png"
-   ],
-   "pma": false,
-   "anims": {
-    "die": 1.333,
-    "idle01": 8
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -2,
-    -2,
-    5,
-    20
-   ]
-  },
-  "Gelidium": {
-   "skel": "env/spine/Gelidium/Gelidium.skel",
-   "atlas": "env/spine/Gelidium/Gelidium.atlas",
-   "pages": [
-    "Gelidium.png"
-   ],
-   "pma": false,
-   "anims": {
+    "attack": 2,
     "die": 1,
-    "idle01": 4
+    "idle": 2,
+    "swim": 2
    },
    "skins": [
     "default"
    ],
    "bounds": [
-    -19,
-    -2,
-    37,
-    39
+    -101,
+    -28,
+    202,
+    136
    ]
   },
-  "Kajime": {
-   "skel": "env/spine/Kajime/Kajime.skel",
-   "atlas": "env/spine/Kajime/Kajime.atlas",
+  {
+   "skel": "fish/Clione/Clione.skel",
+   "atlas": "fish/Clione/Clione.atlas",
    "pages": [
-    "Kajime.png"
+    "Clione.png"
    ],
    "pma": false,
+   "tid": 2010212,
+   "id": "Clione",
+   "name": "Clione",
+   "zone": "C",
+   "hp": 10,
+   "damage": 0,
+   "aggressive": false,
+   "size": 0,
+   "cm": 8,
+   "rank": 5,
+   "icon": null,
    "anims": {
-    "die": 1,
-    "idle01": 6.667
+    "sprint": 1,
+    "swim": 2
    },
    "skins": [
     "default"
    ],
    "bounds": [
-    -33,
-    -1,
-    66,
-    70
-   ]
-  },
-  "SeaGrapes": {
-   "skel": "env/spine/SeaGrapes/SeaGrapes.skel",
-   "atlas": "env/spine/SeaGrapes/SeaGrapes.atlas",
-   "pages": [
-    "SeaGrapes.png"
-   ],
-   "pma": false,
-   "anims": {
-    "die": 1,
-    "idle01": 5.333
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -20,
-    -1,
+    -12,
+    -15,
     24,
-    31
+    29
    ]
   },
-  "Tangle": {
-   "skel": "env/spine/Tangle/Tangle.skel",
-   "atlas": "env/spine/Tangle/Tangle.atlas",
+  {
+   "skel": "fish/Sea_Toad/Sea_Toad.skel",
+   "atlas": "fish/Sea_Toad/Sea_Toad.atlas",
    "pages": [
-    "Tangle.png"
+    "Sea_Toad.png"
    ],
    "pma": false,
+   "tid": 2010214,
+   "id": "Sea_Toad",
+   "name": "Sea Toad",
+   "zone": "C",
+   "hp": 100,
+   "damage": 0,
+   "aggressive": false,
+   "size": 1,
+   "cm": 30,
+   "rank": 5,
+   "icon": null,
    "anims": {
-    "die": 1,
-    "idle01": 6.967
+    "die": 1.667,
+    "sprint": 1.333,
+    "swim": 2
    },
    "skins": [
     "default"
    ],
    "bounds": [
-    -8,
-    -1,
-    18,
-    132
+    -18,
+    -4,
+    32,
+    12
    ]
   },
-  "C_Seaweed07": {
-   "skel": "env/spine/C_Seaweed07/C_Seaweed07.skel",
-   "atlas": "env/spine/C_Seaweed07/C_Seaweed07.atlas",
+  {
+   "skel": "fish/Pacificfanfish/Pacificfanfish.skel",
+   "atlas": "fish/Pacificfanfish/Pacificfanfish.atlas",
    "pages": [
-    "C_Seaweed07.png"
+    "Pacificfanfish.png"
    ],
    "pma": false,
+   "tid": 2010217,
+   "id": "Pacificfanfish",
+   "name": "Pacificfanfish",
+   "zone": "C",
+   "hp": 100,
+   "damage": 0,
+   "aggressive": false,
+   "size": 1,
+   "cm": 61,
+   "rank": 5,
+   "icon": null,
    "anims": {
-    "Idle": 3
+    "die": 1.667,
+    "sprint": 0.667,
+    "sprint_off": 0.5,
+    "sprint_on": 0.667,
+    "swim": 2.667
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -22,
+    -6,
+    34,
+    13
+   ]
+  },
+  {
+   "skel": "fish/Threetooth_Puffer/Threetooth_Puffer.skel",
+   "atlas": "fish/Threetooth_Puffer/Threetooth_Puffer.atlas",
+   "pages": [
+    "Threetooth_Puffer.png"
+   ],
+   "pma": false,
+   "tid": 2010218,
+   "id": "Threetooth_Puffer",
+   "name": "Threetooth Puffer",
+   "zone": "C",
+   "hp": 100,
+   "damage": 0,
+   "aggressive": false,
+   "size": 1,
+   "cm": 54,
+   "rank": 5,
+   "icon": null,
+   "anims": {
+    "defence_idle": 1.5,
+    "defence_off": 0.5,
+    "defence_on": 0.5,
+    "die": 1.667,
+    "swim": 2.667
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -21,
+    -5,
+    35,
+    13
+   ]
+  },
+  {
+   "skel": "fish/Comb_Jelly/Comb_Jelly.skel",
+   "atlas": "fish/Comb_Jelly/Comb_Jelly.atlas",
+   "pages": [
+    "Comb_Jelly.png"
+   ],
+   "pma": false,
+   "tid": 2010219,
+   "id": "Comb_Jelly",
+   "name": "Comb Jelly",
+   "zone": "C",
+   "hp": 50,
+   "damage": 30,
+   "aggressive": false,
+   "size": 0,
+   "cm": 60,
+   "rank": 6,
+   "icon": null,
+   "anims": {
+    "attack": 0.667,
+    "die": 1.667,
+    "idle": 3.333,
+    "sprint": 0.667,
+    "swim": 1.333
    },
    "skins": [
     "default"
    ],
    "bounds": [
     -14,
-    -2,
-    23,
-    138
-   ]
-  },
-  "C_Seaweed08": {
-   "skel": "env/spine/C_Seaweed08/C_Seaweed08.skel",
-   "atlas": "env/spine/C_Seaweed08/C_Seaweed08.atlas",
-   "pages": [
-    "C_Seaweed08.png"
-   ],
-   "pma": false,
-   "anims": {
-    "Idle": 7.168
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -4,
-    -5,
-    16,
-    114
-   ]
-  },
-  "MV_SeaWeed001": {
-   "skel": "env/spine/MV_SeaWeed001/MV_SeaWeed001.skel",
-   "atlas": "env/spine/MV_SeaWeed001/MV_SeaWeed001.atlas",
-   "pages": [
-    "MV_SeaWeed001.png"
-   ],
-   "pma": false,
-   "anims": {
-    "animation": 6
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -9,
-    -2,
-    15,
-    100
-   ]
-  },
-  "MV_SeaWeed002": {
-   "skel": "env/spine/MV_SeaWeed002/MV_SeaWeed002.skel",
-   "atlas": "env/spine/MV_SeaWeed002/MV_SeaWeed002.atlas",
-   "pages": [
-    "MV_SeaWeed002.png"
-   ],
-   "pma": false,
-   "anims": {
-    "animation": 6
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -9,
-    -2,
-    15,
-    100
-   ]
-  },
-  "MV_Wakame": {
-   "skel": "env/spine/MV_Wakame/MV_Wakame.skel",
-   "atlas": "env/spine/MV_Wakame/MV_Wakame.atlas",
-   "pages": [
-    "MV_Wakame.png"
-   ],
-   "pma": false,
-   "anims": {
-    "adult": 10,
-    "seed": 0,
-    "sprout": 5.333,
-    "sub_adult": 7.333
-   },
-   "skins": [
-    "default"
-   ],
-   "bounds": [
-    -15,
-    -2,
+    -20,
     30,
-    100
+    39
    ]
   },
-  "Res_Durvillaea": {
-   "skel": "env/spine/Res_Durvillaea/Res_Durvillaea.skel",
-   "atlas": "env/spine/Res_Durvillaea/Res_Durvillaea.atlas",
+  {
+   "skel": "fish/Bloodbelly_Comb_Jelly/Bloodbelly_Comb_Jelly.skel",
+   "atlas": "fish/Bloodbelly_Comb_Jelly/Bloodbelly_Comb_Jelly.atlas",
    "pages": [
-    "Res_Durvillaea.png"
+    "Bloodbelly_Comb_Jelly.png"
    ],
    "pma": false,
+   "tid": 2010220,
+   "id": "Bloodbelly_Comb_Jelly",
+   "name": "Bloodbelly Comb Jelly",
+   "zone": "C",
+   "hp": 50,
+   "damage": 60,
+   "aggressive": false,
+   "size": 0,
+   "cm": 60,
+   "rank": 6,
+   "icon": null,
    "anims": {
-    "die": 1.333,
-    "idle": 10
+    "die": 1.667,
+    "idle": 3.333,
+    "sprint": 0.667,
+    "swim": 2
    },
    "skins": [
     "default"
    ],
    "bounds": [
-    -5,
-    -3,
-    94,
-    112
+    -19,
+    -19,
+    38,
+    37
    ]
   },
-  "Res_Black_Coral": {
-   "skel": "env/spine/Res_Black_Coral/Res_Black_Coral.skel",
-   "atlas": "env/spine/Res_Black_Coral/Res_Black_Coral.atlas",
+  {
+   "skel": "fish/Red_Bream/Red_Bream.skel",
+   "atlas": "fish/Red_Bream/Red_Bream.atlas",
    "pages": [
-    "Res_Black_Coral.png"
+    "Red_Bream.png"
    ],
    "pma": false,
+   "tid": 2010222,
+   "id": "Red_Bream",
+   "name": "Red Bream",
+   "zone": "C",
+   "hp": 100,
+   "damage": 0,
+   "aggressive": false,
+   "size": 0,
+   "cm": 15,
+   "rank": 5,
+   "icon": null,
    "anims": {
-    "die": 1.333,
-    "idle": 10
+    "die": 1.667,
+    "swim": 0.667
    },
    "skins": [
     "default"
    ],
    "bounds": [
-    -37,
-    -3,
-    74,
-    75
+    -23,
+    -12,
+    42,
+    27
    ]
   }
- },
+ ],
  "images": {
-  "env/FarBG001.png": [
-   132,
-   120
-  ],
-  "env/FarBG002.png": [
-   169,
-   116
-  ],
-  "env/FarBG003.png": [
-   196,
-   84
-  ],
-  "env/Coral001.png": [
-   19,
-   19
-  ],
-  "env/Coral005.png": [
-   36,
-   52
-  ],
-  "env/Coral006.png": [
-   36,
-   36
-  ],
-  "env/Coral007.png": [
-   28,
-   23
-  ],
-  "env/Coral008.png": [
-   30,
-   28
-  ],
-  "env/CoralBush001.png": [
-   35,
-   17
-  ],
-  "env/CoralBush002.png": [
-   36,
-   25
-  ],
-  "env/CoralBush003.png": [
-   18,
-   28
-  ],
-  "env/CoralBush005.png": [
-   34,
-   25
-  ],
-  "env/CoralBush006.png": [
-   31,
-   53
-  ],
-  "env/CoralBush008.png": [
-   35,
-   25
-  ],
-  "env/CoralBush009.png": [
-   72,
-   24
-  ],
-  "env/CoralRock001.png": [
-   37,
-   20
-  ],
-  "env/CoralRock002.png": [
-   29,
-   20
-  ],
-  "env/CoralRock003.png": [
-   39,
-   34
-  ],
-  "env/CoralRock004.png": [
-   40,
-   28
-  ],
-  "env/DeadCoral001.png": [
-   46,
-   26
-  ],
-  "env/DeadCoral002.png": [
-   86,
-   34
-  ],
-  "env/DeadCoral003.png": [
-   88,
-   27
-  ],
-  "env/DeadCoral004.png": [
-   95,
-   37
-  ],
-  "env/DeadCoral005.png": [
-   62,
-   41
-  ],
-  "env/DeadCoral006.png": [
-   52,
-   36
-  ],
-  "env/DeadCoral007.png": [
-   31,
-   43
-  ],
-  "env/Group_Coral001.png": [
-   231,
-   73
-  ],
-  "env/Group_Coral004.png": [
-   162,
-   83
-  ],
-  "env/Group_Coral007.png": [
-   200,
-   79
-  ],
-  "env/Group_Coral009.png": [
-   198,
-   73
-  ],
-  "env/Grass001.png": [
-   104,
-   12
-  ],
-  "env/Grass002.png": [
-   26,
-   11
-  ],
-  "env/Grass003.png": [
-   24,
-   17
-  ],
-  "env/Grass004.png": [
-   66,
-   14
-  ],
-  "env/Seaweed.png": [
-   4,
-   56
-  ],
-  "env/Seaweed_07.png": [
-   128,
-   74
-  ],
-  "env/Seaweed_08.png": [
-   298,
-   174
-  ],
-  "env/MV_Seaweeds_Kelp01.png": [
-   110,
-   255
-  ],
-  "env/Starfish001.png": [
-   15,
-   8
-  ],
-  "env/Bone001.png": [
-   39,
-   36
-  ],
-  "env/Bone002.png": [
-   57,
-   23
-  ],
-  "env/Am.png": [
-   28,
-   33
-  ],
-  "env/Am1.png": [
-   150,
-   96
-  ],
-  "env/Am2.png": [
-   92,
-   41
-  ],
-  "env/Am3.png": [
-   37,
-   18
-  ],
-  "env/Am4.png": [
-   168,
-   44
-  ],
-  "env/Cr12.png": [
-   67,
-   47
-  ],
-  "env/Cr13.png": [
-   97,
-   72
-  ],
-  "env/Cr2.png": [
-   49,
-   32
-  ],
-  "env/Cr5.png": [
-   49,
-   43
-  ],
-  "env/Cr7.png": [
-   49,
-   108
-  ],
-  "env/Cr8.png": [
-   86,
-   37
-  ],
-  "env/Stalactite_001.png": [
-   160,
-   138
-  ],
-  "env/Stalactite_002.png": [
-   132,
-   134
-  ],
-  "env/Stalactite_003.png": [
-   160,
-   220
-  ],
-  "env/Stalactite_004.png": [
-   160,
-   268
-  ],
-  "env/Stalactite_005.png": [
-   124,
-   224
-  ],
-  "env/Stalactite_006.png": [
-   40,
-   64
-  ],
-  "env/Stalactite_007.png": [
-   107,
-   96
-  ],
-  "env/Stalactite_008.png": [
-   88,
-   114
-  ],
-  "env/Stalactite_100.png": [
-   67,
-   92
-  ],
-  "env/Stalactite_200.png": [
-   49,
-   56
-  ],
-  "env/Stalactite_201.png": [
-   49,
-   56
-  ],
-  "env/Stalactite_300.png": [
-   54,
-   133
-  ],
-  "env/Stalactite_301.png": [
-   54,
-   200
-  ],
-  "env/Gate_Rock_001.png": [
-   64,
-   39
-  ],
-  "env/Gate_Rock_002.png": [
-   49,
-   23
-  ],
-  "env/Gate_Rock_003.png": [
-   40,
-   52
-  ],
-  "env/Gate_Rock_004.png": [
-   38,
-   68
-  ],
-  "env/Gate_Rock_005.png": [
-   35,
-   79
-  ],
-  "env/Gate_Rock_006.png": [
-   74,
-   75
-  ],
-  "env/Up_Stalactite_001.png": [
-   67,
-   92
-  ],
-  "env/Up_Stalactite_002.png": [
-   29,
-   70
-  ],
-  "env/Up_Stalactite_003.png": [
-   37,
-   46
-  ],
-  "env/Up_Stalactite_004.png": [
-   30,
-   59
-  ],
-  "env/Up_Stalactite_005.png": [
-   21,
-   40
-  ],
-  "env/Up_Stalactite_006.png": [
-   44,
-   56
-  ],
-  "env/Up_Stalactite_007.png": [
-   33,
-   92
-  ],
-  "env/Dn_Stalactite_001.png": [
-   68,
-   52
-  ],
-  "env/Dn_Stalactite_002.png": [
-   49,
-   45
-  ],
-  "env/Dn_Stalactite_003.png": [
-   30,
-   40
-  ],
-  "env/Dn_Stalactite_004.png": [
-   54,
-   87
-  ],
-  "env/Dn_Stalactite_005.png": [
-   28,
-   28
-  ],
-  "env/Wreck_Boat01.png": [
-   312,
-   110
-  ],
-  "env/Wreck_Boat02.png": [
-   164,
-   103
-  ],
-  "env/Wreck_Boat03.png": [
-   151,
-   36
-  ],
   "fx/HarpoonProjectile.png": [
    33,
    5
@@ -3323,6 +2983,220 @@ window.HX_ASSETS = {
     0.31
    ],
    "order": 0
+  },
+  "props/Pod_ex.png": {
+   "size": [
+    135,
+    400
+   ],
+   "ppu": 100,
+   "pivot": [
+    0.496,
+    0.355
+   ],
+   "local": [
+    0,
+    4
+   ],
+   "order": 2
+  },
+  "props/Icon_Radios01.png": {
+   "size": [
+    26,
+    44
+   ],
+   "ppu": 100,
+   "pivot": [
+    0.5,
+    0.5
+   ],
+   "local": [
+    -31.55,
+    -13
+   ],
+   "order": 0
+  }
+ },
+ "spineEnv": {
+  "B_Seaweed_Side01": {
+   "skel": "env/spine/B_Seaweed_Side01/B_Seaweed_Side01.skel",
+   "atlas": "env/spine/B_Seaweed_Side01/B_Seaweed_Side01.atlas",
+   "pages": [
+    "B_Seaweed_Side01.png"
+   ],
+   "pma": false,
+   "anims": {
+    "idle": 4.667
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -1,
+    -1,
+    37,
+    43
+   ]
+  },
+  "B_Seaweed_Side02": {
+   "skel": "env/spine/B_Seaweed_Side02/B_Seaweed_Side02.skel",
+   "atlas": "env/spine/B_Seaweed_Side02/B_Seaweed_Side02.atlas",
+   "pages": [
+    "B_Seaweed_Side02.png"
+   ],
+   "pma": false,
+   "anims": {
+    "idle": 5
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -1,
+    -3,
+    56,
+    48
+   ]
+  },
+  "B_Seaweed_Side03": {
+   "skel": "env/spine/B_Seaweed_Side03/B_Seaweed_Side03.skel",
+   "atlas": "env/spine/B_Seaweed_Side03/B_Seaweed_Side03.atlas",
+   "pages": [
+    "B_Seaweed_Side03.png"
+   ],
+   "pma": false,
+   "anims": {
+    "idle": 6
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -1,
+    -1,
+    41,
+    50
+   ]
+  },
+  "B_Seaweed_Side04": {
+   "skel": "env/spine/B_Seaweed_Side04/B_Seaweed_Side04.skel",
+   "atlas": "env/spine/B_Seaweed_Side04/B_Seaweed_Side04.atlas",
+   "pages": [
+    "B_Seaweed_Side04.png"
+   ],
+   "pma": false,
+   "anims": {
+    "idle": 6
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -1,
+    -1,
+    37,
+    31
+   ]
+  },
+  "C_Seaweed07": {
+   "skel": "env/spine/C_Seaweed07/C_Seaweed07.skel",
+   "atlas": "env/spine/C_Seaweed07/C_Seaweed07.atlas",
+   "pages": [
+    "C_Seaweed07.png"
+   ],
+   "pma": false,
+   "anims": {
+    "Idle": 3
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -14,
+    -2,
+    23,
+    138
+   ]
+  },
+  "C_Seaweed08": {
+   "skel": "env/spine/C_Seaweed08/C_Seaweed08.skel",
+   "atlas": "env/spine/C_Seaweed08/C_Seaweed08.atlas",
+   "pages": [
+    "C_Seaweed08.png"
+   ],
+   "pma": false,
+   "anims": {
+    "Idle": 7.168
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -4,
+    -5,
+    16,
+    114
+   ]
+  },
+  "Venusflowerbasket04": {
+   "skel": "env/spine/Venusflowerbasket04/Venusflowerbasket04.skel",
+   "atlas": "env/spine/Venusflowerbasket04/Venusflowerbasket04.atlas",
+   "pages": [
+    "Venusflowerbasket04.png"
+   ],
+   "pma": false,
+   "anims": {
+    "animation": 7.333
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -16,
+    -1,
+    25,
+    100
+   ]
+  },
+  "Venusflowerbasket05": {
+   "skel": "env/spine/Venusflowerbasket05/Venusflowerbasket05.skel",
+   "atlas": "env/spine/Venusflowerbasket05/Venusflowerbasket05.atlas",
+   "pages": [
+    "Venusflowerbasket05.png"
+   ],
+   "pma": false,
+   "anims": {
+    "animation": 8
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -9,
+    -1,
+    21,
+    94
+   ]
+  },
+  "Venusflowerbasket06": {
+   "skel": "env/spine/Venusflowerbasket06/Venusflowerbasket06.skel",
+   "atlas": "env/spine/Venusflowerbasket06/Venusflowerbasket06.atlas",
+   "pages": [
+    "Venusflowerbasket06.png"
+   ],
+   "pma": false,
+   "anims": {
+    "animation": 8
+   },
+   "skins": [
+    "default"
+   ],
+   "bounds": [
+    -9,
+    -2,
+    17,
+    99
+   ]
   }
  }
 };

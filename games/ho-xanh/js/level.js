@@ -1,114 +1,103 @@
-// Bản đồ: đá 3D từ glb gốc, trang trí san hô/rong trên mép đá, vệt nắng, mặt nước, hòm dưỡng khí.
+// Bản đồ: mỗi tầng một glb gốc (đá + san hô, hải quỳ, rong, san hô 2D đã ghép atlas), vệt nắng, bụi, mặt nước, hòm dưỡng khí.
 (function (HX) {
   'use strict';
   var T = window.HX_TUNING, A = window.HX_ASSETS;
 
-  function rng(seed) {
-    var s = seed >>> 0 || 1;
-    return function () { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
-  }
-  function hashStr(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
-
   var glbCache = {};
   function loadGlb(url, onProgress) {
-    if (glbCache[url]) return Promise.resolve(glbCache[url]);
-    return new Promise(function (res, rej) {
-      var loader = new THREE.GLTFLoader();
-      loader.setMeshoptDecoder(MeshoptDecoder);
-      loader.load(url, function (g) { glbCache[url] = g; res(g); }, function (e) { if (e.total) onProgress(e.loaded / e.total); },
-        function () { rej(new Error('level not found: ' + url)); });
-    });
+    if (!glbCache[url]) {
+      glbCache[url] = new Promise(function (res, rej) {
+        var loader = new THREE.GLTFLoader();
+        loader.setMeshoptDecoder(MeshoptDecoder);
+        loader.load(url, res, function (e) { if (e.total && onProgress) onProgress(e.loaded / e.total); },
+          function () { delete glbCache[url]; rej(new Error('level not found: ' + url)); });
+      });
+    }
+    return glbCache[url];
   }
 
-  function terrainFrom(gltf) {
-    var root = gltf.scene, mats = {}, count = 0;
+  // Vai của từng vật liệu nằm ở tiền tố tên (tools/level.py ghi "rock:Base001_Top", gltfpack giữ tên vật liệu).
+  var ROLES = {
+    rock: { kind: 'rock', nearest: true },
+    coral3d: { kind: 'deco' },
+    anemone: { kind: 'deco', sway: T.deco.sway.anemone },
+    waveweed: { kind: 'deco', sway: T.deco.sway.waveweed },
+    kelp: { kind: 'deco', sway: T.deco.sway.kelp },
+    back: { kind: 'back' },
+    prop: { kind: 'deco' },
+    sprites: { kind: 'sprites', nearest: true },
+  };
+
+  function roleOf(name) { var r = (name || '').split(':')[0]; return ROLES[r] ? r : 'rock'; }
+
+  function materialFor(src, geo, cache) {
+    // màu đỉnh chỉ có nghĩa ở san hô 2D (m_Color của SpriteRenderer); một ít lưới đá cũng mang COLOR_0 nhưng bản gốc không dùng
+    var role = roleOf(src.name), R = ROLES[role], map = src.map, vc = role === 'sprites' && !!geo.attributes.color;
+    var key = src.uuid + (vc ? '#c' : '');
+    if (cache[key]) return cache[key];
+    if (map) {
+      map.magFilter = R.nearest ? THREE.NearestFilter : THREE.LinearFilter;
+      map.minFilter = THREE.LinearMipmapLinearFilter;
+      map.anisotropy = 4;
+      map.needsUpdate = true;
+    }
+    var e = src.emissive, glow = e && (e.r + e.g + e.b) > 0.01 ? [e.r, e.g, e.b] : null;
+    var m = HX.gfx.terrainMaterial({
+      map: map, kind: R.kind, vertexColors: vc, color: [src.color.r, src.color.g, src.color.b],
+      sway: R.sway || 0, glow: glow, lightFactor: R.kind === 'rock' ? T.deco.rockLight : 1,
+    });
+    m.userData.role = role;
+    cache[key] = m;
+    return m;
+  }
+
+  // Một tầng của chuyến lặn, đặt lệch yOff theo trục dọc.
+  function Layer(G, L, gltf) {
+    var root = gltf.scene, cache = {}, count = { meshes: 0, roles: {} };
     root.traverse(function (o) {
       if (!o.isMesh) return;
-      count++;
       var src = o.userData.hxSrcMat || o.material;
       o.userData.hxSrcMat = src;
-      if (!mats[src.uuid]) {
-        var map = src.map;
-        if (map) { map.magFilter = THREE.NearestFilter; map.anisotropy = 1; }
-        var m = new THREE.MeshBasicMaterial({ map: map, alphaTest: 0.5 });
-        HX.gfx.patchTerrain(m);
-        mats[src.uuid] = m;
-      }
-      o.material = mats[src.uuid];
+      o.material = materialFor(src, o.geometry, cache);
+      o.frustumCulled = true;
+      count.meshes++;
+      var r = o.material.userData.role;
+      count.roles[r] = (count.roles[r] || 0) + 1;
     });
-    return { root: root, meshes: count };
+    root.position.set(0, L.yOff, 0);
+    root.updateMatrixWorld(true);
+    this.root = root;
+    this.spines = spinesOf(L);
+    this.spines.forEach(function (s) { G.gfx.scene.add(s.holder); });
+    this.count = count;
+    this.L = L;
+    G.gfx.scene.add(root);
   }
-
-  // Ảnh trắng xám của bản gốc được tô màu bằng SpriteRenderer.color; ở đây chọn bảng màu san hô.
-  var CORAL_TINTS = [0xff8f86, 0xffb36b, 0xc792ff, 0xffe08a, 0x7fe0d0, 0xff9fc9, 0x9fd0ff];
-  var DECO = {
-    tinted: ['env/Coral001.png', 'env/Coral005.png', 'env/Coral006.png', 'env/Coral007.png', 'env/Coral008.png', 'env/CoralBush001.png',
-      'env/CoralBush002.png', 'env/CoralBush003.png', 'env/CoralBush005.png', 'env/CoralBush006.png', 'env/CoralBush008.png', 'env/CoralBush009.png',
-      'env/CoralRock001.png', 'env/CoralRock002.png', 'env/CoralRock003.png', 'env/CoralRock004.png', 'env/Cr12.png', 'env/Cr13.png', 'env/Cr2.png',
-      'env/Cr5.png', 'env/Am1.png', 'env/Am2.png', 'env/Am3.png', 'env/Am4.png'],
-    grass: ['env/Grass001.png', 'env/Grass002.png', 'env/Grass003.png', 'env/Grass004.png'],
-    group: ['env/Group_Coral001.png', 'env/Group_Coral004.png', 'env/Group_Coral007.png', 'env/Group_Coral009.png'],
-    rare: ['env/Starfish001.png', 'env/Bone001.png', 'env/Bone002.png', 'env/Seaweed_07.png'],
-    dead: ['env/DeadCoral001.png', 'env/DeadCoral002.png', 'env/DeadCoral003.png', 'env/DeadCoral005.png', 'env/DeadCoral006.png', 'env/DeadCoral007.png'],
+  Layer.prototype.remove = function (G) {
+    G.gfx.scene.remove(this.root);
+    this.spines.forEach(function (s) { G.gfx.scene.remove(s.holder); s.mesh.dispose(); });
   };
-  var SPINE_DECO = ['B_Seaweed_Side01', 'B_Seaweed_Side02', 'B_Seaweed_Side03', 'B_Seaweed_Side04', 'Gelidium', 'Kajime', 'SeaGrapes', 'Tangle',
-    'C_Seaweed07', 'C_Seaweed08', 'MV_SeaWeed001', 'MV_SeaWeed002', 'Bladderwrack'];
-
-  function decoImages() {
-    var all = [];
-    Object.keys(DECO).forEach(function (k) { all = all.concat(DECO[k]); });
-    all.push('env/FarBG001.png', 'env/FarBG002.png', 'env/FarBG003.png');
-    return all;
-  }
-
-  function pick(r, arr) { return arr[Math.floor(r() * arr.length)]; }
-
-  function decorate(G, levelId) {
-    var r = rng(hashStr(levelId)), W = G.world, grp = new THREE.Group(), spines = [];
-    var edges = W.upwardEdges(T.deco.maxSlope);
-    edges.forEach(function (e) {
-      var d = T.deco.everyMin * r();
-      while (d < e.len) {
-        var t = d / e.len, x = e.ax + (e.bx - e.ax) * t, y = e.ay + (e.by - e.ay) * t;
-        d += T.deco.everyMin + r() * (T.deco.everyMax - T.deco.everyMin);
-        if (y > T.water.surfaceY - 0.5) continue;
-        var depth = T.water.surfaceY - y, z = -0.55 + r() * 0.75, roll = r();
-        if (roll < T.deco.spineChance) {
-          var id = pick(r, SPINE_DECO), m = HX.fish.makeMesh('env:' + id, { flash: { value: 0 }, opacity: { value: 1 } });
-          var e2 = A.spineEnv[id], anim = Object.keys(e2.anims).filter(function (a) { return a !== 'die' && a !== 'seed'; })[0];
-          m.state.setAnimation(0, anim, true);
-          m.state.update(r() * 5);
-          var holder = new THREE.Group();
-          holder.add(m);
-          var s = T.deco.scale[0] + r() * (T.deco.scale[1] - T.deco.scale[0]);
-          holder.scale.set(r() < 0.5 ? -s : s, s, 1);
-          holder.position.set(x, y - 0.03, z);
-          grp.add(holder);
-          spines.push({ mesh: m, x: x, y: y });
-          continue;
-        }
-        var rel, tint = 0xffffff;
-        if (roll < T.deco.spineChance + T.deco.groupChance && depth < 30) rel = pick(r, DECO.group);
-        else if (roll > 0.94) rel = pick(r, DECO.rare);
-        else if (roll > 0.72) rel = pick(r, DECO.grass);
-        else if (depth > 28 && r() < 0.5) { rel = pick(r, DECO.dead); tint = 0xb8c4c8; }
-        else { rel = pick(r, DECO.tinted); tint = CORAL_TINTS[Math.floor(r() * CORAL_TINTS.length)]; }
-        var sz = A.images[rel];
-        var sc = (rel.indexOf('Group_') >= 0 ? 1.3 : 1) * (T.deco.scale[0] + r() * (T.deco.scale[1] - T.deco.scale[0]));
-        var sp = HX.gfx.sprite(G.gfx.tex(rel), sz[0] / 100 * sc, sz[1] / 100 * sc, { pivot: [0.5, 0.04], tint: tint, alphaCut: 0.5, depthWrite: true });
-        if (r() < 0.5) sp.scale.x *= -1;
-        sp.position.set(x, y, z);
-        grp.add(sp);
-      }
+  // Rong Spine chỉ chạy hoạt ảnh khi ở gần camera.
+  Layer.prototype.update = function (dt, cam, vw, vh) {
+    this.spines.forEach(function (s) {
+      if (Math.abs(s.x - cam.x) < vw + 4 && Math.abs(s.y - cam.y) < vh + 4) s.mesh.update(dt);
     });
-    // Dáng núi san hô xa tít phía sau, chỉ còn là bóng mờ trong sương nước.
-    for (var fx = W.box.minX; fx < W.box.maxX; fx += 14 + r() * 10) {
-      var far = 'env/FarBG00' + (1 + Math.floor(r() * 3)) + '.png', fs = A.images[far], k = T.deco.farScale * (0.8 + r() * 0.5);
-      var fb = HX.gfx.sprite(G.gfx.tex(far), fs[0] / 100 * k, fs[1] / 100 * k, { pivot: [0.5, 0], tint: T.deco.farTint, alphaCut: 0.5 });
-      fb.position.set(fx, T.water.deepY - 6 + r() * 10, -58 - r() * 8);
-      grp.add(fb);
-    }
-    return { group: grp, spines: spines };
+  };
+
+  // Rong/bọt biển Spine đặt theo zones.js → spines (toạ độ Unity: z đổi dấu), ma trận 2×2 giữ lật và co giãn.
+  function spinesOf(L) {
+    return (L.zone.spines || []).map(function (sp, i) {
+      var m = HX.fish.makeMesh('env:' + sp.skel, { flash: { value: 0 }, opacity: { value: 1 } });
+      var anims = A.spineEnv[sp.skel].anims, anim = anims[sp.anim] ? sp.anim : Object.keys(anims)[0];
+      m.state.setAnimation(0, anim, sp.loop !== false);
+      m.state.update((i * 0.37) % 3);
+      var holder = new THREE.Group(), k = sp.m2, x = sp.pos[0], y = sp.pos[1] + L.yOff, z = -sp.pos[2];
+      holder.matrixAutoUpdate = false;
+      holder.matrix.set(k[0], k[1], 0, x, k[2], k[3], 0, y, 0, 0, 1, z, 0, 0, 0, 1);
+      holder.add(m);
+      holder.updateMatrixWorld(true);
+      return { holder: holder, mesh: m, x: x, y: y };
+    });
   }
 
   // Vệt nắng từ mặt nước: vài tấm cộng sáng quanh camera, trôi theo x.
@@ -119,36 +108,38 @@
     for (var i = 0; i < T.deco.rays; i++) {
       var m = HX.gfx.sprite(G.gfx.tex(texs[i % texs.length], true), 1, 1, { additive: true, alphaCut: 0, pivot: [0.5, 1] });
       m.renderOrder = 4;
-      m.userData = { ox: (i / T.deco.rays - 0.5) * 44 + Math.random() * 4, ph: Math.random() * 6.28, w: 1.2 + Math.random() * 2.2, h: 12 + Math.random() * 10, z: -9 + Math.random() * 8 };
+      m.userData = { ox: (i / T.deco.rays - 0.5) * 70 + Math.random() * 5, ph: Math.random() * 6.28, w: 2 + Math.random() * 3.5, h: 22 + Math.random() * 18, z: -14 + Math.random() * 12 };
       m.rotation.z = -0.22 + Math.random() * 0.1;
       G.gfx.scene.add(m);
       this.list.push(m);
     }
+    this.strength = 1;
   }
   Rays.prototype.update = function (t) {
-    var cx = this.G.gfx.camera.position.x, span = 44;
+    var cx = this.G.gfx.camera.position.x, span = 70, s = this.strength;
     this.list.forEach(function (m) {
       var u = m.userData, x = u.ox + t * 0.15;
       x = cx + (((x - cx) % span) + span * 1.5) % span - span / 2;
       m.position.set(x, T.water.surfaceY + 0.4, u.z);
       m.scale.set(u.w * (1 + 0.15 * Math.sin(t * 0.6 + u.ph)), u.h, 1);
-      m.material.uniforms.opacity.value = 0.07 + 0.05 * Math.sin(t * 0.45 + u.ph);
+      m.material.uniforms.opacity.value = s * (0.09 + 0.06 * Math.sin(t * 0.45 + u.ph));
+      m.visible = s > 0.01;
     });
   };
   Rays.prototype.remove = function () { var s = this.G.gfx.scene; this.list.forEach(function (m) { s.remove(m); }); };
 
-  // Bụi trôi quanh camera.
+  // Bụi/sinh vật phù du trôi quanh camera; xuống sâu dày và mờ hơn.
   function Dust(G) {
     this.G = G;
-    var n = T.deco.dust, pos = new Float32Array(n * 3);
-    this.box = [26, 16, 10];
-    for (var i = 0; i < n; i++) { pos[i * 3] = Math.random() * 26; pos[i * 3 + 1] = Math.random() * 16; pos[i * 3 + 2] = -7 + Math.random() * 10; }
+    var n = T.deco.dust, pos = new Float32Array(n * 3), B = this.box = [44, 26, 16];
+    for (var i = 0; i < n; i++) { pos[i * 3] = Math.random() * B[0]; pos[i * 3 + 1] = Math.random() * B[1]; pos[i * 3 + 2] = -10 + Math.random() * B[2]; }
     var geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.base = pos.slice();
-    this.points = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xcdf3f0, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0.45, depthWrite: false }));
+    this.points = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xdff8f4, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.45, depthWrite: false }));
     this.points.frustumCulled = false;
     G.gfx.scene.add(this.points);
+    this.depth = 0;
   }
   Dust.prototype.update = function (t) {
     var c = this.G.gfx.camera.position, p = this.points.geometry.attributes.position.array, b = this.base, B = this.box;
@@ -159,26 +150,25 @@
       p[i + 2] = b[i + 2];
     }
     this.points.geometry.attributes.position.needsUpdate = true;
-    var depth = T.water.surfaceY - c.y;
-    this.points.material.opacity = 0.25 + Math.min(0.35, depth / 60);
+    this.points.material.opacity = 0.3 + Math.min(0.35, this.depth / 150);
   };
   Dust.prototype.remove = function () { this.G.gfx.scene.remove(this.points); };
 
   // Mặt nước nhìn từ dưới lên: dải sáng gợn sóng.
   function Surface(G) {
-    var u = { uTime: HX.gfx.water.uTime, uSurfY: HX.gfx.water.uSurfY, uShallow: HX.gfx.water.uShallow };
+    var u = { uTime: HX.gfx.water.uTime, uSurfY: HX.gfx.water.uSurfY, uFogNear: HX.gfx.water.uFogNear };
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
       // không so chiều sâu: mọi thứ nhô lên khỏi mặt nước đều bị lớp loá sáng che
       uniforms: u, transparent: true, depthWrite: false, depthTest: false,
       vertexShader: 'varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
       fragmentShader: [
-        'uniform float uTime; uniform float uSurfY; uniform vec3 uShallow; varying vec3 vW;',
+        'uniform float uTime; uniform float uSurfY; uniform vec3 uFogNear; varying vec3 vW;',
         'void main(){',
         '  float wave = sin(vW.x * 1.7 + uTime * 1.3) * 0.06 + sin(vW.x * 0.63 - uTime * 0.8) * 0.09;',
         '  float h = vW.y - (uSurfY + wave);',
         '  if (h < 0.0) discard;',
-        '  float edge = smoothstep(0.16, 0.0, h);',
-        '  vec3 c = mix(uShallow * 1.35 + vec3(0.08, 0.12, 0.1), vec3(0.93, 1.0, 0.98), edge);',
+        '  float edge = smoothstep(0.18, 0.0, h);',
+        '  vec3 c = mix(uFogNear * 1.25 + vec3(0.14, 0.2, 0.18), vec3(0.95, 1.0, 0.99), edge);',
         '  gl_FragColor = vec4(c, 1.0);',
         '}',
       ].join('\n'),
@@ -189,16 +179,20 @@
   }
   Surface.prototype.update = function () {
     var c = this.G.gfx.camera.position;
-    this.mesh.position.set(c.x, T.water.surfaceY + 4, -0.6);
-    this.mesh.scale.set(80, 8.4, 1);
+    this.mesh.position.set(c.x, T.water.surfaceY + 6, -0.6);
+    this.mesh.scale.set(140, 12.4, 1);
   };
   Surface.prototype.remove = function () { this.G.gfx.scene.remove(this.mesh); };
 
   // Hòm dưỡng khí: thân + nắp (nắp là con của thân, bản lề bên trái).
   function Chests(G, spots) {
     this.G = G;
-    var P = A.props, pb = P['props/O2Box_Body.png'], ph = P['props/O2Box_Head.png'];
-    this.list = spots.map(function (s) {
+    this.list = [];
+    this.add(spots);
+  }
+  Chests.prototype.add = function (spots) {
+    var G = this.G, P = A.props, pb = P['props/O2Box_Body.png'], ph = P['props/O2Box_Head.png'];
+    var made = spots.map(function (s) {
       var root = new THREE.Group();
       var body = HX.gfx.sprite(G.gfx.tex('props/O2Box_Body.png'), pb.size[0] / pb.ppu, pb.size[1] / pb.ppu, { pivot: pb.pivot, depthWrite: true });
       body.position.set(pb.local[0], pb.local[1], 0);
@@ -211,7 +205,8 @@
       G.gfx.scene.add(root);
       return { root: root, lid: lidPivot, x: s[0], y: s[1] + pb.local[1] + pb.size[1] / pb.ppu / 2, open: false, t: 0 };
     });
-  }
+    this.list = this.list.concat(made);
+  };
   Chests.prototype.update = function (dt) {
     var G = this.G, d = G.diver;
     this.list.forEach(function (c) {
@@ -233,8 +228,35 @@
   };
   Chests.prototype.remove = function () { var s = this.G.gfx.scene; this.list.forEach(function (c) { s.remove(c.root); }); };
 
-  HX.level = {
-    loadGlb: loadGlb, terrainFrom: terrainFrom, rng: rng, hashStr: hashStr, decorate: decorate, decoImages: decoImages,
-    Rays: Rays, Dust: Dust, Surface: Surface, Chests: Chests,
+  // Khoang cứu hộ (EscapePodZone gốc): tới sát rồi bơi lên là kết thúc lượt lặn, giữ cả túi cá (đi ngang qua thì không sao). Vòng sáng gốc là
+  // ParticleSystem 3D không rút được, nên dùng quầng sáng và cột bọt của bộ hiệu ứng.
+  function Pods(G) { this.G = G; this.list = []; this.t = 0; }
+  Pods.prototype.add = function (spots) {
+    var G = this.G, P = A.props['props/Pod_ex.png'];
+    this.list = this.list.concat(spots.map(function (s) {
+      var m = HX.gfx.sprite(G.gfx.tex('props/Pod_ex.png'), P.size[0] / P.ppu, P.size[1] / P.ppu, { pivot: P.pivot, depthWrite: true });
+      m.position.set(s[0], s[1], -0.3);
+      G.gfx.scene.add(m);
+      return { m: m, x: s[0], y: s[1] };
+    }));
   };
+  Pods.prototype.update = function (dt, inp) {
+    var G = this.G, d = G.diver, near = false;
+    this.t -= dt;
+    var puff = this.t <= 0;
+    if (puff) this.t = 0.35;
+    this.list.forEach(function (p) {
+      if (puff && Math.abs(p.x - G.gfx.camera.position.x) < 20 && Math.abs(p.y - G.gfx.camera.position.y) < 14) {
+        G.fx.spawn('glow', p.x, p.y + 0.4, -0.2, 0, 0.1, 1.6);
+        G.fx.spawn('bubble', p.x + (Math.random() - 0.5) * 0.5, p.y + 1.2, -0.2, 0, 0.8);
+      }
+      if (G.phase !== 'dive' || d.state === 'dead' || Math.abs(d.pos.x - p.x) > T.o2.podRange || Math.abs(d.pos.y - p.y - 0.6) > T.o2.podRange * 1.6) return;
+      near = true;
+      if (inp.my > 0.5) G.onPod(p);
+    });
+    if (near !== this.near) { this.near = near; G.hud.podHint(near); }
+  };
+  Pods.prototype.remove = function () { var s = this.G.gfx.scene; this.list.forEach(function (p) { s.remove(p.m); }); };
+
+  HX.level = { loadGlb: loadGlb, Layer: Layer, Rays: Rays, Dust: Dust, Surface: Surface, Chests: Chests, Pods: Pods };
 })(window.HX = window.HX || {});

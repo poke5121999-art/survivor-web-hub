@@ -1,0 +1,8 @@
+Sea_Toad.png
+size:51,20
+filter:Nearest,Nearest
+pma:true
+body
+bounds:11,2,38,16
+fin
+bounds:2,11,7,7

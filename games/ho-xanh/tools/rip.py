@@ -34,12 +34,22 @@ BUNDLES = os.path.join(DTD, 'StreamingAssets', 'aa', 'StandaloneWindows64')
 CACHE = os.path.join(tempfile.gettempdir(), 'ho-xanh-rip')
 
 PC = 'Assets/Contents/PlayContents/'
-ENV = PC + 'Ingame/00_InGame_Common/Sprites/Environment_P/'
 
 # ---------------------------------------------------------------- PICKS
 # TID trong DR_GameData_Fish -> cá. Chỉ loài vẽ bằng Spine (loài 3D không có skel).
-# Vùng A = nước nông Hố Xanh, B = tầng giữa. Bỏ tôm hùm (HP 999, bắt bằng tay) và bản
-# "đêm"/"hung" trùng skel với bản thường.
+# Vùng A = nước nông Hố Xanh, B = tầng giữa, C = đáy sâu (130-250m). Bỏ tôm hùm (HP 999,
+# bắt bằng tay) và bản "đêm"/"hung" trùng skel với bản thường (kiểm bằng tên trùng + cùng
+# thư mục Spine, ví dụ TID 2010053/2010051/2010052/2010126 trùng 2010027/2010029/2010031/2010121).
+#
+# Vùng C [ĐO 2026-09-24]: nhiều loài mốc "C" chỉ có mô hình 3D (FBX, không có .skel) — Frilled_Shark,
+# BluespottedStargazer, Rhinochimaeridae, Megamouth_Shark, Cookiecutter_Shark — bỏ. Hai loài
+# ElephantFish và Salmon_Snailfish có thư mục Spine/ nhưng skeleton xuất dạng .json văn bản
+# (Spine JSON), không phải .skel nhị phân — rip_spine() và spine-threejs runtime của game này chỉ
+# đọc SkeletonBinary nên bỏ (muốn thêm phải viết loader SkeletonJson riêng). TID 2010206 Viperfish
+# có đủ .skel/.atlas/.png nhưng KHÔNG có dòng nào trong FishInfoData (asset mồ côi, không rõ
+# HP/damage) — bỏ. Norway_Lobster/Eastern_Rock_Lobster (2010240/2010241) HP 999, bắt tay — bỏ như
+# tôm hùm vùng khác. Great_Spider_Crab (2010208) HP=1 nhưng FishCollectionNotAvailable=False (vẫn
+# bắt được bằng xiên, không phải lỗi dữ liệu) — giữ.
 FISH_TIDS = [
     2010002, 2010003, 2010004, 2010005, 2010006, 2010007, 2010008, 2010009, 2010010, 2010011,
     2010012, 2010013, 2010014, 2010015, 2010016, 2010017, 2010018, 2010019, 2010020, 2010021,
@@ -48,6 +58,7 @@ FISH_TIDS = [
     2010101, 2010102, 2010103, 2010105, 2010106, 2010107, 2010108, 2010109, 2010110, 2010111,
     2010112, 2010113, 2010114, 2010115, 2010116, 2010117, 2010121, 2010122, 2010129, 2010136,
     2010137, 2010138,
+    2010201, 2010202, 2010208, 2010212, 2010214, 2010217, 2010218, 2010219, 2010220, 2010222,
 ]
 # Dãy khung của Dave: tiền tố tên sprite -> khung/giây. Số fps đọc từ AnimationClip gốc
 # (m_SampleRate): Idle 6, Move* 9, B_Move* 9, HookAttackReady 10, HookAttackFire 15,
@@ -67,26 +78,8 @@ DAVE = {
 DAVE_ATLAS = PC + 'Common/Sprites/Player/Atlas/01_Default_Atlas.spriteatlas'
 
 # Ảnh lẻ: đường dẫn gốc -> tên ra (trong art/). Hình trong một SpriteAtlas thì lấy qua Sprite.
+# San hô, rong, thạch nhũ không còn rút lẻ: tools/level.py đưa chúng vào glb theo đúng chỗ bản gốc đặt.
 IMAGES = {}
-for n in ['FarBG001', 'FarBG002', 'FarBG003', 'Coral001', 'Coral005', 'Coral006', 'Coral007', 'Coral008',
-          'CoralBush001', 'CoralBush002', 'CoralBush003', 'CoralBush005', 'CoralBush006', 'CoralBush008',
-          'CoralBush009', 'CoralRock001', 'CoralRock002', 'CoralRock003', 'CoralRock004',
-          'DeadCoral001', 'DeadCoral002', 'DeadCoral003', 'DeadCoral004', 'DeadCoral005', 'DeadCoral006',
-          'DeadCoral007', 'Group_Coral001', 'Group_Coral004', 'Group_Coral007', 'Group_Coral009',
-          'Grass001', 'Grass002', 'Grass003', 'Grass004', 'Seaweed', 'Seaweed_07', 'Seaweed_08',
-          'MV_Seaweeds_Kelp01', 'Starfish001', 'Bone001', 'Bone002', 'Am', 'Am1', 'Am2', 'Am3', 'Am4',
-          'Cr12', 'Cr13', 'Cr2', 'Cr5', 'Cr7', 'Cr8']:
-    IMAGES[ENV + 'Seaweeds/%s.png' % n] = 'env/%s.png' % n
-for n in ['Stalactite_001', 'Stalactite_002', 'Stalactite_003', 'Stalactite_004', 'Stalactite_005',
-          'Stalactite_006', 'Stalactite_007', 'Stalactite_008', 'Stalactite_100', 'Stalactite_200',
-          'Stalactite_201', 'Stalactite_300', 'Stalactite_301', 'Gate_Rock_001', 'Gate_Rock_002',
-          'Gate_Rock_003', 'Gate_Rock_004', 'Gate_Rock_005', 'Gate_Rock_006',
-          'Up_Stalactite_001', 'Up_Stalactite_002', 'Up_Stalactite_003', 'Up_Stalactite_004',
-          'Up_Stalactite_005', 'Up_Stalactite_006', 'Up_Stalactite_007',
-          'Dn_Stalactite_001', 'Dn_Stalactite_002', 'Dn_Stalactite_003', 'Dn_Stalactite_004', 'Dn_Stalactite_005']:
-    IMAGES[ENV + 'Stalactite/%s.png' % n] = 'env/%s.png' % n
-for n in ['Wreck_Boat01', 'Wreck_Boat02', 'Wreck_Boat03']:
-    IMAGES[ENV + 'Artifact/%s.png' % n] = 'env/%s.png' % n
 IMAGES[PC + 'Ingame/00_InGame_Common/Sprites/InstanceItem_P/Harpoon/HarpoonProjectile.png'] = 'fx/HarpoonProjectile.png'
 IMAGES[PC + 'Common/Material/Player/Texture/CFXM4_T_BubbleSubtle-A8.tga'] = 'fx/BubbleSubtle.png'
 for n in ['UI_O2_Frame_New', 'UI_Catch_New', 'UI_Warning_Mark', 'Gauge_Bar_Line', 'Gauge_Bar_Normal',
@@ -96,7 +89,15 @@ for n in ['UI_O2_Frame_New', 'UI_Catch_New', 'UI_Warning_Mark', 'Gauge_Bar_Line'
 for n in ['Target_Arrow', 'Target_ArrowGun', 'Target_ArrowGun_E', 'Target_CurveStart']:
     IMAGES[PC + 'Common/Sprites/Player/Range/%s.png' % n] = 'ui/%s.png' % n
 # Prefab có SpriteRenderer: lấy mọi sprite trong cây (rương O2 là hai mảnh thân + nắp).
-PREFAB_SPRITES = [PC + 'Ingame/00_InGame_Common/Prefabs/Interaction/Chest_O2.prefab']
+# EscapePod = thân khoang thoát hiểm (Pod_ex, tĩnh). EscapePodZone = biểu tượng bộ đàm gọi khoang
+# (Icon_Radios01, tĩnh — AnimationClip EscapePod_Radios_Idle không có m_PPtrCurves nên không phải
+# hoạt ảnh đổi khung hình, chỉ là property animation lặng lẽ pulse; game gốc vẽ vòng sáng quanh nó
+# bằng ParticleSystem 3D, không xuất được kiểu sprite nên bỏ, dùng lại VFX glow có sẵn (LightCircle…)).
+PREFAB_SPRITES = [
+    PC + 'Ingame/00_InGame_Common/Prefabs/Interaction/Chest_O2.prefab',
+    PC + 'Ingame/00_InGame_Common/Prefabs/Interaction/EscapePod.prefab',
+    PC + 'Ingame/00_InGame_Common/Prefabs/Interaction/EscapePodZone.prefab',
+]
 # VFX: tên tệp gốc (tìm theo tên, vì thư mục VFX có nhiều tầng con).
 VFX = ['E_Bubble_01A', 'E_Bubble_01B', 'E_Bubble_03A', 'E_Seq_Bubble_01A', 'E_Seq_Bubble_02A', 'E_Seq_Bubble_03A',
        'E_Ray_01A', 'E_Ray_01C', 'E_Ray_03A', 'E_Rays_01A', 'E_LightBeam_01A', 'LightBeam', 'E_Noise_Caustic_01A',
@@ -104,47 +105,6 @@ VFX = ['E_Bubble_01A', 'E_Bubble_01B', 'E_Bubble_03A', 'E_Seq_Bubble_01A', 'E_Se
        'E_Lightdust_01A', 'WaterFog', 'L001_Background_light', 'HeadLight', 'E_Splash_01A', 'E_Seq_Spark_01A',
        'E_Spark_01A', 'E_Water_Splash_01A', 'E_Seq_Water_Splash_01B', 'PointLightFX', 'LightCircle', 'E_Glow_04A']
 # Spine phi cá (rong, san hô động).
-SPINE_ENV = ['B_Seaweed_Side01', 'B_Seaweed_Side02', 'B_Seaweed_Side03', 'B_Seaweed_Side04', 'Bladderwrack',
-             'Gelidium', 'Kajime', 'SeaGrapes', 'Tangle', 'C_Seaweed07', 'C_Seaweed08', 'MV_SeaWeed001',
-             'MV_SeaWeed002', 'MV_Wakame', 'Res_Durvillaea', 'Res_Black_Coral']
-# key -> tên AudioClip gốc (tìm theo tên tệp .wav trong catalog), và mức: sfx | loop | music.
-AUDIO = {
-    'bgm_ingame': ('BGM_InGame', 'music'),
-    'bgm_seablue': ('BGM_SeaBlue_01', 'music'),
-    'bgm_deep': ('BGM_Deep_Sea', 'music'),
-    'bgm_night': ('BGM_Night_Diving', 'music'),
-    'bgm_shark': ('BGM_Shark_Appear', 'music'),
-    'amb_deep': ('amb_deepsea_loop', 'loop'),
-    'harpoon_aim': ('harpoon_aim', 'sfx'),
-    'harpoon_shot': ('harpoon_shot', 'sfx'),
-    'harpoon_hit': ('harpoon_hit', 'sfx'),
-    'harpoon_hit_rock': ('harpoon_hit_rock', 'sfx'),
-    'harpoon_return': ('harpoon_return', 'sfx'),
-    'harpoon_pull': ('harpoon_line_pull_loop', 'loop'),
-    'harpoon_catch': ('harpoon_catch_success', 'sfx'),
-    'harpoon_tap': ('harpoon_tap_button', 'sfx'),
-    'dave_diving': ('dave_diving', 'sfx'),
-    'dave_breathe': ('dave_breathe', 'sfx'),
-    'dave_hit1': ('dave_hit_01', 'sfx'),
-    'dave_hit2': ('dave_hit_02', 'sfx'),
-    'dave_hit3': ('dave_hit_03', 'sfx'),
-    'dave_dead': ('dave_dead_01', 'sfx'),
-    'dave_swim': ('sound_Dave_Swim_01', 'sfx'),
-    'dave_dash': ('sound_dave_dash_02', 'sfx'),
-    'dave_grab': ('sound_DaveGrab_01', 'sfx'),
-    'melee_hit': ('sound_hit_melee', 'sfx'),
-    'knife': ('sound_weapon_shortsword', 'sfx'),
-    'o2_use': ('sound_o2_capsule_use', 'sfx'),
-    'o2_expand': ('sound_o2_tank_expansion', 'sfx'),
-    'itembox': ('sound_gain_itembox_02', 'sfx'),
-    'qte_raise': ('sound_QTE_raised_01', 'sfx'),
-    'qte_success': ('sound_QTE_success_01', 'sfx'),
-    'qte_perfect': ('sound_QTE_Perfect_success_01', 'sfx'),
-    'qte_fail': ('sound_QTE_fail_01', 'sfx'),
-    'qte_stab': ('sound_QTE_stab_01', 'sfx'),
-    'bubble_seahorse': ('Seahorse_Bubble_01', 'sfx'),
-}
-
 
 # ---------------------------------------------------------------- INDEX
 def bundle_index():
@@ -262,6 +222,15 @@ def rip_spine(folder_path, stem, outdir):
     return {'skel': outdir + '/' + stem + '.skel', 'atlas': outdir + '/' + stem + '.atlas', 'pages': pages, 'pma': pma}
 
 
+def rip_spine_env():
+    """Rong Spine mà bản đồ đặt (zones.js -> spines, do level.py ghi). level.py phải chạy trước."""
+    src = io.open(os.path.join(DATA, 'zones.js'), encoding='utf-8').read()
+    zones = json.loads(src[src.index('=') + 1:].strip().rstrip(';'))
+    names = sorted({sp['skel'] for z in zones.values() for sp in z.get('spines', [])})
+    base = PC + 'Ingame/00_InGame_Common/Sprites/Environment_P/Seaweed_Spine/'
+    return {n: rip_spine(base + n + '/', n, 'env/spine/' + n) for n in names}
+
+
 def load_fish_sheet():
     path = 'Assets/AssetBundleResources/GameDataSheet/DR_GameData_Fish.json'
     ta = [o for o in objects_for(path) if type(o).__name__ == 'TextAsset'][0]
@@ -292,13 +261,6 @@ def rip_fish():
                         hp=f['HP'], damage=f['Damage'], aggressive=f['FishActiveType'] == 1,
                         size=f['FishSizeType'], cm=f['FishDimension'], rank=f['FishRank'], icon=icon))
         print('  cá %-32s hp %4s dmg %3s %s' % (folder, f['HP'], f['Damage'], 'HUNG' if out[-1]['aggressive'] else ''))
-    return out
-
-
-def rip_spine_env():
-    out = {}
-    for n in SPINE_ENV:
-        out[n] = rip_spine(ENV + 'Seaweed_Spine/%s/' % n, n, 'env/spine/' + n)
     return out
 
 
@@ -417,7 +379,7 @@ def main():
         man = json.loads(open(man_p, encoding='utf-8').read().split('=', 1)[1].rstrip().rstrip(';'))
     if what in ('all', 'art'):
         # art/level thuộc về level.py, đừng xoá.
-        for sub in ('dave', 'fish', 'env', 'fx', 'ui', 'props'):
+        for sub in ('dave', 'fish', 'env', 'fx', 'ui', 'props'):  # env: thư mục cũ, xoá luôn
             shutil.rmtree(os.path.join(ART, sub), ignore_errors=True)
         print('Dave…')
         man['dave'] = rip_dave()

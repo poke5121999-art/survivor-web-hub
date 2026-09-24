@@ -140,7 +140,7 @@
     STATES[this.state].update(this, G, dt, inp);
 
     if (this.state !== 'dead' && this.state !== 'enter' && this.state !== 'surfaced' && G.phase === 'dive') {
-      var depth = Math.max(0, T.water.surfaceY - this.pos.y);
+      var depth = G.stack.depth(this.pos.y);
       var drain = (T.o2.drain + depth * T.o2.drainPerMeter) * (this.boosting ? T.o2.boostMul : 1);
       this.o2 = Math.max(0, this.o2 - drain * dt);
       if (this.o2 <= 0) this.go('dead');

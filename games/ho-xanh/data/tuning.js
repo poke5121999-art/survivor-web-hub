@@ -2,26 +2,39 @@
 // Đơn vị: 1 đơn vị thế giới = 1 m = 100 px ảnh gốc.
 window.HX_TUNING = {
   view: {
-    fov: 26,                 // [ĐỀ XUẤT] bản gốc 38°; hẹp hơn để lùi camera ra xa, đá tiền cảnh bớt phình mà Dave vẫn đủ to
-    height: 6.5,             // [ĐỀ XUẤT] bề cao khung nhìn ở mặt z=0 (m); đá tiền cảnh nhô tới z≈+10 nên camera phải lùi ≥ 12 m
-    pxPerUnit: 100,          // [DtD] ppu của sprite: 1 px ảnh gốc = 1 px khung vẽ thấp ở mặt z=0
-    maxRtHeight: 720,        // [ĐỀ XUẤT] trần độ phân giải khung vẽ thấp
-    follow: 5,               // [ĐỀ XUẤT] độ bám camera (1/s)
+    fov: 38,                 // [DtD] MainCamera gốc: phối cảnh 38°
+    dist: 18.5,              // [DtD] CinemachineFramingTransposer.m_CameraDistance: khung nhìn cao ~12,7 m ở mặt z=0
+    distShort: 12.5,         // [ĐỀ XUẤT] màn thấp (điện thoại ngang) kéo camera lại gần cho Dave khỏi bé
+    shortH: 420,             // [ĐỀ XUẤT] màn cao từ mức này (px CSS) trở xuống dùng distShort
+    tallH: 820,              // [ĐỀ XUẤT] từ mức này trở lên dùng dist gốc
+    maxPixelRatio: 1.5,      // [ĐỀ XUẤT] trần mật độ điểm ảnh khi vẽ
+    maxPixels: 2400000,      // [ĐỀ XUẤT] trần số điểm ảnh khung vẽ
+    msaa: 4,                 // [ĐỀ XUẤT] khử răng cưa cạnh đá (WebGL2)
+    follow: 2.6,             // [ĐỀ XUẤT] độ bám camera (1/s); gốc dùng damping 1 của Cinemachine
+    lookahead: 0.45,         // [ĐỀ XUẤT] camera nhìn trước theo vận tốc (giây)
+    lookaheadMax: 2.2,       // [ĐỀ XUẤT] m
     aimLead: 0.22,           // [ĐỀ XUẤT] camera dạt về phía điểm ngắm
-    aimLeadMax: 1.4,         // [ĐỀ XUẤT]
-    cutRadius: 0.9,          // [ĐỀ XUẤT] đá tiền cảnh che Dave thì thưa đi trong bán kính này (m)
+    aimLeadMax: 1.6,         // [ĐỀ XUẤT]
+    boundX: 55,              // [DtD] CameraBound gốc: x ∈ [-55, 55]
+    cutRadius: 1.1,          // [ĐỀ XUẤT] đá tiền cảnh che Dave thì thưa đi trong bán kính này (m)
   },
   water: {
     surfaceY: 20.5,          // [ĐỀ XUẤT] cameraBound gốc chặn mép trên khung nhìn ở y=19; mặt nước đặt ngay trên đó
-    deepY: -34,              // [ĐỀ XUẤT] đáy hố trong các bản đồ A
-    shallow: [0.16, 0.60, 0.74], // [ĐỀ XUẤT] màu nước sát mặt
-    deep: [0.02, 0.08, 0.21],    // [ĐỀ XUẤT] màu nước đáy
-    deepMul: [0.40, 0.52, 0.68], // [ĐỀ XUẤT] vật ở đáy tối đi bao nhiêu
-    fogNear: 6,              // [ĐỀ XUẤT] tính từ camera (m)
-    fogFar: 62,              // [ĐỀ XUẤT]
-    fogMax: 0.92,            // [ĐỀ XUẤT]
+    fogMax: 1,               // [ĐỀ XUẤT] sương xa nhất che hẳn
     caustic: 0.55,           // [ĐỀ XUẤT] độ sáng vân nắng trên đá gần mặt
-    causticDepth: 22,        // [ĐỀ XUẤT] vân nắng tắt hẳn ở độ sâu này (m)
+    causticDepth: 26,        // [ĐỀ XUẤT] vân nắng tắt hẳn ở độ sâu này (m)
+  },
+  dive: {
+    entryY: 19,              // [ĐỀ XUẤT] mép vào của tầng dưới (toạ độ riêng) đặt chạm đáy tầng trên
+    bands: { A: [0, 50], B: [50, 130], C: [130, 250] }, // [DtD wiki] dải mét của vùng nông / tầng giữa / vực sâu
+    blend: 10,               // [ĐỀ XUẤT] trộn ánh sáng hai tầng trong khoảng này quanh ranh giới (m)
+    surfaceBlend: 7,         // [ĐỀ XUẤT] hồ sơ màu Surface gốc phủ trong khoảng này dưới mặt nước (m)
+    lampFrom: 95,            // [ĐỀ XUẤT] ban ngày, đèn đội đầu bật dần từ độ sâu này (m)
+    lampFull: 150,           // [ĐỀ XUẤT]
+    spriteDark: 0.35,        // [ĐỀ XUẤT] Dave, cá ở đáy sâu nhất còn sáng bằng này so với trên mặt
+    lightGain: 1.4,          // [ĐỀ XUẤT] đá gốc sáng hơn ~1,4 lần so với màu môi trường + nắng (đo trên ảnh chụp Steam); đèn cảnh gốc không rút được
+    ambientFloor: 0.5,       // [ĐỀ XUẤT] ánh sáng nền tối thiểu (C gốc 0,31 nhưng bù bằng đèn điểm trong cảnh)
+    bloomScale: 0.35,        // [ĐỀ XUẤT] loá sáng rẻ bằng mipmap mạnh hơn chuỗi làm mờ của URP, nên thu nhỏ cường độ gốc
   },
   diver: {
     radius: 0.18,            // [ĐỀ XUẤT] bán kính va chạm
@@ -42,11 +55,12 @@ window.HX_TUNING = {
   },
   o2: {
     max: 100,                // [DtD] bình dưỡng khí cơ bản
-    drain: 0.75,             // [ĐỀ XUẤT] mỗi giây ở mặt nước
-    drainPerMeter: 0.012,    // [ĐỀ XUẤT] cộng thêm mỗi mét sâu
+    drain: 0.45,             // [ĐỀ XUẤT] mỗi giây ở mặt nước
+    drainPerMeter: 0.0025,   // [ĐỀ XUẤT] cộng thêm mỗi mét sâu (mét hiển thị); ở 250 m đốt ~1,1/giây
     boostMul: 2.4,           // [ĐỀ XUẤT] bơi tăng tốc đốt khí nhanh hơn
     chestGain: 30,           // [ĐỀ XUẤT] một hòm dưỡng khí
     chestRange: 0.9,         // [ĐỀ XUẤT] tự mở khi chạm
+    podRange: 0.8,           // [ĐỀ XUẤT] chạm khoang cứu hộ trong khoảng này là lên thuyền
     lowAt: 25,               // [ĐỀ XUẤT] báo động
     breatheEvery: 2.6,       // [ĐỀ XUẤT] tiếng thở gấp khi thiếu khí
   },
@@ -91,8 +105,6 @@ window.HX_TUNING = {
     angryTime: 6,            // [ĐỀ XUẤT] cá có sát thương mà bị đánh thì cắn lại
     biteRange: 0.45,         // [ĐỀ XUẤT] tính thêm bán kính thân cá
     biteCooldown: 1.4,       // [ĐỀ XUẤT]
-    zoneBDepth: 22,          // [ĐỀ XUẤT] từ độ sâu này cá vùng B bắt đầu xuất hiện
-    zoneBFull: 40,           // [ĐỀ XUẤT] tới đây thì 75% là cá vùng B
     school: [3, 6],          // [ĐỀ XUẤT] đàn cá nhỏ
     schoolMaxHp: 4,          // [ĐỀ XUẤT] cá máu ≤ mức này mới bơi đàn
     rareWeight: 0.35,        // [ĐỀ XUẤT] hệ số xuất hiện của cá hạng ≥ 3
@@ -101,16 +113,10 @@ window.HX_TUNING = {
     puffHit: 0.5,            // [ĐỀ XUẤT] cá nóc phồng tròn ~0.7 m, chạm trong bán kính này là bị gai đâm
   },
   deco: {
-    everyMin: 0.5,           // [ĐỀ XUẤT] khoảng cách giữa hai vật trang trí trên mép đá (m)
-    everyMax: 1.7,           // [ĐỀ XUẤT]
-    scale: [1.2, 1.9],       // [ĐỀ XUẤT] phóng to san hô/rong so với 100 px/m để đọc được cạnh khối đá lớn
-    maxSlope: 0.55,          // [ĐỀ XUẤT] mép dốc hơn thì không đặt
-    spineChance: 0.22,       // [ĐỀ XUẤT] tỉ lệ rong Spine
-    groupChance: 0.12,       // [ĐỀ XUẤT] tỉ lệ cụm san hô màu
-    rays: 7,                 // [ĐỀ XUẤT] số vệt nắng
-    dust: 260,               // [ĐỀ XUẤT] hạt bụi trôi
-    farScale: 16,            // [ĐỀ XUẤT] phóng FarBG001-003 thành dãy núi xa
-    farTint: 0x3d7f95,       // [ĐỀ XUẤT] màu bóng núi xa trước khi hoà vào sương
+    sway: { anemone: 0.05, waveweed: 0.22, kelp: 0.4 }, // [ĐỀ XUẤT] biên độ lắc theo sóng (m) của rong, hải quỳ
+    rockLight: 1,            // [ĐỀ XUẤT] hệ số nắng trên đá (bản gốc _LightFactor 0,8 ở A, 0,5 ở C)
+    rays: 10,                // [ĐỀ XUẤT] số vệt nắng
+    dust: 420,               // [ĐỀ XUẤT] hạt bụi trôi
   },
   fx: {
     trailEvery: 0.16,        // [ĐỀ XUẤT] bọt khí từ bình

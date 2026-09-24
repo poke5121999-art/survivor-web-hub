@@ -3,7 +3,7 @@
  *
  * Chạy:  node test/ho-xanh-suite.js
  * Ảnh chụp ra thư mục SHOTS (mặc định %TEMP%/ho-xanh-shots) — mở ra xem bằng mắt.
- * Chạy ở 1280×720 và 844×390, bản đồ cố định A01 (?map=A01) để kỳ vọng viết cứng được.
+ * Chạy ở 1280×720 và 844×390, lộ trình cố định A01 → B01 → C03 (?route=) để kỳ vọng viết cứng được.
  */
 'use strict';
 const path = require('path'), http = require('http'), fs = require('fs'), os = require('os');
@@ -60,7 +60,7 @@ async function run(browser, base, W, H) {
   const info = () => page.evaluate(() => HX_DEBUG.info());
   const shot = name => page.screenshot({ path: path.join(SHOTS, tag + '-' + name + '.png') });
 
-  await page.goto(base + '/games/ho-xanh/index.html?map=A01');
+  await page.goto(base + '/games/ho-xanh/index.html?route=A01,B01,C03');
   await page.waitForFunction(() => window.HX_DEBUG && HX_DEBUG.info().phase === 'title');
   check('màn đầu hiện tên game', (await page.textContent('#title h1')) === 'Hố Xanh');
   await sleep(400);
@@ -69,8 +69,10 @@ async function run(browser, base, W, H) {
   await page.click('#start');
   await page.waitForFunction(() => HX_DEBUG.info().phase === 'dive', null, { timeout: 90000 });
   let I = await info();
-  check('nạp đúng bản đồ A01', I.levelId === 'A01', I.levelId);
-  check('glb A01 nạp đủ 166 mảnh lưới', I.glbMeshes === 166, String(I.glbMeshes));
+  check('ghép đúng lộ trình A01 → B01 → C03', I.route.join(',') === 'A01,B01,C03', I.route.join(','));
+  check('glb A01 nạp đủ 26 lưới đã gộp (gltfpack)', I.glbMeshes === 26, String(I.glbMeshes));
+  const roles = I.layers[0].roles;
+  check('A01 có đá, san hô 3D, hải quỳ, rong và san hô 2D gốc', ['rock', 'coral3d', 'anemone', 'waveweed', 'sprites'].every(r => roles[r] > 0), JSON.stringify(roles));
   check('Dave bắt đầu bằng pha nhảy xuống nước', I.dave.state === 'enter', I.dave.state);
   check('giải mã đủ 34 tệp tiếng gốc', I.sounds === 34, String(I.sounds));
   // Ghi lại tên tiếng được gọi để biết đòn xiên có nối đúng tiếng.
@@ -95,7 +97,7 @@ async function run(browser, base, W, H) {
   await shot('2-dive-near-surface');
 
   // Bơi thẳng vào vách: không lần nào tâm Dave nằm trong đa giác đá.
-  const walls = await page.evaluate(() => HX_LEVELS.A01.walls);
+  const walls = await page.evaluate(() => HX_ZONES.A01.walls);
   const setup = await page.evaluate(() => {
     const W = HX.game.world;
     for (let y = 8; y > -30; y -= 0.7) for (let x = -40; x < 40; x += 0.9) {
@@ -163,6 +165,20 @@ async function run(browser, base, W, H) {
   await shot('5-catch-popup');
   check('mũi xiên về lại tay Dave', (await page.waitForFunction(() => HX_DEBUG.info().harpoon === 'ready', null, { timeout: 3000 }).then(() => true, () => false)));
 
+  // Cá bơi sang phải thì đầu cũng ở bên phải (bản cũ lật ngược, cá bơi giật lùi).
+  const heading = await page.evaluate(() => {
+    const d = HX.game.diver, uid = HX_DEBUG.spawnFish('Titan_Triggerfish', d.pos.x + 3, d.pos.y + 1.5);
+    const f = HX.game.fishes.list.find(q => q.id === uid);
+    f.frozen = true; f.facing = f.flip = 1; f.update(0.016); f.mesh.update(0.016);
+    f.root.updateMatrixWorld(true);
+    const sk = f.mesh.skeleton, v = new THREE.Vector3();
+    const wx = n => { const b = sk.findBone(n); v.set(b.worldX, b.worldY, 0); f.mesh.localToWorld(v); return v.x; };
+    const r = { head: wx('Head'), tail: wx('Tail3') };
+    HX_DEBUG.clearFish();
+    return r;
+  });
+  check('cá bò titan hướng sang phải thì đầu nằm bên phải đuôi', heading.head > heading.tail, JSON.stringify(heading));
+
   // Dao: cá hề 3 máu, dao 2 sát thương → đâm hai nhát thì cá chết và trôi về tay Dave.
   const d1 = (await info()).dave;
   const face = await page.evaluate(() => HX.game.diver.facing);
@@ -187,9 +203,33 @@ async function run(browser, base, W, H) {
     await page.evaluate(s => HX_DEBUG.teleport(s.x, s.y), deep);
     await sleep(1400);
     I = await info();
-    check('độ sâu hiển thị khớp vị trí Dave', (await page.textContent('#depth')) === Math.round(I.surfaceY - I.dave.y) + ' m', await page.textContent('#depth'));
+    const minY = await page.evaluate(() => HX_ZONES.A01.bounds.minY);
+    const want = Math.round((I.surfaceY - I.dave.y) / (I.surfaceY - minY) * 50);
+    check('độ sâu hiển thị theo dải 0–50 m của vùng nông', (await page.textContent('#depth')) === want + ' m', await page.textContent('#depth') + ' / ' + want);
     await shot('6-dive-deep');
   }
+
+  // Tầng giữa và vực sâu nạp ngầm; xuống tới nơi thì có băng tên vùng, độ sâu đúng dải, vực sâu bật đèn đội đầu.
+  const allLoaded = await page.waitForFunction(() => HX_DEBUG.info().layers.filter(Boolean).length === 3, null, { timeout: 60000 }).then(() => true, () => false);
+  check('nạp ngầm xong cả ba tầng', allLoaded);
+  const into = async d0 => {
+    const s = await page.evaluate(d0 => {
+      const G = HX.game, W = G.world, L = G.stack.layers.find(l => l.d0 === d0);
+      for (let y = L.yTop - 20; y > L.yBot + 5; y -= 0.7) for (let x = -40; x < 40; x += 0.9) if (W.open(x, y, 1.5)) return { x, y };
+      return null;
+    }, d0);
+    await page.evaluate(p => HX_DEBUG.teleport(p.x, p.y), s);
+    await sleep(900);
+    return { J: await info(), m: parseInt(await page.textContent('#depth'), 10), banner: await page.textContent('#area-t') };
+  };
+  let Z = await into(50);
+  check('xuống tầng giữa: vùng B, độ sâu trong 50–130 m, băng "Tầng giữa"', Z.J.area === 'B' && Z.m >= 50 && Z.m <= 130 && Z.banner === 'Tầng giữa', Z.J.area + ' ' + Z.m + ' ' + Z.banner);
+  await shot('6b-zone-b');
+  Z = await into(130);
+  const lamp = await page.evaluate(() => HX.gfx.water.uLamp.value);
+  check('xuống vực sâu: vùng C, độ sâu trong 130–250 m, băng "Vực sâu"', Z.J.area === 'C' && Z.m >= 130 && Z.m <= 250 && Z.banner === 'Vực sâu', Z.J.area + ' ' + Z.m + ' ' + Z.banner);
+  check('vực sâu bật đèn đội đầu', lamp > 0.9, String(lamp));
+  await shot('6c-zone-c');
 
   // Cạn dưỡng khí: ngất, chỉ giữ một con (con hạng cao nhất).
   await page.evaluate(() => { HX_DEBUG.giveCatch('Yellow_Tang'); HX_DEBUG.giveCatch('Titan_Triggerfish'); HX_DEBUG.setO2(0.4); });
@@ -229,7 +269,49 @@ async function run(browser, base, W, H) {
   check('màn kết quả khi lên bờ: "Lên bờ rồi!" và giữ cả túi', res.title === 'Lên bờ rồi!' && res.outcome === 'surface' && JSON.stringify(res.ids) === '["Bluetang"]', JSON.stringify(res));
   await shot('8-result-surface');
 
+  // Khoang cứu hộ ở tầng giữa: đứng cạnh thì không sao, bơi lên vào khoang thì lên thuyền với cả túi cá.
+  await page.click('#r-again');
+  await page.waitForFunction(() => HX_DEBUG.info().phase === 'dive', null, { timeout: 60000 });
+  await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 5000 });
+  const pod = await page.evaluate(() => { const L = HX.game.stack.layers[1], p = L.zone.pods[0]; return { x: p[0], y: p[1] + L.yOff }; });
+  await page.evaluate(() => HX_DEBUG.giveCatch('Coral_Trout'));
+  await page.evaluate(p => HX_DEBUG.teleport(p.x, p.y + 0.6), pod);
+  await sleep(600);
+  check('đứng cạnh khoang mà không bơi lên thì lượt lặn vẫn tiếp tục', (await info()).phase === 'dive');
+  check('cạnh khoang hiện lời nhắc bơi lên', await page.evaluate(() => document.getElementById('pod-hint').classList.contains('show')));
+  await page.keyboard.down('KeyW');
+  const podded = await page.waitForFunction(() => HX_DEBUG.info().phase === 'result', null, { timeout: 4000 }).then(() => true, () => false);
+  await page.keyboard.up('KeyW');
+  I = await info();
+  check('bơi lên vào khoang cứu hộ thì lên thuyền, giữ cả túi', podded && I.outcome === 'pod' && JSON.stringify(I.kept) === '["Coral_Trout"]', I.outcome + ' ' + JSON.stringify(I.kept));
+  await shot('9-result-pod');
+
   check('không có lỗi trang, lỗi console hay tải hỏng', errors.length === 0, errors.slice(0, 5).join(' | '));
+  await page.close();
+}
+
+// Không ép lộ trình: ba lượt liền nhau, lượt sau luôn khác chủ đề lượt trước, và tầng dưới khớp miệng nối tầng trên.
+async function themes(browser, base) {
+  out.push('\n[chủ đề]');
+  const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+  await page.goto(base + '/games/ho-xanh/index.html');
+  await page.waitForFunction(() => window.HX_DEBUG && HX_DEBUG.info().phase === 'title');
+  const seen = [];
+  for (let i = 0; i < 3; i++) {
+    if (i === 0) await page.click('#start'); else await page.click('#r-again');
+    await page.waitForFunction(() => HX_DEBUG.info().phase === 'dive', null, { timeout: 90000 });
+    const I = await page.evaluate(() => HX_DEBUG.info());
+    const links = await page.evaluate(r => r.slice(1).every((id, k) => HX_ZONES[id].top === HX_ZONES[r[k]].bottom), I.route);
+    seen.push(I.theme + ':' + I.route.join('→'));
+    check('lượt ' + (i + 1) + ' ghép tầng khớp miệng nối', links, I.route.join('→'));
+    await page.evaluate(() => HX_DEBUG.setO2(0));
+    await page.waitForFunction(() => HX_DEBUG.info().phase === 'result', null, { timeout: 8000 });
+    await sleep(300);
+  }
+  const th = seen.map(x => x.split(':')[0]);
+  check('mỗi lượt đổi sang chủ đề khác lượt trước', th[0] !== th[1] && th[1] !== th[2], seen.join(' | '));
+  const top = seen.map(x => x.split(':')[1].split('→')[0]);
+  check('mỗi lượt xuống một bản đồ vùng nông khác lượt trước', top[0] !== top[1] && top[1] !== top[2], top.join(' | '));
   await page.close();
 }
 
@@ -241,6 +323,7 @@ async function run(browser, base, W, H) {
   try {
     await run(browser, base, 1280, 720);
     await run(browser, base, 844, 390);
+    await themes(browser, base);
   } catch (e) {
     check('bộ kiểm chạy hết không vỡ', false, e.stack);
   }
