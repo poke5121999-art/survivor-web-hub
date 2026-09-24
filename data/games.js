@@ -622,5 +622,26 @@ window.HUB_GAMES = [
     // gacha, không mua kỹ năng, không kế thừa).
     status: "available",
     tags: ["Quản lý", "Nuôi quân", "Gacha", "Esport", "MOBA", "Mô phỏng", "Bảng xếp hạng", "Màn ngang"]
+  },
+  {
+    id: "xuoi-dong",
+    title: "Xuôi Dòng",
+    tagline: "Lái chiếc nhà thuyền đỏ xuôi từ hẻm đá, qua rừng thông, đầm lầy, hang đá rồi ra biển. Ngày nối đêm, có mưa có giông, đêm xuống thì cửa sổ cabin sáng đèn và đom đóm bay dọc bờ. Kéo lưới ở mũi thuyền qua bóng cá để bắt, vớt thùng gỗ trôi, hú còi cho chim bay. Chín loài cá ghi vào sổ, loài hiếm ra về đêm. Không có thua.",
+    thumbnail: "assets/thumbnails/xuoi-dong.png",
+    path: "games/xuoi-dong/index.html",
+    rev: "20260924a",
+    // Plain canvas/JS, không engine, mở được từ file:// (khi đó im tiếng vì fetch bị chặn).
+    // ART + ÂM THANH: toàn bộ lấy từ Farming Camp Demo (Innerfire Studios / SOEDESCO), rút
+    // thẳng từ bản cài Steam trên máy chủ dự án bằng games/xuoi-dong/tools/rip.py (UnityPy +
+    // vgmstream + ffmpeg), dùng theo yêu cầu của chủ dự án ngày 2026-09-24. Bờ sông là bốn
+    // khúc P_*RiverGen_A nướng lại từ scene level9 (minigame lái thuyền của demo), đáy sông
+    // là tilemap WaterTilemap, nhạc là "Sail On" 1–3 và "Main Menu - Noite". Tên cá lấy từ
+    // bảng chữ tiếng Anh của demo khi có (Salmon, Trout, Tiger Barb, Bass, Grouper, Golden
+    // Trout). Đây không phải tài sản của repo: muốn gỡ thì xoá games/xuoi-dong/art và
+    // games/xuoi-dong/audio. Bẫy đã gặp và số đo: games/xuoi-dong/README.md.
+    //
+    // Kiểm: node test/xuoi-dong-suite.js
+    status: "available",
+    tags: ["Thư giãn", "Lái thuyền", "Câu cá", "Ngày đêm", "Pixel art", "Màn ngang"]
   }
 ];
