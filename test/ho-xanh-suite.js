@@ -234,8 +234,9 @@ async function run(browser, base, W, H) {
 }
 
 (async () => {
-  const srv = await serve();
-  const base = 'http://localhost:' + srv.address().port;
+  // HX_BASE=https://poke5121999-art.github.io/survivor-web-hub để kiểm bản trên Pages.
+  const srv = process.env.HX_BASE ? null : await serve();
+  const base = process.env.HX_BASE || 'http://localhost:' + srv.address().port;
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   try {
     await run(browser, base, 1280, 720);
@@ -244,7 +245,7 @@ async function run(browser, base, W, H) {
     check('bộ kiểm chạy hết không vỡ', false, e.stack);
   }
   await browser.close();
-  srv.close();
+  if (srv) srv.close();
   console.log(out.join('\n'));
   console.log('\n' + pass + ' đạt, ' + fail + ' hỏng. Ảnh: ' + SHOTS);
   process.exit(fail ? 1 : 0);
