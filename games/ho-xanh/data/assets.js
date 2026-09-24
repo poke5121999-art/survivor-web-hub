@@ -455,7 +455,9 @@ window.HX_ASSETS = {
      0.5
     ]
    }
-  }
+  },
+  "scale": 2,
+  "harpoonScale": 1
  },
  "fish": [
   {
@@ -476,6 +478,7 @@ window.HX_ASSETS = {
    "cm": 15,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1,
     "sprint": 0.4,
@@ -509,6 +512,7 @@ window.HX_ASSETS = {
    "cm": 15,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.5,
@@ -542,6 +546,7 @@ window.HX_ASSETS = {
    "cm": 6,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.5,
@@ -575,6 +580,7 @@ window.HX_ASSETS = {
    "cm": 20,
    "rank": 1,
    "icon": null,
+   "scale": 1.1,
    "anims": {
     "die": 1.667,
     "swim": 0.533
@@ -607,6 +613,7 @@ window.HX_ASSETS = {
    "cm": 18,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "swim": 0.667
@@ -639,6 +646,7 @@ window.HX_ASSETS = {
    "cm": 20,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.6,
@@ -672,6 +680,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.4,
@@ -705,6 +714,7 @@ window.HX_ASSETS = {
    "cm": 6,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 1.5,
@@ -738,6 +748,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "swim": 0.5
@@ -770,6 +781,7 @@ window.HX_ASSETS = {
    "cm": 10,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.4,
@@ -803,6 +815,7 @@ window.HX_ASSETS = {
    "cm": 20,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.6,
@@ -836,6 +849,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.6,
@@ -869,6 +883,7 @@ window.HX_ASSETS = {
    "cm": 60,
    "rank": 1,
    "icon": null,
+   "scale": 1.1,
    "anims": {
     "die": 1.667,
     "sprint": 1.333,
@@ -902,6 +917,7 @@ window.HX_ASSETS = {
    "cm": 40,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "swim": 0.4
@@ -934,6 +950,7 @@ window.HX_ASSETS = {
    "cm": 20,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.4,
@@ -967,6 +984,7 @@ window.HX_ASSETS = {
    "cm": 60,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 1.5,
@@ -1000,6 +1018,7 @@ window.HX_ASSETS = {
    "cm": 50,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.7,
@@ -1033,6 +1052,7 @@ window.HX_ASSETS = {
    "cm": 50,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.6,
@@ -1066,6 +1086,7 @@ window.HX_ASSETS = {
    "cm": 35,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.8,
@@ -1099,6 +1120,7 @@ window.HX_ASSETS = {
    "cm": 150,
    "rank": 3,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 3.333,
     "sprint": 0.933,
@@ -1132,6 +1154,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 2,
    "icon": null,
+   "scale": 1.8,
    "anims": {
     "die": 1.667,
     "feed": 16.667,
@@ -1167,6 +1190,7 @@ window.HX_ASSETS = {
    "cm": 80,
    "rank": 3,
    "icon": null,
+   "scale": 1.3,
    "anims": {
     "defence_idle": 1.5,
     "defence_off": 0.5,
@@ -1203,6 +1227,7 @@ window.HX_ASSETS = {
    "cm": 38,
    "rank": 2,
    "icon": null,
+   "scale": 1.2,
    "anims": {
     "die": 1.667,
     "sprint": 0.667,
@@ -1236,6 +1261,7 @@ window.HX_ASSETS = {
    "cm": 70,
    "rank": 2,
    "icon": null,
+   "scale": 2,
    "anims": {
     "die": 1.667,
     "sprint": 1,
@@ -1269,6 +1295,7 @@ window.HX_ASSETS = {
    "cm": 100,
    "rank": 5,
    "icon": null,
+   "scale": 2.5,
    "anims": {
     "die": 1.667,
     "idle": 2,
@@ -1303,6 +1330,7 @@ window.HX_ASSETS = {
    "cm": 15,
    "rank": 1,
    "icon": null,
+   "scale": 0.75,
    "anims": {
     "die": 1.667,
     "sprint": 0.533,
@@ -1336,6 +1364,7 @@ window.HX_ASSETS = {
    "cm": 150,
    "rank": 5,
    "icon": null,
+   "scale": 1.75,
    "anims": {
     "die": 1,
     "sprint": 0.667,
@@ -1369,6 +1398,7 @@ window.HX_ASSETS = {
    "cm": 40,
    "rank": 1,
    "icon": null,
+   "scale": 0.8,
    "anims": {
     "die": 1.667,
     "sprint": 0.6,
@@ -1402,6 +1432,7 @@ window.HX_ASSETS = {
    "cm": 8,
    "rank": 5,
    "icon": null,
+   "scale": 1,
    "anims": {
     "idle": 3.333,
     "swim": 0.967
@@ -1434,6 +1465,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 5,
    "icon": null,
+   "scale": 0.6,
    "anims": {
     "die": 1,
     "sprint": 0.667,
@@ -1468,6 +1500,7 @@ window.HX_ASSETS = {
    "cm": 60,
    "rank": 5,
    "icon": null,
+   "scale": 1.3,
    "anims": {
     "defence_idle": 1.5,
     "defence_off": 0.5,
@@ -1506,6 +1539,7 @@ window.HX_ASSETS = {
    "cm": 20,
    "rank": 5,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.4,
@@ -1539,6 +1573,7 @@ window.HX_ASSETS = {
    "cm": 25,
    "rank": 4,
    "icon": null,
+   "scale": 1.5,
    "anims": {
     "die": 1.667,
     "sprint": 0.667,
@@ -1572,6 +1607,7 @@ window.HX_ASSETS = {
    "cm": 15,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "swim": 0.4
@@ -1604,6 +1640,7 @@ window.HX_ASSETS = {
    "cm": 15,
    "rank": 1,
    "icon": null,
+   "scale": 1.2,
    "anims": {
     "animation": 2,
     "die": 1.667,
@@ -1637,6 +1674,7 @@ window.HX_ASSETS = {
    "cm": 25,
    "rank": 1,
    "icon": null,
+   "scale": 1.2,
    "anims": {
     "die": 1.667,
     "sprint": 0.7,
@@ -1670,6 +1708,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.667,
@@ -1703,6 +1742,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.6,
@@ -1736,6 +1776,7 @@ window.HX_ASSETS = {
    "cm": 40,
    "rank": 1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.667,
@@ -1769,6 +1810,7 @@ window.HX_ASSETS = {
    "cm": 40,
    "rank": 2,
    "icon": null,
+   "scale": 1.1,
    "anims": {
     "Die": 1.667,
     "sprint": 0.7,
@@ -1802,6 +1844,7 @@ window.HX_ASSETS = {
    "cm": 60,
    "rank": 2,
    "icon": null,
+   "scale": 1.1,
    "anims": {
     "die": 1.667,
     "sprint": 1.333,
@@ -1835,6 +1878,7 @@ window.HX_ASSETS = {
    "cm": 60,
    "rank": 2,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.9,
@@ -1868,6 +1912,7 @@ window.HX_ASSETS = {
    "cm": 50,
    "rank": 2,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.6,
@@ -1901,6 +1946,7 @@ window.HX_ASSETS = {
    "cm": 75,
    "rank": 2,
    "icon": null,
+   "scale": 0.8,
    "anims": {
     "die": 1.667,
     "sprint": 0.7,
@@ -1934,6 +1980,7 @@ window.HX_ASSETS = {
    "cm": 60,
    "rank": 2,
    "icon": null,
+   "scale": 1.1,
    "anims": {
     "die": 1.667,
     "sprint": 1.333,
@@ -1967,6 +2014,7 @@ window.HX_ASSETS = {
    "cm": 25,
    "rank": 2,
    "icon": null,
+   "scale": 2.4,
    "anims": {
     "die": 1.667,
     "sprint": 2,
@@ -2001,6 +2049,7 @@ window.HX_ASSETS = {
    "cm": 120,
    "rank": 3,
    "icon": null,
+   "scale": 1.2,
    "anims": {
     "die": 1.667,
     "sprint": 0.7,
@@ -2034,6 +2083,7 @@ window.HX_ASSETS = {
    "cm": 65,
    "rank": 3,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "swim": 0.8
@@ -2066,6 +2116,7 @@ window.HX_ASSETS = {
    "cm": 150,
    "rank": 4,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 2.333,
     "sprint": 1,
@@ -2099,6 +2150,7 @@ window.HX_ASSETS = {
    "cm": 170,
    "rank": 3,
    "icon": null,
+   "scale": 2,
    "anims": {
     "die": 1.667,
     "sprint": 1,
@@ -2132,6 +2184,7 @@ window.HX_ASSETS = {
    "cm": 35,
    "rank": -1,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "sprint": 0.8,
@@ -2165,6 +2218,7 @@ window.HX_ASSETS = {
    "cm": 65,
    "rank": 4,
    "icon": null,
+   "scale": 2,
    "anims": {
     "bite": 0.667,
     "die": 1.667,
@@ -2199,6 +2253,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 8,
    "icon": null,
+   "scale": 1.3,
    "anims": {
     "die": 1.667,
     "sprint": 0.667,
@@ -2232,6 +2287,7 @@ window.HX_ASSETS = {
    "cm": 140,
    "rank": 5,
    "icon": null,
+   "scale": 1.75,
    "anims": {
     "die": 1.667,
     "shoot": 0.667,
@@ -2269,6 +2325,7 @@ window.HX_ASSETS = {
    "cm": 20,
    "rank": 5,
    "icon": null,
+   "scale": 1.4,
    "anims": {
     "die": 1.667,
     "shoot": 1,
@@ -2304,6 +2361,7 @@ window.HX_ASSETS = {
    "cm": 25,
    "rank": 5,
    "icon": null,
+   "scale": 0.8,
    "anims": {
     "die": 1.667,
     "sprint": 0.5,
@@ -2337,6 +2395,7 @@ window.HX_ASSETS = {
    "cm": 15,
    "rank": 5,
    "icon": null,
+   "scale": 2,
    "anims": {
     "die": 1.667,
     "sprint": 0.633,
@@ -2370,6 +2429,7 @@ window.HX_ASSETS = {
    "cm": 200,
    "rank": 6,
    "icon": null,
+   "scale": 1,
    "anims": {
     "attack": 2,
     "die": 1,
@@ -2404,6 +2464,7 @@ window.HX_ASSETS = {
    "cm": 8,
    "rank": 5,
    "icon": null,
+   "scale": 1.2,
    "anims": {
     "sprint": 1,
     "swim": 2
@@ -2436,6 +2497,7 @@ window.HX_ASSETS = {
    "cm": 30,
    "rank": 5,
    "icon": null,
+   "scale": 2,
    "anims": {
     "die": 1.667,
     "sprint": 1.333,
@@ -2469,6 +2531,7 @@ window.HX_ASSETS = {
    "cm": 61,
    "rank": 5,
    "icon": null,
+   "scale": 2.5,
    "anims": {
     "die": 1.667,
     "sprint": 0.667,
@@ -2504,6 +2567,7 @@ window.HX_ASSETS = {
    "cm": 54,
    "rank": 5,
    "icon": null,
+   "scale": 2,
    "anims": {
     "defence_idle": 1.5,
     "defence_off": 0.5,
@@ -2539,6 +2603,7 @@ window.HX_ASSETS = {
    "cm": 60,
    "rank": 6,
    "icon": null,
+   "scale": 2.5,
    "anims": {
     "attack": 0.667,
     "die": 1.667,
@@ -2574,6 +2639,7 @@ window.HX_ASSETS = {
    "cm": 60,
    "rank": 6,
    "icon": null,
+   "scale": 2.5,
    "anims": {
     "die": 1.667,
     "idle": 3.333,
@@ -2608,6 +2674,7 @@ window.HX_ASSETS = {
    "cm": 15,
    "rank": 5,
    "icon": null,
+   "scale": 1,
    "anims": {
     "die": 1.667,
     "swim": 0.667

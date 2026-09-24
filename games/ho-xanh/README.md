@@ -69,6 +69,12 @@ Tham số URL: `?theme=night` (day, kelp, evening, rain, night) ép chủ đề;
 - **Vực sâu gốc sáng nhờ hàng chục đèn điểm đặt trong cảnh** (cường độ 10–20, y≈−55..−95), không rút được. Game bù bằng nền sáng tối thiểu `dive.ambientFloor` và đèn đội đầu.
 - **Đèn đội đầu phải tính như đèn 2D trên mặt màn hình.** Vách sau lưng Dave lùi 5–10 m theo z. Tính khoảng cách 3D thì chùm đèn chiếu trượt qua, đá quanh Dave vẫn tối.
 - **gltfpack lượng tử hoá uv và ghi phép co giãn vào `KHR_texture_transform`.** GLTFLoader để nó trong `map.matrix`. Shader tự viết mà quên nhân ma trận này thì đá mất hết vân, chỉ còn một màu.
+- **Thân Dave trong prefab `PlayerGroup` gốc phóng ×2** (`CharacterBody`, cả mũi xiên). Mỗi loài cá cũng có độ phóng riêng trong prefab, từ ×0,6 (cá da trơn sọc) tới ×2,5 (sứa hộp, sứa lược). `rip.py` ghi chúng vào `assets.js` (`dave.scale`, `fish[].scale`).
+  - Bản trước vẽ mọi thứ ×1. Dave chỉ còn một nửa, chủ dự án nhận xét "player nhìn bé xíu". Camera 18,5 m vốn đúng; thiếu là thiếu độ phóng.
+  - Va chạm gốc của Dave là `CapsuleCollider2D` 0,5 × 1 m, nên bán kính va chạm là 0,25 m.
+- **`CinemachineConfiner` gốc với camera phối cảnh chỉ giữ tâm camera trong `CameraBound`** (x ±55, y ≤ 19), không giữ mép khung nhìn.
+  - Bản trước giữ cả mép, nên camera dừng ở x = −43,7. Chỗ thả gốc của mọi map vùng nông là `StartPoint` (−57; 25), nên vừa vào lượt Dave đã nằm ngoài màn hình.
+  - Bộ kiểm có bài "vừa xuống nước đã thấy Dave trong khung hình". Chạy trên bản lỗi thì bài này báo Dave ở x = −121 px.
 - **Khoang cứu hộ kích hoạt khi chạm thì hay kết thúc lượt ngoài ý muốn.** Lúc thử bơi xuống, Dave lướt qua một khoang ở 99 m và lượt lặn kết thúc. Giờ phải bơi lên vào khoang.
 - **Hòm dưỡng khí của A06 lơ lửng** 0,8 m và 1,4 m trên đá. Game hạ hòm xuống mặt đá gần nhất bên dưới trong vòng 3 m.
 - **Hàng `Cheer` (hàng 6) trong sheet Dave là Dave mặc đồ trên bờ**, không phải đồ lặn. Lúc trồi lên dùng `Relief` rồi `Idle`.

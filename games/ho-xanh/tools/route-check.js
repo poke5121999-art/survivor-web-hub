@@ -8,7 +8,7 @@ require(path.join(__dirname, '../data/zones.js'));
 require(path.join(__dirname, '../data/tuning.js'));
 const Z = window.HX_ZONES, T = window.HX_TUNING;
 const ENTRY = process.argv[2] ? +process.argv[2] : T.dive.entryY;
-const CELL = 0.25, R = 0.2, SURF = T.water.surfaceY;
+const CELL = 0.25, R = T.diver.radius, SURF = T.water.surfaceY;
 
 function inside(pts, x, y) {
   let c = false;

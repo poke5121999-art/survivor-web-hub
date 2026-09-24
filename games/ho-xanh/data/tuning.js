@@ -15,8 +15,9 @@ window.HX_TUNING = {
     lookaheadMax: 2.2,       // [ĐỀ XUẤT] m
     aimLead: 0.22,           // [ĐỀ XUẤT] camera dạt về phía điểm ngắm
     aimLeadMax: 1.6,         // [ĐỀ XUẤT]
-    boundX: 55,              // [DtD] CameraBound gốc: x ∈ [-55, 55]
-    cutRadius: 1.1,          // [ĐỀ XUẤT] đá tiền cảnh che Dave thì thưa đi trong bán kính này (m)
+    boundX: 55,              // [DtD] CameraBound gốc giữ tâm camera trong x ∈ [-55, 55]
+    boundTop: 19,            // [DtD] và y ≤ 19
+    cutRadius: 1.7,          // [ĐỀ XUẤT] đá tiền cảnh che Dave thì thưa đi trong bán kính này (m); Dave gốc cao ~1,2 m
   },
   water: {
     surfaceY: 20.5,          // [ĐỀ XUẤT] cameraBound gốc chặn mép trên khung nhìn ở y=19; mặt nước đặt ngay trên đó
@@ -37,7 +38,7 @@ window.HX_TUNING = {
     bloomScale: 0.35,        // [ĐỀ XUẤT] loá sáng rẻ bằng mipmap mạnh hơn chuỗi làm mờ của URP, nên thu nhỏ cường độ gốc
   },
   diver: {
-    radius: 0.18,            // [ĐỀ XUẤT] bán kính va chạm
+    radius: 0.25,            // [DtD] nửa bề ngang CapsuleCollider2D 0,5 × 1 của DaveCharacter
     accel: 9,                // [ĐỀ XUẤT] m/s²
     maxSpeed: 2.1,           // [ĐỀ XUẤT] m/s
     boostSpeed: 3.6,         // [ĐỀ XUẤT]

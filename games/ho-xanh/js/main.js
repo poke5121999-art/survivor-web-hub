@@ -185,9 +185,10 @@
     var k = dt == null ? 1 : 1 - Math.exp(-1.6 * dt);
     look.x += (tx - look.x) * k; look.y += (ty - look.y) * k;
     var x = d.pos.x + lx + look.x, y = d.pos.y + ly + look.y + 0.3, vh = G.viewHalf;
-    var bx = Math.max(0, V.boundX - vh.w);
-    x = Math.max(-bx, Math.min(bx, x));
-    y = Math.min(T.water.surfaceY + 1.6 - vh.h, Math.max(G.stack.minY + vh.h * 0.55, y));
+    // CinemachineConfiner gốc với camera phối cảnh chỉ giữ TÂM camera trong CameraBound (x ±55, y ≤ 19).
+    // Giữ cả mép khung nhìn như trước thì camera dừng ở x=−43,7 và bỏ Dave (thả xuống ở x=−57) ra ngoài màn hình.
+    x = Math.max(-V.boundX, Math.min(V.boundX, x));
+    y = Math.min(V.boundTop, Math.max(G.stack.minY + vh.h * 0.55, y));
     out.x = x; out.y = y;
     return out;
   }

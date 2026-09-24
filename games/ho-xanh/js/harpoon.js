@@ -9,7 +9,9 @@
     this.state = 'ready';
     this.x = 0; this.y = 0; this.angle = 0; this.dx = 1; this.dy = 0;
     this.traveled = 0; this.fish = null; this.off = null;
-    this.mesh = HX.gfx.sprite(G.gfx.tex('fx/HarpoonProjectile.png'), 0.33, 0.05, { alphaCut: 0.5, depthWrite: true, pivot: [1, 0.5] });
+    // mũi xiên phóng cùng tỉ lệ với thân Dave (PlayerGroup gốc: HarpoonProjectile ×2)
+    var k = window.HX_ASSETS.dave.scale || 1;
+    this.mesh = HX.gfx.sprite(G.gfx.tex('fx/HarpoonProjectile.png'), 0.33 * k, 0.05 * k, { alphaCut: 0.5, depthWrite: true, pivot: [1, 0.5] });
     this.mesh.visible = false;
     G.gfx.scene.add(this.mesh);
     var geo = new THREE.BufferGeometry();

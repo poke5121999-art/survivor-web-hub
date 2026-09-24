@@ -121,8 +121,10 @@
     this.leader = null; this.offset = null;
     this.speed = FT.speed[sp.size] * (0.8 + Math.random() * 0.4) * (isJelly(sp) ? 0.35 : 1) * (sp.id === 'Seahorse' ? 0.4 : 1);
     var b = sp.bounds;
-    this.hw = b[2] * FT.pxToUnit / 2; this.hh = b[3] * FT.pxToUnit / 2;
-    this.cx = (b[0] + b[2] / 2) * FT.pxToUnit; this.cy = (b[1] + b[3] / 2) * FT.pxToUnit;
+    // mỗi loài một độ phóng riêng trong prefab gốc (×0,6 tới ×2,5)
+    var u = FT.pxToUnit * (sp.scale || 1);
+    this.hw = b[2] * u / 2; this.hh = b[3] * u / 2;
+    this.cx = (b[0] + b[2] / 2) * u; this.cy = (b[1] + b[3] / 2) * u;
     this.radius = Math.max(0.08, Math.min(this.hw, this.hh));
     this.state = null; this.st = 0; this.data = {};
     this.go('wander');
@@ -224,7 +226,7 @@
     }
     this.root.position.set(this.pos.x, this.pos.y, this.z);
     // ảnh Spine gốc của mọi loài quay đầu về +x
-    this.root.scale.set(this.flip, 1, 1);
+    this.root.scale.set(this.flip * (this.sp.scale || 1), this.sp.scale || 1, 1);
     this.root.rotation.z = tilt * this.facing;
     this.fu.flash.value = this.flashT > 0 ? 0.85 : 0;
     this.root.visible = onScreen;

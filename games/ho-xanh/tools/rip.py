@@ -239,17 +239,41 @@ def load_fish_sheet():
     return {f['TID']: f for f in secs['FishInfoData']}
 
 
+def prefab_scale(path, pick):
+    """Độ phóng thế giới (trục x) của GameObject đầu tiên trong prefab thoả pick(component)."""
+    sys.dont_write_bytecode = True
+    import level
+    import numpy as np
+    env, _ = level.load_with_deps(path)
+    cache = {}
+    for c in level.prefab_objects(env, path):
+        if pick(c):
+            go = c.read().m_GameObject.read()
+            return round(float(np.linalg.norm(level.world(level.transform_of(go), cache)[:3, 0])), 3)
+    return 1.0
+
+
+def is_skeleton(c):
+    if c.type.name != 'MonoBehaviour':
+        return False
+    try:
+        return c.read().m_Script.read().m_ClassName in ('SkeletonMecanim', 'SkeletonAnimation')
+    except Exception:
+        return False
+
+
 def rip_fish():
     info = load_fish_sheet()
     prefabs = {}
-    for k in IDX:
-        m = re.match(r'Assets/Contents/PlayContents/Fish/(A|B|C)/([^/]+)/Prefabs/SA_(\d+)_[^/]+\.prefab$', k)
-        if m:
-            prefabs[int(m.group(3))] = (m.group(1), m.group(2))
+    for k in sorted(IDX):
+        m = re.match(r'Assets/Contents/PlayContents/Fish/(A|B|C)/([^/]+)/Prefabs/SA_(\d+)_([^/]+)\.prefab$', k)
+        # một TID có thể có vài prefab (bản NPC, bản đêm); ưu tiên prefab trùng tên thư mục
+        if m and (int(m.group(3)) not in prefabs or m.group(4) == m.group(2)):
+            prefabs[int(m.group(3))] = (m.group(1), m.group(2), k)
     out = []
     for tid in FISH_TIDS:
         f = info[tid]
-        zone, folder = prefabs[tid]
+        zone, folder, prefab = prefabs[tid]
         skels = [k for k in IDX if k.startswith('%sFish/%s/%s/' % (PC, zone, folder)) and k.endswith('.skel.bytes')]
         skel = sorted(skels, key=len)[0]
         stem = os.path.basename(skel)[:-len('.skel.bytes')]
@@ -259,14 +283,15 @@ def rip_fish():
         icon = None
         out.append(dict(spine, tid=tid, id=folder, name=f['FishName'].replace('_', ' '), zone=zone,
                         hp=f['HP'], damage=f['Damage'], aggressive=f['FishActiveType'] == 1,
-                        size=f['FishSizeType'], cm=f['FishDimension'], rank=f['FishRank'], icon=icon))
-        print('  cá %-32s hp %4s dmg %3s %s' % (folder, f['HP'], f['Damage'], 'HUNG' if out[-1]['aggressive'] else ''))
+                        size=f['FishSizeType'], cm=f['FishDimension'], rank=f['FishRank'], icon=icon,
+                        scale=prefab_scale(prefab, is_skeleton)))
+        print('  cá %-32s hp %4s dmg %3s ×%s %s' % (folder, f['HP'], f['Damage'], out[-1]['scale'], 'HUNG' if out[-1]['aggressive'] else ''))
     return out
 
 
 # ---------------------------------------------------------------- DAVE
 def rip_dave():
-    """Mỗi dãy một hàng, ô 120x120. Trả về {tên: {row, n, fps, pivot}}."""
+    """Mỗi dãy một hàng, ô 120x120. Trả về {tên: {row, n, fps, pivot}} cùng độ phóng của thân Dave và mũi xiên."""
     env = env_of(IDX[DAVE_ATLAS])
     frames = {}
     for o in env.objects:
@@ -294,7 +319,11 @@ def rip_dave():
     if missing:
         print('  Dave thiếu dãy:', missing)
     save_png(sheet, 'dave/dave.png')
-    return {'sheet': 'dave/dave.png', 'cell': cell, 'ppu': 100, 'anims': anims}
+    # thân Dave (CharacterBody) và mũi xiên trong PlayerGroup gốc đều phóng ×2
+    group = PC + 'Common/Prefabs/Player/PlayerGroup.prefab'
+    named = lambda n: lambda c: c.type.name == 'SpriteRenderer' and c.read().m_GameObject.read().m_Name == n
+    return {'sheet': 'dave/dave.png', 'cell': cell, 'ppu': 100, 'anims': anims,
+            'scale': prefab_scale(group, named('CharacterBody')), 'harpoonScale': prefab_scale(group, named('HarpoonProjectile'))}
 
 
 # ---------------------------------------------------------------- IMAGES + VFX

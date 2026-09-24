@@ -27,14 +27,17 @@
     return prefix + 'Side';
   }
 
+  // Ô 120 px ở 100 px/m = 1,2 m; PlayerGroup gốc phóng thân Dave ×2 (D.scale).
+  var CW = D.cell / D.ppu * (D.scale || 1), S = D.scale || 1;
+
   function Diver(G, x, y) {
     this.G = G;
     var tex = G.gfx.tex(D.sheet);
     this.root = new THREE.Group();
-    this.body = HX.gfx.sprite(tex, 1.2, 1.2, { alphaCut: 0.5, depthWrite: true });
+    this.body = HX.gfx.sprite(tex, CW, CW, { alphaCut: 0.5, depthWrite: true });
     var ap = D.anims.HookAttackArm.pivot;
-    this.arm = HX.gfx.sprite(tex, 1.2, 1.2, { alphaCut: 0.5, depthWrite: true, pivot: ap });
-    this.armPivot = [(ap[0] - 0.5) * 1.2, (ap[1] - 0.5) * 1.2];
+    this.arm = HX.gfx.sprite(tex, CW, CW, { alphaCut: 0.5, depthWrite: true, pivot: ap });
+    this.armPivot = [(ap[0] - 0.5) * CW, (ap[1] - 0.5) * CW];
     this.arm.position.z = 0.01;
     setFrame(this.arm, 'HookAttackArm', 0);
     this.arm.visible = false;
@@ -72,7 +75,7 @@
 
   Diver.prototype.gunTip = function () {
     var f = this.facing, rot = this.armRot();
-    var lx = T.harpoon.gunTip[0] * f, ly = T.harpoon.gunTip[1];
+    var lx = T.harpoon.gunTip[0] * S * f, ly = T.harpoon.gunTip[1] * S;
     var c = Math.cos(rot), s = Math.sin(rot);
     return { x: this.pos.x + this.armPivot[0] * f + c * lx - s * ly, y: this.pos.y + this.armPivot[1] + s * lx + c * ly };
   };
@@ -92,7 +95,7 @@
     var sp = Math.hypot(this.vel.x, this.vel.y);
     if (sp > cap) { this.vel.x *= cap / sp; this.vel.y *= cap / sp; }
     this.G.world.move(this.pos, this.vel, P.radius, dt);
-    var top = T.water.surfaceY - 0.38;
+    var top = T.water.surfaceY - 0.38 * S;
     if (this.pos.y > top) { this.pos.y = top; if (this.vel.y > 0) this.vel.y = 0; }
     var floor = this.G.world.box.minY + 0.4;
     if (this.pos.y < floor) { this.pos.y = floor; if (this.vel.y < 0) this.vel.y = 0; }
@@ -153,7 +156,7 @@
     this.trailT -= dt;
     if (this.trailT <= 0 && this.state !== 'dead') {
       this.trailT = this.boosting ? T.fx.boostTrailEvery : T.fx.trailEvery * (0.7 + Math.random() * 0.6);
-      var bx = this.pos.x - Math.cos(this.tilt) * this.facing * 0.12, by = this.pos.y + 0.12;
+      var bx = this.pos.x - Math.cos(this.tilt) * this.facing * 0.12 * S, by = this.pos.y + 0.12 * S;
       G.fx.spawn(Math.random() < 0.3 ? 'bubbleBig' : 'bubble', bx, by, 0.12, -this.vel.x * 0.2, 0.3);
     }
     this.draw();
@@ -164,14 +167,14 @@
     f = this.animLoop ? f % a.n : Math.min(a.n - 1, f);
     setFrame(this.body, this.animName, f);
     this.root.position.set(this.pos.x, this.pos.y, 0.1);
-    this.body.scale.x = 1.2 * this.facing;
+    this.body.scale.x = CW * this.facing;
     this.body.rotation.z = this.facing > 0 ? this.tilt : -this.tilt;
     var blink = this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln * 14) % 2 === 0;
     this.body.material.uniforms.flash.value = blink ? 0.55 : 0;
     this.arm.visible = !!this.showArm;
     if (this.showArm) {
       this.arm.position.set(this.armPivot[0] * this.facing, this.armPivot[1], 0.01);
-      this.arm.scale.x = 1.2 * this.facing;
+      this.arm.scale.x = CW * this.facing;
       this.arm.rotation.z = this.armRot();
       this.arm.material.uniforms.flash.value = this.body.material.uniforms.flash.value;
     }
@@ -210,7 +213,7 @@
         if (inp.melee && d.knifeCd <= 0) return d.go('melee');
         d.swim(dt, inp, d.boosting ? T.diver.boostSpeed : T.diver.maxSpeed, d.boosting ? 1.5 : 1);
         if (!d.poseSwim(dt, d.boosting)) d.play(d.o2 < T.o2.lowAt ? 'Gasping' : 'Idle');
-        if (inp.my > 0.3 && d.pos.y >= T.water.surfaceY - 0.45) G.onSurface();
+        if (inp.my > 0.3 && d.pos.y >= T.water.surfaceY - 0.45 * S) G.onSurface();
       },
     },
 
@@ -337,7 +340,7 @@
         d.swim(dt, inp, T.diver.aimSpeed, 0.5);
         if (!d.data.hit && d.st >= T.knife.hitAt) {
           d.data.hit = true;
-          G.fishes.knife(d.pos.x + d.facing * 0.3, d.pos.y + 0.05, T.knife.range, T.knife.damage);
+          G.fishes.knife(d.pos.x + d.facing * 0.3 * S, d.pos.y + 0.05 * S, T.knife.range, T.knife.damage);
         }
         if (d.st >= T.knife.time) d.go('swim');
       },
