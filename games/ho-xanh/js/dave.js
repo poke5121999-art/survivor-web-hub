@@ -1,20 +1,51 @@
-// Dave: tấm sprite từ sheet gốc + lớp tay cầm súng xoay theo điểm ngắm, và máy trạng thái người lặn.
+// Dave: tấm sprite từ sheet gốc + lớp tay cầm súng dựng theo prefab PlayerGroup, và máy trạng thái người lặn.
+// Hoạt ảnh chạy theo đúng dãy khoá sprite của AnimationClip gốc (D.clips), không chia đều theo fps.
 (function (HX) {
   'use strict';
   var T = window.HX_TUNING, D = window.HX_ASSETS.dave, M = window.HX_META;
-  // Sheet lưới: mỗi hàng một hoạt ảnh, rộng bằng hoạt ảnh dài nhất.
+  // Sheet lưới: mỗi hàng một dãy khung, rộng bằng dãy dài nhất. Mọi khung nằm đúng chỗ trong ô 120 px như bản gốc.
   var names = Object.keys(D.anims);
   var SW = D.cell * Math.max.apply(null, names.map(function (k) { return D.anims[k].n; }));
   var SH = D.cell * (1 + Math.max.apply(null, names.map(function (k) { return D.anims[k].row; })));
 
-  function setFrame(mesh, anim, f) {
-    var a = D.anims[anim], c = D.cell;
-    mesh.material.uniforms.uvRect.value.set(f * c / SW, 1 - (a.row + 1) * c / SH, c / SW, c / SH);
+  function setCell(mesh, row, col) {
+    var c = D.cell;
+    mesh.material.uniforms.uvRect.value.set(col * c / SW, 1 - (row + 1) * c / SH, c / SW, c / SH);
   }
+  function setFrame(mesh, anim, f) { setCell(mesh, D.anims[anim].row, f); }
 
   function lerpAngle(a, b, k) {
     var d = ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     return a + d * k;
+  }
+
+  // Tên hoạt ảnh trong game → clip gốc của PlayerAnimCtrl. Tên không có clip thì chạy đều theo D.anims[tên].fps.
+  var CLIP = {
+    Idle: 'Idle', Gasping: 'Ani2D_Dave_Gasping', Relief: 'Ani2D_Dave_Relief', Look: 'LookAround', Wait: 'WaitEscapepod',
+    Diving: 'Diving', BIdle: 'B_Idle', Hit: 'Hit', Bigdamage: 'Bigdamage', Die: 'Die', DieIdle: 'DieIdle',
+    MeleeDaggerAtk: 'MeleeOneHandHorizontal',
+    // súng xiên và súng phụ dùng chung lớp tay RangeWeaponArm; FightBlendTree chạy RangeWeaponHook nhanh ×2
+    AttackDraw: 'RangeWeaponDraw', AttackReady: 'RangeWeaponAim', AttackFire: 'RangeWeaponFire', AttackFireMove: 'RangeWeaponFire_Move',
+    AttackFight: 'RangeWeaponHook', AttackFail: 'RangeWeaponMiss',
+  };
+  ['Side', 'SideUp', 'SideDown', 'Up', 'Down'].forEach(function (v) {
+    CLIP['Move' + v] = 'Move' + v;
+    CLIP['BMove' + v] = 'B_Move' + v;
+    CLIP['ShortDash' + v] = 'Ani2D_Dave_ShortDash_' + v;
+  });
+  // Clip không lặp chạy xong thì sang clip này: Die → DieIdle như state machine gốc, rút súng xong thì ngắm.
+  var NEXT = { Die: 'DieIdle', AttackDraw: 'AttackReady' };
+  function clipOf(name) { return D.clips && D.clips[CLIP[name] || name] || null; }
+  // Giá trị tại t của dãy khoá [[t, v], ...]: giữ khoá trước, hoặc nội suy thẳng.
+  function keyAt(keys, t, lerp) {
+    if (!keys || !keys.length) return null;
+    for (var i = 1; i < keys.length; i++) {
+      if (keys[i][0] > t) {
+        var a = keys[i - 1], b = keys[i];
+        return lerp && b[0] > a[0] ? a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]) : a[1];
+      }
+    }
+    return keys[keys.length - 1][1];
   }
 
   // Góc bơi → biến thể hoạt ảnh; mọi biến thể vẽ nằm ngang quay về +x, phải xoay tấm theo hướng bơi.
@@ -28,23 +59,122 @@
   }
 
   // Ô 120 px ở 100 px/m = 1,2 m; PlayerGroup gốc phóng thân Dave ×2 (D.scale).
-  var CW = D.cell / D.ppu * (D.scale || 1), S = D.scale || 1;
-  // Sheet đặt mỗi khung đã cắt viền vào giữa ô, nên khung bắn súng phụ lệch khỏi chỗ gốc so với AttackReady.
-  // [ĐO TRONG REPO, m_RD.textureRectOffset] dời thân về đúng chỗ gốc (px, y xuống); xem js/gun.js.
-  var BODY_SHIFT = { AttackFire: [6, 1], AttackPull: [11, -1] };
+  var S = D.scale || 1, CW = D.cell / D.ppu * S, PX = S / D.ppu;
+  // Góc của tay (−π/2..π/2) khi Dave quay phải; quay trái thì lật gương.
+  function localAngle(a) { return Math.atan2(Math.sin(a), Math.abs(Math.cos(a))); }
+
+  // ---------- lớp tay cầm súng, dựng theo prefab PlayerGroup (D.rig: toạ độ trong CharacterBody, nhân S ra mét) ----------
+  // RangeWeaponArm: tay gần (AttackReadyArms), xoay quanh nút của nó theo điểm ngắm. Con của nó:
+  //   HarpoonHandler (= chỗ GunHandler): treo súng cầm tay, súng xiên HarpoonGunTemplate… hay súng phụ;
+  //   ProjectileAttachTransform: đuôi mũi xiên nằm trong súng; RopeAttachRigidbody: đầu dây; BehindArmGrabPoint: chỗ tay xa nắm.
+  // BehindRangeWeaponArm: tay xa (AttackReadyRightArm) sau thân, AimConstraint nhắm BehindArmGrabPoint.
+  // Thứ tự vẽ gốc (sortingOrder): tay xa −1, thân 0, mũi xiên 0, súng 1, tay gần 2.
+  var R = D.rig;
+  var ARM_AT = [R.rangeArm[0] * S, R.rangeArm[1] * S];
+  var HOLD_AT = [(R.gunHandler[0] - R.rangeArm[0]) * S, (R.gunHandler[1] - R.rangeArm[1]) * S];
+  var BEHIND_AT = [R.behindArm[0] * S, R.behindArm[1] * S];
+  var AIM_OFF = (R.behindAimOffsetDeg || 0) * Math.PI / 180;
+  var SPEAR = D.spear.size[0] / D.spear.ppu;   // chiều dài mũi xiên, đơn vị CharacterBody
+
+  function ArmRig(G, root) {
+    this.G = G;
+    var sheet = G.gfx.tex(D.sheet);
+    this.flip = new THREE.Group();
+    this.arm = new THREE.Group(); this.arm.position.set(ARM_AT[0], ARM_AT[1], 0);
+    this.hold = new THREE.Group(); this.hold.position.set(HOLD_AT[0], HOLD_AT[1], 0);
+    this.behind = new THREE.Group(); this.behind.position.set(BEHIND_AT[0], BEHIND_AT[1], 0);
+    var mk = function (z) { var m = HX.gfx.sprite(sheet, CW, CW, { alphaCut: 0.5, depthWrite: true }); m.position.z = z; return m; };
+    this.nearM = mk(0.02); this.behindM = mk(-0.012);
+    var sp = D.spear;
+    this.spear = HX.gfx.sprite(G.gfx.tex('fx/HarpoonProjectile.png'), SPEAR * S, sp.size[1] / sp.ppu * S, { alphaCut: 0.5, depthWrite: true, pivot: sp.pivot });
+    this.spear.position.set((R.projectileAttach[0] - R.gunHandler[0]) * S, (R.projectileAttach[1] - R.gunHandler[1]) * S, 0.005);
+    this.heldMeshes = {}; this.held = null; this.heldKey = null;
+    this.arm.add(this.nearM); this.arm.add(this.hold); this.hold.add(this.spear);
+    this.behind.add(this.behindM);
+    this.flip.add(this.behind); this.flip.add(this.arm);
+    this.flip.visible = false;
+    root.add(this.flip);
+    this.th = 0; this.miss = 0;
+    this.setArms('AttackReadyArms', 'AttackReadyRightArm');
+  }
+  // Sprite tay lấy trong sheet: pivot của sprite đặt đúng vào nút.
+  function placeArm(m, name) {
+    setFrame(m, name, 0);
+    var p = D.anims[name].pivot;
+    m.position.x = -(p[0] - 0.5) * CW; m.position.y = -(p[1] - 0.5) * CW;
+  }
+  ArmRig.prototype.setArms = function (near, behind) {
+    if (this.nearName !== near) { placeArm(this.nearM, near); this.nearName = near; }
+    if (this.behindName !== behind) { placeArm(this.behindM, behind); this.behindName = behind; }
+  };
+  // Súng cầm tay: { img (art/…), size [px], pivot, ppu }. Treo ở HarpoonHandler/GunHandler, cùng tỉ lệ với thân.
+  ArmRig.prototype.setHeld = function (h) {
+    var key = h ? h.img : null;
+    if (this.heldKey === key) return;
+    if (this.held) this.held.visible = false;
+    this.heldKey = key; this.held = null;
+    if (!h) return;
+    var m = this.heldMeshes[key];
+    if (!m) {
+      m = this.heldMeshes[key] = HX.gfx.sprite(this.G.gfx.tex(h.img.replace(/^art\//, '')), h.size[0] / h.ppu * S, h.size[1] / h.ppu * S,
+        { alphaCut: 0.5, depthWrite: true, pivot: h.pivot });
+      m.position.z = 0.01;
+      this.hold.add(m);
+    }
+    m.visible = true;
+    this.held = m;
+  };
+  // Điểm p (toạ độ CharacterBody lúc tay nằm ngang) gắn trên tay gần ('arm') hay trên súng ('hold')
+  // → mét so với tâm Dave khi quay phải, với góc tay th và góc súng miss hiện tại.
+  ArmRig.prototype.local = function (p, on) {
+    var x, y, c, s, t;
+    if (on === 'hold') {
+      x = (p[0] - R.gunHandler[0]) * S; y = (p[1] - R.gunHandler[1]) * S;
+      c = Math.cos(this.miss); s = Math.sin(this.miss); t = x * c - y * s; y = x * s + y * c; x = t;
+      x += HOLD_AT[0]; y += HOLD_AT[1];
+    } else { x = (p[0] - R.rangeArm[0]) * S; y = (p[1] - R.rangeArm[1]) * S; }
+    c = Math.cos(this.th); s = Math.sin(this.th); t = x * c - y * s; y = x * s + y * c; x = t;
+    return [x + ARM_AT[0], y + ARM_AT[1]];
+  };
+  ArmRig.prototype.world = function (d, p, on) {
+    this.th = localAngle(d.aimAngle);
+    var q = this.local(p, on);
+    return { x: d.pos.x + q[0] * d.facing, y: d.pos.y + q[1] };
+  };
+  // o: { miss (độ, góc HarpoonHandler), kick (0..1 giật lùi), spear (mũi xiên nằm trong súng), flash }
+  ArmRig.prototype.pose = function (d, o) {
+    this.flip.scale.x = d.facing;
+    this.th = localAngle(d.aimAngle);
+    this.miss = (o.miss || 0) * Math.PI / 180;
+    this.arm.rotation.z = this.th;
+    this.hold.rotation.z = this.miss;
+    if (this.held) this.held.position.x = -2 * PX * (o.kick || 0);
+    this.spear.visible = !!o.spear;
+    // AimConstraint gốc: trục x của tay xa chĩa vào BehindArmGrabPoint, cộng m_RotationOffset.z
+    var g = this.local(R.grabPoint, 'arm');
+    this.behind.rotation.z = Math.atan2(g[1] - BEHIND_AT[1], g[0] - BEHIND_AT[0]) + AIM_OFF;
+    var fl = o.flash || 0;
+    [this.nearM, this.behindM, this.spear].concat(this.held ? [this.held] : []).forEach(function (m) { m.material.uniforms.flash.value = fl; });
+  };
+
+  // Súng xiên Dave cầm theo cấp súng xiên trong sổ: sát thương 3 → 40 ứng với Old, Iron, Pump, Merman, NewMV, Alloy.
+  function harpoonGun(dmg) {
+    var list = D.harpoonGuns || [], sh = window.HX_GEAR_SHEET && window.HX_GEAR_SHEET.gear && window.HX_GEAR_SHEET.gear.harpoon, lv = 1;
+    if (sh) sh.forEach(function (g) { if (dmg >= g.damage) lv = Math.max(lv, g.lv); });
+    return list[Math.max(1, Math.min(list.length, lv)) - 1] || null;
+  }
 
   function Diver(G, x, y) {
     this.G = G;
     var tex = G.gfx.tex(D.sheet);
     this.root = new THREE.Group();
     this.body = HX.gfx.sprite(tex, CW, CW, { alphaCut: 0.5, depthWrite: true });
-    var ap = D.anims.HookAttackArm.pivot;
-    this.arm = HX.gfx.sprite(tex, CW, CW, { alphaCut: 0.5, depthWrite: true, pivot: ap });
-    this.armPivot = [(ap[0] - 0.5) * CW, (ap[1] - 0.5) * CW];
-    this.arm.position.z = 0.01;
-    setFrame(this.arm, 'HookAttackArm', 0);
-    this.arm.visible = false;
-    this.root.add(this.body); this.root.add(this.arm);
+    this.root.add(this.body);
+    this.arms = new ArmRig(G, this.root);
+    this.harpoonGun = harpoonGun(G.loadout.harpoon);
+    var DB = window.HX_BOAT_ASSETS && window.HX_BOAT_ASSETS.vfx && window.HX_BOAT_ASSETS.vfx.diveBubble;
+    if (DB) G.fx.preloadRecipes([DB]);  // ảnh của DiveBubble lúc nhảy xuống
+    if (this.harpoonGun) G.gfx.tex(this.harpoonGun.img);
     this.root.position.set(x, y, 0.1);
     G.gfx.scene.add(this.root);
 
@@ -57,16 +187,21 @@
     this.invuln = 0;
     this.dashCd = 0;
     this.knifeCd = 0;
-    this.trailT = 0;
     this.breatheT = 0;
-    this.animName = null; this.animT = 0; this.animLoop = true;
+    this.trail = null; this.trailName = null; this.breath = null;
+    var self = this;
+    // hạt gắn trên thân (EffectGroup của CharacterBody): bám tâm Dave, xoay theo thân, lật khi quay trái
+    this.fxFollow = function () { return { x: self.pos.x, y: self.pos.y, angle: self.facing > 0 ? self.tilt : -self.tilt, flip: self.facing < 0 }; };
+    this.animName = null; this.animT = 0; this.animSpeed = 1;
     this.state = null; this.st = 0; this.data = {};
     this.go('enter');
   }
 
-  Diver.prototype.play = function (name, loop, restart) {
+  // Chạy hoạt ảnh name (tên trong game, xem CLIP). restart: chạy lại từ đầu dù đang chạy; speed: nhân tốc độ clip.
+  Diver.prototype.play = function (name, restart, speed) {
+    this.animSpeed = speed || 1;
     if (this.animName === name && !restart) return;
-    this.animName = name; this.animT = 0; this.animLoop = loop !== false;
+    this.animName = name; this.animT = 0;
   };
 
   Diver.prototype.go = function (name, data) {
@@ -76,17 +211,12 @@
     if (STATES[name].enter) STATES[name].enter(this, this.G);
   };
 
+  // Đầu mũi xiên đang nằm trong súng (ProjectileAttachTransform + chiều dài mũi), toạ độ thế giới.
   Diver.prototype.gunTip = function () {
-    var f = this.facing, rot = this.armRot();
-    var lx = T.harpoon.gunTip[0] * S * f, ly = T.harpoon.gunTip[1] * S;
-    var c = Math.cos(rot), s = Math.sin(rot);
-    return { x: this.pos.x + this.armPivot[0] * f + c * lx - s * ly, y: this.pos.y + this.armPivot[1] + s * lx + c * ly };
+    return this.arms.world(this, [R.projectileAttach[0] + SPEAR, R.projectileAttach[1]], 'hold');
   };
-
-  Diver.prototype.armRot = function () {
-    var la = Math.atan2(Math.sin(this.aimAngle), Math.abs(Math.cos(this.aimAngle)));
-    return this.facing > 0 ? la : -la;
-  };
+  // Đầu dây xiên (RopeAttachRigidbody trên tay gần).
+  Diver.prototype.ropeFrom = function () { return this.arms.world(this, R.ropeAttach, 'arm'); };
 
   // Vật lý bơi chung: gia tốc theo cần, cản nước, trượt theo vách, trần là mặt nước.
   Diver.prototype.swim = function (dt, inp, cap, accelMul) {
@@ -131,7 +261,8 @@
     G.audio.play('dave_hit' + (1 + Math.floor(Math.random() * 3)));
     G.shake(dmg >= T.diver.bigHurtAt ? 2 : 1);
     G.hud.flash();
-    G.fx.burst('bubble', this.pos.x, this.pos.y + 0.1, 8, 1.2);
+    // BloodDave.prefab gốc (máu tan trong nước khi Dave bị cắn)
+    G.fx.play(G.fx.dive('bloodDave'), this.pos.x, this.pos.y + 0.1 * S, { z: 0.14, name: 'bloodDave' });
     if (this.o2 <= 0) { this.go('dead'); return true; }
     if (this.state === 'swim' || this.state === 'aim' || this.state === 'melee' || this.state === 'gunAim' || this.state === 'gunFire') this.go('hurt', { big: dmg >= T.diver.bigHurtAt });
     return true;
@@ -143,7 +274,7 @@
     this.invuln = Math.max(0, this.invuln - dt);
     this.dashCd = Math.max(0, this.dashCd - dt);
     this.knifeCd = Math.max(0, this.knifeCd - dt);
-    this.showGun = false;
+    this.rig = null;
     STATES[this.state].update(this, G, dt, inp);
 
     this.overSuit = false;
@@ -160,62 +291,85 @@
       }
     }
 
-    this.trailT -= dt;
-    if (this.trailT <= 0 && this.state !== 'dead') {
-      this.trailT = this.boosting ? T.fx.boostTrailEvery : T.fx.trailEvery * (0.7 + Math.random() * 0.6);
-      var bx = this.pos.x - Math.cos(this.tilt) * this.facing * 0.12 * S, by = this.pos.y + 0.12 * S;
-      G.fx.spawn(Math.random() < 0.3 ? 'bubbleBig' : 'bubble', bx, by, 0.12, -this.vel.x * 0.2, 0.3);
-    }
+    this.bubbles();
     this.draw();
   };
 
+  // Bọt gốc của EffectGroup: TailBubble khi bơi, TailBubble_Fast khi tăng tốc, Breath_Loop thở ra đều trên đầu.
+  Diver.prototype.bubbles = function () {
+    var G = this.G, fx = G.fx, gone = this.state === 'dead' || this.state === 'surfaced' || this.state === 'enter';
+    var moving = Math.hypot(this.vel.x, this.vel.y) > 0.35 && (this.state === 'swim' || this.state === 'dash');
+    var want = gone ? null : this.boosting ? 'tailBubbleFast' : moving ? 'tailBubble' : null;
+    if (want !== this.trailName) {
+      if (this.trail) this.trail.stop();
+      this.trail = want ? fx.play(fx.dive(want), this.pos.x, this.pos.y, { scale: S, z: 0.12, follow: this.fxFollow, name: want }) : null;
+      this.trailName = want;
+    }
+    if (gone && this.breath) { this.breath.stop(); this.breath = null; }
+    else if (!gone && (!this.breath || this.breath.dead)) this.breath = fx.play(fx.dive('breath'), this.pos.x, this.pos.y, { scale: S, z: 0.12, follow: this.fxFollow, name: 'breath' });
+  };
+
+  // Khung thân hiện tại theo clip gốc. Trả thời điểm trong clip (giây) để tra khoá tay bật/tắt và góc súng.
+  Diver.prototype.drawBody = function () {
+    var name = this.animName, c = clipOf(name), t = this.animT * this.animSpeed;
+    if (c && !c.loop && t >= c.length && NEXT[name]) { this.play(NEXT[name], false, this.animSpeed); name = this.animName; c = clipOf(name); t = 0; }
+    if (c) {
+      t = c.loop ? t % c.length : Math.min(t, c.length);
+      var fr = c.frames[0];
+      for (var i = 1; i < c.frames.length && c.frames[i][0] <= t + 1e-6; i++) fr = c.frames[i];
+      setCell(this.body, fr[1], fr[2]);
+      return { clip: c, t: t };
+    }
+    var a = D.anims[name], f = Math.floor(t * a.fps);
+    setFrame(this.body, name, f % a.n);
+    return { clip: null, t: t };
+  };
+
   Diver.prototype.draw = function () {
-    var a = D.anims[this.animName], f = Math.floor(this.animT * a.fps);
-    f = this.animLoop ? f % a.n : Math.min(a.n - 1, f);
-    setFrame(this.body, this.animName, f);
-    var sh = BODY_SHIFT[this.animName];
-    this.body.position.set(sh ? sh[0] / D.ppu * S * this.facing : 0, sh ? -sh[1] / D.ppu * S : 0, 0);
+    var at = this.drawBody();
     this.root.position.set(this.pos.x, this.pos.y, 0.1);
     this.body.scale.x = CW * this.facing;
     this.body.rotation.z = this.facing > 0 ? this.tilt : -this.tilt;
     var blink = this.invuln > 0 && this.state !== 'dead' && Math.floor(this.invuln * 14) % 2 === 0;
-    this.body.material.uniforms.flash.value = blink ? 0.55 : 0;
-    this.arm.visible = !!this.showArm;
-    if (this.showArm) {
-      this.arm.position.set(this.armPivot[0] * this.facing, this.armPivot[1], 0.01);
-      this.arm.scale.x = CW * this.facing;
-      this.arm.rotation.z = this.armRot();
-      this.arm.material.uniforms.flash.value = this.body.material.uniforms.flash.value;
-    }
-    if (this.G.gun) this.G.gun.drawRig(this, !!this.showGun);
+    var flash = blink ? 0.55 : 0;
+    this.body.material.uniforms.flash.value = flash;
+    // lớp tay bật theo khoá m_IsActive của clip (RangeWeaponDraw bật ở 0,2 giây)
+    var r = this.rig, c = at.clip, on = !!r && (!c || !c.armsOn || keyAt(c.armsOn, at.t) === 1);
+    this.arms.flip.visible = on;
+    if (!on) return;
+    this.arms.setHeld(r.held);
+    this.arms.setArms(r.near || (c && c.nearArm) || 'AttackReadyArms', r.behind || (c && c.behindArm) || 'AttackReadyRightArm');
+    this.arms.pose(this, { miss: c && c.handlerRotZ ? keyAt(c.handlerRotZ, at.t, true) : 0, kick: r.kick, spear: r.spear, flash: flash });
   };
 
   Diver.prototype.remove = function () { this.G.gfx.scene.remove(this.root); };
 
+  // Góc ngắm tính từ nút tay gần (khớp vai), như RangeAttackArmHandler gốc xoay RangeWeaponArm.
   Diver.prototype.aimAt = function (inp) {
-    this.aimAngle = Math.atan2(inp.aimY - (this.pos.y + this.armPivot[1]), inp.aimX - this.pos.x);
+    this.aimAngle = Math.atan2(inp.aimY - (this.pos.y + ARM_AT[1]), inp.aimX - (this.pos.x + ARM_AT[0] * this.facing));
     this.faceToward(inp.aimX - this.pos.x);
   };
+  Diver.prototype.harpoonRig = function (spear) { return { held: this.harpoonGun, spear: spear }; };
 
   var STATES = {
     enter: {
       enter: function (d, G) {
         d.vel.x = 0.4; d.vel.y = -2.6; d.tilt = -1.2;
+        d.play('Diving', true);
         G.audio.play('dave_diving');
-        G.fx.spawn('puff', d.pos.x, d.pos.y + 0.3, 0.2, 0, 0, 1.6);
-        G.fx.burst('bubbleBig', d.pos.x, d.pos.y, 14, 1.5);
+        // DiveBubble.prefab gốc: vệt bọt 1,7 giây theo người lao xuống + bụi nước lúc chạm mặt
+        var DB = window.HX_BOAT_ASSETS && window.HX_BOAT_ASSETS.vfx && window.HX_BOAT_ASSETS.vfx.diveBubble;
+        if (DB) G.fx.play(DB, d.pos.x, d.pos.y, { z: 0.12, follow: d.fxFollow, name: 'diveBubble' });
       },
       update: function (d, G, dt) {
         d.boosting = false;
         d.swim(dt, { mx: 0, my: 0 }, 4);
-        d.play('MoveSideDown');
         if (d.st > T.diver.enterTime) d.go('swim');
       },
     },
 
     swim: {
       update: function (d, G, dt, inp) {
-        d.showArm = false;
         var moving = inp.mx !== 0 || inp.my !== 0;
         d.boosting = inp.boost && moving;
         if (inp.dash && d.dashCd <= 0 && moving) return d.go('dash', { mx: inp.mx, my: inp.my });
@@ -235,7 +389,7 @@
         d.dashCd = T.diver.dashCooldown;
         d.faceToward(d.vel.x);
         d.tilt = Math.atan2(d.vel.y, Math.abs(d.vel.x));
-        d.play(swimVariant(d.tilt, 'ShortDash'), false, true);
+        d.play(swimVariant(d.tilt, 'ShortDash'), true);
         G.audio.play('dave_dash');
         G.fx.spawn('puff', d.pos.x - d.facing * 0.2, d.pos.y, 0.15, 0, 0, 0.8);
       },
@@ -247,15 +401,15 @@
       },
     },
 
-    // Giữ chuột: thân đứng HookAttackReady, lớp tay xoay theo điểm ngắm; thả chuột là bắn.
+    // Giữ chuột: rút súng xiên (RangeWeaponDraw) rồi ngắm (RangeWeaponAim), tay + súng xoay theo điểm ngắm; thả chuột là bắn.
     aim: {
       enter: function (d, G) {
         d.data.release = false;
-        d.play('HookAttackReady', false, true);
+        d.play('AttackDraw', true);
         G.audio.play('harpoon_aim', { vol: 0.6 });
       },
       update: function (d, G, dt, inp) {
-        d.showArm = true;
+        d.rig = d.harpoonRig(true);
         d.boosting = false;
         d.aimAt(inp);
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
@@ -264,39 +418,40 @@
         if (d.data.release && d.st >= T.harpoon.minReady) {
           var tip = d.gunTip();
           G.harpoon.fire(tip.x, tip.y, d.aimAngle);
-          d.go('shoot');
+          if (d.state === 'aim') d.go('shoot');  // fire() có thể đã trúng ngay cá sát nòng và chuyển sang reel/tug
         }
       },
     },
 
+    // Mũi xiên đang bay: tay giữ súng chĩa theo mũi xiên. Trượt (chạm vách, hết tầm) thì RangeWeaponMiss: súng hất lên 25°.
     shoot: {
-      enter: function (d) { d.play('HookAttackFire', false, true); },
+      enter: function (d) { d.play('AttackFire', true); },
       update: function (d, G, dt, inp) {
-        d.showArm = true;
+        d.rig = d.harpoonRig(false);
         d.aimAt({ aimX: G.harpoon.x, aimY: G.harpoon.y });
         d.swim(dt, inp, T.diver.aimSpeed, 0.5);
         if (G.harpoon.state === 'ready') return d.go('swim');
-        if (d.st > T.harpoon.fireHold) d.play('HookAttackReady');
+        if (G.harpoon.missed) d.play('AttackFail');
+        else if (d.st > T.harpoon.fireHold) d.play('AttackReady');
       },
     },
 
-    // Cá đã chết trên xiên: Dave kéo dây, cá trôi về.
+    // Cá đã chết trên xiên: Dave giữ súng chĩa theo dây, cá trôi về.
     reel: {
-      enter: function (d, G) { d.play('HookAttackPull'); G.audio.loop('pull', 'harpoon_pull', 0.7); },
+      enter: function (d, G) { d.play('AttackReady'); G.audio.loop('pull', 'harpoon_pull', 0.7); },
       exit: function (d, G) { G.audio.stopLoop('pull'); },
       update: function (d, G, dt, inp) {
-        d.showArm = false;
-        d.faceToward(G.harpoon.x - d.pos.x);
-        d.tilt = lerpAngle(d.tilt, Math.atan2(G.harpoon.y - d.pos.y, Math.abs(G.harpoon.x - d.pos.x)) * 0.5, Math.min(1, 8 * dt));
+        d.rig = d.harpoonRig(false);
+        d.aimAt({ aimX: G.harpoon.x, aimY: G.harpoon.y });
         d.swim(dt, inp, T.diver.aimSpeed * 0.7, 0.4);
         if (G.harpoon.state === 'ready') d.go('swim');
       },
     },
 
-    // Giằng co với cá lớn: bấm liên tục để kéo thanh đầy trước khi hết giờ.
+    // Giằng co với cá lớn (FightBlendTree gốc: RangeWeaponHook ×2): bấm liên tục để kéo thanh đầy trước khi hết giờ.
     tug: {
       enter: function (d, G) {
-        d.play('HookAttackPull');
+        d.play('AttackFight', true, 2);
         d.data.gauge = 0.35; d.data.time = T.tug.time;
         G.audio.play('qte_raise');
         G.audio.loop('pull', 'harpoon_pull', 0.8);
@@ -306,10 +461,10 @@
       update: function (d, G, dt, inp) {
         var fish = G.harpoon.fish;
         if (!fish) return d.go('swim');
-        d.showArm = false;
+        d.rig = d.harpoonRig(false);
         var dx = fish.pos.x - d.pos.x, dy = fish.pos.y - d.pos.y, l = Math.hypot(dx, dy) || 1;
-        d.faceToward(dx);
-        d.tilt = lerpAngle(d.tilt, Math.atan2(dy, Math.abs(dx)) * 0.6, Math.min(1, 8 * dt));
+        d.aimAt({ aimX: G.harpoon.x, aimY: G.harpoon.y });
+        d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 8 * dt));
         // cá kéo Dave đi theo nó
         d.vel.x += dx / l * T.tug.pull * dt * 3; d.vel.y += dy / l * T.tug.pull * dt * 3;
         d.swim(dt, { mx: 0, my: 0 }, T.tug.pull);
@@ -318,8 +473,9 @@
         if (inp.tap) {
           d.data.gauge += T.tug.tapGain * Math.max(0.2, Math.min(1.5, T.tug.hpRef / Math.max(1, fish.hp)));
           G.audio.play('harpoon_tap', { vol: 0.8, rate: 0.9 + d.data.gauge * 0.4 });
-          d.play('HookAttackPull', true, true);
           fish.flashT = 0.08;
+          // BloodFight.prefab gốc: máu rỉ ra mỗi lần giật dây
+          G.fx.play(G.fx.dive('bloodFight'), G.harpoon.x, G.harpoon.y, { z: fish.z + 0.05, name: 'bloodFight' });
         }
         G.hud.tug(true, Math.max(0, Math.min(1, d.data.gauge)), d.data.time / T.tug.time);
         if (d.data.gauge >= 1) {
@@ -337,17 +493,17 @@
       },
     },
 
-    // Súng phụ: giữ chuột phải (hoặc nút Súng) là giơ súng, thân AttackReady, tay + súng xoay theo điểm ngắm; thả là bắn.
+    // Súng phụ: giữ chuột phải (hoặc nút Súng) là rút súng rồi ngắm, tay + súng xoay theo điểm ngắm; thả là bắn.
     gunAim: {
       enter: function (d, G) {
         d.data.release = false;
-        d.play('AttackReady', false, true);
+        d.play('AttackDraw', true);
         G.gun.pose('Ready');
         G.gun.aimStart();
       },
       exit: function (d, G) { G.gun.aimEnd(); },
       update: function (d, G, dt, inp) {
-        d.showGun = true;
+        d.rig = G.gun.rigSpec();
         d.boosting = false;
         var t = inp.gunAuto ? G.gun.autoAim(d) : { x: inp.aimX, y: inp.aimY };
         d.gunTarget = t;
@@ -364,16 +520,17 @@
     },
 
     gunFire: {
-      enter: function (d, G) { d.play('AttackFire', false, true); G.gun.pose('Ready'); },
+      enter: function (d, G) { d.play('AttackFire', true); G.gun.pose('Ready'); },
       update: function (d, G, dt, inp) {
-        d.showGun = true;
         d.boosting = false;
         d.swim(dt, inp, T.diver.aimSpeed, 0.5);
-        // lưới vừa kéo được cá: Dave giật tay về (AttackPull)
+        var moving = inp.mx !== 0 || inp.my !== 0;
+        // lưới vừa kéo được cá: Dave giật tay về (AttackPull, không clip gốc nào dùng dãy này)
         if (G.gun.pull > 0) { d.play('AttackPull'); G.gun.pose('Pull'); }
-        else if (d.st > T.harpoon.fireHold) { d.play('AttackReady'); G.gun.pose('Ready'); }
+        else if (d.st > T.harpoon.fireHold) { d.play(moving ? 'AttackFireMove' : 'AttackReady'); G.gun.pose('Ready'); }
+        d.rig = G.gun.rigSpec();
         // giật lùi đẩy Dave về sau: giữ tư thế bắn tới khi gần đứng lại (hoặc người chơi bơi), kẻo swim quay mặt theo hướng lùi
-        var settled = Math.hypot(d.vel.x, d.vel.y) < 0.35 || inp.mx !== 0 || inp.my !== 0 || d.st > 1.2;
+        var settled = Math.hypot(d.vel.x, d.vel.y) < 0.35 || moving || d.st > 1.2;
         if (d.st >= Math.max(G.gun.spec.cooldown, T.harpoon.fireHold) && G.gun.pull <= 0 && settled) {
           if (inp.gunHeld) return d.go('gunAim');
           return d.go('swim');
@@ -383,13 +540,14 @@
 
     melee: {
       enter: function (d, G) {
-        d.play('MeleeDaggerAtk', false, true);
+        d.play('MeleeDaggerAtk', true);
         d.knifeCd = T.knife.cooldown + T.knife.time;
         d.data.hit = false;
         G.audio.play('knife');
+        // MeleeBubble của EffectGroup: bọt tung ra theo nhát dao
+        G.fx.play(G.fx.dive('meleeBubble'), d.pos.x, d.pos.y, { scale: S, z: 0.14, angle: d.facing > 0 ? d.tilt : -d.tilt, flip: d.facing < 0, name: 'melee' });
       },
       update: function (d, G, dt, inp) {
-        d.showArm = false;
         d.boosting = false;
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
         d.swim(dt, inp, T.diver.aimSpeed, 0.5);
@@ -402,9 +560,8 @@
     },
 
     hurt: {
-      enter: function (d) { d.play(d.data.big ? 'Bigdamage' : 'Hit', !d.data.big, true); },
+      enter: function (d) { d.play(d.data.big ? 'Bigdamage' : 'Hit', true); },
       update: function (d, G, dt) {
-        d.showArm = false;
         d.boosting = false;
         d.swim(dt, { mx: 0, my: 0 }, 6);
         if (d.st > T.diver.hurtTime) d.go('swim');
@@ -413,7 +570,7 @@
 
     // Trồi lên mặt nước: thở phào rồi nổi dập dềnh (Cheer trong sheet là Dave mặc đồ trên bờ nên không dùng).
     surfaced: {
-      enter: function (d) { d.showArm = false; d.boosting = false; d.play('Relief', false, true); },
+      enter: function (d) { d.boosting = false; d.play('Relief', true); },
       update: function (d, G, dt) {
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 8 * dt));
         d.vel.x *= Math.exp(-3 * dt);
@@ -423,12 +580,12 @@
       },
     },
 
+    // Ngất: Die (17 khung, 2,33 giây) rồi DieIdle lặp.
     dead: {
       enter: function (d, G) {
         d.o2 = 0;
-        d.showArm = false;
         d.boosting = false;
-        d.play('Die', false, true);
+        d.play('Die', true);
         G.audio.play('dave_dead');
         G.harpoon.drop();
         G.fx.burst('bubbleBig', d.pos.x, d.pos.y + 0.1, 16, 1.4);
@@ -444,4 +601,6 @@
 
   HX.Diver = Diver;
   HX.Diver.setFrame = setFrame;
+  HX.Diver.clipOf = clipOf;
+  HX.Diver.CLIP = CLIP;
 })(window.HX = window.HX || {});

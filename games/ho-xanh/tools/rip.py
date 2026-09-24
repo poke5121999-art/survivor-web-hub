@@ -5,7 +5,10 @@ Chạy lại bao nhiêu lần cũng ra cùng một bộ tệp (xoá rồi ghi l�
     set PYTHONIOENCODING=utf-8
     python games/ho-xanh/tools/rip.py            # tất cả
     python games/ho-xanh/tools/rip.py art        # chỉ ảnh + Spine
-    python games/ho-xanh/tools/rip.py audio      # chỉ tiếng
+    python games/ho-xanh/tools/rip.py audio      # chỉ tiếng lặn (không đụng boat_*, gun_*, bar_*)
+    python games/ho-xanh/tools/rip.py dave       # chỉ sheet Dave + mục dave của assets.js
+    python games/ho-xanh/tools/rip.py fxmesh     # lưới 3D + số phụ cho hạt súng -> art/gear/mesh/gunvfx.json
+    python games/ho-xanh/tools/rip.py divefx     # hạt của Dave (bọt bơi, thở, dao, mũi xiên) + máu cá -> art/fx/dive/
 Biến môi trường: DTD_DATA (thư mục DaveTheDiver_Data).
 
 Cách game đóng gói (đo 2026-09-24, bản Steam có DLC Jungle):
@@ -74,7 +77,16 @@ DAVE = {
     'MeleeAtk': 15, 'MeleeDagger': 12, 'MeleeDaggerAtk': 15, 'dagger_raise': 10, 'dagger_stab': 15,
     'Hit': 30, 'Bigdamage': 12, 'Die': 9, 'Shock': 12, 'Scared': 8, 'BigSurprise': 10, 'PickUp': 10,
     'G_MoveSide': 9, 'G_MoveUp': 9, 'G_MoveDown': 9, 'GIdle': 6,
+    # thêm sau (thêm vào cuối để các hàng cũ giữ nguyên chỗ):
+    #   RangeWeaponDraw rút súng qua Prepare01; RangeWeaponHook (giằng co, FightBlendTree ×2) là AttackFight01..08;
+    #   RangeWeaponMiss xiên trượt: thân AttackFail01 + tay AttackFailArms/AttackFailRightArm;
+    #   RangeWeaponShock bị giật: tay ShockArms/ShockRightArm; RangeWeaponFire_Move bắn khi đang bơi: thân UVLight_Move01..08.
+    'Prepare': 10, 'AttackFight': 27, 'AttackFail': 10, 'AttackFailArms': 1, 'AttackFailRightArm': 1,
+    'ShockArms': 1, 'ShockRightArm': 1, 'UVLight_Move': 6,
 }
+# Súng xiên cầm tay theo cấp súng xiên trong bảng SubEquipment (icon iDiver_Icon_<X>HarpoonGun ↔ prefab <X>HarpoonGunTemplate).
+HARPOON_GUNS = ['OldHarpoonGun', 'HarpoonGun', 'PumpHarpoonGun', 'MermanHarpoonGun', 'NewMVHarpoonGun', 'AlloyHarpoonGun']
+HARPOON_DIR = PC + 'Ingame/00_InGame_Common/Prefabs/InstanceItem/'
 DAVE_ATLAS = PC + 'Common/Sprites/Player/Atlas/01_Default_Atlas.spriteatlas'
 
 # Ảnh lẻ: đường dẫn gốc -> tên ra (trong art/). Hình trong một SpriteAtlas thì lấy qua Sprite.
@@ -105,6 +117,45 @@ VFX = ['E_Bubble_01A', 'E_Bubble_01B', 'E_Bubble_03A', 'E_Seq_Bubble_01A', 'E_Se
        'E_Lightdust_01A', 'WaterFog', 'L001_Background_light', 'HeadLight', 'E_Splash_01A', 'E_Seq_Spark_01A',
        'E_Spark_01A', 'E_Water_Splash_01A', 'E_Seq_Water_Splash_01B', 'PointLightFX', 'LightCircle', 'E_Glow_04A']
 # Spine phi cá (rong, san hô động).
+# key -> tên AudioClip gốc (tìm theo tên tệp .wav trong catalog), và mức: sfx | loop | music.
+# Bảng này từng bị xoá nhầm ở 441c391 (rip_audio vẫn gọi AUDIO). Chép lại y bản 2e5d9f2 đã sinh ra audio/.
+# audio/ giờ dùng chung với rip_boat.py (boat_*, gun_*, ui_*) và rip_bar.py (bar_*): chỉ ghi đè tệp của bảng này.
+AUDIO = {
+    'bgm_ingame': ('BGM_InGame', 'music'),
+    'bgm_seablue': ('BGM_SeaBlue_01', 'music'),
+    'bgm_deep': ('BGM_Deep_Sea', 'music'),
+    'bgm_night': ('BGM_Night_Diving', 'music'),
+    'bgm_shark': ('BGM_Shark_Appear', 'music'),
+    'amb_deep': ('amb_deepsea_loop', 'loop'),
+    'harpoon_aim': ('harpoon_aim', 'sfx'),
+    'harpoon_shot': ('harpoon_shot', 'sfx'),
+    'harpoon_hit': ('harpoon_hit', 'sfx'),
+    'harpoon_hit_rock': ('harpoon_hit_rock', 'sfx'),
+    'harpoon_return': ('harpoon_return', 'sfx'),
+    'harpoon_pull': ('harpoon_line_pull_loop', 'loop'),
+    'harpoon_catch': ('harpoon_catch_success', 'sfx'),
+    'harpoon_tap': ('harpoon_tap_button', 'sfx'),
+    'dave_diving': ('dave_diving', 'sfx'),
+    'dave_breathe': ('dave_breathe', 'sfx'),
+    'dave_hit1': ('dave_hit_01', 'sfx'),
+    'dave_hit2': ('dave_hit_02', 'sfx'),
+    'dave_hit3': ('dave_hit_03', 'sfx'),
+    'dave_dead': ('dave_dead_01', 'sfx'),
+    'dave_swim': ('sound_Dave_Swim_01', 'sfx'),
+    'dave_dash': ('sound_dave_dash_02', 'sfx'),
+    'dave_grab': ('sound_DaveGrab_01', 'sfx'),
+    'melee_hit': ('sound_hit_melee', 'sfx'),
+    'knife': ('sound_weapon_shortsword', 'sfx'),
+    'o2_use': ('sound_o2_capsule_use', 'sfx'),
+    'o2_expand': ('sound_o2_tank_expansion', 'sfx'),
+    'itembox': ('sound_gain_itembox_02', 'sfx'),
+    'qte_raise': ('sound_QTE_raised_01', 'sfx'),
+    'qte_success': ('sound_QTE_success_01', 'sfx'),
+    'qte_perfect': ('sound_QTE_Perfect_success_01', 'sfx'),
+    'qte_fail': ('sound_QTE_fail_01', 'sfx'),
+    'qte_stab': ('sound_QTE_stab_01', 'sfx'),
+    'bubble_seahorse': ('Seahorse_Bubble_01', 'sfx'),
+}
 
 # ---------------------------------------------------------------- INDEX
 def bundle_index():
@@ -249,8 +300,9 @@ def prefab_scale(path, pick):
     for c in level.prefab_objects(env, path):
         if pick(c):
             go = c.read().m_GameObject.read()
-            return round(float(np.linalg.norm(level.world(level.transform_of(go), cache)[:3, 0])), 3)
-    return 1.0
+            v = round(float(np.linalg.norm(level.world(level.transform_of(go), cache)[:3, 0])), 3)
+            return int(v) if v == int(v) else v  # 2 chứ không 2.0, cho khớp assets.js đã có
+    return 1
 
 
 def is_skeleton(c):
@@ -290,8 +342,24 @@ def rip_fish():
 
 
 # ---------------------------------------------------------------- DAVE
+def sprite_canvas(s):
+    """Sprite -> ảnh RGBA đúng cỡ m_Rect, phần đã cắt viền đặt lại đúng chỗ theo m_RD.textureRectOffset.
+    Mọi khung Dave là ô 120x120. Phần có hình chỉ ~40x57 px, và không nằm giữa ô.
+    Bản cũ căn giữa phần đã cắt: Idle01 lệch (+5; −5) px so với bản gốc, lớp tay lệch khỏi thân."""
+    img = s.image.convert('RGBA')
+    w, h = int(round(s.m_Rect.width)), int(round(s.m_Rect.height))
+    if img.size == (w, h):
+        return img
+    ox, oy = s.m_RD.textureRectOffset.x, s.m_RD.textureRectOffset.y
+    can = Image.new('RGBA', (w, h))
+    can.paste(img, (int(round(ox)), int(round(h - oy - img.height))))  # Unity: y hướng lên, gốc ở đáy ô
+    return can
+
+
 def rip_dave():
-    """Mỗi dãy một hàng, ô 120x120. Trả về {tên: {row, n, fps, pivot}} cùng độ phóng của thân Dave và mũi xiên."""
+    """Mỗi dãy một hàng, ô 120x120 = m_Rect gốc, khung đặt đúng chỗ như game vẽ (pivot giữa ô với thân).
+    Lớp tay (…Arms, HookAttackArm) vẽ trên cùng khung 120 px với thân: đặt pivot tay đúng chỗ pivot đó
+    trên ô thân là tay khớp vai. Trả về {tên: {row, n, fps, pivot}} cùng độ phóng của thân Dave và mũi xiên."""
     env = env_of(IDX[DAVE_ATLAS])
     frames = {}
     for o in env.objects:
@@ -304,14 +372,15 @@ def rip_dave():
             frames.setdefault(pre, []).append((num, s))
     cell = 120
     names = [n for n in DAVE if n in frames]
+    cells = {}  # tên sprite -> (hàng, cột) trong sheet
     width = max(len(frames[n]) for n in names)
     sheet = Image.new('RGBA', (cell * width, cell * len(names)))
     anims = {}
     for row, n in enumerate(names):
         seq = sorted(frames[n], key=lambda t: t[0])
         for col, (_, s) in enumerate(seq):
-            img = s.image.convert('RGBA')
-            sheet.paste(img, (col * cell + (cell - img.width) // 2, row * cell + (cell - img.height) // 2))
+            sheet.paste(sprite_canvas(s), (col * cell, row * cell))
+            cells[s.m_Name] = (row, col)
         s0 = seq[0][1]
         anims[n] = {'row': row, 'n': len(seq), 'fps': DAVE[n],
                     'pivot': [round(s0.m_Pivot.x, 3), round(s0.m_Pivot.y, 3)]}
@@ -323,7 +392,162 @@ def rip_dave():
     group = PC + 'Common/Prefabs/Player/PlayerGroup.prefab'
     named = lambda n: lambda c: c.type.name == 'SpriteRenderer' and c.read().m_GameObject.read().m_Name == n
     return {'sheet': 'dave/dave.png', 'cell': cell, 'ppu': 100, 'anims': anims,
-            'scale': prefab_scale(group, named('CharacterBody')), 'harpoonScale': prefab_scale(group, named('HarpoonProjectile'))}
+            'scale': prefab_scale(group, named('CharacterBody')), 'harpoonScale': prefab_scale(group, named('HarpoonProjectile')),
+            'rig': dave_rig(group), 'clips': dave_clips(group, cells), 'harpoonGuns': harpoon_guns(),
+            'spear': prefab_sprite_info(HARPOON_DIR + 'HarpoonHead/NormalHarpoonHead.prefab', None), 'rope': harpoon_rope(group)}
+
+
+def harpoon_rope(group):
+    """Dây xiên: LineRenderer trên nút Rope của PlayerGroup (15 RopeLink nối HingeJoint2D, dây mềm vật lý).
+    {width: m, color: rgba} = widthMultiplier × màu đầu gradient × _Color của HarpoonRopeMaterial."""
+    sys.dont_write_bytecode = True
+    import level
+    env, _ = level.load_with_deps(group)
+    for c in level.prefab_objects(env, group):
+        if c.type.name == 'LineRenderer':
+            tt = c.read_typetree()
+            par = tt['m_Parameters']
+            k = par['colorGradient']['key0']
+            mat = c.read().m_Materials[0].deref().read_typetree()
+            col = dict(mat['m_SavedProperties']['m_Colors']).get('_Color', {'r': 1, 'g': 1, 'b': 1, 'a': 1})
+            rgba = [round(k[a] * col[a], 3) + 0.0 for a in 'rgba']
+            return {'width': round(par['widthMultiplier'] * par['widthCurve']['m_Curve'][0]['value'], 4), 'color': rgba}
+    raise KeyError('PlayerGroup không có LineRenderer')
+
+
+def prefab_sprite_info(path, rel):
+    """Sprite của SpriteRenderer đầu tiên trong prefab: {img?, size, pivot, ppu}. rel = None thì không ghi ảnh."""
+    sys.dont_write_bytecode = True
+    import level
+    env, _ = level.load_with_deps(path)
+    for c in level.prefab_objects(env, path):
+        if c.type.name == 'SpriteRenderer':
+            sp = c.read().m_Sprite.read()
+            img = sprite_canvas(sp)
+            out = {'size': list(img.size), 'pivot': [round(sp.m_Pivot.x, 3) + 0.0, round(sp.m_Pivot.y, 3) + 0.0], 'ppu': sp.m_PixelsToUnits}
+            if rel:
+                save_png(img, rel)
+                out = dict({'img': rel}, **out)
+            return out
+    raise KeyError('prefab không có SpriteRenderer: ' + path)
+
+
+def harpoon_guns():
+    """Súng xiên Dave cầm (HarpoonGunTemplate…), mỗi cấp súng xiên một khẩu. Treo ở HarpoonHandler."""
+    return [dict({'lv': i + 1, 'name': n}, **prefab_sprite_info(HARPOON_DIR + 'Harpoon/%sTemplate.prefab' % n, 'dave/harpoon/%s.png' % n))
+            for i, n in enumerate(HARPOON_GUNS)]
+
+
+def dave_clips(group, cells):
+    """AnimationClip của PlayerAnimCtrl (Animator trên DaveCharacter) -> dãy khoá sprite của thân.
+    {tên clip: {length, loop, frames: [[giây, hàng, cột], ...]}}. Chỉ giữ clip mà mọi khung đều có trong sheet.
+    Nhịp khung gốc không đều: ShortDash chạy 03,04,01,02,03,04,05 rồi giữ 05; Die 17 khung rồi DieIdle lặp 18..23;
+    MeleeOneHandHorizontal xong trong 0,26 giây. Chia đều theo fps là sai nhịp."""
+    sys.dont_write_bytecode = True
+    import zlib
+    import level
+    import rip_boat as rb  # dùng chung bộ giải AnimationClip (clip_curves, controller_clips)
+    env, _ = level.load_with_deps(group)
+    root = level.prefab_root(env, group)
+    dave = [c.read().m_GameObject.read() for c in level.transform_of(root).m_Children]
+    dave = [g for g in dave if g.m_Name == 'DaveCharacter'][0]
+    anim = [c.component for c in dave.m_Component if c.component.type.name == 'Animator'][0]
+    _, clips = rb.controller_clips(anim)
+    body = zlib.crc32(b'CharacterBody')
+    near, behind = zlib.crc32(b'CharacterBody/RangeWeaponArm'), zlib.crc32(b'CharacterBody/BehindRangeWeaponArm')
+    handler = zlib.crc32(b'CharacterBody/RangeWeaponArm/HarpoonHandler')
+    active = zlib.crc32(b'm_IsActive')
+    out = {}
+    for o in clips:
+        tt, ac = o.read_typetree(), o.read()
+        curves = rb.clip_curves(tt)
+        names = []
+        for ptr in ac.m_ClipBindingConstant.pptrCurveMapping:
+            try:
+                names.append(ptr.read().m_Name)
+            except Exception:
+                names.append(None)
+        ci, seq, extra = 0, None, {}
+        keys = lambda i: [[round(max(0.0, t), 4) + 0.0, round(c[3], 4) + 0.0] for t, c in curves.get(i, []) if t < rb.BIG]
+        for b in tt['m_ClipBindingConstant']['genericBindings']:
+            dims = rb.BIND_DIMS.get(b['attribute'], 1) if b['typeID'] == 4 else 1
+            idx = ci
+            ci += dims
+            if b['isPPtrCurve'] and b['typeID'] == 212 and b['path'] in (near, behind):
+                k = int(round(curves[idx][0][1][3]))
+                extra['nearArm' if b['path'] == near else 'behindArm'] = names[k]
+                continue
+            if not b['isPPtrCurve'] and b['typeID'] == 1 and b['attribute'] == active and b['path'] == near:
+                extra['armsOn'] = [[t, int(v)] for t, v in keys(idx)]  # lớp tay bật/tắt theo thời gian
+                continue
+            if not b['isPPtrCurve'] and b['typeID'] == 4 and b['attribute'] == 4 and b['path'] == handler:
+                extra['handlerRotZ'] = keys(idx + 2)  # độ, khoá Hermite đã rút về giá trị tại khoá
+                continue
+            if not (b['isPPtrCurve'] and b['typeID'] == 212 and b['path'] == body):
+                continue
+            seq = []
+            for t, c in curves.get(idx, []):
+                t = 0.0 if t < -rb.BIG else t
+                if t > rb.BIG:
+                    continue
+                k = int(round(c[3]))
+                n = names[k] if 0 <= k < len(names) else None
+                if seq and abs(seq[-1][0] - t) < 1e-6:
+                    seq[-1] = [t, n]
+                else:
+                    seq.append([t, n])
+        if not seq or any(n not in cells for _, n in seq):
+            continue
+        mc = tt['m_MuscleClip']
+        frames = []
+        for t, n in seq:
+            if frames and frames[-1][1:] == list(cells[n]):
+                continue  # khoá giữ khung cũ tới hết clip
+            frames.append([round(t, 4) + 0.0] + list(cells[n]))
+        out[tt['m_Name']] = {'length': round(mc['m_StopTime'] - mc['m_StartTime'], 4) + 0.0,
+                             'loop': bool(mc.get('m_LoopTime')),
+                             'frames': frames}
+        out[tt['m_Name']].update(extra)
+    return {k: out[k] for k in sorted(out)}
+
+
+# Nút của lớp tay súng phụ trong PlayerGroup, toạ độ tính trong hệ CharacterBody (đơn vị Unity, chưa nhân ×2).
+RIG = {
+    'rangeArm': 'CharacterBody/RangeWeaponArm',                 # tay gần, sprite AttackReadyArms, xoay theo điểm ngắm
+    'behindArm': 'CharacterBody/BehindRangeWeaponArm',          # tay xa, sprite AttackReadyRightArm
+    'gunHandler': 'CharacterBody/RangeWeaponArm/GunHandler',    # chỗ gắn súng cầm tay
+    'grabPoint': 'CharacterBody/RangeWeaponArm/BehindArmGrabPoint',
+    'ropeAttach': 'CharacterBody/RangeWeaponArm/RopeAttachRigidbody',        # đầu dây xiên
+    'harpoonHandler': 'CharacterBody/RangeWeaponArm/HarpoonHandler',        # chỗ gắn súng xiên cầm tay
+    'projectileAttach': 'CharacterBody/RangeWeaponArm/HarpoonHandler/ProjectileAttachTransform',  # đuôi mũi xiên lúc nằm trong súng
+}
+
+
+def dave_rig(group):
+    """{khoá: [x, y]} vị trí các nút tay súng so với tâm thân Dave, lấy từ prefab PlayerGroup."""
+    sys.dont_write_bytecode = True
+    import level
+    import numpy as np
+    env, _ = level.load_with_deps(group)
+    root = level.prefab_root(env, group)
+    dave = [c.read().m_GameObject.read() for c in level.transform_of(root).m_Children]
+    dave = [g for g in dave if g.m_Name == 'DaveCharacter'][0]
+    body = [c.read().m_GameObject.read() for c in level.transform_of(dave).m_Children]
+    body = [g for g in body if g.m_Name == 'CharacterBody'][0]
+    cache, out = {}, {}
+    inv = np.linalg.inv(level.world(level.transform_of(body), cache))
+    for key, path in RIG.items():
+        go = body
+        for part in path.split('/')[1:]:
+            kids = [c.read().m_GameObject.read() for c in level.transform_of(go).m_Children]
+            go = [g for g in kids if g.m_Name == part][0]
+        p = inv @ level.world(level.transform_of(go), cache)[:, 3]
+        out[key] = [round(float(p[0]), 4) + 0.0, round(float(p[1]), 4) + 0.0]
+        if key == 'behindArm':
+            # tay xa có AimConstraint nhắm BehindArmGrabPoint (chỉ trục z): góc = hướng tới điểm nắm + m_RotationOffset.z
+            ac = [c.component for c in go.m_Component if c.component.type.name == 'AimConstraint'][0].read_typetree()
+            out['behindAimOffsetDeg'] = round(ac['m_RotationOffset']['z'], 4) + 0.0
+    return out
 
 
 # ---------------------------------------------------------------- IMAGES + VFX
@@ -374,9 +598,7 @@ def rip_audio():
     ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
         raise SystemExit('không thấy ffmpeg trong PATH')
-    if os.path.isdir(AUD):
-        shutil.rmtree(AUD)
-    os.makedirs(AUD)
+    os.makedirs(AUD, exist_ok=True)
     out = {}
     for key, (clip, kind) in AUDIO.items():
         path = find_path(clip + '.wav')
@@ -394,6 +616,147 @@ def rip_audio():
                        check=True)
         out[key] = {'src': 'audio/%s.mp3' % key, 'kind': kind}
     return out
+
+
+# ---------------------------------------------------------------- LƯỚI + SỐ PHỤ CHO HẠT SÚNG
+def minmax(c):
+    """MinMaxCurve hằng -> số hoặc [min, max] (radian/đơn vị gốc). Đường cong thì lấy giá trị scalar."""
+    st = c.get('minMaxState', 0)
+    v = round(c['scalar'], 4) + 0.0
+    return [round(c.get('minScalar', 0), 4) + 0.0, v] if st == 3 else v
+
+
+def rip_fx_meshes():
+    """Công thức hạt của súng (data/boat_assets.js, do rip_boat.py ghi) có emitter vẽ bằng lưới 3D
+    (ParticleSystemRenderer m_RenderMode 4: QuadToCircle của vụ nổ, E_M_Paper_01A của lưới rách).
+    Công thức không mang lưới, cũng không mang xoay 3D, cỡ 3D và _Emission của material. Tệp này bù phần đó:
+    art/gear/mesh/gunvfx.json = {meshes: {tên: {pos, uv, idx}}, emitters: {"<src>#<tên GameObject>": {...}}}."""
+    sys.dont_write_bytecode = True
+    import level
+    from UnityPy.helpers.MeshHelper import MeshHandler
+    src = io.open(os.path.join(DATA, 'boat_assets.js'), encoding='utf-8').read()
+    BA = json.loads(src[src.index('window.HX_BOAT_ASSETS =') + len('window.HX_BOAT_ASSETS ='):].strip().rstrip(';'))
+    shutil.rmtree(os.path.join(ART, 'gear', 'mesh'), ignore_errors=True)  # thư mục riêng của bước này
+    recipes = [r['src'] for r in BA['gunVfx'].values()]
+    recipes += [g['projectile']['trail']['src'] for g in BA['guns'].values() if g.get('projectile', {}).get('trail')]
+    meshes, extras = {}, {}
+    for rsrc in sorted(set(recipes)):
+        path = PC + rsrc
+        env, _ = level.load_with_deps(path)
+        for c in level.prefab_objects(env, path):
+            if c.type.name != 'ParticleSystemRenderer':
+                continue
+            r = c.read()
+            go = r.m_GameObject.read()
+            ex = {}
+            if r.m_Materials and r.m_Materials[0].m_PathID:
+                mtt = r.m_Materials[0].deref().read_typetree()['m_SavedProperties']
+                fl = dict(mtt['m_Floats'])
+                if '_Emission' in fl and abs(fl['_Emission'] - 1) > 1e-6:
+                    ex['emission'] = round(fl['_Emission'], 4) + 0.0  # shader Hovl *_CenterGlow nhân màu với số này
+                # Hovl *_CenterGlow: ảnh chính nhân với ảnh _Noise trượt theo _SpeedMainTexUVNoiseZW.zw (vệt gió của vòng nổ)
+                envs = {k: v for k, v in mtt['m_TexEnvs']}
+                spd = dict(mtt['m_Colors']).get('_SpeedMainTexUVNoiseZW')
+                if '_Noise' in envs and envs['_Noise']['m_Texture']['m_PathID'] and spd:
+                    tex = [v for k, v in r.m_Materials[0].read().m_SavedProperties.m_TexEnvs if k == '_Noise'][0].m_Texture.read()
+                    rel = 'gear/mesh/%s.png' % tex.m_Name
+                    save_png(tex.image.convert('RGBA'), rel)
+                    ev = envs['_Noise']
+                    ex['noise'] = {'img': rel, 'scale': [round(ev['m_Scale']['x'], 4) + 0.0, round(ev['m_Scale']['y'], 4) + 0.0],
+                                   'offset': [round(ev['m_Offset']['x'], 4) + 0.0, round(ev['m_Offset']['y'], 4) + 0.0],
+                                   'speed': [round(spd['b'], 4) + 0.0, round(spd['a'], 4) + 0.0]}
+            tt = c.read_typetree()
+            if tt['m_RenderMode'] == 4 and r.m_Mesh.m_PathID:
+                me = r.m_Mesh.read()
+                if me.m_Name not in meshes:
+                    h = MeshHandler(me)
+                    h.process()
+                    tris = [i for sub in h.get_triangles() for t in sub for i in t]
+                    meshes[me.m_Name] = {'pos': [round(float(v), 5) + 0.0 for xyz in h.m_Vertices for v in xyz[:3]],
+                                         'uv': [round(float(v), 5) + 0.0 for uv in h.m_UV0 for v in uv[:2]],
+                                         'idx': [int(i) for i in tris]}
+                ex['mesh'] = me.m_Name
+                ex['align'] = ['view', 'world', 'local', 'facing', 'velocity'][tt.get('m_RenderAlignment', 0)]
+                ps = [x.component for x in go.m_Component if x.component.type.name == 'ParticleSystem'][0].read_typetree()
+                ini, rot = ps['InitialModule'], ps['RotationModule']
+                if ini.get('rotation3D'):
+                    ex['rot3'] = {'x': minmax(ini['startRotationX']), 'y': minmax(ini['startRotationY']), 'z': minmax(ini['startRotation'])}
+                if rot.get('enabled'):
+                    ex['rotOverLife3'] = {'x': minmax(rot['x']), 'y': minmax(rot['y']), 'z': minmax(rot['curve'])} if rot.get('separateAxes') else {'z': minmax(rot['curve'])}
+                if ini.get('size3D'):
+                    ex['size3'] = {'x': minmax(ini['startSize']), 'y': minmax(ini['startSizeY']), 'z': minmax(ini['startSizeZ'])}
+            if ex:
+                extras[rsrc + '#' + go.m_Name] = ex
+    out = os.path.join(ART, 'gear', 'mesh', 'gunvfx.json')
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, 'w', encoding='utf-8', newline=chr(10)) as fh:
+        json.dump({'meshes': meshes, 'emitters': extras}, fh, ensure_ascii=False, separators=(',', ':'), sort_keys=True)
+    print('  lưới hạt:', ', '.join('%s (%d đỉnh)' % (k, len(v['pos']) // 3) for k, v in sorted(meshes.items())),
+          '| số phụ cho', len(extras), 'emitter')
+
+
+# ---------------------------------------------------------------- HẠT CỦA DAVE VÀ MÁU CÁ
+VFXP = PC + 'Common/VFX/Prefabs/'
+# khoá -> nguồn. "pg:<đường dẫn dưới CharacterBody>" là cụm hạt gắn sẵn trong PlayerGroup (toạ độ ghi theo CharacterBody,
+# game nhân D.scale); còn lại là prefab rời (toạ độ theo gốc prefab).
+DIVE_FX = {
+    'tailBubble': 'pg:EffectGroup/TailBubble',           # bọt sau lưng khi bơi
+    'tailBubbleFast': 'pg:EffectGroup/TailBubble_Fast',  # bọt khi tăng tốc
+    'breath': 'pg:EffectGroup/Breath_Loop',              # bọt thở trên đầu
+    'meleeBubble': 'pg:EffectGroup/MeleeBubble',         # vung dao
+    'spearBubble': VFXP + 'PlayerInternal/SpearBubble.prefab',  # vệt bọt mũi xiên (gắn trên HarpoonProjectile)
+    'bloodHit': VFXP + 'Blood/BloodHit.prefab',
+    'bloodFatal': VFXP + 'Blood/BloodFatal.prefab',
+    'bloodFight': VFXP + 'Blood/BloodFight.prefab',
+    'bloodDave': VFXP + 'Blood/BloodDave.prefab',
+}
+
+
+def rip_dive_fx():
+    """Công thức hạt cho lượt lặn (cùng dạng gunVfx của rip_boat.py) -> art/fx/dive/dive_vfx.json + ảnh hạt art/fx/dive/."""
+    sys.dont_write_bytecode = True
+    import level
+    import numpy as np
+    import rip_boat as rb
+    out_dir = os.path.join(ART, 'fx', 'dive')
+    shutil.rmtree(out_dir, ignore_errors=True)
+    os.makedirs(out_dir)
+    rb.FXDIR, rb.FXTC = out_dir, {}  # ảnh hạt ghi vào thư mục riêng, không đụng art/boat/fx
+    group = PC + 'Common/Prefabs/Player/PlayerGroup.prefab'
+    genv = None
+    out = {}
+    for key, src in DIVE_FX.items():
+        cache = {}
+        if src.startswith('pg:'):
+            if genv is None:
+                genv, _ = level.load_with_deps(group)
+            root = level.prefab_root(genv, group)
+            node = [c.read().m_GameObject.read() for c in level.transform_of(root).m_Children]
+            node = [g for g in node if g.m_Name == 'DaveCharacter'][0]
+            for part in ['CharacterBody'] + src[3:].split('/'):
+                kids = [c.read().m_GameObject.read() for c in level.transform_of(node).m_Children]
+                node = [g for g in kids if g.m_Name == part][0]
+                if part == 'CharacterBody':
+                    body = node
+            bt = level.transform_of(body)
+            rel = np.linalg.inv(level.world(bt, cache))
+            r = rb.recipe_more(node, rel, rb.world_quat(bt), cache, src='PlayerGroup/CharacterBody/' + src[3:])
+        else:
+            env, _ = level.load_with_deps(src)
+            root = level.prefab_root(env, src)
+            t = level.transform_of(root)
+            W = level.world(t, cache)
+            rel = np.linalg.inv(W) if abs(np.linalg.det(W[:3, :3])) > 1e-9 else np.eye(4)
+            if abs(np.linalg.det(W[:3, :3])) <= 1e-9:
+                rel[:3, 3] = -W[:3, 3]
+            r = rb.recipe_more(root, rel, rb.world_quat(t), cache, src=src.replace(PC, ''))
+        for e in r['emitters']:
+            if e.get('img'):
+                e['img'] = 'art/fx/dive/' + os.path.basename(e['img'])
+        out[key] = r
+        print('  hạt %-15s %2d emitter' % (key, len(r['emitters'])))
+    with open(os.path.join(out_dir, 'dive_vfx.json'), 'w', encoding='utf-8', newline=chr(10)) as fh:
+        json.dump(out, fh, ensure_ascii=False, separators=(',', ':'), sort_keys=True)
 
 
 # ---------------------------------------------------------------- MAIN
@@ -419,6 +782,23 @@ def main():
         print('Ảnh + VFX…')
         man['images'] = rip_images()
         man['props'] = rip_prefab_sprites()
+    if what == 'dave':
+        # chỉ sheet Dave + mục dave trong assets.js; cá, rong, ảnh, tiếng giữ nguyên
+        shutil.rmtree(os.path.join(ART, 'dave'), ignore_errors=True)
+        print('Dave…')
+        man['dave'] = rip_dave()
+    if what in ('all', 'art', 'divefx'):
+        # sau bước art (art/fx vừa bị xoá và ghi lại); cần rip_boat.py import được
+        print('Hạt của Dave, máu cá…')
+        rip_dive_fx()
+        if what == 'divefx':
+            return
+    if what in ('all', 'fxmesh'):
+        # cần data/boat_assets.js của rip_boat.py; không đụng assets.js
+        print('Lưới hạt súng…')
+        rip_fx_meshes()
+        if what == 'fxmesh':
+            return
     if what in ('all', 'audio'):
         print('Tiếng…')
         man['audio'] = rip_audio()

@@ -1,6 +1,7 @@
 // Hạt hiệu ứng: bọt khí, tia lửa, máu, loé trúng. Mỗi kiểu hạt là một dòng trong bảng KINDS.
 (function (HX) {
   'use strict';
+  var REV = ((document.currentScript && document.currentScript.src || '').split('v=')[1] || '').split('&')[0];
 
   var KINDS = {
     bubble:     { tex: 'fx/BubbleSubtle.png', size: [0.05, 0.11], life: [1.4, 2.4], rise: 1.1, drag: 1.5, wobble: 0.5, alpha: 0.9, fade: 0.25 },
@@ -25,10 +26,18 @@
     gfx.scene.add(this.group);
   }
 
+  // Công thức hạt của Dave (bọt bơi, thở, dao, mũi xiên) và máu cá, bóc từ PlayerGroup + Blood/*.prefab gốc
+  // (tools/rip.py divefx → art/fx/dive/dive_vfx.json). fx.dive(tên) trả công thức, chưa nạp thì null.
+  var DIVE = null;
   Fx.prototype.preload = function () {
-    var g = this.gfx;
-    return Promise.all(Object.keys(KINDS).map(function (k) { return g.loadTex(KINDS[k].tex, KINDS[k].smooth); }));
+    var g = this.gfx, self = this;
+    var dive = fetch('art/fx/dive/dive_vfx.json' + (REV ? '?v=' + REV : '')).then(function (r) {
+      if (!r.ok) throw new Error('dive_vfx.json ' + r.status);
+      return r.json();
+    }).then(function (j) { DIVE = j; return self.preloadRecipes(Object.keys(j).map(function (k) { return j[k]; })); });
+    return Promise.all(Object.keys(KINDS).map(function (k) { return g.loadTex(KINDS[k].tex, KINDS[k].smooth); }).concat([dive]));
   };
+  Fx.prototype.dive = function (name) { return DIVE && DIVE[name] || null; };
 
   Fx.prototype.spawn = function (kind, x, y, z, vx, vy, scaleMul) {
     var K = KINDS[kind];
@@ -143,6 +152,12 @@
     v[0] = x; v[1] = y; v[2] = z;
     return v;
   }
+  // quaternion [x, y, z, w] xoay véc-tơ v[o..o+2] tại chỗ
+  function qrot(q, v, o) {
+    var x = v[o], y = v[o + 1], z = v[o + 2], qx = q[0], qy = q[1], qz = q[2], qw = q[3];
+    var tx = 2 * (qy * z - qz * y), ty = 2 * (qz * x - qx * z), tz = 2 * (qx * y - qy * x);
+    v[o] = x + qw * tx + (qy * tz - qz * ty); v[o + 1] = y + qw * ty + (qz * tx - qx * tz); v[o + 2] = z + qw * tz + (qx * ty - qy * tx);
+  }
   function randDir() {
     var z = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - z * z);
     return [Math.cos(a) * r, Math.sin(a) * r, z];
@@ -190,22 +205,50 @@
   }
   function burstCount(c) { return Math.round(num(c, 0, Math.random())); }
 
+  // Lưới 3D và số phụ mà công thức gốc không mang (tools/rip.py fxmesh → art/gear/mesh/gunvfx.json):
+  // emitter vẽ bằng lưới (m_RenderMode 4) như vòng sóng nổ QuadToCircle, mảnh lưới rách E_M_Paper_01A;
+  // xoay 3D (rot3, rotOverLife3), cỡ 3D (size3), và _Emission của shader Hovl *_CenterGlow. Khoá: "<src>#<tên GameObject>".
+  var FXM = null, fxmLoading = null;
+  function loadFxMeshes() {
+    if (FXM) return Promise.resolve(FXM);
+    if (fxmLoading) return fxmLoading;
+    fxmLoading = fetch('art/gear/mesh/gunvfx.json' + (REV ? '?v=' + REV : '')).then(function (r) {
+      if (!r.ok) throw new Error('gunvfx.json ' + r.status);
+      return r.json();
+    }).then(function (j) { FXM = j; return j; });
+    return fxmLoading;
+  }
+  function extraOf(recipe, e) { return FXM && recipe && recipe.src ? FXM.emitters[recipe.src + '#' + e.name] || null : null; }
+  // Xoay Euler của Unity (radian, áp Z rồi X rồi Y) thành ma trận 3×3 theo hàng: R = Ry · Rx · Rz.
+  function eulerMat(x, y, z, out) {
+    var cx = Math.cos(x), sx = Math.sin(x), cy = Math.cos(y), sy = Math.sin(y), cz = Math.cos(z), sz = Math.sin(z);
+    out[0] = cy * cz + sy * sx * sz; out[1] = -cy * sz + sy * sx * cz; out[2] = sy * cx;
+    out[3] = cx * sz;                out[4] = cx * cz;                 out[5] = -sx;
+    out[6] = -sy * cz + cy * sx * sz; out[7] = sy * sz + cy * sx * cz; out[8] = cy * cx;
+    return out;
+  }
+
   // Lô vẽ: mọi hạt cùng ảnh, cùng kiểu trộn gom vào một lưới động.
   var BATCH_VERT = [
     'attribute vec4 color; varying vec2 vUv; varying vec4 vC; varying float vD;',
     'void main() { vUv = uv; vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); vD = -mv.z; gl_Position = projectionMatrix * mv; }',
   ].join('\n');
-  function batchFrag(add) {
+  // dissolve: shader graph "VFX_Dissolve_*", "Dissolve Alpha Top" gốc không bóc được công thức (chỉ còn hai số Vector1 −1, −10).
+  // Ảnh của chúng là ảnh mặt nạ: kênh R là hình khói, kênh G là nhiễu để tan. Vẽ thẳng ảnh RGB ra thì thành cục khói bảy màu.
+  // [ĐỀ XUẤT] màu lấy từ hạt, hình = R × A của ảnh, tan dần khi alpha của hạt giảm: nhiễu G phải vượt (1 − alpha).
+  var DISSOLVE_GLSL = 'vec4 t = texture2D(map, vUv); float d = 1.0 - vC.a;' +
+    ' vec4 c = vec4(vC.rgb, t.r * t.a * smoothstep(d, d + 0.12, t.g));';
+  function batchFrag(add, dissolve) {
     return HX.gfx.WATER_GLSL + '\nuniform sampler2D map; varying vec2 vUv; varying vec4 vC; varying float vD;\n' +
-      'void main() { vec4 c = texture2D(map, vUv) * vC; if (c.a < 0.004) discard;' +
+      'void main() { ' + (dissolve ? DISSOLVE_GLSL : 'vec4 c = texture2D(map, vUv) * vC;') + ' if (c.a < 0.004) discard;' +
       (add ? ' gl_FragColor = vec4(c.rgb * c.a * (1.0 - hxFog(vD)), 1.0); }' : ' gl_FragColor = vec4(hxFogMix(c.rgb, vD), c.a); }');
   }
-  function Batch(fx, img, add) {
+  function Batch(fx, img, add, dissolve) {
     this.cap = 0; this.n = 0;
     var u = { map: { value: fx.gfx.tex(img, true) } }, w = HX.gfx.water;
     for (var k in w) u[k] = w[k];
     this.mat = new THREE.ShaderMaterial({
-      uniforms: u, vertexShader: BATCH_VERT, fragmentShader: batchFrag(add), transparent: true, depthWrite: false, depthTest: true,
+      uniforms: u, vertexShader: BATCH_VERT, fragmentShader: batchFrag(add, dissolve), transparent: true, depthWrite: false, depthTest: true,
       blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, side: THREE.DoubleSide,
     });
     this.geo = new THREE.BufferGeometry();
@@ -250,10 +293,77 @@
     this.n = 0;
   };
 
+  // Lô vẽ hạt dạng lưới: mỗi hạt chép cả lưới (tam giác rời, không chỉ số), cùng shader với Batch.
+  // noise: ảnh _Noise của shader Hovl *_CenterGlow, nhân vào ảnh chính theo uv gốc của lưới, trượt theo thời gian.
+  var NOISE_VERT = [
+    'attribute vec4 color; attribute vec2 uvRaw; varying vec2 vUv; varying vec2 vUv2; varying vec4 vC; varying float vD;',
+    'void main() { vUv = uv; vUv2 = uvRaw; vC = color; vec4 mv = modelViewMatrix * vec4(position, 1.0); vD = -mv.z; gl_Position = projectionMatrix * mv; }',
+  ].join('\n');
+  function MeshBatch(fx, img, add, noise) {
+    this.noise = noise || null;
+    Batch.call(this, fx, img, add);
+    if (!noise) return;
+    var u = this.mat.uniforms;
+    u.noiseMap = { value: fx.gfx.tex(noise.img, true) };
+    u.noiseST = { value: new THREE.Vector4(noise.scale[0], noise.scale[1], noise.offset[0], noise.offset[1]) };
+    u.noiseSpeed = { value: new THREE.Vector2(noise.speed[0], noise.speed[1]) };
+    u.uTime = { value: 0 };
+    this.mat.vertexShader = NOISE_VERT;
+    this.mat.fragmentShader = batchFrag(add).replace('uniform sampler2D map;',
+      'uniform sampler2D map; uniform sampler2D noiseMap; uniform vec4 noiseST; uniform vec2 noiseSpeed; uniform float uTime; varying vec2 vUv2;')
+      .replace('vec4 c = texture2D(map, vUv) * vC;',
+        'vec2 nuv = fract(vUv2 * noiseST.xy + noiseST.zw + noiseSpeed * uTime); vec4 c = texture2D(map, vUv) * texture2D(noiseMap, nuv) * vC;');
+    this.mat.needsUpdate = true;
+  }
+  MeshBatch.prototype.grow = function (cap) {
+    this.cap = cap;
+    this.pos = new Float32Array(cap * 3); this.uv = new Float32Array(cap * 2); this.col = new Float32Array(cap * 4);
+    this.raw = new Float32Array(cap * 2);
+    this.geo.setIndex(null);
+    this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    this.geo.setAttribute('uv', new THREE.BufferAttribute(this.uv, 2));
+    this.geo.setAttribute('uvRaw', new THREE.BufferAttribute(this.raw, 2));
+    this.geo.setAttribute('color', new THREE.BufferAttribute(this.col, 4));
+  };
+  var RM = new Float32Array(9);
+  // M: {pos, uv, idx} theo trục Unity; (x, y, z) tâm hạt; s3 cỡ theo trục; r3 xoay Euler (rad); [u0,v0,u1,v1] ô ảnh.
+  MeshBatch.prototype.add = function (M, x, y, z, s3, r3, u0, v0, u1, v1, r, g, b, a) {
+    var n = M.idx.length;
+    if (this.n + n > this.cap) {
+      if (this.cap >= 65536) return;
+      var old = { p: this.pos, u: this.uv, c: this.col, w: this.raw };
+      this.grow(Math.max(this.cap * 2, this.n + n));
+      this.pos.set(old.p); this.uv.set(old.u); this.col.set(old.c); this.raw.set(old.w);
+    }
+    eulerMat(r3[0], r3[1], r3[2], RM);
+    var P = this.pos, U = this.uv, C = this.col, W = this.raw, V = M.pos, T = M.uv, du = u1 - u0, dv = v1 - v0;
+    for (var i = 0; i < n; i++) {
+      var k = M.idx[i], o = this.n + i;
+      var vx = V[k * 3] * s3[0], vy = V[k * 3 + 1] * s3[1], vz = V[k * 3 + 2] * s3[2];
+      // hạt căn theo khung nhìn: trục Unity (x phải, y lên, z vào màn) → ở đây z hướng về phía camera
+      P[o * 3] = x + RM[0] * vx + RM[1] * vy + RM[2] * vz;
+      P[o * 3 + 1] = y + RM[3] * vx + RM[4] * vy + RM[5] * vz;
+      P[o * 3 + 2] = z - (RM[6] * vx + RM[7] * vy + RM[8] * vz);
+      U[o * 2] = u0 + T[k * 2] * du; U[o * 2 + 1] = v0 + T[k * 2 + 1] * dv;
+      W[o * 2] = T[k * 2]; W[o * 2 + 1] = T[k * 2 + 1];
+      C[o * 4] = r; C[o * 4 + 1] = g; C[o * 4 + 2] = b; C[o * 4 + 3] = a;
+    }
+    this.n += n;
+  };
+  MeshBatch.prototype.flush = function (time) {
+    if (this.noise) this.mat.uniforms.uTime.value = time || 0;
+    ['position', 'uv', 'uvRaw', 'color'].forEach(function (k) { this.geo.attributes[k].needsUpdate = true; }, this);
+    this.geo.setDrawRange(0, this.n);
+    this.mesh.visible = this.n > 0;
+    this.n = 0;
+  };
+
   // Một lần phát công thức. opts: angle (rad, xoay cả công thức quanh z), scale, z, follow() → {x, y, angle} (bám theo vật), loop.
   function Play(fx, recipe, x, y, opts) {
     opts = opts || {};
+    this.ex = new Map();
     this.fx = fx; this.x = x; this.y = y; this.px = x; this.py = y;
+    this.flip = !!opts.flip;  // lật gương theo x (Dave quay trái)
     this.angle = opts.angle || 0; this.scale = opts.scale || 1; this.z = opts.z == null ? 0.15 : opts.z;
     this.follow = opts.follow || null; this.stopped = false; this.t = 0; this.dead = false;
     this.name = opts.name || '';
@@ -262,26 +372,43 @@
     for (var i = 0; i < list.length; i++) {
       var e = list[i];
       if (subOf[i]) continue;
+      if (e.on === false || e.active === false) continue;  // GameObject tắt trong prefab gốc
       var subs = [];
       for (var k = 1; k <= (e.subEmitters | 0) && i + k < list.length; k++) { subs.push(list[i + k]); subOf[i + k] = 1; }
-      // render.mode 'mesh' vẽ lên lưới 3D riêng của prefab (QuadToCircle…) không có trong công thức; vẽ thành tấm vuông là sai hình nên bỏ
-      var draws = !(e.render && e.render.enabled === false) && !(e.render && e.render.mode === 'mesh') && e.img;
+      // render.mode 'mesh' vẽ lên lưới 3D riêng của prefab (QuadToCircle…), lấy ở art/gear/mesh/gunvfx.json.
+      // Chưa nạp được lưới thì bỏ emitter đó, vì vẽ thành tấm vuông là sai hình.
+      var ex = extraOf(recipe, e);
+      if (ex) this.ex.set(e, ex);
+      for (var q = 0; q < subs.length; q++) { var x2 = extraOf(recipe, subs[q]); if (x2) this.ex.set(subs[q], x2); }
+      var isMesh = e.render && e.render.mode === 'mesh';
+      var draws = !(e.render && e.render.enabled === false) && (!isMesh || !!(ex && ex.mesh && FXM.meshes[ex.mesh])) && e.img;
       if (!draws && !subs.length) continue;
       this.ems.push({ e: e, subs: subs, draws: draws, acc: 0, dacc: 0, bursts: (e.bursts || []).map(function () { return 0; }), cyc: 0, parts: [] });
     }
     this.ems.forEach(function (em) {
-      if (em.draws) fx.batch(em.e);
-      em.subs.forEach(function (s) { if (s.img) fx.batch(s); });
-    });
+      if (em.draws) fx.batch(em.e, this.meshOf(em.e), this.ex.get(em.e));
+      em.subs.forEach(function (s) { if (s.img) fx.batch(s, this.meshOf(s), this.ex.get(s)); }, this);
+    }, this);
   }
   Play.prototype.stop = function () { this.stopped = true; };
+  Play.prototype.meshOf = function (e) {
+    var ex = this.ex.get(e);
+    return e.render && e.render.mode === 'mesh' && ex && ex.mesh && FXM ? FXM.meshes[ex.mesh] || null : null;
+  };
 
   // Sinh một hạt của emitter e tại chỗ (x, y) với góc a; tn = thời gian chuẩn hoá của emitter lúc sinh.
   Play.prototype.emit = function (em, e, tn, x, y, a, sc, world) {
     if (em.parts.length >= Math.max(1, e.maxParticles || 1000)) return;
     var r = Math.random, s = sc * (e.scale || 1), sm = shapeSample(e.shape), ca = Math.cos(a), sa = Math.sin(a);
-    var lx = ((e.pos ? e.pos[0] : 0) + sm[0]) * s, ly = ((e.pos ? e.pos[1] : 0) + sm[1]) * s;
-    var sp = num(e.speed, tn, r()) * s;
+    // xoay của chính emitter trong prefab (rotQ, quaternion Unity) áp lên điểm sinh và hướng bay của Shape
+    if (e.rotQ && (e.rotQ[0] || e.rotQ[1] || e.rotQ[2])) { qrot(e.rotQ, sm, 0); qrot(e.rotQ, sm, 3); }
+    // e.pos đã tính theo gốc công thức (gồm cả độ phóng của cha), chỉ nhân độ phóng lúc phát; điểm Shape thì nhân cả độ phóng emitter
+    var lx = (e.pos ? e.pos[0] : 0) * sc + sm[0] * s, ly = (e.pos ? e.pos[1] : 0) * sc + sm[1] * s;
+    if (this.flip) { lx = -lx; sm[3] = -sm[3]; }
+    // ParticleSystem.scalingMode gốc: hierarchy = cỡ và tốc độ hạt nhân độ phóng cả cây; local = chỉ localScale của emitter;
+    // shape = độ phóng chỉ làm to vùng sinh, cỡ và tốc độ hạt giữ nguyên số trong công thức (bọt bơi, bọt thở của Dave)
+    var ss = e.scaling === 'shape' ? 1 : e.scaling === 'local' ? (e.localScale ? e.localScale[0] : 1) : s;
+    var sp = num(e.speed, tn, r()) * ss;
     var col = e.color && e.color.random ? e.color.random : e.color, cr = r();
     var c0 = Array.isArray(col) && col.length === 2 && Array.isArray(col[0])
       ? [0, 1, 2, 3].map(function (i) { return col[0][i] + (col[1][i] - col[0][i]) * cr; }) : (col || [1, 1, 1, 1]);
@@ -289,15 +416,22 @@
       t: 0, life: Math.max(0.02, num(e.lifetime, tn, r())),
       x: lx * ca - ly * sa, y: lx * sa + ly * ca, local: e.space === 'local' && !world,
       vx: (sm[3] * ca - sm[4] * sa) * sp, vy: (sm[3] * sa + sm[4] * ca) * sp,
-      size: num(e.size, tn, r()) * s, rot: num(e.rotation, tn, r()), g: num(e.gravity, tn, r()),
+      size: num(e.size, tn, r()) * ss, rot: num(e.rotation, tn, r()), g: num(e.gravity, tn, r()),
       c: c0, r1: r(), r2: r(), r3: r(), ph: r() * 6.28, fx0: 0, fy0: 0, ox: x, oy: y, oa: a, sub: null,
     };
     if (e.force) {
       var fx = num(e.force.x, 0, r()), fy = num(e.force.y, 0, r());
       if (e.force.world) { p.fx0 = fx; p.fy0 = fy; } else { p.fx0 = fx * ca - fy * sa; p.fy0 = fx * sa + fy * ca; }
-      p.fx0 *= s; p.fy0 *= s;
+      p.fx0 *= ss; p.fy0 *= ss;
     }
     if (e.sheet) p.frame0 = Array.isArray(e.sheet.frameOverTime) ? r() : null;
+    var ex = this.ex.get(e);
+    if (ex && ex.mesh) {
+      var R3 = ex.rot3 || {}, W3 = ex.rotOverLife3 || {}, S3 = ex.size3;
+      p.r3 = [num(R3.x, tn, r()), num(R3.y, tn, r()), R3.z != null ? num(R3.z, tn, r()) : p.rot];
+      p.w3 = [num(W3.x, tn, r()), num(W3.y, tn, r()), num(W3.z, tn, r())];
+      p.s3 = S3 ? [num(S3.x, tn, r()) * ss, num(S3.y, tn, r()) * ss, num(S3.z, tn, r()) * ss] : null;
+    }
     if (!p.local) { p.x += x; p.y += y; }
     if (em.subs && em.subs.length) p.sub = em.subs.map(function () { return { acc: 0, dacc: 0, parts: [] }; });
     em.parts.push(p);
@@ -306,7 +440,7 @@
   Play.prototype.update = function (dt) {
     if (this.follow) {
       var f = this.follow();
-      if (f) { this.x = f.x; this.y = f.y; if (f.angle != null) this.angle = f.angle; } else this.stopped = true;
+      if (f) { this.x = f.x; this.y = f.y; if (f.angle != null) this.angle = f.angle; if (f.flip != null) this.flip = !!f.flip; } else this.stopped = true;
     }
     this.t += dt;
     var moved = Math.hypot(this.x - this.px, this.y - this.py), alive = 0;
@@ -357,7 +491,8 @@
           vx += Math.sin(p.t * w + p.ph) * st; vy += Math.cos(p.t * w * 1.3 + p.ph * 2) * st;
         }
         p.x += vx * dt; p.y += vy * dt;
-        if (e.rotOverLife) p.rot += e.rotOverLife * dt;
+        if (e.rotOverLife) p.rot += num(e.rotOverLife, tl, p.r1) * dt;
+        if (p.w3) { p.r3[0] += p.w3[0] * dt; p.r3[1] += p.w3[1] * dt; p.r3[2] += p.w3[2] * dt; }
         live++;
         if (em.draws) this.draw(e, p, tl, vx, vy, tmp);
       }
@@ -396,11 +531,13 @@
   };
 
   Play.prototype.draw = function (e, p, tl, vx, vy, col) {
-    var B = this.fx.batch(e), R = e.render || {}, x = p.local ? p.x + this.x : p.x, y = p.local ? p.y + this.y : p.y;
+    var M = this.meshOf(e), B = this.fx.batch(e, M, this.ex.get(e)), R = e.render || {}, x = p.local ? p.x + this.x : p.x, y = p.local ? p.y + this.y : p.y;
     var size = p.size * (e.sizeOverLife ? num(e.sizeOverLife, tl, p.r3) : 1);
     if (size <= 0) return;
     if (e.colorOverLife && e.colorOverLife.gradient) gradAt(e.colorOverLife.gradient, tl, col); else { col[0] = col[1] = col[2] = col[3] = 1; }
     var tint = e.tint || [1, 1, 1, 1], tm = /Legacy Shaders\/Particles\/Additive/.test(e.shader || '') ? 2 : 1;
+    var ex = this.ex.get(e);
+    if (ex && ex.emission) tm *= ex.emission;
     var r = p.c[0] * col[0] * tint[0] * tm, g = p.c[1] * col[1] * tint[1] * tm, b = p.c[2] * col[2] * tint[2] * tm, a = p.c[3] * col[3] * tint[3];
     var u0 = 0, v0 = 0, u1 = 1, v1 = 1, sh = e.sheet;
     if (sh) {
@@ -409,6 +546,11 @@
       var f = Math.min(nf - 1, Math.floor(((sh.startFrame || 0) / nf + fo * (sh.cycles || 1)) % 1.0001 * nf));
       var col_ = f % cols, row = single ? (sh.row || 0) : Math.floor(f / cols);
       u0 = col_ / cols; u1 = u0 + 1 / cols; v1 = 1 - row / rows; v0 = v1 - 1 / rows;
+    }
+    if (M) {
+      var k3 = size / Math.max(1e-6, p.size), s3 = p.s3 ? [p.s3[0] * k3, p.s3[1] * k3, p.s3[2] * k3] : [size, size, size];
+      B.add(M, x, y, this.z, s3, p.r3 || [0, 0, p.rot], u0, v0, u1, v1, r, g, b, a);
+      return;
     }
     var hl = size / 2, hw = size / 2, ax = Math.cos(p.rot), ay = Math.sin(p.rot);
     if (R.mode === 'stretch') {
@@ -421,10 +563,11 @@
     B.quad(x, y, this.z, ax, ay, hl, hw, u0, v0, u1, v1, r, g, b, a);
   };
 
-  Fx.prototype.batch = function (e) {
-    var img = e.img.replace(/^art\//, ''), add = isAdditive(e), key = img + (add ? '#a' : '#n');
+  Fx.prototype.batch = function (e, mesh, ex) {
+    var noise = mesh && ex && ex.noise || null, dis = !mesh && /Dissolve/.test(e.shader || '');
+    var img = e.img.replace(/^art\//, ''), add = isAdditive(e), key = img + (add ? '#a' : '#n') + (mesh ? '#m' : '') + (noise ? '#' + noise.img : '') + (dis ? '#d' : '');
     this.batches = this.batches || {};
-    return this.batches[key] || (this.batches[key] = new Batch(this, img, add));
+    return this.batches[key] || (this.batches[key] = mesh ? new MeshBatch(this, img, add, noise) : new Batch(this, img, add, dis));
   };
   // Phát một công thức gốc; trả về đối tượng có stop() (ngừng sinh hạt, hạt đang bay tự tắt).
   Fx.prototype.play = function (recipe, x, y, opts) {
@@ -438,7 +581,12 @@
     var g = this.gfx, seen = {};
     var imgs = [];
     recipes.forEach(function (r) { (r && r.emitters || []).forEach(function (e) { if (e.img && !seen[e.img]) { seen[e.img] = 1; imgs.push(e.img.replace(/^art\//, '')); } }); });
-    return Promise.all(imgs.map(function (i) { return g.loadTex(i, true); }));
+    // lưới + ảnh _Noise của emitter vẽ bằng lưới (chưa nạp xong ảnh noise thì vòng nổ ra đen)
+    var meshes = loadFxMeshes().then(function (j) {
+      return Promise.all(Object.keys(j.emitters).map(function (k) { return j.emitters[k].noise; }).filter(Boolean)
+        .map(function (n) { return g.loadTex(n.img, true); }));
+    });
+    return Promise.all(imgs.map(function (i) { return g.loadTex(i, true); }).concat([meshes]));
   };
   Fx.prototype.updatePlays = function (dt) {
     var list = this.plays || [];
@@ -446,8 +594,9 @@
       list[i].update(dt);
       if (list[i].dead) list.splice(i, 1);
     }
+    this.time = (this.time || 0) + dt;
     var B = this.batches || {};
-    for (var k in B) B[k].flush();
+    for (var k in B) B[k].flush(this.time);
   };
 
   var baseUpdate = Fx.prototype.update, baseClear = Fx.prototype.clear;
@@ -461,5 +610,5 @@
 
   HX.Fx = Fx;
   HX.FX_KINDS = KINDS;
-  HX.fxRecipe = { num: num, curveAt: curveAt, shapeSample: shapeSample };
+  HX.fxRecipe = { num: num, curveAt: curveAt, shapeSample: shapeSample, meshes: function () { return FXM; }, loadMeshes: loadFxMeshes };
 })(window.HX = window.HX || {});

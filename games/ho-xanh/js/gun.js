@@ -1,27 +1,15 @@
 // Súng phụ trong lượt lặn: một khẩu đang chọn (G.loadout.gun), đạn theo lượt, đạn bay, trúng cá, hiệu ứng và tiếng gốc.
 // Hình súng cầm tay, đạn, tia lửa nòng, vệt bọt, trúng, nổ, lưới, ngủ: đều lấy từ data/boat_assets.js (bóc từ bản gốc).
-// Tư thế: thân AttackReady / AttackFire / AttackPull + lớp tay AttackReadyArms, AttackReadyRightArm (art/gear/arms), súng nằm trong tay.
+// Tư thế: thân RangeWeaponDraw → RangeWeaponAim → RangeWeaponFire; lớp tay và chỗ treo súng lấy từ prefab PlayerGroup (js/dave.js ArmRig).
 (function (HX) {
   'use strict';
   var M = window.HX_META, BA = window.HX_BOAT_ASSETS, D = window.HX_ASSETS.dave;
-  var S = D.scale || 1, CW = D.cell / D.ppu * S;
+  var S = D.scale || 1;
   var VFX = BA ? BA.gunVfx : {};
 
-  // Sheet Dave (art/dave/dave.png) đặt mỗi khung đã cắt viền vào GIỮA ô 120 px, nên lớp tay trong sheet lệch khỏi thân.
-  // [ĐO TRONG REPO, m_RD.textureRectOffset của sprite gốc] đặt lại đúng chỗ, tính theo ô sheet của thân AttackReady (px, y xuống):
-  //   khung gốc 120 px (ảnh art/gear/arms/*.png) nằm lệch (+6; −5) so với ô sheet của AttackReady;
-  //   AttackFire01 lệch (+6; +1), AttackPull01 (+11; −1); AttackPullArms (+5; −13), AttackPullRightArm (+10; −13) so với ô sheet của chính nó.
-  var CANON = [6, -5];
-  var SHEET_SHIFT = { AttackPullArms: [5, -13], AttackPullRightArm: [10, -13] };
-  // Khớp vai gần = pivot của AttackReadyArms trong khung gốc (51,5; 51,7) → trong ô sheet của thân (57,5; 46,7).
-  var SHOULDER = [0.429 * 120 + CANON[0], (1 - 0.569) * 120 + CANON[1]];
-  // [ĐO TRONG REPO] tâm ảnh súng cầm tay đặt ở (65; 55) của khung gốc: báng trong găng tay gần (x 62–69),
-  // nòng ngang ngón tay xa (y 51–54). Đầu nòng so với tâm ảnh súng (px, y lên), đo trên art/gear/gun/*.png.
-  var HAND = [65, 55];
+  // Đầu nòng so với tâm ảnh súng cầm tay (px, y lên), đo trên art/gear/gun/*.png [ĐO TRONG REPO].
+  // Ảnh súng treo ở GunHandler của lớp tay RangeWeaponArm (xem ArmRig trong js/dave.js), tâm ảnh đúng vào nút.
   var MUZZLE = { rifle: [15, 2.5], shotgun: [16, 3], sniper: [19, 3.5], sleep: [9, 2.5], net: [17, 4], grenade: [14, 4] };
-  var PX = S / D.ppu;
-  // điểm (x, y) px của khung gốc → mét, gốc ở khớp vai, y lên
-  function canon(x, y) { return [(x + CANON[0] - SHOULDER[0]) * PX, -(y + CANON[1] - SHOULDER[1]) * PX]; }
   var BULLET_SCALE = 1;   // [DtD] projectile.scale của prefab đạn
 
   // ---------- tiếng: ghép khoá audio/gun_*.mp3 vào bảng tiếng chung (audio.js tra HX_ASSETS.audio) ----------
@@ -41,9 +29,6 @@
     return src ? src.split('/').pop().replace(/\.mp3$/, '') : null;
   }
 
-  // Góc của tay (−π/2..π/2) khi Dave quay phải; quay trái thì lật gương.
-  function localAngle(a) { return Math.atan2(Math.sin(a), Math.abs(Math.cos(a))); }
-
   function Gun(G, spec) {
     this.G = G; this.spec = spec; this.id = spec.id;
     this.art = BA.guns[spec.id];
@@ -53,67 +38,22 @@
     this.fired = 0; this.hits = 0;
     this.caught = 0;
     this.pull = 0;
-    this.buildRig();
+    this.poseKind = 'Ready';
+    this.rig = G.diver.arms.flip;   // HX_DEBUG đọc rig.visible
   }
 
-  // Lớp tay + súng gắn vào Dave, xoay cứng quanh khớp vai gần. Tay xa sau thân, súng trước thân, tay gần (có ngón tay xa) phủ lên súng.
-  Gun.prototype.buildRig = function () {
-    var G = this.G, d = G.diver, sheet = G.gfx.tex(D.sheet), arms = BA.arms;
-    this.rig = new THREE.Group();
-    var mk = function (tex, z) { var m = HX.gfx.sprite(tex, CW, CW, { alphaCut: 0.5, depthWrite: true }); m.position.z = z; return m; };
-    var c = canon(60, 60);
-    this.nearR = mk(G.gfx.tex(arms.AttackReadyArms.img.replace(/^art\//, '')), 0.02);
-    this.farR = mk(G.gfx.tex(arms.AttackReadyRightArm.img.replace(/^art\//, '')), -0.012);
-    this.nearR.position.x = this.farR.position.x = c[0]; this.nearR.position.y = this.farR.position.y = c[1];
-    this.nearP = mk(sheet, 0.02); this.farP = mk(sheet, -0.012);
-    HX.Diver.setFrame(this.nearP, 'AttackPullArms', 0); HX.Diver.setFrame(this.farP, 'AttackPullRightArm', 0);
-    [[this.nearP, 'AttackPullArms'], [this.farP, 'AttackPullRightArm']].forEach(function (p) {
-      var sh = SHEET_SHIFT[p[1]], q = canon(60 + sh[0] - CANON[0], 60 + sh[1] - CANON[1]);
-      p[0].position.x = q[0]; p[0].position.y = q[1];
-    });
-    var h = this.art.held;
-    this.held = HX.gfx.sprite(G.gfx.tex(h.img.replace(/^art\//, '')), h.size[0] / h.ppu * S, h.size[1] / h.ppu * S, { alphaCut: 0.5, depthWrite: true, pivot: h.pivot });
-    this.gunAt = canon(HAND[0], HAND[1]);
-    this.held.position.set(this.gunAt[0], this.gunAt[1], 0.01);
-    [this.farR, this.farP, this.held, this.nearR, this.nearP].forEach(function (m) { this.rig.add(m); }, this);
-    this.rig.visible = false;
-    d.root.add(this.rig);
-    this.pose('Ready');
+  // Dave dựng lớp tay (d.arms); súng chỉ nói cầm ảnh nào, tư thế tay nào, giật lùi bao nhiêu.
+  Gun.prototype.pose = function (kind) { this.poseKind = kind; };
+  Gun.prototype.rigSpec = function () {
+    var pull = this.poseKind === 'Pull';
+    return { held: this.art.held, spear: false, kick: this.kick > 0 ? this.kick / this.spec.cooldown : 0,
+      near: pull ? 'AttackPullArms' : null, behind: pull ? 'AttackPullRightArm' : null };
   };
-
-  Gun.prototype.pose = function (kind) {
-    if (this.poseKind === kind) return;
-    this.poseKind = kind;
-    var pull = kind === 'Pull';
-    this.nearR.visible = this.farR.visible = !pull;
-    this.nearP.visible = this.farP.visible = pull;
-  };
-
-  // Gọi từ Diver.draw mỗi khung.
-  Gun.prototype.drawRig = function (d, on) {
-    this.rig.visible = on;
-    if (!on) return;
-    var f = d.facing, ap = this.armOff();
-    this.rig.position.set(ap[0] * f, ap[1], 0);
-    this.rig.scale.x = f;
-    this.rig.rotation.z = f > 0 ? localAngle(d.aimAngle) : -localAngle(d.aimAngle);
-    // giật lùi: súng lùi theo trục nòng rồi về chỗ
-    var k = this.kick > 0 ? this.kick / this.spec.cooldown : 0;
-    this.held.position.x = this.gunAt[0] - 2 * PX * k;
-    var fl = d.body.material.uniforms.flash.value;
-    [this.nearR, this.farR, this.nearP, this.farP, this.held].forEach(function (m) { m.material.uniforms.flash.value = fl; });
-  };
-
-  // Khớp vai (tâm xoay của lớp tay) so với tâm thân Dave (tâm ô sheet), khi quay phải.
-  Gun.prototype.armOff = function () { return [(SHOULDER[0] - 60) * PX, -(SHOULDER[1] - 60) * PX]; };
 
   // Đầu nòng trong toạ độ thế giới với góc ngắm hiện tại.
   Gun.prototype.muzzle = function (d) {
-    var f = d.facing, ap = this.armOff(), mz = MUZZLE[this.id] || [15, 3];
-    var lx = this.gunAt[0] + mz[0] * PX, ly = this.gunAt[1] + mz[1] * PX;
-    var la = localAngle(d.aimAngle), c = Math.cos(la), s = Math.sin(la);
-    var rx = lx * c - ly * s, ry = lx * s + ly * c;
-    return { x: d.pos.x + (ap[0] + rx) * f, y: d.pos.y + ap[1] + ry };
+    var mz = MUZZLE[this.id] || [15, 3], R = D.rig.gunHandler;
+    return d.arms.world(d, [R[0] + mz[0] / D.ppu, R[1] + mz[1] / D.ppu], 'hold');
   };
 
   // Chạm: nhắm con cá sống gần nhất trong tầm súng, ưu tiên phía trước mặt. Không có thì bắn thẳng trước mặt.
@@ -300,7 +240,6 @@
     this.aimEnd();
     this.shots.forEach(function (s) { if (s.alive) this.kill(s); }, this);
     this.shots.length = 0;
-    if (this.rig.parent) this.rig.parent.remove(this.rig);
   };
 
   // Ảnh của mọi công thức hiệu ứng mà khẩu này dùng.
@@ -318,5 +257,5 @@
   }
 
   HX.Gun = Gun;
-  HX.gun = { soundKeys: soundKeys, recipesOf: recipesOf, images: images, MUZZLE: MUZZLE, HAND: HAND };
+  HX.gun = { soundKeys: soundKeys, recipesOf: recipesOf, images: images, MUZZLE: MUZZLE };
 })(window.HX = window.HX || {});

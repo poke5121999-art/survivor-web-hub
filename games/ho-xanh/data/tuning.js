@@ -69,11 +69,10 @@ window.HX_TUNING = {
     damage: 3,               // [DtD] súng xiên cơ bản (Harpoon gun lv1)
     speed: 16,               // [ĐỀ XUẤT] m/s
     range: 5.5,              // [ĐỀ XUẤT] m
-    returnSpeed: 20,         // [ĐỀ XUẤT]
+    returnSpeed: 17,         // [DtD] HarpoonWeaponHandler.recallSpeed trong PlayerGroup
     reelSpeed: 4.5,          // [ĐỀ XUẤT] kéo cá về
-    minReady: 0.12,          // [ĐỀ XUẤT] HookAttackReady 2 khung × 10 fps
+    minReady: 0.3,           // [DtD] clip RangeWeaponDraw dài 0,3 giây (tay + súng hiện ở 0,2 giây); bắn sớm hơn là súng chưa rút xong
     fireHold: 0.14,          // [ĐỀ XUẤT] giữ dáng HookAttackFire
-    gunTip: [0.14, -0.06],   // [ĐỀ XUẤT] đo trên ô HookAttackArm: đầu nòng so với khớp vai (m, khi quay phải)
   },
   tug: {
     minSize: 1,              // [ĐỀ XUẤT] cá từ cỡ này trở lên mới giằng co
@@ -88,7 +87,7 @@ window.HX_TUNING = {
   knife: {
     damage: 2,               // [ĐỀ XUẤT]
     range: 0.75,             // [ĐỀ XUẤT]
-    time: 0.3,               // [DtD] MeleeDaggerAtk 4 khung × 15 fps ≈ 0.27s
+    time: 0.2619,            // [DtD] clip MeleeOneHandHorizontal (MeleeDaggerAtk01..04) dài 0,2619 giây
     hitAt: 0.1,              // [ĐỀ XUẤT]
     cooldown: 0.4,           // [ĐỀ XUẤT]
   },
@@ -120,8 +119,6 @@ window.HX_TUNING = {
     dust: 420,               // [ĐỀ XUẤT] hạt bụi trôi
   },
   fx: {
-    trailEvery: 0.16,        // [ĐỀ XUẤT] bọt khí từ bình
-    boostTrailEvery: 0.06,   // [ĐỀ XUẤT]
     shake: 0.12,             // [ĐỀ XUẤT] biên độ rung khi bị cắn (m)
   },
 };

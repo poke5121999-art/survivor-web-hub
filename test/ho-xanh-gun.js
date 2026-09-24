@@ -100,7 +100,7 @@ async function run(browser, base, W, H) {
     const p = await page.evaluate(([x, y]) => HX_DEBUG.worldToScreen(x, y), [spot.x + dx, spot.y + dy]);
     await page.mouse.move(p.x, p.y);
     await page.mouse.down({ button: 'right' });
-    await sleep(260);
+    await sleep(380);  // RangeWeaponDraw gốc dài 0,3 giây rồi mới ngắm
     const aim = await info();
     if (name) await shot(name + '-aim');
     await page.mouse.up({ button: 'right' });
@@ -115,6 +115,22 @@ async function run(browser, base, W, H) {
   const tt = await put('Titan_Triggerfish', 2.6, 0.25);
   const aimI = await fire(2.6, 0.25, 'rifle', 60);
   check('giữ chuột phải: thân AttackReady, tay + súng hiện ra', aimI.dave.state === 'gunAim' && aimI.dave.anim === 'AttackReady' && aimI.gun.rig, aimI.dave.state + ' ' + aimI.dave.anim + ' rig=' + aimI.gun.rig);
+  // đầu nòng tính theo lớp tay phải nằm đúng chỗ đầu nòng trên ảnh súng đang vẽ (ở mọi góc)
+  const mzl = await page.evaluate(() => {
+    const G = HX.game, d = G.diver, out = [];
+    G.gun.kick = 0; if (d.rig) d.rig.kick = 0;
+    const keep = { a: d.aimAngle, f: d.facing };
+    [0, 0.8, 1.5, -0.8, Math.PI].forEach(a => {
+      d.aimAngle = a; d.facing = Math.cos(a) < 0 ? -1 : 1; d.draw();
+      const m = G.gun.muzzle(d), h = d.arms.held, art = G.gun.art.held, mz = HX.gun.MUZZLE[G.gun.id];
+      d.root.updateMatrixWorld(true);
+      const v = new THREE.Vector3(mz[0] / art.size[0], mz[1] / art.size[1], 0).applyMatrix4(h.matrixWorld);
+      out.push(Math.hypot(v.x - m.x, v.y - m.y));
+    });
+    d.aimAngle = keep.a; d.facing = keep.f;
+    return out;
+  });
+  check('đầu nòng súng phụ trùng đầu nòng trên ảnh súng ở 5 góc ngắm', mzl.every(e => e < 0.02), mzl.map(e => e.toFixed(4)).join(' '));
   I = await info();
   check('thả chuột phải: bắn, thân AttackFire', I.dave.anim === 'AttackFire' || I.dave.state === 'gunFire', I.dave.state + ' ' + I.dave.anim);
   await waitShots();
@@ -156,7 +172,7 @@ async function run(browser, base, W, H) {
     const p = await page.evaluate(([x, y]) => HX_DEBUG.worldToScreen(x, y), [spot.x + 2.4, spot.y + 0.1]);
     await page.mouse.move(p.x, p.y);
     await page.mouse.down({ button: 'right' });
-    await sleep(260);
+    await sleep(380);
     // đầu nòng lúc đang ngắm; ba con cách đầu nòng 1,8 m theo hướng −20°, 0°, +20°
     const trio = await page.evaluate(([tx, ty]) => {
       const G = HX.game, m = G.gun.muzzle(G.diver), a = Math.atan2(ty - m.y, tx - m.x), ids = [];

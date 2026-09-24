@@ -1,22 +1,30 @@
-// Mũi xiên: ready → flying → (stuck | returning) → ready. Dây nối từ nòng súng tới đuôi mũi xiên.
+// Mũi xiên: ready → flying → (stuck | returning) → ready. Dây nối từ RopeAttachRigidbody trên tay Dave tới đuôi mũi xiên.
+// Lúc ready mũi xiên nằm trong súng xiên Dave cầm (vẽ trong lớp tay của js/dave.js), không vẽ ở đây.
 (function (HX) {
   'use strict';
-  var T = window.HX_TUNING, H = T.harpoon;
+  var T = window.HX_TUNING, H = T.harpoon, D = window.HX_ASSETS.dave;
   var ROPE_PTS = 14;
+  // Mũi xiên NormalHarpoonHead gốc: 33×5 px, pivot ở đuôi, dưới HarpoonProjectile phóng ×2 (D.scale).
+  var K = D.scale || 1, LEN = D.spear.size[0] / D.spear.ppu * K, WID = D.spear.size[1] / D.spear.ppu * K;
+  // Dây gốc: LineRenderer rộng 0,02 m, HarpoonRopeMaterial màu đen (D.rope).
+  var ROPE = D.rope || { width: 0.02, color: [0, 0, 0, 1] };
 
   function Harpoon(G) {
     this.G = G;
     this.state = 'ready';
     this.x = 0; this.y = 0; this.angle = 0; this.dx = 1; this.dy = 0;
     this.traveled = 0; this.fish = null; this.off = null;
-    // mũi xiên phóng cùng tỉ lệ với thân Dave (PlayerGroup gốc: HarpoonProjectile ×2)
-    var k = window.HX_ASSETS.dave.scale || 1;
-    this.mesh = HX.gfx.sprite(G.gfx.tex('fx/HarpoonProjectile.png'), 0.33 * k, 0.05 * k, { alphaCut: 0.5, depthWrite: true, pivot: [1, 0.5] });
+    // x, y là đầu mũi xiên; ảnh vẽ lùi về sau một chiều dài mũi
+    this.mesh = HX.gfx.sprite(G.gfx.tex('fx/HarpoonProjectile.png'), LEN, WID, { alphaCut: 0.5, depthWrite: true, pivot: [1, 0.5] });
     this.mesh.visible = false;
     G.gfx.scene.add(this.mesh);
-    var geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ROPE_PTS * 3), 3));
-    this.rope = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xd9e4e6, transparent: true, opacity: 0.85 }));
+    // dây là dải tam giác bề ngang ROPE.width (THREE.Line chỉ vẽ được 1 px)
+    var geo = new THREE.BufferGeometry(), idx = [];
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ROPE_PTS * 2 * 3), 3));
+    for (var i = 0; i < ROPE_PTS - 1; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+    geo.setIndex(idx);
+    var c = ROPE.color;
+    this.rope = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(c[0], c[1], c[2]), transparent: c[3] < 1, opacity: c[3], side: THREE.DoubleSide }));
     this.rope.frustumCulled = false;
     this.rope.visible = false;
     G.gfx.scene.add(this.rope);
@@ -28,19 +36,35 @@
     this.x = x; this.y = y; this.angle = angle;
     this.dx = Math.cos(angle); this.dy = Math.sin(angle);
     this.traveled = 0;
+    this.missed = false;
     G.audio.play('harpoon_shot');
-    G.fx.spawn('bubbleSeq', x, y, 0.15, this.dx * 0.5, this.dy * 0.5, 0.7);
-    for (var i = 0; i < 4; i++) G.fx.spawn('bubble', x, y, 0.15, this.dx * (1 + i), this.dy * (1 + i));
+    // SpearBubble gốc gắn trên HarpoonProjectile (phóng ×2): vệt bọt theo đuôi mũi xiên khi bay
+    var self = this;
+    if (this.trail) this.trail.stop();
+    this.trail = G.fx.play(G.fx.dive('spearBubble'), x - this.dx * LEN, y - this.dy * LEN, { scale: K, z: 0.13, name: 'spear',
+      angle: angle, follow: function () {
+        return self.state === 'flying' ? { x: self.x - self.dx * LEN, y: self.y - self.dy * LEN, angle: self.angle } : null;
+      } });
+    // cá đang nằm ngay trên thân mũi xiên lúc bắn (gần hơn đầu mũi) cũng trúng, như collider của mũi xiên gốc
+    var fishes = G.fishes.list;
+    for (var k = 0; k <= 6 && this.state === 'flying'; k++) {
+      var px = x - this.dx * LEN * (1 - k / 6), py = y - this.dy * LEN * (1 - k / 6);
+      for (var j = 0; j < fishes.length; j++) {
+        if (fishes[j].alive() && fishes[j].hitTest(px, py, 0.04)) { this.x = px; this.y = py; this.hitFish(fishes[j]); break; }
+      }
+    }
   };
 
   Harpoon.prototype.hitFish = function (f) {
     var G = this.G;
     var res = f.damage(G.loadout.harpoon, this.x - this.dx, this.y - this.dy, true);
     G.audio.play('harpoon_hit');
-    G.fx.spawn('hit', this.x, this.y, f.z + 0.12, 0, 0, 0.55);
-    G.fx.spawn('spark', this.x, this.y, f.z + 0.13, 0, 0, 0.6);
+    // BloodHit.prefab gốc (bọt, máu, tia loé); mũi xiên hạ luôn con cá thì thêm BloodFatal
+    G.fx.play(G.fx.dive('bloodHit'), this.x, this.y, { z: f.z + 0.12, angle: this.angle, name: 'bloodHit' });
+    if (res === 'dead') G.fx.play(G.fx.dive('bloodFatal'), this.x, this.y, { z: f.z + 0.1, name: 'bloodFatal' });
     G.hitstop(0.06);
     G.shake(0.35);
+    this.missed = false;
     if (res === 'alive') { this.state = 'returning'; return; }
     this.state = 'stuck';
     this.fish = f;
@@ -55,7 +79,7 @@
     f.hp = 0;
     f.flashT = 0.15;
     f.go('dying');
-    this.G.fx.spawn('blood', f.pos.x, f.pos.y, f.z + 0.05, 0, 0, 1.2);
+    this.G.fx.play(this.G.fx.dive('bloodFatal'), this.x, this.y, { z: f.z + 0.1, name: 'bloodFatal' });
   };
 
   Harpoon.prototype.breakFree = function () {
@@ -82,6 +106,7 @@
         if (wall) {
           this.x = wall.x; this.y = wall.y;
           this.state = 'returning';
+          this.missed = true;
           G.audio.play('harpoon_hit_rock');
           G.fx.spawn('spark', wall.x, wall.y, 0.2, 0, 0, 0.5);
           G.fx.spawn('dust', wall.x + wall.nx * 0.1, wall.y + wall.ny * 0.1, 0.2, wall.nx * 0.3, wall.ny * 0.3);
@@ -93,7 +118,7 @@
           var f = fishes[k];
           if (f.alive() && f.hitTest(this.x, this.y, 0.04)) { this.hitFish(f); break; }
         }
-        if (this.state === 'flying' && this.traveled >= H.range) this.state = 'returning';
+        if (this.state === 'flying' && this.traveled >= H.range) { this.state = 'returning'; this.missed = true; }
       }
     } else if (this.state === 'stuck') {
       var f2 = this.fish;
@@ -117,28 +142,30 @@
       var mv2 = Math.min(rl, H.returnSpeed * dt);
       this.x += rx / rl * mv2; this.y += ry / rl * mv2;
       this.angle = Math.atan2(-ry, -rx);
-      if (rl < 0.3) { this.state = 'ready'; G.audio.play('harpoon_return', { vol: 0.6 }); }
+      if (rl < 0.3) { this.state = 'ready'; this.missed = false; G.audio.play('harpoon_return', { vol: 0.6 }); }
     }
-    this.draw(tip);
+    this.draw(d.ropeFrom());
   };
 
-  Harpoon.prototype.draw = function (tip) {
+  // from: đầu dây trên tay Dave.
+  Harpoon.prototype.draw = function (from) {
     var on = this.state !== 'ready';
     this.mesh.visible = on && this.state !== 'stuck';
     this.rope.visible = on;
     if (!on) return;
     this.mesh.position.set(this.x, this.y, 0.12);
     this.mesh.rotation.z = this.angle;
-    var p = this.rope.geometry.attributes.position.array;
-    var ex = this.x - Math.cos(this.angle) * 0.3, ey = this.y - Math.sin(this.angle) * 0.3;
+    var p = this.rope.geometry.attributes.position.array, tip = from;
+    // dây buộc vào đuôi mũi xiên; mũi đã cắm vào cá thì buộc ở chỗ cắm
+    var ex = this.x - Math.cos(this.angle) * LEN, ey = this.y - Math.sin(this.angle) * LEN;
     if (this.state === 'stuck') { ex = this.x; ey = this.y; }
     var len = Math.hypot(ex - tip.x, ey - tip.y);
     var sag = this.state === 'returning' ? Math.min(0.5, len * 0.12) : this.state === 'stuck' && this.G.diver.state === 'reel' ? 0.03 : 0;
+    var nx = -(ey - tip.y) / (len || 1) * ROPE.width / 2, ny = (ex - tip.x) / (len || 1) * ROPE.width / 2;
     for (var i = 0; i < ROPE_PTS; i++) {
-      var t = i / (ROPE_PTS - 1);
-      p[i * 3] = tip.x + (ex - tip.x) * t;
-      p[i * 3 + 1] = tip.y + (ey - tip.y) * t - Math.sin(t * Math.PI) * sag;
-      p[i * 3 + 2] = 0.11;
+      var t = i / (ROPE_PTS - 1), x = tip.x + (ex - tip.x) * t, y = tip.y + (ey - tip.y) * t - Math.sin(t * Math.PI) * sag;
+      p[i * 6] = x - nx; p[i * 6 + 1] = y - ny; p[i * 6 + 2] = 0.11;
+      p[i * 6 + 3] = x + nx; p[i * 6 + 4] = y + ny; p[i * 6 + 5] = 0.11;
     }
     this.rope.geometry.attributes.position.needsUpdate = true;
   };

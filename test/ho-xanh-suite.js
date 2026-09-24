@@ -185,8 +185,17 @@ async function run(browser, base, W, H) {
   const fS = await page.evaluate(([x, y]) => HX_DEBUG.worldToScreen(x, y), [fx, fy]);
   await page.mouse.move(fS.x, fS.y);
   await page.mouse.down();
-  await sleep(220);
+  await sleep(320);  // RangeWeaponDraw gốc: tay + súng xiên hiện ở 0,2 giây
   await shot('3-aim');
+  // Mũi xiên nằm trong súng xiên Dave cầm: gunTip() phải trùng đầu ảnh mũi xiên đang vẽ, trước mặt và ngang vai
+  const tipChk = await page.evaluate(() => {
+    const d = HX.game.diver, t = d.gunTip(), sp = d.arms.spear;
+    d.root.updateMatrixWorld(true);
+    const v = new THREE.Vector3(1, 0, 0).applyMatrix4(sp.matrixWorld);
+    return { vis: d.arms.flip.visible && sp.visible, err: Math.hypot(v.x - t.x, v.y - t.y), dx: (t.x - d.pos.x) * d.facing, dy: t.y - d.pos.y, anim: d.animName };
+  });
+  check('ngắm xiên: tay + súng xiên hiện, đầu mũi xiên (gunTip) trùng ảnh mũi xiên, trước mặt và ngang vai',
+    tipChk.vis && tipChk.err < 0.01 && tipChk.dx > 0.4 && tipChk.dy > 0.1 && tipChk.dy < 0.35, JSON.stringify(tipChk));
   await page.mouse.up();
   let hitSeen = false;
   for (let i = 0; i < 10 && !hitSeen; i++) {
