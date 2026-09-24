@@ -74,7 +74,85 @@ Tool không vẽ thêm và không nội suy khung. Thứ game gốc không có t
   - Ảnh chuỗi `E_Seq_*` đi kèm `sheet.tilesX/tilesY` ở hệ hạt dùng nó.
 - Khói nấu của Bancho chỉ có ở DLC Jungle (`VFX_Jungle_SushiBar_Bancho_CookSmoke_01A`). Tool lấy và ghi rõ nguồn.
 - Không xuất: nhánh `Dispatch`, `RecruitMent` của bảng mở quán (phái nhân viên, tuyển người), clip UI của đấu VIP/chi nhánh/cocktail [ĐỀ XUẤT].
-- Ảnh UI cạnh > 1100 px (màn rèm cuối ca 1920×1080…) chỉ ghi tên vào `ui.tooBig`.
+- Ảnh UI cạnh > 1100 px vẫn xuất. Riêng ảnh PNG > 600 KB thì thu nhỏ đúng 1/2 và ghi `downscale: 2`; `w`/`h` vẫn là cỡ gốc.
+  - Chỉ rèm cuối ca `SushiBar_EndCurtain` (ảnh quán đã làm mờ, 1920×1080) bị thu nhỏ: 952 KB xuống 344 KB.
+  - `Night_AlarmBox` (1798×10) và `Black_Gradation_Bg` (1348×4) là ảnh 9 mảnh: dài nhưng chỉ vài KB.
+  - Bản trước bỏ cả bốn ảnh này vào `ui.tooBig`. Băng CLOSED, rèm và dải kết quả cuối ca vì thế bị vẽ thay bằng khối màu.
+- Nhánh con của prefab lớn khai trong `UI_SUBTREES` (prefab, đường dẫn nút):
+  - `hudGold`: ô vàng góc trên trái.
+  - `hudWatch`: đồng hồ đeo tay, trạng thái tối ở clip `Watch/EveningState`.
+  - `openAlarm`, `openAlarmFx`: băng OPEN và hạt lúc mở quán.
+  - Hai nhánh đầu nằm trong `SushiBarCanvasRoot`. Xuất cả prefab này thì kéo theo ~300 sprite của màn quản lý ban ngày.
+
+### HUD đêm gốc [ĐO TRONG REPO, 2026-09-24]
+
+- HUD lúc bán (`Common/Prefabs/UI/SushiBar/SushiBarCanvasRoot.prefab`) chỉ có hai món:
+  - ô vàng `TopInfoPanel/GoldInfoPanel/LobbyGoldbar`;
+  - đồng hồ `DayInfoPanel/CalendarWatchPanel/Watch`.
+- Không có ô đếm suất đã bán. Hàng món + số suất còn lại ở đáy màn là của dự án.
+- Đồng hồ buổi tối:
+  - `Evening` là ảnh `UI_Watch_Time_Night_all`, tô Radial360 từ trái, ngược chiều kim, 0,385 vòng.
+  - Nút xoay −30°, nên cung đêm chạy từ 10 giờ qua 9 giờ tới ~5 giờ 23.
+  - Kim `EveningPointer` có pivot (0,5; 0,94), treo từ tâm xuống. Góc kim theo chiều kim đồng hồ từ 12 giờ = 180° − rotZ.
+  - `HourInfoPanel.eveningWarningValue` = 0,142. Dưới mức này bật `Evening_Red` (tween nhấp nháy).
+  - Biểu tượng giữa mặt là 8 ảnh trăng `UI_Watch_Icon_Moon_*`.
+  - Code `HourInfoPanel` là IL2CPP, không đọc được. Kim chạy thế nào và trăng đổi theo ngày là do game này chọn [ĐỀ XUẤT].
+
+### Câu nói của khách [ĐO TRONG REPO, 2026-09-24]
+
+- `NPC.CustomerToastTalk` có ba loại câu, mỗi loại kèm `Chance`, `PreDelay`, `ShowTime`:
+  - `Wating*` lúc chờ món;
+  - `Angry*` lúc giận;
+  - `Eating*` lúc ăn.
+- Không có câu lúc bước vào quán.
+- Manifest ghi `customers[].talk.{waiting,angry,eating} = {lines: [[khoá, tiếng Anh]], chance, preDelay, showTime}`. Game tự dịch 21 câu sang tiếng Việt (`VI_TALK` trong `js/bar.js`).
+- Khung `CustomerTalkBoxInfo` chỉ là một dòng TextMeshPro cỡ 16 có viền `TextMeshProUnderlay`. Không có ảnh bong bóng.
+  - Neo góc phải-dưới, lệch (20, −40) px UI, chữ mọc sang trái.
+- Bảng rót trà gốc `SushiBarQTEPanel` in nhãn bia "GLENN BEER". Chất lỏng là mô phỏng Water2D (metaball) vẽ qua RenderTexture.
+  - Vì thế game giữ vòng `AutoQTE` của `StaffActionInfo`.
+
+### Màu của shader hạt [ĐO TRONG REPO, 2026-09-24]
+
+Đọc từ mã DXBC (cùng cách với shader flow bên dưới). Mọi shader hạt riêng của game **nhân đôi màu**, không chỉ Legacy:
+
+| shader | màu ra |
+|---|---|
+| `ProjectDR/UI/Additive`, `ProjectDR/UI/Alpha Blended` | 2 · ảnh · màu hạt · `_Color` |
+| `ProjectDR/VFX/Additive`, `AdditiveNoFog` | 2 · ảnh · màu hạt · `_TintColor` |
+| `ProjectDR/VFX/Alpha Blended` (cả NoFog) | 2 · ảnh · màu hạt (không dùng `_TintColor`) |
+| `Mobile/Particles/Alpha Blended` | ảnh · màu hạt |
+| `Sprites/Default` | ảnh · màu hạt, nhân trước alpha (= pha alpha thường) |
+
+- Alpha ra bị kẹp ở 1. Với cộng sáng, rgb có thể > 1: `js/bar.js` dồn độ sáng vào globalAlpha, vượt 1 thì vẽ chồng nhiều lượt.
+- Bản trước chỉ nhân đôi cho `Legacy Shaders/Particles`. Các hiệu ứng UI (khách vui, vàng bay, trà perfect) vì thế chỉ còn một nửa độ sáng.
+
+### Khói nấu: hạt mesh + shader flow [ĐO TRONG REPO, 2026-09-24]
+
+- Cụm khói có 5 hệ hạt:
+  - `Smoke`, `Smoke_Dura`: billboard `E_Smoke_03A`;
+  - `Ash`, `Ash_Dura`: billboard kéo dài, cộng sáng, có Noise;
+  - `Smoke_Flow`: hạt **mesh** `E_M_Circle_02A`, một dải cong phẳng 76 đỉnh, 108 tam giác, z ≈ 0.
+- Bốn hệ đầu có Transform quay −90° quanh x. Hình nón (trục +z) nhờ thế hướng lên +y.
+  - Bản trước không bóc phép quay, nên phải tự dựng nón đứng lên. Giờ `dump_node` ghi `q` (quaternion), phòng ghi `q` thế giới của từng hệ hạt.
+- Khói trôi sang trái nhờ `ForceModule` x −0,5 (không gian thế giới). Bản trước không bóc mô-đun này.
+- Shader `ProjectJDLC/VFX/VFX_SH_FlowB_Alpha_J` là ShaderGraph, tên thuộc tính bị băm (`Vector4_141c…`).
+  - Tên đọc được nằm ở `Shader.m_ParsedForm.m_PropInfo.m_Props[].m_Description`. Tool xuất `render.props` theo tên đó.
+- Công thức lấy từ mã máy: giải nén `Shader.compressedBlob` (LZ4), tìm các khối `DXBC`, dịch ngược bằng `D3DDisassemble` của `d3dcompiler_47.dll` (có sẵn trong Windows).
+  - Bảng hằng `UnityPerMaterial` (cb1) xếp theo thứ tự thuộc tính.
+  - t1 = MainTex, t2 = MaskTex, t3 = FlowTex, `cb0[19].x` = `_TimeParameters.x`.
+  - `TEXCOORD1` = luồng đỉnh Custom1.xyzw (`m_VertexStreams` 0 1 3 4 5 34). Custom1 xy là số ngẫu nhiên 0..1 mỗi hạt.
+  ```
+  uvFlow = uv·FlowST.xy + FlowST.zw + t·FlowSpeed.xy + custom1.xy
+  uvMain = uv·MainST.xy + MainST.zw + t·Speed.xy + custom1.zw + FlowTex(uvFlow).xy · FlowPower
+  uvMask = uv·MaskST.xy + MaskST.zw + t·Speed.zw
+  rgb = màu đỉnh · MainTexColor(2,519) · Main · Mask;   a = màu đỉnh.a · Main.a · Mask.a
+  ```
+- `E_Steam_03A_J` wrap Clamp; ảnh nhiễu và mặt nạ wrap Repeat. Kênh alpha của ảnh hơi nước chỉ tới 52/255.
+  - Vì thế lớp flow gốc chỉ là làn hơi rất mờ. Phần khói thấy rõ là `Smoke` / `Smoke_Dura`.
+- Game dựng lại ở canvas: mỗi hạt vẽ ảnh uv 64×64 theo công thức trên, rồi dán lên từng tam giác của mesh bằng ánh xạ afin.
+- Không làm: `DepthFade` (làm mờ theo bộ đệm độ sâu 3D, quán 2D không có).
+- Chỉ xuất ảnh phụ của shader riêng đã dựng lại (`REBUILT_SHADER`). `Add_CenterGlow` của sóng biển chỉ ghi tên ảnh, nếu không sẽ kéo thêm ~1 MB ảnh nhiễu.
+- Mô-đun hạt tool chưa bóc được ghi ở `unhandledModules`.
 
 ### Tiếng
 
@@ -92,9 +170,9 @@ Tool không vẽ thêm và không nội suy khung. Thứ game gốc không có t
 | mèo | 8 anim, 66 khung | 12 KB |
 | khách | 45 khách × 11 anim | ~0,6 MB |
 | món | 64 món cá + 4 món chung + trà | 0,3 MB |
-| UI + VFX | 25 prefab UI (267 sprite, 51 clip), 20 prefab VFX (74 ảnh) | ~4,6 MB |
+| UI + VFX | 25 prefab UI + 4 nhánh con (303 sprite, 54 clip), 20 prefab VFX (78 ảnh, 4 mesh) | ~7,5 MB |
 | tiếng | 46 tệp | 2,9 MB |
-| tổng art/bar | 509 png + json bố cục | 6,6 MB |
+| tổng art/bar | 549 png + json bố cục | 9,3 MB (lần đánh bóng 2026-09-24: +1,1 MB ảnh mới, chủ yếu rèm cuối ca, dải kết quả, ảnh nhiễu của khói) |
 
 ### Bẫy đã sập
 
@@ -104,5 +182,12 @@ Tool không vẽ thêm và không nội suy khung. Thứ game gốc không có t
 - **Không đọc `m_fontAsset` của TextMeshPro.** Font nằm trong bundle 50 MB, chỉ để lấy tên.
 - **`script_name` nuốt lỗi.** `m_Script` của Image/TMP nằm ở bundle MonoScript khác. Nuốt `FileNotFoundError` thì with_deps không biết nạp thêm. Tool nhận Image/TMP theo trường typetree (`m_Sprite`+`m_FillMethod`, `m_text`).
 - **Hai loa trùng tên** `Sushi_Column_Speaker_Lv2`. Đồ động đặt tên theo GameObject cha (`Sushi_Column_Speaker_L/R`).
+- **"Quầng tối" sau khi phục vụ.** `VFX_UI_Customer_Pop_Re` là viền sáng hình bong bóng, lõi trong suốt.
+  - Trong prefab nó là con của bong bóng `Order`. Bong bóng tắt thì hạt tắt ngay theo GameObject.
+  - Bản trước chỉ `stop()`, nên viền mờ còn lơ lửng ~0,5 s quanh chỗ trống. Nhìn thành một đĩa đen có viền.
+  - Giờ tắt hẳn bằng `killFx`. Cách phân biệt: điểm ảnh trong "đĩa" bằng đúng màu nền, chỉ viền sáng hơn. Không có gì bị vẽ tối đi.
+  - Đĩa đen có vòng vàng sau lưng mặt cười lúc khách ăn là `EatGauge` gốc (`Circle_38` đen 86 %, vòng `Circle_36_Stroke` chạy theo thời gian ăn). Đó không phải lỗi.
+- **Regex shader "thường" hụt `Alpha Blended NoFog`** (có dấu cách). Hệ `Smoke` bị coi là shader riêng, nên game bỏ không vẽ, và khói nấu chỉ còn tàn lửa. Kiểm bằng `HX.bar.debug.fx()`: đếm hệ hạt đang sống.
+- **Thêm trường vào manifest khi tool đang chạy thì trường mới không vào.** Python đã nạp `rip_bar.py` lúc khởi động. Sửa xong phải chạy lại phần đó.
 - **Xoá thư mục phòng sai lúc.** `rmtree(art/bar/room)` phải chạy đầu `_room`, không thì xoá mất ảnh hạt vừa ghi.
 - `python` trên máy là shim `.bat`: đối số có `|`, `(`, `)` bị cmd cắt. Gọi thẳng `C:\Users\tamph\.pyenv\pyenv-win\versions\3.8.10\python.exe` khi cần regex.

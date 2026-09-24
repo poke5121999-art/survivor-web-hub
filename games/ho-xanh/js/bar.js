@@ -70,6 +70,22 @@
     Sushi_Comb_Jelly_Name: 'Sushi sứa lược', Sushi_BloodbellyCombJelly_Name: 'Sushi sứa lược bụng máu', Sushi_RedBream_Name: 'Sushi cá tráp đỏ',
   };
 
+  // Câu nói của khách (bảng chữ gốc Talk_Sushibar_*, tiếng Anh), dự án tự dịch. Khoá = khoá chữ gốc.
+  var VI_TALK = {
+    Talk_Sushibar_Wating_001: 'Món này có vẻ được đây!', Talk_Sushibar_Wating_002: 'Trông ngon quá!',
+    Talk_Sushibar_Wating_003: 'Cho tôi món này!', Talk_Sushibar_Wating_004: 'Chảy nước miếng rồi...',
+    Talk_Sushibar_Wating_005: 'Ăn thử món gì đây ta?', Talk_Sushibar_Wating_006: 'Quán này có gì đó khác lạ.',
+    Talk_Sushibar_Wating_007: 'Không biết món nào ngon nhỉ?',
+    Talk_Sushibar_Angry_001: 'Món ra chậm quá...', Talk_Sushibar_Angry_002: 'Đói quá đi mất...',
+    Talk_Sushibar_Angry_003: 'Trễ hẹn mất thôi...', Talk_Sushibar_Angry_004: 'Bao giờ mới có món đây...',
+    Talk_Sushibar_Angry_005: 'Nhanh giùm cái...', Talk_Sushibar_Angry_006: 'Trời ơi... đói muốn xỉu...',
+    Talk_Sushibar_Angry_007: 'Hết chịu nổi rồi...',
+    Talk_Sushibar_Eating_001: 'Chà... ngon ghê.', Talk_Sushibar_Eating_002: 'Ừm... thích đấy.',
+    Talk_Sushibar_Eating_003: 'Tan ngay trong miệng!', Talk_Sushibar_Eating_004: 'Ngon hết sẩy!',
+    Talk_Sushibar_Eating_005: 'Đúng vị này rồi!', Talk_Sushibar_Eating_006: 'Ngon hơn mình tưởng nhiều!',
+    Talk_Sushibar_Eating_007: 'Oa, tuyệt quá!',
+  };
+
   // Số ngẫu nhiên có hạt giống cho bộ kiểm (HX.bar.debug.seed); hạt null thì dùng Math.random.
   var seed = null;
   function rnd() {
@@ -175,6 +191,7 @@
       case 9: return 1 - Math.pow(1 - t, 3);
       case 27: { var c1 = 1.70158; return 1 + (c1 + 1) * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
       case 30: return bounceOut(t);
+      case 31: return t < 0.5 ? (1 - bounceOut(1 - 2 * t)) / 2 : (1 + bounceOut(2 * t - 1)) / 2;
       case 37: return curve ? evalKeys(curve, t) : t;
       default: return t * (2 - t);
     }
@@ -226,6 +243,9 @@
         case 'm_AnchoredPosition.x': o.x = v; break;
         case 'm_AnchoredPosition.y': o.y = v; break;
         case 'm_Color.a': o.a = v; break;
+        case 'm_Color.r': o.cr = v; break;
+        case 'm_Color.g': o.cg = v; break;
+        case 'm_Color.b': o.cb = v; break;
         case 'm_Alpha': o.ga = v; break;
         case 'm_IsActive': o.active = v >= 0.5; break;
         case 'localEulerAngles.z': o.rot = v; break;
@@ -279,30 +299,180 @@
     return [x, y, z];
   }
 
+  // Quaternion [x, y, z, w] của Unity (trục y lên). Hệ hạt phát theo trục cục bộ rồi xoay theo Transform của nó.
+  var Q0 = [0, 0, 0, 1];
+  function qmul(a, b) {
+    return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+      a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
+  }
+  function qrot(q, v) {
+    var x = q[0], y = q[1], z = q[2], w = q[3];
+    var tx = 2 * (y * v[2] - z * v[1]), ty = 2 * (z * v[0] - x * v[2]), tz = 2 * (x * v[1] - y * v[0]);
+    return [v[0] + w * tx + y * tz - z * ty, v[1] + w * ty + z * tx - x * tz, v[2] + w * tz + x * ty - y * tx];
+  }
+  function qz(deg) { var h = deg * Math.PI / 360; return [0, 0, Math.sin(h), Math.cos(h)]; }
+  // Quay cục bộ của một nút bố cục: quaternion đầy đủ (n.q) nếu có quay quanh x/y, không thì rotZ.
+  function nodeQ(n) { return n.q ? n.q : n.rotZ ? qz(n.rotZ) : null; }
+
+  // Nhiễu giá trị 3D mượt (hàm băm + nội suy bậc năm) cho mô-đun Noise. Unity dùng nhiễu Perlin riêng;
+  // tham số (strength, frequency, scrollSpeed, octaves, damping) là số gốc, hàm nhiễu là thay thế [ĐỀ XUẤT].
+  function hash3(x, y, z) {
+    var h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 1274126177);
+    h = Math.imul(h ^ (h >>> 13), 1103515245);
+    return ((h ^ (h >>> 16)) & 0xffff) / 32767.5 - 1;
+  }
+  function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  function vnoise(x, y, z) {
+    var X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z), u = fade(x - X), v = fade(y - Y), w = fade(z - Z);
+    function L(a, b, t) { return a + (b - a) * t; }
+    return L(L(L(hash3(X, Y, Z), hash3(X + 1, Y, Z), u), L(hash3(X, Y + 1, Z), hash3(X + 1, Y + 1, Z), u), v),
+      L(L(hash3(X, Y, Z + 1), hash3(X + 1, Y, Z + 1), u), L(hash3(X, Y + 1, Z + 1), hash3(X + 1, Y + 1, Z + 1), u), v), w);
+  }
+
+  // Mesh của hạt dạng mesh (art/bar/**/mesh/*.json) và điểm ảnh của ảnh mà shader flow lấy mẫu.
+  var MESH = {}, PIX = {};
+  function meshSrc(name) { return name ? (BA.vfx.meshes && BA.vfx.meshes[name]) || (R.emitterMeshes && R.emitterMeshes[name]) || null : null; }
+  function texInfo(name) { return BA.vfx.textures[name] || R.emitterTextures[name] || null; }
+  function pixels(name) {
+    var p = PIX[name];
+    if (p) return p.data ? p : null;
+    var I = TEX[name] ? img(TEX[name]) : null;
+    if (!ok(I)) return null;
+    var cv = document.createElement('canvas');
+    cv.width = I.naturalWidth; cv.height = I.naturalHeight;
+    var x = cv.getContext('2d');
+    x.drawImage(I, 0, 0);
+    var inf = texInfo(name) || {};
+    p = PIX[name] = { w: cv.width, h: cv.height, data: x.getImageData(0, 0, cv.width, cv.height).data, clamp: !!(inf.wrap && inf.wrap[0] === 1) };
+    return p;
+  }
+  // Lấy mẫu song tuyến tại (u, v) kiểu Unity (v = 0 ở đáy ảnh), trả 0..1 vào out[0..3].
+  function tex2D(P, u, v, out) {
+    var w = P.w, h = P.h, x = u * w - 0.5, y = (1 - v) * h - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, d = P.data;
+    function ix(a, n) { return P.clamp ? (a < 0 ? 0 : a >= n ? n - 1 : a) : ((a % n) + n) % n; }
+    var xa = ix(x0, w), xb = ix(x0 + 1, w), ya = ix(y0, h), yb = ix(y0 + 1, h);
+    var i00 = (ya * w + xa) * 4, i10 = (ya * w + xb) * 4, i01 = (yb * w + xa) * 4, i11 = (yb * w + xb) * 4;
+    for (var c = 0; c < 4; c++) {
+      var a = d[i00 + c] + (d[i10 + c] - d[i00 + c]) * fx, b = d[i01 + c] + (d[i11 + c] - d[i01 + c]) * fx;
+      out[c] = (a + (b - a) * fy) / 255;
+    }
+    return out;
+  }
+
+  // Shader ProjectJDLC/VFX/VFX_SH_FlowB_Alpha_J (hơi nước của Bancho), dựng lại theo mã DXBC đã dịch ngược
+  // (tools/README-bar.md "Khói nấu"): uvFlow = uv·FlowST.xy + FlowST.zw + t·FlowSpeed.xy + custom1.xy;
+  // uvMain = uv·MainST.xy + MainST.zw + t·Speed.xy + custom1.zw + FlowTex(uvFlow).xy·FlowPower;
+  // uvMask = uv·MaskST.xy + MaskST.zw + t·Speed.zw; màu = MainTex·MaskTex; rgb ·= màu đỉnh·MainTexColor; a ·= màu đỉnh.a.
+  var FLOW_W = 64, FLOW_H = 64;
+  function Flow(props) {
+    this.p = props;
+    this.cv = document.createElement('canvas'); this.cv.width = FLOW_W; this.cv.height = FLOW_H;
+    this.x = this.cv.getContext('2d');
+    this.id = this.x.createImageData(FLOW_W, FLOW_H);
+  }
+  Flow.prototype.ready = function () {
+    var p = this.p;
+    return !!(pixels(p.MainTex) && pixels(p.MaskTex) && pixels(p.FlowTex));
+  };
+  // Vẽ ảnh của một hạt trong không gian uv (FLOW_W × FLOW_H), t = giây shader (_TimeParameters.x), c = màu đỉnh, cu = Custom1.
+  Flow.prototype.render = function (t, c, cu) {
+    var p = this.p, M = pixels(p.MainTex), K = pixels(p.MaskTex), F = pixels(p.FlowTex);
+    var mst = p['MainTex Tiling XY/ Offset ZW'] || [1, 1, 0, 0], kst = p['MaskTex Tiling XY/ Offset ZW'] || [1, 1, 0, 0];
+    var fst = p['FlowTex Tiling XY/ Offset ZW'] || [1, 1, 0, 0], fsp = p['FlowTex Speed XY /  Power Z'] || [0, 0, 0, 0];
+    var spd = p['Speed MainTex  XY /  MaskTex  Z/W'] || [0, 0, 0, 0], mc = p.MainTexColor || [1, 1, 1, 1];
+    var d = this.id.data, a = [0, 0, 0, 0], b = [0, 0, 0, 0], f = [0, 0, 0, 0], i = 0;
+    var r0 = c[0] * mc[0] * 255, g0 = c[1] * mc[1] * 255, b0 = c[2] * mc[2] * 255, a0 = c[3] * 255;
+    for (var y = 0; y < FLOW_H; y++) {
+      var v = 1 - (y + 0.5) / FLOW_H;
+      for (var x = 0; x < FLOW_W; x++, i += 4) {
+        var u = (x + 0.5) / FLOW_W;
+        tex2D(F, u * fst[0] + fst[2] + t * fsp[0] + cu[0], v * fst[1] + fst[3] + t * fsp[1] + cu[1], f);
+        tex2D(M, u * mst[0] + mst[2] + t * spd[0] + cu[2] + f[0] * fsp[2], v * mst[1] + mst[3] + t * spd[1] + cu[3] + f[1] * fsp[2], a);
+        tex2D(K, u * kst[0] + kst[2] + t * spd[2], v * kst[1] + kst[3] + t * spd[3], b);
+        d[i] = a[0] * b[0] * r0; d[i + 1] = a[1] * b[1] * g0; d[i + 2] = a[2] * b[2] * b0; d[i + 3] = a[3] * b[3] * a0;
+      }
+    }
+    this.x.putImageData(this.id, 0, 0);
+    return this.cv;
+  };
+  // Tam giác có ảnh: ánh xạ afin điểm ảnh nguồn (s0..s2) lên đích (d0..d2), cắt theo tam giác (nới 0,6 px cho khỏi hở mép).
+  function texTri(ctx, I, s, d) {
+    var x0 = d[0], y0 = d[1], x1 = d[2], y1 = d[3], x2 = d[4], y2 = d[5];
+    var u0 = s[0], v0 = s[1], u1 = s[2], v1 = s[3], u2 = s[4], v2 = s[5];
+    var den = (u1 - u0) * (v2 - v0) - (u2 - u0) * (v1 - v0);
+    if (Math.abs(den) < 1e-6) return;
+    var a = ((x1 - x0) * (v2 - v0) - (x2 - x0) * (v1 - v0)) / den, b = ((x2 - x0) * (u1 - u0) - (x1 - x0) * (u2 - u0)) / den;
+    var c = ((y1 - y0) * (v2 - v0) - (y2 - y0) * (v1 - v0)) / den, e = ((y2 - y0) * (u1 - u0) - (y1 - y0) * (u2 - u0)) / den;
+    var cx = (x0 + x1 + x2) / 3, cy = (y0 + y1 + y2) / 3;
+    function g(x, y) { var dx = x - cx, dy = y - cy, l = Math.sqrt(dx * dx + dy * dy) || 1; return [x + dx / l * 0.6, y + dy / l * 0.6]; }
+    var p0 = g(x0, y0), p1 = g(x1, y1), p2 = g(x2, y2);
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.closePath();
+    ctx.clip();
+    ctx.transform(a, c, b, e, x0 - a * u0 - b * v0, y0 - c * u0 - e * v0);
+    ctx.drawImage(I, 0, 0);
+    ctx.restore();
+  }
+
+  // Màu ra của shader hạt, đọc từ mã DXBC đã dịch ngược (tools/README-bar.md "Màu của shader hạt"):
+  //   ProjectDR/UI/Additive, ProjectDR/UI/Alpha Blended: 2 · ảnh · màu hạt · _Color
+  //   ProjectDR/VFX/Additive, AdditiveNoFog:             2 · ảnh · màu hạt · _TintColor
+  //   ProjectDR/VFX/Alpha Blended (cả NoFog):            2 · ảnh · màu hạt (không dùng _TintColor)
+  //   Legacy Shaders/Particles/*:                        2 · ảnh · màu hạt · _TintColor
+  //   URP Particles/Unlit: ảnh · màu hạt · _BaseColor; Mobile, Sprites/Default, UI/*, Unlit/*: ảnh · màu hạt (· _Color)
+  // Alpha ra bị kẹp ở 1. Bản trước chỉ nhân 2 cho Legacy: các hiệu ứng UI (ánh sáng khi khách vui, vàng bay, trà
+  // perfect…) chỉ còn một nửa độ sáng, vòng sáng mờ trông như một quầng tối.
+  function shaderColor(Rd) {
+    var sh = Rd.shader || '', t = Rd.tint || {}, one = [1, 1, 1, 1];
+    if (/^ProjectDR\/UI\/(Additive|Alpha Blended)/.test(sh)) return { gain: 2, tint: t._Color || one };
+    if (/^ProjectDR\/VFX\/Additive/.test(sh)) return { gain: 2, tint: t._TintColor || one };
+    if (/^ProjectDR\/VFX\/Alpha Blended/.test(sh)) return { gain: 2, tint: one };
+    if (/^Legacy Shaders\/Particles/.test(sh)) return { gain: 2, tint: t._TintColor || one };
+    if (/^Universal Render Pipeline\/Particles/.test(sh)) return { gain: 1, tint: t._BaseColor || one };
+    if (/^Mobile\//.test(sh)) return { gain: 1, tint: one };
+    return { gain: 1, tint: t._Color || one };
+  }
+  // Màu đã nhân (có thể > 1) → cách vẽ trên canvas. Cộng sáng: phần góp = rgb·a, dồn độ sáng vào globalAlpha
+  // (giữ đúng sắc màu), vượt 1 thì vẽ chồng n lượt. Pha alpha: kẹp rgb và a về [0, 1].
+  function paintOf(c, add) {
+    if (!add) return { col: [Math.min(1, c[0]), Math.min(1, c[1]), Math.min(1, c[2])], a: clamp(c[3], 0, 1), n: 1 };
+    var a = Math.min(1, c[3]), e0 = c[0] * a, e1 = c[1] * a, e2 = c[2] * a, m = Math.max(e0, e1, e2);
+    if (m <= 0.002) return { col: [0, 0, 0], a: 0, n: 0 };
+    var n = Math.ceil(m - 1e-6);
+    return { col: [e0 / m, e1 / m, e2 / m], a: m / n, n: n };
+  }
+
   // ---------- hạt: bộ con của Unity ParticleSystem, chạy lại đúng tham số đã bóc ----------
-  // x, y: gốc phát (px của không gian vẽ); k: px mỗi đơn vị của hệ hạt; sx, sy: tỉ lệ cộng dồn theo cây.
+  // x, y: gốc phát (px của không gian vẽ); k: px mỗi đơn vị của hệ hạt; sx, sy: tỉ lệ cộng dồn theo cây;
+  // o.q: quaternion thế giới của hệ hạt (hướng phát, vận tốc cục bộ, lực cục bộ đều xoay theo nó).
+  // Hạt lưu vị trí + vận tốc bằng đơn vị Unity (y lên) tính từ gốc phát; chỉ đổi sang px lúc vẽ.
   function Emitter(p, x, y, k, o) {
     o = o || {};
     var Rd = p.render || {};
-    this.p = p; this.x = x; this.y = y; this.k = k; this.sx = o.sx || 1; this.sy = o.sy || 1;
-    this.parts = []; this.t = -(p.startDelay || 0) - (o.delay || 0); this.acc = 0; this.cycle = 0; this.fired = {};
-    this.stopped = false; this.stopReq = false;
+    this.p = p; this.x = x; this.y = y; this.k = k; this.sx = o.sx || 1; this.sy = o.sy || 1; this.q = o.q || Q0;
+    this.parts = []; this.t = -mm(p.startDelay, 0, Math.random()) - (o.delay || 0); this.acc = 0; this.cycle = 0; this.fired = {};
+    this.stopped = false; this.stopReq = false; this.clock = 0;
     this.add = Rd.blend === 'SrcAlpha+One' || Rd.blend === 'One+One';
     this.tex = TEX[Rd.texture] ? img(TEX[Rd.texture]) : sprite(Rd.texture);
-    var tn = Rd.tint && (Rd.tint._TintColor || Rd.tint._Color || Rd.tint._BaseColor) || [1, 1, 1, 1];
-    var two = /^Legacy Shaders\/Particles/.test(Rd.shader || '') ? 2 : 1;
-    this.tint = [Math.min(1, tn[0] * two), Math.min(1, tn[1] * two), Math.min(1, tn[2] * two), Math.min(1, tn[3] * two)];
+    var sc = shaderColor(Rd);
+    this.tint = sc.tint; this.gain = sc.gain;
     this.sheet = p.sheet && p.sheet.tilesX ? p.sheet : null;
     this.stretch = Rd.mode === 'stretch';
+    this.mesh = Rd.mode === 'mesh' ? MESH[Rd.mesh] || null : null;
+    this.flow = this.mesh && /FlowB/.test(Rd.shader || '') && Rd.props ? new Flow(Rd.props) : null;
+    this.fudge = Rd.sortingFudge || 0;
     this.speedMul = p.simulationSpeed || 1;
     this.max = p.maxParticles || 1000;
     if (p.prewarm && p.loop) for (var i = 0; i < (p.duration || 1) * 20; i++) this.update(1 / 20);
   }
   Emitter.prototype.alive = function () { return !this.stopped || this.parts.length > 0; };
   Emitter.prototype.stop = function () { this.stopReq = true; if (!this.p.loop || this.t >= 0) this.stopped = true; };
+  // vector cục bộ của hệ hạt → hướng thế giới (bỏ qua khi mô-đun đặt inWorldSpace)
+  Emitter.prototype.toWorld = function (v, world) { return world || this.q === Q0 ? v : qrot(this.q, v); };
   Emitter.prototype.update = function (dt) {
     var p = this.p, self = this;
     dt *= this.speedMul;
+    this.clock += dt;
     if (!this.stopped) {
       this.t += dt;
       if (this.t >= 0) {
@@ -312,119 +482,188 @@
         }
         if (!this.stopped) {
           this.acc += Math.max(0, mm(p.rate, ct / dur, Math.random())) * dt;
-          while (this.acc >= 1) { this.acc -= 1; this.emit(); }
+          while (this.acc >= 1) { this.acc -= 1; this.emit(ct / dur); }
           (p.bursts || []).forEach(function (b, i) {
             if (self.fired[i] || ct < b.t) return;
             self.fired[i] = 1;
             var n = Math.round(mm(b.count, 0, Math.random()));
-            for (var j = 0; j < n; j++) self.emit();
+            for (var j = 0; j < n; j++) self.emit(ct / dur);
           });
         }
       }
     }
-    var g = 9.81 * this.k * this.sy;
+    var g = -9.81, vo = p.velocityOverLife, fo = p.forceOverLife, nz = p.noise;
     for (var i = this.parts.length - 1; i >= 0; i--) {
       var q = this.parts[i];
       q.age += dt;
       if (q.age >= q.life) { this.parts.splice(i, 1); continue; }
       var f = q.age / q.life;
-      q.vy += g * mm(p.gravity, f, q.r1) * dt;
-      q.x += q.vx * dt; q.y += q.vy * dt;
-      var vo = p.velocityOverLife;
-      if (vo) {
-        var sm = vo.speedModifier == null ? 1 : vo.speedModifier;
-        q.x += mm(vo.x, f, q.r2) * sm * this.k * this.sx * dt;
-        q.y -= mm(vo.y, f, q.r3) * sm * this.k * this.sy * dt;
+      q.v[1] += g * mm(p.gravity, f, q.r1) * dt;
+      if (fo) {
+        var fa = this.toWorld([mm(fo.x, f, q.r5), mm(fo.y, f, q.r5), mm(fo.z, f, q.r5)], fo.inWorldSpace);
+        q.v[0] += fa[0] * dt; q.v[1] += fa[1] * dt; q.v[2] += fa[2] * dt;
       }
+      var mx = q.v[0], my = q.v[1];
+      if (vo) {
+        var sm = vo.speedModifier == null ? 1 : mm(vo.speedModifier, f, q.r2);
+        var va = this.toWorld([mm(vo.x, f, q.r2) * sm, mm(vo.y, f, q.r3) * sm, mm(vo.z, f, q.r3) * sm], vo.inWorldSpace);
+        mx += va[0]; my += va[1];
+      }
+      if (nz) {
+        // Noise: độ dời mỗi giây = nhiễu(vị trí·tần số + cuộn·thời gian) · strength · positionAmount (damping: chia tần số)
+        var fr = nz.frequency || 1, sc = mm(nz.scrollSpeed, f, 0) * this.clock, amt = nz.positionAmount == null ? 1 : mm(nz.positionAmount, f, 0);
+        var st = mm(nz.strength, f, q.r4) * amt / (nz.damping ? fr : 1), sty = nz.separateAxes ? mm(nz.strengthY, f, q.r4) * amt / (nz.damping ? fr : 1) : st;
+        var nx = 0, ny = 0, oa = 1, of = fr, oc = Math.max(1, nz.octaves || 1);
+        for (var o = 0; o < oc; o++) {
+          nx += vnoise(q.p[0] * of + 17.3, q.p[1] * of, sc + q.ph) * oa;
+          ny += vnoise(q.p[0] * of, q.p[1] * of + 41.7, sc + q.ph) * oa;
+          oa *= nz.octaveMultiplier || 0.5; of *= nz.octaveScale || 2;
+        }
+        mx += nx * st; my += ny * sty;
+      }
+      q.p[0] += mx * dt; q.p[1] += my * dt; q.p[2] += q.v[2] * dt;
+      q.vis = [mx, my];
       q.rot += q.rotv * dt;
     }
   };
-  Emitter.prototype.emit = function () {
+  // Một hạt mới: hình phát (cục bộ của mô-đun Shape, xoay theo Shape.rot rồi theo Transform của hệ), tốc độ đầu, cỡ, màu.
+  Emitter.prototype.emit = function (sysT) {
     if (this.parts.length >= this.max) return;
     var p = this.p, sh = p.shape, r = Math.random, pos = [0, 0, 0], dir = [0, 0, 1];
     if (sh && sh.type != null) {
-      var ty = sh.type, R0 = sh.radius || 0, arc = (sh.arc == null ? 360 : sh.arc) * Math.PI / 180, a;
-      if (ty === 'circle' || ty === 'donut' || ty === 10) {
+      var ty = sh.type, R0 = sh.radius || 0, th = sh.radiusThickness == null ? 1 : sh.radiusThickness;
+      var arc = (sh.arc == null ? 360 : sh.arc) * Math.PI / 180, a, rr = R0 * (1 - th * r());
+      if (ty === 'circle' || ty === 'donut') {
         a = r() * arc;
-        var rr = ty === 'donut' ? R0 : R0 * r();
         pos = [Math.cos(a) * rr, Math.sin(a) * rr, 0]; dir = [Math.cos(a), Math.sin(a), 0];
-      } else if (ty === 'box' || ty === 5) {
-        pos = [r() - 0.5, r() - 0.5, 0]; dir = [0, 0, 1];
-      } else if (ty === 'cone' || ty === 4) {
-        a = r() * Math.PI * 2;
-        var fr = r(), tn = Math.tan((sh.angle || 0) * Math.PI / 180) * fr;
-        pos = [Math.cos(a) * R0 * fr, Math.sin(a) * R0 * fr, 0];
-        var l = Math.sqrt(tn * tn + 1);
+      } else if (ty === 'box' || ty === 'rectangle') {
+        pos = [r() - 0.5, r() - 0.5, ty === 'box' ? r() - 0.5 : 0]; dir = [0, 0, 1];
+      } else if (ty === 'cone' || ty === 'coneVolume') {
+        a = r() * arc;
+        var fr = rr / (R0 || 1), tn = Math.tan((sh.angle || 0) * Math.PI / 180) * fr, l = Math.sqrt(tn * tn + 1);
+        pos = [Math.cos(a) * rr, Math.sin(a) * rr, 0];
         dir = [Math.cos(a) * tn / l, Math.sin(a) * tn / l, 1 / l];
-      } else if (ty === 'edge' || ty === 12) {
+      } else if (ty === 'edge') {
         pos = [(r() * 2 - 1) * R0, 0, 0]; dir = [0, 1, 0];
       } else {   // sphere / hemisphere
-        var u = r() * 2 - 1, th = r() * Math.PI * 2, sq = Math.sqrt(1 - u * u);
-        dir = [sq * Math.cos(th), sq * Math.sin(th), Math.abs(u)];
-        if (ty === 2 || ty === 'hemisphere') dir = [sq * Math.cos(th * 0.5), Math.abs(sq * Math.sin(th * 0.5)), u];
-        var rr2 = R0 * r();
-        pos = [dir[0] * rr2, dir[1] * rr2, dir[2] * rr2];
+        var u = r() * 2 - 1, ph = r() * Math.PI * 2, sq = Math.sqrt(1 - u * u);
+        dir = [sq * Math.cos(ph), sq * Math.sin(ph), ty === 'hemisphere' ? Math.abs(u) : u];
+        pos = [dir[0] * rr, dir[1] * rr, dir[2] * rr];
       }
-      var sc = sh.scale || [1, 1];
-      pos[0] *= sc[0]; pos[1] *= sc[1];
+      var sc = sh.scale || [1, 1, 1];
+      pos = [pos[0] * sc[0], pos[1] * sc[1], pos[2] * (sc[2] == null ? 1 : sc[2])];
       if (sh.rot) { pos = rot3(pos, sh.rot); dir = rot3(dir, sh.rot); }
-      // [ĐỀ XUẤT] hình nón mặc định của Unity hướng +z (vào màn hình). Transform của hệ hạt không được bóc,
-      // nên dựng nón đứng lên (+y) như hệ hạt tạo trong Editor (xoay −90° quanh x): khói bốc lên thay vì đứng yên.
-      if (ty === 'cone' || ty === 4) { pos = [pos[0], pos[2], -pos[1]]; dir = [dir[0], dir[2], -dir[1]]; }
-      if (sh.pos) { pos[0] += sh.pos[0]; pos[1] += sh.pos[1]; }
+      if (sh.pos) { pos[0] += sh.pos[0]; pos[1] += sh.pos[1]; pos[2] += sh.pos[2] || 0; }
     }
-    var sp = mm(p.speed, 0, r()), k = this.k, col = p.color, c0;
+    if (this.q !== Q0) { pos = qrot(this.q, pos); dir = qrot(this.q, dir); }
+    var sp = mm(p.speed, sysT || 0, r()), col = p.color, c0, m = r();
     if (col && col.randomColor) {
-      var m = r(), A = col.randomColor[0], B = col.randomColor[1];
+      var A = col.randomColor[0], B = col.randomColor[1];
       c0 = [A[0] + (B[0] - A[0]) * m, A[1] + (B[1] - A[1]) * m, A[2] + (B[2] - A[2]) * m, A[3] + (B[3] - A[3]) * m];
-    } else c0 = Array.isArray(col) ? col.slice() : [1, 1, 1, 1];
+    } else if (col && col.gradient) c0 = gradAt(col.gradient, sysT || 0);
+    else if (col && col.between) c0 = mixGrad(col.between, sysT || 0, m);
+    else if (col && col.randomGradient) c0 = gradAt(col.randomGradient, m);
+    else c0 = Array.isArray(col) ? col.slice() : [1, 1, 1, 1];
+    var sz = mm(p.size, sysT || 0, r());
+    var s3 = p.size3D ? [sz, mm(p.size3D[1], sysT || 0, r()), mm(p.size3D[2], sysT || 0, r())] : null;
+    var ro = p.rotationOverLife;
     this.parts.push({
-      x: this.x + pos[0] * k * this.sx, y: this.y - pos[1] * k * this.sy,
-      vx: dir[0] * sp * k * this.sx, vy: -dir[1] * sp * k * this.sy,
-      age: 0, life: Math.max(0.01, mm(p.lifetime, 0, r())), size: mm(p.size, 0, r()),
-      rot: mm(p.rotation, 0, r()), rotv: p.rotationOverLife ? mm(p.rotationOverLife.curve, 0, r()) : 0,
-      c0: c0, r1: r(), r2: r(), r3: r(), r4: r(), gr: r(), ph: r() * 6.283,
+      p: pos, v: [dir[0] * sp, dir[1] * sp, dir[2] * sp], vis: [dir[0] * sp, dir[1] * sp],
+      age: 0, life: Math.max(0.01, mm(p.lifetime, sysT || 0, r())), size: sz, s3: s3,
+      rot: mm(p.rotation, sysT || 0, r()), rotv: ro ? mm(ro.curve, 0, r()) : 0,
+      c0: c0, r1: r(), r2: r(), r3: r(), r4: r(), r5: r(), gr: r(), ph: r() * 100,
+      cu: p.custom1 ? p.custom1.map(function (v) { return mm(v, 0, r()); }).concat([0, 0, 0, 0]).slice(0, 4) : [0, 0, 0, 0],
     });
   };
   // V: {x0, y0, s, ox, oy} đổi toạ độ phát sang toạ độ vẽ (X = (x − x0)·s + ox)
   Emitter.prototype.draw = function (ctx, V) {
     var tex = this.tex, p = this.p;
-    if (!ok(tex) || !this.parts.length) return;
+    if (!this.parts.length) return;
+    if (this.mesh) { this.drawMesh(ctx, V); return; }
+    if (!ok(tex)) return;
     var sh = this.sheet, nx = sh ? sh.tilesX : 1, ny = sh ? sh.tilesY : 1;
     var fw = tex.naturalWidth / nx, fh = tex.naturalHeight / ny, nt = nx * ny;
+    var Rd = p.render || {}, maxPx = (Rd.maxParticleSize || 0) > 0 ? Rd.maxParticleSize * ctx.canvas.height : Infinity;
     ctx.globalCompositeOperation = this.add ? 'lighter' : 'source-over';
-    var noise = p.noise, col = p.colorOverLife, szl = p.sizeOverLife;
+    var col = p.colorOverLife, szl = p.sizeOverLife, ku = this.k * V.s;
     for (var i = 0; i < this.parts.length; i++) {
-      var q = this.parts[i], f = q.age / q.life, c = q.c0.slice();
-      if (col) {
-        var g = col.gradient ? gradAt(col.gradient, f) : col.between ? mixGrad(col.between, f, q.gr) : null;
-        if (g) { c[0] *= g[0]; c[1] *= g[1]; c[2] *= g[2]; c[3] *= g[3]; }
-      }
-      c[0] *= this.tint[0]; c[1] *= this.tint[1]; c[2] *= this.tint[2]; c[3] *= this.tint[3];
+      var q = this.parts[i], f = q.age / q.life, c = this.colorOf(q, f, col);
       if (c[3] <= 0.004) continue;
-      var size = q.size * (szl ? mm(szl.curve, f, q.r4) : 1) * this.k * V.s;
-      var w = size * this.sx, h = size * this.sy;
+      var sl = szl ? mm(szl.curve, f, q.r4) : 1, sly = szl && szl.separateAxes ? mm(szl.y, f, q.r4) : sl;
+      var w = Math.min(maxPx, (q.s3 ? q.s3[0] : q.size) * sl * ku) * this.sx, h = Math.min(maxPx, (q.s3 ? q.s3[1] : q.size) * sly * ku) * this.sy;
       if (w < 0.4 && h < 0.4) continue;
-      var X = (q.x - V.x0) * V.s + V.ox, Y = (q.y - V.y0) * V.s + V.oy;
-      if (noise && noise.strength) {
-        var ns = noise.strength * this.k * V.s, fq = (noise.frequency || 1) * 2;
-        X += Math.sin(q.age * fq + q.ph) * ns; Y += Math.cos(q.age * fq * 1.3 + q.ph) * ns;
-      }
+      var X = (this.x + q.p[0] * this.k * this.sx - V.x0) * V.s + V.ox, Y = (this.y - q.p[1] * this.k * this.sy - V.y0) * V.s + V.oy;
       var fx = 0, fy = 0;
       if (sh) {
         var fot = sh.frameOverTime ? mm(sh.frameOverTime, f, 0) : f;
         var fi = (Math.floor(fot * nt * (sh.cycles || 1)) + (sh.startFrame || 0)) % nt;
         fx = (fi % nx) * fw; fy = Math.floor(fi / nx) * fh;
       }
-      var src = tinted(tex, c);
-      ctx.globalAlpha = clamp(c[3], 0, 1);
+      var pc = paintOf(c, this.add);
+      if (!pc.n || pc.a <= 0.003) continue;
+      var src = tinted(tex, pc.col);
+      ctx.globalAlpha = pc.a;
       ctx.save();
       ctx.translate(X, Y);
-      if (this.stretch) { ctx.rotate(Math.atan2(q.vy, q.vx)); w *= 2; }
-      else if (q.rot) ctx.rotate(q.rot);
-      ctx.drawImage(src, fx, fy, fw, fh, -w / 2, -h / 2, w, h);
+      if (this.stretch) {
+        // billboard kéo dài: dài = cỡ·lengthScale + tốc độ·velocityScale (đơn vị), xoay theo hướng bay trên màn
+        var vx = q.vis[0] * this.sx, vy = -q.vis[1] * this.sy, spd = Math.sqrt(vx * vx + vy * vy);
+        ctx.rotate(Math.atan2(vy, vx));
+        var len = Math.max(0, (q.s3 ? q.s3[0] : q.size) * sl * (Rd.lengthScale == null ? 2 : Rd.lengthScale) + spd * (Rd.velocityScale || 0));
+        for (var pn = 0; pn < pc.n; pn++) ctx.drawImage(src, fx, fy, fw, fh, -len * ku / 2, -h / 2, len * ku, h);
+      } else {
+        if (q.rot) ctx.rotate(q.rot);
+        for (var pm = 0; pm < pc.n; pm++) ctx.drawImage(src, fx, fy, fw, fh, -w / 2, -h / 2, w, h);
+      }
       ctx.restore();
     }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  };
+  Emitter.prototype.colorOf = function (q, f, col) {
+    var c = q.c0.slice();
+    if (col) {
+      var g = col.gradient ? gradAt(col.gradient, f) : col.between ? mixGrad(col.between, f, q.gr) : null;
+      if (g) { c[0] *= g[0]; c[1] *= g[1]; c[2] *= g[2]; c[3] *= g[3]; }
+    }
+    var k = this.gain;
+    c[0] *= this.tint[0] * k; c[1] *= this.tint[1] * k; c[2] *= this.tint[2] * k; c[3] *= this.tint[3] * k;
+    return c;
+  };
+  // Hạt dạng mesh (mặt phẳng): đỉnh mesh · cỡ 3D, quay theo góc hạt, chiếu thẳng lên màn (mesh gốc nằm trên mặt z = 0).
+  // Shader flow: mỗi hạt vẽ ảnh uv riêng (Flow.render) rồi dán lên từng tam giác của mesh.
+  Emitter.prototype.drawMesh = function (ctx, V) {
+    var M = this.mesh, p = this.p, col = p.colorOverLife, szl = p.sizeOverLife, ku = this.k * V.s;
+    if (this.flow && !this.flow.ready()) return;
+    var n = M.v.length / 3, src = this.flow ? null : this.tex;
+    if (!this.flow && !ok(src)) return;
+    var sw = this.flow ? FLOW_W : src.naturalWidth, shh = this.flow ? FLOW_H : src.naturalHeight;
+    ctx.globalCompositeOperation = this.add ? 'lighter' : 'source-over';
+    var smooth = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = true;
+    for (var i = 0; i < this.parts.length; i++) {
+      var q = this.parts[i], f = q.age / q.life, c = this.colorOf(q, f, col);
+      if (c[3] <= 0.004) continue;
+      var sl = szl ? mm(szl.curve, f, q.r4) : 1, sly = szl && szl.separateAxes ? mm(szl.y, f, q.r4) : sl;
+      var ax = (q.s3 ? q.s3[0] : q.size) * sl, ay = (q.s3 ? q.s3[1] : q.size) * sly;
+      var cr = Math.cos(q.rot), sr = Math.sin(q.rot);
+      var X = (this.x + q.p[0] * this.k * this.sx - V.x0) * V.s + V.ox, Y = (this.y - q.p[1] * this.k * this.sy - V.y0) * V.s + V.oy;
+      var D = new Array(n * 2), S = new Array(n * 2);
+      for (var j = 0; j < n; j++) {
+        var mx = M.v[j * 3] * ax, my = M.v[j * 3 + 1] * ay, rx = mx * cr + my * sr, ry = -mx * sr + my * cr;
+        D[j * 2] = X + rx * ku * this.sx; D[j * 2 + 1] = Y - ry * ku * this.sy;
+        S[j * 2] = M.uv[j * 2] * sw; S[j * 2 + 1] = (1 - M.uv[j * 2 + 1]) * shh;
+      }
+      var I;
+      if (this.flow) { ctx.globalAlpha = 1; I = this.flow.render(this.clock, c, q.cu); }
+      else { var pk = paintOf(c, this.add); if (!pk.n) continue; ctx.globalAlpha = pk.a; I = tinted(src, pk.col); }
+      for (var t = 0; t < M.tri.length; t += 3) {
+        var a = M.tri[t], b = M.tri[t + 1], e = M.tri[t + 2];
+        texTri(ctx, I, [S[a * 2], S[a * 2 + 1], S[b * 2], S[b * 2 + 1], S[e * 2], S[e * 2 + 1]],
+          [D[a * 2], D[a * 2 + 1], D[b * 2], D[b * 2 + 1], D[e * 2], D[e * 2 + 1]]);
+      }
+    }
+    ctx.imageSmoothingEnabled = smooth;
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   };
@@ -436,16 +675,17 @@
     return (n.scripts || []).some(function (s) { return s === name || (s && typeof s === 'object' && s[name]); });
   }
   // Hạt vẽ được: có ảnh; hệ UI (UiParticles) tắt ParticleSystemRenderer nhưng vẫn hiện.
+  // Hạt mesh cần mesh đã nạp; shader riêng chỉ nhận loại đã dựng lại (FlowB của hơi nước Bancho).
   function renderable(n) {
     var p = n.particle;
     if (!p || !p.render) return false;
-    var tx = p.render.texture;
+    var Rd = p.render, tx = Rd.texture;
+    if (Rd.blend === 'Zero+Zero') return false;
+    if (Rd.enabled === false && !hasScript(n, 'UiParticles')) return false;
+    if (/FlowB/.test(Rd.shader || '')) return !!(Rd.mesh && Rd.props && meshSrc(Rd.mesh));
     if (!tx || tx === 'Default-Particle' || !(TEX[tx] || SPR[tx])) return false;
-    if (p.render.blend === 'Zero+Zero') return false;
-    // Hạt dạng mesh (mesh không bóc) và shader flow/mask tự viết (ảnh bóc được chỉ là mặt nạ, ảnh hơi nước chạy bên trong
-    // không có trong bản bóc): vẽ thẳng thì thành khối trắng đặc (Smoke_Flow của khói Bancho che mất Bancho). Bỏ qua.
-    if (p.render.mode === 'mesh' || /Flow|Mask/i.test(p.render.shader || '')) return false;
-    if (p.render.enabled === false && !hasScript(n, 'UiParticles')) return false;
+    if (Rd.mode === 'mesh' && !(Rd.mesh && meshSrc(Rd.mesh))) return false;
+    if (Rd.props) return false;   // shader riêng chưa dựng lại: vẽ thẳng ảnh là sai (khối trắng đặc)
     return true;
   }
 
@@ -476,7 +716,9 @@
     var s = (n.scripts || []).filter(function (x) { return x && x.Text; })[0];
     return s ? { text: s.Text.m_Text, size: 22, color: [1, 1, 1, 1], align: 2, style: 1 } : null;
   }
-  var FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  // Font gốc nạp ở css/fonts.css: chữ thân Roboto-Medium, chuỗi chỉ có ký tự Latin không dấu (số tiền, "Lv.3") dùng Snowstorm
+  var FONT = "'HX Roboto', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", FONT_NUM = "'HX Snowstorm', " + FONT;
+  function fontFor(txt) { return /^[ -~]*$/.test(txt) ? FONT_NUM : FONT; }
 
   function nine(ctx, I, b, L, Tt, w, h) {
     var iw = I.width, ih = I.height, l = b[0], bt = b[1], r = b[2], t = b[3];
@@ -519,7 +761,7 @@
     var tx = textOf(n), txt = o.text != null ? String(o.text) : tx ? tx.text : null;
     var size = tx ? tx.size || 22 : 0;
     if (tx && (!n.rt || n.rt[6] === 0) && o.w == null) {
-      ctx.font = ((tx.style & 1) ? '800 ' : '700 ') + size + 'px ' + FONT;
+      ctx.font = ((tx.style & 1) ? '800 ' : '700 ') + size + 'px ' + fontFor(txt);
       o = Object.assign({}, o, { w: ctx.measureText(txt).width });
     }
     var r = rectOf(n, prt, o);
@@ -538,6 +780,7 @@
     if (im && !im.off && o.sprite !== null) {
       var name = o.sprite !== undefined ? o.sprite : im.sprite;
       var c = o.color || im.color || [1, 1, 1, 1], a = (o.a != null ? o.a : c[3]) * st.a;
+      if (o.cr != null || o.cg != null || o.cb != null) c = [o.cr != null ? o.cr : c[0], o.cg != null ? o.cg : c[1], o.cb != null ? o.cb : c[2], c[3]];
       var I = sprite(name);
       if (a > 0.003) {
         ctx.save();
@@ -556,7 +799,7 @@
       var tc = tx.color || [1, 1, 1, 1];
       ctx.save();
       ctx.globalAlpha *= (o.a != null ? o.a : tc[3]) * st.a;
-      ctx.font = ((tx.style & 1) ? '800 ' : '700 ') + size + 'px ' + FONT;
+      ctx.font = ((tx.style & 1) ? '800 ' : '700 ') + size + 'px ' + fontFor(txt);
       ctx.textBaseline = 'middle';
       ctx.textAlign = tx.align === 1 ? 'left' : tx.align === 4 ? 'right' : 'center';
       var X = tx.align === 1 ? L : tx.align === 4 ? L + r.w : L + r.w / 2, Y = Tt + r.h / 2;
@@ -595,18 +838,25 @@
   function nodePos(root, names) { var l = locate(root, names); return { x: l.x, y: l.y, s: l.s, node: l.node }; }
 
   // ---------- VFX: cây hệ hạt của prefab gốc ----------
-  function walkVfx(n, prt, x, y, k, sx, sy, out, isRoot, delay) {
+  // Cây hệ hạt: vị trí và tỉ lệ cộng dồn theo 2D; phép quay cộng dồn bằng quaternion (hệ dựng đứng quanh trục x
+  // thì hình nón phát lên trên, đúng như Transform gốc). Vị trí con được xoay theo cha chỉ trong mặt phẳng (rotZ).
+  function walkVfx(n, prt, x, y, k, sx, sy, out, isRoot, delay, pq) {
     var r = n.rt ? rectOf(n, prt, null) : null;
     var ox = isRoot ? 0 : r ? r.x : n.pos ? n.pos[0] : 0, oy = isRoot ? 0 : r ? r.y : n.pos ? n.pos[1] : 0;
+    if (pq && pq !== Q0) { var rp = qrot(pq, [ox, oy, 0]); ox = rp[0]; oy = rp[1]; }
     var nx = x + ox * k * sx, ny = y - oy * k * sy;
     var s2x = sx * (n.scale ? n.scale[0] : 1), s2y = sy * (n.scale ? n.scale[1] : 1);
-    if (renderable(n)) out.push(new Emitter(n.particle, nx, ny, k, { sx: s2x, sy: s2y, delay: delay }));
-    var me = r ? { w: r.w, h: r.h, px: r.px, py: r.py } : prt;
-    (n.children || []).forEach(function (c) { walkVfx(c, me, nx, ny, k, s2x, s2y, out, false, delay); });
+    var lq = nodeQ(n), q = lq ? qmul(pq || Q0, lq) : pq || Q0;
+    if (renderable(n)) out.push(new Emitter(n.particle, nx, ny, k, { sx: s2x, sy: s2y, delay: delay, q: q }));
+    var me = r ? { w: r.w, h: r.h, px: r.px, py: r.py } : { w: 0, h: 0, px: 0.5, py: 0.5 };
+    (n.children || []).forEach(function (c) { walkVfx(c, me, nx, ny, k, s2x, s2y, out, false, delay, q); });
   }
   function spawnNode(list, n, x, y, k, delay) {
     var out = [];
-    walkVfx(n, n.rt ? { w: n.rt[6], h: n.rt[7], px: 0.5, py: 0.5 } : { w: 100, h: 100, px: 0.5, py: 0.5 }, x, y, k, 1, 1, out, true, delay || 0);
+    // gốc không có RectTransform: con có anchor tính trên khung cỡ 0 (vị trí = anchoredPosition), như Unity
+    walkVfx(n, n.rt ? { w: n.rt[6], h: n.rt[7], px: 0.5, py: 0.5 } : { w: 0, h: 0, px: 0.5, py: 0.5 }, x, y, k, 1, 1, out, true, delay || 0, Q0);
+    // sortingFudge gốc: số nhỏ hơn vẽ sau (nằm trên), trong cùng một cụm hạt
+    out.sort(function (a, b) { return b.fudge - a.fudge; });
     out.forEach(function (e) { list.push(e); });
     return out;
   }
@@ -615,6 +865,8 @@
     var L = VFXL[key];
     return L ? spawnNode(list, L, x, y, k, delay) : [];
   }
+  // Tắt hẳn cụm hạt (GameObject cha bị tắt trong bản gốc): xoá luôn hạt đang bay, khác stop() để hạt sống nốt.
+  function killFx(list) { list.forEach(function (e) { e.stopped = true; e.stopReq = true; e.parts.length = 0; }); }
   function tickList(list, dt) {
     for (var i = list.length - 1; i >= 0; i--) { list[i].update(dt); if (!list[i].alive()) list.splice(i, 1); }
   }
@@ -674,7 +926,7 @@
     R.emitters.forEach(function (e) {
       var host = R.props.filter(function (p) { return p.name === e.parent || p.animatorPath === e.parent; })[0];
       var z = /tank/i.test(e.parent || '') ? 21 : host ? host.parts[0].order + 0.5 : -399;
-      var em = new Emitter(e.particle, e.pos[0], e.pos[1], U * (e.scale || 1));
+      var em = new Emitter(e.particle, e.pos[0], e.pos[1], U * (e.scale || 1), { q: e.q || Q0 });
       roomFx.push(em);
       roomItems.push({ z: z, emitter: em });
     });
@@ -775,7 +1027,7 @@
   }
 
   // ---------- nạp tài nguyên ----------
-  var UI_LAYOUTS = ['customerAction', 'daveAction', 'staffAction'];
+  var UI_LAYOUTS = ['customerAction', 'daveAction', 'staffAction', 'customerTalk', 'hudWatch', 'openAlarm', 'openAlarmFx'];
   var VFX_KEYS = ['cookSmoke_JungleDLC', 'coinAbsorb', 'addGold', 'likeHeart', 'eatHappy', 'customerPop', 'customerFail',
     'teaPerfect', 'teaGood', 'teaBad', 'cookingSlot', 'cookingSlotStart', 'daveSmile'];
   var assetsP = null, assetsReady = false;
@@ -783,7 +1035,12 @@
     return fetch(url(p)).then(function (r) { if (!r.ok) throw new Error('layout not found: ' + p); return r.json(); });
   }
   function collectTex(n, set) {
-    if (n.particle && renderable(n)) { var t = n.particle.render.texture; set[TEX[t] || SPR[t]] = 1; }
+    if (n.particle && renderable(n)) {
+      var Rd = n.particle.render, t = Rd.texture;
+      set[TEX[t] || SPR[t]] = 1;
+      // ảnh phụ của shader riêng (MainTex / FlowTex của hơi nước Bancho)
+      Object.keys(Rd.props || {}).forEach(function (k) { var v = Rd.props[k]; if (typeof v === 'string' && TEX[v]) set[TEX[v]] = 1; });
+    }
     if (n.img && n.img.sprite && SPR[n.img.sprite]) set[SPR[n.img.sprite]] = 1;
     (n.children || []).forEach(function (c) { collectTex(c, set); });
   }
@@ -798,9 +1055,13 @@
     set[BA.tea.img] = 1; set[BA.tea.orderBubble.img] = 1;
     ['Coin32', 'GD_Icon_s', 'UI_TIP_Icon', 'Space_Key_Dark_Symbol', 'Mouse_Simple_Key_Dark', 'UI_QTE_Lever_Arrow_Big', 'UI_SushiOpenText']
       .forEach(function (n) { set[SPR[n]] = 1; });
+    // mesh của hạt dạng mesh: nạp trước bố cục VFX để Emitter dựng được ngay
+    var meshes = [BA.vfx.meshes || {}, R.emitterMeshes || {}];
+    var meshJobs = [];
+    meshes.forEach(function (tbl) { Object.keys(tbl).forEach(function (k) { meshJobs.push(json(tbl[k]).then(function (m) { MESH[k] = m; })); }); });
     var jobs = UI_LAYOUTS.map(function (k) { return json('art/bar/ui/layout/' + k + '.json').then(function (L) { LAYOUT_SET(k, L); collectTex(L, set); }); })
       .concat(VFX_KEYS.map(function (k) { return json(BA.vfx.systems[k].layout).then(function (L) { VFXL[k] = L; collectTex(L, set); }); }));
-    assetsP = Promise.all(jobs).then(function () {
+    assetsP = Promise.all(meshJobs.concat(jobs)).then(function () {
       return Promise.all(Object.keys(set).filter(Boolean).map(waitImg));
     }).then(function () { assetsReady = true; });
     assetsP.catch(function (e) { HX.game.errors.push(String(e)); console.error(e); });
@@ -1193,6 +1454,28 @@
     return name;
   }
   function setSt(c, st) { c.st = st; c.t = 0; }
+  // Câu nói trên đầu khách (CustomerToastTalk [DtD]): lúc chờ món, lúc giận, lúc ăn. Mỗi loại có xác suất, giây chờ
+  // trước khi hiện và giây hiện. Dùng Math.random (không đụng hạt giống của khách, vì chỉ để nhìn).
+  var TALK_STATES = { waiting: ['order'], angry: ['angry'], eating: ['eat', 'like'] };
+  function say(c, kind) {
+    var d = c.ch.talk && c.ch.talk[kind];
+    c.talk = null;
+    if (!d || !d.lines.length || Math.random() >= d.chance) return;
+    var ln = d.lines[Math.floor(Math.random() * d.lines.length)];
+    c.talk = { kind: kind, wait: d.preDelay, show: d.showTime, t: 0, key: ln[0], text: VI_TALK[ln[0]] || ln[1] };
+  }
+  function tickTalk(c, dt) {
+    var k = c.talk;
+    if (!k) return;
+    if (TALK_STATES[k.kind].indexOf(c.st) < 0) { c.talk = null; return; }
+    if (k.wait > 0) { k.wait -= dt; return; }
+    // [ĐỀ XUẤT] khách ngồi sát nhau: chờ người bên cạnh nói xong rồi mới hiện, để hai dòng chữ không đè lên nhau
+    if (k.t === 0 && N.customers.some(function (o) {
+      return o !== c && o.talk && o.talk.t > 0 && Math.abs(o.seat.anchor[0] - c.seat.anchor[0]) < 170;
+    })) return;
+    k.t += dt;
+    if (k.t >= k.show) c.talk = null;
+  }
   function decideOrder(c) {
     var menus = N.menu.filter(function (m) { return avail(m) > 0; });
     var teaOk = !c.seat.noDrinkQTE && N.teaPrice > 0;
@@ -1207,6 +1490,7 @@
     if (!o) { leave(c, false); return; }
     c.order = o;
     setSt(c, 'order');
+    say(c, 'waiting');
     c.actor.play(anim(c, 'wait'));
     if (o.kind === 'dish') {
       o.m.pending++;
@@ -1228,7 +1512,7 @@
     c.actor.play(angry ? anim(c, 'anger') : 'walk');
     c.leaveDelay = angry ? 0.9 : 0;
     c.speed = (angry ? c.ch.data.AngryExitSpeed : c.ch.data.ExitSpeed) * U;
-    if (c.popFx) { c.popFx.forEach(function (e) { e.stop(); }); c.popFx = null; }
+    if (c.popFx) { killFx(c.popFx); c.popFx = null; }
     if (c.eatFx) { c.eatFx.forEach(function (e) { e.stop(); }); c.eatFx = null; }
   }
   // Toạ độ phòng của gốc UI khách (điểm neo ghế gốc) và bong bóng.
@@ -1256,7 +1540,7 @@
         if (N.qte && N.qte.c === c) break;
         var lim = c.order.kind === 'tea' ? E.MaxDrinkWaitTime : E.MaxServingWaitTime;
         c.gauge = c.t / lim;
-        if (c.t >= lim) { setSt(c, 'angry'); a.play(anim(c, 'anger')); c.happy = false; }
+        if (c.t >= lim) { setSt(c, 'angry'); a.play(anim(c, 'anger')); c.happy = false; say(c, 'angry'); }
         break;
       }
       case 'angry': {
@@ -1301,6 +1585,7 @@
       }
     }
     if (c.feedback) { c.feedback.t += dt; if (c.feedback.t > 1) c.feedback = null; }
+    tickTalk(c, dt);
   }
 
   // Phục vụ món: khách vui (còn kiên nhẫn) hay chỉ mỉm cười (đã giận), rồi ăn.
@@ -1315,6 +1600,7 @@
     c.feedback = { kind: c.happy ? 'happy' : 'smile', t: 0, fx: false };
     setSt(c, 'eat');
     c.actor.play(anim(c, 'eat'));
+    say(c, 'eating');
     c.fxT = 0.3;
     sfx(rnd() < 0.5 ? 'serve' : 'serve2', 0.8);
     if (c.happy) {
@@ -1578,8 +1864,13 @@
     // hào quang bong bóng gọi món khi Dave đứng gần và bưng đúng món (VFX_UI_Customer_Pop_Re)
     N.customers.forEach(function (c) {
       var on = waiting(c) && c.order.kind === 'dish' && inReach(c) && !!carriedFor(c);
-      if (on && !c.popFx) { var b = bubbleAt(c); c.popFx = spawnVfx(N.fx.ui, 'customerPop', b.x, b.y, UIK); }
-      else if (!on && c.popFx) { c.popFx.forEach(function (e) { e.stop(); }); c.popFx = null; }
+      // [DtD] VFX_UI_Customer_Pop_Re là con của bong bóng Order trong SushiBarCustomerActionInfo: bong bóng tắt là
+      // hạt tắt ngay cùng GameObject. Bản trước chỉ ngừng phát, viền sáng hình bong bóng (lõi trong suốt) còn lơ lửng
+      // ~0,5 s sau khi phục vụ, trông như một quầng tối.
+      if (on && !c.popFx) {
+        var L = LAY.customerAction, pp = nodePos(L, ['Order', 'VFX_UI_Customer_Pop_Re_A_01']);
+        c.popFx = spawnNode(N.fx.ui, pp.node, c.seat.anchor[0] + pp.x * UIK, c.seat.anchor[1] - pp.y * UIK, UIK * pp.s);
+      } else if (!on && c.popFx) { killFx(c.popFx); c.popFx = null; }
     });
     if (!N.open && !N.customers.length && !N.qte && !N.over) endNight();
     if (N.shownGold < N.gold0 + N.credited) N.shownGold = Math.min(N.gold0 + N.credited, N.shownGold + Math.max(1, (N.gold0 + N.credited - N.shownGold) * dt * 8));
@@ -1605,15 +1896,18 @@
     root.className = 'screen bb';
     setScale(root, 1);
     var ui = { slotEls: {} };
-    var top = el('div', 'bb-top');
+    // ô vàng gốc (SushiBarCanvasRoot/…/GoldInfoPanel/LobbyGoldbar): nền MoneyUI_Box đen 94 %, viền MoneyUI_Stroke vàng,
+    // Coin32 cách mép trái 16 px, số cỡ 32 căn trái từ px 64. Đồng hồ đeo tay vẽ trên canvas (drawWatch).
     var gold = el('div', 'bb-gold');
+    nineBg(gold, 'MoneyUI_Box', [0, 0, 0]);
+    gold.firstChild.style.opacity = '0.941';
+    var stroke = nineCss(el('div', 'bx-9 bb-stroke'), 'MoneyUI_Stroke', [1, 0.843, 0]);
+    stroke.style.opacity = '0.314';
+    gold.appendChild(stroke);
     ui.coin = spr('Coin32', 'bb-coin');
     gold.appendChild(ui.coin);
     ui.gold = gold.appendChild(el('b'));
-    top.appendChild(gold);
-    ui.clock = top.appendChild(el('div', 'bb-clock'));
-    ui.note = top.appendChild(el('div', 'br-note'));
-    root.appendChild(top);
+    root.appendChild(gold);
     ui.queue = root.appendChild(el('div', 'bb-queue'));
     var bottom = el('div', 'bb-bottom');
     var list = el('div', 'bb-menu br-list');
@@ -1667,14 +1961,9 @@
     return e;
   }
   function tickHud() {
-    var ui = N.ui, sold = N.menu.reduce(function (a, m) { return a + m.sold; }, 0), left = N.menu.reduce(function (a, m) { return a + m.servings - m.sold; }, 0);
+    var ui = N.ui;
     var g = String(Math.floor(N.shownGold));
     if (ui.gold.textContent !== g) ui.gold.textContent = g;
-    var rem = Math.max(0, Math.ceil(T.night - N.t));
-    var clock = N.open ? 'Còn ' + Math.floor(rem / 60) + ':' + ('0' + rem % 60).slice(-2) : N.customers.length ? 'Đã đóng cửa · chờ khách về' : 'Đóng cửa';
-    if (ui.clock.textContent !== clock) ui.clock.textContent = clock;
-    var note = sold + ' suất đã bán · còn ' + left + (N.teaN ? ' · ' + N.teaN + ' chén trà' : '');
-    if (ui.note.textContent !== note) ui.note.textContent = note;
     N.menu.forEach(function (m, i) { var t = String(m.servings - m.sold); if (ui.rows[i].textContent !== t) ui.rows[i].textContent = t; });
     // hàng món đang làm / đã xong (CookingProgressSlot_Complete)
     var alive = {};
@@ -1696,7 +1985,7 @@
     Object.keys(ui.slotEls).forEach(function (id) { if (!alive[id]) { ui.slotEls[id].remove(); delete ui.slotEls[id]; } });
     if (N.pendingSlotFx) { var q = N.pendingSlotFx; N.pendingSlotFx = null; q.forEach(function (a) { var p = N.plates.filter(function (x) { return x.id === a[0]; })[0]; if (p) slotFx(p, a[1]); }); }
     var touch = document.body.classList.contains('touch');
-    var hint = N.qte ? (N.qte.st === 'ready' ? (touch ? 'Giữ ngón tay để rót trà, thả ra khi vòng gần đầy' : 'Giữ Space / E để rót trà, thả ra khi vòng gần đầy') : N.qte.st === 'pour' ? 'Thả ra khi vòng gần đầy!' : '')
+    var hint = !N.open && !N.qte ? (N.customers.length ? 'Đã đóng cửa · chờ khách về' : 'Đóng cửa') : N.qte ? (N.qte.st === 'ready' ? (touch ? 'Giữ ngón tay để rót trà, thả ra khi vòng gần đầy' : 'Giữ Space / E để rót trà, thả ra khi vòng gần đầy') : N.qte.st === 'pour' ? 'Thả ra khi vòng gần đầy!' : '')
       : touch ? 'Chạm chỗ trống để đi · chạm món xong ở quầy Bancho để bưng · chạm khách để phục vụ, rót trà'
         : 'A/D hoặc ←/→ đi · E/Space: bưng món ở quầy Bancho, phục vụ, rót trà · Q bỏ đĩa đang bưng · bấm chuột cũng được';
     if (ui.hint.textContent !== hint) ui.hint.textContent = hint;
@@ -1738,6 +2027,82 @@
         spawnVfx(N.fx.ui, 'daveSmile', c.seat.anchor[0] + pos.x * UIK, c.seat.anchor[1] - pos.y * UIK, UIK);
       }
     }
+  }
+  // CustomerTalkBoxInfo gốc: một dòng TextMeshPro trắng cỡ 16, viền đen (TextMeshProUnderlay), không có ảnh bong bóng.
+  // Hộp neo góc phải-dưới tại điểm neo ghế + (20, −40) px UI, chữ mọc sang trái. Chữ < 11 px CSS thì nâng lên 11 [ĐỀ XUẤT].
+  function drawTalk(ctx, c) {
+    var k = c.talk;
+    if (!k || k.wait > 0 || k.t <= 0) return;
+    var L = LAY.customerTalk, box = L ? L.rt : [1, 0, 1, 0, 20, -40, 0, 60, 1, 0];
+    var msg = L ? child(child(L, 'Root'), 'Message') : null, tx = msg && msg.text || { size: 16, color: [1, 1, 1, 1] };
+    var st = toStage(c.seat.anchor[0] + box[4] * UIK, c.seat.anchor[1] - box[5] * UIK);
+    var px = Math.max(tx.size * UIK * V.s, 11 * V.dpr);
+    ctx.save();
+    ctx.font = '700 ' + px.toFixed(1) + 'px ' + FONT;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(2, px * 0.28); ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+    ctx.strokeText(k.text, st.x, st.y);
+    var cc = tx.color || [1, 1, 1, 1];
+    ctx.fillStyle = rgb(cc);
+    ctx.fillText(k.text, st.x, st.y);
+    ctx.restore();
+  }
+  // Nút bố cục gốc vẽ theo toạ độ màn hình (canvas UI 1920 × 1080 co theo uiScale), gốc = giữa màn.
+  function drawScreen(ctx, n, ov, time) {
+    var S = HX.game.stage2d, W = S.canvas.width, H = S.canvas.height, k = uiScale() * V.dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.save();
+    ctx.translate(W / 2, H / 2); ctx.scale(k, k);
+    drawNode(ctx, n, { w: W / k, h: H / k, px: 0.5, py: 0.5 }, '', ov || {}, time || 0);
+    ctx.restore();
+  }
+  // Đồng hồ đeo tay gốc (DayInfoPanel/CalendarWatchPanel/Watch) ở trạng thái clip EveningState.
+  // Cung đêm của mặt đồng hồ: ảnh Night_all tô Radial360 từ 10 giờ ngược chiều kim 0,385 vòng (tới ~5 giờ 23).
+  // [ĐỀ XUẤT] kim chạy xuôi chiều kim đồng hồ từ đầu cung (5 giờ 23) tới 10 giờ trong T.night giây, phần cung còn tô
+  // là thời gian còn lại; dưới eveningWarningValue [DtD 0,142] thì bật Evening_Red (tween nhấp nháy gốc).
+  // Biểu tượng trăng đổi theo ngày (8 pha, thứ tự tự chọn). Mã HourInfoPanel gốc không đọc được.
+  var MOONS = ['NewMoon', 'WaxingCrescent', 'FirstQuarter', 'WaxingGibbous', 'FullMoon', 'WaningGibbous', 'LastQuarter', 'WaningCrescent'];
+  function drawWatch(ctx) {
+    var L = LAY.hudWatch;
+    if (!L) return;
+    var p = clamp(N.t / T.night, 0, 1), fill0 = findNode(L, 'Evening').img.fill.amount, rem = fill0 * (1 - p);
+    var warn = N.open && 1 - p < (findNode(L, 'Watch').scripts[0].HourInfoPanel || {}).eveningWarningValue;
+    var ov = clipOv(clipAt('Watch/EveningState'), 0, {});
+    // góc kim (độ, xuôi chiều kim đồng hồ từ 12 giờ): đầu cung = 300° − 360°·fill0, cuối cung = 300° (10 giờ)
+    var ang = 300 - 360 * fill0 * (1 - p), rotZ = 180 - ang;
+    ov.EveningPointer = Object.assign(ov.EveningPointer || {}, { rot: rotZ - findNode(L, 'EveningPointer').rotZ });
+    ov['Screen/EveningHourSlider/Evening'] = Object.assign(ov['Screen/EveningHourSlider/Evening'] || {}, { fill: rem });
+    ov['Screen/EveningHourSlider/Evening_Red'] = { active: warn, fill: rem };
+    ov['IconArea/Icon'] = { sprite: 'UI_Watch_Icon_Moon_' + MOONS[(HX.save.get().day - 1) % MOONS.length] };
+    var label = 'Buổi tối';
+    ctx.font = '700 14px ' + FONT;
+    ov['TxtArea'] = Object.assign(ov.TxtArea || {}, { w: ctx.measureText(label).width + 12 });
+    // TimeText neo góc trái-dưới của TxtArea (HorizontalLayoutGroup gốc căn giữa): dời vào giữa hộp
+    ov['TxtArea/TimeText'] = { text: label, x: ov.TxtArea.w / 2, y: 10 };
+    drawScreen(ctx, L, ov, N.t);
+  }
+  // Băng OPEN gốc (SushibarOpenAlarm_Default): UIRoot (bóng tròn, vầng sáng quay, chữ OPEN, tween gốc) + hạt Root
+  // (tia sáng, sushi bay) và hạt VFX_UI_SushibarOpen_A_01. Tween cuối tắt dần xong ở 3,1 s.
+  var OPEN_LEN = 3.1;
+  function startOpenAlarm() {
+    var S = HX.game.stage2d, W = S.canvas.width, H = S.canvas.height, k = uiScale() * V.dpr;
+    N.openFx = { bg: [], fg: [] };
+    var ui = LAY.openAlarm, fx = LAY.openAlarmFx;
+    if (fx) spawnNode(N.openFx.bg, fx, W / 2, H / 2, k);
+    if (ui) {
+      // UIRoot: neo đỉnh màn, tâm cách đỉnh 200 + 574/2 px UI
+      var v = child(ui, 'VFX_UI_SushibarOpen_A_01'), cy = 200 + ui.rt[7] / 2;
+      spawnNode(N.openFx.fg, v, W / 2 + v.rt[4] * k, cy * k - v.rt[5] * k, k);
+    }
+  }
+  function drawOpenAlarm(ctx) {
+    if (!(N.openT > 0) || N.openT >= OPEN_LEN + 3) return;
+    var id = { x0: 0, y0: 0, s: 1, ox: 0, oy: 0 };
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (N.openFx) N.openFx.bg.forEach(function (e) { e.draw(ctx, id); });
+    if (N.openT < OPEN_LEN && LAY.openAlarm) drawScreen(ctx, LAY.openAlarm, { VFX_UI_SushibarOpen_A_01: { active: false } }, N.openT);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (N.openFx) N.openFx.fg.forEach(function (e) { e.draw(ctx, id); });
   }
   function drawDaveUi(ctx) {
     var d = N.dave, L = LAY.daveAction, n = d.carry.length;
@@ -1811,7 +2176,11 @@
     update: function (dt) {
       if (!N || !assetsReady || N.over) { if (N && N.ui) tickHud(); return; }
       dt *= N.ts;
-      if (N.openT > 0 && N.openT < 1.6) N.openT += dt;
+      if (N.openT > 0 && N.openT < OPEN_LEN + 3) {
+        if (!N.openFx) startOpenAlarm();
+        N.openT += dt;
+        tickList(N.openFx.bg, dt); tickList(N.openFx.fg, dt);
+      }
       barTick(dt);
       if (!N.over) tickHud();
     },
@@ -1820,19 +2189,11 @@
       var ctx = drawScene(scene, N.customers.map(function (c) { return c.actor; }), N.dave.x, N.t < 0.05);
       if (!ctx) return;
       N.customers.forEach(function (c) { drawCustomerUi(ctx, c); });
+      N.customers.forEach(function (c) { drawTalk(ctx, c); });
       drawDaveUi(ctx);
       drawUiFx(ctx, scene);
-      // "OPEN" lúc mở cửa: UI_SushiOpenText với clip UI_PopShowAnim (clip bật popup chung của quán)
-      if (N.openT > 0 && N.openT < 1.6) {
-        var o = clipOv(clipAt('PopupShow/UI_PopShowAnim'), N.openT, {})[''] || {}, I = sprite('UI_SushiOpenText');
-        if (ok(I)) {
-          var S = HX.game.stage2d, W = S.canvas.width, H = S.canvas.height, k = uiScale() * V.dpr, sc = o.sx || 1;
-          ctx.setTransform(1, 0, 0, 1, 0, 0);
-          ctx.globalAlpha = clamp((1.6 - N.openT) / 0.4, 0, 1);
-          ctx.drawImage(I, W / 2 - 404 * k * sc / 2, H * 0.3 - 158 * k * sc / 2, 404 * k * sc, 158 * k * sc);
-          ctx.globalAlpha = 1;
-        }
-      }
+      drawWatch(ctx);
+      drawOpenAlarm(ctx);
     },
   };
 
@@ -1863,12 +2224,21 @@
     root.innerHTML = '';
     root.className = 'screen bl';
     setScale(root, 1);
-    root.style.setProperty('--k', Math.min(uiScale(), (innerHeight - 64) / 720).toFixed(3));
+    root.style.setProperty('--k', ledgerK().toFixed(3));
     var total = d.dishes + d.tips + d.tea;
     LG.els = {};
+    // CurtainRoot gốc: ảnh quán đã làm mờ (SushiBar_EndCurtain, kéo phủ cả màn) dưới màn đen 78,4 %
+    var dummy = el('div', 'bl-dummy');
+    dummy.style.backgroundImage = 'url("' + url(SPR.SushiBar_EndCurtain) + '")';
+    root.appendChild(dummy);
     root.appendChild(el('div', 'bl-curtain'));
-    // băng "BANCHO SUSHI CLOSED!" (SushibarStateAlarmPanel_Close)
+    // băng "BANCHO SUSHI CLOSED!" (SushibarStateAlarmPanel_Close): hộp Night_AlarmBox 1920 × 172 (9 mảnh) giữa màn, cao +122
     var ban = el('div', 'bl-banner');
+    var abox = el('div', 'bl-abox');
+    var ab = borderOf('Night_AlarmBox');
+    abox.style.borderImage = 'url("' + url(SPR.Night_AlarmBox) + '") ' + ab[3] + ' ' + ab[2] + ' ' + ab[1] + ' ' + ab[0] + ' fill stretch';
+    abox.style.borderWidth = 'calc(' + ab[3] + 'px * var(--u)) calc(' + ab[2] + 'px * var(--u)) calc(' + ab[1] + 'px * var(--u)) calc(' + ab[0] + 'px * var(--u))';
+    ban.appendChild(abox);
     var fx = tintImg(spr('StarLight_FX', 'bl-star'), 'StarLight_FX', [0.802, 0.245, 0]);
     var bm = el('div', 'bl-bmask');
     var bb = spr('Dialogue_Bancho_Afterwork01', 'bl-bancho');
@@ -1876,7 +2246,7 @@
     var t1 = el('div', 'bl-t1', 'Hết giờ mở quán'), t2 = el('div', 'bl-t2', 'BANCHO SUSHI'), t3 = el('div', 'bl-t3', 'CLOSED!');
     [fx, bm, t1, t2, t3].forEach(function (e) { ban.appendChild(e); });
     root.appendChild(ban);
-    LG.els.banner = { box: ban, fx: fx, bancho: bb, t1: t1, t2: t2, t3: t3 };
+    LG.els.banner = { root: ban, box: abox, fx: fx, bancho: bb, t1: t1, t2: t2, t3: t3 };
 
     var area = el('div', 'bl-area');
     // giấy A: khách
@@ -1944,6 +2314,25 @@
     var mood = d.angry > d.served ? 'Bad' : total > 0 && !d.angry ? 'Good' : 'Normal';
     LG.clip = BA.ui.clips['Account_BanchoAnimCtrl/Account_Bancho' + mood + 'Anim'];
     LG.els.react = spr(LG.clip.spriteKeys[0][0], 'bl-react');
+    // ResultArea gốc: dải UI_Sushi_Account_ResultBg 1920 × 274 ở đỉnh màn, hai hàng InfoBg + Bancho phản ứng (×4, lật).
+    // Bản gốc ghi sao đánh giá và số lửa; game này không có hai số đó nên hai hàng ghi tổng thu và lượt thích [ĐỀ XUẤT].
+    var band = el('div', 'bl-result');
+    band.style.backgroundImage = 'url("' + url(SPR.UI_Sushi_Account_ResultBg) + '")';
+    var info = el('div', 'bl-info');
+    var r1 = nineBg(el('div', 'bl-irow'), 'UI_Sushi_Account_Result_InfoBg');
+    r1.appendChild(el('span', 'bl-ititle', 'Tổng thu tối nay'));
+    r1.appendChild(spr('Coin32', 'bl-iic'));
+    r1.appendChild(el('b', 'bl-ival', String(total)));
+    var r2 = nineBg(el('div', 'bl-irow'), 'UI_Sushi_Account_Result_InfoBg');
+    r2.appendChild(el('span', 'bl-ititle', 'Lượt thích'));
+    r2.appendChild(spr('UI_Sushi_Account_Cookstar_GuageIcon', 'bl-iic'));
+    r2.appendChild(el('b', 'bl-ival bl-pink', '+' + d.likes));
+    info.appendChild(r1); info.appendChild(r2);
+    band.appendChild(info);
+    var barea = el('div', 'bl-barea');
+    band.appendChild(barea);
+    root.insertBefore(band, area);
+    LG.els.band = band; LG.els.barea = barea;
     foot.appendChild(LG.els.react);
     var b = button('ledger-next', 'bx-pink', 'Sang ngày ' + after.day, 'UI_btn_pink');
     b.addEventListener('click', function () { HX.game.go('prep'); });
@@ -1952,6 +2341,8 @@
     LG.els.foot = foot;
     root.addEventListener('pointerdown', function () { if (LG && LG.t < 3.3) LG.t = 3.3; });
   }
+  // Tỉ lệ của sổ: giấy 634 px UI phải lọt màn cùng nút [ĐỀ XUẤT]
+  function ledgerK() { return Math.min(uiScale(), (innerHeight - 64) / 720); }
   // Tween gốc của băng CLOSED (accountInternal.json), áp vào DOM mỗi khung.
   function styleFrom(e, tweens, time, base) {
     var st = applyTweens(tweens, time, { x: 0, y: 0, sx: base && base.sx || 1, sy: base && base.sy || 1, a: 1, rot: 0 });
@@ -1997,12 +2388,25 @@
         styleFrom(E.banner.bancho, tw.bancho, t);
       }
       var show = t >= 3.3;
-      E.banner.box.parentNode.classList.toggle('done', t >= 3.6);
+      E.banner.root.parentNode.classList.toggle('done', t >= 3.6);
       E.area.classList.toggle('show', show);
       E.foot.classList.toggle('show', show);
+      // ResultArea chỉ hiện khi cả bố cục gốc 1080 dòng lọt màn (k · 1080 ≤ cao màn); màn thấp thì Bancho đứng cạnh nút
+      var fits = ledgerK() * 1080 <= innerHeight + 4;
+      if (fits !== LG.fits) {
+        LG.fits = fits;
+        var host = fits ? E.barea : E.foot;
+        host.insertBefore(E.react, host.firstChild);
+        E.band.style.display = fits ? '' : 'none';
+      }
       if (show && tw) {
         // [DtD] AccountArea / CookStarArea: Move OutBack 0,5 s; ButtonArea: Fade 0,25 s
         var k = tweenK({ duration: 0.5, easeType: 27 }, t - 3.3);
+        // [DtD] AnalyticsResultSequence m_StartDelay 0,3 s sau khi giấy lên: ResultArea trượt từ y 300 xuống, AccountArea 200 → 100 (OutBack 0,5 s)
+        var k2 = fits ? Math.max(0, tweenK({ duration: 0.5, easeType: 27 }, t - 4.1)) : 1;
+        E.area.style.bottom = 'calc(' + (fits ? 200 - 100 * k2 : 100).toFixed(1) + 'px * var(--k))';
+        E.band.style.transform = 'translateY(calc(' + (-(374 * (1 - k2))).toFixed(1) + 'px * var(--k)))';
+        E.band.style.visibility = t >= 4.1 ? 'visible' : 'hidden';
         E.area.style.transform = 'translateY(calc(' + ((1 - k) * 833).toFixed(1) + 'px * var(--u)))';
         E.foot.style.opacity = clamp((t - 3.55) / 0.25, 0, 1).toFixed(2);
         if (!LG.popped) { LG.popped = true; sfx('result_popup1', 0.8); if (LG.d.dishes + LG.d.tips + LG.d.tea > 0) setTimeout(function () { sfx('result_profit', 0.8); }, 450); }
@@ -2024,7 +2428,7 @@
       var e = document.getElementById('scr-' + n);
       if (!e) return;
       setScale(e, n === 'kitchen' ? 0.9 : 1);
-      if (n === 'ledger') e.style.setProperty('--k', Math.min(uiScale(), (innerHeight - 64) / 720).toFixed(3));
+      if (n === 'ledger') e.style.setProperty('--k', ledgerK().toFixed(3));
     });
   });
 
@@ -2036,6 +2440,14 @@
       snap: function (k) { SNAP = k; },
       timeScale: function (k) { if (N) N.ts = k; },
       ready: function () { return assetsReady; },
+      // hạt đang sống của cảnh (bếp / quán / sổ): số hạt, gốc phát, có mesh / flow không
+      fx: function () {
+        if (!scene) return null;
+        return ['world', 'ui', 'screen'].reduce(function (o, k) {
+          o[k] = scene.fx[k].map(function (e) { var Rd = e.p.render || {}; return { parts: e.parts.length, x: e.x, y: e.y, tex: Rd.texture, shader: Rd.shader, blend: Rd.blend, add: e.add, mesh: !!e.mesh, flow: !!e.flow }; });
+          return o;
+        }, {});
+      },
       info: function () {
         if (!N) return null;
         return {
@@ -2046,7 +2458,8 @@
           customers: N.customers.map(function (c) {
             return { id: c.id, who: c.ch.id, seat: c.seat.name, front: c.seat.isFront, st: c.st, t: c.t, x: c.actor.x, y: c.actor.y,
               sitX: seatX(c.seat), sitY: c.seat.sit[1], anim: c.actor.name, flip: c.actor.flip, z: c.actor.z,
-              order: c.order ? (c.order.kind === 'tea' ? 'tea' : c.order.m.id) : null, happy: c.happy };
+              order: c.order ? (c.order.kind === 'tea' ? 'tea' : c.order.m.id) : null, happy: c.happy,
+              talk: c.talk && c.talk.t > 0 ? { kind: c.talk.kind, text: c.talk.text } : null };
           }),
           plates: N.plates.map(function (p) { return { id: p.id, dish: p.m.id, st: p.st }; }),
           dave: { x: N.dave.x, anim: scene.dave.name, carry: N.dave.carry.map(function (p) { return p.m.id; }), target: N.dave.target ? N.dave.target.x : null },

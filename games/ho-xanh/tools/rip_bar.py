@@ -129,6 +129,29 @@ def r3(v):
     return round(float(v), 3)
 
 
+def qmul(a, b):
+    """Tích quaternion (x, y, z, w): a rồi b (a * b)."""
+    ax, ay, az, aw = a
+    bx, by, bz, bw = b
+    return (aw * bx + ax * bw + ay * bz - az * by, aw * by - ax * bz + ay * bw + az * bx,
+            aw * bz + ax * by - ay * bx + az * bw, aw * bw - ax * bx - ay * by - az * bz)
+
+
+def world_q(t):
+    """Quaternion xoay thế giới của Transform (nhân dọc chuỗi cha). Hệ hạt phát theo hướng này."""
+    q = t.m_LocalRotation
+    q = (q.x, q.y, q.z, q.w)
+    if t.m_Father.m_PathID:
+        q = qmul(world_q(t.m_Father.read()), q)
+    return q
+
+
+def q_or_none(q):
+    """[x, y, z, w] làm tròn; None nếu là phép quay đơn vị."""
+    v = [r3(q[0]), r3(q[1]), r3(q[2]), r3(q[3])]
+    return None if v[:3] == [0.0, 0.0, 0.0] else v
+
+
 def load_sheet(name):
     ta = [o for o in rip.objects_for(SHEET % name) if type(o).__name__ == 'TextAsset'][0]
     parts = rip.text_bytes(ta).decode('utf-8-sig').split('@/')
@@ -537,7 +560,11 @@ def rip_customers():
                       'data': {k: row[k] for k in ('TID', 'EatLevel', 'EnterSpeed', 'ExitSpeed', 'AngryExitSpeed',
                                                    'ThrowTrashChance', 'PreOrderDrinkChance', 'OrderDrinkChance',
                                                    'OrderDrinkRatioList', 'SittingPose') if k in row},
-                      'talk': {kk: [en(x) for x in talk[kk]] for kk in ('WatingTalkIDList', 'AngryTalkIDList', 'EatingTalkIDList')}
+                      # câu nói trên đầu khách (CustomerToastTalk): lúc chờ món, lúc giận, lúc ăn; kèm xác suất,
+                      # giây chờ trước khi hiện và giây hiện. Không có câu lúc bước vào quán.
+                      'talk': {k2: {'lines': [[x, en(x)] for x in talk[k1 + 'TalkIDList']], 'chance': talk[k1 + 'TalkChance'],
+                                    'preDelay': talk[k1 + 'TalkPreDelay'], 'showTime': talk[k1 + 'TalkShowTime']}
+                               for k1, k2 in (('Wating', 'waiting'), ('Angry', 'angry'), ('Eating', 'eating'))}
                       if talk else None})
         out.append(sheet)
         print('  khách %-14s %2d khung, áo %2d, anim: %s%s' % (cid, len(names), len(cos_used), ','.join(sorted(anims)),
@@ -624,10 +651,13 @@ def _room(env):
             rend = [c.component for c in g.m_Component if c.component.type.name == 'ParticleSystemRenderer']
             m, _ = world(transform_of(g), cache)
             par = transform_of(g).m_Father.read().m_GameObject.read().m_Name if transform_of(g).m_Father.m_PathID else ''
+            # q: quaternion thế giới của hệ hạt (hình nón, hộp phát theo trục z cục bộ, rồi xoay theo q)
             emitters.append({'name': g.m_Name, 'parent': par, 'pos': [m[0][2], m[1][2]],
-                             'scale': r3(abs(m[0][0])), 'particle': particle(ps[0].read_typetree(), rend[0] if rend else None, pctx)})
+                             'scale': r3(abs(m[0][0])), 'q': q_or_none(world_q(transform_of(g))),
+                             'particle': particle(ps[0].read_typetree(), rend[0] if rend else None, pctx)})
         res['emitters'] = emitters
         res['emitterTextures'] = pctx.textures
+        res['emitterMeshes'] = pctx.meshes
         # chỗ ngồi
         for g in walk_go(seat_root):
             for c in g.m_Component:
@@ -766,7 +796,7 @@ def _room(env):
                          'name': s['name']})
     emitters = [dict(e, pos=to_px(*e['pos'])) for e in res['emitters']]
     return {'size': [W, H], 'originUnity': [r3(minx), r3(maxy)], 'pxPerUnit': PX_PER_UNIT, 'layers': layers,
-            'props': props, 'seats': seats_px, 'emitters': emitters, 'emitterTextures': res['emitterTextures'],
+            'props': props, 'seats': seats_px, 'emitters': emitters, 'emitterTextures': res['emitterTextures'], 'emitterMeshes': res['emitterMeshes'],
             'floorY': to_px(0, -3.24)[1], 'marks': {k: to_px(*v) for k, v in marks.items()}}
 
 
@@ -1043,6 +1073,14 @@ UI_PREFABS = [
     ('qteResult', 'QTE/QTEResultEffect.prefab'),
     ('trashPanel', 'SushiBarTableTrashPanel.prefab'),
 ]
+# Nhánh con của prefab lớn (đường dẫn tính từ PlayContents, rồi đường dẫn nút trong prefab)
+CANVAS_ROOT = 'Common/Prefabs/UI/SushiBar/SushiBarCanvasRoot.prefab'
+UI_SUBTREES = [
+    ('hudGold', CANVAS_ROOT, 'Panel/Mask/ContentsGroup/TopInfoPanel/GoldInfoPanel'),   # ô vàng góc trên trái
+    ('hudWatch', CANVAS_ROOT, 'Panel/Mask/ContentsGroup/DayInfoPanel/CalendarWatchPanel/Watch'),  # đồng hồ đeo tay (buổi tối)
+    ('openAlarm', 'SushiBar/Prefabs/UI/SushibarOpenAlarm_Default.prefab', 'UIRoot'),  # băng OPEN lúc mở quán
+    ('openAlarmFx', 'SushiBar/Prefabs/UI/SushibarOpenAlarm_Default.prefab', 'Root'),  # tia sáng + sushi bay lúc mở quán
+]
 VFXP = PC + 'Common/VFX/Prefabs/'
 VFX_PREFABS = [
     ('eatHappy', 'Env_Effect/CustomerVFX/Eat_Happy_Particle.prefab'),
@@ -1070,17 +1108,23 @@ VFX_EXTRA = [('cookSmoke_JungleDLC', 'Assets/TempDLC_RnD/Contents/JDLC_SushiBar/
 LOOSE_UI = ['UI_SushiOpenText', 'Customer_ReceiveHappy01', 'Customer_EatIcon', 'HappyGauge_Icon', 'UI_Customer_Pop_Re',
             'UI_Dave_Pop', 'UI_Sushi_TastyIcon', 'UI_TIP_Icon', 'TableDirt', 'UI_Sushi_Coin_20', 'UI_Sushi_Coin_30',
             'Coin24', 'Coin32', 'Coin_Reward_64', 'UI_Customer_Tea_Pop', 'Sushi_Flame_Icon']
+# Biểu tượng trăng của đồng hồ đeo tay buổi tối (Watch/IconArea/Icon; HourInfoPanel đổi theo ngày)
+LOOSE_UI += ['UI_Watch_Icon_Moon_' + n for n in ('NewMoon', 'WaxingCrescent', 'FirstQuarter', 'WaxingGibbous', 'FullMoon',
+                                                 'WaningGibbous', 'LastQuarter', 'WaningCrescent')]
 # Nhánh con thuộc tính năng ngoài vòng chơi (phái nhân viên, tuyển người): ghi tên, không xuất ảnh [ĐỀ XUẤT]
 SKIP_NODES = {'opening': {'Dispatch', 'RecruitMent'}}
 # Clip rời trong SushiBar/Animations/UI thuộc tính năng khác (đấu VIP, chi nhánh, cocktail…): bỏ [ĐỀ XUẤT]
 SKIP_CLIPS = re.compile(r'BattleVIP|Branch|Potioncraft|Dispatch|Recruit|Inspecter|VIPIncoming|Cocktail|Staff', re.I)
-MAX_UI_PX = 1100  # ảnh nền UI lớn hơn cạnh này thì chỉ ghi tên, không xuất (giữ tổng dung lượng) [ĐỀ XUẤT]
+# Ảnh nền UI cạnh > MAX_UI_PX mà PNG > MAX_UI_BYTES thì thu nhỏ đúng 1/2 (ghi 'downscale': 2) [ĐỀ XUẤT].
+# Bản trước bỏ hẳn các ảnh này (ui.tooBig), nên băng CLOSED, rèm cuối ca và nền kết quả bị vẽ thay bằng khối màu.
+MAX_UI_PX = 1100
+MAX_UI_BYTES = 600 * 1024
 
 
 class UICtx:
     def __init__(self, texdir='vfx'):
         self.texdir = texdir
-        self.sprites, self.textures, self.clips, self.skipped = {}, {}, {}, {}
+        self.sprites, self.textures, self.clips, self.skipped, self.meshes = {}, {}, {}, {}, {}
         self.skip_nodes = set()
 
     def sprite(self, s):
@@ -1088,14 +1132,18 @@ class UICtx:
         if name in self.sprites or name in self.skipped:
             return name
         w, h = int(round(s.m_Rect.width)), int(round(s.m_Rect.height))
-        if max(w, h) > MAX_UI_PX:
-            self.skipped[name] = [w, h]
-            return name
         img, (px, py) = sprite_full(s)
         b = s.m_Border
-        self.sprites[name] = {'img': save_png(img, 'ui/%s.png' % safe(name)), 'w': w, 'h': h,
+        rel = save_png(img, 'ui/%s.png' % safe(name))
+        extra = {}
+        if max(w, h) > MAX_UI_PX and os.path.getsize(os.path.join(ART, rel[len('art/bar/'):])) > MAX_UI_BYTES:
+            # ảnh nền lớn (rèm cuối ca 1920×1080 là ảnh quán đã làm mờ): thu nhỏ đúng 1/2, w/h vẫn là cỡ gốc
+            img = img.resize((img.width // 2, img.height // 2), Image.LANCZOS)
+            rel = save_png(img, 'ui/%s.png' % safe(name))
+            extra['downscale'] = 2
+        self.sprites[name] = dict(extra, **{'img': rel, 'w': w, 'h': h,
                               'border': [r3(b.x), r3(b.y), r3(b.z), r3(b.w)] if (b.x or b.y or b.z or b.w) else None,
-                              'ppu': r3(s.m_PixelsToUnits), 'pivot': [r3(s.m_Pivot.x), r3(s.m_Pivot.y)]}
+                              'ppu': r3(s.m_PixelsToUnits), 'pivot': [r3(s.m_Pivot.x), r3(s.m_Pivot.y)]})
         return name
 
     def texture(self, t):
@@ -1107,7 +1155,23 @@ class UICtx:
             if max(img.size) > 1024:
                 self.skipped[name] = list(img.size)
                 return name
-            self.textures[name] = {'img': save_png(img, '%s/%s.png' % (self.texdir, safe(name))), 'w': img.width, 'h': img.height}
+            ts = t.m_TextureSettings
+            # wrap 0 Repeat, 1 Clamp: shader flow lấy mẫu ngoài [0, 1] nên cần biết
+            self.textures[name] = {'img': save_png(img, '%s/%s.png' % (self.texdir, safe(name))), 'w': img.width, 'h': img.height,
+                                   'wrap': [ts.m_WrapU, ts.m_WrapV]}
+        return name
+
+    def mesh(self, m):
+        """Mesh của hạt dạng mesh -> JSON {v: [x, y, z…], uv: [u, v…], tri: [a, b, c…]} (đơn vị Unity, y lên)."""
+        name = m.m_Name
+        if name not in self.meshes:
+            from UnityPy.helpers.MeshHelper import MeshHandler
+            h = MeshHandler(m)
+            h.process()
+            tris = [i for tri in h.get_triangles() for a, b, c in tri for i in (a, b, c)]
+            data = {'name': name, 'v': [r3(x) for p in h.m_Vertices for x in p[:3]],
+                    'uv': [r3(x) for p in h.m_UV0 for x in p[:2]], 'tri': tris}
+            self.meshes[name] = save_json(data, '%s/mesh/%s.json' % (self.texdir, safe(name)))
         return name
 
 
@@ -1178,6 +1242,40 @@ SHAPES = {0: 'sphere', 1: 'hemisphere', 4: 'cone', 5: 'box', 6: 'mesh', 8: 'cone
           18: 'rectangle', 19: 'sprite', 20: 'spriteRenderer'}
 
 
+def mmx(m, key):
+    """MinMaxCurve con của mô-đun (None nếu thiếu)."""
+    v = m.get(key)
+    return mmcurve(v) if isinstance(v, dict) and 'minMaxState' in v else None
+
+
+def shader_props(mat):
+    """Thuộc tính material theo tên hiển thị của shader. ShaderGraph đặt tên băm (Vector4_141c…);
+    tên người đọc được nằm ở m_ParsedForm.m_PropInfo. -> ({tên hiển thị: giá trị}, {tên băm: tên hiển thị})."""
+    try:
+        sh = mat.m_Shader.read()
+        desc = {p.m_Name: p.m_Description for p in sh.m_ParsedForm.m_PropInfo.m_Props}
+    except FileNotFoundError:
+        raise
+    except Exception:
+        return None
+    sp = mat.m_SavedProperties
+    out = {}
+    for k, v in sp.m_Colors:
+        if k in desc:
+            out[desc[k]] = col(v)
+    for k, v in sp.m_Floats:
+        if k in desc:
+            out[desc[k]] = r3(v)
+    return out, desc
+
+
+# Shader hạt thường (một ảnh, pha màu chuẩn): không cần xuất thêm tham số material.
+PLAIN_SHADER = re.compile(r'(ProjectDR/(VFX|UI)/(Additive|Alpha Blended) ?(NoFog)?$|Legacy Shaders/|Mobile/|Unlit/|UI/|Sprites/|Universal Render Pipeline/Particles)')
+# Shader riêng mà game đã dựng lại: xuất cả ảnh phụ. Shader riêng khác chỉ ghi tên ảnh (Add_CenterGlow của sóng biển 3D
+# kéo theo ~1 MB ảnh nhiễu mà game không vẽ).
+REBUILT_SHADER = re.compile(r'ProjectJDLC/VFX/VFX_SH_FlowB')
+
+
 def particle(ps_tt, rend, ctx):
     """ParticleSystem + Renderer -> tham số đủ để phát lại (đơn vị Unity; hệ UI thì đơn vị = px canvas)."""
     im = ps_tt['InitialModule']
@@ -1187,6 +1285,11 @@ def particle(ps_tt, rend, ctx):
            'size': mmcurve(im['startSize']), 'rotation': mmcurve(im['startRotation']),
            'color': mmgrad(im['startColor']), 'gravity': mmcurve(im['gravityModifier']),
            'maxParticles': im['maxNumParticles'], 'simulationSpace': ps_tt['moveWithTransform']}
+    if im.get('size3D'):
+        # cỡ riêng từng trục (hạt mesh hơi nước của Bancho: 1 × 1,5 × 1)
+        out['size3D'] = [mmcurve(im['startSize']), mmcurve(im['startSizeY']), mmcurve(im['startSizeZ'])]
+    if im.get('rotation3D'):
+        out['rotation3D'] = [mmcurve(im['startRotationX']), mmcurve(im['startRotationY']), mmcurve(im['startRotation'])]
     em = ps_tt['EmissionModule']
     if em['enabled']:
         out['rate'] = mmcurve(em['rateOverTime'])
@@ -1195,16 +1298,50 @@ def particle(ps_tt, rend, ctx):
     sh = ps_tt['ShapeModule']
     if sh['enabled']:
         out['shape'] = {'type': SHAPES.get(sh['type'], sh['type']), 'radius': r3(sh['radius']['value']),
+                        'radiusThickness': r3(sh.get('radiusThickness', 1)),
                         'angle': r3(sh['angle']), 'arc': r3(sh['arc']['value']),
-                        'scale': [r3(sh['m_Scale']['x']), r3(sh['m_Scale']['y'])],
-                        'pos': [r3(sh['m_Position']['x']), r3(sh['m_Position']['y'])],
-                        'rot': [r3(sh['m_Rotation']['x']), r3(sh['m_Rotation']['y']), r3(sh['m_Rotation']['z'])]}
-    for key, mod, fields in (('sizeOverLife', 'SizeModule', ['curve']), ('rotationOverLife', 'RotationModule', ['curve']),
-                             ('velocityOverLife', 'VelocityModule', ['x', 'y', 'speedModifier']),
-                             ('noise', 'NoiseModule', ['strength', 'frequency'])):
-        m = ps_tt.get(mod)
-        if m and m['enabled']:
-            out[key] = {f: (mmcurve(m[f]) if isinstance(m[f], dict) and 'minMaxState' in m[f] else m[f]) for f in fields if f in m}
+                        'scale': [r3(sh['m_Scale']['x']), r3(sh['m_Scale']['y']), r3(sh['m_Scale']['z'])],
+                        'pos': [r3(sh['m_Position']['x']), r3(sh['m_Position']['y']), r3(sh['m_Position']['z'])],
+                        'rot': [r3(sh['m_Rotation']['x']), r3(sh['m_Rotation']['y']), r3(sh['m_Rotation']['z'])],
+                        'randomDirection': r3(sh.get('randomDirectionAmount', 0))}
+    sm = ps_tt.get('SizeModule')
+    if sm and sm['enabled']:
+        out['sizeOverLife'] = {'curve': mmx(sm, 'curve')}
+        if sm.get('separateAxes'):
+            out['sizeOverLife'].update(separateAxes=True, y=mmx(sm, 'y'), z=mmx(sm, 'z'))
+    rm = ps_tt.get('RotationModule')
+    if rm and rm['enabled']:
+        out['rotationOverLife'] = {'curve': mmx(rm, 'curve')}
+        if rm.get('separateAxes'):
+            out['rotationOverLife'].update(separateAxes=True, x=mmx(rm, 'x'), y=mmx(rm, 'y'))
+    vm = ps_tt.get('VelocityModule')
+    if vm and vm['enabled']:
+        out['velocityOverLife'] = {'x': mmx(vm, 'x'), 'y': mmx(vm, 'y'), 'z': mmx(vm, 'z'),
+                                   'speedModifier': mmx(vm, 'speedModifier'), 'inWorldSpace': bool(vm.get('inWorldSpace'))}
+    fm = ps_tt.get('ForceModule')
+    if fm and fm['enabled']:
+        # lực (gia tốc, đơn vị/giây²): khói của Bancho trôi sang trái nhờ lực x −0,5
+        out['forceOverLife'] = {'x': mmx(fm, 'x'), 'y': mmx(fm, 'y'), 'z': mmx(fm, 'z'),
+                                'inWorldSpace': bool(fm.get('inWorldSpace')), 'randomizePerFrame': bool(fm.get('randomizePerFrame'))}
+    nm = ps_tt.get('NoiseModule')
+    if nm and nm['enabled']:
+        out['noise'] = {'strength': mmx(nm, 'strength'), 'strengthY': mmx(nm, 'strengthY'), 'strengthZ': mmx(nm, 'strengthZ'),
+                        'separateAxes': bool(nm.get('separateAxes')), 'frequency': r3(nm.get('frequency', 1)),
+                        'scrollSpeed': mmx(nm, 'scrollSpeed'), 'damping': bool(nm.get('damping')),
+                        'octaves': nm.get('octaves', 1), 'octaveMultiplier': r3(nm.get('octaveMultiplier', 0.5)),
+                        'octaveScale': r3(nm.get('octaveScale', 2)), 'quality': nm.get('quality'),
+                        'positionAmount': mmx(nm, 'positionAmount'), 'rotationAmount': mmx(nm, 'rotationAmount'),
+                        'sizeAmount': mmx(nm, 'sizeAmount')}
+    cd = ps_tt.get('CustomDataModule')
+    if cd and cd['enabled'] and cd.get('mode0') == 1:
+        # Custom1 (Vector): shader flow đọc làm độ lệch uv ngẫu nhiên của từng hạt
+        out['custom1'] = [mmx(cd, 'vector0_%d' % i) for i in range(cd.get('vectorComponentCount0', 4))]
+    # mô-đun khác đang bật mà tool chưa bóc: ghi tên để biết còn thiếu gì
+    known = {'InitialModule', 'EmissionModule', 'ShapeModule', 'SizeModule', 'RotationModule', 'VelocityModule',
+             'ForceModule', 'NoiseModule', 'CustomDataModule', 'ColorModule', 'UVModule'}
+    other = sorted(k for k, v in ps_tt.items() if k.endswith('Module') and k not in known and isinstance(v, dict) and v.get('enabled'))
+    if other:
+        out['unhandledModules'] = other
     cm = ps_tt['ColorModule']
     if cm['enabled']:
         out['colorOverLife'] = mmgrad(cm['gradient'])
@@ -1215,9 +1352,17 @@ def particle(ps_tt, rend, ctx):
                         'cycles': r3(uv['cycles']), 'mode': uv['mode'], 'timeMode': uv['timeMode'], 'fps': r3(uv['fps'])}
     if rend is not None:
         rr = rend.read()
+        rt = rend.read_typetree()
         modes = ['billboard', 'stretch', 'horizontal', 'vertical', 'mesh', 'none']
         out['render'] = {'mode': modes[rr.m_RenderMode] if rr.m_RenderMode < len(modes) else rr.m_RenderMode,
-                         'order': rr.m_SortingOrder, 'enabled': bool(rr.m_Enabled)}
+                         'order': rr.m_SortingOrder, 'enabled': bool(rr.m_Enabled),
+                         'alignment': rt.get('m_RenderAlignment'), 'lengthScale': r3(rt.get('m_LengthScale', 2)),
+                         'velocityScale': r3(rt.get('m_VelocityScale', 0)), 'maxParticleSize': r3(rt.get('m_MaxParticleSize', 0.5)),
+                         'sortingFudge': r3(rt.get('m_SortingFudge', 0))}
+        if rt.get('m_UseCustomVertexStreams'):
+            out['render']['vertexStreams'] = rt.get('m_VertexStreams')
+        if rr.m_RenderMode == 4 and rr.m_Mesh.m_PathID:
+            out['render']['mesh'] = ctx.mesh(rr.m_Mesh.read())
         if rr.m_Materials and rr.m_Materials[0].m_PathID:
             mat = rr.m_Materials[0].read()
             shader, blend = shader_blend(mat)
@@ -1229,6 +1374,16 @@ def particle(ps_tt, rend, ctx):
             colors = {k: col(v) for k, v in mat.m_SavedProperties.m_Colors if k in ('_Color', '_TintColor', '_BaseColor')}
             out['render'].update({'material': mat.m_Name, 'shader': shader, 'blend': blend, 'texture': tex,
                                   'tint': colors or None})
+            if shader and not PLAIN_SHADER.match(shader):
+                # shader riêng (ShaderGraph): xuất mọi ảnh + tham số theo tên hiển thị để game dựng lại
+                sp = shader_props(mat)
+                if sp:
+                    props, desc = sp
+                    for k, v in mat.m_SavedProperties.m_TexEnvs:
+                        if k in desc and v.m_Texture.m_PathID:
+                            t = v.m_Texture.read()
+                            props[desc[k]] = ctx.texture(t) if REBUILT_SHADER.match(shader) else {'notExported': t.m_Name}
+                    out['render']['props'] = props
     return out
 
 
@@ -1288,6 +1443,9 @@ def dump_node(go, ctx):
     q = t.m_LocalRotation
     if abs(q.z) > 1e-4:
         n['rotZ'] = r3(math.degrees(2 * math.atan2(q.z, q.w)))
+    # quaternion cục bộ đầy đủ khi có quay quanh x/y (hệ hạt dựng đứng, nón nghiêng): hướng phát hạt cần nó
+    if abs(q.x) > 1e-4 or abs(q.y) > 1e-4:
+        n['q'] = [r3(q.x), r3(q.y), r3(q.z), r3(q.w)]
     ps = rend = None
     for c in go.m_Component:
         tn = c.component.type.name
@@ -1379,12 +1537,16 @@ def strip_sprites(dec, ctx=None):
     return out
 
 
-def dump_prefab(path, ctx):
+def dump_prefab(path, ctx, sub=None):
+    """Cây bố cục của prefab; sub = 'A/B/C' thì chỉ lấy nhánh con đó (prefab gốc to như SushiBarCanvasRoot)."""
     def go(env):
         a = container(env, path, 'GameObject')
         if a is None:
             return None
-        return dump_node(a.read(), ctx)
+        g = a.read()
+        for nm in (sub.split('/') if sub else []):
+            g = [c for c in children(g) if c.m_Name == nm][0]
+        return dump_node(g, ctx)
     return with_deps(IDX[path], go)
 
 
@@ -1393,16 +1555,17 @@ def rip_ui():
         shutil.rmtree(os.path.join(ART, sub), ignore_errors=True)
     ctx = UICtx()
     panels, missing = {}, []
-    for key, rel in UI_PREFABS:
-        path = UI + rel
+    for item in UI_PREFABS + UI_SUBTREES:
+        key, rel, sub = (item + (None,))[:3]
+        path = rel if rel.startswith('Assets/') else (PC + rel if sub else UI + rel)
         if path not in IDX:
             missing.append({'what': 'ui prefab', 'id': key, 'why': 'không có ' + rel})
             continue
         ctx.skip_nodes = SKIP_NODES.get(key, set())
-        root = dump_prefab(path, ctx)
+        root = dump_prefab(path, ctx, sub)
         ctx.skip_nodes = set()
         # bố cục đầy đủ để ở tệp JSON riêng (nặng); manifest chỉ giữ đường dẫn + cỡ gốc
-        panels[key] = {'prefab': rel, 'layout': save_json(root, 'ui/layout/%s.json' % key),
+        panels[key] = {'prefab': rel + ('#' + sub if sub else ''), 'layout': save_json(root, 'ui/layout/%s.json' % key),
                        'rt': root.get('rt'), 'nodes': count_nodes(root)}
         print('  UI %-22s sprite %d' % (key, len(ctx.sprites)))
     loose = {}
@@ -1435,7 +1598,7 @@ def rip_ui():
                              'img.type': '0 Simple, 1 Sliced (9 mảnh theo border [trái, dưới, phải, trên] px), 2 Tiled, 3 Filled',
                              'curve.keys': 'legacy: [t, v, inSlope, outSlope] (Hermite); Mecanim streamed: [t, v, c, b, a] '
                                            'với v(t) = ((a*dt + b)*dt + c)*dt + v, dt = t - t_khoá; dense: [t, v]'}},
-            'vfx': {'systems': vfx, 'textures': ctx.textures}, 'missingUI': missing}
+            'vfx': {'systems': vfx, 'textures': ctx.textures, 'meshes': ctx.meshes}, 'missingUI': missing}
 
 
 # ================================================================ tiếng
@@ -1560,6 +1723,16 @@ KNOWN_ABSENT = [
     {'what': 'audio', 'id': 'customerHappyAngryVO', 'why': 'khách thường không có giọng vui/giận riêng'},
     {'what': 'vfx', 'id': 'cookSmokeMain', 'why': 'quán chính không có khói nấu; chỉ DLC Jungle có (vfx.cookSmoke_JungleDLC)'},
     {'what': 'dave', 'id': 'serveHandOff', 'why': 'không có clip đưa món riêng; Serve (đi bưng) + Serve_Idle (đứng bưng) là tất cả'},
+    # đo 2026-09-24, lượt đánh bóng quán
+    {'what': 'ui', 'id': 'customerEnterTalk', 'why': 'CustomerToastTalk chỉ có câu lúc chờ món, lúc giận, lúc ăn; không có câu lúc bước vào'},
+    {'what': 'ui', 'id': 'customerTalkBubble', 'why': 'CustomerTalkBoxInfo chỉ là một dòng TextMeshPro có viền (Underlay), không có ảnh bong bóng'},
+    {'what': 'ui', 'id': 'soldCountHud', 'why': 'HUD đêm gốc (SushiBarCanvasRoot) chỉ có ô vàng + đồng hồ; không có ô đếm suất đã bán'},
+    {'what': 'ui', 'id': 'teaQtePanel', 'why': 'bảng rót trà gốc SushiBarQTEPanel dùng nền UI_SushiBar_QTE_BeerBg in nhãn "GLENN BEER" và '
+                                                 'chất lỏng mô phỏng (Water2D metaball) vẽ qua RenderTexture; giữ vòng AutoQTE của StaffActionInfo'},
+    {'what': 'vfx', 'id': 'speakerSpark/signSpark', 'why': 'khói + tia lửa loa/biển hỏng: có tốc độ, hình phát dùng được nhưng scene '
+                                                          'DR_SushiBar không đặt sẵn; code gốc sinh lúc nào không đọc được -> không phát'},
+    {'what': 'vfx', 'id': 'nightEnv', 'why': 'VFX_SushiBar_Evening: sóng, sao băng, bụi nước của biển 3D phía sau quán (x≈−95, cách quán hàng chục đơn vị) -> bỏ'},
+    {'what': 'vfx', 'id': 'cookSmokeDepthFade', 'why': 'Smoke_Flow bật DepthFade (mờ theo độ sâu cảnh 3D); quán 2D không có bộ đệm độ sâu -> coi như 1'},
 ]
 
 

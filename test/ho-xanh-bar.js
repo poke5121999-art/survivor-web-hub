@@ -190,6 +190,9 @@ async function kitchen(page, base, tag) {
   await page.click('.bk .br-row[data-id="ClownFish"]');
   const n2 = (await page.$$('.bk-cell.on')).length;
   check(tag + ' bấm món trong tủ thì bỏ / thêm khỏi thực đơn', n1 === 2 && n2 === 3, n1 + ' → ' + n2);
+  // khói nấu của Bancho: đủ lớp hạt gốc, gồm lớp mesh hơi nước (shader flow dựng lại)
+  const smoke = await waitFor(page, () => { const w = HX.bar.debug.fx().world; return w.some(e => e.flow && e.parts > 0) && w.some(e => e.tex === 'E_Smoke_03A' && e.parts > 0); }, null, 10000);
+  check(tag + ' khói nấu của Bancho có lớp khói E_Smoke_03A và lớp mesh hơi nước (flow)', smoke, JSON.stringify(await page.evaluate(() => HX.bar.debug.fx().world.map(e => e.tex + ':' + e.parts + (e.flow ? ':flow' : '')))));
   const bancho = await page.evaluate(() => HX.game.phase === 'kitchen');
   await sleep(1200);
   await shot(page, 'kitchen-' + tag);
@@ -222,6 +225,10 @@ async function keyboardNight(browser, base) {
   I = await info(page);
   const first = I.customers.filter(c => c.st === 'order')[0];
   check('khách tự vào từ cửa trái, ngồi vào ghế đang mở và gọi món', arrived && I.seats.indexOf(first.seat) >= 0, first && (first.who + ' ở ' + first.seat + ' gọi ' + first.order));
+  // câu nói gốc lúc chờ món (CustomerToastTalk, dịch tiếng Việt), hiện sau PreDelay
+  const said = await waitFor(page, () => HX.bar.debug.info().customers.some(c => c.talk && c.talk.kind === 'waiting'), null, 8000);
+  const talkNow = (await info(page)).customers.filter(c => c.talk).map(c => c.talk.text);
+  check('khách gọi món xong thì nói câu lúc chờ (tiếng Việt)', said && talkNow.length > 0 && talkNow.every(t => !/[’]|please|nice|good/i.test(t)), JSON.stringify(talkNow));
   let bad = seatingOk(I);
   check('khách ngồi đúng chỗ ngồi gốc, ghế đẩu quay lưng (back_*), đúng lớp vẽ', !bad.length, bad.join(' | '));
   await page.evaluate(() => HX.bar.debug.holdSpawns(true));
@@ -317,6 +324,13 @@ async function keyboardNight(browser, base) {
     return o;
   });
   check('sổ cuối ngày nằm gọn trong màn hình, chữ không tràn', !lov.length, lov.join(' | '));
+  const art = await page.evaluate(() => ({
+    curtain: /SushiBar_EndCurtain/.test(document.querySelector('.bl-dummy').style.backgroundImage),
+    alarm: /Night_AlarmBox/.test(document.querySelector('.bl-abox').style.borderImage),
+    band: getComputedStyle(document.querySelector('.bl-result')).display !== 'none' && /Account_ResultBg/.test(document.querySelector('.bl-result').style.backgroundImage),
+    bancho: !!document.querySelector('.bl-barea .bl-react'),
+  }));
+  check('sổ dùng ảnh gốc: rèm EndCurtain, hộp Night_AlarmBox, dải ResultBg có Bancho', art.curtain && art.alarm && art.band && art.bancho, JSON.stringify(art));
   check('nút sổ ghi "Sang ngày 2"', (await page.$eval('#ledger-next', e => e.textContent)) === 'Sang ngày 2');
   await page.click('#ledger-next');
   check('bấm "Sang ngày 2" về màn chuẩn bị', await phaseIs(page, 'prep'));

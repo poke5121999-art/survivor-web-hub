@@ -1,7 +1,9 @@
 /* Pha kitchen, bar, ledger (js/bar.js). Hình nền, khung 9 mảnh và màu chữ lấy từ bố cục UI gốc (art/bar/ui/layout).
    --u: px CSS mỗi px UI gốc (canvas 1920×1080); --k: như --u, nhân thêm tỉ lệ của từng màn gốc. js/bar.js đặt hai biến này. */
 .screen.bk[hidden], .screen.bb[hidden], .screen.bl[hidden] { display: none; }
-.bk, .bb, .bl { --u: .667; --k: .6; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+/* Font gốc (css/fonts.css): chữ thân của quán là Roboto-Medium (UIFontOverride_SushiBar_Contents), số là Snowstorm (_Common_Num) */
+.bk, .bb, .bl { --u: .667; --k: .6; font-family: var(--font-ui, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif); }
+.bk-price b, .bb-gold b, .bb .br-right, .bl-kv b, .br-ledger b, .bl-total b, .bl-ival, .bl-likes b, .bl-topm b { font-family: var(--font-num, system-ui, sans-serif); }
 .bx-btn {
   box-sizing: border-box; min-width: calc(184px * var(--k)); height: max(36px, calc(52px * var(--k))); padding: 0 calc(10px * var(--k));
   display: inline-flex; align-items: center; justify-content: center; background: none; color: #fff;
@@ -26,7 +28,7 @@
 .bk-toppat { position: relative; flex: none; height: calc(20px * var(--k)); background: rgb(48, 56, 92); }
 .bk-toppat::after { content: ""; position: absolute; inset: 0; background: var(--UI_SushiBar_Menu_Pattern01) repeat-x; background-size: auto 100%; opacity: .059; }
 .bk-title { position: relative; flex: none; display: flex; align-items: center; justify-content: center; gap: calc(14px * var(--k)); height: calc(84px * var(--k));
-  color: #3c312d; font: 800 max(15px, calc(30px * var(--k)))/1 var(--disp); letter-spacing: .02em; }
+  color: #3c312d; font: 800 max(15px, calc(30px * var(--k)))/1 var(--font-ui, system-ui, sans-serif); letter-spacing: .02em; }
 .bk-deco { width: calc(31px * var(--k)); height: calc(32px * var(--k)); }
 .bk-sub { position: relative; flex: none; box-sizing: border-box; margin: 0 calc(12px * var(--k)) calc(12px * var(--k)); min-height: calc(40px * var(--k));
   display: flex; align-items: center; justify-content: center; text-align: center; color: #3c312d; font-size: max(11px, calc(21px * var(--k))); font-weight: 600; }
@@ -68,12 +70,12 @@
 /* ---------- quán: HUD phủ trên #stage2d, chỉ nút và ô món nhận chạm ---------- */
 .screen.bb { pointer-events: none; display: block; padding: 0; }
 .bb > * { position: absolute; }
-.bb-top { left: max(10px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 3px;
-  padding: 6px 12px 7px 8px; border-radius: 10px; background: rgba(6, 8, 16, .55); }
-.bb-gold { display: flex; align-items: center; gap: 6px; color: #ffd24a; font: 800 max(18px, calc(32px * var(--u)))/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-.bb-coin { width: max(22px, calc(40px * var(--u))); height: max(22px, calc(40px * var(--u))); }
-.bb-clock { color: #fff; font-weight: 700; font-size: max(12px, calc(20px * var(--u))); }
-.bb .br-note { color: #cfe6ee; font-size: max(11px, calc(18px * var(--u))); }
+/* ô vàng gốc (LobbyGoldbar 260 × 56): Coin32 cách trái 16, số cỡ 32 trắng căn trái từ px 64 */
+.bb-gold { left: max(10px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top)); width: calc(260px * var(--u)); height: calc(56px * var(--u)); }
+.bb-gold .bx-9 { border-style: solid; }
+.bb-coin { position: absolute !important; left: calc(16px * var(--u)); top: 50%; width: calc(32px * var(--u)); height: calc(32px * var(--u)); transform: translateY(-50%); }
+.bb-gold b { position: absolute !important; left: calc(64px * var(--u)); right: 0; top: 0; bottom: 0; display: flex; align-items: center;
+  color: #fff; font: 700 calc(32px * var(--u))/1 var(--font-num, system-ui, sans-serif); font-variant-numeric: tabular-nums; }
 .bb-queue { right: max(10px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: calc(6px * var(--u)); pointer-events: auto; }
 .bb-slot { position: relative; width: max(92px, calc(138px * var(--u))); height: max(29px, calc(44px * var(--u))); cursor: pointer; touch-action: none; }
 .bb-slot.wait { opacity: .55; }
@@ -100,18 +102,31 @@
 
 /* ---------- sổ cuối ngày (SushiBarAccountInternal) ---------- */
 .screen.bl { display: block; padding: 0; overflow: hidden; }
+.bl-dummy { position: absolute; inset: 0; background: center / 100% 100% no-repeat; }
 .bl-curtain { position: absolute; inset: 0; background: rgba(0, 0, 0, .784); }
 .bl-banner { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
 .bl.done .bl-banner { display: none; }
 .bl-banner > * { position: absolute; }
+.bl-abox { left: calc(-960px * var(--u)); top: calc((-122px - 86px) * var(--u)); width: calc(1920px * var(--u)); height: calc(172px * var(--u)); box-sizing: border-box;
+  border-style: solid; transform-origin: 50% 50%; }
 .bl-t1, .bl-t2, .bl-t3 { white-space: nowrap; transform-origin: 0 0; }
-.bl-t1 { left: calc(-119px * var(--u)); top: calc(-188px * var(--u)); color: #fff; font: 700 max(13px, calc(26px * var(--u)))/1.2 system-ui, sans-serif; }
-.bl-t2 { left: calc(-127px * var(--u)); top: calc(-150px * var(--u)); color: rgb(250, 39, 163); font: italic 900 max(22px, calc(44px * var(--u)))/1.1 system-ui, sans-serif; }
-.bl-t3 { left: calc(-135px * var(--u)); top: calc(-102px * var(--u)); color: rgb(234, 216, 119); font: italic 900 max(22px, calc(44px * var(--u)))/1.1 system-ui, sans-serif; }
+.bl-t1 { left: calc(-119px * var(--u)); top: calc(-188px * var(--u)); color: #fff; font: 700 max(13px, calc(26px * var(--u)))/1.2 var(--font-ui, system-ui, sans-serif); }
+.bl-t2 { left: calc(-127px * var(--u)); top: calc(-150px * var(--u)); color: rgb(250, 39, 163); font: italic 900 max(22px, calc(44px * var(--u)))/1.1 var(--font-num, system-ui, sans-serif); }
+.bl-t3 { left: calc(-135px * var(--u)); top: calc(-102px * var(--u)); color: rgb(234, 216, 119); font: italic 900 max(22px, calc(44px * var(--u)))/1.1 var(--font-num, system-ui, sans-serif); }
 .bl-star { left: calc((-253px - 197px) * var(--u)); top: calc((-164px - 199px) * var(--u)); width: calc(394px * var(--u)); height: calc(398px * var(--u)); mix-blend-mode: screen; }
 .bl-bmask { left: calc((-255px - 200px) * var(--u)); top: calc((-202px - 161px) * var(--u)); width: calc(400px * var(--u)); height: calc(322px * var(--u)); overflow: hidden; }
 .bl-bancho { position: absolute; left: calc(7px * var(--u)); bottom: calc(-34px * var(--u)); width: calc(376px * var(--u)); height: calc(376px * var(--u)); image-rendering: pixelated; transform-origin: 50% 100%; }
-.bl-area { position: absolute; left: 50%; bottom: calc(110px * var(--k)); display: flex; gap: calc(16px * var(--k)); translate: -50% 0; visibility: hidden; }
+.bl-result { position: absolute; left: 0; right: 0; top: calc(74px * var(--k)); height: calc(274px * var(--k)); background: center / 100% 100% no-repeat;
+  display: flex; align-items: center; justify-content: center; gap: calc(40px * var(--k)); visibility: hidden; }
+.bl-info { display: flex; flex-direction: column; gap: calc(5px * var(--k)); width: calc(498px * var(--k)); }
+.bl-irow { box-sizing: border-box; height: calc(70px * var(--k)); display: flex; align-items: center; gap: calc(10px * var(--k)); padding: 0 calc(16px * var(--k)); }
+.bl-ititle { margin-right: auto; color: rgb(215, 214, 238); font-weight: 700; font-size: max(12px, calc(26px * var(--k))); }
+.bl-iic { width: calc(36px * var(--k)); height: calc(36px * var(--k)); object-fit: contain; }
+.bl-ival { color: #fff; font-weight: 800; font-size: max(14px, calc(36px * var(--k))); font-variant-numeric: tabular-nums; }
+.bl-ival.bl-pink { color: rgb(242, 32, 124); }
+.bl-barea { position: relative; align-self: stretch; width: calc(232px * var(--k)); }
+.bl-barea .bl-react { position: absolute; left: 50%; bottom: calc(1px * var(--k)); width: calc(376px * var(--k)); height: calc(376px * var(--k)); margin-left: calc(-188px * var(--k)); }
+.bl-area { position: absolute; left: 50%; bottom: calc(100px * var(--k)); display: flex; gap: calc(16px * var(--k)); translate: -50% 0; visibility: hidden; }
 .bl-area.show { visibility: visible; }
 .bl-paper { position: relative; box-sizing: border-box; height: calc(634px * var(--k)); background: center / 100% 100% no-repeat; color: rgb(41, 50, 84);
   padding: calc(34px * var(--k)) calc(30px * var(--k)) calc(40px * var(--k)); display: flex; flex-direction: column; gap: calc(12px * var(--k)); }
@@ -121,7 +136,7 @@
   color: rgb(214, 214, 214); font-weight: 700; font-size: max(11px, calc(20px * var(--k))); }
 .bl-head { display: flex; align-items: center; justify-content: space-between; }
 .bl-date { font-size: max(11px, calc(22px * var(--k))); font-weight: 600; }
-.bl-likes { display: flex; align-items: center; gap: 8px; font: 800 max(18px, calc(40px * var(--k)))/1 system-ui, sans-serif; color: rgb(41, 50, 84); }
+.bl-likes { display: flex; align-items: center; gap: 8px; font: 800 max(18px, calc(40px * var(--k)))/1 var(--font-num, system-ui, sans-serif); color: rgb(41, 50, 84); }
 .bl-likeic { width: calc(39px * var(--k) * 1.3); height: calc(38px * var(--k) * 1.3); }
 .bl-kv, .br-ledger { display: grid; grid-template-columns: 1fr auto; gap: calc(6px * var(--k)) calc(14px * var(--k)); font-size: max(12px, calc(22px * var(--k))); }
 .bl-kv b, .br-ledger b { text-align: right; font-variant-numeric: tabular-nums; }
