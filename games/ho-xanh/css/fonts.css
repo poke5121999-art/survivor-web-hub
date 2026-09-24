@@ -1,0 +1,29 @@
+/* Font UI gốc của Dave the Diver, bóc bằng tools/rip_ui.py (art/fonts/, số đo ở HX_UI_ASSETS.fonts).
+   Bản tiếng Anh của game dùng hai font cho app điện thoại:
+     - Snowstorm (UIFontOverride_Common_Snow, _Idiver_Subject, _Common_Button, _OnlyEnglish_SnowStorm, _Common_Num):
+       tiêu đề, nút, số. Chỉ có 308 chữ: thiếu ă đ ơ ư và gần hết dấu thanh tiếng Việt.
+     - Roboto-Medium (UIFontOverride_Idiver_Roboto, _Common_Roboto, _SushiBar_Contents): chữ thân. Đủ dấu tiếng Việt.
+   Game gốc không có tiếng Việt. Với ngôn ngữ Snowstorm không phủ (Ba Lan, Thổ), game đổi CẢ CHUỖI sang font khác
+   chứ không trộn từng chữ. Ở đây làm y như vậy:
+     --font-ui    chuỗi tiếng Việt (mọi chữ có dấu): Roboto-Medium của game.
+     --font-num   chuỗi Snowstorm phủ đủ (số, vàng, "Lv.3", "UPGRADE"): Snowstorm; lỡ có chữ thiếu thì Roboto vá từng chữ.
+     --font-title bí danh của --font-num cho tiêu đề chỉ có chữ Latin không dấu Việt.
+   size-adjust = FaceInfo.scale của font TMP gốc (Snowstorm SDF 1.3, Roboto-Medium SDF 1.05): TMP phóng mặt chữ theo số này.
+   Khai báo khoảng weight 100–900 cho một mặt chữ duy nhất: trình duyệt không tự tô đậm giả (bản gốc không có bản đậm). */
+@font-face {
+  font-family: 'HX Roboto';
+  src: url('../art/fonts/Roboto-Medium.ttf?v=20260924f') format('truetype');
+  font-weight: 100 900; font-style: normal; font-display: swap; size-adjust: 105%;
+}
+@font-face {
+  font-family: 'HX Snowstorm';
+  src: url('../art/fonts/Snowstorm.otf?v=20260924f') format('truetype');
+  font-weight: 100 900; font-style: normal; font-display: swap; size-adjust: 130%;
+}
+:root {
+  --font-ui: 'HX Roboto', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-num: 'HX Snowstorm', 'HX Roboto', system-ui, sans-serif;
+  --font-title: var(--font-num);
+}
+.hx-f-ui { font-family: var(--font-ui); }
+.hx-f-num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }

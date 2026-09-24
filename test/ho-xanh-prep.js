@@ -6,6 +6,8 @@
  * Chạy ở 1280×720 (chuột + bàn phím) và 844×390 (cảm ứng: page.tap).
  * Kiểm: 0 vàng thì mọi nút mua bị từ chối có báo và sổ không đổi; cho vàng thì nâng O₂ trừ đúng giá, ô hiện cấp mới;
  * mua + mang súng ghi vào save.guns; nâng quán; tải lại còn nguyên; Ra khơi sang cano; không tràn khung; không lỗi trang.
+ * Bố cục iDiver/Duff đọc từ art/gear/{idiver,duff}/layout (tools/rip_ui.py), không còn sprite thay tạm; font gốc (css/fonts.css) đã nạp,
+ * chữ không tràn hộp (chữ dài chạy vòng theo UITextScroller gốc thì bỏ qua); ảnh 0-fonts: mẫu tiếng Việt trên hai font gốc.
  */
 'use strict';
 const path = require('path'), http = require('http'), fs = require('fs'), os = require('os');
@@ -17,7 +19,8 @@ const ROOT = path.resolve(__dirname, '..');
 const SHOTS = process.env.SHOTS || path.join(os.tmpdir(), 'ho-xanh-shots', 'prep');
 fs.mkdirSync(SHOTS, { recursive: true });
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary',
-  '.atlas': 'text/plain', '.skel': 'application/octet-stream', '.svg': 'image/svg+xml', '.css': 'text/css', '.json': 'application/json' };
+  '.atlas': 'text/plain', '.skel': 'application/octet-stream', '.svg': 'image/svg+xml', '.css': 'text/css', '.json': 'application/json',
+  '.ttf': 'font/ttf', '.otf': 'font/otf' };
 
 let pass = 0, fail = 0;
 const out = [];
@@ -69,6 +72,47 @@ async function layoutIssues(page) {
   });
 }
 
+// Chữ dựng từ bố cục (.pt) tràn hộp: rộng hơn hộp (trừ chữ chạy vòng .pt-run), hoặc nét chữ thật (đo bằng canvas
+// measureText, có tính size-adjust của font) cao hơn hộp. scrollHeight không dùng được cho chữ một dòng: vùng nội dung
+// Snowstorm ×1,3 luôn cao hơn nét chữ, như TMP gốc để chữ tràn khung dọc mà không cắt.
+// Mọi icon ô (.pr-icon) đã tải xong (naturalWidth > 0) và hiện; mọi xu trong ô giá có bề rộng và ảnh Coin gốc.
+// Đo ngay lúc chụp ảnh, không chờ: ảnh phải có từ khung đầu (prep.js nạp sẵn khi vào pha).
+async function iconIssues(page) {
+  return page.evaluate(() => {
+    const bad = [], vis = e => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return r.width > 1 && r.height > 1 && cs.visibility !== 'hidden' && +cs.opacity > 0; };
+    const icons = [...document.querySelectorAll('#scr-prep .pr-row .pr-icon')];
+    icons.forEach(i => {
+      const k = i.closest('.pr-row').dataset.key;
+      if (!i.complete || !i.naturalWidth) bad.push(k + ': icon chưa tải ' + i.getAttribute('src'));
+      else if (!vis(i)) bad.push(k + ': icon không hiện');
+    });
+    const coins = [...document.querySelectorAll('#scr-prep .pr-row .pr-cost [data-n="CoinIcon"]')];
+    coins.forEach(c => {
+      const k = c.closest('.pr-row').dataset.key;
+      if (!vis(c) || !/Coin/.test(c.style.backgroundImage)) bad.push(k + ': xu giá không hiện ' + Math.round(c.getBoundingClientRect().width) + 'px');
+    });
+    return { bad, icons: icons.length, coins: coins.length };
+  });
+}
+
+async function textOverflow(page) {
+  return page.evaluate(() => {
+    const cx = document.createElement('canvas').getContext('2d');
+    return [...document.querySelectorAll('#scr-prep .pt')].filter(e => {
+      if (!e.getClientRects().length || getComputedStyle(e).visibility === 'hidden' || !e.textContent.trim()) return false;
+      const r = e.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > innerHeight) return false;
+      if (e.classList.contains('wrap')) return e.scrollHeight > e.clientHeight + 2;
+      if (!e.querySelector('.pt-run') && e.scrollWidth > e.clientWidth + 1) return true;
+      const cs = getComputedStyle(e), lines = (e.querySelector('.pt-run > span') || e).textContent.split(String.fromCharCode(10));
+      cx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      const ink = lines.reduce((h, t) => { const m = cx.measureText(t); return h + m.actualBoundingBoxAscent + m.actualBoundingBoxDescent; }, 0);
+      e.dataset.ink = Math.round(ink);
+      return ink > e.clientHeight + 1;
+    }).map(e => (e.dataset.n || e.className) + ': ' + e.textContent + ' w ' + e.scrollWidth + '/' + e.clientWidth + ' ink ' + e.dataset.ink + '/' + e.clientHeight);
+  });
+}
+
 async function run(browser, base, W, H, touch) {
   const tag = W + 'x' + H;
   out.push('\n[' + tag + (touch ? ' cảm ứng' : ' chuột + bàn phím') + ']');
@@ -100,6 +144,44 @@ async function run(browser, base, W, H, touch) {
   check('thẻ Trang bị không tràn khung, không nút bị cắt', !L.bad.length, L.bad.slice(0, 4).join(' | '));
   check('chữ nhỏ nhất ≥ 10 px', L.minFont >= 10, L.minFont + ' px');
   await shot('1-gear');
+  let IC = await iconIssues(page);
+  check('thẻ Trang bị: mọi icon ô đã tải (naturalWidth > 0) và hiện ngay lúc chụp, mọi ô giá có xu', !IC.bad.length && IC.icons === Object.keys(await page.evaluate(() => HX_META.GEAR)).length,
+    IC.icons + ' icon, ' + IC.coins + ' xu ' + IC.bad.slice(0, 4).join(' | '));
+  const lay = await page.evaluate(() => ({ lay: HX.prep.debug.layouts(), st: HX.prep.debug.standins() }));
+  check('bố cục iDiver + Duff đọc từ JSON gốc, không còn sprite thay tạm', ['panel', 'cell', 'duffApp', 'newWeaponTitle'].every(k => (lay.lay || []).includes(k)) && !Object.keys(lay.st).length,
+    JSON.stringify(lay));
+  // ---------- font gốc ----------
+  const F = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const faces = [...document.fonts].filter(f => /HX /.test(f.family)).map(f => f.family.replace(/"/g, '') + ':' + f.status);
+    const ff = sel => { const e = document.querySelector(sel); return e ? getComputedStyle(e).fontFamily : null; };
+    return { faces, title: ff('.pr-row .pr-title'), lv: ff('.pr-row .pr-lv.cur'), gold: ff('.pr-goldn .hx-f-num') };
+  });
+  check('font gốc Roboto-Medium và Snowstorm đã nạp', F.faces.includes('HX Roboto:loaded') && F.faces.includes('HX Snowstorm:loaded'), F.faces.join(', '));
+  check('tên ô tiếng Việt dùng Roboto gốc, "Lv.1" và số vàng dùng Snowstorm gốc', /HX Roboto/.test(F.title) && /HX Snowstorm/.test(F.lv) && /HX Snowstorm/.test(F.gold),
+    F.title + ' | ' + F.lv + ' | ' + F.gold);
+  let O = await textOverflow(page);
+  check('thẻ Trang bị: chữ không tràn hộp', !O.length, O.slice(0, 3).join(' | '));
+  if (!touch) {
+    // mẫu tiếng Việt trên hai font gốc; chữ font thiếu thì rơi xuống monospace cho dễ thấy
+    await page.evaluate(() => {
+      const T = 'Bình dưỡng khí · Súng bắn tỉa · Sushi cá mú chấm', d = document.createElement('div');
+      d.id = 'hx-font-sample';
+      d.style.cssText = 'position:fixed;inset:0;z-index:99;background:#0b43b9;color:#fff;padding:24px;font-size:30px;line-height:1.6';
+      [['HX Roboto', 'Roboto-Medium (--font-ui)'], ['HX Snowstorm', 'Snowstorm (--font-num), chữ thiếu hiện bằng monospace'], ['HX Snowstorm', 'Snowstorm, số']].forEach((f, i) => {
+        const r = document.createElement('div'), l = document.createElement('div');
+        l.textContent = f[1]; l.style.cssText = 'font:14px monospace;color:#ffe400';
+        r.textContent = i === 2 ? '0123456789 · 12 450 vàng · Lv.3 → Lv.4 · 90 → 120 · MAX LEVEL · UPGRADE' : T;
+        r.style.fontFamily = "'" + f[0] + "', monospace";
+        d.appendChild(l); d.appendChild(r);
+      });
+      document.body.appendChild(d);
+    });
+    await page.evaluate(() => document.fonts.ready);
+    await sleep(200);
+    await shot('0-fonts');
+    await page.evaluate(() => document.getElementById('hx-font-sample').remove());
+  }
 
   // ---------- 0 vàng: mọi nút mua đều bị từ chối, có báo, sổ không đổi ----------
   const before = JSON.stringify(await save());
@@ -132,12 +214,14 @@ async function run(browser, base, W, H, touch) {
   await sleep(450);
   S = await save();
   check('nâng O₂: trừ đúng ' + o2.cost + ' vàng, lên cấp 1', S.gold === 5000 - o2.cost && S.gear.o2 === 1, S.gold + ' vàng, o2=' + S.gear.o2);
-  check('ô O₂ hiện cấp mới (Cấp 2) và giá cấp sau', (await text('.pr-row[data-key="o2"] .pr-lv.cur')) === 'Cấp 2', await text('.pr-row[data-key="o2"] .pr-lv.cur'));
+  check('ô O₂ hiện cấp mới (Lv.2) và giá cấp sau', (await text('.pr-row[data-key="o2"] .pr-lv.cur')) === 'Lv.2', await text('.pr-row[data-key="o2"] .pr-lv.cur'));
   check('vàng trên đầu trang cập nhật', (await text('.pr-gold')) === (5000 - o2.cost) + ' vàng', await text('.pr-gold'));
   let fx = await page.evaluate(() => ({ pop: HX.prep.debug.popup(), parts: HX.prep.debug.particles(), sys: HX.prep.debug.systems(), snd: HX.prep.debug.sounds() }));
   check('mua xong bật bảng NÂNG CẤP của iDiver với hạt VFX gốc đang chạy', fx.pop === 'idv' && fx.parts > 5 && fx.sys >= 4, JSON.stringify(fx));
   check('tiếng UI gốc đã giải mã (ui_levelup, ui_fail…)', ['ui_levelup', 'ui_fail', 'ui_buy', 'ui_click'].every(k => fx.snd.includes(k)), fx.snd.join(','));
   await shot('3-gear-upgrade');
+  O = await textOverflow(page);
+  check('bảng lên cấp: chữ không tràn hộp', !O.length, O.slice(0, 3).join(' | '));
   await sleep(700);
   await shot('3b-gear-upgrade-later');
   await press('.pr-lup-ok');
@@ -154,12 +238,23 @@ async function run(browser, base, W, H, touch) {
   L = await layoutIssues(page);
   check('thẻ Súng không tràn khung', !L.bad.length, L.bad.slice(0, 4).join(' | '));
   await shot('4-guns');
+  IC = await iconIssues(page);
+  check('thẻ Súng: mọi icon ô đã tải (naturalWidth > 0) và hiện ngay lúc chụp, mọi ô giá có xu', !IC.bad.length && IC.icons === Object.keys(await page.evaluate(() => HX_META.GUNS)).length,
+    IC.icons + ' icon, ' + IC.coins + ' xu ' + IC.bad.slice(0, 4).join(' | '));
+  O = await textOverflow(page);
+  check('thẻ Súng: chữ không tràn hộp', !O.length, O.slice(0, 3).join(' | '));
+  check('thẻ Súng dùng nền và logo app Duff gốc', await page.evaluate(() => /PhoneBg_Duff/.test(document.querySelector('.pr-bg').style.backgroundImage) &&
+    /UI_WeaponCraft_Logo/.test(document.querySelector('.pr-logo.duff').style.backgroundImage)));
   const rifleCost = await page.evaluate(() => HX_META.GUNS.rifle.cost), g0 = (await save()).gold;
   await press('.pr-row[data-key="rifle"] .pr-buy');
   await sleep(300);
   S = await save();
   check('mua súng trường: trừ đúng giá, có trong kho, tự mang theo', S.gold === g0 - rifleCost && S.guns.owned.includes('rifle') && S.guns.equipped === 'rifle', JSON.stringify(S.guns) + ' ' + S.gold);
   await shot('5-gun-bought');
+  const gfx = await page.evaluate(() => HX.prep.debug.fxList().map(s => s.ems.map(e => e[0]).join(',')).join(' / '));
+  check('bảng súng mới phát hạt chữ NEW WEAPON của app Duff', /NewWeaponOnce|NewWeapon/.test(gfx), gfx.slice(0, 120));
+  O = await textOverflow(page);
+  check('bảng súng mới: chữ không tràn hộp', !O.length, O.slice(0, 3).join(' | '));
   await press('.pr-lup-ok');
   await press('.pr-row[data-key="shotgun"] .pr-buy');
   await sleep(200);
@@ -227,7 +322,15 @@ async function run(browser, base, W, H, touch) {
   check('tải lại trang: vàng, O₂, súng, ghế còn nguyên', S.gold === kept.gold && S.gear.o2 === kept.gear.o2 && S.guns.equipped === 'rifle' && S.bar.seats === 1,
     JSON.stringify({ gold: S.gold, o2: S.gear.o2, gun: S.guns.equipped, seats: S.bar.seats }));
   await sleep(500);
-  check('ô O₂ sau khi tải lại vẫn hiện đúng cấp', (await text('.pr-row[data-key="o2"] .pr-lv.cur')) === 'Cấp ' + (S.gear.o2 + 1));
+  check('ô O₂ sau khi tải lại vẫn hiện đúng cấp', (await text('.pr-row[data-key="o2"] .pr-lv.cur')) === 'Lv.' + (S.gear.o2 + 1));
+  // ô cấp tối đa: nền gradient MaxLevelBG + viền MaxStroke + chữ MAX LEVEL gốc
+  await page.evaluate(() => HX.save.commit(s => { s.gear.knife = HX_META.maxLevel('knife'); return s; }));
+  await page.waitForFunction(() => document.querySelector('.pr-row[data-key="knife"] .pr-maxlv'));
+  const mx = await page.$eval('.pr-row[data-key="knife"]', r => ({ bg: !!r.querySelector('[data-n="MaxLevelBG"]') && /gradient/.test(r.querySelector('[data-n="MaxLevelBG"]').style.backgroundImage),
+    stroke: !!r.querySelector('[data-n="MaxStroke"]'), t: r.querySelector('.pr-maxlv').textContent, buy: r.querySelector('.pr-buy').disabled }));
+  check('ô cấp tối đa: nền gradient gốc, viền, chữ MAX LEVEL, nút tắt', mx.bg && mx.stroke && /MAX/.test(mx.t) && mx.buy, JSON.stringify(mx));
+  await page.$eval('.pr-row[data-key="knife"]', r => r.scrollIntoView({ block: 'center' }));
+  await shot('9-max');
   await press('#prep-go');
   await page.waitForFunction(() => HX_DEBUG.info().phase === 'boat', null, { timeout: 15000 }).then(() => check('Ra khơi thì sang cano (pha boat)', true), () => check('Ra khơi thì sang cano (pha boat)', false));
   await sleep(300);
