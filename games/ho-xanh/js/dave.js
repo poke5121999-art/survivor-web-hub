@@ -1,7 +1,7 @@
 // Dave: tấm sprite từ sheet gốc + lớp tay cầm súng xoay theo điểm ngắm, và máy trạng thái người lặn.
 (function (HX) {
   'use strict';
-  var T = window.HX_TUNING, D = window.HX_ASSETS.dave;
+  var T = window.HX_TUNING, D = window.HX_ASSETS.dave, M = window.HX_META;
   // Sheet lưới: mỗi hàng một hoạt ảnh, rộng bằng hoạt ảnh dài nhất.
   var names = Object.keys(D.anims);
   var SW = D.cell * Math.max.apply(null, names.map(function (k) { return D.anims[k].n; }));
@@ -29,6 +29,9 @@
 
   // Ô 120 px ở 100 px/m = 1,2 m; PlayerGroup gốc phóng thân Dave ×2 (D.scale).
   var CW = D.cell / D.ppu * (D.scale || 1), S = D.scale || 1;
+  // Sheet đặt mỗi khung đã cắt viền vào giữa ô, nên khung bắn súng phụ lệch khỏi chỗ gốc so với AttackReady.
+  // [ĐO TRONG REPO, m_RD.textureRectOffset] dời thân về đúng chỗ gốc (px, y xuống); xem js/gun.js.
+  var BODY_SHIFT = { AttackFire: [6, 1], AttackPull: [11, -1] };
 
   function Diver(G, x, y) {
     this.G = G;
@@ -50,7 +53,7 @@
     this.facing = 1;
     this.tilt = 0;          // góc thân khi bơi
     this.aimAngle = 0;
-    this.o2 = T.o2.max;
+    this.o2 = G.loadout.o2;
     this.invuln = 0;
     this.dashCd = 0;
     this.knifeCd = 0;
@@ -130,7 +133,7 @@
     G.hud.flash();
     G.fx.burst('bubble', this.pos.x, this.pos.y + 0.1, 8, 1.2);
     if (this.o2 <= 0) { this.go('dead'); return true; }
-    if (this.state === 'swim' || this.state === 'aim' || this.state === 'melee') this.go('hurt', { big: dmg >= T.diver.bigHurtAt });
+    if (this.state === 'swim' || this.state === 'aim' || this.state === 'melee' || this.state === 'gunAim' || this.state === 'gunFire') this.go('hurt', { big: dmg >= T.diver.bigHurtAt });
     return true;
   };
 
@@ -140,11 +143,15 @@
     this.invuln = Math.max(0, this.invuln - dt);
     this.dashCd = Math.max(0, this.dashCd - dt);
     this.knifeCd = Math.max(0, this.knifeCd - dt);
+    this.showGun = false;
     STATES[this.state].update(this, G, dt, inp);
 
+    this.overSuit = false;
     if (this.state !== 'dead' && this.state !== 'enter' && this.state !== 'surfaced' && G.phase === 'dive') {
       var depth = G.stack.depth(this.pos.y);
-      var drain = (T.o2.drain + depth * T.o2.drainPerMeter) * (this.boosting ? T.o2.boostMul : 1);
+      // quá độ sâu an toàn của đồ lặn thì dưỡng khí tụt nhanh gấp SUIT_OVER_MUL
+      this.overSuit = depth > G.loadout.suit;
+      var drain = (T.o2.drain + depth * T.o2.drainPerMeter) * (this.boosting ? T.o2.boostMul : 1) * (this.overSuit ? M.SUIT_OVER_MUL : 1);
       this.o2 = Math.max(0, this.o2 - drain * dt);
       if (this.o2 <= 0) this.go('dead');
       if (this.o2 < T.o2.lowAt) {
@@ -166,6 +173,8 @@
     var a = D.anims[this.animName], f = Math.floor(this.animT * a.fps);
     f = this.animLoop ? f % a.n : Math.min(a.n - 1, f);
     setFrame(this.body, this.animName, f);
+    var sh = BODY_SHIFT[this.animName];
+    this.body.position.set(sh ? sh[0] / D.ppu * S * this.facing : 0, sh ? -sh[1] / D.ppu * S : 0, 0);
     this.root.position.set(this.pos.x, this.pos.y, 0.1);
     this.body.scale.x = CW * this.facing;
     this.body.rotation.z = this.facing > 0 ? this.tilt : -this.tilt;
@@ -178,6 +187,7 @@
       this.arm.rotation.z = this.armRot();
       this.arm.material.uniforms.flash.value = this.body.material.uniforms.flash.value;
     }
+    if (this.G.gun) this.G.gun.drawRig(this, !!this.showGun);
   };
 
   Diver.prototype.remove = function () { this.G.gfx.scene.remove(this.root); };
@@ -210,6 +220,7 @@
         d.boosting = inp.boost && moving;
         if (inp.dash && d.dashCd <= 0 && moving) return d.go('dash', { mx: inp.mx, my: inp.my });
         if (inp.firePressed && G.harpoon.state === 'ready') return d.go('aim');
+        if (inp.gunPressed && G.gun && G.harpoon.state === 'ready') return d.go('gunAim');
         if (inp.melee && d.knifeCd <= 0) return d.go('melee');
         d.swim(dt, inp, d.boosting ? T.diver.boostSpeed : T.diver.maxSpeed, d.boosting ? 1.5 : 1);
         if (!d.poseSwim(dt, d.boosting)) d.play(d.o2 < T.o2.lowAt ? 'Gasping' : 'Idle');
@@ -326,6 +337,50 @@
       },
     },
 
+    // Súng phụ: giữ chuột phải (hoặc nút Súng) là giơ súng, thân AttackReady, tay + súng xoay theo điểm ngắm; thả là bắn.
+    gunAim: {
+      enter: function (d, G) {
+        d.data.release = false;
+        d.play('AttackReady', false, true);
+        G.gun.pose('Ready');
+        G.gun.aimStart();
+      },
+      exit: function (d, G) { G.gun.aimEnd(); },
+      update: function (d, G, dt, inp) {
+        d.showGun = true;
+        d.boosting = false;
+        var t = inp.gunAuto ? G.gun.autoAim(d) : { x: inp.aimX, y: inp.aimY };
+        d.gunTarget = t;
+        d.aimAt({ aimX: t.x, aimY: t.y });
+        d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
+        d.swim(dt, inp, T.diver.aimSpeed, 0.6);
+        if (inp.gunReleased || !inp.gunHeld) d.data.release = true;
+        if (d.data.release && d.st >= T.harpoon.minReady) {
+          var r = G.gun.trigger(d);
+          if (r === 'fired') return d.go('gunFire');
+          if (r === 'empty') return d.go('swim');
+        }
+      },
+    },
+
+    gunFire: {
+      enter: function (d, G) { d.play('AttackFire', false, true); G.gun.pose('Ready'); },
+      update: function (d, G, dt, inp) {
+        d.showGun = true;
+        d.boosting = false;
+        d.swim(dt, inp, T.diver.aimSpeed, 0.5);
+        // lưới vừa kéo được cá: Dave giật tay về (AttackPull)
+        if (G.gun.pull > 0) { d.play('AttackPull'); G.gun.pose('Pull'); }
+        else if (d.st > T.harpoon.fireHold) { d.play('AttackReady'); G.gun.pose('Ready'); }
+        // giật lùi đẩy Dave về sau: giữ tư thế bắn tới khi gần đứng lại (hoặc người chơi bơi), kẻo swim quay mặt theo hướng lùi
+        var settled = Math.hypot(d.vel.x, d.vel.y) < 0.35 || inp.mx !== 0 || inp.my !== 0 || d.st > 1.2;
+        if (d.st >= Math.max(G.gun.spec.cooldown, T.harpoon.fireHold) && G.gun.pull <= 0 && settled) {
+          if (inp.gunHeld) return d.go('gunAim');
+          return d.go('swim');
+        }
+      },
+    },
+
     melee: {
       enter: function (d, G) {
         d.play('MeleeDaggerAtk', false, true);
@@ -340,7 +395,7 @@
         d.swim(dt, inp, T.diver.aimSpeed, 0.5);
         if (!d.data.hit && d.st >= T.knife.hitAt) {
           d.data.hit = true;
-          G.fishes.knife(d.pos.x + d.facing * 0.3 * S, d.pos.y + 0.05 * S, T.knife.range, T.knife.damage);
+          G.fishes.knife(d.pos.x + d.facing * 0.3 * S, d.pos.y + 0.05 * S, T.knife.range, G.loadout.knife);
         }
         if (d.st >= T.knife.time) d.go('swim');
       },
@@ -388,4 +443,5 @@
   };
 
   HX.Diver = Diver;
+  HX.Diver.setFrame = setFrame;
 })(window.HX = window.HX || {});

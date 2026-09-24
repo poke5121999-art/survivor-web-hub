@@ -212,7 +212,7 @@
     this.list.forEach(function (c) {
       if (!c.open && d.state !== 'dead' && Math.hypot(d.pos.x - c.x, d.pos.y - c.y) < T.o2.chestRange) {
         c.open = true;
-        d.o2 = Math.min(T.o2.max, d.o2 + T.o2.chestGain);
+        d.o2 = Math.min(G.loadout.o2, d.o2 + T.o2.chestGain);
         G.audio.play('o2_use');
         G.audio.play('itembox', { vol: 0.6 });
         G.fx.spawn('puff', c.x, c.y + 0.2, 0.1, 0, 0.3, 0.9);

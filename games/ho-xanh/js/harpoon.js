@@ -35,7 +35,7 @@
 
   Harpoon.prototype.hitFish = function (f) {
     var G = this.G;
-    var res = f.damage(H.damage, this.x - this.dx, this.y - this.dy, true);
+    var res = f.damage(G.loadout.harpoon, this.x - this.dx, this.y - this.dy, true);
     G.audio.play('harpoon_hit');
     G.fx.spawn('hit', this.x, this.y, f.z + 0.12, 0, 0, 0.55);
     G.fx.spawn('spark', this.x, this.y, f.z + 0.13, 0, 0, 0.6);

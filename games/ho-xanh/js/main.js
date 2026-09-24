@@ -78,6 +78,7 @@
     dive.rays.remove(); dive.dust.remove(); dive.surface.remove(); dive.chests.remove(); dive.pods.remove();
     G.fishes.clear();
     G.harpoon.remove();
+    if (G.gun) { G.gun.remove(); G.gun = null; }
     G.diver.remove();
     fx.clear();
     dive = null;
@@ -113,24 +114,24 @@
     });
   }
 
-  // Trang bị đã nâng đọc một lần lúc dựng lượt lặn, từ sổ lưu qua bảng HX_META.
-  function readLoadout() {
-    var s = HX.save.get(), L = {};
-    Object.keys(M.GEAR).forEach(function (k) { L[k] = M.stat(s, k); });
-    L.gun = s.guns.equipped;
-    return L;
-  }
-  // dave.js, harpoon.js, level.js, hud.js đọc thẳng ba số này trong HX_TUNING lúc chạy, nên ghi đè đúng ba số ấy ở một chỗ.
-  // Khi các tệp đó chuyển sang đọc G.loadout thì bỏ hàm này.
-  function applyLoadout(L) {
-    T.o2.max = L.o2; T.harpoon.damage = L.harpoon; T.knife.damage = L.knife;
+  // Trang bị đã nâng đọc một lần lúc dựng lượt lặn, từ sổ lưu qua bảng HX_META. dave.js, harpoon.js, level.js, gun.js đọc G.loadout.
+  function readLoadout() { return M.loadout(HX.save.get()); }
+
+  // Tiếng, ảnh súng và ảnh hạt hiệu ứng của khẩu súng đang chọn, nạp trong màn loading.
+  function loadGunAssets(L) {
+    if (!L.gun) return Promise.resolve();
+    var id = L.gun.id;
+    return Promise.all([
+      HX.audio.load(HX.gun.soundKeys(id)),
+      fx.preloadRecipes(HX.gun.recipesOf(id)),
+      Promise.all(HX.gun.images(id).map(function (r) { return gfx.loadTex(r); })),
+    ]);
   }
 
   function buildDive(themeId, ids, gltf0) {
     teardown();
     titleDecoOn(false);
     G.loadout = readLoadout();
-    applyLoadout(G.loadout);
     G.haul = null;
     var stack = new HX.dive.Stack(ids, HX.dive.THEMES[themeId]);
     G.themeId = themeId;
@@ -152,6 +153,7 @@
     G.fishes = new HX.fish.Fishes(G);
     G.diver = new HX.Diver(G, sp.x, sp.y);
     G.harpoon = new HX.Harpoon(G);
+    G.gun = G.loadout.gun ? new HX.Gun(G, G.loadout.gun) : null;
     snapCamera();
     updateEnv(0);
     zoneSound(stack.layers[0].area);
@@ -182,7 +184,7 @@
     lampK += (want - lampK) * Math.min(1, dt * 2);
     W.uLamp.value = lampK;
     if (G.diver) {
-      var d = G.diver, a = d.state === 'aim' || d.state === 'shoot' ? d.aimAngle : (d.facing > 0 ? d.tilt : Math.PI - d.tilt);
+      var d = G.diver, a = aimingState(d.state) ? d.aimAngle : (d.facing > 0 ? d.tilt : Math.PI - d.tilt);
       W.uLampPos.value.set(d.pos.x, d.pos.y + 0.15, 0.6);
       W.uLampDir.value.set(Math.cos(a), Math.sin(a), -0.12).normalize();
     }
@@ -191,6 +193,8 @@
       dive.dust.depth = depth;
     }
   }
+
+  function aimingState(s) { return s === 'aim' || s === 'shoot' || s === 'gunAim' || s === 'gunFire'; }
 
   // ---------- camera ----------
   function viewHalf() {
@@ -202,7 +206,7 @@
   var look = { x: 0, y: 0 };
   function camTarget(out, dt) {
     var d = G.diver, V = T.view, lx = 0, ly = 0;
-    if (d.state === 'aim' || d.state === 'shoot') {
+    if (aimingState(d.state)) {
       lx = (input.aimX - d.pos.x) * V.aimLead; ly = (input.aimY - d.pos.y) * V.aimLead;
       var l = Math.hypot(lx, ly);
       if (l > V.aimLeadMax) { lx *= V.aimLeadMax / l; ly *= V.aimLeadMax / l; }
@@ -251,10 +255,13 @@
   var input = {
     mx: 0, my: 0, boost: false, dash: false, melee: false, tap: false,
     fireHeld: false, firePressed: false, fireReleased: false,
+    // súng phụ: chuột phải hoặc nút Súng; gunAuto = nhắm tự động vào cá gần nhất (cảm ứng)
+    gunHeld: false, gunPressed: false, gunReleased: false, gunAuto: false,
     sx: innerWidth * 0.7, sy: innerHeight * 0.5, aimX: 0, aimY: 0,
-    touch: { stick: null, aim: null, boost: false },
+    touch: { stick: null, aim: null, boost: false, gun: false },
   };
-  var edges = { dash: false, melee: false, tap: false, firePressed: false, fireReleased: false };
+  var edges = { dash: false, melee: false, tap: false, firePressed: false, fireReleased: false, gunPressed: false, gunReleased: false };
+  var mouseGun = false;
 
   function isTouch() { return document.body.classList.contains('touch'); }
 
@@ -271,7 +278,7 @@
     if ((e.code === 'Enter' || e.code === 'Space') && G.phase === 'title') { e.preventDefault(); startDay(); }
   });
   addEventListener('keyup', function (e) { keys[e.code] = false; });
-  addEventListener('blur', function () { keys = {}; input.fireHeld = false; });
+  addEventListener('blur', function () { keys = {}; input.fireHeld = false; mouseGun = false; input.touch.gun = false; });
 
   var canvas = $('scene');
   canvas.addEventListener('mousemove', function (e) { input.sx = e.clientX; input.sy = e.clientY; });
@@ -280,10 +287,11 @@
     input.sx = e.clientX; input.sy = e.clientY;
     if (G.phase !== 'dive' || paused) return;
     if (e.button === 0) { input.fireHeld = true; edges.firePressed = true; edges.tap = true; }
-    if (e.button === 2) { edges.melee = true; edges.tap = true; }
+    if (e.button === 2) { mouseGun = true; edges.gunPressed = true; edges.tap = true; input.gunAuto = false; }
   });
   addEventListener('mouseup', function (e) {
     if (e.button === 0 && input.fireHeld) { input.fireHeld = false; edges.fireReleased = true; }
+    if (e.button === 2 && mouseGun) { mouseGun = false; edges.gunReleased = true; }
   });
   canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
@@ -341,6 +349,9 @@
   bindHold('tb-boost', function () { input.touch.boost = true; }, function () { input.touch.boost = false; });
   bindHold('tb-dash', function () { edges.dash = true; edges.tap = true; });
   bindHold('tb-knife', function () { edges.melee = true; edges.tap = true; });
+  // Nút Súng: giữ là giơ súng và tự nhắm con cá gần nhất trước mặt, thả là bắn.
+  bindHold('tb-gun', function () { input.touch.gun = true; input.gunAuto = true; edges.gunPressed = true; edges.tap = true; },
+    function () { if (input.touch.gun) { input.touch.gun = false; edges.gunReleased = true; } });
 
   function readInput() {
     var mx = 0, my = 0;
@@ -361,9 +372,10 @@
     input.boost = !!(keys.ShiftLeft || keys.ShiftRight) || input.touch.boost;
     input.dash = edges.dash; input.melee = edges.melee; input.tap = edges.tap;
     input.firePressed = edges.firePressed; input.fireReleased = edges.fireReleased;
+    input.gunHeld = mouseGun || input.touch.gun; input.gunPressed = edges.gunPressed; input.gunReleased = edges.gunReleased;
     var w = gfx.screenToWorld(input.sx, input.sy);
     input.aimX = w.x; input.aimY = w.y;
-    edges.dash = edges.melee = edges.tap = edges.firePressed = edges.fireReleased = false;
+    edges.dash = edges.melee = edges.tap = edges.firePressed = edges.fireReleased = edges.gunPressed = edges.gunReleased = false;
   }
 
   // ---------- tạm dừng & tắt tiếng ----------
@@ -391,7 +403,8 @@
   $('p-title').addEventListener('click', function () { togglePause(); go('title'); });
 
   // ---------- các pha ----------
-  // Sổ pha: mỗi pha { surface: '3d' | '2d' | 'dom', enter(args), exit(), update(dt), render() }, chỉ surface là bắt buộc.
+  // Sổ pha: mỗi pha { surface: '3d' | '2d' | 'dom' | 'scene', enter(args), exit(), update(dt), render() }, chỉ surface là bắt buộc.
+  // 'scene': pha tự dựng cảnh three.js riêng và tự vẽ bằng G.gfx.renderer trong render(); main.js không vẽ cảnh nước.
   // Pha trên bờ tự đăng ký vào HX.phases từ tệp riêng (prep.js, boat.js, bar.js); phase() tra bảng dưới đây trước rồi tới HX.phases.
   //   3d  : cảnh three.js (#scene). Không có lượt lặn thì vẽ cảnh nước trống làm nền.
   //   dom : như 3d nhưng pha tự dựng giao diện trong G.screen(tên) (một <section> trong #screens).
@@ -461,12 +474,13 @@
     loading: {
       surface: '3d',
       enter: function () {
-        var pick = chooseDive(), th = HX.dive.THEMES[pick.theme], kShared = 0, kGlb = 0;
+        var pick = chooseDive(), th = HX.dive.THEMES[pick.theme], kShared = 0, kGlb = 0, gunL = readLoadout();
         var prog = function () { HX.hud.loading(kShared * 0.6 + kGlb * 0.4); };
         HX.hud.loading(0, 'Đang xuống ' + th.name + ' · ' + th.sub + '…');
         Promise.all([
           loadShared(function (k) { kShared = k; prog(); }),
           HX.level.loadGlb('art/' + ZONES[pick.ids[0]].glb + '?v=' + REV, function (k) { kGlb = k; prog(); }),
+          loadGunAssets(gunL),
         ]).then(function (r) {
           if (G.phase !== 'loading') return;
           kShared = kGlb = 1; prog();
@@ -485,7 +499,10 @@
       enter: function () {
         var th = G.stack.theme;
         HX.hud.area(th.name, th.sub + ' · ' + HX.dive.AREA_NAME[G.stack.layers[0].area]);
-        HX.hud.hint(isTouch() ? 'Kéo trái để bơi · giữ bên phải để ngắm, thả để bắn' : 'WASD bơi · Shift tăng tốc · Space lướt · giữ chuột trái ngắm, thả bắn · F / chuột phải: dao');
+        var gun = !!G.gun;
+        HX.hud.hint(isTouch()
+          ? 'Kéo trái để bơi · giữ bên phải để ngắm, thả để bắn' + (gun ? ' · giữ nút Súng để nhắm cá gần nhất' : '')
+          : 'WASD bơi · Shift tăng tốc · Space lướt · giữ chuột trái ngắm, thả bắn' + (gun ? ' · giữ chuột phải: súng' : '') + ' · F: dao');
       },
     },
 
@@ -496,6 +513,7 @@
         HX.hud.suitWarn(false);
         HX.audio.stopLoop('amb');
         HX.audio.stopLoop('pull');
+        HX.audio.stopLoop('gunaim');
       },
       exit: function () { HX.hud.hideResult(); },
     },
@@ -595,9 +613,9 @@
     var P = phase(G.phase);
     // đang nạp bản đồ mới thì giữ nguyên khung cảnh cũ
     if (P.surface === '3d' && dive && G.phase !== 'title') { if (G.phase !== 'loading') step(dt); }
-    else if (P.surface !== '2d') titleIdle(dt);
+    else if (P.surface === '3d' || P.surface === 'dom') titleIdle(dt);
     if (P.update) P.update(dt);
-    if (P.surface !== '2d') gfx.render(G.t);
+    if (P.surface === '3d' || P.surface === 'dom') gfx.render(G.t);
     if (P.render) P.render();
   }
 
@@ -607,8 +625,8 @@
     if (G.hitstopT > 0) { G.hitstopT -= dt; gdt = dt * 0.08; }
     var inp = G.phase === 'dive' ? input : { mx: 0, my: 0 };
     G.diver.update(gdt, inp);
-    suitTick(gdt);
     G.harpoon.update(gdt);
+    if (G.gun) G.gun.update(gdt);
     G.fishes.update(gdt);
     dive.chests.update(gdt);
     dive.pods.update(gdt, inp);
@@ -624,20 +642,13 @@
     hudTick();
   }
 
-  // Quá độ sâu an toàn của đồ lặn: dave.js vẫn đốt khí theo công thức cũ, phần tụt thêm tính ở đây.
-  function suitTick(dt) {
-    var d = G.diver, depth = G.stack.depth(d.pos.y);
-    var over = G.phase === 'dive' && depth > G.loadout.suit && d.state !== 'dead' && d.state !== 'enter' && d.state !== 'surfaced';
-    HX.hud.suitWarn(over);
-    if (!over) return;
-    var base = (T.o2.drain + depth * T.o2.drainPerMeter) * (d.boosting ? T.o2.boostMul : 1);
-    d.o2 = Math.max(0, d.o2 - base * (M.SUIT_OVER_MUL - 1) * dt);
-    if (d.o2 <= 0) d.go('dead');
-  }
-
   function hudTick() {
     var d = G.diver;
-    HX.hud.o2(d.o2);
+    HX.hud.o2(d.o2, G.loadout.o2);
+    // quá độ sâu của đồ lặn: dave.js tính dưỡng khí tụt nhanh, ở đây chỉ báo
+    HX.hud.suitWarn(G.phase === 'dive' && !!d.overSuit);
+    if (G.gun) HX.hud.gun(G.gun.id, G.gun.art.icon + '?v=' + REV, G.gun.ammo, G.gun.spec.ammo);
+    else HX.hud.gun(null);
     var dm = G.stack.depth(d.pos.y);
     HX.hud.depth(dm);
     if (G.phase === 'dive') dive.maxDepth = Math.max(dive.maxDepth, dm);
@@ -647,9 +658,9 @@
       HX.hud.tugAt(s.x, s.y);
       if (input.tap) HX.hud.tugTap();
     }
-    var aiming = G.phase === 'dive' && (d.state === 'aim');
+    var aiming = G.phase === 'dive' && (d.state === 'aim' || d.state === 'gunAim');
     var showRet = G.phase === 'dive' && !isTouch() && d.state !== 'dead';
-    var tip = d.gunTip(), ts = gfx.worldToScreen(tip.x + Math.cos(d.aimAngle) * 0.35, tip.y + Math.sin(d.aimAngle) * 0.35);
+    var tip = d.state === 'gunAim' ? G.gun.muzzle(d) : d.gunTip(), ts = gfx.worldToScreen(tip.x + Math.cos(d.aimAngle) * 0.35, tip.y + Math.sin(d.aimAngle) * 0.35);
     HX.hud.reticle(showRet, input.sx, input.sy, aiming, ts.x, ts.y, d.aimAngle);
   }
 
@@ -724,9 +735,19 @@
         chests: dive ? dive.chests.list.map(function (c) { return { x: c.x, y: c.y, open: c.open }; }) : [],
         surfaceY: T.water.surfaceY, fps: G.fps, sounds: HX.audio.decoded(),
         loadout: G.loadout, cargo: G.loadout ? G.loadout.cargo : null,
+        gun: G.gun ? { id: G.gun.id, ammo: G.gun.ammo, max: G.gun.spec.ammo, fired: G.gun.fired, hits: G.gun.hits, caught: G.gun.caught,
+          shots: G.gun.shots.length, empty: G.gun.emptyClicks || 0, rig: G.gun.rig.visible } : null,
+        fx: (fx.plays || []).map(function (p) { return p.name; }),
       };
     },
-    fishAt: function () { return G.fishes.list.map(function (f) { return { id: f.sp.id, uid: f.id, x: f.pos.x, y: f.pos.y, state: f.state, hp: f.hp }; }); },
+    fishAt: function () { return G.fishes.list.map(function (f) { return { id: f.sp.id, uid: f.id, x: f.pos.x, y: f.pos.y, state: f.state, hp: f.hp, cx: f.center().x, cy: f.center().y }; }); },
+    // Đổi súng ngay trong lượt lặn đang chạy (sổ lưu giữ nguyên); null là bỏ súng. Trả Promise khi nạp xong tiếng và ảnh.
+    gun: function (id) {
+      if (G.gun) { G.gun.remove(); G.gun = null; }
+      G.loadout.gun = id ? Object.assign({ id: id, lv: 1, mode: M.GUNS[id].mode }, M.gunStat(id, 1)) : null;
+      if (id) G.gun = new HX.Gun(G, G.loadout.gun);
+      return loadGunAssets(G.loadout).then(function () { return !!G.gun; });
+    },
     worldToScreen: function (x, y) { return gfx.worldToScreen(x, y); },
     teleport: function (x, y) { G.diver.pos.x = x; G.diver.pos.y = y; G.diver.vel.x = G.diver.vel.y = 0; snapCamera(); updateEnv(1); },
     spawnFish: function (id, x, y, frozen) {

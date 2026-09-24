@@ -1,24 +1,42 @@
 // Bảng nâng cấp một ngày trọn vòng: trang bị lặn, súng phụ, quán sushi, giá món. Chỉ dữ liệu và hàm thuần, không đụng DOM.
-// Mọi con số cấp 0 bằng đúng data/tuning.js để chưa nâng gì thì lặn y như trước.
-// [DtD] = lấy từ data/gear_sheet.js (bóc từ bản gốc) nếu có; [ĐỀ XUẤT] = tự chọn.
+// Trang bị lặn và súng phụ lấy số [DtD] từ data/gear_sheet.js (bóc từ bản gốc, xem tools/README-boat.md); phải nạp tệp ấy trước.
+// [DtD] = số bản gốc; [ĐỀ XUẤT] = tự chọn.
 (function (root) {
   'use strict';
 
+  var SHEET = root.HX_GEAR_SHEET;
+  if (!SHEET || !SHEET.gear || !SHEET.guns) throw new Error('HX_GEAR_SHEET not loaded: data/gear_sheet.js must come before data/meta.js');
+  var BOAT = root.HX_BOAT_ASSETS || null;
+
   function lv(pairs) { return pairs.map(function (p) { return { cost: p[0], value: p[1] }; }); }
 
+  // Một hàng SubEquipment gốc → một cấp. Giá gốc là [vàng, b]; b chưa rõ là gì nên chỉ lấy vàng.
+  // Hàng không nâng số (đồ lặn lv7: bộ đồ mới 540 m bằng lv6) thì bỏ, để mỗi lần mua đều mạnh hơn.
+  function fromSheet(rows, field) {
+    var out = [];
+    rows.forEach(function (r) {
+      var v = +r[field];
+      if (!isFinite(v)) throw new Error('gear sheet row ' + r.tid + ' has no ' + field);
+      if (out.length && v <= out[out.length - 1].value) return;
+      out.push({ cost: out.length ? +r.price[0] : 0, value: v });
+    });
+    return out;
+  }
+  function icon(key) { return BOAT && BOAT.gearIcons && BOAT.gearIcons[key] || null; }
+
+  // Cấp 0 = hàng lv1 của bản gốc (đồ khởi đầu của Dave, giá 0).
+  var S = SHEET.gear;
   var GEAR = {
-    o2: { name: 'Bình dưỡng khí', desc: 'Dưỡng khí tối đa mỗi lượt lặn', unit: 'O₂',
-      levels: lv([[0, 100], [300, 120], [800, 140], [1800, 170], [3500, 200], [6000, 250]]) },      // [ĐỀ XUẤT] cấp 0 = tuning.o2.max
-    cargo: { name: 'Túi đựng cá', desc: 'Số cá mang theo được; túi đầy thì cá xiên được cũng phải thả', unit: 'con',
-      levels: lv([[0, 8], [200, 10], [600, 12], [1400, 15], [2800, 18], [5000, 22]]) },            // [ĐỀ XUẤT]
-    suit: { name: 'Đồ lặn', desc: 'Độ sâu an toàn; xuống quá mức này dưỡng khí tụt ×2,5', unit: 'm',
-      levels: lv([[0, 130], [500, 160], [1500, 190], [3000, 220], [6000, 250]]) },                 // [ĐỀ XUẤT] cấp 0 vừa hết tầng giữa
-    knife: { name: 'Dao', desc: 'Sát thương mỗi nhát dao', unit: 'st',
-      levels: lv([[0, 2], [250, 3], [800, 4], [2000, 6], [4500, 8]]) },                             // [ĐỀ XUẤT] cấp 0 = tuning.knife.damage
-    harpoon: { name: 'Súng xiên', desc: 'Sát thương mỗi phát xiên', unit: 'st',
-      levels: lv([[0, 3], [300, 4], [900, 6], [2000, 8], [4000, 11], [7500, 15]]) },               // [DtD] cấp 0 = Harpoon gun lv1; các cấp sau [ĐỀ XUẤT]
-    engine: { name: 'Động cơ cano', desc: 'Cano chạy nhanh hơn, ra khơi và về quán sớm hơn', unit: '×',
-      levels: lv([[0, 1], [300, 1.15], [900, 1.3], [2000, 1.5], [4000, 1.75]]) },                   // [ĐỀ XUẤT]
+    o2: { name: 'Bình dưỡng khí', desc: 'Dưỡng khí tối đa mỗi lượt lặn', unit: 'O₂', icon: icon('o2'),
+      levels: fromSheet(S.o2, 'maxO2') },                  // [DtD] 90 → 530, 11 cấp
+    cargo: { name: 'Túi đựng cá', desc: 'Số cá mang theo được; túi đầy thì cá xiên được cũng phải thả', unit: 'con', icon: icon('cargo'),
+      levels: fromSheet(S.cargo, 'weight') },              // [DtD] số của bảng là kg (9 → 185); game đếm theo con vì cá chưa có cân nặng gốc
+    suit: { name: 'Đồ lặn', desc: 'Độ sâu an toàn; xuống quá mức này dưỡng khí tụt ×2,5', unit: 'm', icon: icon('suit'),
+      levels: fromSheet(S.suit, 'maxDepth') },             // [DtD] 40 → 800 m; cấp 1 (80 m) bản gốc tặng theo cốt truyện nên giá 0
+    knife: { name: 'Dao', desc: 'Sát thương mỗi nhát dao', unit: 'st', icon: icon('knife'),
+      levels: fromSheet(S.knife, 'damage') },              // [DtD] 3 → 17
+    harpoon: { name: 'Súng xiên', desc: 'Sát thương mỗi phát xiên', unit: 'st', icon: icon('harpoon'),
+      levels: fromSheet(S.harpoon, 'damage') },            // [DtD] 3 → 40
   };
 
   var BAR = {
@@ -32,47 +50,62 @@
       levels: lv([[0, 10], [150, 15], [500, 20], [1200, 30], [2500, 40]]) },                        // [ĐỀ XUẤT]
   };
 
-  // mode: bullet = đạn thẳng, spread = chùm đạn toả, net = lưới bắt sống cá nhỏ, sleep = đạn ngủ làm cá đứng yên.
-  var GUNS = {
-    pistol: { name: 'Súng lục', desc: 'Nhẹ, bắn nhanh, sát thương thấp', cost: 300, mode: 'bullet',
-      dmg: 2, pellets: 1, spreadDeg: 0, speed: 22, range: 7, ammo: 30, cooldown: 0.35 },            // [ĐỀ XUẤT]
-    rifle: { name: 'Súng trường', desc: 'Một phát mạnh, tầm xa, nạp chậm', cost: 1200, mode: 'bullet',
-      dmg: 6, pellets: 1, spreadDeg: 0, speed: 30, range: 10, ammo: 12, cooldown: 0.9 },           // [ĐỀ XUẤT]
-    shotgun: { name: 'Súng hoa cải', desc: 'Năm viên toả rộng, tầm gần', cost: 1500, mode: 'spread',
-      dmg: 2, pellets: 5, spreadDeg: 30, speed: 18, range: 4.5, ammo: 10, cooldown: 1.0 },         // [ĐỀ XUẤT]
-    net: { name: 'Súng lưới', desc: 'Bắt sống cá nhỏ, không cần hạ', cost: 900, mode: 'net',
-      dmg: 0, pellets: 1, spreadDeg: 0, speed: 9, range: 5, ammo: 5, cooldown: 1.5 },              // [ĐỀ XUẤT]
-    sleep: { name: 'Súng ngủ', desc: 'Cá trúng đạn đứng yên một lúc', cost: 1000, mode: 'sleep',
-      dmg: 0, pellets: 1, spreadDeg: 0, speed: 16, range: 7, ammo: 8, cooldown: 1.2 },             // [ĐỀ XUẤT]
+  // ---------- súng phụ ----------
+  // Số lấy từ GunSpecData_Normal_<Tên>_Lv1..5 [DtD]. Bảng gốc không có giá nâng cấp súng (nâng ở chỗ Duff bằng nguyên liệu),
+  // nên chỉ mua một lần với giá chế tạo `craftPrice`, và mọi súng bắn ở Lv1. `levels` giữ đủ 5 cấp để dùng về sau.
+  // mode: bullet = một viên thẳng; spread = nhiều viên toả; pierce = đạn xuyên; sleep = đạn ngủ; net = lưới bắt sống; grenade = đạn cầu vồng nổ.
+  var PLAY = {
+    speedPerPower: 0.02,    // [ĐỀ XUẤT] vận tốc đạn = Power × 0,02 s (AddForce một lần, khối lượng 1, bước vật lý mặc định của Unity)
+    sleepTime: 5,           // [ĐỀ XUẤT] giây cá ngủ ở Lv1, +1 giây mỗi cấp; thời lượng buff 14080403..07 không có trong bảng dữ liệu
+    netRadius: 1.0,         // [ĐỀ XUẤT] bán kính lưới bung ra (m); lưới gốc là vải vật lý Obi, không xuất được
+    grenadeGravity: 4,      // [ĐỀ XUẤT] m/s² kéo đạn lựu xuống thành đường cầu vồng
+    fuse: 2.5,              // [ĐỀ XUẤT] đạn lựu bay quá lâu mà chưa chạm gì thì tự nổ (giây)
   };
+  var GUN_TEXT = {
+    rifle: { name: 'Súng trường nước', desc: 'Một viên thẳng, sát thương khá' },
+    shotgun: { name: 'Súng hoa cải', desc: 'Ba viên toả rộng, tầm gần' },
+    sniper: { name: 'Súng bắn tỉa', desc: 'Đạn xuyên qua mọi con trên đường bay, tầm rất xa' },
+    sleep: { name: 'Súng gây mê', desc: 'Cá trúng đạn ngủ, đứng yên một lúc' },
+    net: { name: 'Súng lưới', desc: 'Lưới bung ra bắt sống cả đàn cá nhỏ vào túi' },
+    grenade: { name: 'Súng phóng lựu', desc: 'Đạn bay cầu vồng, nổ trúng mọi con quanh đó' },
+  };
+  var GUN_MODE = { rifle: 'bullet', shotgun: 'spread', sniper: 'pierce', sleep: 'sleep', net: 'net', grenade: 'grenade' };
+
+  function gunLevel(id, r) {
+    var mode = GUN_MODE[id];
+    var spread = mode === 'spread' ? r.maxAimAngle - r.minAimAngle : 0;   // [ĐỀ XUẤT] 3 nòng chia đều góc Min/MaxAimAngle (±20°)
+    return {
+      dmg: mode === 'grenade' ? r.explosionSplashDamage : r.damage,     // [DtD] lựu: sát thương nằm ở ExplosionSplashDamage
+      ammo: r.ammoCount, range: r.distance,
+      speed: r.power * PLAY.speedPerPower,
+      pellets: r.muzzleCount, spreadDeg: spread,
+      pierce: mode === 'pierce',
+      blast: r.exposionRadius,
+      netSize: mode === 'net' ? r.captrueSize : 0, netCount: mode === 'net' ? r.captureCount : 0,
+      sleep: mode === 'sleep' ? PLAY.sleepTime + (r.lv - 1) : 0,
+      recoil: r.recoilForce, cooldown: r.recoilTime,                    // [DtD] giật lùi (m/s) và thời gian giật, dùng làm nhịp bắn
+      arc: r.gunAimType === 1,
+    };
+  }
+
+  var GUNS = {};
+  Object.keys(GUN_MODE).forEach(function (id) {
+    var src = SHEET.guns[id];
+    if (!src || !Array.isArray(src.levels) || !src.levels.length) throw new Error('gear sheet has no gun "' + id + '"');
+    var art = BOAT && BOAT.guns && BOAT.guns[id];
+    var levels = src.levels.map(function (r) { return gunLevel(id, r); });
+    var g = {
+      id: id, name: GUN_TEXT[id].name, desc: GUN_TEXT[id].desc, mode: GUN_MODE[id],
+      cost: +src.craftPrice, sell: +src.sellPrice,
+      icon: art ? art.icon : null, thumb: art ? art.thumb : null,
+      levels: levels,
+    };
+    // cấp đang bắn (Lv1) chép lên mặt ngoài cho màn chuẩn bị
+    ['dmg', 'pellets', 'spreadDeg', 'speed', 'range', 'ammo', 'cooldown'].forEach(function (f) { g[f] = levels[0][f]; });
+    GUNS[id] = g;
+  });
 
   var SUIT_OVER_MUL = 2.5;   // [ĐỀ XUẤT] quá độ sâu an toàn của đồ lặn thì dưỡng khí tụt nhanh gấp chừng này
-
-  // ---------- số từ bản gốc, nếu luồng bóc asset đã ghi ra data/gear_sheet.js ----------
-  // Chưa biết hình dạng tệp ấy: chỉ nhận khi rõ ràng là [{cost, value}] đủ số, cấp 0 miễn phí.
-  function validLevels(a) {
-    return Array.isArray(a) && a.length >= 2 && a[0] && a[0].cost === 0 && a.every(function (l) {
-      return l && isFinite(l.cost) && isFinite(l.value) && l.cost >= 0;
-    });
-  }
-  var GUN_NUM = ['cost', 'dmg', 'pellets', 'spreadDeg', 'speed', 'range', 'ammo', 'cooldown'];
-  function mergeSheet(sheet) {
-    if (!sheet || typeof sheet !== 'object') return;
-    [GEAR, BAR].forEach(function (tab) {
-      Object.keys(tab).forEach(function (k) {
-        var src = sheet[k] || (sheet.gear && sheet.gear[k]) || (sheet.bar && sheet.bar[k]);
-        var levels = src && (Array.isArray(src) ? src : src.levels);
-        if (validLevels(levels)) tab[k].levels = levels.map(function (l) { return { cost: +l.cost, value: +l.value }; });
-      });
-    });
-    var guns = sheet.guns;
-    if (guns && typeof guns === 'object') Object.keys(GUNS).forEach(function (id) {
-      var g = guns[id];
-      if (!g || typeof g !== 'object') return;
-      GUN_NUM.forEach(function (f) { if (isFinite(g[f]) && g[f] !== null && g[f] !== '') GUNS[id][f] = +g[f]; });
-    });
-  }
-  mergeSheet(root.HX_GEAR_SHEET);
 
   // ---------- sổ lưu: dạng mặc định, mọi nâng cấp tra bảng nào ----------
   var SLOT = {};
@@ -122,6 +155,11 @@
     if (!GUNS[id]) throw new Error('không có súng "' + id + '"');
     return GUNS[id];
   }
+  // Số bắn của một khẩu ở cấp lv (1..5, mặc định 1).
+  function gunStat(id, lv) {
+    var L = gun(id).levels;
+    return L[Math.max(0, Math.min(L.length - 1, (lv || 1) - 1))];
+  }
   function buyGun(save, id) {
     var g = gun(id);
     if (save.guns.owned.indexOf(id) >= 0) return { ok: false, reason: 'đã có' };
@@ -140,6 +178,15 @@
     var s = clone(save);
     s.guns.equipped = id;
     return { ok: true, save: s };
+  }
+
+  // Trang bị của một lượt lặn, đọc một lần lúc dựng lượt: số của từng món, cộng súng đang chọn (hoặc null).
+  function loadout(save) {
+    var L = {};
+    Object.keys(GEAR).forEach(function (k) { L[k] = stat(save, k); });
+    var id = save && save.guns && save.guns.equipped;
+    L.gun = id && GUNS[id] ? Object.assign({ id: id, lv: 1, mode: GUNS[id].mode }, gunStat(id, 1)) : null;
+    return L;
   }
 
   // ---------- món ăn ----------
@@ -162,9 +209,9 @@
   function servingsOf(sp) { return Math.max(1, Math.min(6, 1 + Math.floor((sp.cm || 0) / 40))); }
 
   root.HX_META = {
-    GEAR: GEAR, BAR: BAR, GUNS: GUNS, SUIT_OVER_MUL: SUIT_OVER_MUL,
+    GEAR: GEAR, BAR: BAR, GUNS: GUNS, GUN_PLAY: PLAY, SUIT_OVER_MUL: SUIT_OVER_MUL,
     defaults: defaults, table: table, slot: function (key) { table(key); return SLOT[key]; },
     maxLevel: maxLevel, level: level, stat: stat, nextCost: nextCost, buy: buy,
-    buyGun: buyGun, equipGun: equipGun, dishOf: dishOf, servingsOf: servingsOf,
+    gunStat: gunStat, buyGun: buyGun, equipGun: equipGun, loadout: loadout, dishOf: dishOf, servingsOf: servingsOf,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

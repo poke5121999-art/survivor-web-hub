@@ -1,4 +1,4 @@
-// Lớp DOM phủ trên cảnh: đồng hồ dưỡng khí, độ sâu, túi cá, thẻ bắt cá, thanh giằng co, màn kết quả.
+// Lớp DOM phủ trên cảnh: đồng hồ dưỡng khí, độ sâu, túi cá, súng phụ và số đạn, thẻ bắt cá, thanh giằng co, màn kết quả.
 (function (HX) {
   'use strict';
   var T = window.HX_TUNING;
@@ -19,8 +19,9 @@
   }
 
   var Hud = {
-    o2: function (v) {
-      var k = Math.max(0, Math.min(1, v / T.o2.max));
+    // max: dưỡng khí tối đa của bình đang đeo (G.loadout.o2)
+    o2: function (v, max) {
+      var k = Math.max(0, Math.min(1, v / max));
       $('o2-num').textContent = Math.ceil(v);
       $('o2-pie').style.setProperty('--k', (k * 360).toFixed(1) + 'deg');
       var low = v < T.o2.lowAt;
@@ -39,6 +40,20 @@
       document.body.classList.toggle('too-deep', on);
     },
     hint: function (s) { $('hint-line').textContent = s; },
+
+    // Súng phụ đang mang: icon gốc + số đạn còn lại; không mang súng thì ẩn cả ô và nút Súng.
+    gun: function (id, icon, ammo, max) {
+      var on = !!id;
+      document.body.classList.toggle('has-gun', on);
+      if (!on) { Hud._gun = null; return; }
+      if (Hud._gun !== id) {
+        Hud._gun = id;
+        $('gun-icon').src = icon;
+        $('gunbox').dataset.gun = id;
+      }
+      $('gun-ammo').textContent = ammo + '/' + max;
+      $('gunbox').classList.toggle('empty', ammo <= 0);
+    },
 
     flash: function () {
       var el = $('hurt');

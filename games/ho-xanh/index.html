@@ -186,7 +186,7 @@ body.too-deep[data-phase="dive"] #depth { color: var(--red); }
 #tug { position: fixed; left: 0; top: 0; width: 52px; height: 104px; margin: -52px 0 0 -26px; pointer-events: none; }
 #tug[hidden] { display: none; }
 #tug .frame { position: absolute; inset: 0; width: 100%; height: 100%; }
-#tug .fillmask { position: absolute; inset: 0; -webkit-mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924e) center / 100% 100% no-repeat; mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924e) center / 100% 100% no-repeat; }
+#tug .fillmask { position: absolute; inset: 0; -webkit-mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924f) center / 100% 100% no-repeat; mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924f) center / 100% 100% no-repeat; }
 #tug-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(0deg, #ffb13b, var(--gold) 60%, #fff4b8); transition: height .08s; }
 #tug.tap .frame { animation: tap .12s; }
 @keyframes tap { 50% { transform: scale(1.1); filter: brightness(1.6); } }
@@ -227,6 +227,20 @@ body.too-deep[data-phase="dive"] #depth { color: var(--red); }
 body.touch[data-phase="dive"] #touch-btns { display: flex; }
 #touch-btns button { width: 58px; height: 58px; border-radius: 50%; border: 1px solid var(--edge); background: rgba(8, 26, 44, .6); font-size: 12px; font-weight: 700; }
 #tb-knife { background: rgba(160, 60, 40, .55) !important; }
+#tb-gun { display: none; background: rgba(40, 90, 150, .6) !important; }
+body.has-gun #tb-gun { display: block; }
+
+/* ---------- súng phụ: icon gốc + số đạn, ngay dưới đồng hồ dưỡng khí ---------- */
+#gunbox {
+  position: absolute; left: max(10px, env(safe-area-inset-left)); top: calc(max(8px, env(safe-area-inset-top)) + 118px);
+  display: none; align-items: center; gap: 6px; height: 34px; padding: 2px 10px 2px 4px;
+  border-radius: 8px; background: rgba(8, 26, 44, .6); border: 1px solid var(--edge);
+}
+body.has-gun #gunbox { display: flex; }
+#gun-icon { height: 30px; width: 60px; object-fit: contain; image-rendering: pixelated; }
+#gun-ammo { font: 800 16px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .5); }
+#gunbox.empty #gun-ammo { color: var(--red); }
+body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px); }
 
 @media (max-height: 460px) {
   #title { grid-template-columns: 1fr 96px; padding: 12px 14px 10px; }
@@ -238,14 +252,19 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
   #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 92px); font-size: 11px; }
   #o2-num { font-size: 23px; }
   #depth, #catch { font-size: 13px; }
+  #gunbox { top: calc(max(8px, env(safe-area-inset-top)) + 94px); height: 28px; }
+  #gun-icon { height: 24px; width: 48px; }
+  #gun-ammo { font-size: 13px; }
+  body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 126px); }
+  #touch-btns button { width: 52px; height: 52px; font-size: 11px; }
   #catch-card { top: 56px; width: 220px; grid-template-columns: 70px 1fr; }
   #cc-iconwrap { width: 70px; height: 54px; }
   #result h2 { font-size: 24px; }
 }
 </style>
-<link rel="stylesheet" href="css/prep.css?v=20260924e">
-<link rel="stylesheet" href="css/boat.css?v=20260924e">
-<link rel="stylesheet" href="css/bar.css?v=20260924e">
+<link rel="stylesheet" href="css/prep.css?v=20260924f">
+<link rel="stylesheet" href="css/boat.css?v=20260924f">
+<link rel="stylesheet" href="css/bar.css?v=20260924f">
 </head>
 <body data-phase="title">
 <canvas id="scene"></canvas>
@@ -261,27 +280,28 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
   <canvas id="title-dave" width="160" height="190"></canvas>
   <p class="keys">
     <span class="kb"><kbd>WASD</kbd> bơi</span><span class="kb"><kbd>Shift</kbd> tăng tốc</span><span class="kb"><kbd>Space</kbd> lướt</span>
-    <span class="kb">giữ <kbd>chuột trái</kbd> ngắm, thả để bắn</span><span class="kb"><kbd>F</kbd> dao</span>
-    <span class="tc">Kéo nửa trái để bơi · giữ nửa phải để ngắm, thả để bắn · bấm liên tục khi giằng co</span>
+    <span class="kb">giữ <kbd>chuột trái</kbd> ngắm, thả để bắn</span><span class="kb">giữ <kbd>chuột phải</kbd> súng phụ</span><span class="kb"><kbd>F</kbd> dao</span>
+    <span class="tc">Kéo nửa trái để bơi · giữ nửa phải để ngắm, thả để bắn · giữ nút Súng để bắn súng phụ · bấm liên tục khi giằng co</span>
   </p>
   <div class="credit">Hình, hoạt ảnh, bản đồ và tiếng: Dave the Diver (MINTROCKET). Bản dựng lại để chơi thử, không bán.</div>
 </section>
 
 <div id="hud">
   <div id="o2box">
-    <img class="frame px" src="art/ui/UI_O2_Frame_New.png?v=20260924e" alt="">
+    <img class="frame px" src="art/ui/UI_O2_Frame_New.png?v=20260924f" alt="">
     <div id="o2-pie"></div>
     <div id="o2-num">100</div>
     <div id="o2-lbl">O₂</div>
     <div id="depth">0 m</div>
     <div id="catch"><span id="catch-n">0</span></div>
-    <img id="warn" class="px" src="art/ui/UI_Warning_Mark.png?v=20260924e" alt="">
+    <img id="warn" class="px" src="art/ui/UI_Warning_Mark.png?v=20260924f" alt="">
   </div>
+  <div id="gunbox"><img id="gun-icon" alt=""><span id="gun-ammo"></span></div>
   <div id="hint-line"></div>
   <div id="reticle" hidden></div>
-  <img id="aimgun" class="px" src="art/ui/Target_ArrowGun.png?v=20260924e" alt="" hidden>
+  <img id="aimgun" class="px" src="art/ui/Target_ArrowGun.png?v=20260924f" alt="" hidden>
 </div>
-<img id="vignette" src="art/ui/Depressurization_Vignetting.png?v=20260924e" alt="">
+<img id="vignette" src="art/ui/Depressurization_Vignetting.png?v=20260924f" alt="">
 <div id="hurt"></div>
 <div id="toast"></div>
 <div id="area"><b id="area-t"></b><span id="area-s"></span></div>
@@ -302,7 +322,7 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
 </div>
 
 <div id="tug" hidden>
-  <img class="frame px" src="art/ui/Gauge_Bar_Tap.png?v=20260924e" alt="">
+  <img class="frame px" src="art/ui/Gauge_Bar_Tap.png?v=20260924f" alt="">
   <div class="fillmask"><div id="tug-fill"></div></div>
   <div id="tug-label">Bấm liên tục!</div>
   <div id="tug-timebar"><div id="tug-time"></div></div>
@@ -331,33 +351,35 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
   <button id="tb-boost">Tăng tốc</button>
   <button id="tb-dash">Lướt</button>
   <button id="tb-knife">Dao</button>
+  <button id="tb-gun">Súng</button>
 </div>
 
-<script src="vendor/three-r140.min.js?v=20260924e"></script>
-<script src="vendor/GLTFLoader-r140.js?v=20260924e"></script>
-<script src="vendor/meshopt_decoder.js?v=20260924e"></script>
-<script src="vendor/spine-threejs-4.0.31.min.js?v=20260924e"></script>
-<script src="data/tuning.js?v=20260924e"></script>
-<script src="data/assets.js?v=20260924e"></script>
-<script src="data/zones.js?v=20260924e"></script>
-<script src="data/gear_sheet.js?v=20260924e"></script>
-<script src="data/bar_assets.js?v=20260924e"></script>
-<script src="data/boat_assets.js?v=20260924e"></script>
-<script src="data/meta.js?v=20260924e"></script>
-<script src="js/save.js?v=20260924e"></script>
-<script src="js/world.js?v=20260924e"></script>
-<script src="js/gfx.js?v=20260924e"></script>
-<script src="js/dive.js?v=20260924e"></script>
-<script src="js/audio.js?v=20260924e"></script>
-<script src="js/fx.js?v=20260924e"></script>
-<script src="js/level.js?v=20260924e"></script>
-<script src="js/fish.js?v=20260924e"></script>
-<script src="js/dave.js?v=20260924e"></script>
-<script src="js/harpoon.js?v=20260924e"></script>
-<script src="js/hud.js?v=20260924e"></script>
-<script src="js/prep.js?v=20260924e"></script>
-<script src="js/boat.js?v=20260924e"></script>
-<script src="js/bar.js?v=20260924e"></script>
-<script src="js/main.js?v=20260924e"></script>
+<script src="vendor/three-r140.min.js?v=20260924f"></script>
+<script src="vendor/GLTFLoader-r140.js?v=20260924f"></script>
+<script src="vendor/meshopt_decoder.js?v=20260924f"></script>
+<script src="vendor/spine-threejs-4.0.31.min.js?v=20260924f"></script>
+<script src="data/tuning.js?v=20260924f"></script>
+<script src="data/assets.js?v=20260924f"></script>
+<script src="data/zones.js?v=20260924f"></script>
+<script src="data/gear_sheet.js?v=20260924f"></script>
+<script src="data/bar_assets.js?v=20260924f"></script>
+<script src="data/boat_assets.js?v=20260924f"></script>
+<script src="data/meta.js?v=20260924f"></script>
+<script src="js/save.js?v=20260924f"></script>
+<script src="js/world.js?v=20260924f"></script>
+<script src="js/gfx.js?v=20260924f"></script>
+<script src="js/dive.js?v=20260924f"></script>
+<script src="js/audio.js?v=20260924f"></script>
+<script src="js/fx.js?v=20260924f"></script>
+<script src="js/level.js?v=20260924f"></script>
+<script src="js/fish.js?v=20260924f"></script>
+<script src="js/dave.js?v=20260924f"></script>
+<script src="js/harpoon.js?v=20260924f"></script>
+<script src="js/gun.js?v=20260924f"></script>
+<script src="js/hud.js?v=20260924f"></script>
+<script src="js/prep.js?v=20260924f"></script>
+<script src="js/boat.js?v=20260924f"></script>
+<script src="js/bar.js?v=20260924f"></script>
+<script src="js/main.js?v=20260924f"></script>
 </body>
 </html>

@@ -157,6 +157,13 @@
 
   Fish.prototype.alive = function () { return this.state !== 'dying' && this.state !== 'reeled'; };
 
+  // Đạn gây mê: cá ngủ, đứng yên tại chỗ trong t giây. Mắc xiên hay đã chết thì không ngủ được.
+  Fish.prototype.sleep = function (t) {
+    if (!this.alive() || this.state === 'hooked') return false;
+    this.go('sleep', { time: t, x: this.pos.x, y: this.pos.y });
+    return true;
+  };
+
   // Trả 'dead' | 'tug' | 'alive'.
   Fish.prototype.damage = function (n, fromX, fromY, byHarpoon) {
     this.hp -= n;
@@ -311,6 +318,17 @@
           f.anim = animFor(f.sp, 'swim');
           f.state = 'wander'; f.st = 0; f.target = null;
         }
+      },
+    },
+
+    // Ngủ vì đạn gây mê: đứng im một chỗ, hoạt ảnh dừng; hết giờ hoặc bị đánh thì tỉnh (damage() đổi trạng thái).
+    sleep: {
+      enter: function (f) { f.vel.x = 0; f.vel.y = 0; f.leader = null; f.target = null; f.mesh.state.timeScale = 0; },
+      update: function (f, G, dt) {
+        f.vel.x = 0; f.vel.y = 0;
+        f.pos.x = f.data.x; f.pos.y = f.data.y;
+        f.mesh.state.timeScale = 0;
+        if (f.st >= f.data.time) { f.mesh.state.timeScale = 1; f.go('wander'); }
       },
     },
 
