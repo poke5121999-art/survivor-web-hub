@@ -41,8 +41,10 @@ Hòm dưỡng khí tự mở khi chạm vào. Thêm `?map=A03` vào URL để ch
 
 ## Đo mới biết [ĐO TRONG REPO, 2026-09-24]
 
-- **Ảnh Spine của cá quay đầu về −x.** Muốn cá bơi sang phải thì `scale.x = −1`.
-  - Lần đầu để ngược, cá bơi giật lùi.
+- **Ảnh Spine của mọi loài cá quay đầu về +x.** Cá bơi sang phải thì `scale.x = +1`.
+  - Bản đầu ghi ngược (−x) và cả đàn bơi giật lùi trên Pages. Chủ dự án thấy ngay: "cá đang moon walk".
+  - Kiểm bằng mắt, đừng suy: xếp cả 65 loài đứng yên với `facing = 1` rồi chụp. Ở cá hồng đen trắng và cá mó đầu gù, đuôi chẻ nằm bên phải.
+  - Prefab gốc không có cờ lật nào: `SkeletonMecanim.initialFlipX = 0` ở mọi loài đã xem.
 - **Đá glb nhô ra trước mặt phẳng chơi z=0 từ 2 tới 10 m** (trung vị 4,5 m), đo bằng tia bắn dọc −z trên các điểm nằm trong đa giác vách.
   - Camera phải lùi ≥ 12 m, nếu không đá tiền cảnh phình to che nửa màn hình.
   - Vẫn còn chỗ đá che Dave. Mảnh đá có z > 0,8 được lưới điểm thưa dần quanh Dave (`view.cutRadius`).

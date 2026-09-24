@@ -142,7 +142,7 @@
   };
 
   Fish.prototype.center = function () {
-    return { x: this.pos.x - this.cx * this.flip, y: this.pos.y + this.cy };
+    return { x: this.pos.x + this.cx * this.flip, y: this.pos.y + this.cy };
   };
 
   Fish.prototype.hitTest = function (x, y, pad) {
@@ -220,8 +220,8 @@
       tilt = Math.max(-0.6, Math.min(0.6, tilt));
     }
     this.root.position.set(this.pos.x, this.pos.y, this.z);
-    // ảnh Spine gốc quay đầu về -x
-    this.root.scale.set(-this.flip, 1, 1);
+    // ảnh Spine gốc của mọi loài quay đầu về +x
+    this.root.scale.set(this.flip, 1, 1);
     this.root.rotation.z = tilt * this.facing;
     this.fu.flash.value = this.flashT > 0 ? 0.85 : 0;
     this.root.visible = onScreen;
