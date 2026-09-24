@@ -1,7 +1,8 @@
-// Vòng đời trò chơi: title → loading → dive → result, cùng input, camera, ánh sáng theo độ sâu và móc kiểm thử.
+// Vòng một ngày: title → prep → boat → loading → dive → result → boat → kitchen → bar → ledger → prep,
+// cùng input, camera, ánh sáng theo độ sâu và móc kiểm thử. Pha trên bờ nằm ở js/prep.js, js/boat.js, js/bar.js.
 (function (HX) {
   'use strict';
-  var T = window.HX_TUNING, ZONES = window.HX_ZONES, A = window.HX_ASSETS;
+  var T = window.HX_TUNING, ZONES = window.HX_ZONES, A = window.HX_ASSETS, M = window.HX_META;
   var $ = function (id) { return document.getElementById(id); };
   var params = new URLSearchParams(location.search);
   // số bản của trang (index.html gắn ?v= vào main.js); glb mới trùng tên tệp cũ nên cũng phải gắn
@@ -13,10 +14,19 @@
   caustic.wrapS = caustic.wrapT = THREE.RepeatWrapping;
   HX.gfx.water.uCaustic.value = caustic;
 
+  if (params.get('fresh') === '1') {
+    HX.save.wipe();
+    // bỏ ?fresh khỏi địa chỉ để tải lại trang không xoá sổ thêm lần nữa
+    params.delete('fresh');
+    var qs = params.toString();
+    try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (e) { /* bỏ qua */ }
+  } else HX.save.load();
+
   var G = {
-    phase: 'title', gfx: gfx, fx: fx, audio: HX.audio, hud: HX.hud,
+    phase: null, gfx: gfx, fx: fx, audio: HX.audio, hud: HX.hud,
     t: 0, shakeT: 0, shakeAmp: 0, shakeOffset: { x: 0, y: 0 }, hitstopT: 0,
-    viewHalf: { w: 8, h: 4.5 }, catches: [], themeId: null, errors: [],
+    viewHalf: { w: 8, h: 4.5 }, catches: [], themeId: null, lastRoute: null, errors: [],
+    loadout: null, haul: null,
   };
   HX.game = G;
 
@@ -103,11 +113,28 @@
     });
   }
 
+  // Trang bị đã nâng đọc một lần lúc dựng lượt lặn, từ sổ lưu qua bảng HX_META.
+  function readLoadout() {
+    var s = HX.save.get(), L = {};
+    Object.keys(M.GEAR).forEach(function (k) { L[k] = M.stat(s, k); });
+    L.gun = s.guns.equipped;
+    return L;
+  }
+  // dave.js, harpoon.js, level.js, hud.js đọc thẳng ba số này trong HX_TUNING lúc chạy, nên ghi đè đúng ba số ấy ở một chỗ.
+  // Khi các tệp đó chuyển sang đọc G.loadout thì bỏ hàm này.
+  function applyLoadout(L) {
+    T.o2.max = L.o2; T.harpoon.damage = L.harpoon; T.knife.damage = L.knife;
+  }
+
   function buildDive(themeId, ids, gltf0) {
     teardown();
     titleDecoOn(false);
+    G.loadout = readLoadout();
+    applyLoadout(G.loadout);
+    G.haul = null;
     var stack = new HX.dive.Stack(ids, HX.dive.THEMES[themeId]);
     G.themeId = themeId;
+    G.lastRoute = ids.slice();
     G.stack = stack;
     G.world = new HX.World(stack.walls);
     dive = {
@@ -241,7 +268,7 @@
       if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
     }
     if (e.code === 'KeyM') toggleMute();
-    if ((e.code === 'Enter' || e.code === 'Space') && G.phase === 'title') { e.preventDefault(); startDive(); }
+    if ((e.code === 'Enter' || e.code === 'Space') && G.phase === 'title') { e.preventDefault(); startDay(); }
   });
   addEventListener('keyup', function (e) { keys[e.code] = false; });
   addEventListener('blur', function () { keys = {}; input.fireHeld = false; });
@@ -361,35 +388,78 @@
   $('btn-mute').addEventListener('click', toggleMute);
   $('btn-pause').addEventListener('click', togglePause);
   $('p-resume').addEventListener('click', togglePause);
-  $('p-title').addEventListener('click', function () { togglePause(); teardown(); go('title'); });
+  $('p-title').addEventListener('click', function () { togglePause(); go('title'); });
 
   // ---------- các pha ----------
-  function go(phase) {
-    G.phase = phase;
-    document.body.dataset.phase = phase;
-    if (PHASES[phase].enter) PHASES[phase].enter();
+  // Sổ pha: mỗi pha { surface: '3d' | '2d' | 'dom', enter(args), exit(), update(dt), render() }, chỉ surface là bắt buộc.
+  // Pha trên bờ tự đăng ký vào HX.phases từ tệp riêng (prep.js, boat.js, bar.js); phase() tra bảng dưới đây trước rồi tới HX.phases.
+  //   3d  : cảnh three.js (#scene). Không có lượt lặn thì vẽ cảnh nước trống làm nền.
+  //   dom : như 3d nhưng pha tự dựng giao diện trong G.screen(tên) (một <section> trong #screens).
+  //   2d  : #stage2d phủ kín màn hình, bỏ vẽ #scene; pha tự vẽ trong render() lên G.stage2d.ctx.
+  function phase(name) { return PHASES[name] || (HX.phases && HX.phases[name]) || null; }
+
+  function go(name, args) {
+    var next = phase(name);
+    if (!next) throw new Error('không có pha "' + name + '" trong sổ pha');
+    var prev = G.phase && phase(G.phase);
+    if (prev && prev.exit) prev.exit();
+    // rời khỏi mặt nước thì dỡ lượt lặn, dựng lại cảnh nước trống làm nền
+    if (next.surface !== '3d' || name === 'title') { teardown(); titleDecoOn(true); }
+    G.phase = name;
+    document.body.dataset.phase = name;
+    document.body.dataset.surface = next.surface;
+    showScreen(name);
+    if (next.enter) next.enter(args || {});
   }
+  G.go = go;
+
+  var screens = $('screens');
+  G.screen = function (name) {
+    var el = document.getElementById('scr-' + name);
+    if (!el) {
+      el = document.createElement('section');
+      el.id = 'scr-' + name; el.className = 'screen'; el.hidden = G.phase !== name;
+      screens.appendChild(el);
+    }
+    return el;
+  };
+  function showScreen(name) {
+    for (var i = 0; i < screens.children.length; i++) screens.children[i].hidden = screens.children[i].id !== 'scr-' + name;
+  }
+
+  var stage = $('stage2d');
+  G.stage2d = { canvas: stage, ctx: stage.getContext('2d'), w: innerWidth, h: innerHeight, dpr: 1 };
 
   // Chủ đề lượt này: ?theme=night, hoặc ?map=A01 (ép tầng trên cùng, chủ đề ban ngày), ?route=A03,B04,C04; không thì đổi chủ đề mỗi lượt.
   function chooseDive() {
     var force = (params.get('route') || params.get('map') || '').split(',').filter(Boolean);
     var th = params.get('theme');
     if (!HX.dive.THEMES[th]) th = force.length ? (ZONES[force[0]] && ZONES[force[0]].night ? 'night' : 'day') : HX.dive.nextTheme(G.themeId, Math.random);
-    return { theme: th, ids: HX.dive.plan(th, Math.random, force, G.stack && G.stack.layers.map(function (L) { return L.id; })) };
+    return { theme: th, ids: HX.dive.plan(th, Math.random, force, G.lastRoute) };
   }
 
-  function startDive() {
-    if (G.phase !== 'title' && G.phase !== 'result') return;
+  // Cá mang về đã nằm trong sổ mà chưa bán thì vào thẳng bếp.
+  function startDay() {
+    if (G.phase !== 'title') return;
     HX.audio.unlock();
-    HX.hud.hideResult();
-    go('loading');
+    go(HX.save.get().stage === 'bar' ? 'kitchen' : 'prep');
   }
-  $('start').addEventListener('click', startDive);
+  $('start').addEventListener('click', startDay);
+
+  function goHome() { if (G.phase === 'result') go('boat', { dir: 'home' }); }
 
   var PHASES = {
-    title: { enter: function () { HX.hud.reticle(false); titleDecoOn(true); } },
+    title: {
+      surface: '3d',
+      enter: function () {
+        var s = HX.save.get();
+        HX.hud.reticle(false);
+        $('start').textContent = s.day > 1 || s.stage === 'bar' ? 'Tiếp tục · ngày ' + s.day : 'Bắt đầu';
+      },
+    },
 
     loading: {
+      surface: '3d',
       enter: function () {
         var pick = chooseDive(), th = HX.dive.THEMES[pick.theme], kShared = 0, kGlb = 0;
         var prog = function () { HX.hud.loading(kShared * 0.6 + kGlb * 0.4); };
@@ -398,6 +468,7 @@
           loadShared(function (k) { kShared = k; prog(); }),
           HX.level.loadGlb('art/' + ZONES[pick.ids[0]].glb + '?v=' + REV, function (k) { kGlb = k; prog(); }),
         ]).then(function (r) {
+          if (G.phase !== 'loading') return;
           kShared = kGlb = 1; prog();
           buildDive(pick.theme, pick.ids, r[1]);
           go('dive');
@@ -410,6 +481,7 @@
     },
 
     dive: {
+      surface: '3d',
       enter: function () {
         var th = G.stack.theme;
         HX.hud.area(th.name, th.sub + ' · ' + HX.dive.AREA_NAME[G.stack.layers[0].area]);
@@ -418,64 +490,84 @@
     },
 
     result: {
+      surface: '3d',
       enter: function () {
         HX.hud.reticle(false);
+        HX.hud.suitWarn(false);
         HX.audio.stopLoop('amb');
         HX.audio.stopLoop('pull');
       },
+      exit: function () { HX.hud.hideResult(); },
     },
   };
 
+  // Túi đầy thì cá vẫn hạ được, nhưng kéo tới tay Dave là tan đi, không vào túi.
   G.catchFish = function (f) {
     if (f.state === 'reeled') return;
     f.go('reeled');
+    if (G.catches.length >= G.loadout.cargo) {
+      HX.hud.toast('Túi đầy · phải thả cá đi');
+      fx.burst('bubble', f.pos.x, f.pos.y, 10, 1);
+      return;
+    }
     G.catches.push(f.sp.id);
     HX.audio.play('harpoon_catch');
     HX.audio.play('dave_grab', { vol: 0.7 });
     fx.burst('bubble', f.pos.x, f.pos.y, 6, 0.8);
     fx.spawn('glow', f.pos.x, f.pos.y, f.z + 0.1, 0, 0, 0.6);
     HX.hud.catchCard(f.sp, HX.fish.iconFor(gfx, f.sp));
+    if (G.catches.length === G.loadout.cargo) HX.hud.toast('Túi đầy · lên bờ thôi');
   };
+
+  // Lượt lặn vừa kết thúc là cá đã lên thuyền: cất vào tủ ngay, để tải lại trang vẫn còn.
+  // G.haul đặt lại mỗi lượt ở buildDive, nên gọi hai lần cũng chỉ cất một lần.
+  function bankHaul() {
+    if (G.haul) return;
+    G.haul = G.kept.slice();
+    HX.save.commit(function (s) {
+      G.haul.forEach(function (id) { s.fridge[id] = (s.fridge[id] || 0) + 1; s.dex[id] = 1; });
+      s.stage = 'bar';
+    });
+  }
+
+  function endDive(outcome, kept) {
+    G.outcome = outcome;
+    G.kept = kept;
+    bankHaul();
+    go('result');
+    HX.hud.result(outcome, G.kept, G.catches, goHome, dive.maxDepth);
+  }
 
   G.onSurface = function () {
     if (G.phase !== 'dive') return;
-    G.outcome = 'surface';
-    G.kept = G.catches.slice();
     HX.audio.stopMusic(1.2);
     HX.audio.play('o2_expand', { vol: 0.7 });
     fx.spawn('puff', G.diver.pos.x, G.diver.pos.y + 0.3, 0.2, 0, 0, 1.4);
     G.diver.go('surfaced');
     G.harpoon.drop();
-    go('result');
-    HX.hud.result('surface', G.kept, G.catches, startDive, dive.maxDepth);
+    endDive('surface', G.catches.slice());
   };
 
   G.onPod = function (p) {
     if (G.phase !== 'dive') return;
-    G.outcome = 'pod';
-    G.kept = G.catches.slice();
     HX.audio.stopMusic(1.2);
     HX.audio.play('o2_expand', { vol: 0.7 });
     fx.burst('bubbleBig', p.x, p.y + 0.6, 18, 1.4);
     G.diver.go('surfaced');
     G.harpoon.drop();
-    go('result');
-    HX.hud.result('pod', G.kept, G.catches, startDive, dive.maxDepth);
+    endDive('pod', G.catches.slice());
   };
 
   // Luật gốc: ngất dưới nước thì chỉ giữ được một món — ở đây giữ con quý nhất.
   G.onDead = function () {
     if (G.phase !== 'dive') return;
-    G.outcome = 'dead';
     var best = null;
     G.catches.forEach(function (id) {
       var s = HX.fish.BY_ID[id];
       if (!best || s.rank > best.rank || (s.rank === best.rank && s.cm > best.cm)) best = s;
     });
-    G.kept = best ? [best.id] : [];
     HX.audio.stopMusic(0.6);
-    go('result');
-    HX.hud.result('dead', G.kept, G.catches, startDive, dive.maxDepth);
+    endDive('dead', best ? [best.id] : []);
   };
 
   // Sang tầng khác: băng tên vùng + đổi nhạc.
@@ -500,10 +592,13 @@
     if (fpsAcc > 1) { G.fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
     if (paused) { gfx.render(G.t); return; }
     G.t += dt;
+    var P = phase(G.phase);
     // đang nạp bản đồ mới thì giữ nguyên khung cảnh cũ
-    if (dive && G.phase !== 'title') { if (G.phase !== 'loading') step(dt); }
-    else titleIdle(dt);
-    gfx.render(G.t);
+    if (P.surface === '3d' && dive && G.phase !== 'title') { if (G.phase !== 'loading') step(dt); }
+    else if (P.surface !== '2d') titleIdle(dt);
+    if (P.update) P.update(dt);
+    if (P.surface !== '2d') gfx.render(G.t);
+    if (P.render) P.render();
   }
 
   function step(dt) {
@@ -512,6 +607,7 @@
     if (G.hitstopT > 0) { G.hitstopT -= dt; gdt = dt * 0.08; }
     var inp = G.phase === 'dive' ? input : { mx: 0, my: 0 };
     G.diver.update(gdt, inp);
+    suitTick(gdt);
     G.harpoon.update(gdt);
     G.fishes.update(gdt);
     dive.chests.update(gdt);
@@ -528,13 +624,24 @@
     hudTick();
   }
 
+  // Quá độ sâu an toàn của đồ lặn: dave.js vẫn đốt khí theo công thức cũ, phần tụt thêm tính ở đây.
+  function suitTick(dt) {
+    var d = G.diver, depth = G.stack.depth(d.pos.y);
+    var over = G.phase === 'dive' && depth > G.loadout.suit && d.state !== 'dead' && d.state !== 'enter' && d.state !== 'surfaced';
+    HX.hud.suitWarn(over);
+    if (!over) return;
+    var base = (T.o2.drain + depth * T.o2.drainPerMeter) * (d.boosting ? T.o2.boostMul : 1);
+    d.o2 = Math.max(0, d.o2 - base * (M.SUIT_OVER_MUL - 1) * dt);
+    if (d.o2 <= 0) d.go('dead');
+  }
+
   function hudTick() {
     var d = G.diver;
     HX.hud.o2(d.o2);
     var dm = G.stack.depth(d.pos.y);
     HX.hud.depth(dm);
     if (G.phase === 'dive') dive.maxDepth = Math.max(dive.maxDepth, dm);
-    HX.hud.count(G.catches.length);
+    HX.hud.count(G.catches.length, G.loadout.cargo);
     if (G.phase === 'dive' && d.state === 'tug') {
       var s = gfx.worldToScreen(d.pos.x + d.facing * -0.6, d.pos.y + 0.2);
       HX.hud.tugAt(s.x, s.y);
@@ -586,7 +693,14 @@
   })();
 
   // --px: hệ số phóng ảnh giao diện điểm ảnh, giữ cỡ như khi còn vẽ khung thấp 650 dòng.
-  function onResize() { gfx.resize(); if (dive) viewHalf(); document.body.style.setProperty('--px', (innerHeight / 650).toFixed(3)); }
+  function onResize() {
+    gfx.resize();
+    if (dive) viewHalf();
+    document.body.style.setProperty('--px', (innerHeight / 650).toFixed(3));
+    var S = G.stage2d;
+    S.dpr = Math.min(2, devicePixelRatio || 1); S.w = innerWidth; S.h = innerHeight;
+    S.canvas.width = Math.round(S.w * S.dpr); S.canvas.height = Math.round(S.h * S.dpr);
+  }
   addEventListener('resize', onResize);
   onResize();
   if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
@@ -609,6 +723,7 @@
         catches: G.catches.slice(), kept: (G.kept || []).slice(), outcome: G.outcome || null,
         chests: dive ? dive.chests.list.map(function (c) { return { x: c.x, y: c.y, open: c.open }; }) : [],
         surfaceY: T.water.surfaceY, fps: G.fps, sounds: HX.audio.decoded(),
+        loadout: G.loadout, cargo: G.loadout ? G.loadout.cargo : null,
       };
     },
     fishAt: function () { return G.fishes.list.map(function (f) { return { id: f.sp.id, uid: f.id, x: f.pos.x, y: f.pos.y, state: f.state, hp: f.hp }; }); },
@@ -624,9 +739,25 @@
     setO2: function (v) { G.diver.o2 = v; if (v <= 0 && G.diver.state !== 'dead') G.diver.go('dead'); },
     giveCatch: function (id) { G.catches.push(id); },
     walls: function () { return G.stack.walls; },
+    go: function (name, args) { go(name, args); },
+    save: function () { return JSON.parse(JSON.stringify(HX.save.get())); },
+    grant: function (gold) { HX.save.commit(function (s) { s.gold += gold; }); },
   };
 
-  go('title');
+  // ?phase=prep|boat|kitchen|bar vào thẳng một pha trên bờ để xem; bếp và quán thiếu cá thì bỏ sẵn vài con vào tủ.
+  function fakeFridge() {
+    if (Object.keys(HX.save.get().fridge).length) return;
+    HX.save.commit(function (s) { s.fridge = { ClownFish: 3, Coral_Trout: 1, Titan_Triggerfish: 1 }; s.stage = 'bar'; });
+  }
+  var DEBUG_ENTRY = {
+    prep: function () { go('prep'); },
+    boat: function () { go('boat', { dir: params.get('dir') === 'home' ? 'home' : 'out' }); },
+    kitchen: function () { fakeFridge(); go('kitchen'); },
+    bar: function () { fakeFridge(); go('bar'); },
+  };
+
+  G.loaded = loadShared(function () {});
+  var entry = DEBUG_ENTRY[params.get('phase')];
+  if (entry) entry(); else go('title');
   requestAnimationFrame(frame);
-  loadShared(function () {});
 })(window.HX = window.HX || {});

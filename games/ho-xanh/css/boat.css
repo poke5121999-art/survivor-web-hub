@@ -1,0 +1,5 @@
+/* Pha boat (khung tạm, js/boat.js). */
+.bt-panel { width: min(440px, 100%); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 10px; }
+.bt-panel h2 { font: 700 24px/1.15 var(--disp); margin: 0; color: var(--gold); }
+.bt-fill { height: 100%; width: 0; background: linear-gradient(90deg, #1c9cc4, var(--cyan)); }
+.bt-skip { align-self: flex-end; }

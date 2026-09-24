@@ -6,6 +6,8 @@ Một lượt lặn là một trục dọc liền mạch ghép từ các tầng 
 
 Lên tới mặt nước hoặc bơi lên vào khoang cứu hộ là mang cả túi cá về. Cạn dưỡng khí là ngất, chỉ giữ được một con.
 
+Mỗi lượt lặn nằm trong một ngày trọn vòng: sắm đồ, lái cano ra Hố Xanh, lặn, về quán làm sushi từ cá bắt được, bán cho khách, cộng sổ, sang ngày mới. Kế hoạch ở `brain/plans/ho-xanh-mot-ngay.md`. Cano, bếp, quán và màn chuẩn bị hiện là **khung tạm** bằng DOM trơn; hình và hoạt ảnh gốc gắn vào ở đợt sau.
+
 ## Điều khiển
 
 | Việc | Bàn phím + chuột | Cảm ứng (ngang máy) |
@@ -20,14 +22,22 @@ Lên tới mặt nước hoặc bơi lên vào khoang cứu hộ là mang cả t
 
 Hòm dưỡng khí tự mở khi chạm vào. Khoang cứu hộ: tới sát rồi bơi lên.
 
-Tham số URL: `?theme=night` (day, kelp, evening, rain, night) ép chủ đề; `?map=A03` ép tầng trên cùng; `?route=A03,B04,C03` ép cả lộ trình.
+Tham số URL:
+- `?theme=night` (day, kelp, evening, rain, night) ép chủ đề; `?map=A03` ép tầng trên cùng; `?route=A03,B04,C03` ép cả lộ trình.
+- `?fresh=1` xoá sổ lưu rồi tự gỡ khỏi địa chỉ.
+- `?phase=prep|boat|kitchen|bar` vào thẳng một pha trên bờ, bỏ qua màn đầu. `boat` nhận thêm `&dir=home`. Bếp và quán mà tủ trống thì bỏ sẵn 3 cá hề, 1 cá mú chấm, 1 cá bò titan vào tủ (ghi vào sổ thật).
 
 ## Tệp
 
 | Tệp | Làm gì |
 |---|---|
-| `index.html` | Khung trang, CSS, HUD bằng DOM. Mọi `<script>`/ảnh gắn `?v=<rev>` |
-| `data/tuning.js` | Mọi con số, nhãn `[DtD]` (bản gốc) hoặc `[ĐỀ XUẤT]` (tự chọn) |
+| `index.html` | Khung trang, CSS chung, HUD bằng DOM, `#stage2d` và `#screens` cho pha trên bờ. Mọi `<script>`/`<link>`/ảnh gắn `?v=<rev>` |
+| `data/tuning.js` | Mọi con số của lượt lặn, nhãn `[DtD]` (bản gốc) hoặc `[ĐỀ XUẤT]` (tự chọn) |
+| `data/meta.js` | `HX_META`: bảng nâng cấp `GEAR` (O₂, túi cá, đồ lặn, dao, súng xiên, động cơ), `BAR` (ghế, đầu bếp, trang trí, trà), `GUNS`, giá món. Hàm thuần `stat / level / nextCost / buy / buyGun / equipGun / dishOf / servingsOf`. Cấp 0 bằng đúng `tuning.js` |
+| `data/gear_sheet.js`, `data/bar_assets.js`, `data/boat_assets.js` | Luồng bóc asset ghi ra. Có thì `meta.js` lấy số `[DtD]`, món ăn lấy tên/giá/ảnh gốc; thiếu thì dùng `[ĐỀ XUẤT]` |
+| `js/save.js` | `HX.save`: sổ lưu `hx.save.v1` trong localStorage. `load / get / commit(fn) / wipe / parse` |
+| `js/prep.js`, `js/boat.js`, `js/bar.js` | Pha trên bờ (khung tạm): chuẩn bị; cano; bếp, quán, sổ cuối ngày. Mỗi tệp tự đăng ký vào `HX.phases` |
+| `css/prep.css`, `css/boat.css`, `css/bar.css` | Kiểu riêng của từng pha trên bờ |
 | `data/zones.js` | Sinh bởi `tools/level.py`: 16 tầng, mỗi tầng vách va chạm, hòm O₂, khoang cứu hộ, rong Spine, mã miệng nối và số liệu ánh sáng gốc |
 | `js/dive.js` | Bảng chủ đề, ghép lộ trình theo miệng nối, xếp chồng các tầng, độ sâu hiển thị, ánh sáng theo độ cao |
 | `js/world.js` | Va chạm 2D trên đa giác vách gốc của mọi tầng đã xếp chồng: trong/ngoài, trượt theo vách, tia xiên |
@@ -38,12 +48,23 @@ Tham số URL: `?theme=night` (day, kelp, evening, rain, night) ép chủ đề;
 | `js/fish.js` | Nạp Spine, máy trạng thái cá, bộ sinh cá quanh camera, ảnh nhỏ cho thẻ bắt cá |
 | `js/fx.js` | Hạt hiệu ứng theo bảng `KINDS` |
 | `js/hud.js`, `js/audio.js` | DOM phủ trên cảnh; Web Audio |
-| `js/main.js` | Các pha, nhập liệu, camera, cập nhật ánh sáng mỗi khung, móc `window.HX_DEBUG` cho bộ kiểm |
+| `js/main.js` | Sổ pha và `go()`, dựng lượt lặn theo trang bị, nhập liệu, camera, ánh sáng mỗi khung, móc `window.HX_DEBUG` cho bộ kiểm |
 | `tools/route-check.js` | Loang từ chỗ xuống nước qua mọi lộ trình hợp lệ, xác nhận bơi được tới tầng cuối |
 
 ## Máy trạng thái
 
-- Pha: `title → loading → dive → result`, rồi "Lặn tiếp" quay lại `loading`. Tầng trên cùng nạp trước; các tầng dưới nạp ngầm trong lúc lặn.
+- Pha: `title → prep → boat(out) → loading → dive → result → boat(home) → kitchen → bar → ledger → prep …`
+  - Màn đầu: sổ còn cá chưa bán (`stage: 'bar'`) thì "Tiếp tục" vào thẳng `kitchen`, không thì `prep`.
+  - Tầng trên cùng nạp trước; các tầng dưới nạp ngầm trong lúc lặn. Rời mặt nước (sang pha không phải `3d`, hoặc về màn đầu) thì dỡ lượt lặn.
+- Sổ pha (`js/main.js`): mỗi pha `{ surface, enter(args), exit(), update(dt), render() }`, chỉ `surface` bắt buộc.
+  - `surface: '3d'` vẽ cảnh three.js; `'dom'` vẽ cảnh nước trống làm nền, pha dựng giao diện trong `G.screen(tên)`; `'2d'` hiện `#stage2d`, bỏ vẽ cảnh 3D, pha tự vẽ trong `render()` lên `G.stage2d.ctx`.
+  - `G.go(tên, args)`: gọi `exit()` pha cũ, đặt `G.phase` và `body[data-phase]`, `body[data-surface]`, hiện đúng `#scr-<tên>`, gọi `enter(args)`.
+  - Pha mới đăng ký bằng `HX.phases.<tên> = {...}` trong tệp riêng, nạp trước `main.js`.
+- Sổ lưu `hx.save.v1`: `{ v, day, stage, gold, gear{o2,cargo,suit,knife,harpoon,engine}, guns{owned,equipped}, fridge{<cá>:số}, bar{seats,chef,decor,tea}, dex{<cá>:1}, stats{served,earned} }`.
+  - Đọc vào là chuẩn hoá từng khoá; giá trị lạ về mặc định. Muốn đổi phải qua `HX.save.commit(fn)`.
+  - Hết lượt lặn (lên bờ, vào khoang, ngất) là cá giữ được vào `fridge` và `dex`, `stage: 'bar'`, ghi một lần mỗi lượt.
+  - Sổ cuối ngày (`ledger`) cộng vàng, bỏ cá đã bán khỏi tủ, `day + 1`, `stage: 'prep'`, cũng chỉ một lần. Tải lại giữa lúc bán thì tủ còn nguyên.
+- Trang bị đọc một lần lúc dựng lượt lặn vào `G.loadout`. O₂ tối đa, sát thương xiên và dao được ghi đè vào `HX_TUNING` vì `dave.js`, `harpoon.js`, `level.js` đọc thẳng từ đó. Túi đầy thì cá hạ được vẫn tan đi khi tới tay, báo "Túi đầy". Quá độ sâu của đồ lặn thì dưỡng khí tụt ×2,5 và HUD báo.
 - Dave: `enter | swim | dash | aim | shoot | reel | tug | melee | hurt | surfaced | dead`. Tăng tốc là cờ của `swim`.
 - Xiên: `ready → flying → (stuck | returning) → ready`.
 - Cá: `wander | flee | chase | defend | hooked | dying | reeled`. Cá nóc dùng `defend` (phồng gai).
@@ -94,9 +115,10 @@ Tham số URL: `?theme=night` (day, kelp, evening, rain, night) ép chủ đề;
 
 ```
 node test/ho-xanh-suite.js      # SHOTS=<thư mục> để đổi chỗ lưu ảnh
+node test/ho-xanh-meta.js       # hàm thuần của data/meta.js và chuẩn hoá sổ lưu, không cần trình duyệt
 ```
 
-Chạy ở 1280×720 và 844×390 trên lộ trình A01 → B01 → C03. Các bài: ghép đúng lộ trình, glb A01 đủ vai (đá, san hô, hải quỳ, rong, san hô 2D), Dave có trên hình, bơi vào vách không lọt đá, xiên và dao bắt được cá, cá hướng đầu theo chiều bơi, độ sâu đúng dải, nạp ngầm đủ ba tầng, băng tên vùng, đèn đội đầu ở vực sâu, ngất giữ đúng một con, lên bờ và vào khoang cứu hộ giữ cả túi, không lỗi trang. Thêm một trang không ép lộ trình: ba lượt liền nhau đổi chủ đề và ghép khớp miệng nối.
+Chạy ở 1280×720 và 844×390 trên lộ trình A01 → B01 → C03. Các bài: ghép đúng lộ trình, glb A01 đủ vai (đá, san hô, hải quỳ, rong, san hô 2D), Dave có trên hình, bơi vào vách không lọt đá, xiên và dao bắt được cá, cá hướng đầu theo chiều bơi, độ sâu đúng dải, nạp ngầm đủ ba tầng, băng tên vùng, đèn đội đầu ở vực sâu, ngất giữ đúng một con, lên bờ và vào khoang cứu hộ giữ cả túi, không lỗi trang. Thêm một trang không ép lộ trình: ba lượt liền nhau đổi chủ đề và ghép khớp miệng nối. Thêm một ngày trọn vòng ở cả hai cỡ màn hình: sổ mới, mua khi 0 vàng bị từ chối, cá mang về vào bếp, quán bán, sổ cuối ngày sang ngày 2, tải lại trang còn sổ, nâng O₂ thì lượt sau O₂ 120, túi đầy ở con thứ 9, quá 130 m tụt khí ×2,5, `?fresh=1`, `?phase=bar`.
 
 ```
 node games/ho-xanh/tools/route-check.js   # mọi lộ trình bơi được tới tầng cuối (~35 giây)

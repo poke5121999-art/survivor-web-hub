@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <!--
-  HỐ XANH — lặn xuống vùng nông của Hố Xanh, xiên cá bằng súng xiên, canh bình dưỡng khí.
-  Dựng lại cảm giác vòng lặn của Dave the Diver bằng chính hình, hoạt ảnh Spine, bản đồ 3D và tiếng của bản gốc.
+  HỐ XANH — một ngày của Dave the Diver: sắm đồ, lái cano ra Hố Xanh, lặn xiên cá, mang về làm sushi bán ở quán.
+  Dựng lại bằng chính hình, hoạt ảnh Spine, bản đồ 3D và tiếng của bản gốc.
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#08223a">
@@ -25,6 +25,22 @@ body {
   user-select: none; -webkit-user-select: none;
 }
 #scene { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: block; }
+/* pha 2D (xem sổ pha trong js/main.js) vẽ lên tấm này, phủ kín cảnh 3D */
+#stage2d { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: none; }
+body[data-surface="2d"] #stage2d { display: block; }
+/* pha DOM dựng giao diện trong #screens > section.screen; go() chỉ hiện section của pha đang chạy */
+#screens { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+.screen {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: auto;
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+}
+.screen[hidden] { display: none; }
+.btn-main {
+  padding: 11px 18px; border: 0; border-radius: 12px; background: #1c9cc4; color: #fff;
+  font-weight: 700; font-size: 16px; box-shadow: 0 3px 0 #0c5570;
+}
+.btn-main:active { transform: translateY(2px); box-shadow: 0 1px 0 #0c5570; }
+.btn-main:disabled { filter: grayscale(.7) brightness(.7); cursor: default; }
 body[data-phase="dive"]:not(.touch) #scene { cursor: none; }
 button { font: inherit; color: inherit; cursor: pointer; }
 img.px { image-rendering: pixelated; }
@@ -68,7 +84,7 @@ body.touch .keys .kb, body:not(.touch) .keys .tc { display: none; }
 
 /* ---------- HUD ---------- */
 #hud { position: fixed; inset: 0; pointer-events: none; transition: opacity .4s; }
-body[data-phase="title"] #hud, body[data-phase="loading"] #hud { opacity: 0; }
+body:not([data-phase="dive"]):not([data-phase="result"]) #hud { opacity: 0; }
 #o2box {
   position: absolute; left: max(10px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top));
   width: 210px; height: 116px;
@@ -93,6 +109,7 @@ body.low-o2 #o2-pie { background: conic-gradient(from 0deg, rgba(255, 90, 79, .6
   position: absolute; left: 56%; top: 50%; height: 26%; display: flex; align-items: center; gap: 6px;
   font: 800 16px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--gold);
 }
+#catch.full { color: var(--red); }
 #catch::before { content: ""; width: 20px; height: 11px; background: var(--gold);
   clip-path: polygon(0 50%, 25% 0, 70% 0, 85% 30%, 100% 0, 100% 100%, 85% 70%, 70% 100%, 25% 100%); }
 #warn { position: absolute; left: 40%; top: -4%; width: 30px; display: none; animation: blink .6s steps(2) infinite; }
@@ -105,12 +122,20 @@ body.low-o2 #warn { display: block; }
 }
 body.touch #hint-line { bottom: auto; top: max(8px, env(safe-area-inset-top)); left: auto; right: 118px; transform: none; font-size: 11px; max-width: calc(100vw - 360px); }
 .hud-btns { position: fixed; right: max(10px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top)); display: flex; gap: 8px; transition: opacity .4s; }
-body[data-phase="title"] .hud-btns, body[data-phase="loading"] .hud-btns { opacity: 0; pointer-events: none; }
+body:not([data-phase="dive"]):not([data-phase="result"]) .hud-btns { opacity: 0; pointer-events: none; }
 .hud-btns button { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(8, 26, 44, .66); display: grid; place-items: center; padding: 0; }
 #btn-mute.off .on-i, #btn-mute:not(.off) .off-i { display: none; }
 
 #vignette { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity .5s; mix-blend-mode: multiply; }
 body.low-o2 #vignette { animation: throb 1.3s ease-in-out infinite; }
+body:not([data-phase="dive"]):not([data-phase="result"]) :is(#vignette, #area, #catch-card, #pod-hint, #tug) { display: none; }
+#suit-warn {
+  position: fixed; left: max(10px, env(safe-area-inset-left)); top: calc(max(8px, env(safe-area-inset-top)) + 120px); display: none;
+  padding: 4px 10px; border-radius: 8px; background: rgba(90, 14, 10, .72); border: 1px solid rgba(255, 90, 79, .6);
+  color: #ffd0c8; font-size: 12px; font-weight: 700; pointer-events: none; animation: blink 1s steps(2) infinite;
+}
+body.too-deep[data-phase="dive"] #suit-warn { display: block; }
+body.too-deep[data-phase="dive"] #depth { color: var(--red); }
 @keyframes throb { 50% { filter: brightness(.7); } }
 #hurt { position: fixed; inset: 0; pointer-events: none; opacity: 0; box-shadow: inset 0 0 120px 40px rgba(255, 40, 40, .7); }
 #hurt.on { animation: hurt .45s ease-out; }
@@ -161,7 +186,7 @@ body.low-o2 #vignette { animation: throb 1.3s ease-in-out infinite; }
 #tug { position: fixed; left: 0; top: 0; width: 52px; height: 104px; margin: -52px 0 0 -26px; pointer-events: none; }
 #tug[hidden] { display: none; }
 #tug .frame { position: absolute; inset: 0; width: 100%; height: 100%; }
-#tug .fillmask { position: absolute; inset: 0; -webkit-mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924d) center / 100% 100% no-repeat; mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924d) center / 100% 100% no-repeat; }
+#tug .fillmask { position: absolute; inset: 0; -webkit-mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924e) center / 100% 100% no-repeat; mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924e) center / 100% 100% no-repeat; }
 #tug-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(0deg, #ffb13b, var(--gold) 60%, #fff4b8); transition: height .08s; }
 #tug.tap .frame { animation: tap .12s; }
 @keyframes tap { 50% { transform: scale(1.1); filter: brightness(1.6); } }
@@ -210,6 +235,7 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
   #title-dave { width: 96px; height: 108px; }
   .keys { margin-top: 6px; }
   #o2box { width: 160px; height: 88px; }
+  #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 92px); font-size: 11px; }
   #o2-num { font-size: 23px; }
   #depth, #catch { font-size: 13px; }
   #catch-card { top: 56px; width: 220px; grid-template-columns: 70px 1fr; }
@@ -217,15 +243,19 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
   #result h2 { font-size: 24px; }
 }
 </style>
+<link rel="stylesheet" href="css/prep.css?v=20260924e">
+<link rel="stylesheet" href="css/boat.css?v=20260924e">
+<link rel="stylesheet" href="css/bar.css?v=20260924e">
 </head>
 <body data-phase="title">
 <canvas id="scene"></canvas>
+<canvas id="stage2d"></canvas>
 
 <section id="title" class="panel">
   <div class="txt">
     <h1>Hố Xanh</h1>
-    <p class="sub">Lặn xuống vùng nông của Hố Xanh, xiên cá bằng súng xiên. Bình dưỡng khí cũng là máu: cạn là ngất.</p>
-    <button id="start">Bắt đầu lặn</button>
+    <p class="sub">Sắm đồ, ra Hố Xanh xiên cá, tối về làm sushi bán ở quán. Bình dưỡng khí cũng là máu: cạn là ngất.</p>
+    <button id="start">Bắt đầu</button>
     <div id="load"><div class="bar"><div id="load-fill"></div></div><div id="load-label">Đang tải…</div></div>
   </div>
   <canvas id="title-dave" width="160" height="190"></canvas>
@@ -239,22 +269,23 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
 
 <div id="hud">
   <div id="o2box">
-    <img class="frame px" src="art/ui/UI_O2_Frame_New.png?v=20260924d" alt="">
+    <img class="frame px" src="art/ui/UI_O2_Frame_New.png?v=20260924e" alt="">
     <div id="o2-pie"></div>
     <div id="o2-num">100</div>
     <div id="o2-lbl">O₂</div>
     <div id="depth">0 m</div>
     <div id="catch"><span id="catch-n">0</span></div>
-    <img id="warn" class="px" src="art/ui/UI_Warning_Mark.png?v=20260924d" alt="">
+    <img id="warn" class="px" src="art/ui/UI_Warning_Mark.png?v=20260924e" alt="">
   </div>
   <div id="hint-line"></div>
   <div id="reticle" hidden></div>
-  <img id="aimgun" class="px" src="art/ui/Target_ArrowGun.png?v=20260924d" alt="" hidden>
+  <img id="aimgun" class="px" src="art/ui/Target_ArrowGun.png?v=20260924e" alt="" hidden>
 </div>
-<img id="vignette" src="art/ui/Depressurization_Vignetting.png?v=20260924d" alt="">
+<img id="vignette" src="art/ui/Depressurization_Vignetting.png?v=20260924e" alt="">
 <div id="hurt"></div>
 <div id="toast"></div>
 <div id="area"><b id="area-t"></b><span id="area-s"></span></div>
+<div id="suit-warn">Quá sâu cho đồ lặn · O₂ tụt nhanh</div>
 <div id="pod-hint">Bơi lên để vào khoang cứu hộ · giữ cả túi cá</div>
 
 <div class="hud-btns">
@@ -271,7 +302,7 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
 </div>
 
 <div id="tug" hidden>
-  <img class="frame px" src="art/ui/Gauge_Bar_Tap.png?v=20260924d" alt="">
+  <img class="frame px" src="art/ui/Gauge_Bar_Tap.png?v=20260924e" alt="">
   <div class="fillmask"><div id="tug-fill"></div></div>
   <div id="tug-label">Bấm liên tục!</div>
   <div id="tug-timebar"><div id="tug-time"></div></div>
@@ -282,7 +313,7 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
   <p id="r-sub"></p>
   <div id="r-grid"></div>
   <p id="r-total"></p>
-  <button id="r-again">Lặn tiếp</button>
+  <button id="r-again">Về quán</button>
 </section>
 
 <section id="pause" class="panel" hidden>
@@ -293,6 +324,8 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
   </div>
 </section>
 
+<div id="screens"></div>
+
 <div id="stick" hidden><div id="stick-knob"></div></div>
 <div id="touch-btns">
   <button id="tb-boost">Tăng tốc</button>
@@ -300,23 +333,31 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
   <button id="tb-knife">Dao</button>
 </div>
 
-<script src="vendor/three-r140.min.js?v=20260924d"></script>
-<script src="vendor/GLTFLoader-r140.js?v=20260924d"></script>
-<script src="vendor/meshopt_decoder.js?v=20260924d"></script>
-<script src="vendor/spine-threejs-4.0.31.min.js?v=20260924d"></script>
-<script src="data/tuning.js?v=20260924d"></script>
-<script src="data/assets.js?v=20260924d"></script>
-<script src="data/zones.js?v=20260924d"></script>
-<script src="js/world.js?v=20260924d"></script>
-<script src="js/gfx.js?v=20260924d"></script>
-<script src="js/dive.js?v=20260924d"></script>
-<script src="js/audio.js?v=20260924d"></script>
-<script src="js/fx.js?v=20260924d"></script>
-<script src="js/level.js?v=20260924d"></script>
-<script src="js/fish.js?v=20260924d"></script>
-<script src="js/dave.js?v=20260924d"></script>
-<script src="js/harpoon.js?v=20260924d"></script>
-<script src="js/hud.js?v=20260924d"></script>
-<script src="js/main.js?v=20260924d"></script>
+<script src="vendor/three-r140.min.js?v=20260924e"></script>
+<script src="vendor/GLTFLoader-r140.js?v=20260924e"></script>
+<script src="vendor/meshopt_decoder.js?v=20260924e"></script>
+<script src="vendor/spine-threejs-4.0.31.min.js?v=20260924e"></script>
+<script src="data/tuning.js?v=20260924e"></script>
+<script src="data/assets.js?v=20260924e"></script>
+<script src="data/zones.js?v=20260924e"></script>
+<script src="data/gear_sheet.js?v=20260924e"></script>
+<script src="data/bar_assets.js?v=20260924e"></script>
+<script src="data/boat_assets.js?v=20260924e"></script>
+<script src="data/meta.js?v=20260924e"></script>
+<script src="js/save.js?v=20260924e"></script>
+<script src="js/world.js?v=20260924e"></script>
+<script src="js/gfx.js?v=20260924e"></script>
+<script src="js/dive.js?v=20260924e"></script>
+<script src="js/audio.js?v=20260924e"></script>
+<script src="js/fx.js?v=20260924e"></script>
+<script src="js/level.js?v=20260924e"></script>
+<script src="js/fish.js?v=20260924e"></script>
+<script src="js/dave.js?v=20260924e"></script>
+<script src="js/harpoon.js?v=20260924e"></script>
+<script src="js/hud.js?v=20260924e"></script>
+<script src="js/prep.js?v=20260924e"></script>
+<script src="js/boat.js?v=20260924e"></script>
+<script src="js/bar.js?v=20260924e"></script>
+<script src="js/main.js?v=20260924e"></script>
 </body>
 </html>

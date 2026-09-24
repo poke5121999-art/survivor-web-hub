@@ -1,4 +1,4 @@
-// Lớp DOM phủ trên cảnh: đồng hồ dưỡng khí, độ sâu, thẻ bắt cá, thanh giằng co, màn kết quả.
+// Lớp DOM phủ trên cảnh: đồng hồ dưỡng khí, độ sâu, túi cá, thẻ bắt cá, thanh giằng co, màn kết quả.
 (function (HX) {
   'use strict';
   var T = window.HX_TUNING;
@@ -28,7 +28,16 @@
       $('vignette').style.opacity = low ? (0.45 + 0.35 * (1 - v / T.o2.lowAt)).toFixed(2) : '0';
     },
     depth: function (m) { $('depth').textContent = Math.max(0, Math.round(m)) + ' m'; },
-    count: function (n) { $('catch-n').textContent = n; },
+    count: function (n, cap) {
+      $('catch-n').textContent = n + '/' + cap;
+      $('catch').classList.toggle('full', n >= cap);
+    },
+    // Xuống quá độ sâu an toàn của đồ lặn.
+    suitWarn: function (on) {
+      if (Hud._suit === on) return;
+      Hud._suit = on;
+      document.body.classList.toggle('too-deep', on);
+    },
     hint: function (s) { $('hint-line').textContent = s; },
 
     flash: function () {

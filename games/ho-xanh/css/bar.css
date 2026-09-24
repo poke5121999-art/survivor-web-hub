@@ -1,0 +1,29 @@
+/* Pha kitchen, bar, ledger (khung tạm, js/bar.js). */
+.br-panel { width: min(620px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 12px; }
+.br-panel h2 { font: 700 26px/1.1 var(--disp); margin: 0; color: var(--gold); }
+.br-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.br-gold { font: 800 18px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--gold); }
+.br-note { color: var(--dim); font-size: 13px; }
+.br-list { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 6px; touch-action: pan-y; }
+.br-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; background: rgba(255, 255, 255, .05); }
+.br-icon { width: 64px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+.br-txt { min-width: 0; display: flex; flex-direction: column; }
+.br-txt b { font-size: 14px; line-height: 1.2; }
+.br-txt small { font-size: 11.5px; color: var(--dim); }
+.br-right { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.br-empty { color: var(--dim); margin: 6px 0; }
+.br-log { margin: 0; min-height: 3.2em; max-height: 5.6em; overflow: hidden; font: 12.5px/1.4 system-ui, sans-serif; color: var(--gold); white-space: pre-line; }
+.br-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.br-foot .btn-main { margin-left: auto; }
+.br-ledger { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; font-size: 15px; }
+.br-ledger b { text-align: right; font-variant-numeric: tabular-nums; }
+.br-ledger span:nth-last-child(2), .br-ledger b:last-child { color: var(--gold); font-size: 17px; }
+
+@media (max-height: 460px) {
+  .br-panel { padding: 8px 12px; gap: 5px; }
+  .br-panel h2 { font-size: 21px; }
+  .br-row { padding: 3px 8px; grid-template-columns: 48px 1fr auto; }
+  .br-icon { width: 48px; height: 30px; }
+  .br-log { max-height: 2.8em; min-height: 1.4em; }
+  .br-ledger { font-size: 13.5px; gap: 2px 16px; }
+}
