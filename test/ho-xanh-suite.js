@@ -6,6 +6,7 @@
  * Chạy ở 1280×720 và 844×390, lộ trình cố định A01 → B01 → C03 (?route=) để kỳ vọng viết cứng được.
  * Vòng một ngày (prep → cano → lặn → về quán → bếp → quán → sổ → ngày 2) chạy riêng ở loop().
  * Hàm thuần của data/meta.js kiểm ở test/ho-xanh-meta.js.
+ * Súng phụ trong lượt lặn kiểm ở test/ho-xanh-gun.js.
  */
 'use strict';
 const path = require('path'), http = require('http'), fs = require('fs'), os = require('os');
@@ -220,16 +221,14 @@ async function run(browser, base, W, H) {
   });
   check('cá bò titan hướng sang phải thì đầu nằm bên phải đuôi', heading.head > heading.tail, JSON.stringify(heading));
 
-  // Dao: cá hề 3 máu, dao 2 sát thương → đâm hai nhát thì cá chết và trôi về tay Dave.
+  // Dao: cá hề 3 máu, dao gốc cấp 0 3 sát thương → một nhát là cá chết và trôi về tay Dave.
   const d1 = (await info()).dave;
   const face = await page.evaluate(() => HX.game.diver.facing);
   await page.evaluate(([x, y]) => HX_DEBUG.spawnFish('ClownFish', x, y, true), [d1.x + face * 0.4, d1.y + 0.05]);
   await page.keyboard.press('KeyF');
-  await sleep(800);
-  await page.keyboard.press('KeyF');
   await page.waitForFunction(() => HX_DEBUG.info().catches.length === 2, null, { timeout: 4000 }).catch(() => {});
   I = await info();
-  check('hai nhát dao hạ được cá hề thứ hai', JSON.stringify(I.catches) === '["ClownFish","ClownFish"]', JSON.stringify(I.catches));
+  check('một nhát dao (F) hạ được cá hề thứ hai', JSON.stringify(I.catches) === '["ClownFish","ClownFish"]', JSON.stringify(I.catches));
   const played2 = await page.evaluate(() => window.__played);
   check('dao phát tiếng vung và tiếng trúng', played2.includes('knife') && played2.includes('melee_hit'), played2.slice(-6).join(','));
 
@@ -321,6 +320,28 @@ async function run(browser, base, W, H) {
   await page.close();
 }
 
+// Quán (js/bar.js): chờ món ra lò, giữ D/A đi tới quầy Bancho, E bưng, đi tới ghế khách, E đưa món.
+async function serveKeys(page, cid) {
+  const I = () => page.evaluate(() => HX.bar.debug.info());
+  const walk = async x => {
+    const d = (await I()).dave.x, dir = x > d ? 1 : -1;
+    await page.keyboard.down(dir > 0 ? 'KeyD' : 'KeyA');
+    await page.waitForFunction(a => { const x = HX.bar.debug.info().dave.x; return Math.abs(x - a.x) <= 6 || (a.dir > 0 ? x >= a.x : x <= a.x); },
+      { x, dir }, { timeout: 15000, polling: 'raf' }).catch(() => null);
+    await page.keyboard.up(dir > 0 ? 'KeyD' : 'KeyA');
+  };
+  const wait = (fn, arg) => page.waitForFunction(fn, arg, { timeout: 30000, polling: 'raf' }).then(() => true, () => false);
+  if (!await wait(id => HX.bar.debug.info().customers.some(c => c.id === id && c.st === 'order'), cid)) return 'khách không gọi món';
+  const c = (await I()).customers.filter(c => c.id === cid)[0];
+  if (!await wait(d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order)) return 'món không ra lò';
+  await walk((await I()).passX);
+  await page.keyboard.press('KeyE');
+  if ((await I()).dave.carry.indexOf(c.order) < 0) return 'không bưng được món';
+  await walk(c.sitX);
+  await page.keyboard.press('KeyE');
+  return (await I()).events.some(e => e.type === 'serve' && e.cid === cid) ? 'ok' : 'khách không nhận món';
+}
+
 // Một ngày trọn vòng trên sổ mới: chuẩn bị → cano → lặn → về quán → bếp → quán → sổ cuối ngày → ngày 2, rồi tải lại trang.
 async function loop(browser, base, W, H) {
   const tag = 'day-' + W + 'x' + H;
@@ -349,7 +370,8 @@ async function loop(browser, base, W, H) {
   S = await save();
   check('0 vàng mua O₂ bị từ chối: báo thiếu tiền, sổ không đổi', (await text('.pr-msg')).includes('thiếu tiền') && S.gear.o2 === 0 && S.gold === 0, await text('.pr-msg'));
   await page.click('.pr-tab[data-tab="guns"]');
-  check('thẻ Súng liệt kê 5 khẩu', (await page.$$('.pr-row')).length === 5);
+  const gunRows = await page.$$eval('#scr-prep .pr-row', r => r.map(e => e.dataset.key));
+  check('thẻ Súng liệt kê 6 khẩu của bản gốc', JSON.stringify(gunRows) === '["rifle","shotgun","sniper","sleep","net","grenade"]', JSON.stringify(gunRows));
   await shot('1b-prep-guns');
   await page.click('.pr-tab[data-tab="bar"]');
   check('thẻ Quán liệt kê ghế, đầu bếp, trang trí, trà', JSON.stringify(await page.$$eval('.pr-row', r => r.map(e => e.dataset.key))) === '["seats","chef","decor","tea"]');
@@ -360,9 +382,10 @@ async function loop(browser, base, W, H) {
   await shot('2-boat-out');
   await phase('dive');
   let I = await info();
-  check('cano tự chạy xong thì vào lặn với trang bị cấp 0 (O₂ 100, túi 8, đồ lặn 130 m)',
-    I.loadout.o2 === 100 && I.loadout.cargo === 8 && I.loadout.suit === 130 && I.dave.o2 === 100, JSON.stringify(I.loadout));
-  check('HUD túi cá hiện 0/8', (await text('#catch-n')) === '0/8', await text('#catch-n'));
+  check('cano tự chạy xong thì vào lặn với trang bị gốc cấp 0 (O₂ 90, túi 9, đồ lặn 40 m, không súng)',
+    I.loadout.o2 === 90 && I.loadout.cargo === 9 && I.loadout.suit === 40 && I.loadout.gun === null && Math.round(I.dave.o2) === 90, JSON.stringify(I.loadout));
+  check('HUD túi cá hiện 0/9', (await text('#catch-n')) === '0/9', await text('#catch-n'));
+  check('không mang súng thì không có ô súng', await page.evaluate(() => getComputedStyle(document.getElementById('gunbox')).display === 'none'));
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 5000 });
   await page.evaluate(() => HX_DEBUG.giveCatch('Coral_Trout'));
   check('bơi lên mặt nước thì hết lượt', await swimUp(page));
@@ -385,14 +408,21 @@ async function loop(browser, base, W, H) {
 
   await page.click('#kitchen-open');
   await phase('bar');
-  const sold = await page.waitForFunction(() => /^[1-9]/.test(document.querySelector('#scr-bar .br-note').textContent), null, { timeout: 5000 }).then(() => true, () => false);
-  check('quán tự bán được ít nhất một suất', sold, await text('#scr-bar .br-note'));
+  // Quán thật: một khách gọi Sushi cá mú chấm, Dave bưng món bằng phím (chi tiết quán kiểm ở test/ho-xanh-bar.js).
+  await page.waitForFunction(() => HX.bar.debug.ready(), null, { timeout: 60000 });
+  const cid = await page.evaluate(() => { HX.bar.debug.holdSpawns(true); return HX.bar.debug.spawn({ dish: 'Coral_Trout', tea: false }); });
+  const served = await serveKeys(page, cid);
+  check('khách gọi Sushi cá mú chấm, Dave bưng từ quầy Bancho tới ghế (A/D + E)', served === 'ok', served);
   await shot('5-bar');
+  const paid = await page.waitForFunction(id => HX.bar.debug.info().events.some(e => e.type === 'pay' && e.cid === id), cid, { timeout: 20000 }).then(() => true, () => false);
+  const pay = await page.evaluate(id => HX.bar.debug.info().events.filter(e => e.type === 'pay' && e.cid === id)[0], cid);
+  check('khách ăn xong trả đúng giá gốc 18 vàng [DtD] cộng tip', paid && pay.price === 18 && pay.tip >= 0, JSON.stringify(pay));
+  check('HUD quán đếm được một suất đã bán', /^1 suất đã bán/.test(await text('#scr-bar .br-note')), await text('#scr-bar .br-note'));
   await page.click('#bar-close');
   await phase('ledger');
   const earned = +(await page.$eval('.br-ledger', e => e.dataset.earned));
   S = await save();
-  check('sổ cuối ngày: thu > 0, cộng đúng vào vàng, sang ngày 2, về stage prep', earned > 0 && S.gold === earned && S.day === 2 && S.stage === 'prep', earned + ' / ' + JSON.stringify({ gold: S.gold, day: S.day, stage: S.stage }));
+  check('sổ cuối ngày: thu = món + tip, cộng đúng vào vàng, sang ngày 2, về stage prep', earned === 18 + pay.tip && S.gold === earned && S.day === 2 && S.stage === 'prep', earned + ' / ' + JSON.stringify({ gold: S.gold, day: S.day, stage: S.stage }));
   check('bán rồi thì con cá rời tủ', !S.fridge.Coral_Trout, JSON.stringify(S.fridge));
   await shot('6-ledger');
   await page.click('#ledger-next');
@@ -411,28 +441,28 @@ async function loop(browser, base, W, H) {
   await phase('prep');
   await page.click('.pr-row[data-key="o2"] .pr-buy');
   S = await save();
-  check('đủ tiền thì nâng được O₂ lên cấp 1, trừ 300 vàng', S.gear.o2 === 1 && S.gold === earned + 700, JSON.stringify({ o2: S.gear.o2, gold: S.gold }));
+  check('đủ tiền thì nâng được O₂ lên cấp 1, trừ 65 vàng', S.gear.o2 === 1 && S.gold === earned + 1000 - 65, JSON.stringify({ o2: S.gear.o2, gold: S.gold }));
   await setSail(page);
   I = await info();
-  check('lượt lặn sau có O₂ tối đa 120', I.loadout.o2 === 120 && Math.round(I.dave.o2) === 120 && (await text('#o2-num')) === '120', I.loadout.o2 + ' ' + I.dave.o2 + ' ' + await text('#o2-num'));
+  check('lượt lặn sau có O₂ tối đa 115', I.loadout.o2 === 115 && Math.round(I.dave.o2) === 115 && (await text('#o2-num')) === '115', I.loadout.o2 + ' ' + I.dave.o2 + ' ' + await text('#o2-num'));
 
-  // Túi đầy: 9 con cá hề tới tay Dave, chỉ 8 con vào túi.
+  // Túi đầy: 10 con cá hề tới tay Dave, chỉ 9 con vào túi.
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 5000 });
   const cargo = await page.evaluate(() => {
     const G = HX.game, d = G.diver;
     HX_DEBUG.holdSpawns(true); HX_DEBUG.clearFish();
     const ids = [];
-    for (let i = 0; i < 9; i++) ids.push(HX_DEBUG.spawnFish('ClownFish', d.pos.x + 1 + i * 0.3, d.pos.y, true));
+    for (let i = 0; i < 10; i++) ids.push(HX_DEBUG.spawnFish('ClownFish', d.pos.x + 1 + i * 0.3, d.pos.y, true));
     G.fishes.list.filter(f => ids.includes(f.id)).forEach(f => G.catchFish(f));
     // HUD cập nhật ở khung hình kế tiếp
     return new Promise(res => requestAnimationFrame(() => requestAnimationFrame(() => res({ n: G.catches.length,
       hud: document.getElementById('catch-n').textContent, full: document.getElementById('catch').classList.contains('full'), toast: document.getElementById('toast').textContent }))));
   });
-  check('túi 8 con: con thứ 9 bị thả, HUD 8/8 đỏ, báo "Túi đầy"', cargo.n === 8 && cargo.hud === '8/8' && cargo.full && cargo.toast.startsWith('Túi đầy'), JSON.stringify(cargo));
+  check('túi 9 con: con thứ 10 bị thả, HUD 9/9 đỏ, báo "Túi đầy"', cargo.n === 9 && cargo.hud === '9/9' && cargo.full && cargo.toast.startsWith('Túi đầy'), JSON.stringify(cargo));
   await sleep(300);
   await shot('7-cargo-full');
 
-  // Quá 130 m (đồ lặn cấp 0): HUD cảnh báo, dưỡng khí tụt ×2,5.
+  // Quá 40 m (đồ lặn gốc cấp 0): HUD cảnh báo, dưỡng khí tụt ×2,5. Thử ở vực sâu.
   const loaded = await page.waitForFunction(() => HX_DEBUG.info().layers.filter(Boolean).length === 3, null, { timeout: 60000 }).then(() => true, () => false);
   if (loaded) {
     const deep = await page.evaluate(() => {
@@ -449,7 +479,7 @@ async function loop(browser, base, W, H) {
       return { depth, drop: (o0 - G.diver.o2) / dt, normal: T.o2.drain + depth * T.o2.drainPerMeter,
         warn: getComputedStyle(document.getElementById('suit-warn')).display !== 'none' };
     });
-    check('xuống quá 130 m: hiện cảnh báo đồ lặn, dưỡng khí tụt ~×2,5', r.depth > 130 && r.warn && r.drop > r.normal * 2 && r.drop < r.normal * 3,
+    check('xuống quá 40 m: hiện cảnh báo đồ lặn, dưỡng khí tụt ~×2,5', r.depth > 40 && r.warn && r.drop > r.normal * 2 && r.drop < r.normal * 3,
       'sâu ' + Math.round(r.depth) + ' m, tụt ' + r.drop.toFixed(2) + '/s, thường ' + r.normal.toFixed(2) + '/s');
     await shot('8-too-deep');
   } else check('nạp ngầm xong cả ba tầng để thử đồ lặn', false);

@@ -50,8 +50,9 @@ t('bảng trang bị lấy đúng số [DtD] của gear_sheet.js', () => {
 t('quán cấp 0: 3 ghế, đầu bếp ×1, trang trí ×1, trà 10 vàng', () => {
   const s = M.defaults();
   assert.deepStrictEqual(['seats', 'chef', 'decor', 'tea'].map(k => M.stat(s, k)), [3, 1, 1, 10]);
-  assert.strictEqual(M.maxLevel('seats'), 3);
-  assert.strictEqual(M.stat({ bar: { seats: 3 } }, 'seats'), 6);
+  assert.strictEqual(M.maxLevel('seats'), 5);
+  assert.strictEqual(M.stat({ bar: { seats: 3 } }, 'seats'), 9);
+  assert.strictEqual(M.stat({ bar: { seats: 5 } }, 'seats'), 15);   // đủ 15 chỗ ngồi của quán gốc
 });
 
 t('mọi bảng: cấp 0 miễn phí, giá không giảm, số tăng dần', () => {
@@ -86,7 +87,7 @@ t('nâng quán ghi vào save.bar', () => {
   const r = M.buy(Object.assign(M.defaults(), { gold: 400 }), 'seats');
   assert.strictEqual(r.save.bar.seats, 1);
   assert.strictEqual(r.save.gold, 0);
-  assert.strictEqual(M.stat(r.save, 'seats'), 4);
+  assert.strictEqual(M.stat(r.save, 'seats'), 5);
 });
 
 t('cấp tối đa thì báo "đã tối đa"', () => {
@@ -172,10 +173,10 @@ t('món ăn: giá theo hạng và cỡ, cá to nhiều suất', () => {
   assert.strictEqual(M.dishOf(fish('Coral_Trout')).price, 95);
   assert.strictEqual(M.dishOf(fish('Coral_Trout')).name, 'Sushi coral trout');
   assert.strictEqual(M.dishOf(fish('Giant_Trevally')).price, 190);
-  assert.strictEqual(M.servingsOf(fish('ClownFish')), 1);
-  assert.strictEqual(M.servingsOf(fish('Coral_Trout')), 2);
-  assert.strictEqual(M.servingsOf(fish('Green_Humphead_Parrotfish')), 4);
-  assert.strictEqual(M.servingsOf(fish('GreatSpiderCrab')), 6);
+  assert.strictEqual(M.servingsOf(fish('ClownFish')), 2);
+  assert.strictEqual(M.servingsOf(fish('Coral_Trout')), 5);
+  assert.strictEqual(M.servingsOf(fish('Green_Humphead_Parrotfish')), 9);
+  assert.strictEqual(M.servingsOf(fish('GreatSpiderCrab')), 10);
 });
 
 t('sổ lưu: rác thì về mặc định', () => {
@@ -223,6 +224,17 @@ t('commit nhận sổ mới trả về từ HX_META.buy, ghi xuống localStorag
   S.wipe();
   assert.strictEqual(store['hx.save.v1'], undefined);
   assert.strictEqual(S.get().gold, 0);
+});
+
+t('có data/bar_assets.js: giá món gốc [DtD], món đặc biệt tốn nhiều phần cá (ingredients gốc)', () => {
+  require(path.resolve(__dirname, '../games/ho-xanh/data/bar_assets.js'));
+  try {
+    assert.strictEqual(M.dishOf(fish('Coral_Trout')).price, 18);
+    assert.strictEqual(M.dishOf(fish('ClownFish')).price, 2);
+    assert.strictEqual(M.servingsOf(fish('Coral_Trout')), 5);
+    assert.strictEqual(M.servingsOf(fish('Stellate_Puffer')), 3);            // 80 cm = 6 phần, công thức gốc tốn 2 phần/đĩa
+    assert.strictEqual(M.servingsOf(fish('Longspine_Porcupinefish')), 1);    // 60 cm = 5 phần, tốn 3 phần/đĩa
+  } finally { delete globalThis.HX_BAR_ASSETS; }
 });
 
 console.log('\n' + pass + ' đạt, ' + fail + ' hỏng.');

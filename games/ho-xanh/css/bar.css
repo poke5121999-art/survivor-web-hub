@@ -1,29 +1,144 @@
-/* Pha kitchen, bar, ledger (khung tạm, js/bar.js). */
-.br-panel { width: min(620px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 12px; }
-.br-panel h2 { font: 700 26px/1.1 var(--disp); margin: 0; color: var(--gold); }
-.br-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.br-gold { font: 800 18px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--gold); }
-.br-note { color: var(--dim); font-size: 13px; }
-.br-list { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 6px; touch-action: pan-y; }
-.br-row { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; background: rgba(255, 255, 255, .05); }
-.br-icon { width: 64px; height: 40px; object-fit: contain; image-rendering: pixelated; }
-.br-txt { min-width: 0; display: flex; flex-direction: column; }
-.br-txt b { font-size: 14px; line-height: 1.2; }
-.br-txt small { font-size: 11.5px; color: var(--dim); }
-.br-right { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.br-empty { color: var(--dim); margin: 6px 0; }
-.br-log { margin: 0; min-height: 3.2em; max-height: 5.6em; overflow: hidden; font: 12.5px/1.4 system-ui, sans-serif; color: var(--gold); white-space: pre-line; }
-.br-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.br-foot .btn-main { margin-left: auto; }
-.br-ledger { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; font-size: 15px; }
-.br-ledger b { text-align: right; font-variant-numeric: tabular-nums; }
-.br-ledger span:nth-last-child(2), .br-ledger b:last-child { color: var(--gold); font-size: 17px; }
-
-@media (max-height: 460px) {
-  .br-panel { padding: 8px 12px; gap: 5px; }
-  .br-panel h2 { font-size: 21px; }
-  .br-row { padding: 3px 8px; grid-template-columns: 48px 1fr auto; }
-  .br-icon { width: 48px; height: 30px; }
-  .br-log { max-height: 2.8em; min-height: 1.4em; }
-  .br-ledger { font-size: 13.5px; gap: 2px 16px; }
+/* Pha kitchen, bar, ledger (js/bar.js). Hình nền, khung 9 mảnh và màu chữ lấy từ bố cục UI gốc (art/bar/ui/layout).
+   --u: px CSS mỗi px UI gốc (canvas 1920×1080); --k: như --u, nhân thêm tỉ lệ của từng màn gốc. js/bar.js đặt hai biến này. */
+.screen.bk[hidden], .screen.bb[hidden], .screen.bl[hidden] { display: none; }
+.bk, .bb, .bl { --u: .667; --k: .6; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.bx-btn {
+  box-sizing: border-box; min-width: calc(184px * var(--k)); height: max(36px, calc(52px * var(--k))); padding: 0 calc(10px * var(--k));
+  display: inline-flex; align-items: center; justify-content: center; background: none; color: #fff;
+  font-weight: 700; font-size: max(14px, calc(22px * var(--k))); line-height: 1; white-space: nowrap; cursor: pointer;
 }
+.bx-btn span { position: relative; top: -1px; }
+.bx-btn:active { transform: translateY(2px); filter: brightness(.92); }
+.bx-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.bx-dish { width: calc(64px * var(--k)); height: calc(52px * var(--k)); object-fit: contain; image-rendering: pixelated; flex: none; }
+.bx-has9 { position: relative; }
+.bx-has9 > :not(.bx-9) { position: relative; }
+.bx-9 { position: absolute !important; inset: 0; box-sizing: border-box; pointer-events: none; }
+.bx-ic { width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin-right: .2em; object-fit: contain; }
+
+/* ---------- bếp: TODAY'S MENU + tủ cá (Management_Recipes) ---------- */
+.bk { padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+.bk-row { display: flex; gap: calc(22px * var(--k)); align-items: stretch; height: min(100%, calc(965px * var(--k))); max-width: 100%; }
+.bk-menu, .bk-fridge { position: relative; box-sizing: border-box; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.bk-menu { width: calc(642px * var(--k)); flex: 0 1 auto; }
+.bk-fridge { width: calc(560px * var(--k)); flex: 0 1 auto; }
+.bk-paper { position: absolute; inset: 0; background: var(--UI_SushiBar_Menu_Texture_paper01) repeat; background-size: calc(250px * var(--k)); opacity: .471; pointer-events: none; }
+.bk-toppat { position: relative; flex: none; height: calc(20px * var(--k)); background: rgb(48, 56, 92); }
+.bk-toppat::after { content: ""; position: absolute; inset: 0; background: var(--UI_SushiBar_Menu_Pattern01) repeat-x; background-size: auto 100%; opacity: .059; }
+.bk-title { position: relative; flex: none; display: flex; align-items: center; justify-content: center; gap: calc(14px * var(--k)); height: calc(84px * var(--k));
+  color: #3c312d; font: 800 max(15px, calc(30px * var(--k)))/1 var(--disp); letter-spacing: .02em; }
+.bk-deco { width: calc(31px * var(--k)); height: calc(32px * var(--k)); }
+.bk-sub { position: relative; flex: none; box-sizing: border-box; margin: 0 calc(12px * var(--k)) calc(12px * var(--k)); min-height: calc(40px * var(--k));
+  display: flex; align-items: center; justify-content: center; text-align: center; color: #3c312d; font-size: max(11px, calc(21px * var(--k))); font-weight: 600; }
+.bk-cells { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: calc(8px * var(--k)); padding: 0 calc(12px * var(--k)) calc(6px * var(--k)); touch-action: pan-y; }
+.bk-cell {
+  position: relative; flex: none; box-sizing: border-box; height: calc(112px * var(--k)); background: center / 100% 100% no-repeat;
+  display: grid; grid-template-columns: calc(138px * var(--k)) 1fr; align-items: center; cursor: pointer; color: #e9ddd7;
+}
+.bk-cell:not(.on) { display: flex; justify-content: center; gap: calc(10px * var(--k)); cursor: default; }
+.bk-ic { display: grid; place-items: center; }
+.bk-info { min-width: 0; display: flex; flex-direction: column; gap: calc(6px * var(--k)); padding-right: calc(16px * var(--k)); }
+.bk-name { box-sizing: border-box; min-height: calc(44px * var(--k)); max-width: calc(408px * var(--k)); display: flex; align-items: center; padding: 2px calc(12px * var(--k)) 2px calc(16px * var(--k)); }
+.bk-name span { color: #fff; font-weight: 700; font-size: max(12px, calc(22px * var(--k))); line-height: 1.1; text-shadow: 0 1px 0 rgba(90, 10, 40, .6); }
+.bk-price { display: flex; align-items: center; justify-content: flex-end; gap: calc(4px * var(--k)); color: rgb(54, 35, 32); font-size: max(12px, calc(22px * var(--k))); font-weight: 600; }
+.bk-price b { color: rgb(54, 35, 32); font-size: max(13px, calc(26px * var(--k))); font-variant-numeric: tabular-nums; }
+.bk-amt { margin-right: calc(14px * var(--k)); font-variant-numeric: tabular-nums; }
+.bk-add { width: calc(24px * var(--k)); opacity: .784; }
+.bk-empty { color: rgba(77, 63, 57, .9); font-size: max(11px, calc(22px * var(--k))); font-weight: 600; }
+.bk-head { flex: none; position: relative; height: calc(56px * var(--k)); display: flex; align-items: center; padding: 0 calc(22px * var(--k)); background: rgb(41, 33, 30);
+  color: rgb(214, 193, 153); font-weight: 700; font-size: max(13px, calc(22px * var(--k))); }
+.bk-head::after { content: ""; position: absolute; inset: 0; background: var(--UI_SushiBar_Menu_Pattern02) repeat; background-size: calc(49px * var(--k)); opacity: .35; pointer-events: none; }
+.bk-list { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: calc(8px * var(--k)); padding: calc(12px * var(--k)) calc(8px * var(--k)); touch-action: pan-y; }
+.bk .br-row {
+  position: relative; flex: none; box-sizing: border-box; display: grid; grid-template-columns: calc(76px * var(--k)) 1fr; gap: calc(8px * var(--k)); align-items: center;
+  min-height: calc(92px * var(--k)); cursor: pointer; color: #efe4dc;
+}
+.bk .br-row .bx-dish { justify-self: center; }
+.br-txt { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.br-txt b { font-size: max(12px, calc(22px * var(--k))); line-height: 1.15; color: #fff; }
+.br-txt i { font-size: max(10px, calc(16px * var(--k))); color: #b9a79c; }
+.br-txt small { font-size: max(11px, calc(18px * var(--k))); color: #e7d6c3; }
+.bk-focus { position: absolute; inset: calc(-3px * var(--k)); box-sizing: border-box; display: none; pointer-events: none; }
+.bk .br-row.on .bk-focus { display: block; }
+.bk .br-row:not(.on) { filter: saturate(.55) brightness(.8); }
+.br-empty { color: #cdb9aa; margin: 8px; font-size: 13px; }
+.bk-foot { flex: none; display: flex; align-items: flex-end; justify-content: flex-end; gap: calc(10px * var(--k)); padding: calc(6px * var(--k)) calc(14px * var(--k)) calc(12px * var(--k)); }
+.bk-bancho { width: calc(144px * var(--k)); height: calc(144px * var(--k)); image-rendering: pixelated; margin-right: auto; margin-bottom: calc(-12px * var(--k)); }
+
+/* ---------- quán: HUD phủ trên #stage2d, chỉ nút và ô món nhận chạm ---------- */
+.screen.bb { pointer-events: none; display: block; padding: 0; }
+.bb > * { position: absolute; }
+.bb-top { left: max(10px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top)); display: flex; flex-direction: column; gap: 3px;
+  padding: 6px 12px 7px 8px; border-radius: 10px; background: rgba(6, 8, 16, .55); }
+.bb-gold { display: flex; align-items: center; gap: 6px; color: #ffd24a; font: 800 max(18px, calc(32px * var(--u)))/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.bb-coin { width: max(22px, calc(40px * var(--u))); height: max(22px, calc(40px * var(--u))); }
+.bb-clock { color: #fff; font-weight: 700; font-size: max(12px, calc(20px * var(--u))); }
+.bb .br-note { color: #cfe6ee; font-size: max(11px, calc(18px * var(--u))); }
+.bb-queue { right: max(10px, env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: calc(6px * var(--u)); pointer-events: auto; }
+.bb-slot { position: relative; width: max(92px, calc(138px * var(--u))); height: max(29px, calc(44px * var(--u))); cursor: pointer; touch-action: none; }
+.bb-slot.wait { opacity: .55; }
+.bb-glow { position: absolute; inset: 0; box-sizing: border-box; opacity: 0; }
+.bb-frame { position: absolute; left: 3%; top: 9%; width: 94%; height: 82%; box-sizing: border-box; }
+.bb-in { position: absolute; left: 3%; top: 9%; width: 94%; height: 82%; }
+.bb-sym { position: absolute; left: 10.8%; top: 50%; width: 10.8%; transform: translateY(-50%); }
+.bb-gauge { position: absolute; left: 30.8%; width: 36.9%; top: calc(50% - 2px); height: 4px; background: rgba(255, 255, 255, .1); border-radius: 2px; overflow: hidden; }
+.bb-fill { height: 100%; width: 0; background: rgb(255, 228, 0); }
+.bb-slot.ready .bb-gauge { display: none; }
+.bb-cook { position: absolute; right: 9.2%; top: 50%; height: 72%; transform: translateY(-50%); image-rendering: pixelated; }
+.bb-bottom { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom));
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; pointer-events: none; }
+.bb-menu { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 6px; border-radius: 10px; background: rgba(6, 8, 16, .55); max-width: calc(100% - 180px); }
+.bb .br-row { display: flex; align-items: center; gap: 2px; }
+.bb .bx-dish { width: max(30px, calc(52px * var(--u))); height: max(24px, calc(42px * var(--u))); }
+.bb .bb-tea .bx-dish { width: max(22px, calc(36px * var(--u))); height: max(22px, calc(36px * var(--u))); }
+.bb .br-right { color: #fff; font-size: max(12px, calc(20px * var(--u))); min-width: 1.2em; font-variant-numeric: tabular-nums; }
+.bb .bb-tea .br-right { color: #ffd24a; }
+.bb .bx-btn { pointer-events: auto; }
+.bb-hint { left: 50%; top: max(8px, env(safe-area-inset-top)); transform: translateX(-50%); max-width: calc(100vw - 460px); padding: 4px 12px; border-radius: 99px;
+  background: rgba(6, 8, 16, .6); color: #cfe6ee; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.bb-hint:empty { display: none; }
+
+/* ---------- sổ cuối ngày (SushiBarAccountInternal) ---------- */
+.screen.bl { display: block; padding: 0; overflow: hidden; }
+.bl-curtain { position: absolute; inset: 0; background: rgba(0, 0, 0, .784); }
+.bl-banner { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+.bl.done .bl-banner { display: none; }
+.bl-banner > * { position: absolute; }
+.bl-t1, .bl-t2, .bl-t3 { white-space: nowrap; transform-origin: 0 0; }
+.bl-t1 { left: calc(-119px * var(--u)); top: calc(-188px * var(--u)); color: #fff; font: 700 max(13px, calc(26px * var(--u)))/1.2 system-ui, sans-serif; }
+.bl-t2 { left: calc(-127px * var(--u)); top: calc(-150px * var(--u)); color: rgb(250, 39, 163); font: italic 900 max(22px, calc(44px * var(--u)))/1.1 system-ui, sans-serif; }
+.bl-t3 { left: calc(-135px * var(--u)); top: calc(-102px * var(--u)); color: rgb(234, 216, 119); font: italic 900 max(22px, calc(44px * var(--u)))/1.1 system-ui, sans-serif; }
+.bl-star { left: calc((-253px - 197px) * var(--u)); top: calc((-164px - 199px) * var(--u)); width: calc(394px * var(--u)); height: calc(398px * var(--u)); mix-blend-mode: screen; }
+.bl-bmask { left: calc((-255px - 200px) * var(--u)); top: calc((-202px - 161px) * var(--u)); width: calc(400px * var(--u)); height: calc(322px * var(--u)); overflow: hidden; }
+.bl-bancho { position: absolute; left: calc(7px * var(--u)); bottom: calc(-34px * var(--u)); width: calc(376px * var(--u)); height: calc(376px * var(--u)); image-rendering: pixelated; transform-origin: 50% 100%; }
+.bl-area { position: absolute; left: 50%; bottom: calc(110px * var(--k)); display: flex; gap: calc(16px * var(--k)); translate: -50% 0; visibility: hidden; }
+.bl-area.show { visibility: visible; }
+.bl-paper { position: relative; box-sizing: border-box; height: calc(634px * var(--k)); background: center / 100% 100% no-repeat; color: rgb(41, 50, 84);
+  padding: calc(34px * var(--k)) calc(30px * var(--k)) calc(40px * var(--k)); display: flex; flex-direction: column; gap: calc(12px * var(--k)); }
+.bl-a { width: calc(392px * var(--k)); }
+.bl-b { width: calc(630px * var(--k)); }
+.bl-tag { align-self: flex-start; box-sizing: border-box; padding: 0 calc(6px * var(--k)); min-height: calc(38px * var(--k)); display: flex; align-items: center;
+  color: rgb(214, 214, 214); font-weight: 700; font-size: max(11px, calc(20px * var(--k))); }
+.bl-head { display: flex; align-items: center; justify-content: space-between; }
+.bl-date { font-size: max(11px, calc(22px * var(--k))); font-weight: 600; }
+.bl-likes { display: flex; align-items: center; gap: 8px; font: 800 max(18px, calc(40px * var(--k)))/1 system-ui, sans-serif; color: rgb(41, 50, 84); }
+.bl-likeic { width: calc(39px * var(--k) * 1.3); height: calc(38px * var(--k) * 1.3); }
+.bl-kv, .br-ledger { display: grid; grid-template-columns: 1fr auto; gap: calc(6px * var(--k)) calc(14px * var(--k)); font-size: max(12px, calc(22px * var(--k))); }
+.bl-kv b, .br-ledger b { text-align: right; font-variant-numeric: tabular-nums; }
+.br-ledger { flex: 1 1 auto; min-height: 0; overflow: auto; align-content: start; }
+.bl-dishn { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bl-dishic { width: calc(48px * var(--k)); height: calc(39px * var(--k)); image-rendering: pixelated; flex: none; }
+.bl-top { display: flex; gap: calc(10px * var(--k)); }
+.bl-topm { box-sizing: border-box; width: calc(102px * var(--k)); padding: calc(4px * var(--k)) 0; display: flex; flex-direction: column; align-items: center; color: #fff; font-weight: 800;
+  font-size: max(11px, calc(20px * var(--k))); }
+.bl-none { font-size: max(11px, calc(20px * var(--k))); opacity: .7; }
+.bl-total { box-sizing: border-box; min-height: calc(46px * var(--k)); display: flex; align-items: center; gap: 8px; padding: 0 calc(10px * var(--k)); color: #fff;
+  font-weight: 700; font-size: max(13px, calc(24px * var(--k))); }
+.bl-total span { margin-right: auto; }
+.bl-total b { color: #ffd24a; font-size: max(15px, calc(30px * var(--k))); font-variant-numeric: tabular-nums; }
+.bl-coin { width: calc(32px * var(--k) * 1.2); height: calc(32px * var(--k) * 1.2); }
+.bl-gold { text-align: right; font-size: max(11px, calc(20px * var(--k))); font-weight: 600; opacity: .85; }
+.bl-foot { position: absolute; left: 0; right: 0; bottom: max(8px, env(safe-area-inset-bottom)); display: flex; align-items: flex-end; justify-content: center; gap: 12px;
+  opacity: 0; visibility: hidden; }
+.bl-foot.show { visibility: visible; }
+.bl-react { width: calc(94px * var(--k) * 1.3); height: calc(94px * var(--k) * 1.3); image-rendering: pixelated; transform: scaleX(-1); }

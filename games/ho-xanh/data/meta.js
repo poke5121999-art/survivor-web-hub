@@ -41,7 +41,7 @@
 
   var BAR = {
     seats: { name: 'Ghế khách', desc: 'Số khách ngồi cùng lúc', unit: 'ghế',
-      levels: lv([[0, 3], [400, 4], [1200, 5], [3000, 6]]) },                                       // [ĐỀ XUẤT]
+      levels: lv([[0, 3], [400, 5], [1200, 7], [3000, 9], [6000, 12], [10000, 15]]) },             // [ĐỀ XUẤT] tới đủ 15 chỗ ngồi gốc
     chef: { name: 'Đầu bếp', desc: 'Bancho làm món nhanh hơn', unit: '×',
       levels: lv([[0, 1], [300, 1.2], [900, 1.4], [2000, 1.7], [4000, 2]]) },                       // [ĐỀ XUẤT]
     decor: { name: 'Trang trí', desc: 'Nhân tiền tip và nhịp khách vào quán', unit: '×',
@@ -205,8 +205,15 @@
       img: d && typeof d.img === 'string' ? d.img : null,
     };
   }
-  // [ĐỀ XUẤT] cá to thì làm được nhiều suất: mỗi 40 cm thêm một suất, tối đa 6.
-  function servingsOf(sp) { return Math.max(1, Math.min(6, 1 + Math.floor((sp.cm || 0) / 40))); }
+  // [ĐỀ XUẤT] cá to thì làm được nhiều suất: 2 phần + mỗi 20 cm thêm một phần, tối đa 10 (cá hề 15 cm: 2; cá mú chấm 60 cm: 5).
+  // Mỗi đĩa tốn `ingredients` phần theo công thức gốc [DtD]: 62/64 món tốn 1; hai món đặc biệt đắt nhất tốn nhiều hơn
+  // (Sushi đặc biệt cá nóc sao 220 vàng: 2 phần; da cá nóc nhím 180 vàng: 3 phần), nên một con chỉ ra 2 / 1 đĩa.
+  // Giá món gốc chỉ 2–220 vàng, số suất gánh phần lớn thu nhập một tối (mô phỏng: test/ho-xanh-bar-sim.js).
+  function servingsOf(sp) {
+    var portions = Math.min(10, 2 + Math.floor((sp.cm || 0) / 20)), d = dishAsset(sp);
+    var need = d && d.ingredients > 1 ? d.ingredients : 1;
+    return Math.max(1, Math.floor(portions / need));
+  }
 
   root.HX_META = {
     GEAR: GEAR, BAR: BAR, GUNS: GUNS, GUN_PLAY: PLAY, SUIT_OVER_MUL: SUIT_OVER_MUL,
