@@ -1,5 +1,66 @@
-/* Pha boat (khung tạm, js/boat.js). */
-.bt-panel { width: min(440px, 100%); padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 10px; }
-.bt-panel h2 { font: 700 24px/1.15 var(--disp); margin: 0; color: var(--gold); }
-.bt-fill { height: 100%; width: 0; background: linear-gradient(90deg, #1c9cc4, var(--cyan)); }
-.bt-skip { align-self: flex-end; }
+/* Pha boat (js/boat.js): cảnh cano tự vẽ trên #scene, phần này chỉ là lớp HUD phủ lên. Dùng lại biến màu và .bar, .ghost của index.html. */
+#scr-boat { padding: 0; }
+.bt-hud { position: absolute; inset: 0; pointer-events: none; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.bt-hud button { pointer-events: auto; }
+
+.bt-top {
+  position: absolute; left: 50%; top: max(8px, env(safe-area-inset-top)); transform: translateX(-50%);
+  width: min(440px, calc(100vw - 250px)); padding: 7px 14px 9px; border-radius: 12px;
+  background: rgba(8, 26, 44, .62); border: 1px solid var(--edge); box-shadow: 0 6px 22px rgba(0, 0, 0, .25);
+}
+.bt-top h2 { font: 700 19px/1.1 var(--disp); margin: 0 0 6px; color: var(--gold); text-shadow: 0 2px 0 rgba(0, 0, 0, .35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-prog { display: flex; align-items: center; gap: 10px; }
+.bt-bar { position: relative; flex: 1; overflow: visible; }
+.bt-fill { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #1c9cc4, var(--cyan)); }
+/* mốc cano chạy trên thanh; đầu bên phải là đích */
+.bt-mark { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(95, 208, 238, .55); }
+.bt-bar::after { content: ""; position: absolute; right: -3px; top: -5px; width: 4px; height: 20px; border-radius: 2px; background: var(--gold); }
+.bt-dist { min-width: 58px; text-align: right; font: 800 15px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff; }
+
+.bt-speed {
+  position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex; align-items: baseline; gap: 4px; padding: 6px 12px; border-radius: 12px; background: rgba(8, 26, 44, .55);
+  color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .4);
+}
+.bt-speed b { font: 800 30px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+.bt-speed small { font-size: 12px; color: var(--dim); font-weight: 700; }
+
+.bt-skip { position: absolute; right: max(10px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top)); background: rgba(8, 26, 44, .6); font-weight: 700; }
+
+.bt-hint {
+  position: absolute; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+  padding: 5px 14px; border-radius: 99px; background: rgba(8, 26, 44, .6); color: var(--ink); font-size: 12.5px;
+  white-space: nowrap; max-width: calc(100vw - 280px); overflow: hidden; text-overflow: ellipsis;
+}
+.bt-hint:empty { display: none; }
+
+/* chạm: nửa trái kéo để bẻ lái, nút Ga giữ để chạy (cùng kiểu nút tròn với #touch-btns của pha lặn) */
+.bt-steer { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; display: none; pointer-events: auto; touch-action: none; }
+.bt-knob {
+  position: fixed; left: -100px; top: -100px; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%;
+  background: rgba(255, 255, 255, .5); box-shadow: 0 0 0 30px rgba(8, 26, 44, .3), 0 0 0 32px rgba(255, 255, 255, .3); display: none;
+}
+.bt-steer.on .bt-knob { display: block; }
+.bt-ga, .bt-brake {
+  position: absolute; display: none; border-radius: 50%; border: 1px solid var(--edge); background: rgba(8, 26, 44, .6);
+  font-weight: 700; color: var(--ink); touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.bt-ga { right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); width: 78px; height: 78px; font-size: 16px; background: rgba(28, 156, 196, .55); }
+.bt-brake { right: calc(max(14px, env(safe-area-inset-right)) + 88px); bottom: max(14px, env(safe-area-inset-bottom)); width: 54px; height: 54px; font-size: 12px; }
+.bt-ga.on, .bt-brake.on { filter: brightness(1.5); transform: scale(.96); }
+body.touch .bt-steer, body.touch .bt-ga, body.touch .bt-brake { display: block; }
+body.touch .bt-hint { bottom: auto; top: calc(max(8px, env(safe-area-inset-top)) + 64px); }
+
+.bt-fade { position: absolute; inset: 0; background: #08223a; opacity: 0; pointer-events: none; }
+.bt-load { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 18px; border-radius: 12px; background: rgba(8, 26, 44, .8); color: var(--dim); }
+.bt-load[hidden] { display: none; }
+
+@media (max-height: 460px) {
+  .bt-top { padding: 5px 12px 7px; width: min(400px, calc(100vw - 230px)); }
+  .bt-top h2 { font-size: 16px; margin-bottom: 4px; }
+  .bt-dist { font-size: 13px; min-width: 50px; }
+  .bt-speed b { font-size: 24px; }
+  .bt-ga { width: 68px; height: 68px; }
+  .bt-brake { right: calc(max(14px, env(safe-area-inset-right)) + 78px); width: 48px; height: 48px; }
+  body.touch .bt-hint { top: calc(max(8px, env(safe-area-inset-top)) + 52px); }
+}
