@@ -236,8 +236,8 @@ async function run(browser, base, W, H, touch) {
 }
 
 (async () => {
-  const srv = await serve();
-  const base = 'http://localhost:' + srv.address().port;
+  const srv = process.env.HX_BASE ? null : await serve();
+  const base = process.env.HX_BASE || 'http://localhost:' + srv.address().port;
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
   // trang nháp: trang đầu tiên của trình duyệt hay mất WebGL (xem tools/README-boat.md)
   const warm = await browser.newPage(); await warm.goto('about:blank'); await warm.close();
@@ -246,7 +246,7 @@ async function run(browser, base, W, H, touch) {
     await run(browser, base, 844, 390, true);
   } catch (e) { check('chạy hết bộ kiểm', false, e.stack.split('\n').slice(0, 3).join(' ')); }
   await browser.close();
-  srv.close();
+  if (srv) srv.close();
   console.log(out.join('\n'));
   console.log('\n' + pass + ' đạt, ' + fail + ' trượt. Ảnh: ' + SHOTS);
   process.exit(fail ? 1 : 0);

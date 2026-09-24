@@ -196,8 +196,8 @@ async function run(browser, base, W, H, touch) {
 }
 
 (async () => {
-  const srv = await serve();
-  const base = 'http://localhost:' + srv.address().port;
+  const srv = process.env.HX_BASE ? null : await serve();
+  const base = process.env.HX_BASE || 'http://localhost:' + srv.address().port;
   const args = process.env.SWIFTSHADER ? ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist']
     : ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'];
   const browser = await chromium.launch({ args });
@@ -211,7 +211,7 @@ async function run(browser, base, W, H, touch) {
     console.log('  ✘ lỗi khi chạy: ' + (e && e.stack || e));
   }
   await browser.close();
-  srv.close();
+  if (srv) srv.close();
   console.log('\n' + pass + ' đạt, ' + fail + ' trượt · ảnh ở ' + SHOTS);
   process.exit(fail ? 1 : 0);
 })();

@@ -420,8 +420,8 @@ async function reloadMidNight(browser, base) {
 }
 
 (async () => {
-  const srv = await serve();
-  const base = 'http://localhost:' + srv.address().port;
+  const srv = process.env.HX_BASE ? null : await serve();
+  const base = process.env.HX_BASE || 'http://localhost:' + srv.address().port;
   const browser = await chromium.launch();
   try {
     await keyboardNight(browser, base);
@@ -431,7 +431,7 @@ async function reloadMidNight(browser, base) {
     fail++; out.push('  ✘ lỗi chạy bộ kiểm: ' + (e && e.stack || e));
   }
   await browser.close();
-  srv.close();
+  if (srv) srv.close();
   console.log(out.join('\n'));
   console.log('\n' + pass + ' đạt, ' + fail + ' hỏng · ảnh: ' + SHOTS);
   process.exit(fail ? 1 : 0);
