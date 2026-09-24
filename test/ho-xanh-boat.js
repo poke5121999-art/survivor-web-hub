@@ -7,7 +7,8 @@
  *
  * Kiểm ở 1280×720 và 844×390 (máy chạm):
  *  - lái ra bằng bàn phím: giữ W thì tốc độ > 0 và quãng còn lại giảm; A/D đổi hướng mũi và nghiêng thân;
- *  - tới nơi: Dave đi ra đuôi, nhảy (Diveready) xuống nước, sang loading rồi dive;
+ *  - chuyến ra chạy buổi chiều, chuyến về chạy buổi tối (Lobby_Evening);
+ *  - tới nơi: Dave đi ra đuôi, chạy Diveready tại chỗ (clip gốc không có track vị trí), màn tối dần từ 60% clip, sang loading rồi dive;
  *  - chuyến về: Dave leo lên (Respawn), lái về tới quán thì sang kitchen;
  *  - nút "Bỏ qua" ở cả hai chiều; nút Ga và kéo nửa trái ở máy chạm;
  *  - 5 chuyến liền nhau không làm tăng số geometry/texture của renderer;
@@ -71,6 +72,7 @@ async function run(browser, base, W, H, touch) {
   const went = () => page.evaluate(() => window.__went.splice(0));
   let I = await B();
   check('vào pha boat chiều ra, tải xong cảnh', I.active && I.dir === 'out' && I.loaded, I.state);
+  check('chuyến ra chạy buổi chiều', I.time === 'day', I.time);
   check('tiêu đề có "ra Hố Xanh"', (await page.textContent('#scr-boat h2')).includes('ra Hố Xanh'), await page.textContent('#scr-boat h2'));
   check('nút "Bỏ qua" đúng chữ', (await page.textContent('#boat-skip')) === 'Bỏ qua');
   check('quãng đường tới Hố Xanh hiện trên thanh tiến độ', /^\d+ m$/.test(await page.textContent('.bt-dist')), await page.textContent('.bt-dist'));
@@ -133,12 +135,11 @@ async function run(browser, base, W, H, touch) {
   check('dừng hẳn rồi Dave mới chạy anim nhảy gốc (Diveready)', I.state === 'dive' && Math.abs(I.speed) < 0.5 && I.dist < 3, I.dist.toFixed(2) + ' m, ' + I.speed.toFixed(2) + ' m/s');
   await sleep(2600);
   await shot('3-diveready');
-  await until(() => HX.phases.boat.info().dave && HX.phases.boat.info().dave.jumping);
-  await sleep(180);
-  await shot('4-jump');
-  await until(() => !HX.phases.boat.info().active || !HX.phases.boat.info().dave.visible);
-  await sleep(250);
-  await shot('5-splash');
+  const x0 = (await B()).dave.x;
+  await until(() => !HX.phases.boat.info().active || HX.phases.boat.info().fade > 0.5);
+  I = await B();
+  if (I.active) check('Diveready tại chỗ, không bay khỏi đuôi (x Dave giữ nguyên)', Math.abs(I.dave.x - x0) < 1e-6 && I.dave.visible, x0.toFixed(2) + ' → ' + I.dave.x.toFixed(2));
+  await shot('4-dive-fade');
   await phase('dive');
   check('nhảy xong thì sang loading rồi vào lặn', JSON.stringify(await went()) === '["loading"]');
 
@@ -148,6 +149,7 @@ async function run(browser, base, W, H, touch) {
   check('tiêu đề chuyến về có "về quán"', (await page.textContent('#scr-boat h2')).includes('về quán'), await page.textContent('#scr-boat h2'));
   I = await B();
   check('chuyến về mở bằng anim gốc Respawn (Dave leo lên thuyền)', I.state === 'respawn' && I.dave.anim === 'Respawn', I.state + ' / ' + I.dave.anim);
+  check('chuyến về chạy buổi tối', I.time === 'evening', I.time);
   await sleep(1200);
   await shot('6-respawn');
   await until(() => HX.phases.boat.info().state === 'drive');

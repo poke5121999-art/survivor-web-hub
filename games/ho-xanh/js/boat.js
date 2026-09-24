@@ -1,27 +1,27 @@
 // Pha boat: lái cano của Dave từ quán sushi ra Hố Xanh (args.dir 'out' → loading) hoặc từ chỗ lặn về quán ('home' → kitchen).
-// Cảnh riêng (surface 'scene'): cano, biển sảnh, mây, dừa, mòng biển, Dave và hạt VFX đều là asset gốc trong data/boat_assets.js.
+// Cảnh riêng (surface 'scene'): cano, biển sảnh, trời, mây, trăng, dừa, mòng biển, Dave và hạt VFX đều là asset gốc trong data/boat_assets.js.
+// Chuyến ra chạy buổi chiều (DayTime 1, Lobby_Day), chuyến về chạy buổi tối (DayTime 2, Lobby_Evening) vì quán mở lúc tối.
 // Hệ toạ độ: manifest ghi theo Unity (z vào màn hình), three thì z hướng ra camera, nên mọi toạ độ Unity đổi z → −z (U2T).
+// Mọi shader (trời Skycube, vòng sương Sky_Inner, nước DaveWater, mây Cloud, trăng, 2D_Sprite_Uber, hạt ProjectDR/VFX/*) viết lại
+// từ hợp ngữ DXBC gỡ ra khỏi bản gốc (tools/README-boat.md, mục "Shader"). Cảnh vẽ trên màu tuyến tính như URP gốc.
 (function (HX) {
   'use strict';
-  var B = window.HX_BOAT_ASSETS;
+  var B = window.HX_BOAT_ASSETS, L = B.lobby;
   var REV = ((document.currentScript && document.currentScript.src.split('v=')[1]) || '').split('&')[0];
   function url(rel) { return rel + (REV ? '?v=' + REV : ''); }
 
   // ---------------------------------------------------------------- số liệu
   function U2T(v) { return [v[0], v[1], -v[2]]; }
-  var WATER_Y = B.sea.water.y;                                  // [DtD] mặt nước sảnh (wave001), y 15,529
+  function qU2T(q) { return [-q[0], -q[1], q[2], q[3]]; }
+  var TIME_OF = { out: 'day', home: 'evening' };           // [ĐỀ XUẤT] chuyến về lúc tối: quán mở buổi tối
   var HEIGHT_OFF = B.sea.boatScene.floatingTransform.heightOffset; // [DtD] cano ngồi thấp hơn mặt sóng 0,2
   var LOBBY = U2T(B.sea.boatScene.pos);                        // [DtD] chỗ cano đậu cạnh quán sushi
   var CAM0 = U2T(B.sea.camera.pos), CAMF = U2T(B.sea.camera.forward); // [DtD] camera sảnh, fov 50
+  var PL = L.player;                                           // [DtD] LobbyPlayer: tốc độ đi 2,7 m/s, vùng đi trên boong, mờ màn khi lặn
   var DAVE_LOCAL = [B.sea.boatScene.davePos[0] - B.sea.boatScene.pos[0], B.sea.boatScene.davePos[1] - B.sea.boatScene.pos[1],
     -(B.sea.boatScene.davePos[2] - B.sea.boatScene.pos[2])];  // [DtD] Dave đứng ở boong đuôi
-  var DIVE_X = B.sea.boatScene.DiveTrigger[0] - B.sea.boatScene.pos[0]; // [DtD] DiveTrigger ở đuôi cano (x +6,3)
+  var WALK_X = PL.moveAreaBoat[1];                             // [DtD] mép đuôi của m_MoveArea (x +4,72 so với gốc cano)
   var DAVE_H = B.dave.cell[0] / B.dave.ppu * B.sea.boatScene.daveScale; // 0,64 m × 3,4
-  // [ĐO TRONG REPO 2026-09-24] trong prefab LobbyBoat_Day, VFX_Root/VFX_Dave_Boat_WaterWave_* đặt ở (0; 0,24; −0,92), phóng 0,82.
-  // Toạ độ emitter trong manifest tính từ gốc prefab VFX, nên phải qua phép này mới vào hệ cano.
-  var VFX_ROOT = { pos: [0, 0.24, -0.92], scale: 0.82 };
-  // [ĐO TRONG REPO 2026-09-24] "Lobby Clouds" trong Lobby_Day.prefab nằm ở (−34,16; 15,92; 180,89); anim trôi là toạ độ con của nó.
-  var CLOUD_PARENT = [-34.1583, 15.9221, 180.8881];
 
   // Lộ trình (toạ độ three). Biển gốc chỉ có nước ở x −225..115, z −230..28; đảo ở z < −50. Đi ra thì chạy về tây (−x) ra
   // khơi, qua mép tấm nước gốc thì nước của pha này (vô tận theo camera) nối tiếp. Đi về thì từ phía đông chạy về chỗ đậu.
@@ -37,14 +37,12 @@
   var EXIT1 = CLIP.Boat_Exit001.tracks[''], EXIT2 = CLIP.Boat_Exit002.tracks[''];
   var FPS = CLIP.Boat_Idle001.fps;
   var DEPART_T = 1.35;   // [DtD] Boat_Exit001/002: 0..1,35 s là nổ máy (rung, ngồi thụt xuống), sau đó cano mới lao đi
-  // Tốc độ lớn nhất trong Boat_Exit001 (hai khoá kề nhau) = tốc độ chạy gốc của cano rời sảnh, ~10 m/s. [DtD]
-  var VMAX = (function () {
+  var VMAX = (function () {   // tốc độ lớn nhất trong Boat_Exit001 (hai khoá kề nhau), ~10 m/s [DtD]
     var p = EXIT1.posOffset, v = 0;
     for (var i = 1; i < p.length; i++) v = Math.max(v, Math.abs(p[i][0] - p[i - 1][0]) * FPS);
     return v;
   })();
-  // Bảng (tốc độ → chúi mũi): Exit001 từ 1,3 s tới hết, cano tăng tốc 0 → VMAX và mũi ngóc lên tới −2,08° rồi hạ về 0.
-  var PITCH_BY_V = (function () {
+  var PITCH_BY_V = (function () {  // Exit001 từ 1,3 s: tốc độ 0 → VMAX, mũi ngóc lên tới −2,08° rồi hạ về 0
     var p = EXIT1.posOffset, e = EXIT1.euler, out = [], vmax = 0;
     for (var i = Math.round(1.3 * FPS); i < p.length - 1; i++) {
       var v = Math.abs(p[i + 1][0] - p[i][0]) * FPS;
@@ -54,14 +52,7 @@
     return out;
   })();
   var P = {             // [ĐỀ XUẤT] lái: bản gốc không có bảng tốc độ cano
-    thrust: 5.2,        // m/s² lúc ga hết cỡ ở tốc độ 0
-    coast: 0.32,        // 1/s thả ga thì trôi dần
-    brake: 5,           // m/s² phanh (S)
-    reverse: 1.6,       // m/s tối đa khi lùi
-    turn: 0.5,          // rad/s bẻ lái hết cỡ ở tốc độ chạy
-    yawMax: 0.6,        // rad, mũi không quay quá ~34° khỏi hướng đi (giữ mặt có chữ về phía camera)
-    slip: 2.4,          // 1/s trượt ngang tắt dần
-    bank: 0.022,        // rad nghiêng / (rad/s · m/s) khi ôm cua
+    thrust: 5.2, coast: 0.32, brake: 5, reverse: 1.6, turn: 0.5, yawMax: 0.6, slip: 2.4, bank: 0.022,
     autoAfter: 2.2,     // s không đụng phím sau khi nổ máy thì cano tự lái
     lead: 1.15,         // s camera nhìn trước theo vận tốc
   };
@@ -69,6 +60,8 @@
   // ---------------------------------------------------------------- tiện ích
   function lerp(a, b, k) { return a + (b - a) * k; }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function lin1(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }  // sRGB → tuyến tính (Color.linear của Unity)
+  function linV(c) { return new THREE.Vector3(lin1(c[0]), lin1(c[1]), lin1(c[2])); }
   function sampleTrack(tr, t, out) {
     var f = clamp(t * FPS, 0, tr.length - 1), i = Math.floor(f), j = Math.min(tr.length - 1, i + 1), k = f - i;
     for (var c = 0; c < 3; c++) out[c] = lerp(tr[i][c], tr[j][c], k);
@@ -87,7 +80,7 @@
     if (v == null) return 0;
     if (typeof v === 'number') return v;
     if (Array.isArray(v)) return v[0] + (v[1] - v[0]) * r;
-    if (v.curve) return curveAt(v.curve, t) * (v.mul == null ? 1 : v.mul);
+    if (v.curve) return (v.curve.length ? curveAt(v.curve, t) : 1) * (v.mul == null ? 1 : v.mul);
     if (v.min && v.max) { var a = curveAt(v.min, t), b = curveAt(v.max, t); return (a + (b - a) * r) * (v.mul == null ? 1 : v.mul); }
     return 0;
   }
@@ -103,7 +96,6 @@
     out[3] = curveAt(g.alpha, t);
     return out;
   }
-  // Màu: hằng rgba | {random:[a,b]} | {gradient} | {randomGradient:[g1,g2]}. t chuẩn hoá, r ngẫu nhiên của hạt.
   var tmpA = [0, 0, 0, 0], tmpB = [0, 0, 0, 0];
   function colorAt(v, t, r, out) {
     if (!v) { out[0] = out[1] = out[2] = out[3] = 1; return out; }
@@ -127,8 +119,7 @@
     v[0] = x; v[1] = y; v[2] = z;
     return v;
   }
-  // Khoá Hermite của anim legacy: [t, px,py,pz, inTan(3), outTan(3)].
-  function hermite(keys, t, out) {
+  function hermite(keys, t, out) {   // khoá Hermite của anim legacy: [t, px,py,pz, inTan(3), outTan(3)]
     var n = keys.length;
     if (t <= keys[0][0]) { out[0] = keys[0][1]; out[1] = keys[0][2]; out[2] = keys[0][3]; return out; }
     for (var i = 1; i < n; i++) if (t <= keys[i][0]) {
@@ -146,31 +137,65 @@
     return T[T.length - 1][1];
   }
 
-  // Sóng: cùng một hàm cho shader nước và cho cano dò mặt sóng ở mũi/đuôi (DynamicEnvironmentBoatFloating lấy mẫu ±5 m).
-  // Chiều cao, bước sóng, tốc độ theo _WaveHeight 0,1 / _WaveDistance 0,8 / _WaveSpeed 1,2 của Wave_Lobby_Afternoon. [DtD]
-  var WF = B.sea.water.floats;
-  var WAVE = { h: WF._WaveHeight, k: 2 * Math.PI / (WF._WaveDistance * 10), s: WF._WaveSpeed };
-  function waveH(x, z, t) {
-    return WAVE.h * (Math.sin(x * WAVE.k + t * WAVE.s) * 0.6 + Math.sin((x * 0.6 + z * 0.8) * WAVE.k * 1.37 + t * WAVE.s * 1.1) * 0.4);
+  // ---------------------------------------------------------------- sóng DaveWater (đỉnh), dùng chung cho shader nước và cano dò mặt sóng
+  // [DtD] gỡ từ vertex shader DaveWater (biến thể _WAVES): tổng sin/cos 4 hướng, lặp _WaveCount+1 lần, tần số nhân dần.
+  function waveParams(W) {
+    var F = W.floats, C = W.colors;
+    return { h: F._WaveHeight, dist: F._WaveDistance, speed: F._WaveSpeed, steep: F._WaveSteepness, count: Math.max(1, F._WaveCount | 0),
+      dir: C._WaveDirection, anim: C._AnimationParams };
+  }
+  function waveAt(WP, xu, zu, t, out) {   // xu, zu: toạ độ Unity. out: [dx, dy, dz] (m)
+    var d = WP.dir, a = WP.anim, tv = t * a[2];
+    var r4 = [tv * a[0] * WP.speed * 1.2, tv * a[1] * WP.speed * 1.375, tv * a[0] * WP.speed * 1.1, tv * a[1] * WP.speed * 1.0];
+    var f0 = 1 - WP.dist, fr = [f0 * 3.9, f0 * 4.05, f0 * 3.75, f0 * 3.75];
+    var r6 = [d[0] * 0.3, d[1] * 0.85, d[2] * 0.85, d[3] * 0.25], r7 = [d[0] * 0.1, d[1] * 0.9, d[2] * -0.5, d[3] * -0.5];
+    var st = WP.steep * 12 * (4 * Math.floor(1 / WP.count) + 1);
+    var A = [r6[0] * st * 0.3, r6[1] * st * 0.3, r6[2] * st * 0.35, r6[3] * st * 0.35];
+    var Bq = [r7[0] * st * 0.25, r7[2] * st * 0.25, r7[1] * st * 0.25, r7[3] * st * 0.25];
+    var ph = [r6[0] * xu + r6[1] * zu, r6[2] * xu + r6[3] * zu, r7[0] * xu + r7[1] * zu, r7[2] * xu + r7[3] * zu];
+    var dx = 0, dy = 0, dz = 0;
+    for (var i = 0; i <= WP.count; i++) {
+      var m = i / WP.count + 1;
+      for (var k = 0; k < 4; k++) fr[k] *= m;
+      var s0 = [], c0 = [];
+      for (k = 0; k < 4; k++) { var ar = fr[k] * ph[k] + r4[k]; s0.push(Math.sin(ar)); c0.push(Math.cos(ar)); }
+      dx += c0[0] * A[0] + c0[1] * A[2] + c0[2] * Bq[0] + c0[3] * Bq[1];
+      dz += c0[0] * A[1] + c0[1] * A[3] + c0[2] * Bq[2] + c0[3] * Bq[3];
+      dy += s0[0] * 0.3 + s0[1] * 0.35 + s0[2] * 0.25 + s0[3] * 0.25;
+    }
+    out[0] = dx * 0.02 * WP.h; out[1] = dy / WP.count * WP.h; out[2] = dz * 0.02 * WP.h;
+    return out;
   }
   var WAVE_GLSL = [
-    'uniform float uTime;',
-    'float waveH(vec2 p) { float k = ' + WAVE.k.toFixed(5) + ', s = ' + WAVE.s.toFixed(4) + ';',
-    '  return ' + WAVE.h.toFixed(4) + ' * (sin(p.x * k + uTime * s) * 0.6 + sin((p.x * 0.6 + p.y * 0.8) * k * 1.37 + uTime * s * 1.1) * 0.4); }',
+    'uniform float uWH, uWDist, uWSpeed, uWSteep, uWCount; uniform vec4 uWDir, uAnim;',
+    // trả về (dx, dy, dz) theo mét (hệ Unity) và h = tổng sin chuẩn hoá cho lớp tô theo sóng
+    'vec3 hxWave(vec2 p, float t, out float h) {',
+    '  float tv = t * uAnim.z; vec4 r4 = vec4(tv * uAnim.x, tv * uAnim.y, tv * uAnim.x, tv * uAnim.y) * uWSpeed * vec4(1.2, 1.375, 1.1, 1.0);',
+    '  vec4 fr = (1.0 - uWDist) * vec4(3.9, 4.05, 3.75, 3.75);',
+    '  vec4 r6 = uWDir * vec4(0.3, 0.85, 0.85, 0.25), r7 = uWDir * vec4(0.1, 0.9, -0.5, -0.5);',
+    '  float st = uWSteep * 12.0 * (4.0 * floor(1.0 / uWCount) + 1.0);',
+    '  vec4 A = r6 * st * vec4(0.3, 0.3, 0.35, 0.35); vec4 Bq = r7.xzyw * st * 0.25;',
+    '  vec4 ph = vec4(dot(r6.xy, p), dot(r6.zw, p), dot(r7.xy, p), dot(r7.zw, p));',
+    '  vec3 d = vec3(0.0); h = 0.0;',
+    '  for (int i = 0; i < 8; i++) { if (float(i) > uWCount) break;',
+    '    fr *= float(i) / uWCount + 1.0; vec4 a = fr * ph + r4; vec4 s = sin(a), c = cos(a);',
+    '    d.x += dot(c, vec4(A.x, A.z, Bq.x, Bq.y)); d.z += dot(c, vec4(A.y, A.w, Bq.z, Bq.w)); d.y += dot(s, vec4(0.3, 0.35, 0.25, 0.25)); }',
+    '  h = d.y / uWCount; return vec3(d.x * 0.02 * uWH, h * uWH, d.z * 0.02 * uWH); }',
   ].join('\n');
 
-  // Màu sương/trời: renderSettings.fogColor, sương tuyến tính 70 → 250. [DtD]
-  var RS = B.sea.renderSettings;
-  var FOG = { c: RS.fogColor, near: RS.fogStart, far: RS.fogEnd };
-  var FOG_GLSL = [
-    'uniform vec3 uFogCol; uniform vec2 uFogRange;',
-    'float fogK(float d) { return clamp((d - uFogRange.x) / (uFogRange.y - uFogRange.x), 0.0, 1.0); }',
-    // cảnh vẽ vào bộ đệm tuyến tính rồi lớp chép cuối mới đổi ra gamma, giống vật liệu chuẩn của three
-    'vec3 toLin(vec3 c) { return pow(max(c, 0.0), vec3(2.2)); }',
+  // ---------------------------------------------------------------- GLSL chung: màu, sương, đèn (URP)
+  var COMMON_GLSL = [
+    'vec3 hxLin(vec3 c) { c = max(c, 0.0); return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }',
+    'uniform vec3 uFogCol; uniform vec2 uFogP;',   // uFogP = (1/(end−start), end/(end−start)): sương tuyến tính của Unity
+    'float hxFog(float z) { return clamp(uFogP.y - z * uFogP.x, 0.0, 1.0); }',
+    'uniform vec3 uAmbCol; uniform vec3 uMainDir; uniform vec3 uMainCol;',
+    'uniform int uAddN; uniform vec4 uAddPos[8]; uniform vec3 uAddCol[8]; uniform vec4 uAddAtt[8]; uniform vec3 uAddDir[8];',
+    'uniform float uMainOn; uniform float uAddOn[8];',
+    // URP: 1/d² × (1 − (d²/r²)²)², nhân nón đèn saturate(dot(spotDir, L) × a + b)²
+    'float hxAtt(int i, vec3 W, out vec3 L) { vec4 p = uAddPos[i]; vec3 d = p.xyz - W * p.w; float d2 = max(dot(d, d), 6.1e-5);',
+    '  L = d * inversesqrt(d2); float f = d2 * uAddAtt[i].x; f = max(1.0 - f * f, 0.0); float s = clamp(dot(uAddDir[i], L) * uAddAtt[i].z + uAddAtt[i].w, 0.0, 1.0);',
+    '  return f * f / d2 * s * s; }',
   ].join('\n');
-  function fogUniforms() {
-    return { uFogCol: { value: new THREE.Vector3(FOG.c[0], FOG.c[1], FOG.c[2]) }, uFogRange: { value: new THREE.Vector2(FOG.near, FOG.far) } };
-  }
 
   // ---------------------------------------------------------------- nạp asset (giữ lại cho các chuyến sau)
   var assets = null, loading = null;
@@ -186,6 +211,15 @@
       }, undefined, function () { rej(new Error('image not found: ' + rel)); });
     });
   }
+  function loadCube(faces) {
+    return new Promise(function (res, rej) {
+      new THREE.CubeTextureLoader().load(faces.map(url), function (t) {
+        // mặt cube xuất theo thứ tự Unity +X −X +Y −Y +Z −Z, hàng đầu ảnh = t 0; three không lật ảnh cube
+        t.flipY = false; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter;
+        res(t);
+      }, undefined, function () { rej(new Error('image not found: ' + faces[0])); });
+    });
+  }
   function loadGlb(rel) {
     return new Promise(function (res, rej) {
       var l = new THREE.GLTFLoader();
@@ -193,25 +227,41 @@
       l.load(url(rel), res, undefined, function () { rej(new Error('model not found: ' + rel)); });
     });
   }
-  // Emitter nào có vẽ thì mới cần ảnh.
-  function drawn(e) { return e.render && e.render.enabled && e.render.mode !== 'none' && e.img; }
+  function drawn(e) { return e.render && e.render.enabled && e.render.mode !== 'none' && (e.mat || e.img) && e.on !== false; }
+  function allRecipes() {
+    var out = [];
+    ['day', 'evening'].forEach(function (k) {
+      var T = L.times[k];
+      Object.keys(T.vfx).forEach(function (n) { out.push(T.vfx[n]); });
+      Object.keys(T.boat.vfx).forEach(function (n) { out.push(T.boat.vfx[n]); });
+    });
+    Object.keys(L.sceneVfx).forEach(function (n) { out.push(L.sceneVfx[n]); });
+    return out;
+  }
   function vfxImages() {
     var set = {};
-    [B.vfx.boatIdle, B.vfx.boatExit, B.vfx.diveBubble].forEach(function (v) { v.emitters.forEach(function (e) { if (drawn(e)) set[e.img] = 1; }); });
+    function add(m) { if (!m) return; Object.keys(m.tex).forEach(function (k) { if (m.tex[k].img) set[m.tex[k].img] = 1; }); }
+    allRecipes().forEach(function (r) { r.emitters.forEach(function (e) { if (drawn(e)) { add(e.mat); add(e.trailMat); } }); });
+    (L.times.evening.sushiboat.lightBillboards || []).forEach(function (b) { set[b.img] = 1; });
     return Object.keys(set);
   }
   function preload() {
     if (loading) return loading;
-    var fxImgs = vfxImages(), W = B.sea.water.textures;
+    var fxImgs = vfxImages(), W = L.times.day.water.tex, D = L.times.day, E = L.times.evening;
+    var moonTex = [E.moon.Moon.mat.tex._MainTex.img, E.moon.Moon.mat.tex[Object.keys(E.moon.Moon.mat.tex).filter(function (k) { return /^_Sample/.test(k); })[0]].img,
+      E.moon.Moonshaft.mat.tex[Object.keys(E.moon.Moonshaft.mat.tex).filter(function (k) { return /^_Sample/.test(k); })[0]].img];
     loading = Promise.all([
-      loadGlb(B.boat.glb), loadGlb(B.sea.glb), loadGlb(B.sea.clouds.glb),
+      loadGlb(B.boat.glb), loadGlb(E.boat.glb), loadGlb(B.sea.glb), loadGlb(E.sushiboat.glb), loadGlb(B.sea.clouds.glb),
       loadTex(B.dave.sheet, true), loadTex(B.sea.animSprites.sheet, true),
       loadTex(W._FoamTex.img), loadTex(W._IntersectionNoise.img),
+      loadCube(D.sky.cube.faces), loadCube(E.sky.cube.faces), loadTex(E.sky.tex.Texture2D_D6B3DD8A.img),
+      Promise.all(moonTex.map(function (p) { return loadTex(p); })),
       Promise.all(fxImgs.map(function (p) { return loadTex(p); })),
     ]).then(function (r) {
       var fx = {};
-      fxImgs.forEach(function (p, i) { fx[p] = r[7][i]; });
-      assets = { boat: r[0], sea: r[1], clouds: r[2], dave: r[3], anim: r[4], foam: r[5], noise: r[6], fx: fx };
+      fxImgs.forEach(function (p, i) { fx[p] = r[13][i]; });
+      assets = { boat: r[0], boatEve: r[1], sea: r[2], sushiEve: r[3], clouds: r[4], dave: r[5], anim: r[6], foam: r[7], noise: r[8],
+        skyDay: r[9], skyEve: r[10], star: r[11], moon: r[12], fx: fx };
       return assets;
     });
     loading.catch(function () { loading = null; });
@@ -222,7 +272,7 @@
   // audio.js không mở ngữ cảnh ra ngoài và bộ kiểm đếm số tệp nó giải mã, nên tiếng cano giải mã riêng ở đây.
   var AU = { ctx: null, master: null, buf: {}, loading: null, live: [] };
   var SND = ['boat_move', 'boat_engine_loop', 'boat_engine_idle', 'boat_engine_start', 'boat_drive', 'boat_amb_day', 'boat_seagull',
-    'boat_splash', 'boat_dive', 'boat_foot', 'boat_bgm_lobby'];
+    'boat_amb_night', 'boat_amb_night_wave', 'boat_dive', 'boat_foot', 'boat_bgm_lobby'];
   function audioInit() {
     if (AU.ctx) return AU.ctx;
     var AC = window.AudioContext || window.webkitAudioContext;
@@ -276,187 +326,544 @@
   }
   function audioUnlock() { if (AU.ctx && AU.ctx.state === 'suspended') AU.ctx.resume(); }
 
-  // ---------------------------------------------------------------- vật liệu
-  // Sprite ảnh điểm (Dave, dừa, mòng biển): một ô của sheet, cắt alpha, có sương.
-  var SPRITE_VERT = 'uniform vec4 uRect; varying vec2 vUv; varying float vD;' +
-    'void main(){ vUv = uRect.xy + uv * uRect.zw; vec4 mv = modelViewMatrix * vec4(position, 1.0); vD = -mv.z; gl_Position = projectionMatrix * mv; }';
-  var SPRITE_FRAG = FOG_GLSL + '\nuniform sampler2D uMap; uniform float uFogAmp; varying vec2 vUv; varying float vD;' +
-    'void main(){ vec4 c = texture2D(uMap, vUv); if (c.a < 0.5) discard;' +
-    ' vec3 col = mix(c.rgb, uFogCol, fogK(vD) * uFogAmp); gl_FragColor = vec4(toLin(col), 1.0); }';
-  function spriteMat(tex, fogAmp) {
-    var u = fogUniforms();
-    u.uMap = { value: tex }; u.uRect = { value: new THREE.Vector4(0, 0, 1, 1) }; u.uFogAmp = { value: fogAmp == null ? 1 : fogAmp };
-    return new THREE.ShaderMaterial({ uniforms: u, vertexShader: SPRITE_VERT, fragmentShader: SPRITE_FRAG, side: THREE.DoubleSide });
+  // ---------------------------------------------------------------- môi trường (sương, ambient, đèn) dùng chung mọi vật liệu
+  var MAXL = 8;
+  var ENV = {
+    uFogCol: { value: new THREE.Vector3() }, uFogP: { value: new THREE.Vector2(0, 1) },
+    uAmbCol: { value: new THREE.Vector3() }, uMainDir: { value: new THREE.Vector3(0, 1, 0) }, uMainCol: { value: new THREE.Vector3() },
+    uAddN: { value: 0 }, uAddPos: { value: [] }, uAddCol: { value: [] }, uAddAtt: { value: [] }, uAddDir: { value: [] },
+    uTime: { value: 0 },
+  };
+  for (var li = 0; li < MAXL; li++) {
+    ENV.uAddPos.value.push(new THREE.Vector4()); ENV.uAddCol.value.push(new THREE.Vector3());
+    ENV.uAddAtt.value.push(new THREE.Vector4(0, 1, 0, 1)); ENV.uAddDir.value.push(new THREE.Vector3(0, 0, 1));
   }
-  function setCell(mat, tex, cellW, cellH, col, row, flip) {
-    var W = tex.image.width, H = tex.image.height, r = mat.uniforms.uRect.value;
-    var u0 = col * cellW / W, v0 = 1 - (row + 1) * cellH / H, du = cellW / W, dv = cellH / H;
-    if (flip) r.set(u0 + du, v0, -du, dv); else r.set(u0, v0, du, dv);
+  // Mặt nạ đèn theo lớp (cullingMask gốc): mỗi lớp một bộ uniform dùng chung.
+  var LAYER_U = {};
+  function layerU(layer) {
+    if (!LAYER_U[layer]) {
+      var a = []; for (var i = 0; i < MAXL; i++) a.push(0);
+      LAYER_U[layer] = { uMainOn: { value: 0 }, uAddOn: { value: a } };
+    }
+    return LAYER_U[layer];
+  }
+  function envUniforms(layer, extra) {
+    var u = {}, k;
+    for (k in ENV) u[k] = ENV[k];
+    var lu = layerU(layer);
+    u.uMainOn = lu.uMainOn; u.uAddOn = lu.uAddOn;
+    for (k in extra) u[k] = extra[k];
+    return u;
   }
 
-  // Nước: ProjectDR/DaveWater (Stylized Water) viết lại từ số của Wave_Lobby_Afternoon: màu nền/chân trời, bọt, loá nắng, sóng.
-  var WATER_VERT = 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
+  // ---------------------------------------------------------------- vật liệu: ProjectDR/2D_Sprite_Uber (_FOG _LIGHTING)
+  // [DtD] gỡ từ DXBC: ánh = (SH × _AmbientStrength + Σ đèn (khuếch tán + bóng loá pow(N·H, 2^(10·_Smoothness+1)) × _SpecularColor))
+  // × _LightFactor, kẹp [0, _LightThreshold]; màu = ảnh × màu đỉnh × ánh; sương riêng exp(−(độ sâu/(end−start))² × _FogAmplify).
+  // _Smoothness là biến toàn cục không material nào đặt, không thấy script đặt → 0 (Unity mặc định).
+  var UBER_VERT = [
+    'attribute vec4 color; uniform vec4 uRect; uniform mat3 uUvT;',
+    'varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying float vZ; varying vec4 vCol;',
+    'void main() {',
+    '#ifdef RECT',
+    '  vUv = uRect.xy + uv * uRect.zw;',
+    '#else',
+    '  vUv = (uUvT * vec3(uv, 1.0)).xy;',
+    '#endif',
+    '#ifdef VCOL',
+    '  vCol = color;',
+    '#else',
+    '  vCol = vec4(1.0);',
+    '#endif',
+    '  vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz;',
+    '#ifdef NO_NORMAL',
+    '  vN = normalize(mat3(modelMatrix) * vec3(0.0, 0.0, 1.0));',
+    '#else',
+    '  vN = normalize(mat3(modelMatrix) * normal);',
+    '#endif',
+    '  vec4 mv = viewMatrix * w; vZ = -mv.z; gl_Position = projectionMatrix * mv;',
+    '}',
+  ].join('\n');
+  var UBER_FRAG = [
+    COMMON_GLSL,
+    'uniform sampler2D map; uniform vec4 uColor; uniform float uCut; uniform float uLF; uniform float uAmbS; uniform float uThr; uniform float uFogAmp;',
+    'uniform vec3 uSpec; uniform sampler2D uGlowMap; uniform float uGlow;',
+    'varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying float vZ; varying vec4 vCol;',
+    'void main() {',
+    '  vec4 t = texture2D(map, vUv); t.rgb = hxLin(t.rgb);',
+    '  vec4 c = t * vec4(hxLin(vCol.rgb), vCol.a) * uColor;',
+    '  if (c.a < uCut) discard;',
+    '  vec3 N = normalize(vN); if (!gl_FrontFacing) N = -N;',
+    '  vec3 V = normalize(cameraPosition - vW);',
+    '  vec3 l = uAmbCol * uAmbS;',
+    '  float ndl = clamp(dot(N, uMainDir), 0.0, 1.0); vec3 H = normalize(V + uMainDir);',
+    '  l += uMainOn * uMainCol * (ndl + pow(clamp(dot(N, H), 0.0, 1.0), 2.0) * uSpec);',
+    '  for (int i = 0; i < 8; i++) { if (i >= uAddN) break; if (uAddOn[i] < 0.5) continue;',
+    '    vec3 Ld; float a = hxAtt(i, vW, Ld); vec3 lc = uAddCol[i] * a;',
+    '    l += lc * (clamp(dot(N, Ld), 0.0, 1.0) + pow(clamp(dot(N, normalize(V + Ld)), 0.0, 1.0), 2.0) * uSpec); }',
+    '  l = clamp(l * uLF, 0.0, uThr);',
+    '  vec3 col = c.rgb * l;',
+    '#ifdef GLOW',
+    '  col += hxLin(texture2D(uGlowMap, vUv).rgb) * uGlow;',
+    '#endif',
+    '  float fz = vZ * uFogP.x; float f = exp(-fz * fz * uFogAmp);',
+    '  col = mix(uFogCol, col, f);',
+    '#ifdef ADDITIVE',
+    '  gl_FragColor = vec4(col * c.a, 1.0);',
+    '#else',
+    '  gl_FragColor = vec4(col, c.a);',
+    '#endif',
+    '}',
+  ].join('\n');
+  // o: {map, color [r,g,b,a] gamma, vcol, cut, lightFactor, ambient, fogAmp, layer, transparent, rect, glowMap, glow, noNormal, doubleSide}
+  function uberMat(o) {
+    var c = o.color || [1, 1, 1, 1];
+    var u = envUniforms(o.layer || 0, {
+      map: { value: o.map }, uColor: { value: new THREE.Vector4(lin1(c[0]), lin1(c[1]), lin1(c[2]), c[3]) },
+      uCut: { value: o.cut == null ? 0.5 : o.cut }, uLF: { value: o.lightFactor == null ? 1 : o.lightFactor },
+      uAmbS: { value: o.ambient == null ? 1 : o.ambient }, uThr: { value: o.threshold == null ? 10 : o.threshold },
+      uFogAmp: { value: o.fogAmp == null ? 1 : o.fogAmp }, uSpec: { value: linV(o.spec || [1, 1, 1]) },
+      uGlowMap: { value: o.glowMap || null }, uGlow: { value: o.glow || 0 }, uRect: { value: new THREE.Vector4(0, 0, 1, 1) },
+      uUvT: { value: o.map && o.map.matrix ? (o.map.updateMatrix(), o.map.matrix.clone()) : new THREE.Matrix3() },
+    });
+    var defs = {};
+    if (o.vcol) defs.VCOL = 1;
+    if (o.rect) defs.RECT = 1;
+    if (o.noNormal) defs.NO_NORMAL = 1;
+    if (o.glowMap && o.glow) defs.GLOW = 1;
+    if (o.additive) defs.ADDITIVE = 1;
+    var m = new THREE.ShaderMaterial({
+      uniforms: u, defines: defs, vertexShader: UBER_VERT, fragmentShader: UBER_FRAG,
+      side: o.doubleSide === false ? THREE.FrontSide : THREE.DoubleSide,
+      transparent: !!(o.transparent || o.additive), depthWrite: !o.additive,
+      blending: o.additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    });
+    m.userData.layer = o.layer || 0;
+    return m;
+  }
+  // Thay material glb (GLTFLoader) bằng Uber theo extras gốc. layerOf(roleName) → lớp Unity.
+  function uberize(root, layerOf, spriteMat) {
+    root.traverse(function (o) {
+      if (!o.isMesh) return;
+      var m = o.material, name = m.name || '', role = name.split(':')[0], g = o.geometry;
+      if (role === 'water') { o.visible = false; return; }
+      var e = m.userData || {};   // GLTFLoader để extras của material ở userData
+      var sm = role === 'sprites' ? (spriteMat || {}) : null;
+      var F = sm ? sm.floats || {} : {};
+      var nm = uberMat({
+        map: m.map, color: m.color ? [m.color.r, m.color.g, m.color.b, m.opacity] : [1, 1, 1, 1],   // hệ số màu glb = số gamma của Unity
+        vcol: !!g.attributes.color, cut: m.alphaTest > 0 ? m.alphaTest : (e.transparent ? 0.004 : (sm ? F._Cutoff : 0.004)),
+        lightFactor: sm ? F._LightFactor : e.lightFactor, ambient: sm ? F._AmbientStrength : e.ambientStrength,
+        fogAmp: sm ? F._FogAmplify : e.fogAmplify, layer: layerOf(role), transparent: !!e.transparent,
+        glowMap: m.emissiveMap, glow: e.glow, noNormal: !g.attributes.normal,
+      });
+      nm.name = name;
+      if (m.map) m.map.anisotropy = 4;
+      if (role === 'sprites' && m.map) m.map.magFilter = THREE.NearestFilter;
+      o.material = nm;
+      m.dispose();
+      o.frustumCulled = true;
+    });
+  }
+
+  // ---------------------------------------------------------------- trời: Skycube (skybox) + vòng sương Sky_Inner
+  // [DtD] Skycube gỡ từ DXBC: lấy mẫu cubemap theo reflect(−V_view, hướng đỉnh + Vector3), cộng sao (Star01 × ô Voronoi lấp lánh),
+  // + Vector1_9541F254 × Color_9835C26B, rồi nhân (1 + Vector1_9541F254). Vector1_456FEBB3 cộng vào trục x của V_view.
+  var SKY_VERT = 'varying vec3 vDir; void main(){ vDir = position; vec4 p = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); gl_Position = p.xyww; }';
+  var SKY_FRAG = [
+    COMMON_GLSL,
+    'uniform samplerCube uCube; uniform sampler2D uStar; uniform float uStarOn; uniform float uBright; uniform float uV456; uniform float uV18;',
+    'uniform vec3 uOff; uniform vec3 uStarCol; uniform vec3 uSkyAdd; uniform vec4 uTint; uniform float uT;',
+    'varying vec3 vDir;',
+    'vec2 hxVor(vec2 uv, float ang, float mulK) { vec2 g0 = floor(uv), f = fract(uv); float md = 8.0;',
+    '  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 o = vec2(float(x), float(y)); vec2 c = g0 + o;',
+    '    vec2 h = fract(vec2(sin(dot(c, vec2(47.63, 89.98))), sin(dot(c, vec2(15.27, 99.41)))) * mulK) * ang;',
+    '    vec2 p = vec2(sin(h.x), cos(h.y)) * 0.5 + o; float d = length(p - f + 0.5); md = min(md, d); }',
+    '  return vec2(md, 0.0); }',
+    'void main() {',
+    '  vec3 dT = normalize(vDir); vec3 d = vec3(dT.x, dT.y, -dT.z);',            // hướng theo hệ Unity
+    '  vec3 Vv = mat3(viewMatrix) * (-dT); Vv.x += uV456;',                     // V của Unity trong hệ nhìn
+    '  vec3 Nn = d + uOff;',
+    '  vec3 I = -Vv; vec3 R = I - 2.0 * dot(I, Nn) * Nn;',
+    '  vec3 c = hxLin(textureCube(uCube, R).rgb);',
+    '  c += uV18;',                                                              // lớp Texture2D_CADB36A9 (mặc định trắng) × Vector1_18BDFEBE
+    // uv của lưới skybox Unity không có trong dữ liệu: dùng toạ độ cầu (kinh độ, vĩ độ) [ĐỀ XUẤT]
+    '  vec2 uv = vec2(atan(d.x, d.z) / 6.2831853 + 0.5, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);',
+    '  float w = min(pow(hxVor(uv * 20.0, uT, 1.0).x, 10.0) * 10.0, 1.0);',
+    '  vec3 st = hxLin(texture2D(uStar, uv * 3.0).rgb) * uStarOn * (1.0 - w) * uStarCol; st -= uBright * st;',
+    '  c += st; c += uBright * uSkyAdd; c *= 1.0 + uBright;',
+    '  c = mix(c, uTint.rgb, uTint.a);',
+    '  gl_FragColor = vec4(c, 1.0);',
+    '}',
+  ].join('\n');
+  function skyMat(A, T, cube) {
+    var S = T.sky, F = S.floats, C = S.colors, off = C.Vector3_0e2cfe6825a645f4b96277769b62c0d6, rv = C._RotateVector || [0, 0, 0, 0];
+    var star = S.tex.Texture2D_D6B3DD8A && S.tex.Texture2D_D6B3DD8A.img;
+    var u = envUniforms(0, {
+      uCube: { value: cube }, uStar: { value: A.star }, uStarOn: { value: star ? 1 : 0 },   // Texture2D_D6B3DD8A mặc định đen
+      uBright: { value: F.Vector1_9541F254 }, uV456: { value: F.Vector1_456FEBB3 }, uV18: { value: F.Vector1_18BDFEBE },
+      uOff: { value: new THREE.Vector3(off[0] + rv[0], off[1] + rv[1], off[2] + rv[2]) },
+      uStarCol: { value: linV(C.Color_8ACEE08) }, uSkyAdd: { value: linV(C.Color_9835C26B) },
+      uTint: { value: new THREE.Vector4(lin1(C.Color_a41e301f2ad4456883f2f95eeab33163[0]), lin1(C.Color_a41e301f2ad4456883f2f95eeab33163[1]),
+        lin1(C.Color_a41e301f2ad4456883f2f95eeab33163[2]), C.Color_a41e301f2ad4456883f2f95eeab33163[3]) },
+      uT: ENV.uTime,
+    });
+    return new THREE.ShaderMaterial({ uniforms: u, vertexShader: SKY_VERT, fragmentShader: SKY_FRAG, side: THREE.BackSide, depthWrite: false, depthTest: false });
+  }
+  // [DtD] 3D_InnerSkybox_Fog gỡ từ DXBC: màu = unity_FogColor, alpha = max(1 − uv.y^0,7, 0). Vòng trụ bán kính 188 m quanh sảnh.
+  function skyRing() {
+    var R = L.skyRing, g = new THREE.BufferGeometry(), pos = new Float32Array(R.pos.length * 3), uv = new Float32Array(R.pos.length * 2);
+    R.pos.forEach(function (p, i) { pos[i * 3] = p[0]; pos[i * 3 + 1] = p[1]; pos[i * 3 + 2] = -p[2]; uv[i * 2] = R.uv[i][0]; uv[i * 2 + 1] = R.uv[i][1]; });
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.setIndex(R.index);
+    var m = new THREE.ShaderMaterial({
+      uniforms: { uFogCol: ENV.uFogCol, uPow: { value: R.power } }, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform vec3 uFogCol; uniform float uPow; varying vec2 vUv; void main(){ gl_FragColor = vec4(uFogCol, max(1.0 - pow(max(vUv.y, 0.0), uPow), 0.0)); }',
+    });
+    var mesh = new THREE.Mesh(g, m);
+    mesh.renderOrder = 1; mesh.frustumCulled = false;
+    return mesh;
+  }
+
+  // ---------------------------------------------------------------- mây: shader graph Cloud (URP Lit)
+  // [DtD] gỡ từ DXBC: albedo = lerp(Color_9C3FBA6D, Color_F2DEC659, saturate(N·V) × Vector1_49F9B29B) + ảnh.r; alpha = saturate(ảnh.g × Vector1_3A2F95CE).
+  // PBR kim loại 0, độ nhám 0,64: khuếch tán 0,96 × albedo × (SH + đèn chính × N·L) + loá GGX 0,04; phản chiếu probe lấy cube trời [ĐỀ XUẤT].
+  var CLOUD_VERT = 'uniform mat3 uUvT; varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying float vZ;' +
+    'void main(){ vUv = (uUvT * vec3(uv, 1.0)).xy; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal);' +
+    ' vec4 mv = viewMatrix * w; vZ = -mv.z; gl_Position = projectionMatrix * mv; }';
+  var CLOUD_FRAG = [
+    COMMON_GLSL,
+    'uniform sampler2D uMap; uniform vec3 uShade; uniform vec3 uLit; uniform float uFres; uniform float uAlpha; uniform samplerCube uEnv; uniform float uNear;',
+    'varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying float vZ;',
+    'void main() {',
+    '  vec4 t = texture2D(uMap, vUv); t.rgb = hxLin(t.rgb);',
+    '  float a = clamp(t.g * uAlpha, 0.0, 1.0); if (a < 0.004) discard;',
+    '  vec3 N = normalize(vN); if (!gl_FrontFacing) N = -N; vec3 V = normalize(cameraPosition - vW);',
+    '  float nv = clamp(dot(N, V), 0.0, 1.0);',
+    '  vec3 alb = mix(uShade, uLit, nv * uFres) + t.r;',
+    '  vec3 L = uMainDir; vec3 H = normalize(V + L); float nh = clamp(dot(N, H), 0.0, 1.0), lh = clamp(dot(L, H), 0.0, 1.0);',
+    '  float dd = nh * nh * -0.5904 + 1.00001; float spec = 0.4096 / (dd * dd * max(lh * lh, 0.1) * 4.56);',
+    '  float ndl = clamp(dot(N, L), 0.0, 1.0);',
+    '  vec3 Rr = reflect(-V, N); vec3 env = hxLin(textureCube(uEnv, vec3(Rr.x, Rr.y, -Rr.z), 5.0).rgb);',
+    '  float fr = pow(1.0 - nv, 4.0) * 0.2 + 0.04;',
+    '  vec3 c = alb * 0.96 * uAmbCol + env * fr * 0.709421 + (alb * 0.96 + spec * 0.04) * uMainCol * uMainOn * ndl;',
+    '  float f = clamp(uFogP.y - max(vZ - uNear, 0.0) * uFogP.x, 0.0, 1.0);',
+    '  gl_FragColor = vec4(mix(uFogCol, c, f), a);',
+    '}',
+  ].join('\n');
+
+  // ---------------------------------------------------------------- trăng: 3D_Moon / 3D_Moonshaft (quad trên trời buổi tối)
+  // [DtD] gỡ từ DXBC: khung pha = floor(_Phase) mod 8 trên dải mặt nạ 8 ô; trăng: màu = _MainTex × Color, alpha = _MainTex.a × V × mặt nạ.r;
+  // quầng: màu = mặt nạ × Color, alpha = mặt nạ.a × V. Trộn SrcAlpha/OneMinusSrcAlpha, không sương.
+  function moonMesh(part, A, texMain, texMask, isShaft) {
+    var g = new THREE.BufferGeometry(), pos = new Float32Array(part.pos.length * 3), uv = new Float32Array(part.pos.length * 2);
+    part.pos.forEach(function (p, i) { pos[i * 3] = p[0]; pos[i * 3 + 1] = p[1]; pos[i * 3 + 2] = -p[2]; uv[i * 2] = part.uv[i][0]; uv[i * 2 + 1] = part.uv[i][1]; });
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(part.index);
+    var M = part.mat, col = M.colors.Color_B1804469;
+    var m = new THREE.ShaderMaterial({
+      uniforms: { uMain: { value: texMain }, uMask: { value: texMask }, uCol: { value: linV(col) }, uV: { value: M.floats.Vector1_A4A36367 }, uPhase: { value: M.floats._Phase } },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, defines: isShaft ? { SHAFT: 1 } : {},
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }',
+      fragmentShader: [COMMON_GLSL, 'uniform sampler2D uMain; uniform sampler2D uMask; uniform vec3 uCol; uniform float uV; uniform float uPhase; varying vec2 vUv;',
+        'void main(){ float ph = floor(fract(abs(floor(uPhase) + 0.00001) * 0.125) * 8.0); float col = ph - 8.0 * floor((ph + 0.5) * 0.125);',
+        '  vec4 k = texture2D(uMask, vec2((vUv.x + col) * 0.125, vUv.y)); k.rgb = hxLin(k.rgb);',
+        '#ifdef SHAFT', '  gl_FragColor = vec4(k.rgb * uCol, k.a * uV);',
+        '#else', '  vec4 t = texture2D(uMain, vUv); gl_FragColor = vec4(hxLin(t.rgb) * uCol, t.a * uV * k.r);', '#endif', '}'].join('\n'),
+    });
+    var mesh = new THREE.Mesh(g, m);
+    mesh.renderOrder = 0; mesh.frustumCulled = false;
+    return mesh;
+  }
+
+  // ---------------------------------------------------------------- nước: ProjectDR/DaveWater (họ Stylized Water), viết lại từ DXBC
+  // Biến thể sảnh: _WAVES _FOAM _REFRACTION _ADVANCED_SHADING _SMOOTH_INTERSECTION _RIPPLESIN (+ _ADDITIONAL_LIGHTS).
+  // Chỗ nước chạm thân cano (giao cắt) đo bằng độ sâu cảnh phía sau như bản gốc: vẽ trước một lượt độ sâu các vật đặc.
+  // Bản gốc tự trộn với ảnh cảnh phía sau (_CameraOpaqueTexture) rồi ghi alpha 1; ở đây để phần cứng trộn đúng phép đó
+  // (One, OneMinusSrcAlpha), chỉ bỏ độ lệch khúc xạ (_RefractionStrength) vì pháp tuyến nước phẳng (_NormalStrength = _WaveNormalStr = 0).
+  var WATER_VERT = [
+    WAVE_GLSL,
+    'uniform float uWY; varying vec3 vW; varying float vH; varying float vZ;',
+    'void main() {',
+    '  vec3 w = (modelMatrix * vec4(position, 1.0)).xyz; w.y = uWY;',
+    '  float h; vec3 d = hxWave(vec2(w.x, -w.z), uTime, h);',
+    '  w += vec3(d.x, d.y, -d.z); vW = w; vH = h;',
+    '  vec4 mv = viewMatrix * vec4(w, 1.0); vZ = -mv.z; gl_Position = projectionMatrix * mv;',
+    '}',
+  ].join('\n').replace('uniform float uWH', 'uniform float uTime; uniform float uWH');
   var WATER_FRAG = [
-    FOG_GLSL, WAVE_GLSL,
-    'uniform vec4 uBase; uniform vec4 uHorizon; uniform float uHorizonDist; uniform vec4 uFoamCol; uniform vec4 uShallow;',
-    'uniform sampler2D uFoam; uniform float uFoamTiling; uniform float uFoamSpeed; uniform float uFoamSize;',
-    'uniform sampler2D uNoise; uniform float uWaveTint;',
-    'uniform vec3 uSunDir; uniform vec3 uSunCol; uniform float uSunStr; uniform float uSunSize;',
-    'uniform vec3 uCam; varying vec3 vW;',
+    COMMON_GLSL, 'uniform vec4 uAnim;',
+    '#include <packing>',
+    'uniform float uTime;',
+    'uniform vec4 uShallow, uBase, uHorizon, uFoamCol, uInterCol, uRippleCol;',
+    'uniform float uDepth, uDepthExp, uHorizonDist, uFoamTiling, uFoamSpeed, uFoamSize, uFoamMask, uFoamMaskExp, uWaveTint;',
+    'uniform float uInterSrc, uInterLen, uInterFall, uInterTiling, uInterSpeed, uEdgeFade;',
+    'uniform float uSunDist, uSunSize, uSunStr, uShadowStr;',
+    'uniform float uRipSpeed, uRipDensity, uRipSlim, uRipOff, uRipSinT; uniform vec2 uRipDir; uniform vec3 uUvU, uUvV;',
+    'uniform sampler2D uFoam, uNoise, tDepth; uniform vec2 uRes; uniform float uNear, uFar; uniform float uNoiseSrgb, uFoamSrgb;',
+    'uniform mat4 uInvProj; uniform mat4 uCamWorld;',
+    'varying vec3 vW; varying float vH; varying float vZ;',
+    'float hxVor(vec2 uv, float ang) { vec2 g0 = floor(uv), f = fract(uv); float md = 8.0;',
+    '  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 o = vec2(float(x), float(y)); vec2 c = g0 + o;',
+    '    vec2 h = fract(vec2(sin(dot(c, vec2(15.27, 99.41))), sin(dot(c, vec2(47.63, 89.98)))) * 46839.32) * ang;',
+    '    vec2 p = vec2(sin(h.x), cos(h.y)) * 0.5 + o; md = min(md, length(p - f + 0.5)); }',
+    '  return md; }',
+    'vec3 samp(sampler2D t, vec2 uv, float s) { vec3 c = texture2D(t, uv).rgb; return s > 0.5 ? hxLin(c) : c; }',
     'void main() {',
-    '  vec2 p = vW.xz; float e = 0.25, h = waveH(p);',
-    '  vec3 N = normalize(vec3(-(waveH(p + vec2(e, 0.0)) - h) / e * 6.0, 1.0, -(waveH(p + vec2(0.0, e)) - h) / e * 6.0));',
-    '  vec3 V = normalize(uCam - vW); float d = length(uCam - vW);',
-    // màu nền; gần cano nước mỏng (shallow) chỉ là viền, ngoài khơi dùng _BaseColor
-    '  vec3 c = uBase.rgb;',
-    '  c += uWaveTint * (h / 0.1);',
-    '  float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), uHorizonDist);',
-    '  c = mix(c, uHorizon.rgb, clamp(fres * uHorizon.a * 4.0, 0.0, 1.0));',
-    // bọt: ảnh SWS_FoamSea toạ độ thế giới, trôi theo _FoamSpeed; _FoamSize là ngưỡng, _FoamColor.a là độ đậm
-    '  vec2 fu = p * uFoamTiling;',
-    '  float f1 = texture2D(uFoam, fu + vec2(uTime * uFoamSpeed, uTime * uFoamSpeed * 0.6)).r;',
-    '  float f2 = texture2D(uFoam, fu * 1.7 - vec2(uTime * uFoamSpeed * 0.7, -uTime * uFoamSpeed)).r;',
-    '  float foam = smoothstep(1.0 - uFoamSize * 8.0, 1.0, f1 * f2 * 1.6);',
-    '  float n = texture2D(uNoise, p * 0.025 + uTime * 0.004).r;',
-    '  c = mix(c, uFoamCol.rgb, clamp(foam * (0.1 + uFoamCol.a * 3.0) + n * uFoamCol.a, 0.0, 1.0) * (1.0 - fogK(d)));',
-    // loá nắng: phản chiếu MainLight
-    '  vec3 R = reflect(-uSunDir, N);',
-    '  float sp = pow(max(dot(R, V), 0.0), 60.0 / max(uSunSize, 0.05)) * uSunStr;',
-    '  c += uSunCol * sp * 0.25;',
-    '  c = mix(c, uFogCol, fogK(d));',
-    '  gl_FragColor = vec4(toLin(c), mix(uBase.a, 1.0, fogK(d)));',
+    '  vec3 P = vec3(vW.x, vW.y, -vW.z);',                                   // hệ Unity
+    '  vec2 wp = P.xz; vec3 N = vec3(0.0, 1.0, 0.0);',
+    '  vec3 Vt = cameraPosition - vW; vec3 V = normalize(vec3(Vt.x, Vt.y, -Vt.z));',
+    '  vec2 tv = uTime * uAnim.z * uAnim.xy;',
+    // độ sâu cảnh đặc phía sau → vị trí thế giới → độ sâu nước theo pháp tuyến
+    '  vec2 suv = gl_FragCoord.xy / uRes; float dz = texture2D(tDepth, suv).x;',
+    '  vec4 cp = uInvProj * vec4(suv * 2.0 - 1.0, dz * 2.0 - 1.0, 1.0); cp /= cp.w; vec3 ow = (uCamWorld * cp).xyz; ow.z = -ow.z;',
+    '  float d = abs(P.y - ow.y); if (dz >= 0.99999) d = 1000.0;',
+    '  float grad = clamp(d / uDepth + uDepthExp * (1.0 - exp(-d / uDepth) - d / uDepth), 0.0, 1.0);',
+    '  float g = 1.0 - clamp(exp(d) / uInterLen, 0.0, 1.0);',
+    '  float n1 = samp(uNoise, wp * uInterTiling + tv * uInterSpeed, uNoiseSrgb).r, n2 = samp(uNoise, wp * uInterTiling * 1.5 - tv * uInterSpeed, uNoiseSrgb).r;',
+    '  float dist = clamp(g / uInterFall, 0.0, 1.0); float inter = clamp(dist + n1 + n2, 0.0, 1.0) * dist * uInterCol.a;',
+    '  if (P.y < ow.y) inter = 0.0;',
+    // bọt theo sóng
+    '  float hm = clamp(vH * 0.5 + 0.5, 0.0, 1.0);',
+    '  float msk = pow(abs(1.0 + uFoamMask * (hm - 1.0)), uFoamMaskExp);',
+    '  vec2 fu = wp * uFoamTiling; vec2 f1 = tv * uFoamSpeed + fu; vec2 f2 = fu * 0.5 + (1.0 - uTime * uAnim.z * uAnim.xy) * uFoamSpeed * 0.5;',
+    '  float fo = clamp(samp(uFoam, f1, uFoamSrgb).r + samp(uFoam, f2, uFoamSrgb).r, 0.0, 1.0);',
+    '  float fx = clamp((fo * msk - uFoamSize) / (1.0 - uFoamSize), 0.0, 1.0); fx = fx * fx * (3.0 - 2.0 * fx);',
+    '  float foam = fx * clamp(uFoamCol.a, 0.0, 1.0);',
+    '  vec4 base = mix(uShallow, uBase, grad); vec3 col = uWaveTint * hm + base.rgb;',
+    // loá mặt trời: chỉ đèn chính
+    '  vec3 Lm = vec3(uMainDir.x, uMainDir.y, -uMainDir.z);',
+    '  vec3 Hs = V + Lm + N * uSunDist; float sy = clamp(Hs.y * inversesqrt(dot(Hs, Hs)), 0.0, 1.0);',
+    '  vec3 sun = pow(sy, 8196.0 - 8132.0 * uSunSize) * uMainCol * uMainOn * uSunStr * clamp((1.0 - foam) * (1.0 - inter), 0.0, 1.0);',
+    '  col = mix(col, uFoamCol.rgb, foam);',
+    '  col = mix(col, uInterCol.rgb, inter);',
+    '  float alpha = clamp(inter + base.a + foam, 0.0, 1.0);',
+    '  float hz = min(pow(1.0 - clamp(dot(V, N), 0.0, 1.0), uHorizonDist), 1.0) * uHorizon.a; col = mix(col, uHorizon.rgb, hz);',
+    '  float edge = uEdgeFade > 0.0 ? clamp(d / (uEdgeFade * 0.01), 0.0, 1.0) : 1.0; if (ow.y >= P.y) edge = 1.0;',
+    '  alpha *= edge;',
+    // gợn: Voronoi trên uv lưới gốc, uv xoắn quanh tâm lưới
+    '  vec2 uv0 = vec2(dot(uUvU, vec3(P.x, P.z, 1.0)), dot(uUvV, vec3(P.x, P.z, 1.0)));',
+    '  vec2 rd = sin(uTime * uRipSinT) * 0.003 * uRipDir; vec2 c0 = uv0 - 0.5; float r2 = dot(c0, c0);',
+    '  vec2 tw = vec2(uv0.y - 0.5, 0.5 - uv0.x) * r2 + uv0;',
+    '  vec2 ruv = (rd * uRipOff + tw) * uRipDensity;',
+    '  col += pow(hxVor(ruv, uTime * uRipSpeed), uRipSlim) * uRippleCol.rgb;',
+    // ánh: SH + đèn chính × N·L + đèn phụ; loá của đèn phụ pow(N·H, 0,1 × (8196 − 8132 × _SunReflectionSize))
+    '  vec3 lt = uAmbCol + uMainCol * uMainOn * clamp(dot(N, Lm), 0.0, 1.0);',
+    '  vec3 sp = vec3(0.0); float spw = 0.1 * (8196.0 - 8132.0 * uSunSize);',
+    '  for (int i = 0; i < 8; i++) { if (i >= uAddN) break; if (uAddOn[i] < 0.5) continue;',
+    '    vec3 Lt; float a = hxAtt(i, vW, Lt); vec3 Lu = vec3(Lt.x, Lt.y, -Lt.z); vec3 lc = uAddCol[i] * a;',
+    '    lt += lc * clamp(dot(N, Lu), 0.0, 1.0); sp += lc * pow(clamp(dot(N, normalize(Lu + V)), 0.0, 1.0), spw); }',
+    '  vec3 lit = col * lt + sun + sp;',
+    '  float f = hxFog(vZ);',
+    '  gl_FragColor = vec4(lit * f * alpha + uFogCol * (1.0 - f), 1.0 - f * (1.0 - alpha));',
     '}',
   ].join('\n');
-
-  // Mây: shader graph "Cloud" gốc dùng kênh R của ảnh làm độ sáng, G làm mặt nạ, trộn hai màu HDR của material.
-  var CLOUD_VERT = 'uniform mat3 uUvT; varying vec2 vUv; varying float vD;' +
-    'void main(){ vUv = (uUvT * vec3(uv, 1.0)).xy; vec4 mv = modelViewMatrix * vec4(position, 1.0); vD = -mv.z; gl_Position = projectionMatrix * mv; }';
-  var CLOUD_FRAG = FOG_GLSL + [
-    '\nuniform sampler2D uMap; uniform vec3 uShade; uniform vec3 uLit; uniform float uOpacity; varying vec2 vUv; varying float vD;',
-    'vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }',
-    'void main() {',
-    '  vec4 t = texture2D(uMap, vUv);',
-    '  float a = t.g * uOpacity; if (a < 0.01) discard;',
-    '  vec3 hdr = mix(uShade, uLit, t.r);',
-    '  vec3 c = pow(aces(hdr), vec3(1.0 / 2.2));',
-    '  c = mix(c, uFogCol, fogK(vD) * 0.4);',
-    '  gl_FragColor = vec4(toLin(c), a);',
-    '}',
-  ].join('\n');
+  function waterUniforms(A) {
+    var u = envUniforms(4, {
+      uWY: { value: 0 }, uWH: { value: 0 }, uWDist: { value: 0 }, uWSpeed: { value: 0 }, uWSteep: { value: 0 }, uWCount: { value: 1 },
+      uWDir: { value: new THREE.Vector4() }, uAnim: { value: new THREE.Vector4() },
+      uShallow: { value: new THREE.Vector4() }, uBase: { value: new THREE.Vector4() }, uHorizon: { value: new THREE.Vector4() },
+      uFoamCol: { value: new THREE.Vector4() }, uInterCol: { value: new THREE.Vector4() }, uRippleCol: { value: new THREE.Vector4() },
+      uDepth: { value: 1 }, uDepthExp: { value: 1 }, uHorizonDist: { value: 1 }, uFoamTiling: { value: 1 }, uFoamSpeed: { value: 0 }, uFoamSize: { value: 0 },
+      uFoamMask: { value: 0 }, uFoamMaskExp: { value: 1 }, uWaveTint: { value: 0 }, uInterSrc: { value: 0 }, uInterLen: { value: 1 }, uInterFall: { value: 1 },
+      uInterTiling: { value: 1 }, uInterSpeed: { value: 0 }, uEdgeFade: { value: 0 }, uSunDist: { value: 0 }, uSunSize: { value: 1 }, uSunStr: { value: 0 },
+      uShadowStr: { value: 0 }, uRipSpeed: { value: 0 }, uRipDensity: { value: 1 }, uRipSlim: { value: 1 }, uRipOff: { value: 0 }, uRipSinT: { value: 0 },
+      uRipDir: { value: new THREE.Vector2() }, uUvU: { value: new THREE.Vector3() }, uUvV: { value: new THREE.Vector3() },
+      uFoam: { value: A.foam }, uNoise: { value: A.noise }, tDepth: { value: null }, uRes: { value: new THREE.Vector2(1, 1) },
+      uNear: { value: 0.3 }, uFar: { value: 350 }, uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() },
+      uNoiseSrgb: { value: 1 }, uFoamSrgb: { value: 1 },
+    });
+    return u;
+  }
+  function v4lin(v, c) { v.set(lin1(c[0]), lin1(c[1]), lin1(c[2]), c[3]); }
+  function applyWater(u, Wm) {
+    var F = Wm.floats, C = Wm.colors, WP = waveParams(Wm);
+    u.uWY.value = Wm.y; u.uWH.value = WP.h; u.uWDist.value = WP.dist; u.uWSpeed.value = WP.speed; u.uWSteep.value = WP.steep; u.uWCount.value = WP.count;
+    u.uWDir.value.fromArray(WP.dir); u.uAnim.value.fromArray(WP.anim);
+    v4lin(u.uShallow.value, C._ShallowColor); v4lin(u.uBase.value, C._BaseColor); v4lin(u.uHorizon.value, C._HorizonColor);
+    v4lin(u.uFoamCol.value, C._FoamColor); v4lin(u.uInterCol.value, C._IntersectionColor); v4lin(u.uRippleCol.value, C._RippleColor);
+    u.uDepth.value = F._Depth; u.uDepthExp.value = F._DepthExp; u.uHorizonDist.value = F._HorizonDistance;
+    u.uFoamTiling.value = F._FoamTiling; u.uFoamSpeed.value = F._FoamSpeed; u.uFoamSize.value = F._FoamSize; u.uFoamMask.value = F._FoamWaveMask; u.uFoamMaskExp.value = F._FoamWaveMaskExp;
+    u.uWaveTint.value = F._WaveTint; u.uInterSrc.value = F._IntersectionSource; u.uInterLen.value = F._IntersectionLength; u.uInterFall.value = F._IntersectionFalloff;
+    u.uInterTiling.value = F._IntersectionTiling; u.uInterSpeed.value = F._IntersectionSpeed; u.uEdgeFade.value = F._EdgeFade;
+    u.uSunDist.value = F._SunReflectionDistortion; u.uSunSize.value = F._SunReflectionSize; u.uSunStr.value = F._SunReflectionStrength; u.uShadowStr.value = F._ShadowStrength;
+    u.uRipSpeed.value = F._RippleSpeed; u.uRipDensity.value = F._RippleDensity; u.uRipSlim.value = F._RippleSlimless; u.uRipOff.value = F._RippleOffsetFactor;
+    u.uRipSinT.value = F._RippleOffsetSinTimeFactor; u.uRipDir.value.set(C._RippleDirection[0], C._RippleDirection[1]);
+    u.uUvU.value.fromArray(Wm.uvMap.u); u.uUvV.value.fromArray(Wm.uvMap.v);
+    u.uNoiseSrgb.value = Wm.tex._IntersectionNoise.srgb ? 1 : 0; u.uFoamSrgb.value = Wm.tex._FoamTex.srgb ? 1 : 0;
+    return WP;
+  }
 
   // ---------------------------------------------------------------- hạt VFX theo công thức ParticleSystem gốc
-  // Mỗi (ảnh, kiểu trộn, kiểu vẽ) là một nhóm = một lưới tứ giác, cập nhật thuộc tính mỗi khung → một lần vẽ.
+  // Mỗi nhóm = (material, lưới mẫu): một InstancedBufferGeometry, mỗi hạt một instance (tâm + 3 trục đã nhân cỡ + màu + ô ảnh).
+  // Shader theo đúng shader gốc gỡ từ DXBC:
+  //   Additive / AdditiveNoFog: màu = 2 × màu hạt × _TintColor × ảnh, alpha × độ mềm (_SoftParticleFactor theo độ sâu cảnh); SrcAlpha, One.
+  //   Alpha Blended: như trên, trộn sương theo _FogFactor; SrcAlpha, OneMinusSrcAlpha.
+  //   Add_CenterGlow: ảnh chính cuộn theo _SpeedMainTexUVNoiseZW, lệch theo _Flow × _Mask, nhân _Noise, _Color, _Emission; One, _Blend2.
   var PART_VERT = [
-    'attribute vec3 aC; attribute vec2 aK; attribute vec3 aS; attribute vec4 aUV; attribute vec4 aCol; attribute vec3 aV;',
-    'varying vec2 vUv; varying vec4 vCol; varying float vD; varying vec2 vK;',
+    'attribute vec3 iC; attribute vec3 iX; attribute vec3 iY; attribute vec3 iZ; attribute vec4 iCol; attribute vec4 iUV;',
+    'varying vec2 vUv; varying vec4 vCol; varying float vZ;',
     'void main() {',
-    '  vUv = aUV.xy + (aK + 0.5) * aUV.zw; vCol = aCol; vK = aK;',
-    '  float c = cos(aS.z), s = sin(aS.z); vec2 k = vec2(aK.x * c - aK.y * s, aK.x * s + aK.y * c) * aS.xy;',
-    '#ifdef FLAT',
-    '  vec4 mv = viewMatrix * vec4(aC + vec3(k.x, 0.0, k.y), 1.0);',
-    '#elif defined(STRETCH)',
-    '  vec4 mv = viewMatrix * vec4(aC, 1.0);',
-    '  vec3 vv = (viewMatrix * vec4(aV, 0.0)).xyz; vec2 dir = length(vv.xy) > 1e-4 ? normalize(vv.xy) : vec2(1.0, 0.0);',
-    '  mv.xy += dir * aK.x * aS.y + vec2(-dir.y, dir.x) * aK.y * aS.x;',
-    '#else',
-    '  vec4 mv = viewMatrix * vec4(aC, 1.0); mv.xy += k;',
-    '#endif',
-    '  vD = -mv.z; gl_Position = projectionMatrix * mv;',
+    '  vec3 w = iC + iX * position.x + iY * position.y + iZ * position.z;',
+    '  vec4 mv = viewMatrix * vec4(w, 1.0); vZ = -mv.z; gl_Position = projectionMatrix * mv;',
+    '  vUv = iUV.xy + uv * iUV.zw; vCol = iCol;',
     '}',
   ].join('\n');
-  var PART_FRAG = FOG_GLSL + [
-    '\nuniform sampler2D uMap; varying vec2 vUv; varying vec4 vCol; varying float vD; varying vec2 vK;',
+  var PART_FRAG = [
+    COMMON_GLSL,
+    '#include <packing>',
+    'uniform sampler2D uMap; uniform vec4 uTint; uniform float uSoft; uniform float uFogF; uniform float uSrgb;',
+    'uniform sampler2D tDepth; uniform vec2 uRes; uniform float uNear; uniform float uFar; uniform float uTime;',
+    'uniform sampler2D uFlow; uniform sampler2D uMask; uniform sampler2D uNoise; uniform vec4 uMainST, uFlowST, uMaskST, uNoiseST, uSpeed, uDist, uColor;',
+    'uniform float uEmission, uCenter, uSrgbF, uSrgbM, uSrgbN;',
+    'varying vec2 vUv; varying vec4 vCol; varying float vZ;',
+    'vec4 tx(sampler2D t, vec2 uv, float s) { vec4 c = texture2D(t, uv); if (s > 0.5) c.rgb = hxLin(c.rgb); return c; }',
     'void main() {',
-    // shader hạt của ProjectDR là họ Particles/Additive, Alpha Blended cũ: màu = 2 × màu hạt × tint × ảnh
-    '  vec4 t = 2.0 * texture2D(uMap, vUv) * vCol; t.a = clamp(t.a, 0.0, 1.0); float f = fogK(vD);',
-    // Add_CenterGlow: tấm vuông (lưới QuadToCircle) mờ dần ra mép thành hình tròn
-    '#ifdef CENTER',
-    '  t *= 1.0 - smoothstep(0.15, 0.5, length(vK));',
-    '#endif',
-    '#ifdef ADD',
-    '  gl_FragColor = vec4(t.rgb * t.a * (1.0 - f), 1.0);',
+    '  vec4 vc = vec4(hxLin(vCol.rgb), vCol.a);',
+    '  float f = hxFog(vZ);',
+    '#if defined(GLOW)',
+    '  vec2 muv = vUv * uMainST.xy + uMainST.zw + uTime * uSpeed.xy;',
+    '  vec2 fl = tx(uFlow, vUv * uFlowST.xy + uFlowST.zw + uTime * uDist.xy, uSrgbF).xy;',
+    '  vec4 mk = tx(uMask, vUv * uMaskST.xy + uMaskST.zw, uSrgbM);',
+    '  muv -= fl * mk.xy * uDist.z;',
+    '  vec4 m = tx(uMap, muv, uSrgb); vec4 nz = tx(uNoise, vUv * uNoiseST.xy + uNoiseST.zw + uTime * uSpeed.zw, uSrgbN);',
+    '  vec4 c = m * nz * uColor * vc; c = m.a * c * nz.a * uColor.a * vc.a;',
+    '  vec4 cg = clamp(clamp(mk - 1.0, 0.0, 1.0) * mk, 0.0, 1.0); c = mix(c, c * cg, uCenter);',   // custom data 0 → (1 − v2.z) = 1
+    '  c *= uEmission;',
+    '  gl_FragColor = vec4(c.rgb * f, c.a);',
     '#else',
-    '  if (t.a < 0.004) discard;',
-    '  gl_FragColor = vec4(toLin(mix(t.rgb, uFogCol, f)), t.a);',
+    '  float soft = 1.0;',
+    '#ifdef SOFT',
+    '  float dz = texture2D(tDepth, gl_FragCoord.xy / uRes).x; float sz = -perspectiveDepthToViewZ(dz, uNear, uFar);',
+    '  soft = clamp((sz - vZ) * uSoft, 0.0, 1.0);',
+    '#endif',
+    '  vec4 c = vc * uTint * 2.0; c.a *= soft;',
+    '  c *= tx(uMap, vUv, uSrgb);',
+    '#if defined(ALPHA)',
+    '  vec3 cf = mix(uFogCol, c.rgb, f); c.rgb = mix(c.rgb, cf, uFogF);',
+    '  gl_FragColor = vec4(c.rgb, clamp(c.a, 0.0, 1.0));',
+    '#elif defined(NOFOG)',
+    '  gl_FragColor = vec4(c.rgb, clamp(c.a, 0.0, 1.0));',
+    '#else',
+    '  c.rgb *= mix(1.0, f, uFogF);',
+    '  gl_FragColor = vec4(c.rgb, clamp(c.a, 0.0, 1.0));',
+    '#endif',
     '#endif',
     '}',
   ].join('\n');
 
-  var GROUP_CAP = 900;
-  function Group(tex, add, kind, center) {
-    var n = GROUP_CAP, g = new THREE.BufferGeometry();
-    var K = new Float32Array(n * 8), idx = new Uint16Array(n * 6);
-    for (var i = 0; i < n; i++) {
-      K.set([-0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5], i * 8);
-      idx.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3], i * 6);
-    }
-    this.C = new Float32Array(n * 12); this.S = new Float32Array(n * 12); this.UV = new Float32Array(n * 16);
-    this.COL = new Float32Array(n * 16); this.V = new Float32Array(n * 12);
-    g.setIndex(new THREE.BufferAttribute(idx, 1));
-    g.setAttribute('aK', new THREE.BufferAttribute(K, 2));
-    // three wants a 'position' attribute for bounds; aC stands in for it
-    g.setAttribute('position', this.aC = new THREE.BufferAttribute(this.C, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aC', this.aC);
-    g.setAttribute('aS', this.aS = new THREE.BufferAttribute(this.S, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aUV', this.aUV = new THREE.BufferAttribute(this.UV, 4).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aCol', this.aCol = new THREE.BufferAttribute(this.COL, 4).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aV', this.aV = new THREE.BufferAttribute(this.V, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setDrawRange(0, 0);
+  var QUAD = { pos: [[-0.5, -0.5, 0], [0.5, -0.5, 0], [0.5, 0.5, 0], [-0.5, 0.5, 0]], uv: [[0, 0], [1, 0], [1, 1], [0, 1]], index: [0, 1, 2, 0, 2, 3] };
+  var GROUP_CAP = 1024;
+  var DEPTH = { tex: null, res: new THREE.Vector2(1, 1), near: { value: 0.3 }, far: { value: 350 } };
+  var DEPTH_U = { value: null }, RES_U = { value: new THREE.Vector2(1, 1) };
+  function kindOf(mat) {
+    var s = (mat && mat.shader) || '';
+    if (/Add_CenterGlow/.test(s)) return 'glow';
+    if (/AdditiveNoFog/.test(s)) return 'nofog';
+    if (/Additive/.test(s)) return 'add';
+    return 'alpha';
+  }
+  var BLEND = { 0: THREE.ZeroFactor, 1: THREE.OneFactor, 2: THREE.DstColorFactor, 3: THREE.SrcColorFactor, 4: THREE.OneMinusDstColorFactor,
+    5: THREE.SrcAlphaFactor, 6: THREE.OneMinusSrcColorFactor, 7: THREE.DstAlphaFactor, 8: THREE.OneMinusDstAlphaFactor, 10: THREE.OneMinusSrcAlphaFactor };
+  function st4(t) { var s = (t && t.st) || [1, 1, 0, 0]; return new THREE.Vector4(s[0], s[1], s[2], s[3]); }
+  function Group(key, mat, tex, template) {
+    var tpl = template || QUAD, n = tpl.pos.length, g = new THREE.InstancedBufferGeometry();
+    var pos = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+    // lưới hạt ghi theo hệ Unity: đổi z → −z; tam giác đảo chiều do lật trục, vẽ hai mặt nên không cần sửa thứ tự
+    tpl.pos.forEach(function (p, i) { pos[i * 3] = p[0]; pos[i * 3 + 1] = p[1]; pos[i * 3 + 2] = -p[2]; uv[i * 2] = tpl.uv[i][0]; uv[i * 2 + 1] = tpl.uv[i][1]; });
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.setIndex(tpl.index);
+    var self = this;
+    ['iC', 'iX', 'iY', 'iZ'].forEach(function (k) { self[k] = new THREE.InstancedBufferAttribute(new Float32Array(GROUP_CAP * 3), 3).setUsage(THREE.DynamicDrawUsage); g.setAttribute(k, self[k]); });
+    this.iCol = new THREE.InstancedBufferAttribute(new Float32Array(GROUP_CAP * 4), 4).setUsage(THREE.DynamicDrawUsage); g.setAttribute('iCol', this.iCol);
+    this.iUV = new THREE.InstancedBufferAttribute(new Float32Array(GROUP_CAP * 4), 4).setUsage(THREE.DynamicDrawUsage); g.setAttribute('iUV', this.iUV);
+    g.instanceCount = 0;
+    var kind = kindOf(mat), F = (mat && mat.floats) || {}, C = (mat && mat.colors) || {}, T = (mat && mat.tex) || {};
+    var tintC = C._TintColor || C._Color || C._BaseColor || [1, 1, 1, 1];
+    var main = T._MainTex || T._BaseMap || {};
     var defs = {};
-    if (add) defs.ADD = 1;
-    if (kind === 'flat') defs.FLAT = 1;
-    if (kind === 'stretch') defs.STRETCH = 1;
-    if (center) defs.CENTER = 1;
-    var u = fogUniforms(); u.uMap = { value: tex };
-    this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
-      uniforms: u, vertexShader: PART_VERT, fragmentShader: PART_FRAG, defines: defs,
-      transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
-      blending: add ? THREE.AdditiveBlending : THREE.NormalBlending,
-    }));
+    if (kind === 'glow') defs.GLOW = 1; else if (kind === 'alpha') defs.ALPHA = 1; else if (kind === 'nofog') defs.NOFOG = 1;
+    if (kind !== 'glow' && F._SoftParticleFactor != null) defs.SOFT = 1;
+    var white = Particles.white;
+    var u = envUniforms(0, {
+      uMap: { value: tex || white }, uTint: { value: new THREE.Vector4(lin1(tintC[0]), lin1(tintC[1]), lin1(tintC[2]), tintC[3]) },
+      uSoft: { value: F._SoftParticleFactor || 1 }, uFogF: { value: F._FogFactor == null ? 1 : F._FogFactor }, uSrgb: { value: main.srgb === 0 ? 0 : 1 },
+      tDepth: DEPTH_U, uRes: RES_U, uNear: DEPTH.near, uFar: DEPTH.far, uTime: ENV.uTime,
+      uFlow: { value: (T._Flow && T._Flow.img && Particles.tex[T._Flow.img]) || white }, uMask: { value: (T._Mask && T._Mask.img && Particles.tex[T._Mask.img]) || white },
+      uNoise: { value: (T._Noise && T._Noise.img && Particles.tex[T._Noise.img]) || white },
+      uMainST: { value: st4(main) }, uFlowST: { value: st4(T._Flow) }, uMaskST: { value: st4(T._Mask) }, uNoiseST: { value: st4(T._Noise) },
+      uSpeed: { value: new THREE.Vector4().fromArray(C._SpeedMainTexUVNoiseZW || [0, 0, 0, 0]) }, uDist: { value: new THREE.Vector4().fromArray(C._DistortionSpeedXYPowerZ || [0, 0, 0, 0]) },
+      uColor: { value: new THREE.Vector4(lin1((C._Color || [1, 1, 1, 1])[0]), lin1((C._Color || [1, 1, 1, 1])[1]), lin1((C._Color || [1, 1, 1, 1])[2]), (C._Color || [1, 1, 1, 1])[3]) },
+      uEmission: { value: F._Emission == null ? 1 : F._Emission }, uCenter: { value: F._Usecenterglow || 0 },
+      uSrgbF: { value: T._Flow && T._Flow.srgb === 0 ? 0 : 1 }, uSrgbM: { value: T._Mask && T._Mask.srgb === 0 ? 0 : 1 }, uSrgbN: { value: T._Noise && T._Noise.srgb === 0 ? 0 : 1 },
+    });
+    var m = new THREE.ShaderMaterial({ uniforms: u, vertexShader: PART_VERT, fragmentShader: PART_FRAG, defines: defs,
+      transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide });
+    if (kind === 'glow') { m.blending = THREE.CustomBlending; m.blendSrc = THREE.OneFactor; m.blendDst = BLEND[F._Blend2 == null ? 1 : F._Blend2] || THREE.OneFactor; }
+    else if (kind === 'add' || kind === 'nofog') { m.blending = THREE.CustomBlending; m.blendSrc = THREE.SrcAlphaFactor; m.blendDst = THREE.OneFactor; }
+    else { m.blending = THREE.CustomBlending; m.blendSrc = THREE.SrcAlphaFactor; m.blendDst = THREE.OneMinusSrcAlphaFactor; }
+    this.mesh = new THREE.Mesh(g, m);
     this.mesh.frustumCulled = false;
-    this.mesh.renderOrder = add ? 6 : 5;
-    this.n = 0;
+    this.mesh.renderOrder = kind === 'alpha' ? 5 : 6;
+    this.mesh.layers.set(1);
+    this.n = 0; this.key = key;
   }
   Group.prototype.begin = function () { this.n = 0; };
-  Group.prototype.push = function (x, y, z, w, h, rot, uv, col, vx, vy, vz) {
+  Group.prototype.push = function (c, x, y, z, col, uv) {
     if (this.n >= GROUP_CAP) return;
-    var i = this.n++, j;
-    for (j = 0; j < 4; j++) {
-      this.C[i * 12 + j * 3] = x; this.C[i * 12 + j * 3 + 1] = y; this.C[i * 12 + j * 3 + 2] = z;
-      this.S[i * 12 + j * 3] = w; this.S[i * 12 + j * 3 + 1] = h; this.S[i * 12 + j * 3 + 2] = rot;
-      this.UV[i * 16 + j * 4] = uv[0]; this.UV[i * 16 + j * 4 + 1] = uv[1]; this.UV[i * 16 + j * 4 + 2] = uv[2]; this.UV[i * 16 + j * 4 + 3] = uv[3];
-      this.COL[i * 16 + j * 4] = col[0]; this.COL[i * 16 + j * 4 + 1] = col[1]; this.COL[i * 16 + j * 4 + 2] = col[2]; this.COL[i * 16 + j * 4 + 3] = col[3];
-      this.V[i * 12 + j * 3] = vx; this.V[i * 12 + j * 3 + 1] = vy; this.V[i * 12 + j * 3 + 2] = vz;
-    }
+    var i = this.n++, a3 = i * 3, a4 = i * 4;
+    this.iC.array[a3] = c.x; this.iC.array[a3 + 1] = c.y; this.iC.array[a3 + 2] = c.z;
+    this.iX.array[a3] = x.x; this.iX.array[a3 + 1] = x.y; this.iX.array[a3 + 2] = x.z;
+    this.iY.array[a3] = y.x; this.iY.array[a3 + 1] = y.y; this.iY.array[a3 + 2] = y.z;
+    this.iZ.array[a3] = z.x; this.iZ.array[a3 + 1] = z.y; this.iZ.array[a3 + 2] = z.z;
+    this.iCol.array[a4] = col[0]; this.iCol.array[a4 + 1] = col[1]; this.iCol.array[a4 + 2] = col[2]; this.iCol.array[a4 + 3] = col[3];
+    this.iUV.array[a4] = uv[0]; this.iUV.array[a4 + 1] = uv[1]; this.iUV.array[a4 + 2] = uv[2]; this.iUV.array[a4 + 3] = uv[3];
   };
   Group.prototype.end = function () {
-    this.mesh.geometry.setDrawRange(0, this.n * 6);
-    if (!this.n) return;
-    // chỉ đẩy phần đang dùng lên GPU (cả bộ đệm 900 hạt × 24 nhóm là ~6 MB mỗi khung)
-    var n = this.n * 4;
-    [this.aC, this.aS, this.aUV, this.aCol, this.aV].forEach(function (a) {
+    var g = this.mesh.geometry, n = this.n;
+    g.instanceCount = n;
+    if (!n) return;
+    [this.iC, this.iX, this.iY, this.iZ, this.iCol, this.iUV].forEach(function (a) {
       a.updateRange.offset = 0; a.updateRange.count = n * a.itemSize; a.needsUpdate = true;
     });
   };
 
-  var ADDITIVE = /Additive|Add_/;
-  // Một emitter chạy theo công thức. base: vị trí trong hệ cano (Unity), đã qua VFX_ROOT.
-  function Emitter(sys, rec, group) {
-    this.sys = sys; this.rec = rec; this.group = group;
-    this.S = VFX_ROOT.scale * (rec.scale || 1);
-    this.base = [VFX_ROOT.pos[0] + VFX_ROOT.scale * rec.pos[0], VFX_ROOT.pos[1] + VFX_ROOT.scale * rec.pos[1], VFX_ROOT.pos[2] + VFX_ROOT.scale * rec.pos[2]];
+  // Khung của emitter: ma trận gốc (cano hoặc thế giới) × ma trận emitter (vị trí, xoay, scale theo chế độ Scaling Mode).
+  var V3 = THREE.Vector3;
+  function Emitter(sys, rec, root) {
+    this.sys = sys; this.rec = rec; this.root = root;          // root: 'boat' | 'world'
+    var q = qU2T(rec.rotQ || [0, 0, 0, 1]), p = U2T(rec.pos);
+    var sc = rec.scaling === 'local' ? rec.localScale : (rec.lossy || [rec.scale || 1, rec.scale || 1, rec.scale || 1]);
+    this.sizeScale = rec.scaling === 'shape' ? 1 : Math.abs(sc[0] || 1);   // scale âm (lật gương) chỉ đổi chiều, không đổi cỡ
+    this.local = new THREE.Matrix4().compose(new V3(p[0], p[1], p[2]), new THREE.Quaternion(q[0], q[1], q[2], q[3]), new V3(sc[0] || 1e-4, sc[1] || 1e-4, sc[2] || 1e-4));
+    this.world = new THREE.Matrix4().copy(this.local);
+    this.ax = [new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1)];   // trục xoay (chuẩn hoá) của emitter trong thế giới three
+    this.inv = new THREE.Matrix4();
+    this.l2w = new THREE.Matrix3(); this.w2l = new THREE.Matrix3();   // phần tuyến tính (có scale) để đổi véc-tơ vận tốc/lực giữa hai hệ
     this.subs = [];
-    this.on = false; this.mode = 'once'; this.t = 0; this.acc = 0; this.live = 0; this.rateMul = 1; this.fired = 0;
-    // mức phát ổn định (đoạn phẳng của đường cong rate) dùng khi cano đang chạy
+    this.on = false; this.mode = 'once'; this.t = 0; this.acc = 0; this.live = 0; this.rateMul = 1; this.fired = {};
+    this.gw = new V3();       // trọng lực (m/s²) trong hệ mô phỏng
     var r = rec.rate, plat = 0;
     if (r && r.curve) { for (var u = 0.25; u <= 0.8; u += 0.05) plat = Math.max(plat, curveAt(r.curve, u)); plat *= r.mul == null ? 1 : r.mul; }
     else plat = num(r, 0.5, 0.5);
-    this.plateau = plat;
+    this.plateau = plat;     // mức phát ổn định (đoạn phẳng của đường cong rate) dùng khi cano đang chạy [ĐỀ XUẤT]
   }
-  Emitter.prototype.start = function (mode) { this.on = true; this.mode = mode; this.t = 0; this.acc = 0; this.fired = 0; };
+  Emitter.prototype.frame = function (rootM) {
+    if (rootM) this.world.multiplyMatrices(rootM, this.local); else this.world.copy(this.local);
+    var e = this.world.elements;
+    this.ax[0].set(e[0], e[1], e[2]).normalize(); this.ax[1].set(e[4], e[5], e[6]).normalize(); this.ax[2].set(e[8], e[9], e[10]).normalize();
+    this.inv.copy(this.world).invert();
+    this.l2w.setFromMatrix4(this.world); this.w2l.setFromMatrix4(this.inv);
+    // trọng lực thế giới (−y) đổi về hệ mô phỏng
+    var g = num(this.rec.gravity, 0, 0.5) * 9.81;
+    this.gw.set(0, -g, 0);
+    if (this.rec.space !== 'world') this.gw.applyMatrix3(this.w2l);
+  };
+  Emitter.prototype.start = function (mode) { this.on = true; this.mode = mode; this.t = 0; this.acc = 0; this.fired = {}; };
   Emitter.prototype.stop = function () { this.on = false; };
   Emitter.prototype.update = function (dt) {
-    if (!this.on || !this.group) return;
+    if (!this.on) return;
     var rec = this.rec, te;
     this.t += dt;
     te = this.t - num(rec.delay, 0, 0.5);
@@ -469,22 +876,28 @@
     var n = Math.floor(this.acc);
     this.acc -= n;
     var max = rec.maxParticles || 100;
-    // cụm phát một lúc (bursts): mỗi cụm một lần ở chế độ 'once'; chế độ chạy liên tục chỉ dùng rate
-    if (rec.bursts && this.mode === 'once') {
+    if (rec.bursts && this.mode !== 'run') {
+      var tc = loop ? te % dur : te, cyc = loop ? Math.floor(te / dur) : 0;
       for (var b = 0; b < rec.bursts.length && b < 30; b++) {
-        if (this.fired & (1 << b) || te < rec.bursts[b].time) continue;
-        this.fired |= 1 << b;
-        n += Math.round(num(rec.bursts[b].count, 0, Math.random()) * Math.min(1, this.rateMul));
+        var bu = rec.bursts[b], cycles = Math.max(1, bu.cycles || 1);
+        for (var c = 0; c < cycles && c < 20; c++) {
+          var key = cyc + ':' + b + ':' + c, tb = bu.time + c * (bu.interval || 0);
+          if (this.fired[key] || tc < tb) continue;
+          this.fired[key] = 1;
+          if (rec.burstProb && Math.random() > rec.burstProb[b]) continue;
+          n += Math.round(num(bu.count, 0, Math.random()) * Math.min(1, this.rateMul));
+        }
       }
     }
     for (var i = 0; i < n && this.live < max; i++) this.sys.spawn(this, null);
   };
 
   // Mẫu điểm sinh và hướng theo Shape module (hệ emitter, Unity).
-  function shapeSample(sh, out) {
-    var p = out.p, d = out.d, a, k, R, th, arc;
+  var SH = { p: [0, 0, 0], d: [0, 0, 1] };
+  function shapeSample(sh, more) {
+    var p = SH.p, d = SH.d, a, k, R, th, arc;
     p[0] = p[1] = p[2] = 0; d[0] = 0; d[1] = 0; d[2] = 1;
-    if (!sh) return out;
+    if (!sh) return SH;
     R = sh.radius || 0; th = sh.thickness == null ? 1 : sh.thickness; arc = (sh.arc == null ? 360 : sh.arc) * Math.PI / 180;
     switch (sh.type) {
       case 'sphere': case 'hemisphere': {
@@ -503,6 +916,7 @@
         var sa = (sh.angle || 0) * Math.PI / 180 * k;
         p[0] = Math.cos(a) * R * k; p[1] = Math.sin(a) * R * k;
         d[0] = Math.cos(a) * Math.sin(sa); d[1] = Math.sin(a) * Math.sin(sa); d[2] = Math.cos(sa);
+        if (sh.type === 'coneVolume' && more && more.length) { var l = Math.random() * more.length; p[0] += d[0] * l; p[1] += d[1] * l; p[2] += d[2] * l; }
         break;
       }
       case 'box': case 'boxShell': case 'boxEdge':
@@ -515,154 +929,276 @@
         break;
     }
     var s = sh.scale || [1, 1, 1];
-    p[0] *= s[0] || 0; p[1] *= s[1] || 0; p[2] *= s[2] || 0;
+    p[0] *= s[0]; p[1] *= s[1]; p[2] *= s[2];
     eulerU(sh.rot, p); eulerU(sh.rot, d);
     if (sh.pos) { p[0] += sh.pos[0]; p[1] += sh.pos[1]; p[2] += sh.pos[2]; }
-    return out;
+    if (more) {
+      if (more.randomDir) {   // Randomize Direction: trộn với một hướng ngẫu nhiên
+        var rz = Math.random() * 2 - 1, ra = Math.random() * Math.PI * 2, rs = Math.sqrt(1 - rz * rz), m = more.randomDir;
+        d[0] = lerp(d[0], Math.cos(ra) * rs, m); d[1] = lerp(d[1], Math.sin(ra) * rs, m); d[2] = lerp(d[2], rz, m);
+      }
+      if (more.sphericalDir) {
+        var pl = Math.hypot(p[0], p[1], p[2]) || 1, ms = more.sphericalDir;
+        d[0] = lerp(d[0], p[0] / pl, ms); d[1] = lerp(d[1], p[1] / pl, ms); d[2] = lerp(d[2], p[2] / pl, ms);
+      }
+      var dl = Math.hypot(d[0], d[1], d[2]) || 1; d[0] /= dl; d[1] /= dl; d[2] /= dl;
+    }
+    return SH;
+  }
+  // Nhiễu vị trí (Noise module): Unity dùng nhiễu riêng không có trong dữ liệu; đây là nhiễu giá trị 3 chiều mượt [ĐỀ XUẤT].
+  function hash3(x, y, z) { var s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return (s - Math.floor(s)) * 2 - 1; }
+  function vnoise(x, y, z) {
+    var xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), xf = x - xi, yf = y - yi, zf = z - zi;
+    var u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf);
+    function h(a, b, c) { return hash3(xi + a, yi + b, zi + c); }
+    return lerp(lerp(lerp(h(0, 0, 0), h(1, 0, 0), u), lerp(h(0, 1, 0), h(1, 1, 0), u), v), lerp(lerp(h(0, 0, 1), h(1, 0, 1), u), lerp(h(0, 1, 1), h(1, 1, 1), u), v), w);
   }
 
   function Particles(scene, tex) {
-    this.scene = scene; this.tex = tex;
+    this.scene = scene; Particles.tex = tex;
+    if (!Particles.white) { Particles.white = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); Particles.white.needsUpdate = true; }
     this.groups = {}; this.list = []; this.pool = [];
     this.sets = {};
-    this.shape = { p: [0, 0, 0], d: [0, 0, 1] };
     this.col = [1, 1, 1, 1]; this.col2 = [1, 1, 1, 1]; this.uv = [0, 0, 1, 1];
+    this.c = new V3(); this.x = new V3(); this.y = new V3(); this.z = new V3(); this.t0 = new V3(); this.t1 = new V3();
+    this.cam = null;
   }
-  Particles.prototype.group = function (rec) {
-    if (!drawn(rec)) return null;
-    var add = ADDITIVE.test(rec.shader || '') || rec.blend === 'additive';
-    var mode = rec.render.mode, kind = mode === 'mesh' || mode === 'horizontal' ? 'flat' : mode === 'stretch' ? 'stretch' : 'bill';
-    var center = /CenterGlow/.test(rec.shader || '');
-    var key = rec.img + '|' + add + '|' + kind + (center ? '|c' : '');
+  Particles.prototype.group = function (rec, trail) {
+    var mat = trail ? rec.trailMat : rec.mat;
+    if (!trail && !drawn(rec)) return null;
+    if (!mat) return null;
+    var main = mat.tex._MainTex || mat.tex._BaseMap || {};
+    var tex = main.img ? Particles.tex[main.img] : null;
+    var tpl = !trail && rec.render.mode === 'mesh' && rec.mesh ? L.meshes[rec.mesh] : null;
+    var key = mat.name + '|' + (tpl ? rec.mesh : 'quad') + '|' + kindOf(mat);
     if (!this.groups[key]) {
-      var g = this.groups[key] = new Group(this.tex[rec.img], add, kind, center);
+      var g = this.groups[key] = new Group(key, mat, tex, tpl);
       this.scene.add(g.mesh);
     }
     return this.groups[key];
   };
-  // Nạp một công thức thành một bộ emitter; emitter có subEmitters thì các emitter liền sau (không tự phát) là con, bắn khi hạt cha tắt.
-  Particles.prototype.load = function (name, recipe) {
-    var self = this, list = [], group = null;
-    for (var i = 0; i < recipe.emitters.length; i++) {
-      var rec = recipe.emitters[i];
-      // emitter trống (không vẽ) là gốc một nhóm con trong prefab: Back, Booster, Tube_Side, SideL, SideR, Idle
-      if (!drawn(rec) && !rec.rate && !rec.bursts) { group = rec.name; continue; }
-      var em = new Emitter(self, rec, self.group(rec));
-      em.part = group;
-      list.push(em);
-      if (rec.subEmitters) {
-        var n = rec.subEmitters;
-        for (var j = i + 1; j < recipe.emitters.length && n > 0; j++) {
-          var sr = recipe.emitters[j];
-          if (sr.rate || !sr.bursts) break;
-          var sub = new Emitter(self, sr, self.group(sr));
-          sub.isSub = true; em.subs.push(sub); n--; i = j;
-        }
-      }
-    }
-    this.sets[name] = list;
+  // Nạp một công thức thành một bộ emitter. Emitter trống (không vẽ, không phát) là gốc của một nhóm con trong prefab
+  // (Back, Booster, Tube_Side, SideL, SideR, Idle): các emitter sau nó mang tên nhóm đó (thứ tự duyệt cây của rip_boat.py).
+  Particles.prototype.load = function (name, recipe, root) {
+    var self = this, list = [], part = null;
+    var ems = recipe.emitters.map(function (rec) { return new Emitter(self, rec, root); });
+    ems.forEach(function (em, i) {
+      var rec = em.rec;
+      em.group = self.group(rec, false);
+      em.trailGroup = rec.trailMore && rec.trailMat ? self.group(rec, true) : null;
+      if (!drawn(rec) && !rec.rate && !rec.bursts) { part = rec.name; em.empty = true; }
+      em.part = part;
+      (rec.subs || []).forEach(function (s) { if (s.index != null && ems[s.index]) { ems[s.index].isSub = true; em.subs.push({ em: ems[s.index], type: s.type }); } });
+    });
+    ems.forEach(function (em) { if (!em.empty && !em.isSub && em.rec.on !== false) list.push(em); });
+    this.sets[name] = { list: list, all: ems, root: root };
     return list;
   };
-  // at: vị trí sinh (hệ three, thế giới) thay cho vị trí emitter; dùng cho emitter con và cho cú nhảy của Dave.
+  Particles.prototype.frames = function (boatM) {
+    for (var n in this.sets) {
+      var S = this.sets[n], rm = S.root === 'boat' ? boatM : null;
+      for (var i = 0; i < S.all.length; i++) S.all[i].frame(rm);
+    }
+  };
+  // at: vị trí sinh (thế giới three) thay cho vị trí emitter; dùng cho emitter con (sub-emitter).
+  var tv3 = new V3(), tv3b = new V3();
   Particles.prototype.spawn = function (em, at) {
-    var rec = em.rec, p = this.pool.pop() || {}, S = em.S, sh = shapeSample(rec.shape, this.shape);
-    var boat = this.boat, r = Math.random();
-    p.em = em; p.r = r; p.r2 = Math.random(); p.age = 0;
+    var rec = em.rec, p = this.pool.pop() || { pos: new V3(), vel: new V3(), c0: [1, 1, 1, 1], hist: [] };
+    var ax = at ? at.x : 0, ay = at ? at.y : 0, az = at ? at.z : 0;
+    var sh = shapeSample(rec.shape, rec.shapeMore), S = em.sizeScale;
+    p.em = em; p.r = Math.random(); p.r2 = Math.random(); p.r3 = Math.random(); p.age = 0; p.subAcc = 0;
     p.life = Math.max(0.02, num(rec.lifetime, 0, Math.random()));
-    var sp = num(rec.speed, 0, Math.random()) * S;
-    // hệ cano (Unity) → three
-    var lx = em.base[0] + sh.p[0] * S, ly = em.base[1] + sh.p[1] * S, lz = -(em.base[2] + sh.p[2] * S);
-    var vx = sh.d[0] * sp, vy = sh.d[1] * sp, vz = -sh.d[2] * sp;
+    var sp = num(rec.speed, 0, Math.random());
+    var md = rec.velocityMore && rec.velocityMore.speedModifier; if (md != null) sp *= num(md, 0, 0.5);
     p.world = rec.space === 'world' || !!at;
-    if (at) { p.x = at[0] + sh.p[0] * S; p.y = at[1] + sh.p[1] * S; p.z = at[2] - sh.p[2] * S; }
-    else if (p.world) {
-      var w = boat.toWorld(lx, ly, lz); p.x = w[0]; p.y = w[1]; p.z = w[2];
-      var wv = boat.dirToWorld(vx, vy, vz); vx = wv[0]; vy = wv[1]; vz = wv[2];
-    } else { p.x = lx; p.y = ly; p.z = lz; }
-    p.vx = vx; p.vy = vy; p.vz = vz;
-    p.gv = 0;
+    // hệ emitter (Unity) → hệ emitter three (z đảo dấu)
+    tv3.set(sh.p[0], sh.p[1], -sh.p[2]); tv3b.set(sh.d[0], sh.d[1], -sh.d[2]);
+    if (at) {
+      p.pos.set(ax + tv3.x * S, ay + tv3.y * S, az + tv3.z * S);
+      p.vel.copy(tv3b).multiplyScalar(sp * S);
+    } else if (p.world) {
+      p.pos.copy(tv3).applyMatrix4(em.world);
+      p.vel.copy(tv3b).multiplyScalar(sp).applyMatrix3(em.l2w);
+    } else { p.pos.copy(tv3); p.vel.copy(tv3b).multiplyScalar(sp); }
     p.size = num(rec.size, 0, Math.random()) * S;
     p.sizeY = rec.sizeY != null ? num(rec.sizeY, 0, Math.random()) * S : p.size;
-    p.rot = num(rec.rotation, 0, Math.random());
-    p.spin = rec.rotOverLife ? num(rec.rotOverLife, 0, Math.random()) : 0;
+    p.sizeZ = rec.sizeZ != null ? num(rec.sizeZ, 0, Math.random()) * S : p.size;
+    var flip = rec.flipRot && Math.random() < rec.flipRot ? -1 : 1;
+    p.rot = num(rec.rotation, 0, Math.random()) * flip;
+    p.rot3 = rec.rot3D ? [num(rec.rot3D[0], 0, Math.random()) * flip, num(rec.rot3D[1], 0, Math.random()) * flip, num(rec.rot3D[2], 0, Math.random()) * flip] : null;
+    p.spin = rec.rotOverLife ? flip : 0;
     colorAt(rec.color, em.t / (rec.duration || 1), Math.random(), this.col);
-    p.c0 = p.c0 || [1, 1, 1, 1];
-    var tint = rec.tint || [1, 1, 1, 1];
-    for (var i = 0; i < 4; i++) p.c0[i] = this.col[i] * tint[i];
+    for (var i = 0; i < 4; i++) p.c0[i] = this.col[i];
     p.frame0 = rec.sheet ? num(rec.sheet.startFrame, 0, Math.random()) : 0;
+    p.hist.length = 0;
     em.live++;
     this.list.push(p);
     return p;
   };
   Particles.prototype.kill = function (i) {
-    var p = this.list[i];
-    p.em.live--;
-    var subs = p.em.subs;
-    if (subs.length) {
-      var pos = p.world ? [p.x, p.y, p.z] : this.boat.toWorld(p.x, p.y, p.z);
-      for (var s = 0; s < subs.length; s++) {
-        var sr = subs[s].rec, n = 0;
-        (sr.bursts || []).forEach(function (b) { n += Math.round(num(b.count, 0, Math.random())); });
-        for (var k = 0; k < n && subs[s].live < (sr.maxParticles || 30); k++) this.spawn(subs[s], pos);
-      }
+    var p = this.list[i], em = p.em;
+    em.live--;
+    for (var s = 0; s < em.subs.length; s++) {
+      if (em.subs[s].type !== 'death') continue;
+      var sub = em.subs[s].em, sr = sub.rec, n = 0;
+      (sr.bursts || []).forEach(function (b) { n += Math.round(num(b.count, 0, Math.random())); });
+      var w = this.worldPos(p, tv3b.set(0, 0, 0));
+      for (var k = 0; k < n && sub.live < (sr.maxParticles || 30); k++) this.spawn(sub, w);
     }
     this.list[i] = this.list[this.list.length - 1];
     this.list.pop();
     p.em = null;
     this.pool.push(p);
   };
-  Particles.prototype.update = function (dt, boat) {
-    this.boat = boat;
-    var k, name;
-    for (name in this.sets) for (k = 0; k < this.sets[name].length; k++) this.sets[name][k].update(dt);
+  Particles.prototype.worldPos = function (p, out) {
+    out.copy(p.pos);
+    if (!p.world) out.applyMatrix4(p.em.world);
+    return out;
+  };
+  var MQ = new THREE.Matrix4(), EU = new THREE.Euler(0, 0, 0, 'YXZ');
+  Particles.prototype.update = function (dt, cam) {
+    var k, name, L2 = this.list, uv = this.uv, col = this.col2;
+    for (name in this.sets) { var S = this.sets[name]; for (k = 0; k < S.list.length; k++) S.list[k].update(dt); }
     for (k in this.groups) this.groups[k].begin();
-    var L = this.list, uv = this.uv, col = this.col2;
-    for (var i = L.length - 1; i >= 0; i--) {
-      var p = L[i], rec = p.em.rec;
+    var e = cam.matrixWorld.elements, cr = this.t0.set(e[0], e[1], e[2]).normalize(), cu = this.t1.set(e[4], e[5], e[6]).normalize();
+    var cb = new V3(e[8], e[9], e[10]).normalize();
+    for (var i = L2.length - 1; i >= 0; i--) {
+      var p = L2[i], em = p.em, rec = em.rec;
       p.age += dt;
       var t = p.age / p.life;
       if (t >= 1) { this.kill(i); continue; }
-      // trọng lực (gravityModifier × 9,81) và vận tốc theo đời hạt
-      p.gv += num(rec.gravity, t, p.r) * 9.81 * dt;
-      var ox = 0, oy = 0, oz = 0, V = rec.velocity;
-      if (V) {
-        ox = num(V.x, t, p.r); oy = num(V.y, t, p.r2); oz = -num(V.z, t, p.r);
-        var sc = p.em.S;
-        ox *= sc; oy *= sc; oz *= sc;
-        if (p.world) { var wv = boat.dirToWorld(ox, oy, oz, true); ox = wv[0]; oy = wv[1]; oz = wv[2]; }
+      var S = em.sizeScale;
+      // lực, trọng lực, vận tốc theo đời hạt, giới hạn vận tốc (ClampVelocity), cản
+      p.vel.addScaledVector(em.gw, dt);
+      var F = rec.force;
+      if (F) {
+        tv3.set(num(F.x, t, p.r), num(F.y, t, p.r2), -num(F.z, t, p.r));
+        if (!!F.world !== p.world) tv3.applyMatrix3(F.world ? em.w2l : em.l2w);
+        p.vel.addScaledVector(tv3, dt);
       }
-      p.x += (p.vx + ox) * dt; p.y += (p.vy + oy - p.gv) * dt; p.z += (p.vz + oz) * dt;
-      p.rot += p.spin * dt;
-      var g = p.em.group;
-      if (!g) continue;
-      var sm = rec.sizeOverLife ? num(rec.sizeOverLife, t, p.r) : 1;
+      var ox = 0, oy = 0, oz = 0, Vm = rec.velocity;
+      if (Vm) {
+        tv3.set(num(Vm.x, t, p.r), num(Vm.y, t, p.r2), -num(Vm.z, t, p.r));
+        if (Vm.world && !p.world) tv3.applyMatrix3(em.w2l);
+        else if (!Vm.world && p.world) tv3.applyMatrix3(em.l2w);
+        ox = tv3.x; oy = tv3.y; oz = tv3.z;
+      }
+      var Cl = rec.clamp;
+      if (Cl) {
+        // Unity: vận tốc vượt ngưỡng thì kéo về ngưỡng theo _dampen mỗi khung; quy về 30 khung/giây cho khỏi phụ thuộc tốc độ khung [ĐỀ XUẤT]
+        var damp = 1 - Math.pow(1 - clamp(Cl.dampen, 0, 1), dt * 30);
+        if (Cl.separate) {
+          var lx = Math.abs(num(Cl.x, t, p.r)), ly = Math.abs(num(Cl.y, t, p.r)), lz = Math.abs(num(Cl.z, t, p.r));
+          if (Math.abs(p.vel.x) > lx) p.vel.x = lerp(p.vel.x, Math.sign(p.vel.x) * lx, damp);
+          if (Math.abs(p.vel.y) > ly) p.vel.y = lerp(p.vel.y, Math.sign(p.vel.y) * ly, damp);
+          if (Math.abs(p.vel.z) > lz) p.vel.z = lerp(p.vel.z, Math.sign(p.vel.z) * lz, damp);
+        } else {
+          var lim = num(Cl.magnitude, t, p.r) * (p.world ? S : 1), vv = p.vel.length();
+          if (vv > lim && vv > 1e-6) p.vel.multiplyScalar(lerp(1, lim / vv, damp));
+        }
+        var dr = num(Cl.drag, t, p.r);
+        if (dr) { if (Cl.dragSize) dr *= p.size * p.size; if (Cl.dragVel) dr *= p.vel.length(); p.vel.multiplyScalar(Math.max(0, 1 - dr * dt)); }
+      }
+      var Nz = rec.noise;
+      if (Nz) {
+        var fq = Nz.frequency || 0.5, sc = num(Nz.scroll, t, p.r) * em.t, st = num(Nz.strength, t, p.r) * num(Nz.pos, t, p.r);
+        var bx = p.pos.x * fq + sc, by = p.pos.y * fq, bz = p.pos.z * fq;
+        ox += vnoise(bx, by, bz) * st; oy += vnoise(bx + 31.4, by, bz + 7.1) * (Nz.separate ? num(Nz.strengthY, t, p.r) * num(Nz.pos, t, p.r) : st);
+        oz += vnoise(bx + 11.3, by + 19.7, bz) * (Nz.separate ? num(Nz.strengthZ, t, p.r) * num(Nz.pos, t, p.r) : st);
+      }
+      p.pos.x += (p.vel.x + ox) * dt; p.pos.y += (p.vel.y + oy) * dt; p.pos.z += (p.vel.z + oz) * dt;
+      if (rec.rotOverLife) p.rot += num(rec.rotOverLife, t, p.r) * p.spin * dt;
+      if (p.rot3 && rec.rotAxes) { p.rot3[0] += num(rec.rotAxes[0], t, p.r) * dt; p.rot3[1] += num(rec.rotAxes[1], t, p.r) * dt; p.rot3[2] += num(rec.rotAxes[2], t, p.r) * dt; }
+      // emitter con loại birth: phát theo rate của nó từ chỗ hạt cha
+      for (var s = 0; s < em.subs.length; s++) {
+        if (em.subs[s].type !== 'birth') continue;
+        var sub = em.subs[s].em;
+        p.subAcc += num(sub.rec.rate, 0.5, 0.5) * dt;
+        while (p.subAcc >= 1 && sub.live < (sub.rec.maxParticles || 100)) { p.subAcc -= 1; this.spawn(sub, this.worldPos(p, tv3b)); }
+        if (p.subAcc >= 1) p.subAcc = 0;
+      }
+      var g = em.group;
+      if (!g && !em.trailGroup) continue;
+      var c = this.worldPos(p, this.c);
+      var sm = rec.sizeOverLife ? num(rec.sizeOverLife, t, p.r) : 1, smY = sm, smZ = sm;
+      if (rec.sizeAxes) { sm = num(rec.sizeAxes[0], t, p.r); smY = num(rec.sizeAxes[1], t, p.r); smZ = num(rec.sizeAxes[2], t, p.r); }
       colorAt(rec.colorOverLife, t, p.r2, col);
       col[0] *= p.c0[0]; col[1] *= p.c0[1]; col[2] *= p.c0[2]; col[3] *= p.c0[3];
-      var sh = rec.sheet;
-      if (sh) {
-        var nf = sh.type === 'singleRow' ? sh.cols : sh.cols * sh.rows;
-        var f = Math.floor((num(sh.frameOverTime, t, p.r) * (sh.cycles || 1) % 1) * nf + p.frame0) % nf;
-        var cx = f % sh.cols, cy = sh.type === 'singleRow' ? (sh.row || 0) : Math.floor(f / sh.cols);
-        uv[0] = cx / sh.cols; uv[1] = 1 - (cy + 1) / sh.rows; uv[2] = 1 / sh.cols; uv[3] = 1 / sh.rows;
+      if (em.trailGroup) this.trail(p, c, col, t);
+      if (!g) continue;
+      var sht = rec.sheet;
+      if (sht) {
+        var nf = sht.type === 'singleRow' ? sht.cols : sht.cols * sht.rows;
+        var f = Math.floor((num(sht.frameOverTime, t, p.r) * (sht.cycles || 1) % 1) * nf + p.frame0) % nf;
+        var cx = f % sht.cols, cy = sht.type === 'singleRow' ? (sht.row || 0) : Math.floor(f / sht.cols);
+        uv[0] = cx / sht.cols; uv[1] = 1 - (cy + 1) / sht.rows; uv[2] = 1 / sht.cols; uv[3] = 1 / sht.rows;
       } else { uv[0] = 0; uv[1] = 0; uv[2] = 1; uv[3] = 1; }
-      var x = p.x, y = p.y, z = p.z;
-      if (!p.world) { var w = boat.toWorld(x, y, z); x = w[0]; y = w[1]; z = w[2]; }
-      var sw = p.size * sm, shh = p.sizeY * sm;
-      if (g.mesh.material.defines.STRETCH) {
-        var vl = Math.hypot(p.vx + ox, p.vy + oy - p.gv, p.vz + oz);
-        shh = sw * (rec.render.lengthScale || 1) + vl * (rec.render.velocityScale || 0);
-        g.push(x, y, z, sw, shh, 0, uv, col, p.vx + ox, p.vy + oy - p.gv, p.vz + oz);
-      } else g.push(x, y, z, sw, shh, p.rot, uv, col, 0, 0, 0);
+      var w = p.size * sm, h = p.sizeY * smY, dz = p.sizeZ * smZ;
+      var mode = rec.render.mode, al = rec.align || 'view';
+      var X = this.x, Y = this.y, Z = this.z;
+      if (mode === 'stretch') {
+        var vx = p.vel.x + ox, vy = p.vel.y + oy, vz = p.vel.z + oz;
+        tv3.set(vx, vy, vz); if (!p.world) tv3.applyMatrix3(em.l2w);
+        var spd = tv3.length();
+        // trục dài theo vận tốc chiếu lên mặt phẳng nhìn
+        var dp = tv3.dot(cb); tv3b.copy(tv3).addScaledVector(cb, -dp);
+        if (tv3b.lengthSq() < 1e-8) tv3b.copy(cu);
+        tv3b.normalize();
+        var len = w * (rec.render.lengthScale || 1) + spd * (rec.render.velocityScale || 0);
+        Y.copy(tv3b).multiplyScalar(len); X.crossVectors(tv3b, cb).normalize().multiplyScalar(w); Z.set(0, 0, 0);
+      } else {
+        if (mode === 'horizontal') { X.set(1, 0, 0); Y.set(0, 0, -1); Z.set(0, 1, 0); }
+        else if (al === 'world') { X.set(1, 0, 0); Y.set(0, 1, 0); Z.set(0, 0, 1); }
+        else if (al === 'local') { X.copy(em.ax[0]); Y.copy(em.ax[1]); Z.copy(em.ax[2]); }
+        else { X.copy(cr); Y.copy(cu); Z.copy(cb); }
+        if (p.rot3) {
+          // xoay 3D của Unity (Z → X → Y) trong hệ căn của hạt; three: đảo dấu góc quanh x, y do lật trục z
+          EU.set(-p.rot3[0], -p.rot3[1], p.rot3[2], 'YXZ');
+          MQ.makeRotationFromEuler(EU);
+          var m = MQ.elements, x0 = X.clone(), y0 = Y.clone(), z0 = Z.clone();
+          X.set(0, 0, 0).addScaledVector(x0, m[0]).addScaledVector(y0, m[1]).addScaledVector(z0, m[2]);
+          Y.set(0, 0, 0).addScaledVector(x0, m[4]).addScaledVector(y0, m[5]).addScaledVector(z0, m[6]);
+          Z.set(0, 0, 0).addScaledVector(x0, m[8]).addScaledVector(y0, m[9]).addScaledVector(z0, m[10]);
+        } else if (p.rot) {
+          var co = Math.cos(-p.rot), si = Math.sin(-p.rot);
+          tv3.copy(X).multiplyScalar(co).addScaledVector(Y, si); Y.multiplyScalar(co).addScaledVector(X, -si); X.copy(tv3);
+        }
+        X.multiplyScalar(w); Y.multiplyScalar(h); Z.multiplyScalar(dz);
+      }
+      if (rec.flip && rec.flip[0] && p.r3 < rec.flip[0]) X.multiplyScalar(-1);
+      if (rec.flip && rec.flip[1] && p.r2 < rec.flip[1]) Y.multiplyScalar(-1);
+      g.push(c, X, Y, Z, col, uv);
     }
     for (k in this.groups) this.groups[k].end();
   };
+  // Vệt (TrailModule): lưu vị trí thế giới của hạt, vẽ mỗi đoạn một tứ giác theo ảnh vệt (textureMode kéo dài).
+  Particles.prototype.trail = function (p, c, col, t) {
+    var T = p.em.rec.trailMore, g = p.em.trailGroup, H = p.hist;
+    var life = Math.max(0.01, num(T.lifetime, t, p.r) * p.life);
+    var last = H[H.length - 1];
+    if (!last || Math.hypot(c.x - last[0], c.y - last[1], c.z - last[2]) > (T.minDist || 0.01)) H.push([c.x, c.y, c.z, p.age]);
+    while (H.length && p.age - H[0][3] > life) H.shift();
+    if (H.length < 2) return;
+    var cam = this.cam, cp = cam.position, n = H.length, tc = [0, 0, 0, 0];
+    for (var i = n - 1; i > 0; i--) {
+      var a = H[i], b = H[i - 1], u0 = (n - 1 - i) / (n - 1), u1 = (n - i) / (n - 1);
+      this.x.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      this.c.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+      tv3.set(cp.x - this.c.x, cp.y - this.c.y, cp.z - this.c.z);
+      var wd = num(T.width, (u0 + u1) / 2, p.r) * (T.sizeWidth ? p.size : 1);
+      this.y.crossVectors(this.x, tv3).normalize().multiplyScalar(wd);
+      colorAt(T.colorOverTrail, (u0 + u1) / 2, p.r2, tc);
+      if (T.inheritColor) { tc[0] *= col[0]; tc[1] *= col[1]; tc[2] *= col[2]; tc[3] *= col[3]; }
+      g.push(this.c, this.x, this.y, this.z.set(0, 0, 0), tc, [u0, 0, u1 - u0, 1]);
+    }
+  };
   Particles.prototype.clear = function () {
     while (this.list.length) { var p = this.list.pop(); p.em.live = 0; p.em = null; this.pool.push(p); }
-    for (var name in this.sets) this.sets[name].forEach(function (e) { e.stop(); e.live = 0; });
+    for (var name in this.sets) this.sets[name].all.forEach(function (e) { e.stop(); e.live = 0; });
     for (var k in this.groups) { this.groups[k].begin(); this.groups[k].end(); }
   };
   Particles.prototype.setRun = function (name, parts, mode, mul) {
-    this.sets[name].forEach(function (e) {
+    this.sets[name].list.forEach(function (e) {
       if (parts && parts.indexOf(e.part) < 0) return;
       if (mode === 'stop') { e.stop(); return; }
       if (!e.on || e.mode !== mode) e.start(mode);
@@ -670,184 +1206,281 @@
     });
   };
   Particles.prototype.mul = function (name, parts, mul) {
-    this.sets[name].forEach(function (e) { if (!parts || parts.indexOf(e.part) >= 0) e.rateMul = mul; });
+    this.sets[name].list.forEach(function (e) { if (!parts || parts.indexOf(e.part) >= 0) e.rateMul = mul; });
+  };
+  // Hiệu ứng nền của sảnh lặp mãi: bật vòng lặp, emitter có prewarm thì chạy trước một vòng.
+  Particles.prototype.ambient = function (name, on, cam) {
+    var S = this.sets[name], self = this;
+    if (!on) { S.list.forEach(function (e) { e.stop(); }); return; }
+    S.list.forEach(function (e) { e.start('loop'); });
+    var pre = 0;
+    S.list.forEach(function (e) { if (e.rec.prewarm) pre = Math.max(pre, Math.min(8, e.rec.duration || 1)); });
+    for (var t = 0; t < pre; t += 0.1) {
+      S.list.forEach(function (e) { if (e.rec.prewarm) e.update(0.1); });
+      self.update(0.1, cam);
+    }
   };
 
   // ---------------------------------------------------------------- dựng cảnh (một lần, giữ lại)
-  var W = null;   // thế giới: scene, camera, cano, Dave, hạt...
+  var W = null;
   function build(A) {
     var scene = new THREE.Scene();
-    var sky = FOG.c;
-    scene.background = new THREE.Color(Math.pow(sky[0], 2.2), Math.pow(sky[1], 2.2), Math.pow(sky[2], 2.2));
-    scene.fog = new THREE.Fog(scene.background.clone(), FOG.near, FOG.far);
     var cam = new THREE.PerspectiveCamera(B.sea.camera.fov, 16 / 9, B.sea.camera.near, B.sea.camera.far);
+    cam.layers.enable(1);
+    DEPTH.near.value = B.sea.camera.near; DEPTH.far.value = B.sea.camera.far;
+    var disp = [];
+    var LY = L.layers;
+    function layerOf(role) { return role === 'sprites' ? LY.farSprite : role === 'ground' ? LY.groundMesh : role === 'sushiboat' ? LY.sushiboat : LY.boat; }
 
-    // Ánh sáng sảnh: ambient phẳng (ambientMode 3) màu ambientSky + MainLight + FillLight. [DtD] hệ số cường độ [ĐỀ XUẤT], chỉnh theo ảnh sảnh
-    var amb = RS.ambientSky;
-    scene.add(new THREE.AmbientLight(new THREE.Color(amb[0], amb[1], amb[2]), 0.62));
-    B.sea.lights.forEach(function (L) {
-      var d = U2T(L.dir), l = new THREE.DirectionalLight(new THREE.Color(L.color[0], L.color[1], L.color[2]), L.intensity * 0.62);
-      l.position.set(-d[0], -d[1], -d[2]);
-      scene.add(l);
-    });
+    // Trời: quả cầu skybox theo camera (vẽ đầu tiên, sâu nhất) + vòng sương chân trời
+    var skyGeo = new THREE.SphereGeometry(1, 48, 24); disp.push(skyGeo);
+    var sky = new THREE.Mesh(skyGeo, skyMat(A, L.times.day, A.skyDay));
+    sky.renderOrder = -100; sky.frustumCulled = false; sky.layers.set(1);
+    scene.add(sky);
+    var skyMats = { day: sky.material, evening: skyMat(A, L.times.evening, A.skyEve) };
+    var ring = skyRing(); ring.layers.set(1); scene.add(ring); disp.push(ring.geometry);
 
-    // Biển sảnh: quán sushi, đảo, bụi cây, nền cát. Tấm nước gốc chỉ phủ x −225..115, nên ẩn đi và thay bằng tấm nước đi theo camera.
+    // Biển sảnh: quán sushi (ngày), đảo, bụi cây, nền cát. Tấm nước gốc chỉ phủ x −225..115: ẩn đi, thay bằng nước theo camera.
     var sea = A.sea.scene;
-    sea.traverse(function (o) {
-      if (!o.isMesh) return;
-      var n = o.material && o.material.name || '';
-      if (/^water:/.test(n)) o.visible = false;
-      if (o.material && o.material.map) { o.material.map.anisotropy = 4; }
-      if (/^sprites:/.test(n) && o.material.map) o.material.map.magFilter = THREE.NearestFilter;
-      o.frustumCulled = true;
-    });
+    uberize(sea, layerOf, L.spriteMats.far);
+    var sushiDay = [];
+    sea.traverse(function (o) { if (o.isMesh && /^sushiboat:/.test(o.material.name)) sushiDay.push(o); });
     scene.add(sea);
+    var sushiEve = A.sushiEve.scene;
+    uberize(sushiEve, function () { return LY.sushiboat; }, L.spriteMats.far);
+    // Đốm đèn FX_Light của thuyền quán tối: shader 2D_LightBillboard (rip_boat.py ghi riêng từng đốm với màu HDR + độ đục)
+    var bbGeo = new THREE.PlaneGeometry(1, 1); disp.push(bbGeo);
+    (L.times.evening.sushiboat.lightBillboards || []).forEach(function (b) {
+      var m = new THREE.Mesh(bbGeo, new THREE.ShaderMaterial({
+        uniforms: { uMap: { value: A.fx[b.img] }, uCol: { value: linV(b.color) }, uA: { value: b.alpha }, uTint: { value: new THREE.Vector4(lin1(b.tint[0]), lin1(b.tint[1]), lin1(b.tint[2]), b.tint[3]) } },
+        transparent: true, depthWrite: false, side: THREE.DoubleSide,
+        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: [COMMON_GLSL, 'uniform sampler2D uMap; uniform vec3 uCol; uniform float uA; uniform vec4 uTint; varying vec2 vUv;',
+          'void main(){ vec4 t = texture2D(uMap, vUv); gl_FragColor = vec4(hxLin(t.rgb) * uTint.rgb * uCol, t.a * uTint.a * uA); }'].join('\n'),
+      }));
+      // ma trận thế giới Unity (hàng trước) → three: lật z hai phía (S·M·S); quad cỡ sprite, lệch theo pivot, lật theo flipX/Y
+      var e = b.m, M = new THREE.Matrix4().set(e[0], e[1], -e[2], e[3], e[4], e[5], -e[6], e[7], -e[8], -e[9], e[10], -e[11], 0, 0, 0, 1);
+      var local = new THREE.Matrix4().makeTranslation((0.5 - b.pivot[0]) * b.size[0], (0.5 - b.pivot[1]) * b.size[1], 0)
+        .multiply(new THREE.Matrix4().makeScale(b.size[0] * (b.flip[0] ? -1 : 1), b.size[1] * (b.flip[1] ? -1 : 1), 1));
+      m.matrixAutoUpdate = false; m.matrix.multiplyMatrices(M, local);
+      m.renderOrder = 4; m.layers.set(1);
+      sushiEve.add(m);
+    });
+    scene.add(sushiEve);
 
-    // Nước
-    var WC = B.sea.water.colors, WFl = B.sea.water.floats, main = B.sea.lights.filter(function (l) { return l.name === 'MainLight'; })[0];
-    var wu = fogUniforms();
-    function v4(a) { return new THREE.Vector4(a[0], a[1], a[2], a[3]); }
-    var sd = U2T(main.dir);
-    Object.assign(wu, {
-      uTime: { value: 0 }, uCam: { value: new THREE.Vector3() },
-      uBase: { value: v4(WC._BaseColor) }, uShallow: { value: v4(WC._ShallowColor) }, uHorizon: { value: v4(WC._HorizonColor) },
-      uHorizonDist: { value: WFl._HorizonDistance }, uFoamCol: { value: v4(WC._FoamColor) },
-      uFoam: { value: A.foam }, uFoamTiling: { value: WFl._FoamTiling }, uFoamSpeed: { value: WFl._FoamSpeed }, uFoamSize: { value: WFl._FoamSize },
-      uNoise: { value: A.noise }, uWaveTint: { value: WFl._WaveTint },
-      uSunDir: { value: new THREE.Vector3(-sd[0], -sd[1], -sd[2]).normalize() }, uSunCol: { value: new THREE.Vector3(main.color[0], main.color[1], main.color[2]) },
-      uSunStr: { value: WFl._SunReflectionStrength }, uSunSize: { value: WFl._SunReflectionSize },
-    });
-    // ảnh gốc của nước dùng lặp theo toạ độ thế giới
+    // Nước: lưới 900 × 700 m, mắt lưới ~6,9 m như wave001 gốc (51 × 51 đỉnh trên 345 × 262 m), bám theo camera
+    var wu = waterUniforms(A);
     [A.foam, A.noise].forEach(function (t) { t.wrapS = t.wrapT = THREE.RepeatWrapping; });
-    // bộ nước gốc gồm cả phần đã biến thành màu nền lượt 1 (gamma): đổi ngược về giá trị hiển thị như ảnh sảnh
-    ['uBase', 'uShallow', 'uHorizon', 'uFoamCol'].forEach(function (k) {
-      var v = wu[k].value; v.x = Math.pow(v.x, 1 / 2.2); v.y = Math.pow(v.y, 1 / 2.2); v.z = Math.pow(v.z, 1 / 2.2);
-    });
-    var waterGeo = new THREE.PlaneGeometry(900, 700, 1, 1);
-    waterGeo.rotateX(-Math.PI / 2);
+    var waterGeo = new THREE.PlaneGeometry(900, 700, 130, 101);
+    waterGeo.rotateX(-Math.PI / 2); disp.push(waterGeo);
     var water = new THREE.Mesh(waterGeo, new THREE.ShaderMaterial({
       uniforms: wu, vertexShader: WATER_VERT, fragmentShader: WATER_FRAG, transparent: true, depthWrite: false,
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor, side: THREE.DoubleSide,
     }));
-    water.position.y = WATER_Y;
-    water.renderOrder = 1;
-    water.frustumCulled = false;
+    water.renderOrder = 3; water.frustumCulled = false; water.layers.set(1);
     scene.add(water);
 
-    // Mây: node giữ tên, anim trôi legacy tính từ gốc "Lobby Clouds"
+    // Mây (chỉ buổi chiều): node giữ tên, anim trôi legacy tính từ gốc "Lobby Clouds" (rip_boat.py ghi cloudsParent)
     var clouds = [];
     A.clouds.scene.traverse(function (o) {
-      if (o.isMesh) {
-        var m = o.material;
-        var info = B_cloudMat(m.name);
-        var u = fogUniforms();
-        if (m.map) m.map.updateMatrix();
-        Object.assign(u, {
-          uMap: { value: m.map }, uUvT: { value: m.map ? m.map.matrix.clone() : new THREE.Matrix3() },
-          uShade: { value: new THREE.Vector3().fromArray(info.shade) }, uLit: { value: new THREE.Vector3().fromArray(info.lit) },
-          uOpacity: { value: info.opacity },
-        });
-        o.material = new THREE.ShaderMaterial({ uniforms: u, vertexShader: CLOUD_VERT, fragmentShader: CLOUD_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide });
-        o.renderOrder = 0;
-        o.frustumCulled = false;
-        m.dispose();
-      }
+      if (!o.isMesh) return;
+      var m = o.material, info = cloudMat(m.name);
+      if (m.map) m.map.updateMatrix();
+      var u = envUniforms(LY.boat, {
+        uMap: { value: m.map }, uUvT: { value: m.map ? m.map.matrix.clone() : new THREE.Matrix3() },
+        uShade: { value: linV(info.shade) }, uLit: { value: linV(info.lit) }, uFres: { value: info.fres }, uAlpha: { value: info.alpha },
+        uEnv: { value: A.skyDay }, uNear: DEPTH.near,
+      });
+      o.material = new THREE.ShaderMaterial({ uniforms: u, vertexShader: CLOUD_VERT, fragmentShader: CLOUD_FRAG, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+      o.renderOrder = 0; o.frustumCulled = false; o.layers.set(1);
+      m.dispose();
     });
-    // GLTFLoader đổi dấu cách trong tên node thành "_" ("Cloud001 (1)" → "Cloud001_(1)")
     var byName = {};
     Object.keys(B.sea.clouds.anims).forEach(function (k) { byName[k.replace(/\s/g, '_')] = B.sea.clouds.anims[k]; });
-    A.clouds.scene.children.forEach(function (n) {
-      var an = byName[n.name];
-      if (an && an[0]) clouds.push({ node: n, anim: an[0], phase: 0 });
-    });
+    A.clouds.scene.children.forEach(function (n) { var an = byName[n.name]; if (an && an[0]) clouds.push({ node: n, anim: an[0] }); });
     scene.add(A.clouds.scene);
 
-    // Dừa và mòng biển: sheet lobby_anim, ô 99×99, pivot giữa, 100 px/đv, phóng theo scale của cảnh
+    // Trăng (chỉ buổi tối)
+    var E = L.times.evening;
+    var moon = new THREE.Group();
+    moon.add(moonMesh(E.moon.Moonshaft, A, null, A.moon[2], true));
+    moon.add(moonMesh(E.moon.Moon, A, A.moon[0], A.moon[1], false));
+    moon.children.forEach(function (m) { m.layers.set(1); disp.push(m.geometry); });
+    scene.add(moon);
+
+    // Dừa và mòng biển: sheet lobby_anim, ô 99×99, pivot giữa, 100 px/đv; material Uber gốc (Lobby_2D_Sprite_Lit[_Back])
     var AS = B.sea.animSprites, quad = new THREE.PlaneGeometry(1, 1), anims = [];
+    disp.push(quad);
     AS.places.forEach(function (pl) {
       var akey = Object.keys(AS.anims).filter(function (k) { return k.indexOf(pl.kind + '/') === 0; })[0];
       var an = AS.anims[akey];
       if (!an) return;
-      var mat = spriteMat(A.anim, 1), m = new THREE.Mesh(quad, mat);
+      var gull = /Seagull/i.test(pl.kind) || /Seagull/i.test(pl.name), SM = gull ? L.spriteMats.gull : L.spriteMats.palm, F = SM.floats;
+      var mat = uberMat({ map: A.anim, rect: true, cut: F._Cutoff, lightFactor: F._LightFactor, ambient: F._AmbientStrength, fogAmp: F._FogAmplify,
+        layer: gull ? LY.gull : LY.forestSprite });
+      var m = new THREE.Mesh(quad, mat);
       var s = AS.cell[0] / an.ppu;
       m.scale.set(s * pl.scale[0], s * pl.scale[1], 1);
       var p = U2T(pl.pos);
       m.position.set(p[0], p[1], p[2]);
       m.renderOrder = 2;
       scene.add(m);
-      anims.push({ mesh: m, an: an, flip: pl.flipX, t0: Math.random() * an.length, path: pl.pathAnim && pl.pathAnim[0], base: p });
+      anims.push({ mesh: m, an: an, flip: pl.flipX, t0: Math.random() * an.length, path: pl.pathAnim && pl.pathAnim[0], base: p, gull: gull });
     });
 
-    // Cano
-    var boatRoot = new THREE.Group(), model = A.boat.scene;
-    model.traverse(function (o) { if (o.isMesh) { o.frustumCulled = false; if (o.material.map) o.material.map.anisotropy = 4; } });
-    boatRoot.add(model);
+    // Cano: bản chiều và bản tối (cùng thân, khác material kính/đèn pha)
+    var boatRoot = new THREE.Group(), model = A.boat.scene, modelEve = A.boatEve.scene;
+    uberize(model, function () { return LY.boat; });
+    uberize(modelEve, function () { return LY.boat; });
+    [model, modelEve].forEach(function (md) { md.traverse(function (o) { if (o.isMesh) o.frustumCulled = false; }); boatRoot.add(md); });
     boatRoot.rotation.order = 'YZX';
     scene.add(boatRoot);
 
-    // Dave: sheet dave_lobby, ô 64×64, pivot đáy giữa, ×3,4
-    var dq = new THREE.PlaneGeometry(1, 1); dq.translate(0, 0.5, 0);
-    var daveMat = spriteMat(A.dave, 0.6), dave = new THREE.Mesh(dq, daveMat);
+    // Dave: sheet dave_lobby, ô 64×64, pivot đáy giữa, ×3,4; material Lobby_2D_Player (Uber)
+    var dq = new THREE.PlaneGeometry(1, 1); dq.translate(0, 0.5, 0); disp.push(dq);
+    var DF = L.spriteMats.dave.floats;
+    var daveMat = uberMat({ map: A.dave, rect: true, cut: DF._Cutoff, lightFactor: DF._LightFactor, ambient: DF._AmbientStrength, fogAmp: DF._FogAmplify, layer: LY.dave });
+    var dave = new THREE.Mesh(dq, daveMat);
     dave.scale.set(DAVE_H, DAVE_H, 1);
     dave.renderOrder = 3;
     boatRoot.add(dave);
 
     var fx = new Particles(scene, A.fx);
-    fx.load('idle', B.vfx.boatIdle);
-    fx.load('exit', B.vfx.boatExit);
-    fx.load('dive', B.vfx.diveBubble);
+    fx.cam = cam;
+    ['day', 'evening'].forEach(function (k) {
+      var T = L.times[k];
+      fx.load(k + ':idle', T.boat.vfx.idle, 'boat');
+      fx.load(k + ':exit', T.boat.vfx.exit, 'boat');
+      Object.keys(T.vfx).forEach(function (n) { fx.load(k + ':env', T.vfx[n], 'world'); });
+    });
+    fx.load('fish', L.sceneVfx.FishFlock, 'world');
 
     return {
-      scene: scene, cam: cam, water: water, clouds: clouds, anims: anims, boatRoot: boatRoot, dave: dave, daveMat: daveMat, fx: fx,
-      rt: null, copy: null, disposables: [waterGeo, quad, dq],
+      scene: scene, cam: cam, sky: sky, skyMats: skyMats, ring: ring, water: water, wu: wu, clouds: clouds, cloudRoot: A.clouds.scene, moon: moon,
+      anims: anims, boatRoot: boatRoot, models: { day: model, evening: modelEve }, sushiDay: sushiDay, sushiEve: sushiEve,
+      dave: dave, daveMat: daveMat, fx: fx, rt: null, copy: null, depthRt: null, bloomRt: null, disposables: disp, time: null, WP: null,
     };
   }
-  // Hai màu HDR và độ đục của từng material mây (extras của glb). Vector1_49F9B29B là độ đục theo tên và giá trị (0,35..0,88).
+  // Hai màu HDR và hệ số của từng material mây (extras của glb).
   var CLOUD_MATS = null;
-  function B_cloudMat(name) {
+  function cloudMat(name) {
     if (!CLOUD_MATS) {
       CLOUD_MATS = {};
       var raw = assets && assets.clouds && assets.clouds.parser && assets.clouds.parser.json && assets.clouds.parser.json.materials || [];
       raw.forEach(function (m) {
         var ex = m.extras || {}, c = ex.colors || {}, f = ex.floats || {};
-        CLOUD_MATS[m.name] = { shade: (c.Color_9C3FBA6D || [1.3, 2, 2.4]).slice(0, 3), lit: (c.Color_F2DEC659 || [3, 3, 3]).slice(0, 3), opacity: f.Vector1_49F9B29B || 0.6 };
+        CLOUD_MATS[m.name] = { shade: (c.Color_9C3FBA6D || [1, 1, 1]).slice(0, 3), lit: (c.Color_F2DEC659 || [1, 1, 1]).slice(0, 3),
+          fres: f.Vector1_49F9B29B == null ? 0.5 : f.Vector1_49F9B29B, alpha: f.Vector1_3A2F95CE == null ? 1 : f.Vector1_3A2F95CE };
       });
     }
-    return CLOUD_MATS[name] || { shade: [1.3, 2, 2.4], lit: [3, 3, 3], opacity: 0.6 };
+    return CLOUD_MATS[name] || { shade: [1, 1, 1], lit: [1, 1, 1], fres: 0.5, alpha: 1 };
+  }
+
+  // Áp môi trường của một buổi: sương, ambient, đèn, trời, nước, PP, bật/tắt vật theo buổi.
+  var POST = { exposure: 0, contrast: 0, saturation: 0, vig: [0, 0, 0], vigI: 0, vigC: [0.5, 0.5], vigS: 0.2, bloomI: 0, bloomThr: 1, bloomTint: [1, 1, 1] };
+  var LIGHTS = [];   // đèn phụ: {pos (three, thế giới hoặc theo cano), dir, color (tuyến tính × cường độ), att, boat: bool, w}
+  var MAIN = null;
+  function applyTime(time) {
+    var T = L.times[time];
+    W.time = time;
+    var fog = T.fog;
+    ENV.uFogCol.value.copy(linV(fog.color));
+    ENV.uFogP.value.set(1 / (fog.end - fog.start), fog.end / (fog.end - fog.start));
+    ENV.uAmbCol.value.copy(linV(T.ambient));
+    // đèn: đèn có SunLight là đèn chính (URP), còn lại là đèn phụ; MainLight_Back tối hẳn = 0 (LerpLightColorByEveningHour)
+    LIGHTS = []; MAIN = null;
+    T.lights.forEach(function (l) {
+      if (!l.on) return;
+      var inten = l.intensity;
+      if (T.eveningLerp && l.name === 'MainLight_Back') inten = 0;
+      if (!inten) return;
+      if (l.sun && l.type === 'directional') MAIN = l;
+      else LIGHTS.push(lightRec(l, inten, false));
+    });
+    T.boat.lights.forEach(function (l) { if (l.on && l.intensity) LIGHTS.push(lightRec(l, l.intensity, true)); });
+    LIGHTS = LIGHTS.slice(0, MAXL);
+    if (MAIN) {
+      var d = U2T(MAIN.dir); ENV.uMainDir.value.set(-d[0], -d[1], -d[2]).normalize();
+      var mc = linV(MAIN.color).multiplyScalar(MAIN.intensity); ENV.uMainCol.value.copy(mc);
+    } else ENV.uMainCol.value.set(0, 0, 0);
+    ENV.uAddN.value = LIGHTS.length;
+    LIGHTS.forEach(function (l, i) {
+      ENV.uAddCol.value[i].copy(l.color); ENV.uAddAtt.value[i].copy(l.att);
+    });
+    // mặt nạ đèn theo lớp
+    Object.keys(LAYER_U).forEach(function (k) { maskLayer(+k); });
+    // trời
+    W.sky.material = W.skyMats[time];
+    W.cloudRoot.visible = time === 'day';
+    W.moon.visible = !!T.moon;
+    W.sushiDay.forEach(function (o) { o.visible = time === 'day'; });
+    W.sushiEve.visible = time === 'evening';
+    W.models.day.visible = time === 'day'; W.models.evening.visible = time === 'evening';
+    W.anims.forEach(function (a) { a.mesh.visible = !a.gull || T.seagulls; });
+    W.WP = applyWater(W.wu, T.water);
+    // PP (Volume gốc)
+    var C = T.pp.components, ca = C.ColorAdjustments || {}, vg = C.Vignette || {}, bl = C.Bloom || {};
+    POST.exposure = ca.active ? ca.postExposure || 0 : 0; POST.contrast = ca.active ? ca.contrast || 0 : 0; POST.saturation = ca.active ? ca.saturation || 0 : 0;
+    POST.vigI = vg.active ? vg.intensity || 0 : 0; POST.vig = vg.color || [0, 0, 0]; POST.vigC = vg.center || [0.5, 0.5]; POST.vigS = vg.smoothness == null ? 0.2 : vg.smoothness;
+    POST.bloomI = bl.active ? bl.intensity || 0 : 0; POST.bloomThr = bl.threshold == null ? 0.9 : bl.threshold; POST.bloomTint = bl.tint || [1, 1, 1];
+  }
+  function lightRec(l, inten, boat) {
+    var p = U2T(l.pos), d = U2T(l.dir), rec = { name: l.name, boat: boat, type: l.type, mask: l.cullingMask,
+      color: linV(l.color).multiplyScalar(inten), att: new THREE.Vector4(0, 1, 0, 1), lp: new THREE.Vector3(p[0], p[1], p[2]), ld: new THREE.Vector3(d[0], d[1], d[2]) };
+    if (l.type !== 'directional') rec.att.x = 1 / (l.range * l.range);
+    if (l.type === 'spot') {
+      var co = Math.cos(l.spotAngle * Math.PI / 360), ci = Math.cos(l.innerSpotAngle * Math.PI / 360), inv = 1 / Math.max(ci - co, 0.001);
+      rec.att.z = inv; rec.att.w = -co * inv;
+    }
+    return rec;
+  }
+  function maskLayer(layer) {
+    var U = layerU(layer), bit = function (m) { return layer >= 32 ? 0 : ((m >>> layer) & 1); };
+    U.uMainOn.value = MAIN ? bit(MAIN.cullingMask) : 0;
+    for (var i = 0; i < MAXL; i++) U.uAddOn.value[i] = i < LIGHTS.length ? bit(LIGHTS[i].mask) : 0;
+  }
+  // vị trí/hướng đèn mỗi khung (đèn trên cano đi theo cano)
+  var tmpL = new THREE.Vector3();
+  function lightsFrame() {
+    var bm = W.boatRoot.matrixWorld;
+    LIGHTS.forEach(function (l, i) {
+      var P4 = ENV.uAddPos.value[i], D = ENV.uAddDir.value[i];
+      if (l.type === 'directional') { P4.set(-l.ld.x, -l.ld.y, -l.ld.z, 0); D.set(0, 0, 1); return; }
+      tmpL.copy(l.lp); if (l.boat) tmpL.applyMatrix4(bm);
+      P4.set(tmpL.x, tmpL.y, tmpL.z, 1);
+      tmpL.copy(l.ld); if (l.boat) tmpL.transformDirection(bm);
+      D.set(-tmpL.x, -tmpL.y, -tmpL.z).normalize();
+    });
   }
 
   // Giải phóng mọi tài nguyên GPU của cảnh; ảnh/lưới gốc vẫn nằm trong bộ nhớ nên chuyến sau vẽ lại chỉ việc nạp lên GPU.
   function releaseGpu() {
     if (!W) return;
     var seen = new Set();
+    function mat(m) {
+      if (!m || seen.has(m)) return;
+      seen.add(m);
+      for (var k in m) if (m[k] && m[k].isTexture && !seen.has(m[k])) { seen.add(m[k]); m[k].dispose(); }
+      if (m.uniforms) for (var u in m.uniforms) {
+        var v = m.uniforms[u].value;
+        if (v && v.isTexture && !seen.has(v)) { seen.add(v); v.dispose(); }
+      }
+      m.dispose();
+    }
     W.scene.traverse(function (o) {
       if (o.geometry && !seen.has(o.geometry)) { seen.add(o.geometry); o.geometry.dispose(); }
-      var ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
-      ms.forEach(function (m) {
-        if (seen.has(m)) return;
-        seen.add(m);
-        for (var k in m) if (m[k] && m[k].isTexture && !seen.has(m[k])) { seen.add(m[k]); m[k].dispose(); }
-        if (m.uniforms) for (var u in m.uniforms) { var v = m.uniforms[u].value; if (v && v.isTexture && !seen.has(v)) { seen.add(v); v.dispose(); } }
-        m.dispose();
-      });
+      (o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []).forEach(mat);
     });
-    if (W.rt) { W.rt.dispose(); W.rt = null; }
-    if (W.copy) { W.copy.mesh.geometry.dispose(); W.copy.mesh.material.dispose(); W.copy = null; }
+    mat(W.skyMats.day); mat(W.skyMats.evening);
+    ['rt', 'depthRt', 'bloomRt'].forEach(function (k) { if (W[k]) { if (W[k].depthTexture) W[k].depthTexture.dispose(); W[k].dispose(); W[k] = null; } });
+    if (W.copy) { W.copy.mesh.geometry.dispose(); W.copy.mesh.material.dispose(); W.copy.pre.material.dispose(); W.copy = null; }
+    if (Particles.white) Particles.white.dispose();
   }
 
   // ---------------------------------------------------------------- trạng thái chuyến
   var st = null;
   var keys = {};
-  var tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler(0, 0, 0, 'YZX'), m4 = new THREE.Matrix4();
-  var dv3 = [0, 0, 0];
-
-  // Chiếu điểm/hướng hệ cano (three) ra thế giới; hướng 'world' của Unity chỉ xoay theo mũi (yaw), vì cano sảnh không xoay.
-  var boatXf = {
-    toWorld: function (x, y, z) { tmpV.set(x, y, z).applyMatrix4(W.boatRoot.matrixWorld); dv3[0] = tmpV.x; dv3[1] = tmpV.y; dv3[2] = tmpV.z; return dv3; },
-    dirToWorld: function (x, y, z, yawOnly) {
-      var a = st ? st.yaw : 0, c = Math.cos(a), s = Math.sin(a);
-      dv3[0] = x * c + z * s; dv3[1] = y; dv3[2] = -x * s + z * c; return dv3;
-    },
-  };
+  var dv3 = new THREE.Vector3();
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
@@ -891,7 +1524,6 @@
   function bindTouch(ui) {
     var drag = null;
     function steerAt(x, y) {
-      // kéo xuống / sang trái = bẻ về phía người xem (trái của người lái, mũi đang chỉ sang trái màn hình)
       var dx = x - drag.x0, dy = y - drag.y0;
       st.touchSteer = clamp((dy - dx) / 70, -1, 1);
       ui.knob.style.transform = 'translate(' + clamp(dx, -50, 50).toFixed(0) + 'px,' + clamp(dy, -50, 50).toFixed(0) + 'px)';
@@ -934,11 +1566,11 @@
     var dir = args && args.dir === 'home' ? 'home' : 'out', R = ROUTE[dir];
     keys = {};
     st = {
-      dir: dir, R: R, state: 'load', t: 0, st: 0, done: false, touched: false, auto: false,
+      dir: dir, time: TIME_OF[dir], R: R, state: 'load', t: 0, st: 0, done: false, touched: false, auto: false,
       x: R.x0, z: R.z0, yaw: 0, yawRate: 0, vx: 0, vz: 0, speed: 0, roll: 0, pitch: 0, throttle: 0, steer: 0,
       touchGa: false, touchBrake: false, touchSteer: 0, total: Math.abs(R.x1 - R.x0), dist: Math.abs(R.x1 - R.x0),
-      dave: { anim: 'Idle', t: 0, x: DAVE_LOCAL[0], y: DAVE_LOCAL[1], z: DAVE_LOCAL[2], flip: false, visible: true, jump: null },
-      snd: {}, boostArmed: true, camX: 0, camZ: 0, fadeK: 0, hold: 0, stepT: 0,
+      dave: { anim: 'Idle', t: 0, x: DAVE_LOCAL[0], y: DAVE_LOCAL[1], z: DAVE_LOCAL[2], flip: false, visible: true },
+      snd: {}, boostArmed: true, camX: 0, camZ: 0, fadeK: 0, stepT: 0,
     };
     var ui = st.ui = buildHud(HX.game.screen('boat'), dir);
     ui.skip.addEventListener('click', finish);
@@ -963,12 +1595,17 @@
   function begin() {
     var R = st.R;
     st.x = R.x0; st.z = R.z0; st.yaw = 0;
+    applyTime(st.time);
     W.fx.clear();
-    W.fx.setRun('idle', null, 'loop', 1);
+    poseBoat(0);
+    snapCamera();
+    W.fx.frames(W.boatRoot.matrixWorld);
+    W.fx.setRun(st.time + ':idle', null, 'loop', 1);
+    W.fx.ambient(st.time + ':env', true, W.cam);
+    W.fx.ambient('fish', true, W.cam);
     // đi ra: đứng yên một nhịp ở bến rồi nổ máy; đi về: Dave leo lên thuyền (Respawn) trước
     if (st.dir === 'out') setState('moor');
     else { setState('respawn'); daveAnim('Respawn'); }
-    snapCamera();
     ambience(true);
     hint();
   }
@@ -977,20 +1614,17 @@
 
   function daveAnim(name, flip) { var d = st.dave; d.anim = name; d.t = 0; if (flip != null) d.flip = flip; }
 
+  // Tiếng nền theo buổi: chiều = amb_lobby_Afternoon + chim xa; tối = amb_lobby_Night + sóng đêm (mòng biển chỉ có DayTime 0/1). [DtD]
+  function loopsFor() {
+    return st.time === 'day' ? [['amb', 'boat_amb_day', 0.5], ['gull', 'boat_seagull', 0.18]] : [['amb', 'boat_amb_night', 0.5], ['gull', 'boat_amb_night_wave', 0.35]];
+  }
   function ambience(on) {
     if (!on) return;
-    var S = st.snd;
-    S.amb = sfx('boat_amb_day', { loop: true, vol: 0.5 });
-    S.gull = sfx('boat_seagull', { loop: true, vol: 0.18 });
-    S.music = sfx('boat_bgm_lobby', { loop: true, vol: 0.28 });
-    S.idle = sfx('boat_engine_idle', { loop: true, vol: 0.0 });
-    S.run = sfx('boat_engine_loop', { loop: true, vol: 0.0 });
+    ensureLoops();
   }
-  // tiếng có thể nạp xong muộn hơn cảnh: thiếu vòng lặp nào thì bật lại
   function ensureLoops() {
     var S = st.snd;
-    if (!S.amb && AU.buf.boat_amb_day) S.amb = sfx('boat_amb_day', { loop: true, vol: 0.5 });
-    if (!S.gull && AU.buf.boat_seagull) S.gull = sfx('boat_seagull', { loop: true, vol: 0.18 });
+    loopsFor().forEach(function (a) { if (!S[a[0]] && AU.buf[a[1]]) S[a[0]] = sfx(a[1], { loop: true, vol: a[2] }); });
     if (!S.music && AU.buf.boat_bgm_lobby) S.music = sfx('boat_bgm_lobby', { loop: true, vol: 0.28 });
     if (!S.idle && AU.buf.boat_engine_idle) S.idle = sfx('boat_engine_idle', { loop: true, vol: 0 });
     if (!S.run && AU.buf.boat_engine_loop) S.run = sfx('boat_engine_loop', { loop: true, vol: 0 });
@@ -1019,7 +1653,6 @@
     st.throttle = thr; st.steer = clamp(str, -1, 1);
   }
 
-  // Tự lái: ga hết, giữ mũi thẳng và dạt về làn giữa. Cập bến/tới nơi: phanh vừa đủ để dừng đúng chỗ.
   function autopilot(stopX) {
     var R = st.R, dz = R.z0 - st.z;
     var wantYaw = clamp(dz * 0.05, -0.35, 0.35);
@@ -1032,7 +1665,6 @@
 
   function physics(dt) {
     var R = st.R, c = Math.cos(st.yaw), s = Math.sin(st.yaw);
-    // mũi = (−cos, 0, sin) của yaw; ngang (mạn phải của người lái) = (−sin, 0, −cos)
     var fx = -c, fz = s, lx = -s, lz = -c;
     var vF = st.vx * fx + st.vz * fz, vL = st.vx * lx + st.vz * lz;
     var thr = st.throttle;
@@ -1040,9 +1672,7 @@
     else if (thr < 0) vF = vF > 0.2 ? Math.max(0, vF - P.brake * dt) : Math.max(-P.reverse, vF - 1.2 * dt);
     else vF -= vF * P.coast * dt;
     vL *= Math.exp(-P.slip * dt);
-    // bánh lái chỉ ăn khi có trớn
     var grip = clamp(Math.abs(vF) / 4, 0, 1) * (vF < 0 ? -1 : 1);
-    // thả lái thì mũi tự dạt dần về hướng đi (sóng và bánh lái thả tự do)
     var wantRate = st.steer ? st.steer * P.turn * grip : -st.yaw * 0.35 * Math.abs(grip);
     st.yawRate += (wantRate - st.yawRate) * Math.min(1, dt * 3);
     st.yaw += st.yawRate * dt;
@@ -1050,42 +1680,37 @@
     c = Math.cos(st.yaw); s = Math.sin(st.yaw); fx = -c; fz = s; lx = -s; lz = -c;
     st.vx = fx * vF + lx * vL; st.vz = fz * vF + lz * vL;
     st.x += st.vx * dt; st.z += st.vz * dt;
-    // làn chạy: ra ngoài thì bị đẩy về, như nước cạn / sóng bờ
     if (st.z < R.zMin) { st.vz += (R.zMin - st.z) * 2.5 * dt; st.yaw += (0.0 - st.yaw) * dt * 1.2; }
     if (st.z > R.zMax) { st.vz -= (st.z - R.zMax) * 2.5 * dt; st.yaw += (0.0 - st.yaw) * dt * 1.2; }
     st.speed = vF;
-    // nghiêng vào trong khi ôm cua
     var wantRoll = clamp(st.yawRate * vF * P.bank, -0.16, 0.16);
     st.roll += (wantRoll - st.roll) * Math.min(1, dt * 4);
   }
 
-  var tmp3 = [0, 0, 0], tmp3b = [0, 0, 0];
+  var tmp3 = [0, 0, 0], tmp3b = [0, 0, 0], wv = [0, 0, 0];
+  // Mặt sóng tại (x, z) three: độ cao theo đúng hàm sóng của shader nước (DynamicEnvironmentBoatFloating dò ±5 m).
+  function waveY(x, z, t) { return waveAt(W.WP, x, -z, t, wv)[1]; }
   function poseBoat(t) {
-    var b = W.boatRoot, y = WATER_Y + HEIGHT_OFF;
-    // Boat_Idle001: nhấp nhô lặp 3,5 s [DtD]
+    var b = W.boatRoot, y = L.times[W.time].water.y + HEIGHT_OFF;
     var idleT = t % CLIP.Boat_Idle001.length;
     y += sampleTrack(IDLE, idleT, tmp3)[1];
     var rollDeg = 0, pitchDeg = 0;
     if (st.state === 'depart') {
-      // Boat_Exit002 0..1,35 s: rung khi nổ máy (lắc ngang + chúi) và ngồi thụt xuống [DtD]
       var e = sampleTrack(EXIT2.euler, st.st, tmp3), p = sampleTrack(EXIT2.posOffset, st.st, tmp3b);
       rollDeg += e[0]; pitchDeg += e[2]; y += p[1];
     } else if (st.speed > 0.2 || st.state === 'drive') {
-      // khi chạy: đoạn rung 0,17..0,93 s của Boat_Exit002 lặp lại, biên độ theo tốc độ (dập sóng); chúi mũi tra theo tốc độ trên Exit001
       var k = clamp(Math.abs(st.speed) / VMAX, 0, 1), lt = 0.1667 + (t * 1.1) % 0.8;
       var e2 = sampleTrack(EXIT2.euler, lt, tmp3);
       rollDeg += e2[0] * k; pitchDeg += e2[2] * k * 0.5;
       pitchDeg += pitchForSpeed(Math.abs(st.speed)) * (st.speed >= 0 ? 1 : 0);
-      // cano lướt nhẹ lên khi chạy nhanh: theo posOffset y của Exit001 (+0,11 lúc lao đi)
       y += sampleTrack(EXIT1.posOffset, clamp(1.3 + k * 0.9, 0, 3.6), tmp3b)[1] * k;
     }
     // sóng dưới mũi và đuôi (±5 m, rollAmount 0,01 của DynamicEnvironmentBoatFloating)
     var c = Math.cos(st.yaw), s = Math.sin(st.yaw);
-    var hb = waveH(st.x - 5 * c, st.z + 5 * s, t), hs = waveH(st.x + 5 * c, st.z - 5 * s, t);
+    var hb = waveY(st.x - 5 * c, st.z + 5 * s, t), hs = waveY(st.x + 5 * c, st.z - 5 * s, t);
     y += (hb + hs) * 0.5;
     var wavePitch = Math.atan2(hb - hs, 10);
     b.position.set(st.x, y, st.z);
-    // Unity → three: lật z đảo dấu góc quanh x và y; góc quanh z giữ nguyên
     b.rotation.set(-rollDeg * Math.PI / 180 + st.roll, st.yaw, pitchDeg * Math.PI / 180 - wavePitch);
     b.updateMatrixWorld(true);
   }
@@ -1100,36 +1725,33 @@
     }
     setCell(W.daveMat, assets.dave, B.dave.cell[0], B.dave.cell[1], col, A ? A.row : 0, d.flip);
     dave.visible = d.visible;
-    if (d.jump) {
-      // bay từ mép đuôi xuống nước (không có clip dời chỗ; chỉ có khung sprite) [ĐỀ XUẤT]
-      var j = d.jump, k = clamp(j.t / j.dur, 0, 1);
-      j.t += dt;
-      d.x = lerp(j.x0, j.x1, k); d.y = lerp(j.y0, j.y1, k) + Math.sin(k * Math.PI) * 0.9;
-    }
     dave.position.set(d.x, d.y, d.z);
-    // luôn quay mặt về camera (camera không xoay), mà vẫn lắc theo cano
     dave.rotation.set(0, -st.yaw, 0);
+  }
+  function setCell(mat, tex, cellW, cellH, col, row, flip) {
+    var Wt = tex.image.width, Ht = tex.image.height, r = mat.uniforms.uRect.value;
+    var u0 = col * cellW / Wt, v0 = 1 - (row + 1) * cellH / Ht, du = cellW / Wt, dv = cellH / Ht;
+    if (flip) r.set(u0 + du, v0, -du, dv); else r.set(u0, v0, du, dv);
   }
 
   // Khung hình của camera sảnh; màn thấp (điện thoại ngang) kéo lại gần cho cano và Dave khỏi bé. [ĐỀ XUẤT]
   function camNear() { return lerp(0.74, 1, clamp((innerHeight - 390) / (720 - 390), 0, 1)); }
   function snapCamera() {
-    var n = camNear();
+    var n = camNear(), wy = L.times[W.time].water.y;
     st.camX = st.x + (CAM0[0] - LOBBY[0]) * n;
     st.camZ = st.z + (CAM0[2] - LOBBY[2]) * n;
-    st.camY = WATER_Y + (CAM0[1] - WATER_Y) * n;
+    st.camY = wy + (CAM0[1] - wy) * n;
     placeCamera(0, true);
   }
   function placeCamera(dt, snap) {
-    var cam = W.cam, v = st.speed, n = camNear();
+    var cam = W.cam, v = st.speed, n = camNear(), wy = L.times[W.time].water.y;
     var k = clamp(Math.abs(v) / VMAX, 0, 1);
     var tx = st.x + (CAM0[0] - LOBBY[0]) * n + st.vx * P.lead * n;
     var tz = st.z + ((CAM0[2] - LOBBY[2]) + k * 3) * n;
-    var ty = WATER_Y + (CAM0[1] - WATER_Y + k * 0.8) * n;
+    var ty = wy + (CAM0[1] - wy + k * 0.8) * n;
     var a = snap ? 1 : 1 - Math.exp(-2.2 * dt);
     st.camX += (tx - st.camX) * a; st.camZ += (tz - st.camZ) * a; st.camY += (ty - st.camY) * a;
     cam.position.set(st.camX, st.camY, st.camZ);
-    // hướng nhìn của camera sảnh; chạy nhanh thì cúi xuống chút để thấy vệt nước sau đuôi
     var fy = CAMF[1] - k * 0.07;
     cam.lookAt(st.camX + CAMF[0], st.camY + fy, st.camZ + CAMF[2]);
     cam.aspect = innerWidth / Math.max(1, innerHeight);
@@ -1137,7 +1759,7 @@
     cam.updateMatrixWorld();
   }
 
-  function engineSound(dt) {
+  function engineSound() {
     var S = st.snd, k = clamp(Math.abs(st.speed) / VMAX, 0, 1), running = st.state !== 'moor' && st.state !== 'respawn' && st.state !== 'docked' && st.state !== 'load';
     if (S.idle) S.idle.gain.gain.value = running ? 0.35 * (1 - k * 0.7) : 0;
     if (S.run) {
@@ -1152,7 +1774,8 @@
     if (!W || st.state === 'load') return;
     ensureLoops();
     st.t += dt; st.st += dt;
-    var R = st.R, fx = W.fx;
+    ENV.uTime.value = st.t;
+    var R = st.R, fx = W.fx, tm = st.time;
     readInput();
     var manual = st.throttle !== 0 || st.steer !== 0;
     switch (st.state) {
@@ -1165,7 +1788,7 @@
         if (st.st >= (st.dir === 'out' ? 1.2 : 0.4)) {
           setState('depart');
           // Boat_Exit00x bật VFX Exit ở khung 0,0167 s; tiếng cano thật của Dave ở sảnh + tiếng nổ máy
-          fx.setRun('exit', null, 'once', 1);
+          fx.setRun(tm + ':exit', null, 'once', 1);
           sfx('boat_move', { vol: 0.9 });
           st.snd.start = sfx('boat_engine_start', { vol: 0.55 });
           daveAnim('Boat_Surprise');
@@ -1183,12 +1806,10 @@
         if (!st.touched && st.driveT > P.autoAfter) st.auto = true;
         if (st.touched) st.auto = false;
         if (st.auto && !manual) autopilot(null);
-        // gần tới: tự phanh để dừng đúng chỗ
         var left = st.x - R.x1;
         if (left < Math.max(8, st.speed * st.speed / (2 * 3.6) + 5)) setState('arrive');
-        // lên ga mạnh từ lúc chậm: chùm bọt Booster + tiếng tăng ga
         if (st.throttle > 0 && st.speed < 2.5 && st.boostArmed) {
-          st.boostArmed = false; fx.setRun('exit', ['Booster'], 'once', 1); sfx('boat_drive', { vol: 0.5 });
+          st.boostArmed = false; fx.setRun(tm + ':exit', ['Booster'], 'once', 1); sfx('boat_drive', { vol: 0.5 });
         }
         if (st.speed > 5) st.boostArmed = true;
         break;
@@ -1197,31 +1818,24 @@
         autopilot(R.x1);
         if (Math.abs(st.speed) < 0.4 && st.x - R.x1 < 2.5) {
           st.vx = st.vz = st.speed = 0;
-          if (st.dir === 'out') {
-            setState('dive');
-            daveAnim('Walk', false);
-          } else { setState('docked'); daveAnim('Idle'); }
+          if (st.dir === 'out') { setState('dive'); daveAnim('Walk', false); }
+          else { setState('docked'); daveAnim('Idle'); }
         }
         break;
       case 'dive': {
+        // [DtD] LobbyPlayer: đi trên boong 2,7 m/s tới mép m_MoveArea, chạy Diveready tại chỗ (clip không có track vị trí),
+        // màn tối dần từ divingFadePercentage (60%) của clip. Độ dài lúc tối hẳn = hết clip [ĐỀ XUẤT: số trong code IL2CPP].
         st.throttle = st.steer = 0;
-        var d = st.dave;
+        var d = st.dave, DR = B.dave.anims.Diveready;
         if (d.anim === 'Walk') {
-          d.x = Math.min(DIVE_X - 1.0, d.x + 1.4 * dt);
+          d.x = Math.min(WALK_X, d.x + PL.moveSpeed * dt);
           st.stepT -= dt;
           if (st.stepT <= 0) { st.stepT = 0.25; sfx('boat_foot', { vol: 0.5, rate: 0.95 + Math.random() * 0.1 }); }
-          if (d.x >= DIVE_X - 1.0) { daveAnim('Diveready', false); sfx('boat_dive', { vol: 0.6 }); }
-        } else if (d.anim === 'Diveready' && !d.jump && d.t >= B.dave.anims.Diveready.length) {
-          d.jump = { t: 0, dur: 0.5, x0: d.x, y0: d.y, x1: d.x + 2.4, y1: -HEIGHT_OFF - 0.5 };
-        } else if (d.jump && d.jump.t >= d.jump.dur && d.visible) {
-          d.visible = false;
-          var w = boatXf.toWorld(d.x, 0, d.z);
-          splash([w[0], WATER_Y + 0.05, w[2]]);
-          st.hold = 1.3;
-        } else if (!d.visible) {
-          st.hold -= dt;
-          st.fadeK = clamp(1 - st.hold / 0.6, 0, 1);
-          if (st.hold <= 0) finish();
+          if (d.x >= WALK_X) { daveAnim('Diveready', false); sfx('boat_dive', { vol: 0.6 }); }
+        } else if (d.anim === 'Diveready') {
+          var f0 = PL.divingFadePercentage * DR.length;
+          st.fadeK = clamp((d.t - f0) / Math.max(0.1, DR.length - f0), 0, 1);
+          if (d.t >= DR.length + 0.15) finish();
         }
         break;
       }
@@ -1231,65 +1845,50 @@
         if (st.st > 1.9) finish();
         break;
     }
-    if (!st || st.done) return;   // finish() đã chuyển pha
+    if (!st || st.done) return;
     if (st.state === 'drive' || st.state === 'arrive' || st.state === 'docked' || st.state === 'dive') physics(dt);
     else { st.speed = 0; st.vx = st.vz = 0; }
     st.dist = Math.max(0, st.x - R.x1);
 
     // VFX: vệt nước/bọt hai bên và sau đuôi theo tốc độ; đứng yên thì sóng lăn tăn Idle
-    var k = clamp(Math.abs(st.speed) / VMAX, 0, 1), q = HX.game.fps < 40 ? 0.5 : 1;
-    fx.mul('exit', ['Back', 'Tube_Side', 'SideL', 'SideR'], k * q);
-    ['Back', 'Tube_Side', 'SideL', 'SideR'].forEach(function (part) {
-      fx.sets.exit.forEach(function (e) {
-        if (e.part !== part) return;
-        if (!e.on && st.state !== 'moor' && st.state !== 'respawn' && k > 0.05) e.start('run');
-        if (e.on && e.mode === 'run' && k <= 0.02) e.stop();
-      });
+    var k = clamp(Math.abs(st.speed) / VMAX, 0, 1), q = HX.game.fps < 40 ? 0.5 : 1, ex = tm + ':exit', parts = ['Back', 'Tube_Side', 'Side', 'SideL', 'SideR'];
+    fx.mul(ex, parts, k * q);
+    fx.sets[ex].list.forEach(function (e) {
+      if (parts.indexOf(e.part) < 0) return;
+      if (!e.on && st.state !== 'moor' && st.state !== 'respawn' && k > 0.05) e.start('run');
+      if (e.on && e.mode === 'run' && k <= 0.02) e.stop();
     });
-    fx.mul('idle', null, clamp(1 - k * 2.5, 0, 1));
+    fx.mul(tm + ':idle', null, clamp(1 - k * 2.5, 0, 1));
 
     poseBoat(st.t);
     updateDave(dt);
-    fx.update(dt, boatXf);
-    animateScenery(st.t);
     placeCamera(dt);
-    engineSound(dt);
+    fx.cam = W.cam;
+    fx.frames(W.boatRoot.matrixWorld);
+    fx.update(dt, W.cam);
+    lightsFrame();
+    animateScenery(st.t);
+    engineSound();
     hint();
     hud();
   }
 
-  // Tõm: chùm bọt của Booster (tia nước, bọt) và DiveBubble gốc, đặt ở chỗ Dave chạm nước.
-  function splash(at) {
-    sfx('boat_splash', { vol: 0.9 });
-    var fx = W.fx;
-    // tia nước, bọt, giọt của Booster và Back (đuôi cano) phát một lượt ở chỗ Dave rơi xuống
-    fx.sets.exit.forEach(function (e) {
-      if ((e.part !== 'Booster' && e.part !== 'Back') || !e.group) return;
-      var n = 0;
-      (e.rec.bursts || []).forEach(function (b) { n += Math.round(num(b.count, 0, Math.random())); });
-      n = Math.max(n, Math.round((e.plateau || 0) * 0.3));
-      for (var i = 0; i < Math.min(n, 60); i++) fx.spawn(e, at);
-    });
-    fx.sets.dive.forEach(function (e) {
-      if (!e.group) return;
-      var n = 0;
-      (e.rec.bursts || []).forEach(function (b) { n += Math.round(num(b.count, 0, Math.random())); });
-      if (!n) n = Math.round(num(e.rec.rate, 0.5, 0.5) * 0.4);
-      for (var i = 0; i < Math.min(n, 80); i++) fx.spawn(e, at);
-    });
-  }
-
   var tmpP = [0, 0, 0];
   function animateScenery(t) {
-    W.water.material.uniforms.uTime.value = t;
-    W.water.material.uniforms.uCam.value.copy(W.cam.position);
-    // tấm nước đi theo camera, bước 20 m cho khỏi trượt ảnh (toạ độ ảnh là toạ độ thế giới)
-    W.water.position.x = Math.round(W.cam.position.x / 20) * 20;
-    W.water.position.z = Math.round((W.cam.position.z - 250) / 20) * 20;
+    var cam = W.cam;
+    // nước bám camera, bước bằng 3 mắt lưới cho đỉnh sóng khỏi trôi
+    var step = 900 / 130 * 3;
+    W.water.position.x = Math.round(cam.position.x / step) * step;
+    W.water.position.z = Math.round((cam.position.z - 250) / step) * step;
+    W.water.position.y = 0;
+    // trời: quả cầu skybox theo camera; vòng sương và trăng dời theo camera so với chỗ camera sảnh [ĐỀ XUẤT]
+    W.sky.position.copy(cam.position); W.sky.scale.setScalar(B.sea.camera.far * 0.9);
+    var ox = cam.position.x - CAM0[0], oz = cam.position.z - CAM0[2];
+    W.ring.position.set(ox, 0, oz); W.moon.position.set(ox, 0, oz);
     W.clouds.forEach(function (c) {
-      var a = c.anim, keys = a.tracks[''].posKeys, tt = (t + 40) % a.length;
-      hermite(keys, tt, tmpP);
-      c.node.position.set(CLOUD_PARENT[0] + tmpP[0], CLOUD_PARENT[1] + tmpP[1], -(CLOUD_PARENT[2] + tmpP[2]));
+      var a = c.anim, ks = a.tracks[''].posKeys, tt = (t + 40) % a.length, CP = L.times.day.cloudsParent;
+      hermite(ks, tt, tmpP);
+      c.node.position.set(CP[0] + tmpP[0], CP[1] + tmpP[1], -(CP[2] + tmpP[2]));
     });
     W.anims.forEach(function (s) {
       var an = s.an, tt = (t + s.t0) % an.length, acc = 0, col = an.frames[0][0];
@@ -1314,32 +1913,99 @@
     ui.fade.style.opacity = st.fadeK.toFixed(3);
   }
 
+  // ---------------------------------------------------------------- vẽ: lượt độ sâu → cảnh (tuyến tính, HDR nếu được) → loá sáng → lớp chỉnh màu URP
+  // Lớp chỉnh màu theo URP (UberPost + LutBuilder): cộng bloom, viền tối ApplyVignette (d = |uv − tâm| × cường độ × 3,
+  // pow(saturate(1 − d·d), độ mịn × 5)), phơi sáng 2^ev, tương phản trên không gian LogC quanh ACEScc_MIDGRAY, bão hoà quanh độ sáng.
+  var POST_FRAG = [
+    'uniform sampler2D tMap; uniform sampler2D tBloom; uniform float uBloom; uniform vec3 uBloomTint; uniform float uHasBloom;',
+    'uniform vec3 uVigCol; uniform float uVig; uniform vec2 uVigC; uniform float uVigS;',
+    'uniform float uExpo; uniform float uCon; uniform float uSat; varying vec2 vUv;',
+    'vec3 toLogC(vec3 x) { return mix(5.301883 * x + 0.092819, 0.244161 * log(5.555556 * x + 0.047996) / log(10.0) + 0.386036, step(0.011361, x)); }',
+    'vec3 fromLogC(vec3 x) { return mix((x - 0.092819) / 5.301883, (pow(vec3(10.0), (x - 0.386036) / 0.244161) - 0.047996) / 5.555556, step(5.301883 * 0.011361 + 0.092819, x)); }',
+    'vec3 enc(vec3 c) { c = max(c, 0.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }',
+    'void main() {',
+    '  vec3 c = texture2D(tMap, vUv).rgb;',
+    '  if (uHasBloom > 0.5) { vec3 b = texture2D(tBloom, vUv, 1.0).rgb * 0.3 + texture2D(tBloom, vUv, 2.5).rgb * 0.35 + texture2D(tBloom, vUv, 4.0).rgb * 0.35; c += b * uBloom * uBloomTint; }',
+    '  vec2 d = abs(vUv - uVigC) * uVig * 3.0; float vf = pow(clamp(1.0 - dot(d, d), 0.0, 1.0), uVigS * 5.0); c *= mix(uVigCol, vec3(1.0), vf);',
+    '  c *= exp2(uExpo);',
+    '  vec3 lg = toLogC(c); lg = (lg - 0.4135884) * (uCon / 100.0 + 1.0) + 0.4135884; c = max(fromLogC(lg), 0.0);',
+    '  float l = dot(c, vec3(0.2126729, 0.7151522, 0.072175)); c = l + (uSat / 100.0 + 1.0) * (c - l);',
+    '  gl_FragColor = vec4(enc(clamp(c, 0.0, 1.0)), 1.0);',
+    '}',
+  ].join('\n');
+  // Lọc ngưỡng loá sáng như URP Bloom (ngưỡng tuyến tính, gối mềm = ngưỡng × 0,5), rồi lấy mipmap thay chuỗi làm mờ [ĐỀ XUẤT]
+  var PRE_FRAG = [
+    'uniform sampler2D tMap; uniform float uThr; varying vec2 vUv;',
+    'void main() { vec3 c = texture2D(tMap, vUv).rgb; float br = max(c.r, max(c.g, c.b)); float kn = uThr * 0.5;',
+    '  float sf = clamp(br - uThr + kn, 0.0, 2.0 * kn); sf = sf * sf / (4.0 * kn + 1e-4);',
+    '  float m = max(br - uThr, sf) / max(br, 1e-4); gl_FragColor = vec4(c * m, 1.0); }',
+  ].join('\n');
+  var tmpV2 = new THREE.Vector2();
   function ensureRt(r) {
     var size = r.getDrawingBufferSize(tmpV2);
     if (!W.rt) {
       var gl2 = r.capabilities.isWebGL2;
-      W.rt = new THREE.WebGLRenderTarget(size.x, size.y, { samples: gl2 ? 4 : 0, depthBuffer: true });
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-        uniforms: { tMap: { value: W.rt.texture } }, depthTest: false, depthWrite: false,
-        vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-        fragmentShader: 'uniform sampler2D tMap; varying vec2 vUv; void main(){ gl_FragColor = vec4(pow(texture2D(tMap, vUv).rgb, vec3(1.0 / 2.2)), 1.0); }',
+      var hdr = gl2 && r.extensions.has('EXT_color_buffer_float');
+      W.hdr = hdr;
+      W.rt = new THREE.WebGLRenderTarget(size.x, size.y, { samples: gl2 ? 4 : 0, depthBuffer: true, type: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType });
+      W.depthRt = new THREE.WebGLRenderTarget(size.x, size.y, { depthBuffer: true, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+      W.depthRt.depthTexture = new THREE.DepthTexture(size.x, size.y, THREE.UnsignedIntType);
+      W.bloomRt = new THREE.WebGLRenderTarget(Math.max(1, size.x >> 1), Math.max(1, size.y >> 1), { type: hdr ? THREE.HalfFloatType : THREE.UnsignedByteType,
+        minFilter: THREE.LinearMipmapLinearFilter, generateMipmaps: true, depthBuffer: false });
+      W.bloomRt.texture.generateMipmaps = true;
+      var vs = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+      var geo = new THREE.PlaneGeometry(2, 2);
+      var m = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+        uniforms: { tMap: { value: W.rt.texture }, tBloom: { value: W.bloomRt.texture }, uBloom: { value: 0 }, uBloomTint: { value: new THREE.Vector3(1, 1, 1) },
+          uHasBloom: { value: 0 }, uVigCol: { value: new THREE.Vector3() }, uVig: { value: 0 }, uVigC: { value: new THREE.Vector2(0.5, 0.5) }, uVigS: { value: 0.2 },
+          uExpo: { value: 0 }, uCon: { value: 0 }, uSat: { value: 0 } },
+        depthTest: false, depthWrite: false, vertexShader: vs, fragmentShader: POST_FRAG,
       }));
       m.frustumCulled = false;
+      var pre = new THREE.Mesh(geo, new THREE.ShaderMaterial({ uniforms: { tMap: { value: W.rt.texture }, uThr: { value: 1 } }, depthTest: false, depthWrite: false, vertexShader: vs, fragmentShader: PRE_FRAG }));
+      pre.frustumCulled = false;
       var sc = new THREE.Scene(); sc.add(m);
-      W.copy = { mesh: m, scene: sc, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
-    } else if (W.rt.width !== size.x || W.rt.height !== size.y) W.rt.setSize(size.x, size.y);
+      var sc2 = new THREE.Scene(); sc2.add(pre);
+      W.copy = { mesh: m, scene: sc, pre: pre, preScene: sc2, cam: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1) };
+    } else if (W.rt.width !== size.x || W.rt.height !== size.y) {
+      W.rt.setSize(size.x, size.y); W.depthRt.setSize(size.x, size.y); W.bloomRt.setSize(Math.max(1, size.x >> 1), Math.max(1, size.y >> 1));
+    }
+    RES_U.value.set(size.x, size.y);
+    W.wu.uRes.value.set(size.x, size.y);
   }
-  var tmpV2 = new THREE.Vector2();
 
   function render() {
     if (!st || !W || st.state === 'load' || st.done) return;
-    var r = HX.game.gfx.renderer;
+    var r = HX.game.gfx.renderer, cam = W.cam;
     ensureRt(r);
+    // 1. độ sâu các vật đặc (lớp 0): nước và hạt đọc để tính bọt chạm thân cano / hạt mềm
+    cam.layers.set(0);
+    r.setRenderTarget(W.depthRt);
+    r.render(W.scene, cam);
+    DEPTH_U.value = W.depthRt.depthTexture;
+    var u = W.wu;
+    u.tDepth.value = W.depthRt.depthTexture; u.uNear.value = cam.near; u.uFar.value = cam.far;
+    u.uInvProj.value.copy(cam.projectionMatrixInverse); u.uCamWorld.value.copy(cam.matrixWorld);
+    // 2. cảnh đầy đủ
+    cam.layers.enableAll();
     r.setRenderTarget(W.rt);
-    r.render(W.scene, W.cam);
+    r.render(W.scene, cam);
     st.stats = { calls: r.info.render.calls, triangles: r.info.render.triangles };
+    // 3. loá sáng + chỉnh màu
+    var C = W.copy, PU = C.mesh.material.uniforms;
+    PU.uHasBloom.value = POST.bloomI > 0 ? 1 : 0;
+    if (POST.bloomI > 0) {
+      C.pre.material.uniforms.uThr.value = lin1(POST.bloomThr);
+      r.setRenderTarget(W.bloomRt);
+      r.render(C.preScene, C.cam);
+      var tn = linV(POST.bloomTint), lu = tn.x * 0.2126729 + tn.y * 0.7151522 + tn.z * 0.072175;
+      PU.uBloomTint.value.copy(lu > 0 ? tn.multiplyScalar(1 / lu) : new THREE.Vector3(1, 1, 1));
+      PU.uBloom.value = POST.bloomI;
+    }
+    PU.uVigCol.value.copy(linV(POST.vig)); PU.uVig.value = POST.vigI; PU.uVigC.value.set(POST.vigC[0], POST.vigC[1]); PU.uVigS.value = POST.vigS;
+    PU.uExpo.value = POST.exposure; PU.uCon.value = POST.contrast; PU.uSat.value = POST.saturation;
     r.setRenderTarget(null);
-    r.render(W.copy.scene, W.copy.cam);
+    r.render(C.scene, C.cam);
   }
 
   function finish() {
@@ -1374,9 +2040,11 @@
     info: function () {
       if (!st) return { active: false };
       return {
-        active: true, dir: st.dir, state: st.state, dist: st.dist, total: st.total, speed: st.speed, x: st.x, z: st.z, yaw: st.yaw,
-        roll: st.roll, auto: st.auto, loaded: !!W && st.state !== 'load', dave: { anim: st.dave.anim, visible: st.dave.visible, jumping: !!st.dave.jump && st.dave.visible },
-        live: W ? W.fx.list.length : 0, groups: W ? Object.keys(W.fx.groups).map(function (k) { return k.split('/').pop() + ':' + W.fx.groups[k].n; }) : [], vmax: VMAX, stats: st.stats || null,
+        active: true, dir: st.dir, time: st.time, state: st.state, dist: st.dist, total: st.total, speed: st.speed, x: st.x, z: st.z, yaw: st.yaw,
+        roll: st.roll, auto: st.auto, loaded: !!W && st.state !== 'load', fade: st.fadeK,
+        dave: { anim: st.dave.anim, visible: st.dave.visible, x: st.dave.x, t: st.dave.t },
+        live: W ? W.fx.list.length : 0, groups: W ? Object.keys(W.fx.groups).map(function (k) { return k.split('|')[0] + ':' + W.fx.groups[k].n; }) : [], vmax: VMAX, stats: st.stats || null,
+        hdr: W ? !!W.hdr : null,
       };
     },
   };

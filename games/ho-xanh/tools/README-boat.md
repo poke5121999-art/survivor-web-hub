@@ -2,10 +2,13 @@
 
     set PYTHONIOENCODING=utf-8
     python games/ho-xanh/tools/rip_boat.py              # tất cả, ~12 phút
-    python games/ho-xanh/tools/rip_boat.py boat sea     # vài phần: boat sea dave vfx gear audio
+    python games/ho-xanh/tools/rip_boat.py boat sea     # vài phần: boat sea dave vfx lobby gear audio
+    python games/ho-xanh/tools/rip_boat.py lobby        # chỉ sảnh theo buổi (trời, nước, đèn, PP, VFX sảnh, cano/quán tối), ~3 phút
 
 Tool chỉ import `rip.py` và `level.py`, không sửa chúng. `rip.py` phải chạy trước một lần để có bảng bundle.
-Chạy cả bốn phần `boat sea dave vfx` thì xoá `art/boat/` trước khi ghi. Chạy `vfx gear` cùng nhau thì xoá `art/gear/`.
+Chạy cả bốn phần `boat sea dave vfx` thì xoá `art/boat/` trước khi ghi.
+Chạy `vfx gear` cùng nhau thì chỉ xoá những thư mục `rip_gear()` tự ghi: `art/gear/{arms,gun,bullet,icon,ui}` và các ảnh nằm thẳng trong `art/gear/idiver/`.
+`art/gear/idiver/{ui,vfx,layout}`, `art/gear/duff`, `art/gear/mesh` là của `rip_ui.py` / agent khác, không xoá.
 
 Ra:
 - `art/boat/boat.glb`: cano của Dave. `sea.glb`: biển sảnh. `clouds.glb`: mây.
@@ -33,7 +36,7 @@ Ra:
   - Có một `Lobby/Prefabs/Lobby_Day.prefab` khác, dùng material nước cũ. Không dùng bản đó.
 - Nước là shader `ProjectDR/DaveWater` (họ Stylized Water). Sóng tính trong shader, không có ảnh màu.
   - Glb chỉ có mesh + màu `_BaseColor`. Mọi màu, số và 4 ảnh (sóng, bọt, gợn, caustic) nằm ở `sea.water`.
-- Trời `Sky_Inner` là quả cầu shader graph không có ảnh. Không xuất. Màu lấy từ `sea.renderSettings` (sương 70→250) và `sea.lights`.
+- `sea.renderSettings` là trạng thái buổi sáng (DayTime 0) lưu trong scene, không phải buổi chiều. Đèn, sương, trời theo buổi nằm ở `lobby.times` (mục Sảnh theo buổi).
 - Mây: 8 tấm, shader graph `Cloud`. Ảnh nằm ở thuộc tính `Texture2D_310EA40D`, không phải `_MainTex`.
   - `clouds.glb` đóng gói với `-kn` để giữ tên node. Anim trôi (legacy, 500 s) ghi dạng khoá Hermite `posKeys`.
 - Dừa đung đưa và mòng biển có Animator nên không vẽ tĩnh trong glb. Chúng nằm ở `sea.animSprites` (sheet + vị trí + clip).
@@ -100,5 +103,65 @@ Ra:
 ### Không có trong game gốc
 - Không có clip máy cano lặp riêng của Dave. `boat_engine_loop` là của thuyền DLC Dredge, `boat_engine_start/idle` là của thuyền hải tặc. `boat_move` là tiếng cano Dave thật.
 - Không có tiếng nạp đạn súng phụ. `gun_reload` là tiếng nạp/nhặt đạn. `gun_empty`, `ui_fail` là ghép [ĐỀ XUẤT].
-- Không có ảnh trời, không có phao hay mốc đánh dấu Hố Xanh trên mặt nước. Sảnh chính là chỗ lặn (`DiveTrigger` ở đuôi cano).
+- Không có phao hay mốc đánh dấu Hố Xanh trên mặt nước. Sảnh chính là chỗ lặn (`DiveTrigger` ở đuôi cano).
 - Không có bảng tốc độ cano.
+
+### Sảnh theo buổi (`lobby`) [ĐO TRONG REPO, 2026-09-25]
+- `SceneLighting` (`DynamicEnvironmentSceneLighting`) của DR_Lobby giữ ambient, sương, skybox cho từng DayTime. 0 sáng, 1 chiều, 2 tối.
+  - `Env` (`DynamicEnvironmentLoader`) nạp `Lobby_Day` (DayTime 1) hoặc `Lobby_Evening` (DayTime 2, đặt dưới `Env/Evening`, gốc ở (-49,891; 19,894; 1,392)).
+  - Game: chuyến ra chạy buổi chiều, chuyến về chạy buổi tối vì quán mở lúc tối [ĐỀ XUẤT].
+- `lobby.times.day|evening`: ambient phẳng, sương tuyến tính, skybox, đèn (cả `cullingMask`), nước, PP, VFX sảnh đặt đúng chỗ, mòng biển bật/tắt.
+  - Chiều: ambient 0,678, sương (0,58; 0,90; 1) 60→300. Tối: ambient 0,18, sương (0,06; 0,18; 0,29) 85,5→219,8.
+  - Đèn có MonoBehaviour `SunLight` là đèn chính của URP. Chiều: `MainLight`. Tối: `MoonLight`. Các đèn khác là đèn phụ.
+  - `cullingMask` chiều 503316247 loại lớp 8 (Dave) và 10 (đảo xa, dừa). Dave ban chiều chỉ nhận ambient.
+  - Tối: `LerpEnvironmentByEveningHour` kéo `MainLight_Back` 0,3 → 0 và `Vector1_9541F254` của trời 0,5 → 0 trong 42% đầu buổi. Game lấy trạng thái tối hẳn.
+- Trời là cubemap `Skycube` (6 mặt ở `art/boat/sky/`). Tối có thêm sao `Star01`, trăng + quầng (`Moon`, `Moonshaft`, quad trên trời).
+- Vòng sương chân trời `Sky_Inner`: vòng trụ bán kính 188 m quanh (-58,3; 98,8). Lưới ghi ở `lobby.skyRing`.
+- Cano tối `boat_evening.glb`: cùng thân, thêm đèn pha. `Spot Light (1)` 25 chỉ chiếu lớp 4 (nước), `Spot Light` 2 chiếu lớp 0, thêm hai đèn điểm.
+- Thuyền quán tối `sushi_evening.glb`. Đốm đèn `FX_Light00x` ghi riêng ở `sushiboat.lightBillboards` (màu HDR + độ đục từng đốm), không gộp atlas.
+- Số đo thay cho số gõ tay trong boat.js:
+  - VFX cano (con của `VFX_Root`) đặt ở (0; 0,24; -0,92) ×0,82 so với gốc cano: `boat.vfx.*.placed`. Vị trí emitter trong công thức đã tính từ gốc cano.
+  - Gốc mây `Lobby Clouds`: (-34,158; 15,922; 180,888), `times.day.cloudsParent`.
+  - `lobby.player` (`LobbyPlayer`): đi 2,7 m/s; vùng đi trên cano x -0,28..4,72; màn tối từ 60% clip lặn (`divingFadePercentage`).
+  - uv lưới nước `wave001` là hàm bậc nhất của (x, z) thế giới: u = -0,0028965·x + 0,34938, v = -0,0038155·z + 0,87414 (`water.uvMap`, sai số 0,0002).
+- Công thức VFX sảnh/cano (`emitters[]`) có thêm: xoay emitter `rotQ`, scale `lossy`/`localScale` + `scaling`, xoay 3D, Noise đủ tham số,
+  ClampVelocity, sub-emitter theo loại (`subs[].type`, `index`), vệt, material đủ ảnh (`mat`), lưới hạt (`lobby.meshes`).
+
+### Shader gỡ từ DXBC (cách làm)
+- Shader nằm trong `Shader.compressedBlob` (LZ4). Đầu khối: số mục n, rồi n mục (offset, độ dài, đoạn), mỗi mục 12 byte.
+  - `m_PlayerSubPrograms[..][i].m_BlobIndex` trỏ vào mục đó. Cắt đúng độ dài DXBC (int ở byte +24). Thừa byte thì `D3DDisassemble` trả rỗng.
+  - Dịch ra hợp ngữ bằng `D3DCompiler_47.dll` → `D3DDisassemble` (ctypes). Tên biến cbuffer lấy từ khối tham số của biến thể. `m_NameIndices` nằm ở từng pass.
+- Đã gỡ và viết lại trong boat.js:
+  - `Skycube`: lấy cubemap theo `reflect(-V_nhìn, hướng + Vector3)`. `Vector1_456FEBB3` cộng vào trục x của V nhìn. Sao = Star01 × ô Voronoi lấp lánh.
+  - `3D_InnerSkybox_Fog`: màu = màu sương, alpha = 1 - uv.y^0,7.
+  - `ProjectDR/DaveWater` (biến thể sảnh): sóng 4 hướng, bọt, giao cắt (bọt chạm thân cano) theo độ sâu cảnh, chân trời, loá mặt trời, gợn Voronoi.
+  - `Cloud`: albedo = lerp(Color_9C3F, Color_F2DE, N·V × Vector1_49F9B29B) + ảnh.r. Alpha = ảnh.g × Vector1_3A2F95CE. PBR độ nhám 0,64.
+  - `3D_Moon`, `3D_Moonshaft`, `2D_LightBillboard`: ảnh × màu HDR, alpha × `Vector1_A4A36367`. Trộn SrcAlpha/OneMinusSrcAlpha.
+  - `ProjectDR/2D_Sprite_Uber` (cano, quán, đảo, Dave): ánh = (SH × _AmbientStrength + Σ đèn (N·L + pow(N·H, 2) × _SpecularColor)) × _LightFactor.
+  - Hạt: `VFX/Additive`, `Alpha Blended`, `AdditiveNoFog` (màu × 2, hạt mềm theo độ sâu), `Add_CenterGlow` (ảnh cuộn, Flow/Mask/Noise).
+  - Lớp chỉnh màu URP theo Volume từng buổi: Bloom, Vignette, ColorAdjustments (phơi sáng, tương phản trên LogC, bão hoà).
+- boat.js vẽ ba lượt: độ sâu các vật đặc (lớp 0, `DepthTexture`) → cảnh đủ (HDR nếu có `EXT_color_buffer_float`) → bloom + chỉnh màu.
+
+### Bẫy đã sập (2026-09-25)
+- Cubemap: xuất mặt cube bằng `flip=True` thì trời lộn ngược. Để nguyên mặt cube của Unity (hàng đầu ảnh = t 0), khớp quy ước cube của WebGL.
+- Gốc `Sushiboat_Evening` trong cây scene tắt sẵn (DynamicEnvironment bật lúc chạy). Duyệt cây mà bỏ qua vật tắt thì mất cả thuyền.
+- Emitter có `localScale` âm (`WaterSpalsh_Boat01*`, x -1,4..-2,75, chế độ `local`): chia trọng lực cho `max(1e-6, scale)` thì hạt bay tới y -10000.
+  - Đổi vận tốc/lực giữa hai hệ bằng phần tuyến tính của ma trận (có scale). Cỡ hạt lấy |scale|.
+- Shader `Hidden/VolumetricLightBeamSRP` ở `resources.assets`: biến thể khớp từ khoá (`VLB_DEPTH_BLEND`, `VLB_ALPHA_AS_BLACK`) chỉ là khung 336 byte trả màu 1. Chưa biết ánh xạ từ khoá đúng.
+- Truyền đối số có `|` cho `python` (shim cmd) thì vỡ lệnh. Đưa qua biến môi trường.
+- `rip_boat.py vfx gear` từng xoá cả `art/gear/`, làm mất `art/gear/idiver/{ui,vfx,layout}` và `duff` của `rip_ui.py`. Giờ chỉ xoá thư mục mình ghi.
+
+### Số đo lần chạy 2026-09-25
+- `boat_assets.js` 948 KB, riêng `lobby` 438 KB (217 emitter). `art/boat` 8,7 MB.
+- `boat_evening.glb` 213 KB, `sushi_evening.glb` 666 KB.
+- `node test/ho-xanh-boat.js`: 47 đạt. Bộ nhớ GPU 5 chuyến về: lúc chạy 105/95 (geometry/texture), rời pha 41/29, không tăng.
+- Gợn nước ở đúng cỡ gốc: ô Voronoi ~10,8 × 8,2 m. `_RippleColor` (0,14; 0,27; 0,24) đổi sang tuyến tính chỉ cộng ~0,02 vào màu nước, nên gợn rất mờ. Bản gốc cũng vậy.
+
+### Bản gốc không có / chưa làm
+- Không có cú bay khỏi đuôi khi lặn. Clip `Diveready` không có track vị trí. Dave đứng yên chạy 18 hình, màn tối dần từ 60% clip. Không có tia nước lúc lặn.
+- Chưa biết uv lưới skybox. Sao trên trời tối dùng toạ độ cầu (kinh độ, vĩ độ) [ĐỀ XUẤT].
+- `_Smoothness` của `2D_Sprite_Uber` là biến toàn cục. Không material hay script nào đặt → 0 (bóng loá mũ 2).
+- Ambient `Source` 0 (Skybox) nhưng scene lưu màu phẳng. Dùng màu phẳng `AmbientColor`.
+- Chưa làm: chùm đèn pha `VolumetricLightBeam` (xem bẫy), Depth of Field của Volume, `_HSL` của nền cát `LobbyGround_Uber`, lệch khúc xạ + tách màu của nước (pháp tuyến nước phẳng nên lệch rất nhỏ).
+- Noise module của ParticleSystem: Unity dùng nhiễu riêng, không có trong dữ liệu. boat.js dùng nhiễu giá trị 3 chiều mượt [ĐỀ XUẤT].
+- Lộ trình chuyến về bắt đầu ở x 67, ngoài khung camera sảnh gốc [ĐỀ XUẤT]. Nước tối có `_Depth` 8 (chiều 0,55) nên chỗ này thấy rõ nền cát dưới nước.

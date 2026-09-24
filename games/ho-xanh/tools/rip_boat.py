@@ -3,7 +3,7 @@
 
     set PYTHONIOENCODING=utf-8
     python games/ho-xanh/tools/rip_boat.py            # tất cả
-    python games/ho-xanh/tools/rip_boat.py boat sea   # vài phần: boat sea dave vfx gear sheet audio
+    python games/ho-xanh/tools/rip_boat.py boat sea   # vài phần: boat sea dave vfx lobby gear audio
 
 Cần bảng bundle mà rip.py đã quét (%TEMP%/ho-xanh-rip/bundle_index.json). Không sửa rip.py/level.py,
 chỉ import hàm của chúng.
@@ -1381,6 +1381,642 @@ def rip_audio():
     return out
 
 
+# ---------------------------------------------------------------- 7. SẢNH THEO BUỔI (ngày / tối), VFX đủ module, cú nhảy
+# Phần này chỉ thêm hàm mới, không sửa emitter()/vfx_recipe() dùng chung với súng.
+ENV_EVENING = PC + 'Lobby/Prefabs/Environment/Lobby_Evening.prefab'
+SKYDIR = os.path.join(BOAT, 'sky')
+# (khoá, DayTime của DynamicEnvironmentSceneLighting, prefab môi trường, cano trong scene, thuyền quán trong scene)
+LOBBY_TIMES = [('day', 1, ENV_DAY, 'LobbyBoat_Day', 'Sushiboat_Day'),
+               ('evening', 2, ENV_EVENING, 'LobbyBoat_Evening', 'sushiboat_Evening')]
+LOBBY_AUDIO = {  # tiếng nền buổi tối; ghi riêng, không đụng các tệp rip_audio() đã ghi
+    'boat_amb_night': ('amb_lobby_Night', 'loop', '[DtD] nền biển sảnh buổi tối'),
+    'boat_amb_night_wave': ('amb_lobby_night_wave', 'loop', '[DtD] sóng vỗ sảnh buổi tối'),
+}
+
+
+def qmul(a, b):
+    ax, ay, az, aw = a
+    bx, by, bz, bw = b
+    return [aw * bx + ax * bw + ay * bz - az * by, aw * by - ax * bz + ay * bw + az * bx,
+            aw * bz + ax * by - ay * bx + az * bw, aw * bw - ax * bx - ay * by - az * bz]
+
+
+def qconj(q):
+    return [-q[0], -q[1], -q[2], q[3]]
+
+
+def qrot(q, v):
+    p = qmul(qmul(q, [v[0], v[1], v[2], 0.0]), qconj(q))
+    return p[:3]
+
+
+def world_quat(t):
+    """Quaternion thế giới nhân dồn m_LocalRotation lên tới gốc. Không đi qua ma trận nên đúng cả khi
+    scale = 0 (Spot Light trên cano tối có scale 0, cột trục của ma trận bằng 0)."""
+    q = [t.m_LocalRotation.x, t.m_LocalRotation.y, t.m_LocalRotation.z, t.m_LocalRotation.w]
+    if t.m_Father.m_PathID:
+        q = qmul(world_quat(t.m_Father.read()), q)
+    return q
+
+
+def rq(q):
+    n = math.sqrt(sum(c * c for c in q)) or 1.0
+    return [rnd(c / n, 5) for c in q]
+
+
+def active_in(go, root):
+    """GameObject bật trong cây tính tới root (root có thể đang tắt vì chờ Animator/DynamicEnvironment bật)."""
+    g = go
+    while g is not None:
+        if not g.m_IsActive and g.object_reader.path_id != root.object_reader.path_id:
+            return False
+        if g.object_reader.path_id == root.object_reader.path_id:
+            return True
+        g = level.parent_go(g)
+    return True
+
+
+MAT_TEX = {}
+
+
+def mat_props(m, texdir=None):
+    """Material -> {shader, floats, colors, tex{tên: {img, st, srgb}}}. Ảnh lưu một lần (theo asset)."""
+    texdir = texdir or FXDIR
+    sp = m.m_SavedProperties
+    try:
+        shader = m.m_Shader.read().m_ParsedForm.m_Name
+    except Exception:
+        shader = '?'
+    out = {'name': m.m_Name, 'shader': shader,
+           'floats': {n: rnd(v, 4) for n, v in sp.m_Floats if not n.startswith('_Queue') and math.isfinite(v)},
+           'colors': {n: [rnd(c.r, 4), rnd(c.g, 4), rnd(c.b, 4), rnd(c.a, 4)] for n, c in sp.m_Colors
+                      if all(math.isfinite(x) for x in (c.r, c.g, c.b, c.a))},
+           'tex': {}}
+    for n, e in sp.m_TexEnvs:
+        st = [rnd(e.m_Scale.x), rnd(e.m_Scale.y), rnd(e.m_Offset.x), rnd(e.m_Offset.y)]
+        ent = {'st': st}
+        if e.m_Texture.m_PathID:
+            try:
+                t = e.m_Texture.read()
+                if type(t).__name__ == 'Cubemap':
+                    ent['cube'] = t.m_Name
+                    out['tex'][n] = ent
+                    continue
+                key = (t.assets_file.name, t.object_reader.path_id)
+                if key not in MAT_TEX:
+                    if key in FXTC:
+                        MAT_TEX[key] = FXTC[key]
+                    else:
+                        img = t.image.convert('RGBA')
+                        if max(img.size) > 512:
+                            k = 512 / max(img.size)
+                            img = img.resize((max(1, round(img.width * k)), max(1, round(img.height * k))), Image.LANCZOS)
+                        MAT_TEX[key] = save(img, os.path.join(texdir, t.m_Name + '.png'))
+                        FXTC[key] = MAT_TEX[key]
+                ent['img'] = MAT_TEX[key]
+                ent['srgb'] = int(getattr(t, 'm_ColorSpace', 1) or 0)
+            except Exception as ex:
+                ent['error'] = str(ex)[:80]
+        out['tex'][n] = ent
+    return out
+
+
+PS_MESHES = {}
+
+
+def mesh_template(me):
+    """Lưới của hạt dạng mesh (QuadToCircle...): đỉnh, uv, màu đỉnh, tam giác (hệ Unity)."""
+    from UnityPy.helpers.MeshHelper import MeshHandler
+    if me.m_Name in PS_MESHES:
+        return
+    h = MeshHandler(me)
+    h.process()
+    V = np.array(h.m_Vertices, dtype=float).reshape(-1, 3)
+    UV = np.array(h.m_UV0, dtype=float).reshape(-1, 2) if h.m_UV0 else np.zeros((len(V), 2))
+    Cl = np.array(h.m_Colors, dtype=float).reshape(-1, 4) if h.m_Colors else None
+    tris = [int(i) for sub in h.get_triangles() for tri in sub for i in tri]
+    V = [[rnd(v, 4) for v in p] for p in V]
+    UV = [[rnd(v, 4) for v in p] for p in UV]
+    C = [[rnd(v, 3) for v in p] for p in Cl] if Cl is not None else None
+    PS_MESHES[me.m_Name] = {'pos': V, 'uv': UV, 'color': C, 'index': tris}
+
+
+def emitter_more(ps, psr, rel, qroot, root, cache):
+    """Những gì emitter() chưa ghi: xoay của emitter, chế độ scale, căn hạt, xoay 3D, noise đủ tham số,
+    giới hạn vận tốc (ClampVelocity: 89 emitter của cano/sảnh dùng), kế thừa vận tốc, sub-emitter theo
+    loại (Birth/Death...), material đủ ảnh (MainTex/Flow/Mask/Noise) và vertex stream."""
+    tt = ps.read_typetree()
+    go = ps.read().m_GameObject.read()
+    t = level.transform_of(go)
+    M = rel @ level.world(t, cache)
+    x = {'psId': ps.m_PathID, 'on': active_in(go, root),
+         'rotQ': rq(qmul(qconj(qroot), world_quat(t))),
+         'lossy': [rnd(np.linalg.norm(M[:3, i]), 4) for i in range(3)],
+         'localScale': [rnd(t.m_LocalScale.x, 4), rnd(t.m_LocalScale.y, 4), rnd(t.m_LocalScale.z, 4)],
+         'scaling': ['hierarchy', 'local', 'shape'][tt.get('scalingMode', 0)],
+         'simSpeed': rnd(tt.get('simulationSpeed', 1.0), 3)}
+    im = tt['InitialModule']
+    if im.get('rotation3D'):
+        x['rot3D'] = [mm(im['startRotationX']), mm(im['startRotationY']), mm(im['startRotation'])]
+    if im.get('randomizeRotationDirection'):
+        x['flipRot'] = rnd(im['randomizeRotationDirection'], 3)
+    if im.get('size3D'):
+        x['sizeZ'] = mm(im['startSizeZ'])
+    sm = tt['SizeModule']
+    if sm['enabled'] and sm.get('separateAxes'):
+        x['sizeAxes'] = [mm(sm['curve']), mm(sm['y']), mm(sm['z'])]
+    rm = tt['RotationModule']
+    if rm['enabled'] and rm.get('separateAxes'):
+        x['rotAxes'] = [mm(rm['x']), mm(rm['y']), mm(rm['curve'])]
+    cv = tt['ClampVelocityModule']
+    if cv['enabled']:
+        x['clamp'] = {'separate': bool(cv['separateAxis']), 'x': mm(cv['x']), 'y': mm(cv['y']), 'z': mm(cv['z']),
+                      'magnitude': mm(cv['magnitude']), 'dampen': rnd(cv['dampen'], 4), 'world': bool(cv['inWorldSpace']),
+                      'drag': mm(cv['drag']) if 'drag' in cv else 0,
+                      'dragSize': bool(cv.get('multiplyDragByParticleSize')), 'dragVel': bool(cv.get('multiplyDragByParticleVelocity'))}
+    nm = tt['NoiseModule']
+    if nm['enabled']:
+        x['noise'] = {'strength': mm(nm['strength']), 'strengthY': mm(nm['strengthY']), 'strengthZ': mm(nm['strengthZ']),
+                      'separate': bool(nm['separateAxes']), 'frequency': rnd(nm['frequency'], 4), 'scroll': mm(nm['scrollSpeed']),
+                      'damping': bool(nm['damping']), 'octaves': nm['octaves'], 'octMul': rnd(nm['octaveMultiplier'], 3),
+                      'octScale': rnd(nm['octaveScale'], 3), 'quality': nm['quality'],
+                      'remapOn': bool(nm.get('remapEnabled')), 'remap': mm(nm['remap']),
+                      'pos': mm(nm['positionAmount']), 'rot': mm(nm['rotationAmount']), 'size': mm(nm['sizeAmount'])}
+    iv = tt['InheritVelocityModule']
+    if iv['enabled']:
+        x['inherit'] = {'mode': iv['m_Mode'], 'curve': mm(iv['m_Curve'])}
+    vm = tt['VelocityModule']
+    if vm['enabled']:
+        extra = {}
+        for k in ('orbitalX', 'orbitalY', 'orbitalZ', 'radial', 'speedModifier', 'orbitalOffsetX', 'orbitalOffsetY', 'orbitalOffsetZ'):
+            if k in vm:
+                v = mm(vm[k])
+                if v not in (0, 0.0) and not (k == 'speedModifier' and v == 1):
+                    extra[k] = v
+        if extra:
+            x['velocityMore'] = extra
+    sh = tt['ShapeModule']
+    if sh['enabled']:
+        x['shapeMore'] = {'randomDir': rnd(sh.get('randomDirectionAmount', 0), 3), 'sphericalDir': rnd(sh.get('sphericalDirectionAmount', 0), 3),
+                          'randomPos': rnd(sh.get('randomPositionAmount', 0), 3), 'alignDir': bool(sh.get('alignToDirection')),
+                          'length': rnd(sh.get('length', 0), 3), 'boxThickness': [rnd(sh['boxThickness'][k], 3) for k in 'xyz'] if 'boxThickness' in sh else None,
+                          'arcMode': sh['arc'].get('mode', 0), 'radiusMode': sh['radius'].get('mode', 0),
+                          'donut': rnd(sh.get('donutRadius', 0), 3), 'type': sh['type']}
+    em = tt['EmissionModule']
+    if em['enabled'] and em['m_Bursts']:
+        x['burstProb'] = [rnd(b.get('probability', 1.0), 3) for b in em['m_Bursts']]
+    uvm = tt['UVModule']
+    if uvm['enabled']:
+        x['sheetMore'] = {'timeMode': uvm.get('timeMode', 0), 'fps': rnd(uvm.get('fps', 0), 3), 'rowMode': uvm.get('rowMode', 0),
+                          'uvChannelMask': uvm.get('uvChannelMask', -1)}
+    sub = tt['SubModule']
+    if sub['enabled']:
+        x['subs'] = [{'ps': s['emitter']['m_PathID'], 'type': ['birth', 'collision', 'death', 'trigger', 'manual'][s['type']] if s['type'] < 5 else s['type'],
+                      'props': s['properties'], 'prob': rnd(s.get('emitProbability', 1.0), 3)} for s in sub['subEmitters'] if s['emitter']['m_PathID']]
+    tr = tt['TrailModule']
+    if tr['enabled']:
+        x['trailMore'] = {'lifetime': mm(tr['lifetime']), 'ratio': rnd(tr['ratio'], 3), 'minDist': rnd(tr['minVertexDistance'], 3),
+                          'world': bool(tr['worldSpace']), 'die': bool(tr['dieWithParticles']), 'sizeWidth': bool(tr['sizeAffectsWidth']),
+                          'inheritColor': bool(tr['inheritParticleColor']), 'colorOverLife': mmg(tr['colorOverLifetime']),
+                          'width': mm(tr['widthOverTrail']), 'colorOverTrail': mmg(tr['colorOverTrail']), 'textureMode': tr['textureMode']}
+    if psr is not None:
+        rt = psr.read_typetree()
+        r = psr.read()
+        x['align'] = ['view', 'world', 'local', 'facing', 'velocity'][rt['m_RenderAlignment']]
+        x['pivot'] = [rnd(rt['m_Pivot'][k], 3) for k in 'xyz']
+        x['flip'] = [rnd(rt['m_Flip'][k], 3) for k in 'xyz'] if 'm_Flip' in rt else [0, 0, 0]
+        x['streams'] = list(rt.get('m_VertexStreams') or [])
+        x['sortFudge'] = rnd(rt.get('m_SortingFudge', 0), 3)
+        x['minSize'] = rnd(rt.get('m_MinParticleSize', 0), 3)
+        x['sortMode'] = rt.get('m_SortMode', 0)
+        mats = [p for p in r.m_Materials if p.m_PathID]
+        if mats:
+            x['mat'] = mat_props(mats[0].read())
+            if len(mats) > 1 and tr['enabled']:
+                x['trailMat'] = mat_props(mats[1].read())
+        if rt['m_RenderMode'] == 4 and r.m_Mesh.m_PathID:
+            try:
+                me = read_mesh(r.m_Mesh)
+                mesh_template(me)
+                x['mesh'] = me.m_Name
+            except Exception as ex:
+                x['meshError'] = str(ex)[:80]
+    return x
+
+
+def recipe_more(root_go, rel, qroot, cache, src=''):
+    """Cả cây ParticleSystem dưới root_go -> công thức đủ module. rel: ma trận đổi từ thế giới Unity về hệ
+    cần ghi (vd. nghịch đảo gốc cano). qroot: quaternion của hệ đó (để lấy xoay tương đối)."""
+    ems = []
+    stack = [root_go]
+    while stack:
+        go = stack.pop()
+        stack.extend(ch.read().m_GameObject.read() for ch in reversed(level.transform_of(go).m_Children))
+        ps, psr = comp(go, 'ParticleSystem'), comp(go, 'ParticleSystemRenderer')
+        if ps is None:
+            continue
+        e = emitter(ps, psr, FXDIR, FXTC, rel, cache)
+        e.update(emitter_more(ps, psr, rel, qroot, root_go, cache))
+        ems.append(e)
+    ids = {e['psId']: i for i, e in enumerate(ems)}
+    for e in ems:
+        for s in e.get('subs', []):
+            s['index'] = ids.get(s.pop('ps'))
+        e.pop('psId', None)
+    return {'src': src, 'emitters': ems}
+
+
+def light_info(go, rel, qroot, cache, root):
+    lt = comp(go, 'Light').read_typetree()
+    t = level.transform_of(go)
+    M = rel @ level.world(t, cache)
+    q = qmul(qconj(qroot), world_quat(t))
+    return {'name': go.m_Name, 'on': active_in(go, root) and bool(lt['m_Enabled']),
+            'type': ['spot', 'directional', 'point', 'area'][lt['m_Type']] if lt['m_Type'] < 4 else lt['m_Type'],
+            'color': level.rgb(lt['m_Color']), 'intensity': rnd(lt['m_Intensity'], 4), 'range': rnd(lt['m_Range'], 3),
+            'spotAngle': rnd(lt['m_SpotAngle'], 3), 'innerSpotAngle': rnd(lt['m_InnerSpotAngle'], 3),
+            'cullingMask': lt['m_CullingMask']['m_Bits'], 'sun': mb_tt(go, 'SunLight') is not None, 'pos': [rnd(v, 3) for v in M[:3, 3]],
+            'dir': [rnd(v, 4) for v in qrot(q, [0, 0, 1])]}
+
+
+def cubemap_faces(ptr, name):
+    """Cubemap -> 6 ảnh theo thứ tự Unity +X -X +Y -Y +Z -Z (art/boat/sky/<tên>_<i>.png)."""
+    from UnityPy.export.Texture2DConverter import parse_image_data
+    t = ptr.read()
+    data = t.get_image_data()
+    w, h = t.m_Width, t.m_Height
+    n = len(data) // 6
+    out = []
+    for i in range(6):
+        # flip=False: hàng đầu của dữ liệu Unity là t=0 của mặt cube (mặt bên: hướng lên). Để nguyên thì PNG
+        # nạp vào WebGL (flipY=false) khớp quy ước chọn mặt D3D/GL. Lật như Texture2D thì trời lộn ngược.
+        img = parse_image_data(data[i * n:(i + 1) * n], w, h, t.m_TextureFormat, t.object_reader.version,
+                               t.object_reader.platform, getattr(t, 'm_PlatformBlob', None), flip=False)
+        out.append(save(img.convert('RGBA'), os.path.join(SKYDIR, '%s_%d.png' % (name, i))))
+    return {'faces': out, 'size': [w, h], 'srgb': int(getattr(t, 'm_ColorSpace', 1) or 0), 'texture': t.m_Name}
+
+
+def skybox_info(mat, key):
+    p = mat_props(mat, SKYDIR)
+    sp = mat.m_SavedProperties
+    cube = None
+    for n, e in sp.m_TexEnvs:
+        if e.m_Texture.m_PathID:
+            if type(e.m_Texture.read()).__name__ == 'Cubemap':
+                cube = cubemap_faces(e.m_Texture, 'sky_' + key)
+                p['tex'].pop(n, None)
+                p['cubeProp'] = n
+    p['cube'] = cube
+    return p
+
+
+_BUILTIN = {}
+
+
+def read_mesh(ptr):
+    """Mesh theo PPtr; mesh dựng sẵn của Unity (Quad, Sphere...) nằm ở Resources/unity default resources."""
+    try:
+        return ptr.read()
+    except FileNotFoundError:
+        if not _BUILTIN:
+            e = UnityPy.load(os.path.join(DTD, 'Resources', 'unity default resources'))
+            for o in e.objects:
+                _BUILTIN[o.path_id] = o
+        return _BUILTIN[ptr.m_PathID].read()
+
+
+def mesh_world(go, cache):
+    from UnityPy.helpers.MeshHelper import MeshHandler
+    me = read_mesh(comp(go, 'MeshFilter').read().m_Mesh)
+    h = MeshHandler(me)
+    h.process()
+    W = level.world(level.transform_of(go), cache)
+    V = np.array(h.m_Vertices, dtype=float).reshape(-1, 3)
+    P = (W @ np.c_[V, np.ones(len(V))].T).T[:, :3]
+    UV = np.array(h.m_UV0, dtype=float).reshape(-1, 2)
+    tris = [int(i) for sub in h.get_triangles() for tri in sub for i in tri]
+    return {'mesh': me.m_Name, 'pos': [[rnd(v, 3) for v in p] for p in P], 'uv': [[rnd(v, 4) for v in u] for u in UV], 'index': tris}
+
+
+def export_glb(items, name, base=None, force=(), skip=lambda go: False, keep_names=False):
+    g = HxGlb()
+    sprites, imgs, smats = [], {}, set()
+    cache = {}
+    stats = export_nodes(g, items, sprites, imgs, smats, cache, base=base, force=force, skip=skip)
+    if sprites:
+        level.add_sprites(g, sprites, imgs, sorted(smats))
+    raw = os.path.join(CACHE, name + '.raw.glb')
+    g.write(raw)
+    out = os.path.join(BOAT, name + '.glb')
+    gltfpack(raw, out, keep_names=keep_names)
+    return rel(out), stats, g
+
+
+def lobby_boat(key, boat_go, cache):
+    """Cano trong scene sảnh (bản đã override của scene): đèn, chùm đèn pha (VolumetricLightBeam),
+    VFX_Root tính thẳng về gốc cano. Bản tối xuất thêm glb vì đổi material kính/đèn pha."""
+    W = level.world(level.transform_of(boat_go), cache)
+    inv = np.linalg.inv(W)
+    q0 = world_quat(level.transform_of(boat_go))
+    out = {'scenePos': [rnd(v, 3) for v in W[:3, 3]], 'lights': [], 'beams': [], 'vfx': {}}
+    model = child(boat_go, 'Model')
+    if key != 'day':
+        skip = lambda go: go.m_Name in ('VFX_Root', 'Event_Root', 'AddOn_Root')
+        glb, stats, g = export_glb([(model, 'boat')], 'boat_' + key, base=inv, force=(boat_go.m_Name,), skip=skip)
+        out['glb'] = glb
+        out['glbStats'] = stats
+    stack = [boat_go]
+    while stack:
+        go = stack.pop()
+        stack.extend(ch.read().m_GameObject.read() for ch in level.transform_of(go).m_Children)
+        if comp(go, 'Light') is not None:
+            out['lights'].append(light_info(go, inv, q0, cache, boat_go))
+        for c in go.m_Component:
+            if c.component.type.name == 'MonoBehaviour' and level.script_name(c.component.read()) == 'VolumetricLightBeam':
+                tt = c.component.read_typetree()
+                t = level.transform_of(go)
+                M = inv @ level.world(t, cache)
+                q = qmul(qconj(q0), world_quat(t))
+                b = {k: (rnd(v, 4) if isinstance(v, float) else v) for k, v in tt.items()
+                     if isinstance(v, (int, float)) and not k.startswith('m_')}
+                b.update({'name': go.m_Name, 'on': active_in(go, boat_go), 'color': [rnd(tt['color'][k], 4) for k in 'rgba'],
+                          'noiseVelocityLocal': [rnd(tt['noiseVelocityLocal'][k], 3) for k in 'xyz'],
+                          'pos': [rnd(v, 3) for v in M[:3, 3]], 'dir': [rnd(v, 4) for v in qrot(q, [0, 0, 1])],
+                          'scale': [rnd(np.linalg.norm(M[:3, i]), 4) for i in range(3)], 'rotQ': rq(q)})
+                out['beams'].append(b)
+    vr = child(model, 'VFX_Root')
+    for ch in level.transform_of(vr).m_Children:
+        cgo = ch.read().m_GameObject.read()
+        kind = 'idle' if 'Idle' in cgo.m_Name else 'exit' if 'Exit' in cgo.m_Name else cgo.m_Name
+        Mv = inv @ level.world(level.transform_of(cgo), cache)
+        rec = recipe_more(cgo, inv, q0, cache, cgo.m_Name)
+        rec['placed'] = {'pos': [rnd(v, 4) for v in Mv[:3, 3]], 'scale': rnd(np.linalg.norm(Mv[:3, 0]), 4),
+                         'rotQ': rq(qmul(qconj(q0), world_quat(level.transform_of(cgo))))}
+        out['vfx'][kind] = rec
+    return out
+
+
+LIGHT_BB = 'Shader Graphs/2D_LightBillboard'
+
+
+def light_billboards(root_go, cache):
+    """Sprite dùng shader 2D_LightBillboard (đốm đèn FX_Light của thuyền quán buổi tối). Không gộp vào atlas glb được
+    vì mỗi đốm mang màu HDR + độ đục riêng trong material. [DtD] gỡ từ DXBC: rgb = sprite.rgb × Color_B1804469,
+    a = sprite.a × Vector1_A4A36367; trộn SrcAlpha/OneMinusSrcAlpha, không ghi độ sâu, không sương;
+    Boolean_FE7CAFBD (quay theo camera quanh trục y) = 0 ở cả bốn material nên quad đứng yên theo transform."""
+    out = []
+    stack = [root_go]
+    while stack:
+        go = stack.pop()
+        if not go.m_IsActive and go is not root_go:  # gốc Sushiboat_Evening tắt sẵn, DynamicEnvironment bật lúc chạy
+            continue
+        stack.extend(ch.read().m_GameObject.read() for ch in level.transform_of(go).m_Children)
+        sr = comp(go, 'SpriteRenderer')
+        if sr is None:
+            continue
+        r = sr.read()
+        mats = [m.read() for m in r.m_Materials if m.m_PathID]
+        if not r.m_Enabled or not r.m_Sprite.m_PathID or not mats:
+            continue
+        try:
+            shn = mats[0].m_Shader.read().m_ParsedForm.m_Name
+        except Exception:
+            shn = ''
+        if shn != LIGHT_BB:
+            continue
+        sp = r.m_Sprite.read()
+        F = dict(mats[0].m_SavedProperties.m_Floats)
+        C = dict(mats[0].m_SavedProperties.m_Colors)
+        c = C.get('Color_B1804469')
+        img = save(sp.image.convert('RGBA'), os.path.join(FXDIR, sp.m_Name + '.png'))
+        M = level.world(level.transform_of(go), cache)
+        out.append({'name': go.m_Name, 'mat': mats[0].m_Name, 'img': img, 'ppu': sp.m_PixelsToUnits,
+                    'size': [rnd(sp.m_Rect.width / sp.m_PixelsToUnits, 4), rnd(sp.m_Rect.height / sp.m_PixelsToUnits, 4)],
+                    'pivot': [rnd(sp.m_Pivot.x, 4), rnd(sp.m_Pivot.y, 4)], 'flip': [bool(r.m_FlipX), bool(r.m_FlipY)],
+                    'tint': level.rgba(r.m_Color), 'color': [rnd(c.r, 4), rnd(c.g, 4), rnd(c.b, 4)] if c else [1, 1, 1],
+                    'alpha': rnd(F.get('Vector1_A4A36367', 1), 4), 'billboard': bool(F.get('Boolean_FE7CAFBD', 0)),
+                    'order': r.m_SortingOrder, 'm': [rnd(v, 5) for v in M.reshape(-1)]})
+    return out
+
+
+def rip_lobby():
+    """Sảnh theo buổi. DR_Lobby: SceneLighting (DynamicEnvironmentSceneLighting) giữ ambient/sương/skybox cho
+    mỗi DayTime; Env (DynamicEnvironmentLoader) nạp Lobby_Day (DayTime 1) hoặc Lobby_Evening (DayTime 2, đặt dưới
+    Env/Evening). Ghi: bầu trời cubemap + vòng sương Sky_Inner, đèn, material nước, PP, VFX sảnh đặt đúng chỗ,
+    trăng, thuyền quán tối, cano tối (glb + đèn + chùm đèn pha), công thức VFX cano đủ module, số của cú lặn."""
+    shutil.rmtree(SKYDIR, ignore_errors=True)
+    env, roots = load_scene_roots(LOBBY_SCENE)
+    cache = {}
+    le = roots['Lobby_Env']
+    sl = mb_tt(roots['SceneLighting'], 'DynamicEnvironmentSceneLighting')
+    sl_obj = [c.component for c in roots['SceneLighting'].m_Component if c.component.type.name == 'MonoBehaviour'][0].read()
+    loader = mb_tt(child(le, 'Env'), 'DynamicEnvironmentLoader')
+    evening_root = child(child(le, 'Env'), 'Evening')
+    Pev = level.world(level.transform_of(evening_root), cache)
+    qev = world_quat(level.transform_of(evening_root))
+    out = {'times': {}, 'note': '[ĐO TRONG REPO] Toạ độ hệ Unity thế giới của DR_Lobby (glTF: z -> -z). '
+                                'DayTime 1 = chiều (Lobby_Day), 2 = tối (Lobby_Evening dưới Env/Evening).'}
+    out['loader'] = loader['m_StateList']
+    boat_grp = child(le, 'Boat')
+    states = list(sl_obj.States)
+    for key, dt, prefab, boat_name, sushi_name in LOBBY_TIMES:
+        st = [s for s in sl['States'] if s['DayTime'] == dt and s['Weather'] == 0][0]
+        sto = [s for s in states if s.DayTime == dt and s.Weather == 0][0]
+        T = {'dayTime': dt, 'ambient': level.rgb(st['AmbientColor']), 'ambientSource': st['Source'],
+             'fog': {'on': bool(st['FogEnable']), 'mode': st['FogMode'], 'color': level.rgb(st['FogColor']),
+                     'start': rnd(st['FogStart'], 3), 'end': rnd(st['FogEnd'], 3)}}
+        T['sky'] = skybox_info(sto.Skybox.read(), key)
+        env2, _ = level.load_with_deps(prefab)
+        root = level.prefab_root(env2, prefab)
+        c2 = {}
+        P = Pev if key == 'evening' else np.eye(4)
+        qP = qev if key == 'evening' else [0.0, 0.0, 0.0, 1.0]
+        T['prefab'] = prefab.replace(PC, '')
+        T['placement'] = [rnd(v, 3) for v in P[:3, 3]]
+        T['lights'], T['vfx'] = [], {}
+        stack = [root]
+        while stack:
+            go = stack.pop()
+            stack.extend(ch.read().m_GameObject.read() for ch in level.transform_of(go).m_Children)
+            if comp(go, 'Light') is not None:
+                li = light_info(go, P, [0.0, 0.0, 0.0, 1.0], c2, root)
+                li['dir'] = [rnd(v, 4) for v in qrot(qmul(qP, world_quat(level.transform_of(go))), [0, 0, 1])]
+                T['lights'].append(li)
+            wo = mb_tt(go, 'WaterObject') if comp(go, 'MeshRenderer') is not None else None
+            if wo is not None:
+                wm = comp(go, 'MeshRenderer').read().m_Materials[0].read()
+                wp = mat_props(wm, os.path.join(BOAT, 'water'))
+                Ww = P @ level.world(level.transform_of(go), c2)
+                wp['y'] = rnd(Ww[1, 3], 3)
+                wp['keywords'] = list(getattr(wm, 'm_ValidKeywords', []) or [])
+                # uv của lưới wave001 là hàm bậc nhất của (x, z) thế giới: gợn sóng (_RippleDensity) và xoáy uv tính trên uv này
+                mw = mesh_world(go, c2)
+                Pw = (P @ np.c_[np.array(mw['pos']), np.ones(len(mw['pos']))].T).T
+                A = np.c_[Pw[:, 0], Pw[:, 2], np.ones(len(Pw))]
+                UVw = np.array(mw['uv'])
+                cu = np.linalg.lstsq(A, UVw[:, 0], rcond=None)[0]
+                cv = np.linalg.lstsq(A, UVw[:, 1], rcond=None)[0]
+                wp['uvMap'] = {'u': [rnd(v, 7) for v in cu], 'v': [rnd(v, 7) for v in cv],
+                               'maxErr': rnd(max(np.abs(A @ cu - UVw[:, 0]).max(), np.abs(A @ cv - UVw[:, 1]).max()), 5),
+                               'note': 'u = a*x + b*z + c (x, z thế giới Unity)'}
+                T['water'] = wp
+            vol = mb_tt(go, 'Volume')
+            if vol is not None:
+                for cc in go.m_Component:
+                    if cc.component.type.name == 'MonoBehaviour' and level.script_name(cc.component.read()) == 'Volume':
+                        T['pp'] = pp_profile(cc.component.read().sharedProfile.read())
+            if go.m_Name.startswith('VFX_Lobby'):
+                rec = recipe_more(go, P, qP, c2, go.m_Name)
+                Mv = P @ level.world(level.transform_of(go), c2)
+                rec['placed'] = {'pos': [rnd(v, 3) for v in Mv[:3, 3]]}
+                T['vfx'][go.m_Name] = rec
+            if go.m_Name in ('Moon', 'Moonshaft'):
+                T.setdefault('moon', {})[go.m_Name] = moon_part(go, P, c2)
+            if go.m_Name == 'Lobby Clouds':
+                Wc = P @ level.world(level.transform_of(go), c2)
+                T['cloudsParent'] = [rnd(v, 4) for v in Wc[:3, 3]]
+        lerp = mb_tt(root, 'LerpEnvironmentByEveningHour')
+        if lerp:
+            T['eveningLerp'] = {'startRatio': rnd(lerp['_startRatio'], 3), 'endRatio': rnd(lerp['_endRatio'], 3),
+                                'sky': lerp['_lerpSkyboxes'], 'lights': [{'intensityFrom': rnd(l['intensityFrom'], 3), 'intensityTo': rnd(l['intensityTo'], 3)} for l in lerp['_lerpLights']],
+                                'note': 'Theo giờ tối (0 -> 0,42 của buổi): Vector1_9541F254 của skybox 0,5 -> 0, MainLight_Back 0,3 -> 0. Game lấy trạng thái cuối (tối hẳn) = số lưu trong material/đèn.'}
+        # bật/tắt theo buổi: mòng biển chỉ có DayTime 0/1
+        gulls = []
+        for n in ('SeaGullMove001', 'SeaGullMove002', 'SeaGullMove003'):
+            if n in roots:
+                a = mb_tt(roots[n], 'DynamicEnvironmentActivation')
+                ok = any(s['DayTime'] == dt for s in (a or {}).get('States', [])) if a else True
+                gulls.append(ok)
+        T['seagulls'] = all(gulls) if gulls else True
+        T['boat'] = lobby_boat(key, child(boat_grp, boat_name), cache)
+        if key != 'day':
+            sgo = child(child(le, 'Sushiboat'), sushi_name)
+            bb = light_billboards(sgo, cache)
+            bbn = {b['name'] for b in bb}
+            # đốm đèn 2D_LightBillboard ghi riêng (lightBillboards), không gộp vào atlas sprite của glb
+            glb, stats, _ = export_glb([(sgo, 'sushiboat')], 'sushi_' + key, force=(sushi_name,),
+                                       skip=lambda g: g.m_Name in bbn and comp(g, 'SpriteRenderer') is not None)
+            T['sushiboat'] = {'glb': glb, 'stats': stats, 'name': sushi_name, 'lightBillboards': bb,
+                              'note': 'm = ma trận 4x4 thế giới Unity (hàng trước), sprite vẽ quad cỡ size, pivot theo tỉ lệ.'}
+        out['times'][key] = T
+        print('  sảnh %s: %d đèn, VFX %s, cano vfx %s' % (key, len(T['lights']), list(T['vfx']), list(T['boat']['vfx'])))
+    # vòng sương chân trời Sky_Inner (shader 3D_InnerSkybox_Fog: màu = unity_FogColor, alpha = 1 - uv.y^0,7)
+    sky = child(le, 'Sky_Inner')
+    sm = comp(sky, 'MeshRenderer').read().m_Materials[0].read()
+    out['skyRing'] = dict(mesh_world(sky, cache), power=rnd(dict(sm.m_SavedProperties.m_Floats).get('Vector1_B5DEA693', 0.7), 3),
+                          note='[DtD] 3D_InnerSkybox_Fog gỡ từ DXBC: rgb = unity_FogColor, a = max(1 - pow(uv.y, Vector1_B5DEA693), 0).')
+    # cú lặn / đi trên boong (LobbyPlayer của Character)
+    ch = child(boat_grp, 'Character')
+    lp = mb_tt(ch, 'LobbyPlayer')
+    bday = level.world(level.transform_of(child(boat_grp, 'LobbyBoat_Day')), cache)
+    area = lp['m_MoveArea']
+    out['player'] = {'moveSpeed': rnd(lp['m_MoveSpeed'], 3), 'moveThreshold': rnd(lp['m_MoveThreshold'], 3),
+                     'moveArea': {'center': [rnd(area['m_Center']['x'], 3), rnd(area['m_Center']['y'], 3)],
+                                  'extent': [rnd(area['m_Extent']['x'], 3), rnd(area['m_Extent']['y'], 3)]},
+                     'moveAreaBoat': [rnd(area['m_Center']['x'] - area['m_Extent']['x'] - bday[0, 3], 3),
+                                      rnd(area['m_Center']['x'] + area['m_Extent']['x'] - bday[0, 3], 3)],
+                     'divingFadePercentage': rnd(lp['divingFadePercentage'], 3), 'boatExitTime': rnd(lp['boatExitTime'], 3),
+                     'boatExitFadeTime': rnd(lp['boatExitFadeTime'], 3),
+                     'note': '[DtD] LobbyPlayer: clip Diveready (Animator của Character) không có track vị trí; Dave đứng '
+                             'yên chạy 18 hình rồi màn tối dần từ divingFadePercentage của clip. Không có cú bay khỏi đuôi.'}
+    # số đo cũ trước đây ghi tay trong boat.js
+    day_boat = child(boat_grp, 'LobbyBoat_Day')
+    vr = child(child(day_boat, 'Model'), 'VFX_Root')
+    Wb = level.world(level.transform_of(day_boat), cache)
+    measured = {}
+    for c3 in level.transform_of(vr).m_Children:
+        g3 = c3.read().m_GameObject.read()
+        M3 = np.linalg.inv(Wb) @ level.world(level.transform_of(g3), cache)
+        measured[g3.m_Name] = {'pos': [rnd(v, 3) for v in M3[:3, 3]], 'scale': rnd(np.linalg.norm(M3[:3, 0]), 3)}
+    out['measured'] = {'boatVfxPrefabs': measured, 'cloudsParent': out['times']['day'].get('cloudsParent'),
+                       'eveningRoot': [rnd(v, 3) for v in Pev[:3, 3]]}
+    # lớp (layer) của từng nhóm vật: đèn gốc chiếu theo cullingMask, vd. MainLight ban ngày không chiếu lớp 8 (Dave), 10 (đảo, cây)
+    sb = child(le, 'Sushiboat')
+    lay = {'boat': child(day_boat, 'Model').m_Layer, 'dave': ch.m_Layer, 'sushiboat': child(sb, 'Sushiboat_Day').m_Layer,
+           'far': child(le, 'FarBG').m_Layer, 'ground': child(le, 'Lobby_Ground001').m_Layer, 'sky': sky.m_Layer}
+    for n, key in (('FarBG', 'farSprite'), ('ForestSprites_Right', 'forestSprite'), ('Lobby_Ground001', 'groundMesh')):
+        st2 = [child(le, n)]
+        while st2:
+            g2 = st2.pop()
+            if comp(g2, 'SpriteRenderer') is not None or comp(g2, 'MeshRenderer') is not None:
+                lay[key] = g2.m_Layer
+                break
+            st2.extend(c.read().m_GameObject.read() for c in level.transform_of(g2).m_Children)
+    if 'SeaGullMove001' in roots:
+        lay['gull'] = level.transform_of(roots['SeaGullMove001']).m_Children[0].read().m_GameObject.read().m_Layer
+    out['layers'] = lay
+    # material sprite (Uber) của Dave, dừa/bụi, mòng biển
+    def sprite_mat(go):
+        r = comp(go, 'SpriteRenderer').read()
+        return mat_props([p for p in r.m_Materials if p.m_PathID][0].read())
+    out['spriteMats'] = {'dave': sprite_mat(ch), 'palm': sprite_mat(find_desc(child(le, 'ForestSprites_Right'), 'LobbyPalmtree001')),
+                         'far': sprite_mat(find_desc(child(le, 'FarBG'), 'Island001'))}
+    if 'SeaGullMove001' in roots:
+        out['spriteMats']['gull'] = sprite_mat(level.transform_of(roots['SeaGullMove001']).m_Children[0].read().m_GameObject.read())
+    # đàn cá quanh cano (ParticleSystem FishFlock trong Lobby_Env, mọi buổi)
+    ff = child(le, 'FishFlock')
+    out['sceneVfx'] = {'FishFlock': recipe_more(ff, np.eye(4), [0.0, 0.0, 0.0, 1.0], cache, 'Lobby_Env/FishFlock')}
+    out['meshes'] = PS_MESHES
+    return out
+
+
+def pp_profile(pr):
+    """VolumeProfile -> {thành phần: {tham số override: giá trị}} (chỉ tham số có m_OverrideState)."""
+    comps = {}
+    for cp in pr.components:
+        c = cp.read()
+        tt = c.object_reader.read_typetree()
+        d = {'active': bool(tt.get('active'))}
+        for k, v in tt.items():
+            if isinstance(v, dict) and 'm_OverrideState' in v and v['m_OverrideState']:
+                val = v['m_Value']
+                if isinstance(val, dict) and 'r' in val:
+                    val = [rnd(val['r'], 4), rnd(val['g'], 4), rnd(val['b'], 4), rnd(val.get('a', 1), 4)]
+                elif isinstance(val, dict) and 'x' in val:
+                    val = [rnd(val[a], 4) for a in 'xyzw' if a in val]
+                elif isinstance(val, float):
+                    val = rnd(val, 4)
+                d[k] = val
+        comps[level.script_name(c)] = d
+    return {'profile': pr.m_Name, 'components': comps}
+
+
+def moon_part(go, P, cache):
+    """Trăng / quầng trăng: lưới (đỉnh thế giới, uv) + material (shader graph 3D_Moon / 3D_Moonshaft)."""
+    m = mesh_world(go, cache)
+    if P is not None:
+        Pm = np.array(m['pos'])
+        # mesh_world dùng level.world của prefab rời; đẩy sang thế giới scene
+        Pm = (P @ np.c_[Pm, np.ones(len(Pm))].T).T[:, :3]
+        m['pos'] = [[rnd(v, 3) for v in p] for p in Pm]
+    mt = comp(go, 'MeshRenderer').read().m_Materials[0].read()
+    m['mat'] = mat_props(mt, SKYDIR)
+    return m
+
+
+def rip_lobby_audio():
+    ffmpeg = shutil.which('ffmpeg')
+    if not ffmpeg:
+        raise SystemExit('không thấy ffmpeg trong PATH')
+    out = {}
+    for key, (clip, kind, note) in LOBBY_AUDIO.items():
+        path = rip.find_path(clip + '.wav')
+        ac = [o for o in rip.objects_for(path) if type(o).__name__ == 'AudioClip' and o.m_Name == clip]
+        if not ac:
+            print('  thiếu tiếng', clip)
+            continue
+        tmp = os.path.join(CACHE, 'b_' + key + '.wav')
+        open(tmp, 'wb').write(list(ac[0].samples.values())[0])
+        dst = os.path.join(AUD, key + '.mp3')
+        subprocess.run([ffmpeg, '-y', '-loglevel', 'error', '-i', tmp, '-codec:a', 'libmp3lame', '-ac', '1', '-b:a', '96k', dst], check=True)
+        dur = float(subprocess.run([shutil.which('ffprobe') or 'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                                    '-of', 'default=nw=1:nk=1', dst], capture_output=True, text=True).stdout.strip() or 0)
+        out[key] = {'src': 'audio/%s.mp3' % key, 'clip': clip, 'kind': kind, 'sec': round(dur, 2), 'note': note,
+                    'kb': os.path.getsize(dst) // 1024}
+        print('  %-26s %-40s %5.1fs %4d KB' % (key, clip, dur, out[key]['kb']))
+    return out
+
+
 # ---------------------------------------------------------------- MAIN
 def write_js(path, var, obj, header):
     with open(path, 'w', encoding='utf-8', newline='\n') as fh:
@@ -1401,7 +2037,7 @@ def write_js(path, var, obj, header):
 
 
 def main():
-    parts = sys.argv[1:] or ['boat', 'sea', 'dave', 'vfx', 'gear', 'audio']
+    parts = sys.argv[1:] or ['boat', 'sea', 'dave', 'vfx', 'lobby', 'gear', 'audio']
     man_p = os.path.join(DATA, 'boat_assets.js')
     man = {}
     if os.path.exists(man_p):
@@ -1410,7 +2046,14 @@ def main():
     if set(parts) >= {'boat', 'sea', 'dave', 'vfx'}:
         shutil.rmtree(BOAT, ignore_errors=True)
     if 'gear' in parts and 'vfx' in parts:
-        shutil.rmtree(GEAR, ignore_errors=True)
+        # Chỉ xoá thư mục rip_gear() tự ghi. art/gear/idiver/{ui,vfx,layout}, art/gear/duff, art/gear/mesh là của
+        # tools/rip_ui.py và agent khác; xoá cả art/gear từng làm mất chúng (bẫy đã sập 2026-09-25).
+        for sub in ('arms', 'gun', 'bullet', 'icon', 'ui'):
+            shutil.rmtree(os.path.join(GEAR, sub), ignore_errors=True)
+        idv = os.path.join(GEAR, 'idiver')
+        for f in (os.listdir(idv) if os.path.isdir(idv) else []):
+            if os.path.isfile(os.path.join(idv, f)):
+                os.remove(os.path.join(idv, f))
     os.makedirs(BOAT, exist_ok=True)
     if 'boat' in parts:
         print('Cano…')
@@ -1424,6 +2067,10 @@ def main():
     if 'vfx' in parts:
         print('VFX…')
         man['vfx'], man['gunVfx'] = rip_vfx()
+    if 'lobby' in parts:
+        print('Sảnh theo buổi…')
+        man['lobby'] = rip_lobby()
+        man.setdefault('audio', {}).update(rip_lobby_audio())
     if 'gear' in parts:
         print('Súng + trang bị…')
         g, sheet = rip_gear(man.get('gunVfx'))
@@ -1432,6 +2079,7 @@ def main():
     if 'audio' in parts:
         print('Tiếng…')
         man['audio'] = rip_audio()
+        man['audio'].update(rip_lobby_audio())  # rip_audio() xoá mọi boat_*.mp3, ghi lại tiếng buổi tối
     man['_about'] = ABOUT
     write_js(man_p, 'HX_BOAT_ASSETS', man, MAN_HEADER)
     print('xong ->', man_p)
