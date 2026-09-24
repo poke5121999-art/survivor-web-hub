@@ -426,7 +426,8 @@ async function loop(browser, base, W, H) {
   const paid = await page.waitForFunction(id => HX.bar.debug.info().events.some(e => e.type === 'pay' && e.cid === id), cid, { timeout: 20000 }).then(() => true, () => false);
   const pay = await page.evaluate(id => HX.bar.debug.info().events.filter(e => e.type === 'pay' && e.cid === id)[0], cid);
   check('khách ăn xong trả đúng giá gốc 18 vàng [DtD] cộng tip', paid && pay.price === 18 && pay.tip >= 0, JSON.stringify(pay));
-  check('HUD quán đếm được một suất đã bán', /^1 suất đã bán/.test(await text('#scr-bar .br-note')), await text('#scr-bar .br-note'));
+  const soldCT = await page.evaluate(() => HX.bar.debug.info().menu.filter(m => m.id === 'Coral_Trout').map(m => m.sold)[0]);
+  check('quán ghi được một suất cá mú chấm đã bán', soldCT === 1, soldCT);
   await page.click('#bar-close');
   await phase('ledger');
   const earned = +(await page.$eval('.br-ledger', e => e.dataset.earned));

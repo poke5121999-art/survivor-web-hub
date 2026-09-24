@@ -123,13 +123,21 @@ Tham số URL:
 
 ### Cano, súng, quán, cửa hàng
 
-- **`rip.py` căn giữa mọi khung Dave đã cắt, nên lớp tay lệch khỏi thân.** Súng phụ đặt tay và thân theo độ lệch sprite gốc (AttackReady +6, −5 px; AttackFire +6, +1; AttackPull +11, −1).
-  - Tay súng xiên cũ vẫn lệch khoảng 23 px sang trái và 17 px xuống dưới, nên xiên nằm ngang bụng thay vì ngang vai. Chưa sửa, vì sửa thì phải dời luôn đầu nòng `harpoon.gunTip`.
+- **Khung Dave phải đặt đúng chỗ trong ô 120 px theo `m_Rect` và `textureRectOffset`.** Bản cũ căn giữa phần đã cắt nên Idle01 lệch (+5; −5) px và tay lệch khỏi thân. `python tools/rip.py dave` chỉ ghi lại `art/dave/` và mục `dave` của `assets.js`.
+- **Súng xiên dùng chung lớp tay `RangeWeaponArm` với súng phụ.** `HookAttack*` / `HookAttackArm` là đồ cũ: clip trỏ tới một nút không còn trong `PlayerGroup`. Súng xiên cầm tay là `<X>HarpoonGunTemplate` theo cấp; mũi xiên nằm ở `ProjectileAttachTransform`, dây buộc ở `RopeAttachRigidbody`. Dây gốc đen, rộng 0,02 m.
+- **Nhịp hoạt ảnh lấy từ khoá sprite của AnimationClip gốc, không chia đều theo fps.** Ví dụ ShortDash chạy 03, 04, 01, 02, 03, 04, 05; Die rồi lặp DieIdle; RangeWeaponDraw 0,3 giây.
+- **`scalingMode = Shape` (bọt của Dave) chỉ phóng vùng sinh, không phóng cỡ hạt.** Nhân cả cây thì bọt nhỏ tới mức vô hình.
+- **Ảnh của shader dissolve là mặt nạ nhiều kênh (R hình, G nhiễu).** Vẽ thẳng RGB ra thành cục khói bảy màu. Công thức tan đang dùng là [ĐỀ XUẤT].
+- **Lưới của súng lưới là vải vật lý Obi, mesh sinh lúc chạy.** Không có bản vẽ tĩnh để bóc, nên lưới không vẽ.
+- **Chạy trọn `rip.py art` mất gần một giờ và xoá `art/fish`, `art/ui`… trong lúc đó.** Agent khác đang kiểm sẽ gặp 404. Chỉ chạy lẻ `dave`, `divefx`, `fxmesh`. `rip.py audio` giờ chỉ ghi đè tệp trong bảng `AUDIO`, không xoá `audio/` nữa.
 - **Trong prefab `LobbyBoat_Day`, cụm VFX của cano nằm ở (0; 0,24; −0,92), phóng 0,82.** Vị trí hạt trong manifest chỉ khớp thân cano sau khi cộng độ lệch này.
   - Cụm mây "Lobby Clouds" nằm ở (−34,16; 15,92; 180,89). Khoá trôi của mây tính tương đối với nó.
   - GLTFLoader đổi dấu cách trong tên node thành `_`: "Cloud001 (1)" thành "Cloud001_(1)".
-- **Hạt cộng sáng của Unity phải nhân đôi màu** (như shader Additive/Alpha Blended cũ). Không nhân thì vệt sóng sau cano gần như vô hình.
-- **Lớp khói nấu của Bancho dùng shader cuộn ảnh trong mặt nạ, mà bản bóc chỉ có mặt nạ.** Vẽ riêng mặt nạ ra một khối trắng đặc che Bancho. Giờ bỏ qua mọi lớp hạt cần dữ liệu chưa bóc (hạt dạng mesh, shader flow/mask).
+- **Mọi shader hạt của game nhân đôi màu, không riêng shader Additive cũ.** Không nhân thì vệt sóng sau cano gần như vô hình và hiệu ứng UI của quán chỉ sáng một nửa. Bảng công thức màu từng shader ở `tools/README-bar.md`.
+- **Hơi cuộn trong khói nấu của Bancho là mesh cong có ảnh cuộn qua nhiễu trong mặt nạ.** Chỉ bóc mặt nạ mà vẽ thì ra khối trắng đặc che Bancho. Công thức đúng lấy bằng cách tháo shader đã biên dịch qua `d3dcompiler_47.dll`. Khói gốc rất nhạt, tối đa khoảng 8% độ đục.
+- **Vòng sáng quanh bong bóng gọi món là con của bong bóng.** Chỉ tắt phát hạt thì vòng rỗng còn treo nửa giây sau khi phục vụ, trông như đĩa tròn đen.
+- **Font gốc Snowstorm thiếu 104/196 chữ mẫu tiếng Việt.** Chuỗi tiếng Việt dùng nguyên chuỗi Roboto-Medium (cũng là font gốc); Snowstorm chỉ cho số và chữ không dấu, như cách bản gốc đổi font cho tiếng Ba Lan. `tools/rip_ui.py` bóc font, sprite iDiver, bố cục và cửa hàng Duff; chạy sau `rip_boat.py`.
+- **Hạt dạng chữ ("UPGRADE", "NEW WEAPON") có chiều cao riêng `startSizeY`.** Thiếu số này thì chữ bị kéo cao gấp đôi.
 - **Lớp `_light` của phòng quán cần nền đục.** Chỗ trong suốt mà cộng sáng thì loá lên như đèn.
 - **Hạt cộng sáng vẽ trên canvas riêng phủ DOM cần `mix-blend-mode: plus-lighter` hoặc `screen`.** Không có thì hạt thành ô vuông đen.
 - **9-slice có phần giữa rộng 0 px (như `NameBubble00`) ra rỗng với CSS `border-image`.** Chừa phần giữa 1 px.
@@ -145,7 +153,7 @@ Tham số URL:
 - Dave chết thì giữ con cá hạng cao nhất. Bản gốc cho người chơi tự chọn một món.
 - **Kinh tế.** Giá món giữ nguyên bản gốc (2–220 vàng). Để nâng cấp đầu tiên mua được ngay ngày 1–2, số suất mỗi con cá, ca bán 180 giây và nhịp khách (5 giây một khách, chia cho mức trang trí) được chỉnh bằng `test/ho-xanh-bar-sim.js`. Chạy 14 ngày ra trung bình 381 vàng/ngày, trung vị 364.
 - **Ghế.** Mở dần 3 → 5 → 7 → 9 → 12 → 15 ghế (bản gốc có 15 ghế).
-- **Cano.** Tốc độ tối đa ~10 m/s lấy từ đoạn nhanh nhất của clip `Boat_Exit001`. Lực đẩy, phanh, bẻ lái, độ nghiêng là số tự chọn. Cả hai chuyến đều chạy mũi sang trái để camera luôn thấy mặt có chữ "Nodens 68". Nước gốc chỉ phủ x −225..115, nên dùng mặt nước riêng bám theo camera, tô bằng màu và ảnh gốc. Cú nhảy khỏi đuôi cano là cung 0,5 giây tự thêm, vì clip Diveready chỉ có khung hình.
+- **Cano.** Tốc độ tối đa ~10 m/s lấy từ đoạn nhanh nhất của clip `Boat_Exit001`. Lực đẩy, phanh, bẻ lái, độ nghiêng là số tự chọn. Cả hai chuyến đều chạy mũi sang trái để camera luôn thấy mặt có chữ "Nodens 68". Nước gốc chỉ phủ x −225..115, nên dùng mặt nước riêng bám theo camera, tô bằng màu và ảnh gốc. Clip Diveready gốc không có chuyển động, nên Dave đi ra đuôi cano rồi chạy clip tại chỗ, màn hình tối dần từ 60% clip như bản gốc. Chuyến ra lúc chiều, chuyến về lúc đêm.
 - **Quán.** Phòng phóng theo bề ngang, làm tròn tới 0,5× (1,5× ở 1280×720, 1× ở 844×390), cắt bớt trần, camera bám Dave theo chiều ngang. Nền sau quán tô phẳng `#070a12` vì bản gốc có trời biển 3D ở đó. Tên 64 món do dự án tự dịch, vì bảng chữ gốc có 14 thứ tiếng nhưng không có tiếng Việt.
 - **Súng.** Tốc độ đạn = sức bắn × 0,02, súng ngủ 5 giây (+1 mỗi cấp), lưới mở bán kính 1 m, lựu đạn rơi 4 m/s² và tự nổ sau 2,5 giây: bảng gốc không có các số này.
 

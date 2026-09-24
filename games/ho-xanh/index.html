@@ -186,7 +186,7 @@ body.too-deep[data-phase="dive"] #depth { color: var(--red); }
 #tug { position: fixed; left: 0; top: 0; width: 52px; height: 104px; margin: -52px 0 0 -26px; pointer-events: none; }
 #tug[hidden] { display: none; }
 #tug .frame { position: absolute; inset: 0; width: 100%; height: 100%; }
-#tug .fillmask { position: absolute; inset: 0; -webkit-mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924f) center / 100% 100% no-repeat; mask: url(art/ui/Gauge_Bar_Normal.png?v=20260924f) center / 100% 100% no-repeat; }
+#tug .fillmask { position: absolute; inset: 0; -webkit-mask: url(art/ui/Gauge_Bar_Normal.png?v=20260925a) center / 100% 100% no-repeat; mask: url(art/ui/Gauge_Bar_Normal.png?v=20260925a) center / 100% 100% no-repeat; }
 #tug-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(0deg, #ffb13b, var(--gold) 60%, #fff4b8); transition: height .08s; }
 #tug.tap .frame { animation: tap .12s; }
 @keyframes tap { 50% { transform: scale(1.1); filter: brightness(1.6); } }
@@ -262,10 +262,10 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
   #result h2 { font-size: 24px; }
 }
 </style>
-<link rel="stylesheet" href="css/fonts.css?v=20260924f">
-<link rel="stylesheet" href="css/prep.css?v=20260924f">
-<link rel="stylesheet" href="css/boat.css?v=20260924f">
-<link rel="stylesheet" href="css/bar.css?v=20260924f">
+<link rel="stylesheet" href="css/fonts.css?v=20260925a">
+<link rel="stylesheet" href="css/prep.css?v=20260925a">
+<link rel="stylesheet" href="css/boat.css?v=20260925a">
+<link rel="stylesheet" href="css/bar.css?v=20260925a">
 </head>
 <body data-phase="title">
 <canvas id="scene"></canvas>
@@ -289,20 +289,20 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
 
 <div id="hud">
   <div id="o2box">
-    <img class="frame px" src="art/ui/UI_O2_Frame_New.png?v=20260924f" alt="">
+    <img class="frame px" src="art/ui/UI_O2_Frame_New.png?v=20260925a" alt="">
     <div id="o2-pie"></div>
     <div id="o2-num">100</div>
     <div id="o2-lbl">O₂</div>
     <div id="depth">0 m</div>
     <div id="catch"><span id="catch-n">0</span></div>
-    <img id="warn" class="px" src="art/ui/UI_Warning_Mark.png?v=20260924f" alt="">
+    <img id="warn" class="px" src="art/ui/UI_Warning_Mark.png?v=20260925a" alt="">
   </div>
   <div id="gunbox"><img id="gun-icon" alt=""><span id="gun-ammo"></span></div>
   <div id="hint-line"></div>
   <div id="reticle" hidden></div>
-  <img id="aimgun" class="px" src="art/ui/Target_ArrowGun.png?v=20260924f" alt="" hidden>
+  <img id="aimgun" class="px" src="art/ui/Target_ArrowGun.png?v=20260925a" alt="" hidden>
 </div>
-<img id="vignette" src="art/ui/Depressurization_Vignetting.png?v=20260924f" alt="">
+<img id="vignette" src="art/ui/Depressurization_Vignetting.png?v=20260925a" alt="">
 <div id="hurt"></div>
 <div id="toast"></div>
 <div id="area"><b id="area-t"></b><span id="area-s"></span></div>
@@ -323,7 +323,7 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
 </div>
 
 <div id="tug" hidden>
-  <img class="frame px" src="art/ui/Gauge_Bar_Tap.png?v=20260924f" alt="">
+  <img class="frame px" src="art/ui/Gauge_Bar_Tap.png?v=20260925a" alt="">
   <div class="fillmask"><div id="tug-fill"></div></div>
   <div id="tug-label">Bấm liên tục!</div>
   <div id="tug-timebar"><div id="tug-time"></div></div>
@@ -355,33 +355,33 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
   <button id="tb-gun">Súng</button>
 </div>
 
-<script src="vendor/three-r140.min.js?v=20260924f"></script>
-<script src="vendor/GLTFLoader-r140.js?v=20260924f"></script>
-<script src="vendor/meshopt_decoder.js?v=20260924f"></script>
-<script src="vendor/spine-threejs-4.0.31.min.js?v=20260924f"></script>
-<script src="data/tuning.js?v=20260924f"></script>
-<script src="data/assets.js?v=20260924f"></script>
-<script src="data/zones.js?v=20260924f"></script>
-<script src="data/gear_sheet.js?v=20260924f"></script>
-<script src="data/bar_assets.js?v=20260924f"></script>
-<script src="data/boat_assets.js?v=20260924f"></script>
-<script src="data/meta.js?v=20260924f"></script>
-<script src="js/save.js?v=20260924f"></script>
-<script src="js/world.js?v=20260924f"></script>
-<script src="js/gfx.js?v=20260924f"></script>
-<script src="js/dive.js?v=20260924f"></script>
-<script src="js/audio.js?v=20260924f"></script>
-<script src="js/fx.js?v=20260924f"></script>
-<script src="js/level.js?v=20260924f"></script>
-<script src="js/fish.js?v=20260924f"></script>
-<script src="js/dave.js?v=20260924f"></script>
-<script src="js/harpoon.js?v=20260924f"></script>
-<script src="js/gun.js?v=20260924f"></script>
-<script src="js/hud.js?v=20260924f"></script>
-<script src="data/ui_assets.js?v=20260924f"></script>
-<script src="js/prep.js?v=20260924f"></script>
-<script src="js/boat.js?v=20260924f"></script>
-<script src="js/bar.js?v=20260924f"></script>
-<script src="js/main.js?v=20260924f"></script>
+<script src="vendor/three-r140.min.js?v=20260925a"></script>
+<script src="vendor/GLTFLoader-r140.js?v=20260925a"></script>
+<script src="vendor/meshopt_decoder.js?v=20260925a"></script>
+<script src="vendor/spine-threejs-4.0.31.min.js?v=20260925a"></script>
+<script src="data/tuning.js?v=20260925a"></script>
+<script src="data/assets.js?v=20260925a"></script>
+<script src="data/zones.js?v=20260925a"></script>
+<script src="data/gear_sheet.js?v=20260925a"></script>
+<script src="data/bar_assets.js?v=20260925a"></script>
+<script src="data/boat_assets.js?v=20260925a"></script>
+<script src="data/meta.js?v=20260925a"></script>
+<script src="js/save.js?v=20260925a"></script>
+<script src="js/world.js?v=20260925a"></script>
+<script src="js/gfx.js?v=20260925a"></script>
+<script src="js/dive.js?v=20260925a"></script>
+<script src="js/audio.js?v=20260925a"></script>
+<script src="js/fx.js?v=20260925a"></script>
+<script src="js/level.js?v=20260925a"></script>
+<script src="js/fish.js?v=20260925a"></script>
+<script src="js/dave.js?v=20260925a"></script>
+<script src="js/harpoon.js?v=20260925a"></script>
+<script src="js/gun.js?v=20260925a"></script>
+<script src="js/hud.js?v=20260925a"></script>
+<script src="data/ui_assets.js?v=20260925a"></script>
+<script src="js/prep.js?v=20260925a"></script>
+<script src="js/boat.js?v=20260925a"></script>
+<script src="js/bar.js?v=20260925a"></script>
+<script src="js/main.js?v=20260925a"></script>
 </body>
 </html>

@@ -28,8 +28,6 @@
 - [ ] Lời thoại trong trận lặp ("Tôi sai vị trí."); tên nhân vật đứng gần chồng lên nhau.
 
 ## Hố Xanh
-- [ ] `tools/rip.py audio` hỏng: `rip_audio()` dùng `AUDIO` mà không nơi nào định nghĩa (agent bóc cano báo 2026-09-24).
-- [ ] `rip.py` `rip_dave` căn giữa khung đã cắt thay vì đặt đúng chỗ như game gốc, nên khung Dave lệch vài px.
+- [ ] Chùm tia đèn pha của cano đêm chưa có (shader gốc của tia chỉ tách được phần ra màu trắng).
+- [ ] Chuyến về bắt đầu ở x = 67; nước đêm trong (8 m) nên thấy đáy cát gần đảo, dễ bị đọc là lỗi. Cân nhắc dời điểm xuất phát ra xa.
 - [ ] Bộ nạp phụ thuộc dùng chung của `rip.py` giữ mọi tổ hợp bundle trong bộ nhớ. `rip_bar.py` phải tự viết bộ nạp riêng để khỏi tràn RAM.
-- [ ] `rip_boat.py` chưa xuất bốn sprite iDiver: `Box_8rad`, `Box_8rad_Stroke`, `UI_WeaponCraft_Cell_Btn_Pink`, `UI_WeaponCraft_Cell_Btn_Grey`. Màn chuẩn bị đang dùng sprite gốc gần nhất cùng bộ, và tự đổi sang sprite thật khi có. Bố cục prefab iDiver cũng chưa ghi ra JSON, số đang chép tay vào bảng `IDV` trong `prep.js`.
-- [ ] Chưa bóc font của iDiver và quán, nên chữ đang dùng font hệ thống.
