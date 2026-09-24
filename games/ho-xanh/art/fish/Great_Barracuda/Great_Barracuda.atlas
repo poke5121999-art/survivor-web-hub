@@ -1,0 +1,11 @@
+Great_Barracuda.png
+size:126,39
+filter:Nearest,Nearest
+pma:true
+Jaw
+bounds:113,17,20,11
+rotate:90
+body
+bounds:2,2,109,35
+fin
+bounds:113,5,11,10

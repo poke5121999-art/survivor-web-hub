@@ -1,0 +1,15 @@
+Res_Durvillaea.png
+size:108,182
+filter:Nearest,Nearest
+pma:true
+die
+bounds:95,63,10,35
+leaves01
+bounds:2,100,80,104
+rotate:90
+leaves02
+bounds:2,23,75,91
+rotate:90
+stem
+bounds:2,2,19,88
+rotate:90

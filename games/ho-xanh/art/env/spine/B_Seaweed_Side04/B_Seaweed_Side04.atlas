@@ -1,0 +1,13 @@
+B_Seaweed_Side04.png
+size:67,28
+filter:Nearest,Nearest
+pma:true
+01
+bounds:25,2,24,20
+rotate:90
+02
+bounds:2,2,24,21
+rotate:90
+03
+bounds:47,2,24,18
+rotate:90

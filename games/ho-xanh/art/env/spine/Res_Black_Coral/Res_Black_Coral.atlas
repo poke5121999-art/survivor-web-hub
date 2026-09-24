@@ -1,0 +1,13 @@
+Res_Black_Coral.png
+size:69,173
+filter:Nearest,Nearest
+pma:true
+01
+bounds:2,43,65,50
+02
+bounds:2,95,57,76
+03
+bounds:2,2,39,63
+rotate:90
+die
+bounds:61,152,6,19

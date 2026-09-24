@@ -1,0 +1,13 @@
+Bladderwrack.png
+size:110,76
+filter:Nearest,Nearest
+die
+bounds:2,3,6,21
+rotate:90
+idle01
+bounds:2,11,48,63
+idle02
+bounds:52,29,45,56
+rotate:90
+idle03
+bounds:52,2,29,25

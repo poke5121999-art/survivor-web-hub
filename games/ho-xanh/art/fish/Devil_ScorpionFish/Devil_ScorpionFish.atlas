@@ -1,0 +1,8 @@
+Devil_ScorpionFish.png
+size:56,24
+filter:Nearest,Nearest
+Body
+bounds:2,2,37,20
+SideFin
+bounds:41,6,16,13
+rotate:90

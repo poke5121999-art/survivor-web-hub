@@ -1,0 +1,8 @@
+Emperor_AngelFish.png
+size:50,25
+filter:Nearest,Nearest
+body
+bounds:2,2,36,21
+fin
+bounds:40,11,12,8
+rotate:90

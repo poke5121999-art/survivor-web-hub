@@ -1,0 +1,8 @@
+Longspine_Squirrelfish.png
+size:41,20
+filter:Nearest,Nearest
+body
+bounds:2,2,31,16
+side_fin
+bounds:35,11,7,4
+rotate:90

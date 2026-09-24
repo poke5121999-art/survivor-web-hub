@@ -1,0 +1,8 @@
+Blackspot_Seabream.png
+size:41,18
+filter:Nearest,Nearest
+body
+bounds:2,2,30,14
+sidefin
+bounds:34,8,8,5
+rotate:90

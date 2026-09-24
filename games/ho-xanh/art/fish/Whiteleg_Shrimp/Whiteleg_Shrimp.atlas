@@ -1,0 +1,15 @@
+Whiteleg_Shrimp.png
+size:67,27
+filter:Nearest,Nearest
+pma:true
+Antenna
+bounds:2,2,28,8
+Body
+bounds:2,12,48,13
+Leg1
+bounds:43,2,5,8
+Leg2
+bounds:32,4,6,9
+rotate:90
+Leg3
+bounds:52,10,13,15

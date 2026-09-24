@@ -1,0 +1,445 @@
+# -*- coding: utf-8 -*-
+"""Rút art + anim + VFX + tiếng cho Hố Xanh thẳng từ bản cài Steam của Dave the Diver.
+
+Chạy lại bao nhiêu lần cũng ra cùng một bộ tệp (xoá rồi ghi lại art/, audio/, data/assets.js).
+    set PYTHONIOENCODING=utf-8
+    python games/ho-xanh/tools/rip.py            # tất cả
+    python games/ho-xanh/tools/rip.py art        # chỉ ảnh + Spine
+    python games/ho-xanh/tools/rip.py audio      # chỉ tiếng
+Biến môi trường: DTD_DATA (thư mục DaveTheDiver_Data).
+
+Cách game đóng gói (đo 2026-09-24, bản Steam có DLC Jungle):
+- 3.967 bundle Addressables tên băm ở StreamingAssets/aa/StandaloneWindows64, KHÔNG mã hoá.
+  Tên asset gốc nằm trong m_Container của object AssetBundle mỗi bundle, nên lần đầu chạy
+  quét hết một lượt (~4 phút) rồi đệm bảng path -> bundle ở %TEMP%/ho-xanh-rip/.
+- Cá là Spine 4.0.37 (skel nhị phân + atlas + png). Cá mập, cá ngừ lớn là mô hình 3D, bỏ.
+- Dave là sprite pixel 120x120, pivot giữa, 100 px/đơn vị, gói chung một SpriteAtlas 788 khung.
+  Tay cầm súng lao là một lớp riêng (…Arms / …RightArm) để xoay theo hướng ngắm.
+- Tiếng là AudioClip FSB5 trong bundle, UnityPy giải được. Thư mục SyncHashed chỉ chứa một
+  phần (tên = sha256 tên clip), không cần dùng.
+- Bảng số gốc của cá: GameDataSheet/DR_GameData_Fish.json, các khối nối bằng "@/".
+"""
+import io, json, os, re, shutil, subprocess, sys, tempfile
+
+import UnityPy
+from PIL import Image
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+GAME = os.path.dirname(HERE)
+ART = os.path.join(GAME, 'art')
+AUD = os.path.join(GAME, 'audio')
+DATA = os.path.join(GAME, 'data')
+DTD = os.environ.get('DTD_DATA', r'D:\Steam\steamapps\common\Dave the Diver\DaveTheDiver_Data')
+BUNDLES = os.path.join(DTD, 'StreamingAssets', 'aa', 'StandaloneWindows64')
+CACHE = os.path.join(tempfile.gettempdir(), 'ho-xanh-rip')
+
+PC = 'Assets/Contents/PlayContents/'
+ENV = PC + 'Ingame/00_InGame_Common/Sprites/Environment_P/'
+
+# ---------------------------------------------------------------- PICKS
+# TID trong DR_GameData_Fish -> cá. Chỉ loài vẽ bằng Spine (loài 3D không có skel).
+# Vùng A = nước nông Hố Xanh, B = tầng giữa. Bỏ tôm hùm (HP 999, bắt bằng tay) và bản
+# "đêm"/"hung" trùng skel với bản thường.
+FISH_TIDS = [
+    2010002, 2010003, 2010004, 2010005, 2010006, 2010007, 2010008, 2010009, 2010010, 2010011,
+    2010012, 2010013, 2010014, 2010015, 2010016, 2010017, 2010018, 2010019, 2010020, 2010021,
+    2010023, 2010027, 2010029, 2010031, 2010060, 2010064, 2010065, 2010066, 2010070,
+    2010071, 2010078, 2010079, 2010080,
+    2010101, 2010102, 2010103, 2010105, 2010106, 2010107, 2010108, 2010109, 2010110, 2010111,
+    2010112, 2010113, 2010114, 2010115, 2010116, 2010117, 2010121, 2010122, 2010129, 2010136,
+    2010137, 2010138,
+]
+# Dãy khung của Dave: tiền tố tên sprite -> khung/giây. Số fps đọc từ AnimationClip gốc
+# (m_SampleRate): Idle 6, Move* 9, B_Move* 9, HookAttackReady 10, HookAttackFire 15,
+# HookAttackPull 9, Die 9, ShortDash 24 trải 8 khoá trên 5 hình (≈ 7 hình/giây thực).
+DAVE = {
+    'Idle': 6, 'Wait': 6, 'Look': 6, 'Gasping': 6, 'idle_scared': 6, 'Relief': 6, 'Cheer': 6,
+    'MoveSide': 9, 'MoveSideUp': 9, 'MoveSideDown': 9, 'MoveUp': 9, 'MoveDown': 9,
+    'BMoveSide': 9, 'BMoveSideUp': 9, 'BMoveSideDown': 9, 'BMoveUp': 9, 'BMoveDown': 9, 'BIdle': 6,
+    'ShortDashSide': 12, 'ShortDashSideUp': 12, 'ShortDashSideDown': 12, 'ShortDashUp': 12, 'ShortDashDown': 12,
+    'AttackReady': 10, 'AttackReadyArms': 1, 'AttackReadyRightArm': 1,
+    'AttackFire': 15, 'AttackPull': 9, 'AttackPullArms': 1, 'AttackPullRightArm': 1,
+    'HookAttackReady': 10, 'HookAttackFire': 15, 'HookAttackPull': 9, 'HookAttackArm': 1,
+    'MeleeAtk': 15, 'MeleeDagger': 12, 'MeleeDaggerAtk': 15, 'dagger_raise': 10, 'dagger_stab': 15,
+    'Hit': 30, 'Bigdamage': 12, 'Die': 9, 'Shock': 12, 'Scared': 8, 'BigSurprise': 10, 'PickUp': 10,
+    'G_MoveSide': 9, 'G_MoveUp': 9, 'G_MoveDown': 9, 'GIdle': 6,
+}
+DAVE_ATLAS = PC + 'Common/Sprites/Player/Atlas/01_Default_Atlas.spriteatlas'
+
+# Ảnh lẻ: đường dẫn gốc -> tên ra (trong art/). Hình trong một SpriteAtlas thì lấy qua Sprite.
+IMAGES = {}
+for n in ['FarBG001', 'FarBG002', 'FarBG003', 'Coral001', 'Coral005', 'Coral006', 'Coral007', 'Coral008',
+          'CoralBush001', 'CoralBush002', 'CoralBush003', 'CoralBush005', 'CoralBush006', 'CoralBush008',
+          'CoralBush009', 'CoralRock001', 'CoralRock002', 'CoralRock003', 'CoralRock004',
+          'DeadCoral001', 'DeadCoral002', 'DeadCoral003', 'DeadCoral004', 'DeadCoral005', 'DeadCoral006',
+          'DeadCoral007', 'Group_Coral001', 'Group_Coral004', 'Group_Coral007', 'Group_Coral009',
+          'Grass001', 'Grass002', 'Grass003', 'Grass004', 'Seaweed', 'Seaweed_07', 'Seaweed_08',
+          'MV_Seaweeds_Kelp01', 'Starfish001', 'Bone001', 'Bone002', 'Am', 'Am1', 'Am2', 'Am3', 'Am4',
+          'Cr12', 'Cr13', 'Cr2', 'Cr5', 'Cr7', 'Cr8']:
+    IMAGES[ENV + 'Seaweeds/%s.png' % n] = 'env/%s.png' % n
+for n in ['Stalactite_001', 'Stalactite_002', 'Stalactite_003', 'Stalactite_004', 'Stalactite_005',
+          'Stalactite_006', 'Stalactite_007', 'Stalactite_008', 'Stalactite_100', 'Stalactite_200',
+          'Stalactite_201', 'Stalactite_300', 'Stalactite_301', 'Gate_Rock_001', 'Gate_Rock_002',
+          'Gate_Rock_003', 'Gate_Rock_004', 'Gate_Rock_005', 'Gate_Rock_006',
+          'Up_Stalactite_001', 'Up_Stalactite_002', 'Up_Stalactite_003', 'Up_Stalactite_004',
+          'Up_Stalactite_005', 'Up_Stalactite_006', 'Up_Stalactite_007',
+          'Dn_Stalactite_001', 'Dn_Stalactite_002', 'Dn_Stalactite_003', 'Dn_Stalactite_004', 'Dn_Stalactite_005']:
+    IMAGES[ENV + 'Stalactite/%s.png' % n] = 'env/%s.png' % n
+for n in ['Wreck_Boat01', 'Wreck_Boat02', 'Wreck_Boat03']:
+    IMAGES[ENV + 'Artifact/%s.png' % n] = 'env/%s.png' % n
+IMAGES[PC + 'Ingame/00_InGame_Common/Sprites/InstanceItem_P/Harpoon/HarpoonProjectile.png'] = 'fx/HarpoonProjectile.png'
+IMAGES[PC + 'Common/Material/Player/Texture/CFXM4_T_BubbleSubtle-A8.tga'] = 'fx/BubbleSubtle.png'
+for n in ['UI_O2_Frame_New', 'UI_Catch_New', 'UI_Warning_Mark', 'Gauge_Bar_Line', 'Gauge_Bar_Normal',
+          'Gauge_Bar_Tap', 'UI_QTE_Success', 'UI_QTE_BarFrame_Fail01', 'Depressurization_Vignetting',
+          'UI_elite_Mark01']:
+    IMAGES[PC + 'Ingame/00_InGame_Common/Sprites/_Separated/%s.png' % n] = 'ui/%s.png' % n
+for n in ['Target_Arrow', 'Target_ArrowGun', 'Target_ArrowGun_E', 'Target_CurveStart']:
+    IMAGES[PC + 'Common/Sprites/Player/Range/%s.png' % n] = 'ui/%s.png' % n
+# Prefab có SpriteRenderer: lấy mọi sprite trong cây (rương O2 là hai mảnh thân + nắp).
+PREFAB_SPRITES = [PC + 'Ingame/00_InGame_Common/Prefabs/Interaction/Chest_O2.prefab']
+# VFX: tên tệp gốc (tìm theo tên, vì thư mục VFX có nhiều tầng con).
+VFX = ['E_Bubble_01A', 'E_Bubble_01B', 'E_Bubble_03A', 'E_Seq_Bubble_01A', 'E_Seq_Bubble_02A', 'E_Seq_Bubble_03A',
+       'E_Ray_01A', 'E_Ray_01C', 'E_Ray_03A', 'E_Rays_01A', 'E_LightBeam_01A', 'LightBeam', 'E_Noise_Caustic_01A',
+       'BloodCloud', 'E_Mask_Blood_01A', 'E_Hit_D_01A', 'E_Glow_01A', 'E_Glow_01B', 'E_Dust_01A',
+       'E_Lightdust_01A', 'WaterFog', 'L001_Background_light', 'HeadLight', 'E_Splash_01A', 'E_Seq_Spark_01A',
+       'E_Spark_01A', 'E_Water_Splash_01A', 'E_Seq_Water_Splash_01B', 'PointLightFX', 'LightCircle', 'E_Glow_04A']
+# Spine phi cá (rong, san hô động).
+SPINE_ENV = ['B_Seaweed_Side01', 'B_Seaweed_Side02', 'B_Seaweed_Side03', 'B_Seaweed_Side04', 'Bladderwrack',
+             'Gelidium', 'Kajime', 'SeaGrapes', 'Tangle', 'C_Seaweed07', 'C_Seaweed08', 'MV_SeaWeed001',
+             'MV_SeaWeed002', 'MV_Wakame', 'Res_Durvillaea', 'Res_Black_Coral']
+# key -> tên AudioClip gốc (tìm theo tên tệp .wav trong catalog), và mức: sfx | loop | music.
+AUDIO = {
+    'bgm_ingame': ('BGM_InGame', 'music'),
+    'bgm_seablue': ('BGM_SeaBlue_01', 'music'),
+    'bgm_deep': ('BGM_Deep_Sea', 'music'),
+    'bgm_night': ('BGM_Night_Diving', 'music'),
+    'bgm_shark': ('BGM_Shark_Appear', 'music'),
+    'amb_deep': ('amb_deepsea_loop', 'loop'),
+    'harpoon_aim': ('harpoon_aim', 'sfx'),
+    'harpoon_shot': ('harpoon_shot', 'sfx'),
+    'harpoon_hit': ('harpoon_hit', 'sfx'),
+    'harpoon_hit_rock': ('harpoon_hit_rock', 'sfx'),
+    'harpoon_return': ('harpoon_return', 'sfx'),
+    'harpoon_pull': ('harpoon_line_pull_loop', 'loop'),
+    'harpoon_catch': ('harpoon_catch_success', 'sfx'),
+    'harpoon_tap': ('harpoon_tap_button', 'sfx'),
+    'dave_diving': ('dave_diving', 'sfx'),
+    'dave_breathe': ('dave_breathe', 'sfx'),
+    'dave_hit1': ('dave_hit_01', 'sfx'),
+    'dave_hit2': ('dave_hit_02', 'sfx'),
+    'dave_hit3': ('dave_hit_03', 'sfx'),
+    'dave_dead': ('dave_dead_01', 'sfx'),
+    'dave_swim': ('sound_Dave_Swim_01', 'sfx'),
+    'dave_dash': ('sound_dave_dash_02', 'sfx'),
+    'dave_grab': ('sound_DaveGrab_01', 'sfx'),
+    'melee_hit': ('sound_hit_melee', 'sfx'),
+    'knife': ('sound_weapon_shortsword', 'sfx'),
+    'o2_use': ('sound_o2_capsule_use', 'sfx'),
+    'o2_expand': ('sound_o2_tank_expansion', 'sfx'),
+    'itembox': ('sound_gain_itembox_02', 'sfx'),
+    'qte_raise': ('sound_QTE_raised_01', 'sfx'),
+    'qte_success': ('sound_QTE_success_01', 'sfx'),
+    'qte_perfect': ('sound_QTE_Perfect_success_01', 'sfx'),
+    'qte_fail': ('sound_QTE_fail_01', 'sfx'),
+    'qte_stab': ('sound_QTE_stab_01', 'sfx'),
+    'bubble_seahorse': ('Seahorse_Bubble_01', 'sfx'),
+}
+
+
+# ---------------------------------------------------------------- INDEX
+def bundle_index():
+    """{'path': path gốc -> bundle, 'cab': tên CAB -> bundle}. Đệm ở CACHE, xoá tệp để quét lại."""
+    p = os.path.join(CACHE, 'bundle_index.json')
+    if os.path.exists(p):
+        return json.load(open(p, encoding='utf-8'))
+    os.makedirs(CACHE, exist_ok=True)
+    paths, cabs = {}, {}
+    names = sorted(os.listdir(BUNDLES))
+    for n, f in enumerate(names):
+        env = UnityPy.load(os.path.join(BUNDLES, f))
+        for cab in env.files[next(iter(env.files))].files:
+            cabs[cab.lower()] = f
+        for o in env.objects:
+            if o.type.name == 'AssetBundle':
+                for k, _ in o.read().m_Container:
+                    paths.setdefault(k, f)
+                break
+        if n % 500 == 0:
+            print('  quét bundle %d/%d' % (n, len(names)), flush=True)
+    out = {'path': paths, 'cab': cabs}
+    json.dump(out, open(p, 'w', encoding='utf-8'))
+    return out
+
+
+IDX = None
+CABS = None
+_ENVS = {}
+
+
+def env_of(bundle, deps=()):
+    key = (bundle,) + tuple(sorted(deps))
+    if key not in _ENVS:
+        _ENVS[key] = UnityPy.load(*[os.path.join(BUNDLES, b) for b in key])
+    return _ENVS[key]
+
+
+def with_deps(bundle, read):
+    """Chạy read(env); gặp PPtr trỏ sang CAB của bundle khác thì nạp thêm bundle đó rồi chạy lại."""
+    deps = set()
+    while True:
+        try:
+            return read(env_of(bundle, deps))
+        except FileNotFoundError as e:
+            cab = re.search(r'(cab-[0-9a-f]+)', str(e), re.I).group(1).lower()
+            if cab not in CABS or CABS[cab] in deps:
+                raise
+            deps.add(CABS[cab])
+
+
+def objects_for(path, read=lambda o: o):
+    """read(o) cho mọi object mà m_Container gắn với path (một png có cả Texture2D lẫn Sprite)."""
+    bundle = IDX.get(path)
+    if not bundle:
+        raise KeyError('không có trong bundle nào: ' + path)
+
+    def go(env):
+        for o in env.objects:
+            if o.type.name == 'AssetBundle':
+                return [read(ptr.asset.deref_parse_as_object()) for k, ptr in o.read().m_Container if k == path]
+        return []
+    return with_deps(bundle, go)
+
+
+def find_path(basename):
+    hits = [k for k in IDX if os.path.basename(k) == basename]
+    if not hits:
+        raise KeyError('không thấy tệp ' + basename)
+    return sorted(hits, key=len)[0]
+
+
+def text_bytes(ta):
+    s = ta.m_Script
+    return s if isinstance(s, bytes) else s.encode('utf-8', 'surrogateescape')
+
+
+def save_png(img, rel):
+    p = os.path.join(ART, rel)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    img.save(p, optimize=True)
+    return img.size
+
+
+def image_of(path):
+    def pick(o):
+        return o.image.convert('RGBA') if type(o).__name__ in ('Sprite', 'Texture2D') else None
+    imgs = objects_for(path, lambda o: (type(o).__name__, pick(o)))
+    spr = [i for t, i in imgs if t == 'Sprite']
+    tex = [i for t, i in imgs if t == 'Texture2D']
+    return (spr or tex)[0]
+
+
+# ---------------------------------------------------------------- SPINE
+def rip_spine(folder_path, stem, outdir):
+    """Chép skel + atlas + các trang png của một bộ Spine. Trả về dict mô tả."""
+    skel = folder_path + stem + '.skel.bytes'
+    atlas = folder_path + stem + '.atlas.txt'
+    sk = [o for o in objects_for(skel) if type(o).__name__ == 'TextAsset'][0]
+    at = [o for o in objects_for(atlas) if type(o).__name__ == 'TextAsset'][0]
+    atext = text_bytes(at).decode('utf-8').replace('\r\n', '\n')
+    pages = [ln.strip() for i, ln in enumerate(atext.split('\n'))
+             if ln.strip().endswith('.png') and (i == 0 or atext.split('\n')[i - 1].strip() == '')]
+    # Hình pixel: lấy mẫu gần nhất cho khỏi nhoè khi phóng to.
+    atext = re.sub(r'(?m)^filter:.*$', 'filter:Nearest,Nearest', atext)
+    os.makedirs(os.path.join(ART, outdir), exist_ok=True)
+    open(os.path.join(ART, outdir, stem + '.skel'), 'wb').write(text_bytes(sk))
+    open(os.path.join(ART, outdir, stem + '.atlas'), 'w', encoding='utf-8', newline='\n').write(atext)
+    pma = False
+    for pg in pages:
+        img = image_of(folder_path + pg)
+        px = img.getdata()
+        pma = pma or not any(r > a or g > a or b > a for r, g, b, a in px)
+        save_png(img, outdir + '/' + pg)
+    return {'skel': outdir + '/' + stem + '.skel', 'atlas': outdir + '/' + stem + '.atlas', 'pages': pages, 'pma': pma}
+
+
+def load_fish_sheet():
+    path = 'Assets/AssetBundleResources/GameDataSheet/DR_GameData_Fish.json'
+    ta = [o for o in objects_for(path) if type(o).__name__ == 'TextAsset'][0]
+    parts = text_bytes(ta).decode('utf-8-sig').split('@/')
+    secs = {parts[i].strip(): json.loads(parts[i + 1]) for i in range(0, len(parts) - 1, 2)}
+    return {f['TID']: f for f in secs['FishInfoData']}
+
+
+def rip_fish():
+    info = load_fish_sheet()
+    prefabs = {}
+    for k in IDX:
+        m = re.match(r'Assets/Contents/PlayContents/Fish/(A|B|C)/([^/]+)/Prefabs/SA_(\d+)_[^/]+\.prefab$', k)
+        if m:
+            prefabs[int(m.group(3))] = (m.group(1), m.group(2))
+    out = []
+    for tid in FISH_TIDS:
+        f = info[tid]
+        zone, folder = prefabs[tid]
+        skels = [k for k in IDX if k.startswith('%sFish/%s/%s/' % (PC, zone, folder)) and k.endswith('.skel.bytes')]
+        skel = sorted(skels, key=len)[0]
+        stem = os.path.basename(skel)[:-len('.skel.bytes')]
+        spine = rip_spine(os.path.dirname(skel) + '/', stem, 'fish/' + folder)
+        # ItemIcon (…_Thumbnail) nằm gói trong atlas không có địa chỉ riêng; CardIcon có png riêng
+        # nhưng là thẻ dọc gần trống với con cá bé xíu. Game tự vẽ icon từ khung swim của Spine.
+        icon = None
+        out.append(dict(spine, tid=tid, id=folder, name=f['FishName'].replace('_', ' '), zone=zone,
+                        hp=f['HP'], damage=f['Damage'], aggressive=f['FishActiveType'] == 1,
+                        size=f['FishSizeType'], cm=f['FishDimension'], rank=f['FishRank'], icon=icon))
+        print('  cá %-32s hp %4s dmg %3s %s' % (folder, f['HP'], f['Damage'], 'HUNG' if out[-1]['aggressive'] else ''))
+    return out
+
+
+def rip_spine_env():
+    out = {}
+    for n in SPINE_ENV:
+        out[n] = rip_spine(ENV + 'Seaweed_Spine/%s/' % n, n, 'env/spine/' + n)
+    return out
+
+
+# ---------------------------------------------------------------- DAVE
+def rip_dave():
+    """Mỗi dãy một hàng, ô 120x120. Trả về {tên: {row, n, fps, pivot}}."""
+    env = env_of(IDX[DAVE_ATLAS])
+    frames = {}
+    for o in env.objects:
+        if o.type.name != 'Sprite':
+            continue
+        s = o.read()
+        m = re.match(r'^(.*?)(\d+)$', s.m_Name)
+        pre, num = (m.group(1).rstrip('_'), int(m.group(2))) if m else (s.m_Name, 0)
+        if pre in DAVE:
+            frames.setdefault(pre, []).append((num, s))
+    cell = 120
+    names = [n for n in DAVE if n in frames]
+    width = max(len(frames[n]) for n in names)
+    sheet = Image.new('RGBA', (cell * width, cell * len(names)))
+    anims = {}
+    for row, n in enumerate(names):
+        seq = sorted(frames[n], key=lambda t: t[0])
+        for col, (_, s) in enumerate(seq):
+            img = s.image.convert('RGBA')
+            sheet.paste(img, (col * cell + (cell - img.width) // 2, row * cell + (cell - img.height) // 2))
+        s0 = seq[0][1]
+        anims[n] = {'row': row, 'n': len(seq), 'fps': DAVE[n],
+                    'pivot': [round(s0.m_Pivot.x, 3), round(s0.m_Pivot.y, 3)]}
+    missing = [n for n in DAVE if n not in frames]
+    if missing:
+        print('  Dave thiếu dãy:', missing)
+    save_png(sheet, 'dave/dave.png')
+    return {'sheet': 'dave/dave.png', 'cell': cell, 'ppu': 100, 'anims': anims}
+
+
+# ---------------------------------------------------------------- IMAGES + VFX
+def rip_images():
+    out = {}
+    for path, rel in IMAGES.items():
+        out[rel] = list(save_png(image_of(path), rel))
+    for n in VFX:
+        path = None
+        for ext in ('.png', '.tga', '.psd'):
+            try:
+                path = find_path(n + ext)
+                break
+            except KeyError:
+                pass
+        if not path:
+            print('  thiếu VFX', n)
+            continue
+        rel = 'fx/%s.png' % n
+        out[rel] = list(save_png(image_of(path), rel))
+    return out
+
+
+def rip_prefab_sprites():
+    sys.dont_write_bytecode = True  # khỏi để lại __pycache__ trong cây game
+    import level  # level.py nạp bảng bundle lúc import, nên chỉ gọi sau bundle_index()
+    out = {}
+    for path in PREFAB_SPRITES:
+        env, _ = level.load_with_deps(path)
+        for c in level.prefab_objects(env, path):
+            if c.type.name != 'SpriteRenderer':
+                continue
+            r = c.read()
+            if not r.m_Sprite.m_PathID:
+                continue
+            sp = r.m_Sprite.read()
+            rel = 'props/%s.png' % sp.m_Name
+            t = level.transform_of(r.m_GameObject.read())
+            out[rel] = {'size': list(save_png(sp.image.convert('RGBA'), rel)), 'ppu': sp.m_PixelsToUnits,
+                        'pivot': [round(sp.m_Pivot.x, 3), round(sp.m_Pivot.y, 3)],
+                        'local': [round(t.m_LocalPosition.x, 3), round(t.m_LocalPosition.y, 3)],
+                        'order': r.m_SortingOrder}
+    return out
+
+
+# ---------------------------------------------------------------- AUDIO
+def rip_audio():
+    ffmpeg = shutil.which('ffmpeg')
+    if not ffmpeg:
+        raise SystemExit('không thấy ffmpeg trong PATH')
+    if os.path.isdir(AUD):
+        shutil.rmtree(AUD)
+    os.makedirs(AUD)
+    out = {}
+    for key, (clip, kind) in AUDIO.items():
+        path = find_path(clip + '.wav')
+        ac = [o for o in objects_for(path) if type(o).__name__ == 'AudioClip' and o.m_Name == clip]
+        if not ac:
+            print('  thiếu tiếng', clip)
+            continue
+        wav = list(ac[0].samples.values())[0]
+        tmp = os.path.join(CACHE, key + '.wav')
+        open(tmp, 'wb').write(wav)
+        # Nhạc để 96k stereo, tiếng lẻ 64k mono: cả bộ phải nhẹ để Pages tải nhanh.
+        rate = ['-b:a', '96k'] if kind == 'music' else ['-ac', '1', '-b:a', '64k']
+        dst = os.path.join(AUD, key + '.mp3')
+        subprocess.run([ffmpeg, '-y', '-loglevel', 'error', '-i', tmp, '-codec:a', 'libmp3lame'] + rate + [dst],
+                       check=True)
+        out[key] = {'src': 'audio/%s.mp3' % key, 'kind': kind}
+    return out
+
+
+# ---------------------------------------------------------------- MAIN
+def main():
+    global IDX, CABS
+    what = sys.argv[1] if len(sys.argv) > 1 else 'all'
+    ix = bundle_index()
+    IDX, CABS = ix['path'], ix['cab']
+    man_p = os.path.join(DATA, 'assets.js')
+    man = {}
+    if os.path.exists(man_p):
+        man = json.loads(open(man_p, encoding='utf-8').read().split('=', 1)[1].rstrip().rstrip(';'))
+    if what in ('all', 'art'):
+        # art/level thuộc về level.py, đừng xoá.
+        for sub in ('dave', 'fish', 'env', 'fx', 'ui', 'props'):
+            shutil.rmtree(os.path.join(ART, sub), ignore_errors=True)
+        print('Dave…')
+        man['dave'] = rip_dave()
+        print('Cá…')
+        man['fish'] = rip_fish()
+        print('Rong Spine…')
+        man['spineEnv'] = rip_spine_env()
+        print('Ảnh + VFX…')
+        man['images'] = rip_images()
+        man['props'] = rip_prefab_sprites()
+    if what in ('all', 'audio'):
+        print('Tiếng…')
+        man['audio'] = rip_audio()
+    os.makedirs(DATA, exist_ok=True)
+    with open(man_p, 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write('// Sinh bởi tools/rip.py — đừng sửa tay.\nwindow.HX_ASSETS = ')
+        json.dump(man, fh, ensure_ascii=False, indent=1)
+        fh.write(';\n')
+    if what in ('all', 'art'):
+        subprocess.run(['node', os.path.join(HERE, 'spine-info.js')], check=True)
+    print('xong ->', man_p)
+
+
+if __name__ == '__main__':
+    main()

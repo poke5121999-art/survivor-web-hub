@@ -1,0 +1,7 @@
+Flame_AngelFish.png
+size:44,26
+filter:Nearest,Nearest
+Body
+bounds:2,2,30,22
+Fin
+bounds:34,16,8,8

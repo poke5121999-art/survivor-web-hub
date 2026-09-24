@@ -1,0 +1,15 @@
+Red_Lionfish.png
+size:77,21
+filter:Nearest,Nearest
+pma:true
+Back Side Fin
+bounds:64,4,15,11
+rotate:90
+Body
+bounds:2,3,29,16
+Front Side Fin
+bounds:33,3,16,14
+rotate:90
+top fin
+bounds:49,2,17,13
+rotate:90

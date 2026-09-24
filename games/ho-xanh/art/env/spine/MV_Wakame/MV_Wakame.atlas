@@ -1,0 +1,17 @@
+MV_Wakame.png
+size:286,35
+filter:Nearest,Nearest
+00
+bounds:276,18,15,8
+rotate:90
+01
+bounds:260,2,14,31
+02
+bounds:195,4,29,63
+rotate:90
+03
+bounds:2,2,31,100
+rotate:90
+03_2
+bounds:104,4,29,89
+rotate:90

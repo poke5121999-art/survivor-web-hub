@@ -1,0 +1,8 @@
+Blackfin_Barracuda.png
+size:96,28
+filter:Nearest,Nearest
+body
+bounds:2,2,86,24
+side_fin
+bounds:90,18,8,4
+rotate:90

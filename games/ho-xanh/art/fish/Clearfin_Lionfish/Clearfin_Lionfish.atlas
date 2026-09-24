@@ -1,0 +1,10 @@
+Clearfin_Lionfish.png
+size:72,25
+filter:Nearest,Nearest
+body
+bounds:25,7,30,16
+side_fin
+bounds:2,2,21,21
+top_fin
+bounds:57,4,19,13
+rotate:90
