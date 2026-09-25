@@ -1804,3 +1804,23 @@ Tướng của game giữ nguyên chỉ số và kỹ năng; chỉ mượn thân
 `TUONG` trong `_tools/build_tfm.py`, kèm dãy hoạt ảnh cho chiêu và chiêu cuối (ví dụ Xạ Thủ nối
 `ult_pre → ult_loop ×2 → ult_end`). Quái rừng: ong, nấm, tê giác, gốc cây. Rồng là `serpen`, Chúa Hang
 là `epic`.
+
+### 12.6 Tiếng và nhạc nền
+
+- `_tools/build_tieng.py` dựng `am/*.mp3` + `am/bang.js`. Tiếng: mono 64 kbps, cắt lặng hai đầu,
+  chuẩn hoá đỉnh −1 dBFS rồi mới nhân âm lượng trong bảng, nên số trong bảng so được với nhau.
+  Nhạc: stereo 80 kbps. Tổng ~15 MB, trong đó nhạc 14 MB; nhạc chỉ tải khi mở đúng màn.
+- Trong trận và cấm chọn lấy TFM2: mỗi tướng ba tiếng (đánh / chiêu / chiêu cuối) đi qua
+  `<tướng TFM2>_<hành động>.sound_info`. Tên không đồng đều: Cuồng Chiến chỉ có `ult_attack`, Pháp
+  Sét chỉ có `ult_loop`. Bảng ở `TUONG_TIENG`.
+- `ui-tran.js` không đẻ sự kiện mới trong sim để phát tiếng: `ngheTran()` so mốc `danhLuc`, `niemLuc`,
+  `hoiLuc`, `cap` với khung trước. Tiếng nhỏ dần theo khoảng cách tới giữa khung, ngoài khung thì im.
+  Đo bằng `_tools/kiemTieng.js`: ~11 tiếng/giây ở ×1.
+- Hạ liên tiếp trong 10 giây trận: tiếng xướng `dual_takedown` → `annihilation` của TFM2.
+- Ngoài trận lấy Uma (`_tools/rip_uma_audio.py` bóc ra `D:\uma-ref`, danh mục ở `D:\uma-ref\CATALOG.md`).
+- `[BẪY ĐÃ SẬP]` vgmstream bản r2117 mở `.acb` có `.awb` đi kèm thì báo "bank has no subsongs". Mở
+  thẳng `.awb` thì được, tên cue vẫn còn trong đầu HCA. Bank không có `.awb` thì phải mở `.acb`.
+- `[BẪY ĐÃ SẬP]` `snd_sfx_sys_teamrank_pointup` tên nghe như "cộng điểm" nhưng dài 10 giây (tiếng đếm
+  điểm). Đo độ dài mọi tiếng trước khi gán cho sự kiện hay lặp.
+- Tên nhạc nền Uma (`snd_bgm_gm001`...) không nói bài nào phát ở màn nào. Nhà = `gm001`, ca = `gm002`,
+  tuyển mộ = `gm020a` là chọn theo tên và độ dài. **Chưa ai nghe bằng tai** mọi lựa chọn tiếng ở đây.

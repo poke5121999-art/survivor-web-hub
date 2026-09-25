@@ -354,6 +354,7 @@
         var l = luot[i];
         if (l.loai === 'cam') cam.push(id);
         else pick[l.ben][l.vt] = id;
+        G.tieng(l.loai === 'cam' ? 'draft.cam' : 'draft.chon');
         i++;
         dangXem = null;
         veTatCa();
@@ -361,10 +362,11 @@
       }
 
       function chayMay() {
-        var buoc = 0;
+        var buoc = 0, i0 = i;
         while (i < luot.length && luot[i].ben === 'dich' && buoc++ < 20) {
           tuDong();
         }
+        if (i > i0) G.tieng(luot[i - 1].loai === 'cam' ? 'draft.cam' : 'draft.chon');
         veTatCa();
         if (i >= luot.length) return ketThuc();
         /* nếu tới lượt ta thì dừng chờ chạm */

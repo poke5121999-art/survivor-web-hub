@@ -28,6 +28,7 @@
      Chậm lại chỉ có nghĩa khi có NỘI SUY đi kèm — xem `tiLe()` bên dưới. */
   var TICK_GIAY = 12;
   var thoaiHD = [], bayHD = [], hieuHD = [], ngaLuc = {};
+  var daNghe = {}, daHa = {};
   var truoc = 0, dong = 0;
 
   /* Giây hoạt ảnh TFM2 cho mỗi giây trong trận. Ở ×1 trận chạy nhanh gấp 3 lần thật; phát khung
@@ -73,6 +74,9 @@
     tran.veHinh = true;            /* từ đây sim mới dựng dữ liệu hiệu ứng — xem sim.js */
     thoaiHD = []; bayHD = []; hieuHD = []; ngaLuc = {};
     G.hienMan('man-tran');
+    G.nhac(Math.random() < 0.5 ? 'tran' : 'tran2');
+    G.napTieng(['tran.']);
+    daNghe = {}; daHa = {};
     dungKhung();
     /* bài dạy lần đầu: trận ĐỨNG YÊN cho tới khi đóng hộp, không thì mất những giây đầu */
     if (G.day && !(G.S.day || {}).tran) {
@@ -209,6 +213,7 @@
     G.NS_XEM = ns;                 /* để kịch bản đo kiểm được nội suy có chạy thật không */
 
     camTick(dt);
+    ngheTran();
     veBanDo();
     khung++;
     /* bảng số đang ẩn thì khỏi đập đi dựng lại hai chục nút DOM năm lần một giây */
@@ -216,6 +221,29 @@
 
     if (tran.xong) { chay = false; return ketThuc(); }
     requestAnimationFrame(vong);
+  }
+
+  /* ══════════ tiếng tướng: đánh, chiêu, chiêu cuối, hồi sinh, lên cấp ══════════
+     Bắt theo MỐC sim ghi lại (danhLuc, niemLuc, hoiLuc, cap) chứ không đẻ sự kiện mới trong sim.
+     Tiếng nhỏ dần theo khoảng cách tới giữa khung, ra khỏi khung thì im: mười người đánh cùng
+     lúc khắp bản đồ mà kêu hết thì chỉ còn một mớ ồn. */
+  function ngheTran() {
+    var W = canvas.width, H = canvas.height;
+    tran.nguoi.forEach(function (n) {
+      var cu = daNghe[n.i] || (daNghe[n.i] = { d: n.danhLuc, n: n.niemLuc, h: n.hoiLuc, c: n.cap });
+      var moi = { d: n.danhLuc, n: n.niemLuc, h: n.hoiLuc, c: n.cap };
+      daNghe[n.i] = moi;
+      if (n.chet > 0) return;
+      var p = toaDo(n.x, n.y);
+      var xa = Math.hypot(p[0] - W / 2, p[1] - H / 2) / (0.6 * Math.max(W, H));
+      var am = G.kep(1.25 - xa, 0, 1);
+      if (am <= 0) return;
+      var id = n.tuong.id;
+      if (moi.n !== cu.n && moi.n != null) G.tieng('tran.' + id + (n.niemCuoi ? '.cuoi' : '.chieu'), am, 0.1);
+      else if (moi.d !== cu.d && moi.d != null) G.tieng('tran.' + id + '.danh', am * 0.8, 0.09);
+      if (moi.h !== cu.h && moi.h != null) G.tieng('tran.hoiSinh', am);
+      if (moi.c > cu.c && n.doi === 'xanh') G.tieng('tran.lenCap', am * 0.8, 0.3);
+    });
   }
 
   /* ══════════ lời thoại và băng thông báo ══════════ */
@@ -232,19 +260,27 @@
         } else banner(bi.ten + ' đã gục', bi.doi === 'xanh' ? 'do' : 'xanh');
         noi(bi, 'biGiet');
         G.tieng(ke && ke.doi === 'xanh' ? 'mangTa' : 'mang');
+        /* một người hạ liên tiếp trong 10 giây trận: tiếng xướng "double / triple takedown" của TFM2 */
+        if (ke) {
+          var ds = (daHa[ke.i] || []).filter(function (t0) { return s.t - t0 < 10; });
+          ds.push(s.t); daHa[ke.i] = ds;
+          if (ds.length >= 2) G.tieng('tran.ha' + Math.min(5, ds.length));
+          if (ds.length >= 3) G.tieng('tran.hoReo', 0.8, 4);
+        }
         G.rung('vua');
       } else if (s.loai === 'quaiLon') {
-        G.tieng('quaiLon');
+        G.tieng('tran.quaiLon');
         banner((s.doi === 'xanh' ? tran.cau.ta.ten : tran.cau.dich.ten) + ' hạ ' +
           (s.quai === 'rong' ? 'RỒNG' : 'CHÚA HANG') + '!', s.doi);
       } else if (s.loai === 'tru') {
-        G.tieng('tru');
+        G.tieng(s.loi ? 'tran.loi' : 'tran.tru');
+        if (s.loi) G.tieng('tran.hoReo', 1, 4);
         if (s.loi) banner('NHÀ CHÍNH ĐỔ!', s.doi);
       } else if (s.loai === 'knRieng') {
         /* Kỹ năng riêng của huấn luyện viên bật lên — thứ người chơi đã chọn ở màn
            ngoài, mà suốt bao lâu nay trong trận không thấy mặt mũi đâu. */
         banner('KỸ NĂNG HLV: ' + s.ten, s.doi);
-        G.tieng('quaiLon');
+        G.tieng('cauvong');
       } else if (s.loai === 'quaiHien') {
         var ai = tran.nguoi[Math.floor(tran.rng() * 10)];
         if (ai) noi(ai, 'quaiLon');
@@ -1543,6 +1579,8 @@
     daKet = true;
     var kq = G.ketQua(tran);
     G.tieng(kq.thang === 'xanh' ? 'thang' : 'thua');
+    G.nhac(kq.thang === 'xanh' ? 'thang' : 'thua');
+    if (kq.thang === 'xanh') G.tieng('tran.voTay');
     G.bangLon(kq.thang === 'xanh' ? 'THẮNG!' : 'THUA', dinhDangGio(kq.thoiGian) + (kq.hetGio ? ' · hết giờ' : ''), 1600)
       .then(function () {
         if (kq.thang === 'xanh') G.phaoHoa(60);

@@ -16,8 +16,13 @@
   window.addEventListener('orientationchange', function () { setTimeout(chinhCo, 120); });
 
   /* ── chuyển màn ── */
+  /* nhạc nền theo màn; màn CLB tự chọn theo tab (ui-clb.js), màn trận tự chọn một trong hai bài */
+  var NHAC_MAN = { 'man-chuanbi': 'clb', 'man-ca': 'ca', 'man-draft': 'draft', 'man-chienthuat': 'draft',
+    'man-gacha': 'gacha' };
+
   G.hienMan = function (id) {
     G.$$('.man').forEach(function (m) { m.hidden = m.id !== id; });
+    if (NHAC_MAN[id]) G.nhac(NHAC_MAN[id]);
   };
 
   /* ══════════ giải đấu ══════════
@@ -158,6 +163,8 @@
     G.CAI.rung = !!G.S.cai.rung;
     if (G.taiArt) G.taiArt();
     if (G.tatTieng) G.tatTieng(G.S.cai.tieng === false);
+    if (G.S.cai.amTieng != null) G.amLuong('tieng', G.S.cai.amTieng);
+    if (G.S.cai.amNhac != null) G.amLuong('nhac', G.S.cai.amNhac);
 
     var t = G.$('#man-tai .tai-thanh i');
     var p = 0;

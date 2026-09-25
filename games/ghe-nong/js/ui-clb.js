@@ -69,7 +69,10 @@
     veTat();
   };
 
-  function veTat() { veTren(); veMenu(); veTron(); veCareer(); veGiua(); vePhai(); }
+  function veTat() {
+    veTren(); veMenu(); veTron(); veCareer(); veGiua(); vePhai();
+    G.nhac(trang === 'gacha' ? 'gacha' : 'clb');
+  }
 
   function doiTrang(t) {
     trang = t; buoc = -1;
@@ -1216,7 +1219,7 @@
       var du = G.coMoTran(b);
       var nb = G.el('button.uc-nut' + (du ? '.cam' : '.tat'), { text: 'MỞ TRẦN' });
       if (du) nb.addEventListener('click', function () {
-        if (G.moTran(b)) { G.tieng('tapTot'); G.phaoHoa(18); ve(); veTat(); }
+        if (G.moTran(b)) { G.tieng('lenCap'); G.phaoHoa(18); ve(); veTat(); }
       });
       n.appendChild(nb);
       if (!du) n.appendChild(G.el('div.uc-canh', { text: 'Không đủ mảnh.' }));
@@ -1246,7 +1249,7 @@
           style: 'width:auto;flex:none;padding:8px 14px;font-size:12.5px'
         });
         nb.addEventListener('click', function () {
-          if (G.nangCapTT(b, so)) { G.tieng('tapTot'); ve(); veTat(); }
+          if (G.nangCapTT(b, so)) { G.tieng('lenCap'); ve(); veTat(); }
         });
         hang.appendChild(nb);
       });
@@ -1327,6 +1330,21 @@
     });
     r2.appendChild(cb2); r2.appendChild(G.el('span', { text: 'Tiếng' }));
     n.appendChild(r2);
+
+    /* hai núm âm lượng: tiếng và nhạc nền, lưu vào bản lưu */
+    [['tieng', 'amTieng', 'Âm lượng tiếng'], ['nhac', 'amNhac', 'Âm lượng nhạc']].forEach(function (x) {
+      var r3 = G.el('label', { style: 'display:flex;gap:10px;align-items:center;margin-bottom:10px' });
+      var tr = G.el('input', { type: 'range', min: '0', max: '100', step: '5' });
+      tr.value = Math.round(G.amLuong(x[0]) * 100);
+      tr.style.flex = '1';
+      tr.addEventListener('input', function () {
+        G.S.cai[x[1]] = tr.value / 100; G.amLuong(x[0], tr.value / 100);
+      });
+      tr.addEventListener('change', function () { G.luu(); if (x[0] === 'tieng') G.tieng('chon'); });
+      r3.appendChild(G.el('span', { text: x[2], style: 'min-width:120px' }));
+      r3.appendChild(tr);
+      n.appendChild(r3);
+    });
     n.appendChild(G.el('div.uc-phu', { text: 'Bản lưu nằm trong máy này. Xoá là mất hết.',
       style: 'margin:10px 0' }));
     G.hop({ sang: true, dau: 'Cài đặt', node: n, nut: [
