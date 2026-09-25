@@ -90,6 +90,9 @@ ATLASES = [
     "common", "home", "gacha", "race", "racecommon",
     "single", "singlecommon", "singlestart", "singleresult", "statusrank",
 ]
+# UMA_ATLAS=all: mọi atlas có trong meta (30 cái), để chép giao diện Uma y hệt
+if os.environ.get("UMA_ATLAS") == "all":
+    ATLASES = sorted(set(n.split("/")[1] for n in name_to_hash if n.startswith("atlas/")))
 
 print("Exporting atlases:", ATLASES)
 for atlas in ATLASES:

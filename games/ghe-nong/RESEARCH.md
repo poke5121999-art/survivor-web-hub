@@ -1858,5 +1858,38 @@ là `epic`.
   khung tra lại ô mới.
 - Quay 10: ô ra úp mặt, mặt sau ánh màu theo bậc, lật lần lượt, SSR lật cuối kèm tiếng và pháo hoa.
 - Lên cấp thẻ: chữ "LÊN CẤP n!" bay trên lớp `#phao-hoa` (lớp duy nhất nằm trên hộp thoại).
-- Chưa đổi: chân dung người (HLV, tuyển thủ) vẫn là sprite HoloCure. Uma có tranh đứng
-  `chara_stand_*`, icon `chr_icon_*`, chibi `petit_*`, nhưng tranh đứng in tên thật của nhân vật lên áo.
+- Chân dung người (HLV, tuyển thủ) giờ là nhân vật Uma, ghép trong `_tools/build_uma_nguoi.py`
+  (mỗi nhân vật dùng một lần). Tranh đứng lấy bộ đua `1XXX01`: bộ `000001` in tên thật của nhân vật lên áo.
+
+### 12.9 Màn Career / Training chép Uma: flash A2U gốc `[ĐO TRONG REPO]`
+
+- Nguồn đo: `esport-ref/uma/steam/shot05.jpg` (Career bản PC 1920×1080) nhân 2/3, và `key/w_435.jpg`
+  (Training). Khung game dọc 540×720 ở x 99, panel Log ở x 693, rail ở x 1171.
+- Ảnh gốc: `_tools/build_uma_ca.py` xuất nút sáu việc (`btn_*_main_00` + `ico_*_00/01`), khung, rail,
+  chữ hạng, mảnh thanh thể lực cắt từ texture flash, và mười nền tranh `bg/bg_XXXX_XXXXX` 2048×1024
+  (bundle nền nằm sẵn trong bản cài, đọc thẳng qua meta, không cần bóc trước).
+  - Icon `_01` là bản "đang mời": Rest có trăng sao, Infirmary có dấu chấm than. Màn ca dùng nó
+    khi việc ấy nên làm (mệt, có bệnh, tâm trạng thấp, đủ điểm mua kỹ năng), kèm vầng cam
+    `eff_single_cmd_00_sl`.
+  - Nút Training và Races của Uma có chibi nhân vật đang nuôi: `petit_chr_XXXX_1XXX01_0020/0021`
+    (bảng kẹp + tạ) và `_0060/0061` (cổng xuất phát). Chỉ HLV có dải chibi (`art/uma/petit`).
+- Ảnh 2D lớn nhất của một nhân vật là `chara_stand_*` ô 512 px; nhân vật giữa màn Career gốc là 3D.
+  Tranh đứng giữ cỡ gốc, phóng 1,25 lần.
+- Năm nút tròn là flash `nut_tap` (`pf_fl_singlemode_btn_trainingmenu00`), mỗi sân một phiên bản:
+  - `dum_base_trainingmenu00` ← `singlemode_base_training_0N` (đế theo CẤP sân: lá · lam · cam · hồng · tím).
+  - `dum_ico_trainingmenu00` ← `singlemode_training_on|off_00MMM`. Mã lệnh tập của Uma:
+    101 Speed · 105 Stamina · 102 Power · 103 Guts · 106 Wit.
+  - Chọn sân: nhãn `select_in` cho ba lớp `btn_training_menu_up00 / mid00 / dn00` (nâng nút, bong bóng
+    tỉ lệ hỏng, mũi tên vàng), bỏ chọn là `select_out`. Màu bong bóng: nhãn `in1 / in2 / in3` của
+    `txt_ballon_rate00`.
+- `[BẪY ĐÃ SẬP]` Chữ trên nút tròn thành một cục trắng. Mỗi chữ có hai bản: bản trên viền trắng, và bản
+  `clr_*` nằm dưới lệch 3 px mà game gốc TÔ MÀU lúc chạy (`_textMeshType` 2). `uma-flash.js` tô bản
+  `clr_*` bằng `fl.mau` (màu đế theo cấp) cho mọi chữ có độ dày viền `dv`.
+- `[BẪY ĐÃ SẬP]` Chữ canh trái nằm lệch về bên phải. Điểm neo của ô chữ A2U là TÂM ô cỡ `_size`,
+  nên chữ canh trái bắt đầu ở −rộng/2.
+- Dải tên sân (`nen_tap`, "Speed Lvl 1 / Turf") và chữ kết quả (`kq_tap`: `in_suc00`,
+  `in_suc00x2` khi cầu vồng, `in_fail00`) phát bằng cùng trình phát. Chữ trong ảnh flash là tiếng
+  Anh gốc (SUCCESS!, FAILURE, AWFUL…GREAT); chữ do game điền (tên sân, "Tỉ lệ hỏng") là tiếng Việt.
+- `[BẪY ĐÃ SẬP]` Luật CSS cũ `.san{background:#16202c…}` của màn tối đời đầu vẫn còn, tô đen năm ô bấm
+  trong suốt đè lên nút flash. Khi dựng lại màn, xoá cả khu CSS cũ chứ đừng chỉ viết đè: `.ca-tam`
+  cũ còn padding và viền làm viên tâm trạng bị cắt.

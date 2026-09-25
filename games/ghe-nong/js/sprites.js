@@ -10,7 +10,7 @@
   /* MỘT số bản cho mọi ảnh atlas. Canvas từng nạp `?v=…12a` còn ảnh DOM nạp `?v=…11a`:
      mỗi atlas tải hai lần, và chân dung DOM có thể lấy ảnh cũ trong cache ghép với toạ độ mới.
      Đổi ảnh trong art/ thì tăng đúng số này. */
-  var ART_V = '20260925f';
+  var ART_V = '20260925g';
   G.ART_V = ART_V;              /* ui-tran nạp ba lớp ảnh bản đồ cùng phiên bản art */
   var MAP = window.ART_MAP || null;
   var ANH = {};
@@ -218,6 +218,18 @@
       sprite canh đáy-giữa nên phần trên ô toàn khoảng trống; dán nguyên ô vào một vòng
       tròn 40px thì người bé tí nằm sát đáy, nửa trên trống trơn. Mặc định 0.18. */
   G.anhNguoi = function (id, cao, tren) {
+    var U = window.UMA_NGUOI, u = U && U[id];
+    if (u) {
+      /* nhân vật Uma (art/uma/nguoi.js): ô to dùng tranh đứng, ô nhỏ dùng icon tròn */
+      if (cao >= 150) {
+        return 'background-image:url(' + u.dung + '?v=' + ART_V + ');background-size:contain;' +
+          'background-position:50% 100%;background-repeat:no-repeat';
+      }
+      var k = cao / u.mat[2];
+      return 'background-image:url(art/uma/mat.png?v=' + ART_V + ');' +
+        'background-position:' + (-u.mat[0] * k) + 'px ' + (-u.mat[1] * k) + 'px;' +
+        'background-size:' + (U._co[0] * k) + 'px ' + (U._co[1] * k) + 'px;background-repeat:no-repeat';
+    }
     if (!MAP || !MAP.nguoi || !MAP.nguoi[id]) return null;
     var O = o();
     var cot = MAP.nguoi[id][0];
