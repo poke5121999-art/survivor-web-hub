@@ -23,7 +23,8 @@
 - [ ] Người chơi đọc màn xem trước sẽ không bao giờ tập NÃO (lối "tham" tới CKTG vẫn NÃO 75), dù NÃO giờ đáng ngang LỰC trong trận.
   - Hướng xử lý: cho sân NÃO ăn dày hơn, hoặc cho màn xem trước nói ra giá trị trong trận.
 - [ ] Bố cục riêng cho máy hẹp: ở 844×390 khung co 0,54, nút chỉ khoảng 15px.
-- [ ] Quay 10 chưa có hoạt ảnh lật thẻ; lên cấp thẻ chưa có phản hồi.
+- [ ] Chưa ai nghe bằng tai tiếng và nhạc lấy từ TFM2 / Uma (RESEARCH §12.6): mức to tương đối, nhạc có lấn tiếng trận không, bài Uma nào hợp màn nào.
+- [ ] Chân dung người vẫn là HoloCure; có muốn đổi sang tranh Uma (`chara_stand`, `chr_icon`) không — chờ chủ dự án.
 - [ ] "Giao cho trợ lý" chưa cho xem đội hình vừa chọn.
 - [ ] Lời thoại trong trận lặp ("Tôi sai vị trí."); tên nhân vật đứng gần chồng lên nhau.
 

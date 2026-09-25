@@ -102,7 +102,9 @@
     var r = G.xoa(G.$('#ca-rail'));
     RAIL.forEach(function (x) {
       var b = G.el('button');
-      b.appendChild(G.el('span.ic-to', { text: x.ic }));
+      var ict = G.el('span.ic-to');
+      ict.appendChild(G.oUma('ray.' + x.id, 32, x.ic));
+      b.appendChild(ict);
       x.ten.split('\n').forEach(function (d) { b.appendChild(G.el('span', { text: d })); });
       if (x.id === 'tin') {
         var so = G.soTinMoi && G.soTinMoi();
@@ -138,12 +140,18 @@
       var v = ca.chiso[i], hang = G.hangChu(v), goc = G.hangChuGoc(v);
       var o = G.el('div.uma-cs');
       var dau = G.el('div.uma-cs-dau');
-      dau.appendChild(G.el('i', { style: 'background:' + MAU_CS[i] }));
+      dau.appendChild(G.oUma('cs.' + i, 15, ''));
       dau.appendChild(G.el('span', { text: G.TEN_CHISO[i] }));
       o.appendChild(dau);
 
       var than = G.el('div.uma-cs-than');
-      than.appendChild(G.el('div.uma-hang.h-' + goc, { text: hang }));
+      /* chữ hạng Uma (ảnh G..S), dấu + nhỏ ở góc như bản gốc; thiếu ảnh thì về vòng tròn chữ */
+      if (window.UMA_UI && window.UMA_UI['hang.' + goc]) {
+        var hg = G.el('div.uma-hang.anh');
+        hg.appendChild(G.oUma('hang.' + goc, 26));
+        if (hang !== goc) hg.appendChild(G.oUma('so.+', 11));
+        than.appendChild(hg);
+      } else than.appendChild(G.el('div.uma-hang.h-' + goc, { text: hang }));
       var so = G.el('div.uma-cs-so');
       var bb = G.el('b', { text: String(v) });
       if (xt && xt.an[i]) {
@@ -276,7 +284,9 @@
     VIEC.forEach(function (v) {
       var tat = v.id === 'giaohuu' && ca.theluc < 20;
       var b = G.el('div.uma-nut.v-' + v.id + (tat ? '.tat' : '') + (v.to ? '.to' : ''));
-      b.appendChild(G.el('span.ic-tron', { text: v.ic }));
+      var icv = G.el('span.ic-tron');
+      icv.appendChild(G.oUma('viec.' + v.id, v.to ? 34 : 30, v.ic));
+      b.appendChild(icv);
       b.appendChild(G.el('b', { text: v.ten }));
       b.appendChild(G.el('em', { text: v.phu }));
       /* Chấm cầu vồng ngay trên nút Tập: có sân nào đang nổ cầu vồng thì phải thấy
@@ -341,6 +351,43 @@
     });
   }
 
+  /* Chỉ số vừa tăng: số "+N" chữ cam của Uma bật lên trên đúng cột, con số trong cột đếm từ
+     giá trị cũ lên giá trị mới. Uma làm đúng như thế sau mỗi buổi tập; số bay lên khung cảnh
+     thì đẹp nhưng không chỉ vào cột nào. */
+  function tangChiSo(truoc) {
+    /* lớp số nằm NGOÀI bảng (bảng cắt mép để bo góc, và bị dựng lại khi sang lượt), chồng
+       đúng toạ độ của bảng */
+    var bang = G.$('#bang-chiso');
+    var lop = bang.parentNode.querySelector('.uma-cs-lop');
+    if (!lop) {
+      lop = G.el('div.uma-cs-lop');
+      for (var k = 0; k < 6; k++) lop.appendChild(G.el('div'));
+      bang.parentNode.insertBefore(lop, bang.nextSibling);
+    }
+    lop.style.left = bang.offsetLeft + 'px'; lop.style.top = bang.offsetTop + 'px';
+    lop.style.width = bang.offsetWidth + 'px'; lop.style.height = bang.offsetHeight + 'px';
+    var cuoi = ca.chiso.slice(), t0 = performance.now();
+    cuoi.forEach(function (v, i) {
+      var tang = v - truoc[i];
+      if (tang <= 0) return;
+      var noi = G.el('div.uma-cs-tang');
+      noi.appendChild(G.oSoUma('+' + tang, 22));
+      lop.children[i].appendChild(noi);
+      setTimeout(function () { noi.remove(); }, 1600);
+    });
+    /* bảng có thể bị dựng lại giữa chừng (sang lượt), nên mỗi khung tra lại ô số mới */
+    (function dem() {
+      var p = Math.min(1, (performance.now() - t0) / 650), e = 1 - Math.pow(1 - p, 3);
+      var o = G.$$('#bang-chiso .uma-cs-so b');
+      cuoi.forEach(function (v, i) {
+        if (v > truoc[i] && o[i] && o[i].firstChild && ca.chiso[i] === v) {
+          o[i].firstChild.textContent = String(Math.round(truoc[i] + (v - truoc[i]) * e));
+        }
+      });
+      if (p < 1) requestAnimationFrame(dem);
+    })();
+  }
+
   /* ── làm một việc rồi sang lượt ── */
   /* Chốt một lượt một việc. Băng lớn (CẦU VỒNG MỞ!, CẢM HỨNG!) không chặn chạm, và
      `veTatCa()` vẽ lại nút trước khi băng hạ — không có cờ này thì bấm thêm được việc thứ
@@ -349,6 +396,7 @@
 
   function lamViec(v) {
     if (dangBan) return;
+    var truocCS = ca.chiso.slice();
     var kq = G.lamViec(ca, v);
     if (!kq) return;
     dangBan = true;
@@ -371,6 +419,7 @@
     if (kq.moCauVong) G.tieng('tapTot');
 
     veTatCa();
+    tangChiSo(truocCS);
     luuCa();
 
     var chuoi = Promise.resolve();

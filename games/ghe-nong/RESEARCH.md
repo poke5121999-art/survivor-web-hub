@@ -1838,3 +1838,22 @@ là `epic`.
   là biến mất. Chọn hiệu ứng phải xem ở cỡ thật, không phải ở bảng phóng to.
 - Choáng dùng `stun_effect`, lên cấp dùng `levelup_effect` (chỉ phe mình), hồi sinh dùng
   `recall_effect_front:spawn`.
+
+### 12.8 Giao diện ngoài trận lấy của Uma
+
+- `_tools/build_uma.py` gom sprite đã bóc (`D:\uma-ref\img\atlas\...`) vào `art/uma/ui.png` + `ui.js`.
+  Atlas `single` của Uma là đúng bộ màn Career: icon Nghỉ / Y tế / Chơi / Kỹ năng, và bộ chữ số "+N"
+  cam viền trắng của màn xem trước buổi tập. Atlas `common` có năm icon chỉ số `obtain_00..04`
+  (giày, tim, cơ bắp, lửa, mũ) khớp đúng thứ tự CƠ / BỀN / LỰC / LÌ / NÃO, chữ hạng `statusrank_00..07`
+  (G→S) và huy hiệu `rarity_00..02` (R / SR / SSR).
+- `G.oUma(khoá, cỡ)` trả một ô vuông, bên trong là ô VỪA KHÍT sprite. `[BẪY ĐÃ SẬP]` Tô nền thẳng lên ô
+  vuông thì sprite kề bên trong atlas lộ ra ở mép. Ô trong là thẻ `<u>`: bản đầu dùng `<b>` và luật
+  `.uma-nut b` của nút ca đè lên, icon sáu nút chỉ còn một vệt.
+- Sau buổi tập, số "+N" bật lên trên đúng cột chỉ số và con số đếm lên. `[BẪY ĐÃ SẬP]` Bảng chỉ số bị
+  dựng lại ngay khi sang lượt, và có `overflow:hidden` để bo góc: lớp số phải nằm NGOÀI bảng, đặt theo
+  `offsetLeft/Top` (toạ độ chưa co, nên đúng cả khi khung co trên điện thoại), còn phần đếm số thì mỗi
+  khung tra lại ô mới.
+- Quay 10: ô ra úp mặt, mặt sau ánh màu theo bậc, lật lần lượt, SSR lật cuối kèm tiếng và pháo hoa.
+- Lên cấp thẻ: chữ "LÊN CẤP n!" bay trên lớp `#phao-hoa` (lớp duy nhất nằm trên hộp thoại).
+- Chưa đổi: chân dung người (HLV, tuyển thủ) vẫn là sprite HoloCure. Uma có tranh đứng
+  `chara_stand_*`, icon `chr_icon_*`, chibi `petit_*`, nhưng tranh đứng in tên thật của nhân vật lên áo.

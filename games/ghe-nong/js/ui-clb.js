@@ -105,7 +105,7 @@
     var m = G.xoa(G.$('#clb-menu'));
     NAV.forEach(function (x) {
       var b = G.el('button' + (trang === x.id && buoc < 0 ? '.chon' : '') + (x.giua ? '.giua' : ''));
-      b.appendChild(G.el('i', { text: x.ic }));
+      b.appendChild(G.oUma('clb.' + x.id, x.giua ? 34 : 28, x.ic));
       x.ten.forEach(function (d) { b.appendChild(G.el('span', { text: d })); });
       /* Chấm đỏ trên nút Enhance khi có thẻ mở trần được — Uma gắn đúng cái chấm ấy
          lên nút メニュー, và nó là lý do người chơi biết mở màn nuôi ra xem. */
@@ -126,7 +126,9 @@
     if (buoc >= 0) return;
     TRON.forEach(function (x) {
       var b = G.el('button.uc-tron-nut' + (trang === x.id && buoc < 0 ? '.chon' : ''));
-      b.appendChild(G.el('i', { text: x.ic }));
+      var trn = G.el('i');
+      trn.appendChild(G.oUma('clb.' + x.id, 32, x.ic));
+      b.appendChild(trn);
       b.appendChild(G.el('span', { text: x.ten }));
       b.addEventListener('click', function () {
         if (x.id === 'cai') { G.tieng('cham'); return moCaiDat(); }
@@ -847,12 +849,20 @@
     hienKetQuaQuay(kq, loai);
   }
 
-  /* Lưới 5 cột — quay 10 thì ra đúng hai hàng năm ô, y như bảng kết quả của Uma. */
+  /* Lưới 5 cột — quay 10 thì ra đúng hai hàng năm ô, y như bảng kết quả của Uma.
+     Mọi ô mở ra ÚP MẶT, mặt sau ánh màu theo bậc (Uma báo trước bằng màu y như thế), rồi lật
+     lần lượt; ô bậc cao nhất lật sau cùng. Chạm vào lưới thì lật hết ngay. */
   function hienKetQuaQuay(kq, loai) {
     var n = G.el('div');
     var l = G.el('div.uc-kq');
+    var thuTu = kq.map(function (x, i) { return i; })
+      .sort(function (a, b) { return (kq[a].bac === 3) - (kq[b].bac === 3) || a - b; });
+    var o = [];
     kq.forEach(function (x) {
-      var d = G.el('div.uc-kq-o.b' + x.bac);
+      var d = G.el('div.uc-kq-o.up.b' + x.bac);
+      d.appendChild(G.el('div.uc-sau'));
+      d.appendChild(G.oUma('bac.' + x.bac, 24, ''));
+      o.push(d);
       var a = G.oAnh && G.oAnh(x.id, 46);
       if (a) { a.style.borderRadius = '50%'; a.style.margin = '0 auto 4px'; d.appendChild(a); }
       d.appendChild(G.el('div.uc-sao', { text: '★'.repeat(x.bac) }));
@@ -864,9 +874,22 @@
       l.appendChild(d);
     });
     n.appendChild(l);
-    if (kq.some(function (x) { return x.bac === 3; })) { G.phaoHoa(50); G.rung('to'); }
+
+    var hen = [];
+    function lat(i) {
+      var d = o[i];
+      if (!d.classList.contains('up')) return;
+      d.classList.remove('up');
+      d.classList.add('lat');
+      G.tieng(kq[i].bac === 3 ? 'latVang' : 'lat', kq[i].bac === 3 ? 1 : 0.6, 0.03);
+      if (kq[i].bac === 3) { G.phaoHoa(50); G.rung('to'); }
+    }
+    thuTu.forEach(function (i, k) {
+      hen.push(setTimeout(function () { lat(i); }, 350 + k * 160 + (kq[i].bac === 3 ? 450 : 0)));
+    });
+    l.addEventListener('click', function () { hen.forEach(clearTimeout); thuTu.forEach(lat); });
     G.hop({ sang: true, rong: 640, dau: 'Kết quả', node: n, nut: [{ chu: 'Xong', chinh: true }] })
-      .then(function () { G.moManCLB('gacha'); });
+      .then(function () { hen.forEach(clearTimeout); G.moManCLB('gacha'); });
   }
 
   /* ── kho ── */
@@ -1249,7 +1272,12 @@
           style: 'width:auto;flex:none;padding:8px 14px;font-size:12.5px'
         });
         nb.addEventListener('click', function () {
-          if (G.nangCapTT(b, so)) { G.tieng('lenCap'); ve(); veTat(); }
+          if (G.nangCapTT(b, so)) {
+            G.tieng('lenCap'); ve(); veTat();
+            /* phản hồi lên cấp: chữ vàng bay lên giữa màn và một nắm giấy màu */
+            G.soBay(G.$('#phao-hoa'), 'LÊN CẤP ' + b.cap + '!', '#ffb13d', 42, 42);
+            G.phaoHoa(14);
+          }
         });
         hang.appendChild(nb);
       });

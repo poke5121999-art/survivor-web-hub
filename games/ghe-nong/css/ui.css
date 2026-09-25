@@ -1280,3 +1280,39 @@ html,body{height:100%;overflow:hidden;background:#05070a;color:var(--chu);
 #man-clb .bx-so-o,.hop.sang .bx-so-o{background:#f7f6fb;border:2px solid #e6e2ef;border-radius:12px}
 #man-clb .bx-so-o span,.hop.sang .bx-so-o span{color:#8a7f8f}
 #man-clb .bx-so-o b,.hop.sang .bx-so-o b{color:#4a3f48}
+
+/* ══ icon Uma (G.oUma): ô ngoài vuông, ô trong vừa khít sprite ══ */
+.ic-uma{display:inline-flex;align-items:center;justify-content:center;flex:none;font-style:normal}
+.ic-uma>u{display:block;background-repeat:no-repeat}
+.uma-cs-dau .ic-uma{border-radius:0}
+.uma-hang.anh{background:none;box-shadow:none;position:relative;width:28px}
+.uma-hang.anh>.ic-uma+.ic-uma{position:absolute;top:-2px;right:-4px}
+.so-uma{display:inline-flex;align-items:flex-end}
+.so-uma>.ic-uma{margin-right:-2px}
+.uma-cs-lop{position:absolute;display:grid;grid-template-columns:repeat(5,1fr) 74px;
+  pointer-events:none;z-index:3}
+.uma-cs-lop>div{position:relative}
+.uma-cs-tang{position:absolute;left:50%;top:-6px;transform:translateX(-50%);pointer-events:none;
+  animation:umaTang 1.6s cubic-bezier(.2,.9,.3,1.2) forwards;z-index:3}
+@keyframes umaTang{
+  0%{opacity:0;transform:translate(-50%,14px) scale(.4)}
+  18%{opacity:1;transform:translate(-50%,-8px) scale(1.15)}
+  30%{transform:translate(-50%,-4px) scale(1)}
+  78%{opacity:1;transform:translate(-50%,-10px) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-22px) scale(.9)}}
+
+/* ══ lật thẻ kết quả quay ══ */
+.uc-kq-o{position:relative}
+.uc-kq-o>.ic-uma{position:absolute;top:3px;left:3px;z-index:1}
+.uc-kq-o .uc-sau{position:absolute;inset:0;border-radius:inherit;z-index:2;display:none;
+  background:repeating-linear-gradient(135deg,#5b6fb0 0 8px,#4d60a0 8px 16px);border:3px solid #fff;
+  box-shadow:inset 0 0 0 2px #0002}
+.uc-kq-o.up .uc-sau{display:block}
+.uc-kq-o.b2.up .uc-sau{background:repeating-linear-gradient(135deg,#b58cf5 0 8px,#9a6fe0 8px 16px)}
+.uc-kq-o.b3.up .uc-sau{background:linear-gradient(135deg,#ffe58a,#ffb13d 40%,#fff3c4 55%,#ffb13d 70%,#ffe58a);
+  background-size:300% 300%;animation:sauVang 1s linear infinite;box-shadow:0 0 14px #ffd76e}
+@keyframes sauVang{to{background-position:300% 0}}
+.uc-kq-o.lat{animation:latThe .42s ease-out}
+@keyframes latThe{0%{transform:scaleX(0) scale(1.08)}60%{transform:scaleX(1.06) scale(1.06)}100%{transform:none}}
+.uc-kq-o.b3.lat{animation:latThe .42s ease-out,sangVang 1.2s ease-out}
+@keyframes sangVang{0%{box-shadow:0 0 0 0 #ffd76e}30%{box-shadow:0 0 26px 8px #ffd76e}100%{box-shadow:0 0 0 0 #ffd76e00}}

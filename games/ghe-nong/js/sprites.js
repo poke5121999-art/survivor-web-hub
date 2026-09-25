@@ -10,7 +10,7 @@
   /* MỘT số bản cho mọi ảnh atlas. Canvas từng nạp `?v=…12a` còn ảnh DOM nạp `?v=…11a`:
      mỗi atlas tải hai lần, và chân dung DOM có thể lấy ảnh cũ trong cache ghép với toạ độ mới.
      Đổi ảnh trong art/ thì tăng đúng số này. */
-  var ART_V = '20260925c';
+  var ART_V = '20260925d';
   var MAP = window.ART_MAP || null;
   var ANH = {};
   var xong = 0, can = 0;
@@ -124,7 +124,9 @@
     /* hiệu ứng TFM2: co theo cạnh dài nhất của cả dãy, như ô 64 của atlas cũ */
     var h = TH && TH['hieu.' + id];
     if (h && G.coHinh('hieu.' + id)) {
-      var f = h.no[(khung | 0) % h.no.length], kk = (cao || 40) / Math.max(h._[2], h._[3]);
+      /* chỗ gọi có thể đưa số khung âm (tuổi hiệu ứng cộng độ lệch âm): lấy phần dư dương, không
+         thì h.no[-3] ra undefined, ném lỗi giữa vòng vẽ và cả màn trận đứng hình */
+      var n = h.no.length, f = h.no[(((khung | 0) % n) + n) % n], kk = (cao || 40) / Math.max(h._[2], h._[3]);
       ctx.save();
       ctx.imageSmoothingEnabled = false;
       ctx.translate(x, y);
@@ -156,6 +158,34 @@
       'background-position:' + (-(f[0] + trai) * kk) + 'px ' + (-(f[1] + tren0) * kk) + 'px;' +
       'background-size:' + (TH._co[0] * kk) + 'px ' + (TH._co[1] * kk) + 'px;' +
       'background-repeat:no-repeat;image-rendering:pixelated';
+  };
+
+  /* ══════════ GIAO DIỆN UMA ══════════
+     `window.UMA_UI` (art/uma/ui.js, sinh bởi _tools/build_uma.py): khoá → [x, y, w, h].
+     Trả một <i> vuông `cao` px, bên trong là một ô VỪA KHÍT sprite đặt giữa: tô nền thẳng lên
+     ô vuông thì các sprite kề bên trong atlas lộ ra ở hai mép. Thiếu khoá thì trả chữ dự phòng. */
+  var UI = window.UMA_UI || null;
+  G.oUma = function (khoa, cao, duPhong) {
+    var m = UI && UI[khoa];
+    if (!m) return G.el('i', { text: duPhong || '' });
+    var k = cao / Math.max(m[2], m[3]);
+    var ngoai = G.el('i.ic-uma', { style: 'width:' + cao + 'px;height:' + cao + 'px' });
+    ngoai.appendChild(G.el('u', { style: 'width:' + (m[2] * k).toFixed(1) + 'px;height:' + (m[3] * k).toFixed(1) + 'px;' +
+      'background-image:url(art/uma/ui.png?v=' + ART_V + ');' +
+      'background-position:' + (-m[0] * k).toFixed(1) + 'px ' + (-m[1] * k).toFixed(1) + 'px;' +
+      'background-size:' + (UI._co[0] * k).toFixed(1) + 'px ' + (UI._co[1] * k).toFixed(1) + 'px' }));
+    return ngoai;
+  };
+
+  /** số kiểu màn xem trước buổi tập của Uma ("+12" chữ cam viền trắng), cao `cao` px */
+  G.oSoUma = function (chuoi, cao) {
+    var d = G.el('span.so-uma');
+    String(chuoi).split('').forEach(function (c) {
+      var m = UI && UI['so.' + c];
+      if (!m) { d.appendChild(G.el('b', { text: c })); return; }
+      d.appendChild(G.oUma('so.' + c, cao * Math.max(m[2], m[3]) / m[3]));
+    });
+    return d;
   };
 
   /** style nền cho icon TRANG BỊ trong thẻ HTML (ô đồ ở thẻ tuyển thủ, bảng cửa hàng) */

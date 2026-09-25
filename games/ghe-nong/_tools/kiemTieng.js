@@ -16,7 +16,7 @@ function ok(dk, chu) { console.log((dk ? 'ĐẠT  ' : 'HỎNG ') + chu); if (!dk
   const b = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
   const loi = [];
-  p.on('pageerror', e => loi.push('pageerror ' + e.message));
+  p.on('pageerror', e => loi.push('pageerror ' + e.message + ' @ ' + String(e.stack || '').split('\n').slice(1, 3).join(' | ')));
   p.on('console', m => { if (m.type() === 'error' && !/vibrate/.test(m.text())) loi.push('console ' + m.text()); });
   p.on('response', r => { if (r.status() >= 400) loi.push('http ' + r.status() + ' ' + r.url()); });
   await p.addInitScript(() => {
@@ -91,6 +91,9 @@ function ok(dk, chu) { console.log((dk ? 'ĐẠT  ' : 'HỎNG ') + chu); if (!dk
   d = await dem();
   ok(d.nhac.some(x => /n_tran2?\.mp3/.test(x)), 'màn trận phát nhạc trận (' + d.nhac.slice(-1) + ')');
   ok(d.keu.length - k0 >= 5, 'trận có tiếng đánh/chiêu trong 4 giây (' + (d.keu.length - k0) + ')');
+  /* ×6 trong 8 giây: đi qua vài chục chiêu và mấy pha giao tranh — lỗi vẽ hiệu ứng chỉ lộ ở đây */
+  await p.evaluate(() => { [...document.querySelectorAll('button')].filter(b => b.textContent.trim() === '×6').forEach(b => b.click()); });
+  await p.waitForTimeout(8000);
   const dangKeu = await p.evaluate(() => window.__keu.length);
   ok(dangKeu < 2000, 'không phát dồn hàng nghìn tiếng (' + dangKeu + ')');
 
