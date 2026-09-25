@@ -1720,9 +1720,9 @@
         // Vận tốc tức thời: sai phân theo khung dựng hình thật (ddt = dt), CHỈ dùng để hiện HUD/tiếng máy/VFX —
         // không dùng cho khung cuối cùng để bắt qua "cruise" (xem CRUISE_VEL_U): khung dựng hình có thể rơi đúng
         // vào 1/60 s lẻ cuối clip (30 khung/giây, độ dài không chia hết cho 1/30 s) khiến sai phân đó hụt một nửa.
-        var ddt = Math.max(1e-4, st.clipT - prevT);
-        st.vx = (UA[0] - UB[0]) / ddt; st.vz = -(UA[2] - UB[2]) / ddt;
-        st.speed = Math.hypot(st.vx, st.vz);
+        // khung có dt = 0 (hai rAF cùng mốc giờ) thì giữ vận tốc cũ, đừng để tốc độ rơi về 0 một khung
+        var ddt = st.clipT - prevT;
+        if (ddt > 1e-4) { st.vx = (UA[0] - UB[0]) / ddt; st.vz = -(UA[2] - UB[2]) / ddt; st.speed = Math.hypot(st.vx, st.vz); }
         if (!st.boosted && st.speed > 5) { st.boosted = true; fx.setRun(tm + ':exit', ['Booster'], 'once', 1); sfx('boat_drive', { vol: 0.5 }); }
         if (st.clipT >= DEPART_LEN) {
           setState('cruise');
@@ -1749,9 +1749,8 @@
         st.x = st.arriveOrigin.x + dxA; st.z = st.arriveOrigin.z - dzA;
         st.clipRoll = UAE[0]; st.clipPitch = UAE[2]; st.clipY = UA[1];
         st.yaw = -UAE[1] * DEG;
-        var ddt2 = Math.max(1e-4, st.clipT - prevT2);
-        st.vx = (dxA - dxB) / ddt2; st.vz = -(dzA - dzB) / ddt2;
-        st.speed = Math.hypot(st.vx, st.vz);
+        var ddt2 = st.clipT - prevT2;
+        if (ddt2 > 1e-4) { st.vx = (dxA - dxB) / ddt2; st.vz = -(dzA - dzB) / ddt2; st.speed = Math.hypot(st.vx, st.vz); }
         if (st.clipT >= DEPART_LEN) {
           st.x = R.x1; st.yaw = 0;   // chốt đúng đích: bù phần vượt quá ARRIVE_DX ở khung vừa chuyển sang 'arrive'
           st.clipRoll = st.clipPitch = st.clipY = 0; st.speed = 0; st.vx = st.vz = 0;

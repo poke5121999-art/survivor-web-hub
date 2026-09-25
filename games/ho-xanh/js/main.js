@@ -610,7 +610,7 @@
 
   function frame(now) {
     requestAnimationFrame(frame);
-    var dt = Math.min(0.05, (now - last) / 1000);
+    var dt = Math.max(0, Math.min(0.05, (now - last) / 1000));   // mốc rAF có thể sớm hơn performance.now() lúc khởi đầu
     last = now;
     fpsAcc += dt; fpsN++;
     if (fpsAcc > 1) { G.fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
