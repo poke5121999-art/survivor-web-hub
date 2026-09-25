@@ -157,3 +157,25 @@
   opacity: 0; visibility: hidden; }
 .bl-foot.show { visibility: visible; }
 .bl-react { width: calc(94px * var(--k) * 1.3); height: calc(94px * var(--k) * 1.3); image-rendering: pixelated; transform: scaleX(-1); }
+
+/* ---------- nút quán theo SushiBarTouchCanvas của bản Android (hud.js đặt --l/--r/--t/--b/--w/--h từ layouts.bar) ---------- */
+.bt { position: absolute; inset: 0; pointer-events: none; }
+.bt #bt-stick { position: fixed; margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2); }
+.bt #bt-stick[hidden] { display: none; }
+/* đáy cần gốc phóng 0,1 rồi nở ra trong duringTime 0,3 s khi chạm [DtD mobile OnScreenStick_Normal] */
+.bt #bt-stick.grow .bg { animation: bt-grow .3s ease-out; }
+@keyframes bt-grow { from { transform: scale(.1); } }
+/* 交互 và 倒菜 tắt sẵn trong prefab, hiện khi có việc [ĐỀ XUẤT: mờ dần 0,15 s] */
+.bt #bt-interact, .bt #bt-trash { opacity: 0; visibility: hidden; transition: opacity .15s, visibility .15s; }
+.bt #bt-interact.on, .bt #bt-trash.on { opacity: var(--ba); visibility: visible; }
+/* giữ 倒菜 1,5 s: vòng tối tô dần như ShortDash [ĐỀ XUẤT] */
+#bt-trash-k { position: absolute; inset: 8%; border-radius: 50%; background: rgba(0, 0, 0, .55); pointer-events: none;
+  -webkit-mask: conic-gradient(#000 var(--k, 0deg), transparent 0); mask: conic-gradient(#000 var(--k, 0deg), transparent 0); }
+/* Toggle 加速: 步行 (đi) ↔ 奔跑 (chạy), toggleTransition = Fade */
+#bt-run-on { opacity: 0; transition: opacity .1s; }
+#bt-run.on #bt-run-on { opacity: 1; }
+body.sprint-wheel .bt #bt-run { display: none; }
+.bb .bb-bottom { right: calc(var(--mu) * 560); }
+/* phím E (Sushi_OpenConfirm) cạnh nút Mở quán */
+.bk-key { align-self: center; }
+.bk-key img.kg { position: static; display: block; height: max(28px, calc(44px * var(--k))); }

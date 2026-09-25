@@ -116,7 +116,7 @@ async function run(browser, base, W, H) {
   // Chỗ thả gốc ở sát vách trái (x=−57); camera từng bị chặn ở x=−43,7 nên Dave rơi ra ngoài màn hình.
   const ds = await page.evaluate(() => { const d = HX_DEBUG.info().dave; return HX_DEBUG.worldToScreen(d.x, d.y); });
   check('vừa xuống nước đã thấy Dave trong khung hình', ds.x > 0 && ds.x < W && ds.y > 0 && ds.y < H, Math.round(ds.x) + ',' + Math.round(ds.y));
-  check('giải mã đủ 35 tệp tiếng gốc', I.sounds === 35, String(I.sounds));
+  check('giải mã đủ 52 tệp tiếng gốc (35 của lượt lặn + 17 của đầu xiên và drone)', I.sounds === 52, String(I.sounds));
   // Ghi lại tên tiếng được gọi để biết đòn xiên có nối đúng tiếng.
   await page.evaluate(() => { const orig = HX.audio.play; window.__played = []; HX.audio.play = function (k, o) { window.__played.push(k); return orig(k, o); }; });
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 5000 });
@@ -399,7 +399,9 @@ async function loop(browser, base, W, H) {
   check('cano tự chạy xong thì vào lặn với trang bị gốc cấp 0 (O₂ 90, túi 9, đồ lặn 40 m, không súng)',
     I.loadout.o2 === 90 && I.loadout.cargo === 9 && I.loadout.suit === 40 && I.loadout.gun === null && Math.round(I.dave.o2) === 90, JSON.stringify(I.loadout));
   check('HUD túi cá hiện 0/9', (await text('#catch-n')) === '0/9', await text('#catch-n'));
-  check('không mang súng thì không có ô súng', await page.evaluate(() => getComputedStyle(document.getElementById('gunbox')).display === 'none'));
+  const hudA = await page.evaluate(() => ({ sw: getComputedStyle(document.getElementById('tb-switch')).display, fire: getComputedStyle(document.getElementById('tb-fire')).display,
+    keys: [...document.querySelectorAll('#tc img.kg')].length }));
+  check('HUD Android hiện cả trên máy tính (nút bắn có phím); không mang súng thì không có nút đổi súng', hudA.fire === 'block' && hudA.sw === 'none' && hudA.keys >= 6, JSON.stringify(hudA));
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 5000 });
   await page.evaluate(() => HX_DEBUG.giveCatch('Coral_Trout'));
   check('bơi lên mặt nước thì hết lượt', await swimUp(page));

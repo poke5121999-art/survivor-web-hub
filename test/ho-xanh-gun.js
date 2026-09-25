@@ -64,10 +64,11 @@ async function run(browser, base, W, H) {
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 8000 });
   let I = await info();
   check('lượt lặn mang súng đã chọn trong sổ', I.gun && I.gun.id === 'rifle' && I.loadout.gun.dmg === 15, JSON.stringify(I.gun));
-  const hud = await page.evaluate(() => ({ vis: getComputedStyle(document.getElementById('gunbox')).display !== 'none',
-    icon: document.getElementById('gun-icon').src, ammo: document.getElementById('gun-ammo').textContent, hint: document.getElementById('hint-line').textContent }));
-  check('HUD có ô súng: icon gốc Item_BasicRifle và 8/8 viên', hud.vis && /gear\/icon\/Item_BasicRifle\.png/.test(hud.icon) && hud.ammo === '8/8', JSON.stringify(hud));
-  check('dòng gợi ý nói chuột phải là súng, F là dao', /chuột phải: súng/.test(hud.hint) && /F: dao/.test(hud.hint) && !/chuột phải: dao/.test(hud.hint), hud.hint);
+  // HUD kiểu Android (js/hud.js): nút đổi vũ khí cạnh nút bắn mang icon súng phụ
+  const hud = await page.evaluate(() => { const i = document.getElementById('tb-sub-icon'); const r = i && i.getBoundingClientRect();
+    return { vis: !!r && r.width > 4 && r.height > 4, icon: i ? i.src : null }; });
+  check('HUD có nút súng phụ mang icon gốc Item_BasicRifle, súng có 8/8 viên', hud.vis && /gear\/icon\/Item_BasicRifle\.png/.test(hud.icon) && I.gun.ammo === 8 && I.gun.max === 8,
+    JSON.stringify(hud) + ' ' + I.gun.ammo + '/' + I.gun.max);
   check('O₂ đầu lượt bằng bình gốc cấp 0 (90)', Math.round(I.dave.o2) === 90 && (await page.textContent('#o2-num')) === '90', String(I.dave.o2));
 
   await page.evaluate(() => {
@@ -137,7 +138,7 @@ async function run(browser, base, W, H) {
   let F = (await fish()).find(f => f.uid === tt);
   check('súng trường: cá bò titan (16 máu) trúng một viên còn 1 máu', F && F.hp === 1 && F.state !== 'dying', JSON.stringify(F));
   I = await info();
-  check('súng trường: còn 7/8 viên, HUD 7/8', I.gun.ammo === 7 && (await page.textContent('#gun-ammo')) === '7/8', I.gun.ammo + ' ' + await page.textContent('#gun-ammo'));
+  check('súng trường: còn 7/8 viên', I.gun.ammo === 7 && I.gun.max === 8, I.gun.ammo + '/' + I.gun.max);
   let imgs = await page.evaluate(() => HX.game.gun.firedImgs.slice());
   check('súng trường bắn đúng đạn gốc Bullet.png (GunSpecData_Normal_UnderwaterRifle bulletReference)', imgs.length === 1 && imgs[0] === 'art/gear/bullet/Bullet.png', imgs.join(','));
   let snd = await played();
@@ -166,8 +167,6 @@ async function run(browser, base, W, H) {
   I = await info();
   snd = await played();
   check('hết đạn mà bóp cò: không bắn, kêu tiếng hết đạn, vẫn 0 viên', I.gun.ammo === 0 && I.gun.fired === 8 && I.gun.empty >= 1 && snd.includes('gun_empty') && !snd.includes('gun_rifle_shot'), JSON.stringify(I.gun) + ' ' + snd.join(','));
-  const empty = await page.evaluate(() => ({ t: document.getElementById('gun-ammo').textContent, red: document.getElementById('gunbox').classList.contains('empty') }));
-  check('HUD hết đạn: 0/8 đỏ', empty.t === '0/8' && empty.red, JSON.stringify(empty));
 
   // ---- súng hoa cải: 3 viên toả ±20°, đặt một con cá bò titan trên đường bay của từng viên ----
   await page.evaluate(() => HX_DEBUG.gun('shotgun'));
@@ -300,7 +299,9 @@ async function run(browser, base, W, H) {
   check('nút bắn cảm ứng khi đã đổi sang súng: tự nhắm cá gần nhất, trúng', F && F.hp < 16, JSON.stringify(F) + ' ' + JSON.stringify((await info()).gun));
   const lay = await page.evaluate(() => {
     const r = id => document.getElementById(id).getBoundingClientRect();
-    const btns = ['tb-boost', 'tb-dash', 'tb-knife', 'tb-fire', 'tb-switch'].map(r), o = r('o2box'), h = r('hint-line');
+    // dòng gợi ý phím cũ đã bỏ ở HUD kiểu Android (js/hud.js); còn thì vẫn kiểm không đè
+    const hl = document.getElementById('hint-line');
+    const btns = ['tb-boost', 'tb-dash', 'tb-knife', 'tb-fire', 'tb-switch'].map(r), o = r('o2box'), h = hl ? hl.getBoundingClientRect() : { left: -9, right: -9, top: -9, bottom: -9 };
     const inside = q => q.left >= 0 && q.top >= 0 && q.right <= innerWidth && q.bottom <= innerHeight;
     const hit = (p, q) => p.left < q.right && q.left < p.right && p.top < q.bottom && q.top < p.bottom;
     return { inView: btns.every(inside), btnVsO2: btns.some(q => hit(q, o)), btnVsHint: btns.some(q => hit(q, h)), ammo: document.getElementById('tb-fire-ammo').textContent };

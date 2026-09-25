@@ -33,6 +33,7 @@ function check(name, ok, detail) {
   if (ok) { pass++; out.push('  ✔ ' + name + (detail ? '  — ' + detail : '')); }
   else { fail++; out.push('  ✘ ' + name + (detail ? '  — ' + detail : '')); }
 }
+const near = (a, b, tol) => Math.abs(a - b) <= tol;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function serve() {
@@ -214,8 +215,8 @@ async function keyboardNight(browser, base) {
   const errors = watch(page);
   await kitchen(page, base, '1280');
   await page.evaluate(() => HX.bar.debug.seed(11));
-  await page.click('#kitchen-open');
-  check('Mở quán thì sang pha bar', await phaseIs(page, 'bar'));
+  await press(page, 'KeyE');
+  check('bếp: phím E mở quán (Sushi_OpenConfirm gốc), sang pha bar', await phaseIs(page, 'bar'));
   let I = await info(page);
   check('quán mở 3 ghế theo HX_META.stat(seats) cấp 0, gần bếp trước', JSON.stringify(I.seats) === '["Seat_08","Seat_09","Seat_10"]', JSON.stringify(I.seats));
   check('thực đơn tối nay 16 suất: cá mú 5, cá bò 5, cá hề 3 con × 2', I.menu.map(m => m.id + ':' + m.servings).join(',') === 'Coral_Trout:5,Titan_Triggerfish:5,ClownFish:6', I.menu.map(m => m.id + ':' + m.servings).join(','));
@@ -409,6 +410,222 @@ async function tapNight(browser, base) {
   await ctx.close();
 }
 
+// =====================================================================================
+// Cả một đêm chỉ bằng nút Android (SushiBarTouchCanvas): cần nổi ở nửa trái để đi, nút 交互 bưng / phục vụ / giữ để rót trà,
+// nút 倒菜 giữ 1,5 s để đổ món, công tắc 加速 để chạy. Ngón tay gửi qua CDP như test/ho-xanh-touch.js.
+async function buttonNight(browser, base) {
+  out.push('\n[844×390 cảm ứng · chỉ nút trên màn hình]');
+  const W = 844, H = 390, u = W / 2340;
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
+  const errors = watch(page);
+  const cdp = await ctx.newCDPSession(page);
+  const fingers = new Map();
+  const pts = () => [...fingers].map(([id, p]) => ({ x: p.x, y: p.y, id }));
+  const down = (x, y, id = 1) => { fingers.set(id, { x, y }); return cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pts() }); };
+  const move = (x, y, id = 1) => { fingers.set(id, { x, y }); return cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pts() }); };
+  const up = (id = 1) => { fingers.delete(id); return cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: pts() }); };
+  const box = id => page.evaluate(i => { const e = document.getElementById(i), r = e.getBoundingClientRect(), s = getComputedStyle(e);
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, shown: r.width > 0 && s.display !== 'none' && s.visibility !== 'hidden' && +s.opacity > 0 }; }, id);
+  const tapBtn = async (id, ms = 60) => { const b = await box(id); await down(b.x, b.y, 2); await sleep(ms); await up(2); await sleep(60); return b; };
+
+  await page.goto(base + '/games/ho-xanh/index.html?fresh=1&phase=kitchen');
+  await phaseIs(page, 'kitchen');
+  await waitFor(page, () => HX.bar && HX.bar.debug.ready(), null, 60000);
+  await page.evaluate(() => HX.bar.debug.seed(7));
+  await tapBtn('kitchen-open');
+  check('844 chạm: nút Mở quán sang pha bar', await phaseIs(page, 'bar'));
+  await waitFor(page, () => HX.bar.debug.info().t > 0.5, null, 30000);
+
+  // bố cục: tâm và cỡ lấy từ RectTransform gốc của SushiBarTouchCanvas (canvas 2340×1080, khớp bề ngang)
+  const run = await box('bt-run');
+  check('công tắc 加速 (步行) ở góc dưới phải: tâm cách phải 190, cách đáy 170, cỡ 195 đơn vị gốc',
+    run.shown && near(run.x, W - 190 * u, 1.5) && near(run.y, H - 170 * u, 1.5) && near(run.w, 195 * u, 1.5), JSON.stringify(run));
+  const hid = await page.evaluate(() => ['bt-interact', 'bt-trash'].map(i => getComputedStyle(document.getElementById(i)).visibility));
+  check('đầu ca chưa có việc: nút 交互 và 倒菜 ẩn như prefab (alpha 0 / tắt sẵn)', hid.join() === 'hidden,hidden', hid.join());
+  check('máy cảm ứng: không vẽ phím PC trên nút quán', await page.evaluate(() => [...document.querySelectorAll('.bt img.kg')].every(i => getComputedStyle(i).display === 'none')));
+
+  // đi bằng cần nổi: kéo từ nửa trái màn tới khi Dave tới gần x rồi thả
+  const sx = W * 0.2, sy = H * 0.7;
+  async function walkStick(x) {
+    let I = await info(page);
+    if (Math.abs(I.dave.x - x) <= 8) return true;
+    const dir = x > I.dave.x ? 1 : -1;
+    await down(sx, sy);
+    await move(sx + dir * 10, sy); await move(sx + dir * 30, sy); await move(sx + dir * 70, sy);
+    const ok = await waitFor(page, a => { const dx = HX.bar.debug.info().dave.x; return Math.abs(dx - a.x) <= 8 || (a.dir > 0 ? dx >= a.x : dx <= a.x); }, { x, dir }, 15000);
+    await up();
+    await sleep(60);
+    return ok;
+  }
+  const x0 = (await info(page)).dave.x;
+  await down(sx, sy); await move(sx + 20, sy); await move(sx + 60, sy);
+  await sleep(120);
+  const st = await box('bt-stick');
+  await sleep(400);
+  await page.screenshot({ path: path.join(SHOTS, 'buttons-stick-844.png') });
+  await up();
+  const x1 = (await info(page)).dave.x;
+  check('kéo trong nửa trái: cần hiện ở chỗ chạm, Dave đi sang phải', st.shown && near(st.x, sx, 2) && x1 - x0 > 30, 'cần ' + JSON.stringify(st) + ', Dave ' + x0.toFixed(0) + ' → ' + x1.toFixed(0));
+  check('thả tay: cần ẩn', !(await box('bt-stick')).shown);
+
+  // chạy: bật công tắc thì đi nhanh hơn T.runK lần
+  const T = await page.evaluate(() => HX.bar.T);
+  async function speedOver(ms) {
+    const a = (await info(page)).dave.x;
+    await down(sx, sy); await move(sx - 20, sy); await move(sx - 70, sy);
+    await sleep(ms);
+    const b = (await info(page)).dave.x;
+    await up(); await sleep(60);
+    return (a - b) / (ms / 1000);
+  }
+  await walkStick(700);
+  const vWalk = await speedOver(500);
+  await tapBtn('bt-run');
+  await walkStick(700);
+  const vRun = await speedOver(500);
+  const runOn = await page.evaluate(() => document.getElementById('bt-run').classList.contains('on'));
+  await tapBtn('bt-run');
+  check('chạm 加速: công tắc sáng (奔跑), Dave chạy nhanh hơn đi', runOn && vRun > vWalk * 1.3, 'đi ' + vWalk.toFixed(0) + ' px/s, chạy ' + vRun.toFixed(0) + ' px/s, T.runK ' + T.runK);
+
+  await page.evaluate(() => HX.bar.debug.holdSpawns(true));
+  const spawned = [];
+  let served = 0, teaOk = false, teaEv = null;
+  const fails = [];
+  // phục vụ một khách tới khi xong, chỉ bằng cần + nút 交互 (trà: giữ nút)
+  async function handle(cid) {
+    if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return !c || c.st === 'order'; }, cid, 30000)) return 'không gọi món';
+    let I = await info(page), c = cust(I, cid);
+    if (!c) return 'khách bỏ đi';
+    if (c.order === 'tea') {
+      await walkStick(c.sitX);
+      if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 3000)) return 'trà: nút 交互 không hiện';
+      const b = await box('bt-interact');
+      await down(b.x, b.y, 3);
+      await waitFor(page, () => { const q = HX.bar.debug.info().qte; return q && q.st === 'pour'; }, null, 3000);
+      const tp = Date.now();
+      const mid = page.screenshot({ path: path.join(SHOTS, 'buttons-tea-844.png') });
+      await sleep(Math.max(0, T.pour * 1000 * 0.95 - (Date.now() - tp)));
+      await up(3);
+      await mid;
+      await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'tea' && e.cid === id), cid, 5000);
+      const ev = (await info(page)).events.filter(e => e.type === 'tea' && e.cid === cid)[0];
+      teaOk = teaOk || (!!ev && ev.grade !== 'bad');
+      teaEv = ev || teaEv;
+      await waitFor(page, () => !HX.bar.debug.info().qte, null, 3000);
+      return 'ok';
+    }
+    if (I.dave.carry.indexOf(c.order) < 0) {
+      if (!await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 30000)) return 'món không ra lò ' + c.order;
+      await walkStick(I.passX);
+      if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 3000)) return 'ở quầy Bancho mà nút 交互 không hiện';
+      await tapBtn('bt-interact');
+      I = await info(page);
+      if (I.dave.carry.indexOf(c.order) < 0) return 'chạm 交互 ở quầy mà không bưng ' + c.order;
+    }
+    await walkStick(c.sitX);
+    if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 3000))
+      return 'cạnh khách mà nút 交互 không hiện: Dave ' + (await info(page)).dave.x.toFixed(0) + ', ghế ' + c.sitX;
+    await tapBtn('bt-interact');
+    if (!await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'serve' && e.cid === id), cid, 3000)) return 'chạm 交互 cạnh khách mà không phục vụ';
+    served++;
+    return 'ok';
+  }
+  // khách tự vào trước khi giữ lượt khách
+  for (const c of (await info(page)).customers.filter(c => c.st !== 'leave' && c.st !== 'pay')) { const r = await handle(c.id); if (r !== 'ok' && r !== 'khách bỏ đi') fails.push(r); }
+  // một khách gọi trà, hai khách gọi món: gọi từng người rồi phục vụ ngay
+  for (const o of [{ tea: true }, { dish: 'Coral_Trout', tea: false }, { dish: 'Titan_Triggerfish', tea: false }]) {
+    const id = await spawnFree(page, o);
+    if (id == null) { fails.push('không gọi được khách ' + JSON.stringify(o)); continue; }
+    spawned.push(id);
+    const r = await handle(id);
+    if (r !== 'ok') fails.push(r);
+  }
+  const I1 = await info(page);
+  check('phục vụ bằng cần + nút 交互: mọi khách gọi món đều nhận món (≥ 2)', served >= 2 && !fails.length, 'phục vụ ' + served + ' ' + fails.join(' | '));
+  check('giữ nút 交互 rót trà rồi thả gần đầy vòng: trà không hỏng', teaOk, JSON.stringify(teaEv) + ' khách gọi vào ' + JSON.stringify(spawned) + ' ' + JSON.stringify(I1.events.filter(e => spawned.indexOf(e.cid) >= 0).map(e => e.type + ':' + e.cid + (e.kind ? ':' + e.kind : ''))));
+
+  // đổ món: bưng một đĩa không ai gọi rồi giữ nút 倒菜 1,5 s [DtD StaffDave.trashHoldTime]
+  await page.evaluate(() => HX.bar.debug.spawn({ dish: 'ClownFish', tea: false }));
+  const extra = await waitFor(page, () => HX.bar.debug.info().plates.some(p => p.st === 'ready'), null, 40000);
+  if (extra) {
+    await walkStick((await info(page)).passX);
+    await tapBtn('bt-interact');
+  }
+  const carrying = (await info(page)).dave.carry.length;
+  const trashShown = (await box('bt-trash')).shown;
+  const tb = await box('bt-trash');
+  await down(tb.x, tb.y, 4);
+  await sleep(700);
+  const early = (await info(page)).dave.carry.length;
+  await sleep(1100);
+  await up(4);
+  const after = (await info(page)).dave.carry.length;
+  check('bưng đĩa thì hiện nút 倒菜; giữ 0,7 s chưa đổ, giữ quá 1,5 s thì đổ một đĩa', carrying > 0 && trashShown && early === carrying && after === carrying - 1,
+    'bưng ' + carrying + ', hiện ' + trashShown + ', 0,7 s còn ' + early + ', 1,8 s còn ' + after);
+
+  // hết giờ: phục vụ nốt rồi quán tự đóng, sang sổ cuối ngày
+  await page.evaluate(() => HX.bar.debug.endTime());
+  for (let k = 0; k < 20 && (await info(page)).customers.some(c => c.st === 'order'); k++) {
+    const I = await info(page), c = I.customers.filter(c => c.st === 'order')[0];
+    if (c.order === 'tea') break;
+    if (I.dave.carry.indexOf(c.order) < 0) {
+      await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 30000);
+      await walkStick(I.passX); await tapBtn('bt-interact');
+    }
+    await walkStick(c.sitX); await tapBtn('bt-interact');
+  }
+  await page.evaluate(() => HX.bar.debug.timeScale(4));
+  check('hết giờ, khách về hết thì quán tự đóng và sang sổ cuối ngày', await phaseIs(page, 'ledger', 90000));
+  check('844 chỉ nút: không lỗi trang / console / tải hỏng', errors.length === 0, errors.slice(0, 5).join(' | '));
+  await ctx.close();
+}
+
+// Máy tính: nút Android hiện kèm phím PC gốc, bấm chuột được; bàn phím vẫn chạy (Shift chạy, giữ Q đổ món).
+async function pcButtons(browser, base) {
+  out.push('\n[1280×720 máy tính · nút Android + phím]');
+  const { page, ctx, errors } = await savedPage(browser, base, { width: 1280, height: 720 });
+  await page.evaluate(() => HX.bar.debug.holdSpawns(true));
+  const g = await page.evaluate(() => [...document.querySelectorAll('.bt img.kg')].map(i => ({ key: i.alt, on: i.closest('button').id, shown: getComputedStyle(i).display !== 'none' })));
+  check('nút quán có ảnh phím PC: 交互 = Space, 倒菜 = Q, 加速 = Shift', JSON.stringify(g.map(x => x.on + ':' + x.key).sort()) === JSON.stringify(['bt-interact:Space', 'bt-run:Shift', 'bt-trash:Q']) && g.every(x => x.shown), JSON.stringify(g));
+  const T = await page.evaluate(() => HX.bar.T);
+  async function speed(shift) {
+    await walkKeys(page, 700);
+    if (shift) await page.keyboard.down('ShiftLeft');
+    await page.keyboard.down('KeyA');
+    const a = (await info(page)).dave.x; await sleep(500); const b = (await info(page)).dave.x;
+    await page.keyboard.up('KeyA');
+    if (shift) await page.keyboard.up('ShiftLeft');
+    return (a - b) / 0.5;
+  }
+  const vw = await speed(false), vr = await speed(true);
+  check('giữ Shift thì Dave chạy (Sushi_Dash gốc = Shift trái)', vr > vw * 1.3, 'đi ' + vw.toFixed(0) + ', chạy ' + vr.toFixed(0));
+  // chuột: bấm công tắc 加速 thì bật chạy
+  await page.click('#bt-run');
+  const on = await page.evaluate(() => document.getElementById('bt-run').classList.contains('on'));
+  await page.click('#bt-run');
+  check('bấm chuột vào công tắc 加速: bật / tắt', on && !(await page.evaluate(() => document.getElementById('bt-run').classList.contains('on'))));
+  // bấm chuột một lần ở nửa trái (không kéo) vẫn là đi tới chỗ bấm, cần không hiện
+  const p = await page.evaluate(() => HX.bar.debug.toClient(300, 470));
+  await page.mouse.click(p.x, p.y);
+  await waitFor(page, () => Math.abs(HX.bar.debug.info().dave.x - 300) < 4, null, 8000);
+  check('chuột bấm nửa trái không kéo: Dave đi tới chỗ bấm, cần không hiện', Math.abs((await info(page)).dave.x - 300) < 4 && await page.evaluate(() => document.getElementById('bt-stick').hidden));
+  // giữ Q đổ món: 0,7 s chưa đổ, 1,6 s thì đổ
+  await page.evaluate(() => HX.bar.debug.spawn({ dish: 'ClownFish', tea: false }));
+  await waitFor(page, () => HX.bar.debug.info().plates.some(p => p.st === 'ready'), null, 40000);
+  await walkKeys(page, (await info(page)).passX);
+  await press(page, 'Space');
+  const n0 = (await info(page)).dave.carry.length;
+  await page.keyboard.down('KeyQ'); await sleep(700);
+  const n1 = (await info(page)).dave.carry.length;
+  await sleep(900); await page.keyboard.up('KeyQ');
+  const n2 = (await info(page)).dave.carry.length;
+  await shot(page, 'buttons-1280');
+  check('giữ Q quá 1,5 s thì đổ một đĩa (StaffDave.trashHoldTime gốc)', n0 > 0 && n1 === n0 && n2 === n0 - 1, n0 + ' → ' + n1 + ' → ' + n2);
+  check('1280 nút: không lỗi trang', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
 // Sổ dàn sẵn: cấp trang trí `decor`, ghế cấp `seats`, tủ cá như ?phase=kitchen. Ghi trước khi trang chạy.
 async function savedPage(browser, base, size, bar, touch) {
   const ctx = await browser.newContext({ viewport: size, hasTouch: !!touch });
@@ -527,11 +744,10 @@ async function reloadMidNight(browser, base) {
   const base = process.env.HX_BASE || 'http://localhost:' + srv.address().port;
   const browser = await chromium.launch();
   try {
-    await keyboardNight(browser, base);
-    await tapNight(browser, base);
-    await reloadMidNight(browser, base);
-    await facingAndShift(browser, base);
-    await tierLooks(browser, base);
+    // ONLY=buttonNight,pcButtons chạy riêng vài phần
+    const parts = { keyboardNight, buttonNight, pcButtons, tapNight, reloadMidNight, facingAndShift, tierLooks };
+    const only = (process.env.ONLY || '').split(',').filter(Boolean);
+    for (const k of Object.keys(parts)) if (!only.length || only.indexOf(k) >= 0) await parts[k](browser, base);
   } catch (e) {
     fail++; out.push('  ✘ lỗi chạy bộ kiểm: ' + (e && e.stack || e));
   }

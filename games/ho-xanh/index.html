@@ -85,10 +85,8 @@ body.touch .keys .kb, body:not(.touch) .keys .tc { display: none; }
 /* ---------- HUD ---------- */
 #hud { position: fixed; inset: 0; pointer-events: none; transition: opacity .4s; }
 body:not([data-phase="dive"]):not([data-phase="result"]) #hud { opacity: 0; }
-#o2box {
-  position: absolute; left: max(10px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top));
-  width: 210px; height: 116px;
-}
+/* Đồng hồ O₂ theo bản Android trên mọi máy: PlayerStateInfoPanel neo (1,1), phóng 1,5, mép phải −320 đơn vị canvas 2340 */
+#o2box { position: absolute; right: calc(var(--mu) * 320); top: calc(var(--mu) * 12); width: calc(var(--mu) * 450); height: calc(var(--mu) * 249); }
 #o2box > img.frame { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* Toạ độ dưới đây đo trên ảnh gốc UI_O2_Frame_New 300×166, đổi ra %. */
 #o2-pie {
@@ -99,15 +97,15 @@ body:not([data-phase="dive"]):not([data-phase="result"]) #hud { opacity: 0; }
 body.low-o2 #o2-pie { background: conic-gradient(from 0deg, rgba(255, 90, 79, .6) var(--k, 360deg), transparent 0); }
 #o2-num {
   position: absolute; left: 4.3%; top: 8.4%; width: 46.7%; height: 84.3%; display: grid; place-items: center;
-  font: 800 30px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .55);
+  font: 800 calc(var(--mu) * 68)/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .55);
 }
 #o2-lbl { position: absolute; left: 4.3%; width: 46.7%; top: 66%; text-align: center; font: 700 10px/1 system-ui, sans-serif; color: var(--cyan); letter-spacing: 1px; }
 #depth {
-  position: absolute; left: 71%; top: 17%; font: 800 17px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff;
+  position: absolute; left: 71%; top: 17%; font: 800 calc(var(--mu) * 40)/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff;
 }
 #catch {
   position: absolute; left: 56%; top: 50%; height: 26%; display: flex; align-items: center; gap: 6px;
-  font: 800 16px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--gold);
+  font: 800 calc(var(--mu) * 40)/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: var(--gold);
 }
 #catch.full { color: var(--red); }
 #catch::before { content: ""; width: 20px; height: 11px; background: var(--gold);
@@ -115,22 +113,11 @@ body.low-o2 #o2-pie { background: conic-gradient(from 0deg, rgba(255, 90, 79, .6
 #warn { position: absolute; left: 40%; top: -4%; width: 30px; display: none; animation: blink .6s steps(2) infinite; }
 body.low-o2 #warn { display: block; }
 @keyframes blink { 50% { opacity: .25; } }
-#hint-line {
-  position: absolute; left: 50%; bottom: max(10px, env(safe-area-inset-bottom)); transform: translateX(-50%);
-  padding: 5px 12px; border-radius: 99px; background: rgba(8, 26, 44, .6); font-size: 12px; color: var(--dim);
-  white-space: nowrap; max-width: calc(100vw - 24px); overflow: hidden; text-overflow: ellipsis;
-}
-body.touch #hint-line { bottom: auto; top: max(8px, env(safe-area-inset-top)); left: auto; right: 118px; transform: none; font-size: 11px; max-width: calc(100vw - 360px); }
-.hud-btns { position: fixed; right: max(10px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top)); display: flex; gap: 8px; transition: opacity .4s; }
-body:not([data-phase="dive"]):not([data-phase="result"]) .hud-btns { opacity: 0; pointer-events: none; }
-.hud-btns button { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(8, 26, 44, .66); display: grid; place-items: center; padding: 0; }
-#btn-mute.off .on-i, #btn-mute:not(.off) .off-i { display: none; }
-
 #vignette { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity .5s; mix-blend-mode: multiply; }
 body.low-o2 #vignette { animation: throb 1.3s ease-in-out infinite; }
 body:not([data-phase="dive"]):not([data-phase="result"]) :is(#vignette, #area, #catch-card, #pod-hint, #tug, #harvest) { display: none; }
 #suit-warn {
-  position: fixed; left: max(10px, env(safe-area-inset-left)); top: calc(max(8px, env(safe-area-inset-top)) + 120px); display: none;
+  position: fixed; right: calc(var(--mu) * 320); top: calc(var(--mu) * 270); display: none;
   padding: 4px 10px; border-radius: 8px; background: rgba(90, 14, 10, .72); border: 1px solid rgba(255, 90, 79, .6);
   color: #ffd0c8; font-size: 12px; font-weight: 700; pointer-events: none; animation: blink 1s steps(2) infinite;
 }
@@ -165,9 +152,9 @@ body.too-deep[data-phase="dive"] #depth { color: var(--red); }
 
 /* ---------- thẻ bắt được cá ---------- */
 #catch-card {
-  position: fixed; right: max(14px, env(safe-area-inset-right)); top: 64px; width: 250px; padding: 10px 12px 10px 10px;
+  position: fixed; left: max(14px, env(safe-area-inset-left)); top: 44px; width: 250px; padding: 10px 12px 10px 10px;
   display: grid; grid-template-columns: 84px 1fr; gap: 2px 10px; align-items: center;
-  transform: translateX(calc(100% + 30px)); transition: transform .35s cubic-bezier(.2, .9, .3, 1.2); pointer-events: none;
+  transform: translateX(calc(-100% - 30px)); transition: transform .35s cubic-bezier(.2, .9, .3, 1.2); pointer-events: none;
 }
 #catch-card.show { transform: none; }
 #cc-iconwrap { grid-row: 1 / 4; width: 84px; height: 64px; display: grid; place-items: center; border-radius: 10px; background: radial-gradient(circle, rgba(95, 208, 238, .28), rgba(95, 208, 238, .05) 70%); }
@@ -229,37 +216,45 @@ body.touch #hv-key { display: none; }
 #r-total { color: var(--dim); font-size: 12.5px; margin: 0 0 10px; }
 #r-again { width: 100%; padding: 12px; border: 0; border-radius: 12px; background: #1c9cc4; color: #fff; font-weight: 700; font-size: 16px; box-shadow: 0 3px 0 #0c5570; }
 
-#pause { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 18px 22px; text-align: center; z-index: 6; }
-#pause[hidden] { display: none; }
-#pause h2 { font: 700 26px/1.1 var(--disp); margin: 0 0 12px; color: var(--gold); }
-#pause .col { display: flex; flex-direction: column; gap: 8px; min-width: 200px; }
-.ghost { padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .06); }
-
-/* ---------- chạm: HUD cảm ứng của bản Android (InGameTouchCanvas trong XD_Variant/MainCanvas.prefab) ----------
+/* ---------- HUD của bản Android (InGameTouchCanvas trong XD_Variant/MainCanvas.prefab), hiện trên mọi máy ----------
    Canvas gốc 2340×1080, CanvasScaler khớp bề ngang: 1 đơn vị = 100vw / 2340 [DtD mobile].
-   hud.js đặt --l/--r/--t/--b/--w/--h cho từng phần tử theo HX_MOBILE_UI.layout (data/mobile_ui.js, sinh bởi tools/rip_mobile.py). */
-:root { --mu: calc(100vw / 2340); }
+   hud.js (Hud.layout) đặt --l/--r/--t/--b/--w/--h cho từng phần tử theo HX_MOBILE_UI.layouts (data/mobile_ui.js, sinh bởi tools/rip_mobile.py).
+   Bảng cài đặt: --ba = 透明度 (độ đục nút), cỡ nút nhân thẳng vào --w/--h trong hud.js. */
+:root { --mu: calc(100vw / 2340); --ba: 1; }
 #tc { position: fixed; inset: 0; z-index: 3; pointer-events: none; display: none; }
-body.touch[data-phase="dive"] #tc { display: block; }
-#tc .tc-p { position: absolute; left: var(--l, auto); right: var(--r, auto); top: var(--t, auto); bottom: var(--b, auto); width: var(--w); height: var(--h); }
-#tc img { pointer-events: none; -webkit-user-drag: none; }
-#tc img.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+body[data-phase="dive"] #tc { display: block; }
+.tc-p { position: absolute; left: var(--l, auto); right: var(--r, auto); top: var(--t, auto); bottom: var(--b, auto); width: var(--w); height: var(--h); }
+#tc > .tc-p, .bt > .tc-p { opacity: var(--ba); }
+:is(#tc, .bt) img { pointer-events: none; -webkit-user-drag: none; }
+:is(#tc, .bt) img.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
 #tc .px { image-rendering: pixelated; object-fit: contain; }
-#tc button { padding: 0; border: 0; background: none; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
-/* cần trái nổi: hiện ở chỗ ngón cái chạm, ẩn khi thả (OnScreenStick_Normal canHideAll = 1) */
+:is(#tc, .bt) button { padding: 0; border: 0; background: none; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+/* phím PC của từng nút (InputAtlas_Keyboard gốc) ở góc trên phải; máy cảm ứng thì ẩn [ĐỀ XUẤT: chỗ đặt] */
+img.kg { position: absolute; right: -14%; top: -14%; height: calc(var(--mu) * 60); width: auto; image-rendering: pixelated; pointer-events: none; }
+body.touch img.kg { display: none; }
+/* cần trái nổi: hiện ở chỗ ngón cái chạm, ẩn khi thả (OnScreenStick_Normal canHideAll = 1); 左摇杆固定 thì nằm yên ở chỗ gốc */
 #tc #stick { position: fixed; margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2); }
 #tc #stick[hidden] { display: none; }
+/* 冲刺模式 = 轮盘: mũi tên 摇杆冲刺表现 (Arrow, đục 0,498) quanh cần, quay theo hướng đẩy */
+#stick-sprint { opacity: .498; display: none; }
+#stick.sprint #stick-sprint { display: block; }
 /* Toggle 加速: vòng 水下冲刺 hiện dần khi bật (toggleTransition = Fade, 0,1 s mặc định của Unity) */
 #tb-boost-on { opacity: 0; transition: opacity .1s; }
 #tb-boost.on #tb-boost-on { opacity: 1; }
+body.sprint-wheel #tb-boost { display: none; }
 /* ShortDash: Slider tô 黑透遮罩 theo phần hồi chiêu còn lại */
 #tb-dash-cd { background: url(art/ui/mobile/cd_mask.png?v=20260925c) center / 100% 100%; -webkit-mask: conic-gradient(#000 var(--k, 0deg), transparent 0); mask: conic-gradient(#000 var(--k, 0deg), transparent 0); }
 #tc #tb-grab { display: none; }
 body.can-harvest #tc #tb-grab { display: block; }
 #tc #tb-switch { display: none; }
 body.has-gun #tc #tb-switch { display: block; }
+/* 无人机: CanvasGroup alpha 0 trong prefab, chỉ hiện khi có drone; hết lượt hoặc không có xác trong tầm thì xám [ĐỀ XUẤT] */
+#tc #tb-drone { display: none; }
+body.has-drone #tc #tb-drone { display: block; }
+#tb-drone.off { filter: grayscale(1) brightness(.6); }
+#tb-drone-n { left: auto; right: 0; top: auto; bottom: 0; width: auto; height: auto; font-size: calc(var(--mu) * 40); }
 /* SubGunBackground: CanvasGroup alpha 0,5 */
-#tb-switch > * { opacity: .5; }
+#tb-switch > :not(.kg) { opacity: .5; }
 #tb-sub-icon { position: absolute; left: 7.5%; top: 30%; width: 85%; height: 40%; }
 .tc-txt { display: grid; place-items: center; font: 400 calc(var(--mu) * 34) / 1 var(--font-num); color: #fff; white-space: nowrap;
   text-shadow: 0 0 calc(var(--mu) * 4) #6a2a00, 0 calc(var(--mu) * 3) 0 #6a2a00; }
@@ -281,52 +276,92 @@ body.has-gun #tc #tb-switch { display: block; }
 #tb-qte-ring { animation: tc-qte-ring .333s ease-in-out infinite; }
 @keyframes tc-qte-btn { 50% { transform: scale(.8); } }
 @keyframes tc-qte-ring { 50% { transform: scale(1.2); opacity: 0; } }
-/* HUD trên cảm ứng theo bản Android: đồng hồ O₂ sang góc phải trên (PlayerStateInfoPanel neo (1,1), phóng 1,5, mép phải −320),
-   nút menu 菜单 ở góc phải trên, số đạn nằm trên nút bắn nên bỏ ô súng. */
-body.touch #o2box { left: auto; right: calc(var(--mu) * 320); top: calc(var(--mu) * 12); width: calc(var(--mu) * 450); height: calc(var(--mu) * 249); }
-body.touch #o2-num { font-size: calc(var(--mu) * 68); }
-body.touch :is(#depth, #catch) { font-size: calc(var(--mu) * 40); }
-body.touch #gunbox, body.touch.has-gun #gunbox { display: none; }
-body.touch #suit-warn { left: auto; right: calc(var(--mu) * 320); top: calc(var(--mu) * 270); }
-body.touch #hint-line { top: max(8px, env(safe-area-inset-top)); right: auto; left: max(10px, env(safe-area-inset-left)); max-width: calc(100vw - var(--mu) * 1200); }
-body.touch #catch-card { right: auto; left: max(14px, env(safe-area-inset-left)); top: 44px; transform: translateX(calc(-100% - 30px)); }
-body.touch #catch-card.show { transform: none; }
-body.touch .hud-btns { display: block; }
-body.touch .hud-btns button { position: fixed; border: 0; background: none; }
-body.touch #btn-pause { right: var(--r); top: var(--t); width: var(--w); height: var(--h); }
-#btn-pause .tc-menu { display: none; width: 100%; height: 100%; }
-body.touch #btn-pause .tc-menu { display: block; }
-body.touch #btn-pause svg { display: none; }
-/* [ĐỀ XUẤT] bản Android để tắt tiếng trong menu; ở đây giữ nút loa ngay dưới nút menu, cùng cỡ */
-body.touch #btn-mute { right: var(--r); top: calc(var(--t) + var(--h) * 1.25); width: var(--w); height: var(--h); border-radius: 22%; background: rgba(8, 26, 44, .66); }
-body.touch #btn-mute svg { width: 60%; height: 60%; }
 
-/* ---------- súng phụ: icon gốc + số đạn, ngay dưới đồng hồ dưỡng khí ---------- */
-#gunbox {
-  position: absolute; left: max(10px, env(safe-area-inset-left)); top: calc(max(8px, env(safe-area-inset-top)) + 118px);
-  display: none; align-items: center; gap: 6px; height: 34px; padding: 2px 10px 2px 4px;
-  border-radius: 8px; background: rgba(8, 26, 44, .6); border: 1px solid var(--edge);
-}
-body.has-gun #gunbox { display: flex; }
-#gun-icon { height: 30px; width: 60px; object-fit: contain; image-rendering: pixelated; }
-#gun-ammo { font: 800 16px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .5); }
-#gunbox.empty #gun-ammo { color: var(--red); }
-body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px); }
+/* ---------- tạm dừng: PausePanel của bản Android (XD) ----------
+   Khung 1920×1080 đơn vị (--pu, co vừa màn), nền phủ 0,02/0,157/0,204/0,98 [DtD]. Khung UI_TitleFrame_8rad tô UIGradient
+   #009297 → #006789 [DtD], thẻ trang bị UI_Equip_Frame, nút 设置顶部按钮 (viên thuốc trắng 9-slice). */
+:root { --pu: min(100vw / 1920, 100dvh / 1080); }
+#pause { position: fixed; inset: 0; z-index: 6; background: rgba(5, 40, 52, .98); color: #fff; }
+#pause[hidden], #settings[hidden] { display: none; }
+.pz { position: absolute; left: 50%; top: 50%; width: calc(var(--pu) * 1920); height: calc(var(--pu) * 1080); transform: translate(-50%, -50%);
+  font: 700 calc(var(--pu) * 30) / 1.2 var(--font-ui, system-ui); }
+.pz-top { position: absolute; left: 0; right: 0; top: calc(var(--pu) * 32); height: calc(var(--pu) * 56); background: rgba(0, 0, 0, .392);
+  display: flex; align-items: center; justify-content: center; gap: calc(var(--pu) * 12); font-size: calc(var(--pu) * 34); }
+.pz-top img { height: calc(var(--pu) * 40); }
+.pz-box { position: absolute; }
+.pz-box::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #009297, #006789);
+  -webkit-mask-box-image: url(art/ui/mobile/pause_title.png?v=20260925c) 31 19 8 19 fill / calc(var(--pu) * 31) calc(var(--pu) * 19) calc(var(--pu) * 8) calc(var(--pu) * 19); }
+.pz-box > b { position: absolute; left: calc(var(--pu) * 16); top: calc(var(--pu) * 2); font-size: calc(var(--pu) * 24); }
+#pz-equip { left: calc(var(--pu) * 100); top: calc(var(--pu) * 108); width: calc(var(--pu) * 980); height: calc(var(--pu) * 252); }
+#pz-loot { left: calc(var(--pu) * 1100); top: calc(var(--pu) * 108); width: calc(var(--pu) * 520); height: calc(var(--pu) * 800); }
+.pz-slot { position: absolute; width: calc(var(--pu) * 240); height: calc(var(--pu) * 88);
+  border-image: url(art/ui/mobile/pause_equip.png?v=20260925c) 31 5 2 5 fill / calc(var(--pu) * 31) calc(var(--pu) * 5) calc(var(--pu) * 2) calc(var(--pu) * 5); }
+.pz-slot span { position: absolute; left: calc(var(--pu) * 8); top: 0; font-size: calc(var(--pu) * 20); color: #8fd6ea; white-space: nowrap; }
+.pz-slot img { position: absolute; left: 50%; bottom: calc(var(--pu) * 4); height: calc(var(--pu) * 52); max-width: 90%; transform: translateX(-50%); object-fit: contain; image-rendering: pixelated; }
+.pz-slot i { position: absolute; right: calc(var(--pu) * 8); bottom: calc(var(--pu) * 4); font: 400 calc(var(--pu) * 26) / 1 var(--font-num); font-style: normal; }
+.pz-slot.none img { display: none; }
+#pz-fish { position: absolute; left: calc(var(--pu) * 16); right: calc(var(--pu) * 16); top: calc(var(--pu) * 90); bottom: calc(var(--pu) * 16);
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: calc(var(--pu) * 96); gap: calc(var(--pu) * 8); overflow: auto; }
+#pz-fish div { display: grid; place-items: center; border-radius: calc(var(--pu) * 8); background: rgba(255, 255, 255, .06); }
+#pz-fish img { max-width: 90%; max-height: calc(var(--pu) * 70); image-rendering: pixelated; }
+#pz-count { position: absolute; left: calc(var(--pu) * 16); top: calc(var(--pu) * 42); font: 400 calc(var(--pu) * 30) / 1 var(--font-num); }
+.pz-btn { position: absolute; height: calc(var(--pu) * 80); min-width: calc(var(--pu) * 192); padding: 0 calc(var(--pu) * 24);
+  display: flex; align-items: center; justify-content: center; gap: calc(var(--pu) * 10); color: #fff; font: inherit; font-size: calc(var(--pu) * 30); background: none;
+  border: 0; border-image: url(art/ui/mobile/pause_btn.png?v=20260925c) 0 34 fill / 0 calc(var(--pu) * 40); }  /* phần giữa gốc rộng 0 px: chừa 1 px */
+.pz-btn img { height: calc(var(--pu) * 44); image-rendering: pixelated; }
+.pz-btn img.boat { height: calc(var(--pu) * 34); }
+#p-setting { right: calc(var(--pu) * 100); top: calc(var(--pu) * 20); }
+#p-resume { right: calc(var(--pu) * 100); bottom: calc(var(--pu) * 128); }
+#p-title { right: calc(var(--pu) * 100); bottom: calc(var(--pu) * 36); }
+body.touch .pz-btn img.kg, body.touch .set-head img.kg { display: none; }
+.pz-btn img.kg, .set-head img.kg { position: static; height: calc(var(--pu) * 40); }
 
+/* ---------- cài đặt điều khiển: Setting_SubCellControl của 游戏设置 + các ô của 自定义按钮 (XD) ----------
+   Bảng 580 đơn vị, nền Roundsquare_12 màu 0/0,275/0,376, ô cao 72; công tắc UI_Setting_slide_OnOff_*, thanh trượt UI_Setting_slide_Bar
+   có mũi tên UI_CobraShop_arrow và số, chọn một 未选中/选中 [DtD]. --su: 1 đơn vị = chiều cao / 864 [ĐỀ XUẤT: to hơn bản gốc 1,25 lần cho màn nhỏ]. */
+:root { --su: min(100vw / 1400, 100dvh / 864); }
+#settings { position: fixed; inset: 0; z-index: 7; background: rgba(0, 0, 0, .5); display: grid; place-items: center; color: #fff; }
+.set-panel { width: calc(var(--su) * 580); padding: 0 calc(var(--su) * 5) calc(var(--su) * 5); background: #004660;
+  -webkit-mask-box-image: url(art/ui/mobile/set_cell.png?v=20260925c) 11 14 fill / calc(var(--su) * 11) calc(var(--su) * 14);
+  font: 700 calc(var(--su) * 26) / 1.2 var(--font-ui, system-ui); }
+.set-head { position: relative; height: calc(var(--su) * 72); display: flex; align-items: center; justify-content: center; gap: calc(var(--su) * 8); font-size: calc(var(--su) * 30);
+  border-bottom: calc(var(--su) * 2) solid #186581; }
+.set-head .ic { width: calc(var(--su) * 40); height: calc(var(--su) * 40); background: #60c3e8; -webkit-mask: url(art/ui/mobile/set_icon.png?v=20260925c) center / contain no-repeat; }
+#set-back { position: absolute; left: calc(var(--su) * 14); top: calc(var(--su) * 14); width: calc(var(--su) * 44); height: calc(var(--su) * 44); border: 0; padding: 0;
+  background: url(art/ui/mobile/set_back.png?v=20260925c) center / calc(var(--su) * 18) calc(var(--su) * 32) no-repeat; }
+.set-head img.kg { position: absolute; left: calc(var(--su) * 62); top: calc(var(--su) * 18); height: calc(var(--su) * 36); }
+.set-cell { position: relative; height: calc(var(--su) * 72); display: flex; align-items: center; padding: 0 calc(var(--su) * 20); gap: calc(var(--su) * 10);
+  border-bottom: calc(var(--su) * 2) solid #186581; }
+.set-cell > span { flex: 1; }
+/* công tắc: 48×24 phóng 1,5; bật = thanh 0,447/0,847/1 tay nắm phải, tắt = thanh xám 0,467 tay nắm 0,69 bên trái */
+.set-tog { position: relative; width: calc(var(--su) * 72); height: calc(var(--su) * 36); border: 0; padding: 0; background: #777;
+  -webkit-mask-box-image: url(art/ui/mobile/set_onoff_bar.png?v=20260925c) 0 20 fill / 0 calc(var(--su) * 30); }
+.set-knob { position: absolute; top: calc(var(--su) * -4); left: calc(var(--su) * -4); width: calc(var(--su) * 44); height: calc(var(--su) * 44);
+  background: url(art/ui/mobile/set_onoff_handle.png?v=20260925c) center / 100% 100%; filter: brightness(.69); transition: left .12s; pointer-events: none; }
+.set-togw { position: relative; }
+.set-togw.on .set-tog { background: #72d8ff; }
+.set-togw.on .set-knob { left: calc(var(--su) * 32); filter: none; }
+/* thanh trượt: 120×10 phóng 1,5, nền xám 0,467, phần đã kéo 0,447/0,851/1, tay nắm tròn */
+.set-sl { display: flex; align-items: center; gap: calc(var(--su) * 8); }
+.set-sl button { width: calc(var(--su) * 28); height: calc(var(--su) * 32); border: 0; padding: 0; background: url(art/ui/mobile/set_arrow.png?v=20260925c) center / contain no-repeat; }
+.set-sl button.l { transform: scaleX(-1); }
+.set-sl input { -webkit-appearance: none; appearance: none; width: calc(var(--su) * 180); height: calc(var(--su) * 15); margin: 0; border-radius: 99px;
+  background: linear-gradient(90deg, #72d9ff var(--k, 50%), #777 0); }
+.set-sl input::-webkit-slider-thumb { -webkit-appearance: none; width: calc(var(--su) * 30); height: calc(var(--su) * 30); border: 0; border-radius: 50%;
+  background: url(art/ui/mobile/set_onoff_handle.png?v=20260925c) center / 100% 100%; }
+.set-sl b { width: calc(var(--su) * 60); text-align: right; font: 400 calc(var(--su) * 30) / 1 var(--font-num); }
+/* chọn một: nút tròn 54 未选中 / 选中, chữ bên trái */
+.set-radio { display: flex; gap: calc(var(--su) * 18); }
+.set-radio label { display: flex; align-items: center; gap: calc(var(--su) * 6); cursor: pointer; }
+.set-radio input { -webkit-appearance: none; appearance: none; margin: 0; width: calc(var(--su) * 40); height: calc(var(--su) * 40);
+  background: url(art/ui/mobile/set_radio_off.png?v=20260925c) center / 100% 100%; }
+.set-radio input:checked { background-image: url(art/ui/mobile/set_radio_on.png?v=20260925c); }
 @media (max-height: 460px) {
   #title { grid-template-columns: 1fr 96px; padding: 12px 14px 10px; }
   h1 { font-size: 36px; }
   .sub { font-size: 12px; margin-bottom: 10px; }
   #title-dave { width: 96px; height: 108px; }
   .keys { margin-top: 6px; }
-  #o2box { width: 160px; height: 88px; }
-  #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 92px); font-size: 11px; }
-  #o2-num { font-size: 23px; }
-  #depth, #catch { font-size: 13px; }
-  #gunbox { top: calc(max(8px, env(safe-area-inset-top)) + 94px); height: 28px; }
-  #gun-icon { height: 24px; width: 48px; }
-  #gun-ammo { font-size: 13px; }
-  body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 126px); }
   #catch-card { top: 56px; width: 220px; grid-template-columns: 70px 1fr; }
   #cc-iconwrap { width: 70px; height: 54px; }
   #result h2 { font-size: 24px; }
@@ -367,8 +402,6 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
     <div id="catch"><span id="catch-n">0</span></div>
     <img id="warn" class="px" src="art/ui/UI_Warning_Mark.png?v=20260925c" alt="">
   </div>
-  <div id="gunbox"><img id="gun-icon" alt=""><span id="gun-ammo"></span></div>
-  <div id="hint-line"></div>
   <div id="reticle" hidden></div>
   <img id="aimgun" class="px" src="art/ui/Target_ArrowGun.png?v=20260925c" alt="" hidden>
 </div>
@@ -378,11 +411,6 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
 <div id="area"><b id="area-t"></b><span id="area-s"></span></div>
 <div id="suit-warn">Quá sâu cho đồ lặn · O₂ tụt nhanh</div>
 <div id="pod-hint">Bơi lên để vào khoang cứu hộ · giữ cả túi cá</div>
-
-<div class="hud-btns">
-  <button id="btn-pause" aria-label="Tạm dừng"><img class="tc-menu" src="art/ui/mobile/menu.png?v=20260925c" alt=""><svg width="18" height="18" viewBox="0 0 18 18"><rect x="3" y="2" width="4" height="14" rx="1" fill="#eef8fb"/><rect x="11" y="2" width="4" height="14" rx="1" fill="#eef8fb"/></svg></button>
-  <button id="btn-mute" aria-label="Tắt tiếng"><svg width="20" height="18" viewBox="0 0 20 18"><path d="M2 6h4l5-4v14l-5-4H2z" fill="#eef8fb"/><path class="on-i" d="M14 5c2 2 2 6 0 8M16.5 3c3.2 3 3.2 9 0 12" stroke="#eef8fb" stroke-width="1.6" fill="none" stroke-linecap="round"/><path class="off-i" d="M14 6l5 6M19 6l-5 6" stroke="#ff9d80" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-</div>
 
 <div id="catch-card" class="panel">
   <div id="cc-iconwrap"><img id="cc-icon" alt=""></div>
@@ -412,11 +440,33 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
   <button id="r-again">Về quán</button>
 </section>
 
-<section id="pause" class="panel" hidden>
-  <h2>Tạm dừng</h2>
-  <div class="col">
-    <button class="ghost" id="p-resume">Lặn tiếp</button>
-    <button class="ghost" id="p-title">Về màn đầu</button>
+<!-- Tạm dừng theo PausePanel của bản Android: trang bị, cá đã bắt, nút Cài đặt / Đóng / Về màn đầu. main.js điền nội dung. -->
+<section id="pause" hidden>
+  <div class="pz">
+    <div class="pz-top"><span id="pz-day"></span><img src="art/ui/mobile/pause_weather.png?v=20260925c" alt=""></div>
+    <div id="pz-equip" class="pz-box"><b>Trang bị</b>
+      <div class="pz-slot" id="pz-harpoon" style="left:calc(var(--pu)*16);top:calc(var(--pu)*40)"><span>Súng xiên</span><img alt=""><i></i></div>
+      <div class="pz-slot" id="pz-head" style="left:calc(var(--pu)*264);top:calc(var(--pu)*40)"><span>Mũi xiên</span><img alt=""><i></i></div>
+      <div class="pz-slot" id="pz-melee" style="left:calc(var(--pu)*514);top:calc(var(--pu)*40)"><span>Dao</span><img alt=""><i></i></div>
+      <div class="pz-slot" id="pz-sub" style="left:calc(var(--pu)*16);top:calc(var(--pu)*136)"><span>Súng phụ</span><img alt=""><i></i></div>
+      <div class="pz-slot" id="pz-drone" style="left:calc(var(--pu)*264);top:calc(var(--pu)*136)"><span>Drone</span><img alt=""><i></i></div>
+    </div>
+    <div id="pz-loot" class="pz-box"><b>Cá đã bắt</b><div id="pz-count"></div><div id="pz-fish"></div></div>
+    <button id="p-setting" class="pz-btn">Cài đặt</button>
+    <button id="p-resume" class="pz-btn">Đóng</button>
+    <button id="p-title" class="pz-btn"><img class="boat" src="art/ui/mobile/pause_boat.png?v=20260925c" alt="">Về màn đầu</button>
+  </div>
+</section>
+
+<!-- Cài đặt điều khiển theo 游戏设置 / 自定义按钮 của bản Android. hud.js giữ giá trị (Hud.prefs), main.js gắn nút. -->
+<section id="settings" hidden>
+  <div class="set-panel">
+    <div class="set-head"><button id="set-back" aria-label="Quay lại"></button><i class="ic"></i>Điều khiển</div>
+    <div class="set-cell"><span>Âm thanh</span><span class="set-togw" id="set-sound"><button class="set-tog" aria-label="Âm thanh"></button><i class="set-knob"></i></span></div>
+    <div class="set-cell"><span>Cỡ nút</span><span class="set-sl" id="set-size"><button class="l" aria-label="Nhỏ hơn"></button><input type="range" min="0" max="100" step="1"><button aria-label="To hơn"></button><b></b></span></div>
+    <div class="set-cell"><span>Độ đục</span><span class="set-sl" id="set-alpha"><button class="l" aria-label="Mờ hơn"></button><input type="range" min="0" max="100" step="1"><button aria-label="Rõ hơn"></button><b></b></span></div>
+    <div class="set-cell"><span>Cố định cần trái</span><span class="set-togw" id="set-fixed"><button class="set-tog" aria-label="Cố định cần trái"></button><i class="set-knob"></i></span></div>
+    <div class="set-cell"><span>Chế độ tăng tốc</span><span class="set-radio" id="set-sprint"><label>Cần<input type="radio" name="sprint" value="wheel"></label><label>Nút<input type="radio" name="sprint" value="button"></label></span></div>
   </div>
 </section>
 
@@ -424,7 +474,7 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
 
 <!-- HUD cảm ứng lúc lặn, theo InGameTouchCanvas của bản Android. Vị trí và cỡ: hud.js đọc data/mobile_ui.js. -->
 <div id="tc">
-  <div id="stick" class="tc-p" hidden><img class="bg" src="art/ui/mobile/stick_bg.png?v=20260925c" alt=""><img id="stick-knob" class="tc-p" src="art/ui/mobile/stick_knob.png?v=20260925c" alt=""></div>
+  <div id="stick" class="tc-p" hidden><div id="stick-sprint" class="tc-p"><img id="stick-sprint-img" class="tc-p" src="art/ui/mobile/sprint_arrow.png?v=20260925c" alt=""></div><img class="bg" src="art/ui/mobile/stick_bg.png?v=20260925c" alt=""><img id="stick-knob" class="tc-p" src="art/ui/mobile/stick_knob.png?v=20260925c" alt=""></div>
   <button id="tb-dash" class="tc-p" aria-label="Lướt"><img class="bg" src="art/ui/mobile/btn_blue.png?v=20260925c" alt=""><img id="tb-dash-icon" class="tc-p px" src="art/ui/mobile/dash_icon.png?v=20260925c" alt=""><div id="tb-dash-cd" class="tc-p"></div></button>
   <button id="tb-boost" class="tc-p" aria-label="Tăng tốc"><img class="bg" src="art/ui/mobile/btn_blue.png?v=20260925c" alt=""><img id="tb-boost-icon" class="tc-p" src="art/ui/mobile/boost_icon.png?v=20260925c" alt=""><img id="tb-boost-on" class="tc-p" src="art/ui/mobile/boost_on.png?v=20260925c" alt=""></button>
   <button id="tb-knife" class="tc-p" aria-label="Dao"><img class="bg" src="art/ui/mobile/btn_blue.png?v=20260925c" alt=""><img id="tb-knife-icon" class="tc-p px" src="art/ui/mobile/icon_knife.png?v=20260925c" alt=""></button>
@@ -434,6 +484,8 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
   <button id="tb-switch" class="tc-p" aria-label="Đổi vũ khí"><img class="bg" src="art/ui/mobile/fire_bg.png?v=20260925c" alt=""><img id="tb-sub-icon" class="px" alt=""></button>
   <div id="tb-aim" class="tc-p"><img class="bg blue" src="art/ui/mobile/aim.png?v=20260925c" alt=""><img class="bg red" src="art/ui/mobile/aim_red.png?v=20260925c" alt=""></div>
   <div id="tb-cancel" class="tc-p"><img class="bg blue" src="art/ui/mobile/cancel.png?v=20260925c" alt=""><img class="bg red" src="art/ui/mobile/cancel_red.png?v=20260925c" alt=""><span id="tb-cancel-t" class="tc-txt">Huỷ bắn</span></div>
+  <button id="tb-drone" class="tc-p" aria-label="Gọi drone"><img class="bg" src="art/ui/mobile/btn_blue.png?v=20260925c" alt=""><img id="tb-drone-icon" class="tc-p px" src="art/ui/mobile/icon_drone.png?v=20260925c" alt=""><span id="tb-drone-n" class="tc-p tc-txt"></span></button>
+  <button id="btn-pause" class="tc-p" aria-label="Tạm dừng"><img class="bg" src="art/ui/mobile/menu.png?v=20260925c" alt=""></button>
   <button id="tb-qte" class="tc-p" aria-label="Giật dây"><img class="bg" src="art/ui/mobile/qte_btn.png?v=20260925c" alt=""><img id="tb-qte-ring" class="tc-p" src="art/ui/mobile/qte_ring.png?v=20260925c" alt=""></button>
 </div>
 
@@ -460,6 +512,7 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
 <script src="js/dave.js?v=20260925c"></script>
 <script src="js/harpoon.js?v=20260925c"></script>
 <script src="js/gun.js?v=20260925c"></script>
+<script src="js/drone.js?v=20260925c"></script>
 <script src="data/mobile_ui.js?v=20260925c"></script>
 <script src="js/hud.js?v=20260925c"></script>
 <script src="data/ui_assets.js?v=20260925c"></script>

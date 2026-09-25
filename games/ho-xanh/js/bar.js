@@ -20,6 +20,8 @@
     guestEvery: 5,               // [DtD] giây giữa hai khách = CookStar.CustomerVisitInterval hạng Coal; nâng quán không đổi số này
     guestJitter: 0.4,            // [ĐỀ XUẤT] ±40 %
     daveSpeed: 180,              // [ĐỀ XUẤT] px phòng / giây
+    runK: 1.6,                   // [ĐỀ XUẤT] chạy (công tắc 加速 / Shift) nhanh hơn đi; tốc độ gốc nằm trong bảng số không đọc được
+    trashHold: 1.5,              // [DtD] giây giữ nút đổ món: StaffDave.trashHoldTime
     carry: 3,                    // [ĐỀ XUẤT] số đĩa Dave bưng cùng lúc
     passX: 792,                  // [ĐỀ XUẤT] chỗ Dave nhận món, sát bên trái Bancho
     daveMin: 150, daveMax: 905,  // [ĐỀ XUẤT] lối đi sau quầy, từ ghế VIP tới ghế đẩu số 7
@@ -1279,6 +1281,8 @@
   var keys = {};
   function onKey(e, down) {
     var ph = HX.game && HX.game.phase;
+    // bếp: E mở quán (Sushi_OpenConfirm gốc)
+    if (ph === 'kitchen' && down && !e.repeat && e.code === 'KeyE' && K && K.openBtn) { K.openBtn.click(); return; }
     if (ph !== 'bar') return;
     var c = e.code;
     if (down) {
@@ -1287,29 +1291,127 @@
       keys[c] = true;
       HX.audio.unlock();
       if (c === 'KeyE' || c === 'Space' || c === 'Enter') barAction(true);
-      if (c === 'KeyQ') dumpPlate();
+      if (c === 'KeyQ' && trashT < 0) trashT = 0;
     } else {
       keys[c] = false;
       if (c === 'KeyE' || c === 'Space' || c === 'Enter') barRelease();
+      if (c === 'KeyQ' && !trashBtn) trashT = -1;
     }
   }
   addEventListener('keydown', function (e) { onKey(e, true); });
   addEventListener('keyup', function (e) { onKey(e, false); });
-  addEventListener('blur', function () { keys = {}; barRelease(); });
-  function holdingAction() { return !!(keys.KeyE || keys.Space || keys.Enter || pointerHeld); }
-  var pointerHeld = false;
+  // mất tiêu điểm (alt-tab) hoặc đổi pha: thả hết phím, nút và cần đang giữ
+  function releaseAll() {
+    keys = {}; btnHeld = false; trashBtn = false; trashT = -1;
+    if (ptr && ptr.stick) { ptr = null; showBarStick(false); }
+    ptr = null; pointerHeld = false;
+    barRelease();
+  }
+  addEventListener('blur', releaseAll);
+  function holdingAction() { return !!(keys.KeyE || keys.Space || keys.Enter || pointerHeld || btnHeld); }
+  var pointerHeld = false, btnHeld = false;
+
+  // Nút quán theo SushiBarTouchCanvas của bản Android (HX_MOBILE_UI.layouts.bar), hiện trên mọi máy, kèm phím PC.
+  // id -> [vai, vai cha, 1 = bỏ độ phóng gốc (đáy cần gốc phóng 0,1 rồi nở ra khi chạm)]
+  var BAR_UI = { 'bt-stick': ['stick', null, 1], 'bt-knob': ['knob', 'stick'], 'bt-interact': ['interact'], 'bt-trash': ['trash'],
+    'bt-run': ['run'], 'bt-run-on': ['runOn', 'run'] };
+  // phím của bản web; trùng DRInput gốc: Sushi_Serve / Sushi_QTE = Space, Sushi_Trash = Q, Sushi_Dash = Shift trái
+  var BAR_KEYS = { 'bt-interact': 'Space', 'bt-trash': 'Q', 'bt-run': 'Shift' };
+  var BL = window.HX_MOBILE_UI.layouts.bar, BN = window.HX_MOBILE_UI.numbers.bar.knob;
+  var STICK = {
+    zone: [BL.stickZone.w / 2, BL.stickZone.h / 2],  // [DtD mobile] Floating Joystick 2400×1800 tâm ở góc dưới trái: nửa trái màn
+    home: [BL.stick.dx, BL.stick.dy],                // [DtD mobile] chỗ gốc của đáy cần (300, 240), dùng khi 左摇杆固定
+    range: BN.m_MovementRange,                       // [DtD mobile] OnScreenStick_Normal 150
+    move: 0.2,                                       // [DtD] SushiBarPlayerHanlder.moveThreshold
+    drag: 12,                                        // [ĐỀ XUẤT] px kéo trước khi thành cần; ít hơn là một lần chạm (đi tới chỗ chạm)
+  };
+  // ptr: ngón / chuột đang giữ trên cảnh { id, x0, y0, x, y, zone, stick }
+  var ptr = null, runOn = false, trashT = -1, trashBtn = false;  // trashT: giây đang giữ đổ món, -1 = không giữ, -2 = đã đổ, chờ thả
+  function unit() { return innerWidth / window.HX_MOBILE_UI.ref[0]; }
+  function stickScale() { return 0.5 + HX.hud.prefs().size / 100; }
+  function stickHome() { var u = unit(); return { x: STICK.home[0] * u, y: innerHeight - STICK.home[1] * u }; }
+  // độ lệch cần theo trục ngang, 1 = hết tầm; quán chỉ đi trái / phải
+  function stickX() {
+    if (!ptr || !ptr.stick) return 0;
+    var r = STICK.range * unit() * stickScale(), v = (ptr.x - ptr.ox) / r, y = (ptr.y - ptr.oy) / r, l = Math.hypot(v, y);
+    var el = document.getElementById('bt-knob'), c = l > 1 ? 1 / l : 1;
+    if (el) el.style.transform = 'translate(' + ((ptr.x - ptr.ox) * c).toFixed(1) + 'px,' + ((ptr.y - ptr.oy) * c).toFixed(1) + 'px)';
+    return Math.max(-1, Math.min(1, v));
+  }
+  function showBarStick(on) {
+    var el = document.getElementById('bt-stick');
+    if (!el) return;
+    var fixed = HX.hud.prefs().fixedStick, o = on ? { x: ptr.ox, y: ptr.oy } : stickHome();
+    el.hidden = !on && !fixed;
+    el.classList.toggle('grow', on && !fixed);
+    el.style.left = o.x + 'px'; el.style.top = o.y + 'px';
+    document.getElementById('bt-knob').style.transform = '';
+  }
+  function stickOn() {
+    var o = HX.hud.prefs().fixedStick ? stickHome() : { x: ptr.x0, y: ptr.y0 };
+    ptr.stick = true; ptr.ox = o.x; ptr.oy = o.y;
+    showBarStick(true);
+  }
   (function bindPointer() {
     var cv = document.getElementById('stage2d');
     if (!cv) return;
     cv.addEventListener('pointerdown', function (e) {
-      if (!HX.game || HX.game.phase !== 'bar') return;
+      if (!HX.game || HX.game.phase !== 'bar' || ptr) return;
       HX.audio.unlock();
-      pointerHeld = true;
-      barTap(e.clientX, e.clientY);
+      // đang rót trà thì Dave đứng yên: chạm đâu cũng là giữ để rót
+      var u = unit(), zone = !(N && N.qte) && e.clientX < STICK.zone[0] * u && innerHeight - e.clientY < STICK.zone[1] * u;
+      ptr = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, zone: zone, stick: false };
+      if (zone && HX.hud.prefs().fixedStick) { stickOn(); return; }
+      // ngoài vùng cần: chạm là đi tới / phục vụ ngay, giữ là rót trà như cũ
+      if (!zone) { pointerHeld = true; barTap(e.clientX, e.clientY); }
     });
-    addEventListener('pointerup', function () { if (pointerHeld) { pointerHeld = false; barRelease(); } });
-    addEventListener('pointercancel', function () { if (pointerHeld) { pointerHeld = false; barRelease(); } });
+    addEventListener('pointermove', function (e) {
+      if (!ptr || e.pointerId !== ptr.id) return;
+      ptr.x = e.clientX; ptr.y = e.clientY;
+      if (ptr.zone && !ptr.stick && Math.hypot(ptr.x - ptr.x0, ptr.y - ptr.y0) > STICK.drag) stickOn();
+    });
+    function up(e) {
+      if (!ptr || e.pointerId !== ptr.id) return;
+      var p = ptr;
+      ptr = null;
+      if (p.stick) showBarStick(false);
+      else if (p.zone && e.type === 'pointerup') barTap(p.x0, p.y0);
+      if (pointerHeld) { pointerHeld = false; barRelease(); }
+    }
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
   })();
+  // Dựng nút Android trong màn quán. Nút tương tác (交互) và nút đổ món (倒菜) chỉ hiện khi dùng được, như CanvasGroup
+  // alpha 0 / Trash_Button tắt sẵn trong prefab; công tắc 加速 (步行 ↔ 奔跑) luôn hiện trừ khi 冲刺模式 = 轮盘.
+  function barButtons(root) {
+    var art = window.HX_MOBILE_UI.art, v = REV ? '?v=' + REV : '';
+    var box = el('div', 'bt');
+    box.innerHTML =
+      '<div id="bt-stick" class="tc-p" hidden><img class="bg" src="' + art + 'stick_bg.png' + v + '" alt=""><img id="bt-knob" class="tc-p" src="' + art + 'stick_knob.png' + v + '" alt=""></div>' +
+      '<button id="bt-trash" class="tc-p" aria-label="Đổ món"><img class="bg" src="' + art + 'bar_trash.png' + v + '" alt=""><i id="bt-trash-k"></i></button>' +
+      '<button id="bt-interact" class="tc-p" aria-label="Bưng món, phục vụ, rót trà"><img class="bg" src="' + art + 'btn_interact.png' + v + '" alt=""></button>' +
+      '<button id="bt-run" class="tc-p" aria-label="Đi / chạy"><img class="bg" src="' + art + 'bar_walk.png' + v + '" alt=""><img id="bt-run-on" class="tc-p" src="' + art + 'bar_run.png' + v + '" alt=""></button>';
+    root.appendChild(box);
+    function hold(id, down, upf) {
+      var b = box.querySelector('#' + id);
+      b.addEventListener('pointerdown', function (e) { e.stopPropagation(); e.preventDefault(); HX.audio.unlock(); b.setPointerCapture(e.pointerId); down(); });
+      if (upf) { b.addEventListener('pointerup', upf); b.addEventListener('pointercancel', upf); b.addEventListener('lostpointercapture', upf); }
+    }
+    hold('bt-interact', function () { btnHeld = true; barAction(true); }, function () { if (btnHeld) { btnHeld = false; barRelease(); } });
+    hold('bt-trash', function () { trashBtn = true; trashT = 0; }, function () { trashBtn = false; if (!keys.KeyQ) trashT = -1; });
+    hold('bt-run', function () { runOn = !runOn; });
+    HX.hud.layout('bar', BAR_UI);
+    HX.hud.glyphs(BAR_KEYS);
+    showBarStick(false);
+  }
+  // Dave có việc để làm bằng nút tương tác không (bưng món ở quầy, phục vụ khách trong tầm, rót trà).
+  function canAct() {
+    if (!N || N.over) return false;
+    if (N.qte) return N.qte.st !== 'done';
+    var d = N.dave;
+    if (N.customers.some(function (c) { return waiting(c) && inReach(c) && serveable(c); })) return true;
+    return atPass() && d.carry.length < T.carry && readyPlates().length > 0;
+  }
 
   // =====================================================================================
   // pha kitchen: chọn món cho thực đơn tối nay, Bancho đứng bếp (Cook + khói), nút "Mở quán"
@@ -1370,6 +1472,7 @@
     K.bancho = spr('NPC_Bancho_Confirm01', 'bk-bancho');
     foot.appendChild(K.bancho);
     var go = button('kitchen-open', 'bx-pink', 'Mở quán', 'UI_btn_pink');
+    K.openBtn = go;
     go.addEventListener('click', function () {
       if (K.opening) return;
       K.opening = true;
@@ -1377,6 +1480,10 @@
       HX.game.go('bar', { menu: K.menu.slice() });
     });
     foot.appendChild(go);
+    // phím E mở quán (Sushi_OpenConfirm gốc) đứng cạnh nút
+    var key = foot.appendChild(el('span', 'bk-key'));
+    key.id = 'kitchen-open-key';
+    setTimeout(function () { HX.hud.glyphs({ 'kitchen-open-key': 'E' }); });
     fr.appendChild(foot);
     row.appendChild(fr);
     root.appendChild(row);
@@ -1821,11 +1928,15 @@
   }
   function tickDave(dt) {
     var d = N.dave, a = scene.dave;
-    var dir = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), moving = false;
+    var sx = stickX(), wheel = HX.hud.prefs().sprint === 'wheel';
+    var dir = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) || (Math.abs(sx) >= STICK.move ? Math.sign(sx) : 0), moving = false;
+    // chạy: công tắc 加速 (冲刺模式 = 按键), Shift, hoặc đẩy cần hết tầm (冲刺模式 = 轮盘)
+    var run = (!wheel && runOn) || !!(keys.ShiftLeft || keys.ShiftRight) || (wheel && Math.abs(sx) >= 1);
+    var speed = T.daveSpeed * (run ? T.runK : 1);
     if (N.qte) dir = 0;
-    if (dir) { d.target = null; d.x += dir * T.daveSpeed * dt; d.face = dir; moving = true; }
+    if (dir) { d.target = null; d.x += dir * speed * dt; d.face = dir; moving = true; }
     else if (d.target && !N.qte) {
-      var dx = d.target.x - d.x, st = T.daveSpeed * dt;
+      var dx = d.target.x - d.x, st = speed * dt;
       if (Math.abs(dx) <= st) {
         d.x = d.target.x;
         var act = d.target.act;
@@ -1841,7 +1952,7 @@
     }
     var carry = d.carry.length > 0;
     if (N.qte) { if (a.name !== 'QTE_Tea') a.play('QTE_Tea'); d.idleT = 0; }
-    else if (moving) { a.play(carry ? 'Serve' : 'Walk'); d.idleT = 0; }
+    else if (moving) { a.play(carry ? (run ? 'serve_run' : 'Serve') : (run ? 'normal_Run' : 'Walk')); d.idleT = 0; }
     else if (carry) a.play('Serve_Idle');
     else {
       d.idleT += dt;
@@ -1923,6 +2034,10 @@
     N.customers.forEach(function (c) { tickCustomer(c, dt); });
     N.customers = N.customers.filter(function (c) { return !c.gone; });
     tickKitchen(dt);
+    if (trashT >= 0 && N.dave.carry.length && !N.qte) {
+      trashT += dt;
+      if (trashT >= T.trashHold) { dumpPlate(); trashT = keys.KeyQ || trashBtn ? -2 : -1; }
+    }
     tickDave(dt);
     tickQte(dt);
     // hào quang bong bóng gọi món khi Dave đứng gần và bưng đúng món (VFX_UI_Customer_Pop_Re)
@@ -1995,7 +2110,7 @@
     bottom.appendChild(close);
     root.appendChild(bottom);
     ui.hint = root.appendChild(el('div', 'bb-hint'));
-    ui.hintTouch = null;
+    barButtons(root);
     return ui;
   }
   function slotEl(p) {
@@ -2048,11 +2163,17 @@
     });
     Object.keys(ui.slotEls).forEach(function (id) { if (!alive[id]) { ui.slotEls[id].remove(); delete ui.slotEls[id]; } });
     if (N.pendingSlotFx) { var q = N.pendingSlotFx; N.pendingSlotFx = null; q.forEach(function (a) { var p = N.plates.filter(function (x) { return x.id === a[0]; })[0]; if (p) slotFx(p, a[1]); }); }
-    var touch = document.body.classList.contains('touch');
-    var hint = !N.open && !N.qte ? (N.customers.length ? 'Đã đóng cửa · chờ khách về' : 'Đóng cửa') : N.qte ? (N.qte.st === 'ready' ? (touch ? 'Giữ ngón tay để rót trà, thả ra khi vòng gần đầy' : 'Giữ Space / E để rót trà, thả ra khi vòng gần đầy') : N.qte.st === 'pour' ? 'Thả ra khi vòng gần đầy!' : '')
-      : touch ? 'Chạm chỗ trống để đi · chạm món xong ở quầy Bancho để bưng · chạm khách để phục vụ, rót trà'
-        : 'A/D hoặc ←/→ đi · E/Space: bưng món ở quầy Bancho, phục vụ, rót trà · Q bỏ đĩa đang bưng · bấm chuột cũng được';
+    // chỉ báo trạng thái; cách bấm đã nằm trên nút (phím PC) như bản Android
+    var hint = !N.open && !N.qte ? (N.customers.length ? 'Đã đóng cửa · chờ khách về' : 'Đóng cửa')
+      : N.qte && N.qte.st !== 'done' ? 'Giữ nút tương tác để rót trà, thả ra khi vòng gần đầy' : '';
     if (ui.hint.textContent !== hint) ui.hint.textContent = hint;
+    var act = canAct(), carry = N.dave.carry.length > 0, bi = document.getElementById('bt-interact');
+    if (bi) {
+      bi.classList.toggle('on', act || btnHeld);
+      document.getElementById('bt-trash').classList.toggle('on', carry);
+      document.getElementById('bt-trash-k').style.setProperty('--k', (trashT > 0 ? trashT / T.trashHold * 360 : 0).toFixed(0) + 'deg');
+      document.getElementById('bt-run').classList.toggle('on', runOn);
+    }
   }
 
   // ---------- vẽ UI gắn với nhân vật ----------
@@ -2217,7 +2338,8 @@
       scene.dave.x = N.dave.x;
       N.fx = scene.fx;
       N.ui = barHud();
-      keys = {};
+      releaseAll();
+      runOn = false;   // [ĐỀ XUẤT] mỗi đêm bắt đầu ở chế độ đi (步行), như Toggle m_IsOn = 0 của prefab
       loadAssets().then(function () {
         if (HX.game.phase !== 'bar') return;
         N.openT = 0.01;
@@ -2235,7 +2357,8 @@
       HX.audio.stopMusic(0.6);
       HX.audio.stopLoop('bar_amb', 0.5);
       if (N) N.over = true;
-      keys = {};
+      releaseAll();
+      runOn = false;   // [ĐỀ XUẤT] mỗi đêm bắt đầu ở chế độ đi (步行), như Toggle m_IsOn = 0 của prefab
     },
     update: function (dt) {
       if (!N || !assetsReady || N.over) { if (N && N.ui) tickHud(); return; }

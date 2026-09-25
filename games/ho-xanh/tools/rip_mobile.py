@@ -226,72 +226,134 @@ def find_go(go, name):
     return None
 
 
-# ---------------------------------------------------------------- HUD cảm ứng lúc lặn
+# ---------------------------------------------------------------- HUD cảm ứng: lặn, quán, sảnh
 MAIN = 'Assets/XD/Prefab/XD_Variant/MainCanvas.prefab'
-REF = (2340.0, 1080.0)  # CanvasScaler của InGameTouchCanvas: ScaleWithScreenSize, khớp theo bề ngang
+BAR = 'Assets/XD/Prefab/SushiBarTouchCanvas.prefab'
+LOBBY = 'Assets/XD/Prefab/LobbyTouchCanvas.prefab'
+REF = (2340.0, 1080.0)  # CanvasScaler của cả ba canvas cảm ứng: ScaleWithScreenSize, khớp theo bề ngang
 
-# vai -> (đường dẫn node dưới InGameTouchCanvas, góc màn hình để đo khoảng cách tới tâm)
-# góc: 'bl' dưới trái, 'br' dưới phải, 'tr' trên phải
-CONTROLS = {
-    'stick':   ('GameObject/leftButtom/Left Joystick/Background', 'bl'),
-    'knob':    ('GameObject/leftButtom/Left Joystick/Handle', 'bl'),
-    'stickZone': ('GameObject/leftButtom/Left Joystick', 'bl'),
-    'dash':    ('GameObject/Dash/ShortDash', 'br'),
-    'dashBtn': ('GameObject/Dash/ShortDash/ShortDashButton', 'br'),
-    'dashIcon': ('GameObject/Dash/ShortDash/ShortDashButton/Image (2)', 'br'),
-    'dashCd': ('GameObject/Dash/ShortDash/ShortDashButton/Slider/Fill Area/Fill', 'br'),
-    'boost':   ('GameObject/Dash/加速', 'br'),
-    'boostOn': ('GameObject/Dash/加速/Image (1)', 'br'),
-    'boostIcon': ('GameObject/Dash/加速/Image', 'br'),
-    'melee':   ('GameObject/RegionFish/GameObject/Button_melee', 'br'),
-    'meleeIcon': ('GameObject/RegionFish/GameObject/Button_melee/Image', 'br'),
-    'interact': ('GameObject/RegionFish/GameObject/Button_Interact', 'br'),
-    'cancel':  ('GameObject/RegionFish/GameObject/Button_cancle', 'tr'),
-    'fire':    ('GameObject/RegionFish/GameObject/Right JoystickArea/GunBackground', 'br'),
-    'fireIcon': ('GameObject/RegionFish/GameObject/Right JoystickArea/GunBackground/GunShow', 'br'),
-    'fireLevel': ('GameObject/RegionFish/GameObject/Right JoystickArea/GunBackground/Level', 'br'),
-    'fireAmmo': ('GameObject/RegionFish/GameObject/Right JoystickArea/GunBackground/Ammo', 'br'),
-    'sub':     ('GameObject/RegionFish/GameObject/Right JoystickArea/SubGunBackground', 'br'),
-    'switch':  ('GameObject/RegionFish/GameObject/Right JoystickArea/Switchbutton', 'br'),
-    'aimBg':   ('GameObject/RegionFish/GameObject/Right JoystickArea/AimBackground', 'br'),
-    'aim':     ('GameObject/RegionFish/GameObject/Right JoystickArea/Handle', 'br'),
-    'qte':     ('GameObject/RegionFish/HarpoonQTE', 'br'),
-    'qteBtn':  ('GameObject/RegionFish/HarpoonQTE/Image (2)', 'br'),
-    'qteRing': ('GameObject/RegionFish/HarpoonQTE/Image (1)', 'br'),
-    'menu':    ('GameObject/暂停/SettingButton', 'tr'),
+# canvas -> (prefab, tên node canvas trong prefab (None = gốc prefab), {vai: (đường dẫn node dưới canvas, góc)})
+# góc để đo khoảng cách tới tâm: 'bl' dưới trái, 'br' dưới phải, 'tr' trên phải
+CANVASES = {
+    'dive': (MAIN, 'InGameTouchCanvas', {
+        'stick':   ('GameObject/leftButtom/Left Joystick/Background', 'bl'),
+        'knob':    ('GameObject/leftButtom/Left Joystick/Handle', 'bl'),
+        'stickZone': ('GameObject/leftButtom/Left Joystick', 'bl'),
+        # 冲刺模式 = 轮盘: đẩy cần hết tầm là tăng tốc, mũi tên 摇杆冲刺表现 quay theo hướng cần
+        'sprint':  ('GameObject/leftButtom/Left Joystick/Arrow', 'bl'),
+        'sprintImg': ('GameObject/leftButtom/Left Joystick/Arrow/Image (2)', 'bl'),
+        'dash':    ('GameObject/Dash/ShortDash', 'br'),
+        'dashBtn': ('GameObject/Dash/ShortDash/ShortDashButton', 'br'),
+        'dashIcon': ('GameObject/Dash/ShortDash/ShortDashButton/Image (2)', 'br'),
+        'dashCd': ('GameObject/Dash/ShortDash/ShortDashButton/Slider/Fill Area/Fill', 'br'),
+        'boost':   ('GameObject/Dash/加速', 'br'),
+        'boostOn': ('GameObject/Dash/加速/Image (1)', 'br'),
+        'boostIcon': ('GameObject/Dash/加速/Image', 'br'),
+        'melee':   ('GameObject/RegionFish/GameObject/Button_melee', 'br'),
+        'meleeIcon': ('GameObject/RegionFish/GameObject/Button_melee/Image', 'br'),
+        'interact': ('GameObject/RegionFish/GameObject/Button_Interact', 'br'),
+        'drone':   ('GameObject/RegionFish/GameObject/无人机', 'br'),
+        'droneIcon': ('GameObject/RegionFish/GameObject/无人机/Image (1)', 'br'),
+        'cancel':  ('GameObject/RegionFish/GameObject/Button_cancle', 'tr'),
+        'fire':    ('GameObject/RegionFish/GameObject/Right JoystickArea/GunBackground', 'br'),
+        'fireIcon': ('GameObject/RegionFish/GameObject/Right JoystickArea/GunBackground/GunShow', 'br'),
+        'fireLevel': ('GameObject/RegionFish/GameObject/Right JoystickArea/GunBackground/Level', 'br'),
+        'fireAmmo': ('GameObject/RegionFish/GameObject/Right JoystickArea/GunBackground/Ammo', 'br'),
+        'sub':     ('GameObject/RegionFish/GameObject/Right JoystickArea/SubGunBackground', 'br'),
+        'switch':  ('GameObject/RegionFish/GameObject/Right JoystickArea/Switchbutton', 'br'),
+        'aimBg':   ('GameObject/RegionFish/GameObject/Right JoystickArea/AimBackground', 'br'),
+        'aim':     ('GameObject/RegionFish/GameObject/Right JoystickArea/Handle', 'br'),
+        'qte':     ('GameObject/RegionFish/HarpoonQTE', 'br'),
+        'qteBtn':  ('GameObject/RegionFish/HarpoonQTE/Image (2)', 'br'),
+        'qteRing': ('GameObject/RegionFish/HarpoonQTE/Image (1)', 'br'),
+        'menu':    ('GameObject/暂停/SettingButton', 'tr'),
+    }),
+    # SushiBarTouchCanvas: cần nổi vô hình ở nửa trái, nút tương tác (bưng / phục vụ / giữ để rót trà),
+    # nút đổ món, công tắc đi / chạy. OpenButton (营业) thuộc pha trước giờ mở quán.
+    'bar': (BAR, None, {
+        'stickZone': ('Mask/Floating Joystick', 'bl'),
+        'stick':   ('Mask/Floating Joystick/Background', 'bl'),
+        'knob':    ('Mask/Floating Joystick/Handle', 'bl'),
+        'interact': ('Mask/InteractRegion/InterAction_Button', 'br'),
+        'open':    ('Mask/InteractRegion/OpenButton', 'br'),
+        'openHand': ('Mask/InteractRegion/OpenButton/InterAction_Button (1)', 'br'),
+        'trash':   ('Mask/InteractRegion/Trash_Button', 'br'),
+        'run':     ('Mask/InteractRegion/加速', 'br'),
+        'runOn':   ('Mask/InteractRegion/加速/Image', 'br'),
+    }),
+    # LobbyTouchCanvas: chỉ ghi bố cục để pha cano/sảnh dùng; hud.js chưa đặt nút nào theo nó.
+    'lobby': (LOBBY, None, {
+        'stickZone': ('LobbyMoveRegion/Floating Joystick', 'bl'),
+        'interact': ('LobbyMoveRegion/GameObject/InteractButton', 'br'),
+        'exit':    ('LobbyMoveRegion/ExitButton', 'br'),
+    }),
 }
 
-# tên tệp -> (vai, lấy sprite từ đâu): 'img' = Image của node, hoặc tên trường sprite của OnScreenStick_Fire
+# tên tệp -> (canvas, vai, lấy sprite từ đâu): 'img' = Image của node, hoặc tên trường sprite của OnScreenStick_Fire
 SPRITES = {
-    'stick_bg': ('stick', 'img'),
-    'stick_knob': ('knob', 'img'),
-    'btn_blue': ('melee', 'img'),
-    'icon_knife': ('meleeIcon', 'img'),
-    'btn_interact': ('interact', 'img'),
-    'boost_icon': ('boostIcon', 'img'),
-    'boost_on': ('boostOn', 'img'),
-    'dash_icon': ('dashIcon', 'img'),
-    'cd_mask': ('dashCd', 'img'),
-    'fire_bg': ('fire', 'img'),
-    'icon_harpoon': ('fireIcon', 'img'),
-    'switch': ('switch', 'img'),
-    'aim_bg': ('aim', 'm_aim_SpriteBackGroundBlue'),
-    'aim_bg_red': ('aim', 'm_aim_SpriteBackGroundRed'),
-    'aim': ('aim', 'm_aim_SpriteNormalBlue'),
-    'aim_red': ('aim', 'm_aim_SpriteNormalRed'),
-    'cancel': ('aim', 'm_aim_SpriteCancleBlue'),
-    'cancel_red': ('aim', 'm_aim_SpriteCancleRed'),
-    'cancel_x': ('aim', 'm_aim_SpriteCancleXBlue'),
-    'cancel_x_red': ('aim', 'm_aim_SpriteCancleXRed'),
-    'qte_btn': ('qteBtn', 'img'),
-    'qte_ring': ('qteRing', 'img'),
-    'menu': ('menu', 'img'),
+    'stick_bg': ('dive', 'stick', 'img'),
+    'stick_knob': ('dive', 'knob', 'img'),
+    'sprint_arrow': ('dive', 'sprintImg', 'img'),
+    'btn_blue': ('dive', 'melee', 'img'),
+    'icon_knife': ('dive', 'meleeIcon', 'img'),
+    'btn_interact': ('dive', 'interact', 'img'),
+    'icon_drone': ('dive', 'droneIcon', 'img'),
+    'boost_icon': ('dive', 'boostIcon', 'img'),
+    'boost_on': ('dive', 'boostOn', 'img'),
+    'dash_icon': ('dive', 'dashIcon', 'img'),
+    'cd_mask': ('dive', 'dashCd', 'img'),
+    'fire_bg': ('dive', 'fire', 'img'),
+    'icon_harpoon': ('dive', 'fireIcon', 'img'),
+    'switch': ('dive', 'switch', 'img'),
+    'aim_bg': ('dive', 'aim', 'm_aim_SpriteBackGroundBlue'),
+    'aim_bg_red': ('dive', 'aim', 'm_aim_SpriteBackGroundRed'),
+    'aim': ('dive', 'aim', 'm_aim_SpriteNormalBlue'),
+    'aim_red': ('dive', 'aim', 'm_aim_SpriteNormalRed'),
+    'cancel': ('dive', 'aim', 'm_aim_SpriteCancleBlue'),
+    'cancel_red': ('dive', 'aim', 'm_aim_SpriteCancleRed'),
+    'cancel_x': ('dive', 'aim', 'm_aim_SpriteCancleXBlue'),
+    'cancel_x_red': ('dive', 'aim', 'm_aim_SpriteCancleXRed'),
+    'qte_btn': ('dive', 'qteBtn', 'img'),
+    'qte_ring': ('dive', 'qteRing', 'img'),
+    'menu': ('dive', 'menu', 'img'),
+    'bar_open': ('bar', 'open', 'img'),
+    'bar_trash': ('bar', 'trash', 'img'),
+    'bar_walk': ('bar', 'run', 'img'),
+    'bar_run': ('bar', 'runOn', 'img'),
 }
 
-# số của các bộ điều khiển: (vai, script, [trường])
+# Bảng tạm dừng (PausePanel của XD) và bảng cài đặt điều khiển (游戏设置, 冲刺模式): lấy sprite theo tên trong prefab.
+PAUSE = 'Assets/Contents/PlayContents/Ingame/00_InGame_Common/Prefabs/UI/PausePanel.prefab'
+SETTING = 'Assets/XD/Prefab/游戏设置.prefab'
+SPRINT = 'Assets/XD/Prefab/冲刺模式.prefab'
+NAMED = {
+    'set_cell': (SETTING, 'Roundsquare_12'),
+    'set_select': (SETTING, 'UI_Setting_Select_BG'),
+    'set_back': (SETTING, 'icon设置返回'),
+    'set_icon': (SETTING, 'UI_Setting_Icon_AutoButton'),
+    'set_onoff_bar': (SETTING, 'UI_Setting_slide_OnOff_Bar'),
+    'set_onoff_handle': (SETTING, 'UI_Setting_slide_OnOff_Handle'),
+    'set_slide_bar': (SETTING, 'UI_Setting_slide_Bar'),
+    'set_arrow': (SETTING, 'UI_CobraShop_arrow'),
+    'set_radio_off': (SPRINT, '未选中'),
+    'set_radio_on': (SPRINT, '选中'),
+    'pause_btn': (PAUSE, '设置顶部按钮'),
+    'pause_boat': (PAUSE, 'Boat'),
+    'pause_equip': (PAUSE, 'UI_Equip_Frame'),
+    'pause_title': (PAUSE, 'UI_TitleFrame_8rad'),
+    'pause_weather': (PAUSE, 'Icon_Weather_Sunny'),
+}
+
+# Phím của bản PC (InputAtlas_Keyboard, cũng có trong APK): tên sprite <Phím>_Key_Dark -> art/ui/mobile/key/<Phím>.png
+KEYS_ATLAS = 'Assets/Contents/PlayContents/Common/Sprites/Input/InputAtlas_Keyboard.spriteatlas'
+GLYPHS = ['Space', 'Shift', 'Ctrl', 'Tab', 'Esc', 'Enter', 'E', 'F', 'Q', 'R', 'C', 'M', 'P', 'W', 'A', 'S', 'D',
+          'Arrow_Left', 'Arrow_Right', 'Mouse_Left', 'Mouse_Right', 'Mouse_Simple']
+
+# số của các bộ điều khiển: (canvas, vai, script, [trường])
 NUMBERS = [
-    ('knob', 'OnScreenStick_Normal', ['m_MovementRange', 'm_DynamicOriginRange', 'm_Behaviour', 'canHideAll']),
-    ('aim', 'OnScreenStick_Fire', ['m_MovementRange', 'm_DynamicOriginRange', 'm_Behaviour']),
+    ('dive', 'knob', 'OnScreenStick_Normal', ['m_MovementRange', 'm_DynamicOriginRange', 'm_Behaviour', 'canHideAll']),
+    ('dive', 'aim', 'OnScreenStick_Fire', ['m_MovementRange', 'm_DynamicOriginRange', 'm_Behaviour']),
+    ('bar', 'knob', 'OnScreenStick_Normal', ['m_MovementRange', 'm_DynamicOriginRange', 'm_Behaviour', 'canHideAll', 'size', 'duringTime']),
 ]
 
 
@@ -358,51 +420,115 @@ def layout_entry(rect, scale, corner):
     return e
 
 
-def rip_dive_touch():
-    os.makedirs(OUT_ART, exist_ok=True)
+def prefab_root(env, path):
+    for o in env.objects:
+        if o.type.name == 'AssetBundle':
+            for k, ptr in o.read().m_Container:
+                if k == path and ptr.asset.deref().type.name == 'GameObject':
+                    return ptr.asset.deref().read()
+    raise KeyError('không thấy prefab ' + path)
+
+
+def save_sprite(spr, fn):
+    img = spr.image.convert('RGBA')
+    p = os.path.join(OUT_ART, fn + '.png')
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    img.save(p, optimize=True)
+    e = {'src': spr.m_Name, 'w': img.size[0], 'h': img.size[1]}
+    b = spr.m_Border
+    if (b.x, b.y, b.z, b.w) != (0, 0, 0, 0):
+        e['border'] = [r3(b.x), r3(b.y), r3(b.z), r3(b.w)]  # trái, dưới, phải, trên (9-slice)
+    return e
+
+
+def rip_canvas(name):
+    """Bố cục, số và các node của một canvas cảm ứng."""
+    prefab, sub, controls = CANVASES[name]
 
     def go(env):
-        root = None
-        for o in env.objects:
-            if o.type.name == 'AssetBundle':
-                for k, ptr in o.read().m_Container:
-                    if k == MAIN and ptr.asset.deref().type.name == 'GameObject':
-                        root = ptr.asset.deref().read()
-                break
-        tc = find_go(root, 'InGameTouchCanvas')
+        root = prefab_root(env, prefab)
+        tc = find_go(root, sub) if sub else root
         scaler = script_of(tc, 'CanvasScaler')[1]
         ref = scaler['m_ReferenceResolution']
         if (ref['x'], ref['y']) != REF or scaler['m_MatchWidthOrHeight'] != 0:
-            raise ValueError('CanvasScaler đổi: %r' % scaler)
+            raise ValueError('CanvasScaler của %s đổi: %r' % (name, scaler))
         gos, layout = {}, {}
-        for role, (path, corner) in CONTROLS.items():
+        for role, (path, corner) in controls.items():
             g, rect, sc = control_rect(tc, path)
             gos[role] = g
             layout[role] = layout_entry(rect, sc, corner)
         sprites = {}
-        for fn, (src, how) in SPRITES.items():
-            g = gos[src] if src in gos else go_at(tc, src)
-            if how == 'img':
-                spr = image_sprite(g)
-            else:
-                mb, _ = script_of(g, 'OnScreenStick_Fire')
-                spr = getattr(mb, how).read()
-            img = spr.image.convert('RGBA')
-            img.save(os.path.join(OUT_ART, fn + '.png'), optimize=True)
-            sprites[fn] = {'src': spr.m_Name, 'w': img.size[0], 'h': img.size[1]}
+        for fn, (cv, src, how) in SPRITES.items():
+            if cv != name:
+                continue
+            g = gos[src]
+            spr = image_sprite(g) if how == 'img' else getattr(script_of(g, 'OnScreenStick_Fire')[0], how).read()
+            sprites[fn] = save_sprite(spr, fn)
         numbers = {}
-        for role, script, fields in NUMBERS:
-            _, tt = script_of(gos[role], script)
-            numbers[role] = {f: r3(tt[f]) if isinstance(tt[f], float) else tt[f] for f in fields}
-        return {'ref': list(REF), 'layout': layout, 'sprites': sprites, 'numbers': numbers}
-    return with_deps(IDX[MAIN], go)
+        for cv, role, script, fields in NUMBERS:
+            if cv == name:
+                _, tt = script_of(gos[role], script)
+                numbers[role] = {f: r3(tt[f]) if isinstance(tt[f], float) else tt[f] for f in fields}
+        return layout, sprites, numbers
+    return with_deps(IDX[prefab], go)
+
+
+def all_images(go, out):
+    for c in go.m_Component:
+        if c.component.type.name == 'MonoBehaviour':
+            try:
+                tt = c.component.read_typetree()
+            except Exception:  # noqa: BLE001
+                continue
+            if 'm_Sprite' in tt and 'm_FillMethod' in tt and tt['m_Sprite']['m_PathID']:
+                spr = c.component.read().m_Sprite.read()
+                out.setdefault(spr.m_Name, spr)
+    for ch in children(go):
+        all_images(ch, out)
+    return out
+
+
+def rip_named():
+    sprites = {}
+    for prefab in sorted(set(p for p, _ in NAMED.values())):
+        def go(env, prefab=prefab):
+            found = all_images(prefab_root(env, prefab), {})
+            out = {}
+            for fn, (p, sname) in NAMED.items():
+                if p != prefab:
+                    continue
+                if sname not in found:
+                    raise KeyError('prefab %s không có sprite %s' % (prefab, sname))
+                out[fn] = save_sprite(found[sname], fn)
+            return out
+        sprites.update(with_deps(IDX[prefab], go))
+    return sprites
+
+
+def rip_glyphs():
+    want = {k + '_Key_Dark': k for k in GLYPHS}
+
+    def go(env):
+        out = {}
+        for o in env.objects:
+            if o.type.name == 'Sprite':
+                s = o.read()
+                if s.m_Name in want and want[s.m_Name] not in out:
+                    out[want[s.m_Name]] = save_sprite(s, 'key/' + want[s.m_Name])
+        return out
+    out = with_deps(IDX[KEYS_ATLAS], go)
+    missing = [k for k in GLYPHS if k not in out]
+    if missing:
+        raise SystemExit('không thấy phím: %s' % missing)
+    return {k: out[k] for k in GLYPHS}
 
 
 HEADER = ('// Sinh bởi tools/rip_mobile.py từ bản Android của Dave the Diver (APK 1.0.30) — đừng sửa tay.\n'
           '// Chạy lại: python games/ho-xanh/tools/rip_mobile.py\n'
-          '// Nguồn: Assets/XD/Prefab/XD_Variant/MainCanvas.prefab > InGameTouchCanvas.\n'
-          '// Toạ độ theo canvas gốc 2340×1080 (CanvasScaler ScaleWithScreenSize, khớp bề ngang):\n'
-          '// 1 đơn vị = bề ngang màn hình / 2340. layout[vai] = {corner, dx, dy (từ góc tới tâm), w, h, scale}.\n')
+          '// layouts.dive: MainCanvas.prefab > InGameTouchCanvas; layouts.bar: SushiBarTouchCanvas.prefab;\n'
+          '// layouts.lobby: LobbyTouchCanvas.prefab. Toạ độ theo canvas gốc 2340×1080 (CanvasScaler khớp bề ngang):\n'
+          '// 1 đơn vị = bề ngang màn hình / 2340. layouts[canvas][vai] = {corner, dx, dy (từ góc tới tâm), w, h, scale}.\n'
+          '// sprites: art/ui/mobile/<tên>.png (border = 9-slice trái, dưới, phải, trên); glyphs: phím PC ở art/ui/mobile/key/.\n')
 
 
 def main():
@@ -410,20 +536,34 @@ def main():
     if len(sys.argv) > 2 and sys.argv[1] == 'dump':
         print(json.dumps(dump(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None), ensure_ascii=False, indent=1))
         return
-    data = rip_dive_touch()
-    data['art'] = 'art/ui/mobile/'
+    os.makedirs(OUT_ART, exist_ok=True)
+    layouts, sprites, numbers = {}, {}, {}
+    for name in CANVASES:
+        layouts[name], s, n = rip_canvas(name)
+        sprites.update(s)
+        if n:
+            numbers[name] = n
+    sprites.update(rip_named())
+    glyphs = rip_glyphs()
     with io.open(OUT_JS, 'w', encoding='utf-8', newline='\n') as f:
         f.write(HEADER)
         f.write('window.HX_MOBILE_UI = {\n')
-        for k in ('ref', 'art', 'numbers'):
-            f.write('  %s: %s,\n' % (k, json.dumps(data[k], ensure_ascii=False)))
-        for k in ('layout', 'sprites'):
+        f.write('  ref: %s,\n  art: "art/ui/mobile/",\n' % json.dumps(list(REF)))
+        f.write('  numbers: %s,\n' % json.dumps(numbers, ensure_ascii=False))
+        f.write('  layouts: {\n')
+        for name, lay in layouts.items():
+            f.write('    %s: {\n' % name)
+            for role, v in lay.items():
+                f.write('      %s: %s,\n' % (json.dumps(role, ensure_ascii=False), json.dumps(v, ensure_ascii=False)))
+            f.write('    },\n')
+        f.write('  },\n')
+        for k, tbl in (('sprites', sprites), ('glyphs', glyphs)):
             f.write('  %s: {\n' % k)
-            for role, v in data[k].items():
+            for role, v in tbl.items():
                 f.write('    %s: %s,\n' % (json.dumps(role, ensure_ascii=False), json.dumps(v, ensure_ascii=False)))
             f.write('  },\n')
         f.write('};\n')
-    print('ghi', OUT_JS, len(data['sprites']), 'ảnh')
+    print('ghi', OUT_JS, len(sprites), 'ảnh,', len(glyphs), 'phím')
 
 
 if __name__ == '__main__':
