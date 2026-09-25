@@ -3,7 +3,7 @@
 
     set PYTHONIOENCODING=utf-8
     python games/ho-xanh/tools/rip_boat.py            # tất cả
-    python games/ho-xanh/tools/rip_boat.py boat sea   # vài phần: boat sea dave vfx lobby gear audio
+    python games/ho-xanh/tools/rip_boat.py boat sea   # vài phần: boat sea dave vfx lobby trip gear audio
 
 Cần bảng bundle mà rip.py đã quét (%TEMP%/ho-xanh-rip/bundle_index.json). Không sửa rip.py/level.py,
 chỉ import hàm của chúng.
@@ -1894,10 +1894,13 @@ def rip_lobby():
             bb = light_billboards(sgo, cache)
             bbn = {b['name'] for b in bb}
             # đốm đèn 2D_LightBillboard ghi riêng (lightBillboards), không gộp vào atlas sprite của glb
+            # Lobby_GuestBoat01 bỏ ra: chuyến về của boat.js cho cano Dave chạy đúng đường Enter01 của nó và đậu vào chỗ của nó
             glb, stats, _ = export_glb([(sgo, 'sushiboat')], 'sushi_' + key, force=(sushi_name,),
-                                       skip=lambda g: g.m_Name in bbn and comp(g, 'SpriteRenderer') is not None)
+                                       skip=lambda g: (g.m_Name in bbn and comp(g, 'SpriteRenderer') is not None)
+                                       or g.m_Name == 'Lobby_GuestBoat01')
             T['sushiboat'] = {'glb': glb, 'stats': stats, 'name': sushi_name, 'lightBillboards': bb,
-                              'note': 'm = ma trận 4x4 thế giới Unity (hàng trước), sprite vẽ quad cỡ size, pivot theo tỉ lệ.'}
+                              'note': 'm = ma trận 4x4 thế giới Unity (hàng trước), sprite vẽ quad cỡ size, pivot theo tỉ lệ. '
+                                      'Không có thuyền khách Lobby_GuestBoat01: cano Dave về quán thế chỗ nó (lobby.trip).'}
         out['times'][key] = T
         print('  sảnh %s: %d đèn, VFX %s, cano vfx %s' % (key, len(T['lights']), list(T['vfx']), list(T['boat']['vfx'])))
     # vòng sương chân trời Sky_Inner (shader 3D_InnerSkybox_Fog: màu = unity_FogColor, alpha = 1 - uv.y^0,7)
@@ -2017,6 +2020,83 @@ def rip_lobby_audio():
     return out
 
 
+# ---------------------------------------------------------------- 7. CHUYẾN QUÁN <-> CHỖ LẶN (số cho boat.js)
+GUEST_CLIPS = ('Lobby_GuestBoat01_Exit01', 'Lobby_GuestBoat01_Enter01', 'Lobby_GuestBoat01_Idle01')
+
+
+def rip_trip():
+    """Số gốc dựng chuyến cano giữa quán và chỗ lặn, đọc từ DR_Lobby (hệ Unity thế giới).
+    - Quán: khung bao các mesh của Sushiboat_Day (thuyền quán sushi, nằm sau-phải chỗ cano đậu).
+    - Thuyền khách Lobby_GuestBoat01 (con của sushiboat_Evening): Exit01 = rời bến quán chạy về phía camera,
+      Enter01 = từ phía camera chạy vào bến quán. Clip ghi vị trí/góc của nút Lobby_GuestBoat_01 theo cha; ở đây
+      đổi sang thế giới bằng ma trận cha (cha có xoay ~70° và scale không đều) và lấy mẫu 30 khung/giây.
+      Mũi thuyền khách là -x cục bộ như cano Dave: hướng mũi thế giới = ma trận cha × (-cos y, 0, sin y), khớp
+      hướng chạy (Exit01 lùi khỏi bến 4 s rồi quay mũi chạy thẳng về camera; Enter01 tiến vào bến).
+    - Animator Boat_001: chỉ có Idle001 -> Exit001 (trigger Exit, trộn 0,5 s); Exit002 không có cạnh nào dẫn vào.
+      Camera_Lobby có một trạng thái Camera_Sushi_in_sample nhưng không gắn clip."""
+    env, roots = load_scene_roots(LOBBY_SCENE)
+    le = roots['Lobby_Env']
+    cache = {}
+    sb = find_desc(le, 'Sushiboat_Day')
+    lo, hi = np.full(3, 1e9), np.full(3, -1e9)
+    stack = [sb]
+    while stack:
+        go = stack.pop()
+        stack.extend(ch.read().m_GameObject.read() for ch in level.transform_of(go).m_Children)
+        mf = comp(go, 'MeshFilter')
+        if not mf or not mf.read().m_Mesh.m_PathID:
+            continue
+        b = mf.read().m_Mesh.read().m_LocalAABB
+        c = np.array([b.m_Center.x, b.m_Center.y, b.m_Center.z])
+        e = np.array([b.m_Extent.x, b.m_Extent.y, b.m_Extent.z])
+        M = level.world(level.transform_of(go), cache)
+        for s in ((-1, -1, -1), (-1, -1, 1), (-1, 1, -1), (-1, 1, 1), (1, -1, -1), (1, -1, 1), (1, 1, -1), (1, 1, 1)):
+            p = (M @ np.append(c + e * s, 1))[:3]
+            lo, hi = np.minimum(lo, p), np.maximum(hi, p)
+    out = {'restaurant': {'center': [rnd(v, 2) for v in (lo + hi) / 2], 'min': [rnd(v, 2) for v in lo], 'max': [rnd(v, 2) for v in hi],
+                          'src': 'Sushiboat_Day (DR_Lobby), khung bao mesh'}}
+    g1 = find_desc(le, 'Lobby_GuestBoat01')
+    M = level.world(level.transform_of(g1), cache)
+    paths = path_names(g1)
+    _, clips = controller_clips(comp(g1, 'Animator'))
+    guest = {}
+    for c in clips:
+        d = decode_clip(c, paths)
+        if d['name'] not in GUEST_CLIPS:
+            continue
+        tr = d['tracks']['Lobby_GuestBoat_01']
+        pos, yaw, move_end = [], [], 0.0
+        eul = tr.get('euler') or [[0.0, 0.0, 0.0]]
+        for i, p in enumerate(tr['pos']):
+            w = (M @ np.array([p[0], p[1], p[2], 1.0]))[:3]
+            th = math.radians(eul[min(i, len(eul) - 1)][1])
+            bow = M[:3, :3] @ np.array([-math.cos(th), 0.0, math.sin(th)])
+            pos.append([rnd(w[0], 3), rnd(w[2], 3)])
+            yaw.append(rnd(math.degrees(math.atan2(bow[2], -bow[0])), 2))
+            if i and (pos[-1] != pos[-2] or yaw[-1] != yaw[-2]):
+                move_end = i / d['fps']
+        guest[d['name']] = {'length': d['length'], 'fps': d['fps'], 'moveEnd': rnd(move_end, 3), 'pos': pos, 'yaw': yaw}
+    miss = [k for k in GUEST_CLIPS if k not in guest]
+    if miss:
+        raise SystemExit('thiếu clip thuyền khách: %s' % miss)
+    # Idle01 chỉ có track vị trí (góc lấy theo cảnh), nên tư thế đậu lấy ở khung cuối Enter01 (trùng vị trí Idle01)
+    idle, ent = guest.pop('Lobby_GuestBoat01_Idle01'), guest['Lobby_GuestBoat01_Enter01']
+    if idle['pos'][0] != ent['pos'][-1]:
+        raise SystemExit('chỗ đậu Idle01 %s khác cuối Enter01 %s' % (idle['pos'][0], ent['pos'][-1]))
+    out['dock'] = {'pos': ent['pos'][-1], 'yaw': ent['yaw'][-1],
+                   'src': 'Lobby_GuestBoat01_Idle01 / cuối Enter01: chỗ thuyền khách đậu cạnh quán'}
+    out['guest'] = guest
+    lp = mb_tt(child(child(le, 'Boat'), 'Character'), 'LobbyPlayer')
+    out['note'] = ('[DtD] Bản gốc không có cảnh cano chạy giữa quán và chỗ lặn. Rời sảnh đi quán: Boat_001 nhận trigger '
+                   '"Exit" (Idle001 -> Exit001, trộn 0,5 s), LobbyPlayer chờ boatExitTime %s s rồi tối màn trong '
+                   'boatExitFadeTime %s s, sang cảnh quán. Exit002 không có cạnh nào dẫn vào. Camera_Lobby chỉ có trạng '
+                   'thái Camera_Sushi_in_sample không gắn clip. Toạ độ: hệ Unity thế giới, pos = [x, z], yaw = độ quanh Y '
+                   '(mũi = (-cos, sin)).' % (rnd(lp['boatExitTime'], 3), rnd(lp['boatExitFadeTime'], 3)))
+    for k, v in guest.items():
+        print('  %-26s %5.2fs, chạy tới %5.2fs, %s -> %s' % (k, v['length'], v['moveEnd'], v['pos'][0], v['pos'][-1]))
+    return out
+
+
 # ---------------------------------------------------------------- MAIN
 def write_js(path, var, obj, header):
     with open(path, 'w', encoding='utf-8', newline='\n') as fh:
@@ -2071,6 +2151,9 @@ def main():
         print('Sảnh theo buổi…')
         man['lobby'] = rip_lobby()
         man.setdefault('audio', {}).update(rip_lobby_audio())
+    if 'trip' in parts or 'lobby' in parts:
+        print('Chuyến quán <-> chỗ lặn…')
+        man['lobby']['trip'] = rip_trip()
     if 'gear' in parts:
         print('Súng + trang bị…')
         g, sheet = rip_gear(man.get('gunVfx'))

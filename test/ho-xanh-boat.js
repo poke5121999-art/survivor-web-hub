@@ -5,14 +5,15 @@
  * Ảnh chụp ra SHOTS (mặc định %TEMP%/ho-xanh-boat-shots) — mở ra xem bằng mắt.
  * Mặc định mở Chrome bằng GPU thật (ANGLE D3D11); SWIFTSHADER=1 để vẽ bằng phần mềm (chậm, chuyến ra ~2 phút).
  *
- * Cano rời bến/cập bến tự chạy theo đúng khoá gốc Boat_Exit001/002 (không còn phím/nút lái nào). Kiểm ở
- * 1280×720 và 844×390 (máy chạm):
- *  - không đụng phím/chạm gì cả: tốc độ > 0, quãng còn lại tự giảm, vị trí ở nửa chặng rời bến khớp đúng khoá gốc;
- *  - bấm phím trong lúc chạy không đổi gì (không còn nhận input lái);
- *  - chuyến ra chạy buổi chiều, chuyến về chạy buổi tối (Lobby_Evening);
- *  - tới nơi: Dave đi ra đuôi, chạy Diveready tại chỗ (clip gốc không có track vị trí), màn tối dần từ 60% clip, sang loading rồi dive;
- *  - chuyến về: Dave leo lên (Respawn), cano tự chạy về tới quán thì sang kitchen;
- *  - nút "Bỏ qua" ở cả hai chiều vẫn còn, không còn nút Ga/Phanh hay vùng kéo lái nào trong HUD;
+ * Chuyến cano là dãy đoạn (js/boat.js, TRIP) dựng từ chuyển động gốc trong khung camera sảnh gốc: chuyến ra rời bến quán
+ * theo Lobby_GuestBoat01_Exit01, nối Dubins, cập chỗ lặn bằng Boat_Exit001 chạy lùi thời gian; chuyến về Respawn, rời chỗ
+ * đậu bằng Boat_Exit002, nối Dubins, vào bến quán theo Lobby_GuestBoat01_Enter01. Kiểm ở 1280×720 và 844×390 (máy chạm):
+ *  - t = 0 chuyến ra và cuối chuyến về: chiếu tâm quán lên màn hình, phải nằm trong khung; cano cách quán < 15 m;
+ *  - khoảng cách cano → quán tăng dần suốt chuyến ra, giảm dần sau vòng quay đầu của chuyến về;
+ *  - giữa các đoạn gốc (leave, depart, arrive về) vị trí khớp clip gốc < 0,1 m; tới chỗ lặn dừng đúng chỗ đậu gốc;
+ *  - bấm phím không đổi gì; chuyến ra buổi chiều, chuyến về buổi tối;
+ *  - tới nơi: Dave đi ra đuôi, Diveready tại chỗ, màn tối từ 60% clip, sang loading rồi dive; chuyến về xong thì sang kitchen;
+ *  - nút "Bỏ qua" ở cả hai chiều, không có nút Ga/Phanh hay vùng kéo lái;
  *  - 5 chuyến liền nhau không làm tăng số geometry/texture của renderer;
  *  - không lỗi trang, không lỗi console, không 404.
  */
@@ -57,26 +58,49 @@ function watch(page) {
   return errors;
 }
 
-// Tư thế Unity của khoá rời bến (Boat_Exit001 nối Boat_Exit002) tại thời điểm t, tính lại trong trang từ đúng
-// dữ liệu HX_BOAT_ASSETS mà boat.js dùng — để so khớp độc lập với departPose() bên trong boat.js.
-function departPoseExpr() {
-  return (t) => {
-    const B = window.HX_BOAT_ASSETS, C = B.boat.anims;
-    const EXIT1 = C.Boat_Exit001.tracks[''], EXIT2 = C.Boat_Exit002.tracks[''];
-    const FPS = C.Boat_Idle001.fps;
-    const SEGS = [EXIT1, EXIT2], SEG_LEN = [C.Boat_Exit001.length, C.Boat_Exit002.length];
-    const SEG_ORIGIN = [[0, 0, 0], EXIT1.posOffset[EXIT1.posOffset.length - 1]];
-    function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
-    function lerp(a, b, k) { return a + (b - a) * k; }
-    function sample(tr, tt) {
-      const f = clamp(tt * FPS, 0, tr.length - 1), i = Math.floor(f), j = Math.min(tr.length - 1, i + 1), k = f - i;
-      return [0, 1, 2].map(c => lerp(tr[i][c], tr[j][c], k));
+// Tư thế gốc (hệ three) mà đoạn đang phát phải khớp, tính lại trong trang thẳng từ HX_BOAT_ASSETS (độc lập với boat.js):
+//  - guest: đường thế giới của clip thuyền khách lobby.trip.guest[clip] ở giây from + t;
+//  - clip tiến từ chỗ đậu (góc 0): chỗ đậu + posOffset(t) của Boat_Exit00x.
+function expectedPoseExpr() {
+  return (a) => {
+    const B = window.HX_BOAT_ASSETS, TD = B.lobby.trip;
+    const lerp = (x, y, k) => x + (y - x) * k, clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+    if (a.kind === 'guest') {
+      const G = TD.guest[a.clip], f = clamp((a.from + a.t) * G.fps, 0, G.pos.length - 1), i = Math.floor(f), j = Math.min(G.pos.length - 1, i + 1), k = f - i;
+      return [lerp(G.pos[i][0], G.pos[j][0], k), -lerp(G.pos[i][1], G.pos[j][1], k)];
     }
-    let seg = 0, local = t;
-    if (t > SEG_LEN[0]) { seg = 1; local = t - SEG_LEN[0]; }
-    const raw = sample(SEGS[seg].posOffset, local), o = SEG_ORIGIN[seg];
-    return [o[0] + raw[0], o[1] + raw[1], o[2] + raw[2]];
+    const C = B.boat.anims[a.clip], P = C.tracks[''].posOffset, f = clamp(a.t * C.fps, 0, P.length - 1), i = Math.floor(f), j = Math.min(P.length - 1, i + 1), k = f - i;
+    const M = B.sea.boatScene.pos;
+    return [M[0] + lerp(P[i][0], P[j][0], k), -(M[2] + lerp(P[i][2], P[j][2], k))];
   };
+}
+
+// Theo dõi một chuyến tới khi xong: mẫu khoảng cách tới quán mỗi ~0,25 s và chụp ảnh ở các mốc (tên đoạn + giây trong đoạn).
+async function followTrip(page, marks, shot, endStates) {
+  const samples = [], done = new Set();
+  let end = null;
+  for (;;) {
+    const i = await page.evaluate(() => HX.phases.boat.info());
+    if (!i.active) break;
+    if (!end && endStates.includes(i.state)) end = i;
+    if (i.seg && i.state !== 'load') samples.push({ tt: i.tt, d: i.distRestaurant, state: i.state, ndc: i.restaurantNdc });
+    for (const m of marks) {
+      if (done.has(m.name)) continue;
+      if ((i.state === m.state && (i.seg ? i.seg.t : 0) >= (m.t || 0)) || (m.state === 'end' && endStates.includes(i.state))) {
+        done.add(m.name); await shot(m.name);
+      }
+    }
+    if (endStates.includes(i.state) && done.size === marks.length) break;
+    await sleep(250);
+  }
+  return { samples, end };
+}
+function inFrame(ndc) { return !!ndc && Math.abs(ndc[0]) <= 1 && Math.abs(ndc[1]) <= 1 && ndc[2] < 1; }
+// Dãy khoảng cách tăng (dir 1) hay giảm (dir −1) đều, cho phép lệch ngược tol mét (lùi khỏi bến quán, vòng quay đầu)
+function monotone(xs, dir, tol) {
+  let worst = 0, best = xs[0];
+  for (const x of xs) { if (dir > 0) { worst = Math.max(worst, best - x); best = Math.max(best, x); } else { worst = Math.max(worst, x - best); best = Math.min(best, x); } }
+  return { ok: worst <= tol, worst };
 }
 
 async function run(browser, base, W, H, touch) {
@@ -97,59 +121,44 @@ async function run(browser, base, W, H, touch) {
   let I = await B();
   check('vào pha boat chiều ra, tải xong cảnh', I.active && I.dir === 'out' && I.loaded, I.state);
   check('chuyến ra chạy buổi chiều', I.time === 'day', I.time);
+  check('chuyến ra là dãy đoạn rev → leave (Exit01 thuyền khách) → cruise → arrive (Exit001 lùi thời gian)',
+    I.segs.join(' ') === 'rev:hold leave:guest:Lobby_GuestBoat01_Exit01 cruise:link arrive:clip:Boat_Exit001', I.segs.join(' '));
   check('tiêu đề có "ra Hố Xanh"', (await page.textContent('#scr-boat h2')).includes('ra Hố Xanh'), await page.textContent('#scr-boat h2'));
   check('nút "Bỏ qua" đúng chữ', (await page.textContent('#boat-skip')) === 'Bỏ qua');
   check('quãng đường tới Hố Xanh hiện trên thanh tiến độ', /^\d+ m$/.test(await page.textContent('.bt-dist')), await page.textContent('.bt-dist'));
   check('không còn nút Ga/Phanh hay vùng kéo lái trong HUD', (await page.$$('.bt-ga, .bt-brake, .bt-steer')).length === 0);
+  check('t = 0 chuyến ra: quán nằm trong khung hình', I.state === 'rev' && inFrame(I.restaurantNdc), I.state + ' ndc ' + JSON.stringify(I.restaurantNdc && I.restaurantNdc.map(v => +v.toFixed(3))));
+  check('t = 0 chuyến ra: cano đậu cạnh quán (< 15 m)', I.distRestaurant < 15, I.distRestaurant.toFixed(1) + ' m');
 
-  // ---- rời bến (không đụng gì cả) ----
-  await until(() => HX.phases.boat.info().state === 'depart');
-  await shot('1-depart');
-  // Boat_Exit001 đứng yên ~0,33 s đầu (máy rung tại chỗ, đúng khoá gốc) rồi mới lao đi: đợi qua đoạn đó.
-  await until(() => HX.phases.boat.info().speed > 0.2, null, 5000);
+  // giữa đoạn leave: vị trí khớp đường gốc Lobby_GuestBoat01_Exit01 (sai số < 0,1 m)
+  const outSamples = followTrip(page, [
+    { name: '1-out-start', state: 'rev' }, { name: '2-out-leave', state: 'leave', t: 5 },
+    { name: '3-out-cruise', state: 'cruise', t: 3 }, { name: '4-out-dive', state: 'dive' },
+  ], shot, ['dive']);
+  await until(() => { const i = HX.phases.boat.info(); return i.state === 'leave' && i.seg.t >= 3.75; });
   I = await B();
-  check('rời bến tự chạy: tốc độ > 0 dù không có phím/chạm nào', I.speed > 0.2, I.speed.toFixed(2) + ' m/s');
-
-  // giữa chừng rời bến (t ≈ 50% Boat_Exit001+002): so vị trí với đúng khoá gốc
-  await until(() => { const i = HX.phases.boat.info(); return i.state === 'depart' && i.clipT >= i.departLen * 0.5; });
-  I = await B();
-  const expectedU = await page.evaluate(departPoseExpr(), I.clipT);
-  const expX = I.departOrigin.x + expectedU[0], expZ = I.departOrigin.z - expectedU[2];
-  const dErr = Math.hypot(I.x - expX, I.z - expZ);
-  check('ở 50% khoá rời bến, vị trí khớp đúng khoá gốc Boat_Exit001/002 (sai số < 0,1 m)',
-    dErr < 0.1, 'lệch ' + dErr.toFixed(4) + ' m (đo ' + I.x.toFixed(2) + ',' + I.z.toFixed(2) + ' / khoá ' + expX.toFixed(2) + ',' + expZ.toFixed(2) + ')');
+  let exp = await page.evaluate(expectedPoseExpr(), { kind: 'guest', clip: I.seg.clip, from: 0, t: I.seg.t });
+  let err = Math.hypot(I.x - exp[0], I.z - exp[1]);
+  check('giữa đoạn leave, vị trí khớp đường gốc Lobby_GuestBoat01_Exit01 (sai số < 0,1 m)', err < 0.1, 'lệch ' + err.toFixed(4) + ' m ở ' + I.seg.t.toFixed(2) + ' s');
 
   // bấm phím trong lúc chạy: không còn tác dụng gì (không nhận input lái nữa)
+  await until(() => HX.phases.boat.info().state === 'cruise');
   const before = await B();
   await page.keyboard.down('KeyW'); await page.keyboard.down('KeyA');
   await sleep(400);
   await page.keyboard.up('KeyW'); await page.keyboard.up('KeyA');
   const after = await B();
-  check('bấm W/A lúc đang chạy không đổi tốc độ/hướng (không còn nhận phím lái)',
-    Math.abs(after.speed - before.speed) < 3 && Math.abs(after.yaw - before.yaw) < 0.3,
-    'tốc độ ' + before.speed.toFixed(2) + '→' + after.speed.toFixed(2) + ', yaw ' + before.yaw.toFixed(2) + '→' + after.yaw.toFixed(2));
+  check('bấm W/A lúc đang chạy: cano vẫn theo đúng dãy khung (tốc độ > 0, không đứng lại)', after.speed > 1 && after.tt > before.tt,
+    'tốc độ ' + before.speed.toFixed(2) + '→' + after.speed.toFixed(2));
 
-  // ---- biển khơi (cruise) ----
-  await until(() => HX.phases.boat.info().state === 'cruise');
-  I = await B();
-  const d0 = I.dist, t0 = Date.now();
-  check('chạy biển khơi: vào state cruise, còn quãng dài', I.state === 'cruise' && I.dist > 30, I.dist.toFixed(0) + ' m');
-  await sleep(2000);
-  const I1 = await B();
-  check('cruise: quãng còn lại tự giảm đều theo tốc độ, không cần giữ phím', I1.dist < d0 - 3, d0.toFixed(0) + ' → ' + I1.dist.toFixed(0) + ' m');
-  await shot('2-cruise');
-
-  // ---- tới nơi rồi cập bến ----
-  await until(() => HX.phases.boat.info().state === 'arrive');
-  I = await B();
-  check('gần chỗ lặn thì tự cập bến (arrive)', I.state === 'arrive', 'còn ' + I.dist.toFixed(1) + ' m, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s từ lúc rời biển khơi');
-
-  // ---- nhảy xuống nước ----
-  await until(() => HX.phases.boat.info().dave && HX.phases.boat.info().dave.anim === 'Diveready');
-  I = await B();
-  check('dừng hẳn rồi Dave mới chạy anim nhảy gốc (Diveready)', I.state === 'dive' && Math.abs(I.speed) < 0.5 && I.dist < 3, I.dist.toFixed(2) + ' m, ' + I.speed.toFixed(2) + ' m/s');
-  await sleep(2600);
-  await shot('3-diveready');
+  const so = await outSamples;
+  I = so.end;
+  check('tới chỗ lặn: cano dừng đúng chỗ đậu gốc của sảnh (< 0,05 m)', Math.hypot(I.x - I.mooring.x, I.z - I.mooring.z) < 0.05 && I.speed < 0.01,
+    I.x.toFixed(2) + ',' + I.z.toFixed(2));
+  const ds = so.samples.map(s => s.d), mo = monotone(ds, 1, 1.5);
+  check('chuyến ra: khoảng cách cano → quán tăng dần (lùi ngược tối đa 1,5 m)', mo.ok && ds[ds.length - 1] > 100, ds[0].toFixed(0) + ' → ' + ds[ds.length - 1].toFixed(0) + ' m, lùi ngược ' + mo.worst.toFixed(2) + ' m, ' + ds.length + ' mẫu');
+  check('Dave chạy anim nhảy gốc (Diveready) sau khi dừng', I.state === 'dive', I.state + ' / ' + I.dave.anim);
+  await until(() => HX.phases.boat.info().dave.anim === 'Diveready');
   const x0 = (await B()).dave.x;
   await until(() => !HX.phases.boat.info().active || HX.phases.boat.info().fade > 0.5);
   I = await B();
@@ -162,19 +171,37 @@ async function run(browser, base, W, H, touch) {
   await until(() => HX.phases.boat.info().loaded);
   check('tiêu đề chuyến về có "về quán"', (await page.textContent('#scr-boat h2')).includes('về quán'), await page.textContent('#scr-boat h2'));
   I = await B();
-  check('chuyến về mở bằng anim gốc Respawn (Dave leo lên thuyền)', I.state === 'respawn' && I.dave.anim === 'Respawn', I.state + ' / ' + I.dave.anim);
+  check('chuyến về mở bằng anim gốc Respawn (Dave leo lên thuyền) ở chỗ lặn', I.state === 'respawn' && I.dave.anim === 'Respawn' && I.distRestaurant > 100, I.state + ' / ' + I.dave.anim + ', cách quán ' + I.distRestaurant.toFixed(0) + ' m');
   check('chuyến về chạy buổi tối', I.time === 'evening', I.time);
-  await sleep(1200);
-  await shot('4-respawn');
+  check('chuyến về là dãy đoạn respawn → depart (Exit002) → cruise → arrive (Enter01 thuyền khách)',
+    I.segs.join(' ') === 'respawn:hold depart:clip:Boat_Exit002 cruise:link arrive:guest:Lobby_GuestBoat01_Enter01', I.segs.join(' '));
+  const homeSamples = followTrip(page, [
+    { name: '5-home-respawn', state: 'respawn', t: 1.2 }, { name: '6-home-depart', state: 'depart', t: 3 },
+    { name: '7-home-cruise', state: 'cruise', t: 8 }, { name: '8-home-docked', state: 'docked' },
+  ], shot, ['docked']);
+  await until(() => { const i = HX.phases.boat.info(); return i.state === 'depart' && i.seg.t >= 1.82; });
+  I = await B();
+  exp = await page.evaluate(expectedPoseExpr(), { kind: 'clip', clip: I.seg.clip, t: I.seg.t });
+  err = Math.hypot(I.x - exp[0], I.z - exp[1]);
+  check('giữa đoạn depart, vị trí khớp khoá gốc Boat_Exit002 tính từ chỗ đậu (sai số < 0,1 m)', err < 0.1, 'lệch ' + err.toFixed(4) + ' m ở ' + I.seg.t.toFixed(2) + ' s');
   await until(() => HX.phases.boat.info().state === 'cruise');
   I = await B();
-  check('chuyến về cũng tự chạy tới state cruise mà không cần phím', I.speed > 0.2, I.speed.toFixed(2) + ' m/s');
-  await shot('5-home-cruise');
+  check('chuyến về tự chạy tới đoạn cruise mà không cần phím', I.speed > 0.2, I.speed.toFixed(2) + ' m/s');
+  await until(() => { const i = HX.phases.boat.info(); return i.state === 'arrive' && i.seg.t >= 2; });
+  I = await B();
+  exp = await page.evaluate(expectedPoseExpr(), { kind: 'guest', clip: I.seg.clip, from: 5, t: I.seg.t });
+  err = Math.hypot(I.x - exp[0], I.z - exp[1]);
+  check('đoạn arrive chạy đúng đường gốc Lobby_GuestBoat01_Enter01 (sai số < 0,1 m)', err < 0.1, 'lệch ' + err.toFixed(4) + ' m');
+  const sh = await homeSamples;
+  I = sh.end;
+  check('cuối chuyến về: quán nằm trong khung hình', inFrame(I.restaurantNdc), JSON.stringify(I.restaurantNdc && I.restaurantNdc.map(v => +v.toFixed(3))));
+  check('cuối chuyến về: cano đậu cạnh quán (< 15 m)', I.distRestaurant < 15, I.distRestaurant.toFixed(1) + ' m');
+  const dh = sh.samples.map(s => s.d), peak = dh.indexOf(Math.max.apply(null, dh)), mh = monotone(dh.slice(peak), -1, 1.5);
+  check('chuyến về: khoảng cách cano → quán giảm dần sau vòng quay đầu', mh.ok && dh[dh.length - 1] < 0.15 * dh[0],
+    dh[0].toFixed(0) + ' → đỉnh ' + dh[peak].toFixed(0) + ' → ' + dh[dh.length - 1].toFixed(0) + ' m, tăng ngược ' + mh.worst.toFixed(2) + ' m');
   const h0 = Date.now();
   await phase('kitchen');
-  check('chuyến về kết thúc bằng G.go("kitchen")', JSON.stringify(await went()) === '["kitchen"]');
-  check('về tới quán thì sang kitchen mà không đụng phím nào', true, ((Date.now() - h0) / 1000).toFixed(1) + ' s trước khi vào kitchen');
-  await shot('6-kitchen');
+  check('chuyến về kết thúc bằng G.go("kitchen")', JSON.stringify(await went()) === '["kitchen"]', ((Date.now() - h0) / 1000).toFixed(1) + ' s sau khi cập bến');
 
   // ---- Bỏ qua ----
   await page.evaluate(() => HX_DEBUG.go('boat', { dir: 'out' }));

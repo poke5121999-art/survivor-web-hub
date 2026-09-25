@@ -1,5 +1,5 @@
 // Pha boat: cano của Dave tự chạy từ quán sushi ra Hố Xanh (args.dir 'out' → loading) hoặc từ chỗ lặn về quán
-// ('home' → kitchen) — cắt cảnh tự phát, không có phím/nút lái nào (xem ghi chú trước biến DEPART_LEN bên dưới).
+// ('home' → kitchen) — cắt cảnh tự phát, không có phím/nút lái nào. Chuyến là danh sách đoạn TRIP (xem khối TRIP bên dưới).
 // Cảnh riêng (surface 'scene'): cano, biển sảnh, trời, mây, trăng, dừa, mòng biển, Dave và hạt VFX đều là asset gốc trong data/boat_assets.js.
 // Chuyến ra chạy buổi chiều (DayTime 1, Lobby_Day), chuyến về chạy buổi tối (DayTime 2, Lobby_Evening) vì quán mở lúc tối.
 // Hệ toạ độ: manifest ghi theo Unity (z vào màn hình), three thì z hướng ra camera, nên mọi toạ độ Unity đổi z → −z (U2T).
@@ -24,67 +24,188 @@
   var WALK_X = PL.moveAreaBoat[1];                             // [DtD] mép đuôi của m_MoveArea (x +4,72 so với gốc cano)
   var DAVE_H = B.dave.cell[0] / B.dave.ppu * B.sea.boatScene.daveScale; // 0,64 m × 3,4
 
-  // Lộ trình (toạ độ three). Biển gốc chỉ có nước ở x −225..115, z −230..28; đảo ở z < −50. Đi ra thì chạy về tây (−x) ra
-  // khơi, qua mép tấm nước gốc thì nước của pha này (vô tận theo camera) nối tiếp. Đi về thì từ phía đông chạy về chỗ đậu.
-  // Cả hai chiều mũi cano đều hướng −x để camera luôn nhìn mặt +z có chữ "Nodens 68" đọc xuôi. [ĐỀ XUẤT]
-  var ROUTE = {
-    out: { x0: LOBBY[0], x1: LOBBY[0] - 225, z0: LOBBY[2] },
-    home: { x0: 67, x1: LOBBY[0], z0: LOBBY[2] },
-  };
 
-  // Anim gốc của cano (Animator Boat_001), 30 khung/giây. Rời bến = Boat_Exit001 (rời bến, 3,65 s) nối tiếp
-  // Boat_Exit002 (lượn khỏi vũng, cua tới 28,7°, cũng 3,65 s dù cờ clip ghi loop=true): cả hai đều có khoá vị trí +
-  // góc THẬT, nên cano tự chạy thẳng theo khoá, không còn hằng số lái tự chế. [ĐO TRONG REPO 2026-09-25]: cua
-  // dừng hẳn ở 28,7° (không quay vòng lại 0), và tốc độ euler.y y hệt 0 suốt Boat_Exit001 rồi mới đổi ở Boat_Exit002
-  // — tức bản gốc PHÁT MỘT LẦN cả hai clip nối tiếp, không lặp Exit002 (lặp sẽ làm cano xoay vòng mãi).
-  // Sau khi rời bến xong, bản gốc không có clip nào phủ quãng biển khơi (README-boat.md: "Không có bảng tốc độ
-  // cano") vì chỗ lặn thật của DtD chính là sảnh (DiveTrigger ở đuôi cano) — quãng "Hố Xanh" cách xa là khoảng cách
-  // bịa ra cho bản web này. Đoạn giữa (cruise) vì vậy đi thẳng với đúng vận tốc tức thời đo ở cuối Boat_Exit002
-  // [ĐỀ XUẤT]. Đoạn cập bến (arrive) không có clip Enter/Arrive nào trong game gốc (chỉ tìm thấy Idle001, Exit001,
-  // Exit002 trong Animator Boat_001; không có PlayableDirector/Timeline/Cinemachine nào gắn với cano ở DR_Lobby),
-  // nên mượn đúng hình khoá rời bến CHẠY NGƯỢC THỜI GIAN để giảm tốc/hạ nghiêng đối xứng — gần nhất có thể với thật
-  // mà không tự bịa chuyển động mới. [ĐỀ XUẤT]
+  // Anim gốc của cano (Animator Boat_001), lấy mẫu 30 khung/giây: Idle001 nhấp nhô, Exit001 rời chỗ đậu, Exit002 rời chỗ đậu rẽ vào phía xa.
+  // posOffset = độ dời tính từ đầu clip (hai clip cùng bắt đầu ở chỗ đậu, không nối tiếp nhau), euler = độ.
   var CLIP = B.boat.anims;
   var IDLE = CLIP.Boat_Idle001.tracks[''].posOffset;           // nhấp nhô 3,5 s
-  var EXIT1 = CLIP.Boat_Exit001.tracks[''], EXIT2 = CLIP.Boat_Exit002.tracks[''];
   var FPS = CLIP.Boat_Idle001.fps;
   var DEG = Math.PI / 180;
-  var SEGS = [EXIT1, EXIT2], SEG_LEN = [CLIP.Boat_Exit001.length, CLIP.Boat_Exit002.length];
-  var SEG_ORIGIN = [[0, 0, 0], EXIT1.posOffset[EXIT1.posOffset.length - 1]];   // vị trí luỹ kế Unity ở đầu mỗi đoạn
-  var DEPART_LEN = SEG_LEN[0] + SEG_LEN[1];   // ~7,3 s: toàn bộ pha rời bến/cập bến lấy từ đây, không hằng số rời rạc nữa
-  var tmpPoseP = [0, 0, 0], tmpPoseE = [0, 0, 0];
-  // Tư thế rời bến (vị trí luỹ kế hệ Unity, góc Unity độ) tại t (0..DEPART_LEN), lấy thẳng từ khoá; outPos/outEuler
-  // là mảng [x,y,z] ghi đè tại chỗ (khỏi cấp phát mỗi khung).
-  function departPose(t, outPos, outEuler) {
-    var seg = 0, local = t;
-    if (t > SEG_LEN[0]) { seg = 1; local = t - SEG_LEN[0]; }
-    sampleTrack(SEGS[seg].posOffset, local, tmpPoseP);
-    var o = SEG_ORIGIN[seg];
-    outPos[0] = o[0] + tmpPoseP[0]; outPos[1] = o[1] + tmpPoseP[1]; outPos[2] = o[2] + tmpPoseP[2];
-    sampleTrack(SEGS[seg].euler, local, outEuler);
-    return outPos;
-  }
-  var D_TOTAL = [0, 0, 0], D_EULER = [0, 0, 0];
-  departPose(DEPART_LEN, D_TOTAL, D_EULER);   // độ lệch Unity trọn vẹn của cả hai clip nối tiếp (~ −33,4; 0; 7,05)
-  var ARRIVE_DX = Math.abs(D_TOTAL[0]);   // quãng x (m) mà pha "arrive" (khoá rời bến chạy ngược) sẽ đi hết
-  // Vận tốc tức thời ở khung cuối Boat_Exit002 (mét/khung gốc 1/30 s, KHÔNG lấy sai phân theo khung dựng hình thật:
-  // dt biến thiên theo tốc độ máy sẽ cho tốc độ cruise sai, vì đúng đoạn cuối clip đang giảm tốc rất nhanh).
-  var CRUISE_VEL_U = (function () {
-    var a = [0, 0, 0], ae = [0, 0, 0], b = [0, 0, 0], be = [0, 0, 0];
-    departPose(DEPART_LEN - 2 / FPS, a, ae); departPose(DEPART_LEN - 1 / FPS, b, be);
-    return [(b[0] - a[0]) * FPS, (b[1] - a[1]) * FPS, (b[2] - a[2]) * FPS];
+
+  // ---------------------------------------------------------------- chuyến: danh sách đoạn, một bộ phát
+  // Bản gốc không có cảnh cano chạy giữa quán và chỗ lặn (lobby.trip.note): rời sảnh đi quán chỉ phát Boat_Exit001
+  // rồi tối màn sau 1,5 s. Nhưng camera sảnh gốc thấy cả hai nơi: cano đậu gần camera (chỗ lặn), quán sushi nằm xa
+  // phía sau bên phải. Chuyến đi được dựng trong đúng khung đó, ghép từ chuyển động gốc:
+  //  - Boat_Exit001 / Boat_Exit002 (Animator Boat_001 của cano Dave): rời chỗ đậu. Exit002 là bản rẽ vào phía xa.
+  //  - Lobby_GuestBoat01_Exit01 / Enter01 (thuyền khách của quán): lùi khỏi bến quán rồi chạy về phía camera; chạy
+  //    từ phía camera vào bến quán. Cùng quy ước mũi −x như cano Dave.
+  //  - Đoạn nối giữa hai chuyển động gốc là đường cong Hermite qua điểm [ĐỀ XUẤT], tốc độ đổi đều từ đoạn trước sang
+  //    đoạn sau.
+  // Mỗi đoạn: { id, kind, cam, ... }. kind: hold (đứng yên ở at hoặc chỗ cũ, rev = rung máy theo khoá Exit001),
+  // guest (đường thế giới của clip thuyền khách từ from tới to), clip (khoá cano Dave, tiến từ chỗ cũ hoặc lùi thời gian
+  // để dừng đúng at), link (nối). Toạ độ trong khối này là hệ Unity (x, z), góc = độ quanh Y, mũi = (−cos, sin).
+  // ==== TRIP
+  var TD = L.trip;
+  var LOBBY_U = { x: B.sea.boatScene.pos[0], z: B.sea.boatScene.pos[2], yaw: 0 };   // [DtD] chỗ cano đậu ở sảnh = chỗ lặn
+  var EXIT1 = CLIP.Boat_Exit001.tracks[''];
+  var REV_LEN = (function () {   // [DtD] đầu Exit001 cano đứng rung máy tại chỗ (~1,1 s) rồi mới nhích
+    var P = EXIT1.posOffset, i = 0;
+    while (i < P.length && Math.abs(P[i][0]) < 0.01) i++;
+    return Math.max(0, i - 1) / FPS;
   })();
-  var CRUISE_VEL = U2T(CRUISE_VEL_U);   // ~9,1 m/s [DtD], hướng chạy thẳng biển khơi sau khi rời bến xong
-  var VMAX = (function () {   // tốc độ lớn nhất trong cả Boat_Exit001+002 (khung kề nhau), ~13,4 m/s giữa Exit002 [DtD]
-    var peak = 0, n = Math.round(DEPART_LEN * FPS), a = [0, 0, 0], ae = [0, 0, 0], b = [0, 0, 0], be = [0, 0, 0];
-    for (var i = 1; i <= n; i++) {
-      var t0 = (i - 1) / FPS, t1 = Math.min(DEPART_LEN, i / FPS);
-      departPose(t0, a, ae); departPose(t1, b, be);
-      peak = Math.max(peak, Math.hypot(b[0] - a[0], b[2] - a[2]) / ((t1 - t0) || 1e-4));
+  var TRIP = {
+    out: [
+      { id: 'rev', kind: 'hold', at: 'dock', dur: REV_LEN, rev: true, cam: 'lobby' },
+      { id: 'leave', kind: 'guest', clip: 'Lobby_GuestBoat01_Exit01', from: 0, to: 7.5, cam: 'lobby' },   // [ĐỀ XUẤT] to: đã quay mũi hẳn về phía camera
+      { id: 'cruise', kind: 'link', turnR: 16, cam: 'lobby' },                                              // [ĐỀ XUẤT] bán kính quay 16 m
+      { id: 'arrive', kind: 'clip', clip: 'Boat_Exit001', reverse: true, at: 'mooring', cam: 'lobby' },
+    ],
+    home: [
+      { id: 'respawn', kind: 'hold', at: 'mooring', dur: B.dave.anims.Respawn.length, cam: 'lobby' },
+      { id: 'depart', kind: 'clip', clip: 'Boat_Exit002', cam: 'lobby' },
+      { id: 'cruise', kind: 'link', turnR: 16, cam: 'lobby' },                                              // [ĐỀ XUẤT] bán kính quay 16 m
+      { id: 'arrive', kind: 'guest', clip: 'Lobby_GuestBoat01_Enter01', from: 5, to: 'end', cam: 'lobby' }, // [ĐỀ XUẤT] from: nhập đường gốc khi đã hướng về quán
+    ],
+  };
+  function wrapDeg(a) { a = (a + 180) % 360; return (a < 0 ? a + 360 : a) - 180; }
+  function yawOfDir(dx, dz) { return Math.atan2(dz, -dx) / DEG; }
+  function rotU(th, x, z, out) { var c = Math.cos(th * DEG), s = Math.sin(th * DEG); out[0] = x * c + z * s; out[1] = -x * s + z * c; return out; }
+  function anchorPose(name) { return name === 'dock' ? { x: TD.dock.pos[0], z: TD.dock.pos[1], yaw: TD.dock.yaw } : LOBBY_U; }
+  function pose0() { return { x: 0, z: 0, yaw: 0, roll: 0, pitch: 0, heave: 0 }; }
+  var tmpO = [0, 0, 0], tmpE = [0, 0, 0], tmpR = [0, 0];
+  // Bộ lấy mẫu của một đoạn: { dur, at(t, pose) }. start = tư thế cuối đoạn trước (đoạn có at/guest không cần).
+  function segSampler(sg, start) {
+    if (sg.kind === 'hold') {
+      var p = sg.at ? anchorPose(sg.at) : start;
+      return { dur: sg.dur, at: function (t, o) {
+        o.x = p.x; o.z = p.z; o.yaw = p.yaw; o.roll = o.pitch = o.heave = 0;
+        if (sg.rev) { sampleTrack(EXIT1.euler, t, tmpE); o.roll = tmpE[0]; o.pitch = tmpE[2]; o.heave = sampleTrack(EXIT1.posOffset, t, tmpO)[1]; }
+        return o;
+      } };
     }
-    return peak;
+    if (sg.kind === 'guest') {
+      var G = TD.guest[sg.clip], t0 = sg.from, t1 = sg.to === 'end' ? G.moveEnd : sg.to;
+      return { dur: t1 - t0, at: function (t, o) {
+        var f = clamp((t0 + t) * G.fps, 0, G.pos.length - 1), i = Math.floor(f), j = Math.min(G.pos.length - 1, i + 1), k = f - i;
+        o.x = lerp(G.pos[i][0], G.pos[j][0], k); o.z = lerp(G.pos[i][1], G.pos[j][1], k);
+        o.yaw = G.yaw[i] + wrapDeg(G.yaw[j] - G.yaw[i]) * k; o.roll = o.pitch = o.heave = 0;
+        return o;
+      } };
+    }
+    if (sg.kind === 'clip') {
+      var C = CLIP[sg.clip].tracks[''], T = CLIP[sg.clip].length, a = sg.reverse ? anchorPose(sg.at) : start;
+      return { dur: sg.reverse ? T : Math.min(T, sg.to || T), at: function (t, o) {
+        // tiến: tư thế = đầu + xoay(khoá(t)); lùi thời gian: dừng đúng a, vận tốc cùng chiều mũi, hồ sơ tốc độ đảo
+        var u = sg.reverse ? T - t : t;
+        sampleTrack(C.posOffset, u, tmpO); sampleTrack(C.euler, u, tmpE);
+        rotU(a.yaw, tmpO[0], tmpO[2], tmpR);
+        var sgn = sg.reverse ? -1 : 1;
+        o.x = a.x + sgn * tmpR[0]; o.z = a.z + sgn * tmpR[1]; o.yaw = a.yaw + sgn * tmpE[1];
+        o.roll = tmpE[0]; o.pitch = tmpE[2]; o.heave = tmpO[1];
+        return o;
+      } };
+    }
+    throw new Error('segment kind not found: ' + sg.kind);
+  }
+  // Đoạn nối [ĐỀ XUẤT]: đường Dubins (cung – thẳng – cung, bán kính quay sg.turnR) từ tư thế cuối đoạn gốc trước tới tư thế
+  // đầu đoạn gốc sau, chọn đường ngắn nhất trong LSL/RSR/LSR/RSL. Tốc độ theo quãng: tăng/giảm với gia tốc ACC từ va lên
+  // TOP rồi xuống vb (ACC, TOP đo từ Boat_Exit001). Góc mũi = hướng chạy + độ lệch trôi của hai đầu nội suy dần.
+  var EXIT1_V = (function () {   // tốc độ từng khung của Boat_Exit001 (m/s)
+    var P = EXIT1.posOffset, v = [0];
+    for (var i = 1; i < P.length; i++) v.push(Math.hypot(P[i][0] - P[i - 1][0], P[i][2] - P[i - 1][2]) * FPS);
+    return v;
   })();
-  var P = { lead: 1.15 };   // s camera nhìn trước theo vận tốc (còn lại: không hằng số lái, xem ghi chú trên)
+  var TOP = Math.max.apply(null, EXIT1_V);   // [DtD] ~10,1 m/s: tốc độ cao nhất của cano Dave khi rời sảnh (Boat_Exit001)
+  var ACC = (function () {                   // [DtD] gia tốc trung bình từ lúc nhích tới 90% TOP trong Boat_Exit001 (~5 m/s²)
+    var i0 = 0, i1 = 0;
+    while (i0 < EXIT1_V.length && EXIT1_V[i0] < 0.1) i0++;
+    i1 = i0; while (i1 < EXIT1_V.length && EXIT1_V[i1] < 0.9 * TOP) i1++;
+    return EXIT1_V[i1] / Math.max(1 / FPS, (i1 - i0) / FPS);
+  })();
+  function dubins(a, pa, b, pb, R) {   // a, b: [x, z]; pa, pb: góc hướng chạy (rad, toán học trên mặt x–z)
+    var TAU = Math.PI * 2, best = null;
+    function mod(x) { x %= TAU; return x < 0 ? x + TAU : x; }
+    function ctr(p, phi, s) { return [p[0] - s * R * Math.sin(phi), p[1] + s * R * Math.cos(phi)]; }   // s = +1 trái, −1 phải
+    [['L', 'L'], ['R', 'R'], ['L', 'R'], ['R', 'L']].forEach(function (w) {
+      var s0 = w[0] === 'L' ? 1 : -1, s1 = w[1] === 'L' ? 1 : -1, c0 = ctr(a, pa, s0), c1 = ctr(b, pb, s1);
+      var dx = c1[0] - c0[0], dz = c1[1] - c0[1], d = Math.hypot(dx, dz), beta = Math.atan2(dz, dx), l, psi;
+      if (s0 === s1) { l = d; psi = beta; }
+      else { if (d < 2 * R) return; l = Math.sqrt(d * d - 4 * R * R); psi = beta + s0 * Math.atan2(2 * R, l); }
+      var a0 = s0 > 0 ? mod(psi - pa) : mod(pa - psi), a1 = s1 > 0 ? mod(pb - psi) : mod(psi - pb), len = R * (a0 + a1) + l;
+      if (!best || len < best.len) best = { len: len, parts: [[s0, R * a0], [0, l], [s1, R * a1]] };
+    });
+    return best;
+  }
+  function linkSampler(a, va, da, b, vb, db, R) {
+    var pa = Math.atan2(da[1], da[0]), pb = Math.atan2(db[1], db[0]), path = dubins([a.x, a.z], pa, [b.x, b.z], pb, R);
+    if (!path) throw new Error('link path not found');
+    var S = [0], X = [a.x], Z = [a.z], H = [pa], x = a.x, z = a.z, h = pa, STEP = 0.25;
+    path.parts.forEach(function (pt) {
+      var n = Math.max(1, Math.ceil(pt[1] / STEP)), du = pt[1] / n;
+      for (var k = 0; k < n; k++) {
+        if (pt[0]) {
+          var cx = x - pt[0] * R * Math.sin(h), cz = z + pt[0] * R * Math.cos(h);
+          h += pt[0] * du / R; x = cx + pt[0] * R * Math.sin(h); z = cz - pt[0] * R * Math.cos(h);
+        } else { x += du * Math.cos(h); z += du * Math.sin(h); }
+        S.push(S[S.length - 1] + du); X.push(x); Z.push(z); H.push(h);
+      }
+    });
+    var Ltot = S[S.length - 1], vtop = Math.max(TOP, va, vb);
+    function vAt(s) { return Math.max(0.5, Math.min(vtop, Math.sqrt(va * va + 2 * ACC * s), Math.sqrt(vb * vb + 2 * ACC * Math.max(0, Ltot - s)))); }
+    var TS = [0], SS = [0], t = 0, s = 0, dt = 1 / 240;   // bảng thời gian → quãng
+    while (s < Ltot) { s = Math.min(Ltot, s + vAt(s) * dt); t += dt; TS.push(t); SS.push(s); }
+    var off0 = wrapDeg(a.yaw - yawOfDir(da[0], da[1])), off1 = wrapDeg(b.yaw - yawOfDir(db[0], db[1]));
+    function find(arr, v) { var lo = 0, hi = arr.length - 1; while (hi - lo > 1) { var m = (lo + hi) >> 1; if (arr[m] <= v) lo = m; else hi = m; } return lo; }
+    return { dur: t, len: Ltot, at: function (tt, o) {
+      var j = find(TS, tt), jj = Math.min(TS.length - 1, j + 1), ss = lerp(SS[j], SS[jj], clamp((tt - TS[j]) / ((TS[jj] - TS[j]) || 1), 0, 1));
+      var i = find(S, ss), ii = Math.min(S.length - 1, i + 1), f = clamp((ss - S[i]) / ((S[ii] - S[i]) || 1), 0, 1), hh = lerp(H[i], H[ii], f);
+      o.x = lerp(X[i], X[ii], f); o.z = lerp(Z[i], Z[ii], f);
+      o.yaw = yawOfDir(Math.cos(hh), Math.sin(hh)) + lerp(off0, off1, ss / Ltot);
+      o.roll = o.pitch = o.heave = 0;
+      return o;
+    } };
+  }
+  // Dựng cả chuyến thành dãy khung 30/giây: x, z, yaw (Unity), roll/pitch (độ), heave (m), v (m/s), seg (chỉ số đoạn).
+  function buildTrack(dir) {
+    var spec = TRIP[dir], F = { x: [], z: [], yaw: [], roll: [], pitch: [], heave: [], seg: [], segs: [] }, o = pose0();
+    function last() { var k = F.x.length - 1; return { x: F.x[k], z: F.z[k], yaw: F.yaw[k] }; }
+    function velEnd() {   // hướng + tốc độ ở cuối dãy đã dựng
+      var k = F.x.length - 1, dx = F.x[k] - F.x[k - 1], dz = F.z[k] - F.z[k - 1], v = Math.hypot(dx, dz);
+      return v > 1e-4 ? { v: v * FPS, d: [dx / v, dz / v] } : { v: 0, d: [-Math.cos(F.yaw[k] * DEG), Math.sin(F.yaw[k] * DEG)] };
+    }
+    function velStart(sm) {
+      var p = sm.at(0, pose0()), q = sm.at(1 / FPS, pose0()), dx = q.x - p.x, dz = q.z - p.z, v = Math.hypot(dx, dz);
+      return { p: p, v: v * FPS, d: v > 1e-4 ? [dx / v, dz / v] : [-Math.cos(p.yaw * DEG), Math.sin(p.yaw * DEG)] };
+    }
+    function push(sm, k, skipFirst) {
+      var n = Math.max(1, Math.round(sm.dur * FPS));
+      F.segs[k].i0 = F.x.length - (skipFirst ? 1 : 0);
+      for (var f = skipFirst ? 1 : 0; f <= n; f++) {
+        sm.at(sm.dur * f / n, o);
+        F.x.push(o.x); F.z.push(o.z); F.yaw.push(o.yaw); F.roll.push(o.roll); F.pitch.push(o.pitch); F.heave.push(o.heave); F.seg.push(k);
+      }
+      F.segs[k].i1 = F.x.length - 1; F.segs[k].n = n; F.segs[k].dur = sm.dur;
+    }
+    for (var k = 0; k < spec.length; k++) {
+      var sg = spec[k];
+      F.segs.push({ id: sg.id, kind: sg.kind, cam: sg.cam, clip: sg.clip || null });
+      if (sg.kind === 'link') {
+        var nx = spec[k + 1], ns = segSampler(nx, null), e = velEnd(), s0 = velStart(ns);
+        var ls = linkSampler(last(), e.v, e.d, s0.p, s0.v, s0.d, sg.turnR);
+        push(ls, k, true);
+        F.segs.push({ id: nx.id, kind: nx.kind, cam: nx.cam, clip: nx.clip || null });
+        push(ns, ++k, true);
+      } else push(segSampler(sg, F.x.length ? last() : null), k, F.x.length > 0);
+    }
+    var n = F.x.length, cum = [0], v = [0], vmax = 0;
+    for (var i = 1; i < n; i++) {
+      var d = Math.hypot(F.x[i] - F.x[i - 1], F.z[i] - F.z[i - 1]);
+      cum.push(cum[i - 1] + d); v.push(d * FPS); vmax = Math.max(vmax, d * FPS);
+    }
+    F.n = n; F.cum = cum; F.v = v; F.len = cum[n - 1]; F.vmax = vmax; F.dur = (n - 1) / FPS;
+    return F;
+  }
+  // ==== /TRIP
 
   // ---------------------------------------------------------------- tiện ích
   function lerp(a, b, k) { return a + (b - a) * k; }
@@ -1526,14 +1647,18 @@
   }
 
   // ---------------------------------------------------------------- vòng chuyến (tự chạy, không nhận phím/chạm lái)
+  var TRACKS = {};   // dãy khung của mỗi chiều, dựng một lần (số liệu tĩnh)
+  function trackOf(dir) { return TRACKS[dir] || (TRACKS[dir] = buildTrack(dir)); }
+  var RESTO = TD.restaurant.center;   // [DtD] tâm khung bao quán sushi
+
   function enter(args) {
-    var dir = args && args.dir === 'home' ? 'home' : 'out', R = ROUTE[dir];
+    var dir = args && args.dir === 'home' ? 'home' : 'out', T = trackOf(dir);
     st = {
-      dir: dir, time: TIME_OF[dir], R: R, state: 'load', t: 0, st: 0, done: false,
-      x: R.x0, z: R.z0, yaw: 0, vx: 0, vz: 0, speed: 0, clipRoll: 0, clipPitch: 0, clipY: 0, clipT: 0,
-      total: Math.abs(R.x1 - R.x0), dist: Math.abs(R.x1 - R.x0),
+      dir: dir, time: TIME_OF[dir], T: T, state: 'load', t: 0, st: 0, tt: 0, seg: -1, done: false,
+      x: 0, z: 0, yaw: 0, roll: 0, pitch: 0, heave: 0, speed: 0, vx: 0, vz: 0,
+      total: T.len, dist: T.len, pan: 0,
       dave: { anim: 'Idle', t: 0, x: DAVE_LOCAL[0], y: DAVE_LOCAL[1], z: DAVE_LOCAL[2], flip: false, visible: true },
-      snd: {}, boosted: false, camX: 0, camZ: 0, fadeK: 0, stepT: 0,
+      snd: {}, boosted: false, camX: 0, camY: 0, camZ: 0, fadeK: 0, stepT: 0,
     };
     var ui = st.ui = buildHud(HX.game.screen('boat'), dir);
     ui.skip.addEventListener('click', finish);
@@ -1553,19 +1678,16 @@
   }
 
   function begin() {
-    var R = st.R;
-    st.x = R.x0; st.z = R.z0; st.yaw = 0;
     applyTime(st.time);
     W.fx.clear();
+    trackAt(0);
     poseBoat(0);
     snapCamera();
     W.fx.frames(W.boatRoot.matrixWorld);
     W.fx.setRun(st.time + ':idle', null, 'loop', 1);
     W.fx.ambient(st.time + ':env', true, W.cam);
     W.fx.ambient('fish', true, W.cam);
-    // đi ra: đứng yên một nhịp ở bến rồi nổ máy; đi về: Dave leo lên thuyền (Respawn) trước
-    if (st.dir === 'out') setState('moor');
-    else { setState('respawn'); daveAnim('Respawn'); }
+    enterSeg(0);
     ambience(true);
     hint();
   }
@@ -1573,6 +1695,43 @@
   function setState(s) { st.state = s; st.st = 0; }
 
   function daveAnim(name, flip) { var d = st.dave; d.anim = name; d.t = 0; if (flip != null) d.flip = flip; }
+
+  // Đầu mỗi đoạn: trạng thái = id đoạn; tiếng, VFX, hình Dave theo đoạn (Respawn khi leo lên, Boat_Surprise khi cano vọt đi).
+  var SEG_START = {
+    rev: function () { departFx(); },
+    leave: function () { daveAnim('Boat_Surprise'); },
+    respawn: function () { daveAnim('Respawn'); },
+    depart: function () { departFx(); daveAnim('Boat_Surprise'); },
+    cruise: function () { if (st.snd.start) { fadeOut(st.snd.start, 1.2); st.snd.start = null; } },
+  };
+  // Boat_Exit00x bật VFX Exit ở khung 0,0167 s; tiếng cano thật của Dave ở sảnh + tiếng nổ máy [DtD]
+  function departFx() {
+    W.fx.setRun(st.time + ':exit', null, 'once', 1);
+    sfx('boat_move', { vol: 0.9 });
+    st.snd.start = sfx('boat_engine_start', { vol: 0.55 });
+  }
+  function enterSeg(k) {
+    st.seg = k;
+    setState(st.T.segs[k].id);
+    if (SEG_START[st.state]) SEG_START[st.state]();
+  }
+
+  // Tư thế ở thời điểm tt của dãy khung (nội suy giữa hai khung 30/giây); toạ độ Unity → three (z → −z, góc → −góc).
+  function trackAt(tt) {
+    var T = st.T, f = clamp(tt * FPS, 0, T.n - 1), i = Math.floor(f), j = Math.min(T.n - 1, i + 1), k = f - i;
+    st.x = lerp(T.x[i], T.x[j], k); st.z = -lerp(T.z[i], T.z[j], k);
+    st.yaw = -(T.yaw[i] + wrapDeg(T.yaw[j] - T.yaw[i]) * k) * DEG;
+    st.roll = lerp(T.roll[i], T.roll[j], k); st.pitch = lerp(T.pitch[i], T.pitch[j], k); st.heave = lerp(T.heave[i], T.heave[j], k);
+    var v = j > i ? T.v[j] : T.v[i];
+    st.speed = v;
+    st.vx = (T.x[j] - T.x[i]) * FPS; st.vz = -(T.z[j] - T.z[i]) * FPS;
+    st.dist = Math.max(0, T.len - lerp(T.cum[i], T.cum[j], k));
+    return T.seg[i];
+  }
+  function segTime() {   // giây tính từ đầu đoạn hiện tại, theo đúng cách đoạn đã lấy mẫu
+    var s = st.T.segs[st.seg];
+    return clamp(st.tt * FPS - s.i0, 0, s.i1 - s.i0) * s.dur / Math.max(1, s.n);
+  }
 
   // Tiếng nền theo buổi: chiều = amb_lobby_Afternoon + chim xa; tối = amb_lobby_Night + sóng đêm (mòng biển chỉ có DayTime 0/1). [DtD]
   function loopsFor() {
@@ -1590,49 +1749,40 @@
     if (!S.run && AU.buf.boat_engine_loop) S.run = sfx('boat_engine_loop', { loop: true, vol: 0 });
   }
 
+  var HINTS = {
+    rev: 'Nổ máy ở bến quán…', leave: 'Rời quán…', respawn: 'Dave leo lên thuyền…', depart: 'Nổ máy…',
+    dive: 'Dave chuẩn bị nhảy xuống…', docked: 'Về tới quán',
+  };
   function hint() {
     if (!st || !st.ui) return;
-    var s = st.state, out = st.dir === 'out', h = '';
-    if (s === 'respawn') h = 'Dave leo lên thuyền…';
-    else if (s === 'moor' || s === 'depart') h = 'Nổ máy…';
-    else if (s === 'cruise') h = out ? 'Cano tự chạy ra Hố Xanh…' : 'Cano tự chạy về quán…';
-    else if (s === 'arrive') h = out ? 'Tới Hố Xanh' : 'Cập bến';
-    else if (s === 'dive') h = 'Dave chuẩn bị nhảy xuống…';
-    else if (s === 'docked') h = 'Về tới quán';
+    var s = st.state, out = st.dir === 'out', h = HINTS[s] || '';
+    if (s === 'cruise') h = out ? 'Cano tự chạy ra Hố Xanh…' : 'Cano tự chạy về quán…';
+    else if (s === 'arrive') h = out ? 'Tới Hố Xanh' : 'Cập bến quán';
     if (st.ui.hint.textContent !== h) st.ui.hint.textContent = h;
   }
 
-  var tmp3 = [0, 0, 0], tmp3b = [0, 0, 0], wv = [0, 0, 0];
+  var tmp3 = [0, 0, 0], wv = [0, 0, 0];
   // Mặt sóng tại (x, z) three: độ cao theo đúng hàm sóng của shader nước (DynamicEnvironmentBoatFloating dò ±5 m).
   function waveY(x, z, t) { return waveAt(W.WP, x, -z, t, wv)[1]; }
   function poseBoat(t) {
     var b = W.boatRoot, y = L.times[W.time].water.y + HEIGHT_OFF;
-    var idleT = t % CLIP.Boat_Idle001.length;
-    y += sampleTrack(IDLE, idleT, tmp3)[1];
-    var rollDeg = 0, pitchDeg = 0;
-    if (st.state === 'depart' || st.state === 'arrive') {
-      // rời/cập bến: nghiêng + nhấp nhô lấy thẳng từ khoá Boat_Exit001/002 (xem departPose ở trên) [DtD]
-      rollDeg = st.clipRoll; pitchDeg = st.clipPitch; y += st.clipY;
-    } else if (st.state === 'cruise') {
-      // chạy biển khơi: không có khoá gốc, mượn lại hình nhấp nhô/nghiêng của Exit002 phát vòng làm dáng chạy [ĐỀ XUẤT]
-      var k = clamp(st.speed / VMAX, 0, 1), lt = 0.1667 + (t * 1.1) % 0.8;
-      var e2 = sampleTrack(EXIT2.euler, lt, tmp3);
-      rollDeg = e2[0] * k; pitchDeg = e2[2] * k * 0.5;
-      y += sampleTrack(EXIT1.posOffset, clamp(1.3 + k * 0.9, 0, 3.6), tmp3b)[1] * k;
-    }
+    y += sampleTrack(IDLE, t % CLIP.Boat_Idle001.length, tmp3)[1];   // [DtD] nhấp nhô Boat_Idle001
+    y += st.heave;                                                   // [DtD] nhún của clip đang phát (Exit00x)
     // sóng dưới mũi và đuôi (±5 m, rollAmount 0,01 của DynamicEnvironmentBoatFloating)
     var c = Math.cos(st.yaw), s = Math.sin(st.yaw);
     var hb = waveY(st.x - 5 * c, st.z + 5 * s, t), hs = waveY(st.x + 5 * c, st.z - 5 * s, t);
     y += (hb + hs) * 0.5;
     var wavePitch = Math.atan2(hb - hs, 10);
     b.position.set(st.x, y, st.z);
-    b.rotation.set(-rollDeg * DEG, st.yaw, pitchDeg * DEG - wavePitch);
+    b.rotation.set(-st.roll * DEG, st.yaw, st.pitch * DEG - wavePitch);
     b.updateMatrixWorld(true);
   }
 
   function updateDave(dt) {
     var d = st.dave, A = B.dave.anims[d.anim], dave = W.dave;
     d.t += dt;
+    // clip một lần (Respawn, Boat_Surprise) chạy hết thì về Idle; Diveready giữ khung cuối tới lúc tối màn
+    if (A && !A.loop && d.anim !== 'Diveready' && d.t >= A.length) { daveAnim('Idle'); A = B.dave.anims.Idle; }
     var col = 0;
     if (A && A.frames) {
       var t = A.loop ? d.t % A.length : Math.min(d.t, A.length - 1e-4), acc = 0;
@@ -1649,34 +1799,41 @@
     if (flip) r.set(u0 + du, v0, -du, dv); else r.set(u0, v0, du, dv);
   }
 
-  // Khung hình của camera sảnh; màn thấp (điện thoại ngang) kéo lại gần cho cano và Dave khỏi bé. [ĐỀ XUẤT]
+  // Camera: đúng tư thế camera sảnh gốc (thấy cả chỗ đậu lẫn quán). Màn thấp (điện thoại ngang) kéo lại gần chỗ đậu cho
+  // cano và Dave khỏi bé [ĐỀ XUẤT]. Mũi hoặc đuôi cano sắp ra khỏi khung (ngoài PAN_ZONE bề ngang) thì xoay ngang theo,
+  // cano vào lại vùng thì quay dần về hướng gốc [ĐỀ XUẤT].
+  var PAN_ZONE = 0.88, PAN_RATE = 3;   // [ĐỀ XUẤT]
+  var HULL = Math.max(-B.boat.bboxGltf.min[0], B.boat.bboxGltf.max[0]);   // [DtD] nửa thân cano ~6,4 m
+  var UP = new THREE.Vector3(0, 1, 0), tmpF = new THREE.Vector3(), tmpD = new THREE.Vector3();
   function camNear() { return lerp(0.74, 1, clamp((innerHeight - 390) / (720 - 390), 0, 1)); }
-  function snapCamera() {
-    var n = camNear(), wy = L.times[W.time].water.y;
-    st.camX = st.x + (CAM0[0] - LOBBY[0]) * n;
-    st.camZ = st.z + (CAM0[2] - LOBBY[2]) * n;
-    st.camY = wy + (CAM0[1] - wy) * n;
-    placeCamera(0, true);
+  function snapCamera() { placeCamera(0, true); }
+  function panTarget(cx, cz) {
+    var fx = CAMF[0], fz = CAMF[2], fl = Math.hypot(fx, fz); fx /= fl; fz /= fl;
+    var th = Math.atan(Math.tan(B.sea.camera.fov / 2 * DEG) * innerWidth / Math.max(1, innerHeight));
+    var lim = Math.atan(PAN_ZONE * Math.tan(th)), hi = 0, lo = 0, c = Math.cos(st.yaw), s = Math.sin(st.yaw);
+    for (var e = -1; e <= 1; e += 2) {   // mũi và đuôi (mũi = −x cục bộ)
+      var px = st.x - e * HULL * c, pz = st.z + e * HULL * s, dx = px - cx, dz = pz - cz;
+      var al = Math.atan2(dx * -fz + dz * fx, dx * fx + dz * fz);   // góc ngang so với hướng nhìn gốc, phải +
+      hi = Math.max(hi, al - lim); lo = Math.min(lo, al + lim);
+    }
+    return hi > 0 ? hi : lo < 0 ? lo : 0;
   }
   function placeCamera(dt, snap) {
-    var cam = W.cam, v = st.speed, n = camNear(), wy = L.times[W.time].water.y;
-    var k = clamp(Math.abs(v) / VMAX, 0, 1);
-    var tx = st.x + (CAM0[0] - LOBBY[0]) * n + st.vx * P.lead * n;
-    var tz = st.z + ((CAM0[2] - LOBBY[2]) + k * 3) * n;
-    var ty = wy + (CAM0[1] - wy + k * 0.8) * n;
-    var a = snap ? 1 : 1 - Math.exp(-2.2 * dt);
-    st.camX += (tx - st.camX) * a; st.camZ += (tz - st.camZ) * a; st.camY += (ty - st.camY) * a;
-    cam.position.set(st.camX, st.camY, st.camZ);
-    var fy = CAMF[1] - k * 0.07;
-    cam.lookAt(st.camX + CAMF[0], st.camY + fy, st.camZ + CAMF[2]);
+    var cam = W.cam, n = camNear(), wy = L.times[W.time].water.y;
+    var cx = LOBBY[0] + (CAM0[0] - LOBBY[0]) * n, cy = wy + (CAM0[1] - wy) * n, cz = LOBBY[2] + (CAM0[2] - LOBBY[2]) * n;
+    var pt = panTarget(cx, cz);
+    st.pan = snap ? pt : st.pan + (pt - st.pan) * (1 - Math.exp(-PAN_RATE * dt));
+    cam.position.set(cx, cy, cz);
+    tmpF.set(CAMF[0], CAMF[1], CAMF[2]).applyAxisAngle(UP, -st.pan);
+    cam.lookAt(tmpD.copy(cam.position).add(tmpF));
     cam.aspect = innerWidth / Math.max(1, innerHeight);
     cam.updateProjectionMatrix();
     cam.updateMatrixWorld();
   }
 
   function engineSound() {
-    var S = st.snd, k = clamp(Math.abs(st.speed) / VMAX, 0, 1), running = st.state !== 'moor' && st.state !== 'respawn' && st.state !== 'docked' && st.state !== 'load';
-    var gunning = st.state === 'depart' ? 0.08 : 0;   // đang tăng ga rời bến: máy gằn hơn một chút [ĐỀ XUẤT]
+    var S = st.snd, k = clamp(Math.abs(st.speed) / st.T.vmax, 0, 1), running = st.state !== 'respawn' && st.state !== 'docked' && st.state !== 'load';
+    var gunning = st.state === 'depart' || st.state === 'rev' ? 0.08 : 0;   // đang nổ máy rời chỗ đậu: máy gằn hơn một chút [ĐỀ XUẤT]
     if (S.idle) S.idle.gain.gain.value = running ? 0.35 * (1 - k * 0.7) : 0;
     if (S.run) {
       S.run.gain.gain.value = running ? 0.12 + 0.4 * k + gunning : 0;
@@ -1684,8 +1841,6 @@
     }
   }
 
-  // Tư thế tạm dùng trong depart/arrive: A = mẫu hiện tại, B = mẫu khung trước (để suy vận tốc bằng sai phân).
-  var UA = [0, 0, 0], UAE = [0, 0, 0], UB = [0, 0, 0], UBE = [0, 0, 0];
   function update(dt) {
     if (!st || st.done) return;
     audioTick();
@@ -1693,102 +1848,44 @@
     ensureLoops();
     st.t += dt; st.st += dt;
     ENV.uTime.value = st.t;
-    var R = st.R, fx = W.fx, tm = st.time;
-    switch (st.state) {
-      case 'respawn':
-        if (st.st >= B.dave.anims.Respawn.length) { daveAnim('Idle'); setState('moor'); }
-        break;
-      case 'moor':
-        if (st.st >= (st.dir === 'out' ? 1.2 : 0.4)) {
-          setState('depart');
-          st.clipT = 0; st.departOrigin = { x: st.x, z: st.z };
-          // Boat_Exit00x bật VFX Exit ở khung 0,0167 s; tiếng cano thật của Dave ở sảnh + tiếng nổ máy
-          fx.setRun(tm + ':exit', null, 'once', 1);
-          sfx('boat_move', { vol: 0.9 });
-          st.snd.start = sfx('boat_engine_start', { vol: 0.55 });
-          daveAnim('Boat_Surprise');
-        }
-        break;
-      case 'depart': {
-        // Rời bến: vị trí + góc lấy thẳng từ Boat_Exit001 nối Boat_Exit002 (departPose), không có phím lái nào cả.
-        var prevT = st.clipT;
-        st.clipT = Math.min(DEPART_LEN, st.clipT + dt);
-        departPose(prevT, UB, UBE); departPose(st.clipT, UA, UAE);
-        st.x = st.departOrigin.x + UA[0]; st.z = st.departOrigin.z - UA[2];
-        st.clipRoll = UAE[0]; st.clipPitch = UAE[2]; st.clipY = UA[1];
-        st.yaw = -UAE[1] * DEG;
-        // Vận tốc tức thời: sai phân theo khung dựng hình thật (ddt = dt), CHỈ dùng để hiện HUD/tiếng máy/VFX —
-        // không dùng cho khung cuối cùng để bắt qua "cruise" (xem CRUISE_VEL_U): khung dựng hình có thể rơi đúng
-        // vào 1/60 s lẻ cuối clip (30 khung/giây, độ dài không chia hết cho 1/30 s) khiến sai phân đó hụt một nửa.
-        // khung có dt = 0 (hai rAF cùng mốc giờ) thì giữ vận tốc cũ, đừng để tốc độ rơi về 0 một khung
-        var ddt = st.clipT - prevT;
-        if (ddt > 1e-4) { st.vx = (UA[0] - UB[0]) / ddt; st.vz = -(UA[2] - UB[2]) / ddt; st.speed = Math.hypot(st.vx, st.vz); }
-        if (!st.boosted && st.speed > 5) { st.boosted = true; fx.setRun(tm + ':exit', ['Booster'], 'once', 1); sfx('boat_drive', { vol: 0.5 }); }
-        if (st.clipT >= DEPART_LEN) {
-          setState('cruise');
-          st.vx = CRUISE_VEL[0]; st.vz = CRUISE_VEL[2]; st.speed = Math.hypot(st.vx, st.vz);
-          if (st.snd.start) fadeOut(st.snd.start, 1.2);
-        }
-        break;
+    var fx = W.fx, tm = st.time, T = st.T;
+    if (st.state !== 'dive' && st.state !== 'docked') {
+      // đang phát dãy khung: đổi đoạn thì gọi SEG_START; hết dãy thì chiều ra sang cú lặn, chiều về cập bến quán
+      st.tt = Math.min(T.dur, st.tt + dt);
+      var k0 = trackAt(st.tt);
+      while (st.seg < k0) enterSeg(st.seg + 1);
+      if (!st.boosted && st.speed > 5) { st.boosted = true; fx.setRun(tm + ':exit', ['Booster'], 'once', 1); sfx('boat_drive', { vol: 0.5 }); }
+      if (st.tt >= T.dur) {
+        st.speed = 0; st.vx = st.vz = 0;
+        if (st.dir === 'out') { setState('dive'); daveAnim('Walk', false); } else { setState('docked'); daveAnim('Idle'); }
       }
-      case 'cruise': {
-        // Biển khơi: bản gốc không có khoá nào phủ quãng này (xem ghi chú ở đầu file) — đi thẳng đúng vận tốc/hướng
-        // vừa rời bến để lại, không đổi hướng, tới khi còn đúng bằng quãng "arrive" (đối xứng) thì cập bến. [ĐỀ XUẤT]
-        st.x += st.vx * dt; st.z += st.vz * dt;
-        st.clipRoll = st.clipPitch = st.clipY = 0;
-        if (Math.abs(st.x - R.x1) <= ARRIVE_DX) { setState('arrive'); st.clipT = 0; st.arriveOrigin = { x: st.x, z: st.z }; }
-        break;
+    } else if (st.state === 'dive') {
+      // [DtD] LobbyPlayer: đi trên boong 2,7 m/s tới mép m_MoveArea, chạy Diveready tại chỗ (clip không có track vị trí),
+      // màn tối dần từ divingFadePercentage (60%) của clip. Độ dài lúc tối hẳn = hết clip [ĐỀ XUẤT: số trong code IL2CPP].
+      var d = st.dave, DR = B.dave.anims.Diveready;
+      if (d.anim === 'Walk') {
+        d.x = Math.min(WALK_X, d.x + PL.moveSpeed * dt);
+        st.stepT -= dt;
+        if (st.stepT <= 0) { st.stepT = 0.25; sfx('boat_foot', { vol: 0.5, rate: 0.95 + Math.random() * 0.1 }); }
+        if (d.x >= WALK_X) { daveAnim('Diveready', false); sfx('boat_dive', { vol: 0.6 }); }
+      } else if (d.anim === 'Diveready') {
+        var f0 = PL.divingFadePercentage * DR.length;
+        st.fadeK = clamp((d.t - f0) / Math.max(0.1, DR.length - f0), 0, 1);
+        if (d.t >= DR.length + 0.15) finish();
       }
-      case 'arrive': {
-        // Cập bến: phát lại đúng khoá rời bến theo chiều ngược thời gian (xem ghi chú ở đầu file) để giảm tốc/hạ
-        // nghiêng đối xứng, không có phím lái nào cả; luôn dừng khớp đúng bến vì quãng đã tính bằng ARRIVE_DX.
-        var prevT2 = st.clipT;
-        st.clipT = Math.min(DEPART_LEN, st.clipT + dt);
-        departPose(DEPART_LEN - prevT2, UB, UBE); departPose(DEPART_LEN - st.clipT, UA, UAE);
-        var dxA = D_TOTAL[0] - UA[0], dzA = D_TOTAL[2] - UA[2], dxB = D_TOTAL[0] - UB[0], dzB = D_TOTAL[2] - UB[2];
-        st.x = st.arriveOrigin.x + dxA; st.z = st.arriveOrigin.z - dzA;
-        st.clipRoll = UAE[0]; st.clipPitch = UAE[2]; st.clipY = UA[1];
-        st.yaw = -UAE[1] * DEG;
-        var ddt2 = st.clipT - prevT2;
-        if (ddt2 > 1e-4) { st.vx = (dxA - dxB) / ddt2; st.vz = -(dzA - dzB) / ddt2; st.speed = Math.hypot(st.vx, st.vz); }
-        if (st.clipT >= DEPART_LEN) {
-          st.x = R.x1; st.yaw = 0;   // chốt đúng đích: bù phần vượt quá ARRIVE_DX ở khung vừa chuyển sang 'arrive'
-          st.clipRoll = st.clipPitch = st.clipY = 0; st.speed = 0; st.vx = st.vz = 0;
-          if (st.dir === 'out') { setState('dive'); daveAnim('Walk', false); }
-          else { setState('docked'); daveAnim('Idle'); }
-        }
-        break;
-      }
-      case 'dive': {
-        // [DtD] LobbyPlayer: đi trên boong 2,7 m/s tới mép m_MoveArea, chạy Diveready tại chỗ (clip không có track vị trí),
-        // màn tối dần từ divingFadePercentage (60%) của clip. Độ dài lúc tối hẳn = hết clip [ĐỀ XUẤT: số trong code IL2CPP].
-        var d = st.dave, DR = B.dave.anims.Diveready;
-        if (d.anim === 'Walk') {
-          d.x = Math.min(WALK_X, d.x + PL.moveSpeed * dt);
-          st.stepT -= dt;
-          if (st.stepT <= 0) { st.stepT = 0.25; sfx('boat_foot', { vol: 0.5, rate: 0.95 + Math.random() * 0.1 }); }
-          if (d.x >= WALK_X) { daveAnim('Diveready', false); sfx('boat_dive', { vol: 0.6 }); }
-        } else if (d.anim === 'Diveready') {
-          var f0 = PL.divingFadePercentage * DR.length;
-          st.fadeK = clamp((d.t - f0) / Math.max(0.1, DR.length - f0), 0, 1);
-          if (d.t >= DR.length + 0.15) finish();
-        }
-        break;
-      }
-      case 'docked':
-        if (st.st > 1.4) { st.fadeK = clamp((st.st - 1.4) / 0.5, 0, 1); }
-        if (st.st > 1.9) finish();
-        break;
+    } else {
+      // cập bến quán: đứng yên một nhịp rồi tối màn sang bếp [ĐỀ XUẤT: 1,4 s + 0,5 s]
+      if (st.st > 1.4) st.fadeK = clamp((st.st - 1.4) / 0.5, 0, 1);
+      if (st.st > 1.9) finish();
     }
     if (!st || st.done) return;
-    st.dist = Math.max(0, st.x - R.x1);
 
     // VFX: vệt nước/bọt hai bên và sau đuôi theo tốc độ; đứng yên thì sóng lăn tăn Idle
-    var k = clamp(Math.abs(st.speed) / VMAX, 0, 1), q = HX.game.fps < 40 ? 0.5 : 1, ex = tm + ':exit', parts = ['Back', 'Tube_Side', 'Side', 'SideL', 'SideR'];
+    var k = clamp(Math.abs(st.speed) / T.vmax, 0, 1), q = HX.game.fps < 40 ? 0.5 : 1, ex = tm + ':exit', parts = ['Back', 'Tube_Side', 'Side', 'SideL', 'SideR'];
     fx.mul(ex, parts, k * q);
     fx.sets[ex].list.forEach(function (e) {
       if (parts.indexOf(e.part) < 0) return;
-      if (!e.on && st.state !== 'moor' && st.state !== 'respawn' && k > 0.05) e.start('run');
+      if (!e.on && k > 0.05) e.start('run');
       if (e.on && e.mode === 'run' && k <= 0.02) e.stop();
     });
     fx.mul(tm + ':idle', null, clamp(1 - k * 2.5, 0, 1));
@@ -1968,13 +2065,21 @@
     // móc chỉ-đọc cho test/ho-xanh-boat.js
     info: function () {
       if (!st) return { active: false };
+      var T = st.T, sg = st.seg >= 0 ? T.segs[st.seg] : null, ndc = null;
+      if (W && st.state !== 'load') {
+        var v = new THREE.Vector3(RESTO[0], RESTO[1], -RESTO[2]).project(W.cam);
+        ndc = [v.x, v.y, v.z];
+      }
       return {
-        active: true, dir: st.dir, time: st.time, state: st.state, dist: st.dist, total: st.total, speed: st.speed, x: st.x, z: st.z, yaw: st.yaw,
-        loaded: !!W && st.state !== 'load', fade: st.fadeK, clipT: st.clipT,
-        departOrigin: st.departOrigin || null, arriveOrigin: st.arriveOrigin || null,
+        active: true, dir: st.dir, time: st.time, state: st.state, dist: st.dist, total: st.total, speed: st.speed,
+        x: st.x, z: st.z, yaw: st.yaw, loaded: !!W && st.state !== 'load', fade: st.fadeK,
+        tt: st.tt, dur: T.dur, seg: sg ? { id: sg.id, kind: sg.kind, clip: sg.clip, cam: sg.cam, t: segTime() } : null,
+        segs: T.segs.map(function (s) { return s.id + ':' + s.kind + (s.clip ? ':' + s.clip : ''); }),
+        mooring: { x: LOBBY[0], z: LOBBY[2] }, restaurant: [RESTO[0], RESTO[1], -RESTO[2]], restaurantNdc: ndc,
+        distRestaurant: Math.hypot(st.x - RESTO[0], -st.z - RESTO[2]), pan: st.pan,
         dave: { anim: st.dave.anim, visible: st.dave.visible, x: st.dave.x, t: st.dave.t },
-        live: W ? W.fx.list.length : 0, groups: W ? Object.keys(W.fx.groups).map(function (k) { return k.split('|')[0] + ':' + W.fx.groups[k].n; }) : [], vmax: VMAX,
-        departLen: DEPART_LEN, stats: st.stats || null, hdr: W ? !!W.hdr : null,
+        live: W ? W.fx.list.length : 0, groups: W ? Object.keys(W.fx.groups).map(function (k) { return k.split('|')[0] + ':' + W.fx.groups[k].n; }) : [], vmax: T.vmax,
+        stats: st.stats || null, hdr: W ? !!W.hdr : null,
       };
     },
   };
