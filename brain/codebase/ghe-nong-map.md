@@ -16,3 +16,8 @@ Nuôi quân kiểu Uma Musume, thi đấu kiểu Teamfight Manager 2. Web thuầ
 - `js/ui-clb.js`: màn ngoài (Home/gacha/nuôi thẻ). `js/util.js`: `G.hop` (hộp mới trả Promise của hộp cũ), `G.bangLon`.
 - `js/save.js`: khoá `ghenong.save.v1`. Đọc lỗi thì cất chuỗi cũ sang `.hong`.
 - Mở nhanh bằng hash: `#ca`, `#draft`, `#tran`, `#tran:600` (tua sẵn 600 tick), `#gacha`, `#nuoi`.
+- Asset thật (RESEARCH §12):
+  - `art/tfm/hinh.*` sprite TFM2 (tướng, lính, trụ, quái, 41 hiệu ứng) — `_tools/build_tfm.py`, vẽ qua `G.veHinh` / `G.veFX`.
+  - `art/uma/ui.*` icon Uma ngoài trận — `_tools/build_uma.py`, lấy qua `G.oUma` / `G.oSoUma`.
+  - `am/*` tiếng + nhạc — `_tools/build_tieng.py`; `js/tieng.js` phát (`G.tieng`, `G.nhac`).
+  - Kiểm: `_tools/kiemTieng.js` (tiếng, nhạc, lỗi trang khi chạy trận ×6), `_tools/xemfx.html` (bảng 40 chiêu).

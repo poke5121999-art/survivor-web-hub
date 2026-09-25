@@ -14,3 +14,7 @@
   - Dựng commit trong chỉ mục tạm: `GIT_INDEX_FILE=<tạm> git read-tree HEAD`, sửa bản `git show HEAD:<tệp>` ra tệp tạm, `git hash-object -w` + `git update-index --cacheinfo`, rồi `git write-tree` / `git commit-tree -p HEAD` / `git update-ref refs/heads/main`.
   - Sau đó `git reset -q HEAD -- <các tệp đó>` cho chỉ mục thật khớp HEAD mới. Nhớ chép cùng dòng đổi `rev` vào bản đang sửa dở, kẻo lần commit sau kéo ngược số bản.
   - Cây làm việc và việc của agent khác không bị đụng tới.
+- `[BẪY ĐÃ SẬP]` `.git/index.lock` mồ côi [ĐO TRONG REPO, 2026-09-25]:
+  - Hai tiến trình `git update-index --add --remove -z --stdin` (không phải của agent nào trong phiên) giữ khoá, rồi thoát mà không xoá nó.
+  - Trước khi xoá: `Get-CimInstance Win32_Process -Filter "Name='git.exe'"` xem còn ai đang chạy `update-index`/`commit`. Không còn ai thì khoá rỗng ấy là mồ côi, xoá được.
+  - Lệnh `git apply --cached` hỏng vì khoá thì KHÔNG có gì được stage; đừng tin chữ "pushed" in sau đó.
