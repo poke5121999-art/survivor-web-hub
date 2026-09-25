@@ -34,8 +34,13 @@
     var dive = fetch('art/fx/dive/dive_vfx.json' + (REV ? '?v=' + REV : '')).then(function (r) {
       if (!r.ok) throw new Error('dive_vfx.json ' + r.status);
       return r.json();
-    }).then(function (j) { DIVE = j; return self.preloadRecipes(Object.keys(j).map(function (k) { return j[k]; })); });
-    return Promise.all(Object.keys(KINDS).map(function (k) { return g.loadTex(KINDS[k].tex, KINDS[k].smooth); }).concat([dive]));
+    }).then(function (j) { DIVE = Object.assign(DIVE || {}, j); return self.preloadRecipes(Object.keys(j).map(function (k) { return j[k]; })); });
+    // hạt của đầu xiên đặc biệt, bùa cá (debuff) và drone (tools/rip_gear.py → art/fx/gear/gear_vfx.json), chung tên với fx.dive()
+    var gear = fetch('art/fx/gear/gear_vfx.json' + (REV ? '?v=' + REV : '')).then(function (r) {
+      if (!r.ok) throw new Error('gear_vfx.json ' + r.status);
+      return r.json();
+    }).then(function (j) { DIVE = Object.assign(DIVE || {}, j); return self.preloadRecipes(Object.keys(j).map(function (k) { return j[k]; })); });
+    return Promise.all(Object.keys(KINDS).map(function (k) { return g.loadTex(KINDS[k].tex, KINDS[k].smooth); }).concat([dive, gear]));
   };
   Fx.prototype.dive = function (name) { return DIVE && DIVE[name] || null; };
 
@@ -358,7 +363,7 @@
     this.n = 0;
   };
 
-  // Một lần phát công thức. opts: angle (rad, xoay cả công thức quanh z), scale, z, follow() → {x, y, angle} (bám theo vật), loop.
+  // Một lần phát công thức. opts: angle (rad, xoay cả công thức quanh z), scale, z, follow() → {x, y, z?, angle} (bám theo vật), loop.
   function Play(fx, recipe, x, y, opts) {
     opts = opts || {};
     this.ex = new Map();
@@ -440,7 +445,7 @@
   Play.prototype.update = function (dt) {
     if (this.follow) {
       var f = this.follow();
-      if (f) { this.x = f.x; this.y = f.y; if (f.angle != null) this.angle = f.angle; if (f.flip != null) this.flip = !!f.flip; } else this.stopped = true;
+      if (f) { this.x = f.x; this.y = f.y; if (f.z != null) this.z = f.z; if (f.angle != null) this.angle = f.angle; if (f.flip != null) this.flip = !!f.flip; } else this.stopped = true;
     }
     this.t += dt;
     var moved = Math.hypot(this.x - this.px, this.y - this.py), alive = 0;

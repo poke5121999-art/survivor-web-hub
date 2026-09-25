@@ -73,6 +73,17 @@ window.HX_TUNING = {
     reelSpeed: 4.5,          // [ĐỀ XUẤT] kéo cá về
     minReady: 0.3,           // [DtD] clip RangeWeaponDraw dài 0,3 giây (tay + súng hiện ở 0,2 giây); bắn sớm hơn là súng chưa rút xong
     fireHold: 0.14,          // [ĐỀ XUẤT] giữ dáng HookAttackFire
+    chainRange: 3,           // [ĐỀ XUẤT] sét của mũi xiên sét nảy sang con cá trong bán kính này (m); bảng buff gốc không có tầm
+  },
+  // Drone cứu hộ (LiftDrone gốc). Đường bay là root motion của hai clip gốc Ani3D_UnderwaterDrone01_Normal_Move_A/B:
+  // bay từ xa phía sau (z +14 m) tới lơ lửng trên chỗ nâng cá, dừng, rồi bay ngược ra xa. Mốc thời gian đo trên khoá clip.
+  drone: {
+    callTime: 2.0,           // [DtD] CallDroneCommand_SO.commandDuration: Dave đứng gọi drone
+    reach: 0.9,              // [ĐỀ XUẤT] Dave cách thân cá trong khoảng này (m) thì gọi được drone
+    arrive: { A: 5.3, B: 5.3 },   // [DtD] giây tới chỗ lơ lửng (Root/Transform gần đứng yên) của clip A / B: thả lưới
+    grab: { A: 6.7, B: 8.0 },     // [DtD] giây bắt đầu bay đi của clip A / B: từ đây cá bám theo drone
+    liftUp: 0.8,             // [ĐỀ XUẤT] chỗ nâng cá (DroneLiftPosition gốc, mỗi loài một chỗ, không đọc được) = tâm cá + 0,8 × nửa chiều cao
+    scale: 1,                // [DtD] LiftDrone.prefab phóng ×1
   },
   tug: {
     minSize: 1,              // [ĐỀ XUẤT] cá từ cỡ này trở lên mới giằng co

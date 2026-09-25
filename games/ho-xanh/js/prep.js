@@ -839,13 +839,14 @@
     row.title = t.desc;
     costRow(row, cost, 'TỐI ĐA');
     var D = 'UpgradeDetailPanel/';
-    var cur = pick(row, D + 'CurrentLevel'); cur.classList.add('pr-lv', 'cur'); setText(cur, N(L, D + 'CurrentLevel'), lvText(lv + 1));
+    var none = t.buyFirst && lv === 0;   // drone: cấp 0 là chưa có, phải mua
+    var cur = pick(row, D + 'CurrentLevel'); cur.classList.add('pr-lv', 'cur'); setText(cur, N(L, D + 'CurrentLevel'), none ? 'Chưa có' : lvText(t.buyFirst ? lv : lv + 1));
     var cp = pick(row, D + 'CurrentStatusPanel'); cp.classList.add('pr-stat', 'cur');
     setText(pick(cp, 'CurrentStatusText'), N(L, D + 'CurrentStatusPanel/CurrentStatusText'), statLabel(t)).classList.add('pr-stl');
     setText(pick(cp, 'CurrentStatusValue'), N(L, D + 'CurrentStatusPanel/CurrentStatusValue'), fmt(M.stat(s, key), t.unit)).classList.add('pr-stv');
     if (!max) {
       pick(row, D + 'Arrow').classList.add('pr-arrow');
-      var nx = pick(row, D + 'NextLevel'); nx.classList.add('pr-lv', 'next'); setText(nx, N(L, D + 'NextLevel'), lvText(lv + 2));
+      var nx = pick(row, D + 'NextLevel'); nx.classList.add('pr-lv', 'next'); setText(nx, N(L, D + 'NextLevel'), lvText(t.buyFirst ? lv + 1 : lv + 2));
       var np = pick(row, D + 'NextStatusPanel'); np.classList.add('pr-stat', 'next');
       setText(pick(np, 'NextStatusText'), N(L, D + 'NextStatusPanel/NextStatusText'), statLabel(t)).classList.add('pr-stl');
       setText(pick(np, 'NextStatusValue'), N(L, D + 'NextStatusPanel/NextStatusValue'), fmt(t.levels[lv + 1].value, t.unit)).classList.add('pr-stv');
@@ -856,8 +857,55 @@
       m.classList.add('pr-maxlv');
       row.insertBefore(m, pick(row, 'MaxStroke'));
     }
-    var b = buyButton(max ? 'Tối đa' : 'Nâng cấp', max ? 'max' : s.gold < cost ? 'poor' : 'ok');
+    var b = buyButton(max ? 'Tối đa' : none ? 'Mua' : 'Nâng cấp', max ? 'max' : s.gold < cost ? 'poor' : 'ok');
     b.addEventListener('click', function () { unlock(); buyGear(key, row); });
+    placeBuy(row, b);
+    return row;
+  }
+
+  // Đầu mũi xiên (HX_META.HEADS): cùng ô iDiver với trang bị. Một nút: Mua → (đã lắp) Nâng cấp; đầu đã có mà chưa lắp thì Lắp vào.
+  // Chỉ số hiện trên ô: phần sát thương cộng thêm + hiệu ứng chính của bùa gốc ở cấp đó.
+  function pct(v) { return Math.round(Math.abs(v) * 100) + '%'; }
+  var HEAD_STAT = {
+    none: function (L) { return ['Sát thương', '+' + L.dmg]; },
+    shock: function (L) { return ['Tê liệt', pct(L.buff.chance) + ' · chậm ' + pct(L.buff.v[0])]; },
+    poison: function (L) { return ['Độc', num(L.buff.v[0]) + ' máu/' + num(L.buff.tick) + 's · ' + num(L.buff.duration) + 's']; },
+    burn: function (L) { return ['Lửa', '+' + pct(L.buff.v[0]) + ' sát thương']; },
+    chain: function (L) { return ['Sét lan', pct(L.buff.v[0]) + ' × ' + L.buff.v[1] + ' con']; },
+    sleep: function (L) { return ['Ngủ ngay', pct(L.buff.chance) + ' · ' + num(L.buff.duration) + 's']; },
+    freeze: function (L) { return ['Đóng băng', pct(L.buff.chance) + ' · ' + num(L.buff.duration) + 's']; },
+  };
+  function headStat(h, lv) { return HEAD_STAT[h.effect](M.headStat(h.id, lv)); }
+  function headRow(id) {
+    var s = HX.save.get(), h = M.HEADS[id], lv = M.headLevel(s, id), cost = M.headNextCost(s, id), max = cost === null, on = s.heads.equipped === id;
+    var L = LAY.cell, key = 'head:' + id;
+    var row = cellFrame({ key: key, icon: h.icon, name: h.name, max: max && on, stroke: on, strokeColor: C.equip });
+    row.title = h.desc;
+    if (on) row.classList.add('on');
+    // đã có mà chưa lắp: nút là "Lắp vào" nên ô giá ghi ĐÃ CÓ (như ô súng), lắp rồi mới hiện giá nâng cấp
+    if (lv && !on) costRow(row, null, 'ĐÃ CÓ', [1, 1, 1, 1]);
+    else costRow(row, max ? null : cost, on ? 'ĐANG LẮP' : 'TỐI ĐA');
+    var D = 'UpgradeDetailPanel/', st = headStat(h, Math.max(1, lv));
+    var cur = pick(row, D + 'CurrentLevel'); cur.classList.add('pr-lv', 'cur'); setText(cur, N(L, D + 'CurrentLevel'), lv ? lvText(lv) : 'Chưa có');
+    var cp = pick(row, D + 'CurrentStatusPanel'); cp.classList.add('pr-stat', 'cur');
+    setText(pick(cp, 'CurrentStatusText'), N(L, D + 'CurrentStatusPanel/CurrentStatusText'), st[0]).classList.add('pr-stl');
+    setText(pick(cp, 'CurrentStatusValue'), N(L, D + 'CurrentStatusPanel/CurrentStatusValue'), lv ? st[1] : '—').classList.add('pr-stv');
+    if (!max) {
+      var nst = headStat(h, lv + 1);
+      pick(row, D + 'Arrow').classList.add('pr-arrow');
+      var nx = pick(row, D + 'NextLevel'); nx.classList.add('pr-lv', 'next'); setText(nx, N(L, D + 'NextLevel'), lvText(lv + 1));
+      var np = pick(row, D + 'NextStatusPanel'); np.classList.add('pr-stat', 'next');
+      setText(pick(np, 'NextStatusText'), N(L, D + 'NextStatusPanel/NextStatusText'), nst[0]).classList.add('pr-stl');
+      setText(pick(np, 'NextStatusValue'), N(L, D + 'NextStatusPanel/NextStatusValue'), nst[1]).classList.add('pr-stv');
+    } else {
+      ['Arrow', 'NextLevel', 'NextStatusPanel'].forEach(function (n) { pick(row, D + n).remove(); });
+      var mN = N(L, 'MaxLevel_Text'), m = mk(mN, L.rt[6], L.rt[7]);
+      m.classList.add('pr-maxlv');
+      row.insertBefore(m, row.querySelector(':scope > [data-n="MaxStroke"]') || row.querySelector('.pr-focus'));
+    }
+    var b = lv && !on ? buyButton('Lắp vào', 'ok') : max ? buyButton('Tối đa', 'max') : buyButton(lv ? 'Nâng cấp' : 'Mua', s.gold < cost ? 'poor' : 'ok');
+    b.dataset.act = lv && !on ? 'equip' : 'buy';
+    b.addEventListener('click', function () { unlock(); headAction(id); });
     placeBuy(row, b);
     return row;
   }
@@ -1038,7 +1086,10 @@
       // EnhancedScroller gốc: khoảng cách ô 14 px
       var sc = script(N(LAY.panel, 'CommonBg/SubEquipUpgradeScroll/SubEquipScroll'), 'EnhancedScroller');
       if (sc) list.style.gap = px(sc.spacing);
-      if (tab === 'gear') Object.keys(M.GEAR).forEach(function (k) { list.appendChild(gearRow(k)); });
+      if (tab === 'gear') {
+        Object.keys(M.GEAR).forEach(function (k) { list.appendChild(gearRow(k)); });
+        Object.keys(M.HEADS).forEach(function (id) { list.appendChild(headRow(id)); });
+      }
       else Object.keys(M.GUNS).forEach(function (id) { list.appendChild(gunRow(id)); });
       body.appendChild(list);
     }
@@ -1082,7 +1133,7 @@
     render();
     spent(r.cost);
     sfx('ui_levelup');
-    levelUpPopup({ name: t.name, icon: t.icon, big: lvText(lv + 1), stat: [statLabel(t), fmt(t.levels[lv].value, t.unit)], desc: t.desc });
+    levelUpPopup({ name: t.name, icon: t.icon, big: lvText(t.buyFirst ? lv : lv + 1), stat: [statLabel(t), fmt(t.levels[lv].value, t.unit)], desc: t.desc });
   }
   function gunAction(id) {
     var cur = HX.save.get(), g = M.GUNS[id], owned = cur.guns.owned.indexOf(id) >= 0;
@@ -1107,6 +1158,27 @@
     render();
     var row = body.querySelector('.pr-row[data-key="' + id + '"]');
     if (row) { var f = row.querySelector('.pr-focus'); if (f) focusAnim(f); }
+  }
+  function headAction(id) {
+    var cur = HX.save.get(), h = M.HEADS[id], lv = M.headLevel(cur, id);
+    if (lv && cur.heads.equipped !== id) {
+      var eq = M.equipHead(cur, id);
+      if (!eq.ok) return refuse(eq);
+      HX.save.commit(function () { return eq.save; });
+      msg = '';
+      sfx('ui_slot');
+      render();
+      return;
+    }
+    var cost = M.headNextCost(cur, id), r = M.buyHead(cur, id);
+    if (!r.ok) return refuse(r, cost);
+    HX.save.commit(function () { return r.save; });
+    msg = '';
+    render();
+    spent(r.cost);
+    sfx(lv ? 'ui_levelup' : 'ui_buy');
+    var st = headStat(h, r.lv);
+    levelUpPopup({ name: h.name, icon: h.icon, big: lvText(r.lv), stat: [st[0], st[1]], desc: h.desc });
   }
   function buyBar(key) {
     var cur = HX.save.get(), cost = M.nextCost(cur, key), r = M.buy(cur, key);
@@ -1328,6 +1400,7 @@
       // nạp sẵn icon mọi dòng và ảnh app Duff: đổi thẻ khỏi thấy ô trống vài khung đầu
       Object.keys(M.GEAR).forEach(function (k) { if (M.GEAR[k].icon) load(M.GEAR[k].icon); });
       Object.keys(M.GUNS).forEach(function (k) { if (M.GUNS[k].icon) load(M.GUNS[k].icon); });
+      Object.keys(M.HEADS).forEach(function (k) { if (M.HEADS[k].icon) load(M.HEADS[k].icon); });
       if (DUF.images) { load(DUF.images.bg.img); load(DUF.images.logo.img); }
       if (document.fonts && document.fonts.ready) document.fonts.ready.then(onFonts);
       addEventListener('resize', layout);

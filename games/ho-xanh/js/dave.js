@@ -269,7 +269,7 @@
     // BloodDave.prefab gốc (máu tan trong nước khi Dave bị cắn)
     G.fx.play(G.fx.dive('bloodDave'), this.pos.x, this.pos.y + 0.1 * S, { z: 0.14, name: 'bloodDave' });
     if (this.o2 <= 0) { this.go('dead'); return true; }
-    if (this.state === 'swim' || this.state === 'aim' || this.state === 'melee' || this.state === 'gunAim' || this.state === 'gunFire' || this.state === 'harvest') this.go('hurt', { big: dmg >= T.diver.bigHurtAt });
+    if (this.state === 'swim' || this.state === 'aim' || this.state === 'melee' || this.state === 'gunAim' || this.state === 'gunFire' || this.state === 'harvest' || this.state === 'callDrone') this.go('hurt', { big: dmg >= T.diver.bigHurtAt });
     return true;
   };
 
@@ -284,12 +284,16 @@
     }
     return best;
   };
-  // Lời nhắc trên xác cá: { fish, carve, k (0..1 tiến độ xả thịt) } hoặc null.
+  // Lời nhắc trên xác cá: { fish, carve, k (0..1 tiến độ xả thịt / gọi drone), drone (gọi drone được) } hoặc null.
+  // Cá lớn đang ngủ hay đông đá cũng gọi drone được (bắt sống như bản gốc), nên lời nhắc có thể đứng trên con cá chưa chết.
   Diver.prototype.harvestPrompt = function () {
     if (this.state === 'harvest') return this.data.step === 'carve' ? { fish: this.data.fish, carve: true, k: this.data.k } : null;
+    if (this.state === 'callDrone') return { fish: this.data.fish, carve: false, k: this.data.k, drone: true };
     if (this.state !== 'swim') return null;
+    var dr = this.G.drone, t = dr && dr.canCall() ? dr.target() : null;
     var f = this.corpseInReach();
-    return f ? { fish: f, carve: f.carvable(), k: 0 } : null;
+    if (f) return { fish: f, carve: f.carvable(), k: 0, drone: t === f };
+    return t ? { fish: t, carve: false, k: 0, drone: true } : null;
   };
 
   Diver.prototype.update = function (dt, inp) {
@@ -400,6 +404,12 @@
         // Space là nút Interaction của bản gốc: cạnh xác cá thì nhặt / xả thịt thay vì lướt
         var corpse = inp.interact && d.corpseInReach();
         if (corpse) return d.go('harvest', { fish: corpse });
+        // gọi drone cứu hộ (phím SubInteraction gốc); không còn drone thì nhún vai như lệnh gốc thất bại
+        if (inp.drone && G.drone) {
+          var dt0 = G.drone.target();
+          if (dt0 && G.drone.canCall()) return d.go('callDrone', { fish: dt0 });
+          if (dt0 && G.drone.left <= 0) return d.go('harvest', { fish: dt0, fail: 'Hết drone cứu hộ' });
+        }
         if (inp.dash && d.dashCd <= 0 && moving) return d.go('dash', { mx: inp.mx, my: inp.my });
         if (inp.firePressed && G.harpoon.state === 'ready') return d.go('aim');
         if (inp.gunPressed && G.gun && G.harpoon.state === 'ready') return d.go('gunAim');
@@ -510,8 +520,8 @@
           var perfect = d.data.time / T.tug.time > T.tug.perfectAt;
           G.audio.play(perfect ? 'qte_perfect' : 'qte_success');
           G.hud.qteResult(true, perfect);
-          G.harpoon.killHooked();
-          d.go('reel');
+          // cá nhỏ theo dây về tay; cá lớn (xả thịt) thành xác nằm lại, mũi xiên rút ra
+          d.go(G.harpoon.killHooked() ? 'reel' : 'swim');
         } else if (d.data.time <= 0 || d.data.gauge <= 0) {
           G.audio.play('qte_fail');
           G.hud.qteResult(false);
@@ -597,10 +607,11 @@
         var f = d.data.fish;
         d.boosting = false;
         d.faceToward(f.center().x - d.pos.x);
-        if (G.catches.length >= G.loadout.cargo) {
+        if (d.data.fail || G.catches.length >= G.loadout.cargo) {
+          // lệnh thất bại (túi đầy, hết drone): failAnimTrigger Overloaded của Command gốc
           d.data.step = 'full';
           d.play('Overloaded', true);
-          G.hud.toast('Túi đầy · phải thả cá đi');
+          G.hud.toast(d.data.fail || 'Túi đầy · phải thả cá đi');
         } else if (f.carvable()) {
           d.data.step = 'carve'; d.data.k = 0;
           d.play('Tanning', true);
@@ -630,6 +641,27 @@
         // PickUpItem, TanningAfter, Overloaded gốc chạy hết một vòng clip rồi về Idle
         var c = clipOf(d.animName);
         if (d.st >= (c ? c.length : 0.4)) d.go('swim');
+      },
+    },
+
+    // Gọi drone cứu hộ (CallDroneCommand_SO gốc): đứng yên commandDuration giây, trigger CallEscapePod chạy clip WaitEscapepod,
+    // tiếng sound_Call_Drone_01. Đủ giờ thì drone bay tới con cá (js/drone.js); bị cắn giữa chừng thì thôi, không mất drone.
+    callDrone: {
+      enter: function (d, G) {
+        d.boosting = false;
+        d.data.k = 0;
+        d.faceToward(d.data.fish.center().x - d.pos.x);
+        d.play('Wait', true);
+        G.audio.play('gear_drone_call');
+      },
+      update: function (d, G, dt) {
+        var f = d.data.fish;
+        d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
+        d.vel.x *= Math.exp(-6 * dt); d.vel.y *= Math.exp(-6 * dt);
+        d.swim(dt, { mx: 0, my: 0 }, T.diver.maxSpeed);
+        if (!G.drone || !G.drone.liftable(f)) return d.go('swim');
+        d.data.k = Math.min(1, d.st / T.drone.callTime);
+        if (d.data.k >= 1) { G.drone.launch(f); d.go('swim'); }
       },
     },
 

@@ -26,6 +26,7 @@
 
   // Cấp 0 = hàng lv1 của bản gốc (đồ khởi đầu của Dave, giá 0).
   var S = SHEET.gear;
+  var DRONE_BUY = 1200;   // [ĐỀ XUẤT] giá drone đầu tiên; bản gốc tặng theo cốt truyện, chiếc thứ hai đã là 6300
   var GEAR = {
     o2: { name: 'Bình dưỡng khí', desc: 'Dưỡng khí tối đa mỗi lượt lặn', unit: 'O₂', icon: icon('o2'),
       levels: fromSheet(S.o2, 'maxO2') },                  // [DtD] 90 → 530, 11 cấp
@@ -37,6 +38,12 @@
       levels: fromSheet(S.knife, 'damage') },              // [DtD] 3 → 17
     harpoon: { name: 'Súng xiên', desc: 'Sát thương mỗi phát xiên', unit: 'st', icon: icon('harpoon'),
       levels: fromSheet(S.harpoon, 'damage') },            // [DtD] 3 → 40
+    // Bản gốc tặng drone thứ nhất theo cốt truyện (SubEquipment lv1 giá 0) rồi bán thêm ở iDiver. Ở đây cấp 0 là chưa có drone,
+    // phải mua cấp 1 mới gọi được. value = số drone mỗi lượt lặn (DroneCount).
+    drone: { name: 'Drone cứu hộ', desc: 'Số lần gọi drone kéo cá lớn lên thuyền mỗi lượt lặn', stat: 'Drone mỗi lượt', unit: 'chiếc',
+      icon: icon('drone'), buyFirst: true,
+      levels: [{ cost: 0, value: 0 }, { cost: DRONE_BUY, value: +S.drone[0].drones }]   // DRONE_BUY [ĐỀ XUẤT]; 1 chiếc [DtD]
+        .concat(S.drone.slice(1).map(function (r) { return { cost: +r.price[0], value: +r.drones }; })) },   // [DtD] 6300 → 2, 12800 → 3
   };
 
   // ---------- cấp trang trí: quán Bancho đi từ quán cũ tới quán sửa sang bày đủ đồ ----------
@@ -146,6 +153,82 @@
     GUNS[id] = g;
   });
 
+  // ---------- đầu mũi xiên ----------
+  // Số [DtD] lấy từ HX_ASSETS.heads (tools/rip_gear.py): HarpoonHeadSpecData_<Loại>_1..5 (sát thương cộng thêm) và hàng
+  // BuffDebuffEffect của _BuffIDs (thời lượng, nhịp, buffvalue, tỉ lệ, hạt, màu phủ). Bản gốc KHÔNG bán đầu xiên: chúng rơi
+  // từ hòm vũ khí trong lúc lặn (ChestDropList, cấp 1–4) và mất khi lên bờ. Ở đây mua và nâng ở iDiver, giá [ĐỀ XUẤT].
+  // effect: tên kiểu hiệu ứng khi trúng, js/harpoon.js tra bảng HEAD_EFFECTS theo tên này.
+  var HA = root.HX_ASSETS && root.HX_ASSETS.heads || {};
+  var HEAD_COST = [180, 360, 720, 1440, 2880];   // [ĐỀ XUẤT] mua (cấp 1), rồi nâng lên cấp 2..5; mỗi cấp gấp đôi
+  var HEAD_TEXT = {
+    basic: { name: 'Mũi xiên thường', effect: 'none', desc: 'Mũi xiên sắc bình thường, lấy được nguyên con cá' },
+    strong: { name: 'Mũi xiên cường hoá', effect: 'none', desc: 'Mài sắc hơn: cộng thêm sát thương' },
+    paralysis: { name: 'Mũi xiên điện', effect: 'shock', desc: 'Có tỉ lệ làm cá tê liệt, bơi chậm hẳn một lúc' },
+    poison: { name: 'Mũi xiên độc', effect: 'poison', desc: 'Tiêm độc: cá mất máu đều đặn một lúc sau khi trúng' },
+    fire: { name: 'Mũi xiên lửa', effect: 'burn', desc: 'Nung nóng: đốt thêm một phần sát thương' },
+    chain: { name: 'Mũi xiên sét', effect: 'chain', desc: 'Sét lan sang cá gần đó, nảy nhiều lần' },
+    sleep: { name: 'Mũi xiên gây mê', effect: 'sleep', desc: 'Có tỉ lệ làm cá ngủ ngay; cá nhỏ kéo về còn sống' },
+    ice: { name: 'Mũi xiên băng', effect: 'freeze', desc: 'Có tỉ lệ đóng băng cá; đánh cá đông đá gây thêm sát thương' },
+  };
+  var HEADS = {};
+  Object.keys(HEAD_TEXT).forEach(function (id) {
+    var a = HA[id], tx = HEAD_TEXT[id];
+    if (!a || !Array.isArray(a.levels) || !a.levels.length) return;   // chưa chạy rip_gear.py: không có đầu xiên nào ngoài mặc định
+    HEADS[id] = {
+      id: id, name: tx.name, desc: tx.desc, effect: tx.effect, icon: a.icon || null, thumb: a.thumb || null,
+      rope: a.rope || null, aura: a.aura || null,
+      cost: id === 'basic' ? [0] : HEAD_COST.slice(0, a.levels.length),
+      levels: a.levels.map(function (l) { return { dmg: l.dmg, buff: l.buff || null }; }),
+    };
+  });
+  if (!HEADS.basic) HEADS.basic = { id: 'basic', name: HEAD_TEXT.basic.name, desc: HEAD_TEXT.basic.desc, effect: 'none', icon: null, thumb: null,
+    rope: null, aura: null, cost: [0], levels: [{ dmg: 0, buff: null }] };
+
+  function head(id) {
+    if (!HEADS[id]) throw new Error('không có đầu xiên "' + id + '"');
+    return HEADS[id];
+  }
+  // Cấp đầu xiên trong sổ: 0 = chưa có; mũi thường luôn có cấp 1.
+  function headLevel(save, id) {
+    var h = head(id);
+    if (id === 'basic') return 1;
+    var n = save && save.heads && save.heads.lv ? save.heads.lv[id] | 0 : 0;
+    return Math.max(0, Math.min(h.levels.length, n));
+  }
+  function headNextCost(save, id) {
+    var h = head(id), lv = headLevel(save, id);
+    return lv >= h.levels.length ? null : h.cost[lv];
+  }
+  // Số của một đầu xiên ở cấp lv (1..5).
+  function headStat(id, lv) {
+    var L = head(id).levels;
+    return L[Math.max(0, Math.min(L.length - 1, (lv || 1) - 1))];
+  }
+  // Mua cấp 1 hoặc nâng lên cấp kế. Mua lần đầu thì lắp luôn.
+  function buyHead(save, id) {
+    var cost = headNextCost(save, id), lv = headLevel(save, id);
+    if (cost === null) return { ok: false, reason: 'đã tối đa' };
+    if (save.gold < cost) return { ok: false, reason: 'thiếu tiền' };
+    var s = clone(save);
+    s.heads.lv[id] = lv + 1;
+    if (lv === 0) s.heads.equipped = id;
+    s.gold -= cost;
+    return { ok: true, save: s, cost: cost, lv: lv + 1 };
+  }
+  function equipHead(save, id) {
+    if (headLevel(save, id) < 1) return { ok: false, reason: 'chưa mua' };
+    var s = clone(save);
+    s.heads.equipped = id;
+    return { ok: true, save: s };
+  }
+  // Đầu xiên đang lắp cho một lượt lặn: { id, name, icon, lv, effect, dmg, buff, rope, aura }.
+  function headLoadout(save) {
+    var id = save && save.heads && HEADS[save.heads.equipped] && headLevel(save, save.heads.equipped) > 0 ? save.heads.equipped : 'basic';
+    var h = HEADS[id], lv = headLevel(save, id), st = headStat(id, lv);
+    return { id: id, name: h.name, icon: h.icon, lv: lv, effect: h.effect, dmg: st.dmg, buff: st.buff ? clone(st.buff) : null,
+      rope: h.rope, aura: h.aura };
+  }
+
   var SUIT_OVER_MUL = 2.5;   // [ĐỀ XUẤT] quá độ sâu an toàn của đồ lặn thì dưỡng khí tụt nhanh gấp chừng này
 
   // ---------- sổ lưu: dạng mặc định, mọi nâng cấp tra bảng nào ----------
@@ -157,7 +240,7 @@
   function defaults() {
     return {
       v: 1, day: 1, stage: 'prep', gold: 0,
-      gear: zeros(GEAR), guns: { owned: [], equipped: null },
+      gear: zeros(GEAR), guns: { owned: [], equipped: null }, heads: { lv: {}, equipped: 'basic' },
       fridge: {}, bar: zeros(BAR), dex: {}, stats: { served: 0, earned: 0 },
     };
   }
@@ -227,6 +310,7 @@
     Object.keys(GEAR).forEach(function (k) { L[k] = stat(save, k); });
     var id = save && save.guns && save.guns.equipped;
     L.gun = id && GUNS[id] ? Object.assign({ id: id, lv: 1, mode: GUNS[id].mode }, gunStat(id, 1)) : null;
+    L.head = headLoadout(save);
     return L;
   }
 
@@ -264,5 +348,6 @@
     defaults: defaults, table: table, slot: function (key) { table(key); return SLOT[key]; },
     maxLevel: maxLevel, level: level, stat: stat, nextCost: nextCost, buy: buy,
     gunStat: gunStat, buyGun: buyGun, equipGun: equipGun, loadout: loadout, dishOf: dishOf, servingsOf: servingsOf,
+    HEADS: HEADS, headLevel: headLevel, headNextCost: headNextCost, headStat: headStat, buyHead: buyHead, equipHead: equipHead,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -31,6 +31,14 @@
     var guns = plain(src.guns), owned = Array.isArray(guns.owned) ? guns.owned : [];
     s.guns.owned = owned.filter(function (id, i) { return M.GUNS[id] && owned.indexOf(id) === i; });
     s.guns.equipped = s.guns.owned.indexOf(guns.equipped) >= 0 ? guns.equipped : null;
+    // đầu xiên: cấp 1..số cấp của bảng, mũi thường không ghi (luôn có); lắp đầu chưa mua thì về mũi thường
+    var heads = plain(src.heads), hl = plain(heads.lv);
+    Object.keys(hl).forEach(function (id) {
+      if (id === 'basic' || !M.HEADS[id]) return;
+      var n = Math.min(M.HEADS[id].levels.length, nat(hl[id]));
+      if (n) s.heads.lv[id] = n;
+    });
+    s.heads.equipped = M.HEADS[heads.equipped] && M.headLevel(s, heads.equipped) > 0 ? heads.equipped : 'basic';
     var fr = plain(src.fridge);
     Object.keys(fr).forEach(function (id) { var n = nat(fr[id]); if (n && knownFish(id)) s.fridge[id] = n; });
     var dex = plain(src.dex);

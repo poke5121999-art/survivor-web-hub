@@ -135,17 +135,18 @@ async function run(browser, base, W, H, touch) {
   check('sổ mới vào thẳng màn chuẩn bị, 0 vàng, ngày 1', S.gold === 0 && S.day === 1 && (await text('.pr-gold')) === '0 vàng' && (await text('.pr-head h2')) === 'Ngày 1',
     await text('.pr-gold') + ' / ' + await text('.pr-head h2'));
   const gearKeys = await page.$$eval('#scr-prep .pr-row', r => r.map(e => e.dataset.key));
-  const metaGear = await page.evaluate(() => Object.keys(HX_META.GEAR));
-  check('thẻ Trang bị dựng đủ các dòng của HX_META.GEAR theo thứ tự', JSON.stringify(gearKeys) === JSON.stringify(metaGear), gearKeys.join(','));
+  // trang bị (có drone) rồi tới các đầu mũi xiên
+  const metaGear = await page.evaluate(() => Object.keys(HX_META.GEAR).concat(Object.keys(HX_META.HEADS).map(id => 'head:' + id)));
+  check('thẻ Trang bị dựng đủ các dòng của HX_META.GEAR rồi HX_META.HEADS theo thứ tự', JSON.stringify(gearKeys) === JSON.stringify(metaGear), gearKeys.join(','));
   const srcs = await page.$$eval('#scr-prep .pr-row .pr-icon', e => e.map(i => i.getAttribute('src').split('?')[0]));
-  const metaIcons = await page.evaluate(() => Object.keys(HX_META.GEAR).map(k => HX_META.GEAR[k].icon));
-  check('ô trang bị dùng icon iDiver gốc trong HX_META.GEAR', JSON.stringify(srcs) === JSON.stringify(metaIcons), srcs.map(s => s.split('/').pop()).join(', '));
+  const metaIcons = await page.evaluate(() => Object.keys(HX_META.GEAR).map(k => HX_META.GEAR[k].icon).concat(Object.keys(HX_META.HEADS).map(k => HX_META.HEADS[k].icon)));
+  check('ô trang bị dùng icon iDiver gốc trong HX_META.GEAR, ô đầu xiên dùng icon Item_*HarpoonHead gốc', JSON.stringify(srcs) === JSON.stringify(metaIcons), srcs.map(s => s.split('/').pop()).join(', '));
   let L = await layoutIssues(page);
   check('thẻ Trang bị không tràn khung, không nút bị cắt', !L.bad.length, L.bad.slice(0, 4).join(' | '));
   check('chữ nhỏ nhất ≥ 10 px', L.minFont >= 10, L.minFont + ' px');
   await shot('1-gear');
   let IC = await iconIssues(page);
-  check('thẻ Trang bị: mọi icon ô đã tải (naturalWidth > 0) và hiện ngay lúc chụp, mọi ô giá có xu', !IC.bad.length && IC.icons === Object.keys(await page.evaluate(() => HX_META.GEAR)).length,
+  check('thẻ Trang bị: mọi icon ô đã tải (naturalWidth > 0) và hiện ngay lúc chụp, mọi ô giá có xu', !IC.bad.length && IC.icons === metaGear.length,
     IC.icons + ' icon, ' + IC.coins + ' xu ' + IC.bad.slice(0, 4).join(' | '));
   const lay = await page.evaluate(() => ({ lay: HX.prep.debug.layouts(), st: HX.prep.debug.standins() }));
   check('bố cục iDiver + Duff đọc từ JSON gốc, không còn sprite thay tạm', ['panel', 'cell', 'duffApp', 'newWeaponTitle'].every(k => (lay.lay || []).includes(k)) && !Object.keys(lay.st).length,

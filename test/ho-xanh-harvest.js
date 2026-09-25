@@ -56,6 +56,8 @@ async function run(browser, base, W, H) {
   await page.click('#boat-skip');
   await page.waitForFunction(() => HX_DEBUG.info().phase === 'dive', null, { timeout: 90000 });
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 8000 });
+  const noDrone = await page.evaluate(() => ({ drone: HX.game.drone, owned: HX_DEBUG.save().gear.drone }));
+  check('sổ mới chưa mua drone: G.drone === null', noDrone.drone === null && noDrone.owned === 0, JSON.stringify(noDrone));
   await page.evaluate(() => {
     const orig = HX.audio.play; window.__played = [];
     HX.audio.play = function (k, o) { window.__played.push(k); return orig(k, o); };
@@ -100,7 +102,7 @@ async function run(browser, base, W, H) {
   await sleep(380);
   await page.mouse.up();
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'tug', null, { timeout: 2000 }).catch(() => {});
-  let I = await info();
+  let I = await info(), prompt;
   check('xiên trúng cá bò titan còn 8 máu: vào giằng co', I.dave.state === 'tug', I.dave.state);
   const p0 = I.dave;
   const trace = await page.evaluate(async () => {
@@ -154,6 +156,51 @@ async function run(browser, base, W, H) {
   await shot('1-tug');
   void big2;
 
+  // ---- một mũi xiên hạ cá nhỏ: dây kéo về túi như cũ ----
+  await home();
+  await sleep(300);
+  const cuid = await page.evaluate(s => HX_DEBUG.spawnFish('ClownFish', s.x + 2.4, s.y, true), spot);
+  await page.mouse.move(tS.x, tS.y);
+  await page.mouse.down();
+  await sleep(380);
+  await page.mouse.up();
+  await page.waitForFunction(() => HX.game.catches.length === 1, null, { timeout: 3000 }).catch(() => {});
+  await sleep(400);   // cá vào túi mờ đi 0,2 giây rồi mới rời cảnh
+  I = await info();
+  const cf = await fishBy(cuid);
+  check('xiên một phát hạ cá hề (3 máu): dây kéo cá về túi, không để lại xác', JSON.stringify(I.catches) === '["ClownFish"]' && !cf, JSON.stringify(I.catches) + ' ' + JSON.stringify(cf));
+
+  // ---- cá lớn phải xả thịt chết trên dây (thắng giằng co): thành xác nằm lại, mũi xiên rút ra ----
+  await home();
+  await sleep(300);
+  const tuid = await page.evaluate(s => {
+    const uid = HX_DEBUG.spawnFish('Giant_Trevally', s.x + 2.4, s.y, true);
+    const f = HX.game.fishes.list.find(q => q.id === uid);
+    f.hp = Math.floor(f.maxHp * 0.6);   // trúng 3 là dưới 60% máu: vào giằng co
+    return uid;
+  }, spot);
+  await page.mouse.move(tS.x, tS.y);
+  await page.mouse.down();
+  await sleep(380);
+  await page.mouse.up();
+  await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'tug', null, { timeout: 2000 }).catch(() => {});
+  const tugOn = (await info()).dave.state === 'tug';
+  await page.evaluate(() => { HX.game.diver.data.gauge = 1.2; });   // thanh gần đầy: nhịp kế tiếp là thắng
+  await page.keyboard.press('Space');
+  await sleep(700);
+  I = await info();
+  let T = await fishBy(tuid);
+  const hs = await page.evaluate(() => HX.game.harpoon.state);
+  check('thắng giằng co với cá khế vây vàng (CarvableCount 2): cá thành xác nằm lại (dying/dead), mũi xiên rút về, túi trống, Dave bơi tiếp',
+    tugOn && T && (T.state === 'dying' || T.state === 'dead') && T.hp === 0 && I.catches.length === 0 && (hs === 'returning' || hs === 'ready') && I.dave.state === 'swim',
+    'tug ' + tugOn + ' ' + JSON.stringify(T) + ' mũi ' + hs + ' Dave ' + I.dave.state + ' túi ' + JSON.stringify(I.catches));
+  await page.waitForFunction(id => (HX_DEBUG.fishAt().find(f => f.uid === id) || {}).state === 'dead', tuid, { timeout: 5000 }).catch(() => {});
+  await page.evaluate(id => { const f = HX.game.fishes.list.find(q => q.id === id), c = f.center(); HX_DEBUG.teleport(c.x - f.hw - 0.2, c.y); }, tuid);
+  await sleep(200);
+  prompt = await page.evaluate(() => ({ on: !document.getElementById('harvest').hidden, carve: document.getElementById('harvest').classList.contains('carve') }));
+  check('bơi lại xác đó: lời nhắc xả thịt (vòng)', prompt.on && prompt.carve, JSON.stringify(prompt));
+  await shot('1b-tug-corpse');
+
   // ---- dao hạ cá: xác nằm lại, không tự vào túi; bơi lại bấm E thì nhặt ----
   await home();
   await sleep(300);
@@ -168,7 +215,7 @@ async function run(browser, base, W, H) {
   K = await fishBy(kuid);
   I = await info();
   check('2 giây sau: xác cá hề vẫn nằm trong nước (dead), túi vẫn 0 con', K && K.state === 'dead' && I.catches.length === 0, JSON.stringify(K) + ' túi ' + JSON.stringify(I.catches));
-  let prompt = await page.evaluate(() => !document.getElementById('harvest').hidden);
+  prompt = await page.evaluate(() => !document.getElementById('harvest').hidden);
   check('ở xa 2 m thì chưa hiện lời nhắc nhặt', !prompt);
   await page.keyboard.down('KeyD');
   await page.waitForFunction(() => !document.getElementById('harvest').hidden, null, { timeout: 3000 }).catch(() => {});

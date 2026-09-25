@@ -5175,6 +5175,74 @@ window.HX_ASSETS = {
   "carving": {
    "src": "audio/carving.mp3",
    "kind": "sfx"
+  },
+  "gear_paralysis_shot": {
+   "src": "audio/gear_paralysis_shot.mp3",
+   "kind": "sfx"
+  },
+  "gear_paralysis_hit": {
+   "src": "audio/gear_paralysis_hit.mp3",
+   "kind": "sfx"
+  },
+  "gear_paralysis_zap": {
+   "src": "audio/gear_paralysis_zap.mp3",
+   "kind": "sfx"
+  },
+  "gear_strong_shot": {
+   "src": "audio/gear_strong_shot.mp3",
+   "kind": "sfx"
+  },
+  "gear_sleep_shot": {
+   "src": "audio/gear_sleep_shot.mp3",
+   "kind": "sfx"
+  },
+  "gear_chain_shot": {
+   "src": "audio/gear_chain_shot.mp3",
+   "kind": "sfx"
+  },
+  "gear_chain_zap": {
+   "src": "audio/gear_chain_zap.mp3",
+   "kind": "sfx"
+  },
+  "gear_ice_shot": {
+   "src": "audio/gear_ice_shot.mp3",
+   "kind": "sfx"
+  },
+  "gear_ice_hit": {
+   "src": "audio/gear_ice_hit.mp3",
+   "kind": "sfx"
+  },
+  "gear_ice_freeze": {
+   "src": "audio/gear_ice_freeze.mp3",
+   "kind": "sfx"
+  },
+  "gear_ice_break": {
+   "src": "audio/gear_ice_break.mp3",
+   "kind": "sfx"
+  },
+  "gear_fire_burn": {
+   "src": "audio/gear_fire_burn.mp3",
+   "kind": "sfx"
+  },
+  "gear_fire_hit": {
+   "src": "audio/gear_fire_hit.mp3",
+   "kind": "sfx"
+  },
+  "gear_poison_tick": {
+   "src": "audio/gear_poison_tick.mp3",
+   "kind": "sfx"
+  },
+  "gear_drone_call": {
+   "src": "audio/gear_drone_call.mp3",
+   "kind": "sfx"
+  },
+  "gear_drone_a": {
+   "src": "audio/gear_drone_a.mp3",
+   "kind": "sfx"
+  },
+  "gear_drone_b": {
+   "src": "audio/gear_drone_b.mp3",
+   "kind": "sfx"
   }
  },
  "props": {
@@ -5423,6 +5491,1221 @@ window.HX_ASSETS = {
     17,
     99
    ]
+  }
+ },
+ "heads": {
+  "basic": {
+   "kind": "Basic",
+   "nameKey": "HarpoonHead_Basic_Name",
+   "headType": 0,
+   "qte": 0,
+   "prefab": "Ingame/00_InGame_Common/Prefabs/InstanceItem/HarpoonHead/NormalHarpoonHead.prefab",
+   "icon": "art/gear/head/Item_BasicHarpoonHead.png",
+   "thumb": "art/gear/head/NormalHarpoonHead_Thumbnail.png",
+   "rope": {
+    "material": "HarpoonRopeMaterial",
+    "shader": "Sprites/Default",
+    "width": 0.02,
+    "tile": false,
+    "color": [
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "blend": "alpha"
+   },
+   "aura": null,
+   "levels": [
+    {
+     "lv": 1,
+     "tid": 3013001,
+     "dmg": 0,
+     "buff": null
+    }
+   ]
+  },
+  "strong": {
+   "kind": "Strong",
+   "nameKey": "HarpoonHead_Strong_Name",
+   "headType": 6,
+   "qte": 0,
+   "prefab": "Ingame/00_InGame_Common/Prefabs/InstanceItem/HarpoonHead/StrongHarpoonHead.prefab",
+   "icon": "art/gear/head/Item_StrongHarpoonHead.png",
+   "thumb": "art/gear/head/StrongHarpoonHead_Thumbnail.png",
+   "rope": {
+    "material": "LineAdditive_Chain",
+    "shader": "ProjectDR/2D_Sprite_Uber",
+    "width": 1.0,
+    "tile": true,
+    "img": "art/gear/head/Line_Chain.png",
+    "color": [
+     0.341,
+     0.287,
+     0.231,
+     1.0
+    ],
+    "blend": "alpha"
+   },
+   "aura": null,
+   "levels": [
+    {
+     "lv": 1,
+     "tid": 3013031,
+     "dmg": 4,
+     "buff": null
+    },
+    {
+     "lv": 2,
+     "tid": 3013032,
+     "dmg": 8,
+     "buff": null
+    },
+    {
+     "lv": 3,
+     "tid": 3013033,
+     "dmg": 12,
+     "buff": null
+    },
+    {
+     "lv": 4,
+     "tid": 3013034,
+     "dmg": 16,
+     "buff": null
+    },
+    {
+     "lv": 5,
+     "tid": 3013035,
+     "dmg": 20,
+     "buff": null
+    }
+   ]
+  },
+  "paralysis": {
+   "kind": "Paralysis",
+   "nameKey": "HarpoonHead_Paralysis_Name",
+   "headType": 5,
+   "qte": 3,
+   "prefab": "Ingame/00_InGame_Common/Prefabs/InstanceItem/HarpoonHead/ElectricHarpoonHead.prefab",
+   "icon": "art/gear/head/Item_ParalysisHarpoonHead.png",
+   "thumb": "art/gear/head/ParalysisHarpoonHead_Thumbnail.png",
+   "rope": {
+    "material": "LineAdditive_Shock",
+    "shader": "Legacy Shaders/Particles/Additive",
+    "width": 0.5,
+    "tile": false,
+    "img": "art/gear/head/Line.png",
+    "color": [
+     0.979,
+     0.991,
+     0.313,
+     0.114
+    ],
+    "blend": "add"
+   },
+   "aura": {
+    "key": "auraParalysis",
+    "pos": [
+     0.294,
+     0.0
+    ],
+    "scale": 1.3
+   },
+   "levels": [
+    {
+     "lv": 1,
+     "tid": 3013011,
+     "dmg": 4,
+     "buff": {
+      "tid": 14080321,
+      "name": "DebuffShock21",
+      "type": 4,
+      "element": 16,
+      "duration": 10.0,
+      "tick": 5.0,
+      "v": [
+       -0.3,
+       0.0,
+       0.0
+      ],
+      "chance": 0.6,
+      "vfxBody": "VFX_Debuff_Elec_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.275,
+       0.275,
+       0.059,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 2,
+     "tid": 3013012,
+     "dmg": 8,
+     "buff": {
+      "tid": 14080322,
+      "name": "DebuffShock22",
+      "type": 4,
+      "element": 16,
+      "duration": 10.0,
+      "tick": 4.0,
+      "v": [
+       -0.4,
+       0.0,
+       0.0
+      ],
+      "chance": 0.65,
+      "vfxBody": "VFX_Debuff_Elec_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.275,
+       0.275,
+       0.059,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 3,
+     "tid": 3013013,
+     "dmg": 13,
+     "buff": {
+      "tid": 14080323,
+      "name": "DebuffShock23",
+      "type": 4,
+      "element": 16,
+      "duration": 10.0,
+      "tick": 3.5,
+      "v": [
+       -0.5,
+       0.0,
+       0.0
+      ],
+      "chance": 0.7,
+      "vfxBody": "VFX_Debuff_Elec_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.275,
+       0.275,
+       0.059,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 4,
+     "tid": 3013014,
+     "dmg": 18,
+     "buff": {
+      "tid": 14080324,
+      "name": "DebuffShock24",
+      "type": 4,
+      "element": 16,
+      "duration": 10.0,
+      "tick": 3.0,
+      "v": [
+       -0.6,
+       0.0,
+       0.0
+      ],
+      "chance": 0.75,
+      "vfxBody": "VFX_Debuff_Elec_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.275,
+       0.275,
+       0.059,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 5,
+     "tid": 3013015,
+     "dmg": 23,
+     "buff": {
+      "tid": 14080325,
+      "name": "DebuffShock25",
+      "type": 4,
+      "element": 16,
+      "duration": 10.0,
+      "tick": 2.5,
+      "v": [
+       -0.7,
+       0.0,
+       0.0
+      ],
+      "chance": 0.8,
+      "vfxBody": "VFX_Debuff_Elec_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.275,
+       0.275,
+       0.059,
+       0.275
+      ]
+     }
+    }
+   ]
+  },
+  "poison": {
+   "kind": "Poison",
+   "nameKey": "HarpoonHead_Poison_Name",
+   "headType": 2,
+   "qte": 2,
+   "prefab": "Ingame/00_InGame_Common/Prefabs/InstanceItem/HarpoonHead/PoisonHarpoonHead.prefab",
+   "icon": "art/gear/head/Item_PoisonHarpoonHead.png",
+   "thumb": "art/gear/head/PoisonHarpoonHead_Thumbnail.png",
+   "rope": {
+    "material": "LineAdditive_Poison",
+    "shader": "Legacy Shaders/Particles/Additive",
+    "width": 0.5,
+    "tile": false,
+    "img": "art/gear/head/Line.png",
+    "color": [
+     0.274,
+     0.737,
+     0.167,
+     0.114
+    ],
+    "blend": "add"
+   },
+   "aura": {
+    "key": "auraPoison",
+    "pos": [
+     0.294,
+     0.0
+    ],
+    "scale": 1.3
+   },
+   "levels": [
+    {
+     "lv": 1,
+     "tid": 3013021,
+     "dmg": 3,
+     "buff": {
+      "tid": 14080221,
+      "name": "DebuffPoison21",
+      "type": 3,
+      "element": 8,
+      "duration": 8.0,
+      "tick": 1.0,
+      "v": [
+       2.0,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Poison_Body_01",
+      "vfxHead": "VFX_Debuff_Poison_Head_01",
+      "tint": [
+       0.043,
+       0.353,
+       0.122,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 2,
+     "tid": 3013022,
+     "dmg": 5,
+     "buff": {
+      "tid": 14080222,
+      "name": "DebuffPoison22",
+      "type": 3,
+      "element": 8,
+      "duration": 8.0,
+      "tick": 1.0,
+      "v": [
+       3.0,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Poison_Body_01",
+      "vfxHead": "VFX_Debuff_Poison_Head_01",
+      "tint": [
+       0.043,
+       0.353,
+       0.122,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 3,
+     "tid": 3013023,
+     "dmg": 9,
+     "buff": {
+      "tid": 14080223,
+      "name": "DebuffPoison23",
+      "type": 3,
+      "element": 8,
+      "duration": 8.0,
+      "tick": 1.0,
+      "v": [
+       4.0,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Poison_Body_01",
+      "vfxHead": "VFX_Debuff_Poison_Head_01",
+      "tint": [
+       0.043,
+       0.353,
+       0.122,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 4,
+     "tid": 3013024,
+     "dmg": 13,
+     "buff": {
+      "tid": 14080224,
+      "name": "DebuffPoison24",
+      "type": 3,
+      "element": 8,
+      "duration": 8.0,
+      "tick": 1.0,
+      "v": [
+       5.0,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Poison_Body_01",
+      "vfxHead": "VFX_Debuff_Poison_Head_01",
+      "tint": [
+       0.043,
+       0.353,
+       0.122,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 5,
+     "tid": 3013025,
+     "dmg": 17,
+     "buff": {
+      "tid": 14080225,
+      "name": "DebuffPoison25",
+      "type": 3,
+      "element": 8,
+      "duration": 8.0,
+      "tick": 1.0,
+      "v": [
+       6.0,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Poison_Body_01",
+      "vfxHead": "VFX_Debuff_Poison_Head_01",
+      "tint": [
+       0.043,
+       0.353,
+       0.122,
+       0.275
+      ]
+     }
+    }
+   ]
+  },
+  "chain": {
+   "kind": "Chain",
+   "nameKey": "HarpoonHead_Chain_Name",
+   "headType": 1,
+   "qte": 1,
+   "prefab": "Ingame/00_InGame_Common/Prefabs/InstanceItem/HarpoonHead/LightningHarpoonHead.prefab",
+   "icon": "art/gear/head/Item_ChainHarpoonHead.png",
+   "thumb": "art/gear/head/ChainHarpoonHead_Thumbnail.png",
+   "rope": {
+    "material": "LineAdditive_Lightning",
+    "shader": "Legacy Shaders/Particles/Additive",
+    "width": 0.5,
+    "tile": false,
+    "img": "art/gear/head/Line_Mint.png",
+    "color": [
+     0.373,
+     0.732,
+     1.0,
+     0.114
+    ],
+    "blend": "add"
+   },
+   "aura": {
+    "key": "auraChain",
+    "pos": [
+     0.294,
+     0.0
+    ],
+    "scale": 1.3
+   },
+   "levels": [
+    {
+     "lv": 1,
+     "tid": 3013051,
+     "dmg": 4,
+     "buff": {
+      "tid": 14080521,
+      "name": "DebuffChain16",
+      "type": 12,
+      "element": 16,
+      "duration": 0.35,
+      "tick": 0.0,
+      "v": [
+       0.5,
+       4.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": null,
+      "vfxHead": null,
+      "tint": null
+     }
+    },
+    {
+     "lv": 2,
+     "tid": 3013052,
+     "dmg": 6,
+     "buff": {
+      "tid": 14080522,
+      "name": "DebuffChain17",
+      "type": 12,
+      "element": 16,
+      "duration": 0.35,
+      "tick": 0.0,
+      "v": [
+       0.6,
+       4.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": null,
+      "vfxHead": null,
+      "tint": null
+     }
+    },
+    {
+     "lv": 3,
+     "tid": 3013053,
+     "dmg": 8,
+     "buff": {
+      "tid": 14080523,
+      "name": "DebuffChain18",
+      "type": 12,
+      "element": 16,
+      "duration": 0.35,
+      "tick": 0.0,
+      "v": [
+       0.7,
+       4.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": null,
+      "vfxHead": null,
+      "tint": null
+     }
+    },
+    {
+     "lv": 4,
+     "tid": 3013054,
+     "dmg": 10,
+     "buff": {
+      "tid": 14080524,
+      "name": "DebuffChain19",
+      "type": 12,
+      "element": 16,
+      "duration": 0.35,
+      "tick": 0.0,
+      "v": [
+       0.8,
+       4.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": null,
+      "vfxHead": null,
+      "tint": null
+     }
+    },
+    {
+     "lv": 5,
+     "tid": 3013055,
+     "dmg": 12,
+     "buff": {
+      "tid": 14080525,
+      "name": "DebuffChain20",
+      "type": 12,
+      "element": 16,
+      "duration": 0.35,
+      "tick": 0.0,
+      "v": [
+       0.9,
+       4.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": null,
+      "vfxHead": null,
+      "tint": null
+     }
+    }
+   ]
+  },
+  "sleep": {
+   "kind": "Sleep",
+   "nameKey": "HarpoonHead_Sleep_Name",
+   "headType": 4,
+   "qte": 4,
+   "prefab": "Ingame/00_InGame_Common/Prefabs/InstanceItem/HarpoonHead/SleepHarpoonHead.prefab",
+   "icon": "art/gear/head/Item_SleepHarpoonHead.png",
+   "thumb": "art/gear/head/SleepHarpoonHead_Thumbnail.png",
+   "rope": {
+    "material": "LineAdditive_Sleep",
+    "shader": "Legacy Shaders/Particles/Additive",
+    "width": 0.5,
+    "tile": false,
+    "img": "art/gear/head/Line_Mint.png",
+    "color": [
+     1.0,
+     1.0,
+     1.0,
+     0.114
+    ],
+    "blend": "add"
+   },
+   "aura": {
+    "key": "auraSleep",
+    "pos": [
+     0.294,
+     0.0
+    ],
+    "scale": 1.3
+   },
+   "levels": [
+    {
+     "lv": 1,
+     "tid": 3013041,
+     "dmg": 0,
+     "buff": {
+      "tid": 14080471,
+      "name": "DebuffInstantSleep14",
+      "type": 6,
+      "element": 32,
+      "duration": 7.0,
+      "tick": 0.0,
+      "v": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "chance": 0.4,
+      "vfxBody": "VFX_Debuff_Tranquilize_Body_01",
+      "vfxHead": "VFX_Debuff_Sleep_Head_01",
+      "tint": [
+       0.082,
+       0.447,
+       0.341,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 2,
+     "tid": 3013042,
+     "dmg": 0,
+     "buff": {
+      "tid": 14080472,
+      "name": "DebuffInstantSleep15",
+      "type": 6,
+      "element": 32,
+      "duration": 7.0,
+      "tick": 0.0,
+      "v": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "chance": 0.45,
+      "vfxBody": "VFX_Debuff_Tranquilize_Body_01",
+      "vfxHead": "VFX_Debuff_Sleep_Head_01",
+      "tint": [
+       0.082,
+       0.447,
+       0.341,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 3,
+     "tid": 3013043,
+     "dmg": 0,
+     "buff": {
+      "tid": 14080473,
+      "name": "DebuffInstantSleep16",
+      "type": 6,
+      "element": 32,
+      "duration": 7.0,
+      "tick": 0.0,
+      "v": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "chance": 0.5,
+      "vfxBody": "VFX_Debuff_Tranquilize_Body_01",
+      "vfxHead": "VFX_Debuff_Sleep_Head_01",
+      "tint": [
+       0.082,
+       0.447,
+       0.341,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 4,
+     "tid": 3013044,
+     "dmg": 0,
+     "buff": {
+      "tid": 14080474,
+      "name": "DebuffInstantSleep17",
+      "type": 6,
+      "element": 32,
+      "duration": 7.0,
+      "tick": 0.0,
+      "v": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "chance": 0.55,
+      "vfxBody": "VFX_Debuff_Tranquilize_Body_01",
+      "vfxHead": "VFX_Debuff_Sleep_Head_01",
+      "tint": [
+       0.082,
+       0.447,
+       0.341,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 5,
+     "tid": 3013045,
+     "dmg": 0,
+     "buff": {
+      "tid": 14080475,
+      "name": "DebuffInstantSleep18",
+      "type": 6,
+      "element": 32,
+      "duration": 7.0,
+      "tick": 0.0,
+      "v": [
+       0.0,
+       0.0,
+       0.0
+      ],
+      "chance": 0.6,
+      "vfxBody": "VFX_Debuff_Tranquilize_Body_01",
+      "vfxHead": "VFX_Debuff_Sleep_Head_01",
+      "tint": [
+       0.082,
+       0.447,
+       0.341,
+       0.275
+      ]
+     }
+    }
+   ]
+  },
+  "ice": {
+   "kind": "Ice",
+   "nameKey": "HarpoonHead_Ice_Name",
+   "headType": 8,
+   "qte": 4,
+   "prefab": "Ingame/00_InGame_Common/Prefabs/InstanceItem/HarpoonHead/IceHarpoonHead.prefab",
+   "icon": "art/gear/head/Item_IceHarpoonHead.png",
+   "thumb": "art/gear/head/IceHarpoonHead_Thumbnail.png",
+   "rope": {
+    "material": "LineAdditive_Ice",
+    "shader": "Legacy Shaders/Particles/Additive",
+    "width": 0.5,
+    "tile": false,
+    "img": "art/gear/head/Line_Mint.png",
+    "color": [
+     0.875,
+     0.933,
+     1.0,
+     0.114
+    ],
+    "blend": "add"
+   },
+   "aura": {
+    "key": "auraIce",
+    "pos": [
+     0.294,
+     0.0
+    ],
+    "scale": 1.3
+   },
+   "levels": [
+    {
+     "lv": 1,
+     "tid": 3013061,
+     "dmg": 4,
+     "buff": {
+      "tid": 14080116,
+      "name": "DebuffFreezing16",
+      "type": 10,
+      "element": 4,
+      "duration": 5.0,
+      "tick": 0.0,
+      "v": [
+       20.0,
+       1.0,
+       0.0
+      ],
+      "chance": 0.3,
+      "vfxBody": "VFX_Debuff_Freezing_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.082,
+       0.31,
+       0.537,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 2,
+     "tid": 3013062,
+     "dmg": 5,
+     "buff": {
+      "tid": 14080117,
+      "name": "DebuffFreezing17",
+      "type": 10,
+      "element": 4,
+      "duration": 6.0,
+      "tick": 0.0,
+      "v": [
+       25.0,
+       1.0,
+       0.0
+      ],
+      "chance": 0.3,
+      "vfxBody": "VFX_Debuff_Freezing_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.082,
+       0.31,
+       0.537,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 3,
+     "tid": 3013063,
+     "dmg": 6,
+     "buff": {
+      "tid": 14080118,
+      "name": "DebuffFreezing18",
+      "type": 10,
+      "element": 4,
+      "duration": 7.0,
+      "tick": 0.0,
+      "v": [
+       30.0,
+       1.0,
+       0.0
+      ],
+      "chance": 0.3,
+      "vfxBody": "VFX_Debuff_Freezing_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.082,
+       0.31,
+       0.537,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 4,
+     "tid": 3013064,
+     "dmg": 7,
+     "buff": {
+      "tid": 14080119,
+      "name": "DebuffFreezing19",
+      "type": 10,
+      "element": 4,
+      "duration": 8.0,
+      "tick": 0.0,
+      "v": [
+       35.0,
+       1.0,
+       0.0
+      ],
+      "chance": 0.3,
+      "vfxBody": "VFX_Debuff_Freezing_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.082,
+       0.31,
+       0.537,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 5,
+     "tid": 3013065,
+     "dmg": 8,
+     "buff": {
+      "tid": 14080120,
+      "name": "DebuffFreezing20",
+      "type": 10,
+      "element": 4,
+      "duration": 9.0,
+      "tick": 0.0,
+      "v": [
+       40.0,
+       1.0,
+       0.0
+      ],
+      "chance": 0.3,
+      "vfxBody": "VFX_Debuff_Freezing_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.082,
+       0.31,
+       0.537,
+       0.275
+      ]
+     }
+    }
+   ]
+  },
+  "fire": {
+   "kind": "Fire",
+   "nameKey": "HarpoonHead_Fire_Name",
+   "headType": 7,
+   "qte": 4,
+   "prefab": "Ingame/00_InGame_Common/Prefabs/InstanceItem/HarpoonHead/FireHarpoonHead.prefab",
+   "icon": "art/gear/head/Item_FireHarpoonHead.png",
+   "thumb": "art/gear/head/FireHarpoonHead_Thumbnail.png",
+   "rope": {
+    "material": "LineAdditive_Fire",
+    "shader": "Legacy Shaders/Particles/Additive",
+    "width": 0.5,
+    "tile": false,
+    "img": "art/gear/head/Line_Red.png",
+    "color": [
+     1.0,
+     0.604,
+     0.297,
+     0.114
+    ],
+    "blend": "add"
+   },
+   "aura": {
+    "key": "auraFire",
+    "pos": [
+     0.294,
+     0.0
+    ],
+    "scale": 1.3
+   },
+   "levels": [
+    {
+     "lv": 1,
+     "tid": 3013071,
+     "dmg": 5,
+     "buff": {
+      "tid": 14080011,
+      "name": "DebuffBurn11",
+      "type": 1,
+      "element": 2,
+      "duration": 1.0,
+      "tick": 0.0,
+      "v": [
+       0.3,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Burn_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.38,
+       0.208,
+       0.141,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 2,
+     "tid": 3013072,
+     "dmg": 7,
+     "buff": {
+      "tid": 14080012,
+      "name": "DebuffBurn12",
+      "type": 1,
+      "element": 2,
+      "duration": 1.0,
+      "tick": 0.0,
+      "v": [
+       0.4,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Burn_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.38,
+       0.208,
+       0.141,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 3,
+     "tid": 3013073,
+     "dmg": 9,
+     "buff": {
+      "tid": 14080013,
+      "name": "DebuffBurn13",
+      "type": 1,
+      "element": 2,
+      "duration": 1.0,
+      "tick": 0.0,
+      "v": [
+       0.5,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Burn_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.38,
+       0.208,
+       0.141,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 4,
+     "tid": 3013074,
+     "dmg": 11,
+     "buff": {
+      "tid": 14080014,
+      "name": "DebuffBurn14",
+      "type": 1,
+      "element": 2,
+      "duration": 1.0,
+      "tick": 0.0,
+      "v": [
+       0.55,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Burn_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.38,
+       0.208,
+       0.141,
+       0.275
+      ]
+     }
+    },
+    {
+     "lv": 5,
+     "tid": 3013075,
+     "dmg": 13,
+     "buff": {
+      "tid": 14080015,
+      "name": "DebuffBurn15",
+      "type": 1,
+      "element": 2,
+      "duration": 1.0,
+      "tick": 0.0,
+      "v": [
+       0.6,
+       0.0,
+       0.0
+      ],
+      "chance": 1.0,
+      "vfxBody": "VFX_Debuff_Burn_Body_01",
+      "vfxHead": null,
+      "tint": [
+       0.38,
+       0.208,
+       0.141,
+       0.275
+      ]
+     }
+    }
+   ]
+  }
+ },
+ "drone": {
+  "glb": "art/gear/drone/drone.glb",
+  "controller": "LiftDroneAnimatorController",
+  "clips": {
+   "Ani3D_UnderwaterDrone01_Normal_Move_A_01": {
+    "length": 10.6667,
+    "loop": false
+   },
+   "Ani3D_UnderwaterDrone01_Normal_Move_B_01": {
+    "length": 11.3333,
+    "loop": false
+   }
+  },
+  "attach": [
+   {
+    "name": "VFX_Underwater_Drone_PropellerL_A_01",
+    "bone": "Bone_PropellerL",
+    "pos": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rot": [
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "scale": 1.0
+   },
+   {
+    "name": "VFX_Underwater_Drone_PropellerL_A_02",
+    "bone": "Bone_PropellerL",
+    "pos": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rot": [
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "scale": 1.0
+   },
+   {
+    "name": "VFX_Underwater_Drone_PropellerR_A_01",
+    "bone": "Bone_PropellerR",
+    "pos": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rot": [
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "scale": 1.0
+   },
+   {
+    "name": "VFX_Underwater_Drone_PropellerR_A_02",
+    "bone": "Bone_PropellerR",
+    "pos": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rot": [
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "scale": 1.0
+   },
+   {
+    "name": "VFX_Underwater_Drone_Bubble_A_01",
+    "bone": "Bone_PropellerC",
+    "pos": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rot": [
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "scale": 1.0
+   },
+   {
+    "name": "VFX_Underwater_Drone_Bubble_A_02",
+    "bone": "Bone_PropellerC",
+    "pos": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rot": [
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ],
+    "scale": 1.0
+   }
+  ],
+  "dock": {
+   "bone": "Bone_DroneBody",
+   "pos": [
+    0.0,
+    0.0,
+    0.0
+   ]
+  },
+  "bounds": [
+   [
+    -0.53,
+    -0.453,
+    -0.364
+   ],
+   [
+    0.75,
+    0.453,
+    0.466
+   ]
+  ],
+  "materials": [
+   "Underwater_Drone01",
+   "Underwater_Drone01_Window"
+  ],
+  "icon": "art/gear/drone/iDiver_Icon_Drone.png",
+  "command": {
+   "duration": 2.0,
+   "anim": "CallEscapePod",
+   "failAnim": "Overloaded",
+   "sound": "sound_Call_Drone_01"
   }
  }
 };

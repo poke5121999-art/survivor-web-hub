@@ -79,9 +79,11 @@
   ].join('\n');
   var FISH_FRAG = function () {
     return HX.gfx.WATER_GLSL + [
-      '\nuniform sampler2D map; uniform float flash; uniform float opacity;',
+      '\nuniform sampler2D map; uniform float flash; uniform float opacity; uniform vec4 tint;',
       'varying vec2 vUv; varying vec4 vColor; varying vec3 vW; varying float vD;',
       'void main() { vec4 c = texture2D(map, vUv) * vColor; if (c.a < 0.04) discard;',
+      // màu phủ của bùa (buffvfxcolor gốc, kênh a là độ phủ)
+      '  c.rgb = mix(c.rgb, tint.rgb, tint.a);',
       '  c.rgb = mix(c.rgb, vec3(1.0, 0.95, 0.9), flash); c.rgb = hxGrade(c.rgb, vW, vD); c.a *= opacity; gl_FragColor = c; }',
     ].join('\n');
   };
@@ -91,6 +93,7 @@
       p.vertexShader = FISH_VERT;
       p.fragmentShader = FISH_FRAG();
       p.uniforms.flash = fu.flash; p.uniforms.opacity = fu.opacity;
+      p.uniforms.tint = fu.tint || { value: new THREE.Vector4(0, 0, 0, 0) };
       var w = HX.gfx.water;
       for (var k in w) p.uniforms[k] = w[k];
       p.depthWrite = false;
@@ -110,8 +113,9 @@
     this.facing = Math.random() < 0.5 ? -1 : 1;
     this.flip = this.facing;
     this.z = -0.35 + Math.random() * 0.4;
-    this.fu = { flash: { value: 0 }, opacity: { value: 1 } };
+    this.fu = { flash: { value: 0 }, opacity: { value: 1 }, tint: { value: new THREE.Vector4(0, 0, 0, 0) } };
     this.mesh = makeMesh(sp, this.fu);
+    this.buffs = {}; this.slow = 1;
     this.root = new THREE.Group();
     this.root.add(this.mesh);
     G.gfx.scene.add(this.root);
@@ -162,11 +166,110 @@
   // Cá lớn phải xả thịt; còn lại nhặt.
   Fish.prototype.carvable = function () { return this.sp.size >= T.harvest.carveSize; };
 
-  // Luật duy nhất cho cá chết: chết trên dây xiên thì dây kéo về túi (hauled);
-  // chết rời (dao, súng) thì thành xác trôi trong nước (dying → dead), Dave phải bơi lại nhặt hoặc xả thịt như bản gốc.
+  // Luật duy nhất cho cá chết: cá nhỏ chết trên dây xiên thì dây kéo về túi (hauled);
+  // cá lớn phải xả thịt (carvable) chết trên dây, hay cá chết rời (dao, súng, độc), thì thành xác trôi trong nước
+  // (dying → dead): Dave bơi lại nhặt, xả thịt hoặc gọi drone. Mũi xiên đọc state sau khi gọi để biết kéo về hay thả ra.
   Fish.prototype.die = function (onRope) {
     this.hp = 0;
-    this.go(onRope ? 'hauled' : 'dying');
+    this.clearBuffs();
+    this.go(onRope && !this.carvable() ? 'hauled' : 'dying');
+  };
+
+  // Sát thương theo thời gian (độc, bỏng): trừ máu, không đổi hành vi. Đang mắc xiên mà chết thì tính là chết trên dây.
+  Fish.prototype.dot = function (n) {
+    if (!this.alive() || n <= 0) return false;
+    this.hp -= n;
+    this.flashT = 0.08;
+    var c = this.center();
+    this.G.fx.spawn('blood', c.x, c.y, this.z + 0.05, 0, 0, 0.4 + this.sp.size * 0.3);
+    if (this.hp <= 0) { this.die(this.state === 'hooked'); return true; }
+    return false;
+  };
+
+  // ---------- bùa trên cá (BuffDebuffEffect gốc) ----------
+  // spec = một hàng buff của HX_META.HEADS: { duration, tick, v: [buffvalue1..3], chance, vfxBody, vfxHead, tint }.
+  // Mỗi kiểu một dòng: start/tick/end(f, b), slow(b) = hệ số tốc độ bơi. Áp lại cùng kiểu thì làm mới thời gian.
+  var BUFFS = {
+    // DebuffShock (bufftype 4): bơi chậm (1 + buffvalue1) suốt duration; mỗi tickinterval xẹt điện một lần
+    shock: {
+      slow: function (b) { return Math.max(0, 1 + b.spec.v[0]); },
+      tick: function (f) { f.G.audio.play('gear_paralysis_zap', { vol: 0.7 }); f.flashT = 0.1; },
+    },
+    // DebuffPoison (bufftype 3): mất buffvalue1 máu mỗi tickinterval giây suốt duration
+    poison: {
+      tick: function (f, b) { f.G.audio.play('gear_poison_tick', { vol: 0.6 }); f.dot(b.spec.v[0]); },
+    },
+    // DebuffBurn (bufftype 1): cháy duration giây rồi ăn phần sát thương thêm (tính sẵn ở b.dmg lúc trúng)
+    burn: {
+      start: function (f) { f.G.audio.play('gear_fire_burn', { vol: 0.8 }); },
+      end: function (f, b) { f.dot(b.dmg); },
+    },
+    // DebuffFreezing (bufftype 10): đông cứng tại chỗ duration giây; bị đánh lúc đông thì vỡ băng, ăn thêm buffvalue1 (Fish.damage)
+    freeze: {
+      start: function (f) { f.G.audio.play('gear_ice_freeze', { vol: 0.8 }); if (f.state !== 'hooked') f.go('iced', { x: f.pos.x, y: f.pos.y }); },
+      end: function (f) { if (f.state === 'iced') { f.mesh.state.timeScale = 1; f.go('wander'); } },
+    },
+  };
+
+  Fish.prototype.addBuff = function (kind, spec, extra) {
+    var K = BUFFS[kind], G = this.G;
+    if (!K || !this.alive()) return null;
+    this.endBuff(kind, true);
+    var b = { kind: kind, spec: spec, t: 0, next: spec.tick > 0 ? spec.tick : Infinity, plays: [] };
+    for (var k in extra) b[k] = extra[k];
+    var self = this, sc = this.sp.scale || 1;
+    // hạt bám thân (tâm cá) và bám đầu (trên lưng cá), phóng theo độ phóng của loài như hạt gắn trong prefab cá gốc
+    if (spec.vfxBody) b.plays.push(G.fx.play(G.fx.dive(spec.vfxBody), 0, 0, { z: this.z + 0.2, scale: sc, name: 'buff:' + kind, follow: function () {
+      return self.buffs[kind] === b && self.root.parent ? self.center() : null;
+    } }));
+    // extra.vfx: cụm hạt lặp của đầu xiên (VFX_HarpoonHead_*_A_01) bám thân cá suốt bùa
+    if (b.vfx) b.plays.push(G.fx.play(G.fx.dive(b.vfx), 0, 0, { z: this.z + 0.22, scale: sc, name: b.vfx, follow: function () {
+      return self.buffs[kind] === b && self.root.parent ? self.center() : null;
+    } }));
+    if (spec.vfxHead) b.plays.push(G.fx.play(G.fx.dive(spec.vfxHead), 0, 0, { z: this.z + 0.25, scale: sc, name: 'buffHead:' + kind, follow: function () {
+      if (self.buffs[kind] !== b || !self.root.parent) return null;
+      var c = self.center();
+      return { x: c.x, y: c.y + self.hh * 0.6 };
+    } }));
+    this.buffs[kind] = b;
+    if (K.start) K.start(this, b);
+    this.buffLook();
+    return b;
+  };
+
+  // Hết bùa. silent: bỏ đi không chạy end (thay bằng bùa mới cùng kiểu, cá chết, vỡ băng).
+  Fish.prototype.endBuff = function (kind, silent) {
+    var b = this.buffs[kind];
+    if (!b) return;
+    delete this.buffs[kind];
+    b.plays.forEach(function (p) { if (p) p.stop(); });
+    if (!silent && BUFFS[kind].end) BUFFS[kind].end(this, b);
+    this.buffLook();
+  };
+  Fish.prototype.clearBuffs = function () {
+    for (var k in this.buffs) this.endBuff(k, true);
+  };
+  // Màu phủ của bùa có màu, hệ số chậm của mọi bùa.
+  Fish.prototype.buffLook = function () {
+    var t = null, slow = 1;
+    for (var k in this.buffs) {
+      var b = this.buffs[k];
+      if (b.spec.tint) t = b.spec.tint;
+      if (BUFFS[k].slow) slow *= BUFFS[k].slow(b);
+    }
+    this.fu.tint.value.set(t ? t[0] : 0, t ? t[1] : 0, t ? t[2] : 0, t ? t[3] : 0);
+    this.slow = slow;
+  };
+  Fish.prototype.updateBuffs = function (dt) {
+    for (var k in this.buffs) {
+      var b = this.buffs[k], K = BUFFS[k];
+      b.t += dt;
+      while (b.t >= b.next && b.next <= b.spec.duration + 1e-6 && this.buffs[k] === b) {
+        b.next += b.spec.tick;
+        if (K.tick) K.tick(this, b);
+      }
+      if (this.buffs[k] === b && b.t >= b.spec.duration) this.endBuff(k);
+    }
   };
 
   // Đạn gây mê: cá ngủ, đứng yên tại chỗ trong t giây. Mắc xiên hay đã chết thì không ngủ được.
@@ -178,6 +281,19 @@
 
   // Trả 'dead' | 'tug' | 'alive'.
   Fish.prototype.damage = function (n, fromX, fromY, byHarpoon) {
+    // cá đang đông đá: vỡ băng, ăn thêm buffvalue1 [DtD DebuffFreezing]
+    var ice = this.buffs.freeze;
+    if (ice) {
+      n += ice.spec.v[0];
+      var cc = this.center();
+      // cụm gốc có một emitter gốc lặp: phát 1 giây (Duration của các emitter vỡ băng) rồi tắt
+      var G0 = this.G, t0 = G0.t;
+      G0.fx.play(G0.fx.dive('VFX_Debuff_Freezing_Broken_01'), cc.x, cc.y, { z: this.z + 0.2, scale: this.sp.scale || 1, name: 'iceBreak',
+        follow: function () { return G0.t - t0 < 1 ? cc : null; } });
+      this.G.audio.play('gear_ice_break');
+      this.endBuff('freeze', true);
+      if (this.state === 'iced') { this.mesh.state.timeScale = 1; this.state = 'wander'; }
+    }
     this.hp -= n;
     this.flashT = 0.12;
     var G = this.G, c = this.center();
@@ -191,6 +307,7 @@
   };
 
   Fish.prototype.steer = function (tx, ty, speed, dt, turn) {
+    speed *= this.slow;
     var dx = tx - this.pos.x, dy = ty - this.pos.y, l = Math.hypot(dx, dy) || 1;
     var k = Math.min(1, (turn || 2.5) * dt);
     this.vel.x += (dx / l * speed - this.vel.x) * k;
@@ -232,6 +349,7 @@
     this.biteCd = Math.max(0, this.biteCd - dt);
     this.angry = Math.max(0, this.angry - dt);
     this.flashT = Math.max(0, this.flashT - dt);
+    this.updateBuffs(dt);
     // cá bị bộ kiểm "đóng băng" chỉ đứng yên khi còn tự bơi; mắc xiên hay chết thì chạy như thường
     var idle = this.state === 'wander' || this.state === 'flee' || this.state === 'chase' || this.state === 'defend';
     if (!(this.frozen && idle)) FISH_STATES[this.state].update(this, G, dt);
@@ -255,6 +373,7 @@
   };
 
   Fish.prototype.remove = function () {
+    this.clearBuffs();
     this.G.gfx.scene.remove(this.root);
     this.mesh.dispose();
   };
@@ -345,6 +464,24 @@
       },
     },
 
+    // Đông đá (mũi xiên băng): đứng im, hoạt ảnh dừng; bùa freeze hết giờ hoặc bị đánh vỡ thì bơi lại.
+    iced: {
+      enter: function (f) { f.vel.x = 0; f.vel.y = 0; f.leader = null; f.target = null; f.mesh.state.timeScale = 0; },
+      update: function (f) {
+        f.vel.x = 0; f.vel.y = 0;
+        f.pos.x = f.data.x; f.pos.y = f.data.y;
+        f.mesh.state.timeScale = 0;
+        if (!f.buffs.freeze) { f.mesh.state.timeScale = 1; f.go('wander'); }
+      },
+    },
+
+    // Drone đang kéo lên (js/drone.js dời chỗ): nằm im, không đánh trúng được, không nhặt được.
+    lifted: {
+      limp: true,
+      enter: function (f) { f.vel.x = 0; f.vel.y = 0; f.leader = null; f.target = null; },
+      update: function () {},
+    },
+
     // Mắc xiên, còn sức: giãy ra xa Dave, dây giữ lại.
     hooked: {
       enter: function (f) { f.setAnim('sprint', true, 1.4); f.leader = null; },
@@ -363,7 +500,8 @@
     // Chết trên dây xiên: phát hoạt ảnh die, harpoon.js kéo về tay Dave.
     hauled: {
       limp: true,
-      enter: function (f) { f.setAnim('die', false, 1); f.vel.x = 0; f.vel.y = 0; f.leader = null; },
+      // data.alive: bắt sống (mũi xiên gây mê), cá ngủ nguyên dáng chứ không chạy hoạt ảnh die
+      enter: function (f) { if (f.data.alive) f.mesh.state.timeScale = 0; else f.setAnim('die', false, 1); f.vel.x = 0; f.vel.y = 0; f.leader = null; },
       update: function () {},
     },
 
@@ -491,7 +629,7 @@
       var f = this.list[i];
       if (f.state === 'reeled' && f.st > 0.2) { f.remove(); this.list.splice(i, 1); continue; }
       var dx = f.pos.x - cam.x, dy = f.pos.y - cam.y;
-      if (!this.frozen && Math.hypot(dx, dy) > FT.despawn && f.state !== 'hooked' && f.state !== 'dying') { f.remove(); this.list.splice(i, 1); continue; }
+      if (!this.frozen && Math.hypot(dx, dy) > FT.despawn && f.state !== 'hooked' && f.state !== 'dying' && f.state !== 'lifted') { f.remove(); this.list.splice(i, 1); continue; }
       f.update(dt, Math.abs(dx) < hw + f.hw && Math.abs(dy) < hh + f.hh);
     }
   };
@@ -520,7 +658,7 @@
     var b = sp.bounds, u = FT.pxToUnit, w = b[2] * u, h = b[3] * u;
     var px = Math.max(1, Math.round(Math.min(3, 150 / Math.max(b[2], b[3] * 1.6))));
     var W = Math.round(b[2] * px) + 8, H = Math.round(b[3] * px) + 8;
-    var fu = { flash: { value: 0 }, opacity: { value: 1 } };
+    var fu = { flash: { value: 0 }, opacity: { value: 1 }, tint: { value: new THREE.Vector4(0, 0, 0, 0) } };
     var mesh = makeMesh(sp, fu);
     mesh.state.setAnimation(0, animFor(sp, 'swim'), true);
     mesh.update(0);

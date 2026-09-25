@@ -31,7 +31,8 @@ t('cấp 0 là đồ khởi đầu của Dave trong bản gốc: O₂ 90, xiên 
   const s = M.defaults();
   assert.deepStrictEqual(['o2', 'harpoon', 'knife', 'cargo', 'suit'].map(k => M.stat(s, k)), [90, 3, 3, 9, 40]);
   assert.strictEqual(M.stat(s, 'harpoon'), T.harpoon.damage);
-  assert.deepStrictEqual(Object.keys(M.GEAR), ['o2', 'cargo', 'suit', 'knife', 'harpoon']);
+  assert.deepStrictEqual(Object.keys(M.GEAR), ['o2', 'cargo', 'suit', 'knife', 'harpoon', 'drone']);
+  assert.strictEqual(M.stat(s, 'drone'), 0);   // chưa có drone: phải mua
   assert.throws(() => M.stat(s, 'engine'), /không có nâng cấp "engine"/);
 });
 
@@ -195,6 +196,52 @@ t('món ăn: giá theo hạng và cỡ, cá to nhiều suất', () => {
   assert.strictEqual(M.servingsOf(fish('GreatSpiderCrab')), 10);
 });
 
+t('drone cứu hộ: cấp 0 chưa có, mua 1200 vàng được 1 chiếc, nâng 6300 → 2, 12800 → 3 [DtD]', () => {
+  assert.deepStrictEqual(M.GEAR.drone.levels.map(l => l.value), [0, 1, 2, 3]);
+  assert.deepStrictEqual(M.GEAR.drone.levels.map(l => l.cost), [0, 1200, 6300, 12800]);
+  const r = M.buy(Object.assign(M.defaults(), { gold: 1300 }), 'drone');
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.save.gold, 100);
+  assert.strictEqual(M.loadout(r.save).drone, 1);
+  assert.strictEqual(M.loadout(M.defaults()).drone, 0);
+});
+
+t('đầu xiên: 8 loại gốc, số [DtD] theo cấp, mũi thường luôn có', () => {
+  assert.deepStrictEqual(Object.keys(M.HEADS), ['basic', 'strong', 'paralysis', 'poison', 'fire', 'chain', 'sleep', 'ice']);
+  assert.deepStrictEqual(M.HEADS.strong.levels.map(l => l.dmg), [4, 8, 12, 16, 20]);
+  assert.deepStrictEqual(M.HEADS.paralysis.levels.map(l => l.buff.chance), [0.6, 0.65, 0.7, 0.75, 0.8]);
+  assert.deepStrictEqual(M.HEADS.poison.levels.map(l => l.buff.v[0]), [2, 3, 4, 5, 6]);
+  assert.strictEqual(M.HEADS.poison.levels[0].buff.duration, 8);
+  assert.deepStrictEqual(M.HEADS.ice.levels.map(l => l.buff.duration), [5, 6, 7, 8, 9]);
+  assert.deepStrictEqual(M.HEADS.fire.levels.map(l => l.buff.v[0]), [0.3, 0.4, 0.5, 0.55, 0.6]);
+  assert.deepStrictEqual(M.HEADS.chain.levels[0].buff.v.slice(0, 2), [0.5, 4]);
+  assert.deepStrictEqual(M.HEADS.sleep.levels.map(l => l.buff.chance), [0.4, 0.45, 0.5, 0.55, 0.6]);
+  const L = M.loadout(M.defaults());
+  assert.deepStrictEqual([L.head.id, L.head.lv, L.head.dmg, L.head.effect], ['basic', 1, 0, 'none']);
+});
+
+t('đầu xiên: mua thì lắp luôn, nâng cấp, thiếu tiền bị từ chối, lắp đầu chưa mua bị từ chối', () => {
+  let s = Object.assign(M.defaults(), { gold: 1000 });
+  assert.deepStrictEqual(M.equipHead(s, 'poison'), { ok: false, reason: 'chưa mua' });
+  let r = M.buyHead(s, 'poison');
+  assert.deepStrictEqual([r.ok, r.cost, r.save.gold, r.save.heads.lv.poison, r.save.heads.equipped], [true, 180, 820, 1, 'poison']);
+  r = M.buyHead(r.save, 'poison');
+  assert.deepStrictEqual([r.cost, r.save.gold, r.save.heads.lv.poison], [360, 460, 2]);
+  s = M.equipHead(r.save, 'basic').save;
+  assert.strictEqual(M.loadout(s).head.id, 'basic');
+  s = M.equipHead(s, 'poison').save;
+  const L = M.loadout(s);
+  assert.deepStrictEqual([L.head.id, L.head.lv, L.head.dmg, L.head.buff.v[0]], ['poison', 2, 5, 3]);
+  assert.deepStrictEqual(M.buyHead(Object.assign(M.defaults(), { gold: 10 }), 'ice'), { ok: false, reason: 'thiếu tiền' });
+  assert.deepStrictEqual(M.buyHead(M.defaults(), 'basic'), { ok: false, reason: 'đã tối đa' });
+});
+
+t('sổ lưu: đầu xiên lạ, cấp quá bảng, lắp đầu chưa có thì chuẩn hoá', () => {
+  const s = S.parse({ heads: { lv: { poison: 9, laser: 2, ice: 0, basic: 4 }, equipped: 'ice' } });
+  assert.deepStrictEqual(s.heads, { lv: { poison: 5 }, equipped: 'basic' });
+  assert.strictEqual(S.parse({ heads: { lv: { fire: 2 }, equipped: 'fire' } }).heads.equipped, 'fire');
+});
+
 t('sổ lưu: rác thì về mặc định', () => {
   assert.deepStrictEqual(S.parse('garbage{'), M.defaults());
   assert.deepStrictEqual(S.parse(null), M.defaults());
@@ -211,7 +258,7 @@ t('sổ lưu: ghép từng khoá, bỏ giá trị lạ', () => {
   assert.strictEqual(s.stage, 'prep');
   assert.strictEqual(s.gold, 0);
   // sổ cũ có "engine" (động cơ cano, bản gốc không có) và "pistol" (súng tự chế) thì bỏ đi
-  assert.deepStrictEqual(s.gear, { o2: 10, cargo: 0, suit: 0, knife: 2, harpoon: 0 });
+  assert.deepStrictEqual(s.gear, { o2: 10, cargo: 0, suit: 0, knife: 2, harpoon: 0, drone: 0 });
   assert.deepStrictEqual(s.guns, { owned: ['net'], equipped: null });
   assert.deepStrictEqual(s.fridge, { ClownFish: 2 });
   assert.deepStrictEqual(s.dex, { ClownFish: 1 });
