@@ -62,8 +62,8 @@ Tham số URL:
 | `js/harpoon.js` | Mũi xiên và dây |
 | `js/drone.js` | Drone chở cá: gọi, bay theo root motion của clip gốc, kéo cá lên, `G.drone` |
 | `tools/rip_gear.py` | Bóc icon, ảnh, hiệu ứng, dây màu, tiếng của mũi xiên và drone vào `art/gear/head`, `art/gear/drone`, `art/fx/gear`, `audio/gear_*` |
-| `js/fish.js` | Nạp Spine, máy trạng thái cá, bộ sinh cá quanh camera, ảnh nhỏ cho thẻ bắt cá |
-| `data/fish_spawn.js` | Sinh bởi `tools/spawn_data.py`: giờ hoạt động ngày/đêm từng loài và bản đồ loại trừ, theo wiki |
+| `js/fish.js` | Nạp Spine, máy trạng thái cá, bộ sinh cá theo allocator gốc của từng tầng (`G.fishes.sharks`: cá mập 3D chờ `js/shark.js`), ảnh nhỏ cho thẻ bắt cá |
+| `data/fish_spawn.js` | Sinh bởi `tools/rip_fishgroups.py`: chỗ đặt cá gốc (preset IGPSet + FishAllocator) của 16 tầng, cấu trúc ở `tools/README.md` |
 | `js/fx.js` | Hạt hiệu ứng theo bảng `KINDS`, và phát lại công thức hạt gốc của súng |
 | `js/hud.js`, `js/audio.js` | DOM phủ trên cảnh; Web Audio |
 | `js/main.js` | Sổ pha và `go()`, dựng lượt lặn theo trang bị, nhập liệu, camera, ánh sáng mỗi khung, móc `window.HX_DEBUG` cho bộ kiểm |
@@ -160,11 +160,21 @@ Tham số URL:
   - Cần trái là cần nổi (vùng 2400×1800 quanh góc dưới trái, núm đi tối đa 150). Prefab không ghi vùng chết, dùng mặc định 0,125 của Unity Input System [ĐỀ XUẤT].
   - Bắn là cần ngắm trên nút bắn (đi tối đa 160), không có chạm để bắn. Nút giằng co gốc nhịp 0,333 giây.
   - Bản Android không có iDiver riêng, không có nút lái cano. Quán dùng hai nửa màn hình để đi và một nút tương tác (`SushiBarTouchCanvas.prefab`), chưa chép sang.
-  - Dữ liệu cá của bản Android trùng từng byte với bản PC ở 65 loài Hố Xanh; bản Android cũng không có bảng sinh cá.
+  - Dữ liệu cá của bản Android trùng từng byte với bản PC ở 65 loài Hố Xanh. Câu cũ "bản Android cũng không có bảng sinh cá" là cùng cái bẫy ở dưới: chỗ đặt cá nằm trong IGPSet, chưa soát IGPSet của bản Android.
 
-- **Bản gốc không có danh sách loài theo từng bản đồ con.** `FishGroupController` trong mỗi cảnh chỉ mang tên bản đồ. `FishAllocator` chỉ sinh cá nhiệm vụ (TID 2011xxx). Vùng A/B/C theo thư mục Spine đã đúng với danh mục wiki.
-  - Lỗi thật nằm ở bộ sinh cá: loài được chọn theo tầng ở y lệch ±12 m, còn con cá đặt ở y thật. Nên cá tầng này tràn sang tầng kia gần ranh giới.
-  - Giờ ngày/đêm của từng loài và ngoại lệ A06 lấy từ wiki (`[WIKI]`, `tools/spawn_data.py`).
+- **Cá đặt theo từng bản đồ, ở đúng toạ độ, trong preset IGPSet** (chi tiết và bảng số ở `tools/README.md`, mục "Cá đặt ở đâu").
+  - [BẪY ĐÃ SẬP] Bản trước soát `FishGroupController` trong scene, thấy chỉ có cá nhiệm vụ FishMon, rồi kết luận bản gốc không có danh sách loài theo bản đồ và lấy giờ ngày/đêm trên wiki. Cá thường nằm trong prefab addressable `IGPSet_<map>_<Day|Night>_F00_N00_<n>` do `<scene>_IGPSetController` nạp lúc vào scene. Chủ dự án thấy ngay: "các loại cá vẫn chưa nằm ở đúng vị trí".
+  - Mỗi lượt lặn, mỗi tầng bốc một preset theo `Rate`, trong số preset đã mở theo ngày của sổ lưu (`Day_Min` gốc: preset 2+ mở từ ngày 7–25). A05 không có preset, allocator nằm thẳng trong scene.
+  - Mỗi `FishAllocator` sinh đúng prefab Boid gốc (3–25 con, lệch từng con như trong prefab) ngay chỗ nó đứng, rồi cá bơi quanh các `FishWayPoint` (bán kính 5,5–7,5 m) hoặc trong hộp `_limitBoundary`.
+  - Loài theo bản đồ khác hẳn cách cũ: cá hề chỉ ở A01, A03, A05; cá thiên thần lửa, cá bàng chài đầu bướu, cá da trơn sọc chỉ ở rừng tảo A06. Wiki ghi A06 không có Sheepshead và Striped Catfish, nhưng preset A06 gốc đặt cả hai.
+  - `Seahorse` (2010011) trong `assets.js` không có ở zone nào; cá ngựa trong Hố Xanh là cá ngựa đua (TID 2012xxx, art riêng), chưa bóc.
+  - Nhóm tắt trong prefab (cá ngừ, cá cờ, cá mập đêm `BeforeSharkParty`/`AfterSharkParty`…) là công tắc nhiệm vụ, sự kiện; game không sinh.
+- **Chỗ sinh cá tự chọn [ĐỀ XUẤT]:**
+  - Allocator sinh khi camera cách nó dưới `min(spawnCheckDistance, fish.wake = 22 m)`. Gốc là 18/20 m; riêng A06 ghi 9999 (sinh hết ngay lúc vào scene, ~320 con), nên kìm lại cho đỡ nặng. Cá sinh ngoài khung nhìn nên người chơi không thấy khác.
+  - Mọi con còn bơi của một allocator cách camera trên 30 m (`fish.despawn`) thì cất đi, nhớ số con còn sống; quay lại thì sinh lại đúng số đó.
+  - Bản gốc không có trường hồi sinh nào, nên cá chết là mất cho tới hết lượt lặn. Lượt sau bốc preset mới.
+  - Allocator đặt sát vách (46 trên 4.335 dòng, phần lớn cá đuối, cá sao trời, cua nhện nằm đáy) thì dời ra chỗ nước trống gần nhất trong 3 m.
+  - Phần scene tầng dưới nhô lên trên mép nối bị tầng trên che, allocator ở đó không sinh.
 - **Cá chết có ba đường trong bản gốc:** `FishInteractionType { Carving, Pickup, Calldrone }`. `CarvableCount` trong `DR_GameData_Fish.json` khác 0 đúng ba loài cỡ 2 của ta. `CarvingCommand` dài 2,2 giây; `PickupCommand` tức thì. Nút `Interaction` của `DRInput` là Space.
   - Tốc độ nổi của xác (`FloatingValueWhenDead`) và thời gian tan không đọc được. 0,12 m/s và 40 giây là số tự chọn.
   - Drone kéo cá cực lớn (`LiftDrone`) chưa làm.
@@ -220,7 +230,7 @@ node test/ho-xanh-suite.js      # SHOTS=<thư mục> để đổi chỗ lưu ả
 node test/ho-xanh-meta.js       # hàm thuần của data/meta.js và chuẩn hoá sổ lưu, không cần trình duyệt
 node test/ho-xanh-boat.js       # cano tự chạy ra/về khớp khoá clip gốc, phím không có tác dụng, nhảy xuống, 5 chuyến không rò bộ nhớ GPU
 node test/ho-xanh-harvest.js    # giằng co Dave đứng yên và không bị cắn, xác cá nằm lại, nhặt và xả thịt, túi đầy, nút Nhặt
-node test/ho-xanh-spawn.js      # mọi con cá sinh ra đều hợp lệ theo data/fish_spawn.js tại đúng chỗ sinh
+node test/ho-xanh-spawn.js      # cá sinh ra đúng allocator gốc: đàn cá hề ở A01 (-34.89; 3.85), cá chết không sinh lại, cá mập chờ ở fishes.sharks
 node test/ho-xanh-touch.js      # HUD cảm ứng trên điện thoại giả lập: cần nổi, kéo ngắm, huỷ bắn, giằng co, dao, súng, nhặt xác
 node test/ho-xanh-mobile.js     # Pixel 7, iPhone 13 cầm dọc: bảng "Xoay ngang" phủ kín, lượt lặn đứng yên; xoay ngang thì chơi tiếp
 HX_BASE=https://poke5121999-art.github.io/survivor-web-hub node test/ho-xanh-<tên>.js   # chạy cùng bài kiểm trên bản Pages

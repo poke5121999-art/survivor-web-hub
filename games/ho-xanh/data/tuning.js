@@ -111,10 +111,8 @@ window.HX_TUNING = {
   },
   fish: {
     pxToUnit: 0.01,          // [DtD] cùng mật độ điểm ảnh với Dave
-    alive: [42, 56],         // [ĐỀ XUẤT] số cá quanh camera: [nông, sâu]
-    spawnMin: 6.5,           // [ĐỀ XUẤT] khoảng cách tối thiểu từ camera khi sinh (ngoài mép khung nhìn)
-    spawnMax: 17,            // [ĐỀ XUẤT]
-    despawn: 30,             // [ĐỀ XUẤT]
+    wake: 22,                // [ĐỀ XUẤT] allocator gốc sinh cá khi camera cách trong min(spawnCheckDistance, số này); gốc 18/20, riêng A06 9999 (sinh ngay) thì kìm lại cho đỡ nặng
+    despawn: 30,             // [ĐỀ XUẤT] mọi con còn bơi của một allocator xa camera quá số này thì cất đi, giữ số con còn sống
     speed: [0.55, 0.8, 1.0], // [ĐỀ XUẤT] tốc độ bơi theo cỡ 0/1/2
     sprintMul: 3.2,          // [ĐỀ XUẤT]
     sight: 4.5,              // [ĐỀ XUẤT] cá hung dữ thấy Dave
@@ -123,8 +121,6 @@ window.HX_TUNING = {
     angryTime: 6,            // [ĐỀ XUẤT] cá có sát thương mà bị đánh thì cắn lại
     biteRange: 0.45,         // [ĐỀ XUẤT] tính thêm bán kính thân cá
     biteCooldown: 1.4,       // [ĐỀ XUẤT]
-    school: [3, 6],          // [ĐỀ XUẤT] đàn cá nhỏ
-    schoolMaxHp: 4,          // [ĐỀ XUẤT] cá máu ≤ mức này mới bơi đàn
     rareWeight: 0.35,        // [ĐỀ XUẤT] hệ số xuất hiện của cá hạng ≥ 3
     puffRange: 1.6,          // [ĐỀ XUẤT] cá nóc phồng khi Dave lại gần
     puffTime: 3,             // [ĐỀ XUẤT]

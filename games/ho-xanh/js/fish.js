@@ -1,4 +1,4 @@
-// Cá: dữ liệu Spine gốc, máy trạng thái hành vi, và bộ sinh cá quanh camera.
+// Cá: dữ liệu Spine gốc, máy trạng thái hành vi, và bộ sinh cá theo allocator gốc của từng tầng.
 (function (HX) {
   'use strict';
   var T = window.HX_TUNING, FT = T.fish;
@@ -328,11 +328,20 @@
     this.pos.x = nx; this.pos.y = ny;
   };
 
+  // Điểm ngẫu nhiên trong vùng bơi gốc của allocator: quanh một FishWayPoint (bán kính _Range) hoặc trong hộp _limitBoundary.
+  function homePoint(h) {
+    if (h.box) return { x: h.box[0] + (Math.random() * 2 - 1) * h.box[2], y: h.box[1] + (Math.random() * 2 - 1) * h.box[3] };
+    var w = h.wp[Math.floor(Math.random() * h.wp.length)], a = Math.random() * Math.PI * 2, r = w[2] * Math.sqrt(Math.random());
+    return { x: w[0] + Math.cos(a) * r, y: w[1] + Math.sin(a) * r };
+  }
+
   Fish.prototype.pickTarget = function (range) {
     var W = this.G.world;
-    for (var i = 0; i < 8; i++) {
+    for (var i = 0; i < 16; i++) {
       var a = Math.random() * Math.PI * 2, r = range * (0.4 + Math.random() * 0.6);
       var tx = this.pos.x + Math.cos(a) * r, ty = this.pos.y + Math.sin(a) * r * 0.45;
+      // nửa đầu các lần thử bám vùng bơi gốc; bị vách che hết thì bơi quanh chỗ đang đứng như cũ
+      if (this.home && i < 8) { var h = homePoint(this.home); tx = h.x; ty = h.y; }
       if (ty > T.water.surfaceY - 1) continue;
       if (W.solid(tx, ty) || W.raycast(this.pos.x, this.pos.y, tx, ty)) continue;
       this.target = { x: tx, y: ty };
@@ -544,37 +553,67 @@
     },
   };
 
-  // ---------- bộ sinh cá ----------
+  // ---------- bộ sinh cá: allocator gốc ----------
+  // HX_FISH_SPAWN (data/fish_spawn.js, tools/rip_fishgroups.py): mỗi zone có `base` (allocator nằm thẳng
+  // trong scene) và các preset IGPSet; mỗi lượt lặn bốc một preset cho mỗi tầng như GetRandomIGPSetInfo gốc.
+  var SPAWN = window.HX_FISH_SPAWN;
+
+  function weighted(list, w, rnd) {
+    var tot = 0, i;
+    for (i = 0; i < list.length; i++) tot += w(list[i]);
+    var r = rnd() * tot;
+    for (i = 0; i < list.length; i++) { r -= w(list[i]); if (r < 0) return list[i]; }
+    return list[list.length - 1];
+  }
+
+  // Preset còn mở theo ngày (IGPSetConditionType.Day_Min), bốc theo Rate.
+  function pickPreset(z, day, rnd) {
+    var ok = z.presets.filter(function (p) { return day >= p.day; });
+    return ok.length ? weighted(ok, function (p) { return p.rate; }, rnd) : null;
+  }
+
+  // Một FishAllocator đặt vào tầng L (toạ độ thế giới). Bốc sẵn prefab cá như instanceType RandomSelect gốc.
+  // left: số cá còn sống của allocator trong lượt lặn này; bản gốc không có trường hồi sinh nên chết là mất.
+  function Alloc(row, L, rnd) {
+    var dy = L.yOff;
+    this.x = row.x; this.y = row.y + dy;
+    this.near = Math.min(row.near || SPAWN.near, FT.wake);
+    this.home = row.b ? { box: [row.x + row.b[0], row.y + dy + row.b[1], row.b[2], row.b[3]] }
+      : row.w.length ? { wp: row.w.map(function (w) { return [w[0], w[1] + dy, w[2]]; }) } : null;
+    var pf = SPAWN.prefabs[weighted(SPAWN.picks[row.p], function (p) { return p[0]; }, rnd)[1]];
+    this.members = pf.fish.map(function (m) { return { tid: row.tid || m[0], dx: m[1], dy: m[2] }; });
+    this.left = this.members.length;
+    this.fish = [];
+  }
+
   function Fishes(G) {
     this.G = G;
     this.list = [];
-    this.spawnT = 0;
     this.frozen = false;
-  }
-
-  // HX_FISH_SPAWN (data/fish_spawn.js, sinh bởi tools/spawn_data.py): vùng+giờ hợp lệ của từng loài
-  // theo wiki, vì bản gốc không lưu danh sách loài theo từng bản đồ con hay theo dải mét chi tiết
-  // hơn ba vùng A/B/C (xem chú thích đầu spawn_data.py). Loài chưa có trong bảng (vd thêm mới sau
-  // này mà quên chạy lại tool) thì không bị chặn thêm gì, chỉ lọc theo vùng như trước.
-  var SPAWN = window.HX_FISH_SPAWN || {};
-  function spawnAllows(sp, mapId, night) {
-    var sd = SPAWN[sp.id];
-    if (!sd) return true;
-    if (sd.excludeMaps && sd.excludeMaps.indexOf(mapId) >= 0) return false; // [WIKI] vd rừng tảo A06 không có Sheepshead/Striped Catfish
-    if (sd.active === 'day' && night) return false; // [WIKI] active_time: loài ban ngày không hiện khi lặn đêm
-    if (sd.active === 'night' && !night) return false; // [WIKI] loài chỉ hiện lúc lặn đêm
-    return true;
-  }
-
-  // Cá của đúng vùng đang lặn (A nông, B tầng giữa, C vực sâu), đúng bản đồ con và đúng giờ theo wiki.
-  function pickSpecies(layer, night, rnd) {
-    var pool = SPECIES.filter(function (s) { return s.zone === layer.area && s.rank > 0 && spawnAllows(s, layer.id, night); });
-    if (!pool.length) pool = SPECIES.filter(function (s) { return s.zone === layer.area && s.rank > 0; });
-    if (!pool.length) pool = SPECIES.filter(function (s) { return s.zone === 'A' && s.rank > 0; });
-    var tot = 0, w = pool.map(function (s) { var x = s.rank >= 3 ? FT.rareWeight : 1; tot += x; return x; });
-    var r = rnd() * tot;
-    for (var i = 0; i < pool.length; i++) { r -= w[i]; if (r <= 0) return pool[i]; }
-    return pool[pool.length - 1];
+    this.tick = 0;
+    this.allocs = [];
+    // Cá mập 3D (không có Spine 2D) theo từng tầng, chờ js/shark.js: { zone, tid, name, prefab, x, y, n, home, near, off }.
+    // off = tên công tắc nhiệm vụ/sự kiện đang tắt nhóm đó trong prefab gốc (vd BeforeSharkParty), null nếu bật.
+    this.sharks = [];
+    this.presets = [];
+    var self = this, day = HX.save.get().day;
+    G.stack.layers.forEach(function (L) {
+      var z = SPAWN.zones[L.id], pr = pickPreset(z, day, Math.random);
+      self.presets[L.i] = pr ? pr.name : null;
+      self.sharks[L.i] = [];
+      z.base.concat(pr ? pr.allocs : []).forEach(function (row) {
+        // phần scene tầng dưới nhô lên trên mép nối bị tầng trên che, cá ở đó không sinh
+        if (row.y + L.yOff > L.yTop) return;
+        var a = new Alloc(row, L, Math.random), s = SPAWN.species[a.members[0].tid];
+        if (s.shark) {
+          self.sharks[L.i].push({ zone: L.id, tid: a.members[0].tid, name: s.name, prefab: s.prefab, x: a.x, y: a.y,
+            n: a.members.length, home: a.home, near: row.near || SPAWN.near, off: row.off || null });
+        } else if (!row.off && s.id) {
+          a.sp = BY_ID[s.id];
+          self.allocs.push(a);
+        }
+      });
+    });
   }
 
   Fishes.prototype.spawnAt = function (sp, x, y) {
@@ -583,53 +622,72 @@
     return f;
   };
 
-  Fishes.prototype.trySpawn = function () {
-    var G = this.G, cam = G.gfx.camera.position, W = G.world;
-    for (var tries = 0; tries < 10; tries++) {
-      var a = Math.random() * Math.PI * 2, r = FT.spawnMin + Math.random() * (FT.spawnMax - FT.spawnMin);
-      var x = cam.x + Math.cos(a) * r, y = cam.y + Math.sin(a) * r * 0.7;
-      if (y > T.water.surfaceY - 1.2 || y < W.box.minY) continue;
-      if (!W.open(x, y, 0.6)) continue;
-      // Lấy đúng tầng cá sẽ đứng, không trộn thêm loài tầng kế bên: danh mục wiki (Shallows/Medium
-      // Depth/Depths Fish) không có loài nào của ta xuất hiện ở quá một vùng, nên trộn ở đây từng
-      // khiến cá vùng A/B/C hiện sai hẳn sang tầng khác gần ranh giới [ĐO 2026-09-25, test/ho-xanh-spawn.js].
-      var L = G.stack.layerAt(y);
-      var sp = pickSpecies(L, !!(G.stack.theme && G.stack.theme.night), Math.random);
-      var lead = this.spawnAt(sp, x, y);
-      if (sp.hp <= FT.schoolMaxHp && sp.size === 0 && Math.random() < 0.6) {
-        var n = FT.school[0] + Math.floor(Math.random() * (FT.school[1] - FT.school[0] + 1));
-        for (var i = 1; i < n; i++) {
-          var ox = (Math.random() - 0.5) * 1.4, oy = (Math.random() - 0.5) * 0.7;
-          if (!W.open(x + ox, y + oy, 0.2)) continue;
-          var m = this.spawnAt(sp, x + ox, y + oy);
-          m.leader = lead; m.offset = { x: ox, y: oy }; m.speed = lead.speed;
-        }
+  // Chỗ nước trống gần (x, y) nhất: allocator đặt sát vách thì dời ra theo vòng tròn nở dần.
+  function openNear(W, x, y) {
+    for (var r = 0; r <= 3; r += 0.5) {
+      for (var k = 0; k < (r ? 12 : 1); k++) {
+        var a = k / 12 * Math.PI * 2, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+        if (py < T.water.surfaceY - 1.2 && W.open(px, py, 0.3)) return { x: px, y: py };
       }
-      return true;
     }
-    return false;
+    return null;
+  }
+
+  // Sinh nốt số cá còn lại của allocator tại chỗ gốc, mỗi con lệch đúng như con của nó trong prefab Boid.
+  Fishes.prototype.wake = function (a) {
+    var W = this.G.world, c = openNear(W, a.x, a.y), lead = null;
+    if (!c) { a.left = 0; return; }
+    for (var i = 0; i < a.left; i++) {
+      var m = a.members[i], ox = m.dx, oy = m.dy;
+      if (!W.open(c.x + ox, c.y + oy, 0.2)) { ox = 0; oy = 0; }
+      var f = this.spawnAt(a.sp, c.x + ox, c.y + oy);
+      f.alloc = a; f.home = a.home;
+      if (lead) { f.leader = lead; f.offset = { x: ox, y: oy }; f.speed = lead.speed; } else lead = f;
+      a.fish.push(f);
+    }
   };
 
-  Fishes.prototype.target = function () {
-    var k = Math.min(1, this.G.stack.depth(this.G.gfx.camera.position.y) / 100);
-    return Math.round(FT.alive[0] + (FT.alive[1] - FT.alive[0]) * k);
+  // Allocator mà mọi con còn bơi đều đã xa camera thì cất cá đi, giữ số con còn sống để lần sau sinh lại đúng chừng ấy.
+  function asleep(a, cam) {
+    return a.fish.every(function (f) {
+      return f.alive() && f.state !== 'hooked' && f.state !== 'lifted' && Math.hypot(f.pos.x - cam.x, f.pos.y - cam.y) > FT.despawn;
+    });
+  }
+
+  Fishes.prototype.check = function () {
+    var cam = this.G.gfx.camera.position;
+    for (var i = 0; i < this.allocs.length; i++) {
+      var a = this.allocs[i];
+      if (a.fish.length) {
+        if (asleep(a, cam)) this.drop(a.fish.slice());
+      } else if (a.left > 0 && Math.hypot(a.x - cam.x, a.y - cam.y) < a.near) this.wake(a);
+    }
+  };
+
+  Fishes.prototype.drop = function (fish) {
+    var self = this;
+    fish.forEach(function (f) {
+      var a = f.alloc;
+      if (a) {
+        a.fish.splice(a.fish.indexOf(f), 1);
+        if (!f.alive()) a.left--;
+      }
+      f.remove();
+      self.list.splice(self.list.indexOf(f), 1);
+    });
   };
 
   Fishes.prototype.update = function (dt) {
     var G = this.G, cam = G.gfx.camera.position;
     var hw = G.viewHalf.w + 1.5, hh = G.viewHalf.h + 1.5;
     if (!this.frozen) {
-      this.spawnT -= dt;
-      if (this.spawnT <= 0) {
-        this.spawnT = 0.2;
-        if (this.list.length < this.target()) this.trySpawn();
-      }
+      this.tick -= dt;
+      if (this.tick <= 0) { this.tick = 0.25; this.check(); }
     }
     for (var i = this.list.length - 1; i >= 0; i--) {
       var f = this.list[i];
-      if (f.state === 'reeled' && f.st > 0.2) { f.remove(); this.list.splice(i, 1); continue; }
+      if (f.state === 'reeled' && f.st > 0.2) { this.drop([f]); continue; }
       var dx = f.pos.x - cam.x, dy = f.pos.y - cam.y;
-      if (!this.frozen && Math.hypot(dx, dy) > FT.despawn && f.state !== 'hooked' && f.state !== 'dying' && f.state !== 'lifted') { f.remove(); this.list.splice(i, 1); continue; }
       f.update(dt, Math.abs(dx) < hw + f.hw && Math.abs(dy) < hh + f.hh);
     }
   };
@@ -649,6 +707,7 @@
   Fishes.prototype.clear = function () {
     this.list.forEach(function (f) { f.remove(); });
     this.list.length = 0;
+    this.allocs.forEach(function (a) { a.fish.length = 0; });
   };
 
   // Ảnh nhỏ của cá để bày ở thẻ bắt được và bảng kết quả (bản gốc không có icon cho cá Spine).

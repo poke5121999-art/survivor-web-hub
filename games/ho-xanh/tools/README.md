@@ -6,6 +6,7 @@ Dave the Diver (Mintrocket). Hai công cụ, chạy lại bao nhiêu lần cũng
     set PYTHONIOENCODING=utf-8
     python games/ho-xanh/tools/rip.py     # art/{dave,fish,env,fx,ui,props}, audio/, data/assets.js
     python games/ho-xanh/tools/level.py   # art/level/<ZONE>.glb, data/zones.js (thêm mã zone để chạy lẻ)
+    python games/ho-xanh/tools/rip_fishgroups.py  # data/fish_spawn.js: chỗ đặt cá gốc từng zone (mục "Cá đặt ở đâu")
 
 `rip.py` phải chạy trước. Lần đầu nó quét hết bundle (~4 phút) rồi đệm bảng tra ở
 `%TEMP%/ho-xanh-rip/bundle_index.json`. Cần Python 3.8 + UnityPy 1.25 + numpy + Pillow,
@@ -211,6 +212,89 @@ tượng bộ đàm gọi khoang, cũng tĩnh — `AnimationClip EscapePod_Radio
 Vòng sáng quanh khoang trong bản gốc là `ParticleSystem` 3D (glow/ring/god-rays…), không xuất
 được kiểu sprite — dựng lại bằng VFX glow đã có sẵn trong `VFX` (`LightCircle`, `PointLightFX`,
 `E_Glow_*`) nếu cần hiệu ứng tương tự.
+
+## Cá đặt ở đâu (IGPSet + FishAllocator) [ĐO TRONG REPO, 2026-09-25]
+
+    set PYTHONIOENCODING=utf-8
+    python games/ho-xanh/tools/rip_fishgroups.py   # ~25 giây, ghi data/fish_spawn.js (552 KB), chạy lại ra đúng từng byte
+
+Cần `bundle_index.json` của `rip.py`. Chỉ nạp bundle scene, bundle IGPSet và bundle prefab cá, không nạp phụ thuộc hình.
+
+**Bẫy đã sập.** Bản trước (`tools/spawn_data.py`, đã xoá) tìm `FishGroupController` trong scene, thấy
+`FishGroup_A_1_NEW`… chỉ có một nhánh `FishMon` (hai cá nhiệm vụ TID 2011xxx), rồi kết luận "bản gốc
+không có danh sách loài theo bản đồ" và lấy giờ ngày/đêm trên wiki bù vào. Ba prefab
+`Fish/Prefabs/Groups/FishGroup_A_2_NEW / B_1_New / C_3` cũng chỉ chứa FishMon. Cá thường nằm chỗ khác:
+
+- Mỗi scene có `<scene>_IGPSetController` (gốc 0,0). `IGPSetInfoList` là danh sách prefab addressable
+  `Ingame/00_InGame_Common/Prefabs/IGPSet/PreSet/IGPSet_<map>_<Day|Night>_F00_N00_<n>` (IGP = In-Game
+  Placement), mỗi cái có `Rate` và `IGPSetConditionList`. Vào scene thì game bốc một preset (`GetRandomIGPSetInfo`).
+- Điều kiện `type 1` là `Day_Min`. Số enum `IGPSetConditionType` đọc thẳng từ `il2cpp_data/Metadata/global-metadata.dat`
+  (v31, bảng `fieldDefaultValues`, số nén): `Day_Min = 1`, `SNSGrade_Min = 2`. Mọi điều kiện của 16 zone đều là
+  `Day_Min`: A01–A03 mở preset 2..5 từ ngày 7 / 13 / 16 / 19, B từ ngày 10 / 19, C từ ngày 14 / 25.
+- Preset `Rate 0` chỉ bật theo `ActiveMissionTaskID` (MXMTOON, UdoManta_Potion…), tool bỏ. C03/C04 preset 1
+  có `ActiveMissionTaskID 10050100` mà vẫn `Rate 50`; tool giữ, không rõ trường này chặn hay chỉ ép.
+- Trong preset, nhánh `InGamePlacementSet_Origin_<map>_F00` (mang `FishGroupController`) gom `FishAllocator`
+  theo nhóm loài; nhánh `…_N00` là rương, quặng, rong (không bóc).
+- **A05 là scene cũ**: không có `IGPSetController`, 86 allocator nằm thẳng trong scene → `base`.
+- Toạ độ trùng hệ của `zones.js`: trong 4.335 dòng allocator bật (mọi preset của 16 zone) chỉ 46 dòng rơi vào đa giác vách,
+  gần hết là loài nằm đáy (cá đuối, cá sao trời, cua nhện), không dòng nào ra ngoài `bounds`. Runtime dời chúng ra chỗ nước trống gần nhất.
+
+`FishAllocator` (trường đọc bằng `read_typetree`):
+
+| trường | nghĩa |
+|---|---|
+| `instanceType` | `Default` 0 = `FishPrefabOrGroup`; `RandomSelect` 1 = bốc theo `weight` trong `FishPrefabOrGroups.list` |
+| `FishPrefabOrGroup(s)` | prefab `Boid_SA_<TID>_<Tên>_<n>` (gốc có `groupSize`, `k_alignment`… + n con) hoặc thẳng `SA_<TID>_<Tên>` |
+| `AreaMode` | `EAreaMode`: 1 `WayPoint` (bơi giữa các `FishWayPoint`, bán kính `_Range` 5,5–7,5), 0 `Bound` (hộp `_limitBoundary`, tâm tính từ allocator) |
+| `spawnCheckDistance` | 20 (5.038 dòng), 18 (279 dòng, A02–A04, A06), 9999 (233 dòng, A06: sinh ngay khi vào scene) |
+| `_overwriteFishDataTID` | 9 allocator ở B04N ghi đè; đều trùng TID của prefab |
+| `IsSpawnToFirstWaypoint`, `SpawnToGround`, `spawnCheckMinDistance`, `_IsDespawnByDisabled` | không dùng |
+
+- Không có trường hồi sinh hay hẹn giờ nào (cả trong tên hàm trong metadata: `Spawn`, `Despawn`,
+  `InstanceCheckRoutine`, `DelayedSpawn`), nên game web coi mỗi allocator sinh một lần mỗi lượt lặn.
+- Loài lấy từ `FishDataTID` của `SABaseFishSystem` trên thân cá, **không từ tên con**: con trong Boid tuna
+  và cá da trơn sọc tên `SA_0000_Tuna`, `SA_0000_Striped_Catfish`.
+- Lệch của từng con so với gốc Boid là số thật trong prefab (cá hề ±0,25 m, đàn 25 cá sơn đá trải 8,25 m), runtime dùng nguyên.
+- Nhóm bị tắt (`m_IsActive` 0) là công tắc nhiệm vụ/sự kiện: `Tuna`, `Shortfin_Mako(HP300)`, `Thresher_Shark`,
+  `Whitetip_Reefshark_NEW` (A), `BeforeSharkParty` / `AfterSharkParty` (cá mập đêm), `White_Shrimp(HP0)`,
+  `Shark_Toggle`, `Party_Shark`… Tool ghi tên nút tắt vào `off`; bộ sinh 2D bỏ các dòng này.
+
+`data/fish_spawn.js` (`window.HX_FISH_SPAWN`):
+
+    near: 20                                   spawnCheckDistance mặc định
+    species: { "<TID>": { name, id? , prefab?, shark? } }   id = khoá trong assets.js; không có id = không có Spine 2D
+    prefabs: { "<tên prefab>": { path, fish: [[TID, dx, dy], ...] } }
+    picks:   [ [[weight, "<tên prefab>"], ...], ... ]        bộ chọn dùng chung
+    zones: { "<zone>": { base: [row], presets: [{ name, rate, day, mission?, allocs: [row] }] } }
+    row = { x, y, p: <chỉ số picks>, w: [[x, y, r], ...] | b: [cx, cy, ex, ey], near?, tid?, off? }
+
+Số allocator mỗi zone (preset 1, bật / cả 3–5 preset kể cả tắt; cá 2D kỳ vọng ở preset 1):
+
+| zone | preset (ngày mở) | allocator bật ở preset 1 | cả preset | cá 2D kỳ vọng |
+|---|---|---|---|---|
+| A01 | 5 (0, 7, 13, 16, 19) | 88 | 567 | 181 |
+| A02 | 5 (0, 7, 13, 16, 19) | 84 | 530 | 167 |
+| A03 | 5 (0, 7, 13, 16, 19) | 84 | 502 | 205 |
+| A04 | 3 (0, 16, 19) | 89 | 320 | 207 |
+| A05 | 0, `base` | 86 | 86 | 177 |
+| A06 | 3 (0, 10, 16) | 103 | 350 | 322 |
+| A03N | 3 (0, 16, 19) | 15 | 168 | 65 |
+| A04N | 3 (0, 7, 22) | 16 | 169 | 66 |
+| B01 | 3 (0, 10, 19) | 89 | 289 | 149 |
+| B02 | 3 (0, 10, 19) | 106 | 355 | 139 |
+| B03 | 3 (0, 10, 19) | 130 | 484 | 119 |
+| B04 | 3 (0, 10, 19) | 99 | 352 | 139 |
+| B06 | 3 (0, 10, 19) | 113 | 445 | 119 |
+| B04N | 3 (0, 10, 22) | 10 | 162 | 17 |
+| C03 | 3 (0, 14, 25) | 116 | 406 | 68 |
+| C04 | 3 (0, 14, 25) | 115 | 365 | 67 |
+
+Loài bản gốc đặt mà game web chưa có Spine 2D (dữ liệu giữ, bộ sinh bỏ qua): cá ngựa đua `Racing_Seahorse_06..20`
+(TID 2012xxx, art riêng từng loài), `Barrel_JellyFish`, `Red_Stingray01`, `Marbled_Electric_Ray01`, `Moray_Eel02_Night`,
+`BlackTiger_Shrimp`, `Narrow-barred_Spanish_mackerel`, `Australian_Spotted_Jellyfish`, `Salmon_Snailfish`,
+`BluespottedStargazer`, `Rhinochimaeridae`, cá ngừ, cá cờ, mực Humboldt, và cá nhiệm vụ FishMon.
+Cá mập (`shark: 1`, tên có Shark hoặc Mako) chờ `js/shark.js`. Ngược lại, `Seahorse` (2010011) và
+`Cow_Pattern_Snapper` trong `assets.js` không được đặt ở zone nào.
 
 ## Cano, súng, trang bị, quán sushi
 
