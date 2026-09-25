@@ -794,7 +794,13 @@
       return x.doi === kia && x.song && (x.lane === 'nha' || x.lane === 'loi') &&
         trongTamDanh(tran, x);
     });
-    k = { loai: (loRa || chetDich >= 2 || song >= 4) ? 'day' : 'thu',
+    /* `[ĐO TRONG REPO]` Đủ người mà chưa ai chết thì chỉ đẩy SAU PHA ĐI ĐƯỜNG (240 s — lúc
+       Chúa Hang của TFM2 ra lần đầu, `epic_jungle.first_spawn_tick 14400`). Trên bản đồ TFM2,
+       trụ ngoài gần chỗ lính gặp nhau hơn bản đồ cũ; "đủ người là đẩy" từ giây đầu kéo cả đội
+       sang một đường ngay khi sóng lính đầu tới, và trụ đầu tiên đổ ở giây 158 (trung vị 60
+       trận; bản đồ cũ 292). Có mốc này: 274 (RESEARCH §13). TFM2 cũng thế: đi đường là pha
+       riêng, laner chỉ rời đường khi đường mình đã chắc (`trait.description.lane_intervention`). */
+    k = { loai: (loRa || chetDich >= 2 || (song >= 4 && tran.t > 240)) ? 'day' : 'thu',
       lane: tot, t: tran.t, dut: loRa };
     tran.keHoach[doi] = k;
     return k;

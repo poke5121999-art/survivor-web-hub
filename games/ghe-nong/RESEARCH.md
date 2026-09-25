@@ -1893,3 +1893,159 @@ là `epic`.
 - `[BẪY ĐÃ SẬP]` Luật CSS cũ `.san{background:#16202c…}` của màn tối đời đầu vẫn còn, tô đen năm ô bấm
   trong suốt đè lên nút flash. Khi dựng lại màn, xoá cả khu CSS cũ chứ đừng chỉ viết đè: `.ca-tam`
   cũ còn padding và viền làm viên tâm trạng bị cắt.
+
+## 13. Bản đồ 5v5 thật của TFM2 `[ĐO TRONG REPO]`
+
+Chủ dự án: *"dùng full, đừng tự chế, cứ copy hệt tfm2"*. Màn trận bỏ hình thoi vẽ tay (`dungNen`)
+và minimap hình thoi. Giờ nó vẽ đúng các lớp ảnh 5v5 của TFM2, nhìn thẳng từ trên xuống. Tường là
+tường thật, người phải đi vòng. Mọi toạ độ công trình đều lấy từ tệp của TFM2. Dựng bằng
+`python _tools/build_bando.py`, đọc bundle qua `Kho` của `build_tfm.py`.
+
+### 13.1 Toạ độ: đo trên ảnh, không đoán
+
+- `game_setting.width/height = 960000`, 1 điểm ảnh = 1000 đơn vị ⇒ sân 960×960 điểm ảnh, nằm ở
+  (160,160)–(1120,1120) của các lớp 1280×1280. Sim giữ sân 0..1000:
+  `sim = (px − 160) · 1000 / 960`. `game_setting` KHÔNG có toạ độ công trình nào.
+- Bệ trụ là vùng màu (111,115,100) của `background_5v5`. Mỗi bệ tách thành nửa trên 42×30 và nửa
+  dưới 48×36; tâm bệ là trung điểm hai nửa. Bãi quái lớn là ô đá (58,72,81) 60×60. Loại quái ở từng
+  bãi đọc từ `UI_aseprite/ingame_mockup_5v5_new.png`. Tấm này lệch 32 px theo chiều ngang so với lớp
+  1280.
+- Cấu trúc khớp với sim: 2 trụ mỗi đường mỗi bên, 2 trụ đôi trước lõi (sim cũ chỉ có 1 trụ nhà),
+  và lõi. Chúa Hang (Morgard, epic) ở góc trên trái (440,440) px, Rồng (Serpen) ở (830,830) px.
+- Bên đỏ là ảnh lật (x,y)→(y,x) của bên xanh. Lưới tường đối xứng tuyệt đối qua phép lật này
+  (0/900 ô lệch). Qua phép quay 180° thì lệch 92 ô, nên KHÔNG dùng phép quay. Mỗi đường chỉ dựng
+  nửa phía xanh, nửa kia là ảnh lật, nên luật đối xứng của `DUONG` (§8) đúng theo cấu tạo.
+- Khoảng cách hai trụ ngoài đối diện, đo dọc đường: đường trên/dưới 0,24 × 1624 = 390, đường
+  giữa 0,29 × 1137 = 330. Cả hai đều lớn hơn 2 × tầm trụ 130, nên luật §8 vẫn giữ. Nhưng tâm đường
+  chỉ còn cách trụ ngoài 171–195 (bản đồ cũ 215–306). Từ đây sinh ra lỗi trụ đổ sớm ở §13.5.
+
+### 13.2 Định dạng `map_setting` (tự giải) `[ĐỌC TỪ NGUỒN]`
+
+Mọi độ dài là u64 little-endian. Lưới 30×30 ô, mỗi ô 32 px, gốc ở (160,160).
+
+1. **Bảng đi thẳng.** `vec[30] vec[30] vec[30] vec[30] u8`, tức mỗi ô nguồn (i,j) có một mặt nạ 30×30
+   các ô tới được bằng đường thẳng (đã tính bề dày người). Tra `thay[(i·30+j)·900 + k·30 + l]`.
+   Bảng kết thúc ở offset 1033448. Nó KHÔNG đối xứng: có 17424 cặp a→b đi được mà b→a không.
+2. **Bước đầu tiên.** `u64 810000, u64 405000`, rồi 405000 byte, mỗi byte hai giá trị 4 bit (nửa
+   thấp trước). `v[a·900+b]` là hướng bước đầu để đi từ ô a tới ô b: 0 phải, 1 xuống, 2 trái,
+   3 lên, 4 phải-xuống, 5 trái-xuống, 6 phải-lên, 7 trái-lên, 15 không tới được. Ô tường có
+   cả hàng bằng 15: đúng 90 ô, trùng khít tường đá của `wall_5v5`.
+3. `u64 27000, u64 13500`, rồi 13500 byte. **Chưa giải được.**
+
+`js/data-bando.js` (`window.BAN_DO`) mang theo `tuong` và `bui` (chuỗi 900 ký tự '0'/'1'), và
+`thay` (phần 1 gói thành 810000 bit, base64). Ngoài ra có ba đường, trụ, bãi, lõi, giếng, trụ đôi
+và quái lớn, tất cả đã quy về toạ độ sim.
+
+### 13.3 Tường và tìm đường (`sim.js`)
+
+- `diemDi(x,y,tx,ty)`: thấy thẳng (bảng phần 1) thì đi thẳng. Không thì BFS 8 hướng trên lưới,
+  không cắt góc tường. BFS tính dần theo ô đích rồi giữ lại (tối đa 900 bảng Int16). Sau đó kéo
+  căng dây tối đa 12 bước dọc đường BFS, chừng nào còn thấy thẳng, để người không đi hình bậc thang.
+- `buocToi(n,tx,ty,toc)`: bước về điểm ấy, soát đoạn đi từng 3 đơn vị. Chạm tường thì trượt theo
+  trục x, không được thì theo trục y. Lỡ đứng trong tường thì đẩy ra ô trống gần nhất (`GAN`).
+- Bụi (71 ô, lớp `bush_5v5`) đi qua được. Trong bụi thì người mờ đi (chỉ là hình vẽ; sim chưa có
+  tầm nhìn).
+- Không cản đường mục tiêu tập hợp của đội (AI_BRAIN P1): đi tới điểm tập nào cũng chỉ là
+  `buocToi` tới điểm đó.
+- Kiểm bằng `SO_TRAN=6 node _tools/soiAI-node.js _tools/kiemTuong.js`:
+  - trên tường 0, xuyên tường 0, lún sâu nhất 0,99 đơn vị (sượt đỉnh góc), kẹt 0;
+  - 1,4–1,6 s mỗi trận (bản đồ cũ ~1,1 s).
+  - Chứng minh bộ kiểm có bắt được lỗi: tắt tìm đường thì nó báo xuyên 57, lún 8,5, kẹt 317.
+
+### 13.4 Vẽ (`ui-tran.js`)
+
+- Thế giới = tấm 1280×1280, `toaDoW = 160 + s·0,96`. Camera cắt-và-phóng như cũ. Bốn mức zoom:
+  0,442 (trọn tấm), 0,8, 1,3, 2,0.
+- Thứ tự lớp như TFM2:
+  - `ban-duoi.png` (background + wall_shadow + wall + bush_shadow + bush);
+  - quái, trụ (bóng `tower_shadow`/`nexus_shadow` của TFM2), lính, tướng;
+  - `ban-tren.png` (`wall_5v5_front`, mép tường viền dưới, đè lên người).
+- Minimap là `minimap_5v5` (ô `bg_0` + `wall_0`, toạ độ trong sprite sheet là tỉ lệ 0..1), có
+  khung camera. Bấm minimap để nhảy camera tới đó.
+- Quái rừng vẽ đúng con TFM2 đặt ở bãi ấy: `quai.ong/nam/tegiac/goc`. Khoá cũ `quai.bai1..4` đã bỏ.
+
+### 13.5 Đo trước / sau
+
+Bộ đo có hạt giống cố định. "Trước" là bản đồ cũ (mã lúc bắt đầu đợt này). "Chỉ đổi bản đồ" là
+bản đồ TFM2 với bộ não giữ nguyên. "Sau" là bản đồ TFM2 cộng bản sửa kế hoạch đẩy và các nút tướng ở dưới.
+
+| số đo | trước | chỉ đổi bản đồ | sau |
+|---|---|---|---|
+| `soiAI` 150 trận: dài (s) | 1095 | 1076 | 1078 |
+| mạng / trận | 12,3 | 14,3 | 13,4 |
+| tập trung | 3,87 | 3,57 | 3,59 |
+| chết dưới trụ địch | 9 % | 15 % | 13 % |
+| giây trong tầm trụ địch | 43,1 | 51 | 45,3 |
+| trụ đổ / trận | 9,1 | 10,5 | 10,1 |
+| trụ nhà đổ | 1 / 2 | 1,9 / 4 | 1,9 / 4 |
+| lõi đổ | 0,85 / 2 | 0,9 / 2 | 0,89 / 2 |
+| hết giờ | 15 % | 10 % | 11 % |
+| chết khi rút / solo | 54 % / 6 % | 56 % / 11 % | 58 % / 9 % |
+| trụ đầu tiên đổ, trung vị 60 trận (s) | 292 | **158** | 284 |
+| sớm nhất / số trận đổ trước 5 phút | 144 / 33 | 120 / 48 | 156 / 41 |
+
+**Trụ đổ sớm.** Soi 40 trận, lượng máu trụ ngoài mất trong 5 phút đầu:
+- 99 % sát thương là do TƯỚNG đứng trong tầm trụ;
+- nhóm lớn nhất là `daytru` KHÔNG có lính đỡ: 4156 trên 13328 máu mỗi trận, tức 31 %;
+- tiếp theo là `tugiup` (giao tranh lan vào tầm trụ): 3734, tức 28 %.
+
+Lần một trận thì ra nguyên nhân: `keHoachDoi` bật "đẩy" ngay khi đủ 4 người sống, tức là từ
+giây 0. Cả đội (trừ đi rừng) kéo sang cùng một đường ngay khi sóng lính đầu tới, lúc ~110 s.
+Bản đồ cũ có cùng lỗi này (trụ trên mất 5820 máu trong 5 phút đầu, các đường khác ít hơn nhiều),
+nhưng ở đó trụ nằm xa hơn. Sửa: "đủ người là đẩy" chỉ bật sau 240 s. Mốc này là lúc Chúa Hang của
+TFM2 ra lần đầu (`epic_jungle.first_spawn_tick 14400`). Sau hai mạng, hoặc khi nhà địch đã lộ,
+thì vẫn đẩy ngay như cũ.
+
+Các hướng đã thử và BỎ (cùng bộ đo):
+
+| thử | trụ đầu đổ (trung vị) | vì sao bỏ |
+|---|---|---|
+| tầm trụ 75 của TFM2 (78 đơn vị sim), mọi trụ | 83 s | trận 690 s, 0 % hết giờ: trụ là chỗ thủ chính của sim này |
+| tầm 78 chỉ trụ ngoài | 83 s | như trên |
+| chỉ đập trụ tiện tay khi có lính đỡ | 271 s | chết dưới trụ 34 %, solo 20 %: người đứng dưới trụ mà không đập |
+| trụ ngoài chịu ½ sát thương trước 5 phút | 188 s | tự chế, mà tác dụng nhỏ |
+| lao trụ không lính phải có ≥ 2 người | 159 s | không đổi gì |
+
+**Đường cong mùa** (`tileThang`, 40 giải mỗi mốc, thắng %; sai số chuẩn ~7,5 điểm):
+
+| | g1 | g2 | g3 | g4 | w1 | w2 | w3 | w4 |
+|---|---|---|---|---|---|---|---|---|
+| trước | 78 | 85 | 60 | 73 | 38 | 55 | 13 | 18 |
+| sau | 83 | 93 | 57 | 78 | 45 | 40 | 20 | 18 |
+
+**Cân tướng** (`canbang.js 400`), lệch quá 12 %:
+- trước: không có con nào (Bóng Đêm 38,9 %, Nhạc Sĩ 60,7 % là sát ngưỡng);
+- chỉ đổi bản đồ: Bóng Đêm 37,8 %, Nhạc Sĩ 62,6 %, lượt đo sau thêm Pháp Sét 62,9 % (cả ba vốn đã sát ngưỡng);
+- sau năm nút tướng: không con nào lệch; thấp nhất Bóng Đêm 40,9 %, cao nhất Pháp Sét 60,7 %.
+  - Pháp Sét: Tia Chớp 92 % → 85 % sức mạnh phép.
+  - Nhạc Sĩ: Khúc Hành +14 %/+11 % → +12 %/+9 % tốc chạy/tốc đánh.
+  - Bóng Đêm: máu cấp 1 800 → 840, đánh sau lưng +30 % → +34 %.
+  - Bom Xích: công 76 → 80, máu 820 → 850, Ném Bom 80 + 90 % → 90 + 100 %. Chỉ nâng công và máu thì
+    tỉ lệ thắng không nhúc nhích (36,7 → 36,2 %).
+  - Súng Trường: công cấp 1 82 → 78 (lượt đo giữa chừng lên 62,2 %).
+  - Sai số chuẩn của một tướng ~200 trận là ~3,5 điểm, nên một lần vượt ngưỡng 1 điểm chưa nói được gì.
+    Ba lượt đo liên tiếp cùng chiều mới đáng sửa.
+
+### 13.6 Bẫy
+
+- `[BẪY ĐÃ SẬP]` Vẽ phần 1 của `map_setting` thành ảnh thì ra một đám nhiễu. Đó không phải bản đồ
+  mà là 900 mặt nạ 30×30 nối nhau. Tường phải đọc từ phần 2 (hàng toàn 15), hoặc từ lớp `wall_5v5`.
+- `[BẪY ĐÃ SẬP]` Bộ kiểm xuyên tường ban đầu báo sai. Một tick có thể có hai lần đi (đi rồi rút),
+  nên đoạn nối điểm đầu với điểm cuối cắt qua góc tường dù đường đi thật không cắt. Giờ nó chỉ xét
+  tick có đúng một bước, và đo độ LÚN vào ô tường chứ không chỉ hỏi có chạm hay không.
+- `[BẪY ĐÃ SẬP]` Sượt đỉnh góc là có thật. Chỉ soát điểm cuối của bước thì người vẫn cắt góc tường
+  vài đơn vị. Phải soát cả đoạn, từng 3 đơn vị, và trượt dọc tường.
+- `[BẪY ĐÃ SẬP]` `soiAI` in "trụ nhà x/2" bằng mẫu số chép tay. Có 4 trụ đôi rồi thì số ấy thành
+  1,9/2, trông như sắp đổ hết. Mẫu số giờ đếm từ chính trận.
+- Chép tầm trụ 75 của TFM2 nghe rất "hệt TFM2", nhưng trụ của sim này không bắn như trụ TFM2
+  (atk 600 so với máu tướng). Đổi một số thì phải đổi cả hệ. Xem bảng thử ở §13.5.
+- `kiemTieng` có một lần báo HỎNG ở "tiếng trong 4 giây" (4 < 5) lúc 10 tiến trình đo đang chạy nền.
+  Chạy lại hai lần thì ra 61 và 63. Máy bận thì khung hình ít, và tiếng đếm theo khung.
+
+### 13.7 Chưa làm
+
+- Phần 3 của `map_setting` (13500 byte) chưa giải.
+- Sim chưa có tầm nhìn (`visible_distance 130`) nên bụi mới chỉ là hình vẽ. Bộ não TFM2
+  (`D:\tfm2-ref\AI_BRAIN.md`) là bước sau.
+- Vẫn còn 41/60 trận có trụ đổ trước 5 phút (trước là 33/60). Phần còn lại do giao tranh
+  (`tugiup`) lan vào tầm trụ. Bộ não TFM2 có luật lao trụ riêng (§4.6 của AI_BRAIN).
