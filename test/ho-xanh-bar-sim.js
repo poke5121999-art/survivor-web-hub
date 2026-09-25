@@ -75,7 +75,7 @@ function night(save, fridge) {
         cust.push({ ch, seat, st: 'enter', t: 0, walk: (seat.sit[0] - (DOOR_X - 20)) / (ch.data.EnterSpeed * U), E: EAT[ch.data.EatLevel] || EAT[1] });
         guests++;
       }
-      spawnT = look.visitEvery * (1 + (rnd() * 2 - 1) * T.guestJitter);
+      spawnT = T.guestEvery * (1 + (rnd() * 2 - 1) * T.guestJitter);
     }
     // khách
     for (const c of cust) {
@@ -202,6 +202,6 @@ M.BAR_TIERS.forEach((t, i) => {
     const r = night(s, FRIDGES[day - 1]);
     tot += r.total; pay += r.served + r.teaN; g += r.guests;
   }
-  console.log('cấp ' + i + ' "' + t.name + '" ×' + t.price + ' giá, ' + t.visitEvery + ' s/khách, giá ' + t.cost + ': ' +
+  console.log('cấp ' + i + ' "' + t.name + '" ×' + t.price + ' giá, giá ' + t.cost + ': ' +
     Math.round(tot / N) + ' vàng/đêm · ' + (tot / pay).toFixed(1) + ' vàng/khách trả tiền · ' + (g / N).toFixed(1) + ' khách/đêm');
 });

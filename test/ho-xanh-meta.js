@@ -60,7 +60,7 @@ t('cấp trang trí: 6 cấp từ quán cũ (spawner khoá 1) tới quán sang, 
   assert.deepStrictEqual(B.map(x => x.name), ['Quán cũ', 'Sửa quán', 'Góc trang trí', 'Đèn vải', 'Đèn phương Đông', 'Quán sang']);
   assert.deepStrictEqual(B.map(x => x.interior), [1, 2, 2, 2, 2, 2]);
   assert.deepStrictEqual(B.map(x => x.price), [1, 1.3, 1.6, 2.2, 2.8, 3.7]);        // công thức cấp 10 = 3,7 × giá gốc [DtD]
-  assert.deepStrictEqual(B.map(x => x.visitEvery), [5, 2, 1.5, 1, 1, 1]);           // CookStar.CustomerVisitInterval [DtD]
+  assert.ok(B.every(x => x.visitEvery === undefined), 'nâng quán không đổi nhịp khách');
   assert.deepStrictEqual(B.map(x => x.cost), [0, 120, 450, 1100, 2400, 4500]);
   assert.deepStrictEqual(B.map(x => x.items.length), [0, 0, 3, 8, 9, 9]);
   assert.deepStrictEqual(M.BAR.decor.levels.map(l => l.value), B.map(x => x.price));

@@ -17,6 +17,7 @@
     menuSlots: 5,                // [ĐỀ XUẤT] số ô thực đơn; bố cục gốc không ghi số ô
     cook: 4,                     // [ĐỀ XUẤT] giây Bancho làm một suất ở đầu bếp cấp 0, chia cho HX_META.stat('chef')
     firstGuest: 2,               // [ĐỀ XUẤT] giây tới vị khách đầu
+    guestEvery: 5,               // [DtD] giây giữa hai khách = CookStar.CustomerVisitInterval hạng Coal; nâng quán không đổi số này
     guestJitter: 0.4,            // [ĐỀ XUẤT] ±40 %
     daveSpeed: 180,              // [ĐỀ XUẤT] px phòng / giây
     carry: 3,                    // [ĐỀ XUẤT] số đĩa Dave bưng cùng lúc
@@ -1916,7 +1917,7 @@
       if (N.spawnT <= 0) {
         var canSell = N.menu.some(function (m) { return avail(m) > 0; }) || N.teaPrice > 0;
         if (canSell) spawnCustomer();
-        N.spawnT = N.look.visitEvery * (1 + (rnd() * 2 - 1) * T.guestJitter);
+        N.spawnT = T.guestEvery * (1 + (rnd() * 2 - 1) * T.guestJitter);
       }
     }
     N.customers.forEach(function (c) { tickCustomer(c, dt); });
@@ -2512,7 +2513,7 @@
           v[k] = x ? Object.keys(sl.variants).filter(function (n) { return sl.variants[n] === x; })[0] : null;
         });
         var chairs = roomItems.filter(function (it) { return it.layer && it.layer.chairOf; }).map(function (it) { return it.layer.chairOf; });
-        return { name: L.name, price: L.price, visitEvery: L.visitEvery, interior: L.interior, chair: L.chair, slots: v, chairs: chairs,
+        return { name: L.name, price: L.price, interior: L.interior, chair: L.chair, slots: v, chairs: chairs,
           items: roomItems.length };
       },
       // hạt đang sống của cảnh (bếp / quán / sổ): số hạt, gốc phát, có mesh / flow không
