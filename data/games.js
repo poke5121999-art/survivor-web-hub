@@ -652,7 +652,7 @@ window.HUB_GAMES = [
     tagline: "Lặn xuống Hố Xanh bắt cá bằng súng xiên, như trong Dave the Diver. Ngắm bằng chuột, tay cầm súng xoay theo hướng ngắm, bắn trúng thì dây kéo cá về; cá to còn vùng vẫy thì bấm liên tục để kéo co. Dưỡng khí vừa là máu: tụt theo thời gian, tụt nhanh khi tăng tốc hay bị cá hung cắn, mở rương oxy trên mỏm đá để nạp lại. Bơi lên mặt nước hay vào khoang cứu hộ là mang cả túi về, ngất dưới đáy thì chỉ giữ được một con. Lặn một mạch từ vùng nông xuống tầng giữa rồi vực sâu 250 m, ghép từ 16 bản đồ gốc với san hô đặt tay; mỗi lượt đổi chủ đề: ban ngày, rừng tảo, chiều tà, mưa, lặn đêm đèn đội đầu. 65 loài cá. Trọn một ngày như bản gốc: sắm đồ và chọn một trong sáu khẩu súng trên app iDiver, cano Nodens 68 tự chạy ra Hố Xanh, lặn, rồi về quán Bancho làm sushi từ cá bắt được, bưng món và rót trà cho khách, lấy tiền nâng cấp bản thân và quán.",
     thumbnail: "assets/thumbnails/ho-xanh.png",
     path: "games/ho-xanh/index.html",
-    rev: "20260925c",
+    rev: "20260925d",
     // three.js r140 + spine-threejs 4.0.31, vendor sẵn trong games/ho-xanh/vendor, không có bước build.
     // ART + ANIM + VFX + TIẾNG + BẢN ĐỒ: toàn bộ rút từ bản cài Steam của Dave the Diver
     // (Mintrocket) trên máy chủ dự án, theo yêu cầu của chủ dự án ngày 2026-09-24, bằng

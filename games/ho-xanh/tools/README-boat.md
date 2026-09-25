@@ -164,4 +164,4 @@ Ra:
 - Ambient `Source` 0 (Skybox) nhưng scene lưu màu phẳng. Dùng màu phẳng `AmbientColor`.
 - Chưa làm: chùm đèn pha `VolumetricLightBeam` (xem bẫy), Depth of Field của Volume, `_HSL` của nền cát `LobbyGround_Uber`, lệch khúc xạ + tách màu của nước (pháp tuyến nước phẳng nên lệch rất nhỏ).
 - Noise module của ParticleSystem: Unity dùng nhiễu riêng, không có trong dữ liệu. boat.js dùng nhiễu giá trị 3 chiều mượt [ĐỀ XUẤT].
-- Lộ trình chuyến về bắt đầu ở x 67, ngoài khung camera sảnh gốc [ĐỀ XUẤT]. Nước tối có `_Depth` 8 (chiều 0,55) nên chỗ này thấy rõ nền cát dưới nước.
+- Lộ trình chuyến về bắt đầu ở x 67, ngoài khung camera sảnh gốc [ĐỀ XUẤT]. Nước tối từng lộ nền cát dưới nước: không phải do `_Depth` 8 mà do công thức độ sâu dịch sai, xem README chính.
