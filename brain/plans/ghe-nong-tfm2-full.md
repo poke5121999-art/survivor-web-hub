@@ -85,6 +85,41 @@ Yêu cầu chủ dự án (2026-09-25): "copy hết skill + config + stats + equ
   tốc chạy"); `gunner.skill2`/`ult` của nhóm 2 cũng cần cùng nguyên thuỷ ấy cho vế "cứ 3 đòn thì làm chậm" /
   dokkaebi.skill cho vế "đòn đánh tạo sóng xung kích" — cả ba đều đang xấp xỉ bằng xung lặp theo đúng nhịp
   `attack.cooltime` thay vì bám sát đòn đánh thật.
+- [agent 4 (15 tướng, chieu-tfm-4.js) → lõi, 2026-09-25] Xác nhận việc #1 (agent 1/2): `poison_dart_hunter`
+  cũng lệch tên `skill1`/`skill` (đã né bằng `S.n.tuong.tfm.skill1` như agent 2). **[xong, lõi đã sửa trong
+  dcb7c51]** — `data-tfm.js` giờ chép `skill1` → `skill` (giữ nguyên `skill1`), `poison_dart_hunter.skill` tự
+  ra được trong trận thật; hàm của agent này vẫn đọc `tfm.skill1` (giá trị giờ trùng `tfm.skill`, không cần
+  sửa lại). Thêm một ca KHÁC hẳn, không phải thiếu khoá mà LỆCH GIỮA CHỮ VÀ SỐ: **`soldier`** có khối `skill`
+  với số liệu của "Điểm Xạ Ba Viên" (đủ `cooltime/duration/start_timing`, sim THỰC SỰ gọi được) nhưng
+  `mo_ta.skill`/`ten_chieu.skill` lại là chữ của "Ngắm Bắn Chính Xác" (nội tại tăng tầm đánh mỗi cấp, đọc
+  `growth_range` nằm CHUNG trong khối `skill` đó); còn `ten_chieu.skill2`/`mo_ta.skill2` mới đúng là chữ
+  "Điểm Xạ Ba Viên" nhưng slot đó KHÔNG có khối dữ liệu (`tfm.bi_dong` xác nhận `soldier: ['skill2']` — TFM2
+  tự coi slot 2 của con này là NỘI TẠI, khớp với suy đoán trên). Đã cài đúng số (ba phát liên tiếp) ở khe
+  `skill` — khe sim thật sự gọi — và ghi `mota.skill` viết tay thay chữ sai; nội tại tăng tầm mỗi cấp
+  (`growth_range`, cả trong khối `attack` lẫn `skill`) CHƯA cộng vào đâu cả (không thuộc `S`/chiêu, là việc
+  của `G.tuongOCap` — bảng chỉ số cốt lõi).
+  **Nội tại (`bi_dong`) của nhóm này** — `poison_dart_hunter.skill2` ("Truy Vết Độc Tố": +tầm đánh khi đánh
+  trúng địch nhiễm độc, +tốc chạy khi lùi xa) và `soldier.skill2` (tăng tầm mỗi cấp, ở trên) đều nằm trong
+  `tfm.bi_dong`, sim không bao giờ gọi qua khe chiêu — không thể cài bằng `G.CHIEU_TFM` (chỉ chạy lúc RA
+  CHIÊU). Cần một hệ nội tại RIÊNG ngoài chiêu (đọc `tfm.bi_dong` + khối tham số cùng tên, móc vào lúc tính
+  `chiSoNguoi`/lúc ra đòn đánh thường) mới cài được — không chặn trận (thiếu thì đơn giản là nội tại chưa có
+  hiệu lực, không lỗi), nhưng cần lõi quyết định cách móc vì đụng `chiSoNguoi`/`satThuong` (ngoài quyền sửa
+  của agent chiêu). Đã để trống, chỉ sửa `mota.skill2` cho khỏi hiện `?`.
+  Ba nguyên thuỷ còn thiếu (không phải nội tại, mà THIẾU MÓC cho chiêu chủ động), đã né tạm (ghi rõ tại chỗ
+  trong `chieu-tfm-4.js`), không chặn trận:
+  1. **Không có nguyên thuỷ áp "Không Thể Bị Chỉ Định" lên MỤC TIÊU** (`S.khongChon(tick)` chỉ tự áp cho
+     người ra chiêu) — Taoist ult ("Phong Ấn Dây Chuyền") cần áp lên địch trúng chiêu. Né bằng gán thẳng
+     `m.khongChon = Math.max(m.khongChon||0, S.tran.t+S.giay(tick))` (đúng công thức `S.khongChon` làm cho
+     `n`, chỉ đổi mục tiêu). Xin thêm `S.khongChonMuc(m, tick)`.
+  2. **Không có nguyên thuỷ "Giải Giới" (cấm đánh thường, còn dùng chiêu bình thường)** — Taoist skill
+     ("Phong Ấn Vũ Khí"). Né bằng `S.buff(m,{tocdanh:-100},...)` (chiSoNguoi kẹp sàn 0,2× tốc đánh, không
+     phải cấm hẳn).
+  3. **Không có nguyên thuỷ chuyển sát thương entity khác chịu hộ** — Shield Bearer skill2 ("Lời Thề Hộ Vệ").
+     Né bằng buff `giamNhan` X% thẳng trên đồng minh (đúng SỐ MÁU MẤT quan sát được, nhưng Shield Bearer
+     không tự nhận thêm sát thương như mô tả gốc).
+  Nhiều chiêu khác (pythoness ult, voodoo_shaman skill2, spirit_caller ult, poison_dart_hunter ult…) xấp xỉ
+  "đếm số lần bị đánh trúng" / "khi đồng minh đánh trúng thì…" bằng nhịp đều đặn hoặc đọc trường công khai
+  `danhTuongAi/danhTuongLuc` — không cần primitive mới, chỉ là gần đúng, ghi trong chú thích từng con.
 
 ## Nhật ký
 
