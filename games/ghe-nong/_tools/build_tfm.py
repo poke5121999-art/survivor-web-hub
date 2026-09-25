@@ -67,8 +67,11 @@ for doi, mau in (('xanh', 'blue'), ('do', 'red')):
     KHAC['loi.' + doi] = (IG + mau + '_nexus', {'dung': ['idle'], 'danh': ['attack']})
     KHAC['loi.ngoc.' + doi] = (IG + mau + '_nexus_orb', {'dung': ['idle'], 'danh': ['attack']})
     KHAC['loi.vo.' + doi] = (IG + mau + '_nexus_destroy_effect', None)
-for i, ten in enumerate(['bee', 'mushroom', 'rhino', 'stump']):
-    KHAC['quai.bai%d' % (i + 1)] = (IG + ten, {'dung': ['idle'], 'danh': ['attack'], 'chet': ['dead']})
+# quái rừng: khoá theo loại, khớp cột "loại quái" của bãi trong js/data-bando.js
+for khoa, ten in (('ong', 'bee'), ('nam', 'mushroom'), ('tegiac', 'rhino'), ('goc', 'stump')):
+    KHAC['quai.' + khoa] = (IG + ten, {'dung': ['idle'], 'danh': ['attack'], 'chet': ['dead']})
+KHAC['bong.tru'] = (IG + '5v5/tower_shadow', None)
+KHAC['bong.loi'] = (IG + '5v5/nexus_shadow', None)
 KHAC['quai.rong'] = (IG + 'serpen', {'dung': ['idle'], 'danh': ['attack'], 'chet': ['dead']})
 KHAC['quai.chua'] = (IG + 'epic', {'dung': ['idle'], 'danh': ['attack_left'], 'chet': ['dead']})
 
@@ -170,6 +173,9 @@ def main():
         return bam[h]
 
     def dung(khoa, goc, bang):
+        if goc + '#anim.fanim' not in kho.muc:      # ảnh đơn (bóng trụ, bóng lõi): một khung
+            ds[khoa] = {'no': [(them(Image.open(io.BytesIO(kho.byte(goc + '.png'))).convert('RGBA')), 100)]}
+            return
         a, sh = kho.hoat_anh(goc)
         if bang is None:
             bang = {'no': [sorted(a)[0]]}

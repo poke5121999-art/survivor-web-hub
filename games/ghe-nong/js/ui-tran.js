@@ -343,21 +343,27 @@
      Bản trước vẽ cả bản đồ vào khung 830×566 nên mỗi người chỉ còn 30 điểm ảnh, lính là chấm
      tròn 3 điểm ảnh, và chẳng có hiệu ứng nào — nhìn ra bảng tính chứ không ra trận đấu.
 
-     Cách làm: dựng nền MỘT LẦN vào một canvas THẾ GIỚI 2048×1024 (hình thoi trải hết), rồi
-     camera chỉ là phép cắt-và-phóng từ canvas ấy. Mọi thứ động cũng quy về toạ độ thế giới.  */
-  var W0 = 2048, H0 = 1024;              /* cỡ canvas thế giới */
+     Cách làm: THẾ GIỚI là đúng tấm bản đồ 5v5 của TFM2, 1280×1280 điểm ảnh, nhìn thẳng từ trên
+     xuống như trong game gốc. Sân đấu là ô vuông 960×960 giữa tấm ảnh (lề 160 là tường viền), 1
+     điểm ảnh = 1000 đơn vị của TFM2 (`game_setting.width = 960000`). Camera chỉ cắt-và-phóng từ
+     tấm ảnh ấy. Các lớp vẽ theo đúng thứ tự của TFM2 (RESEARCH §13):
+       ban-duoi.png  = background + wall_shadow + wall + bush_shadow + bush   (dưới người)
+       người, quái, trụ
+       ban-tren.png  = wall_5v5_front — mép tường dưới cùng, đè LÊN người đứng sát nó
+     Cả ba ảnh do _tools/build_bando.py ghép từ bundle TFM2, không vẽ tay nét nào.  */
+  var W0 = 1280, H0 = 1280;              /* cỡ tấm bản đồ TFM2 */
+  var GOC_SAN = 160, KE_SAN = 0.96;      /* sân bắt đầu ở điểm ảnh 160; 1000 đơn vị trò chơi = 960 điểm ảnh */
   var MUC_ZOOM = [
-    { k: 0.405, ten: 'Toàn cảnh' },
-    { k: 0.75, ten: 'Xa' },
-    { k: 1.15, ten: 'Gần' },
-    { k: 1.7, ten: 'Rất gần' }
+    { k: 0.442, ten: 'Toàn cảnh' },
+    { k: 0.8, ten: 'Xa' },
+    { k: 1.3, ten: 'Gần' },
+    { k: 2.0, ten: 'Rất gần' }
   ];
   var cam = { x: W0 / 2, y: H0 / 2, mx: W0 / 2, my: H0 / 2, iz: 2, tuDong: true, theo: null };
 
-  /** toạ độ trò chơi (0..1000 vuông) → toạ độ THẾ GIỚI (hình thoi 2048×1024) */
+  /** toạ độ trò chơi (0..1000 vuông) → điểm ảnh trên tấm bản đồ TFM2 */
   function toaDoW(x, y) {
-    var m = 26;
-    return [W0 / 2 + ((x - y) / 1000) * (W0 / 2 - m), m + ((x + y) / 2000) * (H0 - 2 * m)];
+    return [GOC_SAN + x * KE_SAN, GOC_SAN + y * KE_SAN];
   }
 
   /** toạ độ trò chơi → toạ độ MÀN, qua camera. Phần tử thứ ba là hệ số cỡ (px / đơn vị thế giới) */
@@ -402,216 +408,41 @@
     var t = Math.min(1, dt * 3.2);
     cam.x += (cam.mx - cam.x) * t;
     cam.y += (cam.my - cam.y) * t;
-    /* không cho camera trôi ra ngoài thế giới */
+    /* không cho camera trôi ra ngoài tấm bản đồ; khung rộng hơn tấm ảnh thì đứng giữa */
     var k = MUC_ZOOM[cam.iz].k;
     var nx = canvas.width / 2 / k, ny = canvas.height / 2 / k;
     cam.x = G.kep(cam.x, Math.min(nx, W0 / 2), Math.max(W0 - nx, W0 / 2));
     cam.y = G.kep(cam.y, Math.min(ny, H0 / 2), Math.max(H0 - ny, H0 / 2));
   }
 
-  /* ══════════ nền tĩnh, vẽ một lần vào canvas thế giới ══════════ */
-  var nenC = null;
-
-  function dungNen() {
-    if (nenC) return nenC;
-    nenC = document.createElement('canvas');
-    nenC.width = W0; nenC.height = H0;
-    var c = nenC.getContext('2d');
-    var rng = G.Rng(20260910);
-    var S = H0 / 1000;                     /* hệ số quy đổi đơn vị trò chơi → điểm ảnh thế giới */
-
-    function P(x, y) { return toaDoW(x, y); }
-    function duongDan(lane, dai) {
-      var wp = G.SIM_DUONG[lane];
-      c.beginPath();
-      wp.forEach(function (p, i) {
-        var q = P(p[0], p[1]);
-        if (i === 0) c.moveTo(q[0], q[1]); else c.lineTo(q[0], q[1]);
-      });
-      c.lineWidth = dai; c.lineCap = 'round'; c.lineJoin = 'round';
-      c.stroke();
+  /* ══════════ ba lớp ảnh bản đồ TFM2 ══════════ */
+  var ANH_BD = {};
+  function anhBanDo(ten) {
+    var a = ANH_BD[ten];
+    if (!a) {
+      a = ANH_BD[ten] = new Image();
+      a.src = 'art/tfm/ban-' + ten + '.png?v=' + (G.ART_V || '');
     }
+    return a.complete && a.naturalWidth ? a : null;
+  }
 
-    c.fillStyle = '#080b10';
-    c.fillRect(0, 0, W0, H0);
+  /** người đứng trong bụi thì mờ đi như TFM2 — ô bụi lấy từ lớp bush_5v5 (BAN_DO.bui) */
+  function trongBui(x, y) {
+    var bd = G.BAN_DO; if (!bd) return false;
+    var o = bd.o, co = 1000 / o;
+    var cx = G.kep(Math.floor(x / co), 0, o - 1), cy = G.kep(Math.floor(y / co), 0, o - 1);
+    return bd.bui.charCodeAt(cy * o + cx) === 49;
+  }
 
-    c.save();
-    var g0 = P(0, 0), g1 = P(1000, 0), g2 = P(1000, 1000), g3 = P(0, 1000);
-    c.beginPath();
-    c.moveTo(g0[0], g0[1]); c.lineTo(g1[0], g1[1]); c.lineTo(g2[0], g2[1]); c.lineTo(g3[0], g3[1]);
-    c.closePath();
-    c.clip();
-
-    var nen = c.createLinearGradient(0, 0, 0, H0);
-    nen.addColorStop(0, '#17331f'); nen.addColorStop(0.5, '#132a1b'); nen.addColorStop(1, '#17331f');
-    c.fillStyle = nen; c.fillRect(0, 0, W0, H0);
-
-    /* vệt cỏ + đốm sáng cho mặt đất không phẳng lì */
-    for (var i = 0; i < 900; i++) {
-      var gx = rng() * 1000, gy = rng() * 1000, p = P(gx, gy);
-      c.fillStyle = rng.duoc(0.5) ? 'rgba(255,255,255,.022)' : 'rgba(0,0,0,.055)';
-      c.beginPath();
-      c.ellipse(p[0], p[1], (7 + rng() * 26) * S, (3 + rng() * 8) * S, 0, 0, 7);
-      c.fill();
-    }
-    /* búi cỏ nhỏ, chỉ thấy khi zoom gần */
-    for (var i2 = 0; i2 < 700; i2++) {
-      var bx = rng() * 1000, by = rng() * 1000, pb = P(bx, by);
-      c.strokeStyle = 'rgba(150,210,140,.16)'; c.lineWidth = 1.4;
-      for (var la = 0; la < 3; la++) {
-        c.beginPath();
-        c.moveTo(pb[0] + (la - 1) * 2.5, pb[1]);
-        c.quadraticCurveTo(pb[0] + (la - 1) * 4, pb[1] - 5, pb[0] + (la - 1) * 6, pb[1] - 9);
-        c.stroke();
-      }
-    }
-
-    var TAM_RUNG = [[205, 480], [385, 760], [520, 240], [795, 615]];
-    TAM_RUNG.forEach(function (t) {
-      var p2 = P(t[0], t[1]);
-      var gr = c.createRadialGradient(p2[0], p2[1], 10, p2[0], p2[1], 300);
-      gr.addColorStop(0, 'rgba(6,20,11,.5)');
-      gr.addColorStop(1, 'rgba(6,20,11,0)');
-      c.fillStyle = gr; c.fillRect(0, 0, W0, H0);
-    });
-
-    /* sông */
-    var sa = P(20, 20), sb = P(980, 980);
-    c.strokeStyle = 'rgba(26,52,74,.72)'; c.lineWidth = 34 * S * 1.9;
-    c.beginPath(); c.moveTo(sa[0], sa[1]); c.lineTo(sb[0], sb[1]); c.stroke();
-    c.strokeStyle = 'rgba(74,157,248,.14)'; c.lineWidth = 24 * S * 1.9;
-    c.beginPath(); c.moveTo(sa[0], sa[1]); c.lineTo(sb[0], sb[1]); c.stroke();
-    c.strokeStyle = 'rgba(170,220,255,.18)'; c.lineWidth = 2;
-    for (var w = 0; w < 46; w++) {
-      var t2 = 30 + w * 21, lech = (w % 2 ? 1 : -1) * (8 + rng() * 10);
-      var q1 = P(t2 + lech, t2 - lech), q2 = P(t2 + lech + 22, t2 - lech + 22);
-      c.beginPath(); c.moveTo(q1[0], q1[1]); c.lineTo(q2[0], q2[1]); c.stroke();
-    }
-
-    /* hố hai con quái lớn */
-    [[300, 300], [700, 700]].forEach(function (o) {
-      var p3 = P(o[0], o[1]);
-      c.save(); c.translate(p3[0], p3[1]); c.scale(1, 0.5);
-      c.beginPath(); c.arc(0, 0, 96, 0, 7);
-      c.fillStyle = 'rgba(12,26,18,.8)'; c.fill();
-      c.lineWidth = 7; c.strokeStyle = 'rgba(180,150,90,.4)'; c.stroke();
-      c.restore();
-    });
-
-    /* ba đường */
-    ['tren', 'giua', 'duoi'].forEach(function (lane) {
-      c.strokeStyle = 'rgba(8,18,12,.55)'; duongDan(lane, 44 * S * 1.9);
-      c.strokeStyle = '#3c5b40';          duongDan(lane, 34 * S * 1.9);
-      c.strokeStyle = '#5c7a4e';          duongDan(lane, 23 * S * 1.9);
-      c.strokeStyle = 'rgba(190,180,120,.14)'; duongDan(lane, 11 * S * 1.9);
-    });
-
-    /* bụi rậm */
-    [[210, 700], [320, 830], [700, 300], [790, 180], [420, 480], [580, 520],
-     [180, 250], [250, 170], [820, 750], [750, 830]].forEach(function (b) {
-      var p4 = P(b[0], b[1]);
-      c.save(); c.translate(p4[0], p4[1]); c.scale(1, 0.5);
-      c.beginPath(); c.arc(0, 0, 48, 0, 7);
-      c.fillStyle = 'rgba(20,58,32,.88)'; c.fill();
-      c.lineWidth = 4; c.strokeStyle = 'rgba(120,190,130,.16)'; c.stroke();
-      c.restore();
-    });
-
-    /* sân hai nhà */
-    [['xanh', G.SIM_NHA.xanh, '61,220,151'], ['do', G.SIM_NHA.do, '229,72,77']].forEach(function (b) {
-      var p5 = P(b[1][0], b[1][1]);
-      var gr2 = c.createRadialGradient(p5[0], p5[1], 8, p5[0], p5[1], 250);
-      gr2.addColorStop(0, 'rgba(' + b[2] + ',.30)');
-      gr2.addColorStop(0.6, 'rgba(' + b[2] + ',.10)');
-      gr2.addColorStop(1, 'rgba(' + b[2] + ',0)');
-      c.fillStyle = gr2; c.fillRect(0, 0, W0, H0);
-      c.save(); c.translate(p5[0], p5[1]); c.scale(1, 0.5);
-      c.beginPath(); c.arc(0, 0, 92, 0, 7);
-      c.lineWidth = 6; c.strokeStyle = 'rgba(' + b[2] + ',.5)'; c.stroke();
-      c.restore();
-    });
-
-    /* cây */
-    function xaDuong(x, y) {
-      var gan = 1e9;
-      ['tren', 'giua', 'duoi'].forEach(function (lane) {
-        G.SIM_DUONG[lane].forEach(function (p6, k, ds) {
-          if (!k) return;
-          var a = ds[k - 1], bb = p6;
-          var dx = bb[0] - a[0], dy = bb[1] - a[1];
-          var l2 = dx * dx + dy * dy || 1;
-          var t3 = G.kep(((x - a[0]) * dx + (y - a[1]) * dy) / l2, 0, 1);
-          var cx = a[0] + dx * t3, cy = a[1] + dy * t3;
-          var d = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
-          if (d < gan) gan = d;
-        });
-      });
-      return gan;
-    }
-    var cay = [];
-    for (var n2 = 0; n2 < 4200 && cay.length < 150; n2++) {
-      var cx2 = 60 + rng() * 880, cy2 = 60 + rng() * 880;
-      if (xaDuong(cx2, cy2) < 128) continue;
-      if (Math.abs(cx2 - cy2) < 118) continue;
-      var trongRung = false, xaTam = 1e9;
-      TAM_RUNG.forEach(function (t6) {
-        var d2 = Math.sqrt((cx2 - t6[0]) * (cx2 - t6[0]) + (cy2 - t6[1]) * (cy2 - t6[1]));
-        if (d2 < xaTam) xaTam = d2;
-        if (d2 < 210) trongRung = true;
-      });
-      if (!trongRung || xaTam < 44) continue;
-      cay.push([cx2, cy2, 9 + rng() * 6]);
-    }
-    cay.sort(function (a, b) { return (a[0] + a[1]) - (b[0] + b[1]); });
-    cay.forEach(function (t4) {
-      var p7 = P(t4[0], t4[1]), r2 = t4[2] * S * 1.9;
-      c.save(); c.translate(p7[0], p7[1] + r2 * 0.5); c.scale(1, 0.4);
-      c.beginPath(); c.arc(0, 0, r2 * 0.95, 0, 7);
-      c.fillStyle = 'rgba(0,0,0,.3)'; c.fill();
-      c.restore();
-      c.fillStyle = '#2a1f14';
-      c.fillRect(p7[0] - r2 * 0.13, p7[1] - r2 * 0.2, r2 * 0.26, r2 * 0.72);
-      c.beginPath(); c.arc(p7[0], p7[1] - r2 * 0.55, r2, 0, 7);
-      c.fillStyle = '#1b4426'; c.fill();
-      c.beginPath(); c.arc(p7[0] - r2 * 0.25, p7[1] - r2 * 0.8, r2 * 0.72, 0, 7);
-      c.fillStyle = '#215230'; c.fill();
-      c.beginPath(); c.arc(p7[0] + r2 * 0.2, p7[1] - r2 * 0.95, r2 * 0.5, 0, 7);
-      c.fillStyle = '#2a6839'; c.fill();
-    });
-
-    c.restore();
-
-    /* viền + chữ chỉ đường */
-    c.beginPath();
-    c.moveTo(g0[0], g0[1]); c.lineTo(g1[0], g1[1]); c.lineTo(g2[0], g2[1]); c.lineTo(g3[0], g3[1]);
-    c.closePath();
-    c.lineWidth = 3; c.strokeStyle = 'rgba(140,170,150,.22)'; c.stroke();
-
-    c.font = 'bold 20px system-ui'; c.textAlign = 'center';
-    c.fillStyle = 'rgba(210,230,215,.26)';
-    [['tren', 500, 60, 'ĐƯỜNG TRÊN'], ['giua', 500, 500, 'ĐƯỜNG GIỮA'], ['duoi', 500, 940, 'ĐƯỜNG DƯỚI']]
-      .forEach(function (x2) {
-        var p8 = P(x2[1], x2[2]);
-        c.fillText(x2[3], p8[0], p8[1] - 26);
-      });
-    c.fillStyle = 'rgba(170,215,180,.34)';
-    TAM_RUNG.forEach(function (t5) {
-      var p9 = P(t5[0], t5[1]);
-      c.fillText('RỪNG', p9[0], p9[1]);
-    });
-    c.fillStyle = 'rgba(255,215,110,.4)';
-    [[300, 300, 'CHÚA HANG'], [700, 700, 'RỒNG']].forEach(function (o2) {
-      var pa = P(o2[0], o2[1]);
-      c.fillText(o2[2], pa[0], pa[1] + 62);
-    });
-    c.fillStyle = 'rgba(61,220,151,.5)';
-    var pn = P(G.SIM_NHA.xanh[0], G.SIM_NHA.xanh[1]);
-    c.fillText('NHÀ TA', pn[0], pn[1] + 66);
-    c.fillStyle = 'rgba(229,72,77,.5)';
-    var pd = P(G.SIM_NHA.do[0], G.SIM_NHA.do[1]);
-    c.fillText('NHÀ ĐỊCH', pd[0], pd[1] + 66);
-
-    return nenC;
+  /** cắt đúng ô camera từ một lớp ảnh bản đồ rồi phóng ra màn */
+  function veLop(ten, W, H, k) {
+    var a = anhBanDo(ten); if (!a) return false;
+    var sw = W / k, sh = H / k, sx = cam.x - sw / 2, sy = cam.y - sh / 2;
+    /* drawImage với ô nguồn thò ra ngoài ảnh thì có trình duyệt bỏ cả lần vẽ — kẹp lại */
+    var x0 = Math.max(0, sx), y0 = Math.max(0, sy), x1 = Math.min(W0, sx + sw), y1 = Math.min(H0, sy + sh);
+    if (x1 <= x0 || y1 <= y0) return true;
+    ctx.drawImage(a, x0, y0, x1 - x0, y1 - y0, (x0 - sx) * k, (y0 - sy) * k, (x1 - x0) * k, (y1 - y0) * k);
+    return true;
   }
 
   function veBanDo() {
@@ -623,22 +454,19 @@
     var k = MUC_ZOOM[cam.iz].k;
     var s = k;                                   /* px màn cho mỗi đơn vị thế giới */
 
-    /* nền: cắt đúng ô camera từ canvas thế giới rồi phóng */
+    /* nền: lớp dưới của bản đồ TFM2 (đất, bóng tường, tường, bụi) */
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#080b10';
     ctx.fillRect(0, 0, W, H);
-    var sw = W / k, sh = H / k;
-    ctx.drawImage(dungNen(), cam.x - sw / 2, cam.y - sh / 2, sw, sh, 0, 0, W, H);
+    veLop('duoi', W, H, k);
 
     /* ── bãi quái rừng ── */
     tran.quai.forEach(function (q) {
       if (!q.song) return;
       var p = toaDo(q.x, q.y);
       if (ngoaiMan(p, 60 * s)) return;
-      /* Bốn bãi bốn con khác nhau (ong / nấm / tê giác / gốc cây) — tám bãi giống hệt nhau
-         thì người xem không nhớ nổi mình vừa ăn bãi nào. Chốt theo chỉ số bãi nên hai
-         nửa bản đồ đối xứng vẫn ra cùng một con ở cùng một chỗ. */
-      var khoaQ = 'quai.bai' + (1 + (q.i % 4));
+      /* Mỗi bãi là đúng con TFM2 đặt ở chỗ đó (ong / nấm / tê giác / gốc cây — BAN_DO.bai) */
+      var khoaQ = 'quai.' + q.loai;
       var t = gio(), hq = heHinh();
       var tdq = t - (q.danhLuc == null ? -9 : q.danhLuc);
       var danhQ = tdq >= 0 && tdq * hq < G.dai(khoaQ, 'danh');
@@ -694,7 +522,9 @@
       var hr = heHinh(), tdr = gio() - (r.danhLuc == null ? -9 : r.danhLuc);
       var danhR = tdr >= 0 && tdr * hr < G.dai(khoaR, 'danh');
       var ttR = danhR ? 'danh' : 'dung', tgR = danhR ? tdr * hr : tran.t * hr + r.x * 0.01;
-      bong(p[0], p[1], 16 * kR);
+      /* bóng đổ của chính TFM2 (tower_shadow / nexus_shadow), tâm đặt dưới chân */
+      var khoaB = r.loi ? 'bong.loi' : 'bong.tru';
+      if (!G.veHinhTam(ctx, khoaB, 'no', 0, p[0], p[1], kR, 0, false)) bong(p[0], p[1], 16 * kR);
       if (G.veHinh(ctx, khoaR, ttR, tgR, p[0], p[1], kR, false, !danhR)) {
         G.veHinh(ctx, khoaNgoc, ttR, tgR, p[0], p[1] - (G.caoHinh(khoaR) - G.caoHinh(khoaNgoc)) * kR, kR, false, !danhR);
       } else {
@@ -790,6 +620,8 @@
       var veNguoi = function () { return G.veHinh(ctx, khoaT, ttT, tgT, nx, ny, kT, lat, lapT); };
 
       ctx.save();
+      /* trong bụi thì mờ đi, như TFM2 */
+      if (trongBui(vn[0], vn[1])) ctx.globalAlpha = 0.55;
       /* VIỀN MÀU ĐỘI quanh người.
          Hai bên đều là sprite bảng màu na ná nhau; cái vòng mờ dưới chân không đủ
          để liếc một cái là biết ai phe nào — nhất là lúc mười người xúm vào một chỗ.
@@ -877,6 +709,9 @@
       }
     });
 
+    /* ── mép tường dưới cùng của TFM2 (wall_5v5_front): đè lên người đứng sát tường viền ── */
+    veLop('tren', W, H, k);
+
     /* ── hiệu ứng trên đầu (đạn, chém, tia, chiêu) ── */
     veHieu(false, s);
 
@@ -947,10 +782,9 @@
       mini._daGan = 1;
       mini.addEventListener('pointerdown', function (e) {
         var r = mini.getBoundingClientRect();
-        var mx = (e.clientX - r.left) / r.width * 150;
-        var my = (e.clientY - r.top) / r.height * 150;
+        var w = toaDoW((e.clientX - r.left) / r.width * 1000, (e.clientY - r.top) / r.height * 1000);
         cam.tuDong = false; cam.theo = null;
-        cam.mx = mx / 150 * W0; cam.my = my / 150 * H0;
+        cam.mx = w[0]; cam.my = w[1];
         cam.x = cam.mx; cam.y = cam.my;
         veNutCam(); veThe();
       });
@@ -1510,11 +1344,11 @@
     e.appendChild(z);
   }
 
-  /* Minimap dùng đúng phép xoay của bản đồ lớn — hai hình khác hướng nhau thì minimap
-     thành vô dụng, nhìn một cái không biết điểm ấy ứng với chỗ nào trên sân. */
+  /* Minimap là đúng minimap_5v5 của TFM2 (nền + tường, ghép sẵn thành ban-nho.png) — cùng
+     hướng nhìn thẳng từ trên xuống với bản đồ lớn, nên một điểm trên minimap ứng ngay một chỗ
+     trên sân. Sân 0..1000 phủ trọn khung minimap, đúng như sheet gốc. */
   function toaDoMini(x, y, W, H) {
-    var m = 5;
-    return [W / 2 + ((x - y) / 1000) * (W / 2 - m), m + ((x + y) / 2000) * (H - 2 * m)];
+    return [x / 1000 * W, y / 1000 * H];
   }
 
   function veMini() {
@@ -1524,38 +1358,23 @@
        quên chỗ kia là cả hình vẽ tràn ra ngoài khung. */
     var W = c.width, H = c.height;
     x.fillStyle = '#080b10'; x.fillRect(0, 0, W, H);
+    var nho = anhBanDo('nho');
+    if (nho) { x.imageSmoothingEnabled = false; x.drawImage(nho, 0, 0, W, H); }
 
-    /* hình thoi + ba đường, để minimap cũng đọc được là map ba đường */
-    var g0 = toaDoMini(0, 0, W, H), g1 = toaDoMini(1000, 0, W, H),
-        g2 = toaDoMini(1000, 1000, W, H), g3 = toaDoMini(0, 1000, W, H);
-    x.beginPath();
-    x.moveTo(g0[0], g0[1]); x.lineTo(g1[0], g1[1]); x.lineTo(g2[0], g2[1]); x.lineTo(g3[0], g3[1]);
-    x.closePath();
-    x.fillStyle = '#12251a'; x.fill();
-    x.strokeStyle = 'rgba(140,170,150,.18)'; x.lineWidth = 1; x.stroke();
-
-    x.strokeStyle = '#3a5a3e'; x.lineWidth = 5; x.lineCap = 'round'; x.lineJoin = 'round';
-    ['tren', 'giua', 'duoi'].forEach(function (lane) {
-      x.beginPath();
-      G.SIM_DUONG[lane].forEach(function (p, i) {
-        var q = toaDoMini(p[0], p[1], W, H);
-        if (i === 0) x.moveTo(q[0], q[1]); else x.lineTo(q[0], q[1]);
-      });
-      x.stroke();
-    });
-    /* sông */
-    var sa = toaDoMini(20, 20, W, H), sb = toaDoMini(980, 980, W, H);
-    x.strokeStyle = 'rgba(74,157,248,.22)'; x.lineWidth = 7;
-    x.beginPath(); x.moveTo(sa[0], sa[1]); x.lineTo(sb[0], sb[1]); x.stroke();
+    /* khung camera đang nhìn */
+    var k = MUC_ZOOM[cam.iz].k, cw = canvas ? canvas.width / k : 0, chh = canvas ? canvas.height / k : 0;
+    x.strokeStyle = 'rgba(255,255,255,.55)'; x.lineWidth = 1;
+    x.strokeRect((cam.x - cw / 2 - GOC_SAN) / (W0 - 2 * GOC_SAN) * W, (cam.y - chh / 2 - GOC_SAN) / (H0 - 2 * GOC_SAN) * H,
+      cw / (W0 - 2 * GOC_SAN) * W, chh / (H0 - 2 * GOC_SAN) * H);
 
     tran.tru.forEach(function (r) {
       if (!r.song) return;
-      var p = toaDoMini(r.x, r.y, W, H);
+      var p = toaDoMini(r.x, r.y, W, H), o = r.loi ? 3 : 2;
       x.fillStyle = r.doi === 'xanh' ? '#2b8fd6' : '#c8393e';
-      x.fillRect(p[0] - 2, p[1] - 2, 4, 4);
+      x.fillRect(p[0] - o, p[1] - o, o * 2, o * 2);
     });
-    ['rong', 'chua'].forEach(function (k) {
-      var q = tran.quaiLon[k]; if (!q || !q.song) return;
+    ['rong', 'chua'].forEach(function (kk) {
+      var q = tran.quaiLon[kk]; if (!q || !q.song) return;
       var p = toaDoMini(q.x, q.y, W, H);
       x.fillStyle = '#ffd76e';
       x.beginPath(); x.arc(p[0], p[1], 3, 0, 7); x.fill();
@@ -1565,6 +1384,7 @@
       var p = toaDoMini(n.x, n.y, W, H);
       x.fillStyle = n.doi === 'xanh' ? '#3ddc97' : '#e5484d';
       x.beginPath(); x.arc(p[0], p[1], 3, 0, 7); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,.6)'; x.stroke();
     });
   }
 

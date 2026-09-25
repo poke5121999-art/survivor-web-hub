@@ -68,7 +68,7 @@
   var T = {
     dai: 0, mang: 0, tapTrung: 0, tapTrungN: 0, duoiTru: 0, giayTru: 0,
     satTru: 0, satTong: 0, truGiet: 0, truDo: 0, hetGio: 0, doiMuc: 0,
-    chetRut: 0, solo: 0, tran: 0, ngoai: 0, nhaDo: 0, loiDo: 0, loiThap: 0, nhaThap: 0
+    chetRut: 0, solo: 0, tran: 0, co: {}, ngoai: 0, nhaDo: 0, loiDo: 0, loiThap: 0, nhaThap: 0
   };
 
   for (var s = 0; s < SO_TRAN; s++) {
@@ -130,6 +130,7 @@
     tran.tru.forEach(function (r) {
       var t = r.loi ? 'loi' : r.nha ? 'nha' : 'ngoai';
       if (!r.song) dem[t]++;
+      T.co[t] = (T.co[t] || 0) + 1;         /* mẫu số đếm từ chính trận, không chép tay — bản đồ TFM2 có 4 trụ nhà */
       if (r.loi) loiThap = Math.min(loiThap, r.hp / r.hpMax);
     });
     T.ngoai += dem.ngoai; T.nhaDo += dem.nha; T.loiDo += dem.loi;
@@ -151,9 +152,9 @@
     diDuoiTru: Math.round(T.duoiTru / m * 100) + '%',
     giayTrongTru: +(T.giayTru / n / 10).toFixed(1),
     truDo: +(T.truDo / n).toFixed(1),
-    truNgoai: +(T.ngoai / n).toFixed(1) + '/12',
-    truNha: +(T.nhaDo / n).toFixed(1) + '/2',
-    loiDo: +(T.loiDo / n).toFixed(2) + '/2',
+    truNgoai: +(T.ngoai / n).toFixed(1) + '/' + Math.round((T.co.ngoai || 0) / n),
+    truNha: +(T.nhaDo / n).toFixed(1) + '/' + Math.round((T.co.nha || 0) / n),
+    loiDo: +(T.loiDo / n).toFixed(2) + '/' + Math.round((T.co.loi || 0) / n),
     nhaConLai: Math.round(T.nhaThap / n * 100) + '%',
     loiConLai: Math.round(T.loiThap / n * 100) + '%',
     hetGio: Math.round(T.hetGio / n * 100) + '%',

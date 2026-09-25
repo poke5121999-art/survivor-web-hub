@@ -19,7 +19,7 @@ global.navigator = { vibrate: function () {} };
 
 var duong = __dirname.replace(/\\/g, '/') + '/../js/';
 ['util', 'data-kynang', 'data-tuong', 'data-trangbi', 'data-hlv', 'data-tuyenthu',
- 'data-giai', 'data-sukien', 'save', 'ca', 'sim'].forEach(function (f) { require(duong + f + '.js'); });
+ 'data-giai', 'data-sukien', 'save', 'ca', 'data-bando', 'sim'].forEach(function (f) { require(duong + f + '.js'); });
 
 var G = global;
 G.taiSave();

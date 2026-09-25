@@ -15,50 +15,134 @@
   'use strict';
 
   var TICK = 0.25;                 /* giây trong trận cho mỗi tick */
-  var NHA = { xanh: [120, 880], do: [880, 120] };
+  /* ══════════ BẢN ĐỒ 5v5 CỦA TEAMFIGHT MANAGER 2 ══════════
+     Mọi toạ độ lấy từ `window.BAN_DO` (js/data-bando.js, sinh bởi _tools/build_bando.py từ
+     map_setting và các lớp ảnh 5v5 của TFM2). Bên đỏ là ảnh lật (x,y)→(y,x) của bên xanh: lưới
+     tường của TFM2 đối xứng tuyệt đối qua đường chéo ấy.
 
-  /* ── đường đi ── */
-  /* Ba đường phải ĐỐI XỨNG QUA ĐƯỜNG CHÉO y = x: điểm thứ i lật (x,y)→(y,x) phải
-     trùng điểm thứ (n−1−i) của chính đường đó. Có vậy chỗ đứng của người đi đường trên bên
-     xanh mới là ảnh gương của người đi đường trên bên đỏ.
+     Ba đường vẫn phải ĐỐI XỨNG QUA ĐƯỜNG CHÉO y = x: điểm thứ i lật (x,y)→(y,x) phải trùng
+     điểm thứ (n−1−i) của chính đường đó. Bản cũ lệch chỉ vài chục điểm ảnh, trông thì cân,
+     nhưng đo bằng máy thì kèo gương tuyệt đối xanh chỉ thắng 8/30. build_bando.py dựng nửa
+     sau của mỗi đường bằng phép lật nên luật này đúng theo cấu tạo. */
+  var BD = G.BAN_DO;
+  var NHA = BD.gieng;              /* chỗ hồi sinh / về nhà */
+  var DUONG = BD.duong;
 
-     Bản cũ lệch chỉ vài chục điểm ảnh, trông thì cân, nhưng đo bằng máy thì kèo gương
-     tuyệt đối xanh chỉ thắng 8/30. Sai số hình học nằm dưới ba mươi phút đánh nhau thì không
-     triệt tiêu, nó cộng dồn. */
-  var DUONG = {
-    tren: [[120, 880], [120, 620], [120, 360], [140, 140], [360, 120], [620, 120], [880, 120]],
-    giua: [[120, 880], [280, 720], [420, 580], [500, 500], [580, 420], [720, 280], [880, 120]],
-    duoi: [[120, 880], [360, 900], [620, 900], [860, 860], [900, 620], [900, 360], [880, 120]]
-  };
+  /* trụ đường: [lane, t dọc đường, đội, x, y] — 2 trụ mỗi đường mỗi bên, đứng trên bệ đá cạnh đường.
+     `[BẪY ĐÃ SẬP]` Hai trụ ngoài đối diện nhau phải cách nhau hơn 2 × tầm trụ (130), không thì
+     chỗ hai đợt lính gặp nhau nằm trong tầm cả hai trụ (RESEARCH §8). Bản đồ TFM2: đường giữa 332,
+     đường trên/dưới 328 (đo trong §13). */
+  var TRU = BD.tru;
 
-  /* trụ: [lane, phần trăm dọc đường, đội] — 2 trụ + 1 trụ lõi mỗi bên */
-  /* `[BẪY ĐÃ SẬP]` Trụ ngoài từng đặt ở 0,40 / 0,60 của đường. Đường giữa chỉ dài ~1075 nên hai
-     trụ ấy cách tâm đường có 107 — mà tầm trụ là 130: CHỖ HAI ĐỢT LÍNH GẶP NHAU NẰM TRONG TẦM CẢ
-     HAI TRỤ. Đường trên/dưới cũng thế quanh góc. Ai ra ăn đợt lính đầu là ăn đạn trụ địch, nên
-     đo ra 10,3 / 23 mạng một trận rơi trong HAI PHÚT ĐẦU, 57% số ấy không do tướng nào hạ.
-     Không ai nhìn trận mà đoán ra được — phải đếm "ai giết" theo từng mốc giờ mới lộ.
-     Giờ trụ ngoài lùi về, giữa đường để lại một khoảng trung lập rộng hơn hai lần tầm trụ. */
-  var TRU = [
-    ['tren', 0.20, 'xanh'], ['tren', 0.33, 'xanh'],
-    ['giua', 0.17, 'xanh'], ['giua', 0.30, 'xanh'],
-    ['duoi', 0.20, 'xanh'], ['duoi', 0.33, 'xanh'],
-    ['tren', 0.80, 'do'], ['tren', 0.67, 'do'],
-    ['giua', 0.83, 'do'], ['giua', 0.70, 'do'],
-    ['duoi', 0.80, 'do'], ['duoi', 0.67, 'do']
-  ];
+  /* bãi quái rừng: [x, y, đội nào gần hơn, loại quái] */
+  var BAI = BD.bai;
 
-  /* bãi quái rừng: [x, y, đội nào gần hơn] */
-  var BAI = [
-    [300, 700, 'xanh'], [240, 540, 'xanh'], [420, 780, 'xanh'], [180, 420, 'xanh'],
-    /* lật qua đường chéo y = x của bốn bãi trên, không được đặt tay */
-    [700, 300, 'do'], [540, 240, 'do'], [780, 420, 'do'], [420, 180, 'do']
-  ];
-
-  /* hai quái lớn — tên lấy tinh thần của Serpen / Morgard trong Teamfight Manager 2 */
+  /* hai quái lớn: Chúa Hang = epic (Morgard) góc trên trái, Rồng = serpen góc dưới phải */
   var QUAI_LON = {
-    rong:  { ten: 'Rồng', x: 700, y: 700, hp: 4200, atk: 70, dau: 180, lap: 120, vang: 120, exp: 45 },
-    chua:  { ten: 'Chúa Hang', x: 300, y: 300, hp: 9000, atk: 105, dau: 420, lap: 300, vang: 320, exp: 90 }
+    rong:  { ten: 'Rồng', x: BD.quaiLon.rong[0], y: BD.quaiLon.rong[1], hp: 4200, atk: 70, dau: 180, lap: 120, vang: 120, exp: 45 },
+    chua:  { ten: 'Chúa Hang', x: BD.quaiLon.chua[0], y: BD.quaiLon.chua[1], hp: 9000, atk: 105, dau: 420, lap: 300, vang: 320, exp: 90 }
   };
+
+  /* ══════════ TƯỜNG VÀ TÌM ĐƯỜNG ══════════
+     Lưới 30×30 ô (mỗi ô 33,3 đơn vị). `CHAN[o]` = ô tường. `thay(a, b)` = từ ô a đi thẳng tới ô b
+     được — bảng của chính TFM2 (map_setting phần 1), đã tính bề dày người. Không thấy thẳng thì đi
+     theo đường ngắn nhất trên lưới: BFS 8 hướng, không cắt góc tường, tính DẦN theo ô đích và giữ
+     lại (tối đa 900 bảng, mỗi bảng 900 ô). Rồi kéo căng dây: nhảy tới ô xa nhất trên đường ấy mà
+     từ chỗ đang đứng vẫn thấy thẳng, để người không đi hình bậc thang. */
+  var SO_O = BD.o, CO_O = 1000 / SO_O, SO_O2 = SO_O * SO_O;
+  var CHAN = new Uint8Array(SO_O2);
+  for (var io = 0; io < SO_O2; io++) CHAN[io] = BD.tuong.charCodeAt(io) === 49 ? 1 : 0;
+  var THAY = (function () {
+    var s = typeof atob === 'function' ? atob(BD.thay) : Buffer.from(BD.thay, 'base64').toString('binary');
+    var a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+    return a;
+  })();
+  function thay(a, b) { var k = a * SO_O2 + b; return (THAY[k >> 3] >> (k & 7)) & 1; }
+  function oCua(x, y) {
+    var cx = Math.floor(x / CO_O), cy = Math.floor(y / CO_O);
+    if (cx < 0) cx = 0; else if (cx >= SO_O) cx = SO_O - 1;
+    if (cy < 0) cy = 0; else if (cy >= SO_O) cy = SO_O - 1;
+    return cy * SO_O + cx;
+  }
+  /* ô trống gần nhất của mỗi ô (ô trống thì là chính nó) — cho đích nằm trong tường */
+  var GAN = new Int16Array(SO_O2);
+  for (var ig = 0; ig < SO_O2; ig++) {
+    if (!CHAN[ig]) { GAN[ig] = ig; continue; }
+    var tot = -1, dTot = 1e9;
+    for (var jg = 0; jg < SO_O2; jg++) {
+      if (CHAN[jg]) continue;
+      var ddx = (jg % SO_O) - (ig % SO_O), ddy = Math.floor(jg / SO_O) - Math.floor(ig / SO_O);
+      if (ddx * ddx + ddy * ddy < dTot) { dTot = ddx * ddx + ddy * ddy; tot = jg; }
+    }
+    GAN[ig] = tot;
+  }
+  var BUOC = new Array(SO_O2);     /* BUOC[đích][ô] = ô kế tiếp trên đường ngắn nhất tới đích */
+  var HX = [1, 0, -1, 0, 1, -1, 1, -1], HY = [0, 1, 0, -1, 1, 1, -1, -1];
+  function bangToi(dich) {
+    if (BUOC[dich]) return BUOC[dich];
+    var ke = new Int16Array(SO_O2).fill(-1), hang = new Int16Array(SO_O2), dau = 0, cuoi = 0;
+    ke[dich] = dich; hang[cuoi++] = dich;
+    while (dau < cuoi) {
+      var c = hang[dau++], cx = c % SO_O, cy = (c - cx) / SO_O;
+      for (var h = 0; h < 8; h++) {
+        var nx = cx + HX[h], ny = cy + HY[h];
+        if (nx < 0 || ny < 0 || nx >= SO_O || ny >= SO_O) continue;
+        var n = ny * SO_O + nx;
+        if (ke[n] >= 0 || CHAN[n]) continue;
+        if (h >= 4 && (CHAN[cy * SO_O + nx] || CHAN[ny * SO_O + cx])) continue;   /* không cắt góc */
+        ke[n] = c; hang[cuoi++] = n;
+      }
+    }
+    BUOC[dich] = ke;
+    return ke;
+  }
+  /** điểm nên đi tới NGAY BÂY GIỜ để tới (tx, ty) mà không xuyên tường; ghi vào DIEM_DI */
+  var DIEM_DI = [0, 0];
+  function diemDi(x, y, tx, ty) {
+    var a = oCua(x, y), b = oCua(tx, ty);
+    if (a === b || (!CHAN[b] && thay(a, b))) { DIEM_DI[0] = tx; DIEM_DI[1] = ty; return DIEM_DI; }
+    if (CHAN[a]) a = GAN[a];
+    b = GAN[b];
+    var ke = bangToi(b), c = ke[a];
+    if (c < 0) { DIEM_DI[0] = tx; DIEM_DI[1] = ty; return DIEM_DI; }
+    for (var k = 0; k < 12 && c !== b; k++) {
+      var n = ke[c];
+      if (n < 0 || !thay(a, n)) break;
+      c = n;
+    }
+    if (c === b) { DIEM_DI[0] = tx; DIEM_DI[1] = ty; return DIEM_DI; }
+    DIEM_DI[0] = (c % SO_O + 0.5) * CO_O; DIEM_DI[1] = (Math.floor(c / SO_O) + 0.5) * CO_O;
+    return DIEM_DI;
+  }
+  /** bước một đoạn `toc` về phía (tx, ty), vòng quanh tường; không bao giờ đứng lại trên ô tường */
+  function catTuong(x0, y0, x1, y1) {
+    var m = Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 3) || 1;
+    for (var k = 1; k <= m; k++) if (CHAN[oCua(x0 + (x1 - x0) * k / m, y0 + (y1 - y0) * k / m)]) return true;
+    return false;
+  }
+  function buocToi(n, tx, ty, toc) {
+    var p = diemDi(n.x, n.y, tx, ty);
+    var dx = p[0] - n.x, dy = p[1] - n.y, d = Math.sqrt(dx * dx + dy * dy);
+    var nx = p[0], ny = p[1];
+    if (d > toc) { nx = n.x + dx / d * toc; ny = n.y + dy / d * toc; }
+    /* Bảng đi thẳng của TFM2 cho vài đường sượt góc tường, và người không đứng đúng tâm ô. Bước
+       nào cắt tường thì TRƯỢT dọc tường: thử riêng trục x, rồi riêng trục y. */
+    if (catTuong(n.x, n.y, nx, ny)) {
+      if (!catTuong(n.x, n.y, nx, n.y)) ny = n.y;
+      else if (!catTuong(n.x, n.y, n.x, ny)) nx = n.x;
+      else {
+        var oc = oCua(n.x, n.y);
+        nx = n.x + ((oc % SO_O + 0.5) * CO_O - n.x) * 0.5;
+        ny = n.y + ((Math.floor(oc / SO_O) + 0.5) * CO_O - n.y) * 0.5;
+      }
+    }
+    n.x = nx; n.y = ny;
+    var o = oCua(n.x, n.y);
+    if (CHAN[o]) { var g = GAN[o]; n.x = (g % SO_O + 0.5) * CO_O; n.y = (Math.floor(g / SO_O) + 0.5) * CO_O; }
+  }
+  G.SIM_DIEM_DI = diemDi;
+  G.SIM_CHAN = function (x, y) { return CHAN[oCua(x, y)] === 1; };
 
   /* Hiệu ứng cho phần VẼ: đạn bay, vệt chém, vòng diện rộng, tia trụ bắn. Chỉ là dự liệu
      trình bày — không đọc lại trong luồng tính toán nên không đổi kết quả trận. Trước đây
@@ -239,20 +323,20 @@
 
     /* trụ */
     TRU.forEach(function (r) {
-      var p = diemTren(r[0], r[2] === 'xanh' ? r[1] : r[1]);
-      tran.tru.push({ lane: r[0], doi: r[2], t: r[1], x: p[0], y: p[1],
+      tran.tru.push({ lane: r[0], doi: r[2], t: r[1], x: r[3], y: r[4],
         hp: 4800, hpMax: 4800, giap: 95, khang: 95, atk: 190, tam: 130, danh: 0, song: true,
         nha: false, loi: false, danhLuc: -9, dinhLuc: -9,
         laTru: true, leoAi: -1, leo: 0, leoLuc: -99 });
     });
-    /* hai trụ nhà + lõi */
+    /* hai trụ đôi trước nhà (twin tower của TFM2) + lõi */
     ['xanh', 'do'].forEach(function (d) {
-      var n = NHA[d];
-      tran.tru.push({ lane: 'nha', doi: d, x: n[0] + (d === 'xanh' ? 70 : -70), y: n[1] + (d === 'xanh' ? -70 : 70),
-        hp: 5000, hpMax: 5000, giap: 110, khang: 110, atk: 240, tam: 150, danh: 0, song: true,
-        nha: true, loi: false, danhLuc: -9, dinhLuc: -9,
-        laTru: true, leoAi: -1, leo: 0, leoLuc: -99 });
-      tran.tru.push({ lane: 'loi', doi: d, x: n[0], y: n[1],
+      BD.nha[d].forEach(function (p) {
+        tran.tru.push({ lane: 'nha', doi: d, t: 0, x: p[0], y: p[1],
+          hp: 5000, hpMax: 5000, giap: 110, khang: 110, atk: 240, tam: 150, danh: 0, song: true,
+          nha: true, loi: false, danhLuc: -9, dinhLuc: -9,
+          laTru: true, leoAi: -1, leo: 0, leoLuc: -99 });
+      });
+      tran.tru.push({ lane: 'loi', doi: d, t: 0, x: BD.loi[d][0], y: BD.loi[d][1],
         hp: 6000, hpMax: 6000, giap: 110, khang: 110, atk: 180, tam: 140, danh: 0, song: true,
         nha: false, loi: true, danhLuc: -9, dinhLuc: -9,
         laTru: true, leoAi: -1, leo: 0, leoLuc: -99 });
@@ -260,7 +344,7 @@
 
     /* quái rừng */
     BAI.forEach(function (b, i) {
-      tran.quai.push({ i: i, x: b[0], y: b[1], gan: b[2], hp: 900, hpMax: 900, atk: 40,
+      tran.quai.push({ i: i, x: b[0], y: b[1], gan: b[2], loai: b[3], hp: 900, hpMax: 900, atk: 40,
         song: true, hoi: 0, vang: 55, exp: 70,
         danh: 0, danhLuc: -9, goc: 0, dinhLuc: -9 });
     });
@@ -1395,17 +1479,12 @@
            xa đứng lẫn vào giữa đội hình địch và chết trước tiên. */
         var lui = (cs.tam > 45 && (mt.loai === 'tugiup' || mt.loai === 'gank')) ? cs.tam * 0.72 : 0;
         if (d <= lui) { /* đủ gần rồi, đứng lại chờ */ }
-        else if (d > toc) { n.x += dx / d * toc; n.y += dy / d * toc; }
-        else { n.x = mt.x; n.y = mt.y; }
+        else buocToi(n, mt.x, mt.y, toc);
       }
 
       /* ĐANG RÚT thì đi TIẾP, dù vừa ra đòn xong. Chân vẫn chạy, tay vẫn đánh. */
       if (dangRut && muc) {
-        var rx = mt.x - n.x, ry = mt.y - n.y;
-        var rd = Math.sqrt(rx * rx + ry * ry) || 1;
-        var rtoc = cs.tocchay * TICK * 1.35;
-        if (rd > rtoc) { n.x += rx / rd * rtoc; n.y += ry / rd * rtoc; }
-        else { n.x = mt.x; n.y = mt.y; }
+        buocToi(n, mt.x, mt.y, cs.tocchay * TICK * 1.35);
       }
     });
 

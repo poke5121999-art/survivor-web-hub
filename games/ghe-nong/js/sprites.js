@@ -10,7 +10,8 @@
   /* MỘT số bản cho mọi ảnh atlas. Canvas từng nạp `?v=…12a` còn ảnh DOM nạp `?v=…11a`:
      mỗi atlas tải hai lần, và chân dung DOM có thể lấy ảnh cũ trong cache ghép với toạ độ mới.
      Đổi ảnh trong art/ thì tăng đúng số này. */
-  var ART_V = '20260925d';
+  var ART_V = '20260925f';
+  G.ART_V = ART_V;              /* ui-tran nạp ba lớp ảnh bản đồ cùng phiên bản art */
   var MAP = window.ART_MAP || null;
   var ANH = {};
   var xong = 0, can = 0;
