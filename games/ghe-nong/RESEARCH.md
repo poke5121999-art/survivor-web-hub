@@ -2050,6 +2050,210 @@ Các hướng đã thử và BỎ (cùng bộ đo):
 - Vẫn còn 41/60 trận có trụ đổ trước 5 phút (trước là 33/60). Phần còn lại do giao tranh
   (`tugiup`) lan vào tầm trụ. Bộ não TFM2 có luật lao trụ riêng (§4.6 của AI_BRAIN).
 
+## 14. Trận chạy trên SỐ CỦA TFM2: chỉ số, cài đặt, đồ, nhịp ra đòn, chiêu `[ĐO TRONG REPO]`
+
+Chủ dự án (2026-09-25): *"copy hết skill + config + stats + equip + time của tfm2 lun đi"*. Kế hoạch ở
+`brain/plans/ghe-nong-tfm2-full.md`; mục này là bước 2 (lõi). Đội hình = 68 tướng TFM2 (60 gốc + 8 mod),
+id là id TFM2; hai mươi tướng tự chế và bộ đồ tự chế xoá hẳn (`data-tuong.js`, `data-trangbi.js` viết lại,
+đọc thẳng `window.TFM` của `js/data-tfm.js`). Chữ trên màn là chữ tiếng Việt chính thức của TFM2.
+
+### 14.1 Đơn vị và bước thời gian
+
+- Khoảng cách: TFM2 1000 = 1 điểm ảnh, sân 960000 ⇒ 1 đơn vị sim (sân 0..1000) = 960 đơn vị TFM2
+  (`G.kcTFM`, §13.1). Tốc chạy `move_speed` 1000 = 1 điểm ảnh MỖI TICK ⇒ 62,5 đơn vị sim/giây; tốc đạn
+  cùng thang (`speed` 6000 của mũi tên trụ = 375 đơn vị sim/giây, bay hết tầm trụ 78 trong 0,2 giây).
+- Thời gian: 60 tick = 1 giây (`G.giayTFM`). Sim chạy `TICK = 1/60` giây — mọi `cooltime / duration /
+  start_timing / stun / attack_period` là số nguyên tick nên biểu diễn được đúng, không làm tròn.
+  `[ĐO TRONG REPO]` chi phí trong Node (chay.js, 6 trận, cùng hạt giống):
+
+  | tick | ms một trận | µs một tick | dài · mạng · trụ đổ |
+  |---|---|---|---|
+  | 1/60 | 2139 | 83 | 7,1 phút · 12,3 · 10,7 |
+  | 1/30 | 1263 | 104 | 6,8 phút · 13,2 · 11,0 |
+  | 1/20 | 944 | 110 | 7,1 phút · 12,8 · 10,5 |
+
+  Kết quả trận không đổi theo tick, nên chọn 1/60 cho đúng nhịp TFM2. Bản cũ (tick 0,25 s) ~1,1–1,5 s một trận,
+  tức 60 Hz chỉ đắt gấp rưỡi: các vòng nặng (nhắm của lính, quái) chỉ tìm lại mục tiêu mỗi 3 tick, còn
+  người chỉ tính `chiSoNguoi` một lần mỗi tick (`n._csTick`). `canbang.js 400` ≈ 14 phút, `soiAI` 150 trận ≈ 5 phút.
+  Bộ đo muốn so nhịp thì đặt `window.SIM_TICK_DAT` trước khi nạp `sim.js`.
+- Trần giờ: TFM2 không có; sim giữ 40 phút để bộ đo luôn dừng (hết giờ thì so vàng). Không trận nào chạm tới.
+
+### 14.2 Cái gì lấy từ TFM2, cái gì là lớp riêng của game này
+
+Lấy nguyên từ `game_setting` / `champion_info` / `item_setting` (không còn hằng số tự chế nào trong `sim.js`):
+
+- Tướng: `stat` + `growth` × (cấp − 1); cấp lên theo `need_exp` (12 cấp). Tầm đánh = `attack.range`, tốc đánh =
+  60 / `attack.cooltime` đòn/giây, đòn xa (có `attack.speed`) là đạn bay thật, trúng mới tính.
+- Nhịp ra đòn: mỗi hành động (đánh, skill, skill2, ult) khoá người `duration` tick, ra đòn ở tick `start_timing`,
+  hồi `cooltime` tính từ lúc bắt đầu; `cancelable` = sau khi ra đòn được bỏ phần còn lại; `can_use_with_move` =
+  vừa đi vừa đánh (25 tướng đánh xa). Bị choáng lúc chưa tới mốc ra đòn thì mất chiêu (đã tính hồi).
+- Vàng: `start_gold` 500, `gold_per_second` 7 cho TỪNG người (cả lúc chết), mạng 300, hỗ trợ 100 trong
+  `exp_range`, lính 20 + 4 mỗi bậc (trần 60/50), bãi 50 + 10 mỗi bậc, trụ / trụ đôi 200, Chúa Hang 200 + 100
+  mỗi lần, Rồng 50 + 10. `[ĐỀ XUẤT]` vàng trụ và quái lớn phát cho CẢ NĂM người (TFM2 chỉ ghi một số `gold`,
+  không ghi phát cho ai).
+- Kinh nghiệm: lính 40/30 + 14/13 mỗi bậc, bãi 60 (ong 20), mạng `kill_exp` 30 + 30 × (cấp nạn nhân − 1),
+  hỗ trợ 40%; chia trong `exp_range` 150000 với 2/3/4+ người còn 100/80/60% (`exp_decay2..4`); giữa +20%,
+  hỗ trợ −30%. Không còn luật "đuổi kịp" tự chế.
+- Hồi sinh: `respawn_tick` 300 + 180 × (cấp − 1) + 30 × ⌊t / 1800 tick⌋, trần 2400 tick (40 giây).
+  `[ĐỀ XUẤT]` cách ghép ba số này là đoán từ tên trường.
+- Về nhà: `return_tick` 120 — đứng niệm 2 giây khi không có tướng địch trong `visible_distance` và không vừa ăn
+  đòn, rồi về giếng; ăn đòn thì gãy. Giếng hồi `nexus_heal` 10% máu mỗi `nexus_heal_tick` 24 tick; giếng địch
+  bắn `well_damage` 600 mỗi 30 tick.
+- Lính: sóng đầu tick 10, mỗi 660 tick, 2 cận + 1 xa cách nhau 30 tick; cận 400 máu 10 công 3000 tầm
+  cooltime 30, xa 250 máu 15 công 35000 tầm cooltime 40; tăng mỗi 1800 tick từ tick 1800 tới 24000;
+  trụ bắn lính chỉ ăn `from_tower_damage` 30% / 80% máu tối đa mỗi phát.
+- Quái: bốn bãi mỗi bên đúng loại trên bản đồ (ong / nấm / tê giác / gốc = `bee/mushroom/rhino/tree_jungle`),
+  ra ở tick 100, hồi 2400 tick, mạnh lên theo cùng bậc với lính. Chúa Hang (`epic_jungle`) 10000 máu, 150 giáp/
+  kháng, ra tick 14400, hồi 7200, mỗi lần +1500 máu; ăn được thì lính phe đó ăn `epic_minion_buff` (+40 công,
+  +200 máu, ×3 máu, +20% tốc) trong 5400 tick, lần sau cộng thêm `epic_minion_buff_increase`. Rồng (`serpen`)
+  5000 máu, ra 7200, hồi 7200; mỗi con cộng vĩnh viễn +3% công / phép / giáp / kháng và +1% tốc chạy
+  (`epic_permanent_stat`). Buff đi rừng: hành quyết quái lớn khi máu ≤ 700, +20% tốc ngoài giao tranh.
+- Trụ: 2000 máu, 70 giáp, 600 công, tầm 75000 (78 sim), bắn mỗi 40 tick bằng đạn 6000; trụ đôi y hệt;
+  lõi 2000 máu 80 giáp KHÔNG bắn (không có `attack` trong dữ liệu). Không còn leo thang, không còn hãm.
+
+Lớp riêng của game này (DESIGN §2.1, §3.4), giữ nguyên vì là nội dung nuôi quân — biên hẹp:
+thông thạo N→UR nhân 0,90–1,12 vào mọi chỉ số; LỰC 0,89–1,10 vào công; BỀN 1–1,14 vào máu; CƠ 1–1,12 vào
+tốc đánh, và né/hụt; LÌ chịu đòn tốt hơn tới 25% dưới 40% máu; hệ số kỹ năng huấn luyện viên (`hesoDoi`);
+tụt sức sau phút 18. Tất cả nằm trong `chiSoNguoi` / `satThuong` / `donThuong`, có ghi chú.
+
+Chưa có trong dữ liệu TFM2, giữ bản cũ hoặc đặt tạm (đều gắn nhãn trong mã):
+- Công thức giáp: `100 / (100 + giáp)`; xuyên giáp / kháng của đồ trừ phần trăm giáp trước. `[ĐỀ XUẤT]`
+- Chí mạng (`crit_chance` của đồ Tốc Đánh): ×1,5. `[ĐỀ XUẤT]`
+- Ult mở từ cấp 5. `[ĐỀ XUẤT]`
+- Chỉ số tướng mod `hp_regen / stack / crit_chance` = 0 với mọi tướng, không dùng.
+
+### 14.3 API nguyên thuỷ cho người viết chiêu (`js/chieu.js`, dùng ở `js/chieu-tfm-1..4.js`)
+
+Đăng ký: `G.CHIEU_TFM['<id>'] = { skill: fn(S), skill2: fn(S), ult: fn(S), mota: { skill: '…' } }`. Hàm chạy ở
+ĐÚNG tick `start_timing` của chiêu (người đã khoá từ lúc bấm). Trả `false` ⇒ sim chạy cách chung. `mota`
+thay chữ hiện ở màn cấm chọn (bản tự động điền `{X}` từ tham số, để `?` chỗ không tra được).
+Bốn ví dụ đã chạy trong trận: `fighter` (ba chiêu viết tay, tệp 1), `pyromancer` (chỉ skill2, tệp 2),
+`nightmare` (thay nút Native của ult, tệp 3), `priest` (hồi / khiên / kênh + `mota`, tệp 4).
+
+Mọi khoảng cách VÀO hàm là đơn vị TFM2 (1000 = 1 điểm ảnh), mọi thời gian là TICK TFM2 (60 = 1 giây) —
+tức là chép thẳng số trong `S.p`. Toạ độ thực thể (`n.x`, `m.x`) là đơn vị sim; `S.kc(u)` đổi TFM2 → sim.
+
+Trường:
+`S.n` người ra chiêu · `S.cs` chỉ số lúc ấy (`atk ap hpMax giap khang tam tocdanh tocchay vamp crit …`) ·
+`S.p` tham số chiêu (`S.a` = mục thô của TFM2, có `effect` với tướng mod) · `S.kn` `{ten, hoi, moGoc}` ·
+`S.loai` `'skill'|'skill2'|'ult'` · `S.muc` mục tiêu đã chọn (tướng địch / quái lớn / đồng minh / chính mình, có thể null) ·
+`S.x, S.y` điểm bấm · `S.t` giờ trận · `S.tran` · `S.BK` bán kính người (sim) · `S.pt` bản phân tích tham số (§14.4).
+
+Truy vấn (bán kính đơn vị TFM2; trả mảng thực thể — tướng có `.tuong`, lính `.linh`, quái `.cau`, quái lớn `.hienRa`, trụ `.laTru`):
+`S.dich(x, y, r, {tuong:true | linh:true | tru:true})` địch trong vòng · `S.dongMinh(x, y, r, {keMinh:false})` ·
+`S.dichGanNhat(r, {tuong:true})` · `S.dongMinhYeuNhat(r, keMinh)` · `S.trongTam(m, r)` ·
+`S.huong()` vectơ đơn vị tới mục tiêu / điểm bấm · `S.diemMuc()` `[x,y]` · `S.diemXa(r)` điểm cách mình r theo hướng ·
+`S.dmg(base, he, 'atk'|'ap')` = base + he% × SMCK/SMPT.
+
+Tác động:
+`S.sat(m, luong, 'vl'|'pt'|'thuc', o)` sát thương (giáp, xuyên, lá chắn, phản đòn, tử vong đều tính trong đó) — trả số máu mất ·
+`S.satVung(x, y, r, luong, loai, {tuong:true, nonNua:60})` · `S.hoi(m, luong)` · `S.chan(m, luong, tick)` lá chắn ·
+`S.buff(m, cs, tick, ten)` với `cs` là khoá sim: `atk ap hp giap khang hpRegen tam` cộng thẳng; `atkM apM hpM giapM khangM
+tocdanh tocchay hoiChieu hoiCuoi vamp crit xuyenGiap xuyenKhang giamDanh giamChieu giamNhan tangNhan kienCuong giamHoi phanDon`
+phần trăm; `mienKc batTu` cờ. Số âm là nợ. Cùng `ten` thì làm mới, không chồng ·
+`S.choang(m, tick)` · `S.hat(m, tick)` hất tung (= choáng, đánh dấu để vẽ) · `S.troi(m, tick)` trói (không đi, vẫn đánh) ·
+`S.im(m, tick)` câm chiêu · `S.khieu(m, tick)` khiêu khích (buộc đánh mình) · `S.so(m, tick)` sợ (bỏ chạy) ·
+`S.cham(m, phanTram, tick)` · `S.day(m, toc, tick, tuX, tuY)` đẩy lùi khỏi điểm · `S.keo(m, toc, tick, toiX, toiY)` kéo về điểm ·
+`S.lao(x, y, toc, xong, {moiBuoc})` mình lao tới (x,y) sim; `xong()` khi tới; `moiBuoc()` mỗi tick lúc đang lao ·
+`S.dan(muc|null, x, y, toc, khi(m), {r, xuyen, loc, ketThuc(x,y)})` đạn: có `muc` thì đuổi theo và `khi(muc)` lúc chạm;
+không có thì bay tới (x,y), `r` là bán kính chạm (skillshot), `xuyen` xuyên qua, `ketThuc` khi hết tầm ·
+`S.vung(x, y, r, lau, moi, fn(V, dsDich), {ketThuc(dsCuoi), hoi(V, dsMinh), loc, minh, ten})` vùng tồn tại `lau` tick, mỗi `moi` tick gọi `fn` ·
+`S.doc(m, moiGiay, tick, loai, ten)` độc / chảy máu (sát thương mỗi giây trong `tick`) ·
+`S.sau(tick, fn)` làm sau · `S.lap(soLan, moiTick, fn(k))` lặp · `S.khoaHanh(tick)` kéo dài khoá người (kênh) ·
+`S.anMinh(tick)` tàng hình · `S.khongChon(tick)` không thể bị chỉ định · `S.batTu(tick)` không tụt dưới 1 máu ·
+`S.mienKc(m, tick)` · `S.trieuHoi({stat, theoAP, danh, lau, ten})` lính triệu hồi đi theo mình · `S.hoiSinh(m, phanTram)` ·
+`S.giamHoi('skill', tick)` bớt hồi chiêu · `S.fx({loai:'chieu'|'cuoi', x, y, x2, y2, dien, r})` hiệu ứng vẽ · `S.chu(m, 'chữ')` chữ bay.
+
+Luật viết: (1) lấy số từ `S.p` / `S.a.effect`, không chép số vào mã — vá `data-tfm.js` là chiêu đổi theo;
+(2) khống chế chỉ lên tướng (`m.tuong`) và quái lớn — lính không ăn choáng; (3) mục tiêu có thể chết
+giữa chừng (`m.chet > 0`, `m.hp <= 0`) — hàm nguyên thuỷ tự bỏ qua nhưng logic riêng phải tự kiểm;
+(4) không đọc ruột `sim.js`; cần thêm nguyên thuỷ thì ghi vào "Yêu cầu giữa các agent" của kế hoạch;
+(5) tên hoạt ảnh / tiếng cho hiệu ứng riêng tra `G.hoatAnhChieuTFM(id)` và `am/bang.js` (§15).
+
+### 14.4 Cách chạy CHUNG (60 tướng gốc) và cây hiệu ứng (8 tướng mod)
+
+Tướng gốc chỉ có THAM SỐ; cách chạy nằm trong exe. `phanTich(p, mo_ta)` (`G.phanTichChieu`) đoán một lần cho mỗi chiêu:
+- sát thương = `attack|damage|base_damage|skill_damage` + `attack_ratio|damage_ratio|…`; vật lý hay phép, SMCK hay SMPT đọc
+  từ mô tả ("Sát thương Phép", "SMPT"); vùng khi có `attack_range|radius|…` hoặc mô tả nói "tất cả kẻ địch / xung quanh /
+  hình nón / đường thẳng"; quanh mình khi không có `range` hoặc mô tả nói "xung quanh / hình nón / phía trước"; nón theo
+  `half_angle_deg` (mặc định 60° nếu mô tả nói nón / bán nguyệt);
+- khống chế: `stun|stun_duration` choáng, `airborne*` hất, `bind*` trói, `taunt_duration`, `fear_*`, `charm_duration`,
+  `silence_duration|block_skill_tick|block_duration|seal_duration` câm; chậm `slow_speed|slow_ratio|slow|speed_down|move_speed_reduce`
+  trong `slow_duration`;
+- hồi `heal(+heal_ratio)`, hồi theo sát thương gây ra khi có `heal_ratio` mà không có `heal`; khiên `shield(+shield_ratio)`,
+  theo máu tối đa khi mô tả nói "Máu Tối Đa" mà không "SMPT"; buff cho phe mình (`attack_speed*`, `move_speed*`, `attack_boost`,
+  `magic_power_boost`, `damage_reduce`, `cooltime_reduce`, `max_hp_ratio`, `range_increase`…) trong `buff_duration|effect_duration|tick`;
+  nợ lên địch (`defense_down`, `magic_def_down`, `attack_speed_reduce`, `damage_amplification`, `unhealable_time`);
+- vùng tồn tại (`attack_tick/attack_period`, `dot_*`, `heal_*`); kênh (`channel_duration/period`); chùm (`total_shots/interval`,
+  `attack_count`); độc trên người (`bleed*`, `dot_damage`, `poison*`); trễ (`delayed|delay|travel_time|first_delay`);
+  lao (`speed` + mô tả "lao / lướt / nhảy / xông / đột kích"), nhảy lùi; đạn (`speed|projectile_speed` khi tầm > 30000 và
+  không lao); đẩy (`knockback_*`, `push_*`); kéo (`pull_*`, `grab`); tàng hình (`invisible_duration`); không thể bị chỉ định;
+  hành quyết (`execute_threshold`), theo máu đã mất / tối đa / hiện tại; triệu hồi (necromancer: `stat` + `attack`); hồi sinh.
+- mục tiêu lúc ra chiêu (`G.chonMucChieu`): có sát thương / khống chế ⇒ tướng địch trong tầm (ưu tiên con đang đánh),
+  không thì quái lớn; hồi / khiên ⇒ đồng minh yếu nhất (dưới 82% máu, không thì không bung); buff thuần ⇒ chỉ khi có
+  tướng địch trong 60000. Ult theo luật cũ (§8): có giao tranh / sắp chết / ôm quá lâu, NÃO quyết định.
+  Đang ăn lính tám phút đầu thì không ném chiêu vào tướng (kỷ luật đi đường, cả đánh thường lẫn chiêu).
+
+Cây hiệu ứng của tướng mod (`a.effect`, `G.chayCayHieuUng`): `Combine WithSelf Delayed Attack ApAttack Heal AddBuff
+AddCasterBuff AddStatScaledBuff AddCasted Knockback Pull Rush MoveTo TargetProjectile LinearProjectile RangeProjectile
+ParabolicProjectile LineRangeProjectile RangePeriodProjectile ShrinkingBarrier RangeEffect CasterInvisible` chạy đúng nghĩa;
+`CasterAnimation ViewEffect CasterViewEffect TargetSfx` chỉ đẩy một hiệu ứng vẽ; `Native` (13 nút: crossbowman ×3,
+nightmare ult, strongman ×2, spellbreaker ult, astrologer ×3, harpooner ×3) chạy CÁCH CHUNG theo tham số của nút —
+đúng dần là việc của bước 4. `buff_state` của TFM2 (`heal_reduce`, `move_speed_mult`…) đổi tên qua `G.chuanChiSo`
+(`data-trangbi.js`), cùng bảng với đồ. `casting_type` / `casting_target` (Targeting / Direction / Position;
+Enemy / EnemyChampion / EnemyWithoutTower / AllyOnlySelf) quyết định mục tiêu.
+
+### 14.5 Đo và bẫy `[ĐO TRONG REPO]`
+
+Bộ đo: `scratchpad/chay.js` (6 trận cùng hạt), `soi.js` (móc `tran.soiSat(ke, bi, thuc, loai, o)` trong `satThuong` để
+biết ai giết ai), `kiemTuong.js` (0 trên tường, 0 xuyên, 0 kẹt, lún tối đa 0,36).
+
+| bản | dài | mạng | trụ đổ | mạng đầu | trụ đầu | ghi chú |
+|---|---|---|---|---|---|---|
+| số TFM2, não cũ nguyên | 6,2 phút | 25 | 10,5 | 16 s | 84 s | 7 mạng trong 30 giây đầu |
+| + kỷ luật đi đường áp cho chiêu | 6,6 | 22 | 11,2 | 18 s | 51–96 s | |
+| + ngưỡng rút 0,40, lùi khi bị sóng lính đánh, nghĩ lại ngay khi ăn đạn trụ | 7,0 | 20 | 10,3 | | | vẫn chết vì lính |
+| + farm chỉ lính CÙNG ĐƯỜNG, ra khỏi tầm trụ khi hết lính đỡ, nghĩ lại 0,9–1,6 s | 6,9 | 18 | 9,8 | | | |
+| + luật rút xếp TRƯỚC luật "90 giây đầu ăn lính" | **6,8** | **13** | **11,0** | 20 s | 89 s | chốt |
+
+- `canbang.js 200` (chiêu chạy cách chung, 4 con viết tay): dài 6,9 phút, 12,3 mạng, 0 hết giờ; 23/68 tướng lệch
+  quá 12% (Ninja 82%, Priest 69%, Ogre 25%…) nhưng mỗi con chỉ 16–39 trận (sai số chuẩn ~9 điểm) — chưa kết
+  luận được con nào; cân tướng là việc bước 6, sau khi bước 4 viết đúng chiêu.
+- Nhịp trận là nhịp của số TFM2: một trụ 2000 máu / 70 giáp trước 5 tướng cấp 3–4 (~55 sát thương/giây mỗi người)
+  đổ trong ~8 giây; cả đường (2 trụ + 2 trụ đôi + lõi = 10000 máu) mất ~35 giây gõ liên tục. Trận 6–8 phút không
+  phải lỗi sim, mà là trận TFM2 5v5 với bộ não chưa biết THỦ trụ (bước 5 nối não TFM2: đua "ai chết trước",
+  kỷ luật mục tiêu). Đừng vặn số TFM2 để kéo trận dài ra.
+- `[BẪY ĐÃ SẬP]` Lính TFM2 đánh 2 đòn/giây; tướng không có hồi máu tự nhiên (`hp_regen` 0). Đứng "farm" giữa sóng địch
+  sau khi lính nhà chết là chết trong 20 giây, và luật rút 0,22 của bản cũ (vốn có hồi 0,6%/giây) không cứu kịp.
+  Bản đầu đo được gần nửa số mạng hai phút đầu là do LÍNH giết.
+- `[BẪY ĐÃ SẬP]` Trụ bắn 0,67 giây một phát ~45% máu tướng cấp 1: chờ tới lượt nghĩ (1,5–2,5 s) là phát thứ ba đã tới.
+  Phải nghĩ lại NGAY tick ăn phát đầu, và không được ở trong tầm trụ khi hết lính đỡ.
+- `[BẪY ĐÃ SẬP]` `linhAnDuoc` trước đây không lọc theo đường: năm người đi về chỗ có lính gần nhất, tức đường giữa.
+- `[BẪY ĐÃ SẬP]` Thứ tự luật trong `chonHanhDong` quan trọng hơn ngưỡng: luật "90 giây đầu chỉ ăn lính" đứng trước
+  luật "về nhà" thì không ai về nhà trong 90 giây đầu, dù ngưỡng nào.
+- `[BẪY ĐÃ SẬP]` `champion_info` ghi khoá đòn đánh của `spirit_caller` là `attaca`; bốn tướng không ghi `attack_ratio`
+  ở đòn đánh (mặc định 100). Nắn trong `build_tfm_data.py`.
+- `[BẪY ĐÃ SẬP]` Mô tả dùng `{Range}` cho cả tầm chiêu lẫn bán kính vùng: "xung quanh / vụ nổ / khu vực" ⇒ `attack_range`,
+  không thì `range`. Số của tướng mod nằm trong cây hiệu ứng (`gomCay`).
+
+### 14.6 Đồ: 30 món của TFM2
+
+Sáu dòng × năm bậc, ghép theo `next_tier`, trả `price` của bậc mới (500/500/800/1400/2000). Mỗi dòng một ô, sáu ô.
+Chỉ số theo tên TFM2 đổi sang khoá sim bằng `G.chuanChiSo`: `attack magic_power defence magic_resistance hp vamp
+attack_speed_mult move_speed_mult skill_cooldown_mult crit_chance defence_penetration magic_resistance_penetration
+base_attack_damaged_reduce skill_damaged_reduce toughness` đều đã vào `chiSoNguoi` / `satThuong` / `khongChe`.
+Hiệu ứng riêng đã làm: Pháo Đài Bất Hoại (bị đánh thường thì trả `flat_damage` + `defence_ratio`% giáp thành phép),
+Nhẫn Luân Hồi / Đồng Hồ Ngưng Đọng (hồi `flat_regen` + `max_hp_regen_ratio`% máu mỗi giây), Mảnh Thần Sừng (hồi 40/giây +
+10 + 1% máu tối đa mỗi giây lên địch trong 30000). Không bỏ món nào. Mua: `G.nghiDo` theo lớp + tag TFM2 (AD/AP/Tank/
+Heal), đọc sát thương đội địch, thế trận, chất chơi, NÃO — như bản cũ.
+
+### 14.7 Chưa làm
+
+- Bước 4: 60 tướng gốc viết tay từ mô tả; 13 nút Native của tướng mod.
+- Bước 5: não TFM2 (`D:\tfm2-ref\AI_BRAIN.md`) — thủ trụ, đua "ai chết trước", chiêu theo `casting_target`.
+- Bước 6: cân bằng lại độ khó mùa (`HE_SUC_MAY`, `THEO_BAC`) vì trận ngắn và chết nhiều hơn; đường cong `tileThang`.
+- Tướng mod `nightmare` không có tiếng trong bundle TFM2 (§15.5).
+
 ## 15. Sprite / hiệu ứng / tiếng cho đủ 68 tướng TFM2 `[ĐO TRONG REPO]`
 
 Bối cảnh: chủ dự án yêu cầu chép trọn skill + config + stats + equip + time của TFM2

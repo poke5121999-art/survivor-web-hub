@@ -27,13 +27,33 @@
 
   G.S = null;
 
+  /* Bản lưu từ trước 2026-09-25 còn id của hai mươi tướng tự chế trong bảng thông thạo và điểm
+     thông thạo của tuyển thủ (`khoTT[i].tt`, `.diem`). Đổi sang id TFM2 theo bảng thân cũ
+     (G.TUONG_CU); id không có trong bảng thì bỏ — không bao giờ để một id lạ lọt vào trận. */
+  function doiTuongCu(S) {
+    if (!S || S.tfm) return;
+    var CU = G.TUONG_CU || {}, CO = G.TUONG_THEO_ID || {};
+    (S.khoTT || []).forEach(function (b) {
+      ['tt', 'diem'].forEach(function (k) {
+        if (!b[k]) return;
+        var moi = {};
+        for (var id in b[k]) {
+          var id2 = CO[id] ? id : CU[id];
+          if (id2) moi[id2] = b[k][id];
+        }
+        b[k] = moi;
+      });
+    });
+    S.tfm = 1;
+  }
+
   G.taiSave = function () {
     var t = null;
     try { t = localStorage.getItem(KHOA); } catch (e) { t = null; }
     if (t) {
       try {
         var d = JSON.parse(t);
-        if (d && d.v === PHIEN_BAN) { G.S = d; return G.S; }
+        if (d && d.v === PHIEN_BAN) { G.S = d; doiTuongCu(G.S); return G.S; }
       } catch (e) { /* hỏng thì tạo mới — nhưng giữ bản cũ ở dưới */ }
       /* đọc không được thì lần `luu()` kế tiếp sẽ đè mất — cất chuỗi cũ sang khoá riêng trước,
          để còn đường cứu tay chứ không mất trắng cả CLB */

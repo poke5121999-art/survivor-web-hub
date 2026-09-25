@@ -26,7 +26,9 @@
        12 tick/giây → ×1 nhanh gấp 3 → ~6,5 phút xem. Nút 0.5 cho ra ~1,5 lần thật,
        tức là đúng nhịp ×1 của TFM2; nút ×6 cho lại đúng nhịp của bản cũ.
      Chậm lại chỉ có nghĩa khi có NỘI SUY đi kèm — xem `tiLe()` bên dưới. */
-  var TICK_GIAY = 12;
+  /* Bộ mô phỏng chạy 60 tick một giây trận (nhịp TFM2, sim.js). Màn xem chạy NHIP_XEM giây trận
+     cho mỗi giây thật ở ×1 — giữ đúng nhịp xem của bản trước (12 tick × 0,25 s = 3 giây trận). */
+  var NHIP_XEM = 3;
   var thoaiHD = [], bayHD = [], hieuHD = [], ngaLuc = {};
   var daNghe = {}, daHa = {}, lenCapLuc = {};
   var truoc = 0, dong = 0;
@@ -34,7 +36,7 @@
   /* Giây hoạt ảnh TFM2 cho mỗi giây trong trận. Ở ×1 trận chạy nhanh gấp 3 lần thật; phát khung
      theo giờ trận thì một cú chém 0,4 giây chỉ còn một cái chớp. Trần 2 giây trận cho mỗi giây
      hoạt ảnh giữ cú chém trọn dáng mà vẫn kịp xong trước đòn kế (tốc đánh ~1,15/giây). */
-  function heHinh() { return 1 / Math.min(TICK_GIAY * (G.SIM_TICK || 0.25) * tocDo, 2); }
+  function heHinh() { return 1 / Math.min(NHIP_XEM * tocDo, 2); }
   /* tỉ lệ nội suy trong tick hiện tại (0..1) và mốc giờ đã nội suy */
   var ns = 0;
 
@@ -75,7 +77,15 @@
     thoaiHD = []; bayHD = []; hieuHD = []; ngaLuc = {};
     G.hienMan('man-tran');
     G.nhac(Math.random() < 0.5 ? 'tran' : 'tran2');
-    G.napTieng(['tran.']);
+    /* nạp lười đúng 10 tướng đang đấu: sheet sprite riêng (RESEARCH §15.1) và tiếng riêng (§15.5) */
+    var idTran = {};
+    tran.nguoi.forEach(function (n) { idTran[n.tuong.id] = 1; if (G.napTuong) G.napTuong(n.tuong.id); });
+    var tienTo = Object.keys(idTran).map(function (id) { return 'tran.' + id + '.'; });
+    if (window.AM_BANG) Object.keys(window.AM_BANG.tieng).forEach(function (k) {
+      var ph = k.split('.');
+      if (ph[0] === 'tran' && !G.TUONG_THEO_ID[ph[1]] && !G.TUONG_CU[ph[1]]) tienTo.push(k);
+    });
+    G.napTieng(tienTo);
     daNghe = {}; daHa = {}; lenCapLuc = {};
     dungKhung();
     /* bài dạy lần đầu: trận ĐỨNG YÊN cho tới khi đóng hộp, không thì mất những giây đầu */
@@ -196,10 +206,10 @@
     if (!tamDung && !tran.xong) {
       /* tích luỹ phần lẻ. Dùng Math.round thẳng thì trên máy chạy 200 khung/giây, dt = 0.005
          và số tick làm tròn thành 0 — trận đứng im ở 0:00, đúng lỗi bắt được khi chụp màn. */
-      dong = (dong || 0) + TICK_GIAY * tocDo * dt;
+      dong = (dong || 0) + NHIP_XEM * tocDo * dt / (G.SIM_TICK || 0.25);
       var soTick = Math.floor(dong);
       dong -= soTick;
-      if (soTick > 400) soTick = 400;
+      if (soTick > 1500) soTick = 1500;
       for (var i = 0; i < soTick && !tran.xong; i++) {
         G.tickTran(tran);
         thuThoai();
@@ -238,9 +248,9 @@
       var xa = Math.hypot(p[0] - W / 2, p[1] - H / 2) / (0.6 * Math.max(W, H));
       var am = G.kep(1.25 - xa, 0, 1);
       if (am <= 0) return;
-      var id = n.tuong.id;
-      if (moi.n !== cu.n && moi.n != null) G.tieng('tran.' + id + (n.niemCuoi ? '.cuoi' : '.chieu'), am, 0.1);
-      else if (moi.d !== cu.d && moi.d != null) G.tieng('tran.' + id + '.danh', am * 0.8, 0.09);
+      var id = n.tuong.id, tenT;
+      if (moi.n !== cu.n && moi.n != null) { tenT = G.tiengTuong(id, n.niemKn || 'skill'); if (tenT) G.tieng(tenT, am, 0.1); }
+      else if (moi.d !== cu.d && moi.d != null) { tenT = G.tiengTuong(id, 'danh'); if (tenT) G.tieng(tenT, am * 0.8, 0.09); }
       if (moi.h !== cu.h && moi.h != null) G.tieng('tran.hoiSinh', am);
       if (moi.c > cu.c && n.doi === 'xanh') { lenCapLuc[n.i] = gio(); G.tieng('tran.lenCap', am * 0.8, 0.3); }
     });
@@ -287,7 +297,7 @@
       }
     }
     /* thỉnh thoảng có người nói câu hợp tình huống */
-    if (tran.tick % 90 === 0) {
+    if (tran.tick % ((G.SIM_MOI_GIAY || 4) * 22) === 0) {
       var n = tran.nguoi[Math.floor(tran.rng() * tran.nguoi.length)];
       if (n && n.chet <= 0) {
         var th = n.hp / n.hpMax < 0.35 ? 'mauThap'
@@ -605,19 +615,20 @@
         G.veHinh(ctx, 'hieu.hoi_sinh', 'no', tHoi * heHinh(), p[0], p[1], s * 1.15, false, false);
       }
 
-      var khoaT = 'tuong.' + n.tuong.id;
+      /* sheet riêng của tướng TFM2 (sprites.js §15.4): tên hoạt ảnh tra qua G.animTuong */
+      var idT = n.tuong.id;
       var hh = heHinh();
-      var ttT = di ? 'chay' : 'dung', tgT = (t + n.i * 0.37) * hh, lapT = true;
-      var ttNiem = n.niemCuoi ? 'cuoi' : 'chieu';
-      if (tNiem >= 0 && tNiem * hh < Math.max(0.3, G.dai(khoaT, ttNiem))) {
+      var ttT = G.animTuong(idT, di ? 'chay' : 'dung'), tgT = (t + n.i * 0.37) * hh, lapT = true;
+      var ttNiem = G.animTuong(idT, n.niemKn || 'skill');
+      if (tNiem >= 0 && tNiem * hh < Math.max(0.3, G.daiT(idT, ttNiem))) {
         ttT = ttNiem; tgT = tNiem * hh; lapT = false;
-      } else if (tDanh >= 0 && tDanh * hh < G.dai(khoaT, 'danh')) {
-        ttT = 'danh'; tgT = tDanh * hh; lapT = false;
+      } else if (tDanh >= 0 && tDanh * hh < G.daiT(idT, G.animTuong(idT, 'danh'))) {
+        ttT = G.animTuong(idT, 'danh'); tgT = tDanh * hh; lapT = false;
       } else if (tDinh >= 0 && tDinh * hh < 0.1) {
-        ttT = 'dinh'; tgT = tDinh * hh; lapT = false;
+        ttT = G.animTuong(idT, 'dinh'); tgT = tDinh * hh; lapT = false;
       }
       var kT = s * 1.15, nx = p[0], ny = p[1];
-      var veNguoi = function () { return G.veHinh(ctx, khoaT, ttT, tgT, nx, ny, kT, lat, lapT); };
+      var veNguoi = function () { return G.veHinhT(ctx, idT, ttT, tgT, nx, ny, kT, lat, lapT); };
 
       ctx.save();
       /* trong bụi thì mờ đi, như TFM2 */
@@ -645,7 +656,7 @@
       }
       /* đang niệm: bọc một lớp sáng theo màu của chiêu */
       if (niem >= 0 && veOk) {
-        var fxN = G.fxChieu ? G.fxChieu(n.tuong.id, n.niemCuoi ? 'cuoi' : 'chieu') : null;
+        var fxN = fxCua(n.tuong.id, n.niemKn, n.niemCuoi);
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = 0.45 * (1 - niem);
         veNguoi();
@@ -662,7 +673,7 @@
       ctx.restore();
 
       /* thanh máu treo ngay trên đỉnh đầu thật, đo lúc dựng atlas */
-      var dinhDau = p[1] - (G.caoHinh(khoaT) || 40) * kT - 5 * s;
+      var dinhDau = p[1] - (G.caoHinhT(idT, 'idle') || 40) * kT - 5 * s;
       thanhMau(p[0], dinhDau, cao * 0.95, n.hp / n.hpMax,
         n.doi === 'xanh' ? '#3ddc97' : '#e5484d', Math.max(4, 5 * s));
 
@@ -688,7 +699,7 @@
       /* TÊN CHIÊU trên đầu người vừa bung — nhìn một cái là biết vừa dùng gì */
       if (tNiem >= 0 && tNiem < 1.25 && n.niemTen && s > .5) {
         var tn = tNiem / 1.25;
-        var fxT = G.fxChieu ? G.fxChieu(n.tuong.id, n.niemCuoi ? 'cuoi' : 'chieu') : null;
+        var fxT = fxCua(n.tuong.id, n.niemKn, n.niemCuoi);
         ctx.globalAlpha = tn < .75 ? 1 : (1 - tn) * 4;
         chu((n.niemCuoi ? '★ ' : '') + n.niemTen, p[0],
           dinhDau - 12 * s - (n.i % 2) * 11 * s - tn * 14 * s,
@@ -703,7 +714,7 @@
       if (tLen >= 0 && tLen < G.dai('hieu.len_cap', 'no')) {
         G.veHinh(ctx, 'hieu.len_cap', 'no', tLen, p[0], p[1], kT, false, false);
       }
-      if (n.hieu && n.hieu.chan) {
+      if (n.chan && n.chan.length) {
         ctx.strokeStyle = 'rgba(160,220,255,.8)'; ctx.lineWidth = Math.max(1.5, 3 * s);
         ctx.beginPath(); ctx.arc(p[0], p[1] - cao * .45, cao * .56, 0, 7); ctx.stroke();
       }
@@ -820,7 +831,15 @@
      màu gì. Bốn mươi chiêu ra bốn mươi bộ mặt. */
 
   /* lớp tướng → loại đạn trong art/dan.png */
-  var DAN_LOP = { xa: 'ten', phep: 'phep', ho: 'bang', sat: 'thuong', can: 'thuong' };
+  var DAN_LOP = { xa: 'ten', phep: 'phep', ho: 'bang', sat: 'thuong', can: 'thuong', tru: 'tia', linh: 'ten', quai: 'thuong' };
+
+  /** mặt của một chiêu: agent ảnh khai `<id>:<skill|skill2|ult>` trong G.FX_CHIEU (RESEARCH §15);
+      chưa có thì lấy bộ mặc định cũ theo chiêu thường / chiêu cuối */
+  function fxCua(id, kn, cuoi) {
+    if (!G.fxChieu) return null;
+    var co = G.FX_CHIEU && G.FX_CHIEU[id + ':' + kn];
+    return co || G.fxChieu(id, (cuoi || kn === 'ult') ? 'cuoi' : 'chieu');
+  }
 
   /** số giả ngẫu nhiên ỔN ĐỊNH theo (hiệu ứng, chỉ số) — cùng một giọt mưa thì khung nào
       cũng rơi đúng chỗ ấy. Dùng Math.random() ở đây là cả màn nhấp nháy loạn. */
@@ -829,15 +848,50 @@
     return v - Math.floor(v);
   }
 
+  /** vùng chiêu đang tồn tại (tran.vung) — vòng loang dưới đất */
+  function veVung(s) {
+    if (!tran.vung || !tran.vung.length) return;
+    var t = gio();
+    tran.vung.forEach(function (V) {
+      var a = toaDo(V.x, V.y), b = toaDo(V.x + V.r, V.y);
+      var r = Math.abs(b[0] - a[0]);
+      var con = G.kep((V.den - t) / Math.max(0.2, V.den - V.bat), 0, 1);
+      var cf = V.n && V.n.tuong ? fxCua(V.n.tuong.id, 'skill', false) : null;
+      var mau = (cf && cf.mau) || (V.doi === 'xanh' ? '#7de3ff' : '#ff9a86');
+      ctx.save(); ctx.translate(a[0], a[1]); ctx.scale(1, .42);
+      ctx.globalAlpha = 0.18 + 0.12 * con;
+      ctx.fillStyle = mau; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+      ctx.globalAlpha = 0.6; ctx.lineWidth = Math.max(1, 2 * s); ctx.strokeStyle = mau;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
+      ctx.restore();
+    });
+  }
+  /** đạn bay của sim (tran.dan): đòn xa của tướng, mũi tên trụ, đạn chiêu */
+  function veDanSim(s) {
+    if (!tran.dan || !tran.dan.length) return;
+    tran.dan.forEach(function (p) {
+      var a = toaDo(p.x, p.y), co = (p.nho ? 11 : 16) * s;
+      var goc = p.muc ? Math.atan2(p.muc.y - p.y, p.muc.x - p.x) : Math.atan2(p.ty - p.y, p.tx - p.x);
+      var y = a[1] - (p.hinh === 'tru' ? 30 : 14) * s;
+      if (!G.veDan || !G.veDan(ctx, DAN_LOP[p.hinh] || DAN_LOP[p.lop] || 'thuong', a[0], y, co, goc)) {
+        ctx.fillStyle = p.doi === 'xanh' ? '#8fd8ff' : '#ffb0a2';
+        ctx.beginPath(); ctx.arc(a[0], y, Math.max(1.8, 3 * s), 0, 7); ctx.fill();
+      }
+    });
+  }
+
   function veHieu(duoi, s) {
+    if (duoi) veVung(s); else veDanSim(s);
     tran.hieu.forEach(function (h) { if (!h._v) { h._v = 1; hieuHD.push(h); } });
     var t = gio();
     hieuHD = hieuHD.filter(function (h) { return t - h.t < (h._lau || 1.0); });
 
     hieuHD.forEach(function (h) {
       var cf = null;
-      if (h.loai === 'chieu' || h.loai === 'cuoi') {
-        cf = G.fxChieu ? G.fxChieu(h.tuong, h.kn || h.loai) : null;
+      if ((h.loai === 'chieu' || h.loai === 'cuoi') && h.tuong) {
+        cf = fxCua(h.tuong, h.kn || (h.loai === 'cuoi' ? 'ult' : 'skill'), h.loai === 'cuoi');
+        /* vùng do bộ chạy chung sinh ra: bán kính thật của chiêu thay cho bán kính trong bảng */
+        if (cf && h.r) cf = Object.assign({}, cf, { r: h.r, kieu: (cf.kieu === 'vong' || cf.kieu === 'no') ? cf.kieu : (h.dien ? 'vong' : cf.kieu) });
       }
       var lau = (cf && cf.lau) || (h.loai === 'hlv' ? 1.8 : 0.85);
       h._lau = lau;
@@ -1158,10 +1212,10 @@
     var p = toaDo(n.x, n.y);
     if (ngoaiMan(p, 50 * s)) return;
     /* ngã xuống bằng khung chết của TFM2, nằm lại một nhịp rồi mới hoá bia */
-    var khoaB = 'tuong.' + n.tuong.id, daiB = G.dai(khoaB, 'chet');
-    if (G.coHinh(khoaB) && tNga < daiB + 0.6) {
+    var idB = n.tuong.id, animB = G.animTuong(idB, 'chet'), daiB = G.daiT(idB, animB);
+    if (G.tuongSan(idB) && daiB > 0 && tNga < daiB + 0.6) {
       ctx.globalAlpha = tNga < daiB ? 1 : 1 - (tNga - daiB) / 0.6;
-      G.veHinh(ctx, khoaB, 'chet', tNga, p[0], p[1], s * 1.15, Math.cos(huongCua(n)) < 0, false);
+      G.veHinhT(ctx, idB, animB, tNga, p[0], p[1], s * 1.15, Math.cos(huongCua(n)) < 0, false);
       ctx.globalAlpha = 1;
       return;
     }
@@ -1255,10 +1309,10 @@
       tran.nguoi.filter(function (n) { return n.doi === doi; }).forEach(function (n) {
         var d = G.el('div.the-nguoi' + (n.chet > 0 ? '.chet' : '') + (cam.theo === n.i ? '.theo' : ''));
 
-        var hoiC = (n.tuong.kn.cuoi && n.tuong.kn.cuoi.hoi) || 1;
+        var hoiC = (n.tuong.kn.ult && n.tuong.kn.ult.hoi) || 1;
         var duCap = n.cap >= 5;
-        var san = duCap && n.cd.cuoi <= 0;
-        var pC = !duCap ? 0 : G.kep(1 - n.cd.cuoi / hoiC, 0, 1);
+        var san = duCap && n.cd.ult <= 0;
+        var pC = !duCap ? 0 : G.kep(1 - n.cd.ult / hoiC, 0, 1);
 
         var tren = G.el('div.the-tren');
         var a = G.oAnhTuong && G.oAnhTuong(n.tuong.id, 26);
@@ -1277,8 +1331,8 @@
            nhưng thứ người xem thật sự cần biết là "ai sắp bung chiêu cuối" — đó là khoảnh
            khắc quyết định giao tranh. Đầy và sáng vàng = sẵn sàng, và ghi luôn TÊN chiêu. */
         var tc = G.el('div.the-cuoi' + (san ? '.san' : ''), {
-          title: n.tuong.kn.cuoi.ten + (san ? ' — sẵn sàng'
-            : (!duCap ? ' — mở ở cấp 5' : ' — còn ' + Math.ceil(n.cd.cuoi) + 's')) });
+          title: n.tuong.kn.ult.ten + (san ? ' — sẵn sàng'
+            : (!duCap ? ' — mở ở cấp 5' : ' — còn ' + Math.ceil(n.cd.ult) + 's')) });
         tc.appendChild(G.el('i', { style: 'width:' + (pC * 100) + '%' }));
         d.appendChild(tc);
         /* Chiêu cuối đầy thì viền thẻ sáng vàng và tên có dấu ★ — một dòng chữ nữa thì
@@ -1288,8 +1342,9 @@
         /* NĂM ô, không phải sáu: mỗi nhánh trang bị là một đường ghép và mua tầng sau
            thay tầng trước, nên một người giữ tối đa đúng năm món — một món mỗi nhánh.
            Vẽ sáu ô thì ô cuối vĩnh viễn trống, nhìn như đang thiếu đồ. */
+        /* SÁU ô: sáu dòng đồ TFM2, mỗi dòng một ô (data-trangbi.js) */
         var do_ = G.el('div.the-do');
-        for (var i = 0; i < 5; i++) {
+        for (var i = 0; i < (G.SO_O_DO || 6); i++) {
           var m = n.do[i];
           var o = G.el('span' + (m ? '.co' : ''));
           if (m) {
@@ -1303,7 +1358,7 @@
               o.style.background = G.NHANH_MAU[tb.nhanh];
               o.appendChild(G.el('i', { text: G.NHANH_DAU[tb.nhanh] || '◆' }));
             }
-            o.appendChild(G.el('em', { text: String(tb.tang || '') }));
+            o.appendChild(G.el('em', { text: String(tb.tang + 1) }));
           }
           do_.appendChild(o);
         }

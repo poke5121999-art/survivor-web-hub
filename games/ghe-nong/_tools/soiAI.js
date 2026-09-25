@@ -81,7 +81,7 @@
     tran.nguoi.forEach(function (n) { mucCu[n.i] = null; });
 
     var hpTruoc = tran.nguoi.map(function (n) { return n.hp; });
-    while (!tran.xong && tran.tick < 20000) {
+    while (!tran.xong && tran.t < 45 * 60) {          /* trần theo giờ trận: tick giờ là 1/30 giây */
       var truTruoc = tran.tru.map(function (r) { return r.hp; });
       var soMangTruoc = tran.mang.xanh + tran.mang.do;
       var chetTruoc = tran.nguoi.map(function (n) { return n.chet > 0; });

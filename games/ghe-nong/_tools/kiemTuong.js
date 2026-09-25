@@ -40,7 +40,7 @@
         if (n.chet > 0) { c.x = n.x; c.y = n.y; c.dung = 0; return; }
         if (G.SIM_CHAN(n.x, n.y)) { R.trenTuong++; if (R.viDu.length < 5) R.viDu.push('trên tường ' + n.ten + ' ' + n.x.toFixed(0) + ',' + n.y.toFixed(0)); }
         var d = Math.hypot(n.x - c.x, n.y - c.y);
-        if (d > 1 && d <= 1.36 * 0.25 * 110) {       /* một bước; tick có hai bước (đi + rút) thì đường nối đầu–cuối có thể cắt góc dù đường thật không */
+        if (d > 0.3 && d <= G.SIM_TICK * 260) {          /* một bước đi hoặc lao (tối đa ~260 đơn vị/giây) */       /* một bước; tick có hai bước (đi + rút) thì đường nối đầu–cuối có thể cắt góc dù đường thật không */
           var lun = 0;
           for (var k = 1; k < 16; k++) {
             var sx = c.x + (n.x - c.x) * k / 16, sy = c.y + (n.y - c.y) * k / 16;
@@ -57,9 +57,9 @@
           }
         }
         var mt = n.mucTieu;
-        if (d < 0.5 && mt && mt.x != null && Math.hypot(mt.x - n.x, mt.y - n.y) > 60 && tran.t - n.danhLuc > 2) c.dung += 0.25;
+        if (d < 0.05 && mt && mt.x != null && Math.hypot(mt.x - n.x, mt.y - n.y) > 60 && tran.t - n.danhLuc > 2 && !n.hoiVe && !n.hanh) c.dung += G.SIM_TICK;
         else c.dung = 0;
-        if (c.dung === 6) { R.ket++; if (R.viDu.length < 5) R.viDu.push('kẹt ' + n.ten + ' ' + n.x.toFixed(0) + ',' + n.y.toFixed(0) + ' muốn tới ' + mt.x.toFixed(0) + ',' + mt.y.toFixed(0) + ' (' + mt.loai + ', tầm ' + G.tuongOCap(n.tuong, 1).tam + ')'); }
+        if (c.dung >= 6 && c.dung < 6 + G.SIM_TICK) { R.ket++; if (R.viDu.length < 5) R.viDu.push('kẹt ' + n.ten + ' ' + n.x.toFixed(0) + ',' + n.y.toFixed(0) + ' muốn tới ' + mt.x.toFixed(0) + ',' + mt.y.toFixed(0) + ' (' + mt.loai + ', tầm ' + G.tuongOCap(n.tuong, 1).tam + ')'); }
         c.x = n.x; c.y = n.y;
       });
     }

@@ -10,3 +10,13 @@
 - Chỉ số làm AI liều hơn thì bị phạt: trong sim, rút sớm là lối an toàn. LÌ từng thắng 27% vì thế.
 - Mọi thứ in trên màn hình (thẻ thế trận, hệ số năng khiếu) phải lần tới tận `cauHinhTa`, xem có đi xuống trận thật không.
 - Chỉ số người chơi thay đổi → chỉnh `HE_SUC_MAY` (`giai.js`). Không đụng `suc` của 24 đội, vì bảng xếp hạng tính bằng số ấy.
+
+## Từ 2026-09-25: sim chạy trên số TFM2 (RESEARCH §14)
+
+- Đơn vị vào chiêu là đơn vị TFM2 (1000 = 1 điểm ảnh, 60 tick = 1 giây); sim đổi ở `G.kcTFM` / `G.giayTFM`. Đừng viết số sim vào `js/chieu-tfm-*.js`.
+- Không còn hằng số hãm (0,40 / trụ leo thang / ×1,8): trận 6–8 phút, 13 mạng là nhịp của số TFM2 với não cũ. Kéo trận dài phải bằng não (bước 5), không vặn số.
+- Tướng không hồi máu tự nhiên; lính đánh 2 đòn/giây; trụ giết tướng cấp 1 trong 3 phát. Luật rút phải đứng TRƯỚC luật "90 giây đầu ăn lính" trong `chonHanhDong`, và nghĩ lại ngay tick ăn đạn trụ.
+- `linhAnDuoc` phải lọc theo đường, không thì cả đội dạt về giữa.
+- Móc đo ai giết ai: `tran.soiSat = function (ke, bi, thuc, loai, o)`; bọc `G._sim.satThuong` thì KHÔNG bắt được đòn nội bộ của sim.
+- `champion_info` TFM2: `spirit_caller` ghi `attaca`; bốn tướng thiếu `attack_ratio` ở đòn đánh — nắn ở `build_tfm_data.py`.
+- Bộ đo đổi tick: đặt `window.SIM_TICK_DAT` trước khi nạp `sim.js`. `soiAI.js` chặn theo `tran.t`, không theo `tran.tick`.

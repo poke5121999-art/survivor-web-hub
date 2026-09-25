@@ -372,7 +372,7 @@
     d.tuong.forEach(function (id) {
       var tu = G.TUONG_THEO_ID[id]; if (!tu) return;
       var o = G.el('span.uc-chip', { style: 'padding-left:2px' });
-      var a = G.oAnhTuong && G.oAnhTuong(id, 18);
+      var a = G.oAnhTuongTFM && G.oAnhTuongTFM(id, 18);
       if (a) { a.style.borderRadius = '50%'; o.appendChild(a); }
       o.appendChild(G.el('b', { text: tu.ten, style: 'font-weight:800' }));
       t.appendChild(o);
@@ -1047,7 +1047,7 @@
           var bac = G.thongThao(b, t.id);
           var o = G.el('span.uc-chip', { style: 'color:' + (MAU_BAC[bac] || '#8a7f8f') +
             ';padding-left:2px', title: t.ten + ' — ' + bac });
-          var at = G.oAnhTuong && G.oAnhTuong(t.id, 18);
+          var at = G.oAnhTuongTFM && G.oAnhTuongTFM(t.id, 18);
           if (at) { at.style.borderRadius = '50%'; o.appendChild(at); }
           o.appendChild(G.el('b', { text: bac, style: 'font-size:10px' }));
           tt.appendChild(o);

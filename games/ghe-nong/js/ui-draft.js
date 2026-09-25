@@ -125,7 +125,7 @@
             var t = pick[x[0]][vt];
             if (t) {
               var ch = G.el('div.dr-o-pick');
-              var at = G.oAnhTuong && G.oAnhTuong(t, 30);
+              var at = G.oAnhTuongTFM && G.oAnhTuongTFM(t, 30);
               if (at) ch.appendChild(at);
               var ph = G.el('div');
               ph.appendChild(G.el('b', { text: G.TUONG_THEO_ID[t].ten }));
@@ -153,7 +153,7 @@
               }).filter(Boolean).sort(function (a, b) { return BAC_SO[b.b] - BAC_SO[a.b]; }).slice(0, 3);
               tu3.forEach(function (x) {
                 var it = G.el('span.dr-tu' + (x.b === 'UR' ? '.ur' : x.b === 'SSR' ? '.ssr' : ''));
-                var a2 = G.oAnhTuong && G.oAnhTuong(x.t.id, 22);
+                var a2 = G.oAnhTuongTFM && G.oAnhTuongTFM(x.t.id, 22);
                 if (a2) it.appendChild(a2);
                 /* nhãn bậc dùng <b> chứ KHÔNG dùng <i>: G.oAnhTuong trả về chính một thẻ <i>,
                    dùng chung tag thì CSS `.dr-tu i{position:absolute}` đè luôn lên ảnh. */
@@ -196,7 +196,7 @@
             var o = G.el('div.dr-t' + (biCam ? '.cam' : '') + (daLay ? '.lay' : '') +
               (lapLai ? '.lap' : '') + (dangXem === t.id ? '.xem' : '') + (doa ? '.doa' : ''));
 
-            var a = G.oAnhTuong && G.oAnhTuong(t.id, 42);
+            var a = G.oAnhTuongTFM && G.oAnhTuongTFM(t.id, 42);
             if (a) { a.className = 'dr-t-anh'; o.appendChild(a); }
             else o.appendChild(G.el('div.dr-t-anh'));
 
@@ -262,10 +262,10 @@
             o.appendChild(G.el('b', { text: x.loai === 'cam' ? 'CẤM' : G.VITRI_THEO_ID[x.vt].tat }));
             o.appendChild(G.el('span', { text: x.ben === 'ta' ? 'ta' : 'địch' }));
             if (x.loai === 'cam' && cam[Math.floor(k)] && k < i) {
-              var a = G.oAnhTuong && G.oAnhTuong(cam[k], 26);
+              var a = G.oAnhTuongTFM && G.oAnhTuongTFM(cam[k], 26);
               if (a) o.appendChild(a);
             } else if (x.loai === 'chon' && k < i && pick[x.ben][x.vt]) {
-              var a2 = G.oAnhTuong && G.oAnhTuong(pick[x.ben][x.vt], 26);
+              var a2 = G.oAnhTuongTFM && G.oAnhTuongTFM(pick[x.ben][x.vt], 26);
               if (a2) o.appendChild(a2);
             }
             d.appendChild(o);
@@ -277,7 +277,7 @@
           return;
         }
         var t = G.TUONG_THEO_ID[dangXem];
-        var c1 = G.tuongOCap(t, 1), c12 = G.tuongOCap(t, 12);
+        var c1 = G.tuongOCap(t, 1), c12 = G.tuongOCap(t, G.CAP_TOI_DA);
 
         var dau = G.el('div.ct-dau');
         dau.appendChild(G.el('b', { text: t.ten }));
@@ -300,7 +300,7 @@
 
         var bang = G.el('div.ct-bang');
         [['Đánh', c1.atk, c12.atk], ['Phép', c1.ap, c12.ap], ['Máu', c1.hp, c12.hp],
-         ['Giáp', c1.giap, c12.giap], ['Kháng', c1.khang, c12.khang], ['Tầm', c1.tam, c12.tam]]
+         ['Giáp', c1.giap, c12.giap], ['Kháng', c1.khang, c12.khang], ['Tốc chạy', c1.tocchay, c12.tocchay]]
           .forEach(function (r) {
             var d = G.el('div.ct-o');
             d.appendChild(G.el('span', { text: r[0] }));
@@ -309,16 +309,21 @@
           });
         e.appendChild(bang);
 
-        [t.kn.noi, t.kn.chieu, t.kn.cuoi].forEach(function (k) {
-          var d = G.el('div.ct-kn');
-          var h = G.el('div.ct-kn-dau');
-          h.appendChild(G.el('b', { text: k.ten }));
-          h.appendChild(G.el('span', { text: k.loai === 'noi' ? 'NỘI TẠI' : (k.loai === 'cuoi' ? 'CHIÊU CUỐI · ' + k.hoi + 's' : 'CHIÊU · ' + k.hoi + 's'),
-            style: 'color:' + (k.loai === 'cuoi' ? '#ffd76e' : k.loai === 'noi' ? '#5fe0b0' : '#6fc4f0') }));
-          d.appendChild(h);
-          d.appendChild(G.el('div.ct-kn-mo', { text: k.mo }));
-          e.appendChild(d);
-        });
+        /* đòn đánh + ba chiêu của TFM2: tên và mô tả tiếng Việt chính thức, tham số đã điền (data-tuong.js) */
+        var da = t.kn.danh.p;
+        var dongDanh = 'Tầm ' + Math.round((da.range || 0) / 1000) + ' · ' + (60 / (da.cooltime || 60)).toFixed(2) + ' đòn/giây' +
+          (da.speed ? ' · đạn bay' : ' · cận chiến');
+        [['danh', 'ĐÁNH THƯỜNG', '#8b98a9', dongDanh], ['skill', 'KỸ NĂNG 1', '#6fc4f0'], ['skill2', 'KỸ NĂNG 2', '#6fc4f0'], ['ult', 'CHIÊU CUỐI', '#ffd76e']]
+          .forEach(function (r) {
+            var k = t.kn[r[0]];
+            var d = G.el('div.ct-kn');
+            var h = G.el('div.ct-kn-dau');
+            h.appendChild(G.el('b', { text: k.ten }));
+            h.appendChild(G.el('span', { text: r[1] + (r[0] === 'danh' ? '' : ' · ' + (Math.round(k.hoi * 10) / 10) + 's'), style: 'color:' + r[2] }));
+            d.appendChild(h);
+            d.appendChild(G.el('div.ct-kn-mo', { text: r[3] || G.moTaChieu(t, r[0]) }));
+            e.appendChild(d);
+          });
 
         /* thông thạo của cả năm người mình — điểm khác biệt so với bản gốc */
         var tt = G.el('div.ct-tt');

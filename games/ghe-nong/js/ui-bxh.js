@@ -230,7 +230,7 @@
     d.tuong.forEach(function (id) {
       var tu = G.TUONG_THEO_ID[id]; if (!tu) return;
       var o = G.el('span.uc-chip', { style: 'padding-left:2px' });
-      var a = G.oAnhTuong && G.oAnhTuong(id, 18);
+      var a = G.oAnhTuongTFM && G.oAnhTuongTFM(id, 18);
       if (a) { a.style.borderRadius = '50%'; o.appendChild(a); }
       o.appendChild(G.el('b', { text: tu.ten, style: 'font-weight:800' }));
       t.appendChild(o);

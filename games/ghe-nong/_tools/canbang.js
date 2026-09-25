@@ -18,8 +18,8 @@ global.document = { addEventListener: function () {}, querySelector: function ()
 global.navigator = { vibrate: function () {} };
 
 var duong = __dirname.replace(/\\/g, '/') + '/../js/';
-['util', 'data-kynang', 'data-tuong', 'data-trangbi', 'data-hlv', 'data-tuyenthu',
- 'data-giai', 'data-sukien', 'save', 'ca', 'data-bando', 'sim'].forEach(function (f) { require(duong + f + '.js'); });
+['util', 'data-tfm', 'data-kynang', 'data-tuong', 'data-trangbi', 'data-hlv', 'data-tuyenthu',
+ 'data-giai', 'data-sukien', 'save', 'ca', 'data-bando', 'sim', 'chieu', 'chieu-tfm-1', 'chieu-tfm-2', 'chieu-tfm-3', 'chieu-tfm-4'].forEach(function (f) { require(duong + f + '.js'); });
 
 var G = global;
 G.taiSave();

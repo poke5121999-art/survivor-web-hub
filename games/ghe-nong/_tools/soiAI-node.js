@@ -38,10 +38,11 @@ global.Image = function () {};
 global.localStorage = { getItem: function () { return null; }, setItem: function () {}, removeItem: function () {} };
 global.requestAnimationFrame = function () { return 0; };
 
-['art/asset-map.js', 'js/util.js', 'js/sprites.js', 'js/tieng.js', 'js/data-kynang.js',
+['art/asset-map.js', 'js/util.js', 'js/sprites.js', 'js/tieng.js', 'js/data-tfm.js', 'js/data-kynang.js',
  'js/data-tuong.js', 'js/data-trangbi.js', 'js/fx-chieu.js', 'js/data-hlv.js',
  'js/data-tuyenthu.js', 'js/data-giai.js', 'js/data-sukien.js', 'js/save.js',
- 'js/day.js', 'js/ca.js', 'js/data-thoai.js', 'js/data-bando.js', 'js/sim.js', 'js/mua.js', 'js/giai.js'
+ 'js/day.js', 'js/ca.js', 'js/data-thoai.js', 'js/data-bando.js', 'js/sim.js', 'js/chieu.js',
+ 'js/chieu-tfm-1.js', 'js/chieu-tfm-2.js', 'js/chieu-tfm-3.js', 'js/chieu-tfm-4.js', 'js/mua.js', 'js/giai.js'
 ].forEach(function (f) {
   try { vm.runInThisContext(fs.readFileSync(path.join(goc, f), 'utf8'), { filename: f }); }
   catch (e) { /* tệp cần DOM thật — bộ mô phỏng không gọi tới */ }

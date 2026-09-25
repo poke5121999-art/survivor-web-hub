@@ -31,7 +31,7 @@
       hieu: { than: 0.22, congGiaoAn: { co: 0.14 }, hieuqua: 0.06, dau: { co: 30, nao: 12 },
               thanDau: 0.25, capGoiY: 3, tanSuatGoiY: 0.40, uuTien: 0.55, congDiemKN: 0.18 },
       goiY: ['bao_dau', 'gank_som', 'doc_bai'],
-      tt: { phaposu: 'UR', bongdem: 'SSR', phapset: 'SR', tuchien: 'R' },
+      tt: { pyromancer: 'UR', shadowmancer: 'SSR', lightning_mage: 'SR', dual_blader: 'R' },
       tieu: 'Người ta gọi là Bão vì đường giữa của nó không có ngày nắng.'
     }),
     P({
@@ -40,7 +40,7 @@
       hieu: { than: 0.20, congGiaoAn: { ben: 0.15 }, hieuqua: 0.05, dau: { ben: 34, li: 14 },
               thanDau: 0.20, chongHong: 0.35, giamHao: 0.14, capGoiY: 2, tanSuatGoiY: 0.32, uuTien: 0.5 },
       goiY: ['lane_chac', 'the_luc', 'binh_tinh'],
-      tt: { thanhkiem: 'UR', phaco: 'SSR', kiemsi: 'SR', cuongchien: 'R' },
+      tt: { magic_knight: 'UR', hammerer: 'SSR', swordman: 'SR', berserker: 'R' },
       tieu: 'Đứng đường trên 4 năm, chưa từng bỏ trụ. Nói chuyện thì ba câu một ngày.'
     }),
     P({
@@ -49,7 +49,7 @@
       hieu: { than: 0.21, congGiaoAn: { luc: 0.15 }, hieuqua: 0.05, dau: { luc: 32, co: 12 },
               thuongThiDau: 0.16, capGoiY: 3, tanSuatGoiY: 0.35, uuTien: 0.5, congDiemKN: 0.12 },
       goiY: ['cuoi_manh', 'an_linh', 'giao_tranh'],
-      tt: { xathu: 'UR', sungtruong: 'SSR', nodoc: 'SR', bomxich: 'R' },
+      tt: { archer: 'UR', gunner: 'SSR', poison_dart_hunter: 'SR', bomber: 'R' },
       tieu: 'Bắn trước, hỏi sau. Về cuối trận là người cả đội đứng quanh bảo vệ.'
     }),
     P({
@@ -58,7 +58,7 @@
       hieu: { than: 0.20, congGiaoAn: { li: 0.15 }, hieuqua: 0.06, dau: { li: 34, ben: 12 },
               chongHong: 0.30, capGoiY: 2, tanSuatGoiY: 0.34, uuTien: 0.5, thuongThiDau: 0.10 },
       goiY: ['khong_hoang', 'lat_keo', 'cuop_rung'],
-      tt: { bongma: 'UR', gaosu: 'SSR', kynhan: 'SR', thoisan: 'SR' },
+      tt: { ghost: 'UR', werewolf: 'SSR', cavalry_knight: 'SR', hunter: 'SR' },
       tieu: 'Thua 0-2 mặt vẫn không đổi. Nó rừng như đang giải toán.'
     }),
     P({
@@ -67,7 +67,7 @@
       hieu: { than: 0.22, congGiaoAn: { nao: 0.16 }, hieuqua: 0.06, dau: { nao: 34, li: 10 },
               hoiNao: 3, capGoiY: 3, tanSuatGoiY: 0.42, uuTien: 0.55, congDiemKN: 0.22 },
       goiY: ['doc_bai', 'cam_mat', 'an_rong'],
-      tt: { thaythuoc: 'UR', khienhon: 'SSR', nhacsi: 'SR', hiepsi: 'R' },
+      tt: { priest: 'UR', barrier_magician: 'SSR', bard: 'SR', shield_bearer: 'R' },
       tieu: 'Không giết ai cả mùa mà vẫn là người quyết định mọi trận.'
     }),
     P({
@@ -76,7 +76,7 @@
       hieu: { than: 0.20, congGiaoAn: { co: 0.13 }, hieuqua: 0.05, dau: { co: 26, luc: 14 },
               tinhthan: 0.35, capGoiY: 2, tanSuatGoiY: 0.36, uuTien: 0.5, thuongThiDau: 0.12 },
       goiY: ['xoay_so', 'gank_som', 'nhip_tot'],
-      tt: { kynhan: 'UR', thoisan: 'SSR', bongma: 'SR', gaosu: 'R' },
+      tt: { cavalry_knight: 'UR', hunter: 'SSR', ghost: 'SR', werewolf: 'R' },
       tieu: 'Đi rừng như đùa mà kèo nào cũng có mặt.'
     }),
     P({
@@ -85,7 +85,7 @@
       hieu: { than: 0.24, hieuqua: 0.09, tinhthan: 0.40, dau: { co: 12, ben: 12, luc: 12, li: 12, nao: 12 },
               thanDau: 0.30, capGoiY: 2, tanSuatGoiY: 0.38, giamHao: 0.10, congDiemKN: 0.15 },
       goiY: ['an_y', 'hoi_phuc', 'lam_quen'],
-      tt: { nhacsi: 'UR', hiepsi: 'SSR', khienhon: 'SR', thaythuoc: 'SR' },
+      tt: { bard: 'UR', shield_bearer: 'SSR', barrier_magician: 'SR', priest: 'SR' },
       tieu: 'Không phải người mạnh nhất phòng, nhưng thiếu nó là cả đội cãi nhau.'
     }),
     P({
@@ -94,7 +94,7 @@
       hieu: { than: 0.19, congGiaoAn: { ben: 0.13 }, hieuqua: 0.06, dau: { ben: 28, luc: 16 },
               giamHao: 0.16, chongHong: 0.25, capGoiY: 2, tanSuatGoiY: 0.30, uuTien: 0.45 },
       goiY: ['the_luc', 'kinh_te', 'an_linh'],
-      tt: { nodoc: 'UR', bomxich: 'SSR', xathu: 'SR', sungtruong: 'R' },
+      tt: { poison_dart_hunter: 'UR', bomber: 'SSR', archer: 'SR', gunner: 'R' },
       tieu: 'Không nổ, không tụt. Cứ đều đều rồi thắng.'
     }),
 
@@ -105,7 +105,7 @@
       hieu: { than: 0.15, congGiaoAn: { li: 0.10 }, hieuqua: 0.04, dau: { li: 22, ben: 10 },
               chongHong: 0.22, capGoiY: 2, tanSuatGoiY: 0.28, uuTien: 0.42 },
       goiY: ['khong_hoang', 'lane_chac'],
-      tt: { cuongchien: 'SSR', kiemsi: 'SR', phaco: 'R', thanhkiem: 'R' },
+      tt: { berserker: 'SSR', swordman: 'SR', hammerer: 'R', magic_knight: 'R' },
       tieu: 'Bị vây ba người vẫn đứng đó ăn lính.'
     }),
     P({
@@ -114,7 +114,7 @@
       hieu: { than: 0.15, congGiaoAn: { nao: 0.11 }, hieuqua: 0.04, dau: { nao: 24 },
               hoiNao: 2, capGoiY: 2, tanSuatGoiY: 0.32, congDiemKN: 0.14 },
       goiY: ['doc_bai', 'doi_lane'],
-      tt: { phapset: 'SSR', phaposu: 'SR', tuchien: 'R', bongdem: 'R' },
+      tt: { lightning_mage: 'SSR', pyromancer: 'SR', dual_blader: 'R', shadowmancer: 'R' },
       tieu: 'Ghi chép mọi trận đấu vào sổ tay giấy. Ai cũng cười cho tới lúc cần tra.'
     }),
     P({
@@ -123,7 +123,7 @@
       hieu: { than: 0.15, congGiaoAn: { co: 0.11 }, hieuqua: 0.04, dau: { co: 22, luc: 8 },
               capGoiY: 2, tanSuatGoiY: 0.30, thuongThiDau: 0.10 },
       goiY: ['an_linh', 'cuoi_manh'],
-      tt: { sungtruong: 'SSR', xathu: 'SR', bomxich: 'R', nodoc: 'R' },
+      tt: { gunner: 'SSR', archer: 'SR', bomber: 'R', poison_dart_hunter: 'R' },
       tieu: 'Tay nhanh, mồm cũng nhanh.'
     }),
     P({
@@ -132,7 +132,7 @@
       hieu: { than: 0.14, congGiaoAn: { luc: 0.11 }, hieuqua: 0.04, dau: { luc: 24, co: 8 },
               capGoiY: 2, tanSuatGoiY: 0.28, uuTien: 0.4 },
       goiY: ['cuop_rung', 'gank_som'],
-      tt: { gaosu: 'SSR', kynhan: 'SR', bongma: 'R', thoisan: 'R' },
+      tt: { werewolf: 'SSR', cavalry_knight: 'SR', ghost: 'R', hunter: 'R' },
       tieu: 'Cứ thấy đèn xanh là lao. Đúng nửa số lần.'
     }),
     P({
@@ -141,7 +141,7 @@
       hieu: { than: 0.16, congGiaoAn: { ben: 0.10 }, hieuqua: 0.04, dau: { ben: 22, nao: 8 },
               giamHao: 0.12, tinhthan: 0.25, capGoiY: 1, tanSuatGoiY: 0.26 },
       goiY: ['hoi_phuc', 'binh_tinh'],
-      tt: { khienhon: 'SSR', thaythuoc: 'SR', hiepsi: 'R', nhacsi: 'R' },
+      tt: { barrier_magician: 'SSR', priest: 'SR', shield_bearer: 'R', bard: 'R' },
       tieu: 'Người duy nhất trong đội ngủ đủ 8 tiếng.'
     }),
     P({
@@ -150,7 +150,7 @@
       hieu: { than: 0.14, congGiaoAn: { nao: 0.10 }, hieuqua: 0.04, dau: { nao: 20, li: 8 },
               capGoiY: 2, tanSuatGoiY: 0.30, congDiemKN: 0.12 },
       goiY: ['day_le', 'doi_lane'],
-      tt: { thanhkiem: 'SSR', phaco: 'SR', kiemsi: 'R', cuongchien: 'R' },
+      tt: { magic_knight: 'SSR', hammerer: 'SR', swordman: 'R', berserker: 'R' },
       tieu: 'Đẩy lẻ giỏi tới mức đội bạn phải cử hai người trông.'
     }),
     P({
@@ -159,7 +159,7 @@
       hieu: { than: 0.14, congGiaoAn: { li: 0.10 }, hieuqua: 0.04, dau: { li: 20, co: 10 },
               chongHong: 0.18, capGoiY: 1, tanSuatGoiY: 0.28 },
       goiY: ['lat_keo', 'binh_tinh'],
-      tt: { tuchien: 'SSR', bongdem: 'SR', phaposu: 'R', phapset: 'R' },
+      tt: { dual_blader: 'SSR', shadowmancer: 'SR', pyromancer: 'R', lightning_mage: 'R' },
       tieu: 'Càng bị chửi càng đánh hay. Không nên thử ở nhà.'
     }),
     P({
@@ -168,7 +168,7 @@
       hieu: { than: 0.18, hieuqua: 0.06, tinhthan: 0.30, dau: { co: 8, ben: 8, luc: 8, li: 8, nao: 8 },
               thanDau: 0.22, capGoiY: 1, tanSuatGoiY: 0.30 },
       goiY: ['an_y', 'lam_quen'],
-      tt: { hiepsi: 'SSR', nhacsi: 'SR', thaythuoc: 'R', khienhon: 'R' },
+      tt: { shield_bearer: 'SSR', bard: 'SR', priest: 'R', barrier_magician: 'R' },
       tieu: 'Nấu ăn ngon. Trong esport thì đó là kỹ năng thật.'
     }),
 
@@ -177,56 +177,56 @@
       id: 'tt_nam', ten: 'Hà Văn Nam', biet: 'Nam', bac: 'R', loai: 'co', vt: 'tren', vtSao: 3,
       tinh: 'it_noi',
       hieu: { than: 0.10, congGiaoAn: { co: 0.07 }, hieuqua: 0.02, dau: { co: 12 }, capGoiY: 1, tanSuatGoiY: 0.20 },
-      goiY: ['an_linh'], tt: { kiemsi: 'SR', cuongchien: 'R', phaco: 'R' },
+      goiY: ['an_linh'], tt: { swordman: 'SR', berserker: 'R', hammerer: 'R' },
       tieu: 'Chăm. Chỉ có chăm.'
     }),
     P({
       id: 'tt_long', ten: 'Trịnh Hải Long', biet: 'Long', bac: 'R', loai: 'luc', vt: 'giua', vtSao: 3,
       tinh: 'nong',
       hieu: { than: 0.10, congGiaoAn: { luc: 0.07 }, hieuqua: 0.02, dau: { luc: 12 }, capGoiY: 1, tanSuatGoiY: 0.20 },
-      goiY: ['bao_dau'], tt: { phaposu: 'SR', tuchien: 'R', phapset: 'R' },
+      goiY: ['bao_dau'], tt: { pyromancer: 'SR', dual_blader: 'R', lightning_mage: 'R' },
       tieu: 'Hay solo kill, hay chết vô nghĩa. Đúng một tỉ lệ.'
     }),
     P({
       id: 'tt_son', ten: 'Mai Tùng Sơn', biet: 'Sơn', bac: 'R', loai: 'ben', vt: 'rung', vtSao: 3,
       tinh: 'lanh',
       hieu: { than: 0.10, congGiaoAn: { ben: 0.07 }, hieuqua: 0.02, dau: { ben: 12 }, giamHao: 0.08, capGoiY: 1 },
-      goiY: ['cuop_rung'], tt: { thoisan: 'SR', gaosu: 'R', kynhan: 'R' },
+      goiY: ['cuop_rung'], tt: { hunter: 'SR', werewolf: 'R', cavalry_knight: 'R' },
       tieu: 'Farm rừng như máy. Gank thì hên xui.'
     }),
     P({
       id: 'tt_vy', ten: 'Lâm Thảo Vy', biet: 'Vy', bac: 'R', loai: 'nao', vt: 'ho', vtSao: 3,
       tinh: 'vui',
       hieu: { than: 0.11, congGiaoAn: { nao: 0.07 }, hieuqua: 0.02, dau: { nao: 12 }, hoiNao: 1, capGoiY: 1 },
-      goiY: ['cam_mat'], tt: { khienhon: 'SR', nhacsi: 'R', thaythuoc: 'R' },
+      goiY: ['cam_mat'], tt: { barrier_magician: 'SR', bard: 'R', priest: 'R' },
       tieu: 'Cắm mắt nhiều nhất giải. Không ai nhớ tên.'
     }),
     P({
       id: 'tt_hung', ten: 'Bạch Mạnh Hùng', biet: 'Hùng', bac: 'R', loai: 'li', vt: 'duoi', vtSao: 3,
       tinh: 'tu_tin',
       hieu: { than: 0.10, congGiaoAn: { li: 0.07 }, hieuqua: 0.02, dau: { li: 12 }, chongHong: 0.12, capGoiY: 1 },
-      goiY: ['khong_hoang'], tt: { bomxich: 'SR', nodoc: 'R', xathu: 'R' },
+      goiY: ['khong_hoang'], tt: { bomber: 'SR', poison_dart_hunter: 'R', archer: 'R' },
       tieu: 'Không bao giờ nhận là mình sai. Kể cả khi sai.'
     }),
     P({
       id: 'tt_thu', ten: 'Kiều Anh Thư', biet: 'Thư', bac: 'R', loai: 'ban', vt: 'giua', vtSao: 2,
       tinh: 'it_noi',
       hieu: { than: 0.13, hieuqua: 0.03, tinhthan: 0.18, dau: { co: 5, ben: 5, luc: 5, li: 5, nao: 5 }, capGoiY: 1 },
-      goiY: ['an_y'], tt: { bongdem: 'SR', phapset: 'R', phaposu: 'R' },
+      goiY: ['an_y'], tt: { shadowmancer: 'SR', lightning_mage: 'R', pyromancer: 'R' },
       tieu: 'Đá dự bị hai mùa, không than một câu.'
     }),
     P({
       id: 'tt_dat', ten: 'Tô Thành Đạt', biet: 'Đạt', bac: 'R', loai: 'co', vt: 'rung', vtSao: 2,
       tinh: 'nong',
       hieu: { than: 0.10, congGiaoAn: { co: 0.06 }, hieuqua: 0.02, dau: { co: 10, luc: 5 }, capGoiY: 1 },
-      goiY: ['xoay_so'], tt: { bongma: 'SR', kynhan: 'R', gaosu: 'R' },
+      goiY: ['xoay_so'], tt: { ghost: 'SR', cavalry_knight: 'R', werewolf: 'R' },
       tieu: 'Tay nhanh hơn não. Đang sửa.'
     }),
     P({
       id: 'tt_lam', ten: 'Ngọc Lam', biet: 'Lam', bac: 'R', loai: 'ben', vt: 'tren', vtSao: 2,
       tinh: 'lanh',
       hieu: { than: 0.10, congGiaoAn: { ben: 0.06 }, hieuqua: 0.02, dau: { ben: 10, li: 5 }, chongHong: 0.10, capGoiY: 1 },
-      goiY: ['the_luc'], tt: { phaco: 'SR', thanhkiem: 'R', kiemsi: 'R' },
+      goiY: ['the_luc'], tt: { hammerer: 'SR', magic_knight: 'R', swordman: 'R' },
       tieu: 'Chịu đòn giỏi. Đó cũng là một nghề.'
     })
   ];

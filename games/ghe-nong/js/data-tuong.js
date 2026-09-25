@@ -1,266 +1,204 @@
-/* data-tuong.js — 20 tướng, mỗi tướng đúng 3 kỹ năng: NỘI TẠI + CHIÊU + CHIÊU CUỐI.
+/* data-tuong.js — 68 tướng của Teamfight Manager 2, đọc thẳng từ window.TFM (js/data-tfm.js).
 
-   Chỉ số bày theo đúng cách Teamfight Manager 2 làm (RESEARCH.md §2.7):
-   mỗi dòng là [mức ở cấp 1, cộng mỗi cấp], tướng lên tới cấp 12 trong một trận.
+   Chủ dự án (2026-09-25): "copy hết skill + config + stats + equip + time của tfm2". Hai mươi tướng
+   tự chế của bản trước bỏ hẳn; id tướng giờ là id TFM2 (`fighter`, `pyromancer`...), tên và tên
+   chiêu là chữ tiếng Việt CHÍNH THỨC của TFM2 (`text/champion.i18n`, khoá `vi`).
 
-   cs = [atk1,atk+, ap1,ap+, hp1,hp+, giap1,giap+, khang1,khang+, tam, tocdanh, tocchay]
-        atk  sát thương vật lý     ap   sức mạnh phép
-        tam  tầm đánh (27 = cận chiến, 60+ = xạ thủ)   tocdanh đòn/giây   tocchay ô/giây
-
-   Kỹ năng — trường "h" là thứ bộ mô phỏng đọc:
-     dmg   { g: hệ số theo atk/ap, c: cộng thẳng, loai:'vl'|'pt', dien: true nếu diện rộng }
-     kc    số giây khống chế (trói/choáng/hất)
-     cham  { muc, giay }  làm chậm
-     hoi   { g, c }  hồi máu           chan { g, c } khiên
-     buff  { atk, ap, tocdanh, tocchay, giap, khang, giay, doi:true nếu cho cả đội }
-     giam  { giap, khang, sat, giay }  nợ chỉ số lên kẻ địch
-     dac   thẻ đặc biệt cho bộ mô phỏng: 'anminh','xuyen','xuly','keo','doicho','tru','rung'
+   Tệp này KHÔNG chứa số liệu — số nằm trong TFM. Nó chỉ:
+     1. gắn cho mỗi tướng một VỊ TRÍ (`vt`) và một LỚP (`lop`) — hai khái niệm của game này, TFM2
+        không khoá vị trí cho tướng. Bảng `VI_TRI` bên dưới xếp tay, có đếm lại cho đủ mỗi vị trí.
+     2. đổi đơn vị TFM2 sang đơn vị sim ở MỘT chỗ (`G.tuongOCap`): sân 960000 → 0..1000,
+        60 tick = 1 giây (RESEARCH §13.1, §14.1).
+     3. điền tham số vào mô tả chiêu (`{Damage}`, `{Coef}`, `{Stun}`...) để màn cấm chọn đọc được.
+     4. tra hình / tiếng: ảnh đủ 68 tướng do agent ảnh làm (khoá `t.<id>`); chưa có thì mượn thân
+        cũ (`tuong.<id cũ>`) nếu tướng ấy từng là một trong hai mươi con cũ.
 */
 (function (G) {
   'use strict';
 
-  function T(id, ten, lop, vt, cs, noi, chieu, cuoi, the, mota) {
-    return {
-      id: id, ten: ten, lop: lop, vt: vt, cs: cs, the: the, mota: mota,
-      kn: { noi: noi, chieu: chieu, cuoi: cuoi }
-    };
+  var TFM = G.TFM;
+  var CAI = TFM.cai;
+  var TPS = CAI.tick_per_second;          /* 60 tick một giây */
+  var DV = CAI.width / 1000;              /* 960 đơn vị TFM2 = 1 đơn vị sim */
+
+  G.TFM_TPS = TPS;
+  G.TFM_DV = DV;
+  /** khoảng cách TFM2 → sim */
+  G.kcTFM = function (u) { return (u || 0) / DV; };
+  /** tick TFM2 → giây */
+  G.giayTFM = function (t) { return (t || 0) / TPS; };
+
+  /* ══════════ VỊ TRÍ ══════════
+     Người chơi khoá cứng vị trí của tuyển thủ (DESIGN §3), nên mỗi tướng phải thuộc một vị trí để
+     màn cấm chọn bày theo hàng. Hai mươi tướng từng là "thân" của hai mươi con cũ (bảng
+     `TUONG` trong _tools/build_tfm.py) giữ nguyên vị trí cũ, để bảng thông thạo của tuyển thủ và
+     tủ của 24 đội máy chuyển sang không đổi nghĩa. Số còn lại xếp theo `category`/`tags`:
+     Melee có Tank → trên, Assassin → rừng, Magician → giữa, Range → xạ thủ, Util → hỗ trợ. */
+  var VI_TRI = {
+    tren: ['swordman', 'berserker', 'hammerer', 'magic_knight', 'fighter', 'knight', 'ogre', 'jiangshi',
+           'dokkaebi', 'siege_breaker', 'android', 'prisoner', 'executioner', 'lancer', 'pole_warrior',
+           'strongman', 'spellbreaker'],
+    rung: ['cavalry_knight', 'werewolf', 'ghost', 'hunter', 'ninja', 'demon', 'inquisitor', 'clown',
+           'hitman', 'circus_blade', 'nightmare', 'exorcist'],
+    giua: ['pyromancer', 'lightning_mage', 'shadowmancer', 'dual_blader', 'ice_mage', 'necromancer',
+           'dark_mage', 'illusionist', 'druid', 'voodoo_shaman', 'white_mage', 'wind_mage',
+           'sand_mage', 'astrologer', 'alchemist'],
+    duoi: ['archer', 'gunner', 'poison_dart_hunter', 'bomber', 'soldier', 'gambler', 'boomerang_hunter',
+           'whip_master', 'dancer', 'crossbowman', 'harpooner'],
+    ho:   ['shield_bearer', 'priest', 'barrier_magician', 'bard', 'pythoness', 'monk', 'chef',
+           'plague_doctor', 'taoist', 'enchanter', 'guardian_spirit', 'spirit_caller', 'vampire']
+  };
+  var LOP_CUA = { Melee: 'can', Range: 'xa', Magician: 'phep', Util: 'ho', Assassin: 'sat' };
+
+  /* hai mươi tướng cũ → thân TFM2 (chép từ _tools/build_tfm.py) — dùng để mượn hình / tiếng cũ và
+     để đổi bản lưu cũ (save.js) */
+  G.TUONG_CU = {
+    kiemsi: 'swordman', cuongchien: 'berserker', phaco: 'hammerer', thanhkiem: 'magic_knight',
+    kynhan: 'cavalry_knight', gaosu: 'werewolf', bongma: 'ghost', thoisan: 'hunter',
+    phaposu: 'pyromancer', phapset: 'lightning_mage', bongdem: 'shadowmancer', tuchien: 'dual_blader',
+    xathu: 'archer', sungtruong: 'gunner', nodoc: 'poison_dart_hunter', bomxich: 'bomber',
+    hiepsi: 'shield_bearer', thaythuoc: 'priest', khienhon: 'barrier_magician', nhacsi: 'bard'
+  };
+  G.TUONG_CU_CUA = {};
+  for (var kCu in G.TUONG_CU) G.TUONG_CU_CUA[G.TUONG_CU[kCu]] = kCu;
+
+  /* ══════════ ĐIỀN MÔ TẢ ══════════
+     Mô tả TFM2 có thẻ màu `<#ff9028ff>…<>` và icon `<i#…>`; bỏ hết, chỉ giữ chữ. Mỗi chỗ `{X}`
+     tra tham số của chiêu theo bảng ứng viên dưới đây; giá trị thời gian đổi tick → giây,
+     khoảng cách chia 1000 (TFM2 hiện đúng như thế: bảng Fighter ghi Range 23 cho 23000,
+     AI_BRAIN §1). Không tra được thì để `?` — bốn agent bước 4 sửa từng con qua
+     G.CHIEU_TFM[id].mota. */
+  var UNG_VIEN = {
+    Damage: ['attack', 'damage', 'base_damage', 'skill_damage', 'dot_damage', 'per_hit_damage'],
+    Coef: ['attack_ratio', 'damage_ratio', 'skill_damage_ratio', 'ap_ratio', 'magic_ratio', 'heal_ratio', 'shield_ratio', 'dot_attack_ratio'],
+    Range: ['attack_range', 'range', 'radius', 'ult_range', 'skill_range', 'area_range', 'explosion_range', 'heal_range', 'buff_range', 'barrier_range'],
+    Radius: ['radius', 'attack_range', 'explosion_range', 'splash_range'],
+    Speed: ['speed', 'projectile_speed', 'skill_dash_speed'],
+    Stun: ['stun', 'stun_duration'], StunTime: ['stun', 'stun_duration'],
+    Slow: ['slow_speed', 'slow_ratio', 'slow', 'speed_down', 'move_speed_reduce'],
+    SlowTime: ['slow_duration'], SlowDuration: ['slow_duration'],
+    Time: ['tick', 'buff_duration', 'stun_duration', 'airborne', 'airborne_time', 'shield_duration', 'effect_duration', 'channel_duration', 'taunt_duration', 'bind_duration', 'duration'],
+    Duration: ['attack_tick', 'dot_tick', 'heal_tick', 'buff_duration', 'channel_duration', 'effect_duration', 'ghoul_duration', 'shield_duration', 'tick', 'ult_duration', 'sweep_duration'],
+    Tick: ['attack_period', 'dot_period', 'heal_period', 'period', 'interval', 'bleed_tick', 'heal_delay'],
+    Value: ['heal', 'shield', 'shield_amount', 'heal_amount'],
+    Heal: ['heal', 'heal_amount'], HealCoef: ['heal_ratio', 'heal_ap_ratio'], HealRatio: ['heal_ratio'],
+    SelfHeal: ['heal_self'], SelfHealCoef: ['heal_self_ratio'],
+    Shield: ['shield', 'shield_amount'], ShieldCoef: ['shield_ratio', 'shield_ap_ratio'], Amount: ['shield', 'shield_amount', 'heal'],
+    AttackSpeed: ['attack_speed', 'attack_speed_increase', 'attack_speed_boost'], AttackSpeedCoef: ['attack_speed_by_spell_power', 'attack_speed_ap_ratio'],
+    MoveSpeed: ['move_speed', 'move_speed_increase', 'slow', 'speed_up'], MoveSpeedCoef: ['move_speed_by_spell_power'],
+    MoveSpeedReduce: ['move_speed_reduce'],
+    Attack: ['attack_boost', 'attack_increase'], AttackRatio: ['magic_ratio', 'ap_ratio'],
+    MagicPower: ['magic_power_boost'],
+    CoolReduce: ['cooltime_reduce', 'skill_cooldown_reduce', 'cooldown_reduce'],
+    DefenceReduce: ['defence_reduce', 'defense_down'], MagicResistanceReduce: ['magic_resistance_reduce', 'magic_def_down'],
+    Reflect: ['reflect'], HpCoef: ['damage_reduce_hp_ratio', 'max_hp_hp_ratio'], HpRatio: ['max_hp_ratio', 'hp_ratio', 'shield_hp_ratio'],
+    Count: ['total_shots', 'attack_count', 'projectile_count', 'max_count', 'charge_count', 'max_hits', 'hit_count'],
+    UseCount: ['cooltime_use_count', 'charge_count'],
+    BleedTime: ['bleed_duration'], BleedDamage: ['bleed'], BleedCoef: ['bleed_ratio'],
+    StealthTime: ['invisible_duration'], BlockDuration: ['block_skill_tick', 'block_duration'],
+    Taunt: ['taunt_duration'], Fear: ['fear_tick', 'fear_duration'], Charm: ['charm_duration'],
+    HpDrain: ['hp_drain_per_tick'], DurationCoef: ['ghoul_duration_by_spell_power'], DurationPerLevel: ['ghoul_duration_per_level'],
+    SpreadRatio: ['damage_spread_ratio'], Threshold: ['execute_threshold'], Width: ['width', 'line_width', 'projectile_width'],
+    Angle: ['half_angle_deg'], Distance: ['move_distance', 'move_range', 'push_distance'], Interval: ['interval', 'shot_interval', 'period']
+  };
+  /* tên ô nào là THỜI GIAN (tick) và ô nào là KHOẢNG CÁCH (đơn vị TFM2) */
+  var LA_TICK = /(_tick|_duration|_period|_time|_delay|^tick$|^duration$|^period$|^interval$|^stun$|^airborne$|^delay$|^applyed$|^delayed$|^bind$|^charge_time$|^travel_time$)/;
+  var LA_KC = /(range|radius|distance|width|length|offset|_speed$|^speed$)/;
+
+  function catThe(s) { return String(s || '').replace(/<i#[^>]*>/g, '').replace(/<#[0-9a-fA-F]+>/g, '').replace(/<>/g, ''); }
+
+  function giaTri(ten, v) {
+    if (v == null) return null;
+    if (typeof v === 'object') return null;
+    if (LA_TICK.test(ten)) return String(Math.round(v / TPS * 10) / 10);
+    if (/_speed$|^speed$/.test(ten) && Math.abs(v) >= 1000) return String(Math.round(v / 100) / 10);
+    if (LA_KC.test(ten) && Math.abs(v) >= 1000) return String(Math.round(v / 1000));
+    return String(v);
   }
-  function N(ten, mo, h) { return { ten: ten, mo: mo, h: h || {}, loai: 'noi' }; }
-  function C(ten, mo, hoi, h) { return { ten: ten, mo: mo, hoi: hoi, h: h || {}, loai: 'chieu' }; }
-  function U(ten, mo, hoi, h) { return { ten: ten, mo: mo, hoi: hoi, h: h || {}, loai: 'cuoi' }; }
 
-  G.TUONG = [
-    /* ═══════════ ĐƯỜNG TRÊN ═══════════ */
-    T('kiemsi', 'Kiếm Sĩ', 'can', 'tren',
-      [92, 21, 0, 0, 940, 92, 27, 7, 16, 3, 28, 1.15, 74],
-      N('Lưỡi Mài', 'Cứ ba đòn đánh thường thì đòn thứ ba gây thêm 30% sát thương vật lý.',
-        { moiN: 3, dmg: { g: 0.30, loai: 'vl' } }),
-      C('Chém Vòng', 'Chém một vòng quanh mình: 35 + 85% sát thương vật lý lên mọi kẻ địch gần.', 8,
-        { dmg: { g: 0.85, c: 35, loai: 'vl', dien: true } }),
-      U('Bão Kiếm', 'Xoay kiếm 3 giây, mỗi giây gây 45 + 45% sát thương vật lý diện rộng.', 60,
-        { dmg: { g: 0.45, c: 45, loai: 'vl', dien: true }, lap: 3 }),
-      ['toa', 'lao'], 'Đánh đều tay, không sợ ai ở đường trên.'),
+  /** Gom mọi số trong cây hiệu ứng của tướng mod thành một bảng phẳng (lần gặp đầu thắng);
+      bán kính hình tròn `shape.Circle.radius` ghi thành `radius`. Chỉ để ĐIỀN MÔ TẢ. */
+  function gomCay(e, ra) {
+    if (!e || typeof e !== 'object') return ra;
+    if (Array.isArray(e)) { e.forEach(function (x) { gomCay(x, ra); }); return ra; }
+    for (var k in e) {
+      var v = e[k];
+      if (k === 'Circle' && v && v.radius != null && ra.radius == null) ra.radius = v.radius;
+      if (typeof v === 'number') { if (ra[k] == null) ra[k] = v; }
+      else if (typeof v === 'object') gomCay(v, ra);
+    }
+    return ra;
+  }
+  G.gomCayHieuUng = function (e) { return gomCay(e, {}); };
 
-    T('cuongchien', 'Cuồng Chiến', 'can', 'tren',
-      [100, 24, 0, 0, 900, 88, 24, 6, 14, 3, 26, 1.25, 76],
-      N('Càng Đau Càng Mạnh', 'Cứ 3% máu đã mất thì +2% sát thương gây ra, tối đa +52%.',
-        { theoMau: { moi: 0.03, cong: 0.02, tran: 0.52 } }),
-      C('Nộ Chém', 'Bổ mạnh: 50 + 120% sát thương vật lý, hút 35% số đó thành máu.', 5.5,
-        { dmg: { g: 1.20, c: 50, loai: 'vl' }, hut: 0.35 }),
-      U('Không Lùi', 'Trong 4.5 giây không thể tụt xuống dưới 1 máu, và +30% sát thương trong lúc đó.', 74,
-        { batTu: 4.5, buff: { atk: 0.30, giay: 4.5 } }),
-      ['don', 'cuoi'], 'Càng gần chết càng đáng sợ.'),
+  /** điền {X} trong mô tả bằng tham số của chiêu `p`; trả về chữ sạch */
+  G.dienMoTa = function (mo, p) {
+    var sach = catThe(mo);
+    /* "{Range} xung quanh" là bán kính vùng; "lao đến … trong phạm vi {Range}" là tầm chiêu */
+    var quanh = /xung quanh|vụ nổ|khu vực|hình nón/.test(sach);
+    var cay = p.effect ? gomCay(p.effect, {}) : null;
+    return sach.replace(/\{([A-Za-z0-9_]+)\}/g, function (_, k) {
+      var ds = UNG_VIEN[k] || [];
+      if (k === 'Range' && !quanh) ds = ['range', 'cast_range', 'ult_range', 'skill_range', 'attack_range', 'radius', 'heal_range', 'buff_range'];
+      for (var i = 0; i < ds.length; i++) {
+        var v = giaTri(ds[i], p[ds[i]]);
+        if (v != null) return v;
+      }
+      if (cay) for (var j = 0; j < ds.length; j++) { var v2 = giaTri(ds[j], cay[ds[j]]); if (v2 != null) return v2; }
+      if (cay && k === 'StealthTime' && cay.tick != null) return giaTri('tick', cay.tick);
+      return '?';
+    });
+  };
 
-    T('phaco', 'Phá Cổ', 'can', 'tren',
-      [88, 20, 0, 0, 1020, 100, 30, 8, 18, 4, 30, 1.10, 71],
-      N('Búa Nặng', 'Đòn đánh thường gây thêm 3% máu tối đa của mục tiêu (tối đa 120 lên quái).',
-        { dmgTheoMauDich: 0.03, tranQuai: 120 }),
-      C('Đập Đất', 'Đập xuống đất: 45 + 90% sát thương vật lý diện rộng và làm chậm 30% trong 2 giây.', 9,
-        { dmg: { g: 0.90, c: 45, loai: 'vl', dien: true }, cham: { muc: 0.30, giay: 2 } }),
-      U('Công Thành', 'Trong 8 giây, sát thương lên trụ và quái lớn tăng 120%.', 60,
-        { buff: { danhTru: 1.20, giay: 8 }, dac: 'tru' }),
-      ['le', 'toa'], 'Sinh ra để phá trụ, không phải để nói chuyện.'),
+  /* ══════════ DỰNG BẢNG TƯỚNG ══════════ */
+  var vtCua = {};
+  Object.keys(VI_TRI).forEach(function (vt) { VI_TRI[vt].forEach(function (id) { vtCua[id] = vt; }); });
 
-    T('thanhkiem', 'Thánh Kiếm', 'can', 'tren',
-      [92, 21, 22, 7, 980, 96, 30, 8, 22, 5, 30, 1.10, 73],
-      N('Giáp Thành Kiếm', 'Sát thương đòn đánh cộng thêm 75% giá trị giáp của mình (sát thương phép).',
-        { dmgTheoGiap: 0.75 }),
-      C('Kiếm Sáng', 'Chém ra sóng ánh sáng bay xa: 65 + 95% sát thương vật lý, xuyên hàng.', 7,
-        { dmg: { g: 0.95, c: 65, loai: 'vl' }, dac: 'xuyen' }),
-      U('Thánh Vực', 'Vùng thánh 5 giây: đồng đội trong đó hồi 4.5% máu mỗi giây, kẻ địch bị chậm 25%.', 85,
-        { hoi: { g: 0, c: 0, phanTramMau: 0.045 }, doi: true, cham: { muc: 0.25, giay: 5 }, lap: 5 }),
-      ['toa', 'hoi'], 'Nửa đỡ đòn nửa gây sát thương, không giỏi nhất việc nào.'),
-
-    /* ═══════════ ĐI RỪNG ═══════════ */
-    T('kynhan', 'Kỵ Nhân', 'can', 'rung',
-      [90, 20, 0, 0, 900, 90, 25, 7, 15, 3, 27, 1.20, 78],
-      N('Vó Ngựa', 'Ngoài giao tranh, tốc chạy tăng dần tới +25% sau 4 giây.',
-        { buff: { tocchayNgoai: 0.25 } }),
-      C('Xung Thương', 'Lao thẳng, xuyên mục tiêu đầu tiên, trói 1 giây: 30 + 105% sát thương vật lý.', 6,
-        { dmg: { g: 1.05, c: 30, loai: 'vl' }, kc: 1.0, dac: 'xuyen' }),
-      U('Mở Đường', '+50% tốc chạy trong 4 giây và tạo vệt đường; đồng đội chạy theo cũng +50% tốc.', 60,
-        { buff: { tocchay: 0.50, giay: 4, doi: true } }),
-      ['lao', 'kc'], 'Dựng lại từ Cavalry của Teamfight Manager 2 — số liệu đọc thẳng từ ảnh trong game.'),
-
-    T('gaosu', 'Gấu Sư', 'can', 'rung',
-      [90, 21, 0, 0, 1000, 98, 29, 7, 18, 4, 26, 1.15, 77],
-      N('Da Thú', 'Nhận thêm 15% giáp và kháng phép khi đánh quái rừng và quái lớn.',
-        { buffRung: { giap: 0.15, khang: 0.15 } }),
-      C('Vồ', 'Nhảy vồ tới: 40 + 100% sát thương vật lý và làm chậm 20% trong 1.5 giây.', 8,
-        { dmg: { g: 1.00, c: 40, loai: 'vl' }, cham: { muc: 0.20, giay: 1.5 } }),
-      U('Cuồng Thú', '6 giây: +40% tốc đánh, mỗi đòn hồi 3% máu tối đa.', 75,
-        { buff: { tocdanh: 0.40, giay: 6 }, hutMau: 0.03 }),
-      ['lao', 'don'], 'Cắm mặt ăn quái rồi lao vào người.'),
-
-    T('bongma', 'Bóng Ma', 'sat', 'rung',
-      [92, 22, 16, 5, 820, 80, 21, 6, 18, 4, 28, 1.20, 81],
-      N('Không Dấu Chân', 'Trong rừng: +12% tốc chạy và không hiện trên bản đồ nhỏ của đối thủ.',
-        { buff: { tocchayRung: 0.20 }, dac: 'anminh' }),
-      C('Xuyên Tường', 'Đi xuyên địa hình một đoạn; đòn đánh kế tiếp gây thêm 110% sát thương.', 8,
-        { dmg: { g: 1.10, loai: 'vl' }, dac: 'xuyen' }),
-      U('Hồn Lìa', 'Đánh dấu một mục tiêu; nếu mục tiêu chết trong 4 giây, chiêu cuối hồi lại ngay.', 75,
-        { dmg: { g: 1.40, c: 120, loai: 'vl' }, dac: 'xuly' }),
-      ['don'], 'Đi rừng nhanh nhất bản đồ, và không ai chặn được đường về.'),
-
-    T('thoisan', 'Thợ Săn', 'xa', 'rung',
-      [82, 21, 0, 0, 830, 81, 21, 6, 16, 3, 46, 1.25, 76],
-      N('Dấu Vết', 'Kẻ địch bị đánh sẽ lộ vị trí trong 3 giây.',
-        { dac: 'mat' }),
-      C('Bẫy Kẹp', 'Đặt bẫy; kẻ giẫm phải bị trói 1.5 giây và nhận 60 + 60% sát thương vật lý.', 10,
-        { dmg: { g: 0.60, c: 60, loai: 'vl' }, kc: 1.5 }),
-      U('Vây Bắt', 'Rải bẫy khắp một vùng lớn trong 6 giây.', 70,
-        { dmg: { g: 0.50, c: 80, loai: 'vl', dien: true }, kc: 1.0, lap: 3 }),
-      ['kc', 'pk'], 'Rừng của nó thì nó đặt luật.'),
-
-    /* ═══════════ ĐƯỜNG GIỮA ═══════════ */
-    T('phaposu', 'Pháp Sư', 'phep', 'giua',
-      [58, 12, 48, 15, 860, 86, 18, 4, 21, 4, 58, 1.05, 73],
-      N('Tàn Lửa', 'Kỹ năng gây bỏng thêm 20% sát thương phép trong 2 giây.',
-        { dot: { g: 0.42, giay: 2, loai: 'pt' } }),
-      C('Cầu Lửa', 'Ném cầu lửa: 80 + 92% sức mạnh phép.', 5,
-        { dmg: { g: 0.92, c: 80, loai: 'pt' } }),
-      U('Thiên Thạch', 'Gọi thiên thạch xuống sau 1.2 giây: 200 + 110% sức mạnh phép diện rộng.', 65,
-        { dmg: { g: 1.10, c: 200, loai: 'pt', dien: true }, tre: 1.2 }),
-      ['toa', 'pk'], 'Dọn lính, dọn người, dọn cả hy vọng.'),
-
-    T('phapset', 'Pháp Sét', 'phep', 'giua',
-      [56, 12, 48, 15, 760, 74, 16, 4, 20, 4, 56, 1.10, 71],
-      N('Tích Điện', 'Cứ 3 đòn/kỹ năng trúng mục tiêu thì đòn kế tiếp làm choáng 0.6 giây.',
-        { moiN: 3, kc: 0.6 }),
-      C('Tia Chớp', 'Sét nảy qua 3 mục tiêu: 75 + 85% sức mạnh phép, giảm 15% mỗi lần nảy.', 6,
-        { dmg: { g: 0.85, c: 75, loai: 'pt' }, nay: 3, giamNay: 0.15 }),
-      U('Bão Sét', 'Sét đánh liên tục vào một vùng trong 4 giây: mỗi giây 90 + 45% sức mạnh phép.', 70,
-        { dmg: { g: 0.45, c: 90, loai: 'pt', dien: true }, lap: 4 }),
-      ['toa', 'kc'], 'Đám đông đứng gần nhau là món quà.'),
-
-    T('bongdem', 'Bóng Đêm', 'sat', 'giua',
-      [88, 21, 20, 6, 840, 78, 20, 5, 18, 4, 26, 1.15, 79],
-      N('Bóng Dài', 'Đánh từ phía sau lưng mục tiêu gây thêm 34% sát thương.',
-        { sauLung: 0.34 }),
-      C('Nuốt Bóng', 'Dịch chuyển tới mục tiêu: 60 + 70% sát thương phép.', 12,
-        { dmg: { g: 0.70, c: 60, loai: 'pt' }, dac: 'nhay' }),
-      U('Đêm Đen', 'Che mắt mọi kẻ địch quanh mình 2 giây — họ không thấy đồng đội của họ.', 75,
-        { kc: 0.4, muMat: 2, dien: true }),
-      ['don', 'kc'], 'Không ai biết nó ở đâu cho tới lúc muộn.'),
-
-    T('tuchien', 'Tử Chiến', 'sat', 'giua',
-      [86, 20, 0, 0, 850, 83, 23, 6, 16, 3, 27, 1.18, 78],
-      N('Song Đao', 'Đòn thứ hai lên cùng một mục tiêu gây thêm 25% sát thương.',
-        { lienDon: 0.15 }),
-      C('Phản Kích', 'Chặn đòn đánh thường tiếp theo và phản lại 80 + 90% sát thương vật lý.', 15,
-        { dmg: { g: 0.90, c: 80, loai: 'vl' }, chan1: true }),
-      U('Quyết Đấu', 'Khoá một mục tiêu 4 giây: hai bên không rời xa nhau được.', 80,
-        { khoa: 4, dmg: { g: 0.60, c: 60, loai: 'vl' } }),
-      ['don', 'kc'], 'Chọn một người và kéo họ đi cùng.'),
-
-    /* ═══════════ XẠ THỦ ═══════════ */
-    T('xathu', 'Xạ Thủ', 'xa', 'duoi',
-      [76, 20, 0, 0, 770, 75, 18, 5, 14, 3, 62, 1.28, 72],
-      N('Nhịp Bắn', 'Mỗi đòn đánh cộng dồn +6% tốc đánh, tối đa 5 lần, mất khi ngừng bắn 3 giây.',
-        { congDon: { tocdanh: 0.06, lan: 5 } }),
-      C('Mũi Xuyên', 'Bắn xuyên hàng: 50 + 90% sát thương vật lý.', 8,
-        { dmg: { g: 0.90, c: 50, loai: 'vl' }, dac: 'xuyen' }),
-      U('Mưa Tên', 'Rót tên xuống vùng lớn 3 giây: mỗi giây 70 + 50% sát thương vật lý.', 65,
-        { dmg: { g: 0.50, c: 70, loai: 'vl', dien: true }, lap: 3 }),
-      ['toa', 'cuoi'], 'Về cuối trận là cả đội đứng quanh bảo vệ.'),
-
-    T('sungtruong', 'Súng Trường', 'xa', 'duoi',
-      [78, 23, 0, 0, 760, 74, 17, 5, 14, 3, 66, 1.20, 71],
-      N('Càng Xa Càng Đau', 'Sát thương tăng thêm tới 25% theo khoảng cách tới mục tiêu.',
-        { theoTam: 0.25 }),
-      C('Bắn Tỉa', 'Ngắm 0.8 giây rồi bắn: 90 + 110% sát thương vật lý, bỏ qua 20% giáp.', 10,
-        { dmg: { g: 1.10, c: 90, loai: 'vl' }, xuyenGiap: 0.20, tre: 0.8 }),
-      U('Phát Kết Liễu', 'Bắn xuyên bản đồ vào mục tiêu máu thấp nhất: 250 + 60% máu đã mất của mục tiêu.', 90,
-        { dmg: { g: 0, c: 250, loai: 'vl' }, theoMauMat: 0.60, dac: 'xuly' }),
-      ['pk', 'don', 'cuoi'], 'Đứng xa nhất, gây đau nhất.'),
-
-    T('nodoc', 'Nỏ Độc', 'xa', 'duoi',
-      [74, 20, 14, 4, 800, 78, 18, 5, 15, 3, 58, 1.40, 73],
-      N('Tẩm Độc', 'Đòn đánh gây độc 3 giây (12 + 15% sức mạnh phép mỗi giây), cộng dồn 5 lần.',
-        { dot: { g: 0.15, c: 12, giay: 3, loai: 'pt', congDon: 5 } }),
-      C('Sương Độc', 'Ném bình độc: làm chậm 25% trong vùng 3 giây và cộng 2 tầng độc.', 12,
-        { cham: { muc: 0.25, giay: 3 }, themDot: 2, dien: true }),
-      U('Bùng Độc', 'Kích nổ toàn bộ độc đang có: mỗi tầng gây 60 + 30% sức mạnh phép.', 60,
-        { noDot: { g: 0.30, c: 60, loai: 'pt' } }),
-      ['pk', 'toa'], 'Không giết nhanh, nhưng ai dính cũng phải về nhà.'),
-
-    /* `[ĐO TRONG REPO]` Tầm 50 là ngắn nhất trong bốn xạ thủ (Nỏ Độc 58, Xạ Thủ 62), mà
-       Bom Xích lại là tướng đứng bắn chứ không phải tướng lao vào. Hồi trận đấu còn loãng
-       thì không sao; từ khi đòn tướng-đánh-tướng nặng lên (HAM_TUONG 0,22 → 0,40) thì đứng
-       gần thêm mười đơn vị là chết thêm hẳn: tỉ lệ thắng tụt còn **35,7%** trong khi ba con
-       cùng đường đều quanh 50%. Kéo tầm về ngang Nỏ Độc. */
-    T('bomxich', 'Bom Xích', 'xa', 'duoi',
-      [80, 20, 32, 10, 850, 80, 19, 5, 16, 3, 58, 1.15, 72],
-      N('Dư Chấn', 'Kỹ năng diện rộng gây thêm 15% sát thương lên lính và quái.',
-        { themLinh: 0.15 }),
-      C('Ném Bom', 'Bom nổ sau 1 giây: 90 + 100% sát thương phép diện rộng.', 8,
-        { dmg: { g: 1.00, c: 90, loai: 'pt', dien: true }, tre: 1 }),
-      U('Bom Chùm', 'Ba quả bom rơi liên tiếp xuống vùng lớn.', 78,
-        { dmg: { g: 0.46, c: 60, loai: 'pt', dien: true }, lap: 3 }),
-      ['toa', 'pk'], 'Dọn lính nhanh, mà dọn cả người.'),
-
-    /* ═══════════ HỖ TRỢ ═══════════ */
-    T('hiepsi', 'Hiệp Sĩ', 'can', 'ho',
-      [72, 15, 0, 0, 1000, 98, 32, 8, 21, 4, 26, 1.00, 72],
-      N('Vai Kề Vai', 'Đồng đội đứng cạnh nhận thêm 5% giáp và kháng phép.',
-        { hao: { giap: 0.02, khang: 0.02 }, doi: true }),
-      C('Khiên Dội', 'Húc mục tiêu: 40 + 70% sát thương vật lý và hất tung 0.8 giây.', 10,
-        { dmg: { g: 0.70, c: 40, loai: 'vl' }, kc: 0.8 }),
-      U('Chốt Chặn', 'Cắm cờ 4 giây: đồng đội trong vùng giảm 12% sát thương nhận.', 70,
-        { giamNhan: 0.12, giay: 4, doi: true }),
-      ['kc', 'lao', 'hoi'], 'Cái khiên của đội. Vào trước, chết sau.'),
-
-    T('thaythuoc', 'Thầy Thuốc', 'ho', 'ho',
-      [48, 10, 34, 10, 860, 84, 20, 5, 24, 5, 50, 1.00, 71],
-      N('Tay Lành', 'Mọi hiệu ứng hồi máu của mình mạnh thêm 15%.',
-        { hoiThem: 0.15 }),
-      C('Ánh Sáng', 'Hồi 60 + 45% sức mạnh phép cho đồng đội yếu máu nhất trong tầm.', 6,
-        { hoi: { g: 0.45, c: 60 } }),
-      U('Cứu Rỗi', 'Hồi 180 + 80% sức mạnh phép cho toàn đội trong vùng và gỡ khống chế.', 90,
-        { hoi: { g: 0.80, c: 180 }, doi: true, goKc: true }),
-      ['hoi'], 'Ai cũng chê cho đến lúc thiếu.'),
-
-    T('khienhon', 'Khiên Hồn', 'ho', 'ho',
-      [50, 11, 36, 11, 900, 88, 24, 6, 26, 5, 48, 1.00, 70],
-      N('Vỏ Cứng', 'Khiên do mình tạo ra tồn tại lâu thêm 2 giây.',
-        { chanLau: 2 }),
-      C('Chắn Hồn', 'Tạo khiên 90 + 60% sức mạnh phép cho một đồng đội trong 4 giây.', 8,
-        { chan: { g: 0.60, c: 90, giay: 4 } }),
-      U('Vòm Chắn', 'Vòm chắn 3 giây: đồng đội bên trong miễn nhiễm khống chế.', 95,
-        { mienKc: 3, doi: true, chan: { g: 0.40, c: 120, giay: 3 } }),
-      ['hoi', 'kc'], 'Không hồi máu, nhưng không cho mất máu.'),
-
-    T('nhacsi', 'Nhạc Sĩ', 'ho', 'ho',
-      [52, 11, 34, 11, 890, 88, 22, 5, 23, 5, 58, 1.05, 74],
-      N('Khúc Hành', 'Đồng đội quanh mình luôn được +12% tốc chạy và +9% tốc đánh.',
-        { hao: { tocchay: 0.12, tocdanh: 0.09 }, doi: true }),
-      C('Nốt Ru', 'Ru ngủ một mục tiêu 2.4 giây: 70 + 85% sức mạnh phép, tỉnh dậy thì nhận thêm 28% sát thương.', 11,
-        { dmg: { g: 0.85, c: 70, loai: 'pt' }, kc: 2.4, danhThuc: 0.28 }),
-      U('Đại Hợp Xướng', 'Toàn đội +42% tốc đánh và +22% tốc chạy trong 9 giây.', 72,
-        { buff: { tocdanh: 0.42, tocchay: 0.22, giay: 9, doi: true } }),
-      ['hoi', 'kc'], 'Buff cả đội, ai cũng nhanh hơn một nhịp.')
-  ];
+  G.TUONG = [];
+  Object.keys(TFM.tuong).forEach(function (id) {
+    var c = TFM.tuong[id];
+    if (!vtCua[id]) throw new Error('tướng TFM2 chưa xếp vị trí: ' + id);
+    var kn = {};
+    ['attack', 'skill', 'skill2', 'ult'].forEach(function (a) {
+      var p = c[a] || {};
+      var loai = a === 'attack' ? 'danh' : a;
+      var ten = a === 'attack' ? 'Đánh thường' : c.ten_chieu[a];
+      var mo = a === 'attack' ? '' : c.mo_ta[a];
+      kn[loai] = {
+        loai: loai, ten: ten, p: p, moGoc: mo,
+        mo: a === 'attack' ? '' : G.dienMoTa(mo, p),
+        hoi: G.giayTFM(p.cooltime)
+      };
+    });
+    G.TUONG.push({
+      id: id, ten: c.ten, lop: LOP_CUA[c.category] || 'can', vt: vtCua[id],
+      the: c.tags || [], mod: !!c.mod, tfm: c, kn: kn,
+      mota: TFM.chu.loai[String(c.category).toLowerCase()] || c.category
+    });
+  });
+  /* thứ tự bày: theo vị trí rồi theo tên, để hàng nào cũng ổn định giữa hai lần mở */
+  var THU_TU_VT = { tren: 0, rung: 1, giua: 2, duoi: 3, ho: 4 };
+  G.TUONG.sort(function (a, b) {
+    return (THU_TU_VT[a.vt] - THU_TU_VT[b.vt]) || (a.ten < b.ten ? -1 : a.ten > b.ten ? 1 : 0);
+  });
 
   G.TUONG_THEO_ID = {};
   G.TUONG.forEach(function (t) { G.TUONG_THEO_ID[t.id] = t; });
+  if (G.TUONG.length !== 68) throw new Error('đếm được ' + G.TUONG.length + ' tướng, phải là 68');
 
   G.VITRI = [
-    { id: 'tren', ten: 'Đường Trên', tat: 'TR', buff: 'Hồi 1.5% máu tối đa mỗi giây khi ngoài giao tranh' },
-    { id: 'rung', ten: 'Đi Rừng', tat: 'RỪ', buff: '+20% tốc chạy trong rừng; hành quyết quái lớn khi máu ≤ 700' },
-    { id: 'giua', ten: 'Đường Giữa', tat: 'GI', buff: '+20% kinh nghiệm' },
-    { id: 'duoi', ten: 'Xạ Thủ', tat: 'XẠ', buff: '+20% vàng' },
-    { id: 'ho', ten: 'Hỗ Trợ', tat: 'HỖ', buff: '−30% kinh nghiệm, −15% vàng; last-hit thì đồng đội gần nhất nhận vàng' }
+    { id: 'tren', ten: 'Đường Trên', tat: 'TR', buff: 'Hồi ' + CAI.top_hp_regen_percent + '% máu tối đa mỗi giây' },
+    { id: 'rung', ten: 'Đi Rừng', tat: 'RỪ', buff: '+' + CAI.jungle_move_speed_bonus + '% tốc chạy; hành quyết quái lớn khi máu ≤ ' + CAI.jungle_execute_threshold },
+    { id: 'giua', ten: 'Đường Giữa', tat: 'GI', buff: '+' + CAI.mid_exp_bonus + '% kinh nghiệm' },
+    { id: 'duoi', ten: 'Xạ Thủ', tat: 'XẠ', buff: '+' + CAI.bottom_gold_bonus + '% vàng' },
+    { id: 'ho', ten: 'Hỗ Trợ', tat: 'HỖ', buff: '−' + CAI.support_exp_reduction + '% kinh nghiệm, −' + CAI.support_gold_reduction + '% vàng; last-hit thì đồng đội gần nhất nhận vàng' }
   ];
   G.VITRI_THEO_ID = {};
   G.VITRI.forEach(function (v) { G.VITRI_THEO_ID[v.id] = v; });
 
-  G.LOP_TEN = { can: 'Cận Chiến', xa: 'Xạ Thủ', phep: 'Pháp Sư', ho: 'Hỗ Trợ', sat: 'Sát Thủ' };
+  G.LOP_TEN = { can: 'Đấu Sĩ', xa: 'Đánh Xa', phep: 'Pháp Sư', ho: 'Hỗ Trợ', sat: 'Sát Thủ' };
 
-  /* thông thạo: N < R < SR < SSR < UR (DESIGN.md §3.4) */
-  /* Hệ số nhân thẳng vào mọi chỉ số chiến đấu của tướng. Đo bằng máy: với thang cũ
-     (0.82 … 1.22) thì UR gặp N thắng 20/20, còn chỉ số huấn luyện viên lệch hết cỡ (1200 so
-     với 100) cũng chỉ thắng 16/20 — tức là cả mùa nuôi quân thua một dòng bảng thông thạo.
-     Thu lại còn 0.90 … 1.12: thông thạo vẫn đáng để cấm theo người, nhưng không còn ăn trùm. */
+  /* thông thạo: N < R < SR < SSR < UR (DESIGN.md §3.4) — lớp riêng của game này, nhân vào chỉ số */
   G.THONG_THAO = [
     { id: 'N', ten: 'N', heso: 0.90, mau: '#7d8794' },
     { id: 'R', ten: 'R', heso: 0.95, mau: '#6fc4f0' },
@@ -271,19 +209,80 @@
   G.TT_THEO_ID = {};
   G.THONG_THAO.forEach(function (t) { G.TT_THEO_ID[t.id] = t; });
 
-  /** chỉ số tướng ở một cấp trận (1..12) */
+  G.CAP_TOI_DA = CAI.need_exp.length + 1;      /* 12 */
+
+  /** chỉ số tướng ở một cấp trận (1..12), đơn vị SIM: tầm và tốc chạy theo sân 0..1000, tốc đánh = đòn/giây */
   G.tuongOCap = function (t, cap) {
-    var c = t.cs, n = cap - 1;
+    var s = t.tfm.stat, g = t.tfm.growth, n = Math.max(0, cap - 1);
+    var d = t.tfm.attack || {};
     return {
-      atk: c[0] + c[1] * n, ap: c[2] + c[3] * n, hp: c[4] + c[5] * n,
-      giap: c[6] + c[7] * n, khang: c[8] + c[9] * n,
-      tam: c[10], tocdanh: c[11], tocchay: c[12]
+      atk: s.attack + g.attack * n, ap: s.magic_power + g.magic_power * n,
+      hp: s.hp + g.hp * n, giap: s.defence + g.defence * n, khang: s.magic_resistance + g.magic_resistance * n,
+      tam: G.kcTFM(d.range || 23000),
+      tocdanh: TPS / (d.cooltime || 60),
+      tocchay: (s.move_speed + g.move_speed * n) * TPS / DV,
+      hpRegen: s.hp_regen + g.hp_regen * n
     };
   };
 
   /** tướng theo vị trí */
   G.tuongTheoViTri = function (vt) {
     return G.TUONG.filter(function (t) { return t.vt === vt; });
+  };
+
+  /* ══════════ HÌNH VÀ TIẾNG ══════════
+     Agent ảnh xuất đủ 68 tướng: sheet riêng từng tướng (`G.napTuong` / `G.veHinhT` / `G.daiT`,
+     RESEARCH §15.4), chân dung chung (`G.oAnhTuongIcon`), tiếng `tran.<id>.<hành động TFM2>`
+     (§15.5). Tên hoạt ảnh và tên tiếng do TFM2 đặt, KHÔNG đều giữa các tướng (`skill` hay
+     `skill1`, `bush_skill1` của hunter…) — hai hàm dưới tra theo danh sách ứng viên. */
+  var ANIM_UNG = {
+    dung: ['idle'], chay: ['run', 'move', 'walk'], danh: ['attack', 'attack1'], dinh: ['hit', 'damaged'],
+    chet: ['dead', 'die', 'death'],
+    skill: ['skill', 'skill1', 'skill1_pre', 'skill_pre', 'bush_skill1', 'skill1_dash'],
+    skill2: ['skill2', 'skill2_pre', 'skill2_start', 'skill2_dash', 'skill2_attack'],
+    ult: ['ult', 'ult_pre', 'ult_on', 'ult_attack', 'ult_dash', 'ult_loop']
+  };
+  var TIENG_UNG = {
+    danh: ['attack', 'attack1', 'bush_attack', 'attack_cast'],
+    skill: ['skill', 'skill1', 'skill_cast', 'skill1_cast', 'bush_skill1', 'skill1_pre', 'skill_start'],
+    skill2: ['skill2', 'skill2_cast', 'skill2_start', 'skill2_attack', 'skill2_on'],
+    ult: ['ult', 'ult_cast', 'ult_pre', 'ult_on', 'ult_loop', 'ult_attack', 'ult_dash']
+  };
+  /** tên hoạt ảnh TFM2 của tướng `id` cho hành động của sim (dung/chay/danh/dinh/chet/skill/skill2/ult);
+      không có thì 'idle' (G.veHinhT tự rơi về idle nên chỗ vẽ không cần kiểm) */
+  G.animTuong = function (id, hanh) {
+    var ds = ANIM_UNG[hanh] || [hanh];
+    if (!G.daiT) return ds[0];
+    for (var i = 0; i < ds.length; i++) if (G.daiT(id, ds[i]) > 0) return ds[i];
+    return hanh === 'dung' ? 'idle' : ds[0];
+  };
+  /** phần tử <i> chân dung cho DOM — atlas chung art/tfm/icon.png (window.TFM_ICON, không nạp lười).
+      `[BẪY ĐÃ SẬP]` G.anhTuongIcon của sprites.js đặt background-size bằng cỡ Ô chứ không phải cỡ
+      ATLAS, nên cả tấm co lại thành một chấm 21 px — đã ghi yêu cầu sửa cho agent ảnh
+      (brain/plans/ghe-nong-tfm2-full.md). Ở đây dựng style từ chính bảng toạ độ. */
+  var CO_ICON = null;
+  G.oAnhTuongTFM = function (id, cao) {
+    var TI = window.TFM_ICON, m = TI && TI[id];
+    if (!m) return null;
+    if (!CO_ICON) {
+      CO_ICON = [0, 0];
+      for (var k in TI) { var o = TI[k]; if (o && o.length === 4) { CO_ICON[0] = Math.max(CO_ICON[0], o[0] + o[2]); CO_ICON[1] = Math.max(CO_ICON[1], o[1] + o[3]); } }
+    }
+    cao = cao || 44;
+    var kk = cao / Math.max(m[2], m[3]);
+    var st = 'background-image:url(art/tfm/icon.png?v=' + (G.ART_V || '') + ');' +
+      'background-position:' + (-m[0] * kk) + 'px ' + (-m[1] * kk) + 'px;' +
+      'background-size:' + (CO_ICON[0] * kk) + 'px ' + (CO_ICON[1] * kk) + 'px;' +
+      'background-repeat:no-repeat;image-rendering:pixelated;display:block;width:' + cao + 'px;height:' + cao + 'px';
+    return G.el('i', { style: st });
+  };
+  /** tên tiếng `tran.<id>.<hành động>` có trong bảng; không có thì null (nightmare không có tiếng trong TFM2, §15.5) */
+  G.tiengTuong = function (id, hanh) {
+    var B = window.AM_BANG && window.AM_BANG.tieng;
+    if (!B) return null;
+    var ds = TIENG_UNG[hanh] || [hanh];
+    for (var i = 0; i < ds.length; i++) { var k = 'tran.' + id + '.' + ds[i]; if (B[k]) return k; }
+    return null;
   };
 
 })(window);
