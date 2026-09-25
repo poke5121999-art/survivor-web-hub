@@ -19,11 +19,8 @@
    dùng "skill1"); build_tfm_data.py giờ nắn khoá này, ghi lại vào `tfm.khoa_goc`. jiangshi vốn có
    CẢ "skill" lẫn "skill1" (skill1 = triệu hồi "Quân Đoàn Cương Thi", skill = choáng+hồi
    "Cú Đánh Trời Giáng") — lõi đã đẩy đúng: `S.p` của `skill` giờ là triệu hồi, `skill2` là
-   choáng+hồi. lightning_mage: `skill` giờ đúng là "Giật Sét Liên Hoàn". monk: "heal_skill" (Hào
-   Quang Hồi Phục) KHÔNG được nắn — lõi liệt nó vào `tfm.bi_dong` (bị động, sim không tự ra chiêu
-   này) vì raw key khác dạng "skill1"; bảng `DP_MONK_SKILL` dưới đây vẫn giữ tạm để hàm `skill` viết
-   đúng theo mô tả TFM2, phòng khi có chỗ gọi thủ công sau này (ví dụ UI, hoặc lõi quyết định nắn
-   luôn "heal_skill" — khi đó chỉ cần đổi `DP_MONK_SKILL` thành đọc `S.p`, xem `pCon` bên dưới).
+   choáng+hồi. lightning_mage: `skill` giờ đúng là "Giật Sét Liên Hoàn". monk: chiêu đầu gốc tên
+   "heal_skill" (Hào Quang Hồi Phục), cũng đã nắn sang `skill`.
 */
 (function (G) {
   'use strict';
@@ -47,11 +44,6 @@
     var r = doGoc * Math.PI / 180;
     return [h[0] * Math.cos(r) - h[1] * Math.sin(r), h[0] * Math.sin(r) + h[1] * Math.cos(r)];
   }
-
-  /* monk.skill ("heal_skill" gốc) vẫn nằm trong `tfm.bi_dong` — chưa có trong S.p (xem đầu tệp) */
-  var DP_MONK_SKILL = {                /* raw "heal_skill" — Hào Quang Hồi Phục */
-    range: 80000, cooltime: 480, heal: 100, heal_self: 200, attack_ratio: 50
-  };
 
   /* ══════════════════════════ 10 TƯỚNG GỐC ══════════════════════════ */
 
@@ -330,10 +322,10 @@
     }
   };
 
-  /* ---------- monk (skill dùng số dự phòng — xem bẫy dữ liệu đầu tệp) ---------- */
+  /* ---------- monk ---------- */
   G.CHIEU_TFM.monk = {
     skill: function (S) {
-      var p = DP_MONK_SKILL;
+      var p = S.p;
       var ds = S.dongMinh(S.n.x, S.n.y, p.range, { keMinh: true });
       if (!ds.length) return false;
       if (ds.length === 1 && ds[0] === S.n) {

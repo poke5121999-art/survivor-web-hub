@@ -49,6 +49,9 @@ def main():
                 goc['skill2'] = 'skill'
             c['skill'] = c['skill1']
             c['khoa_goc'] = goc
+        if 'skill' not in c and isinstance(c.get('heal_skill'), dict):     # monk: chiêu đầu tên `heal_skill`
+            c['skill'] = c['heal_skill']
+            c['khoa_goc'] = {'skill': 'heal_skill'}
         # ô chiêu có mô tả mà không có khối ra đòn là chiêu BỊ ĐỘNG (Monk hồi máu, Gunner vừa chạy vừa bắn…)
         bd = [o for o in ('skill', 'skill2') if not isinstance(c.get(o), dict)]
         if bd:
