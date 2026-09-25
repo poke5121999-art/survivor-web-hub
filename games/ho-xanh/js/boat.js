@@ -761,7 +761,8 @@
     '  vec2 suv = gl_FragCoord.xy / uRes; float dz = texture2D(tDepth, suv).x;',
     '  vec4 cp = uInvProj * vec4(suv * 2.0 - 1.0, dz * 2.0 - 1.0, 1.0); cp /= cp.w; vec3 ow = (uCamWorld * cp).xyz; ow.z = -ow.z;',
     '  float d = abs(P.y - ow.y); if (dz >= 0.99999) d = 1000.0;',
-    '  float grad = clamp(d / uDepth + uDepthExp * (1.0 - exp(-d / uDepth) - d / uDepth), 0.0, 1.0);',
+    // [DtD] đúng DXBC: exp(−d) chia _Depth (không phải exp(−d/_Depth)); viết sai thì nước tối (_Depth 8) trong như kính, lộ đáy cát
+    '  float grad = clamp(d / uDepth + uDepthExp * (1.0 - exp(-d) / uDepth - d / uDepth), 0.0, 1.0);',
     '  float g = 1.0 - clamp(exp(d) / uInterLen, 0.0, 1.0);',
     '  float n1 = samp(uNoise, wp * uInterTiling + tv * uInterSpeed, uNoiseSrgb).r, n2 = samp(uNoise, wp * uInterTiling * 1.5 - tv * uInterSpeed, uNoiseSrgb).r;',
     '  float dist = clamp(g / uInterFall, 0.0, 1.0); float inter = clamp(dist + n1 + n2, 0.0, 1.0) * dist * uInterCol.a;',
