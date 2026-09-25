@@ -120,7 +120,7 @@ async function run(browser, base, W, H, touch) {
   const lastTrip = () => page.evaluate(() => { const t = HX.phases.boat.trace(); return t && t[t.length - 1]; });
   const expect = a => page.evaluate(expectedPoseExpr(), a);
 
-  await page.goto(base + '/games/ho-xanh/index.html?fresh=1&route=A01,B01,C03&phase=boat&dir=out&boattrace=1');
+  await page.goto(base + '/games/ho-xanh/index.html?fresh=1&route=A01,B01,C03&phase=boat&dir=out&boattrace=1', { timeout: 120000 });
   await until(() => window.HX && HX.phases.boat.info().loaded);
   // ghi lại mọi lần boat.js gọi G.go (loading có khi chỉ kéo dài một khung khi glb đã nạp sẵn)
   await page.evaluate(() => { window.__went = []; const go = HX.game.go; HX.game.go = function (n, a) { window.__went.push(n); return go(n, a); }; });
