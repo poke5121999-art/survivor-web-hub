@@ -36,11 +36,14 @@
     addEventListener('keyup', e => { const a = KEYMAP[e.code]; if (a) input.up(a); });
     addEventListener('blur', () => input.clear());
     el.addEventListener('contextmenu', e => e.preventDefault());
-    el.addEventListener('pointerdown', e => { const a = MOUSEMAP[e.button]; if (a) input.down(a); });
+    // Bấm chỉ tính khi trúng canvas: đang mở bảng giao diện mà bấm thì không vung kiếm.
+    el.addEventListener('pointerdown', e => { const a = MOUSEMAP[e.button]; if (a) { e.preventDefault(); input.down(a); } });
     addEventListener('pointerup', e => { const a = MOUSEMAP[e.button]; if (a) input.up(a); });
-    el.addEventListener('pointermove', e => {
+    // Ngắm nghe trên window và tính theo khung canvas, để lớp phủ nào nằm trên canvas cũng không làm mất hướng ngắm.
+    addEventListener('pointermove', e => {
       const r = el.getBoundingClientRect();
-      input.mouse.x = e.clientX - r.left; input.mouse.y = e.clientY - r.top; input.mouse.inside = true;
+      input.mouse.x = e.clientX - r.left; input.mouse.y = e.clientY - r.top;
+      input.mouse.inside = input.mouse.x >= 0 && input.mouse.y >= 0 && input.mouse.x <= r.width && input.mouse.y <= r.height;
     });
   }
 

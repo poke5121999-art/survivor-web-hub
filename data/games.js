@@ -381,7 +381,7 @@ window.HUB_GAMES = [
     tagline: "Tiệm đồ cổ Balusha cử Diver xuống hầm ngục giữa thành phố nhặt cổ vật. Chém, bắn, lướt dưới ánh đèn pin sắp cạn pin; căng thẳng càng cao thì bóng tối càng sinh quái. Mang đồ về bốt điện thoại, bán, chế, học kỹ năng rồi lặn tiếp. Bốn Diver: Gayoung, Noah, Mio, Raven.",
     thumbnail: "assets/thumbnails/voiddiver.png",
     path: "games/voiddiver/index.html",
-    rev: "20260925a",
+    rev: "20260925b",
     // Dựng lại hoàn toàn 2026-09-25 từ chính bản demo Steam VOID DIVER: Escape from the Abyss
     // (Studio Nemo, appid 4347080) cài trên máy chủ dự án. Bản 2026-08 (vẽ bằng code, số tự chế) đã xoá.
     // Bảng số gốc: TableEncrypted là CSV XOR 0xCC, Lua XOR 0xF4 (bản cũ ghi "mã hoá, không đọc được" là sai).

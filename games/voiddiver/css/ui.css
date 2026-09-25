@@ -40,8 +40,10 @@
 .vd-radio span { font-size: 14px; line-height: 1.45; }
 
 /* HUD lượt lặn */
-.vd-hud { position: absolute; inset: 0; pointer-events: none; }
+.vd-hud { position: absolute; inset: 0; }
 .vd-hud-world { position: absolute; inset: 0; overflow: hidden; }
+/* Lớp phủ toàn màn của HUD phải để chuột xuyên xuống canvas (luật #ui > * ở trên bật auto cho mọi con trực tiếp). */
+#ui > .vd-hud, #ui > .vd-lhud, #ui .vd-hud-world, #ui .vd-hud-world * { pointer-events: none; }
 .vd-hud-left { position: absolute; left: 18px; bottom: 18px; display: flex; align-items: flex-end; gap: 12px; }
 .vd-light { width: 34px; text-align: center; font-size: 12px; color: var(--ink); }
 .vd-light .bulb { width: 14px; height: 40px; margin: 0 auto 4px; background: linear-gradient(#fff8d8, #c8b67c); clip-path: polygon(20% 0, 80% 0, 100% 30%, 70% 45%, 70% 100%, 30% 100%, 30% 45%, 0 30%); box-shadow: 0 0 12px #ffeaa0; }

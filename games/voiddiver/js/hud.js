@@ -121,7 +121,7 @@
       const stk = row.StackCount > 1 ? (u.stacks[id] != null ? u.stacks[id] : row.StackCount) : '';
       el.querySelector('.stk').textContent = stk === '' ? '' : stk;
       el.classList.toggle('ready', frac === 0 && row.ChargeCost > 0);
-      el.classList.toggle('active', !!(u.run && u.run.skillId === id));
+      el.classList.toggle('active', !!(u.run && u.run.id === id));
     });
     // Thanh máu boss.
     const b = H.bossUnit;
