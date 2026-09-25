@@ -104,9 +104,9 @@
 
       var buildUrl = "Build";
       var config = {
-        dataUrl: buildUrl + "/repo2d-unity-38b6b0e90b.data.unityweb",
-        frameworkUrl: buildUrl + "/repo2d-unity-38b6b0e90b.framework.js.unityweb",
-        codeUrl: buildUrl + "/repo2d-unity-38b6b0e90b.wasm.unityweb",
+        dataUrl: buildUrl + "/repo2d-unity-c1eeea83af.data.unityweb",
+        frameworkUrl: buildUrl + "/repo2d-unity-c1eeea83af.framework.js.unityweb",
+        codeUrl: buildUrl + "/repo2d-unity-c1eeea83af.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         // Cùng trần độ nét với fitCanvas: không đặt thì Unity tự lấy devicePixelRatio (3 trên nhiều điện thoại) và
         // bộ đệm nhảy qua lại giữa hai cỡ mỗi lần trang đổi cỡ.
@@ -223,7 +223,7 @@
       }, 1000);
 
       var script = document.createElement("script");
-      script.src = buildUrl + "/repo2d-unity-38b6b0e90b.loader.js";
+      script.src = buildUrl + "/repo2d-unity-c1eeea83af.loader.js";
       script.onerror = function () { loadFailed("Không tải được " + script.src); };
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
