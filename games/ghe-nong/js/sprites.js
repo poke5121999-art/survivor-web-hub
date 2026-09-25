@@ -10,7 +10,7 @@
   /* MỘT số bản cho mọi ảnh atlas. Canvas từng nạp `?v=…12a` còn ảnh DOM nạp `?v=…11a`:
      mỗi atlas tải hai lần, và chân dung DOM có thể lấy ảnh cũ trong cache ghép với toạ độ mới.
      Đổi ảnh trong art/ thì tăng đúng số này. */
-  var ART_V = '20260925a';
+  var ART_V = '20260925c';
   var MAP = window.ART_MAP || null;
   var ANH = {};
   var xong = 0, can = 0;
@@ -121,6 +121,18 @@
   /* Mọi atlas đều xếp CỘT = khoá, HÀNG = khung — kể cả fx. Bản trước fx xếp ngược lại
      nên veFX phải tra chéo; giờ thống nhất một luật cho cả bảy tệp. */
   G.veFX = function (ctx, id, x, y, cao, khung, goc) {
+    /* hiệu ứng TFM2: co theo cạnh dài nhất của cả dãy, như ô 64 của atlas cũ */
+    var h = TH && TH['hieu.' + id];
+    if (h && G.coHinh('hieu.' + id)) {
+      var f = h.no[(khung | 0) % h.no.length], kk = (cao || 40) / Math.max(h._[2], h._[3]);
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.translate(x, y);
+      if (goc) ctx.rotate(goc);
+      ctx.drawImage(ANH_TH, f[0], f[1], f[2], f[3], -f[2] * kk / 2, -f[3] * kk / 2, f[2] * kk, f[3] * kk);
+      ctx.restore();
+      return true;
+    }
     if (!MAP || !MAP.fx || !MAP.fx[id]) return false;
     var m = MAP.fx[id];
     return veTam(ctx, 'fx', m[0], (khung | 0) % (m[1] || 1), x, y, cao || 40, goc);

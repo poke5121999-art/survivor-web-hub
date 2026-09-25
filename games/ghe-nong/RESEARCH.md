@@ -1824,3 +1824,17 @@ là `epic`.
   điểm). Đo độ dài mọi tiếng trước khi gán cho sự kiện hay lặp.
 - Tên nhạc nền Uma (`snd_bgm_gm001`...) không nói bài nào phát ở màn nào. Nhà = `gm001`, ca = `gm002`,
   tuyển mộ = `gm020a` là chọn theo tên và độ dài. **Chưa ai nghe bằng tai** mọi lựa chọn tiếng ở đây.
+
+### 12.7 Hiệu ứng chiêu
+
+- 41 hiệu ứng TFM2 nằm trong cùng atlas, khoá `hieu.<tên>` (bảng `HIEU` trong `build_tfm.py`). Lấy từ
+  thư mục `skill_effect/` và từ các dãy hiệu ứng nằm lẫn trong sheet tướng (thiên thạch
+  `pyromancer:ult_effect`, bẫy kẹp `bomber:trap_on`, tử thần `plague_doctor_skill:ult`...).
+- `G.veFX` nhận khoá TFM2 trước, thiếu thì mới tra `art/fx.png`. Cỡ co theo cạnh dài nhất của CẢ dãy
+  khung, giống nghĩa "ô 64" của atlas cũ, nên mọi chỗ gọi cũ giữ nguyên số.
+- Bảy kiểu bày (`vong`, `no`, `tia`, `lao`, `ban`, `roi`, `mua`...) không đổi; chỉ trường `fx` của
+  40 chiêu đổi sang hình TFM2. Xem cả bảng ở `_tools/xemfx.html`.
+- `[BẪY ĐÃ SẬP]` Vòm chắn của `barrier_magician` là một đường tròn một điểm ảnh; co xuống cỡ trong trận
+  là biến mất. Chọn hiệu ứng phải xem ở cỡ thật, không phải ở bảng phóng to.
+- Choáng dùng `stun_effect`, lên cấp dùng `levelup_effect` (chỉ phe mình), hồi sinh dùng
+  `recall_effect_front:spawn`.

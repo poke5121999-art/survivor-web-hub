@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<base href="../">
+<title>Xem hiệu ứng chiêu</title>
+<style>
+  body { margin: 0; background: #1d2a22; color: #dfe8e2; font: 12px system-ui; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<!-- Vẽ mọi chiêu trong G.FX_CHIEU qua đúng G.veFX của game, ở khung giữa dãy, cỡ 90 px.
+     Mở: http://localhost:8765/games/ghe-nong/_tools/xemfx.html (python -m http.server 8765 ở gốc repo). -->
+<canvas id="c" width="1280" height="1200"></canvas>
+<script src="art/asset-map.js"></script>
+<script src="art/tfm/hinh.js"></script>
+<script src="js/util.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/fx-chieu.js"></script>
+<script>
+  window.ART_MAP._o = window.ART_MAP._o || 64;
+  G = window;
+  G.taiArt(function () {
+    setTimeout(function () {
+      var ctx = document.getElementById('c').getContext('2d');
+      var ds = Object.keys(G.FX_CHIEU), O = 128, cot = 10;
+      ds.forEach(function (k, i) {
+        var x = (i % cot) * O + O / 2, y = Math.floor(i / cot) * (O + 30) + O / 2 + 10;
+        ctx.strokeStyle = '#2f4238'; ctx.strokeRect(x - O / 2 + 2, y - O / 2, O - 4, O);
+        [0.25, 0.5].forEach(function (pha, j) {
+          var n = (window.TFM_HINH['hieu.' + G.FX_CHIEU[k].fx] || { no: [0] }).no.length;
+          G.veFX(ctx, G.FX_CHIEU[k].fx, x, y, 90, Math.floor(n * pha) + j, 0);
+        });
+        ctx.fillStyle = '#dfe8e2'; ctx.textAlign = 'center';
+        ctx.fillText(k, x, y + O / 2 + 12);
+        ctx.fillStyle = G.FX_CHIEU[k].mau; ctx.fillText(G.FX_CHIEU[k].fx + ' · ' + G.FX_CHIEU[k].kieu, x, y + O / 2 + 25);
+      });
+      document.title = 'xong';
+    }, 300);
+  });
+</script>
+</body>
+</html>

@@ -28,7 +28,7 @@
      Chậm lại chỉ có nghĩa khi có NỘI SUY đi kèm — xem `tiLe()` bên dưới. */
   var TICK_GIAY = 12;
   var thoaiHD = [], bayHD = [], hieuHD = [], ngaLuc = {};
-  var daNghe = {}, daHa = {};
+  var daNghe = {}, daHa = {}, lenCapLuc = {};
   var truoc = 0, dong = 0;
 
   /* Giây hoạt ảnh TFM2 cho mỗi giây trong trận. Ở ×1 trận chạy nhanh gấp 3 lần thật; phát khung
@@ -76,7 +76,7 @@
     G.hienMan('man-tran');
     G.nhac(Math.random() < 0.5 ? 'tran' : 'tran2');
     G.napTieng(['tran.']);
-    daNghe = {}; daHa = {};
+    daNghe = {}; daHa = {}; lenCapLuc = {};
     dungKhung();
     /* bài dạy lần đầu: trận ĐỨNG YÊN cho tới khi đóng hộp, không thì mất những giây đầu */
     if (G.day && !(G.S.day || {}).tran) {
@@ -242,7 +242,7 @@
       if (moi.n !== cu.n && moi.n != null) G.tieng('tran.' + id + (n.niemCuoi ? '.cuoi' : '.chieu'), am, 0.1);
       else if (moi.d !== cu.d && moi.d != null) G.tieng('tran.' + id + '.danh', am * 0.8, 0.09);
       if (moi.h !== cu.h && moi.h != null) G.tieng('tran.hoiSinh', am);
-      if (moi.c > cu.c && n.doi === 'xanh') G.tieng('tran.lenCap', am * 0.8, 0.3);
+      if (moi.c > cu.c && n.doi === 'xanh') { lenCapLuc[n.i] = gio(); G.tieng('tran.lenCap', am * 0.8, 0.3); }
     });
   }
 
@@ -772,6 +772,7 @@
         gh.addColorStop(1, 'rgba(140,220,255,0)');
         ctx.fillStyle = gh;
         ctx.fillRect(p[0] - cao * .4, p[1] - cao * 2, cao * .8, cao * 2);
+        G.veHinh(ctx, 'hieu.hoi_sinh', 'no', tHoi * heHinh(), p[0], p[1], s * 1.15, false, false);
       }
 
       var khoaT = 'tuong.' + n.tuong.id;
@@ -864,10 +865,11 @@
         ctx.globalAlpha = 1;
       }
 
-      if (n.kc > 0) {
-        ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = Math.max(1.5, 2.5 * s);
-        ctx.beginPath(); ctx.arc(p[0], p[1] - cao * .5, cao * .5, t * 5, t * 5 + 4.4); ctx.stroke();
-        if (G.veFX) G.veFX(ctx, 'sao', p[0], p[1] - cao * 1.12, cao * .5, Math.floor(t * 8));
+      if (n.kc > 0) G.veFX(ctx, 'choang', p[0], dinhDau - 6 * s, 26 * s, Math.floor(t * hh * 10));
+      /* lên cấp: mũi tên "LV UP" của TFM2 bay lên đầu, chỉ phe mình cho khỏi rối */
+      var tLen = lenCapLuc[n.i] == null ? -1 : (t - lenCapLuc[n.i]) * hh;
+      if (tLen >= 0 && tLen < G.dai('hieu.len_cap', 'no')) {
+        G.veHinh(ctx, 'hieu.len_cap', 'no', tLen, p[0], p[1], kT, false, false);
       }
       if (n.hieu && n.hieu.chan) {
         ctx.strokeStyle = 'rgba(160,220,255,.8)'; ctx.lineWidth = Math.max(1.5, 3 * s);
