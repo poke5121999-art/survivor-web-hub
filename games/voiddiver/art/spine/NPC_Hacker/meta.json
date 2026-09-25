@@ -1,0 +1,35 @@
+{
+ "name": "NPC_Hacker",
+ "skeletons": {
+  "NPC_Hacker_NW": {
+   "skel": "NPC_Hacker_NW.skel",
+   "bytes": 55925,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "NPC_Hacker_SW": {
+   "skel": "NPC_Hacker_SW.skel",
+   "bytes": 73424,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Hacker.atlas",
+ "pages": [
+  {
+   "png": "NPC_Hacker.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Hacker_Material",
+   "shader": ""
+  }
+ ]
+}

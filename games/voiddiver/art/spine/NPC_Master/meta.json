@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Master",
+ "skeletons": {
+  "NPC_Master_SW": {
+   "skel": "NPC_Master_SW.skel",
+   "bytes": 51613,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Master.atlas",
+ "pages": [
+  {
+   "png": "NPC_Master.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Master_Material",
+   "shader": ""
+  }
+ ]
+}

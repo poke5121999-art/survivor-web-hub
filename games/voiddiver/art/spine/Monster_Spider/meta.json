@@ -1,0 +1,35 @@
+{
+ "name": "Monster_Spider",
+ "skeletons": {
+  "Monster_Spider_SW": {
+   "skel": "Monster_Spider_SW.skel",
+   "bytes": 79453,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_Spider_NW": {
+   "skel": "Monster_Spider_NW.skel",
+   "bytes": 53703,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_Spider.atlas",
+ "pages": [
+  {
+   "png": "Monster_Spider.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Spider_Material",
+   "shader": ""
+  }
+ ]
+}

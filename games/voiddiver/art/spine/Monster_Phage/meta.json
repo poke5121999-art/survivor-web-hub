@@ -1,0 +1,35 @@
+{
+ "name": "Monster_Phage",
+ "skeletons": {
+  "Monster_Phage_NW": {
+   "skel": "Monster_Phage_NW.skel",
+   "bytes": 77278,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_Phage_SW": {
+   "skel": "Monster_Phage_SW.skel",
+   "bytes": 82039,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_Phage.atlas",
+ "pages": [
+  {
+   "png": "Monster_Phage.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Phage_Material",
+   "shader": ""
+  }
+ ]
+}

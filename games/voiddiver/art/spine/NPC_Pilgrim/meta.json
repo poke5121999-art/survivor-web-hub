@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Pilgrim",
+ "skeletons": {
+  "NPC_Pilgrim_SW": {
+   "skel": "NPC_Pilgrim_SW.skel",
+   "bytes": 32226,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Pilgrim.atlas",
+ "pages": [
+  {
+   "png": "NPC_Pilgrim.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Pilgrim_Material",
+   "shader": ""
+  }
+ ]
+}

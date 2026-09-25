@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Woung",
+ "skeletons": {
+  "NPC_Woung_SW": {
+   "skel": "NPC_Woung_SW.skel",
+   "bytes": 42265,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Woung.atlas",
+ "pages": [
+  {
+   "png": "NPC_Woung.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Woung_Material",
+   "shader": ""
+  }
+ ]
+}

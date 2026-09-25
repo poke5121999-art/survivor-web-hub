@@ -1,0 +1,35 @@
+{
+ "name": "Cha_Dullahan",
+ "skeletons": {
+  "Cha_Dullahan_SW": {
+   "skel": "Cha_Dullahan_SW.skel",
+   "bytes": 372665,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "Cha_Dullahan_NW": {
+   "skel": "Cha_Dullahan_NW.skel",
+   "bytes": 285851,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Cha_Dullahan.atlas",
+ "pages": [
+  {
+   "png": "Cha_Dullahan.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Dullahan_Material",
+   "shader": ""
+  }
+ ]
+}

@@ -1,0 +1,28 @@
+{
+ "name": "World_Cat",
+ "skeletons": {
+  "World_Cat": {
+   "skel": "World_Cat.skel",
+   "bytes": 229408,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null
+  }
+ },
+ "atlas": "World_Cat.atlas",
+ "pages": [
+  {
+   "png": "World_Cat.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "World_Cat_Material",
+   "shader": ""
+  }
+ ]
+}

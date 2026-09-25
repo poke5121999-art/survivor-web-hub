@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Joice",
+ "skeletons": {
+  "NPC_Joice_SW": {
+   "skel": "NPC_Joice_SW.skel",
+   "bytes": 41399,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Joice.atlas",
+ "pages": [
+  {
+   "png": "NPC_Joice.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Joice_Material",
+   "shader": ""
+  }
+ ]
+}

@@ -1,0 +1,128 @@
+/* Lớp lặn: lời nhắc F, túi đồ (Tab), bản đồ nhỏ (M), kết quả, thẻ mở màn, nạp. Màu dùng biến của ui.css. */
+
+/* ---------- lời nhắc "F <động từ>" + vòng giữ (ảnh Steam ss01: vòng tròn quanh chữ F, chữ trắng bên phải, phí xu bên dưới) */
+.vd-prompt { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 8px; pointer-events: none; will-change: transform;
+  font-size: clamp(14px, 2.2vh, 20px); font-weight: 700; text-shadow: 0 1px 3px #000, 0 0 2px #000; }
+.vd-prompt .key { position: relative; width: 36px; height: 36px; flex: none; }
+.vd-prompt svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.vd-prompt circle { fill: none; stroke-width: 3; }
+.vd-prompt circle.bg { stroke: rgba(255,255,255,.55); fill: rgba(20,20,24,.75); }
+.vd-prompt circle.fg { stroke: #fff; transition: stroke-dashoffset .05s linear; }
+.vd-prompt .key b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.vd-prompt.locked .verb { color: #f0a080; }
+.vd-prompt .cost { position: absolute; left: 0; top: 42px; display: flex; align-items: center; gap: 4px; background: rgba(15,15,18,.85); padding: 2px 8px 2px 4px; font-size: 14px; }
+.vd-prompt .cost img { width: 20px; height: 20px; image-rendering: pixelated; }
+
+.vd-pointer { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.vd-pointer::after { content: ''; position: absolute; left: -9px; top: -22px; border: 9px solid transparent; border-top: 14px solid #ffd24a;
+  filter: drop-shadow(0 1px 2px #000); animation: vd-bob 0.9s ease-in-out infinite; }
+@keyframes vd-bob { 50% { transform: translateY(-6px); } }
+
+/* ---------- ô đồ nhanh trên HUD */
+.vd-item.cool::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,.55); }
+.vd-item.empty img { opacity: .35; }
+
+/* ---------- túi đồ */
+.vd-inv { position: absolute; inset: 0; display: none; background: rgba(0,0,0,.45); z-index: 20; }
+.vd-inv.on { display: flex; align-items: center; justify-content: center; }
+.vd-inv-win { position: relative; display: flex; gap: 14px; max-width: 96vw; max-height: 92vh; padding: 14px; box-sizing: border-box;
+  background: rgba(14,14,18,.94); border: 1px solid var(--line); box-shadow: 0 12px 50px #000; overflow: auto; }
+.vd-inv-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.vd-inv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+.vd-inv-head b { color: var(--gold); font-size: 16px; }
+.vd-inv-head .stat { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+.vd-inv-head button { font: inherit; font-size: 12px; color: var(--ink); background: rgba(255,255,255,.08); border: 1px solid var(--line); padding: 2px 10px; cursor: pointer; }
+.vd-inv-sub { color: var(--dim); font-size: 12px; margin-top: 4px; }
+.vd-inv-sub i { font-style: normal; opacity: .75; }
+.vd-inv-grid { display: grid; grid-template-columns: repeat(6, var(--cell)); gap: 4px; --cell: clamp(34px, 6.2vh, 54px); }
+.vd-inv-col.loot .vd-inv-grid { grid-template-columns: repeat(4, var(--cell)); }
+.vd-cell { position: relative; width: var(--cell, 46px); height: var(--cell, 46px); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.14); box-sizing: border-box; cursor: pointer; }
+.vd-cell img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.vd-cell .n { position: absolute; right: 2px; bottom: 0; font-size: 11px; text-shadow: 0 1px 2px #000; }
+.vd-cell .k { position: absolute; left: 2px; top: 0; font-size: 10px; color: var(--dim); }
+.vd-cell.empty { cursor: default; }
+.vd-cell.bagslot { border-style: dashed; }
+.vd-cell:hover { border-color: var(--gold); }
+.vd-cell.g-rare { background: rgba(70,120,200,.18); border-color: rgba(90,140,220,.5); }
+.vd-cell.g-elite { background: rgba(140,90,210,.2); border-color: rgba(160,110,230,.55); }
+.vd-cell.g-epic { background: rgba(210,90,160,.2); border-color: rgba(230,110,180,.55); }
+.vd-cell.g-legend, .vd-cell.g-unique { background: rgba(220,160,60,.22); border-color: rgba(240,180,80,.65); }
+.vd-inv-empty { color: var(--dim); padding: 8px; }
+.vd-inv-tip { position: absolute; right: 14px; bottom: 14px; width: min(260px, 40vw); display: none; background: rgba(0,0,0,.85); border: 1px solid var(--line); padding: 8px 10px; font-size: 12px; line-height: 1.45; pointer-events: none; }
+.vd-inv-tip b { color: var(--gold); display: block; font-size: 13px; }
+.vd-inv-tip .g { color: var(--dim); }
+.vd-inv-tip .d { margin: 4px 0; }
+.vd-inv-close { position: absolute; right: 8px; top: 6px; font-size: 11px; color: var(--dim); cursor: pointer; border: 1px solid var(--line); padding: 1px 6px; }
+
+/* ---------- bản đồ nhỏ (vòng tròn góc phải trên như ảnh Steam) */
+.vd-minimap { position: absolute; right: 16px; top: 14px; pointer-events: none; }
+.vd-minimap canvas.small { width: clamp(110px, 24vh, 190px); height: clamp(110px, 24vh, 190px); display: block; border-radius: 50%; }
+.vd-map-big { position: fixed; inset: 6vh 6vw; display: none; background: rgba(4,5,8,.92); border: 1px solid var(--line); }
+.vd-map-big.on { display: block; }
+.vd-map-big canvas { width: 100%; height: 100%; display: block; }
+.vd-map-big .legend { position: absolute; left: 10px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--dim); }
+.vd-map-big .legend img { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
+
+/* ---------- nạp, mở màn, cutscene */
+.vd-loading { position: absolute; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 30; }
+.vd-loading .spin { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,.15); border-top-color: var(--gold); border-radius: 50%; animation: vd-spin 1s linear infinite; }
+.vd-loading .tip { max-width: min(560px, 86vw); text-align: center; color: var(--dim); font-size: 14px; line-height: 1.5; }
+@keyframes vd-spin { to { transform: rotate(360deg); } }
+.vd-introcard { position: absolute; left: 0; right: 0; top: 30%; text-align: center; pointer-events: none; transition: opacity .8s; z-index: 5; text-shadow: 0 2px 8px #000; }
+.vd-introcard.out { opacity: 0; }
+.vd-introcard .sec { color: var(--dim); font-size: 14px; letter-spacing: .2em; }
+.vd-introcard .name { color: var(--gold); font-size: clamp(22px, 4.5vh, 40px); font-weight: 700; margin: 6px 0; }
+.vd-introcard .desc { color: var(--ink); font-size: 14px; max-width: min(620px, 86vw); margin: 0 auto; opacity: .85; }
+body.vd-cutscene #view { transition: filter .6s; filter: contrast(1.1) brightness(.8); }
+body.vd-cutscene #ui::before { content: ''; position: fixed; left: 0; right: 0; top: 0; height: 9vh; background: #000; z-index: 4; }
+body.vd-cutscene #ui::after { content: ''; position: fixed; left: 0; right: 0; bottom: 0; height: 9vh; background: #000; z-index: 4; }
+
+/* ---------- kết quả lượt lặn */
+.vd-result { position: absolute; inset: 0; background: rgba(0,0,0,.72); display: flex; align-items: center; justify-content: center; z-index: 25; }
+.vd-result .box { width: min(560px, 92vw); max-height: 90vh; overflow: auto; background: rgba(14,14,18,.96); border: 1px solid var(--line); padding: 18px 22px; box-sizing: border-box; }
+.vd-result h2 { margin: 0; color: var(--gold); font-size: 20px; }
+.vd-result h3 { margin: 12px 0 6px; font-size: 13px; color: var(--dim); font-weight: 500; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+.vd-result .verdict { font-size: 26px; font-weight: 800; margin: 6px 0 2px; }
+.vd-result .verdict.ok { color: #9fe0b8; } .vd-result .verdict.fail { color: var(--red); }
+.vd-result .camp { color: var(--dim); font-size: 13px; }
+.vd-result ul { margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.vd-result li.done { color: #9fe0b8; }
+.vd-result .grid { display: flex; flex-wrap: wrap; gap: 4px; --cell: 40px; }
+.vd-result table { width: 100%; font-size: 14px; border-collapse: collapse; }
+.vd-result td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.vd-result tr.sum td { color: var(--gold); font-weight: 700; border-top: 1px solid var(--line); }
+.vd-result .any { margin-top: 14px; text-align: center; color: var(--dim); font-size: 12px; animation: vd-blink 1.4s ease-in-out infinite; }
+@keyframes vd-blink { 50% { opacity: .35; } }
+
+/* ---------- màn chọn (main.js) */
+.vd-menu { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, #15151c, #000); z-index: 15; }
+.vd-menu .win { width: min(640px, 94vw); max-height: 94vh; overflow: auto; padding: 18px 22px; box-sizing: border-box; background: rgba(14,14,18,.9); border: 1px solid var(--line); }
+.vd-menu h1 { margin: 0 0 12px; font-size: 22px; color: var(--gold); letter-spacing: .08em; }
+.vd-menu label { display: block; font-size: 12px; color: var(--dim); margin: 10px 0 4px; }
+.vd-menu .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.vd-menu button { font: inherit; font-size: 14px; color: var(--ink); background: rgba(255,255,255,.06); border: 1px solid var(--line); padding: 6px 12px; cursor: pointer; }
+.vd-menu button.on { border-color: var(--gold); color: var(--gold); }
+.vd-menu button.go { margin-top: 16px; width: 100%; padding: 10px; font-size: 16px; font-weight: 700; background: rgba(226,194,133,.15); border-color: var(--gold); }
+.vd-menu .meta { margin-top: 10px; font-size: 12px; color: var(--dim); }
+
+/* ---------- màn thấp (điện thoại ngang 844×390): thu HUD để không chồng nhau */
+@media (max-height: 480px) {
+  .vd-hud-left { left: 10px; bottom: 10px; gap: 8px; }
+  .vd-bars { width: min(210px, 26vw); }
+  .vd-skills { bottom: 12px; gap: 4px; }
+  .vd-skill { width: 36px; height: 36px; }
+  .vd-skill b { font-size: 9px; bottom: -12px; }
+  .vd-items { right: 10px; bottom: 12px; gap: 3px; display: flex; }
+  .vd-item { width: 30px; height: 30px; }
+  .vd-item b { font-size: 9px; bottom: -12px; }
+  .vd-quest { font-size: 11px; max-width: 40vw; top: 8px; left: 10px; }
+  .vd-minimap { right: 8px; top: 8px; }
+  .vd-minimap canvas.small { width: 96px; height: 96px; }
+  .vd-prompt { font-size: 14px; }
+  .vd-prompt .key { width: 30px; height: 30px; }
+  .vd-inv-grid { --cell: 34px; }
+  .vd-inv-win { padding: 8px; gap: 8px; }
+  .vd-radio { top: 22vh; max-width: 46vw; }
+  .vd-radio img { width: 40px; height: 40px; }
+  .vd-radio span { font-size: 12px; }
+}

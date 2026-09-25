@@ -1,0 +1,35 @@
+{
+ "name": "Monster_FireMan",
+ "skeletons": {
+  "Monster_FireMan_SW": {
+   "skel": "Monster_FireMan_SW.skel",
+   "bytes": 53850,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_FireMan_NW": {
+   "skel": "Monster_FireMan_NW.skel",
+   "bytes": 43944,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_FireMan.atlas",
+ "pages": [
+  {
+   "png": "Monster_FireMan.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_FireMan_Material",
+   "shader": ""
+  }
+ ]
+}

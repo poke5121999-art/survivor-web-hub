@@ -1,0 +1,35 @@
+{
+ "name": "Monster_Zombie",
+ "skeletons": {
+  "Monster_Zombie_NW": {
+   "skel": "Monster_Zombie_NW.skel",
+   "bytes": 129441,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_Zombie_SW": {
+   "skel": "Monster_Zombie_SW.skel",
+   "bytes": 155689,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_Zombie.atlas",
+ "pages": [
+  {
+   "png": "Monster_Zombie.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Zombie_Material",
+   "shader": ""
+  }
+ ]
+}

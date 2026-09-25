@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Ryujin",
+ "skeletons": {
+  "NPC_Ryujin_SW": {
+   "skel": "NPC_Ryujin_SW.skel",
+   "bytes": 47068,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Ryujin.atlas",
+ "pages": [
+  {
+   "png": "NPC_Ryujin.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Ryujin_Material",
+   "shader": ""
+  }
+ ]
+}

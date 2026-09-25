@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Void Diver — xem VFX</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0d0f13; color: #cfd6e0; font: 13px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #ui { position: absolute; left: 8px; top: 8px; right: 8px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; z-index: 2; }
+  #ui select, #ui button, #ui input { background: #1b1f27; color: #cfd6e0; border: 1px solid #333a46; border-radius: 4px; padding: 3px 6px; font: inherit; }
+  #ui select { max-width: 60vw; }
+  #hud { position: absolute; left: 8px; bottom: 8px; font: 12px/1.3 ui-monospace, monospace; color: #8b95a5; white-space: pre; z-index: 2; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <select id="pick"></select>
+  <button id="replay">Phát lại (Space)</button>
+  <label>yaw° <input id="yaw" type="number" value="90" step="15" style="width:4em"></label>
+  <label>zoom <input id="zoom" type="number" value="1" step="0.5" min="0.5" style="width:3.5em"></label>
+  <label><input id="loop" type="checkbox" checked> lặp</label>
+  <button id="stress">30 hiệu ứng</button>
+</div>
+<div id="hud"></div>
+<script src="../vendor/three-r140.min.js"></script>
+<script src="../js/vfx.js"></script>
+<script>
+(function () {
+  'use strict';
+  var VD = window.VD, V = VD.vfx;
+  V.base = '../art/vfx/';
+  var Q = new URLSearchParams(location.search);
+  var W = +(Q.get('w') || 0), H = +(Q.get('h') || 0);
+  var manual = Q.get('manual') === '1';
+  if (Q.get('zoom')) document.getElementById('zoom').value = Q.get('zoom');
+  if (Q.get('yaw')) document.getElementById('yaw').value = Q.get('yaw');
+  var renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: manual });
+  renderer.setPixelRatio(manual ? 1 : Math.min(2, window.devicePixelRatio || 1));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  document.body.appendChild(renderer.domElement);
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0d0f13);
+  // camera gốc (ASSETS.md §3): FOV dọc 10°, vị trí = mục tiêu + (25, 21, 25)
+  var camera = new THREE.PerspectiveCamera(10, 16 / 9, 0.1, 500);
+  var target = new THREE.Vector3(0, 0, 0);
+  function placeCam() {
+    var z = +document.getElementById('zoom').value || 1;
+    camera.fov = 10 / z;
+    camera.position.set(target.x + 25, target.y + 21, target.z + 25);
+    camera.lookAt(target);
+    camera.updateProjectionMatrix();
+  }
+  // mặt đất tối + lưới 1 m + khối 1 m tham chiếu (đặt lệch sang trái, ngoài tâm)
+  var ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshLambertMaterial({ color: 0x16191f }));
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+  var grid = new THREE.GridHelper(40, 40, 0x323845, 0x22262e);
+  grid.position.y = 0.002;
+  scene.add(grid);
+  var cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: 0x5b6b86 }));
+  cube.position.set(-2, 0.5, 2);
+  scene.add(cube);
+  var axis = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0.01, 0), 1, 0xd08040);
+  scene.add(axis);
+  scene.add(new THREE.AmbientLight(0x8088a0, 0.35));
+  var sun = new THREE.DirectionalLight(0xffffff, 0.35);
+  sun.position.set(5, 10, 3);
+  scene.add(sun);
+  V.setScene(scene);
+  window.__vfxScene = scene;
+  window.__vfxRenderer = renderer; window.__vfxCamera = camera;
+
+  function resize() {
+    var w = W || window.innerWidth, h = H || window.innerHeight;
+    renderer.setSize(w, h, false);
+    renderer.domElement.style.width = w + 'px';
+    renderer.domElement.style.height = h + 'px';
+    camera.aspect = w / h;
+    V.setScreen(w, h);
+    placeCam();
+  }
+  window.addEventListener('resize', resize);
+
+  var cur = Q.get('fx') || '', handle = null, since = 0;
+  function yawRad() { return (+document.getElementById('yaw').value || 0) * Math.PI / 180; }
+  function play(name, extra) {
+    V.stop(handle, true);
+    V.seed(12345);
+    axis.setDirection(new THREE.Vector3(Math.sin(yawRad()), 0, Math.cos(yawRad())));   // hướng tới của prefab
+    // mặc định nâng 0,5 m như offset "0:0.5:0" của VfxEvent (hiệu ứng trúng đòn gắn theo thân mục tiêu)
+    var o = { pos: { x: 0, y: Q.get('y') === null ? 0.5 : +Q.get('y'), z: 0 }, dir: yawRad(), element: Q.get('el') || 'None',
+      loop: Q.get('loop') === '1', duration: +(Q.get('dur') || 0), only: Q.get('only') || undefined };   // &loop=1: kiểu hiệu ứng trạng thái; &only=<node>
+    if (extra) for (var k in extra) o[k] = extra[k];
+    handle = V.play(name || cur, o);
+    since = 0;
+    return handle;
+  }
+  function hud() {
+    var s = V.stats;
+    document.getElementById('hud').textContent = cur + '\n' +
+      'hiệu ứng ' + s.effects + '  hệ ' + s.systems + '  hạt ' + s.particles + '  draw ' + s.drawCalls +
+      '  mô phỏng ' + s.simMs.toFixed(2) + ' ms  fps ' + fps.toFixed(0) +
+      (Object.keys(V.unsupported).length ? '\nbỏ qua: ' + Object.keys(V.unsupported).join(', ') : '');
+  }
+  var fps = 0, acc = 0, frames = 0, last = performance.now();
+  function frame() {
+    var now = performance.now(), dt = (now - last) / 1000;
+    last = now;
+    acc += dt; frames++;
+    if (acc > 0.5) { fps = frames / acc; acc = 0; frames = 0; }
+    since += dt;
+    if (document.getElementById('loop').checked && handle && !handle.alive && since > 0.3 && !stressOn) play();
+    V.update(dt, camera);
+    renderer.render(scene, camera);
+    hud();
+    requestAnimationFrame(frame);
+  }
+  var stressOn = false;
+  function stress(names) {
+    stressOn = true;
+    V.clear();
+    var list = names || Object.keys(index.fx);
+    for (var i = 0; i < 30; i++) {
+      var nm = list[i % list.length];
+      V.play(nm, { pos: { x: (i % 6) * 1.5 - 4, y: 0, z: Math.floor(i / 6) * 1.5 - 3 }, dir: i });
+    }
+  }
+
+  var index = null;
+  // API cho test (manual=1): bước thời gian cố định, không tự chạy rAF
+  window.vfxView = {
+    ready: false, error: null,
+    play: function (name, extra) { cur = name; return V.load(name, Q.get('el') || 'None').then(function () { play(name, extra); V.update(0, camera); renderer.render(scene, camera); return true; }); },
+    stop: function (now) { V.stop(handle, now); },
+    alive: function () { return !!(handle && handle.alive); },
+    step: function (t, dt) {
+      dt = dt || 1 / 60;
+      var n = Math.round(t / dt);
+      for (var i = 0; i < n; i++) V.update(dt, camera);
+      renderer.render(scene, camera);
+      return V.stats;
+    },
+    stress: function (names, seconds) {
+      // đo: 30 hiệu ứng cùng lúc, vòng rAF thật trong `seconds` giây
+      return Promise.all((names || []).map(function (n) { return V.load(n); })).then(function () {
+        stressOn = true;
+        V.clear();
+        var hs = [], list = names && names.length ? names : Object.keys(index.fx);
+        function keep() {   // giữ đủ 30 hiệu ứng: phát lại chỗ nào đã tắt
+          for (var i = 0; i < 30; i++) {
+            if (hs[i] && hs[i].alive) continue;
+            hs[i] = V.play(list[i % list.length], { pos: { x: (i % 6) * 1.5 - 4, y: 0.5, z: Math.floor(i / 6) * 1.5 - 3 }, dir: i });
+          }
+        }
+        var gl = renderer.getContext(), px = new Uint8Array(4);
+        // làm nóng: chạy 90 khung để mọi shader được biên dịch, rồi mới đo
+        for (var w = 0; w < 90; w++) { keep(); V.update(1 / 60, camera); renderer.render(scene, camera); }
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        return new Promise(function (res) {
+          var t0 = performance.now(), prev = t0, n = 0, simMax = 0, simSum = 0, pMax = 0, dcMax = 0, worst = 0, busy = 0, busyMax = 0;
+          function tick() {
+            var now = performance.now(), dt = (now - prev) / 1000;
+            prev = now;
+            if (n > 0) worst = Math.max(worst, dt);
+            keep();
+            var b0 = performance.now();
+            V.update(1 / 60, camera);
+            renderer.render(scene, camera);
+            gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);   // ép chờ GPU xong: đo được cả thời gian GPU
+            var bt = performance.now() - b0;
+            busy += bt; busyMax = Math.max(busyMax, bt);
+            n++;
+            simMax = Math.max(simMax, V.stats.simMs); simSum += V.stats.simMs;
+            pMax = Math.max(pMax, V.stats.particles); dcMax = Math.max(dcMax, V.stats.drawCalls);
+            if (now - t0 < seconds * 1000) requestAnimationFrame(tick);
+            else res({ frames: n, fps: n / ((now - t0) / 1000), worstFrameMs: worst * 1000, simAvgMs: simSum / n, simMaxMs: simMax,
+              frameBusyAvgMs: busy / n, frameBusyMaxMs: busyMax, particlesMax: pMax, drawCallsMax: dcMax });
+          }
+          requestAnimationFrame(tick);
+        });
+      });
+    },
+    unsupported: function () { return V.unsupported; },
+  };
+
+  resize();
+  V.index().then(function (ix) {
+    index = ix;
+    var sel = document.getElementById('pick');
+    Object.keys(ix.fx).sort().forEach(function (n) {
+      var o = document.createElement('option');
+      o.value = o.textContent = n;
+      sel.appendChild(o);
+    });
+    if (!cur) cur = sel.value;
+    sel.value = cur;
+    sel.onchange = function () { cur = sel.value; history.replaceState(null, '', '?fx=' + encodeURIComponent(cur)); V.load(cur).then(function () { play(); }); };
+    document.getElementById('replay').onclick = function () { stressOn = false; V.clear(); play(); };
+    document.getElementById('yaw').onchange = function () { play(); };
+    document.getElementById('zoom').onchange = placeCam;
+    document.getElementById('stress').onclick = function () { stress(); };
+    window.addEventListener('keydown', function (e) { if (e.code === 'Space') { e.preventDefault(); stressOn = false; V.clear(); play(); } });
+    window.vfxView.ready = true;
+    if (!manual) {
+      V.load(cur).then(function () { play(); }).catch(function (e) { console.error(String(e.message || e)); });
+      requestAnimationFrame(frame);
+    }
+  }).catch(function (e) { window.vfxView.error = String(e); console.error(String(e)); });
+})();
+</script>
+</body>
+</html>

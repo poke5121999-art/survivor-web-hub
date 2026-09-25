@@ -1,0 +1,28 @@
+{
+ "name": "Monster_Stone",
+ "skeletons": {
+  "Monster_Stone_SW": {
+   "skel": "Monster_Stone_SW.skel",
+   "bytes": 10577,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_Stone.atlas",
+ "pages": [
+  {
+   "png": "Monster_Stone.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Stone_Material",
+   "shader": ""
+  }
+ ]
+}

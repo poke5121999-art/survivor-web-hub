@@ -1,0 +1,35 @@
+{
+ "name": "Monster_DeepOne",
+ "skeletons": {
+  "Monster_DeepOne_SW": {
+   "skel": "Monster_DeepOne_SW.skel",
+   "bytes": 57386,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_DeepOne_NW": {
+   "skel": "Monster_DeepOne_NW.skel",
+   "bytes": 53190,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_DeepOne.atlas",
+ "pages": [
+  {
+   "png": "Monster_DeepOne.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_DeepOne_Material",
+   "shader": ""
+  }
+ ]
+}

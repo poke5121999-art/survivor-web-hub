@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Kang",
+ "skeletons": {
+  "NPC_Kang_SW": {
+   "skel": "NPC_Kang_SW.skel",
+   "bytes": 71795,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Kang.atlas",
+ "pages": [
+  {
+   "png": "NPC_Kang.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Kang_Material",
+   "shader": ""
+  }
+ ]
+}

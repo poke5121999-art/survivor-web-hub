@@ -1,0 +1,66 @@
+{
+ "name": "PhoneBooth",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "capsule",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 1.75,
+   "height": 1.0,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "PhoneBooth",
+   "fields": {
+    "_holdingSfx": "",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "Body",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_BaseCamp01_Prop_PhoneBooth_1",
+   "mesh": "msh_25BG_BaseCamp01_Prop_PhoneBooth_1",
+   "verts": 25,
+   "tris": 30,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.414,
+   -0.088,
+   -0.414
+  ],
+  "max": [
+   0.414,
+   1.891,
+   0.391
+  ]
+ },
+ "glb": "art/object/PhoneBooth.glb",
+ "glbKB": 195
+}

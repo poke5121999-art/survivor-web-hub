@@ -1,0 +1,35 @@
+{
+ "name": "Monster_CursedBox",
+ "skeletons": {
+  "Monster_CursedBox_SW": {
+   "skel": "Monster_CursedBox_SW.skel",
+   "bytes": 54433,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "Monster_CursedBox_NW": {
+   "skel": "Monster_CursedBox_NW.skel",
+   "bytes": 50460,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_CursedBox.atlas",
+ "pages": [
+  {
+   "png": "Monster_CursedBox.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_CursedBox_Material",
+   "shader": ""
+  }
+ ]
+}

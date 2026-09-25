@@ -1,0 +1,96 @@
+{
+ "name": "DeadManBox_03",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": true
+  },
+  {
+   "name": "Back",
+   "active": false
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "MimicObject",
+   "fields": {
+    "_meshType": 1,
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Front/mesh",
+   "mesh": "Acolyte_N",
+   "verts": 21,
+   "tris": 27,
+   "active": true
+  },
+  {
+   "path": "Back/mesh",
+   "mesh": "Acolyte_S",
+   "verts": 44,
+   "tris": 65,
+   "active": false
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.677,
+   -0.162,
+   -0.593
+  ],
+  "max": [
+   0.622,
+   0.313,
+   0.554
+  ]
+ },
+ "glb": "art/object/DeadManBox_03.glb",
+ "glbKB": 51
+}

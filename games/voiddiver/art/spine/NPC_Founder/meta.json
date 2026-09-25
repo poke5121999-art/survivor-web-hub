@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Founder",
+ "skeletons": {
+  "NPC_Founder_SW": {
+   "skel": "NPC_Founder_SW.skel",
+   "bytes": 38989,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Founder.atlas",
+ "pages": [
+  {
+   "png": "NPC_Founder.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Founder_Material",
+   "shader": ""
+  }
+ ]
+}

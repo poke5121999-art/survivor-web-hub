@@ -1,0 +1,35 @@
+{
+ "name": "Monster_Acolyte",
+ "skeletons": {
+  "Monster_Acolyte_NW": {
+   "skel": "Monster_Acolyte_NW.skel",
+   "bytes": 90063,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_Acolyte_SW": {
+   "skel": "Monster_Acolyte_SW.skel",
+   "bytes": 105252,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_Acolyte.atlas",
+ "pages": [
+  {
+   "png": "Monster_Acolyte.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Acolyte_Material",
+   "shader": ""
+  }
+ ]
+}

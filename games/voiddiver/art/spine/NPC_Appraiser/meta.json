@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Appraiser",
+ "skeletons": {
+  "NPC_Appraiser_SW": {
+   "skel": "NPC_Appraiser_SW.skel",
+   "bytes": 28264,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Appraiser.atlas",
+ "pages": [
+  {
+   "png": "NPC_Appraiser.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Appraiser_Material",
+   "shader": ""
+  }
+ ]
+}

@@ -1,0 +1,105 @@
+{
+ "name": "CursedBarrierChest",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": true
+  },
+  {
+   "name": "Back",
+   "active": false
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "RewardBox",
+   "fields": {
+    "_meshType": 1,
+    "_holdingSfx": "InteractionLooting_CursedBarrierChest",
+    "_lockedHoldingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "LootingInventory",
+   "fields": {
+    "_index": -1
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Front/2DBG_RewardBoxes_CursedBarrierChest_B",
+   "mesh": "2DBG_RewardBoxes_CursedBarrierChest_B",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Back/2DBG_RewardBoxes_CursedBarrierChest_F",
+   "mesh": "2DBG_RewardBoxes_CursedBarrierChest_F",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.269,
+   0.0,
+   -0.269
+  ],
+  "max": [
+   0.269,
+   1.115,
+   0.269
+  ]
+ },
+ "glb": "art/object/CursedBarrierChest.glb",
+ "glbKB": 36
+}

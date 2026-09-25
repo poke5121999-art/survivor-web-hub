@@ -1,0 +1,2316 @@
+{
+ "id": 1007,
+ "space": "glTF (x, y, -z cua Unity); met",
+ "colliders": [
+  {
+   "path": "1007/1007/RawObject/InteractableCar/25DBG_Interaction_Car_11_F/collider",
+   "center": [
+    22.064,
+    0.4,
+    -3.22
+   ],
+   "size": [
+    1.0,
+    1.0,
+    2.5
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "1007/1007/RawObject/InteractableCar/25DBG_Interaction_Car_10_B/collider",
+   "center": [
+    4.573,
+    0.9,
+    -6.906
+   ],
+   "size": [
+    1.5,
+    2.0,
+    3.0
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "1007/1007/RawObject/InteractableCar/25DBG_Interaction_Car_2_F/collider",
+   "center": [
+    25.813,
+    0.45,
+    -26.766
+   ],
+   "size": [
+    1.5,
+    1.0,
+    2.5
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "1007/1007/RawObject/InteractableCar/25DBG_Interaction_Car_1_B/collider",
+   "center": [
+    21.113,
+    0.4,
+    -26.766
+   ],
+   "size": [
+    1.0,
+    1.0,
+    2.0
+   ],
+   "yaw": -90.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "1007/1007/RawObject/InteractableCar/25DBG_Interaction_Car_2_B/collider",
+   "center": [
+    5.043,
+    0.4,
+    -24.196
+   ],
+   "size": [
+    1.5,
+    1.0,
+    2.5
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "1007/1007/RawObject/InteractableCar/25DBG_Interaction_Car_11_B/collider",
+   "center": [
+    7.043,
+    0.4,
+    -24.306
+   ],
+   "size": [
+    1.0,
+    1.0,
+    2.25
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "1007/1007/RawObject/InteractableCar/25DBG_Interaction_Car_11_F/collider",
+   "center": [
+    9.193,
+    0.4,
+    -23.991
+   ],
+   "size": [
+    1.0,
+    1.0,
+    2.5
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "1007/1007/RawObject/InteractableCar/25DBG_Interaction_Car_10_B/collider",
+   "center": [
+    3.023,
+    0.9,
+    -24.256
+   ],
+   "size": [
+    1.5,
+    2.0,
+    3.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "other"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    25.0,
+    0.9,
+    -4.4
+   ],
+   "size": [
+    4.4,
+    2.0,
+    4.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    22.2,
+    0.9,
+    -5.1
+   ],
+   "size": [
+    1.2,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    21.3,
+    0.9,
+    -5.4
+   ],
+   "size": [
+    0.2,
+    2.0,
+    0.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    8.8,
+    0.9,
+    -8.2
+   ],
+   "size": [
+    4.0,
+    2.0,
+    4.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    2.3,
+    0.9,
+    -7.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    1.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    4.3,
+    0.9,
+    -10.4
+   ],
+   "size": [
+    4.2,
+    2.0,
+    4.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    23.8,
+    0.9,
+    -12.3
+   ],
+   "size": [
+    0.4,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    8.4,
+    0.9,
+    -13.7
+   ],
+   "size": [
+    3.6,
+    2.0,
+    3.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    10.5,
+    0.9,
+    -13.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    2.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    4.3,
+    0.9,
+    -14.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    20.7,
+    0.9,
+    -15.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    21.7,
+    0.9,
+    -15.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    3.3,
+    0.9,
+    -16.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    4.7,
+    0.9,
+    -16.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    11.7,
+    0.9,
+    -16.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    10.1,
+    0.9,
+    -16.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    6.5,
+    0.9,
+    -16.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    7.9,
+    0.9,
+    -16.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    21.1,
+    0.9,
+    -16.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    11.9,
+    0.9,
+    -17.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    19.9,
+    0.9,
+    -17.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    9.7,
+    0.9,
+    -18.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    4.9,
+    0.9,
+    -18.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    19.3,
+    0.9,
+    -18.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    6.7,
+    0.9,
+    -18.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    8.1,
+    0.9,
+    -18.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    11.3,
+    0.9,
+    -18.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    9.1,
+    0.9,
+    -18.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    22.0,
+    0.9,
+    -19.9
+   ],
+   "size": [
+    3.6,
+    2.0,
+    3.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    26.0,
+    0.9,
+    -20.0
+   ],
+   "size": [
+    3.2,
+    2.0,
+    3.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    19.3,
+    0.9,
+    -19.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    8.1,
+    0.9,
+    -19.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    6.5,
+    0.9,
+    -20.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    9.3,
+    0.9,
+    -20.1
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    19.9,
+    0.9,
+    -20.3
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    3.7,
+    0.9,
+    -20.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    10.2,
+    0.9,
+    -21.0
+   ],
+   "size": [
+    1.2,
+    2.0,
+    1.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    9.4,
+    0.9,
+    -21.1
+   ],
+   "size": [
+    0.4,
+    2.0,
+    1.4
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    17.5,
+    0.9,
+    -20.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    18.7,
+    0.9,
+    -20.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    19.3,
+    0.9,
+    -21.7
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    9.9,
+    0.9,
+    -22.2
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.8
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    5.1,
+    0.9,
+    -22.3
+   ],
+   "size": [
+    5.0,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    8.7,
+    0.9,
+    -22.3
+   ],
+   "size": [
+    1.8,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    27.6,
+    0.9,
+    -22.3
+   ],
+   "size": [
+    0.4,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    18.3,
+    0.9,
+    -22.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    22.0,
+    0.9,
+    -23.9
+   ],
+   "size": [
+    3.6,
+    2.0,
+    3.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    25.9,
+    0.9,
+    -24.0
+   ],
+   "size": [
+    3.0,
+    2.0,
+    3.2
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    27.5,
+    0.9,
+    -24.1
+   ],
+   "size": [
+    0.2,
+    2.0,
+    3.0
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    19.3,
+    0.9,
+    -23.5
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/HighObstacles/Collider",
+   "center": [
+    19.5,
+    0.9,
+    -24.9
+   ],
+   "size": [
+    0.6,
+    2.0,
+    0.6
+   ],
+   "yaw": 0.0,
+   "trigger": false,
+   "active": true,
+   "kind": "high"
+  },
+  {
+   "path": "1007/1007/StaticDecoration/Volumes/MainVolume",
+   "center": [
+    15.0,
+    0.0,
+    -15.0
+   ],
+   "size": [
+    30.0,
+    2.0,
+    30.0
+   ],
+   "yaw": 0.0,
+   "trigger": true,
+   "active": true,
+   "kind": "other"
+  }
+ ],
+ "lights": [
+  {
+   "path": "1007/1007/StaticDecoration/Lights/Point Light",
+   "pos": [
+    4.98,
+    1.5,
+    -15.77
+   ],
+   "color": [
+    0.729,
+    0.918,
+    1.0
+   ],
+   "intensity": 1.5,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "1007/1007/StaticDecoration/Lights/Point Light_1",
+   "pos": [
+    13.6,
+    1.5,
+    -26.22
+   ],
+   "color": [
+    0.729,
+    0.918,
+    1.0
+   ],
+   "intensity": 1.5,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "1007/1007/StaticDecoration/Lights/Point Light_2",
+   "pos": [
+    5.97,
+    1.5,
+    -2.73
+   ],
+   "color": [
+    0.729,
+    0.918,
+    1.0
+   ],
+   "intensity": 1.5,
+   "range": 5.0,
+   "active": true
+  },
+  {
+   "path": "1007/1007/StaticDecoration/Lights/Point Light_3",
+   "pos": [
+    22.29,
+    1.5,
+    -4.85
+   ],
+   "color": [
+    0.729,
+    0.918,
+    1.0
+   ],
+   "intensity": 1.5,
+   "range": 5.0,
+   "active": true
+  }
+ ],
+ "spawns": [
+  {
+   "type": "MonsterSpawnGroupComponent",
+   "path": "1007/MonsterGroup1",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup1/MonsterSpawnPoint",
+   "pos": [
+    12.63,
+    0.0,
+    -2.94
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup1/MonsterSpawnPoint_1",
+   "pos": [
+    8.89,
+    0.0,
+    -4.55
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup1/MonsterSpawnPoint_2",
+   "pos": [
+    11.27,
+    0.0,
+    0.02
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup1/MonsterSpawnPoint_3",
+   "pos": [
+    8.84,
+    0.0,
+    -1.14
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnGroupComponent",
+   "path": "1007/MonsterGroup2",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    16.68,
+    0.0,
+    -7.82
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    16.08,
+    0.0,
+    -5.74
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    13.31,
+    0.0,
+    -2.85
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    12.58,
+    0.0,
+    -8.48
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    13.37,
+    0.0,
+    -21.11
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    15.29,
+    0.0,
+    -25.84
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    15.08,
+    0.0,
+    -22.26
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    11.48,
+    0.0,
+    -24.64
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    19.37,
+    0.0,
+    -11.74
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    17.95,
+    0.0,
+    -13.54
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    11.63,
+    0.0,
+    -5.91
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup2/MonsterSpawnPoint_Wild2",
+   "pos": [
+    15.78,
+    0.0,
+    -10.48
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnGroupComponent",
+   "path": "1007/MonsterGroup_elite",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup_elite/MonsterSpawnPoint_Circle_elite",
+   "pos": [
+    16.13,
+    0.0,
+    -2.9
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup_elite/MonsterSpawnPoint_Circle_elite",
+   "pos": [
+    13.38,
+    0.0,
+    -26.07
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup_elite/MonsterSpawnPoint_Circle_elite",
+   "pos": [
+    14.51,
+    0.0,
+    -14.09
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "MonsterSpawnGroupComponent",
+   "path": "1007/MonsterGroup3",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup3/MonsterSpawnPoint",
+   "pos": [
+    15.09,
+    0.0,
+    -20.62
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup3/MonsterSpawnPoint_1",
+   "pos": [
+    13.52,
+    0.0,
+    -22.27
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup3/MonsterSpawnPoint_2",
+   "pos": [
+    15.87,
+    0.0,
+    -18.06
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "MonsterSpawnComponent",
+   "path": "1007/MonsterGroup3/MonsterSpawnPoint_3",
+   "pos": [
+    12.36,
+    0.0,
+    -16.27
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "RewardBoxSpawnGroupComponent",
+   "path": "1007/Box",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint",
+   "pos": [
+    22.96,
+    0.0,
+    -9.59
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint",
+   "pos": [
+    22.96,
+    0.0,
+    -9.59
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_6",
+   "pos": [
+    5.72,
+    0.0,
+    -5.7
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_6",
+   "pos": [
+    5.72,
+    0.0,
+    -5.7
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_7",
+   "pos": [
+    3.84,
+    0.0,
+    -5.66
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_7",
+   "pos": [
+    3.84,
+    0.0,
+    -5.66
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_8",
+   "pos": [
+    9.6,
+    0.0,
+    -4.79
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_8",
+   "pos": [
+    9.6,
+    0.0,
+    -4.79
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_9",
+   "pos": [
+    21.2,
+    0.0,
+    -2.54
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_9",
+   "pos": [
+    21.2,
+    0.0,
+    -2.54
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_10",
+   "pos": [
+    21.22,
+    0.0,
+    -3.88
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_10",
+   "pos": [
+    21.22,
+    0.0,
+    -3.88
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_11",
+   "pos": [
+    23.41,
+    0.0,
+    -26.69
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_11",
+   "pos": [
+    23.41,
+    0.0,
+    -26.69
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_12",
+   "pos": [
+    11.28,
+    0.0,
+    -20.92
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_12",
+   "pos": [
+    11.28,
+    0.0,
+    -20.92
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_13",
+   "pos": [
+    11.36,
+    0.0,
+    -21.91
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_13",
+   "pos": [
+    11.36,
+    0.0,
+    -21.91
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_14",
+   "pos": [
+    9.3,
+    0.0,
+    -25.88
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_14",
+   "pos": [
+    9.3,
+    0.0,
+    -25.88
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_15",
+   "pos": [
+    10.51,
+    0.0,
+    -19.47
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_15",
+   "pos": [
+    10.51,
+    0.0,
+    -19.47
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_16",
+   "pos": [
+    17.19,
+    0.0,
+    -21.81
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_16",
+   "pos": [
+    17.19,
+    0.0,
+    -21.81
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_17",
+   "pos": [
+    18.41,
+    0.0,
+    -18.27
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_17",
+   "pos": [
+    18.41,
+    0.0,
+    -18.27
+   ],
+   "yaw": -90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_18",
+   "pos": [
+    11.45,
+    0.0,
+    -14.56
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_18",
+   "pos": [
+    11.45,
+    0.0,
+    -14.56
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_19",
+   "pos": [
+    11.42,
+    0.0,
+    -12.4
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_19",
+   "pos": [
+    11.42,
+    0.0,
+    -12.4
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_4",
+   "pos": [
+    25.37,
+    0.0,
+    -17.38
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_4",
+   "pos": [
+    25.37,
+    0.0,
+    -17.38
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_5",
+   "pos": [
+    24.11,
+    0.0,
+    -17.38
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_5",
+   "pos": [
+    24.11,
+    0.0,
+    -17.38
+   ],
+   "yaw": -180.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_3",
+   "pos": [
+    25.4,
+    0.0,
+    -9.63
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_3",
+   "pos": [
+    25.4,
+    0.0,
+    -9.63
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_1",
+   "pos": [
+    11.32,
+    0.0,
+    -10.28
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_1",
+   "pos": [
+    11.32,
+    0.0,
+    -10.28
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_2",
+   "pos": [
+    11.34,
+    0.0,
+    -7.7
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_2",
+   "pos": [
+    11.34,
+    0.0,
+    -7.7
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_20",
+   "pos": [
+    27.74,
+    0.0,
+    -5.36
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_20",
+   "pos": [
+    27.74,
+    0.0,
+    -5.36
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_21",
+   "pos": [
+    27.74,
+    0.0,
+    -3.95
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_21",
+   "pos": [
+    27.74,
+    0.0,
+    -3.95
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnComponent",
+   "path": "1007/Box/RewardBoxSpawnPoint_22",
+   "pos": [
+    27.74,
+    0.0,
+    -2.44
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "RewardBoxSpawnDebugDrawer",
+   "path": "1007/Box/RewardBoxSpawnPoint_22",
+   "pos": [
+    27.74,
+    0.0,
+    -2.44
+   ],
+   "yaw": 90.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnGroupComponent",
+   "path": "1007/TrapSpawn",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/FoxFire",
+   "pos": [
+    16.85,
+    0.0,
+    -0.96
+   ],
+   "yaw": -90.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/FoxFire_fake",
+   "pos": [
+    1.82,
+    0.0,
+    6.29
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/ThunderFire",
+   "pos": [
+    26.22,
+    0.0,
+    -7.46
+   ],
+   "yaw": -180.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/ThunderFire_fake",
+   "pos": [
+    24.99,
+    0.0,
+    -22.22
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/ToxicPipe",
+   "pos": [
+    12.77,
+    0.0,
+    -7.07
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/ToxicPipe_fake",
+   "pos": [
+    26.69,
+    0.0,
+    -28.87
+   ],
+   "yaw": -90.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/StressPipe",
+   "pos": [
+    2.35,
+    0.0,
+    -4.44
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/Spike",
+   "pos": [
+    26.73,
+    0.0,
+    -19.93
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/Spike_fake",
+   "pos": [
+    1.61,
+    0.0,
+    -3.68
+   ],
+   "yaw": 0.0,
+   "active": false
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/Minebomb",
+   "pos": [
+    19.49,
+    0.0,
+    -1.45
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/Minebomb_1",
+   "pos": [
+    29.19,
+    0.0,
+    -0.57
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/Minebomb_2",
+   "pos": [
+    1.77,
+    0.0,
+    -1.21
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/Minebomb_3",
+   "pos": [
+    1.77,
+    0.0,
+    -3.0
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/Minebomb_4",
+   "pos": [
+    2.1,
+    0.0,
+    -26.53
+   ],
+   "yaw": 0.0,
+   "active": true
+  },
+  {
+   "type": "TrapSpawnComponent",
+   "path": "1007/TrapSpawn/Minebomb_5",
+   "pos": [
+    6.11,
+    0.0,
+    -26.45
+   ],
+   "yaw": 0.0,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "misc": [
+  {
+   "type": "GroundTypeData",
+   "path": "1007/1007"
+  },
+  {
+   "type": "VisualAreaData",
+   "path": "1007/1007"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  },
+  {
+   "type": "HitableObstacle",
+   "path": "1007/1007/HighObstacles/Collider"
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.219,
+   -2.25,
+   -30.188
+  ],
+  "max": [
+   30.312,
+   4.902,
+   0.281
+  ]
+ },
+ "stats": {
+  "renderers": 15,
+  "verts": 19671,
+  "tris": 15272
+ }
+}

@@ -1,0 +1,35 @@
+{
+ "name": "Monster_Police",
+ "skeletons": {
+  "Monster_Police_NW": {
+   "skel": "Monster_Police_NW.skel",
+   "bytes": 111398,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_Police_SW": {
+   "skel": "Monster_Police_SW.skel",
+   "bytes": 126187,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_Police.atlas",
+ "pages": [
+  {
+   "png": "Monster_Police.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Police_Material",
+   "shader": ""
+  }
+ ]
+}

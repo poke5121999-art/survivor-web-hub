@@ -1,0 +1,163 @@
+{
+ "name": "BarredEntrance",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "HitableCollider",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "size": [
+    2.4,
+    1.0,
+    2.2
+   ],
+   "trigger": true,
+   "active": true
+  },
+  {
+   "path": "HitableCollider",
+   "shape": "box",
+   "center": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "size": [
+    2.27,
+    2.0,
+    0.1
+   ],
+   "trigger": false,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 1.0,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [
+  {
+   "path": "HitableCollider/Front/Animator",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "HitableCollider/Back/Animator",
+   "controller": null,
+   "clips": []
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "Entrance",
+   "fields": {
+    "_meshType": 1,
+    "_holdingSfx": "InteractionDoor",
+    "_lockedHoldingSfx": "InteractionDoor_Locked",
+    "_interactionSfx": "DoorInteractied2"
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "HitableCollider/Front/Animator/Close/left_1",
+   "mesh": "25DBG_Fance&Door_Door_17",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  },
+  {
+   "path": "HitableCollider/Front/Animator/Close/right_1",
+   "mesh": "25DBG_Fance&Door_Door_18",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  },
+  {
+   "path": "HitableCollider/Front/Animator/Open/left_1",
+   "mesh": "25DBG_Fance&Door_Door_20",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  },
+  {
+   "path": "HitableCollider/Front/Animator/Open/right_1",
+   "mesh": "25DBG_Fance&Door_Door_20",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  },
+  {
+   "path": "HitableCollider/Back/Animator/Close/left",
+   "mesh": "25DBG_Fance&Door_Door_17",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "HitableCollider/Back/Animator/Close/right",
+   "mesh": "25DBG_Fance&Door_Door_18",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "HitableCollider/Back/Animator/Open/left",
+   "mesh": "25DBG_Fance&Door_Door_20",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  },
+  {
+   "path": "HitableCollider/Back/Animator/Open/right",
+   "mesh": "25DBG_Fance&Door_Door_21",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  }
+ ],
+ "bounds": {
+  "min": [
+   -1.025,
+   -0.157,
+   -0.917
+  ],
+  "max": [
+   1.144,
+   1.641,
+   1.083
+  ]
+ },
+ "glb": "art/object/BarredEntrance.glb",
+ "glbKB": 79
+}

@@ -378,26 +378,20 @@ window.HUB_GAMES = [
   {
     id: "voiddiver",
     title: "Void Diver",
-    tagline: "Lặn xuống vực nhặt cổ vật rồi mang lên bán. Vấn đề: chính chỗ đồ bạn đang vác mới là thứ làm bạn phát điên — càng quý càng nhanh loạn. Mang thêm một món nữa, hay rút lên bây giờ?",
-    thumbnail: "assets/thumbnails/voiddiver.svg",
+    tagline: "Tiệm đồ cổ Balusha cử Diver xuống hầm ngục giữa thành phố nhặt cổ vật. Chém, bắn, lướt dưới ánh đèn pin sắp cạn pin; căng thẳng càng cao thì bóng tối càng sinh quái. Mang đồ về bốt điện thoại, bán, chế, học kỹ năng rồi lặn tiếp. Bốn Diver: Gayoung, Noah, Mio, Raven.",
+    thumbnail: "assets/thumbnails/voiddiver.png",
     path: "games/voiddiver/index.html",
-    // available since 2026-08-17, rebuilt 2026-08-23 (patch-28). Plain canvas/JS, no engine, no
-    // build step, opens from file://. Built from the systems of VOID DIVER: Escape from the Abyss
-    // (STUDIO NEMO, Steam demo appid 4347080) — a 2.5D co-op extraction RPG crossed with a shop
-    // sim. NO art, audio or animation of that game is used or shipped here: everything on screen
-    // is drawn in code. What was taken is design data read out of the installed build and written
-    // up in docs/research/voiddiver/: the control scheme from its shipped InputActionAsset, the
-    // stat and status vocabulary, the shipped sight-cone and stress post-processing tuning, and
-    // 81 real dungeon rooms with the designer's own spawn points and subset-spawn rules. The
-    // balance numbers are ours — the original's tables ship encrypted and are unreadable.
-    // The rule that makes it the same game: corruption is the sum of the artifacts in your bag,
-    // recomputed every time the bag changes, and it drives the stress that distorts the screen.
-    // Darkness is a separate gauge (Brightness) that amplifies damage taken.
-    // Single-player; the original's 1-3 player co-op is deliberately not implemented.
-    // Ships with an in-game bot that plays the whole loop; docs/tests/browser/test_voiddiver.py
-    // drives it and asserts the rules. Progress is local only - no hub save bridge yet.
+    rev: "20260925a",
+    // Dựng lại hoàn toàn 2026-09-25 từ chính bản demo Steam VOID DIVER: Escape from the Abyss
+    // (Studio Nemo, appid 4347080) cài trên máy chủ dự án. Bản 2026-08 (vẽ bằng code, số tự chế) đã xoá.
+    // Bảng số gốc: TableEncrypted là CSV XOR 0xCC, Lua XOR 0xF4 (bản cũ ghi "mã hoá, không đọc được" là sai).
+    // Art/anim/map/tiếng/VFX gốc: Spine 4.2 (spine-threejs 4.2.43), sector 3D glb, AudioClip, hệ hạt Shuriken
+    // phát lại bằng shader dịch từ bản gốc. Skill chạy bằng bộ thông dịch cây RootActionNode gốc; tutorial,
+    // quest, thoại NPC chạy nguyên văn Lua gốc bằng fengari. Chữ tiếng Việt lấy từ bản dịch gốc.
+    // Chơi đơn; co-op của bản gốc không làm. Kiến trúc: games/voiddiver/ARCH.md; quyết định: docs/decisions.tsv.
+    // Kiểm: test/voiddiver-{combat,ai,dive,lounge,vfx}.js.
     status: "available",
-    tags: ["Kinh dị", "Roguelite", "Solo", "Prototype"]
+    tags: ["Hành động", "Extraction", "Kinh dị", "Solo"]
   },
   {
     id: "orbit",

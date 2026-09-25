@@ -1,0 +1,70 @@
+{
+ "name": "WaveBookShelf",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.5,
+    1.0,
+    2.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "WaveExecutor",
+   "fields": {
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Default",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_BookShelf_5",
+   "mesh": "msh_25BG_Sector01_Zone01_Prop_Bookshelf_5",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.518,
+   -0.25,
+   -0.194
+  ],
+  "max": [
+   0.529,
+   0.956,
+   0.197
+  ]
+ },
+ "glb": "art/object/WaveBookShelf.glb",
+ "glbKB": 98
+}

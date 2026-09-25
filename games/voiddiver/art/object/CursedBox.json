@@ -1,0 +1,369 @@
+{
+ "name": "CursedBox",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": false
+  },
+  {
+   "name": "Back",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  },
+  {
+   "name": "SpotLight",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [
+  {
+   "path": "Front/animator/box/PointLight_inside",
+   "type": "point",
+   "pos": [
+    0.0,
+    0.34,
+    0.024
+   ],
+   "color": [
+    1.0,
+    0.0,
+    0.928
+   ],
+   "intensity": 0.0,
+   "range": 0.52,
+   "active": false
+  },
+  {
+   "path": "Back/animator/box/PointLight_inside",
+   "type": "point",
+   "pos": [
+    0.0,
+    0.34,
+    0.024
+   ],
+   "color": [
+    1.0,
+    0.0,
+    0.928
+   ],
+   "intensity": 0.0,
+   "range": 0.52,
+   "active": true
+  },
+  {
+   "path": "SpotLight",
+   "type": "spot",
+   "pos": [
+    0.0,
+    1.536,
+    -0.0
+   ],
+   "color": [
+    1.0,
+    0.0,
+    0.928
+   ],
+   "intensity": 0.5,
+   "range": 1.69,
+   "active": true
+  }
+ ],
+ "particles": [
+  {
+   "path": "Front/animator/FX",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Front/animator/FX/aura",
+   "pos": [
+    0.0,
+    0.27,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Front/animator/FX/DarkGlow",
+   "pos": [
+    0.297,
+    0.428,
+    0.295
+   ],
+   "active": false
+  },
+  {
+   "path": "Front/animator/FX/smoke",
+   "pos": [
+    -0.064,
+    0.1,
+    -0.106
+   ],
+   "active": false
+  },
+  {
+   "path": "Front/animator/FX/firefly",
+   "pos": [
+    0.0,
+    0.287,
+    -0.178
+   ],
+   "active": false
+  },
+  {
+   "path": "Back/animator/FX",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Back/animator/FX/aura",
+   "pos": [
+    0.0,
+    0.27,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Back/animator/FX/DarkGlow",
+   "pos": [
+    0.297,
+    0.428,
+    0.295
+   ],
+   "active": false
+  },
+  {
+   "path": "Back/animator/FX/smoke",
+   "pos": [
+    -0.064,
+    0.1,
+    -0.015
+   ],
+   "active": false
+  },
+  {
+   "path": "Back/animator/FX/firefly",
+   "pos": [
+    0.0,
+    0.287,
+    0.11
+   ],
+   "active": false
+  }
+ ],
+ "animators": [
+  {
+   "path": "Front/animator",
+   "controller": "Anim_Map_CursedBox_F",
+   "clips": [
+    "Anim_Map_CursedBox_F_Closed",
+    "Anim_Map_CursedBox_F_Open",
+    "Anim_Map_CursedBox_F_Opend"
+   ]
+  },
+  {
+   "path": "Back/animator",
+   "controller": "Anim_Map_CursedBox_B",
+   "clips": [
+    "Anim_Map_CursedBox_B_Closed",
+    "Anim_Map_CursedBox_B_Open",
+    "Anim_Map_CursedBox_B_Opend"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "RewardBox",
+   "fields": {
+    "_meshType": 1,
+    "_holdingSfx": "InteractionLooting_CursedBox",
+    "_lockedHoldingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "LootingInventory",
+   "fields": {
+    "_index": -1
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Front/animator/box_B_base",
+   "mesh": "box_B_base",
+   "verts": 34,
+   "tris": 20,
+   "active": false
+  },
+  {
+   "path": "Front/animator/box_F_1",
+   "mesh": "box_F_1",
+   "verts": 12,
+   "tris": 6,
+   "active": false
+  },
+  {
+   "path": "Front/animator/box_F_2",
+   "mesh": "box_F_2",
+   "verts": 20,
+   "tris": 10,
+   "active": false
+  },
+  {
+   "path": "Front/animator/lid_B_1",
+   "mesh": "lid_B_1",
+   "verts": 37,
+   "tris": 21,
+   "active": false
+  },
+  {
+   "path": "Front/animator/lid_B_2",
+   "mesh": "lid_B_2",
+   "verts": 47,
+   "tris": 27,
+   "active": false
+  },
+  {
+   "path": "Front/animator/lid_F_1",
+   "mesh": "lid_F_1",
+   "verts": 47,
+   "tris": 29,
+   "active": false
+  },
+  {
+   "path": "Front/animator/lid_F_2",
+   "mesh": "lid_F_2",
+   "verts": 65,
+   "tris": 41,
+   "active": false
+  },
+  {
+   "path": "Front/animator/merge",
+   "mesh": "merge",
+   "verts": 191,
+   "tris": 139,
+   "active": false
+  },
+  {
+   "path": "Back/animator/box_B_base",
+   "mesh": "box_B_base",
+   "verts": 34,
+   "tris": 20,
+   "active": true
+  },
+  {
+   "path": "Back/animator/box_F_1",
+   "mesh": "box_F_1",
+   "verts": 12,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Back/animator/box_F_2",
+   "mesh": "box_F_2",
+   "verts": 20,
+   "tris": 10,
+   "active": true
+  },
+  {
+   "path": "Back/animator/lid_B_1",
+   "mesh": "lid_B_1",
+   "verts": 37,
+   "tris": 21,
+   "active": true
+  },
+  {
+   "path": "Back/animator/lid_B_2",
+   "mesh": "lid_B_2",
+   "verts": 47,
+   "tris": 27,
+   "active": true
+  },
+  {
+   "path": "Back/animator/lid_F_1",
+   "mesh": "lid_F_1",
+   "verts": 47,
+   "tris": 29,
+   "active": true
+  },
+  {
+   "path": "Back/animator/lid_F_2",
+   "mesh": "lid_F_2",
+   "verts": 65,
+   "tris": 41,
+   "active": true
+  },
+  {
+   "path": "Back/animator/merge",
+   "mesh": "merge",
+   "verts": 191,
+   "tris": 139,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.471,
+   -0.194,
+   -0.329
+  ],
+  "max": [
+   0.585,
+   0.512,
+   0.445
+  ]
+ },
+ "glb": "art/object/CursedBox.glb",
+ "glbKB": 47
+}

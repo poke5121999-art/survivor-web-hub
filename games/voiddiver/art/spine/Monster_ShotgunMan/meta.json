@@ -1,0 +1,35 @@
+{
+ "name": "Monster_ShotgunMan",
+ "skeletons": {
+  "Monster_ShotgunMan_NW": {
+   "skel": "Monster_ShotgunMan_NW.skel",
+   "bytes": 30677,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "Monster_ShotgunMan_SW": {
+   "skel": "Monster_ShotgunMan_SW.skel",
+   "bytes": 31500,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_ShotgunMan.atlas",
+ "pages": [
+  {
+   "png": "Monster_ShotgunMan.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_ShotgunMan_Material",
+   "shader": ""
+  }
+ ]
+}

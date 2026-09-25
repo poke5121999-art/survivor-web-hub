@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Explorer",
+ "skeletons": {
+  "NPC_Explorer_SW": {
+   "skel": "NPC_Explorer_SW.skel",
+   "bytes": 50337,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Explorer_SW.atlas",
+ "pages": [
+  {
+   "png": "NPC_Explorer_SW.png",
+   "size": [
+    256,
+    64
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Explorer_SW_Material",
+   "shader": ""
+  }
+ ]
+}

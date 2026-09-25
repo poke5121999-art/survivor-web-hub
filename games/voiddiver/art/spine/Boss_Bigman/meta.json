@@ -1,0 +1,35 @@
+{
+ "name": "Boss_Bigman",
+ "skeletons": {
+  "Boss_Bigman_NW": {
+   "skel": "Boss_Bigman_NW.skel",
+   "bytes": 166482,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Boss_Bigman_SW": {
+   "skel": "Boss_Bigman_SW.skel",
+   "bytes": 156914,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Boss_Bigman.atlas",
+ "pages": [
+  {
+   "png": "Boss_Bigman.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Boss_Bigman_Material",
+   "shader": ""
+  }
+ ]
+}

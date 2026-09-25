@@ -1,0 +1,15 @@
+{
+ "name": "World_PhoneBooth",
+ "skeletons": {
+  "World_PhoneBooth": {
+   "skel": "World_PhoneBooth.skel",
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "mixes": []
+  }
+ },
+ "atlas": "World_PhoneBooth.atlas",
+ "pages": [
+  "World_PhoneBooth.png"
+ ]
+}

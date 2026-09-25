@@ -1,0 +1,74 @@
+{
+ "name": "InteractiveTrigger_Machine3",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.5,
+    1.0,
+    1.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 0,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_OutDoorLight_2",
+   "mesh": "25DBG_Sector01_Zone01_Prop_OutDoorLight_2",
+   "verts": 168,
+   "tris": 88,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.111,
+   -0.0,
+   -0.194
+  ],
+  "max": [
+   0.209,
+   1.102,
+   0.326
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_Machine3.glb",
+ "glbKB": 80
+}

@@ -1,0 +1,35 @@
+{
+ "name": "Boss_SoulCollector",
+ "skeletons": {
+  "Boss_SoulCollector_SW": {
+   "skel": "Boss_SoulCollector_SW.skel",
+   "bytes": 526013,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "Boss_SoulCollector_NW": {
+   "skel": "Boss_SoulCollector_NW.skel",
+   "bytes": 523635,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Boss_SoulCollector.atlas",
+ "pages": [
+  {
+   "png": "Boss_SoulCollector.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Boss_SoulCollector_Material",
+   "shader": ""
+  }
+ ]
+}

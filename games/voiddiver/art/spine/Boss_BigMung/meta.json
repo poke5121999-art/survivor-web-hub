@@ -1,0 +1,35 @@
+{
+ "name": "Boss_BigMung",
+ "skeletons": {
+  "Boss_BigMung_NW": {
+   "skel": "Boss_BigMung_NW.skel",
+   "bytes": 62500,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Boss_BigMung_SW": {
+   "skel": "Boss_BigMung_SW.skel",
+   "bytes": 84253,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Boss_BigMung.atlas",
+ "pages": [
+  {
+   "png": "Boss_BigMung.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Boss_BigMung_Material",
+   "shader": ""
+  }
+ ]
+}

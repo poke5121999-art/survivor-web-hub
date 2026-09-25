@@ -1,0 +1,15 @@
+{
+ "name": "NPC_Campaign",
+ "skeletons": {
+  "NPC_Campaign_SW": {
+   "skel": "NPC_Campaign_SW.skel",
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "mixes": []
+  }
+ },
+ "atlas": "NPC_Campaign.atlas",
+ "pages": [
+  "NPC_Campaign.png"
+ ]
+}

@@ -1,0 +1,44 @@
+{
+ "name": "CollisionTrigger",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "CollisionTrigger",
+   "fields": {
+    "_triggerId": 0,
+    "_coolTime": 0.0,
+    "_isIndividual": 0,
+    "_canTriggered": 0
+   }
+  }
+ ],
+ "meshes": []
+}

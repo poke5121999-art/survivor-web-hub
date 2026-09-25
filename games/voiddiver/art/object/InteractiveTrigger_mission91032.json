@@ -1,0 +1,74 @@
+{
+ "name": "InteractiveTrigger_mission91032",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.5,
+    1.0,
+    1.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 91032,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/2DBG_RewardBoxes_SealedWeaponBox_F",
+   "mesh": "2DBG_RewardBoxes_SealedWeaponBox_F",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.27,
+   0.0,
+   -0.124
+  ],
+  "max": [
+   0.28,
+   0.202,
+   0.162
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_mission91032.glb",
+ "glbKB": 35
+}

@@ -1,0 +1,28 @@
+{
+ "name": "Cha_Staff_F",
+ "skeletons": {
+  "Cha_Staff_F_SW": {
+   "skel": "Cha_Staff_F_SW.skel",
+   "bytes": 976675,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Cha_Staff_F_SW.atlas",
+ "pages": [
+  {
+   "png": "Cha_Staff_F_SW.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Staff_F_SW_Material",
+   "shader": ""
+  }
+ ]
+}

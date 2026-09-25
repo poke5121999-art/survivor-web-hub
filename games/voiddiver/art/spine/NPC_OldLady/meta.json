@@ -1,0 +1,28 @@
+{
+ "name": "NPC_OldLady",
+ "skeletons": {
+  "NPC_OldLady_SW": {
+   "skel": "NPC_OldLady_SW.skel",
+   "bytes": 30098,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_OldLady.atlas",
+ "pages": [
+  {
+   "png": "NPC_OldLady.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_OldLady_Material",
+   "shader": ""
+  }
+ ]
+}

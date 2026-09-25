@@ -1,0 +1,1789 @@
+{
+ "units": {
+  "100001": {
+   "spine": "Cha_Sword",
+   "scale": 1.0,
+   "radius": 1.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "body/skinbase_1",
+    "body/eye_1",
+    "body/hair_1",
+    "body/costume_1",
+    "weapon/1001"
+   ]
+  },
+  "100003": {
+   "spine": "Cha_Dullahan",
+   "scale": 1.0,
+   "radius": 1.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "body/skinbase_1",
+    "body/costume_1",
+    "weapon/1201"
+   ]
+  },
+  "100004": {
+   "spine": "Cha_Caster",
+   "scale": 1.0,
+   "radius": 1.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "body/skinbase_1",
+    "body/eye_1",
+    "body/hair_1",
+    "body/costume_1",
+    "acc/1",
+    "weapon/1101"
+   ]
+  },
+  "100005": {
+   "spine": "Cha_Raven",
+   "scale": 1.0,
+   "radius": 1.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "body/skinbase_1",
+    "body/eye_1",
+    "body/hair_1",
+    "body/costume_1",
+    "weapon/1301"
+   ]
+  },
+  "200001": {
+   "spine": "Monster_SmallMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200001"
+   ]
+  },
+  "200002": {
+   "spine": "Monster_Acolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200002"
+   ]
+  },
+  "200003": {
+   "spine": "Monster_Police",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200003"
+   ]
+  },
+  "200004": {
+   "spine": "Monster_Bigeye",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "200005": {
+   "spine": "Monster_Mascot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200005"
+   ]
+  },
+  "200006": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.8,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "200007": {
+   "spine": "Monster_Zealot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200007"
+   ]
+  },
+  "200008": {
+   "spine": "Monster_HighAcolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "200009": {
+   "spine": "Monster_Mask",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "200011": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200011"
+   ]
+  },
+  "200012": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200012"
+   ]
+  },
+  "200013": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200013"
+   ]
+  },
+  "200014": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200014"
+   ]
+  },
+  "200015": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200015"
+   ]
+  },
+  "200016": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200016"
+   ]
+  },
+  "200017": {
+   "spine": "Monster_Mannequin_F",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200017"
+   ]
+  },
+  "200018": {
+   "spine": "Monster_Mannequin_M",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200018"
+   ]
+  },
+  "200019": {
+   "spine": "Monster_Spider",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200019"
+   ]
+  },
+  "200020": {
+   "spine": "Monster_DeepOne",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "200021": {
+   "spine": "Monster_MonitorMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200021"
+   ]
+  },
+  "200022": {
+   "spine": "Monster_Phage",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200022"
+   ]
+  },
+  "200023": {
+   "spine": "Monster_AxeMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200023"
+   ]
+  },
+  "200024": {
+   "spine": "Monster_AxeShieldMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "200025": {
+   "spine": "Monster_FireMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200025"
+   ]
+  },
+  "200026": {
+   "spine": "Monster_Mask",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "200027": {
+   "spine": "Monster_Bigeye",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "200029": {
+   "spine": "Monster_Overlord",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200029"
+   ]
+  },
+  "200030": {
+   "spine": "Monster_Spider",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200019"
+   ]
+  },
+  "200033": {
+   "spine": "Monster_Overlord",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200029"
+   ]
+  },
+  "210001": {
+   "spine": "Monster_SmallMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200001"
+   ]
+  },
+  "210002": {
+   "spine": "Monster_Acolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200002"
+   ]
+  },
+  "210003": {
+   "spine": "Monster_Police",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200003"
+   ]
+  },
+  "210005": {
+   "spine": "Monster_Mascot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200005"
+   ]
+  },
+  "210006": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "210007": {
+   "spine": "Monster_Zealot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200007"
+   ]
+  },
+  "210011": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200011"
+   ]
+  },
+  "210012": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200012"
+   ]
+  },
+  "210013": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200013"
+   ]
+  },
+  "210014": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200014"
+   ]
+  },
+  "210015": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200015"
+   ]
+  },
+  "210016": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200016"
+   ]
+  },
+  "210017": {
+   "spine": "Monster_SmallMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "310001"
+   ]
+  },
+  "210018": {
+   "spine": "Monster_Mannequin_F",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200017"
+   ]
+  },
+  "210019": {
+   "spine": "Monster_Mannequin_M",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200018"
+   ]
+  },
+  "210020": {
+   "spine": "Monster_Spider",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200019"
+   ]
+  },
+  "210021": {
+   "spine": "Monster_MonitorMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200021"
+   ]
+  },
+  "210023": {
+   "spine": "Monster_AxeMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200023"
+   ]
+  },
+  "210024": {
+   "spine": "Monster_AxeShieldMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "210025": {
+   "spine": "Monster_FireMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200025"
+   ]
+  },
+  "210030": {
+   "spine": "Monster_Spider",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200019"
+   ]
+  },
+  "220001": {
+   "spine": "Monster_SmallMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200001"
+   ]
+  },
+  "220002": {
+   "spine": "Monster_Acolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200002"
+   ]
+  },
+  "220005": {
+   "spine": "Monster_Mascot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200005"
+   ]
+  },
+  "220007": {
+   "spine": "Monster_Zealot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200007"
+   ]
+  },
+  "220008": {
+   "spine": "Monster_HighAcolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "220009": {
+   "spine": "Cha_Sword",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "dummy/all_shadow"
+   ]
+  },
+  "230001": {
+   "spine": "Monster_SmallMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200001"
+   ]
+  },
+  "240002": {
+   "spine": "Monster_Acolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200002"
+   ]
+  },
+  "240003": {
+   "spine": "Monster_Police",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200003"
+   ]
+  },
+  "240005": {
+   "spine": "Monster_Mascot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200005"
+   ]
+  },
+  "240007": {
+   "spine": "Monster_Zealot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200007"
+   ]
+  },
+  "240008": {
+   "spine": "Monster_HighAcolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "240011": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200011"
+   ]
+  },
+  "240012": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200012"
+   ]
+  },
+  "240013": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200013"
+   ]
+  },
+  "240014": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200014"
+   ]
+  },
+  "240015": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200015"
+   ]
+  },
+  "240016": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200016"
+   ]
+  },
+  "240018": {
+   "spine": "Monster_Mannequin_F",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200017"
+   ]
+  },
+  "240021": {
+   "spine": "Monster_MonitorMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200021"
+   ]
+  },
+  "240025": {
+   "spine": "Monster_FireMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200025"
+   ]
+  },
+  "240026": {
+   "spine": "Monster_Mask",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "240030": {
+   "spine": "Monster_Spider",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200019"
+   ]
+  },
+  "250001": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250002": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250003": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250004": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250005": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250011": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250012": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250013": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250014": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250015": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250021": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250022": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250023": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250024": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "250025": {
+   "spine": "Monster_Stone",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300001": {
+   "spine": "Boss_BigMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300002": {
+   "spine": "Boss_BigMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300003": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "300004": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.95,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": [
+    "300004"
+   ]
+  },
+  "300005": {
+   "spine": "Boss_SoulCollector",
+   "scale": 1.0,
+   "radius": 0.9,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300006": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300007": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300008": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300010": {
+   "spine": "Boss_DarkYoung",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300011": {
+   "spine": "Boss_DarkYoungBaby",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300012": {
+   "spine": "Boss_Cleaner",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300014": {
+   "spine": "Boss_Slender",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300017": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300018": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300019": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300020": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300021": {
+   "spine": "Boss_Hacker",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300022": {
+   "spine": "Boss_Hatman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300023": {
+   "spine": "Boss_Corpus",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300024": {
+   "spine": "Boss_Corpus",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "300025": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300026": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "300028": {
+   "spine": "EmptySkeleton_SkeletonData",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "301001": {
+   "spine": "Boss_BigMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "301004": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.95,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": [
+    "300004"
+   ]
+  },
+  "301005": {
+   "spine": "Boss_SoulCollector",
+   "scale": 1.0,
+   "radius": 0.9,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "301010": {
+   "spine": "Boss_DarkYoung",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "301012": {
+   "spine": "Boss_Cleaner",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "301014": {
+   "spine": "Boss_Slender",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "310001": {
+   "spine": "Monster_SmallMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310001"
+   ]
+  },
+  "310002": {
+   "spine": "Monster_SmallMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310002"
+   ]
+  },
+  "310003": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.8,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310003"
+   ]
+  },
+  "310004": {
+   "spine": "Monster_Zealot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310004"
+   ]
+  },
+  "310005": {
+   "spine": "Monster_Zealot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310005"
+   ]
+  },
+  "310006": {
+   "spine": "Monster_Police",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310006"
+   ]
+  },
+  "310007": {
+   "spine": "Monster_Police",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310007"
+   ]
+  },
+  "310008": {
+   "spine": "Monster_Mascot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310008"
+   ]
+  },
+  "310009": {
+   "spine": "Monster_Mascot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310009"
+   ]
+  },
+  "310010": {
+   "spine": "Monster_Acolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310010"
+   ]
+  },
+  "310011": {
+   "spine": "Monster_Acolyte",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310011"
+   ]
+  },
+  "310012": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310012"
+   ]
+  },
+  "310013": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310013"
+   ]
+  },
+  "310014": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310014"
+   ]
+  },
+  "310015": {
+   "spine": "Monster_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310015"
+   ]
+  },
+  "310051": {
+   "spine": "Monster_Phage",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310051"
+   ]
+  },
+  "310052": {
+   "spine": "Monster_Phage",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310052"
+   ]
+  },
+  "310053": {
+   "spine": "Monster_MonitorMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310053"
+   ]
+  },
+  "310054": {
+   "spine": "Monster_MonitorMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310054"
+   ]
+  },
+  "310055": {
+   "spine": "Monster_Spider",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310055"
+   ]
+  },
+  "310056": {
+   "spine": "Monster_Spider",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310056"
+   ]
+  },
+  "310057": {
+   "spine": "Monster_Overlord",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310057"
+   ]
+  },
+  "310058": {
+   "spine": "Monster_Overlord",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310058"
+   ]
+  },
+  "310059": {
+   "spine": "Monster_Mannequin_M",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310059"
+   ]
+  },
+  "310060": {
+   "spine": "Monster_Mannequin_F",
+   "scale": 1.0,
+   "radius": 0.25,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310060"
+   ]
+  },
+  "310061": {
+   "spine": "Monster_AxeMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310061"
+   ]
+  },
+  "310062": {
+   "spine": "Monster_FireManSanta",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 1.5,
+   "skins": [
+    "310062"
+   ]
+  },
+  "500031": {
+   "spine": "Monster_ShotgunMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "500032": {
+   "spine": "Monster_RifleMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "710001": {
+   "spine": "Monster_CursedBox",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "710002": {
+   "spine": "Monster_CursedBox",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "800001": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800002": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800003": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800004": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800005": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800006": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800007": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800008": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800009": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800010": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "800011": {
+   "spine": "Boss_Bigman",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "300003"
+   ]
+  },
+  "810001": {
+   "spine": "Boss_DarkYoung",
+   "scale": 1.0,
+   "radius": 0.85,
+   "height": 4.4,
+   "shadow": 1.5,
+   "skins": []
+  },
+  "820001": {
+   "spine": "Target_SmallMung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "820002": {
+   "spine": "Target_Zombie",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "820004": {
+   "spine": "Target_Zealot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "820006": {
+   "spine": "Target_MonitorMan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "820007": {
+   "spine": "Target_Mannequin",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "900001": {
+   "spine": "Monster_Mascot",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200005"
+   ]
+  },
+  "900002": {
+   "spine": "Monster_Police",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "200003"
+   ]
+  },
+  "900003": {
+   "spine": "Boss_DarkYoung",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  },
+  "900004": {
+   "spine": "Cha_Sword",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "dummy/all_shadow"
+   ]
+  },
+  "900005": {
+   "spine": "Cha_Dullahan",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "dummy/all"
+   ]
+  },
+  "900006": {
+   "spine": "Cha_Caster",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "dummy/all"
+   ]
+  },
+  "900007": {
+   "spine": "Cha_Raven",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": [
+    "dummy/all"
+   ]
+  },
+  "900100": {
+   "spine": "Monster_DeepOne",
+   "scale": 1.0,
+   "radius": 0.5,
+   "height": 1.2,
+   "shadow": 0.5,
+   "skins": []
+  }
+ },
+ "missing": [
+  200040,
+  200050,
+  300009,
+  300013,
+  300015,
+  300016,
+  301006,
+  301013,
+  301015,
+  301016,
+  600001,
+  600002,
+  600003,
+  600004,
+  600005,
+  600006,
+  600007,
+  600008,
+  600009,
+  600010,
+  600011,
+  600012,
+  600013,
+  700000,
+  700001,
+  700002,
+  700003,
+  700004,
+  700005,
+  700006,
+  700008,
+  700009,
+  700010,
+  700011,
+  700012,
+  700013,
+  700014,
+  700015,
+  700016,
+  700017,
+  700101,
+  700102,
+  700105,
+  700106,
+  700107,
+  700108,
+  700150,
+  700151,
+  700152,
+  700200,
+  700201,
+  700202,
+  700203,
+  700204,
+  700205,
+  700206,
+  700207,
+  700208,
+  700209,
+  700210,
+  700211,
+  700212,
+  700213,
+  700214,
+  700215,
+  700216,
+  700217,
+  700218,
+  700219,
+  700220,
+  700221,
+  700222,
+  700230,
+  700231,
+  700232,
+  700233,
+  700234,
+  700300,
+  700301,
+  700303,
+  700306,
+  700308,
+  700309,
+  700401,
+  700402,
+  700403,
+  700404,
+  700405,
+  700411,
+  701001,
+  701002,
+  701003,
+  701004,
+  701005,
+  701011,
+  701012,
+  701013,
+  701014,
+  701015,
+  701016,
+  701017,
+  701018,
+  701021,
+  701022,
+  701023,
+  701024,
+  701025,
+  701026,
+  710101,
+  710102,
+  710103,
+  710104,
+  710105,
+  710106,
+  710107,
+  710108,
+  710109,
+  710110,
+  710111,
+  710112,
+  710113,
+  710114,
+  710115,
+  800012,
+  1000001,
+  1000002
+ ]
+}

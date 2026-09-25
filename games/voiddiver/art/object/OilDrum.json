@@ -1,0 +1,76 @@
+{
+ "name": "OilDrum",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": true
+  },
+  {
+   "name": "Back",
+   "active": false
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    0.5,
+    1.0,
+    0.5
+   ],
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "BreakableProp",
+   "fields": {
+    "_meshType": 1,
+    "_holdingSfx": "",
+    "_interactionSfx": "",
+    "_hitSfx": "DrumBarrel_Hit",
+    "_destroySfx": "DrumBarrel_Break"
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Front/25DBG_Trap_OilDrumFront",
+   "mesh": "25DBG_Trap_OilDrumFront",
+   "verts": 253,
+   "tris": 280,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.254,
+   0.0,
+   -0.254
+  ],
+  "max": [
+   0.254,
+   0.588,
+   0.254
+  ]
+ },
+ "glb": "art/object/OilDrum.glb",
+ "glbKB": 15
+}

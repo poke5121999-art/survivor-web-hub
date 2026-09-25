@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Gatekeeper",
+ "skeletons": {
+  "NPC_Gatekeeper_SW": {
+   "skel": "NPC_Gatekeeper_SW.skel",
+   "bytes": 5383,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Gatekeeper.atlas",
+ "pages": [
+  {
+   "png": "NPC_Gatekeeper.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Gatekeeper_Material",
+   "shader": ""
+  }
+ ]
+}

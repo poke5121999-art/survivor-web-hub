@@ -1,0 +1,28 @@
+{
+ "name": "Boss_Corpus",
+ "skeletons": {
+  "Boss_Corpus_SW": {
+   "skel": "Boss_Corpus_SW.skel",
+   "bytes": 516000,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Boss_Corpus.atlas",
+ "pages": [
+  {
+   "png": "Boss_Corpus.png",
+   "size": [
+    1024,
+    1024
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Boss_Corpus_Material",
+   "shader": ""
+  }
+ ]
+}

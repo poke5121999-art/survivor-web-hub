@@ -1,0 +1,35 @@
+{
+ "name": "ZoneSpawnLight",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Point Light",
+   "active": true
+  }
+ ],
+ "colliders": [],
+ "spines": [],
+ "lights": [
+  {
+   "path": "Point Light",
+   "type": "point",
+   "pos": [
+    0.0,
+    2.0,
+    -0.0
+   ],
+   "color": [
+    1.0,
+    0.914,
+    0.729
+   ],
+   "intensity": 2.5,
+   "range": 5.0,
+   "active": true
+  }
+ ],
+ "particles": [],
+ "animators": [],
+ "behaviours": [],
+ "meshes": []
+}

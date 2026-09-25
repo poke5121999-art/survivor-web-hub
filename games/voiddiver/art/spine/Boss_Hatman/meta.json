@@ -1,0 +1,35 @@
+{
+ "name": "Boss_Hatman",
+ "skeletons": {
+  "Boss_Hatman_NW": {
+   "skel": "Boss_Hatman_NW.skel",
+   "bytes": 340941,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "Boss_Hatman_SW": {
+   "skel": "Boss_Hatman_SW.skel",
+   "bytes": 337682,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Boss_Hatman.atlas",
+ "pages": [
+  {
+   "png": "Boss_Hatman.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Boss_Hatman_Material",
+   "shader": ""
+  }
+ ]
+}

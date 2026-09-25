@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Collector",
+ "skeletons": {
+  "NPC_Collector_SW": {
+   "skel": "NPC_Collector_SW.skel",
+   "bytes": 59068,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Collector.atlas",
+ "pages": [
+  {
+   "png": "NPC_Collector.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Collector_Material",
+   "shader": ""
+  }
+ ]
+}

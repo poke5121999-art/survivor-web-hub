@@ -1,0 +1,35 @@
+{
+ "name": "Boss_Hacker",
+ "skeletons": {
+  "Boss_Hacker_NW": {
+   "skel": "Boss_Hacker_NW.skel",
+   "bytes": 55925,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Boss_Hacker_SW": {
+   "skel": "Boss_Hacker_SW.skel",
+   "bytes": 73424,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Boss_Hacker.atlas",
+ "pages": [
+  {
+   "png": "Boss_Hacker.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Boss_Hacker_Material",
+   "shader": ""
+  }
+ ]
+}

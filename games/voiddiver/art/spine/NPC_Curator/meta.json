@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Curator",
+ "skeletons": {
+  "NPC_Curator_SW": {
+   "skel": "NPC_Curator_SW.skel",
+   "bytes": 38837,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Curator.atlas",
+ "pages": [
+  {
+   "png": "NPC_Curator.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Curator_Material",
+   "shader": ""
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+Pretendard (c) 2021 Kil Hyung-jin, distributed under the SIL Open Font License 1.1
+(https://github.com/orioncactus/pretendard). Bo font goc nam trong ban VOID DIVER (Unity Font
+asset, StreamingAssets/aa/.../dependencies_assets_fonts bundle) - da cat rieng 2 trong so cac
+weight ripped khi build ban web nay: Pretendard-Regular.subset.woff2, Pretendard-Bold.subset.woff2,
+chi giu glyph dung trong VD.TEXT/VD.TEXT_EN (232 ky tu: Latin co ban + dau tieng Viet).
+Toan van OFL 1.1: https://openfontlicense.org

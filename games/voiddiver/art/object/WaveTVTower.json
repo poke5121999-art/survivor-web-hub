@@ -1,0 +1,158 @@
+{
+ "name": "WaveTVTower",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  },
+  {
+   "name": "NavMesh",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.5,
+    1.0,
+    2.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "WaveExecutor",
+   "fields": {
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Default",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Mall_TVFront_1",
+   "mesh": "25DBG_Mall_TV_1",
+   "verts": 15,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVFront_1",
+   "mesh": "25DBG_Mall_TV_1",
+   "verts": 15,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVBack_1",
+   "mesh": "25DBG_Mall_TVBack_1",
+   "verts": 23,
+   "tris": 22,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVBack_1",
+   "mesh": "25DBG_Mall_TVBack_1",
+   "verts": 23,
+   "tris": 22,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVFront_1",
+   "mesh": "25DBG_Mall_TV_1",
+   "verts": 15,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVFront_1",
+   "mesh": "25DBG_Mall_TV_1",
+   "verts": 15,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVBack_1",
+   "mesh": "25DBG_Mall_TVBack_1",
+   "verts": 23,
+   "tris": 22,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVBack_1",
+   "mesh": "25DBG_Mall_TVBack_1",
+   "verts": 23,
+   "tris": 22,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVFront_1",
+   "mesh": "25DBG_Mall_TV_1",
+   "verts": 15,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVBack_1",
+   "mesh": "25DBG_Mall_TVBack_1",
+   "verts": 23,
+   "tris": 22,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVFront_1",
+   "mesh": "25DBG_Mall_TV_1",
+   "verts": 15,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVFront_1",
+   "mesh": "25DBG_Mall_TV_1",
+   "verts": 15,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Body/25DBG_Mall_TVFront_1",
+   "mesh": "25DBG_Mall_TV_1",
+   "verts": 15,
+   "tris": 12,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -1.329,
+   0.029,
+   -1.292
+  ],
+  "max": [
+   0.907,
+   2.174,
+   1.052
+  ]
+ },
+ "glb": "art/object/WaveTVTower.glb",
+ "glbKB": 47
+}

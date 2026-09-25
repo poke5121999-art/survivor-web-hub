@@ -1,0 +1,142 @@
+{
+ "name": "DropGoods",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "UI",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  },
+  {
+   "name": "DropItemFX_Quest",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "capsule",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.7,
+   "height": 1.0,
+   "trigger": false,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [
+  {
+   "path": "DropItemFX_Quest",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "DropItemFX_Quest/Root/1_Flare_Yellow",
+   "pos": [
+    0.0,
+    0.1,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "DropItemFX_Quest/Root/1_Glow_Yellow",
+   "pos": [
+    0.0,
+    0.1,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "DropItemFX_Quest/Root/Glow_verticer",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "DropItemFX_Quest/Root/Particles_up",
+   "pos": [
+    0.0,
+    0.17,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "DropItemFX_Quest/Root/BackDarken_Ground",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "DropItemFX_Quest/Root/Glow_Ground",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  }
+ ],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "DropGoods",
+   "fields": {
+    "_holdingTime": 0.25,
+    "_holdingSfx": "",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "ObservableDestroyTrigger",
+   "fields": {}
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "UI",
+   "class": "Billboard"
+  },
+  {
+   "path": "UI/Image",
+   "class": "Image"
+  }
+ ],
+ "meshes": []
+}

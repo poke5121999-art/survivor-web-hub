@@ -1,0 +1,28 @@
+{
+ "name": "World_LoungeBG",
+ "skeletons": {
+  "World_LoungeBG": {
+   "skel": "World_LoungeBG.skel",
+   "bytes": 25247,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "World_LoungeBG.atlas",
+ "pages": [
+  {
+   "png": "World_LoungeBG.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "World_LoungeBG_Material",
+   "shader": ""
+  }
+ ]
+}

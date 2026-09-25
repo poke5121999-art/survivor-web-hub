@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Alex",
+ "skeletons": {
+  "NPC_Alex_SW": {
+   "skel": "NPC_Alex_SW.skel",
+   "bytes": 105903,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Alex_SW.atlas",
+ "pages": [
+  {
+   "png": "NPC_Alex_SW.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Alex_SW_Material",
+   "shader": ""
+  }
+ ]
+}

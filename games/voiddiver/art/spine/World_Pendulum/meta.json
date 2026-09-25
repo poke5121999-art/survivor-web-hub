@@ -1,0 +1,28 @@
+{
+ "name": "World_Pendulum",
+ "skeletons": {
+  "World_Pendulum": {
+   "skel": "World_Pendulum.skel",
+   "bytes": 1169,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null
+  }
+ },
+ "atlas": "World_Pendulum.atlas",
+ "pages": [
+  {
+   "png": "World_Pendulum.png",
+   "size": [
+    32,
+    32
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "World_Pendulum_Material",
+   "shader": ""
+  }
+ ]
+}

@@ -1,0 +1,102 @@
+{
+ "name": "InteractiveTrigger_Elara",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Model",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.5,
+    1.0,
+    1.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [
+  {
+   "path": "Model/SkeletonAnimation_NW",
+   "skeleton": "NPC_Campaign_SW",
+   "anim": "idle",
+   "loop": true,
+   "active": false,
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "scale": [
+    1.2,
+    1.2,
+    1.2
+   ]
+  },
+  {
+   "path": "Model/SkeletonAnimation_SW",
+   "skeleton": "NPC_Campaign_SW",
+   "anim": "idle",
+   "loop": true,
+   "active": true,
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "scale": [
+    1.2,
+    1.2,
+    1.2
+   ]
+  }
+ ],
+ "lights": [],
+ "particles": [],
+ "animators": [
+  {
+   "path": "Model/SkeletonAnimation_NW",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "Model/SkeletonAnimation_SW",
+   "controller": null,
+   "clips": []
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 1104021,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "Model",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": []
+}

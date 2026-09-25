@@ -1,0 +1,35 @@
+{
+ "name": "Boss_Cleaner",
+ "skeletons": {
+  "Boss_Cleaner_SW": {
+   "skel": "Boss_Cleaner_SW.skel",
+   "bytes": 281516,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Boss_Cleaner_NW": {
+   "skel": "Boss_Cleaner_NW.skel",
+   "bytes": 247512,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Boss_Cleaner.atlas",
+ "pages": [
+  {
+   "png": "Boss_Cleaner.png",
+   "size": [
+    1024,
+    1024
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Boss_Cleaner_Material",
+   "shader": ""
+  }
+ ]
+}

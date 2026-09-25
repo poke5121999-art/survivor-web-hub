@@ -1,0 +1,96 @@
+{
+ "name": "OfficeLocker",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": true
+  },
+  {
+   "name": "Back",
+   "active": false
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "MimicObject",
+   "fields": {
+    "_meshType": 1,
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Front/25DBG_BaseCamp01_Prop_Cabinet_1_2",
+   "mesh": "msh_25BG_BaseCamp01_Prop_Cabinet_1_2",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Back/25DBG_BaseCamp01_Prop_Cabinet_1_1",
+   "mesh": "msh_25BG_BaseCamp01_Prop_Cabinet_1_1",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.258,
+   -0.182,
+   -0.188
+  ],
+  "max": [
+   0.236,
+   0.758,
+   0.183
+  ]
+ },
+ "glb": "art/object/OfficeLocker.glb",
+ "glbKB": 196
+}

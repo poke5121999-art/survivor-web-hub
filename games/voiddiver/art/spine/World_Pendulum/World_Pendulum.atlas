@@ -1,0 +1,6 @@
+World_Pendulum.png
+size:32,32
+filter:Linear,Linear
+pendulum_1
+bounds:1,1,11,26
+offsets:26,5,61,63

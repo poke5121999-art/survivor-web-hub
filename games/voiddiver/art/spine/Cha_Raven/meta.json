@@ -1,0 +1,35 @@
+{
+ "name": "Cha_Raven",
+ "skeletons": {
+  "Cha_Raven_SW": {
+   "skel": "Cha_Raven_SW.skel",
+   "bytes": 271395,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null
+  },
+  "Cha_Raven_NW": {
+   "skel": "Cha_Raven_NW.skel",
+   "bytes": 261968,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null
+  }
+ },
+ "atlas": "Cha_Raven.atlas",
+ "pages": [
+  {
+   "png": "Cha_Raven.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Raven_Material",
+   "shader": ""
+  }
+ ]
+}

@@ -1,0 +1,271 @@
+{
+ "name": "PortalDefault",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [
+  {
+   "path": "Body/Start/LightSummon/Point Light",
+   "type": "point",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "color": [
+    0.118,
+    0.598,
+    1.0
+   ],
+   "intensity": 5.0,
+   "range": 5.0,
+   "active": false
+  },
+  {
+   "path": "Body/End/LightSummon/Point Light",
+   "type": "point",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "color": [
+    0.118,
+    0.598,
+    1.0
+   ],
+   "intensity": 5.0,
+   "range": 5.0,
+   "active": false
+  }
+ ],
+ "particles": [
+  {
+   "path": "",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/Start/LightSummon",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/Start/Flare_2",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/Start/Core",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/Start/Glow",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/Start/sparks_Start",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/Start/Energe",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/End/LightSummon",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/End/Flare_2",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/End/Core",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/End/Glow",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/End/sparks_Start",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": false
+  },
+  {
+   "path": "Body/PortalMain/Portal_Ring",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/PortalMain/Portal_Dark",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  },
+  {
+   "path": "Body/PortalMain/Inner_spin",
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "active": true
+  }
+ ],
+ "animators": [
+  {
+   "path": "",
+   "controller": "PortalDefault",
+   "clips": [
+    "PortalDefault_Start",
+    "PortalDefault_End",
+    "PortalDefault_Loop"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "ParticleSetupTool",
+   "fields": {
+    "sizeMultiplier": 1.0,
+    "delayOffset": 0.0,
+    "useDuration": 0,
+    "durationSeconds": 0.0,
+    "durationMode": 0,
+    "disableParticleEmissionAfterDuration": 1,
+    "isPreviewing": 0
+   }
+  },
+  {
+   "path": "",
+   "class": "Portal",
+   "fields": {
+    "_holdingSfx": "Portal_Use",
+    "_interactionSfx": "Portal_Move"
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "SimpleAnimatorDelay",
+   "fields": {
+    "delayTime": 0.0,
+    "playbackSpeedMultiplier": 1.0
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/Img_25D_BG_GroundDecal_Portal_1",
+   "mesh": "25DBG_GroundDecal_Portal",
+   "verts": 12,
+   "tris": 10,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -1.038,
+   0.0,
+   -1.038
+  ],
+  "max": [
+   1.038,
+   0.0,
+   1.038
+  ]
+ },
+ "glb": "art/object/PortalDefault.glb",
+ "glbKB": 67
+}

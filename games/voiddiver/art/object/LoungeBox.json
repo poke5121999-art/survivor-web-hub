@@ -1,0 +1,110 @@
+{
+ "name": "LoungeBox",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Front",
+   "active": false
+  },
+  {
+   "name": "Back",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.0,
+    1.0,
+    2.0
+   ],
+   "trigger": true,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "MimicObject",
+   "fields": {
+    "_meshType": 1,
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Front/25DBG_BaseCamp01_Prop_Desk_4",
+   "mesh": "msh_25BG_BaseCamp01_Prop_Desk_4",
+   "verts": 10,
+   "tris": 10,
+   "active": false
+  },
+  {
+   "path": "Front/25DBG_BaseCamp01_Prop_MetalSafe_1",
+   "mesh": "msh_25BG_BaseCamp01_Prop_MetalSafe_1_1",
+   "verts": 7,
+   "tris": 6,
+   "active": false
+  },
+  {
+   "path": "Back/25DBG_BaseCamp01_Prop_Desk_4",
+   "mesh": "msh_25BG_BaseCamp01_Prop_Desk_4",
+   "verts": 10,
+   "tris": 10,
+   "active": true
+  },
+  {
+   "path": "Back/25DBG_BaseCamp01_Prop_MetalSafe_1",
+   "mesh": "msh_25BG_BaseCamp01_Prop_MetalSafe_1_1",
+   "verts": 7,
+   "tris": 6,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.482,
+   -0.151,
+   -0.352
+  ],
+  "max": [
+   0.47,
+   1.103,
+   0.427
+  ]
+ },
+ "glb": "art/object/LoungeBox.glb",
+ "glbKB": 196
+}

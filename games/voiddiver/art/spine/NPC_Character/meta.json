@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Character",
+ "skeletons": {
+  "NPC_Character_SW": {
+   "skel": "NPC_Character_SW.skel",
+   "bytes": 85713,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Character.atlas",
+ "pages": [
+  {
+   "png": "NPC_Character.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Character_Material",
+   "shader": ""
+  }
+ ]
+}

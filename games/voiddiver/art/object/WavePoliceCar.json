@@ -1,0 +1,70 @@
+{
+ "name": "WavePoliceCar",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    2.5,
+    1.0,
+    2.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "WaveExecutor",
+   "fields": {
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Default",
+    "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "OutlineObject"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Sector01_Zone01_Prop_Car_5",
+   "mesh": "25DBG_Sector01_Zone01_Prop_Car_5",
+   "verts": 148,
+   "tris": 166,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -1.184,
+   -0.228,
+   -1.462
+  ],
+  "max": [
+   0.888,
+   0.991,
+   2.005
+  ]
+ },
+ "glb": "art/object/WavePoliceCar.glb",
+ "glbKB": 80
+}

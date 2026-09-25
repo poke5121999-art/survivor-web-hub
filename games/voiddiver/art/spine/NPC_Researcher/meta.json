@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Researcher",
+ "skeletons": {
+  "NPC_Researcher_SW": {
+   "skel": "NPC_Researcher_SW.skel",
+   "bytes": 34433,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Researcher.atlas",
+ "pages": [
+  {
+   "png": "NPC_Researcher.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Researcher_Material",
+   "shader": ""
+  }
+ ]
+}

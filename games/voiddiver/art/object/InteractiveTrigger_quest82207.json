@@ -1,0 +1,88 @@
+{
+ "name": "InteractiveTrigger_quest82207",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    1.5,
+    1.0,
+    1.5
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 82207,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25D_BG_DeadMan_BurnBody_Back",
+   "mesh": "25D_BG_DeadMan_BurnBody_Back",
+   "verts": 1073,
+   "tris": 561,
+   "active": true
+  },
+  {
+   "path": "Body/25D_BG_DeadMan_BurnBody_Front",
+   "mesh": "25D_BG_DeadMan_BurnBody_Front",
+   "verts": 471,
+   "tris": 609,
+   "active": true
+  },
+  {
+   "path": "Body/25D_BG_DeadMan_BurnBody_Front",
+   "mesh": "25D_BG_DeadMan_BurnBody_Front",
+   "verts": 471,
+   "tris": 609,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.619,
+   -0.079,
+   -0.63
+  ],
+  "max": [
+   0.602,
+   0.237,
+   0.428
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_quest82207.glb",
+ "glbKB": 65
+}

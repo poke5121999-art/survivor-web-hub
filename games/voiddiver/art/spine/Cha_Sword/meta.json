@@ -1,0 +1,35 @@
+{
+ "name": "Cha_Sword",
+ "skeletons": {
+  "Cha_Sword_SW": {
+   "skel": "Cha_Sword_SW.skel",
+   "bytes": 486216,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null
+  },
+  "Cha_Sword_NW": {
+   "skel": "Cha_Sword_NW.skel",
+   "bytes": 322518,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null
+  }
+ },
+ "atlas": "Cha_Sword.atlas",
+ "pages": [
+  {
+   "png": "Cha_Sword.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Sword_Material",
+   "shader": ""
+  }
+ ]
+}

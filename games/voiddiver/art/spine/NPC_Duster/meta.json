@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Duster",
+ "skeletons": {
+  "NPC_Duster": {
+   "skel": "NPC_Duster.skel",
+   "bytes": 40841,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Duster.atlas",
+ "pages": [
+  {
+   "png": "NPC_Duster.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Duster_Material",
+   "shader": ""
+  }
+ ]
+}

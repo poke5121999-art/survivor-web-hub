@@ -1,0 +1,35 @@
+{
+ "name": "Monster_MonitorMan",
+ "skeletons": {
+  "Monster_MonitorMan_NW": {
+   "skel": "Monster_MonitorMan_NW.skel",
+   "bytes": 91170,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_MonitorMan_SW": {
+   "skel": "Monster_MonitorMan_SW.skel",
+   "bytes": 106040,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_MonitorMan.atlas",
+ "pages": [
+  {
+   "png": "Monster_MonitorMan.png",
+   "size": [
+    512,
+    512
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_MonitorMan_Material",
+   "shader": ""
+  }
+ ]
+}

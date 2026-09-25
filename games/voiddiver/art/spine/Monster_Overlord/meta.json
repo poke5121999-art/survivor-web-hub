@@ -1,0 +1,35 @@
+{
+ "name": "Monster_Overlord",
+ "skeletons": {
+  "Monster_Overlord_SW": {
+   "skel": "Monster_Overlord_SW.skel",
+   "bytes": 137215,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_Overlord_NW": {
+   "skel": "Monster_Overlord_NW.skel",
+   "bytes": 126109,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_Overlord.atlas",
+ "pages": [
+  {
+   "png": "Monster_Overlord.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Overlord_Material",
+   "shader": ""
+  }
+ ]
+}

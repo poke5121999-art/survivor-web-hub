@@ -1,0 +1,35 @@
+{
+ "name": "Monster_FireManSanta",
+ "skeletons": {
+  "Monster_FireManSanta_NW": {
+   "skel": "Monster_FireManSanta_NW.skel",
+   "bytes": 41891,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "Monster_FireManSanta_SW": {
+   "skel": "Monster_FireManSanta_SW.skel",
+   "bytes": 52614,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_FireManSanta.atlas",
+ "pages": [
+  {
+   "png": "Monster_FireManSanta.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_FireManSanta_Material",
+   "shader": ""
+  }
+ ]
+}

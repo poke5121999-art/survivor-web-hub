@@ -1,0 +1,17 @@
+ngày	quyết định	lý do	bằng chứng
+2026-09-25	Bảng gốc giải được bằng XOR 0xCC, Lua XOR 0xF4	Bản cũ ghi "bảng mã hoá, không đọc được" nên tự chế số; thực ra chỉ XOR một byte (\r\n hiện ra c1 c6)	~/Downloads/vd-ref/tables/*.csv, lua/**; memory void-diver-demo-local-steam
+2026-09-25	Xoá hẳn bản 2026-08 (game.js, bot.js, index.html) trước khi dựng	Người dùng yêu cầu; bản cũ vẽ bằng code, số tự chế, không dùng lại được gì	git rm trong commit đầu của bản mới
+2026-09-25	three r140 + spine-threejs 4.2.43, không build step	Spine gốc là 4.2.43 có physics constraint; bản 4.0 của ho-xanh không đọc được. r140 đã dùng ở ho-xanh	ASSETS.md §1.1; vd-ref/tools/spine-three-smoke.js dựng được Cha_Sword
+2026-09-25	Chạy nguyên văn Lua gốc bằng fengari, không port tay	127 hàm LuaApi, 3108 dòng tutorial/Common; `await` gốc chỉ poll task.IsCompleted nên không cần yield qua ranh giới JS	vd-ref/proto-lua/run.js: OnLounge của 1100 chạy hết 92 lời gọi; host-test.js: OnStage + 3 va chạm chạy đúng trình tự
+2026-09-25	Mỗi script một _ENV, Common.lua chạy vào từng _ENV	Hàm chung gọi biến/hàm của campaign; cùng tên OnEvent/OnStage ở mọi script	Common.lua:525 HandleCampaignAbandonCleanup, :598 AddDialog(LuaKey, FunctionName)
+2026-09-25	Skill chạy bằng bộ thông dịch cây RootActionNode gốc, không code tay từng skill	Cây gốc có đường cong tốc độ anim, lướt theo curve, cửa sổ huỷ đòn/nối combo, event theo mốc; 61 skill nhân vật + 377 skill quái, ~25 loại event	vd-ref/tools/event_types.py
+2026-09-25	Camera: Perspective FOV 10°, lệch (25,21,25), damping Cinemachine 1 s	Số trong prefab CameraManager / PlayerVCamTemplate	ASSETS.md §3; js/render.js
+2026-09-25	COLOR_0 của sector không phải màu: tắt vertexColors	G luôn 128, A là số 0–12; bật lên thì alphaTest loại sạch cây/nhà	đo trong trình duyệt: Plants A 1..5, Building A 9..12
+2026-09-25	Khoét mái theo mã nhóm ở kênh A của COLOR_0, cắt trên y 0,9 m	Khối CutoffArea mã k trùng khít toà nhà mã k; nóc khối cutoff ở 0,9 m	sector 1001: mã 9 tường x 9,4–19,3 z −26,6..−16,6; cutoff x 9,5–19,0 z −26,7..−17,5
+2026-09-25	Tầm nhìn nón 120°/5 m/1 m sau lưng vá vào shader môi trường	Character.SightAngle/SightRange/SightBackRange; ảnh Steam cho thấy ngoài nón tối hẳn	steamshots/contact.jpg; js/render.js patchSight
+2026-09-25	Phím theo InputActionAsset gốc: WASD, chuột ngắm, LMB đánh, RMB/Q/E/R skill, C trang bị, Space lướt, Shift chạy, F tương tác, 1–5 đồ, Tab túi, M bản đồ	Lấy thẳng từ dependencies_assets_input	vd-ref/cache/input_strings.txt
+2026-09-25	Hậu kỳ tự viết (postfx.js), không kéo EffectComposer	Chỉ cần bloom + chỉnh màu + vignette + hiệu ứng căng thẳng; số lấy từ URP Volume gốc	ASSETS.md §4.1; js/postfx.js
+2026-09-25	Contrast làm trong không gian log quanh xám giữa 0,18 như URP	Lần đầu kéo quanh 0,5 ở không gian hiển thị thì cảnh tối bị dìm đen hết	ảnh so trước/sau trong scratchpad, lần 1 gần như đen
+2026-09-25	Bỏ vignette nền (chỉ bật theo căng thẳng/bị đánh)	VolumeProfile_Main không có vignette; vignette 0,25 tự thêm làm tối rìa	ASSETS.md §4.1 bảng profile
+2026-09-25	Ô skill: RMB/Q/E = ba skill General/None đầu trong ActiveSkillIds, R = Ultimate [SUY LUẬN]	Bảng không có luật gán ô; Talent có SkillSlotCount nên số ô mở dần; màn chọn nhân vật gốc có "Currently Selected Skill"	Talent.csv SkillSlotCount:1 ×2; ảnh Steam ss07
+2026-09-25	AI quái chạy sau Skill.step, rồi applyLight	Quy ước của ai.js; đèn pin gắn buff 3000003 (−0,7 MoveSpeed) cho quái trong nón	docs/AI.md

@@ -1,0 +1,35 @@
+{
+ "name": "Monster_Mascot",
+ "skeletons": {
+  "Monster_Mascot_SW": {
+   "skel": "Monster_Mascot_SW.skel",
+   "bytes": 95350,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_Mascot_NW": {
+   "skel": "Monster_Mascot_NW.skel",
+   "bytes": 82656,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_Mascot.atlas",
+ "pages": [
+  {
+   "png": "Monster_Mascot.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_Mascot_Material",
+   "shader": ""
+  }
+ ]
+}

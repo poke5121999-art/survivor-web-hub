@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Pim",
+ "skeletons": {
+  "NPC_Pim_SW": {
+   "skel": "NPC_Pim_SW.skel",
+   "bytes": 19488,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Pim.atlas",
+ "pages": [
+  {
+   "png": "NPC_Pim.png",
+   "size": [
+    128,
+    128
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Pim_Material",
+   "shader": ""
+  }
+ ]
+}

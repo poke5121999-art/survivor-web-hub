@@ -1,0 +1,35 @@
+{
+ "name": "Monster_AxeShieldMan",
+ "skeletons": {
+  "Monster_AxeShieldMan_SW": {
+   "skel": "Monster_AxeShieldMan_SW.skel",
+   "bytes": 37485,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  },
+  "Monster_AxeShieldMan_NW": {
+   "skel": "Monster_AxeShieldMan_NW.skel",
+   "bytes": 36442,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.10000000149011612,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_AxeShieldMan.atlas",
+ "pages": [
+  {
+   "png": "Monster_AxeShieldMan.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_AxeShieldMan_Material",
+   "shader": ""
+  }
+ ]
+}

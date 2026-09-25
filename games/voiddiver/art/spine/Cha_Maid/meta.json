@@ -1,0 +1,35 @@
+{
+ "name": "Cha_Maid",
+ "skeletons": {
+  "Cha_Maid_NW": {
+   "skel": "Cha_Maid_NW.skel",
+   "bytes": 135736,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "Cha_Maid_SW": {
+   "skel": "Cha_Maid_SW.skel",
+   "bytes": 376067,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Cha_Maid.atlas",
+ "pages": [
+  {
+   "png": "Cha_Maid.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Cha_Maid_Material",
+   "shader": ""
+  }
+ ]
+}

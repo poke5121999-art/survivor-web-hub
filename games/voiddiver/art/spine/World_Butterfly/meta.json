@@ -1,0 +1,28 @@
+{
+ "name": "World_Butterfly",
+ "skeletons": {
+  "World_Butterfly": {
+   "skel": "World_Butterfly.skel",
+   "bytes": 75334,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.0,
+   "skins": null
+  }
+ },
+ "atlas": "World_Butterfly.atlas",
+ "pages": [
+  {
+   "png": "World_Butterfly.png",
+   "size": [
+    16,
+    16
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "World_Butterfly_Material",
+   "shader": ""
+  }
+ ]
+}

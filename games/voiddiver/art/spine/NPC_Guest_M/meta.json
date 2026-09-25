@@ -1,0 +1,28 @@
+{
+ "name": "NPC_Guest_M",
+ "skeletons": {
+  "NPC_Guest_M_SW": {
+   "skel": "NPC_Guest_M_SW.skel",
+   "bytes": 82915,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "NPC_Guest_M_SW.atlas",
+ "pages": [
+  {
+   "png": "NPC_Guest_M_SW.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "NPC_Guest_M_SW_Material",
+   "shader": ""
+  }
+ ]
+}

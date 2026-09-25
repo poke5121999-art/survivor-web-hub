@@ -1,0 +1,35 @@
+{
+ "name": "Monster_RifleMan",
+ "skeletons": {
+  "Monster_RifleMan_NW": {
+   "skel": "Monster_RifleMan_NW.skel",
+   "bytes": 31325,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  },
+  "Monster_RifleMan_SW": {
+   "skel": "Monster_RifleMan_SW.skel",
+   "bytes": 30691,
+   "scale": 0.009999999776482582,
+   "defaultMix": 0.20000000298023224,
+   "skins": null
+  }
+ },
+ "atlas": "Monster_RifleMan.atlas",
+ "pages": [
+  {
+   "png": "Monster_RifleMan.png",
+   "size": [
+    256,
+    256
+   ]
+  }
+ ],
+ "materials": [
+  {
+   "name": "Monster_RifleMan_Material",
+   "shader": ""
+  }
+ ]
+}

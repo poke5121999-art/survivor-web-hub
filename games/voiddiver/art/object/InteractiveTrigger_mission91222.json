@@ -1,0 +1,74 @@
+{
+ "name": "InteractiveTrigger_mission91222",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Body",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "box",
+   "center": [
+    0.0,
+    0.5,
+    -0.0
+   ],
+   "size": [
+    3.0,
+    1.0,
+    4.0
+   ],
+   "trigger": true,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "",
+   "class": "InteractiveTrigger",
+   "fields": {
+    "_triggerId": 91222,
+    "_coolTime": -1.0,
+    "_holdingTime": 0.5,
+    "_isIndividual": 1,
+    "_canTriggered": 1,
+    "_holdingSfx": "InteractionLooting_Locked",
+    "_interactionSfx": ""
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Body/25DBG_Interaction_Car_9_B_1",
+   "mesh": "25DBG_Interaction_Car_9_B",
+   "verts": 61,
+   "tris": 58,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.694,
+   0.006,
+   -1.212
+  ],
+  "max": [
+   0.602,
+   1.451,
+   1.418
+  ]
+ },
+ "glb": "art/object/InteractiveTrigger_mission91222.glb",
+ "glbKB": 175
+}
