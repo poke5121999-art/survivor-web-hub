@@ -1759,3 +1759,48 @@ thật, người chơi còn được thêm hệ số ấy, tức là dễ hơn b
   muốn, nhưng mạnh hơn cả một mùa nuôi LỰC. Để nguyên, ghi lại.
 - Khoảng 12 mạng một trận là nhịp có sẵn của bộ não. Muốn trận "đông người chết" hơn thì phải chỉnh
   giao tranh giữa trận, không phải bơm lại đợt chết oan đầu trận.
+
+## 12. Đánh bóng bằng asset thật của Teamfight Manager 2 và Uma Musume `[ĐO TRONG REPO]`
+
+Chủ dự án (2026-09-25): "polish game ghế nóng: UI/UX/Anim/VFX/Sound + làm game sinh động hơn dựa trên
+asset game Uma Musume trên steam đã down + TFM2". Từ đợt này game dùng thẳng tệp ảnh và tiếng của hai
+game ấy, bóc từ bản cài trên máy chủ dự án. Kế hoạch ở `brain/plans/ghe-nong-polish-uma-tfm2.md`.
+
+### 12.1 Kho TFM2: một tệp, định dạng tự chế, không mã hoá
+
+- Cả game nằm trong `bundle.game_data` (1,1 GB, bản 0.6.0). Cấu trúc đo bằng `xxd`:
+  `u32 số mục`, rồi mỗi mục `u32 len + đuôi`, `u32 len + đường dẫn`, `u32 cỡ + dữ liệu`. 2326 mục.
+- Hoạt ảnh là cặp `<tên>#anim.fanim` + `<tên>#sheet.png`. `fanim` là JSON:
+  `anims → <tên hoạt ảnh> → frames → [{duration (giây), data: {x, y, w, h}}]`.
+- Tiếng trong trận là `.mp3` ở `asset/base/sound/sfx/` (499 tệp), nhạc nền là `.wav` ở `sound/bgm/`.
+- `_tools/build_tfm.py` đọc thẳng tệp này, không cần bước bóc trước.
+
+### 12.2 `[BẪY ĐÃ SẬP]` Khung TFM2 không kèm điểm neo
+
+`fanim` không có pivot, và mỗi khung một cỡ (đòn chém của Kiếm Sĩ: 35×55, 33×61, 79×39). Đoán neo
+ở đáy-giữa thì người nhảy lên nhảy xuống theo từng khung. Kiểm bằng cách xếp chồng mọi khung của một
+hoạt ảnh theo tâm rồi kẻ chữ thập: thân người đứng yên, chỉ vũ khí và vệt chém di chuyển. Vậy **neo là
+TÂM khung**. Build đo thêm khoảng từ tâm xuống chân và lên đỉnh đầu trên khung đứng đầu tiên (`"_"` trong
+`art/tfm/hinh.js`), để đặt chân đúng chỗ và treo thanh máu đúng đỉnh đầu.
+
+### 12.3 Giờ hoạt ảnh khác giờ trận
+
+Ở ×1 trận chạy nhanh gấp 3 lần thật (12 tick/giây × 0,25 giây). Phát khung theo giờ trận thì cú chém
+0,4 giây chỉ còn 0,13 giây thật, trông như chớp. `heHinh()` trong `ui-tran.js` đổi giờ trận ra giờ hoạt
+ảnh, trần 2 giây trận cho mỗi giây hoạt ảnh: cú chém trọn dáng mà vẫn xong trước đòn kế (tốc đánh
+khoảng 1,15 đòn/giây).
+
+### 12.4 Thứ bỏ đi vì sprite TFM2 đã có
+
+- Lớp vũ khí rời (`veVuKhiTay`, `art/vukhi.png`, bảng `VUKHI_*`) tồn tại chỉ vì sprite HoloCure không có
+  khung vung tay. Sprite TFM2 cầm vũ khí và vung thật, nên cả lớp ấy bị xoá.
+- Nhún chân, chồm tới, phình người khi niệm: cùng lý do.
+- `art/tuong.png`, `quai.png`, `tru.png`: thay bằng `art/tfm/hinh.png`. `build_art.py` giờ chỉ dựng
+  chân dung người, hiệu ứng, đạn, đồ.
+
+### 12.5 Bảng ghép tướng
+
+Tướng của game giữ nguyên chỉ số và kỹ năng; chỉ mượn thân của một tướng TFM2 hợp chủ đề. Bảng nằm ở
+`TUONG` trong `_tools/build_tfm.py`, kèm dãy hoạt ảnh cho chiêu và chiêu cuối (ví dụ Xạ Thủ nối
+`ult_pre → ult_loop ×2 → ult_end`). Quái rừng: ong, nấm, tê giác, gốc cây. Rồng là `serpen`, Chúa Hang
+là `epic`.

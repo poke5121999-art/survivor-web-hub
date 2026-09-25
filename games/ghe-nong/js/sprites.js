@@ -10,16 +10,87 @@
   /* MỘT số bản cho mọi ảnh atlas. Canvas từng nạp `?v=…12a` còn ảnh DOM nạp `?v=…11a`:
      mỗi atlas tải hai lần, và chân dung DOM có thể lấy ảnh cũ trong cache ghép với toạ độ mới.
      Đổi ảnh trong art/ thì tăng đúng số này. */
-  var ART_V = '20260912a';
+  var ART_V = '20260925a';
   var MAP = window.ART_MAP || null;
   var ANH = {};
   var xong = 0, can = 0;
 
   G.ART = { sanSang: false };
 
+  /* ══════════ HOẠT ẢNH TFM2 ══════════
+     Bảng `window.TFM_HINH` (art/tfm/hinh.js, sinh bởi _tools/build_tfm.py):
+     khoá → trạng thái → [x, y, w, h, ms]; "_" = [chân, đỉnh] đo từ TÂM khung.
+     Khung TFM2 không kèm điểm neo; neo là tâm khung, nên đặt tâm ở (x, y − chân). */
+  var TH = window.TFM_HINH || null;
+  var ANH_TH = new Image();
+
+  G.coHinh = function (khoa) { return !!(TH && TH[khoa] && ANH_TH.complete && ANH_TH.naturalWidth); };
+
+  /** tổng thời lượng một trạng thái, giây */
+  G.dai = function (khoa, tt) {
+    var ds = TH && TH[khoa] && TH[khoa][tt];
+    if (!ds) return 0;
+    var s = 0;
+    for (var i = 0; i < ds.length; i++) s += ds[i][4];
+    return s / 1000;
+  };
+
+  /** chiều cao từ chân tới đỉnh đầu, điểm ảnh gốc */
+  G.caoHinh = function (khoa) {
+    var m = TH && TH[khoa];
+    return m ? m._[0] + m._[1] : 0;
+  };
+
+  function khungLuc(ds, giay, lap) {
+    var tong = 0, i;
+    for (i = 0; i < ds.length; i++) tong += ds[i][4];
+    var ms = giay * 1000;
+    if (lap) ms = ((ms % tong) + tong) % tong;
+    else if (ms >= tong) return ds[ds.length - 1];
+    for (i = 0; i < ds.length; i++) {
+      ms -= ds[i][4];
+      if (ms < 0) return ds[i];
+    }
+    return ds[ds.length - 1];
+  }
+
+  /** Vẽ khoá `khoa` ở trạng thái `tt`, `giay` giây sau khi trạng thái bắt đầu.
+      (x, y) là CHÂN; `k` là điểm ảnh màn cho mỗi điểm ảnh gốc. Thiếu thì trả false. */
+  G.veHinh = function (ctx, khoa, tt, giay, x, y, k, lat, lap) {
+    if (!G.coHinh(khoa)) return false;
+    var m = TH[khoa], ds = m[tt] || m.dung;
+    if (!ds) return false;
+    var f = khungLuc(ds, giay, lap);
+    var w = f[2] * k, h = f[3] * k, cy = y - m._[0] * k;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x, cy);
+    if (lat) ctx.scale(-1, 1);
+    ctx.drawImage(ANH_TH, f[0], f[1], f[2], f[3], -w / 2, -h / 2, w, h);
+    ctx.restore();
+    return true;
+  };
+
+  /** Vẽ một khung canh TÂM, có xoay — đạn và vụ nổ, thứ không đứng trên đất. */
+  G.veHinhTam = function (ctx, khoa, tt, giay, x, y, k, goc, lap) {
+    if (!G.coHinh(khoa)) return false;
+    var ds = TH[khoa][tt];
+    if (!ds) return false;
+    var f = khungLuc(ds, giay, lap);
+    var w = f[2] * k, h = f[3] * k;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x, y);
+    if (goc) ctx.rotate(goc);
+    ctx.drawImage(ANH_TH, f[0], f[1], f[2], f[3], -w / 2, -h / 2, w, h);
+    ctx.restore();
+    return true;
+  };
+
   G.taiArt = function (cb) {
     if (!MAP) { if (cb) cb(false); return; }
-    var ds = ['tuong', 'nguoi', 'quai', 'fx', 'dan', 'tru', 'do', 'vukhi'];
+    if (TH) { ANH_TH.src = 'art/tfm/hinh.png?v=' + ART_V; }
+    var ds = ['nguoi', 'fx', 'dan', 'do'];
     can = ds.length;
     ds.forEach(function (t) {
       var im = new Image();
@@ -30,49 +101,6 @@
   };
 
   function o() { return (MAP && MAP._o) || 64; }
-
-  /** vẽ một ô atlas, canh ĐÁY-GIỮA tại (x, y), cao mong muốn caoMuon px */
-  function veO(ctx, bang, cot, hang, x, y, caoMuon, lat) {
-    var im = ANH[bang];
-    if (!im || !im.width) return false;
-    var O = o();
-    var k = caoMuon / O;
-    var w = O * k, h = O * k;
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    if (lat) {
-      ctx.translate(x, y);
-      ctx.scale(-1, 1);
-      ctx.drawImage(im, cot * O, hang * O, O, O, -w / 2, -h, w, h);
-    } else {
-      ctx.drawImage(im, cot * O, hang * O, O, O, x - w / 2, y - h, w, h);
-    }
-    ctx.restore();
-    return true;
-  }
-
-  /** tướng trong trận: idTuong, toạ độ CHÂN, chiều cao, khung hoạt ảnh, có lật ngang không */
-  G.veTuong = function (ctx, id, x, y, cao, khung, lat) {
-    if (!MAP || !MAP.tuong || !MAP.tuong[id]) return false;
-    var m = MAP.tuong[id];
-    var n = m[1] || 1;
-    return veO(ctx, 'tuong', m[0], (khung | 0) % n, x, y, cao || 34, lat);
-  };
-
-  /** Phần trăm khoảng TRỐNG ở mép trên ô atlas của một tướng (0..1).
-      Ô atlas cao 64 nhưng người vẽ trong đó chỉ chiếm phần dưới, nên "đỉnh đầu" không
-      nằm ở `y - cao` mà ở `y - cao * (1 - mép)`. Thiếu số này thì thanh máu treo lơ lửng
-      cách đầu nhân vật cả một thân người. */
-  G.mepTuong = function (id) {
-    var m = MAP && MAP.tuong && MAP.tuong[id];
-    return (m && m[2]) || 0;
-  };
-
-  G.veQuai = function (ctx, id, x, y, cao, khung) {
-    if (!MAP || !MAP.quai || !MAP.quai[id]) return false;
-    var m = MAP.quai[id];
-    return veO(ctx, 'quai', m[0], (khung | 0) % (m[1] || 1), x, y, cao || 26, false);
-  };
 
   /** vẽ một ô atlas canh TÂM tại (x, y) — hiệu ứng, đạn, icon: thứ không đứng trên đất.
       `goc` (radian) thì xoay quanh tâm, dùng cho viên đạn bay theo hướng. */
@@ -98,68 +126,24 @@
     return veTam(ctx, 'fx', m[0], (khung | 0) % (m[1] || 1), x, y, cao || 40, goc);
   };
 
-  /* ══════════ VŨ KHÍ CẦM TAY ══════════
-     Sprite tướng (HoloCure) chỉ có bốn khung ĐỨNG YÊN — không ai vung tay bao giờ. Nên
-     động tác đánh phải dựng bằng một lớp RỜI: vũ khí vẽ đè lên người, tự xoay và tự thọc
-     tới theo mã. Nhờ thế mà hai mươi tướng + lính + quái đều có đòn đánh nhìn thấy được
-     mà không phải vẽ lại một khung nào.
-
-     Mọi hình trong vukhi.png đều CHĨA SANG PHẢI, chuôi ở bên trái, canh giữa ô. `goc` là
-     hướng chĩa (radian). `neo` đẩy vũ khí ra xa tâm theo đúng hướng ấy — chính là độ dài
-     cánh tay, và cũng chính là cú THỌC khi nó đổi theo thời gian. */
-  G.veVuKhi = function (ctx, id, x, y, cao, goc, neo) {
-    if (!MAP || !MAP.vukhi || !MAP.vukhi[id]) return false;
-    var m = MAP.vukhi[id];
-    var g = goc || 0;
-    var n = neo || 0;
-    /* Chĩa sang trái thì lật DỌC, không thì lưỡi kiếm quay xuống đất trông như gãy tay. */
-    var lat = Math.abs(g) > Math.PI / 2;
-    var im = ANH['vukhi'];
-    if (!im || !im.width) return false;
-    var O = o(), k = (cao || 26) / O, w = O * k, h = O * k;
-    ctx.save();
-    ctx.imageSmoothingEnabled = false;
-    ctx.translate(x + Math.cos(g) * n, y + Math.sin(g) * n);
-    ctx.rotate(g);
-    if (lat) ctx.scale(1, -1);
-    ctx.drawImage(im, m[0] * O, 0, O, O, -w / 2, -h / 2, w, h);
-    ctx.restore();
-    return true;
-  };
-
   /** viên đạn: `goc` là hướng bay tính bằng radian, ảnh gốc chĩa sang phải */
   G.veDan = function (ctx, id, x, y, cao, goc) {
     if (!MAP || !MAP.dan || !MAP.dan[id]) return false;
     return veTam(ctx, 'dan', MAP.dan[id][0], 0, x, y, cao || 14, goc);
   };
 
-  /** trụ / nhà chính / lõi: canh ĐÁY-GIỮA vì nó đứng trên mặt đất */
-  G.veTru = function (ctx, id, x, y, cao) {
-    if (!MAP || !MAP.tru || !MAP.tru[id]) return false;
-    return veO(ctx, 'tru', MAP.tru[id][0], 0, x, y, cao || 48, false);
-  };
-
-  /* Ảnh tướng cho DOM — màn cấm chọn cần ảnh thật trong thẻ HTML, không phải trên canvas.
-     Atlas xếp cột = tướng, hàng = khung hoạt ảnh, nên lấy khung 0 của đúng cột ấy. */
-  /* Sprite trong atlas canh ĐÁY-GIỮA nên nhân vật chỉ chiếm phần dưới của ô 64px; dán nguyên ô
-     vào thẻ 42px thì người bé tí nằm dưới đáy, trông như thiếu art. Cắt lấy dải CAO → ĐÁY
-     (từ điểm phần trăm `tren` trở xuống) rồi phóng cho đầy ô. */
-  G.anhTuong = function (id, cao, tren) {
-    if (!MAP || !MAP.tuong || !MAP.tuong[id]) return null;
-    var O = o();
-    var cot = MAP.tuong[id][0];
-    var soCot = Object.keys(MAP.tuong).length;
-    var soHang = 0;
-    for (var k in MAP.tuong) soHang = Math.max(soHang, MAP.tuong[k][1] || 1);
-    var t0 = tren != null ? tren : (MAP.tuong[id][2] != null ? MAP.tuong[id][2] : 0.24);
-    var kh = cao / (O * (1 - t0));
-    /* Cắt mép trên xong thì ô đã phóng rộng hơn thẻ (O*kh > cao). Không kéo ngang vào
-       giữa thì thẻ chỉ thấy phần bên TRÁI của ô — nhân vật lệch hẳn ra ngoài khung. */
-    var lech = (O * kh - cao) / 2;
-    return 'background-image:url(art/tuong.png?v=' + ART_V + ');' +
-      'background-position:' + (-cot * O * kh - lech) + 'px ' + (-t0 * O * kh) + 'px;' +
-      'background-size:' + (soCot * O * kh) + 'px ' + (soHang * O * kh) + 'px;' +
-      'background-repeat:no-repeat;image-rendering:pixelated'; 
+  /* Ảnh tướng cho DOM — màn cấm chọn cần ảnh thật trong thẻ HTML, không phải trên canvas. */
+  G.anhTuong = function (id, cao) {
+    var m = TH && TH['tuong.' + id];
+    if (!m) return null;
+    /* ô vuông lấy từ đỉnh đầu xuống, cạnh bằng 62% chiều cao người */
+    var f = m.dung[0], canh = Math.min(f[2], Math.round((m._[0] + m._[1]) * 0.62));
+    var tren0 = Math.max(0, Math.round(f[3] / 2 - m._[1]) - 2);
+    var trai = Math.round((f[2] - canh) / 2), kk = cao / canh;
+    return 'background-image:url(art/tfm/hinh.png?v=' + ART_V + ');' +
+      'background-position:' + (-(f[0] + trai) * kk) + 'px ' + (-(f[1] + tren0) * kk) + 'px;' +
+      'background-size:' + (TH._co[0] * kk) + 'px ' + (TH._co[1] * kk) + 'px;' +
+      'background-repeat:no-repeat;image-rendering:pixelated';
   };
 
   /** style nền cho icon TRANG BỊ trong thẻ HTML (ô đồ ở thẻ tuyển thủ, bảng cửa hàng) */

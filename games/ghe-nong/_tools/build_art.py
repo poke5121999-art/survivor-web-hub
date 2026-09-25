@@ -9,10 +9,9 @@ Nguồn (NGOÀI git, không commit):
     ~\\Downloads\\sk-ref\\sprites\\                      — hiệu ứng kỹ năng của Soul Knight
 
 Ra (CÓ commit):
-    art/tuong.png     20 tướng × 4 khung, ô 64×64, canh ĐÁY-GIỮA
     art/nguoi.png     chân dung huấn luyện viên và tuyển thủ, ô 64×64, 1 khung
-    art/quai.png      quái rừng, Rồng, Chúa Hang
     art/fx.png        hiệu ứng chiêu
+    Tướng, lính, trụ, quái trong trận lấy của Teamfight Manager 2: xem build_tfm.py.
     art/asset-map.json  bảng tra: khoá → [cột, số khung]
 
 LUẬT (giống games/dragonproj): trong code KHÔNG có tên tệp ảnh nào, chỉ có khoá kiểu
@@ -33,9 +32,6 @@ except ImportError:
 HC = os.environ.get('HOLOCURE', 'D:/HoloCureAssets/GameSprites')
 SKG = os.environ.get('SKROOT', os.path.expanduser('~/Downloads/sk-ref'))
 SK = os.environ.get('SKREF', os.path.join(SKG, 'sprites'))
-SKD = os.path.join(SKG, 'all', 'defence')                     # che do thu thanh -> tru
-SKB = os.path.join(SKG, 'all', 'boss')                        # trum -> Rong, Chua Hang
-SKF = os.path.join(SKG, 'tilemap', 'sprites', 'level__1__a')  # tang RUNG -> linh va quai rung
 RA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'art')
 
 def sorted_glob(d, mau):
@@ -51,30 +47,6 @@ def sorted_glob(d, mau):
 O = 64          # ô atlas
 KHUNG = 4       # số khung mỗi hoạt ảnh (thiếu thì lặp lại khung cuối)
 
-# ── 20 tướng: chọn nhân vật hợp vai ─────────────────────────────────────────
-TUONG = [
-    ('kiemsi',    'Ayame'),            # cầm kiếm
-    ('cuongchien','Noel'),             # hiệp sĩ giáp nặng
-    ('phaco',     'Goriela'),          # to con, chuyên đập
-    ('thanhkiem', 'Flare'),
-    ('kynhan',    'Gura'),             # cầm đinh ba, lao tới
-    ('gaosu',     'Mio'),              # thú
-    ('bongma',    'Ollie'),            # ma
-    ('thoisan',   'Kaela'),
-    ('phaposu',   'Ina'),              # phép
-    ('phapset',   'Kroni'),
-    ('bongdem',   'Fubuki_Kurokami'),  # bản tóc đen
-    ('tuchien',   'Calli'),            # cầm liềm
-    ('xathu',     'Ame'),              # cầm súng
-    ('sungtruong','Roboco'),
-    ('nodoc',     'Anya'),
-    ('bomxich',   'Bae'),
-    ('hiepsi',    'Kiara'),
-    ('thaythuoc', 'Choco'),            # bác sĩ
-    ('khienhon',  'Sana'),
-    ('nhacsi',    'Suisei'),           # ca sĩ
-]
-
 # ── chân dung: huấn luyện viên và tuyển thủ ────────────────────────────────
 HLV = [
     ('hlv_lua', 'Kiara'), ('hlv_thep', 'Kanata'), ('hlv_mat', 'Ina'), ('hlv_vang', 'Sora'),
@@ -89,25 +61,6 @@ TT = [
     ('tt_an', 'Fauna'), ('tt_khanh', 'AZKi'), ('tt_duy', 'Zeta'), ('tt_tam', 'Irys'),
     ('tt_nam', 'Fubuki'), ('tt_long', 'Bae'), ('tt_son', 'Mio'), ('tt_vy', 'Anya'),
     ('tt_hung', 'Ollie'), ('tt_thu', 'Moona'), ('tt_dat', 'Kobo'), ('tt_lam', 'Sana'),
-]
-
-QUAI_HC = [('penguin', 'Penguin')]
-
-# ── LÍNH và QUÁI RỪNG: lấy nguyên tầng RỪNG của Soul Knight (level__1__a) ──
-#    enemy22 orc cầm khiên → lính cận chiến      enemy23 orc bắn cung → lính tầm xa
-#    enemy20 nấm xanh   enemy27 lợn rừng   enemy29 rùa   enemy_fire_sacrifice yêu tinh
-#    Chỉ lấy 4 khung đầu: khung cuối của mỗi bộ là khung NẰM CHẾT, lồng vào vòng đứng
-#    yên thì con vật cứ gục xuống một nhịp.
-QUAI_SK = [
-    ('linh_can', SKF, ['enemy22_%d.png' % i for i in range(4)]),
-    ('linh_xa',  SKF, ['enemy23_%d.png' % i for i in range(4)]),
-    ('bai',      SKF, ['enemy27_%d.png' % i for i in range(4)]),
-    ('bai1',     SKF, ['enemy20_%d.png' % i for i in range(4)]),
-    ('bai2',     SKF, ['enemy27_%d.png' % i for i in range(4)]),
-    ('bai3',     SKF, ['enemy29_%d.png' % i for i in range(4)]),
-    ('bai4',     SKF, ['enemy_fire_sacrifice_%d.png' % i for i in range(4)]),
-    ('rong',     os.path.join(SKB, 'boss12'), ['boss12_1_%d.png' % i for i in range(4)]),
-    ('chua',     os.path.join(SKB, 'boss05'), ['boss05_%d.png' % i for i in range(4)]),
 ]
 
 # ── hiệu ứng: (khoá, thư mục, danh sách tệp theo thứ tự khung) ──
@@ -145,35 +98,6 @@ FX = [
     ('notnhac',  SK, ['effect_dead_note_%d.png' % i for i in range(6)]),
 ]
 
-# ── VŨ KHÍ CẦM TAY ──
-#    Chủ dự án: "lính đánh thường thì thêm cây spear vào cầm trên tay thọc thọc nhau,
-#    bắn xa thì cầm súng, thấy rõ đạn". Sprite tướng lấy của HoloCure chỉ có bốn khung
-#    ĐỨNG YÊN — không có khung vung tay. Nên vũ khí phải là một lớp RỜI vẽ đè lên người
-#    rồi tự xoay/thọc bằng mã; như thế mới có động tác đánh mà không cần vẽ lại 20 tướng.
-#    Mọi hình đều CHĨA SANG PHẢI (chuôi bên trái) để veVuKhi() xoay theo hướng đánh.
-VUKHI = [
-    ('kiem',      SK, ['weapons4_27.png'], 0),    # kiếm chuôi vàng
-    ('kiem_to',   SK, ['weapons5_25.png'], 0),    # đại kiếm lưỡi lam
-    ('riu',       SK, ['weapons3_0.png'], 0),     # rìu
-    ('bua',       SK, ['weapons2_81.png'], 0),    # búa tạ
-    ('giao',      SK, ['weapons4_103.png'], 0),   # giáo lưỡi lam
-    ('thuong',    SK, ['weapons5_66.png'], 0),    # thương dài — lính cận chiến cầm cái này
-    ('dao',       SK, ['weapons3_148.png'], 0),   # dao găm
-    ('phi',       SK, ['weapons4_87.png'], 0),    # phi tiêu
-    ('cung',      SK, ['weapons2_107.png'], 0),   # cung gỗ
-    ('no',        SK, ['weapons5_60.png'], 0),    # nỏ
-    ('sung',      SK, ['weapons3_30.png'], 0),    # súng săn
-    ('sung_tia',  SK, ['weapons4_12.png'], 0),    # súng bắn tỉa
-    ('sung_ngan', SK, ['weapons4_68.png'], 0),    # súng ngắn — lính bắn xa cầm cái này
-    ('gay',       SK, ['weapons4_16.png'], 0),    # trượng ngọc tím
-    ('dua',       SK, ['weapons3_13.png'], 0),    # đũa phép
-    ('khien',     SK, ['weapons2_113.png'], 0),   # khiên tròn
-    ('sach',      SK, ['weapons5_17.png'], 0),    # sách phép
-    ('cuu',       SK, ['weapons5_42.png'], 0),    # túi cứu thương
-    ('dan',       SK, ['weapon_init_bard.png'], 0),  # đàn
-    ('bom',       SK, ['weapons5_148.png'], 0),   # bom
-]
-
 # ── ĐẠN: mỗi loại một cột, MỘT khung, đầu đạn CHĨA SANG PHẢI ──
 #    veHieu() xoay ngữ cảnh theo hướng bay nên mọi viên phải vẽ sẵn chỉ sang phải.
 #    Số thứ tư là góc xoay để đưa đầu đạn về hướng PHẢI (ảnh gốc có viên chĩa lên).
@@ -184,21 +108,6 @@ DAN = [
     ('bang',   SK, ['bullet2_5.png'], -90),
     ('doc',    SK, ['bullet2_68.png'], -90),
     ('tia',    SK, ['bullet_laser_light_1.png'], 0),
-]
-
-# ── TRỤ: lấy của chế độ thủ thành Soul Knight (bundle `defence`) ──
-#    Tên tệp trong bundle này vốn là tiếng Trung, bị lọc còn toàn dấu gạch dưới — trông
-#    vô nghĩa nhưng vẫn duy nhất. Ghi lại đây để lần sau khỏi phải dò lại cả 510 hình:
-#      ____1__2.png tháp pha lê xanh · ____2-export_3.png tháp đèn đỏ
-#      ____3__1.png tháp lớn có giáp · ____3_1.png tháp gai tối
-#      ____4.png / ____7.png bệ lõi
-#    Ba dáng, MỖI DÁNG HAI MÀU. Bên đỏ KHÔNG lấy hình khác mà nhuộm lại chính hình bên
-#    xanh: hai bên phải cùng bóng dáng thì người xem mới đọc được "đây là trụ hai" chứ
-#    không phải "đây là hai công trình khác nhau" — đúng luật của mọi bản đồ MOBA.
-TRU = [
-    ('tru', SKD, ['____1__2.png']),      # trụ đường: tháp pha lê nhỏ
-    ('nha', SKD, ['_____2__4.png']),     # nhà chính: tháp lớn có đèn
-    ('loi', SKD, ['______1.png']),       # lõi: khối pha lê
 ]
 
 # ── 20 TRANG BỊ: đúng thứ tự G.TRANGBI trong js/data-trangbi.js ──
@@ -337,47 +246,6 @@ def lam_tep(ds, ten_ra, giua=False, le=4, phong=False):
     return ban_do, thieu
 
 
-def nhuom_do(anh):
-    """Nhuộm ĐỎ một sprite vốn xanh dương/lục lam mà vẫn giữ nguyên phần kim loại xám.
-    Xoay hue thì xám (bão hoà thấp) đứng yên, chỉ chỗ có màu mới đổi — nên không phải
-    tô lại tay từng viên gạch."""
-    import colorsys
-    a = anh.convert('RGBA')
-    px = a.load()
-    for y in range(a.height):
-        for x in range(a.width):
-            r, g, b, al = px[x, y]
-            if al == 0:
-                continue
-            h, s2, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
-            if s2 < 0.18:                 # xám: để yên, giữ chất kim loại
-                continue
-            h = (h + 0.5) % 1.0           # 200° xanh → 20° đỏ cam
-            r2, g2, b2 = colorsys.hsv_to_rgb(h, min(1.0, s2 * 1.08), v)
-            px[x, y] = (int(r2 * 255), int(g2 * 255), int(b2 * 255), al)
-    return a
-
-
-def lam_tru():
-    """Sáu cột: ba dáng × hai màu. Cột chẵn xanh, cột lẻ là bản nhuộm đỏ của cột trước."""
-    thieu = []
-    im = Image.new('RGBA', (O * len(TRU) * 2, O), (0, 0, 0, 0))
-    ban_do = {}
-    for i, (khoa, d, ts) in enumerate(TRU):
-        f = os.path.join(d, ts[0])
-        if not os.path.isfile(f):
-            thieu.append((khoa, f))
-            continue
-        a = Image.open(f).convert('RGBA')
-        k = he_phong([a])
-        dat(im, a, i * 2, 0, k)
-        dat(im, nhuom_do(a), i * 2 + 1, 0, k)
-        ban_do[khoa + '_xanh'] = [i * 2, 1]
-        ban_do[khoa + '_do'] = [i * 2 + 1, 1]
-    im.save(os.path.join(RA, 'tru.png'))
-    return ban_do, thieu
-
-
 def lam_nen_ca():
     """NỀN PHÒNG TẬP cho màn huấn luyện — art thật, không phải gradient vẽ tay.
 
@@ -455,20 +323,12 @@ def main():
         return 1
 
     bd = {}
-    t, thieu_t = lam_bang(TUONG, 'tuong.png', True)
-    bd['tuong'] = t
     n1, thieu_n1 = lam_bang(HLV + TT, 'nguoi.png', False)
     bd['nguoi'] = n1
-    q, thieu_q = lam_tep(QUAI_SK, 'quai.png', phong=True)
-    bd['quai'] = q
     fx, thieu_fx = lam_tep(FX, 'fx.png', giua=True, le=0)
     bd['fx'] = fx
-    vk, thieu_vk = lam_tep(VUKHI, 'vukhi.png', giua=True, le=6)
-    bd['vukhi'] = vk
     dn, thieu_dn = lam_tep(DAN, 'dan.png', giua=True, le=10)
     bd['dan'] = dn
-    tr, thieu_tr = lam_tru()
-    bd['tru'] = tr
     dd, thieu_dd = lam_do()
     bd['do'] = dd
     nen_ok, nen_thieu = lam_nen_ca()
@@ -483,17 +343,12 @@ def main():
         '/* SINH TU DONG bang _tools/build_art.py - dung sua tay */' + chr(10) +
         'window.ART_MAP = ' + js + ';' + chr(10))
 
-    print('tuong  :', len(t), '/', len(TUONG))
     print('nguoi  :', len(n1), '/', len(HLV) + len(TT))
-    print('quai   :', len(q), '/', len(QUAI_SK))
     print('fx     :', len(fx), '/', len(FX))
-    print('vukhi  :', len(vk), '/', len(VUKHI))
     print('dan    :', len(dn), '/', len(DAN))
-    print('tru    :', len(tr), '/', len(TRU))
     print('do     :', len(dd), '/', len(DO))
     print('nen-ca :', 'ok' if nen_ok else 'THIEU ' + str(nen_thieu))
-    for nhan, ds in (('tuong', thieu_t), ('nguoi', thieu_n1), ('quai', thieu_q), ('fx', thieu_fx),
-                     ('vukhi', thieu_vk), ('dan', thieu_dn), ('tru', thieu_tr), ('do', thieu_dd)):
+    for nhan, ds in (('nguoi', thieu_n1), ('fx', thieu_fx), ('dan', thieu_dn), ('do', thieu_dd)):
         for x in ds:
             print('  THIEU', nhan, x[0], '<-', x[1])
     return 0

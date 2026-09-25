@@ -27,8 +27,13 @@
        tức là đúng nhịp ×1 của TFM2; nút ×6 cho lại đúng nhịp của bản cũ.
      Chậm lại chỉ có nghĩa khi có NỘI SUY đi kèm — xem `tiLe()` bên dưới. */
   var TICK_GIAY = 12;
-  var thoaiHD = [], bayHD = [], hieuHD = [];
+  var thoaiHD = [], bayHD = [], hieuHD = [], ngaLuc = {};
   var truoc = 0, dong = 0;
+
+  /* Giây hoạt ảnh TFM2 cho mỗi giây trong trận. Ở ×1 trận chạy nhanh gấp 3 lần thật; phát khung
+     theo giờ trận thì một cú chém 0,4 giây chỉ còn một cái chớp. Trần 2 giây trận cho mỗi giây
+     hoạt ảnh giữ cú chém trọn dáng mà vẫn kịp xong trước đòn kế (tốc đánh ~1,15/giây). */
+  function heHinh() { return 1 / Math.min(TICK_GIAY * (G.SIM_TICK || 0.25) * tocDo, 2); }
   /* tỉ lệ nội suy trong tick hiện tại (0..1) và mốc giờ đã nội suy */
   var ns = 0;
 
@@ -66,7 +71,7 @@
     anBang = false;
     cam.tuDong = true; cam.theo = null; cam.x = cam.mx = W0 / 2; cam.y = cam.my = H0 / 2;
     tran.veHinh = true;            /* từ đây sim mới dựng dữ liệu hiệu ứng — xem sim.js */
-    thoaiHD = []; bayHD = []; hieuHD = [];
+    thoaiHD = []; bayHD = []; hieuHD = []; ngaLuc = {};
     G.hienMan('man-tran');
     dungKhung();
     /* bài dạy lần đầu: trận ĐỨNG YÊN cho tới khi đóng hộp, không thì mất những giây đầu */
@@ -594,28 +599,22 @@
       if (!q.song) return;
       var p = toaDo(q.x, q.y);
       if (ngoaiMan(p, 60 * s)) return;
-      /* Bốn bãi bốn con khác nhau (lợn / nấm / rùa / yêu tinh) — tám bãi giống hệt nhau
+      /* Bốn bãi bốn con khác nhau (ong / nấm / tê giác / gốc cây) — tám bãi giống hệt nhau
          thì người xem không nhớ nổi mình vừa ăn bãi nào. Chốt theo chỉ số bãi nên hai
          nửa bản đồ đối xứng vẫn ra cùng một con ở cùng một chỗ. */
-      var loaiBai = 'bai' + (1 + (q.i % 4));
-      var t = gio();
+      var khoaQ = 'quai.bai' + (1 + (q.i % 4));
+      var t = gio(), hq = heHinh();
       var tdq = t - (q.danhLuc == null ? -9 : q.danhLuc);
-      /* Nhún người theo nhịp thở, và CHỒM TỚI khi vừa vung — quái rừng bản trước chỉ
-         chạy bốn khung idle cho có, đứng im cho người ta đập. */
-      var chom = (tdq >= 0 && tdq < 0.3) ? Math.sin(tdq / 0.3 * Math.PI) : 0;
-      var qx = p[0] + Math.cos(q.goc || 0) * chom * 9 * s;
-      var qy = p[1] + Math.sin(q.goc || 0) * chom * 6 * s;
-      var tho = Math.sin(t * 2.2 + q.i) * 1.4 * s;
-      bong(qx, p[1], 12 * s);
-      var kq = 1 + chom * 0.12;
-      ctx.save(); ctx.translate(qx, qy); ctx.scale(kq, kq); ctx.translate(-qx, -qy);
-      if (!G.veQuai || !G.veQuai(ctx, loaiBai, qx, qy + 3 - tho, 34 * s,
-            Math.floor(t * (chom ? 9 : 3) + q.i))) {
+      var danhQ = tdq >= 0 && tdq * hq < G.dai(khoaQ, 'danh');
+      bong(p[0], p[1], 12 * s);
+      if (!G.veHinh(ctx, khoaQ, danhQ ? 'danh' : 'dung', danhQ ? tdq * hq : t * hq + q.i,
+          p[0], p[1], s * 1.1, Math.cos(q.goc || 0) < 0, !danhQ)) {
         ctx.fillStyle = '#5a4a2a';
-        ctx.beginPath(); ctx.arc(qx, qy - 6 * s, 9 * s, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(p[0], p[1] - 6 * s, 9 * s, 0, 7); ctx.fill();
       }
-      ctx.restore();
-      if (q.hp < q.hpMax && s > .55) thanhMau(p[0], p[1] - 40 * s, 30 * s, q.hp / q.hpMax, '#c8b06e', 3);
+      if (q.hp < q.hpMax && s > .55) {
+        thanhMau(p[0], p[1] - (G.caoHinh(khoaQ) || 30) * s * 1.1 - 5 * s, 30 * s, q.hp / q.hpMax, '#c8b06e', 3);
+      }
     });
 
     /* ── hai con quái lớn ── */
@@ -624,22 +623,20 @@
       var p = toaDo(q.x, q.y);
       if (ngoaiMan(p, 120 * s)) return;
       if (q.song) {
-        var tl = gio();
+        var tl = gio(), hl = heHinh();
         var tdl = tl - (q.danhLuc == null ? -9 : q.danhLuc);
-        var chomL = (tdl >= 0 && tdl < 0.34) ? Math.sin(tdl / 0.34 * Math.PI) : 0;
-        var lx = p[0] + Math.cos(q.goc || 0) * chomL * 20 * s;
-        var ly = p[1] + Math.sin(q.goc || 0) * chomL * 12 * s;
-        bong(lx, p[1], 34 * s);
-        var kL = 1 + chomL * 0.1;
-        ctx.save(); ctx.translate(lx, ly); ctx.scale(kL, kL); ctx.translate(-lx, -ly);
-        if (!G.veQuai || !G.veQuai(ctx, kk, lx, ly + 8 * s, 78 * s,
-              Math.floor(tl * (chomL ? 10 : 2.4)))) {
+        var khoaL = 'quai.' + kk;
+        var danhL = tdl >= 0 && tdl * hl < G.dai(khoaL, 'danh');
+        var kLon = s * (kk === 'chua' ? 1.0 : 1.25);
+        bong(p[0], p[1], 34 * s);
+        if (!G.veHinh(ctx, khoaL, danhL ? 'danh' : 'dung', danhL ? tdl * hl : tl * hl,
+            p[0], p[1], kLon, kk === 'rong' && Math.cos(q.goc || 0) < 0, !danhL)) {
           ctx.fillStyle = kk === 'rong' ? '#7a3f8f' : '#8f3f3f';
-          ctx.beginPath(); ctx.arc(lx, ly - 20 * s, 26 * s, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(p[0], p[1] - 20 * s, 26 * s, 0, 7); ctx.fill();
         }
-        ctx.restore();
-        thanhMau(p[0], p[1] - 62 * s, 74 * s, q.hp / q.hpMax, '#ffd76e');
-        chu(q.ten, p[0], p[1] - 68 * s, 11 * Math.max(.8, s), '#ffd76e');
+        var dinhL = p[1] - (G.caoHinh(khoaL) || 50) * kLon;
+        thanhMau(p[0], dinhL - 6 * s, 74 * s, q.hp / q.hpMax, '#ffd76e');
+        chu(q.ten, p[0], dinhL - 12 * s, 11 * Math.max(.8, s), '#ffd76e');
       } else {
         ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 2;
         ctx.save(); ctx.translate(p[0], p[1]); ctx.scale(1, .5);
@@ -650,139 +647,62 @@
       }
     });
 
-    /* ── trụ: bệ đá + thân + lõi phát sáng ── */
+    /* ── trụ và lõi: thân + viên ngọc TFM2, ngọc bắn thì cả hai chạy khung "danh" ── */
     tran.tru.forEach(function (r) {
       if (!r.song) return;
       var p = toaDo(r.x, r.y);
-      var cao = (r.loi ? 62 : r.nha ? 48 : 40) * s;
-      if (ngoaiMan(p, cao * 2)) return;
-      var xanh = r.doi === 'xanh';
-      var mau = xanh ? '#4aa3e0' : '#e0564a';
-      var sang = xanh ? '#a9e6ff' : '#ffb0a2';
-
-      /* Sprite thật (art/tru.png, lấy của chế độ thủ thành Soul Knight): trụ đường,
-         nhà chính, lõi — mỗi thứ một dáng, hai bên hai màu. Vẫn giữ nguyên bệ đá và
-         quầng sáng vẽ tay ở dưới/trên để trụ có bóng đổ và nhấp nháy theo nhịp. */
-      var khoaTru = (r.loi ? 'loi_' : r.nha ? 'nha_' : 'tru_') + (xanh ? 'xanh' : 'do');
-      if (G.veTru) {
-        /* bệ đá dưới chân cho khỏi trôi lơ lửng */
-        ctx.save(); ctx.translate(p[0], p[1]); ctx.scale(1, .42);
-        ctx.beginPath(); ctx.arc(0, 0, cao * .46, 0, 7);
-        ctx.fillStyle = 'rgba(0,0,0,.42)'; ctx.fill();
-        ctx.beginPath(); ctx.arc(0, 0, cao * .46, 0, 7);
-        ctx.strokeStyle = xanh ? 'rgba(74,163,224,.55)' : 'rgba(224,86,74,.55)';
-        ctx.lineWidth = Math.max(1, 2 * s); ctx.stroke();
-        ctx.restore();
-
-        if (G.veTru(ctx, khoaTru, p[0], p[1] + 2 * s, cao * 1.32)) {
-          /* quầng sáng đỉnh trụ, nhấp nháy nhẹ để biết nó còn sống */
-          var nh0 = 0.5 + 0.3 * Math.sin(tran.t * 3 + p[0] * 0.01);
-          var g0 = ctx.createRadialGradient(p[0], p[1] - cao * 1.06, 0, p[0], p[1] - cao * 1.06, cao * .5);
-          g0.addColorStop(0, sang); g0.addColorStop(1, mau + '00');
-          ctx.globalAlpha = nh0 * .55; ctx.fillStyle = g0;
-          ctx.beginPath(); ctx.arc(p[0], p[1] - cao * 1.06, cao * .5, 0, 7); ctx.fill();
-          ctx.globalAlpha = 1;
-          if (r.hp < r.hpMax) thanhMau(p[0], p[1] - cao * 1.5, cao * .95, r.hp / r.hpMax, mau);
-          return;
-        }
+      var kR = s * (r.loi ? 1.2 : r.nha ? 1.15 : 1.0);
+      if (ngoaiMan(p, 90 * kR)) return;
+      var mau = r.doi === 'xanh' ? '#4aa3e0' : '#e0564a';
+      var khoaR = (r.loi ? 'loi.' : 'tru.') + r.doi, khoaNgoc = (r.loi ? 'loi.ngoc.' : 'tru.ngoc.') + r.doi;
+      var hr = heHinh(), tdr = gio() - (r.danhLuc == null ? -9 : r.danhLuc);
+      var danhR = tdr >= 0 && tdr * hr < G.dai(khoaR, 'danh');
+      var ttR = danhR ? 'danh' : 'dung', tgR = danhR ? tdr * hr : tran.t * hr + r.x * 0.01;
+      bong(p[0], p[1], 16 * kR);
+      if (G.veHinh(ctx, khoaR, ttR, tgR, p[0], p[1], kR, false, !danhR)) {
+        G.veHinh(ctx, khoaNgoc, ttR, tgR, p[0], p[1] - (G.caoHinh(khoaR) - G.caoHinh(khoaNgoc)) * kR, kR, false, !danhR);
+      } else {
+        ctx.fillStyle = mau;
+        ctx.fillRect(p[0] - 8 * kR, p[1] - 50 * kR, 16 * kR, 50 * kR);
       }
-
-      /* bệ */
-      ctx.save(); ctx.translate(p[0], p[1]); ctx.scale(1, .48);
-      ctx.beginPath(); ctx.arc(0, 0, cao * .52, 0, 7);
-      ctx.fillStyle = '#3b4450'; ctx.fill();
-      ctx.lineWidth = Math.max(1, 3 * s); ctx.strokeStyle = '#59636f'; ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, 0, cao * .38, 0, 7);
-      ctx.fillStyle = '#4a5563'; ctx.fill();
-      ctx.restore();
-
-      /* thân tháp */
-      var w = cao * .34;
-      ctx.fillStyle = '#5b6673';
-      ctx.beginPath();
-      ctx.moveTo(p[0] - w, p[1] - 2);
-      ctx.lineTo(p[0] - w * .62, p[1] - cao * .82);
-      ctx.lineTo(p[0] + w * .62, p[1] - cao * .82);
-      ctx.lineTo(p[0] + w, p[1] - 2);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#6d7886';
-      ctx.fillRect(p[0] - w * .72, p[1] - cao * .86, w * 1.44, cao * .09);
-
-      /* lõi sáng, nhấp nháy nhẹ */
-      var nh = 0.72 + 0.28 * Math.sin(tran.t * 3 + p[0] * 0.01);
-      var gr = ctx.createRadialGradient(p[0], p[1] - cao * 1.02, 0, p[0], p[1] - cao * 1.02, cao * .42);
-      gr.addColorStop(0, sang); gr.addColorStop(1, mau + '00');
-      ctx.globalAlpha = nh; ctx.fillStyle = gr;
-      ctx.beginPath(); ctx.arc(p[0], p[1] - cao * 1.02, cao * .42, 0, 7); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = sang;
-      ctx.beginPath();
-      ctx.moveTo(p[0], p[1] - cao * 1.22);
-      ctx.lineTo(p[0] + cao * .13, p[1] - cao * 1.0);
-      ctx.lineTo(p[0], p[1] - cao * .82);
-      ctx.lineTo(p[0] - cao * .13, p[1] - cao * 1.0);
-      ctx.closePath(); ctx.fill();
-
-      if (r.hp < r.hpMax) thanhMau(p[0], p[1] - cao * 1.34, cao * .95, r.hp / r.hpMax, mau);
+      if (r.hp < r.hpMax) thanhMau(p[0], p[1] - (G.caoHinh(khoaR) || 50) * kR - 6 * s, 38 * s, r.hp / r.hpMax, mau);
     });
 
-    /* ── LÍNH ──
-       Chủ dự án: "lính đánh thường thì thêm cây spear vào cầm trên tay thọc thọc nhau,
-       bắn xa thì cầm súng, thấy rõ đạn." Lính cận cầm THƯƠNG và thọc tới; lính xa cầm
-       SÚNG NGẮN, giật lùi một nhịp rồi viên đạn bay ra (hiệu ứng `dan` do sim đẩy). */
+    /* ── LÍNH: sprite TFM2 hai màu đội, tự có khung chạy / thọc / bắn ── */
     tran.linh.forEach(function (l) {
       var vl = viTri(l);
       var p = toaDo(vl[0], vl[1]);
       if (ngoaiMan(p, 40 * s)) return;
-      var cao = (l.xa ? 20 : 22) * s;
-      var t = gio();
+      var t = gio(), hL = heHinh();
       var tdl = t - (l.danhLuc == null ? -9 : l.danhLuc);
-      var danh = (tdl >= 0 && tdl < 0.34) ? tdl / 0.34 : -1;
-      var gocL = huongCua(l);
-      var latL = Math.cos(gocL) < 0;
-      var diL = dangDi(l);
-      var nhun = diL ? Math.abs(Math.sin(t * 11 + l.x)) * 1.6 * s : 0;
-      /* lính cận chồm theo cú thọc, lính xa giật lùi theo phát bắn */
-      var day = danh >= 0
-        ? (l.xa ? -Math.sin(danh * Math.PI) * 2.5 * s : Math.sin(danh * Math.PI) * 5 * s)
-        : 0;
-      var lx = p[0] + Math.cos(gocL) * day, ly = p[1] + Math.sin(gocL) * day * .6;
-      bong(p[0], p[1], cao * .34);
-      var ok = G.veQuai && G.veQuai(ctx, l.xa ? 'linh_xa' : 'linh_can', lx, ly - nhun, cao,
-        Math.floor(t * (diL ? 7 : 3) + l.x));
-      if (!ok) {
+      var khoaL2 = 'linh.' + (l.xa ? 'xa.' : 'can.') + l.doi;
+      var danhL2 = tdl >= 0 && tdl * hL < G.dai(khoaL2, 'danh');
+      bong(p[0], p[1], 7 * s);
+      if (!G.veHinh(ctx, khoaL2, danhL2 ? 'danh' : dangDi(l) ? 'chay' : 'dung',
+          danhL2 ? tdl * hL : (t + l.x * .01) * hL, p[0], p[1], s * 1.05, Math.cos(huongCua(l)) < 0, !danhL2)) {
         ctx.fillStyle = l.doi === 'xanh' ? '#7fd6ff' : '#ff9ec4';
-        ctx.beginPath(); ctx.arc(lx, ly - cao * .4, cao * .3, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(p[0], p[1] - 8 * s, 6 * s, 0, 7); ctx.fill();
       }
-      veVuKhiTay(l.xa ? 'sung_ngan' : 'thuong', lx, ly, cao, gocL, danh, latL);
-      if (l.xa && danh >= 0 && danh < .3 && G.veFX) {
-        G.veFX(ctx, 'dam', lx + Math.cos(gocL) * cao * .75, ly - cao * .48 + Math.sin(gocL) * cao * .5,
-          cao * .6, Math.floor(danh * 12));
-      }
-      /* vòng màu đội dưới chân để phân biệt hai bên */
-      ctx.save(); ctx.translate(p[0], p[1]); ctx.scale(1, .42);
-      ctx.beginPath(); ctx.arc(0, 0, cao * .32, 0, 7);
-      ctx.strokeStyle = l.doi === 'xanh' ? 'rgba(61,220,151,.85)' : 'rgba(229,72,77,.85)';
-      ctx.lineWidth = Math.max(1, 1.6 * s); ctx.stroke();
-      ctx.restore();
-      if (l.hp < l.hpMax && s > .6) thanhMau(lx, ly - cao - 3 * s, cao * .9, l.hp / l.hpMax,
-        l.doi === 'xanh' ? '#3ddc97' : '#e5484d', 3);
+      if (l.hp < l.hpMax && s > .6) thanhMau(p[0], p[1] - (G.caoHinh(khoaL2) || 16) * s * 1.05 - 3 * s, 18 * s,
+        l.hp / l.hpMax, l.doi === 'xanh' ? '#3ddc97' : '#e5484d', 3);
     });
 
     /* ── hiệu ứng dưới chân (vòng diện rộng) ── */
     veHieu(true, s);
 
     /* ══════════ TƯỚNG ══════════
-       Sprite gốc chỉ có bốn khung ĐỨNG YÊN, nên toàn bộ "đang làm gì" phải dựng bằng
-       phép biến hình + một lớp vũ khí rời:
-         đi       nhún chân theo nhịp, khung chạy nhanh hơn
-         ra đòn   chồm tới theo hướng đánh, vũ khí vung/thọc
-         niệm     phình người một nhịp, sáng lên, TÊN CHIÊU hiện trên đầu
+       Sprite TFM2 có sẵn khung đứng, chạy, đánh, chiêu, chiêu cuối, ăn đòn, chết. Chọn
+       trạng thái theo mốc sim ghi lại; đòn và chiêu chạy hết dãy khung rồi mới trả về
+       chạy/đứng. Lớp phủ thêm vào:
          ăn đòn   chớp trắng một nhịp
-         hồi sinh luồng sáng dựng từ đất lên
-       Không có mấy cái này thì trận là mười hình đứng im trượt qua nhau. */
+         niệm     sáng lên theo màu chiêu, TÊN CHIÊU hiện trên đầu
+         hồi sinh luồng sáng dựng từ đất lên */
     tran.nguoi.forEach(function (n) {
-      if (n.chet > 0) return veBia(n, s);
+      if (n.chet > 0) {
+        if (ngaLuc[n.i] == null) ngaLuc[n.i] = gio();
+        return veBia(n, s, (gio() - ngaLuc[n.i]) * heHinh());
+      }
+      ngaLuc[n.i] = null;
       var vn = viTri(n);
       var p = toaDo(vn[0], vn[1]);
       var cao = 46 * s;
@@ -793,7 +713,6 @@
       var tNiem = t - (n.niemLuc == null ? -9 : n.niemLuc);
       var tDinh = t - (n.dinhLuc == null ? -9 : n.dinhLuc);
       var tHoi = t - (n.hoiLuc == null ? -9 : n.hoiLuc);
-      var danh = (tDanh >= 0 && tDanh < 0.32) ? tDanh / 0.32 : -1;
       var niem = (tNiem >= 0 && tNiem < 0.42) ? tNiem / 0.42 : -1;
       var goc = huongCua(n);
       var lat = Math.cos(goc) < 0;
@@ -819,24 +738,29 @@
         ctx.fillRect(p[0] - cao * .4, p[1] - cao * 2, cao * .8, cao * 2);
       }
 
-      /* nhún chân khi đi; chồm tới khi ra đòn */
-      var nhun = di ? Math.abs(Math.sin(t * 9 + n.i)) * 2.4 * s : 0;
-      var day = danh >= 0 ? Math.sin(danh * Math.PI) * 6.5 * s : 0;
-      var nx = p[0] + Math.cos(goc) * day;
-      var ny = p[1] + Math.sin(goc) * day * .55;
-      var phong = niem >= 0 ? 1 + 0.2 * Math.sin(niem * Math.PI) : 1;
-      var khung = Math.floor(t * (di ? 7 : 3) + n.i * 1.3);
+      var khoaT = 'tuong.' + n.tuong.id;
+      var hh = heHinh();
+      var ttT = di ? 'chay' : 'dung', tgT = (t + n.i * 0.37) * hh, lapT = true;
+      var ttNiem = n.niemCuoi ? 'cuoi' : 'chieu';
+      if (tNiem >= 0 && tNiem * hh < Math.max(0.3, G.dai(khoaT, ttNiem))) {
+        ttT = ttNiem; tgT = tNiem * hh; lapT = false;
+      } else if (tDanh >= 0 && tDanh * hh < G.dai(khoaT, 'danh')) {
+        ttT = 'danh'; tgT = tDanh * hh; lapT = false;
+      } else if (tDinh >= 0 && tDinh * hh < 0.1) {
+        ttT = 'dinh'; tgT = tDinh * hh; lapT = false;
+      }
+      var kT = s * 1.15, nx = p[0], ny = p[1];
+      var veNguoi = function () { return G.veHinh(ctx, khoaT, ttT, tgT, nx, ny, kT, lat, lapT); };
 
       ctx.save();
-      ctx.translate(nx, ny); ctx.scale(phong, phong); ctx.translate(-nx, -ny);
       /* VIỀN MÀU ĐỘI quanh người.
-         Hai bên đều là sprite anime bảng màu na ná nhau; cái vòng mờ dưới chân không đủ
+         Hai bên đều là sprite bảng màu na ná nhau; cái vòng mờ dưới chân không đủ
          để liếc một cái là biết ai phe nào — nhất là lúc mười người xúm vào một chỗ.
          Bóng đổ màu của canvas cho ra đúng một quầng ôm theo dáng người, chỉ tốn thêm
          một lần vẽ. Đây là thứ làm màn trận ĐỌC ĐƯỢC. */
       ctx.shadowColor = n.doi === 'xanh' ? '#25e08a' : '#ff4d55';
       ctx.shadowBlur = Math.max(4, 7 * s);
-      var veOk = G.veTuong && G.veTuong(ctx, n.tuong.id, nx, ny + 3 * s - nhun, cao, khung, lat);
+      var veOk = veNguoi();
       ctx.shadowBlur = 0;
       if (!veOk) {
         ctx.beginPath(); ctx.arc(nx, ny - cao * .4, cao * .32, 0, 7);
@@ -846,7 +770,7 @@
       if (tDinh >= 0 && tDinh < 0.16 && veOk) {
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = 0.8 * (1 - tDinh / 0.16);
-        G.veTuong(ctx, n.tuong.id, nx, ny + 3 * s - nhun, cao, khung, lat);
+        veNguoi();
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
       }
@@ -854,8 +778,8 @@
       if (niem >= 0 && veOk) {
         var fxN = G.fxChieu ? G.fxChieu(n.tuong.id, n.niemCuoi ? 'cuoi' : 'chieu') : null;
         ctx.globalCompositeOperation = 'lighter';
-        ctx.globalAlpha = 0.55 * (1 - niem);
-        G.veTuong(ctx, n.tuong.id, nx, ny + 3 * s - nhun, cao, khung, lat);
+        ctx.globalAlpha = 0.45 * (1 - niem);
+        veNguoi();
         ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
         if (fxN) {
@@ -868,14 +792,8 @@
       }
       ctx.restore();
 
-      /* vũ khí cầm tay — thứ làm cho đòn đánh NHÌN THẤY ĐƯỢC */
-      veVuKhiTay(G.vuKhiCua ? G.vuKhiCua(n.tuong) : null, nx, ny - nhun, cao, goc, danh, lat);
-
-      /* Đặt thanh máu ngay trên ĐỈNH ĐẦU THẬT, không phải trên mép ô atlas: ô cao 64 mà
-         người chỉ vẽ ở phần dưới, nên treo theo mép ô thì thanh máu lơ lửng cách đầu cả
-         một thân người và không ai nối được thanh nào với ai. */
-      var mepT = G.mepTuong ? G.mepTuong(n.tuong.id) : 0;
-      var dinhDau = p[1] - cao * (1 - mepT) - 6 * s;
+      /* thanh máu treo ngay trên đỉnh đầu thật, đo lúc dựng atlas */
+      var dinhDau = p[1] - (G.caoHinh(khoaT) || 40) * kT - 5 * s;
       thanhMau(p[0], dinhDau, cao * 0.95, n.hp / n.hpMax,
         n.doi === 'xanh' ? '#3ddc97' : '#e5484d', Math.max(4, 5 * s));
 
@@ -1360,49 +1278,21 @@
     canvas._rung = setTimeout(function () { canvas.style.transform = ''; }, 90);
   }
 
-  /* ══════════ VŨ KHÍ TRÊN TAY ══════════
-     `pha` là tiến độ của cú đánh, 0..1; −1 nghĩa là đang nghỉ.
-
-     Vũ khí ĐÂM (giáo, thương, dao) thì THỌC tới rồi rút về — chủ dự án gọi đúng tên:
-     "thọc thọc nhau". Vũ khí VUNG (kiếm, rìu, búa) thì quét một cung từ sau ra trước.
-     Vũ khí BẮN (cung, súng, bom) thì giật lùi một nhịp rồi về chỗ, còn viên đạn do
-     hiệu ứng `dan` lo. Ba nhóm ba động tác khác hẳn nhau, nên nhìn tay là biết loại. */
-  function veVuKhiTay(vk, x, y, cao, goc, pha, lat) {
-    if (!vk || !G.veVuKhi) return;
-    /* Ba con số này là "cánh tay": cao tay, độ vươn, cỡ vũ khí. Để rộng quá thì vũ khí
-       trôi lơ lửng cạnh người như một món đồ rơi; để hẹp quá thì nó lẫn vào thân. */
-    var tay = y - cao * 0.40;
-    var neo = cao * 0.21;
-    var g = goc;
-    var co = cao * 0.46;
-    var ban = G.VUKHI_BAN && G.VUKHI_BAN[vk];
-    var thoc = G.VUKHI_THOC && G.VUKHI_THOC[vk];
-
-    if (pha >= 0) {
-      var cung = Math.sin(pha * Math.PI);
-      if (ban) {
-        neo -= cung * cao * 0.10;                   /* giật lùi */
-        g = goc - cung * 0.14;
-      } else if (thoc) {
-        neo += cung * cao * 0.44;                   /* THỌC tới rồi rút */
-        co *= 1 + cung * 0.08;
-      } else {
-        g = goc - 1.15 + 2.3 * pha;                 /* VUNG một cung */
-        neo += cung * cao * 0.14;
-      }
-    } else if (!ban && !thoc) {
-      g = goc - 0.5;                                /* nghỉ: vác chếch lên vai */
-    }
-    G.veVuKhi(ctx, vk, x, tay, co, g, neo);
-  }
-
   /* ══════════ BIA MỘ ══════════
      Người chết biến mất tăm là mất luôn thông tin "chỗ này vừa có người ngã xuống, và
      còn bao lâu nữa họ quay lại". Teamfight Manager 2 đếm giờ hồi sinh ngay trên bản
      đồ nhỏ; ở đây đếm ngay tại chỗ ngã. */
-  function veBia(n, s) {
+  function veBia(n, s, tNga) {
     var p = toaDo(n.x, n.y);
     if (ngoaiMan(p, 50 * s)) return;
+    /* ngã xuống bằng khung chết của TFM2, nằm lại một nhịp rồi mới hoá bia */
+    var khoaB = 'tuong.' + n.tuong.id, daiB = G.dai(khoaB, 'chet');
+    if (G.coHinh(khoaB) && tNga < daiB + 0.6) {
+      ctx.globalAlpha = tNga < daiB ? 1 : 1 - (tNga - daiB) / 0.6;
+      G.veHinh(ctx, khoaB, 'chet', tNga, p[0], p[1], s * 1.15, Math.cos(huongCua(n)) < 0, false);
+      ctx.globalAlpha = 1;
+      return;
+    }
     var cao = 30 * s;
     ctx.globalAlpha = .5;
     ctx.fillStyle = n.doi === 'xanh' ? '#2e6b52' : '#6b2e34';

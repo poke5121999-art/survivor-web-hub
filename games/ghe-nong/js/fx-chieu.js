@@ -1,16 +1,14 @@
-/* fx-chieu.js — VŨ KHÍ CẦM TAY và HIỆU ỨNG RIÊNG CHO TỪNG CHIÊU.
+/* fx-chieu.js — HIỆU ỨNG RIÊNG CHO TỪNG CHIÊU.
 
    ┌─ VÌ SAO CÓ TỆP NÀY ───────────────────────────────────────────────────────┐
    │ Bản trước cả bốn mươi chiêu của hai mươi tướng dùng CHUNG hai hình: một   │
    │ vòng loang dưới đất nếu `dien`, một tia sáng nếu không. Xem trận thì thấy │
    │ người đứng cạnh nhau, số trừ bay lên, thỉnh thoảng loé một cái vòng —     │
-   │ không đọc ra được ai vừa làm gì. Tướng cũng chưa bao giờ VUNG TAY: sprite │
-   │ lấy của HoloCure chỉ có bốn khung đứng yên.                               │
+   │ không đọc ra được ai vừa làm gì.                                          │
    │                                                                          │
    │ Teamfight Manager 2 làm ngược lại: nhìn một giây là biết ai đang đánh     │
-   │ thường, ai đang bung chiêu, chiêu gì. Muốn bằng thế thì cần hai thứ —     │
-   │ VŨ KHÍ RỜI vẽ đè lên người (để có động tác), và MỘT BỘ MẶT RIÊNG cho mỗi  │
-   │ chiêu. Cả hai nằm ở đây.                                                 │
+   │ thường, ai đang bung chiêu, chiêu gì. Động tác giờ nằm trong sprite TFM2  │
+   │ (art/tfm); tệp này lo MỘT BỘ MẶT RIÊNG cho mỗi chiêu.                    │
    └──────────────────────────────────────────────────────────────────────────┘
 
    Không thể có bốn mươi bộ sprite riêng. Cách giải: art/fx.png có 26 DÁNG gốc,
@@ -20,33 +18,6 @@
 */
 (function (G) {
   'use strict';
-
-  /* ══════════ VŨ KHÍ TỪNG TƯỚNG ══════════
-     Khoá trong art/vukhi.png. Chọn theo LỚP trước, theo tính cách sau — người xem
-     phải đoán được vai trò từ cái cầm trên tay ngay cả khi chữ quá nhỏ để đọc. */
-  G.VUKHI_TUONG = {
-    kiemsi: 'kiem', cuongchien: 'riu', phaco: 'bua', thanhkiem: 'kiem_to',
-    kynhan: 'giao', gaosu: 'thuong', bongma: 'dao', thoisan: 'sung',
-    phaposu: 'gay', phapset: 'dua', bongdem: 'phi', tuchien: 'kiem',
-    xathu: 'cung', sungtruong: 'sung_tia', nodoc: 'no', bomxich: 'bom',
-    hiepsi: 'khien', thaythuoc: 'cuu', khienhon: 'sach', nhacsi: 'dan'
-  };
-
-  /** thiếu khoá riêng thì rơi về vũ khí theo lớp — không bao giờ để tay không */
-  G.VUKHI_LOP = { can: 'kiem', xa: 'cung', phep: 'gay', ho: 'sach', sat: 'dao' };
-
-  G.vuKhiCua = function (tuong) {
-    if (!tuong) return null;
-    return G.VUKHI_TUONG[tuong.id] || G.VUKHI_LOP[tuong.lop] || 'kiem';
-  };
-
-  /* Vũ khí nào là loại ĐÂM THẲNG (thọc tới trước) chứ không phải VUNG (quét một cung).
-     Giáo và thương thọc; kiếm, rìu, búa vung. Đoán sai thì cây thương trông như cái
-     chổi quét, mà cây rìu thì trông như đang chọc bong bóng. */
-  G.VUKHI_THOC = { giao: 1, thuong: 1, dao: 1, kiem_to: 0 };
-
-  /** vũ khí cầm tay mà bắn được — cầm lên là có khói đầu nòng và viên đạn bay ra */
-  G.VUKHI_BAN = { cung: 1, no: 1, sung: 1, sung_tia: 1, sung_ngan: 1, phi: 1, bom: 1 };
 
   /* ══════════ HIỆU ỨNG RIÊNG CHO TỪNG CHIÊU ══════════
 

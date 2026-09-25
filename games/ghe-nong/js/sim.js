@@ -1326,9 +1326,8 @@
              Ở bộ đo cân bằng, ngần ấy lần cấp phát nhân với 7,5 triệu tick là hàng phút. */
           if (tran.veHinh) hieuUng(tran, cs.tam > 45
             ? { loai: 'dan', x: n.x, y: n.y, x2: muc.x, y2: muc.y, lop: n.tuong.lop,
-                doi: n.doi, vk: G.vuKhiCua ? G.vuKhiCua(n.tuong) : null }
-            : { loai: 'chem', x: muc.x, y: muc.y, goc: n.danhGoc, doi: n.doi,
-                vk: G.vuKhiCua ? G.vuKhiCua(n.tuong) : null });
+                doi: n.doi }
+            : { loai: 'chem', x: muc.x, y: muc.y, goc: n.danhGoc, doi: n.doi });
           if (cs.hut) n.hp = Math.min(n.hpMax, n.hp + thuc * cs.hut);
           if (n.hieu.hutMau) n.hp = Math.min(n.hpMax, n.hp + n.hpMax * (n.mucHutMau || 0.03));
 
