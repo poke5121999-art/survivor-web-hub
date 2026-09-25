@@ -38,6 +38,21 @@ def main():
             tuong[k] = dict(v, id=k)
     for k, c in tuong.items():
         c.pop('sprite', None)
+        # `[BẪY ĐÃ SẬP]` Khoá chiêu không đều: nhiều tướng gọi chiêu đầu là `skill1`; riêng jiangshi thì `skill1`
+        # là ô 1 (triệu hồi) và `skill` là ô 2 (đòn choáng) — khớp theo mô tả `mo_ta.skill/skill2`. Sim chỉ đọc
+        # `skill/skill2/ult`, nên các tướng này chưa từng ra chiêu đầu. Chép sang khoá chuẩn, GIỮ khoá gốc
+        # (mã chiêu viết tay có chỗ đọc thẳng `tfm.skill1`); `khoa_goc` ghi nguồn.
+        if 'skill1' in c:
+            goc = {'skill': 'skill1'}
+            if 'skill' in c and 'skill2' not in c:
+                c['skill2'] = c['skill']
+                goc['skill2'] = 'skill'
+            c['skill'] = c['skill1']
+            c['khoa_goc'] = goc
+        # ô chiêu có mô tả mà không có khối ra đòn là chiêu BỊ ĐỘNG (Monk hồi máu, Gunner vừa chạy vừa bắn…)
+        bd = [o for o in ('skill', 'skill2') if not isinstance(c.get(o), dict)]
+        if bd:
+            c['bi_dong'] = bd
         # [ĐỌC TỪ NGUỒN] champion_info của TFM2 ghi nhầm khoá đòn đánh của spirit_caller là "attaca";
         # exe của họ chắc đọc theo tên khác, còn sim đọc theo "attack" nên nắn lại ở đây.
         if 'attaca' in c and 'attack' not in c:
