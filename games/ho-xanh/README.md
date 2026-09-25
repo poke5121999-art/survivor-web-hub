@@ -8,9 +8,9 @@ Lên tới mặt nước hoặc bơi lên vào khoang cứu hộ là mang cả t
 
 Mỗi lượt lặn nằm trong một ngày trọn vòng:
 1. Sắm đồ trên app iDiver: nâng trang bị, mua và chọn một khẩu súng phụ, nâng cấp quán.
-2. Lái cano Nodens 68 từ nhà hàng sushi nổi ra Hố Xanh, rồi nhảy xuống nước.
+2. Cano Nodens 68 tự chạy từ nhà hàng sushi nổi ra Hố Xanh, Dave nhảy xuống nước.
 3. Lặn.
-4. Lái cano về quán.
+4. Cano tự chạy về quán.
 5. Chọn món từ tủ cá. Bancho nấu, Dave bưng món và rót trà cho khách.
 6. Cộng sổ cuối ca, sang ngày mới.
 
@@ -22,12 +22,12 @@ Mọi hình, hoạt ảnh, UI, VFX và tiếng của cano, quán và cửa hàng
 |---|---|---|
 | Bơi 8 hướng | WASD hoặc mũi tên | kéo nửa trái màn hình |
 | Tăng tốc (đốt khí nhanh hơn) | Shift | giữ nút **Tăng tốc** |
-| Lướt ngắn | Space | nút **Lướt** |
+| Lướt ngắn | Space (khi không đứng cạnh xác cá) | nút **Lướt** |
 | Ngắm / bắn xiên | giữ chuột trái để ngắm, thả để bắn | giữ nửa phải để ngắm, thả để bắn |
 | Giằng co với cá lớn | bấm liên tục chuột trái hoặc Space | chạm liên tục |
 | Dao | F | nút **Dao** |
+| Nhặt xác cá / xả thịt cá lớn | E hoặc Space cạnh xác; cá lớn giữ 2,2 giây | nút **Nhặt** (chỉ hiện cạnh xác), giữ với cá lớn |
 | Súng phụ | giữ chuột phải để ngắm, thả để bắn | giữ nút **Súng** (tự nhắm cá gần nhất), thả để bắn |
-| Lái cano | W/↑ ga, S/↓ phanh rồi lùi, A/D hoặc ←/→ bẻ lái | giữ nút **Ga** / **Phanh**, kéo nửa trái để bẻ lái. Không chạm 2,2 giây thì cano tự chạy |
 | Trong quán | A/D hoặc ←/→ đi; E, Space, Enter bưng món ở quầy hoặc phục vụ khách gần nhất; Q bỏ đĩa cũ nhất. Rót trà: giữ rồi thả khi vòng gần đầy | chạm sàn để đi, chạm món trong hàng chờ để lấy, chạm khách để phục vụ |
 | Tạm dừng / tắt tiếng | P hoặc Esc / M | nút ‖ / nút loa |
 
@@ -44,12 +44,12 @@ Tham số URL:
 |---|---|
 | `index.html` | Khung trang, CSS chung, HUD bằng DOM, `#stage2d` và `#screens` cho pha trên bờ. Mọi `<script>`/`<link>`/ảnh gắn `?v=<rev>` |
 | `data/tuning.js` | Mọi con số của lượt lặn, nhãn `[DtD]` (bản gốc) hoặc `[ĐỀ XUẤT]` (tự chọn) |
-| `data/meta.js` | `HX_META`: bảng nâng cấp `GEAR` (O₂, túi cá, đồ lặn, dao, súng xiên) và `GUNS` (sáu khẩu gốc) lấy số `[DtD]` từ `gear_sheet.js`; `BAR` (ghế, đầu bếp, trang trí, trà) `[ĐỀ XUẤT]`; giá món gốc. Hàm thuần `stat / level / nextCost / buy / buyGun / equipGun / gunStat / loadout / dishOf / servingsOf`. Phải nạp sau `gear_sheet.js` |
+| `data/meta.js` | `HX_META`: bảng nâng cấp `GEAR` (O₂, túi cá, đồ lặn, dao, súng xiên) và `GUNS` (sáu khẩu gốc) lấy số `[DtD]` từ `gear_sheet.js`; `BAR` (ghế, đầu bếp, trang trí, trà); `BAR_TIERS` (mỗi cấp trang trí bày nội thất gốc nào, ghế nào, hệ số giá món, nhịp khách) và `tier(save)`; giá món gốc. Hàm thuần `stat / level / nextCost / buy / buyGun / equipGun / gunStat / loadout / dishOf / servingsOf`. Phải nạp sau `gear_sheet.js` |
 | `data/gear_sheet.js`, `data/bar_assets.js`, `data/boat_assets.js` | Sinh bởi `tools/rip_boat.py` và `tools/rip_bar.py`: số trang bị và súng gốc; toàn bộ art, clip, bố cục UI, công thức hạt của quán và cano |
 | `js/save.js` | `HX.save`: sổ lưu `hx.save.v1` trong localStorage. `load / get / commit(fn) / wipe / parse` |
 | `js/prep.js` | Pha `prep`: app iDiver gốc, ba thẻ Trang bị / Súng / Quán, popup lên cấp gốc |
-| `js/boat.js` | Pha `boat` (`surface: 'scene'`): cảnh biển sảnh gốc, cano lái được, clip Diveready / Respawn của Dave, hạt vệt sóng chạy từ công thức gốc, tiếng máy theo tốc độ |
-| `js/bar.js` | Pha `kitchen`, `bar`, `ledger`: phòng quán 9 lớp, khách, Bancho nấu, Dave bưng món, rót trà, trả tiền, sổ cuối ca |
+| `js/boat.js` | Pha `boat` (`surface: 'scene'`): cảnh biển sảnh gốc, cano tự chạy `moor → depart → cruise → arrive` theo khoá clip gốc, clip Diveready / Respawn của Dave, hạt vệt sóng chạy từ công thức gốc, tiếng máy theo tốc độ |
+| `js/bar.js` | Pha `kitchen`, `bar`, `ledger`: phòng quán dựng theo hàng `BAR_TIERS` của cấp trang trí, khách, Bancho nấu, Dave bưng món, rót trà, trả tiền, sổ cuối ca |
 | `js/gun.js` | Súng phụ trong lượt lặn: ngắm, đạn, chùm đạn, xuyên, lưới, đạn ngủ, lựu đạn nổ vùng |
 | `css/prep.css`, `css/boat.css`, `css/bar.css` | Kiểu riêng của từng pha trên bờ |
 | `data/zones.js` | Sinh bởi `tools/level.py`: 16 tầng, mỗi tầng vách va chạm, hòm O₂, khoang cứu hộ, rong Spine, mã miệng nối và số liệu ánh sáng gốc |
@@ -60,6 +60,7 @@ Tham số URL:
 | `js/dave.js` | Sprite Dave + lớp tay súng, máy trạng thái người lặn |
 | `js/harpoon.js` | Mũi xiên và dây |
 | `js/fish.js` | Nạp Spine, máy trạng thái cá, bộ sinh cá quanh camera, ảnh nhỏ cho thẻ bắt cá |
+| `data/fish_spawn.js` | Sinh bởi `tools/spawn_data.py`: giờ hoạt động ngày/đêm từng loài và bản đồ loại trừ, theo wiki |
 | `js/fx.js` | Hạt hiệu ứng theo bảng `KINDS`, và phát lại công thức hạt gốc của súng |
 | `js/hud.js`, `js/audio.js` | DOM phủ trên cảnh; Web Audio |
 | `js/main.js` | Sổ pha và `go()`, dựng lượt lặn theo trang bị, nhập liệu, camera, ánh sáng mỗi khung, móc `window.HX_DEBUG` cho bộ kiểm |
@@ -81,9 +82,14 @@ Tham số URL:
 - Trang bị đọc một lần lúc dựng lượt lặn vào `G.loadout` (`HX_META.loadout(save)`). Mọi tệp lặn đọc từ đó; `o2.max`, `knife.damage`, `harpoon.damage` trong `tuning.js` không còn dùng.
   - Túi đếm số con, không đếm ký. Bản gốc tính túi theo kg (9 → 185) nhưng bảng cá không có cân nặng. Túi đầy thì cá hạ được vẫn tan đi khi tới tay, báo "Túi đầy".
   - Quá độ sâu an toàn của đồ lặn thì dưỡng khí tụt ×2,5 và HUD báo, tính một chỗ trong `dave.js`. Đồ lặn cấp 0 gốc chỉ tới 40 m; cấp 1 giá 0 vàng.
-- Dave: `enter | swim | dash | aim | shoot | reel | tug | melee | gunAim | gunFire | hurt | surfaced | dead`. Tăng tốc là cờ của `swim`.
+- Dave: `enter | swim | dash | aim | shoot | reel | tug | melee | gunAim | gunFire | harvest | hurt | surfaced | dead`. Tăng tốc là cờ của `swim`.
+  - State có cờ `immune` (`enter`, `tug`, `surfaced`, `dead`) thì không bị cắn. Một chỗ kiểm: `Diver.prototype.vulnerable()`.
+  - `tug`: Dave đứng yên, cá chạy tới hết dây (`T.harpoon.range`) thì dừng.
 - Xiên: `ready → flying → (stuck | returning) → ready`.
-- Cá: `wander | flee | chase | defend | sleep | hooked | dying | reeled`. Cá nóc dùng `defend` (phồng gai). `sleep` do súng ngủ.
+- Cá: `wander | flee | chase | defend | sleep | hooked | hauled | dying | dead | reeled`. Cá nóc dùng `defend` (phồng gai). `sleep` do súng ngủ.
+  - Cá chết đi đâu chỉ quyết ở `Fish.prototype.die(onRope)`: chết trên dây xiên thì `hauled`, dây kéo về túi; chết do dao, súng thì `dying → dead`, thành xác nổi chậm, 40 giây thì tan.
+  - Dave bơi tới xác, bấm E/Space: cá nhỏ nhặt ngay (`PickUp`); ba loài có `CarvableCount > 0` gốc (cá mó đầu gù, cá bàng chài đầu bướu, cá khế vây vàng) phải giữ 2,2 giây để xả thịt (`Tanning`).
+- Quán theo cấp trang trí (`BAR_TIERS`): mức 0 là quán cũ gốc (`FurnitureLv1`), mức 1 trở đi là quán đã sửa (`FurnitureLv2`) cộng đồ `SushiBarInteriorItems`. Chỉ ghế đã mở mới bày ra. Giá món = giá gốc × hệ số cấp công thức.
 - Quán: khách `vào → ngồi (xem thực đơn) → gọi món hoặc trà → chờ (cạn kiên nhẫn thì giận, bỏ về) → ăn → trả tiền → ra`. Bancho nấu lần lượt từng đĩa. Dave bưng tối đa 3 đĩa.
   - Cá ra món: số suất = `2 + floor(cm / 20)`, tối đa 10, rồi chia cho số phần cá công thức gốc cần (cá nóc sao 2, da cá nóc gai 3, còn lại 1). Sổ cuối ca bỏ khỏi tủ `ceil(suất đã bán / suất mỗi con)` con.
 
@@ -144,6 +150,23 @@ Tham số URL:
 - **`index.html` có lớp `.bar` chung cao 12 px.** Đặt tên lớp trùng là bị ép dẹt mà không báo gì.
 - **`String.replace` hiểu `$$` trong chuỗi thay thế là một `$`.** Vá bài kiểm có gọi `page.$$` bằng `replace` thì lời gọi hỏng im lặng.
 
+### Đợt sửa theo góp ý chủ dự án [ĐO TRONG REPO, 2026-09-25]
+
+- **Bản gốc không có danh sách loài theo từng bản đồ con.** `FishGroupController` trong mỗi cảnh chỉ mang tên bản đồ. `FishAllocator` chỉ sinh cá nhiệm vụ (TID 2011xxx). Vùng A/B/C theo thư mục Spine đã đúng với danh mục wiki.
+  - Lỗi thật nằm ở bộ sinh cá: loài được chọn theo tầng ở y lệch ±12 m, còn con cá đặt ở y thật. Nên cá tầng này tràn sang tầng kia gần ranh giới.
+  - Giờ ngày/đêm của từng loài và ngoại lệ A06 lấy từ wiki (`[WIKI]`, `tools/spawn_data.py`).
+- **Cá chết có ba đường trong bản gốc:** `FishInteractionType { Carving, Pickup, Calldrone }`. `CarvableCount` trong `DR_GameData_Fish.json` khác 0 đúng ba loài cỡ 2 của ta. `CarvingCommand` dài 2,2 giây; `PickupCommand` tức thì. Nút `Interaction` của `DRInput` là Space.
+  - Tốc độ nổi của xác (`FloatingValueWhenDead`) và thời gian tan không đọc được. 0,12 m/s và 40 giây là số tự chọn.
+  - Drone kéo cá cực lớn (`LiftDrone`) chưa làm.
+- **Mũi xiên không đổi theo cấp súng xiên trong bản gốc.** Cả 8 prefab đầu xiên dùng chung sprite `HarpoonProjectile`; chỉ thân súng cầm tay đổi. Súng trường và súng hoa cải dùng chung `Bullet.prefab` (cùng GUID). Nâng cấp súng phụ không đổi đạn.
+- **Sheet khách trong quán vẽ quay mặt sang phải.** Mã cũ lật khi đi sang phải nên khách đi giật lùi cả lúc vào lẫn lúc ra. Dave vẽ quay trái.
+- **Quán cũ có sẵn trong bản gốc.** Mỗi ô nội thất có `InteriorFurnitureSpawner` hai khoá: 1 là quán trước khi sửa (`FurnitureLv1`: biển chập chờn, OPEN hỏng chữ, loa tóe lửa, rèm rách, quầy nứt), 2 là quán đã sửa. Cảnh gốc chỉ bày khoá 2.
+  - Hạng Coal gốc khoá ghế 4, 5, 12, 13 bằng prefab ghế tắt hình (`LockSeatNumList`).
+  - Trang trí gốc chỉ để nhìn (`BuffIDList` = 0). Giá món gốc tăng nhờ nâng công thức (cấp 10 = ×3,7, theo DiverDB). Bảng giá từng cấp công thức không có trong dữ liệu, nên chia đều là tự chọn.
+  - [BẪY ĐÃ SẬP] `decode_clip` trong `rip_bar.py` từng gộp mọi khoá đổi sprite vào một rãnh. Phải tách theo nút bằng cách đếm curve qua binding, như `FindBinding` của AssetStudio.
+- **`posOffset` của `Boat_Exit001/002` là độ dời thật**, mỗi clip tính từ lúc clip bắt đầu: hai clip nối nhau đi (−33,5; 0; 7,05) m trong 7,3 giây. `Boat_Exit002` gắn cờ lặp nhưng góc quay đi 0 → 28,7° không quay về, nên chỉ phát một lần. `Camera_Lobby` có Animator nhưng không có clip nào.
+  - [BẪY ĐÃ SẬP] Clip dài 3,65 giây không chia hết cho 1/30 giây. Lấy vận tốc ra khơi bằng hiệu hai khung dựng hình cuối có lúc ra nửa tốc độ thật. Lấy từ hai mẫu bên trong clip cách nhau 1/30 giây (`CRUISE_VEL`).
+
 ## Chọn khác bản gốc [ĐỀ XUẤT]
 
 - Camera theo bản gốc: phối cảnh 38°, lùi 18,5 m (`CinemachineFramingTransposer.m_CameraDistance`), khung nhìn cao ~12,7 m. Màn thấp (điện thoại ngang) kéo lại còn 12,5 m cho Dave khỏi bé.
@@ -151,9 +174,9 @@ Tham số URL:
 - Ánh sáng đá nhân thêm 1,4 lần (`dive.lightGain`), loá sáng lấy mẫu mipmap thay cho chuỗi làm mờ của URP. Cả hai chỉnh bằng mắt, đặt cạnh ảnh chụp Steam.
 - Lặn đêm mượn bộ màu Evening như cảnh gốc, rồi tối thêm (`dim` 0,55) và luôn bật đèn đội đầu.
 - Dave chết thì giữ con cá hạng cao nhất. Bản gốc cho người chơi tự chọn một món.
-- **Kinh tế.** Giá món giữ nguyên bản gốc (2–220 vàng). Để nâng cấp đầu tiên mua được ngay ngày 1–2, số suất mỗi con cá, ca bán 180 giây và nhịp khách (5 giây một khách, chia cho mức trang trí) được chỉnh bằng `test/ho-xanh-bar-sim.js`. Chạy 14 ngày ra trung bình 381 vàng/ngày, trung vị 364.
+- **Kinh tế.** Ca bán 90 giây như bản gốc (`EveningHours`). Giá món = giá gốc × hệ số cấp công thức, mỗi cấp trang trí ứng với một cấp công thức (×1 → ×3,7). Giá lên cấp trang trí (120 / 450 / 1100 / 2400 / 4500) chỉnh bằng `test/ho-xanh-bar-sim.js`: không nâng gì thì trung bình 279 vàng/ngày; mua ngay khi đủ tiền thì lên mức 1 trước ca ngày 2, mức 2 trước ngày 3, mức 3 trước ngày 6. Trung bình một khách trả 22 vàng ở quán cũ, 77 vàng ở quán sang. Tip = giá bán × 0,5 × phần kiên nhẫn còn lại.
 - **Ghế.** Mở dần 3 → 5 → 7 → 9 → 12 → 15 ghế (bản gốc có 15 ghế).
-- **Cano.** Tốc độ tối đa ~10 m/s lấy từ đoạn nhanh nhất của clip `Boat_Exit001`. Lực đẩy, phanh, bẻ lái, độ nghiêng là số tự chọn. Cả hai chuyến đều chạy mũi sang trái để camera luôn thấy mặt có chữ "Nodens 68". Nước gốc chỉ phủ x −225..115, nên dùng mặt nước riêng bám theo camera, tô bằng màu và ảnh gốc. Clip Diveready gốc không có chuyển động, nên Dave đi ra đuôi cano rồi chạy clip tại chỗ, màn hình tối dần từ 60% clip như bản gốc. Chuyến ra lúc chiều, chuyến về lúc đêm.
+- **Cano.** Tự chạy, không lái. Rời bến phát liền `Boat_Exit001` rồi `Boat_Exit002` gốc. Ra khơi thì chạy thẳng với vận tốc cuối clip (~9,2 m/s). Cập bến phát ngược clip rời bến, vì bản gốc không có clip cập bến. Cả hai chuyến đều chạy mũi sang trái để camera luôn thấy mặt có chữ "Nodens 68". Nước gốc chỉ phủ x −225..115, nên dùng mặt nước riêng bám theo camera, tô bằng màu và ảnh gốc. Clip Diveready gốc không có chuyển động, nên Dave đi ra đuôi cano rồi chạy clip tại chỗ, màn hình tối dần từ 60% clip như bản gốc. Chuyến ra lúc chiều, chuyến về lúc đêm.
 - **Quán.** Phòng phóng theo bề ngang, làm tròn tới 0,5× (1,5× ở 1280×720, 1× ở 844×390), cắt bớt trần, camera bám Dave theo chiều ngang. Nền sau quán tô phẳng `#070a12` vì bản gốc có trời biển 3D ở đó. Tên 64 món do dự án tự dịch, vì bảng chữ gốc có 14 thứ tiếng nhưng không có tiếng Việt.
 - **Súng.** Tốc độ đạn = sức bắn × 0,02, súng ngủ 5 giây (+1 mỗi cấp), lưới mở bán kính 1 m, lựu đạn rơi 4 m/s² và tự nổ sau 2,5 giây: bảng gốc không có các số này.
 
@@ -162,8 +185,10 @@ Tham số URL:
 ```
 node test/ho-xanh-suite.js      # SHOTS=<thư mục> để đổi chỗ lưu ảnh
 node test/ho-xanh-meta.js       # hàm thuần của data/meta.js và chuẩn hoá sổ lưu, không cần trình duyệt
-node test/ho-xanh-boat.js       # lái cano ra/về, nhảy xuống, 5 chuyến không rò bộ nhớ GPU
-node test/ho-xanh-gun.js        # từng khẩu súng bắn trúng cá, hết đạn, dao ở phím F
+node test/ho-xanh-boat.js       # cano tự chạy ra/về khớp khoá clip gốc, phím không có tác dụng, nhảy xuống, 5 chuyến không rò bộ nhớ GPU
+node test/ho-xanh-harvest.js    # giằng co Dave đứng yên và không bị cắn, xác cá nằm lại, nhặt và xả thịt, túi đầy, nút Nhặt
+node test/ho-xanh-spawn.js      # mọi con cá sinh ra đều hợp lệ theo data/fish_spawn.js tại đúng chỗ sinh
+node test/ho-xanh-gun.js        # từng khẩu súng bắn trúng cá và bắn đúng đạn gốc, hết đạn, dao ở phím F
 node test/ho-xanh-bar.js        # một ca bán bằng phím và bằng chạm, giá đúng, trà, khách bỏ về, sổ ghi một lần
 node test/ho-xanh-prep.js       # mua khi thiếu tiền bị từ chối, mua/trang bị súng, nâng quán, tải lại còn sổ
 node test/ho-xanh-bar-sim.js [đêm] [hạt]   # mô phỏng tiền mỗi ngày, không cần trình duyệt
