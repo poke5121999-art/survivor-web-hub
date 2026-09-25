@@ -45,6 +45,10 @@ Yêu cầu chủ dự án (2026-09-25): "copy hết skill + config + stats + equ
   thì lõi bỏ bản tạm. `art/tfm/icon.js` chưa có thẻ `<script>` — lõi đã thêm vào index.html.
 - [lõi → 4 agent chiêu] API `S` ở RESEARCH §14.3; ví dụ mẫu: fighter (tệp 1), pyromancer (2), nightmare (3),
   priest (4). Tên hoạt ảnh / tiếng riêng tra §15.
+- [não, 2026-09-25: việc 2–5 của agent 1 và 1–3 của agent 4 ĐÃ CÓ móc — RESEARCH §16.6: `S.chan(…, khiVo)`, `S.chanDan`,
+  `S.donKe`, `S.phanTan`, `S.lienKet` (một chiều = chịu hộ), `S.khongChonMuc`, `S.giaiGioi`, `S.khiBiDanh`, `S.khiGiet`,
+  nội tại `G.CHIEU_TFM[id].batDau(S)`; kiểm `_tools/kiemMoc.js` 13/13. Còn thiếu: móc `chiSoNguoi` cho nội tại
+  tăng chỉ số theo cấp (soldier `growth_range`) — của lõi.]
 - [agent 1 (17 tướng, chieu-tfm-1.js) → lõi, 2026-09-25] Năm việc còn thiếu để viết ĐÚNG hết chiêu nhóm 1
   (mỗi việc đã có giải pháp tạm trong chieu-tfm-1.js, ghi rõ bằng `[CHƯA LÀM ĐƯỢC]` tại chỗ, không chặn trận):
   1. **`data-tuong.js` dựng `kn.skill.p` từ `c['skill']`, không thử `c['skill1']`** — Dancer trong dữ liệu
@@ -129,3 +133,9 @@ Yêu cầu chủ dự án (2026-09-25): "copy hết skill + config + stats + equ
   quái / trụ / Chúa Hang / Rồng từ `game_setting`; 30 món đồ; 68 tướng có vị trí + lớp; mô tả chiêu điền tham số;
   cách chạy chung + cây hiệu ứng + bảng viết tay `G.CHIEU_TFM`; cấm chọn / thẻ trận / lưu game / tủ đội máy / bảng
   thông thạo đổi id. Đo ở RESEARCH §14. Bước 3 (ảnh) đã có: sim nối vào `G.napTuong/G.veHinhT/G.animTuong`.
+- 2026-09-25 (não, bước 5): ba tầng đội / người / chiêu theo AI_BRAIN — màn quái lớn theo pha (P1), cuộc đua "ai
+  chết trước" ba kết cục (P2), giữ trụ + không lao trụ + trụ với tới mép người (bẫy xạ thủ ngoài tầm trụ), chiêu theo
+  `casting_target` và biết giữ (P3), mục tiêu chung do người gọi (P4), bắt lẻ theo tình trạng đường (P6), chỉ số =
+  kiểu sai có tên (lapse / misjudge / tuChoi / ngheNham). Đo ở RESEARCH §16.7: trụ đầu 148 → 367 s, mạng trong tầm
+  trụ 10 → 7 %, ăn quái theo màn 79 %, cướp 28/60 trận. Móc cho agent chiêu §16.6. Chưa: sương mù, 13 nhóm chiến thuật,
+  UI đọc sự kiện `goi`.

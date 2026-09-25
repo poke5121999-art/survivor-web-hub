@@ -214,37 +214,69 @@
     S.fx = function (o) { o.tuong = n.tuong.id; o.kn = loai; o.doi = n.doi; o.ai = n.i; sim.hieuUng(tran, o); };
     S.chu = function (m, chu, loaiChu) { sim.soBay(tran, { x: m.x, y: m.y, chu: chu, loai: loaiChu || 'ne' }); };
     S.giamHoi = function (loaiChieu, tick) { n.cd[loaiChieu] = Math.max(0, n.cd[loaiChieu] - giay(tick)); };
+    /* ── thêm theo yêu cầu của bốn agent chiêu (RESEARCH §16.6), chỉ cộng thêm, API cũ nguyên ── */
+    S.khongChonMuc = function (m, tick) { if (m && m.tuong) m.khongChon = Math.max(m.khongChon || 0, tran.t + giay(tick)); };
+    S.giaiGioi = function (m, tick) { if (m && m.tuong) m.giaiGioi = Math.max(m.giaiGioi || 0, tran.t + giay(tick)); };
+    S.chan = function (m, luong, tick, khiVo) { sim.themChan(tran, m, luong, giay(tick), n, khiVo); };
+    S.chanDan = function (x, y, r, lau) { tran.chanDan.push({ x: x, y: y, r: kc(r), den: tran.t + giay(lau), doi: n.doi }); };
+    S.donKe = function (soDon, tick, fn) { n.donKe = { con: soDon || 0, den: tran.t + giay(tick), fn: fn }; };
+    S.khiBiDanh = function (tick, fn) { n.moc.biDanh = { den: tran.t + giay(tick), fn: fn }; };
+    S.khiGiet = function (tick, fn) { n.moc.giet = { den: tran.t + giay(tick), fn: fn }; };
+    S.phanTan = function (m, phanTram, tick, lau) {
+      if (!m || !m.tuong) return;
+      var cu = m.phanTan;
+      m.phanTan = { pt: phanTram, den: tran.t + giay(tick), lau: giay(lau || tick), no: cu ? cu.no : 0, moiGiay: cu ? cu.moiGiay : 0 };
+    };
+    S.lienKet = function (a, b, phanTram, tick, motChieu) {
+      if (!a || !b || !a.tuong || !b.tuong) return;
+      a.lienKet = { voi: b, pt: phanTram, den: tran.t + giay(tick) };
+      if (!motChieu) b.lienKet = { voi: a, pt: phanTram, den: tran.t + giay(tick) };
+    };
     S.pt = ptCua(kn);
     return S;
   }
+  /** nội tại: `G.CHIEU_TFM[id].batDau(S)` chạy MỘT lần ở tick đầu của mỗi người (sim gọi) — cắm móc đánh / bị đánh / hạ gục */
+  G.khoiDongChieu = function (tran, n) {
+    var ov = G.CHIEU_TFM[n.tuong.id];
+    if (!ov || typeof ov.batDau !== 'function') return;
+    var loai = n.tuong.kn.skill ? 'skill' : n.tuong.kn.skill2 ? 'skill2' : 'ult';
+    ov.batDau(taoS(tran, n, loai, { muc: null, x: n.x, y: n.y }));
+  };
   G.taoNguyenThuy = taoS;
 
   /* ══════════ CHỌN MỤC TIÊU LÚC RA CHIÊU ══════════
      Trả { muc, x, y } hoặc null nếu chiêu này lúc này không đáng dùng. */
   var MUC_DICH = { Enemy: 1, EnemyChampion: 1, EnemyWithoutTower: 1, EnemyMinion: 1, EnemyMonster: 1 };
-  function locTheoCasting(ct) {
+  /* `o.linh` = bộ não cho phép ném vào lính lúc này (chiêu diện rộng khi đang ăn lính — sim.js thuChieu);
+     không thì chiêu địch chỉ nhắm tướng / quái lớn, đúng luật "không chiêu nào tung vào trụ, chiêu cuối
+     chỉ vào tướng" đọc từ casting_target của TFM2 (AI_BRAIN §4.1). */
+  function locTheoCasting(ct, o) {
     if (ct === 'EnemyChampion') return { tuong: true };
-    if (ct === 'Enemy') return { tru: true };
     if (ct === 'EnemyMinion') return { linh: true };
-    return {};
+    if (o && o.linh) return ct === 'Enemy' ? { tru: true } : {};
+    return { tuong: true };
   }
-  G.chonMucChieu = function (tran, n, loai, cs, mucDangDanh) {
+  G.chonMucChieu = function (tran, n, loai, cs, mucDangDanh, o) {
     var sim = G._sim;
+    o = o || {};
     var kn = n.tuong.kn[loai], a = n.tuong.tfm[loai];
     if (!a) return null;
     var pt = ptCua(kn);
     var tam = a.range || pt.tamChieu || 0;
+    var nguongHoi = o.nguongHoi == null ? 0.82 : o.nguongHoi;
     /* tướng mod: theo casting_type / casting_target */
     if (a.casting_type) {
       var ctg = a.casting_target || 'Enemy';
       if (ctg === 'AllyOnlySelf' || ctg === 'Self') return { muc: n, x: n.x, y: n.y };
       if (ctg === 'Ally' || ctg === 'AllyChampion') {
         var y = sim.dongMinhYeuNhat(tran, n, kc(tam), true);
-        return y ? { muc: y, x: y.x, y: y.y } : null;
+        if (!y || (!pt.coDmg && y.hp / y.hpMax > nguongHoi)) return null;
+        return { muc: y, x: y.x, y: y.y };
       }
       if (MUC_DICH[ctg]) {
         var d = (mucDangDanh && mucDangDanh.tuong && sim.xa(n, mucDangDanh) <= kc(tam) + sim.BK * 2) ? mucDangDanh
-          : sim.dichGanNhat(tran, n, kc(tam), locTheoCasting(ctg));
+          : sim.dichGanNhat(tran, n, kc(tam), locTheoCasting(ctg, o));
+        if (!d && o.linh && mucDangDanh && mucDangDanh.linh) d = mucDangDanh;
         if (!d) return null;
         if (a.casting_type === 'Position' || a.casting_type === 'Direction') return { muc: d, x: d.x, y: d.y };
         return { muc: d, x: d.x, y: d.y };
@@ -263,6 +295,7 @@
       var muc = (mucDangDanh && mucDangDanh.tuong && sim.xa(n, mucDangDanh) <= kc(tamD) + sim.BK * 2) ? mucDangDanh
         : sim.dichGanNhat(tran, n, kc(tamD), { tuong: true });
       if (!muc) muc = sim.dichGanNhat(tran, n, kc(tamD), { quaiLon: true });
+      if (!muc && o.linh && mucDangDanh && mucDangDanh.linh) muc = mucDangDanh;
       if (!muc) return null;
       return { muc: muc, x: muc.x, y: muc.y };
     }
@@ -270,7 +303,7 @@
     var can = pt.hoi || pt.chan || pt.hoiPhanTramMau;
     var yeu = sim.dongMinhYeuNhat(tran, n, kc(tam || 30000), true);
     if (can) {
-      if (!yeu || yeu.hp / yeu.hpMax > 0.82) return null;   /* không ai cần */
+      if (!yeu || yeu.hp / yeu.hpMax > nguongHoi) return null;   /* không ai cần */
       return { muc: yeu, x: yeu.x, y: yeu.y };
     }
     /* buff thuần: chỉ bung khi đang có đánh nhau gần */

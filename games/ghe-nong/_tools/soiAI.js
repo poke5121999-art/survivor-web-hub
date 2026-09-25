@@ -68,8 +68,13 @@
   var T = {
     dai: 0, mang: 0, tapTrung: 0, tapTrungN: 0, duoiTru: 0, giayTru: 0,
     satTru: 0, satTong: 0, truGiet: 0, truDo: 0, hetGio: 0, doiMuc: 0,
-    chetRut: 0, solo: 0, tran: 0, co: {}, ngoai: 0, nhaDo: 0, loiDo: 0, loiThap: 0, nhaThap: 0
+    chetRut: 0, solo: 0, tran: 0, co: {}, ngoai: 0, nhaDo: 0, loiDo: 0, loiThap: 0, nhaThap: 0,
+    /* bước 5 (não TFM2, RESEARCH §16): trụ đầu đổ lúc nào, quái lớn ai ăn và có mấy người đứng đó,
+       màn tranh quái có đi đúng chuỗi pha không, bỏ cuộc vì lý do gì, lỗi có tên của tuyển thủ */
+    truDau: 0, truDauN: 0, chua: 0, rong: 0, coMat: 0, coMatN: 0, theoPha: 0, mangTruoc3p: 0,
+    boCuoc: {}, loi: {}, rutLyDo: {}, gankDi: 0, gankMang: 0, goiTapTrung: 0, cuop: 0
   };
+  function cong(vao, tu) { for (var k in tu) vao[k] = (vao[k] || 0) + tu[k]; }
 
   for (var s = 0; s < SO_TRAN; s++) {
     var tran = G.taoTran({ ta: doi('A', '#3ddc97', s), dich: doi('B', '#e5484d', s + 2) }, 3000 + s * 17);
@@ -81,6 +86,7 @@
     tran.nguoi.forEach(function (n) { mucCu[n.i] = null; });
 
     var hpTruoc = tran.nguoi.map(function (n) { return n.hp; });
+    var daDocSK = 0, truDauLuc = -1;
     while (!tran.xong && tran.t < 45 * 60) {          /* trần theo giờ trận: tick giờ là 1/30 giây */
       var truTruoc = tran.tru.map(function (r) { return r.hp; });
       var soMangTruoc = tran.mang.xanh + tran.mang.do;
@@ -116,6 +122,33 @@
         if (n.mucTieu && (n.mucTieu.loai === 'rut' || n.mucTieu.loai === 've')) T.chetRut++;
       });
       void truTruoc; void soMangTruoc;
+
+      /* sự kiện mới sinh trong tick này (trong Node không ai rút khỏi suKien) */
+      for (; daDocSK < tran.suKien.length; daDocSK++) {
+        var sk = tran.suKien[daDocSK];
+        if (sk.loai === 'tru' && truDauLuc < 0) truDauLuc = sk.t;
+        if (sk.loai === 'mang' && sk.t < 180) T.mangTruoc3p++;
+        if (sk.loai === 'quaiLon') {
+          T[sk.quai]++;
+          var q = tran.quaiLon[sk.quai], co = 0;
+          tran.nguoi.forEach(function (m) {
+            if (m.doi !== sk.doi || m.chet > 0) return;
+            var dx = m.x - q.x, dy = m.y - q.y;
+            if (dx * dx + dy * dy < 200 * 200) co++;
+          });
+          T.coMat += co; T.coMatN++;
+          if (sk.pha) T.theoPha++;
+          if (sk.cuop) T.cuop++;
+        }
+      }
+    }
+    if (truDauLuc >= 0) { T.truDau += truDauLuc; T.truDauN++; }
+    if (tran.thongKe) {
+      cong(T.boCuoc, tran.thongKe.boCuoc || {});
+      cong(T.loi, tran.thongKe.loi || {});
+      cong(T.rutLyDo, tran.thongKe.rut || {});
+      T.gankDi += tran.thongKe.gankDi || 0; T.gankMang += tran.thongKe.gankMang || 0;
+      T.goiTapTrung += tran.thongKe.goiTapTrung || 0;
     }
 
     T.dai += tran.t;
@@ -160,6 +193,16 @@
     hetGio: Math.round(T.hetGio / n * 100) + '%',
     doiMucMoiPhut: +(T.doiMuc / n / (T.dai / n / 60)).toFixed(1),
     chetKhiRut: Math.round(T.chetRut / m * 100) + '%',
-    solo: Math.round(T.solo / m * 100) + '%'
+    solo: Math.round(T.solo / m * 100) + '%',
+    truDauGiay: T.truDauN ? Math.round(T.truDau / T.truDauN) : null,
+    mangTruoc3p: +(T.mangTruoc3p / n).toFixed(2),
+    chuaMoiTran: +(T.chua / n).toFixed(2), rongMoiTran: +(T.rong / n).toFixed(2),
+    coMatQuaiLon: T.coMatN ? +(T.coMat / T.coMatN).toFixed(2) : null,
+    theoPha: T.coMatN ? Math.round(T.theoPha / T.coMatN * 100) + '%' : null,
+    cuop: T.cuop,
+    boCuoc: chia(T.boCuoc, n), loi: chia(T.loi, n), rutLyDo: chia(T.rutLyDo, n),
+    gank: T.gankDi ? +(T.gankDi / n).toFixed(2) + ' lần, ' + Math.round(T.gankMang / T.gankDi * 100) + '% ra mạng' : null,
+    goiTapTrung: +(T.goiTapTrung / n).toFixed(1)
   };
+  function chia(o, n2) { var r = {}; for (var k in o) r[k] = +(o[k] / n2).toFixed(2); return r; }
 })()

@@ -203,13 +203,17 @@
       rng: rng, t: 0, tick: 0, daiToiDa: DAI_TOI_DA, xong: false, thang: null,
       cau: cau, veHinh: false,
       nguoi: [], linh: [], tru: [], quai: [], quaiLon: {},
-      dan: [], vung: [], hen: [],
+      dan: [], vung: [], hen: [], chanDan: [],
       suKien: [], thoai: [], bay: [], hieu: [],
       vang: { xanh: 0, do: 0 }, mang: { xanh: 0, do: 0 },
       truHa: { xanh: 0, do: 0 }, rongHa: { xanh: 0, do: 0 }, chuaHa: { xanh: 0, do: 0 },
       chart: [], buff: { xanh: { linh: 0, linhLan: 0, serpen: 0 }, do: { linh: 0, linhLan: 0, serpen: 0 } },
       keHoach: { xanh: null, do: null },
-      songLinh: 0, matNguoi: { xanh: -999, do: -999 }
+      songLinh: 0, matNguoi: { xanh: -999, do: -999 },
+      /* tầng đội của bộ não TFM2 và số đếm cho bộ đo (RESEARCH §16) */
+      doiNao: { xanh: taoNao(), do: taoNao() },
+      thongKe: { boCuoc: {}, loi: { lapse: 0, misjudge: 0, tuChoi: 0, ngheNham: 0, chetKhiLapse: 0 }, rut: {},
+        gankDi: 0, gankMang: 0, goiTapTrung: 0, tranhQuai: 0, cuopThu: 0 }
     };
 
     ['ta', 'dich'].forEach(function (ben) {
@@ -246,7 +250,11 @@
           danhLuc: -9, danhGoc: 0, niemLuc: -9, niemTen: '', niemCuoi: false, niemKn: '',
           hoiLuc: -9, tTran: 0, _cs: null, _csTick: -1,
           truBan: -99, danhTuongLuc: -99, danhTuongAi: -1, nham: -1, nhamLuc: -9,
-          mucCu: null, liRun: 1, kyLuat: false, _hoiSinhTai: false, _tran: null
+          mucCu: null, kyLuat: false, _hoiSinhTai: false, _tran: null,
+          /* bộ não TFM2 (§16): lời gọi của đội, đứng hình (lapse), lý do rút, bắt lẻ, nghe mục tiêu chung */
+          goi: null, lapseDen: -9, rutLyDo: '', gankAi: -1, gankLuc: -99, ngheAi: -1, ngheLuc: -99, _laoTru: false,
+          /* móc cho chiêu / nội tại (§16.6): giải giới, đòn đánh kế tiếp, phân tán sát thương, liên kết, móc sự kiện */
+          giaiGioi: 0, donKe: null, phanTan: null, lienKet: null, moc: { biDanh: null, giet: null }, _batDau: false
         });
       });
     });
@@ -319,7 +327,7 @@
     var rong = tran.buff[n.doi].serpen || 0;
     if (rong) for (var kr in CS_RONG) b[kr] = (b[kr] || 0) + CS_RONG[kr] * 3 * rong * (kr === 'tocchay' ? 1 / 3 : 1);
     var he = n.heTT;
-    var kL = heLuc(n) * heCuoiTran(n) * (n.liRun || 1);
+    var kL = heLuc(n) * heCuoiTran(n);
     function s(k) { return (d[k] || 0) + (b[k] || 0); }
     var r = {
       atk: (cs.atk + s('atk')) * (1 + s('atkM') / 100) * he * kL,
@@ -392,14 +400,32 @@
     if (ke.tuong && bi.tuong) { ke.danhTuongLuc = tran.t; ke.danhTuongAi = bi.i; }
     if (ke.laTru && bi.tuong) bi.truBan = tran.t;
 
-    /* lá chắn ăn trước */
+    if (bi.tuong && !o.lienKet) {
+      /* liên kết / chịu hộ (§16.6): một phần sát thương chuyển sang người kia (không dội ngược) */
+      var lk = bi.lienKet;
+      if (lk && lk.den > tran.t && lk.voi && lk.voi.chet <= 0 && lk.voi.hp > 0) {
+        var chuyen = thuc * lk.pt / 100;
+        thuc -= chuyen;
+        satThuong(tran, ke, lk.voi, chuyen, 'thuc', { ghiNhan: false, lienKet: true });
+      }
+      /* phân tán: X % sát thương nhận biến thành sát thương trả dần trong `lau` giây */
+      var ptn = bi.phanTan;
+      if (ptn && ptn.den > tran.t) {
+        var doi = thuc * ptn.pt / 100;
+        thuc -= doi; ptn.no += doi; ptn.moiGiay += doi / ptn.lau;
+      }
+    }
+    /* lá chắn ăn trước; khiên có `khiVo` thì báo lúc bị đánh vỡ (không phải lúc hết hạn) */
     if (bi.tuong && bi.chan.length) {
+      var vo = null;
       for (var i = 0; i < bi.chan.length && thuc > 0; i++) {
         var c = bi.chan[i];
         var an = Math.min(c.luong, thuc);
         c.luong -= an; thuc -= an;
+        if (c.luong <= 0.5 && c.khiVo) { vo = vo || []; vo.push(c.khiVo); c.khiVo = null; }
       }
       bi.chan = bi.chan.filter(function (c2) { return c2.luong > 0.5; });
+      if (vo) for (var iv2 = 0; iv2 < vo.length; iv2++) vo[iv2](ke);
     }
     bi.hp -= thuc;
     if (bi.tuong && (bi.batTu > tran.t || csB.batTu) && bi.hp < 1) bi.hp = 1;
@@ -417,6 +443,7 @@
       }
       if (csB.phanDon && ke.tuong && loai !== 'thuc') satThuong(tran, bi, ke, thuc * csB.phanDon / 100, 'thuc', { ghiNhan: false });
     }
+    if (bi.tuong && bi.moc.biDanh && thuc > 0) { var mb = bi.moc.biDanh; if (mb.den > tran.t) mb.fn(ke, thuc, o); else bi.moc.biDanh = null; }
     if (bi.hp <= 0) xuLyChet(tran, ke, bi);
     return thuc;
   }
@@ -435,9 +462,9 @@
     if (them > 1 && m.tuong) soBay(tran, { x: m.x, y: m.y, chu: '+' + Math.round(them), loai: 'hoi' });
     return them;
   }
-  function themChan(tran, m, luong, lau, ke) {
+  function themChan(tran, m, luong, lau, ke, khiVo) {
     if (!m || !m.tuong || m.chet > 0 || luong <= 0) return;
-    m.chan.push({ luong: luong, den: tran.t + lau });
+    m.chan.push({ luong: luong, den: tran.t + lau, khiVo: khiVo || null });
     m.hieu.chan = lau;
     if (ke && ke.tuong && ke !== m) ke.hoi += luong * 0.5;
     soBay(tran, { x: m.x, y: m.y, chu: 'chắn', loai: 'hoi' });
@@ -679,6 +706,12 @@
     if (m.tuong && tran.rng.duoc(G.kep(0.12 - n.cs.co / 1200 * 0.10, 0.01, 0.14))) luong *= 0.35;
     var thuc = satThuong(tran, n, m, luong, 'vl', { danh: true });
     if (cs.vamp && thuc > 0) hoiMau(tran, null, n, thuc * cs.vamp / 100);
+    /* đòn đánh kế tiếp có hiệu ứng (§16.6): `con` đòn, hay vô hạn tới `den` */
+    var dk = n.donKe;
+    if (dk) {
+      if (dk.den <= tran.t) n.donKe = null;
+      else { dk.fn(m, thuc); if (dk.con > 0) { dk.con--; if (dk.con <= 0) n.donKe = null; } }
+    }
     /* Buff vị trí ĐI RỪNG của TFM2: hành quyết quái lớn khi máu ≤ jungle_execute_threshold */
     if (n.vt === 'rung' && m.hienRa != null && m.hp > 0 && m.hp <= CAI.jungle_execute_threshold) {
       m.hp = 0;
@@ -784,20 +817,26 @@
       bi.hanh = null; bi.lao = null; bi.ep = null; bi.kc = 0; bi.chan = []; bi.dot = []; bi.hoiVe = 0;
       bi.buff = bi.buff.filter(function (b) { return b.den > tran.t + 600; });   /* chỉ giữ buff vĩnh viễn */
       tran.matNguoi[bi.doi] = tran.t;
+      if (bi.lapseDen > tran.t) tran.thongKe.loi.chetKhiLapse++;
+      if (bi.goi && bi.goi.loai === 'thu') bi.goi = null;
       var keT = ke && ke.tuong ? ke : (ke && ke.ke && ke.ke.tuong ? ke.ke : null);
       if (keT && keT.doi !== bi.doi) {
         keT.k++;
+        if (keT.moc.giet) { var mg = keT.moc.giet; if (mg.den > tran.t) mg.fn(bi); else keT.moc.giet = null; }
         keT.vang += CAI.kill_gold; tran.vang[keT.doi] += CAI.kill_gold;
         var expGiet = CAI.kill_exp + CAI.kill_exp_growth * (bi.cap - 1);
         themExp(tran, keT, expGiet);
         tran.mang[keT.doi]++;
+        var tuGank = keT.gankAi === bi.i && tran.t - keT.gankLuc < 25;
         tran.nguoi.forEach(function (m) {
           if (m.doi !== keT.doi || m === keT || m.chet > 0) return;
           if (xa(m, bi) < TAM_EXP) {
             m.a++; m.vang += CAI.assist_gold; tran.vang[m.doi] += CAI.assist_gold;
             themExp(tran, m, expGiet * CAI.assist_exp_ratio / 100);
+            if (m.gankAi === bi.i && tran.t - m.gankLuc < 25) tuGank = true;
           }
         });
+        if (tuGank) tran.thongKe.gankMang++;
         tran.suKien.push({ t: tran.t, loai: 'mang', ai: keT.i, bi: bi.i });
       } else {
         tran.mang[doiKia(bi.doi)]++;
@@ -823,7 +862,17 @@
           tran.buff[d].linhLan = tran.chuaHa[d];
           tran.linh.forEach(function (l) { if (l.doi === d && !l.buff && !l.trieu) buffLinhChua(tran, l, tran.chuaHa[d]); });
         }
-        tran.suKien.push({ t: tran.t, loai: 'quaiLon', doi: d, quai: bi.id });
+        /* ghi cho bộ đo: ăn theo màn (pha) hay tự phát, có phải cướp không (địch ≥ 2 người đứng đó, mình ≤ 2) */
+        var mlD = tran.doiNao[d].ml, taCo = 0, dichCo = 0;
+        tran.nguoi.forEach(function (m) {
+          if (m.chet > 0 || xaXY(m.x, m.y, bi.x, bi.y) > 200) return;
+          if (m.doi === d) taCo++; else dichCo++;
+        });
+        tran.suKien.push({ t: tran.t, loai: 'quaiLon', doi: d, quai: bi.id,
+          pha: mlD.quai === bi.id ? mlD.pha : null, cuop: dichCo >= 2 && taCo <= 2 });
+        if (mlD.quai === bi.id) xongMl(tran, d);
+        var kiaD = doiKia(d);
+        if (tran.doiNao[kiaD].ml.quai === bi.id) huyMl(tran, kiaD, 'MatQuai');
       }
       return;
     }
@@ -898,41 +947,522 @@
     }
   }
 
-  /* ══════════════════ CHỌN HÀNH ĐỘNG (bộ não — RESEARCH §8, §11, §13; bước 5 sẽ nối não TFM2) ══════════════════ */
+  /* ══════════════════ BỘ NÃO — chép cách quyết định của TFM2 (bước 5; D:\tfm2-ref\AI_BRAIN.md; RESEARCH §16) ══════════════════
+     Ba tầng như TFM2: ĐỘI (tickDoi: màn tranh quái lớn theo chuỗi pha, gọi giữ trụ, gọi mục tiêu chung)
+     → CÁ NHÂN (chonHanhDong: đánh hay chạy bằng cuộc đua "ai chết trước") → CHIÊU (thuChieu: theo
+     casting_target, biết giữ). Chỉ số tuyển thủ KHÔNG cộng sát thương; nó bật các KIỂU SAI có tên
+     (AI_BRAIN §5): lapse (đứng hình — NÃO theo giờ trận, LÌ khi đội thua vàng), misjudge (nhiễu vào
+     cuộc đua — NÃO), tuChoi (từ chối lời gọi — cái tôi + NÃO), ngheNham (nghe nhầm mục tiêu chung).
+     Mọi số đếm nằm ở `tran.thongKe` cho bộ đo (_tools/soiAI.js). */
+  var MW = TFM.macro || { gold: 1, exp: 1, kill: 400, death: 400, tower: 500, epic: 2800, serpen: 700, nexus: 20000 };
+  /* `[ĐỀ XUẤT]` AI_BRAIN §8: quorum_k, số giây Prepare gọi trước, biên cuộc đua là hằng số trong exe, không đọc được */
+  var K_QUAI = { chua: 3, rong: 3 };
+  var BAO_TRUOC = 30;
+
+  function taoNao() {
+    return {
+      ml: { quai: null, pha: null, bat: 0, hanChot: 0, tapX: 0, tapY: 0, k: 0, ds: [], henLai: 0, cuopAi: -1, cuopLuc: 0 },
+      tapTrung: { ai: -1, luc: -99, goi: -1 },
+      thu: { tru: null, luc: -99, ds: [] }
+    };
+  }
+  G.taoNaoDoi = taoNao;
+  function chienThuatCua(tran, doi) { return tran.cau[doi === 'xanh' ? 'ta' : 'dich'].chienThuat || {}; }
   function ngheLenh(n) {
     return G.kep(0.55 + 0.40 * (n.cs.nao / 1200) - 0.35 * (n.ego / 100), 0.1, 0.98);
   }
   function chatCo(n, c) { return n.chat.indexOf(c) >= 0; }
   function laneCua(n) { return n.vt === 'rung' ? 'giua' : (n.vt === 'ho' ? 'duoi' : n.vt); }
+  function demSong(tran, doi) {
+    var s = 0;
+    for (var i = 0; i < tran.nguoi.length; i++) if (tran.nguoi[i].doi === doi && tran.nguoi[i].chet <= 0) s++;
+    return s;
+  }
+  function goi(tran, doi, kieu, chu, ai) {
+    tran.suKien.push({ t: tran.t, loai: 'goi', doi: doi, kieu: kieu, chu: chu, ai: ai == null ? null : ai });
+  }
+  function ghiDem(bang, k) { bang[k] = (bang[k] || 0) + 1; }
+  /** điểm đứng được (không nằm trong tường) gần (x, y) nhất */
+  function diemTrong(x, y) {
+    var o = oCua(x, y);
+    if (!CHAN[o]) return [x, y];
+    var g = GAN[o];
+    return [(g % SO_O + 0.5) * CO_O, (Math.floor(g / SO_O) + 0.5) * CO_O];
+  }
+  /** điểm cách `tu` một đoạn `d` về phía giếng nhà của đội */
+  function vePhiaNha(tu, doi, d) {
+    var nha = NHA[doi], dx = nha[0] - tu.x, dy = nha[1] - tu.y, l = Math.sqrt(dx * dx + dy * dy) || 1;
+    return diemTrong(tu.x + dx / l * d, tu.y + dy / l * d);
+  }
 
+  /* `[BẪY ĐÃ SẬP]` §16: tầm trụ đo tâm-tới-tâm (78) còn tầm đánh của tướng đo mép-tới-mép (+2 BK + 6), nên xạ thủ
+     tầm 60000 (62,5 + 27 = 89) gõ trụ từ NGOÀI tầm trụ — trụ đổ trước 2 tướng không lính mà không bắn phát nào.
+     Trụ cũng với tới mép người: tầm + 2 BK + 6, dùng chung cho tickTru và mọi phép "đứng trong tầm trụ". */
+  function tamTru(r) { return r.tam + BK * 2 + 6; }
   function truPhu(tran, x, y, doiTru) {
     for (var i = 0; i < tran.tru.length; i++) {
       var r = tran.tru[i];
       if (r.doi !== doiTru || !r.song || !r.tam) continue;
-      var dx = r.x - x, dy = r.y - y;
-      if (dx * dx + dy * dy < r.tam * r.tam) return r;
+      var dx = r.x - x, dy = r.y - y, tt = tamTru(r);
+      if (dx * dx + dy * dy < tt * tt) return r;
     }
     return null;
   }
+  function coLinhTa(tran, x, y, doi, banKinh) {
+    for (var i = 0; i < tran.linh.length; i++) {
+      var l = tran.linh[i];
+      if (l.doi !== doi || l.hp <= 0) continue;
+      var dx = l.x - x, dy = l.y - y;
+      if (dx * dx + dy * dy < banKinh * banKinh) return true;
+    }
+    return false;
+  }
+  function demLinhDich(tran, doi, x, y, r) {
+    var s = 0;
+    for (var i = 0; i < tran.linh.length; i++) {
+      var l = tran.linh[i];
+      if (l.doi === doi || l.hp <= 0) continue;
+      if (xaXY(l.x, l.y, x, y) < r) s++;
+    }
+    return s;
+  }
 
+  /* ── ước sát thương: đầu vào của cuộc đua ── */
+  /** chiêu của một tướng, phân tích một lần: sát thương gốc + hệ số, hồi chiêu, có khống chế, diện rộng */
+  function uocChieu(t) {
+    if (t._uc) return t._uc;
+    var r = [];
+    ['skill', 'skill2', 'ult'].forEach(function (l) {
+      var kn = t.kn[l], a = t.tfm[l];
+      if (!kn || !a) return;
+      var pt = kn._pt || (kn._pt = G.phanTichChieu(kn.p, kn.moGoc));
+      var kc = (pt.choang || pt.hat || pt.troi || pt.khieu || pt.so || pt.me || pt.im) > 0;
+      var lop = a.casting_target || (pt.hoiSinh ? 'AllyChampion'
+        : ((pt.hoi || pt.chan || pt.hoiPhanTramMau) && !pt.coDmg) ? 'Ally'
+        : (pt.coDmg || kc || pt.chamMuc || Object.keys(pt.buffDich).length) ? ((kc || l === 'ult') ? 'EnemyChampion' : 'EnemyWithoutTower')
+        : 'AllyOnlySelf');
+      r.push({ loai: l, dmg: pt.coDmg ? pt.dmg : 0, he: pt.coDmg ? pt.he : 0, theo: pt.theo, pt: pt.pt,
+        hoi: giay(a.cooltime || 300), kc: kc, dien: pt.banKinh > 0, banKinh: pt.banKinh, tam: a.range || pt.tamChieu || 0, lop: lop,
+        lao: !!pt.lao || (a.effect && JSON.stringify(a.effect).indexOf('"Rush"') >= 0) });
+    });
+    t._uc = r;
+    return r;
+  }
+  function satMotChieu(c, cs, giap, khang) {
+    return (c.dmg + c.he / 100 * (c.theo === 'ap' ? cs.ap : cs.atk)) * 100 / (100 + (c.pt ? khang : giap));
+  }
+  /** sát thương mỗi giây của `ke` lên `bia`: đánh thường + chiêu thường rải trên hồi chiêu */
+  function dpsLen(tran, ke, cs, bia) {
+    var csB = bia.tuong ? chiSoNguoi(tran, bia) : bia;
+    var giap = csB.giap || 0, khang = csB.khang || 0;
+    var a = ke.tuong.tfm.attack;
+    var danh = (cs.atk * ((a.attack_ratio == null ? 100 : a.attack_ratio) / 100) + (a.attack || 0)) * cs.tocdanh * 100 / (100 + giap);
+    var chieu = 0, uc = uocChieu(ke.tuong);
+    for (var i = 0; i < uc.length; i++) {
+      var c = uc[i];
+      if (!c.dmg && !c.he) continue;
+      if (c.loai === 'ult' && ke.cap < 5) continue;
+      chieu += satMotChieu(c, cs, giap, khang) / Math.max(4, c.hoi);
+    }
+    return danh + chieu;
+  }
+  /** đòn dồn một lượt: các chiêu đang sẵn (`nuke` của TFM2) */
+  function donDon(tran, ke, cs, bia) {
+    var csB = chiSoNguoi(tran, bia), s = 0, uc = uocChieu(ke.tuong);
+    for (var i = 0; i < uc.length; i++) {
+      var c = uc[i];
+      if ((!c.dmg && !c.he) || ke.cd[c.loai] > 0) continue;
+      if (c.loai === 'ult' && ke.cap < 5) continue;
+      s += satMotChieu(c, cs, csB.giap, csB.khang);
+    }
+    return s;
+  }
+  function dpsTru(r, giap) { return r.atk * 100 / (100 + giap) / (r.hoi || 0.67); }
+  function tongChan(m) { var s = 0; for (var i = 0; i < m.chan.length; i++) s += m.chan[i].luong; return s; }
+
+  /** CUỘC ĐUA "AI CHẾT TRƯỚC" (AI_BRAIN §2.4): mình sống được bao nhiêu giây trước sát thương của
+      những kẻ địch có mặt và kịp tới trong `tamToi` giây (`can_near_enemies`), cộng trụ nếu trụ sẽ
+      nhắm mình (`die_tick_with_tower`), cộng lính đang đánh mình; phe mình (có mặt / kịp tới) cần
+      bao nhiêu giây để hạ `muc` (`ttk_ticks`), cộng trụ nhà nếu `muc` đứng dưới trụ mình.
+      `o.bien` là biên phải thắng (âm = dám vào khi sát nút — `aggressive`). `o.lao` = định đánh
+      tướng dưới trụ địch (trụ chắc chắn nhắm mình). NÃO = judgement: nhiễu nhân vào hai con số;
+      nhiễu lật kết luận thì đếm misjudge. */
+  function duaChet(tran, n, muc, o) {
+    o = o || {};
+    var t = tran.t, dk = doiKia(n.doi), i, m, cs, d, toi;
+    var csN = chiSoNguoi(tran, n);
+    var tamToi = o.tamToi == null ? 2 : o.tamToi;
+    var dpsMinh = 0, dpsMuc = 0, dichGan = 0, taGan = 1, nuke = 0, coTru = false;
+    for (i = 0; i < tran.nguoi.length; i++) {
+      m = tran.nguoi[i];
+      if (m.chet > 0 || m === n) continue;
+      cs = chiSoNguoi(tran, m);
+      if (m.doi !== n.doi) {
+        if (m.anMinh > t && t - m.lanCuoi > 1) continue;
+        d = xa(n, m);
+        toi = (d - cs.tam - BK * 2) / Math.max(1, cs.tocchay);
+        if (toi > tamToi) continue;
+        dichGan++;
+        var he = toi <= 0 ? 1 : 1 - toi / tamToi * 0.5;
+        dpsMinh += dpsLen(tran, m, cs, n) * he;
+        if (toi <= 0.5) nuke += donDon(tran, m, cs, n);
+      } else if (muc) {
+        d = xa(m, muc);
+        toi = (d - cs.tam - BK * 2) / Math.max(1, cs.tocchay);
+        if (toi > tamToi) continue;
+        taGan++;
+        dpsMuc += dpsLen(tran, m, cs, muc) * (toi <= 0 ? 1 : 1 - toi / tamToi * 0.5);
+      }
+    }
+    if (muc) dpsMuc += dpsLen(tran, n, csN, muc);
+    /* trụ địch: chỉ tính khi nó SẼ nhắm mình — không có lính nhà đỡ, vừa bị bắn, hay mình định đánh tướng dưới trụ */
+    var tr = truPhu(tran, n.x, n.y, dk);
+    if (tr && (o.lao || t - n.truBan < 2 || !coLinhTa(tran, tr.x, tr.y, n.doi, tr.tam))) { coTru = true; dpsMinh += dpsTru(tr, csN.giap); }
+    /* trụ nhà: `muc` đứng trong tầm trụ mình mà đánh mình (hay đánh ai đang trong tầm) là trụ đổi mục tiêu sang nó —
+       nên khi mình cũng ở trong tầm thì trụ nhà đứng về phía mình trong cuộc đua */
+    if (muc && muc.tuong) {
+      var trN = truPhu(tran, muc.x, muc.y, n.doi);
+      if (trN && (o.lao || muc.danhTuongAi === n.i || xaXY(n.x, n.y, trN.x, trN.y) < tamTru(trN) || !coLinhTa(tran, trN.x, trN.y, dk, trN.tam))) dpsMuc += dpsTru(trN, chiSoNguoi(tran, muc).giap);
+      else if (dichGan) {
+        /* mình đứng dưới trụ nhà: kẻ nào vào đánh mình là trụ đổi sang nó (§16) — trụ đứng về phía mình dù `muc` còn ở ngoài */
+        var trMinh = truPhu(tran, n.x, n.y, n.doi);
+        if (trMinh) dpsMuc += dpsTru(trMinh, chiSoNguoi(tran, muc).giap);
+      }
+    }
+    for (i = 0; i < tran.linh.length; i++) {
+      var l = tran.linh[i];
+      if (l.doi === n.doi || l.hp <= 0) continue;
+      if (l.mucAi === n || xaXY(l.x, l.y, n.x, n.y) < l.tam + BK * 2) dpsMinh += l.atk * 100 / (100 + csN.giap) / l.hoiDanh;
+    }
+    var mauMinh = n.hp + tongChan(n);
+    var minh = mauMinh / Math.max(1, dpsMinh);
+    if (nuke >= mauMinh) minh = Math.min(minh, 0.8);
+    var dich = muc ? (muc.hp + (muc.tuong ? tongChan(muc) : 0)) / Math.max(1, dpsMuc) : 99;
+    var nhieu = 0.35 * (1 - G.kep(n.cs.nao / 1200, 0, 1));
+    var mN = minh * (1 + (tran.rng() - 0.5) * 2 * nhieu), dN = dich * (1 + (tran.rng() - 0.5) * 2 * nhieu);
+    /* ba kết cục: THẮNG (nó chết trước mình), THUA RÕ (mình chết trước nó ≥ 30 %: chạy), còn lại GIỮ THẾ
+       (không mở, không chạy — TFM2 `Hold`). `bien` dịch cả hai mép: chất `lao` dám vào khi sát nút và
+       chịu đứng lâu hơn; chất `thu` ngược lại. */
+    var bien = o.bien || 0;
+    var thangThat = dich < minh * (1 - bien), thang = dN < mN * (1 - bien);
+    var thuaThat = minh * (1.3 + bien) < dich, thua = mN * (1.3 + bien) < dN;
+    if (thang !== thangThat || thua !== thuaThat) tran.thongKe.loi.misjudge++;
+    var lyDo = '';
+    if (thua) {
+      if (coTru) lyDo = 'truBan';
+      else if (nuke >= mauMinh) lyDo = 'donDap';
+      else if (dichGan > taGan) lyDo = 'thuaNguoi';
+      else if (n.hp / n.hpMax < 0.3) lyDo = 'sapChet';
+      else lyDo = 'thuaDua';
+    }
+    return { thang: thang, thua: thua, minh: mN, dich: dN, dichGan: dichGan, taGan: taGan, coTru: coTru, lyDo: lyDo, dpsMinh: dpsMinh };
+  }
+  /** cuộc đua của CẢ NHÓM quanh một điểm (màn quái lớn, giữ trụ, vào hùa): tổng máu / tổng sát thương hai phe.
+      `loi` > 1 là phe mình sống lâu hơn; `thang` khi lợi rõ (> 1,1), `thua` khi thiệt rõ (< 0,75), giữa là giằng co
+      (Poking: đứng lại cấu máu, cuộc đua cá nhân quyết định ai vào) */
+  function duaDoi(tran, doi, x, y, r) {
+    var kia = doiKia(doi), ta = [], dich = [], i;
+    for (i = 0; i < tran.nguoi.length; i++) {
+      var m = tran.nguoi[i];
+      if (m.chet > 0 || xaXY(m.x, m.y, x, y) > r) continue;
+      (m.doi === doi ? ta : dich).push(m);
+    }
+    if (!dich.length) return { thang: true, thua: false, loi: 9, ta: ta.length, dich: 0 };
+    if (!ta.length) return { thang: false, thua: true, loi: 0, ta: 0, dich: dich.length };
+    var mauTa = 0, mauDich = 0, dpsTa = 0, dpsDich = 0;
+    for (i = 0; i < ta.length; i++) { mauTa += ta[i].hp + tongChan(ta[i]); dpsTa += dpsLen(tran, ta[i], chiSoNguoi(tran, ta[i]), dich[i % dich.length]); }
+    for (i = 0; i < dich.length; i++) { mauDich += dich[i].hp + tongChan(dich[i]); dpsDich += dpsLen(tran, dich[i], chiSoNguoi(tran, dich[i]), ta[i % ta.length]); }
+    var trTa = truPhu(tran, x, y, doi), trDich = truPhu(tran, x, y, kia);
+    if (trTa) dpsTa += dpsTru(trTa, 60);
+    if (trDich) dpsDich += dpsTru(trDich, 60);
+    var loi = (mauTa / Math.max(1, dpsDich)) / (mauDich / Math.max(1, dpsTa));
+    return { thang: loi > 1.1, thua: loi < 0.75, loi: loi, ta: ta.length, dich: dich.length };
+  }
+
+  /* ══════ TẦNG ĐỘI ══════ */
+  function tickDoi(tran, doi) {
+    tickMucTieuLon(tran, doi);
+    tickThu(tran, doi);
+    tickTapTrung(tran, doi);
+  }
+
+  /* Màn tranh quái lớn (AI_BRAIN §4.5): Prepare(chuanBi) → Setup(tap) → Check(kiem) → EnemyHunt(sanDich)
+     → Assemble(hop) → Hunt(san) → Battle(danh), rẽ GiveUp(bỏ, có lý do) hay Steal(cuop). Cả đội được
+     GỌI; ai từ chối thì đếm tuChoi; đủ `k` người mới đánh; quá hạn chót thì cắt. */
+  function doiPha(tran, doi, pha) {
+    var ml = tran.doiNao[doi].ml;
+    if (ml.pha === pha) return;
+    ml.pha = pha; ml.bat = tran.t;
+    var ten = ml.quai === 'chua' ? 'Chúa Hang' : 'Rồng';
+    var chu = { tap: 'Ổn đấy, ra ' + ten, kiem: 'Kiểm bãi ' + ten, sanDich: 'Bọn nó có thể đang ở ' + ten,
+      hop: 'Tụ ở ' + ten, san: 'Bắt đầu ' + ten + '!', danh: 'Sẵn sàng đánh nếu bọn nó tới' }[pha];
+    if (chu) goi(tran, doi, 'quailon', chu, ml.ds[0]);
+  }
+  function huyMl(tran, doi, lyDo) {
+    var ml = tran.doiNao[doi].ml;
+    if (!ml.pha) return;
+    ghiDem(tran.thongKe.boCuoc, lyDo);
+    var ten = ml.quai === 'chua' ? 'Chúa Hang' : 'Rồng';
+    goi(tran, doi, 'bo', lyDo === 'StackAhead' ? 'Hơn tầng rồi, ' + ten + ' không đáng'
+      : lyDo === 'Outnumbered' || lyDo === 'ThuaDua' ? 'Bọn nó đông hơn ở ' + ten + ', lùi' : 'Bỏ ' + ten, ml.ds[0]);
+    thaMl(tran, doi);
+    ml.henLai = tran.t + 25;
+  }
+  function xongMl(tran, doi) {
+    thaMl(tran, doi);
+    tran.doiNao[doi].ml.henLai = tran.t + 10;
+  }
+  function thaMl(tran, doi) {
+    var ml = tran.doiNao[doi].ml;
+    for (var i = 0; i < tran.nguoi.length; i++) {
+      var n = tran.nguoi[i];
+      if (n.doi === doi && n.goi && (n.goi.loai === 'quailon' || n.goi.loai === 'cuop')) n.goi = null;
+    }
+    ml.pha = null; ml.quai = null; ml.ds = []; ml.cuopAi = -1;
+  }
+  function tickMucTieuLon(tran, doi) {
+    var nao = tran.doiNao[doi], ml = nao.ml, t = tran.t, kia = doiKia(doi), ct = chienThuatCua(tran, doi);
+    var i, n, q;
+    if (!ml.pha) {
+      /* canh cướp (Steal): đội kia đang săn mà mình không có màn → người đi rừng rình ở mép bãi */
+      if (ml.cuopAi < 0) {
+        var mlKia = tran.doiNao[kia].ml;
+        if (mlKia.pha === 'san' || mlKia.pha === 'danh') {
+          q = tran.quaiLon[mlKia.quai];
+          if (q.song && q.hp < q.hpMax * 0.6) {
+            var rung = null;
+            for (i = 0; i < tran.nguoi.length; i++) { n = tran.nguoi[i]; if (n.doi === doi && n.chet <= 0 && (n.vt === 'rung' || !rung) && !n.veNha) { rung = n; if (n.vt === 'rung') break; } }
+            if (rung && xaXY(rung.x, rung.y, q.x, q.y) < 450) {
+              rung.goi = { loai: 'cuop', quai: mlKia.quai };
+              ml.cuopAi = rung.i; ml.cuopLuc = t;
+              ghiDem(tran.thongKe, 'cuopThu');
+              goi(tran, doi, 'cuop', 'Rình cướp ' + q.ten, rung.i);
+            }
+          }
+        }
+      } else {
+        n = tran.nguoi[ml.cuopAi];
+        q = tran.quaiLon[n.goi && n.goi.quai];
+        if (!n.goi || n.goi.loai !== 'cuop' || !q || !q.song || t - ml.cuopLuc > 45 || n.chet > 0) { if (n.goi && n.goi.loai === 'cuop') n.goi = null; ml.cuopAi = -1; }
+        return;
+      }
+      if (t < ml.henLai) return;
+      var chon = null, giaTot = 0;
+      ['chua', 'rong'].forEach(function (k) {
+        var q2 = tran.quaiLon[k];
+        var sap = q2.song ? 0 : q2.hienRa - t;
+        if (sap > BAO_TRUOC) return;
+        var gia = k === 'chua' ? MW.epic : MW.serpen;
+        if (gia > giaTot) { giaTot = gia; chon = k; }
+      });
+      if (!chon) return;
+      q = tran.quaiLon[chon];
+      var song = demSong(tran, doi), songDich = demSong(tran, kia);
+      var chenh = tran.vang[doi] - tran.vang[kia];
+      /* lệnh Rồng của màn chiến thuật: luon ↔ Must, tuy ↔ Flexible, nhuong ↔ Concede (early_serpen của TFM2) */
+      var di;
+      if (ct.rong === 'luon') di = song >= 2;
+      else if (ct.rong === 'nhuong') di = song > songDich || chenh > 1500;
+      else di = song >= songDich || chenh > -1500;
+      var lyDo = di ? '' : 'BatLoi';
+      if (di && chon === 'rong' && tran.buff[doi].serpen - tran.buff[kia].serpen >= 2 && songDich >= song) { di = false; lyDo = 'StackAhead'; }
+      /* thời gian hạ quái (pred_dpt): cả đội gõ mà quá 50 s thì chưa đủ sức, để sau (Chúa Hang 10000 máu 150 giáp) */
+      if (di) {
+        var cQ = chiSoQuai(q.cau, q.lan), dpsQ = 0;
+        for (i = 0; i < tran.nguoi.length; i++) { n = tran.nguoi[i]; if (n.doi === doi && n.chet <= 0) dpsQ += dpsLen(tran, n, chiSoNguoi(tran, n), cQ); }
+        if (cQ.hp / Math.max(1, dpsQ) > 50) { di = false; lyDo = 'QuaLau'; }
+      }
+      if (!di) { ghiDem(tran.thongKe.boCuoc, lyDo); ml.henLai = t + (lyDo === 'QuaLau' ? 40 : 20); return; }
+      ml.quai = chon; ml.pha = 'chuanBi'; ml.bat = t; ml.k = Math.min(K_QUAI[chon], song); ml.ds = [];
+      var tap = vePhiaNha(q, doi, 95);
+      ml.tapX = tap[0]; ml.tapY = tap[1];
+      ml.hanChot = Math.max(t, q.song ? t : q.hienRa) + 25;
+      for (i = 0; i < tran.nguoi.length; i++) {
+        n = tran.nguoi[i];
+        if (n.doi !== doi) continue;
+        /* early_serpen_top: đường trên không xuống Rồng trừ khi lệnh 'luon' (Must); object_buildup Split: đường
+           đối diện Chúa Hang (dưới) ở lại đẩy — bỏ trống cả ba đường là lính địch gõ trụ không ai cản (§16) */
+        if (chon === 'rong' && n.vt === 'tren' && ct.rong !== 'luon') continue;
+        if (chon === 'chua' && n.vt === 'duoi' && ct.rong !== 'luon') continue;
+        /* TaskDecline: cái tôi cao / NÃO thấp thì từ chối lời gọi */
+        if (tran.rng.duoc((1 - ngheLenh(n)) * 0.35)) { tran.thongKe.loi.tuChoi++; continue; }
+        ml.ds.push(n.i);
+        n.goi = { loai: 'quailon', quai: chon };
+      }
+      if (ml.ds.length < 2) { ml.pha = null; ml.quai = null; ml.ds = []; ghiDem(tran.thongKe.boCuoc, 'ThieuNguoi'); ml.henLai = t + 20; return; }
+      tran.thongKe.tranhQuai++;
+      goi(tran, doi, 'quailon', (chon === 'chua' ? 'Chúa Hang' : 'Rồng') + (q.song ? ' đang mở' : ' ra trong ' + Math.round(q.hienRa - t) + 's'), ml.ds[0]);
+      return;
+    }
+    q = tran.quaiLon[ml.quai];
+    var taO = 0, dichO = 0;
+    for (i = 0; i < tran.nguoi.length; i++) {
+      n = tran.nguoi[i];
+      if (n.chet > 0) continue;
+      var d = xaXY(n.x, n.y, q.x, q.y);
+      if (d > 200) continue;
+      if (n.doi === doi) taO++; else dichO++;
+    }
+    switch (ml.pha) {
+      case 'chuanBi':
+        if (t - ml.bat > 12 || q.song) doiPha(tran, doi, 'tap');
+        break;
+      case 'tap':
+        if (taO >= 1) doiPha(tran, doi, 'kiem');
+        else if (t > ml.hanChot) huyMl(tran, doi, 'HetHan');
+        break;
+      case 'kiem':
+        doiPha(tran, doi, dichO ? 'sanDich' : 'hop');
+        break;
+      case 'sanDich':
+        if (!dichO) doiPha(tran, doi, 'hop');
+        else {
+          var duaS = duaDoi(tran, doi, q.x, q.y, 260);
+          if (duaS.thua || dichO >= taO + 2) huyMl(tran, doi, dichO > taO ? 'Outnumbered' : 'ThuaDua');
+          else if (duaS.thang || t - ml.bat > 4) doiPha(tran, doi, 'danh');
+        }
+        break;
+      case 'hop':
+        if (dichO > taO) doiPha(tran, doi, 'sanDich');
+        else if (q.song && taO >= ml.k) doiPha(tran, doi, 'san');
+        else if (t > ml.hanChot) { if (q.song && taO >= 2 && !dichO) doiPha(tran, doi, 'san'); else huyMl(tran, doi, 'HetHan'); }
+        break;
+      case 'san':
+        if (!q.song) { xongMl(tran, doi); break; }
+        if (dichO) {
+          var dua = duaDoi(tran, doi, q.x, q.y, 260);
+          if (dua.thua || dichO >= taO + 2) huyMl(tran, doi, dichO > taO ? 'Outnumbered' : 'ThuaDua');
+          else doiPha(tran, doi, 'danh');
+        }
+        break;
+      case 'danh':
+        if (!q.song) { xongMl(tran, doi); break; }
+        if (!dichO) doiPha(tran, doi, 'san');
+        else { var duaD = duaDoi(tran, doi, q.x, q.y, 260); if (duaD.thua || dichO >= taO + 2) huyMl(tran, doi, dichO > taO ? 'Outnumbered' : 'ThuaDua'); }
+        break;
+    }
+  }
+
+  /* Giữ trụ (AI_BRAIN §4.6 tower_discipline + defense Gather/Battle): trụ nào của mình đang bị ép
+     (tướng địch trong tầm + 110, hay ≥ 3 lính địch trong tầm) thì gọi người đi đường ấy và những
+     người gần nhất đang rảnh về đứng SAU trụ. Đứng dưới trụ thì cuộc đua có trụ nhà cộng cho mình. */
+  function tickThu(tran, doi) {
+    var nao = tran.doiNao[doi], thu = nao.thu, t = tran.t, ct = chienThuatCua(tran, doi);
+    var tot = null, diemTot = 0, i, n;
+    for (var z = 0; z < tran.tru.length; z++) {
+      var r = tran.tru[z];
+      if (r.doi !== doi || !r.song || !truMo(tran, r)) continue;
+      var dichC = 0, ta = 0;
+      for (i = 0; i < tran.nguoi.length; i++) {
+        n = tran.nguoi[i];
+        if (n.chet > 0) continue;
+        var d = xaXY(n.x, n.y, r.x, r.y);
+        if (n.doi === doi) { if (d < r.tam + 90) ta++; }
+        else if (d < r.tam + 110) dichC++;
+      }
+      var dichL = demLinhDich(tran, doi, r.x, r.y, Math.max(r.tam, 45) + 30);
+      if (!dichC && dichL < 3) continue;
+      var diem = dichC * 2 + (dichL >= 3 ? 1 : 0) + (1 - r.hp / r.hpMax) * 2 + (r.nha ? 2 : 0) + (r.loi ? 4 : 0) - ta * 1.2;
+      if (diem > diemTot) { diemTot = diem; tot = { r: r, dichC: dichC, dichL: dichL, ta: ta }; }
+    }
+    if (!tot) {
+      if (thu.tru && t - thu.luc > 4) {
+        for (i = 0; i < thu.ds.length; i++) { n = tran.nguoi[thu.ds[i]]; if (n.goi && n.goi.loai === 'thu') n.goi = null; }
+        thu.tru = null; thu.ds = [];
+      }
+      return;
+    }
+    thu.luc = t;
+    /* đủ người: một người cho mỗi tướng địch, một cho mỗi ba lính; nhà / lõi thì gọi tất cả */
+    var can = (tot.r.nha || tot.r.loi) ? 5 : Math.max(1, tot.dichC + Math.ceil(tot.dichL / 3) + (ct.mucTieu === 'lao' ? 1 : 0));
+    if (thu.tru === tot.r && thu.ds.length >= can) return;
+    if (thu.tru !== tot.r) {
+      for (i = 0; i < thu.ds.length; i++) { n = tran.nguoi[thu.ds[i]]; if (n.goi && n.goi.loai === 'thu') n.goi = null; }
+      thu.ds = [];
+    }
+    thu.tru = tot.r;
+    /* nhà bị ép thì bỏ màn quái lớn (DefenseNexus đứng trên mọi thứ) */
+    if ((tot.r.nha || tot.r.loi) && nao.ml.pha) huyMl(tran, doi, 'GiuNha');
+    var ung = [], truocDo = thu.ds.length;
+    for (i = 0; i < tran.nguoi.length; i++) {
+      n = tran.nguoi[i];
+      if (n.doi !== doi || n.chet > 0 || thu.ds.indexOf(n.i) >= 0) continue;
+      if (n.goi && n.goi.loai === 'quailon' && (nao.ml.pha === 'san' || nao.ml.pha === 'danh')) continue;
+      if (n.veNha && n.hp / n.hpMax < 0.45) continue;
+      var uu = xaXY(n.x, n.y, tot.r.x, tot.r.y) - (laneCua(n) === tot.r.lane ? 200 : 0) - (tot.r.nha || tot.r.loi ? 300 : 0);
+      ung.push({ n: n, uu: uu });
+    }
+    ung.sort(function (a, b) { return a.uu - b.uu; });
+    for (i = 0; i < ung.length && thu.ds.length < can; i++) {
+      n = ung[i].n;
+      if (ung[i].uu > 700 && !(tot.r.nha || tot.r.loi)) break;
+      if (tran.rng.duoc((1 - ngheLenh(n)) * 0.25)) { tran.thongKe.loi.tuChoi++; continue; }
+      n.goi = { loai: 'thu', tru: tot.r };
+      thu.ds.push(n.i);
+    }
+    if (thu.ds.length > truocDo) goi(tran, doi, 'thu', (tot.r.nha || tot.r.loi) ? 'Về giữ nhà!' : 'Giữ trụ ' + { tren: 'trên', giua: 'giữa', duoi: 'dưới' }[tot.r.lane], thu.ds[0]);
+  }
+
+  /* Mục tiêu chung do NGƯỜI GỌI chọn (AI_BRAIN §4.1 battle.focus): trong một giao tranh, người có
+     NÃO cao / cái tôi thấp / chất 'lead' gọi một mục tiêu; người nghe cộng điểm cho nó, và có thể
+     nghe nhầm (misread_target). */
+  function tickTapTrung(tran, doi) {
+    var tt = tran.doiNao[doi].tapTrung, t = tran.t;
+    if (t - tt.luc < 2) return;
+    var gt = diemGiaoTranh(tran, doi);
+    if (!gt) { tt.ai = -1; return; }
+    var goiAi = null, diemG = -1, i, m;
+    for (i = 0; i < tran.nguoi.length; i++) {
+      m = tran.nguoi[i];
+      if (m.doi !== doi || m.chet > 0 || xaXY(m.x, m.y, gt.x, gt.y) > 300) continue;
+      var dg = m.cs.nao / 1200 + (100 - m.ego) / 200 + (chatCo(m, 'lead') ? 0.5 : 0);
+      if (dg > diemG) { diemG = dg; goiAi = m; }
+    }
+    if (!goiAi) return;
+    var tot = null, diemT = -1e9;
+    for (i = 0; i < tran.nguoi.length; i++) {
+      m = tran.nguoi[i];
+      if (m.doi === doi || m.chet > 0 || m.khongChon > t) continue;
+      var d = xaXY(m.x, m.y, gt.x, gt.y);
+      if (d > 260) continue;
+      var diem = (1 - m.hp / m.hpMax) * 2 + (LOP_MEM[m.tuong.lop] ? 0.8 : 0) + (m.kc > 0 ? 0.7 : 0) - d / 260;
+      if (diem > diemT) { diemT = diem; tot = m; }
+    }
+    if (!tot) return;
+    if (tt.ai !== tot.i) { tran.thongKe.goiTapTrung++; goi(tran, doi, 'tapTrung', 'Dồn ' + tot.ten + '!', goiAi.i); }
+    tt.ai = tot.i; tt.luc = t; tt.goi = goiAi.i;
+  }
+
+  /* ══════ TẦNG CÁ NHÂN ══════ */
   var LOP_MEM = { xa: 1, phep: 1, ho: 1 };
-  /* Năm thứ cộng điểm (RESEARCH §8.2): giết được ngay +6, đồng đội đang đánh +1.8, máu ít +1.9,
-     bị khống chế +0.7, lớp mềm +0.6 (+0.5 với sát thủ), gần hơn +1.2. NÃO thấp thì điểm bị nhiễu. */
+  /* Điểm mục tiêu (RESEARCH §8.2) + mục tiêu chung của đội (+4 × nghe lệnh, có thể nghe nhầm). NÃO thấp thì nhiễu. */
   function mucTieuTot(tran, n, tam, cs) {
-    var tot = null, diemTot = -1e9;
+    var tot = null, diemTot = -1e9, t = tran.t;
     var laSat = n.tuong.lop === 'sat';
     var uocDon = cs.atk * 0.5;
     var nhieu = 1 - G.kep(n.cs.nao / 1200, 0, 1);
+    var tt = tran.doiNao[n.doi].tapTrung, chung = -1;
+    if (tt.ai >= 0 && t - tt.luc < 4) {
+      if (n.ngheLuc !== tt.luc) {
+        n.ngheLuc = tt.luc; n.ngheAi = tt.ai;
+        if (tt.goi !== n.i && tran.rng.duoc((1 - ngheLenh(n)) * 0.15)) {
+          var gan = dichGanNhat(tran, n, 300, { tuong: true });
+          if (gan && gan.i !== tt.ai) { n.ngheAi = gan.i; tran.thongKe.loi.ngheNham++; }
+        }
+      }
+      chung = n.ngheAi;
+    }
     for (var i = 0; i < tran.nguoi.length; i++) {
       var m = tran.nguoi[i];
-      if (m.doi === n.doi || m.chet > 0 || m.khongChon > tran.t || (m.anMinh > tran.t && tran.t - m.lanCuoi > 1)) continue;
+      if (m.doi === n.doi || m.chet > 0 || m.khongChon > t || (m.anMinh > t && t - m.lanCuoi > 1)) continue;
       var d = xa(n, m);
       if (d > tam) continue;
       var diem = 1.2 * (1 - d / tam);
       diem += (1 - m.hp / m.hpMax) * 1.9;
       if (m.hp <= uocDon) diem += 6;
-      if (m.kc > 0 || m.chamDen > tran.t) diem += 0.7;
+      if (m.kc > 0 || m.chamDen > t) diem += 0.7;
       if (LOP_MEM[m.tuong.lop]) diem += 0.6 + (laSat ? 0.5 : 0);
+      if (m.i === chung) diem += 4 * ngheLenh(n);
       var cung = 0;
       for (var j = 0; j < tran.nguoi.length; j++) {
         var a = tran.nguoi[j];
@@ -968,11 +1498,25 @@
       if (lane && l.lane !== lane) continue;
       var d = xaXY(n.x, n.y, l.x, l.y);
       if (d >= gd) continue;
+      /* `[BẪY ĐÃ SẬP]` §16: lính đứng SAU trụ địch (theo tham số đường l.t) thì đường tới nó xuyên tầm trụ —
+         người đi đường cũ đi bộ qua trụ để "ăn lính" và chết ở giây 24, 63 */
+      var tTru = truTruocCua(tran, dk, l.lane);
+      if (tTru != null && (n.doi === 'xanh' ? l.t > tTru - 0.03 : l.t < tTru + 0.03)) continue;
       var tr = truPhu(tran, l.x, l.y, dk);
       if (tr && !coLinhTa(tran, tr.x, tr.y, n.doi, tr.tam)) continue;
       gd = d; g = l;
     }
     return g;
+  }
+  /** tham số đường của trụ đứng trước nhất (còn sống) của đội `doiTru` trên `lane`; null nếu đường sạch */
+  function truTruocCua(tran, doiTru, lane) {
+    var tt = null;
+    for (var i = 0; i < tran.tru.length; i++) {
+      var r = tran.tru[i];
+      if (r.doi !== doiTru || !r.song || r.lane !== lane) continue;
+      if (tt == null || (doiTru === 'do' ? r.t < tt : r.t > tt)) tt = r.t;
+    }
+    return tt;
   }
   function truGanNhat(tran, n, banKinh) {
     var g = null, gd = banKinh || 1e9;
@@ -1058,22 +1602,73 @@
     tran.keHoach[doi] = k;
     return k;
   }
-  function raKhoiTru(n, r) {
-    var dx = n.x - r.x, dy = n.y - r.y;
-    var d = Math.sqrt(dx * dx + dy * dy) || 1;
-    var can = r.tam + 40;
-    return { x: r.x + dx / d * can, y: r.y + dy / d * can };
-  }
-  function coLinhTa(tran, x, y, doi, banKinh) {
-    for (var i = 0; i < tran.linh.length; i++) {
-      var l = tran.linh[i];
-      if (l.doi !== doi || l.hp <= 0) continue;
-      var dx = l.x - x, dy = l.y - y;
-      if (dx * dx + dy * dy < banKinh * banKinh) return true;
+  /** chỗ rút: sau trụ nhà gần nhất còn đứng mà gần nhà hơn mình; không có thì về giếng */
+  function diemRut(tran, n) {
+    var nha = n.nha, dNha = xaXY(n.x, n.y, nha[0], nha[1]);
+    var tot = null, dTot = 1e9;
+    for (var i = 0; i < tran.tru.length; i++) {
+      var r = tran.tru[i];
+      if (r.doi !== n.doi || !r.song || !r.tam) continue;
+      if (xaXY(r.x, r.y, nha[0], nha[1]) > dNha - 20) continue;
+      var d = xaXY(n.x, n.y, r.x, r.y);
+      if (d < dTot) { dTot = d; tot = r; }
     }
-    return false;
+    if (!tot) return { x: nha[0], y: nha[1] };
+    var p = vePhiaNha(tot, n.doi, 18);
+    return { x: p[0], y: p[1] };
+  }
+  function rut(tran, n, lyDo) {
+    ghiDem(tran.thongKe.rut, lyDo);
+    n.rutLyDo = lyDo;
+    var p = diemRut(tran, n);
+    return { loai: 'rut', x: p.x, y: p.y, lyDo: lyDo };
   }
 
+  /* Bắt lẻ theo TÌNH TRẠNG ĐƯỜNG (AI_BRAIN §4.4, P6): chấm từng người đi đường địch — máu thấp, xa trụ
+     nó, người đi đường mình còn sống và khoẻ, không quá xa, và cuộc đua giả định "mình đứng cạnh nó"
+     phải thắng. Chỉ đi khi thắng. */
+  /** đường thẳng tới (x, y) có đi qua tầm trụ địch không (dò 6 điểm) */
+  function truTrenDuong(tran, n, x, y) {
+    var dk = doiKia(n.doi);
+    for (var k = 1; k <= 6; k++) if (truPhu(tran, n.x + (x - n.x) * k / 6, n.y + (y - n.y) * k / 6, dk)) return true;
+    return false;
+  }
+  function chonGank(tran, n) {
+    var dk = doiKia(n.doi), tot = null, diemTot = 1.0, i, m;
+    for (i = 0; i < tran.nguoi.length; i++) {
+      m = tran.nguoi[i];
+      if (m.doi === n.doi || m.chet > 0 || m.vt === 'rung' || m.khongChon > tran.t) continue;
+      var d = xa(n, m);
+      if (d < 120 || d > 520) continue;
+      var diem = (1 - m.hp / m.hpMax) * 2 - d / 400;
+      var truNo = null, dTru = 1e9;
+      for (var z = 0; z < tran.tru.length; z++) {
+        var r = tran.tru[z];
+        if (r.doi !== dk || !r.song || !r.tam) continue;
+        var dr = xaXY(r.x, r.y, m.x, m.y);
+        if (dr < dTru) { dTru = dr; truNo = r; }
+      }
+      diem += (truNo && dTru < truNo.tam + 40) ? -2 : 1.2;
+      var banTa = null;
+      for (var j = 0; j < tran.nguoi.length; j++) {
+        var b = tran.nguoi[j];
+        if (b.doi !== n.doi || b === n || b.chet > 0 || b.vt === 'rung') continue;
+        if (xa(b, m) < 160 && b.hp / b.hpMax >= 0.5) { banTa = b; break; }
+      }
+      diem += banTa ? 1.5 + (chatCo(banTa, 'gank') ? 0.6 : 0) : -1;
+      if (diem <= diemTot) continue;
+      /* cuộc đua giả định: mình đứng cạnh nó (đổi tạm toạ độ rồi trả lại) */
+      var x0 = n.x, y0 = n.y;
+      n.x = m.x + (n.x < m.x ? -25 : 25); n.y = m.y;
+      var dua = duaChet(tran, n, m, { bien: 0.1 });
+      n.x = x0; n.y = y0;
+      if (!dua.thang) continue;
+      diemTot = diem; tot = m;
+    }
+    return tot;
+  }
+
+  var DUNG_GO = { farm: 1, giulane: 1, thu: 1, daytru: 1, chotru: 1 };
   function chonHanhDong(tran, n) {
     var ct = tran.cau[n.ben].chienThuat || {};
     var cs = n.cs;
@@ -1081,75 +1676,95 @@
     var rng = tran.rng;
     var chat = n.chat;
     var dk = doiKia(n.doi);
-    var truDut = cuaSoDut(tran, n.doi);
-    if (truDut && n.hp / n.hpMax > 0.18) {
-      n.veNha = false;
-      return diemDayTru(tran, n, truDut);
-    }
+    var t = tran.t;
+    var nao = tran.doiNao[n.doi];
     var cu = (n.mucTieu && n.mucTieu.loai) || '';
     function giu(loai, p) { return cu === loai ? Math.min(0.97, p * 2.8 + 0.22) : p; }
 
-    /* `[ĐO TRONG REPO]` §14.5: TFM2 không có hồi máu tự nhiên (hp_regen = 0), máu mất là mất
-       cho tới khi về giếng; mà về giếng chỉ 2 giây (return_tick) rồi đi bộ ra. Ngưỡng 0,22 của
-       bản cũ (có hồi 0,6 %/giây) thành ra "ở lại tới lúc bị một chiêu kết liễu". */
-    var nguong = 0.40;
-    if (chat.indexOf('thu') >= 0) nguong += 0.05;
-    if (chat.indexOf('lao') >= 0) nguong -= 0.06;
-    if (n.hp / n.hpMax < nguong && !n.veNha) { n.veNha = true; }
-
-    /* 0a. đang ăn đạn trụ địch: lùi ra trừ khi đang lao vào kết liễu (RESEARCH §8.4) */
+    /* 0. CUỘC ĐUA "AI CHẾT TRƯỚC" đứng đầu: có địch có mặt / kịp tới, hay trụ đang nhắm mình, thì
+       so hai con số. Thua thì rút, ghi lý do (BattleStop của TFM2: TowerFocused / BurstRisk /
+       Outnumbered / LowHp / race lost). Không còn ngưỡng máu cố định, không còn đếm đầu trong bán kính. */
+    var dichKe = dichGanNhat(tran, n, 250, { tuong: true });
     var truDich = truPhu(tran, n.x, n.y, dk);
-    if (truDich) {
-      var dangAnDan = tran.t - n.truBan < 2;
-      var maunn = n.hp / n.hpMax;
-      var moiNgon = null;
-      tran.nguoi.forEach(function (m) {
-        if (m.doi === n.doi || m.chet > 0) return;
-        if (m.hp / m.hpMax > 0.34) return;
-        if (xa(n, m) > 260) return;
-        moiNgon = m;
-      });
-      var dongDoi = 0;
-      tran.nguoi.forEach(function (m) {
-        if (m.doi !== n.doi || m === n || m.chet > 0) return;
-        if (xa(n, m) < 300) dongDoi++;
-      });
-      var damLao = moiNgon && maunn > 0.50 && (dongDoi >= 1 || chat.indexOf('lao') >= 0);
-      /* Trụ TFM2 giết tướng cấp 1 trong ba phát (2 giây): không được ĐỢI ăn đạn rồi mới lùi.
-         Không có lính nhà trong tầm trụ là ra ngay; có lính thì chỉ ra khi đã bị bắn và mỏng. */
-      var coLinhDo = coLinhTa(tran, truDich.x, truDich.y, n.doi, truDich.tam);
-      var phaiRa = !damLao && (!coLinhDo || (dangAnDan && (maunn < 0.7 || dongDoi === 0)));
-      if (phaiRa && chat.indexOf('lao') < 0) {
-        var ra = raKhoiTru(n, truDich);
-        return { loai: 'rut', x: ra.x, y: ra.y, vitru: 1 };
-      }
-    }
-
-    /* 0a2. BỊ SÓNG LÍNH ĐỊCH ĐÁNH mà không có lính nhà đỡ → lùi về phía trụ mình chờ sóng sau.
-       `[ĐO TRONG REPO]` §14.5: lính TFM2 đánh 2 đòn/giây, một sóng 3 con là ~45 sát thương/giây
-       lên tướng cấp 2 (1000 máu) — đứng "farm" giữa sóng địch sau khi lính nhà chết là chết sau
-       20 giây, và bản đầu đo được gần nửa số mạng hai phút đầu là do LÍNH giết. */
     var linhDanhToi = 0;
     for (var il = 0; il < tran.linh.length; il++) {
       var ll = tran.linh[il];
-      if (ll.doi === n.doi || ll.hp <= 0 || ll.mucAi !== n) continue;
-      if (xaXY(ll.x, ll.y, n.x, n.y) < 70) linhDanhToi++;
+      if (ll.doi !== n.doi && ll.hp > 0 && ll.mucAi === n) linhDanhToi++;
     }
-    if (linhDanhToi >= 2 && (!coLinhTa(tran, n.x, n.y, n.doi, 70) ? n.hp / n.hpMax < 0.85 : n.hp / n.hpMax < 0.6)) {
-      var luiL = diemTren(laneCua(n), n.doi === 'xanh' ? 0.2 : 0.8);
-      return { loai: 'rut', x: luiL[0], y: luiL[1] };
+    /* giữ nhà là LastStand (DefenseNexus của TFM2): không chạy trừ khi sắp chết hẳn */
+    var giuNha = n.goi && n.goi.loai === 'thu' && (n.goi.tru.nha || n.goi.tru.loi) && n.hp / n.hpMax > 0.2;
+    if (!giuNha && (dichKe || (truDich && t - n.truBan < 2) || linhDanhToi >= 2)) {
+      var bien = chatCo(n, 'lao') ? -0.25 : chatCo(n, 'thu') ? 0.15 : 0;
+      if (ct.mucTieu === 'lao') bien -= 0.08;
+      var mucDua = dichKe ? mucTieuTot(tran, n, 250, cs) : null;
+      var dua = duaChet(tran, n, mucDua, { bien: bien, lao: !!(mucDua && truPhu(tran, mucDua.x, mucDua.y, dk)) });
+      var ketLieu = mucDua && dua.dich < 1.2 && n.hp / n.hpMax > 0.3 && !dua.coTru;
+      if (dua.thua && !ketLieu) { n.veNha = n.veNha || (n.hp / n.hpMax < 0.35); return rut(tran, n, dua.lyDo); }
     }
-
+    /* máu mòn mà quanh không ai: về giếng (TFM2 không hồi máu tự nhiên — §14.5) */
+    var nguong = 0.36 + (chatCo(n, 'thu') ? 0.05 : 0) - (chatCo(n, 'lao') ? 0.06 : 0);
+    if (n.hp / n.hpMax < nguong && !n.veNha) n.veNha = true;
     if (n.veNha) {
       if (xaXY(n.x, n.y, n.nha[0], n.nha[1]) < 60) {
         muaDo(tran, n);
         if (n.hp > n.hpMax * 0.9) n.veNha = false;
       }
-      return { loai: 've', x: n.nha[0], y: n.nha[1] };
+      if (n.veNha) return { loai: 've', x: n.nha[0], y: n.nha[1] };
     }
 
-    /* 0. chín mươi giây đầu chưa có gì để tranh: về đường của mình, ăn lính */
-    if (tran.t < 90 && chat.indexOf('lao') < 0) {
+    var truDut = cuaSoDut(tran, n.doi);
+    if (truDut && n.hp / n.hpMax > 0.18) return diemDayTru(tran, n, truDut);
+
+    /* 1. LỜI GỌI CỦA ĐỘI (tầng đội đã quyết): màn quái lớn / giữ trụ / rình cướp */
+    if (n.goi) {
+      var g = n.goi, ml = nao.ml;
+      if (g.loai === 'quailon') {
+        var q = tran.quaiLon[g.quai];
+        if (ml.quai !== g.quai || !ml.pha) n.goi = null;
+        else if (ml.pha === 'chuanBi') {
+          if (n.hp / n.hpMax < 0.55 && !dichKe) { n.veNha = true; return { loai: 've', x: n.nha[0], y: n.nha[1] }; }
+          if (xaXY(n.x, n.y, ml.tapX, ml.tapY) > 260) return { loai: 'quailon', x: ml.tapX, y: ml.tapY, mt: null, pha: ml.pha };
+        } else if (ml.pha === 'san' || ml.pha === 'danh' || ml.pha === 'sanDich') {
+          return { loai: 'quailon', x: q.x, y: q.y, mt: q.song ? q : null, pha: ml.pha };
+        } else return { loai: 'quailon', x: ml.tapX, y: ml.tapY, mt: null, pha: ml.pha };
+      } else if (g.loai === 'thu') {
+        var r0 = g.tru;
+        if (!r0.song || nao.thu.tru !== r0) n.goi = null;
+        else {
+          /* lính địch đang gõ trụ là thứ giết trụ: dọn nó trước (LineDefense) */
+          var lT = null, dlT = 1e9, vongT = Math.max(r0.tam, 45) + 30;
+          for (var jl = 0; jl < tran.linh.length; jl++) {
+            var lj = tran.linh[jl];
+            if (lj.doi === n.doi || lj.hp <= 0 || xaXY(lj.x, lj.y, r0.x, r0.y) > vongT) continue;
+            var dj = xaXY(lj.x, lj.y, n.x, n.y);
+            if (dj < dlT) { dlT = dj; lT = lj; }
+          }
+          if (lT) return { loai: 'thu', x: lT.x, y: lT.y, tru: r0, linh: lT };
+          /* đứng trong tầm trụ, về phía địch đang ép (xạ thủ với tới kẻ đang gõ trụ); Force Fight (mucTieu 'lao') ra sát mép */
+          var dichT = null, dT = 1e9;
+          for (var iT = 0; iT < tran.nguoi.length; iT++) {
+            var mT = tran.nguoi[iT];
+            if (mT.doi === n.doi || mT.chet > 0) continue;
+            var ddT = xaXY(mT.x, mT.y, r0.x, r0.y);
+            if (ddT < dT) { dT = ddT; dichT = mT; }
+          }
+          var pT;
+          if (dichT && dT < r0.tam + 160) {
+            var uxT = (dichT.x - r0.x) / (dT || 1), uyT = (dichT.y - r0.y) / (dT || 1), rT = r0.tam * (ct.mucTieu === 'lao' ? 0.95 : 0.6);
+            pT = diemTrong(r0.x + uxT * rT, r0.y + uyT * rT);
+          } else pT = vePhiaNha(r0, n.doi, -30);
+          return { loai: 'thu', x: pT[0], y: pT[1], tru: r0 };
+        }
+      } else if (g.loai === 'cuop') {
+        var qc = tran.quaiLon[g.quai];
+        if (!qc.song) n.goi = null;
+        else if (qc.hp <= CAI.jungle_execute_threshold * 1.6 || qc.hp / qc.hpMax < 0.15) return { loai: 'quailon', x: qc.x, y: qc.y, mt: qc, cuop: true };
+        else { var pC = vePhiaNha(qc, n.doi, 115); return { loai: 'quailon', x: pC[0], y: pC[1], mt: null, cuop: true }; }
+      }
+    }
+
+    /* 2. chín mươi giây đầu chưa có gì để tranh: về đường của mình, ăn lính */
+    if (t < 90 && !chatCo(n, 'lao')) {
       var laneDau = laneCua(n);
       var l0 = linhAnDuoc(tran, n, 600, laneDau);
       if (l0) return { loai: 'farm', x: l0.x, y: l0.y };
@@ -1157,117 +1772,57 @@
       return { loai: 'giulane', x: d0p[0], y: d0p[1] };
     }
 
-    /* 0b. địch vừa gãy hai người → chớp thời cơ */
+    /* 3. địch vừa gãy hai người → chớp thời cơ đẩy trụ theo kế hoạch đội */
     var dichChet = 0;
     tran.nguoi.forEach(function (m) { if (m.doi !== n.doi && m.chet > 6) dichChet++; });
     if (dichChet >= 2 && rng.duoc(giu('daytru', 0.35 + cs.nao / 1200 * 0.5))) {
-      var qLon = null;
-      ['chua', 'rong'].forEach(function (k2) { var q2 = tran.quaiLon[k2]; if (!qLon && q2.song && q2.hp > 0) qLon = q2; });
-      if (qLon && rng.duoc(0.45)) return { loai: 'quailon', x: qLon.x, y: qLon.y, mt: qLon };
       var khCH = keHoachDoi(tran, n.doi);
       var tr2 = truMoCuaLane(tran, dk, khCH.lane) || truGanNhat(tran, n, 1400);
       if (tr2) return diemDayTru(tran, n, tr2);
     }
 
-    /* 1a. đội vừa mất người → lùi lại thở */
-    var vuaMat = tran.matNguoi[n.doi];
-    if (tran.t - vuaMat < 9 && n.hp / n.hpMax < 0.6 && chat.indexOf('lao') < 0) {
-      var lui = diemTren(laneCua(n), n.doi === 'xanh' ? 0.16 : 0.84);
-      return { loai: 'rut', x: lui[0], y: lui[1] };
-    }
-    /* 1a2. tay đôi mà đang lép vế máu → lùi */
-    var soGan = 0, dichGan1 = null;
-    tran.nguoi.forEach(function (m) {
-      if (m.doi === n.doi || m.chet > 0) return;
-      if (xa(n, m) < 210) { soGan++; dichGan1 = m; }
-    });
-    if (soGan === 1 && dichGan1) {
-      var lech = n.hp / n.hpMax - dichGan1.hp / dichGan1.hpMax;
-      if (lech < -0.30 && chat.indexOf('solo') < 0) {
-        var lui2 = diemTren(laneCua(n), n.doi === 'xanh' ? 0.18 : 0.82);
-        return { loai: 'rut', x: lui2[0], y: lui2[1] };
-      }
-    }
-    /* 1b. thua quân số tại chỗ → rút. NÃO quyết định đếm quân có đúng không */
-    var diBo = 0, taBo = 0;
-    tran.nguoi.forEach(function (m) {
-      if (m.chet > 0) return;
-      var d0 = xa(n, m);
-      if (d0 > 270) return;
-      if (m.doi === n.doi) taBo++; else diBo++;
-    });
-    var thayDung = 0.45 + cs.nao / 1200 * 0.5;
-    if (diBo > taBo && rng.duoc(thayDung)) {
-      var soChenh = diBo - taBo;
-      var chiuNoi = n.hp / n.hpMax > 0.72 && soChenh === 1 && cs.nao / 1200 > 0.6;
-      if (!chiuNoi && chat.indexOf('lao') < 0) {
-        var veP = diemTren(laneCua(n), n.doi === 'xanh' ? 0.14 : 0.86);
-        return { loai: 'rut', x: veP[0], y: veP[1] };
-      }
-    }
-
-    /* 2. quái lớn — NÃO quyết định biết trước bao lâu */
-    var biet = 4 + (cs.nao / 1200) * 16;
-    var mt = null;
-    ['chua', 'rong'].forEach(function (k) {
-      var q = tran.quaiLon[k];
-      if (mt) return;
-      if (q.song && q.hp > 0) mt = q;
-      else if (!q.song && q.hienRa - tran.t < biet && q.hienRa - tran.t > 0) mt = q;
-    });
-    if (mt) {
-      var muonDi = ct.rong === 'luon' ? 0.70 : ct.rong === 'nhuong' ? 0.42 : 0.55;
-      if (chat.indexOf('mt') >= 0) muonDi += 0.35;
-      if (n.vt === 'rung') muonDi += 0.25;
-      var p = nghe * muonDi + (1 - nghe) * (chat.indexOf('mt') >= 0 ? 0.85 : 0.3);
-      if (rng.duoc(giu('quailon', p * 0.35))) return { loai: 'quailon', x: mt.x, y: mt.y, mt: mt };
-    }
-
-    /* 3. có giao tranh gần → vào hùa */
+    /* 4. có giao tranh gần → vào hùa, nhưng chỉ khi cuộc đua có mình vào là thắng (JoinGate) */
     var gt = diemGiaoTranh(tran, n.doi);
     if (gt) {
       var kcc = xaXY(n.x, n.y, gt.x, gt.y);
-      var thichDanh = chat.indexOf('fight') >= 0 ? 0.9 : chat.indexOf('thu') >= 0 ? 0.35 : 0.6;
+      var thichDanh = chatCo(n, 'fight') ? 0.9 : chatCo(n, 'thu') ? 0.35 : 0.6;
       var xa2 = kcc < 260 ? 1 : kcc < 480 ? 0.55 : 0.18;
-      var p2 = (nghe * (ct.mucTieu === 'lao' ? 0.85 : 0.6) + (1 - nghe) * thichDanh) * xa2 * 0.55;
-      if (n.hp / n.hpMax < 0.55) p2 *= 0.35;
-      var truOGT = truPhu(tran, gt.x, gt.y, dk);
-      if (truOGT && !coLinhTa(tran, truOGT.x, truOGT.y, n.doi, truOGT.tam + 40)) p2 *= 0.25;
-      if (rng.duoc(giu('tugiup', p2))) return { loai: 'tugiup', x: gt.x, y: gt.y };
+      var p2 = (nghe * (ct.mucTieu === 'lao' ? 0.85 : 0.6) + (1 - nghe) * thichDanh) * xa2 * 0.7;
+      if (n.hp / n.hpMax < 0.5) p2 *= 0.3;
+      if (rng.duoc(giu('tugiup', p2)) && !duaDoi(tran, n.doi, gt.x, gt.y, 280).thua) return { loai: 'tugiup', x: gt.x, y: gt.y };
     }
 
-    /* 4. đi kèo (gank) */
-    if ((chat.indexOf('gank') >= 0 || n.vt === 'rung') && tran.t > 90 && tran.t < 1200) {
-      var thichGank = ct.rung === 'gank' ? 0.8 : ct.rung === 'cuop' ? 0.35 : 0.4;
-      var p3 = nghe * thichGank + (1 - nghe) * (chat.indexOf('gank') >= 0 ? 0.8 : 0.4);
-      if (rng.duoc(giu('gank', p3 * 0.04))) {
-        var nanNhan = null, gd = 1e9;
-        tran.nguoi.forEach(function (m) {
-          if (m.doi === n.doi || m.chet > 0) return;
-          var d = xa(n, m);
-          if (d < gd && d > 120) { gd = d; nanNhan = m; }
-        });
-        if (nanNhan) return { loai: 'gank', x: nanNhan.x, y: nanNhan.y };
+    /* 5. bắt lẻ theo tình trạng đường */
+    if ((chatCo(n, 'gank') || n.vt === 'rung') && t > 90 && t < 1500) {
+      var thichGank = ct.rung === 'gank' ? 0.8 : ct.rung === 'cuop' ? 0.35 : 0.45;
+      var p3 = nghe * thichGank + (1 - nghe) * (chatCo(n, 'gank') ? 0.8 : 0.4);
+      if (cu === 'gank' || rng.duoc(p3 * 0.08)) {
+        var nan = (cu === 'gank' && n.mucTieu.ai >= 0 && tran.nguoi[n.mucTieu.ai].chet <= 0 && t - n.gankLuc < 20) ? tran.nguoi[n.mucTieu.ai] : chonGank(tran, n);
+        if (nan) {
+          if (n.gankAi !== nan.i || t - n.gankLuc > 20) { n.gankAi = nan.i; n.gankLuc = t; tran.thongKe.gankDi++; }
+          return { loai: 'gank', x: nan.x, y: nan.y, ai: nan.i };
+        }
       }
     }
-    /* 5. đẩy lẻ */
-    if (chat.indexOf('le') >= 0 && tran.t > 420) {
+    /* 6. đẩy lẻ */
+    if (chatCo(n, 'le') && t > 420) {
       var truL = truGanNhat(tran, n, 900);
       if (truL && rng.duoc(giu('daytru', 0.5))) return diemDayTru(tran, n, truL);
     }
-    /* 6. đi rừng thì ăn quái */
+    /* 7. đi rừng thì ăn quái */
     if (n.vt === 'rung') {
       var bai = null, bd = 1e9;
-      tran.quai.forEach(function (q) {
-        if (!q.song) return;
-        var d = xaXY(n.x, n.y, q.x, q.y);
-        if (d < bd) { bd = d; bai = q; }
+      tran.quai.forEach(function (q2) {
+        if (!q2.song) return;
+        if (q2.gan !== n.doi && (ct.rung !== 'cuop' || truTrenDuong(tran, n, q2.x, q2.y))) return;
+        var d = xaXY(n.x, n.y, q2.x, q2.y);
+        if (d < bd) { bd = d; bai = q2; }
       });
       if (bai) return { loai: 'anquai', x: bai.x, y: bai.y, quai: bai };
     }
-    /* 6b. theo kế hoạch của đội */
+    /* 8. theo kế hoạch của đội */
     var kh = keHoachDoi(tran, n.doi);
-    if (kh.loai === 'day' && (kh.dut || (n.vt !== 'rung' && chat.indexOf('le') < 0))) {
+    if (kh.loai === 'day' && (kh.dut || (n.vt !== 'rung' && !chatCo(n, 'le')))) {
       var truKH = truMoCuaLane(tran, dk, kh.lane);
       if (truKH) {
         var lk = linhAnDuoc(tran, n, 320, kh.lane);
@@ -1275,7 +1830,7 @@
         return diemDayTru(tran, n, truKH);
       }
     }
-    /* 7. mặc định: về đường của mình, đẩy lính */
+    /* 9. mặc định: về đường của mình, đẩy lính */
     var lane = laneCua(n);
     var l = linhAnDuoc(tran, n, 700, lane);
     if (l) return { loai: 'farm', x: l.x, y: l.y };
@@ -1285,48 +1840,101 @@
     return { loai: 'giulane', x: d2[0], y: d2[1] };
   }
 
+  /* Vào gõ trụ khi có lính đỡ; không có lính thì chỉ khi CUỘC ĐUA TRỤ thắng: trụ đổ (theo tổng
+     sát thương phe mình đang gõ) trước khi trụ giết mình, và có ≥ 1 đồng đội cùng gõ (AI_BRAIN §4.6:
+     `focdt < mdt_tw`). Không thì đứng chờ ở mép tầm. */
   function diemDayTru(tran, n, r) {
-    var coLinh = coLinhTa(tran, r.x, r.y, n.doi, r.tam + 60);
-    var khoe = n.hp / n.hpMax > 0.6 && tran.t - n.truBan > 2;
-    if (coLinh || khoe) return { loai: 'daytru', x: r.x, y: r.y, tru: r };
+    /* lính đỡ đạn phải chịu được ít nhất ba phát trụ nữa (mỗi phát lấy 30 % / 80 % máu tối đa của lính) */
+    var soak = 0;
+    for (var il = 0; il < tran.linh.length; il++) {
+      var ll = tran.linh[il];
+      if (ll.doi !== n.doi || ll.hp <= 0 || xaXY(ll.x, ll.y, r.x, r.y) > tamTru(r)) continue;
+      soak += Math.ceil(ll.hp / (ll.hpMax * ll.tuTru / 100));
+    }
+    var vao = soak >= 3;
+    if (!vao && tran.t - n.truBan > 2) {
+      var dpsTa = 0, cung = 0;
+      for (var i = 0; i < tran.nguoi.length; i++) {
+        var m = tran.nguoi[i];
+        if (m.doi !== n.doi || m.chet > 0) continue;
+        if (xaXY(m.x, m.y, r.x, r.y) > r.tam + 80) continue;
+        dpsTa += dpsLen(tran, m, chiSoNguoi(tran, m), r);
+        if (m !== n) cung++;
+      }
+      var cs = chiSoNguoi(tran, n);
+      vao = cung >= 1 && dpsTa > 0 && r.hp / dpsTa < (n.hp + tongChan(n)) / dpsTru(r, cs.giap) * 0.8;
+    }
+    if (vao) return { loai: 'daytru', x: r.x, y: r.y, tru: r };
     var dx = n.x - r.x, dy = n.y - r.y;
     var d = Math.sqrt(dx * dx + dy * dy) || 1;
     var can = r.tam + 40;
     return { loai: 'chotru', x: r.x + dx / d * can, y: r.y + dy / d * can, tru: r };
   }
 
-  /* ══════════════════ chọn chiêu ══════════════════
-     Ult mở từ cấp 5 (`[ĐỀ XUẤT]` — TFM2 không ghi cấp mở ult trong dữ liệu), chỉ bung khi
-     có giao tranh / sắp chết / ôm quá lâu — luật cũ RESEARCH §8. Skill/skill2 bung khi hồi
-     xong và có mục tiêu hợp lệ. NÃO quyết định có nhìn ra thời điểm hay không. */
-  function thuChieu(tran, n, cs, muc) {
+  /* ══════════════════ CHIÊU: theo casting_target, và biết GIỮ (AI_BRAIN §4.1, P3) ══════════════════
+     Tướng mod đọc thẳng `casting_target`; tướng gốc suy từ phân tích (uocChieu): có khống chế hay là
+     chiêu cuối ⇒ EnemyChampion (chỉ tung vào tướng địch / quái lớn), sát thương thường ⇒
+     EnemyWithoutTower (được ném vào lính khi đang ăn lính, chiêu diện rộng trúng ≥ 3 con và không có
+     tướng địch trong tầm × 1,3), hồi / khiên ⇒ Ally (ai dưới 60 % máu), buff mình ⇒ AllyOnlySelf (chỉ
+     khi đang đổi máu với tướng — STEROID_WIN). Chiêu cuối chấm giá trị kỳ vọng: diện rộng trúng ≥ 2
+     tướng, hoặc mục tiêu chung của đội, hoặc kết liễu, hoặc mình sắp chết, hoặc ôm quá lâu.
+     Ult mở từ cấp 5 (`[ĐỀ XUẤT]`). */
+  function thuChieu(tran, n, cs, muc, mt) {
     if (n.im > tran.t) return false;
-    var rng = tran.rng;
-    var ds = ['ult', 'skill', 'skill2'];
-    for (var i = 0; i < ds.length; i++) {
-      var loai = ds[i];
-      if (n.cd[loai] > 0) continue;
-      if (!n.tuong.tfm[loai]) continue;
-      if (loai === 'ult') {
-        if (n.cap < 5) continue;
-        var dichQuanh = 0, taQuanh = 0;
-        for (var j = 0; j < tran.nguoi.length; j++) {
-          var m = tran.nguoi[j];
-          if (m.chet > 0) continue;
-          if (m.doi === n.doi) { if (m !== n && xa(n, m) < 260) taQuanh++; }
-          else if (xa(n, m) < 220) dichQuanh++;
+    var rng = tran.rng, t = tran.t;
+    var dichTuong = !!(muc && muc.tuong && muc.doi !== n.doi);
+    var quaiLon = !!(muc && muc.hienRa != null);
+    var dangFarm = mt && (mt.loai === 'farm' || mt.loai === 'giulane' || mt.loai === 'thu');
+    var uc = uocChieu(n.tuong);
+    var thuTu = ['ult', 'skill', 'skill2'];
+    for (var i = 0; i < thuTu.length; i++) {
+      var loai = thuTu[i];
+      if (n.cd[loai] > 0 || !n.tuong.tfm[loai]) continue;
+      if (loai === 'ult' && n.cap < 5) continue;
+      var c = null;
+      for (var j = 0; j < uc.length; j++) if (uc[j].loai === loai) c = uc[j];
+      if (!c) continue;
+      var lop = c.lop, choLinh = false;
+      if (lop === 'EnemyChampion' || lop === 'EnemyChampionInCc' || lop === 'EnemyChampionRecentlyAttacked' || lop === 'BothChampion') {
+        if (!dichTuong && !(quaiLon && loai !== 'ult' && !c.kc)) continue;
+        if (n.kyLuat) continue;
+        if (c.kc && dichTuong && muc.kc > 0.5) continue;
+        /* chiêu lao tới mục tiêu đứng dưới trụ địch = tự chui vào trụ: chỉ khi cuộc đua lao trụ thắng */
+        if (c.lao && dichTuong && truPhu(tran, muc.x, muc.y, doiKia(n.doi)) && !duaChet(tran, n, muc, { lao: true }).thang) continue;
+        if (loai === 'ult') {
+          var tt = tran.doiNao[n.doi].tapTrung;
+          var dichQuanh = 0;
+          if (c.dien) {
+            var tamX = c.banKinh ? kc(c.banKinh) : 0, cx = c.tam ? muc.x : n.x, cy = c.tam ? muc.y : n.y;
+            for (var k = 0; k < tran.nguoi.length; k++) {
+              var m = tran.nguoi[k];
+              if (m.doi === n.doi || m.chet > 0) continue;
+              if (xaXY(m.x, m.y, cx, cy) <= tamX + BK * 2) dichQuanh++;
+            }
+          }
+          var chung = tt.ai === muc.i && t - tt.luc < 4;
+          var sapChet = n.hp / n.hpMax < 0.3;
+          var ketLieu = dichTuong && (c.dmg || c.he) && muc.hp + tongChan(muc) <= satMotChieu(c, cs, chiSoNguoi(tran, muc).giap, chiSoNguoi(tran, muc).khang) * 1.1;
+          var laoTru = c.kc && truPhu(tran, muc.x, muc.y, doiKia(n.doi));
+          if (!(dichQuanh >= 2 || chung || sapChet || ketLieu || laoTru || n.cd.ult < -40 || (!c.dien && !c.kc && dichTuong))) continue;
+          /* NÃO thấp thì nhìn ra thời điểm chậm hơn: hụt lượt này, thử lại sau 0,4 s */
+          if (!rng.duoc(0.55 + n.cs.nao / 1200 * 0.45)) { n.cd.ult = 0.4; continue; }
         }
-        var dangGiaoTranh = dichQuanh >= 2 || (taQuanh >= 1 && dichQuanh >= 1);
-        var sapChet = n.hp / n.hpMax < 0.3 && dichQuanh >= 1;
-        var doiLau = n.cd.ult < -25 && dichQuanh >= 1;
-        if (!(dangGiaoTranh || sapChet || doiLau)) continue;
-        if (!rng.duoc(0.55 + n.cs.nao / 1200 * 0.4)) { n.cd.ult = -0.5 - (n.cd.ult < 0 ? 0 : 0) + n.cd.ult; continue; }
+      } else if (lop === 'EnemyWithoutTower' || lop === 'Enemy' || lop === 'BothWithoutTower' || lop === 'Both') {
+        if (!dichTuong && !quaiLon) {
+          /* ném vào lính: đang ăn lính / giữ trụ, không có tướng địch trong tầm × 1,3, và (diện rộng trúng ≥ 3 con,
+             hay đang giữ trụ mà sóng địch ≥ 3 con đang gõ trụ — dọn sóng là việc sống còn với số TFM2) */
+          if (!muc || !muc.linh || !dangFarm || dichGanNhat(tran, n, kc(c.tam || c.banKinh || 30000) * 1.3, { tuong: true })) continue;
+          var giuTru = mt.loai === 'thu' && mt.tru && demLinhDich(tran, n.doi, mt.tru.x, mt.tru.y, Math.max(mt.tru.tam, 45) + 30) >= 3;
+          if (!giuTru && !(c.dien && c.banKinh && demLinhDich(tran, n.doi, muc.x, muc.y, kc(c.banKinh)) >= 3)) continue;
+          choLinh = true;
+        } else if (n.kyLuat && dichTuong) continue;
+      } else if (lop === 'AllyOnlySelf') {
+        if (!dichTuong) continue;
       }
-      var chon = G.chonMucChieu(tran, n, loai, cs, muc);
+      var chon = G.chonMucChieu(tran, n, loai, cs, muc, { linh: choLinh, nguongHoi: 0.6 });
       if (!chon) continue;
-      /* skill lên lính thì phí: chỉ khi mục tiêu là tướng / quái lớn / đồng minh */
-      if (chon.muc && chon.muc.linh) continue;
-      /* kỷ luật đi đường: đang ăn lính thì không ném chiêu vào tướng địch */
+      if (chon.muc && chon.muc.linh && !choLinh) continue;
       if (n.kyLuat && chon.muc && chon.muc.tuong && chon.muc.doi !== n.doi) continue;
       batDauHanh(tran, n, loai, chon.muc, chon.x, chon.y, cs);
       return true;
@@ -1340,12 +1948,9 @@
     var rng = tran.rng;
     var t;
 
-    if (tran.tick % MOI_GIAY === 0) {
-      tran.nguoi.forEach(function (n) {
-        var ch = tran.vang[n.doi] - tran.vang[doiKia(n.doi)];
-        n.liRun = ch < -2000 ? 1 - 0.18 * (1 - G.kep(n.cs.li / 1200, 0, 1)) : 1;
-      });
-    }
+    /* tầng đội nghĩ mỗi giây, hai đội lệch nửa giây */
+    if (tran.tick % MOI_GIAY === 0) tickDoi(tran, 'xanh');
+    else if (tran.tick % MOI_GIAY === (MOI_GIAY >> 1)) tickDoi(tran, 'do');
     if (tran.veHinh) {
       tran.nguoi.forEach(function (n) { n.px = n.x; n.py = n.y; });
       tran.linh.forEach(function (l) { l.px = l.x; l.py = l.y; });
@@ -1441,6 +2046,15 @@
       var them = cs.hpMax - n.hpMax;
       n.hpMax = cs.hpMax; n.hp = Math.min(n.hpMax, n.hp + Math.max(0, them));
     }
+    if (!n._batDau) { n._batDau = true; if (G.khoiDongChieu) G.khoiDongChieu(tran, n); }
+    /* sát thương đã phân tán trả dần */
+    if (n.phanTan && n.phanTan.no > 0) {
+      var tra = Math.min(n.phanTan.no, n.phanTan.moiGiay * TICK);
+      n.phanTan.no -= tra;
+      if (n.phanTan.no <= 0.01) { n.phanTan.no = 0; n.phanTan.moiGiay = 0; }
+      satThuong(tran, { doi: doiKia(n.doi) }, n, tra, 'thuc', { ghiNhan: false, lienKet: true });
+      if (n.chet > 0) return;
+    }
     /* độc / cháy */
     if (n.dot.length) {
       for (var id = 0; id < n.dot.length; id++) {
@@ -1507,17 +2121,32 @@
        Vừa ăn phát đạn trụ ĐẦU TIÊN thì nghĩ lại NGAY: trụ TFM2 bắn 0,67 giây một phát, mỗi
        phát ~45% máu tướng cấp 1 — chờ tới lượt nghĩ sau là phát thứ ba đã tới (§14.5). */
     n.dem -= TICK;
-    if (t - n.truBan < TICK * 1.5 && n.mucTieu && n.mucTieu.loai !== 'rut' && n.mucTieu.loai !== 've') n.dem = 0;
-    /* tụt dưới ngưỡng rút mà ý định cũ vẫn là đánh/ăn lính → nghĩ lại ngay (kiểm 0,2 giây một lần) */
-    if (tran.tick % 6 === 0 && n.mucTieu && n.mucTieu.loai !== 'rut' && n.mucTieu.loai !== 've' &&
-        n.hp / n.hpMax < 0.42 && t - n.lanCuoi < 2) n.dem = 0;
+    var dangLapse = t < n.lapseDen;
+    var dangRutCu = n.mucTieu && (n.mucTieu.loai === 'rut' || n.mucTieu.loai === 've');
+    if (!dangLapse && !dangRutCu && n.mucTieu) {
+      if (t - n.truBan < TICK * 1.5) n.dem = 0;
+      /* vừa bị tướng địch đánh, hay máu tụt sâu lúc đang bị đánh → nghĩ lại ngay (kiểm 0,2 giây một lần) */
+      if (tran.tick % 6 === 0 && t - n.lanCuoi < 2 && (n.hp / n.hpMax < 0.42 || t - n.dinhLuc < 0.3)) n.dem = 0;
+    }
+    /* đang gõ trụ mà lính đỡ đạn đã chết → nghĩ lại ngay (veto_crash / siege soak của TFM2) */
+    if (tran.tick % 6 === 0 && n.mucTieu && n.mucTieu.loai === 'daytru' && n.mucTieu.tru && !coLinhTa(tran, n.mucTieu.tru.x, n.mucTieu.tru.y, n.doi, tamTru(n.mucTieu.tru))) n.dem = 0;
     if (n.dem <= 0 || !n.mucTieu) {
-      n.mucTieu = chonHanhDong(tran, n);
-      var lo = n.mucTieu.loai;
-      /* nhịp TFM2 nhanh gấp đôi bản cũ (một pha đổi mạng 2–4 giây) nên nghĩ lại dày hơn;
-         `giu()` vẫn giữ ý định cũ để không dao động (RESEARCH §8.2) */
-      n.dem = (lo === 'rut' || lo === 've') ? 1.8 + rng() * 1.0 : 0.9 + rng() * 0.7;
-      n.dem *= 1.15 - 0.35 * G.kep(n.cs.nao / 1200, 0, 1);
+      /* lapse (AI_BRAIN §5): NÃO = concentration, xác suất đứng hình tăng theo giờ trận; LÌ = mental,
+         tăng khi đội đang thua vàng. Đứng hình = giữ nguyên ý định cũ thêm 0,8–1,8 s, không phản ứng. */
+      var chenhVang = tran.vang[n.doi] - tran.vang[doiKia(n.doi)];
+      var pLapse = 0.005 + 0.04 * (1 - G.kep(n.cs.nao / 1200, 0, 1)) * Math.min(1, t / 1200) +
+        0.06 * (1 - G.kep(n.cs.li / 1200, 0, 1)) * (chenhVang < -1500 ? 1 : 0);
+      if (n.mucTieu && rng.duoc(pLapse)) {
+        n.lapseDen = t + 0.8 + rng() * 1.0; n.dem = n.lapseDen - t;
+        tran.thongKe.loi.lapse++;
+      } else {
+        n.mucTieu = chonHanhDong(tran, n);
+        var lo = n.mucTieu.loai;
+        /* nhịp TFM2 nhanh gấp đôi bản cũ (một pha đổi mạng 2–4 giây) nên nghĩ lại dày hơn;
+           `giu()` vẫn giữ ý định cũ để không dao động (RESEARCH §8.2) */
+        n.dem = (lo === 'rut' || lo === 've') ? 1.4 + rng() * 0.8 : 0.9 + rng() * 0.7;
+        n.dem *= 1.15 - 0.35 * G.kep(n.cs.nao / 1200, 0, 1);
+      }
     }
     var mt = n.mucTieu;
     var dangRut = mt.loai === 'rut' || mt.loai === 've';
@@ -1547,27 +2176,31 @@
         if (!biNoDanh && !ngonAn && !hamChem) { dichGan = null; n.kyLuat = true; }
       }
       /* đứng trong tầm trụ địch thì KHÔNG khơi mào đánh tướng (trụ đổi mục tiêu sang mình ngay),
-         trừ khi lao vào kết liễu: mình còn khoẻ và nó sắp chết */
+         trừ khi cuộc đua CÓ TRỤ vẫn thắng (lao trụ: nó chết trước khi trụ giết mình — AI_BRAIN §4.6) */
       if (dichGan && truPhu(tran, n.x, n.y, doiKia(n.doi))) {
-        var laoDuoc = n.hp / n.hpMax > 0.5 && dichGan.hp / dichGan.hpMax < 0.34;
         var noDangDanhMinh = dichGan.danhTuongAi === n.i && t - dichGan.danhTuongLuc < 2.5;
-        if (!laoDuoc && !noDangDanhMinh && !chatCo(n, 'lao')) { dichGan = null; n.kyLuat = true; }
+        if (!noDangDanhMinh && !(tran.tick % 6 === 0 ? (n._laoTru = duaChet(tran, n, dichGan, { lao: true }).thang) : n._laoTru)) { dichGan = null; n.kyLuat = true; }
       }
       if (dichGan) muc = dichGan; else n.nham = -1;
       if (!muc && (mt.loai === 'daytru' || mt.loai === 'chotru') && mt.tru && mt.tru.song && trongTamDanh(n, mt.tru, cs)) muc = mt.tru;
       if (!muc && mt.quai && mt.quai.song && trongTamDanh(n, mt.quai, cs)) muc = mt.quai;
       if (!muc && mt.mt && mt.mt.song && trongTamDanh(n, mt.mt, cs)) muc = mt.mt;
-      if (!muc && !dangRut) { var trGan = truGanNhat(tran, n, tamDanh + 6); if (trGan) muc = trGan; }
-      if (!muc) { var l = linhGanNhat(tran, n, tamDanh); if (l) muc = l; }
+      /* §16: đang ĐI (vào hùa, bắt lẻ, tới điểm tập, về nhà) thì không dừng lại gõ trụ hay lính tiện tay —
+         "đứng đánh" trụ địch giữa đường là đứng trong tầm trụ; rút mà còn vung đao vào lính là đi bằng tốc độ
+         hoạt ảnh (TFM2 RunAway không đánh). Lính chỉ bị đánh khi ý định là ăn lính / giữ trụ / đẩy trụ. */
+      var dungGo = DUNG_GO[mt.loai] === 1;
+      if (!muc && dungGo) { var trGan = truGanNhat(tran, n, tamDanh + 6); if (trGan) muc = trGan; }
+      if (!muc && (dungGo || mt.loai === 'anquai' || (dangRut && n.hanh && n.hanh.coDi))) { var l = linhGanNhat(tran, n, tamDanh); if (l) muc = l; }
+      if (muc && dangRut && !muc.tuong && !n.tuong.tfm.attack.can_use_with_move) muc = null;
     }
 
     /* ra chiêu / đánh thường — chỉ khi rảnh tay (không đang khoá trong một hành động) */
     var ranh = !n.hanh || (n.hanh.huy && n.hanh.daRa);
     if (ranh && (muc || tran.tick % 3 === 0) && n.troi <= t && !(dangRut && !muc)) {
       var raChieu = (muc && (muc.tuong || muc.hienRa != null)) || (tran.tick % 3 === 0 && !dangRut);
-      if (raChieu && thuChieu(tran, n, cs, muc)) ranh = false;
+      if (raChieu && thuChieu(tran, n, cs, muc, mt)) ranh = false;
     }
-    if (ranh && muc && n.cd.danh <= 0) {
+    if (ranh && muc && n.cd.danh <= 0 && n.giaiGioi <= t) {
       batDauHanh(tran, n, 'danh', muc, null, null, cs);
       ranh = false;
     }
@@ -1597,6 +2230,13 @@
     for (var i = 0; i < tran.dan.length; i++) {
       var p = tran.dan[i];
       var song = true;
+      /* vùng chặn đạn (§16.6): đạn của phe kia bay vào là tan, xét TRƯỚC khi chạm */
+      for (var ic = 0; ic < tran.chanDan.length; ic++) {
+        var cz = tran.chanDan[ic];
+        if (cz.doi === p.doi || cz.den <= t) continue;
+        if (xaXY(cz.x, cz.y, p.x, p.y) <= cz.r) { song = false; break; }
+      }
+      if (!song) continue;
       if (p.muc) {
         var m = p.muc;
         if (m.hp <= 0 || (m.tuong && m.chet > 0) || (m.song === false && !m.tuong)) { song = false; }
@@ -1631,6 +2271,7 @@
   }
   /* ── vùng tồn tại một lúc ── */
   function tickVung(tran) {
+    if (tran.chanDan.length && tran.tick % 15 === 0) tran.chanDan = tran.chanDan.filter(function (z) { return z.den > tran.t; });
     if (!tran.vung.length) return;
     var t = tran.t, con = [];
     for (var i = 0; i < tran.vung.length; i++) {
@@ -1724,8 +2365,8 @@
       if (!r.song || !r.tam) continue;
       r.danh -= TICK;
       if (r.danh > 0) continue;
-      var muc = r.mucAi, gd = r.tam;
-      if (muc && (muc.hp <= 0 || (muc.tuong && muc.chet > 0) || xaXY(r.x, r.y, muc.x, muc.y) > r.tam)) muc = null;
+      var muc = r.mucAi, gd = tamTru(r);
+      if (muc && (muc.hp <= 0 || (muc.tuong && muc.chet > 0) || xaXY(r.x, r.y, muc.x, muc.y) > gd)) muc = null;
       if (!muc) {
         for (var j = 0; j < tran.linh.length; j++) {
           var l = tran.linh[j];
@@ -1744,8 +2385,8 @@
         if (t - mz.danhTuongLuc > 1.5) continue;
         var nanNhan = tran.nguoi[mz.danhTuongAi];
         if (!nanNhan || nanNhan.doi !== r.doi || nanNhan.chet > 0) continue;
-        if (xaXY(r.x, r.y, mz.x, mz.y) > r.tam) continue;
-        if (xaXY(r.x, r.y, nanNhan.x, nanNhan.y) > r.tam) continue;
+        if (xaXY(r.x, r.y, mz.x, mz.y) > gd) continue;
+        if (xaXY(r.x, r.y, nanNhan.x, nanNhan.y) > gd) continue;
         muc = mz;
       }
       r.mucAi = muc;

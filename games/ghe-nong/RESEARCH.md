@@ -2408,3 +2408,197 @@ PYTHONIOENCODING=utf-8 python _tools/build_tieng.py   # am/* (chạy chung cả 
 ```
 Cả hai đọc thẳng `js/data-tfm.js` để lấy danh sách 68 id — đổi đội hình thì tự đổi theo, không
 cần sửa tay danh sách trong `_tools/`.
+
+## 16. Bộ não TFM2 trong trận: màn quái lớn cả đội, cuộc đua "ai chết trước", giữ trụ, chiêu biết giữ `[ĐO TRONG REPO]`
+
+Bước 5 của `brain/plans/ghe-nong-tfm2-full.md`. Nguồn: `D:\tfm2-ref\AI_BRAIN.md` (đọc từ exe + SDK của TFM2; §7 ở đó
+xếp P1–P8). Mã: phần "BỘ NÃO" của `js/sim.js` (từ `taoNao` tới `thuChieu`), `G.chonMucChieu` của `js/chieu.js`.
+Bộ đo: `_tools/soiAI.js` (thêm 12 số mới), `_tools/kiemMoc.js` (móc cho chiêu); kịch bản soi từng trận ở scratchpad
+(không giữ).
+
+### 16.1 Ba tầng, đúng thứ tự của TFM2
+
+TFM2: `TeamPlan → Main Objective → Plan → SubPlan → SmallAction` (AI_BRAIN §2). Bản này gọn thành ba tầng, mỗi tầng
+một chỗ trong mã:
+
+| tầng | hàm | nghĩ lại | quyết cái gì |
+|---|---|---|---|
+| ĐỘI | `tickDoi` → `tickMucTieuLon`, `tickThu`, `tickTapTrung` | mỗi giây (xanh ở tick 0, đỏ ở tick 30) | màn quái lớn theo pha, gọi giữ trụ, gọi mục tiêu chung |
+| NGƯỜI | `chonHanhDong` | 0,9–1,6 s (NÃO cao dày hơn); NGAY khi ăn đạn trụ / vừa bị tướng đánh | chạy hay đánh (`duaChet`), làm theo lời gọi (`n.goi`), bắt lẻ, ăn lính |
+| CHIÊU | `thuChieu` | mỗi tick khi rảnh tay | tung hay GIỮ, theo lớp `casting_target` |
+
+Trạng thái đội nằm trong `tran.doiNao[doi]` (`taoNao`): `ml` (màn quái lớn: `quai, pha, k, ds, hanChot, tapX/Y, henLai,
+cuopAi`), `thu` (`tru, ds, luc`), `tapTrung` (`ai, luc, goi`). Người có `n.goi` (`{loai:'quailon'|'thu'|'cuop'}`) — lời
+gọi đang nhận. Mọi trường khai trong `taoTran` (bẫy hidden class §7.8).
+
+### 16.2 P1 — màn quái lớn của CẢ ĐỘI (`tickMucTieuLon`)
+
+Chuỗi pha chép đúng enum của TFM2 (`Serpen{Prepare,Setup,Check,EnemyHunt,Assemble,Hunt,Battle,GiveUp,Steal}`):
+
+`chuanBi` (Prepare, gọi trước `BAO_TRUOC` 30 s hay ngay khi quái đang sống; ai dưới 55 % máu về giếng trước) → `tap`
+(Setup, đi tới điểm tập kết = bãi lùi 95 về phía giếng nhà, `vePhiaNha`) → `kiem` (Check: người đầu tới trong 140) →
+`sanDich` (EnemyHunt, có địch trong 200 quanh bãi) hay `hop` (Assemble: chờ đủ `k`) → `san` (Hunt: đánh quái) →
+`danh` (Battle: địch tới mà cuộc đua đội không thua) → `xongMl` / `huyMl(lý do)`.
+
+- `quorum_k` = 3 cho cả hai (`K_QUAI`, `[ĐỀ XUẤT]` — số thật là hằng số trong exe, AI_BRAIN §8). Gọi 4 người: Rồng
+  không gọi đường trên (`early_serpen_top` Flexible), Chúa Hang không gọi đường dưới (`object_buildup` Split — bỏ
+  trống cả ba đường là lính địch gõ trụ không ai cản). Lệnh `rong: 'luon'` (Must) gọi cả năm.
+- Có đi không: `ct.rong` luon ↔ Must (đi khi còn ≥ 2 người), tuy ↔ Flexible (không thua người / không thua > 1500
+  vàng), nhuong ↔ Concede (chỉ khi hơn người hay hơn > 1500 vàng). Cộng hai lý do bỏ từ TFM2: `StackAhead` (hơn ≥ 2
+  tầng Rồng mà địch đông ngang) và `QuaLau` (`pred_dpt`: cả đội gõ mà quá 50 s — Chúa Hang 10000 máu 150 giáp trước
+  đội cấp 3 là ~100 s, đứng đó là mất trụ).
+- Hạn chót `hanChot` = giờ quái ra + 25 s; quá hạn mà có ≥ 2 người và bãi trống thì cắt vẫn đánh (`V6COMMIT cut`),
+  không thì `HetHan`. Bỏ cuộc: `Outnumbered` (địch ≥ ta + 2), `ThuaDua` (cuộc đua đội thua rõ), `MatQuai` (đội kia
+  ăn mất), `GiuNha` (nhà bị ép — DefenseNexus đứng trên mọi thứ), `BatLoi`, `ThieuNguoi`. Mỗi lý do đếm vào
+  `tran.thongKe.boCuoc`.
+- Steal: đội kia đang `san`/`danh` mà quái dưới 60 % máu → người đi rừng (hay người gần nhất) nhận `cuop`, rình ở
+  mép bãi (115 về phía nhà), lao vào khi quái ≤ 1,6 × `jungle_execute_threshold` hay < 15 % máu. Kết quả ghi
+  `suKien.quaiLon.cuop` (địch ≥ 2 người đứng đó, mình ≤ 2).
+- Giá trị `macro_weights` (`window.TFM.macro`, epic 2800 / serpen 700) chỉ dùng để chọn quái khi cả hai cùng mở.
+  Không có bằng chứng TFM2 dùng nó cho AI hay chỉ cho WPA (AI_BRAIN §3.1) nên không cân với "mạng 400".
+
+### 16.3 P2 — cuộc đua "ai chết trước" (`duaChet`, `duaDoi`)
+
+`duaChet(tran, n, muc, o)`: `minh` = (máu + khiên) / Σ sát thương mỗi giây của địch CÓ MẶT hay KỊP TỚI trong 2 s
+(`can_near_enemies`; kẻ đang tới tính nửa) + trụ địch nếu trụ SẼ nhắm mình (không có lính đỡ / vừa bị bắn / định đánh
+tướng dưới trụ, `o.lao`) + lính đang đánh mình; `dich` = máu mục tiêu / Σ sát thương của mình và đồng đội với tới
+được, cộng trụ nhà nếu mục tiêu đứng dưới trụ mình HAY mình đứng dưới trụ mình (kẻ vào đánh mình là trụ đổi sang nó).
+Sát thương mỗi giây của một người = đòn thường + chiêu thường rải trên hồi chiêu (`uocChieu`, phân tích một lần
+mỗi tướng qua `G.phanTichChieu`); đòn dồn (`nuke`) = các chiêu đang sẵn — dồn được là `minh` ≤ 0,8 s.
+
+Ba kết cục, không phải hai: THẮNG (`dich < minh·(1 − bien)`), THUA RÕ (`minh·(1,3 + bien) < dich` → chạy), còn lại
+GIỮ THẾ (TFM2 `Hold`: không mở, không chạy). `[BẪY ĐÃ SẬP]` bản đầu chỉ có thắng/thua: hai người cân sức thì cả hai
+đều "thua" và cùng bỏ chạy, 6 trận chỉ 3,7 mạng, không ai đổi máu.
+
+Lý do rút ghi vào `n.rutLyDo` và `tran.thongKe.rut`, đúng enum `BattleStop` của TFM2: `truBan` (TowerFocused),
+`donDap` (BurstRisk), `thuaNguoi` (Outnumbered), `sapChet` (LowHp), `thuaDua` (race lost). Chỗ rút = sau trụ nhà gần
+nhất còn đứng mà gần giếng hơn mình (`diemRut`), không còn là "điểm 0,14 trên đường".
+
+`duaDoi` là cuộc đua của cả nhóm quanh một điểm (tổng máu / tổng sát thương, có trụ hai bên) — dùng cho pha
+`sanDich`/`danh` của quái lớn và cổng vào hùa (`tugiup`: vào khi không thua rõ).
+
+### 16.4 Giữ trụ và không lao trụ (`tickThu`, `diemDayTru`, `tamTru`)
+
+- `tickThu`: trụ nào của mình còn đánh được (`truMo`) mà có tướng địch trong tầm + 110 hay ≥ 3 lính địch trong tầm
+  thì gọi: người đi đường ấy + người gần nhất đang rảnh, đủ một người mỗi tướng địch + một mỗi ba lính; nhà / lõi
+  gọi cả năm và huỷ màn quái lớn (`GiuNha`). Người giữ trụ dọn LÍNH đang gõ trụ trước (mỗi người con gần mình nhất
+  → tự tản ra), có địch thì đứng trong tầm trụ về phía địch (`mucTieu: 'lao'` = Force Fight ra sát mép). Giữ nhà là
+  LastStand: không chạy trừ khi dưới 20 % máu.
+- `diemDayTru`: vào gõ trụ khi lính nhà trong tầm trụ còn chịu được ≥ 3 phát nữa (`from_tower_damage` 30/80 %),
+  không thì chờ ở mép (`chotru`); đang gõ mà lính chết → nghĩ lại ngay (`veto_crash`). Đánh tướng dưới trụ địch chỉ
+  khi `duaChet(…, {lao:true})` thắng (trụ tính vào phe địch — `focdt < mdt_tw`); chiêu LAO tới mục tiêu dưới trụ cũng
+  qua cổng ấy (bản đầu: sát thủ lao theo mục tiêu vào trụ rồi chết ở giây 24).
+- `[BẪY ĐÃ SẬP]` **Xạ thủ gõ trụ từ ngoài tầm trụ.** Tầm trụ đo tâm-tới-tâm (75000 = 78) còn tầm đánh của tướng đo
+  mép-tới-mép (+2 BK + 6): tầm 60000 với tới 89 > 78 — hai tướng không lính gõ đổ trụ mà trụ không bắn phát nào (soi
+  một trận: "công 2 tướng + 0 lính, sát tướng 2046, lính 0"). Giờ trụ với tới mép người (`tamTru(r)` = tầm + 2 BK + 6)
+  dùng chung cho `tickTru` và mọi phép "đứng trong tầm trụ".
+- `[BẪY ĐÃ SẬP]` **Ăn lính đứng sau trụ địch.** `linhAnDuoc` chỉ loại lính TRONG tầm trụ, không loại lính SAU trụ
+  (theo tham số đường `l.t`); người đi đường đi bộ ngang qua trụ để tới con lính ở 0,6 đường và chết ở giây 24, 63.
+  Giờ so `l.t` với trụ trước nhất của địch trên đường ấy (`truTruocCua`).
+- `[BẪY ĐÃ SẬP]` **Đang đi thì dừng lại gõ trụ / vung đao vào lính.** `tickNguoi` chọn "trụ trong tầm đánh" làm mục
+  tiêu cho MỌI ý định, nên người đang vào hùa đi ngang trụ là đứng lại gõ trụ trong tầm trụ; người đang rút mà chém
+  lính là đi bằng tốc độ hoạt ảnh (cận chiến khoá 0,5 s mỗi đòn) và chết vì sóng lính. Giờ trụ / lính chỉ là mục
+  tiêu khi ý định là ăn lính / giữ trụ / đẩy trụ (`DUNG_GO`); rút thì không đánh thứ không phải tướng, trừ tướng
+  đánh xa vừa đi vừa bắn (`can_use_with_move`). Đi rừng chỉ ăn bãi phe mình, bãi địch khi lệnh `cuop` và đường thẳng
+  tới đó không cắt tầm trụ (`truTrenDuong`).
+
+### 16.5 P3 — chiêu theo `casting_target` và biết GIỮ (`thuChieu`, `G.chonMucChieu`)
+
+Lớp mục tiêu của mỗi chiêu (`uocChieu(t)[i].lop`): tướng mod đọc thẳng `casting_target`; tướng gốc suy từ phân tích:
+có khống chế hay là chiêu cuối ⇒ `EnemyChampion`; sát thương thường ⇒ `EnemyWithoutTower`; hồi / khiên ⇒ `Ally`;
+buff mình ⇒ `AllyOnlySelf`. Luật:
+
+- `EnemyChampion`: chỉ tung khi mục tiêu là tướng địch (quái lớn được với chiêu không khống chế, không phải ult);
+  khống chế không chồng lên kẻ còn > 0,5 s choáng; chiêu cuối chấm giá trị kỳ vọng — diện rộng trúng ≥ 2 tướng,
+  hay mục tiêu chung của đội, hay kết liễu được, hay mình dưới 30 %, hay khống chế để lao trụ, hay ôm quá 40 s
+  (`TBHOLD`, `v48_cast_cc`, `pending_global_ult`); NÃO thấp nhìn ra thời điểm chậm (hụt lượt, thử lại sau 0,4 s).
+- `EnemyWithoutTower`: được ném vào LÍNH khi đang ăn lính / giữ trụ, không có tướng địch trong tầm × 1,3, và
+  (diện rộng trúng ≥ 3 con, hay đang giữ trụ mà sóng địch ≥ 3 con đang gõ trụ — dọn sóng là sống còn với số TFM2).
+  `G.chonMucChieu` nhận thêm `o.linh` (cho phép lính) và `o.nguongHoi` (hồi / khiên khi dưới 60 %, thay 82 %); tướng
+  mod `EnemyWithoutTower` giờ lọc tướng trước, không còn ném chiêu vào con lính gần nhất. API cũ nguyên.
+- `AllyOnlySelf` (steroid): chỉ khi đang đổi máu với tướng (`STEROID_WIN`).
+- Kỷ luật đi đường (`n.kyLuat`) vẫn chặn cả chiêu.
+
+### 16.6 P4–P6 và móc cho chiêu
+
+- **P4 mục tiêu chung** (`tickTapTrung`): trong giao tranh (`diemGiaoTranh`), mỗi 2 s người có NÃO cao / cái tôi
+  thấp / chất `lead` gọi một mục tiêu (máu thấp, lớp mềm, đang bị khống chế, gần tâm); `mucTieuTot` cộng
+  `4 × ngheLenh(n)`; lần đầu nghe có xác suất `(1 − nghe) × 0,15` nghe nhầm sang kẻ gần nhất (`misread_target`, đếm
+  `loi.ngheNham`). Sự kiện `goi` (`kieu: 'tapTrung'`, chữ "Dồn X!") đẩy vào `tran.suKien`; `ui-tran.js` hiện bỏ qua
+  loại này (không thuộc quyền sửa của bước này) — dòng thoại vẫn dùng `mucTieu.loai` cũ (`rut/gank/daytru/quailon`).
+- **P5 về nhà**: lõi đã làm kênh 2 s (`hoiVe`, `return_tick`). Thêm: rút không còn vung đao (§16.4), chỗ rút là sau
+  trụ nhà. `is_safe_to_recall` vẫn là "không tướng địch trong tầm nhìn và 3 s không ăn đòn".
+- **P6 bắt lẻ** (`chonGank`): chấm từng người đi đường địch — máu thấp, xa trụ nó (+1,2 / −2), người đi đường mình
+  còn sống ≥ 50 % máu trong 160 (+1,5, +0,6 nếu người ấy có chất `gank` — "xin"), khoảng cách; rồi chạy `duaChet`
+  giả định mình đứng cạnh nó (đổi tạm toạ độ). Chỉ đi khi thắng; đếm `gankDi` / `gankMang` (mạng trong 25 s có người
+  bắt lẻ tham gia).
+- **Chỉ số tuyển thủ = kiểu sai có tên** (AI_BRAIN §5), không cộng sát thương: `lapse` (NÃO = concentration: xác
+  suất đứng hình 0,8–1,8 s tăng theo giờ trận; LÌ = mental: tăng khi đội thua > 1500 vàng — thay hệ số `liRun` −18 %
+  công cũ), `misjudge` (NÃO nhiễu ±35 % vào hai con số của cuộc đua, đếm khi nhiễu lật kết luận), `tuChoi` (cái tôi
+  + NÃO qua `ngheLenh`: từ chối lời gọi quái lớn 0,35 / giữ trụ 0,25 × (1 − nghe)), `ngheNham`, `chetKhiLapse`.
+  Tất cả trong `tran.thongKe.loi`.
+- **Móc cho bốn agent chiêu** (yêu cầu trong kế hoạch, chỉ cộng thêm, §14.3 giữ nguyên; kiểm `node
+  _tools/soiAI-node.js _tools/kiemMoc.js` 13/13 ĐẠT):
+  `S.chan(m, luong, tick, khiVo)` — `khiVo(ke)` gọi khi khiên BỊ ĐÁNH VỠ (hết hạn thì không) ·
+  `S.khongChonMuc(m, tick)` · `S.giaiGioi(m, tick)` cấm đánh thường (chiêu vẫn dùng) ·
+  `S.chanDan(x, y, r, lau)` vùng làm tan đạn phe kia (xét trước khi chạm) ·
+  `S.donKe(soDon, tick, fn(m, thuc))` hiệu ứng lên `soDon` đòn thường kế (0 = mọi đòn tới hạn) ·
+  `S.khiBiDanh(tick, fn(ke, thuc, o))` · `S.khiGiet(tick, fn(bi))` ·
+  `S.phanTan(m, phanTram, tick, lau)` X % sát thương nhận thành sát thương trả dần trong `lau` tick ·
+  `S.lienKet(a, b, phanTram, tick, motChieu)` chia sẻ sát thương (một chiều = "chịu hộ") ·
+  nội tại: `G.CHIEU_TFM[id].batDau = fn(S)` chạy MỘT lần ở tick đầu (`G.khoiDongChieu`), cắm `donKe`/`khiBiDanh`/
+  `khiGiet` từ đó. Chưa có: móc vào `chiSoNguoi` cho nội tại tăng chỉ số theo cấp (`soldier growth_range`) — việc
+  của bảng chỉ số cốt lõi.
+
+### 16.7 Đo trước / sau `[ĐO TRONG REPO]`
+
+`SO_TRAN=60 node _tools/soiAI-node.js` (hai đội cố định, hạt cố định). "Trước" = não cũ trên số TFM2 (bản 4233be6).
+"Sau" = não TFM2 trên cùng dữ liệu; cột cuối là cùng não sau khi lõi sinh lại `data-tfm.js` (khoá `skill1` → `skill`,
+9 tướng có thêm chiêu đầu) — số của cột này là số hiện hành.
+
+| số | trước | sau (não TFM2) | sau, dữ liệu mới |
+|---|---|---|---|
+| dài (s) | 438 | 522 | 538 |
+| mạng | 12,1 | 10,4 | 10,8 |
+| trụ đầu đổ (s) | 148 | 367 | 363 |
+| trụ đổ | 10,3 | 9,4 | 9,9 |
+| mạng trong tầm trụ địch | 10 % | 7 % | 8 % |
+| giây trong tầm trụ địch / người | 3,4 | 1,5 | 1,4 |
+| tập trung hoả lực (địch trong 260 lúc có người ngã) | 2,55 | 2,84 | 2,77 |
+| solo | 20 % | 20 % | 19 % |
+| Chúa Hang / Rồng ăn mỗi trận | 1,0 / 1,58 | 1,45 / 2,05 | 1,63 / 2,17 |
+| người có mặt lúc quái lớn chết | 3,17 | 3,44 | 3,44 |
+| ăn quái theo màn (có pha) | 0 % | 79 % | 81 % |
+| cướp thành công (60 trận) | 0 | 28 | 30 |
+| bỏ cuộc mỗi trận | — | Outnumbered 5,8 · ThuaDua 4,4 · BatLoi 1,1 · GiuNha 1,0 · MatQuai 0,7 · ThieuNguoi 0,4 · StackAhead 0,2 · HetHan 0,2 · QuaLau 0,1 | Outnumbered 5,4 · ThuaDua 4,7 · GiuNha 1,3 · BatLoi 1,0 · MatQuai 0,8 · ThieuNguoi 0,3 · HetHan 0,2 · StackAhead 0,2 · QuaLau 0,02 |
+| lỗi có tên mỗi trận | — | lapse 88 · misjudge 171 · tuChoi 31 · ngheNham 37 · chết khi lapse 0,5 | lapse 96 · misjudge 177 · tuChoi 33 · ngheNham 37 · chết khi lapse 0,4 |
+| lý do rút mỗi trận (lượt quyết định) | — | thuaDua 125 · thuaNguoi 98 · truBan 16 · sapChet 8 · donDap 1 | thuaDua 129 · thuaNguoi 103 · truBan 15 · sapChet 8 · donDap 1,5 |
+| bắt lẻ | — | 2,4 lần / trận, 5 % ra mạng | 2,4 lần / trận, 2 % ra mạng |
+| gọi mục tiêu chung | — | 122 / trận | 121 / trận |
+| chết khi đang rút | 98 % | 92 % | 95 % |
+
+Mạng trong tầm trụ: bản đầu của não mới lên 36 % (sát thủ lao theo mục tiêu vào trụ, người đi đường đi qua trụ để ăn
+lính) — hai bẫy ở §16.4. "Ăn quái theo màn" 21 % còn lại là ăn xong khi màn đã bị huỷ (vì nhà bị ép) hay cướp.
+
+Nhịp: trận ~9 phút (bản 4233be6: 7,3). Không dài hơn nữa vì **bùa Chúa Hang** (`epic_minion_buff`: ×3 máu, +40 công
+cho lính 90 s): đội ăn Chúa Hang lần hai là ba đường cùng bị sóng lính buff đè, trụ 2000 máu trước 9 lính buff đổ trong
+4 s dù có hai người giữ (soi một trận: "công 0 tướng + 9 lính, thủ có mặt 2"). Đó là số TFM2, không vặn (kế hoạch:
+"kéo trận dài phải bằng não, không vặn số"); não giờ đã thủ trụ, lính buff mới là thứ kết thúc trận — đúng vai
+"epic 2800 = 7 mạng" của `macro_weights`. Muốn dài hơn phải là quyết định của chủ dự án (giảm `hp_mult` của bùa).
+
+`canbang.js 200`: 8,8 phút, 10,5 mạng, 0 hết giờ, 19/68 tướng lệch quá 12 % (bản 4233be6 cùng bộ đo: 6,9 phút, 12,3 mạng, 23/68) — mỗi con 19–44 trận nên chưa kết luận con nào; cân tướng là bước 6. `tuchoi.js` (mùa tự chơi trong Chrome, 23 trận): `loi: []`. `kiemTieng.js`: tất cả ĐẠT.
+Xem một trận thật ở phút 2:11 (chụp qua `lai.js`, bấm "Hiểu rồi" rồi ×6): bốn người đỏ vây Rồng, bốn người xanh đứng
+mép bãi — đúng cảnh Assemble / Battle. `[BẪY ĐÃ SẬP]` ba tiến trình `python -m http.server 8765` cùng nghe một cổng
+(nhiều agent cùng bật) — khi bốn Chrome headless cùng tải 455 tệp tiếng, server đơn luồng từ chối kết nối ngẫu nhiên
+(`ERR_CONNECTION_REFUSED`, trang dừng ở màn tải); chạy lại là qua, không phải lỗi mã.
+
+Chi phí: `duaChet` mỗi lượt quyết định (≈ 1 s / người) và `tickDoi` mỗi giây — trong Node một trận 9 phút
+~3500 ms không tranh CPU (bản 4233be6: 2139 ms cho 7 phút).
+
+### 16.8 Chưa làm
+
+- Sương mù (P8): bộ não vẫn biết hết vị trí; `duaChet` đếm kẻ "kịp tới" theo vị trí thật.
+- Chiến thuật 13 nhóm của TFM2 (P7): mới nối `rong` (early_serpen) và `mucTieu` (tower_press / defense) và `rung`.
+- `ui-tran.js` chưa đọc sự kiện `goi` (lời gọi đội có chữ sẵn: "Rồng ra trong 30s", "Tụ ở Rồng", "Giữ trụ giữa",
+  "Dồn X!", "Rình cướp"), chưa có dòng thoại cho `mucTieu.loai === 'thu'` (data-thoai có sẵn nhóm `thuNha`).
+- Bắt lẻ ra mạng 5 %: cổng cuộc đua giả định quá chặt, hoặc người đi đường không phối hợp khi người bắt lẻ tới.
