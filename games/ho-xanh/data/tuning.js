@@ -91,6 +91,7 @@ window.HX_TUNING = {
     time: 4.0,               // [ĐỀ XUẤT] giây
     tapGain: 0.075,          // [ĐỀ XUẤT] mỗi lần bấm đẩy thanh lên (với cá còn hpRef máu)
     hpRef: 12,               // [ĐỀ XUẤT] cá còn nhiều máu hơn mức này thì mỗi lần bấm được ít hơn (tối thiểu ×0.2)
+    sharkFloor: 0.8,         // [ĐỀ XUẤT] cá mập vào giằng co còn 30–200 máu; sàn ×0.2 đòi hơn 12 lần bấm mỗi giây, sàn ×0.8 còn ~5,4 lần
     decay: 0.16,             // [ĐỀ XUẤT] thanh tụt mỗi giây
     perfectAt: 0.55,         // [ĐỀ XUẤT] xong trước mốc thời gian này = "hoàn hảo"
   },
@@ -111,6 +112,12 @@ window.HX_TUNING = {
   },
   fish: {
     pxToUnit: 0.01,          // [DtD] cùng mật độ điểm ảnh với Dave
+    // [ĐỀ XUẤT] công tắc gốc đang tắt nhóm cá mập (bật theo cốt truyện, game này không có) -> ngày chơi bắt đầu mở.
+    // Không có trong bảng (tiệc cá mập, Shark_Toggle, bản &Old bị &New thay) thì giữ tắt như prefab gốc.
+    sharkSwitch: {
+      'Whitetip_Reefshark_NEW': 1, 'Whitetip_Reefshark_NEW(HP95)': 1, 'Longnosesaw_Shark(HP100)&New': 1,
+      'Thresher_Shark': 3, 'Tiger_Shark(HP175)': 3, 'Zebra_Shark(HP330) (1)': 3, 'Shortfin_Mako(HP300)': 5,
+    },
     wake: 22,                // [ĐỀ XUẤT] allocator gốc sinh cá khi camera cách trong min(spawnCheckDistance, số này); gốc 18/20, riêng A06 9999 (sinh ngay) thì kìm lại cho đỡ nặng
     despawn: 30,             // [ĐỀ XUẤT] mọi con còn bơi của một allocator xa camera quá số này thì cất đi, giữ số con còn sống
     speed: [0.55, 0.8, 1.0], // [ĐỀ XUẤT] tốc độ bơi theo cỡ 0/1/2

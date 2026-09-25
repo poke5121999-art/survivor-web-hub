@@ -62,7 +62,7 @@ Tham số URL:
 | `js/harpoon.js` | Mũi xiên và dây |
 | `js/drone.js` | Drone chở cá: gọi, bay theo root motion của clip gốc, kéo cá lên, `G.drone` |
 | `tools/rip_gear.py` | Bóc icon, ảnh, hiệu ứng, dây màu, tiếng của mũi xiên và drone vào `art/gear/head`, `art/gear/drone`, `art/fx/gear`, `audio/gear_*` |
-| `js/fish.js` | Nạp Spine, máy trạng thái cá, bộ sinh cá theo allocator gốc của từng tầng (`G.fishes.sharks`: cá mập 3D chờ `js/shark.js`), ảnh nhỏ cho thẻ bắt cá |
+| `js/fish.js` | Nạp Spine, máy trạng thái cá, bộ sinh cá theo allocator gốc của từng tầng (allocator cá mập gọi `js/shark.js`; `G.fishes.sharks` liệt kê mọi chỗ đặt cá mập kèm công tắc), ảnh nhỏ cho thẻ bắt cá |
 | `js/shark.js`, `data/shark_assets.js`, `art/shark/` | Cá mập 3D gốc (12 loài, glb có xương + clip, hạt, tiếng, ảnh nhỏ) bóc bởi `tools/rip_shark.py`; cùng giao diện với `Fish` nên xiên, dao, súng, drone, xác dùng chung. Bộ sinh gọi `HX.Shark.forTid(tid)` rồi `HX.Shark.create(G, id, x, y, { night })`; `?shark=<loài>` thả thử cạnh Dave. Xem `tools/README.md` mục "Cá mập 3D" |
 | `data/fish_spawn.js` | Sinh bởi `tools/rip_fishgroups.py`: chỗ đặt cá gốc (preset IGPSet + FishAllocator) của 16 tầng, cấu trúc ở `tools/README.md` |
 | `js/fx.js` | Hạt hiệu ứng theo bảng `KINDS`, và phát lại công thức hạt gốc của súng |
@@ -169,7 +169,8 @@ Tham số URL:
   - Mỗi `FishAllocator` sinh đúng prefab Boid gốc (3–25 con, lệch từng con như trong prefab) ngay chỗ nó đứng, rồi cá bơi quanh các `FishWayPoint` (bán kính 5,5–7,5 m) hoặc trong hộp `_limitBoundary`.
   - Loài theo bản đồ khác hẳn cách cũ: cá hề chỉ ở A01, A03, A05; cá thiên thần lửa, cá bàng chài đầu bướu, cá da trơn sọc chỉ ở rừng tảo A06. Wiki ghi A06 không có Sheepshead và Striped Catfish, nhưng preset A06 gốc đặt cả hai.
   - `Seahorse` (2010011) trong `assets.js` không có ở zone nào; cá ngựa trong Hố Xanh là cá ngựa đua (TID 2012xxx, art riêng), chưa bóc.
-  - Nhóm tắt trong prefab (cá ngừ, cá cờ, cá mập đêm `BeforeSharkParty`/`AfterSharkParty`…) là công tắc nhiệm vụ, sự kiện; game không sinh.
+  - Nhóm tắt trong prefab (cá ngừ, cá cờ, cá mập đêm `BeforeSharkParty`/`AfterSharkParty`…) là công tắc nhiệm vụ, sự kiện; game không sinh. Riêng công tắc cốt truyện của cá mập thì mở theo ngày (xem "Chọn khác bản gốc").
+  - Cá mập ở A01–A04, B01–B06 gần như đều nằm sau công tắc cốt truyện mang tên loài (`Whitetip_Reefshark_NEW`, `Tiger_Shark(HP175)`, `Shortfin_Mako(HP300)`…). Theo đúng prefab thì chỉ A05, A06 và tầng C có cá mập.
 - **Chỗ sinh cá tự chọn [ĐỀ XUẤT]:**
   - Allocator sinh khi camera cách nó dưới `min(spawnCheckDistance, fish.wake = 22 m)`. Gốc là 18/20 m; riêng A06 ghi 9999 (sinh hết ngay lúc vào scene, ~320 con), nên kìm lại cho đỡ nặng. Cá sinh ngoài khung nhìn nên người chơi không thấy khác.
   - Mọi con còn bơi của một allocator cách camera trên 30 m (`fish.despawn`) thì cất đi, nhớ số con còn sống; quay lại thì sinh lại đúng số đó.
@@ -222,6 +223,7 @@ Tham số URL:
 - **Ghế.** Mở dần 3 → 5 → 7 → 9 → 12 → 15 ghế (bản gốc có 15 ghế).
 - **Cano.** Tự chạy, không lái, đi thật giữa quán và chỗ neo trong khung camera sảnh gốc. Chuyến ra: nổ máy ở bến quán (1,1 giây đầu `Boat_Exit001`), rời bến theo `Lobby_GuestBoat01_Exit01` (0–7,5 giây), đoạn nối, rồi `Boat_Exit001` phát ngược dừng đúng chỗ neo. Chuyến về: Respawn, `Boat_Exit002`, quay đầu, vào bến theo `Lobby_GuestBoat01_Enter01` (từ giây 5). Đoạn nối và quay đầu là cung–thẳng–cung bán kính 16 m [ĐỀ XUẤT], gia tốc ~5 m/s² và tốc độ tối đa 10,1 m/s đo từ `Boat_Exit001` [DtD]. Camera giữ góc sảnh gốc, chỉ lia ngang khi mũi hoặc đuôi cano sắp ra mép khung. Mô hình quán đêm bỏ `Lobby_GuestBoat01` vì cano của Dave vào đúng bến đó. Clip Diveready gốc không có chuyển động, nên Dave đi ra đuôi cano rồi chạy clip tại chỗ, màn hình tối dần từ 60% clip như bản gốc. Chuyến ra lúc chiều, chuyến về lúc đêm.
 - **Quán.** Phòng phóng theo bề ngang, làm tròn tới 0,5× (1,5× ở 1280×720, 1× ở 844×390), cắt bớt trần, camera bám Dave theo chiều ngang. Nền sau quán tô phẳng `#070a12` vì bản gốc có trời biển 3D ở đó. Tên 64 món do dự án tự dịch, vì bảng chữ gốc có 14 thứ tiếng nhưng không có tiếng Việt.
+- **Cá mập.** Game không có cốt truyện nên công tắc cốt truyện của cá mập mở theo ngày chơi (`fish.sharkSwitch`): vây trắng và cưa mũi dài `&New` từ ngày 1; hổ, đuôi dài, vằn từ ngày 3; mako từ ngày 5. Công tắc tiệc cá mập, `Shark_Toggle` và bản `&Old` vẫn tắt. Giằng co với cá mập có sàn ×0,8 thay cho ×0,2 (`tug.sharkFloor`): vào giằng co cá mập còn 30–200 máu, sàn cũ đòi hơn 12 lần bấm mỗi giây, sàn mới còn khoảng 5,4. Cá mập đang đuổi, lao hoặc cắn thì đổi sang nhạc `BGM_Shark_Appear` gốc, thôi săn thì về nhạc vùng.
 - **Súng.** Tốc độ đạn = sức bắn × 0,02, súng ngủ 5 giây (+1 mỗi cấp), lưới mở bán kính 1 m, lựu đạn rơi 4 m/s² và tự nổ sau 2,5 giây: bảng gốc không có các số này.
 
 ## Kiểm
@@ -231,7 +233,7 @@ node test/ho-xanh-suite.js      # SHOTS=<thư mục> để đổi chỗ lưu ả
 node test/ho-xanh-meta.js       # hàm thuần của data/meta.js và chuẩn hoá sổ lưu, không cần trình duyệt
 node test/ho-xanh-boat.js       # cano tự chạy ra/về khớp khoá clip gốc, phím không có tác dụng, nhảy xuống, 5 chuyến không rò bộ nhớ GPU
 node test/ho-xanh-harvest.js    # giằng co Dave đứng yên và không bị cắn, xác cá nằm lại, nhặt và xả thịt, túi đầy, nút Nhặt
-node test/ho-xanh-spawn.js      # cá sinh ra đúng allocator gốc: đàn cá hề ở A01 (-34.89; 3.85), cá chết không sinh lại, cá mập chờ ở fishes.sharks
+node test/ho-xanh-spawn.js      # cá sinh ra đúng allocator gốc: đàn cá hề ở A01 (-34.89; 3.85), cá chết không sinh lại, ngày 1 cá mập vây trắng 3D ra ở A01 (44.1; -16)
 node test/ho-xanh-touch.js      # HUD cảm ứng trên điện thoại giả lập: cần nổi, kéo ngắm, huỷ bắn, giằng co, dao, súng, nhặt xác
 node test/ho-xanh-mobile.js     # Pixel 7, iPhone 13 cầm dọc: bảng "Xoay ngang" phủ kín, lượt lặn đứng yên; xoay ngang thì chơi tiếp
 HX_BASE=https://poke5121999-art.github.io/survivor-web-hub node test/ho-xanh-<tên>.js   # chạy cùng bài kiểm trên bản Pages

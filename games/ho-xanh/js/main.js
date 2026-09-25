@@ -37,9 +37,18 @@
   var MUSIC = { A: ['bgm_ingame'], B: ['bgm_b', 'bgm_seablue', 'bgm_ingame'], C: ['bgm_c', 'bgm_deep'], night: ['bgm_night'] };
   var AMB = { A: ['amb_deep'], B: ['amb_b', 'amb_deep'], C: ['amb_c', 'amb_deep'], night: ['amb_deep'] };
   function firstKey(list) { for (var i = 0; i < list.length; i++) if (A.audio[list[i]]) return list[i]; return null; }
+  // Cá mập đang săn Dave (BGM_Shark_Appear gốc) thì đè nhạc vùng.
+  var HUNT = { chase: 1, charge: 1, attack: 1 };
+  function sharkHunting() {
+    return !!(G.fishes && G.fishes.list.some(function (f) { return f.sp.shark && HUNT[f.state]; }));
+  }
+  function musicFor(area) {
+    if (dive && dive.hunt) return 'bgm_shark';
+    return firstKey(G.stack && G.stack.theme.night ? MUSIC.night : MUSIC[area]);
+  }
   function zoneSound(area) {
     var night = G.stack && G.stack.theme.night;
-    var m = firstKey(night ? MUSIC.night : MUSIC[area]), a = firstKey(night ? AMB.night : AMB[area]);
+    var m = musicFor(area), a = firstKey(night ? AMB.night : AMB[area]);
     if (m) HX.audio.music(m, 0.8);
     HX.audio.stopLoop('amb', 1.5);
     if (a) setTimeout(function () { if (G.phase === 'dive') HX.audio.loop('amb', a, 0.35); }, 1600);
@@ -716,9 +725,10 @@
     endDive('dead', best ? [best.id] : []);
   };
 
-  // Sang tầng khác: băng tên vùng + đổi nhạc.
+  // Sang tầng khác: băng tên vùng + đổi nhạc; cá mập bắt đầu hoặc thôi săn thì đổi nhạc.
   function checkLayer() {
-    var L = G.stack.layerAt(G.diver.pos.y);
+    var L = G.stack.layerAt(G.diver.pos.y), hunt = sharkHunting();
+    if (hunt !== !!dive.hunt) { dive.hunt = hunt; HX.audio.music(musicFor(L.area), 0.8); }
     if (L.i === dive.layerI) return;
     var deeper = L.i > dive.layerI;
     dive.layerI = L.i;

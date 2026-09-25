@@ -116,7 +116,7 @@ async function run(browser, base, W, H) {
   // Chỗ thả gốc ở sát vách trái (x=−57); camera từng bị chặn ở x=−43,7 nên Dave rơi ra ngoài màn hình.
   const ds = await page.evaluate(() => { const d = HX_DEBUG.info().dave; return HX_DEBUG.worldToScreen(d.x, d.y); });
   check('vừa xuống nước đã thấy Dave trong khung hình', ds.x > 0 && ds.x < W && ds.y > 0 && ds.y < H, Math.round(ds.x) + ',' + Math.round(ds.y));
-  check('giải mã đủ 52 tệp tiếng gốc (35 của lượt lặn + 17 của đầu xiên và drone)', I.sounds === 52, String(I.sounds));
+  check('giải mã đủ 52 tệp tiếng gốc (35 của lượt lặn + 17 của đầu xiên và drone), cộng tiếng cá mập nếu tầng có cá mập', I.sounds >= 52, String(I.sounds));
   // Ghi lại tên tiếng được gọi để biết đòn xiên có nối đúng tiếng.
   await page.evaluate(() => { const orig = HX.audio.play; window.__played = []; HX.audio.play = function (k, o) { window.__played.push(k); return orig(k, o); }; });
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 5000 });

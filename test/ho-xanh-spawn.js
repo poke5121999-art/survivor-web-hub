@@ -172,6 +172,19 @@ async function run(browser, base, route, body) {
     const back = await visit(page, 0, -34.89, 3.85, 1);
     check('đàn cá hề đã chết ở (-34.89, 3.85) không sinh lại khi quay về', back.filter(id => id === 'ClownFish').length === clown, back.join(','));
 
+    // Ngày 1 mở công tắc vây trắng (A01) và cưa mũi dài &New (B01, bốc ngẫu nhiên cưa hoặc búa trơn) theo tuning
+    // fish.sharkSwitch; hổ, đuôi dài từ ngày 3, mako từ ngày 5. Tầng C bật sẵn trong prefab gốc.
+    const on = await page.evaluate(() => [...new Set(HX.game.fishes.allocs.filter(a => a.shark).map(a => a.shark.id))].sort());
+    const want = ['Cookiecutter_Shark', 'Frilled_Shark', 'Megamouth_Shark', 'Whitetip_Reefshark'];
+    const rest = on.filter(id => want.indexOf(id) < 0);
+    check('ngày 1: cá mập đang mở là vây trắng, tầng C và một con ở allocator &New của B01',
+      want.every(id => on.indexOf(id) >= 0) && rest.length === 1 && ['Longnosesaw_Shark', 'Smooth_Hammershark'].indexOf(rest[0]) >= 0, on.join(','));
+    await visit(page, 0, 44.1, -16, 1, 'A01_whitetip');
+    await sleep(1500);
+    const wt = await page.evaluate(() => HX.game.fishes.list.filter(f => f.sp.shark)
+      .map(f => f.sp.id + '@' + f.alloc.x.toFixed(1) + ',' + f.alloc.y.toFixed(1)).join(' '));
+    check('A01 (44.1, -16): cá mập vây trắng 3D sinh ra ở allocator gốc', wt === 'Whitetip_Reefshark@44.1,-16.0', wt);
+
     // B01, preset _1: SA_2010121_Great_Barracuda ở (42.31, 4.64)
     const b01 = await visit(page, 1, 42.31, 4.64, 1, 'B01_barracuda');
     check('B01 (42.31, 4.64): cá nhồng lớn sinh ra ngay chỗ allocator gốc', b01.indexOf('Great_Barracuda') >= 0, b01.join(','));

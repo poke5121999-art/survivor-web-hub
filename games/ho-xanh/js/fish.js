@@ -608,16 +608,26 @@
         if (s.shark) {
           self.sharks[L.i].push({ zone: L.id, tid: a.members[0].tid, name: s.name, prefab: s.prefab, x: a.x, y: a.y,
             n: a.members.length, home: a.home, near: row.near || SPAWN.near, off: row.off || null });
+          a.shark = HX.Shark.forTid(a.members[0].tid);
+          if (a.shark && (!row.off || day >= (FT.sharkSwitch[row.off] || Infinity))) self.allocs.push(a);
         } else if (!row.off && s.id) {
           a.sp = BY_ID[s.id];
           self.allocs.push(a);
         }
       });
     });
+    var sharkIds = {};
+    this.allocs.forEach(function (a) { if (a.shark) sharkIds[a.shark.id] = 1; });
+    if (Object.keys(sharkIds).length) HX.Shark.preload(Object.keys(sharkIds), G);
   }
 
   Fishes.prototype.spawnAt = function (sp, x, y) {
     var f = new Fish(this.G, sp, x, y);
+    this.list.push(f);
+    return f;
+  };
+  Fishes.prototype.spawnShark = function (k, x, y) {
+    var f = HX.Shark.create(this.G, k.id, x, y, { night: k.night });
     this.list.push(f);
     return f;
   };
@@ -640,10 +650,11 @@
     for (var i = 0; i < a.left; i++) {
       var m = a.members[i], ox = m.dx, oy = m.dy;
       if (!W.open(c.x + ox, c.y + oy, 0.2)) { ox = 0; oy = 0; }
-      var f = this.spawnAt(a.sp, c.x + ox, c.y + oy);
+      var f = a.shark ? this.spawnShark(a.shark, c.x + ox, c.y + oy) : this.spawnAt(a.sp, c.x + ox, c.y + oy);
       f.alloc = a; f.home = a.home;
-      if (lead) { f.leader = lead; f.offset = { x: ox, y: oy }; f.speed = lead.speed; } else lead = f;
       a.fish.push(f);
+      if (a.shark) continue;
+      if (lead) { f.leader = lead; f.offset = { x: ox, y: oy }; f.speed = lead.speed; } else lead = f;
     }
   };
 
