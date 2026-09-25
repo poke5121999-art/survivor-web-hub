@@ -45,6 +45,30 @@ Yêu cầu chủ dự án (2026-09-25): "copy hết skill + config + stats + equ
   thì lõi bỏ bản tạm. `art/tfm/icon.js` chưa có thẻ `<script>` — lõi đã thêm vào index.html.
 - [lõi → 4 agent chiêu] API `S` ở RESEARCH §14.3; ví dụ mẫu: fighter (tệp 1), pyromancer (2), nightmare (3),
   priest (4). Tên hoạt ảnh / tiếng riêng tra §15.
+- [agent 1 (17 tướng, chieu-tfm-1.js) → lõi, 2026-09-25] Năm việc còn thiếu để viết ĐÚNG hết chiêu nhóm 1
+  (mỗi việc đã có giải pháp tạm trong chieu-tfm-1.js, ghi rõ bằng `[CHƯA LÀM ĐƯỢC]` tại chỗ, không chặn trận):
+  1. **`data-tuong.js` dựng `kn.skill.p` từ `c['skill']`, không thử `c['skill1']`** — Dancer trong dữ liệu
+     TFM2 gốc đặt tên tham số kỹ năng đầu là `skill1` (không phải `skill`), nên `n.tuong.tfm.skill` luôn
+     `undefined` và `thuChieu()` (sim.js, `if (!n.tuong.tfm[loai]) continue`) không bao giờ gọi tới —
+     "Ném Chakram" (chiêu chính của Dancer) hiện KHÔNG BAO GIỜ ra được trong trận thật, dù `chieu-tfm-1.js`
+     đã viết đúng hàm (đọc thẳng `S.n.tuong.tfm.skill1`, kiểm ĐẠT bằng cách gọi thẳng `G.chayChieu`, bỏ qua
+     `thuChieu`). Sửa một chỗ: khi dựng `kn[loai]`, thử thêm `c[a + '1']` nếu `c[a]` không có (đã đo thêm
+     11 tướng khác có cùng kiểu lệch tên `skill1`/thiếu hẳn `skill`/`skill2` — phần lớn là NỘI TẠI thật
+     không tham số nào, chỉ Dancer là có tham số đầy đủ mà lệch tên).
+  2. **Không có nguyên thuỷ "khi khiên vỡ/hết thì làm X"** — Android skill2 ("Lá Chắn Phát Nổ": hết khiên
+     mới choáng xung quanh) chỉ mô phỏng được nhánh HẾT HẠN tự nhiên (hẹn đúng lúc `shield_duration`),
+     không bắt được nhánh "khiên bị đánh vỡ sớm".
+  3. **Không có nguyên thuỷ chặn đạn bay theo vùng** — Barrier Magician skill2 ("Kết Giới Phong Toả": vô
+     hiệu hoá đạn bay trong vùng) chỉ dựng được hình, không chặn được `tran.dan` (đạn không phải thực thể
+     truy vấn được từ `S`).
+  4. **Không có nguyên thuỷ "cộng hiệu ứng vào N đòn đánh thường kế tiếp"** — Cavalry Knight skill2 (đòn
+     đánh thường gây thêm sát thương thiêu đốt một khoảng thời gian) và các tướng khác có mẫu tương tự.
+  5. **Không có nguyên thuỷ "chuyển X% sát thương nhận thành sát thương theo thời gian"** (khác `giamNhan`
+     nhân thẳng) — Chef ult ("phân tán sát thương") và **"chia sẻ sát thương giữa hai mục tiêu liên kết"**
+     — Dark Mage ult ("Xiềng Xích Thống Khổ"). Cả hai đều cần móc vào `satThuong`.
+  Ba việc khác chỉ là NỘI TẠI thật không tham số (không cần primitive, chỉ cần biết là bình thường):
+  Ogre `skill`, Dancer `skill2`, và cơ chế "hồi chiêu Berserker ult giảm theo máu đã mất"
+  (`ult_cooltime_reduction`/`ult_max_cooltime_reduction` nằm NGOÀI khối `ult`, cần móc theo dõi máu mất
 
 ## Nhật ký
 
