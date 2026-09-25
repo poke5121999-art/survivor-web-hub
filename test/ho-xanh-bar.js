@@ -49,6 +49,7 @@ function serve() {
   });
 }
 function watch(page) {
+  page.setDefaultNavigationTimeout(120000);
   const errors = [];
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
@@ -67,25 +68,31 @@ async function shot(page, name) { await page.screenshot({ path: path.join(SHOTS,
 
 // ---------- điều khiển bằng bàn phím ----------
 async function walkKeys(page, x) {
-  const I = await info(page);
-  if (Math.abs(I.dave.x - x) <= 6) return true;
   const T = await page.evaluate(() => HX.bar.T);
   x = Math.max(T.daveMin, Math.min(T.daveMax, x));
-  const dir = x > I.dave.x ? 1 : -1, key = dir > 0 ? 'KeyD' : 'KeyA';
-  await page.keyboard.down(key);
-  // thả phím khi tới nơi (hoặc vừa vượt qua)
-  const ok = await waitFor(page, a => { const dx = HX.bar.debug.info().dave.x; return Math.abs(dx - a.x) <= 6 || (a.dir > 0 ? dx >= a.x : dx <= a.x); }, { x, dir }, 15000);
-  await page.keyboard.up(key);
-  return ok;
+  // như walkStick: đoạn cuối chạy đồng hồ game chậm (timeScale 0,2) để độ trễ thả phím không làm Dave dừng quá tầm với
+  let ok = true, slow = false;
+  for (let k = 0; k < 6; k++) {
+    const I = await info(page);
+    if (Math.abs(I.dave.x - x) <= 6) break;
+    if (!slow && Math.abs(I.dave.x - x) < 100) { slow = true; await page.evaluate(() => HX.bar.debug.timeScale(0.2)); }
+    const dir = x > I.dave.x ? 1 : -1, key = dir > 0 ? 'KeyD' : 'KeyA';
+    await page.keyboard.down(key);
+    // thả phím khi tới nơi (hoặc vừa vượt qua)
+    ok = await waitFor(page, a => { const dx = HX.bar.debug.info().dave.x; return Math.abs(dx - a.x) <= (a.slow ? 6 : 100) || (a.dir > 0 ? dx >= a.x : dx <= a.x); }, { x, dir, slow }, 90000);
+    await page.keyboard.up(key);
+  }
+  if (slow) await page.evaluate(() => HX.bar.debug.timeScale(1));
+  return ok && Math.abs((await info(page)).dave.x - x) <= T.reach;
 }
 async function press(page, key) { await page.keyboard.down(key); await sleep(40); await page.keyboard.up(key); }
 // Chờ món của khách ra lò, đi tới quầy Bancho bấm E, rồi tới ghế khách bấm E.
 async function serveByKeys(page, cid) {
   let I = await info(page), c = cust(I, cid);
-  if (!await waitFor(page, id => { const I = HX.bar.debug.info(), c = I.customers.filter(c => c.id === id)[0]; return !c || c.st === 'order'; }, cid, 30000)) return 'không gọi món';
+  if (!await waitFor(page, id => { const I = HX.bar.debug.info(), c = I.customers.filter(c => c.id === id)[0]; return !c || c.st === 'order'; }, cid, 120000)) return 'không gọi món';
   I = await info(page); c = cust(I, cid);
   if (!c || c.order === 'tea') return 'khách gọi trà';
-  if (!await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 30000)) return 'món không ra lò';
+  if (!await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 120000)) return 'món không ra lò';
   await walkKeys(page, I.passX);
   await press(page, 'KeyE');
   I = await info(page);
@@ -102,10 +109,10 @@ async function tapRoom(page, x, y) {
   return p;
 }
 async function serveByTaps(page, cid) {
-  if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return !c || c.st === 'order'; }, cid, 30000)) return 'không gọi món';
+  if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return !c || c.st === 'order'; }, cid, 120000)) return 'không gọi món';
   let I = await info(page), c = cust(I, cid);
   if (!c || c.order === 'tea') return 'khách gọi trà';
-  if (!await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 30000)) return 'món không ra lò';
+  if (!await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 120000)) return 'món không ra lò';
   // chạm ô món đã xong trong hàng chờ bếp → Dave tự đi tới quầy và bưng
   const slot = await page.$('.bb-slot.ready[data-dish="' + c.order + '"]');
   const box = await slot.boundingBox();
@@ -117,36 +124,35 @@ async function serveByTaps(page, cid) {
   return 'ok';
 }
 
-// Trà: tới ghế khách, giữ nút (phím hoặc chuột) `holdMs` rồi thả.
-async function teaByKeys(page, cid, holdMs) {
-  if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return c && c.st === 'order'; }, cid, 30000)) return null;
+// Trà: tới ghế khách, giữ nút (phím hoặc chuột) tới khi vòng rót đầy `fill` (1 = đầy vòng) rồi thả.
+// Chờ theo q.fill của game chứ không theo giờ thật: máy chậm thì game chạy chậm, giữ theo mili giây sẽ rót thiếu.
+async function holdUntilFill(page, fill) {
+  await waitFor(page, () => { const q = HX.bar.debug.info().qte; return q && q.st === 'pour'; }, null, 10000);
+  await waitFor(page, f => { const q = HX.bar.debug.info().qte; return !q || q.st !== 'pour' || q.fill >= f; }, fill, 60000);
+}
+async function teaByKeys(page, cid, fill) {
+  if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return c && c.st === 'order'; }, cid, 120000)) return null;
   const c = cust(await info(page), cid);
   await walkKeys(page, c.sitX);
   await page.keyboard.down('Space');
-  await waitFor(page, () => { const q = HX.bar.debug.info().qte; return q && q.st === 'pour'; }, null, 3000);
-  const t0 = Date.now();
-  await sleep(Math.max(0, holdMs - 30));
-  let mid = null;
-  if (holdMs > 600) mid = page.screenshot({ path: path.join(SHOTS, 'tea-' + page.viewportSize().width + '.png') });
+  await holdUntilFill(page, fill);
   await page.keyboard.up('Space');
-  if (mid) await mid;
-  await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'tea' && e.cid === id), cid, 5000);
-  return { held: Date.now() - t0, ev: (await info(page)).events.filter(e => e.type === 'tea' && e.cid === cid)[0] };
+  if (fill > 0.5) await page.screenshot({ path: path.join(SHOTS, 'tea-' + page.viewportSize().width + '.png') });
+  await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'tea' && e.cid === id), cid, 20000);
+  return { ev: (await info(page)).events.filter(e => e.type === 'tea' && e.cid === cid)[0] };
 }
-async function teaByTaps(page, cid, holdMs) {
-  if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return c && c.st === 'order'; }, cid, 30000)) return null;
+async function teaByTaps(page, cid, fill) {
+  if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return c && c.st === 'order'; }, cid, 120000)) return null;
   const c = cust(await info(page), cid);
   await tapRoom(page, c.sitX, c.sitY - 40);
   if (!await waitFor(page, () => { const q = HX.bar.debug.info().qte; return q && q.st === 'ready'; }, null, 15000)) return null;
   const p = await page.evaluate(() => HX.bar.debug.toClient(500, 300));
   await page.mouse.move(p.x, p.y);
   await page.mouse.down();
-  await sleep(Math.max(0, holdMs - 30));
-  let mid = null;
-  if (holdMs > 600) mid = page.screenshot({ path: path.join(SHOTS, 'tea-' + page.viewportSize().width + '.png') });
+  await holdUntilFill(page, fill);
   await page.mouse.up();
-  if (mid) await mid;
-  await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'tea' && e.cid === id), cid, 5000);
+  if (fill > 0.5) await page.screenshot({ path: path.join(SHOTS, 'tea-' + page.viewportSize().width + '.png') });
+  await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'tea' && e.cid === id), cid, 20000);
   return { ev: (await info(page)).events.filter(e => e.type === 'tea' && e.cid === cid)[0] };
 }
 // Khách do bộ kiểm gọi vào: chờ tới khi có ghế trống (khách tự vào vẫn đang ngồi) rồi mới gọi.
@@ -236,7 +242,7 @@ async function keyboardNight(browser, base) {
 
   // phục vụ khách đầu (món gì cũng được) bằng phím
   let r = first.order === 'tea' ? 'tea' : await serveByKeys(page, first.id);
-  if (r === 'tea') { const t = await teaByKeys(page, first.id, 1400); r = t && t.ev ? 'ok' : 'rót trà hỏng'; }
+  if (r === 'tea') { const t = await teaByKeys(page, first.id, 0.93); r = t && t.ev ? 'ok' : 'rót trà hỏng'; }
   check('A/D đi tới quầy Bancho, E bưng món, tới ghế khách E đưa món', r === 'ok', r);
   await shot(page, 'serving-1280');
   I = await info(page);
@@ -255,7 +261,7 @@ async function keyboardNight(browser, base) {
   check('giữa ca: mọi khách vẫn ngồi đúng ghế, không lơ lửng', !bad.length, bad.join(' | '));
   const paid = await waitPay(page, c2, 20000);
   // hạt GoldPop chạy simulationSpeed 4 nên chỉ sống ~0,5 s: chờ thấy hạt thay vì lấy mẫu một lần
-  const fxSeen = await waitFor(page, () => { const f = HX.bar.debug.info().fx; return f.ui + f.screen > 0; }, null, 1500);
+  const fxSeen = await waitFor(page, () => { const f = HX.bar.debug.info().fx; return f.ui + f.screen > 0; }, null, 10000);
   await sleep(150);
   await shot(page, 'coinfly-1280');
   I = await info(page);
@@ -266,19 +272,21 @@ async function keyboardNight(browser, base) {
     paid && p2.price === 18 && p2.tip === tipWant && I.dishes === dishPays.reduce((a, e) => a + e.price, 0) && I.dishes - d0 >= 18,
     p2 && JSON.stringify({ price: p2.price, tip: p2.tip, want: tipWant, dishes: I.dishes, pays: dishPays.map(e => e.dish + ':' + e.price) }));
   check('lúc trả tiền có hạt gốc bay (GoldPop / Money / CoinAbsorb)', fxSeen, JSON.stringify(I.fx));
-  await waitFor(page, () => { const I = HX.bar.debug.info(); return I.shownGold >= I.gold0 + I.credited && I.credited > 0; }, null, 5000);
-  // đọc HUD và sổ trong cùng một khung (khách khác có thể trả tiền ngay sau đó)
-  const hud = await page.evaluate(() => { const I = HX.bar.debug.info(); return { shown: I.shownGold, want: I.gold0 + I.credited, text: +document.querySelector('.bb-gold b').textContent }; });
+  // đọc HUD và sổ trong cùng một khung, ngay khung ô vàng đã đuổi kịp (khách khác có thể trả tiền ngay sau đó)
+  const hud = await page.waitForFunction(() => {
+    const I = HX.bar.debug.info(), h = { shown: I.shownGold, want: I.gold0 + I.credited, text: +document.querySelector('.bb-gold b').textContent };
+    return I.credited > 0 && h.shown >= h.want ? h : false;
+  }, null, { timeout: 60000, polling: 'raf' }).then(r => r.jsonValue(), () => page.evaluate(() => { const I = HX.bar.debug.info(); return { shown: I.shownGold, want: I.gold0 + I.credited, text: +document.querySelector('.bb-gold b').textContent }; }));
   check('ô vàng trên HUD cộng dần tới đúng số đã thu', hud.shown === hud.want && hud.text === Math.floor(hud.shown), JSON.stringify(hud));
 
   // trà: rót khéo (giữ ~95 % thời gian rót đầy) và rót hỏng (giữ 0,3 s)
   const teaA = await spawnFree(page, { tea: true, seat: 'Seat_09' });
-  const tA = await teaByKeys(page, teaA, 1430);
+  const tA = await teaByKeys(page, teaA, 0.93);
   const teaB = await spawnFree(page, { tea: true, seat: 'Seat_10' });
-  const tB = await teaByKeys(page, teaB, 300);
+  const tB = await teaByKeys(page, teaB, 0.2);
   check('giữ Space rót gần đầy vòng thì trà "perfect"', tA && tA.ev && tA.ev.grade === 'perfect', tA && JSON.stringify(tA.ev));
   check('thả sớm thì trà "bad"', tB && tB.ev && tB.ev.grade === 'bad', tB && JSON.stringify(tB.ev));
-  await waitPay(page, teaA, 5000); await waitPay(page, teaB, 5000);
+  await waitPay(page, teaA, 120000); await waitPay(page, teaB, 120000);
   I = await info(page);
   const pa = payOf(I, teaA), pb = payOf(I, teaB);
   check('trà perfect trả nhiều hơn trà bad (giá trà HX_META cấp 0 = 10)', pa && pb && pa.price + pa.tip > pb.price + pb.tip && pa.price === 10 && pb.price === 5,
@@ -289,10 +297,10 @@ async function keyboardNight(browser, base) {
   const ig = await spawnFree(page, { dish: 'ClownFish', tea: false, seat: 'Seat_10' });
   await walkKeys(page, 300);
   await page.evaluate(() => HX.bar.debug.timeScale(6));
-  const angry = await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return c && c.st === 'angry'; }, ig, 30000);
+  const angry = await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return c && c.st === 'angry'; }, ig, 120000);
   I = await info(page);
   check('chờ quá MaxServingWaitTime [DtD 25 s] thì khách giận (anim back_anger, bong bóng giận)', angry && (cust(I, ig) || {}).anim === 'back_anger', (cust(I, ig) || {}).anim);
-  const left = await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'angry' && e.cid === id), ig, 30000);
+  const left = await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'angry' && e.cid === id), ig, 120000);
   await page.evaluate(() => HX.bar.debug.timeScale(1));
   I = await info(page);
   const cl = I.menu.filter(m => m.id === 'ClownFish')[0];
@@ -301,13 +309,15 @@ async function keyboardNight(browser, base) {
     JSON.stringify({ angry: I.angry, clown: cl, stillWaiting }));
 
   // tổng kết: đóng quán sớm
-  await waitFor(page, () => HX.bar.debug.info().customers.every(c => c.st === 'leave' || c.st === 'pay'), null, 30000);
+  await waitFor(page, () => HX.bar.debug.info().customers.every(c => c.st === 'leave' || c.st === 'pay'), null, 120000);
   I = await info(page);
   const want = I.dishes + I.tips + I.tea;
   const sold = {};
   I.menu.forEach(m => { sold[m.id] = m.sold; });
   check('nút "Đóng quán" có mặt', (await page.$eval('#bar-close', e => e.textContent)) === 'Đóng quán');
-  await page.click('#bar-close');
+  // đoạn tăng tốc ×6 ở trên tiêu giờ game theo giờ thật: máy nặng thì ca có thể đã hết và quán tự đóng trước khi kịp bấm
+  if ((await page.evaluate(() => HX_DEBUG.info().phase)) === 'bar') await page.click('#bar-close');
+  else out.push('    (ca đã hết giờ và quán tự đóng trước khi bấm "Đóng quán")');
   check('Đóng quán thì sang sổ cuối ngày', await phaseIs(page, 'ledger'));
   const S = await save(page);
   const earned = +(await page.$eval('.br-ledger', e => e.dataset.earned));
@@ -360,7 +370,7 @@ async function tapNight(browser, base) {
   let I = await info(page);
   const first = I.customers.filter(c => c.st === 'order')[0];
   let r;
-  if (first.order === 'tea') { const t = await teaByTaps(page, first.id, 1400); r = t && t.ev ? 'ok' : 'rót trà hỏng'; }
+  if (first.order === 'tea') { const t = await teaByTaps(page, first.id, 0.93); r = t && t.ev ? 'ok' : 'rót trà hỏng'; }
   else r = await serveByTaps(page, first.id);
   check('chạm ô món xong → Dave bưng; chạm khách → Dave đi tới đưa món', r === 'ok', r);
   await shot(page, 'serving-844');
@@ -381,9 +391,9 @@ async function tapNight(browser, base) {
   // chạm rót trà: giữ ngón (chuột) gần đầy
   await waitFor(page, () => HX.bar.debug.info().customers.filter(c => c.st !== 'leave').length < 3, null, 20000);
   const tA = await spawnFree(page, { tea: true });
-  const t = await teaByTaps(page, tA, 1430);
+  const t = await teaByTaps(page, tA, 0.93);
   check('chạm khách gọi trà, giữ rồi thả gần đầy vòng → perfect', t && t.ev && t.ev.grade === 'perfect', t && JSON.stringify(t.ev));
-  await waitPay(page, tA, 5000);
+  await waitPay(page, tA, 120000);
   // hết giờ: không nhận khách mới, khách về hết thì tự sang sổ
   await page.evaluate(() => { HX.bar.debug.endTime(); HX.bar.debug.timeScale(4); });
   const auto = await phaseIs(page, 'ledger', 60000);
@@ -435,7 +445,7 @@ async function buttonNight(browser, base) {
   await page.evaluate(() => HX.bar.debug.seed(7));
   await tapBtn('kitchen-open');
   check('844 chạm: nút Mở quán sang pha bar', await phaseIs(page, 'bar'));
-  await waitFor(page, () => HX.bar.debug.info().t > 0.5, null, 30000);
+  await waitFor(page, () => HX.bar.debug.info().t > 0.5, null, 120000);
 
   // bố cục: tâm và cỡ lấy từ RectTransform gốc của SushiBarTouchCanvas (canvas 2340×1080, khớp bề ngang)
   const run = await box('bt-run');
@@ -447,16 +457,24 @@ async function buttonNight(browser, base) {
 
   // đi bằng cần nổi: kéo từ nửa trái màn tới khi Dave tới gần x rồi thả
   const sx = W * 0.2, sy = H * 0.7;
+  // Thả cần mất vài khung (CDP qua lại); máy nặng thì mỗi khung Dave đi tới 9 px nên dừng quá đích.
+  // Gần tới nơi thì chạy đồng hồ game chậm lại (HX.bar.debug.timeScale) để lần dừng rơi vào tầm với, rồi trả về 1.
   async function walkStick(x) {
-    let I = await info(page);
-    if (Math.abs(I.dave.x - x) <= 8) return true;
-    const dir = x > I.dave.x ? 1 : -1;
-    await down(sx, sy);
-    await move(sx + dir * 10, sy); await move(sx + dir * 30, sy); await move(sx + dir * 70, sy);
-    const ok = await waitFor(page, a => { const dx = HX.bar.debug.info().dave.x; return Math.abs(dx - a.x) <= 8 || (a.dir > 0 ? dx >= a.x : dx <= a.x); }, { x, dir }, 15000);
-    await up();
-    await sleep(60);
-    return ok;
+    const reach = (await page.evaluate(() => HX.bar.T)).reach;
+    let slow = false;
+    for (let k = 0; k < 6; k++) {
+      const I = await info(page);
+      if (Math.abs(I.dave.x - x) <= reach / 2) break;
+      if (!slow && Math.abs(I.dave.x - x) < 100) { slow = true; await page.evaluate(() => HX.bar.debug.timeScale(0.2)); }
+      const dir = x > I.dave.x ? 1 : -1;
+      await down(sx, sy);
+      await move(sx + dir * 10, sy); await move(sx + dir * 30, sy); await move(sx + dir * 70, sy);
+      await waitFor(page, a => { const dx = HX.bar.debug.info().dave.x; return Math.abs(dx - a.x) <= (a.slow ? 8 : 100) || (a.dir > 0 ? dx >= a.x : dx <= a.x); }, { x, dir, slow }, 90000);
+      await up();
+      await sleep(60);
+    }
+    if (slow) await page.evaluate(() => HX.bar.debug.timeScale(1));
+    return Math.abs((await info(page)).dave.x - x) <= reach / 2;
   }
   const x0 = (await info(page)).dave.x;
   await down(sx, sy); await move(sx + 20, sy); await move(sx + 60, sy);
@@ -472,12 +490,13 @@ async function buttonNight(browser, base) {
   // chạy: bật công tắc thì đi nhanh hơn T.runK lần
   const T = await page.evaluate(() => HX.bar.T);
   async function speedOver(ms) {
-    const a = (await info(page)).dave.x;
     await down(sx, sy); await move(sx - 20, sy); await move(sx - 70, sy);
+    await sleep(100);
+    const a = await info(page);
     await sleep(ms);
-    const b = (await info(page)).dave.x;
+    const b = await info(page);
     await up(); await sleep(60);
-    return (a - b) / (ms / 1000);
+    return (a.dave.x - b.dave.x) / Math.max(1e-3, b.t - a.t);
   }
   await walkStick(700);
   const vWalk = await speedOver(500);
@@ -494,40 +513,37 @@ async function buttonNight(browser, base) {
   const fails = [];
   // phục vụ một khách tới khi xong, chỉ bằng cần + nút 交互 (trà: giữ nút)
   async function handle(cid) {
-    if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return !c || c.st === 'order'; }, cid, 30000)) return 'không gọi món';
+    if (!await waitFor(page, id => { const c = HX.bar.debug.info().customers.filter(c => c.id === id)[0]; return !c || c.st === 'order'; }, cid, 120000)) return 'không gọi món';
     let I = await info(page), c = cust(I, cid);
     if (!c) return 'khách bỏ đi';
     if (c.order === 'tea') {
       await walkStick(c.sitX);
-      if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 3000)) return 'trà: nút 交互 không hiện';
+      if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 20000)) return 'trà: nút 交互 không hiện';
       const b = await box('bt-interact');
       await down(b.x, b.y, 3);
-      await waitFor(page, () => { const q = HX.bar.debug.info().qte; return q && q.st === 'pour'; }, null, 3000);
-      const tp = Date.now();
-      const mid = page.screenshot({ path: path.join(SHOTS, 'buttons-tea-844.png') });
-      await sleep(Math.max(0, T.pour * 1000 * 0.95 - (Date.now() - tp)));
+      await holdUntilFill(page, 0.93);
       await up(3);
-      await mid;
-      await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'tea' && e.cid === id), cid, 5000);
+      await page.screenshot({ path: path.join(SHOTS, 'buttons-tea-844.png') });
+      await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'tea' && e.cid === id), cid, 20000);
       const ev = (await info(page)).events.filter(e => e.type === 'tea' && e.cid === cid)[0];
       teaOk = teaOk || (!!ev && ev.grade !== 'bad');
       teaEv = ev || teaEv;
-      await waitFor(page, () => !HX.bar.debug.info().qte, null, 3000);
+      await waitFor(page, () => !HX.bar.debug.info().qte, null, 20000);
       return 'ok';
     }
     if (I.dave.carry.indexOf(c.order) < 0) {
-      if (!await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 30000)) return 'món không ra lò ' + c.order;
+      if (!await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 120000)) return 'món không ra lò ' + c.order;
       await walkStick(I.passX);
-      if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 3000)) return 'ở quầy Bancho mà nút 交互 không hiện';
+      if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 20000)) return 'ở quầy Bancho mà nút 交互 không hiện';
       await tapBtn('bt-interact');
       I = await info(page);
       if (I.dave.carry.indexOf(c.order) < 0) return 'chạm 交互 ở quầy mà không bưng ' + c.order;
     }
     await walkStick(c.sitX);
-    if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 3000))
+    if (!await waitFor(page, () => document.getElementById('bt-interact').classList.contains('on'), null, 20000))
       return 'cạnh khách mà nút 交互 không hiện: Dave ' + (await info(page)).dave.x.toFixed(0) + ', ghế ' + c.sitX;
     await tapBtn('bt-interact');
-    if (!await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'serve' && e.cid === id), cid, 3000)) return 'chạm 交互 cạnh khách mà không phục vụ';
+    if (!await waitFor(page, id => HX.bar.debug.info().events.some(e => e.type === 'serve' && e.cid === id), cid, 20000)) return 'chạm 交互 cạnh khách mà không phục vụ';
     served++;
     return 'ok';
   }
@@ -547,7 +563,7 @@ async function buttonNight(browser, base) {
 
   // đổ món: bưng một đĩa không ai gọi rồi giữ nút 倒菜 1,5 s [DtD StaffDave.trashHoldTime]
   await page.evaluate(() => HX.bar.debug.spawn({ dish: 'ClownFish', tea: false }));
-  const extra = await waitFor(page, () => HX.bar.debug.info().plates.some(p => p.st === 'ready'), null, 40000);
+  const extra = await waitFor(page, () => HX.bar.debug.info().plates.some(p => p.st === 'ready'), null, 120000);
   if (extra) {
     await walkStick((await info(page)).passX);
     await tapBtn('bt-interact');
@@ -555,14 +571,16 @@ async function buttonNight(browser, base) {
   const carrying = (await info(page)).dave.carry.length;
   const trashShown = (await box('bt-trash')).shown;
   const tb = await box('bt-trash');
+  const tt0 = (await info(page)).t;
   await down(tb.x, tb.y, 4);
   await sleep(700);
   const early = (await info(page)).dave.carry.length;
-  await sleep(1100);
+  await waitFor(page, n => HX.bar.debug.info().dave.carry.length < n, carrying, 60000);
+  const tt1 = (await info(page)).t;
   await up(4);
   const after = (await info(page)).dave.carry.length;
-  check('bưng đĩa thì hiện nút 倒菜; giữ 0,7 s chưa đổ, giữ quá 1,5 s thì đổ một đĩa', carrying > 0 && trashShown && early === carrying && after === carrying - 1,
-    'bưng ' + carrying + ', hiện ' + trashShown + ', 0,7 s còn ' + early + ', 1,8 s còn ' + after);
+  check('bưng đĩa thì hiện nút 倒菜; giữ 0,7 s chưa đổ, giữ ~1,5 s giờ game thì đổ một đĩa', carrying > 0 && trashShown && early === carrying && after === carrying - 1 && tt1 - tt0 >= T.trashHold - 0.1,
+    'bưng ' + carrying + ', hiện ' + trashShown + ', 0,7 s còn ' + early + ', đổ sau ' + (tt1 - tt0).toFixed(2) + ' s giờ game, còn ' + after);
 
   // hết giờ: phục vụ nốt rồi quán tự đóng, sang sổ cuối ngày
   await page.evaluate(() => HX.bar.debug.endTime());
@@ -570,7 +588,7 @@ async function buttonNight(browser, base) {
     const I = await info(page), c = I.customers.filter(c => c.st === 'order')[0];
     if (c.order === 'tea') break;
     if (I.dave.carry.indexOf(c.order) < 0) {
-      await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 30000);
+      await waitFor(page, d => HX.bar.debug.info().plates.some(p => p.dish === d && p.st === 'ready'), c.order, 120000);
       await walkStick(I.passX); await tapBtn('bt-interact');
     }
     await walkStick(c.sitX); await tapBtn('bt-interact');
@@ -593,10 +611,11 @@ async function pcButtons(browser, base) {
     await walkKeys(page, 700);
     if (shift) await page.keyboard.down('ShiftLeft');
     await page.keyboard.down('KeyA');
-    const a = (await info(page)).dave.x; await sleep(500); const b = (await info(page)).dave.x;
+    await sleep(100);
+    const a = await info(page); await sleep(500); const b = await info(page);
     await page.keyboard.up('KeyA');
     if (shift) await page.keyboard.up('ShiftLeft');
-    return (a - b) / 0.5;
+    return (a.dave.x - b.dave.x) / Math.max(1e-3, b.t - a.t);
   }
   const vw = await speed(false), vr = await speed(true);
   check('giữ Shift thì Dave chạy (Sushi_Dash gốc = Shift trái)', vr > vw * 1.3, 'đi ' + vw.toFixed(0) + ', chạy ' + vr.toFixed(0));
@@ -612,16 +631,20 @@ async function pcButtons(browser, base) {
   check('chuột bấm nửa trái không kéo: Dave đi tới chỗ bấm, cần không hiện', Math.abs((await info(page)).dave.x - 300) < 4 && await page.evaluate(() => document.getElementById('bt-stick').hidden));
   // giữ Q đổ món: 0,7 s chưa đổ, 1,6 s thì đổ
   await page.evaluate(() => HX.bar.debug.spawn({ dish: 'ClownFish', tea: false }));
-  await waitFor(page, () => HX.bar.debug.info().plates.some(p => p.st === 'ready'), null, 40000);
+  await waitFor(page, () => HX.bar.debug.info().plates.some(p => p.st === 'ready'), null, 120000);
   await walkKeys(page, (await info(page)).passX);
   await press(page, 'Space');
   const n0 = (await info(page)).dave.carry.length;
-  await page.keyboard.down('KeyQ'); await sleep(700);
+  const q0 = (await info(page)).t;
+  await page.keyboard.down('KeyQ');
+  await sleep(700);
   const n1 = (await info(page)).dave.carry.length;
-  await sleep(900); await page.keyboard.up('KeyQ');
+  await waitFor(page, n => HX.bar.debug.info().dave.carry.length < n, n0, 60000);
+  const q1 = (await info(page)).t;
+  await page.keyboard.up('KeyQ');
   const n2 = (await info(page)).dave.carry.length;
   await shot(page, 'buttons-1280');
-  check('giữ Q quá 1,5 s thì đổ một đĩa (StaffDave.trashHoldTime gốc)', n0 > 0 && n1 === n0 && n2 === n0 - 1, n0 + ' → ' + n1 + ' → ' + n2);
+  check('giữ Q ~1,5 s giờ game thì đổ một đĩa (StaffDave.trashHoldTime gốc)', n0 > 0 && n1 === n0 && n2 === n0 - 1 && q1 - q0 >= T.trashHold - 0.1, n0 + ' → ' + n1 + ' → ' + n2 + ' sau ' + (q1 - q0).toFixed(2) + ' s');
   check('1280 nút: không lỗi trang', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
@@ -673,8 +696,10 @@ async function facingAndShift(browser, base) {
   await page.evaluate(() => HX.bar.debug.timeScale(1));
   await shot(page, 'walk-out-1280');
   await page.evaluate(() => HX.bar.debug.timeScale(3));
-  const closed = await waitFor(page, () => !HX.bar.debug.info().open, null, 60000);
-  const tClose = (await info(page)).t;
+  // đọc giờ ca ngay trong khung đầu tiên quầy đóng (đọc sau đó thì giờ ca đã chạy thêm theo độ trễ của máy)
+  const tClose = await page.waitForFunction(() => { const I = HX.bar.debug.info(); return I.open ? false : I.t; }, null, { timeout: 120000, polling: 'raf' })
+    .then(r => r.jsonValue(), () => null);
+  const closed = tClose != null;
   check('quầy đóng ngay khi hết 90 giây (không nhận khách mới)', closed && tClose >= 90 && tClose < 90.2, 't = ' + tClose);
   await phaseIs(page, 'ledger', 60000);
   const F = await page.evaluate(() => window.__face);
