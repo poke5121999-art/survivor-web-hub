@@ -69,6 +69,22 @@ Yêu cầu chủ dự án (2026-09-25): "copy hết skill + config + stats + equ
   Ba việc khác chỉ là NỘI TẠI thật không tham số (không cần primitive, chỉ cần biết là bình thường):
   Ogre `skill`, Dancer `skill2`, và cơ chế "hồi chiêu Berserker ult giảm theo máu đã mất"
   (`ult_cooltime_reduction`/`ult_max_cooltime_reduction` nằm NGOÀI khối `ult`, cần móc theo dõi máu mất
+  liên tục — không phải lúc ra chiêu).
+- [agent 2 (17 tướng, chieu-tfm-2.js) → lõi, xác nhận việc #1 của agent 1, 2026-09-25] Đếm lại toàn bộ
+  68 tướng: **8 con lệch tên `skill1`/`skill`** (dancer, lightning_mage, poison_dart_hunter + **năm con của
+  nhóm 2**: dokkaebi, gambler, ghost, plague_doctor, pole_warrior) và **3 con không có khối `skill`/`skill1`
+  nào cả** (monk, ogre, và **gunner** của nhóm 2 — nội tại thật, số nằm ở trường cấp-tướng
+  `move_speed_up`/`move_speed_up_duration`, không phải trong một khối hành động). Với năm con của nhóm 2,
+  né tạm bằng hàm cục bộ `p1(S)` đọc thẳng `S.n.tuong.tfm.skill1` (viết trong `chieu-tfm-2.js`) — nhưng
+  đây CHỈ sửa được số/sát thương khi hàm được gọi tay; **`G.chonMucChieu` và cơ chế khoá người/hồi chiêu của
+  hành động "skill" (`batDauHanh`, `n.hanh.dai/moc`, `n.cd.skill`) đều đọc `kn.skill.p` rỗng**, nên trong
+  trận thật (không qua bộ kiểm gọi thẳng `G.chayChieu`) năm chiêu này gần như chắc chắn không tự ra được —
+  cùng một chỗ sửa với agent 1 đề xuất (`data-tuong.js`, dựng `kn[loai]`: thử thêm `c[a + '1']` khi `c[a]`
+  rỗng) sẽ sửa được cả 8 con cùng lúc. `gunner` (không có khối nào) thì không có gì để đọc — cần nguyên
+  thuỷ "khi ra đòn đánh thường" (mục #4 của agent 1) mới viết được `skill` (nội tại "đánh trúng thì cộng
+  tốc chạy"); `gunner.skill2`/`ult` của nhóm 2 cũng cần cùng nguyên thuỷ ấy cho vế "cứ 3 đòn thì làm chậm" /
+  dokkaebi.skill cho vế "đòn đánh tạo sóng xung kích" — cả ba đều đang xấp xỉ bằng xung lặp theo đúng nhịp
+  `attack.cooltime` thay vì bám sát đòn đánh thật.
 
 ## Nhật ký
 
