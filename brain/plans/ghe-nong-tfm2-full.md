@@ -36,11 +36,11 @@ Yêu cầu chủ dự án (2026-09-25): "copy hết skill + config + stats + equ
 
 ## Yêu cầu giữa các agent
 
-- [lõi → ảnh] `js/sprites.js` `G.napTuong`: `xongCa` chạy hai lần khi script và ảnh cùng xong trong một lượt
+- [xong 2026-09-25, main] `js/sprites.js` `G.napTuong`: `xongCa` chạy hai lần khi script và ảnh cùng xong trong một lượt
   (script `onload` gọi `kt` → `xongCa` → đặt `DANG_NAP_T[id] = null`; rồi ảnh `onload` gọi `kt` → `xongCa` lần
   nữa → `null.forEach`). Bắt được 1 lần trong 21 trận tự chơi (`tuchoi.js`, 2026-09-25). Cần `if (!ds) return;`
   đầu `xongCa`. Không chết game, chỉ là lỗi trang.
-- [lõi → ảnh] `G.anhTuongIcon` đặt `background-size` bằng cỡ ô (`m[2]*k`) thay vì cỡ atlas ⇒ chân dung là cả tấm
+- [xong 2026-09-25, main: sửa trong sprites.js, bỏ `G.oAnhTuongTFM`] `G.anhTuongIcon` đặt `background-size` bằng cỡ ô (`m[2]*k`) thay vì cỡ atlas ⇒ chân dung là cả tấm
   co lại 21 px. Lõi tạm dựng style riêng trong `G.oAnhTuongTFM` (data-tuong.js) từ `window.TFM_ICON`; sửa xong
   thì lõi bỏ bản tạm. `art/tfm/icon.js` chưa có thẻ `<script>` — lõi đã thêm vào index.html.
 - [lõi → 4 agent chiêu] API `S` ở RESEARCH §14.3; ví dụ mẫu: fighter (tệp 1), pyromancer (2), nightmare (3),

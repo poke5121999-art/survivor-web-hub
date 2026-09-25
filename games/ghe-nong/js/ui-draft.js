@@ -125,7 +125,7 @@
             var t = pick[x[0]][vt];
             if (t) {
               var ch = G.el('div.dr-o-pick');
-              var at = G.oAnhTuongTFM && G.oAnhTuongTFM(t, 30);
+              var at = G.oAnhTuongIcon && G.oAnhTuongIcon(t, 30);
               if (at) ch.appendChild(at);
               var ph = G.el('div');
               ph.appendChild(G.el('b', { text: G.TUONG_THEO_ID[t].ten }));
@@ -153,7 +153,7 @@
               }).filter(Boolean).sort(function (a, b) { return BAC_SO[b.b] - BAC_SO[a.b]; }).slice(0, 3);
               tu3.forEach(function (x) {
                 var it = G.el('span.dr-tu' + (x.b === 'UR' ? '.ur' : x.b === 'SSR' ? '.ssr' : ''));
-                var a2 = G.oAnhTuongTFM && G.oAnhTuongTFM(x.t.id, 22);
+                var a2 = G.oAnhTuongIcon && G.oAnhTuongIcon(x.t.id, 22);
                 if (a2) it.appendChild(a2);
                 /* nhãn bậc dùng <b> chứ KHÔNG dùng <i>: G.oAnhTuong trả về chính một thẻ <i>,
                    dùng chung tag thì CSS `.dr-tu i{position:absolute}` đè luôn lên ảnh. */
@@ -196,7 +196,7 @@
             var o = G.el('div.dr-t' + (biCam ? '.cam' : '') + (daLay ? '.lay' : '') +
               (lapLai ? '.lap' : '') + (dangXem === t.id ? '.xem' : '') + (doa ? '.doa' : ''));
 
-            var a = G.oAnhTuongTFM && G.oAnhTuongTFM(t.id, 42);
+            var a = G.oAnhTuongIcon && G.oAnhTuongIcon(t.id, 42);
             if (a) { a.className = 'dr-t-anh'; o.appendChild(a); }
             else o.appendChild(G.el('div.dr-t-anh'));
 
@@ -262,10 +262,10 @@
             o.appendChild(G.el('b', { text: x.loai === 'cam' ? 'CẤM' : G.VITRI_THEO_ID[x.vt].tat }));
             o.appendChild(G.el('span', { text: x.ben === 'ta' ? 'ta' : 'địch' }));
             if (x.loai === 'cam' && cam[Math.floor(k)] && k < i) {
-              var a = G.oAnhTuongTFM && G.oAnhTuongTFM(cam[k], 26);
+              var a = G.oAnhTuongIcon && G.oAnhTuongIcon(cam[k], 26);
               if (a) o.appendChild(a);
             } else if (x.loai === 'chon' && k < i && pick[x.ben][x.vt]) {
-              var a2 = G.oAnhTuongTFM && G.oAnhTuongTFM(pick[x.ben][x.vt], 26);
+              var a2 = G.oAnhTuongIcon && G.oAnhTuongIcon(pick[x.ben][x.vt], 26);
               if (a2) o.appendChild(a2);
             }
             d.appendChild(o);

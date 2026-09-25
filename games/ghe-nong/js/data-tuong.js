@@ -256,26 +256,6 @@
     for (var i = 0; i < ds.length; i++) if (G.daiT(id, ds[i]) > 0) return ds[i];
     return hanh === 'dung' ? 'idle' : ds[0];
   };
-  /** phần tử <i> chân dung cho DOM — atlas chung art/tfm/icon.png (window.TFM_ICON, không nạp lười).
-      `[BẪY ĐÃ SẬP]` G.anhTuongIcon của sprites.js đặt background-size bằng cỡ Ô chứ không phải cỡ
-      ATLAS, nên cả tấm co lại thành một chấm 21 px — đã ghi yêu cầu sửa cho agent ảnh
-      (brain/plans/ghe-nong-tfm2-full.md). Ở đây dựng style từ chính bảng toạ độ. */
-  var CO_ICON = null;
-  G.oAnhTuongTFM = function (id, cao) {
-    var TI = window.TFM_ICON, m = TI && TI[id];
-    if (!m) return null;
-    if (!CO_ICON) {
-      CO_ICON = [0, 0];
-      for (var k in TI) { var o = TI[k]; if (o && o.length === 4) { CO_ICON[0] = Math.max(CO_ICON[0], o[0] + o[2]); CO_ICON[1] = Math.max(CO_ICON[1], o[1] + o[3]); } }
-    }
-    cao = cao || 44;
-    var kk = cao / Math.max(m[2], m[3]);
-    var st = 'background-image:url(art/tfm/icon.png?v=' + (G.ART_V || '') + ');' +
-      'background-position:' + (-m[0] * kk) + 'px ' + (-m[1] * kk) + 'px;' +
-      'background-size:' + (CO_ICON[0] * kk) + 'px ' + (CO_ICON[1] * kk) + 'px;' +
-      'background-repeat:no-repeat;image-rendering:pixelated;display:block;width:' + cao + 'px;height:' + cao + 'px';
-    return G.el('i', { style: st });
-  };
   /** tên tiếng `tran.<id>.<hành động>` có trong bảng; không có thì null (nightmare không có tiếng trong TFM2, §15.5) */
   G.tiengTuong = function (id, hanh) {
     var B = window.AM_BANG && window.AM_BANG.tieng;

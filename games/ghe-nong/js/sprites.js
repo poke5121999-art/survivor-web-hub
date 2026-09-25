@@ -125,7 +125,9 @@
     if (DANG_NAP_T[id]) { if (cb) DANG_NAP_T[id].push(cb); return; }
     DANG_NAP_T[id] = cb ? [cb] : [];
     var xongCa = function (ok) {
+      /* script và ảnh có thể cùng xong trong một lượt: lần gọi thứ hai không còn gì để báo */
       var ds = DANG_NAP_T[id]; DANG_NAP_T[id] = null;
+      if (!ds) return;
       ds.forEach(function (f) { if (f) f(ok); });
     };
     var kt = function () {
@@ -194,13 +196,21 @@
   };
 
   /** chân dung DOM cho một trong 68 tướng TFM2 — atlas chung art/tfm/icon.png, không nạp lười */
+  var CO_ICON = null;       /* cỡ cả atlas icon — background-size phải là cỡ ATLAS, không phải cỡ ô */
   G.anhTuongIcon = function (id, cao) {
+    TI = TI || window.TFM_ICON || null;           /* icon.js có thể nạp sau tệp này */
     var m = TI && TI[id];
     if (!m) return null;
+    if (!CO_ICON) {
+      CO_ICON = [0, 0];
+      for (var n in TI) if (TI[n] && TI[n].length === 4) {
+        CO_ICON[0] = Math.max(CO_ICON[0], TI[n][0] + TI[n][2]); CO_ICON[1] = Math.max(CO_ICON[1], TI[n][1] + TI[n][3]);
+      }
+    }
     var k = cao / Math.max(m[2], m[3]);
     return 'background-image:url(art/tfm/icon.png?v=' + ART_V + ');' +
       'background-position:' + (-m[0] * k) + 'px ' + (-m[1] * k) + 'px;' +
-      'background-size:' + (m[2] * k) + 'px ' + (m[3] * k) + 'px;' +
+      'background-size:' + (CO_ICON[0] * k) + 'px ' + (CO_ICON[1] * k) + 'px;' +
       'background-repeat:no-repeat;image-rendering:pixelated';
   };
 
