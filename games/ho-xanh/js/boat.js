@@ -1649,6 +1649,16 @@
 
   // ---------------------------------------------------------------- vòng chuyến (tự chạy, không nhận phím/chạm lái)
   var TRACKS = {};   // dãy khung của mỗi chiều, dựng một lần (số liệu tĩnh)
+  // ?boattrace=1: ghi mọi khung của mỗi chuyến vào TRACE (test đọc sau khi pha đã rời, khỏi lệ thuộc độ trễ lúc hỏi)
+  var TRACE = /[?&]boattrace=1(&|$)/.test(location.search) ? [] : null, tmpNdc = new THREE.Vector3();
+  function traceFrame() {
+    if (!TRACE || !st.trace) return;
+    tmpNdc.set(RESTO[0], RESTO[1], -RESTO[2]).project(W.cam);
+    var sg = st.seg >= 0 ? st.T.segs[st.seg] : null;
+    st.trace.frames.push({ tt: st.tt, state: st.state, seg: sg ? sg.id : null, segT: sg ? segTime() : 0, x: st.x, z: st.z, speed: st.speed,
+      dR: Math.hypot(st.x - RESTO[0], -st.z - RESTO[2]), ndc: [tmpNdc.x, tmpNdc.y, tmpNdc.z], dave: st.dave.anim, daveT: st.dave.t, daveX: st.dave.x,
+      fade: st.fadeK, pan: st.pan });
+  }
   function trackOf(dir) { return TRACKS[dir] || (TRACKS[dir] = buildTrack(dir)); }
   var RESTO = TD.restaurant.center;   // [DtD] tâm khung bao quán sushi
 
@@ -1661,6 +1671,7 @@
       dave: { anim: 'Idle', t: 0, x: DAVE_LOCAL[0], y: DAVE_LOCAL[1], z: DAVE_LOCAL[2], flip: false, visible: true },
       snd: {}, boosted: false, camX: 0, camY: 0, camZ: 0, fadeK: 0, stepT: 0,
     };
+    if (TRACE) { st.trace = { dir: dir, frames: [], end: null }; TRACE.push(st.trace); }
     var ui = st.ui = buildHud(HX.game.screen('boat'), dir);
     ui.skip.addEventListener('click', finish);
     ui.skip.addEventListener('pointerdown', audioUnlock);
@@ -1691,6 +1702,7 @@
     enterSeg(0);
     ambience(true);
     hint();
+    traceFrame();
   }
 
   function setState(s) { st.state = s; st.st = 0; }
@@ -1902,6 +1914,7 @@
     engineSound();
     hint();
     hud();
+    traceFrame();
   }
 
   var tmpP = [0, 0, 0];
@@ -2042,6 +2055,7 @@
   function finish() {
     if (!st || st.done) return;
     st.done = true;
+    if (st.trace) st.trace.end = st.dir === 'out' ? 'loading' : 'kitchen';
     HX.game.go(st.dir === 'out' ? 'loading' : 'kitchen');
   }
 
@@ -2063,7 +2077,8 @@
   HX.phases.boat = {
     surface: 'scene',
     enter: enter, exit: exit, update: update, render: render,
-    // móc chỉ-đọc cho test/ho-xanh-boat.js
+    // móc chỉ-đọc cho test/ho-xanh-boat.js; trace() = các chuyến đã ghi khi mở trang với ?boattrace=1
+    trace: function () { return TRACE; },
     info: function () {
       if (!st) return { active: false };
       var T = st.T, sg = st.seg >= 0 ? T.segs[st.seg] : null, ndc = null;
