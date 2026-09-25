@@ -102,7 +102,7 @@ const menuItems = page => page.evaluate(() => [...document.querySelectorAll('.vd
 async function flow(browser, port, errors) {
   console.log('\n== Luồng game 1280×720');
   const page = await newPage(browser, 1280, 720, errors);
-  await page.goto(`http://127.0.0.1:${port}/games/voiddiver/index.html`);
+  await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html`);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   check('màn tiêu đề', await waitFor(page, () => document.body.dataset.ready === 'title', null, 60000));
@@ -386,7 +386,7 @@ async function flow(browser, port, errors) {
 async function mobile(browser, port, errors) {
   console.log('\n== 844×390');
   const page = await newPage(browser, 844, 390, errors);
-  await page.goto(`http://127.0.0.1:${port}/games/voiddiver/index.html`);
+  await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html`);
   await page.evaluate(() => {
     localStorage.clear();
   });
@@ -397,7 +397,7 @@ async function mobile(browser, port, errors) {
   check('menu tiêu đề vừa màn', titleFit);
   // hồ sơ có tiến trình để thấy nhiều NPC/quest
   await page.evaluate(() => { const P = VD.profile; P.reset(); const p = P.get(); p.clears = { 1100: 1, 1101: 1 }; p.isTutorial = false; p.userLevel = 2; p.userExp = 3000; p.wallet.coin = 40; P.give({ type: 'Item', id: 7000, count: 12 }); P.save(); });
-  await page.goto(`http://127.0.0.1:${port}/games/voiddiver/index.html?lounge=1`);
+  await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html?lounge=1`);
   check('sảnh ?lounge=1', await waitFor(page, () => document.body.dataset.lounge === 'play', null, 240000));
   await sleep(1500);
   await shot(page, 'm02-lounge');

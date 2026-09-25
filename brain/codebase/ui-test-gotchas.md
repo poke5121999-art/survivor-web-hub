@@ -18,3 +18,5 @@
   - Trong Bash tool, `python -c "..."` nhiều dòng báo `IndentationError ... goto :error`.
   - Tham số có dấu `|` (regex) thì cmd cắt ngang lệnh.
   - Cách tránh: ghi script ra tệp, và chạy lệnh có `|` bằng PowerShell tool.
+- **`/tmp` của Git Bash khác `/tmp` của Python** trên máy này [BẪY ĐÃ SẬP 2026-09-25].
+  - `git diff > /tmp/x.patch` rồi `python` mở `/tmp/x.patch` báo không có tệp. Dùng đường dẫn Windows đầy đủ (thư mục scratchpad).

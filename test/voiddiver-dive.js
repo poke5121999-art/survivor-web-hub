@@ -71,7 +71,7 @@ async function shot(page, name) {
 }
 
 async function startDive(page, port, campaign, seed, w) {
-  await page.goto(`http://127.0.0.1:${port}/games/voiddiver/index.html?campaign=${campaign}&seed=${seed}&char=100001`);
+  await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html?campaign=${campaign}&seed=${seed}&char=100001`);
   const ok = await waitFor(page, () => document.body.dataset.ready === '1', null, 240000, 'nạp lượt lặn');
   check(`[${campaign}] nạp xong`, ok);
   await page.evaluate(() => { VD.profile.load(); });
@@ -102,7 +102,7 @@ const focus = page => page.evaluate(() => { const f = VD.dive.focus; return f ? 
 async function tutorial(browser, port, errors) {
   console.log('\n== Campaign 1100 (tutorial) 1280×720');
   const page = await newPage(browser, 1280, 720, errors);
-  await page.goto(`http://127.0.0.1:${port}/games/voiddiver/index.html?campaign=1100`);
+  await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html?campaign=1100`);
   await page.evaluate(() => { localStorage.clear(); });
   if (!await startDive(page, port, 1100, 7)) return page;
   await page.keyboard.down('Control');     // tua nhanh hội thoại (dialog.js: Ctrl giữ = skipFast)
