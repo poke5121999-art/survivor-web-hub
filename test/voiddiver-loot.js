@@ -77,7 +77,7 @@ async function holdF(page, sec) { await page.keyboard.down('KeyF'); await gameWa
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 300)); });
   page.on('response', r => { if (r.status() >= 400) errors.push('HTTP ' + r.status() + ' ' + r.url()); });
   try {
-    await page.goto(`http://127.0.0.1:${port}/games/voiddiver/index.html?campaign=101&seed=11&char=100001`);
+    await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html?campaign=101&seed=11&char=100001`);
     check('nạp xong', await waitFor(page, () => document.body.dataset.ready === '1', null, 240000, 'nạp lượt lặn'));
     await page.evaluate(() => { VD.profile.load(); VD.dive.debug.skipIntro(); });
     check('vào play', await waitFor(page, () => VD.dive.state === 'play', null, 60000, 'play'));

@@ -95,7 +95,7 @@ async function run(browser, port, errors) {
   page.on('pageerror', e => errors.push('pageerror: ' + e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 300)); });
   page.on('response', r => { if (r.status() >= 400) errors.push('HTTP ' + r.status() + ' ' + r.url()); });
-  await page.goto(`http://127.0.0.1:${port}/games/voiddiver/index.html?campaign=1100&seed=${SEED}&char=100001`);
+  await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html?campaign=1100&seed=${SEED}&char=100001`);
   await page.evaluate(() => localStorage.clear());
   await page.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 240000 });
   await page.evaluate(HELPERS);
