@@ -257,12 +257,13 @@
     // nhặt / xả thịt xác cá: E, hoặc Space (nút Interaction gốc) khi đứng cạnh xác; giữ để xả thịt
     interact: false, interactHeld: false,
     fireHeld: false, firePressed: false, fireReleased: false,
-    // súng phụ: chuột phải hoặc nút Súng; gunAuto = nhắm tự động vào cá gần nhất (cảm ứng)
-    gunHeld: false, gunPressed: false, gunReleased: false, gunAuto: false,
+    // súng phụ: chuột phải hoặc nút bắn cảm ứng khi đang cầm súng; gunAuto = nhắm tự động vào cá gần nhất (cảm ứng, chưa kéo cần)
+    // aimCancel: thả cần ngắm trong ô Huỷ bắn
+    gunHeld: false, gunPressed: false, gunReleased: false, gunAuto: false, aimCancel: false,
     sx: innerWidth * 0.7, sy: innerHeight * 0.5, aimX: 0, aimY: 0,
     touch: { stick: null, aim: null, boost: false, gun: false, interact: false },
   };
-  var edges = { dash: false, melee: false, tap: false, interact: false, firePressed: false, fireReleased: false, gunPressed: false, gunReleased: false };
+  var edges = { dash: false, melee: false, tap: false, interact: false, firePressed: false, fireReleased: false, gunPressed: false, gunReleased: false, aimCancel: false };
   var mouseGun = false;
 
   function isTouch() { return document.body.classList.contains('touch'); }
@@ -281,7 +282,7 @@
     if ((e.code === 'Enter' || e.code === 'Space') && G.phase === 'title') { e.preventDefault(); startDay(); }
   });
   addEventListener('keyup', function (e) { keys[e.code] = false; });
-  addEventListener('blur', function () { keys = {}; input.fireHeld = false; mouseGun = false; input.touch.gun = false; input.touch.interact = false; });
+  addEventListener('blur', function () { keys = {}; input.fireHeld = false; mouseGun = false; input.touch.gun = false; input.touch.interact = false; input.touch.aim = null; });
 
   var canvas = $('scene');
   canvas.addEventListener('mousemove', function (e) { input.sx = e.clientX; input.sy = e.clientY; });
@@ -298,21 +299,30 @@
   });
   canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
-  // Chạm: nửa trái là cần điều khiển, nửa phải giữ để ngắm, thả để bắn.
+  // Chạm: HUD cảm ứng theo bản Android (data/mobile_ui.js). Nửa dưới bên trái là cần nổi; nút bắn lớn là cần ngắm:
+  // giữ để rút vũ khí, kéo để chọn hướng, thả để bắn, kéo vào ô "Huỷ bắn" rồi thả là thôi. Nút nhỏ cạnh nó đổi xiên ↔ súng phụ.
+  var MUI = window.HX_MOBILE_UI;
+  var TOUCH = {
+    zone: [MUI.layout.stickZone.w / 2, MUI.layout.stickZone.h / 2],  // [DtD mobile] Left Joystick 2400×1800 tâm ở góc dưới trái
+    stickRange: MUI.numbers.knob.m_MovementRange,                   // [DtD mobile] OnScreenStick_Normal 150
+    aimRange: MUI.numbers.aim.m_MovementRange,                      // [DtD mobile] OnScreenStick_Fire 160
+    dead: 0.125, deadMax: 0.925,  // [ĐỀ XUẤT] mặc định StickDeadzone của Unity Input System; prefab không ghi số riêng
+    reach: 40,                    // [ĐỀ XUẤT] m, điểm ngắm đặt thật xa theo hướng cần để lệch vai–tâm Dave không làm lệch góc
+  };
+  var touchWeapon = 'harpoon';  // vũ khí đang nằm trên nút bắn lớn: 'harpoon' | 'gun'
+  function mu() { return innerWidth / MUI.ref[0]; }
+
   function onTouchStart(e) {
     document.body.classList.add('touch');
     HX.audio.unlock();
     if (G.phase !== 'dive' || paused) return;
+    var u = mu();
     for (var i = 0; i < e.changedTouches.length; i++) {
       var t = e.changedTouches[i];
-      if (t.clientX < innerWidth * 0.45 && !input.touch.stick) {
+      if (!input.touch.stick && t.clientX < TOUCH.zone[0] * u && innerHeight - t.clientY < TOUCH.zone[1] * u) {
         input.touch.stick = { id: t.identifier, x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY };
         showStick(true);
-      } else if (!input.touch.aim) {
-        input.touch.aim = { id: t.identifier };
-        input.sx = t.clientX; input.sy = t.clientY;
-        input.fireHeld = true; edges.firePressed = true; edges.tap = true;
-      } else edges.tap = true;
+      } else edges.tap = true;  // giằng co: chạm chỗ nào cũng tính một lần giật (như chế độ 全屏 của bản Android)
     }
     e.preventDefault();
   }
@@ -320,15 +330,12 @@
     for (var i = 0; i < e.changedTouches.length; i++) {
       var t = e.changedTouches[i], s = input.touch.stick;
       if (s && t.identifier === s.id) { s.x = t.clientX; s.y = t.clientY; }
-      if (input.touch.aim && t.identifier === input.touch.aim.id) { input.sx = t.clientX; input.sy = t.clientY; }
     }
     e.preventDefault();
   }
   function onTouchEnd(e) {
     for (var i = 0; i < e.changedTouches.length; i++) {
-      var t = e.changedTouches[i];
-      if (input.touch.stick && t.identifier === input.touch.stick.id) { input.touch.stick = null; showStick(false); }
-      if (input.touch.aim && t.identifier === input.touch.aim.id) { input.touch.aim = null; input.fireHeld = false; edges.fireReleased = true; }
+      if (input.touch.stick && e.changedTouches[i].identifier === input.touch.stick.id) { input.touch.stick = null; showStick(false); }
     }
   }
   canvas.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -339,7 +346,7 @@
   function showStick(on) {
     var s = input.touch.stick, el = $('stick');
     el.hidden = !on;
-    if (on) { el.style.left = s.x0 + 'px'; el.style.top = s.y0 + 'px'; }
+    if (on) { el.style.left = s.x0 + 'px'; el.style.top = s.y0 + 'px'; $('stick-knob').style.transform = ''; }
   }
 
   function bindHold(id, on, off) {
@@ -349,14 +356,61 @@
     el.addEventListener('mousedown', function (e) { e.stopPropagation(); on(); });
     el.addEventListener('mouseup', function () { if (off) off(); });
   }
-  bindHold('tb-boost', function () { input.touch.boost = true; }, function () { input.touch.boost = false; });
+  // 加速 là Toggle: chạm bật, chạm lần nữa tắt
+  bindHold('tb-boost', function () { input.touch.boost = !input.touch.boost; });
   bindHold('tb-dash', function () { edges.dash = true; edges.tap = true; });
   bindHold('tb-knife', function () { edges.melee = true; edges.tap = true; });
-  // Nút Nhặt: chỉ hiện khi đứng cạnh xác cá; giữ để xả thịt cá lớn.
+  // Nút tương tác 交互: chỉ hiện khi đứng cạnh xác cá; giữ để xả thịt cá lớn.
   bindHold('tb-grab', function () { edges.interact = true; input.touch.interact = true; }, function () { input.touch.interact = false; });
-  // Nút Súng: giữ là giơ súng và tự nhắm con cá gần nhất trước mặt, thả là bắn.
-  bindHold('tb-gun', function () { input.touch.gun = true; input.gunAuto = true; edges.gunPressed = true; edges.tap = true; },
-    function () { if (input.touch.gun) { input.touch.gun = false; edges.gunReleased = true; } });
+  bindHold('tb-qte', function () { edges.tap = true; });
+  bindHold('tb-switch', function () { if (G.gun && !input.touch.aim) touchWeapon = touchWeapon === 'gun' ? 'harpoon' : 'gun'; });
+
+  // Cần ngắm trên nút bắn (OnScreenStick_Fire, RelativePositionWithStaticOrigin): lệch so với chỗ chạm xuống là hướng ngắm.
+  function aimStart(id, x, y) {
+    if (G.phase !== 'dive' || paused || input.touch.aim) return;
+    var gun = touchWeapon === 'gun' && G.gun;
+    input.touch.aim = { id: id, x0: x, y0: y, x: x, y: y, gun: !!gun, over: false };
+    edges.tap = true;
+    if (gun) { input.touch.gun = true; edges.gunPressed = true; } else { input.fireHeld = true; edges.firePressed = true; }
+  }
+  function aimMove(id, x, y) {
+    var a = input.touch.aim;
+    if (!a || a.id !== id) return;
+    a.x = x; a.y = y;
+    var r = $('tb-cancel').getBoundingClientRect();
+    a.over = x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+  function aimEnd(id) {
+    var a = input.touch.aim;
+    if (!a || a.id !== id) return;
+    input.touch.aim = null;
+    if (a.over) edges.aimCancel = true;
+    if (a.gun) { input.touch.gun = false; edges.gunReleased = true; } else { input.fireHeld = false; edges.fireReleased = true; }
+  }
+  var fireBtn = $('tb-fire');
+  fireBtn.addEventListener('touchstart', function (e) {
+    e.preventDefault(); e.stopPropagation(); HX.audio.unlock();
+    var t = e.changedTouches[0];
+    aimStart(t.identifier, t.clientX, t.clientY);
+  }, { passive: false });
+  fireBtn.addEventListener('touchmove', function (e) {
+    e.preventDefault();
+    for (var i = 0; i < e.changedTouches.length; i++) aimMove(e.changedTouches[i].identifier, e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+  }, { passive: false });
+  function fireTouchEnd(e) { for (var i = 0; i < e.changedTouches.length; i++) aimEnd(e.changedTouches[i].identifier); }
+  fireBtn.addEventListener('touchend', fireTouchEnd);
+  fireBtn.addEventListener('touchcancel', fireTouchEnd);
+  fireBtn.addEventListener('mousedown', function (e) { e.stopPropagation(); aimStart('mouse', e.clientX, e.clientY); });
+  addEventListener('mousemove', function (e) { aimMove('mouse', e.clientX, e.clientY); });
+  addEventListener('mouseup', function () { aimEnd('mouse'); });
+
+  // vector cần (đã qua vùng chết) từ độ lệch px; range tính bằng đơn vị canvas gốc
+  function stickVec(dx, dy, range) {
+    var r = range * mu(), x = dx / r, y = -dy / r, l = Math.hypot(x, y);
+    if (l < TOUCH.dead) return { x: 0, y: 0, l: 0, px: dx, py: dy };
+    var k = Math.min(1, (l - TOUCH.dead) / (TOUCH.deadMax - TOUCH.dead)) / l, c = Math.min(1, 1 / l);
+    return { x: x * k, y: y * k, l: l, px: dx * c, py: dy * c };
+  }
 
   function readInput() {
     var mx = 0, my = 0;
@@ -366,22 +420,44 @@
     if (keys.KeyS || keys.ArrowDown) my -= 1;
     var s = input.touch.stick;
     if (s) {
-      var dx = (s.x - s.x0) / 48, dy = -(s.y - s.y0) / 48, l = Math.hypot(dx, dy);
-      if (l > 1) { dx /= l; dy /= l; }
-      if (l > 0.18) { mx = dx; my = dy; }
-      $('stick-knob').style.transform = 'translate(' + (dx * 34).toFixed(1) + 'px,' + (-dy * 34).toFixed(1) + 'px)';
+      var v = stickVec(s.x - s.x0, s.y - s.y0, TOUCH.stickRange);
+      if (v.l) { mx = v.x; my = v.y; }
+      $('stick-knob').style.transform = 'translate(' + v.px.toFixed(1) + 'px,' + v.py.toFixed(1) + 'px)';
     }
     var l2 = Math.hypot(mx, my);
     if (l2 > 1) { mx /= l2; my /= l2; }
     input.mx = mx; input.my = my;
+    if (G.phase !== 'dive') input.touch.boost = false;
     input.boost = !!(keys.ShiftLeft || keys.ShiftRight) || input.touch.boost;
     input.dash = edges.dash; input.melee = edges.melee; input.tap = edges.tap;
     input.interact = edges.interact; input.interactHeld = !!(keys.KeyE || keys.Space) || input.touch.interact;
-    input.firePressed = edges.firePressed; input.fireReleased = edges.fireReleased;
+    input.firePressed = edges.firePressed; input.fireReleased = edges.fireReleased; input.aimCancel = edges.aimCancel;
     input.gunHeld = mouseGun || input.touch.gun; input.gunPressed = edges.gunPressed; input.gunReleased = edges.gunReleased;
-    var w = gfx.screenToWorld(input.sx, input.sy);
-    input.aimX = w.x; input.aimY = w.y;
-    edges.dash = edges.melee = edges.tap = edges.interact = edges.firePressed = edges.fireReleased = edges.gunPressed = edges.gunReleased = false;
+    var a = input.touch.aim, d = G.diver;
+    if (a && d) {
+      // chưa kéo khỏi vùng chết: xiên chĩa thẳng hướng mặt, súng phụ tự nhắm con gần nhất như nút Súng cũ [ĐỀ XUẤT]
+      var av = stickVec(a.x - a.x0, a.y - a.y0, TOUCH.aimRange), n = Math.hypot(av.x, av.y);
+      input.gunAuto = a.gun && !n;
+      input.aimX = d.pos.x + (n ? av.x / n : d.facing) * TOUCH.reach;
+      input.aimY = d.pos.y + (n ? av.y / n : 0) * TOUCH.reach;
+    } else {
+      var w = gfx.screenToWorld(input.sx, input.sy);
+      input.aimX = w.x; input.aimY = w.y;
+    }
+    edges.dash = edges.melee = edges.tap = edges.interact = edges.firePressed = edges.fireReleased = edges.gunPressed = edges.gunReleased = edges.aimCancel = false;
+  }
+
+  // Trạng thái HUD cảm ứng cho khung này (HX.hud.touch).
+  function touchHud(d) {
+    var a = input.touch.aim, gunOn = touchWeapon === 'gun' && !!G.gun;
+    var harpoon = { icon: 'art/ui/mobile/icon_harpoon.png?v=' + REV, lv: (HX.save.get().gear.harpoon | 0) + 1 };
+    var gun = G.gun && { icon: G.gun.art.icon + '?v=' + REV, lv: G.loadout.gun.lv, ammo: G.gun.ammo, max: G.gun.spec.ammo };
+    var av = a && stickVec(a.x - a.x0, a.y - a.y0, TOUCH.aimRange);
+    return {
+      boost: input.touch.boost, dashK: Math.max(0, d.dashCd) / T.diver.dashCooldown, qte: d.state === 'tug',
+      aim: a ? { x: av.px, y: av.py, over: a.over } : null,
+      fire: gunOn ? gun : harpoon, sub: G.gun ? (gunOn ? harpoon.icon : gun.icon) : null,
+    };
   }
 
   // ---------- tạm dừng & tắt tiếng ----------
@@ -506,8 +582,9 @@
         var th = G.stack.theme;
         HX.hud.area(th.name, th.sub + ' · ' + HX.dive.AREA_NAME[G.stack.layers[0].area]);
         var gun = !!G.gun;
+        touchWeapon = 'harpoon';
         HX.hud.hint(isTouch()
-          ? 'Kéo trái để bơi · giữ bên phải để ngắm, thả để bắn' + (gun ? ' · giữ nút Súng để nhắm cá gần nhất' : '')
+          ? 'Kéo góc trái để bơi · giữ nút xiên, kéo để ngắm, thả để bắn' + (gun ? ' · nút nhỏ cạnh đó đổi sang súng' : '')
           : 'WASD bơi · Shift tăng tốc · Space lướt · giữ chuột trái ngắm, thả bắn' + (gun ? ' · giữ chuột phải: súng' : '') + ' · F: dao · E: nhặt cá');
       },
     },
@@ -664,6 +741,7 @@
       HX.hud.tugAt(s.x, s.y);
       if (input.tap) HX.hud.tugTap();
     }
+    if (G.phase === 'dive' && isTouch()) HX.hud.touch(touchHud(d));
     var hp = G.phase === 'dive' ? d.harvestPrompt() : null;
     if (hp) {
       var hc = hp.fish.center(), hs = gfx.worldToScreen(hc.x, hc.y + hp.fish.hh);  // lời nhắc đứng trên lưng con cá
@@ -726,6 +804,7 @@
   addEventListener('resize', onResize);
   onResize();
   if (matchMedia('(pointer: coarse)').matches) document.body.classList.add('touch');
+  HX.hud.touchLayout();
 
   // ---------- móc chỉ-đọc cho bộ kiểm (test/ho-xanh-suite.js), cộng vài lệnh dàn cảnh ----------
   window.HX_DEBUG = {

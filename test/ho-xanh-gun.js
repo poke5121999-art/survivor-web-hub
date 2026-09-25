@@ -281,13 +281,15 @@ async function run(browser, base, W, H) {
   imgs = await page.evaluate(() => HX.game.gun.firedImgs.slice());
   check('súng phóng lựu đổi đúng đạn GrenadeBullet.png', imgs.length === 1 && imgs[0] === 'art/gear/bullet/GrenadeBullet.png', imgs.join(','));
 
-  // ---- cảm ứng: nút Súng giữ là tự nhắm con gần nhất, thả là bắn ----
+  // ---- cảm ứng (HUD bản Android, chi tiết ở test/ho-xanh-touch.js): nút nhỏ đổi sang súng, nút bắn giữ rồi thả, không kéo là tự nhắm con gần nhất ----
   await page.evaluate(() => { document.body.classList.add('touch'); HX_DEBUG.gun('rifle'); });
   await home();
   const tf = await put('Titan_Triggerfish', 2.2, 0.8);
-  const btn = await page.$('#tb-gun');
-  const bb = await btn.boundingBox();
-  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+  const center = async id => { const b = await (await page.$('#' + id)).boundingBox(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; };
+  let c = await center('tb-switch');
+  await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.mouse.up();
+  c = await center('tb-fire');
+  await page.mouse.move(c.x, c.y);
   await page.mouse.down();
   await sleep(300);
   await shot('touch-aim');
@@ -295,16 +297,18 @@ async function run(browser, base, W, H) {
   await page.waitForFunction(() => HX_DEBUG.info().gun.fired === 1, null, { timeout: 3000 }).catch(() => {});
   await waitShots();
   F = (await fish()).find(f => f.uid === tf);
-  check('nút Súng (cảm ứng): tự nhắm cá gần nhất, trúng', F && F.hp < 16, JSON.stringify(F) + ' ' + JSON.stringify((await info()).gun));
+  check('nút bắn cảm ứng khi đã đổi sang súng: tự nhắm cá gần nhất, trúng', F && F.hp < 16, JSON.stringify(F) + ' ' + JSON.stringify((await info()).gun));
   const lay = await page.evaluate(() => {
     const r = id => document.getElementById(id).getBoundingClientRect();
-    const btns = ['tb-boost', 'tb-dash', 'tb-knife', 'tb-gun'].map(r), g = r('gunbox'), o = r('o2box'), h = r('hint-line');
+    const btns = ['tb-boost', 'tb-dash', 'tb-knife', 'tb-fire', 'tb-switch'].map(r), o = r('o2box'), h = r('hint-line');
     const inside = q => q.left >= 0 && q.top >= 0 && q.right <= innerWidth && q.bottom <= innerHeight;
     const hit = (p, q) => p.left < q.right && q.left < p.right && p.top < q.bottom && q.top < p.bottom;
-    return { inView: btns.every(inside) && inside(g), gunVsO2: hit(g, o), gunVsHint: hit(g, h), btnVsGun: btns.some(q => hit(q, g)), w: btns[3].width };
+    return { inView: btns.every(inside), btnVsO2: btns.some(q => hit(q, o)), btnVsHint: btns.some(q => hit(q, h)), ammo: document.getElementById('tb-fire-ammo').textContent };
   });
-  check('bố cục cảm ứng vừa màn: 4 nút trong khung, ô súng không đè O₂, gợi ý hay nút', lay.inView && !lay.gunVsO2 && !lay.gunVsHint && !lay.btnVsGun, JSON.stringify(lay));
+  check('bố cục cảm ứng vừa màn: 5 nút trong khung, không đè O₂ hay dòng gợi ý, số đạn nằm trên nút bắn', lay.inView && !lay.btnVsO2 && !lay.btnVsHint && lay.ammo === '7/8', JSON.stringify(lay));
   await shot('touch-layout');
+  c = await center('tb-switch');
+  await page.mouse.move(c.x, c.y); await page.mouse.down(); await page.mouse.up();
   await page.evaluate(() => document.body.classList.remove('touch'));
 
   // Chỉ chạy hai bài lặn-lại tốn thời gian này ở một cỡ màn hình (mỗi bài dựng lại nguyên lượt lặn từ đầu).

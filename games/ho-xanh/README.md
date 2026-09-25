@@ -20,14 +20,14 @@ Mọi hình, hoạt ảnh, UI, VFX và tiếng của cano, quán và cửa hàng
 
 | Việc | Bàn phím + chuột | Cảm ứng (ngang máy) |
 |---|---|---|
-| Bơi 8 hướng | WASD hoặc mũi tên | kéo nửa trái màn hình |
-| Tăng tốc (đốt khí nhanh hơn) | Shift | giữ nút **Tăng tốc** |
-| Lướt ngắn | Space (khi không đứng cạnh xác cá) | nút **Lướt** |
-| Ngắm / bắn xiên | giữ chuột trái để ngắm, thả để bắn | giữ nửa phải để ngắm, thả để bắn |
-| Giằng co với cá lớn | bấm liên tục chuột trái hoặc Space | chạm liên tục |
-| Dao | F | nút **Dao** |
-| Nhặt xác cá / xả thịt cá lớn | E hoặc Space cạnh xác; cá lớn giữ 2,2 giây | nút **Nhặt** (chỉ hiện cạnh xác), giữ với cá lớn |
-| Súng phụ | giữ chuột phải để ngắm, thả để bắn | giữ nút **Súng** (tự nhắm cá gần nhất), thả để bắn |
+| Bơi 8 hướng | WASD hoặc mũi tên | chạm góc dưới trái: cần nổi hiện ở chỗ chạm |
+| Tăng tốc (đốt khí nhanh hơn) | Shift | chạm nút tăng tốc để bật, chạm lần nữa để tắt |
+| Lướt ngắn | Space (khi không đứng cạnh xác cá) | nút lướt (vòng tối quét lúc hồi) |
+| Ngắm / bắn xiên | giữ chuột trái để ngắm, thả để bắn | giữ nút bắn lớn, kéo để ngắm, thả để bắn; thả trong ô **Huỷ bắn** góc trên phải là thôi. Không kéo thì bắn thẳng trước mặt |
+| Giằng co với cá lớn | bấm liên tục chuột trái hoặc Space | chạm liên tục nút giằng co (thay chỗ nút bắn) hoặc bất kỳ đâu |
+| Dao | F | nút dao |
+| Nhặt xác cá / xả thịt cá lớn | E hoặc Space cạnh xác; cá lớn giữ 2,2 giây | nút bàn tay (chỉ hiện cạnh xác), giữ với cá lớn |
+| Súng phụ | giữ chuột phải để ngắm, thả để bắn | nút nhỏ cạnh nút bắn đổi xiên ↔ súng; cầm súng mà không kéo thì tự nhắm cá gần nhất |
 | Trong quán | A/D hoặc ←/→ đi; E, Space, Enter bưng món ở quầy hoặc phục vụ khách gần nhất; Q bỏ đĩa cũ nhất. Rót trà: giữ rồi thả khi vòng gần đầy | chạm sàn để đi, chạm món trong hàng chờ để lấy, chạm khách để phục vụ |
 | Tạm dừng / tắt tiếng | P hoặc Esc / M | nút ‖ / nút loa |
 
@@ -64,6 +64,7 @@ Tham số URL:
 | `js/fx.js` | Hạt hiệu ứng theo bảng `KINDS`, và phát lại công thức hạt gốc của súng |
 | `js/hud.js`, `js/audio.js` | DOM phủ trên cảnh; Web Audio |
 | `js/main.js` | Sổ pha và `go()`, dựng lượt lặn theo trang bị, nhập liệu, camera, ánh sáng mỗi khung, móc `window.HX_DEBUG` cho bộ kiểm |
+| `data/mobile_ui.js`, `art/ui/mobile/` | Sinh bởi `tools/rip_mobile.py` từ APK Android 1.0.30 (đọc bundle thẳng trong tệp zip): toạ độ, cỡ nút, số cần điều khiển và sprite của HUD cảm ứng gốc |
 | `tools/route-check.js` | Loang từ chỗ xuống nước qua mọi lộ trình hợp lệ, xác nhận bơi được tới tầng cuối |
 
 ## Máy trạng thái
@@ -152,6 +153,12 @@ Tham số URL:
 
 ### Đợt sửa theo góp ý chủ dự án [ĐO TRONG REPO, 2026-09-25]
 
+- **HUD cảm ứng lấy từ bản Android** (`InGameTouchCanvas` trong `Assets/XD/Prefab/XD_Variant/MainCanvas.prefab`, canvas chuẩn 2340×1080, co theo bề ngang). `hud.js` đặt nút theo toạ độ góc màn hình trong `mobile_ui.js`.
+  - Cần trái là cần nổi (vùng 2400×1800 quanh góc dưới trái, núm đi tối đa 150). Prefab không ghi vùng chết, dùng mặc định 0,125 của Unity Input System [ĐỀ XUẤT].
+  - Bắn là cần ngắm trên nút bắn (đi tối đa 160), không có chạm để bắn. Nút giằng co gốc nhịp 0,333 giây.
+  - Bản Android không có iDiver riêng, không có nút lái cano. Quán dùng hai nửa màn hình để đi và một nút tương tác (`SushiBarTouchCanvas.prefab`), chưa chép sang.
+  - Dữ liệu cá của bản Android trùng từng byte với bản PC ở 65 loài Hố Xanh; bản Android cũng không có bảng sinh cá.
+
 - **Bản gốc không có danh sách loài theo từng bản đồ con.** `FishGroupController` trong mỗi cảnh chỉ mang tên bản đồ. `FishAllocator` chỉ sinh cá nhiệm vụ (TID 2011xxx). Vùng A/B/C theo thư mục Spine đã đúng với danh mục wiki.
   - Lỗi thật nằm ở bộ sinh cá: loài được chọn theo tầng ở y lệch ±12 m, còn con cá đặt ở y thật. Nên cá tầng này tràn sang tầng kia gần ranh giới.
   - Giờ ngày/đêm của từng loài và ngoại lệ A06 lấy từ wiki (`[WIKI]`, `tools/spawn_data.py`).
@@ -188,6 +195,8 @@ node test/ho-xanh-meta.js       # hàm thuần của data/meta.js và chuẩn ho
 node test/ho-xanh-boat.js       # cano tự chạy ra/về khớp khoá clip gốc, phím không có tác dụng, nhảy xuống, 5 chuyến không rò bộ nhớ GPU
 node test/ho-xanh-harvest.js    # giằng co Dave đứng yên và không bị cắn, xác cá nằm lại, nhặt và xả thịt, túi đầy, nút Nhặt
 node test/ho-xanh-spawn.js      # mọi con cá sinh ra đều hợp lệ theo data/fish_spawn.js tại đúng chỗ sinh
+node test/ho-xanh-touch.js      # HUD cảm ứng trên điện thoại giả lập: cần nổi, kéo ngắm, huỷ bắn, giằng co, dao, súng, nhặt xác
+HX_BASE=https://poke5121999-art.github.io/survivor-web-hub node test/ho-xanh-<tên>.js   # chạy cùng bài kiểm trên bản Pages
 node test/ho-xanh-gun.js        # từng khẩu súng bắn trúng cá và bắn đúng đạn gốc, hết đạn, dao ở phím F
 node test/ho-xanh-bar.js        # một ca bán bằng phím và bằng chạm, giá đúng, trà, khách bỏ về, sổ ghi một lần
 node test/ho-xanh-prep.js       # mua khi thiếu tiền bị từ chối, mua/trang bị súng, nâng quán, tải lại còn sổ

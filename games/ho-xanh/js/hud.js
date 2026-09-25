@@ -18,6 +18,20 @@
     return isNew;
   }
 
+  // id phần tử -> [vai trong HX_MOBILE_UI.layout, vai của phần tử cha (con đặt theo tâm cha)]
+  var TOUCH_UI = {
+    'stick': ['stick'], 'stick-knob': ['knob', 'stick'],
+    'tb-dash': ['dashBtn'], 'tb-dash-icon': ['dashIcon', 'dashBtn'], 'tb-dash-cd': ['dashCd', 'dashBtn'],
+    'tb-boost': ['boost'], 'tb-boost-icon': ['boostIcon', 'boost'], 'tb-boost-on': ['boostOn', 'boost'],
+    'tb-knife': ['melee'], 'tb-knife-icon': ['meleeIcon', 'melee'],
+    'tb-grab': ['interact'],
+    'tb-fire': ['fire'], 'tb-fire-icon': ['fireIcon', 'fire'], 'tb-fire-lv': ['fireLevel', 'fire'], 'tb-fire-ammo': ['fireAmmo', 'fire'],
+    'tb-switch': ['switch'], 'tb-aimbg': ['aimBg'], 'tb-aim': ['aim'], 'tb-cancel': ['cancel'],
+    'tb-qte': ['qte'], 'tb-qte-ring': ['qteRing', 'qte'],
+    'btn-pause': ['menu'], 'btn-mute': ['menu'],
+  };
+  function mu(n) { return 'calc(var(--mu) * ' + n.toFixed(1) + ')'; }
+
   var Hud = {
     // max: dưỡng khí tối đa của bình đang đeo (G.loadout.o2)
     o2: function (v, max) {
@@ -158,6 +172,47 @@
       setTimeout(function () { $('r-again').focus(); }, 50);
     },
     hideResult: function () { $('result').hidden = true; },
+
+    // Đặt vị trí và cỡ HUD cảm ứng theo RectTransform gốc (HX_MOBILE_UI.layout, đơn vị canvas 2340 ngang).
+    touchLayout: function () {
+      var L = window.HX_MOBILE_UI && HX_MOBILE_UI.layout;
+      if (!L) return;
+      Object.keys(TOUCH_UI).forEach(function (id) {
+        var el = $(id), r = TOUCH_UI[id], e = L[r[0]], s = e.scale || 1, w = e.w * s, h = e.h * s, p = r[1] && L[r[1]];
+        if (!el) return;
+        el.style.setProperty('--w', mu(w));
+        el.style.setProperty('--h', mu(h));
+        if (p) {
+          // độ lệch tâm con so với tâm cha, trục y hướng xuống
+          var ox = (e.corner[1] === 'r' ? p.dx - e.dx : e.dx - p.dx), oy = (e.corner[0] === 't' ? e.dy - p.dy : p.dy - e.dy);
+          el.style.setProperty('--l', 'calc(50% + ' + mu(ox - w / 2) + ')');
+          el.style.setProperty('--t', 'calc(50% + ' + mu(oy - h / 2) + ')');
+          return;
+        }
+        el.style.setProperty(e.corner[1] === 'r' ? '--r' : '--l', mu(e.dx - w / 2));
+        el.style.setProperty(e.corner[0] === 't' ? '--t' : '--b', mu(e.dy - h / 2));
+      });
+    },
+
+    // Trạng thái HUD cảm ứng mỗi khung. s: { boost, dashK (0..1 hồi chiêu còn lại), qte, aim: null | { x, y (px lệch), over },
+    //   fire: { icon, lv, ammo, max } vũ khí trên nút lớn, sub: icon vũ khí trên nút đổi hoặc null }.
+    touch: function (s) {
+      var c = Hud._tc || (Hud._tc = {}), tc = $('tc');
+      if (c.boost !== s.boost) { c.boost = s.boost; $('tb-boost').classList.toggle('on', s.boost); }
+      var k = (s.dashK * 360).toFixed(0);
+      if (c.k !== k) { c.k = k; $('tb-dash-cd').style.setProperty('--k', k + 'deg'); }
+      if (c.qte !== s.qte) { c.qte = s.qte; tc.classList.toggle('qte', s.qte); }
+      var aim = !!s.aim, over = aim && s.aim.over;
+      if (c.aim !== aim) { c.aim = aim; tc.classList.toggle('aiming', aim); }
+      if (c.over !== over) { c.over = over; tc.classList.toggle('over', over); }
+      if (aim) $('tb-aim').style.transform = 'translate(' + s.aim.x.toFixed(1) + 'px,' + s.aim.y.toFixed(1) + 'px)';
+      var f = s.fire;
+      if (c.icon !== f.icon) { c.icon = f.icon; $('tb-fire-icon').src = f.icon; }
+      var lv = 'Lv.' + f.lv, ammo = f.max ? f.ammo + '/' + f.max : '';
+      if (c.lv !== lv) { c.lv = lv; $('tb-fire-lv').textContent = lv; }
+      if (c.ammo !== ammo) { c.ammo = ammo; $('tb-fire-ammo').textContent = ammo; $('tb-fire-ammo').hidden = !ammo; }
+      if (s.sub && c.sub !== s.sub) { c.sub = s.sub; $('tb-sub-icon').src = s.sub; }
+    },
 
     loading: function (k, label) {
       $('load-fill').style.width = (k * 100).toFixed(1) + '%';

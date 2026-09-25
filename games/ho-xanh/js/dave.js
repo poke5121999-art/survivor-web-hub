@@ -442,6 +442,7 @@
         d.aimAt(inp);
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
         d.swim(dt, inp, T.diver.aimSpeed, 0.6);
+        if (inp.aimCancel) return d.go('swim');  // cảm ứng: thả cần ngắm trong ô Huỷ bắn
         if (inp.fireReleased || !inp.fireHeld) d.data.release = true;
         if (d.data.release && d.st >= T.harpoon.minReady) {
           var tip = d.gunTip();
@@ -537,6 +538,7 @@
         d.aimAt({ aimX: t.x, aimY: t.y });
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
         d.swim(dt, inp, T.diver.aimSpeed, 0.6);
+        if (inp.aimCancel) return d.go('swim');
         if (inp.gunReleased || !inp.gunHeld) d.data.release = true;
         if (d.data.release && d.st >= T.harpoon.minReady) {
           var r = G.gun.trigger(d);
