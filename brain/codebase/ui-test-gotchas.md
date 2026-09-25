@@ -20,3 +20,6 @@
   - Cách tránh: ghi script ra tệp, và chạy lệnh có `|` bằng PowerShell tool.
 - **`/tmp` của Git Bash khác `/tmp` của Python** trên máy này [BẪY ĐÃ SẬP 2026-09-25].
   - `git diff > /tmp/x.patch` rồi `python` mở `/tmp/x.patch` báo không có tệp. Dùng đường dẫn Windows đầy đủ (thư mục scratchpad).
+- **Kiểm input bằng chuột/phím thật (`page.mouse`, `page.keyboard`), đừng chỉ gọi hàm input trong mã** [BẪY ĐÃ SẬP 2026-09-25, Void Diver].
+  - Mọi bài kiểm gọi `VD.input.down(...)` nên đều xanh, trong khi lớp phủ HUD toàn màn nuốt cú bấm: chuột trái/phải không ra đòn trên Pages.
+  - Kèm một phép thử `document.elementFromPoint` ở vài điểm vùng chơi phải ra đúng canvas. Xem `test/voiddiver-input.js`.
