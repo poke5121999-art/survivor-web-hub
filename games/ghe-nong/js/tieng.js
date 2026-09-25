@@ -60,9 +60,18 @@
   }
 
   /* trình duyệt di động chỉ cho phát tiếng sau khi người dùng chạm màn hình */
+  var daNap = false;
   function danhThuc() {
     var c = moCtx();
     if (c && c.state === 'suspended') c.resume();
+    /* `[ĐO TRÊN PAGES]` tải + giải mã lần đầu mất quá 0,25 giây nên G.tieng bỏ tiếng: lần chạm
+       đầu vào mỗi loại nút đều câm. Nạp sẵn mọi tiếng ngoài trận ngay lần chạm đầu tiên. */
+    if (c && !daNap) {
+      daNap = true;
+      Object.keys(BANG).forEach(function (ten) {
+        if (ten.indexOf('tran.') !== 0) BANG[ten].forEach(function (x) { nap(x[0]); });
+      });
+    }
     if (nhacCho) { var n = nhacCho; nhacCho = null; G.nhac(n); }
   }
   window.addEventListener('pointerdown', danhThuc, { passive: true });
