@@ -27,6 +27,8 @@
     // súng xiên và súng phụ dùng chung lớp tay RangeWeaponArm; FightBlendTree chạy RangeWeaponHook nhanh ×2
     AttackDraw: 'RangeWeaponDraw', AttackReady: 'RangeWeaponAim', AttackFire: 'RangeWeaponFire', AttackFireMove: 'RangeWeaponFire_Move',
     AttackFight: 'RangeWeaponHook', AttackFail: 'RangeWeaponMiss',
+    // nhặt / xả thịt xác cá: state PickUpItem, Tanning → TanningAfter, túi đầy thì Overloaded
+    Overloaded: 'Ani2D_Dave_Overloaded',
   };
   ['Side', 'SideUp', 'SideDown', 'Up', 'Down'].forEach(function (v) {
     CLIP['Move' + v] = 'Move' + v;
@@ -251,8 +253,11 @@
     return false;
   };
 
+  // Cá cắn / gai đâm được Dave lúc này không. Trạng thái có `immune` (nhảy xuống, giằng co, trồi lên, ngất) thì không.
+  Diver.prototype.vulnerable = function () { return this.invuln <= 0 && !STATES[this.state].immune; };
+
   Diver.prototype.hurt = function (dmg, fromX, fromY) {
-    if (this.invuln > 0 || this.state === 'dead' || this.state === 'enter' || this.state === 'surfaced') return false;
+    if (!this.vulnerable()) return false;
     var G = this.G;
     this.o2 = Math.max(0, this.o2 - dmg);
     this.invuln = T.diver.invulnTime;
@@ -264,8 +269,27 @@
     // BloodDave.prefab gốc (máu tan trong nước khi Dave bị cắn)
     G.fx.play(G.fx.dive('bloodDave'), this.pos.x, this.pos.y + 0.1 * S, { z: 0.14, name: 'bloodDave' });
     if (this.o2 <= 0) { this.go('dead'); return true; }
-    if (this.state === 'swim' || this.state === 'aim' || this.state === 'melee' || this.state === 'gunAim' || this.state === 'gunFire') this.go('hurt', { big: dmg >= T.diver.bigHurtAt });
+    if (this.state === 'swim' || this.state === 'aim' || this.state === 'melee' || this.state === 'gunAim' || this.state === 'gunFire' || this.state === 'harvest') this.go('hurt', { big: dmg >= T.diver.bigHurtAt });
     return true;
+  };
+
+  // Xác cá gần nhất mà Dave với tới (thân cá nở thêm T.harvest.reach).
+  Diver.prototype.corpseInReach = function () {
+    var list = this.G.fishes.list, best = null, bd = Infinity;
+    for (var i = 0; i < list.length; i++) {
+      var f = list[i];
+      if (!f.corpse() || !f.hitTest(this.pos.x, this.pos.y, T.harvest.reach)) continue;
+      var c = f.center(), dd = Math.hypot(c.x - this.pos.x, c.y - this.pos.y);
+      if (dd < bd) { bd = dd; best = f; }
+    }
+    return best;
+  };
+  // Lời nhắc trên xác cá: { fish, carve, k (0..1 tiến độ xả thịt) } hoặc null.
+  Diver.prototype.harvestPrompt = function () {
+    if (this.state === 'harvest') return this.data.step === 'carve' ? { fish: this.data.fish, carve: true, k: this.data.k } : null;
+    if (this.state !== 'swim') return null;
+    var f = this.corpseInReach();
+    return f ? { fish: f, carve: f.carvable(), k: 0 } : null;
   };
 
   Diver.prototype.update = function (dt, inp) {
@@ -353,6 +377,7 @@
 
   var STATES = {
     enter: {
+      immune: true,
       enter: function (d, G) {
         d.vel.x = 0.4; d.vel.y = -2.6; d.tilt = -1.2;
         d.play('Diving', true);
@@ -372,6 +397,9 @@
       update: function (d, G, dt, inp) {
         var moving = inp.mx !== 0 || inp.my !== 0;
         d.boosting = inp.boost && moving;
+        // Space là nút Interaction của bản gốc: cạnh xác cá thì nhặt / xả thịt thay vì lướt
+        var corpse = inp.interact && d.corpseInReach();
+        if (corpse) return d.go('harvest', { fish: corpse });
         if (inp.dash && d.dashCd <= 0 && moving) return d.go('dash', { mx: inp.mx, my: inp.my });
         if (inp.firePressed && G.harpoon.state === 'ready') return d.go('aim');
         if (inp.gunPressed && G.gun && G.harpoon.state === 'ready') return d.go('gunAim');
@@ -450,6 +478,7 @@
 
     // Giằng co với cá lớn (FightBlendTree gốc: RangeWeaponHook ×2): bấm liên tục để kéo thanh đầy trước khi hết giờ.
     tug: {
+      immune: true,
       enter: function (d, G) {
         d.play('AttackFight', true, 2);
         d.data.gauge = 0.35; d.data.time = T.tug.time;
@@ -462,12 +491,10 @@
         var fish = G.harpoon.fish;
         if (!fish) return d.go('swim');
         d.rig = d.harpoonRig(false);
-        var dx = fish.pos.x - d.pos.x, dy = fish.pos.y - d.pos.y, l = Math.hypot(dx, dy) || 1;
         d.aimAt({ aimX: G.harpoon.x, aimY: G.harpoon.y });
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 8 * dt));
-        // cá kéo Dave đi theo nó
-        d.vel.x += dx / l * T.tug.pull * dt * 3; d.vel.y += dy / l * T.tug.pull * dt * 3;
-        d.swim(dt, { mx: 0, my: 0 }, T.tug.pull);
+        // Dave đứng yên giằng dây; cá chỉ chạy được tới hết dây (hooked giữ nó trong T.harpoon.range)
+        d.vel.x = 0; d.vel.y = 0;
         d.data.time -= dt;
         d.data.gauge -= T.tug.decay * dt;
         if (inp.tap) {
@@ -559,6 +586,51 @@
       },
     },
 
+    // Nhặt / xả thịt xác cá (FishInteractionBody gốc, Dave đứng lại).
+    //   Cá nhỏ: PickupCommand (không chờ) vào túi ngay, Dave chạy một vòng clip PickUp.
+    //   Cá lớn: CarvingCommand, giữ nút T.harvest.carveTime giây với clip Tanning và tiếng Carving lặp, xong thì vào túi và TanningAfter.
+    //   Thả nút giữa chừng là thôi; bị cắn thì sang hurt như state Tanning gốc. Túi đầy: Overloaded, xác cá vẫn nằm đó.
+    harvest: {
+      enter: function (d, G) {
+        var f = d.data.fish;
+        d.boosting = false;
+        d.faceToward(f.center().x - d.pos.x);
+        if (G.catches.length >= G.loadout.cargo) {
+          d.data.step = 'full';
+          d.play('Overloaded', true);
+          G.hud.toast('Túi đầy · phải thả cá đi');
+        } else if (f.carvable()) {
+          d.data.step = 'carve'; d.data.k = 0;
+          d.play('Tanning', true);
+          G.audio.loop('carve', 'carving', 1);
+        } else {
+          d.data.step = 'pick';
+          d.play('PickUp', true);
+          G.catchFish(f);
+        }
+      },
+      exit: function (d, G) { G.audio.stopLoop('carve'); },
+      update: function (d, G, dt, inp) {
+        var f = d.data.fish, step = d.data.step;
+        d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 12 * dt));
+        d.vel.x *= Math.exp(-6 * dt); d.vel.y *= Math.exp(-6 * dt);
+        d.swim(dt, { mx: 0, my: 0 }, T.diver.maxSpeed);
+        if (step === 'carve') {
+          if (!f.corpse() || !inp.interactHeld) return d.go('swim');
+          d.data.k = Math.min(1, d.st / T.harvest.carveTime);
+          if (d.data.k < 1) return;
+          G.audio.stopLoop('carve');
+          G.catchFish(f);
+          d.data.step = 'after'; d.st = 0;
+          d.play('TanningAfter', true);
+          return;
+        }
+        // PickUpItem, TanningAfter, Overloaded gốc chạy hết một vòng clip rồi về Idle
+        var c = clipOf(d.animName);
+        if (d.st >= (c ? c.length : 0.4)) d.go('swim');
+      },
+    },
+
     hurt: {
       enter: function (d) { d.play(d.data.big ? 'Bigdamage' : 'Hit', true); },
       update: function (d, G, dt) {
@@ -570,6 +642,7 @@
 
     // Trồi lên mặt nước: thở phào rồi nổi dập dềnh (Cheer trong sheet là Dave mặc đồ trên bờ nên không dùng).
     surfaced: {
+      immune: true,
       enter: function (d) { d.boosting = false; d.play('Relief', true); },
       update: function (d, G, dt) {
         d.tilt = lerpAngle(d.tilt, 0, Math.min(1, 8 * dt));
@@ -582,6 +655,7 @@
 
     // Ngất: Die (17 khung, 2,33 giây) rồi DieIdle lặp.
     dead: {
+      immune: true,
       enter: function (d, G) {
         d.o2 = 0;
         d.boosting = false;

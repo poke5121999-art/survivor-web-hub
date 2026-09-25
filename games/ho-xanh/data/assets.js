@@ -526,6 +526,33 @@ window.HX_ASSETS = {
      0.5,
      0.5
     ]
+   },
+   "Tanning": {
+    "row": 58,
+    "n": 4,
+    "fps": 8,
+    "pivot": [
+     0.5,
+     0.5
+    ]
+   },
+   "TanningAfter": {
+    "row": 59,
+    "n": 3,
+    "fps": 8,
+    "pivot": [
+     0.5,
+     0.5
+    ]
+   },
+   "Overloaded": {
+    "row": 60,
+    "n": 2,
+    "fps": 6,
+    "pivot": [
+     0.5,
+     0.5
+    ]
    }
   },
   "scale": 2,
@@ -652,6 +679,22 @@ window.HX_ASSETS = {
       1.1667,
       57,
       7
+     ]
+    ]
+   },
+   "Ani2D_Dave_Overloaded": {
+    "length": 0.3333,
+    "loop": true,
+    "frames": [
+     [
+      0.0,
+      60,
+      0
+     ],
+     [
+      0.1667,
+      60,
+      1
      ]
     ]
    },
@@ -2315,6 +2358,53 @@ window.HX_ASSETS = {
     ],
     "nearArm": "ShockArms",
     "behindArm": "ShockRightArm"
+   },
+   "Tanning": {
+    "length": 0.6333,
+    "loop": true,
+    "frames": [
+     [
+      0.0,
+      58,
+      0
+     ],
+     [
+      0.1667,
+      58,
+      1
+     ],
+     [
+      0.3333,
+      58,
+      2
+     ],
+     [
+      0.5,
+      58,
+      3
+     ]
+    ]
+   },
+   "TanningAfter": {
+    "length": 0.7,
+    "loop": false,
+    "frames": [
+     [
+      0.0,
+      59,
+      0
+     ],
+     [
+      0.1667,
+      59,
+      1
+     ],
+     [
+      0.3333,
+      59,
+      2
+     ]
+    ]
    },
    "WaitEscapepod": {
     "length": 2.0,
@@ -4931,6 +5021,18 @@ window.HX_ASSETS = {
   "fx/E_Glow_04A.png": [
    256,
    256
+  ],
+  "ui/Circle_52.png": [
+   52,
+   52
+  ],
+  "ui/Circle_68.png": [
+   68,
+   68
+  ],
+  "ui/Space_Key_Dark.png": [
+   92,
+   54
   ]
  },
  "audio": {
@@ -5068,6 +5170,10 @@ window.HX_ASSETS = {
   },
   "bubble_seahorse": {
    "src": "audio/bubble_seahorse.mp3",
+   "kind": "sfx"
+  },
+  "carving": {
+   "src": "audio/carving.mp3",
    "kind": "sfx"
   }
  },

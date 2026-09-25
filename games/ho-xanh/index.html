@@ -128,7 +128,7 @@ body:not([data-phase="dive"]):not([data-phase="result"]) .hud-btns { opacity: 0;
 
 #vignette { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity .5s; mix-blend-mode: multiply; }
 body.low-o2 #vignette { animation: throb 1.3s ease-in-out infinite; }
-body:not([data-phase="dive"]):not([data-phase="result"]) :is(#vignette, #area, #catch-card, #pod-hint, #tug) { display: none; }
+body:not([data-phase="dive"]):not([data-phase="result"]) :is(#vignette, #area, #catch-card, #pod-hint, #tug, #harvest) { display: none; }
 #suit-warn {
   position: fixed; left: max(10px, env(safe-area-inset-left)); top: calc(max(8px, env(safe-area-inset-top)) + 120px); display: none;
   padding: 4px 10px; border-radius: 8px; background: rgba(90, 14, 10, .72); border: 1px solid rgba(255, 90, 79, .6);
@@ -194,6 +194,22 @@ body.too-deep[data-phase="dive"] #depth { color: var(--red); }
 #tug-timebar { position: absolute; left: -6px; right: -6px; top: calc(100% + 20px); height: 5px; border-radius: 9px; background: rgba(0, 0, 0, .5); overflow: hidden; }
 #tug-time { height: 100%; background: var(--cyan); }
 
+/* ---------- lời nhắc trên xác cá (CuttingInteractionUI gốc: Gauge Circle_68 đen 69%, Bar tô vòng từ đỉnh, IconArea Circle_52 phủ UIGradient, phím 40 px phía trên) ---------- */
+#harvest { --u: max(0.8px, calc(var(--px, 1) * 0.9px)); position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+#harvest[hidden] { display: none; }
+#hv-gauge { display: none; position: absolute; left: calc(-34 * var(--u)); top: calc(-68 * var(--u)); width: calc(68 * var(--u)); height: calc(68 * var(--u)); }
+#harvest.carve #hv-gauge { display: block; }
+#hv-gauge, #hv-bar { -webkit-mask: url(art/ui/Circle_68.png?v=20260925a) center / 100% 100% no-repeat; mask: url(art/ui/Circle_68.png?v=20260925a) center / 100% 100% no-repeat; }
+#hv-gauge { background: rgba(0, 0, 0, .69); }
+#hv-bar { position: absolute; inset: calc(2 * var(--u)); background: conic-gradient(#fff var(--k, 0deg), transparent 0); }
+#hv-disc { position: absolute; inset: calc(8 * var(--u)); display: grid; place-items: center;
+  -webkit-mask: url(art/ui/Circle_52.png?v=20260925a) center / 100% 100% no-repeat; mask: url(art/ui/Circle_52.png?v=20260925a) center / 100% 100% no-repeat;
+  background: linear-gradient(90deg, rgb(219, 45, 77), rgb(182, 53, 156)); }
+#hv-icon { width: calc(40 * var(--u)); height: calc(40 * var(--u)); object-fit: contain; }
+#hv-key { position: absolute; left: calc(-18.5 * var(--u)); top: calc(-24 * var(--u)); width: calc(37 * var(--u)); image-rendering: pixelated; }
+#harvest.carve #hv-key { top: calc(-101 * var(--u)); }
+body.touch #hv-key { display: none; }
+
 /* ---------- kết quả ---------- */
 #result {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5;
@@ -229,6 +245,8 @@ body.touch[data-phase="dive"] #touch-btns { display: flex; }
 #tb-knife { background: rgba(160, 60, 40, .55) !important; }
 #tb-gun { display: none; background: rgba(40, 90, 150, .6) !important; }
 body.has-gun #tb-gun { display: block; }
+#tb-grab { display: none; background: rgba(40, 130, 90, .65) !important; }
+body.can-harvest #tb-grab { display: block; }
 
 /* ---------- súng phụ: icon gốc + số đạn, ngay dưới đồng hồ dưỡng khí ---------- */
 #gunbox {
@@ -329,6 +347,11 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
   <div id="tug-timebar"><div id="tug-time"></div></div>
 </div>
 
+<div id="harvest" hidden>
+  <div id="hv-gauge"><div id="hv-bar"></div><div id="hv-disc"><img id="hv-icon" alt=""></div></div>
+  <img id="hv-key" src="art/ui/Space_Key_Dark.png?v=20260925a" alt="Space">
+</div>
+
 <section id="result" class="panel" hidden>
   <h2 id="r-title"></h2>
   <p id="r-sub"></p>
@@ -353,6 +376,7 @@ body.has-gun #suit-warn { top: calc(max(8px, env(safe-area-inset-top)) + 158px);
   <button id="tb-dash">Lướt</button>
   <button id="tb-knife">Dao</button>
   <button id="tb-gun">Súng</button>
+  <button id="tb-grab">Nhặt</button>
 </div>
 
 <script src="vendor/three-r140.min.js?v=20260925a"></script>

@@ -81,7 +81,6 @@ window.HX_TUNING = {
     tapGain: 0.075,          // [ĐỀ XUẤT] mỗi lần bấm đẩy thanh lên (với cá còn hpRef máu)
     hpRef: 12,               // [ĐỀ XUẤT] cá còn nhiều máu hơn mức này thì mỗi lần bấm được ít hơn (tối thiểu ×0.2)
     decay: 0.16,             // [ĐỀ XUẤT] thanh tụt mỗi giây
-    pull: 1.6,               // [ĐỀ XUẤT] cá kéo Dave đi (m/s)
     perfectAt: 0.55,         // [ĐỀ XUẤT] xong trước mốc thời gian này = "hoàn hảo"
   },
   knife: {
@@ -90,6 +89,14 @@ window.HX_TUNING = {
     time: 0.2619,            // [DtD] clip MeleeOneHandHorizontal (MeleeDaggerAtk01..04) dài 0,2619 giây
     hitAt: 0.1,              // [ĐỀ XUẤT]
     cooldown: 0.4,           // [ĐỀ XUẤT]
+  },
+  // Xác cá sau khi chết rời (dao, súng): Dave bơi lại, bấm Space/E để nhặt, cá lớn thì giữ để xả thịt.
+  harvest: {
+    reach: 0.7,              // [ĐỀ XUẤT] Dave cách thân xác cá trong khoảng này (m) thì nhặt / xả được
+    carveSize: 2,            // [DtD] DR_GameData_Fish: CarvableCount > 0 đúng ba loài FishSizeType 2 (cá mó đầu gù, cá bàng chài đầu bướu, cá khế vây vàng); còn lại PickupCommand
+    carveTime: 2.2,          // [DtD] CarvingCommand.commandDuration (giữ nút)
+    floatSpeed: 0.12,        // [ĐỀ XUẤT] xác nổi lên (m/s); bản gốc có FloatingValueWhenDead nhưng không đọc được số
+    corpseTime: 40,          // [ĐỀ XUẤT] xác tan sau chừng này giây; CommonFishProperties.disapperDuration gốc không đọc được
   },
   fish: {
     pxToUnit: 0.01,          // [DtD] cùng mật độ điểm ảnh với Dave

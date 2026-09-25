@@ -35,6 +35,7 @@
     this.ammo = spec.ammo;
     this.cd = 0;
     this.shots = [];
+    this.firedImgs = [];   // ảnh đạn mỗi phát, sống lâu hơn viên đạn: bộ kiểm đọc để xác nhận đổi súng thì đổi đúng đạn
     this.fired = 0; this.hits = 0;
     this.caught = 0;
     this.pull = 0;
@@ -113,7 +114,8 @@
     mesh.position.set(x, y, 0.16);
     mesh.rotation.z = a;
     G.gfx.scene.add(mesh);
-    var s = { x: x, y: y, vx: Math.cos(a) * sp.speed, vy: Math.sin(a) * sp.speed, traveled: 0, t: 0, mesh: mesh, hit: {}, alive: true };
+    var s = { x: x, y: y, vx: Math.cos(a) * sp.speed, vy: Math.sin(a) * sp.speed, traveled: 0, t: 0, mesh: mesh, hit: {}, alive: true, img: P.img };
+    this.firedImgs.push(P.img);
     s.trail = P.trail ? G.fx.play(P.trail, x, y, { angle: a, z: 0.15, name: 'trail', follow: function () {
       return s.alive ? { x: s.x, y: s.y, angle: Math.atan2(s.vy, s.vx) } : null;
     } }) : null;
@@ -176,8 +178,7 @@
       return this.kill(s);
     }
     G.fx.play(VFX[this.art.impact], s.x, s.y, { z: f.z + 0.2, angle: Math.atan2(s.vy, s.vx), name: 'hit' });
-    var res = f.damage(sp.dmg, s.x - s.vx * 0.05, s.y - s.vy * 0.05, false);
-    if (res === 'dead') f.go('dying', { magnet: true });
+    f.damage(sp.dmg, s.x - s.vx * 0.05, s.y - s.vy * 0.05, false);
     G.hitstop(0.04);
     if (!sp.pierce) this.kill(s);
   };
@@ -230,8 +231,7 @@
       var c = f.center();
       if (Math.hypot(c.x - x, c.y - y) > sp.blast + f.radius) return;
       if (f.state === 'hooked') return;
-      var res = f.damage(sp.dmg, x, y, false);
-      if (res === 'dead') f.go('dying', { magnet: true });
+      f.damage(sp.dmg, x, y, false);
     });
   };
 

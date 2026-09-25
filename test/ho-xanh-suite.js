@@ -116,7 +116,7 @@ async function run(browser, base, W, H) {
   // Chỗ thả gốc ở sát vách trái (x=−57); camera từng bị chặn ở x=−43,7 nên Dave rơi ra ngoài màn hình.
   const ds = await page.evaluate(() => { const d = HX_DEBUG.info().dave; return HX_DEBUG.worldToScreen(d.x, d.y); });
   check('vừa xuống nước đã thấy Dave trong khung hình', ds.x > 0 && ds.x < W && ds.y > 0 && ds.y < H, Math.round(ds.x) + ',' + Math.round(ds.y));
-  check('giải mã đủ 34 tệp tiếng gốc', I.sounds === 34, String(I.sounds));
+  check('giải mã đủ 35 tệp tiếng gốc', I.sounds === 35, String(I.sounds));
   // Ghi lại tên tiếng được gọi để biết đòn xiên có nối đúng tiếng.
   await page.evaluate(() => { const orig = HX.audio.play; window.__played = []; HX.audio.play = function (k, o) { window.__played.push(k); return orig(k, o); }; });
   await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 5000 });
@@ -230,14 +230,19 @@ async function run(browser, base, W, H) {
   });
   check('cá bò titan hướng sang phải thì đầu nằm bên phải đuôi', heading.head > heading.tail, JSON.stringify(heading));
 
-  // Dao: cá hề 3 máu, dao gốc cấp 0 3 sát thương → một nhát là cá chết và trôi về tay Dave.
+  // Dao: cá hề 3 máu, dao gốc cấp 0 3 sát thương → một nhát là cá chết, thành xác nằm đó; bấm E mới nhặt vào túi.
   const d1 = (await info()).dave;
   const face = await page.evaluate(() => HX.game.diver.facing);
-  await page.evaluate(([x, y]) => HX_DEBUG.spawnFish('ClownFish', x, y, true), [d1.x + face * 0.4, d1.y + 0.05]);
+  const kuid = await page.evaluate(([x, y]) => HX_DEBUG.spawnFish('ClownFish', x, y, true), [d1.x + face * 0.4, d1.y + 0.05]);
   await page.keyboard.press('KeyF');
-  await page.waitForFunction(() => HX_DEBUG.info().catches.length === 2, null, { timeout: 4000 }).catch(() => {});
+  await sleep(600);
   I = await info();
-  check('một nhát dao (F) hạ được cá hề thứ hai', JSON.stringify(I.catches) === '["ClownFish","ClownFish"]', JSON.stringify(I.catches));
+  const kf = (await page.evaluate(() => HX_DEBUG.fishAt())).find(f => f.uid === kuid);
+  check('một nhát dao (F) hạ cá hề thứ hai: thành xác, chưa vào túi', kf && (kf.state === 'dying' || kf.state === 'dead') && I.catches.length === 1, JSON.stringify(kf) + ' ' + JSON.stringify(I.catches));
+  await page.keyboard.press('KeyE');
+  await page.waitForFunction(() => HX_DEBUG.info().catches.length === 2, null, { timeout: 2000 }).catch(() => {});
+  I = await info();
+  check('bấm E cạnh xác cá hề: nhặt vào túi', JSON.stringify(I.catches) === '["ClownFish","ClownFish"]', JSON.stringify(I.catches));
   const played2 = await page.evaluate(() => window.__played);
   check('dao phát tiếng vung và tiếng trúng', played2.includes('knife') && played2.includes('melee_hit'), played2.slice(-6).join(','));
 

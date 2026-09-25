@@ -102,6 +102,20 @@
       var el = $('tug');
       el.classList.remove('tap'); void el.offsetWidth; el.classList.add('tap');
     },
+    // Lời nhắc trên xác cá (CuttingInteractionUI gốc). p: { x, y (px màn hình, tâm xác), carve, k (0..1), icon } hoặc null.
+    // Nhặt: chỉ phím Space phía trên. Xả thịt: thêm vòng Gauge đầy dần theo k quanh đĩa có hình con cá.
+    // Có xác trong tầm thì body.can-harvest bật nút Nhặt trên màn cảm ứng.
+    harvest: function (p) {
+      var el = $('harvest'), on = !!p;
+      if (Hud._hv !== on) { Hud._hv = on; el.hidden = !on; document.body.classList.toggle('can-harvest', on); }
+      if (!on) return;
+      el.style.transform = 'translate(' + Math.round(p.x) + 'px,' + Math.round(p.y) + 'px)';
+      el.classList.toggle('carve', !!p.carve);
+      if (p.carve) {
+        $('hv-bar').style.setProperty('--k', (p.k * 360).toFixed(1) + 'deg');
+        if (p.icon && Hud._hvIcon !== p.icon) { Hud._hvIcon = p.icon; $('hv-icon').src = p.icon; }
+      }
+    },
     qteResult: function (ok, perfect) {
       Hud.toast(ok ? (perfect ? 'Hoàn hảo!' : 'Kéo được rồi!') : 'Cá giật đứt ra mất…');
     },

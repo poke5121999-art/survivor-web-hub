@@ -155,7 +155,19 @@
     return ex * ex + ey * ey <= 1;
   };
 
-  Fish.prototype.alive = function () { return this.state !== 'dying' && this.state !== 'reeled'; };
+  // Còn bơi, còn đánh trúng được. Trạng thái `limp` (chết, bị dây kéo, đang tan) thì không.
+  Fish.prototype.alive = function () { return !FISH_STATES[this.state].limp; };
+  // Xác cá Dave nhặt hoặc xả thịt được.
+  Fish.prototype.corpse = function () { return !!FISH_STATES[this.state].corpse; };
+  // Cá lớn phải xả thịt; còn lại nhặt.
+  Fish.prototype.carvable = function () { return this.sp.size >= T.harvest.carveSize; };
+
+  // Luật duy nhất cho cá chết: chết trên dây xiên thì dây kéo về túi (hauled);
+  // chết rời (dao, súng) thì thành xác trôi trong nước (dying → dead), Dave phải bơi lại nhặt hoặc xả thịt như bản gốc.
+  Fish.prototype.die = function (onRope) {
+    this.hp = 0;
+    this.go(onRope ? 'hauled' : 'dying');
+  };
 
   // Đạn gây mê: cá ngủ, đứng yên tại chỗ trong t giây. Mắc xiên hay đã chết thì không ngủ được.
   Fish.prototype.sleep = function (t) {
@@ -170,7 +182,7 @@
     this.flashT = 0.12;
     var G = this.G, c = this.center();
     G.fx.spawn('blood', c.x, c.y, this.z + 0.05, 0, 0, 0.6 + this.sp.size * 0.4);
-    if (this.hp <= 0) { this.hp = 0; return 'dead'; }
+    if (this.hp <= 0) { this.die(byHarpoon); return 'dead'; }
     if (byHarpoon && this.sp.size >= T.tug.minSize && this.hp <= this.maxHp * T.tug.triggerHpFrac) return 'tug';
     if (isPuffer(this.sp)) { this.go('defend'); return 'alive'; }
     if (this.sp.damage > 0) { this.angry = FT.angryTime; this.go('chase'); }
@@ -224,10 +236,11 @@
     var idle = this.state === 'wander' || this.state === 'flee' || this.state === 'chase' || this.state === 'defend';
     if (!(this.frozen && idle)) FISH_STATES[this.state].update(this, G, dt);
 
-    if (!isJelly(this.sp) && this.state !== 'dying' && this.state !== 'reeled' && Math.abs(this.vel.x) > 0.05) this.facing = this.vel.x > 0 ? 1 : -1;
+    var limp = FISH_STATES[this.state].limp;
+    if (!isJelly(this.sp) && !limp && Math.abs(this.vel.x) > 0.05) this.facing = this.vel.x > 0 ? 1 : -1;
     this.flip += (this.facing - this.flip) * Math.min(1, dt * 12);
     var tilt = 0;
-    if (!isJelly(this.sp) && this.sp.id !== 'Seahorse' && this.state !== 'dying' && this.state !== 'reeled') {
+    if (!isJelly(this.sp) && this.sp.id !== 'Seahorse' && !limp) {
       tilt = Math.atan2(this.vel.y, Math.abs(this.vel.x) + 0.3) * 0.7;
       tilt = Math.max(-0.6, Math.min(0.6, tilt));
     }
@@ -289,7 +302,7 @@
         var c = f.center();
         f.steer(d.pos.x, d.pos.y, f.speed * FT.sprintMul * 0.55, dt, 3);
         f.integrate(dt);
-        if (f.biteCd <= 0 && Math.hypot(d.pos.x - c.x, d.pos.y - c.y) < FT.biteRange + f.radius) {
+        if (f.biteCd <= 0 && d.vulnerable() && Math.hypot(d.pos.x - c.x, d.pos.y - c.y) < FT.biteRange + f.radius) {
           f.biteCd = FT.biteCooldown;
           if (f.sp.anims.bite != null) { f.mesh.state.setAnimation(0, 'bite', false); f.anim = 'bite'; f.mesh.state.addAnimation(0, animFor(f.sp, 'sprint'), true, 0); }
           if (d.hurt(f.sp.damage, c.x, c.y)) f.vel.x *= -0.6;
@@ -340,27 +353,51 @@
         var wig = Math.sin(f.st * 9) * 0.8;
         f.steer(f.pos.x + dx / l * 2 - dy / l * wig, f.pos.y + dy / l * 2 + dx / l * wig, f.speed * 1.8, dt, 5);
         f.integrate(dt);
+        // hết dây thì dừng lại; Dave không bị kéo đi
+        dx = f.pos.x - d.pos.x; dy = f.pos.y - d.pos.y; l = Math.hypot(dx, dy) || 1;
         var max = T.harpoon.range;
         if (l > max) { f.pos.x = d.pos.x + dx / l * max; f.pos.y = d.pos.y + dy / l * max; }
       },
     },
 
-    // Chết: phát hoạt ảnh die, bị dây xiên hoặc tay Dave kéo về.
-    dying: {
+    // Chết trên dây xiên: phát hoạt ảnh die, harpoon.js kéo về tay Dave.
+    hauled: {
+      limp: true,
       enter: function (f) { f.setAnim('die', false, 1); f.vel.x = 0; f.vel.y = 0; f.leader = null; },
+      update: function () {},
+    },
+
+    // Chết rời (FishDyingSequence gốc): phát hết hoạt ảnh die, trôi chậm lại rồi thành xác.
+    // Loài không có hoạt ảnh die thì đứng hình ngay.
+    dying: {
+      limp: true, corpse: true,
+      enter: function (f) {
+        f.leader = null; f.target = null;
+        var has = f.sp.anims.die != null;
+        f.setAnim('die', false, has ? 1 : 0);
+        f.data.len = has ? f.sp.anims.die : 0;
+      },
       update: function (f, G, dt) {
-        if (f.data.magnet) {
-          var d = G.diver;
-          if (f.st > 0.45) {
-            var l = f.steer(d.pos.x, d.pos.y, 5, dt, 8);
-            f.pos.x += f.vel.x * dt; f.pos.y += f.vel.y * dt;
-            if (l < 0.3) G.catchFish(f);
-          }
-        }
+        f.vel.x *= Math.exp(-3 * dt); f.vel.y *= Math.exp(-3 * dt);
+        f.integrate(dt);
+        if (f.st >= f.data.len) f.go('dead');
       },
     },
 
+    // Xác cá: giữ dáng cuối của die, nổi lên từ từ (FloatingValueWhenDead gốc), quá T.harvest.corpseTime thì tan (DeadAndDisappear).
+    dead: {
+      limp: true, corpse: true,
+      enter: function (f) { f.vel.x = 0; f.vel.y = 0; },
+      update: function (f, G, dt) {
+        f.vel.x = 0; f.vel.y = T.harvest.floatSpeed;
+        f.integrate(dt);
+        if (f.st >= T.harvest.corpseTime) f.go('reeled');
+      },
+    },
+
+    // Vào túi hoặc tan đi: mờ dần 0,2 giây rồi bộ sinh cá gỡ khỏi cảnh.
     reeled: {
+      limp: true,
       enter: function (f) { f.leader = null; },
       update: function (f, G, dt) {
         f.fu.opacity.value = Math.max(0, 1 - f.st / 0.2);
@@ -447,8 +484,7 @@
       hit = true;
       var c = f.center();
       G.fx.spawn('hit', c.x, c.y, f.z + 0.1, 0, 0, 0.6);
-      var res = f.damage(dmg, x, y, false);
-      if (res === 'dead') f.go('dying', { magnet: true });
+      f.damage(dmg, x, y, false);
     });
     if (hit) { G.audio.play('melee_hit'); G.shake(0.5); }
   };

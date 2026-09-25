@@ -138,6 +138,8 @@ async function run(browser, base, W, H) {
   check('súng trường: cá bò titan (16 máu) trúng một viên còn 1 máu', F && F.hp === 1 && F.state !== 'dying', JSON.stringify(F));
   I = await info();
   check('súng trường: còn 7/8 viên, HUD 7/8', I.gun.ammo === 7 && (await page.textContent('#gun-ammo')) === '7/8', I.gun.ammo + ' ' + await page.textContent('#gun-ammo'));
+  let imgs = await page.evaluate(() => HX.game.gun.firedImgs.slice());
+  check('súng trường bắn đúng đạn gốc Bullet.png (GunSpecData_Normal_UnderwaterRifle bulletReference)', imgs.length === 1 && imgs[0] === 'art/gear/bullet/Bullet.png', imgs.join(','));
   let snd = await played();
   check('súng trường phát tiếng bắn và tiếng trúng gốc', snd.includes('gun_rifle_shot') && snd.includes('gun_rifle_hit'), snd.join(','));
   check('hiệu ứng gốc: lửa nòng, vệt bọt đạn, máu trúng', ['muzzle', 'trail', 'hit'].every(n => I.fx.includes(n)) || snd.includes('gun_rifle_hit'), I.fx.join(','));
@@ -147,10 +149,12 @@ async function run(browser, base, W, H) {
   await home();
   await put('ClownFish', 0.6, 0.05);
   await page.keyboard.press('KeyF');
+  await page.waitForFunction(() => HX_DEBUG.fishAt().some(f => f.state === 'dying' || f.state === 'dead') && HX_DEBUG.info().dave.state === 'swim', null, { timeout: 2000 }).catch(() => {});
+  await page.keyboard.press('KeyE');
   await page.waitForFunction(() => HX_DEBUG.info().catches.length === 1, null, { timeout: 4000 }).catch(() => {});
   I = await info();
   snd = await played();
-  check('F vẫn là dao: một nhát 3 sát thương (dao gốc cấp 0) hạ cá hề', JSON.stringify(I.catches) === '["ClownFish"]' && snd.includes('knife'), JSON.stringify(I.catches) + ' ' + snd.join(','));
+  check('F vẫn là dao: một nhát 3 sát thương (dao gốc cấp 0) hạ cá hề, E nhặt xác', JSON.stringify(I.catches) === '["ClownFish"]' && snd.includes('knife'), JSON.stringify(I.catches) + ' ' + snd.join(','));
 
   // ---- hết đạn ----
   await home();
@@ -191,6 +195,11 @@ async function run(browser, base, W, H) {
   }
   snd = await played();
   check('súng hoa cải phát tiếng gốc', snd.includes('gun_shotgun_shot'), snd.join(','));
+  imgs = await page.evaluate(() => HX.game.gun.firedImgs.slice());
+  check('súng hoa cải bắn Bullet.png giống súng trường (GunSpecData_Normal_TripleAxel.bulletReference = cùng GUID Bullet.prefab với UnderwaterRifle, đo trong gunspecs.json)',
+    imgs.length === 3 && imgs.every(i => i === 'art/gear/bullet/Bullet.png'), imgs.join(','));
+  const heldRifleVsShotgun = await page.evaluate(() => HX_BOAT_ASSETS.guns.rifle.held.img !== HX_BOAT_ASSETS.guns.shotgun.held.img);
+  check('nhưng khẩu cầm tay khác nhau: BasicRifle.png ≠ VolleyJetGun.png', heldRifleVsShotgun);
 
   // ---- súng bắn tỉa: xuyên hai con thẳng hàng ----
   await page.evaluate(() => HX_DEBUG.gun('sniper'));
@@ -202,6 +211,8 @@ async function run(browser, base, W, H) {
   const a = fs2.find(f => f.uid === s1), b = fs2.find(f => f.uid === s2);
   check('súng bắn tỉa: một viên xuyên qua hai cá bò titan thẳng hàng, cả hai chết (32 ≥ 16)', a && b && a.state === 'dying' && b.state === 'dying' && (await info()).gun.fired === 1,
     JSON.stringify([a && a.state, b && b.state]));
+  imgs = await page.evaluate(() => HX.game.gun.firedImgs.slice());
+  check('súng bắn tỉa đổi đúng đạn PierceBullet.png (khác Bullet.png của súng trường)', imgs.length === 1 && imgs[0] === 'art/gear/bullet/PierceBullet.png', imgs.join(','));
 
   // ---- súng gây mê: cá ngủ đứng yên ----
   await page.evaluate(() => HX_DEBUG.gun('sleep'));
@@ -223,6 +234,8 @@ async function run(browser, base, W, H) {
   await shot('sleep-zz');
   snd = await played();
   check('súng gây mê phát tiếng bắn và tiếng trúng gốc', snd.includes('gun_sleep_shot') && snd.includes('gun_sleep_hit'), snd.join(','));
+  imgs = await page.evaluate(() => HX.game.gun.firedImgs.slice());
+  check('súng gây mê đổi đúng đạn TranquilizerBullet.png', imgs.length === 1 && imgs[0] === 'art/gear/bullet/TranquilizerBullet.png', imgs.join(','));
 
   // ---- súng lưới: bắt sống cá nhỏ vào túi, tôn trọng túi ----
   await page.evaluate(() => HX_DEBUG.gun('net'));
@@ -234,6 +247,9 @@ async function run(browser, base, W, H) {
   check('súng lưới: lưới bung ra bắt cả 3 con vào túi', I.catches.length === 3 && I.gun.caught === 3, JSON.stringify(I.catches));
   snd = await played();
   check('súng lưới phát tiếng bắn, bung lưới và thu lưới gốc', ['gun_net_shot', 'gun_net_hit', 'gun_net_collect'].every(k => snd.includes(k)), snd.join(','));
+  imgs = await page.evaluate(() => HX.game.gun.firedImgs.slice());
+  // sprite bên trong NetBullet_SSize.prefab tên "NetBullet" (khác tên tệp prefab)
+  check('súng lưới đổi đúng đạn NetBullet.png (từ prefab NetBullet_SSize)', imgs.length === 1 && imgs[0] === 'art/gear/bullet/NetBullet.png', imgs.join(','));
   await sleep(500);
   await home();
   await page.evaluate(() => { const G = HX.game; while (G.catches.length < G.loadout.cargo - 1) G.catches.push('ClownFish'); });
@@ -262,6 +278,8 @@ async function run(browser, base, W, H) {
   check('con ở xa 5 m ngoài vùng nổ vẫn sống', farF && farF.state !== 'dying' && farF.hp === 3, JSON.stringify(farF));
   snd = await played();
   check('súng phóng lựu phát tiếng bắn và tiếng nổ gốc', snd.includes('gun_grenade_shot') && snd.includes('gun_grenade_hit'), snd.join(','));
+  imgs = await page.evaluate(() => HX.game.gun.firedImgs.slice());
+  check('súng phóng lựu đổi đúng đạn GrenadeBullet.png', imgs.length === 1 && imgs[0] === 'art/gear/bullet/GrenadeBullet.png', imgs.join(','));
 
   // ---- cảm ứng: nút Súng giữ là tự nhắm con gần nhất, thả là bắn ----
   await page.evaluate(() => { document.body.classList.add('touch'); HX_DEBUG.gun('rifle'); });
@@ -287,6 +305,70 @@ async function run(browser, base, W, H) {
   });
   check('bố cục cảm ứng vừa màn: 4 nút trong khung, ô súng không đè O₂, gợi ý hay nút', lay.inView && !lay.gunVsO2 && !lay.gunVsHint && !lay.btnVsGun, JSON.stringify(lay));
   await shot('touch-layout');
+  await page.evaluate(() => document.body.classList.remove('touch'));
+
+  // Chỉ chạy hai bài lặn-lại tốn thời gian này ở một cỡ màn hình (mỗi bài dựng lại nguyên lượt lặn từ đầu).
+  if (W === 1280) {
+    // ---- đổi súng qua sổ/UI iDiver rồi LẶN LẠI (không dùng HX_DEBUG.gun): Gun cũ phải bị bỏ, dựng lại đúng khẩu + đạn mới ----
+    check('trước khi đổi: đang mang rifle', (await info()).gun.id === 'rifle');
+    await page.evaluate(() => HX.save.commit(s => { s.gold += 1000; return s; }));  // súng bắn tỉa giá 50, sổ mới có 0 vàng
+    await page.evaluate(() => HX.save.commit(s => HX_META.buyGun(s, 'sniper').save));
+    await page.evaluate(() => HX.save.commit(s => HX_META.equipGun(s, 'sniper').save));
+    const S2 = await page.evaluate(() => HX_DEBUG.save());
+    check('sổ ghi equipped = sniper', S2.guns.equipped === 'sniper', JSON.stringify(S2.guns));
+    await page.evaluate(() => HX_DEBUG.go('prep'));
+    await page.waitForFunction(() => HX_DEBUG.info().phase === 'prep');
+    await page.click('#prep-go');
+    await page.click('#boat-skip');
+    await page.waitForFunction(() => HX_DEBUG.info().phase === 'dive', null, { timeout: 90000 });
+    await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 8000 });
+    I = await info();
+    check('lặn lại: G.gun dựng lại từ sổ, không phải Gun cũ giữ lại (id = sniper, đạn đầy 3/3, chưa bắn phát nào)',
+      I.gun && I.gun.id === 'sniper' && I.gun.ammo === 3 && I.gun.fired === 0, JSON.stringify(I.gun));
+    await page.evaluate(() => { HX_DEBUG.holdSpawns(true); HX_DEBUG.clearFish(); });
+    await home();
+    await put('Titan_Triggerfish', 3, 0.1);
+    await fire(3, 0.1, 'redive-sniper', 60);
+    await waitShots();
+    const imgsRedive = await page.evaluate(() => HX.game.gun.firedImgs.slice());
+    check('sau khi đổi súng ở iDiver và lặn lại: bắn ra đúng PierceBullet.png (không phải Bullet.png của rifle cũ)',
+      imgsRedive.length === 1 && imgsRedive[0] === 'art/gear/bullet/PierceBullet.png', imgsRedive.join(','));
+
+    // ---- súng xiên: đổi cấp qua sổ đổi khẩu cầm tay; mũi xiên bay KHÔNG đổi (bản gốc chỉ một sprite HarpoonProjectile
+    // cho mọi HarpoonHead — đo trong prefab NormalHarpoonHead..SleepHarpoonHead, cả 8 loại đều 33×5 px, chung tên "HarpoonProjectile") ----
+    await page.evaluate(() => HX_DEBUG.go('prep'));
+    await page.waitForFunction(() => HX_DEBUG.info().phase === 'prep');
+    await page.evaluate(() => HX.save.commit(s => { s.gear.harpoon = 0; return s; }));
+    await page.click('#prep-go');
+    await page.click('#boat-skip');
+    await page.waitForFunction(() => HX_DEBUG.info().phase === 'dive', null, { timeout: 90000 });
+    await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 8000 });
+    await page.evaluate(() => { HX_DEBUG.holdSpawns(true); HX_DEBUG.clearFish(); });
+    await home();
+    const heldLo = await page.evaluate(() => HX.game.diver.harpoonGun && HX.game.diver.harpoonGun.name);
+    const spearSrcLo = await page.evaluate(() => HX.game.harpoon.mesh.material.uniforms.map.value.image.src);
+    check('súng xiên cấp 0 (sổ mặc định): khẩu cầm tay OldHarpoonGun [DtD SubEquipment harpoon lv1]', heldLo === 'OldHarpoonGun', heldLo);
+    // giữ chuột trái ngắm để lớp tay + súng xiên hiện ra (ẩn lúc không ngắm), chụp rồi thả tay không bắn
+    { const p = await page.evaluate(([x, y]) => HX_DEBUG.worldToScreen(x, y), [spot.x + 3, spot.y]);
+      await page.mouse.move(p.x, p.y); await page.mouse.down(); await sleep(320); await shot('harpoon-lv0'); await page.mouse.up(); await sleep(100); }
+
+    await page.evaluate(() => HX_DEBUG.go('prep'));
+    await page.waitForFunction(() => HX_DEBUG.info().phase === 'prep');
+    await page.evaluate(() => HX.save.commit(s => { s.gear.harpoon = 5; return s; }));
+    await page.click('#prep-go');
+    await page.click('#boat-skip');
+    await page.waitForFunction(() => HX_DEBUG.info().phase === 'dive', null, { timeout: 90000 });
+    await page.waitForFunction(() => HX_DEBUG.info().dave.state === 'swim', null, { timeout: 8000 });
+    await page.evaluate(() => { HX_DEBUG.holdSpawns(true); HX_DEBUG.clearFish(); });
+    await home();
+    const heldHi = await page.evaluate(() => HX.game.diver.harpoonGun && HX.game.diver.harpoonGun.name);
+    const spearSrcHi = await page.evaluate(() => HX.game.harpoon.mesh.material.uniforms.map.value.image.src);
+    check('súng xiên cấp cao nhất (5): khẩu cầm tay đổi thành AlloyHarpoonGun [DtD SubEquipment harpoon lv6]', heldHi === 'AlloyHarpoonGun', heldHi);
+    check('khẩu cầm tay đổi ảnh giữa hai cấp (OldHarpoonGun.png ≠ AlloyHarpoonGun.png)', !!heldLo && !!heldHi && heldLo !== heldHi, heldLo + ' vs ' + heldHi);
+    check('mũi xiên bay KHÔNG đổi giữa hai cấp — bản gốc không có', !!spearSrcLo && spearSrcLo === spearSrcHi, spearSrcLo + ' | ' + spearSrcHi);
+    { const p = await page.evaluate(([x, y]) => HX_DEBUG.worldToScreen(x, y), [spot.x + 3, spot.y]);
+      await page.mouse.move(p.x, p.y); await page.mouse.down(); await sleep(320); await shot('harpoon-lv5'); await page.mouse.up(); await sleep(100); }
+  }
 
   check('không có lỗi trang, lỗi console hay tải hỏng', errors.length === 0, errors.slice(0, 5).join(' | '));
   await page.close();

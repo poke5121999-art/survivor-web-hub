@@ -69,16 +69,16 @@
     this.state = 'stuck';
     this.fish = f;
     this.off = { x: (this.x - f.pos.x) * f.facing, y: this.y - f.pos.y };
-    if (res === 'dead') { f.go('dying'); G.diver.go('reel'); }
+    // damage() đã chuyển cá chết sang 'hauled' (chết trên dây, xem Fish.prototype.die)
+    if (res === 'dead') G.diver.go('reel');
     else { f.go('hooked'); G.diver.go('tug'); }
   };
 
   Harpoon.prototype.killHooked = function () {
     var f = this.fish;
     if (!f) return;
-    f.hp = 0;
     f.flashT = 0.15;
-    f.go('dying');
+    f.die(true);
     this.G.fx.play(this.G.fx.dive('bloodFatal'), this.x, this.y, { z: f.z + 0.1, name: 'bloodFatal' });
   };
 

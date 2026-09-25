@@ -83,6 +83,8 @@ DAVE = {
     #   RangeWeaponShock bị giật: tay ShockArms/ShockRightArm; RangeWeaponFire_Move bắn khi đang bơi: thân UVLight_Move01..08.
     'Prepare': 10, 'AttackFight': 27, 'AttackFail': 10, 'AttackFailArms': 1, 'AttackFailRightArm': 1,
     'ShockArms': 1, 'ShockRightArm': 1, 'UVLight_Move': 6,
+    # Xả thịt cá lớn (state Tanning của PlayerAnimCtrl, trigger Carving), xong thì TanningAfter; túi đầy thì Overloaded.
+    'Tanning': 8, 'TanningAfter': 8, 'Overloaded': 6,
 }
 # Súng xiên cầm tay theo cấp súng xiên trong bảng SubEquipment (icon iDiver_Icon_<X>HarpoonGun ↔ prefab <X>HarpoonGunTemplate).
 HARPOON_GUNS = ['OldHarpoonGun', 'HarpoonGun', 'PumpHarpoonGun', 'MermanHarpoonGun', 'NewMVHarpoonGun', 'AlloyHarpoonGun']
@@ -155,6 +157,7 @@ AUDIO = {
     'qte_fail': ('sound_QTE_fail_01', 'sfx'),
     'qte_stab': ('sound_QTE_stab_01', 'sfx'),
     'bubble_seahorse': ('Seahorse_Bubble_01', 'sfx'),
+    'carving': ('sound_cuting', 'sfx'),  # SFX_SoundData "Carving" (lặp suốt lúc xả thịt)
 }
 
 # ---------------------------------------------------------------- INDEX
@@ -594,13 +597,15 @@ def rip_prefab_sprites():
 
 
 # ---------------------------------------------------------------- AUDIO
-def rip_audio():
+def rip_audio(keys=None):
     ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
         raise SystemExit('không thấy ffmpeg trong PATH')
     os.makedirs(AUD, exist_ok=True)
     out = {}
     for key, (clip, kind) in AUDIO.items():
+        if keys and key not in keys:
+            continue
         path = find_path(clip + '.wav')
         ac = [o for o in objects_for(path) if type(o).__name__ == 'AudioClip' and o.m_Name == clip]
         if not ac:
@@ -615,6 +620,31 @@ def rip_audio():
         subprocess.run([ffmpeg, '-y', '-loglevel', 'error', '-i', tmp, '-codec:a', 'libmp3lame'] + rate + [dst],
                        check=True)
         out[key] = {'src': 'audio/%s.mp3' % key, 'kind': kind}
+    return out
+
+
+# Lời nhắc tương tác trên xác cá: CuttingInteractionUI.prefab (vòng Gauge Circle_68, đĩa IconArea Circle_52)
+# và phím Space của InputAtlas_Keyboard (hành động Interaction trong DRInput.inputactions là <Keyboard>/space).
+PROMPT_PREFAB = PC + 'Ingame/00_InGame_Common/Prefabs/UI/CuttingInteractionUI.prefab'
+PROMPT_KEYS = PC + 'Common/Sprites/Input/InputAtlas_Keyboard.spriteatlas'
+
+
+def rip_prompt():
+    import level
+    want = {'Circle_68': 'ui/Circle_68.png', 'Circle_52': 'ui/Circle_52.png'}
+    out = {}
+    env, _ = level.load_with_deps(PROMPT_PREFAB)
+    for o in env.objects:
+        if o.type.name == 'Sprite':
+            s = o.read()
+            if s.m_Name in want and want[s.m_Name] not in out:
+                out[want[s.m_Name]] = list(save_png(s.image.convert('RGBA'), want[s.m_Name]))
+    for o in env_of(IDX[PROMPT_KEYS]).objects:
+        if o.type.name == 'Sprite' and o.read().m_Name == 'Space_Key_Dark':
+            out['ui/Space_Key_Dark.png'] = list(save_png(o.read().image.convert('RGBA'), 'ui/Space_Key_Dark.png'))
+    missing = [r for r in list(want.values()) + ['ui/Space_Key_Dark.png'] if r not in out]
+    if missing:
+        raise SystemExit('không thấy sprite: %s' % missing)
     return out
 
 
@@ -800,8 +830,14 @@ def main():
         if what == 'fxmesh':
             return
     if what in ('all', 'audio'):
+        # `rip.py audio carving knife` chỉ ghi lại vài tiếng, giữ nguyên các tệp khác
+        keys = sys.argv[2:]
         print('Tiếng…')
-        man['audio'] = rip_audio()
+        got = rip_audio(keys)
+        man['audio'] = dict(man.get('audio', {}), **got) if keys else got
+    if what == 'prompt':
+        print('Lời nhắc tương tác…')
+        man['images'].update(rip_prompt())
     os.makedirs(DATA, exist_ok=True)
     with open(man_p, 'w', encoding='utf-8', newline='\n') as fh:
         fh.write('// Sinh bởi tools/rip.py — đừng sửa tay.\nwindow.HX_ASSETS = ')
