@@ -3,6 +3,11 @@
    LUẬT: trong code không có tên tệp ảnh nào, chỉ có khoá kiểu 'tuong.kiemsi'. Bảng tra nằm ở
    art/asset-map.js (sinh tự động bằng _tools/build_art.py). Thiếu ảnh thì mọi hàm vẽ trả về
    false và phần gọi tự vẽ hình học thay thế — game không bao giờ vỡ vì thiếu art.
+
+   68 TƯỚNG TFM2 (RESEARCH.md §15): mỗi tướng một sheet RIÊNG (art/tfm/t/<id>.png+.js), nạp lười
+   bằng G.napTuong(id) — khác hẳn atlas CHUNG window.TFM_HINH ở dưới (20 id tự chế đời cũ, atlas
+   art/tfm/hinh.png, vẫn giữ nguyên). Vẽ bằng G.veHinhT/G.veHinhTamT, chân dung bằng
+   G.anhTuongIcon. Xem toàn bộ hợp đồng ở khối "68 TƯỚNG TFM2" phía dưới trong tệp này.
 */
 (function (G) {
   'use strict';
@@ -10,7 +15,7 @@
   /* MỘT số bản cho mọi ảnh atlas. Canvas từng nạp `?v=…12a` còn ảnh DOM nạp `?v=…11a`:
      mỗi atlas tải hai lần, và chân dung DOM có thể lấy ảnh cũ trong cache ghép với toạ độ mới.
      Đổi ảnh trong art/ thì tăng đúng số này. */
-  var ART_V = '20260925h';
+  var ART_V = '20260925i';
   G.ART_V = ART_V;              /* ui-tran nạp ba lớp ảnh bản đồ cùng phiên bản art */
   var MAP = window.ART_MAP || null;
   var ANH = {};
@@ -88,9 +93,127 @@
     return true;
   };
 
+  /* ══════════ 68 TƯỚNG TFM2 — sheet RIÊNG từng tướng, nạp lười ══════════
+     Xem RESEARCH.md §15 cho hợp đồng đầy đủ với agent lõi/chiêu. Tóm tắt:
+
+     `G.napTuong(id, cb)`   chèn <script src="art/tfm/t/<id>.js"> (một lần) + nạp PNG cùng tên;
+                            cb(true/false) khi xong. Gọi lại khi đã nạp thì cb ngay, không tải lại.
+     `G.tuongSan(id)`       true nếu tướng đã nạp xong (đồng bộ, không cần cb).
+     `G.veHinhT(ctx, id, anim, giay, x, y, k, lat, lap)`   vẽ tướng, (x,y) là CHÂN — như veHinh cũ
+                            nhưng `anim` là tên hoạt ảnh THẬT của TFM2 (không đổi tên như TUONG cũ
+                            trong build_tfm.py): 'idle','run','attack','dead','hit','skill','skill2',
+                            'ult','ult_effect',... — khác nhau theo từng tướng, tra trong
+                            window.TFM_T[id].anim. Thiếu tướng/hoạt ảnh thì trả false.
+     `G.veHinhTamT(ctx, id, anim, giay, x, y, k, goc, lap)`  như veHinhTam cũ — hiệu ứng chiêu
+                            riêng của tướng (đạn, vùng nổ), canh TÂM, có xoay.
+     `G.daiT(id, anim)` / `G.caoHinhT(id, anim)`   như G.dai / G.caoHinh cho sheet riêng.
+     `G.anhTuongIcon(id, cao)`  style nền chân dung cho DOM, atlas CHUNG art/tfm/icon.png (68
+                            tướng, không nạp lười — màn cấm chọn cần thấy hết cùng lúc).
+  */
+  var ANH_T = {};      /* id → Image */
+  var DANG_NAP_T = {}; /* id → mảng cb đang chờ, hoặc true nếu đã xong */
+  var TI = window.TFM_ICON || null;
+  var ANH_ICON = new Image();
+
+  G.tuongSan = function (id) {
+    var im = ANH_T[id];
+    return !!(window.TFM_T && window.TFM_T[id] && im && im.complete && im.naturalWidth);
+  };
+
+  G.napTuong = function (id, cb) {
+    if (G.tuongSan(id)) { if (cb) cb(true); return; }
+    if (DANG_NAP_T[id]) { if (cb) DANG_NAP_T[id].push(cb); return; }
+    DANG_NAP_T[id] = cb ? [cb] : [];
+    var xongCa = function (ok) {
+      var ds = DANG_NAP_T[id]; DANG_NAP_T[id] = null;
+      ds.forEach(function (f) { if (f) f(ok); });
+    };
+    var kt = function () {
+      if (window.TFM_T && window.TFM_T[id] && ANH_T[id] && ANH_T[id].complete) xongCa(G.tuongSan(id));
+    };
+    if (!(window.TFM_T && window.TFM_T[id])) {
+      var sc = document.createElement('script');
+      sc.src = 'art/tfm/t/' + id + '.js?v=' + ART_V;
+      sc.onload = kt;
+      sc.onerror = function () { xongCa(false); };
+      document.head.appendChild(sc);
+    }
+    var im = ANH_T[id] || (ANH_T[id] = new Image());
+    im.onload = kt; im.onerror = function () { xongCa(false); };
+    im.src = 'art/tfm/t/' + id + '.png?v=' + ART_V;
+    kt();
+  };
+
+  function dsAnimT(id, anim) {
+    var d = window.TFM_T && window.TFM_T[id];
+    return d && d.anim && d.anim[anim];
+  }
+
+  G.daiT = function (id, anim) {
+    var ds = dsAnimT(id, anim);
+    if (!ds) return 0;
+    var s = 0;
+    for (var i = 0; i < ds.length; i++) s += ds[i][4];
+    return s / 1000;
+  };
+
+  G.caoHinhT = function (id, anim) {
+    var d = window.TFM_T && window.TFM_T[id];
+    if (!d) return 0;
+    return d._[0] + d._[1];
+  };
+
+  G.veHinhT = function (ctx, id, anim, giay, x, y, k, lat, lap) {
+    if (!G.tuongSan(id)) return false;
+    var d = window.TFM_T[id], ds = dsAnimT(id, anim) || dsAnimT(id, 'idle');
+    if (!ds) return false;
+    var f = khungLuc(ds, giay, lap);
+    var w = f[2] * k, h = f[3] * k, cy = y - d._[0] * k;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x, cy);
+    if (lat) ctx.scale(-1, 1);
+    ctx.drawImage(ANH_T[id], f[0], f[1], f[2], f[3], -w / 2, -h / 2, w, h);
+    ctx.restore();
+    return true;
+  };
+
+  G.veHinhTamT = function (ctx, id, anim, giay, x, y, k, goc, lap) {
+    if (!G.tuongSan(id)) return false;
+    var ds = dsAnimT(id, anim);
+    if (!ds) return false;
+    var f = khungLuc(ds, giay, lap);
+    var w = f[2] * k, h = f[3] * k;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(x, y);
+    if (goc) ctx.rotate(goc);
+    ctx.drawImage(ANH_T[id], f[0], f[1], f[2], f[3], -w / 2, -h / 2, w, h);
+    ctx.restore();
+    return true;
+  };
+
+  /** chân dung DOM cho một trong 68 tướng TFM2 — atlas chung art/tfm/icon.png, không nạp lười */
+  G.anhTuongIcon = function (id, cao) {
+    var m = TI && TI[id];
+    if (!m) return null;
+    var k = cao / Math.max(m[2], m[3]);
+    return 'background-image:url(art/tfm/icon.png?v=' + ART_V + ');' +
+      'background-position:' + (-m[0] * k) + 'px ' + (-m[1] * k) + 'px;' +
+      'background-size:' + (m[2] * k) + 'px ' + (m[3] * k) + 'px;' +
+      'background-repeat:no-repeat;image-rendering:pixelated';
+  };
+
+  G.oAnhTuongIcon = function (id, cao) {
+    var st = G.anhTuongIcon(id, cao || 44);
+    if (!st) return null;
+    return G.el('i', { style: st + ';display:block;width:' + (cao || 44) + 'px;height:' + (cao || 44) + 'px' });
+  };
+
   G.taiArt = function (cb) {
     if (!MAP) { if (cb) cb(false); return; }
     if (TH) { ANH_TH.src = 'art/tfm/hinh.png?v=' + ART_V; }
+    if (TI) { ANH_ICON.src = 'art/tfm/icon.png?v=' + ART_V; }
     var ds = ['nguoi', 'fx', 'dan', 'do'];
     can = ds.length;
     ds.forEach(function (t) {

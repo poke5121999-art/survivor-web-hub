@@ -117,4 +117,21 @@
     nuoi_quan:  { fx: 'noluc',   mau: '#8ce06b', chu: 'NUÔI QUÂN' }
   };
 
+  /* ══════════ 68 TƯỚNG TFM2 — chiêu vẽ THẲNG bằng sprite riêng, không qua bảng trên ══════════
+     RESEARCH.md §15 có hợp đồng đầy đủ. Bảng G.FX_CHIEU/G.FX_KN_RIENG ở trên CHỈ phục vụ 20
+     tướng tự chế đời cũ (khoá 'hieu.<fx>' trong art/tfm/hinh.js, atlas CHUNG). Với 68 tướng TFM2
+     thì mỗi chiêu ĐÃ có hoạt ảnh + hiệu ứng riêng ngay trong sheet của chính tướng đó
+     (window.TFM_T[id].anim, nạp bằng G.napTuong(id)) — không cần bảng tra tên nữa, chỉ cần biết
+     TÊN hoạt ảnh TFM2 đặt cho khung hình/khung đạn/khung nổ của từng chiêu.
+
+     `G.hoatAnhChieuTFM(id)` liệt kê MỌI tên hoạt ảnh của một tướng (đã nạp), để 4 agent viết
+     js/chieu-tfm-N.js tra nhanh thay vì mở art/tfm/t/<id>.js đọc tay. Vẽ tư thế người bằng
+     G.veHinhT(ctx, id, tenHoatAnh, giay, x, y, k, lat, lap); vẽ đạn/hiệu ứng rời người (canh
+     TÂM, có xoay) bằng G.veHinhTamT(ctx, id, tenHoatAnh, giay, x, y, k, goc, lap) — cả hai ở
+     js/sprites.js. Không đổi hành vi mô phỏng ở đây, chỉ đọc tên có sẵn. */
+  G.hoatAnhChieuTFM = function (id) {
+    var d = window.TFM_T && window.TFM_T[id];
+    return d ? Object.keys(d.anim).sort() : [];
+  };
+
 })(window);

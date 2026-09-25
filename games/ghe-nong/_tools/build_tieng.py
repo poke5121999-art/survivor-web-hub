@@ -28,6 +28,7 @@ BGM = 'asset/base/sound/bgm/'
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_tfm import doc_bundle  # noqa: E402
+from build_tfm_tuong import doc_danh_sach_id  # noqa: E402 — đọc thẳng 68 id từ js/data-tfm.js
 
 # tướng của game → tướng TFM2 (giống build_tfm.TUONG) và tên sound_info cho chiêu / chiêu cuối
 TUONG_TIENG = {
@@ -175,6 +176,8 @@ def main():
         if k not in muc:
             return None
         plays = json.loads(byte(k))['plays']
+        if not plays:
+            return None
         to_nhat = max(p['volume'] for p in plays) or 1
         return [[clip_tfm(p['clip']), round(p['delay'], 3), round(am * p['volume'] / to_nhat, 2)] for p in plays]
 
@@ -185,6 +188,27 @@ def main():
             if ds is None:
                 raise SystemExit('thiếu %s_%s.sound_info' % (tfm, info))
             tieng['tran.%s.%s' % (id_, loai)] = ds
+
+    # 68 tướng TFM2 (RESEARCH.md §15): KHÔNG tự đặt tên hành động như TUONG_TIENG ở trên —
+    # dò TẤT CẢ tệp `<id>_*.sound_info` của mỗi id, giữ nguyên tên hành động TFM2 đặt
+    # (attack, skill, skill2, ult, ...), tên tiếng: tran.<idTfm>.<hành động>.
+    si_all = sorted(k[len(SFX):-len('.sound_info')] for k in muc
+                     if k.startswith(SFX) and k.endswith('.sound_info'))
+    thieu_tieng = []
+    for id_ in doc_danh_sach_id():
+        hanh_dong = sorted(a for a in si_all if a == id_ or a.startswith(id_ + '_'))
+        if not hanh_dong:
+            thieu_tieng.append(id_)   # tướng mod chưa có tiếng trong bản TFM2 này (báo, không dừng)
+            continue
+        for a in hanh_dong:
+            hd = a[len(id_) + 1:] if a != id_ else 'attack'
+            am = 0.9 if 'ult' in hd else (0.35 if hd == 'attack' else 0.7)
+            ds = theo_info(a, am)
+            if ds is not None:
+                tieng['tran.%s.%s' % (id_, hd)] = ds
+    if thieu_tieng:
+        print('[BÁO] tướng thiếu tiếng trong bundle TFM2:', ', '.join(thieu_tieng))
+
     for ten, (clip, am) in TFM_LE.items():
         tieng[ten] = [[clip_tfm(clip), 0, am]]
 

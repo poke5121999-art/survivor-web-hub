@@ -2049,3 +2049,158 @@ Các hướng đã thử và BỎ (cùng bộ đo):
   (`D:\tfm2-ref\AI_BRAIN.md`) là bước sau.
 - Vẫn còn 41/60 trận có trụ đổ trước 5 phút (trước là 33/60). Phần còn lại do giao tranh
   (`tugiup`) lan vào tầm trụ. Bộ não TFM2 có luật lao trụ riêng (§4.6 của AI_BRAIN).
+
+## 15. Sprite / hiệu ứng / tiếng cho đủ 68 tướng TFM2 `[ĐO TRONG REPO]`
+
+Bối cảnh: chủ dự án yêu cầu chép trọn skill + config + stats + equip + time của TFM2
+(`brain/plans/ghe-nong-tfm2-full.md`). §12 ở trên dựng art CHUNG cho 20 tướng tự chế đời cũ +
+lính/trụ/quái (`_tools/build_tfm.py`, `art/tfm/hinh.png`) — TỆP NÀY VẪN GIỮ NGUYÊN, không đụng,
+vì game hiện tại còn chạy 20 id cũ cho tới khi agent lõi đổi đội hình sang 68 id TFM2. Mục này
+là bộ MỚI, riêng, cho đủ 68 id TFM2 (`fighter`, `pyromancer`, ... — danh sách đọc thẳng từ
+`window.TFM.tuong` trong `js/data-tfm.js`, không chép tay).
+
+### 15.1 Vì sao một atlas KHÔNG đủ, và cách chọn "một sheet mỗi tướng"
+
+20 tướng đã ra một atlas 2048×~1400 ~880 KB. 68 tướng full hoạt ảnh (mỗi tướng 8–16 hoạt ảnh,
+có tướng còn có sheet `_ult` riêng + tệp hiệu ứng chiêu riêng ở `skill_effect/`) sẽ vượt hẳn kích
+thước atlas 2D hợp lý, và MỘT trận chỉ dùng 10/68 tướng — nạp cả 68 vào bộ nhớ mỗi lần vào trận
+là phí. Giải pháp: `art/tfm/t/<id>.png` + `art/tfm/t/<id>.js` — một cặp tệp nhỏ (trung vị ~15 KB
+PNG) cho MỖI id, nạp bằng `<script>` chèn động (không có trong `index.html`) và một thẻ `<img>`
+riêng, chỉ khi trận cần tướng đó.
+
+### 15.2 Nguồn khung hình cho một tướng — gộp từ ba chỗ, không lọc theo tên
+
+`_tools/build_tfm_tuong.py` với mỗi id gộp TẤT CẢ hoạt ảnh (không đổi tên, không chọn lọc — khác
+hẳn bảng `TUONG`/`CHUNG` cũ của `build_tfm.py` vốn đổi tên trạng thái sang tiếng Việt) từ:
+
+1. `asset/base/aseprite_resources/champions/<id>#anim.fanim` — LUÔN có, đủ cho cả 68 id (đo
+   trong repo: không id nào thiếu tệp chính).
+2. `asset/base/aseprite_resources/champions/<id>_ult#anim.fanim` — 5 tướng có sheet chiêu cuối
+   RIÊNG: `magic_knight`, `jiangshi`, `clown`, `ghost`, `siege_breaker`. Hoạt ảnh `idle` của sheet
+   phụ này (nếu có) đổi tên thành `ult_idle` để khỏi đè `idle` chính; các tên khác giữ nguyên,
+   và nếu vẫn trùng tên với bộ chính thì đổi thành `se_<tên>`, `se_<tên>2`, ... (chưa xảy ra
+   trong dữ liệu hiện tại, nhưng script không giả định là không thể xảy ra).
+3. `asset/base/aseprite_resources/skill_effect/<id>*` — 19 tướng có hiệu ứng chiêu ở một tệp
+   RIÊNG ngoài thư mục `champions/` (khớp theo TIỀN TỐ tên tệp = id, xử lý cả ca đặc biệt
+   `"magic knight_skill_effect"` — TFM2 đặt tên tệp này có DẤU CÁCH thay vì `_`). 7 tệp hiệu ứng
+   còn lại trong `skill_effect/` (`buff_debuff_icon`, `levelup_effect`, `recall_effect_front/back`,
+   `shield_receive_effect`, `sniper_target_effect`, `stun_effect`) KHÔNG thuộc riêng tướng nào —
+   để nguyên trong bảng `HIEU`/`KHAC` chung của `build_tfm.py` (đã có `recall_effect_front`,
+   `stun_effect`, `shield_receive_effect`, `levelup_effect`; `recall_effect_back` và
+   `buff_debuff_icon` chưa ai dùng, còn trống chỗ nếu cần).
+
+Đóng khung, xếp kệ, đo chân/đỉnh — GIỐNG HỆT thuật toán của `build_tfm.py` (dồn khung trùng bằng
+băm md5, xếp theo chiều cao giảm dần, chân/đỉnh đo trên khung `idle` đầu tiên từ TÂM khung — xem
+bẫy đã sập ở §12.2, vẫn đúng ở đây vì khung TFM2 vẫn không kèm điểm neo). KHÔNG cắt bớt viền
+trong suốt của khung — khung từ `.fanim` đã được Aseprite cắt khít sẵn (`w,h` trong JSON là hộp
+đã trim), cắt thêm sẽ lệch tâm mà không có toạ độ lệch để bù.
+
+### 15.3 Chân dung 68 tướng — MỘT atlas chung, không nạp lười
+
+Màn cấm chọn cần thấy cả 68 chân dung CÙNG LÚC nên không thể theo kiểu nạp lười như sprite trận.
+`build_tfm_tuong.py` cắt khung `idle` đầu của mỗi tướng THEO ĐÚNG công thức `G.anhTuong` cũ (ô
+vuông cạnh = 62% chiều cao người, đo từ đỉnh đầu xuống — xem sprites.js), đóng gói 68 ảnh đó
+thành MỘT atlas nhỏ `art/tfm/icon.png` (40 KB) + `art/tfm/icon.js` (`window.TFM_ICON`,
+id → [x,y,w,h]). Đọc bằng `G.anhTuongIcon(id, cao)` (style nền cho DOM) / `G.oAnhTuongIcon(id, cao)`
+(phần tử `<i>` dựng sẵn) trong `js/sprites.js`.
+
+### 15.4 Hợp đồng cho agent lõi / 4 agent viết chiêu (`js/sprites.js`)
+
+```
+G.napTuong(id, cb)      chèn <script src="art/tfm/t/<id>.js"> (một lần) + nạp PNG cùng tên;
+                         cb(true|false) khi xong. Gọi lại lúc đã nạp thì cb chạy NGAY (không tải lại).
+G.tuongSan(id)           true/false đồng bộ, không cần chờ cb — dùng trong vòng lặp vẽ mỗi khung hình.
+G.veHinhT(ctx, id, anim, giay, x, y, k, lat, lap)
+                         vẽ tướng, (x,y) là CHÂN — anim là tên TFM2 THẬT (không phải 'chieu'/'cuoi'
+                         như build_tfm.py cũ): 'idle','run','attack','dead','hit','skill','skill1',
+                         'skill2','ult','ult_effect',... khác nhau theo TỪNG tướng. Thiếu `anim` thì
+                         TỰ rơi về 'idle' (không cần chỗ gọi kiểm tra trước). Thiếu cả tướng lẫn atlas
+                         thì trả false, không vẽ, không văng lỗi.
+G.veHinhTamT(ctx, id, anim, giay, x, y, k, goc, lap)
+                         như trên nhưng canh TÂM có xoay — dùng cho đạn/hiệu ứng rời khỏi người
+                         (ví dụ 'skill_projectile', 'ult_effect' của chính tướng đó).
+G.daiT(id, anim) / G.caoHinhT(id, anim)
+                         tổng thời lượng (giây) / chiều cao chân-đỉnh (điểm ảnh gốc) — như
+                         G.dai/G.caoHinh cũ nhưng tra sheet riêng.
+G.hoatAnhChieuTFM(id)   (js/fx-chieu.js) liệt kê MỌI tên hoạt ảnh đã nạp của một tướng — tra
+                         nhanh tên khung đạn/nổ khi viết js/chieu-tfm-N.js, khỏi mở tay art/tfm/t/<id>.js.
+G.anhTuongIcon(id, cao) / G.oAnhTuongIcon(id, cao)
+                         chân dung DOM cho cấm/chọn, atlas chung, không cần G.napTuong trước.
+```
+
+Tên hoạt ảnh KHÔNG giống nhau giữa các tướng (TFM2 tự đặt) — không có bảng tra chung. Xem trước
+bằng `_tools/xemtuong.html` (§15.6) hoặc gọi `G.hoatAnhChieuTFM(id)` sau khi `G.napTuong(id)` xong.
+Tên hay gặp: `idle`, `run`, `attack`, `dead`, `hit`, `skill`/`skill1`/`skill2`, `ult`, và hậu tố
+`_pre`/`_hit`/`_effect`/`_projectile`/`_loop`/`_end` cho các pha phụ của một chiêu.
+
+Mọi hàm cũ trong sprites.js (`G.veHinh`, `G.veHinhTam`, `G.coHinh`, `G.anhTuong`, `TFM_HINH`...)
+GIỮ NGUYÊN, không sửa — game vẫn chạy 20 id cũ cho tới khi agent lõi đổi đội hình.
+
+### 15.5 Tiếng — 68 tướng, dò tên hành động thay vì chép tay (`_tools/build_tieng.py`)
+
+Bảng `TUONG_TIENG` cũ (20 id tự chế → tfm id, tên `.sound_info` chọn TAY cho từng tướng, vì tên
+hành động không đều: `hunter` dùng `bush_skill1` chứ không phải `skill1`) VẪN GIỮ NGUYÊN. Thêm
+một đợt dò TỰ ĐỘNG cho 68 id: liệt kê mọi khoá `asset/base/sound/sfx/<id>_*.sound_info` trong
+bundle (đo trong repo: 67/68 tướng có ít nhất một khoá khớp tiền tố `<id>_`), giữ NGUYÊN tên hành
+động TFM2 đặt (không đổi thành `danh`/`chieu`/`cuoi` như bảng cũ), đặt tên tiếng
+`tran.<idTfm>.<hànhĐộng>` — ví dụ `tran.fighter.attack`, `tran.fighter.skill`, `tran.fighter.skill2`,
+`tran.fighter.skill_hit`, `tran.fighter.ult`. Âm lượng gốc: hành động chứa `ult` → 0.9, `attack` →
+0.35, còn lại → 0.7 (cùng thang với bảng cũ). Phát bằng `G.tieng('tran.fighter.skill', am, cach)`
+— hệt cách gọi cũ, không cần đổi gì ở `js/tieng.js`. Tên lạ thì im (đã có sẵn trong `tieng.js`),
+nên chỗ gọi chưa kịp cập nhật tên hoạt ảnh không làm vỡ tiếng.
+
+`nightmare` (1 trong 8 tướng mod) KHÔNG có `.sound_info` nào trong bundle 0.6.0 dù
+`patch_type_name` của nó vẫn đặt tên `nightmare_attack`/`nightmare_skill`/`nightmare_skill2`/
+`nightmare_ult` — THIẾU THẬT TỪ NGUỒN TFM2, không phải lỗi script (build in ra dòng
+`[BÁO] tướng thiếu tiếng trong bundle TFM2: nightmare` mà không dừng build). Game vẫn chạy được
+vì tên lạ tự im; báo lại chủ dự án nếu cần thay bằng tiếng khác.
+
+Clip dồn theo NỘI DUNG (băm theo tên clip TFM2 `clip_tfm()`), không theo tên tiếng — nhiều hành
+động của nhiều tướng dùng chung một clip gốc (vũ khí cùng loại), nên 464 tên tiếng mới chỉ tốn
+thêm ~4,2 MB mp3 (không phải 464 tệp riêng). Vẫn NẠP LƯỜI: `am/bang.js` chỉ là JSON tên → đường
+dẫn, còn mp3 thật chỉ `fetch` lúc `G.tieng()` gọi tới lần đầu (`js/tieng.js`, không đổi) — trận
+gọi `G.napTieng(['tran.fighter.', ...])` cho đúng 10 tướng đang đấu thì mới tải trước, không tải
+cả 68.
+
+### 15.6 Bộ xem `_tools/xemtuong.html`
+
+Lưới 68 canvas, mỗi ô vẽ MỘT tướng bằng đúng `G.napTuong` + `G.veHinhT` của game (không vẽ tắt),
+chọn hoạt ảnh qua dropdown (`idle`/`run`/`attack`/`hit`/`dead`/`skill`/`skill1`/`skill2`/`ult`/
+`ult_effect` — thiếu thì tự rơi về `idle`, không phá ô), có nút lật hướng và nút dừng/chạy hoạt
+ảnh. `document.title` đổi thành `'xong'` khi cả 68 tướng nạp xong — mốc chờ cho Playwright. Mở:
+`http://localhost:8765/games/ghe-nong/_tools/xemtuong.html` (chạy `python -m http.server 8765`
+ở gốc repo).
+
+Đã chụp và soi bằng mắt (Playwright, `chromium.launch()` không đầu):
+- `idle` — cả 68 đứng thẳng, chân chạm đúng vạch đáy ô (chứng minh chân/đỉnh đo đúng, xem §15.2).
+- `attack` — cả 68 ra đòn, vũ khí hiện rõ trong tay (kiếm/súng/cung/gậy/nắm đấm...), không ô nào
+  còn hiện dáng đứng yên (tức không ô nào rơi vào nhánh dự phòng `idle`).
+- `attack` + lật hướng — toàn bộ 68 quay đúng chiều ngược lại, không ai đứng yên hướng cũ.
+- `ult` — hiệu ứng hào quang/particle riêng của từng tướng hiện rõ (cánh vàng của
+  `cavalry_knight`, vòng lửa của `boomerang_hunter`, hào quang của `guardian_spirit`...). Một vài
+  ô (vd. `android`) gần như trống ở thời điểm chụp — kiểm lại `TFM_T` xác nhận `ult` CÓ tồn tại
+  (3 khung, w/h hợp lệ), nhiều khả năng chiêu cuối của những tướng này VỐN kết ở một khung gần
+  như biến mất/ẩn thân (nội dung hoạt ảnh gốc của TFM2, không phải lỗi nạp).
+- `dead` — phần lớn 68 hiện dáng gục xuống; một số ô trống vì đồng hồ chụp DÙNG CHUNG cho cả 68
+  (không lệch pha theo tướng) trùng đúng lúc khung CUỐI của hoạt ảnh chết co lại gần như 1×1 điểm
+  ảnh (đã thấy hiện tượng này ở `fighter` khi đọc dữ liệu thô — khung cuối `[850,206,3,3,80]`) —
+  không phải lỗi vẽ, chỉ là "chụp trúng khung tan biến".
+Không có lỗi console/trang nào trong cả năm lần chụp (`page.on('pageerror'|'console')` rỗng).
+
+### 15.7 Cỡ đã thêm `[ĐO TRONG REPO]`
+
+`art/tfm/t/` (68 cặp .png+.js): 2,3 MB. `art/tfm/icon.png`+`icon.js`: 44 KB. Mp3 tiếng MỚI (tệp
+`t_*.mp3` chưa từng có, dedup theo nội dung): 4,2 MB. `am/bang.js` (JSON, văn bản): tăng ~85 KB
+nguồn trước khi nén gzip của Pages. Tổng thêm ước ~6,6 MB — toàn bộ NẠP LƯỜI (chỉ tải khi
+`G.napTuong`/`G.tieng` gọi tới), nên không tăng tải trang ban đầu; chỉ tăng KHI một trận thật sự
+dùng tới tướng/tiếng đó.
+
+### 15.8 Chạy lại từ đầu
+
+```
+cd games/ghe-nong
+python _tools/build_tfm_tuong.py          # art/tfm/t/*, art/tfm/icon.*
+PYTHONIOENCODING=utf-8 python _tools/build_tieng.py   # am/* (chạy chung cả 20 id cũ lẫn 68 id mới)
+```
+Cả hai đọc thẳng `js/data-tfm.js` để lấy danh sách 68 id — đổi đội hình thì tự đổi theo, không
+cần sửa tay danh sách trong `_tools/`.
