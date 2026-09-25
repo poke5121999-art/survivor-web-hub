@@ -296,6 +296,64 @@ Loài bản gốc đặt mà game web chưa có Spine 2D (dữ liệu giữ, b�
 Cá mập (`shark: 1`, tên có Shark hoặc Mako) chờ `js/shark.js`. Ngược lại, `Seahorse` (2010011) và
 `Cow_Pattern_Snapper` trong `assets.js` không được đặt ở zone nào.
 
+## Cá mập 3D [ĐO TRONG REPO, 2026-09-25]
+
+    set PYTHONIOENCODING=utf-8
+    python games/ho-xanh/tools/rip_shark.py   # ~3 phút: art/shark/*.glb, art/shark/fx/, audio/shark_*, data/shark_assets.js
+
+Tệp tạm ghi ra `D:\hx-tmp\shark` (biến `HX_TMP`). Luôn chạy trọn 12 loài: `shark_assets.js` và `art/shark/fx/` ghi lại từ đầu mỗi lần.
+Xem riêng trong game: `index.html?shark=Tiger_Shark` (hoặc `shark=all`, thêm `&sharkNight=1` cho số bản đêm) thả cá mập cạnh Dave lúc bắt đầu lặn.
+Bài kiểm: `node test/ho-xanh-shark.js` (~7 phút, 1280×720 và 844×390).
+
+| loài | vùng | TID | HP (ngày / đêm) | cắn | độ phóng | dài (m) | glb KB | clip | đòn |
+|---|---|---|---|---|---|---|---|---|---|
+| Whitetip_Reefshark | A | 2010025, 2010055 | 95 / 200 | 25 / 40 | 0.96 | 4.01 | 264 | 12 | QTE_Ready |
+| Blacktip_Reefshark | A | 2010058 | 160 | 40 | 1 | 3.82 | 242 | 11 | QTE_Ready |
+| Copper_Shark | A | 2010059 | 200 | 50 | 1 | 5.10 | 227 | 11 | QTE_Ready |
+| Shortfin_Mako | A | 2010073 | 230 | 70 | 1 | 4.68 | 275 | 12 | Attack |
+| Zebra_Shark | A | 2010074 | 250 | 53 | 1 | 3.68 | 171 | 6 | Attack |
+| Thresher_Shark | A | 2010132 | 220 | 80 | 1 | 5.64 | 242 | 9 | Attack |
+| Tiger_Shark | B | 2010119, 2010128 | 175 / 350 | 40 / 60 | 1.2 | 6.13 | 260 | 12 | QTE_Ready |
+| Longnosesaw_Shark | B | 2010125, 2010127 | 100 / 200 | 30 / 45 | 0.9 | 4.04 | 282 | 11 | QTE_Ready |
+| Smooth_Hammershark | B | 2010133 | 260 | 90 | 1 | 4.88 | 294 | 12 | Attack |
+| Cookiecutter_Shark | C | 2010211 | 80 | 35 | 1 | 1.67 | 185 | 10 | QTE_Ready |
+| Frilled_Shark | C | 2010204 | 180 | 40 | 0.75 | 3.71 | 264 | 10 | QTE_Ready |
+| Megamouth_Shark | C | 2010210, 2010224 | 180 | 50 | 1 | 4.99 | 174 | 8 | Attack |
+
+Tổng 12 glb ≈ 2,6 MB; mỗi con chỉ nạp khi có cá mập loài đó. Ảnh gốc ≤ 512 px (mũi cưa 256, cắt bánh quy 128), không phải thu nhỏ.
+`shark_vfx.json` 790 KB (gzip 32 KB), ảnh hạt 0,6 MB.
+
+- **Prefab `SA_<TID>_<Tên>` chứa đủ mô hình.** Dưới gốc (SABaseFishSystem) là `Body` → GameObject mang Animator + SkinnedMeshRenderer, cây xương `Root/Transform/Bip001/...`. Độ phóng thế giới của GameObject Animator là `scale`: vây trắng gốc ×3,2 nhân mô hình ×0,3 = 0,96. glb đã mang sẵn độ phóng này, ra đúng mét.
+- **Mọi loài quay đầu về +x ở tư thế nghỉ.** Đo bằng vị trí xương `Bip001 Head` so với `Bip001 Tail` (`face` trong data). Bài kiểm đo lại trong cảnh three.js sau khi nạp.
+- **Shader là `ProjectDR/2D_Sprite_Uber`, cùng shader với đá**, nên JS dùng chung bộ đổ màu nước của `gfx.js` (`WATER_GLSL`, `hxLight`, `hxFogMix`) cộng skinning của three. `_LightFactor` của vật liệu (0,6–2) vào `lightFactor`; `_AmbientStrength` (1–5) chưa rõ công thức nên bỏ.
+- **Animator là `AnimatorOverrideController` trên `SAFishController`.** Clip nền của controller là clip của cá mập vây trắng: chỉ lấy clip override, không thì loài khác nhận clip sai xương. Vai (bơi, quay, lao, cắn, chết…) đọc theo tên clip nền bên trái override (`ROLE_OF`). Clip lẻ không có trong controller lấy thêm từ `<Mô hình>@*.fbx`: `Timeline_Damage` (chỉ vây trắng), `Sturn`, `SwimWeak` (chỉ búa trơn).
+- **UnityPy 1.25 giải được clip** (streamed + dense + constant) bằng `rip_boat.decode_clip` đã có. Không cần AssetStudio. Mọi clip chỉ có rãnh vị trí/quaternion/scale, không có euler.
+- **Root motion.** Avatar trỏ `m_RootMotionBoneIndex` vào `Root/Transform`. `SwimTurn` xoay nút này 180° quanh trục dọc (quay đầu), giữ trong clip; hết clip JS lật hướng cá, khung cuối trùng tư thế nghỉ của hướng mới. Dời vị trí thì tách ra `motion` (m theo trục thân): `QTE_Ready` lao 0,9–1,4 m, `Attack_A_01` của cá mập hổ lao 8,4 m trong 0,73 giây, đuôi dài quật 7 m. `QTE_Enter` / `Attack_C_01` đặt nút này lệch cố định 0,5 m; tách theo độ dời từ khung đầu nên không lệch.
+- **Số AI ở `ScriptableObjects/Fish/SA_Fish/SA_<TID>_*.asset`** (RangeFindEnemy, MaxRangeCanFollow, SprintLimitTime, CoolTimeSprintDecision, RangeAbleToSprintAttack, LeastAngleToSprint, FishBattleSpeedRate, runToHomeSpeed). `AbilityDatas` tuần tự hoá bằng Odin (SerializedBytes); `odin_decode()` giải định dạng nhị phân: SABiteData (hồi cắn 10 giây), DefaultSprintData (tốc độ lao 3,7–5,5), QTE_ReadyAble, SARageData.
+- **Tiếng:** `AnimationEvents/*@<clip>.fbx.asset` mang `AniClipSoundEvent` (soundKey, giây), khoá tra trong `SFX_SoundData` (`audioClipName`, volume). Bảng gốc có chỗ lạ và giữ nguyên: SwimTurn cá mập đồng và miệng to kêu tiếng "QTE thành công" của cá mập cắt bánh quy; khoá `QTELongnoseSawShark_Success` trỏ cùng tệp đó.
+- **Hạt:** `UnityAnimationEventHandler.animationEventData` trên GameObject Animator trỏ tới `*_AnimationEvent.asset` (`_clipDatas`: clip → giây, prefab hạt, tên xương). 58 prefab. JS phát hạt bám vị trí xương, hướng theo thân cá.
+- **Ảnh nhỏ** `ItemIcon` (`<Tên>_Thumbnail`, 64 px nghệ thuật điểm ảnh) nằm trong SpriteAtlas không có địa chỉ riêng. Bundle `c2ab483cbb67f8768d9087e5854a0f1b` tìm được bằng cách quét tên Sprite của cả 3.967 bundle (~20 phút). `rip_shark.py` phóng ×3 kiểu điểm gần nhất.
+
+Thiếu trong bản gốc (không vẽ bù):
+- Clip trúng đòn chỉ có ở vây trắng; choáng chỉ có ở búa trơn. Loài khác trúng đòn chỉ loé trắng + máu.
+- Clip bơi và quay không có tiếng nào; phần lớn tiếng gắn clip QTE.
+- Cá mập rạn vây đen gốc trỏ nhầm `Tiger_Shark01_AnimationEvent` (tên clip không khớp) nên không có hạt nào, kể cả trong game gốc.
+- Cá mập vằn, đuôi dài, búa trơn, miệng to không có clip QTE. Cắt bánh quy và mang xếp không có clip Attack.
+
+Chọn khác bản gốc [ĐỀ XUẤT]:
+- Game không có QTE cắn. Cú lao (`QTE_Ready`, hoặc `Attack` với loài không có QTE_ReadyAble) mà mõm chạm Dave thì trừ một lần đúng `Damage` gốc, rồi cá mập bơi đi `SARageData.ConsistTime` giây.
+- Tốc độ bơi thường 0,9 m/s khi `SwimSpeed` gốc là 0; lao có bẻ lái nhẹ theo Dave; hạt không xoay theo xương.
+- Thân cá mập đặt ở z = −0,9 cho Dave và mũi xiên luôn vẽ trước thân. Vùng trúng là elip 85% × 80% khung bao tư thế nghỉ.
+
+Bẫy đã sập:
+- [BẪY ĐÃ SẬP] GLTFLoader gắn xương theo `matrixWorld` của nút lưới. Nút lưới đặt dưới nút phóng ×0,3 là cá bị phóng hai lần. Lưới skinned phải là nút gốc có TRS đơn vị.
+- [BẪY ĐÃ SẬP] GLTFLoader đổi dấu cách trong tên nút thành `_`: xương `Bip001 Head` thành `Bip001_Head`.
+- [BẪY ĐÃ SẬP] gltfpack bỏ nút không phải xương (BiteTransform, Target…) nếu thiếu `-kn`. `-ac` giữ rãnh hằng.
+- [BẪY ĐÃ SẬP] three.js không nhân bản được SkinnedMesh bằng `clone()`: mỗi con giải lại glb từ bộ đệm ArrayBuffer, ảnh dùng chung.
+- [BẪY ĐÃ SẬP] `python` là .bat: `python -c` nhiều dòng và tham số có `|` đều hỏng. Ghi script ra tệp.
+- [BẪY ĐÃ SẬP] Bài kiểm giữ chuột 380 ms (giờ thật) để bắn: khung hình chậm thì chưa đủ 0,3 giây giờ game của `RangeWeaponDraw`, phát xiên rơi mất. Đợi theo `HX.game.t`.
+- Giằng co với cá mập gần như không thắng được bằng tay: mỗi lần bấm đẩy `0,075 × max(0,2; 12 / HP)`, còn 56 HP là 0,016, trong khi thanh tụt 0,16/giây. Xiên tiếp vẫn trừ máu, nên hạ được sau nhiều lần giằng co thua. Cần chỉnh `T.tug` riêng cho cá mập nếu muốn khác.
+
 ## Cano, súng, trang bị, quán sushi
 
 Hai công cụ bóc riêng, ghi chép và bẫy nằm ở tệp riêng:

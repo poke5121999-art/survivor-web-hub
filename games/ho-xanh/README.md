@@ -63,6 +63,7 @@ Tham số URL:
 | `js/drone.js` | Drone chở cá: gọi, bay theo root motion của clip gốc, kéo cá lên, `G.drone` |
 | `tools/rip_gear.py` | Bóc icon, ảnh, hiệu ứng, dây màu, tiếng của mũi xiên và drone vào `art/gear/head`, `art/gear/drone`, `art/fx/gear`, `audio/gear_*` |
 | `js/fish.js` | Nạp Spine, máy trạng thái cá, bộ sinh cá theo allocator gốc của từng tầng (`G.fishes.sharks`: cá mập 3D chờ `js/shark.js`), ảnh nhỏ cho thẻ bắt cá |
+| `js/shark.js`, `data/shark_assets.js`, `art/shark/` | Cá mập 3D gốc (12 loài, glb có xương + clip, hạt, tiếng, ảnh nhỏ) bóc bởi `tools/rip_shark.py`; cùng giao diện với `Fish` nên xiên, dao, súng, drone, xác dùng chung. Bộ sinh gọi `HX.Shark.forTid(tid)` rồi `HX.Shark.create(G, id, x, y, { night })`; `?shark=<loài>` thả thử cạnh Dave. Xem `tools/README.md` mục "Cá mập 3D" |
 | `data/fish_spawn.js` | Sinh bởi `tools/rip_fishgroups.py`: chỗ đặt cá gốc (preset IGPSet + FishAllocator) của 16 tầng, cấu trúc ở `tools/README.md` |
 | `js/fx.js` | Hạt hiệu ứng theo bảng `KINDS`, và phát lại công thức hạt gốc của súng |
 | `js/hud.js`, `js/audio.js` | DOM phủ trên cảnh; Web Audio |
