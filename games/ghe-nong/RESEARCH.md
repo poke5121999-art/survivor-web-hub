@@ -1822,6 +1822,9 @@ là `epic`.
   thẳng `.awb` thì được, tên cue vẫn còn trong đầu HCA. Bank không có `.awb` thì phải mở `.acb`.
 - `[BẪY ĐÃ SẬP]` `snd_sfx_sys_teamrank_pointup` tên nghe như "cộng điểm" nhưng dài 10 giây (tiếng đếm
   điểm). Đo độ dài mọi tiếng trước khi gán cho sự kiện hay lặp.
+- `[BẪY ĐÃ SẬP]` Ở máy nhà bộ kiểm đạt, trên Pages hỏng: tải + giải mã một tiếng lần đầu quá 0,25 giây
+  nên `G.tieng` bỏ tiếng, và lần chạm đầu vào mỗi loại nút đều câm. Giờ lần chạm đầu tiên nạp sẵn mọi
+  tiếng ngoài trận. Bộ kiểm tiếng phải chạy trên Pages, không chỉ ở máy.
 - Tên nhạc nền Uma (`snd_bgm_gm001`...) không nói bài nào phát ở màn nào. Nhà = `gm001`, ca = `gm002`,
   tuyển mộ = `gm020a` là chọn theo tên và độ dài. **Chưa ai nghe bằng tai** mọi lựa chọn tiếng ở đây.
 
