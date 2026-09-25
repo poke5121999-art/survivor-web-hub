@@ -1,16 +1,18 @@
 /*
- * HỐ XANH — kiểm khúc lái cano (js/boat.js).
+ * HỐ XANH — kiểm khúc cano tự chạy (js/boat.js).
  *
  * Chạy:  node test/ho-xanh-boat.js
  * Ảnh chụp ra SHOTS (mặc định %TEMP%/ho-xanh-boat-shots) — mở ra xem bằng mắt.
  * Mặc định mở Chrome bằng GPU thật (ANGLE D3D11); SWIFTSHADER=1 để vẽ bằng phần mềm (chậm, chuyến ra ~2 phút).
  *
- * Kiểm ở 1280×720 và 844×390 (máy chạm):
- *  - lái ra bằng bàn phím: giữ W thì tốc độ > 0 và quãng còn lại giảm; A/D đổi hướng mũi và nghiêng thân;
+ * Cano rời bến/cập bến tự chạy theo đúng khoá gốc Boat_Exit001/002 (không còn phím/nút lái nào). Kiểm ở
+ * 1280×720 và 844×390 (máy chạm):
+ *  - không đụng phím/chạm gì cả: tốc độ > 0, quãng còn lại tự giảm, vị trí ở nửa chặng rời bến khớp đúng khoá gốc;
+ *  - bấm phím trong lúc chạy không đổi gì (không còn nhận input lái);
  *  - chuyến ra chạy buổi chiều, chuyến về chạy buổi tối (Lobby_Evening);
  *  - tới nơi: Dave đi ra đuôi, chạy Diveready tại chỗ (clip gốc không có track vị trí), màn tối dần từ 60% clip, sang loading rồi dive;
- *  - chuyến về: Dave leo lên (Respawn), lái về tới quán thì sang kitchen;
- *  - nút "Bỏ qua" ở cả hai chiều; nút Ga và kéo nửa trái ở máy chạm;
+ *  - chuyến về: Dave leo lên (Respawn), cano tự chạy về tới quán thì sang kitchen;
+ *  - nút "Bỏ qua" ở cả hai chiều vẫn còn, không còn nút Ga/Phanh hay vùng kéo lái nào trong HUD;
  *  - 5 chuyến liền nhau không làm tăng số geometry/texture của renderer;
  *  - không lỗi trang, không lỗi console, không 404.
  */
@@ -55,6 +57,28 @@ function watch(page) {
   return errors;
 }
 
+// Tư thế Unity của khoá rời bến (Boat_Exit001 nối Boat_Exit002) tại thời điểm t, tính lại trong trang từ đúng
+// dữ liệu HX_BOAT_ASSETS mà boat.js dùng — để so khớp độc lập với departPose() bên trong boat.js.
+function departPoseExpr() {
+  return (t) => {
+    const B = window.HX_BOAT_ASSETS, C = B.boat.anims;
+    const EXIT1 = C.Boat_Exit001.tracks[''], EXIT2 = C.Boat_Exit002.tracks[''];
+    const FPS = C.Boat_Idle001.fps;
+    const SEGS = [EXIT1, EXIT2], SEG_LEN = [C.Boat_Exit001.length, C.Boat_Exit002.length];
+    const SEG_ORIGIN = [[0, 0, 0], EXIT1.posOffset[EXIT1.posOffset.length - 1]];
+    function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+    function lerp(a, b, k) { return a + (b - a) * k; }
+    function sample(tr, tt) {
+      const f = clamp(tt * FPS, 0, tr.length - 1), i = Math.floor(f), j = Math.min(tr.length - 1, i + 1), k = f - i;
+      return [0, 1, 2].map(c => lerp(tr[i][c], tr[j][c], k));
+    }
+    let seg = 0, local = t;
+    if (t > SEG_LEN[0]) { seg = 1; local = t - SEG_LEN[0]; }
+    const raw = sample(SEGS[seg].posOffset, local), o = SEG_ORIGIN[seg];
+    return [o[0] + raw[0], o[1] + raw[1], o[2] + raw[2]];
+  };
+}
+
 async function run(browser, base, W, H, touch) {
   const tag = W + 'x' + H;
   console.log('\n== ' + tag + (touch ? ' (chạm)' : '') + ' ==');
@@ -76,58 +100,49 @@ async function run(browser, base, W, H, touch) {
   check('tiêu đề có "ra Hố Xanh"', (await page.textContent('#scr-boat h2')).includes('ra Hố Xanh'), await page.textContent('#scr-boat h2'));
   check('nút "Bỏ qua" đúng chữ', (await page.textContent('#boat-skip')) === 'Bỏ qua');
   check('quãng đường tới Hố Xanh hiện trên thanh tiến độ', /^\d+ m$/.test(await page.textContent('.bt-dist')), await page.textContent('.bt-dist'));
-  await until(() => HX.phases.boat.info().state === 'depart');
-  await sleep(500);
-  await shot('1-depart');
-  await until(() => HX.phases.boat.info().state === 'drive');
+  check('không còn nút Ga/Phanh hay vùng kéo lái trong HUD', (await page.$$('.bt-ga, .bt-brake, .bt-steer')).length === 0);
 
-  // ---- lái ra ----
-  const d0 = (await B()).dist;
-  let speed = 0, dist = d0;
-  if (touch) {
-    // giữ nút Ga
-    await page.dispatchEvent('.bt-ga', 'pointerdown', { pointerId: 7, isPrimary: true, clientX: W - 50, clientY: H - 50 });
-    await sleep(3000);
-    I = await B(); speed = I.speed; dist = I.dist;
-    check('máy chạm: giữ Ga thì cano chạy (tốc độ > 0,5 m/s, quãng còn lại giảm)', speed > 0.5 && dist < d0 - 3, speed.toFixed(2) + ' m/s, ' + d0.toFixed(0) + ' → ' + dist.toFixed(0) + ' m');
-    // kéo nửa trái xuống = bẻ về phía người xem (yaw dương)
-    await page.dispatchEvent('.bt-steer', 'pointerdown', { pointerId: 8, isPrimary: false, clientX: W * 0.2, clientY: H * 0.5 });
-    await page.dispatchEvent('.bt-steer', 'pointermove', { pointerId: 8, isPrimary: false, clientX: W * 0.2, clientY: H * 0.5 + 80 });
-    await sleep(900);
-    I = await B();
-    check('máy chạm: kéo nửa trái xuống thì mũi bẻ về phía camera', I.yaw > 0.1, 'yaw ' + I.yaw.toFixed(2));
-    await page.dispatchEvent('.bt-steer', 'pointerup', { pointerId: 8, clientX: W * 0.2, clientY: H * 0.5 + 80 });
-    await sleep(1500);
-    await shot('2-mid-drive');
-    await until(() => HX.phases.boat.info().state === 'arrive');
-    await page.dispatchEvent('.bt-ga', 'pointerup', { pointerId: 7 });
-  } else {
-    await page.keyboard.down('KeyW');
-    await sleep(3000);
-    I = await B(); speed = I.speed; dist = I.dist;
-    check('giữ W thì cano chạy (tốc độ > 0,5 m/s, quãng còn lại giảm)', speed > 0.5 && dist < d0 - 3, speed.toFixed(2) + ' m/s, ' + d0.toFixed(0) + ' → ' + dist.toFixed(0) + ' m');
-    check('HUD tốc độ khác 0', +(await page.textContent('.bt-speed b')) > 0, await page.textContent('.bt-speed b') + ' km/h');
-    await page.keyboard.down('KeyA');
-    await sleep(900);
-    I = await B();
-    check('A bẻ mũi về phía camera và thân nghiêng vào vòng cua', I.yaw > 0.1 && I.roll > 0.01, 'yaw ' + I.yaw.toFixed(2) + ', roll ' + I.roll.toFixed(3));
-    await page.keyboard.up('KeyA');
-    await page.keyboard.down('KeyD');
-    await sleep(1500);
-    const I2 = await B();
-    check('D bẻ mũi ra xa', I2.yaw < I.yaw - 0.1, 'yaw ' + I.yaw.toFixed(2) + ' → ' + I2.yaw.toFixed(2));
-    await page.keyboard.up('KeyD');
-    await sleep(1500);
-    I = await B();
-    check('chạy hết ga gần tốc độ gốc của cano (Boat_Exit001, ~10 m/s)', I.speed > 0.8 * I.vmax, I.speed.toFixed(2) + ' / ' + I.vmax.toFixed(2));
-    check('không tự lái khi người chơi đã cầm lái', !I.auto);
-    await shot('2-mid-drive');
-    const t0 = Date.now();
-    await until(() => HX.phases.boat.info().state === 'arrive');
-    await page.keyboard.up('KeyW');
-    I = await B();
-    check('tới gần chỗ lặn thì tự phanh (arrive)', I.state === 'arrive' && I.dist < 30, I.dist.toFixed(1) + ' m, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s nữa');
-  }
+  // ---- rời bến (không đụng gì cả) ----
+  await until(() => HX.phases.boat.info().state === 'depart');
+  await shot('1-depart');
+  // Boat_Exit001 đứng yên ~0,33 s đầu (máy rung tại chỗ, đúng khoá gốc) rồi mới lao đi: đợi qua đoạn đó.
+  await until(() => HX.phases.boat.info().speed > 0.2, null, 5000);
+  I = await B();
+  check('rời bến tự chạy: tốc độ > 0 dù không có phím/chạm nào', I.speed > 0.2, I.speed.toFixed(2) + ' m/s');
+
+  // giữa chừng rời bến (t ≈ 50% Boat_Exit001+002): so vị trí với đúng khoá gốc
+  await until(() => { const i = HX.phases.boat.info(); return i.state === 'depart' && i.clipT >= i.departLen * 0.5; });
+  I = await B();
+  const expectedU = await page.evaluate(departPoseExpr(), I.clipT);
+  const expX = I.departOrigin.x + expectedU[0], expZ = I.departOrigin.z - expectedU[2];
+  const dErr = Math.hypot(I.x - expX, I.z - expZ);
+  check('ở 50% khoá rời bến, vị trí khớp đúng khoá gốc Boat_Exit001/002 (sai số < 0,1 m)',
+    dErr < 0.1, 'lệch ' + dErr.toFixed(4) + ' m (đo ' + I.x.toFixed(2) + ',' + I.z.toFixed(2) + ' / khoá ' + expX.toFixed(2) + ',' + expZ.toFixed(2) + ')');
+
+  // bấm phím trong lúc chạy: không còn tác dụng gì (không nhận input lái nữa)
+  const before = await B();
+  await page.keyboard.down('KeyW'); await page.keyboard.down('KeyA');
+  await sleep(400);
+  await page.keyboard.up('KeyW'); await page.keyboard.up('KeyA');
+  const after = await B();
+  check('bấm W/A lúc đang chạy không đổi tốc độ/hướng (không còn nhận phím lái)',
+    Math.abs(after.speed - before.speed) < 3 && Math.abs(after.yaw - before.yaw) < 0.3,
+    'tốc độ ' + before.speed.toFixed(2) + '→' + after.speed.toFixed(2) + ', yaw ' + before.yaw.toFixed(2) + '→' + after.yaw.toFixed(2));
+
+  // ---- biển khơi (cruise) ----
+  await until(() => HX.phases.boat.info().state === 'cruise');
+  I = await B();
+  const d0 = I.dist, t0 = Date.now();
+  check('chạy biển khơi: vào state cruise, còn quãng dài', I.state === 'cruise' && I.dist > 30, I.dist.toFixed(0) + ' m');
+  await sleep(2000);
+  const I1 = await B();
+  check('cruise: quãng còn lại tự giảm đều theo tốc độ, không cần giữ phím', I1.dist < d0 - 3, d0.toFixed(0) + ' → ' + I1.dist.toFixed(0) + ' m');
+  await shot('2-cruise');
+
+  // ---- tới nơi rồi cập bến ----
+  await until(() => HX.phases.boat.info().state === 'arrive');
+  I = await B();
+  check('gần chỗ lặn thì tự cập bến (arrive)', I.state === 'arrive', 'còn ' + I.dist.toFixed(1) + ' m, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s từ lúc rời biển khơi');
 
   // ---- nhảy xuống nước ----
   await until(() => HX.phases.boat.info().dave && HX.phases.boat.info().dave.anim === 'Diveready');
@@ -139,11 +154,10 @@ async function run(browser, base, W, H, touch) {
   await until(() => !HX.phases.boat.info().active || HX.phases.boat.info().fade > 0.5);
   I = await B();
   if (I.active) check('Diveready tại chỗ, không bay khỏi đuôi (x Dave giữ nguyên)', Math.abs(I.dave.x - x0) < 1e-6 && I.dave.visible, x0.toFixed(2) + ' → ' + I.dave.x.toFixed(2));
-  await shot('4-dive-fade');
   await phase('dive');
   check('nhảy xong thì sang loading rồi vào lặn', JSON.stringify(await went()) === '["loading"]');
 
-  // ---- chuyến về ----
+  // ---- chuyến về (cũng không đụng gì cả) ----
   await page.evaluate(() => HX_DEBUG.go('boat', { dir: 'home' }));
   await until(() => HX.phases.boat.info().loaded);
   check('tiêu đề chuyến về có "về quán"', (await page.textContent('#scr-boat h2')).includes('về quán'), await page.textContent('#scr-boat h2'));
@@ -151,17 +165,16 @@ async function run(browser, base, W, H, touch) {
   check('chuyến về mở bằng anim gốc Respawn (Dave leo lên thuyền)', I.state === 'respawn' && I.dave.anim === 'Respawn', I.state + ' / ' + I.dave.anim);
   check('chuyến về chạy buổi tối', I.time === 'evening', I.time);
   await sleep(1200);
-  await shot('6-respawn');
-  await until(() => HX.phases.boat.info().state === 'drive');
+  await shot('4-respawn');
+  await until(() => HX.phases.boat.info().state === 'cruise');
+  I = await B();
+  check('chuyến về cũng tự chạy tới state cruise mà không cần phím', I.speed > 0.2, I.speed.toFixed(2) + ' m/s');
+  await shot('5-home-cruise');
   const h0 = Date.now();
-  if (touch) await page.dispatchEvent('.bt-ga', 'pointerdown', { pointerId: 9, clientX: W - 50, clientY: H - 50 });
-  else await page.keyboard.down('ArrowUp');
-  await sleep(4000);
-  await shot('7-home-drive');
   await phase('kitchen');
   check('chuyến về kết thúc bằng G.go("kitchen")', JSON.stringify(await went()) === '["kitchen"]');
-  if (!touch) await page.keyboard.up('ArrowUp');   // máy chạm: HUD cano đã dỡ cùng nút Ga
-  check('về tới quán thì sang kitchen', true, ((Date.now() - h0) / 1000).toFixed(1) + ' s từ lúc nổ máy');
+  check('về tới quán thì sang kitchen mà không đụng phím nào', true, ((Date.now() - h0) / 1000).toFixed(1) + ' s trước khi vào kitchen');
+  await shot('6-kitchen');
 
   // ---- Bỏ qua ----
   await page.evaluate(() => HX_DEBUG.go('boat', { dir: 'out' }));
@@ -176,22 +189,20 @@ async function run(browser, base, W, H, touch) {
 
   // ---- 5 chuyến liền nhau không rò bộ nhớ GPU ----
   const mem = () => page.evaluate(() => { const m = HX.game.gfx.renderer.info.memory; return m.geometries + '/' + m.textures; });
-  const during = [], after = [];
+  const during = [], after5 = [];
   for (let i = 0; i < 5; i++) {
     await page.evaluate(() => HX_DEBUG.go('boat', { dir: 'home' }));
-    // đo ở cùng một lúc mỗi chuyến: đã nổ máy, chạy được 1,5 s (mọi nhóm hạt đã vẽ ít nhất một lần)
-    await until(() => HX.phases.boat.info().state === 'drive');
-    await page.keyboard.down('KeyW');
-    await sleep(1500);
+    // đo ở cùng một lúc mỗi chuyến: đang chạy biển khơi (mọi nhóm hạt đã vẽ ít nhất một lần)
+    await until(() => HX.phases.boat.info().state === 'cruise');
+    await sleep(500);
     during.push(await mem());
-    await page.keyboard.up('KeyW');
     await page.click('#boat-skip');
     await phase('kitchen');
     await sleep(200);
-    after.push(await mem());
+    after5.push(await mem());
   }
   check('5 chuyến: geometry/texture lúc đang chạy không tăng', during.every(m => m === during[0]), during.join(' '));
-  check('5 chuyến: rời pha thì trả hết về như cũ', after.every(m => m === after[0]), after.join(' '));
+  check('5 chuyến: rời pha thì trả hết về như cũ', after5.every(m => m === after5[0]), after5.join(' '));
 
   check('không lỗi trang, không lỗi console, không 404', errors.length === 0, errors.slice(0, 6).join(' | '));
   await page.close();
