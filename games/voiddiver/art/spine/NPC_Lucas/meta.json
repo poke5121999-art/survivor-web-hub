@@ -6,14 +6,16 @@
    "bytes": 42102,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "NPC_Lucas_NW": {
    "skel": "NPC_Lucas_NW.skel",
    "bytes": 25278,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "NPC_Lucas.atlas",

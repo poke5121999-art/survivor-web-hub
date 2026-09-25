@@ -6,14 +6,16 @@
    "bytes": 30677,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_ShotgunMan_SW": {
    "skel": "Monster_ShotgunMan_SW.skel",
    "bytes": 31500,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_ShotgunMan.atlas",

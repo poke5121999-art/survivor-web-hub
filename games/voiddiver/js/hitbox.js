@@ -213,7 +213,7 @@
     };
     emit(world, ev);
     if (r.guard) {
-      emit(world, { type: 'vfx', name: r.guard.Vfx, unit: tgt, forward: num(r.guard.VfxForwardPos), duration: num(r.guard.VfxDuration) });
+      emit(world, { type: 'vfx', name: r.guard.Vfx, unit: tgt, forward: num(r.guard.VfxForwardPos), dir: tgt.aim, follow: true, duration: num(r.guard.VfxDuration) });
       if (r.guard.Sfx) emit(world, { type: 'sfx', name: r.guard.Sfx, unit: tgt });
     }
     // Khiên theo sát thương gây ra (Noah 1201/1207)
@@ -452,8 +452,9 @@
   function startHB(world, hb) {
     hb.started = true;
     var info = hb.info;
+    // HitBox.vfx là con của hitbox: stage bám hb.pos/hb.dir mỗi khung, huỷ cùng hitbox (vfxEnd 'hb:<uid>').
     if (info.vfx) emit(world, { type: 'vfx', name: info.vfx, pos: { x: hb.pos.x, y: hb.pos.y, z: hb.pos.z }, dir: hb.dir, speeds: info.vfxSpeeds,
-      zOffset: num(info.VfxZOffset), loop: !!info.IsLoopVfx, loopDuration: num(info.VfxLoopDuration), duration: hb.dur, hitbox: hb, unit: hb.owner,
+      zOffset: num(info.VfxZOffset), loop: !!info.IsLoopVfx, loopDuration: num(info.VfxLoopDuration), duration: hb.dur, hitbox: hb, owner: hb.owner,
       key: 'hb:' + hb.uid });
     if (info.SpawnSfx) emit(world, { type: 'sfx', name: info.SpawnSfx, unit: info.SfxFollowOwner ? hb.owner : null, pos: { x: hb.pos.x, z: hb.pos.z } });
     emit(world, { type: 'hitbox', hb: hb, id: hb.id, owner: hb.owner, pos: hb.pos, dir: hb.dir, shape: info.collisionType, scale: hb.scale, t: world.time });
@@ -472,6 +473,16 @@
       var cx = hb.owner.pos.x - hb.pos.x, cz = hb.owner.pos.z - hb.pos.z, cd = len(cx, cz), cs = hb.collectSpeed * dt;
       if (cd <= cs + (hb.owner.radius || 0)) { hb.pos.x = hb.owner.pos.x; hb.pos.z = hb.owner.pos.z; hb.arrived = true; }
       else { hb.pos.x += cx / cd * cs; hb.pos.z += cz / cd * cs; }
+      return null;
+    }
+    if (mt === 'TraceOwner' && spd > 0 && hb.owner) {
+      // Bay về chủ ở moveSpeed × curve(t/duration), tới nơi thì huỷ (sinh destroyHitBoxId). [SUY LUẬN] Chỉ lượt về của
+      // bumerang Mio 100112003/…13: curve tăng dần 0→1, destroyHitBoxId = Blade_End có SfxFollowOwner.
+      var tx = hb.owner.pos.x - hb.pos.x, tz = hb.owner.pos.z - hb.pos.z, td = len(tx, tz);
+      var ts = spd * (keys.length ? curveAt(keys, u) : 1) * dt;
+      if (td > 1e-6) hb.dir = { x: tx / td, z: tz / td };
+      if (td <= ts + (hb.owner.radius || 0)) { hb.pos.x = hb.owner.pos.x; hb.pos.z = hb.owner.pos.z; hb.arrived = true; }
+      else { hb.pos.x += tx / td * ts; hb.pos.z += tz / td * ts; }
       return null;
     }
     if (mt === 'FollowSelf' || mt === 'TraceOwner') {
@@ -570,7 +581,7 @@
       var r = Combat.applyDamage(world, hb.owner, tgt, ev.DamageInfo || {}, {
         hb: hb, skillId: hb.skillId, canBack: !!ev.CanBackAttack, reason: 'Hit', from: from, isFirstHit: !hb.firstHitDone, canParry: !!info.CanParry
       });
-      if (r && r.amount > 0) { hc.damaged = true; hc.crit = hc.crit || r.crit; hc.killed = hc.killed || r.killed; }
+      if (r && r.amount > 0) { hc.damaged = true; hc.crit = hc.crit || r.crit; hc.killed = hc.killed || r.killed; hc.elem = r.elem; }
     },
     CollisionBuffEvent: function (world, hb, tgt, ev) {
       if (ev.FactionCondition && ev.FactionCondition !== 'None' && (tgt.categories || []).indexOf(ev.FactionCondition) < 0) return;
@@ -582,7 +593,7 @@
     },
     CollisionCrowdControlEvent: function (world, hb, tgt, ev) { Combat.applyCC(world, hb.owner, tgt, ev.CcInfo || {}, hb); },
     CollisionFxEvent: function (world, hb, tgt, ev) {
-      if (ev.Vfx) emit(world, { type: 'vfx', name: ev.Vfx, unit: tgt, bone: ev.BoneType, offset: ev.Offset, duration: num(ev.VfxDuration), speeds: ev.VfxSpeeds, follow: !ev.IsIndependent, dir: ev.UseRotation ? hb.dir : null });
+      if (ev.Vfx) emit(world, { type: 'vfx', name: ev.Vfx, unit: tgt, owner: hb.owner, bone: ev.BoneType, offset: ev.Offset, duration: num(ev.VfxDuration), speeds: ev.VfxSpeeds, follow: !ev.IsIndependent, dir: ev.UseRotation ? hb.dir : null });
       if (ev.Sfx) emit(world, { type: 'sfx', name: ev.Sfx, unit: tgt });
     },
     CollisionHealEvent: function (world, hb, tgt, ev) {
@@ -669,11 +680,18 @@
         var d2 = norm({ x: hb.pos.x - u.pos.x, z: hb.pos.z - u.pos.z });
         p = { x: u.pos.x + d2.x * (u.radius || 0), y: hb.pos.y, z: u.pos.z + d2.z * (u.radius || 0) };
       }
-      emit(world, { type: 'vfx', name: info.hitVfx, pos: p, dir: hb.dir, rotate: !!info.UseHitVfxRotate, duration: num(info.hitVfxDuration),
-        speeds: info.hitVfxSpeeds, unit: info.UseBoneAttachHitVfx ? u : null, bone: info.HitVfxBoneType, elemental: !!info.UseElementalHitVfx });
+      // UseBoneAttachHitVfx: gắn vào khớp HitVfxBoneType (+ HitVfxBoneOffset) của mục tiêu; không thì đặt ở điểm trúng.
+      // UseHitVfxRotate: quay theo hướng hitbox, không thì xoay gốc prefab. UseElementalHitVfx: biến thể "…_Hit_<nguyên tố>".
+      var att = !!info.UseBoneAttachHitVfx;
+      emit(world, { type: 'vfx', name: info.hitVfx, pos: p, dir: info.UseHitVfxRotate ? hb.dir : null, duration: num(info.hitVfxDuration),
+        speeds: info.hitVfxSpeeds, unit: att ? u : null, follow: att, bone: att ? info.HitVfxBoneType : null, offset: att ? info.HitVfxBoneOffset : null,
+        loop: !!info.IsLoopHitVfx, loopDuration: num(info.HitVfxLoopDuration), owner: owner,
+        elemental: !!info.UseElementalHitVfx, element: info.UseElementalHitVfx ? (hc.elem || 'None') : undefined });
     }
     var sfx = hc.crit && info.criticalHitSfx ? info.criticalHitSfx : info.hitSfx;
-    if (sfx) emit(world, { type: 'sfx', name: sfx, pos: { x: u.pos.x, z: u.pos.z }, elemental: !!(hc.crit ? info.UseElementalCritSfx : info.UseElementalHitSfx) });
+    // UseElementalHitSfx / UseElementalCritSfx: clip thật là "<tên>_<nguyên tố của đòn>" (None/Fire/Water/Wind); tên trần không có.
+    if (sfx) emit(world, { type: 'sfx', name: sfx, pos: { x: u.pos.x, z: u.pos.z }, elemental: !!(hc.crit && info.criticalHitSfx ? info.UseElementalCritSfx : info.UseElementalHitSfx),
+      element: hc.elem || 'None' });
     if (u.kind === 'mon' && u.row && u.row.HitSfx && rng(world) * 100 < num(u.row.HitSfxPercent)) emit(world, { type: 'sfx', name: u.row.HitSfx, unit: u });
     emit(world, { type: 'hitstop', dur: hc.killed ? HITSTOP.kill : hc.crit ? HITSTOP.crit : HITSTOP.normal, src: owner, tgt: u, crit: hc.crit });
     emit(world, { type: 'flash', unit: u });

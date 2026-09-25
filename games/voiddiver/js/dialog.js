@@ -5,7 +5,12 @@
   const L = VD.lua;
   const $ = (tag, cls, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (parent) parent.appendChild(e); return e; };
 
-  const D = { root: null, box: null, open: false, skipFast: false, radioTimer: 0 };
+  // skipAll: người chơi giữ "bỏ qua" → tua hết cuộc thoại hiện tại tới CloseDialogAsync. Lua vẫn chạy từng dòng theo thứ tự
+  // (mỗi AppendDialogAsync/DelayDialogAsync trả task xong ngay), nên SetStep, SpawnMonster, SetCharacterStress, PlayBgm… vẫn chạy.
+  const D = { root: null, box: null, open: false, skipFast: false, skipAll: false, radioTimer: 0 };
+  // Giữ Esc bao lâu thì bỏ qua. [CHƯA RÕ] Bản gốc có SkipHoldDuration (CutscenePanelPresenter) nhưng số nằm trong mã, không trong prefab.
+  const SKIP_HOLD = 1.0;
+  const KEY_ICON = n => 'art/ui/tutorial/key/' + n + '.webp';
 
   // Ảnh chỉ dùng khi manifest có (portrait/dialogimage chưa bóc hết: tránh 404, thiếu thì để trống).
   function hasImg(kind, name) { const m = VD.ASSETS && VD.ASSETS[kind]; return !!(m && m[name]); }
@@ -22,7 +27,23 @@
     if (id >= 600000 && id <= 799999) return T['TNpc_Name_' + id] || '';
     return T['TCharacter_Name_' + id] || T['TMonster_Name_' + id] || '';
   }
-  const wait = ms => new Promise(r => setTimeout(r, D.skipFast ? Math.min(ms, 30) : ms));
+  const skipping = () => D.skipAll && D.open;
+  const wait = ms => new Promise(r => setTimeout(r, skipping() ? 0 : D.skipFast ? Math.min(ms, 30) : ms));
+  const TX = k => (VD.TEXT && VD.TEXT[k]) || '';
+
+  // Hàng phím góc phải dưới như DialogPopup/Keys[] gốc: [Space][F] "Tiếp theo" (NextView), [Ctrl] "Bỏ qua nhanh" (QuickView).
+  // Khung bỏ qua góc trái dưới dựng theo CutscenePanel gốc: nền gradient_circle_128 đen 80 %, phím Esc trong vòng đo giữ
+  // circle_38 (Image Filled Radial360) và chữ CutSceneSkip "Giữ để bỏ qua". Bản gốc chỉ có khung này cho cắt cảnh;
+  // dùng lại cho hội thoại vì DialogPopup gốc không có nút bỏ cả cuộc thoại. [SUY LUẬN]
+  function keysHtml() {
+    const k = n => `<img class="vd-key" src="${KEY_ICON(n)}" alt="">`;
+    return `<span class="g">${k('Space_Key')}${k('F_Key')}<i>${TX('NextView') || 'Tiếp theo'}</i></span>` +
+      `<span class="g">${k('Ctrl_Key')}<i>${TX('QuickView') || 'Bỏ qua nhanh'}</i></span>`;
+  }
+  function skipHtml() {
+    return `<div class="dim"></div><div class="row"><div class="kp"><svg viewBox="0 0 42 42"><circle class="bg" cx="21" cy="21" r="19"/>` +
+      `<circle class="fg" cx="21" cy="21" r="19"/></svg><img src="${KEY_ICON('Escape_Key')}" alt=""></div><span>${TX('CutSceneSkip') || 'Giữ để bỏ qua'}</span></div>`;
+  }
 
   function build() {
     const root = $('div', 'vd-dialog', document.getElementById('ui') || document.body);
@@ -30,8 +51,9 @@
       <div class="vd-dlg-bg"></div>
       <div class="vd-dlg-portraits"><img class="p0"><img class="p1"><img class="p2"></div>
       <div class="vd-dlg-box"><div class="vd-dlg-name"></div><div class="vd-dlg-text"></div><div class="vd-dlg-choices"></div>
-        <div class="vd-dlg-hint">Chuột trái / F: tiếp · Ctrl: tua nhanh</div></div>
-      <div class="vd-dlg-fade"></div>`;
+        <div class="vd-dlg-hint">${keysHtml()}</div></div>
+      <div class="vd-dlg-fade"></div>
+      <div class="vd-dlg-skip" title="Esc">${skipHtml()}</div>`;
     D.root = root;
     D.bg = root.querySelector('.vd-dlg-bg');
     D.portraits = [...root.querySelectorAll('.vd-dlg-portraits img')];
@@ -43,14 +65,66 @@
     D.toastBox = $('div', 'vd-toasts', document.getElementById('ui') || document.body);
     D.radio = $('div', 'vd-radio', document.getElementById('ui') || document.body);
     D.radio.innerHTML = '<img><div><b></b><span></span></div>';
-    addEventListener('keydown', e => { if (e.code === 'ControlLeft' || e.code === 'ControlRight') D.skipFast = true; });
-    addEventListener('keyup', e => { if (e.code === 'ControlLeft' || e.code === 'ControlRight') D.skipFast = false; });
+    D.skipEl = root.querySelector('.vd-dlg-skip');
+    D.skipFg = D.skipEl.querySelector('.fg');
+    // Giữ chuột trên khung cũng tính như giữ Esc (người chơi không biết phím vẫn bấm được).
+    D.skipEl.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.button === 0) holdStart('ptr'); });
+    D.skipEl.addEventListener('pointerup', e => { e.stopPropagation(); holdEnd('ptr'); });
+    D.skipEl.addEventListener('pointerleave', () => holdEnd('ptr'));
   }
+
+  // Ctrl (UI/NextFlow gốc) nghe từ lúc nạp trang: trước đây chỉ gắn khi dựng hộp thoại lần đầu nên Ctrl giữ sẵn bị bỏ lỡ.
+  addEventListener('keydown', e => {
+    if (e.code === 'ControlLeft' || e.code === 'ControlRight') D.skipFast = true;
+    if (e.code === 'Escape' && D.open && !e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); holdStart('key'); }
+  }, true);
+  addEventListener('keyup', e => {
+    if (e.code === 'ControlLeft' || e.code === 'ControlRight') D.skipFast = false;
+    if (e.code === 'Escape') holdEnd('key');
+  }, true);
+  addEventListener('blur', () => { D.skipFast = false; holdEnd('key'); holdEnd('ptr'); });
+
+  // ---- giữ để bỏ qua: vòng đo đầy sau SKIP_HOLD giây thì bật skipAll.
+  const hold = { by: new Set(), t0: 0, raf: 0 };
+  const RING = 2 * Math.PI * 19;
+  function setRing(f) { if (D.skipFg) { D.skipFg.style.strokeDasharray = RING; D.skipFg.style.strokeDashoffset = RING * (1 - f); } }
+  function holdStart(src) {
+    if (!D.open || D.skipAll) return;
+    if (!hold.by.size) { hold.t0 = performance.now(); D.skipEl && D.skipEl.classList.add('hold'); tickHold(); }
+    hold.by.add(src);
+  }
+  function holdEnd(src) {
+    hold.by.delete(src);
+    if (hold.by.size) return;
+    cancelAnimationFrame(hold.raf);
+    if (D.skipEl) D.skipEl.classList.remove('hold');
+    if (!D.skipAll) setRing(0);
+  }
+  function tickHold() {
+    const f = Math.min(1, (performance.now() - hold.t0) / 1000 / SKIP_HOLD);
+    setRing(f);
+    if (f >= 1) { hold.by.clear(); if (D.skipEl) D.skipEl.classList.remove('hold'); startSkipAll(); return; }
+    hold.raf = requestAnimationFrame(tickHold);
+  }
+  function startSkipAll() {
+    if (!D.open) return;
+    D.skipAll = true;
+    D.root.classList.add('skipping');
+    if (D.onAdvance) D.onAdvance();        // dòng đang đợi bấm tiếp: cho qua ngay
+  }
+  function endSkipAll() {
+    D.skipAll = false;
+    if (D.root) D.root.classList.remove('skipping');
+    setRing(0);
+  }
+  D.skipAllNow = startSkipAll;             // kiểm thử / gỡ lỗi
 
   // Đợi người chơi bấm tiếp (hoặc tua nhanh). Trả index lựa chọn nếu có.
   function awaitAdvance(choices) {
     return new Promise(res => {
       if (choices && choices.length) {
+        // Lựa chọn thì không tự chọn thay người chơi: dừng tua ở đây.
+        if (D.skipAll) endSkipAll();
         D.choices.innerHTML = '';
         choices.forEach((c, i) => {
           const b = $('button', 'vd-choice', D.choices);
@@ -59,8 +133,11 @@
         });
         return;
       }
+      if (skipping()) { res(-1); return; }
       if (D.skipFast) { setTimeout(() => res(-1), 60); return; }
-      const done = () => { removeEventListener('keydown', key); D.root.removeEventListener('pointerdown', click); res(-1); };
+      let fin = false;
+      const done = () => { if (fin) return; fin = true; D.onAdvance = null; clearInterval(iv); removeEventListener('keydown', key); D.root.removeEventListener('pointerdown', click); res(-1); };
+      D.onAdvance = done;
       const key = e => { if (e.code === 'KeyF' || e.code === 'Space' || e.code === 'Enter') done(); };
       const click = e => { if (e.button === 0) done(); };
       addEventListener('keydown', key); D.root.addEventListener('pointerdown', click);
@@ -85,11 +162,11 @@
   async function typeText(msg) {
     const rich = richHtml(L.text(msg)), s = plain(L.text(msg));
     D.text.textContent = '';
-    if (D.skipFast) { D.text.innerHTML = rich; return; }
+    if (D.skipFast || skipping()) { D.text.innerHTML = rich; return; }
     let skip = false;
     const onSkip = () => { skip = true; };
     D.root.addEventListener('pointerdown', onSkip, { once: true });
-    for (let i = 1; i <= s.length && !skip; i++) { D.text.textContent = s.slice(0, i); await new Promise(r => setTimeout(r, 18)); }
+    for (let i = 1; i <= s.length && !skip && !skipping(); i++) { D.text.textContent = s.slice(0, i); await new Promise(r => setTimeout(r, 18)); }
     D.text.innerHTML = rich;
     D.root.removeEventListener('pointerdown', onSkip);
   }
@@ -97,6 +174,7 @@
   const api = {
     OpenDialogAsync(mode) {
       if (!D.root) build();
+      endSkipAll();
       D.open = true; D.root.classList.add('on'); D.box.style.visibility = 'hidden';
       D.portraits.forEach(p => { p.style.display = 'none'; });
       if (VD.input) VD.input.enabled = false;
@@ -105,6 +183,7 @@
     CloseDialogAsync() {
       if (!D.root) return L.done();
       D.root.classList.remove('on'); D.open = false;
+      endSkipAll(); holdEnd('key'); holdEnd('ptr');
       D.bg.style.backgroundImage = ''; D.bg.classList.remove('on');
       if (VD.input) { VD.input.enabled = true; VD.input.clear(); }
       return L.task(wait(250));
@@ -138,7 +217,7 @@
       if (!D.root) build();
       const list = L.table(keys) || [];
       const note = $('div', 'vd-note', D.root);
-      note.innerHTML = '<div class="paper"></div><div class="vd-dlg-hint">Chuột trái / F: đóng</div>';
+      note.innerHTML = `<div class="paper"></div><div class="vd-dlg-hint"><span class="g"><img class="vd-key" src="${KEY_ICON('Space_Key')}" alt=""><img class="vd-key" src="${KEY_ICON('F_Key')}" alt=""><i>${TX('Close') || 'Đóng'}</i></span></div>`;
       const paper = note.querySelector('.paper');
       for (let i = 0; i < list.length; i++) { const p = $('p', null, paper); p.textContent = (VD.TEXT && VD.TEXT[list[i]]) || L.text(list[i]); }
       return L.task(awaitAdvance(null).then(() => note.remove()));

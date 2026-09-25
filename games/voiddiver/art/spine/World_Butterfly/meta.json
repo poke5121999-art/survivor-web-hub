@@ -6,7 +6,8 @@
    "bytes": 75334,
    "scale": 0.009999999776482582,
    "defaultMix": 0.0,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "World_Butterfly.atlas",

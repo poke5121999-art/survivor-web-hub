@@ -835,9 +835,13 @@
     VfxEvent: function (world, run, ev, tgt) {
       var u = tgt || run.unit;
       var key = 'sk:' + run.unit.uid + ':' + run.id + ':' + (world.time.toFixed(4)) + ':' + ev.prefab;
-      emit(world, { type: 'vfx', name: ev.prefab, unit: u, bone: ev.boneType, offset: ev.offset, duration: num(ev.duration), loop: !!ev.IsLoop,
+      // Hướng: InheritAimDir = ngắm của chủ; InheritMoveDir = hướng đi (cú lướt đang chạy, không thì phím, không thì ngắm);
+      // không cờ nào = xoay gốc của prefab (dir null). [SUY LUẬN: tên cột]
+      var me = run.unit, mvd = (run.move && run.move.dir) || (me.input && norm(me.input.move)) || me.aim;
+      var dir = ev.InheritAimDir || ev.UpdateByAimDir ? me.aim : ev.InheritMoveDir ? mvd : null;
+      emit(world, { type: 'vfx', name: ev.prefab, unit: u, owner: me, bone: ev.boneType, offset: ev.offset, duration: num(ev.duration), loop: !!ev.IsLoop,
         loopDuration: num(ev.LoopDuration), speeds: ev.VfxSpeeds, follow: !ev.IsIndependent, inheritAim: !!ev.InheritAimDir,
-        inheritMove: !!ev.InheritMoveDir, updateByAim: !!ev.UpdateByAimDir, dir: run.unit.aim, key: key, pos: run.at || null });
+        inheritMove: !!ev.InheritMoveDir, updateByAim: !!ev.UpdateByAimDir, dir: dir, key: key, pos: run.at || null });
       if (ev.DestroyOnActionEnd) run.nodeVfx.push(key);
       if (ev.DestroyOnSkillEnd) run.skillVfx.push(key);
     },

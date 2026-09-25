@@ -2,9 +2,9 @@
  * VOID DIVER — luồng game + sảnh Balusha: chơi thật trên trang (Playwright, Chromium headless, WebGL swiftshader).
  *
  * Chạy:  node test/voiddiver-lounge.js [--only=flow|mobile] [--keep]
- *   1. 1280×720: tiêu đề → Game mới → prologue gốc (Campaign/1100 OnLounge, tua bằng Ctrl) → ForceStartStage → lượt lặn 1100
+ *   1. 1280×720: tiêu đề → Game mới → prologue gốc (Campaign/1100 OnLounge, giữ Esc bỏ qua cả đoạn) → ForceStartStage → lượt lặn 1100
  *      → dịch chuyển vào va chạm 100097 (CallCollision_7: cutscene boss, SetStep(10), ForceEscapeStage gốc) → kết quả → sảnh
- *      → OnLounge step 10 → QuestComplete (Coin +10, SetIsTutorial(false)) → LoungeQuest 80200 (nói với Elara, Narcis, Felix, Lucas,
+ *      → OnLounge step 10 → QuestComplete (giữ Esc bỏ qua; Coin +10, SetIsTutorial(false)) → LoungeQuest 80200 (nói với Elara, Narcis, Felix, Lucas,
  *      về Elara) → 81101 → Elara: bảng Campaign chọn 1101 → giao việc → bốt điện thoại → lượt lặn 1101 → (đánh dấu nhiệm vụ đạt +
  *      ForceEscapeStage của dive.js) → sảnh → QuestComplete 1101 → Chủ nhân lên cấp → Lucas mua đồ → 82100 → máy Antikythera chế tạo
  *      → Felix kích hoạt talent → tải lại trang → Tiếp tục → trạng thái còn nguyên.
@@ -117,12 +117,14 @@ async function flow(browser, port, errors) {
   check('prologue: Campaign/1100.OnLounge chạy', await waitFor(page, () => VD.lounge.trace.indexOf('Campaign/1100.OnLounge') >= 0, null, 20000));
   await waitFor(page, () => document.querySelector('.vd-note'), null, 20000, 'thư prologue');
   await shot(page, '02-prologue-letter');
-  await page.keyboard.down('Control');
-  await ctrl(page);
-  await waitFor(page, () => VD.dialog.text && VD.dialog.text.textContent.length > 5, null, 30000, 'thoại prologue');
-  await page.keyboard.up('Control');
-  await sleep(400);
-  await shot(page, '03-prologue-dialog');
+  // Bỏ qua cả prologue: giữ Esc 1 s (khung "Giữ để bỏ qua" dựng theo CutscenePanel gốc). Lua gốc vẫn chạy từng dòng
+  // nên SetString(110001,"prologue") và ForceStartStage vẫn xảy ra.
+  const skipUi = await page.evaluate(() => { const e = document.querySelector('.vd-dialog.on .vd-dlg-skip'); return e ? e.textContent.trim() : null; });
+  check('khung "Giữ để bỏ qua" hiện trên thư prologue', skipUi === await page.evaluate(() => VD.TEXT.CutSceneSkip), skipUi);
+  await page.keyboard.down('Escape'); await sleep(500);
+  await shot(page, '03-prologue-skip-hold');
+  await sleep(900); await page.keyboard.up('Escape');
+  check('giữ Esc: prologue tua hết, thư đóng', await waitFor(page, () => !document.querySelector('.vd-note'), null, 20000, 'thư đóng'));
   await page.keyboard.down('Control');
   // ForceStartStage gốc → lặn 1100
   const dived = await waitFor(page, () => VD.app.scene === 'dive' && (VD.dive.state === 'intro' || VD.dive.state === 'play'), null, 300000, 'lặn 1100');
@@ -149,8 +151,11 @@ async function flow(browser, port, errors) {
   await page.evaluate(() => VD.dive.debug.dismissResult());
   check('về sảnh sau lượt lặn', await waitFor(page, () => VD.app.scene === 'lounge' && document.body.dataset.lounge === 'play', null, 240000));
   check('dive.js ghi qua 1100', (await prof(page)).clears['1100'] >= 1);
-  // ---- QuestComplete (OnLounge step 10)
-  await ctrl(page);
+  // ---- QuestComplete (OnLounge step 10): đọc một dòng rồi giữ Esc bỏ qua cả đoạn; GiveCoin/SetIsTutorial/SetQuestState vẫn chạy.
+  await page.keyboard.up('Control');
+  await waitFor(page, () => VD.dialog && VD.dialog.open && VD.dialog.text && VD.dialog.text.textContent.length > 0, null, 120000, 'QuestComplete mở');
+  await shot(page, '05b-questcomplete');
+  await page.keyboard.down('Escape'); await sleep(1400); await page.keyboard.up('Escape');
   check('QuestComplete: Coin +10', await waitFor(page, () => VD.profile.get().wallet.coin >= 10, null, 120000, 'coin 10'));
   let p = await prof(page);
   check('QuestComplete: SetIsTutorial(false)', p.isTutorial === false);

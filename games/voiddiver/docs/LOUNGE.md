@@ -40,6 +40,9 @@ sảnh ─ bốt lặn (F) ─▶ VD.app.toDive({campaignId, characterId, loadou
   - [ĐO] `Campaign/1100.lua` OnLounge gọi `ForceStartStage`, nên lượt đầu vào sảnh sẽ vào lặn ngay.
   - [ĐO] Sau khi thoát, `QuestComplete` cho +10 Coin và gọi `SetIsTutorial(false)`.
   - [ĐO] Tiếp theo là chuỗi LoungeQuest: 80200 (UnlockConditions `CampaignCleared:1100`) → 81101 → 80100 …
+- Bỏ qua hội thoại (prologue, QuestComplete, mọi hội thoại NPC): giữ Esc hoặc giữ chuột trên khung "Giữ để bỏ qua" ở góc trái dưới 1 s.
+  - Lua vẫn chạy hết từng dòng: prologue vẫn `SetString(110001,"prologue")` + `ForceStartStage`; QuestComplete vẫn `GiveCoin(10)` + `SetIsTutorial(false)`.
+  - Gặp lựa chọn thì dừng tua. Nguồn gốc và giới hạn: `docs/DIVE.md` §10.4.
 
 ## 1. Toạ độ và camera
 

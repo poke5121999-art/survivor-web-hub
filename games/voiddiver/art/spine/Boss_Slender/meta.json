@@ -6,14 +6,16 @@
    "bytes": 119986,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Boss_Slender_SW": {
    "skel": "Boss_Slender_SW.skel",
    "bytes": 180543,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Boss_Slender.atlas",

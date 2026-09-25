@@ -6,14 +6,16 @@
    "bytes": 41891,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_FireManSanta_SW": {
    "skel": "Monster_FireManSanta_SW.skel",
    "bytes": 52614,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_FireManSanta.atlas",

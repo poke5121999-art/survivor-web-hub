@@ -6,14 +6,16 @@
    "bytes": 340941,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Boss_Hatman_SW": {
    "skel": "Boss_Hatman_SW.skel",
    "bytes": 337682,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Boss_Hatman.atlas",

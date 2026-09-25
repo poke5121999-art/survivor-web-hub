@@ -6,14 +6,16 @@
    "bytes": 129441,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_Zombie_SW": {
    "skel": "Monster_Zombie_SW.skel",
    "bytes": 155689,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_Zombie.atlas",

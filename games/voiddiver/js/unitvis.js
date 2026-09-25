@@ -87,6 +87,7 @@
       this.dirKey = this.meshes.SW ? 'SW' : Object.keys(this.meshes)[0];
       this.meshes[this.dirKey].visible = true;
       this.flip = false;
+      this.camRight = { x: 1, z: 0 };
       this.anim = null; this.animLoop = true; this.animSpeed = 1;
       this.flash = 0;
       const r = (opts.shadow || 0.5) * 2;
@@ -126,8 +127,11 @@
         if (!m.skeleton.data.findAnimation(name)) continue;
         let e = m.state.getCurrent(0);
         if (!e || e.animation.name !== name || this.anim !== name) e = m.state.setAnimation(0, name, loop);
-        e.loop = loop; e.timeScale = 1;
-        e.trackTime = Math.max(0, clipTime - (dt || 0));
+        // Giờ clip do lõi skill quyết (animationSpeeds). timeScale 0 của track: update() không cộng thêm dt (trước đây
+        // đặt clipTime − dt rồi để update cộng lại, nhưng kẹp 0 ở khung đầu làm clip đứng một khung). Trộn (mixTime)
+        // vẫn chạy theo dt của AnimationState.
+        e.loop = loop; e.timeScale = 0;
+        e.trackTime = Math.max(0, clipTime);
       }
       this.anim = name; this.animLoop = loop; this.animSpeed = 1;
       for (const k in this.meshes) this.meshes[k].state.timeScale = 1;
@@ -139,20 +143,42 @@
     }
 
     // face: góc hướng nhìn trên mặt đất (rad, atan2(z, x) trong toạ độ three).
+    // Tám hướng trên màn hình (CharacterView._animationMode = 2, hàm gốc LookAtDirectionAsEightWay): bốn ô chéo quyết
+    // cả bộ xương (NW/SW) lẫn lật; ô lên/xuống chỉ quyết bộ xương, ô trái/phải chỉ quyết lật, phần còn lại giữ như cũ.
+    // Nhờ vậy ngắm gần thẳng đứng không lật qua lại mỗi khung. [SUY LUẬN: tên hàm + 2 bộ xương; mã C# không đọc được]
     setFacing(face, camera) {
       const dx = Math.cos(face), dz = Math.sin(face);
       const f = FWD;
       camera.getWorldDirection(f); f.y = 0; f.normalize();
       const rx = -f.z, rz = f.x;                    // trục phải của màn hình trên mặt đất
+      this.camRight.x = rx; this.camRight.z = rz;
       const sx = dx * rx + dz * rz, sy = dx * f.x + dz * f.z;
-      const key = sy > 0 && this.meshes.NW ? 'NW' : 'SW';
-      const flip = sx > 0;
+      if (sx * sx + sy * sy < 1e-8) return;
+      const oct = ((Math.round(Math.atan2(sy, sx) / (Math.PI / 4)) % 8) + 8) % 8;   // 0 phải, 2 lên, 4 trái, 6 xuống
+      let key = this.dirKey, flip = this.flip;
+      if (oct === 1 || oct === 2 || oct === 3) key = 'NW';
+      if (oct === 5 || oct === 6 || oct === 7) key = 'SW';
+      if (oct === 7 || oct === 0 || oct === 1) flip = true;
+      if (oct === 3 || oct === 4 || oct === 5) flip = false;
+      if (!this.meshes[key]) key = this.meshes.SW ? 'SW' : this.dirKey;
       if (key !== this.dirKey) {
         const from = this.meshes[this.dirKey], to = this.meshes[key];
         from.visible = false; to.visible = true;
         this.dirKey = key;
       }
       this.flip = flip;
+    }
+    // Độ lệch thế giới của khớp theo EUnitBoneType gốc (Head/Eye/Body/Death) = xương Spine "bone_<tên>" của bộ đang hiện
+    // (UnitView.GetBoneOffset). Symbol không có xương: CharacterView.SymbolPositionY. x theo trục phải màn hình (hình là
+    // billboard), y lên. Không có xương → null.
+    boneOffset(type) {
+      if (!type || type === 'None') return null;
+      const k = this.scale * (this.flip ? -1 : 1);
+      if (type === 'Symbol') return { x: 0, y: SYMBOL_Y * this.scale, z: 0 };
+      const m = this.meshes[this.dirKey];
+      const b = m && m.skeleton.findBone('bone_' + String(type).toLowerCase());
+      if (!b) return null;
+      return { x: this.camRight.x * b.worldX * k, y: b.worldY * this.scale, z: this.camRight.z * b.worldX * k };
     }
 
     update(dt, camera) {
@@ -168,6 +194,7 @@
     dispose() { this.root.parent && this.root.parent.remove(this.root); }
   }
   const FWD = new THREE.Vector3();
+  const SYMBOL_Y = 1.25;   // không có trong bảng: CharacterView.SymbolPositionY của prefab 100001 (quái chưa bóc)
 
   VD.loadSpine = loadSpine;
   VD.UnitVisual = UnitVisual;

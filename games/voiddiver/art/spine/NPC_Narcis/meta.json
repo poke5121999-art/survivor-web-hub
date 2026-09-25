@@ -6,14 +6,16 @@
    "bytes": 20621,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "NPC_Narcis_SW": {
    "skel": "NPC_Narcis_SW.skel",
    "bytes": 20621,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "NPC_Narcis.atlas",

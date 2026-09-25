@@ -4,6 +4,7 @@
 
     set PYTHONIOENCODING=utf-8
     python rip.py spine            # 4 nhan vat + moi quai/npc scoped (theo unit_map)
+    python rip.py spine-meta       # chi ghi lai defaultMix + mixes (SkeletonDataAsset) vao art/spine/*/meta.json
     python rip.py sector           # 40 sector scoped
     python rip.py audio            # sfx+bgm trong manifest
     python rip.py ui               # icon atlas + font
@@ -185,7 +186,7 @@ def rip_spine_names(names, out_root):
                 open(os.path.join(d, n + '.skel'), 'wb').write(b)
                 meta['skeletons'][n] = {
                     'skel': n + '.skel', 'bytes': len(b), 'scale': stt.get('scale'),
-                    'defaultMix': stt.get('defaultMix'),
+                    'defaultMix': stt.get('defaultMix'), 'mixes': sda_mixes(stt),
                     'skins': None,
                 }
             json.dump(meta, open(os.path.join(d, 'meta.json'), 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
@@ -195,6 +196,53 @@ def rip_spine_names(names, out_root):
         return done
 
     return vd.with_deps(f, lambda env: rip(env, names), deps=[vd.bfile('be9e4d904692f945f3910b57349aeb09_monoscripts')])
+
+
+def sda_mixes(stt):
+    """SkeletonDataAsset.fromAnimation/toAnimation/duration -> [[từ, tới, giây]] (AnimationStateData.SetMix)."""
+    return [[a, b_, c] for a, b_, c in zip(stt.get('fromAnimation') or [], stt.get('toAnimation') or [],
+                                           stt.get('duration') or [])]
+
+
+def cmd_spine_meta():
+    """Chỉ ghi lại defaultMix + mixes vào art/spine/*/meta.json đã có (không bóc lại skel/png)."""
+    f = vd.bfile('dependencies_assets_spine')
+    root = os.path.join(ART, 'spine')
+
+    def go(env):
+        n_upd = 0
+        sdas = {}
+        for o in env.objects:
+            if o.type.name != 'MonoBehaviour':
+                continue
+            try:
+                tt = o.read_typetree()
+            except Exception:
+                continue
+            if 'skeletonJSON' in tt:
+                sdas[tt['m_Name'].replace('_SkeletonData', '')] = tt
+        for name in sorted(os.listdir(root)):
+            mp = os.path.join(root, name, 'meta.json')
+            if not os.path.exists(mp):
+                continue
+            meta = json.load(open(mp, encoding='utf-8'))
+            changed = False
+            for k, sk in meta.get('skeletons', {}).items():
+                tt = sdas.get(k)
+                if tt is None:
+                    continue
+                mx = sda_mixes(tt)
+                if sk.get('mixes') != mx or sk.get('defaultMix') != tt.get('defaultMix'):
+                    sk['mixes'] = mx
+                    sk['defaultMix'] = tt.get('defaultMix')
+                    changed = True
+            if changed:
+                json.dump(meta, open(mp, 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
+                n_upd += 1
+                print('  %-24s %s' % (name, {k: len(v.get('mixes') or []) for k, v in meta['skeletons'].items()}))
+        print('meta.json cập nhật:', n_upd)
+
+    return vd.with_deps(f, go, deps=[vd.bfile('be9e4d904692f945f3910b57349aeb09_monoscripts')])
 
 
 def cmd_spine(ids_filter=None):
@@ -782,6 +830,8 @@ def main():
             ids_filter = [int(x) for x in a[6:].split(',')]
     if cmd in ('spine', 'all'):
         print('== spine =='); cmd_spine(ids_filter)
+    if cmd == 'spine-meta':
+        print('== spine-meta =='); cmd_spine_meta()
     if cmd in ('sector', 'all'):
         print('== sector =='); cmd_sector(ids_filter)
     if cmd in ('audio', 'all'):

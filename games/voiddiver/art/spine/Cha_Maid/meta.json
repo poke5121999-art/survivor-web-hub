@@ -6,14 +6,16 @@
    "bytes": 135736,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Cha_Maid_SW": {
    "skel": "Cha_Maid_SW.skel",
    "bytes": 376067,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Cha_Maid.atlas",

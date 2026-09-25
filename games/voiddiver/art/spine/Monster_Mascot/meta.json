@@ -6,14 +6,16 @@
    "bytes": 95350,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_Mascot_NW": {
    "skel": "Monster_Mascot_NW.skel",
    "bytes": 82656,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_Mascot.atlas",

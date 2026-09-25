@@ -6,14 +6,16 @@
    "bytes": 57386,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_DeepOne_NW": {
    "skel": "Monster_DeepOne_NW.skel",
    "bytes": 53190,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_DeepOne.atlas",

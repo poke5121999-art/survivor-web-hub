@@ -563,7 +563,7 @@
 },
 "1001_02_SwordSkill_01_Chain":{
 "file":"1001_02_SwordSkill_01_Chain.json",
-"bytes":357,
+"bytes":1142,
 "len":0,
 "systems":0,
 "loop":0
@@ -2887,7 +2887,7 @@
 },
 "MonsterTrap_01_Projectile":{
 "file":"MonsterTrap_01_Projectile.json",
-"bytes":871,
+"bytes":1109,
 "len":0,
 "systems":0,
 "loop":0
@@ -7064,6 +7064,15 @@
 "ow":64,
 "oh":64,
 "bytes":180
+},
+"Img_MonsterTrap01":{
+"wrapU":1,
+"wrapV":1,
+"filter":0,
+"srgb":1,
+"ow":256,
+"oh":256,
+"bytes":37742
 }
 },
 "unmatched":[],

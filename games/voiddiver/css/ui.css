@@ -22,7 +22,25 @@
 .vd-dlg-choices { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; align-items: flex-start; }
 .vd-choice { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); padding: 8px 16px; cursor: pointer; }
 .vd-choice:hover { border-color: var(--gold); color: var(--gold); }
-.vd-dlg-hint { position: absolute; right: 16px; bottom: 12px; font-size: 12px; color: var(--dim); }
+/* Hàng phím như DialogPopup/Keys[] gốc (góc phải dưới): ảnh phím 40 px của InputIcons, chữ NextView/QuickView. */
+.vd-dlg-hint { position: absolute; right: 24px; bottom: 14px; display: flex; gap: 18px; align-items: center; font-size: 14px; color: var(--ink); }
+.vd-dlg-hint .g { display: inline-flex; align-items: center; gap: 4px; }
+.vd-dlg-hint i { font-style: normal; margin-left: 4px; opacity: .9; }
+.vd-key { width: 28px; height: 28px; object-fit: contain; image-rendering: auto; }
+.vd-key[src*="Space_Key"] { width: 34px; }
+/* Khung "Giữ để bỏ qua" theo CutscenePanel gốc: góc trái dưới, nền tròn mờ đen 80 %, phím Esc trong vòng đo 42 px. */
+.vd-dlg-skip { position: absolute; left: 0; bottom: 0; width: 360px; height: 96px; z-index: 5; cursor: pointer; touch-action: none; }
+.vd-dlg-skip .dim { position: absolute; left: -180px; bottom: -110px; width: 600px; height: 220px; background: radial-gradient(closest-side, rgba(0,0,0,.8), rgba(0,0,0,0)); pointer-events: none; }
+.vd-dlg-skip .row { position: absolute; left: 40px; bottom: 26px; display: flex; align-items: center; gap: 14px; font-size: 15px; color: #eee; }
+.vd-dlg-skip .kp { position: relative; width: 42px; height: 42px; }
+.vd-dlg-skip .kp img { position: absolute; left: 7px; top: 7px; width: 28px; height: 28px; }
+.vd-dlg-skip svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.vd-dlg-skip circle { fill: none; stroke-width: 2; }
+.vd-dlg-skip circle.bg { stroke: rgba(255,255,255,.18); }
+.vd-dlg-skip circle.fg { stroke: #eee; stroke-dasharray: 119.4; stroke-dashoffset: 119.4; }
+.vd-dlg-skip:hover .row span, .vd-dlg-skip.hold .row span { color: #fff; }
+.vd-dialog.skipping .vd-dlg-skip { opacity: .5; }
+.vd-dialog.skipping .vd-dlg-bg, .vd-dialog.skipping .vd-dlg-fade { transition: none; }
 .vd-dlg-fade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity .5s; pointer-events: none; }
 .vd-dlg-fade.on { opacity: 1; }
 .vd-note { position: absolute; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; }

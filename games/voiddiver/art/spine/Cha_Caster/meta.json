@@ -6,14 +6,16 @@
    "bytes": 500751,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Cha_Caster_SW": {
    "skel": "Cha_Caster_SW.skel",
    "bytes": 591366,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Cha_Caster.atlas",

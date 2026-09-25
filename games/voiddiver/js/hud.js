@@ -13,7 +13,7 @@
     { key: 'SkillTwo', label: 'Q' }, { key: 'SkillThree', label: 'E' }, { key: 'SkillFour', label: 'R' },
   ];
 
-  const H = { root: null, on: false, floats: [], bubbles: [], unitTags: new Map() };
+  const H = { root: null, on: false, floats: [], bubbles: [], stexts: [], unitTags: new Map() };
   const v3 = new THREE.Vector3();
 
   function project(x, y, z) {
@@ -39,12 +39,40 @@
       return el;
     });
     H.items = $('div', 'vd-items', r);
-    H.itemEls = [1, 2, 3, 4, 5, 6].map(i => { const el = $('div', 'vd-item', H.items, '<img><span></span><b>' + i + '</b>'); return el; });
+    H.itemEls = [1, 2, 3, 4, 5].map(i => { const el = $('div', 'vd-item', H.items, '<img><span></span><b>' + i + '</b>'); return el; });
     H.boss = $('div', 'vd-boss', r, '<div class="name"></div><div class="vd-bar bosshp"><i class="fill"></i></div>');
     H.quest = $('div', 'vd-quest', r);
     H.center = $('div', 'vd-center', r);
+    buildKeyGuide(r);
     H.on = true;
   };
+
+  // Bảng phím góc phải dưới theo KeyGuidePanel! gốc (InGameKeyGuidePanelView): dòng "Hướng Dẫn [O]" luôn hiện, danh sách
+  // phím (nhóm Toggle, mặc định tắt trong prefab) bật/tắt bằng O (InGame/ToggleKeyGuide). Ảnh phím: art/ui/tutorial/key.
+  // Bỏ hai dòng Emoji [T] và Ping [Ctrl] của bản gốc: chỉ dùng khi chơi nhiều người, bản web chưa có.
+  const KEY_ROWS = [['Attack', 'Mouse_Left_Key'], ['Dash', 'Space_Key'], ['Run', 'LeftShift_Key'], ['MiniMap', 'M_Key'], ['Inventory', 'Tab_Key']];
+  const KG_STORE = 'voiddiver.keyguide';
+  function buildKeyGuide(r) {
+    const k = n => `<img class="vd-key" src="art/ui/tutorial/key/${n}.webp" alt="">`;
+    const row = (key, img) => `<div class="row"><span>${T('UInGameKeyGuidePanel_' + key + '_Desc')}</span>${k(img)}</div>`;
+    H.keyGuide = $('div', 'vd-keyguide', r,
+      `<div class="list">${KEY_ROWS.map(([a, b]) => row(a, b)).join('')}</div>` + `<div class="row head">${T('UInGameKeyGuidePanel_ControlGuide_Desc') || 'Hướng Dẫn'}${k('O_Key')}</div>`);
+    let on = false;
+    try { on = localStorage.getItem(KG_STORE) === '1'; } catch (e) { /* chế độ riêng tư */ }
+    H.keyGuide.classList.toggle('open', on);
+    H.keyGuide.querySelector('.head').addEventListener('click', () => H.toggleKeyGuide());
+  }
+  H.toggleKeyGuide = function (on) {
+    if (!H.keyGuide) return;
+    const v = on == null ? !H.keyGuide.classList.contains('open') : !!on;
+    H.keyGuide.classList.toggle('open', v);
+    try { localStorage.setItem(KG_STORE, v ? '1' : '0'); } catch (e) { /* chế độ riêng tư */ }
+  };
+  addEventListener('keydown', e => {
+    if (e.code !== 'KeyO' || e.repeat || !H.on || !H.root || H.root.style.display === 'none') return;
+    if (VD.input && VD.input.enabled === false) return;      // hội thoại / túi đồ đang mở
+    H.toggleKeyGuide();
+  });
   H.show = function (on) { if (!H.root) H.build(); H.root.style.display = on ? '' : 'none'; H.on = on; };
 
   function setBar(el, v, max, text) {
@@ -79,6 +107,33 @@
     el.textContent = Math.round(e.amount);
     H.floats.push({ el, x: e.tgt.pos.x + (Math.random() - 0.5) * 0.3, z: e.tgt.pos.z, y: 1.1, t: 0, life: 0.8 });
   };
+  // Chữ trạng thái nổi trên đơn vị ("Thanh Tẩy", "Bất bại!", "Miễn nhiễm Đẩy Lùi"): prefab gốc StatusEffectText /
+  // BuffActiveText của GameFloatingTextManager (EFloatingTextType). [ĐO] TMP Pretendard-Bold 28 (khung 1080p), nghiêng,
+  // màu (0.929, 0.929, 0.929), giãn chữ −5, vật liệu SlashShadow (bóng đổ đen 63% lệch phải-xuống, mềm 0.4);
+  // Animator FloatingText_ImpactUp 0.667 s: scale 2 → 1 trong 0.11 s (vọt 0.975/1.029), alpha 0 → 1 trong 0.11 s,
+  // giữ tới 0.28 s rồi mờ về 0 lúc 0.667 s, cuối clip bay lên 50 px (bắt đầu từ ~0.39 s).
+  // [SUY LUẬN] Neo ở chân + 0.9 m (Root của manager @y 0.9), lệch ngẫu nhiên ±_randomOffset (0.5) × 0.5 m.
+  const IMPACT = { s: [[0, 2], [0.056, 1.586], [0.111, 0.981], [0.167, 0.975], [0.222, 1.029], [0.278, 1]],
+    a: [[0, 0], [0.056, 0.741], [0.111, 1], [0.278, 0.987], [0.333, 0.896], [0.389, 0.741], [0.444, 0.55], [0.5, 0.352], [0.556, 0.175], [0.611, 0.049], [0.667, 0]],
+    y: [[0, 0], [0.333, -0.37], [0.389, 0.623], [0.444, 3.531], [0.5, 9.137], [0.556, 18.227], [0.611, 31.586], [0.667, 50]] };
+  const lerpKeys = (ks, t) => {
+    if (t <= ks[0][0]) return ks[0][1];
+    for (let i = 1; i < ks.length; i++) if (t <= ks[i][0]) { const a = ks[i - 1], b = ks[i]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0]); }
+    return ks[ks.length - 1][1];
+  };
+  const recent = new Map();
+  H.statusText = function (u, text) {
+    if (!H.root || !u || !text) return;
+    const k = u.uid + '|' + text, now = performance.now();
+    if (now - (recent.get(k) || -1e9) < 400) return;   // không có trong bảng: nhiều hitbox chạm cùng khung chỉ hiện một chữ
+    recent.set(k, now);
+    const el = $('div', 'vd-stext', H.world);
+    el.textContent = text;
+    el.style.cssText = 'position:absolute;left:0;top:0;white-space:nowrap;pointer-events:none;will-change:transform,opacity;' +
+      "font-family:'Pretendard',system-ui,sans-serif;font-weight:700;font-style:italic;letter-spacing:-0.05em;color:rgb(237,237,237);" +
+      'text-shadow:0.08em 0.08em 0.1em rgba(0,0,0,0.63);opacity:0;';
+    H.stexts.push({ el, u, dx: (Math.random() - 0.5) * 0.5, dz: (Math.random() - 0.5) * 0.5, t: 0 });
+  };
   H.bubbleAt = function (u, text) {
     if (!H.root) H.build();
     if (!u || !text) return;
@@ -109,9 +164,13 @@
       const img = el.querySelector('img');
       if (!id) { el.classList.add('empty'); img.removeAttribute('src'); return; }
       el.classList.remove('empty');
-      const src = icon('skill', id);
-      if (img.dataset.src !== src) { img.style.visibility = ''; img.onerror = () => { img.style.visibility = 'hidden'; }; img.src = src; img.dataset.src = src; }
       const row = VD.combatDB().skill(id) || {};
+      // Skill.UseIcon = false (đánh thường của Mio 10011000): bản gốc không có icon, atlas cũng không có ảnh.
+      if (row.UseIcon === false) { img.removeAttribute('src'); img.dataset.src = ''; img.style.visibility = 'hidden'; }
+      else {
+        const src = icon('skill', id);
+        if (img.dataset.src !== src) { img.style.visibility = ''; img.onerror = () => { img.style.visibility = 'hidden'; }; img.src = src; img.dataset.src = src; }
+      }
       const cdLeft = Math.max(0, (u.cd[id] || 0) - now);
       const full = VD.Stats.cooldown ? VD.Stats.cooldown(VD.combatDB(), u, row) : row.CoolTime || 1;
       let frac = cdLeft > 0 && full > 0 ? cdLeft / full : 0;
@@ -137,6 +196,15 @@
       f.el.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${f.t < 0.08 ? 1.5 - f.t * 6 : 1})`;
       f.el.style.opacity = f.t > f.life * 0.6 ? 1 - (f.t - f.life * 0.6) / (f.life * 0.4) : 1;
       if (f.t > f.life) { f.el.remove(); H.floats.splice(i, 1); }
+    }
+    const px = (VD.render.renderer.domElement.clientHeight || 1080) / 1080;   // cỡ gốc tính trên khung 1080p
+    for (let i = H.stexts.length - 1; i >= 0; i--) {
+      const f = H.stexts[i]; f.t += dt;
+      if (f.t > 0.667 || f.u.removed) { f.el.remove(); H.stexts.splice(i, 1); continue; }
+      const p = project(f.u.pos.x + f.dx, 0.9, f.u.pos.z + f.dz);
+      f.el.style.fontSize = (28 * px).toFixed(1) + 'px';
+      f.el.style.transform = `translate(${p.x}px, ${p.y - lerpKeys(IMPACT.y, f.t) * px}px) translate(-50%, -50%) scale(${lerpKeys(IMPACT.s, f.t)})`;
+      f.el.style.opacity = lerpKeys(IMPACT.a, f.t);
     }
     for (let i = H.bubbles.length - 1; i >= 0; i--) {
       const bb = H.bubbles[i]; bb.t += dt;

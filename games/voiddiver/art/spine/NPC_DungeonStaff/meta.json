@@ -6,14 +6,16 @@
    "bytes": 30051,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "NPC_DungeonStaff_NW": {
    "skel": "NPC_DungeonStaff_NW.skel",
    "bytes": 19666,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "NPC_DungeonStaff.atlas",

@@ -108,11 +108,14 @@ games/voiddiver/
   `onUnitEvent(e)` (móc nghe mọi sự kiện combat: 'damage', 'death', 'skill', …), `update(dt)`, `render(dt)`, `pending` (số Spine đang tải).
 - Lõi combat: `VD.Skill` (makeUnit/cast/start/interrupt/slotSkill/step), `VD.Stats.get(u, k)`, `u.buffs` (BuffSet: add/has/remove/stunned),
   `VD.HitBox`, `VD.Combat` (applyDamage/heal/stressDamage/stressRecover/kill). Tài liệu: docs/SKILLVM.md.
-- `VD.hud`: `show(on)`, `setQuest(title, [{text, done}])`, `setBoss(u)`, `centerText(s, ms)`, `bubbleAt(u, text)`, `damage(e)`, `update(dt)`.
+- `VD.hud`: `show(on)`, `setQuest(title, [{text, done}])`, `setBoss(u)`, `centerText(s, ms)`, `bubbleAt(u, text)`, `damage(e)`, `statusText(u, text)` (chữ trạng thái nổi kiểu StatusEffectText gốc), `update(dt)`.
 - `VD.lua`: `init()`, `call(key, fname, a, b)`, `has(key, fname)`, `event(keys, type, value)`, `tick()`, `text(s)`, `task(promise)`, `done(v)`,
   `api` (bảng LuaApi: gán `VD.lua.api.TênHàm = function (...) {}`), `EV` (ELuaEvent). Hàm chưa làm tự trả task xong ngay và cảnh báo một lần.
 - `VD.dialog`: đã làm các hàm LuaApi về thoại (Open/Append/Close/Delay/Fade/CustomImage/Note/Radio/Bubble/Toast), `toast(s)`.
 - `VD.audio`: `unlock()`, `sfx(name, {pos, vol, loop, key})`, `stop(h)`, `playBgm(name)`, `stopBgm()`, `setListener(pos)`.
-- `VD.vfx`: `load(name)`, `play(name, {pos:{x,y,z}, aim:{x,z}, follow})`, `stop(h)`, `update(dt, camera)`, `setScene(scene)`, `clear()`.
+- `VD.vfx`: `load(name)`, `preload(names)` → Promise (nạp + vẽ khống một khung), `isLoaded(name, element)`,
+  `play(name, {pos, dir, aim, follow, followRot, local, scale, scaleX, speeds, element, loop, loopDuration, duration, owner, tracking})`,
+  `stop(h, mode)` (true = xoá ngay, 'end' = trạng thái End của Animator), `update(dt, camera)`, `setScene(scene)`, `clear()`. Luật: tools/fx_README.md.
+- `VD.stage.playFx(e)` nhận nguyên sự kiện `vfx` của lõi (hợp đồng ở docs/SKILLVM.md §7); `VD.stage.fxNamesOf(u)` = mọi VFX unit có thể phát.
 - `VD.input`: `held/pressed/released[hành động]`, `mouse`, `move`, `enabled`, `clear()`; tên hành động theo InputActionAsset gốc (core.js KEYMAP).
 - `VD.loop`: `update(dt)`, `render(dt)`, `hitstop`, `time`. `VD.rng(seed)`, `VD.save.load/write`.

@@ -141,8 +141,32 @@ Mẫu thường gặp là `[0,1,3,4,5,34,38]`: UV2 vào TEXCOORD0.zw, Custom1 v�
   - Controller thường có Start → Loop → End. `VD.vfx.stop()` chuyển sang End nếu có. Clip End tắt phát rồi hiệu ứng mới dừng hẳn.
 - Module Emission bị tắt vẫn phải xuất (khoá `off`), vì Animator bật lại được.
 - Nén WebP lossy (YUV 4:2:0) làm lem kênh G/B của ảnh typeB. Vì vậy ảnh đều nén lossless.
-- `1001_02_SwordSkill_01_Chain` là MeshRenderer + script `ChainSkillVfx`, không có hạt. Chưa phát.
+- `1001_02_SwordSkill_01_Chain` là MeshRenderer + script `ChainSkillVfx`, không có hạt. Đã vẽ từ 2026-09-25, xem mục "MeshRenderer và ChainSkillVfx".
 - UnityPy 1.25: `PPtr` không có `assets_file`. Phải `ptr.deref()` rồi lấy `reader.assets_file.name` + `path_id` làm khoá.
+
+## MeshRenderer và ChainSkillVfx (2026-09-25)
+- **Xuất:** `fx_export.py` ghi MeshRenderer + MeshFilter (không phải Spine) vào `doc.meshes [{node, mesh, mat}]`, mesh ra `art/vfx/mesh/msh_*.json`. Script `ChainSkillVfx` ra `doc.script {type, len, off, chain, player}`. Chạy một phần (`fx_export.py <tên>`) phải giữ nguyên `stats`/`duplicateNames` của index — bẫy đã sập: bản đầu ghi đè mất.
+- **[ĐO] Prefab xích:** hai node `ChainLine01_01` (xích từ người chơi, `_playerChainTransform`) và `ChainLine01_02` (xích bay theo hitbox, `_chainTransform`). Mesh dài 5,93 m theo trục z cục bộ (`_chainLength`), `_chainOffset` −0,42. Vật liệu `VFX_Master_typeB_forMesh`: `_TintColor` xám 0,1265, `_2ndColor` HDR (2,69; 4,26; 5,99).
+- **[ĐO] Tên trường/hàm** (chuỗi quanh `ChainSkillVfx` trong global-metadata.dat): `_chainLength, _chainTransform, _playerChainTransform, _chainOffset, _elapsedTime, _isCollisionFinished`, cùng các bản lưu transform ban đầu. Mã C# (IL2CPP) không đọc được.
+- **[SUY LUẬN] Luật dựng lại** (`vfx.js runScript`): VFX gắn hitbox (`tracking`) → bật `01_02`, tắt `01_01`, quay mặt về chủ, `scale.z = max(0, d + off) / len` với d = khoảng cách hitbox → chủ. VFX gắn mục tiêu bị trói → ngược lại (`01_01` từ mục tiêu về chủ). [CHƯA RÕ] xích co về khi trượt (có `_isCollisionFinished` nhưng không biết luật).
+- **[ĐO] Shader `typeB_forMesh`** (giải DXBC): t0 = `_MaskTex` (G tan biến, B vùng màu 2, A alpha), t1 = `_MainTex`. alpha = A − smoothstep(tan biến) nhân `_TintColor.a`, cắt ở 0,5 (hằng trong shader). Màu = mix(main × tint, `_2ndColor`, B × 2nd.a) + fresnel, nhân `_Emission`. `vfx.js` FRAG_BM.
+- Hạt `VFX_Master_typeA` hai mặt lọc mặt theo `CULLSIGN` × dấu lật (`vMir` từ `iPos.w`): VFX lật theo chủ (scaleX −1) không bị cull mất.
+
+## Nạp trước và "vẽ khống" (2026-09-25)
+- `stage.spawn` gọi `VD.vfx.preload(fxNamesOf(u))`: mọi tên VFX trong skill → sự kiện → hitbox (vfx, FireVfx, hitVfx, CollisionFx, buff, destroyHitBoxId, ActionEventsOnDestroy, skill của ExtraUnitIdOnDestroy) → buff (BuffVfx, StatusEffectTag, BuffEffects) → SpawnVfx. Tên `…_Hit` nạp mọi biến thể nguyên tố. Không chặn lúc sinh.
+- **Bẫy đã sập:** `renderer.compile()` không làm ấm được. Nó biên dịch với render target null (outputEncoding sRGB 3001), còn khung thật vẽ vào RT của hậu kỳ (3000) → khoá chương trình khác, lần phát đầu vẫn biên dịch lại. Đo: xích lần đầu 137–185 ms một khung.
+- Cách đang dùng: mẫu vừa nạp được "vẽ khống" một khung trong đường vẽ thật — batch hạt hiện với 0 bản, MeshRenderer và vệt (ribbon/TrailRenderer, shader đỉnh riêng) hiện với drawRange 0. Sau: xích 9–10 ms. Bẫy thứ hai: quên vệt thì đạn Raven vẫn khựng 110–145 ms lúc trúng (chương trình đỉnh ribbon mới).
+- ExtraUnit không có bộ Spine (bom đồ chơi Mio 10002) thì bỏ qua tìm Spine theo skin: đo 545 ms vì nạp hết mọi bộ Spine để dò.
+- Khung chậm còn lại (30–77 ms) khi không có chương trình mới: [SUY LUẬN] rasterizer phần mềm của headless phải tô các hạt to phủ màn hình (flash trắng); chưa đo trên GPU thật.
+
+## Phát theo thời gian và dừng
+- `play` nhận `speeds` (VfxSpeeds: tốc độ theo từng đoạn thời gian của hiệu ứng), `loop` + `loopDuration` (ParticleLooper `_loopInterval`: khởi động lại mọi hệ sau mỗi khoảng), `duration` (tính theo giờ thật), `local` (độ lệch cục bộ quay theo khung), `owner` (Object3D của chủ, cho ChainSkillVfx), `tracking`.
+- `stop(h, 'end')`: có trạng thái End của Animator thì chuyển sang, không thì xoá ngay — như `SkillVfx.PlayEnd`/Destroy khi hitbox mất.
+
+## Orbital/Radial trong không gian thế giới và đĩa trắng (2026-09-25)
+- **Bẫy đã sập:** Velocity over Lifetime (orbital, radial) của hệ `simulationSpace = World` từng tính quanh (0,0,0) của bản đồ. Ở trang xem VFX hiệu ứng phát tại gốc nên trông đúng; trong game (người chơi ở ~(22, −12)) FireSparks của `Purification` (orbital ±5 rad/s) bay xa 20–25 m, cao 13–24 m, thành đĩa trắng trôi khỏi trận. Nay tâm = vị trí node của hệ, trục theo khung node (`vfx.js` simSystem). 107 hệ trong 506 prefab dính (mọi `FireSparks` của Noah, `debris` của DarkHands…).
+- Cách tìm lần sau: ẩn từng mesh con của nhóm `vfx` bằng `layers.set(31)` (đừng dùng `visible`: `VD.vfx.update` đặt lại mỗi khung), chụp, đếm điểm ảnh trắng; rồi đọc `iPos` của batch để xem hạt ở đâu.
+- **Màu [HDR] không đổi sRGB (2026-09-25).** [ĐO] cờ thuộc tính trong shader (`m_PropInfo.m_Props[].m_Flags` & 16): typeA `_DissolveEdge_Color`; typeB_forMesh `_TintColor`, `_2ndColor`, `_FresnelColor`. `_MainColor` của typeA không có cờ, vẫn đổi sRGB → linear. [ĐO] URP asset `UniveralRP_VD` bật HDR (`m_SupportsHDR` 1, bộ đệm 32 bit R11G11B10), Camera `m_HDR` true, bloom ngưỡng 1 cường độ 0,3. [SUY LUẬN] số lưu của màu HDR đã là tuyến tính: thanh Intensity 'mỗi nấc gấp đôi ánh sáng' chỉ đúng khi số lưu tỉ lệ thẳng với ánh sáng, và ảnh gốc `steamshots/ss03.jpg` (quái bị thanh tẩy) chỉ có đốm trắng nhỏ + khói tối. Bẫy đã sập: đổi sRGB thì viền 32 của `…_alphaClip_Edge_White` thành 3617, điểm ảnh ~570, bloom ra đĩa trắng 1 m. Đo lại sau khi sửa: đốm nhỏ như ss03; các sheet combo/xích/Noah E/Mio R không tối đi (xích vẫn thấy, nền xám hơn). Tài liệu Unity `Material.SetColor` ghi mập mờ về [HDR] — chưa có nguồn chắc.
 
 ## Chọn theo ảnh [SUY LUẬN]
 - **Stretched billboard:**
@@ -171,7 +195,7 @@ Mẫu thường gặp là `[0,1,3,4,5,34,38]`: UV2 vào TEXCOORD0.zw, Custom1 v�
 | LightsModule | 48 | gần đúng: 1 đèn ở tâm hệ, cường độ × số hạt × ratio |
 | Shader Grabpass_Distortion | 5 vật liệu | bỏ, không vẽ |
 | typeC_3CD, BG_Particle, SurfaceCutter | 26 vật liệu | vẽ kiểu unlit ảnh × màu |
-| MeshRenderer/SpriteRenderer trong prefab VFX | 3 | chưa vẽ |
+| MeshRenderer trong prefab VFX | 3 | đã vẽ (doc.meshes); SpriteRenderer chưa |
 | Sắp theo khoảng cách giữa các hiệu ứng | | mỗi mẫu gộp mọi bản phát vào 1 draw call. Thứ tự giữa mẫu theo `sortingFudge` |
 
 ## Tải (test `--gpu=1`, RTX 3050 Laptop, 960×540)

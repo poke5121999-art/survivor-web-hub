@@ -6,14 +6,16 @@
    "bytes": 121875,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_Bigeye_SW": {
    "skel": "Monster_Bigeye_SW.skel",
    "bytes": 120576,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_Bigeye.atlas",

@@ -211,6 +211,9 @@
       if (trig) D.prefabR[n] = trig.shape === 'box' ? Math.max(trig.size[0], trig.size[2]) / 2 : (trig.radius || 1);
       const it = (json.behaviours || []).find(b => b.class === 'InteractiveTrigger' && b.fields);
       if (it) { D.prefabFields = D.prefabFields || {}; D.prefabFields[n] = it.fields; }
+      // RewardBox của prefab: _holdingSfx / _lockedHoldingSfx (tiếng giữ F riêng từng loại rương), _interactionSfx.
+      const rb = (json.behaviours || []).find(b => b.class === 'RewardBox' && b.fields);
+      if (rb) { D.boxFields = D.boxFields || {}; D.boxFields[n] = rb.fields; }
     }).catch(() => {})));
   }
 
@@ -227,10 +230,21 @@
     // RewardBox.InteractStressConditions: trạng thái căng thẳng phải nằm trong danh sách (HiddenStash chỉ Fear/Despair).
     const st = stressState();
     if (r.InteractStressConditions && r.InteractStressConditions.length && r.InteractStressConditions.indexOf(st) < 0) return null;
-    if (e.opened) return e.loot && e.loot.length ? { verb: TX('LootingInventory') || 'Kết quả Tìm kiếm', time: 0.05 } : null;
+    const left = e.lootInv ? e.lootInv.slots.some(s => s.g) : e.loot && e.loot.length;
+    if (e.opened) return left ? { verb: TX('LootingInventory') || 'Kết quả Tìm kiếm', time: r.HoldingTime || C('LootingInteractionTime', 0.1), sfx: boxSfx(e, false) } : null;
     let locked = false;
     if (r.HasKeyInteraction) locked = !VD.inventory.findKey(r.KeyItemTypes || [], r.KeyItemIds || []);
-    return { verb: TX('Open') || 'Mở', time: r.HoldingTime || C('LootingInteractionTime', 0.1), locked, sfx: 'InteractionLooting' };
+    return { verb: TX('Open') || 'Mở', time: r.HoldingTime || C('LootingInteractionTime', 0.1), locked, sfx: boxSfx(e, locked) };
+  }
+  // Tiếng giữ F: RewardBox._holdingSfx / _lockedHoldingSfx của prefab (vd BrownBox → InteractionLooting_PaperBox2).
+  // MedicalBox/Briefcase/HiddenStash trong art/object là bản MimicObject (không có _holdingSfx): lấy clip trùng tên prefab
+  // nếu có (InteractionLooting_MedicalBox…). [SUY LUẬN]
+  function boxSfx(e, locked) {
+    const f = D.boxFields && D.boxFields[e.prefab];
+    if (f && (locked ? f._lockedHoldingSfx : f._holdingSfx)) return locked ? f._lockedHoldingSfx : f._holdingSfx;
+    if (locked) return 'InteractionLooting_Locked';
+    const same = 'InteractionLooting_' + e.prefab;
+    return VD.ASSETS && VD.ASSETS.sfx && VD.ASSETS.sfx[same] ? same : 'InteractionLooting_Default';
   }
   function boxOpen(e) {
     const r = e.row;
@@ -245,7 +259,12 @@
       D.stats.boxes++;
       emitTask('OpenRewardBox');
     }
-    VD.inventory.openLoot({ title: TX('TRewardBox_Name_' + r.Id) || TX('LootingInventory'), items: e.loot, source: e });
+    // Giữ F xong: _interactionSfx của prefab, rỗng thì nhóm tiếng MasterAudio "LootingCompleted" (hằng LOOTING_COMPLETED). [SUY LUẬN]
+    const f = D.boxFields && D.boxFields[e.prefab];
+    // Gọi thẳng VD.audio: clip bóc bằng tools/ui_inventory_rip.py chưa có trong VD.ASSETS.sfx tới khi chạy lại build_assets.py.
+    VD.audio.sfx((f && f._interactionSfx) || 'LootingCompleted', { pos: e.pos });
+    // Mở bảng Tab kèm LootingInventory; từng ô hé lộ dần theo bậc (inventory.js revealTick).
+    VD.inventory.openLoot({ title: TX('LootingInventory'), items: e.loot, source: e });
   }
 
   // ---------------------------------------------------------------- cửa
@@ -820,6 +839,7 @@
     if (!inp.held.Interact) { if (D.holdT > 0) stopHoldSfx(); D.holdT = 0; D.needRelease = false; D.chain = null; }
     else if (cur && !blocked) {
       if (D.holdT === 0 && cur.it.sfx) D.holdSfx = sfx(cur.it.sfx, { pos: cur.e.pos, loop: true, key: 'hold' });
+      if (D.holdT === 0 && cur.e.kind === 'box') searchAnim(u, true);
       D.holdT += dt;
       if (D.holdT >= cur.it.time) {
         D.holdT = 0; stopHoldSfx();
@@ -829,7 +849,13 @@
     }
     renderPrompt(cur);
   }
-  function stopHoldSfx() { if (D.holdSfx) { VD.audio.stop(D.holdSfx, 0.1); D.holdSfx = null; } }
+  function stopHoldSfx() { if (D.holdSfx) { VD.audio.stop(D.holdSfx, 0.1); D.holdSfx = null; } searchAnim(VD.stage.player, false); }
+  // GetInteractionAnimation gốc: giữ F ở rương thì nhân vật chơi battle/search (không đè anim skill đang chạy).
+  function searchAnim(u, on) {
+    if (!u) return;
+    if (on && !u.drive) u.drive = { name: 'battle/search', loop: true, t0: VD.stage.A.time, offset: 0, ts: 1, hold: true };
+    else if (!on && u.drive && u.drive.hold && !VD.inventory.open) u.drive = null;
+  }
   function use(e) {
     switch (e.kind) {
       case 'box':
@@ -845,7 +871,8 @@
       case 'exit': exitUse(e); break;
       case 'drop': {
         const left = VD.inventory.add(e.goods);
-        sfx('ItemPickUp', { pos: e.pos });
+        // DropGoods gốc: _interactionSfx rỗng → nhóm tiếng LootingCompleted (hằng LOOTING_COMPLETED). [SUY LUẬN]
+        VD.audio.sfx('LootingCompleted', { pos: e.pos });
         if (left <= 0) removeEnt(e); else e.goods.count = left;
         break;
       }
@@ -1268,6 +1295,7 @@
     D.arrows.clear();
     for (const e of D.ents) if (e.vis) e.vis.dispose();
     VD.objects.clear();
+    if (VD.tutorial) VD.tutorial.clear();
     if (VD.minimap) VD.minimap.clear();
     if (P.el) P.el.style.display = 'none';
     VD.stage.onUnitEvent = null;
@@ -1291,7 +1319,7 @@
     if (D.state === 'intro') { if (D.t >= D.introEnd) enterPlay(); return; }
     if (D.state === 'play') {
       if (VD.input.pressed.Minimap && VD.minimap) VD.minimap.toggleBig();
-      VD.inventory.step();
+      VD.inventory.step(dt);
       rulesTick(dt);
       worldTick(dt);
       fieldTick(dt);
@@ -1304,13 +1332,12 @@
       if (D.t >= D.endAt) toResult();
     }
   }
-  // Inventory mở thì input tắt: vẫn đọc phím Tab/Esc/M/F thẳng từ DOM.
+  // Inventory mở thì input tắt: Tab/Esc đọc thẳng từ DOM (phím trong bảng — F dùng, R xếp, N đánh dấu, 1–5 — ở inventory.js).
   addEventListener('keydown', e => {
     if (D.state !== 'play') return;
     // Tab mở/đóng túi ngay trên sự kiện DOM (input.enabled tắt khi túi mở nên không đọc qua VD.input được).
     if (e.code === 'Tab' && !e.repeat) { e.preventDefault(); if (VD.inventory.open || (VD.input.enabled !== false && !D.cutscene)) VD.inventory.toggle(); }
     else if (VD.inventory.open && e.code === 'Escape') { e.preventDefault(); VD.inventory.toggle(false); }
-    else if (VD.inventory.open && e.code === 'KeyF' && VD.inventory.loot) VD.inventory.takeAll();
   });
 
   function render(dt) {
@@ -1389,6 +1416,8 @@
     D.cells = lay.cells; D.play = lay.play;
     await VD.world.load(lay.cells.map(c => ({ cx: c.cx, cy: c.cy, id: c.id, rot: c.rot })), lay.size, VD.render.scene);
     collectSectors();
+    // Bảng hướng dẫn trên sàn (StaticDecoration/TutorialGuides của prefab sector 10009/10001/10004).
+    if (VD.tutorial) await VD.tutorial.build(VD.world.sectors, VD.render.scene);
     // ---- sân khấu + người chơi
     const S = VD.stage;
     S.begin({ mode: 'dive', difficulty: D.diffName, seed: D.seed });
@@ -1433,7 +1462,7 @@
     D.boundRow = rowOf('SpecialField', camp.BoundarySpecialFieldId);
     // ---- túi
     const inv = opts.inventory || {};
-    VD.inventory.reset({ goods: inv.goods || [], quick: inv.quick || VD.profile.get().quick, safe: inv.safe || VD.profile.get().safe, bags: inv.bags || [] });
+    VD.inventory.reset({ goods: inv.goods || [], quick: inv.quick || VD.profile.get().quick, safe: inv.safe || VD.profile.get().safe, bags: inv.bags || [], equip: opts.loadout || null });
     VD.inventory.bindHudClicks && VD.inventory.bindHudClicks();
     // ---- nội dung
     setupTasks();

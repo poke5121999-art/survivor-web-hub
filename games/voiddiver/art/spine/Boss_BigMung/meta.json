@@ -6,14 +6,16 @@
    "bytes": 62500,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Boss_BigMung_SW": {
    "skel": "Boss_BigMung_SW.skel",
    "bytes": 84253,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Boss_BigMung.atlas",

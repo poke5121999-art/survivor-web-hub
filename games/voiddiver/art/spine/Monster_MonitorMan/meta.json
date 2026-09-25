@@ -6,14 +6,16 @@
    "bytes": 91170,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_MonitorMan_SW": {
    "skel": "Monster_MonitorMan_SW.skel",
    "bytes": 106040,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_MonitorMan.atlas",

@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Void Diver</title>
-<link rel="stylesheet" href="css/ui.css?v=20260925b">
-<link rel="stylesheet" href="css/dive.css?v=20260925b">
-<link rel="stylesheet" href="css/lounge.css?v=20260925b">
+<link rel="stylesheet" href="css/ui.css?v=20260926a">
+<link rel="stylesheet" href="css/dive.css?v=20260926a">
+<link rel="stylesheet" href="css/lounge.css?v=20260926a">
+<link rel="stylesheet" href="css/tutorial.css?v=20260926a">
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; color: #eee; font-family: system-ui, sans-serif; }
   #view { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
@@ -17,48 +18,49 @@
 <canvas id="view"></canvas>
 <div id="ui"></div>
 <div id="fatal" hidden></div>
-<script src="vendor/three-r140.min.js?v=20260925b"></script>
-<script src="vendor/GLTFLoader-r140.js?v=20260925b"></script>
-<script src="vendor/meshopt_decoder.js?v=20260925b"></script>
-<script src="vendor/spine-threejs-4.2.43.min.js?v=20260925b"></script>
-<script src="vendor/fengari-web.js?v=20260925b"></script>
-<script src="data/tables.js?v=20260925b"></script>
-<script src="data/text.js?v=20260925b"></script>
-<script src="data/lua.js?v=20260925b"></script>
-<script src="data/assets.js?v=20260925b"></script>
-<script src="data/objects.js?v=20260925b"></script>
-<script src="data/npcs.js?v=20260925b"></script>
-<script src="js/core.js?v=20260925b"></script>
-<script src="js/render.js?v=20260925b"></script>
-<script src="js/postfx.js?v=20260925b"></script>
-<script src="js/world.js?v=20260925b"></script>
-<script src="js/unitvis.js?v=20260925b"></script>
-<script src="js/stats.js?v=20260925b"></script>
-<script src="js/buff.js?v=20260925b"></script>
-<script src="js/hitbox.js?v=20260925b"></script>
-<script src="js/skill.js?v=20260925b"></script>
-<script src="js/ai.js?v=20260925b"></script>
-<script src="js/vfx.js?v=20260925b"></script>
-<script src="js/audio.js?v=20260925b"></script>
-<script src="js/lua.js?v=20260925b"></script>
-<script src="js/dialog.js?v=20260925b"></script>
-<script src="js/hud.js?v=20260925b"></script>
-<script src="js/stage.js?v=20260925b"></script>
-<script src="js/profile.js?v=20260925b"></script>
-<script src="js/inventory.js?v=20260925b"></script>
-<script src="js/objects.js?v=20260925b"></script>
-<script src="js/minimap.js?v=20260925b"></script>
-<script src="js/dive.js?v=20260925b"></script>
-<script src="js/ui/panel.js?v=20260925b"></script>
-<script src="js/npc.js?v=20260925b"></script>
-<script src="js/ui/campaign.js?v=20260925b"></script>
-<script src="js/ui/character.js?v=20260925b"></script>
-<script src="js/ui/goods.js?v=20260925b"></script>
-<script src="js/ui/progress.js?v=20260925b"></script>
-<script src="js/ui/workshop.js?v=20260925b"></script>
-<script src="js/ui/deal.js?v=20260925b"></script>
-<script src="js/lounge.js?v=20260925b"></script>
-<script src="js/app.js?v=20260925b"></script>
-<script src="js/main.js?v=20260925b"></script>
+<script src="vendor/three-r140.min.js?v=20260926a"></script>
+<script src="vendor/GLTFLoader-r140.js?v=20260926a"></script>
+<script src="vendor/meshopt_decoder.js?v=20260926a"></script>
+<script src="vendor/spine-threejs-4.2.43.min.js?v=20260926a"></script>
+<script src="vendor/fengari-web.js?v=20260926a"></script>
+<script src="data/tables.js?v=20260926a"></script>
+<script src="data/text.js?v=20260926a"></script>
+<script src="data/lua.js?v=20260926a"></script>
+<script src="data/assets.js?v=20260926a"></script>
+<script src="data/objects.js?v=20260926a"></script>
+<script src="data/npcs.js?v=20260926a"></script>
+<script src="js/core.js?v=20260926a"></script>
+<script src="js/render.js?v=20260926a"></script>
+<script src="js/postfx.js?v=20260926a"></script>
+<script src="js/world.js?v=20260926a"></script>
+<script src="js/unitvis.js?v=20260926a"></script>
+<script src="js/stats.js?v=20260926a"></script>
+<script src="js/buff.js?v=20260926a"></script>
+<script src="js/hitbox.js?v=20260926a"></script>
+<script src="js/skill.js?v=20260926a"></script>
+<script src="js/ai.js?v=20260926a"></script>
+<script src="js/vfx.js?v=20260926a"></script>
+<script src="js/audio.js?v=20260926a"></script>
+<script src="js/lua.js?v=20260926a"></script>
+<script src="js/dialog.js?v=20260926a"></script>
+<script src="js/hud.js?v=20260926a"></script>
+<script src="js/stage.js?v=20260926a"></script>
+<script src="js/profile.js?v=20260926a"></script>
+<script src="js/inventory.js?v=20260926a"></script>
+<script src="js/objects.js?v=20260926a"></script>
+<script src="js/minimap.js?v=20260926a"></script>
+<script src="js/tutorial.js?v=20260926a"></script>
+<script src="js/dive.js?v=20260926a"></script>
+<script src="js/ui/panel.js?v=20260926a"></script>
+<script src="js/npc.js?v=20260926a"></script>
+<script src="js/ui/campaign.js?v=20260926a"></script>
+<script src="js/ui/character.js?v=20260926a"></script>
+<script src="js/ui/goods.js?v=20260926a"></script>
+<script src="js/ui/progress.js?v=20260926a"></script>
+<script src="js/ui/workshop.js?v=20260926a"></script>
+<script src="js/ui/deal.js?v=20260926a"></script>
+<script src="js/lounge.js?v=20260926a"></script>
+<script src="js/app.js?v=20260926a"></script>
+<script src="js/main.js?v=20260926a"></script>
 </body>
 </html>

@@ -123,6 +123,11 @@ Nhịp combo Gayoung khi giữ chuột:
   - Sau `endTime` cuối, tốc độ là 1. (Dữ liệu hay đặt 99 làm mốc cuối.)
 - Nhiều mục trong `SkillAnimationDatas`: mục sau bắt đầu khi mục trước hết `duration` (−1 = tới hết node). Ví dụ Noah khiên: clip `skill_1_loop` 0.3 s ở tốc độ 15, rồi bản lặp.
 - `moveAnimationName`: clip dùng khi đang đi trong skill, ví dụ `attack_1_walk`. Trình bày tự đổi clip theo sự kiện `animMove`.
+- Clip đặt bằng `trackTime` do lõi skill tính, `timeScale` của track = 0 (UnitVisual.pose). Bẫy đã sập: đặt `clipTime − dt` rồi để Spine cộng dt thì khung đầu bị kẹp 0 → clip đứng một khung ở đầu mỗi đòn.
+- Trộn giữa clip: `mixes` + `defaultMix` của SkeletonDataAsset gốc (`tools/rip.py spine-meta` ghi vào `art/spine/*/meta.json`). [ĐO] Sword/Raven 12 cặp idle/walk/run 0,2 s; không đặt thì đổi clip giật.
+- Người chơi đang giữ phím di chuyển coi như đang đi ngay cả khung skill vừa hết (stage.render), tránh chớp một khung idle giữa lướt → đi.
+- Hướng nhìn 8 ô màn hình (CharacterView._animationMode = 2, `LookAtDirectionAsEightWay`): ô chéo quyết cả bộ xương NW/SW lẫn lật; ô lên/xuống chỉ quyết bộ xương, ô trái/phải chỉ quyết lật; còn lại giữ nguyên. [SUY LUẬN từ tên hàm] Đo: quét ngắm 80–100° trong 60 khung, cách cũ (theo dấu x) lật 7 lần, cách mới 0.
+- **Không có hitstop.** [ĐO âm] metadata IL2CPP không có tên nào chứa HitStop/HitPause; stage bỏ qua sự kiện `hitstop` của lõi (lõi vẫn phát để tương thích).
 - `AtkSpeed` nhân tốc độ thời gian của skill có tag `BasicAttack`. [SUY LUẬN] Số gốc AtkSpeed = 1 nên không ảnh hưởng số kiểm.
 
 ### 2.6 Di chuyển trong skill
@@ -221,7 +226,8 @@ Noah 10012000 bắn 3 nón Cylinder60 cùng lúc: (0.9, 0.6) 60% + đẩy lùi 0
 
 | MoveType (số dòng) | Luật |
 |---|---|
-| FollowSelf (190), TraceOwner (2) | dính theo chân chủ, giữ độ lệch. Hướng giữ nguyên như lúc sinh [SUY LUẬN] |
+| FollowSelf (190) | dính theo chân chủ, giữ độ lệch. Hướng giữ nguyên như lúc sinh [SUY LUẬN] |
+| TraceOwner (2) | có `moveSpeed`: bay về chủ ở `moveSpeed × curve(t/duration)`, hướng quay về chủ, tới nơi thì huỷ (sinh `destroyHitBoxId`). Không có `moveSpeed`: như FollowSelf. [SUY LUẬN] Chỉ 2 dòng, đều là lượt về của bumerang Mio (100112003/…13, curve 0→1). Bẫy đã sập: coi như FollowSelf thì bumerang bay mãi không về |
 | Linear (240) | bay thẳng, tốc độ `moveSpeed × curve(t/duration)`, kẹp `MaxMoveDistance`. **Đường cong tính theo phần đời đã qua (0..1)** [SUY LUẬN, khớp số §6.6] |
 | LinearToAimBySpeed (1) | bay tới điểm ngắm (kẹp Min/MaxMoveDistance) bằng `moveSpeed`, tới nơi thì huỷ. Bùa Gayoung 10010400 |
 | LinearToAim (1), ParabolaToAim (45), Parabola (1) | tới điểm ngắm trong đúng `duration`. Parabola có cao `4h·s(1−s)` |
@@ -535,6 +541,13 @@ Bản Hard (20000001) giống thế nhưng SFX là `Attack_Warning_CantParry`, v
 ## 7. Giao diện với phần còn lại
 
 - `world` (xem đầu `js/skill.js`): `units`, `time`, `emit(evt)`, tuỳ chọn `rng`, `moveUnit`, `raycastWall`, `teleportUnit`, `summon`, `spawnExtraUnit`, `spreadAggro`, `difficulty`.
+- Hợp đồng sự kiện `vfx` (stage.playFx nhận nguyên): `name, unit|pos, hitbox, owner, bone, offset, zOffset, duration, loop, loopDuration, speeds, follow, dir, element, tracking, rotate`.
+  - `hitbox` có mặt → VFX bám một Object3D neo theo `hb.pos` (cả `pos.y` của parabola) và `hb.dir` mỗi khung; `tracking` = đạn bay. Hitbox hết thì VFX dừng kiểu 'end' (như SkillVfx gốc bị Destroy cùng hitbox). Vì vậy dữ liệu gốc kéo `duration` hitbox dài hơn cửa sổ va chạm (đòn 1 Gayoung: dur 1.0, va chạm tới 0.19).
+  - `SpawnWithIdentityRotation` → không quay theo hitbox; `InheritOwnerScaleX` → lật theo hình chủ.
+  - `unit` + `follow` → bám gốc hình; `UpdateByAimDir` → bám neo quay theo ngắm mỗi khung; `bone` → độ lệch xương `bone_<tên>` (UnitVisual.boneOffset).
+  - `offset` + `VfxZOffset` là độ lệch cục bộ, quay theo hướng VFX. [SUY LUẬN] ZOffset dọc trục trước: thiên thạch Mio `startOffset z −1.1` + `VfxZOffset 1.1` về đúng tâm.
+  - `VfxSpeeds[{endTime, speed}]`: `endTime` là thời gian của hiệu ứng (như animationSpeeds), sau mốc cuối tốc độ 1. [SUY LUẬN] `{1.0: 30}` theo giờ thật sẽ vô lý.
+  - `vfxEnd` → `VD.vfx.stop(h, 'end')`.
 - Sự kiện trình bày: anim, animMove, vfx, vfxEnd, sfx, indicator, hitbox, hitboxEnd, damage, hitstop, shake, flash, cc, ccEnd, parry, buff, buffRemoved, buffFx, shield, heal, stress, soul, death, teleport, summon, monologue, skin, polymorph, skill, node, skillEnd, immune, groggy, suppression, aggro…
 - Nhân vật: `u.input = {move, aim, aimPoint, buttons:{attack, dash, skill0..skill4}}`. Ô `skillN` = `ActiveSkillIds[N]` sau polymorph / ChangeSkill (`Skill.slotSkill`).
 - Quái: `Skill.cast(world, u, skillId)`. ai.js lo `AiSkillCondition`, `GlobalSkillCoolTime`, `OnCombatBuffIds`. Luật AI ở `docs/AI.md`. Mỗi khung gọi `Skill.step` rồi mới `AI.step`.

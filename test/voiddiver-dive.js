@@ -2,7 +2,8 @@
  * VOID DIVER — lớp lặn: chơi thật trên trang (Playwright, Chromium headless, WebGL swiftshader).
  *
  * Chạy:  node test/voiddiver-dive.js [--only=tutorial|normal|mobile] [--keep]
- *   1. Campaign 1100 (tutorial) 1280×720: đi qua từng trigger theo thứ tự của Lua gốc (dịch chuyển tới hộp trigger, bấm F thật),
+ *   1. Campaign 1100 (tutorial) 1280×720: giữ Esc bỏ qua thoại mở màn, 11 bảng hướng dẫn trên sàn, bảng phím [O], Shift bật chạy;
+ *      đi qua từng trigger theo thứ tự của Lua gốc (dịch chuyển tới hộp trigger, bấm F thật),
  *      mở rương lấy chìa, mở cửa khoá, bẫy, căng thẳng 80 + quái bóng tối, hết pin, cutscene boss, ép thoát → màn kết quả.
  *      Kiểm từng bước Lua qua VD.lua.trace ("tutorial:<tên hàm>" do SendTutorialEvent ghi).
  *   2. Campaign 101 (Normal) 1280×720: mở rương, giết quái bằng chuột trái, nhặt đồ, gọi buồng ở lối thoát, thoát.
@@ -105,15 +106,45 @@ async function tutorial(browser, port, errors) {
   await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html?campaign=1100`);
   await page.evaluate(() => { localStorage.clear(); });
   if (!await startDive(page, port, 1100, 7)) return page;
-  await page.keyboard.down('Control');     // tua nhanh hội thoại (dialog.js: Ctrl giữ = skipFast)
 
   check('OnStage → SetStep(3) → Step_00003', await waitTrace(page, 'tutorial:Step_00003'));
-  // dialog.js gắn listener Ctrl khi dựng hộp thoại lần đầu: nhấn lại Ctrl sau khi hộp thoại đã có.
-  await page.keyboard.up('Control'); await page.keyboard.down('Control');
-  await dialogIdle(page);
+  // Bỏ qua cả đoạn thoại mở màn: giữ Esc 1 s (khung "Giữ để bỏ qua" theo CutscenePanel gốc). Lua vẫn chạy hết từng dòng.
+  await waitFor(page, () => VD.dialog.open && VD.dialog.text && VD.dialog.text.textContent.length > 0, null, 30000, 'dòng thoại đầu');
+  const skipUi = await page.evaluate(() => { const e = document.querySelector('.vd-dialog.on .vd-dlg-skip'); const r = e && e.getBoundingClientRect(); return e ? { text: e.textContent.trim(), x: r.left, y: r.bottom, keys: [...document.querySelectorAll('.vd-dialog.on .vd-dlg-hint i')].map(i => i.textContent) } : null; });
+  check('khung "Giữ để bỏ qua" góc trái dưới + phím Tiếp theo / Bỏ qua nhanh', skipUi && skipUi.text === await page.evaluate(() => VD.TEXT.CutSceneSkip) && skipUi.x < 40 && skipUi.y > 600 && skipUi.keys.length === 2, JSON.stringify(skipUi));
+  await page.keyboard.down('Escape'); await sleep(450);
+  await shot(page, 'tut-00-skip-hold');
+  await sleep(900); await page.keyboard.up('Escape');
+  check('giữ Esc: tua hết Step_00003 tới CloseDialogAsync', await dialogIdle(page, 20000));
+  const after = await page.evaluate(() => { const t = VD.lua.trace; const i = t.indexOf('tutorial:Step_00003'); const seg = t.slice(i); return { hud: seg.filter(x => x === 'SetInGameHudActive').length, close: seg.indexOf('CloseDialogAsync') >= 0, lines: seg.filter(x => x === 'AppendDialogAsync').length }; });
+  check('tua vẫn chạy đủ 18 dòng MDSay + SetInGameHudActive ×2 + CloseDialogAsync', after.lines === 18 && after.hud === 2 && after.close, JSON.stringify(after));
+  await page.keyboard.down('Control');     // phần còn lại tua nhanh bằng Ctrl (dialog.js nghe Ctrl từ lúc nạp)
   await shot(page, 'tut-01-start');
   const hud = await page.evaluate(() => ({ hud: VD.hud.root && VD.hud.root.style.display !== 'none', mm: !!document.querySelector('.vd-minimap canvas.small') }));
   check('HUD + bản đồ nhỏ hiện sau Step_00003 (SetInGameHudActive true)', hud.hud && hud.mm);
+
+  // Bảng hướng dẫn trên sàn (prefab sector gốc, art/ui/tutorial/guides.json).
+  const guides = await page.evaluate(() => VD.tutorial.list());
+  const bySec = guides.reduce((m, g) => (m[g.sector] = (m[g.sector] || 0) + 1, m), {});
+  check('11 bảng hướng dẫn trên sàn (10009: 4, 10001: 5, 10004: 2)', bySec[10009] === 4 && bySec[10001] === 5 && bySec[10004] === 2, JSON.stringify(bySec));
+  const mv = guides.find(g => g.guide === 'TutorialGuide_Move'), st = await page.evaluate(() => VD.dive.start);
+  check('bảng "Di Chuyển + Nhìn" ngay cạnh điểm xuất phát', mv && Math.hypot(mv.x - st.x, mv.z - st.z) < 3, mv && Math.hypot(mv.x - st.x, mv.z - st.z).toFixed(2));
+  const fh = guides.find(g => g.guide === 'FHoldTutorialGuide'), d1004 = await page.evaluate(() => { const e = VD.dive.ents.find(e => e.kind === 'door' && e.row.Id === 1004); return e && e.pos; });
+  check('bảng "Giữ để Mở" trước cửa kính 1004', fh && d1004 && Math.hypot(fh.x - d1004.x, fh.z - d1004.z) < 1.5, fh && d1004 && Math.hypot(fh.x - d1004.x, fh.z - d1004.z).toFixed(2));
+  // Bảng phím HUD "Hướng Dẫn [O]" (KeyGuidePanel! gốc).
+  const kg0 = await page.evaluate(() => { const e = document.querySelector('.vd-keyguide'); return e ? { open: e.classList.contains('open'), head: e.querySelector('.head').textContent.trim() } : null; });
+  await page.keyboard.press('KeyO'); await sleep(200);
+  const kg1 = await page.evaluate(() => { const e = document.querySelector('.vd-keyguide'); return { open: e.classList.contains('open'), rows: [...e.querySelectorAll('.list .row span')].map(x => x.textContent) }; });
+  check('O mở bảng phím (Đánh Thường, Lướt, (Bật/Tắt) Chạy, Bản Đồ Nhỏ, Túi đồ)', kg0 && !kg0.open && kg1.open && kg1.rows.length === 5 && kg1.rows[2] === '(Bật/Tắt) Chạy', JSON.stringify([kg0, kg1.rows]));
+  await shot(page, 'tut-01b-keyguide');
+  await page.keyboard.press('KeyO');
+  // Shift bật/tắt chạy (RunToggleOn gốc), tự tắt khi đứng yên quá Const.ToggleRunExpireDelay.
+  await page.keyboard.press('ShiftLeft');
+  await page.keyboard.down('KeyS'); await gameWait(page, 0.4);
+  const run1 = await page.evaluate(() => ({ on: VD.stage.player.runToggle, running: VD.stage.player.running }));
+  await page.keyboard.up('KeyS'); await gameWait(page, 0.4);
+  const run2 = await page.evaluate(() => VD.stage.player.runToggle);
+  check('Shift bật chạy (không cần giữ), đứng yên thì tắt', run1.on && run1.running && run2 === false, JSON.stringify([run1, run2]));
 
   // TalkToEll_1: trigger Elara 11002 (ZoneSpawn 11002, cờ Custom1), giữ F 0,5 s.
   await tpTo(page, "e.kind === 'trigger' && e.triggerId === 11002", 0.9, 0.3);
@@ -139,9 +170,14 @@ async function tutorial(browser, port, errors) {
   await holdKey(page, 'KeyF', 0.3);
   const lootOpen = await waitFor(page, () => VD.inventory.open && VD.inventory.loot && VD.inventory.loot.items.length > 0, null, 15000, 'bảng Kết quả Tìm kiếm');
   check('mở rương → bảng Kết quả Tìm kiếm có đồ', lootOpen);
+  // Lục rương gốc: ô hé lộ dần (mắt), nhân vật chơi battle/search; lấy đồ bằng chuột trái ("Bỏ vào tất cả").
+  const unrev = await page.evaluate(() => ({ n: document.querySelectorAll('.grid.loot .vs.unrev, .grid.loot .vs.reving').length, anim: VD.stage.player.drive && VD.stage.player.drive.name }));
+  check('ô rương chưa hé lộ (mắt) + nhân vật chơi battle/search', unrev.n >= 1 && unrev.anim === 'battle/search', JSON.stringify(unrev));
   await shot(page, 'tut-03-box-loot');
+  check('rương hé lộ hết', await lootRevealed(page));
+  await shot(page, 'tut-03b-box-revealed');
   await page.keyboard.up('Control');
-  await page.keyboard.press('KeyF');        // F khi bảng mở = lấy hết
+  await clickLoot(page);
   await page.keyboard.down('Control');
   const key = await page.evaluate(() => VD.inventory.count('Item', 300000));
   check('lấy được chìa 300000', key >= 1, key);
@@ -285,8 +321,9 @@ async function normal(browser, port, errors) {
   await holdKey(page, 'KeyF', 0.3);
   await waitFor(page, () => VD.inventory.open, null, 10000, 'túi mở');
   await shot(page, 'n-04-box-loot');
+  check('rương thường hé lộ hết', await lootRevealed(page));
   await page.keyboard.up('Control');
-  await page.keyboard.press('KeyF');
+  await clickLoot(page);
   await page.keyboard.down('Control');
   await page.keyboard.press('Tab');
   const after = await page.evaluate(() => VD.inventory.goods().length);
@@ -403,6 +440,26 @@ async function normal(browser, port, errors) {
   return page;
 }
 
+// ---------------------------------------------------------------- lục rương (LootingInventory)
+async function lootRevealed(page) {
+  return waitFor(page, () => VD.inventory.loot && VD.inventory.revealed(), null, 120000, 'hé lộ hết ô rương');
+}
+// Bấm chuột trái thật lên từng ô đã hé lộ của rương cho tới khi hết (hoặc túi không nhận thêm).
+async function clickLoot(page) {
+  for (let i = 0; i < 30; i++) {
+    const p = await page.evaluate(() => {
+      const el = document.querySelector('.grid.loot .vs:not(.empty):not(.unrev):not(.reving)');
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2, n: VD.inventory.loot.items.length };
+    });
+    if (!p) return;
+    await page.mouse.click(p.x, p.y);
+    await sleep(60);
+    if (await page.evaluate(n => VD.inventory.loot.items.length >= n, p.n)) return;
+  }
+}
+
 // ================================================================ 3. màn điện thoại 844×390
 async function mobile(browser, port, errors) {
   console.log('\n== 844×390 (điện thoại ngang)');
@@ -426,7 +483,7 @@ async function mobile(browser, port, errors) {
   await page.keyboard.press('Tab');
   await gameWait(page, 0.3);
   await shot(page, 'm-02-inventory');
-  const inv = await page.evaluate(() => { const b = document.querySelector('.vd-inv-win').getBoundingClientRect(); return { w: b.width, h: b.height, l: b.left, t: b.top }; });
+  const inv = await page.evaluate(() => { const b = document.querySelector('.vd-inv-page').getBoundingClientRect(); return { w: b.width, h: b.height, l: b.left, t: b.top }; });
   check('bảng túi đồ vừa màn 844×390', inv.l >= 0 && inv.t >= 0 && inv.w <= 844 && inv.h <= 390, JSON.stringify(inv));
   await page.keyboard.press('Tab');
   return page;

@@ -6,14 +6,78 @@
    "bytes": 372665,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": [
+    [
+     "default/idle",
+     "default/dash",
+     0.0
+    ],
+    [
+     "battle/idle",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "battle/walk",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "battle/run",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "default/walk",
+     "default/dash",
+     0.0
+    ],
+    [
+     "default/run",
+     "default/dash",
+     0.0
+    ]
+   ]
   },
   "Cha_Dullahan_NW": {
    "skel": "Cha_Dullahan_NW.skel",
    "bytes": 285851,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": [
+    [
+     "default/idle",
+     "default/dash",
+     0.0
+    ],
+    [
+     "battle/idle",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "battle/walk",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "battle/run",
+     "battle/dash",
+     0.0
+    ],
+    [
+     "default/walk",
+     "default/dash",
+     0.0
+    ],
+    [
+     "default/run",
+     "default/dash",
+     0.0
+    ]
+   ]
   }
  },
  "atlas": "Cha_Dullahan.atlas",

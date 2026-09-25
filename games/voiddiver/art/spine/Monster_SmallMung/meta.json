@@ -6,14 +6,16 @@
    "bytes": 49720,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_SmallMung_SW": {
    "skel": "Monster_SmallMung_SW.skel",
    "bytes": 74245,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_SmallMung.atlas",

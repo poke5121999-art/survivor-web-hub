@@ -3,17 +3,25 @@
  *
  * VD.vfx.load(name) → Promise           nạp prefab (tên gốc, có hoặc không thư mục; tên "…_Hit" theo hệ
  *                                        nguyên tố tự chọn biến thể theo opts.element khi play, mặc định None)
- * VD.vfx.play(name, {pos, dir, aim, follow, followRot, scale, element, loop, duration}) → handle
+ * VD.vfx.preload(names) → Promise    nạp trước (không chặn); tên "…_Hit" nạp mọi biến thể nguyên tố
+ * VD.vfx.play(name, {pos, dir, aim, follow, followRot, scale, scaleX, local, speeds, element, loop, loopDuration,
+ *                    duration, owner, tracking}) → handle
  *        pos   {x,y,z} (toạ độ three). dir: yaw (rad) sao cho hướng tới của prefab (Unity +Z) chỉ về
  *        (sin dir, 0, cos dir); hoặc aim {x,z}. follow: Object3D bám vị trí (followRot: bám cả hướng);
  *        khi follow, pos là độ lệch so với follow (như VfxOffset/boneType của bảng).
  *        loop: true = mọi hệ hạt lặp theo chu kỳ duration của nó cho tới stop() (VfxEvent.IsLoop,
  *        HitBox.IsLoopVfx, hiệu ứng trạng thái VfxDuration −1 "còn buff là còn hiệu ứng").
  *        duration: > 0 thì tự xoá ngay sau chừng ấy giây (Destroy sau VfxDuration / hitVfxDuration).
+ *        loopDuration > 0 (cùng loop): mỗi chừng ấy giây phát lại mọi hệ (ParticleLooper gốc), hạt cũ chạy nốt.
+ *        speeds [{endTime, speed}]: tốc độ phát từng đoạn theo giờ của hiệu ứng (VfxSpeeds/vfxSpeeds của bảng).
+ *        local {x,y,z}: độ lệch trong khung của hiệu ứng, toạ độ Unity (z tới trước), quay theo dir/follow.
+ *        scaleX: −1 lật gương trục X cục bộ (HitBox.InheritOwnerScaleX theo hướng lật của chủ).
+ *        owner: Object3D của chủ skill, tracking: bám hitbox — cho script trong prefab (ChainSkillVfx).
  *        only: tên GameObject trong prefab — chỉ phát nhánh đó (bật nó + tổ tiên, như script SetActive(true)).
  *        Dùng cho prefab đồ vật nhiều trạng thái: WaveExit/SafeExit 'phonebooth_begin' (gọi bốt tới),
  *        'phonebooth_end' (thoát). Con bị tắt sẵn trong nhánh vẫn tắt.
- * VD.vfx.stop(handle, now)               ngừng phát (hạt còn sống chạy nốt); now=true xoá ngay
+ * VD.vfx.stop(handle, mode)              ngừng phát (hạt còn sống chạy nốt); true = xoá ngay; 'end' = chạy trạng thái
+ *                                        End của Animator nếu có, không thì xoá ngay (Destroy/PlayEnd gốc)
  * VD.vfx.update(dt, camera)              mô phỏng + ghi buffer; gọi mỗi khung trước render
  * VD.vfx.setScene(scene)                 gắn nhóm vẽ + 4 PointLight dùng chung
  *
@@ -164,7 +172,7 @@
     'attribute vec4 iUV;', 'attribute vec4 iVel;', 'attribute vec4 iC1;', 'attribute vec4 iC2;', 'attribute vec4 iC3;',
     '#ifdef HAS_MCOL', 'attribute vec4 mcol;', '#endif',
     'uniform vec3 uPivot;', 'uniform vec4 uStretch;', 'uniform vec2 uSzClamp;',
-    'varying vec2 vUV; varying vec4 vCol; varying vec4 vC1; varying vec4 vC2; varying vec4 vC3; varying float vNdV;',
+    'varying vec2 vUV; varying vec4 vCol; varying vec4 vC1; varying vec4 vC2; varying vec4 vC3; varying float vNdV; varying float vMir;',
     'vec3 qrot(vec4 q, vec3 v) { return v + 2.0 * cross(q.xyz, cross(q.xyz, v) + q.w * v); }',
     'vec3 s2l(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c)); }',
     'void main() {',
@@ -221,6 +229,7 @@
     '  vCol = vec4(s2l(col.rgb), col.a);',
     '  vC1 = iC1; vC2 = iC2; vC3 = iC3;',
     '  vNdV = dot(nrm, normalize(cameraPosition - wp));',
+    '  vMir = iPos.w < 0.0 ? -1.0 : 1.0;',
     '  gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);',
     '}'
   ].join('\n');
@@ -229,17 +238,17 @@
   // Luồng đỉnh mặc định của vệt Unity chỉ có Position/Color/UV → TEXCOORD1..3 = 0.
   var VERT_RIBBON = [
     'attribute vec4 rcol;',
-    'varying vec2 vUV; varying vec4 vCol; varying vec4 vC1; varying vec4 vC2; varying vec4 vC3; varying float vNdV;',
+    'varying vec2 vUV; varying vec4 vCol; varying vec4 vC1; varying vec4 vC2; varying vec4 vC3; varying float vNdV; varying float vMir;',
     'vec3 s2l(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c)); }',
     'void main() {',
     '  vUV = uv; vec4 c = clamp(rcol, 0.0, 1.0); vCol = vec4(s2l(c.rgb), c.a);',
-    '  vC1 = vec4(0.0); vC2 = vec4(0.0); vC3 = vec4(0.0); vNdV = 1.0;',
+    '  vC1 = vec4(0.0); vC2 = vec4(0.0); vC3 = vec4(0.0); vNdV = 1.0; vMir = 1.0;',
     '  gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0);',
     '}'
   ].join('\n');
 
   var FRAG_HEAD = [
-    'varying vec2 vUV; varying vec4 vCol; varying vec4 vC1; varying vec4 vC2; varying vec4 vC3; varying float vNdV;',
+    'varying vec2 vUV; varying vec4 vCol; varying vec4 vC1; varying vec4 vC2; varying vec4 vC3; varying float vNdV; varying float vMir;',
     'uniform float uTime; uniform vec2 uScreen;',
     'uniform sampler2D tMain; uniform sampler2D tMask; uniform sampler2D tDis; uniform sampler2D tDef; uniform sampler2D tGrad2;',
     'uniform vec4 stMain; uniform vec4 stMask; uniform vec4 stDis; uniform vec4 stDef; uniform vec4 uSRGB;',
@@ -368,6 +377,41 @@
     '}'
   ].join('\n');
 
+  // VFX_Master_typeB_forMesh trên MeshRenderer (xích 1001_02_SwordSkill_01_Chain), dịch từ DXBC [ĐO]:
+  // tMask = _MaskTex_G_Dissolve_B_2ndColor_A_alpha (G nhiễu dissolve, B vùng màu phụ, A alpha), tMain = _MainTex (màu).
+  // uA0 (_invertB, _Dissolve, _DissolveSharpness, _Emission); uMainCol = _TintColor; uEdgeCol = _2ndColor;
+  // uA1 (_FresnelColor.rgb, _FresnelPower). Ngưỡng cắt 0.5 là hằng trong bytecode.
+  var FRAG_BM = [
+    'void main() {',
+    '  vec4 m = dec(texture2D(tMask, vUV * stMask.xy + stMask.zw), uSRGB.y);',
+    '  float s = clamp(uA0.z, 0.0, 1.0), p = clamp(uA0.y, 0.0, 1.0);',
+    '  float n = p * (2.0 - s) + (0.5 * s - 1.0) + (1.0 - m.g);',
+    '  float alpha = clamp(m.a - sstep((n - 0.5 * s) / max(1.0 - s, 1e-4)), 0.0, 1.0) * uMainCol.a;',
+    '#ifdef CLIP', '  if (alpha < 0.5) discard;', '#endif',
+    '  float bm = (clamp(uA0.x, 0.0, 1.0) * (1.0 - 2.0 * m.b) + m.b) * uEdgeCol.a;',
+    '  vec4 t = dec(texture2D(tMain, vUV * stMain.xy + stMain.zw), uSRGB.x);',
+    '  vec3 col = mix(t.rgb * uMainCol.rgb, uEdgeCol.rgb, bm);',
+    '  col += pow(max(1.0 - clamp(vNdV, 0.0, 1.0), 1e-6), uA1.w) * uA1.rgb;',
+    '  col *= uA0.w;',
+    '#ifndef TRANSPARENT', '  alpha = 1.0;', '#endif',
+    '  gl_FragColor = linearToOutputTexel(vec4(col, alpha));',
+    '}'
+  ].join('\n');
+
+  // MeshRenderer tĩnh trong prefab VFX: mesh thường, ma trận node do CPU tính (Mesh.matrix).
+  var VERT_MR = [
+    '#ifdef HAS_MCOL', 'attribute vec4 mcol;', '#endif',
+    'varying vec2 vUV; varying vec4 vCol; varying vec4 vC1; varying vec4 vC2; varying vec4 vC3; varying float vNdV; varying float vMir;',
+    'void main() {',
+    '  vec4 wp = modelMatrix * vec4(position, 1.0);',
+    '  vUV = uv; vCol = vec4(1.0);',
+    '#ifdef HAS_MCOL', '  vCol = mcol;', '#endif',
+    '  vC1 = vec4(0.0); vC2 = vec4(0.0); vC3 = vec4(0.0); vMir = 1.0;',
+    '  vNdV = dot(normalize(mat3(modelMatrix) * normal), normalize(cameraPosition - wp.xyz));',
+    '  gl_Position = projectionMatrix * viewMatrix * wp;',
+    '}'
+  ].join('\n');
+
   // URP/Lit, URP/Unlit, Mobile/Particles, ... : ảnh × màu vật liệu × màu hạt
   var FRAG_U = [
     'void main() {',
@@ -379,7 +423,11 @@
     '}'
   ].join('\n');
 
-  var FRAGS = { A: FRAG_A, B: FRAG_B, BX: FRAG_BX, AT: FRAG_AT, U: FRAG_U };
+  var FRAGS = { A: FRAG_A, B: FRAG_B, BX: FRAG_BX, AT: FRAG_AT, U: FRAG_U, BM: FRAG_BM };
+  function fragSrc(body) {
+    return FRAG_HEAD + '\n' + body.replace('void main() {',
+      'void main() {\n#ifdef CULLSIGN\n  if ((gl_FrontFacing ? 1.0 : -1.0) * vMir * CULLSIGN < 0.0) discard;\n#endif');
+  }
 
   var BLEND = null;
   function blendFactor(i) {
@@ -490,6 +538,48 @@
     });
   };
   V.loadAll = function (names) { return Promise.all(names.map(function (n) { return V.load(n); })); };
+  // Nạp trước (JSON + mesh + ảnh + dựng vật liệu) để lần phát đầu không khựng. Tên thiếu bị bỏ qua; tên "…_Hit" nạp
+  // mọi biến thể nguyên tố. Trả Promise số prefab đã nạp.
+  V.preload = function (names) {
+    return loadIndex().then(function () {
+      var reals = {};
+      (names || []).forEach(function (n) {
+        if (!n || n === 'None') return;
+        var a = index.alias[n];
+        if (a === undefined) a = index.leaf[leafName(n)];
+        if (Array.isArray(a)) a.forEach(function (x) { reals[x] = 1; });
+        else { var r = resolveName(n); if (r) reals[r] = 1; }
+      });
+      var ks = Object.keys(reals).filter(function (k) { return index.fx[k]; });
+      return Promise.all(ks.map(function (k) { return loadFx(k).then(queueWarm).catch(function () { return null; }); })).then(function () { return ks.length; });
+    });
+  };
+  // Nạp trước cũng "vẽ khống" mẫu một khung (batch hiện với 0 bản, mesh drawRange 0): three biên dịch chương trình và
+  // tải ảnh lên GPU ngay trong đường vẽ thật (đúng render target của hậu kỳ). renderer.compile() không dùng được:
+  // khoá chương trình khác (outputEncoding của render target). Đo: lần phát đầu mất 100–180 ms một khung nếu thiếu bước này.
+  var warmQ = [], warmTmp = [];
+  function queueWarm(tp) { if (tp && !tp.warmed) { tp.warmed = true; warmQ.push(tp); } }
+  function runWarm() {
+    for (var i = 0; i < warmTmp.length; i++) if (warmTmp[i].parent) warmTmp[i].parent.remove(warmTmp[i]);
+    warmTmp.length = 0;
+    if (!group) return;
+    while (warmQ.length) {
+      var tp = warmQ.pop();
+      tp.systems.forEach(function (st) {
+        if (st.visible) getBatch(st).warm = true;
+        if (st.ribbon) getRibbon(st.ribbon, st.ribbon.rmat, st.ribbon.order).warm = true;
+      });
+      tp.trails.forEach(function (tr) { if (tr.visible) getRibbon(tr, tr.rmat, tr.order).warm = true; });   // vệt: shader đỉnh riêng
+      tp.meshes.forEach(function (m) {
+        var g = new THREE.BufferGeometry();
+        ['position', 'uv', 'normal', 'mcol'].forEach(function (k) { var a = m.geo.getAttribute(k); if (a) g.setAttribute(k, a); });
+        g.setIndex(m.geo.index); g.setDrawRange(0, 0);
+        var o = new THREE.Mesh(g, m.mat);
+        o.frustumCulled = false; group.add(o); warmTmp.push(o);
+      });
+    }
+  }
+  V.isLoaded = function (name, element) { var r = index ? resolveName(name, element) : null; return !!(r && fxCache[r]); };
 
   function loadFx(real) {
     if (fxP[real]) return fxP[real];
@@ -497,6 +587,7 @@
     fxP[real] = fetchJSON(V.base + info.file).then(function (doc) {
       var meshes = [];
       doc.systems.forEach(function (s) { if (s.r && s.r.mode === 4 && s.r.mesh && s.r.mesh !== 'quad') meshes.push(loadMesh(s.r.mesh)); });
+      (doc.meshes || []).forEach(function (m) { if (m.mesh) meshes.push(loadMesh(m.mesh)); });
       return Promise.all(meshes).then(function () {
         var tp = buildTemplate(doc);
         var waits = [];
@@ -553,6 +644,12 @@
       }
     });
     tp.lights.forEach(function (l) { l.linColor = new THREE.Color(s2l(l.color[0]), s2l(l.color[1]), s2l(l.color[2])); });
+    // MeshRenderer tĩnh (fx_export: doc.meshes) và script điều khiển node (doc.script, vd ChainSkillVfx)
+    tp.meshes = (doc.meshes || []).filter(function (m) { return m.mesh && meshCache[m.mesh] && m.mat && m.mat.sh !== 'skip'; }).map(function (m) {
+      var o = makeMat(m.mat, { mode: 4 }, [0, 0, 0], null, false, m.mesh);
+      return { node: m.node, mat: o.sm, geo: o.geo, order: o.order };
+    });
+    tp.script = doc.script || null;
     return tp;
   }
 
@@ -671,10 +768,11 @@
     st.baseGeo = o.geo;
     st.renderOrder = o.order;
   }
-  // mat: vật liệu JSON; r: renderer JSON (mode, vs, ls, ...); ribbon: dùng shader đỉnh của vệt
-  function makeMat(mat, r, pivot, grad2, ribbon) {
+  // mat: vật liệu JSON; r: renderer JSON (mode, vs, ls, ...); ribbon: dùng shader đỉnh của vệt; meshR: MeshRenderer tĩnh
+  function makeMat(mat, r, pivot, grad2, ribbon, meshR) {
     if (!whiteTex) { whiteTex = makeSolidTex(255, 255, 255, 255); blackTex = makeSolidTex(0, 0, 0, 0); }
     var kind = mat.sh in FRAGS ? mat.sh : 'U';
+    if (meshR && mat.shader === 'ArtTeam/VFX/VFX_Master_typeB_forMesh') kind = 'BM';
     var f = mat.f || {}, c = mat.c || {};
     var defines = { MODE: r.mode === 4 ? 4 : r.mode, PIXELATION: (f.px === undefined ? 1 : f.px).toFixed(4) };
     if (r.mode === 0 && (r.align === 1 || r.align === 2)) defines.ALIGNQ = 1;
@@ -688,13 +786,18 @@
     }
     var tm = texUni('main', mat, whiteTex), tk = texUni('mask', mat, whiteTex), td = texUni('dis', mat, whiteTex), tf = texUni('def', mat, whiteTex);
     var lin = function (a, dflt) { a = a || dflt; return new THREE.Vector4(s2l(a[0]), s2l(a[1]), s2l(a[2]), a[3]); };
+    // Màu cờ [HDR] (m_Flags 16 trong shader: typeA _DissolveEdge_Color; forMesh _TintColor/_2ndColor/_FresnelColor)
+    // là giá trị tuyến tính, không đổi sRGB. [SUY LUẬN] thanh Intensity của bảng màu HDR "mỗi nấc gấp đôi ánh sáng" chỉ
+    // đúng khi số lưu tỉ lệ thẳng với ánh sáng; ảnh gốc ss03 (thanh tẩy) chỉ có đốm trắng nhỏ, còn đổi sRGB thì viền 32
+    // thành 3617 và bloom ra đĩa trắng 1 m.
+    var hdr = function (a, dflt) { a = a || dflt; return new THREE.Vector4(a[0], a[1], a[2], a[3]); };
     var D2R = 0.017444;   // hằng trong shader gốc
     var u = {
       uTime: shared.uTime, uScreen: shared.uScreen,
       tMain: { value: tm.t }, tMask: { value: tk.t }, tDis: { value: td.t }, tDef: { value: tf.t }, tGrad2: { value: whiteTex },
       stMain: { value: tm.st }, stMask: { value: tk.st }, stDis: { value: td.st }, stDef: { value: tf.st },
       uSRGB: { value: new THREE.Vector4(tm.srgb, tk.srgb, td.srgb, tf.srgb) },
-      uMainCol: { value: lin(c.mainCol, [1, 1, 1, 1]) }, uEdgeCol: { value: lin(c.edgeCol, [0, 0, 0, 0]) },
+      uMainCol: { value: lin(c.mainCol, [1, 1, 1, 1]) }, uEdgeCol: { value: hdr(c.edgeCol, [0, 0, 0, 0]) },
       uDirs: { value: new THREE.Vector4((c.disDir || [0, 0])[0], (c.disDir || [0, 0])[1], (c.defDir || [0, 0])[0], (c.defDir || [0, 0])[1]) },
       uMainOff: { value: new THREE.Vector2((c.mainOff || [0, 0])[0], (c.mainOff || [0, 0])[1]) },
       uA0: { value: new THREE.Vector4() }, uA1: { value: new THREE.Vector4() }, uA2: { value: new THREE.Vector4() },
@@ -712,6 +815,14 @@
       u.uA4.value.set(F('defOff', 0), F('defStr', 0), F('useDefStr', 0), F('maskRot', 0) * D2R);
       u.uA5.value.set(F('fresThr', 1), F('fresOff', 0), F('fresRev', 0), F('thr', 0.5));
       if (defines.SECONDARY) u.tGrad2.value = grad2 ? gradTex(grad2) : whiteTex;
+    } else if (kind === 'BM') {
+      var tg = texUni('gb', mat, whiteTex);
+      u.tMask.value = tg.t; u.stMask.value = tg.st; u.uSRGB.value.y = tg.srgb;
+      u.uA0.value.set(F('invB', 0), F('dis', 0), F('disSharp', 0.5), F('emis', 1));
+      u.uMainCol.value = hdr(c.mainCol, [1, 1, 1, 1]);
+      u.uEdgeCol.value = hdr(c.col2, [0, 0, 0, 0]);
+      var fc = hdr(c.fresCol, [0, 0, 0, 0]);
+      u.uA1.value.set(fc.x, fc.y, fc.z, F('fresPow', 1));
     } else if (kind === 'B') {
       u.uA0.value.set(F('invB', 0), F('thr', 0.5), F('fresPow', 2), F('fres', 0));
     } else if (kind === 'BX') {
@@ -724,6 +835,12 @@
     var geo = null;
     if (ribbon) {
       geo = null;
+    } else if (meshR) {
+      var src = meshCache[meshR];
+      geo = new THREE.BufferGeometry();
+      ['position', 'uv', 'normal', 'mcol'].forEach(function (k) { var a = src && src.getAttribute(k); if (a) geo.setAttribute(k, a); });
+      if (src) geo.setIndex(src.index);
+      if (src && src.getAttribute('mcol')) defines.HAS_MCOL = 1;
     } else if (r.mode === 4) {
       var mg = r.mesh && r.mesh !== 'quad' ? meshCache[r.mesh] : null;
       geo = mg ? cloneBase(mg) : unityQuad();
@@ -731,10 +848,15 @@
     } else {
       geo = quadGeom();
     }
+    // Cull của vật liệu làm trong fragment theo dấu gương của bản phát (vMir): hiệu ứng lật X (InheritOwnerScaleX)
+    // đảo chiều tam giác, cull cứng của GL sẽ bỏ mất mặt trước.
+    // (MeshRenderer: three tự đảo mặt trước khi ma trận có định thức âm, để GL cull.)
+    var glCull = ribbon || meshR;
+    if (!glCull && (mat.cull === 2 || mat.cull === 1)) defines.CULLSIGN = mat.cull === 2 ? '1.0' : '-1.0';
     var sm = new THREE.ShaderMaterial({
-      uniforms: u, vertexShader: ribbon ? VERT_RIBBON : VERT, fragmentShader: FRAG_HEAD + '\n' + FRAGS[kind], defines: defines,
+      uniforms: u, vertexShader: ribbon ? VERT_RIBBON : meshR ? VERT_MR : VERT, fragmentShader: fragSrc(FRAGS[kind]), defines: defines,
       transparent: !!mat.surf, depthWrite: !mat.surf, depthTest: mat.zt !== 8,
-      side: mat.cull === 2 ? THREE.FrontSide : (mat.cull === 1 ? THREE.BackSide : THREE.DoubleSide),
+      side: glCull ? (mat.cull === 2 ? THREE.FrontSide : (mat.cull === 1 ? THREE.BackSide : THREE.DoubleSide)) : THREE.DoubleSide,
     });
     if (mat.surf) {
       sm.blending = THREE.CustomBlending;
@@ -950,7 +1072,8 @@
   var effects = [], nextId = 1, pending = [];
   var _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(),
     _v2 = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler(), _camQ = new THREE.Quaternion(),
-    _camPos = new THREE.Vector3(), _camDir = new THREE.Vector3();
+    _camPos = new THREE.Vector3(), _camDir = new THREE.Vector3(),
+    _oC = new THREE.Vector3(), _oQi = new THREE.Quaternion(), _oP = new THREE.Vector3(), _oM = new THREE.Vector3();
   var UP = new THREE.Vector3(0, 1, 0);
 
   V.play = function (name, opts) {
@@ -969,14 +1092,17 @@
     }
     return h;
   };
-  V.stop = function (h, now) {
+  // mode: không có = ngừng phát, hạt còn sống chạy nốt; true = xoá ngay; 'end' = như Destroy/PlayEnd của SkillVfx gốc:
+  // có trạng thái End của Animator thì chạy nó rồi mới xoá, không có thì xoá ngay.
+  V.stop = function (h, mode) {
     if (!h) return;
     if (!h.fx) { h.alive = false; return; }
     var fx = h.fx;
-    if (now) { fx.stopped = true; endEffect(fx); return; }
+    if (mode === true) { fx.stopped = true; endEffect(fx); return; }
     var toEnd = false;
     if (fx.anims) fx.anims.forEach(function (A) { if (A.a.endState >= 0 && A.state !== A.a.endState) { A.state = A.a.endState; A.t = 0; A.ending = true; toEnd = true; } });
     if (toEnd) fx.ending = true;   // Animator tự tắt phát trong clip End, rồi mới dừng hẳn
+    else if (mode === 'end') { fx.stopped = true; endEffect(fx); }
     else fx.stopped = true;
   };
   V.isAlive = function (h) { return !!(h && h.alive); };
@@ -987,7 +1113,11 @@
       h: h, tp: tp, t: 0, stopped: false, done: false,
       root: new THREE.Matrix4(), rootPos: new THREE.Vector3(), rootQ: new THREE.Quaternion(), rootS: new THREE.Vector3(1, 1, 1),
       follow: opts.follow || null, followRot: !!opts.followRot, offset: new THREE.Vector3(),
-      forceLoop: !!opts.loop, life: opts.duration > 0 ? +opts.duration : 0,
+      keepAlive: !!opts.loop, forceLoop: !!opts.loop && !(opts.loopDuration > 0),
+      loopIv: opts.loop && opts.loopDuration > 0 ? +opts.loopDuration : 0, loopT: 0,
+      life: opts.duration > 0 ? +opts.duration : 0, rt: 0, et: 0, speeds: parseSpeeds(opts.speeds),
+      local3: opts.local ? new THREE.Vector3(+opts.local.x || 0, +opts.local.y || 0, -(+opts.local.z || 0)) : null,
+      owner: opts.owner || null, tracking: !!opts.tracking, mir: opts.scaleX < 0 ? -1 : 1,
       world: [], worldQ: [], worldS: [], sys: [], lightT: 0,
     };
     var p = opts.pos || { x: 0, y: 0, z: 0 };
@@ -997,7 +1127,7 @@
     // hướng tới prefab = +Z Unity = -Z three; xoay thêm π để -Z three chỉ về (sin yaw, 0, cos yaw)
     fx.rootQ.setFromAxisAngle(UP, (yaw || 0) + Math.PI);
     var sc = opts.scale === undefined ? 1 : opts.scale;
-    fx.rootS.set(sc, sc, sc);
+    fx.rootS.set(sc * fx.mir, sc, sc);   // scaleX −1: lật theo trục X cục bộ (HitBox.InheritOwnerScaleX)
     for (var i = 0; i < n; i++) { fx.world.push(new THREE.Matrix4()); fx.worldQ.push(new THREE.Quaternion()); fx.worldS.push(new THREE.Vector3()); }
     // trạng thái bật/tắt node của bản phát này (Animator có thể đổi)
     fx.own = new Uint8Array(n); fx.act = new Uint8Array(n);
@@ -1015,8 +1145,8 @@
         }
       }
     }
-    if (tp.anims.length) {
-      // TRS local riêng để Animator ghi đè
+    if (tp.anims.length || tp.script) {
+      // TRS local riêng để Animator / script ghi đè
       fx.local = [];
       fx.lp = new Float32Array(n * 3); fx.lq = new Float32Array(n * 4); fx.ls = new Float32Array(n * 3);
       for (i = 0; i < n; i++) {
@@ -1041,8 +1171,16 @@
       fx.sys.push(si);
     });
     if (fx.anims) stepAnims(fx, 0);
+    runScript(fx);
     computeActive(fx);
     updateRoot(fx);
+    fx.meshObjs = tp.meshes.map(function (m) {
+      var o = new THREE.Mesh(m.geo, m.mat);
+      o.matrixAutoUpdate = false; o.frustumCulled = false; o.renderOrder = m.order;
+      if (group) group.add(o);
+      return o;
+    });
+    placeMeshes(fx);
     for (i = 0; i < fx.sys.length; i++) fx.sys[i].wasAct = !!fx.act[fx.sys[i].st.node] && (!fx.inOnly || !!fx.inOnly[fx.sys[i].st.node]);
     fx.sys.forEach(function (si) {
       if (si && si.st.prewarm && si.st.loop) {
@@ -1134,6 +1272,64 @@
     fx.done = true;
     fx.h.alive = false;
     fx.sys.forEach(function (si) { if (si) { freeSys(si.buf); si.buf = null; si.n = 0; } });
+    if (fx.meshObjs) fx.meshObjs.forEach(function (o) { if (o.parent) o.parent.remove(o); });
+  }
+  // VfxSpeeds / vfxSpeeds (AnimationSpeed gốc: {endTime, speed}): tốc độ phát từng đoạn, endTime tính theo giờ của
+  // hiệu ứng như animationSpeeds của skill; sau mốc cuối tốc độ về 1 (SpeedVfxObject.ResetSimulationSpeed). [SUY LUẬN]
+  function parseSpeeds(a) {
+    if (!a || !a.length) return null;
+    var out = a.map(function (x) { return { end: +x.endTime, sp: +x.speed }; }).filter(function (x) { return x.end > 0; });
+    return out.length ? out : null;
+  }
+  function effDt(fx, dt) {
+    var S = fx.speeds;
+    if (!S) { fx.et += dt; return dt; }
+    var et = fx.et, left = dt;
+    for (var i = 0; i < S.length && left > 0; i++) {
+      if (et >= S[i].end) continue;
+      if (!(S[i].sp > 0)) { left = 0; break; }
+      var need = (S[i].end - et) / S[i].sp;
+      if (left <= need) { et += left * S[i].sp; left = 0; break; }
+      left -= need; et = S[i].end;
+    }
+    et += left;
+    var d = et - fx.et;
+    fx.et = et;
+    return d;
+  }
+  // ChainSkillVfx (mã gốc, trường đọc từ prefab): _chainTransform = ChainLine01_02 (mesh dài _chainLength về phía sau,
+  // bật sẵn, scale z 0), _playerChainTransform = ChainLine01_01 (mesh dài về phía trước, tắt sẵn), _chainOffset.
+  // Bám hitbox (đạn xích đang bay): gốc ở đầu đạn, xích 01_02 kéo ngược về chủ. Gắn trên mục tiêu (VfxEvent
+  // ActionTarget TriggerTarget lúc lao tới): bật 01_01, quay về chủ. Độ dài = (khoảng cách + _chainOffset) / _chainLength
+  // đặt vào scale z. [SUY LUẬN: tên trường + hình học mesh; mã C# không đọc được]
+  function runScript(fx) {
+    var sc = fx.tp.script;
+    if (!sc || sc.type !== 'ChainSkillVfx' || !fx.local) return;
+    var on = fx.tracking ? sc.chain : sc.player, off = fx.tracking ? sc.player : sc.chain;
+    if (on >= 0) fx.own[on] = 1;
+    if (off >= 0) fx.own[off] = 0;
+    if (!fx.owner || on < 0) return;
+    _v.copy(fx.offset);
+    if (fx.follow) { fx.follow.updateWorldMatrix(true, false); _v2.setFromMatrixPosition(fx.follow.matrixWorld); _v.add(_v2); }
+    fx.owner.updateWorldMatrix(true, false);
+    _v2.setFromMatrixPosition(fx.owner.matrixWorld);
+    var dx = _v2.x - _v.x, dz = _v2.z - _v.z, d = Math.sqrt(dx * dx + dz * dz);
+    if (d > 1e-4) {
+      var yaw = fx.tracking ? Math.atan2(-dx, -dz) : Math.atan2(dx, dz);
+      fx.rootQ.setFromAxisAngle(UP, yaw + Math.PI);
+      fx.followRot = false;
+    }
+    fx.ls[on * 3 + 2] = Math.max(0, d + (sc.off || 0)) / (sc.len || 1);
+  }
+  function placeMeshes(fx) {
+    var ms = fx.meshObjs, tm = fx.tp.meshes;
+    if (!ms) return;
+    for (var i = 0; i < ms.length; i++) {
+      var o = ms[i], n = tm[i].node;
+      o.visible = !!fx.act[n] && (!fx.inOnly || !!fx.inOnly[n]);
+      o.matrix.copy(fx.world[n]);
+      o.matrixWorldNeedsUpdate = true;
+    }
   }
   var TRAIL_MAX = 48;
 
@@ -1147,6 +1343,7 @@
       _v.add(_v2);
       if (fx.followRot) _q.premultiply(_q2);
     }
+    if (fx.local3) _v.add(_v2.copy(fx.local3).applyQuaternion(_q));   // độ lệch cục bộ (VfxEvent.offset, VfxZOffset…) quay theo khung
     fx.rootPos.copy(_v);
     fx.root.compose(_v, _q, fx.rootS);
     var L = tp.local;
@@ -1360,6 +1557,11 @@
     var vel = st.vel, lim = st.limit, frc = st.force;
     var gv = ev(st.grav, frac(Math.max(si.t, 0) / st.dur), 0) * GRAVITY * dt;
     var invQ = null;
+    // Orbital/Radial xoay quanh gốc của hệ theo trục cục bộ của hệ, kể cả khi mô phỏng trong không gian thế giới.
+    // Bẫy đã sập: dùng thẳng toạ độ thế giới thì hạt quay quanh gốc bản đồ (0,0,0) — FireSparks của Purification
+    // (orbital ±5 rad/s) bay cách 20–25 m, lên cao 13–24 m, thành đĩa trắng trôi trên màn hình.
+    var oW = !!(vel && st.world && (vel.orbit || !isZero(vel.radial))), oC = null, oQ = null, oQi = null;
+    if (oW) { oC = _oC.setFromMatrixPosition(fx.world[st.node]); oQ = fx.worldQ[st.node]; oQi = _oQi.copy(oQ).invert(); }
     for (var i = 0; i < n; i++) {
       var o = i * NF;
       var age = d[o + F.age] + dt;
@@ -1407,15 +1609,20 @@
           if (vel.world !== st.world) toSim(fx, st, _v, vel.world);
           mx += _v.x; my += _v.y; mz += _v.z;
         }
-        if (vel.orbit) {
-          var ox = ev(vel.ox, t, r1), oy = ev(vel.oy, t, r1), oz = ev(vel.oz, t, r1);
-          var cx = d[o + F.px] - ev(vel.offx, t, r1), cy = d[o + F.py] - ev(vel.offy, t, r1), cz = d[o + F.pz] - ev(vel.offz, t, r1);
-          mx += oy * cz - oz * cy; my += oz * cx - ox * cz; mz += ox * cy - oy * cx;
-        }
         var rad = ev(vel.radial, t, r1);
-        if (rad !== 0) {
-          var px = d[o + F.px], py = d[o + F.py], pz = d[o + F.pz], pl = Math.sqrt(px * px + py * py + pz * pz);
-          if (pl > 1e-5) { mx += px / pl * rad; my += py / pl * rad; mz += pz / pl * rad; }
+        if (vel.orbit || rad !== 0) {
+          // vị trí so với gốc hệ, trong khung cục bộ của hệ
+          _oP.set(d[o + F.px], d[o + F.py], d[o + F.pz]);
+          if (oW) _oP.sub(oC).applyQuaternion(oQi);
+          _oM.set(0, 0, 0);
+          if (vel.orbit) {
+            var ox = ev(vel.ox, t, r1), oy = ev(vel.oy, t, r1), oz = ev(vel.oz, t, r1);
+            var cx = _oP.x - ev(vel.offx, t, r1), cy = _oP.y - ev(vel.offy, t, r1), cz = _oP.z - ev(vel.offz, t, r1);
+            _oM.x += oy * cz - oz * cy; _oM.y += oz * cx - ox * cz; _oM.z += ox * cy - oy * cx;
+          }
+          if (rad !== 0) { var pl = _oP.length(); if (pl > 1e-5) _oM.addScaledVector(_oP, rad / pl); }
+          if (oW) _oM.applyQuaternion(oQ);
+          mx += _oM.x; my += _oM.y; mz += _oM.z;
         }
         smod = ev(vel.speedMod, t, r1);
       }
@@ -1501,7 +1708,7 @@
       var x = d[o + F.px], y = d[o + F.py], z = d[o + F.pz];
       if (local) { var X = x, Y = y, Z = z; x = e[0] * X + e[4] * Y + e[8] * Z + e[12]; y = e[1] * X + e[5] * Y + e[9] * Z + e[13]; z = e[2] * X + e[6] * Y + e[10] * Z + e[14]; }
       var j4 = j * 4;
-      A.iPos[j4] = x; A.iPos[j4 + 1] = y; A.iPos[j4 + 2] = z; A.iPos[j4 + 3] = 0;
+      A.iPos[j4] = x; A.iPos[j4 + 1] = y; A.iPos[j4 + 2] = z; A.iPos[j4 + 3] = fx.mir;   // w: dấu gương cho cull
       // kích thước
       var sx = d[o + F.sx], sy = d[o + F.sy], sz = d[o + F.sz];
       if (st.sizeLife) {
@@ -1659,6 +1866,7 @@
       camera.getWorldDirection(_camDir);
     }
     var i, j;
+    runWarm();
     for (i = 0; i < batches.length; i++) batches[i].n = 0;
     for (i = 0; i < ribbons.length; i++) { ribbons[i].nv = 0; ribbons[i].ni = 0; }
     nCand = 0;
@@ -1666,9 +1874,11 @@
     for (i = 0; i < effects.length; i++) {
       var fx = effects[i];
       if (fx.done) continue;
-      fx.t += dt;
+      var dte = effDt(fx, dt);   // giờ của hiệu ứng (VfxSpeeds); Destroy sau duration tính theo giờ thật (fx.rt)
+      fx.rt += dt;
+      fx.t += dte;
       if (fx.anims) {
-        stepAnims(fx, dt);
+        stepAnims(fx, dte);
         computeActive(fx);
         if (fx.ending) {
           var allDone = true;
@@ -1676,7 +1886,17 @@
           if (allDone) { fx.stopped = true; fx.ending = false; }
         }
       }
+      if (fx.tp.script) { runScript(fx); computeActive(fx); }
       updateRoot(fx);
+      placeMeshes(fx);
+      if (fx.loopIv > 0 && !fx.stopped) {
+        // ParticleLooper gốc: RestartAllParticles mỗi _loopInterval (VfxLoopDuration / LoopDuration)
+        fx.loopT += dte;
+        if (fx.loopT >= fx.loopIv) {
+          fx.loopT -= fx.loopIv;
+          for (j = 0; j < fx.sys.length; j++) { var sr = fx.sys[j], nKeep = sr.n; resetSys(sr); sr.n = nKeep; }
+        }
+      }
       var anyAlive = false;
       for (j = 0; j < fx.sys.length; j++) {
         var si = fx.sys[j];
@@ -1686,7 +1906,7 @@
           resetSys(si);
         }
         if (!on) continue;
-        simSystem(fx, si, dt);
+        simSystem(fx, si, dte);
         if (si.n > 0 || (!si.finished && !fx.stopped) || si.t < 0) anyAlive = true;
         if (si.st.ribbon && si.n > 1) writeParticleRibbon(fx, si);
         if (si.st.visible && si.n > 0) {
@@ -1706,7 +1926,8 @@
         if (updateTrail(fx, j)) anyAlive = true;
       }
       if (fx.ending) anyAlive = true;
-      if (fx.forceLoop && !fx.stopped) anyAlive = true;   // lặp tới khi stop()
+      if (fx.keepAlive && !fx.stopped) anyAlive = true;   // lặp tới khi stop()
+      if (fx.meshObjs && fx.meshObjs.length && !fx.stopped) anyAlive = true;   // MeshRenderer: sống tới stop()/duration
       if (fx.anims && !fx.stopped) for (j = 0; j < fx.anims.length; j++) if (!fx.anims[j].done) anyAlive = true;
       // Light trên prefab: sống cùng hiệu ứng
       var tl = fx.tp.lights;
@@ -1720,7 +1941,7 @@
         _v.setFromMatrixPosition(fx.world[lt.node]);
         addLight(_v.x, _v.y, _v.z, lt.linColor, inten, rng === null ? lt.range : rng);
       }
-      if ((!anyAlive && fx.t > 0.05) || (fx.life > 0 && fx.t >= fx.life)) endEffect(fx);
+      if ((!anyAlive && fx.t > 0.05) || (fx.life > 0 && fx.rt >= fx.life)) endEffect(fx);
     }
     // dọn danh sách
     for (i = effects.length - 1; i >= 0; i--) if (effects[i].done) effects.splice(i, 1);
@@ -1729,7 +1950,8 @@
       var bb = batches[i];
       if (bb.n > 0 && bb.st.sort && bb.n > 1) sortBatch(bb);
       bb.geo.instanceCount = bb.n;
-      bb.mesh.visible = bb.n > 0;
+      bb.mesh.visible = bb.n > 0 || !!bb.warm;
+      bb.warm = false;
       if (bb.n > 0) {
         dc++;
         for (var a = 0; a < ATTR.length; a++) {
@@ -1742,7 +1964,7 @@
     for (i = 0; i < ribbons.length; i++) {
       var rb = ribbons[i];
       rb.geo.setDrawRange(0, rb.ni);
-      rb.mesh.visible = rb.ni > 0;
+      rb.mesh.visible = rb.ni > 0 || !!rb.warm; rb.warm = false;
       if (rb.ni > 0) {
         dc++;
         rb.pos.updateRange.count = rb.nv * 3; rb.pos.needsUpdate = true;

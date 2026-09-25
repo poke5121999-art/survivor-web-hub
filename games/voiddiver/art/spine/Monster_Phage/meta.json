@@ -6,14 +6,16 @@
    "bytes": 77278,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_Phage_SW": {
    "skel": "Monster_Phage_SW.skel",
    "bytes": 82039,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_Phage.atlas",

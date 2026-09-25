@@ -6,14 +6,16 @@
    "bytes": 31645,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Boss_DarkYoungBaby_NW": {
    "skel": "Boss_DarkYoungBaby_NW.skel",
    "bytes": 24618,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Boss_DarkYoungBaby.atlas",

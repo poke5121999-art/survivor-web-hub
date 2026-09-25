@@ -6,14 +6,16 @@
    "bytes": 31325,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_RifleMan_SW": {
    "skel": "Monster_RifleMan_SW.skel",
    "bytes": 30691,
    "scale": 0.009999999776482582,
    "defaultMix": 0.20000000298023224,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_RifleMan.atlas",

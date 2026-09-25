@@ -6,14 +6,16 @@
    "bytes": 111398,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   },
   "Monster_Police_SW": {
    "skel": "Monster_Police_SW.skel",
    "bytes": 126187,
    "scale": 0.009999999776482582,
    "defaultMix": 0.10000000149011612,
-   "skins": null
+   "skins": null,
+   "mixes": []
   }
  },
  "atlas": "Monster_Police.atlas",

@@ -538,6 +538,25 @@ def material_out(ctx, mptr, sheet=False):
             if uk in floats:
                 f[jk] = rn(floats[uk])
         out['f'] = drop(f, {'invB': 0, 'px': 1, 'thr': 0.5, 'fresPow': 2, 'fres': 0, 'disSharp': 1})
+        if shader_name == 'ArtTeam/VFX/VFX_Master_typeB_forMesh':
+            # MeshRenderer không có custom data: shader đọc thẳng thuộc tính vật liệu (DXBC, xem fx_README.md)
+            for uk, jk in (('_Dissolve', 'dis'), ('_DissolveSharpness', 'disSharp'), ('_Emission', 'emis'),
+                           ('_FresnelPower', 'fresPow'), ('_invertB', 'invB')):
+                if uk in floats:
+                    out['f'][jk] = rn(floats[uk])
+            cm = {}
+            for uk, jk in (('_TintColor', 'mainCol'), ('_2ndColor', 'col2'), ('_FresnelColor', 'fresCol')):
+                if uk in colors:
+                    cm[jk] = [rn(x) for x in colors[uk]]
+            out['c'] = cm
+            te = texs.get('_MaskTex_G_Dissolve_B_2ndColor_A_alpha')
+            nm = texture_out(ctx, te.m_Texture) if te is not None else None
+            if nm:
+                e = {'t': nm}
+                st = [rn(te.m_Scale.x), rn(te.m_Scale.y), rn(te.m_Offset.x), rn(te.m_Offset.y)]
+                if st != [1, 1, 0, 0]:
+                    e['st'] = st
+                tx['gb'] = e
     elif kind == 'AT':
         f = {}
         for uk, jk in AT_FLOATS.items():
@@ -950,6 +969,7 @@ def anim_export(ctx, animator, anim_node, nodes):
 def export_prefab(ctx, env, go_obj, out_name):
     nodes, systems, trails, lights, notes, animators = [], [], [], [], [], []
     extra = {}
+    meshes, scripts, tf_node = [], [], {}
 
     def walk(go, parent):
         tf = None
@@ -966,6 +986,7 @@ def export_prefab(ctx, env, go_obj, out_name):
             tn = type(c).__name__
             if tn in ('Transform', 'RectTransform'):
                 tf = c
+                tf_node[ptr.path_id] = len(nodes)
             comps.append((tn, c, ptr))
         idx = len(nodes)
         node = {'n': go.m_Name, 'p': parent}
@@ -1030,8 +1051,33 @@ def export_prefab(ctx, env, go_obj, out_name):
                 d = ptr.read_typetree()
                 node['animDelay'] = {k: rn(v) if isinstance(v, float) else v for k, v in d.items()
                                      if not k.startswith('m_') and isinstance(v, (int, float))}
+            elif cls == 'ChainSkillVfx':
+                d = ptr.read_typetree()
+                scripts.append({'type': cls, 'len': rn(d.get('_chainLength', 1)), 'off': rn(d.get('_chainOffset', 0)),
+                                'chainPid': (d.get('_chainTransform') or {}).get('m_PathID'),
+                                'playerPid': (d.get('_playerChainTransform') or {}).get('m_PathID')})
+        def _cls(c):
+            try:
+                return c.m_Script.read().m_ClassName
+            except FileNotFoundError:
+                raise
+            except Exception:
+                return '?'
+        spine_go = any(_cls(c) == 'SkeletonAnimation' for c, _p in by.get('MonoBehaviour', []))
+        if 'MeshRenderer' in by and 'MeshFilter' in by and not spine_go:
+            # MeshRenderer tĩnh (xích ChainLine01_0x, đạn MonsterTrap_01_projectile): mesh + vật liệu đầu tiên
+            mf = by['MeshFilter'][0][0]
+            mr = by['MeshRenderer'][0][0]
+            mname = mesh_out(ctx, mf.m_Mesh)
+            mats = list(mr.m_Materials or [])
+            mat = material_out(ctx, mats[0]) if mats else None
+            if mname and mat:
+                meshes.append({'node': idx, 'mesh': mname, 'mat': mat})
+                ctx.bump('meshRenderer')
+            else:
+                notes.append('MeshRenderer trên %s: không đọc được mesh/vật liệu' % go.m_Name)
         for tn in ('MeshRenderer', 'SpriteRenderer', 'SkinnedMeshRenderer'):
-            if tn in by:
+            if tn in by and not (tn == 'MeshRenderer' and 'MeshFilter' in by and not spine_go):
                 notes.append('%s trên %s: chưa phát' % (tn, go.m_Name))
                 ctx.bump('skip:' + tn)
         if tf is not None:
@@ -1073,6 +1119,12 @@ def export_prefab(ctx, env, go_obj, out_name):
             continue
         total = max(total, mx(s.get('delay', 0)) + s['dur'] + mx(s['life']))
     doc = {'v': 1, 'name': out_name, 'nodes': nodes, 'systems': systems}
+    if meshes:
+        doc['meshes'] = meshes
+    for sc in scripts:
+        # tham chiếu Transform -> chỉ số node (-1 nếu trỏ ra ngoài prefab)
+        doc['script'] = {'type': sc['type'], 'len': sc['len'], 'off': sc['off'],
+                         'chain': tf_node.get(sc['chainPid'], -1), 'player': tf_node.get(sc['playerPid'], -1)}
     if trails:
         doc['trails'] = trails
     if lights:
@@ -1426,8 +1478,12 @@ def main(argv):
     for t, info in ctx.tex_done.items():
         index['tex'][t] = {k: v for k, v in info.items() if k in ('wrapU', 'wrapV', 'filter', 'srgb', 'ow', 'oh', 'bytes')}
     index['unmatched'] = sorted(set(index.get('unmatched', []) + unmatched))
-    index['duplicateNames'] = dup
-    index['stats'] = dict(sorted(ctx.stats.items()))
+    if argv[0] in ('--all-referenced', '--manifest') or 'stats' not in index:
+        index['duplicateNames'] = dup
+        index['stats'] = dict(sorted(ctx.stats.items()))
+    else:
+        # chạy lẻ vài prefab: giữ thống kê của lần chạy đủ, không ghi đè bằng số của vài prefab
+        index['duplicateNames'] = sorted(set(index.get('duplicateNames', [])) | set(dup))
     write_atomic(idx_path, json.dumps(index, ensure_ascii=False, indent=0, separators=(',', ':')))
     tot_json = sum(v['bytes'] for v in index['fx'].values())
     tot_tex = sum(v.get('bytes', 0) for v in index['tex'].values())

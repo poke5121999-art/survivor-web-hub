@@ -1,0 +1,10 @@
+/* Bảng phím "Hướng Dẫn [O]" của HUD lặn (KeyGuidePanel! gốc: neo phải dưới, trên hàng ô đồ, mỗi dòng 36 px "Mô tả [phím]"). */
+.vd-keyguide { position: absolute; right: 22px; bottom: 84px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  font-size: 13px; color: var(--ink); text-shadow: 0 1px 2px #000; pointer-events: none; }
+.vd-keyguide .row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; height: 30px; }
+.vd-keyguide .row .vd-key { width: 24px; height: 24px; }
+.vd-keyguide .row .vd-key[src*="Space_Key"], .vd-keyguide .row .vd-key[src*="LeftShift_Key"] { width: 30px; }
+.vd-keyguide .head { pointer-events: auto; cursor: pointer; opacity: .85; }
+.vd-keyguide .list { display: none; flex-direction: column; align-items: flex-end; }
+.vd-keyguide.open .list { display: flex; }
+@media (max-height: 480px) { .vd-keyguide { display: none; } }
