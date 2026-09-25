@@ -55,6 +55,22 @@ t('quán cấp 0: 3 ghế, đầu bếp ×1, trang trí ×1, trà 10 vàng', () 
   assert.strictEqual(M.stat({ bar: { seats: 5 } }, 'seats'), 15);   // đủ 15 chỗ ngồi của quán gốc
 });
 
+t('cấp trang trí: 6 cấp từ quán cũ (spawner khoá 1) tới quán sang, giá món theo công thức gốc +0,3/cấp', () => {
+  const B = M.BAR_TIERS;
+  assert.deepStrictEqual(B.map(x => x.name), ['Quán cũ', 'Sửa quán', 'Góc trang trí', 'Đèn vải', 'Đèn phương Đông', 'Quán sang']);
+  assert.deepStrictEqual(B.map(x => x.interior), [1, 2, 2, 2, 2, 2]);
+  assert.deepStrictEqual(B.map(x => x.price), [1, 1.3, 1.6, 2.2, 2.8, 3.7]);        // công thức cấp 10 = 3,7 × giá gốc [DtD]
+  assert.deepStrictEqual(B.map(x => x.visitEvery), [5, 2, 1.5, 1, 1, 1]);           // CookStar.CustomerVisitInterval [DtD]
+  assert.deepStrictEqual(B.map(x => x.cost), [0, 120, 450, 1100, 2400, 4500]);
+  assert.deepStrictEqual(B.map(x => x.items.length), [0, 0, 3, 8, 9, 9]);
+  assert.deepStrictEqual(M.BAR.decor.levels.map(l => l.value), B.map(x => x.price));
+  // sổ mới là quán cũ; M.tier đọc đúng hàng theo cấp trong sổ, sổ lạ thì kẹp về bảng
+  assert.strictEqual(M.tier(M.defaults()).name, 'Quán cũ');
+  assert.strictEqual(M.tier({ bar: { decor: 3 } }).name, 'Đèn vải');
+  assert.strictEqual(M.tier({ bar: { decor: 99 } }).name, 'Quán sang');
+  assert.strictEqual(M.tier(S.parse({ bar: { decor: 7 } })).name, 'Quán sang');
+});
+
 t('mọi bảng: cấp 0 miễn phí, giá không giảm, số tăng dần', () => {
   for (const tab of [M.GEAR, M.BAR]) for (const k of Object.keys(tab)) {
     const L = tab[k].levels;
@@ -234,6 +250,31 @@ t('có data/bar_assets.js: giá món gốc [DtD], món đặc biệt tốn nhi�
     assert.strictEqual(M.servingsOf(fish('Coral_Trout')), 5);
     assert.strictEqual(M.servingsOf(fish('Stellate_Puffer')), 3);            // 80 cm = 6 phần, công thức gốc tốn 2 phần/đĩa
     assert.strictEqual(M.servingsOf(fish('Longspine_Porcupinefish')), 1);    // 60 cm = 5 phần, tốn 3 phần/đĩa
+  } finally { delete globalThis.HX_BAR_ASSETS; }
+});
+
+t('mọi đồ nội thất và ghế trong bảng cấp trang trí có trong manifest quán (bóc từ prefab gốc)', () => {
+  const ba = path.resolve(__dirname, '../games/ho-xanh/data/bar_assets.js');
+  delete require.cache[ba];
+  require(ba);
+  try {
+    const I = globalThis.HX_BAR_ASSETS.room.interior, slots = Object.values(I.slots);
+    for (const x of M.BAR_TIERS) {
+      assert.ok(I.chairs.variants[x.chair], 'ghế ' + x.chair);
+      for (const id of x.items) {
+        assert.strictEqual(slots.filter(s => s.variants[id]).length, 1, id + ' nằm ở đúng một ô');
+        assert.ok(I.items[id] && I.items[id].tid > 0, id + ' có hàng SushiBarInteriorItems');
+      }
+      // mỗi ô nhận nhiều nhất một món của một cấp
+      const per = slots.map(s => x.items.filter(id => s.variants[id]).length);
+      assert.ok(per.every(n => n <= 1), x.name + ': hai món cùng một ô');
+    }
+    // mọi ô có spawner gốc đều có bản khoá 1 (quán cũ) và khoá 2 (sau sửa)
+    for (const [k, s] of Object.entries(I.slots)) if (s.keys['1']) {
+      assert.ok(s.variants[s.keys['1']] && s.variants[s.keys['2']], k);
+    }
+    assert.strictEqual(I.slots.Sushi_BCSign.keys['1'], 'Sushi_BCSign_Lv1');
+    assert.strictEqual(I.items.Sushi_ZoneA_Lantern_Night.price, 400);        // ItemBuyPrice gốc
   } finally { delete globalThis.HX_BAR_ASSETS; }
 });
 

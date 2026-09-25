@@ -224,6 +224,9 @@ ATTR_NAMES = ['m_Color.r', 'm_Color.g', 'm_Color.b', 'm_Color.a', 'm_Alpha', 'm_
               'm_Offset.x', 'm_Offset.y', 'm_Speed', 'm_UVRect.x', 'm_UVRect.y', 'm_UVRect.width', 'm_UVRect.height',
               'material._MainTex_ST.z', 'material._MainTex_ST.w', 'material._Emission', 'm_Volume', 'm_Pitch']
 ATTR_CRC = {zlib.crc32(n.encode()): n for n in ATTR_NAMES}
+# Loa hỏng của quán cũ (Sushi_Speaker_Lv1Loop): bốn thuộc tính SpriteRenderer (typeID 212) không dò ra tên, số băm cách đều
+# nhau 2^28 như bốn kênh của một màu. Kênh có 17 khoá nhảy 1 <-> 0 là đèn loa chập chờn, coi là alpha [ĐỀ XUẤT].
+ATTR_CRC.update({1303350129: 'spriteColor.r', 1571785585: 'spriteColor.g', 1840221041: 'spriteColor.b', 2108656497: 'spriteColor.a'})
 TRANSFORM_ATTR = {1: ('localPosition', 'xyz'), 2: ('localRotation', 'xyzw'), 3: ('localScale', 'xyz'), 4: ('localEulerAngles', 'xyz')}
 
 
@@ -276,7 +279,7 @@ def decode_clip(c, path_names=None):
     ns = clip.m_StreamedClip.curveCount
     nd = clip.m_DenseClip.m_CurveCount
     per = {}  # chỉ số curve -> [[t, v, a, b, c]]
-    pptr_keys = []
+    pptr_keys, pptr_idx = [], []
     for t, keys in streamed_keys(clip.m_StreamedClip.data):
         for idx, a, b_, c_, d in keys:
             t0 = max(t, 0.0)
@@ -284,6 +287,7 @@ def decode_clip(c, path_names=None):
                 per.setdefault(idx, []).append([r3(t0), r3(d), r3(c_), r3(b_), r3(a)])
             else:
                 pptr_keys.append((t0, int(d)))
+                pptr_idx.append(idx)
     dc = clip.m_DenseClip
     for f in range(dc.m_FrameCount):
         for j in range(nd):
@@ -305,15 +309,30 @@ def decode_clip(c, path_names=None):
         # khi clip chỉ có PPtr thì curveCount = 0 và chỉ số curve của khoá = 0
         raw = [(t, v) for t, keys in streamed_keys(clip.m_StreamedClip.data) for idx, a, b_, c_, v in keys
                if idx >= ns or not fl] if not pptr_keys else pptr_keys
+        # binding của từng khoá (như FindBinding của AssetStudio: đếm curve qua mọi binding theo thứ tự) -> đường dẫn
+        # của SpriteRenderer mà khoá đổi sprite; clip đổi sprite ở nhiều nút (rèm quán cũ) cần tách từng nút
+        def binding_at(i):
+            n = 0
+            for b in binds:
+                n += (4 if b.attribute == 2 else 3 if b.attribute in (1, 3, 4) else 1) if b.typeID == 4 else 1
+                if n > i:
+                    return b
+            return None
+        idxs = pptr_idx if pptr_keys else [None] * len(raw)
         seen = set()
-        for t, v in raw:
+        for (t, v), ix in zip(raw, idxs):
             t = max(t, 0.0)
-            if (t, v) in seen:
+            if (t, v, ix) in seen:
                 continue
-            seen.add((t, v))
+            seen.add((t, v, ix))
             s = mapping[int(v)].read()
             s.image  # nạp texture/atlas trong env có phụ thuộc
             out['sprites'].append((t, s))
+            b = binding_at(ix) if ix is not None else None
+            path = (path_names or {}).get(b.path, b.path) if b is not None and b.isPPtrCurve else (pp[0].path if len(pp) == 1 else None)
+            if isinstance(path, int):
+                path = (path_names or {}).get(path, path)
+            out.setdefault('spriteTracks', {}).setdefault(path, []).append((t, s))
     return out
 
 
@@ -576,115 +595,68 @@ def rip_customers():
 def rip_room():
     """Dựng lại quán đêm từ chính scene DR_SushiBar: cây Sushi_BG_Night_Re + ghế + chỗ ngồi + Bancho.
     Mọi SpriteRenderer đang bật được đặt vào một hệ px chung (50 px / đơn vị, y xuống dưới).
-    Cả hàm chạy trong env của scene: gặp CAB thiếu thì with_deps nạp thêm bundle rồi chạy lại từ đầu."""
-    return in_env(SCENE, _room)
-
-
-def _room(env):
-    shutil.rmtree(os.path.join(ART, 'room'), ignore_errors=True)
-    res = {}
-    if True:
-        cache = {}
-        gos = [o.read() for o in env.objects if o.type.name == 'GameObject']
-        by_name = {}
-        for g in gos:
-            by_name.setdefault(g.m_Name, []).append(g)
-        night = [g for g in by_name['Sushi_BG_Night_Re']][0]
-        seat_root = [g for g in by_name['SeatRoot'] if world(transform_of(g), cache)[0][0][2] > -500][0]
-        pieces, props, seats = [], [], []
-
-        def active_below(g, stop):
-            while g is not None and g.m_Name != stop:
-                if not g.m_IsActive:
-                    return False
-                t = transform_of(g)
-                g = t.m_Father.read().m_GameObject.read() if t.m_Father.m_PathID else None
-            return True
-
-        def animated(g):
-            for c in g.m_Component:
-                if c.component.type.name == 'Animator':
-                    return c.component.read()
-            return None
-
-        def collect(root, stop, group):
-            for g in walk_go(root):
-                if not active_below(g, stop):
-                    continue
-                for c in g.m_Component:
-                    if c.component.type.name != 'SpriteRenderer':
-                        continue
-                    r = c.component.read()
-                    if not r.m_Enabled or not r.m_Sprite.m_PathID:
-                        continue
-                    # Animator ở chính nó hoặc ở cha gần (Sushi_Hood_full / base) thì là đồ động
-                    anim_go, x = None, g
-                    for _ in range(3):
-                        if animated(x):
-                            anim_go = x
-                            break
-                        t = transform_of(x)
-                        if not t.m_Father.m_PathID:
-                            break
-                        x = t.m_Father.read().m_GameObject.read()
-                    m, z = world(transform_of(g), cache)
-                    mat = r.m_Materials[0].read() if r.m_Materials and r.m_Materials[0].m_PathID else None
-                    shader, blend = None, None
-                    if mat is not None:
-                        shader, blend = shader_blend(mat)
-                    pieces.append({'go': g, 'name': g.m_Name, 'sprite': r.m_Sprite.read(), 'm': m, 'z': z,
-                                   'order': r.m_SortingOrder, 'color': [r3(r.m_Color.r), r3(r.m_Color.g), r3(r.m_Color.b), r3(r.m_Color.a)],
-                                   'flip': [bool(r.m_FlipX), bool(r.m_FlipY)], 'group': group,
-                                   'material': mat.m_Name if mat else None, 'shader': shader, 'blendf': blend,
-                                   'animator': animated(anim_go) if anim_go else None, 'anim_go': anim_go})
-        collect(night, night.m_Name, 'interior')
-        collect(seat_root, seat_root.m_Name, 'seats')
-        # hệ hạt đặt sẵn trong quán (đèn LED biển hiệu, loa, hoa anh đào, bọt bể cá, đốm đèn)
-        emitters = []
-        pctx = UICtx('room/vfx')
-        for g in walk_go(night):
-            if not active_below(g, night.m_Name):
+    Đồ nằm trong ô nội thất (InteriorFurnitureSpawner / InteriorItemSlot) tách khỏi lớp nền thành `interior`:
+    mỗi ô có nhiều bản (quán cũ, sau sửa, đồ trang trí mua thêm), game chọn bản theo cấp trang trí.
+    Bản sau sửa lấy nguyên từ scene; bản khác dựng từ prefab gốc đặt vào đúng ô."""
+    room = in_env(SCENE, _room)
+    frame = Frame(*room.pop('_frame'))
+    slots = room.pop('_slots')
+    info = interior_items()
+    pctx = UICtx('room/vfx')
+    for sname, s in slots.items():
+        want = []
+        if '1' in s['keys']:
+            want.append(s['keys']['1'])
+        if s['zone'] is not None:
+            want += [i for i in INTERIOR_PICK if info.get(i, {}).get('zone') == s['zone']]
+        for vid in want:
+            if vid in s['variants']:
                 continue
-            ps = [c.component for c in g.m_Component if c.component.type.name == 'ParticleSystem']
-            if not ps:
+            if vid == 'EmptyFurniture':
+                s['variants'][vid] = {'layers': [], 'props': [], 'emitters': []}
                 continue
-            rend = [c.component for c in g.m_Component if c.component.type.name == 'ParticleSystemRenderer']
-            m, _ = world(transform_of(g), cache)
-            par = transform_of(g).m_Father.read().m_GameObject.read().m_Name if transform_of(g).m_Father.m_PathID else ''
-            # q: quaternion thế giới của hệ hạt (hình nón, hộp phát theo trục z cục bộ, rồi xoay theo q)
-            emitters.append({'name': g.m_Name, 'parent': par, 'pos': [m[0][2], m[1][2]],
-                             'scale': r3(abs(m[0][0])), 'q': q_or_none(world_q(transform_of(g))),
-                             'particle': particle(ps[0].read_typetree(), rend[0] if rend else None, pctx)})
-        res['emitters'] = emitters
-        res['emitterTextures'] = pctx.textures
-        res['emitterMeshes'] = pctx.meshes
-        # chỗ ngồi
-        for g in walk_go(seat_root):
-            for c in g.m_Component:
-                if c.component.type.name == 'MonoBehaviour' and script_name(c.component.read()) == 'SushiBarTable':
-                    tt = c.component.read_typetree()
-                    r = c.component.read()
+            path = interior_prefab(vid)
+            print('  nội thất', sname, '<-', vid)
+            s['variants'][vid] = in_env(path, lambda env, p=path, v=vid, sl=s: _instance(env, p, v, sl, frame, pctx))
+    room['emitterTextures'].update(pctx.textures)
+    room['emitterMeshes'].update(pctx.meshes)
+    room['interior'] = {
+        'slots': {k: {'zone': v['zone'], 'keys': v['keys'], 'variants': v['variants']} for k, v in slots.items()},
+        'chairs': room.pop('_chairs'),
+        'items': {k: v for k, v in info.items() if k in INTERIOR_PICK},
+    }
+    return room
 
-                    def wp(ptr):
-                        if not ptr.m_PathID:
-                            return None
-                        m, _ = world(ptr.read(), cache)
-                        return [m[0][2], m[1][2]]
-                    seats.append({'name': g.m_Name, 'table': tt['tableNumber'], 'isFront': bool(tt['isFront']),
-                                  'pos': [world(transform_of(g), cache)[0][0][2], world(transform_of(g), cache)[0][1][2]],
-                                  'sit': wp(r.sitPivot), 'stop': wp(r.stopPosition), 'anchor': wp(r.interactionAnchor),
-                                  'noDrinkQTE': bool(tt['m_DoNotDrinkQTE'])})
-        marks = {}
-        for nm in ('Door', 'StaffRoot', 'Bancho', 'Kitchen', 'Hall', 'SeatRoot', 'LeftWall', 'RightWall', 'Floor'):
-            for g in by_name.get(nm, []):
-                m, _ = world(transform_of(g), cache)
-                if m[0][2] > -500:
-                    marks[nm] = [m[0][2], m[1][2]]
-                    break
-        res.update(pieces=pieces, seats=seats, marks=marks)
-    pieces, seats, marks = res['pieces'], res['seats'], res['marks']
 
-    # --- khung px chung
+# Dải sortingOrder -> lớp [ĐỀ XUẤT]: ranh giới đặt đúng chỗ nhân vật chen vào (khách bàn sau -2, Dave/Bancho 40, khách ghế đẩu 160).
+BANDS = [('back', -10000, -2), ('mid', -2, 40), ('kitchen', 40, 140), ('counter', 140, 160),
+         ('chairs', 160, 200), ('front', 200, 1000), ('top', 1000, 100000)]
+
+
+def band_of(order):
+    for name, lo, hi in BANDS:
+        if lo <= order < hi:
+            return name, lo
+    return BANDS[-1][0], BANDS[-1][1]
+
+
+def piece_z(order, add):
+    """z vẽ của một nhóm sprite tĩnh: đáy dải (dải sau cùng = -400) + sortingOrder trong dải ×1e-6, đèn cộng sáng +0,5.
+    Nhân vật dùng sortingOrder gốc + 0,1 nên vẫn chen đúng giữa các dải như bản gộp lớp trước."""
+    _, lo = band_of(order)
+    return round((-400 if lo == -10000 else lo) + (order - lo) * 1e-6 + (0.5 if add else 0), 6)
+
+
+class Frame:
+    """Hệ px chung của phòng: gốc = góc trên-trái khung bao các sprite của scene, 50 px / đơn vị, y xuống dưới."""
+
+    def __init__(self, minx, maxy, W, H):
+        self.minx, self.maxy, self.W, self.H = minx, maxy, W, H
+
+    def to_px(self, x, y):
+        return [round((x - self.minx) * PX_PER_UNIT, 1), round((self.maxy - y) * PX_PER_UNIT, 1)]
+
+    @staticmethod
     def quad(p):
         s = p['sprite']
         img, (px, py) = sprite_full(s)
@@ -694,23 +666,12 @@ def _room(env):
             lx, ly = (cx - px) * u, (py - cy) * u
             m = p['m']
             corners.append((m[0][0] * lx + m[0][1] * ly + m[0][2], m[1][0] * lx + m[1][1] * ly + m[1][2]))
-        return img, corners
-    for p in pieces:
-        p['img'], p['corners'] = quad(p)
-    # bỏ gradient bóng trần (scale ~197 lần) khỏi việc tính khung: nó phủ tràn ra ngoài
-    core = [p for p in pieces if abs(p['m'][0][0]) < 20]
-    minx = min(x for p in core for x, _ in p['corners'])
-    maxx = max(x for p in core for x, _ in p['corners'])
-    miny = min(y for p in core for _, y in p['corners'])
-    maxy = max(y for p in core for _, y in p['corners'])
-    W = int(math.ceil((maxx - minx) * PX_PER_UNIT))
-    H = int(math.ceil((maxy - miny) * PX_PER_UNIT))
+        p['img'], p['corners'] = img, corners
 
-    def to_px(x, y):
-        return [round((x - minx) * PX_PER_UNIT, 1), round((maxy - y) * PX_PER_UNIT, 1)]
-
-    def place(p):
+    def place(self, p):
         """Ảnh đã phóng (chỉ cho phép phóng theo trục, lấy mẫu gần nhất) + góc trên-trái px."""
+        if 'corners' not in p:
+            self.quad(p)
         xs = [x for x, _ in p['corners']]
         ys = [y for _, y in p['corners']]
         w = int(round((max(xs) - min(xs)) * PX_PER_UNIT))
@@ -736,68 +697,343 @@ def _room(env):
             a[..., 2] *= col[2]
             a[..., 3] *= col[3]
             img = Image.fromarray(a.clip(0, 255).astype(np.uint8), 'RGBA')
-        x0, y0 = to_px(min(xs), max(ys))
+        x0, y0 = self.to_px(min(xs), max(ys))
         return img, int(round(x0)), int(round(y0))
 
-    # --- đồ động (Animator đổi sprite): tách riêng, không in vào lớp tĩnh
-    statics, anim_props = [], {}
+
+def _pid(g):
+    return g.object_reader.path_id
+
+
+def _father(g):
+    t = transform_of(g)
+    return t.m_Father.read().m_GameObject.read() if t.m_Father.m_PathID else None
+
+
+def _active_to(g, stop):
+    """g và các cha tới (không kể) stop đều bật."""
+    while g is not None and _pid(g) != stop:
+        if not g.m_IsActive:
+            return False
+        g = _father(g)
+    return True
+
+
+def _walk(root, skip):
+    out, stack = [], [root]
+    while stack:
+        g = stack.pop()
+        if _pid(g) in skip:
+            continue
+        out.append(g)
+        stack.extend(reversed(children(g)))
+    return out
+
+
+def _animator(g):
+    for c in g.m_Component:
+        if c.component.type.name == 'Animator':
+            return c.component.read()
+    return None
+
+
+def _wm(g, cache, base):
+    m, z = world(transform_of(g), cache)
+    return (mul(base, m) if base else m), z
+
+
+def collect_pieces(root, cache, base=None, skip=(), group=''):
+    """SpriteRenderer đang bật dưới root (m_IsActive của chính root không xét: bản ghế cất sẵn đang tắt).
+    base: ma trận đặt gốc prefab vào ô trong phòng (None = đã ở toạ độ scene)."""
+    stop = _pid(root)
+    pieces = []
+    for g in _walk(root, set(skip)):
+        srs = [c.component for c in g.m_Component if c.component.type.name == 'SpriteRenderer']
+        if not srs:
+            continue
+        # Animator ở chính nó hoặc ở cha gần (Sushi_Hood_full / base), không vượt quá root: là đồ động
+        anim_go, x = None, g
+        for _ in range(3):
+            if _animator(x):
+                anim_go = x
+                break
+            if _pid(x) == stop:
+                break
+            x = _father(x)
+            if x is None:
+                break
+        if not _active_to(g, stop):
+            # nút tắt nằm dưới nút có Animator (chữ neon quán cũ L01-L03): clip bật/tắt nó qua m_IsActive, vẫn lấy
+            if anim_go is None or not _active_to(anim_go, stop):
+                continue
+        for r in (c.read() for c in srs):
+            if not r.m_Enabled or not r.m_Sprite.m_PathID:
+                continue
+            m, z = _wm(g, cache, base)
+            mat = r.m_Materials[0].read() if r.m_Materials and r.m_Materials[0].m_PathID else None
+            shader, blend = None, None
+            if mat is not None:
+                shader, blend = shader_blend(mat)
+                # clip Mecanim chỉ giữ CRC32 tên thuộc tính: thêm tên thuộc tính material của sprite này vào bảng dò
+                sp = mat.m_SavedProperties
+                for nm, _ in list(sp.m_Colors):
+                    for ax in 'rgba':
+                        a = 'material.%s.%s' % (nm, ax)
+                        ATTR_CRC[zlib.crc32(a.encode())] = a
+                for nm, _ in list(sp.m_Floats):
+                    a = 'material.' + nm
+                    ATTR_CRC[zlib.crc32(a.encode())] = a
+            pieces.append({'go': g, 'name': g.m_Name, 'sprite': r.m_Sprite.read(), 'm': m, 'z': z, 'base': base,
+                           'order': r.m_SortingOrder, 'color': [r3(r.m_Color.r), r3(r.m_Color.g), r3(r.m_Color.b), r3(r.m_Color.a)],
+                           'flip': [bool(r.m_FlipX), bool(r.m_FlipY)], 'group': group,
+                           'material': mat.m_Name if mat else None, 'shader': shader, 'blendf': blend,
+                           'animator': _animator(anim_go) if anim_go else None, 'anim_go': anim_go})
+    return pieces
+
+
+def collect_emitters(root, cache, pctx, base=None, base_q=None, skip=()):
+    """Hệ hạt đặt sẵn dưới root (đèn LED biển hiệu, loa, hoa anh đào, bọt bể cá, tia lửa đồ hỏng của quán cũ)."""
+    stop, out = _pid(root), []
+    for g in _walk(root, set(skip)):
+        if not _active_to(g, stop):
+            continue
+        ps = [c.component for c in g.m_Component if c.component.type.name == 'ParticleSystem']
+        if not ps:
+            continue
+        rend = [c.component for c in g.m_Component if c.component.type.name == 'ParticleSystemRenderer']
+        m, _ = _wm(g, cache, base)
+        f = _father(g)
+        q = world_q(transform_of(g))
+        if base_q:
+            q = qmul(base_q, q)
+        # q: quaternion thế giới của hệ hạt (hình nón, hộp phát theo trục z cục bộ, rồi xoay theo q)
+        out.append({'name': g.m_Name, 'parent': f.m_Name if f else '', 'pos': [m[0][2], m[1][2]],
+                    'scale': r3(abs(m[0][0])), 'q': q_or_none(q),
+                    'particle': particle(ps[0].read_typetree(), rend[0] if rend else None, pctx)})
+    return out
+
+
+def merge_layers(pieces, frame, rel):
+    """Sprite tĩnh -> lớp ảnh, gộp theo (sortingOrder, pha màu) để lớp của các ô nội thất chen đúng thứ tự với lớp nền."""
+    groups = {}
+    for p in sorted(pieces, key=lambda p: (p['order'], -p['z'], p['name'])):
+        groups.setdefault((p['order'], is_additive(p)), []).append(p)
+    layers = []
+    for (order, add), sel in sorted(groups.items()):
+        can = Image.new('RGBA', (frame.W, frame.H))
+        for p in sel:
+            img, x, y = frame.place(p)
+            tmp = Image.new('RGBA', (frame.W, frame.H))
+            tmp.paste(img, (x, y))
+            can = Image.alpha_composite(can, tmp)
+        bb = can.getbbox()
+        if not bb:
+            continue
+        band, _ = band_of(order)
+        name = '%s_%s%s' % (band, ('m%d' % -order) if order < 0 else order, '_light' if add else '')
+        bf = sorted({p['blendf'] for p in sel if add}) or ['alpha']
+        layers.append({'name': name, 'img': save_png(can.crop(bb), '%s/%s.png' % (rel, name)), 'x': bb[0], 'y': bb[1],
+                       'w': bb[2] - bb[0], 'h': bb[3] - bb[1], 'z': piece_z(order, add), 'order': order,
+                       'blend': 'add' if add else 'normal', 'unityBlend': bf,
+                       'pieces': sorted({'%s (%s)' % (p['sprite'].m_Name, p['shader']) for p in sel})})
+    return layers
+
+
+def split_props(pieces, frame, key_of):
+    """Sprite có Animator đổi sprite / đường cong -> đồ động; còn lại là tĩnh."""
+    statics, anim = [], {}
     for p in pieces:
         if p['animator'] is not None:
-            anim_props.setdefault(id(p['anim_go']), []).append(p)
+            anim.setdefault(_pid(p['anim_go']), []).append(p)
         else:
             statics.append(p)
     props = []
-    for k, ps in anim_props.items():
-        p = ps[0]
-        prop = animated_prop(p, ps, place, to_px)
+    for ps in anim.values():
+        prop = animated_prop(ps[0], ps, frame.place, frame.to_px, key_of(ps[0]))
         if prop:
             props.append(prop)
         else:
             statics.extend(ps)
+    return statics, props
 
-    # --- lớp tĩnh theo sortingOrder [ĐỀ XUẤT: ranh giới lớp chọn ở đúng chỗ nhân vật chen vào]
-    BANDS = [('back', -10000, -2), ('mid', -2, 40), ('kitchen', 40, 140), ('counter', 140, 160),
-             ('chairs', 160, 200), ('front', 200, 1000), ('top', 1000, 100000)]
-    layers = []
-    statics.sort(key=lambda p: (p['order'], -p['z'], p['name']))
-    for name, lo, hi in BANDS:
-        sel = [p for p in statics if lo <= p['order'] < hi]
-        if not sel:
+
+def build_variant(pieces, emitters, frame, rel, key_of):
+    statics, props = split_props(pieces, frame, key_of)
+    return {'layers': merge_layers(statics, frame, rel), 'props': props,
+            'emitters': [dict(e, pos=frame.to_px(*e['pos'])) for e in emitters]}
+
+
+def _instance(env, path, vid, slot, frame, pctx):
+    """Prefab nội thất gốc đặt vào ô: thế giới = ma trận ô × Transform trong prefab (như Instantiate dưới ô)."""
+    root = container(env, path, 'GameObject').read()
+    cache = {}
+    ps = collect_pieces(root, cache, base=slot['m'])
+    em = collect_emitters(root, cache, pctx, base=slot['m'], base_q=slot['q'])
+    return build_variant(ps, em, frame, 'room/interior/' + safe(vid), lambda p: safe(vid) + '__' + safe(p['anim_go'].m_Name))
+
+
+def interior_prefab(vid):
+    hits = sorted(k for k in IDX if k.startswith(SUSHI + 'Prefabs/Interior/') and os.path.basename(k) == vid + '.prefab')
+    if not hits:
+        raise KeyError('không có prefab nội thất ' + vid)
+    return hits[0]
+
+
+# Đồ nội thất mua thêm được bóc (ItemObjImageNight của SushiBarInteriorItems = tên prefab). Bảng cấp trang trí
+# (data/meta.js BAR_TIERS) chỉ được dùng đồ có trong danh sách này [ĐỀ XUẤT chọn; ảnh, vị trí, giá là DtD].
+INTERIOR_PICK = [
+    'Sushi_ZoneA_Bonsai_Night', 'Sushi_ZoneA_LuckyCat_Night', 'Sushi_ZoneA_Lantern_Night',
+    'Sushi_ZoneB_Fan_Night', 'Sushi_ZoneB_StuffedTuna_Night',
+    'Sushi_ZoneC_KnifeDisplay_Night', 'Sushi_ZoneC_PotRack_Night', 'Sushi_ZoneC_JapanesePainting_Night',
+    'Sushi_ZoneD_WallText_Night', 'Sushi_ZoneD_Certificate_Night', 'Sushi_ZoneD_FlowerBasket_Night',
+    'Sushi_ZoneE_PatternLight_Night', 'Sushi_ZoneE_StoneStandLight_Night', 'Sushi_ZoneE_MadagascarJasmine_Night',
+] + ['Sushi_Light_%s_%d' % (k, i) for k in ('Round', 'Oriental', 'Rattan01') for i in (1, 2, 3, 4)]
+# Bản ghế đẩu được bóc (ô ghế gốc giữ sẵn 13 bản, bảng cấp dùng bốn bản này) [ĐỀ XUẤT chọn].
+CHAIR_PICK = ['Sushi_FrontChair01', 'Sushi_FrontChair_Wood01', 'Sushi_FrontChair_Red01', 'Sushi_FrontChair_WhiteStool01']
+
+
+def interior_items():
+    """SushiBarInteriorItems (quán chính, place 0) theo tên prefab đêm: TID, vùng, giá, hạng Cooksta mở khoá, khoá chữ."""
+    rows = load_sheet('DR_GameData_Item')['SushiBarInteriorItems']
+    out = {}
+    for r in rows:
+        n = r.get('ItemObjImageNight')
+        if not n or r.get('DLCType') or 0 not in (r.get('InteriorPlaceList') or []):
             continue
-        # glow cộng sáng (LightCircle, material Additive) tách lớp riêng để game vẽ kiểu 'lighter'
-        for blend, subsel in (('normal', [p for p in sel if not is_additive(p)]), ('add', [p for p in sel if is_additive(p)])):
-            if not subsel:
+        out.setdefault(n, {'tid': r['TID'], 'zone': r['InteriorZoneList'][0], 'price': r['ItemBuyPrice'],
+                           'level': r['ItemLevel'], 'unlock': r['UnlockConditionValue'] if r['UnlockCondition'] == 1 else None,
+                           'nameKey': r['ItemTextID'], 'en': en(r['ItemTextID'])})
+    return out
+
+
+def _room(env):
+    shutil.rmtree(os.path.join(ART, 'room'), ignore_errors=True)
+    cache = {}
+    gos = [o.read() for o in env.objects if o.type.name == 'GameObject']
+    by_name = {}
+    for g in gos:
+        by_name.setdefault(g.m_Name, []).append(g)
+    night = [g for g in by_name['Sushi_BG_Night_Re']][0]
+    seat_root = [g for g in by_name['SeatRoot'] if world(transform_of(g), cache)[0][0][2] > -500][0]
+
+    # --- ô nội thất [DtD]: InteriorFurnitureSpawner (khoá 1 = quán cũ, 2 = sau sửa, 3-5 = lễ) và InteriorItemSlot
+    # (m_Zone = 1 << vùng của SushiBarInteriorItems: 3 cột, 4 mái, 5/6 loa, 7-11 góc trang trí A-E, 13-16 đèn)
+    slots = {}
+    for g in walk_go(night):
+        keys, zone = {}, None
+        for c in g.m_Component:
+            if c.component.type.name != 'MonoBehaviour':
                 continue
-            can = Image.new('RGBA', (W, H))
-            for p in subsel:
-                img, x, y = place(p)
-                tmp = Image.new('RGBA', (W, H))
-                tmp.paste(img, (x, y))
-                can = Image.alpha_composite(can, tmp)
-            bb = can.getbbox()
-            if not bb:
-                continue
-            can = can.crop(bb)
-            ln = name if blend == 'normal' else name + '_light'
-            bf = sorted({p['blendf'] for p in subsel if is_additive(p)}) or ['alpha']
-            layers.append({'name': ln, 'img': save_png(can, 'room/%s.png' % ln), 'x': bb[0], 'y': bb[1],
-                           'w': bb[2] - bb[0], 'h': bb[3] - bb[1], 'z': lo if lo > -10000 else -400, 'orders': [lo, hi],
-                           'blend': blend, 'unityBlend': bf,
-                           'pieces': sorted({'%s (%s)' % (p['name'], p['shader']) for p in subsel})})
-    # thứ tự vẽ giữa các lớp: z = sortingOrder thấp nhất của dải (nhân vật dùng sortingOrder gốc của chúng)
-    for l in layers:
-        if l['blend'] == 'add':
-            l['z'] += 0.5
+            n = script_name(c.component.read())
+            if n == 'InteriorFurnitureSpawner':
+                keys = {str(a['key']): a['assetKey'] for a in c.component.read_typetree()['m_AssetReferenceList']}
+            elif n == 'InteriorItemSlot':
+                zm = c.component.read_typetree()['m_Zone']
+                zone = int(round(math.log2(zm))) if zm > 0 else None
+        vary = zone is not None or ('1' in keys and keys['1'] != keys.get('2'))
+        if vary:
+            m, _ = world(transform_of(g), cache)
+            slots[g.m_Name] = {'go': g, 'keys': keys, 'zone': zone, 'm': m, 'q': list(world_q(transform_of(g))), 'variants': {}}
+    skip = {_pid(s['go']) for s in slots.values()}
+
+    # --- ghế đẩu: mỗi chỗ ngồi trước quầy có ô ghế (InteriorItemSlot vùng 2) giữ sẵn mọi bản ghế, chỉ một bản bật
+    chair_slots, chair_skip = {}, set()
+    for seat in walk_go(seat_root):
+        for ch in children(seat):
+            if ch.m_Name.startswith('Sushi_FrontChair') and any(c.component.type.name == 'MonoBehaviour' and
+                                                                script_name(c.component.read()) == 'InteriorItemSlot'
+                                                                for c in ch.m_Component):
+                if world(transform_of(ch), cache)[0][0][2] > -500:
+                    chair_slots[seat.m_Name] = ch
+                chair_skip.add(_pid(ch))
+
+    base = collect_pieces(night, cache, skip=skip, group='interior') + collect_pieces(seat_root, cache, skip=chair_skip, group='seats')
+    scene_slot = {k: collect_pieces(s['go'], cache) for k, s in slots.items()}
+    ref_seat = sorted(chair_slots)[0]
+    ref = chair_slots[ref_seat]
+    chair_pieces = {}
+    for v in children(ref):
+        if v.m_Name not in CHAIR_PICK:
+            continue
+        chair_pieces[v.m_Name] = collect_pieces(v, cache)
+    active_chairs = [p for s in chair_slots.values() for p in collect_pieces(s, cache)]
+
+    # --- khung px chung: bao mọi sprite của scene như trước (bỏ gradient bóng trần scale ~197 lần: phủ tràn ra ngoài)
+    every = base + [p for ps in scene_slot.values() for p in ps] + active_chairs
+    for p in every + [p for ps in chair_pieces.values() for p in ps]:
+        Frame.quad(p)
+    core = [p for p in every if abs(p['m'][0][0]) < 20]
+    minx = min(x for p in core for x, _ in p['corners'])
+    maxx = max(x for p in core for x, _ in p['corners'])
+    miny = min(y for p in core for _, y in p['corners'])
+    maxy = max(y for p in core for _, y in p['corners'])
+    frame = Frame(minx, maxy, int(math.ceil((maxx - minx) * PX_PER_UNIT)), int(math.ceil((maxy - miny) * PX_PER_UNIT)))
+
+    def scene_key(p):
+        t = transform_of(p['anim_go'])
+        parent = t.m_Father.read().m_GameObject.read().m_Name if t.m_Father.m_PathID else p['anim_go'].m_Name
+        return re.sub(r'\W+', '_', parent)
+
+    pctx = UICtx('room/vfx')
+    statics, props = split_props(base, frame, scene_key)
+    layers = merge_layers(statics, frame, 'room')
+    emitters = [dict(e, pos=frame.to_px(*e['pos'])) for e in collect_emitters(night, cache, pctx, skip=skip)]
+    for k, s in slots.items():
+        if '2' in s['keys'] and scene_slot[k]:
+            vid = s['keys']['2']
+            s['variants'][vid] = build_variant(scene_slot[k], collect_emitters(s['go'], cache, pctx), frame,
+                                               'room/interior/' + safe(k) + '/' + safe(vid), scene_key)
+        elif '2' in s['keys']:
+            s['variants'][s['keys']['2']] = {'layers': [], 'props': [], 'emitters': []}
+    # ghế: ảnh đặt ở ô ghế của chỗ ngồi mẫu, x/y trong lớp tính từ gốc ô ghế
+    rm = world(transform_of(ref), cache)[0]
+    ox, oy = frame.to_px(rm[0][2], rm[1][2])
+    chairs = {'at': {k: frame.to_px(world(transform_of(g), cache)[0][0][2], world(transform_of(g), cache)[0][1][2])
+                     for k, g in chair_slots.items()}, 'variants': {}}
+    for vid, ps in chair_pieces.items():
+        ls = merge_layers(ps, frame, 'room/chairs/' + safe(vid))
+        for l in ls:
+            l['x'] = round(l['x'] - ox, 1)
+            l['y'] = round(l['y'] - oy, 1)
+        chairs['variants'][vid] = ls
+
+    # --- chỗ ngồi
+    seats = []
+    for g in walk_go(seat_root):
+        for c in g.m_Component:
+            if c.component.type.name == 'MonoBehaviour' and script_name(c.component.read()) == 'SushiBarTable':
+                tt = c.component.read_typetree()
+                r = c.component.read()
+
+                def wp(ptr):
+                    if not ptr.m_PathID:
+                        return None
+                    m, _ = world(ptr.read(), cache)
+                    return [m[0][2], m[1][2]]
+                seats.append({'name': g.m_Name, 'table': tt['tableNumber'], 'isFront': bool(tt['isFront']),
+                              'pos': [world(transform_of(g), cache)[0][0][2], world(transform_of(g), cache)[0][1][2]],
+                              'sit': wp(r.sitPivot), 'stop': wp(r.stopPosition), 'anchor': wp(r.interactionAnchor),
+                              'noDrinkQTE': bool(tt['m_DoNotDrinkQTE'])})
+    marks = {}
+    for nm in ('Door', 'StaffRoot', 'Bancho', 'Kitchen', 'Hall', 'SeatRoot', 'LeftWall', 'RightWall', 'Floor'):
+        for g in by_name.get(nm, []):
+            m, _ = world(transform_of(g), cache)
+            if m[0][2] > -500:
+                marks[nm] = [m[0][2], m[1][2]]
+                break
+    to_px = frame.to_px
     seats_px = []
     for s in sorted(seats, key=lambda s: s['table']):
         seats_px.append({'table': s['table'], 'isFront': s['isFront'], 'x': to_px(*s['pos'])[0], 'y': to_px(*s['pos'])[1],
                          'sit': to_px(*s['sit']) if s['sit'] else None, 'stop': to_px(*s['stop']) if s['stop'] else None,
                          'anchor': to_px(*s['anchor']) if s['anchor'] else None, 'noDrinkQTE': s['noDrinkQTE'],
                          'name': s['name']})
-    emitters = [dict(e, pos=to_px(*e['pos'])) for e in res['emitters']]
-    return {'size': [W, H], 'originUnity': [r3(minx), r3(maxy)], 'pxPerUnit': PX_PER_UNIT, 'layers': layers,
-            'props': props, 'seats': seats_px, 'emitters': emitters, 'emitterTextures': res['emitterTextures'], 'emitterMeshes': res['emitterMeshes'],
-            'floorY': to_px(0, -3.24)[1], 'marks': {k: to_px(*v) for k, v in marks.items()}}
+    return {'size': [frame.W, frame.H], 'originUnity': [r3(minx), r3(maxy)], 'pxPerUnit': PX_PER_UNIT, 'layers': layers,
+            'props': props, 'seats': seats_px, 'emitters': emitters, 'emitterTextures': pctx.textures, 'emitterMeshes': pctx.meshes,
+            'floorY': to_px(0, -3.24)[1], 'marks': {k: to_px(*v) for k, v in marks.items()},
+            '_frame': [minx, maxy, frame.W, frame.H], '_chairs': chairs,
+            '_slots': {k: {'keys': s['keys'], 'zone': s['zone'], 'm': s['m'], 'q': s['q'], 'variants': s['variants']}
+                       for k, s in slots.items()}}
 
 
 BLEND = ['Zero', 'One', 'DstColor', 'SrcColor', 'OneMinusDstColor', 'SrcAlpha', 'OneMinusSrcColor', 'DstAlpha',
@@ -858,7 +1094,7 @@ def rel_paths(root):
     return out
 
 
-def animated_prop(p, ps, place, to_px):
+def animated_prop(p, ps, place, to_px, key=None):
     """Đồ trong quán có Animator: xuất mọi sprite mà clip đổi qua + thời lượng khung; clip chỉ đổi
     thuộc tính (scale, màu) thì giữ đường cong. Neo (anchor) = vị trí pivot của SpriteRenderer trong phòng."""
     anim = p['animator']
@@ -871,8 +1107,9 @@ def animated_prop(p, ps, place, to_px):
     if not decs:
         return None
     t = transform_of(p['anim_go'])
-    parent = t.m_Father.read().m_GameObject.read().m_Name if t.m_Father.m_PathID else p['anim_go'].m_Name
-    key = re.sub(r'\W+', '_', parent)
+    if key is None:
+        parent = t.m_Father.read().m_GameObject.read().m_Name if t.m_Father.m_PathID else p['anim_go'].m_Name
+        key = re.sub(r'\W+', '_', parent)
     sp_frames = {}
     for d in decs:
         for _, sp in d['sprites']:
@@ -881,19 +1118,49 @@ def animated_prop(p, ps, place, to_px):
     for n, sp in sorted(sp_frames.items()):
         img, (px, py) = sprite_full(sp)
         frames[n] = {'img': save_png(img, 'room/props/%s/%s.png' % (key, n)), 'pivot': [round(px, 1), round(py, 1)]}
-    parts = []
+    parts, nodes = [], {}
+    top = p['anim_go'].object_reader.path_id
+
+    def node(g, path):
+        if path in nodes:
+            return
+        tg = transform_of(g)
+        lp, ls, lq = tg.m_LocalPosition, tg.m_LocalScale, tg.m_LocalRotation
+        wm = world(tg, {})[0]
+        if q.get('base'):
+            wm = mul(q['base'], wm)
+        # at: vị trí nút trong phòng (px) = tâm xoay / phóng; lp, ls, rz: Transform cục bộ lúc nghỉ; on: m_IsActive lúc nghỉ
+        nodes[path] = {'at': to_px(wm[0][2], wm[1][2]), 'lp': [r3(lp.x), r3(lp.y)], 'ls': [r3(ls.x), r3(ls.y)],
+                       'rz': r3(math.degrees(2 * math.atan2(lq.z, lq.w))), 'on': bool(g.m_IsActive),
+                       'u': r3(abs(wm[0][0]) / (abs(ls.x) or 1))}
     for q in ps:
         im, qx, qy = place(q)
         img0, (px0, py0) = sprite_full(q['sprite'])
         m = q['m']
-        parts.append({'name': q['name'], 'sprite': q['sprite'].m_Name,
+        # đường dẫn từ nút có Animator tới sprite (khớp `path` của đường cong clip)
+        rel, g, chain = [], q['go'], []
+        while g is not None and g.object_reader.path_id != top:
+            rel.insert(0, g.m_Name)
+            chain.append(g)
+            tg = transform_of(g)
+            g = tg.m_Father.read().m_GameObject.read() if tg.m_Father.m_PathID else None
+        if g is not None:
+            chain.append(g)
+        for i, cg in enumerate(chain):
+            node(cg, '/'.join(rel[:len(rel) - i]))
+        parts.append({'name': q['name'], 'sprite': q['sprite'].m_Name, 'path': '/'.join(rel),
                       'img': save_png(im, 'room/props/%s/%s_static.png' % (key, q['name'])), 'x': qx, 'y': qy,
                       'anchor': to_px(m[0][2], m[1][2]), 'pivot': [round(px0, 1), round(py0, 1)],
                       'order': q['order'], 'blend': 'light' if is_additive(q) else 'alpha'})
+    def tracks(d):
+        tr = d.get('spriteTracks') or {}
+        if not tr or None in tr:
+            return None
+        return {str(k): frame_list({'sprites': v, 'length': d['length'], 'rate': d['rate']}) for k, v in tr.items()}
     return {'name': key, 'controller': cname, 'order': p['order'], 'parts': parts, 'frames': frames,
-            'animatorPath': p['anim_go'].m_Name,
+            'animatorPath': p['anim_go'].m_Name, 'nodes': nodes,
             'anims': {d['name']: {'rate': d['rate'], 'loop': d['loop'], 'length': d['length'],
-                                  'frames': frame_list(d) if d['sprites'] else None,
+                                  'frames': frame_list(d) if d['sprites'] else None, 'tracks': tracks(d),
                                   'curves': d['curves'] or None} for d in decs}}
 
 
@@ -1700,7 +1967,8 @@ HEADER = '''// Sinh bởi tools/rip_bar.py — đừng sửa tay. Chạy lại: 
 SECTION_NOTES = {
     'ppu': '[DtD] px/đơn vị của sprite quán; mọi nhân vật + đồ đạc đặt scale 2 [DtD] → 50 px ảnh = 1 đơn vị.',
     'room': '[DtD] vị trí, sortingOrder, ghế, cửa lấy từ scene DR_SushiBar + prefab Sushi_BG_Night_Re. '
-            '[ĐỀ XUẤT] cách gộp sprite thành lớp theo dải sortingOrder (orders). z = sortingOrder để chen nhân vật.',
+            '[ĐỀ XUẤT] cách gộp sprite thành lớp theo dải + sortingOrder (z). interior: bản gốc của từng ô nội thất '
+            '(khoá spawner 1 quán cũ / 2 sau sửa, đồ mua thêm theo vùng SushiBarInteriorItems) và ghế đẩu từng chỗ ngồi.',
     'dave': '[DtD] mọi khung + ms từ clip Staffs/Dave/Animations; sortingOrder từ prefab Staff_Dave.',
     'bancho': '[DtD] mọi khung + ms từ clip Staffs/Bancho/Animations (+ Cheers của cutscene chương 1).',
     'cat': '[DtD] mèo Momo trong quán (prefab cat001, clip Cat_momo).',
@@ -1729,8 +1997,8 @@ KNOWN_ABSENT = [
     {'what': 'ui', 'id': 'soldCountHud', 'why': 'HUD đêm gốc (SushiBarCanvasRoot) chỉ có ô vàng + đồng hồ; không có ô đếm suất đã bán'},
     {'what': 'ui', 'id': 'teaQtePanel', 'why': 'bảng rót trà gốc SushiBarQTEPanel dùng nền UI_SushiBar_QTE_BeerBg in nhãn "GLENN BEER" và '
                                                  'chất lỏng mô phỏng (Water2D metaball) vẽ qua RenderTexture; giữ vòng AutoQTE của StaffActionInfo'},
-    {'what': 'vfx', 'id': 'speakerSpark/signSpark', 'why': 'khói + tia lửa loa/biển hỏng: có tốc độ, hình phát dùng được nhưng scene '
-                                                          'DR_SushiBar không đặt sẵn; code gốc sinh lúc nào không đọc được -> không phát'},
+    {'what': 'vfx', 'id': 'speakerSpark/signSpark (quán sau sửa)', 'why': 'khói + tia lửa loa/biển hỏng chỉ nằm trong prefab quán cũ '
+                                                          '(FurnitureLv1); quán sau sửa không có -> chỉ phát ở cấp trang trí 0'},
     {'what': 'vfx', 'id': 'nightEnv', 'why': 'VFX_SushiBar_Evening: sóng, sao băng, bụi nước của biển 3D phía sau quán (x≈−95, cách quán hàng chục đơn vị) -> bỏ'},
     {'what': 'vfx', 'id': 'cookSmokeDepthFade', 'why': 'Smoke_Flow bật DepthFade (mờ theo độ sâu cảnh 3D); quán 2D không có bộ đệm độ sâu -> coi như 1'},
 ]

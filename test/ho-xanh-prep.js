@@ -290,6 +290,23 @@ async function run(browser, base, W, H, touch) {
   await shot('8-bar-upgrade');
   await page.mouse.click(W / 2, H / 2);
   check('bấm vào bảng thì đóng', (await page.evaluate(() => HX.prep.debug.popup())) === null);
+  // trang trí: quán cũ → sửa quán (HX_META.BAR_TIERS), bong bóng ghi tên cấp và hệ số giá món
+  await page.evaluate(() => HX_DEBUG.grant(200));
+  await sleep(100);
+  await press('.pr-tab[data-tab="bar"]');
+  const d0 = await page.$eval('.pr-row[data-key="decor"] .pr-bubin', e => e.textContent);
+  check('ô Trang trí ghi tên cấp: Quán cũ → Sửa quán, ×1 → ×1,3 giá món', d0.includes('Quán cũ → Sửa quán') && /×1 → ×1,3 giá món/.test(d0), d0);
+  const gd = (await save()).gold;
+  await press('.pr-row[data-key="decor"] .pr-buy');
+  await sleep(400);
+  S = await save();
+  check('nâng trang trí: trừ 120 vàng, lên cấp 1 "Sửa quán"', S.bar.decor === 1 && S.gold === gd - 120, S.bar.decor + ' / ' + S.gold);
+  const popT = await page.$eval('.pr-bpop .pr-bexpl', e => e.textContent).catch(() => '');
+  check('bảng nâng cấp ghi "Trang trí · Sửa quán"', popT === 'Trang trí · Sửa quán', popT);
+  await shot('8b-bar-decor');
+  await page.mouse.click(W / 2, H / 2);
+  const d1 = await page.$eval('.pr-row[data-key="decor"] .pr-bubin', e => e.textContent);
+  check('sau khi mua ô ghi Sửa quán → Góc trang trí, ×1,3 → ×1,6', d1.includes('Sửa quán → Góc trang trí') && /×1,3 → ×1,6 giá món/.test(d1), d1);
 
   // ---------- bàn phím (chỉ ở bản chuột) ----------
   if (!touch) {

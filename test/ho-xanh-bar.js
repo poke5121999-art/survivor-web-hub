@@ -259,7 +259,7 @@ async function keyboardNight(browser, base) {
   await shot(page, 'coinfly-1280');
   I = await info(page);
   const p2 = payOf(I, c2);
-  const tipWant = p2 ? Math.round(18 * (1 - 1 + 0.5 * p2.patience)) : null;
+  const tipWant = p2 ? Math.round(18 * 0.5 * p2.patience) : null;
   const dishPays = I.events.filter(e => e.type === 'pay' && e.kind === 'dish');
   check('ăn xong thì trả tiền: món 18 vàng đúng giá gốc, tip = 18 × 0,5 × phần kiên nhẫn còn lại; tiền món = tổng các lần trả',
     paid && p2.price === 18 && p2.tip === tipWant && I.dishes === dishPays.reduce((a, e) => a + e.price, 0) && I.dishes - d0 >= 18,
@@ -409,6 +409,95 @@ async function tapNight(browser, base) {
   await ctx.close();
 }
 
+// Sổ dàn sẵn: cấp trang trí `decor`, ghế cấp `seats`, tủ cá như ?phase=kitchen. Ghi trước khi trang chạy.
+async function savedPage(browser, base, size, bar, touch) {
+  const ctx = await browser.newContext({ viewport: size, hasTouch: !!touch });
+  const page = await ctx.newPage();
+  const errors = watch(page);
+  await page.addInitScript(b => {
+    localStorage.setItem('hx.save.v1', JSON.stringify({ v: 1, day: 3, stage: 'bar', gold: 0, bar: b, fridge: { ClownFish: 3, Coral_Trout: 1, Titan_Triggerfish: 1 } }));
+  }, Object.assign({ seats: 0, chef: 0, decor: 0, tea: 0 }, bar));
+  await page.goto(base + '/games/ho-xanh/index.html?phase=bar');
+  await phaseIs(page, 'bar');
+  await waitFor(page, () => HX.bar.debug.ready() && HX.bar.debug.info().t > 0.5, null, 60000);
+  return { page, ctx, errors };
+}
+
+// Khách đi vào (sang phải) và đi ra (sang trái) phải quay mặt theo hướng đi; ca bán đúng 90 giây [DtD EveningHours].
+async function facingAndShift(browser, base) {
+  out.push('\n[khách quay mặt theo hướng đi · độ dài ca]');
+  const { page, ctx, errors } = await savedPage(browser, base, { width: 1280, height: 720 });
+  const T = await page.evaluate(() => HX.bar.T);
+  check('ca bán dài 90 giây (GameConstValue.EveningHours gốc)', T.night === 90, 'T.night = ' + T.night);
+  await page.evaluate(() => HX.bar.debug.seed(3));
+  // mỗi khung hình: khách nào vừa dời x thì hướng đi = dấu của dx; sheet khách vẽ quay mặt sang phải nên đi sang trái mới lật
+  await page.evaluate(() => {
+    const F = window.__face = { steps: { in: 0, out: 0 }, bad: [], shot: null }, prev = {};
+    (function tick() {
+      const I = HX.bar.debug.info();
+      if (I) I.customers.forEach(c => {
+        const p = prev[c.id];
+        if (p != null && Math.abs(c.x - p) > 1e-6) {
+          const dir = Math.sign(c.x - p);
+          F.steps[dir > 0 ? 'in' : 'out']++;
+          if (c.flip !== (dir < 0)) F.bad.push(c.who + ' ' + c.st + ' đi ' + (dir > 0 ? 'phải' : 'trái') + ' mà flip=' + c.flip);
+        }
+        prev[c.id] = c.x;
+      });
+      if (!I || !I.over) requestAnimationFrame(tick);
+    })();
+  });
+  // ảnh giữa lúc đi: một khách đang vào quán, còn cách ghế ≥ 60 px
+  const walking = await waitFor(page, () => HX.bar.debug.info().customers.some(c => c.st === 'enter' && c.x > 120 && c.sitX - c.x > 60), null, 20000);
+  await shot(page, 'walk-in-1280');
+  // không phục vụ ai: khách chờ, giận, bỏ về (đi ra). Tăng tốc cho hết ca.
+  await page.evaluate(() => HX.bar.debug.timeScale(3));
+  const leaving = await waitFor(page, () => HX.bar.debug.info().customers.some(c => c.st === 'leave' && c.x > 120 && c.x < 700 && c.anim === 'walk'), null, 60000);
+  await page.evaluate(() => HX.bar.debug.timeScale(1));
+  await shot(page, 'walk-out-1280');
+  await page.evaluate(() => HX.bar.debug.timeScale(3));
+  const closed = await waitFor(page, () => !HX.bar.debug.info().open, null, 60000);
+  const tClose = (await info(page)).t;
+  check('quầy đóng ngay khi hết 90 giây (không nhận khách mới)', closed && tClose >= 90 && tClose < 90.2, 't = ' + tClose);
+  await phaseIs(page, 'ledger', 60000);
+  const F = await page.evaluate(() => window.__face);
+  check('khách đi vào quay mặt sang phải, đi ra quay mặt sang trái (so flip với hướng x mỗi khung, cả ca)',
+    walking && leaving && F.steps.in > 50 && F.steps.out > 50 && F.bad.length === 0,
+    JSON.stringify({ steps: F.steps, bad: F.bad.slice(0, 4) }));
+  check('không lỗi trang (ca quay mặt)', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+
+// Cấp trang trí: quán mới là quán cũ gốc (spawner khoá 1), lên cấp thì bày đồ nội thất gốc; ghế chỉ ở chỗ ngồi đã mở; giá món nhân hệ số cấp.
+async function tierLooks(browser, base) {
+  out.push('\n[cấp trang trí]');
+  const want = [
+    { decor: 0, seats: 0, name: 'Quán cũ', price: 18, slots: { Sushi_BCSign: 'Sushi_BCSign_Lv1', Sushi_WallNeon02_01: 'Sushi_WallNeon_Lv1', Sushi_Interior_ZoneA: null, 'Sushi_Light 01': 'Sushi_Light_Lv1_01' }, chairs: 3 },
+    { decor: 2, seats: 1, name: 'Góc trang trí', price: 29, slots: { Sushi_BCSign: 'Sushi_BCSign_Lv2', Sushi_Interior_ZoneA: 'Sushi_ZoneA_Bonsai_Night', Sushi_Interior_ZoneB: null, 'Sushi_Light 01': 'Sushi_Light_Lv2' }, chairs: 3 },
+    { decor: 5, seats: 3, name: 'Quán sang', price: 67, slots: { Sushi_Interior_ZoneB: 'Sushi_ZoneB_StuffedTuna_Night', 'Sushi_Light 04': 'Sushi_Light_Rattan01_4', Sushi_TableFront: 'Sushi_TableFront_Lv2' }, chairs: 5 },
+  ];
+  for (const size of [{ width: 1280, height: 720 }, { width: 844, height: 390 }]) {
+    for (const w of want) {
+      const { page, ctx, errors } = await savedPage(browser, base, size, { decor: w.decor, seats: w.seats }, size.width < 1000);
+      await page.evaluate(() => HX.bar.debug.holdSpawns(true));
+      await sleep(1500);
+      const R = await page.evaluate(() => HX.bar.debug.room()), I = await info(page);
+      const tag = size.width + ' cấp ' + w.decor;
+      const slotOk = Object.keys(w.slots).every(k => R.slots[k] === w.slots[k]);
+      check(tag + ' "' + w.name + '": bày đúng bản nội thất gốc của từng ô', R.name === w.name && slotOk,
+        JSON.stringify(Object.keys(w.slots).map(k => k + '=' + R.slots[k])));
+      const front = I.seats.filter(n => ['Seat_07', 'Seat_08', 'Seat_09', 'Seat_10', 'Seat_11', 'Seat_12', 'Seat_13', 'Seat_14'].indexOf(n) >= 0);
+      check(tag + ' ghế đẩu chỉ bày ở chỗ ngồi trước quầy đã mở (' + w.chairs + ')',
+        R.chairs.length === w.chairs && JSON.stringify(R.chairs.slice().sort()) === JSON.stringify(front.slice().sort()), R.chairs.join(','));
+      const ct = I.menu.filter(m => m.id === 'Coral_Trout')[0];
+      check(tag + ' giá bán Sushi cá mú chấm = 18 × ' + R.price + ' = ' + w.price, ct && ct.price === w.price, ct && ct.price);
+      await shot(page, 'tier' + w.decor + '-' + size.width);
+      check(tag + ' không lỗi trang', errors.length === 0, errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+  }
+}
+
 // Tải lại giữa đêm: chưa ghi sổ, cá còn nguyên, về bếp.
 async function reloadMidNight(browser, base) {
   out.push('\n[tải lại giữa đêm]');
@@ -441,6 +530,8 @@ async function reloadMidNight(browser, base) {
     await keyboardNight(browser, base);
     await tapNight(browser, base);
     await reloadMidNight(browser, base);
+    await facingAndShift(browser, base);
+    await tierLooks(browser, base);
   } catch (e) {
     fail++; out.push('  ✘ lỗi chạy bộ kiểm: ' + (e && e.stack || e));
   }

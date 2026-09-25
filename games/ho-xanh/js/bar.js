@@ -13,18 +13,17 @@
   var R = BA.room, RW = R.size[0], RH = R.size[1], U = R.pxPerUnit;   // 1 đơn vị Unity = 50 px phòng [DtD: scale 2, 100 px/đv]
   var UIK = 0.5;   // [ĐỀ XUẤT] 1 px UI gốc (canvas 1920×1080) = 0,5 px phòng: bản gốc vẽ quán ×2 ở 1080p
   var T = {
-    night: 180,                  // [ĐỀ XUẤT] giây mở quán mỗi tối
+    night: 90,                   // [DtD] giây mở quán mỗi tối: GameConstValue.EveningHours = 90
     menuSlots: 5,                // [ĐỀ XUẤT] số ô thực đơn; bố cục gốc không ghi số ô
     cook: 4,                     // [ĐỀ XUẤT] giây Bancho làm một suất ở đầu bếp cấp 0, chia cho HX_META.stat('chef')
     firstGuest: 2,               // [ĐỀ XUẤT] giây tới vị khách đầu
-    guestEvery: 5,               // [ĐỀ XUẤT] giây giữa hai khách, chia cho HX_META.stat('decor')
     guestJitter: 0.4,            // [ĐỀ XUẤT] ±40 %
     daveSpeed: 180,              // [ĐỀ XUẤT] px phòng / giây
     carry: 3,                    // [ĐỀ XUẤT] số đĩa Dave bưng cùng lúc
     passX: 792,                  // [ĐỀ XUẤT] chỗ Dave nhận món, sát bên trái Bancho
     daveMin: 150, daveMax: 905,  // [ĐỀ XUẤT] lối đi sau quầy, từ ghế VIP tới ghế đẩu số 7
     reach: 30,                   // [ĐỀ XUẤT] px phòng: đứng trong khoảng này là với tới khách / quầy
-    tipK: 0.5,                   // [ĐỀ XUẤT] tip = giá × (trang trí − 1 + 0,5 × phần kiên nhẫn còn lại)
+    tipK: 0.5,                   // [ĐỀ XUẤT] tip = giá bán × 0,5 × phần kiên nhẫn còn lại; trà perfect: giá trà × 0,5
     pour: 1.5,                   // [ĐỀ XUẤT] giây giữ nút để rót đầy chén trà
     perfect: [0.9, 1.04], good: [0.7, 1.12], overflow: 1.2,   // [ĐỀ XUẤT] ngưỡng chấm rót trà (1 = đầy vòng)
     teaBad: 0.5,                 // [ĐỀ XUẤT] trà rót hỏng chỉ thu nửa giá
@@ -907,48 +906,100 @@
   };
 
   // ---------- phòng ----------
-  var roomCv = null, roomCtx = null, lightCv = null, roomItems = null, roomFx = [];
-  function propFrame(prop, part, t) {
-    var an = prop.anims[Object.keys(prop.anims)[0]];
-    if (!an || !an.frames) return null;
-    var tot = an.frames.reduce(function (s, f) { return s + f[1]; }, 0), ms = (t * 1000) % tot;
-    for (var i = 0; i < an.frames.length; i++) { ms -= an.frames[i][1]; if (ms < 0) return prop.frames[an.frames[i][0]] || null; }
+  // Lớp nền (R.layers, R.props, R.emitters) luôn bày. Ô nội thất (R.interior.slots) có nhiều bản gốc: quán cũ, quán sau sửa,
+  // đồ trang trí mua thêm; cấp trang trí (HX_META.BAR_TIERS) chọn bản của từng ô. Ghế đẩu chỉ bày ở chỗ ngồi đã mở.
+  var IR = R.interior;
+  var roomCv = null, roomCtx = null, lightCv = null, roomItems = null, roomFx = [], roomKey = null;
+  // Bản của một ô theo cấp: đồ mua thêm cùng vùng trước, không có thì khoá spawner gốc (1 quán cũ / 2 sau sửa), không có nữa thì trống.
+  function slotVariant(slot, look) {
+    for (var i = 0; i < look.items.length; i++) if (slot.variants[look.items[i]]) return slot.variants[look.items[i]];
+    var k = slot.keys[String(look.interior)];
+    return k ? slot.variants[k] || null : null;
+  }
+  // Mọi thứ cấp này bày ra: {layers, props, emitters}; ghế là lớp đã dời tới ô ghế của từng chỗ ngồi đã mở.
+  function lookParts(look, seatNames) {
+    var out = { layers: R.layers.slice(), props: R.props.slice(), emitters: R.emitters.slice() };
+    Object.keys(IR.slots).forEach(function (k) {
+      var v = slotVariant(IR.slots[k], look);
+      if (!v) return;
+      out.layers = out.layers.concat(v.layers); out.props = out.props.concat(v.props); out.emitters = out.emitters.concat(v.emitters);
+    });
+    var chair = IR.chairs.variants[look.chair] || [];
+    seatNames.forEach(function (n) {
+      var at = IR.chairs.at[n];
+      if (!at) return;
+      chair.forEach(function (l) { out.layers.push(Object.assign({}, l, { x: at[0] + l.x, y: at[1] + l.y, chairOf: n })); });
+    });
+    return out;
+  }
+  function propFrame(prop, anim, path, t) {
+    var fr = anim.tracks ? anim.tracks[path] : anim.frames;
+    if (!fr || !fr.length) return null;
+    var tot = fr.reduce(function (s, f) { return s + f[1]; }, 0), ms = (t * 1000) % tot;
+    for (var i = 0; i < fr.length; i++) { ms -= fr[i][1]; if (ms < 0) return prop.frames[fr[i][0]] || null; }
     return null;
   }
-  function buildRoom() {
+  function buildRoom(look, seatNames) {
+    var key = JSON.stringify([look.interior, look.items, look.chair, seatNames]);
+    if (key === roomKey) return;
+    roomKey = key;
+    var P = lookParts(look, seatNames);
     roomItems = [];
-    R.layers.forEach(function (l) { roomItems.push({ z: l.z, layer: l, im: img(l.img) }); });
-    R.props.forEach(function (pr) {
+    P.layers.forEach(function (l) { roomItems.push({ z: l.z, layer: l, im: img(l.img) }); });
+    P.props.forEach(function (pr) {
       pr.parts.forEach(function (part) { roomItems.push({ z: part.order, prop: pr, part: part, im: img(part.img) }); });
       Object.keys(pr.frames).forEach(function (k) { img(pr.frames[k].img); });
     });
     roomFx = [];
-    R.emitters.forEach(function (e) {
-      var host = R.props.filter(function (p) { return p.name === e.parent || p.animatorPath === e.parent; })[0];
+    P.emitters.forEach(function (e) {
+      var host = P.props.filter(function (p) { return p.name === e.parent || p.animatorPath === e.parent; })[0];
       var z = /tank/i.test(e.parent || '') ? 21 : host ? host.parts[0].order + 0.5 : -399;
       var em = new Emitter(e.particle, e.pos[0], e.pos[1], U * (e.scale || 1), { q: e.q || Q0 });
       roomFx.push(em);
       roomItems.push({ z: z, emitter: em });
     });
   }
+  // Đồ động: clip gốc đổi sprite theo từng nút (tracks), hoặc đổi Transform / bật tắt / màu của nút (curves, theo đường dẫn).
+  // Nút cha đổi Transform thì mọi sprite dưới nó theo: xoay / phóng quanh vị trí nút, dời theo độ lệch so với lúc nghỉ.
   function drawProp(ctx, it, t) {
     var pr = it.prop, part = it.part, an = pr.anims[Object.keys(pr.anims)[0]];
-    var fr = propFrame(pr, part, t);
-    if (fr) { var fi = img(fr.img); if (ok(fi)) ctx.drawImage(fi, Math.round(part.anchor[0] - fr.pivot[0]), Math.round(part.anchor[1] - fr.pivot[1])); return; }
-    if (!ok(it.im)) return;
-    var sx = 1, sy = 1, dy = 0;
-    if (an && an.curves) {
-      var lt = t % an.length;
-      an.curves.forEach(function (c) {
-        var v = evalKeys(c.keys, lt);
-        if (c.attr === 'localScale.x') sx = v; else if (c.attr === 'localScale.y') sy = v; else if (c.attr === 'localPosition.y') dy = -v * U;
-      });
+    var lt = an && an.length ? t % an.length : t, path = part.path || '', nodes = pr.nodes || {};
+    var st = {}, a = 1;
+    (an && an.curves || []).forEach(function (c) {
+      var p = c.path || '';
+      if (p && p !== path && path.indexOf(p + '/') !== 0) return;
+      var o = st[p] || (st[p] = {}), v = evalKeys(c.keys, lt);
+      o[c.attr] = v;
+    });
+    // bật / tắt: mọi nút trên đường dẫn phải bật (m_IsActive của clip, không có thì trạng thái lúc nghỉ)
+    var segs = path ? path.split('/') : [];
+    for (var i = 1; i <= segs.length; i++) {
+      var np = segs.slice(0, i).join('/'), nd = nodes[np], cv = st[np] && st[np].m_IsActive;
+      if (cv != null ? cv < 0.5 : nd && nd.on === false) return;
     }
-    if (sx === 1 && sy === 1) { ctx.drawImage(it.im, part.x, Math.round(part.y + dy)); return; }
+    if (st[path] && st[path]['spriteColor.a'] != null) a = clamp(st[path]['spriteColor.a'], 0, 1);
+    if (a <= 0) return;
+    var fr = propFrame(pr, an || {}, path, t);
+    if (!fr && !ok(it.im)) return;
     ctx.save();
-    ctx.translate(part.anchor[0], part.anchor[1] + dy);
-    ctx.scale(sx, sy);
-    ctx.drawImage(it.im, part.x - part.anchor[0], part.y - part.anchor[1]);
+    if (a < 1) ctx.globalAlpha = a;
+    // từ gốc tới nút: dời, xoay, phóng quanh vị trí nút lúc nghỉ
+    [''].concat(segs.map(function (s, i) { return segs.slice(0, i + 1).join('/'); })).forEach(function (np) {
+      var o = st[np], nd = nodes[np];
+      if (!o || !nd) return;
+      var k = U * (nd.u || 1), dx = 0, dy = 0;
+      if (o['localPosition.x'] != null) dx = (o['localPosition.x'] - nd.lp[0]) * k;
+      if (o['localPosition.y'] != null) dy = -(o['localPosition.y'] - nd.lp[1]) * k;
+      var sx = o['localScale.x'] != null ? o['localScale.x'] / (nd.ls[0] || 1) : 1, sy = o['localScale.y'] != null ? o['localScale.y'] / (nd.ls[1] || 1) : 1;
+      var rz = o['localEulerAngles.z'] != null ? o['localEulerAngles.z'] - nd.rz : 0;
+      if (!dx && !dy && sx === 1 && sy === 1 && !rz) return;
+      ctx.translate(nd.at[0] + dx, nd.at[1] + dy);
+      if (rz) ctx.rotate(-rz * Math.PI / 180);
+      if (sx !== 1 || sy !== 1) ctx.scale(sx, sy);
+      ctx.translate(-nd.at[0], -nd.at[1]);
+    });
+    if (fr) { var fi = img(fr.img); if (ok(fi)) ctx.drawImage(fi, Math.round(part.anchor[0] - fr.pivot[0]), Math.round(part.anchor[1] - fr.pivot[1])); }
+    else ctx.drawImage(it.im, part.x, part.y);
     ctx.restore();
   }
   // Ánh sáng LightOverlay (DstColor+One): đích + đích × đèn. Nền đen + đèn, nhân với đích, rồi cộng vào.
@@ -1047,8 +1098,14 @@
   function loadAssets() {
     if (assetsP) return assetsP;
     var set = {};
-    R.layers.forEach(function (l) { set[l.img] = 1; });
-    R.props.forEach(function (p) { p.parts.forEach(function (q) { set[q.img] = 1; }); Object.keys(p.frames).forEach(function (k) { set[p.frames[k].img] = 1; }); });
+    // lớp nền + mọi bản nội thất của mọi cấp (nâng cấp xong vào quán là có ngay, không chờ nạp)
+    var parts = [{ layers: R.layers, props: R.props }];
+    Object.keys(IR.slots).forEach(function (k) { var vs = IR.slots[k].variants; Object.keys(vs).forEach(function (v) { parts.push(vs[v]); }); });
+    Object.keys(IR.chairs.variants).forEach(function (v) { parts.push({ layers: IR.chairs.variants[v], props: [] }); });
+    parts.forEach(function (P) {
+      P.layers.forEach(function (l) { set[l.img] = 1; });
+      P.props.forEach(function (p) { p.parts.forEach(function (q) { set[q.img] = 1; }); Object.keys(p.frames).forEach(function (k) { set[p.frames[k].img] = 1; }); });
+    });
     Object.keys(R.emitterTextures).forEach(function (k) { set[R.emitterTextures[k].img] = 1; });
     [BA.dave, BA.bancho, BA.cat].forEach(function (c) { set[c.sheet] = 1; });
     BA.customers.forEach(function (c) { set[c.sheet] = 1; });
@@ -1090,12 +1147,14 @@
   }
   function dishRecord(sp) { var d = BA.dishes[sp.tid] || BA.dishes[sp.id]; return d && typeof d === 'object' ? d : null; }
   // Mỗi loài trong tủ một món (giá, ảnh qua HX_META.dishOf); số suất = số con × HX_META.servingsOf.
-  function buildMenu(fridge) {
+  // Giá bán = giá gốc × hệ số giá của cấp trang trí (look.price), làm tròn, ít nhất 1 vàng.
+  function buildMenu(fridge, look) {
     return Object.keys(fridge).filter(function (id) { return HX.fish.BY_ID[id]; }).map(function (id) {
       var sp = HX.fish.BY_ID[id], per = M.servingsOf(sp), dish = M.dishOf(sp, HX.fish.displayName(sp)), rec = dishRecord(sp);
       return {
         id: id, sp: sp, dish: dish, name: viName(sp), en: rec ? rec.name : dish.name, icon: rec ? rec.icon : null,
-        img: dish.img, price: dish.price, fish: fridge[id], per: per, servings: per * fridge[id], sold: 0, pending: 0,
+        img: dish.img, base: dish.price, price: Math.max(1, Math.round(dish.price * look.price)),
+        fish: fridge[id], per: per, servings: per * fridge[id], sold: 0, pending: 0,
       };
     }).sort(function (a, b) { return b.price - a.price || a.id.localeCompare(b.id); });
   }
@@ -1156,11 +1215,13 @@
   }
 
   // ---------- cảnh sau quầy (dùng chung cho bếp và sổ) ----------
-  var scene = null;   // {dave, bancho, cat, fx: {world: [], ui: [], screen: []}, t}
-  function newScene() {
-    if (!roomItems) buildRoom();
+  var scene = null;   // {look, dave, bancho, cat, fx: {world: [], ui: [], screen: []}, t}
+  // sv: sổ đọc một lần lúc vào pha. Cấp trang trí và số ghế đã mở quyết định quán bày gì cho cả pha.
+  function newScene(sv) {
+    var look = M.tier(sv);
+    buildRoom(look, openSeats(sv).map(function (x) { return x.name; }));
     var s = {
-      t: 0,
+      t: 0, look: look,
       dave: new Actor(BA.dave, 600, DAVE_Y, BA.dave.sortingOrder + 0.2),
       bancho: new Actor(BA.bancho, BANCHO[0], BANCHO[1], BA.bancho.sortingOrder + 0.1),
       cat: new Actor(BA.cat, CAT_POS[0], CAT_POS[1] + BA.cat.anchor[1], BA.cat.sortingOrder + 0.1),
@@ -1368,10 +1429,10 @@
     surface: '2d',
     enter: function () {
       var s = HX.save.get();
-      var all = buildMenu(s.fridge);
+      scene = newScene(s);
+      var all = buildMenu(s.fridge, scene.look);
       // [ĐỀ XUẤT] thực đơn tự điền món đắt trước (bản gốc có dấu "Auto" cho ô tự chọn); bấm để bỏ / thêm
       K = { all: all, menu: all.slice(0, slots()), t: 0, opening: false, smokeT: 0.5 };
-      scene = newScene();
       scene.dave.x = 640;
       scene.bancho.play('Cook');
       kitchenBuild();
@@ -1406,15 +1467,14 @@
     var n = clamp(Math.round(M.stat(s, 'seats')), 1, SEAT_ORDER.length);
     return SEAT_ORDER.slice(0, n).map(function (k) { return SEATS[k]; });
   }
-  function newNight(menu) {
-    var s = HX.save.get();
+  function newNight(menu, s, look) {
     return {
       menu: menu, t: 0, open: true, closing: false, over: false,
       seats: openSeats(s), customers: [], plates: [], uid: 0, pid: 0,
       spawnT: T.firstGuest,
       served: 0, dishes: 0, tips: 0, tea: 0, teaN: 0, angry: 0, likes: 0, events: [],
       gold0: s.gold, credited: 0, shownGold: s.gold,
-      chef: M.stat(s, 'chef'), decor: M.stat(s, 'decor'), teaPrice: M.stat(s, 'tea'),
+      chef: M.stat(s, 'chef'), look: look, teaPrice: M.stat(s, 'tea'),
       dave: { x: 620, target: null, carry: [], walkT: 0, idleT: 0, face: 1 },
       qte: null, pops: [], openT: 0, ts: 1,
     };
@@ -1454,6 +1514,9 @@
     return name;
   }
   function setSt(c, st) { c.st = st; c.t = 0; }
+  // Khung walk của sheet khách vẽ quay mặt sang PHẢI (đo trên art/bar/customers/*.png: tóc buộc, mũi, mắt đều hướng phải);
+  // Dave và Bancho thì ngược lại, vẽ quay sang trái. Bản trước lật khi khách đi sang phải nên khách vào / ra đều đi lùi.
+  function faceWalk(a, dir) { if (dir) a.flip = dir < 0; }
   // Câu nói trên đầu khách (CustomerToastTalk [DtD]): lúc chờ món, lúc giận, lúc ăn. Mỗi loại có xác suất, giây chờ
   // trước khi hiện và giây hiện. Dùng Math.random (không đụng hạt giống của khách, vì chỉ để nhìn).
   var TALK_STATES = { waiting: ['order'], angry: ['angry'], eating: ['eat', 'like'] };
@@ -1525,7 +1588,7 @@
     switch (c.st) {
       case 'enter': {
         var tx = seatX(c.seat), d = tx - a.x, step = c.speed * dt;
-        a.flip = d > 0;
+        faceWalk(a, d);
         if (Math.abs(d) <= step) { a.x = tx; a.flip = false; setSt(c, 'sit'); a.play(anim(c, 'wait')); }
         else a.x += Math.sign(d) * step;
         break;
@@ -1578,7 +1641,7 @@
       case 'leave': {
         if (c.leaveDelay > 0) { c.leaveDelay -= dt; if (c.leaveDelay <= 0) a.play('walk'); break; }
         var sx = DOOR_X - 40;
-        a.flip = false;
+        faceWalk(a, -1);
         a.x -= c.speed * dt;
         if (a.x <= sx) c.gone = true;
         break;
@@ -1613,12 +1676,12 @@
     var price, tip, kind = c.order.kind;
     if (kind === 'dish') {
       price = c.order.m.price;
-      tip = Math.max(0, Math.round(price * (N.decor - 1 + T.tipK * c.p)));
+      tip = Math.max(0, Math.round(price * T.tipK * c.p));
       N.dishes += price; N.tips += tip; N.served++;
     } else {
       var g = c.teaGrade;
       price = g === 'bad' ? Math.round(N.teaPrice * T.teaBad) : N.teaPrice;
-      tip = g === 'perfect' ? Math.round(N.teaPrice * (N.decor - 1 + T.tipK)) : 0;
+      tip = g === 'perfect' ? Math.round(N.teaPrice * T.tipK) : 0;
       N.tea += price + tip; N.teaN++;
     }
     setSt(c, 'pay');
@@ -1853,7 +1916,7 @@
       if (N.spawnT <= 0) {
         var canSell = N.menu.some(function (m) { return avail(m) > 0; }) || N.teaPrice > 0;
         if (canSell) spawnCustomer();
-        N.spawnT = T.guestEvery / N.decor * (1 + (rnd() * 2 - 1) * T.guestJitter);
+        N.spawnT = N.look.visitEvery * (1 + (rnd() * 2 - 1) * T.guestJitter);
       }
     }
     N.customers.forEach(function (c) { tickCustomer(c, dt); });
@@ -2146,10 +2209,10 @@
     surface: '2d',
     enter: function (args) {
       var s = HX.save.get();
-      var menu = args.menu || buildMenu(s.fridge).slice(0, slots());
+      scene = newScene(s);
+      var menu = args.menu || buildMenu(s.fridge, scene.look).slice(0, slots());
       menu.forEach(function (m) { m.sold = 0; m.pending = 0; });
-      N = newNight(menu);
-      scene = newScene();
+      N = newNight(menu, s, scene.look);
       scene.dave.x = N.dave.x;
       N.fx = scene.fx;
       N.ui = barHud();
@@ -2357,7 +2420,7 @@
       commitNight(d);
       var after = HX.save.get();
       LG = { t: 0, d: d, tw: null, popped: false };
-      if (!scene) scene = newScene();
+      if (!scene) scene = newScene(before);
       scene.dave.play('Tired_Idle');
       scene.bancho.play('Idle');
       ledgerBuild(d, before, after);
@@ -2440,6 +2503,18 @@
       snap: function (k) { SNAP = k; },
       timeScale: function (k) { if (N) N.ts = k; },
       ready: function () { return assetsReady; },
+      // cấp trang trí đang bày: tên cấp, hệ số giá, giây giữa hai khách, bản nội thất từng ô, ghế đã bày ở chỗ nào
+      room: function () {
+        if (!scene) return null;
+        var L = scene.look, v = {};
+        Object.keys(IR.slots).forEach(function (k) {
+          var sl = IR.slots[k], x = slotVariant(sl, L);
+          v[k] = x ? Object.keys(sl.variants).filter(function (n) { return sl.variants[n] === x; })[0] : null;
+        });
+        var chairs = roomItems.filter(function (it) { return it.layer && it.layer.chairOf; }).map(function (it) { return it.layer.chairOf; });
+        return { name: L.name, price: L.price, visitEvery: L.visitEvery, interior: L.interior, chair: L.chair, slots: v, chairs: chairs,
+          items: roomItems.length };
+      },
       // hạt đang sống của cảnh (bếp / quán / sổ): số hạt, gốc phát, có mesh / flow không
       fx: function () {
         if (!scene) return null;

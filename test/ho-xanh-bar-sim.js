@@ -46,17 +46,18 @@ function catchDay(n, zone) {
   }
   return fr;
 }
-function buildMenu(fridge) {
+// giá bán = giá gốc × hệ số giá của cấp trang trí, như buildMenu của js/bar.js
+function buildMenu(fridge, look) {
   return Object.keys(fridge).map(id => {
     const sp = FISH.find(s => s.id === id), per = M.servingsOf(sp), d = M.dishOf(sp);
-    return { id, price: d.price, per, fish: fridge[id], servings: per * fridge[id], sold: 0, pending: 0 };
+    return { id, price: Math.max(1, Math.round(d.price * look.price)), per, fish: fridge[id], servings: per * fridge[id], sold: 0, pending: 0 };
   }).sort((a, b) => b.price - a.price || a.id.localeCompare(b.id)).slice(0, T.menuSlots);
 }
 
 function night(save, fridge) {
-  const menu = buildMenu(fridge), dt = 0.05;
+  const look = M.tier(save), menu = buildMenu(fridge, look), dt = 0.05;
   const seats = SEAT_ORDER.slice(0, M.stat(save, 'seats')).map(k => SEATS[k]);
-  const chef = M.stat(save, 'chef'), decor = M.stat(save, 'decor'), teaPrice = M.stat(save, 'tea');
+  const chef = M.stat(save, 'chef'), teaPrice = M.stat(save, 'tea');
   const cust = [], plates = [];
   const d = { x: 620, carry: [], busy: 0, job: null };
   let t = 0, open = true, spawnT = T.firstGuest, money = { dish: 0, tip: 0, tea: 0 }, guests = 0, angry = 0, served = 0, teaN = 0;
@@ -74,7 +75,7 @@ function night(save, fridge) {
         cust.push({ ch, seat, st: 'enter', t: 0, walk: (seat.sit[0] - (DOOR_X - 20)) / (ch.data.EnterSpeed * U), E: EAT[ch.data.EatLevel] || EAT[1] });
         guests++;
       }
-      spawnT = T.guestEvery / decor * (1 + (rnd() * 2 - 1) * T.guestJitter);
+      spawnT = look.visitEvery * (1 + (rnd() * 2 - 1) * T.guestJitter);
     }
     // khách
     for (const c of cust) {
@@ -131,7 +132,7 @@ function night(save, fridge) {
             const c = g.c;
             c.pouring = false;
             if (!waiting(c)) return;
-            const tip = Math.round(teaPrice * (decor - 1 + T.tipK));
+            const tip = Math.round(teaPrice * T.tipK);
             money.tea += teaPrice + tip; teaN++;
             c.st = 'pay'; c.t = 0;
           };
@@ -140,7 +141,7 @@ function night(save, fridge) {
           d.carry.splice(d.carry.indexOf(p), 1); plates.splice(plates.indexOf(p), 1);
           c.order.m.pending--; c.order.m.sold++;
           const pat = c.st === 'order' ? Math.max(0, 1 - c.t / c.E.MaxServingWaitTime) : 0;
-          c.pay = { price: c.order.m.price, tip: Math.max(0, Math.round(c.order.m.price * (decor - 1 + T.tipK * pat))) };
+          c.pay = { price: c.order.m.price, tip: Math.max(0, Math.round(c.order.m.price * T.tipK * pat)) };
           c.st = 'eat'; c.t = 0;
         }
       }
@@ -153,19 +154,54 @@ function night(save, fridge) {
   return { total, money, guests, served, teaN, angry, t, menu, used, servings: menu.reduce((a, m) => a + m.servings, 0) };
 }
 
-const N = +(process.argv[2] || 14);
-const save = M.defaults();
-let gold = 0, rows = [], firstAt = {};
-const MARKS = [55, 135, 300, 400, 1500];
+const N = +(process.argv[2] || 14), SEED = seed;
+// tủ cá của từng ngày bốc trước, để ba cách chơi dưới đây bán cùng một mẻ cá
+const FRIDGES = [];
+for (let d = 0; d < N; d++) FRIDGES.push(catchDay(8, 'A'));
+const perGuest = r => (r.served + r.teaN ? r.total / (r.served + r.teaN) : 0);
+function row(day, r, gold, extra) {
+  return 'ngày ' + String(day).padStart(2) + ': ' + String(r.total).padStart(5) + ' vàng (món ' + r.money.dish + ' · tip ' + r.money.tip + ' · trà ' + r.money.tea +
+    ') · ' + r.served + '/' + r.servings + ' suất · ' + r.teaN + ' trà · ' + r.guests + ' khách, ' + r.angry + ' bỏ về · ' +
+    perGuest(r).toFixed(1) + ' vàng/khách · đêm ' + Math.round(r.t) + ' s · cộng dồn ' + gold + (extra || '');
+}
+
+// 1) Không nâng cấp gì (cấp trang trí 0).
+seed = SEED + 1;
+let save = M.defaults(), gold = 0, rows = [], firstAt = {};
+const MARKS = [M.BAR_TIERS[1].cost, 300, 400, M.BAR_TIERS[2].cost, 1500];
+console.log('— không nâng cấp gì (ca ' + T.night + ' s, cấp trang trí 0 "' + M.BAR_TIERS[0].name + '")');
 for (let day = 1; day <= N; day++) {
-  const fr = catchDay(8, 'A');
-  const r = night(save, fr);
+  const r = night(save, FRIDGES[day - 1]);
   gold += r.total;
   MARKS.forEach(k => { if (gold >= k && !firstAt[k]) firstAt[k] = day; });
   rows.push(r.total);
-  console.log('ngày ' + String(day).padStart(2) + ': ' + String(r.total).padStart(4) + ' vàng (món ' + r.money.dish + ' · tip ' + r.money.tip + ' · trà ' + r.money.tea +
-    ') · ' + r.served + '/' + r.servings + ' suất · ' + r.teaN + ' trà · ' + r.guests + ' khách, ' + r.angry + ' bỏ về · đêm ' + Math.round(r.t) + ' s · cộng dồn ' + gold);
+  console.log(row(day, r, gold));
 }
 const sorted = rows.slice().sort((a, b) => a - b);
-console.log('\ntrung bình ' + Math.round(gold / N) + ' vàng/ngày · trung vị ' + sorted[N >> 1] + ' · thấp nhất ' + sorted[0] + ' · cao nhất ' + sorted[N - 1]);
-console.log('không nâng cấp gì; tích luỹ đủ: ' + MARKS.map(k => k + ' vàng → ngày ' + (firstAt[k] || '>' + N)).join(' · '));
+console.log('trung bình ' + Math.round(gold / N) + ' vàng/ngày · trung vị ' + sorted[N >> 1] + ' · thấp nhất ' + sorted[0] + ' · cao nhất ' + sorted[N - 1]);
+console.log('tích luỹ đủ: ' + MARKS.map(k => k + ' vàng → ngày ' + (firstAt[k] || '>' + N)).join(' · '));
+
+// 2) Mua cấp trang trí kế tiếp ngay khi đủ tiền (sáng hôm sau, trước khi ra khơi). Cùng hạt giống.
+seed = SEED + 1; save = M.defaults(); gold = 0;
+console.log('\n— mua cấp trang trí kế tiếp ngay khi đủ tiền');
+for (let day = 1; day <= N; day++) {
+  let bought = '';
+  for (;;) { const b = M.buy(save, 'decor'); if (!b.ok) break; save = b.save; bought += ' · mua "' + M.tier(save).name + '" (' + b.cost + ')'; }
+  const r = night(save, FRIDGES[day - 1]);
+  save.gold += r.total; gold += r.total;
+  console.log(row(day, r, gold, ' · cấp ' + M.level(save, 'decor') + ' ×' + M.tier(save).price + bought));
+}
+
+// 3) Cùng 14 tủ cá, mỗi cấp trang trí: vàng mỗi đêm và mỗi khách trả tiền.
+console.log('\n— cùng ' + N + ' tủ cá, từng cấp trang trí (ghế, bếp, trà cấp 0)');
+M.BAR_TIERS.forEach((t, i) => {
+  seed = SEED + 1;
+  let tot = 0, pay = 0, g = 0;
+  for (let day = 1; day <= N; day++) {
+    const s = M.defaults(); s.bar.decor = i;
+    const r = night(s, FRIDGES[day - 1]);
+    tot += r.total; pay += r.served + r.teaN; g += r.guests;
+  }
+  console.log('cấp ' + i + ' "' + t.name + '" ×' + t.price + ' giá, ' + t.visitEvery + ' s/khách, giá ' + t.cost + ': ' +
+    Math.round(tot / N) + ' vàng/đêm · ' + (tot / pay).toFixed(1) + ' vàng/khách trả tiền · ' + (g / N).toFixed(1) + ' khách/đêm');
+});

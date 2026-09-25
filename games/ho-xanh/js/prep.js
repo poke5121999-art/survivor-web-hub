@@ -927,7 +927,9 @@
     nine(bin, 'UI_SushiBar_Storage_ListBar_NameBubble00', null, 'k');
     bin.appendChild(el('b', 'nm', t.name));
     bin.appendChild(el('span', 'ds', t.desc));
-    bin.appendChild(el('span', 'ef', 'Cấp ' + (lv + 1) + '/' + (max + 1) + ' · ' + fmt(M.stat(s, key), t.unit) + (cost === null ? '' : ' → ' + fmt(t.levels[lv + 1].value, t.unit))));
+    // cấp có tên (Trang trí: Quán cũ → Sửa quán …, HX_META.BAR_TIERS)
+    if (t.levels[lv].name) bin.appendChild(el('span', 'ln', t.levels[lv].name + (cost === null ? '' : ' → ' + t.levels[lv + 1].name)));
+    bin.appendChild(el('span', 'ef', 'Cấp ' + (lv + 1) + '/' + (max + 1) + ' · ' + fmt(M.stat(s, key), t.unit) + (cost === null ? '' : ' → ' + fmt(t.levels[lv + 1].value, t.unit)) + (t.effect ? ' ' + t.effect : '')));
     bin.appendChild(img('UI_SushiBar_Storage_ListBar_NameBubble02', 'tail'));
     bub.appendChild(bin);
     wrap.appendChild(bub);
@@ -1242,7 +1244,7 @@
     var sign = el('div', 'pr-bsign'); nine(sign, 'UI_Sushi_Recipe_Sign_Box');
     var st = el('span', null, 'Nâng cấp quán'); sign.appendChild(st);
     box.appendChild(sign);
-    box.appendChild(el('div', 'pr-bexpl', t.name));
+    box.appendChild(el('div', 'pr-bexpl', t.levels[lv].name ? t.name + ' · ' + t.levels[lv].name : t.name));
     var ex = el('div', 'pr-bexp');
     var slot = el('div', 'pr-bslot'); nine(slot, 'UI_Sushi_Recipe_Menu_box');
     var ic = barIcon(key, t); if (ic) slot.appendChild(ic);

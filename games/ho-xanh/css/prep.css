@@ -144,6 +144,7 @@
 }
 .pr-bubin .nm { font-size: calc(var(--k) * 17px); line-height: 1.2; font-weight: 500; }
 .pr-bubin .ds { font-size: calc(var(--k) * 12.5px); line-height: 1.25; color: rgba(60, 49, 45, .9); }
+.pr-bubin .ln { font-size: calc(var(--k) * 13px); line-height: 1.3; font-weight: 500; color: rgb(60, 49, 45); white-space: nowrap; }
 .pr-bubin .ef { font-size: calc(var(--k) * 13px); line-height: 1.3; color: rgb(238, 118, 46); white-space: nowrap; }
 .pr-bubin .tail { position: absolute; left: 50%; bottom: calc(var(--k) * -6px); width: calc(var(--k) * 10px); height: calc(var(--k) * 6px); transform: translateX(-50%); }
 .pr-card .pr-buy { position: relative; right: auto; top: auto; width: calc(var(--k) * 110px); height: max(calc(var(--u) * 44px), 26px); font-size: calc(var(--u) * 20px); }

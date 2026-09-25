@@ -39,13 +39,56 @@
       levels: fromSheet(S.harpoon, 'damage') },            // [DtD] 3 → 40
   };
 
+  // ---------- cấp trang trí: quán Bancho đi từ quán cũ tới quán sửa sang bày đủ đồ ----------
+  // Một hàng = một cấp: bày nội thất gốc nào và khách trả bao nhiêu. js/bar.js đọc hàng của cấp hiện tại một lần lúc vào pha.
+  //  interior: khoá InteriorFurnitureSpawner gốc dùng cho mọi ô của quán [DtD]. 1 = quán trước khi sửa (prefab FurnitureLv1:
+  //            biển hiệu chập chờn, loa tóe lửa, neon cháy chữ, mái tôn, rèm rách), 2 = quán sau khi sửa (FurnitureLv2, cảnh đêm của scene).
+  //  items:    đồ nội thất mua thêm, tên prefab = ItemObjImageNight của SushiBarInteriorItems [DtD]; mỗi món vào ô cùng vùng
+  //            (góc A–E, bốn đèn trần). Ô chưa có đồ thì để trống như quán gốc mới mở ("deselect").
+  //  chair:    bản ghế đẩu (ô ghế gốc giữ sẵn mọi bản ghế) [DtD]. Chỉ ghế đã mở (nâng cấp "Ghế khách") mới bày ra.
+  //  price:    hệ số giá món. Bản gốc tăng giá món bằng nâng công thức, cấp 10 = 3,7 × giá gốc (cá mú chấm 18 → 66, bảng DiverDB),
+  //            tức +0,3 mỗi cấp [DtD]. Cấp trang trí k ứng với công thức cấp `recipeLv` [ĐỀ XUẤT].
+  //  visitEvery: giây giữa hai khách = CookStar.CustomerVisitInterval của hạng Cooksta cùng bậc (Coal 5, Bronze 2, Silver 1,5,
+  //            Gold / Platinum / Diamond 1) [DtD]; ghép bậc Cooksta với cấp trang trí là [ĐỀ XUẤT].
+  //  cost:     vàng để lên cấp này [ĐỀ XUẤT, chỉnh bằng test/ho-xanh-bar-sim.js]; giá gốc từng món ở HX_BAR_ASSETS.room.interior.items.
+  function recipeMul(n) { return Math.round((1 + 0.3 * (n - 1)) * 100) / 100; }   // [DtD] +0,3 × giá gốc mỗi cấp công thức
+  var LIGHT = function (k) { return [1, 2, 3, 4].map(function (i) { return 'Sushi_Light_' + k + '_' + i; }); };
+  var BAR_TIERS = [
+    { name: 'Quán cũ', desc: 'Quán Bancho trước khi sửa: biển chập chờn, loa tóe lửa, neon cháy chữ',
+      interior: 1, items: [], chair: 'Sushi_FrontChair01',
+      cost: 0, recipeLv: 1, visitEvery: 5 },          // [DtD] 5 s = Coal; cost, recipeLv [ĐỀ XUẤT]
+    { name: 'Sửa quán', desc: 'Sửa lại mái, quầy, biển hiệu, loa và đèn',
+      interior: 2, items: [], chair: 'Sushi_FrontChair01',
+      cost: 120, recipeLv: 2, visitEvery: 2 },        // [DtD] 2 s = Bronze; cost, recipeLv [ĐỀ XUẤT] (bản gốc sửa quán theo cốt truyện, không mua)
+    { name: 'Góc trang trí', desc: 'Chậu bonsai, bộ dao sushi, tranh thư pháp; ghế gỗ',
+      interior: 2, items: ['Sushi_ZoneA_Bonsai_Night', 'Sushi_ZoneC_KnifeDisplay_Night', 'Sushi_ZoneD_WallText_Night'],
+      chair: 'Sushi_FrontChair_Wood01',
+      cost: 450, recipeLv: 3, visitEvery: 1.5 },      // [DtD] 1,5 s = Silver; cost, recipeLv [ĐỀ XUẤT]
+    { name: 'Đèn vải', desc: 'Mèo thần tài, đèn trống vải, đèn lồng giấy, giấy phép làm cá nóc',
+      interior: 2, items: ['Sushi_ZoneA_LuckyCat_Night', 'Sushi_ZoneC_KnifeDisplay_Night', 'Sushi_ZoneD_Certificate_Night',
+        'Sushi_ZoneE_PatternLight_Night'].concat(LIGHT('Round')),
+      chair: 'Sushi_FrontChair_Wood01',
+      cost: 1100, recipeLv: 5, visitEvery: 1 },       // [DtD] 1 s = Gold; cost, recipeLv [ĐỀ XUẤT]
+    { name: 'Đèn phương Đông', desc: 'Đèn lồng sushi, quạt Nhật, giá treo nồi, đèn đá; ghế đỏ',
+      interior: 2, items: ['Sushi_ZoneA_Lantern_Night', 'Sushi_ZoneB_Fan_Night', 'Sushi_ZoneC_PotRack_Night',
+        'Sushi_ZoneD_Certificate_Night', 'Sushi_ZoneE_StoneStandLight_Night'].concat(LIGHT('Oriental')),
+      chair: 'Sushi_FrontChair_Red01',
+      cost: 2400, recipeLv: 7, visitEvery: 1 },       // [DtD] 1 s = Platinum; cost, recipeLv [ĐỀ XUẤT]
+    { name: 'Quán sang', desc: 'Cá kiếm treo tường, tranh phương Đông, giỏ hoa, nhài Madagascar, đèn mây; ghế đẩu trắng',
+      interior: 2, items: ['Sushi_ZoneA_Lantern_Night', 'Sushi_ZoneB_StuffedTuna_Night', 'Sushi_ZoneC_JapanesePainting_Night',
+        'Sushi_ZoneD_FlowerBasket_Night', 'Sushi_ZoneE_MadagascarJasmine_Night'].concat(LIGHT('Rattan01')),
+      chair: 'Sushi_FrontChair_WhiteStool01',
+      cost: 4500, recipeLv: 10, visitEvery: 1 },      // [DtD] 1 s = Diamond, công thức cấp 10 = tối đa; cost [ĐỀ XUẤT]
+  ];
+  BAR_TIERS.forEach(function (t) { t.price = recipeMul(t.recipeLv); });
+
   var BAR = {
     seats: { name: 'Ghế khách', desc: 'Số khách ngồi cùng lúc', unit: 'ghế',
       levels: lv([[0, 3], [400, 5], [1200, 7], [3000, 9], [6000, 12], [10000, 15]]) },             // [ĐỀ XUẤT] tới đủ 15 chỗ ngồi gốc
     chef: { name: 'Đầu bếp', desc: 'Bancho làm món nhanh hơn', unit: '×',
       levels: lv([[0, 1], [300, 1.2], [900, 1.4], [2000, 1.7], [4000, 2]]) },                       // [ĐỀ XUẤT]
-    decor: { name: 'Trang trí', desc: 'Nhân tiền tip và nhịp khách vào quán', unit: '×',
-      levels: lv([[0, 1], [250, 1.1], [800, 1.2], [1800, 1.35], [3600, 1.5]]) },                    // [ĐỀ XUẤT]
+    decor: { name: 'Trang trí', desc: 'Sửa quán, bày đồ nội thất; khách trả giá món cao hơn', unit: '×', effect: 'giá món',
+      levels: BAR_TIERS.map(function (t) { return { cost: t.cost, value: t.price, name: t.name }; }) },
     tea: { name: 'Trà xanh', desc: 'Giá một chén trà rót cho khách', unit: 'vàng',
       levels: lv([[0, 10], [150, 15], [500, 20], [1200, 30], [2500, 40]]) },                        // [ĐỀ XUẤT]
   };
@@ -215,8 +258,11 @@
     return Math.max(1, Math.floor(portions / need));
   }
 
+  // Hàng BAR_TIERS của cấp trang trí trong sổ.
+  function tier(save) { return BAR_TIERS[level(save, 'decor')]; }
+
   root.HX_META = {
-    GEAR: GEAR, BAR: BAR, GUNS: GUNS, GUN_PLAY: PLAY, SUIT_OVER_MUL: SUIT_OVER_MUL,
+    GEAR: GEAR, BAR: BAR, BAR_TIERS: BAR_TIERS, tier: tier, GUNS: GUNS, GUN_PLAY: PLAY, SUIT_OVER_MUL: SUIT_OVER_MUL,
     defaults: defaults, table: table, slot: function (key) { table(key); return SLOT[key]; },
     maxLevel: maxLevel, level: level, stat: stat, nextCost: nextCost, buy: buy,
     gunStat: gunStat, buyGun: buyGun, equipGun: equipGun, loadout: loadout, dishOf: dishOf, servingsOf: servingsOf,
