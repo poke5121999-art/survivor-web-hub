@@ -356,6 +356,17 @@ body.touch .pz-btn img.kg, body.touch .set-head img.kg { display: none; }
 .set-radio input { -webkit-appearance: none; appearance: none; margin: 0; width: calc(var(--su) * 40); height: calc(var(--su) * 40);
   background: url(art/ui/mobile/set_radio_off.png?v=20260925d) center / 100% 100%; }
 .set-radio input:checked { background-image: url(art/ui/mobile/set_radio_on.png?v=20260925d); }
+/* ---------- cầm dọc trên máy cảm ứng: game chỉ chơi ngang như bản Android (HUD khớp bề ngang canvas 2340×1080) ----------
+   main.js cũng dừng vòng lặp khi khớp đúng media query này. */
+#rotate { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; align-content: center; gap: 18px; padding: 24px;
+    background: #08223a; color: var(--ink); text-align: center; }
+}
+#rotate b { font: 700 24px/1.2 var(--disp); color: var(--gold); }
+#rotate span { max-width: 300px; color: var(--dim); font-size: 14px; }
+#rotate i { width: 44px; height: 76px; border: 4px solid var(--cyan); border-radius: 9px; animation: turn 2.4s ease-in-out infinite; }
+@keyframes turn { 0%, 20% { transform: rotate(0); } 50%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
 @media (max-height: 460px) {
   #title { grid-template-columns: 1fr 96px; padding: 12px 14px 10px; }
   h1 { font-size: 36px; }
@@ -387,7 +398,7 @@ body.touch .pz-btn img.kg, body.touch .set-head img.kg { display: none; }
   <p class="keys">
     <span class="kb"><kbd>WASD</kbd> bơi</span><span class="kb"><kbd>Shift</kbd> tăng tốc</span><span class="kb"><kbd>Space</kbd> lướt</span>
     <span class="kb">giữ <kbd>chuột trái</kbd> ngắm, thả để bắn</span><span class="kb">giữ <kbd>chuột phải</kbd> súng phụ</span><span class="kb"><kbd>F</kbd> dao</span>
-    <span class="tc">Kéo nửa trái để bơi · giữ nửa phải để ngắm, thả để bắn · giữ nút Súng để bắn súng phụ · bấm liên tục khi giằng co</span>
+    <span class="tc">Chạm góc dưới trái để bơi · giữ nút bắn, kéo để ngắm, thả để bắn · nút nhỏ cạnh nút bắn đổi sang súng phụ · bấm liên tục khi giằng co</span>
   </p>
   <div class="credit">Hình, hoạt ảnh, bản đồ và tiếng: Dave the Diver (MINTROCKET). Bản dựng lại để chơi thử, không bán.</div>
 </section>
@@ -488,6 +499,8 @@ body.touch .pz-btn img.kg, body.touch .set-head img.kg { display: none; }
   <button id="btn-pause" class="tc-p" aria-label="Tạm dừng"><img class="bg" src="art/ui/mobile/menu.png?v=20260925d" alt=""></button>
   <button id="tb-qte" class="tc-p" aria-label="Giật dây"><img class="bg" src="art/ui/mobile/qte_btn.png?v=20260925d" alt=""><img id="tb-qte-ring" class="tc-p" src="art/ui/mobile/qte_ring.png?v=20260925d" alt=""></button>
 </div>
+
+<div id="rotate" role="alert"><i></i><b>Xoay ngang điện thoại để chơi</b><span>Hố Xanh chơi ngang máy như bản Android. Màn hình không xoay theo thì tắt khoá xoay dọc.</span></div>
 
 <script src="vendor/three-r140.min.js?v=20260925d"></script>
 <script src="vendor/GLTFLoader-r140.js?v=20260925d"></script>

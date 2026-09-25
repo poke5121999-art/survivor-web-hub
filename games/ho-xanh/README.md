@@ -191,6 +191,15 @@ Tham số URL:
   - [BẪY ĐÃ SẬP] `UI_TitleFrame_8rad` và `设置顶部按钮` rỗng ở giữa; dùng làm mask CSS thì che mất mọi thứ bên trong.
   - Chưa có: sắp xếp lại nút bằng tay, thanh âm lượng nhạc/tiếng riêng, ô nhiệm vụ/đồ trên màn tạm dừng, nút bom và đồ, QTE chạm trái/phải.
 
+- **"Trên điện thoại không chơi được" là do cầm dọc** [ĐO TRONG REPO, 2026-09-25]. Đo bằng Playwright trên bản Pages, giả lập iPhone 13 và Pixel 7 (Chromium và WebKit), dọc lẫn ngang, đi từ cổng hub → khách → thẻ game → màn đầu → iDiver → cano → lặn → quán.
+  - Cầm ngang: mọi bước chạy, không lỗi trang, không mất ngữ cảnh WebGL. Màn đầu hiện sau 1,1–2,5 giây; tới lúc lặn đã tải ~25 MB, mất 31–42 giây tính cả cano.
+  - Cầm dọc: game vẫn chạy nhưng HUD Android co theo bề ngang canvas 2340, nên ở 390 px mọi nút chỉ còn 1/6. Nút bắn 40 px, lướt và tăng tốc 27 px, nút đổi súng 20 px, nút menu 15 px. Vùng cần trái chỉ còn 200 × 150 px ở góc dưới. Ô Huỷ bắn đè lên nút menu và đồng hồ O₂. Cảnh chỉ rộng chừng 7 m nên không thấy cá tới.
+  - Bản Android gốc khoá ngang, còn bản web không nhắc xoay máy. Người mở từ hub thì cầm dọc như mọi trang khác.
+  - Sửa: máy cảm ứng cầm dọc (`(orientation: portrait) and (pointer: coarse)`) thì `#rotate` phủ kín màn, và `frame()` trong `main.js` đứng yên như lúc tạm dừng. Xoay ngang là chơi tiếp, O₂ không bị trừ trong lúc cầm dọc. Máy tính có cửa sổ hẹp dọc thì không bị chặn.
+  - [BẪY ĐÃ SẬP] Mọi bài kiểm cảm ứng cũ đều mở sẵn ở cỡ ngang (844×390, 740×360) rồi vào lượt lặn bằng `HX_DEBUG.go('loading')`. Chúng không bao giờ đi qua màn đầu ở tư thế cầm máy thật, nên lỗi này lọt qua. `test/ho-xanh-mobile.js` mở bằng cỡ màn thật của Pixel 7 và iPhone 13.
+  - Dòng hướng dẫn cảm ứng ở màn đầu từng ghi "giữ nửa phải để ngắm" và "nút Súng". Giữ nửa phải thật ra không làm gì (Dave vẫn `swim`, xiên vẫn `ready`), còn nút Súng đã bỏ từ khi có HUD Android. Giờ dòng đó tả đúng cần trái, nút bắn và nút đổi súng.
+  - Còn nặng trên máy yếu, chưa đo trên máy thật: vừa mở trang, `loadShared` giải mã 52 tệp tiếng thành ~221 MB PCM, trong đó bốn bản nhạc nền (`bgm_night`, `bgm_deep`, `bgm_seablue`, `bgm_ingame`, 6,4 MB mp3) chiếm phần lớn. Cả ngày chơi thì PCM lên ~297 MB qua 3 `AudioContext`, cộng ~195 MB ảnh đẩy lên GPU tính tới lúc lặn. Chế độ `--enable-low-end-device-mode` của Chromium vẫn chạy trọn ngày. iPhone RAM thấp có thể bị Safari đóng thẻ [ĐỀ XUẤT: chỉ giải mã nhạc của vùng sắp vào].
+
 ## Chọn khác bản gốc [ĐỀ XUẤT]
 
 - Camera theo bản gốc: phối cảnh 38°, lùi 18,5 m (`CinemachineFramingTransposer.m_CameraDistance`), khung nhìn cao ~12,7 m. Màn thấp (điện thoại ngang) kéo lại còn 12,5 m cho Dave khỏi bé.
@@ -213,6 +222,7 @@ node test/ho-xanh-boat.js       # cano tự chạy ra/về khớp khoá clip g�
 node test/ho-xanh-harvest.js    # giằng co Dave đứng yên và không bị cắn, xác cá nằm lại, nhặt và xả thịt, túi đầy, nút Nhặt
 node test/ho-xanh-spawn.js      # mọi con cá sinh ra đều hợp lệ theo data/fish_spawn.js tại đúng chỗ sinh
 node test/ho-xanh-touch.js      # HUD cảm ứng trên điện thoại giả lập: cần nổi, kéo ngắm, huỷ bắn, giằng co, dao, súng, nhặt xác
+node test/ho-xanh-mobile.js     # Pixel 7, iPhone 13 cầm dọc: bảng "Xoay ngang" phủ kín, lượt lặn đứng yên; xoay ngang thì chơi tiếp
 HX_BASE=https://poke5121999-art.github.io/survivor-web-hub node test/ho-xanh-<tên>.js   # chạy cùng bài kiểm trên bản Pages
 node test/ho-xanh-gear.js       # mua/nâng/lắp từng mũi xiên và hiệu ứng khi trúng, drone chở cá, không có drone thì G.drone null
 node test/ho-xanh-gun.js        # từng khẩu súng bắn trúng cá và bắn đúng đạn gốc, hết đạn, dao ở phím F

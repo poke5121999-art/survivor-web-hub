@@ -729,6 +729,8 @@
   // ---------- vòng lặp ----------
   var last = performance.now(), fpsAcc = 0, fpsN = 0;
   G.fps = 60;
+  // Cầm dọc trên máy cảm ứng: #rotate (index.html) phủ kín màn, game đứng yên tới khi xoay ngang.
+  var portrait = matchMedia('(orientation: portrait) and (pointer: coarse)');
 
   function frame(now) {
     requestAnimationFrame(frame);
@@ -736,7 +738,7 @@
     last = now;
     fpsAcc += dt; fpsN++;
     if (fpsAcc > 1) { G.fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
-    if (paused) { gfx.render(G.t); return; }
+    if (paused || portrait.matches) { gfx.render(G.t); return; }
     G.t += dt;
     var P = phase(G.phase);
     // đang nạp bản đồ mới thì giữ nguyên khung cảnh cũ
