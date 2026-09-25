@@ -414,9 +414,24 @@
     this.frozen = false;
   }
 
-  // Cá của đúng vùng đang lặn (A nông, B tầng giữa, C vực sâu); sát ranh giới thì lẫn một ít cá tầng kế bên.
-  function pickSpecies(area, rnd) {
-    var pool = SPECIES.filter(function (s) { return s.zone === area && s.rank > 0; });
+  // HX_FISH_SPAWN (data/fish_spawn.js, sinh bởi tools/spawn_data.py): vùng+giờ hợp lệ của từng loài
+  // theo wiki, vì bản gốc không lưu danh sách loài theo từng bản đồ con hay theo dải mét chi tiết
+  // hơn ba vùng A/B/C (xem chú thích đầu spawn_data.py). Loài chưa có trong bảng (vd thêm mới sau
+  // này mà quên chạy lại tool) thì không bị chặn thêm gì, chỉ lọc theo vùng như trước.
+  var SPAWN = window.HX_FISH_SPAWN || {};
+  function spawnAllows(sp, mapId, night) {
+    var sd = SPAWN[sp.id];
+    if (!sd) return true;
+    if (sd.excludeMaps && sd.excludeMaps.indexOf(mapId) >= 0) return false; // [WIKI] vd rừng tảo A06 không có Sheepshead/Striped Catfish
+    if (sd.active === 'day' && night) return false; // [WIKI] active_time: loài ban ngày không hiện khi lặn đêm
+    if (sd.active === 'night' && !night) return false; // [WIKI] loài chỉ hiện lúc lặn đêm
+    return true;
+  }
+
+  // Cá của đúng vùng đang lặn (A nông, B tầng giữa, C vực sâu), đúng bản đồ con và đúng giờ theo wiki.
+  function pickSpecies(layer, night, rnd) {
+    var pool = SPECIES.filter(function (s) { return s.zone === layer.area && s.rank > 0 && spawnAllows(s, layer.id, night); });
+    if (!pool.length) pool = SPECIES.filter(function (s) { return s.zone === layer.area && s.rank > 0; });
     if (!pool.length) pool = SPECIES.filter(function (s) { return s.zone === 'A' && s.rank > 0; });
     var tot = 0, w = pool.map(function (s) { var x = s.rank >= 3 ? FT.rareWeight : 1; tot += x; return x; });
     var r = rnd() * tot;
@@ -437,7 +452,11 @@
       var x = cam.x + Math.cos(a) * r, y = cam.y + Math.sin(a) * r * 0.7;
       if (y > T.water.surfaceY - 1.2 || y < W.box.minY) continue;
       if (!W.open(x, y, 0.6)) continue;
-      var sp = pickSpecies(G.stack.layerAt(y + (Math.random() - 0.5) * 12).area, Math.random);
+      // Lấy đúng tầng cá sẽ đứng, không trộn thêm loài tầng kế bên: danh mục wiki (Shallows/Medium
+      // Depth/Depths Fish) không có loài nào của ta xuất hiện ở quá một vùng, nên trộn ở đây từng
+      // khiến cá vùng A/B/C hiện sai hẳn sang tầng khác gần ranh giới [ĐO 2026-09-25, test/ho-xanh-spawn.js].
+      var L = G.stack.layerAt(y);
+      var sp = pickSpecies(L, !!(G.stack.theme && G.stack.theme.night), Math.random);
       var lead = this.spawnAt(sp, x, y);
       if (sp.hp <= FT.schoolMaxHp && sp.size === 0 && Math.random() < 0.6) {
         var n = FT.school[0] + Math.floor(Math.random() * (FT.school[1] - FT.school[0] + 1));
