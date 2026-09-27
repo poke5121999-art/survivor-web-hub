@@ -33,5 +33,40 @@
    "name": "Monster_AxeShieldMan_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "210024": {
+   "sym": 1.15,
+   "mode": 2,
+   "sk": 1.32,
+   "bsx": 1.32,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200024": {
+   "sym": 1.15,
+   "mode": 2,
+   "sk": 1.32,
+   "bsx": 1.32,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "240024": {
+   "sym": 1.15,
+   "mode": 2,
+   "sk": 1.32,
+   "bsx": 1.32,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

@@ -155,5 +155,29 @@
    "name": "Cha_Raven_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "900007": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "100005": {
+   "sym": 1.25,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

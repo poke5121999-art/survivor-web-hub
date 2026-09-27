@@ -33,5 +33,29 @@
    "name": "Boss_Slender_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "300014": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 1.25,
+   "bsx": 1.25,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "301014": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 1.25,
+   "bsx": 1.25,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

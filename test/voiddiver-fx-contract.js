@@ -5,7 +5,7 @@
  *   - VFX của hitbox phải bay theo hitbox (trước: đứng yên chỗ phát, stage.js bỏ cờ tracking)
  *   - xích Gayoung (ChainSkillVfx, MeshRenderer) phải hiện và kéo dài (trước: không vẽ MeshRenderer)
  *   - lần tung đầu không khựng (trước: 137–185 ms một khung vì biên dịch shader lúc phát)
- *   - ngắm quanh phương thẳng đứng không lật hình mỗi khung (trước: 7 lần lật / 60 khung)
+ *   - hướng nhìn theo bảng FourWay của UnitView.LookAtDirection gốc; xương aim_target theo hướng ngắm (2026-09-26)
  *   - boomerang Mio (MoveType TraceOwner) phải quay về (trước: bay mãi)
  *
  * Chạy:  node test/voiddiver-fx-contract.js
@@ -124,20 +124,40 @@ async function gayoung(browser, base) {
   await step(page, 60);
   const tal = await page.evaluate(() => window.__vfx.filter(v => v.tracking && /Projectile/.test(v.name)).map(v => [v.name.split('/').pop(), +v.maxD.toFixed(2)]));
   check('[Gayoung] VFX đạn (tracking) bay theo hitbox', tal.some(x => x[1] > 1.5), JSON.stringify(tal));
-  // Hướng nhìn: quét ngắm 80–100° quanh phương thẳng đứng, không được lật qua lại
+  // Hướng nhìn theo UnitView.LookAtDirection gốc (FourWay, không có vùng giữ): góc màn hình [0,90) NW lật, [90,180) NW,
+  // [−180,−90) SW, [−90,0) SW lật. (Bản 2026-09-25 đòi "không lật quanh phương dọc" — sai so với mã gốc.)
   await step(page, 40);
-  const flips = await page.evaluate(() => {
-    const v = VD.stage.vis.get(VD.stage.player.uid);
-    let n = 0, last = null;
-    for (let i = 0; i < 60; i++) {
-      window.__aimAt(2, 90 + 10 * Math.sin(i / 3));
-      window.__step(1);
-      if (last !== null && v.flip !== last) n++;
-      last = v.flip;
-    }
-    return n;
+  const facing = await page.evaluate(() => {
+    const v = VD.stage.vis.get(VD.stage.player.uid), out = [];
+    for (const deg of [45, 88, 92, 135, 225, 268, 272, 315]) { window.__aimAt(2, deg); window.__step(2); out.push(deg + ':' + v.dirKey + (v.flip ? '-' : '+')); }
+    return out.join(' ');
   });
-  check('[Gayoung] ngắm gần thẳng đứng không lật hình liên tục', flips <= 1, flips + ' lần lật / 60 khung');
+  check('[Gayoung] hướng nhìn theo bảng FourWay gốc', facing === '45:NW- 88:NW- 92:NW+ 135:NW+ 225:SW+ 268:SW+ 272:SW- 315:SW-', facing);
+  // Nội suy vẽ: màn hình 144 Hz, mô phỏng bước 60 Hz. Đi thẳng thì quãng hình dời mỗi khung phải đều
+  // (trước: 0 / 1 / 2 bước mô phỏng mỗi khung → quãng dời nhảy 0 ↔ 0,1 m, giật).
+  const judder = await page.evaluate(() => {
+    const S = VD.stage, L = VD.loop, v = S.vis.get(S.player.uid), STEP = 1 / 60, xs = [];
+    let acc = 0;
+    for (let f = 0; f < 150; f++) {
+      acc += 1 / 144;
+      while (acc >= STEP) { acc -= STEP; L.time += STEP; VD.input.move.x = 1; VD.input.move.y = 0; L.update(STEP); VD.input.endFrame(); }
+      L.alpha = acc / STEP; L.render(1 / 144);
+      if (f >= 30) xs.push(v.root.position.clone());
+    }
+    VD.input.move.x = 0; L.alpha = 1;
+    const d = []; for (let i = 1; i < xs.length; i++) d.push(xs[i].distanceTo(xs[i - 1]));
+    const m = d.reduce((a, b) => a + b, 0) / d.length, sd = Math.sqrt(d.reduce((a, b) => a + (b - m) * (b - m), 0) / d.length);
+    return { mean: +m.toFixed(4), sd: +sd.toFixed(4), max: +Math.max(...d).toFixed(4), min: +Math.min(...d).toFixed(4) };
+  });
+  check('[nội suy] 144 Hz: hình dời đều mỗi khung', judder.mean > 0.01 && judder.sd < judder.mean * 0.15, JSON.stringify(judder));
+  // Xương ngắm aim_target: đặt = IsometricToTopDown(hướng ngắm), x nhân ScaleX, độ dài 1 (UnitView.OnUpdateWorld)
+  const aimB = await page.evaluate(() => {
+    const v = VD.stage.vis.get(VD.stage.player.uid);
+    window.__aimAt(2, 300); window.__step(2);
+    const b = v.aimBones[v.dirKey];
+    return b ? { x: +b.x.toFixed(2), y: +b.y.toFixed(2) } : null;
+  });
+  check('[Gayoung] aim_target theo hướng ngắm (x lật theo ScaleX)', aimB && Math.abs(Math.hypot(aimB.x, aimB.y) - 1) < 0.05 && aimB.x < -0.3 && aimB.y < -0.7, JSON.stringify(aimB));
   // Orbital velocity của hệ mô phỏng trong thế giới phải quay quanh gốc hệ, không quay quanh (0,0,0) của bản đồ.
   // Trước bản sửa: FireSparks của Purification phát ở (22, 0, −12) bay xa 20–25 m, thành đĩa trắng trôi trên màn hình.
   await page.evaluate(() => VD.vfx.preload(['Purification']));

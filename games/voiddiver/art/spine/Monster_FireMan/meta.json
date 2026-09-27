@@ -33,5 +33,40 @@
    "name": "Monster_FireMan_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "210025": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.26,
+   "bsx": 1.26,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200025": {
+   "sym": 1.3,
+   "mode": 2,
+   "sk": 1.26,
+   "bsx": 1.26,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "240025": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.26,
+   "bsx": 1.26,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

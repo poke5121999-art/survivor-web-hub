@@ -33,5 +33,29 @@
    "name": "Cha_Caster_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "100004": {
+   "sym": 1.25,
+   "mode": 2,
+   "sk": 0.95,
+   "bsx": 0.95,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "900006": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

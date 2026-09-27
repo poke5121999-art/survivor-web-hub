@@ -33,5 +33,51 @@
    "name": "Monster_Overlord_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "310058": {
+   "sym": 2.2,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200029": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200033": {
+   "sym": 1.1,
+   "mode": 2,
+   "sk": 0.65,
+   "bsx": 0.65,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "310057": {
+   "sym": 1.96,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

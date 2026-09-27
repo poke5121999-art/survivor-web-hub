@@ -5,6 +5,7 @@
     set PYTHONIOENCODING=utf-8
     python rip.py spine            # 4 nhan vat + moi quai/npc scoped (theo unit_map)
     python rip.py spine-meta       # chi ghi lai defaultMix + mixes (SkeletonDataAsset) vao art/spine/*/meta.json
+    python rip.py unit-view        # SymbolPositionY, scale khung xuong, _animationMode cua prefab unit -> meta.json "units"
     python rip.py sector           # 40 sector scoped
     python rip.py audio            # sfx+bgm trong manifest
     python rip.py ui               # icon atlas + font
@@ -241,6 +242,132 @@ def cmd_spine_meta():
                 n_upd += 1
                 print('  %-24s %s' % (name, {k: len(v.get('mixes') or []) for k, v in meta['skeletons'].items()}))
         print('meta.json cập nhật:', n_upd)
+
+    return vd.with_deps(f, go, deps=[vd.bfile('be9e4d904692f945f3910b57349aeb09_monoscripts')])
+
+
+def cmd_unit_view():
+    """Số hiển thị của từng prefab unit (remote_prefab_assets_unit) ghi vào meta.json của bộ Spine nó dùng,
+    khoá 'units': {id: {...}}:
+      sym  = UnitView.SymbolPositionY (GetBoneOffset(Symbol) = up * sym, không nhân scale)
+      mode = UnitView._animationMode (0 None, 1 TwoWay, 2 FourWay, 3 EightWay)
+      sk   = scale x của khung xương so với gốc prefab (tích localScale từ con của gốc tới SkeletonAnimation)
+      bsx  = localScale.x của chính SkeletonAnimation (GetBoneOffset nhân vào worldX/worldY của xương)
+      lpy  = localPosition.y của SkeletonAnimation (GetBoneOffset cộng vào)
+      skels = thứ tự SkeletonAnimations ('NW'/'SW'), chỉ số 0 = nửa trên màn hình
+    Đo 2026-09-26 (UnitView.GetBoneOffset 0x1806a85f0, LookAtDirection 0x1806a9b10)."""
+    fu = vd.bfile('remote_prefab_assets_unit')
+    deps = [vd.bfile('be9e4d904692f945f3910b57349aeb09_monoscripts'), vd.bfile('dependencies_assets_spine')]
+
+    def run(env):
+        res = {}
+        for t in [t for sf in vd.serialized_files(env, fu) for t in vd.roots_of(sf)]:
+            g = t.m_GameObject.deref_parse_as_object()
+            view, skels = None, {}
+            stack = [(t, 1.0, True)]
+            while stack:
+                tr, scl, is_root = stack.pop()
+                gg = tr.m_GameObject.deref_parse_as_object()
+                s_here = 1.0 if is_root else scl * tr.m_LocalScale.x
+                for c in gg.m_Component:
+                    ob = c.component if hasattr(c, 'component') else c
+                    if ob.path_id == 0:
+                        continue
+                    try:
+                        oo = ob.deref()
+                        if oo.type.name != 'MonoBehaviour':
+                            continue
+                        tt = oo.read_typetree()
+                    except Exception:
+                        continue
+                    if 'SymbolPositionY' in tt:
+                        view = {'sym': round(float(tt['SymbolPositionY']), 4), 'mode': tt.get('_animationMode', 0),
+                                'order': [s.get('m_PathID') for s in tt.get('SkeletonAnimations', [])]}
+                    elif 'skeletonDataAsset' in tt and 'initialSkinName' in tt:
+                        try:
+                            sda = oo.read().skeletonDataAsset.deref_parse_as_object().m_Name
+                        except Exception:
+                            sda = None
+                        skels[oo.path_id] = {'sda': sda, 'sk': round(s_here, 4), 'bsx': round(tr.m_LocalScale.x, 4),
+                                             'lpy': round(tr.m_LocalPosition.y, 4)}
+                for ch in tr.m_Children:
+                    stack.append((ch.deref_parse_as_object(), s_here, False))
+            if not view or not skels:
+                continue
+            order = [skels[p] for p in view.pop('order') if p in skels]
+            if not order or not order[0]['sda']:
+                continue
+            base = re.sub(r'_(SW|NW)_SkeletonData$', '', order[0]['sda'])
+            view.update({k: order[0][k] for k in ('sk', 'bsx', 'lpy')})
+            view['skels'] = [(re.search(r'_(SW|NW)_SkeletonData$', s['sda'] or '') or [None, '?'])[1] for s in order]
+            res.setdefault(base, {})[g.m_Name] = view
+        return res
+
+    by_spine = vd.with_deps(fu, run, deps=deps)
+    root = os.path.join(ART, 'spine')
+    n = 0
+    for name, units in sorted(by_spine.items()):
+        mp = os.path.join(root, name, 'meta.json')
+        if not os.path.exists(mp):
+            continue
+        meta = json.load(open(mp, encoding='utf-8'))
+        if meta.get('units') != units:
+            meta['units'] = units
+            json.dump(meta, open(mp, 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
+            n += 1
+    print('meta.json cập nhật units:', n, '/', len(by_spine), 'bộ Spine')
+
+
+def cmd_lens_dirt():
+    """Ảnh dirtTexture của Bloom trong VolumeProfile_Main (URP lens dirt, dirtIntensity 30) -> art/ui/postfx/lens_dirt.webp
+    + lens_dirt.json {w, h, intensity}. js/postfx.js dùng như Uber shader URP."""
+    f = vd.bfile('dependencies_assets_volumeprofile')
+
+    def go(env):
+        # component Bloom của đúng VolumeProfile_Main (các profile cắt cảnh cũng có Bloom + dirt, intensity 25)
+        main_ids = set()
+        for o in env.objects:
+            if o.type.name == 'MonoBehaviour':
+                try:
+                    tt = o.read_typetree()
+                except Exception:
+                    continue
+                if tt.get('m_Name') == 'VolumeProfile_Main' and 'components' in tt:
+                    main_ids = {c.get('m_PathID') for c in tt['components']}
+        for o in env.objects:
+            if o.type.name != 'MonoBehaviour' or o.path_id not in main_ids:
+                continue
+            try:
+                tt = o.read_typetree()
+            except Exception:
+                continue
+            if 'dirtTexture' not in tt or 'dirtIntensity' not in tt:
+                continue
+            dt_ = tt['dirtTexture']
+            pp = dt_.get('m_Value', dt_) if isinstance(dt_, dict) else {}
+            fid, pid = pp.get('m_FileID', 0), pp.get('m_PathID', 0)
+            if not pid:
+                continue
+            sf = o.assets_file
+            if fid:
+                cab = sf.externals[fid - 1].path.split('/')[-1].lower()
+                b2 = vd.idx()['cab'].get(cab)
+                env2 = vd.env_of([f, b2])
+                sf = next(x for x in vd.serialized_files(env2, b2))
+            tex = sf.objects[pid].read()
+            img = tex.image.convert('RGB')
+            d = os.path.join(ART, 'ui', 'postfx')
+            os.makedirs(d, exist_ok=True)
+            img.save(os.path.join(d, 'lens_dirt.webp'), 'WEBP', quality=90, method=6)
+            # tham số không bật override lấy mặc định của component (VolumeManager), không lấy m_Value đã lưu
+            val = lambda k: (tt[k]['m_Value'] if tt[k].get('m_OverrideState') else 'default') if isinstance(tt.get(k), dict) else tt.get(k)
+            info = {'name': tex.m_Name, 'w': img.width, 'h': img.height, 'intensity': val('dirtIntensity'),
+                    'threshold': val('threshold'), 'bloom': val('intensity'), 'scatter': val('scatter'), 'clamp': val('clamp'),
+                    'maxIterations': val('maxIterations'), 'highQuality': val('highQualityFiltering'), 'skipIterations': val('skipIterations')}
+            json.dump(info, open(os.path.join(d, 'lens_dirt.json'), 'w', encoding='utf-8'), indent=1)
+            print('lens dirt:', info)
+            return info
+        print('không thấy Bloom có dirtTexture')
 
     return vd.with_deps(f, go, deps=[vd.bfile('be9e4d904692f945f3910b57349aeb09_monoscripts')])
 
@@ -832,6 +959,10 @@ def main():
         print('== spine =='); cmd_spine(ids_filter)
     if cmd == 'spine-meta':
         print('== spine-meta =='); cmd_spine_meta()
+    if cmd == 'unit-view':
+        print('== unit-view =='); cmd_unit_view()
+    if cmd == 'lens-dirt':
+        print('== lens-dirt =='); cmd_lens_dirt()
     if cmd in ('sector', 'all'):
         print('== sector =='); cmd_sector(ids_filter)
     if cmd in ('audio', 'all'):

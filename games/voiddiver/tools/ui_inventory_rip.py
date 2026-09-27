@@ -33,6 +33,19 @@ SPRITES = [
     # phím trong KeyGuide
     'F_Key', 'R_Key', 'N_Key', 'T_Key', 'X_Key', 'Escape_Key', 'Ctrl_Key', 'LeftShift_Key', 'Tab_Key',
     'Q_Key', 'E_Key', 'V_Key', '1_Key', '2_Key', '3_Key', '4_Key', '5_Key',
+    # các trang khác của MenuPopup (Quest/Character/Archive/Squad/Option/System), BagPanel, tooltip trang bị
+    'G_Key', 'C_Key', 'Space_Key', 'Mouse_Left_Key', 'Mouse_Right_Key', 'Lock', 'Exclamation', 'Bag', 'Coin', 'Gold',
+    'rectangle_round2', 'rectangle_round2_line_2px', 'triangle_64', 'gradient_circle_128', 'img_slider_handle',
+    'DecoEncyclopedia', 'DecoFloor1', 'DecoSquadPage', 'DecoMenuSystemHand', 'DecoParadox01', 'DecoSkill',
+    'OptionMenuGraphic', 'OptionMenuSound', 'OptionMenuGamePlay', 'OptionMenuKeyboard', 'OptionMenuPad',
+    'ImgSoundOn', 'ImgSoundOff', 'MenuQuest1', 'MenuQuest2', 'MenuInventory', 'MenuCharacter', 'MenuEncyclopedia',
+    'MenuSquad', 'MenuOption', 'MenuSystem',
+    # nút tay cầm (II_ImagePrompt đổi theo thiết bị): UI/UiPad map của InputActionAsset
+    'XBox_A', 'XBox_B', 'XBox_X', 'XBox_Y', 'XBox_LB', 'XBox_RB', 'XBox_LT', 'XBox_RT', 'XBox_Menu', 'XBox_View',
+    'XBox_Dpad', 'XBox_Left_Stick', 'XBox_Right_Stick', 'XBox_Right_Stick_Click', 'XBox_Left_Stick_Click',
+    'XBox_Dpad_Up', 'XBox_Dpad_Down', 'XBox_Dpad_Left', 'XBox_Dpad_Right',
+    # bảng phím (OptionKeyPanel, InputAction.csv)
+    'W_Key', 'A_Key', 'S_Key', 'D_Key', 'M_Key', 'Undefined_Key',
 ]
 SPRITE_BUNDLES = ['dependencies_assets_spriteatlas', 'dependencies_assets_sprite', 'dependencies_assets_thirdparty',
                   'shared_dependencies_assets_all', 'dependencies_assets_texture']
@@ -41,7 +54,8 @@ SPRITE_BUNDLES = ['dependencies_assets_spriteatlas', 'dependencies_assets_sprite
 # InventoryPopupOpen = OpenSfx của MenuPopup; Looting_Loop = ô đang hé lộ; Looting_low/middle/high/veryhigh =
 # GetRevealSfx(bậc); ItemDrop = DropInventoryGoods; ItemRelease = đăng ký ô nhanh; LootingCompleted = giữ F xong.
 SOUNDS = ['InventoryPopupOpen', 'Looting_Loop', 'Looting_low', 'Looting_middle', 'Looting_high', 'Looting_veryhigh',
-          'LootingCompleted', 'ItemDrop', 'ItemRelease', 'ButtonClick', 'PopUpOpen']
+          'LootingCompleted', 'ItemDrop', 'ItemRelease', 'ButtonClick', 'PopUpOpen',
+          'Fail']   # Fail: bấm thẻ Tổ đội đang khoá (MenuPopupPresenter, SquadTabLockedMessage)
 
 
 def rip_sprites():

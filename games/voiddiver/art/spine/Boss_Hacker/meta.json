@@ -33,5 +33,18 @@
    "name": "Boss_Hacker_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "300021": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

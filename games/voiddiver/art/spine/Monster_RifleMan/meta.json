@@ -33,5 +33,29 @@
    "name": "Monster_RifleMan_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "200032": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "500032": {
+   "sym": 1.2,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

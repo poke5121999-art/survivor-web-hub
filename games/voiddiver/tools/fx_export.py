@@ -359,6 +359,43 @@ def norm_trail(m):
                       'colTrail': [1, 1, 1, 1], 'ribbons': 1})
 
 
+def norm_noise(m):
+    """NoiseModule: nhiễu cộng vào vị trí (như vận tốc động), xoay, kích thước."""
+    if not m.get('enabled'):
+        return None
+    sep = bool(m.get('separateAxes'))
+    out = {'sep': 1 if sep else 0, 'str': mmc(m['strength']), 'freq': rn(m.get('frequency', 0.5)),
+           'damp': 1 if m.get('damping') else 0, 'oct': m.get('octaves', 1), 'octMul': rn(m.get('octaveMultiplier', 0.5)),
+           'octScale': rn(m.get('octaveScale', 2)), 'quality': m.get('quality', 2), 'scroll': mmc(m['scrollSpeed']),
+           'pos': mmc(m['positionAmount']), 'rot': mmc(m['rotationAmount']), 'size': mmc(m['sizeAmount'])}
+    if sep:
+        out['strY'] = mmc(m['strengthY'])
+        out['strZ'] = mmc(m['strengthZ'])
+    if m.get('remapEnabled'):
+        out['remap'] = [mmc(m['remap']), mmc(m['remapY']), mmc(m['remapZ'])] if sep else [mmc(m['remap'])]
+    return drop(out, {'sep': 0, 'damp': 1, 'oct': 1, 'octMul': 0.5, 'octScale': 2, 'quality': 2, 'scroll': 0,
+                      'pos': 1, 'rot': 0, 'size': 0})
+
+
+def norm_inherit_vel(m):
+    """InheritVelocityModule: m_Mode 0 Initial (cộng một lần lúc sinh), 1 Current (mỗi khung)."""
+    if not m.get('enabled'):
+        return None
+    return {'mode': m.get('m_Mode', 0), 'c': mmc(m['m_Curve'])}
+
+
+def norm_collision(m):
+    """CollisionModule: type 0 Planes (Transform), 1 World. Planes giữ PathID để nối sang node sau."""
+    if not m.get('enabled'):
+        return None
+    out = {'type': m.get('type', 0), 'mode2d': m.get('collisionMode', 0), 'dampen': mmc(m['m_Dampen']),
+           'bounce': mmc(m['m_Bounce']), 'loss': mmc(m['m_EnergyLossOnCollision']),
+           'minKill': rn(m.get('minKillSpeed', 0)), 'maxKill': rn(m.get('maxKillSpeed', 10000)),
+           'radius': rn(m.get('radiusScale', 1)), 'layers': (m.get('collidesWith') or {}).get('m_Bits', -1),
+           'planePids': [p.get('m_PathID') for p in m.get('m_Planes', []) if p.get('m_PathID')]}
+    return out
+
+
 def norm_lights_module(m, ctx):
     if not m.get('enabled'):
         return None
@@ -696,13 +733,16 @@ def norm_renderer(ctx, rtt, robj, uvmod):
     out['order'] = rtt.get('m_SortingOrder', 0)
     out['sort'] = rtt.get('m_SortMode', 0)
     out['slots'] = stream_slots(rtt)
+    if rtt.get('m_UseCustomTrailVertexStreams'):
+        # vệt (Trail module) có luồng đỉnh riêng: Custom1/2 của hạt đi vào TEXCOORD1..3 của dải vệt
+        out['tslots'] = stream_slots({'m_UseCustomVertexStreams': 1, 'm_VertexStreams': rtt.get('m_TrailVertexStreams', [])})
     return drop(out, {'align': 0, 'pivot': [0, 0, 0], 'flip': [0, 0, 0], 'minSz': 0, 'maxSz': 0.5, 'fudge': 0,
                       'order': 0, 'sort': 0, 'slots': None, 'cvs': 0})
 
 
 # ------------------------------------------------------------ particle --
-UNSUPPORTED = ('NoiseModule', 'CollisionModule', 'ExternalForcesModule', 'InheritVelocityModule',
-               'SizeBySpeedModule', 'RotationBySpeedModule', 'ColorBySpeedModule', 'TriggerModule',
+# Noise, InheritVelocity, Collision (mặt phẳng / mặt đất), Sub emitter đã xuất và vfx.js đã phát (2026-09-26).
+UNSUPPORTED = ('ExternalForcesModule', 'SizeBySpeedModule', 'RotationBySpeedModule', 'ColorBySpeedModule', 'TriggerModule',
                'LifetimeByEmitterSpeedModule')
 
 
@@ -747,14 +787,22 @@ def norm_ps(ctx, tt, rtt, robj, node_idx, name):
     ps['lightsMod'] = norm_lights_module(tt.get('LightsModule', {}), ctx.__dict__)
     sub = tt.get('SubModule', {})
     if sub.get('enabled'):
-        ps['sub'] = [s.get('type', 0) for s in sub.get('subEmitters', [])]
+        # emitter = PPtr tới component ParticleSystem (cùng prefab); export_prefab đổi ra chỉ số hệ ('s').
+        # type: 0 Birth, 1 Collision, 2 Death, 3 Trigger, 4 Manual; properties: bit Inherit Color/Size/Rotation/
+        # Lifetime/Duration (1/2/4/8/16).
+        ps['sub'] = [{'pid': (s.get('emitter') or {}).get('m_PathID', 0), 't': s.get('type', 0),
+                      'p': s.get('properties', 0), 'pr': rn(s.get('emitProbability', 1))}
+                     for s in sub.get('subEmitters', [])]
+    ps['noise'] = norm_noise(tt.get('NoiseModule', {}))
+    ps['inhVel'] = norm_inherit_vel(tt.get('InheritVelocityModule', {}))
+    ps['coll'] = norm_collision(tt.get('CollisionModule', {}))
     uns = [k for k in UNSUPPORTED if tt.get(k, {}).get('enabled')]
     if uns:
         ps['skipped'] = uns
     ps['r'] = norm_renderer(ctx, rtt, robj, ps['uv'])
     # thống kê module
     for k in ('emit', 'shape', 'vel', 'limit', 'force', 'col', 'sizeLife', 'rotLife', 'uv', 'cd', 'trail',
-              'lightsMod', 'sub'):
+              'lightsMod', 'sub', 'noise', 'inhVel', 'coll'):
         if ps.get(k) and not (k == 'emit' and ps[k].get('off')):
             ctx.bump('mod:' + k)
     for k in uns:
@@ -970,6 +1018,7 @@ def export_prefab(ctx, env, go_obj, out_name):
     nodes, systems, trails, lights, notes, animators = [], [], [], [], [], []
     extra = {}
     meshes, scripts, tf_node = [], [], {}
+    ps_index = {}   # PathID component ParticleSystem -> chỉ số hệ (nối SubModule.subEmitters)
 
     def walk(go, parent):
         tf = None
@@ -1021,6 +1070,7 @@ def export_prefab(ctx, env, go_obj, out_name):
                     m_Mesh = None
                 r_c = _R()
             sysd = norm_ps(ctx, tt, rtt, r_c, idx, go.m_Name)
+            ps_index[ps_ptr.path_id] = len(systems)
             systems.append(sysd)
         for c, ptr in by.get('TrailRenderer', []):
             t = trail_renderer_out(ctx, ptr.read_typetree(), c)
@@ -1095,6 +1145,26 @@ def export_prefab(ctx, env, go_obj, out_name):
             if d:
                 a['delayCfg'] = d
             anims.append(a)
+    # sub emitter: PathID -> chỉ số hệ; hệ con bị trỏ tới không tự phát (hệ cha điều khiển), đánh dấu 'isSub'
+    for s in systems:
+        if s.get('sub'):
+            subs = []
+            for e in s['sub']:
+                si = ps_index.get(e.pop('pid'), -1)
+                if si >= 0:
+                    e['s'] = si
+                    subs.append(drop(e, {'p': 0, 'pr': 1}))
+            if subs:
+                s['sub'] = subs
+            else:
+                del s['sub']
+    for s in systems:
+        for e in s.get('sub', []):
+            systems[e['s']]['isSub'] = 1
+        c = s.get('coll')
+        if c:
+            c['planes'] = [tf_node[p] for p in c.pop('planePids') if p in tf_node]
+            s['coll'] = drop(c, {'planes': [], 'mode2d': 0, 'minKill': 0, 'maxKill': 10000})
     # nối grad2 (EffectShaderASecondColor) vào hệ hạt cùng node
     for s in systems:
         g2 = nodes[s['node']].pop('grad2', None) if 'grad2' in nodes[s['node']] else None

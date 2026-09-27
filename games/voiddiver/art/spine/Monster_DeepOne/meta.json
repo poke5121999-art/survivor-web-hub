@@ -33,5 +33,29 @@
    "name": "Monster_DeepOne_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "900100": {
+   "sym": 1.1,
+   "mode": 2,
+   "sk": 1.1,
+   "bsx": 1.1,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200020": {
+   "sym": 1.1,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

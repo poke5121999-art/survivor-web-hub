@@ -138,13 +138,16 @@ async function tutorial(browser, port, errors) {
   check('O mở bảng phím (Đánh Thường, Lướt, (Bật/Tắt) Chạy, Bản Đồ Nhỏ, Túi đồ)', kg0 && !kg0.open && kg1.open && kg1.rows.length === 5 && kg1.rows[2] === '(Bật/Tắt) Chạy', JSON.stringify([kg0, kg1.rows]));
   await shot(page, 'tut-01b-keyguide');
   await page.keyboard.press('KeyO');
-  // Shift bật/tắt chạy (RunToggleOn gốc), tự tắt khi đứng yên quá Const.ToggleRunExpireDelay.
-  await page.keyboard.press('ShiftLeft');
-  await page.keyboard.down('KeyS'); await gameWait(page, 0.4);
+  // Shift bật/tắt chạy (RunToggleOn gốc, mặc định bật), tự tắt khi đứng yên quá Const.ToggleRunExpireDelay (0,15 s):
+  // CharacterController.UpdateRun — kể cả bấm lúc đang đứng.
+  await page.keyboard.down('KeyS'); await gameWait(page, 0.1);
+  await page.keyboard.press('ShiftLeft'); await gameWait(page, 0.4);
   const run1 = await page.evaluate(() => ({ on: VD.stage.player.runToggle, running: VD.stage.player.running }));
   await page.keyboard.up('KeyS'); await gameWait(page, 0.4);
   const run2 = await page.evaluate(() => VD.stage.player.runToggle);
-  check('Shift bật chạy (không cần giữ), đứng yên thì tắt', run1.on && run1.running && run2 === false, JSON.stringify([run1, run2]));
+  await page.keyboard.press('ShiftLeft'); await gameWait(page, 0.3);
+  const run3 = await page.evaluate(() => VD.stage.player.runToggle);
+  check('Shift bật chạy (không cần giữ), đứng yên thì tắt, bấm lúc đứng cũng tắt sau 0,15 s', run1.on && run1.running && run2 === false && run3 === false, JSON.stringify([run1, run2, run3]));
 
   // TalkToEll_1: trigger Elara 11002 (ZoneSpawn 11002, cờ Custom1), giữ F 0,5 s.
   await tpTo(page, "e.kind === 'trigger' && e.triggerId === 11002", 0.9, 0.3);

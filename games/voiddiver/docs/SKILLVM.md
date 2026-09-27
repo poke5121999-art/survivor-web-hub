@@ -125,9 +125,15 @@ Nhịp combo Gayoung khi giữ chuột:
 - `moveAnimationName`: clip dùng khi đang đi trong skill, ví dụ `attack_1_walk`. Trình bày tự đổi clip theo sự kiện `animMove`.
 - Clip đặt bằng `trackTime` do lõi skill tính, `timeScale` của track = 0 (UnitVisual.pose). Bẫy đã sập: đặt `clipTime − dt` rồi để Spine cộng dt thì khung đầu bị kẹp 0 → clip đứng một khung ở đầu mỗi đòn.
 - Trộn giữa clip: `mixes` + `defaultMix` của SkeletonDataAsset gốc (`tools/rip.py spine-meta` ghi vào `art/spine/*/meta.json`). [ĐO] Sword/Raven 12 cặp idle/walk/run 0,2 s; không đặt thì đổi clip giật.
+  - [ĐO 2026-09-26, GameAssembly.dll] mã game **không** gọi `SetMix`, không đặt `MixTime`; `MixDuration` chỉ đặt 0 khi chép track 1 sang khung xương kia. Chỉ `SkeletonDataAsset.FillStateData` gọi SetMix, nên thời gian trộn đúng bằng defaultMix + cặp trong asset (77 bộ 0,1 s, 38 bộ 0,2 s, 7 bộ 0; cặp riêng chỉ Cha_Raven, Cha_Sword, Cha_Dullahan). `SkillAnimationData` không có trường trộn.
+  - Skill: `UnitView.PlayAnimationAsync` (MoveNext 0x1806a2640): xoá track 1 (`SetEmptyAnimation(1, 0)`), `SetAnimationSpeed(defaultSpeed)`, `SetAnimation(0, tên, loop)`, `TrackTime = animStartOffsetTime`, rồi từng đoạn `animationSpeeds` đặt `SkeletonAnimation.timeScale` và chờ `(mốc − mốc trước)/speed`. Đi/đứng/chạy: `CharacterView.PlayAnimationByActionState` (0x18069b490) → cùng hàm, tốc độ `GetMoveAnimationSpeed()` khi Move. Đổi NW↔SW: `UpdateSkeletonIndex` đặt lại clip cùng `TrackTime`, `MixBlend.Setup` (không trộn). Web: `UnitVisual.play/pose` gọi `setAnimation` cho cả hai khung → khớp.
 - Người chơi đang giữ phím di chuyển coi như đang đi ngay cả khung skill vừa hết (stage.render), tránh chớp một khung idle giữa lướt → đi.
-- Hướng nhìn 8 ô màn hình (CharacterView._animationMode = 2, `LookAtDirectionAsEightWay`): ô chéo quyết cả bộ xương NW/SW lẫn lật; ô lên/xuống chỉ quyết bộ xương, ô trái/phải chỉ quyết lật; còn lại giữ nguyên. [SUY LUẬN từ tên hàm] Đo: quét ngắm 80–100° trong 60 khung, cách cũ (theo dấu x) lật 7 lần, cách mới 0.
-- **Không có hitstop.** [ĐO âm] metadata IL2CPP không có tên nào chứa HitStop/HitPause; stage bỏ qua sự kiện `hitstop` của lõi (lõi vẫn phát để tương thích).
+- Hướng nhìn [ĐO 2026-09-26] `UnitView.LookAtDirection` (0x1806a9b10, gọi cuối `UnitView.Update` mỗi khung). `_animationMode` 2 = **FourWay** ở cả 201 prefab Spine (0 None, 1 TwoWay, 3 EightWay = `LookAtDirectionAsEightWay` 0x1806a97a0, không prefab nào dùng). `(sx, sy) = MathUtility.IsometricToTopDown(forward)` = `Euler(0, 45°, 0)·v`; `a = atan2(sy, sx)` độ:
+  - [0, 90): khung 0, ScaleX −1; [90, 180): khung 0, +1; [−180, −90): khung 1, +1; [−90, 0): khung 1, −1; a = 180 hoặc |v|² < 1e-10: giữ nguyên.
+  - Khung 0/1 = `SkeletonAnimations[0/1]` của prefab: 163 prefab [NW, SW], 28 prefab [SW, SW] (`meta.units[id].skels`). Lật = `skeleton.ScaleX` (không đổi transform). **Không có vùng giữ**: ngắm quanh phương dọc thì lật theo dấu sx.
+  - Bẫy đã sập: bản 2026-09-25 đoán "tám ô có vùng giữ" từ tên hàm EightWay và làm test đòi "không lật quanh phương dọc" — ngược với mã gốc. Nay test kiểm bảng trên (`test/voiddiver-fx-contract.js`).
+- Xương ngắm [ĐO] `UnitView.InitSkeleton` tìm xương `aim_target` (chuỗi duy nhất; `aim_pointer` do rig tự lái: IK `IK_aim_target` xoay aim_pointer về aim_target, các `TF_aim_*` theo aim_pointer với mix do từng anim khoá sẵn — Raven: arm_B 0,5, body 0,1, đầu 0,1–0,2; về 0 khi nạp đạn/lướt/chết). `UnitView.OnUpdateWorld` (0x1806ace80) móc `SkeletonAnimation.UpdateWorld` (sau apply anim, trước khi giải constraint), mỗi khung: `v = IsometricToTopDown(CalculatedDeltaAimPos)`, `v.x *= ScaleX`, chuẩn hoá, `aim_target.X/Y = v` (cục bộ theo cha, 1 = 100 px). Không kẹp, không làm mượt. Web: `UnitVisual.setAim` + `update` (chèn bước này giữa `state.apply` và `updateWorldTransform`).
+- **Không có hitstop.** [ĐO 2026-09-26, dò theo hành vi chứ không theo tên] `Time.set_timeScale` chỉ do chống gian lận `SpeedHackDetector` gọi; `set_fixedDeltaTime` chỉ `AdaptivePhysics`; `SkeletonAnimation.timeScale` chỉ đổi qua `UnitView.SetAnimationSpeed` từ `AddStatusEffect`/`RemoveStatusEffect` khi tag `Freeze` (0x10000000 → 0 / 1), `CharacterMoveState.OnExit` (1) và `PlayAnimationAsync` (animationSpeeds); `MonsterView.OnHpDamage` chỉ phát tiếng. Trúng đòn chỉ có chữ nổi, tiếng, rung camera. Stage bỏ qua sự kiện `hitstop` của lõi; Freeze làm anim đứng (`UnitVisual.frozen`).
 - `AtkSpeed` nhân tốc độ thời gian của skill có tag `BasicAttack`. [SUY LUẬN] Số gốc AtkSpeed = 1 nên không ảnh hưởng số kiểm.
 
 ### 2.6 Di chuyển trong skill
@@ -287,7 +293,7 @@ Phản hồi trúng đòn (phát cho trình bày):
 - `hitSfx`, hoặc `criticalHitSfx` khi chí mạng. `Monster.HitSfx` theo `HitSfxPercent`.
 - `hitstop`, `flash`.
 - `OwnerHitShake*`: rung cho người đánh. Const `HitShake*` (0.25 / 0.1 / 0.15 s): rung khi nhân vật bị trúng.
-- Hitstop **không có trong bảng**. Số trình bày ở `VD.Combat.HITSTOP`: thường 0.045, chí mạng 0.075, hạ gục 0.09, đỡ đòn 0.12 s.
+- Hitstop **không có trong bảng và không có trong mã gốc** (§2.5). `VD.Combat.HITSTOP` (0.045/0.075/0.09/0.12 s, tự chế) vẫn phát sự kiện `hitstop` nhưng stage bỏ qua.
 
 ### 3.6 Khống chế (CC) và thanh áp chế
 
@@ -544,7 +550,10 @@ Bản Hard (20000001) giống thế nhưng SFX là `Attack_Warning_CantParry`, v
 - Hợp đồng sự kiện `vfx` (stage.playFx nhận nguyên): `name, unit|pos, hitbox, owner, bone, offset, zOffset, duration, loop, loopDuration, speeds, follow, dir, element, tracking, rotate`.
   - `hitbox` có mặt → VFX bám một Object3D neo theo `hb.pos` (cả `pos.y` của parabola) và `hb.dir` mỗi khung; `tracking` = đạn bay. Hitbox hết thì VFX dừng kiểu 'end' (như SkillVfx gốc bị Destroy cùng hitbox). Vì vậy dữ liệu gốc kéo `duration` hitbox dài hơn cửa sổ va chạm (đòn 1 Gayoung: dur 1.0, va chạm tới 0.19).
   - `SpawnWithIdentityRotation` → không quay theo hitbox; `InheritOwnerScaleX` → lật theo hình chủ.
-  - `unit` + `follow` → bám gốc hình; `UpdateByAimDir` → bám neo quay theo ngắm mỗi khung; `bone` → độ lệch xương `bone_<tên>` (UnitVisual.boneOffset).
+  - `unit` + `follow` → bám gốc hình; `UpdateByAimDir` → bám neo quay theo ngắm mỗi khung; `bone` → độ lệch theo `UnitView.GetBoneOffset` [ĐO 0x1806a85f0] (UnitVisual.boneOffset):
+    - `Symbol` → `up · SymbolPositionY` của prefab, **không nhân scale** (0,45–3,0 m tuỳ quái; nhân vật 1,25; `tools/rip.py unit-view` → `art/spine/*/meta.json` `units[id].sym`). Bản trước dùng 1,25 × scale cho mọi unit.
+    - Head/Eye/Body/Death → xương `bone_<tên>` của khung đang hiện: `Euler(30, −45, 0)·(s·worldX, s·worldY, 0) + (0, localPosition.y, 0)`, s = localScale.x của SkeletonAnimation (`units[id].bsx`), lật nằm trong worldX. Nghĩa là chiều cao nhân cos 30° = 0,866 và lệch ±0,354·wy theo chiều sâu camera. 17 prefab không có xương `bone_*` → không lệch.
+  - Scale hình = scale gốc prefab × tích localScale xuống tới SkeletonAnimation (`units[id].sk`): Mio 0,95, Mascot 1,35, Zombie 1,06–1,14… Bản trước bỏ phần dưới gốc nên mọi unit về 1.
   - `offset` + `VfxZOffset` là độ lệch cục bộ, quay theo hướng VFX. [SUY LUẬN] ZOffset dọc trục trước: thiên thạch Mio `startOffset z −1.1` + `VfxZOffset 1.1` về đúng tâm.
   - `VfxSpeeds[{endTime, speed}]`: `endTime` là thời gian của hiệu ứng (như animationSpeeds), sau mốc cuối tốc độ 1. [SUY LUẬN] `{1.0: 30}` theo giờ thật sẽ vô lý.
   - `vfxEnd` → `VD.vfx.stop(h, 'end')`.

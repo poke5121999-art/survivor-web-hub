@@ -25,5 +25,29 @@
    "name": "Boss_Corpus_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "300023": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 2.0,
+   "bsx": 2.0,
+   "lpy": 0.0,
+   "skels": [
+    "SW",
+    "SW"
+   ]
+  },
+  "300024": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 2.0,
+   "bsx": 2.0,
+   "lpy": 0.0,
+   "skels": [
+    "SW",
+    "SW"
+   ]
+  }
+ }
 }

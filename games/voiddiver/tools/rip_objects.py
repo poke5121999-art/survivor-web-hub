@@ -408,16 +408,32 @@ def export_prefab(env, root, cmap):
           [x['skeleton'] for x in data['spines']], 'col', len(data['colliders']), data.get('glbKB'), flush=True)
 
 
+def root_score(go, cmap):
+    """Vai GameObject goc trung ten nhau (vd MedicalBox co ca ban RewardBox lan ban MimicObject
+    doi lot): uu tien ban mang MonoBehaviour RewardBox (co _holdingSfx...), bo ban MimicObject."""
+    for mb in comps_of(go).get('MonoBehaviour', []):
+        cn = clsname(mb, cmap)
+        if cn == 'RewardBox':
+            return 2
+        if cn == 'MimicObject':
+            return 0
+    return 1
+
+
 def cmd_prefabs(names):
     b = vd.bfile('remote_prefab_assets_object')
 
     def run(env):
         cmap = class_map(env)
-        roots = {}
+        roots, scores = {}, {}
         for sf in vd.serialized_files(env, b):
             for t in vd.roots_of(sf):
-                n = t.m_GameObject.deref_parse_as_object().m_Name
-                roots.setdefault(n, t)
+                go = t.m_GameObject.deref_parse_as_object()
+                n = go.m_Name
+                s = root_score(go, cmap)
+                if n not in roots or s > scores[n]:
+                    roots[n] = t
+                    scores[n] = s
         miss = []
         for n in names:
             if n not in roots:

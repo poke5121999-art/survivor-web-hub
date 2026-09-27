@@ -235,14 +235,15 @@
   ].join('\n');
 
   // vệt (TrailRenderer, trail module kiểu Ribbon): đỉnh đã tính sẵn trong thế giới trên CPU.
-  // Luồng đỉnh mặc định của vệt Unity chỉ có Position/Color/UV → TEXCOORD1..3 = 0.
+  // Luồng đỉnh mặc định của vệt Unity chỉ có Position/Color/UV → TEXCOORD1..3 = 0; renderer bật
+  // m_UseCustomTrailVertexStreams thì TEXCOORD1..3 lấy custom data của hạt (fx_export: r.tslots) — rc1..rc3.
   var VERT_RIBBON = [
-    'attribute vec4 rcol;',
+    'attribute vec4 rcol; attribute vec4 rc1; attribute vec4 rc2; attribute vec4 rc3;',
     'varying vec2 vUV; varying vec4 vCol; varying vec4 vC1; varying vec4 vC2; varying vec4 vC3; varying float vNdV; varying float vMir;',
     'vec3 s2l(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c)); }',
     'void main() {',
     '  vUV = uv; vec4 c = clamp(rcol, 0.0, 1.0); vCol = vec4(s2l(c.rgb), c.a);',
-    '  vC1 = vec4(0.0); vC2 = vec4(0.0); vC3 = vec4(0.0); vNdV = 1.0; vMir = 1.0;',
+    '  vC1 = rc1; vC2 = rc2; vC3 = rc3; vNdV = 1.0; vMir = 1.0;',
     '  gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0);',
     '}'
   ].join('\n');
@@ -568,6 +569,7 @@
       tp.systems.forEach(function (st) {
         if (st.visible) getBatch(st).warm = true;
         if (st.ribbon) getRibbon(st.ribbon, st.ribbon.rmat, st.ribbon.order).warm = true;
+        if (st.ptrail) getRibbon(st.ptrail, st.ptrail.rmat, st.ptrail.order).warm = true;
       });
       tp.trails.forEach(function (tr) { if (tr.visible) getRibbon(tr, tr.rmat, tr.order).warm = true; });   // vệt: shader đỉnh riêng
       tp.meshes.forEach(function (m) {
@@ -621,6 +623,21 @@
       var st = buildSystem(s, doc, tp);
       st.index = si;
       tp.systems.push(st);
+    });
+    // sub emitter: {s: chỉ số hệ con, t: 0 Birth | 1 Collision | 2 Death, p: bit kế thừa màu/size/xoay/tuổi thọ, pr: xác suất}
+    tp.systems.forEach(function (st) {
+      if (!st.subRaw) return;
+      var list = st.subRaw.filter(function (e) { return tp.systems[e.s]; }).map(function (e) {
+        var sub = tp.systems[e.s];
+        return { si: e.s, t: e.t || 0, p: e.p || 0, pr: e.pr === undefined ? 1 : e.pr, st: sub };
+      });
+      st.subBirth = list.filter(function (e) { return e.t === 0; });
+      st.subColl = list.filter(function (e) { return e.t === 1; });
+      st.subDeath = list.filter(function (e) { return e.t === 2; });
+      list.forEach(function (e) { if (e.t > 2) note('sub emitter kiểu ' + e.t + ' (Trigger/Manual) — không phát'); });
+      if (!st.subBirth.length) st.subBirth = null;
+      if (!st.subColl.length) st.subColl = null;
+      if (!st.subDeath.length) st.subDeath = null;
     });
     tp.anims = doc.anims || [];
     tp.anims.forEach(function (a) {
@@ -725,11 +742,15 @@
     // slots TEXCOORD1..3 → mã nguồn
     st.slots = new Int8Array(12);
     (r.slots || []).forEach(function (nm, i) { if (i < 12) st.slots[i] = SRC_ID[nm] !== undefined ? SRC_ID[nm] : 0; });
+    st.tslots = null;   // luồng đỉnh tuỳ biến của vệt (m_TrailVertexStreams)
+    if (r.tslots) { st.tslots = new Int8Array(12); r.tslots.forEach(function (nm, i) { if (i < 12) st.tslots[i] = SRC_ID[nm] !== undefined ? SRC_ID[nm] : 0; }); }
     st.needC = [false, false];
     for (var i2 = 0; i2 < 12; i2++) {
       var sid = st.slots[i2];
       if (sid >= 1 && sid <= 4) st.needC[0] = true;
       if (sid >= 5 && sid <= 8) st.needC[1] = true;
+      if (st.tslots && st.tslots[i2] >= 1 && st.tslots[i2] <= 4) st.needC[0] = true;
+      if (st.tslots && st.tslots[i2] >= 5 && st.tslots[i2] <= 8) st.needC[1] = true;
     }
     st.grad2 = s.grad2 || null;
     st.lightsMod = s.lightsMod || null;
@@ -739,8 +760,33 @@
         sizeW: tm.sizeW !== 0, inherit: tm.inheritCol !== 0, texMode: tm.texMode || 0 };
       var ro = makeMat(r.trailMat, r, [0, 0, 0], null, true);
       st.ribbon.rmat = ro.sm; st.ribbon.order = ro.order;
-    } else if (s.trail) note('trail module kiểu PerParticle — chưa vẽ');
-    if (s.sub) note('sub emitter — chưa phát');
+    } else if (s.trail && s.trail.mode !== 1 && r.trailMat && r.trailMat.sh !== 'skip') {
+      // Trail module kiểu PerParticle: mỗi hạt để lại một vệt theo lịch sử vị trí của nó
+      var pt = s.trail;
+      st.ptrail = { W: mmc(pt.width === undefined ? 1 : pt.width), CT: mmg(pt.colTrail || [1, 1, 1, 1]), CL: mmg(pt.colLife || [1, 1, 1, 1]),
+        life: mmc(pt.life === undefined ? 1 : pt.life), minDist: pt.minDist === undefined ? 0.2 : pt.minDist,
+        ratio: pt.ratio === undefined ? 1 : pt.ratio, world: !!pt.world, die: pt.die !== 0, sizeW: pt.sizeW !== 0,
+        sizeL: !!pt.sizeL, inherit: pt.inheritCol !== 0, texMode: pt.texMode || 0 };
+      var po = makeMat(r.trailMat, r, [0, 0, 0], null, true);
+      st.ptrail.rmat = po.sm; st.ptrail.order = po.order;
+    }
+    // Sub emitter: hệ con do hạt của hệ cha phát (Birth/Collision/Death); hệ con không tự phát. Nối chỉ số ở buildTemplate.
+    st.isSub = !!s.isSub;
+    st.subRaw = s.sub || null;
+    if (s.noise) {
+      var nz = s.noise;
+      st.noise = { str: mmc(nz.str), strY: nz.sep ? mmc(nz.strY) : null, strZ: nz.sep ? mmc(nz.strZ) : null,
+        freq: nz.freq === undefined ? 0.5 : nz.freq, damp: nz.damp !== 0, oct: nz.oct || 1, octMul: nz.octMul === undefined ? 0.5 : nz.octMul,
+        octScale: nz.octScale === undefined ? 2 : nz.octScale, scroll: mmc(nz.scroll || 0), pos: mmc(nz.pos === undefined ? 1 : nz.pos),
+        rot: mmc(nz.rot || 0), size: mmc(nz.size || 0), remap: nz.remap ? nz.remap.map(function (x) { return mmc(x); }) : null };
+    }
+    if (s.inhVel) st.inh = { mode: s.inhVel.mode || 0, c: mmc(s.inhVel.c) };
+    if (s.coll) {
+      var cl = s.coll;
+      st.coll = { type: cl.type || 0, planes: cl.planes || [], dampen: mmc(cl.dampen || 0), bounce: mmc(cl.bounce === undefined ? 1 : cl.bounce),
+        loss: mmc(cl.loss || 0), minKill: cl.minKill || 0, maxKill: cl.maxKill === undefined ? 10000 : cl.maxKill,
+        radius: cl.radius === undefined ? 1 : cl.radius };
+    }
     (s.skipped || []).forEach(function (m) { note(m); });
     // renderer
     st.flip = r.flip || [0, 0, 0];
@@ -953,6 +999,9 @@
     rb.pos = mk('position', 3, Float32Array, rb.pos); rb.geo.setAttribute('position', rb.pos);
     rb.uv = mk('uv', 2, Float32Array, rb.uv); rb.geo.setAttribute('uv', rb.uv);
     rb.col = mk('rcol', 4, Float32Array, rb.col); rb.geo.setAttribute('rcol', rb.col);
+    rb.c1 = mk('rc1', 4, Float32Array, rb.c1); rb.geo.setAttribute('rc1', rb.c1);
+    rb.c2 = mk('rc2', 4, Float32Array, rb.c2); rb.geo.setAttribute('rc2', rb.c2);
+    rb.c3 = mk('rc3', 4, Float32Array, rb.c3); rb.geo.setAttribute('rc3', rb.c3);
     var ia = new THREE.BufferAttribute(new Uint32Array(cap * 3), 1);
     if (rb.idx) ia.array.set(rb.idx.array.subarray(0, Math.min(rb.idx.array.length, ia.array.length)));
     ia.setUsage(THREE.DynamicDrawUsage);
@@ -961,11 +1010,16 @@
   }
   // P: điểm tạm [x,y,z,width,r,g,b,a,u] × k, đầu vệt trước
   var RP = new Float32Array(9 * 1024);
-  function emitRibbon(rb, k) {
+  // cs: 12 số TEXCOORD1..3 cho cả dải (custom data của hạt), null = 0
+  var ZERO12 = new Float32Array(12);
+  function emitRibbon(rb, k, cs) {
     if (k < 2) return;
     growRibbon(rb, rb.nv + k * 2);
     var P = RP, pos = rb.pos.array, uv = rb.uv.array, col = rb.col.array, idx = rb.idx.array;
-    var v0 = rb.nv;
+    var v0 = rb.nv, C = cs || ZERO12, c1 = rb.c1.array, c2 = rb.c2.array, c3 = rb.c3.array;
+    for (var cv = v0 * 4, ce = (v0 + k * 2) * 4; cv < ce; cv += 4) {
+      for (var cc = 0; cc < 4; cc++) { c1[cv + cc] = C[cc]; c2[cv + cc] = C[4 + cc]; c3[cv + cc] = C[8 + cc]; }
+    }
     for (var i = 0; i < k; i++) {
       var a = Math.max(0, i - 1) * 9, b = Math.min(k - 1, i + 1) * 9, o = i * 9;
       var tx = P[b] - P[a], ty = P[b + 1] - P[a + 1], tz = P[b + 2] - P[a + 2];
@@ -1050,14 +1104,118 @@
       P[q + 4] *= tmpG[0]; P[q + 5] *= tmpG[1]; P[q + 6] *= tmpG[2]; P[q + 7] *= tmpG[3];
       P[q + 8] = u;
     }
-    emitRibbon(getRibbon(R, R.rmat, R.order), n);
+    var ho = (si.n - 1) * NF;   // luồng đỉnh tuỳ biến: lấy custom data của hạt mới nhất cho cả dải [SUY LUẬN]
+    emitRibbon(getRibbon(R, R.rmat, R.order), n, st.tslots ? trailSrc(si, d, ho, d[ho + F.age] / d[ho + F.life]) : null);
+  }
+
+  // Trail module kiểu PerParticle: lịch sử vị trí của từng hạt. Điểm lưu trong thế giới nếu hệ mô phỏng World hoặc
+  // vệt bật World Space; không thì trong khung của hệ (vệt đi theo node). Tuổi điểm tính theo đồng hồ mô phỏng si.clk.
+  function trailPush(fx, si, T, d, o) {
+    var st = si.st, PT = st.ptrail, x = d[o + F.px], y = d[o + F.py], z = d[o + F.pz];
+    if (!st.world && PT.world) {
+      var e = si.M.elements, X = x, Y = y, Z = z;
+      x = e[0] * X + e[4] * Y + e[8] * Z + e[12]; y = e[1] * X + e[5] * Y + e[9] * Z + e[13]; z = e[2] * X + e[6] * Y + e[10] * Z + e[14];
+    }
+    var pts = T.pts, n = trailAge(T, si.clk);
+    var need = n === 0;
+    if (!need) {
+      var q = (n - 1) * 4, dx = x - pts[q], dy = y - pts[q + 1], dz = z - pts[q + 2];
+      need = dx * dx + dy * dy + dz * dz >= PT.minDist * PT.minDist;
+    }
+    if (need) {
+      if (n >= PT_MAX) { pts.copyWithin(0, 4, n * 4); n--; }
+      pts[n * 4] = x; pts[n * 4 + 1] = y; pts[n * 4 + 2] = z; pts[n * 4 + 3] = si.clk; n++;
+    }
+    T.n = n;
+  }
+  // bỏ điểm quá tuổi (Lifetime của vệt = hệ số × tuổi thọ hạt), trả số điểm còn
+  function trailAge(T, now) {
+    var pts = T.pts, n = T.n, drop = 0;
+    while (drop < n && now - pts[drop * 4 + 3] > T.life) drop++;
+    if (drop) { pts.copyWithin(0, drop * 4, n * 4); n -= drop; T.n = n; }
+    return n;
+  }
+  // TEXCOORD1..3 của dải vệt theo m_TrailVertexStreams: custom data + tuổi + số ngẫu nhiên của hạt
+  var _ts = new Float32Array(12), _tsrc = new Float32Array(34);
+  function trailSrc(si, d, o, t) {
+    var st = si.st, cdv = st.cd;
+    for (var c = 0; c < 2; c++) {
+      var cd = cdv[c];
+      for (var q = 0; q < 4; q++) _tsrc[1 + c * 4 + q] = 0;
+      if (!cd) continue;
+      if (cd.v) {
+        for (q = 0; q < 4 && q < cd.v.length; q++) {
+          var ov = si.cdOv[c * 4 + q], cv = cd.v[q];
+          if (ov === ov) _tsrc[1 + c * 4 + q] = cv.t === 0 ? ov : (cv.t === 3 ? cv.a + (ov - cv.a) * d[o + F.r0 + q] : (cv.m ? ev(cv, t, d[o + F.r0 + q]) * ov / cv.m : 0));
+          else _tsrc[1 + c * 4 + q] = ev(cv, t, d[o + F.r0 + q]);
+        }
+      } else evG(cd.c, t, d[o + F.r3], _tsrc, 1 + c * 4);
+    }
+    _tsrc[0] = 0; _tsrc[9] = t; _tsrc[10] = 1 / d[o + F.life];
+    _tsrc[12] = d[o + F.r0]; _tsrc[13] = d[o + F.r1]; _tsrc[14] = d[o + F.r2]; _tsrc[15] = d[o + F.r3];
+    _tsrc[20] = d[o + F.sx]; _tsrc[21] = d[o + F.sy]; _tsrc[22] = d[o + F.sz]; _tsrc[23] = d[o + F.rz];
+    for (var k = 0; k < 12; k++) _ts[k] = _tsrc[st.tslots[k]];
+    return _ts;
+  }
+  function writeParticleTrails(fx, si) {
+    var st = si.st, PT = st.ptrail, d = si.buf.d, e = si.M.elements, P = RP, rb = getRibbon(PT, PT.rmat, PT.order);
+    var ptsLocal = !st.world && !PT.world;
+    function put(k, X, Y, Z, local) {
+      var q = k * 9;
+      if (local) { P[q] = e[0] * X + e[4] * Y + e[8] * Z + e[12]; P[q + 1] = e[1] * X + e[5] * Y + e[9] * Z + e[13]; P[q + 2] = e[2] * X + e[6] * Y + e[10] * Z + e[14]; }
+      else { P[q] = X; P[q + 1] = Y; P[q + 2] = Z; }
+    }
+    function finish(k, w, cr, cg, cb, ca, tp, cs) {
+      for (var i = 0; i < k; i++) {
+        var u = k > 1 ? i / (k - 1) : 0, q = i * 9;
+        P[q + 3] = ev(PT.W, u, 0) * w;
+        evG(PT.CT, u, 0, tmpG, 0);
+        P[q + 4] = cr * tmpG[0]; P[q + 5] = cg * tmpG[1]; P[q + 6] = cb * tmpG[2]; P[q + 7] = ca * tmpG[3];
+        evG(PT.CL, tp, 0, tmpG, 0);
+        P[q + 4] *= tmpG[0]; P[q + 5] *= tmpG[1]; P[q + 6] *= tmpG[2]; P[q + 7] *= tmpG[3];
+        P[q + 8] = u;
+      }
+      emitRibbon(rb, k, cs);
+    }
+    for (var i = 0; i < si.n; i++) {
+      var o = i * NF, X = si.ext.get(d[o + F.id]);
+      if (!X || !X.tr) continue;
+      var T = X.tr, n = trailAge(T, si.clk);
+      if (n < 1) continue;
+      var t = d[o + F.age] / d[o + F.life], k = 0;
+      put(k++, d[o + F.px], d[o + F.py], d[o + F.pz], !st.world);   // đầu vệt = vị trí hạt lúc này
+      for (var j = n - 1; j >= 0 && k <= PT_MAX; j--) {
+        var pq = j * 4, hq = 0;
+        put(k, T.pts[pq], T.pts[pq + 1], T.pts[pq + 2], ptsLocal);
+        var dx = P[k * 9] - P[hq], dy = P[k * 9 + 1] - P[hq + 1], dz = P[k * 9 + 2] - P[hq + 2];
+        if (k === 1 && dx * dx + dy * dy + dz * dz < 1e-8) continue;   // điểm vừa ghi trùng đầu vệt
+        k++;
+      }
+      if (k < 2) continue;
+      var w = 1;
+      if (PT.sizeW) { w = d[o + F.sx]; if (st.sizeLife) w *= ev(st.sizeLife.x, t, d[o + F.r0]); }
+      var cr = 1, cg = 1, cb = 1, ca = 1;
+      if (PT.inherit) {
+        cr = d[o + F.cr]; cg = d[o + F.cg]; cb = d[o + F.cb]; ca = d[o + F.ca];
+        if (st.col) { evG(st.col, t, d[o + F.r1], tmpG, 0); cr *= tmpG[0]; cg *= tmpG[1]; cb *= tmpG[2]; ca *= tmpG[3]; }
+      }
+      finish(k, Math.abs(w), cr, cg, cb, ca, t, st.tslots ? trailSrc(si, d, o, t) : null);
+    }
+    // vệt mồ côi (hạt đã chết, dieWithParticles tắt)
+    for (i = si.orph.length - 1; i >= 0; i--) {
+      var O = si.orph[i], m = trailAge(O.tr, si.clk);
+      if (m < 2) { si.orph.splice(i, 1); continue; }
+      for (j = m - 1, k = 0; j >= 0; j--, k++) put(k, O.tr.pts[j * 4], O.tr.pts[j * 4 + 1], O.tr.pts[j * 4 + 2], ptsLocal);
+      var c = PT.inherit ? O.col : [1, 1, 1, 1];
+      finish(k, PT.sizeW ? Math.abs(O.w) : 1, c[0], c[1], c[2], c[3], 1);
+    }
   }
 
   // --------------------------------------------------------- hạt (pool) --
   // Mỗi bản phát của một hệ hạt: SoA theo dung lượng.
   var F = { px: 0, py: 1, pz: 2, vx: 3, vy: 4, vz: 5, age: 6, life: 7, sx: 8, sy: 9, sz: 10, rx: 11, ry: 12, rz: 13,
-    cr: 14, cg: 15, cb: 16, ca: 17, r0: 18, r1: 19, r2: 20, r3: 21, fx: 22, fy: 23, fz: 24, rs: 25, uf: 26, row: 27 };
-  var NF = 28;
+    cr: 14, cg: 15, cb: 16, ca: 17, r0: 18, r1: 19, r2: 20, r3: 21, fx: 22, fy: 23, fz: 24, rs: 25, uf: 26, row: 27, id: 28 };
+  var NF = 29;   // id: số riêng của hạt, khoá vào si.ext (trạng thái sub emitter Birth, lịch sử vệt từng hạt)
   var pools = {};
   function allocSys(cap) {
     var k = 16;
@@ -1118,6 +1276,7 @@
       life: opts.duration > 0 ? +opts.duration : 0, rt: 0, et: 0, speeds: parseSpeeds(opts.speeds),
       local3: opts.local ? new THREE.Vector3(+opts.local.x || 0, +opts.local.y || 0, -(+opts.local.z || 0)) : null,
       owner: opts.owner || null, tracking: !!opts.tracking, mir: opts.scaleX < 0 ? -1 : 1,
+      hbTime: opts.hbTime || null, chainT: 0, retract: null,
       world: [], worldQ: [], worldS: [], sys: [], lightT: 0,
     };
     var p = opts.pos || { x: 0, y: 0, z: 0 };
@@ -1166,7 +1325,8 @@
       var cap = Math.min(Math.max(st.maxP, 1), estimateCap(st));
       var si = { st: st, buf: allocSys(cap), n: 0, t: 0, emitAcc: 0, burstK: new Int32Array(st.bursts.length),
         loopN: 0, finished: false, prev: new THREE.Vector3(), hasPrev: false, gx: 0, gy: -1, gz: 0,
-        emitOn: !st.emitOff, wasAct: false, cdOv: new Float32Array(8).fill(NaN) };
+        emitOn: !st.emitOff, wasAct: false, cdOv: new Float32Array(8).fill(NaN),
+        ext: null, nid: 1, orph: [], evx: 0, evy: 0, evz: 0, epx: 0, epy: 0, epz: 0, hasEp: false };
       resetSys(si);
       fx.sys.push(si);
     });
@@ -1190,9 +1350,12 @@
     h.fx = fx;
     effects.push(fx);
   }
-  function resetSys(si) {
+  // keep: giữ hạt đang sống (ParticleLooper phát lại từ đầu, hạt cũ chạy nốt)
+  function resetSys(si, keep) {
     si.t = -ev(si.st.delay, 0, rand());
-    si.emitAcc = 0; si.burstK.fill(0); si.loopN = 0; si.finished = false; si.n = 0; si.hasPrev = false;
+    si.emitAcc = 0; si.burstK.fill(0); si.loopN = 0; si.hasPrev = false;
+    si.finished = !!si.st.isSub;   // hệ con của sub emitter không tự phát
+    if (!keep) { si.n = 0; if (si.ext) si.ext.clear(); si.orph.length = 0; }
   }
   function computeActive(fx) {
     var nodes = fx.tp.nodes;
@@ -1271,7 +1434,7 @@
     if (fx.done) return;
     fx.done = true;
     fx.h.alive = false;
-    fx.sys.forEach(function (si) { if (si) { freeSys(si.buf); si.buf = null; si.n = 0; } });
+    fx.sys.forEach(function (si) { if (si) { freeSys(si.buf); si.buf = null; si.n = 0; si.ext = null; si.orph.length = 0; } });
     if (fx.meshObjs) fx.meshObjs.forEach(function (o) { if (o.parent) o.parent.remove(o); });
   }
   // VfxSpeeds / vfxSpeeds (AnimationSpeed gốc: {endTime, speed}): tốc độ phát từng đoạn, endTime tính theo giờ của
@@ -1297,29 +1460,49 @@
     fx.et = et;
     return d;
   }
-  // ChainSkillVfx (mã gốc, trường đọc từ prefab): _chainTransform = ChainLine01_02 (mesh dài _chainLength về phía sau,
-  // bật sẵn, scale z 0), _playerChainTransform = ChainLine01_01 (mesh dài về phía trước, tắt sẵn), _chainOffset.
-  // Bám hitbox (đạn xích đang bay): gốc ở đầu đạn, xích 01_02 kéo ngược về chủ. Gắn trên mục tiêu (VfxEvent
-  // ActionTarget TriggerTarget lúc lao tới): bật 01_01, quay về chủ. Độ dài = (khoảng cách + _chainOffset) / _chainLength
-  // đặt vào scale z. [SUY LUẬN: tên trường + hình học mesh; mã C# không đọc được]
+  // ChainSkillVfx [ĐO] (mã gốc giải từ GameAssembly.dll, tools/fx_README.md mục ChainSkillVfx):
+  //   _chainTransform = ChainLine01_02 (mesh z −5,93..0: từ móc kéo ngược về chủ), _playerChainTransform = ChainLine01_01
+  //   (mesh z 0..+5,93, gốc ở đầu chủ, tắt sẵn), _chainLength 5,93, _chainOffset −0,42.
+  //   FixedUpdate (0x1805dd8e0): v = (chủ − vfx) trên XZ; L = |v| + _chainOffset; chain.rotation = LookRotation(−v̂);
+  //   chain.localScale.z = max(L / _chainLength, 0). Có HitBox: _elapsedTime += dt; quá HitBoxInfo.collisionEndTime (> 0)
+  //   thì một lần: tắt chain, bật player chain tách khỏi cha, đặt ở chủ + v̂·_chainOffset, cùng hướng/scale với chain,
+  //   DOScaleZ(0, duration − collisionEndTime) (ease mặc định DOTween OutQuad). Vfx gắn mục tiêu (không HitBox) cũng
+  //   kéo chain (01_02) về chủ; player chain chỉ dùng khi thu xích.
   function runScript(fx) {
     var sc = fx.tp.script;
     if (!sc || sc.type !== 'ChainSkillVfx' || !fx.local) return;
-    var on = fx.tracking ? sc.chain : sc.player, off = fx.tracking ? sc.player : sc.chain;
-    if (on >= 0) fx.own[on] = 1;
-    if (off >= 0) fx.own[off] = 0;
-    if (!fx.owner || on < 0) return;
+    var ch = sc.chain, pl = sc.player, R = fx.retract;
+    if (R) {
+      var k = R.dur > 0 ? Math.min(1, (fx.t - R.t0) / R.dur) : 1;
+      if (pl >= 0) fx.ls[pl * 3 + 2] = R.s0 * (1 - (1 - (1 - k) * (1 - k)));   // OutQuad về 0
+      return;
+    }
+    if (ch >= 0) fx.own[ch] = 1;
+    if (pl >= 0) fx.own[pl] = 0;
+    if (!fx.owner || ch < 0) return;
     _v.copy(fx.offset);
     if (fx.follow) { fx.follow.updateWorldMatrix(true, false); _v2.setFromMatrixPosition(fx.follow.matrixWorld); _v.add(_v2); }
     fx.owner.updateWorldMatrix(true, false);
     _v2.setFromMatrixPosition(fx.owner.matrixWorld);
     var dx = _v2.x - _v.x, dz = _v2.z - _v.z, d = Math.sqrt(dx * dx + dz * dz);
-    if (d > 1e-4) {
-      var yaw = fx.tracking ? Math.atan2(-dx, -dz) : Math.atan2(dx, dz);
-      fx.rootQ.setFromAxisAngle(UP, yaw + Math.PI);
+    if (d * d >= 1e-10) {
+      fx.rootQ.setFromAxisAngle(UP, Math.atan2(-dx, -dz) + Math.PI);   // +Z prefab quay ra xa chủ
       fx.followRot = false;
     }
-    fx.ls[on * 3 + 2] = Math.max(0, d + (sc.off || 0)) / (sc.len || 1);
+    var sz = Math.max(0, (d + (sc.off || 0)) / (sc.len || 1));
+    fx.ls[ch * 3 + 2] = sz;
+    var H = fx.hbTime;
+    if (H && H.col > 0 && fx.t > H.col && pl >= 0 && d > 1e-5) {
+      // thu xích: player chain tách khỏi hitbox, gốc đặt cạnh chủ, hướng như chain
+      fx.own[ch] = 0; fx.own[pl] = 1;
+      var off = sc.off || 0;
+      fx.follow = null; fx.local3 = null;
+      fx.offset.set(_v2.x - dx / d * off, _v.y, _v2.z - dz / d * off);
+      fx.lp[pl * 3] = 0; fx.lp[pl * 3 + 1] = 0; fx.lp[pl * 3 + 2] = 0;
+      fx.lq[pl * 4] = 0; fx.lq[pl * 4 + 1] = 0; fx.lq[pl * 4 + 2] = 0; fx.lq[pl * 4 + 3] = 1;
+      fx.ls[pl * 3 + 2] = sz;
+      fx.retract = { t0: fx.t, dur: Math.max(0, H.dur - H.col), s0: sz };
+    }
   }
   function placeMeshes(fx) {
     var ms = fx.meshObjs, tm = fx.tp.meshes;
@@ -1479,6 +1662,17 @@
       _v.set(vx, vy, vz).applyQuaternion(fx.worldQ[st.node]);
       vx = _v.x; vy = _v.y; vz = _v.z;
     }
+    if (SUB.on) {
+      // sub emitter: hình phát đặt tại hạt cha (hướng theo node của hệ con)
+      if (st.world) { var me = si.M.elements; px += SUB.x - me[12]; py += SUB.y - me[13]; pz += SUB.z - me[14]; }
+      else { px += SUB.lx; py += SUB.ly; pz += SUB.lz; }
+    }
+    // Inherit Velocity (chỉ có tác dụng khi mô phỏng World): Initial cộng một lần vận tốc emitter (hạt cha nếu là sub emitter)
+    if (st.inh && st.world && st.inh.mode === 0) {
+      var ik = ev(st.inh.c, tNorm, rand());
+      if (SUB.on) { vx += SUB.vx * ik; vy += SUB.vy * ik; vz += SUB.vz * ik; }
+      else { vx += si.evx * ik; vy += si.evy * ik; vz += si.evz * ik; }
+    }
     d[o + F.px] = px; d[o + F.py] = py; d[o + F.pz] = pz;
     d[o + F.vx] = vx; d[o + F.vy] = vy; d[o + F.vz] = vz;
     d[o + F.age] = 0;
@@ -1503,7 +1697,192 @@
       d[o + F.uf] = ev(st.uv.start, 0, rand());
       d[o + F.row] = st.uv.anim === 1 ? (st.uv.rowMode === 1 ? Math.floor(rand() * st.uv.ty) : st.uv.row) : 0;
     }
+    if (SUB.on && SUB.p) {   // bit kế thừa của sub emitter: 1 màu, 2 kích thước, 4 xoay, 8 tuổi thọ
+      if (SUB.p & 1) { d[o + F.cr] *= SUB.cr; d[o + F.cg] *= SUB.cg; d[o + F.cb] *= SUB.cb; d[o + F.ca] *= SUB.ca; }
+      if (SUB.p & 2) { d[o + F.sx] *= SUB.size; d[o + F.sy] *= SUB.size; d[o + F.sz] *= SUB.size; }
+      if (SUB.p & 4) d[o + F.rz] += SUB.rot;
+      if (SUB.p & 8) d[o + F.life] = Math.max(1e-4, d[o + F.life] * SUB.life);
+    }
+    var id = si.nid++;
+    if (si.nid > 8000000) si.nid = 1;
+    d[o + F.id] = id;
+    if (st.subBirth || st.ptrail) {
+      if (!si.ext) si.ext = new Map();
+      var X = { b: null, tr: null };
+      if (st.subBirth) X.b = st.subBirth.map(function (e) { return { acc: 0, dist: 0, k: new Int32Array(e.st.bursts.length) }; });
+      if (st.ptrail && rand() < st.ptrail.ratio) {
+        X.tr = { pts: new Float32Array(PT_MAX * 4), n: 0, life: ev(st.ptrail.life, tNorm, rand()) * d[o + F.life] };
+      }
+      si.ext.set(id, X);
+    }
     si.n++;
+  }
+  // Ngữ cảnh phát của sub emitter: vị trí/vận tốc hạt cha (thế giới) và thuộc tính kế thừa
+  var SUB = { on: false, x: 0, y: 0, z: 0, lx: 0, ly: 0, lz: 0, vx: 0, vy: 0, vz: 0, p: 0, cr: 1, cg: 1, cb: 1, ca: 1, size: 1, rot: 0, life: 1 };
+  var PT_MAX = 40;   // số điểm tối đa của vệt từng hạt
+  var _inv = new THREE.Matrix4();
+  // phát count hạt vào hệ con e.si tại SUB.x/y/z (đã đặt); tn = thời gian chuẩn hoá của hệ con
+  function subEmit(fx, e, count, tn) {
+    if (count <= 0 || (e.pr < 1 && rand() > e.pr)) return;
+    var sub = fx.sys[e.si];
+    if (!sub || !sub.buf || !fx.act[e.st.node] || (fx.inOnly && !fx.inOnly[e.st.node])) return;
+    if (!sub.M) sub.M = new THREE.Matrix4();
+    simMatrix(fx, e.st, sub.M);
+    if (!e.st.world) {
+      _v.set(SUB.x, SUB.y, SUB.z).applyMatrix4(_inv.copy(sub.M).invert());
+      SUB.lx = _v.x; SUB.ly = _v.y; SUB.lz = _v.z;
+    }
+    SUB.p = e.p; SUB.on = true;
+    for (var k = 0; k < count; k++) spawn(fx, sub, k, count, tn);
+    SUB.on = false;
+  }
+  // số hạt một lần kích (Collision/Death): tổng các burst — kiểu kích này chỉ dùng burst của Emission hệ con
+  function burstCount(st) {
+    var c = 0;
+    for (var b = 0; b < st.bursts.length; b++) {
+      var B = st.bursts[b];
+      if (rand() <= B.prob) c += Math.round(ev(B.count, 0, rand()));
+    }
+    return c;
+  }
+  // đặt SUB từ hạt ở ô o của hệ si (vị trí, vận tốc đổi ra thế giới)
+  function subFrom(si, d, o, vx, vy, vz) {
+    var x = d[o + F.px], y = d[o + F.py], z = d[o + F.pz];
+    if (!si.st.world) {
+      var e = si.M.elements, X = x, Y = y, Z = z;
+      x = e[0] * X + e[4] * Y + e[8] * Z + e[12]; y = e[1] * X + e[5] * Y + e[9] * Z + e[13]; z = e[2] * X + e[6] * Y + e[10] * Z + e[14];
+      var VX = vx, VY = vy, VZ = vz;
+      vx = e[0] * VX + e[4] * VY + e[8] * VZ; vy = e[1] * VX + e[5] * VY + e[9] * VZ; vz = e[2] * VX + e[6] * VY + e[10] * VZ;
+    }
+    SUB.x = x; SUB.y = y; SUB.z = z; SUB.vx = vx; SUB.vy = vy; SUB.vz = vz;
+    SUB.cr = d[o + F.cr]; SUB.cg = d[o + F.cg]; SUB.cb = d[o + F.cb]; SUB.ca = d[o + F.ca];
+    SUB.size = d[o + F.sx]; SUB.rot = d[o + F.rz]; SUB.life = Math.max(0, d[o + F.life] - d[o + F.age]);
+  }
+  // Birth: hệ con chạy dòng thời gian riêng theo tuổi hạt cha (rate over time, burst, rate over distance)
+  function subBirthRange(S, sub, a, b) {
+    var n = 0, dur = sub.dur;
+    if (b < a) return 0;
+    var rate = ev(sub.rate, clamp01(b / dur), rand());
+    if (rate > 0) { S.acc += rate * (b - a); while (S.acc >= 1) { S.acc -= 1; n++; } }
+    for (var q = 0; q < sub.bursts.length; q++) {
+      var B = sub.bursts[q], cyc = B.cycles > 0 ? B.cycles : 1e9;
+      while (S.k[q] < cyc) {
+        var bt = B.time + S.k[q] * B.interval;
+        if (bt > b || bt > dur + 1e-6) break;
+        S.k[q]++;
+        if (rand() <= B.prob) n += Math.round(ev(B.count, clamp01(bt / dur), rand()));
+        if (B.interval <= 0) break;
+      }
+    }
+    return n;
+  }
+  function subBirth(fx, si, X, d, o, dt, vx, vy, vz, moved) {
+    var list = si.st.subBirth, set = false, age = d[o + F.age];
+    for (var k = 0; k < list.length; k++) {
+      var e = list[k], sub = e.st, S = X.b[k], dur = sub.dur, t0 = Math.max(age - dt, 0), t1 = age, n = 0;
+      if (sub.loop) {
+        var L0 = Math.floor(t0 / dur), L1 = Math.floor(t1 / dur);
+        if (L0 === L1) n = subBirthRange(S, sub, t0 - L0 * dur, t1 - L0 * dur);
+        else { n = subBirthRange(S, sub, t0 - L0 * dur, dur); S.k.fill(0); n += subBirthRange(S, sub, 0, t1 - L1 * dur); }
+      } else if (t0 < dur) n = subBirthRange(S, sub, t0, Math.min(t1, dur));
+      if (!isZero(sub.rateDist) && (sub.loop || t0 < dur)) {
+        S.dist += moved * ev(sub.rateDist, clamp01((t1 % dur) / dur), rand());
+        while (S.dist >= 1) { S.dist -= 1; n++; }
+      }
+      if (n > 0) {
+        if (!set) { subFrom(si, d, o, vx, vy, vz); set = true; }
+        subEmit(fx, e, n, clamp01((sub.loop ? t1 % dur : t1) / dur));
+      }
+    }
+  }
+  function subEvent(fx, si, list, d, o, vx, vy, vz) {
+    subFrom(si, d, o, vx, vy, vz);
+    for (var k = 0; k < list.length; k++) subEmit(fx, list[k], burstCount(list[k].st), 0);
+  }
+
+  // Noise module: nhiễu gradient 3D (Perlin cải tiến), mỗi trục một trường lệch nhau. [SUY LUẬN] hàm nhiễu của
+  // Unity là mã đóng; dùng Perlin cùng biên độ ~[-1, 1], tần số, octave, cuộn, remap như tham số của module.
+  var NP = new Uint8Array(512);
+  (function () {
+    var a = [], i, s0 = 0x2545F491;
+    for (i = 0; i < 256; i++) a[i] = i;
+    for (i = 255; i > 0; i--) { s0 = (Math.imul(s0, 1664525) + 1013904223) | 0; var j = (s0 >>> 8) % (i + 1), t = a[i]; a[i] = a[j]; a[j] = t; }
+    for (i = 0; i < 512; i++) NP[i] = a[i & 255];
+  })();
+  function nfade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+  function ngrad(h, x, y, z) {
+    h &= 15;
+    var u = h < 8 ? x : y, v = h < 4 ? y : (h === 12 || h === 14 ? x : z);
+    return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+  }
+  function pnoise(x, y, z) {
+    var X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z);
+    x -= X; y -= Y; z -= Z; X &= 255; Y &= 255; Z &= 255;
+    var u = nfade(x), v = nfade(y), w = nfade(z);
+    var A = NP[X] + Y, AA = NP[A] + Z, AB = NP[A + 1] + Z, B = NP[X + 1] + Y, BA = NP[B] + Z, BB = NP[B + 1] + Z;
+    function L(t, a, b) { return a + t * (b - a); }
+    return L(w, L(v, L(u, ngrad(NP[AA], x, y, z), ngrad(NP[BA], x - 1, y, z)), L(u, ngrad(NP[AB], x, y - 1, z), ngrad(NP[BB], x - 1, y - 1, z))),
+      L(v, L(u, ngrad(NP[AA + 1], x, y, z - 1), ngrad(NP[BA + 1], x - 1, y, z - 1)), L(u, ngrad(NP[AB + 1], x, y - 1, z - 1), ngrad(NP[BB + 1], x - 1, y - 1, z - 1))));
+  }
+  function noiseAt(N, x, y, z, off) {
+    var s = 0, amp = 1, f = 1;
+    for (var k = 0; k < N.oct; k++) { s += amp * pnoise(x * f + off, y * f + off * 0.37, z * f + off * 0.71); amp *= N.octMul; f *= N.octScale; }
+    return s;
+  }
+  var _nz = new Float32Array(3);
+  function noiseSample(N, x, y, z, t, r, scrollT) {
+    var f = N.freq;
+    x *= f; y *= f; z = z * f + scrollT;
+    _nz[0] = noiseAt(N, x, y, z, 0); _nz[1] = noiseAt(N, x, y, z, 43.1); _nz[2] = noiseAt(N, x, y, z, 91.7);
+    if (N.remap) for (var a = 0; a < 3; a++) _nz[a] = ev(N.remap[N.remap.length > 1 ? a : 0], (_nz[a] + 1) * 0.5, r);
+    // damping: độ mạnh tỉ lệ nghịch tần số, để thu phóng trường nhiễu mà quỹ đạo giữ nguyên dáng [SUY LUẬN]
+    var k = N.damp ? 1 / Math.max(f, 1e-4) : 1, sx = ev(N.str, t, r) * k;
+    _nz[0] *= sx; _nz[1] *= N.strY ? ev(N.strY, t, r) * k : sx; _nz[2] *= N.strZ ? ev(N.strZ, t, r) * k : sx;
+  }
+
+  // Collision module: type 1 World xấp xỉ bằng mặt đất y = 0 (sàn của sector) [SUY LUẬN: game không có collider
+  // hạt nào khác trong phạm vi]; type 0 Planes = mặt phẳng qua node, pháp tuyến trục Y của node. Trả true nếu va.
+  var _cp = new THREE.Vector3(), _cn = new THREE.Vector3(), _cv = new THREE.Vector3();
+  function collide(fx, si, d, o, t) {
+    var st = si.st, C = st.coll, e = si.M.elements, local = !st.world;
+    var x = d[o + F.px], y = d[o + F.py], z = d[o + F.pz], vx = d[o + F.vx], vy = d[o + F.vy], vz = d[o + F.vz];
+    if (local) {
+      _cp.set(x, y, z).applyMatrix4(si.M);
+      _cv.set(e[0] * vx + e[4] * vy + e[8] * vz, e[1] * vx + e[5] * vy + e[9] * vz, e[2] * vx + e[6] * vy + e[10] * vz);
+    } else { _cp.set(x, y, z); _cv.set(vx, vy, vz); }
+    var rad = C.radius * Math.abs(d[o + F.sx]) * 0.5, hit = false;
+    var np = C.type === 1 ? 1 : C.planes.length;
+    for (var q = 0; q < np; q++) {
+      var px0 = 0, py0 = 0, pz0 = 0;
+      if (C.type === 1) _cn.set(0, 1, 0);
+      else {
+        var we = fx.world[C.planes[q]].elements;
+        px0 = we[12]; py0 = we[13]; pz0 = we[14];
+        _cn.set(we[4], we[5], we[6]).normalize();
+      }
+      var dist = (_cp.x - px0) * _cn.x + (_cp.y - py0) * _cn.y + (_cp.z - pz0) * _cn.z - rad;
+      var vn = _cv.dot(_cn);
+      if (dist >= 0 || vn >= 0) continue;
+      hit = true;
+      _cp.addScaledVector(_cn, -dist);
+      // Bounce: phần vận tốc pháp tuyến bật lại; Dampen: phần tốc độ mất sau va chạm
+      var bo = ev(C.bounce, t, d[o + F.r2]), dm = ev(C.dampen, t, d[o + F.r2]);
+      _cv.addScaledVector(_cn, -vn * (1 + bo)).multiplyScalar(1 - dm);
+    }
+    if (!hit) return false;
+    // Lifetime Loss: phần tuổi thọ ban đầu mất mỗi lần va; tốc độ dưới Min Kill Speed thì chết
+    d[o + F.age] += ev(C.loss, t, d[o + F.r3]) * d[o + F.life];
+    var sp = _cv.length();
+    if (sp < C.minKill || sp > C.maxKill) d[o + F.age] = d[o + F.life];
+    if (local) {
+      _cp.applyMatrix4(_inv.copy(si.M).invert());
+      var ie = _inv.elements, VX = _cv.x, VY = _cv.y, VZ = _cv.z;
+      _cv.set(ie[0] * VX + ie[4] * VY + ie[8] * VZ, ie[1] * VX + ie[5] * VY + ie[9] * VZ, ie[2] * VX + ie[6] * VY + ie[10] * VZ);
+    }
+    d[o + F.px] = _cp.x; d[o + F.py] = _cp.y; d[o + F.pz] = _cp.z;
+    d[o + F.vx] = _cv.x; d[o + F.vy] = _cv.y; d[o + F.vz] = _cv.z;
+    if (st.subColl) subEvent(fx, si, st.subColl, d, o, d[o + F.vx], d[o + F.vy], d[o + F.vz]);
+    return true;
   }
   function growSys(si, need) {
     if (need <= si.buf.cap) return;
@@ -1522,8 +1901,16 @@
     // trọng lực (thế giới -Y) trong không gian mô phỏng
     if (st.world) { si.gx = 0; si.gy = -1; si.gz = 0; }
     else { _q.copy(fx.worldQ[st.node]).invert(); _v.set(0, -1, 0).applyQuaternion(_q); si.gx = _v.x; si.gy = _v.y; si.gz = _v.z; }
+    // vận tốc emitter (node) trong thế giới, cho Inherit Velocity
+    if (st.inh) {
+      _v.setFromMatrixPosition(fx.world[st.node]);
+      if (si.hasEp && dtIn > 1e-6) { si.evx = (_v.x - si.epx) / dtIn; si.evy = (_v.y - si.epy) / dtIn; si.evz = (_v.z - si.epz) / dtIn; }
+      else { si.evx = 0; si.evy = 0; si.evz = 0; }
+      si.epx = _v.x; si.epy = _v.y; si.epz = _v.z; si.hasEp = true;
+    }
     var prevT = si.t;
     si.t += dt;
+    si.clk = (si.clk || 0) + dt;
     // phát
     if (!si.finished && si.t >= 0 && !fx.stopped && si.emitOn) {
       var dur = st.dur;
@@ -1562,11 +1949,23 @@
     // (orbital ±5 rad/s) bay cách 20–25 m, lên cao 13–24 m, thành đĩa trắng trôi trên màn hình.
     var oW = !!(vel && st.world && (vel.orbit || !isZero(vel.radial))), oC = null, oQ = null, oQi = null;
     if (oW) { oC = _oC.setFromMatrixPosition(fx.world[st.node]); oQ = fx.worldQ[st.node]; oQi = _oQi.copy(oQ).invert(); }
+    var N = st.noise, scrollT = N ? ev(N.scroll, 0, 0) * fx.t : 0;
+    var inhCur = st.inh && st.world && st.inh.mode === 1;
+    var ext = si.ext, PT = st.ptrail;
     for (var i = 0; i < n; i++) {
       var o = i * NF;
       var age = d[o + F.age] + dt;
       var life = d[o + F.life];
-      if (age >= life || (fx.stopped && life > 100)) continue;   // hạt "vĩnh viễn" (Frozen): Destroy khi dừng
+      if (age >= life || (fx.stopped && life > 100)) {   // hạt "vĩnh viễn" (Frozen): Destroy khi dừng
+        if (st.subDeath && age >= life) subEvent(fx, si, st.subDeath, d, o, d[o + F.vx], d[o + F.vy], d[o + F.vz]);
+        if (ext) {
+          var XD = ext.get(d[o + F.id]);
+          // vệt của hạt không chết theo hạt (dieWithParticles tắt): các điểm còn lại mờ dần theo tuổi của chúng
+          if (XD && XD.tr && PT && !PT.die && XD.tr.n > 0) si.orph.push({ tr: XD.tr, col: [d[o + F.cr], d[o + F.cg], d[o + F.cb], d[o + F.ca]], w: d[o + F.sx] });
+          ext.delete(d[o + F.id]);
+        }
+        continue;
+      }
       if (w !== i) d.copyWithin(w * NF, o, o + NF);
       o = w * NF;
       d[o + F.age] = age;
@@ -1626,8 +2025,24 @@
         }
         smod = ev(vel.speedMod, t, r1);
       }
-      d[o + F.px] += mx * smod * dt; d[o + F.py] += my * smod * dt; d[o + F.pz] += mz * smod * dt;
-      // vận tốc hiện (cho stretch) lưu tạm vào r? — không: tính lại khi ghi. Lưu tổng vào vx.. không được (mất base).
+      mx *= smod; my *= smod; mz *= smod;
+      if (inhCur) { var ic = ev(st.inh.c, t, d[o + F.r2]); mx += si.evx * ic; my += si.evy * ic; mz += si.evz * ic; }
+      if (N) {
+        // Noise: dời vị trí như một vận tốc động (không tích vào vận tốc gốc)
+        noiseSample(N, d[o + F.px], d[o + F.py], d[o + F.pz], t, d[o + F.r0], scrollT);
+        var pa = ev(N.pos, t, d[o + F.r1]);
+        mx += _nz[0] * pa; my += _nz[1] * pa; mz += _nz[2] * pa;
+        if (!isZero(N.rot)) d[o + F.rz] += _nz[2] * ev(N.rot, t, d[o + F.r1]) * dt;
+      }
+      d[o + F.px] += mx * dt; d[o + F.py] += my * dt; d[o + F.pz] += mz * dt;
+      if (st.coll) collide(fx, si, d, o, t);
+      if (ext) {
+        var X = ext.get(d[o + F.id]);
+        if (X) {
+          if (X.b) subBirth(fx, si, X, d, o, dt, mx, my, mz, Math.sqrt(mx * mx + my * my + mz * mz) * dt);
+          if (X.tr) trailPush(fx, si, X.tr, d, o);
+        }
+      }
       if (st.rotLife) {
         var rl = st.rotLife, sg = d[o + F.rs], r0 = d[o + F.r0];
         d[o + F.rz] += ev(rl.z, t, r0) * sg * dt;
@@ -1894,7 +2309,7 @@
         fx.loopT += dte;
         if (fx.loopT >= fx.loopIv) {
           fx.loopT -= fx.loopIv;
-          for (j = 0; j < fx.sys.length; j++) { var sr = fx.sys[j], nKeep = sr.n; resetSys(sr); sr.n = nKeep; }
+          for (j = 0; j < fx.sys.length; j++) resetSys(fx.sys[j], true);
         }
       }
       var anyAlive = false;
@@ -1909,6 +2324,7 @@
         simSystem(fx, si, dte);
         if (si.n > 0 || (!si.finished && !fx.stopped) || si.t < 0) anyAlive = true;
         if (si.st.ribbon && si.n > 1) writeParticleRibbon(fx, si);
+        if (si.st.ptrail && (si.n > 0 || si.orph.length)) { writeParticleTrails(fx, si); if (si.orph.length) anyAlive = true; }
         if (si.st.visible && si.n > 0) {
           var b = getBatch(si.st);
           writeSystem(fx, si, b, camera);
@@ -1970,6 +2386,9 @@
         rb.pos.updateRange.count = rb.nv * 3; rb.pos.needsUpdate = true;
         rb.uv.updateRange.count = rb.nv * 2; rb.uv.needsUpdate = true;
         rb.col.updateRange.count = rb.nv * 4; rb.col.needsUpdate = true;
+        rb.c1.updateRange.count = rb.nv * 4; rb.c1.needsUpdate = true;
+        rb.c2.updateRange.count = rb.nv * 4; rb.c2.needsUpdate = true;
+        rb.c3.updateRange.count = rb.nv * 4; rb.c3.needsUpdate = true;
         rb.idx.updateRange.count = rb.ni; rb.idx.needsUpdate = true;
       }
     }

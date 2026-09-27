@@ -33,5 +33,29 @@
    "name": "Monster_ShotgunMan_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "200031": {
+   "sym": 1.3,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "500031": {
+   "sym": 1.3,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

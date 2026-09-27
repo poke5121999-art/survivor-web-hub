@@ -83,6 +83,10 @@
   window.addEventListener('resize', resize);
 
   var cur = Q.get('fx') || '', handle = null, since = 0;
+  // &move=vx,vz: hiệu ứng bám một điểm chạy đều (m/s, toạ độ three) — soi Inherit Velocity, vệt, đạn bay
+  var mv = (Q.get('move') || '').split(',').map(Number), mover = null;
+  if (mv.length === 2 && (mv[0] || mv[1])) { mover = new THREE.Object3D(); scene.add(mover); }
+  function moveStep(dt) { if (mover) { mover.position.x += mv[0] * dt; mover.position.z += mv[1] * dt; mover.updateMatrixWorld(); } }
   function yawRad() { return (+document.getElementById('yaw').value || 0) * Math.PI / 180; }
   function play(name, extra) {
     V.stop(handle, true);
@@ -92,6 +96,10 @@
     var o = { pos: { x: 0, y: Q.get('y') === null ? 0.5 : +Q.get('y'), z: 0 }, dir: yawRad(), element: Q.get('el') || 'None',
       loop: Q.get('loop') === '1', duration: +(Q.get('dur') || 0), only: Q.get('only') || undefined };   // &loop=1: kiểu hiệu ứng trạng thái; &only=<node>
     if (extra) for (var k in extra) o[k] = extra[k];
+    if (mover) {
+      mover.position.set(-mv[0] * 0.3, 0, -mv[1] * 0.3); mover.rotation.y = Math.atan2(mv[0], mv[1]); mover.updateMatrixWorld();
+      o.follow = mover; o.followRot = true; o.dir = 0;   // hướng tới của prefab = hướng chạy
+    }
     handle = V.play(name || cur, o);
     since = 0;
     return handle;
@@ -110,6 +118,7 @@
     acc += dt; frames++;
     if (acc > 0.5) { fps = frames / acc; acc = 0; frames = 0; }
     since += dt;
+    moveStep(dt);
     if (document.getElementById('loop').checked && handle && !handle.alive && since > 0.3 && !stressOn) play();
     V.update(dt, camera);
     renderer.render(scene, camera);
@@ -137,7 +146,7 @@
     step: function (t, dt) {
       dt = dt || 1 / 60;
       var n = Math.round(t / dt);
-      for (var i = 0; i < n; i++) V.update(dt, camera);
+      for (var i = 0; i < n; i++) { moveStep(dt); V.update(dt, camera); }
       renderer.render(scene, camera);
       return V.stats;
     },

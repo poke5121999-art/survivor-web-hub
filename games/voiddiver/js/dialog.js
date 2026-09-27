@@ -8,9 +8,12 @@
   // skipAll: người chơi giữ "bỏ qua" → tua hết cuộc thoại hiện tại tới CloseDialogAsync. Lua vẫn chạy từng dòng theo thứ tự
   // (mỗi AppendDialogAsync/DelayDialogAsync trả task xong ngay), nên SetStep, SpawnMonster, SetCharacterStress, PlayBgm… vẫn chạy.
   const D = { root: null, box: null, open: false, skipFast: false, skipAll: false, radioTimer: 0 };
-  // Giữ Esc bao lâu thì bỏ qua. [CHƯA RÕ] Bản gốc có SkipHoldDuration (CutscenePanelPresenter) nhưng số nằm trong mã, không trong prefab.
+  // Giữ bao lâu thì bỏ qua: GameCutsceneManager.SkipHoldDuration = 1,0 (const; OnSkipStarted: tiến độ = clamp01(time − t0),
+  // TakeWhile(p < 1), xong thì StopTimeline). [ĐO — tools/il2cpp_method.py --fields GameCutsceneManager]
   const SKIP_HOLD = 1.0;
-  const KEY_ICON = n => 'art/ui/tutorial/key/' + n + '.webp';
+  // Ảnh phím đổi theo thiết bị (VD.keyPrompt, core.js). Binding đo từ II_ImagePrompt của prefab (guides.json dialogKeys /
+  // cutscenePanel): Ui/Skip = Space | F (chỉ bàn phím) | A; Ui/NextFlow = Ctrl | RT; khung bỏ qua = Ui/Escape = Esc | B.
+  const K = (kb, pad, only) => VD.keyPrompt(kb, pad, only);
 
   // Ảnh chỉ dùng khi manifest có (portrait/dialogimage chưa bóc hết: tránh 404, thiếu thì để trống).
   function hasImg(kind, name) { const m = VD.ASSETS && VD.ASSETS[kind]; return !!(m && m[name]); }
@@ -36,13 +39,12 @@
   // circle_38 (Image Filled Radial360) và chữ CutSceneSkip "Giữ để bỏ qua". Bản gốc chỉ có khung này cho cắt cảnh;
   // dùng lại cho hội thoại vì DialogPopup gốc không có nút bỏ cả cuộc thoại. [SUY LUẬN]
   function keysHtml() {
-    const k = n => `<img class="vd-key" src="${KEY_ICON(n)}" alt="">`;
-    return `<span class="g">${k('Space_Key')}${k('F_Key')}<i>${TX('NextView') || 'Tiếp theo'}</i></span>` +
-      `<span class="g">${k('Ctrl_Key')}<i>${TX('QuickView') || 'Bỏ qua nhanh'}</i></span>`;
+    return `<span class="g">${K('Space_Key', '<Gamepad>/buttonSouth')}${K('F_Key', '<Gamepad>/buttonSouth', 'kb')}<i>${TX('NextView') || 'Tiếp theo'}</i></span>` +
+      `<span class="g">${K('Ctrl_Key', '<Gamepad>/rightTrigger')}<i>${TX('QuickView') || 'Bỏ qua nhanh'}</i></span>`;
   }
   function skipHtml() {
     return `<div class="dim"></div><div class="row"><div class="kp"><svg viewBox="0 0 42 42"><circle class="bg" cx="21" cy="21" r="19"/>` +
-      `<circle class="fg" cx="21" cy="21" r="19"/></svg><img src="${KEY_ICON('Escape_Key')}" alt=""></div><span>${TX('CutSceneSkip') || 'Giữ để bỏ qua'}</span></div>`;
+      `<circle class="fg" cx="21" cy="21" r="19"/></svg>${VD.keyPrompt('Escape_Key', '<Gamepad>/buttonEast', null, 'kpi')}</div><span>${TX('CutSceneSkip') || 'Giữ để bỏ qua'}</span></div>`;
   }
 
   function build() {
@@ -53,7 +55,7 @@
       <div class="vd-dlg-box"><div class="vd-dlg-name"></div><div class="vd-dlg-text"></div><div class="vd-dlg-choices"></div>
         <div class="vd-dlg-hint">${keysHtml()}</div></div>
       <div class="vd-dlg-fade"></div>
-      <div class="vd-dlg-skip" title="Esc">${skipHtml()}</div>`;
+      <div class="vd-dlg-skip">${skipHtml()}</div>`;
     D.root = root;
     D.bg = root.querySelector('.vd-dlg-bg');
     D.portraits = [...root.querySelectorAll('.vd-dlg-portraits img')];
@@ -73,10 +75,11 @@
     D.skipEl.addEventListener('pointerleave', () => holdEnd('ptr'));
   }
 
+  // Tay cầm: core.js phát lại A → Space, RT → Ctrl, B → Escape khi đang ở giao diện, nên các đường nghe dưới đây dùng chung.
   // Ctrl (UI/NextFlow gốc) nghe từ lúc nạp trang: trước đây chỉ gắn khi dựng hộp thoại lần đầu nên Ctrl giữ sẵn bị bỏ lỡ.
   addEventListener('keydown', e => {
     if (e.code === 'ControlLeft' || e.code === 'ControlRight') D.skipFast = true;
-    if (e.code === 'Escape' && D.open && !e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); holdStart('key'); }
+    if (e.code === 'Escape' && (D.open || D.cut) && !e.repeat) { e.preventDefault(); e.stopImmediatePropagation(); holdStart('key'); }
   }, true);
   addEventListener('keyup', e => {
     if (e.code === 'ControlLeft' || e.code === 'ControlRight') D.skipFast = false;
@@ -87,9 +90,11 @@
   // ---- giữ để bỏ qua: vòng đo đầy sau SKIP_HOLD giây thì bật skipAll.
   const hold = { by: new Set(), t0: 0, raf: 0 };
   const RING = 2 * Math.PI * 19;
-  function setRing(f) { if (D.skipFg) { D.skipFg.style.strokeDasharray = RING; D.skipFg.style.strokeDashoffset = RING * (1 - f); } }
+  function setRing(f) {
+    for (const fg of [D.skipFg, D.cutFg]) if (fg) { fg.style.strokeDasharray = RING; fg.style.strokeDashoffset = RING * (1 - f); }
+  }
   function holdStart(src) {
-    if (!D.open || D.skipAll) return;
+    if (!(D.open && !D.skipAll) && !(D.cut && !D.open)) return;
     if (!hold.by.size) { hold.t0 = performance.now(); D.skipEl && D.skipEl.classList.add('hold'); tickHold(); }
     hold.by.add(src);
   }
@@ -103,7 +108,11 @@
   function tickHold() {
     const f = Math.min(1, (performance.now() - hold.t0) / 1000 / SKIP_HOLD);
     setRing(f);
-    if (f >= 1) { hold.by.clear(); if (D.skipEl) D.skipEl.classList.remove('hold'); startSkipAll(); return; }
+    if (f >= 1) {
+      hold.by.clear(); if (D.skipEl) D.skipEl.classList.remove('hold');
+      if (D.open) startSkipAll(); else if (D.cut) { const cb = D.cut; D.setCutscene(null); cb(); }
+      return;
+    }
     hold.raf = requestAnimationFrame(tickHold);
   }
   function startSkipAll() {
@@ -118,6 +127,22 @@
     setRing(0);
   }
   D.skipAllNow = startSkipAll;             // kiểm thử / gỡ lỗi
+
+  // Cắt cảnh (dive.js cutsceneStart): hiện khung CutscenePanel "Giữ để bỏ qua" riêng (không cần hộp thoại mở); giữ đủ
+  // SkipHoldDuration thì gọi cb (FinishCutscene). cb = null: ẩn khung.
+  D.setCutscene = function (cb) {
+    D.cut = cb || null;
+    if (!D.cutEl && cb) {
+      D.cutEl = $('div', 'vd-dlg-skip vd-cut-skip', document.getElementById('ui') || document.body);
+      D.cutEl.innerHTML = skipHtml();
+      D.cutFg = D.cutEl.querySelector('.fg');
+      D.cutEl.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.button === 0) holdStart('ptr'); });
+      D.cutEl.addEventListener('pointerup', e => { e.stopPropagation(); holdEnd('ptr'); });
+      D.cutEl.addEventListener('pointerleave', () => holdEnd('ptr'));
+    }
+    if (D.cutEl) { D.cutEl.classList.toggle('on', !!cb); VD.refreshPrompts(D.cutEl); }
+    if (!cb) { hold.by.clear(); cancelAnimationFrame(hold.raf); setRing(0); }
+  };
 
   // Đợi người chơi bấm tiếp (hoặc tua nhanh). Trả index lựa chọn nếu có.
   function awaitAdvance(choices) {
@@ -217,7 +242,7 @@
       if (!D.root) build();
       const list = L.table(keys) || [];
       const note = $('div', 'vd-note', D.root);
-      note.innerHTML = `<div class="paper"></div><div class="vd-dlg-hint"><span class="g"><img class="vd-key" src="${KEY_ICON('Space_Key')}" alt=""><img class="vd-key" src="${KEY_ICON('F_Key')}" alt=""><i>${TX('Close') || 'Đóng'}</i></span></div>`;
+      note.innerHTML = `<div class="paper"></div><div class="vd-dlg-hint"><span class="g">${K('Space_Key', '<Gamepad>/buttonSouth')}${K('F_Key', '<Gamepad>/buttonSouth', 'kb')}<i>${TX('Close') || 'Đóng'}</i></span></div>`;
       const paper = note.querySelector('.paper');
       for (let i = 0; i < list.length; i++) { const p = $('p', null, paper); p.textContent = (VD.TEXT && VD.TEXT[list[i]]) || L.text(list[i]); }
       return L.task(awaitAdvance(null).then(() => note.remove()));

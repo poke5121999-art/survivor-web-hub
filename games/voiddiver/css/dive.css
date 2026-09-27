@@ -22,13 +22,14 @@
 .vd-item.cool::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,.55); }
 .vd-item.empty img { opacity: .35; }
 
-/* ---------- túi đồ + lục rương: dựng lại MenuPopup → InventoryManagementPage gốc (tools/ui_inventory_dump.py).
+/* ---------- MenuPopup gốc (tools/ui_inventory_dump.py MenuPopup): thẻ trên cùng + các trang Pages[]. Trang Túi đồ = InventoryManagementPage.
    Mọi số đo dưới đây là px của khung tham chiếu 1920×1080 (CanvasScaler gốc); inventory.js thu cả khung theo màn.
    Sprite gốc ở art/ui/inventory/ (tools/ui_inventory_rip.py), tô màu bằng mask như Image.color của uGUI. */
 .vd-inv { position: fixed; inset: 0; display: none; z-index: 20; pointer-events: auto; overflow: hidden; font-family: 'Pretendard', system-ui, sans-serif; }
 .vd-inv.on { display: block; }
-/* toast (dialog.js) nổi trên bảng khi đang mở túi, vd CannotDropInLootInventory */
+/* toast (dialog.js) và hộp xác nhận (app.js) nổi trên bảng khi đang mở, vd CannotDropInLootInventory, Buộc Thoát Lặn */
 #ui:has(.vd-inv.on) .vd-toasts { z-index: 21; }
+#ui:has(.vd-inv.on) .vd-confirm { z-index: 22; }
 .vd-inv-bg { position: absolute; inset: 0; background: rgba(0,0,0,.25); }
 .vd-inv-bg .dim { position: absolute; inset: 0; background: rgba(38,38,38,.75); }
 .vd-inv-bg .grad { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,.85)); }
@@ -39,26 +40,74 @@
 .vd-inv-page .key { height: 34px; width: auto; vertical-align: middle; }
 .vd-inv-page .mouse { height: 33px; width: auto; vertical-align: middle; }
 .vd-inv-page [style*="--m"], .vs i, .vd-inv-tip .type, .vd-inv-tip .mk { -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+/* hình phím theo thiết bị (II_DeviceBasedObjectController): bàn phím/chuột ↔ tay cầm */
+.vd-inv .key.p, .vd-inv .kp, .vd-inv .g.only-pad { display: none; }
+.vd-inv.pad .key.k, .vd-inv.pad .kk, .vd-inv.pad .g.only-kb { display: none; }
+.vd-inv.pad .key.p, .vd-inv.pad .kp { display: inline; }
+.vd-inv.pad .g.only-pad { display: flex; }
+.vd-inv-center .guide .g.only-pad, .vd-inv.pad .vd-inv-center .guide .g.only-kb { display: none; }
+.vd-inv.pad .vd-inv-center .guide .g.only-pad { display: flex; }
 
-/* thẻ menu (MenuPopup.Tabs[]: 160×64, cách 10, tâm y 84) */
+/* trang: mọi trang cùng khung 1920×1080; chỉ trang đang chọn hiện */
+.vd-mp { position: absolute; inset: 0; display: none; }
+.vd-mp.on { display: block; animation: vd-inv-in .12s ease-out; }
+
+/* thẻ menu (MenuPopup.Tabs[]: 160×64, cách 10, tâm y 84; Normal #1B1B1B viền 2px #434343, icon 58 #898989) */
 .vd-inv-tabs { position: absolute; left: 370px; top: 52px; display: grid; grid-template-columns: repeat(7, 160px); gap: 10px; }
-.vd-inv-tabs .tab { position: relative; height: 64px; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343; }
+.vd-inv-tabs .tab { position: relative; height: 64px; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343; cursor: pointer; }
 .vd-inv-tabs .tab i { position: absolute; left: 51px; top: 3px; width: 58px; height: 58px; background: #898989; }
+.vd-inv-tabs .tab i.sub { background: #dcdcdc; }
+.vd-inv-tabs .tab:hover { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 3px #a45646; background: #1f1c1b; }
 .vd-inv-tabs .tab.on { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 5px #1b1b1b, inset 0 0 0 6px rgba(164,86,70,.5); }
-.vd-inv-tabs .tab.on i { background: #dcdcdc; }
+.vd-inv-tabs .tab.on i:not(.sub) { background: #dcdcdc; }
 .vd-inv-tabs .tab.on::before, .vd-inv-tabs .tab.on::after { content: ""; position: absolute; top: 26px; border: 6px solid transparent; }
 .vd-inv-tabs .tab.on::before { left: 2px; border-left: 8px solid #ba6351; }
 .vd-inv-tabs .tab.on::after { right: 2px; border-right: 8px solid #ba6351; }
-.vd-inv-tabs .kq, .vd-inv-tabs .ke { position: absolute; top: 15px; opacity: .8; }
+/* Disabled!: phủ #1B1B1B 95 % + IconLock (Lock #707070 22×27) — thẻ Tổ đội khi chưa mở co-op */
+.vd-inv-tabs .tab.locked::before { content: ""; position: absolute; inset: 0; z-index: 1; background: rgba(27,27,27,.95); box-shadow: inset 0 0 0 2px #434343; }
+.vd-inv-tabs .tab.locked::after { content: ""; position: absolute; z-index: 2; left: 69px; top: 19px; width: 22px; height: 27px; background: #707070;
+  -webkit-mask: url(../art/ui/inventory/Lock.webp) center / contain no-repeat; mask: url(../art/ui/inventory/Lock.webp) center / contain no-repeat; }
+.vd-inv-tabs .kq, .vd-inv-tabs .ke { position: absolute; top: 15px; opacity: .8; cursor: pointer; }
 .vd-inv-tabs .kq { left: -50px; }
 .vd-inv-tabs .ke { right: -50px; }
 
+/* nút CustomButton gốc: Normal* #1B1B1B + Line 2px #434343; Focused! viền #BA6351 + 1px #A45646; Selected! + viền trong và mũi tam giác;
+   Disabled! phủ #1B1B1B 95 % + ổ khoá Lock #707070 */
+.mp-btn { position: relative; display: flex; align-items: center; justify-content: center; box-sizing: border-box; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343;
+  color: #898989; font-size: 20px; cursor: pointer; text-align: center; }
+.mp-btn:hover, .mp-btn.pad-focus, [data-nav].pad-focus:not(.vs) { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 3px #a45646; }
+.mp-btn.on, .mp-btn.sel { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 5px #1b1b1b, inset 0 0 0 6px rgba(164,86,70,.5); color: #dcdcdc; }
+.mp-btn.disabled { cursor: default; color: #535353; box-shadow: inset 0 0 0 2px #434343; background: rgba(27,27,27,.95); }
+.mp-btn .lk, .ks .lk { position: absolute; width: 22px; height: 27px; background: #707070; -webkit-mask: url(../art/ui/inventory/Lock.webp) center / contain no-repeat; mask: url(../art/ui/inventory/Lock.webp) center / contain no-repeat; }
+.mp-btn .lk { right: 20px; top: calc(50% - 14px); }
+
+/* dải phím dưới trái mỗi trang (KeyGuide!: x 80, y 1019, cách nhóm 20, trong nhóm 14) */
+.mp-keys { position: absolute; left: 80px; top: 1019px; height: 42px; display: flex; align-items: center; gap: 20px; }
+.mp-keys .kg { display: flex; align-items: center; gap: 8px; font-size: 20px; color: #dcdcdc; white-space: nowrap; }
+.mp-keys .kg span { margin-left: 6px; }
+/* thanh "Top!" (Deco 4×24 #898989 x 80, tiêu đề 20 #898989 x 99, chữ phụ 16 sau dấu ':') và nền Bg! #212121 */
+.mp-top { position: absolute; left: 80px; top: 130px; height: 36px; display: flex; align-items: center; gap: 14px; color: #898989; }
+.mp-top > i { width: 4px; height: 24px; background: #898989; }
+.mp-top b { font-size: 20px; }
+.mp-top span { font-size: 16px; font-weight: 400; }
+.mp-top em { color: #898989; font-size: 20px; margin-right: 8px; }
+.mp-bg { position: absolute; left: 0; top: 180px; width: 1920px; height: 818px; background: #212121; }
+.mp-bg .line { position: absolute; top: 40px; width: 2px; height: 738px; background: #434343; }
+.mp-deco { background: #707070; -webkit-mask: url(../art/ui/inventory/DecoEncyclopedia.webp) center / contain no-repeat; mask: url(../art/ui/inventory/DecoEncyclopedia.webp) center / contain no-repeat; }
+
 /* thanh tiêu đề panel (Top*: rectangle #707070 30%, cao 40, chữ 24 đậm cách trái 20, số đếm 20 bên phải) */
 .vd-inv-page .head { position: absolute; left: 0; width: 530px; height: 40px; background: rgba(112,112,112,.3); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
-.vd-inv-page .head b { font-size: 24px; color: #dcdcdc; white-space: nowrap; }
+.vd-inv-page .head b { font-size: 24px; color: #dcdcdc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vd-inv-page .head .cnt { font-size: 20px; color: #898989; font-variant-numeric: tabular-nums; }
 .vd-inv-page .grid { position: absolute; left: 0; display: grid; grid-template-columns: repeat(6, 80px); gap: 10px; }
 
+/* ================= trang Túi đồ (InventoryManagementPage) ================= */
+/* ví (CurrencyLayout: CoinPanel + CurrencyPanel, neo phải; chú thích 18 #898989, số 24 #DCDCDC, icon 20) */
+.vd-inv-cur { position: absolute; right: 80px; top: 104px; display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
+.vd-inv-cur .row { display: flex; align-items: center; gap: 4px; height: 38px; }
+.vd-inv-cur .cap { font-size: 18px; color: #898989; margin-right: 8px; }
+.vd-inv-cur img { width: 20px; height: 20px; }
+.vd-inv-cur b { font-size: 24px; color: #dcdcdc; font-variant-numeric: tabular-nums; }
 /* MyInventory: cột nội dung 530 ở x 80, đỉnh 155 */
 .vd-inv-my { position: absolute; left: 80px; top: 155px; width: 530px; height: 830px; }
 .vd-inv-my .corr { position: absolute; left: 0; top: 0; width: 530px; height: 35px; background: rgba(27,27,27,.4); box-shadow: inset 0 0 0 2px #434343; display: flex; align-items: center; justify-content: center; gap: 18px; font-size: 16px; color: #898989; }
@@ -85,17 +134,28 @@
 .vd-inv-my .head.safe { top: 699px; }
 .vd-inv-my .grid.safe { top: 749px; }
 
-/* giữa: InventoryKeyGuide (540×240, đáy ở y 843) + QuickSlotSettingPanel (đỉnh 854) */
+/* giữa: InventoryKeyGuide (540×240, đáy ở y 843) + QuickSlotSettingPanel hoặc BagPanel (đỉnh 854) */
 .vd-inv-center { position: absolute; left: 690px; top: 603px; width: 540px; height: 400px; }
 .vd-inv-center .guide { display: grid; grid-template-columns: 265px 265px; column-gap: 10px; }
 .vd-inv-center .guide .g { height: 43px; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.vd-inv-center .guide .g > i { display: inline-flex; align-items: center; font-style: normal; }
+.vd-inv-center .guide .g > i.kp, .vd-inv.pad .vd-inv-center .guide .g > i.kk { display: none; }
+.vd-inv.pad .vd-inv-center .guide .g > i.kp { display: inline-flex; }
 .vd-inv-center .guide .g span { margin-left: 10px; font-size: 20px; }
-.vd-inv-center .guide .g i { font-style: normal; font-size: 18px; margin: 0 2px; }
+.vd-inv-center .guide .g i i { font-style: normal; font-size: 18px; margin: 0 2px; }
 .vd-inv-center .quick { position: absolute; left: 0; top: 251px; width: 540px; }
+.vd-inv-center .quick.off { display: none; }
 .vd-inv-center .quick .head { top: 0; width: 540px; }
 .vd-inv-center .quick .hint { font-size: 16px; color: #898989; white-space: nowrap; }
 .vd-inv-center .quick .row { position: absolute; top: 50px; left: 0; display: flex; gap: 12px; }
 .vs .kp { position: absolute; left: 28px; bottom: -40px; width: 24px; height: 24px; }
+/* BagPanel: khung 580 (gradient_square đen 85 % làm bóng + Mtl_DE_UI_DefaultFrame + viền 2px #434343), Top* 40, hàng ô 80 cách 12 */
+.vd-inv-bag { position: absolute; left: 0; top: 251px; width: 540px; height: 130px; display: none; }
+.vd-inv-bag.on { display: block; animation: vd-inv-in .15s ease-out; }
+.vd-inv-bag .shade { position: absolute; left: -25px; top: -10px; width: 590px; height: 170px; background: radial-gradient(closest-side, rgba(0,0,0,.85), rgba(0,0,0,0)); }
+.vd-inv-bag .frame { position: absolute; left: -20px; top: -10px; width: 580px; height: 150px; background: #1a1a1a; box-shadow: inset 0 0 0 2px #434343; }
+.vd-inv-bag .head { top: 0; left: -18px; width: 576px; padding: 0 38px; }
+.vd-inv-bag .row { position: absolute; left: 0; top: 50px; display: flex; gap: 12px; }
 
 /* LootingInventory: 580×810 neo phải −55, đỉnh 200; cột nội dung 530 */
 .vd-inv-loot { position: absolute; left: 1310px; top: 200px; width: 530px; height: 560px; }
@@ -103,11 +163,13 @@
 .vd-inv-loot .line { position: absolute; left: 0; top: 86px; width: 530px; height: 2px; background: #535353; }
 .vd-inv-loot .grid.loot { top: 104px; }
 
-/* ô hàng (InventoryGoodsSlot 80×80) */
+/* ô hàng (InventoryGoodsSlot 80×80; ô thưởng 60, ô trang bị trang Nhân vật 90) */
 .vs { position: relative; width: 80px; height: 80px; box-sizing: border-box; background: rgba(39,39,39,.3); box-shadow: inset 0 0 0 2px #434343; cursor: pointer; touch-action: none; }
+.vs.s60 { width: 60px; height: 60px; }
+.vs.s90 { width: 90px; height: 90px; }
 .vs > i, .vs > img, .vs > b { position: absolute; display: none; pointer-events: none; }
 .vs:not(.empty):not(.locked) { background: #272727; }
-.vs .ic { display: block; left: 6px; top: 6px; width: 68px; height: 68px; object-fit: contain; }
+.vs .ic { display: block; left: 8%; top: 8%; width: 84%; height: 84%; object-fit: contain; }
 .vs .n { display: block; right: 2px; bottom: 2px; height: 30px; line-height: 30px; padding: 0 6px; background: #1b1b1b; font-size: 20px; color: #898989; font-variant-numeric: tabular-nums; }
 .vs .n:empty { display: none; }
 .vs .kp { display: block; }
@@ -116,7 +178,7 @@
 .vs.g-rare .lvl, .vs.g-elite .lvl, .vs.g-epic .lvl, .vs.g-legend .lvl, .vs.g-unique .lvl { display: block; }
 .vs.favd .fav { display: block; left: 4px; top: 4px; width: 18px; height: 18px; background: #ef7767; --m: url(../art/ui/icon_common/IconFavorite.webp); }
 .vs.artifact .art { display: block; inset: 2px; background: #636363; --m: url(../art/ui/inventory/deco_frame_artifact_01.webp); opacity: .4; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
-.vs.empty.cat-weapon .cat, .vs.empty.cat-accessory .cat, .vs.empty.cat-artifact .cat { display: block; inset: 18px; background: #666666; }
+.vs.empty.cat-weapon .cat, .vs.empty.cat-accessory .cat, .vs.empty.cat-artifact .cat { display: block; inset: 22%; background: #666666; }
 .vs.cat-weapon .cat { --m: url(../art/ui/inventory/Weapon.webp); }
 .vs.cat-accessory .cat { --m: url(../art/ui/inventory/Accessory.webp); }
 .vs.cat-artifact .cat { --m: url(../art/ui/inventory/Artifact.webp); }
@@ -125,14 +187,26 @@
   background: linear-gradient(45deg, transparent calc(50% - 1px), #434343 calc(50% - 1px), #434343 calc(50% + 1px), transparent calc(50% + 1px)),
     linear-gradient(-45deg, transparent calc(50% - 1px), #434343 calc(50% - 1px), #434343 calc(50% + 1px), transparent calc(50% + 1px)); }
 .vs.none .ic { opacity: .35; }
-/* Focused!: viền 2px #BA6351 + 1px #A45646; Selected!: thêm viền trong 1px cách 4 và mũi tam giác */
-.vs.focus { box-shadow: inset 0 0 0 2px #ba6351; }
-.vs.focus::after { content: ""; position: absolute; inset: 0; background: rgba(164,86,70,.04); pointer-events: none; }
+/* ô túi phụ: nền túi (Icon_Bag) mờ dưới hàng; túi đang mở viền cam trong */
+.vs.bagopen { box-shadow: inset 0 0 0 2px #a45646; }
+/* Focused!: viền 2px #BA6351 + 1px #A45646 (chuột rê hoặc tay cầm); Selected!: thêm viền trong 1px cách 4 và mũi tam giác */
+.vs.focus, .vs.pad-focus { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 3px #a45646; }
+.vs.focus::after, .vs.pad-focus::after { content: ""; position: absolute; inset: 0; background: rgba(164,86,70,.04); pointer-events: none; }
 .vs.sel { box-shadow: inset 0 0 0 2px #ba6351; outline: 1px solid rgba(164,86,70,.47); outline-offset: -5px; }
-.vs.sel::before { content: ""; position: absolute; left: 34px; top: -2px; border: 6px solid transparent; border-top: 8px solid #ba6351; pointer-events: none; z-index: 1; }
+.vs.sel::before { content: ""; position: absolute; left: calc(50% - 6px); top: -2px; border: 6px solid transparent; border-top: 8px solid #ba6351; pointer-events: none; z-index: 1; }
+/* món đang cầm (kéo chuột / A tay cầm): ô gốc mờ đi */
+.vs.holding .ic { opacity: .3; }
 /* LineFX (LineConfirm 0,33 s): viền sáng khi ô nhận hàng */
 .vs.confirm .fx { display: block; inset: 0; box-shadow: inset 0 0 0 2px #ededed; animation: vd-fx .333s linear forwards; }
 @keyframes vd-fx { to { opacity: 0; } }
+/* Highlight: Glow rectangle_line_glow (9-slice 23) #A45646 material Additive tràn 13 px + Line rectangle_line_2px trắng Additive tràn 2 px;
+   DOTweenAnimation Fade tới 0,6 trong 1 s, Linear, Yoyo lặp vô hạn */
+.vs .hl { inset: 0; -webkit-mask: none; mask: none; z-index: 2; }
+.vs.glow .hl { display: block; animation: vd-glow 1s linear infinite alternate; }
+.vs .hl i { position: absolute; display: block; mix-blend-mode: plus-lighter; }
+.vs .hl .gw { inset: -13px; background: #a45646; -webkit-mask-box-image: url(../art/ui/inventory/rectangle_line_glow.webp) 23 fill / 23px stretch; }
+.vs .hl .ln { inset: -2px; box-shadow: inset 0 0 0 2px #fff; }
+@keyframes vd-glow { to { opacity: .6; } }
 /* Unrevealed / Revealing_ (SlotRevealingLoop 2 s, SlotRevealingEnd 0,5 s — khoá hình đo trong AnimationClip gốc) */
 .vs.unrev, .vs.reving { cursor: default; }
 .vs.unrev .eye, .vs.reving .eye, .vs.reveal-end .eye { display: block; inset: 0; background: #272727; box-shadow: inset 0 0 0 2px #434343; }
@@ -154,34 +228,230 @@
 @keyframes vd-rev-pupil { 0% { opacity: 1; } 3.4% { opacity: .1; } 23.4% { opacity: .1; } 26.6% { opacity: 1; } 66.6%, 100% { opacity: 0; } }
 @keyframes vd-rev-fade { to { opacity: 0; } }
 
-/* DraggingGoodsSlot 60×60 bám con trỏ */
+/* DraggingGoodsSlot 60×60 bám con trỏ (hoặc cạnh ô đang chọn khi cầm bằng tay cầm) */
 .vd-inv-drag { position: absolute; left: 0; top: 0; display: none; pointer-events: none; z-index: 3; }
 .vd-inv-drag .vs { width: 60px; height: 60px; }
-.vd-inv-drag .vs .ic { left: 5px; top: 5px; width: 50px; height: 50px; }
 .vd-inv-drag .vs .n { height: 24px; line-height: 24px; font-size: 16px; }
 
-/* GoodsTooltip → ItemTooltip: rộng 540, lề 50/50/30, khung Mtl_DE_UI_DefaultFrame (khói #1A1A1A + chấm nhiễu) viền 2px #434343 */
+/* GoodsTooltip → ItemTooltip / EquipmentTooltip / BagTooltip: rộng 540, lề 50/50/50/30, khung Mtl_DE_UI_DefaultFrame (khói #1A1A1A + chấm nhiễu)
+   viền 2px #434343; Title_ #272727 cao 60 tràn 2 px mỗi bên; dòng "caption 16 #707070 … giá trị 20 #DCDCDC" ngăn vạch 2px #313131 */
 .vd-inv-tip { position: absolute; left: 690px; top: 200px; width: 540px; display: none; pointer-events: none; z-index: 2; }
 .vd-inv-tip.on { display: block; animation: vd-inv-in .12s ease-out; }
-.vd-inv-tip .frame { position: relative; padding: 50px 50px 30px; background: #1a1a1a; box-shadow: inset 0 0 0 2px #434343, 0 10px 40px rgba(0,0,0,.6); }
-.vd-inv-tip .frame::before { content: ""; position: absolute; inset: 2px; background: rgba(62,62,62,.35); -webkit-mask: url(../art/ui/inventory/deco_slotlevel.webp) 0 0 / 30px 30px; mask: url(../art/ui/inventory/deco_slotlevel.webp) 0 0 / 30px 30px; opacity: .5; pointer-events: none; }
-.vd-inv-tip .title { position: relative; margin: 0 -48px 22px; height: 60px; background: #272727; display: flex; align-items: center; padding: 0 50px; }
-.vd-inv-tip .grade { position: absolute; left: 50px; top: -15px; font-size: 18px; font-weight: 400; line-height: 30px; letter-spacing: .04em; }
-.vd-inv-tip .name { font-size: 28px; color: #dcdcdc; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vd-inv-tip .type { width: 30px; height: 30px; background: #707070; margin-right: 13px; flex: none; }
-.vd-inv-tip .mk { position: absolute; left: 10px; width: 30px; height: 30px; background: #ef7767; --m: url(../art/ui/icon_common/IconFavorite.webp); }
-.vd-inv-tip .desc { margin: 0 0 8px; font-size: 18px; font-weight: 400; color: #898989; line-height: 1.35; white-space: pre-line; }
-.vd-inv-tip .row { display: flex; align-items: center; justify-content: space-between; min-height: 30px; padding: 6px 0; border-bottom: 2px solid #313131; }
-.vd-inv-tip .row span { font-size: 16px; font-weight: 400; color: #707070; }
-.vd-inv-tip .row b { font-size: 20px; color: #dcdcdc; display: flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
-.vd-inv-tip .row b img { width: 20px; height: 20px; }
-.vd-inv-tip .row:last-child { border-bottom: 0; }
+.vd-inv-tip .frame, .c-tip .frame, .a-right .detail .frame { position: relative; padding: 50px 50px 30px; background: #1a1a1a; box-shadow: inset 0 0 0 2px #434343, 0 10px 40px rgba(0,0,0,.6); text-align: left; }
+.vd-inv-tip .frame::before, .c-tip .frame::before, .a-right .detail .frame::before { content: ""; position: absolute; inset: 2px; background: rgba(62,62,62,.35); -webkit-mask: url(../art/ui/inventory/deco_slotlevel.webp) 0 0 / 30px 30px; mask: url(../art/ui/inventory/deco_slotlevel.webp) 0 0 / 30px 30px; opacity: .5; pointer-events: none; }
+.frame .tag { position: absolute; left: 2px; top: 2px; height: 20px; line-height: 20px; padding: 0 16px; font-size: 16px; font-weight: 400; }
+.frame .tag.new { background: rgba(164,86,70,.25); color: #a45646; }
+.frame .title { position: relative; margin: 0 -48px 22px; height: 60px; background: #272727; display: flex; align-items: center; padding: 0 50px; }
+.frame .grade { position: absolute; left: 50px; top: -15px; font-size: 18px; font-weight: 400; line-height: 30px; letter-spacing: .04em; }
+.frame .name { font-size: 28px; color: #dcdcdc; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frame .type { width: 30px; height: 30px; background: #707070; margin-right: 13px; flex: none; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.frame .mk { position: absolute; left: 10px; width: 30px; height: 30px; background: #ef7767; --m: url(../art/ui/icon_common/IconFavorite.webp); -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.frame .mi { width: 44px; height: 44px; object-fit: contain; margin-right: 12px; }
+.frame .desc { position: relative; margin: 0 0 8px; font-size: 18px; font-weight: 400; color: #898989; line-height: 1.35; }
+.frame .row { position: relative; display: flex; align-items: center; justify-content: space-between; min-height: 30px; padding: 6px 0; border-bottom: 2px solid #313131; }
+.frame .row span { font-size: 16px; font-weight: 400; color: #707070; }
+.frame .row b { font-size: 20px; color: #dcdcdc; display: flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.frame .row.dim b { color: #707070; }
+.frame .row.big b { font-size: 24px; }
+.frame .row b img { width: 20px; height: 20px; }
+.frame .row .gp { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; color: #707070; font-style: normal; }
+.frame .row:last-child { border-bottom: 0; }
+/* ArtifactTagGroup_: thẻ loại cổ vật (viền tròn 2 #706E63, nền #292923, chữ 16 #888376) và tiền tố (tốt: #47663D/#252E27/#5A804D; xấu: #804040/#2E2120/#994C4C) */
+.frame .tags { position: relative; display: flex; flex-wrap: wrap; gap: 9px 15px; margin: -8px 0 14px; }
+.frame .tags span { height: 23px; line-height: 23px; padding: 0 10px; border-radius: 2px; font-size: 16px; font-weight: 400; }
+.frame .tags .ac { background: #292923; box-shadow: inset 0 0 0 2px #706e63; color: #888376; }
+.frame .tags .ap.pos { background: #252e27; box-shadow: inset 0 0 0 2px #47663d; color: #5a804d; }
+.frame .tags .ap.neg { background: #2e2120; box-shadow: inset 0 0 0 2px #804040; color: #994c4c; }
+/* EffectGroup_: EquipmentSkillText / SubEffectText — chấm 4×4 #707070 cách trái 14, chữ 16 #707070, cách dòng 6; vạch dưới */
+.frame .eff { position: relative; padding: 2px 0 14px; margin-bottom: 8px; border-bottom: 2px solid #313131; }
+.frame .eff p { position: relative; margin: 0 0 6px; font-size: 16px; font-weight: 400; color: #707070; line-height: 1.3; }
+.frame .eff p::before { content: ""; position: absolute; left: -14px; top: 8px; width: 4px; height: 4px; background: #707070; }
 
-/* màn thấp (điện thoại ngang 844×390): khung gọn 1240×700 — bỏ thẻ menu, bảng phím, ô nhiễm; ô nhanh thành cột */
+/* ================= trang Mục tiêu (QuestPage) ================= */
+.q-list { position: absolute; left: 80px; top: 220px; width: 620px; height: 764px; overflow: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 10px; }
+.q-slot { position: relative; flex: none; height: 80px; box-sizing: border-box; padding: 13px 39px 0; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343; cursor: pointer; }
+.q-slot small { display: block; height: 22px; font-size: 16px; color: #898989; font-weight: 700; }
+.q-slot b { display: block; height: 33px; line-height: 33px; font-size: 20px; color: #898989; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-slot:hover, .q-slot.pad-focus { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 3px #a45646; }
+.q-slot.sel { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 5px #1b1b1b, inset 0 0 0 6px rgba(164,86,70,.5); }
+.q-slot.sel b { color: #dcdcdc; }
+.q-info { position: absolute; left: 760px; top: 220px; width: 1080px; height: 764px; }
+.q-info .empty .deco { position: absolute; left: 312px; top: 102px; width: 456px; height: 480px; opacity: .08; background: #707070; -webkit-mask: url(../art/ui/inventory/DecoEncyclopedia.webp) center / contain no-repeat; mask: url(../art/ui/inventory/DecoEncyclopedia.webp) center / contain no-repeat; }
+.q-info .empty p { position: absolute; left: 110px; top: 282px; width: 860px; height: 120px; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 20px; color: #898989; }
+.q-info .panel { display: none; }
+.q-info.has .empty { display: none; }
+.q-info.has .panel { display: block; }
+.q-info .title { position: absolute; left: 0; top: 0; width: 1058px; height: 96px; }
+.q-info .title::before { content: ""; position: absolute; left: 0; top: 36px; width: 1058px; height: 60px; background: #282828; }
+.q-info .title .type { position: absolute; left: 39px; top: 23px; font-size: 18px; color: #707070; }
+.q-info .title .name { position: absolute; left: 39px; top: 48px; width: 740px; font-size: 28px; color: #dcdcdc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-info .title .lv { position: absolute; right: 40px; top: 48px; font-size: 28px; color: #dcdcdc; }
+.q-info .scroll { position: absolute; left: 40px; top: 106px; width: 1018px; height: 588px; overflow: auto; scrollbar-width: none; box-sizing: border-box; padding: 7px 40px 20px 0; }
+.q-info .desc { margin: 0; font-size: 20px; font-weight: 400; color: #898989; line-height: 1.4; }
+.q-info .goal { position: relative; margin-top: 44px; height: 32px; display: flex; align-items: center; gap: 12px; }
+.q-info .goal b { font-size: 24px; color: #dcdcdc; }
+.q-info .qm { position: relative; width: 24px; height: 24px; box-shadow: inset 0 0 0 2px #898989; }
+.q-info .qm .ex { position: absolute; left: 9px; top: -6px; width: 6px; height: 23px; background: #eee; -webkit-mask: url(../art/ui/inventory/Exclamation.webp) center / contain no-repeat; mask: url(../art/ui/inventory/Exclamation.webp) center / contain no-repeat; }
+.q-info .conds { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.q-info .cond { height: 46px; box-sizing: border-box; padding: 4px 18px 5px; border-radius: 2px; background: #282828; display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 20px; color: #b5b5b5; }
+.q-info .cond span { flex: 1; font-weight: 400; }
+.q-info .cond b { font-variant-numeric: tabular-nums; }
+.q-info .cond.done { color: #707070; }
+.q-info .reward { margin-top: 10px; min-height: 82px; display: flex; align-items: center; justify-content: space-between; }
+.q-info .reward > span { font-size: 16px; color: #707070; font-weight: 400; }
+.q-info .reward .slots { display: flex; gap: 10px; }
+.q-info .btns .mp-btn { position: absolute; top: 704px; height: 48px; font-size: 18px; }
+.q-info .btns .disp { left: 40px; width: 258px; }
+.q-info .btns .disp.on { color: #a45646; box-shadow: inset 0 0 0 2px #434343; }
+.q-info .btns .dlg { left: 318px; width: 218px; }
+.q-info .btns .back { left: 840px; width: 218px; }
+
+/* ================= trang Nhân vật (CharacterPage) ================= */
+.c-info { position: absolute; left: 80px; top: 204px; width: 600px; height: 718px; }
+.c-info .cha { position: absolute; left: 15px; top: -2px; }
+.c-info .cha .bar { position: absolute; left: -15px; top: 6px; width: 2px; height: 24px; background: #898989; }
+.c-info .cha .nm { display: block; font-size: 28px; color: #dcdcdc; line-height: 36px; }
+.c-info .cha .tt { display: block; margin-top: 2px; font-size: 18px; color: #b5b5b5; font-weight: 400; }
+.c-info .stage .floor { position: absolute; left: 96px; top: 433px; width: 342px; height: 172px; background: #646464; -webkit-mask: url(../art/ui/inventory/DecoFloor1.webp) center / 100% 100% no-repeat; mask: url(../art/ui/inventory/DecoFloor1.webp) center / 100% 100% no-repeat; }
+.c-info .stage .shadow { position: absolute; left: 182px; top: 489px; width: 170px; height: 60px; background: radial-gradient(closest-side, rgba(0,0,0,.6), rgba(0,0,0,0)); }
+.c-info .stage canvas { position: absolute; left: 70px; top: 99px; width: 400px; height: 460px; image-rendering: pixelated; }
+.c-info .stats { position: absolute; left: 15px; top: 118px; display: flex; flex-direction: column; gap: 6px; }
+.c-info .st { height: 24px; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.c-info .st span { font-size: 16px; color: #707070; font-weight: 400; }
+.c-info .st b { font-size: 20px; color: #b5b5b5; font-variant-numeric: tabular-nums; }
+.c-info .toggle { position: absolute; left: 15px; top: 612px; width: 200px; height: 26px; border-top: 2px solid #707070; padding-top: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 18px; color: #898989; }
+.c-info .toggle .key { height: 30px; }
+.c-info .toggle .arr { width: 16px; height: 10px; background: #b5b5b5; -webkit-mask: url(../art/ui/inventory/triangle_16.webp) center / contain no-repeat; mask: url(../art/ui/inventory/triangle_16.webp) center / contain no-repeat; margin-left: auto; margin-right: 26px; }
+.c-info .toggle.open .arr { transform: scaleY(-1); }
+.c-info .slots { position: absolute; left: 510px; top: 108px; display: flex; flex-direction: column; gap: 10px; }
+.c-info .slots .sep { display: block; width: 90px; height: 2px; background: #707070; }
+.c-tabs { position: absolute; left: 1370px; top: 180px; display: grid; grid-template-columns: 230px 230px; gap: 10px; }
+.c-tabs .mp-btn { height: 48px; }
+.c-page { position: absolute; left: 1370px; top: 248px; width: 470px; height: 752px; display: none; }
+.c-page.on { display: block; }
+.c-page .hd { position: relative; height: 36px; background: rgba(112,112,112,.3); display: flex; align-items: center; padding: 0 20px 0 48px; font-size: 18px; color: #dcdcdc; }
+.c-page .hd b { flex: 1; }
+.c-page .hd .cnt { color: #898989; font-size: 18px; margin-right: 28px; }
+.c-page .hd .tri { position: absolute; left: 19px; top: 8px; width: 20px; height: 20px; -webkit-mask: url(../art/ui/inventory/triangle_64.webp) center / contain no-repeat; mask: url(../art/ui/inventory/triangle_64.webp) center / contain no-repeat; }
+.c-page .px { height: 192px; margin-bottom: 10px; }
+.c-page .px.pos .tri { background: #58754b; transform: scaleY(-1); }
+.c-page .px.neg .tri { background: #954d4d; }
+.c-page .px .rows { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.c-page .pr { position: relative; width: 440px; min-height: 42px; box-sizing: border-box; padding: 6px 18px; background: rgba(33,33,33,.7); box-shadow: inset 0 0 0 2px #434343; font-size: 20px; }
+.c-page .pos .pr b { color: #58754b; }
+.c-page .neg .pr b { color: #954d4d; }
+.c-page .pr span { float: right; font-size: 16px; color: #707070; }
+.c-page .pr p { display: none; margin: 4px 0 0; font-size: 16px; font-weight: 400; color: #898989; }
+.c-page .pr:hover p, .c-page .pr.pad-focus p { display: block; }
+.c-page .none { display: flex; align-items: center; justify-content: center; height: 80px; margin: 0 65px; font-size: 18px; color: #b5b5b5; font-weight: 400; text-align: center; }
+.c-page .bf .hd { padding-left: 20px; }
+.c-page .bf .list { height: 312px; overflow: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 10px; padding-top: 10px; }
+.c-page .bs { width: 404px; height: 40px; display: flex; align-items: center; gap: 10px; }
+.c-page .bs .ic { position: relative; width: 40px; height: 40px; flex: none; }
+.c-page .bs .ic img { width: 40px; height: 40px; }
+.c-page .bs .ic b { position: absolute; left: 0; right: 0; bottom: -4px; text-align: center; font-size: 20px; color: #fff; text-shadow: 0 0 3px #000; }
+.c-page .bs span { font-size: 20px; color: #b5b5b5; }
+.c-page .skills { display: flex; gap: 8.3px; margin: 10px 0 0 5px; }
+.c-page .sk { position: relative; width: 60px; height: 60px; background: #1b1b1b; box-shadow: inset 0 0 0 2px #6c6d6d; cursor: default; }
+.c-page .sk .ic img { position: absolute; left: 5px; top: 5px; width: 50px; height: 50px; }
+.c-page .sk .ic .lk { position: absolute; left: 19px; top: 16px; width: 22px; height: 27px; background: #707070; -webkit-mask: url(../art/ui/inventory/Lock.webp) center / contain no-repeat; mask: url(../art/ui/inventory/Lock.webp) center / contain no-repeat; }
+.c-page .sk .key { position: absolute; left: 13px; top: 66px; height: 34px; }
+.c-page .sk:hover, .c-page .sk.pad-focus { box-shadow: inset 0 0 0 2px #ba6351; }
+.c-tip { position: absolute; left: 720px; top: 248px; width: 540px; display: none; pointer-events: none; z-index: 2; }
+.c-tip.on { display: block; animation: vd-inv-in .12s ease-out; }
+.c-tip.sk { left: 790px; }
+.c-tip .frame.sk { padding: 30px 40px; }
+.c-tip .frame.sk .title { margin: 0 -38px 14px; height: 50px; padding: 0 40px; }
+.c-tip .frame.sk .name { font-size: 24px; }
+
+/* ================= trang Lưu trữ (ArchivePage) ================= */
+.a-left { position: absolute; left: 80px; top: 160px; width: 640px; }
+.a-left .hd, .a-right .hd { position: relative; height: 40px; background: rgba(112,112,112,.3); display: flex; align-items: center; padding: 0 20px; font-size: 24px; }
+.a-left .cats { height: 780px; margin-top: 10px; overflow: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 10px; }
+.a-cat { position: relative; flex: none; height: 130px; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343; cursor: pointer; }
+.a-cat .tl { position: absolute; left: 1px; top: 20px; width: 638px; height: 54px; background: #272727; display: flex; align-items: center; padding: 0 19px; box-sizing: border-box; }
+.a-cat .tl b { font-size: 24px; color: #dcdcdc; }
+.a-cat p { position: absolute; left: 20px; top: 82px; width: 600px; margin: 0; font-size: 16px; color: #898989; font-weight: 400; }
+.a-cat:hover, .a-cat.pad-focus { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 3px #a45646; }
+.a-cat.sel { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 5px #1b1b1b, inset 0 0 0 6px rgba(164,86,70,.5); }
+.a-right { position: absolute; left: 804px; top: 160px; width: 1036px; height: 830px; }
+.a-right .empty .deco { position: absolute; left: 256px; top: 114px; width: 603px; height: 637px; opacity: .3; background: #707070; -webkit-mask: url(../art/ui/inventory/DecoEncyclopedia.webp) center / contain no-repeat; mask: url(../art/ui/inventory/DecoEncyclopedia.webp) center / contain no-repeat; }
+.a-right .empty p { position: absolute; left: 58px; top: 357px; width: 1000px; height: 160px; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 22px; color: #b5b5b5; }
+.a-right .list { position: absolute; left: 0; top: 50px; width: 1036px; height: 780px; overflow: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 10px; }
+.t-slot { flex: none; min-height: 64px; box-sizing: border-box; padding: 8px 20px; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343; display: flex; flex-direction: column; justify-content: center; font-size: 22px; color: #898989; cursor: pointer; }
+.t-slot small { font-size: 16px; color: #707070; font-weight: 400; }
+.t-slot:hover, .t-slot.pad-focus { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 3px #a45646; }
+.t-slot.sel { box-shadow: inset 0 0 0 2px #ba6351; color: #dcdcdc; }
+.a-right .detail { position: absolute; right: 0; top: 50px; width: 540px; display: none; z-index: 2; cursor: pointer; }
+.a-right .detail.on { display: block; animation: vd-inv-in .12s ease-out; }
+
+/* ================= trang Tổ đội (SquadPage → NotJoinedPanel; chơi mạng nên nút tắt) ================= */
+.mp-squad .s-join .mp-btn { position: absolute; left: 80px; top: 180px; width: 314px; height: 60px; font-size: 22px; }
+.mp-squad .s-open .mp-btn { position: absolute; left: 1600px; top: 180px; width: 240px; height: 60px; font-size: 22px; }
+.mp-squad .s-info { position: absolute; left: 540px; top: 180px; width: 1050px; height: 60px; box-sizing: border-box; background: rgba(33,33,33,.7); box-shadow: inset 0 0 0 2px #686868; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #707070; }
+.mp-squad .s-deco { position: absolute; left: 859px; top: 327px; width: 202px; height: 616px; opacity: .15; background: #707070; -webkit-mask: url(../art/ui/inventory/DecoSquadPage.webp) center / contain no-repeat; mask: url(../art/ui/inventory/DecoSquadPage.webp) center / contain no-repeat; }
+.mp-squad .s-desc { position: absolute; left: 460px; top: 575px; width: 1000px; height: 120px; margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 20px; color: #707070; }
+
+/* ================= trang Tuỳ chọn (OptionPage) ================= */
+.mp-option .mp-bg { height: 800px; }
+.mp-option .mp-bg .line { height: 720px; }
+.o-tabs { position: absolute; left: 80px; top: 220px; display: flex; flex-direction: column; gap: 10px; }
+.o-tabs .ot { position: relative; width: 160px; height: 64px; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343; cursor: pointer; }
+.o-tabs .ot i { position: absolute; left: 51px; top: 3px; width: 58px; height: 58px; background: #898989; }
+.o-tabs .ot:hover, .o-tabs .ot.pad-focus { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 3px #a45646; }
+.o-tabs .ot.on { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 5px #1b1b1b, inset 0 0 0 6px rgba(164,86,70,.5); }
+.o-tabs .ot.on i { background: #dcdcdc; }
+.o-panel { position: absolute; left: 362px; top: 220px; width: 1478px; height: 840px; }
+.orow { position: relative; height: 90px; display: flex; align-items: center; }
+.orow .cap { position: absolute; left: 40px; width: 360px; font-size: 18px; color: #898989; }
+.orow small { position: absolute; left: 40px; top: 12px; font-size: 14px; color: #898989; font-weight: 400; }
+.orow .tg { position: absolute; right: 40px; display: flex; gap: 10px; }
+.orow .tg .t, .orow .tg .mp-btn { position: relative; width: 200px; height: 50px; box-sizing: border-box; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #898989; cursor: pointer; }
+.orow .tg.w320 .t { width: 320px; }
+.orow .tg .t:hover, .orow .tg .t.pad-focus { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 3px #a45646; }
+.orow .tg .t.on { box-shadow: inset 0 0 0 2px #ba6351, inset 0 0 0 5px #1b1b1b, inset 0 0 0 6px rgba(164,86,70,.5); color: #dcdcdc; }
+.orow .tg .t.disabled { cursor: default; opacity: .45; }
+.orow .tg .t.lang { width: 830px; }
+.orow .tg .t.lang .tri { position: absolute; right: 23px; width: 17px; height: 11px; background: #707070; -webkit-mask: url(../art/ui/inventory/triangle_16.webp) center / contain no-repeat; mask: url(../art/ui/inventory/triangle_16.webp) center / contain no-repeat; }
+.orow .sl { position: absolute; left: 438px; width: 1000px; height: 70px; }
+.orow .sl .pct { position: absolute; left: 30px; top: 7px; width: 131px; height: 55px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #898989; }
+.orow .sl .bar { position: absolute; left: 170px; top: 27px; width: 718px; height: 16px; background: #222322; box-shadow: inset 0 0 0 2px #383838; cursor: pointer; }
+.orow .sl .bar.pad-focus { outline: 2px solid rgba(186,99,81,.3); outline-offset: 4px; box-shadow: inset 0 0 0 2px #383838; }
+.orow .sl .fill { position: absolute; left: 2px; top: 2px; bottom: 2px; max-width: calc(100% - 4px); background: #a25d4d; }
+.orow .sl .fill.mute { background: #434343; }
+.orow .sl .hd { position: absolute; top: -15px; width: 16px; height: 46px; margin-left: -8px; background: url(../art/ui/inventory/img_slider_handle.webp) center / 100% 100% no-repeat; }
+.orow .sl .snd { position: absolute; left: 947px; top: 18px; width: 34px; height: 34px; background: url(../art/ui/inventory/ImgSoundOff.webp) center / contain no-repeat; cursor: pointer; }
+.orow .sl .snd.on { background-image: url(../art/ui/inventory/ImgSoundOn.webp); }
+.orow .sl .snd.pad-focus { outline: 2px solid #ba6351; }
+.o-panel > .mp-btn.reset { position: absolute; left: 1238px; top: 780px; width: 200px; height: 60px; }
+.o-panel .keys { display: grid; grid-template-columns: 734px 734px; gap: 10px; height: 720px; overflow: auto; scrollbar-width: none; align-content: start; }
+.o-panel .ks { position: relative; height: 80px; border-radius: 2px; background: #1b1b1b; display: flex; align-items: center; padding: 0 40px; font-size: 18px; color: #898989; }
+.o-panel .ks span { flex: 1; }
+.o-panel .ks .lk { left: 13px; top: 32px; width: 14px; height: 17px; background: #898989; }
+.o-panel .ks .kb { position: relative; width: 60px; height: 60px; border-radius: 2px; background: #1b1b1b; box-shadow: inset 0 0 0 2px #434343; display: flex; align-items: center; justify-content: center; }
+.o-panel .ks .kb img { height: 40px; }
+
+/* ================= trang Hệ thống (SystemPage) ================= */
+.mp-system .y-hand { position: absolute; top: 521px; width: 512px; height: 445px; opacity: .3; background: #707070; -webkit-mask: url(../art/ui/inventory/DecoMenuSystemHand.webp) center / 100% 100% no-repeat; mask: url(../art/ui/inventory/DecoMenuSystemHand.webp) center / 100% 100% no-repeat; }
+.mp-system .y-hand.r { left: 1404px; }
+.mp-system .y-hand.l { left: 4px; transform: scaleX(-1); }
+.y-btns { position: absolute; left: 640px; top: 148px; width: 640px; height: 820px; display: flex; flex-direction: column; justify-content: center; gap: 40px; }
+.y-btns .mp-btn { height: 76px; font-size: 22px; }
+
+/* ================= màn thấp (điện thoại ngang 844×390): khung gọn 1420×700 — thẻ menu thành cột dọc bên trái (rộng 180),
+   mọi trang dời sang phải 180 và xếp lại trong 1240×700; bỏ dải phím, bảng phím, ô nhiễm; ô nhanh thành cột ================= */
 @media (max-height: 480px) {
-  .vd-inv-page { --ref-w: 1240; --ref-h: 700; width: 1240px; height: 700px; }
-  .vd-inv-tabs, .vd-inv-center .guide, .vd-inv-my .corr, .vd-inv-center .quick .head { display: none; }
-  .vd-inv-my { left: 20px; top: 20px; }
+  .vd-inv-page { --ref-w: 1420; --ref-h: 700; width: 1420px; height: 700px; }
+  .vd-inv-tabs { left: 10px; top: 62px; grid-template-columns: 160px; gap: 6px; }
+  .vd-inv-tabs .tab { height: 76px; }
+  .vd-inv-tabs .tab i { top: 9px; }
+  .vd-inv-tabs .kq { left: 57px; top: -52px; }
+  .vd-inv-tabs .ke { left: 57px; right: auto; top: auto; bottom: -52px; }
+  .vd-mp { left: 180px; right: auto; width: 1240px; height: 700px; }
+  .mp-bg, .mp-option .mp-bg { top: 0; width: 1240px; height: 700px; }
+  .mp-bg .line { display: none; }
+  .mp-keys, .mp-top, .vd-inv-center .guide, .vd-inv-my .corr, .vd-inv-center .quick .head, .vd-inv-cur { display: none; }
+  .vd-inv-my { left: 20px; top: 20px; height: 660px; }
   .vd-inv-my .head { top: 0; }
   .vd-inv-my .equip { top: 50px; }
   .vd-inv-my .pager { top: 130px; height: 20px; border-bottom: 0; }
@@ -194,10 +464,76 @@
   .vd-inv-center .quick .row { top: 0; left: 0; flex-direction: column; gap: 32px; }
   .vd-inv-center .quick .row > .vs.locked { display: none; }
   .vs .kp { left: 84px; bottom: 28px; }
+  .vd-inv-bag { left: 0; top: 0; width: 100px; }
+  .vd-inv-bag .shade, .vd-inv-bag .frame { display: none; }
+  .vd-inv-bag .head { left: 0; width: 100px; padding: 0 6px; }
+  .vd-inv-bag .head b { font-size: 16px; }
+  .vd-inv-bag .head .cnt { display: none; }
+  .vd-inv-bag .row { top: 50px; flex-direction: column; gap: 10px; }
   .vd-inv-loot { left: 690px; top: 20px; }
   .vd-inv-loot .line { display: none; }
   .vd-inv-loot .grid.loot { top: 60px; }
   .vd-inv-tip { left: 580px; top: 20px; }
+  /* Mục tiêu */
+  .q-list { left: 20px; top: 20px; width: 420px; height: 660px; }
+  .q-info { left: 460px; top: 20px; width: 760px; height: 660px; }
+  .q-info .title { width: 760px; }
+  .q-info .title::before { width: 760px; }
+  .q-info .title .name { width: 560px; }
+  .q-info .scroll { width: 740px; height: 480px; }
+  .q-info .empty .deco { left: 152px; top: 40px; }
+  .q-info .empty p { left: 0; width: 760px; top: 240px; }
+  .q-info .btns .mp-btn { top: 600px; }
+  .q-info .btns .dlg { left: 310px; }
+  .q-info .btns .back { left: 542px; }
+  /* Nhân vật */
+  .c-info { left: 0; top: 10px; height: 690px; }
+  .c-info .stage canvas { top: 79px; }
+  .c-info .stage .floor { top: 413px; }
+  .c-info .stage .shadow { top: 469px; }
+  .c-info .stats { top: 96px; gap: 3px; }
+  .c-info .toggle { top: 640px; }
+  .c-info .slots { top: 60px; gap: 8px; }
+  .c-tabs { left: 740px; top: 10px; }
+  .c-page { left: 740px; top: 72px; height: 620px; }
+  .c-page .px { height: 172px; }
+  .c-page .bf .list { height: 220px; }
+  .c-tip, .c-tip.sk { left: 620px; }
+  /* Lưu trữ */
+  .a-left { left: 10px; top: 10px; width: 560px; }
+  .a-left .cats { height: 630px; }
+  .a-cat .tl { width: 558px; }
+  .a-cat p { width: 520px; }
+  .a-right { left: 590px; top: 10px; width: 640px; height: 680px; }
+  .a-right .list { width: 640px; height: 630px; }
+  .a-right .empty .deco { left: 20px; top: 40px; }
+  .a-right .empty p { left: 0; width: 640px; top: 260px; }
+  .a-right .detail { width: 540px; }
+  /* Tổ đội */
+  .mp-squad .s-join .mp-btn { left: 20px; top: 20px; }
+  .mp-squad .s-open .mp-btn { left: 980px; top: 20px; }
+  .mp-squad .s-info { left: 20px; top: 100px; width: 1200px; }
+  .mp-squad .s-deco { left: 519px; top: 180px; width: 202px; height: 500px; }
+  .mp-squad .s-desc { left: 120px; top: 400px; }
+  /* Tuỳ chọn */
+  .o-tabs { left: 10px; top: 20px; }
+  .o-panel { left: 190px; top: 10px; width: 1040px; height: 680px; }
+  .orow { height: 78px; }
+  .orow .cap { left: 10px; width: 300px; }
+  .orow small { left: 10px; top: 6px; }
+  .orow .tg { right: 10px; gap: 8px; }
+  .orow .tg .t, .orow .tg .mp-btn { width: 150px; height: 46px; font-size: 18px; }
+  .orow .tg.w320 .t { width: 240px; }
+  .orow .tg .t.lang { width: 480px; }
+  .orow .sl { left: 250px; width: 780px; }
+  .orow .sl .pct { left: 0; width: 100px; }
+  .orow .sl .bar { left: 110px; width: 560px; }
+  .orow .sl .snd { left: 700px; }
+  .o-panel > .mp-btn.reset { left: 830px; top: 610px; }
+  .o-panel .keys { grid-template-columns: 515px 515px; height: 680px; }
+  /* Hệ thống */
+  .mp-system .y-hand { display: none; }
+  .y-btns { left: 300px; top: 0; height: 700px; gap: 16px; }
 }
 
 /* ---------- bản đồ nhỏ (vòng tròn góc phải trên như ảnh Steam) */

@@ -33,5 +33,18 @@
    "name": "Boss_Hatman_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "300022": {
+   "sym": 2.0,
+   "mode": 2,
+   "sk": 1.4,
+   "bsx": 1.4,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

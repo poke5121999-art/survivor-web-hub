@@ -33,5 +33,40 @@
    "name": "Monster_Phage_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "310051": {
+   "sym": 1.7,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200022": {
+   "sym": 1.26,
+   "mode": 2,
+   "sk": 1.08,
+   "bsx": 1.08,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "310052": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 1.25,
+   "bsx": 1.25,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

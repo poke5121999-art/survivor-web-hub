@@ -8,6 +8,9 @@
  *   hé lộ chờ lại; chuột trái = "Bỏ vào tất cả", Ctrl + trái = 1, Shift + trái = nửa; kéo thả vào túi; chuột phải ở
  *   rương báo CannotDropInLootInventory, ở túi thì vứt xuống đất; phím số gán ô nhanh; R sắp xếp; tooltip; Esc đóng;
  *   rồi 844×390 bảng vừa màn.
+ *   MenuPopup (docs/DIVE.md §12): Bag là món có ô riêng (BagPanel, F mở, Esc đóng trước, sai loại/túi trùng bị từ chối), tooltip
+ *   vũ khí/phụ kiện/cổ vật đầy đủ, 7 trang ở 1280×720 và 844×390 (không tràn màn), tuỳ chọn âm lượng, tay cầm giả
+ *   (navigator.getGamepads): Start mở, RT/LT đổi thẻ, d-pad dời ô, A cầm/đặt với Highlight, B đóng.
  *   Hỏng nếu: pageerror, console error, response ≥ 400. Ảnh ở %TEMP%/voiddiver-loot-shots/ — mở ra xem.
  */
 'use strict';
@@ -76,6 +79,8 @@ async function holdF(page, sec) { await page.keyboard.down('KeyF'); await gameWa
   page.on('pageerror', e => { errors.push('pageerror: ' + e.message); console.log('    PAGEERROR ' + String(e.stack || e.message).split(/\n/).slice(0, 6).join(' / ')); });
   page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text().slice(0, 300)); });
   page.on('response', r => { if (r.status() >= 400) errors.push('HTTP ' + r.status() + ' ' + r.url()); });
+  // Tay cầm giả cho phần MenuPopup: window.__pad = null tới khi bài kiểm cắm vào.
+  await page.addInitScript(() => { window.__pad = null; navigator.getGamepads = () => [window.__pad]; });
   try {
     await page.goto(`${process.env.VD_BASE || ("http://127.0.0.1:" + port)}/games/voiddiver/index.html?campaign=101&seed=11&char=100001`);
     check('nạp xong', await waitFor(page, () => document.body.dataset.ready === '1', null, 240000, 'nạp lượt lặn'));
@@ -111,7 +116,7 @@ async function holdF(page, sec) { await page.keyboard.down('KeyF'); await gameWa
     const s0 = await page.evaluate(() => ({
       reving: [...document.querySelectorAll('.grid.loot .vs')].map(e => e.classList.contains('reving') ? 'R' : e.classList.contains('unrev') ? 'U' : e.classList.contains('empty') ? '.' : 'V').slice(0, 6).join(''),
       anim: VD.stage.player.drive && VD.stage.player.drive.name, caption: document.querySelector('.vd-inv-loot .head b').textContent,
-      tabs: document.querySelectorAll('.vd-inv-tabs .tab').length, guide: [...document.querySelectorAll('.vd-inv-center .guide .g span')].map(e => e.textContent),
+      tabs: document.querySelectorAll('.vd-inv-tabs .tab').length, guide: [...document.querySelectorAll('.vd-inv-center .guide .g:not(.only-pad) span')].map(e => e.textContent),
     }));
     check('ô 1 đang hé lộ, các ô sau chưa hé lộ, ô trống trơn', /^RUUUU\.$/.test(s0.reving), s0.reving);
     check('nhân vật chơi battle/search khi lục', s0.anim === 'battle/search', s0.anim);
@@ -197,9 +202,38 @@ async function holdF(page, sec) { await page.keyboard.down('KeyF'); await gameWa
     await page.mouse.click(pEq.x, pEq.y, { button: 'right' });
     const drops1 = await page.evaluate(g => ({ n: VD.dive.ents.filter(e => e.kind === 'drop').length, has: VD.inventory.count('Equipment', g) }), g1);
     check('chuột phải ở túi: vứt xuống đất (thành đồ rơi)', drops1.n === drops0 + 1 && drops1.has === 0, JSON.stringify(drops1));
+    // Thời gian giữ F nhặt đồ rơi = DropGoods._holdingTime của prefab (0,25), không phải Const.LootingInteractionTime (0,1 — xác quái).
+    const hold = await page.evaluate(() => { const it = VD.dive.debug.interactables(); return it && { kind: it.e.kind, t: it.it.time }; });
+    check('giữ F nhặt đồ rơi 0,25 s (DropGoods.get_HoldingTime)', hold && hold.kind === 'drop' && hold.t === 0.25, JSON.stringify(hold));
+    // R = InventoryExtensions.Organize: ô có đồ trước, EGoodsType tăng, bậc giảm, Id tăng; không gộp chồng; chỉ khu của ô đang chọn.
+    const scramble = () => page.evaluate(() => {
+      const I = VD.inventory, gs = I.slots.map(s => s.g).filter(Boolean);
+      gs.push({ type: 'Item', id: 2000, count: 1 });                  // chồng thứ hai cùng loại: không được gộp
+      I.slots.forEach(s => { s.g = null; });
+      gs.forEach((g, i) => { I.slots[(i * 5 + 3) % I.slots.length].g = g; });
+      I.refresh(); return gs.length;
+    });
+    const nG = await scramble();
+    await page.mouse.move(640, 700);                                   // không rê lên ô nào
+    const snap = () => page.evaluate(() => VD.inventory.slots.map(s => s.g ? s.g.type + s.g.id + 'x' + s.g.count : '-').join(','));
+    const snap0 = await snap();
     await page.keyboard.press('KeyR');
-    const sorted = await page.evaluate(() => { const a = VD.inventory.slots.filter(s => !s.bag).map(s => !!s.g); return a.indexOf(false) < 0 || a.slice(a.indexOf(false)).every(x => !x); });
-    check('R sắp xếp: đồ dồn về đầu, không còn ô trống xen giữa', sorted);
+    check('R khi không chọn ô nào: không sắp xếp', (await snap()) === snap0);
+    const anyXY = await slotXY(page, '.grid.inv', 3);
+    await page.mouse.move(anyXY.x, anyXY.y); await sleep(80);
+    await page.keyboard.press('KeyR');
+    const org = await page.evaluate(() => {
+      const TY = ['None', 'Gold', 'Coin', 'Exp', 'Consumable', 'Valuable', 'Misc', 'Note', 'Blueprint', 'MusicDisc', 'Weapon', 'Accessory', 'Artifact', 'Bag'];
+      const GR = ['None', 'Normal', 'Rare', 'Elite', 'Epic', 'Legend', 'Unique'];
+      const key = g => { const r = VD.goods.row(g) || {}; return [TY.indexOf(g.type === 'Bag' ? 'Bag' : r.GoodsType), -GR.indexOf(r.Grade || 'None'), g.id]; };
+      const a = VD.inventory.slots.map(s => s.g);
+      const k = a.indexOf(null);
+      const filled = a.filter(Boolean);
+      let ok = k < 0 || a.slice(k).every(x => !x);
+      for (let i = 1; i < filled.length; i++) { const x = key(filled[i - 1]), y = key(filled[i]); if (x[0] > y[0] || (x[0] === y[0] && (x[1] > y[1] || (x[1] === y[1] && x[2] > y[2])))) ok = false; }
+      return { ok, n: filled.length, stacks2000: filled.filter(g => g.id === 2000).length };
+    });
+    check('R sắp xếp theo mã gốc: có đồ trước, loại tăng, bậc giảm, Id tăng, không gộp chồng', org.ok && org.n === nG && org.stacks2000 === 2, JSON.stringify(org));
     await shot(page, 'loot-05-after');
     await page.keyboard.press('Escape');
     const esc = await page.evaluate(() => ({ open: VD.inventory.open, drive: VD.stage.player.drive && VD.stage.player.drive.name, input: VD.input.enabled }));
@@ -226,12 +260,184 @@ async function holdF(page, sec) { await page.keyboard.down('KeyF'); await gameWa
     await page.mouse.click(lastXY.x, lastXY.y);
     check('844×390: bấm lấy món cuối', await page.evaluate(() => VD.inventory.loot.items.length === 0));
     await page.keyboard.press('Tab');
+
+    // ================= MenuPopup: 7 trang, tooltip trang bị, túi phụ, glow, tay cầm (docs/DIVE.md §12)
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await gameWait(page, 0.2);
+    const setup2 = await page.evaluate(() => {
+      const I = VD.inventory, T = VD.T;
+      for (const s of I.slots) s.g = null;
+      const w = T.Equipment.find(e => e.GoodsType === 'Weapon' && e.Grade === 'Rare' && e.MaxDurability > 0);
+      const acc = T.Equipment.find(e => e.GoodsType === 'Accessory' && (e.EquipmentEffectIds || []).length);
+      const art = T.Equipment.find(e => e.GoodsType === 'Artifact' && e.Corruption > 0);
+      const mat = T.Item.find(i => i.BagType === 'Material' && i.InventoryCountMax >= 3);
+      I.add({ type: 'Equipment', id: w.Id, count: 1, dur: 40 });
+      I.add({ type: 'Equipment', id: acc.Id, count: 1 });
+      I.add({ type: 'Equipment', id: art.Id, count: 1, prefixes: [10001, 20001] });
+      I.add({ type: 'Bag', id: 20011, count: 1 });          // túi nguyên liệu 3 ô
+      I.add({ type: 'Item', id: mat.Id, count: 2 });        // chưa có chồng trong túi phụ → vào túi chính
+      return { w: w.Id, acc: acc.Id, art: art.Id, mat: mat.Id };
+    });
+    await page.keyboard.press('Tab');
+    await waitFor(page, () => VD.inventory.open, null, 5000, 'mở Tab');
+    const inBag = await page.evaluate(m => { const b = VD.inventory.slots.find(s => s.g && s.g.type === 'Bag'); return { bag: !!b, inner: b && b.g.inner.map(s => s.g && s.g.id), top: VD.inventory.slots.some(s => s.g && s.g.id === m) }; }, setup2.mat);
+    check('Bag là món trong túi; ô trống túi phụ không tự nhận nguyên liệu mới', inBag.bag && inBag.inner.every(x => !x) && inBag.top, JSON.stringify(inBag));
+    // Tooltip trang bị đầy đủ: vũ khí (công, độ bền), phụ kiện (hiệu ứng), cổ vật (loại + tiền tố, ô nhiễm, giá Coin).
+    const hover = async id => { const k = await page.evaluate(id => VD.inventory.slots.findIndex(s => s.g && s.g.id === id), id); const p = await slotXY(page, '.grid.inv', k); await page.mouse.move(p.x, p.y); await sleep(150); };
+    await hover(setup2.w);
+    const tw = await page.evaluate(() => { const f = document.querySelector('.vd-inv-tip.on .frame.eq'); return f && { rows: [...f.querySelectorAll('.row span')].map(s => s.textContent), dur: [...f.querySelectorAll('.row')].map(r => r.textContent).find(t => /\/\s*\d+/.test(t)) }; });
+    check('tooltip vũ khí: Sức Tấn Công, Độ bền 40/…, Giá Trị, SL Trong Kho', tw && tw.rows.indexOf(await page.evaluate(() => VD.TEXT.UEquipmentTooltip_Attack_Caption)) >= 0 && /40 \//.test(tw.dur || ''), JSON.stringify(tw));
+    await shot(page, 'menu-01-tip-weapon');
+    await hover(setup2.acc);
+    const ta = await page.evaluate(() => { const f = document.querySelector('.vd-inv-tip.on .frame.eq'); return f && { eff: f.querySelectorAll('.eff .sk').length, st: f.querySelectorAll('.eff .st').length }; });
+    check('tooltip phụ kiện: dòng hiệu ứng EquipmentEffect', ta && ta.eff >= 1, JSON.stringify(ta));
+    await hover(setup2.art);
+    const tr = await page.evaluate(() => { const f = document.querySelector('.vd-inv-tip.on .frame.eq'); return f && { ac: f.querySelectorAll('.tags .ac').length, pos: f.querySelectorAll('.tags .ap.pos').length, neg: f.querySelectorAll('.tags .ap.neg').length, rows: [...f.querySelectorAll('.row span')].map(s => s.textContent) }; });
+    check('tooltip cổ vật: loại + tiền tố tốt/xấu, Độ ô nhiễm, Giá Trị (Coin)', tr && tr.ac === 1 && tr.pos === 1 && tr.neg === 1 && tr.rows.indexOf(await page.evaluate(() => VD.TEXT.CorruptionValue)) >= 0, JSON.stringify(tr));
+    await shot(page, 'menu-02-tip-artifact');
+    // Túi phụ: F lên túi → BagPanel thay QuickSlotSettingPanel; hàng sai loại không vào; túi thứ hai cùng loại bị từ chối; Esc đóng túi trước.
+    const kb = await page.evaluate(() => VD.inventory.slots.findIndex(s => s.g && s.g.type === 'Bag'));
+    const pb = await slotXY(page, '.grid.inv', kb);
+    await page.mouse.move(pb.x, pb.y); await sleep(100);
+    const tb = await page.evaluate(() => { const n = document.querySelector('.vd-inv-tip.on .frame.bag .name'); return n && n.textContent; });
+    await page.keyboard.press('KeyF');
+    const bp = await page.evaluate(() => ({ on: document.querySelector('.vd-inv-bag').classList.contains('on'), quickOff: getComputedStyle(document.querySelector('.vd-inv-center .quick')).display === 'none', slots: [...document.querySelectorAll('.vd-inv-bag .row .vs')].filter(e => e.style.display !== 'none').length, title: document.querySelector('.vd-inv-bag .bn').textContent }));
+    check('F lên túi phụ: BagPanel 3 ô thay ô nhanh, tên túi, tooltip "(0/3)"', bp.on && bp.quickOff && bp.slots === 3 && /\(0\/3\)/.test(tb || ''), JSON.stringify(bp) + ' ' + tb);
+    // Kéo nguyên liệu vào túi: mọi ô túi phụ sáng Highlight khi món kéo nhận được (RxIsDragAcceptable), thả vào ô 1.
+    const mk = await page.evaluate(id => VD.inventory.slots.findIndex(s => s.g && s.g.id === id), setup2.mat);
+    const mp0 = await slotXY(page, '.grid.inv', mk), bs0 = await slotXY(page, '.vd-inv-bag .row', 0);
+    await page.mouse.move(mp0.x, mp0.y); await page.mouse.down(); await page.mouse.move(mp0.x + 30, mp0.y, { steps: 3 }); await page.mouse.move(bs0.x, bs0.y - 60, { steps: 5 });
+    const glow = await page.evaluate(() => ({ bag: document.querySelectorAll('.vd-inv-bag .vs.glow').length, inv: document.querySelectorAll('.grid.inv .vs.glow').length, anim: (() => { const g = document.querySelector('.vd-inv-bag .vs.glow .hl'); return g && getComputedStyle(g).animationName; })() }));
+    check('kéo nguyên liệu: 3 ô túi phụ sáng Highlight (vd-glow), ô túi chính không', glow.bag === 3 && glow.inv === 0 && glow.anim === 'vd-glow', JSON.stringify(glow));
+    await shot(page, 'menu-03-bag-glow');
+    await page.mouse.move(bs0.x, bs0.y, { steps: 4 }); await page.mouse.up();
+    const put = await page.evaluate(id => { VD.inventory.add({ type: 'Item', id, count: 1 }); const b = VD.inventory.bagOpen; return { inner0: b.inner[0].g && b.inner[0].g.count, top: VD.inventory.slots.some(s => s.g && s.g.id === id) }; }, setup2.mat);
+    check('thả vào ô túi phụ; nhặt thêm cùng loại chồng vào túi phụ trước (StackIntoExistingBags)', put.inner0 === 3 && !put.top, JSON.stringify(put));
+    await shot(page, 'menu-03-bag');
+    const wrongTo = await slotXY(page, '.vd-inv-bag .row', 1), wp = await (async () => { const k = await page.evaluate(id => VD.inventory.slots.findIndex(s => s.g && s.g.id === id), setup2.w); return slotXY(page, '.grid.inv', k); })();
+    await page.mouse.move(wp.x, wp.y); await page.mouse.down(); await page.mouse.move(wp.x + 30, wp.y, { steps: 3 }); await page.mouse.move(wrongTo.x, wrongTo.y, { steps: 6 }); await page.mouse.up();
+    const wr = await page.evaluate(() => ({ toast: ([...document.querySelectorAll('.vd-toast')].pop() || {}).textContent, inner1: VD.inventory.bagOpen && VD.inventory.bagOpen.inner[1].g }));
+    check('kéo vũ khí vào ô túi nguyên liệu: GoodsNotAllowedInBag, không vào', !wr.inner1 && wr.toast === await page.evaluate(() => VD.TEXT.GoodsNotAllowedInBag), JSON.stringify(wr));
+    const second = await page.evaluate(() => ({ left: VD.inventory.add({ type: 'Bag', id: 20012, count: 1 }), toast: ([...document.querySelectorAll('.vd-toast')].pop() || {}).textContent }));
+    check('túi thứ hai cùng loại: CannotCarrySameBagType', second.left === 1 && second.toast === await page.evaluate(() => VD.TEXT.CannotCarrySameBagType), JSON.stringify(second));
+    await page.keyboard.press('Escape');
+    const esc1 = await page.evaluate(() => ({ open: VD.inventory.open, bag: !!VD.inventory.bagOpen }));
+    check('Esc lần 1 đóng túi phụ, bảng vẫn mở', esc1.open && !esc1.bag, JSON.stringify(esc1));
+
+    // Thẻ: Q/E đổi trang, bấm thẻ, mỗi trang có nội dung gốc.
+    const TABS = ['Quest', 'Inventory', 'Character', 'Archive', 'Squad', 'Option', 'System'];
+    await page.keyboard.press('KeyE');
+    check('E sang thẻ Nhân vật', await page.evaluate(() => VD.menu.cur === 'Character' && document.querySelector('.vd-mp.mp-character').classList.contains('on')));
+    await page.keyboard.press('KeyQ'); await page.keyboard.press('KeyQ');
+    check('Q hai lần về thẻ Mục tiêu', await page.evaluate(() => VD.menu.cur === 'Quest'));
+    // Thẻ Tổ đội khoá khi còn hướng dẫn hoặc chưa đủ Npc 700012.UnlockConditions (UserLevel 2): bấm → toast + không đổi trang;
+    // E từ Lưu trữ nhảy qua thẻ khoá sang Tuỳ chọn.
+    await page.evaluate(() => { const p = VD.profile.get(); window.__prof = [p.userLevel, p.isTutorial]; p.userLevel = 1; p.isTutorial = true; VD.menu.show('Archive'); });
+    await page.evaluate(() => document.querySelectorAll('.vd-inv-tabs .tab')[4].click());
+    const lk = await page.evaluate(() => ({ cur: VD.menu.cur, locked: document.querySelectorAll('.vd-inv-tabs .tab')[4].classList.contains('locked'), toast: ([...document.querySelectorAll('.vd-toast')].pop() || {}).textContent }));
+    await page.keyboard.press('KeyE');
+    const skip = await page.evaluate(() => VD.menu.cur);
+    await page.evaluate(() => VD.menu.show('System')); await page.keyboard.press('KeyE');
+    const noWrap = await page.evaluate(() => VD.menu.cur);
+    check('thẻ Tổ đội khoá (SquadTabLockedMessage), E nhảy qua thẻ khoá, không vòng quanh', lk.cur === 'Archive' && lk.locked && lk.toast === await page.evaluate(() => VD.TEXT.SquadTabLockedMessage) && skip === 'Option' && noWrap === 'System', JSON.stringify({ lk, skip, noWrap }));
+    await page.evaluate(() => VD.menu.show('Archive')); await sleep(300);
+    await shot(page, 'menu-squad-locked');
+    await page.evaluate(() => { const p = VD.profile.get(); p.userLevel = 2; p.isTutorial = false; });
+    for (const vp of [[1280, 720], [844, 390]]) {
+      await page.setViewportSize({ width: vp[0], height: vp[1] }); await sleep(200);
+      for (const t of TABS) {
+        await page.evaluate(i => document.querySelectorAll('.vd-inv-tabs .tab')[i].click(), TABS.indexOf(t));
+        await sleep(250);
+        if (t === 'Quest') await page.evaluate(() => { const s = document.querySelector('.q-slot'); if (s) s.click(); });
+        if (t === 'Character') await page.evaluate(() => document.querySelectorAll('.c-info .slots .vs')[0].dispatchEvent(new PointerEvent('pointerenter')));
+        if (t === 'Archive') await page.evaluate(() => { document.querySelectorAll('.a-cat')[2].click(); const s = document.querySelector('.t-slot'); if (s) s.click(); });
+        if (t === 'Option') await page.evaluate(() => document.querySelectorAll('.o-tabs .ot')[1].click());
+        await sleep(200);
+        const info = await page.evaluate(t => {
+          const el = document.querySelector('.vd-mp.on'), r = el.getBoundingClientRect();
+          const kids = [...el.querySelectorAll('*')].filter(e => { const b = e.getBoundingClientRect(); return b.width > 0 && b.height > 0; });
+          const out = kids.filter(e => { const b = e.getBoundingClientRect(); return (b.right > innerWidth + 2 || b.bottom > innerHeight + 2 || b.left < -2 || b.top < -2) && !e.closest('.q-list, .scroll, .cats, .list, .keys'); }).length;
+          return { tab: el.dataset.tab || 'Inventory', text: el.textContent.replace(/\s+/g, ' ').trim().slice(0, 60), out };
+        }, t);
+        check(`${vp[0]}×${vp[1]} trang ${t}: hiện, có chữ, không tràn màn`, (info.tab === t) && info.text.length > 3 && info.out === 0, JSON.stringify(info));
+        await shot(page, `menu-${vp[0]}-${TABS.indexOf(t)}-${t}`);
+      }
+    }
+    await page.setViewportSize({ width: 1280, height: 720 }); await sleep(200);
+    await page.evaluate(() => { const p = VD.profile.get(); [p.userLevel, p.isTutorial] = window.__prof; });
+    const pages = await page.evaluate(() => ({
+      quest: document.querySelectorAll('.q-slot').length, cond: document.querySelectorAll('.q-info .cond').length,
+      stats: document.querySelectorAll('.c-info .st').length, spine: !!document.querySelector('.c-info canvas.spine'),
+      arch: document.querySelectorAll('.a-cat').length, squadOff: document.querySelectorAll('.mp-squad .mp-btn.disabled').length,
+      opt: document.querySelectorAll('.o-tabs .ot').length, sys: [...document.querySelectorAll('.y-btns .mp-btn')].map(b => b.textContent.trim()),
+    }));
+    check('nội dung: nhiệm vụ campaign + mục tiêu, chỉ số nhân vật, 8 hạng mục lưu trữ, tổ đội tắt, 5 thẻ tuỳ chọn, nút hệ thống',
+      pages.quest >= 1 && pages.cond >= 1 && pages.stats >= 10 && pages.arch === 8 && pages.squadOff === 2 && pages.opt === 5 && pages.sys.length === 5, JSON.stringify(pages));
+    // Tuỳ chọn âm thanh: bấm thanh BGM ở 30 % → VD.audio.vol.bgm đổi, lưu localStorage.
+    await page.evaluate(() => VD.menu.show('Option'));
+    await page.evaluate(() => document.querySelectorAll('.o-tabs .ot')[1].click());
+    const bar = await page.evaluate(() => { const b = document.querySelectorAll('.orow .sl .bar')[1].getBoundingClientRect(); return { x: b.x + b.width * 0.3, y: b.y + b.height / 2 }; });
+    await page.mouse.click(bar.x, bar.y);
+    const vol = await page.evaluate(() => ({ bgm: VD.audio.vol.bgm, saved: JSON.parse(localStorage.getItem('voiddiver.option.v1')).bgm }));
+    check('tuỳ chọn BGM 3/10 → vol.bgm = 0,55 × 0,3, lưu lại', Math.abs(vol.bgm - 0.165) < 0.01 && vol.saved === 3, JSON.stringify(vol));
+    await page.evaluate(() => { localStorage.removeItem('voiddiver.option.v1'); VD.audio.vol.bgm = 0.55; });
+    await page.keyboard.press('Escape');
+    check('Esc đóng bảng từ trang khác', await page.evaluate(() => !VD.inventory.open));
+
+    // InGame/Menu: Esc khi đang chơi mở MenuPopup ở thẻ Mục tiêu; X cũng vậy; Tab mở Túi đồ.
+    await page.keyboard.press('Escape');
+    const escOpen = await page.evaluate(() => ({ open: VD.inventory.open, tab: VD.menu.cur }));
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('KeyX');
+    const xOpen = await page.evaluate(() => ({ open: VD.inventory.open, tab: VD.menu.cur }));
+    await page.keyboard.press('Tab'); await page.keyboard.press('Tab');
+    const tabOpen = await page.evaluate(() => ({ open: VD.inventory.open, tab: VD.menu.cur }));
+    await page.keyboard.press('Tab');
+    check('Esc / X khi đang chơi mở thẻ Mục tiêu, Tab mở Túi đồ', escOpen.open && escOpen.tab === 'Quest' && xOpen.open && xOpen.tab === 'Quest' && tabOpen.open && tabOpen.tab === 'Inventory',
+      JSON.stringify({ escOpen, xOpen, tabOpen }));
+    // Tay cầm giả (navigator.getGamepads): Start mở, RT/LT đổi thẻ, d-pad dời ô, A cầm/đặt (ô đích sáng Highlight), B đóng.
+    const pad = async (i, ms) => { await page.evaluate(i => { window.__pad.buttons[i].pressed = true; window.__pad.buttons[i].value = 1; }, i); await sleep(ms || 400); await page.evaluate(i => { window.__pad.buttons[i].pressed = false; window.__pad.buttons[i].value = 0; }, i); await sleep(200); };
+    await page.evaluate(() => { window.__pad = { connected: true, id: 'test pad', mapping: 'standard', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) }; });
+    await sleep(400);    // core.js hãm đổi thiết bị 0,3 s sau lần bấm phím cuối (DEVICE_SWITCH_COOLDOWN)
+    await pad(9);
+    const p1 = await page.evaluate(() => ({ st: VD.dive.state, en: VD.input.enabled, dlg: VD.dialog && VD.dialog.open, cut: !!VD.dive.cutscene, t: VD.loop.time, open: VD.inventory.open, tab: VD.menu.cur, padCls: document.querySelector('.vd-inv').classList.contains('pad'), focus: !!document.querySelector('.vd-mp.on .pad-focus') }));
+    check('Start mở trang Túi đồ, đổi hình phím sang tay cầm, có ô được chọn', p1.open && p1.tab === 'Inventory' && p1.padCls && p1.focus, JSON.stringify(p1));
+    await pad(7); const t1 = await page.evaluate(() => VD.menu.cur);
+    await pad(6); const t2 = await page.evaluate(() => VD.menu.cur);
+    check('RT → Nhân vật, LT → Túi đồ', t1 === 'Character' && t2 === 'Inventory', t1 + ' ' + t2);
+    // X lên túi phụ mở BagPanel; A cầm nguyên liệu khác loại → ô túi phụ sáng; A đặt vào ô túi phụ 2; B lần 1 đóng túi.
+    const mat2 = await page.evaluate(() => { const r = VD.T.Item.filter(i => i.BagType === 'Material' && i.InventoryCountMax >= 3)[1]; VD.inventory.add({ type: 'Item', id: r.Id, count: 1 }); return r.Id; });
+    await page.evaluate(() => { const k = VD.inventory.slots.findIndex(s => s.g && s.g.type === 'Bag'); VD.menu.focus(document.querySelectorAll('.grid.inv > .vs')[k]); });
+    await pad(2);
+    await page.evaluate(id => { const k = VD.inventory.slots.findIndex(s => s.g && s.g.id === id); VD.menu.focus(document.querySelectorAll('.grid.inv > .vs')[k]); }, mat2);
+    await pad(0);
+    const held = await page.evaluate(() => ({ bag: !!VD.inventory.bagOpen, hold: !!VD.inventory.hold, glow: document.querySelectorAll('.vd-inv-bag .vs.glow').length }));
+    check('tay cầm: X mở túi phụ, A cầm nguyên liệu → 3 ô túi phụ sáng', held.bag && held.hold && held.glow === 3, JSON.stringify(held));
+    await shot(page, 'menu-pad-hold');
+    await page.evaluate(() => VD.menu.focus(document.querySelectorAll('.vd-inv-bag .row .vs')[1]));
+    await pad(0);
+    const pput = await page.evaluate(id => { const b = VD.inventory.bagOpen; return !!(b && b.inner[1].g && b.inner[1].g.id === id); }, mat2);
+    check('A đặt nguyên liệu vào ô túi phụ 2', pput);
+    await pad(1);
+    check('B lần 1 đóng túi phụ', await page.evaluate(() => VD.inventory.open && !VD.inventory.bagOpen));
+    // Đưa ô chọn về ô vũ khí trong túi rồi cầm lên bằng A, xuống 2 hàng, đặt xuống.
+    const from = await page.evaluate(id => { const k = VD.inventory.slots.findIndex(s => s.g && s.g.id === id); VD.menu.focus(document.querySelectorAll('.grid.inv > .vs')[k]); return k; }, setup2.w);
+    await pad(0);
+    const before = await page.evaluate(() => VD.menu.focusEl && VD.menu.focusEl.dataset.k);
+    await pad(13, 200); await pad(13, 200);    // d-pad xuống 2 hàng; giữ < 350 ms để khỏi tự lặp (menu.js padRead)
+    const after = await page.evaluate(() => VD.menu.focusEl && VD.menu.focusEl.dataset.k);
+    await pad(0);
+    const moved = await page.evaluate(([id, k]) => ({ at: VD.inventory.slots.findIndex(s => s.g && s.g.id === id), hold: !!VD.inventory.hold, k }), [setup2.w, +after]);
+    check('d-pad xuống 2 hàng (6 cột), A đặt món vào ô đó', +after === +before + 12 && moved.at === +after && !moved.hold, JSON.stringify({ from, before, after, moved }));
+    await pad(1);
+    check('B đóng bảng', await page.evaluate(() => !VD.inventory.open));
+    await page.evaluate(() => { window.__pad = null; });
   } catch (e) {
     console.log('  LỖI chạy kiểm: ' + (e.stack || e));
     fail++; fails.push('exception');
   }
   const uniq = [...new Set(errors)];
-  const MINE = /art\/ui\/inventory\/|audio\/sfx\/(Looting|Inventory|Item(Drop|Release)|ButtonClick)|css\/dive\.css|js\/(dive|inventory)\.js/;
+  const MINE = /art\/ui\/inventory\/|audio\/sfx\/(Looting|Inventory|Item(Drop|Release)|ButtonClick)|css\/dive\.css|js\/(dive|inventory|ui\/menu\w*)\.js|art\/ui\/icon_(skill|buff|monster)\//;
   const other404 = uniq.filter(e => /^HTTP 404 /.test(e) && !MINE.test(e));
   const bad = uniq.filter(e => other404.indexOf(e) < 0 && !/^console: Failed to load resource: the server responded with a status of 404/.test(e));
   if (other404.length) console.log('  WARN asset thiếu do module khác gọi (' + other404.length + '):\n      ' + other404.map(e => e.replace(/^HTTP 404 http:\/\/127\.0\.0\.1:\d+\//, '')).join('\n      '));

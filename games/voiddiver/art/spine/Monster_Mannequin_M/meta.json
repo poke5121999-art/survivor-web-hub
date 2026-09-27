@@ -33,5 +33,51 @@
    "name": "Monster_Mannequin_M_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "310059": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 1.27,
+   "bsx": 1.27,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "240019": {
+   "sym": 1.15,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "210019": {
+   "sym": 1.15,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200018": {
+   "sym": 1.15,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

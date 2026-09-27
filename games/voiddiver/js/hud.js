@@ -8,9 +8,11 @@
   const icon = (kind, name) => { const a = VD.ASSETS && VD.ASSETS.icon && VD.ASSETS.icon[kind]; return (a && a.dir ? a.dir : 'art/ui/icon_' + kind + '/') + name + '.webp'; };
   const T = k => (VD.TEXT && VD.TEXT[k]) || '';
 
+  // pad: binding GamePad của PlayerFunc (InputActionAsset gốc) — khi dùng tay cầm, nhãn phím đổi sang ảnh nút XBox.
   const SLOTS = [
-    { key: 'attack', label: 'LMB' }, { key: 'SkillOne', label: 'RMB' }, { key: 'dash', label: 'Space' },
-    { key: 'SkillTwo', label: 'Q' }, { key: 'SkillThree', label: 'E' }, { key: 'SkillFour', label: 'R' },
+    { key: 'attack', label: 'LMB', pad: '<Gamepad>/buttonNorth' }, { key: 'SkillOne', label: 'RMB', pad: '<Gamepad>/buttonWest' },
+    { key: 'dash', label: 'Space', pad: '<Gamepad>/buttonEast' }, { key: 'SkillTwo', label: 'Q', pad: '<Gamepad>/rightShoulder' },
+    { key: 'SkillThree', label: 'E', pad: '<Gamepad>/rightTrigger' }, { key: 'SkillFour', label: 'R', pad: '<Gamepad>/leftTrigger' },
   ];
 
   const H = { root: null, on: false, floats: [], bubbles: [], stexts: [], unitTags: new Map() };
@@ -34,7 +36,8 @@
     H.staBar = $('div', 'vd-bar sta', bars, '<i class="fill"></i>');
     H.skills = $('div', 'vd-skills', r);
     H.slotEls = SLOTS.map(s => {
-      const el = $('div', 'vd-skill', H.skills, '<img><div class="cd"></div><div class="cdt"></div><div class="stk"></div><b></b>');
+      const el = $('div', 'vd-skill', H.skills, '<img><div class="cd"></div><div class="cdt"></div><div class="stk"></div><b></b>' +
+        `<img class="padk" src="${VD.padIconUrl(s.pad)}" alt="">`);
       el.querySelector('b').textContent = s.label;
       return el;
     });
@@ -47,16 +50,26 @@
     H.on = true;
   };
 
+  // Tay cầm: ô nhanh đang chọn bằng D-pad trái/phải (InGameQuickSlotPanel.selectionIndicator), D-pad lên để dùng.
+  function padQuick() {
+    const pad = VD.input && VD.input.device === 'gamepad', k = VD.input ? VD.input.padQuick : 0;
+    if (H._pq === (pad ? k : -1)) return;
+    H._pq = pad ? k : -1;
+    H.itemEls.forEach((el, i) => el.classList.toggle('padsel', pad && i === k));
+  }
+
   // Bảng phím góc phải dưới theo KeyGuidePanel! gốc (InGameKeyGuidePanelView): dòng "Hướng Dẫn [O]" luôn hiện, danh sách
   // phím (nhóm Toggle, mặc định tắt trong prefab) bật/tắt bằng O (InGame/ToggleKeyGuide). Ảnh phím: art/ui/tutorial/key.
   // Bỏ hai dòng Emoji [T] và Ping [Ctrl] của bản gốc: chỉ dùng khi chơi nhiều người, bản web chưa có.
-  const KEY_ROWS = [['Attack', 'Mouse_Left_Key'], ['Dash', 'Space_Key'], ['Run', 'LeftShift_Key'], ['MiniMap', 'M_Key'], ['Inventory', 'Tab_Key']];
+  // Ảnh phím theo II_ImagePrompt của từng dòng (guides.json keyGuidePanel): tay cầm thì Y / B / bấm cần trái / View / Menu;
+  // dòng "Hướng Dẫn" chỉ có binding O nên khi dùng tay cầm hiện ảnh unbound của bộ icon (như InputIcons gốc).
+  const KEY_ROWS = [['Attack', 'Mouse_Left_Key', '<Gamepad>/buttonNorth'], ['Dash', 'Space_Key', '<Gamepad>/buttonEast'],
+    ['Run', 'LeftShift_Key', '<Gamepad>/leftStickPress'], ['MiniMap', 'M_Key', '<Gamepad>/select'], ['Inventory', 'Tab_Key', '<Gamepad>/start']];
   const KG_STORE = 'voiddiver.keyguide';
   function buildKeyGuide(r) {
-    const k = n => `<img class="vd-key" src="art/ui/tutorial/key/${n}.webp" alt="">`;
-    const row = (key, img) => `<div class="row"><span>${T('UInGameKeyGuidePanel_' + key + '_Desc')}</span>${k(img)}</div>`;
+    const row = (key, kb, pad) => `<div class="row"><span>${T('UInGameKeyGuidePanel_' + key + '_Desc')}</span>${VD.keyPrompt(kb, pad)}</div>`;
     H.keyGuide = $('div', 'vd-keyguide', r,
-      `<div class="list">${KEY_ROWS.map(([a, b]) => row(a, b)).join('')}</div>` + `<div class="row head">${T('UInGameKeyGuidePanel_ControlGuide_Desc') || 'Hướng Dẫn'}${k('O_Key')}</div>`);
+      `<div class="list">${KEY_ROWS.map(([a, b, c]) => row(a, b, c)).join('')}</div>` + `<div class="row head">${T('UInGameKeyGuidePanel_ControlGuide_Desc') || 'Hướng Dẫn'}${VD.keyPrompt('O_Key', '<Keyboard>/o')}</div>`);
     let on = false;
     try { on = localStorage.getItem(KG_STORE) === '1'; } catch (e) { /* chế độ riêng tư */ }
     H.keyGuide.classList.toggle('open', on);
@@ -146,6 +159,7 @@
 
   H.update = function (dt) {
     if (!H.on || !H.root) return;
+    padQuick();
     const u = VD.stage.player;
     if (!u) return;
     const st = u.stats || {};

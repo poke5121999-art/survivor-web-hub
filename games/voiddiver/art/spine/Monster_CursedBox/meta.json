@@ -33,5 +33,29 @@
    "name": "Monster_CursedBox_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "710002": {
+   "sym": 1.0,
+   "mode": 2,
+   "sk": 1.95,
+   "bsx": 1.95,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "710001": {
+   "sym": 1.0,
+   "mode": 2,
+   "sk": 1.95,
+   "bsx": 1.95,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

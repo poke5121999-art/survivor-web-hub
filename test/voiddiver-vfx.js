@@ -19,6 +19,7 @@ const OPT = Object.fromEntries(process.argv.slice(2).filter(a => a.startsWith('-
 const TIMES = OPT.times ? OPT.times.split(',').map(Number) : [0.05, 0.15, 0.3, 0.6];
 const ZOOM = OPT.zoom ? +OPT.zoom : 1;          // --zoom=3: phóng mọi ảnh (soi chi tiết)
 const YAW = OPT.yaw || '90';
+const MOVE = OPT.move ? '&move=' + OPT.move : '';   // --move=vx,vz: hiệu ứng bám điểm chạy đều (Inherit Velocity, vệt)
 
 // 3 mẫu + 10 hiệu ứng nhân vật/quái khác
 const DEFAULT = [
@@ -75,7 +76,7 @@ function safe(n) { return n.replace(/[^A-Za-z0-9_.-]/g, '_'); }
   for (const name of names) {
     if (!index.fx[name]) { errors.push('không có trong index.json: ' + name); continue; }
     for (const zoom of (ZOOM === 1 ? [1, 3] : [ZOOM])) {
-      const url = `http://127.0.0.1:${port}/games/voiddiver/tools/vfx_view.html?manual=1&w=960&h=540&zoom=${zoom}&yaw=${YAW}&fx=${encodeURIComponent(name)}`;
+      const url = `http://127.0.0.1:${port}/games/voiddiver/tools/vfx_view.html?manual=1&w=960&h=540&zoom=${zoom}&yaw=${YAW}${MOVE}&fx=${encodeURIComponent(name)}`;
       await page.goto(url);
       await page.waitForFunction(() => window.vfxView && (window.vfxView.ready || window.vfxView.error), null, { timeout: 20000 });
       await page.evaluate(n => window.vfxView.play(n), name);

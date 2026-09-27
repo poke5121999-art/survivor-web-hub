@@ -33,5 +33,51 @@
    "name": "Monster_HighAcolyte_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "240008": {
+   "sym": 1.8,
+   "mode": 2,
+   "sk": 1.35,
+   "bsx": 1.35,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "220008": {
+   "sym": 1.8,
+   "mode": 2,
+   "sk": 1.35,
+   "bsx": 1.35,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "210008": {
+   "sym": 1.8,
+   "mode": 2,
+   "sk": 1.35,
+   "bsx": 1.35,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200008": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 1.35,
+   "bsx": 1.35,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

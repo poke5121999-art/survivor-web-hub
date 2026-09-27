@@ -33,5 +33,18 @@
    "name": "Boss_DarkYoungBaby_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "300011": {
+   "sym": 0.8,
+   "mode": 2,
+   "sk": 1.2,
+   "bsx": 1.2,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

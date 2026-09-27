@@ -33,5 +33,29 @@
    "name": "Monster_Bigeye_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "200004": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.15,
+   "bsx": 1.15,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "200027": {
+   "sym": 0.95,
+   "mode": 2,
+   "sk": 1.15,
+   "bsx": 1.15,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

@@ -33,5 +33,29 @@
    "name": "Boss_Cleaner_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "301012": {
+   "sym": 2.0,
+   "mode": 2,
+   "sk": 1.25,
+   "bsx": 1.25,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "300012": {
+   "sym": 2.0,
+   "mode": 2,
+   "sk": 1.25,
+   "bsx": 1.25,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

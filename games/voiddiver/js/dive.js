@@ -206,7 +206,7 @@
   }
   async function preloadPrefabs(names) {
     D.prefabR = D.prefabR || {};
-    await Promise.all([...new Set(names)].filter(n => VD.objects.has(n)).map(n => VD.objects.load(n).then(({ json }) => {
+    await Promise.all([...new Set(names.concat('DropGoods'))].filter(n => VD.objects.has(n)).map(n => VD.objects.load(n).then(({ json }) => {
       const trig = (json.colliders || []).find(c => c.path === '' && c.trigger);
       if (trig) D.prefabR[n] = trig.shape === 'box' ? Math.max(trig.size[0], trig.size[2]) / 2 : (trig.radius || 1);
       const it = (json.behaviours || []).find(b => b.class === 'InteractiveTrigger' && b.fields);
@@ -214,6 +214,9 @@
       // RewardBox của prefab: _holdingSfx / _lockedHoldingSfx (tiếng giữ F riêng từng loại rương), _interactionSfx.
       const rb = (json.behaviours || []).find(b => b.class === 'RewardBox' && b.fields);
       if (rb) { D.boxFields = D.boxFields || {}; D.boxFields[n] = rb.fields; }
+      // Đồ rơi: DropGoods.get_HoldingTime trả thẳng trường _holdingTime của prefab (0,25; mặc định hàm dựng 0,5). [ĐO — ui_inventory_il2cpp.py]
+      const dg = (json.behaviours || []).find(b => b.class === 'DropGoods' && b.fields);
+      if (dg) D.dropFields = dg.fields;
     }).catch(() => {})));
   }
 
@@ -231,20 +234,21 @@
     const st = stressState();
     if (r.InteractStressConditions && r.InteractStressConditions.length && r.InteractStressConditions.indexOf(st) < 0) return null;
     const left = e.lootInv ? e.lootInv.slots.some(s => s.g) : e.loot && e.loot.length;
-    if (e.opened) return left ? { verb: TX('LootingInventory') || 'Kết quả Tìm kiếm', time: r.HoldingTime || C('LootingInteractionTime', 0.1), sfx: boxSfx(e, false) } : null;
+    // RewardBox.get_HoldingTime = cột RewardBox.HoldingTime (0,1 / 1,2). Const.LootingInteractionTime chỉ dùng cho xác quái (MonsterBody). [ĐO]
+    if (e.opened) return left ? { verb: TX('LootingInventory') || 'Kết quả Tìm kiếm', time: r.HoldingTime, sfx: boxSfx(e, false) } : null;
     let locked = false;
     if (r.HasKeyInteraction) locked = !VD.inventory.findKey(r.KeyItemTypes || [], r.KeyItemIds || []);
-    return { verb: TX('Open') || 'Mở', time: r.HoldingTime || C('LootingInteractionTime', 0.1), locked, sfx: boxSfx(e, locked) };
+    return { verb: TX('Open') || 'Mở', time: r.HoldingTime, locked, sfx: boxSfx(e, locked) };
   }
-  // Tiếng giữ F: RewardBox._holdingSfx / _lockedHoldingSfx của prefab (vd BrownBox → InteractionLooting_PaperBox2).
-  // MedicalBox/Briefcase/HiddenStash trong art/object là bản MimicObject (không có _holdingSfx): lấy clip trùng tên prefab
-  // nếu có (InteractionLooting_MedicalBox…). [SUY LUẬN]
+  // Tiếng giữ F: RewardBox._holdingSfx / _lockedHoldingSfx của prefab (vd BrownBox → InteractionLooting_PaperBox2;
+  // rip_objects.py chọn bản RewardBox, không lấy bản MimicObject cùng tên). DeadManBox_03 ghi "InteractionLooting" — không có
+  // clip trùng tên (tên nhóm MasterAudio?) nên dùng InteractionLooting_Default. [SUY LUẬN]
   function boxSfx(e, locked) {
     const f = D.boxFields && D.boxFields[e.prefab];
-    if (f && (locked ? f._lockedHoldingSfx : f._holdingSfx)) return locked ? f._lockedHoldingSfx : f._holdingSfx;
-    if (locked) return 'InteractionLooting_Locked';
-    const same = 'InteractionLooting_' + e.prefab;
-    return VD.ASSETS && VD.ASSETS.sfx && VD.ASSETS.sfx[same] ? same : 'InteractionLooting_Default';
+    const n = f && (locked ? f._lockedHoldingSfx : f._holdingSfx);
+    const have = VD.ASSETS && VD.ASSETS.sfx;
+    if (n && (!have || have[n])) return n;
+    return locked ? 'InteractionLooting_Locked' : 'InteractionLooting_Default';
   }
   function boxOpen(e) {
     const r = e.row;
@@ -807,7 +811,7 @@
         case 'box': it = boxInteract(e); break;
         case 'door': it = doorInteract(e); break;
         case 'exit': it = exitInteract(e); break;
-        case 'drop': it = { verb: TX('Pickup') || 'Nhặt', time: C('LootingInteractionTime', 0.1) }; break;
+        case 'drop': it = { verb: TX('Pickup') || 'Nhặt', time: (D.dropFields && +D.dropFields._holdingTime) || 0.5 }; break;
         case 'trigger': {
           const trig = D.triggerable[e.triggerId];
           const can = trig != null ? trig : e.can;
@@ -889,12 +893,13 @@
   }
 
   // ---------------------------------------------------------------- lời nhắc "F <động từ>" + vòng giữ
+  // Tay cầm: PlayerFunc/Interact = <Gamepad>/buttonSouth → ảnh nút A thay chữ F (CSS theo body[data-input-device]).
   const P = { el: null };
   function buildPrompt() {
     const ui = document.getElementById('ui') || document.body;
     P.el = document.createElement('div');
     P.el.className = 'vd-prompt';
-    P.el.innerHTML = '<div class="key"><svg viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="17"/><circle class="fg" cx="20" cy="20" r="17"/></svg><b>F</b></div><span class="verb"></span><div class="cost"><img><i></i></div>';
+    P.el.innerHTML = '<div class="key"><svg viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="17"/><circle class="fg" cx="20" cy="20" r="17"/></svg><b>F</b><img class="padk" src="' + VD.padIconUrl('<Gamepad>/buttonSouth') + '" alt=""></div><span class="verb"></span><div class="cost"><img><i></i></div>';
     ui.appendChild(P.el);
     P.fg = P.el.querySelector('.fg'); P.verb = P.el.querySelector('.verb'); P.cost = P.el.querySelector('.cost');
   }
@@ -1027,22 +1032,63 @@
     }
   }
 
-  // ================================================================ cutscene (không có Timeline Unity trên web)
-  // PlayCutscene: camera lướt tới điểm, tối mép, khoá điều khiển; tín hiệu 1 ở 1,2 s, kết thúc ở 3 s. Quái xuất hiện là
-  // quái do Lua sinh sau WaitCutsceneEndAsync (SpawnVfx của Monster.csv). [SUY LUẬN, docs/DIVE.md §7]
+  // ================================================================ cutscene
+  // PlayCutscene(prefab, pos) → GameCutsceneManager.OnPlayCutscene: dựng prefab ở pos, chặn input (chỉ còn map Cutscene), ẩn
+  // canvas popup, tắt tiếng bus SFX_GAME. Prefab có Timeline đã bóc (art/ui/tutorial/timeline.json, tools/ui_tutorial_timeline.py)
+  // thì chạy theo Timeline đó [ĐO]: độ dài = cuối clip xa nhất, tín hiệu Lua n = CutsceneLuaSignalClip (SignalId n) phát lúc
+  // clip bắt đầu, SFX theo CutsceneSoundTrack, camera theo đường cong Vcam, ảnh Storyboard (m_Alpha) che màn đầu/cuối.
+  // Prefab chưa bóc: như cũ, tín hiệu 1 ở 1,2 s, hết ở 3 s. [SUY LUẬN]
+  // Giữ Esc / B 1 s (SkipHoldDuration) → FinishCutscene: FlushAllLuaSignals (mọi tín hiệu đang đợi phát luôn) rồi kết thúc.
   function cutsceneTick(dt) {
     const c = D.cutscene;
     if (!c) return;
     c.t += dt;
-    if (c.t >= 1.2 && !c.sig1) { c.sig1 = true; c.sigTask.IsCompleted = true; }
-    if (c.t >= 3.0) {
-      c.endTask.IsCompleted = true;
-      D.cutscene = null; D.camTarget = null;
-      document.body.classList.remove('vd-cutscene');
-      if (VD.input && !(VD.dialog && VD.dialog.open)) VD.input.enabled = true;
-      const pl = VD.stage.player; const bid = C('CutsceneStateBuffId', 0);
-      if (pl && bid && pl.buffs.get(bid)) pl.buffs.remove(VD.stage.A, bid, null, 'cutscene');
+    const tl = c.tl;
+    for (const s of c.signals) if (!s.done && c.t >= s.t) { s.done = true; if (s.id === 1) c.sigTask.IsCompleted = true; }
+    for (const f of c.sfx) if (!f.done && c.t >= f.t) { f.done = true; f.h = sfx(f.name, { key: 'cut:' + f.name }); }
+    if (tl && VD.tutorial) {
+      const cam = VD.tutorial.cutsceneCam(tl, Math.min(c.t, c.dur));
+      D.camTarget = { x: c.pos.x + cam.x, z: c.pos.z - cam.z };
+      D.camDist = cam.dist;
+      if (c.board) c.board.style.opacity = Math.max(0, Math.min(1, cam.board)).toFixed(3);
+      // CinemachineBasicMultiChannelPerlin.m_AmplitudeGain: rung nhẹ theo xung (hồ sơ nhiễu gốc chưa đọc được → biên độ web tự đặt).
+      if (cam.shake > 0.02) VD.render.shake(cam.shake * 0.12, 0.08);
     }
+    if (c.t >= c.dur) cutsceneEnd();
+  }
+  function cutsceneEnd() {
+    const c = D.cutscene;
+    if (!c) return;
+    c.sigTask.IsCompleted = true;              // FlushAllLuaSignals
+    c.endTask.IsCompleted = true;
+    for (const f of c.sfx) if (f.h) VD.audio.stop(f.h, 0.2);   // SoundManager.StopSfxAll
+    if (c.board) c.board.remove();
+    D.cutscene = null; D.camTarget = null; D.camDist = 0;
+    document.body.classList.remove('vd-cut');
+    if (VD.dialog && VD.dialog.setCutscene) VD.dialog.setCutscene(null);
+    if (VD.input && !(VD.dialog && VD.dialog.open)) VD.input.enabled = true;
+    const pl = VD.stage.player; const bid = C('CutsceneStateBuffId', 0);
+    if (pl && bid && pl.buffs.get(bid)) pl.buffs.remove(VD.stage.A, bid, null, 'cutscene');
+  }
+  function cutsceneStart(name, pos) {
+    const tl = VD.tutorial && VD.tutorial.timelineFor ? VD.tutorial.timelineFor(name) : null;
+    const c = { name, pos, t: 0, tl, dur: 3.0, signals: [{ id: 1, t: 1.2 }], sfx: [],
+      sigTask: { IsCompleted: false, Result: null }, endTask: { IsCompleted: false, Result: null } };
+    if (tl) {
+      c.dur = tl.duration;
+      c.signals = VD.tutorial.clips(tl, 'CutsceneLuaSignalTrack').map(k => ({ id: (k.asset && k.asset.SignalId) || 1, t: k.start }));
+      c.sfx = VD.tutorial.clips(tl, 'CutsceneSoundTrack').filter(k => k.asset && k.asset.Sfx).map(k => ({ name: k.asset.Sfx, t: k.start }));
+      c.board = document.createElement('div'); c.board.className = 'vd-cutboard';
+      (document.getElementById('ui') || document.body).appendChild(c.board);
+    } else D.missing.add('Timeline ' + name);
+    D.cutscene = c;
+    D.camTarget = pos;
+    document.body.classList.add('vd-cut');
+    if (VD.input) { VD.input.enabled = false; VD.input.clear(); }
+    if (VD.dialog && VD.dialog.setCutscene) VD.dialog.setCutscene(cutsceneEnd);
+    const bid = C('CutsceneStateBuffId', 0), u = VD.stage.player;
+    if (u && bid && db().buff(bid)) u.buffs.add(VD.stage.A, bid, 1, u);
+    cutsceneTick(0);
   }
 
   // ================================================================ LuaApi
@@ -1124,16 +1170,7 @@
       ForceEscapeStage: () => { D.later.push({ t: D.t + 1.5, fn: () => finish('escape', { forced: true }) }); return done(); },
       ForceStartStage: () => done(),
       ForceReturnToTitle: () => { finish('abandon'); return done(); },
-      PlayCutscene: (name, t) => {
-        const pos = t ? fromLua(t) : pl().pos;
-        D.cutscene = { name, pos, t: 0, sigTask: { IsCompleted: false, Result: null }, endTask: { IsCompleted: false, Result: null } };
-        D.camTarget = pos;
-        document.body.classList.add('vd-cutscene');
-        if (VD.input) { VD.input.enabled = false; VD.input.clear(); }
-        const bid = C('CutsceneStateBuffId', 0), u = pl();
-        if (u && bid && db().buff(bid)) u.buffs.add(VD.stage.A, bid, 1, u);
-        return done();
-      },
+      PlayCutscene: (name, t) => { cutsceneStart(name, t ? fromLua(t) : { x: pl().pos.x, z: pl().pos.z }); return done(); },
       WaitCutsceneSignalAsync: () => D.cutscene ? D.cutscene.sigTask : done(),
       WaitCutsceneEndAsync: () => D.cutscene ? D.cutscene.endTask : done(),
       SpawnSequentialTimeline: () => done(),
@@ -1298,6 +1335,8 @@
     if (VD.tutorial) VD.tutorial.clear();
     if (VD.minimap) VD.minimap.clear();
     if (P.el) P.el.style.display = 'none';
+    introOverlay(false); D.intro = null;
+    if (D.cutscene) cutsceneEnd();
     VD.stage.onUnitEvent = null;
     VD.inventory.onDrop = null;
     VD.stage.end();
@@ -1316,7 +1355,7 @@
     VD.stage.update(dt);
     flushLua();
     if (VD.lua.state) VD.lua.tick();
-    if (D.state === 'intro') { if (D.t >= D.introEnd) enterPlay(); return; }
+    if (D.state === 'intro') { introTick(); if (D.t >= D.introEnd) enterPlay(); return; }
     if (D.state === 'play') {
       if (VD.input.pressed.Minimap && VD.minimap) VD.minimap.toggleBig();
       VD.inventory.step(dt);
@@ -1337,14 +1376,31 @@
     if (D.state !== 'play') return;
     // Tab mở/đóng túi ngay trên sự kiện DOM (input.enabled tắt khi túi mở nên không đọc qua VD.input được).
     if (e.code === 'Tab' && !e.repeat) { e.preventDefault(); if (VD.inventory.open || (VD.input.enabled !== false && !D.cutscene)) VD.inventory.toggle(); }
-    else if (VD.inventory.open && e.code === 'Escape') { e.preventDefault(); VD.inventory.toggle(false); }
+    // Esc: thả món đang cầm / đóng túi phụ trước (inventory.escape), rồi mới đóng MenuPopup.
+    else if (VD.inventory.open && e.code === 'Escape') { e.preventDefault(); if (!VD.inventory.escape()) VD.inventory.toggle(false); }
+    // InGame/Menu (Esc, X) khi bảng đóng: InGameScene.OnMenuClick mở MenuPopup ở PageCategory 0 = Mục tiêu; không mở khi đang
+    // xem bản đồ lớn (bấm Esc/X là MinimapEscape) hoặc đang có hộp thoại. [ĐO — ui_inventory_il2cpp.py]
+    else if (!VD.inventory.open && (e.code === 'Escape' || e.code === 'KeyX') && !e.repeat && VD.input.enabled !== false && !D.cutscene
+      && !(VD.dialog && VD.dialog.open)) {
+      if (VD.minimap && VD.minimap.big) VD.minimap.toggleBig(false);
+      else { e.preventDefault(); e.stopImmediatePropagation(); VD.inventory.openMenu('Quest'); }   // chặn inventory.js đóng lại ngay (X)
+    }
   });
 
   function render(dt) {
     if (D.state === 'idle' || D.state === 'loading') return;
     const pl = VD.stage.player;
     if (!pl) return;
-    VD.render.follow(D.camTarget || pl.pos, dt);
+    // Cắt cảnh có Timeline: prefab mang camera riêng (CutSceneCamera + CinemachineBrain), nên vào/ra là cắt thẳng, không trễ;
+    // khoảng cách theo Vcam, giữ hướng nhìn của camera chơi (cùng yaw 315°, nghiêng ~30°).
+    if (D.cutscene && D.cutscene.tl && D.camTarget) {
+      D.camBase = D.camBase || VD.render.offset.clone();
+      VD.render.setView({ offset: D.camBase.clone().setLength(D.camDist || D.camBase.length()) });
+      VD.render.snap(D.camTarget);
+    } else {
+      if (D.camBase) { VD.render.setView({ offset: D.camBase }); D.camBase = null; VD.render.snap(pl.pos); }
+      VD.render.follow(D.camTarget || pl.pos, dt);
+    }
     const face = pl.aim ? Math.atan2(pl.aim.z, pl.aim.x) : 0;
     // LightFuel = 0: tầm nhìn còn Const.BlindSightRange (1 m) quanh người.
     // Cutscene: vùng sáng tròn quanh điểm diễn (không có Timeline gốc; bán kính 6 m — không có trong bảng).
@@ -1366,12 +1422,64 @@
 
   function enterPlay() {
     D.state = 'play';
-    document.body.classList.remove('vd-intro');
-    const intro = document.querySelector('.vd-introcard'); if (intro) intro.classList.add('out');
-    setTimeout(() => { const i = document.querySelector('.vd-introcard'); if (i) i.remove(); }, 900);
+    document.body.dataset.diveState = 'play';
+    introOverlay(false);
     if (VD.input) VD.input.enabled = true;
     luaCall('Campaign/' + D.camp.Id, 'OnStage');
     for (const k of luaKeys().slice(1)) luaCall(k, 'OnStage');
+  }
+
+  // ================================================================ mở màn (stage Intro → Playing)
+  // Bản gốc (đo, docs/DIVE.md §10.8): màn nạp GameLoadingPopup tắt khi stage vào Intro (5); IntroTimelineObject chơi
+  // TL_World_OBJ_PhoneBooth_Intro: canvas phủ màn 0–5,53 s (video Diveloading ×1,25 + nền đen blackMatte theo đường cong),
+  // SFX EnterLoading 0 s, BoothEnter 5,33 s; tín hiệu IntroFinish 8,3 s → OnIntroFinished → Playing (6) → Lua OnStage.
+  // HUD bật sẵn (GameManager.RxActiveInGameHud khởi tạo true), nằm dưới lớp phủ. Tutorial không có thẻ CampaignStartPopup
+  // (LoungeScene.OnCampaignStarted bỏ qua khi GameContext.IsTutorial); campaign khác thẻ hiện ở sảnh, trước lúc nạp.
+  const INTRO_FALLBACK = { finish: 8.3, canvasEnd: 5.53333 };
+  function introStart() {
+    const tl = VD.tutorial && VD.tutorial.tl && VD.tutorial.tl.intro;
+    D.intro = { t0: D.t, tl, sfx: [], canvasEnd: INTRO_FALLBACK.canvasEnd };
+    D.state = 'intro';
+    D.introEnd = D.t + (tl ? VD.tutorial.marker(tl, 'IntroFinish', INTRO_FALLBACK.finish) : INTRO_FALLBACK.finish);
+    if (tl) {
+      D.intro.sfx = VD.tutorial.clips(tl, 'CutsceneSoundTrack').filter(k => k.asset && k.asset.Sfx).map(k => ({ name: k.asset.Sfx, t: k.start }));
+      const cv = VD.tutorial.clips(tl, 'ControlTrack').find(k => k.name === 'Canvas');
+      if (cv) D.intro.canvasEnd = cv.start + cv.duration;
+    }
+    introOverlay(true);
+    introTick();
+  }
+  function introTick() {
+    const I = D.intro;
+    if (!I) return;
+    const t = D.t - I.t0, T = VD.tutorial, tl = I.tl;
+    for (const f of I.sfx) if (!f.done && t >= f.t) { f.done = true; sfx(f.name); }
+    const el = I.el;
+    if (!el) return;
+    if (t >= I.canvasEnd) { introOverlay(false); return; }
+    const cv = k => (tl && T ? Math.max(0, Math.min(1, T.curve(tl, 'Animation Track|' + k, t, 0))) : 0);
+    el.style.opacity = tl ? cv('Canvas/Video:m_Alpha').toFixed(3) : String(Math.max(0, Math.min(1, (I.canvasEnd - t) / 0.8)));
+    I.matte.style.opacity = tl ? cv('Canvas/Video/blackMatte:m_Color.a').toFixed(3) : '1';
+    if (I.video) I.video.style.opacity = tl ? cv('Canvas/Video/Image:m_Color.a').toFixed(3) : '0';
+  }
+  function introOverlay(on) {
+    const I = D.intro;
+    if (!on) { if (I && I.el) { I.el.remove(); I.el = null; if (I.video) { try { I.video.pause(); } catch (e) { /* đã gỡ */ } } } return; }
+    if (!I || I.el) return;
+    const el = I.el = document.createElement('div');
+    el.className = 'vd-introfade';
+    const v = I.tl && I.tl.video;
+    if (v && v.file) {
+      const video = I.video = document.createElement('video');
+      video.muted = true; video.playsInline = true; video.preload = 'auto';
+      video.src = 'art/ui/tutorial/' + v.file;
+      video.addEventListener('loadedmetadata', () => { video.playbackRate = v.speed || 1; });
+      el.appendChild(video);
+      const pr = video.play(); if (pr && pr.catch) pr.catch(() => { /* tự phát bị chặn: để khung đầu */ });
+    }
+    I.matte = document.createElement('div'); I.matte.className = 'matte';
+    el.appendChild(I.matte);
+    (document.getElementById('ui') || document.body).appendChild(el);
   }
 
   async function toResult() {
@@ -1408,6 +1516,8 @@
     document.body.dataset.ready = '';
     document.body.dataset.diveState = 'loading';
     showLoading(true);
+    // Thẻ CampaignStartPopup: bản gốc mở ở sảnh lúc campaign bắt đầu (trước khi nạp), không mở khi GameContext.IsTutorial.
+    if (!(VD.profile.get().isTutorial && camp.Id === 1100)) showCard();
     if (!VD.lua.state) VD.lua.init();
     if (D.trace !== false) { D.trace = VD.lua.trace = VD.lua.trace || []; }
     installApi();
@@ -1479,11 +1589,11 @@
     VD.loop.start();
     const waitVis = () => S.pending > 0 ? new Promise(r => setTimeout(r, 60)).then(waitVis) : null;
     await Promise.race([waitVis(), new Promise(r => setTimeout(r, 20000))]);
+    if (VD.tutorial && VD.tutorial.loadTimeline) await Promise.race([VD.tutorial.loadTimeline(), new Promise(r => setTimeout(r, 3000))]);
     showLoading(false);
-    // ---- mở màn: thẻ tên campaign 2 s rồi vào play (OnStage)
-    D.state = 'intro'; D.introEnd = D.t + 2.0;
+    // ---- mở màn: Timeline IntroTimelineObject rồi vào play (OnStage) ở tín hiệu IntroFinish
     document.body.dataset.diveState = 'intro';
-    showIntro();
+    introStart();
     if (VD.input) { VD.input.enabled = false; VD.input.clear(); }
     document.body.dataset.ready = '1';
     return new Promise(res => { resolveStart = res; });
@@ -1503,11 +1613,13 @@
     }
     if (!on && el) el.remove();
   }
-  function showIntro() {
+  function showCard() {
+    const old = document.querySelector('.vd-introcard'); if (old) old.remove();
     const el = document.createElement('div'); el.className = 'vd-introcard';
     el.innerHTML = `<div class="sec">${TX('TCampaign_SectorName_' + D.camp.Id) || ''}</div><div class="name">${TX('TCampaign_Name_' + D.camp.Id) || ''}</div><div class="desc">${(TX('TCampaign_Desc_' + D.camp.Id) || '').replace(/<[^>]+>/g, '')}</div>`;
     (document.getElementById('ui') || document.body).appendChild(el);
-    document.body.classList.add('vd-intro');
+    setTimeout(() => el.classList.add('out'), 2000);
+    setTimeout(() => el.remove(), 2900);
   }
 
   // ================================================================ tiện cho kiểm thử / gỡ lỗi
@@ -1519,6 +1631,7 @@
     interactables,
     stressState: () => stressState(),
     skipIntro() { if (D.state === 'intro') D.introEnd = D.t; },
+    skipCutscene() { cutsceneEnd(); },
     dismissResult() { if (D.dismissResult) D.dismissResult(); },
     zone: id => D.zoneSpawns[id],
     missing: () => Array.from(D.missing),

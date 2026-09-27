@@ -1,0 +1,13 @@
+{
+ "name": "Img_Screen_LensDirt",
+ "w": 1024,
+ "h": 1024,
+ "intensity": 30.0,
+ "threshold": 1.0,
+ "bloom": 0.30000001192092896,
+ "scatter": "default",
+ "clamp": "default",
+ "maxIterations": "default",
+ "highQuality": "default",
+ "skipIterations": "default"
+}

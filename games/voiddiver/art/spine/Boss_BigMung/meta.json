@@ -33,5 +33,51 @@
    "name": "Boss_BigMung_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "BaseBossMonster": {
+   "sym": 2.0,
+   "mode": 2,
+   "sk": 1.0,
+   "bsx": 1.0,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "301001": {
+   "sym": 1.75,
+   "mode": 2,
+   "sk": 2.3,
+   "bsx": 2.3,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "300002": {
+   "sym": 1.75,
+   "mode": 2,
+   "sk": 2.3,
+   "bsx": 2.3,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "300001": {
+   "sym": 1.75,
+   "mode": 2,
+   "sk": 2.3,
+   "bsx": 2.3,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

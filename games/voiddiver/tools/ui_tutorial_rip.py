@@ -10,6 +10,10 @@ Ra (art/ui/tutorial/):
                      bang phim HUD (StageScene/.../KeyGuidePanel!)
     <Texture>.webp   anh RawImage cua bang huong dan (ImgTuto01..)
     key/<Sprite>.webp   anh phim (Escape_Key, F_Key, Space_Key, Ctrl_Key, O_Key, Tab_Key...) + vong do giu (circle_38_*)
+    pad/<o>.webp     anh nut tay cam bo XBox (IconSet_XBox_VoidDiver = fallbackGamepadIconSet cua InputIconSetConfigurator):
+                     south/east/west/north, l1/l2/r1/r2, lStick*/rStick*, dPad*, Start/Select
+    guides.json padIcons: duong dan control <Gamepad>/... -> ten anh pad; prompts cua tung KeyPrompt (II_ImagePrompt):
+                     action, deviceType (0 Auto, 1 chi ban phim, 2 chi tay cam), kb/pad = duong dan binding theo bindingIndex
 
 Do duoc (2026-09-25):
 - Bang huong dan la con cua prefab sector (remote_prefab_assets_sector): <SectorId>/StaticDecoration/TutorialGuides/
@@ -230,11 +234,78 @@ def panel_sprites(env, cmap, sub, root_name, sprites):
                                     'fillMethod': d.m_FillMethod, 'fillOrigin': d.m_FillOrigin, **rect(t)})
                 if c.type.name == 'MonoBehaviour' and mb_class(c, cmap) == 'LocalizationText':
                     res.append({'node': path + g.m_Name, 'key': c.read_typetree().get('Key')})
+                if c.type.name == 'MonoBehaviour' and mb_class(c, cmap) == 'InputIcons.II_ImagePrompt':
+                    for sp in c.read().spritePromptDatas:
+                        ref = vd.deref(sp.actionReference)
+                        act = ref.m_Name if ref is not None else None
+                        res.append({'node': path + g.m_Name, 'prompt': act, 'deviceType': sp.deviceType,
+                                    'kb': binding_path(act, sp.bindingIndexKeyboard), 'pad': binding_path(act, sp.bindingIndexGamepad)})
             for ch in children(t):
                 walk(ch, path + g.m_Name + '/')
         walk(tr, '')
         return res
     return res
+
+
+INPUT = {}   # 'Map/Action' -> [duong dan binding theo thu tu m_Bindings] (InputActionAsset "InputActions")
+
+
+def load_input(env):
+    for o in env.objects:
+        if o.type.name != 'MonoBehaviour':
+            continue
+        t = o.read_typetree()
+        if 'm_ActionMaps' not in t:
+            continue
+        for am in t['m_ActionMaps']:
+            names = {a['m_Name'] for a in am['m_Actions']}
+            ids = {a['m_Id']: a['m_Name'] for a in am['m_Actions']}
+            for b in am['m_Bindings']:
+                act = ids.get(b['m_Action']) or (b['m_Action'] if b['m_Action'] in names else None)   # m_Action là tên action
+                if act:
+                    INPUT.setdefault(am['m_Name'] + '/' + act, []).append(b['m_Path'])
+
+
+def binding_path(act, i):
+    lst = INPUT.get(act) or []
+    return lst[i] if 0 <= i < len(lst) else None
+
+
+# control <Gamepad>/... -> truong cua bo icon InputIcons (InputIconSetBasicSO)
+PAD_FIELDS = {'buttonSouth': 'south', 'buttonEast': 'east', 'buttonWest': 'west', 'buttonNorth': 'north',
+              'leftShoulder': 'l1', 'leftTrigger': 'l2', 'rightShoulder': 'r1', 'rightTrigger': 'r2',
+              'leftStick': 'lStick', 'leftStickPress': 'lStick_Click', 'rightStick': 'rStick', 'rightStickPress': 'rStick_Click',
+              'leftStick/up': 'lStick_Up', 'leftStick/down': 'lStick_Down', 'leftStick/left': 'lStick_Left', 'leftStick/right': 'lStick_Right',
+              'rightStick/up': 'rStick_Up', 'rightStick/down': 'rStick_Down', 'rightStick/left': 'rStick_Left', 'rightStick/right': 'rStick_Right',
+              'dpad': 'dPad', 'dpad/up': 'dPad_Up', 'dpad/down': 'dPad_Down', 'dpad/left': 'dPad_Left', 'dpad/right': 'dPad_Right',
+              'start': 'Start', 'select': 'Select'}
+
+
+def rip_pad_icons(env, res):
+    load_input(env)
+    for o in env.objects:
+        if o.type.name != 'MonoBehaviour' or o.peek_name() != 'IconSet_XBox_VoidDiver':
+            continue
+        d = o.read()
+        icons = {}
+        for ctrl, field in PAD_FIELDS.items():
+            if hasattr(d, field):
+                sp = vd.deref(getattr(d, field).sprite)
+            else:   # Start/Select nam trong customContextIcons (textMeshStyleTag)
+                sp = next((vd.deref(c.customInputContextSprite) for c in d.customContextIcons if c.textMeshStyleTag == field), None)
+            if sp is None:
+                continue
+            save_img(sp.image, os.path.join(OUT, 'pad', field + '.webp'))
+            icons['<Gamepad>/' + ctrl] = field
+        # Hanh dong khong co binding tay cam (vd InGame/ToggleKeyGuide chi co O): InputIcons ve unboundData.
+        sp = vd.deref(d.unboundData.sprite)
+        if sp is not None:
+            save_img(sp.image, os.path.join(OUT, 'pad', 'unbound.webp'))
+            icons['unbound'] = 'unbound'
+        res['padIcons'] = icons
+        res['padIconSet'] = d.iconSetName
+        print('  pad icons', len(icons), flush=True)
+        return
 
 
 def save_sprites(sprites):
@@ -250,6 +321,9 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     textures, sprites = {}, {}
     res = {'source': 'VOID DIVER demo, tools/ui_tutorial_rip.py', 'units': 'Unity, met, tuong doi goc prefab sector'}
+
+    # Truoc het: bang binding (cho prompts) + anh nut tay cam.
+    vd.with_deps(vd.bfile('dependencies_assets_input'), lambda env: rip_pad_icons(env, res))
 
     def run_sector(env):
         cmap = class_map(env)

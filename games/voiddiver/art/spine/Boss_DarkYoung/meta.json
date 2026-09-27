@@ -33,5 +33,51 @@
    "name": "Boss_DarkYoung_Material",
    "shader": ""
   }
- ]
+ ],
+ "units": {
+  "810001": {
+   "sym": 3.0,
+   "mode": 2,
+   "sk": 1.7,
+   "bsx": 1.7,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "900003": {
+   "sym": 1.6,
+   "mode": 2,
+   "sk": 0.7,
+   "bsx": 0.7,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "301010": {
+   "sym": 3.0,
+   "mode": 2,
+   "sk": 1.4,
+   "bsx": 1.4,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  },
+  "300010": {
+   "sym": 3.0,
+   "mode": 2,
+   "sk": 1.4,
+   "bsx": 1.4,
+   "lpy": 0.0,
+   "skels": [
+    "NW",
+    "SW"
+   ]
+  }
+ }
 }

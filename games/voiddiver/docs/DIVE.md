@@ -212,9 +212,11 @@ Mỗi dòng Sector có các danh sách vị trí theo toạ độ Unity trong ô
 Chủ dự án chơi tutorial và nói: "khó hiểu, không biết làm sao cho xong, bắt chạy xa, không giống bản gốc, cần nút bỏ qua cả đoạn thoại".
 Mục này ghi bản gốc hướng dẫn người chơi thế nào và bản web làm lại ra sao.
 
-Công cụ: `tools/ui_tutorial_rip.py` → `art/ui/tutorial/` (`guides.json`, `ImgTuto01..06.webp`, `key/*.webp`). Mã: `js/tutorial.js`,
-`js/dialog.js` (bỏ qua), `js/hud.js` (bảng "Hướng Dẫn [O]"), `playerInput` trong `js/stage.js` (chạy bật/tắt).
-Bài kiểm: `test/voiddiver-tutorial-walk.js` (đi thật bằng WASD) và phần tutorial của `test/voiddiver-dive.js`.
+Công cụ: `tools/ui_tutorial_rip.py` → `art/ui/tutorial/` (`guides.json`, `ImgTuto01..06[Pad].webp`, `key/*.webp`, `pad/*.webp`),
+`tools/il2cpp_method.py` (đọc mã gốc, §10.10). Mã: `js/tutorial.js`, `js/dialog.js` (bỏ qua), `js/hud.js` (bảng "Hướng Dẫn [O]"),
+`playerInput` trong `js/stage.js` (chạy bật/tắt, ngắm tay cầm), `js/core.js` (tay cầm, đổi thiết bị, ảnh phím).
+Bài kiểm: `test/voiddiver-tutorial-walk.js` (đi thật bằng WASD), phần tutorial của `test/voiddiver-dive.js`,
+`test/voiddiver-gamepad.js` (tay cầm giả, ảnh ở `%TEMP%/voiddiver-gamepad-shots/`).
 
 ### 10.1 Nguyên nhân "khó hiểu, không biết đi đâu"
 
@@ -230,9 +232,13 @@ Bài kiểm: `test/voiddiver-tutorial-walk.js` (đi thật bằng WASD) và ph�
   - Prefab `TextMarker` (`remote_prefab_assets_eventui`) được sinh dưới `TextMarkerRoot`, mà `TextMarkerRoot` nằm ở `StageScene/Canvas*/InGamePanel/MiniMapPanel!/Mask*/Viewport*/MinMap/`. Tức là chữ đó nằm trên bản đồ nhỏ.
   - Khoá chữ là `MiniMapMarker_<id>`. Chỉ 4 sector có: 4010–4013.
   - Tutorial không có TextMarker nào, nên vẫn giữ cách cũ: `minimap.label`.
-- **[ĐO] `SendTutorialEvent` không nối với UI nào.**
-  - C# có `TutorialEvent`, `SendTutorialStep`. Không prefab hay bảng nào nối tên sự kiện với UI.
-  - [SUY LUẬN] Đây là analytics. Bản web chỉ ghi vào `VD.lua.trace`.
+- **[ĐO] `SendTutorialEvent` chỉ là analytics.** Đọc mã (`il2cpp_method.py LuaApi.SendTutorialEvent`, @0x1807ef7d0):
+  - Thân hàm: `_eventSystem.Trigger(new TutorialEvent(eventName))` (GameEventSystem.Trigger).
+  - Chỗ duy nhất đọc `TypeInfo(TutorialEvent)` ngoài LuaApi là `AnalyticsController.OnEventOccured` (`--usage TutorialEvent`):
+    ghi log `'tutorialEvent:' + tên` và gửi GameAnalytics khi `EnvironmentSettings.UseGameAnalytics`.
+  - `TutorialEvent.CalculateProgress(cond, cur, goal)` trả thẳng `goal` (dùng cho EventCondition của quest/thành tựu). Không bảng
+    nào của bản demo có điều kiện kiểu TutorialEvent.
+  - Không có UI nào nghe. Bản web chỉ ghi vào `VD.lua.trace`.
 
 ### 10.2 Các bảng trên sàn [ĐO — `guides.json`]
 
@@ -258,17 +264,32 @@ Toạ độ tính theo Unity, trong ô sector. Yaw tính bằng độ Unity (+ l
   - Bản web cho qua `VD.render.patchSight`: ngoài nón đèn thì tối như sàn.
   - Màu được hạ ×0,62, vì bản vá tầm nhìn nhân sáng tới ×3 trong nón và chữ trắng sẽ cháy.
 - **Web:** mỗi phần tử là một quad; góc được tính qua `VD.world.sectorPoint`, nên tự đúng khi sector xoay.
-  - Chữ vẽ bằng canvas 200 px/m, font Pretendard. Chỉ dựng nhóm Keyboard; nhóm Gamepad (ImgTuto0xPad) đã bóc nhưng chưa dùng.
+  - Chữ vẽ bằng canvas 200 px/m, font Pretendard.
+- **Nhóm Gamepad** (`guides.json` `sectors.<id>.gamepad`): `MoveTutorialGuidePad` (ImgTuto01Pad: cần L + R), `AttackTutorialGuidePad`
+  (ImgTuto02Pad: Y, X, RB), `FHoldTutorialGuidePad` (ImgTuto06Pad: A), `RunTutorialGuidePad` (ImgTuto03Pad: bấm cần L, B),
+  `ItemTutorialGuidePad` (ImgTuto04Pad: Menu, D-pad). Mũi tên ImgTuto05 dùng chung. Web dựng cả hai nhóm và chỉ hiện nhóm của
+  thiết bị đang dùng (`VD.tutorial.setDevice`, nghe `vd-device`), như `II_DeviceBasedObjectController`.
 
-### 10.3 Chạy là bật/tắt [ĐO + SUY LUẬN]
+### 10.3 Chạy là bật/tắt [ĐO — mã GameAssembly]
 
-- **[ĐO] Chạy là công tắc.**
-  - C# có `RunToggleOn`, `SetRunToggleOn`, `RxRunToggleOn`. Chữ gốc là "(Bật/Tắt) Chạy" (`URunTutorialGuide_TextRun`, `UInGameKeyGuidePanel_Run_Desc`).
-  - Phím vẫn là Shift (`PlayerFunc/Run` = `<Keyboard>/shift`). InputActionAsset không có interaction Hold/Toggle, nên việc bật/tắt nằm trong mã.
-- **[SUY LUẬN] Tự tắt.**
-  - `Const.ToggleRunExpireDelay` = 0,15: đứng yên quá 0,15 s thì tắt chạy. Bấm Shift lúc đang đứng thì chưa tính giờ tới khi bắt đầu đi.
-  - Cạn stamina thì tắt.
-- Bản web trước đây bắt giữ Shift để chạy. Đoạn bẫy lửa (`CallCollision_2`: "nên chạy") vì thế khó qua.
+- **Là tuỳ chọn, mặc định bật.** `RunToggleOn` là trường của `GamePlaySettingContextData` (tuỳ chọn Gameplay).
+  `GamePlaySettingService.CreateDefault` (@0x1801cbbb0) ghi `word [+0x30] = 1` → RunToggleOn = true (AimSupportOn = AutoAttackOn = true,
+  RstickAttackOn = LockMouseOn = AimLineOn = false, PadSensitivity = 40).
+- **Bấm Run** (`PlayerInputController.OnRunStart`, @0x1807341a0): bật tuỳ chọn thì gửi `ReqInputRun.Run = !CharacterModel.TryRun`
+  (bấm lần nữa là tắt); tắt tuỳ chọn thì gửi `Run = true` khi nhấn và `OnRunEnd` gửi `Run = false` khi thả (giữ để chạy).
+- **Host nhận** (`CharacterController.OnInputRun`, @0x18061c1a0): `Run = true` chỉ bật khi `Stamina ≥ RunStaminaCost × deltaTime`,
+  đặt hạn `model[+0x324] = TimeNow + Const.ToggleRunExpireDelay` rồi `TryRun = true`. `Run = false` → `TryRun = false`.
+- **Tự tắt** (`CharacterController.UpdateRun` @0x1806347b0, chép lại trong `FixedUpdate`): đang TryRun mà trạng thái là Skill (3),
+  CrowdControlled (7) hay Interact (9) thì dời hạn; trạng thái khác (Idle, …) mà `TimeNow > hạn` thì `TryRun = false`.
+  - Đang đi (`CharacterMoveState.OnUpdate`): thiếu stamina (`< cost × dt`) thì tắt; đủ thì trừ stamina (StaminaDamageEvent) và dời hạn.
+  - Rời trạng thái đi (`CharacterMoveState.OnExit`) cũng dời hạn một lần.
+  - Tức là đứng yên quá 0,15 s là tắt, **kể cả bấm Shift lúc đang đứng** (bản web cũ đoán ngược: chờ tới khi đi mới tính giờ).
+  - `Const.csv`: `ToggleRunExpireDelay 0.15` "thời gian công tắc chạy còn giữ sau khi ngừng di chuyển".
+- **Cạn stamina** (`CharacterController.OnStaminaChanged` @0x180625660): stamina mới `≤ RunStaminaCost × fixedDeltaTime` thì `TryRun = false`
+  và gửi `NtfUnitMonologueText` với `TLocalizedText.TooTiredToRun` ("Tôi kiệt sức rồi… Tôi không thể chạy thêm nữa…").
+  - Web: bong bóng thoại trên đầu nhân vật (`hud.bubbleAt`), chỉ khi stamina vừa rơi qua ngưỡng. [SUY LUẬN: bản gốc gọi mỗi lần
+    stamina đổi mà còn dưới ngưỡng; giao diện monologue gốc chưa đọc xem có lọc trùng không]
+- Web chưa có trang tuỳ chọn, nên `VD.stage.runToggleOn = true` (mặc định gốc). Phím: Shift, tay cầm bấm cần trái.
 
 ### 10.4 Bỏ qua hội thoại
 
@@ -280,8 +301,13 @@ Toạ độ tính theo Unity, trong ô sector. Yaw tính bằng độ Unity (+ l
 - **[ĐO] Bỏ qua cả đoạn chỉ có ở cắt cảnh.**
   - `StageScene/CutsceneCanvas*/CutscenePanel`: góc trái dưới. Nền `gradient_circle_128` đen 80 %. Phím `Escape_Key` trong vòng đo `circle_38_gaugebg` / `circle_38_line_2px` (Image Filled Radial360). Chữ `CutSceneSkip` "Giữ để bỏ qua".
   - Phím: action `Cutscene/Skip` = `<Keyboard>/escape`. C# có `SkipHoldDuration`, `OnSkipStarted`, `RxSkipProgress`.
-- **Web [SUY LUẬN]:** dùng lại khung CutscenePanel cho mọi hộp thoại Lua (lặn và sảnh). Giữ Esc, hoặc giữ chuột trên khung, 1 s thì tua tới `CloseDialogAsync`.
-  - [CHƯA RÕ] Giá trị `SkipHoldDuration` nằm trong mã. Đang dùng 1 s.
+- **[ĐO] Giữ 1,0 s.** `GameCutsceneManager.SkipHoldDuration` là const float = 1.0 (`il2cpp_method.py --fields GameCutsceneManager`).
+  `OnSkipStarted` (@0x18072ab90): ghi `startTime = Time.time`, rồi `Observable.EveryUpdate().Select(_ => clamp01(Time.time − startTime))`
+  `.TakeWhile(p < 1.0)` → `RxSkipProgress`; xong thì `RxSkipProgress = 1` và `CutsceneTimelineObject.StopTimeline`. Thả sớm → `OnSkipCanceled`.
+- **[ĐO] Ảnh phím của khung.** `KeyPrompt*` của CutscenePanel là `II_ImagePrompt` action `Ui/Escape` (Esc / X / B), không phải `Cutscene/Skip`.
+  Bàn phím hiện Esc, tay cầm hiện B.
+- **Web [SUY LUẬN]:** dùng lại khung CutscenePanel cho mọi hộp thoại Lua (lặn và sảnh). Giữ Esc (tay cầm: giữ B), hoặc giữ chuột trên
+  khung, 1 s thì tua tới `CloseDialogAsync`.
   - Cách tua: `D.skipAll` làm mọi `AppendDialogAsync` / `DelayDialogAsync` / `WaitDelayAsync` / `OpenNoteSystemPopup` trả task xong ngay. Lua gốc vẫn `await` từng dòng theo thứ tự, nên SetStep, SpawnMonster, SetCharacterStress, SetInGameHudActive, PlayBgm, ảnh nền, fade vẫn chạy đủ.
   - Gặp lựa chọn thì dừng tua, vì không chọn thay người chơi.
   - `OpenDialogAsync` / `CloseDialogAsync` xoá cờ tua. Chờ ngoài hộp thoại (radio `WaitDelayAsync` trong CallCollision_1/4) không bị tua.
@@ -293,6 +319,9 @@ Toạ độ tính theo Unity, trong ô sector. Yaw tính bằng độ Unity (+ l
   - Neo phải dưới, trên hàng ô đồ. Dòng `UInGameKeyGuidePanel_ControlGuide_Desc` [O] luôn hiện.
   - Nhóm `Toggle` (mặc định tắt trong prefab) liệt kê: Attack [LMB], Dash [Space], Run [LShift], MiniMap [M], Inventory [Tab], Emoji [T], Ping [Ctrl]. Bật/tắt bằng `InGame/ToggleKeyGuide` = O.
 - Web: có trong `hud.js`, bấm O hoặc bấm vào dòng "Hướng Dẫn". Trạng thái mở lưu `localStorage`. Bỏ Emoji/Ping vì bản web chơi đơn.
+- **Ảnh phím theo thiết bị** (`II_ImagePrompt` của từng dòng, `guides.json keyGuidePanel`): Attack Y, Dash B, Run bấm cần L, MiniMap View,
+  Inventory Menu. `InGame/ToggleKeyGuide` chỉ có binding O, nên khi dùng tay cầm dòng "Hướng Dẫn" hiện ảnh `unboundData` của bộ icon.
+  [SUY LUẬN: đó là cách InputIcons vẽ action thiếu binding; chưa chạy bản gốc với tay cầm để xem]
 
 ### 10.6 Bản đồ, điểm xuất phát, quãng đường [ĐO]
 
@@ -311,6 +340,117 @@ Toạ độ tính theo Unity, trong ô sector. Yaw tính bằng độ Unity (+ l
 - **[SUY LUẬN] "Chạy xa" đến từ không biết đi đâu, không phải từ bản đồ.**
   - Quãng BFS trên lưới đi theo thứ tự trigger là ≈155 m, dài hơn đường người chơi thật đi vì lưới 0,5 m đi zigzag.
   - Bản gốc có 8 mũi tên trên sàn chỉ đường.
+
+### 10.7 Tay cầm [ĐO — InputActionAsset + mã GameAssembly]
+
+- **Binding nhóm GamePad** (InputActionAsset "InputActions" trong `dependencies_assets_input`, đọc bằng typetree; chỉ số nút theo
+  "standard mapping" của trình duyệt):
+
+| Hành động gốc | Nút | Web (`js/core.js`) |
+|---|---|---|
+| Player/MovePad, AimPad | cần trái, cần phải | `input.padMove`, `input.aimPad` |
+| PlayerFunc/SkillBasicAttack, SkillOne | Y (3), X (2) | SkillBasicAttack, SkillOne |
+| PlayerFunc/SkillTwo, SkillThree, SkillFour | RB (5), RT (7), LT (6) | như tên |
+| PlayerFunc/SkillDash, Interact, Run | B (1), A (0), bấm cần trái (10) | như tên |
+| PlayerFunc/SkillEquipment | D-pad xuống (13) | SkillEquipment |
+| InGame/Minimap, InGame/Inventory | View (8), Menu (9) | Minimap; Menu do `js/ui/menu.js` đọc |
+| InGamePad/QuickSlotMoveLeft/Right, QuickSlotUse | D-pad trái/phải (14/15), lên (12) | `input.padQuick`, `Item1..5` |
+| Ui/Skip, Ui/NextFlow, Ui/Escape (hộp thoại) | A, RT, B | phát lại Space / Ctrl / Escape cho `dialog.js` |
+
+  - Bỏ: SwapPingEmojiPad (LB), PingEmojiPad (bấm cần phải), PointMinimap (LT khi mở bản đồ) — chơi nhiều người / bản đồ lớn.
+  - `SkillBasicAttackPadStick` (cần phải đẩy hết, StickDeadzone 0,95–1) chỉ chạy khi tuỳ chọn `RstickAttackOn`, mặc định tắt → bỏ.
+- **Đổi thiết bị** (`De.Base InputManager.OnAnyInputEvent` @0x182d11430, `RxControlDevice`, EControlDevice Keyboard 1 / GamePad 2):
+  - Sự kiện từ Gamepad tính là GamePad khi: cần trái/phải > `InputSettings.defaultDeadzoneMin`, cò > 0,1, hoặc một trong các nút mặt,
+    vai, Start/Select, bấm cần, D-pad đang nhấn.
+  - Sự kiện từ Keyboard → Keyboard. Chuột: nhích ≥ 20 px trong một sự kiện, hoặc trạng thái chuột khác mặc định (nút, lăn) → Keyboard.
+  - Đổi khi khác thiết bị hiện tại và đã qua `DEVICE_SWITCH_COOLDOWN = 0,3` s (Time.realtimeSinceStartup) kể từ lần đổi trước.
+    Khởi đầu Keyboard (`InputManager..ctor`).
+  - [SUY LUẬN] Vùng chết cần 0,125 / 0,925 là mặc định InputSettings của Unity; tệp InputSettings của bản gốc chưa bóc.
+  - Web: `VD.input.device` ('keyboard' | 'gamepad'), `body[data-input-device]`, sự kiện `vd-device`. Phím phát lại từ tay cầm
+    (`e.vdPad`) không làm đổi về bàn phím.
+- **Ảnh nút:** `II_ImagePrompt` lấy sprite theo binding của thiết bị hiện tại; bộ icon tay cầm mặc định là `IconSet_XBox_VoidDiver`
+  (`fallbackGamepadIconSet` của `InputIconSetConfigurator`). Web: `VD.keyPrompt(kb, padPath, only)` + `VD.refreshPrompts()`;
+  `deviceType` 1 (chỉ bàn phím) như phím F của DialogPopup thì ẩn khi dùng tay cầm. Ảnh ở `art/ui/tutorial/pad/` (34×34).
+  - Chỗ đổi ảnh: bảng trên sàn, hàng phím hộp thoại + ghi chú, khung bỏ qua, ô skill HUD (Y X B RB RT LT thay LMB/RMB/Space/Q/E/R),
+    bảng Hướng Dẫn, lời nhắc tương tác (A thay F), ô nhanh (khung chọn D-pad thay số 1–5).
+- **Ngắm bằng cần phải** (`PlayerInputController.OnAimPad` @0x180733020, `FixedUpdate`, `GetAimScreenPoint` @0x180732a40):
+  - Cần > 0,01: đích `_aimPadTarget = hướng × (1 − cos(độ lớn × π/2))`, `_isAimPadActive = true`. Thả: đích 0, tắt sau
+    `AIM_PAD_DEACTIVATE_DELAY = 0,15` s.
+  - Mỗi FixedUpdate: `_aimPadDir += (đích − dir) × clamp01(fixedDeltaTime × PadSensitivity/100 × 10)` (mặc định 40 → 4/s).
+  - Điểm ngắm (màn hình): đang ngắm và `|dir|² ≥ 0,01` → tâm màn hình + dir × nửa màn hình. Không thì `AimSupportOn` (mặc định bật) →
+    quái gần nhất trong `GameObjectManager._monstersInLocalSight`. Không có quái → hướng đi `_forward`.
+  - Web: `playerInput` (stage.js) chiếu điểm màn hình xuống sàn (`screenToGround`). Tầm nhìn lấy nón SightAngle × SightRange + vòng
+    SightBackRange. [SUY LUẬN: bản gốc còn tính tường chắn của PlaneSight]
+- **Ô nhanh:** `InGameQuickSlotPanelPresenter.OnQuickSlotMoveLeft` giảm `_selectedSlotIndex`, dưới 0 thì về ô cuối (vòng quanh).
+  D-pad lên dùng ô đang chọn.
+
+### 10.8 Mở màn và HUD [ĐO — mã + Timeline]
+
+Chủ dự án thấy HUD hiện dưới thẻ tên 2 s rồi Step_00003 mới ẩn. Thứ tự gốc:
+
+1. **Thẻ CampaignStartPopup** (tên sector / campaign / độ khó) mở ở **sảnh**, trong `LoungeScene.OnCampaignStarted`, trước khi nạp
+   StageScene (TConst.StageEnterDelay 5 s). Khi `GameContext.IsTutorial` thì hàm thoát ngay, **tutorial không có thẻ** (@0x18086db77).
+2. **Màn nạp** `GameLoadingPopup` đóng khi stage vào Intro (5) hoặc Playing (6) (`<OnOpenAsync>b__10_0`): tween tiến độ 0,3 s, mờ 0,25 s.
+3. **Intro (5)**: `IntroTimelineObject` chơi `TL_World_OBJ_PhoneBooth_Intro` (11,67 s, 30 fps):
+   - canvas phủ màn 0–5,53 s: video `Diveloading` (VideoPlayer ×1,25) dưới nền đen `blackMatte`. Độ mờ theo đường cong:
+     blackMatte 1→0 (0–1 s), 0→1 (3–3,67 s); ảnh video 1→0 (3,67–4,33 s); cả nhóm Video 1→0 (4,67–5,5 s);
+   - SFX `EnterLoading` 0 s, `BoothEnter` 5,33 s; buồng điện thoại (Spine `World_PhoneBooth`, `enter_start` / `enter_end`) + hạt
+     `shadow` 5,33 s, `phonebooth_begin` 7,33 s, `phonebooth_end` 9,63 s; camera `cmCam` đứng yên, offset (25, 21, −25) = camera chơi.
+   - Tín hiệu `IntroFinish` 8,3 s → `OnIntroFinished`: tắt vcam, gửi `ReqClientIntroFinished` → đủ người → Playing (6).
+4. **Playing (6)** → `GameLuaController` gọi Lua `OnStage` (`<Start>b__21_2`: state == 6) → SetStep(3) → Step_00003 → `SetInGameHudActive(false)`.
+- **HUD:** `GameManager.RxActiveInGameHud` khởi tạo `true` (GameManager..ctor), chỉ LuaApi.SetInGameHudActive đổi. Tức là HUD có sẵn
+  nhưng nằm dưới lớp phủ đen/video của Intro; lúc lớp phủ tan (5,5 s) thì HUD lộ ra ~2,8 s rồi Step_00003 mới ẩn.
+  [SUY LUẬN: đó cũng là hành vi gốc; chưa chạy bản gốc để quay lại]
+- **Web** (`dive.js introStart/introTick`, `art/ui/tutorial/timeline.json`, `art/ui/tutorial/intro/Diveloading.webm`):
+  - thẻ tên hiện trên màn nạp lúc bắt đầu `VD.dive.start` (thay cho sảnh), bỏ hẳn khi tutorial (`profile.isTutorial` + campaign 1100);
+  - trạng thái `intro` dài tới `IntroFinish` (8,3 s), lớp phủ `.vd-introfade` theo đúng ba đường cong, SFX theo CutsceneSoundTrack;
+  - chưa có: buồng điện thoại Spine + hạt (skeleton `World_PhoneBooth` chưa bóc), tiếng `EnterLoading` / `BoothEnter` (chưa có trong
+    `audio/sfx`, cần `tools/rip_sfx_refs.py`).
+
+### 10.9 Cắt cảnh boss tutorial [ĐO — Timeline]
+
+- `LuaApi.PlayCutscene("IngameCutScene_Chapter_01_TutorialCampaign_1", pos)` → `GameCutsceneManager.OnPlayCutscene`: dựng prefab ở pos,
+  chặn input (chỉ map Cutscene), `PopupManager.HideCanvas`, tắt bus `SFX_GAME`. Kết thúc (`FinishCutscene`): `FlushAllLuaSignals`
+  (mọi tín hiệu đang đợi phát luôn), StopSfxAll, ShowCanvas, mở input.
+- Timeline `TL_InGameCutScene_Chapter00_TutorialCampaign_1`, **10,8 s**. Tín hiệu Lua 1 = `CutsceneLuaSignalClip` (SignalId 1) bắt đầu ở
+  **6,167 s** (`CutsceneLuaSignalBehaviour.OnBehaviourPlay` → EmitLuaSignal khi Playback) → Lua `PlayBgm("BossDarkYoung_Battle")`.
+  `TimelineFinish` 10,8 s → `OnTimelineFinished` → Lua `WaitCutsceneEndAsync` xong → SpawnMonster 810001.
+- Camera: `Vcam` (FOV 10) con của `VcamOffset` (yaw 315°), đường cong "Recorded" dời VcamOffset (~3,3→4,8 m) và kéo Vcam lại gần
+  (y 15,6 → 11,7 → 13,7). `CinemachineStoryboard.m_Alpha`: 0,99 → 0 (0–2 s), 0 → 1 (9,6–10,67 s). Rung `m_AmplitudeGain` 6 xung.
+- Diễn viên: `Spine_Gayoung` (Cha_Sword, `battle_run` → `cutscene_tutorial` 2,2–10,8 s), `Spine_DarkYoung` (Boss_DarkYoung, walk / idle /
+  `skill_2` 7,43 s / `buff`), màu đen `CutsceneCharacterEffectClip` 0,37–7,1 s; hạt `effect_Roar` 8,27 s, 13 lần nhiễu màn hình;
+  SFX `DarkYoung_Appear`. Nhóm `DummyPlayerAnimation` (nhân vật người chơi) bị tắt tiếng (muted).
+- **Web** (`dive.js cutsceneStart/cutsceneTick`, `tutorial.js cutsceneCam`): độ dài, thời điểm tín hiệu, SFX, tâm và khoảng cách camera
+  (`render.setView` + `snap`, giữ góc camera chơi), lớp che Storyboard (`.vd-cutboard`, ảnh gốc chưa đọc → đen), rung nhẹ.
+  Giữ Esc / B 1 s → `cutsceneEnd` (như FinishCutscene), khung "Giữ để bỏ qua" riêng (`VD.dialog.setCutscene`).
+  - Chưa có: hai diễn viên Spine của cắt cảnh, hạt, nhiễu màn hình, ảnh Storyboard, tiếng `DarkYoung_Appear`. Camera ghép offset theo
+    TrackOffset là [SUY LUẬN]. HUD khi cắt cảnh [CHƯA RÕ]: HideCanvas chỉ ẩn canvas popup; web để HUD như cũ.
+  - Prefab khác chưa bóc Timeline (vd `IngameCutScene_Chapter_01_Campaign_4`): như cũ (tín hiệu 1,2 s, hết 3 s), ghi vào `D.missing`.
+  - Bỏ lớp viền đen + tối màn `body.vd-cutscene` tự chế trước đây (Timeline gốc không có).
+
+### 10.10 Công cụ đọc mã gốc: `tools/il2cpp_method.py` (và `tools/ui_tutorial_timeline.py`)
+
+- `ui_tutorial_timeline.py` bóc Timeline (track, clip, marker, đường cong AnimationTrack, transform nút) ra `timeline.json` và cắt video
+  Diveloading bằng ffmpeg. Đường cong là StreamedClip của Unity (UnityPy không giải): khung `[time, số khoá, (chỉ số, a, b, c, d)…]`,
+  giá trị `((a x + b) x + c) x + d`; tên đường cong khớp `crc32(đường dẫn)` / `crc32(thuộc tính)` với `genericBindings`, đường dẫn
+  tính từ nút mang Animator của track (VcamOffset, Actors…), không phải từ gốc prefab.
+
+- Đọc `global-metadata.dat` v39 (Il2CppDumper 6.x chưa đọc được) và dịch ngược `GameAssembly.dll` bằng capstone. Cách dùng ở đầu tệp.
+  - `Kiểu.Method` (cả lớp lồng: `'GameCutsceneManager.<>c__DisplayClass31_0.<OnSkipStarted>b__0'`), `--find REGEX`, `--type REGEX`,
+    `--fields Kiểu` (offset trường + hằng const), `--xref Kiểu.Method` (ai gọi), `--strref REGEX` (ai dùng chuỗi), `--usage REGEX`
+    (ai dùng TypeInfo/Method/Field…), `--addr 0x…`.
+  - Lần đầu mỗi bản game ~20 s (dò codegen module + Il2CppMetadataRegistration), cache ở `tools/__pycache__/il2cpp_method_*.json`;
+    sau đó ~2 s. `--xref` / `--usage` quét cả mục mã ~25 s.
+- **Bẫy đã sập:**
+  - v39 co chỉ số nhỏ lại 2 byte: `method.declaringType` u16 @4 (method 32 B), `typeDef.genericContainerIndex` u16 @20 (typeDef 82 B),
+    `image.typeStart/typeCount` u16 @8/@10 (đọc u32 như v31 thì ra số rác, mọi địa chỉ thành 0).
+  - Mã game nằm ở mục PE `il2cpp`, không phải `.text` (quét `.text` thì `--xref` rỗng).
+  - `m_Action` của binding trong InputActionAsset là **tên** action, không phải id.
+  - Tên kiểu trùng (`Extensions`, `InputManager`): khớp tên đầy đủ trước, không có method thì mới tới khớp đuôi.
+  - Getter tự sinh dùng chung thân (COMDAT: `get_RxIsPlaying` trùng với hàng trăm getter khác) → `--xref` ra người gọi lạc đề;
+    lúc đó tìm theo trường (`--fields`) hoặc đọc hàm Start của lớp nghe.
+  - Chú thích `this.<trường>` chỉ theo dõi thanh ghi tuyến tính (bỏ qua nhánh); ghi đè `mov [reg+..]` lên đối tượng mới cấp phát không
+    được chú thích. Gọi ảo chỉ in offset. Đọc kỹ trước khi tin.
 
 ## 11. Túi đồ (Tab) và lục rương (đo lại 2026-09-25)
 
@@ -381,15 +521,14 @@ Bài kiểm: `test/voiddiver-loot.js` (24 mục, có đo nhịp hé lộ) và ph
 
 ### 11.3 Bản web làm khác / còn thiếu
 
-- **[SUY LUẬN] "Sắp xếp" (R):** gộp chồng cùng Item, xếp yêu thích trước, rồi bậc giảm dần, loại, id. Chưa đo thứ tự của mã gốc.
-- **[SUY LUẬN] Bấm trái lên ô túi khi không lục rương = chọn ô (Selected!).** Chưa làm thanh công cụ cho tay cầm.
-- **[CHƯA RÕ] `DropGoods._holdingTime` = 0,25** trong prefab, còn luật nhặt đang dùng `Const.LootingInteractionTime` = 0,1. Chưa biết bên nào thắng.
-- **Chưa làm:** trang thẻ khác của MenuPopup (Quest, Character…), tooltip Equipment đầy đủ (hiệu ứng, bộ), `BagPanel` (túi phụ hiện ngay trong lưới, trang sau), `Highlight` glow, thao tác tay cầm, `OpenInventoryBag`.
-- **Rương MedicalBox / Briefcase / HiddenStash:** `art/object/<Prefab>.json` là bản `MimicObject` (không có `_holdingSfx`). Web lấy clip `InteractionLooting_<Prefab>` nếu có, không thì `InteractionLooting_Default`. [SUY LUẬN] Cần sửa `rip_objects.py` để lấy đúng biến thể RewardBox.
+- **Sắp xếp (R), thời gian giữ F nhặt đồ:** đã đo lại từ mã, xem §12.7.
+- **[SUY LUẬN] Bấm trái lên ô túi khi không lục rương = chọn ô (Selected!).** Tay cầm dùng A cầm/đặt (§12.6).
+- **Các trang khác của MenuPopup, tooltip trang bị, BagPanel, Highlight, tay cầm:** đã làm, xem §12.
+- **Rương MedicalBox / Briefcase / HiddenStash:** đã sửa ở `rip_objects.py` (§12.8); `boxSfx` bỏ đường vòng `InteractionLooting_<Prefab>`.
 
 ### 11.4 Kiểm trên trang thật (1280×720, 844×390)
 
-- `node test/voiddiver-loot.js`: đo nhịp giữa `Looting_Loop` và tiếng hé lộ trên giờ game: Rare 1,08, Elite 2,20, Epic 3,10, Legend 4,00 s, tiếng đúng bậc; đóng giữa chừng thì ô đang hé lộ về chưa hé lộ; Shift/Ctrl + trái; kéo thả; chuột phải; phím số; R; Esc; 844×390 mọi khối trong màn, ô ≥ 40 px.
+- `node test/voiddiver-loot.js` (phần MenuPopup ở §12): đo nhịp giữa `Looting_Loop` và tiếng hé lộ trên giờ game: Rare 1,08, Elite 2,20, Epic 3,10, Legend 4,00 s, tiếng đúng bậc; đóng giữa chừng thì ô đang hé lộ về chưa hé lộ; Shift/Ctrl + trái; kéo thả; chuột phải; phím số; R; Esc; 844×390 mọi khối trong màn, ô ≥ 40 px.
 
 ### 11.5 Bẫy đã sập
 
@@ -399,3 +538,201 @@ Bài kiểm: `test/voiddiver-loot.js` (24 mục, có đo nhịp hé lộ) và ph
 - **Swiftshader chụp một ảnh mất vài giây giờ game.** Bài kiểm chờ "ô 2 đang hé lộ" sau khi chụp thì ô 2 đã xong từ lâu → treo. Chờ "một ô giữa đang hé lộ" thay vì cố định ô.
 - **Đồ vừa vứt nằm dưới chân gần hơn rương.** Giữ F sau khi vứt sẽ nhặt lại đồ, không mở rương (đúng luật gần nhất); bài kiểm phải đứng sang phía kia rương.
 - **global-metadata.dat v39 (Unity 6):** Il2CppDumper 6.7 không đọc được. Tự đọc: header là bộ ba (offset, size, count); method 32 byte; image 36 byte; `Il2CppCodeGenModule` tìm qua con trỏ tới chuỗi tên dll; literal chuỗi là `0xA0000000 | (idx << 1) | 1`. Xem `tools/ui_inventory_il2cpp.py`.
+
+## 12. MenuPopup: các trang khác, tooltip trang bị, túi phụ, Highlight, tay cầm (đo lại 2026-09-26)
+
+Chủ dự án: "làm hết phần còn lại". Mục này ghi 7 thẻ của MenuPopup gốc là gì, bản web dựng thế nào, và những gì cố ý không làm.
+
+Công cụ:
+- `tools/ui_inventory_dump.py MenuPopup` và `QuestSlot ArchiveSlot MenuBuffSlot TextSlot KeySettingSlotRow`. Các ô danh sách nằm ở `dependencies_assets_prefab`; tìm tên qua `_cellViewPrefab` của các `*ScrollerPresenter`.
+- `tools/ui_inventory_rip.py`: thêm Deco*, OptionMenu*, Menu*, phím bàn phím, nút XBox_*, tiếng `Fail`. Chạy lại `tools/build_assets.py` sau khi thêm tiếng.
+- `tools/ui_inventory_il2cpp.py`: in thêm 5 mục đo trong mã (§12.7). Cần `numpy` để tìm nơi gọi; chạy khoảng 30 s.
+
+Mã:
+- `js/ui/menu.js`: khung, thẻ, khoá thẻ, tay cầm, đổi hình phím.
+- `js/ui/menu_pages.js`: 6 trang.
+- `js/inventory.js`: trang Túi đồ, túi phụ, tooltip, Organize.
+- `css/dive.css`: khối "MenuPopup gốc".
+- `js/dive.js`: Esc/X mở menu, thời gian giữ F.
+
+Bài kiểm: phần "MenuPopup" của `test/voiddiver-loot.js`. Ảnh ở `%TEMP%/voiddiver-loot-shots/menu-*.png`.
+
+### 12.1 Bảy thẻ [ĐO — `MenuPopup/Contents*/Tabs[]` + `Pages[]`, `EPageCategory`]
+
+| # | Thẻ | Icon | Trang | Nội dung gốc | Bản web |
+|---|---|---|---|---|---|
+| 0 | QuestTab | MenuQuest1 + MenuQuest2 | QuestPageView | Danh sách `QuestSlot` 620×80 bên trái. `QuestInfoPanel` bên phải: loại, tên, Lv., mô tả, "Mục tiêu" với từng điều kiện `n/goal`, "Thưởng hoàn thành" ô 60. Nút "Hiển thị trên UI" (G), "Xem hội thoại" (F), "Hủy Chọn". | Campaign đang lặn (CampaignTask) và LoungeQuest đang làm (`profile.loungeQuest == 2`). "Xem hội thoại" khoá. |
+| 1 | InventoryManagementTab | MenuInventory | InventoryManagementPageView | §11, cộng ví Coin/Gold góc phải trên và BagPanel | Đủ |
+| 2 | CharacterTab | MenuCharacter | CharacterPageView | CharacterInfoPanel: tên/danh hiệu, chỉ số (R đổi Cơ Bản/Chi Tiết), Spine đứng trên DecoFloor1, cột ô trang bị 90×90. Thẻ con "Nghịch Lý · Buff" / "Kỹ Năng". Có Equipment-/Paradox-/Buff-/SkillTooltip. | Đủ. Spine dựng bằng một SkeletonMesh riêng trên canvas nhỏ, giữ suốt phiên. |
+| 3 | ArchiveTab | MenuEncyclopedia | ArchivePageView | 8 hạng mục `EArchiveCategory` (ArchiveSlot 640×130) và danh sách TextSlot. Bấm một mục mở popup riêng (ArchiveGoods/Monster/Glossary/Quest/DialogPopup). | Chi tiết hiện trong khung tooltip ở cột phải; không dựng 5 popup. |
+| 4 | SquadTab | MenuSquad | SquadPageView | Tổ đội chơi mạng: "DS Phòng Công Khai", "Tạo Sảnh", "Tuyển thành viên nhóm…" | **Chơi mạng.** Dựng NotJoinedPanel đúng chữ gốc, hai nút Disabled! (ổ khoá). Thẻ khoá như gốc (§12.7). |
+| 5 | OptionTab | **MenuSystem** | OptionPageView | 5 thẻ dọc: Graphic, Sound, GamePlay, Keyboard, Pad | §12.4 |
+| 6 | SystemTab | **MenuOption** | SystemPageView | Tiếp tục, Buộc Thoát Lặn, (Rời Sảnh Co-op), Về màn hình chính, Sổ Tay Vận Hành, Thoát Game. Hai bàn tay DecoMenuSystemHand. | §12.5 |
+
+- **[ĐO] Icon thẻ 5 và 6 tréo tên.** OptionTab dùng sprite `MenuSystem`, SystemTab dùng `MenuOption`. Web làm đúng prefab.
+- **[ĐO] Phím.**
+  - Đổi thẻ: `UiPad/TabLeft` = LT, `TabRight` = RT; bàn phím Q/E.
+  - Đóng: Esc/X/B (UI/Escape) và Tab/Start (UI/CloseMenu).
+  - Mở: Esc/X khi đang chơi (InGame/Menu) mở thẻ **Mục tiêu**; Tab/Start (InGame/Inventory) mở **Túi đồ** (§12.7).
+- **[ĐO] Q/E không vòng quanh và nhảy qua thẻ khoá.**
+- Mỗi trang có dải phím riêng ở (80, 1019) theo `KeyGuide!` của trang đó.
+- Màn thấp (844×390): khung gọn 1420×700. Thẻ thành cột dọc bên trái, mọi trang dời sang phải 180 px và xếp lại trong 1240×700.
+
+### 12.2 Tooltip trang bị [ĐO — `GoodsTooltip/Equipment` = EquipmentTooltipView]
+
+Các khối trong `Body*` (VerticalLayout cách 8, lề trên 80), theo thứ tự:
+1. `Owned` / `NewTag` (thẻ "NEW" #A45646 25 %) và `CharacterSpecificCanEquip_`.
+2. `Title_`: bậc màu, tên 28, TypeIcon.
+3. `ArtifactTagGroup_`:
+   - thẻ loại cổ vật: viền tròn #706E63, nền #292923, chữ #888376;
+   - tiền tố tốt: #47663D / #252E27 / #5A804D; tiền tố xấu: #804040 / #2E2120 / #994C4C.
+4. `EffectGroup_`:
+   - `Skills[]` (EquipmentSkillText): hiệu ứng trang bị và hiệu ứng bộ;
+   - `Stats[]` (SubEffectText): chỉ số;
+   - chấm 4×4 #707070, chữ 16 #707070.
+5. `ArtifactCorruption_`, rồi `ArtifactPrice_` (Coin, kèm Gold trong ngoặc).
+6. `Attack_` (24 #DCDCDC), `Elemental_`, `Durability_` ("cur / max").
+7. `Description_`, `Price_` (Gold), `StashAmount_`.
+
+Dữ liệu web dùng:
+- `Equipment.Stats`; món hỏng (`dur == 0`) dùng `BrokenStats`.
+- `EquipmentEffectIds` → `TEquipmentEffect_Desc_<id>`, qua `VD.ui.rich`.
+- `EquipmentSetGroupId` → dòng `EquipmentSet`.
+- Tiền tố cổ vật `g.prefixes` (ArtifactPrefix, Id ≥ 20000 là tiền tố xấu) và chỉ số của tiền tố.
+
+Ghi chú:
+- **[ĐO] Không món nào của bản demo có `EquipmentSetGroupId`.** Ba dòng EquipmentSet là chữ giữ chỗ. Web vẫn dựng dòng bộ nếu có.
+- **[SUY LUẬN] Định dạng chỉ số:** `<EStatType_X> +v`, thêm `%` nếu tên kết thúc bằng Percent. Không có khoá LocalizedText cho mẫu "이동 속도 +5% 증가" của prefab.
+- **[SUY LUẬN] Giá cổ vật bằng Coin** = `VD.uiDeal.basePrice(g)` (công thức của sảnh, LOUNGE.md §5).
+- **[SUY LUẬN] Thẻ NEW:** món lần đầu vào hồ sơ. Web lưu ở `localStorage voiddiver.archive.v1`; gốc có `IsNewArchiveItem/Equipment`. Tắt khi rê chuột qua.
+- **BagTooltip:** tên kèm "(đang chứa/số ô)" như mẫu "#향긋한 약초 주머니 (2/6)"; giá = túi + đồ bên trong.
+- Cùng một mẫu tooltip dùng ở: trang Túi đồ, cột trang bị trang Nhân vật, chi tiết trang Lưu trữ, thưởng trang Mục tiêu.
+
+### 12.3 Túi phụ (Bag) và BagPanel [ĐO]
+
+- **Túi là một món hàng trong túi đồ, không phải ô cộng thêm.**
+  - Mô tả `TBag_Desc_*`: "Sử dụng vật phẩm để xem bên trong túi; nhấn Hủy để chỉ đóng túi lại".
+  - Mở: chỉ bằng Use (F / X tay cầm) lên món túi (`OnUseButtonClick` → `UseBag`).
+  - `UseBag` mở BagPanel và ẩn QuickSlotSettingPanel; `CloseBagPanel` hiện lại.
+  - Đóng: Esc/Back, hoặc khi ô chứa túi đổi (`RefreshBagPanelFromHolder`).
+- **Mỗi loại túi mang được một cái.**
+  - `HasDuplicateBagType` xét cả túi đồ và khe an toàn.
+  - Nhặt thêm túi cùng loại → `CannotCarrySameBagType`. Kéo túi cùng loại vào túi → `SameBagAlreadyOwned`.
+  - `EBagType`: None 0, Material 1, Key 2, Artifact 3.
+- **Nhặt đồ** (`PlayerInventory.PushGoods`): Item chồng vào chồng sẵn có trong túi phụ trước (`StackIntoExistingBags`), phần còn lại vào túi đồ.
+  - [SUY LUẬN theo tên hàm `StackIntoExistingBagSlots`] Ô trống của túi phụ không tự nhận hàng; người chơi kéo vào.
+- **Ô túi phụ** chỉ nhận hàng có `BagType` trùng: sai loại → `GoodsNotAllowedInBag`; túi trong túi → `CannotPutBagInBag`.
+- **BagPanel:** cùng toạ độ (690, 854) với QuickSlotSettingPanel.
+  - Khung 580: bóng gradient_square đen 85 %, Mtl_DE_UI_DefaultFrame, viền 2px #434343.
+  - Top* 40 là tên túi; hàng `ItemSlot_1..4` ô 80 cách 12.
+- **Web:**
+  - Món Bag mang `g.inner = [{ bag: Type, g }]`, nên túi đi cùng đồ bên trong khi kéo, vứt, cất kho, mất khi chết.
+  - `VD.inventory.goods()` trả lớp ngoài; `allGoods()` trải phẳng để đếm, tính ô nhiễm, giá trị.
+  - Esc/X/B đóng túi trước, lần sau mới đóng bảng.
+  - Bỏ tuỳ chọn cũ `bags: [Bag.Id]` (ô túi phụ gắn thẳng vào lưới); nếu vẫn truyền thì thành món Bag.
+
+### 12.4 Tuỳ chọn [ĐO bố cục; web làm được một phần]
+
+- **Bố cục gốc.**
+  - Hàng 1478×90, caption 18 #898989 ở x 402.
+  - Toggle 200×50 (dòng màn hình 320×50) căn phải tới x 1800.
+  - Thanh trượt 718×16, `Slider 0–10` số nguyên: nền #222322, viền #383838, phần đầy #A25D4D (#434343 khi tắt tiếng), tay nắm `img_slider_handle`, nút ImgSoundOn/Off.
+  - "Đặt lại" 200×60.
+- **Làm được** (lưu ở `localStorage voiddiver.option.v1`, áp khi nạp trang):
+  - âm lượng tổng / BGM / hiệu ứng, nhân vào mức trộn sẵn của `audio.js` (0,9 / 0,55 / 0,9);
+  - tắt tiếng từng dòng;
+  - rung màn hình (bọc `VD.render.shake`);
+  - Toàn màn hình / Cửa sổ.
+- **Khoá, hiện giá trị web đang dùng:**
+  - chất lượng, V-Sync, FPS, gamma, độ phân giải: trình duyệt quyết;
+  - ngôn ngữ: web chỉ có tiếng Việt;
+  - tự đánh, kiểu chạy, đường ngắm, khoá chuột, tấn công cần phải, hỗ trợ ngắm, độ nhạy tay cầm: cần sửa `stage.js` / `core.js`, thuộc phần khác.
+- **Thẻ Keyboard / Pad:** bảng `InputAction.csv` (tên `TInputAction_Name_<Id>`), hình phím theo binding trong InputActionAsset. Chỉ xem, không đổi phím. Hàng `IsRebindable = false` có ổ khoá.
+
+### 12.5 Hệ thống
+
+- **Tiếp tục** đóng bảng.
+- **Buộc Thoát Lặn** hỏi `GiveUpDescription` ("tính là thoát thất bại"), rồi gọi `VD.lua.api.ForceReturnToTitle`. Trong web, lệnh này là `finish('abandon')`: mất đồ như chết, trừ khe an toàn. [SUY LUẬN]
+- **Về màn hình chính** hỏi `ReturnToTitleDescription`, rồi đi cùng đường trên.
+- **Rời Sảnh Co-op** chỉ có ở sảnh chơi mạng, nên không hiện.
+- **Sổ Tay Vận Hành** (HelpPopup) và **Thoát Game** khoá.
+
+### 12.6 Highlight và tay cầm
+
+- **[ĐO] `InventoryGoodsSlot/Highlight`.**
+  - `Glow`: rectangle_line_glow (9-slice 23) #A45646, material Additive, tràn 13 px.
+  - `Line`: rectangle_line_2px trắng, Additive, tràn 2 px.
+  - Cả hai là `DOTweenAnimation` Fade tới 0,6 trong 1 s, Linear, Yoyo, lặp vô hạn.
+  - Web: `.vs.glow` với `mix-blend-mode: plus-lighter` và `-webkit-mask-box-image`.
+- **[ĐO] Khi nào sáng** (`RxHighlightOn`):
+  - Mọi ô của túi phụ đang mở sáng khi món đang kéo không phải túi và `PushableBagType == Bag.Type` (`RxIsDragAcceptable`).
+  - Ô trang bị cùng loại sáng khi kéo trang bị. Web chưa cho thay trang bị trong lượt lặn, nên phần này không có.
+- **Tay cầm** (map UI + UiPad của InputActionAsset, `~/Downloads/vd-ref/cache/input_strings.txt`):
+
+  | Nút | Hành động gốc | Web |
+  |---|---|---|
+  | Start | InGame/Inventory, UI/CloseMenu | mở trang Túi đồ / đóng |
+  | LT / RT | UiPad/TabLeft / TabRight | đổi thẻ |
+  | d-pad, cần trái | UiPad/MoveScroll, OptionLeft/Right | dời ô chọn theo hình học (như Selectable của uGUI); trái/phải chỉnh thanh trượt |
+  | cần phải | UiPad/MovePanel | nhảy sang panel bên cạnh |
+  | A | UiPad/Submit, DragAndDrop | bấm; trong túi: cầm lên / đặt xuống ô đang chọn |
+  | B | UI/Escape | thả món đang cầm → đóng túi phụ → đóng bảng |
+  | X | UI/UseItem | dùng / mở túi phụ |
+  | Y | UiPad/InsertGoods, MuteToggle | sang phía bên kia khi lục rương; tắt tiếng dòng âm lượng |
+  | LB (giữ) | UI/InventorySelectOne | Y/RB chỉ lấy 1 món |
+  | RB | UiPad/DropGoods | vứt |
+  | View | UI/MarkGoods | yêu thích |
+  | RS bấm | UI/Organize | sắp xếp; trang Nhân vật: Cơ Bản/Chi Tiết |
+
+- **Hình phím đổi theo thiết bị** như `II_DeviceBasedObjectController` (lớp `.vd-inv.pad`).
+  - Nguồn thiết bị duy nhất là `core.js` (InputManager.OnAnyInputEvent gốc: `VD.input.device`, sự kiện `vd-device`, hãm đổi 0,3 s); menu chỉ nghe, và khi bảng mở thì báo nút tay cầm ngược về `VD.input.setDevice`.
+  - Ảnh nút tay cầm lấy từ bộ IconSet_XBox_VoidDiver của `core.js` (`VD.padIconUrl`, cùng bộ với `VD.keyPrompt`) theo đường binding; sprite XBox_* ở `art/ui/inventory/` chỉ là dự phòng.
+  - InventoryKeyGuide: hàng "nửa" (Shift) chỉ có ở bàn phím; hàng A "Chọn" chỉ có ở tay cầm.
+- **Đọc tay cầm:** khi bảng mở, `core.js` không chuyển nút nào vào game và để Start cùng mọi nút cho menu. Menu tự đọc `navigator.getGamepads()`: vòng rAF khi bảng mở; `inventory.step` khi bảng đóng, để bắt Start. Không thêm hành động nào vào `core.js`.
+
+### 12.7 Đo trong mã GameAssembly [ĐO — `tools/ui_inventory_il2cpp.py` mục 1–5]
+
+- **Thời gian giữ F.**
+  - `DropGoods.get_HoldingTime` chỉ đọc trường `_holdingTime` của prefab: 0,25 s. Hàm dựng đặt 0,5 khi prefab không ghi.
+  - `RewardBox.get_HoldingTime` đọc cột `RewardBox.HoldingTime` (0,1 / 1,2).
+  - `Const.LootingInteractionTime` (0,1) chỉ được `MonsterBody.get_HoldingTime` (xác quái) gọi.
+  - Không có hệ số nhân: `CharacterInteractState.OnEnter` lấy thẳng giá trị trên.
+  - Web: đồ rơi 0,25 (đọc `art/object/DropGoods.json`); rương dùng đúng cột bảng.
+- **Sắp xếp** (`InventoryExtensions.Organize`), khoá theo thứ tự:
+  1. `OrderBy(ô rỗng)`: ô có đồ trước;
+  2. `ThenBy(EGoodsType)` tăng;
+  3. `ThenByDescending(Grade)`: bậc cao trước;
+  4. `ThenBy(Id)` tăng.
+  - Sắp xếp ổn định, **không gộp chồng**.
+  - `EGoodsType`: None 0, Gold, Coin, Exp, Consumable, Valuable, Misc, Note, Blueprint, MusicDisc, Weapon, Accessory, Artifact, Bag 13.
+  - `EGoodsGradeType`: None 0 … Unique 6.
+  - Chỉ sắp khu của ô đang chọn: túi (`ReqOrganizeInventorySlots`) hoặc khe an toàn (`ReqOrganizeInventorySafeSlots`). Ô túi phụ, rương, trang bị, ô nhanh: không làm gì. Không có ô chọn, hoặc đang kéo: không làm gì.
+  - Web coi ô đang rê chuột, ô Selected! hoặc ô tay cầm chọn là "ô đang chọn".
+- **InGame/Menu.**
+  - `InGameScene.OnMenuClick` mở MenuPopup với `PageCategory` 0 = Mục tiêu; `OnInventoryClick` mở 1 = Túi đồ.
+  - Không mở khi bản đồ lớn đang hiện; web: Esc/X lúc đó chỉ đóng bản đồ lớn.
+  - Thứ tự thẻ = `EPageCategory`: Quest 0, InventoryManagement 1, Character 2, Archive 3, Squad 4, Option 5, System 6.
+- **Khoá thẻ.** Chỉ thẻ Tổ đội khoá được: `IsSquadTabLocked = !CheckStateConditions(Npc[700012].UnlockConditions) || IsTutorial`.
+  - Npc 700012 là người gác cổng co-op, điều kiện `UserLevel:2`.
+  - Bấm thẻ khoá: toast `SquadTabLockedMessage` và tiếng `Fail`.
+  - Có hay không có tổ đội không ảnh hưởng.
+- **Highlight, BagPanel:** xem §12.3 và §12.6.
+- **[CHƯA RÕ]** `backSelect`, `questMark`, `missionMark`, `subIcon` của ô hàng chưa lần theo.
+
+### 12.8 Rương MedicalBox / Briefcase / HiddenStash (`tools/rip_objects.py`)
+
+- **[ĐO] Mỗi prefab rương có hai GameObject gốc cùng tên** trong `remote_prefab_assets_object`: bản `RewardBox` và bản `MimicObject`.
+  - `cmd_prefabs` cũ dùng `setdefault`, nên bản nào gặp trước thắng.
+- **Sửa:** `root_score` ưu tiên bản có RewardBox, sau đó bản không có gì, cuối cùng MimicObject.
+- **Chạy lại đổi 9 prefab:** MedicalBox, Briefcase, HiddenStash, BrownBoxPile, DeadManBox_03, ElectronicsKit, LoungeBox (cả glb), LoungeBox2, OfficeLocker. Các prefab khác giữ nguyên byte.
+- **Tiếng giữ F nay đúng prefab:** `InteractionLooting_MedicalBox` / `_Briefcase` / `_HiddenStash`.
+  - `boxSfx` bỏ đường vòng `InteractionLooting_<Prefab>`.
+  - DeadManBox_03 ghi `InteractionLooting` trần: không có clip trùng tên (có lẽ là tên nhóm MasterAudio), nên dùng `InteractionLooting_Default`. [SUY LUẬN]
+
+### 12.9 Bẫy đã sập
+
+- **Chromium bắn `pointermove` giả** (movement 0) khi bố cục đổi dưới con trỏ đứng yên. Bản đầu tự bắt chuột để đổi thiết bị nên mất tiêu điểm tay cầm ngay sau Start. Nay dùng bộ đổi thiết bị của `core.js` (ngưỡng chuột 20 px).
+- **Gamepad API không đệm nút.** Menu đọc mỗi khung; cú bấm ngắn hơn một khung bị khựng thì mất. Trên swiftshader khung khựng tới vài trăm ms, nên bài kiểm giữ nút giả 400 ms và chờ 0,4 s sau phím bàn phím cuối (hãm đổi thiết bị 0,3 s).
+- **Tạo một WebGL context mỗi lần mở thẻ Nhân vật** làm khựng cả khung. Giữ một renderer suốt phiên.
+- **Esc/X mở menu phải `stopImmediatePropagation`.** Không thì bộ nghe phím của `inventory.js` (đăng ký sau) nhận chính phím X đó và đóng bảng ngay.
+- **Tooltip của trang khác dùng lại khung `.vd-inv-tip`** bằng cách chuyển nó sang trang đang mở. `hideTip()` trả nó về trang Túi đồ.

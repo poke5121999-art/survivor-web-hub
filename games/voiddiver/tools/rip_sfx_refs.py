@@ -6,6 +6,7 @@ manifest.json (build_data.py) bo sot hai nhom, do duoc 2026-09-26:
     (Skill_100001_NormalAttack_Hit_None/_Fire/_Water/_Wind); ten tran trong bang khong co trong bundle.
     Nen tieng chem trung cua ca 4 nhan vat va Critical_* chua tung duoc boc.
   - LuaApi:PlaySfx("...") trong script campaign/sanh (ElaraWalk, DoorKey, QuestSuccess, ...).
+  - Ten viet thang trong js/ (sfx('...')) va trong art/ui/**/*.json ("Sfx": timeline intro/cutscene).
 Quet moi truong co ten chua 'sfx' trong data/tables.js + PlaySfx trong data/lua.js, bung duoi nguyen to,
 giu ten co trong bundle ma audio/sfx/ chua co, them vao manifest.json roi boc bang rip.cmd_audio.
 
@@ -53,6 +54,15 @@ def referenced():
     walk(T)
     for src in L.values():
         ref.update(re.findall(r'PlaySfx\(\s*"([^"]+)"', src))
+    # Ten goi thang trong ma js (sfx('...')) va trong du lieu timeline da boc ("Sfx":"...").
+    for d, _, fs in os.walk(os.path.join(rip.ROOT, 'js')):
+        for f in fs:
+            if f.endswith('.js'):
+                ref.update(re.findall(r"sfx\(\s*'([A-Za-z0-9_]+)'", open(os.path.join(d, f), encoding='utf-8').read()))
+    for d, _, fs in os.walk(os.path.join(rip.ART, 'ui')):
+        for f in fs:
+            if f.endswith('.json'):
+                ref.update(re.findall(r'"Sfx"\s*:\s*"([^"]+)"', open(os.path.join(d, f), encoding='utf-8').read()))
     return ref
 
 

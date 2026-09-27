@@ -60,14 +60,19 @@
   })();
 
   class UnitVisual {
-    // opts: { spine: tên bộ, skins: [tên skin], scale: scale prefab, shadow: bán kính bóng (m) }
+    // opts: { spine: tên bộ, skins: [tên skin], scale: scale prefab, shadow: bán kính bóng (m), id: id unit (tên prefab) }
     constructor(bundle, opts) {
       this.bundle = bundle;
       this.root = new THREE.Group();
       this.body = new THREE.Group();
       this.root.add(this.body);
       this.meshes = {};
-      this.scale = opts.scale || 1;
+      // Số của prefab unit (tools/rip.py unit-view → meta.units[id]): scale khung xương dưới gốc prefab, SymbolPositionY,
+      // _animationMode, thứ tự SkeletonAnimations. Thiếu (NPC không có UnitView) thì như cũ.
+      this.view = (bundle.meta && bundle.meta.units && opts.id != null && bundle.meta.units[String(opts.id)]) || null;
+      this.scale = (opts.scale || 1) * (this.view ? this.view.sk || 1 : 1);
+      this.body.position.y = this.view ? this.view.lpy || 0 : 0;
+      this.aimX = null; this.aimZ = 0; this.frozen = false;
       for (const k of Object.keys(bundle.dirs)) {
         const d = bundle.dirs[k];
         const m = new spine.SkeletonMesh(d.data, mat => { mat.depthTest = true; mat.depthWrite = true; mat.alphaTest = 0.1; });
@@ -86,8 +91,11 @@
       }
       this.dirKey = this.meshes.SW ? 'SW' : Object.keys(this.meshes)[0];
       this.meshes[this.dirKey].visible = true;
+      // Xương ngắm aim_target (UnitView.InitSkeleton lấy theo tên; ràng buộc IK_aim_target xoay aim_pointer về nó,
+      // TF_aim_* theo aim_pointer với mix do từng anim khoá sẵn)
+      this.aimBones = {};
+      for (const k in this.meshes) { const b = this.meshes[k].skeleton.findBone('aim_target'); if (b) this.aimBones[k] = b; }
       this.flip = false;
-      this.camRight = { x: 1, z: 0 };
       this.anim = null; this.animLoop = true; this.animSpeed = 1;
       this.flash = 0;
       const r = (opts.shadow || 0.5) * 2;
@@ -143,23 +151,28 @@
     }
 
     // face: góc hướng nhìn trên mặt đất (rad, atan2(z, x) trong toạ độ three).
-    // Tám hướng trên màn hình (CharacterView._animationMode = 2, hàm gốc LookAtDirectionAsEightWay): bốn ô chéo quyết
-    // cả bộ xương (NW/SW) lẫn lật; ô lên/xuống chỉ quyết bộ xương, ô trái/phải chỉ quyết lật, phần còn lại giữ như cũ.
-    // Nhờ vậy ngắm gần thẳng đứng không lật qua lại mỗi khung. [SUY LUẬN: tên hàm + 2 bộ xương; mã C# không đọc được]
-    setFacing(face, camera) {
+    // [ĐO] UnitView.LookAtDirection (0x1806a9b10, gọi cuối UnitView.Update mỗi khung); _animationMode 2 = FourWay ở mọi
+    // prefab Spine: (sx, sy) = MathUtility.IsometricToTopDown(forward) = Euler(0, 45°, 0)·v (camera gốc quay −45°),
+    // a = atan2(sy, sx) (độ). [0, 90): khung 0, ScaleX −1 | [90, 180): khung 0, +1 | [−180, −90): khung 1, +1 |
+    // [−90, 0): khung 1, −1 | a = 180: giữ nguyên. Khung 0/1 = SkeletonAnimations[0/1] (thường NW/SW). Không có vùng giữ
+    // (hysteresis): ngắm quanh phương dọc thì lật theo dấu sx đúng như bản gốc. TwoWay (mode 1): chỉ lật theo dấu sx.
+    // (Bản trước đoán "tám hướng có vùng giữ" theo tên LookAtDirectionAsEightWay — sai: hàm đó là mode 3, không prefab nào dùng.)
+    setFacing(face) {
       const dx = Math.cos(face), dz = Math.sin(face);
-      const f = FWD;
-      camera.getWorldDirection(f); f.y = 0; f.normalize();
-      const rx = -f.z, rz = f.x;                    // trục phải của màn hình trên mặt đất
-      this.camRight.x = rx; this.camRight.z = rz;
-      const sx = dx * rx + dz * rz, sy = dx * f.x + dz * f.z;
-      if (sx * sx + sy * sy < 1e-8) return;
-      const oct = ((Math.round(Math.atan2(sy, sx) / (Math.PI / 4)) % 8) + 8) % 8;   // 0 phải, 2 lên, 4 trái, 6 xuống
+      const sx = (dx - dz) * Math.SQRT1_2, sy = (-dx - dz) * Math.SQRT1_2;
+      if (sx * sx + sy * sy < 1e-10) return;
+      const mode = this.view ? this.view.mode : 2;
+      if (mode === 0) return;
       let key = this.dirKey, flip = this.flip;
-      if (oct === 1 || oct === 2 || oct === 3) key = 'NW';
-      if (oct === 5 || oct === 6 || oct === 7) key = 'SW';
-      if (oct === 7 || oct === 0 || oct === 1) flip = true;
-      if (oct === 3 || oct === 4 || oct === 5) flip = false;
+      if (mode === 1) {
+        if (sx > EPS) flip = true; else if (sx < -EPS) flip = false;
+      } else {
+        const a = Math.atan2(sy, sx) * 180 / Math.PI;
+        if (!(a < 180)) return;
+        const order = (this.view && this.view.skels) || ['NW', 'SW'];
+        key = order[a >= 0 ? 0 : 1] || key;
+        flip = a >= 0 ? a < 90 : a >= -90;
+      }
       if (!this.meshes[key]) key = this.meshes.SW ? 'SW' : this.dirKey;
       if (key !== this.dirKey) {
         const from = this.meshes[this.dirKey], to = this.meshes[key];
@@ -168,21 +181,44 @@
       }
       this.flip = flip;
     }
-    // Độ lệch thế giới của khớp theo EUnitBoneType gốc (Head/Eye/Body/Death) = xương Spine "bone_<tên>" của bộ đang hiện
-    // (UnitView.GetBoneOffset). Symbol không có xương: CharacterView.SymbolPositionY. x theo trục phải màn hình (hình là
-    // billboard), y lên. Không có xương → null.
+    // Độ lệch thế giới của khớp theo EUnitBoneType. [ĐO] UnitView.GetBoneOffset (0x1806a85f0):
+    //   Symbol → up · SymbolPositionY (số của prefab, không nhân scale);
+    //   Head/Eye/Body/Death → xương "bone_<tên>" của khung đang hiện: Euler(30, −45, 0)·(s·worldX, s·worldY, 0)
+    //   + (0, localPosition.y, 0), s = localScale.x của SkeletonAnimation, lật nằm sẵn trong worldX (ScaleX −1)
+    //   = (0,707a − 0,354b, 0,866b + lpy, 0,707a + 0,354b) toạ độ Unity; z three = −z Unity.
+    // Không có xương → null (bản gốc trả 0: không lệch).
     boneOffset(type) {
       if (!type || type === 'None') return null;
-      const k = this.scale * (this.flip ? -1 : 1);
-      if (type === 'Symbol') return { x: 0, y: SYMBOL_Y * this.scale, z: 0 };
+      const V = this.view;
+      if (type === 'Symbol') return { x: 0, y: V ? V.sym : SYMBOL_Y, z: 0 };
       const m = this.meshes[this.dirKey];
       const b = m && m.skeleton.findBone('bone_' + String(type).toLowerCase());
       if (!b) return null;
-      return { x: this.camRight.x * b.worldX * k, y: b.worldY * this.scale, z: this.camRight.z * b.worldX * k };
+      const s = V ? V.bsx || 1 : this.scale, a = s * b.worldX * (this.flip ? -1 : 1), c = s * b.worldY;
+      return { x: 0.70711 * a - 0.35355 * c, y: 0.86603 * c + (V ? V.lpy || 0 : 0), z: -(0.70711 * a + 0.35355 * c) };
     }
+    // Hướng ngắm {x, z} trên mặt đất (toạ độ three) cho xương aim_target. [ĐO] UnitView.OnUpdateWorld (0x1806ace80, móc
+    // SkeletonAnimation.UpdateWorld, mọi khung): v = IsometricToTopDown(CalculatedDeltaAimPos); v.x *= ScaleX; chuẩn hoá;
+    // aim_target.X/Y (cục bộ theo cha) = v. Không kẹp, không làm mượt; unit bị khống chế/chết thì giữ hướng cũ.
+    setAim(ax, az) { if (ax * ax + az * az > 1e-10) { this.aimX = ax; this.aimZ = az; } }
 
     update(dt, camera) {
-      for (const k in this.meshes) this.meshes[k].update(dt);
+      let vx = 0, vy = 0;
+      if (this.aimX !== null) {
+        vx = (this.aimX - this.aimZ) * Math.SQRT1_2 * (this.flip ? -1 : 1); vy = (-this.aimX - this.aimZ) * Math.SQRT1_2;
+        const l = Math.hypot(vx, vy) || 1; vx /= l; vy /= l;
+      }
+      // Như SkeletonMesh.update, thêm bước đặt aim_target sau khi áp anim và trước khi giải IK/constraint
+      // (updateWorldTransform). Freeze (EStatusEffectTag 0x10000000) → SetAnimationSpeed(0): anim đứng.
+      const dts = this.frozen ? 0 : dt;
+      for (const k in this.meshes) {
+        const m = this.meshes[k], sk = m.skeleton;
+        m.state.update(dts); m.state.apply(sk); sk.update(dts);
+        const ab = this.aimBones[k];
+        if (ab && this.aimX !== null) { ab.x = vx; ab.y = vy; }
+        sk.updateWorldTransform(spine.Physics.update);
+        m.updateGeometry();
+      }
       this.body.quaternion.copy(camera.quaternion);
       this.body.scale.set(this.flip ? -this.scale : this.scale, this.scale, this.scale);
       if (this.flash > 0) this.flash = Math.max(0, this.flash - dt);
@@ -193,8 +229,8 @@
 
     dispose() { this.root.parent && this.root.parent.remove(this.root); }
   }
-  const FWD = new THREE.Vector3();
-  const SYMBOL_Y = 1.25;   // không có trong bảng: CharacterView.SymbolPositionY của prefab 100001 (quái chưa bóc)
+  const EPS = 1.401298e-45;   // Mathf.Epsilon (TwoWay so dấu sx với nó)
+  const SYMBOL_Y = 1.25;      // prefab không có trong meta.units: SymbolPositionY của nhân vật (prefab 100001–100005)
 
   VD.loadSpine = loadSpine;
   VD.UnitVisual = UnitVisual;

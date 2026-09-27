@@ -130,7 +130,11 @@ async function run(browser, port, errors) {
     }
   }
   const legs = [];
-  async function walkTo(label, sel, arrive) {
+  // opt.run: bật chạy bằng Shift sau khi đã bắt đầu đi (bấm lúc đứng yên thì 0,15 s sau tự tắt — CharacterController.UpdateRun);
+  // tắt giữa đường (dừng lại, cạn stamina) thì bấm lại như người chơi.
+  async function walkTo(label, sel, arrive, opt) {
+    opt = opt || {};
+    let presses = 0;
     const tgt = await page.evaluate(sel => { const e = VD.dive.ents.find(new Function('e', 'return ' + sel)); return e ? { x: e.pos.x, z: e.pos.z } : null; }, sel);
     if (!tgt) { check(label + ': có mục tiêu', false, sel); return false; }
     const odo0 = await page.evaluate(() => window.__odo.d), t0 = await page.evaluate(() => VD.loop.time);
@@ -145,6 +149,7 @@ async function run(browser, port, errors) {
       if (s.err) { await setKeys([]); check(label + ': tìm được đường', false, s.err + ' d=' + s.d.toFixed(1)); return false; }
       await setKeys(s.keys);
       await sleep(70);
+      if (opt.run && s.keys.length && presses < 6 && await page.evaluate(() => { const u = VD.stage.player; return u.moving && !u.runToggle && u.stamina > 20; })) { await page.keyboard.press('ShiftLeft'); presses++; }
       const pos = await page.evaluate(() => ({ x: VD.stage.player.pos.x, z: VD.stage.player.pos.z }));
       if (last && Math.hypot(pos.x - last.x, pos.z - last.z) < 0.25) {
         if (Date.now() - lastT > 2500) { stuck.push(pos.x.toFixed(1) + ',' + pos.z.toFixed(1)); lastT = Date.now(); if (stuck.length > 3) break; }
@@ -215,9 +220,13 @@ async function run(browser, port, errors) {
   check('CallCollision_2 (bẫy)', await waitTrace('CallCollision_2'));
   await sleep(300);
   await guideShot('RunTutorialGuide', 10001, 'walk-06-run-guide');
-  await page.keyboard.press('ShiftLeft');
-  await walkTo('qua hành lang bẫy tới 100093', "e.kind === 'collision' && e.triggerId === 100093", 1.0);
-  check('Shift bật chạy suốt hành lang (không giữ)', await page.evaluate(() => VD.stage.player.runToggle === true || VD.stage.player.stamina <= 0));
+  await page.evaluate(() => { window.__run = { t: 0, on: 0 }; window.__runIv = setInterval(() => { const u = VD.stage.player; if (!u || !u.moving) return; window.__run.t++; if (u.running) window.__run.on++; }, 50); });
+  await walkTo('qua hành lang bẫy tới 100093', "e.kind === 'collision' && e.triggerId === 100093", 1.0, { run: true });
+  const run = await page.evaluate(() => { clearInterval(window.__runIv); return window.__run; });
+  check('Shift bật chạy suốt hành lang (không giữ)', run.t > 0 && run.on / run.t >= 0.6, `${run.on}/${run.t} mẫu đang đi có chạy`);
+  // Đứng yên quá Const.ToggleRunExpireDelay (0,15 s) thì tắt chạy.
+  await sleep(400);
+  check('đứng yên → tự tắt chạy', await page.evaluate(() => VD.stage.player.runToggle === false));
   check('CallCollision_3 (rương)', await waitTrace('CallCollision_3'));
   await guideShot('ItemTutorialGuide', 10001, 'walk-07-item-guide');
   await walkTo('va chạm 100094', "e.kind === 'collision' && e.triggerId === 100094", 0.8);

@@ -1,6 +1,6 @@
 // Bảng hướng dẫn nằm trên sàn của tutorial: ảnh phím (ImgTuto01..06) + chữ LocalizedText, dựng theo
 // art/ui/tutorial/guides.json (tools/ui_tutorial_rip.py). Bản gốc là WorldSpaceCanvas nằm phẳng trong chính prefab sector
-// (10009/10001/10004 → StaticDecoration/TutorialGuides/Keyboard), material Mtl_DE_WorldUI_Lit, luôn hiện, không ẩn theo bước
+// (10009/10001/10004 → StaticDecoration/TutorialGuides/{Keyboard,Gamepad}), material Mtl_DE_WorldUI_Lit, luôn hiện, không ẩn theo bước
 // Lua. Elara nói "Nhìn kỹ dưới sàn sẽ thấy thông tin hữu ích" (LQ_1100_9201) là nói về các bảng này. docs/DIVE.md §10.
 (function (VD) {
   'use strict';
@@ -112,8 +112,8 @@
     return { tex: t, color: c };
   }
 
-  // Dựng bảng của mọi sector đang nạp có trong guides.json. Nhóm Keyboard (II_DeviceBasedObjectController gốc chọn theo
-  // thiết bị; bản web chỉ có bàn phím + chuột).
+  // Dựng bảng của mọi sector đang nạp có trong guides.json: cả nhóm Keyboard lẫn Gamepad (ảnh ImgTuto0xPad, chữ riêng).
+  // II_DeviceBasedObjectController gốc hiện nhóm theo thiết bị đang dùng; bản web theo VD.input.device, đổi khi có 'vd-device'.
   T.build = async function (sectors, scene) {
     T.clear();
     await T.load();
@@ -121,44 +121,101 @@
     try { if (document.fonts && document.fonts.load) await document.fonts.load('400 40px Pretendard'); } catch (e) { /* chữ dự phòng */ }
     T.group = new THREE.Group();
     T.group.name = 'tutorialGuides';
+    T.sets = {};
     let n = 0;
-    for (const sec of sectors) {
-      const set = T.data.sectors[String(sec.cell.id)];
-      if (!set) continue;
-      for (const g of set.keyboard || []) {
-        let k = 0;
-        for (const p of g.parts || []) {
-          const r = rectOf(p, g.canvas), y = g.pos[1] + LIFT + (k++) * 0.002;
-          let mesh;
-          if (p.kind === 'image' && p.texture) mesh = quad(sec, g, r, y, material(imageTex(p.texture), p.color));
-          else if (p.kind === 'text') { const tt = textTex(p, r); mesh = quad(sec, g, r, y, material(tt.tex, tt.color)); }
-          if (!mesh) continue;
-          mesh.userData = { guide: g.name, sector: sec.cell.id, part: p.node, key: p.key || p.texture };
-          T.group.add(mesh); T.meshes.push(mesh);
+    for (const dev of ['keyboard', 'gamepad']) {
+      const grp = T.sets[dev] = new THREE.Group();
+      grp.name = 'tutorialGuides_' + dev;
+      T.group.add(grp);
+      for (const sec of sectors) {
+        const set = T.data.sectors[String(sec.cell.id)];
+        if (!set) continue;
+        for (const g of set[dev] || []) {
+          let k = 0;
+          for (const p of g.parts || []) {
+            const r = rectOf(p, g.canvas), y = g.pos[1] + LIFT + (k++) * 0.002;
+            let mesh;
+            if (p.kind === 'image' && p.texture) mesh = quad(sec, g, r, y, material(imageTex(p.texture), p.color));
+            else if (p.kind === 'text') { const tt = textTex(p, r); mesh = quad(sec, g, r, y, material(tt.tex, tt.color)); }
+            if (!mesh) continue;
+            mesh.userData = { guide: g.name, sector: sec.cell.id, part: p.node, key: p.key || p.texture, device: dev };
+            grp.add(mesh); T.meshes.push(mesh);
+          }
+          if (dev === 'keyboard') n++;
         }
-        n++;
       }
     }
+    T.setDevice(VD.input && VD.input.device);
     scene.add(T.group);
     return n;
   };
 
+  T.setDevice = function (dev) {
+    if (!T.sets) return;
+    const pad = dev === 'gamepad';
+    T.sets.keyboard.visible = !pad;
+    T.sets.gamepad.visible = pad;
+  };
+  addEventListener('vd-device', e => T.setDevice(e.detail));
+
   T.clear = function () {
     if (T.group && T.group.parent) T.group.parent.remove(T.group);
     for (const m of T.meshes) { m.geometry.dispose(); if (m.material.map) m.material.map.dispose(); m.material.dispose(); }
-    T.meshes = []; T.group = null;
+    T.meshes = []; T.group = null; T.sets = null;
   };
 
-  // Tâm các bảng trong toạ độ three (kiểm thử / gỡ lỗi).
-  T.list = function () {
+  // Tâm các bảng trong toạ độ three (kiểm thử / gỡ lỗi). Mặc định nhóm đang hiện; dev = 'keyboard' | 'gamepad' để chọn.
+  T.list = function (dev) {
     const out = new Map();
+    const want = dev || (VD.input && VD.input.device === 'gamepad' ? 'gamepad' : 'keyboard');
     for (const m of T.meshes) {
+      if (m.userData.device !== want) continue;
       const k = m.userData.sector + '/' + m.userData.guide;
       const b = new THREE.Box3().setFromObject(m), c = b.getCenter(new THREE.Vector3());
       if (!out.has(k)) out.set(k, { sector: m.userData.sector, guide: m.userData.guide, x: c.x, z: c.z, parts: [] });
       out.get(k).parts.push(m.userData.key);
     }
     return [...out.values()];
+  };
+
+  // ---------------------------------------------------------------- Timeline gốc (tools/ui_tutorial_timeline.py → timeline.json)
+  // intro = IntroTimelineObject (TL_World_OBJ_PhoneBooth_Intro), cutscene1100 = IngameCutScene_Chapter_01_TutorialCampaign_1.
+  T.loadTimeline = function () {
+    if (!T._tp) T._tp = fetch(DIR + 'timeline.json').then(r => (r.ok ? r.json() : null)).then(j => (T.tl = j)).catch(() => null);
+    return T._tp;
+  };
+  T.loadTimeline();
+  // Đường cong StreamedClip: đoạn từ khoá k: v(t) = ((a x + b) x + c) x + d, x = t − t_k. Trước khoá đầu lấy giá trị khoá đầu.
+  T.curve = function (set, key, t, def) {
+    const ks = set && set.curves && set.curves[key];
+    if (!ks || !ks.length) return def;
+    let k = ks[0];
+    if (t <= k[0]) return k[4];
+    for (let i = ks.length - 1; i >= 0; i--) if (ks[i][0] <= t) { k = ks[i]; break; }
+    const x = t - k[0];
+    return ((k[1] * x + k[2]) * x + k[3]) * x + k[4];
+  };
+  T.marker = (set, name, def) => { for (const tr of (set && set.tracks) || []) for (const m of tr.markers || []) if (m.signal === name) return m.time; return def; };
+  T.clips = (set, cls) => ((set && set.tracks) || []).filter(tr => !tr.muted && tr.class.endsWith(cls)).flatMap(tr => tr.clips);
+  T.timelineFor = prefab => { const tl = T.tl; if (!tl) return null; for (const k in tl) if (tl[k] && tl[k].prefab === prefab) return tl[k]; return null; };
+
+  // Camera cắt cảnh: Vcam (Cinemachine, FOV 10) con của VcamOffset, VcamOffset con của CutSceneOffset, gốc prefab đặt ở điểm Lua.
+  // AnimationTrack "Animation Track" (TrackOffset = ApplyTransformOffsets) ghi vị trí gốc VcamOffset: thế giới = offset.pos +
+  // xoay(offset.euler.y) × đường cong; Vcam: vị trí cục bộ theo đường cong, nghiêng xuống theo quaternion của nút Vcam.
+  // Trả điểm Vcam nhìn xuống sàn (toạ độ Unity so với gốc prefab) + khoảng cách tới đó. [SUY LUẬN: cách ghép offset theo
+  // TrackOffset của Timeline; góc yaw 315° / nghiêng 30° trùng góc camera chơi nên web giữ góc, chỉ dời tâm + đổi khoảng cách]
+  T.cutsceneCam = function (set, t) {
+    const n = set.nodes || {}, tr = (set.tracks || []).find(x => x.name === 'Animation Track' && x.offset) || { offset: { pos: [0, 0, 0], euler: [0, 0, 0] } };
+    const cso = n.CutSceneOffset || [0, 0, 0], vc = n['CutSceneOffset/VcamOffset/Vcam'] || [0, 0, 0, 0, 0, 0, 1];
+    const C = (k, d) => T.curve(set, 'Animation Track|' + k, t, d);
+    const rx = C(':localPosition.x', 0), rz = C(':localPosition.z', 0);
+    const yaw = tr.offset.euler[1] * Math.PI / 180, cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const ox = tr.offset.pos[0] + rx * cy + rz * sy, oz = tr.offset.pos[2] - rx * sy + rz * cy;
+    const vx = C('Vcam:localPosition.x', vc[0]), vy = C('Vcam:localPosition.y', vc[1]), vz = C('Vcam:localPosition.z', vc[2]);
+    const pitch = 2 * Math.asin(Math.max(-1, Math.min(1, vc[3])));        // quaternion quanh X
+    const lz = vz + vy / Math.tan(pitch || 0.5236);                       // tia nhìn của Vcam chạm sàn (cục bộ VcamOffset)
+    const wx = cso[0] + ox + vx * cy + lz * sy, wz = cso[2] + oz - vx * sy + lz * cy;
+    return { x: wx, z: wz, dist: vy / Math.sin(pitch || 0.5236), board: C('Vcam:m_Alpha', 0), shake: C('Vcam/cm:m_AmplitudeGain', 0) };
   };
 
   VD.tutorial = T;

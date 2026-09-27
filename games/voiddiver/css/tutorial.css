@@ -8,3 +8,29 @@
 .vd-keyguide .list { display: none; flex-direction: column; align-items: flex-end; }
 .vd-keyguide.open .list { display: flex; }
 @media (max-height: 480px) { .vd-keyguide { display: none; } }
+
+/* Tay cầm (body[data-input-device="gamepad"], js/core.js setDevice): nhãn phím đổi sang ảnh nút XBox (art/ui/tutorial/pad). */
+.vd-skill .padk, .vd-prompt .key .padk { display: none; }
+body[data-input-device="gamepad"] .vd-skill b { display: none; }
+body[data-input-device="gamepad"] .vd-skill .padk { display: block; position: absolute; left: 50%; bottom: -15px; width: 22px; height: 22px;
+  transform: translateX(-50%); image-rendering: auto; }
+body[data-input-device="gamepad"] .vd-prompt .key b { display: none; }
+body[data-input-device="gamepad"] .vd-prompt .key .padk { display: block; position: absolute; left: 7px; top: 7px; width: 22px; height: 22px; }
+/* Ô nhanh đang chọn bằng D-pad (InGameQuickSlotPanel.selectionIndicator); số 1–5 là phím bàn phím nên ẩn. */
+body[data-input-device="gamepad"] .vd-item b { display: none; }
+.vd-item.padsel { border-color: #fff; box-shadow: 0 0 0 1px #fff, 0 0 8px rgba(255,255,255,.45); }
+.vd-key[src*="/pad/"] { width: 28px; }
+@media (max-height: 480px) {
+  body[data-input-device="gamepad"] .vd-skill .padk { width: 16px; height: 16px; bottom: -12px; }
+  body[data-input-device="gamepad"] .vd-prompt .key .padk { left: 5px; top: 5px; width: 20px; height: 20px; }
+}
+
+/* Mở màn IntroTimelineObject (dive.js introStart): canvas phủ màn, video Diveloading dưới nền đen blackMatte; độ mờ theo đường cong
+   của Timeline (art/ui/tutorial/timeline.json). Nằm trên HUD (HUD bật sẵn phía dưới như bản gốc). */
+.vd-introfade { position: absolute; inset: 0; z-index: 30; pointer-events: none; background: transparent; }
+.vd-introfade video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vd-introfade .matte { position: absolute; inset: 0; background: #000; }
+/* Cắt cảnh: ảnh CinemachineStoryboard của Vcam che màn đầu/cuối (m_Alpha). Ảnh gốc chưa đọc được → nền đen. */
+.vd-cutboard { position: absolute; inset: 0; z-index: 29; background: #000; pointer-events: none; opacity: 0; }
+.vd-cut-skip { display: none; z-index: 31; }
+.vd-cut-skip.on { display: block; }

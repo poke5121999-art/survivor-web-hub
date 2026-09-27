@@ -52,10 +52,19 @@
  "behaviours": [
   {
    "path": "",
-   "class": "MimicObject",
+   "class": "RewardBox",
    "fields": {
     "_meshType": 1,
+    "_holdingSfx": "InteractionLooting_PaperBox",
+    "_lockedHoldingSfx": "InteractionLooting_Locked",
     "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "LootingInventory",
+   "fields": {
+    "_index": -1
    }
   },
   {

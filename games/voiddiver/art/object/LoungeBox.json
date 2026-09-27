@@ -52,10 +52,19 @@
  "behaviours": [
   {
    "path": "",
-   "class": "MimicObject",
+   "class": "RewardBox",
    "fields": {
     "_meshType": 1,
+    "_holdingSfx": "InteractionLooting_Vault2",
+    "_lockedHoldingSfx": "InteractionLooting_Locked",
     "_interactionSfx": ""
+   }
+  },
+  {
+   "path": "",
+   "class": "LootingInventory",
+   "fields": {
+    "_index": -1
    }
   },
   {
@@ -95,14 +104,14 @@
  ],
  "bounds": {
   "min": [
-   -0.482,
+   -0.352,
    -0.151,
-   -0.352
+   -0.407
   ],
   "max": [
-   0.47,
+   0.425,
    1.103,
-   0.427
+   0.545
   ]
  },
  "glb": "art/object/LoungeBox.glb",
