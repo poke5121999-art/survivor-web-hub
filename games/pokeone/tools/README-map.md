@@ -602,3 +602,10 @@ node test/pokeone-props.js                            # kiểm + chụp, ảnh �
 | `int_carpet_transparentpokeball` | 2.0×0.0×2.0 | Hình Poké Ball dán sàn |
 
 <!-- HẾT BẢNG PROP -->
+
+## [BẪY ĐÃ SẬP] Tên ảnh chỉ khác hoa/thường [ĐO TRÊN PAGES, 2026-09-27]
+
+- Hai texture gốc tên `shadow` và `Shadow` (cũng như `sign`/`Sign`) được `rip_map_core.py` coi là hai tên vì so phân biệt hoa/thường.
+- Trên Windows chúng là một tệp: tệp sau đè tệp trước. Chạy ở máy vẫn thấy ảnh (sai ảnh), còn GitHub Pages phân biệt hoa/thường nên `tex/shadow.png` trả 404.
+- Đã sửa: chống trùng tên so ở dạng chữ thường, tên thứ hai thành `shadow_2.png`, `Sign_2.png`.
+- Kiểm lại mọi lúc: `node games/pokeone/tools/check_case.js` so mọi uri trong glb và mọi đường dẫn `art/…`, `audio/…` trong `data/*.js` với tên trên đĩa, đúng từng chữ.

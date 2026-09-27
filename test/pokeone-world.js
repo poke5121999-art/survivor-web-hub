@@ -576,7 +576,7 @@ async function phone(browser, base) {
 (async () => {
   staticChecks();
   const srv = await serve();
-  const base = 'http://127.0.0.1:' + srv.address().port;
+  const base = process.env.BASE || 'http://127.0.0.1:' + srv.address().port;   // BASE=<url Pages> để kiểm bản trên mạng
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   try {
     const only = process.argv.find(a => a.startsWith('--only='));

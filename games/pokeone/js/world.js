@@ -187,6 +187,7 @@
       this.unloadMap();
       this.map = M;
       P1.state.map = id;
+      if (M.settings.song) P1.audio.music(M.settings.song);   // đổi nhạc ngay, không chờ tải glb qua mạng
       const token = this.loadToken = (this.loadToken || 0) + 1;
       const gfx = await P1.worldMap.build(M);
       if (token !== this.loadToken) { gfx.dispose(); return; }   // một lần tải mới hơn đã thay map này

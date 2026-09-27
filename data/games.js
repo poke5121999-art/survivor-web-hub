@@ -668,7 +668,7 @@ window.HUB_GAMES = [
     tagline: "Dựng lại phần đầu game PokéOne, MMO Pokémon 3D, thành game một người chơi. Tạo nhân vật bằng sprite nhiều lớp gốc, thức dậy ở Pallet Town, nhận Bulbasaur, Charmander hoặc Squirtle từ Giáo sư Oak rồi đấu Gary ngay trong lab. Đi theo ô qua Route 1 với cỏ cao, gờ nhảy và ba trainer nhìn thấy là chặn đường, tới Viridian City hồi máu ở Trung tâm Pokémon và mua đồ ở Mart. Trận đấu 3D với model và anim gốc, luật Gen 7 chạy trên Pokémon Showdown như máy chủ thật. Bắt bằng 25 loại bóng, lên cấp, học chiêu, tiến hoá. Pokémon đầu đội đi theo sau lưng. Ngày và đêm đổi bảng Pokémon hoang dã.",
     thumbnail: "assets/thumbnails/pokeone.png",
     path: "games/pokeone/index.html",
-    rev: "20260927a",
+    rev: "20260927b",
     // three.js r140 + @pkmn/sim 0.10.11 (Pokémon Showdown, gói esbuild), vendor sẵn trong
     // games/pokeone/vendor, không có bước build.
     // ART + ANIM + VFX + TIẾNG + UI + DỮ LIỆU: toàn bộ rút từ bản cài PokéOne (p1setup.exe,

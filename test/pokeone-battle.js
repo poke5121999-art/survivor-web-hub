@@ -236,7 +236,7 @@ async function scenarios(browser, base, W, H) {
 
 (async () => {
   const srv = await serve();
-  const base = 'http://127.0.0.1:' + srv.address().port;
+  const base = process.env.BASE || 'http://127.0.0.1:' + srv.address().port;   // BASE=<url Pages> để kiểm bản trên mạng
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--autoplay-policy=no-user-gesture-required'] });
   try {
     await scenarios(browser, base, 1280, 720);

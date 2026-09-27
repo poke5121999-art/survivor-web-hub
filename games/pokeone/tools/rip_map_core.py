@@ -203,10 +203,12 @@ class TexCache:
             base = re.sub(r'[^A-Za-z0-9_.-]+', '_', meta['name']).strip('_') or 'tex'
             name = base
             i = 2
-            while name in self.used_names and self.used_names[name] != k:
+            # So không phân biệt hoa/thường: trên Windows 'shadow' và 'Shadow' là một tệp,
+            # trên Pages là hai — trùng thì tệp sau đè tệp trước và glb trỏ sai (404).
+            while name.lower() in self.used_names and self.used_names[name.lower()] != k:
                 name = '%s_%d' % (base, i)
                 i += 1
-            self.used_names[name] = k
+            self.used_names[name.lower()] = k
             fn = name + '.png'
             p = os.path.join(self.out_dir, fn)
             os.makedirs(self.out_dir, exist_ok=True)

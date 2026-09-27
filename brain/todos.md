@@ -32,3 +32,11 @@
 - [ ] Chùm tia đèn pha của cano đêm chưa có (shader gốc của tia chỉ tách được phần ra màu trắng).
 - [ ] Chuyến về bắt đầu ở x = 67; nước đêm trong (8 m) nên thấy đáy cát gần đảo, dễ bị đọc là lỗi. Cân nhắc dời điểm xuất phát ra xa.
 - [ ] Bộ nạp phụ thuộc dùng chung của `rip.py` giữ mọi tổ hợp bundle trong bộ nhớ. `rip_bar.py` phải tự viết bộ nạp riêng để khỏi tràn RAM.
+
+## PokéOne
+- [ ] Route 2 → Viridian Forest → Pewter, gym Brock (quest dừng ở "Viridian Forest"). Prefab và bảng spawn đã có (`D:\pokeone-ref\wiki\RESEARCH.md`).
+- [ ] Chưa ai nghe bằng tai: nhạc 96 kbps, tiếng kêu, `battle_wild` so với `wild_battle_kanto`.
+- [ ] Bờ nước chưa có prop sóng; `Shiny Sparkle`, `RippleEffect` đã rút số nhưng chưa dùng; đèn cửa sổ ban đêm.
+- [ ] Trận: 26 nền phụ chưa bóc glb; hiệu ứng `fx_*` theo hệ là đoán (bản gốc không có VFX riêng từng chiêu).
+- [ ] Tốc độ khung đi (`AnimationSpeed`, `JumpSpeed`), xác suất gặp mỗi bước 11,7%, cấp Pokémon hoang dã là đoán theo FRLG.
+- [ ] Ở 844×390 chữ NGUI nhỏ vì UIRoot kẹp chiều cao ảo tối thiểu 700.
