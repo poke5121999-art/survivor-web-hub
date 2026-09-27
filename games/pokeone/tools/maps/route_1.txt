@@ -1,0 +1,143 @@
+# Route 1: Pallet Town (nam) -> Viridian City (bắc). Gờ nhảy một chiều xuống nam như HGSS/FRLG.
+# Trainer: Joey (Rattata L10), Nancy (Meowth L7, Pidgey L6), Sherman (Pidgey L9, Rattata L9)
+# - pokeonecommunity.com/location/viridian-city/ (bảng truy nã Officer Jenny). Potion "South-West under the Jumpedge".
+name: Route 1
+song: route_1
+encounter: normal
+
+[legend]
+. grass
+, path
+T tree
+v ledge
+" tallgrass grass=route_1_grass
+k grassmark
+j grassmark
+n grassmark
+s grassmark
+f grassmark
+o signpost
+
+[grid]
+TTTTTTTTTT....TTTTTTTTTT
+TTTTTTTTTT....TTTTTTTTTT
+TT........,,..........TT
+TT..""""..,,..""""""..TT
+TT..""""..,,.n""""""..TT
+TT..""""..,,..""""""..TT
+TT........,,..........TT
+TTvvvvvvvv,,vvvvvv....TT
+TT........,,......TTTTTT
+TT........,,......TTTTTT
+TTTTTT....,,,,,,,,....TT
+TTTTTT....,,,,,,,,....TT
+TT""""""..........,,..TT
+TT""""""..........,,..TT
+TT""""""........s.,,..TT
+TT""""""..........,,..TT
+TT................,,..TT
+TTvvvvvvvvvvvvvv..,,..TT
+TT................,,..TT
+TT..TTTT..........,,..TT
+TT..TTTT....,,,,,,,,..TT
+TT..........,,.j......TT
+TT..........,,..""""..TT
+TT""""......,,..""""..TT
+TT""""......,,..""""..TT
+TT""""......,,..""""..TT
+TT..........,,........TT
+TTvvvvvvvv..,,vvvvvvvvTT
+TTk.........,,........TT
+TT..........,,........TT
+TTTTTT......,,....TTTTTT
+TTTTTT......,,....TTTTTT
+TT..........,,........TT
+TT..""""""..,,....f...TT
+TT..""""""..,,....TTTTTT
+TT.........o,,....TTTTTT
+TT..........,,........TT
+TT..........,,........TT
+TTTTTTTTTT..,,..TTTTTTTT
+TTTTTTTTTT..,,..TTTTTTTT
+
+[links]
+edge south -> pallet_town offset=2
+edge north -> viridian_city offset=6
+
+[actors]
+joey     @j sprite=youngster name="Youngster Joey" face=left los=4 script=joey team=19:10 money=300 exp=40 spotted=boy_1
+nancy    @n sprite=sprite36 name="Lass Nancy" face=left los=3 script=nancy team=52:7,16:6 money=300 exp=40 spotted=lass
+sherman  @s sprite=sprite155 name="Bug Catcher Sherman" face=right los=3 script=sherman team=16:9,19:9 money=300 exp=40 spotted=boy_2
+franky   @f sprite=generic_9 name="Franky" face=down look=random script=franky
+potion   @k kind=item item=potion sprite=sprite11 name="Potion"
+sign_r1  @o kind=sign name="Sign" script=sign_route1
+
+[script sign_route1]
+say Route 1\nPallet Town - Viridian City
+
+[script franky]
+if got_franky > after
+say Hi! I work at a Poké Mart.\nHere, have a sample!
+give potion 1
+set got_franky
+end
+:after
+say Come visit us at the Poké Mart in Viridian City!
+
+[script joey]
+if beat_joey > after
+say Hey! You're a new trainer, aren't you?\nLet's see what you've got!
+battle self
+say Aww, my Rattata is in the top percentage of Rattata...
+if quest=trainer_route_1 > quest
+end
+:quest
+questdone trainer_route_1
+if beat_sherman > s1
+:tell
+say Sherman and Nancy train on this route, too.\nThey're tougher than me!
+end
+:s1
+ifnot beat_nancy > tell
+questdone trainer_route_1_2
+end
+:after
+say My Rattata is in the top percentage of Rattata!
+
+[script nancy]
+if beat_nancy > after
+say You look like you just started out.\nLet's battle!
+battle self
+say You're pretty good!
+goto check
+:after
+say My Meowth wants a rematch someday.
+end
+:check
+if beat_sherman > both
+end
+:both
+if quest=trainer_route_1_2 > done
+end
+:done
+questdone trainer_route_1_2
+say You should head to Viridian City.\nNurse Joy at the Poké Center will heal your Pokémon.
+
+[script sherman]
+if beat_sherman > after
+say My Pidgey and I have been training all morning!
+battle self
+say Whoa, you're strong.
+goto check
+:after
+say I'm going to catch a Pidgeotto one day.
+end
+:check
+if beat_nancy > both
+end
+:both
+if quest=trainer_route_1_2 > done
+end
+:done
+questdone trainer_route_1_2
+say You should head to Viridian City.\nNurse Joy at the Poké Center will heal your Pokémon.

@@ -661,5 +661,28 @@ window.HUB_GAMES = [
     // Kiểm: node test/ho-xanh-suite.js (cần server tĩnh ở cổng 8765 tại gốc repo)
     status: "available",
     tags: ["Lặn biển", "Bắt cá", "Súng xiên", "Lái cano", "Quán sushi", "Nâng cấp", "Pixel art", "3D", "Màn ngang"]
+  },
+  {
+    id: "pokeone",
+    title: "PokéOne",
+    tagline: "Dựng lại phần đầu game PokéOne, MMO Pokémon 3D, thành game một người chơi. Tạo nhân vật bằng sprite nhiều lớp gốc, thức dậy ở Pallet Town, nhận Bulbasaur, Charmander hoặc Squirtle từ Giáo sư Oak rồi đấu Gary ngay trong lab. Đi theo ô qua Route 1 với cỏ cao, gờ nhảy và ba trainer nhìn thấy là chặn đường, tới Viridian City hồi máu ở Trung tâm Pokémon và mua đồ ở Mart. Trận đấu 3D với model và anim gốc, luật Gen 7 chạy trên Pokémon Showdown như máy chủ thật. Bắt bằng 25 loại bóng, lên cấp, học chiêu, tiến hoá. Pokémon đầu đội đi theo sau lưng. Ngày và đêm đổi bảng Pokémon hoang dã.",
+    thumbnail: "assets/thumbnails/pokeone.png",
+    path: "games/pokeone/index.html",
+    rev: "20260927a",
+    // three.js r140 + @pkmn/sim 0.10.11 (Pokémon Showdown, gói esbuild), vendor sẵn trong
+    // games/pokeone/vendor, không có bước build.
+    // ART + ANIM + VFX + TIẾNG + UI + DỮ LIỆU: toàn bộ rút từ bản cài PokéOne (p1setup.exe,
+    // Unity 2018.4 IL2CPP) theo yêu cầu của chủ dự án ngày 2026-09-27, bằng các công cụ trong
+    // games/pokeone/tools (model Pokémon ra glb có xương và clip gốc, prefab bản đồ, cây UI NGUI
+    // của scene level2, atlas VFX, nhạc, tiếng kêu, bảng Pokémon/chiêu/vật phẩm). Bản đồ không có
+    // trong bản cài (máy chủ gửi), nên Pallet/Route 1/Viridian dựng tay từ prefab gốc theo định
+    // dạng MapDump gốc. Luật, quest, trainer, bảng spawn lấy từ wiki PokéOne. Đây không phải tài
+    // sản của repo: muốn gỡ thì xoá games/pokeone/art, games/pokeone/audio và games/pokeone/data.
+    // Kiến trúc và nguồn: games/pokeone/ARCH.md; bẫy và số đo: games/pokeone/tools/README-*.md.
+    //
+    // Kiểm: node test/pokeone-engine.js, pokeone-battle.js, pokeone-world.js, pokeone-shell.js,
+    //       pokeone-ui.js, pokeone-poke.js, pokeone-props.js
+    status: "available",
+    tags: ["Pokémon", "Nhập vai", "Bắt Pokémon", "Đấu theo lượt", "3D", "Đi theo ô", "Màn ngang"]
   }
 ];

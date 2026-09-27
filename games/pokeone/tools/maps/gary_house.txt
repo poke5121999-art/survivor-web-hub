@@ -1,0 +1,41 @@
+# Nhà Gary. Cùng vỏ int_house_1 như nhà người chơi (12 × 8 ô, gốc ở (0, 7)).
+name: Pallet Town
+song: pallet_town
+indoors: 1
+
+[legend]
+. wood
+S wood prop=int_house_1 pivot=0,7
+b wood solid prop=bookshelf_2 size=2x1 align=back
+t wood solid prop=int_tv_1 size=2x1 align=back
+k wood solid prop=int_cupboard_kitchen_1 size=1x1 align=back
+f wood solid prop=int_fridge_1 size=1x1 align=back
+D wood solid prop=int_table_2 size=2x2
+s wood solid prop=int_sofa_1_red size=2x1
+p wood solid prop=plant_in_pot_1 size=1x1
+r wood prop=int_mat_4_x_4_red size=4x4
+x wood mark prop=int_mat_2_x_1_doormat_blue
+d wood mark
+
+[grid]
+Sbb..tt..kf.
+............
+..rrrr......
+..rrrr.DD...
+..rrrrdDD...
+..rrrr......
+p.ss.......p
+.....xx.....
+
+[links]
+door @x -> pallet_town @G at=below arrive=below face=down sfx=exit_door
+
+[actors]
+daisy  @d sprite=sprite233 name="Daisy" face=left script=daisy
+
+[script daisy]
+if starter_chosen > after
+say Hi, {player}!\n{rival} is out at Grandpa's lab.
+end
+:after
+say You got a Pokémon from Grandpa, too?\nThen you should go see the world, just like {rival}!

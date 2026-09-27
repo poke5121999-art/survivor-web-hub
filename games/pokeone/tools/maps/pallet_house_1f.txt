@@ -1,0 +1,52 @@
+# Tầng trệt nhà người chơi. Vỏ int_house_1 (tường, không sàn): x -0,41..12,41, z -7,29..1 -> 12 × 8 ô, gốc ở (0, 7).
+name: Pallet Town
+song: pallet_town
+indoors: 1
+
+[legend]
+. wood
+S wood prop=int_house_1 pivot=0,7
+k wood solid prop=int_kitchen_sink_1 size=2x1 align=back
+f wood solid prop=int_fridge_1 size=1x1 align=back
+c wood solid prop=int_kitchencabinet_lightwood size=1x1 align=back
+t wood solid prop=int_tv size=2x1 align=back
+b wood solid prop=bookshelf_1 size=2x1 align=back
+U wood solid prop=stairs_up_left_1
+^ wood mark
+D wood solid prop=table_house size=2x2
+p wood solid prop=int_plant_indoor_1 size=1x1
+x wood mark prop=int_mat_2_x_1_doormat_red
+M wood mark
+
+[grid]
+Skkfc..tt.UU
+..........^U
+............
+....DDM.....
+....DD......
+............
+p..........p
+.....xx.....
+
+[links]
+door @x -> pallet_town @H at=below arrive=below face=down sfx=exit_door
+stairs @^ -> pallet_house_2f @^ face=left
+
+[actors]
+mom   @M sprite=sprite25 name="Mom" face=left script=mom
+
+[script mom]
+if starter_chosen > after
+if talked_mom > again
+say Right. All boys leave home someday.\nIt said so on TV.
+say Prof. Oak, next door, is looking for you.\nHis lab is just south of here.
+set talked_mom
+end
+:again
+say Prof. Oak is waiting for you in his lab!
+end
+:after
+say {player}, you look tired. Take a little rest.
+heal
+lastheal
+say Oh, good! You and your Pokémon are looking great.\nTake care now!

@@ -1,0 +1,93 @@
+# Pallet Town. Bố cục theo FireRed/HGSS (nhà người chơi trái trên, nhà Gary phải trên, lab Oak dưới phải,
+# nước phía nam ra Route 21), cỡ nhà theo prefab PokéOne. Cỏ gặp Pokémon: pokeonecommunity.com/location/pallet-town/
+name: Pallet Town
+song: pallet_town
+tileset: 1
+encounter: normal
+
+[legend]
+. grass
+, path
+T tree
+~ water
+H house_player
+G house_rival
+L lab_oak
+F fence
+| fencev
+* flowers
+w flowersw
+" tallgrass grass=pallet_grass
+m mailbox
+n mailbox
+s signboard
+o signpost
+r rock
+k grassmark
+a grassmark
+b pathmark
+
+[grid]
+TTTTTTTTTTTT..,,..TTTTTTTTTTTT
+TTTTTTTTTTTT..,,..TTTTTTTTTTTT
+TT............,,............TT
+TT....HHHHH...,,.....GGGGG..TT
+TT....HHHHH...,,.....GGGGG..TT
+TT....HHHHH...,,.....GGGGG..TT
+TT...mHHHHH...,,....nGGGGG..TT
+TT....,,,,,,,,,,,,,,,,,,,,..TT
+TT....,,,,,,,,,,,,,,,,,,,,..TT
+TT.**.........,,.........ww.TT
+TT.**.......s.,,.........w..TT
+TT......a.....,,............TT
+TT.FFFFFFF....,,..LLLLLLLL..TT
+TT.|*w*w*|....,,..LLLLLLLL..TT
+TT.|w*w*w|....,,..LLLLLLLL..TT
+TT.FFFFFFF....,,..LLLLLLLL..TT
+TT............,,,,,,,,,,....TT
+TT...........b,,,,,,,,,o....TT
+TT...,,,,,,,,,,,............TT
+TT...,,,,,,,,,,,....""""""..TT
+TT...,,.....r..k....""""""..TT
+TT....~~~~~~........""""""..TT
+TT....~~~~~~............TTTTTT
+TT....~~~~~~............TTTTTT
+TTTTTT~~~~~~TTTTTTTTTTTTTTTTTT
+TTTTTT~~~~~~TTTTTTTTTTTTTTTTTT
+
+[links]
+edge north -> route_1 offset=-2
+door @H -> pallet_house_1f @x face=up
+door @G -> gary_house @x face=up
+door @L -> oak_lab @x face=up
+
+[actors]
+sign_town   @s kind=sign name="Pallet Town" script=sign_pallet
+sign_lab    @o kind=sign name="Sign" script=sign_oaklab
+mail_home   @m kind=sign script=mail_home
+mail_gary   @n kind=sign script=mail_gary
+girl        @a sprite=sprite65 name="Girl" face=down look=random script=pallet_girl
+fatman      @b sprite=sprite34 name="Technology Guy" face=left look=random script=pallet_tech
+potion_s    @k kind=item item=potion sprite=sprite11 name="Potion"
+
+[script sign_pallet]
+say Pallet Town\nShades of your journey await!
+
+[script sign_oaklab]
+say Oak Pokémon Research Lab
+
+[script mail_home]
+say {player}'s house
+
+[script mail_gary]
+say {rival}'s house
+
+[script pallet_girl]
+if starter_chosen > after
+say I'm raising Pokémon, too.\nWhen they get strong, they can protect me.
+end
+:after
+say Oh, you got a Pokémon from Prof. Oak?\nTake good care of it!
+
+[script pallet_tech]
+say Technology is incredible!\nYou can now store and recall items and Pokémon as data via PC!

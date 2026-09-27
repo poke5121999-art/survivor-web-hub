@@ -1,0 +1,54 @@
+# Phòng người chơi (tầng lầu). Vỏ int_house_1_upstairs: x -0,41..10,41, z -6,29..1 -> 10 × 7 ô, gốc ở (0, 6).
+# Game mới bắt đầu ở đây (P1.state.map mặc định 'pallet_house_2f'), đứng ở mốc @p.
+name: Pallet Town
+song: pallet_town
+indoors: 1
+spawn: @p
+enter: intro
+
+[legend]
+. wood
+S wood prop=int_house_1_upstairs pivot=0,6
+C wood solid prop=int_pokepc size=1x1 align=back
+d wood solid prop=int_bedroom_desk size=2x1 align=back
+t wood solid prop=int_tv size=2x1 align=back
+n wood solid prop=snes size=1x1
+U wood solid prop=stairsdown_1
+^ wood mark
+B wood solid prop=int_bed_1_red size=1x2
+r wood prop=int_mat_3_x_3_red_2 size=3x3
+l wood solid prop=int_plant_indoor_2 size=1x1
+p wood mark
+
+[grid]
+SCdd.tt.UU
+......n.^U
+..........
+B..rrr....
+B..rrr.p..
+...rrr....
+l........l
+
+[links]
+stairs @^ -> pallet_house_1f @^ face=down
+
+[actors]
+pc  @C kind=sign name="PC" script=home_pc
+tv  @t kind=sign script=home_tv
+
+[script intro]
+if intro > end
+set intro
+wait 0.6
+say {player}! Wake up!\nToday is the day you get your first Pokémon!
+say Prof. Oak asked you to come to his lab in Pallet Town.
+quest the_pokemon_prof
+
+[script home_pc]
+sfx notify
+say {player} booted up the PC.
+pc
+
+[script home_tv]
+say There's a movie on TV.\nFour boys are walking on railroad tracks.
+say ...I'd better go, too.

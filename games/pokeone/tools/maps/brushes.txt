@@ -1,0 +1,51 @@
+# Cọ dùng chung cho mọi bản đồ. Mỗi dòng: tên  khoá=giá_trị ...
+# Khoá (xem tools/README-world.md):
+#   ground=c,r | c,r|c,r (ngẫu nhiên theo ô) | sand | dirt (tự nối trên cỏ)   checker=a|b|c|d (lát 2x2)
+#   over=c,r (lớp 2)  h=độ cao  wall=c,r (ô vách khi cao hơn ô bên)  solid  counter  water
+#   ledge=down|left|right  grass=<vùng gặp>  mark (kí tự dùng làm @mốc)
+#   prop=<P1.PROPS>  step=WxH (lát theo bước) | size=WxH (một cái, kiểm cỡ vùng)  pivot=px,pz  ry=độ  dx dz dy
+#   door=dx,dz (ô cửa trong vùng)  doorprop=<prop cửa>  tag=<nhãn>
+
+grass       ground=14,59|15,59|14,60|15,60
+path        ground=sand
+dirt        ground=dirt
+tree        ground=14,59|15,59|14,60|15,60 prop=tree_2 step=2x2 solid
+pine        ground=14,59|15,59|14,60|15,60 prop=tree_2_dark step=2x2 solid
+tallgrass   ground=14,59|15,59|14,60|15,60 prop=pokemongrass_1x1 step=1x1 tag=tallgrass
+ledge       ground=14,59|15,59|14,60|15,60 prop=jump_middle step=1x1 ledge=down
+water       ground=1,59 h=-1 water solid
+fence       ground=14,59|15,59|14,60|15,60 prop=fence_small step=1x1 solid
+fencev      ground=14,59|15,59|14,60|15,60 prop=fence_small_side step=1x1 solid
+flowers     ground=14,59|15,59|14,60|15,60 prop=animatedflowers step=1x1
+flowersw    ground=14,59|15,59|14,60|15,60 prop=animatedflowerswhite step=1x1
+flowersp    ground=14,59|15,59|14,60|15,60 prop=animatedflowerspink step=1x1
+hedge       ground=14,59|15,59|14,60|15,60 prop=ext_hedge_small step=1x1 solid
+rock        ground=14,59|15,59|14,60|15,60 prop=rocksmall step=1x1 solid
+lamp        ground=sand prop=ext_lamp_01 step=1x1 solid
+bench       ground=14,59|15,59|14,60|15,60 prop=ext_bench_wood size=2x1 solid
+mailbox     ground=14,59|15,59|14,60|15,60 prop=letterbox_1 step=1x1 solid
+signpost    ground=14,59|15,59|14,60|15,60 prop=signsmall1 step=1x1 solid mark
+signboard   ground=14,59|15,59|14,60|15,60 prop=sign_4 step=1x1 solid mark
+grassmark   ground=14,59|15,59|14,60|15,60 mark
+pathmark    ground=sand mark
+block       solid
+blockgrass  ground=14,59|15,59|14,60|15,60 solid
+
+# nhà ngoài trời (vùng = chân nhà, chặn hết; cửa ở hàng cuối)
+house_player  ground=14,59|15,59|14,60|15,60 prop=ext_house_pallettown_1 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_brownhouse solid
+house_rival   ground=14,59|15,59|14,60|15,60 prop=ext_house_pallettown_2 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_greenhouse solid
+house_vir     ground=14,59|15,59|14,60|15,60 prop=ext_veridian_house_1 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_bluehouse solid
+house_k1      ground=14,59|15,59|14,60|15,60 prop=ext_house_kanto5_1 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_office solid
+house_k2      ground=14,59|15,59|14,60|15,60 prop=ext_house_kanto5_2 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_yellow solid
+lab_oak       ground=14,59|15,59|14,60|15,60 prop=ext_house_oak size=8x4 pivot=4,4 door=4,3 doorprop=door_green_oak solid
+center        ground=14,59|15,59|14,60|15,60 prop=ext_building_pockiecenter size=8x6 pivot=4,5 door=4,5 solid
+mart          ground=14,59|15,59|14,60|15,60 prop=ext_building_shop size=8x5 pivot=3,5 door=3,4 solid
+gym           ground=14,59|15,59|14,60|15,60 prop=ext_gym size=9x4 pivot=4,4 door=4,3 solid
+
+# trong nhà
+wood        checker=43,1|44,1|43,0|44,0
+tilefloor   ground=47,1
+labfloor    ground=49,1
+wall        solid
+floor       mark
+counter     counter

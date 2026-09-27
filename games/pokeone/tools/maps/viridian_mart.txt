@@ -1,0 +1,55 @@
+# Poké Mart Viridian. Vỏ interior_blank_room_1 (sàn gỗ): x -5,19..8,19, z -8,63..1 -> 13 × 10 ô, gốc ở (5, 9).
+# Người bán Carl và bảng giá: pokeonecommunity.com/location/viridian-city/ (RESEARCH.md §6).
+name: Viridian City
+song: pokemart
+indoors: 1
+
+[legend]
+. floor
+S wall prop=interior_blank_room_1 pivot=5,9
+W wall
+c counter prop=int_shop_counter_l
+f floor solid prop=int_counter_shop_fridge size=2x1 align=back
+h floor solid prop=int_shop_cupboard_potions_left_potions size=1x2
+k floor solid prop=int_counter_shop_shelf_1 size=1x2
+l floor solid prop=int_sign_shop_logo size=1x1 align=back dz=-0.2
+K floor mark
+b floor mark
+x floor mark
+
+[grid]
+SWWWWWWWWWWWW
+W...c.ff.l..W
+W...c.......W
+W...c...k..kW
+W..Kc...k..kW
+Wcccc.......W
+W...........W
+W..b........W
+W...........W
+WWWWWxxxWWWWW
+
+[links]
+door @x -> viridian_city @M at=below arrive=below face=down sfx=automatic_door
+
+[actors]
+carl   @K sprite=sprite165 name="Carl" face=right script=carl
+buyer  @b sprite=generic_14 name="Youngster" face=up look=random script=mart_buyer
+
+[script carl]
+if quest=viridian_city_2 > quest
+:shop
+say Hi there! May I help you?
+shop pokeball:200 potion:300 antidote:100 paralyzeheal:200 awakening:250 burnheal:250 iceheal:250 escaperope:500 repel:350 superpotion:700 greatball:600
+say Please come again!
+end
+:quest
+say Oh! You're the new trainer Nurse Joy told me about.\nI'm Carl. Welcome to the Poké Mart!
+say Every trainer needs Poké Balls. Here, take these to get started.
+give pokeball 5
+questdone viridian_city_2
+say Dizzy at the Trainer School teaches new trainers the basics.\nIt's the building across from the Gym.
+goto shop
+
+[script mart_buyer]
+say No! Potions are all sold out.\n...Just kidding! Buy as many as you like.

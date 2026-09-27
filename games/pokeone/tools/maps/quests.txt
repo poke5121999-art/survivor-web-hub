@@ -1,0 +1,11 @@
+# Nhiệm vụ chính đầu game Kanto. Tên, mục tiêu, nơi nhận, thưởng: pokeone.fandom.com/wiki/Main_Quests
+# (chép lại ở D:\pokeone-ref\wiki\RESEARCH.md §1). exp = EXP huấn luyện viên (Trainer Level), money = Pokédollar.
+the_pokemon_prof   name="The Pokémon Prof."              goal="Find Prof. Oak in his lab!"                          from="Pallet Town"          exp=50  next=first_battle
+first_battle       name="First Battle"                   goal="Find Gary"                                           from="Pallet Town"          exp=100 items=potion:1 next=trainer_route_1
+trainer_route_1    name="Trainer on Route 1"             goal="Challenge Joey on Route 1"                           from="Pallet Town"          exp=50  money=100 next=trainer_route_1_2
+trainer_route_1_2  name="Trainer on Route 1 (Part 2)"    goal="Challenge Sherman and Nancy on Route 1"              from="Route 1"              exp=50  money=100 next=viridian_city
+viridian_city      name="Viridian City"                  goal="Find Nurse Joy in the Poké Center in Viridian City"  from="Route 1"              exp=55  money=110 next=viridian_city_2
+viridian_city_2    name="Viridian City (Part 2)"         goal="Visit Carl in the Poké Mart"                         from="Viridian Poké Center" exp=55  money=110 next=viridian_city_3
+viridian_city_3    name="Viridian City (Part 3)"         goal="Visit Dizzy in the Trainer School"                   from="Viridian Poké Mart"   exp=55  money=110 next=viridian_city_4
+viridian_city_4    name="Viridian City (Part 4)"         goal="Find the old man in Viridian City"                   from="Viridian City"        exp=55  money=110 next=viridian_forest
+viridian_forest    name="Viridian Forest"                goal="Travel through the Viridian Forest"                  from="Route 2"              exp=50  money=100

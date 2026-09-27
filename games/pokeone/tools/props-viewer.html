@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>PokéOne props viewer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #1d2026; color: #eee; font: 12px/1.3 system-ui, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #labels { position: fixed; inset: 0; pointer-events: none; }
+  .lb { position: absolute; padding: 2px 4px; background: rgba(0,0,0,.55); border-radius: 3px; white-space: nowrap; }
+  .lb b { color: #ffd76a; font-weight: 600; }
+  .lb i { color: #9cc9ff; font-style: normal; }
+  #hud { position: fixed; left: 8px; bottom: 6px; background: rgba(0,0,0,.5); padding: 3px 6px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="labels"></div>
+<div id="hud"></div>
+<script src="../vendor/three-r140.min.js"></script>
+<script src="../vendor/GLTFLoader-r140.js"></script>
+<script src="../vendor/meshopt_decoder.js"></script>
+<script>window.P1 = window.P1 || {};</script>
+<script src="../data/props.js"></script>
+<script>
+/* Xem prop bản đồ và cảnh màn đăng nhập.
+ *   ?mode=grid&page=0&per=30   lưới prop đã chọn (P1.PROPS), mỗi ô một máy ảnh riêng, nhãn = tên + cỡ (ô lưới)
+ *   ?mode=grid&only=a,b        chỉ vài prop
+ *   ?mode=title&t=0            đảo màn đăng nhập nhìn từ máy ảnh gốc ở giây t của đường bay
+ *   ?mode=title&play=1         chạy đường bay
+ * window.VIEW.ready = true khi vẽ xong (bài kiểm chờ cờ này). */
+(function () {
+  const Q = new URLSearchParams(location.search);
+  const mode = Q.get('mode') || 'grid';
+  const VIEW = window.VIEW = { ready: false, errors: [], info: {} };
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  document.body.appendChild(renderer.domElement);
+  const loader = new THREE.GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  const base = '../';
+  const load = url => new Promise((res, rej) => loader.load(base + url, res, undefined, rej));
+  const col = a => new THREE.Color(a[0], a[1], a[2]);
+
+  function fixMaterials(root) {
+    root.traverse(o => {
+      if (!o.isMesh) return;
+      const m = o.material;
+      if (m.alphaTest > 0) m.side = THREE.DoubleSide;
+      if (m.transparent) m.depthWrite = false;
+    });
+  }
+
+  async function grid() {
+    const names = Q.get('only') ? Q.get('only').split(',') : Object.keys(P1.PROPS);
+    const per = +(Q.get('per') || 30), page = +(Q.get('page') || 0);
+    const list = names.slice(page * per, page * per + per);
+    const cols = Math.ceil(Math.sqrt(list.length * innerWidth / innerHeight));
+    const rows = Math.ceil(list.length / cols);
+    const cw = Math.floor(innerWidth / cols), ch = Math.floor(innerHeight / rows);
+    const items = await Promise.all(list.map(async n => {
+      const p = P1.PROPS[n];
+      if (!p) throw new Error('prop missing from P1.PROPS: ' + n);
+      const g = await load(p.glb);
+      fixMaterials(g.scene);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(Q.get('nogrid') ? 0xc8ced8 : 0x2c313a);  // nền sáng khi đo phủ: bóng đổ đen mới lộ
+      scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x55504a, 0.75));
+      const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+      sun.position.set(-3, 8, 5);
+      scene.add(sun);
+      scene.add(g.scene);
+      const lo = new THREE.Vector3().fromArray(p.min), hi = new THREE.Vector3().fromArray(p.max);
+      const c = lo.clone().add(hi).multiplyScalar(0.5);
+      const r = Math.max(0.3, hi.clone().sub(lo).length() / 2);
+      const grid = new THREE.GridHelper(Math.ceil(Math.max(hi.x - lo.x, hi.z - lo.z)) + 2, Math.ceil(Math.max(hi.x - lo.x, hi.z - lo.z)) + 2, 0x7a8599, 0x4a5261);
+      grid.position.set(Math.round(c.x), 0.001, Math.round(c.z));
+      if (!Q.get('nogrid')) scene.add(grid);
+      const cam = new THREE.PerspectiveCamera(30, cw / ch, r / 50, r * 20);
+      const yaw = THREE.MathUtils.degToRad(+(Q.get('yaw') || 0));
+      const dir = new THREE.Vector3(0.35, 0.75, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).normalize();
+      const dist = r / Math.sin(THREE.MathUtils.degToRad(15)) * (cw < ch ? ch / cw : 1) * 0.95;
+      cam.position.copy(c).addScaledVector(dir, dist);
+      cam.lookAt(c);
+      return { n, p, scene, cam, g };
+    }));
+    renderer.setScissorTest(true);
+    renderer.setClearColor(0x1d2026);
+    renderer.clear();
+    const lbl = document.getElementById('labels');
+    items.forEach((it, i) => {
+      const x = (i % cols) * cw, y = Math.floor(i / cols) * ch;
+      renderer.setViewport(x + 1, innerHeight - y - ch + 1, cw - 2, ch - 2);
+      renderer.setScissor(x + 1, innerHeight - y - ch + 1, cw - 2, ch - 2);
+      renderer.render(it.scene, it.cam);
+      const s = it.p.max.map((v, k) => (v - it.p.min[k]).toFixed(1)).join('×');
+      const d = document.createElement('div');
+      d.className = 'lb';
+      d.style.left = (x + 3) + 'px'; d.style.top = (y + 3) + 'px';
+      d.innerHTML = '<b>' + it.n + '</b><br><i>' + s + '</i> ' + (it.p.tags || []).slice(0, 2).join(',');
+      lbl.appendChild(d);
+    });
+    VIEW.info = { count: items.length, page, pages: Math.ceil(names.length / per),
+      cells: items.map((it, i) => ({ n: it.n, rect: [(i % cols) * cw + 4, Math.floor(i / cols) * ch + 34, cw - 8, ch - 38] })) };
+    document.getElementById('hud').textContent = 'grid page ' + (page + 1) + '/' + VIEW.info.pages + ' - ' + items.length + ' props (ô lưới = 1 đơn vị)';
+  }
+
+  function sky(scene, S, far) {
+    const D = far * 0.55, g = new THREE.Group(), waits = [];
+    const face = (key, pos, rot) => {
+      if (!S.faces[key]) return;
+      let done;
+      waits.push(new Promise(r => { done = r; }));
+      const t = new THREE.TextureLoader().load(base + S.faces[key], done, undefined, e => { VIEW.errors.push('sky ' + key); done(); });
+      t.encoding = THREE.sRGBEncoding;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * D, 2 * D),
+        new THREE.MeshBasicMaterial({ map: t, fog: false, depthWrite: false, depthTest: false }));
+      m.position.set(pos[0] * D, pos[1] * D, pos[2] * D);
+      m.rotation.set(rot[0], rot[1], rot[2]);
+      m.renderOrder = -1;
+      g.add(m);
+    };
+    const h = Math.PI / 2;
+    // Hướng mặt theo P1.TITLE_SCENE.sky.threeDir; mép phải ảnh nằm bên phải người nhìn từ tâm.
+    face('front', [0, 0, 1], [0, Math.PI, 0]);
+    face('back', [0, 0, -1], [0, 0, 0]);
+    face('left', [-1, 0, 0], [0, h, 0]);
+    face('right', [1, 0, 0], [0, -h, 0]);
+    face('up', [0, 1, 0], [h, 0, Math.PI]);
+    scene.add(g);
+    g.userData.ready = Promise.all(waits);
+    return g;
+  }
+
+  function poseAt(T, t) {
+    const P = T.camera.path, n = P.pos.length;
+    t = ((t % P.duration) + P.duration) % P.duration;
+    const f = t / P.dt, i = Math.min(n - 2, Math.floor(f)), a = f - i;
+    const p = new THREE.Vector3().fromArray(P.pos[i]).lerp(new THREE.Vector3().fromArray(P.pos[i + 1]), a);
+    const q = new THREE.Quaternion().fromArray(P.rot[i]).slerp(new THREE.Quaternion().fromArray(P.rot[i + 1]), a);
+    return { p, q };
+  }
+
+  async function title() {
+    const T = P1.TITLE_SCENE;
+    const g = await load(T.glb);
+    fixMaterials(g.scene);
+    const scene = new THREE.Scene();
+    const L = T.light;
+    scene.fog = new THREE.Fog(col(L.fog.color), L.fog.start, L.fog.end);
+    scene.background = col(L.fog.color);
+    scene.add(new THREE.AmbientLight(col(L.ambient.sky), L.ambient.intensity));
+    const sun = new THREE.DirectionalLight(col(L.sun.color), L.sun.intensity * 2);
+    sun.position.set(-L.sun.dir[0], -L.sun.dir[1], -L.sun.dir[2]);
+    scene.add(sun);
+    scene.add(g.scene);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = Math.pow(2, T.post.postExposureEV || 0) * 0.8;
+    const C = T.camera;
+    const cam = new THREE.PerspectiveCamera(C.fov, innerWidth / innerHeight, C.near, C.far);
+    const sk = sky(scene, T.sky, C.far);
+    const place = t => {
+      const { p, q } = poseAt(T, t);
+      cam.position.copy(p); cam.quaternion.copy(q);
+      if (Q.get('yaw') || Q.get('pitch')) {   // chỉ để soát ghép mặt trời
+        cam.rotation.set(THREE.MathUtils.degToRad(+(Q.get('pitch') || 0)), THREE.MathUtils.degToRad(+(Q.get('yaw') || 0)), 0, 'YXZ');
+      }
+      sk.position.copy(p);
+    };
+    const t0 = +(Q.get('t') || 0);
+    place(t0);
+    await sk.userData.ready;
+    renderer.render(scene, cam);
+    VIEW.info = { t: t0, pos: cam.position.toArray(), duration: C.path.duration };
+    document.getElementById('hud').textContent = 'title island t=' + t0 + 's / ' + C.path.duration + 's';
+    if (Q.get('play')) {
+      const start = performance.now() / 1000 - t0;
+      (function loop() { place(performance.now() / 1000 - start); renderer.render(scene, cam); requestAnimationFrame(loop); })();
+    }
+  }
+
+  /* Tỉ lệ điểm ảnh khác màu nền trong từng ô (grid) hoặc cả khung (title): bài kiểm dùng để bắt ô trống. */
+  VIEW.coverage = function (cells) {
+    const c = document.createElement('canvas');
+    c.width = innerWidth; c.height = innerHeight;
+    const x = c.getContext('2d');
+    x.drawImage(renderer.domElement, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height).data;
+    return (cells || [[0, 0, c.width, c.height]]).map(([x0, y0, w, h]) => {
+      const bg = [d[(y0 * c.width + x0) * 4], d[(y0 * c.width + x0) * 4 + 1], d[(y0 * c.width + x0) * 4 + 2]];
+      let n = 0, t = 0;
+      for (let y = y0; y < y0 + h; y += 2) for (let xx = x0; xx < x0 + w; xx += 2) {
+        const i = (y * c.width + xx) * 4;
+        t++;
+        if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 24) n++;
+      }
+      return n / t;
+    });
+  };
+
+  (mode === 'title' ? title() : grid())
+    .then(() => { VIEW.ready = true; })
+    .catch(e => { VIEW.errors.push(String(e && e.stack || e)); console.error(e); VIEW.ready = true; });
+})();
+</script>
+</body>
+</html>

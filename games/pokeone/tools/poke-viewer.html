@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Poke Viewer</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { --bg: #3a4a5c; --fg: #f4f6f8; }
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 12px/1.2 system-ui, sans-serif; }
+  #wrap { position: relative; }
+  canvas { display: block; }
+  .lab { position: absolute; padding: 2px 4px; background: rgba(0,0,0,.45); border-radius: 3px; white-space: nowrap; }
+  #title { position: absolute; right: 6px; bottom: 4px; font-size: 14px; background: rgba(0,0,0,.5); padding: 2px 6px; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas><div id="labels"></div><div id="title"></div></div>
+<script src="../vendor/three-r140.min.js"></script>
+<script src="../vendor/GLTFLoader-r140.js"></script>
+<script src="../vendor/meshopt_decoder.js"></script>
+<script src="../data/pokes.js"></script>
+<script>
+/*
+ * Xem model art/poke/*.glb đúng như game nạp (three r140 + GLTFLoader + meshopt). Bài kiểm test/pokeone-poke.js gọi V.*
+ *   V.grid(role, frac)            mọi loài, clip của vai trò (hoặc tên clip 'a8'), dừng ở frac độ dài clip
+ *   V.strip(dex, clip, n)         một loài, n khung đều nhau của một clip
+ *   V.visibleVariant(dex, clip, frac, mesh)   tên nút biến thể đang hiện của renderer (biểu cảm mắt)
+ */
+(function () {
+  'use strict';
+  const POKES = P1.POKES;
+  const DEX = Object.keys(POKES).map(Number).sort((a, b) => a - b);
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.setPixelRatio(1);
+  renderer.setScissorTest(true);
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.6);
+  sun.position.set(0.5, 1, 1.2);
+  scene.add(sun);
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
+  const loader = new THREE.GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  const models = {};
+
+  function load(dex) {
+    return new Promise((res, rej) => loader.load('../' + POKES[dex].glb, gl => {
+      const root = gl.scene;
+      root.scale.setScalar(POKES[dex].scale);
+      // khối cầu cắt khung của skinned mesh tính theo tư thế bind, clip lao tới/bay có thể ra ngoài: tắt cắt khung
+      root.traverse(o => { if (o.isMesh) o.frustumCulled = false; });
+      const mixer = new THREE.AnimationMixer(root);
+      const clips = {};
+      gl.animations.forEach(c => { clips[c.name] = c; });
+      models[dex] = { root, mixer, clips, action: null };
+      res();
+    }, undefined, e => rej(new Error('load ' + dex + ': ' + (e && e.message || e)))));
+  }
+
+  function pose(dex, clipName, frac) {
+    const m = models[dex];
+    const clip = m.clips[clipName] || m.clips[POKES[dex].clips.idle];
+    m.mixer.stopAllAction();
+    const a = m.mixer.clipAction(clip);
+    a.reset().play();
+    a.time = Math.min(clip.duration * frac, clip.duration - 1e-4);
+    m.mixer.update(0);
+    m.root.updateMatrixWorld(true);
+    return clip.name;
+  }
+
+  // khung bao ở khung 0 của idle (loài bay lơ lửng không chạm y = 0), đo lúc nạp
+  function frame(dex) {
+    const b = models[dex].box || (models[dex].box = V.info(dex));
+    const h = b.max[1] - b.min[1], cy = (b.max[1] + b.min[1]) / 2;
+    const r = Math.max(h, b.max[0] - b.min[0], b.max[2] - b.min[2]);
+    const d = r * 2.1 + 0.15;
+    camera.position.set(d * 0.4, cy + r * 0.3, d);
+    camera.lookAt(0, cy, 0);
+  }
+
+  function drawCells(cells, cols, cw, ch, title) {
+    const rows = Math.ceil(cells.length / cols);
+    renderer.setSize(cols * cw, rows * ch, false);
+    canvas.style.width = cols * cw + 'px';
+    canvas.style.height = rows * ch + 'px';
+    const labels = document.getElementById('labels');
+    labels.innerHTML = '';
+    renderer.setScissor(0, 0, cols * cw, rows * ch);
+    renderer.setClearColor(0x3a4a5c);
+    renderer.clear();
+    cells.forEach((c, i) => {
+      const x = (i % cols) * cw, y = (rows - 1 - Math.floor(i / cols)) * ch;
+      renderer.setViewport(x + 1, y + 1, cw - 2, ch - 2);
+      renderer.setScissor(x + 1, y + 1, cw - 2, ch - 2);
+      renderer.setClearColor((Math.floor(i / cols) + i) % 2 ? 0x55687d : 0x4d5f73);
+      renderer.clear();
+      camera.aspect = (cw - 2) / (ch - 2);
+      camera.updateProjectionMatrix();
+      scene.add(models[c.dex].root);
+      frame(c.dex);
+      renderer.render(scene, camera);
+      scene.remove(models[c.dex].root);
+      const l = document.createElement('div');
+      l.className = 'lab';
+      l.style.left = (i % cols) * cw + 3 + 'px';
+      l.style.top = Math.floor(i / cols) * ch + 3 + 'px';
+      l.textContent = c.label;
+      labels.appendChild(l);
+    });
+    document.getElementById('title').textContent = title;
+  }
+
+  window.V = {
+    dex: DEX,
+    ready: Promise.all(DEX.map(load)).then(() => DEX.length),
+    clipNames(dex) { return Object.keys(models[dex].clips); },
+    grid(role, frac, cols) {
+      cols = cols || 8;
+      const cells = DEX.map(dex => {
+        const want = role[0] === 'a' && /^a\d+$/.test(role) ? role : POKES[dex].clips[role];
+        const got = want && models[dex].clips[want] ? pose(dex, want, frac) : (pose(dex, POKES[dex].clips.idle, 0), '—');
+        return { dex, label: '#' + dex + ' ' + got };
+      });
+      drawCells(cells, cols, 170, 170, role + ' @ ' + frac);
+      return cells.filter(c => c.label.endsWith('—')).map(c => c.dex);
+    },
+    strip(dex, clip, n, size) {
+      const cells = [];
+      for (let i = 0; i < n; i++) {
+        const f = n === 1 ? 0 : i / (n - 1);
+        pose(dex, clip, f);
+        cells.push({ dex, label: '#' + dex + ' ' + clip + ' ' + f.toFixed(2) });
+      }
+      // mỗi ô vẽ lại tư thế của nó
+      const cw = size || 170;
+      renderer.setSize(n * cw, cw, false);
+      canvas.style.width = n * cw + 'px';
+      canvas.style.height = cw + 'px';
+      const labels = document.getElementById('labels');
+      labels.innerHTML = '';
+      renderer.setScissor(0, 0, n * cw, cw);
+      renderer.clear();
+      cells.forEach((c, i) => {
+        pose(dex, clip, n === 1 ? 0 : i / (n - 1));
+        renderer.setViewport(i * cw + 1, 1, cw - 2, cw - 2);
+        renderer.setScissor(i * cw + 1, 1, cw - 2, cw - 2);
+        renderer.setClearColor(i % 2 ? 0x55687d : 0x4d5f73);
+        renderer.clear();
+        camera.aspect = 1;
+        camera.updateProjectionMatrix();
+        scene.add(models[dex].root);
+        frame(dex);
+        renderer.render(scene, camera);
+        scene.remove(models[dex].root);
+        const l = document.createElement('div');
+        l.className = 'lab';
+        l.style.left = i * cw + 3 + 'px';
+        l.style.top = '3px';
+        l.textContent = c.label;
+        labels.appendChild(l);
+      });
+      document.getElementById('title').textContent = '#' + dex + ' ' + clip;
+    },
+    visibleVariant(dex, clip, frac, mesh) {
+      pose(dex, clip, frac);
+      const shown = [];
+      models[dex].root.traverse(o => {
+        const tn = o.isMesh && o.userData.targetNames ? o.userData.targetNames[0].split(':') : [];
+        if (tn[1] === mesh && o.morphTargetInfluences[0] < 0.5) shown.push(mesh + '#' + tn[2]);
+      });
+      return shown;
+    },
+    info(dex) {
+      const m = models[dex];
+      const box = new THREE.Box3();
+      pose(dex, POKES[dex].clips.idle, 0);
+      // skin tay: GLTFLoader r140 không chuẩn hoá trọng số uint8 của gltfpack khi đọc, nên boneTransform ra sai cỡ
+      const bm = new THREE.Matrix4(), base = new THREE.Vector3(), t = new THREE.Vector3(), acc = new THREE.Vector3();
+      m.root.traverse(o => { if (o.isSkinnedMesh && !(o.morphTargetInfluences && o.morphTargetInfluences[0] > 0.5)) {
+        const p = o.geometry.attributes.position, si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight;
+        for (let i = 0; i < p.count; i++) {
+          base.fromBufferAttribute(p, i).applyMatrix4(o.bindMatrix);
+          acc.set(0, 0, 0);
+          let tot = 0;
+          for (let k = 0; k < 4; k++) {
+            const w = sw.array[i * 4 + k];
+            if (!w) continue;
+            const b = si.array[i * 4 + k];
+            bm.multiplyMatrices(o.skeleton.bones[b].matrixWorld, o.skeleton.boneInverses[b]);
+            acc.addScaledVector(t.copy(base).applyMatrix4(bm), w);
+            tot += w;
+          }
+          acc.multiplyScalar(1 / tot).applyMatrix4(o.bindMatrixInverse).applyMatrix4(o.matrixWorld);
+          box.expandByPoint(acc);
+        }
+      } });
+      const mats = [];
+      m.root.traverse(o => { if (o.isMesh) mats.push(o.material.name); });
+      return { min: box.min.toArray(), max: box.max.toArray(), mats };
+    },
+  };
+})();
+</script>
+</body>
+</html>

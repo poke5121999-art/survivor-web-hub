@@ -1,0 +1,14 @@
+/* Lớp vỏ PokéOne: font gốc của NGUI (bản web, xem tools/README-ui.md §Font) và lớp chứa menu.
+   Mọi chữ NGUI do js/ngui.js vẽ bằng 'P1Aldrich'/'P1Arimo'; hai khai báo dưới cho phần tử DOM ngoài cây NGUI
+   (ô nhập tên, chữ khởi động). */
+@font-face { font-family: 'Aldrich'; src: url('../art/ui/fonts/Aldrich-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Arimo'; src: url('../art/ui/fonts/Arimo-wght.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+
+#ui > .p1-layer, #ui > .p1-scene { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+#ui > .p1-layer { z-index: 20; }
+#ui > .p1-scene { z-index: 10; }
+
+.p1-input { position: absolute; left: 0; top: 0; transform-origin: 0 0; margin: 0; padding: 0 0 0 2px; border: 0; outline: 0;
+  background: transparent; pointer-events: auto; font-family: 'P1Arimo', Arimo, Arial, sans-serif; line-height: 1; }
+.p1-input::placeholder { color: transparent; }
+#ui > .p1-hud { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 15; }

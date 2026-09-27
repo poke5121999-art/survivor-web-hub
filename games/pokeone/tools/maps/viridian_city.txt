@@ -1,0 +1,106 @@
+# Viridian City: Trung tâm Pokémon, Poké Mart (Carl), nhà thi đấu (khoá - Giovanni là gym cuối),
+# trường huấn luyện (Dizzy), ông già. Nhiệm vụ "Viridian City" 1..4: pokeone.fandom.com/wiki/Main_Quests
+name: Viridian City
+song: viridian_city
+encounter: normal
+
+[legend]
+. grass
+, path
+T tree
+~ water
+S house_k1
+Y gym
+M mart
+C center
+h house_vir
+k house_k2
+* flowers
+w flowersp
+O grassmark
+g grassmark
+b grassmark
+q signboard
+e signpost
+u signpost
+
+[grid]
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TT................................TT
+TT..SSSSS.............YYYYYYYYY...TT
+TT..SSSSS.............YYYYYYYYY...TT
+TT..SSSSS.............YYYYYYYYY...TT
+TT..SSSSS.............YYYYYYYYY...TT
+TT....,,,,,,,,,,,,,,,,,,,,,,,,,...TT
+TT...e,,,,,,,,,,,,,,,,,,,,,,,,,..uTT
+TT...........O..,,................TT
+TT....MMMMMMMM..,,..CCCCCCCC......TT
+TT....MMMMMMMM..,,..CCCCCCCC......TT
+TT....MMMMMMMM..,,..CCCCCCCC......TT
+TT....MMMMMMMM..,,..CCCCCCCC......TT
+TT....MMMMMMMM..,,..CCCCCCCC......TT
+TT..............,,..CCCCCCCC......TT
+TT....,,,,,,,,,,,,,,,,,,,,,,......TT
+TT....,,,,,,,,,,,,,,,,,,,,,,......TT
+TT..............,,...g............TT
+TT..hhhhh.......,,.......kkkkk....TT
+TT..hhhhh.......,,.......kkkkk....TT
+TT..hhhhh.......,,.......kkkkk....TT
+TT..hhhhh.......,,.......kkkkk....TT
+TT.............q,,................TT
+TT....,,,,,,,,,,,,,,,,,,,,,,......TT
+TT..~~~~~~......,,......**ww......TT
+TT..~~~~~~......,,.b....ww**......TT
+TT..~~~~~~......,,................TT
+TTTTTTTTTTTTTTTT,,..TTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTT,,..TTTTTTTTTTTTTTTT
+
+[links]
+edge south -> route_1 offset=-6
+door @M -> viridian_mart @x face=up sfx=automatic_door
+door @C -> viridian_center @x face=up sfx=automatic_door
+door @S -> trainer_school @x face=up
+
+[actors]
+old_man    @O sprite=old_man name="Old Man" face=down look=random script=old_man
+youngster  @g sprite=generic_22 name="Youngster" face=right path=right4,left4 script=vir_youngster
+girl       @b sprite=generic_38 name="Girl" face=up look=random script=vir_girl
+sign_city  @q kind=sign name="Sign" script=sign_viridian
+sign_gym   @u kind=sign name="Sign" script=sign_gym
+sign_school @e kind=sign name="Sign" script=sign_school
+gym_door   @Y kind=sign name="Gym" script=gym_locked
+home_door  @h kind=sign script=door_locked
+home_door2 @k kind=sign script=door_locked
+
+[script sign_viridian]
+say Viridian City\nThe Eternally Green Paradise
+
+[script sign_gym]
+say Viridian City Pokémon Gym\nThe Gym Leader is away.
+
+[script sign_school]
+say Trainer Tips\nLearn the basics at the Trainer School!
+
+[script gym_locked]
+say The Gym's doors are locked...
+
+[script door_locked]
+say It's locked...
+
+[script old_man]
+if quest=viridian_city_4 > quest
+say Ahh, I've had my coffee now and I feel great!
+end
+:quest
+say Hm? Dizzy sent you to find me, did he?
+say When I was young I caught Pokémon all over Kanto.\nYou weaken them first, then throw a Poké Ball!
+say Route 2 and the Viridian Forest are north of here.\nOff you go, young one.
+questdone viridian_city_4
+
+[script vir_youngster]
+say Those Poké Balls at your waist!\nYou have Pokémon!
+say It's great that you can carry and use Pokémon any time, anywhere!
+
+[script vir_girl]
+say The Gym Leader of Viridian is always away.\nNobody knows where he goes.
