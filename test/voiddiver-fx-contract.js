@@ -74,7 +74,8 @@ async function open(browser, base, char) {
           const fx = r.h && r.h.fx; if (!fx) continue;
           if (!r.p0) r.p0 = fx.rootPos.clone();
           r.maxD = Math.max(r.maxD, fx.rootPos.distanceTo(r.p0));
-          if (fx.meshObjs) for (const o of fx.meshObjs) if (o.visible) r.meshVis = true;
+          // visible thôi chưa đủ: bản 2026-09-26 có visible = true mà ma trận NaN (node scale 0 → decompose chia 0), xích vô hình
+          if (fx.meshObjs) for (const o of fx.meshObjs) if (o.visible && o.matrixWorld.elements.every(Number.isFinite)) r.meshVis = true;
           const sc = fx.tp && fx.tp.script;
           if (sc && fx.ls && sc.chain >= 0) r.chainLs = Math.max(r.chainLs, fx.ls[sc.chain * 3 + 2]);
         }

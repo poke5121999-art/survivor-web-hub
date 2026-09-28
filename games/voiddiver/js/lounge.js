@@ -84,7 +84,6 @@
     spawnBooth(row);
     buildHud();
     L.pickArea(true);
-    VD.render.snap({ x: L.camTarget.x, z: L.camTarget.z });
     // ---- vòng lặp
     VD.loop.update = update;
     VD.loop.render = render;
@@ -114,6 +113,7 @@
     L.npcs.clear();
     for (const a of L.arrows.values()) a.el.remove();
     L.arrows.clear();
+    if (VD.groundNav) VD.groundNav.remove();
     for (const d of L.decor) d.dispose();
     L.decor = [];
     for (const bb of L.bubbles) bb.el.remove();
@@ -130,13 +130,13 @@
   };
 
   // Theme Lounge (VolumeProfile_Theme_Lounge): postExposure −0,25, contrast 20, saturation −10, ánh sáng chính (0,77; 0,83; 1,0) × 0,2.
-  // Camera InteriorVCamTemplate FOV 15°. Không có nón đèn pin trong sảnh. [ĐO: ASSETS.md §3, §4.1]
+  // Camera = PlayerVCamTemplate FOV 10° như lúc lặn (xem L.pickArea). Không có nón đèn pin trong sảnh. [ĐO: ASSETS.md §3, §4.1]
   function renderSettings(on) {
     const R = VD.render, pf = VD.postfx && VD.postfx.params;
     if (on) {
       L.saved = { fov: R.fov, sight: R.sight.uSightOn.value, amb: R.ambient.intensity, ambC: R.ambient.color.clone(), sun: R.sun.intensity, sunC: R.sun.color.clone(),
         pf: pf ? { contrast: pf.contrast, saturation: pf.saturation, exposure: pf.exposure, stress: pf.stress, lowHp: pf.lowHp, vignette: pf.vignette } : null };
-      R.setView({ fov: 15 });
+      R.setView({ fov: 10 });
       R.sight.uSightOn.value = 0;
       R.sun.color.setRGB(0.77, 0.83, 1.0); R.sun.intensity = 0.2 * 3;
       R.ambient.color.setRGB(0.95, 0.86, 0.74); R.ambient.intensity = 0.95;   // không có trong bảng: chỉnh bằng mắt theo ảnh Steam ss05
@@ -252,6 +252,11 @@
         if (a.flip) vis.flip = true;
         n.vis = vis;
       }).catch(e => console.warn('[lounge] NPC ' + id + ': ' + (e.message || e)));
+    } else if (!a && VD.objects && VD.objects.has(String(id))) {
+      // NPC dạng lưới 3D (700004 sofa Shoggoth, 700002 máy Antikythera, 700151 máy hát): prefab <NpcId> xuất bằng
+      // tools/rip_objects.py. Mắt mở và mắt nhắm (*.close) đều bật trong prefab, Animator gốc bật/tắt chúng: giữ mắt mở.
+      n.obj = VD.objects.create(String(id), { pos: n.pos });
+      n.obj.hideGroups = [/\.close(\.\d+)?$/];
     }
     n.tag = $('div', 'vd-npctag', L.hudWorld());
     n.tag.innerHTML = '<div class="mark"></div><div class="sub"></div><div class="name"></div><div class="key"><b>F</b><span></span></div>';
@@ -266,6 +271,7 @@
   function removeNpc(n) {
     n.removed = true;
     if (n.vis) n.vis.dispose();
+    if (n.obj) VD.objects.remove(n.obj);
     if (n.tag) n.tag.remove();
     if (n.blocker) VD.world.removeBlocker(n.blocker);
   }
@@ -279,18 +285,21 @@
     L.boothBlock = VD.world.addBlocker(L.boothPos.x, L.boothPos.z, 0.8, 0.8, 45, false);
     L.boothTag = $('div', 'vd-npctag booth', L.hudWorld());
     L.boothTag.innerHTML = '<div class="mark"></div><div class="sub"></div><div class="name"></div><div class="key"><b>F</b><span></span></div>';
-    L.boothTag.querySelector('.name').textContent = TX('UEscapeSuccessPopup_Title') ? '' : '';
-    L.boothTag.querySelector('.key span').textContent = 'Lặn';
+    L.boothTag.querySelector('.sub').textContent = TX('LCommon_4012');   // nhãn ping "Buồng Lặn" của PingToNpc gốc
+    L.boothTag.querySelector('.key span').textContent = TX('Interact') || 'Tương tác';
   }
 
-  // ================================================================ camera theo khu (Area.CameraPos)
+  // ================================================================ khu đang đứng (Area.CameraPos)
+  // Camera sảnh là camera người chơi (GameCameraController.OnViewTargetChanged → CameraManager.ActivatePlayerCamera: FOV 10,
+  // offset (25, 21, −25), bám người chơi). InteriorVCamTemplate (FOV 15) chỉ dùng trong CameraManager.FocusOnPosition, do
+  // InteriorPopupPresenter.PlayInteriorTransition gọi lúc mua nội thất. Area.CameraPos chỉ còn để biết khu gần nhất. [ĐO il2cpp]
   L.areas = () => (T().Area || []).map(a => { const p = String(a.CameraPos).split(':').map(Number); return { id: a.Id, x: p[0], z: -p[2], open: P().areaOpen(a.Id) }; });
   L.pickArea = function (snap) {
     const pl = VD.stage.player; if (!pl) return;
     let best = null, bd = 1e9;
     for (const a of L.areas()) { if (!a.open) continue; const d = Math.hypot(a.x - pl.pos.x, a.z - pl.pos.z); if (d < bd) { bd = d; best = a; } }
     if (best) { L.area = best.id; L.camTarget.set(best.x, 0, best.z); }
-    if (snap) VD.render.snap({ x: L.camTarget.x, z: L.camTarget.z });
+    if (snap) VD.render.snap(pl.pos);
   };
 
   // ================================================================ HUD sảnh
@@ -325,31 +334,76 @@
     h.querySelector('.up').style.display = P().canLevelUp() ? '' : 'none';
     h.querySelector('.coin span').textContent = p.wallet.coin.toLocaleString('vi-VN');
     h.querySelector('.gold span').textContent = p.wallet.gold.toLocaleString('vi-VN');
-    // Mục tiêu: LoungeQuest đang chạy có Display, việc có DisplayInHud; thêm campaign đang nhận.
-    const q = h.querySelector('.vd-lhud-quest');
-    let html = '';
-    const ac = p.activeCampaign;
-    if (ac) html += `<div class="grp">${TX('UInGameLoungeQuestPanel_Title_MainText') || ''}</div><div class="q"><b>${TX('TCampaign_Name_' + ac.id) || ac.id}</b><span>${TX('TCampaign_SectorName_' + ac.id) || ''} · ${TX('EDifficulty_' + ac.difficulty) || ''}</span></div>`;
-    for (const cat of ['Main', 'Sub']) {
-      const qs = (T().LoungeQuest || []).filter(x => x.Category === cat && x.Display && [1, 2, 3].indexOf(p.loungeQuest[x.Id] | 0) >= 0);
-      if (!qs.length) continue;
-      if (!(cat === 'Main' && ac)) html += `<div class="grp">${TX('UInGameLoungeQuestPanel_Title_' + cat + 'Text') || cat}</div>`;
-      for (const x of qs.slice(0, 4)) {
-        const tasks = (T().LoungeQuestTask || []).filter(t => t.LoungeQuestId === x.Id && t.DisplayInHud);
-        html += `<div class="q"><b>${TX('TLoungeQuest_Name_' + x.Id) || x.Id}</b>` +
-          tasks.map(t => { const g = taskGoal(t), v = Math.min(g || 1, taskValue(t)); return `<span class="${taskDone(t) ? 'done' : ''}">${TX('TLoungeQuestTask_Desc_' + t.Id) || ''}${g > 1 ? ' ' + v + '/' + g : ''}</span>`; }).join('') + '</div>';
-      }
-    }
-    q.innerHTML = html;
+    VD.hud.renderQuest(h.querySelector('.vd-lhud-quest'), L.questSlots());
     L.hudDirty = false;
   }
+
+  // Bảng nhiệm vụ sảnh theo InGameQuestPanelPresenter gốc: slot campaign đang nhận (BuildCampaignSlot) rồi các LoungeQuest
+  // GetDisplayLoungeQuestIds (Display, đang chạy 1..3, xếp Main → Sub), việc có DisplayInHud.
+  // Bản web thêm (không có slot gốc): khi không có slot nào thì hiện LoungeQuest Main ẩn đang chạy có việc đếm được
+  // (vd 81101 "Lần lặn đầu tiên" sau 80200), và luôn thêm một dòng "việc kế tiếp" (L.nextStep) để sảnh không bao giờ trống.
+  L.questSlots = function () {
+    const p = P().get(), ac = p.activeCampaign, out = [];
+    const running = x => [1, 2, 3].indexOf(p.loungeQuest[x.Id] | 0) >= 0;
+    if (ac) {
+      const cq = P().quest('c' + ac.id), label = VD.dive && VD.dive.taskLabel;
+      out.push({ kind: 'camp', diff: TX('EDifficulty_' + ac.difficulty), diffKey: ac.difficulty, title: TX('TCampaign_Name_' + ac.id) || String(ac.id),
+        lines: (T().CampaignTask || []).filter(r => r.CampaignId === ac.id).map(r => {
+          const [cond, arg] = String(r.EventCondition).split(':'), done = !!(cq.tasks && cq.tasks[r.Id]);
+          return { text: label ? label({ id: r.Id, cond, arg: +arg || arg }) : (TX('TCampaignTask_Desc_' + r.Id) || ''), cur: done ? r.Goal : 0, goal: r.Goal, done };
+        }) });
+    }
+    const lqSlot = (x, all) => ({ kind: x.Category === 'Sub' ? 'sub' : 'main', title: TX('TLoungeQuest_Name_' + x.Id) || String(x.Id),
+      lines: (T().LoungeQuestTask || []).filter(t => t.LoungeQuestId === x.Id && (all || t.DisplayInHud))
+        .map(t => ({ text: TX('TLoungeQuestTask_Desc_' + t.Id) || '', cur: taskValue(t), goal: taskGoal(t), done: taskDone(t) })) });
+    for (const cat of ['Main', 'Sub']) for (const x of (T().LoungeQuest || []).filter(x => x.Category === cat && x.Display && running(x)).slice(0, 4)) out.push(lqSlot(x, false));
+    if (!out.length) {
+      const hid = (T().LoungeQuest || []).find(x => x.Category === 'Main' && !x.Display && running(x) &&
+        (T().LoungeQuestTask || []).some(t => t.LoungeQuestId === x.Id && taskGoal(t) > 0 && !/^LuaProgress/.test(t.EventCondition)));
+      if (hid) out.push(lqSlot(hid, true));
+    }
+    const nx = L.nextStep();
+    if (nx.text) out.push({ kind: 'next', lines: [{ text: nx.text }] });
+    return out;
+  };
+
+  // Việc kế tiếp + NPC đích cho dấu chỉ đường. Chữ = câu thoại của PingToNpc gốc (Common.lua _PingData, LCommon_40x1).
+  // Thứ tự: hội thoại Quest của campaign → của LoungeQuest Main → NPC Lua bật SetNpcNavigationActive → bốt lặn (đã nhận
+  // campaign) → hội thoại Quest của LoungeQuest Sub → Elara (chưa nhận campaign: nhận ở bảng Campaign của Elara).
+  const PING_LINE = { 700000: 'LCommon_4001', 700105: 'LCommon_4011', 700001: 'LCommon_4021', 700008: 'LCommon_4031',
+    700013: 'LCommon_4041', 700005: 'LCommon_4061', 700102: 'LCommon_4063' };
+  const ELARA = 700000;
+  L.nextStep = function () {
+    const p = P().get(), dl = (p.dialogs || []).filter(d => VD.npc && VD.npc.isQuest(d) && L.npcs.has(d.npc));
+    const cat = d => { const m = /^LoungeQuest\/(\d+)/.exec(d.LuaKey || ''); if (!m) return /^Campaign\//.test(d.LuaKey || '') ? 'camp' : 'other'; const q = (T().LoungeQuest || []).find(x => x.Id === +m[1]); return q && q.Category === 'Sub' ? 'sub' : 'main'; };
+    const say = id => ({ npc: id, text: id === 'booth' ? TX('LCommon_4011') : (TX(PING_LINE[id]) || TX('TNpc_Name_' + id) || '') });
+    let d = dl.find(d => cat(d) === 'camp') || dl.find(d => cat(d) === 'main');
+    if (d) return say(d.npc);
+    for (const n of L.npcs.values()) if (n.nav && TX('TNpc_Name_' + n.id)) return say(n.id);
+    if (p.activeCampaign && L.boothPos) return say('booth');
+    d = dl.find(d => cat(d) === 'sub') || dl[0];
+    if (d) return say(d.npc);
+    return say(ELARA);
+  };
   L.markDirty = () => { L.hudDirty = true; };
 
   function tagAt(el, x, y, z) {
     const v = TMPV.set(x, y, z).project(VD.render.camera), c = VD.render.renderer.domElement;
     if (v.z > 1) { el.style.display = 'none'; return; }
     el.style.display = '';
-    el.style.transform = `translate(${(v.x + 1) / 2 * c.clientWidth}px, ${(1 - v.y) / 2 * c.clientHeight}px) translate(-50%, -100%)`;
+    const sx = (v.x + 1) / 2 * c.clientWidth, sy = (1 - v.y) / 2 * c.clientHeight;
+    el.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -100%)`;
+    // Nhãn trôi vào dưới bảng nhiệm vụ / thanh cấp thì mờ đi, kẻo hai dòng chữ chồng lên nhau không đọc được.
+    const hw = el.offsetWidth / 2, top = sy - el.offsetHeight;
+    el.classList.toggle('under-hud', HUD_RECTS.some(r => sx + hw > r.left && sx - hw < r.right && sy > r.top && top < r.bottom));
+  }
+  let HUD_RECTS = [];
+  function measureHud() {
+    const c = VD.render.renderer.domElement.getBoundingClientRect();
+    HUD_RECTS = L.hud ? [...L.hud.querySelectorAll('.vd-lhud-quest, .vd-lhud-level')].map(e => {
+      const r = e.getBoundingClientRect();
+      return { left: r.left - c.left, right: r.right - c.left, top: r.top - c.top, bottom: r.bottom - c.top };
+    }).filter(r => r.right > r.left && r.bottom > r.top) : [];
   }
   const TMPV = new THREE.Vector3();
 
@@ -400,35 +454,49 @@
   function render(dt) {
     if (L.state === 'idle' || L.state === 'loading') return;
     const pl = VD.stage.player;
-    // Camera nội thất: nhìn về CameraPos của khu đang đứng, đổi khu thì trượt (damping Cinemachine 1 s).
-    VD.render.follow({ x: L.camTarget.x, z: L.camTarget.z }, dt);
+    if (pl) VD.render.follow(pl.pos, dt);
     if (pl) { VD.world.updateCutoff(VD.render.camera.position, pl.pos.x, pl.pos.z); VD.audio.setListener(pl.pos); }
     VD.stage.render(dt);
     for (const n of L.npcs.values()) if (n.vis) { n.vis.root.position.set(n.pos.x, 0, n.pos.z); n.vis.update(dt, VD.render.camera); }
     for (const d of L.decor) d.m.update(dt);
     if (VD.objects) VD.objects.update(dt, VD.render.camera);
     if (L.hudDirty) paintHud();
-    // Nhãn NPC: tên + chức năng, "!" khi có hội thoại Quest, mũi dẫn đường khi SetNpcNavigationActive.
+    measureHud();
+    // Nhãn NPC: tên + chức năng, "!" khi có hội thoại Quest, mũi dẫn đường khi SetNpcNavigationActive hoặc là đích
+    // của "việc kế tiếp" (bảng nhiệm vụ). Đích đổi thì vẽ lại bảng nhiệm vụ.
     const dlg = P().get().dialogs || [];
+    const nx = L.nextStep();
+    if (nx.text !== L._nextText) { L._nextText = nx.text; L.hudDirty = true; }
     for (const n of L.npcs.values()) {
+      const tg = nx.npc === n.id;
       if (!n.tag) continue;
+      n.tag.classList.toggle('target', tg);
       const hasName = !!TX('TNpc_Name_' + n.id);
       if (!hasName && !n.nav) { n.tag.style.display = 'none'; continue; }
       const h = (n.vis ? TAG_Y * (n.art && n.art.scale || 1) : 1.3);
       tagAt(n.tag, n.pos.x, h, n.pos.z);
       const quest = dlg.some(d => d.npc === n.id && VD.npc.isQuest(d));
       const m = n.tag.querySelector('.mark');
-      m.textContent = quest ? '!' : n.nav ? '▼' : '';
-      m.className = 'mark' + (quest ? ' q' : n.nav ? ' nav' : '');
+      m.textContent = quest ? '!' : '';
+      // Lua đã đặt PointerArrow ngay trên NPC này thì nhãn không vẽ thêm mũi thứ hai.
+      const arrowed = !quest && [...L.arrows.values()].some(a => a.ptr && Math.hypot(a.pos.x - n.pos.x, a.pos.z - n.pos.z) < 0.6);
+      m.className = 'mark' + (quest ? ' q' : (n.nav || tg) && !arrowed ? ' nav' : '');
       n.tag.classList.toggle('focus', L.focus === n);
     }
     if (L.boothTag && L.boothPos) {
       tagAt(L.boothTag, L.boothPos.x, 2.1, L.boothPos.z);
       L.boothTag.classList.toggle('focus', L.focus === 'booth');
+      L.boothTag.classList.toggle('target', nx.npc === 'booth');
       const ac = P().get().activeCampaign;
       L.boothTag.querySelector('.name').textContent = ac ? (TX('TCampaign_Name_' + ac.id) || '') : '';
-      L.boothTag.querySelector('.mark').textContent = ac ? '▼' : '';
       L.boothTag.querySelector('.mark').className = 'mark' + (ac ? ' nav' : '');
+    }
+    // Dải dẫn đường dưới sàn (GroundNavigation gốc, js/groundnav.js) tới đích "việc kế tiếp"; tắt khi đã đứng cạnh hoặc đang mở bảng.
+    if (VD.groundNav) {
+      const tgt = nx.npc === 'booth' ? L.boothPos : (L.npcs.get(nx.npc) || {}).pos;
+      const busy = (VD.dialog && VD.dialog.open) || (VD.npc && VD.npc.isOpen()) || (VD.ui && VD.ui.isOpen());
+      const show = pl && tgt && !busy && Math.hypot(tgt.x - pl.pos.x, tgt.z - pl.pos.z) > REACH + 0.4;
+      VD.groundNav.update(VD.render.scene, show ? pl.pos : null, show ? tgt : null, dt);
     }
     for (const a of L.arrows.values()) tagAt(a.el, a.pos.x, a.y, a.pos.z);
     for (let i = L.bubbles.length - 1; i >= 0; i--) {
@@ -631,8 +699,9 @@
       SetNpcNavigationActive: (id, on) => { const n = npcOf(id); if (n) n.nav = !!on; },
       SpawnPointerArrow: (id, t) => {
         api.DespawnPointerArrow(id);
-        const el = $('div', 'vd-larrow', L.hudWorld(), '▼');
-        L.arrows.set(id, { el, pos: fromLua(t), y: num(Lu.field(t, 'y')) + 0.6 });
+        // Prefab gốc Object/Etc/PointerArrow: con trỏ UI billboard (tam giác viền + vòng), vẽ lại bằng CSS (.vd-larrow.ptr).
+        const el = $('div', 'vd-larrow ptr', L.hudWorld());
+        L.arrows.set(id, { el, ptr: true, pos: fromLua(t), y: num(Lu.field(t, 'y')) + 0.6 });
       },
       DespawnPointerArrow: id => { const a = L.arrows.get(id); if (a) { a.el.remove(); L.arrows.delete(id); } },
       SpawnMiniMapMarker: () => {}, DespawnMiniMapMarker: () => {},

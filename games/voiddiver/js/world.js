@@ -33,16 +33,33 @@
   // Shader BG gốc là toon nhà với ánh sáng chính rất yếu; Lambert + texture NEAREST là gần nhất mà rẻ.
   const matCache = new Map();
   // Mọi sector dùng chung ~45 ảnh 512–2048 px. THREE.Cache cho ImageBitmap cùng URL trả về cùng object;
-  // dùng lại đúng một Texture cho mỗi ảnh để GPU chỉ nhận một bản (map 6×6 = 36 sector).
+  // dùng lại đúng một Source cho mỗi ảnh để GPU chỉ nhận một bản (map 6×6 = 36 sector).
+  // Khoá phải gồm cả KHR_texture_transform: gltfpack lượng tử UV theo từng material, nên nhiều material chung một atlas
+  // (Prop_1, Prop_1_Decal, Plant_*) có offset/repeat khác nhau. Gộp theo ảnh thôi thì thảm (Decal) vẽ nhầm vùng atlas
+  // thành hàng trăm món đồ rải khắp sàn sảnh.
   THREE.Cache.enabled = true;
   const texCache = new Map();
-  const shareTex = t => { if (!t || !t.image) return t; const k = t.image; if (!texCache.has(k)) texCache.set(k, t); return texCache.get(k); };
+  const shareTex = t => {
+    if (!t || !t.image) return t;
+    let byXf = texCache.get(t.image);
+    if (!byXf) texCache.set(t.image, byXf = new Map());
+    const k = [t.offset.x, t.offset.y, t.repeat.x, t.repeat.y, t.rotation].join();
+    if (!byXf.has(k)) {
+      const first = byXf.values().next().value;
+      let v = t;
+      if (first) { v = first.clone(); v.offset.copy(t.offset); v.repeat.copy(t.repeat); v.rotation = t.rotation; }
+      byXf.set(k, v);
+    }
+    return byXf.get(k);
+  };
   function convertMaterial(m) {
     if (matCache.has(m)) return matCache.get(m);
     const ex = m.userData || {};
     const out = new THREE.MeshLambertMaterial({
       map: shareTex(m.map) || null, color: m.color ? m.color.clone() : new THREE.Color(1, 1, 1),
       transparent: m.transparent, alphaTest: m.alphaTest || 0, side: m.side,
+      // BLEND (kính): alpha nằm ở baseColorFactor.a / ảnh; GLTFLoader tắt depthWrite cho BLEND.
+      opacity: m.opacity == null ? 1 : m.opacity, depthWrite: m.depthWrite !== false,
       // COLOR_0 của sector là kênh dữ liệu cho shader gốc (G luôn 128, A là số 0–12), không phải màu.
       vertexColors: false,
       emissive: m.emissive ? m.emissive.clone() : new THREE.Color(0, 0, 0),

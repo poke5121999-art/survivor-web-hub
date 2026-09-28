@@ -52,7 +52,10 @@ sảnh ─ bốt lặn (F) ─▶ VD.app.toDive({campaignId, characterId, loadou
   - `LoungeQuest/80100` đặt `GUEST_POS` ở z = 40, nằm trong phòng khách của 9001 khi cộng 30.
   - Đổi sang three: `(x, 0, −z_lua)`.
 - [SUY LUẬN] Sector 9003 chỉ được nạp khi khu 3 đã mở (`profile.areaOpen(3)`), đặt ở ô (0, 0). Nếu nạp sớm, camera nhìn vào một vùng trống lớn.
-- [ĐO] Camera dùng InteriorVCamTemplate với FOV 15°. Hướng lệch giống lúc lặn. Tâm nhìn là `Area.CameraPos` của khu đang mở gần người chơi nhất, có damping.
+- [ĐO] Camera sảnh là camera người chơi, giống lúc lặn: FOV 10°, offset (25, 21, −25), bám người chơi, damping 1 s.
+  - `GameCameraController.OnViewTargetChanged` gọi `CameraManager.ActivatePlayerCamera(target)` ở cả sảnh.
+  - `CameraManager._interiorVCamTemplate` (FOV 15°) chỉ được đọc trong `CameraManager.FocusOnPosition`. Hàm này chỉ có `InteriorPopupPresenter.PlayInteriorTransition` gọi, khi mua nội thất. `Area.CameraPos` là điểm nhìn của cảnh chuyển đó.
+  - Bẫy đã sập: bản trước đặt camera sảnh FOV 15° cố định ở `Area.CameraPos`. Kết quả là nhìn quá xa, cả phòng thu nhỏ, và camera không theo người chơi. Kiểm lại bằng `python tools/il2cpp_method.py --xref CameraManager.FocusOnPosition`.
 - [ĐO] Sảnh không có nón đèn pin. Thông số ánh sáng:
   - Ánh nắng (0,77; 0,83; 1) × 0,6.
   - Ánh sáng nền (0,95; 0,86; 0,74) × 0,95.
@@ -84,7 +87,9 @@ sảnh ─ bốt lặn (F) ─▶ VD.app.toDive({campaignId, characterId, loadou
 - Kết quả ghi vào `data/npcs.js` (`VD.NPCS`, 98 NPC) và 37 bộ Spine NPC/`Cha_*` trong `art/spine/`.
 - Các Spine trang trí được tách riêng: `World_Cat` (anim `SE/sit_2`), `World_Pendulum`, `World_Butterfly` và `World_LoungeBG` (scale 4,35, xoay y π/4).
 - Bộ nhớ đệm nằm ở `%TEMP%/voiddiver-rip/npc_prefabs_v1.json`. Xoá tệp này nếu muốn quét lại.
-- NPC dạng lưới 3D (700002 máy Antikythera, 700004 sofa, 700151 máy hát, 701xxx) chưa được xuất. Chúng chỉ hiện tên.
+- NPC dạng lưới 3D (700002 máy Antikythera, 700004 sofa, 700151 máy hát) được xuất bằng `python tools/rip_objects.py 700002 700004 700151` thành `art/object/<NpcId>.glb`. `lounge.js addNpc` dựng chúng bằng `VD.objects.create` khi `VD.NPCS` không có Spine.
+  - Prefab bật cả mắt mở lẫn mắt nhắm (`*.close`), Animator gốc bật/tắt luân phiên. Bản web ẩn nhóm `.close`.
+  - 701xxx chưa xuất.
 
 ## 4. LoungeQuest
 
@@ -103,6 +108,36 @@ Bộ máy LoungeQuest được dựng lại, vì phần C# gốc không có. [SU
   - `LoungeQuestCleared`
   - `MyItemCountTotal`
 - Lời gọi Lua được xếp hàng (`luaQueue`) và chạy trong `update`. Cách này tránh gọi lồng vào Lua đang chạy.
+
+### 4.1. Chỉ dẫn trong sảnh: bảng nhiệm vụ, "việc kế tiếp", mũi chỉ, dải dẫn đường (2026-09-28)
+
+- **Bảng nhiệm vụ** (`js/hud.js` `renderQuest`, kiểu `.vd-qtrack` ở `css/ui.css`, dùng chung cho sảnh và lúc lặn):
+  - [ĐO] Theo prefab `InGameQuestPanel` (tools/ui_inventory_dump.py InGameQuestPanel HudCampaignQuestSlot HudLoungeQuestSlot):
+    gốc neo trái trên @(0, −57), slot rộng 550, lề trái 80, slot cách nhau 12, tên → việc 6, việc → việc 8, ô ◇ 13 px xoay 45°,
+    biểu tượng MainQuestIcon 32 px lệch −6 bên trái tên (Main có "!", Sub không), nền `gradient_circle_128` đen 50 % 2000×1000.
+  - [ĐO ảnh Steam 1080p `ss_67066307…`] Cỡ chữ bản phát hành lớn hơn prefab demo: độ khó 18, tên 24 đậm, việc 19 (#b8b8b8),
+    số hiện tại #eee đậm. Nhãn "Normal" trên ảnh màu vàng (#9fa100); prefab demo ghi xanh (0, .467, 0). Web theo ảnh.
+  - Co giãn: `--q = max(min(100vw/1920, 100vh/1080), 0.75px)` (sàn 0,75 để còn đọc ở 1280×720), màn thấp ≤ 480 px dùng 0,6.
+  - Nội dung sảnh (`L.questSlots`): slot campaign đang nhận (độ khó + tên + việc CampaignTask), rồi LoungeQuest có `Display`
+    đang chạy (1..3), Main trước Sub — như `InGameQuestPanelPresenter` / `GetDisplayLoungeQuestIds`.
+- **Bản web thêm để sảnh không bao giờ trống** (không có slot gốc tương ứng):
+  - Không có slot nào thì hiện LoungeQuest Main ẩn đang chạy có việc đếm được (vd 81101 "Lần lặn đầu tiên" sau khi xong 80200).
+    Bản gốc lúc này để trống bảng, chỉ có mũi chỉ trên Elara (`None.lua` OnLounge) — đó là chỗ người chơi kêu "không biết làm gì".
+  - Luôn có dòng "việc kế tiếp" (`L.nextStep`). Chữ là câu thoại `PingToNpc` gốc (`Common.lua` `_PingData`, `LCommon_40x1`:
+    "Tôi nên nói chuyện với Elara.", "Tôi nên đến Buồng lặn." …). NPC không có câu `_PingData` thì hiện tên NPC.
+    Thứ tự chọn đích: hội thoại Quest của campaign → của LoungeQuest Main → NPC do Lua bật `SetNpcNavigationActive` →
+    bốt lặn (đã nhận campaign) → hội thoại Quest của LoungeQuest Sub → Elara (chưa nhận campaign).
+- **Mũi chỉ trên đầu NPC**: [ĐO] prefab `Object/Etc/PointerArrow` (UI/Hud/Cursor: tam giác viền 80×72, tam giác đặc 16×14, vòng
+  16 px, hai vòng 50 px mờ) vẽ lại bằng SVG trong `css/lounge.css`. Hiện khi Lua gọi `SpawnPointerArrow`, khi NPC bật navigation,
+  và trên đích "việc kế tiếp" (nhãn `.target`). NPC đã có `SpawnPointerArrow` sát bên thì nhãn không vẽ thêm mũi thứ hai.
+- **Dải dẫn đường dưới sàn** (`js/groundnav.js`): [ĐO] `NpcObject.SetNavigationActive` bật `GroundNavigation` (ribbon rộng 0,5 m,
+  cao 0,05, uvTiling 2, cắt 0,5 m đầu, cập nhật 0,25 s, vật liệu alpha clip 0,5 cuộn `_Speed` 0,3, texture
+  `Img_DE_GroundNavigationPattern`) — tools/rip_groundnav.py → `art/object/GroundNavigation.{json,webp}`.
+  - [ĐO GenerateMesh] v = quãng "nhìn thấy" tới đích × uvTiling; quãng mỗi đoạn nhân (1 + (0,7 − 1)·|dot(đoạn, _cameraDirection)|).
+  - [SUY LUẬN] Bề rộng nở ×1,5 khi đoạn nằm ngang với camera (`_widthPerspectiveScale`); phần này của GenerateMesh chưa đọc hết.
+  - Web tìm đường bằng BFS trên lưới đi của world.js thay NavMesh. Bản web vẽ dải tới đích "việc kế tiếp" (bản gốc chỉ khi Lua bật
+    navigation), tắt khi đứng trong 2 m hoặc đang mở hội thoại/bảng.
+- Bảng phím "Hướng Dẫn [O]" không đưa vào sảnh: các dòng của nó (đánh, lướt, túi đồ, bản đồ) không dùng được ở sảnh bản web.
 
 ## 5. Campaign
 
@@ -193,3 +228,10 @@ Các luật dựng thêm:
 - **Xuống dòng CRLF:** `js/dialog.js` dùng CRLF, nên thay chuỗi kiểu LF sẽ không khớp.
 - **Viết regex qua heredoc:** dấu `\` bị mất. Hãy sửa bằng công cụ Edit.
 - **Test sau `PingToNpc`:** script đổi step sau một khoảng trễ. Bài kiểm phải chờ `step == 2`, không kiểm ngay.
+- **Hàng trăm món đồ rải khắp sàn sảnh (2026-09-28):** đó là tấm thảm (`Mtl_2DBG_BaseCamp01_Prop_1_Decal`) vẽ nhầm vùng atlas.
+  - gltfpack lượng tử UV theo từng material và ghi `KHR_texture_transform` riêng. `Prop_1`, `Prop_1_Decal`, `Plant_Potted`, `Plant_InBox` dùng chung ảnh `Img_25D_BG_Basecamp01_Prop_1` nhưng khác offset/scale.
+  - `world.js shareTex` trước đây gộp texture chỉ theo ảnh, nên thảm dùng transform của `Prop_1`. Nay khoá gồm cả offset/repeat/rotation. Các bản clone vẫn chung `Source`, nên GPU vẫn chỉ nạp ảnh một lần.
+- **Tường sọc xanh chanh, tủ trưng bày trắng đục:** cả hai là kính.
+  - `Mtl_2DBG_BaseCamp01_Tile_Glasses02` có `_Surface` 1 và `_BaseColor.a` 0, nhưng không có texture. `rip.py` trước đây chỉ đặt BLEND khi có texture, nên kính thành khối xanh đục.
+  - Kính trong atlas được đánh dấu ở kênh B của `_EmissionMap`. Shader ghi: "Multi Map (R: Emission, G: Dissolve Mask, B: Glass, RB: Fresnel)". `rip.py sector` tách điểm ảnh kính thành primitive BLEND riêng (ảnh `<tên>_glass.webp`, alpha `GLASS_ALPHA`). Phần còn lại dùng ảnh `<tên>_solid.webp`.
+- **Spine đứng im hiện đôi:** `MeshRenderer` của `SkeletonAnimation` chỉ là ảnh chụp lưới Spine lúc lưu prefab. `rip.py sector` bỏ qua chúng, vì Spine thật do `lounge.js spawnDecor` dựng.

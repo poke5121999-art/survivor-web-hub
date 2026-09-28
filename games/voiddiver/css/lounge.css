@@ -40,13 +40,7 @@
 .vd-lhud-level .bar i { display: block; height: 100%; background: #e08050; }
 .vd-lhud-level .exp { font-size: 12px; color: #cfc9bf; font-variant-numeric: tabular-nums; }
 .vd-lhud-level .up { display: inline-block; margin-top: 4px; font-size: 12px; color: #ffb070; border: 1px solid rgba(255,140,80,.5); padding: 1px 8px; background: rgba(60,20,10,.6); }
-.vd-lhud-quest { position: absolute; left: 14px; top: 12px; max-width: min(300px, 32vw); font-size: 12.5px; line-height: 1.45; pointer-events: none !important; text-shadow: 0 1px 2px #000; }
-.vd-lhud-quest .grp { color: var(--gold); font-size: 11px; letter-spacing: .08em; margin-top: 6px; opacity: .85; }
-.vd-lhud-quest .q { margin: 2px 0 6px; }
-.vd-lhud-quest .q b { display: block; font-weight: 700; }
-.vd-lhud-quest .q span { display: block; color: #cfc9bf; padding-left: 10px; position: relative; }
-.vd-lhud-quest .q span::before { content: '◇'; position: absolute; left: -2px; font-size: 9px; top: 2px; }
-.vd-lhud-quest .q span.done { color: var(--dim); text-decoration: line-through; }
+/* .vd-lhud-quest dùng chung kiểu .vd-qtrack (css/ui.css, js/hud.js renderQuest) với bảng nhiệm vụ lúc lặn. */
 .vd-lhud-wallet { position: absolute; right: 64px; top: 12px; display: flex; gap: 14px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; pointer-events: none !important; }
 .vd-lhud-wallet div { display: flex; align-items: center; gap: 4px; }
 .vd-lhud-wallet img, .vd-panel-head img { width: 18px; height: 18px; image-rendering: pixelated; }
@@ -56,11 +50,22 @@
 .vd-lhud-keys { position: absolute; left: 14px; bottom: 12px; display: flex; gap: 14px; font-size: 12px; color: #bdb7ad; pointer-events: none !important; text-shadow: 0 1px 2px #000; }
 .vd-lhud-keys b { display: inline-block; min-width: 16px; padding: 0 5px; margin-right: 4px; border: 1px solid rgba(255,255,255,.35); border-radius: 3px; font-size: 11px; text-align: center; }
 
-.vd-npctag { position: absolute; left: 0; top: 0; text-align: center; white-space: nowrap; pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 4px #000; will-change: transform; }
+.vd-npctag { position: absolute; left: 0; top: 0; text-align: center; white-space: nowrap; pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 4px #000; will-change: transform; transition: opacity .15s; }
+.vd-lhud-world .under-hud:not(.focus) { opacity: .12; }
 .vd-npctag .sub { font-size: 11px; color: #bdb5a8; line-height: 1.2; }
 .vd-npctag .name { font-size: 14px; font-weight: 700; color: #f1ece2; line-height: 1.25; }
 .vd-npctag .mark { font-size: 22px; font-weight: 900; line-height: 1; height: 22px; color: #ffd24a; }
-.vd-npctag .mark.nav { font-size: 15px; color: #7fe3ff; animation: vdbob 1s ease-in-out infinite; }
+/* Mũi chỉ đường: vẽ lại prefab gốc Object/Etc/PointerArrow (UI/Hud/Cursor): tam giác viền 80×72 (4 px), tam giác đặc 16×14
+   ở mũi, vòng 16 px (viền 6), hai vòng 50 px mờ 50 %, trắng, Shadow + Outline. Dùng cho NPC SetNpcNavigationActive,
+   đích "việc kế tiếp" và SpawnPointerArrow. */
+.vd-npctag .mark.nav, .vd-larrow.ptr { display: block; margin-left: auto; margin-right: auto; width: 30px; height: 30px; font-size: 0; color: transparent;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%23fff'%3E%3Ccircle cx='50' cy='25' r='23' stroke-width='4' opacity='.5'/%3E%3Ccircle cx='50' cy='50' r='23' stroke-width='4' opacity='.5'/%3E%3Cpath d='M12 9 L88 9 L50 79 Z' stroke-width='5' stroke-linejoin='round'/%3E%3Ccircle cx='50' cy='37.5' r='5' stroke-width='6'/%3E%3C/g%3E%3Cpath d='M42 86 L58 86 L50 100 Z' fill='%23fff'/%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 0 1px #000) drop-shadow(0 1px 2px rgba(0,0,0,.8)); animation: vdbob 1s ease-in-out infinite; }
+.vd-larrow.ptr { width: 34px; height: 34px; }
+/* Đích của "việc kế tiếp" (bảng nhiệm vụ): nhãn sáng hơn, mũi to hơn. */
+.vd-npctag.target .name { color: #fff; }
+.vd-npctag.target .mark.nav { width: 38px; height: 38px; }
+.vd-npctag.target .mark.q { font-size: 28px; height: 28px; text-shadow: 0 0 8px rgba(255,210,74,.8), 0 1px 2px #000; }
 .vd-npctag .mark.q { animation: vdbob 1s ease-in-out infinite; }
 .vd-npctag .key { display: none; margin-top: 3px; font-size: 12px; align-items: center; justify-content: center; gap: 4px; }
 .vd-npctag .key b { display: inline-block; width: 18px; height: 18px; line-height: 18px; background: #eee; color: #111; border-radius: 3px; font-size: 12px; }
@@ -70,7 +75,6 @@
 .vd-larrow { position: absolute; left: 0; top: 0; color: #ffd24a; font-size: 22px; text-shadow: 0 0 6px #000; animation: vdbob .9s ease-in-out infinite; pointer-events: none; }
 @keyframes vdbob { 0%, 100% { margin-top: 0; } 50% { margin-top: -5px; } }
 @media (max-width: 900px), (max-height: 450px) {
-  .vd-lhud-quest { font-size: 11px; max-width: 30vw; }
   .vd-lhud-level { width: 34vw; }
   .vd-lhud-level .lv { font-size: 15px; }
   .vd-lhud-wallet { font-size: 12px; gap: 8px; right: 52px; }

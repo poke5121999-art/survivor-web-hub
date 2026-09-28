@@ -37,7 +37,9 @@ MONO = 'be9e4d904692f945f3910b57349aeb09_monoscripts'
 # Prefab khong nam trong bang nao nhung man lan dung (ten lay tu names cua remote_prefab_assets_object).
 EXTRA = ['WaveExit', 'SafeExit', 'PhoneBooth', 'DropGoods', 'IntervalTrap', 'TriggerTrap', 'CollisionTrigger',
          'PointerArrow', 'ZoneSpointLight', 'ZoneSpawnLight', 'SphereFieldExit', 'BoxFogField', 'SphereOilField',
-         'SphereBlockedField', 'TrainingField', 'SanctuaryTree', 'Portal', 'PortalDefault']
+         'SphereBlockedField', 'TrainingField', 'SanctuaryTree', 'Portal', 'PortalDefault',
+         # NPC sảnh dạng lưới 3D (không có Spine): sofa Shoggoth, máy Antikythera, máy hát — lounge.js dựng bằng VD.objects.
+         '700002', '700004', '700151']
 SPINES = ['World_PhoneBooth', 'NPC_Campaign']
 
 
@@ -531,6 +533,8 @@ def cmd_manifest():
     for fn in sorted(os.listdir(OUT)):
         if fn.endswith('.json'):
             j = json.load(open(os.path.join(OUT, fn), encoding='utf-8'))
+            if 'name' not in j:
+                continue   # json không phải prefab (vd GroundNavigation.json của tools/rip_groundnav.py)
             ent = {'json': 'art/object/' + fn}
             if j.get('glb'):
                 ent['glb'] = j['glb']

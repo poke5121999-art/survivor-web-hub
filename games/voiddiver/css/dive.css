@@ -597,12 +597,12 @@ body.vd-cutscene #ui::after { content: ''; position: fixed; left: 0; right: 0; b
   .vd-items { right: 10px; bottom: 12px; gap: 3px; display: flex; }
   .vd-item { width: 30px; height: 30px; }
   .vd-item b { font-size: 9px; bottom: -12px; }
-  .vd-quest { font-size: 11px; max-width: 40vw; top: 8px; left: 10px; }
   .vd-minimap { right: 8px; top: 8px; }
+  .vd-boss { width: min(520px, 44vw); }   /* chừa góc trái trên cho bảng nhiệm vụ (.vd-qtrack max 26vw) */
   .vd-minimap canvas.small { width: 96px; height: 96px; }
   .vd-prompt { font-size: 14px; }
   .vd-prompt .key { width: 30px; height: 30px; }
-  .vd-radio { top: 22vh; max-width: 46vw; }
+  .vd-radio { top: max(22vh, calc(var(--qb, 0px) + 6px)); max-width: 46vw; }
   .vd-radio img { width: 40px; height: 40px; }
   .vd-radio span { font-size: 12px; }
 }

@@ -1309,10 +1309,12 @@
       fx.local = [];
       fx.lp = new Float32Array(n * 3); fx.lq = new Float32Array(n * 4); fx.ls = new Float32Array(n * 3);
       for (i = 0; i < n; i++) {
-        tp.local[i].decompose(_v, _q, _s);
-        fx.lp[i * 3] = _v.x; fx.lp[i * 3 + 1] = _v.y; fx.lp[i * 3 + 2] = _v.z;
-        fx.lq[i * 4] = _q.x; fx.lq[i * 4 + 1] = _q.y; fx.lq[i * 4 + 2] = _q.z; fx.lq[i * 4 + 3] = _q.w;
-        fx.ls[i * 3] = _s.x; fx.ls[i * 3 + 1] = _s.y; fx.ls[i * 3 + 2] = _s.z;
+        // Lấy TRS thẳng từ node, không decompose ma trận: node có scale 0 (xích ChainLine01_02 (1,1,0), ChainRing 1 của
+        // Immobilized_small) làm decompose chia cho 0 → quaternion NaN → node vô hình mãi dù script/Animator đặt lại scale.
+        var nd = tp.nodes[i], np = nd.pos || [0, 0, 0], nr = nd.rot || [0, 0, 0, 1], ns = nd.scl || [1, 1, 1];
+        fx.lp[i * 3] = np[0]; fx.lp[i * 3 + 1] = np[1]; fx.lp[i * 3 + 2] = np[2];
+        fx.lq[i * 4] = nr[0]; fx.lq[i * 4 + 1] = nr[1]; fx.lq[i * 4 + 2] = nr[2]; fx.lq[i * 4 + 3] = nr[3];
+        fx.ls[i * 3] = ns[0]; fx.ls[i * 3 + 1] = ns[1]; fx.ls[i * 3 + 2] = ns[2];
         fx.local.push(new THREE.Matrix4().copy(tp.local[i]));
       }
       fx.anims = tp.anims.map(function (a) {

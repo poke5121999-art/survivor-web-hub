@@ -429,7 +429,12 @@ def cmd_sector(ids_filter=None):
         mm[:3, 3] = [p.x, p.y, p.z]
         return mm
 
-    from PIL import Image
+    from PIL import Image, ImageChops
+
+    # shader_DE_BG_Base: "_EmissionMap | Multi Map (R: Emission, G: Dissolve Mask, B: Glass, RB: Fresnel)" (m_PropInfo của shader).
+    # Điểm ảnh có B là kính (tủ trưng bày, ô cửa kính trong atlas Basecamp01_Prop_1/Tile_1): bản gốc vẽ trong suốt, ảnh nền của
+    # chúng là khối trắng đục. Tách kính thành primitive BLEND riêng, phần còn lại giữ MASK.
+    GLASS_ALPHA = 0.3   # không có trong bảng: mã shader không đọc được, chỉnh bằng mắt cho thấy vật bên trong tủ
 
     class Glb:
         def __init__(self):
@@ -437,6 +442,15 @@ def cmd_sector(ids_filter=None):
             self.views, self.accessors, self.meshes, self.nodes = [], [], [], []
             self.materials, self.textures, self.images = [], [], []
             self.mat_index, self.mesh_index, self.tex_index = {}, {}, {}
+            self.mask_index, self.glass_of = {}, {}
+
+        def glass_mask(self, multi, size):
+            key = (multi.assets_file.name, multi.object_reader.path_id, size)
+            if key not in self.mask_index:
+                b = multi.image.convert('RGBA').getchannel('B').resize(size, Image.NEAREST)
+                m = b.point(lambda v: 255 if v > 127 else 0)
+                self.mask_index[key] = m if m.getextrema()[1] else None
+            return self.mask_index[key]
 
         def view(self, data, target=None):
             while len(self.bin) % 4:
@@ -456,15 +470,19 @@ def cmd_sector(ids_filter=None):
             self.accessors.append(a)
             return len(self.accessors) - 1
 
-        def texture(self, tex):
-            key = (tex.assets_file.name, tex.object_reader.path_id)
+        def texture(self, tex, variant=None, edit=None):
+            # variant/edit: bản phái sinh của cùng ảnh (vd tách kính theo Multi Map), ghi ra tệp riêng <tên>_<variant>.webp
+            # để sector cũ chưa chạy lại vẫn trỏ đúng ảnh gốc.
+            key = (tex.assets_file.name, tex.object_reader.path_id, variant)
             if key not in self.tex_index:
                 img = tex.image.convert('RGBA')
                 if max(img.size) > 1024:
                     k = 1024 / max(img.size)
                     img = img.resize((max(1, round(img.width * k)), max(1, round(img.height * k))), Image.LANCZOS)
+                if edit is not None:
+                    img = edit(img)
                 alpha = img.getchannel('A').getextrema()[0] < 250
-                fname = re.sub(r'[^A-Za-z0-9_.-]', '_', tex.m_Name) + '.webp'
+                fname = re.sub(r'[^A-Za-z0-9_.-]', '_', tex.m_Name) + ('_' + variant if variant else '') + '.webp'
                 fpath = os.path.join(tex_root, fname)
                 if not os.path.exists(fpath):
                     img.save(fpath, 'WEBP', quality=90, method=6)
@@ -490,14 +508,30 @@ def cmd_sector(ids_filter=None):
             ex = {'shader': shader}
             main = T.get('_BaseMap') or T.get('_MainTex')
             tex = vd.deref(main) if main is not None else None
+            multi = vd.deref(T['_EmissionMap']) if '_EmissionMap' in T else None
+            glass_ti = None
             if tex is not None and hasattr(tex, 'image'):
                 ti, alpha, size = self.texture(tex)
+                mask = None
+                if multi is not None and hasattr(multi, 'image') and multi.m_Name.endswith('_Multi') and F.get('_Surface', 0) == 0:
+                    mask = self.glass_mask(multi, tuple(size))
+                if mask is not None:
+                    def solid(img, mask=mask):
+                        a = img.getchannel('A'); a.paste(0, mask=mask); img.putalpha(a); return img
+                    def glass(img, mask=mask):
+                        on = ImageChops.multiply(mask, img.getchannel('A').point(lambda v: 255 if v else 0))
+                        a = Image.new('L', img.size, 0); a.paste(round(255 * GLASS_ALPHA), mask=on); img.putalpha(a); return img
+                    ti, alpha, size = self.texture(tex, 'solid', solid)
+                    glass_ti = self.texture(tex, 'glass', glass)[0]
                 pbr['baseColorTexture'] = {'index': ti}
                 if alpha and (F.get('_AlphaClip') or F.get('_Surface', 0) == 0):
                     mo['alphaMode'] = 'MASK'
                     mo['alphaCutoff'] = round(F.get('_AlphaThreshold', F.get('_Cutoff', 0.5)), 3)
-                if F.get('_Surface') == 1:
-                    mo['alphaMode'] = 'BLEND'
+            # Kính trơn không texture (Mtl_2DBG_BaseCamp01_Tile_Glasses02: _Surface 1, blend One/OneMinusSrcAlpha, _BaseColor.a 0,
+            # _BlendModePreserveSpecular 1): phần khuếch tán nhân alpha = 0 nên gần như vô hình. Thiếu BLEND ở đây thì thành
+            # tường xanh chanh đục trong sảnh.
+            if F.get('_Surface') == 1:
+                mo['alphaMode'] = 'BLEND'
             base = C.get('_BaseColor') or C.get('_Color')
             tint = C.get('_TintColor')
             col = rgba(base) if base is not None else [1, 1, 1, 1]
@@ -515,6 +549,15 @@ def cmd_sector(ids_filter=None):
             mo['extras'] = ex
             self.materials.append(mo)
             self.mat_index[key] = len(self.materials) - 1
+            if glass_ti is not None:
+                go = json.loads(json.dumps(mo))
+                go['name'] = mat.m_Name + '_Glass'
+                go['alphaMode'] = 'BLEND'
+                go.pop('alphaCutoff', None)
+                go['pbrMetallicRoughness']['baseColorTexture'] = {'index': glass_ti}
+                go['extras']['glass'] = GLASS_ALPHA
+                self.materials.append(go)
+                self.glass_of[self.mat_index[key]] = len(self.materials) - 1
             return self.mat_index[key]
 
         def mesh(self, me, mats):
@@ -543,7 +586,10 @@ def cmd_sector(ids_filter=None):
                 if not len(tris) or i >= len(mats) or mats[i] is None:
                     continue
                 idx = np.array(tris, dtype=np.uint32).reshape(-1, 3)[:, ::-1].reshape(-1)
-                prims.append({'attributes': attrs, 'indices': self.accessor(idx, 5125, 'SCALAR', 34963), 'material': mats[i]})
+                ia = self.accessor(idx, 5125, 'SCALAR', 34963)
+                prims.append({'attributes': attrs, 'indices': ia, 'material': mats[i]})
+                if mats[i] in self.glass_of:
+                    prims.append({'attributes': attrs, 'indices': ia, 'material': self.glass_of[mats[i]]})
             self.meshes.append({'name': me.m_Name, 'primitives': prims})
             self.mesh_index[key] = (len(self.meshes) - 1, n, sum(len(t) for t in h.get_triangles()))
             return self.mesh_index[key]
@@ -635,7 +681,10 @@ def cmd_sector(ids_filter=None):
                 pos = gl(mm[:3, 3])
                 fwd = mm[:3, :3] @ np.array([0, 0, 1.0])
                 yaw = round(float(np.degrees(np.arctan2(fwd[0], fwd[2]))), 1)
-                if 'MeshRenderer' in comps and 'MeshFilter' in comps and on:
+                # MeshRenderer của SkeletonAnimation chỉ là ảnh chụp lưới Spine lúc lưu prefab ("Skeleton Prefab Mesh"); Spine
+                # thật do lounge.js/dive dựng từ data['spines']. Xuất cả hai thì mèo, con lắc, bướm hiện đôi, một bản đứng im.
+                spine = any(clsname(mb, cls_by_pathid) == 'SkeletonAnimation' for mb in comps.get('MonoBehaviour', []))
+                if 'MeshRenderer' in comps and 'MeshFilter' in comps and on and not spine:
                     r = comps['MeshRenderer'][0].read()
                     mf = comps['MeshFilter'][0].read()
                     me = vd.deref(mf.m_Mesh)

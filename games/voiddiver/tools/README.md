@@ -198,6 +198,10 @@ bốc **toàn bộ** thay vì lọc — không cần parse logic `MD_ExpandEmoti
 dùng chung (Country/City đều tái dùng một bộ tileset lớn). gltfpack nén hình học bằng
 `-cc -km -ke -mm -si 0.6` (meshopt + lược giản 40% tam giác — xem "Ngân sách dung lượng" dưới).
 Collider/đèn/spawn/spine trong `<id>.json` đã đổi trục (`z_three = -z_unity`) và bo tròn số.
+- Kính: điểm ảnh có kênh B của `_EmissionMap` (`*_Multi`, "B: Glass") được tách thành material `<tên>_Glass` (BLEND, `tex/<ảnh>_glass.webp`). Ảnh chính của material đó là `tex/<ảnh>_solid.webp`. Material `_Surface` 1 không có texture vẫn được đặt BLEND.
+- Không xuất `MeshRenderer` của `SkeletonAnimation`, vì Spine được dựng từ `<id>.json spines`.
+- Mỗi material mang `KHR_texture_transform` riêng (gltfpack lượng tử UV theo material). Phía JS không được gộp texture chỉ theo ảnh (docs/LOUNGE.md §8).
+- Từ 2026-09-28, mới chỉ chạy lại 9001–9003 theo luật này. Sector lặn vẫn là bản cũ.
 
 ## Fengari
 

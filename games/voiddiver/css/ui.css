@@ -50,7 +50,8 @@
 .vd-toasts { position: absolute; left: 50%; top: 14vh; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
 .vd-toast { background: var(--panel); border: 1px solid var(--line); padding: 8px 18px; font-size: 15px; transition: opacity .5s; }
 .vd-toast.out { opacity: 0; }
-.vd-radio { position: absolute; left: 16px; top: 16vh; display: flex; gap: 10px; align-items: flex-start; max-width: min(420px, 80vw);
+.vd-radio { position: absolute; left: 16px; top: max(16vh, calc(var(--qb, 0px) + 10px));   /* --qb = đáy bảng nhiệm vụ (hud.js) */
+   display: flex; gap: 10px; align-items: flex-start; max-width: min(420px, 80vw);
   background: var(--panel); border-left: 3px solid var(--gold); padding: 10px 14px 10px 10px; opacity: 0; transform: translateX(-12px); transition: opacity .25s, transform .25s; pointer-events: none; }
 .vd-radio.on { opacity: 1; transform: none; }
 .vd-radio img { width: 56px; height: 56px; object-fit: cover; object-position: top; background: #111; }
@@ -98,9 +99,44 @@
 .vd-boss.on { display: block; }
 .vd-boss .name { color: #e08a6a; font-size: 14px; margin-bottom: 4px; }
 .vd-bar.bosshp .fill { background: var(--red); }
-.vd-quest { position: absolute; left: 18px; top: 16px; max-width: min(340px, 60vw); font-size: 13px; line-height: 1.5; text-shadow: 0 1px 2px #000; }
-.vd-quest .title { color: var(--gold); font-weight: 700; }
-.vd-quest .line.done { color: var(--dim); text-decoration: line-through; }
+/* Bảng nhiệm vụ (hud.js renderQuest) theo prefab InGameQuestPanel gốc, khung tham chiếu 1920×1080:
+   gốc CampaignAndLoungeRoot neo trái-trên @(0, −57), slot rộng 550, lề trái 80, khoảng slot 12, tên→việc 6, việc→việc 8.
+   Cỡ chữ đo trên ảnh Steam 1080p (ss_67066307…): nhãn độ khó 18, tên 24 đậm, việc 19; màu việc #b8b8b8, số hiện tại #eee đậm.
+   --q = 1 px khung gốc, co giãn như CanvasScaler 1920×1080 (lấy chiều nhỏ hơn); sàn 0,75 để còn đọc được ở 1280×720,
+   0,6 ở màn thấp (844×390). */
+.vd-qtrack { --q: max(min(calc(100vw / 1920), calc(100vh / 1080)), 0.75px);
+  position: absolute; z-index: 1; left: 0; top: calc(57 * var(--q)); width: calc(550 * var(--q)); max-width: min(40vw, calc(50vw - 270px)); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: calc(12 * var(--q)); pointer-events: none !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 4px rgba(0,0,0,.6); }
+.vd-qtrack:empty { display: none; }
+/* BG gốc: gradient_circle_128 đen 50 %, 2000×1000, tâm ở mép trái, thấp hơn đỉnh màn 100 → nền tối mềm sau chữ. */
+.vd-qtrack::before { content: ''; position: absolute; z-index: -1; left: calc(-1000 * var(--q)); top: calc(-457 * var(--q)); width: calc(2000 * var(--q)); height: calc(1000 * var(--q));
+  background: radial-gradient(closest-side, rgba(0,0,0,.5), rgba(0,0,0,.25) 35%, rgba(0,0,0,0) 70%); pointer-events: none; }
+.vd-qtrack .slot { padding-left: calc(80 * var(--q)); display: flex; flex-direction: column; }
+.vd-qtrack .diff { font-weight: 700; font-size: calc(18 * var(--q)); line-height: 1.25; color: #898989; margin-bottom: calc(4 * var(--q)); }
+.vd-qtrack .diff.d-Normal { color: #9fa100; }   /* ảnh Steam; prefab bản demo ghi (0, .467, 0) */
+.vd-qtrack .diff.d-Hard { color: #a5a500; }
+.vd-qtrack .diff.d-Insane { color: #a91414; }
+.vd-qtrack .name { position: relative; font-weight: 700; font-size: calc(24 * var(--q)); line-height: 1.17; color: #dcdcdc; }
+/* MainQuestIcon/SubIcon: 32×32, neo mép trái giữa của tên, lệch −6; khung ◇ + ô vuông nhỏ + hai vạch (MenuQuest1), Main có thêm "!" */
+.vd-qtrack .name .qi { position: absolute; left: calc(-38 * var(--q)); top: calc(0.585em - 19 * var(--q)); width: calc(32 * var(--q)); height: calc(32 * var(--q));
+  background: url(../art/ui/icon_common/MenuQuest1.webp) center / contain no-repeat; opacity: .9; }
+.vd-qtrack .name .qi.bang::after { content: ''; position: absolute; left: 50%; top: calc(-4 * var(--q)); width: calc(8 * var(--q)); height: calc(23 * var(--q)); transform: translateX(-50%);
+  background: url(../art/ui/icon_common/MenuQuest2.webp) center / contain no-repeat; filter: drop-shadow(0 1px 1px #000); }
+.vd-qtrack .task { position: relative; padding-left: calc(27 * var(--q)); margin-top: calc(8 * var(--q)); font-size: calc(19 * var(--q)); line-height: 1.2; color: #b8b8b8; }
+.vd-qtrack .name + .task { margin-top: calc(6 * var(--q)); }
+.vd-qtrack .task b { color: #eee; font-weight: 700; }
+/* CheckBox: rectangle_line_2px 13×13 xám (0.537) xoay 45°; xong = dấu Check màu (0.643, 0.337, 0.275) */
+.vd-qtrack .task .cb { position: absolute; left: calc(4 * var(--q)); top: calc(0.6em - 6.5 * var(--q)); width: calc(13 * var(--q)); height: calc(13 * var(--q)); box-sizing: border-box;
+  border: max(1px, calc(2 * var(--q))) solid #898989; transform: rotate(45deg); }
+.vd-qtrack .task.done { color: #898989; }
+.vd-qtrack .task.done .cb::after { content: ''; position: absolute; left: 50%; top: 50%; width: calc(20 * var(--q)); height: calc(14 * var(--q));
+  transform: translate(-30%, -70%) rotate(-45deg); background: #a45646;
+  -webkit-mask: url(../art/ui/icon_common/Check.webp) center / contain no-repeat; mask: url(../art/ui/icon_common/Check.webp) center / contain no-repeat; }
+.vd-qtrack .task.nav { color: #9fe6ff; }
+.vd-qtrack .task.nav .cb { border: 0; transform: none; width: auto; height: auto; top: 0; left: calc(2 * var(--q)); }
+.vd-qtrack .task.nav .cb::before { content: '▶'; font-style: normal; font-size: .8em; color: #7fe3ff; }
+@media (max-height: 480px) { .vd-qtrack { --q: 0.6px; max-width: 26vw; } }
 .vd-center { position: absolute; left: 50%; top: 32%; transform: translateX(-50%); font-size: 22px; font-weight: 700; letter-spacing: .04em; opacity: 0; transition: opacity .3s; text-shadow: 0 2px 6px #000; }
 .vd-center.on { opacity: 1; }
 .vd-dmg { position: absolute; left: 0; top: 0; font-weight: 800; font-size: 17px; color: #fff; text-shadow: 0 0 3px #000, 0 1px 2px #000; will-change: transform; white-space: nowrap; }

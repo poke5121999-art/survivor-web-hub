@@ -96,6 +96,15 @@ async function runDialog(page, ms) {
   }
   await page.keyboard.up('Control');
 }
+// Đọc bảng nhiệm vụ sảnh: chữ, số dòng việc, dòng "việc kế tiếp", cỡ chữ, đè lên HUD khác, dải dẫn đường.
+const tracker = page => page.evaluate(() => {
+  const q = document.querySelector('.vd-lhud-quest'), r = q.getBoundingClientRect(), fs = sel => { const e = q.querySelector(sel); return e ? parseFloat(getComputedStyle(e).fontSize) : 0; };
+  const overlap = ['.vd-lhud-level', '.vd-lhud-wallet', '.vd-lhud-menu'].filter(sel => { const b = document.querySelector(sel).getBoundingClientRect(); return !(b.right <= r.left || b.left >= r.right || b.bottom <= r.top || b.top >= r.bottom); });
+  const nx = q.querySelector('.slot.next .task');
+  return { text: q.innerText, tasks: q.querySelectorAll('.slot:not(.next) .task').length, diff: !!q.querySelector('.diff'), next: nx ? nx.textContent : null,
+    target: VD.lounge.nextStep().npc, nameFs: fs('.name'), taskFs: fs('.task'), overlap, ribbon: !!(VD.groundNav && VD.groundNav.mesh && VD.groundNav.mesh.visible),
+    tx: { q80200: VD.TEXT.TLoungeQuest_Name_80200, q81101: VD.TEXT.TLoungeQuest_Name_81101, elara: VD.TEXT.LCommon_4001, booth: VD.TEXT.LCommon_4011 } };
+});
 const menuItems = page => page.evaluate(() => [...document.querySelectorAll('.vd-npcmenu-choices button')].map(b => b.className + ':' + b.textContent.trim()));
 
 // ================================================================ 1. Luồng chính 1280×720
@@ -167,6 +176,10 @@ async function flow(browser, port, errors) {
   check('LoungeQuest 80200 mở (CampaignCleared:1100) → InProgress', p.loungeQuest['80200'] === 2, p.loungeQuest['80200']);
   check('Elara có hội thoại Quest InProgressDialog', p.dialogs.some(d => d.npc === 700000 && d.FunctionName === 'InProgressDialog'));
   await shot(page, '06-lounge-after-tutorial');
+  // Bảng nhiệm vụ sảnh (hud.js renderQuest): 80200 + việc của nó, dòng "việc kế tiếp" chỉ Elara (LCommon_4001), cỡ chữ theo khung 1080p.
+  let trk = await tracker(page);
+  check('bảng nhiệm vụ sau tutorial: 80200 + 3 việc + "việc kế tiếp" Elara', trk.text.indexOf(trk.tx.q80200) >= 0 && trk.tasks >= 3 && trk.next === trk.tx.elara && trk.target === 700000, JSON.stringify(trk));
+  check('bảng nhiệm vụ đủ lớn ở 1280×720 (tên ≥ 17 px, việc ≥ 14 px)', trk.nameFs >= 17 && trk.taskFs >= 14, trk.nameFs + '/' + trk.taskFs);
 
   // ---- 80200: Elara → Narcis/Felix/Lucas → Elara
   check('F ở Elara mở menu', await talkTo(page, 700000));
@@ -195,6 +208,10 @@ async function flow(browser, port, errors) {
   p = await prof(page);
   check('80200 Completed', p.loungeQuest['80200'] === 4);
   check('81101 "Lần lặn đầu tiên" InProgress', p.loungeQuest['81101'] === 2, p.loungeQuest['81101']);
+  await page.evaluate(() => VD.lounge.debug.teleport(VD.lounge.start.x, VD.lounge.start.z));   // xa Elara để dải dẫn đường hiện
+  await sleep(600);
+  trk = await tracker(page);
+  check('sau 80200: bảng không trống (81101 ẩn làm mục tiêu) + "việc kế tiếp" Elara + dải dẫn đường', trk.text.indexOf(trk.tx.q81101) >= 0 && trk.next === trk.tx.elara && trk.ribbon, JSON.stringify(trk));
 
   // ---- Campaign 1101
   await talkTo(page, 700000);
@@ -223,6 +240,8 @@ async function flow(browser, port, errors) {
   await sleep(300);
   check('lời nhắc F ở bốt điện thoại', await page.evaluate(() => VD.lounge.focus === 'booth'));
   await shot(page, '09-booth');
+  trk = await tracker(page);
+  check('đã nhận 1101: slot campaign (độ khó + việc) + "việc kế tiếp" bốt lặn', trk.diff && trk.tasks >= 2 && trk.next === trk.tx.booth && trk.target === 'booth', JSON.stringify(trk));
   await page.keyboard.press('KeyF');
   check('bốt → VD.app.toDive → lặn 1101', await waitFor(page, () => VD.app.scene === 'dive' && VD.dive.camp && VD.dive.camp.Id === 1101 && (VD.dive.state === 'intro' || VD.dive.state === 'play'), null, 300000, 'lặn 1101'));
   await page.evaluate(() => VD.dive.debug.skipIntro());
@@ -406,6 +425,8 @@ async function mobile(browser, port, errors) {
   check('sảnh ?lounge=1', await waitFor(page, () => document.body.dataset.lounge === 'play', null, 240000));
   await sleep(1500);
   await shot(page, 'm02-lounge');
+  const mt = await tracker(page);
+  check('844×390: bảng nhiệm vụ có "việc kế tiếp", không đè cấp độ / ví', !!mt.next && !mt.overlap.length && mt.taskFs >= 11, JSON.stringify(mt));
   const tags = await page.evaluate(() => [...VD.lounge.npcs.values()].filter(n => n.tag && n.tag.style.display !== 'none' && n.tag.querySelector('.name').textContent).length);
   check('nhãn tên NPC hiện', tags >= 6, tags);
   await talkTo(page, 700000);

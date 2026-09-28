@@ -53,7 +53,7 @@ games/voiddiver/
 ## Camera (số gốc, ASSETS.md §3)
 - `PerspectiveCamera(10°, w/h, 0.1, 500)`. Vị trí = mục tiêu + (25, 21, +25) trong toạ độ three (Unity (25,21,−25)).
 - Bám theo kiểu Cinemachine Transposer, damping 1 s mỗi trục. Không zoom. Rung khi trúng đòn = Perlin, freq 5.
-- Sảnh: FOV 15°, đặt theo `Area.CameraPos`.
+- Sảnh dùng đúng camera người chơi này (FOV 10°, bám người chơi). `InteriorVCamTemplate` FOV 15° đặt ở `Area.CameraPos` chỉ dùng lúc mua nội thất (`CameraManager.FocusOnPosition`). docs/LOUNGE.md §1.
 
 ## Mô hình miền (dữ liệu chạy)
 - `Unit` — mọi thứ có máu: nhân vật, quái, bù nhìn.
@@ -85,6 +85,7 @@ games/voiddiver/
 | `audio.js` | SFX/BGM WebAudio |
 | `dive.js` | luật lặn: đèn, stress, corruption, loot, rương, bẫy, cửa, lối thoát, chết |
 | `lounge.js` | sảnh và NPC |
+| `groundnav.js` | dải dẫn đường dưới sàn tới NPC đích (GroundNavigation gốc) |
 | `lua.js` | LuaHost + LuaApi |
 | `ui.js`, `hud.js`, `dialog.js` | giao diện DOM |
 | `main.js` | khởi động, chuyển cảnh |
@@ -108,7 +109,7 @@ games/voiddiver/
   `onUnitEvent(e)` (móc nghe mọi sự kiện combat: 'damage', 'death', 'skill', …), `update(dt)`, `render(dt)`, `pending` (số Spine đang tải).
 - Lõi combat: `VD.Skill` (makeUnit/cast/start/interrupt/slotSkill/step), `VD.Stats.get(u, k)`, `u.buffs` (BuffSet: add/has/remove/stunned),
   `VD.HitBox`, `VD.Combat` (applyDamage/heal/stressDamage/stressRecover/kill). Tài liệu: docs/SKILLVM.md.
-- `VD.hud`: `show(on)`, `setQuest(title, [{text, done}])`, `setBoss(u)`, `centerText(s, ms)`, `bubbleAt(u, text)`, `damage(e)`, `statusText(u, text)` (chữ trạng thái nổi kiểu StatusEffectText gốc), `update(dt)`.
+- `VD.hud`: `show(on)`, `setQuest(title, [{text, cur, goal, done}], {diff, diffKey})`, `renderQuest(el, slots)` (bảng nhiệm vụ dùng chung sảnh/lặn, docs/LOUNGE.md §4.1), `setBoss(u)`, `centerText(s, ms)`, `bubbleAt(u, text)`, `damage(e)`, `statusText(u, text)` (chữ trạng thái nổi kiểu StatusEffectText gốc), `update(dt)`.
 - `VD.lua`: `init()`, `call(key, fname, a, b)`, `has(key, fname)`, `event(keys, type, value)`, `tick()`, `text(s)`, `task(promise)`, `done(v)`,
   `api` (bảng LuaApi: gán `VD.lua.api.TênHàm = function (...) {}`), `EV` (ELuaEvent). Hàm chưa làm tự trả task xong ngay và cảnh báo một lần.
 - `VD.dialog`: đã làm các hàm LuaApi về thoại (Open/Append/Close/Delay/Fade/CustomImage/Note/Radio/Bubble/Toast), `toast(s)`.

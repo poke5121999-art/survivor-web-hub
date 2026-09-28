@@ -1,0 +1,605 @@
+{
+ "name": "700004",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Model",
+   "active": true
+  },
+  {
+   "name": "UI",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  },
+  {
+   "name": "GroundNavigationPrefab",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "capsule",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 1.5,
+   "height": 1.0,
+   "trigger": false,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [
+  {
+   "path": "Model/Animation",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark",
+   "controller": "QuestHostWaitOtherClientMark",
+   "clips": [
+    "MainHostWait"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root",
+   "controller": "NpcThumbUp",
+   "clips": [
+    "NpcThumbUp"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "NpcObject",
+   "fields": {
+    "_npcId": 700004,
+    "_holdingTime": 0.05,
+    "_holdingSfx": "NPC_Sofa",
+    "_interactionSfx": "NPC_UI_Open_ETC"
+   }
+  },
+  {
+   "path": "Model",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "UI",
+   "class": "Billboard"
+  },
+  {
+   "path": "UI/Hud/Layout*/Bubble_/BG*",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Bubble_/BG*/Tail/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Info_/BG*",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Info_/BG*/Tail/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot3",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root/ImgGlow",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root/ImgThumbUp",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/BG",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/ImgShield",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/img_back",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/img_front",
+   "class": "Image"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_1",
+   "mesh": "cu_1",
+   "verts": 18,
+   "tris": 10,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_1/cu_eyeA",
+   "mesh": "cu_eyeA",
+   "verts": 8,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_1/cu_eyeA.close",
+   "mesh": "cu_eyeA.close",
+   "verts": 8,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_2",
+   "mesh": "cu_2",
+   "verts": 68,
+   "tris": 36,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_2/cu_eyeB",
+   "mesh": "cu_eyeB",
+   "verts": 8,
+   "tris": 4,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_2/cu_eyeB.001",
+   "mesh": "cu_eyeB.001",
+   "verts": 15,
+   "tris": 8,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_2/cu_eyeB.002",
+   "mesh": "cu_eyeB.002",
+   "verts": 14,
+   "tris": 8,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_2/cu_eyeB.close",
+   "mesh": "cu_eyeB.close",
+   "verts": 8,
+   "tris": 4,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_2/cu_eyeB.close.001",
+   "mesh": "cu_eyeB.close.001",
+   "verts": 15,
+   "tris": 8,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_2/cu_eyeB.close.002",
+   "mesh": "cu_eyeB.close.002",
+   "verts": 14,
+   "tris": 8,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_2/cu_mouthB",
+   "mesh": "cu_mouthB",
+   "verts": 12,
+   "tris": 8,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_3",
+   "mesh": "cu_3",
+   "verts": 18,
+   "tris": 10,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_3/cu_eyeC",
+   "mesh": "cu_eyeC",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_3/cu_eyeC.close",
+   "mesh": "cu_eyeC.close",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/cu_3/cu_mouthC",
+   "mesh": "cu_mouthC",
+   "verts": 8,
+   "tris": 4,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_arm_1",
+   "mesh": "Sofa_arm_1",
+   "verts": 131,
+   "tris": 86,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_1",
+   "mesh": "Sofa_B_1",
+   "verts": 89,
+   "tris": 75,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_1/Sofa_eyeA",
+   "mesh": "Sofa_eyeA",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_1/Sofa_eyeA.001",
+   "mesh": "Sofa_eyeA.001",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_1/Sofa_eyeA.close",
+   "mesh": "Sofa_eyeA.close",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_1/Sofa_eyeA.close.001",
+   "mesh": "Sofa_eyeA.close.001",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_1/Sofa_mouthA",
+   "mesh": "Sofa_mouthA",
+   "verts": 10,
+   "tris": 8,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_2",
+   "mesh": "Sofa_B_2",
+   "verts": 92,
+   "tris": 69,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_2/Sofa_eyeB",
+   "mesh": "Sofa_eyeB",
+   "verts": 8,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_2/Sofa_eyeB.001",
+   "mesh": "Sofa_eyeB.001",
+   "verts": 9,
+   "tris": 5,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_2/Sofa_eyeB.002",
+   "mesh": "Sofa_eyeB.002",
+   "verts": 9,
+   "tris": 7,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_2/Sofa_eyeB.close",
+   "mesh": "Sofa_eyeB.close",
+   "verts": 8,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_2/Sofa_eyeB.close.001",
+   "mesh": "Sofa_eyeB.close.001",
+   "verts": 9,
+   "tris": 5,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_2/Sofa_eyeB.close.002",
+   "mesh": "Sofa_eyeB.close.002",
+   "verts": 9,
+   "tris": 7,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_B_2/Sofa_mouthB",
+   "mesh": "Sofa_mouthB",
+   "verts": 12,
+   "tris": 8,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_eyeC",
+   "mesh": "Sofa_eyeC",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/Armature/root/Sofa_tenBase",
+   "mesh": "Sofa_tenBase",
+   "verts": 12,
+   "tris": 10,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Sofa/tanP",
+   "mesh": "tanP",
+   "verts": 514,
+   "tris": 273,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -10.738,
+   -0.128,
+   -0.547
+  ],
+  "max": [
+   27.561,
+   58.342,
+   42.918
+  ]
+ },
+ "glb": "art/object/700004.glb",
+ "glbKB": 235
+}

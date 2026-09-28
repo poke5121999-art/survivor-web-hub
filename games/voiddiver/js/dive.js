@@ -771,13 +771,12 @@
   function taskLabel(t) {
     return TX('TCampaignTask_Desc_' + t.id) || (t.cond === 'TeamItemCountInInventory' ? (TX('EEventConditionType_TeamItemCountInInventory') || 'Nhận {0}').replace('{0}', VD.goods.name({ type: 'Item', id: t.arg })) : TX('EEventConditionType_' + t.cond) || t.cond);
   }
+  D.taskLabel = taskLabel;
   function showQuest() {
     if (!VD.hud || !VD.hud.setQuest) return;
-    const title = (TX('EDifficulty_' + D.diffName) ? TX('EDifficulty_' + D.diffName) + ' · ' : '') + (TX('TCampaign_Name_' + D.camp.Id) || ('Campaign ' + D.camp.Id));
-    VD.hud.setQuest(title, D.tasks.map(t => {
-      const label = taskLabel(t);
-      return { text: label + (t.goal > 1 ? ' ' + Math.min(t.cur, t.goal) + '/' + t.goal : ''), done: t.done };
-    }));
+    VD.hud.setQuest(TX('TCampaign_Name_' + D.camp.Id) || ('Campaign ' + D.camp.Id),
+      D.tasks.map(t => ({ text: taskLabel(t), cur: t.cur, goal: t.goal, done: t.done })),
+      { diff: TX('EDifficulty_' + D.diffName), diffKey: D.diffName });
   }
 
   // ================================================================ Lua
@@ -1502,8 +1501,11 @@
     const camp = rowOf('Campaign', +opts.campaignId);
     if (!camp) throw new Error('không có Campaign ' + opts.campaignId);
     VD.profile.load();
+    // Chuyến tutorial (Campaign.Category === 'Tutorial', chỉ 1100): khoá độ khó Easy (thấp nhất bảng Difficulty), bất kể
+    // caller truyền gì — người mới chưa từng chọn độ khó lúc vào chuyến đầu. Cũng là chốt độc nhất cho luật bất tử bên dưới.
+    const isTutorial = camp.Category === 'Tutorial';
     Object.assign(D, {
-      camp, char: +opts.characterId || 100001, diffName: opts.difficulty || 'Normal', seed: opts.seed || ((Date.now() & 0x7fffffff) || 1),
+      camp, isTutorial, char: +opts.characterId || 100001, diffName: isTutorial ? 'Easy' : (opts.difficulty || 'Normal'), seed: opts.seed || ((Date.now() & 0x7fffffff) || 1),
       t: 0, ents: [], mons: [], dormant: [], fields: [], waves: [], later: [], zonePoints: [], zoneSpawns: {}, spotLights: [],
       luaQueue: [], triggerable: {}, triggerableWE: {}, arrows: new Map(), progress: {}, temp: { s: {}, i: {}, b: {}, f: {} },
       stats: { kills: 0, bossKills: 0, boxes: 0, shadows: 0 }, hpLostAcc: 0, lightT: 0, corrT: 0, dark: false, stressSt: null,
@@ -1555,6 +1557,10 @@
     const pl = S.spawn({ kind: 'char', id: D.char, pos: D.start, aim: { x: -Math.SQRT1_2, z: -Math.SQRT1_2 }, weaponId: opts.loadout && opts.loadout.weaponId, equipmentIds: loadoutEquip });
     S.setPlayer(pl, opts.loadout && opts.loadout.skills);
     VD.player = pl;
+    // Chuyến tutorial: gắn thẳng buff Invincibility có sẵn trong bảng (Buff 1000001: BlockDamage + BlockStressDamage,
+    // Duration -1 = vĩnh viễn cho tới khi rời chuyến). Không tự chế cờ bất tử: dùng đúng cơ chế BuffSet.invincible() mà
+    // Combat.applyDamage/stressDamage/kill đã đọc (js/hitbox.js). Vẫn cho qua flash/số sát thương (amount 0, blocked 'invincible').
+    if (isTutorial && db().buff(1000001)) pl.buffs.add(S.A, 1000001, 1, pl);
     pl.light = C('LightFuelDefault', 100);
     D.darkIds = darkBuffs();
     // Passive 10000000 gắn buff tối ngay khi khởi tạo (AddPassiveSkillTrigger); đèn còn thì gỡ.

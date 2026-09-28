@@ -99,12 +99,46 @@
     return lo[key] >= 0 ? VD.Skill.slotSkill(u, 'skill' + lo[key]) : 0;
   }
 
-  H.setQuest = function (title, lines) {
+  // Bảng nhiệm vụ góc trái trên, dựng theo prefab gốc InGameQuestPanel (HudCampaignQuestSlot / HudLoungeQuestSlot):
+  // nhãn độ khó, biểu tượng nhiệm vụ (Main có dấu "!", Sub không), tên đậm, mỗi việc một ô ◇ + chữ + "<b>hiện</b>/đích".
+  // slots: [{ kind: 'camp'|'main'|'sub'|'next', diff, diffKey, title, lines: [{ text, cur, goal, done }] }].
+  // kind 'next' = dòng "việc kế tiếp" của bản web (không có slot gốc; chữ lấy từ LCommon_40x1 của PingToNpc gốc).
+  H.renderQuest = function (el, slots) {
+    el.innerHTML = '';
+    el.classList.add('vd-qtrack');
+    for (const s of slots || []) {
+      const box = $('div', 'slot ' + s.kind, el);
+      if (s.diff) $('div', 'diff d-' + (s.diffKey || ''), box).textContent = s.diff;
+      if (s.title) {
+        const n = $('div', 'name', box);
+        if (s.kind !== 'next') $('i', 'qi' + (s.kind === 'sub' ? '' : ' bang'), n);
+        $('span', null, n).textContent = s.title;
+      }
+      for (const l of s.lines || []) {
+        const r = $('div', 'task' + (l.done ? ' done' : '') + (s.kind === 'next' ? ' nav' : ''), box);
+        $('i', 'cb', r);
+        const t = $('span', null, r);
+        t.textContent = l.text;
+        if (l.goal > 1) { t.appendChild(document.createTextNode(' ')); $('b', null, t).textContent = Math.min(l.cur | 0, l.goal); t.appendChild(document.createTextNode('/' + l.goal)); }
+      }
+    }
+    H._qEl = el;
+    markBottom();
+  };
+  // --qb trên #ui = đáy bảng nhiệm vụ đang hiện: khung radio (dialog.js, css/ui.css) đặt dưới nó thay vì đè lên.
+  function markBottom() {
+    const ui = document.getElementById('ui'), el = H._qEl;
+    if (!ui) return;
+    const r = el && el.offsetParent !== null && el.childElementCount ? el.getBoundingClientRect() : null;
+    ui.style.setProperty('--qb', (r ? Math.round(r.bottom) : 0) + 'px');
+  }
+  addEventListener('resize', () => requestAnimationFrame(markBottom));
+  // Lượt lặn: một slot campaign. opts.diff / opts.diffKey = nhãn độ khó (EDifficulty_*).
+  H.setQuest = function (title, lines, opts) {
     if (!H.root) H.build();
-    H.quest.innerHTML = '';
-    if (!title) return;
-    $('div', 'title', H.quest).textContent = title;
-    for (const l of lines || []) $('div', 'line' + (l.done ? ' done' : ''), H.quest).textContent = (l.done ? '◆ ' : '◇ ') + l.text;
+    if (!title) { H.quest.innerHTML = ''; return; }
+    const o = opts || {};
+    H.renderQuest(H.quest, [{ kind: 'camp', diff: o.diff, diffKey: o.diffKey, title, lines: lines || [] }]);
   };
   H.setBoss = function (u) { H.bossUnit = u; };
   H.centerText = function (s, ms) {
@@ -160,6 +194,7 @@
   H.update = function (dt) {
     if (!H.on || !H.root) return;
     padQuick();
+    if ((H._qbT = (H._qbT || 0) - dt) <= 0) { H._qbT = 0.5; H._qEl = H.quest; markBottom(); }
     const u = VD.stage.player;
     if (!u) return;
     const st = u.stats || {};
