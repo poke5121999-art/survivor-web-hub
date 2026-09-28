@@ -24,7 +24,7 @@
 
 .p1-hud { position: absolute; inset: 0; z-index: 15; pointer-events: none; }
 .p1-hud-stage { pointer-events: none; }
-.p1-hud-stage .p1-menu, .p1-hud-stage .p1-team, .p1-hud-stage .p1-topright { pointer-events: auto; }
+.p1-hud-stage .p1-menu, .p1-hud-stage .p1-team, .p1-hud-stage .p1-topright, .p1-hud-stage .p1-bottombar { pointer-events: auto; }
 
 /* ---------------------------------------------------------------- thanh đội (TeamSidebar) */
 .p1-team { position: absolute; display: flex; flex-direction: column; gap: 3px; }
@@ -46,7 +46,7 @@
 .p1-mon-status { right: 6px; top: 4px; }
 /* Ô rỗng: chỉ còn khung bóng mờ, không tên/bar/huy hiệu — im lặng thay vì trông như Pokémon hỏng dữ liệu. */
 .p1-mon-slot.p1-empty { pointer-events: none; }
-.p1-mon-slot.p1-empty .p1-mon-ball { opacity: .3; }
+.p1-mon-slot.p1-empty .p1-mon-ball { opacity: .55; transform: scale(.55); transform-origin: top left; }
 .p1-mon-slot.p1-empty .p1-mon-icon, .p1-mon-slot.p1-empty .p1-mon-bg, .p1-mon-slot.p1-empty .p1-mon-name,
 .p1-mon-slot.p1-empty .p1-mon-level, .p1-mon-slot.p1-empty .p1-mon-hpbar, .p1-mon-slot.p1-empty .p1-mon-expfill,
 .p1-mon-slot.p1-empty .p1-mon-gender, .p1-mon-slot.p1-empty .p1-mon-shiny, .p1-mon-slot.p1-empty .p1-mon-status { display: none; }
@@ -63,20 +63,43 @@
 .p1-hud.p1-compact .p1-mon-shiny { left: 20px; top: 2px; width: 10px; height: 10px; }
 .p1-hud.p1-compact .p1-mon-status { right: 2px; top: 2px; transform: scale(.7); transform-origin: top right; }
 
-/* ---------------------------------------------------------------- menu (GameMenu, dưới trái) */
+/* ---------------------------------------------------------------- menu dọc (GameMenu, cạnh trái —
+   D:\pro-ref\wiki\lab1.png: cột nút tròn, mỗi nút một nhãn hình bình hành lệch sang phải). */
 .p1-menu { position: absolute; }
-.p1-menu-row { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; }
-.p1-menu-btn { position: relative; width: 46px; height: 46px; cursor: pointer; }
+.p1-menu-btn { position: absolute; left: 0; width: 160px; height: 46px; cursor: pointer; }
 .p1-menu-btn.p1-hidden { display: none; }
-.p1-menu-btn-bg { position: absolute; left: 0; top: 0; }
-.p1-menu-btn-icon { position: absolute; left: 8px; top: 8px; pointer-events: none; }
+.p1-menu-btn-bg { position: absolute; left: 0; top: 0; z-index: 2; }
+.p1-menu-btn-icon { position: absolute; left: 8px; top: 8px; z-index: 2; pointer-events: none; }
 .p1-menu-btn:active .p1-menu-btn-icon { transform: translateY(1px); }
-.p1-menu-money { position: absolute; right: 10px; top: 4px; font-size: 13px; font-weight: 700; color: var(--p1-gold); text-shadow: 1px 1px 0 #000; }
+.p1-menu-btn-tab { position: absolute; left: 30px; top: 11px; z-index: 1; }
+.p1-menu-btn-label { position: absolute; left: 54px; top: 15px; width: 88px; font-size: 12px; font-weight: 700;
+  color: #fff; text-shadow: 1px 1px 0 #000; z-index: 2; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ---------------------------------------------------------------- góc trên phải (map + giờ) */
-.p1-topright { position: absolute; text-align: right; }
-.p1-time-icon { position: absolute; right: 0; top: 0; }
-.p1-map-name { position: absolute; right: 68px; top: 18px; font-size: 15px; font-weight: 700; color: var(--p1-panel-text); text-shadow: 1px 1px 0 #000; max-width: 180px; }
+/* ---------------------------------------------------------------- thanh dưới cùng (hamburger, tiền, ô tắt) */
+.p1-bottombar { position: absolute; display: flex; align-items: flex-end; gap: 4px; }
+.p1-hamburger { width: 30px; height: 30px; border-radius: 8px; background: rgba(30,34,44,.9); border: 1px solid #4a4a5a;
+  cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+.p1-hamburger span { display: block; width: 16px; height: 2px; background: #fff; border-radius: 1px; }
+.p1-money-box { height: 30px; padding: 0 14px; border-radius: 15px; background: rgba(30,34,44,.9); border: 1px solid #4a4a5a;
+  display: flex; align-items: center; }
+.p1-menu-money { position: static; font-size: 13px; font-weight: 700; color: var(--p1-gold); text-shadow: 1px 1px 0 #000; }
+.p1-shortcuts { position: relative; width: 249px; height: 34px; }
+.p1-shortcut-slot { position: absolute; top: 8px; width: 18px; height: 18px; }
+.p1-shortcut-num { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: flex-end;
+  font-size: 9px; color: #fff; text-shadow: 1px 1px 0 #000; padding: 0 1px 1px 0; pointer-events: none; }
+.p1-shortcut-lock { position: relative; width: 30px; height: 30px; cursor: pointer; }
+.p1-shortcut-lock-icon { position: absolute; left: 8px; top: 6px; pointer-events: none; }
+
+/* ---------------------------------------------------------------- góc trên phải (bản đồ, túi, giờ) */
+.p1-topright { position: absolute; }
+.p1-topright-btn { position: absolute; left: 0; top: 0; width: 46px; height: 46px; cursor: pointer; }
+.p1-topright-icon { position: absolute; left: 10px; top: 13px; pointer-events: none; }
+.p1-time-box { position: absolute; left: 108px; top: 0; width: 172px; height: 45px; }
+.p1-time-line { position: absolute; left: 10px; top: 6px; font-size: 12px; font-weight: 700; color: #fff; white-space: nowrap; }
+.p1-time-line2 { top: 22px; }
+.p1-time-icon { position: absolute; left: 138px; top: 3px; }
+.p1-map-name { position: absolute; right: 0; top: 52px; font-size: 14px; font-weight: 700; color: var(--p1-panel-text);
+  text-shadow: 1px 1px 0 #000; max-width: 260px; text-align: right; }
 
 /* ---------------------------------------------------------------- màn / popup */
 .p1-panel { position: absolute; inset: 0; pointer-events: none; }

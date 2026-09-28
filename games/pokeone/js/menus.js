@@ -415,31 +415,68 @@
       });
     }
 
-    /* -- menu dưới trái (6 nút: Đội/Balo/Pokédex/Thẻ HLV/Chợ trời/Cài đặt — rộng hơn bản gốc PRO vì
-       ta thêm nút Đội và Chợ trời không có trong GameMenu gốc). */
-    const MENU_W = 360, MENU_H = 78;
+    /* -- menu dọc cạnh trái (kiểu GameMenu gốc: cột nút tròn, mỗi nút có nhãn hình bình hành lệch bên
+       phải — D:\pro-ref\wiki\lab1.png). 6 nút: Đội/Balo/Pokédex/Thẻ HLV/Chợ trời/Cài đặt (rộng hơn bản
+       gốc PRO vì ta thêm Đội và Chợ trời, PRO không có hai nút này ở đây). */
+    const ROW_H = 52, MENU_H = MENU_BUTTONS.length * ROW_H + 16;
     const menu = el('div', 'p1-menu', root);
-    menu.style.left = '8px'; menu.style.bottom = '8px'; menu.style.width = MENU_W + 'px'; menu.style.height = MENU_H + 'px';
-    menu.appendChild(spr('HUD_menu_bg', MENU_W, MENU_H));
-    const menuRow = el('div', 'p1-menu-row', menu);
-    MENU_BUTTONS.forEach(b => {
-      const btn = el('div', 'p1-menu-btn', menuRow);
+    menu.style.left = '6px'; menu.style.bottom = '56px'; menu.style.width = '176px'; menu.style.height = MENU_H + 'px';
+    menu.appendChild(spr('HUD_menu_bg', 176, MENU_H));
+    MENU_BUTTONS.forEach((b, i) => {
+      const btn = el('div', 'p1-menu-btn', menu);
+      btn.style.top = (8 + i * ROW_H) + 'px';
       btn.title = b.label;
       btn.dataset.p1 = 'hud-menu-' + b.key;
-      const bg = spr('HUD_menu_button_normal', 46, 46, 'p1-menu-btn-bg'); btn.appendChild(bg);
-      const ic = spr(b.icon, 30, 30, 'p1-menu-btn-icon'); btn.appendChild(ic);
+      const bg = spr('HUD_menu_button_normal', 44, 44, 'p1-menu-btn-bg'); btn.appendChild(bg);
+      const ic = spr(b.icon, 27, 27, 'p1-menu-btn-icon'); btn.appendChild(ic);
+      const tab = spr('HUD_menu_button_bg', 116, 24, 'p1-menu-btn-tab'); btn.appendChild(tab);
+      txt(btn, 'p1-menu-btn-label', b.label);
       onEl(btn, () => {
         if (b.key === 'market') { if (P1.market && P1.market.open) P1.market.open(); return; }
         ui.open(b.key);
       });
       if (b.key === 'market') btn.classList.toggle('p1-hidden', !(P1.market && P1.market.open));
     });
-    const money0 = txt(menu, 'p1-menu-money', '');
 
-    /* -- tên map + giờ, góc trên phải */
+    /* -- thanh dưới cùng bên trái: menu (hamburger), tiền, 6 ô tắt (chưa gán chức năng — PRO cũng để
+       trống theo mặc định), nút khoá/xoay thanh tắt. */
+    const bar = el('div', 'p1-bottombar', root);
+    bar.style.left = '8px'; bar.style.bottom = '8px';
+    const hamburger = el('div', 'p1-hamburger', bar);
+    hamburger.dataset.p1 = 'hud-hamburger'; hamburger.tabIndex = 0;
+    hamburger.innerHTML = '<span></span><span></span><span></span>';
+    onEl(hamburger, () => ui.open('menu'));
+    const moneyBox = el('div', 'p1-money-box', bar);
+    const money0 = txt(moneyBox, 'p1-menu-money', '');
+    const shortcutTray = el('div', 'p1-shortcuts', bar);
+    shortcutTray.appendChild(spr('HUD_shortcutbar_with_lock_space', 249, 34));
+    for (let i = 0; i < 6; i++) {
+      const slot = el('div', 'p1-shortcut-slot', shortcutTray);
+      slot.style.left = (8 + i * 29) + 'px';
+      slot.appendChild(spr('HUD_shortcut_overlay', 18, 18));
+      txt(slot, 'p1-shortcut-num', String(i + 1));
+    }
+    const lockBtn = el('div', 'p1-shortcut-lock', bar);
+    lockBtn.appendChild(spr('Backbag_button_normal', 30, 30));
+    lockBtn.appendChild(spr('HUD_shortcut_bar_lock_icon_open', 14, 19, 'p1-shortcut-lock-icon'));
+
+    /* -- góc trên phải: bản đồ, túi, giờ (Local/Poké Time + vầng trăng-mặt trời), tên bản đồ */
     const topRight = el('div', 'p1-topright', root);
-    topRight.style.right = '10px'; topRight.style.top = '10px'; topRight.style.width = '260px'; topRight.style.height = '70px';
-    const timeIcon = spr('HUD_time_day', 60, 60, 'p1-time-icon'); topRight.appendChild(timeIcon);
+    topRight.style.right = '10px'; topRight.style.top = '10px'; topRight.style.width = '320px'; topRight.style.height = '90px';
+    const mapBtn = el('div', 'p1-topright-btn', topRight);
+    mapBtn.dataset.p1 = 'hud-map'; mapBtn.appendChild(spr('HUD_menu_button_normal', 46, 46));
+    mapBtn.appendChild(spr('worldmap_icon_small', 26, 18, 'p1-topright-icon'));
+    onEl(mapBtn, () => toast('Chưa có bản đồ toàn vùng.'));   // chưa có màn bản đồ trong phạm vi của luồng này
+    const bagBtn = el('div', 'p1-topright-btn', topRight);
+    bagBtn.style.left = '54px'; bagBtn.dataset.p1 = 'hud-topright-bag';
+    bagBtn.appendChild(spr('HUD_menu_button_normal', 46, 46));
+    bagBtn.appendChild(spr('HUD_menu_button_icon_backpack', 28, 25, 'p1-topright-icon'));
+    onEl(bagBtn, () => ui.open('bag'));
+    const timeBox = el('div', 'p1-time-box', topRight);
+    timeBox.appendChild(spr('HUD_time_bg', 172, 45));
+    const localTime = txt(timeBox, 'p1-time-line', '');
+    const pokeTime = txt(timeBox, 'p1-time-line p1-time-line2', '');
+    const timeIcon = spr('HUD_time_day', 44, 44, 'p1-time-icon'); timeBox.appendChild(timeIcon);
     const mapText = txt(topRight, 'p1-map-name', '');
 
     // view.root = <div> ngoài cùng (world.js ẩn/hiện HUD lúc vào trận qua hud.view.root.style.display).
@@ -450,6 +487,11 @@
       money0.textContent = '₽' + money(st.money);
       mapText.textContent = mapLabel();
       P1.proui.apply(timeIcon, timeSprite());
+      // Chưa có đồng hồ trong-game riêng (Poké Time) trong hợp đồng: cả hai dòng dùng giờ máy thật,
+      // đúng khuôn "Local Time / Poké Time" của PRO mà không bịa thêm hệ thời gian giả.
+      const d = new Date(), hh = String(d.getHours()).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
+      localTime.textContent = 'Local Time: ' + hh + ':' + mm;
+      pokeTime.textContent = 'Poké Time: ' + hh + ':' + mm;
       for (let i = 0; i < 6; i++) {
         const m = st.party[i], slot = slots[i];
         slot.s.classList.toggle('p1-empty', !m);
