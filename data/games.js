@@ -665,10 +665,10 @@ window.HUB_GAMES = [
   {
     id: "pokeone",
     title: "PokéOne",
-    tagline: "Pokémon 2D chơi solo theo kiểu PRO (Pokémon Revolution Online): tạo nhân vật bằng sprite nhiều lớp, thức dậy ở Pallet Town, nhận Pokémon đầu từ Giáo sư Oak, đi theo ô qua Route 1 tới Viridian City. Trận đấu 2D với sprite, nền và hoạt ảnh chiêu gốc của PRO, luật Gen 7 chạy trên Pokémon Showdown. Chat toàn cục để khoe Pokémon và rủ nhau đánh boss; chỉ khi đánh boss mới lập đội được, tối đa 4 người, máu boss chung. Chợ trời đấu giá Pokémon với người chơi khác (cần đăng nhập hub).",
+    tagline: "Pokémon 2D chơi solo bám theo PRO (Pokémon Revolution Online): bản đồ dựng lại theo ảnh bản đồ PRO thật, bảng gặp Pokémon của PRO. Tạo nhân vật bằng sprite nhiều lớp, thức dậy ở Pallet Town, nhận Pokémon đầu từ Giáo sư Oak, đi theo ô qua Route 1 tới Viridian City. Trận đấu 2D với sprite, nền và hoạt ảnh chiêu gốc của PRO, luật Gen 7 chạy trên Pokémon Showdown. Chat toàn cục để khoe Pokémon và dán mã phòng boss; chỉ khi đánh boss (chủ gym, Tứ Thiên Vương, Nhà vô địch như PRO) mới lập đội được, tối đa 3 người đứng chung một sân như co-op của PokéOne, thắng xong chia đồ Cần/Tham/Bỏ. Chợ trời đấu giá Pokémon với người chơi khác (cần đăng nhập hub).",
     thumbnail: "assets/thumbnails/pokeone.png",
     path: "games/pokeone/index.html",
-    rev: "20260928a",
+    rev: "20260928b",
     // @pkmn/sim 0.10.11 (Pokémon Showdown, gói esbuild) vendor sẵn trong games/pokeone/vendor, không có bước build.
     // ART + TIẾNG + UI: rút từ client PRO (D:\PROClient_64.zip, Unity 2023.1) theo yêu cầu của chủ dự án ngày
     // 2026-09-28, bằng các công cụ trong games/pokeone/tools/pro (tile 32px, sprite Pokémon trước/sau/đi theo, lớp

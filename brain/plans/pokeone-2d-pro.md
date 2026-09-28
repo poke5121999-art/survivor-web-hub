@@ -137,3 +137,25 @@ Kịch bản bản đồ có lệnh `raid <bossId>` gọi `P1.raid.openLobby(bos
 - Thử `@pkmn/sim` 0.10.11 [đo bằng node]: trận đôi Gen 7 2v2 chạy; trận ba chỉ có ở Gen 6 (`gen6triplescustomgame`);
   phe có ít con hơn số ô (boss một mình đấu 2–3 người) → `setPlayer` sập (`forceSwitchFlag` of null).
   Muốn boss chung sân thì phe boss phải đủ con: boss + đệ tử.
+
+## Bản đồ thật của PRO (2026-09-28, sau phản hồi "map dàn lạ, xài đại asset, thiếu 3 Poké Ball")
+
+- Bản đầu dựng map theo FRLG bằng tile chọn đoán — sai so với PRO. Nguồn tham chiếu thật:
+  - `hehehem/pokemap` (GitHub Pages, fan-made): 467 ảnh render bản đồ ngoài trời PRO, tải ở `D:\pro-ref\pokemap\`.
+    Pallet 31×31 và Route 1 31×51 ở tỉ lệ 1:1; Viridian ở tỉ lệ 1/2. Không có phòng trong nhà.
+  - Ảnh chụp lab Oak thật trong diễn đàn PRO (`D:\pro-ref\wiki\lab1.png`, `lab2.png`): 3 Poké Ball trên bàn, bóng Pikachu dưới sàn.
+- Dò tự động từng ô ảnh render với tile gốc không được: 0/961 ô khớp tuyệt đối, RMSE trung vị ~31 (ảnh đã
+  phóng lại + nén webp). Dùng làm bản mẫu bố cục, đặt tile theo mắt; công cụ xếp hạng ứng viên ở `D:\pro-ref\match_proto2.py`.
+- Wiki PRO (wiki.pokemonrevolution.net) trả 503 lúc thử; fandom chặn.
+
+## Hướng chốt của chủ dự án (2026-09-28)
+
+- Bản đồ + nội dung bám **PRO**. PokéOne chỉ tham khảo **tính năng co-op** → trận boss chuyển sang mô hình PokéOne
+  (phòng chờ Idle→Accept→Confirm, cả đội chung một trận Showdown do chủ phòng chạy, chia đồ Need/Greed/Pass).
+- Không chụp màn hình client PRO của chủ dự án (đã dừng và xoá). Khi chơi, PRO chỉ ghi ra đĩa
+  `%USERPROFILE%\AppData\LocalLow\PROTeam\PROClient\AudioCache\<md5>_<md5>` = nhạc OGG thường (đầu `OggS`) tải theo map,
+  cộng cài đặt ở registry `HKCU\Software\PROTeam\PROClient`. Bản đồ không ghi ra đĩa. Tên tệp không phải md5 của
+  tên bài trong `json/mapinfo` (đã thử).
+- Bảng gặp Pokémon thật: `D:\pro-ref\pokemap\pro_land_spawns.json` (snapshot 2026-07-18 từ lịch sử repo
+  hehehem/pokemap, commit 1ec465f; bản mới hơn là HTML hỏng vì pokemonrevolution.net/spawns/*.json đã chuyển hướng).
+- Boss PRO (`bosses.json`): huấn luyện viên cuối game, hồi 12 ngày, cần vô địch Kanto, không công bố đội hình.
