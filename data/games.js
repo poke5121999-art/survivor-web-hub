@@ -665,24 +665,21 @@ window.HUB_GAMES = [
   {
     id: "pokeone",
     title: "PokéOne",
-    tagline: "Dựng lại phần đầu game PokéOne, MMO Pokémon 3D, thành game một người chơi. Tạo nhân vật bằng sprite nhiều lớp gốc, thức dậy ở Pallet Town, nhận Bulbasaur, Charmander hoặc Squirtle từ Giáo sư Oak rồi đấu Gary ngay trong lab. Đi theo ô qua Route 1 với cỏ cao, gờ nhảy và ba trainer nhìn thấy là chặn đường, tới Viridian City hồi máu ở Trung tâm Pokémon và mua đồ ở Mart. Trận đấu 3D với model và anim gốc, luật Gen 7 chạy trên Pokémon Showdown như máy chủ thật. Bắt bằng 25 loại bóng, lên cấp, học chiêu, tiến hoá. Pokémon đầu đội đi theo sau lưng. Ngày và đêm đổi bảng Pokémon hoang dã.",
+    tagline: "Pokémon 2D chơi solo theo kiểu PRO (Pokémon Revolution Online): tạo nhân vật bằng sprite nhiều lớp, thức dậy ở Pallet Town, nhận Pokémon đầu từ Giáo sư Oak, đi theo ô qua Route 1 tới Viridian City. Trận đấu 2D với sprite, nền và hoạt ảnh chiêu gốc của PRO, luật Gen 7 chạy trên Pokémon Showdown. Chat toàn cục để khoe Pokémon và rủ nhau đánh boss; chỉ khi đánh boss mới lập đội được, tối đa 4 người, máu boss chung. Chợ trời đấu giá Pokémon với người chơi khác (cần đăng nhập hub).",
     thumbnail: "assets/thumbnails/pokeone.png",
     path: "games/pokeone/index.html",
-    rev: "20260927b",
-    // three.js r140 + @pkmn/sim 0.10.11 (Pokémon Showdown, gói esbuild), vendor sẵn trong
-    // games/pokeone/vendor, không có bước build.
-    // ART + ANIM + VFX + TIẾNG + UI + DỮ LIỆU: toàn bộ rút từ bản cài PokéOne (p1setup.exe,
-    // Unity 2018.4 IL2CPP) theo yêu cầu của chủ dự án ngày 2026-09-27, bằng các công cụ trong
-    // games/pokeone/tools (model Pokémon ra glb có xương và clip gốc, prefab bản đồ, cây UI NGUI
-    // của scene level2, atlas VFX, nhạc, tiếng kêu, bảng Pokémon/chiêu/vật phẩm). Bản đồ không có
-    // trong bản cài (máy chủ gửi), nên Pallet/Route 1/Viridian dựng tay từ prefab gốc theo định
-    // dạng MapDump gốc. Luật, quest, trainer, bảng spawn lấy từ wiki PokéOne. Đây không phải tài
-    // sản của repo: muốn gỡ thì xoá games/pokeone/art, games/pokeone/audio và games/pokeone/data.
-    // Kiến trúc và nguồn: games/pokeone/ARCH.md; bẫy và số đo: games/pokeone/tools/README-*.md.
+    rev: "20260928a",
+    // @pkmn/sim 0.10.11 (Pokémon Showdown, gói esbuild) vendor sẵn trong games/pokeone/vendor, không có bước build.
+    // ART + TIẾNG + UI: rút từ client PRO (D:\PROClient_64.zip, Unity 2023.1) theo yêu cầu của chủ dự án ngày
+    // 2026-09-28, bằng các công cụ trong games/pokeone/tools/pro (tile 32px, sprite Pokémon trước/sau/đi theo, lớp
+    // nhân vật, NPC, nền trận, hoạt ảnh chiêu, atlas UI NGUI, tiếng hiệu ứng). Nhạc và tiếng kêu vẫn từ PokéOne.
+    // Bản đồ không có trong client (máy chủ gửi) nên Pallet/Route 1/Viridian dựng tay bằng tile PRO.
+    // Đây không phải tài sản của repo: muốn gỡ thì xoá games/pokeone/art, games/pokeone/audio và games/pokeone/data.
+    // Mạng: Supabase Realtime (chat, boss) + bảng chợ ở db/pokeone-market.sql. Thiết kế: games/pokeone/NET.md.
+    // Kiến trúc: games/pokeone/ARCH.md.
     //
-    // Kiểm: node test/pokeone-engine.js, pokeone-battle.js, pokeone-world.js, pokeone-shell.js,
-    //       pokeone-ui.js, pokeone-poke.js, pokeone-props.js
+    // Kiểm: node test/pokeone-engine.js, pokeone-battle.js, pokeone-world.js, pokeone-shell.js, pokeone-social.js
     status: "available",
-    tags: ["Pokémon", "Nhập vai", "Bắt Pokémon", "Đấu theo lượt", "3D", "Đi theo ô", "Màn ngang"]
+    tags: ["Pokémon", "Nhập vai", "Bắt Pokémon", "Đấu theo lượt", "2D", "Đi theo ô", "Chat", "Đánh boss", "Chợ trời"]
   }
 ];
