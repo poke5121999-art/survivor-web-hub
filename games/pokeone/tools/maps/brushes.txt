@@ -1,51 +1,74 @@
-# Cọ dùng chung cho mọi bản đồ. Mỗi dòng: tên  khoá=giá_trị ...
-# Khoá (xem tools/README-world.md):
-#   ground=c,r | c,r|c,r (ngẫu nhiên theo ô) | sand | dirt (tự nối trên cỏ)   checker=a|b|c|d (lát 2x2)
-#   over=c,r (lớp 2)  h=độ cao  wall=c,r (ô vách khi cao hơn ô bên)  solid  counter  water
-#   ledge=down|left|right  grass=<vùng gặp>  mark (kí tự dùng làm @mốc)
-#   prop=<P1.PROPS>  step=WxH (lát theo bước) | size=WxH (một cái, kiểm cỡ vùng)  pivot=px,pz  ry=độ  dx dz dy
-#   door=dx,dz (ô cửa trong vùng)  doorprop=<prop cửa>  tag=<nhãn>
+# Cọ dùng chung cho mọi bản đồ. Mỗi dòng: tên  khoá=giá_trị ...   Ô tile: S:c,r (tấm S, cột c, hàng r), khối S:c,r,WxH.
+# Khoá và luật: tools/README-world.md. Chọn ô trên D:\pro-ref\catalog\sheet_<S>.png.
 
-grass       ground=14,59|15,59|14,60|15,60
-path        ground=sand
-dirt        ground=dirt
-tree        ground=14,59|15,59|14,60|15,60 prop=tree_2 step=2x2 solid
-pine        ground=14,59|15,59|14,60|15,60 prop=tree_2_dark step=2x2 solid
-tallgrass   ground=14,59|15,59|14,60|15,60 prop=pokemongrass_1x1 step=1x1 tag=tallgrass
-ledge       ground=14,59|15,59|14,60|15,60 prop=jump_middle step=1x1 ledge=down
-water       ground=1,59 h=-1 water solid
-fence       ground=14,59|15,59|14,60|15,60 prop=fence_small step=1x1 solid
-fencev      ground=14,59|15,59|14,60|15,60 prop=fence_small_side step=1x1 solid
-flowers     ground=14,59|15,59|14,60|15,60 prop=animatedflowers step=1x1
-flowersw    ground=14,59|15,59|14,60|15,60 prop=animatedflowerswhite step=1x1
-flowersp    ground=14,59|15,59|14,60|15,60 prop=animatedflowerspink step=1x1
-hedge       ground=14,59|15,59|14,60|15,60 prop=ext_hedge_small step=1x1 solid
-rock        ground=14,59|15,59|14,60|15,60 prop=rocksmall step=1x1 solid
-lamp        ground=sand prop=ext_lamp_01 step=1x1 solid
-bench       ground=14,59|15,59|14,60|15,60 prop=ext_bench_wood size=2x1 solid
-mailbox     ground=14,59|15,59|14,60|15,60 prop=letterbox_1 step=1x1 solid
-signpost    ground=14,59|15,59|14,60|15,60 prop=signsmall1 step=1x1 solid mark
-signboard   ground=14,59|15,59|14,60|15,60 prop=sign_4 step=1x1 solid mark
-grassmark   ground=14,59|15,59|14,60|15,60 mark
-pathmark    ground=sand mark
-block       solid
-blockgrass  ground=14,59|15,59|14,60|15,60 solid
+# ---------------------------------------------------------------- ngoài trời (bộ Pallet của PRO: tấm 60; cỏ màu 182,226,160)
+grass       ground=60:23,8|60:23,8|60:23,8|1:7,0
+grassmark   base=grass mark
+# hoa rắc thưa trên cỏ (60:22,0 cụm cỏ ba lá + hoa)
+flowers     base=grass deco=60:22,0|60:23,0|60:22,2|60:23,2
+# đường cát: khung 35:9,5, góc trong 35:10,3 (viền cỏ cùng màu nền)
+path        base=grass auto=35:9,5 inner=35:10,3
+pathmark    base=path mark
+# nước xanh: khung 9:3,1 viền trong suốt (chồng lên cỏ), góc trong rời ở 9:3,0 / 9:5,0 / 9:3,4 / 9:5,4
+water       base=grass auto=9:3,1 inner=9:3,0|9:5,0|9:3,4|9:5,4 water solid
+# cỏ cao gặp Pokémon: bụi cỏ 1×2, nửa trên nhô lên ô trên nhưng vẫn nằm dưới nhân vật
+tallgrass   base=grass stamp=1:7,7,1x2 step=1x1 under
+# gờ nhảy: chưa tìm thấy tranh gờ kiểu FRLG trong 144 tấm (dò điểm ảnh + mắt), tạm dùng hàng rào gỗ thấp 60:5,2 [ĐỀ XUẤT]
+ledge       base=grass stamp=60:5,2,1x2 step=1x1 at=0,1 under ledge=down
 
-# nhà ngoài trời (vùng = chân nhà, chặn hết; cửa ở hàng cuối)
-house_player  ground=14,59|15,59|14,60|15,60 prop=ext_house_pallettown_1 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_brownhouse solid
-house_rival   ground=14,59|15,59|14,60|15,60 prop=ext_house_pallettown_2 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_greenhouse solid
-house_vir     ground=14,59|15,59|14,60|15,60 prop=ext_veridian_house_1 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_bluehouse solid
-house_k1      ground=14,59|15,59|14,60|15,60 prop=ext_house_kanto5_1 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_office solid
-house_k2      ground=14,59|15,59|14,60|15,60 prop=ext_house_kanto5_2 size=5x4 pivot=2,4 door=2,3 doorprop=door_ext_yellow solid
-lab_oak       ground=14,59|15,59|14,60|15,60 prop=ext_house_oak size=8x4 pivot=4,4 door=4,3 doorprop=door_green_oak solid
-center        ground=14,59|15,59|14,60|15,60 prop=ext_building_pockiecenter size=8x6 pivot=4,5 door=4,5 solid
-mart          ground=14,59|15,59|14,60|15,60 prop=ext_building_shop size=8x5 pivot=3,5 door=3,4 solid
-gym           ground=14,59|15,59|14,60|15,60 prop=ext_gym size=9x4 pivot=4,4 door=4,3 solid
+# cây: cây tròn 3×3 (60:16,0) trên chân 2×2, lát dày làm viền rừng
+tree        base=grass stamp=60:16,0,3x3 step=2x2 at=0,1 solid
 
-# trong nhà
-wood        checker=43,1|44,1|43,0|44,0
-tilefloor   ground=47,1
-labfloor    ground=49,1
-wall        solid
-floor       mark
-counter     counter
+# hàng rào trắng
+fence       base=grass stamp=3:19,21,1x1 step=1x1 solid
+
+# nhà, lab (vùng chân = thân nhà, chặn; hàng hiên dưới chân đi được)
+house_red   base=grass stamp=60:24,19,5x6 at=0,3 door=3,1 solid
+lab_oak     base=grass stamp=60:16,10,4x8 at=0,5 door=2,2 solid
+lab_wing    base=grass stamp=60:20,14,3x4 at=0,1 solid
+sign_oak    base=grass stamp=60:23,23,1x2 solid mark
+# biển gỗ hai cột (104:24,8) cho biển thị trấn / đường: chân 1 ô, tranh rộng 2 ô
+signboard   base=grass stamp=104:24,8,2x2 at=0,1 solid mark
+
+# Viridian: Trung tâm HGSS (tấm 66), Mart BW (tấm 9), Gym (tấm 67), trường tháp đồng hồ (tấm 22), nhà dân (tấm 13)
+center      base=grass stamp=66:24,0,8x9 at=0,6 door=3,2 solid
+mart        base=grass stamp=9:8,1,8x5 at=0,3 door=3,1 solid
+gym         base=grass stamp=67:16,0,8x10 at=0,5 door=4,2 solid
+school      base=grass stamp=22:0,0,7x12 at=0,9 door=3,2 solid
+house_teal  base=grass stamp=13:8,1,6x6 at=0,3 door=2,1 solid
+house_green base=grass stamp=13:24,15,6x6 at=0,3 door=2,1 solid
+
+# ---------------------------------------------------------------- trong nhà (nền đen quanh phòng; tường = 2 hàng trên cùng)
+wood        ground=89:12,5|89:13,5
+tiles       ground=89:10,11
+labfloor    ground=89:11,11
+martfloor   ground=89:9,11
+floor       base=wood mark
+mat         ground=89:8,10 mark
+wall        fill=91:16,2,1x2 solid
+wall_red    fill=91:22,4,1x2 solid
+wall_logo   fill=91:21,4,2x2 solid
+wall_cream  fill=91:19,2,1x2 solid
+wall_lab    fill=91:22,0,1x2 solid
+# đồ đạc: chân là hàng dưới cùng, phần trên che tường (lớp over, không ai đứng đó)
+tv          base=wood stamp=100:13,0,3x3 solid
+table       base=wood stamp=97:20,5,3x3 at=0,1 solid
+kitchen     base=wood stamp=98:26,0,2x2 solid
+bookshelf   base=wood stamp=96:16,0,2x2 solid
+bookshelf2  base=wood stamp=96:16,2,2x2 solid
+pc          base=wood stamp=97:24,7,2x2 solid
+pcdesk      base=wood stamp=97:29,2,3x3 at=0,1 solid
+bed         base=wood stamp=100:0,18,2x3 at=0,0 solid
+plant       base=wood stamp=94:24,0,1x2 solid
+stairs      base=wood stamp=104:0,0,2x3 at=0,0 under
+counter_joy base=tiles stamp=100:8,26,5x2 at=0,0 counter
+counter_mart base=martfloor stamp=97:26,11,6x2 at=0,0 counter
+shelf       base=martfloor stamp=96:24,5,2x2 solid
+cooler      base=martfloor stamp=96:24,0,2x3 solid
+blackboard  fill=91:16,2,1x2 stamp=93:26,5,3x2 at=0,0 solid
+desk        base=wood stamp=99:2,0,2x3 at=0,1 solid
+starter     base=labfloor stamp=96:10,25,2x2 solid
+labpc       base=labfloor stamp=100:26,0,2x2 solid
+labscope    base=labfloor stamp=100:24,0,2x2 solid
+labbot      base=labfloor stamp=100:24,2,2x3 solid
+chemtable   base=labfloor stamp=97:26,15,3x2 solid

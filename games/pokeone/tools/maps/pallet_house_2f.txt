@@ -1,5 +1,4 @@
-# Phòng người chơi (tầng lầu). Vỏ int_house_1_upstairs: x -0,41..10,41, z -6,29..1 -> 10 × 7 ô, gốc ở (0, 6).
-# Game mới bắt đầu ở đây (P1.state.map mặc định 'pallet_house_2f'), đứng ở mốc @p.
+# Phòng người chơi (tầng lầu). Game mới bắt đầu ở đây, đứng ở mốc @p.
 name: Pallet Town
 song: pallet_town
 indoors: 1
@@ -8,32 +7,29 @@ enter: intro
 
 [legend]
 . wood
-S wood prop=int_house_1_upstairs pivot=0,6
-C wood solid prop=int_pokepc size=1x1 align=back
-d wood solid prop=int_bedroom_desk size=2x1 align=back
-t wood solid prop=int_tv size=2x1 align=back
-n wood solid prop=snes size=1x1
-U wood solid prop=stairsdown_1
-^ wood mark
-B wood solid prop=int_bed_1_red size=1x2
-r wood prop=int_mat_3_x_3_red_2 size=3x3
-l wood solid prop=int_plant_indoor_2 size=1x1
-p wood mark
+W wall
+U stairs
+P pcdesk
+t tv
+B bed
+l plant
+p floor
 
 [grid]
-SCdd.tt.UU
-......n.^U
+WWWWWWWWUU
+WWWWWWWWUU
+PPP.ttt.UU
+PPP.......
 ..........
-B..rrr....
-B..rrr.p..
-...rrr....
-l........l
+BB...p....
+BB........
+BB.......l
 
 [links]
-stairs @^ -> pallet_house_1f @^ face=down
+stairs 8,1 -> pallet_house_1f 10,3 face=down
 
 [actors]
-pc  @C kind=sign name="PC" script=home_pc
+pc  1,2 kind=sign name="PC" script=home_pc
 tv  @t kind=sign script=home_tv
 
 [script intro]

@@ -110,6 +110,7 @@
     },
     async money(o, ctx, w) { P1.state.money = Math.max(0, P1.state.money + o.n); w.refreshHud(); },
     async exp(o, ctx, w) { P1.state.trainerExp = (P1.state.trainerExp || 0) + o.n; w.refreshHud(); },
+    raid(o) { if (P1.raid && P1.raid.openLobby) P1.raid.openLobby(o.arg); },
     async quest(o, ctx, w) { await w.quests.start(o.arg); },
     async questdone(o, ctx, w) { await w.quests.complete(o.arg); },
     async battle(o, ctx, w) {

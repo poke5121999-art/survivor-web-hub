@@ -3,6 +3,7 @@
 # - pokeonecommunity.com/location/viridian-city/ (bảng truy nã Officer Jenny). Potion "South-West under the Jumpedge".
 name: Route 1
 song: route_1
+bg: land
 encounter: normal
 
 [legend]
@@ -11,12 +12,13 @@ encounter: normal
 T tree
 v ledge
 " tallgrass grass=route_1_grass
+* flowers
 k grassmark
 j grassmark
 n grassmark
 s grassmark
 f grassmark
-o signpost
+o signboard
 
 [grid]
 TTTTTTTTTT....TTTTTTTTTT
@@ -38,7 +40,7 @@ TT""""""..........,,..TT
 TT................,,..TT
 TTvvvvvvvvvvvvvv..,,..TT
 TT................,,..TT
-TT..TTTT..........,,..TT
+TT..TTTT....,,,,,,,,..TT
 TT..TTTT....,,,,,,,,..TT
 TT..........,,.j......TT
 TT..........,,..""""..TT
@@ -65,11 +67,11 @@ edge south -> pallet_town offset=2
 edge north -> viridian_city offset=6
 
 [actors]
-joey     @j sprite=youngster name="Youngster Joey" face=left los=4 script=joey team=19:10 money=300 exp=40 spotted=boy_1
-nancy    @n sprite=sprite36 name="Lass Nancy" face=left los=3 script=nancy team=52:7,16:6 money=300 exp=40 spotted=lass
-sherman  @s sprite=sprite155 name="Bug Catcher Sherman" face=right los=3 script=sherman team=16:9,19:9 money=300 exp=40 spotted=boy_2
-franky   @f sprite=generic_9 name="Franky" face=down look=random script=franky
-potion   @k kind=item item=potion sprite=sprite11 name="Potion"
+joey     @j sprite=sprite24 name="Youngster Joey" face=left los=4 script=joey team=19:10 money=300 exp=40 spotted=boy_1
+nancy    @n sprite=sprite199 name="Lass Nancy" face=left los=3 script=nancy team=52:7,16:6 money=300 exp=40 spotted=lass
+sherman  @s sprite=sprite184 name="Bug Catcher Sherman" face=right los=3 script=sherman team=16:9,19:9 money=300 exp=40 spotted=boy_2
+franky   @f sprite=sprite126 name="Franky" face=down look=random script=franky
+potion   @k kind=item item=potion sprite=sprite178 name="Potion"
 sign_r1  @o kind=sign name="Sign" script=sign_route1
 
 [script sign_route1]

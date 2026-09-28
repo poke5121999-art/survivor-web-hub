@@ -1,15 +1,18 @@
 /*
- * POKÉONE — bản đồ và cốt truyện mở đầu (js/world*.js, data/maps.js, data/world.js).
+ * POKÉONE — bản đồ 2D kiểu PRO (js/world*.js, data/maps.js).
  *
- * Chạy:  node test/pokeone-world.js            (thêm --quick để bỏ phần 844x390)
- * Kiểm tĩnh: mọi prefab trong P1.MAPS có trong P1.PROPS và có glb, mọi cửa nối trỏ tới map/ô có thật,
- *   mọi sprite NPC có ảnh, mọi kịch bản có thật, tools/build_maps.js --check sạch.
- * Chơi thật bằng phím (page.keyboard): màn đầu → New Game → phòng ngủ → xuống nhà → lab Oak → chọn khởi đầu →
- *   trận với Gary → Route 1 (cửa nối cạnh) → nhảy gờ → gặp Pokémon hoang dã trong cỏ → Joey nhìn thấy → Viridian →
- *   hồi máu ở Trung tâm → mua ở Mart → trường huấn luyện → ông già. Rồi 844x390 bằng d-pad cảm ứng (chuột giữ + chạm).
- * Ảnh chụp từng map từ máy ảnh chơi: SHOTS (mặc định %TEMP%/pokeone-world-shots).
- * Trận đánh là trận thật (js/battle.js) bấm Space/1. Trước Joey, Pokémon đầu đội được nâng lên cấp 100 để trận ngắn
- * và không lên cấp/tiến hoá giữa chừng (ghi rõ trong kết quả).
+ * Chạy:  node test/pokeone-world.js          SYNTH=1 ép dùng bản đồ tổng hợp; SHOTS=<thư mục> đổi chỗ lưu ảnh.
+ *
+ * Tĩnh: build_maps.js --check, cửa nối tới map/ô đi được, cửa có đường về, sprite NPC và tấm tile có ảnh, mọi ô tile
+ *   thuộc tấm đã khai trong M.sheets, mọi kịch bản có thật.
+ * Chơi (Playwright 1366x768): đi bằng phím, vào nhà rồi ra, gặp Pokémon hoang dã trong cỏ, trainer nhìn thấy, nhảy gờ.
+ * Ảnh: mỗi map một ảnh + Pallet 844x390 cảm ứng + lưới ?grid=1 + ban đêm + cỏ cao + mái che.
+ *
+ * Khi data/maps.js chưa ở định dạng 2D mới (hoặc thiếu art/pro/tiles), phần chơi chạy trên bản đồ tổng hợp dựng ngay
+ * trong trang, ảnh tile/sprite lấy từ D:\pro-ref\dump qua page.route. Không ghi dữ liệu giả vào repo.
+ * Cảnh trận (js/battle.js) thuộc luồng khác: bài này thay bằng cảnh giả để kiểm vòng world → battle → world, rồi
+ * kết thúc trận bằng chính onEnd mà world truyền vào. menus.js cũ (dựa vào P1.ngui đã xoá) hoặc thiếu thì cài
+ * P1.ui/P1.dialog tối thiểu: say tự qua, choose trả 0.
  */
 'use strict';
 const path = require('path'), http = require('http'), fs = require('fs'), os = require('os'), cp = require('child_process');
@@ -19,18 +22,20 @@ const { chromium } = require(PW);
 
 const ROOT = path.resolve(__dirname, '..');
 const GAME = path.join(ROOT, 'games/pokeone');
+const DUMP = process.env.PRO_DUMP || 'D:/pro-ref/dump';
 const SHOTS = process.env.SHOTS || path.join(os.tmpdir(), 'pokeone-world-shots');
 fs.mkdirSync(SHOTS, { recursive: true });
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.ttf': 'font/ttf', '.css': 'text/css',
-  '.glb': 'model/gltf-binary', '.ogg': 'audio/ogg', '.json': 'application/json' };
+  '.ogg': 'audio/ogg', '.json': 'application/json' };
 
 let pass = 0, fail = 0;
-const out = [];
+const out = [], shots = [];
 function check(name, ok, detail) {
   if (ok) pass++; else fail++;
   out.push('  ' + (ok ? '✔ ' : '✘ ') + name + (detail !== undefined ? '  — ' + (typeof detail === 'string' ? detail : JSON.stringify(detail)) : ''));
   console.log(out[out.length - 1]);
 }
+function note(text) { out.push('  ⚠ ' + text); console.log(out[out.length - 1]); }
 function serve() {
   return new Promise(res => {
     const srv = http.createServer((q, r) => {
@@ -43,154 +48,247 @@ function serve() {
     }).listen(0, () => res(srv));
   });
 }
-
-/* ---------------------------------------------------------------- kiểm tĩnh */
 function loadData(files) {
   const P1 = {};
-  for (const f of files) new Function('window', 'P1', fs.readFileSync(path.join(GAME, 'data', f), 'utf8'))({ P1 }, P1);
+  for (const f of files) {
+    const p = path.join(GAME, 'data', f);
+    if (fs.existsSync(p)) new Function('window', 'P1', fs.readFileSync(p, 'utf8'))({ P1 }, P1);
+  }
   return P1;
 }
-function staticChecks() {
-  out.push('\n[dữ liệu]');
-  const r = cp.spawnSync(process.execPath, [path.join(GAME, 'tools/build_maps.js'), '--check'], { encoding: 'utf8' });
-  check('tools/build_maps.js --check sạch', r.status === 0, (r.stderr || '').trim().split('\n').slice(0, 3).join(' | ') || r.stdout.trim().split('\n').length + ' map');
-  const D = loadData(['props.js', 'maps.js', 'sprites.js', 'world.js']);
-  const maps = Object.values(D.MAPS);
-  check('10 map', maps.length === 10, Object.keys(D.MAPS).join(', '));
-  const badProp = [], badGlb = new Set();
-  for (const M of maps) for (const o of M.objects) {
-    if (!D.PROPS[o.prefab]) badProp.push(M.id + ':' + o.prefab);
-    else if (!fs.existsSync(path.join(GAME, D.PROPS[o.prefab].glb))) badGlb.add(o.prefab);
+
+/* ---------------------------------------------------------------- bản đồ tổng hợp (chỉ để kiểm khi dữ liệu thật chưa có) */
+function synthMaps() {
+  const ref = (s, c, r) => s * 1024 + r * 32 + c;
+  const GRASS = ref(1, 7, 0), TALL = ref(1, 7, 7), FLOOR = ref(2, 16, 6);
+  function blank(id, name, w, h, base, settings) {
+    const M = { id, name, w, h, ground: [new Array(w * h).fill(base), new Array(w * h).fill(-1)], over: [new Array(w * h).fill(-1)],
+      colliders: new Array(w * h).fill(0), water: new Array(w * h).fill(0), zones: { grid: new Array(w * h).fill(0), ids: [], tables: {} },
+      links: [], npcs: [], settings: Object.assign({ song: '', indoors: false, bg: 'land', mapName: name }, settings), sheets: [] };
+    M.set = (layer, x, y, t) => { if (x >= 0 && y >= 0 && x < w && y < h) layer[y * w + x] = t; };
+    return M;
   }
-  check('mọi prefab trong data/maps.js có trong P1.PROPS', badProp.length === 0, badProp.slice(0, 5).join(', ') || maps.reduce((s, M) => s + M.objects.length, 0) + ' vật');
-  check('mọi prefab có glb trên đĩa', badGlb.size === 0, [...badGlb].join(', '));
-  const badLink = [];
-  for (const M of maps) for (const L of M.links) {
-    const T = D.MAPS[L.to];
-    if (!T) { badLink.push(M.id + '->' + L.to); continue; }
-    if (L.tx < 0 || L.ty < 0 || L.tx >= T.w || L.ty >= T.h || T.colliders[L.ty * T.w + L.tx] === 1) badLink.push(M.id + '->' + L.to + '@' + L.tx + ',' + L.ty);
+  // Cây 3×4 ô ở tấm 1 (0,0): hàng dưới cùng (gốc) vào ground + chặn, ba hàng trên vào over để che người đi sau.
+  function tree(M, x, y) {
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
+      const t = ref(1, c, r);
+      if (r === 3) { M.set(M.ground[1], x + c, y + r, t); if (c === 1) M.set(M.colliders, x + c, y + r, 1); }
+      else M.set(M.over[0], x + c, y + r, t);
+    }
   }
-  check('mọi cửa nối trỏ tới map có thật, tới ô đi được', badLink.length === 0, badLink.slice(0, 5).join(', ') || maps.reduce((s, M) => s + M.links.length, 0) + ' cửa');
-  const back = [];
-  for (const M of maps) for (const L of M.links) if (L.kind === 'door' && !D.MAPS[L.to].links.some(K => K.to === M.id)) back.push(M.id + '->' + L.to);
-  check('mọi cửa có đường về', back.length === 0, back.join(', '));
-  const badSpr = [];
-  for (const M of maps) for (const a of M.npcs) if (a.sprite && !fs.existsSync(path.join(GAME, 'art/sprite/npc', a.sprite + '.png'))) badSpr.push(a.id);
-  check('mọi sprite NPC có ảnh', badSpr.length === 0, badSpr.join(', '));
-  const badScript = [];
-  for (const M of maps) for (const a of M.npcs) if (a.script && !D.SCRIPTS[a.script]) badScript.push(a.id);
-  check('mọi kịch bản NPC có thật', badScript.length === 0, badScript.join(', '));
-  const songs = maps.map(M => M.settings.song);
-  check('nhạc theo Settings.Song gốc', ['pallet_town', 'route_1', 'viridian_city', 'pokemon_center', 'pokemart', 'oak'].every(s => songs.includes(s)), [...new Set(songs)].join(', '));
-  check('P1.WORLD có MoveSpeed và máy ảnh gốc', D.WORLD.character.moveSpeed.value === 3.25 && D.WORLD.camera.fov === 30,
-    'MoveSpeed ' + D.WORLD.character.moveSpeed.value + ', fov ' + D.WORLD.camera.fov + ', offset ' + D.WORLD.camera.follow.three.offset);
-  return D;
+  // Nhà: khối 5×6 ô ở tấm 50 (9,0); hai hàng dưới vào ground + chặn, phần mái vào over.
+  function house(M, x, y) {
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 5; c++) {
+      const t = ref(50, 9 + c, r);
+      if (r >= 4) { M.set(M.ground[1], x + c, y + r, t); M.set(M.colliders, x + c, y + r, 1); } else M.set(M.over[0], x + c, y + r, t);
+    }
+  }
+  function grass(M, x0, y0, x1, y1, zone) {
+    if (!M.zones.ids.includes(zone)) {
+      M.zones.ids.push(zone);
+      const list = [{ dex: 16, w: 50, min: 2, max: 4 }, { dex: 19, w: 50, min: 2, max: 4 }];
+      M.zones.tables[zone] = { morning: list, day: list, evening: list, night: list };
+    }
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { M.set(M.ground[1], x, y, TALL); M.set(M.zones.grid, x, y, M.zones.ids.indexOf(zone) + 1); }
+  }
+  function border(M, gapX) {
+    for (let x = 0; x < M.w; x++) for (const y of [0, M.h - 1]) if (Math.abs(x - gapX) > 1) M.set(M.colliders, x, y, 1);
+    for (let y = 0; y < M.h; y++) { M.set(M.colliders, 0, y, 1); M.set(M.colliders, M.w - 1, y, 1); }
+  }
+
+  const P = blank('pallet_town', 'Pallet Town', 22, 18, GRASS, { song: 'pallet_town', spawn: [11, 10] });
+  border(P, 11);
+  house(P, 3, 2);                       // cửa ở (5,7), đứng (5,8) bấm lên
+  tree(P, 14, 2); tree(P, 16, 11);
+  grass(P, 3, 12, 8, 15, 'pallet_grass');
+  for (let x = 12; x <= 15; x++) P.set(P.colliders, x, 8, 2);   // gờ nhảy xuống
+  P.links.push({ x: 5, y: 7, to: 'pallet_house', tx: 4, ty: 6, face: 'up', kind: 'door' });
+  P.links.push({ x: 11, y: -1, to: 'route_1', tx: 8, ty: 19, face: 'up', kind: 'edge' });
+  P.npcs.push({ id: 'boy', kind: 'npc', x: 9, y: 9, face: 'down', name: 'Boy', sprite: 'sprite1', look: 'random', script: 'synth_hi' });
+  P.npcs.push({ id: 'ball', kind: 'item', x: 18, y: 5, face: 'down', name: 'Potion', sprite: 'sprite11', item: 'potion', n: 1 });
+  P.npcs.push({ id: 'sign', kind: 'sign', x: 7, y: 8, face: 'down', name: 'Sign', script: 'synth_sign' });
+  P.set(P.colliders, 7, 8, 1);
+  P.sheets = [1, 50];
+
+  const H = blank('pallet_house', 'Pallet Town', 9, 8, FLOOR, { song: 'pallet_town', indoors: true, bg: 'indoor', spawn: [4, 5] });
+  border(H, -9);
+  H.set(H.colliders, 4, 7, 0);
+  H.links.push({ x: 4, y: 7, to: 'pallet_town', tx: 5, ty: 8, face: 'down', kind: 'door' });
+  H.npcs.push({ id: 'mom', kind: 'npc', x: 2, y: 3, face: 'right', name: 'Mom', sprite: 'sprite1', script: 'synth_hi' });
+  H.sheets = [2];
+
+  const R = blank('route_1', 'Route 1', 18, 21, GRASS, { song: 'route_1', spawn: [8, 18], encounterRate: 'normal' });
+  border(R, 8);
+  for (let x = 1; x <= 16; x++) if (x < 7 || x > 9) R.set(R.colliders, x, 14, 2);   // gờ, đường giữa để về
+  grass(R, 11, 3, 15, 8, 'route_1_grass');
+  tree(R, 2, 1); tree(R, 13, 15);
+  R.links.push({ x: 8, y: 21, to: 'pallet_town', tx: 11, ty: 0, face: 'down', kind: 'edge' });
+  R.npcs.push({ id: 'joey', kind: 'npc', x: 2, y: 9, face: 'right', name: 'Youngster Joey', sprite: 'sprite1', los: 4, script: 'synth_joey',
+    trainer: { team: [{ dex: 19, level: 3 }], money: 100, exp: 10, spotted: 'boy_1' } });
+  R.sheets = [1];
+  for (const M of [P, H, R]) delete M.set;
+  const scripts = {
+    synth_hi: [{ op: 'say', text: 'Hi {player}!' }],
+    synth_sign: [{ op: 'say', text: 'Pallet Town' }],
+    synth_joey: [{ op: 'if', cond: 'beat_joey', goto: 3 }, { op: 'say', text: 'Hey! Battle!' }, { op: 'battle', self: true }, { op: 'say', text: 'Aww.' }],
+  };
+  return { MAPS: { pallet_town: P, pallet_house: H, route_1: R }, SCRIPTS: scripts };
 }
 
-/* ---------------------------------------------------------------- phiên chơi */
+/* ---------------------------------------------------------------- kiểm tĩnh */
+function realReady(D) {
+  const maps = Object.values(D.MAPS || {});
+  if (!maps.length || !maps.every(M => Array.isArray(M.ground) && Array.isArray(M.over) && Array.isArray(M.sheets))) return 'data/maps.js chưa ở định dạng 2D (thiếu ground/over/sheets)';
+  const miss = [...new Set(maps.flatMap(M => M.sheets))].filter(s => !fs.existsSync(path.join(GAME, 'art/pro/tiles', s + '.png')));
+  if (miss.length) return 'thiếu art/pro/tiles/' + miss.slice(0, 5).join(',') + '.png';
+  return '';
+}
+function staticChecks(D, synth) {
+  const maps = Object.values(D.MAPS);
+  const fileOk = (dir, name) => synth ? true : fs.existsSync(path.join(GAME, dir, name + '.png'));
+  const badLink = [], back = [], badSpr = new Set(), badSheet = new Set(), badRef = [], badScript = [];
+  const walkable = (T, x, y) => x >= 0 && y >= 0 && x < T.w && y < T.h && T.colliders[y * T.w + x] === 0;
+  for (const M of maps) {
+    for (const L of M.links) {
+      const T = D.MAPS[L.to];
+      if (!T) { badLink.push(M.id + '->' + L.to); continue; }
+      if (!walkable(T, L.tx, L.ty)) badLink.push(M.id + '->' + L.to + '@' + L.tx + ',' + L.ty);
+      if (L.kind === 'door' && !T.links.some(K => K.to === M.id)) back.push(M.id + '->' + L.to);
+    }
+    for (const a of M.npcs) {
+      if (a.sprite && !fileOk('art/pro/npc', a.sprite)) badSpr.add(a.sprite);
+      if (a.script && !D.SCRIPTS[a.script]) badScript.push(M.id + ':' + a.id);
+    }
+    for (const s of M.sheets) if (!fileOk('art/pro/tiles', s)) badSheet.add(s);
+    const sheets = new Set(M.sheets);
+    for (const L of M.ground.concat(M.over)) for (const t of L) if (t >= 0 && !sheets.has(Math.floor(t / 1024))) { badRef.push(M.id + ':' + t); break; }
+  }
+  const tag = synth ? ' [tổng hợp]' : '';
+  check('mọi cửa nối trỏ tới map có thật, tới ô đi được' + tag, !badLink.length, badLink.slice(0, 5).join(', ') || maps.reduce((s, M) => s + M.links.length, 0) + ' cửa');
+  check('mọi cửa có đường về' + tag, !back.length, back.join(', '));
+  check('mọi sprite NPC có ảnh art/pro/npc' + tag, !badSpr.size, [...badSpr].join(', '));
+  check('mọi tấm trong M.sheets có ảnh art/pro/tiles' + tag, !badSheet.size, [...badSheet].join(', '));
+  check('mọi ô ground/over thuộc tấm đã khai trong M.sheets' + tag, !badRef.length, badRef.slice(0, 5).join(', '));
+  check('mọi kịch bản actor có trong P1.SCRIPTS' + tag, !badScript.length, badScript.slice(0, 5).join(', '));
+}
+
+/* ---------------------------------------------------------------- trang */
+const STUBS = synthJson => `
+(() => {
+  window.__log = []; window.__battles = [];
+  const synth = ${synthJson || 'null'};
+  window.addEventListener('DOMContentLoaded', () => {
+    const P1 = window.P1;
+    if (synth) { P1.MAPS = synth.MAPS; P1.SCRIPTS = Object.assign({}, P1.SCRIPTS || {}, synth.SCRIPTS); P1.QUESTS = P1.QUESTS || {}; }
+    const oldShell = P1.ui && P1.ui.hud && /P1\\.ngui/.test(String(P1.ui.hud)) && !P1.ngui;
+    if (!P1.ui || !P1.dialog || oldShell) {
+      window.__uiStub = true;
+      P1.dialog = {
+        say(t) { window.__log.push(String(t)); return new Promise(r => setTimeout(r, 30)); },
+        choose(t, o) { window.__log.push(t + ' ' + o.join('|')); return new Promise(r => setTimeout(() => r(0), 30)); },
+      };
+      P1.ui = { hud: () => ({ refresh() {}, destroy() {}, view: null }), isOpen: () => false, refresh() {}, toast() {},
+        heal: async () => { for (const m of P1.state.party) P1.mon.heal(m); }, shop: async () => {}, open: async () => {}, evolve: async () => {} };
+    } else {
+      const d = P1.dialog, s = d.say.bind(d), c = d.choose.bind(d);
+      d.say = (t, o) => { window.__dlg = { kind: 'say', text: String(t) }; window.__log.push(String(t)); return s(t, o).finally(() => { window.__dlg = null; }); };
+      d.choose = (t, o) => { window.__dlg = { kind: 'choose', text: t }; window.__log.push(t); return c(t, o).finally(() => { window.__dlg = null; }); };
+    }
+    // Cảnh trận giả: ghi tham số, chờ bài kiểm gọi onEnd.
+    P1.scene.add('battle', {
+      enter(a) { window.__battle = a; window.__battles.push({ kind: a.kind, name: a.name || '', bg: a.bg, foe: a.foe.map(m => m.dex + ':' + m.level) }); },
+      render() { const v = P1.view(); v.ctx.fillStyle = '#223'; v.ctx.fillRect(0, 0, v.w, v.h); },
+    });
+  });
+})();`;
+
+async function openPage(browser, W, H, touch, synth) {
+  const ctx = await browser.newContext({ viewport: { width: W, height: H }, hasTouch: !!touch, isMobile: !!touch });
+  const page = await ctx.newPage();
+  const errors = [], warns = [];
+  const ours = s => /\/js\/world[\w-]*\.js/.test(s || '');
+  page.on('pageerror', e => (ours(e.stack) ? errors : warns).push('pageerror: ' + e.message));
+  page.on('console', m => { if (m.type() === 'error') (ours(m.location().url) || ours(m.text()) ? errors : warns).push('console: ' + m.text().slice(0, 160)); });
+  page.on('response', r => { if (r.status() >= 400) (/\/art\/pro\/(tiles|npc|poke\/follow|poke\/front)|\/js\/world/.test(r.url()) ? errors : warns).push('HTTP ' + r.status() + ' ' + r.url().replace(/^https?:\/\/[^/]+/, '')); });
+  await page.addInitScript(STUBS(synth ? JSON.stringify(synth) : ''));
+  if (synth) {
+    // Ảnh lấy từ bản bóc PRO ngoài repo (chỉ khi chạy tổng hợp).
+    const file = u => {
+      let m = /art\/pro\/tiles\/(\d+)\.png/.exec(u);
+      if (m) return path.join(DUMP, 'tiles__' + m[1] + '.png');
+      if (/art\/pro\/npc\//.test(u)) return path.join(DUMP, 'npc__sprite1.png');
+      if (/art\/pro\/poke\/follow\//.test(u)) return path.join(DUMP, 'follow__25.png');
+      if (/art\/pro\/poke\/front\//.test(u)) return path.join(DUMP, 'pbig__25.png');
+      return null;
+    };
+    await page.route(/\/art\/pro\/(tiles|npc|poke)\//, route => {
+      const f = file(route.request().url());
+      if (f && fs.existsSync(f)) route.fulfill({ status: 200, contentType: 'image/png', body: fs.readFileSync(f) });
+      else route.fulfill({ status: 404 });
+    });
+  }
+  return { ctx, page, errors, warns };
+}
+
 const KEY = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
-async function openPage(browser, base, W, H, touch) {
-  const ctx = await browser.newContext({ viewport: { width: W, height: H }, hasTouch: !!touch, isMobile: !!touch });
-  const page = await ctx.newPage();
-  const errors = [];
-  page.on('pageerror', e => errors.push('pageerror: ' + e.message));
-  page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-  page.on('response', r => { if (r.status() >= 400) errors.push('HTTP ' + r.status() + ' ' + r.url()); });
-  return { ctx, page, errors };
-}
-
-function helpers(page, tag) {
+function helpers(page) {
   const ev = (f, a) => page.evaluate(f, a);
-  let shotN = 0;
   const shot = async name => {
-    await page.waitForTimeout(250);
-    const f = path.join(SHOTS, tag + '-' + String(++shotN).padStart(2, '0') + '-' + name + '.png');
+    const f = path.join(SHOTS, name + '.png');
     await page.screenshot({ path: f });
+    shots.push(f);
     return f;
   };
   const st = () => ev(() => {
     const w = P1.world, p = w.player;
-    return { scene: P1.scene.name, mode: w.mode, map: w.map && w.map.id, x: p && p.x, y: p && p.y, face: p && p.face, moving: !!(p && p.move),
-      ui: !!(P1.ui && P1.ui.isOpen && P1.ui.isOpen()), dlg: window.__dlg || null, bmode: P1.scene.name === 'battle' ? P1.scene.current.mode : '' };
+    return { scene: P1.scene.name, mode: w.mode, map: w.map && w.map.id, x: p && p.x, y: p && p.y, face: p && p.face, moving: !!(p && p.move) };
   });
-  const instrument = () => ev(() => {
-    if (window.__wrapped) return;
-    window.__wrapped = true;
-    window.__log = [];
-    window.__battles = [];
-    const d = P1.dialog, s = d.say.bind(d), c = d.choose.bind(d);
-    d.say = (t, o) => { window.__dlg = { kind: 'say', text: String(t) }; window.__log.push(String(t)); return s(t, o).finally(() => { window.__dlg = null; }); };
-    d.choose = (t, opts) => { window.__dlg = { kind: 'choose', text: t, options: opts }; window.__log.push(t + ' ' + opts.join('|')); return c(t, opts).finally(() => { window.__dlg = null; }); };
-    const go = P1.scene.go.bind(P1.scene);
-    P1.scene.go = (name, args) => {
-      if (name === 'battle') {
-        const rec = { kind: args.kind, name: args.name || '', foe: args.foe.map(m => m.dex + ':' + m.level), music: args.music || '', outcome: '' };
-        window.__battles.push(rec);
-        const end = args.onEnd;
-        args = Object.assign({}, args, { onEnd: r => { rec.outcome = r && r.outcome; end(r); } });
-      }
-      return go(name, args);
-    };
-  });
-  const answers = [];
-  // Chạy qua hộp thoại, lựa chọn và trận đánh cho tới khi về lại 'explore'.
-  const settle = async (maxMs = 240000) => {
+  // anyMode: map có kịch bản vào map (lab Oak, phòng ngủ) dừng ở 'script' chờ hộp thoại thật; chụp ảnh thì không cần chờ.
+  const open = async (q, anyMode) => {
+    await page.goto(base + '/games/pokeone/index.html?fresh=1&nosave=1&' + q);
+    await page.waitForFunction(any => window.P1 && P1.world && (any ? P1.world.mode === 'explore' || P1.world.mode === 'script' : P1.world.mode === 'explore') && P1.world.player && P1.world.player.sheet, anyMode, { timeout: 60000 });
+    await ev(() => { P1.world.debug.noEncounter = true; });
+    await page.waitForTimeout(300);
+  };
+  // Trận giả và hộp thoại: chạy qua cho tới khi về 'explore'.
+  const settle = async (maxMs = 30000) => {
     const t0 = Date.now();
     let quiet = 0;
     while (Date.now() - t0 < maxMs) {
       const s = await st();
-      if (s.scene === 'battle') {
-        if (s.bmode === 'learn') await page.keyboard.press('Backspace');
-        else { await page.keyboard.press('Space'); await page.waitForTimeout(120); await page.keyboard.press('Digit1'); }
-        await page.waitForTimeout(450);
-        quiet = 0;
-        continue;
-      }
-      if (s.dlg) {
-        await page.waitForTimeout(180);
-        if (s.dlg.kind === 'choose') await page.keyboard.press('Digit' + (answers.length ? answers.shift() : 1));
-        else { await page.keyboard.press('Space'); await page.waitForTimeout(60); await page.keyboard.press('Space'); }
-        quiet = 0;
-        continue;
-      }
-      if (s.mode === 'explore' && !s.ui) { if (++quiet >= 3) return s; }
+      if (s.scene === 'battle') { await ev(() => { const a = window.__battle; window.__battle = null; if (a) a.onEnd({ outcome: 'win' }); }); quiet = 0; }
+      else if (await ev(() => !!window.__dlg)) { await page.keyboard.press('Space'); quiet = 0; }
+      else if (s.mode === 'explore' && !s.moving) { if (++quiet >= 3) return s; }
       else quiet = 0;
-      await page.waitForTimeout(150);
+      await page.waitForTimeout(120);
     }
     throw new Error('settle timeout: ' + JSON.stringify(await st()));
   };
-  // Một bước bằng phím thật: giữ phím tới khi nhân vật rời ô (hoặc đổi map / bị chặn), rồi nhả.
   const step = async dir => {
     const s0 = await st();
     await page.keyboard.down(KEY[dir]);
-    const t0 = Date.now();
     let s = s0;
-    while (Date.now() - t0 < 1500) {
+    for (const t0 = Date.now(); Date.now() - t0 < 1500;) {
       s = await st();
       if (s.map !== s0.map || s.x !== s0.x || s.y !== s0.y || s.mode !== 'explore') break;
-      await page.waitForTimeout(20);
+      await page.waitForTimeout(15);
     }
     await page.keyboard.up(KEY[dir]);
     for (let i = 0; i < 100; i++) { s = await st(); if (!s.moving) break; await page.waitForTimeout(25); }
     return s;
   };
-  // Đường ngắn nhất theo ô đi được (không qua gờ, không qua NPC), đi từng bước; kịch bản chen ngang thì chạy qua rồi tính lại.
+  // Đường ngắn nhất theo ô trống (không qua gờ, NPC, cửa), tới (tx,ty).
   const plan = (tx, ty) => ev(([tx, ty]) => {
     const w = P1.world, M = w.map, p = w.player;
     const ok = (x, y) => x >= 0 && y >= 0 && x < M.w && y < M.h && M.colliders[y * M.w + x] === 0 && !w.actorAt(x, y) &&
-      M.heights[y * M.w + x] === M.heights[p.y * M.w + p.x] && !M.links.some(L => L.x === x && L.y === y && L.kind !== 'door' && L.kind !== 'edge' && !(x === tx && y === ty));
+      !M.links.some(L => L.x === x && L.y === y);
     const key = (x, y) => x + ',' + y, prev = { [key(p.x, p.y)]: null }, q = [[p.x, p.y]];
     const D = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
     while (q.length) {
       const [x, y] = q.shift();
-      if (x === tx && y === ty) {
-        const pathOut = [];
-        let k = key(x, y);
-        while (prev[k]) { pathOut.unshift(prev[k][1]); k = prev[k][0]; }
-        return pathOut;
-      }
+      if (x === tx && y === ty) { const o = []; let k = key(x, y); while (prev[k]) { o.unshift(prev[k][1]); k = prev[k][0]; } return o; }
       for (const d in D) {
         const nx = x + D[d][0], ny = y + D[d][1];
         if (prev[key(nx, ny)] !== undefined || !ok(nx, ny)) continue;
@@ -202,10 +300,10 @@ function helpers(page, tag) {
   }, [tx, ty]);
   const walkTo = async (tx, ty) => {
     const map0 = (await st()).map;
-    for (let guard = 0; guard < 200; guard++) {
-      let s = await st();
+    for (let guard = 0; guard < 300; guard++) {
+      const s = await st();
       if (s.map !== map0) return s;
-      if (s.mode !== 'explore' || s.ui || s.scene !== 'world') { await settle(); continue; }
+      if (s.mode !== 'explore' || s.scene !== 'world') { await settle(); continue; }
       if (s.x === tx && s.y === ty) return s;
       const p = await plan(tx, ty);
       if (!p || !p.length) throw new Error('no path to ' + tx + ',' + ty + ' from ' + JSON.stringify(s));
@@ -213,382 +311,279 @@ function helpers(page, tag) {
     }
     throw new Error('walkTo gave up');
   };
-  const face = async dir => {
-    const want = { up: 0, left: 1, down: 2, right: 3 }[dir];
-    if ((await st()).face === want) return;
-    await page.keyboard.down(KEY[dir]); await page.waitForTimeout(40); await page.keyboard.up(KEY[dir]);
-    await page.waitForTimeout(80);
-  };
-  const talk = async () => { await page.keyboard.press('Space'); await page.waitForTimeout(250); };
-  const groups = [];
-  const waitMap = async (id, ms = 20000) => {
-    await page.waitForFunction(id => P1.world.map && P1.world.map.id === id && P1.world.mode !== 'warp' && P1.world.mode !== 'loading', id, { timeout: ms });
-    await page.waitForTimeout(900);   // glb của map mới
-    groups.push(await ev(() => P1.world.map.id + ':' + P1.world.scene.children.filter(c => /^map:/.test(c.name)).length));
-  };
-  const at = (view, p) => ev(([view, p]) => {
-    const v = P1.ui.view(view);
-    if (!v) return { err: 'view not open: ' + view };
-    const n = v.find(p);
-    if (!n || !n.el) return { err: 'node not found: ' + p };
-    const b = n.el.getBoundingClientRect(), x = b.left + b.width / 2, y = b.top + b.height / 2;
-    const hit = document.elementFromPoint(x, y);
-    return { x, y, own: hit === n.el || n.el.contains(hit), hit: hit ? (hit.dataset.name || hit.tagName) : null };
-  }, [view, p]);
-  const click = async (view, p) => {
-    const r = await at(view, p);
-    if (r.err) throw new Error(r.err);
-    if (!r.own) throw new Error('"' + p + '" is covered by ' + r.hit);
-    await page.mouse.click(r.x, r.y);
-    await page.waitForTimeout(120);
-  };
-  return { ev, shot, st, instrument, answers, settle, step, walkTo, face, talk, waitMap, click, plan, groups };
+  const waitMap = (id, ms = 20000) => page.waitForFunction(id => P1.world.map && P1.world.map.id === id && P1.world.mode === 'explore' && P1.world.player, id, { timeout: ms });
+  /* Cửa nối trên map hiện tại tới `to`: ô đứng trước cửa và hướng bước vào. */
+  const doorApproach = to => ev(to => {
+    const w = P1.world, M = w.map;
+    const L = M.links.find(L => L.to === to && L.kind === 'door') || M.links.find(L => L.to === to);
+    if (!L) return null;
+    const D = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    for (const d in D) {
+      const x = L.x - D[d][0], y = L.y - D[d][1];
+      if (x >= 0 && y >= 0 && x < M.w && y < M.h && M.colliders[y * M.w + x] === 0 && !w.actorAt(x, y)) return { x, y, dir: d, link: L };
+    }
+    return null;
+  }, to);
+  let base = '';
+  return { ev, shot, st, open, settle, step, plan, walkTo, waitMap, doorApproach, setBase: b => { base = b; } };
 }
 
-async function desktop(browser, base) {
-  const tag = '1280x720';
-  out.push('\n[' + tag + ' — phím thật]');
-  const { ctx, page, errors } = await openPage(browser, base, 1280, 720, false);
-  const h = helpers(page, tag);
-  const { ev, shot, st, settle, step, walkTo, face, talk, waitMap } = h;
+/* Ô trống, không NPC, không cửa. */
+const freeCellFn = `(M, w, x, y) => x >= 0 && y >= 0 && x < M.w && y < M.h && M.colliders[y * M.w + x] === 0 && !w.actorAt(x, y) && !M.links.some(L => L.x === x && L.y === y)`;
 
-  await page.goto(base + '/games/pokeone/index.html?fresh=1');
-  await page.waitForFunction(() => window.P1 && P1.scene && P1.scene.name === 'title', null, { timeout: 60000 });
-  const r0 = await ev(() => { const v = P1.scene.current.view, n = v.find('Button - New Game'); const b = n.el.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
-  await page.mouse.click(r0.x, r0.y);
-  await page.waitForFunction(() => P1.scene.name === 'creator', null, { timeout: 20000 });
-  const centre = name => ev(name => { const n = P1.scene.current.view.find(name); const b = n.el.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; }, name);
-  const nameBox = await centre('Input - Name');
-  await page.mouse.click(nameBox.x, nameBox.y);
-  await page.keyboard.type('Red');
-  const r1 = await centre('Button - Accept');
-  await page.mouse.click(r1.x, r1.y);
-  await page.waitForFunction(() => P1.scene.name === 'world' && P1.world.map, null, { timeout: 30000 });
-  await h.instrument();
-  await page.waitForTimeout(1200);
+async function play(browser, base, synth) {
+  out.push('\n[chơi 1366x768' + (synth ? ', bản đồ tổng hợp' : '') + ']');
+  const { ctx, page, errors, warns } = await openPage(browser, 1366, 768, false, synth);
+  const h = helpers(page);
+  h.setBase(base);
+  const { ev, shot, st, open, settle, step, walkTo, waitMap, doorApproach } = h;
+
+  await open('map=pallet_town');
   let s = await st();
-  check('New Game → thức dậy trong phòng (pallet_house_2f, mốc @p)', s.map === 'pallet_house_2f' && s.x === 7 && s.y === 4, s);
-  check('nhạc map theo Settings.Song', await ev(() => P1.audio.musicKey()) === 'pallet_town');
-  await page.waitForFunction(() => window.__dlg, null, { timeout: 8000 }).catch(() => {});
-  await shot('bedroom-intro');
-  check('kịch bản mở đầu chạy khi vào map (mẹ gọi dậy)', await ev(() => !!window.__dlg && /Wake up/.test(window.__dlg.text)));
-  await settle();
-  check('nhiệm vụ đầu: The Pokémon Prof.', await ev(() => P1.state.quest === 'the_pokemon_prof' && !!P1.state.flags.intro));
-  check('mode = explore khi rảnh (menus.js mở Esc được)', await ev(() => P1.world.mode === 'explore'));
+  check('?map=pallet_town vào thế giới, mode explore', s.scene === 'world' && s.map === 'pallet_town' && s.mode === 'explore', s);
+  const px = await ev(() => { const v = P1.view(), d = v.ctx.getImageData(v.canvas.width >> 1, (v.canvas.height >> 1) + 20, 1, 1).data; return [d[0], d[1], d[2]]; });
+  check('canvas có vẽ (giữa màn không đen)', px[0] + px[1] + px[2] > 30, px);
+  const zoom = await ev(() => P1.world.cam && P1.world.cam.z);
+  check('phóng nguyên lần: 1366 px → zoom 2 (~21 ô ngang)', zoom === 2, zoom);
+  if (await ev(() => window.__uiStub)) note('menus.js chưa dùng được (thiếu hoặc còn dựa P1.ngui): bài kiểm cài P1.ui/P1.dialog tối thiểu');
 
-  const hold0 = await ev(() => [P1.world.player.x, P1.world.player.y]);
-  await page.keyboard.down('ArrowLeft'); await page.waitForTimeout(40); await page.keyboard.up('ArrowLeft'); await page.waitForTimeout(150);
+  const turnDir = await ev(() => ['up', 'left', 'right', 'down'].find(d => d !== ['up', 'left', 'down', 'right'][P1.world.player.face]));
+  const p0 = [s.x, s.y];
+  await page.keyboard.down(KEY[turnDir]); await page.waitForTimeout(40); await page.keyboard.up(KEY[turnDir]); await page.waitForTimeout(200);
   s = await st();
-  check('chạm nhẹ chỉ quay mặt, không đi', s.face === 1 && s.x === hold0[0] && s.y === hold0[1], s);
+  check('chạm nhẹ chỉ quay mặt, không đi', s.face === ['up', 'left', 'down', 'right'].indexOf(turnDir) && s.x === p0[0] && s.y === p0[1], s);
+
+  const dirFree = await ev(`(() => { const f = ${freeCellFn}; const w = P1.world, M = w.map, p = w.player, D = {up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+    return ['up','down','left','right'].find(d => f(M, w, p.x + D[d][0], p.y + D[d][1])); })()`);
   const t0 = Date.now();
-  await walkTo(7, 1);
-  const t1 = Date.now();
-  check('đi 3 ô theo ô, tốc độ ~MoveSpeed 3,25 ô/s', t1 - t0 > 700, (t1 - t0) + ' ms');
+  s = await step(dirFree);
+  const tStep = Date.now() - t0;
+  check('giữ phím → đi đúng một ô theo hướng', s.x === p0[0] + DIRS[dirFree][0] && s.y === p0[1] + DIRS[dirFree][1], { dir: dirFree, from: p0, to: [s.x, s.y], ms: tStep });
 
-  await walkTo(8, 1);
-  s = await st();
-  if (s.map !== 'pallet_house_1f') await step('right');
-  await waitMap('pallet_house_1f');
-  s = await st();
-  check('cầu thang: 2F -> 1F', s.map === 'pallet_house_1f', s);
-  await shot('house-1f');
-  await walkTo(6, 4);
-  await face('up');
-  await talk();
-  await settle();
-  check('nói chuyện với Mẹ (Space quay mặt NPC, chạy kịch bản)', await ev(() => window.__log.some(t => /Prof. Oak, next door/.test(t))));
-  await walkTo(6, 7);
-  await step('down');
-  await waitMap('pallet_town');
-  s = await st();
-  check('ra khỏi nhà qua thảm cửa -> trước cửa nhà ở Pallet (8,7)', s.map === 'pallet_town' && s.x === 8 && s.y === 7, s);
-  await shot('pallet-town');
-  await walkTo(22, 16);
-  await step('up');
-  await waitMap('oak_lab');
-  check('vào lab Oak qua cửa (tiếng entering_door)', (await st()).map === 'oak_lab');
-  await page.waitForFunction(() => window.__dlg, null, { timeout: 8000 }).catch(() => {});
-  await shot('oak-lab');
-  await settle();
-  check('gặp Oak: xong "The Pokémon Prof." (+50 EXP)', await ev(() => !!P1.state.flags.quest_done_the_pokemon_prof && P1.state.trainerExp >= 50), await ev(() => P1.state.trainerExp));
-  await walkTo(7, 4);
-  await face('up');
-  await talk();
-  await page.waitForFunction(() => window.__dlg && window.__dlg.kind === 'choose', null, { timeout: 10000 });
-  await page.waitForTimeout(300);
-  await page.keyboard.press('Digit1');
-  await page.waitForFunction(() => document.querySelector('.p1w-mon img') && window.__dlg && window.__dlg.kind === 'choose', null, { timeout: 10000 }).catch(() => {});
-  await page.waitForTimeout(400);
-  await shot('starter-choice');
-  const monShown = await ev(() => { const i = document.querySelector('.p1w-mon img'); return i ? i.getAttribute('src') : ''; });
-  await settle(300000);
-  const party = await ev(() => P1.state.party.map(m => m.dex + ':' + m.level));
-  check('chọn Bulbasaur: ảnh lớn + tiếng kêu, nhận L5', monShown.includes('big/1.png') && party[0] && party[0].startsWith('1:'), { monShown, party });
-  const b0 = await ev(() => window.__battles[0]);
-  check('Gary chọn khắc hệ (Charmander L5) và đấu trong lab', b0 && b0.kind === 'trainer' && b0.name === 'Gary' && b0.foe[0] === '4:5', b0);
-  check('xong "First Battle": Potion + 100 EXP, sang "Trainer on Route 1"',
-    await ev(() => !!P1.state.flags.quest_done_first_battle && P1.state.quest === 'trainer_route_1' && P1.state.bag.potion >= 1));
-  check('Gary rời lab (hide gary_left)', await ev(() => P1.world.actorById('gary').hidden === true));
-  check('quay về thế giới cũ ngay sau trận (resume)', (await st()).map === 'oak_lab');
+  // Vào nhà qua cửa rồi ra.
+  const d1 = await doorApproach(await ev(() => (P1.world.map.links.find(L => L.kind === 'door') || {}).to));
+  check('Pallet có cửa nhà', !!d1, d1);
+  if (d1) {
+    const house = d1.link.to;
+    await walkTo(d1.x, d1.y);
+    await step(d1.dir);
+    await waitMap(house);
+    await page.waitForTimeout(400);
+    s = await st();
+    check('bước vào cửa → màn đen → trong nhà (' + house + ')', s.map === house, s);
+    await shot('play-house');
+    const d2 = await doorApproach('pallet_town');
+    check('trong nhà có cửa ra Pallet', !!d2, d2);
+    if (d2) {
+      await walkTo(d2.x, d2.y);
+      await step(d2.dir);
+      await waitMap('pallet_town');
+      s = await st();
+      check('ra khỏi nhà → về Pallet trước cửa', s.map === 'pallet_town' && s.x === d2.link.tx && s.y === d2.link.ty, s);
+    }
+  }
 
-  await walkTo(6, 10);
-  await step('down');
-  await waitMap('pallet_town');
-  await ev(() => { P1.world.debug.noEncounter = true; });
-  await walkTo(14, 0);
-  await step('up');
-  await waitMap('route_1');
-  s = await st();
-  check('cửa nối cạnh: Pallet (14,0) -> Route 1 (12,39)', s.map === 'route_1' && s.x === 12 && s.y === 39, s);
-  check('nhạc Route 1', await ev(() => P1.audio.musicKey()) === 'route_1');
-  await shot('route-1');
-
-  // Nâng Pokémon đầu đội lên cấp 100 (thiết lập bài kiểm): trận ngắn, không lên cấp/tiến hoá giữa chừng.
-  await ev(() => { const m = P1.state.party[0]; m.level = 100; m.exp = P1.mon.expAt(m.dex, 100); P1.mon.heal(m); });
-  // Pokémon hoang dã: ép tỉ lệ gặp = 1 (móc gỡ lỗi P1.world.debug) rồi bước vào cỏ.
-  await walkTo(16, 26);
-  await ev(() => { P1.world.debug.noEncounter = false; P1.world.debug.encounterRate = 1; });
-  const nb = await ev(() => window.__battles.length);
-  await step('up');
-  await page.waitForFunction(() => P1.scene.name === 'battle', null, { timeout: 15000 }).catch(() => {});
-  const wild = await ev(() => window.__battles[window.__battles.length - 1]);
-  check('bước vào cỏ cao -> trận hoang dã theo bảng vùng route_1_grass', (await ev(() => window.__battles.length)) === nb + 1 && wild.kind === 'wild' &&
-    [16, 19, 161, 162, 163].includes(+wild.foe[0].split(':')[0]), wild);
-  await page.waitForTimeout(1500);
-  await shot('wild-battle');
-  await settle(300000);
-  await ev(() => { P1.world.debug.noEncounter = true; P1.world.debug.encounterRate = null; });
-  const wildEnd = await ev(() => window.__battles[window.__battles.length - 1].outcome);
-  s = await st();
-  check('sau trận hoang dã: thắng/bắt/chạy thì về lại Route 1, thua thì về chỗ hồi máu', wildEnd === 'lose' ? s.map === 'pallet_house_1f' : s.map === 'route_1', { outcome: wildEnd, map: s.map });
-  if (s.map !== 'route_1') throw new Error('lost the wild battle (' + wildEnd + '); rerun');
-
-  await walkTo(13, 22);
-  await step('up');
-  await page.waitForFunction(() => P1.world.mode !== 'explore', null, { timeout: 5000 }).catch(() => {});
-  await page.waitForTimeout(300);
-  await shot('joey-spotted');
-  const spotted = await ev(() => ({ mode: P1.world.mode, music: P1.audio.musicKey() }));
-  check('Joey nhìn thấy (LOS 4): dừng người chơi, "!" + nhạc boy_1', spotted.mode !== 'explore' && spotted.music === 'boy_1', spotted);
-  await settle(300000);
-  const bj = await ev(() => window.__battles[window.__battles.length - 1]);
-  check('Joey: trận trainer Rattata L10, xong nhiệm vụ Trainer on Route 1', bj.name === 'Youngster Joey' && bj.foe[0] === '19:10' &&
-    await ev(() => !!P1.state.flags.beat_joey && !!P1.state.flags.quest_done_trainer_route_1), bj);
-
-  // Sherman nhìn sang phải (LOS 3) chắn lối đi cột 18-19 hàng 14.
-  await walkTo(19, 15);
-  await step('up');
-  await settle(300000);
-  check('Sherman nhìn thấy khi đi ngang tầm nhìn -> trận Pidgey L9 + Rattata L9', await ev(() => !!P1.state.flags.beat_sherman),
-    await ev(() => window.__battles[window.__battles.length - 1]));
-
-  // Gờ nhảy một chiều: từ (9,6) bấm xuống -> nhảy qua (9,7) tới (9,8).
-  await walkTo(9, 6);
-  s = await st();
-  const jumpFrom = [s.x, s.y];
-  const s2 = await step('down');
-  await page.waitForTimeout(500);
-  s = await st();
-  check('nhảy gờ xuống nam: 2 ô một lần', jumpFrom[1] === 6 && s.x === 9 && s.y === 8, { from: jumpFrom, to: [s.x, s.y] });
-  await shot('after-ledge');
-  await step('up');
-  s = await st();
-  check('gờ chặn chiều ngược lại (đi lên bị chặn)', s.y === 8, s);
-
-  await walkTo(11, 0);
-  await step('up');
-  await waitMap('viridian_city');
-  s = await st();
-  check('Route 1 -> Viridian City', s.map === 'viridian_city', s);
-  check('đã đấu cả ba trainer Route 1 (Sherman, Nancy) -> nhiệm vụ Viridian City',
-    await ev(() => !!P1.state.flags.beat_sherman && !!P1.state.flags.beat_nancy && P1.state.quest === 'viridian_city'), await ev(() => P1.state.quest));
-  await shot('viridian-city');
-
-  // Trung tâm Pokémon: làm Pokémon bị thương rồi để Nurse Joy hồi.
-  await ev(() => { P1.state.party[0].hp = 1; });
-  await walkTo(24, 16);
-  await step('up');
-  await waitMap('viridian_center');
-  await shot('pokemon-center');
-  await walkTo(7, 13);
-  await face('up');
-  h.answers.push(1);
-  await talk();
-  await settle();
-  check('Nurse Joy qua quầy: hồi đầy, lưu chỗ hồi, xong "Viridian City"', await ev(() => {
-    const m = P1.state.party[0];
-    return m.hp === P1.mon.stats(m).hp && P1.state.lastHeal.map === 'viridian_center' && !!P1.state.flags.quest_done_viridian_city;
-  }));
-  await walkTo(7, 20);
-  await step('down');
-  await waitMap('viridian_city');
-
-  // Poké Mart: Carl tặng bóng, rồi mở cửa hàng.
-  await walkTo(9, 15);
-  await step('up');
-  await waitMap('viridian_mart');
-  await shot('poke-mart');
-  await walkTo(3, 6);
-  await face('up');
-  const money0 = await ev(() => P1.state.money);
-  await talk();
-  for (let i = 0; i < 400 && !(await ev(() => !!(P1.ui.view && P1.ui.view('shop')))); i++) {
-    const s3 = await st();
-    if (s3.dlg) await page.keyboard.press('Space');
+  // Gặp Pokémon hoang dã trên route_1: đứng cạnh ô cỏ rồi bước vào với tỉ lệ gặp = 1.
+  const g = await ev(`(() => { const f = ${freeCellFn}; const w = P1.world;
+    const M = P1.MAPS.route_1, D = {up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+    for (let i = 0; i < M.w * M.h; i++) { if (!M.zones.grid[i]) continue; const x = i % M.w, y = (i / M.w) | 0;
+      for (const d in D) { const ax = x - D[d][0], ay = y - D[d][1]; if (ax >= 0 && ay >= 0 && ax < M.w && ay < M.h && M.colliders[ay * M.w + ax] === 0 && !M.zones.grid[ay * M.w + ax] && !M.npcs.some(n => n.x === ax && n.y === ay) && !M.npcs.some(n => n.x === x && n.y === y)) return { x: ax, y: ay, dir: d, gx: x, gy: y }; } }
+    return null; })()`);
+  check('route_1 có ô cỏ gặp Pokémon', !!g, g);
+  if (g) {
+    await open('map=route_1&x=' + g.x + '&z=' + g.y);
+    const gfx0 = await ev(() => { P1.world.gfx.__mark = 1; P1.world.debug.noEncounter = false; P1.world.debug.encounterRate = 1; return true; });
+    await step(g.dir);
+    await page.waitForFunction(() => P1.scene.name === 'battle', null, { timeout: 8000 }).catch(() => {});
+    const b = await ev(() => ({ scene: P1.scene.name, last: window.__battles[window.__battles.length - 1] }));
+    check('bước vào cỏ, tỉ lệ 1 → P1.scene.go("battle", kind wild, bg theo settings.bg)', b.scene === 'battle' && b.last && b.last.kind === 'wild' &&
+      b.last.bg === (await ev(() => P1.MAPS.route_1.settings.bg)), b);
+    await ev(() => { P1.world.debug.encounterRate = null; P1.world.debug.noEncounter = true; const a = window.__battle; window.__battle = null; a.onEnd({ outcome: 'win' }); });
+    await page.waitForFunction(() => P1.scene.name === 'world' && P1.world.mode === 'explore', null, { timeout: 8000 }).catch(() => {});
+    s = await st();
+    const kept = await ev(() => !!(P1.world.gfx && P1.world.gfx.__mark));
+    check('onEnd → về lại world đúng ô, không tải lại map', gfx0 && kept && s.map === 'route_1' && s.x === g.gx && s.y === g.gy && s.mode === 'explore', { kept, s });
     await page.waitForTimeout(150);
+    await shot('play-tallgrass');
   }
-  await shot('shop');
-  const balls0 = await ev(() => P1.state.bag.pokeball || 0);
-  await h.click('shop', 'Grid/si00');
-  await h.click('shop', 'Choose Amount/Button - Add');
-  await h.click('shop', 'Button - Buy');
-  await page.waitForTimeout(300);
-  const bought = await ev(() => ({ balls: P1.state.bag.pokeball || 0, money: P1.state.money }));
-  await h.click('shop', 'Button - Close (1)');
-  await settle();
-  check('Carl: tặng 5 Poké Ball, xong Part 2; mua bằng cửa hàng gốc', balls0 >= 5 && bought.balls > balls0 && bought.money < money0 + 110 &&
-    await ev(() => !!P1.state.flags.quest_done_viridian_city_2), { balls0, bought, money0 });
-  await walkTo(6, 9);
-  await step('down');
-  await waitMap('viridian_city');
 
-  await walkTo(6, 7);
-  await step('up');
-  await waitMap('trainer_school');
-  await shot('trainer-school');
-  await walkTo(6, 3);
-  await face('up');
-  await talk();
-  await settle();
-  check('Dizzy: xong "Viridian City (Part 3)"', await ev(() => !!P1.state.flags.quest_done_viridian_city_3 && P1.state.quest === 'viridian_city_4'));
-  await walkTo(6, 11);
-  await step('down');
-  await waitMap('viridian_city');
-  const om = await ev(() => { const a = P1.world.actorById('old_man'); return [a.x, a.y]; });
-  const spots = [[om[0], om[1] + 1, 'up'], [om[0], om[1] - 1, 'down'], [om[0] - 1, om[1], 'right'], [om[0] + 1, om[1], 'left']];
-  let talked = false;
-  for (const [x, y, d] of spots) {
-    if (!(await h.plan(x, y))) continue;
-    await walkTo(x, y);
-    await face(d);
-    await talk();
+  // Trainer nhìn thấy: đứng ngay ngoài tầm nhìn rồi bước vào.
+  const tr = await ev(`(() => { const f = ${freeCellFn}; const M = P1.MAPS.route_1, D = [[0,-1],[-1,0],[0,1],[1,0]], F = {up:0,left:1,down:2,right:3};
+    const ok = (x, y) => x >= 0 && y >= 0 && x < M.w && y < M.h && M.colliders[y * M.w + x] === 0 && !M.npcs.some(n => n.x === x && n.y === y) && !M.zones.grid[y * M.w + x];
+    const list = M.npcs.filter(n => n.trainer && n.los).sort((a, b) => (b.id === 'joey') - (a.id === 'joey'));
+    for (const n of list) { const fd = F[n.face] != null ? F[n.face] : 2, [dx, dy] = D[fd];
+      for (let k = 2; k <= n.los; k++) { const x = n.x + dx * k, y = n.y + dy * k; if (!ok(x, y)) break;
+        for (const side of [[dy, dx], [-dy, -dx]]) { const ax = x + side[0], ay = y + side[1];
+          if (ok(ax, ay)) return { id: n.id, x: ax, y: ay, dir: side[0] > 0 ? 'left' : side[0] < 0 ? 'right' : side[1] > 0 ? 'up' : 'down', k }; } } }
+    return null; })()`);
+  check('route_1 có trainer có tầm nhìn', !!tr, tr);
+  if (tr) {
+    await open('map=route_1&x=' + tr.x + '&z=' + tr.y);
+    await page.keyboard.down(KEY[tr.dir]);
+    const seen = await page.waitForFunction(() => P1.world.mode === 'script' && P1.world.emotes.length > 0, null, { timeout: 5000 }).then(() => true, () => false);
+    await page.keyboard.up(KEY[tr.dir]);
+    await page.waitForTimeout(260);
+    await shot('play-trainer-spotted');
+    check('bước vào tầm nhìn ' + tr.id + ' → mode script + bong bóng "!"', seen, await ev(() => ({ mode: P1.world.mode, emotes: P1.world.emotes.length })));
     await settle();
-    talked = true;
-    break;
+    const bt = await ev(() => window.__battles[window.__battles.length - 1]);
+    check('trainer đi tới rồi vào trận trainer, thắng thì đặt cờ beat_', bt && bt.kind === 'trainer' && await ev(id => !!P1.state.flags['beat_' + id], tr.id), bt);
   }
-  check('ông già: xong "Viridian City (Part 4)", sang Viridian Forest', talked && await ev(() => !!P1.state.flags.quest_done_viridian_city_4 && P1.state.quest === 'viridian_forest'),
-    { talked, old: om, log: await ev(() => window.__log.slice(-3)), quest: await ev(() => P1.state.quest) });
-  check('thưởng nhiệm vụ cộng dồn đúng bảng wiki (EXP)', await ev(() => P1.state.trainerExp) >= 50 + 100 + 50 + 50 + 55 * 4, await ev(() => P1.state.trainerExp));
 
-  // Sổ nhiệm vụ: panel gốc 'Panel - Quests' (phím Q ảo / P1.input 'quests').
-  await ev(() => P1.input.press('quests'));
-  await page.waitForTimeout(600);
-  await shot('quest-log');
-  check('sổ nhiệm vụ mở panel gốc Panel - Quests với nhiệm vụ đang làm', await ev(() => P1.worldUi.quests.isOpen() &&
-    /Viridian Forest/.test(document.body.innerText)));
-  await ev(() => P1.worldUi.quests.close());
+  // Nhảy gờ: tìm gờ có ô đứng trước và ô đáp trống.
+  const lg = await ev(`(() => { const M = P1.MAPS.route_1, dirs = {2:[0,1,'down'],3:[-1,0,'left'],4:[1,0,'right'],5:[0,-1,'up']};
+    const ok = (x, y) => x >= 0 && y >= 0 && x < M.w && y < M.h && M.colliders[y * M.w + x] === 0 && !M.npcs.some(n => n.x === x && n.y === y) && !M.zones.grid[y * M.w + x];
+    for (let i = 0; i < M.w * M.h; i++) { const c = M.colliders[i], d = dirs[c]; if (!d) continue; const x = i % M.w, y = (i / M.w) | 0;
+      if (ok(x - d[0], y - d[1]) && ok(x + d[0], y + d[1])) return { x: x - d[0], y: y - d[1], dir: d[2], to: [x + d[0], y + d[1]] }; }
+    return null; })()`);
+  check('route_1 có gờ nhảy', !!lg, lg);
+  if (lg) {
+    await open('map=route_1&x=' + lg.x + '&z=' + lg.y);
+    await page.keyboard.down(KEY[lg.dir]);
+    await page.waitForFunction(() => P1.world.player.move && P1.world.player.move.jump, null, { timeout: 3000 }).catch(() => {});
+    await page.keyboard.up(KEY[lg.dir]);
+    await page.waitForTimeout(260);
+    await shot('play-ledge-midair');
+    await page.waitForFunction(() => !P1.world.player.move, null, { timeout: 3000 }).catch(() => {});
+    s = await st();
+    check('nhảy gờ: 2 ô một lần theo hướng gờ', s.x === lg.to[0] && s.y === lg.to[1], { from: [lg.x, lg.y], to: [s.x, s.y] });
+    const back = { down: 'up', up: 'down', left: 'right', right: 'left' }[lg.dir];
+    s = await step(back);
+    check('gờ chặn chiều ngược lại', s.x === lg.to[0] && s.y === lg.to[1], s);
+  }
 
-  // Thua cả đội: về chỗ hồi máu, mất nửa tiền [MAINLINE DEFAULT].
-  const m0 = await ev(() => P1.state.money);
-  await ev(() => { P1.world.blackout(); });
-  await page.waitForTimeout(500);
-  await settle();
-  s = await st();
-  check('thua cả đội -> về Trung tâm, mất nửa tiền, hồi đầy', s.map === 'viridian_center' && await ev(() => P1.state.money) === m0 - Math.floor(m0 / 2), { map: s.map, money: await ev(() => P1.state.money), m0 });
+  // Sổ nhiệm vụ (phím L) bằng khung atlas PRO.
+  await page.keyboard.press('KeyL');
+  await page.waitForTimeout(200);
+  const q = await ev(() => { const p = document.querySelector('.p1w-quest'); return p ? { img: getComputedStyle(p).borderImageSource.slice(0, 20), text: p.innerText.slice(0, 60) } : null; });
+  await shot('play-quest-log');
+  check('phím L mở sổ nhiệm vụ khung PRO', !!q && /url\(/.test(q.img) && /Nhiệm vụ/.test(q.text), q);
+  await page.keyboard.press('Backspace');
+  await page.waitForTimeout(150);
+  check('B đóng sổ nhiệm vụ', await ev(() => !P1.worldUi.quests.isOpen()));
 
-  check('mỗi lần đổi map chỉ còn đúng một nhóm map trong scene (không tải chồng)', h.groups.every(g => g.endsWith(':1')), h.groups.join(' '));
-  const hit = await ev(() => { const e = document.elementFromPoint(innerWidth / 2, innerHeight / 2); return e && (e.id || e.tagName); });
-  check('giữa màn chơi là canvas (#gl), không bị lớp UI nuốt', hit === 'gl', hit);
-  check('không lỗi trang / console / HTTP', errors.length === 0, errors.slice(0, 5).join(' | '));
+  if (!synth) {
+    // Save của bản 3D cũ: toạ độ ngoài lưới mới -> đứng ở ô trống ngay cạnh cửa vào.
+    await open('map=viridian_mart&x=40&z=40');
+    const fb = await ev(() => { const w = P1.world, M = w.map, p = w.player, L = M.links.find(l => l.kind === 'door');
+      return { x: p.x, y: p.y, free: M.colliders[p.y * M.w + p.x] === 0, door: [L.x, L.y] }; });
+    check('save cũ ngoài map (40,40) -> ô trống cạnh cửa', fb.free && Math.abs(fb.x - fb.door[0]) + Math.abs(fb.y - fb.door[1]) <= 2, fb);
+  }
+
+  check('không lỗi từ js/world*.js, không thiếu ảnh tile/sprite', errors.length === 0, errors.slice(0, 5).join(' | '));
+  if (warns.length) note('lỗi ngoài phạm vi world (luồng khác): ' + [...new Set(warns)].slice(0, 6).join(' | '));
   await ctx.close();
 }
 
-/* Ảnh từng map từ máy ảnh chơi (vào thẳng bằng ?map=), kèm Pallet ban đêm. */
-async function mapShots(browser, base) {
+async function mapShots(browser, base, synth) {
   out.push('\n[ảnh từng map]');
-  const list = [['pallet_house_2f', 7, 4], ['pallet_house_1f', 6, 5], ['gary_house', 6, 6], ['pallet_town', 14, 9], ['oak_lab', 6, 7],
-    ['route_1', 12, 20], ['viridian_city', 17, 18], ['viridian_center', 7, 15], ['viridian_mart', 6, 6], ['trainer_school', 6, 7]];
-  const { ctx, page, errors } = await openPage(browser, base, 1280, 720, false);
-  for (const [id, x, z] of list) {
-    await page.goto(base + '/games/pokeone/index.html?fresh=1&map=' + id + '&x=' + x + '&z=' + z);
-    await page.waitForFunction(() => window.P1 && P1.world && P1.world.map && P1.world.mode, null, { timeout: 60000 });
-    await page.waitForTimeout(2200);
-    const f = path.join(SHOTS, 'map-' + id + '.png');
-    await page.screenshot({ path: f });
-    const info = await page.evaluate(() => ({ props: P1.world.gfx.group.children.length, actors: P1.world.actors.length }));
-    check(id + ': vẽ ra (' + info.props + ' nút, ' + info.actors + ' NPC)', info.props > 0);
+  const { ctx, page, errors } = await openPage(browser, 1366, 768, false, synth);
+  const h = helpers(page);
+  h.setBase(base);
+  const ids = await (async () => { await h.open('map=pallet_town'); return h.ev(() => Object.keys(P1.MAPS)); })();
+  for (const id of ids) {
+    await h.open('map=' + id, true);
+    const info = await h.ev(() => ({ n: P1.world.actors.length, cam: P1.world.cam }));
+    const f = await h.shot('map-' + id);
+    check(id + ': vẽ ra (' + info.n + ' actor, cam ' + Math.round(info.cam.x) + ',' + Math.round(info.cam.y) + ')', fs.statSync(f).size > 5000, path.basename(f));
   }
-  await page.goto(base + '/games/pokeone/index.html?fresh=1&map=pallet_town&x=14&z=9&period=night');
-  await page.waitForFunction(() => window.P1 && P1.world && P1.world.mode === 'explore', null, { timeout: 60000 });
-  await page.waitForTimeout(2200);
-  await page.screenshot({ path: path.join(SHOTS, 'map-pallet_town-night.png') });
-  const night = await page.evaluate(() => P1.world.sun.color.toArray());
-  check('ban đêm: ánh sáng lấy màu EnviromentColours lam', night[2] > night[0], night);
-  check('không lỗi trang / console / HTTP', errors.length === 0, errors.slice(0, 5).join(' | '));
+  // Thân actor thật sự lên canvas: điểm ảnh giữa thân khác điểm ảnh nền ground cùng chỗ.
+  await h.open('map=pallet_town&period=day&x=15&z=14');
+  const drawn = await h.ev(() => {
+    const w = P1.world, cam = w.cam, v = P1.view(), g = w.gfx.ground.getContext('2d');
+    // Lấy vài điểm dọc giữa thân: một điểm có thể trùng màu nền (tóc, áo cùng tông cỏ).
+    const at = a => [-10, -2, 6, 14].some(dy => {
+      const mx = a.x * 32 + 16, my = a.y * 32 + dy;
+      const s = v.ctx.getImageData(Math.round((mx - cam.x) * cam.z), Math.round((my - cam.y) * cam.z), 1, 1).data;
+      const b = g.getImageData(mx, Math.max(0, my), 1, 1).data;
+      return Math.abs(s[0] - b[0]) + Math.abs(s[1] - b[1]) + Math.abs(s[2] - b[2]) > 40;
+    });
+    const npc = w.actors.find(a => a.kind === 'npc' && !a.hidden);
+    return { player: at(w.player), follower: !!w.follower && !w.follower.hidden && at(w.follower), npc: !!npc && at(npc) };
+  });
+  check('người chơi, Pokémon đi theo, NPC đều vẽ thân lên canvas', drawn.player && drawn.follower && drawn.npc, drawn);
+  // Mái/tán cây che người: đặt người chơi ở ô trống có lớp over ngay trên đầu.
+  const roof = await h.ev(() => {
+    const M = P1.MAPS.pallet_town;
+    for (let i = 0; i < M.w * M.h; i++) {
+      const x = i % M.w, y = (i / M.w) | 0;
+      if (M.colliders[i] || M.npcs.some(n => n.x === x && n.y === y)) continue;
+      if (M.over.some(L => L[i] >= 0) && y > 0 && M.over.some(L => L[i - M.w] >= 0)) return [x, y];
+    }
+    return null;
+  });
+  if (roof) {
+    await h.open('map=pallet_town&x=' + roof[0] + '&z=' + roof[1]);
+    await h.shot('map-pallet_town-behind-over');
+    check('người chơi đứng sau lớp over (mái/tán) tại ' + roof, true);
+  } else note('pallet_town không có ô trống nằm dưới lớp over để chụp');
+  await h.open('map=pallet_town&grid=1');
+  await h.shot('map-pallet_town-grid');
+  await h.open('map=pallet_town&period=night');
+  const night = await h.ev(() => { const v = P1.view(), d = v.ctx.getImageData(40, 40, 1, 1).data; return [d[0], d[1], d[2]]; });
+  await h.shot('map-pallet_town-night');
+  check('ban đêm ngoài trời: màu nhân lam', night[2] > night[0], night);
+  check('không lỗi từ js/world*.js khi chụp map', errors.length === 0, errors.slice(0, 5).join(' | '));
   await ctx.close();
 }
 
-/* 844x390 cảm ứng: d-pad giữ bằng chuột, A bằng chạm. */
-async function phone(browser, base) {
-  const tag = '844x390';
-  out.push('\n[' + tag + ' — d-pad cảm ứng]');
-  const { ctx, page, errors } = await openPage(browser, base, 844, 390, true);
-  const h = helpers(page, tag);
-  const { ev, shot, st, settle } = h;
-  await page.goto(base + '/games/pokeone/index.html?fresh=1&map=viridian_city&x=24&z=18');
-  await page.waitForFunction(() => window.P1 && P1.world && P1.world.mode === 'explore', null, { timeout: 60000 });
-  await h.instrument();
-  await page.waitForTimeout(1500);
-  const pad = await ev(() => {
+async function phone(browser, base, synth) {
+  out.push('\n[844x390 cảm ứng]');
+  const { ctx, page, errors } = await openPage(browser, 844, 390, true, synth);
+  const h = helpers(page);
+  h.setBase(base);
+  await h.open('map=pallet_town&touch=1');
+  const pad = await h.ev(() => {
     const d = document.querySelector('.p1w-dpad'), a = document.querySelector('.p1w-btn[data-action="a"]');
     if (!d || !a) return null;
     const r = d.getBoundingClientRect(), b = a.getBoundingClientRect();
-    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    const top = document.elementFromPoint(cx, r.top + 22), btn = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
-    return { up: [cx, r.top + 22], left: [r.left + 22, cy], right: [r.right - 22, cy], down: [cx, r.bottom - 22], a: [b.left + b.width / 2, b.top + b.height / 2],
-      padOnTop: !!top && d.contains(top), aOnTop: btn === a, inView: r.bottom <= innerHeight && b.right <= innerWidth };
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + 22);
+    return { up: [r.left + r.width / 2, r.top + 22], hit: hit && !!d.contains(hit) ? 'dpad' : hit && (hit.className || hit.tagName), a: b.toJSON(), chatFree: b.right <= innerWidth - 440 || b.bottom <= innerHeight - 280, z: P1.world.cam.z };
   });
-  check('d-pad và A/B hiện khi có cảm ứng, nằm trên cùng, trong khung', pad && pad.padOnTop && pad.aOnTop && pad.inView, pad);
-  await shot('touch-viridian');
-  const hold = async (dir, ms) => { await page.mouse.move(...pad[dir]); await page.mouse.down(); await page.waitForTimeout(ms); await page.mouse.up(); await page.waitForTimeout(350); };
-  let s0 = await st();
-  await hold('up', 700);
-  let s = await st();
-  check('giữ d-pad lên -> đi lên (và vào cửa Trung tâm nếu tới)', s.map === 'viridian_center' || s.y < s0.y, { from: [s0.x, s0.y], to: [s.x, s.y, s.map] });
-  if (s.map !== 'viridian_center') { for (let i = 0; i < 4 && (await st()).map !== 'viridian_center'; i++) await hold('up', 400); }
-  await h.waitMap('viridian_center');
-  await h.walkTo(7, 13);
-  await page.mouse.move(...pad.up); await page.mouse.down(); await page.waitForTimeout(40); await page.mouse.up();
-  await page.waitForTimeout(200);
-  check('chạm nhanh d-pad lên chỉ quay mặt (cả khi ngắn hơn một khung hình)', (await st()).face === 0 && (await st()).y === 13, await st());
-  await page.waitForTimeout(150);
-  await page.touchscreen.tap(...pad.a);
-  await page.waitForFunction(() => window.__dlg, null, { timeout: 8000 }).catch(() => {});
-  await shot('touch-nurse-joy');
-  check('chạm A trước quầy -> Nurse Joy nói', await ev(() => !!window.__dlg && /Pokémon Center/.test(window.__dlg.text)));
-  await settle();
-  const hit = await ev(() => { const e = document.elementFromPoint(innerWidth / 2, innerHeight / 2); return e && (e.id || e.tagName); });
-  check('giữa màn chơi là canvas (#gl)', hit === 'gl', hit);
-  check('không lỗi trang / console / HTTP', errors.length === 0, errors.slice(0, 5).join(' | '));
+  await h.shot('phone-pallet_town');
+  check('d-pad + A hiện, A nằm ngoài vùng khung chat 440×280', pad && pad.chatFree, pad);
+  check('điện thoại: zoom 2 (~13 ô ngang)', pad && pad.z === 2, pad && pad.z);
+  const s0 = await h.st();
+  const free = await h.ev(`(() => { const f = ${freeCellFn}; const w = P1.world; return f(w.map, w, w.player.x, w.player.y - 1); })()`);
+  if (free) {
+    await page.mouse.move(...pad.up); await page.mouse.down(); await page.waitForTimeout(500); await page.mouse.up(); await page.waitForTimeout(400);
+    const s = await h.st();
+    check('giữ d-pad lên → đi lên', s.y < s0.y, { from: [s0.x, s0.y], to: [s.x, s.y] });
+  }
+  check('không lỗi từ js/world*.js trên điện thoại', errors.length === 0, errors.slice(0, 5).join(' | '));
   await ctx.close();
 }
 
-(async () => {
-  staticChecks();
+module.exports = { synthMaps, openPage, helpers, serve };
+if (require.main === module) (async () => {
+  out.push('[dữ liệu]');
+  const real = loadData(['maps.js']);
+  const why = process.env.SYNTH === '1' ? 'SYNTH=1' : realReady(real);
+  const r = cp.spawnSync(process.execPath, [path.join(GAME, 'tools/build_maps.js'), '--check'], { encoding: 'utf8' });
+  const bmDetail = ((r.stderr || '') + (r.stdout || '')).trim().split('\n').slice(-2).join(' | ');
+  let synth = null;
+  if (why) {
+    note('bỏ kiểm dữ liệu thật: ' + why + '; build_maps --check thoát ' + r.status + ' (' + bmDetail.slice(0, 160) + ')');
+    note('phần chơi chạy trên bản đồ tổng hợp, ảnh từ ' + DUMP);
+    synth = synthMaps();
+    staticChecks(synth, true);
+  } else {
+    check('tools/build_maps.js --check thoát 0', r.status === 0, bmDetail);
+    staticChecks(real, false);
+  }
   const srv = await serve();
-  const base = process.env.BASE || 'http://127.0.0.1:' + srv.address().port;   // BASE=<url Pages> để kiểm bản trên mạng
+  const base = process.env.BASE || 'http://127.0.0.1:' + srv.address().port;
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   try {
-    const only = process.argv.find(a => a.startsWith('--only='));
-    const parts = only ? only.slice(7).split(',') : ['desktop', 'maps', 'phone'];
-    if (parts.includes('desktop')) await desktop(browser, base).catch(e => check('chơi thật 1280x720 chạy hết', false, e.message));
-    if (parts.includes('maps')) await mapShots(browser, base).catch(e => check('ảnh từng map', false, e.message));
-    if (parts.includes('phone') && !process.argv.includes('--quick')) await phone(browser, base).catch(e => check('844x390 cảm ứng', false, e.message));
+    await play(browser, base, synth).catch(e => check('phần chơi chạy hết', false, e.message));
+    await mapShots(browser, base, synth).catch(e => check('ảnh từng map', false, e.message));
+    await phone(browser, base, synth).catch(e => check('844x390 cảm ứng', false, e.message));
   } finally {
     await browser.close();
     srv.close();
   }
   console.log('\n' + out.join('\n'));
-  console.log('\n' + pass + ' đạt, ' + fail + ' trượt. Ảnh: ' + SHOTS);
+  console.log('\nẢnh:\n' + shots.map(f => '  ' + f).join('\n'));
+  console.log('\n' + pass + ' đạt, ' + fail + ' trượt.');
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

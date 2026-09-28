@@ -1,40 +1,37 @@
-# Poké Mart Viridian. Vỏ interior_blank_room_1 (sàn gỗ): x -5,19..8,19, z -8,63..1 -> 13 × 10 ô, gốc ở (5, 9).
+# Poké Mart Viridian: quầy có máy tính tiền, kệ hàng, tủ lạnh nước.
 # Người bán Carl và bảng giá: pokeonecommunity.com/location/viridian-city/ (RESEARCH.md §6).
 name: Viridian City
 song: pokemart
 indoors: 1
 
 [legend]
-. floor
-S wall prop=interior_blank_room_1 pivot=5,9
-W wall
-c counter prop=int_shop_counter_l
-f floor solid prop=int_counter_shop_fridge size=2x1 align=back
-h floor solid prop=int_shop_cupboard_potions_left_potions size=1x2
-k floor solid prop=int_counter_shop_shelf_1 size=1x2
-l floor solid prop=int_sign_shop_logo size=1x1 align=back dz=-0.2
-K floor mark
-b floor mark
-x floor mark
+. martfloor
+W wall_cream
+K counter_mart
+s shelf
+f cooler
+c martfloor mark
+b martfloor mark
+x mat
 
 [grid]
-SWWWWWWWWWWWW
-W...c.ff.l..W
-W...c.......W
-W...c...k..kW
-W..Kc...k..kW
-Wcccc.......W
-W...........W
-W..b........W
-W...........W
-WWWWWxxxWWWWW
+WWWWWWWWWWWWW
+WWWWWWWWWWWWW
+.........ff..
+...c.........
+.KKKKKK......
+.KKKKKK.ss.ss
+.............
+.....b..ss.ss
+.............
+.....xxx.....
 
 [links]
 door @x -> viridian_city @M at=below arrive=below face=down sfx=automatic_door
 
 [actors]
-carl   @K sprite=sprite165 name="Carl" face=right script=carl
-buyer  @b sprite=generic_14 name="Youngster" face=up look=random script=mart_buyer
+carl   @c sprite=sprite38 name="Carl" face=down script=carl
+buyer  @b sprite=sprite200 name="Youngster" face=up look=random script=mart_buyer
 
 [script carl]
 if quest=viridian_city_2 > quest

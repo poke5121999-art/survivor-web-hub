@@ -1,54 +1,40 @@
-# Trung tâm Pokémon Viridian. Vỏ pokiecentre (sàn, tường, cầu thang sau): x -6,85..7,85, z -14,79..8.
+# Trung tâm Pokémon Viridian: quầy Nurse Joy (máy hồi máu giữa quầy), PC, cây cảnh.
 # Nurse Joy: nhiệm vụ "Viridian City" (Find Nurse Joy). Hồi máu miễn phí [MAINLINE DEFAULT, not PokéOne-confirmed].
 name: Viridian City
 song: pokemon_center
 indoors: 1
 
 [legend]
-. floor
-S wall prop=pokiecentre pivot=7,15
-W wall
-c counter
-H counter
-C floor solid prop=int_pokepc size=1x1 align=back
-s floor solid prop=int_pokiecentre_loung_x2 size=2x1
-t floor solid prop=int_pokiecentre_table size=1x1
-p floor solid prop=int_pokiecentre_plant size=1x1
-J floor mark
-g floor mark
-x floor mark
+. tiles
+W wall_red
+L wall_logo
+K counter_joy
+C pc ground=89:10,11
+p plant ground=89:10,11
+J tiles mark
+g tiles mark
+x mat
 
 [grid]
-SWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWW
-WWWWWWWJWWWWWWW
-WWWWcccHcccWWWW
-Wp...........CW
-W.............W
-W..g..........W
-W.............W
-W.............W
-W.............W
-W.............W
-WWWWWWxxxWWWWWW
-WWWWWWWWWWWWWWW
+WWWWWWWLLWWWWWW
+WWWWWWWLLWWWWWW
+.p....J.....CC.
+.....KKKKK.....
+.....KKKKK.....
+...............
+...............
+...g...........
+.p...........p.
+...............
+......xxx......
 
 [links]
 door @x -> viridian_city @C at=below arrive=below face=down sfx=automatic_door
 
 [actors]
-joy   @J sprite=sprite220 name="Nurse Joy" face=down script=nurse_joy
+joy   @J sprite=sprite26 name="Nurse Joy" face=down script=nurse_joy
 pc    @C kind=sign name="PC" script=center_pc
-guy   @g sprite=sprite268 name="Gentleman" face=left look=random script=center_guy
+guy   @g sprite=sprite79 name="Gentleman" face=left look=random script=center_guy
 
 [script nurse_joy]
 say Welcome to our Pokémon Center!\nWe restore your tired Pokémon to full health.

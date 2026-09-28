@@ -1,7 +1,9 @@
 # Viridian City: Trung tâm Pokémon, Poké Mart (Carl), nhà thi đấu (khoá - Giovanni là gym cuối),
-# trường huấn luyện (Dizzy), ông già. Nhiệm vụ "Viridian City" 1..4: pokeone.fandom.com/wiki/Main_Quests
+# trường huấn luyện (Dizzy), ông già, Cổng Boss (sảnh đánh boss theo đội). Nhiệm vụ "Viridian City" 1..4:
+# pokeone.fandom.com/wiki/Main_Quests. Nhà: tranh PRO tấm 66 (Trung tâm), 9 (Mart), 67 (Gym), 22 (trường), 13 (nhà dân).
 name: Viridian City
 song: viridian_city
+bg: land
 encounter: normal
 
 [legend]
@@ -9,50 +11,52 @@ encounter: normal
 , path
 T tree
 ~ water
-S house_k1
+S school
 Y gym
 M mart
 C center
-h house_vir
-k house_k2
+h house_teal
+k house_green
 * flowers
-w flowersp
 O grassmark
 g grassmark
 b grassmark
+B grassmark
 q signboard
-e signpost
-u signpost
+e signboard
+u signboard
 
 [grid]
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-TT................................TT
-TT..SSSSS.............YYYYYYYYY...TT
-TT..SSSSS.............YYYYYYYYY...TT
-TT..SSSSS.............YYYYYYYYY...TT
-TT..SSSSS.............YYYYYYYYY...TT
-TT....,,,,,,,,,,,,,,,,,,,,,,,,,...TT
-TT...e,,,,,,,,,,,,,,,,,,,,,,,,,..uTT
-TT...........O..,,................TT
-TT....MMMMMMMM..,,..CCCCCCCC......TT
-TT....MMMMMMMM..,,..CCCCCCCC......TT
-TT....MMMMMMMM..,,..CCCCCCCC......TT
-TT....MMMMMMMM..,,..CCCCCCCC......TT
-TT....MMMMMMMM..,,..CCCCCCCC......TT
+TT****............................TT
+TT****............................TT
+TT..........TTTT..................TT
+TT..........TTTT..................TT
+TT..........TTTT***...............TT
+TT..........TTTT***...............TT
+TT......***...........YYYYYYYY....TT
+TT......***...........YYYYYYYY....TT
+TT....................YYYYYYYYTT..TT
+TT..SSSSSSS..............,,...TT..TT
+TT..SSSSSSS..........u...,,.......TT
+TT..SSSSSSSe.............,,.......TT
+TT..,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TT
+TT..,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TT
+TT..............,,.g..............TT
+TT...........O..,,...........~~~~~TT
+TT..............,,...........~~~~~TT
+TT....MMMMMMM...,,...........~~~~~TT
+TT....MMMMMMM...,,...........~~~~~TT
+TT......,,,,,,,,,,................TT
+TT......,,,,,,,,,,..CCCCCCCC......TT
 TT..............,,..CCCCCCCC......TT
-TT....,,,,,,,,,,,,,,,,,,,,,,......TT
-TT....,,,,,,,,,,,,,,,,,,,,,,......TT
-TT..............,,...g............TT
-TT..hhhhh.......,,.......kkkkk....TT
-TT..hhhhh.......,,.......kkkkk....TT
-TT..hhhhh.......,,.......kkkkk....TT
-TT..hhhhh.......,,.......kkkkk....TT
-TT.............q,,................TT
-TT....,,,,,,,,,,,,,,,,,,,,,,......TT
-TT..~~~~~~......,,......**ww......TT
-TT..~~~~~~......,,.b....ww**......TT
-TT..~~~~~~......,,................TT
+TT..............,,.BCCCCCCCC......TT
+TT..............,,,,,,,,,.........TT
+TT..hhhhhh..***.,,,,,,,,,.........TT
+TT..hhhhhh..***q,,..........kkkkkkTT
+TT..............,,..b.***...kkkkkkTT
+TT..............,,....***.........TT
 TTTTTTTTTTTTTTTT,,..TTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTT,,..TTTTTTTTTTTTTTTT
 
@@ -63,9 +67,10 @@ door @C -> viridian_center @x face=up sfx=automatic_door
 door @S -> trainer_school @x face=up
 
 [actors]
-old_man    @O sprite=old_man name="Old Man" face=down look=random script=old_man
-youngster  @g sprite=generic_22 name="Youngster" face=right path=right4,left4 script=vir_youngster
-girl       @b sprite=generic_38 name="Girl" face=up look=random script=vir_girl
+old_man    @O sprite=sprite8 name="Old Man" face=down look=random script=old_man
+youngster  @g sprite=sprite110 name="Youngster" face=right path=right4,left4 script=vir_youngster
+girl       @b sprite=sprite25 name="Girl" face=up look=random script=vir_girl
+boss_gate  @B sprite=sprite179 name="Cổng Boss" face=down script=boss_gate
 sign_city  @q kind=sign name="Sign" script=sign_viridian
 sign_gym   @u kind=sign name="Sign" script=sign_gym
 sign_school @e kind=sign name="Sign" script=sign_school
@@ -104,3 +109,8 @@ say It's great that you can carry and use Pokémon any time, anywhere!
 
 [script vir_girl]
 say The Gym Leader of Viridian is always away.\nNobody knows where he goes.
+
+[script boss_gate]
+say Boss thế giới đang lảng vảng quanh Kanto! Một mình thì khó thắng lắm.
+say Rủ tối đa bốn người cùng vào, máu boss là của chung: ai đánh cũng làm nó yếu đi.
+raid snorlax

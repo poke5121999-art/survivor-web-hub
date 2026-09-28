@@ -1,10 +1,11 @@
 /*
- * Dịch bản đồ chữ (tools/maps/*.txt) thành data/maps.js theo dạng MapDump của PokéOne.
- * Định dạng tệp và luật: tools/README-world.md.
+ * Dịch bản đồ chữ (tools/maps/*.txt) thành data/maps.js: bản đồ tile 2D ô 32 px vẽ bằng tấm tile PRO.
+ * Định dạng tệp, cú pháp cọ và luật: tools/README-world.md.
  *
  *   node games/pokeone/tools/build_maps.js          ghi data/maps.js, in bảng tóm tắt
  *   node games/pokeone/tools/build_maps.js --check  chỉ kiểm, không ghi
  *
+ * Sau khi ghi, chạy python tools/pro/rip_tiles.py để chép đúng các tấm tile/sprite NPC mà bản đồ dùng.
  * Chạy lại ra cùng kết quả (không có ngẫu nhiên ngoài băm theo toạ độ).
  */
 'use strict';
@@ -20,8 +21,6 @@ function loadGlobal(file) {
   new Function('window', 'P1', fs.readFileSync(path.join(ROOT, 'data', file), 'utf8'))({ P1 }, P1);
   return P1;
 }
-const PROPS = loadGlobal('props.js').PROPS;
-const SPR = loadGlobal('sprites.js');
 const AUDIO = loadGlobal('audio.js');
 const GAME = loadGlobal('gamedata.js');
 // Khoá túi đồ = BattleID của items.txt, nhưng bản gốc mất chữ "é": Poké Ball ra "pokball". Túi dùng 'pokeball'
@@ -30,27 +29,48 @@ const itemKey = s => String(s).replace(/pok[eé]?/g, 'pok');
 const ITEM_KEYS = new Set(Object.values(GAME.ITEMS).map(i => itemKey(i.battleId)));
 const ITEM_IDS = { has: id => ITEM_KEYS.has(itemKey(id)) };
 
-/* ---------- ô atlas nền: (c, r) với r tính từ đáy ảnh, mã hoá c + 64*r ---------- */
-const cellId = (c, r) => c + 64 * r;
+/* ---------- ô tile PRO: tấm 1..144, 1024² px, lưới 32×32 ô 32 px. Tham chiếu = tấm*1024 + hàng*32 + cột ---------- */
+const SHEETS = 144, CELLS = 32;
+const ref = (s, c, r) => s * 1024 + r * CELLS + c;
+
+/* "S:c,r" hoặc "S:c,r,WxH" -> { s, c, r, w, h } | null */
+function parseCell(spec, withSize) {
+  const m = /^(\d+):(\d+),(\d+)(?:,(\d+)x(\d+))?$/.exec(String(spec).trim());
+  if (!m) return null;
+  const o = { s: +m[1], c: +m[2], r: +m[3], w: m[4] ? +m[4] : 1, h: m[5] ? +m[5] : 1 };
+  if (!!m[4] !== !!withSize) return null;
+  if (o.s < 1 || o.s > SHEETS || o.c + o.w > CELLS || o.r + o.h > CELLS) return null;
+  return o;
+}
 
 /*
- * Bộ ô tự nối (autotile) của atlas 1: một khối 4 cột, hàng 55..63 [ĐO TRONG REPO bằng mặt nạ màu cỏ, README-world.md].
- * Vùng vật liệu (cát, đất) nằm trên cỏ; viền cỏ mảnh nằm trong ô của vùng.
+ * Ô tự nối (autotile) của PRO [ĐO TRONG REPO bằng mặt nạ alpha trên tấm 60, 79, 35; README-world.md]: mỗi vật liệu có
+ *   khung 3×3 neo ở `auto=` (góc TL, cạnh T, TR / L, tâm, R / BL, B, BR), viền nền bên ngoài vẽ sẵn, và
+ *   góc trong ở `inner=`: một neo khối 2×2 — (0,0) khi ô chéo đông-nam khác vật liệu, (1,0) tây-nam, (0,1) đông-bắc,
+ *   (1,1) tây-bắc (lỗ nền nằm ở tâm khối, kiểu tấm 60/79) — hoặc bốn ô 'ĐN|TN|ĐB|TB' khi chúng nằm rời (kiểu tấm 9).
+ * Khung có viền trong suốt (tấm 9) thì cọ có ground= để nền lộ ra: ô tự nối chồng lên lớp nền thay vì thay nó.
+ * Vật liệu cùng khoá auto= nối với nhau; mép bản đồ tính là cùng vật liệu (đường chạy ra khỏi map).
  */
-function autotileSet(b, center) {
-  return {
-    center,
-    tl: [b + 2, 63], tr: [b + 1, 63], bl: [b, 63], br: [b + 3, 63],
-    t: [[b, 62], [b + 1, 62]], bo: [[b, 59], [b + 1, 59]],
-    l: [[b, 61], [b, 60]], r: [[b + 1, 61], [b + 1, 60]],
-    itl: [b + 2, 60], itr: [b + 3, 60], ibl: [b + 2, 59], ibr: [b + 3, 59],
-    vbar: [b, 58], hbar: [b + 1, 58],
-  };
+function autoCell(f, g, n, s, w, e, nw, ne, sw, se) {
+  const F = (dx, dy) => [f.c + dx, f.r + dy];
+  if (!n && !w) return F(0, 0); if (!n && !e) return F(2, 0);
+  if (!s && !w) return F(0, 2); if (!s && !e) return F(2, 2);
+  if (!n) return F(1, 0); if (!s) return F(1, 2);
+  if (!w) return F(0, 1); if (!e) return F(2, 1);
+  if (g) {
+    if (!se) return g[0]; if (!sw) return g[1];
+    if (!ne) return g[2]; if (!nw) return g[3];
+  }
+  return F(1, 1);
 }
-const TERRAIN = {
-  sand: autotileSet(20, [1, 59]),
-  dirt: autotileSet(24, [1, 60]),
-};
+
+/* inner=: 'S:c,r' (khối 2×2) hoặc 'S:c,r|S:c,r|S:c,r|S:c,r' -> [[c,r] ĐN, TN, ĐB, TB] | null (cùng tấm với khung) */
+function innerCells(spec) {
+  const parts = String(spec).split('|').map(p => parseCell(p, false));
+  if (parts.some(p => !p)) return null;
+  if (parts.length === 1) { const g = parts[0]; return [[g.c, g.r], [g.c + 1, g.r], [g.c, g.r + 1], [g.c + 1, g.r + 1]]; }
+  return parts.length === 4 ? parts.map(p => [p.c, p.r]) : null;
+}
 
 /* ---------- đọc tệp ---------- */
 function tokens(s) {
@@ -69,15 +89,35 @@ function kv(list) {
   return o;
 }
 
+/* Cọ: 'base=<cọ khác>' kế thừa khoá của cọ đó (khoá của mình đè lên). */
 function readBrushes() {
-  const brushes = {};
-  for (const raw of fs.readFileSync(path.join(MAPS_DIR, 'brushes.txt'), 'utf8').split(/\r?\n/)) {
-    const line = raw.replace(/#.*$/, '').trim();
+  const raw = {};
+  for (const line0 of fs.readFileSync(path.join(MAPS_DIR, 'brushes.txt'), 'utf8').split(/\r?\n/)) {
+    const line = line0.replace(/#.*$/, '').trim();
     if (!line) continue;
     const [name, ...rest] = tokens(line);
-    brushes[name] = kv(rest);
+    if (raw[name]) fail('maps/brushes.txt', 'brush ' + name + ' defined twice');
+    raw[name] = kv(rest);
   }
-  return brushes;
+  const done = {};
+  const resolve = (name, seen) => {
+    if (done[name]) return done[name];
+    const b = raw[name];
+    if (!b) return null;
+    if (seen.includes(name)) { fail('maps/brushes.txt', 'base loop ' + seen.concat(name).join(' -> ')); return b; }
+    let parent = {};
+    if (b.base) {
+      parent = resolve(b.base, seen.concat(name));
+      if (!parent) { fail('maps/brushes.txt', name + ': base ' + b.base + ' is not a brush'); parent = {}; }
+    }
+    const o = Object.assign({}, parent, b);
+    delete o.base;
+    // Cọ con có vật thể riêng thì không kế thừa vật thể / chặn của cọ cha (chỉ kế thừa nền).
+    if (b.base && (b.stamp || b.fill)) for (const k of ['deco']) if (!(k in b)) delete o[k];
+    return (done[name] = o);
+  };
+  for (const name in raw) resolve(name, []);
+  return done;
 }
 
 function sections(text) {
@@ -134,21 +174,33 @@ function compileMap(file, brushes) {
   }
 
   const N = w * h, idx = (x, y) => y * w + x;
-  const tiles = new Array(N).fill(-1), tiles2 = new Array(N).fill(-1);
-  const heights = new Array(N).fill(0), colliders = new Array(N).fill(0), walls = new Array(N).fill(-1);
-  const water = new Array(N).fill(0), zoneGrid = new Array(N).fill(0);
-  const terr = new Array(N).fill('');
-  const objects = [], marks = {}, doors = {}, allPos = {};
+  const layer = () => new Array(N).fill(-1);
+  const ground = [layer()], over = [];
+  const colliders = new Array(N).fill(0), water = new Array(N).fill(0), zoneGrid = new Array(N).fill(0);
+  const terr = new Array(N).fill(''), autoInner = {};
+  const marks = {}, doors = {}, allPos = {};
   const zoneIds = [];
+  const sheets = new Set();
 
   const hash = (x, y, s) => { let v = (x * 73856093) ^ (y * 19349663) ^ (s * 83492791); v = (v ^ (v >>> 13)) * 1274126177; return ((v ^ (v >>> 16)) >>> 0); };
-  const cellOf = (spec, x, y, key) => {
-    if (spec == null || spec === true) return -1;
-    if (TERRAIN[spec]) { terr[idx(x, y)] = spec; return -1; }
-    const alts = String(spec).split('|').map(s => s.split(',').map(Number));
-    for (const a of alts) if (a.length !== 2 || a.some(v => !(v >= 0 && v < 64))) { fail(where, key + '=' + spec + ' is not c,r'); return -1; }
-    const pick = alts[alts.length === 1 ? 0 : hash(x, y, 7) % alts.length];
-    return cellId(pick[0], pick[1]);
+  const tileOf = (s, c, r) => { sheets.add(s); return ref(s, c, r); };
+  /* Lớp chồng: ô đã có tile ở lớp k thì đẩy lên lớp k+1 (thứ tự đặt = thứ tự vẽ trong từng ô). */
+  const put = (stack, from, x, y, t) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const i = idx(x, y);
+    let k = from;
+    while (k < stack.length && stack[k][i] >= 0) k++;
+    if (k === stack.length) stack.push(layer());
+    stack[k][i] = t;
+  };
+  /* 'S:c,r|S:c,r|-' chọn theo băm toạ độ; '-' = để trống (rắc thưa). */
+  const pickCell = (spec, x, y, key, salt) => {
+    const alts = String(spec).split('|');
+    const a = alts[alts.length === 1 ? 0 : hash(x, y, salt) % alts.length].trim();
+    if (a === '-') return -1;
+    const c = parseCell(a, false);
+    if (!c) { fail(where, key + '=' + spec + ": '" + a + "' is not S:c,r"); return -1; }
+    return tileOf(c.s, c.c, c.r);
   };
 
   const COLL = { free: 0, solid: 1, down: 2, left: 3, right: 4, up: 5, counter: 6 };
@@ -156,14 +208,13 @@ function compileMap(file, brushes) {
     const L = legend[at(x, y)];
     if (!L) continue;
     const i = idx(x, y);
-    if (L.checker) {
-      const alts = String(L.checker).split('|').map(s => s.split(',').map(Number));
-      const a = alts[(x % 2) + 2 * (y % 2)] || alts[0];
-      tiles[i] = cellId(a[0], a[1]);
-    } else tiles[i] = cellOf(L.ground, x, y, 'ground');
-    tiles2[i] = cellOf(L.over, x, y, 'over');
-    heights[i] = +(L.h || 0);
-    walls[i] = cellOf(L.wall, x, y, 'wall');
+    if (L.ground) ground[0][i] = pickCell(L.ground, x, y, 'ground', 7);
+    if (L.auto) {
+      if (!parseCell(L.auto, false) || (L.inner && !innerCells(L.inner))) fail(where, 'auto=' + L.auto + ' inner=' + L.inner + ' is not S:c,r or 4 × S:c,r');
+      else { terr[i] = L.auto; autoInner[L.auto] = L.inner || ''; }
+    }
+    if (L.deco) { const t = pickCell(L.deco, x, y, 'deco', 11); if (t >= 0) put(ground, 1, x, y, t); }
+    if (L.over) { const t = pickCell(L.over, x, y, 'over', 13); if (t >= 0) put(over, 0, x, y, t); }
     if (L.solid) colliders[i] = COLL.solid;
     if (L.counter) colliders[i] = COLL.counter;
     if (L.ledge) {
@@ -180,30 +231,27 @@ function compileMap(file, brushes) {
     (allPos[at(x, y)] = allPos[at(x, y)] || []).push([x, y]);
   }
 
-  /* ô tự nối */
+  /* ô tự nối: ghi vào lớp nền (khung đã vẽ sẵn nền bên ngoài) */
+  const thin = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const t = terr[idx(x, y)];
     if (!t) continue;
-    const S = TERRAIN[t];
     const same = (dx, dy) => { const X = x + dx, Y = y + dy; return X < 0 || Y < 0 || X >= w || Y >= h || terr[idx(X, Y)] === t; };
     const n = same(0, -1), s = same(0, 1), wv = same(-1, 0), e = same(1, 0);
-    let c;
-    if ((!n && !s) || (!wv && !e)) c = !n && !s ? S.hbar : S.vbar;
-    else if (!n && !wv) c = S.tl; else if (!n && !e) c = S.tr;
-    else if (!s && !wv) c = S.bl; else if (!s && !e) c = S.br;
-    else if (!n) c = S.t[x % 2]; else if (!s) c = S.bo[x % 2];
-    else if (!wv) c = S.l[y % 2]; else if (!e) c = S.r[y % 2];
-    else if (!same(-1, -1)) c = S.itl; else if (!same(1, -1)) c = S.itr;
-    else if (!same(-1, 1)) c = S.ibl; else if (!same(1, 1)) c = S.ibr;
-    else c = S.center;
-    tiles[idx(x, y)] = cellId(c[0], c[1]);
+    if ((!n && !s) || (!wv && !e)) thin.push(x + ',' + y);
+    const f = parseCell(t, false), g = autoInner[t] ? innerCells(autoInner[t]) : null;
+    const [c, r] = autoCell(f, g, n, s, wv, e, same(-1, -1), same(1, -1), same(-1, 1), same(1, 1));
+    const tt = tileOf(f.s, c, r);
+    if (ground[0][idx(x, y)] >= 0) put(ground, 1, x, y, tt); else ground[0][idx(x, y)] = tt;
   }
+  if (thin.length) fail(where, 'autotile is 1 cell wide (no art for that) at ' + thin.slice(0, 6).join(' ') + (thin.length > 6 ? ' …' : ''));
 
-  /* prop: mỗi vùng liền nhau cùng kí tự là một nhóm; step = lát theo bước, fit = một cái giữa vùng */
+  /* vùng: mỗi vùng liền nhau (4 hướng) cùng kí tự là một nhóm */
   const seen = new Uint8Array(N);
+  const regions = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const ch = at(x, y), L = legend[ch];
-    if (!L || !L.prop || seen[idx(x, y)]) continue;
+    if (!L || !(L.stamp || L.fill || L.door) || seen[idx(x, y)]) continue;
     const comp = [], stack = [[x, y]];
     seen[idx(x, y)] = 1;
     while (stack.length) {
@@ -216,58 +264,73 @@ function compileMap(file, brushes) {
     }
     const x0 = Math.min(...comp.map(p => p[0])), x1 = Math.max(...comp.map(p => p[0])) + 1;
     const y0 = Math.min(...comp.map(p => p[1])), y1 = Math.max(...comp.map(p => p[1])) + 1;
-    const P = PROPS[L.prop];
-    if (!P) { fail(where, "prop '" + L.prop + "' (char '" + ch + "') is not in P1.PROPS"); continue; }
-    const ry = +(L.ry || 0);
-    const dy = +(L.dy || 0);
-    const place = (rx0, ry0, rx1, ry1) => {
-      // pivot=px,pz: gốc prefab đặt đúng ở góc ô (x0+px, y0+pz), như MapObjectStruct gốc đặt theo số nguyên.
-      if (L.pivot) {
-        const [px, pz] = L.pivot.split(',').map(Number);
-        objects.push({ x: r3(rx0 + px + +(L.dx || 0)), y: r3(dy + heights[idx(rx0, ry0)]), z: r3(ry0 + pz + +(L.dz || 0)), prefab: L.prop, ry, tag: L.tag || '' });
-        return;
-      }
-      // Không có pivot: căn tâm AABB (đã xoay ry) vào giữa khung ô; align=front dán mặt trước (+z) vào mép nam.
-      const rot = rotAabb(P.min, P.max, ry);
-      const cx = (rx0 + rx1) / 2 - (rot.min[0] + rot.max[0]) / 2 + +(L.dx || 0);
-      let cz = (ry0 + ry1) / 2 - (rot.min[2] + rot.max[2]) / 2 + +(L.dz || 0);
-      if (L.align === 'front') cz = ry1 - rot.max[2] + +(L.dz || 0);
-      if (L.align === 'back') cz = ry0 - rot.min[2] + +(L.dz || 0);
-      objects.push({ x: r3(cx), y: r3(dy + heights[idx(rx0, ry0)]), z: r3(cz), prefab: L.prop, ry, tag: L.tag || '' });
-    };
-    if (L.step) {
-      const [sx, sz] = L.step.split('x').map(Number);
-      const inComp = new Set(comp.map(p => p[0] + ',' + p[1]));
-      for (const [qx, qy] of comp) {
-        const ax = qx - (qx - x0) % sx, ay = qy - (qy - y0) % sz;
-        if (!inComp.has(ax + ',' + ay)) { fail(where, "'" + ch + "' tile " + qx + ',' + qy + ' is not covered by a ' + L.step + ' ' + L.prop + ' (anchor ' + ax + ',' + ay + ' is not the same char); align the block to the ' + L.step + ' grid from ' + x0 + ',' + y0); break; }
-      }
-      for (const [px, py] of comp) {
-        if ((px - x0) % sx || (py - y0) % sz) continue;
-        place(px, py, Math.min(px + sx, x1), Math.min(py + sz, y1));
-      }
-    } else {
-      if (L.size) {
-        const [sw, sh] = L.size.split('x').map(Number);
-        if (x1 - x0 !== sw || y1 - y0 !== sh || comp.length !== sw * sh) fail(where, "'" + ch + "' region at " + x0 + ',' + y0 + ' is ' + (x1 - x0) + 'x' + (y1 - y0) + ' (' + comp.length + ' tiles), brush wants ' + L.size);
-      }
-      place(x0, y0, x1, y1);
-      if (L.door) {
-        const [ddx, ddz] = L.door.split(',').map(Number);
-        const dxT = x0 + ddx, dzT = y0 + ddz;
-        (doors[ch] = doors[ch] || []).push([dxT, dzT]);
-        if (L.doorprop) {
-          const D = PROPS[L.doorprop];
-          if (!D) fail(where, "doorprop '" + L.doorprop + "' is not in P1.PROPS");
-          else objects.push({ x: r3(dxT + 0.5 - (D.min[0] + D.max[0]) / 2 + +(L.doordx || 0)), y: 0, z: r3(dzT + 1 + +(L.doordz || 0)), prefab: L.doorprop, ry: 0, tag: 'door' });
-        }
-      }
+    regions.push({ ch, L, comp, x0, y0, x1, y1 });
+  }
+
+  /* fill=S:c,r,WxH: lát mẫu W×H theo toạ độ trong vùng (tường, sàn hoa văn, rừng dày); ghi lớp nền */
+  for (const R of regions) {
+    if (!R.L.fill) continue;
+    const f = parseCell(R.L.fill, true);
+    if (!f) { fail(where, "'" + R.ch + "' fill=" + R.L.fill + ' is not S:c,r,WxH'); continue; }
+    for (const [x, y] of R.comp) {
+      const t = tileOf(f.s, f.c + (x - R.x0) % f.w, f.r + (y - R.y0) % f.h);
+      if (R.L.fill2) put(ground, 1, x, y, t); else ground[0][idx(x, y)] = t;
     }
   }
 
-  /* toạ độ tham chiếu: @c = ô đánh dấu duy nhất, hoặc cửa của vùng c; x,y = số */
+  /*
+   * stamp=S:c,r,WxH: tranh nhiều ô. Vùng kí tự trên lưới = chân (chặn nếu cọ có solid). Ô tranh (ax, ay) đặt ở góc
+   * trái trên của chân (at=ax,ay; mặc định canh đáy: ax=0, ay=H - cao chân). Hàng tranh nằm trên chân -> lớp 'over'
+   * (vẽ đè nhân vật: mái nhà, ngọn cây); hàng từ chân trở xuống (thân nhà, bóng đổ) -> lớp nền chồng dưới nhân vật.
+   * step=WxH: lát chân theo bước (rừng cây), các con tem đặt từ bắc xuống nam để cây phía nam đè cây phía bắc.
+   */
+  const stamps = [];
+  for (const R of regions) {
+    const L = R.L;
+    if (!L.stamp) continue;
+    const S = parseCell(L.stamp, true);
+    if (!S) { fail(where, "'" + R.ch + "' stamp=" + L.stamp + ' is not S:c,r,WxH'); continue; }
+    let fw = R.x1 - R.x0, fh = R.y1 - R.y0;
+    const anchors = [];
+    if (L.step) {
+      const [sx, sy] = L.step.split('x').map(Number);
+      fw = sx; fh = sy;
+      const inComp = new Set(R.comp.map(p => p[0] + ',' + p[1]));
+      for (const [qx, qy] of R.comp) {
+        const ax = qx - (qx - R.x0) % sx, ay = qy - (qy - R.y0) % sy;
+        if (!inComp.has(ax + ',' + ay)) { fail(where, "'" + R.ch + "' tile " + qx + ',' + qy + ' is not covered by a ' + L.step + ' stamp (anchor ' + ax + ',' + ay + ' is another char); align the block to the ' + L.step + ' grid from ' + R.x0 + ',' + R.y0); break; }
+      }
+      for (const [px, py] of R.comp) if (!((px - R.x0) % sx) && !((py - R.y0) % sy)) anchors.push([px, py]);
+    } else {
+      if (R.comp.length !== fw * fh) fail(where, "'" + R.ch + "' region at " + R.x0 + ',' + R.y0 + ' is not a rectangle (' + R.comp.length + ' tiles in ' + fw + 'x' + fh + ')');
+      anchors.push([R.x0, R.y0]);
+    }
+    const [ax, ay] = L.at ? L.at.split(',').map(Number) : [0, S.h - fh];
+    if (!(ay >= 0 && ay < S.h) || !(ax >= 0 && ax < S.w)) fail(where, "'" + R.ch + "' at=" + L.at + ' outside the ' + S.w + 'x' + S.h + ' stamp');
+    for (const [px, py] of anchors) stamps.push({ S, ox: px - ax, oy: py - ay, top: py, under: !!L.under });
+    if (L.door) {
+      const [ddx, ddy] = L.door.split(',').map(Number);
+      if (!(ddx >= 0 && ddx < fw && ddy >= 0 && ddy < fh)) fail(where, "'" + R.ch + "' door=" + L.door + ' is outside its ' + fw + 'x' + fh + ' footprint');
+      (doors[R.ch] = doors[R.ch] || []).push([R.x0 + ddx, R.y0 + ddy]);
+    }
+  }
+  for (const R of regions) if (R.L.door && !R.L.stamp) {
+    const [ddx, ddy] = R.L.door.split(',').map(Number);
+    (doors[R.ch] = doors[R.ch] || []).push([R.x0 + ddx, R.y0 + ddy]);
+  }
+  stamps.sort((a, b) => a.top - b.top || a.ox - b.ox);
+  for (const st of stamps) {
+    const { S } = st;
+    for (let r = 0; r < S.h; r++) for (let c = 0; c < S.w; c++) {
+      const x = st.ox + c, y = st.oy + r;
+      const t = tileOf(S.s, S.c + c, S.r + r);
+      if (y < st.top && !st.under) put(over, 0, x, y, t); else put(ground, 1, x, y, t);
+    }
+  }
+
+  /* toạ độ tham chiếu: @c = ô đánh dấu, hoặc cửa của vùng c; x,y = số */
   // many=true: mọi ô mang dấu đó (thảm cửa 2 ô); còn lại lấy ô đầu tiên theo thứ tự đọc.
-  const ref = (s, ctx, many) => {
+  const refPos = (s, ctx, many) => {
     if (s[0] === '@') {
       const ch = s.slice(1);
       const list = doors[ch] || marks[ch] || allPos[ch];
@@ -297,15 +360,14 @@ function compileMap(file, brushes) {
     if (!line || line[0] === '#') continue;
     const [aid, pos, ...rest] = tokens(line);
     const o = kv(rest);
-    const p = ref(pos, 'actor ' + aid);
+    const p = refPos(pos, 'actor ' + aid);
     if (!p) continue;
     const kind = o.kind || 'npc';
     const a = { id: aid, kind, x: p[0], y: p[1], face: o.face || 'down', name: o.name || '' };
     if (o.sprite) {
-      const file = SPR.NPC_SPRITES[o.sprite] || o.sprite;
-      if (!fs.existsSync(path.join(ROOT, 'art/sprite/npc', file + '.png'))) fail(where, 'actor ' + aid + ': sprite ' + o.sprite + ' has no art/sprite/npc/' + file + '.png');
-      a.sprite = file;
-    }
+      if (!/^sprite\d+$/.test(o.sprite)) fail(where, 'actor ' + aid + ': sprite ' + o.sprite + ' is not a PRO npc sheet (spriteN)');
+      a.sprite = o.sprite;
+    } else if (kind === 'npc') fail(where, 'actor ' + aid + ' has no sprite');
     if (o.script) a.script = o.script;
     if (o.look) a.look = o.look;
     if (o.path) a.path = o.path;
@@ -315,7 +377,6 @@ function compileMap(file, brushes) {
     if (o.showif) a.showIf = o.showif;
     if (o.text) a.text = o.text;
     if (o.item) { if (!ITEM_IDS.has(o.item)) fail(where, 'actor ' + aid + ': item ' + o.item + ' unknown'); a.item = o.item; a.n = +(o.n || 1); }
-    if (o.prop) { if (!PROPS[o.prop]) fail(where, 'actor ' + aid + ': prop ' + o.prop + ' missing'); a.prop = o.prop; }
     if (o.team) {
       a.trainer = {
         team: o.team.split(',').map(t => { const [dex, lv] = t.split(':').map(Number); return { dex, level: lv }; }),
@@ -332,31 +393,26 @@ function compileMap(file, brushes) {
   const scripts = {};
   for (const b of block('script')) scripts[b.arg] = compileScript(b.arg, b.lines, where);
 
-  /* vùng gặp Pokémon: bảng lấy từ zones.txt */
+  const indoors = head.indoors === '1' || head.indoors === 'true';
   const settings = {
-    song: head.song || '', indoors: head.indoors === '1' || head.indoors === 'true', tileset: +(head.tileset || 1),
-    encounterRate: head.encounter || 'normal', light: head.light || (head.indoors === '1' ? 'indoor' : 'outdoor'),
-    cave: head.cave === '1', canMount: head.mount !== '0', mapName: head.name || id,
-    bg: head.bg || '', region: head.region || 'kanto', enter: head.enter || '',
+    song: head.song || '', indoors, encounterRate: head.encounter || 'normal', mapName: head.name || id,
+    bg: head.bg || (indoors ? 'indoor' : 'land'), region: head.region || 'kanto', enter: head.enter || '',
   };
-  if (head.spawn) { const p = ref(head.spawn, 'spawn'); if (p) settings.spawn = p; }
+  if (head.spawn) { const p = refPos(head.spawn, 'spawn'); if (p) settings.spawn = p; }
   if (settings.song && !AUDIO.MUSIC[settings.song]) fail(where, 'song ' + settings.song + ' is not in P1.MUSIC');
+
+  // Lớp chồng rỗng hết thì bỏ; ô lớp nền trống là lỗi (lộ nền đen).
+  const holes = [];
+  for (let i = 0; i < N; i++) if (ground[0][i] < 0) holes.push((i % w) + ',' + ((i / w) | 0));
+  if (holes.length) fail(where, holes.length + ' tile(s) with no ground: ' + holes.slice(0, 6).join(' ') + (holes.length > 6 ? ' …' : ''));
 
   return {
     id, where, map: {
-      id, name: head.name || id, w, h, tiles, tiles2, heights, walls, colliders, water,
-      zones: { grid: zoneGrid, ids: zoneIds }, links, npcs, objects, settings,
-    }, linkSpecs, ref, scripts, marks, doors,
+      id, name: head.name || id, w, h, ground, over, colliders, water,
+      zones: { grid: zoneGrid, ids: zoneIds }, links, npcs, settings, sheets: [...sheets].sort((a, b) => a - b),
+    }, linkSpecs, ref: refPos, scripts, marks, doors,
   };
 }
-
-function rotAabb(min, max, deg) {
-  const a = deg * Math.PI / 180, c = Math.round(Math.cos(a) * 1e6) / 1e6, s = Math.round(Math.sin(a) * 1e6) / 1e6;
-  const xs = [], zs = [];
-  for (const x of [min[0], max[0]]) for (const z of [min[2], max[2]]) { xs.push(c * x + s * z); zs.push(-s * x + c * z); }
-  return { min: [Math.min(...xs), min[1], Math.min(...zs)], max: [Math.max(...xs), max[1], Math.max(...zs)] };
-}
-const r3 = v => Math.round(v * 1000) / 1000;
 
 /* ---------- kịch bản: một lệnh mỗi dòng, nhãn ':tên' ---------- */
 const OPS = {
@@ -364,7 +420,7 @@ const OPS = {
   battle: 'battle', heal: '', shop: 'shop', give: 'give', givemon: 'givemon', money: 'num', exp: 'num',
   quest: 'id', questdone: 'id', face: 'dir', move: 'move', sfx: 'key', music: 'key', wait: 'num', warp: 'warp',
   hide: 'flag', show: 'flag', cry: 'num', showmon: 'num', hidemon: '', emote: 'key', blackout: '', pc: '',
-  starter: 'id', rival: '', lastheal: '', turnaway: '',
+  starter: 'id', rival: '', lastheal: '', turnaway: '', raid: 'id',
 };
 function compileScript(name, lines, where) {
   const ops = [], labels = {};
@@ -548,8 +604,8 @@ function main() {
     process.exit(1);
   }
   const MAPS = Object.fromEntries(built.map(b => [b.id, b.map]));
-  const rows = built.map(b => '  ' + b.id.padEnd(18) + String(b.map.w + 'x' + b.map.h).padEnd(7) + String(b.map.objects.length).padStart(4) + ' prop ' +
-    String(b.map.npcs.length).padStart(3) + ' actor ' + String(b.map.links.length).padStart(3) + ' link');
+  const rows = built.map(b => '  ' + b.id.padEnd(18) + String(b.map.w + 'x' + b.map.h).padEnd(7) + String(b.map.ground.length).padStart(2) + '+' +
+    b.map.over.length + ' lớp  tấm ' + b.map.sheets.join(',').padEnd(14) + String(b.map.npcs.length).padStart(3) + ' actor ' + String(b.map.links.length).padStart(3) + ' link');
   console.log(rows.join('\n'));
   if (process.argv.includes('--check')) return;
   const body = '// Sinh bởi tools/build_maps.js từ tools/maps/*.txt - không sửa tay. Định dạng: tools/README-world.md.\n' +

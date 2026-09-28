@@ -1,4 +1,4 @@
-# Phòng thí nghiệm GS Oak. Vỏ interior_lab_3 (có sàn): x -5,13..8,13, z -9,67..1 -> 13 × 11 ô, gốc ở (5, 10).
+# Phòng thí nghiệm GS Oak: máy phân tích, kệ sách, bàn đặt Poké Ball khởi đầu.
 # Mở đầu theo nhiệm vụ "The Pokémon Prof." -> "First Battle" (pokeone.fandom.com/wiki/Main_Quests).
 name: Pallet Town
 song: oak
@@ -6,38 +6,42 @@ indoors: 1
 enter: lab_enter
 
 [legend]
-. floor
-S wall prop=interior_lab_3 pivot=5,10
-W wall
-m floor solid prop=lab_system size=2x1
-e floor solid prop=lab_machine_2 size=2x2
-E floor solid prop=int_lab_machine_elm size=2x2
-t floor solid prop=int_pokemontable size=2x2
-O floor mark
-g floor mark
-a floor mark
-x floor mark
+. labfloor
+W wall_lab
+s labscope
+q labpc
+r labbot
+b bookshelf ground=89:11,11
+c bookshelf2 ground=89:11,11
+m starter
+e chemtable
+p plant ground=89:11,11
+O labfloor mark
+g labfloor mark
+a labfloor mark
+x mat
 
 [grid]
-SWWWWWWWWWWWW
-W........WWWW
-W.....O..WWWW
-W......mmWWWW
-W.....g..WWWW
-Wtt.........W
-Wtt.......a.W
-W...........W
-Wee.......EEW
-Wee.......EEW
-WWWWWxxxWWWWW
+WWWWWWWWWWWWW
+WWWWWWWWWWWWW
+.ssqq.bbccrr.
+.............
+......O......
+.............
+........mm...
+.eee..g...bb.
+.eee.........
+..........cc.
+p........a..p
+.....xxx.....
 
 [links]
 door @x -> pallet_town @L at=below arrive=below face=down sfx=exit_door
 
 [actors]
-oak      @O sprite=oak name="Prof. Oak" face=down script=oak
+oak      @O sprite=sprite261 name="Prof. Oak" face=down script=oak
 gary     @g sprite=sprite46 name="Gary" face=up script=gary hideif=gary_left
-aide     @a sprite=scientist name="Aide" face=left look=random script=lab_aide
+aide     @a sprite=sprite76 name="Aide" face=left look=random script=lab_aide
 machine  @m kind=sign name="Machine" script=starter_machine
 
 [script lab_enter]

@@ -1,7 +1,9 @@
 /*
  * Lớp giao diện của cảnh bản đồ: phím ảo cho điện thoại, màn đen chuyển map, tên vùng, ảnh Pokémon lớn,
- * sổ nhiệm vụ (panel NGUI gốc 'Panel - Quests'), và hộp thoại dự phòng khi shell (js/menus.js) chưa có.
- * Mọi DOM gắn vào #ui và gỡ hết trong unmount().
+ * sổ nhiệm vụ (khung atlas PRO qua P1.proui), và hộp thoại dự phòng khi shell (js/menus.js) chưa có.
+ * HUD, menu và hộp thoại thật thuộc menus.js. Mọi DOM gắn vào #ui và gỡ hết trong unmount().
+ *
+ * Phím ảo: d-pad góc dưới trái, nâng 34 px để chừa hàng nút menu HUD; A/B/MENU/QUEST nằm ngay bên trái vùng 440×280 góc dưới phải (để dành cho khung chat).
  */
 (function (P1) {
   'use strict';
@@ -13,13 +15,12 @@
 .p1w-area.on{transform:translate(-50%,0)}
 .p1w-mon{position:fixed;left:50%;top:18%;transform:translateX(-50%);width:min(40vh,256px);height:min(40vh,256px);z-index:31;pointer-events:none;
   background:radial-gradient(circle,rgba(255,255,255,.9) 0,rgba(210,230,255,.75) 55%,rgba(0,0,0,0) 72%)}
-.p1w-mon img{width:100%;height:100%;image-rendering:pixelated}
-.p1w-pad{position:fixed;inset:auto 0 0 0;height:0;z-index:35;pointer-events:none}
-.p1w-dpad{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(18px + env(safe-area-inset-bottom));width:132px;height:132px;pointer-events:auto;touch-action:none}
+.p1w-mon img{width:100%;height:100%;image-rendering:pixelated;object-fit:contain}
+.p1w-dpad{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(34px + env(safe-area-inset-bottom));width:132px;height:132px;pointer-events:auto;touch-action:none;z-index:35}
 .p1w-dpad i{position:absolute;width:44px;height:44px;background:rgba(20,28,38,.55);border:2px solid rgba(255,255,255,.55);border-radius:8px}
 .p1w-dpad i.on{background:rgba(120,180,255,.6)}
 .p1w-btn{position:fixed;width:58px;height:58px;border-radius:50%;background:rgba(20,28,38,.55);border:2px solid rgba(255,255,255,.6);
-  color:#fff;font:bold 20px Arimo,sans-serif;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none}
+  color:#fff;font:bold 20px Arimo,sans-serif;display:flex;align-items:center;justify-content:center;pointer-events:auto;touch-action:none;z-index:35}
 .p1w-btn.on{background:rgba(120,180,255,.6)}
 .p1w-btn.small{width:46px;height:30px;border-radius:15px;font-size:12px}
 .p1w-dlg{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);width:min(760px,94vw);min-height:86px;z-index:38;
@@ -31,6 +32,16 @@
   font:14px Aldrich,Arimo,sans-serif;padding:6px 12px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:44vw}
 .p1w-toast.on{opacity:1}
 .p1w-toast small{display:block;color:#ffd970;font-size:12px}
+.p1w-quest{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,92vw);min-height:230px;z-index:36;
+  background:#3a353d;color:#e8e4ec;font:14px/1.45 Arimo,Arial,sans-serif;box-sizing:border-box;padding:4px 10px}
+.p1w-quest .qh{position:absolute;left:0;right:0;top:-50px;height:36px;display:flex;align-items:center;justify-content:center;
+  font:bold 16px Aldrich,Arimo,sans-serif;color:#fff;text-shadow:0 1px 0 #000}
+.p1w-quest .qx{position:absolute;right:-6px;top:-48px;width:28px;height:28px;cursor:pointer;border:0;padding:0}
+.p1w-quest .qn{font-weight:bold;font-size:16px;color:#ffd970;margin:2px 0 4px}
+.p1w-quest .qg{margin-bottom:6px;white-space:pre-wrap}
+.p1w-quest .qf{color:#7fc8ff;margin-bottom:8px}
+.p1w-quest .qr b{display:block;color:#bdb6c6;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.p1w-quest .qr div{padding-left:10px}
 `;
 
   let root = null, style = null;
@@ -107,7 +118,7 @@
     if (!dex || !root) return;
     monEl = el('div', 'p1w-mon');
     const img = el('img', '', monEl);
-    img.src = 'art/sprite/poke/big/' + dex + '.png';
+    img.src = 'art/pro/poke/front/' + dex + '.png';
     img.alt = '';
   }
 
@@ -157,11 +168,12 @@
         pad.els.push(b);
         return b;
       };
-      // Cột phải là ô Pokémon của HUD shell (HUD Pokemon, rộng ~70 px ở 844x390): phím ảo đứng bên trái nó.
-      btn('A', 'a', { right: 'calc(96px + env(safe-area-inset-right))', bottom: 'calc(64px + env(safe-area-inset-bottom))' });
-      btn('B', 'b', { right: 'calc(162px + env(safe-area-inset-right))', bottom: 'calc(22px + env(safe-area-inset-bottom))' });
-      btn('MENU', 'menu', { right: 'calc(96px + env(safe-area-inset-right))', bottom: 'calc(136px + env(safe-area-inset-bottom))' }, 'small');
-      btn('QUEST', 'quests', { right: 'calc(150px + env(safe-area-inset-right))', bottom: 'calc(136px + env(safe-area-inset-bottom))' }, 'small');
+      // Góc dưới phải 440×280 là chỗ khung chat (luồng mạng): cụm nút đứng ngay bên trái nó.
+      const R = 452;
+      btn('A', 'a', { right: 'calc(' + R + 'px + env(safe-area-inset-right))', bottom: 'calc(64px + env(safe-area-inset-bottom))' });
+      btn('B', 'b', { right: 'calc(' + (R + 66) + 'px + env(safe-area-inset-right))', bottom: 'calc(22px + env(safe-area-inset-bottom))' });
+      btn('MENU', 'menu', { right: 'calc(' + R + 'px + env(safe-area-inset-right))', bottom: 'calc(136px + env(safe-area-inset-bottom))' }, 'small');
+      btn('QUEST', 'quests', { right: 'calc(' + (R + 54) + 'px + env(safe-area-inset-right))', bottom: 'calc(136px + env(safe-area-inset-bottom))' }, 'small');
     },
     off() { pad.els.forEach(e => e.remove()); pad.els = []; pad.on = false; },
   };
@@ -233,9 +245,13 @@
     },
   };
 
-  /* ---------- nhiệm vụ: dữ liệu P1.QUESTS, sổ nhiệm vụ = panel NGUI 'Panel - Quests' gốc ---------- */
+  /* ---------- sổ nhiệm vụ (phím L): khung 'window_no border' của atlas PRO, nút đóng 'Button_round_X_*' ---------- */
+  function sprite(e, name, opt) {
+    try { if (P1.proui && P1.proui.has(name)) { P1.proui.apply(e, name, opt); return true; } } catch (err) { /* atlas chưa tải */ }
+    return false;
+  }
   const quests = {
-    ui: null, host: null,
+    panel: null,
     current() { const id = P1.state.quest; return id && P1.QUESTS && P1.QUESTS[id] && !P1.state.flags['quest_done_' + id] ? P1.QUESTS[id] : null; },
     rewards(q) {
       const out = [];
@@ -244,42 +260,31 @@
       for (const it of q.items || []) out.push(it.n + 'x ' + P1.script.itemName(it.id));
       return out;
     },
-    toggle() { if (quests.ui) quests.close(); else quests.open(); },
+    toggle() { if (quests.panel) quests.close(); else quests.open(); },
     open() {
-      if (quests.ui || !P1.ngui || !P1.UI || !P1.UI['Panel - Quests'] || !root) return;
-      quests.host = el('div', '');
-      Object.assign(quests.host.style, { position: 'fixed', inset: '0', zIndex: 36 });
-      const ui = quests.ui = P1.ngui.build('Panel - Quests', quests.host, {});
-      ui.on('Button - Close', () => quests.close());
-      ui.show('Button - Share', false);
-      ui.show('Button - Cancel', false);
-      ui.show('Button - Accept', false);
+      if (quests.panel || !root) return;
+      const p = quests.panel = el('div', 'p1w-quest');
+      if (!sprite(p, 'window_no border')) Object.assign(p.style, { border: '2px solid #6b6272', borderTopWidth: '58px', borderRadius: '8px', padding: '10px 14px' });
+      const add = (cls, text, parent) => { const e = el('div', cls, parent || p); if (text != null) e.textContent = text; return e; };
+      add('qh', 'Nhiệm vụ');
+      const x = el('button', 'qx', p);
+      x.title = 'Đóng';
+      if (!sprite(x, 'Button_round_X_normal')) x.textContent = '×';
+      x.addEventListener('pointerenter', () => sprite(x, 'Button_round_X_hover'));
+      x.addEventListener('pointerleave', () => sprite(x, 'Button_round_X_normal'));
+      x.addEventListener('pointerdown', e => { e.preventDefault(); sprite(x, 'Button_round_X_pressed'); });
+      x.addEventListener('click', () => quests.close());
       const q = quests.current();
-      if (q) {
-        const b = ui.add('Sprite - Quest List/Panel - Quest List/Quest Table', 'prefab:Sprite - Quest Button', 'q0');
-        ui.label(b.path + '/Label - Title', q.name);
-        ui.label('Sprite - Quest Data/Sprite - Title/Label - Quest Name', q.name);
-        ui.label('Sprite - Quest Data/Label - Description', q.goal);
-        ui.label('Sprite - Quest Data/Label - Additional Information', '[00AAFF]From:[-] ' + q.from);
-        ui.label('Sprite - Quest Data/Sprite - Progress/Label', '0/1 Progress');
-        ui.fill('Sprite - Quest Data/Sprite - Progress/Sprite - Progress', 0.02);
-        quests.rewards(q).forEach((r, i) => {
-          const n = ui.add('Sprite - Quest Rewards/Panel - Quest Rewards/Quest Table', 'prefab:Quest Reward - Label', 'r' + i);
-          ui.label(n.path, r);
-          ui.offset(n.path, 0, -24 * i);
-        });
-      } else {
-        ui.label('Sprite - Quest Data/Sprite - Title/Label - Quest Name', 'No active quest');
-        ui.label('Sprite - Quest Data/Label - Description', '');
-        ui.label('Sprite - Quest Data/Label - Additional Information', '');
-      }
-      ui.refresh();
+      if (!q) { add('qg', 'Chưa có nhiệm vụ nào.'); return; }
+      add('qn', q.name);
+      add('qg', q.goal || '');
+      if (q.from) add('qf', 'Từ: ' + q.from);
+      const r = add('qr');
+      el('b', '', r).textContent = 'Phần thưởng';
+      for (const t of quests.rewards(q)) add('', t, r);
     },
-    close() {
-      if (quests.ui) { quests.ui.destroy(); quests.ui = null; }
-      if (quests.host) { quests.host.remove(); quests.host = null; }
-    },
-    isOpen() { return !!quests.ui; },
+    close() { if (quests.panel) { quests.panel.remove(); quests.panel = null; } },
+    isOpen() { return !!quests.panel; },
   };
 
   P1.worldUi = { mount, unmount, fade, area, toast, showMon, pad, fallback, quests, openMenu };

@@ -1,40 +1,37 @@
-# Trường huấn luyện Viridian. Vỏ interior_blank_room_2 (sàn gạch): x -6,13..8,13, z -11,56..1 -> 14 × 12 ô, gốc ở (6, 11).
-# Dizzy: nhiệm vụ "Viridian City (Part 3)" (pokeone.fandom.com/wiki/Main_Quests).
+# Trường huấn luyện Viridian: bảng đen, bàn học. Dizzy: nhiệm vụ "Viridian City (Part 3)".
 name: Viridian City
 song: viridian_city
 indoors: 1
 
 [legend]
-. floor
-S wall prop=interior_blank_room_2 pivot=6,11
+. wood
 W wall
-w floor solid prop=int_office_whiteboard size=3x1 align=back
-d floor solid prop=int_desk_01 size=2x1
-b floor solid prop=pokemonbookcase1 size=2x1 align=back dz=0.4
-D floor mark
-s floor mark
-x floor mark
+B blackboard
+d desk
+p plant
+D floor
+s floor
+x mat
 
 [grid]
-SWbbWwwwWWWWWW
-..........WWWW
-......D...WWWW
-.............W
-..dd..dd..dd.W
-.............W
-..dd..dd..dd.W
-.s...........W
-.............W
-.............W
-.............W
-WWWWWxxxWWWWWW
+WWWWWBBBWWWWWW
+WWWWWBBBWWWWWW
+p.....D......p
+..............
+..dd..dd..dd..
+..dd..dd..dd..
+..............
+.sdd..dd..dd..
+..dd..dd..dd..
+..............
+......xxx.....
 
 [links]
 door @x -> viridian_city @S at=below arrive=below face=down
 
 [actors]
-dizzy    @D sprite=sprite76 name="Dizzy" face=down script=dizzy
-student  @s sprite=generic_20 name="Student" face=up look=random script=student
+dizzy    @D sprite=sprite137 name="Dizzy" face=down script=dizzy
+student  @s sprite=sprite190 name="Student" face=up look=random script=student
 
 [script dizzy]
 if quest=viridian_city_3 > quest
