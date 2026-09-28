@@ -1,14 +1,239 @@
-/* Lớp vỏ PokéOne: font gốc của NGUI (bản web, xem tools/README-ui.md §Font) và lớp chứa menu.
-   Mọi chữ NGUI do js/ngui.js vẽ bằng 'P1Aldrich'/'P1Arimo'; hai khai báo dưới cho phần tử DOM ngoài cây NGUI
-   (ô nhập tên, chữ khởi động). */
-@font-face { font-family: 'Aldrich'; src: url('../art/ui/fonts/Aldrich-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Arimo'; src: url('../art/ui/fonts/Arimo-wght.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+/* Lớp vỏ PokéOne kiểu PRO: HUD, menu, hộp thoại — dựng bằng DOM, nền/khung lấy từ sprite atlas PRO
+   (js/proui.js gắn background-image/border-image trực tiếp lên phần tử, xem js/menus.js).
+   Chưa bóc được font gốc PRO (ngoài phạm vi tools/pro/rip_pro.py hiện tại): dùng font hệ thống đậm,
+   nếu sau này rip được thì đổi --p1-font ở đây là đủ. */
+:root {
+  --p1-font: 'Segoe UI', Verdana, Arial, sans-serif;
+  --p1-gold: #ffd23c;
+  --p1-ink: #2a1a08;
+  --p1-panel-text: #fff6d8;
+}
 
+#ui { font-family: var(--p1-font); }
 #ui > .p1-layer, #ui > .p1-scene { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 #ui > .p1-layer { z-index: 20; }
 #ui > .p1-scene { z-index: 10; }
 
-.p1-input { position: absolute; left: 0; top: 0; transform-origin: 0 0; margin: 0; padding: 0 0 0 2px; border: 0; outline: 0;
-  background: transparent; pointer-events: auto; font-family: 'P1Arimo', Arimo, Arial, sans-serif; line-height: 1; }
-.p1-input::placeholder { color: transparent; }
-#ui > .p1-hud { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 15; }
+/* Sân khấu 1366×768 tâm màn hình, co giãn bằng transform (min(w/1366,h/768), JS đặt trong menus.js/title.js).
+   z-index 20 > HUD (15): menu/popup/hộp thoại luôn nổi trên HUD, kể cả khi dựng sau trong DOM. */
+.p1-stage { position: absolute; left: 50%; top: 50%; transform-origin: center center; pointer-events: none; z-index: 20; }
+.p1-stage * { box-sizing: border-box; }
+/* index.html có #ui > * { pointer-events: auto } (đặc trưng hơn lớp .p1-stage vì có #id): ghi đè lại
+   bằng chọn lọc cũng có #id để sân khấu rỗng không chặn chuột xuống HUD bên dưới. */
+#ui > .p1-stage { pointer-events: none; }
+
+.p1-hud { position: absolute; inset: 0; z-index: 15; pointer-events: none; }
+.p1-hud-stage { pointer-events: none; }
+.p1-hud-stage .p1-menu, .p1-hud-stage .p1-team, .p1-hud-stage .p1-topright { pointer-events: auto; }
+
+/* ---------------------------------------------------------------- thanh đội (TeamSidebar) */
+.p1-team { position: absolute; display: flex; flex-direction: column; gap: 3px; }
+.p1-mon-slot { position: relative; width: 260px; height: 52px; cursor: pointer; user-select: none; }
+.p1-mon-ball { position: absolute; left: 0; top: -1px; }
+.p1-mon-icon { position: absolute; left: 6px; top: 5px; width: 40px; height: 40px; image-rendering: pixelated; }
+.p1-mon-bg { position: absolute; left: 46px; top: 6px; }
+.p1-mon-name { position: absolute; left: 56px; top: 4px; font-size: 13px; font-weight: 700; color: var(--p1-panel-text); text-shadow: 1px 1px 0 #000; white-space: nowrap; }
+.p1-mon-level { position: absolute; left: 56px; top: 34px; font-size: 11px; color: #cfe8ff; text-shadow: 1px 1px 0 #000; }
+.p1-mon-hpbar { position: absolute; left: 78px; top: 18px; overflow: hidden; }
+.p1-mon-hpfill { position: absolute; left: 0; top: 0; height: 100%; background: #3ad13a; transition: width .2s; }
+.p1-mon-hpfill.p1-hp-mid { background: #ffd23c; }
+.p1-mon-hpfill.p1-hp-low { background: #ff4a4a; }
+.p1-mon-expfill { position: absolute; left: 56px; top: 46px; height: 4px; background: #6fc7ff; transition: width .2s; }
+.p1-mon-gender { position: absolute; left: 8px; top: 30px; font-size: 12px; color: #cfe8ff; }
+/* Vắng theo mặc định: JS chỉ hiện khi mon thật có shiny/trạng thái (slot rỗng không bao giờ chạy tới đó). */
+.p1-mon-shiny, .p1-mon-status { position: absolute; display: none; }
+.p1-mon-shiny { left: 30px; top: 4px; width: 14px; height: 14px; }
+.p1-mon-status { right: 6px; top: 4px; }
+/* Ô rỗng: chỉ còn khung bóng mờ, không tên/bar/huy hiệu — im lặng thay vì trông như Pokémon hỏng dữ liệu. */
+.p1-mon-slot.p1-empty { pointer-events: none; }
+.p1-mon-slot.p1-empty .p1-mon-ball { opacity: .3; }
+.p1-mon-slot.p1-empty .p1-mon-icon, .p1-mon-slot.p1-empty .p1-mon-bg, .p1-mon-slot.p1-empty .p1-mon-name,
+.p1-mon-slot.p1-empty .p1-mon-level, .p1-mon-slot.p1-empty .p1-mon-hpbar, .p1-mon-slot.p1-empty .p1-mon-expfill,
+.p1-mon-slot.p1-empty .p1-mon-gender, .p1-mon-slot.p1-empty .p1-mon-shiny, .p1-mon-slot.p1-empty .p1-mon-status { display: none; }
+
+/* Màn rất nhỏ (bề ngang hoặc cao < 500px, vd 844×390 ngang điện thoại): chỉ còn icon + thanh máu, bỏ
+   tên/Lv/EXP/giới tính để 6 ô không chiếm gần nửa chiều cao màn hình và đè lên khung chat góc dưới phải. */
+.p1-hud.p1-compact .p1-team { gap: 2px; width: 96px; }
+.p1-hud.p1-compact .p1-mon-slot { width: 96px; height: 34px; }
+.p1-hud.p1-compact .p1-mon-ball { transform: scale(.6); transform-origin: top left; }
+.p1-hud.p1-compact .p1-mon-icon { left: 5px; top: 3px; width: 26px; height: 26px; }
+.p1-hud.p1-compact .p1-mon-bg, .p1-hud.p1-compact .p1-mon-name, .p1-hud.p1-compact .p1-mon-level,
+.p1-hud.p1-compact .p1-mon-expfill, .p1-hud.p1-compact .p1-mon-gender { display: none; }
+.p1-hud.p1-compact .p1-mon-hpbar { left: 34px; top: 12px; transform: scale(.74); transform-origin: left; }
+.p1-hud.p1-compact .p1-mon-shiny { left: 20px; top: 2px; width: 10px; height: 10px; }
+.p1-hud.p1-compact .p1-mon-status { right: 2px; top: 2px; transform: scale(.7); transform-origin: top right; }
+
+/* ---------------------------------------------------------------- menu (GameMenu, dưới trái) */
+.p1-menu { position: absolute; }
+.p1-menu-row { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; }
+.p1-menu-btn { position: relative; width: 46px; height: 46px; cursor: pointer; }
+.p1-menu-btn.p1-hidden { display: none; }
+.p1-menu-btn-bg { position: absolute; left: 0; top: 0; }
+.p1-menu-btn-icon { position: absolute; left: 8px; top: 8px; pointer-events: none; }
+.p1-menu-btn:active .p1-menu-btn-icon { transform: translateY(1px); }
+.p1-menu-money { position: absolute; right: 10px; top: 4px; font-size: 13px; font-weight: 700; color: var(--p1-gold); text-shadow: 1px 1px 0 #000; }
+
+/* ---------------------------------------------------------------- góc trên phải (map + giờ) */
+.p1-topright { position: absolute; text-align: right; }
+.p1-time-icon { position: absolute; right: 0; top: 0; }
+.p1-map-name { position: absolute; right: 68px; top: 18px; font-size: 15px; font-weight: 700; color: var(--p1-panel-text); text-shadow: 1px 1px 0 #000; max-width: 180px; }
+
+/* ---------------------------------------------------------------- màn / popup */
+.p1-panel { position: absolute; inset: 0; pointer-events: none; }
+.p1-popup { position: absolute; pointer-events: auto; color: var(--p1-panel-text); }
+.p1-popup-title { position: absolute; left: 16px; top: 10px; font-size: 18px; font-weight: 800; color: var(--p1-gold); text-shadow: 1px 1px 0 #000; }
+.p1-popup-text { position: absolute; left: 20px; right: 20px; top: 50px; font-size: 14px; line-height: 1.4; }
+.p1-popup-buttons { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center; gap: 16px; }
+
+.p1-btn, .p1-btn-round, .p1-btn-row { cursor: pointer; user-select: none; }
+.p1-btn-round { padding: 8px 22px; background: #1a2a4a; border: 2px solid #6fa8ff; border-radius: 18px; font-weight: 700; }
+.p1-btn-round:hover { background: #22385f; }
+.p1-btn-row { display: block; margin: 6px 16px; padding: 8px 12px; background: #1a2a4a; border: 1px solid #4a6a9a; border-radius: 8px; font-weight: 600; text-align: center; }
+.p1-btn-row:hover { background: #22385f; }
+.p1-btn-close { position: absolute; right: 8px; top: 8px; width: 28px; height: 28px; cursor: pointer; z-index: 2; }
+.p1-disabled { opacity: .4; pointer-events: none; }
+
+/* ---------------------------------------------------------------- Esc menu */
+.p1-esc-rows { position: absolute; left: 0; right: 0; top: 60px; }
+
+/* ---------------------------------------------------------------- đội Pokémon */
+.p1-party-list { position: absolute; left: 16px; top: 44px; width: 180px; bottom: 16px; overflow-y: auto; }
+.p1-party-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer; border-radius: 6px; font-size: 12px; }
+.p1-party-row.p1-sel, .p1-item-cell.p1-sel, .p1-dex-cell.p1-sel { background: rgba(111,168,255,.35); }
+.p1-party-row-icon { width: 28px; height: 28px; image-rendering: pixelated; }
+.p1-party-detail { position: absolute; left: 208px; right: 16px; top: 44px; bottom: 16px; }
+.p1-tabs { position: absolute; left: 0; top: 0; display: flex; gap: 4px; }
+.p1-tab { padding: 4px 12px; background: #1a2a4a; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 12px; }
+.p1-tab.p1-active { background: #2c4a7c; font-weight: 700; }
+.p1-party-body { position: absolute; left: 0; right: 0; top: 34px; bottom: 0; }
+.p1-party-portrait { position: absolute; right: 0; top: 0; width: 96px; height: 96px; image-rendering: pixelated; }
+.p1-party-name { font-size: 16px; font-weight: 800; }
+.p1-party-sub { font-size: 12px; opacity: .8; margin-bottom: 8px; }
+.p1-stat-grid, .p1-move-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 8px; max-width: 220px; }
+.p1-stat { font-size: 12px; }
+.p1-move-row { display: flex; gap: 8px; font-size: 12px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.1); }
+.p1-move-type { text-transform: capitalize; opacity: .75; }
+.p1-party-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.p1-party-actions .p1-btn-row { margin: 0; }
+
+/* ---------------------------------------------------------------- lưới vật phẩm/dex dùng chung */
+.p1-item-grid { position: absolute; left: 16px; top: 44px; right: 16px; bottom: 60px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; overflow-y: auto; }
+.p1-item-cell { width: 84px; padding: 6px; text-align: center; background: rgba(0,0,0,.25); border-radius: 8px; cursor: pointer; font-size: 11px; }
+.p1-item-cell:hover { background: rgba(255,255,255,.12); }
+.p1-item-icon { width: 40px; height: 40px; image-rendering: pixelated; }
+.p1-item-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p1-item-count, .p1-item-price { color: var(--p1-gold); font-size: 11px; }
+.p1-item-cancel { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); }
+.p1-item-desc-name { font-size: 15px; font-weight: 700; }
+
+/* ---------------------------------------------------------------- túi đồ */
+.p1-bag-tabs { position: absolute; left: 16px; top: 10px; display: flex; gap: 4px; }
+.p1-pocket-tab { width: 34px; height: 34px; cursor: pointer; border-radius: 6px; padding: 2px; }
+.p1-pocket-tab.p1-active { background: rgba(111,168,255,.35); }
+.p1-bag-grid { top: 54px; bottom: 100px; }
+.p1-bag-detail { position: absolute; left: 16px; right: 16px; bottom: 12px; height: 80px; }
+
+/* ---------------------------------------------------------------- Pokédex */
+.p1-dex-header { position: absolute; left: 16px; top: 10px; right: 16px; display: flex; justify-content: space-between; align-items: center; }
+.p1-dex-counts { font-size: 12px; }
+.p1-dex-grid { position: absolute; left: 16px; top: 44px; width: 340px; bottom: 16px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 4px; overflow-y: auto; }
+.p1-dex-cell { width: 60px; padding: 4px; text-align: center; background: rgba(0,0,0,.25); border-radius: 6px; cursor: pointer; font-size: 10px; opacity: .5; }
+.p1-dex-cell.p1-caught { opacity: 1; }
+.p1-dex-detail { position: absolute; left: 372px; right: 16px; top: 44px; bottom: 16px; }
+.p1-dex-portrait { width: 100px; height: 100px; image-rendering: pixelated; }
+.p1-dex-name { font-size: 16px; font-weight: 800; margin-top: 6px; }
+.p1-dex-desc { font-size: 12px; margin-top: 6px; }
+.p1-dex-unknown { font-size: 40px; text-align: center; margin-top: 80px; opacity: .4; }
+
+/* ---------------------------------------------------------------- thẻ huấn luyện viên */
+.p1-trainer-portrait { position: absolute; left: 50%; top: 40px; transform: translateX(-50%); width: 128px; height: 128px; image-rendering: pixelated; }
+.p1-trainer-name { position: absolute; left: 0; right: 0; top: 178px; text-align: center; font-size: 16px; font-weight: 800; color: var(--p1-gold); }
+.p1-trainer-values { position: absolute; left: 24px; right: 24px; top: 210px; font-size: 12px; white-space: pre-line; text-align: center; }
+
+/* ---------------------------------------------------------------- cài đặt */
+.p1-options-rows { position: absolute; left: 20px; right: 20px; top: 50px; }
+.p1-option-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 13px; }
+.p1-option-label { flex: 1; }
+.p1-option-slider, .p1-option-select { width: 160px; }
+
+/* ---------------------------------------------------------------- hộp PC */
+.p1-box-grid { position: absolute; left: 16px; top: 16px; right: 16px; bottom: 16px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; overflow-y: auto; }
+
+/* ---------------------------------------------------------------- cửa hàng */
+.p1-shop-money { position: absolute; left: 16px; top: 10px; font-size: 13px; color: var(--p1-gold); font-weight: 700; }
+.p1-shop-detail { position: absolute; left: 16px; right: 16px; bottom: 12px; height: 100px; }
+.p1-shop-name { font-size: 15px; font-weight: 700; }
+.p1-shop-amount { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.p1-shop-amount-label { min-width: 24px; text-align: center; font-weight: 700; }
+.p1-shop-total { color: var(--p1-gold); font-weight: 700; margin-bottom: 8px; }
+
+/* ---------------------------------------------------------------- học chiêu / tiến hoá */
+.p1-learn-portrait, .p1-evolve-portrait { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); width: 96px; height: 96px; image-rendering: pixelated; }
+.p1-learn-text, .p1-evolve-text { position: absolute; left: 24px; right: 24px; top: 128px; font-size: 13px; text-align: center; line-height: 1.4; }
+.p1-learn-rows { position: absolute; left: 24px; right: 24px; top: 200px; }
+
+/* ---------------------------------------------------------------- hộp thoại NPC (NpcDialoguePanel) */
+.p1-dialog { position: absolute; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .12s; }
+.p1-dialog.p1-visible { opacity: 1; visibility: visible; pointer-events: auto; }
+.p1-dialog-name { position: absolute; left: 24px; top: 14px; font-size: 15px; font-weight: 800; color: var(--p1-gold); text-shadow: 1px 1px 0 #000; }
+.p1-dialog-text { position: absolute; left: 24px; right: 24px; top: 44px; font-size: 15px; line-height: 1.5; color: #fff; text-shadow: 1px 1px 0 #000; white-space: pre-line; }
+.p1-dialog-arrow { position: absolute; right: 20px; bottom: 14px; animation: p1-bounce 1s infinite; }
+.p1-dialog-choices { position: absolute; opacity: 0; visibility: hidden; pointer-events: none; }
+.p1-dialog-choices.p1-visible { opacity: 1; visibility: visible; pointer-events: auto; }
+.p1-dialog-choice { padding: 8px 16px; margin-bottom: 6px; background: rgba(20,30,50,.92); border: 1px solid #4a6a9a; border-radius: 8px; font-size: 14px; color: #fff; cursor: pointer; }
+.p1-dialog-choice.p1-hover { background: rgba(111,168,255,.35); }
+@keyframes p1-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+
+/* ---------------------------------------------------------------- thông báo nổi / màn đen hồi máu */
+.p1-toast { position: absolute; opacity: 0; transition: opacity .35s; pointer-events: none; }
+.p1-toast-bg { position: absolute; inset: 0; }
+.p1-toast-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; text-shadow: 1px 1px 0 #000; padding: 0 16px; text-align: center; }
+.p1-blackout { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity .35s; pointer-events: auto; }
+
+/* ---------------------------------------------------------------- ô nhập chữ, ảnh chưa có, kéo-thả */
+/* Nằm trong dòng chảy bình thường của cha (header tìm kiếm Pokédex, ô tên ở creator) — không neo tuyệt
+   đối như bản NGUI cũ (ô nhập đè lên nhãn có sẵn), vì lớp này giờ không còn cây NGUI để đè lên nữa. */
+.p1-input { margin: 0; padding: 6px 10px; border: 1px solid #4a6a9a; border-radius: 6px; background: rgba(0,0,0,.4); color: #fff; font-family: var(--p1-font); pointer-events: auto; }
+.p1-img-missing { background: repeating-linear-gradient(45deg, rgba(255,255,255,.06), rgba(255,255,255,.06) 6px, rgba(255,255,255,.14) 6px, rgba(255,255,255,.14) 12px); border: 1px dashed rgba(255,255,255,.3); }
+.p1-drag-ghost { position: fixed; z-index: 999; opacity: .7; pointer-events: none; }
+
+@media (max-width: 900px) {
+  .p1-popup-text, .p1-dialog-text { font-size: 13px; }
+}
+
+/* ---------------------------------------------------------------- màn đầu (title.js) */
+.p1-title-stage { pointer-events: none; }
+.p1-title-logo { position: absolute; left: 0; right: 0; top: 90px; text-align: center; font-size: 64px; font-weight: 900;
+  color: var(--p1-gold); text-shadow: 3px 3px 0 #000, 0 0 24px rgba(255,210,60,.5); letter-spacing: 1px; }
+.p1-title-box { position: absolute; left: 50%; bottom: 90px; transform: translateX(-50%); width: 420px; text-align: center;
+  pointer-events: auto; }
+.p1-title-summary { color: #fff; font-size: 14px; margin-bottom: 14px; text-shadow: 1px 1px 0 #000; }
+.p1-title-buttons { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.p1-title-btn { width: 220px; padding: 12px 0; background: rgba(20,30,50,.85); border: 2px solid #6fa8ff; border-radius: 24px;
+  color: #fff; font-weight: 800; font-size: 16px; text-align: center; cursor: pointer; }
+.p1-title-btn:hover { background: rgba(40,60,100,.9); }
+
+/* ---------------------------------------------------------------- tạo nhân vật (creator.js) */
+.p1-creator-stage { pointer-events: none; }
+/* Panel PRO (backpack_no_scrollbar_bg, giống khung các màn trong game) nổi trên nền title_bg đã vẽ ở
+   render(); mọi nội dung bên trong đặt toạ độ như cũ (left:50%+translateX tự căn giữa theo panel). */
+.p1-creator-panel { position: absolute; left: 50%; top: 14px; width: 560px; height: 740px; transform: translateX(-50%); pointer-events: auto; }
+.p1-creator-title { position: absolute; left: 0; right: 0; top: 24px; text-align: center; font-size: 26px; font-weight: 800;
+  color: var(--p1-gold); text-shadow: 1px 1px 0 #000; }
+.p1-creator-gender { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: auto; }
+.p1-creator-gender-btn { padding: 8px 26px; background: rgba(20,30,50,.85); border: 2px solid #4a6a9a; border-radius: 18px;
+  color: #fff; font-weight: 700; cursor: pointer; }
+.p1-creator-gender-btn.p1-active { border-color: #6fa8ff; background: rgba(60,90,140,.9); }
+.p1-creator-preview { position: absolute; left: 50%; top: 130px; transform: translateX(-50%); width: 220px; height: 220px;
+  background: rgba(0,0,0,.25); border-radius: 12px; pointer-events: auto; }
+.p1-creator-canvas { image-rendering: pixelated; width: 100%; height: 100%; }
+.p1-creator-pickers { position: absolute; left: 50%; top: 380px; transform: translateX(-50%); width: 420px; pointer-events: auto; }
+.p1-creator-picker { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; color: #fff; }
+.p1-creator-picker-label { width: 100px; font-weight: 700; font-size: 13px; }
+.p1-creator-picker-ctl { display: flex; align-items: center; gap: 12px; flex: 1; justify-content: center; }
+.p1-creator-arrow { padding: 4px 14px; }
+.p1-creator-picker-value { min-width: 130px; text-align: center; font-size: 13px; }
+.p1-creator-name { position: absolute; left: 50%; top: 612px; transform: translateX(-50%); display: flex; align-items: center;
+  gap: 10px; pointer-events: auto; }
+.p1-creator-name-input { position: static; width: 200px; }
+.p1-creator-accept { position: absolute; left: 50%; top: 668px; transform: translateX(-50%); pointer-events: auto; }

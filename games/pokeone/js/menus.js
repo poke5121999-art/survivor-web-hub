@@ -1,154 +1,164 @@
 /*
- * Menu trong game, hộp thoại và HUD, dựng từ panel NGUI gốc (data/ui.js) qua P1.ngui.
- * Panel nào dùng cho màn nào, và chỗ nào khác bản gốc: tools/README-shell.md.
+ * Vỏ giao diện PokéOne kiểu PRO: HUD, menu, hộp thoại — dựng bằng DOM + sprite atlas PRO (js/proui.js),
+ * không còn cây NGUI (data/ui.js đã bỏ). Bố cục tham chiếu D:\pro-ref\ref\gamegui.txt (không gian
+ * 1366×768 tâm màn hình, NGUI y hướng lên); hàm `at()` dưới đây đổi toạ độ đó sang CSS trái/trên.
  *
- *   P1.ui.hud(parent?)            HUD 'Panel - Game GUI' → { refresh(), destroy(), view }
- *   P1.ui.open(name, arg?)        'menu' | 'party' | 'bag' | 'dex' | 'trainer' | 'options' | 'save' | 'pokebox' → Promise
+ *   P1.ui.hud(parent?)            HUD → { view, el, refresh(), destroy() }
+ *   P1.ui.open(name, arg?)        'menu' | 'party' | 'bag' | 'dex' | 'trainer' | 'options' | 'pokebox' → Promise
  *   P1.ui.close() / closeAll() / isOpen() / refresh()
  *   P1.ui.shop([{ id, price }])   → Promise;  P1.ui.heal() → Promise
- *   P1.ui.learnMove(mon, moveId)  → Promise<ô đã ghi | null>;  P1.ui.evolve(mon, dex) → Promise<bool>
+ *   P1.ui.learnMove(mon, moveId)  → Promise<slot đã ghi | null>;  P1.ui.evolve(mon, dex) → Promise<bool>
  *   P1.ui.message({ title, text, yes, no }) → Promise<bool>;  P1.ui.toast(text)
+ *   P1.ui.textInput(el, opt) / P1.ui.pressAndHold(el, fn) / P1.ui.onEl(el, fn)
+ *   P1.ui.paintPlayer(canvas, look, gender, dir, frame)   vẽ nhân vật (thân→áo→tóc→mũ) lên canvas nhỏ
+ *   P1.ui.itemByKey(key)
  *   P1.dialog.say(textOrLines, { name? }) → Promise;  P1.dialog.choose(text, options) → Promise<index>
- *   P1.look                       lớp sprite người chơi (thân → áo → tóc → mũ) và màu tóc gốc
+ *
+ * Góc dưới phải 440×280 px (STAGE_W-440..STAGE_W, STAGE_H-280..STAGE_H) để trống cho khung chat (js/chat.js).
  */
 (function (P1) {
   'use strict';
 
-  /* ---------------------------------------------------------------- dữ liệu gốc nhỏ */
+  const STAGE_W = 1366, STAGE_H = 768;
 
-  // TextureManager.HairColour (MonoBehaviour trong level1), đọc bằng tools/ttg.py. Cách đọc: README-shell.md.
-  const HAIR_COLOURS = ['ffffff', 'ffe485', 'fbd345', 'de9e43', 'ff9434', 'ff5f34', 'fc4040', 'b92e2e', 'd3ff99', '80e85c',
-    '37b558', '23724c', '9ef8ea', '83e3ff', '56a0fc', '4560b8', '38487b', 'eab3ff', 'ba6cd7', '6f3983', 'ff92da', 'fc5ec6',
-    'dd3982', 'a02467', 'cd8e69', '946344', '553f32', '3f3936'];
-  // Sprite trạng thái rút gọn có trong GUIAtlas (HUD và thẻ Pokémon dùng bộ này, trận dùng Icon_Status_*).
-  const STATUS_SPRITE = { psn: 'psn', tox: 'psn', brn: 'burn', frz: 'freeze', par: 'paralize', slp: 'sleep' };
-  // Màu tên theo tổng IV. Wiki chỉ có tên màu (RESEARCH.md §3); mã màu là đoán.
-  const IV_HEX = { grey: '9a9a9a', white: 'ffffff', green: '5cd65c', blue: '668cff', purple: 'c77dff', gold: 'ffd700' };
-  const BAG_TABS = ['General', 'Pokeball', 'Medicine', 'TM', 'Berries', 'Hold'];
-  const BOX_SIZE = 24, BOX_COUNT = 10;                     // BoxView 520x340 vừa 4 hàng × 6 ô (UIGrid max 6)
-  const DEX_BUTTONS = 45;                                  // PokedexHandler.MaxPokeButtons
-
-  /* ---------------------------------------------------------------- tiện ích */
+  /* ---------------------------------------------------------------- tiện ích chung */
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const money = n => Math.max(0, Math.floor(n || 0)).toLocaleString('en-US');
+  const money = n => Math.max(0, Math.floor(n || 0)).toLocaleString('vi-VN');
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const pad2 = i => String(i).padStart(2, '0');
-  const toId = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const toId = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 
   function uiRoot() { return document.getElementById('ui') || document.body; }
-  function host(cls) {
-    const el = document.createElement('div');
-    el.className = cls;
-    uiRoot().appendChild(el);
+
+  /* Sân khấu 1366×768 tâm giữ tỉ lệ NGUI: mọi màn/HUD dựng bên trong, JS co giãn theo cỡ cửa sổ
+     (min(w/1366,h/768), có sàn để chữ không quá nhỏ trên điện thoại). */
+  let stageEl = null;
+  function stage() {
+    if (stageEl && stageEl.isConnected) return stageEl;
+    stageEl = document.createElement('div');
+    stageEl.className = 'p1-stage';
+    stageEl.style.width = STAGE_W + 'px';
+    stageEl.style.height = STAGE_H + 'px';
+    uiRoot().appendChild(stageEl);
+    const fit = () => {
+      const s = Math.max(0.32, Math.min(innerWidth / STAGE_W, innerHeight / STAGE_H));
+      stageEl.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return stageEl;
+  }
+  // Toạ độ kiểu NGUI (tâm màn = 0,0, y hướng lên, như D:\pro-ref\ref\gamegui.txt cột abs) → trái/trên CSS.
+  function at(el, cx, cy, w, h) {
+    if (w != null) el.style.width = w + 'px';
+    if (h != null) el.style.height = h + 'px';
+    el.style.position = 'absolute';
+    el.style.left = (STAGE_W / 2 + cx - (w || 0) / 2) + 'px';
+    el.style.top = (STAGE_H / 2 - cy - (h || 0) / 2) + 'px';
     return el;
   }
-  let layerEl = null;
-  function layer() {
-    if (!layerEl || !layerEl.isConnected) layerEl = host('p1-layer');
-    return layerEl;
+  function el(tag, cls, parent) {
+    const e = document.createElement(tag || 'div');
+    if (cls) e.className = cls;
+    if (parent) parent.appendChild(e);
+    return e;
   }
-  function build(key, parent, opts) { return P1.ngui.build(key, parent || layer(), opts); }
-  function node(v, path) { return v.ui.need(path); }
-  // Bật/tắt nhiều nút rồi dựng lại một lần (ui.show dựng lại sau mỗi lần gọi).
-  function activate(v, list) {
-    for (const [p, on] of list) { const n = typeof p === 'string' ? v.find(p) : p; if (n) n.active = !!on; }
-    v.refresh();
+  function txt(parent, cls, text) { const e = el('div', cls, parent); e.textContent = text == null ? '' : text; return e; }
+  function spr(name, w, h, cls) {
+    const e = P1.proui.el(name, w != null ? { w, h } : {});
+    if (cls) e.className += ' ' + cls;
+    return e;
   }
-  function setTex(v, path, url, uv) {
-    const n = typeof path === 'string' ? node(v, path) : path;
-    n.w.tex = url || '';
-    if (uv) n.w.uv = uv;
-    n.drawn = null;
-    v.ui.draw(n);
-    return n;
+  // Ảnh có thể chưa rip xong (art/pro/*): lỗi thì thêm lớp để CSS vẽ ô giữ chỗ, không vỡ giao diện.
+  function img(src, cls) {
+    const e = el('img', cls);
+    e.draggable = false; e.loading = 'eager';
+    e.onerror = () => { e.classList.add('p1-img-missing'); };
+    if (src) e.src = src;   // src='' vẫn nạp (trỏ về chính trang) và bật ảnh vỡ giả — bỏ qua khi chưa có gì để vẽ
+    return e;
   }
-  function setSize(n, w, h) { n.w.size = [w, h]; n.drawn = null; }
-  // Nút trùng tên (6 'PokeButton'...) chung một đường dẫn nên ui.on gắn cho cả nhóm: bắt click thẳng trên phần tử.
-  function onEl(n, fn) { n.el.addEventListener('click', ev => { if (n.state !== 'disabled' && !n.noClick) fn(n, ev); }); }
-  function hoverEl(n, enter, leave) {
-    n.el.addEventListener('pointerenter', enter);
-    n.el.addEventListener('pointerleave', leave);
+  // hook: móc kiểm thử ổn định (data-p1), thay cho đường dẫn NGUI cũ đã mất khi bỏ cây NGUI.
+  function button(parent, cls, onClick, hook) {
+    const b = el('div', 'p1-btn ' + (cls || ''), parent);
+    b.tabIndex = 0;
+    if (hook) b.dataset.p1 = hook;
+    onEl(b, onClick);
+    return b;
   }
-  function rectOf(n) { return n.el ? n.el.getBoundingClientRect() : null; }
+  // Nút trùng vùng bấm dùng chung: click chuột + Enter/Space khi có focus bàn phím.
+  function onEl(n, fn) {
+    n.addEventListener('click', ev => { if (!n.classList.contains('p1-disabled')) fn(ev); });
+    n.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && !n.classList.contains('p1-disabled')) { ev.preventDefault(); fn(ev); } });
+  }
+  function hoverEl(n, enter, leave) { n.addEventListener('pointerenter', enter); n.addEventListener('pointerleave', leave); }
+  function rectOf(n) { return n ? n.getBoundingClientRect() : null; }
   function inside(r, x, y) { return r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }
-  const frameUV = (row, col) => [col * 0.25, 1 - (row + 1) * 0.25, 0.25, 0.25];
 
-  // Chép một nút của panel khác thành "prefab" để ui.add chèn được (ô nhập của màn đăng nhập vào màn tạo nhân vật...).
-  function borrow(panel, suffix, key) {
-    if (P1.UI_PREFABS[key]) return key;
-    let hit = null;
-    const walk = (d, path) => {
-      if (hit) return;
-      if (path.endsWith('/' + suffix)) { hit = { d, path }; return; }
-      (d.c || []).forEach(c => walk(c, path + '/' + c.n));
-    };
-    walk(P1.UI[panel] || P1.UI_PREFABS[panel], panel);
-    if (!hit) throw new Error('borrow: node not found ' + panel + '/' + suffix);
-    const json = JSON.stringify(hit.d).split('"' + hit.path + '/').join('"' + key + '/').split('"' + hit.path + '"').join('"' + key + '"');
-    P1.UI_PREFABS[key] = JSON.parse(json);
-    return key;
-  }
-
-  // Giữ chuột trên nút +/- (PressAndHold gốc): lặp sau 0,4 s, rồi mỗi 0,08 s.
+  // Giữ chuột trên nút +/-: lặp sau 0,4 s rồi mỗi 0,08 s (Choose Amount gốc).
   function pressAndHold(n, fn) {
     let t = 0;
     const stop = () => { clearTimeout(t); t = 0; };
-    n.el.addEventListener('pointerdown', ev => {
+    n.addEventListener('pointerdown', ev => {
       if (ev.button !== 0) return;
       fn();
       const loop = () => { fn(); t = setTimeout(loop, 80); };
       t = setTimeout(loop, 400);
     });
-    ['pointerup', 'pointerleave', 'pointercancel'].forEach(k => n.el.addEventListener(k, stop));
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(k => n.addEventListener(k, stop));
   }
 
-  // Ô nhập chữ: NGUI UIInput chỉ là hình, gõ thật bằng <input> đặt đúng chỗ nhãn của ô.
-  function textInput(v, path, opt) {
+  // Ô nhập chữ định vị trên một div PRO (input thật để gõ bàn phím, ẩn nền, đặt đúng chỗ div).
+  function textInput(hostEl, opt) {
     opt = opt || {};
-    const n = node(v, path);
-    const lab = node(v, opt.label || n.path + '/Label');
-    const cfg = (n.d.x && n.d.x.UIInput) || {};
-    const placeholder = opt.placeholder != null ? opt.placeholder : lab.w.text;
-    const el = document.createElement('input');
-    el.className = 'p1-input';
-    el.type = 'text';
-    el.spellcheck = false;
-    el.autocomplete = 'off';
-    el.maxLength = opt.limit || cfg.characterLimit || 40;
-    el.value = opt.value || '';
-    el.setAttribute('aria-label', placeholder.replace(/\.+$/, ''));
-    const c = (cfg.activeTextColor || '#ffffffff');
-    el.style.color = c.slice(0, 7);
-    el.style.caretColor = (cfg.caretColor || '#6b6b6bcc').slice(0, 7);
-    lab.container.appendChild(el);
-    const show = () => v.label(lab.path, el.value ? '' : placeholder);
-    let raf = 0, last = '';
-    const sync = () => {
-      const st = lab.el.style;
-      const key = st.transform + '|' + st.width + '|' + st.height + '|' + st.display + '|' + st.fontSize;
-      if (key !== last) {
-        last = key;
-        Object.assign(el.style, { transform: st.transform, width: st.width, height: st.height, fontSize: st.fontSize,
-          fontFamily: st.fontFamily, display: st.display, zIndex: String((+st.zIndex || 0) + 1) });
-      }
-      raf = requestAnimationFrame(sync);
-    };
-    sync();
-    show();
-    el.addEventListener('input', () => { show(); if (opt.onInput) opt.onInput(el.value); });
-    el.addEventListener('keydown', ev => { if (ev.key === 'Enter' && opt.onEnter) opt.onEnter(el.value); if (ev.key === 'Escape') el.blur(); });
-    n.el.addEventListener('pointerdown', () => setTimeout(() => el.focus(), 0));
-    return {
-      el,
-      get value() { return el.value; },
-      set value(s) { el.value = s; show(); },
-      destroy() { cancelAnimationFrame(raf); el.remove(); },
-    };
+    const e = document.createElement('input');
+    e.type = 'text';
+    e.className = 'p1-input';
+    e.spellcheck = false;
+    e.autocomplete = 'off';
+    e.maxLength = opt.limit || 40;
+    e.placeholder = opt.placeholder || '';
+    e.value = opt.value || '';
+    hostEl.appendChild(e);
+    e.addEventListener('input', () => { if (opt.onInput) opt.onInput(e.value); });
+    e.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter' && opt.onEnter) opt.onEnter(e.value);
+      if (ev.key === 'Escape') e.blur();
+      ev.stopPropagation();
+    });
+    return { el: e, get value() { return e.value; }, set value(s) { e.value = s; }, destroy() { e.remove(); } };
   }
 
-  /* ---------------------------------------------------------------- dữ liệu vật phẩm */
+  // Kéo-thả đơn giản (đổi chỗ Pokémon trong đội, gửi/rút hộp PC): ghost nhỏ theo chuột, thả thì hỏi onDrop(x,y).
+  function dragSource(n, onDrop) {
+    n.addEventListener('pointerdown', ev => {
+      if (ev.button !== 0) return;
+      const r = n.getBoundingClientRect();
+      if (Math.hypot(r.width, r.height) < 4) return;
+      let moved = false, ghost = null;
+      const start = { x: ev.clientX, y: ev.clientY };
+      const move = mv => {
+        if (!moved && Math.hypot(mv.clientX - start.x, mv.clientY - start.y) > 6) {
+          moved = true;
+          ghost = n.cloneNode(true);
+          ghost.className += ' p1-drag-ghost';
+          document.body.appendChild(ghost);
+        }
+        if (ghost) { ghost.style.left = (mv.clientX - r.width / 2) + 'px'; ghost.style.top = (mv.clientY - r.height / 2) + 'px'; }
+      };
+      const up = up_ => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        if (ghost) ghost.remove();
+        if (moved) onDrop(up_.clientX, up_.clientY);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    });
+  }
+
+  /* ---------------------------------------------------------------- dữ liệu vật phẩm (thuần, giữ từ bản gốc) */
 
   let itemIndex = null;
   function itemByKey(key) {
@@ -172,7 +182,7 @@
   }
   const itemKey = id => (typeof id === 'number' || /^\d+$/.test(id)) ? toId(P1.ITEMS[id].name) : id;
 
-  // Túi đồ gốc có 6 thẻ nhưng items.txt để Pocket = 0 cho mọi món (máy chủ gửi). Chia lại theo tên, xem README-shell.md.
+  // Túi đồ gốc có 6 thẻ nhưng items.txt để Pocket = 0 cho mọi món (máy chủ gửi). Chia lại theo tên.
   function pocketOf(key, it) {
     const name = it.name || key;
     if (/Ball$/.test(name)) return 'Pokeball';
@@ -182,77 +192,43 @@
     if (/[Ww]hen held|holder|[Ii]f held/.test(it.desc || '')) return 'Hold';
     return 'General';
   }
+  // Thẻ túi đồ hiển thị (tên, biểu tượng backpack_icon_* gần đúng nhất trong atlas PRO).
+  const POCKETS = [
+    { key: 'General', label: 'Chung', icon: 'backpack_icon_misc' },
+    { key: 'Pokeball', label: 'Poké Ball', icon: 'backpack_icon_balls' },
+    { key: 'Medicine', label: 'Thuốc', icon: 'backpack_icon_medicine' },
+    { key: 'TM', label: 'TM/HM', icon: 'backpack_icon_tmhm' },
+    { key: 'Berries', label: 'Quả', icon: 'backpack_icon_berries' },
+    { key: 'Hold', label: 'Vật cầm', icon: 'backpack_icon_keyitems' },
+  ];
 
   function bagAdd(key, n) {
     const bag = P1.state.bag;
     bag[key] = Math.max(0, (bag[key] || 0) + n);
-    if (!bag[key] && !(key in { potion: 1, pokeball: 1 })) delete bag[key];
+    if (!bag[key] && key !== 'potion' && key !== 'pokeball') delete bag[key];
   }
 
-  // Dùng vật phẩm ngoài trận: cùng bảng P1.ITEM_EFFECT của trận (engine.js). Trả câu báo, hoặc null nếu vô ích.
+  // Dùng vật phẩm ngoài trận (P1.ITEM_EFFECT của engine.js). Trả câu báo, hoặc null nếu vô ích.
   function useOn(mon, key) {
     const eff = P1.ITEM_EFFECT && P1.ITEM_EFFECT[key];
     if (!eff) return null;
     const max = P1.mon.stats(mon).hp, name = P1.mon.name(mon);
     const out = [];
-    if (eff.revive && mon.hp <= 0) { mon.hp = Math.max(1, Math.floor(max * eff.revive)); out.push(name + ' was revived!'); }
+    if (eff.revive && mon.hp <= 0) { mon.hp = Math.max(1, Math.floor(max * eff.revive)); out.push(name + ' đã hồi sinh!'); }
     if (eff.heal && mon.hp > 0 && mon.hp < max) {
       const amt = eff.heal === 'full' ? max : eff.heal === 'quarter' ? Math.floor(max / 4) : eff.heal;
       const before = mon.hp;
       mon.hp = Math.min(max, mon.hp + amt);
-      out.push(name + ' recovered ' + (mon.hp - before) + ' HP.');
+      out.push(name + ' đã hồi ' + (mon.hp - before) + ' HP.');
     }
     if (eff.cure && mon.status && mon.hp > 0 && (eff.cure === 'all' || eff.cure.includes(mon.status))) {
       mon.status = '';
-      out.push(name + ' was cured.');
+      out.push(name + ' đã hết trạng thái.');
     }
     return out.length ? out.join(' ') : null;
   }
 
-  /* ---------------------------------------------------------------- người chơi */
-
-  const byNum = (a, b) => (+a) - (+b);
-  const look = {
-    HAIR_COLOURS,
-    parts(gender) {
-      const g = gender === 'female' ? 'female' : 'male', P = P1.PLAYER_PARTS || {};
-      return {
-        body: (P['body_' + g] || ['00_00']).slice(),
-        clothe: (P['clothe_' + g] || ['00']).slice().sort(byNum),
-        hair: (P['hair_' + g] || ['00']).slice().sort(byNum),
-        hat: (P.hats || []).slice().sort(byNum),
-      };
-    },
-    // Bốn lớp theo thứ tự vẽ gốc: thân → áo → tóc (nhân màu HairColour) → mũ. url null = không vẽ lớp đó.
-    layers(player) {
-      const g = player && player.gender === 'female' ? 'female' : 'male';
-      const L = (player && player.look) || {};
-      const base = 'art/sprite/player/';
-      const hc = HAIR_COLOURS[L.hairColor | 0] || HAIR_COLOURS[0];
-      return [
-        { part: 'body', url: base + 'body_' + g + '/' + (L.body || '00_00') + '_1.png' },
-        { part: 'clothe', url: L.clothe != null && L.clothe !== '' ? base + 'clothe_' + g + '/' + L.clothe + '_1.png' : null },
-        { part: 'hair', url: L.hair != null && L.hair !== '' ? base + 'hair_' + g + '/' + L.hair + '_1.png' : null, tint: '#' + hc + 'ff' },
-        { part: 'hat', url: L.hat ? base + 'hats/' + L.hat + '_1.png' : null },
-      ];
-    },
-    frameUV,
-  };
-  P1.look = look;
-
-  // Vẽ nhân vật vào 4 UITexture (GUICharacter.BodyParts gốc: Body, Clothes, Hair, Hat).
-  function paintPlayer(v, paths, player, row, col) {
-    const L = look.layers(player), uv = frameUV(row == null ? 2 : row, col == null ? 1 : col);
-    L.forEach((l, i) => {
-      if (!paths[i]) return;
-      const n = v.find(paths[i]);
-      if (!n) return;
-      n.w.tex = l.url || '';
-      n.w.uv = uv;
-      n.w.color = l.tint || '#ffffffff';
-      n.drawn = null;
-    });
-  }
+  /* ---------------------------------------------------------------- ngoại hình người chơi (lớp PRO) */
 
   // Cấp huấn luyện viên: bản gốc do máy chủ tính, không có công thức trong máy khách. Đoán: đường "medium", bắt đầu Lv 5.
   function trainerLevel(exp) {
@@ -263,1147 +239,812 @@
   }
   P1.trainerLevel = trainerLevel;
 
+  const DIR_ROW = { up: 0, right: 1, down: 2, left: 3 };  // đo trên npc/sprite1: hàng 1 quay phải, hàng 3 quay trái
+  // Tấm lớp người chơi PRO: một tấm 256² mỗi (lớp, tư thế) — hàng theo DIR_ROW (0 lưng/lên, 1 trái,
+  // 2 mặt/xuống, 3 phải), 3 cột đầu là khung bước, ô 64px. Tên tệp = <tên lớp>_<tư thế>.png; tư thế đi
+  // là P1.PRO.pose.walk ('1' xác minh từ rip, dự phòng nếu data/pro.js chưa có).
+  function paintPlayer(canvas, look, gender, dir, frame) {
+    const g = gender === 'female' || gender === 'f' ? 'f' : 'm';
+    const order = (P1.PRO && P1.PRO.layerOrder) || ['body', 'cloth', 'hair', 'hat'];
+    const pose = (P1.PRO && P1.PRO.pose && P1.PRO.pose.walk) || '1';
+    const row = DIR_ROW[dir] != null ? DIR_ROW[dir] : 2;
+    const col = ((frame | 0) % 3 + 3) % 3;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const scale = Math.min(canvas.width, canvas.height) / 64;
+    const ox = (canvas.width - 64 * scale) / 2, oy = canvas.height - 64 * scale;
+    order.forEach(part => {
+      const name = look && look[part];
+      if (!name) return;
+      const url = 'art/pro/player/' + g + '/' + part + '/' + name + '_' + pose + '.png';
+      const im = P1.imgNow(url);
+      if (!im) { P1.img(url).catch(() => {}); return; }
+      ctx.drawImage(im, col * 64, row * 64, 64, 64, ox, oy, 64 * scale, 64 * scale);
+    });
+  }
+
+  /* ---------------------------------------------------------------- hiển thị Pokémon (thuần) */
+
+  const IV_HEX = { grey: '9a9a9a', white: 'ffffff', green: '5cd65c', blue: '668cff', purple: 'c77dff', gold: 'ffd700' };
+  const STATUS_SPRITE = { psn: 'POISON', tox: 'BPOISON', brn: 'BURN', frz: 'FREEZE', par: 'PARALIZE', slp: 'SLEEP' };
   const monName = m => P1.mon.name(m);
-  const ivName = m => '[' + IV_HEX[P1.mon.ivColor(m)] + ']' + monName(m) + '[-]';
-  const smallImg = m => 'art/sprite/poke/' + (m.shiny ? 'small64shiny' : 'small64') + '/' + m.dex + '.png';
-  const bigImg = dex => 'art/sprite/poke/big/' + dex + '.png';
-  const genderSym = g => g === 'M' ? '[M]' : g === 'F' ? '[F]' : '';
+  const iconOf = m => 'art/pro/poke/icon/' + m.dex + (m.shiny ? 's' : '') + '.png';
+  const frontOf = m => 'art/pro/poke/front/' + m.dex + (m.shiny ? 's' : '') + '.png';
+  const genderSym = g => g === 'M' ? '♂' : g === 'F' ? '♀' : '';
   function expFrac(m) {
     if (m.level >= 100) return 1;
     const a = P1.mon.expAt(m.dex, m.level), b = P1.mon.expAt(m.dex, m.level + 1);
     return clamp((m.exp - a) / Math.max(1, b - a), 0, 1);
   }
-  function statusSprite(n, m) {
-    const s = m.hp <= 0 ? 'Icon_Status_Fainted' : STATUS_SPRITE[m.status];
-    n.active = !!s;
-    if (s) { n.w.sprite = s; n.drawn = null; }
-  }
 
-  /* ---------------------------------------------------------------- ngăn xếp cửa sổ */
+  /* ---------------------------------------------------------------- ngăn xếp cửa sổ (màn) */
 
   const stack = [];
   let busy = 0;
-  function mount(name, key, opts) {
-    const v = build(key, layer(), opts);
+  function mount(name, build) {
+    const root = el('div', 'p1-panel p1-panel-' + name);
+    stage().appendChild(root);
     let resolve;
-    const e = { name, v, cleanup: [], done: new Promise(r => { resolve = r; }) };
+    const e = { name, root, cleanup: [], done: new Promise(r => { resolve = r; }) };
     e.close = val => {
       if (e.closed) return;
       e.closed = true;
       e.cleanup.splice(0).forEach(f => f());
-      v.destroy();
+      root.remove();
       const i = stack.indexOf(e);
       if (i >= 0) stack.splice(i, 1);
       resolve(val);
     };
+    build(e);
     stack.push(e);
     return e;
   }
   const top = () => stack[stack.length - 1];
   const find = name => stack.find(e => e.name === name);
   function closeAll() { while (stack.length) top().close(); }
-  function closeOn(e, paths, val) {
-    paths.forEach(p => { const n = e.v.find(p); if (n) onEl(n, () => e.close(val)); });
-  }
-  function changed() {
-    huds.forEach(h => h.refresh());
-    stack.forEach(e => { if (e.refresh) e.refresh(); });
-  }
+  function changed() { huds.forEach(h => h.alive && h.refresh()); stack.forEach(e => { if (e.refresh) e.refresh(); }); }
 
-  /* ---------------------------------------------------------------- thông báo, hộp thông báo */
+  /* ---------------------------------------------------------------- thông báo / hộp thoại chọn */
 
-  let toasts = 0;
-  // Splash Message gốc (nhãn trên dải Bg_Window 3000 px, TweenAlpha), mờ dần sau ~2 s.
+  let toastN = 0;
   function toast(text) {
-    const v = build('prefab:Splash Message', layer(), { resize: true });
-    const slot = toasts++;
-    v.ui.top.pos = [0, 230 - slot * 50];
-    v.label('prefab:Splash Message', text);
-    v.root.style.transition = 'opacity .35s';
-    v.root.style.opacity = '0';
-    requestAnimationFrame(() => { v.root.style.opacity = '1'; });
-    setTimeout(() => { v.root.style.opacity = '0'; }, 2000);
-    setTimeout(() => { v.destroy(); toasts = Math.max(0, toasts - 1); }, 2400);
-    return v;
+    const e = el('div', 'p1-toast');
+    const bg = spr('General_popup_bg', 480, 40, 'p1-toast-bg');
+    e.appendChild(bg);
+    txt(e, 'p1-toast-text', text);
+    at(e, 0, 260 - (toastN++) * 46, 480, 40);
+    stage().appendChild(e);
+    requestAnimationFrame(() => { e.style.opacity = '1'; });
+    setTimeout(() => { e.style.opacity = '0'; }, 2000);
+    setTimeout(() => { e.remove(); toastN = Math.max(0, toastN - 1); }, 2400);
+    return e;
   }
 
-  // prefab:Panel - Message Box (MSGBoxHandler): Okay, hoặc Yes/No. Promise<bool>.
   function message(o) {
     o = o || {};
-    const e = mount('message', 'prefab:Panel - Message Box');
-    const v = e.v;
-    v.label('Label - Window Title', o.title || '');
-    v.label('Label - Message', o.text || '');
-    const two = o.no !== null && o.no !== undefined;
-    activate(v, [['Input - Message Box', false], ['Button - Hold', false], ['Button - Use', false],
-      ['Button - Okay', !two], ['Button - Yes', two], ['Button - No', two]]);
-    v.label('Button - Okay/Label', o.yes || 'Okay');
-    v.label('Button - Yes/Label', o.yes || 'Okay');
-    if (two) v.label('Button - No/Label', o.no || 'Cancel');
-    onEl(node(v, 'Button - Okay'), () => e.close(true));
-    onEl(node(v, 'Button - Yes'), () => e.close(true));
-    onEl(node(v, 'Button - No'), () => e.close(false));
-    e.escValue = false;
-    return e.done;
+    return mount('message', e => {
+      const box = el('div', 'p1-popup', e.root);
+      at(box, 0, 0, 420, 220);
+      box.appendChild(spr('General_popup_bg', 420, 220));
+      txt(box, 'p1-popup-title', o.title || '');
+      txt(box, 'p1-popup-text', o.text || '');
+      const row = el('div', 'p1-popup-buttons', box);
+      const two = o.no !== null && o.no !== undefined;
+      if (two) {
+        const yes = button(row, 'p1-btn-round', () => e.close(true), 'msg-yes'); yes.textContent = o.yes || 'Đồng ý';
+        const no = button(row, 'p1-btn-round', () => e.close(false), 'msg-no'); no.textContent = o.no || 'Thôi';
+      } else {
+        const ok = button(row, 'p1-btn-round', () => e.close(true), 'msg-ok'); ok.textContent = o.yes || 'OK';
+      }
+      e.escValue = false;
+    }).done;
   }
 
-  /* ---------------------------------------------------------------- HUD (Panel - Game GUI) */
+  /* ---------------------------------------------------------------- HUD (thanh đội, menu, giờ/bản đồ) */
 
   const huds = [];
-  const SLOT = i => 'Table/Button - Pokemon' + (i ? ' (' + i + ')' : '');
-  const BALL = i => 'Player Information/Sprite - Pokeball' + (i ? ' (' + i + ')' : '');
-  const HP_W = 76, TRAINER_EXP_W = 132;   // bề ngang đầy của thanh (khung nút 122, nhãn tên bắt đầu ở x=40; đo trên ảnh)
+  const MAP_NAMES = { pallet_house_2f: 'Nhà — Tầng 2', pallet_house_1f: 'Nhà — Tầng 1' };
+  function mapLabel() {
+    const id = (P1.state && P1.state.map) || '';
+    return MAP_NAMES[id] || (P1.MAPS && P1.MAPS[id] && P1.MAPS[id].name) || id.replace(/_/g, ' ');
+  }
+  function timeSprite() {
+    const p = P1.period ? P1.period() : 'day';
+    return p === 'night' ? 'HUD_time_night' : p === 'morning' || p === 'evening' ? 'HUD_time_morning' : 'HUD_time_day';
+  }
+
+  const MENU_BUTTONS = [
+    { key: 'party', label: 'Đội', icon: 'pokeball_icon_big' },
+    { key: 'bag', label: 'Balo', icon: 'HUD_menu_button_icon_backpack' },
+    { key: 'dex', label: 'Pokédex', icon: 'HUD_menu_button_icon_pokedex' },
+    { key: 'trainer', label: 'Thẻ HLV', icon: 'HUD_menu_button_icon_trainer' },
+    { key: 'market', label: 'Chợ trời', icon: 'HUD_menu_button_icon_shop' },
+    { key: 'options', label: 'Cài đặt', icon: 'Button_menu' },
+  ];
 
   function hud(parent) {
-    const wrap = document.createElement('div');
-    wrap.className = 'p1-hud';
+    const wrap = el('div', 'p1-hud');
     (parent || uiRoot()).appendChild(wrap);
-    const v = build('Panel - Game GUI', wrap);
-    // Nút của tính năng trực tuyến (cửa hàng trang phục, thành tựu, bạn bè, PvP, hòm, thú cưỡi, bản đồ bay) tắt đi;
-    // bốn biểu tượng còn lại xếp sát phải như hàng gốc.
-    ['Interface Buttons/Sprite - Battery', 'Interface Buttons/Button - Shop', 'Interface Buttons/Button - Achievements',
-      'Interface Buttons/Button - Social', 'Button - Lootbox', 'Button - Map', 'Button - Mount', 'Button - PVP',
-      'Button - Area', 'Button - Quests', 'Sprite - Crown', 'Label - Please Wait']
-      .forEach(p => { const n = v.find(p); if (n) n.active = false; });
-    [['Button - Trainer', -122], ['Button - Bag', -88], ['Button - Pokedex', -54], ['Button - Settings', -19]]
-      .forEach(([p, x]) => { node(v, 'Interface Buttons/' + p).pos[0] = x; });
-    const open = { 'Button - Trainer': 'trainer', 'Button - Bag': 'bag', 'Button - Pokedex': 'dex', 'Button - Settings': 'options' };
-    Object.keys(open).forEach(p => onEl(node(v, 'Interface Buttons/' + p), () => ui.open(open[p])));
+    const root = el('div', 'p1-stage p1-hud-stage');
+    root.style.width = STAGE_W + 'px'; root.style.height = STAGE_H + 'px';
+    wrap.appendChild(root);
+    const fit = () => {
+      const s = Math.max(0.32, Math.min(innerWidth / STAGE_W, innerHeight / STAGE_H));
+      root.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+      // Màn rất nhỏ (điện thoại ngang, ~844×390): thanh đội thu gọn còn biểu tượng + thanh máu, bỏ tên/Lv/EXP
+      // để không đè lên vùng chơi và khung chat (440×280 dành sẵn ở góc dưới phải).
+      wrap.classList.toggle('p1-compact', innerWidth < 500 || innerHeight < 500);
+    };
+    fit();
+    window.addEventListener('resize', fit);
 
-    const h = { view: v, el: wrap, alive: true };
+    /* -- thanh đội, góc trên trái (neo theo góc màn hình: giá trị abs() gốc là điểm neo widget NGUI,
+       không phải tâm hộp, nên ở đây đặt trực tiếp theo góc thay vì dịch máy qua at()). */
+    const team = el('div', 'p1-team', root);
+    team.style.left = '10px'; team.style.top = '10px'; team.style.width = '260px';
+    const slots = [];
     for (let i = 0; i < 6; i++) {
-      const n = node(v, SLOT(i));
-      onEl(n, () => {
-        if (!P1.state.party[i]) return;
-        const card = find('party');
-        if (card) card.select(i); else ui.open('party', i);
-      });
-      dragSource(v, n, (x, y) => {
+      const s = el('div', 'p1-mon-slot', team);   // team xếp bằng flex column (CSS); .p1-compact đổi gap/cỡ ở đó
+      s.dataset.p1 = 'hud-team-' + i;
+      const ball = spr('BG_ball 1', 54, 54, 'p1-mon-ball'); s.appendChild(ball);
+      const icon = img('', 'p1-mon-icon'); s.appendChild(icon);
+      const bg = spr('HUD_pkmn_BG', 150, 40, 'p1-mon-bg'); s.appendChild(bg);
+      const name = txt(s, 'p1-mon-name', '');
+      const level = txt(s, 'p1-mon-level', '');
+      const hpWrap = spr('hp_bar', 76, 10, 'p1-mon-hpbar'); s.appendChild(hpWrap);
+      const hpFill = spr('hp_fill', 76, 10, 'p1-mon-hpfill'); hpWrap.appendChild(hpFill);
+      const expFill = spr('exp_fill', 150, 4, 'p1-mon-expfill'); s.appendChild(expFill);
+      const gender = txt(s, 'p1-mon-gender', '');
+      const shiny = spr('shiny', 18, 18, 'p1-mon-shiny'); s.appendChild(shiny);
+      const status = spr('POISON', 20, 20, 'p1-mon-status'); s.appendChild(status);
+      slots.push({ s, icon, name, level, hpFill, expFill, gender, shiny, status });
+      onEl(s, () => { if (!P1.state.party[i]) return; const card = find('party'); if (card) card.select(i); else ui.open('party', i); });
+      dragSource(s, (x, y) => {
         const party = P1.state.party;
         for (let j = 0; j < 6; j++) {
-          if (j !== i && party[j] && inside(rectOf(node(v, SLOT(j))), x, y)) {
+          if (j !== i && party[j] && inside(rectOf(slots[j].s), x, y)) {
             [party[i], party[j]] = [party[j], party[i]];
-            const card = find('party');
-            if (card && card.index === i) card.select(j); else if (card && card.index === j) card.select(i);
             changed();
             return true;
           }
         }
         const box = find('pokebox');
-        if (box && box.dropFromParty(i, x, y)) return true;
+        if (box && box.dropFromParty && box.dropFromParty(i, x, y)) return true;
         return false;
       });
     }
-    const timeLabel = () => {
-      const d = new Date();
-      let hh = d.getHours() % 12; if (!hh) hh = 12;
-      return hh + ':' + pad2(d.getMinutes()) + ' ' + (d.getHours() < 12 ? 'AM' : 'PM');
-    };
+
+    /* -- menu dưới trái (6 nút: Đội/Balo/Pokédex/Thẻ HLV/Chợ trời/Cài đặt — rộng hơn bản gốc PRO vì
+       ta thêm nút Đội và Chợ trời không có trong GameMenu gốc). */
+    const MENU_W = 360, MENU_H = 78;
+    const menu = el('div', 'p1-menu', root);
+    menu.style.left = '8px'; menu.style.bottom = '8px'; menu.style.width = MENU_W + 'px'; menu.style.height = MENU_H + 'px';
+    menu.appendChild(spr('HUD_menu_bg', MENU_W, MENU_H));
+    const menuRow = el('div', 'p1-menu-row', menu);
+    MENU_BUTTONS.forEach(b => {
+      const btn = el('div', 'p1-menu-btn', menuRow);
+      btn.title = b.label;
+      btn.dataset.p1 = 'hud-menu-' + b.key;
+      const bg = spr('HUD_menu_button_normal', 46, 46, 'p1-menu-btn-bg'); btn.appendChild(bg);
+      const ic = spr(b.icon, 30, 30, 'p1-menu-btn-icon'); btn.appendChild(ic);
+      onEl(btn, () => {
+        if (b.key === 'market') { if (P1.market && P1.market.open) P1.market.open(); return; }
+        ui.open(b.key);
+      });
+      if (b.key === 'market') btn.classList.toggle('p1-hidden', !(P1.market && P1.market.open));
+    });
+    const money0 = txt(menu, 'p1-menu-money', '');
+
+    /* -- tên map + giờ, góc trên phải */
+    const topRight = el('div', 'p1-topright', root);
+    topRight.style.right = '10px'; topRight.style.top = '10px'; topRight.style.width = '260px'; topRight.style.height = '70px';
+    const timeIcon = spr('HUD_time_day', 60, 60, 'p1-time-icon'); topRight.appendChild(timeIcon);
+    const mapText = txt(topRight, 'p1-map-name', '');
+
+    // view.root = <div> ngoài cùng (world.js ẩn/hiện HUD lúc vào trận qua hud.view.root.style.display).
+    const h = { view: { root: wrap }, el: wrap, alive: true };
     h.refresh = () => {
       const st = P1.state;
       if (!st || !h.alive) return;
-      const T = trainerLevel(st.trainerExp);
-      node(v, 'Player Information/Label - Username').w.text = st.player.name;
-      node(v, 'Player Information/Label - Level').w.text = 'Lv ' + T.level;
-      node(v, 'Label - Trainer Exp').w.text = T.cur + ' / ' + T.need;
-      setSize(node(v, 'Sprite - Exp Bar Dark'), TRAINER_EXP_W, 10);
-      setSize(node(v, 'Sprite - Exp Bar'), Math.max(2, Math.round(TRAINER_EXP_W * T.cur / T.need)), 10);
-      paintPlayer(v, ['Player Information/Texture - Body', 'Texture - Body/Texture - Clothes', 'Texture - Body/Texture - Hair',
-        'Texture - Body/Texture - Hat'], st.player);
+      money0.textContent = '₽' + money(st.money);
+      mapText.textContent = mapLabel();
+      P1.proui.apply(timeIcon, timeSprite());
       for (let i = 0; i < 6; i++) {
-        const m = st.party[i], b = node(v, BALL(i));
-        b.w.sprite = !m ? 'Icon_Pokemon_Empty' : m.hp > 0 ? 'Icon_Pokemon_Alive' : 'Icon_Pokemon_Dead';
-        b.drawn = null;
-        const s = node(v, SLOT(i));
-        s.active = !!m;
-        if (!m) continue;
-        const p = s.path + '/Sprite - Pokemon/';
-        node(v, p + 'Label - Name').w.text = (m.shiny ? '[Shiny]' : '') + monName(m);
-        node(v, p + 'Label - Level').w.text = 'Lv' + m.level;
+        const m = st.party[i], slot = slots[i];
+        slot.s.classList.toggle('p1-empty', !m);
+        if (!m) {
+          // Dọn trạng thái sáng/huy hiệu còn sót lại từ lần slot này còn Pokémon (đội co lại): style.display
+          // gắn trực tiếp thắng mọi luật CSS, nên .p1-empty một mình không đủ để ẩn nếu không dọn ở đây.
+          slot.shiny.style.display = 'none';
+          slot.status.style.display = 'none';
+          continue;
+        }
+        slot.icon.src = iconOf(m);
+        slot.name.textContent = (m.shiny ? '★' : '') + monName(m);
+        slot.level.textContent = 'Lv' + m.level;
         const max = P1.mon.stats(m).hp, f = clamp(m.hp / max, 0, 1);
-        const hp = node(v, p + 'Sprite - Health');
-        setSize(hp, Math.max(2, Math.round(HP_W * f)), 12);
-        hp.active = m.hp > 0;
-        hp.w.color = f > 0.5 ? '#ffffffff' : f > 0.2 ? '#ffd23cff' : '#ff4a4aff';   // đoán: bản gốc đổi màu ở mã
-        setSize(node(v, p + 'Sprite - EXP Dark'), HP_W, 12);
-        setSize(node(v, p + 'Sprite - EXP'), Math.max(2, Math.round(HP_W * expFrac(m))), 12);
-        statusSprite(node(v, p + 'Sprite - Status'), m);
-        node(v, p + 'Sprite - item').active = !!m.item;
-        const t = node(v, p + 'Texture - Poke');
-        t.w.tex = smallImg(m); t.drawn = null;
+        slot.hpFill.style.width = Math.round(f * 76) + 'px';
+        slot.hpFill.classList.toggle('p1-hp-low', f <= 0.2);
+        slot.hpFill.classList.toggle('p1-hp-mid', f > 0.2 && f <= 0.5);
+        slot.expFill.style.width = Math.round(expFrac(m) * 150) + 'px';
+        slot.gender.textContent = genderSym(m.gender);
+        slot.shiny.style.display = m.shiny ? 'block' : 'none';
+        const ss = m.hp <= 0 ? null : STATUS_SPRITE[m.status];
+        slot.status.style.display = ss ? 'block' : 'none';
+        if (ss) P1.proui.apply(slot.status, ss);
       }
-      node(v, 'Label - Time').w.text = timeLabel();
-      const map = st.map || '';
-      node(v, 'Label - Location').w.text = (P1.MAP_NAMES && P1.MAP_NAMES[map]) || map.split('_').map(cap).join(' ');
-      v.refresh();
     };
-    const clock = setInterval(() => { if (h.alive) { v.label('Label - Time', timeLabel()); } }, 15000);
-    h.destroy = () => {
-      h.alive = false;
-      clearInterval(clock);
-      v.destroy();
-      wrap.remove();
-      const i = huds.indexOf(h);
-      if (i >= 0) huds.splice(i, 1);
-    };
+    h.destroy = () => { h.alive = false; wrap.remove(); const i = huds.indexOf(h); if (i >= 0) huds.splice(i, 1); };
     huds.push(h);
     h.refresh();
     return h;
   }
 
-  // Kéo thả (UIDragDropItem gốc: PokemonHUDButton, PokeboxPokemon). Kéo quá 8 px mới tính là kéo; nhả thì gọi drop(x, y).
-  function dragSource(v, n, drop) {
-    let s = null;
-    const move = ev => {
-      if (!s) return;
-      const dx = ev.clientX - s.x, dy = ev.clientY - s.y;
-      if (!s.on && Math.hypot(dx, dy) < 8) return;
-      s.on = true;
-      const k = v.ui.scr.k;
-      n.shift = [dx / k, -dy / k];
-      v.ui.refresh();
-    };
-    const up = ev => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      const was = s;
-      s = null;
-      if (!was || !was.on) return;
-      n.shift = [0, 0];
-      n.noClick = true;
-      setTimeout(() => { n.noClick = false; }, 0);
-      if (n.ui) v.ui.refresh();
-      drop(ev.clientX, ev.clientY);
-    };
-    n.el.addEventListener('pointerdown', ev => {
-      if (ev.button !== 0) return;
-      s = { x: ev.clientX, y: ev.clientY, on: false };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-    });
-  }
-
-  // Màn cần HUD (đội, hộp PC) mà thế giới chưa gắn HUD: gắn tạm, đóng màn thì gỡ.
-  function ensureHud(e) {
-    if (huds.some(h => h.alive)) return;
-    const h = hud(layer());
-    e.cleanup.push(() => h.destroy());
-  }
-
-  /* ---------------------------------------------------------------- menu Esc (Panel - Menu) */
+  /* ---------------------------------------------------------------- Esc → menu (Lưu / Cài đặt / Về màn đầu) */
 
   function menu() {
-    const e = mount('menu', 'Panel - Menu');
-    const v = e.v;
-    // "Change Password" và "Logout" của bản trực tuyến đổi thành Lưu và Về màn đầu; "Exit Game" bỏ (trang web không tự đóng).
-    v.label('Button - (1)/Label', 'Save Game');
-    v.label('Button - (3)/Label', 'Title Screen');
-    v.remove('Button - (4)');
-    setSize(node(v, 'Sprite - Window'), 200, 188);
-    v.refresh();
-    onEl(node(v, 'Button - '), () => e.close());
-    onEl(node(v, 'Button - (1)'), () => save());
-    onEl(node(v, 'Button - (2)'), () => { e.close(); ui.open('options'); });
-    onEl(node(v, 'Button - (3)'), () => {
-      message({ title: 'Title Screen', text: 'Return to the title screen? Progress since your last save will be lost.', yes: 'Okay', no: 'Cancel' })
-        .then(ok => { if (ok) { closeAll(); P1.scene.go('title'); } });
-    });
-    return e.done;
+    return mount('menu', e => {
+      const box = el('div', 'p1-popup p1-esc-menu', e.root);
+      at(box, 0, 0, 300, 260);
+      box.appendChild(spr('backpack_no_scrollbar_bg', 300, 260));
+      txt(box, 'p1-popup-title', 'Menu');
+      const rows = el('div', 'p1-esc-rows', box);
+      const mk = (label, fn, hook) => { const b = button(rows, 'p1-btn-row', fn, hook); b.textContent = label; return b; };
+      mk('Lưu trò chơi', () => { P1.save(); toast('Đã lưu.'); }, 'menu-save');
+      mk('Cài đặt', () => { e.close(); ui.open('options'); }, 'menu-options');
+      mk('Về màn đầu', async () => {
+        const yes = await message({ title: 'Về màn đầu?', text: 'Trò chơi đã lưu chưa lưu sẽ mất.', yes: 'Về', no: 'Ở lại' });
+        if (yes) { closeAll(); P1.scene.go('title'); }
+      }, 'menu-title');
+      e.escValue = undefined;
+    }).done;
   }
 
-  function save() {
-    const ok = !!P1.save();
-    toast(ok ? 'Game saved.' : 'The game could not be saved.');
-    return Promise.resolve(ok);
+  /* ---------------------------------------------------------------- đội Pokémon (đầy đủ, IV, chiêu, dùng đồ) */
+
+  function party(startIndex) {
+    return mount('party', e => {
+      const box = el('div', 'p1-popup p1-party', e.root);
+      at(box, 0, 0, 620, 460);
+      box.appendChild(spr('backpack_with_scrollbar_bg', 620, 460));
+      const closeBtn = button(box, 'p1-btn-close', () => e.close(), 'close');
+      closeBtn.appendChild(spr('close', 28, 28));
+      const list = el('div', 'p1-party-list', box);
+      const detail = el('div', 'p1-party-detail', box);
+      const tabsEl = el('div', 'p1-tabs', detail);
+      const tabs = ['Info', 'Move', 'IV', 'EV'];
+      let tab = 0, index = startIndex || 0;
+      const tabBtns = tabs.map((t, i) => { const b = button(tabsEl, 'p1-tab', () => { tab = i; render(); }, 'party-tab-' + i); b.textContent = t; return b; });
+      const body = el('div', 'p1-party-body', detail);
+
+      e.select = i => { index = i; render(); };
+      e.index = index;
+
+      function renderList() {
+        list.innerHTML = '';
+        P1.state.party.forEach((m, i) => {
+          const row = el('div', 'p1-party-row' + (i === index ? ' p1-sel' : ''), list);
+          row.dataset.p1 = 'party-row-' + i;
+          row.appendChild(img(iconOf(m), 'p1-party-row-icon'));
+          txt(row, 'p1-party-row-name', (m.shiny ? '★' : '') + monName(m) + '  Lv' + m.level);
+          onEl(row, () => { index = i; e.index = i; render(); });
+        });
+      }
+      function render() {
+        e.index = index;
+        renderList();
+        tabBtns.forEach((b, i) => b.classList.toggle('p1-active', i === tab));
+        const m = P1.state.party[index];
+        body.innerHTML = '';
+        if (!m) return;
+        if (tab === 0) renderInfo(m);
+        else if (tab === 1) renderMoves(m);
+        else if (tab === 2) renderIV(m);
+        else renderEV(m);
+      }
+      function renderInfo(m) {
+        const sp = P1.mon.species(m.dex);
+        body.appendChild(img(frontOf(m), 'p1-party-portrait'));
+        const nm = txt(body, 'p1-party-name', (m.shiny ? '★ ' : '') + monName(m) + ' ' + genderSym(m.gender));
+        nm.style.color = '#' + IV_HEX[P1.mon.ivColor(m)];
+        txt(body, 'p1-party-sub', 'Lv' + m.level + '  #' + m.dex + ' ' + (sp.name || ''));
+        const stats = P1.mon.stats(m);
+        const st = el('div', 'p1-stat-grid', body);
+        ['hp', 'atk', 'def', 'spa', 'spd', 'spe'].forEach(k => txt(st, 'p1-stat', k.toUpperCase() + ' ' + (k === 'hp' ? m.hp + '/' + stats.hp : stats[k])));
+        const actions = el('div', 'p1-party-actions', body);
+        const useBtn = button(actions, 'p1-btn-row', async () => {
+          const key = await pickBagItem(k => P1.ITEM_EFFECT && P1.ITEM_EFFECT[itemKey(k)]);
+          if (!key) return;
+          const msg = useOn(m, key);
+          if (msg) { bagAdd(key, -1); toast(msg); changed(); }
+          else toast('Không có tác dụng.');
+        }, 'party-use');
+        useBtn.textContent = 'Dùng vật phẩm';
+        if (P1.chat && P1.chat.showMon) { const b = button(actions, 'p1-btn-row', () => P1.chat.showMon(m), 'party-chat'); b.textContent = 'Khoe lên chat'; }
+        if (P1.market && P1.market.listMon) { const b = button(actions, 'p1-btn-row', () => P1.market.listMon(m, 'party', index), 'party-market'); b.textContent = 'Đăng lên chợ'; }
+      }
+      function renderMoves(m) {
+        const grid = el('div', 'p1-move-grid', body);
+        m.moves.forEach(s => {
+          const mv = P1.Dex.moves.get(s.id);
+          const row = el('div', 'p1-move-row', grid);
+          txt(row, 'p1-move-name', mv.name);
+          txt(row, 'p1-move-type', (mv.type || '').toLowerCase());
+          txt(row, 'p1-move-pp', s.pp + '/' + s.ppMax);
+        });
+      }
+      function renderIV(m) {
+        const grid = el('div', 'p1-stat-grid', body);
+        Object.keys(m.ivs).forEach(k => txt(grid, 'p1-stat', k.toUpperCase() + ' ' + m.ivs[k] + '/31'));
+      }
+      function renderEV(m) {
+        const grid = el('div', 'p1-stat-grid', body);
+        Object.keys(m.evs).forEach(k => txt(grid, 'p1-stat', k.toUpperCase() + ' ' + m.evs[k] + '/252'));
+      }
+      e.refresh = render;
+      render();
+    }).done;
   }
 
-  /* ---------------------------------------------------------------- thẻ Pokémon (prefab:Panel - Pokemon Card) */
-
-  const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
-  function party(index) {
-    const e = mount('party', 'prefab:Panel - Pokemon Card');
-    ensureHud(e);
-    const v = e.v;
-    const INFO = 'Pokemon Information', IVS = 'Pokemon IVs', EVS = 'Pokemon EVs', MOVES = 'Pokemon Moves';
-    // Nút trả phí/trực tuyến của thẻ (reset IV $10.000, cộng/trừ EV bằng Poké Gold, "Not Tradable") không làm.
-    activate(v, [['Label - Not Tradable', false], ['Texture - Pokemon', false], ['Button - Reset IV', false],
-      ['Button - Reset EV', false], ['Button - Confirm EV', false], ['Table - Add Take EVs', false], ['Label - Egg', false]]);
-    v.ui.top.walk(n => { if (n.name === 'Sprite - Lock') n.active = false; });
-    const tabs = ['Tab - Info', 'Tab - Move', 'Tab - IV', 'Tab - EV'];
-    let tab = 0;
-    e.index = clamp(index | 0, 0, Math.max(0, P1.state.party.length - 1));
-    const statTable = node(v, INFO + '/Table - Stat Numbers');
-    const setTab = t => {
-      tab = t;
-      tabs.forEach((p, i) => { const n = node(v, p); n.w.sprite = i === t ? 'Btn_TabHighlighted_Tall_Yellow_Normal' : 'Btn_Tab_Tall_Normal'; if (n.normal) n.normal.sprite = n.w.sprite; n.drawn = null; });
-      // Tab IV gộp thêm bảng chỉ số (Table - Stat Numbers nằm sẵn trong Pokemon Information, bản xuất để tắt).
-      activate(v, [[INFO, t === 0 || t === 2], [INFO + '/Table', t === 0], [statTable, t === 2],
-        [MOVES, t === 1], [IVS, t === 2], [EVS, t === 3]]);
-    };
-    tabs.forEach((p, i) => onEl(node(v, p), () => setTab(i)));
-    closeOn(e, ['Sprite Title Bar/Button - Close']);
-    onEl(node(v, 'Sprite - Held Item'), () => {
-      const m = P1.state.party[e.index];
-      if (!m || !m.item) return;
-      bagAdd(m.item, 1);
-      toast('Took the ' + itemByKey(m.item).name + ' from ' + monName(m) + '.');
-      m.item = '';
-      changed();
-    });
-    const rowLabel = (tbl, i) => node(v, tbl + '/Label - Stat Text (' + i + ')/Sprite - Bar/Label');
-    e.refresh = () => {
-      const m = P1.state.party[e.index];
-      if (!m) { e.close(); return; }
-      const sp = P1.mon.species(m.dex), st = P1.mon.stats(m), inf = (P1.SPECIES || {})[m.dex] || {};
-      const types = (inf.types || sp.types || []).map(t => t.toLowerCase());
-      const ball = itemByKey(m.ball || 'pokeball');
-      setTex(v, 'Texture - Pokeball', ball && ball.img);
-      node(v, 'Label - Pokemon Name').w.text = ivName(m);
-      node(v, 'Label - Pokemon Level').w.text = (genderSym(m.gender) ? genderSym(m.gender) + ' ' : '') + '[Lv] ' + m.level;
-      const t1 = node(v, 'Sprite - Type'), t2 = node(v, 'Sprite - Type 2');
-      t1.w.sprite = types[0] || 'normal'; t1.drawn = null;
-      t2.active = !!types[1]; if (types[1]) { t2.w.sprite = types[1]; t2.drawn = null; }
-      const next = m.level >= 100 ? m.exp : P1.mon.expAt(m.dex, m.level + 1);
-      node(v, 'Label - Exp').w.text = 'EXP: ' + m.exp + '/' + next;
-      statusSprite(node(v, 'Sprite - Info Overlay/Sprite - Status'), m);
-      const held = m.item ? itemByKey(m.item) : null;
-      node(v, 'Texture - Held Item').active = !!(held && held.img);
-      if (held && held.img) setTex(v, 'Texture - Held Item', held.img);
-      setTex(v, 'Texture - Pokemon 2D', bigImg(m.dex));
-      // Info: HP / EXP / Happiness, OT, Ability, Nature, ngày bắt, cấp khi bắt
-      const bars = [[m.hp + '/' + st.hp, m.hp / st.hp], ['', expFrac(m)], [String(m.happiness), m.happiness / 255]];
-      bars.forEach(([txt, f], i) => {
-        const b = INFO + '/Table/Label - Stat Title' + (i ? ' (' + i + ')' : '') + '/Sprite - Bar/';
-        node(v, b + 'Label').w.text = txt;
-        setSize(node(v, b + 'Sprite - Fill'), Math.max(2, Math.round(92 * clamp(f, 0, 1))), 16);
+  // Hộp chọn nhanh một món trong túi (dùng cho "Dùng vật phẩm" ở màn đội): lọc theo filter(key), trả key hoặc null.
+  function pickBagItem(filter) {
+    return mount('select', e => {
+      const box = el('div', 'p1-popup p1-item-pick', e.root);
+      at(box, 0, 0, 360, 320);
+      box.appendChild(spr('backpack_no_scrollbar_bg', 360, 320));
+      txt(box, 'p1-popup-title', 'Chọn vật phẩm');
+      const grid = el('div', 'p1-item-grid', box);
+      Object.keys(P1.state.bag).filter(k => P1.state.bag[k] > 0).forEach(k => {
+        const it = itemByKey(k);
+        if (filter && !filter(k)) return;
+        const cell = el('div', 'p1-item-cell', grid);
+        cell.dataset.p1 = 'pick-item-' + k;
+        cell.appendChild(img(it.img || '', 'p1-item-icon'));
+        txt(cell, 'p1-item-name', it.name + ' ×' + P1.state.bag[k]);
+        onEl(cell, () => e.close(k));
       });
-      const created = m.caughtAt ? new Date(m.caughtAt) : new Date(P1.state.created || Date.now());
-      const infoText = [m.ot || P1.state.player.name, m.ability, m.nature,
-        created.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), 'Lv ' + (m.metLevel || m.level)];
-      ['Label - Stat Text', 'Label - Stat Text (1)', 'Label - Stat Text (2)', 'Label - Stat Text (3)', 'Label - Stat Text (4)']
-        .forEach((p, i) => { node(v, INFO + '/Table/' + p + '/Sprite - Bar/Label').w.text = infoText[i]; });
-      STAT_KEYS.forEach((k, i) => {
-        rowLabel(INFO + '/Table - Stat Numbers', i + 1).w.text = k === 'hp' ? m.hp + '/' + st.hp : String(st[k]);
-        rowLabel(IVS + '/Table - Stat Numbers', i + 1).w.text = String(m.ivs[k]);
-        rowLabel(EVS + '/Table - EVs', i + 1).w.text = String(m.evs[k]);
-      });
-      node(v, 'Label - Reset Description').w.text = 'Stats  [' + IV_HEX[P1.mon.ivColor(m)] + '](IV ' + P1.mon.ivTotal(m) + '/186)[-]';
-      node(v, 'Label - Reset Description').pos[1] = -36;
-      const evTotal = STAT_KEYS.reduce((a, k) => a + m.evs[k], 0);
-      node(v, 'Label - Total EVs').w.text = 'Effort Values [F0F000](Total: ' + evTotal + '/510)';
-      // Moves: prefab:Sprite - Move trong lưới 284x57
-      const grid = node(v, MOVES + '/Grid');
-      grid.kids.slice().forEach(k => v.remove(k.path));
-      m.moves.forEach((s, i) => {
-        const mv = P1.Dex.moves.get(s.id);
-        const r = v.add(grid.path, 'prefab:Sprite - Move', 'mv' + i);
-        node(v, r.path + '/Label - Move Name').w.text = mv.name;
-        node(v, r.path + '/Label - PP').w.text = 'PP: ' + s.pp + '/' + s.ppMax;
-        node(v, r.path + '/Label - Power').w.text = 'Power: ' + (mv.basePower || '-');
-        node(v, r.path + '/Label - Accuracy').w.text = 'Acc: ' + (mv.accuracy === true ? '-' : mv.accuracy + '%');
-        node(v, r.path + '/Sprite - Type').w.sprite = mv.type.toLowerCase();
-        const dt = node(v, r.path + '/Sprite - Damage Type');
-        dt.active = mv.category !== 'Status';
-        dt.w.sprite = mv.category === 'Special' ? 'special' : 'physical';
-      });
-      v.ui.top.walk(n => { n.drawn = null; });
-      setTab(tab);
-    };
-    e.select = i => { if (P1.state.party[i]) { e.index = i; e.refresh(); } };
-    e.refresh();
-    return e.done;
+      const cancel = button(box, 'p1-btn-round p1-item-cancel', () => e.close(null), 'pick-cancel'); cancel.textContent = 'Huỷ';
+      e.escValue = null;
+    }).done;
   }
 
-  /* ---------------------------------------------------------------- chọn Pokémon (Panel - Select Pokemon) */
-
-  function selectPokemon(title) {
-    const e = mount('select', 'Panel - Select Pokemon');
-    const v = e.v;
-    activate(v, [['MovesWindow', false]]);
-    const win = node(v, 'Window');
-    const buttons = win.kids.filter(k => k.name === 'PokeButton');
-    const bgs = win.kids.filter(k => k.name === 'Backgrounds');
-    const party = P1.state.party;
-    const baseTitle = title || 'Choose a Pokemon';
-    v.label('Window/Title Bar/Title', baseTitle);
-    buttons.forEach((b, i) => {
-      const m = party[i];
-      b.active = !!m; bgs[i].active = !!m;
-      if (!m) return;
-      b.w.tex = bigImg(m.dex); b.drawn = null;     // ảnh 128 như tex gốc (art/ui/tex/250.png), Pokémon đứng lên ô nền
-      onEl(b, () => e.close(i));
-      hoverEl(b, () => v.label('Window/Title Bar/Title', monName(m) + '  Lv' + m.level + '  ' + m.hp + '/' + P1.mon.stats(m).hp + ' HP'),
-        () => v.label('Window/Title Bar/Title', baseTitle));
-    });
-    v.refresh();
-    closeOn(e, ['Window/Title Bar/Button - Close'], null);
-    e.escValue = null;
-    return e.done;
-  }
-
-  /* ---------------------------------------------------------------- túi đồ (Panel - Inventory) */
+  /* ---------------------------------------------------------------- túi đồ */
 
   function bag() {
-    const e = mount('bag', 'Panel - Inventory');
-    const v = e.v;
-    let tab = 0, query = '';
-    const firstTab = BAG_TABS.findIndex(t => Object.keys(P1.state.bag).some(k => P1.state.bag[k] > 0 && pocketOf(k, itemByKey(k)) === t));
-    if (firstTab > 0) tab = firstTab;
-    node(v, 'Label - Gold').parent.active = false;           // Poké Gold: tiền nạp của bản trực tuyến
-    closeOn(e, ['Sprite Title Bar/Button - Close']);
-    const search = textInput(v, 'Sprite - Search/Input - Search', { onInput: s => { query = s.toLowerCase(); e.refresh(); } });
-    e.cleanup.push(() => search.destroy());
-    const tabPaths = BAG_TABS.map(t => 'Tab - ' + t);
-    tabPaths.forEach((p, i) => onEl(node(v, p), () => { tab = i; e.refresh(); }));
-    const grid = node(v, 'Panel - Inventory Items/Grid');
-    const sv = node(v, 'Panel - Inventory Items');
-    const svHome = { pos: sv.pos.slice(), off: sv.pn.off.slice() };
-    e.refresh = () => {
-      tabPaths.forEach((p, i) => { const n = node(v, p); n.w.sprite = i === tab ? 'Btn_TabHighlighted_Tall_Yellow_Normal' : 'Btn_Tab_Tall_Normal'; if (n.normal) n.normal.sprite = n.w.sprite; n.drawn = null; });
-      node(v, 'Label - Money').w.text = money(P1.state.money);
-      grid.kids.slice().forEach(k => v.remove(k.path));
-      sv.pos = svHome.pos.slice(); sv.pn.off = svHome.off.slice();
-      const rows = Object.keys(P1.state.bag).filter(k => P1.state.bag[k] > 0)
-        .map(k => ({ k, it: itemByKey(k) }))
-        .filter(r => pocketOf(r.k, r.it) === BAG_TABS[tab] && (!query || r.it.name.toLowerCase().includes(query)))
-        .sort((a, b) => (a.it.id || 9999) - (b.it.id || 9999));
-      rows.forEach((r, i) => {
-        const n = v.add(grid.path, 'prefab:Inventory Item', 'it' + pad2(i));
-        node(v, n.path + '/Label - Name').w.text = r.it.name;
-        node(v, n.path + '/Label - QTY').w.text = 'x' + P1.state.bag[r.k];
-        setTex(v, n.path + '/Sprite/Texture - Icon', r.it.img || 'art/ui/tex/Unknown.png');
-        onEl(n, () => itemMenu(r.k).then(() => { if (!e.closed) e.refresh(); }));
+    return mount('bag', e => {
+      const box = el('div', 'p1-popup p1-bag', e.root);
+      at(box, 0, 0, 560, 440);
+      box.appendChild(spr('backpack_with_scrollbar_bg', 560, 440));
+      const closeBtn = button(box, 'p1-btn-close', () => e.close(), 'close');
+      closeBtn.appendChild(spr('close', 28, 28));
+      const tabsEl = el('div', 'p1-tabs p1-bag-tabs', box);
+      const grid = el('div', 'p1-item-grid p1-bag-grid', box);
+      const detail = el('div', 'p1-bag-detail', box);
+      // Mở sẵn thẻ đầu tiên có đồ (mở vào thẻ 'Chung' trống trơn trông như hỏng nếu túi chưa có gì ở đó).
+      const nonEmpty = POCKETS.find(p => Object.keys(P1.state.bag).some(k => P1.state.bag[k] > 0 && pocketOf(k, itemByKey(k)) === p.key));
+      let pocket = (nonEmpty || POCKETS[0]).key;
+      const tabBtns = POCKETS.map(p => {
+        const b = el('div', 'p1-tab p1-pocket-tab', tabsEl);
+        b.dataset.p1 = 'bag-pocket-' + p.key;
+        b.appendChild(spr(p.icon + '_off', 32, 32));
+        b.title = p.label;
+        onEl(b, () => { pocket = p.key; render(); });
+        return b;
       });
-      v.refresh();
-    };
-    e.refresh();
-    return e.done;
+      let selected = null;
+      function items() {
+        return Object.keys(P1.state.bag).filter(k => P1.state.bag[k] > 0)
+          .map(k => ({ key: k, it: itemByKey(k), n: P1.state.bag[k] }))
+          .filter(r => pocketOf(r.key, r.it) === pocket);
+      }
+      function render() {
+        tabBtns.forEach((b, i) => b.classList.toggle('p1-active', POCKETS[i].key === pocket));
+        grid.innerHTML = '';
+        items().forEach(r => {
+          const cell = el('div', 'p1-item-cell' + (selected === r.key ? ' p1-sel' : ''), grid);
+          cell.dataset.p1 = 'bag-item-' + r.key;
+          cell.appendChild(img(r.it.img || '', 'p1-item-icon'));
+          txt(cell, 'p1-item-name', r.it.name);
+          txt(cell, 'p1-item-count', '×' + r.n);
+          onEl(cell, () => { selected = r.key; render(); });
+        });
+        detail.innerHTML = '';
+        const r = items().find(x => x.key === selected);
+        if (!r) return;
+        txt(detail, 'p1-item-desc-name', r.it.name);
+        txt(detail, 'p1-item-desc', r.it.desc || '');
+        const useBtn = button(detail, 'p1-btn-row', async () => {
+          const dmy = await mount('item', ie => {
+            const b2 = el('div', 'p1-popup p1-item-use', ie.root);
+            at(b2, 0, 0, 320, 200);
+            b2.appendChild(spr('backpack_no_scrollbar_bg', 320, 200));
+            txt(b2, 'p1-popup-title', 'Dùng cho ai?');
+            const gg = el('div', 'p1-item-grid', b2);
+            P1.state.party.forEach((m, i) => {
+              const cell = el('div', 'p1-item-cell', gg);
+              cell.dataset.p1 = 'use-target-' + i;
+              cell.appendChild(img(iconOf(m), 'p1-item-icon'));
+              txt(cell, 'p1-item-name', monName(m));
+              onEl(cell, () => ie.close(i));
+            });
+            const cancel = button(b2, 'p1-btn-round', () => ie.close(-1), 'use-cancel'); cancel.textContent = 'Huỷ';
+            ie.escValue = -1;
+          }).done;
+          if (dmy < 0) return;
+          const msg = useOn(P1.state.party[dmy], r.key);
+          if (msg) { bagAdd(r.key, -1); toast(msg); selected = null; changed(); }
+          else toast('Không có tác dụng.');
+        }, 'bag-use');
+        useBtn.textContent = 'Dùng';
+      }
+      e.refresh = render;
+      render();
+    }).done;
   }
 
-  // Bấm vào một món: prefab:Panel - Message Box với nút Use / Hold gốc, thêm Toss (bản sao nút Hold).
-  function itemMenu(key) {
-    const it = itemByKey(key);
-    const e = mount('item', 'prefab:Panel - Message Box');
-    const v = e.v;
-    const usable = !!(P1.ITEM_EFFECT && P1.ITEM_EFFECT[key]);
-    v.label('Label - Window Title', it.name);
-    v.label('Label - Message', it.desc || '');
-    node(v, 'Label - Message').w.overflow = 'shrink';
-    const toss = v.add('Sprite - Window', 'prefab:Panel - Message Box/Sprite - Window/Button - Hold', 'Button - Toss');
-    toss.pos = [-15, -65];
-    activate(v, [['Input - Message Box', false], ['Button - Okay', false], ['Button - Yes', false], ['Button - Use', usable],
-      ['Button - Hold', true], ['Button - No', true], [toss, true]]);
-    v.label('Button - Toss/Label', 'Toss');
-    v.label('Button - No/Label', 'Cancel');
-    onEl(node(v, 'Button - No'), () => e.close(false));
-    onEl(node(v, 'Button - Use'), () => {
-      selectPokemon('Use ' + it.name + ' on…').then(i => {
-        if (i == null) return;
-        const m = P1.state.party[i];
-        const msg = useOn(m, key);
-        if (!msg) { toast('It won\'t have any effect.'); return; }
-        bagAdd(key, -1);
-        toast(msg);
-        changed();
-        e.close(true);
-      });
-    });
-    onEl(node(v, 'Button - Hold'), () => {
-      selectPokemon('Give ' + it.name + ' to…').then(i => {
-        if (i == null) return;
-        const m = P1.state.party[i];
-        if (m.item) bagAdd(m.item, 1);
-        m.item = key;
-        bagAdd(key, -1);
-        toast(monName(m) + ' is now holding the ' + it.name + '.');
-        changed();
-        e.close(true);
-      });
-    });
-    onEl(toss, () => {
-      message({ title: 'Toss', text: 'Throw away one ' + it.name + '?', yes: 'Okay', no: 'Cancel' }).then(ok => {
-        if (!ok) return;
-        bagAdd(key, -1);
-        toast('Threw away one ' + it.name + '.');
-        changed();
-        e.close(true);
-      });
-    });
-    e.escValue = false;
-    return e.done;
+  /* ---------------------------------------------------------------- Pokédex */
+
+  function dex() {
+    return mount('dex', e => {
+      const box = el('div', 'p1-popup p1-dex', e.root);
+      at(box, 0, 0, 700, 500);
+      box.appendChild(spr('backpack_with_scrollbar_bg', 700, 500));
+      const closeBtn = button(box, 'p1-btn-close', () => e.close(), 'close');
+      closeBtn.appendChild(spr('close', 28, 28));
+      const header = el('div', 'p1-dex-header', box);
+      const search = textInput(header, { placeholder: 'Tìm...', onInput: () => { query = search.value.toLowerCase(); render(); } });
+      search.el.dataset.p1 = 'dex-search';
+      const counts = txt(header, 'p1-dex-counts', '');
+      const grid = el('div', 'p1-dex-grid', box);
+      const detail = el('div', 'p1-dex-detail', box);
+      const all = Object.keys(P1.SPECIES || {}).map(Number).sort((a, b) => a - b);
+      let query = '', sel = 0;
+      function render() {
+        const D = P1.state.dex;
+        counts.textContent = 'Đã thấy: ' + Object.keys(D.seen).length + '  Đã bắt: ' + Object.keys(D.caught).length;
+        grid.innerHTML = '';
+        all.filter(d => !query || String(d).includes(query) || (D.seen[d] && P1.SPECIES[d].name.toLowerCase().includes(query)))
+          .forEach(d => {
+            const cell = el('div', 'p1-dex-cell' + (d === sel ? ' p1-sel' : ''), grid);
+            cell.dataset.p1 = 'dex-cell-' + d;
+            if (D.seen[d]) cell.appendChild(img(iconOf({ dex: d, shiny: false }), 'p1-item-icon'));
+            txt(cell, 'p1-dex-num', '#' + String(d).padStart(3, '0'));
+            if (D.caught[d]) cell.classList.add('p1-caught');
+            onEl(cell, () => { if (D.seen[d]) { sel = d; render(); } });
+          });
+        detail.innerHTML = '';
+        if (!D.seen[sel]) { txt(detail, 'p1-dex-unknown', '?'); return; }
+        const S = P1.SPECIES[sel];
+        detail.appendChild(img(frontOf({ dex: sel, shiny: false }), 'p1-dex-portrait'));
+        txt(detail, 'p1-dex-name', '#' + sel + ' ' + S.name);
+        txt(detail, 'p1-dex-desc', S.desc || '');
+      }
+      e.refresh = render;
+      render();
+    }).done;
   }
 
-  /* ---------------------------------------------------------------- cửa hàng (Panel - Shop) */
+  /* ---------------------------------------------------------------- thẻ huấn luyện viên */
+
+  function trainer() {
+    return mount('trainer', e => {
+      const box = el('div', 'p1-popup p1-trainer', e.root);
+      at(box, 0, 0, 420, 320);
+      box.appendChild(spr('backpack_no_scrollbar_bg', 420, 320));
+      const closeBtn = button(box, 'p1-btn-close', () => e.close(), 'close');
+      closeBtn.appendChild(spr('close', 28, 28));
+      const canvas = el('canvas', 'p1-trainer-portrait', box);
+      canvas.width = 128; canvas.height = 128;
+      const name = txt(box, 'p1-trainer-name', '');
+      const values = txt(box, 'p1-trainer-values', '');
+      e.refresh = () => {
+        const st = P1.state, T = trainerLevel(st.trainerExp);
+        paintPlayer(canvas, st.player.look, st.player.gender, 'down', 0);
+        name.textContent = st.player.name + '  (Lv' + T.level + ')';
+        values.textContent = ['Tiền: ₽' + money(st.money),
+          'Đã thấy: ' + Object.keys(st.dex.seen).length,
+          'Đã bắt: ' + Object.keys(st.dex.caught).length].join('\n');
+      };
+      e.refresh();
+    }).done;
+  }
+
+  /* ---------------------------------------------------------------- cài đặt (danh sách rút gọn, P1.SETTINGS_DEF cũ đã bỏ) */
+
+  function options() {
+    return mount('options', e => {
+      const box = el('div', 'p1-popup p1-options', e.root);
+      at(box, 0, 0, 420, 360);
+      box.appendChild(spr('backpack_no_scrollbar_bg', 420, 360));
+      const closeBtn = button(box, 'p1-btn-close', () => e.close(), 'close');
+      closeBtn.appendChild(spr('close', 28, 28));
+      txt(box, 'p1-popup-title', 'Cài đặt');
+      const rows = el('div', 'p1-options-rows', box);
+      function slider(label, key, hook, onChange) {
+        const row = el('div', 'p1-option-row', rows);
+        txt(row, 'p1-option-label', label);
+        const s = el('input', 'p1-option-slider', row);
+        s.type = 'range'; s.min = 0; s.max = 1; s.step = 0.01; s.value = P1.settings[key];
+        s.dataset.p1 = hook;
+        s.addEventListener('input', () => { const v = +s.value; P1.setSetting(key, v); if (onChange) onChange(v); });
+        return s;
+      }
+      slider('Âm nhạc', 'musicVolume', 'opt-music');
+      slider('Âm thanh', 'soundVolume', 'opt-sound');
+      const row = el('div', 'p1-option-row', rows);
+      txt(row, 'p1-option-label', 'Tốc độ chữ');
+      const speedSel = el('select', 'p1-option-select', row);
+      speedSel.dataset.p1 = 'opt-speed';
+      [['slow', 'Chậm'], ['normal', 'Vừa'], ['fast', 'Nhanh']].forEach(([v, l]) => { const o = el('option', '', speedSel); o.value = v; o.textContent = l; });
+      speedSel.value = P1.settings.textSpeed || 'normal';
+      speedSel.addEventListener('change', () => P1.setSetting('textSpeed', speedSel.value));
+      const bumpRow = el('div', 'p1-option-row', rows);
+      const bump = el('input', '', bumpRow); bump.type = 'checkbox'; bump.checked = !!P1.settings.bumpSound;
+      bump.dataset.p1 = 'opt-bump';
+      bump.addEventListener('change', () => P1.setSetting('bumpSound', bump.checked));
+      txt(bumpRow, 'p1-option-label', 'Rung khi đụng tường');
+      bumpRow.insertBefore(bump, bumpRow.firstChild);
+      e.escValue = undefined;
+    }).done;
+  }
+
+  /* ---------------------------------------------------------------- hộp PC */
+
+  function pokebox() {
+    return mount('pokebox', e => {
+      const box = el('div', 'p1-popup p1-pokebox', e.root);
+      at(box, 0, 0, 620, 440);
+      box.appendChild(spr('backpack_with_scrollbar_bg', 620, 440));
+      const closeBtn = button(box, 'p1-btn-close', () => e.close(), 'close');
+      closeBtn.appendChild(spr('close', 28, 28));
+      const boxView = el('div', 'p1-box-grid', box);
+      function render() {
+        boxView.innerHTML = '';
+        P1.state.box.forEach((m, i) => {
+          const cell = el('div', 'p1-item-cell', boxView);
+          cell.dataset.p1 = 'box-cell-' + i;
+          cell.appendChild(img(iconOf(m), 'p1-item-icon'));
+          txt(cell, 'p1-item-name', monName(m));
+          onEl(cell, () => {
+            if (P1.state.party.length >= 6) { toast('Đội đã đầy.'); return; }
+            P1.state.party.push(m);
+            P1.state.box.splice(i, 1);
+            changed();
+          });
+        });
+      }
+      e.refresh = render;
+      e.dropFromParty = (i, x, y) => {
+        if (!inside(rectOf(boxView), x, y)) return false;
+        const m = P1.state.party[i];
+        if (!m) return false;
+        P1.state.party.splice(i, 1);
+        P1.state.box.push(m);
+        changed();
+        return true;
+      };
+      render();
+    }).done;
+  }
+
+  const SCREENS = { menu, party, bag, dex, trainer, options, pokebox };
+
+  /* ---------------------------------------------------------------- cửa hàng */
 
   function shop(items) {
-    const e = mount('shop', 'Panel - Shop');
-    const v = e.v;
-    const list = (items || []).map(x => { const k = itemKey(x.id); return { k, it: itemByKey(k), price: x.price | 0 }; });
-    node(v, 'Gold Label').parent.active = false;
-    activate(v, [['Label - Total Cost PokeGold', false], ['Button - Buy Poke Coin', false], ['Scrollbar', false]]);
-    node(v, 'Button - Buy').pos[0] = 0;
-    node(v, 'Label - Total Cost').pos[0] = 0;
-    // ShrinkContent co cả chữ lẫn ký hiệu [PD] cao hơn khung 22: để nhãn tự giãn thay vì co chữ còn 3 px.
-    node(v, 'Label - Total Cost').w.overflow = 'resizeFreely';
-    closeOn(e, ['Sprite Title Bar/Button - Close (1)']);
-    const grid = node(v, 'Scroll View - Shop Items/Grid');
-    let sel = 0, amount = 1;
-    const rows = list.map((r, i) => {
-      const n = v.add(grid.path, 'prefab:Shop Item#3985', 'si' + pad2(i));
-      node(v, n.path + '/lvlName').w.text = r.it.name + '\n[PD]' + money(r.price);
-      setTex(v, n.path + '/Sprite/Icon', r.it.img || 'art/ui/tex/Unknown.png');
-      onEl(n, () => { sel = i; amount = 1; e.refresh(); });
-      return n;
-    });
-    e.refresh = () => {
-      const r = list[sel];
-      node(v, 'Money Label').w.text = money(P1.state.money);
-      rows.forEach((n, i) => { const bg = node(v, n.path + '/Background'); bg.w.color = i === sel ? '#9fdcffff' : '#ffffffff'; bg.drawn = null; });
-      if (r) {
-        node(v, 'Label - Item Name').w.text = r.it.name;
-        setTex(v, 'Texture - Item Icon', r.it.img || 'art/ui/tex/Unknown.png');
-        node(v, 'Label - Amount').w.text = String(amount);
-        node(v, 'Label - Total Cost').w.text = '[PD]' + money(r.price * amount);
+    return mount('shop', e => {
+      const box = el('div', 'p1-popup p1-shop', e.root);
+      at(box, 0, 0, 560, 440);
+      box.appendChild(spr('backpack_with_scrollbar_bg', 560, 440));
+      const closeBtn = button(box, 'p1-btn-close', () => e.close(), 'close');
+      closeBtn.appendChild(spr('close', 28, 28));
+      const money0 = txt(box, 'p1-shop-money', '');
+      const grid = el('div', 'p1-item-grid', box);
+      const detail = el('div', 'p1-shop-detail', box);
+      const list = (items || []).map(x => { const k = itemKey(x.id); return { k, it: itemByKey(k), price: x.price | 0 }; });
+      let sel = 0, amount = 1;
+      const cells = list.map((r, i) => {
+        const cell = el('div', 'p1-item-cell', grid);
+        cell.dataset.p1 = 'shop-item-' + i;
+        cell.appendChild(img(r.it.img || '', 'p1-item-icon'));
+        txt(cell, 'p1-item-name', r.it.name);
+        txt(cell, 'p1-item-price', '₽' + money(r.price));
+        onEl(cell, () => { sel = i; amount = 1; render(); });
+        return cell;
+      });
+      function render() {
+        money0.textContent = 'Tiền: ₽' + money(P1.state.money);
+        cells.forEach((c, i) => c.classList.toggle('p1-sel', i === sel));
+        detail.innerHTML = '';
+        const r = list[sel];
+        if (!r) return;
+        txt(detail, 'p1-shop-name', r.it.name);
+        const amtRow = el('div', 'p1-shop-amount', detail);
+        const less = button(amtRow, 'p1-btn-round', () => {}, 'shop-less'); less.textContent = '−';
+        const amtLabel = txt(amtRow, 'p1-shop-amount-label', String(amount));
+        const more = button(amtRow, 'p1-btn-round', () => {}, 'shop-more'); more.textContent = '+';
+        pressAndHold(less, () => { amount = clamp(amount - 1, 1, 99); amtLabel.textContent = String(amount); totalLabel.textContent = '₽' + money(r.price * amount); });
+        pressAndHold(more, () => { amount = clamp(amount + 1, 1, 99); amtLabel.textContent = String(amount); totalLabel.textContent = '₽' + money(r.price * amount); });
+        const totalLabel = txt(detail, 'p1-shop-total', '₽' + money(r.price * amount));
+        const buy = button(detail, 'p1-btn-row', () => {
+          const cost = r.price * amount;
+          if (P1.state.money < cost) { toast('Không đủ tiền.'); return; }
+          P1.state.money -= cost;
+          bagAdd(r.k, amount);
+          toast('Đã mua ' + amount + 'x ' + r.it.name + '.');
+          amount = 1;
+          changed();
+        }, 'shop-buy');
+        buy.textContent = 'Mua';
       }
-      v.refresh();
-    };
-    const step = d => { amount = clamp(amount + d, 1, 99); e.refresh(); };
-    pressAndHold(node(v, 'Choose Amount/Button - Add'), () => step(1));
-    pressAndHold(node(v, 'Choose Amount/Button - Take'), () => step(-1));
-    onEl(node(v, 'Button - Buy'), () => {
-      const r = list[sel];
-      if (!r) return;
-      const cost = r.price * amount;
-      if (P1.state.money < cost) { toast('You don\'t have enough money.'); return; }
-      P1.state.money -= cost;
-      bagAdd(r.k, amount);
-      toast('You bought ' + amount + 'x ' + r.it.name + '.');
-      amount = 1;
-      changed();
-    });
-    e.refresh();
-    return e.done;
+      e.refresh = render;
+      render();
+    }).done;
   }
 
   /* ---------------------------------------------------------------- hồi máu ở Trung tâm Pokémon */
 
-  // Bản gốc: máy chủ gửi script (màn đen Panel - Script Blackout + tiếng hồi máu). Không có mã mô tả thời lượng; 0,35 s mờ vào/ra là đoán.
   async function heal() {
     busy++;
     try {
-      // Panel depth 9 nằm dưới 'Panel - Game GUI' (depth 11): HUD vẫn hiện trên màn đen, như bản gốc.
-      const under = host('p1-scene');
-      const v = build('Panel - Script Blackout', under);
-      v.root.style.transition = 'opacity .35s';
-      v.root.style.opacity = '0';
+      const under = el('div', 'p1-blackout');
+      stage().appendChild(under);
+      under.style.opacity = '0';
       await wait(20);
-      v.root.style.opacity = '1';
+      under.style.opacity = '1';
       await wait(380);
       P1.state.party.forEach(m => P1.mon.heal(m));
       changed();
-      const src = await P1.audio.sfx('heal_pokemon');
+      const src = P1.audio && P1.audio.sfx ? await P1.audio.sfx('heal_pokemon') : null;
       const dur = src && src.buffer ? src.buffer.duration * 1000 : 1200;
       await wait(Math.max(600, dur));
-      v.root.style.opacity = '0';
+      under.style.opacity = '0';
       await wait(380);
-      v.destroy();
       under.remove();
     } finally { busy--; }
   }
 
-  /* ---------------------------------------------------------------- học chiêu / tiến hoá */
-
-  // Hai panel nằm trong 'Widget - Hidden During Battle Or Script' (LearnHandler, EvolutionHandler).
-  function hiddenWidget(which) {
-    const e = mount(which, 'Widget - Hidden During Battle Or Script');
-    // Panel con lưu alpha 0 kèm TweenAlpha 0→1 (mở ra mới hiện dần); build chỉ chạy tween của nút gốc nên đặt tay.
-    ['Panel - Learn Move', 'Panel - Learn Evolution'].forEach(p => { node(e.v, p).alpha = 1; });
-    activate(e.v, [['Panel - Learn Move', which === 'learn'], ['Panel - Learn Evolution', which === 'evolve']]);
-    return e;
-  }
-  const typeHex = t => {
-    const order = ['Normal', 'Fighting', 'Flying', 'Poison', 'Ground', 'Rock', 'Bug', 'Ghost', 'Steel', 'Fire', 'Water', 'Grass', 'Electric', 'Psychic', 'Ice', 'Dragon', 'Dark', 'Fairy'];
-    const cols = ['a8a878', 'c03028', 'a890f0', 'a040a0', 'e0c068', 'b8a038', 'a8b820', '705898', 'b8b8d0', 'f08030', '6890f0', '78c850', 'ffed00', 'f85888', '98d8d8', '7038f8', '705848', 'ee99ac'];
-    return cols[order.indexOf(t)] || 'ffffff';   // BattleHandler.TypeColours
-  };
-  const moveDesc = mv => (P1.MOVE_DESC && P1.MOVE_DESC[mv.id]) || mv.shortDesc || mv.desc || '';
+  /* ---------------------------------------------------------------- học chiêu */
 
   function learnMove(mon, moveId) {
     const mv = P1.Dex.moves.get(moveId);
     if (mon.moves.length < 4) {
       P1.mon.learn(mon, mv.id);
-      toast(monName(mon) + ' learned ' + mv.name + '!');
+      toast(monName(mon) + ' đã học ' + mv.name + '!');
       changed();
       return Promise.resolve(mon.moves.length - 1);
     }
-    const e = hiddenWidget('learn');
-    const v = e.v, P = 'Panel - Learn Move/Sprite - Window/';
-    v.label(P + 'Label - Learning', '[FF9900]' + monName(mon) + '[-] is trying to learn [FF9900]' + mv.name + '[-], Should it forget another move to learn it?');
-    const fillInfo = (m, root, title) => {
-      node(v, root + 'Label - Title PP').w.text = title;
-      node(v, root + 'Label - Accuracy').w.text = m.accuracy === true ? '-' : m.accuracy + '%';
-      node(v, root + 'Label - Power').w.text = m.basePower ? String(m.basePower) : '-';
-      node(v, root + 'Label - Description').w.text = moveDesc(m);
-      node(v, root + 'Sprite - Type').w.sprite = m.type.toLowerCase();
-      const dt = node(v, root + 'Sprite - Damage Type');
-      dt.active = m.category !== 'Status';
-      dt.w.sprite = m.category === 'Special' ? 'special' : 'physical';
-    };
-    fillInfo(mv, P + 'Sprite - Info Background/', '[' + typeHex(mv.type) + ']' + mv.name + '[-]\nPP ' + mv.pp);
-    setTex(v, P + 'Sprite - Platform/Texture - Pokemon', bigImg(mon.dex));
-    const tip = node(v, P + 'Widget - Mouse Over Description');
-    tip.active = false;
-    const btn = i => P + 'Button - Learn Move' + (i ? ' (' + i + ')' : '');
-    mon.moves.forEach((s, i) => {
-      const old = P1.Dex.moves.get(s.id);
-      v.label(btn(i) + '/Label', 'Forget ' + old.name);
-      onEl(node(v, btn(i)), () => {
-        P1.mon.learn(mon, mv.id, i);
-        toast(monName(mon) + ' forgot ' + old.name + ' and learned ' + mv.name + '!');
-        changed();
-        e.close(i);
+    return mount('learn', e => {
+      const box = el('div', 'p1-popup p1-learn', e.root);
+      at(box, 0, 0, 480, 360);
+      box.appendChild(spr('backpack_no_scrollbar_bg', 480, 360));
+      box.appendChild(img(frontOf(mon), 'p1-learn-portrait'));
+      txt(box, 'p1-learn-text', monName(mon) + ' muốn học ' + mv.name + ', nhưng đã biết 4 chiêu. Quên chiêu nào?');
+      const rows = el('div', 'p1-learn-rows', box);
+      mon.moves.forEach((s, i) => {
+        const old = P1.Dex.moves.get(s.id);
+        const b = button(rows, 'p1-btn-row', () => {
+          P1.mon.learn(mon, mv.id, i);
+          toast(monName(mon) + ' đã quên ' + old.name + ', học ' + mv.name + '!');
+          changed();
+          e.close(i);
+        }, 'learn-forget-' + i);
+        b.textContent = 'Quên ' + old.name;
       });
-      // ShowMoveDescription: rê chuột vào chiêu cũ hiện khung mô tả
-      hoverEl(node(v, btn(i)), () => {
-        tip.active = true;
-        node(v, tip.path + '/Label - Move Name').w.text = old.name;
-        node(v, tip.path + '/Label - Stats').w.text = 'Base Power: ' + (old.basePower || '-') + '\nAccuracy: ' + (old.accuracy === true ? '-' : old.accuracy);
-        node(v, tip.path + '/Label - Description').w.text = moveDesc(old);
-        node(v, tip.path + '/Sprite - Type/Label - Type').w.text = old.type;
-        const dt = node(v, tip.path + '/Sprite - Move Damage Type');
-        dt.active = old.category !== 'Status'; dt.w.sprite = old.category === 'Special' ? 'special' : 'physical';
-        v.refresh();
-      }, () => { tip.active = false; v.refresh(); });
-    });
-    v.label(P + 'Button - Dont Learn/Label', 'Do not learn ' + mv.name);
-    onEl(node(v, P + 'Button - Dont Learn'), () => { toast(monName(mon) + ' did not learn ' + mv.name + '.'); e.close(null); });
-    e.escValue = null;
-    v.refresh();
-    return e.done;
+      const dontLearn = button(box, 'p1-btn-row', () => { toast(monName(mon) + ' không học ' + mv.name + '.'); e.close(null); }, 'learn-dontlearn');
+      dontLearn.textContent = 'Không học ' + mv.name;
+      e.escValue = null;
+    }).done;
   }
 
-  // EvolveAnimation gốc đổi qua lại mảng Texture2D theo stage. Ở đây: hai ảnh loài cũ/mới nhấp nháy nhanh dần.
+  /* ---------------------------------------------------------------- tiến hoá */
+
   function evolve(mon, intoDex) {
-    const e = hiddenWidget('evolve');
-    const v = e.v, P = 'Panel - Learn Evolution/Sprite - Window/';
-    const from = mon.dex, fromName = monName(mon), toName = P1.mon.species(intoDex).name;
-    v.label(P + 'Label - Evolving', '[FF9900]' + fromName + '[-] is trying to evolve into [FF9900]' + toName + '[-], Do you want your Pokemon to evolve?');
-    const tex = node(v, P + 'Sprite - Platform/Texture - Pokemon');
-    setTex(v, tex, bigImg(from));
-    let t = 0, stage = 0, running = true, raf = 0, last = performance.now();
-    const loop = now => {
-      if (!running) return;
-      t += (now - last) / 1000; last = now;
-      const period = Math.max(0.12, 0.9 - t * 0.12);
-      const s = Math.floor(t / period) % 2;
-      if (s !== stage) { stage = s; setTex(v, tex, bigImg(s ? intoDex : from)); }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    e.cleanup.push(() => { running = false; cancelAnimationFrame(raf); });
-    const finish = yes => {
-      running = false;
-      if (yes) {
-        P1.mon.evolve(mon, intoDex);
-        setTex(v, tex, bigImg(intoDex));
-        P1.audio.cry(intoDex);
-        if (P1.caught) P1.caught(intoDex);
-        toast('Congratulations! Your ' + fromName + ' evolved into ' + toName + '!');
-        changed();
-        setTimeout(() => e.close(true), 900);
-      } else {
-        setTex(v, tex, bigImg(from));
-        e.close(false);
-      }
-    };
-    onEl(node(v, P + 'Sprite - Info Background/Button - Yes'), () => finish(true));
-    onEl(node(v, P + 'Sprite - Info Background/Button - No'), () => finish(false));
-    e.escValue = false;
-    return e.done;
-  }
-
-  /* ---------------------------------------------------------------- Pokédex (Panel - Pokedex) */
-
-  const liftCache = {};
-  function lifted(url) {
-    if (!liftCache[url]) {
-      liftCache[url] = new Promise(res => {
-        const img = new Image();
-        img.onload = () => {
-          const S = 256, cv = document.createElement('canvas');
-          cv.width = cv.height = S;
-          const ctx = cv.getContext('2d'), w = img.naturalWidth * 1.5, h = img.naturalHeight * 1.5;
-          ctx.imageSmoothingEnabled = false;
-          ctx.drawImage(img, (S - w) / 2, S - h - 70, w, h);
-          res(cv.toDataURL());
-        };
-        img.onerror = () => res(url);
-        img.src = P1.ngui.base + url;
-      });
-    }
-    return liftCache[url];
-  }
-
-  function dex() {
-    const e = mount('dex', 'Panel - Pokedex');
-    const v = e.v;
-    const all = Object.keys(P1.SPECIES || {}).map(Number).sort((a, b) => a - b);
-    const D = P1.state.dex;
-    let query = '', row = 0, sel = 0, tab = 0;
-    closeOn(e, ['Sprite Title Bar/Button - Close']);
-    activate(v, [['Tab - Locations', false], ['Scrollbar', false]]);
-    const search = textInput(v, 'Sprite - Left Panel/Input - Search', { onInput: s => { query = s.toLowerCase(); row = 0; e.refresh(); } });
-    e.cleanup.push(() => search.destroy());
-    const hide = node(v, 'Checkbox - Hide Unseen');
-    onEl(hide, () => { row = 0; e.refresh(); });
-    const gridPath = node(v, 'Sprite - Left Panel/Pokemons').path;
-    const btns = [];
-    for (let i = 0; i < DEX_BUTTONS; i++) {
-      const b = v.add(gridPath, 'prefab:DexPokemon', 'dp' + pad2(i));
-      btns.push(b);
-      onEl(b, () => { if (b.dexNum && D.seen[b.dexNum]) { sel = b.dexNum; e.refresh(); } });
-    }
-    node(v, 'Sprite - Left Panel').el.addEventListener('wheel', ev => {
-      ev.preventDefault();
-      row = Math.max(0, row + (ev.deltaY > 0 ? 1 : -1));
-      e.refresh();
-    }, { passive: false });
-    const setDexTab = t => {
-      tab = t;
-      ['Tab - Description', 'Tab - Moves'].forEach((p, i) => { const n = node(v, p); n.w.sprite = i === t ? 'Btn_TabHighlighted_Normal' : 'Btn_Tab_Normal'; if (n.normal) n.normal.sprite = n.w.sprite; n.drawn = null; });
-      activate(v, [['Content - Description', t === 0], ['Content - Moves', t === 1]]);
-    };
-    onEl(node(v, 'Tab - Description'), () => setDexTab(0));
-    onEl(node(v, 'Tab - Moves'), () => setDexTab(1));
-    const movesGrid = node(v, 'Grid - Pokedex Moves');
-    const chart = node(v, 'Chart Texture');
-    e.refresh = () => {
-      const list = all.filter(d => (!hide.toggled || D.seen[d]) &&
-        (!query || String(d).includes(query) || (D.seen[d] && P1.SPECIES[d].name.toLowerCase().includes(query))));
-      const maxRow = Math.max(0, Math.ceil(list.length / 5) - DEX_BUTTONS / 5);
-      row = Math.min(row, maxRow);
-      btns.forEach((b, i) => {
-        const d = list[row * 5 + i];
-        b.active = !!d;
-        b.dexNum = d || 0;
-        if (!d) return;
-        node(v, b.path + '/Label').w.text = String(d).padStart(3, '0');
-        const t = node(v, b.path + '/Texture');
-        t.active = !!D.seen[d];
-        t.w.tex = 'art/sprite/poke/small64/' + d + '.png'; t.drawn = null;
-        node(v, b.path + '/Caught').active = !!D.caught[d];
-        node(v, b.path + '/Highlight').active = d === sel;
-        if (d === sel) { node(v, b.path + '/Highlight').w.color = '#ffffffff'; }
-      });
-      node(v, 'Label - Scene').w.text = money(Object.keys(D.seen).length);
-      node(v, 'Label - Caught').w.text = money(Object.keys(D.caught).length);
-      const info = sel && D.seen[sel];
-      activate(v, [['Information', !!info], ['QuestionMark', !info]]);
-      if (info) { showSpecies(sel); drawChart(sel); }
-      v.refresh();
-    };
-    function showSpecies(d) {
-      const S = P1.SPECIES[d], sp = P1.mon.species(d);
-      node(v, 'Label - Pokemon Name').w.text = '#' + d + ' ' + S.name;
-      node(v, 'Pokemon Species Type').w.text = S.category || '';
-      node(v, 'Label - Weight / Height').w.text = 'Height: ' + S.height + 'm\nWeight: ' + S.weight + 'kg';
-      node(v, 'Content - Description/Description').w.text = S.desc || '';
-      const view = node(v, 'Pokemon View');
-      // Ảnh 2D thay cho RenderTexture của model 3D. Ảnh big đặt Pokémon sát đáy khung, mà đáy khung bị dải tên che:
-      // phóng 1,5 lần và nhấc lên trước khi gán.
-      view.w.uv = null;
-      lifted(bigImg(d)).then(url => { if (sel === d && !e.closed) setTex(v, view, url); });
-      const types = node(v, 'Pokemon View/Sprite').kids.filter(k => k.name === 'Types');
-      types.forEach((t, i) => { const ty = S.types[i]; t.active = !!ty; if (ty) { t.w.sprite = ty.toLowerCase(); t.drawn = null; } });
-      const male = S.male;
-      const genders = node(v, 'Genders');
-      genders.active = !(male === 0 && sp.gender === 'N') && sp.gender !== 'N';
-      setSize(node(v, 'GenderMale'), Math.max(2, Math.round(90 * clamp((male == null ? 50 : male) / 100, 0, 1))), 6);
-      const ev = S.evs || {};
-      [['HP', 'hp', 'HP'], ['ATK', 'atk', 'ATK'], ['DEF', 'def', 'DEF'], ['SPATK', 'spa', 'Sp. ATK'], ['SPDEF', 'spd', 'Sp. DEF'], ['SPD', 'spe', 'SPD']]
-        .forEach(([n, k, t]) => { node(v, 'Label - EV ' + n).w.text = (ev[k] || 0) + '\n' + t; });
-      const b = sp.baseStats;
-      [['Label - Sp ATK', 'Sp.ATK', b.spa], ['Label - ATK', 'ATK', b.atk], ['Label - HP', 'HP', b.hp], ['Label - SPD', 'SPD', b.spe],
-        ['Label - SPDEF', 'Sp.DEF', b.spd], ['Label - DEF', 'DEF', b.def]].forEach(([p, t, val]) => { node(v, 'StatChart/' + p).w.text = t + '\n' + val; });
-      // Move/Ability: chiêu học theo cấp (learnset Showdown 7L..), ba khả năng
-      movesGrid.kids.slice().forEach(k => v.remove(k.path));
-      const ls = ((P1.Dex.data.Learnsets[sp.id] || {}).learnset) || {};
-      const lv = [];
-      Object.keys(ls).forEach(id => ls[id].forEach(src => { const m = /^7L(\d+)$/.exec(src); if (m) lv.push([+m[1], P1.Dex.moves.get(id).name]); }));
-      lv.sort((a, c) => a[0] - c[0] || a[1].localeCompare(c[1]));
-      // prefab:Pokedex Move 1 (chữ giữa, mẫu "Title Text") là dòng tiêu đề nhóm; prefab:Pokedex Move là dòng chiêu.
-      const head = v.add(movesGrid.path, 'prefab:Pokedex Move 1', 'pm000');
-      node(v, head.path + '/Label - Move Name').w.text = 'Level Up';
-      lv.forEach(([l, name], i) => {
-        const r = v.add(movesGrid.path, 'prefab:Pokedex Move', 'pm' + String(i + 1).padStart(3, '0'));
-        node(v, r.path + '/Label - Move Name').w.text = 'Level ' + l + ' - ' + name;
-      });
-      const ab = S.abilities || [];
-      const abTitle = i => 'Label - Ability Title' + (i ? ' (' + i + ')' : '');
-      [ab[0], ab[1], ab[2]].forEach((a, i) => {
-        const n = node(v, abTitle(i));
-        n.active = !!a;
-        if (!a) return;
-        const A = P1.Dex.abilities.get(a);
-        n.w.text = (i === 2 ? 'Hidden Ability - ' : '') + ((A && A.exists && A.name) || a);
-        n.w.overflow = 'resizeFreely';
-        node(v, n.path + '/Sprite/Label - Ability Description').w.text = (A && (A.shortDesc || A.desc)) || '';
-      });
-    }
-    // Chart Texture là RenderTexture (rt:Chart) trong bản gốc: vẽ lục giác trắng ra ảnh, màu nút (#00abffd2) nhân lên như UITexture.
-    function drawChart(d) {
-      const b = P1.mon.species(d).baseStats, cv = document.createElement('canvas'), S = 170;
-      cv.width = cv.height = S;
-      const ctx = cv.getContext('2d');
-      const order = [b.hp, b.atk, b.def, b.spe, b.spd, b.spa];   // đỉnh theo nhãn: HP trên, ATK phải-trên, DEF phải-dưới, SPD dưới, SpDEF trái-dưới, SpATK trái-trên
-      ctx.beginPath();
-      order.forEach((st, i) => {
-        const a = -Math.PI / 2 + i * Math.PI / 3, r = (S / 2) * 0.92 * clamp(st / 150, 0.08, 1);
-        const x = S / 2 + Math.cos(a) * r, y = S / 2 + Math.sin(a) * r;
-        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
-      });
-      ctx.closePath();
-      ctx.fillStyle = '#fff';
-      ctx.fill();
-      setTex(v, chart, cv.toDataURL());
-    }
-    setDexTab(0);
-    sel = all.find(d => D.seen[d]) || 0;
-    e.refresh();
-    return e.done;
-  }
-
-  /* ---------------------------------------------------------------- thẻ huấn luyện viên (Panel - Trainer Card) */
-
-  const BADGES = {
-    Kanto: ['boulder', 'cascade', 'thunder', 'rainbow', 'soul', 'marsh', 'volcano', 'earth'],
-    Johto: ['zephyr', 'hive', 'plain', 'fog', 'storm', 'mineral', 'glacier', 'rising'],
-    Unova: ['trio', 'basic', 'insect', 'bolt', 'quake', 'jet', 'freeze', 'legend'],
-  };
-  function trainer() {
-    const e = mount('trainer', 'Panel - Trainer Card');
-    const v = e.v;
-    closeOn(e, ['Sprite Title Bar/Button - Close']);
-    e.refresh = () => {
-      const st = P1.state, T = trainerLevel(st.trainerExp), S = st.stats || {};
-      activate(v, [['Toggle - Private', false], ['Texture - Loading', false], ['Label - Guild Name', false],
-        [node(v, 'Texture - Guild Logo').parent, false]]);
-      node(v, 'Content').w.color = '#ffffffff';
-      node(v, 'Label - Username').w.text = st.player.name;
-      paintPlayer(v, ['Sprite - Player Stand/Texture - Body', 'Sprite - Player Stand/Texture - Body/Texture - Clothes',
-        'Sprite - Player Stand/Texture - Body/Texture - Hair', 'Sprite - Player Stand/Texture - Body/Texture - Hat'], st.player);
-      const have = new Set((st.badges || []).map(String));
-      Object.keys(BADGES).forEach(region => {
-        const holder = node(v, 'Sprite - Badges ' + region);
-        holder.kids.forEach((b, i) => {
-          b.w.color = have.has(BADGES[region][i]) ? '#ffffffff' : '#00000073';   // chưa có huy hiệu: tô tối (đoán)
-          b.drawn = null;
-        });
-      });
-      const sec = Math.floor(st.playSeconds || 0);
-      const vals = [Math.floor(sec / 3600) + 'h ' + pad2(Math.floor(sec / 60) % 60) + 'm', S.steps | 0, S.fainted | 0,
-        Object.keys(st.dex.caught).length, S.levelUps | 0, S.encounters | 0, S.ballsThrown | 0,
-        Object.keys(st.dex.seen).length, Object.keys(st.dex.caught).length, 0, '', 'Kanto', T.level, '-', '', 0, 0];
-      node(v, 'Label - Values').w.text = vals.join('\n');
-      v.refresh();
-    };
-    e.refresh();
-    return e.done;
-  }
-
-  /* ---------------------------------------------------------------- hộp PC (Panel - Pokebox) */
-
-  function pokebox() {
-    const e = mount('pokebox', 'Panel - Pokebox');
-    ensureHud(e);
-    const v = e.v;
-    let boxNo = 0, query = '', lvMin = 0, lvMax = 100;
-    closeOn(e, ['Sprite Title Bar/Button - Close']);
-    activate(v, [['Button - Upgrade Box', false], ['Pokebox Release', false], ['Checkbox - Egg', false]]);
-    const inp = [
-      textInput(v, 'Pokebox Window/Input - Search', { onInput: s => { query = s.toLowerCase(); e.refresh(); } }),
-      textInput(v, 'Input - Level Range', { limit: 3, onInput: s => { lvMin = +s || 0; e.refresh(); } }),
-      textInput(v, 'Input - Level Range Max', { limit: 3, onInput: s => { lvMax = +s || 100; e.refresh(); } }),
-    ];
-    e.cleanup.push(() => inp.forEach(i => i.destroy()));
-    const shiny = node(v, 'Checkbox - Shiny');
-    onEl(shiny, () => e.refresh());
-    onEl(node(v, 'Pokebox Window/Button - Search'), () => e.refresh());
-    const numbers = node(v, 'Pokebox Window/Grid').kids;
-    numbers.forEach((b, i) => onEl(b, () => { boxNo = i; e.refresh(); }));
-    onEl(node(v, 'Button Left'), () => { boxNo = (boxNo + BOX_COUNT - 1) % BOX_COUNT; e.refresh(); });
-    onEl(node(v, 'Button Right'), () => { boxNo = (boxNo + 1) % BOX_COUNT; e.refresh(); });
-    const grid = node(v, 'BoxView/Grid');
-    const inBox = b => P1.state.box.filter(m => (m.boxNo | 0) === b);
-    const withdraw = m => {
-      const party = P1.state.party;
-      if (party.length >= 6) { toast('Your party is full.'); return; }
-      P1.state.box.splice(P1.state.box.indexOf(m), 1);
-      delete m.boxNo;
-      party.push(m);
-      toast(monName(m) + ' was taken out of Box ' + (boxNo + 1) + '.');
-      changed();
-    };
-    e.dropFromParty = (i, x, y) => {
-      if (!inside(rectOf(node(v, 'BoxView')), x, y)) return false;
-      const party = P1.state.party;
-      if (party.length <= 1) { toast('You can\'t deposit your last Pokémon.'); return true; }
-      if (inBox(boxNo).length >= BOX_SIZE) { toast('Box ' + (boxNo + 1) + ' is full.'); return true; }
-      const m = party.splice(i, 1)[0];
-      m.boxNo = boxNo;
-      P1.state.box.push(m);
-      toast(monName(m) + ' was stored in Box ' + (boxNo + 1) + '.');
-      const card = find('party');
-      if (card) card.close();
-      changed();
-      return true;
-    };
-    e.refresh = () => {
-      numbers.forEach((b, i) => {
-        const n = inBox(i).length;
-        const lab = b.kids.find(k => k.name === 'Label');
-        lab.w.text = String(i + 1);
-        const prog = b.kids.find(k => k.name === 'Sprite - Box Progress');
-        setSize(prog, Math.max(2, Math.round(26 * n / BOX_SIZE)), 4);
-        b.w.color = i === boxNo ? '#00c901ff' : '#ffffffff';   // PokeboxHandler.SelectColour
-        if (b.normal) b.normal.color = b.w.color;
-        b.drawn = null;
-      });
-      node(v, 'Label - Box Space').w.text = 'Box ' + (boxNo + 1) + ':  ' + inBox(boxNo).length + '/' + BOX_SIZE;
-      grid.kids.slice().forEach(k => v.remove(k.path));
-      inBox(boxNo).filter(m => (!query || monName(m).toLowerCase().includes(query) || (P1.SPECIES[m.dex].types || []).join(' ').toLowerCase().includes(query) || (m.nature || '').toLowerCase().includes(query))
-        && m.level >= lvMin && m.level <= lvMax && (!shiny.toggled || m.shiny))
-        .forEach((m, i) => {
-          const b = v.add(grid.path, 'prefab:Pokebox Button', 'pb' + pad2(i));
-          node(v, b.path + '/Pokemon Name').w.text = monName(m);
-          node(v, b.path + '/Sprite/Level Label').w.text = 'Lv ' + m.level;
-          node(v, b.path + '/ItemIcon').active = !!m.item;
-          setTex(v, b.path + '/Pokemon Image', smallImg(m));
-          onEl(b, () => withdraw(m));
-          dragSource(v, b, (x, y) => {
-            const h = huds.find(q => q.alive);
-            if (h && inside(rectOf(node(h.view, 'HUD Pokemon')), x, y)) withdraw(m);
-          });
-        });
-      v.refresh();
-    };
-    e.refresh();
-    return e.done;
-  }
-
-  /* ---------------------------------------------------------------- cài đặt (Panel - Options, 4 thẻ) */
-
-  // Cài đặt lưu theo khoá gốc (sMusicVolume...). Vài khoá có tên cũ trong core.js mà trận/thế giới đọc: ghi cả hai.
-  const ALIAS = {
-    sMusicVolume: ['musicVolume', v => v],
-    sSFXVolume: ['soundVolume', v => v],
-    sBumpSound: ['bumpSound', (v, d) => d.options[v] === 'Enabled'],
-    sBattleCamera: ['battleCamera', (v, d) => d.options[v] === 'Rotate'],
-    sBattleFlash: ['battleFlash', (v, d) => d.options[v] === 'Enabled'],
-  };
-  function getSetting(d) {
-    const s = P1.settings;
-    if (d.key === 'sWindowMode') return document.fullscreenElement ? 1 : 0;
-    if (s[d.key] != null) return s[d.key];
-    const a = ALIAS[d.key];
-    if (a && d.kind === 'slider' && typeof s[a[0]] === 'number') return s[a[0]];
-    return d.def;
-  }
-  function setSetting(d, val) {
-    if (d.key === 'sWindowMode') {
-      const el = document.documentElement;
-      if (val === 1 && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {});
-      if (val === 0 && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
-      return;
-    }
-    P1.setSetting(d.key, val);
-    const a = ALIAS[d.key];
-    if (a) P1.setSetting(a[0], a[1](val, d));
-  }
-  P1.getSetting = key => { const d = (P1.SETTINGS_DEF || []).find(x => x.key === key); return d ? getSetting(d) : P1.settings[key]; };
-
-  const lerpHex = (cols, t) => {
-    const c = cols.map(h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16)));
-    const f = clamp(t, 0, 1) * (c.length - 1), i = Math.min(c.length - 2, Math.floor(f)), u = f - i;
-    return '#' + c[i].map((v, k) => Math.round(v + (c[i + 1][k] - v) * u).toString(16).padStart(2, '0')).join('') + 'ff';
-  };
-  const keyName = k => k.replace(/^Key(\d)$/, '$1').replace(/(Up|Down|Left|Right)Arrow$/, '$1 Arrow');
-
-  function options() {
-    const key = P1.scene.name === 'title' ? 'title:Panel - Options' : 'Panel - Options';
-    const e = mount('options', key);
-    const v = e.v;
-    closeOn(e, ['Sprite Title Bar/Button - Close', 'Button - Close']);
-    onEl(node(v, 'Button - Apply'), () => { toast('Settings saved.'); e.close(); });
-    const cats = ['Button - Catagory', 'Button - Catagory (1)', 'Button - Catagory (2)', 'Button - Catagory (3)'];
-    const grid = node(v, 'Scroll View - Settings/Grid');
-    const sv = node(v, 'Scroll View - Settings');
-    const svHome = { pos: sv.pos.slice(), off: sv.pn.off.slice() };
-    let cat = 0, popupNode = null;
-    const closePopup = () => { if (popupNode) { const p = popupNode; popupNode = null; v.remove(p.path); } };
-    const outside = ev => { if (popupNode && !ev.target.closest('[data-name^="popopt"]')) setTimeout(closePopup, 0); };
-    window.addEventListener('pointerdown', outside, true);
-    e.cleanup.push(() => window.removeEventListener('pointerdown', outside, true));
-
-    // UIPopupList gốc tự dựng danh sách từ sprite atlas (backgroundSprite Bg_Window, highlightSprite Bg_Hotkey_Icon).
-    function popup(dd, d, cur, pick) {
-      closePopup();
-      const W = 140, IH = 24, n = d.options.length, H = n * IH + 12;
-      const pk = 'shell:popup';
-      P1.UI_PREFABS[pk] = { n: 'Popup', p: [0, 0], s: [1, 1], a: true, pn: { depth: 650, clip: 'none', alpha: 1 },
-        c: [{ n: 'Bg', p: [0, 0], s: [1, 1], a: true, w: { kind: 'sprite', size: [W, H], pivot: 'Top', depth: 1, type: 'sliced', atlas: 'GUIAtlas', sprite: 'Bg_Window' } }]
-          .concat(d.options.map((o, i) => ({ n: 'popopt' + i, p: [0, -6 - IH * i - IH / 2], s: [1, 1], a: true, col: 1,
-            w: { kind: 'label', size: [W - 16, IH], pivot: 'Center', depth: 4, font: 'Aldrich 16', text: o, fontSize: 20, align: 'left', overflow: 'shrink' },
-            c: [{ n: 'hl' + i, p: [0, 0], s: [1, 1], a: i === cur, w: { kind: 'sprite', size: [W - 8, IH], pivot: 'Center', depth: 2, type: 'sliced', atlas: 'GUIAtlas', sprite: 'Bg_Hotkey_Icon', color: '#ffffffa2' } }] }))) };
-      const p = v.add(v.ui.top.path, pk, 'Popup');
-      p.pos = [dd.world[4], dd.world[5] - 15];
-      popupNode = p;
-      p.kids.filter(k => k.name.startsWith('popopt')).forEach((k, i) => {
-        hoverEl(k, () => { p.kids.forEach(q => { if (q.kids[0]) q.kids[0].active = q === k; }); v.refresh(); }, () => {});
-        onEl(k, () => { closePopup(); pick(i); });
-      });
-      v.refresh();
-    }
-
-    function addRow(d, i) {
-      const kind = d.kind === 'slider' ? 'prefab:Button - Setting Slider' : d.kind === 'key' ? 'prefab:Button - Key Setting' : 'prefab:Button - Setting Dropdown';
-      const r = v.add(grid.path, kind, 'r' + pad2(i));
-      node(v, r.path + '/Label - Title').w.text = d.label;
-      r.def = d;
-      if (d.kind === 'slider') {
-        const sl = node(v, r.path + '/Slider'), fg = node(v, sl.path + '/Foreground'), th = node(v, sl.path + '/Thumb');
-        delete fg.w.anc; fg.w.pivot = 'Left'; fg.pos = [-75, 0];
-        delete th.w.anc; th.w.size = [12, 24];
-        const cols = (sl.d.mb && sl.d.mb.UISliderColors && sl.d.mb.UISliderColors.colors) || ['#ffffffff'];
-        const show = val => {
-          fg.w.size = [Math.max(2, Math.round(150 * val)), 16];
-          fg.w.color = lerpHex(cols, val);
-          th.pos = [-75 + 150 * val, 0];
-          fg.drawn = th.drawn = null;
-        };
-        show(getSetting(d));
-        const at = ev => { const rc = sl.el.getBoundingClientRect(); return clamp((ev.clientX - rc.left) / rc.width, 0, 1); };
-        let dragging = false;
-        const move = ev => { if (!dragging) return; const val = Math.round(at(ev) * 100) / 100; setSetting(d, val); show(val); v.refresh(); };
-        const up = () => { dragging = false; window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
-        sl.el.addEventListener('pointerdown', ev => {
-          dragging = true; move(ev);
-          window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-        });
-      } else if (d.kind === 'key') {
-        const binds = (d.options || []).filter(k => !k.startsWith('pad:')).map(keyName);
-        node(v, r.path + '/Button - Set Key/Label').w.text = binds.join(' / ') || '-';
-        node(v, r.path + '/Button - Remove').active = false;
-      } else {
-        const dd = node(v, r.path + '/Drop Down - Setting'), lab = node(v, dd.path + '/Label');
-        if (d.key === 'sResolution') {
-          lab.w.text = innerWidth + ' x ' + innerHeight;       // cỡ khung trình duyệt; không đổi được từ trang
+    return mount('evolve', e => {
+      const box = el('div', 'p1-popup p1-evolve', e.root);
+      at(box, 0, 0, 480, 380);
+      box.appendChild(spr('evolution_BG', 480, 380));
+      box.appendChild(spr('evolution_plattform', 300, 60));
+      const fromName = monName(mon), toName = P1.mon.species(intoDex).name;
+      const portrait = img(frontOf(mon), 'p1-evolve-portrait');
+      box.appendChild(portrait);
+      txt(box, 'p1-evolve-text', fromName + ' đang tiến hoá thành ' + toName + '. Bạn có muốn không?');
+      const row = el('div', 'p1-popup-buttons', box);
+      const yes = button(row, 'p1-btn-round', () => finish(true), 'evolve-yes'); yes.textContent = 'Có';
+      const no = button(row, 'p1-btn-round', () => finish(false), 'evolve-no'); no.textContent = 'Không';
+      let flick = 0, on = true;
+      const timer = setInterval(() => { flick = 1 - flick; portrait.src = flick ? frontOf({ dex: intoDex, shiny: mon.shiny }) : frontOf(mon); }, 220);
+      e.cleanup.push(() => clearInterval(timer));
+      function finish(yesAnswer) {
+        clearInterval(timer);
+        if (yesAnswer) {
+          P1.mon.evolve(mon, intoDex);
+          portrait.src = frontOf(mon);
+          if (P1.audio && P1.audio.cry) P1.audio.cry(intoDex);
+          if (P1.caught) P1.caught(intoDex);
+          toast('Chúc mừng! ' + fromName + ' đã tiến hoá thành ' + toName + '!');
+          changed();
+          setTimeout(() => e.close(true), 700);
         } else {
-          const show = () => { lab.w.text = String(d.options[getSetting(d)] != null ? d.options[getSetting(d)] : ''); lab.drawn = null; };
-          show();
-          onEl(dd, () => popup(dd, d, getSetting(d), idx => { setSetting(d, idx); show(); v.refresh(); }));
+          portrait.src = frontOf(mon);
+          e.close(false);
         }
       }
-    }
-    const setCat = c => {
-      cat = c;
-      closePopup();
-      cats.forEach((p, i) => { const t = node(v, p + '/Tabname'); t.w.color = i === c ? '#ffe400ff' : '#ffffffff'; t.drawn = null; });
-      grid.kids.slice().forEach(k => v.remove(k.path));
-      sv.pos = svHome.pos.slice(); sv.pn.off = svHome.off.slice();
-      const id = (P1.SETTINGS_CATS || [])[c].id;
-      // Dòng offline:true bản gốc ẩn khi không có máy chủ; nút "Set Defaults" bỏ vì phím chỉ xem, không gán lại.
-      (P1.SETTINGS_DEF || []).filter(d => d.cat === id && !d.offline && d.kind !== 'button').forEach(addRow);
-      v.refresh();
-    };
-    cats.forEach((p, i) => onEl(node(v, p), () => setCat(i)));
-    setCat(0);
-    return e.done;
+      e.escValue = false;
+    }).done;
   }
 
-  /* ---------------------------------------------------------------- hộp thoại (Panel - Scripts) */
+  /* ---------------------------------------------------------------- hộp thoại NPC (kiểu NpcDialoguePanel) */
 
-  let dv = null;
   const dialog = { active: false };
-  const TEXT = 'Normal Text/Label - Script Text', BG = 'Normal Text/Sprite - Background';
-  function scripts() {
+  let dv = null;
+  function dialogView() {
     if (!dv || !dv.root.isConnected) {
-      dv = build('Panel - Scripts', layer());
-      activate(dv, [['Sprite - NPC Arrow', false], ['Sprite - Select Container', false]]);
+      const root = el('div', 'p1-dialog');
+      root.dataset.p1 = 'dialog-box';
+      stage().appendChild(root);
+      at(root, 0, 96, 900, 190);
+      const bg = spr('window_place_for_buttons', 900, 190); root.appendChild(bg);
+      const nameEl = txt(root, 'p1-dialog-name', '');
+      const textEl = txt(root, 'p1-dialog-text', '');
+      const arrow = spr('arrowright (1)', 20, 20, 'p1-dialog-arrow'); root.appendChild(arrow);
+      // Danh sách lựa chọn nằm ngay dưới hộp thoại: đặt theo góc của root (900px), không dùng at()
+      // (at() tính theo tâm sân khấu, choices lại là con của root chứ không phải con trực tiếp của stage).
+      const choices = el('div', 'p1-dialog-choices', root);
+      choices.style.left = '0'; choices.style.top = '100%'; choices.style.width = '900px';
+      dv = { root, nameEl, textEl, arrow, choices };
     }
     return dv;
   }
-  function showScripts(on) { const v = scripts(); v.ui.top.active = on; v.refresh(); }
+  function showDialog(on) { dialogView().root.classList.toggle('p1-visible', on); }
 
-  // Ngắt dòng chữ thoại (nhãn ResizeFreely chỉ giãn ngang): tối đa ~52 ký tự mỗi dòng, 3 dòng mỗi trang.
   function paginate(text) {
     const out = [];
     String(text).split(/\n\n+/).forEach(par => {
       const words = par.replace(/\n/g, ' ').split(/\s+/).filter(Boolean), lines = [];
       let line = '';
-      const plain = s => s.replace(/\[[^\]]*\]/g, '');
       words.forEach(w => {
         const next = line ? line + ' ' + w : w;
-        if (plain(next).length > 52 && line) { lines.push(line); line = w; } else line = next;
+        if (next.length > 64 && line) { lines.push(line); line = w; } else line = next;
       });
       if (line) lines.push(line);
       for (let i = 0; i < lines.length; i += 3) out.push(lines.slice(i, i + 3).join('\n'));
     });
     return out.length ? out : [''];
   }
-  // Tách chữ thành ký tự hiển thị và thẻ BBCode, để gõ từng chữ mà không cắt đôi thẻ màu.
-  function tokens(s) {
-    const t = [];
-    let i = 0;
-    while (i < s.length) {
-      if (s[i] === '[') { const j = s.indexOf(']', i); if (j > i) { t.push({ tag: s.slice(i, j + 1) }); i = j + 1; continue; } }
-      t.push({ ch: s[i++] });
-    }
-    return t;
-  }
-  // TypewriterEffect gốc: 35 ký tự/giây, keepFullDimensions (khung giữ cỡ cả câu, chữ chưa tới vẽ trong suốt).
+  const SPEED_CPS = { slow: 20, normal: 35, fast: 70 };
   function typePage(text) {
-    const v = scripts();
-    const tw = (P1.UI['Panel - Scripts'] && ((node(v, TEXT).d.mb || {}).TypewriterEffect)) || { charsPerSecond: 35 };
-    const tk = tokens(text), total = tk.filter(x => x.ch).length;
-    const arrow = node(v, BG + '/Sprite - Arrow');
+    const v = dialogView();
+    const cps = SPEED_CPS[P1.settings && P1.settings.textSpeed] || 35;
     let shown = -1, t0 = performance.now(), raf = 0, done = false, resolve;
-    const render = n => {
-      let c = 0, a = '', b = '';
-      tk.forEach(x => { if (x.tag) { (c < n ? (a += x.tag) : (b += x.tag)); return; } if (c < n) a += x.ch; else b += x.ch; c++; });
-      node(v, TEXT).w.text = n >= total ? text : a + '[ffffff00]' + b.replace(/\[[0-9a-fA-F]{6}\]|\[-\]/g, '') + '[-]';
-      node(v, TEXT).drawn = null;
-    };
-    arrow.active = false;
-    render(0);
-    v.refresh();
+    v.arrow.style.visibility = 'hidden';
+    v.textEl.textContent = '';
     const p = new Promise(r => { resolve = r; });
     const tick = now => {
-      const n = Math.min(total, Math.floor((now - t0) / 1000 * tw.charsPerSecond));
-      if (n !== shown) { shown = n; render(n); v.ui.draw(node(v, TEXT)); }
-      if (n >= total) { finish(); return; }
+      const n = Math.min(text.length, Math.floor((now - t0) / 1000 * cps));
+      if (n !== shown) { shown = n; v.textEl.textContent = text.slice(0, n); }
+      if (n >= text.length) { finish(); return; }
       raf = requestAnimationFrame(tick);
     };
     const finish = () => {
       if (done) return;
       done = true;
       cancelAnimationFrame(raf);
-      render(total);
-      arrow.active = true;
-      v.refresh();
+      v.textEl.textContent = text;
+      v.arrow.style.visibility = 'visible';
       resolve();
     };
     raf = requestAnimationFrame(tick);
     return { done: p, skip: finish, get finished() { return done; } };
   }
 
-  // Một nguồn nhập cho hộp thoại: Space/Enter, click khung chữ, phím số 1-4 khi đang chọn.
   let dialogKey = null;
   window.addEventListener('keydown', ev => {
     if (!dialogKey || ev.repeat) return;
     const t = ev.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
-    if (dialogKey(ev.code)) { ev.preventDefault(); if (P1.input) { P1.input.take('a'); ['1', '2', '3', '4'].forEach(k => P1.input.take(k)); } }
+    if (dialogKey(ev.code)) { ev.preventDefault(); if (P1.input) { P1.input.take('a'); ['1', '2', '3', '4', '5', '6'].forEach(k => P1.input.take(k)); } }
   });
 
   async function say(textOrLines, opt) {
@@ -1411,23 +1052,23 @@
     while (dialog.active) await dialog.active;
     let release;
     dialog.active = new Promise(r => { release = r; });
-    const v = scripts();
-    showScripts(true);
+    const v = dialogView();
+    v.nameEl.textContent = opt.name || '';
+    showDialog(true);
     const pages = [].concat(textOrLines).flatMap(paginate);
-    if (opt.name) pages[0] = '[FF9900]' + opt.name + ':[-] ' + pages[0];
     try {
       for (const page of pages) {
         const tp = typePage(page);
         await new Promise(res => {
           const adv = () => { if (!tp.finished) tp.skip(); else res(); };
           dialogKey = code => (code === 'Space' || code === 'Enter' || code === 'NumpadEnter') ? (adv(), true) : false;
-          node(v, BG).el.onclick = adv;
+          v.root.onclick = adv;
         });
       }
     } finally {
       dialogKey = null;
-      node(v, BG).el.onclick = null;
-      showScripts(false);
+      v.root.onclick = null;
+      showDialog(false);
       dialog.active = false;
       release();
     }
@@ -1437,47 +1078,37 @@
     while (dialog.active) await dialog.active;
     let release;
     dialog.active = new Promise(r => { release = r; });
-    const v = scripts();
-    showScripts(true);
-    const cont = node(v, 'Sprite - Select Container');
-    const grid = node(v, 'Grid - Select Container');
-    grid.kids.slice().forEach(k => v.remove(k.path));
-    ['Select Pokemon', 'Select Item', 'Select Move', 'Input'].forEach(p => { node(v, 'Sprite - Select Container/' + p).active = false; });
+    const v = dialogView();
+    v.nameEl.textContent = '';
+    showDialog(true);
+    v.choices.innerHTML = '';
+    v.choices.classList.add('p1-visible');
     const tp = typePage(paginate(text).join('\n'));
     let pick;
     const chosen = new Promise(r => { pick = r; });
-    const rows = options.slice(0, 4).map((o, i) => {
-      const b = v.add(grid.path, 'prefab:Button - Script Button', 'opt' + i);
-      node(v, b.path).w.text = (i + 1) + '. ' + o;
-      const hl = node(v, b.path + '/Sprite - Highlight');
-      hoverEl(b, () => { hl.w.color = '#99e2ffff'; hl.drawn = null; v.ui.draw(hl); }, () => { hl.w.color = '#99e2ff00'; hl.drawn = null; v.ui.draw(hl); });
+    const rows = options.slice(0, 6).map((o, i) => {
+      const b = el('div', 'p1-dialog-choice', v.choices);
+      b.dataset.p1 = 'dialog-choice-' + i;
+      b.textContent = (i + 1) + '. ' + o;
+      hoverEl(b, () => b.classList.add('p1-hover'), () => b.classList.remove('p1-hover'));
       onEl(b, () => pick(i));
       return b;
     });
-    const layoutSelect = () => {
-      const bg = node(v, BG), bottom = bg.world[5] - bg.w.size[1] / 2;
-      cont.active = true;
-      cont.pos = [0, bottom - 8];
-      setSize(cont, 416, rows.length * 32 + 14);
-      v.refresh();
-    };
-    layoutSelect();
     dialogKey = code => {
-      const m = /^(?:Digit|Numpad)([1-4])$/.exec(code);
+      const m = /^(?:Digit|Numpad)([1-6])$/.exec(code);
       if (m && +m[1] <= rows.length) { tp.skip(); pick(+m[1] - 1); return true; }
       if (code === 'Space' || code === 'Enter') { tp.skip(); return true; }
       return false;
     };
-    node(v, BG).el.onclick = () => tp.skip();
+    v.root.onclick = () => tp.skip();
     try {
-      const i = await chosen;
-      return i;
+      return await chosen;
     } finally {
       dialogKey = null;
-      node(v, BG).el.onclick = null;
-      grid.kids.slice().forEach(k => v.remove(k.path));
-      cont.active = false;
-      showScripts(false);
+      v.root.onclick = null;
+      v.choices.innerHTML = '';
+      v.choices.classList.remove('p1-visible');
+      showDialog(false);
       dialog.active = false;
       release();
     }
@@ -1490,7 +1121,7 @@
   /* ---------------------------------------------------------------- Esc và API */
 
   function canOpenMenu() {
-    if (P1.scene.name !== 'world') return false;
+    if (!P1.scene || P1.scene.name !== 'world') return false;
     const w = P1.scene.current;
     return !!P1.state && (!w || !w.mode || w.mode === 'explore');
   }
@@ -1500,18 +1131,16 @@
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
     const e = top();
     const mine = dialog.active || busy || e || canOpenMenu();
-    if (!mine) return;                      // cảnh khác (trận) tự đọc phím 'menu'
+    if (!mine) return;
     if (P1.input) P1.input.take('menu');
     if (dialog.active || busy) return;
     if (e) { e.close(e.escValue); return; }
     ui.open('menu');
   });
 
-  const SCREENS = { menu, party, bag, dex, trainer, options, pokebox };
   const ui = {
     hud,
     open(name, arg) {
-      if (name === 'save') return save();
       const f = SCREENS[name];
       if (!f) throw new Error('screen not found: ' + name);
       closeAll();
@@ -1521,13 +1150,6 @@
     closeAll,
     isOpen() { return stack.length > 0 || !!dialog.active || busy > 0; },
     top() { const e = top(); return e ? e.name : null; },
-    // Cây NGUI của một màn đang mở ('hud', 'dialog', hoặc tên màn): cho thế giới và bài kiểm tìm nút.
-    view(name) {
-      if (name === 'hud') { const h = huds.find(q => q.alive); return h ? h.view : null; }
-      if (name === 'dialog') return dv;
-      const e = find(name);
-      return e ? e.v : null;
-    },
     refresh: changed,
     shop(items) { closeAll(); return shop(items); },
     heal,
@@ -1536,7 +1158,6 @@
     message,
     toast,
     textInput,
-    borrow,
     pressAndHold,
     onEl,
     paintPlayer,

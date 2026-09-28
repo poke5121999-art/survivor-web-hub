@@ -1,196 +1,195 @@
 /*
- * Cảnh 'creator': tạo nhân vật trên 'Panel - Customization' gốc (CustomizationHandler: Hair Style, Hair Colour,
- * Skin Tone, Eyes, Boy/Girl, xoay, Accept). Bản gốc không có áo, mũ, tên, vùng ở panel này (áo/mũ mua ở Costume Shop,
- * tên là tên tài khoản): thêm bốn hàng cùng kiểu, cửa sổ cao thêm 180 đơn vị. Nền là đảo màn đăng nhập.
- *
- * Kết quả ghi vào P1.state.player = { name, gender, look: { body, clothe, hair, hairColor, hat } } và P1.state.region.
+ * Cảnh 'creator': tạo nhân vật trên lớp PRO (art/pro/player/<m|f>/<lớp>/<tên>_<tư thế>.png).
+ * Danh sách lựa chọn theo lớp: P1.PRO.player.{m,f}.{body,cloth,hair,hat} (data/pro.js, luồng bóc tài
+ * sản viết song song — nếu chưa có thì mỗi ô chọn hiện "(chưa có dữ liệu)" và vô hiệu mũi tên, không
+ * vỡ màn hình). Xem trước xoay 4 hướng bằng P1.ui.paintPlayer. Ghi P1.state.player rồi vào 'world'.
  */
 (function (P1) {
   'use strict';
 
-  const BG = 'Sprite - Window/Background/';
-  const FACINGS = [2, 1, 0, 3];                 // hàng sprite: 2 mặt, 1 trái, 0 lưng, 3 phải (README-2d.md)
-  const WALK = [1, 0, 1, 2];                    // cột: 1 đứng, 0 và 2 hai bước chân
-  const EXTRA = 180;                            // cửa sổ gốc 446x250, nền 430x204
+  const STAGE_W = 1366, STAGE_H = 768;
+  const DIRS = ['down', 'left', 'up', 'right'];
+  const DIR_LABEL_NONE = '';  // mũ có thể rỗng = không đội
+  const BG_URL = 'art/pro/ui/title_bg.png';   // cùng ảnh nền của màn đầu (title.js), cho liền mạch
 
-  let host = null, v = null, name = null, onKey = null;
-  let sel = null, anim = { t: 0, face: 0, hold: 0, frame: 0 };
+  let host = null, raf = 0, bgT = 0;
 
-  const pad2 = i => String(i).padStart(2, '0');
-  const n = p => v.ui.need(p);
-
-  function parts() { return P1.look.parts(sel.gender); }
-  // Mỗi hàng: nhãn, số lựa chọn, đọc/ghi chỉ số, chữ hiện trong ô số (Label - Amount).
-  const ROWS = {
-    'Select - Hair': { count: () => parts().hair.length, key: 'hair' },
-    'Select - Hair Colour': { count: () => P1.look.HAIR_COLOURS.length, key: 'hairColor' },
-    'Select - Skin': { count: () => 4, key: 'skin' },
-    'Select - Eyes': { count: () => 5, key: 'eyes' },
-    'Select - Clothes': { count: () => parts().clothe.length, key: 'clothe' },
-    'Select - Hat': { count: () => parts().hat.length + 1, key: 'hat', show: i => i ? String(i) : 'None' },
-  };
-
-  function player() {
-    const p = parts();
-    return {
-      name: name ? name.value.trim() : '',
-      gender: sel.gender,
-      look: {
-        body: pad2(sel.skin) + '_' + pad2(sel.eyes),   // thân = <màu da 00-03>_<màu mắt 00-04> (so bằng mắt, README-shell.md)
-        clothe: p.clothe[sel.clothe] || '00',
-        hair: p.hair[sel.hair] || '00',
-        hairColor: sel.hairColor,
-        hat: sel.hat ? p.hat[sel.hat - 1] : '',
-      },
+  function stageWrap(parent) {
+    const s = document.createElement('div');
+    s.className = 'p1-stage p1-creator-stage';
+    s.style.width = STAGE_W + 'px'; s.style.height = STAGE_H + 'px';
+    parent.appendChild(s);
+    const fit = () => {
+      const k = Math.max(0.32, Math.min(innerWidth / STAGE_W, innerHeight / STAGE_H));
+      s.style.transform = 'translate(-50%,-50%) scale(' + k + ')';
     };
+    fit();
+    window.addEventListener('resize', fit);
+    return s;
   }
 
-  function paint() {
-    const pl = player(), face = FACINGS[anim.face], col = WALK[anim.frame];
-    P1.ui.paintPlayer(v, [BG + 'Character/Body', BG + 'Character/Body/Clothes', BG + 'Character/Body/Hair', BG + 'Character/Body/Hat'], pl, face, col);
-    ['Body', 'Body/Clothes', 'Body/Hair', 'Body/Hat'].forEach(p => v.ui.draw(n(BG + 'Character/' + p)));
-  }
-
-  function refresh() {
-    Object.keys(ROWS).forEach(r => {
-      const R = ROWS[r], val = sel[R.key];
-      n(BG + r + '/Label - Amount').w.text = R.show ? R.show(val) : String(val);
-    });
-    ['Button - Male', 'Button - Female'].forEach(p => {
-      const b = n(BG + p), on = (p === 'Button - Male') === (sel.gender === 'male');
-      b.w.sprite = on ? 'btn_Option_Click' : 'btn_Option_Normal';
-      if (b.normal) b.normal.sprite = b.w.sprite;
-      b.drawn = null;
-    });
-    v.refresh();
-    paint();
-  }
-
-  function step(row, d) {
-    const R = ROWS[row], c = R.count();
-    sel[R.key] = (sel[R.key] + d + c) % c;
-    refresh();
-  }
-
-  function layout() {
-    // Cửa sổ cao thêm EXTRA: nền giãn, con của nền dời lên EXTRA/2 để hàng gốc giữ khoảng cách với mép trên.
-    const win = n('Sprite - Window'), bg = n('Sprite - Window/Background');
-    win.w.size = [win.w.size[0], win.w.size[1] + EXTRA];
-    bg.w.size = [bg.w.size[0], bg.w.size[1] + EXTRA];
-    bg.kids.forEach(k => { k.pos[1] += EXTRA / 2; });
-    const add = (src, as, y) => { const r = v.add(BG.slice(0, -1), 'Panel - Customization/' + BG + src, as); r.pos = [r.pos[0], y]; return r; };
-    add('Select - Eyes', 'Select - Clothes', 21).w.text = 'Clothes';
-    add('Select - Eyes', 'Select - Hat', -15).w.text = 'Hat';
-    // Nam/Nữ dời sang cột phải dưới hình xem trước, Accept xuống đáy.
-    n(BG + 'Button - Male').pos = [121, 26];
-    n(BG + 'Button - Female').pos = [157, 26];
-    n(BG + 'Button - Accept').pos = [139, -160];
-    // Mũ: panel gốc chỉ có Body/Clothes/Hair; thêm lớp Hat (bản sao lớp Hair, depth 8) như GUICharacter ở HUD.
-    const hat = v.add(BG + 'Character/Body', 'Panel - Customization/' + BG + 'Character/Body/Hair', 'Hat');
-    hat.w.depth = 8;
-    // Tên: ô nhập của màn đăng nhập (title:Panel - Login/.../Input - Username), cùng khung Bg_Window_InnerSection.
-    const lab = add('Select - Eyes', 'Select - Name', -57);
-    lab.w.text = 'Name';
-    lab.kids.forEach(k => { k.active = false; });
-    const key = P1.ui.borrow('title:Panel - Login', 'Sprite - Window/Input - Username', 'shell:Input - Name');
-    const inp = v.add(BG.slice(0, -1), key, 'Input - Name');
-    inp.pos = [58, -57];
-    inp.w.size = [300, 32];
-    // Vùng: Kanto chọn sẵn, Johto tắt (bản gốc cho chọn cả hai lúc bắt đầu, RESEARCH.md §1).
-    const reg = add('Select - Eyes', 'Select - Region', -99);
-    reg.w.text = 'Region';
-    reg.kids.forEach(k => { k.active = false; });
-    const kanto = add('Button - Accept', 'Button - Kanto', -99);
-    kanto.pos[0] = -12;
-    const johto = add('Button - Accept', 'Button - Johto', -99);
-    johto.pos[0] = 124;
-    const soon = add('Select - Eyes', 'Label - Johto Soon', -124);
-    soon.kids.forEach(k => { k.active = false; });
-    soon.pos[0] = 70;
-    soon.w.text = 'Johto: coming later';
-    soon.w.color = '#a1a1a1ff';
-    soon.w.size = [150, 20];
-    soon.w.fontSize = 16;
-    v.refresh();
-    n(BG + 'Button - Kanto/UILabel').w.text = 'Kanto';
-    n(BG + 'Button - Johto/UILabel').w.text = 'Johto';
-    v.ui.enable(BG + 'Button - Johto', false);
-    n(BG + 'Button - Kanto').w.sprite = 'btn_Confirm_Click';
-  }
-
-  function accept() {
-    const pl = player();
-    if (!pl.name) {
-      P1.ui.message({ title: 'Character Customization', text: 'Please enter a name for your trainer.', yes: 'Okay' })
-        .then(() => name.el.focus());
-      return;
-    }
-    const st = P1.state || P1.newGame();
-    st.player = pl;
-    st.region = 'kanto';
-    P1.scene.go('world', { intro: true });
+  function el(tag, cls, parent) {
+    const e = document.createElement(tag || 'div');
+    if (cls) e.className = cls;
+    if (parent) parent.appendChild(e);
+    return e;
   }
 
   P1.scene.add('creator', {
     enter() {
-      if (!P1.state) P1.newGame();
-      P1.titleBackdrop.start();
-      P1.audio.music('title');
-      const cur = P1.state.player || {};
-      const L = cur.look || {};
-      sel = { gender: cur.gender === 'female' ? 'female' : 'male', hair: 1, hairColor: 26, skin: 0, eyes: 0, clothe: 0, hat: 0 };
-      const body = /^(\d\d)_(\d\d)$/.exec(L.body || '');
-      if (body) { sel.skin = +body[1]; sel.eyes = +body[2]; }
-      if (L.hairColor != null) sel.hairColor = L.hairColor;
       host = document.createElement('div');
-      host.className = 'p1-scene';
+      host.className = 'p1-scene p1-creator';
       document.getElementById('ui').appendChild(host);
-      v = P1.ngui.build('Panel - Customization', host);
-      layout();
-      name = P1.ui.textInput(v, BG + 'Input - Name', { placeholder: 'Trainer name..', value: '', onEnter: accept });
-      Object.keys(ROWS).forEach(r => {
-        P1.ui.pressAndHold(n(BG + r + '/Button - Add'), () => step(r, 1));
-        P1.ui.pressAndHold(n(BG + r + '/Button - Take'), () => step(r, -1));
-      });
-      P1.ui.onEl(n(BG + 'Button - Male'), () => { sel.gender = 'male'; refresh(); });
-      P1.ui.onEl(n(BG + 'Button - Female'), () => { sel.gender = 'female'; refresh(); });
-      // RotateLeft/RotateRight gốc: xoay hình xem trước; tự xoay dừng 4 giây sau mỗi lần bấm.
-      const rot = d => { anim.face = (anim.face + d + 4) % 4; anim.hold = 4; paint(); };
-      P1.ui.onEl(n(BG + 'Button - Rotate'), () => rot(1));
-      P1.ui.onEl(n(BG + 'Button - Rotate (1)'), () => rot(-1));
-      P1.ui.onEl(n(BG + 'Button - Accept'), accept);
-      anim = { t: 0, face: 0, hold: 0, frame: 0, ft: 0 };
-      refresh();
-      onKey = ev => { if (ev.code === 'Enter' && ev.target.tagName !== 'INPUT' && !P1.ui.isOpen()) accept(); };
-      window.addEventListener('keydown', onKey);
-    },
-    update() {
-      if (!v) return;
-      // Đồng hồ thật thay cho dt (dt bị kẹp 0,05 s nên máy chậm sẽ xoay chậm theo).
-      const now = performance.now() / 1000, dt = Math.min(0.5, now - (anim.last || now));
-      anim.last = now;
-      anim.ft += dt;
-      let dirty = false;
-      if (anim.ft >= 1 / 6) { anim.ft = 0; anim.frame = (anim.frame + 1) % WALK.length; dirty = true; }
-      if (anim.hold > 0) anim.hold -= dt;
-      else {
-        anim.t += dt;
-        if (anim.t >= 2) { anim.t = 0; anim.face = (anim.face + 1) % 4; dirty = true; }
+      const stage = stageWrap(host);
+
+      // Khung panel kiểu PRO (cùng sprite backpack_no_scrollbar_bg mà các cửa sổ trong game dùng),
+      // nổi trên nền title_bg (vẽ ở render()) thay vì mảng màu phẳng như trước.
+      const panel = el('div', 'p1-creator-panel', stage);
+      panel.appendChild(P1.proui.el('backpack_no_scrollbar_bg', { w: 560, h: 740 }));
+
+      const prevPlayer = (P1.state && P1.state.player) || {};
+      const state = {
+        name: prevPlayer.name && prevPlayer.name !== 'Trainer' ? prevPlayer.name : '',
+        gender: prevPlayer.gender === 'female' ? 'female' : 'male',
+        look: { body: '', cloth: '', hair: '', hat: '' },
+      };
+      const gKey = () => (state.gender === 'female' ? 'f' : 'm');
+      // Danh sách theo lớp (rỗng nếu chưa bóc): mũ luôn có tuỳ chọn đầu '' = không đội.
+      function listFor(layer) {
+        const src = (P1.PRO && P1.PRO.player && P1.PRO.player[gKey()] && P1.PRO.player[gKey()][layer]) || [];
+        return layer === 'hat' ? [''].concat(src) : src.slice();
       }
-      if (dirty) paint();
+      // Chọn giá trị đầu còn hợp lệ cho mỗi lớp khi đổi giới tính hoặc lần đầu vào màn.
+      function ensureLook() {
+        ['body', 'cloth', 'hair', 'hat'].forEach(layer => {
+          const list = listFor(layer);
+          if (!list.includes(state.look[layer])) state.look[layer] = list[0] != null ? list[0] : '';
+        });
+      }
+      ensureLook();
+
+      const title = el('div', 'p1-creator-title', panel); title.textContent = 'Tạo nhân vật';
+
+      /* -- giới tính */
+      const genderRow = el('div', 'p1-creator-gender', panel);
+      const genderBtn = (label, val, hook) => {
+        const b = el('div', 'p1-creator-gender-btn', genderRow);
+        b.textContent = label; b.dataset.p1 = hook; b.tabIndex = 0;
+        b.addEventListener('click', () => { state.gender = val; ensureLook(); refresh(); });
+        b.addEventListener('keydown', ev => { if (ev.key === 'Enter') b.click(); });
+        return b;
+      };
+      const mBtn = genderBtn('Nam', 'male', 'creator-gender-m');
+      const fBtn = genderBtn('Nữ', 'female', 'creator-gender-f');
+
+      /* -- khung xem trước, xoay 4 hướng */
+      const previewWrap = el('div', 'p1-creator-preview', panel);
+      const canvas = el('canvas', 'p1-creator-canvas', previewWrap);
+      canvas.width = 220; canvas.height = 220;
+
+      /* -- bốn ô chọn: dáng người, tóc, trang phục, mũ */
+      const pickers = el('div', 'p1-creator-pickers', panel);
+      const LAYERS = [
+        { key: 'body', label: 'Dáng người' },
+        { key: 'hair', label: 'Tóc' },
+        { key: 'cloth', label: 'Trang phục' },
+        { key: 'hat', label: 'Mũ' },
+      ];
+      const pickerEls = {};
+      LAYERS.forEach(L => {
+        const row = el('div', 'p1-creator-picker', pickers);
+        el('div', 'p1-creator-picker-label', row).textContent = L.label;
+        const ctl = el('div', 'p1-creator-picker-ctl', row);
+        const prev = el('div', 'p1-btn-round p1-creator-arrow', ctl); prev.textContent = '‹'; prev.dataset.p1 = 'creator-' + L.key + '-prev'; prev.tabIndex = 0;
+        const value = el('div', 'p1-creator-picker-value', ctl);
+        const next = el('div', 'p1-btn-round p1-creator-arrow', ctl); next.textContent = '›'; next.dataset.p1 = 'creator-' + L.key + '-next'; next.tabIndex = 0;
+        function step(d) {
+          const list = listFor(L.key);
+          if (!list.length) return;
+          const i = list.indexOf(state.look[L.key]);
+          state.look[L.key] = list[(i < 0 ? 0 : (i + d + list.length) % list.length)];
+          refresh();
+        }
+        prev.addEventListener('click', () => step(-1));
+        next.addEventListener('click', () => step(1));
+        pickerEls[L.key] = { value, prev, next };
+      });
+
+      /* -- tên */
+      const nameRow = el('div', 'p1-creator-name', panel);
+      el('div', 'p1-creator-picker-label', nameRow).textContent = 'Tên';
+      const nameInput = el('input', 'p1-input p1-creator-name-input', nameRow);
+      nameInput.type = 'text'; nameInput.maxLength = 12; nameInput.placeholder = 'Tên của bạn';
+      nameInput.value = state.name;
+      nameInput.dataset.p1 = 'creator-name-input';
+      nameInput.addEventListener('input', () => { state.name = nameInput.value; });
+
+      /* -- xác nhận */
+      const accept = el('div', 'p1-btn-round p1-creator-accept', panel);
+      accept.textContent = 'Bắt đầu'; accept.tabIndex = 0; accept.dataset.p1 = 'creator-accept';
+      accept.addEventListener('click', () => {
+        P1.state.player = {
+          name: (state.name || '').trim() || 'Trainer',
+          gender: state.gender,
+          look: Object.assign({}, state.look),
+        };
+        P1.scene.go('world', {});
+      });
+      accept.addEventListener('keydown', ev => { if (ev.key === 'Enter') accept.click(); });
+
+      function refresh() {
+        mBtn.classList.toggle('p1-active', state.gender === 'male');
+        fBtn.classList.toggle('p1-active', state.gender === 'female');
+        LAYERS.forEach(L => {
+          const list = listFor(L.key);
+          const v = state.look[L.key];
+          pickerEls[L.key].value.textContent = !list.length ? '(chưa có dữ liệu)' : (L.key === 'hat' && v === '' ? 'Không đội' : v);
+          const has = list.length > 1;
+          pickerEls[L.key].prev.classList.toggle('p1-disabled', !has);
+          pickerEls[L.key].next.classList.toggle('p1-disabled', !has);
+        });
+      }
+      refresh();
+
+      /* -- hoạt cảnh xem trước: bước chân + xoay lần lượt 4 hướng */
+      let t0 = performance.now(), dirIndex = 0;
+      const ctx2d = canvas.getContext('2d');
+      function loop(now) {
+        const t = (now - t0) / 1000;
+        dirIndex = Math.floor(t / 1.1) % DIRS.length;
+        const frame = Math.floor(t * 6) % 3;
+        P1.ui.paintPlayer(canvas, state.look, state.gender, DIRS[dirIndex], frame);
+        raf = requestAnimationFrame(loop);
+      }
+      raf = requestAnimationFrame(loop);
+
+      Object.defineProperty(this, 'selection', { configurable: true, get: () => ({ name: state.name, gender: state.gender, look: Object.assign({}, state.look) }) });
     },
     exit() {
-      if (onKey) window.removeEventListener('keydown', onKey);
-      onKey = null;
-      P1.ui.closeAll();
-      if (name) name.destroy();
-      if (v) v.destroy();
+      cancelAnimationFrame(raf);
       if (host) host.remove();
-      v = host = name = null;
-      P1.titleBackdrop.stop();
+      host = null;
+      bgT = 0;
     },
-    render(dt) { P1.titleBackdrop.render(dt); },
-    get view() { return v; },
-    get selection() { return sel && player(); },
+    render(dt) {
+      // Nền: cùng ảnh 'bg 1' của màn đầu (title.js) thay vì mảng màu phẳng, cho panel PRO nổi lên trên.
+      bgT += dt || 0;
+      const v = P1.view();
+      const ctx = v.ctx;
+      ctx.fillStyle = '#0d1420';
+      ctx.fillRect(0, 0, v.w, v.h);
+      const img = P1.imgNow(BG_URL);
+      if (img) {
+        const s = Math.max(v.w / img.width, v.h / img.height) * 1.06;
+        const dw = img.width * s, dh = img.height * s;
+        const dx = (v.w - dw) / 2 + Math.sin(bgT * 0.04) * 14;
+        const dy = (v.h - dh) / 2;
+        ctx.drawImage(img, dx, dy, dw, dh);
+        ctx.fillStyle = 'rgba(8,12,22,.55)';
+        ctx.fillRect(0, 0, v.w, v.h);
+      } else {
+        P1.img(BG_URL).catch(() => {});
+      }
+    },
   });
 })(window.P1 = window.P1 || {});

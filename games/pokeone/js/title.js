@@ -1,189 +1,124 @@
 /*
- * Cảnh 'title': màn đăng nhập gốc (scene level1). Đảo 3D có máy ảnh bay theo timeline "Login", skybox, nhạc 'title',
- * khung 'title:Panel - Login' với hai ô nhập đổi thành tóm tắt bản lưu + New Game / Continue; Options giữ chỗ cũ.
- * P1.titleBackdrop dùng lại đảo làm nền cho cảnh 'creator'.
+ * Cảnh 'title' (2D): nền là bản đồ Kanto trong mây của PRO (Texture2D 'bg 1', xuất một lần bằng
+ * tools/pro/rip_title_bg.py → art/pro/ui/title_bg.png), tên game "PokéOne" (không dùng logo PRO),
+ * Tiếp tục / Chơi mới / Cài đặt. P1.titleBackdrop.ready báo ảnh nền đã tải xong (bài kiểm chờ mốc này).
  */
 (function (P1) {
   'use strict';
 
-  /* ---------------------------------------------------------------- đảo nền (P1.TITLE_SCENE, tools/rip_map_title.py) */
+  const BG_URL = 'art/pro/ui/title_bg.png';
+  const STAGE_W = 1366, STAGE_H = 768;
 
-  const B = { scene: null, cam: null, sky: null, t: 0, loading: null, ready: false, saved: null, users: 0 };
-  const col = a => new THREE.Color(a[0], a[1], a[2]);
+  const B = { ready: false, t: 0 };
+  P1.titleBackdrop = B;
 
-  function skybox(S, far) {
-    const D = far * 0.55, g = new THREE.Group(), h = Math.PI / 2;
-    const face = (key, pos, rot) => {
-      if (!S.faces[key]) return;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * D, 2 * D),
-        new THREE.MeshBasicMaterial({ map: P1.texture(S.faces[key]), fog: false, depthWrite: false, depthTest: false }));
-      m.material.map.magFilter = THREE.LinearFilter;
-      m.position.set(pos[0] * D, pos[1] * D, pos[2] * D);
-      m.rotation.set(rot[0], rot[1], rot[2]);
-      m.renderOrder = -1;
-      g.add(m);
-    };
-    // Hướng mặt theo S.threeDir (đã đảo trục x từ Unity), như tools/props-viewer.html.
-    face('front', [0, 0, 1], [0, Math.PI, 0]);
-    face('back', [0, 0, -1], [0, 0, 0]);
-    face('left', [-1, 0, 0], [0, h, 0]);
-    face('right', [1, 0, 0], [0, -h, 0]);
-    face('up', [0, 1, 0], [h, 0, Math.PI]);
-    return g;
-  }
-
-  function load() {
-    if (B.loading) return B.loading;
-    const T = P1.TITLE_SCENE;
-    if (!T || !window.THREE) return (B.loading = Promise.resolve(false));
-    B.loading = P1.gltf(T.glb).then(g => {
-      const scene = new THREE.Scene(), L = T.light;
-      scene.fog = new THREE.Fog(col(L.fog.color), L.fog.start, L.fog.end);
-      scene.background = col(L.fog.color);
-      scene.add(new THREE.AmbientLight(col(L.ambient.sky), L.ambient.intensity));
-      const sun = new THREE.DirectionalLight(col(L.sun.color), L.sun.intensity * 2);
-      sun.position.set(-L.sun.dir[0], -L.sun.dir[1], -L.sun.dir[2]);
-      scene.add(sun);
-      g.scene.traverse(o => {
-        if (!o.isMesh) return;
-        const m = o.material;
-        if (m.alphaTest > 0) m.side = THREE.DoubleSide;
-        if (m.transparent) m.depthWrite = false;
-      });
-      scene.add(g.scene);
-      const C = T.camera;
-      B.cam = new THREE.PerspectiveCamera(C.fov, innerWidth / innerHeight, C.near, C.far);
-      B.sky = skybox(T.sky, C.far);
-      scene.add(B.sky);
-      B.scene = scene;
-      B.ready = true;
-      return true;
-    }).catch(err => { console.warn('title island:', err && err.message); return false; });
-    return B.loading;
-  }
-
-  const pa = new THREE.Vector3(), pb = new THREE.Vector3(), qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
-  function place(t) {
-    const P = P1.TITLE_SCENE.camera.path, n = P.pos.length;
-    t = ((t % P.duration) + P.duration) % P.duration;
-    const f = t / P.dt, i = Math.min(n - 2, Math.floor(f)), a = f - i;
-    B.cam.position.copy(pa.fromArray(P.pos[i]).lerp(pb.fromArray(P.pos[i + 1]), a));
-    B.cam.quaternion.copy(qa.fromArray(P.rot[i]).slerp(qb.fromArray(P.rot[i + 1]), a));
-    B.sky.position.copy(B.cam.position);
-  }
-
-  P1.titleBackdrop = {
-    start() {
-      const r = P1.renderer();
-      if (!B.users++) B.saved = { tm: r.toneMapping, ex: r.toneMappingExposure };
-      const T = P1.TITLE_SCENE;
-      if (T) {
-        r.toneMapping = THREE.ACESFilmicToneMapping;
-        r.toneMappingExposure = Math.pow(2, (T.post && T.post.postExposureEV) || 0) * 0.8;
-      }
-      return load();
-    },
-    stop() {
-      if (--B.users > 0 || !B.saved) return;
-      const r = P1.renderer();
-      r.toneMapping = B.saved.tm;
-      r.toneMappingExposure = B.saved.ex;
-      B.users = 0;
-    },
-    render(dt) {
-      const r = P1.renderer();
-      if (!B.ready) {
-        const T = P1.TITLE_SCENE;
-        r.setClearColor(T ? col(T.light.fog.color) : new THREE.Color(0x1b2530), 1);
-        r.clear();
-        return;
-      }
-      B.t += dt;
-      B.cam.aspect = innerWidth / innerHeight;
-      B.cam.updateProjectionMatrix();
-      place(B.t);
-      r.render(B.scene, B.cam);
-    },
-    get ready() { return B.ready; },
-    get time() { return B.t; },
-  };
-
-  /* ---------------------------------------------------------------- khung đăng nhập */
-
-  let host = null, v = null, onKey = null;
-  const W = 'Sprite - Window/';
+  let host = null, onKey = null;
 
   function summary(st) {
     const sec = Math.floor(st.playSeconds || 0);
     const lv = P1.trainerLevel ? P1.trainerLevel(st.trainerExp).level : 5;
     return st.player.name + '   Lv ' + lv + '   ' + Math.floor(sec / 3600) + ':' + String(Math.floor(sec / 60) % 60).padStart(2, '0') +
-      '   ' + Object.keys(st.dex.caught).length + ' caught';
+      '   Đã bắt ' + Object.keys(st.dex.caught).length;
   }
 
-  function configure() {
-    const saved = P1.hasSave() && P1.load();
-    const n = p => v.ui.need(p);
-    // Bản gốc: Username, Password, Login, Remember, Sign Up, Lost Password, Quit. Bản một người chơi: tóm tắt bản lưu
-    // nằm trong khung ô Username, Continue ở chỗ ô Password, New Game ở chỗ nút Login.
-    const ng = v.add('Sprite - Window', 'title:Panel - Login/Sprite - Window/Button - Login', 'Button - New Game');
-    [W + 'Input - Password', W + 'Toggle - Remember Login', W + 'Label - Signup', W + 'Label - Signup Button',
-      W + 'Label - Lost Password', W + 'Sprite - Response', 'Button - Quit'].forEach(p => { n(p).active = false; });
-    const info = n(W + 'Input - Username/Label');
-    info.w.text = saved ? summary(saved) : 'Welcome to PokéOne!';
-    info.w.color = saved ? '#ffffffff' : '#878080ff';
-    info.w.overflow = 'shrink';
-    const cont = n(W + 'Button - Login');
-    cont.active = !!saved;
-    cont.pos[1] = -4;
-    ng.pos[1] = saved ? -61 : -38;
-    if (!saved) {
-      n(W + 'Input - Username').pos[1] = 22;
-      n('Sprite - Window').w.size = [350, 150];
-    }
-    n(W + 'Button - Login/Label').w.text = 'Continue';
-    n(W + 'Button - New Game/Label').w.text = 'New Game';
-    v.refresh();
-    const go = {
-      cont: () => { if (!P1.load()) return; P1.ui.closeAll(); P1.scene.go('world', {}); },
-      fresh: () => {
-        const start = () => { P1.ui.closeAll(); P1.newGame(); P1.scene.go('creator', {}); };
-        if (!saved) { start(); return; }
-        P1.ui.message({ title: 'New Game', text: 'Start a new game? Your saved game is replaced the next time you save.', yes: 'Okay', no: 'Cancel' })
-          .then(ok => { if (ok) start(); });
-      },
+  function stageWrap(parent) {
+    const s = document.createElement('div');
+    s.className = 'p1-stage p1-title-stage';
+    s.style.width = STAGE_W + 'px'; s.style.height = STAGE_H + 'px';
+    parent.appendChild(s);
+    const fit = () => {
+      const k = Math.max(0.32, Math.min(innerWidth / STAGE_W, innerHeight / STAGE_H));
+      s.style.transform = 'translate(-50%,-50%) scale(' + k + ')';
     };
-    P1.ui.onEl(cont, go.cont);
-    P1.ui.onEl(ng, go.fresh);
-    P1.ui.onEl(n('Button - Options'), () => { if (!P1.ui.isOpen()) P1.ui.open('options'); });
-    onKey = ev => {
-      if (ev.code !== 'Enter' || P1.ui.isOpen()) return;
-      const t = ev.target;
-      if (t && t.tagName === 'INPUT') return;
-      (saved ? go.cont : go.fresh)();
-    };
-    window.addEventListener('keydown', onKey);
+    fit();
+    window.addEventListener('resize', fit);
+    return s;
   }
 
   P1.scene.add('title', {
     enter() {
-      P1.titleBackdrop.start();
+      B.t = 0; B.ready = false;
       P1.audio.music('title');
+      P1.img(BG_URL).then(() => { B.ready = true; }).catch(() => { B.ready = true; });
+
       host = document.createElement('div');
-      host.className = 'p1-scene';
+      host.className = 'p1-scene p1-title';
       document.getElementById('ui').appendChild(host);
-      v = P1.ngui.build('title:Panel - Login', host);
-      configure();
+      const stage = stageWrap(host);
+
+      const logo = document.createElement('div');
+      logo.className = 'p1-title-logo';
+      logo.textContent = 'PokéOne';
+      stage.appendChild(logo);
+
+      const saved = P1.hasSave();
+      const box = document.createElement('div');
+      box.className = 'p1-title-box';
+      stage.appendChild(box);
+      if (saved) {
+        const p = document.createElement('div');
+        p.className = 'p1-title-summary';
+        p.textContent = summary(P1.state);
+        box.appendChild(p);
+      }
+      const row = document.createElement('div');
+      row.className = 'p1-title-buttons';
+      box.appendChild(row);
+
+      function mk(label, hook, fn) {
+        const b = document.createElement('div');
+        b.className = 'p1-title-btn';
+        b.dataset.p1 = hook;
+        b.tabIndex = 0;
+        b.textContent = label;
+        b.addEventListener('click', fn);
+        b.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); fn(); } });
+        row.appendChild(b);
+        return b;
+      }
+      const goContinue = () => { if (!P1.load()) return; P1.scene.go('world', {}); };
+      const goFresh = async () => {
+        const start = () => { P1.newGame(); P1.scene.go('creator', {}); };
+        if (!saved) { start(); return; }
+        const ok = await P1.ui.message({ title: 'Chơi mới?', text: 'Bắt đầu lại từ đầu? Bản lưu cũ sẽ bị ghi đè ở lần lưu kế tiếp.', yes: 'Đồng ý', no: 'Thôi' });
+        if (ok) start();
+      };
+      if (saved) mk('Tiếp tục', 'title-continue', goContinue);
+      mk('Chơi mới', 'title-new', goFresh);
+      mk('Cài đặt', 'title-options', () => { if (P1.ui && !P1.ui.isOpen()) P1.ui.open('options'); });
+
+      onKey = ev => {
+        if (ev.code !== 'Enter' || (P1.ui && P1.ui.isOpen())) return;
+        const t = ev.target;
+        if (t && t.tagName === 'INPUT') return;
+        (saved ? goContinue : goFresh)();
+      };
+      window.addEventListener('keydown', onKey);
     },
     exit() {
       if (onKey) window.removeEventListener('keydown', onKey);
       onKey = null;
-      P1.ui.closeAll();
-      if (v) v.destroy();
+      if (P1.ui) P1.ui.closeAll();
       if (host) host.remove();
-      v = host = null;
-      P1.titleBackdrop.stop();
+      host = null;
     },
-    render(dt) { P1.titleBackdrop.render(dt); },
-    get view() { return v; },
+    render(dt) {
+      B.t += dt;
+      const v = P1.view();
+      const ctx = v.ctx;
+      ctx.fillStyle = '#0d1420';
+      ctx.fillRect(0, 0, v.w, v.h);
+      const img = P1.imgNow(BG_URL);
+      if (img) {
+        // Phủ kín khung hình (kiểu object-fit: cover) và trôi rất nhẹ để màn đầu không tĩnh cứng.
+        const s = Math.max(v.w / img.width, v.h / img.height) * 1.06;
+        const dw = img.width * s, dh = img.height * s;
+        const dx = (v.w - dw) / 2 + Math.sin(B.t * 0.04) * 14;
+        const dy = (v.h - dh) / 2;
+        ctx.drawImage(img, dx, dy, dw, dh);
+        ctx.fillStyle = 'rgba(8,12,22,.4)';
+        ctx.fillRect(0, 0, v.w, v.h);
+      }
+    },
   });
 })(window.P1 = window.P1 || {});
