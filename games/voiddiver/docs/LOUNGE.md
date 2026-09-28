@@ -61,7 +61,21 @@ sảnh ─ bốt lặn (F) ─▶ VD.app.toDive({campaignId, characterId, loadou
   - Ánh sáng nền (0,95; 0,86; 0,74) × 0,95.
   - Hậu kỳ: tương phản +20, bão hoà −10, phơi sáng −0,25.
   - Mọi thông số được trả lại khi rời sảnh.
-- Người chơi đi bằng anim `default/*` và chỉ chạy được. Ở sảnh, `stage.js` không chuyền phím đánh hay skill.
+### 1.1. Đánh và dùng skill trong sảnh (2026-09-28)
+
+- [ĐO] Sảnh không chặn skill. `CharacterIdleState.GetNextStateEvent` nhận `UseSkillEvent` mà không xét `IsInLounge`, và `UnitModel.CheckSkill` không có luật riêng cho sảnh. Vì vậy `stage.js` chuyền đủ phím LMB/RMB/Space/Q/E/R ở sảnh.
+- [ĐO] Khác biệt nằm ở `UnitModel.IsNonCombat` = `GameManager.IsInLounge` và không có buff mang hiệu ứng `TrainingRoom` (EBuffEffectType 68). Khi `IsNonCombat`:
+  - `UnitController.CalculateDamage` trả 0, nên không mất máu.
+  - `CharacterController.OnStaminaDamageEvent` / `OnStressDamageEvent` bỏ qua, nên thi triển không tốn thể lực hay căng thẳng.
+  - `UnitController.UpdateRegenHp` / `UpdateSkillCharge` dừng: không hồi máu, không nạp tối thượng (tối thượng cần nạp đầy nên không dùng được ngoài phòng tập).
+  - Anim: `CharacterView.GetIdleAnimation` / `GetMoveAnimation` dùng `default/*`; `UnitSkillState.GetAnimationName` dùng `nonCombatAnimationName` nếu có (chỉ lướt có: `default/dash`).
+  - Bản web: `lounge.js combatTick` đặt `u.nonCombat` mỗi khung; `skill.js payCost` / hồi máu / nạp tối thượng / tên anim đọc cờ này; `stage.js` chọn bộ anim theo cờ.
+- [ĐO] Buff `TrainingRoom` 62100003 chỉ đến từ SpecialField 5001 "TrainingField" (`CharacterBuffId` = `MonsterBuffId` = 62100003). Sector đặt nó ở `SpecialFieldSpawnGroupDatas`:
+  - 9001: hộp 5 × 5 m tại (12,91; 22,43), không có bù nhìn.
+  - 9003 (phòng tập, Area 3): hộp 9,5 × 11,3 m tại (23,65; 30,34), cùng 5 bù nhìn `MonsterSpawnGroupDatas` 820001/820002/820004/820006/820007 (Hp 10000, MoveSpeed 0, không skill Active, passive 40010007–9).
+  - `lounge.js spawnTrainingDummies` sinh đúng các bù nhìn này khi 9003 được nạp. Sảnh 9001 không có bù nhìn, bản web không thêm.
+- HUD người chơi ở sảnh là HUD lặn (`VD.hud`): pin đèn, máu, căng thẳng, dãy skill, ô đồ (Profile.quick, số lượng trong túi mang theo), bản đồ nhỏ (`VD.minimap`, lộ hết, dấu NPC), "Hướng dẫn [O]". Hàng chữ "WASD / F" cũ đã bỏ.
+- Nhân vật ở sảnh luôn mang đúng đồ của hồ sơ (`VD.app.equipOf`: chỉ số, skin `weapon/<Equipment.WeaponSkinName>`) và talent (passive AddSkill). [ĐO] `ReqChangeCharacter` / `ReqChangeCharacterSkills` gốc gọi `GamePlayer.set_Character` ngay (`CharacterController.OnChangeCharacterSkills`). Bản web: `lounge.js combatTick` so chữ ký (nhân vật, đồ, talent) mỗi khung; khác thì `VD.app.refreshLoungePlayer` sinh lại unit tại chỗ. Đổi skill thì chỉ thay loadout.
 
 ## 2. NPC ở sảnh
 
@@ -84,12 +98,30 @@ sảnh ─ bốt lặn (F) ─▶ VD.app.toDive({campaignId, characterId, loadou
 ## 3. Tách hình NPC (`tools/rip_npc.py`)
 
 - Công cụ quét các prefab `remote_prefab_assets_object` có tên 6000xx, 70xxxx hoặc 710xxx. Mỗi prefab có `NpcObject` và `SkeletonAnimation`, từ đó lấy skeleton, skin, anim, scale, lật hình và bán kính capsule.
-- Kết quả ghi vào `data/npcs.js` (`VD.NPCS`, 98 NPC) và 37 bộ Spine NPC/`Cha_*` trong `art/spine/`.
+- Kết quả ghi vào `data/npcs.js` (`VD.NPCS`, 114 NPC) và các bộ Spine NPC/`Cha_*` trong `art/spine/`. Mỗi dòng: `spine`, `dir`
+  (NW/SW theo tên SkeletonData), `skins`, `anim`, `scale`, `flip`, `off` (vị trí SkeletonAnimation so với chân, toạ độ three),
+  `mesh` (prefab có lưới 3D đi kèm), `radius`, `holdSfx`, `useSfx`.
 - Các Spine trang trí được tách riêng: `World_Cat` (anim `SE/sit_2`), `World_Pendulum`, `World_Butterfly` và `World_LoungeBG` (scale 4,35, xoay y π/4).
-- Bộ nhớ đệm nằm ở `%TEMP%/voiddiver-rip/npc_prefabs_v1.json`. Xoá tệp này nếu muốn quét lại.
-- NPC dạng lưới 3D (700002 máy Antikythera, 700004 sofa, 700151 máy hát) được xuất bằng `python tools/rip_objects.py 700002 700004 700151` thành `art/object/<NpcId>.glb`. `lounge.js addNpc` dựng chúng bằng `VD.objects.create` khi `VD.NPCS` không có Spine.
+- Bộ nhớ đệm nằm ở `%TEMP%/voiddiver-rip/npc_prefabs_v2.json`. Chạy `python tools/rip_npc.py --rescan --manifest` để quét lại.
+- Luật gốc [ĐO il2cpp, 2026-09-28]:
+  - `GameObjectManager.SpawnNpc`: Instantiate prefab, `Transform.set_position(vị trí spawn)`, `set_localScale(Vector3.one)`, giữ xoay
+    prefab. `Sector.NpcSpawnDatas` không có cột hướng. Vị trí gốc prefab (vd 700013 còn 13,24/15,25 của editor) bị bỏ.
+  - `NpcObject.Awake`: `_skeletonAnimation = GetComponentInChildren<SkeletonAnimation>()`, tức con **đang bật** đầu tiên. Đa số là
+    `SkeletonAnimation_SW`; 700408/700409 bật `_NW` (quay lưng). NpcObject không có LookAt, không lật theo người chơi. Chỉ
+    `EmployeeNpcObject.ApplyEmployeeVisual` gọi `SetSkeletonScaleX`.
+  - Dời và lật nằm trong prefab: 700013 Narcis SW ở y 0,58, scale x −0,9 (lật), xoay y −90 (shader billboard nên xoay không đổi hình);
+    700011 cú: `Model` ở (0,55; 0,4; −0,15), ngồi trên bàn; 700012 Gatekeeper SW ở (0,067; 0,141; −0,091).
+- Dựng hình: `VD.npc.visual(target, id, pos)` (js/npc.js), sảnh (`lounge.js addNpc`) và màn lặn (`dive.js spawnNpc`) dùng chung.
+  Trước 2026-09-28 màn lặn tra `VD.ASSETS.units` (không có NPC nào) nên NPC trong màn lặn vô hình (vd 700404 Alex của 1102).
+- Lưới 3D đi kèm (`mesh: true`): 700002 máy Antikythera, 700004 sofa, 700151 máy hát, 700012 cổng Gatekeeper, 700013 đế gương
+  Narcis, 700106–700109 đế tủ trưng bày + dây chắn, 701001–701018 đống xác/đồ trong màn lặn. `python tools/rip_objects.py --npc`
+  xuất chúng thành `art/object/<NpcId>.glb`; `VD.objects.create(id, {noSpine: true})` dựng (Spine do js/npc.js dựng).
   - Prefab bật cả mắt mở lẫn mắt nhắm (`*.close`), Animator gốc bật/tắt luân phiên. Bản web ẩn nhóm `.close`.
-  - 701xxx chưa xuất.
+  - **Bẫy SkinnedMeshRenderer:** Unity vẽ SMR theo xương (`Σ w·xương.localToWorld·bindpose·v`), không theo transform của SMR.
+    Đặt SMR theo transform của nó thì `Sofa_tenBase` (nằm dưới `Armature/root`, scale 100) bay lên 58 m. `rip_objects.py` skin sẵn
+    đỉnh theo tư thế xương trong prefab.
+    `CursedBox` (rương mimic, 16 SMR) cũng đổi khi xuất lại (nắp mở lên thay cho xúc tu toả ra); bản trong repo vẫn là bản
+    xuất cũ vì chưa lấy mẫu clip `Anim_Map_CursedBox_*_Closed` để biết tư thế nào đúng lúc chơi.
 
 ## 4. LoungeQuest
 
@@ -152,7 +184,7 @@ Bộ máy LoungeQuest được dựng lại, vì phần C# gốc không có. [SU
 Các luật dựng thêm:
 - [SUY LUẬN] Một campaign chơi được ở bản web khi mọi FixedSectors có art, và nếu bản đồ còn ô trống thì có sector cùng ThemeType để lấp.
 - [CHƯA RÕ] LocalizedText không có nhãn nhóm campaign, nên nhãn tự đặt: "Hướng dẫn", "Cốt truyện", "Thường".
-- [SUY LUẬN] Số ô skill = 2 + tổng Talent `SkillSlotCount` (tối đa 4). Lý do: ảnh Steam ss05/ss07 có 4 ô RMB/Q/E/R, lúc đầu mở 2 ô.
+- [ĐO] Số ô skill = `GamePlayer.ActiveSlotCount` = 2 + tổng Talent `SkillSlotCount` (ETalentEffectType 4). Ô 0–3 là RMB/Q/E/R. Chi tiết ở §6.2.
 - [SUY LUẬN] Nhân vật khác 100001 mở sau khi qua 1100.
 
 ## 6. Kinh tế và chức năng NPC
@@ -209,6 +241,29 @@ Các luật dựng thêm:
   - Script nhận `ELuaEvent.ArtifactDeal` (giá trị là NpcId của khách).
 - Lời thoại bong bóng lấy từ các cột `ArtifactDeal *:Localized`.
 
+### 6.2. Chọn kỹ năng (SkillSelectPopup) và bảng nhân vật (CharacterSettingPopup) (2026-09-28)
+
+Mã: `js/ui/character.js`, kiểu ở `css/lounge.css`. Cây prefab đo bằng `python tools/ui_inventory_dump.py SkillSelectPopup CharacterSettingPopup SkillSelectInfoSlot SkillInfoDisplaySlot`.
+
+- [ĐO] NpcFunction: CharacterSelect (Narcis 700013) mở CharacterSettingPopup; CharacterSkill (Felix 700008) mở SkillSelectPopup. Nút "Chọn kỹ năng" của CharacterSettingPopup cũng mở SkillSelectPopup (`OnSkillSettingButtonClick`).
+- [ĐO] CharacterSettingPopup:
+  - Bấm chân dung là đổi nhân vật ngay (`OnCharacterSlotClick` → `SetCharacter` gửi `ReqChangeCharacter`). Không có nút "Chọn", không có bảng chỉ số.
+  - Ô chưa ra mắt báo `FeatureComingSoon`.
+  - Hộp "Kỹ năng đang được chọn" (`UpdateSkillInfo`) chỉ hiện `ActiveSlotCount` ô 50 × 50, không nhãn phím, không ổ khoá.
+- [ĐO] SkillSelectPopup, bố cục 1920 × 1080:
+  - Trái trên (x 80–720, y 140): dải "Kỹ năng của {tên}" (`SkillOwnerFormat`) + "Có thể thay thế sau khi chọn kỹ năng", mặt nhân vật 140 × 90, 5 ô 90 × 90 cách 10 với phím RMB/Q/E/R/C phía trên.
+  - Dưới (y 334): thông tin skill của ô đang chọn (`SkillInfoDisplaySlot`: icon 90, tên 22, ô căng thẳng / máu / hồi chiêu "{0:0.0}", mô tả 16), mũi tên chỉ sang phải.
+  - Phải (x 816–1840, y 140–1000): "Chọn kỹ năng để thay thế kỹ năng bên dưới." + danh sách `SkillSelectInfoSlot`. Thẻ "Ô hiện tại đang hoạt động" / "Đã áp dụng vào ô".
+  - Không có ví. Dải phím: Esc X Đóng, chuột trái "Chọn ô rồi chọn kỹ năng.".
+- [ĐO] Luật (`SkillSelectPopupPresenter`):
+  - `OnOpenAsync`: 4 ô Active (`SelectedActiveSkillIds[i]`, khoá khi i ≥ ActiveSlotCount) + ô Equipment chỉ khi `Character.EquipmentActiveSkillId` > 0. `_targetIndex` = 0.
+  - Ô khoá → `ShowLocked` (chữ SlotLocked, ẩn danh sách). Ô Equipment → `ShowReadOnlySkillInfo` (thông tin + "Kỹ năng trang bị không thể thay thế.", ẩn danh sách).
+  - `OnSkillSelectInfoSlotClick`: ô khác đang giữ skill cùng gốc bị tháo (−1) kèm toast `SkillUnequippedFormat`. Sau đó đặt skill vào ô đang chọn. Không đổi chỗ.
+  - `CloseWithSave` (Esc / X / nền) gửi `ReqChangeCharacterSkills`. Bản web lưu hồ sơ khi đóng bảng rồi `refreshLoungePlayer`.
+- [ĐO] Danh sách = `GamePlayer.GetSelectableActiveSkillIds`: `TCharacter.ActiveSkillIds` + Talent AddSkill (skill Active) / UnlockSkillMode / ChangeSkill. Bảng demo không có talent nào thêm skill Active, nên chỉ còn ActiveSkillIds. `SkillSelectScrollerPresenter.BuildSlotModels` xếp theo id gốc → skill chế độ → Id, tức theo Id tăng dần.
+- [ĐO] `EquipmentActiveSkillId` = skill Active trong `EquipmentEffect.SkillIds` của trang bị đang mặc (vd phụ kiện 26011 → 30010000 "Chữa lành I"). `VD.app.equipSkillId` tính giá trị này. Bản web chưa dùng được skill ô C khi đánh (`Skill.slotSkill` chưa có ô này).
+- [CHƯA RÕ] Loadout mặc định của nhân vật mới do server gốc cấp. Bản web lấy `stage.defaultLoadout`: RMB = ActiveSkillIds[0], Q = [1]. Hai ô này khớp ảnh sảnh (Noah: khiên, đá nổ) và ảnh bảng nhân vật (Gayoung: Xung Phong, Bùa Trấn Áp). Ô E/R ẩn giữ skill mặc định cho tới khi mở ô.
+
 ## 7. Chưa làm và dữ liệu thiếu
 
 - **Tycoon / TycoonSalesSlot / Employee:** chưa làm. `VD.T` không có các bảng Employee, EmployeeLevel, EmployeeSkill, TycoonSalesSlot, AreaDecoration và FeatureUnlock. Menu hiện các chức năng này dạng mờ.
@@ -219,7 +274,9 @@ Các luật dựng thêm:
   - dive.js chưa gán tiền tố cổ vật, nên deal.js tự gán.
   - `SetLoungeQuestState` trong dive.js gửi id thay cho trạng thái.
   - `D.start` bị ghi đè; app.js đã né lỗi này.
-- **Trang bị:** chưa có giao diện mặc trang bị.
+- **Trang bị:** chưa có giao diện mặc trang bị ở sảnh. Trang gốc là MenuPopup → InventoryManagementPage (kho + túi + ô trang bị), do `inventory.js` lo. Nhân vật ở sảnh đã tự nhận đồ khi `profile.equip` đổi (§1.1).
+- **CharacterSettingPopup:** chưa có khu đổi skin (tên skin, xem trước Spine, chấm phân trang, `CharacterSkin` / `CharacterSkinPreset`).
+- **Tiếng giao diện:** `select` / `select2` / `TalentOpen` của SkillSelectPopup chưa bóc.
 
 ## 8. Bẫy đã sập
 
@@ -235,3 +292,8 @@ Các luật dựng thêm:
   - `Mtl_2DBG_BaseCamp01_Tile_Glasses02` có `_Surface` 1 và `_BaseColor.a` 0, nhưng không có texture. `rip.py` trước đây chỉ đặt BLEND khi có texture, nên kính thành khối xanh đục.
   - Kính trong atlas được đánh dấu ở kênh B của `_EmissionMap`. Shader ghi: "Multi Map (R: Emission, G: Dissolve Mask, B: Glass, RB: Fresnel)". `rip.py sector` tách điểm ảnh kính thành primitive BLEND riêng (ảnh `<tên>_glass.webp`, alpha `GLASS_ALPHA`). Phần còn lại dùng ảnh `<tên>_solid.webp`.
 - **Spine đứng im hiện đôi:** `MeshRenderer` của `SkeletonAnimation` chỉ là ảnh chụp lưới Spine lúc lưu prefab. `rip.py sector` bỏ qua chúng, vì Spine thật do `lounge.js spawnDecor` dựng.
+- **Bảng chọn kỹ năng co thành cột 50 px (2026-09-28):** thân bảng mang lớp `vd-skill`, trùng lớp ô skill của HUD (`css/ui.css .vd-skill { width: 50px }`). Bảng mới dùng lớp `vd-sks`. Đặt tên lớp mới thì grep `css/` trước.
+- **Bù nhìn phòng tập không có hình (thư mục `art/spine/Target_*` rỗng):** năm bộ `Target_*` dùng chung một atlas `Target_Training_Atlas`, không có atlas mang tên bộ. `rip.py` trước đây tìm atlas theo tên nên bỏ qua. Nay nó theo `SkeletonDataAsset.atlasAssets`. Bóc lại vài bộ mà không đụng manifest: `python rip.py spine-names Target_Zombie,...`, rồi `rip.py unit-view` và `build_assets.py`.
+- **Hồi chiêu không hiện trên HUD:** `skill.js` giữ `u.cd[id]` là số giây còn lại, không phải mốc thời gian. `hud.js` trước đây lấy `cd − A.time`, nên luôn âm.
+- **Kiểm bằng Playwright + swiftshader:** mô phỏng 60 Hz có thể trễ so với giờ thật. Chờ theo trạng thái (`waitFor` hồi chiêu / máu bù nhìn), đừng chờ theo mili giây.
+- **`il2cpp_method.py --find 'A|B'` qua shim `python` của pyenv:** dấu `|` bị cmd.exe hiểu là ống dẫn. Gọi thẳng `~/.pyenv/pyenv-win/versions/3.8.10/python.exe` (bản có capstone) từ Git Bash.

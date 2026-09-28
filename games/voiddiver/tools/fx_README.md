@@ -143,6 +143,9 @@ Mẫu thường gặp là `[0,1,3,4,5,34,38]`: UV2 vào TEXCOORD0.zw, Custom1 v�
 - Nén WebP lossy (YUV 4:2:0) làm lem kênh G/B của ảnh typeB. Vì vậy ảnh đều nén lossless.
 - `1001_02_SwordSkill_01_Chain` là MeshRenderer + script `ChainSkillVfx`, không có hạt. Đã vẽ từ 2026-09-25, xem mục "MeshRenderer và ChainSkillVfx".
 - UnityPy 1.25: `PPtr` không có `assets_file`. Phải `ptr.deref()` rồi lấy `reader.assets_file.name` + `path_id` làm khoá.
+- **`ParticleSetupTool` là script chạy lúc OnEnable, không phải dữ liệu hạt** (ApplyLogic 0x1805da000): nhân `localScale` của targetTransforms và `startSize*Multiplier` của hạt (không ignoreSize) với sizeMultiplier, cộng delayOffset + additionalDelay của tổ tiên vào `startDelay` và `SimpleAnimatorDelay.delayTime`. Không nướng thì HeadShot_Cast của Raven loé nòng sớm 0,6 s, BlindlyShot to hơn 1/0,75. `fx_export.apply_particle_setup` nướng lúc xuất; prefab có dấu `"setup": 1`.
+- **`Mobile/Particles/Alpha Blended` không có thuộc tính màu** (ảnh × màu đỉnh). `_TintColor` (0,0,0,0) sót trong vật liệu làm điếu thuốc Raven vô hình → xuất U bỏ màu.
+- **Chạy `fx_export.py` lẻ một prefab từng ghi đè mesh trùng tên của prefab khác** (`msh_SphereDome01_uvv_uvflip`). `mesh_out` nay so nội dung tệp đã có: khác thì thêm hậu tố md5.
 
 ## MeshRenderer và ChainSkillVfx (2026-09-25)
 - **Xuất:** `fx_export.py` ghi MeshRenderer + MeshFilter (không phải Spine) vào `doc.meshes [{node, mesh, mat}]`, mesh ra `art/vfx/mesh/msh_*.json`. Script `ChainSkillVfx` ra `doc.script {type, len, off, chain, player}`. Chạy một phần (`fx_export.py <tên>`) phải giữ nguyên `stats`/`duplicateNames` của index — bẫy đã sập: bản đầu ghi đè mất.

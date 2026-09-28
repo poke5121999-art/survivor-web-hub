@@ -610,3 +610,18 @@ Bản Hard (20000001) giống thế nhưng SFX là `Attack_Warning_CantParry`, v
 
   Cuối cùng in bảng phủ theo từng `$type`.
 - In cây gọn của một skill (dùng trong phiên viết tài liệu này): viết một script Node nhỏ đọc `Skill.json` và `HitBox.json`, đệ quy `childNodes`, rồi in mỗi node thành một dòng: `text`, `ExecuteType@executeTime`, `actionDuration`, trigger, điều kiện dạng `S.1012<1`, `cancelableTimes` dạng `0.25-0.5 SpecifiedTime@0.35 10010000`, sự kiện theo mốc và hitbox con (hình, scale, cửa sổ va chạm, sự kiện va chạm). `vd-ref/tools/skill_summarize.py` làm gần giống, nhưng không in cửa sổ huỷ và điều kiện.
+
+## 10. Hiệu ứng skill khớp bản gốc (vòng skillfx2, 2026-09-28)
+
+- Đòn bẩy: `python tools/skill_audit.py` → `docs/SKILL_AUDIT.md` (mỗi dòng một lệch, sắp theo số skill bị ảnh hưởng; ghi chú đã sửa/còn lại nằm trong `FIXED_NOTES`/`REMAIN_NOTES` của tool). `--scan` quét lại component của bundle VFX (UnityPy, lưu `~/Downloads/vd-ref/cache/vfx_components.json`); `--json` in bảng máy đọc.
+- VfxEvent bám theo (không `IsIndependent`) = `UnitFollower.Update` 0x180716170, tính lại MỖI KHUNG:
+  - boneType ≠ None: vị trí = unit + GetBoneOffset(bone) + offset theo trục thế giới;
+  - boneType None: vị trí = unit + LookRotation(phẳng(Forward, hoặc MoveDir nếu InheritMoveDir))·offset;
+  - hướng VFX giữ như lúc sinh, trừ UpdateByAimDir (quay theo aim mỗi khung); unit mất view → huỷ; DestroyOnUnitFollowerTargetDeath + chết → huỷ.
+  - Web: `stage.js` `syncFollower` / `S.unitFollowers`.
+- VfxEvent `IsIndependent`: KHÔNG cộng độ lệch khớp (OnVfxEvent 0x1806652b0 chỉ gửi BoneType ở nhánh bám theo). Vị trí = mục tiêu + r·x + u·y + d·z, r = cross(up, d).
+- `UseMultiTrackMoveAnimation` (UnitSkillState.UpdateMoveByInputAnimation 0x1806ce970): đi trong skill → track 0 = walk/run, track 1 = moveAnimationName; dừng → clip skill chạy lại từ 0. Clip `*_walk` của Raven không key xương chân, nên thay hẳn clip thì chân đứng im.
+- `UseAimCorrection` (HitBox.CorrectAimDir 0x1805dfc30): quái trong tầm nhìn, lệch ≤ 10°, gần nhất → bẻ hướng về nó (giữ độ dài).
+- Hitbox vỡ ở tường (IsHighObstacle) vẫn phát hitVfx/hitSfx trừ `IgnoreHitVfxWall`; hitPointType None dùng tâm hitbox, NearByOwner dùng chỗ chủ đứng lúc sinh hitbox (TryCollision 0x1805eaf20).
+- **Bẫy đã sập: passive chạy hai lần.** `Skill.makeUnit(world, spec)` tự push vào `world.units` và gọi `initPassives`; `S.spawn` gọi `initPassives` lần nữa → mọi AddPassiveSkillTrigger chạy 2 lần (bom 10002 của Mio phát 2 vòng Sitting_Ring chồng nhau). `S.spawn` nay gọi `makeUnit` với `add: false`.
+- Chụp khung để so: dừng vòng lặp (`VD.loop.stop()`), bước 1/60 s bằng `VD.loop.update` + `VD.loop.render`, chụp mỗi 2–3 khung. Hiệu ứng hitbox đặt ở MỤC TIÊU (Hơi thở của Shavvy, bom búp bê) → để quái gần (≤ 2 m) kẻo ra khỏi khung chụp. Raven 10013500 bấm lần hai (10013501) phải chờ clip skill_4 xong (đo: bấm lại sau ~100 khung chưa đổi skill, sau ~300 khung thì ra 10013501).

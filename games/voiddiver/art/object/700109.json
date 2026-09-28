@@ -1,0 +1,512 @@
+{
+ "name": "700109",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Canvas*",
+   "active": true
+  },
+  {
+   "name": "Model",
+   "active": true
+  },
+  {
+   "name": "UI",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  },
+  {
+   "name": "GroundNavigationPrefab",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "capsule",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.85,
+   "height": 1.0,
+   "trigger": false,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [
+  {
+   "path": "Model/SkeletonAnimation_NW",
+   "skeleton": "EmptySkeleton",
+   "anim": "idle",
+   "loop": true,
+   "active": false,
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "path": "Model/SkeletonAnimation_SW",
+   "skeleton": "EmptySkeleton",
+   "anim": "idle",
+   "loop": true,
+   "active": false,
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  }
+ ],
+ "lights": [],
+ "particles": [],
+ "animators": [
+  {
+   "path": "Model/SkeletonAnimation_NW",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "Model/SkeletonAnimation_SW",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark",
+   "controller": "QuestHostWaitOtherClientMark",
+   "clips": [
+    "MainHostWait"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root",
+   "controller": "NpcThumbUp",
+   "clips": [
+    "NpcThumbUp"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "SalesSlotNpcObject",
+   "fields": {
+    "_npcId": 700109,
+    "_holdingTime": 0.1,
+    "_holdingSfx": "NPC_Exhibition_Table",
+    "_interactionSfx": "NoSound"
+   }
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Rare/DissolveDecoAlp_ShineLine",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Elite/DissolveDecoAlp",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Elite/DissolveDecoAlp_ShineLine",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Elite/DissolveDecoAdd_Aura",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Epic/DissolveDecoAlp",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Epic/DissolveDecoAlp_ShineLine",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Epic/DissolveDecoAdd_Aura",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Legend/DissolveDecoAlp",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Legend/DissolveDecoAlp_ShineLine",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Legend/DissolveDecoAlp_CenterShine",
+   "class": "Image"
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Legend/DissolveDecoAdd_Aura",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Myth/DissolveDecoAlp",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Myth/DissolveDecoAlp_ShineLine",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Myth/DissolveDecoAlp_CenterShine",
+   "class": "Image"
+  },
+  {
+   "path": "Canvas*/ArtifactGradeVfx_/Myth/DissolveDecoAdd_Aura",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Canvas*/ArtifactIcon",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "Model",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "UI",
+   "class": "Billboard"
+  },
+  {
+   "path": "UI/Hud/Layout*/Bubble_/BG*",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Bubble_/BG*/Tail/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Info_/BG*",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Info_/BG*/Tail/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot3",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root/ImgGlow",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root/ImgThumbUp",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/BG",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/ImgShield",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/img_back",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/img_front",
+   "class": "Image"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Model/mesh/25dBG_Basecamp01_DisplayStand_1",
+   "mesh": "25dBG_Basecamp01_DisplayStand_1",
+   "verts": 14,
+   "tris": 12,
+   "active": true
+  },
+  {
+   "path": "Model/mesh/25dBG_Basecamp01_DisplayStandBase",
+   "mesh": "25dBG_Basecamp01_DisplayStandBase",
+   "verts": 32,
+   "tris": 28,
+   "active": true
+  },
+  {
+   "path": "Model/mesh/25DBG_BaseCamp01_Prop_RopedBarrier_2",
+   "mesh": "msh_25BG_BaseCamp01_Prop_RopedBarrier_2",
+   "verts": 168,
+   "tris": 204,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.419,
+   -0.025,
+   -0.388
+  ],
+  "max": [
+   0.335,
+   0.363,
+   0.36
+  ]
+ },
+ "glb": "art/object/700109.glb",
+ "glbKB": 198
+}

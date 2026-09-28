@@ -12,10 +12,11 @@ Vi tri, NpcId nao co mat o sanh lay tu Sector.csv NpcSpawnDatas (lounge.js doc V
 
 Ra:
     art/spine/<Ten>/                 skel + atlas + png + meta.json (cung dinh dang tools/rip.py)
-    data/npcs.js                     VD.NPCS = {npcId: {spine, skins, anim, loop, scale, flip, yaw, holdSfx, useSfx, radius, hud}}
+    data/npcs.js                     VD.NPCS = {npcId: {spine, dir, skins, anim, loop, scale, flip, off, mesh, holdSfx, useSfx, radius, hud}}
 Thu vien bundle: tools/vd_common.py; ham boc Spine dung lai tools/rip.py (rip_spine_names).
 """
 import json, os, re, sys
+import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import vd_common as vd
@@ -23,10 +24,29 @@ import rip
 
 GAME = os.path.dirname(HERE)
 MONO = 'be9e4d904692f945f3910b57349aeb09_monoscripts'
-CACHE_P = os.path.join(vd.CACHE, 'npc_prefabs_v1.json')
+CACHE_P = os.path.join(vd.CACHE, 'npc_prefabs_v2.json')
 # Spine trang tri cua sanh (sector 9001 json 'spines'): cung dinh dang, cung thu muc art/spine/.
 DECOR = ['World_Cat', 'World_Pendulum', 'World_Butterfly', 'World_LoungeBG']
 NAME_RE = re.compile(r'^(6000\d\d|70\d{4}|710\d{3})$')
+
+
+
+def rot(t):
+    q = t.m_LocalRotation
+    x, y, z, w = q.x, q.y, q.z, q.w
+    return np.array([
+        [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+        [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+        [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+    ])
+
+
+def trs(t):
+    p, s = t.m_LocalPosition, t.m_LocalScale
+    m = np.eye(4)
+    m[:3, :3] = rot(t) * np.array([s.x, s.y, s.z])
+    m[:3, 3] = [p.x, p.y, p.z]
+    return m
 
 
 def class_map(env):
@@ -73,17 +93,22 @@ def scan_prefabs():
                 name = t.m_GameObject.deref_parse_as_object().m_Name
                 if not NAME_RE.match(name):
                     continue
-                info = {'spines': [], 'npcObject': None, 'radius': None, 'hudY': None}
+                info = {'spines': [], 'npcObject': None, 'radius': None, 'hudY': None, 'meshes': []}
 
-                def walk(tr, sc, active, rel):
+                def walk(tr, pm, active, rel, is_root):
                     go = tr.m_GameObject.deref_parse_as_object()
-                    s = tr.m_LocalScale
-                    sc = (sc[0] * s.x, sc[1] * s.y, sc[2] * s.z)
+                    # GameObjectManager.SpawnNpc: Transform.set_position(vi tri spawn) + set_localScale(Vector3.one) -> bo
+                    # vi tri va scale cua goc prefab (goc 700013 con toa do editor 13,24/15,25), giu xoay.
+                    m = np.eye(4) if is_root else pm @ trs(tr)
+                    if is_root:
+                        m[:3, :3] = rot(tr)
                     on = active and bool(go.m_IsActive)
                     for o in comps(go):
                         if o.type.name == 'CapsuleCollider' and rel == '':
                             tt = o.read_typetree()
                             info['radius'] = round(tt.get('m_Radius', 0), 3)
+                        if o.type.name in ('MeshRenderer', 'SkinnedMeshRenderer') and rel.startswith('Model/'):
+                            info['meshes'].append({'path': rel, 'active': on})
                         if o.type.name != 'MonoBehaviour':
                             continue
                         cn = clsname(o, cmap)
@@ -95,16 +120,21 @@ def scan_prefabs():
                             sda = vd.deref(o.read().skeletonDataAsset)
                             info['spines'].append({'path': rel, 'sda': sda.m_Name if sda is not None else None,
                                                    'skin': tt.get('initialSkinName'), 'anim': tt.get('_animationName'),
-                                                   'loop': bool(tt.get('loop')), 'active': on,
-                                                   'scale': [round(float(x), 3) for x in sc],
-                                                   'pos': [round(tr.m_LocalPosition.x, 3), round(tr.m_LocalPosition.y, 3), round(-tr.m_LocalPosition.z, 3)]})
+                                                   'loop': bool(tt.get('loop')), 'active': on, 'flipX': bool(tt.get('initialFlipX')),
+                                                   'scale': [round(float(x), 3) for x in np.linalg.norm(m[:3, :3], axis=0)],
+                                                   'mirror': bool(np.linalg.det(m[:3, :3]) < 0),
+                                                   'pos': [round(m[0, 3], 3), round(m[1, 3], 3), round(-m[2, 3], 3)]})
                         elif cn == 'NpcHudView' and info['hudY'] is None:
                             info['hudY'] = round(tr.m_LocalPosition.y, 3)
                     for ch in tr.m_Children:
                         c = ch.deref_parse_as_object()
                         n = c.m_GameObject.deref_parse_as_object().m_Name
-                        walk(c, sc, on, (rel + '/' + n) if rel else n)
-                walk(t, (1.0, 1.0, 1.0), True, '')
+                        walk(c, m, on, (rel + '/' + n) if rel else n, False)
+                walk(t, np.eye(4), True, '', True)
+                # Luoi 3D di kem (khung guong Narcis, cong Gatekeeper, tu trung bay...): tools/rip_objects.py xuat prefab nay.
+                # Bo luoi cua chinh SkeletonAnimation va bong gia (SkeletonShadow, Model/Shadow): lounge ve bong rieng.
+                sp_paths = {x['path'] for x in info['spines']}
+                info['meshes'] = [x for x in info['meshes'] if x['path'] not in sp_paths and 'Shadow' not in x['path']]
                 res[name] = info
                 sp = [(x['sda'], x['skin'], x['anim'], x['scale'][0]) for x in info['spines']]
                 print(name, sp, flush=True)
@@ -121,25 +151,30 @@ def manifest(pre):
     out = {}
     for name, info in sorted(pre.items()):
         sps = [s for s in info['spines'] if s['sda']]
-        if not sps:
-            continue
-        # Uu tien SkeletonAnimation dang bat (SW), roi toi bat ky.
-        main = next((s for s in sps if s['active'] and '_SW' in s['sda']), None) or next((s for s in sps if s['active']), None) or sps[0]
-        base = base_of(main['sda'])
-        d = os.path.join(GAME, 'art', 'spine', base)
-        if not os.path.isdir(d):
-            continue
+        mesh = any(m['active'] for m in info.get('meshes') or [])
         no = info['npcObject'] or {}
-        sx = main['scale'][0]
-        out[name] = {
-            'spine': base,
-            'skins': [main['skin']] if main['skin'] and main['skin'] != 'default' else [],
-            'anim': main['anim'] or None, 'loop': main['loop'],
-            'scale': round(abs(sx), 3), 'flip': sx < 0,
-            'holdSfx': no.get('_holdingSfx') or None, 'useSfx': no.get('_interactionSfx') or None,
-            'holdTime': round(no.get('_holdingTime') or 0, 3),
-            'radius': info['radius'], 'hud': info['hudY'],
-        }
+        ent = {'spine': None, 'mesh': mesh,
+               'holdSfx': no.get('_holdingSfx') or None, 'useSfx': no.get('_interactionSfx') or None,
+               'holdTime': round(no.get('_holdingTime') or 0, 3), 'radius': info['radius'], 'hud': info['hudY']}
+        # NpcObject.Awake: _skeletonAnimation = GetComponentInChildren<SkeletonAnimation>() (bo qua con dang tat) -> con
+        # SkeletonAnimation dang bat dau tien theo thu tu cay. Khong NPC nao xoay/lat theo nguoi choi (NpcObject khong co
+        # LookAt; chi EmployeeNpcObject.ApplyEmployeeVisual goi SetSkeletonScaleX): hinh dung yen nhu prefab.
+        main = next((s for s in sps if s['active']), None)
+        base = base_of(main['sda']) if main else None
+        if main and base != 'EmptySkeleton' and os.path.isdir(os.path.join(GAME, 'art', 'spine', base)):
+            dm = re.search(r'_(NW|SW)_SkeletonData$', main['sda'])
+            ent.update({
+                'spine': base, 'dir': dm.group(1) if dm else None,
+                'skins': [main['skin']] if main['skin'] and main['skin'] != 'default' else [],
+                'anim': main['anim'] or None, 'loop': main['loop'],
+                # scale = do dai truc x cua ma tran tu goc prefab toi SkeletonAnimation; lat = ma tran phan chieu
+                # (scale am, vd Narcis SW -0,9) XOR initialFlipX. off = vi tri SkeletonAnimation so voi chan (toa do three).
+                'scale': round(main['scale'][0], 3), 'flip': main['mirror'] != main['flipX'],
+                'off': main['pos'] if any(abs(v) > 1e-3 for v in main['pos']) else None,
+            })
+        elif not mesh and not info['npcObject']:
+            continue
+        out[name] = ent
     p = os.path.join(GAME, 'data', 'npcs.js')
     with open(p, 'w', encoding='utf-8', newline='\n') as fh:
         fh.write('// SINH RA bởi tools/rip_npc.py — không sửa tay. Hình NPC sảnh theo prefab gốc (remote_prefab_assets_object/<NpcId>).\n')

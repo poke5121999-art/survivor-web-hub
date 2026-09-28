@@ -7,7 +7,8 @@
  *   tiếng Looting_Loop + Looting_low/middle/high/veryhigh, ô chưa hé lộ không lấy được, đóng giữa chừng thì ô đang
  *   hé lộ chờ lại; chuột trái = "Bỏ vào tất cả", Ctrl + trái = 1, Shift + trái = nửa; kéo thả vào túi; chuột phải ở
  *   rương báo CannotDropInLootInventory, ở túi thì vứt xuống đất; phím số gán ô nhanh; R sắp xếp; tooltip; Esc đóng;
- *   rồi 844×390 bảng vừa màn.
+ *   trang bị trong lượt lặn (CheckEquipable: sai loại vũ khí / sai ô / trùng EquipPartGroup, đổi ô, túi đầy, F tháo, chuột phải
+ *   tháo vũ khí, ô vũ khí phụ + V); rồi 844×390 bảng vừa màn.
  *   MenuPopup (docs/DIVE.md §12): Bag là món có ô riêng (BagPanel, F mở, Esc đóng trước, sai loại/túi trùng bị từ chối), tooltip
  *   vũ khí/phụ kiện/cổ vật đầy đủ, 7 trang ở 1280×720 và 844×390 (không tràn màn), tuỳ chọn âm lượng, tay cầm giả
  *   (navigator.getGamepads): Start mở, RT/LT đổi thẻ, d-pad dời ô, A cầm/đặt với Highlight, B đóng.
@@ -239,6 +240,63 @@ async function holdF(page, sec) { await page.keyboard.down('KeyF'); await gameWa
     const esc = await page.evaluate(() => ({ open: VD.inventory.open, drive: VD.stage.player.drive && VD.stage.player.drive.name, input: VD.input.enabled }));
     check('Esc đóng bảng, bỏ battle/search, trả điều khiển', !esc.open && !esc.drive && esc.input !== false, JSON.stringify(esc));
 
+    // ================= Trang bị trong lượt lặn (docs/DIVE.md §14, InventoryManagementPagePresenter.CheckEquipable / Equip* / Unequip*)
+    await page.keyboard.press('Tab');
+    await waitFor(page, () => VD.inventory.open, null, 5000, 'Tab mở túi');
+    const eqS = await page.evaluate(() => {
+      const T = VD.T, p = VD.stage.player, I = VD.inventory;
+      const wrong = T.Equipment.find(e => e.GoodsType === 'Weapon' && e.WeaponType !== p.row.WeaponType);
+      const accs = T.Equipment.filter(e => e.GoodsType === 'Accessory' && e.EquipPartGroup > 0 && (e.Stats || []).length);
+      const a1 = accs[0], a2 = accs.find(e => e.EquipPartGroup === a1.EquipPartGroup && e.Id !== a1.Id);
+      for (const r of [wrong, a1, a2]) I.add({ type: 'Equipment', id: r.Id, count: 1 }, { silent: true });
+      const X = VD.TEXT;
+      return { wrong: wrong.Id, a1: a1.Id, a2: a2.Id, atk: VD.Stats.get(p, 'Atk'), hp: Math.round(p.stats.HpMax), gear: I.gearIds(),
+        tx: { wt: X.NotEquipableWeaponType, et: X.NotEquipableEquipmentType, dup: X.DuplicateEquipPartGroup, mis: X.EquipementSlotTypeMismatch, full: X.NotEnoughInventorySlots } };
+    });
+    const lastToast = () => page.evaluate(() => { const t = [...document.querySelectorAll('.vd-toast')].pop(); return t ? t.textContent : ''; });
+    const gearNow = () => page.evaluate(() => ({ g: VD.inventory.gearIds(), atk: Math.round(VD.Stats.get(VD.stage.player, 'Atk')), hp: Math.round(VD.stage.player.stats.HpMax) }));
+    const invEqXY = async id => slotXY(page, '.grid.inv', await page.evaluate(id => VD.inventory.slots.findIndex(s => s.g && s.g.type === 'Equipment' && s.g.id === id), id));
+    const eqXY = k => page.evaluate(k => { const el = k === 6 ? document.querySelector('.equip .subw .vs') : document.querySelectorAll('.equip > .vs')[k]; const b = el.getBoundingClientRect(); return { x: k === 6 ? b.x + 10 : b.x + b.width / 2, y: b.y + b.height / 2 }; }, k);
+    const dragTo = async (a, b) => { await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(a.x + 20, a.y + 5, { steps: 3 }); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await sleep(150); };
+    let xy = await invEqXY(eqS.wrong);
+    await page.mouse.move(xy.x, xy.y); await sleep(80); await page.keyboard.press('KeyF'); await sleep(120);
+    check('F lên vũ khí khác loại: NotEquipableWeaponType, không đổi', (await lastToast()) === eqS.tx.wt && (await gearNow()).g.weapon === eqS.gear.weapon, await lastToast());
+    await dragTo(await invEqXY(eqS.a1), await eqXY(0));
+    check('kéo phụ kiện vào ô vũ khí: NotEquipableEquipmentType', (await lastToast()) === eqS.tx.et && (await gearNow()).g.weapon === eqS.gear.weapon, await lastToast());
+    await page.evaluate(() => { window.__sfx.length = 0; });
+    await dragTo(await invEqXY(eqS.a1), await eqXY(2));
+    const g1a = await gearNow();
+    check('kéo phụ kiện vào ô phụ kiện 2: lắp, Atk/HP đổi ngay, tiếng Equip', g1a.g.acc[1] === eqS.a1 && (g1a.atk !== Math.round(eqS.atk) || g1a.hp !== eqS.hp) && await page.evaluate(() => window.__sfx.some(x => x[1] === 'Equip')), JSON.stringify(g1a));
+    xy = await invEqXY(eqS.a2);
+    await page.mouse.move(xy.x, xy.y); await sleep(80); await page.keyboard.press('KeyF'); await sleep(120);
+    check('F lên phụ kiện cùng EquipPartGroup: DuplicateEquipPartGroup', (await lastToast()) === eqS.tx.dup && (await gearNow()).g.acc.indexOf(eqS.a2) < 0, await lastToast());
+    await dragTo(await eqXY(2), await eqXY(4));
+    check('kéo ô phụ kiện sang ô cổ vật: EquipementSlotTypeMismatch', (await lastToast()) === eqS.tx.mis && (await gearNow()).g.acc[1] === eqS.a1, await lastToast());
+    await dragTo(await eqXY(2), await eqXY(3));
+    check('kéo ô phụ kiện 2 sang ô phụ kiện 3: đổi chỗ', JSON.stringify((await gearNow()).g.acc) === JSON.stringify([0, 0, eqS.a1]));
+    await shot(page, 'loot-04b-gear');
+    // Túi đầy: tháo không được (NotEnoughInventorySlots).
+    await page.evaluate(() => { window.__fill = []; VD.inventory.slots.forEach((s, i) => { if (!s.g) { s.g = { type: 'Item', id: 7000, count: 1 }; window.__fill.push(i); } }); VD.inventory.refresh(); });
+    xy = await eqXY(3); await page.mouse.click(xy.x, xy.y); await sleep(120);
+    check('túi đầy: bấm ô trang bị → NotEnoughInventorySlots, vẫn đeo', (await lastToast()) === eqS.tx.full && (await gearNow()).g.acc[2] === eqS.a1, await lastToast());
+    await page.evaluate(() => { for (const i of window.__fill) VD.inventory.slots[i].g = null; VD.inventory.refresh(); });
+    await page.evaluate(() => { window.__sfx.length = 0; });
+    await page.mouse.move(xy.x, xy.y); await sleep(80); await page.keyboard.press('KeyF'); await sleep(120);
+    const g1b = await gearNow();
+    check('F lên ô trang bị: tháo về túi, chỉ số về như cũ, tiếng ItemRelease', g1b.g.acc[2] === 0 && g1b.atk === Math.round(eqS.atk) && await page.evaluate(id => VD.inventory.count('Equipment', id) === 1, eqS.a1) && await page.evaluate(() => window.__sfx.some(x => x[1] === 'ItemRelease')), JSON.stringify(g1b));
+    // Vũ khí: chuột phải tháo, V không đổi khi ô phụ trống, kéo lại vào ô phụ rồi V đổi.
+    xy = await eqXY(0); await page.mouse.click(xy.x, xy.y, { button: 'right' }); await sleep(120);
+    const g1c = await gearNow();
+    check('chuột phải ô vũ khí: tháo vũ khí (Atk của vũ khí mất)', g1c.g.weapon === 0 && g1c.atk < Math.round(eqS.atk), JSON.stringify(g1c));
+    await dragTo(await invEqXY(eqS.gear.weapon), await eqXY(6));
+    await page.keyboard.press('KeyV'); await sleep(120);
+    const g1d = await gearNow();
+    check('kéo vũ khí vào ô phụ, V trong bảng: thành vũ khí đang cầm', g1d.g.weapon === eqS.gear.weapon && g1d.g.sub === 0 && g1d.atk === Math.round(eqS.atk), JSON.stringify(g1d));
+    await page.keyboard.press('KeyV'); await sleep(80);
+    check('V khi ô phụ trống: không đổi (ReqSwapWeapon AllowEmpty = false)', (await gearNow()).g.weapon === eqS.gear.weapon);
+    await page.evaluate(ids => { for (const id of ids) VD.inventory.remove('Equipment', id, 1); }, [eqS.wrong, eqS.a1, eqS.a2]);
+    await page.keyboard.press('Tab');
+
     // 844×390: mở lại rương còn 1 món.
     await page.setViewportSize({ width: 844, height: 390 });
     // Món vừa vứt nằm dưới chân (gần hơn rương): sang phía bên kia rương rồi mới giữ F.
@@ -396,7 +454,16 @@ async function holdF(page, sec) { await page.keyboard.down('KeyF'); await gameWa
     check('Esc / X khi đang chơi mở thẻ Mục tiêu, Tab mở Túi đồ', escOpen.open && escOpen.tab === 'Quest' && xOpen.open && xOpen.tab === 'Quest' && tabOpen.open && tabOpen.tab === 'Inventory',
       JSON.stringify({ escOpen, xOpen, tabOpen }));
     // Tay cầm giả (navigator.getGamepads): Start mở, RT/LT đổi thẻ, d-pad dời ô, A cầm/đặt (ô đích sáng Highlight), B đóng.
-    const pad = async (i, ms) => { await page.evaluate(i => { window.__pad.buttons[i].pressed = true; window.__pad.buttons[i].value = 1; }, i); await sleep(ms || 400); await page.evaluate(i => { window.__pad.buttons[i].pressed = false; window.__pad.buttons[i].value = 0; }, i); await sleep(200); };
+    // Giữ nút đúng n khung rAF (không theo mili giây): menu.js / core.js đọc tay cầm mỗi khung, mà khi bảng mở trên swiftshader
+    // một khung mất 200–400 ms — giữ 400 ms cố định có lúc lọt giữa hai khung (nút bị nuốt). d-pad giữ 1 khung để khỏi tự lặp.
+    const pad = async (i, frames) => {
+      await page.evaluate(([i, n]) => new Promise(done => {
+        const b = window.__pad.buttons[i]; b.pressed = true; b.value = 1;
+        const f = () => { if (--n > 0) { requestAnimationFrame(f); return; } b.pressed = false; b.value = 0; requestAnimationFrame(() => done()); };
+        requestAnimationFrame(f);
+      }), [i, frames || 2]);
+      await sleep(150);
+    };
     await page.evaluate(() => { window.__pad = { connected: true, id: 'test pad', mapping: 'standard', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) }; });
     await sleep(400);    // core.js hãm đổi thiết bị 0,3 s sau lần bấm phím cuối (DEVICE_SWITCH_COOLDOWN)
     await pad(9);
@@ -424,7 +491,7 @@ async function holdF(page, sec) { await page.keyboard.down('KeyF'); await gameWa
     const from = await page.evaluate(id => { const k = VD.inventory.slots.findIndex(s => s.g && s.g.id === id); VD.menu.focus(document.querySelectorAll('.grid.inv > .vs')[k]); return k; }, setup2.w);
     await pad(0);
     const before = await page.evaluate(() => VD.menu.focusEl && VD.menu.focusEl.dataset.k);
-    await pad(13, 200); await pad(13, 200);    // d-pad xuống 2 hàng; giữ < 350 ms để khỏi tự lặp (menu.js padRead)
+    await pad(13, 1); await pad(13, 1);    // d-pad xuống 2 hàng; giữ 1 khung để khỏi tự lặp (menu.js padRead lặp sau 350 ms)
     const after = await page.evaluate(() => VD.menu.focusEl && VD.menu.focusEl.dataset.k);
     await pad(0);
     const moved = await page.evaluate(([id, k]) => ({ at: VD.inventory.slots.findIndex(s => s.g && s.g.id === id), hold: !!VD.inventory.hold, k }), [setup2.w, +after]);

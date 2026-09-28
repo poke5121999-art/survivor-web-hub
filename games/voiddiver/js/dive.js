@@ -193,6 +193,7 @@
     e.removed = true;
     const i = D.ents.indexOf(e); if (i >= 0) D.ents.splice(i, 1);
     if (e.h) (e.h.isDrop ? dropVisRemove(e.h) : VD.objects.remove(e.h));
+    if (e.vis) e.vis.dispose();
     if (e.blocker) VD.world.removeBlocker(e.blocker);
     if (e.ringMesh) VD.render.scene.remove(e.ringMesh);
     if (VD.minimap) VD.minimap.unmark(e.id);
@@ -269,6 +270,46 @@
     VD.audio.sfx((f && f._interactionSfx) || 'LootingCompleted', { pos: e.pos });
     // Mở bảng Tab kèm LootingInventory; từng ô hé lộ dần theo bậc (inventory.js revealTick).
     VD.inventory.openLoot({ title: TX('LootingInventory'), items: e.loot, source: e });
+  }
+
+  // ---------------------------------------------------------------- xác quái (MonsterBody) [ĐO — GameAssembly]
+  // Quái chết giữ nguyên hình ở khung cuối anim death; đồ bốc lúc sinh nằm trong LootingInventory của xác, lục bằng giữ F
+  // như rương (cùng bảng Tab + LootingInventory, hé lộ từng ô).
+  // - MonsterBody.CanInteract: quái ở trạng thái Dead, không còn pha sau, chưa hết LifeTime, kho không rỗng (Inventory.IsEmpty).
+  // - get_HoldingTime = Const.LootingInteractionTime (0,1 s); get_HoldingSfx = _holdingSfx của prefab, rỗng thì "DoorInteractied2".
+  // - Lời nhắc (InGameInteractionPromptPresenter.UpdateUi): tiêu đề DeadMonsterFormat "Xác {tên}" (+ " (Đã kiểm tra)" khi
+  //   IsAllRevealed), chữ nút "Inspect". Nhân vật không chơi
+  //   battle/search (CharacterView.GetInteractionAnimation chỉ trả search cho RewardBox/Mimic/InteractiveTrigger).
+  // - MonsterDeadState.GetNextStateEvent: hết DeadDuration, không phải Boss/MiniBoss (EnumExtensions.IsBoss), mọi ô rỗng và
+  //   không ai đang lục → ReservedDespawn: NetworkObject.Despawn sau 3 s (UnitVisualEffectView tan dần từ giây 1 tới 3).
+  const isBossType = u => u.monsterType === 'Boss' || u.monsterType === 'MiniBoss';
+  function spawnCorpse(u, items) {
+    const q = VD.stage.deadQueue, i = q ? q.indexOf(u) : -1;
+    if (i >= 0) q.splice(i, 1);           // stage.js không tự xoá sau 3 s nữa; xác sống tới khi lục hết
+    return addEnt({ kind: 'corpse', unit: u, pos: { x: u.pos.x, z: u.pos.z }, loot: items.slice(), deadAt: D.t, mark: null });
+  }
+  function corpseLeft(e) { return e.lootInv ? e.lootInv.slots.some(s => s.g) : e.loot.length > 0; }
+  function corpseLooting(e) { return !!(VD.inventory.open && VD.inventory.loot && VD.inventory.loot.source === e); }
+  function corpseInteract(e) {
+    if (e.gone || !corpseLeft(e)) return null;
+    const name = TX('TMonster_Name_' + e.unit.id) || '';
+    const rev = e.lootInv && e.lootInv.slots.every(s => !s.g || s.rev === 2);
+    return {
+      title: (TX('DeadMonsterFormat') || '{0}').replace('{0}', name) + (rev ? ' (' + TX('Revealed') + ')' : ''),
+      verb: TX('Inspect') || 'Kiểm tra', time: C('LootingInteractionTime', 0.1), sfx: 'DoorInteractied2',
+    };
+  }
+  function corpseOpen(e) {
+    // MonsterBody.get_InteractionSfx = _interactionSfx của prefab; rỗng thì như rương: nhóm LootingCompleted. [SUY LUẬN]
+    VD.audio.sfx('LootingCompleted', { pos: e.pos });
+    // GetInteractionAnimation(MonsterBody) = default/idle: không chơi battle/search khi lục xác.
+    VD.inventory.openLoot({ title: TX('LootingInventory'), items: e.loot, source: e, search: false });
+  }
+  function corpseTick(e) {
+    if (e.gone || isBossType(e.unit) || corpseLeft(e) || corpseLooting(e)) return;
+    if (D.t - e.deadAt < (e.unit.row.DeadDuration || 0)) return;
+    e.gone = true;
+    D.later.push({ t: D.t + 3, fn: () => { VD.stage.remove(e.unit); removeEnt(e); } });
   }
 
   // ---------------------------------------------------------------- cửa
@@ -403,15 +444,8 @@
   // ---------------------------------------------------------------- NPC
   function spawnNpc(npcId, pos) {
     const e = addEnt({ kind: 'npc', npcId, pos, fwd: { x: Math.SQRT1_2, z: Math.SQRT1_2 }, mark: 'npc', npcState: 0, nav: false });
-    const a = VD.ASSETS && VD.ASSETS.units && VD.ASSETS.units[npcId];
-    if (a && a.spine) VD.loadSpine(a.spine).then(b => {
-      if (e.removed) return;
-      const vis = new VD.UnitVisual(b, { skins: a.skins, scale: a.scale || 1, shadow: a.shadow || 0.4 });
-      vis.root.position.set(pos.x, 0, pos.z);
-      VD.render.scene.add(vis.root);
-      const idle = vis.resolve('idle') || vis.resolve('default/idle'); if (idle) vis.play(idle, true, 1);
-      e.vis = vis;
-    }).catch(() => {});
+    // Hình NPC theo prefab gốc (data/npcs.js), chung với sảnh: e.vis (Spine) + e.h (lưới 3D, removeEnt gỡ).
+    VD.npc.visual(e, npcId, pos);
     return e;
   }
 
@@ -504,6 +538,9 @@
     const p = freeNear(pos.x, pos.z, 0.35);
     const u = VD.stage.spawn({ kind: 'mon', id, pos: p, aim: fwd || { x: -Math.SQRT1_2, z: -Math.SQRT1_2 } });
     u.dropGroup = opts.dropGroup != null ? opts.dropGroup : u.row.DropRewardGroupId;
+    // MonsterController.OnNetworkSpawn: nhóm rơi = MonsterSpawn.DropRewardGroupId (nếu quái sinh từ bảng đó), không thì
+    // Monster.DropRewardGroupId; CreateInventorySlots(nhóm) → PickRewards bốc đồ NGAY LÚC SINH vào LootingInventory của xác. [ĐO]
+    u.lootItems = u.dropGroup > 0 ? rollGroup(u.dropGroup) : [];
     const A = VD.stage.A;
     if (VD.AI && VD.AI.init) VD.AI.init(A, u, {});
     for (const b of opts.buffs || []) if (db().buff(b)) u.buffs.add(A, b, 1, u);
@@ -808,6 +845,7 @@
       let it = null;
       switch (e.kind) {
         case 'box': it = boxInteract(e); break;
+        case 'corpse': it = corpseInteract(e); break;
         case 'door': it = doorInteract(e); break;
         case 'exit': it = exitInteract(e); break;
         case 'drop': it = { verb: TX('Pickup') || 'Nhặt', time: (D.dropFields && +D.dropFields._holdingTime) || 0.5 }; break;
@@ -870,6 +908,7 @@
           return;
         }
         boxOpen(e); break;
+      case 'corpse': corpseOpen(e); break;
       case 'door': doorUse(e); break;
       case 'exit': exitUse(e); break;
       case 'drop': {
@@ -898,9 +937,9 @@
     const ui = document.getElementById('ui') || document.body;
     P.el = document.createElement('div');
     P.el.className = 'vd-prompt';
-    P.el.innerHTML = '<div class="key"><svg viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="17"/><circle class="fg" cx="20" cy="20" r="17"/></svg><b>F</b><img class="padk" src="' + VD.padIconUrl('<Gamepad>/buttonSouth') + '" alt=""></div><span class="verb"></span><div class="cost"><img><i></i></div>';
+    P.el.innerHTML = '<div class="key"><svg viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="17"/><circle class="fg" cx="20" cy="20" r="17"/></svg><b>F</b><img class="padk" src="' + VD.padIconUrl('<Gamepad>/buttonSouth') + '" alt=""></div><span class="verb"></span><span class="ttl"></span><div class="cost"><img><i></i></div>';
     ui.appendChild(P.el);
-    P.fg = P.el.querySelector('.fg'); P.verb = P.el.querySelector('.verb'); P.cost = P.el.querySelector('.cost');
+    P.fg = P.el.querySelector('.fg'); P.verb = P.el.querySelector('.verb'); P.ttl = P.el.querySelector('.ttl'); P.cost = P.el.querySelector('.cost');
   }
   const pv = new THREE.Vector3();
   function renderPrompt(cur) {
@@ -908,6 +947,9 @@
     if (!cur || !D.hudOn) { P.el.style.display = 'none'; return; }
     P.el.style.display = '';
     P.verb.textContent = cur.it.verb + (cur.it.locked ? ' 🔒' : '');
+    // InGameInteractionPromptView.titleText (xác quái: "Xác {tên}"); vật không có tiêu đề thì ẩn.
+    const ttl = cur.it.title || '';
+    if (P.ttl.textContent !== ttl) P.ttl.textContent = ttl;
     P.el.classList.toggle('locked', !!cur.it.locked);
     const frac = cur.it.time > 0 ? Math.min(1, D.holdT / cur.it.time) : 0;
     const L = 2 * Math.PI * 17;
@@ -996,6 +1038,7 @@
         }
         if (e.hits >= e.row.HitsToBreak) breakProp(e);
       } else if (e.kind === 'exit') exitTick(e, dt);
+      else if (e.kind === 'corpse') corpseTick(e);
     }
     for (const w of D.waves) waveTick(w, dt);
   }
@@ -1021,7 +1064,10 @@
       }
       // Monster.RecoveryStressAmountOnDead trong RecoveryStressRangeOnDead.
       if (pl && u.row.RecoveryStressAmountOnDead > 0 && dist(pl.pos, u.pos) <= (u.row.RecoveryStressRangeOnDead || 0)) VD.Combat.stressRecover(VD.stage.A, pl, u.row.RecoveryStressAmountOnDead);
-      if (u.dropGroup > 0) for (const g of rollGroup(u.dropGroup)) spawnDrop(g, u.pos);
+      // Đồ của quái nằm trong xác (MonsterBody), không văng ra đất. Xác quái thường rỗng thì MonsterDeadState → ReservedDespawn
+      // 3 s như cũ (stage.js xoá sau 3 s); xác Boss/MiniBoss không bao giờ biến. docs/DIVE.md §13.
+      const items = u.lootItems || (u.dropGroup > 0 ? rollGroup(u.dropGroup) : []);
+      if (items.length || isBossType(u)) spawnCorpse(u, items);
     } else if (ev.type === 'damage' && ev.tgt === pl && pl && ev.hpLoss > 0) {
       if (VD.postfx && VD.postfx.hit) VD.postfx.hit();
       // Const.StressDamageOnHpDamaged (3) mỗi khi mất cộng dồn StressDamageTriggerHpPercent (30 %) máu tối đa. [SUY LUẬN]
@@ -1277,6 +1323,13 @@
       prof.safe = VD.inventory.safe.filter(s => s.g).map(s => s.g);
       for (const l of prof.lostGoods || []) l.exitsLeft--;
       prof.lostGoods = (prof.lostGoods || []).filter(l => l.exitsLeft > 0);
+    }
+    // Trang bị đổi trong lượt lặn (inventory.js I.gear) về hồ sơ khi thoát được; chết thì giữ bộ cũ như trước. Luật mất trang bị
+    // đang đeo khi chết chưa đọc được trong mã gốc. [CHƯA RÕ]
+    if (escaped && VD.inventory.gearIds) {
+      const gi = VD.inventory.gearIds();
+      prof.equip = prof.equip || {};
+      prof.equip[D.char] = Object.assign({}, prof.equip[D.char], { weapon: gi.weapon, sub: gi.sub, acc: gi.acc, art: gi.art });
     }
     prof.quick = VD.inventory.quick.slice();
     prof.dives = (prof.dives || 0) + 1;
@@ -1554,7 +1607,7 @@
     D.start = freeNear(D.start.x, D.start.z, 0.3);
     D.startSec = sectorAt(D.start.x, D.start.z);
     const loadoutEquip = (opts.loadout && opts.loadout.equipmentIds) || [];
-    const pl = S.spawn({ kind: 'char', id: D.char, pos: D.start, aim: { x: -Math.SQRT1_2, z: -Math.SQRT1_2 }, weaponId: opts.loadout && opts.loadout.weaponId, equipmentIds: loadoutEquip });
+    const pl = S.spawn({ kind: 'char', id: D.char, pos: D.start, aim: { x: -Math.SQRT1_2, z: -Math.SQRT1_2 }, weaponId: opts.loadout && opts.loadout.weaponId, equipmentIds: loadoutEquip, skins: opts.loadout && opts.loadout.skins });
     S.setPlayer(pl, opts.loadout && opts.loadout.skills);
     VD.player = pl;
     // Chuyến tutorial: gắn thẳng buff Invincibility có sẵn trong bảng (Buff 1000001: BlockDamage + BlockStressDamage,
@@ -1642,6 +1695,7 @@
     zone: id => D.zoneSpawns[id],
     missing: () => Array.from(D.missing),
     rollGroup,
+    spawnMonster: (id, x, z, opts) => spawnMonster(id, { x, z }, null, opts),
   };
 
   VD.dive = D;

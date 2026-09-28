@@ -144,6 +144,24 @@
       this.anim = name; this.animLoop = loop; this.animSpeed = 1;
       for (const k in this.meshes) this.meshes[k].state.timeScale = 1;
     }
+    // Track 1 chồng lên track 0 (NtfPlayAnimation.MultiTrackAnimationName → UnitView.PlayAnimationAsync 0x1806a2640:
+    // SetAnimation(1, tên, loop)); chỉ xương clip này có khoá bị ghi đè (clip *_walk của Raven không khoá chân).
+    poseTrack1(name, clipTime, loop) {
+      for (const k in this.meshes) {
+        const m = this.meshes[k];
+        if (!m.skeleton.data.findAnimation(name)) continue;
+        let e = m.state.getCurrent(1);
+        if (!e || !e.animation || e.animation.name !== name) e = m.state.setAnimation(1, name, loop);
+        e.loop = loop; e.timeScale = 0; e.trackTime = Math.max(0, clipTime);
+      }
+      this.track1 = name;
+    }
+    // UnitView.ClearMultiTrackAnimation (0x1806a8020): SetEmptyAnimation(1, 0) mọi khung xương.
+    clearTrack1() {
+      if (!this.track1) return;
+      for (const k in this.meshes) { const st = this.meshes[k].state; if (st.getCurrent(1)) st.setEmptyAnimation(1, 0); }
+      this.track1 = null;
+    }
     setSpeed(s) { this.animSpeed = s == null ? 1 : s; for (const k in this.meshes) this.meshes[k].state.timeScale = this.animSpeed; }
     duration(anim) {
       const a = this.bundle.dirs[this.dirKey].data.findAnimation(anim);

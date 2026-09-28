@@ -12,6 +12,8 @@
 .vd-prompt.locked .verb { color: #f0a080; }
 .vd-prompt .cost { position: absolute; left: 0; top: 42px; display: flex; align-items: center; gap: 4px; background: rgba(15,15,18,.85); padding: 2px 8px 2px 4px; font-size: 14px; }
 .vd-prompt .cost img { width: 20px; height: 20px; image-rendering: pixelated; }
+/* InGameInteractionPromptView.titleText: tên vật ("Xác {tên}") nằm trên dòng động từ */
+.vd-prompt .ttl { position: absolute; left: 44px; bottom: 30px; white-space: nowrap; font-size: .8em; color: #dcdcdc; } .vd-prompt .ttl:empty { display: none; }
 
 .vd-pointer { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
 .vd-pointer::after { content: ''; position: absolute; left: -9px; top: -22px; border: 9px solid transparent; border-top: 14px solid #ffd24a;
@@ -21,6 +23,19 @@
 /* ---------- ô đồ nhanh trên HUD */
 .vd-item.cool::after { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,.55); }
 .vd-item.empty img { opacity: .35; }
+/* Ô vũ khí trên HUD (InGameQuickSlotPanel: WeaponSwapSlot 90 + SubWeapon_ 70 lệch trái-dưới sau lưng, mũi Swap); tỉ lệ theo ô đồ 40 px */
+.vd-wslot { position: relative; width: 45px; height: 45px; margin: 0 14px 0 18px; flex: none; align-self: flex-end; }
+.vd-wslot > i.main, .vd-wslot > i.sub { position: absolute; box-sizing: border-box; background: rgba(10,10,14,.75); border: 1px solid rgba(255,255,255,.15); }
+.vd-wslot > i.main { inset: 0; z-index: 1; background: #0e0e12; box-shadow: inset 0 0 0 1px var(--gc, transparent); }
+.vd-wslot > i.sub { left: -10px; top: 8px; width: 35px; height: 35px; filter: brightness(.55); }
+.vd-wslot img { position: absolute; left: 8%; top: 8%; width: 84%; height: 84%; object-fit: contain; image-rendering: pixelated; }
+.vd-wslot .empty img { display: none; }
+.vd-wslot > i.swap { position: absolute; left: 27px; top: 46px; width: 16px; height: 11px; z-index: 2; background: #707070;
+  --m: url(../art/ui/icon_common/Swap.webp); -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.vd-wslot.nosub > i.sub, .vd-wslot.nosub > i.swap { opacity: .35; }
+/* SwapedFX: viền #CB6149 sáng rồi tắt */
+.vd-wslot.swapped > i.main { animation: vd-wswap .45s ease-out; }
+@keyframes vd-wswap { 0% { box-shadow: inset 0 0 0 2px #cb6149, 0 0 10px #cb6149; } 100% { box-shadow: inset 0 0 0 1px var(--gc, transparent); } }
 
 /* ---------- MenuPopup gốc (tools/ui_inventory_dump.py MenuPopup): thẻ trên cùng + các trang Pages[]. Trang Túi đồ = InventoryManagementPage.
    Mọi số đo dưới đây là px của khung tham chiếu 1920×1080 (CanvasScaler gốc); inventory.js thu cả khung theo màn.
@@ -122,6 +137,15 @@
 .vd-inv-my .corr.st-serious .st { --m: url(../art/ui/inventory/Serious.webp); background: #990000; }
 .vd-inv-my .head { top: 45px; }
 .vd-inv-my .equip { position: absolute; left: 0; top: 95px; display: grid; grid-template-columns: repeat(6, 80px); gap: 10px; }
+.vd-inv-my .equip > .vs { z-index: 1; }
+/* SubWeapon_ (prefab EquipmentInventoryPanel): khung 110×110 tâm (25, 55); ô vũ khí phụ 70×70 lệch (−20, −20) nằm sau ô vũ khí chính;
+   phím V (KeyPrompt, ảnh 40×40 tại (−43, 33)); Swap 32×22 #707070 góc (51, −29); Dim #1B1B1B 70 % phủ phần nằm dưới ô chính */
+.vd-inv-my .equip .subw { position: absolute; left: -30px; top: 0; width: 110px; height: 110px; z-index: 0; pointer-events: none; }
+.vd-inv-my .equip .subw .vs { position: absolute; left: 0; top: 40px; width: 70px; height: 70px; pointer-events: auto; }
+.vd-inv-my .equip .subw .kv { position: absolute; left: -8px; top: 2px; width: 40px; height: 40px; }
+.vd-inv-my .equip .subw .swap { position: absolute; left: 74px; top: 84px; width: 32px; height: 22px; background: #707070;
+  --m: url(../art/ui/icon_common/Swap.webp); -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+.vd-inv-my .equip .subw .dim { position: absolute; left: 24px; top: 40px; width: 46px; height: 46px; background: rgba(27,27,27,.698); pointer-events: none; }
 .vd-inv-my .pager { position: absolute; left: 0; top: 175px; width: 530px; height: 48px; border-bottom: 2px solid #535353; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 30px; }
 .vd-inv-my .pager .prev, .vd-inv-my .pager .next { width: 15px; height: 28px; background: #b5b5b5; cursor: pointer; visibility: hidden;
   -webkit-mask: url(../art/ui/inventory/arrow_side_001.webp) center / contain no-repeat; mask: url(../art/ui/inventory/arrow_side_001.webp) center / contain no-repeat; }
@@ -454,6 +478,8 @@
   .vd-inv-my { left: 20px; top: 20px; height: 660px; }
   .vd-inv-my .head { top: 0; }
   .vd-inv-my .equip { top: 50px; }
+  .vd-inv-my .equip .subw { left: -12px; top: -12px; }
+  .vd-inv-my .equip .subw .kv { left: 0; top: 10px; width: 26px; height: 26px; }
   .vd-inv-my .pager { top: 130px; height: 20px; border-bottom: 0; }
   .vd-inv-my .pager:not(.multi) { display: none; }
   .vd-inv-my .grid.inv { top: 150px; }
@@ -596,6 +622,9 @@ body.vd-cutscene #ui::after { content: ''; position: fixed; left: 0; right: 0; b
   .vd-skill b { font-size: 9px; bottom: -12px; }
   .vd-items { right: 10px; bottom: 12px; gap: 3px; display: flex; }
   .vd-item { width: 30px; height: 30px; }
+  .vd-wslot { width: 34px; height: 34px; margin: 0 8px 0 12px; }
+  .vd-wslot > i.sub { left: -8px; top: 6px; width: 26px; height: 26px; }
+  .vd-wslot > i.swap { left: 20px; top: 35px; width: 12px; height: 8px; }
   .vd-item b { font-size: 9px; bottom: -12px; }
   .vd-minimap { right: 8px; top: 8px; }
   .vd-boss { width: min(520px, 44vw); }   /* chừa góc trái trên cho bảng nhiệm vụ (.vd-qtrack max 26vw) */

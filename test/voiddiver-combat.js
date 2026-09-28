@@ -368,7 +368,14 @@ console.log('\n[7b] Gayoung 10010300: ném xích → DamageProvide → lao MoveT
   // 4 node: chỉ báo → 사슬 → 돌진 → 돌진 종료 (không so 'text': tables.js bỏ cột ghi chú)
   const nodes = w.events.filter(e => e.type === 'node' && e.unit === g && e.skillId === 10010300);
   check('MoveFinishSkillTrigger → node thứ 4 "돌진 종료" (dài 0.1 s)', nodes.length === 4 && near(nodes[3].dur, 0.1, 1e-9) && w.events.some(e => e.type === 'skillEnd' && e.unit === g && near(e.t - nodes[3].t, 0.1, FR)), nodes.length);
-  check('vfx lớn (mục tiêu mang 3000013 của mình) thay vì vfx nhỏ', !!w.events.find(e => e.type === 'vfx' && e.name === '1001/1001_02_SwordSkill_01_Hit2_big') && !w.events.find(e => e.type === 'vfx' && e.name === '1001/1001_02_SwordSkill_01_Hit1_small'));
+  // Hitbox 100103002 có 2 CollisionFxEvent (big: đích mang 3000013 của mình; small: không mang) và hitVfx = Hit1_small.
+  // HitBox.<UpdateHitCollision>g__TryCollision [ĐO 0x1805eaf20] luôn tạo NtfDisplayFx từ hitVfx (CreateNtfDisplayFx, hitPointType
+  // None cũng vậy) rồi SendToAll khi tên vfx khác rỗng → hitVfx nhỏ (0,5 s, tại điểm trúng) vẫn phát cạnh CollisionFxEvent lớn.
+  const fxOn = (name) => w.events.find(e => e.type === 'vfx' && e.name === name && e.unit === d);
+  check('CollisionFxEvent lớn (mục tiêu mang 3000013 của mình) thay vì CollisionFxEvent nhỏ',
+    !!fxOn('1001/1001_02_SwordSkill_01_Hit2_big') && !fxOn('1001/1001_02_SwordSkill_01_Hit1_small')
+    && w.events.some(e => e.type === 'sfx' && e.name === 'Skill_100001_Chain_Big_Hit') && !w.events.some(e => e.type === 'sfx' && e.name === 'Skill_100001_Chain_Small_Hit'));
+  check('hitVfx của hitbox (hitPointType None) vẫn phát tại điểm trúng', w.events.some(e => e.type === 'vfx' && e.name === '1001/1001_02_SwordSkill_01_Hit1_small' && !e.unit && e.pos && near(e.duration, 0.5)));
   check('CD 8 s tính từ node "사슬"', g.cd[10010300] > 6.5 && g.cd[10010300] < 8, g.cd[10010300].toFixed(2));
 }
 

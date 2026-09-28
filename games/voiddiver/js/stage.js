@@ -72,6 +72,8 @@
       },
       spawnExtraUnit(id, owner, pos, dir) { return S.spawn({ kind: 'extra', id, pos, aim: dir, team: owner.team, owner }); },
       spreadAggro(u, dist) { if (VD.AI && VD.AI.spreadAggro) VD.AI.spreadAggro(S.A, u, dist); },
+      // GameObjectManager.GetMonstersInSight (HitBox.CorrectAimDir): chỉ người chơi có nón nhìn; unit khác coi như thấy hết
+      inSight(u, m) { return u.kind !== 'char' || !u.row.SightRange || inSight(u, m); },
     };
   }
 
@@ -85,7 +87,7 @@
   };
   S.end = function () {
     for (const v of S.vis.values()) v.dispose();
-    S.vis.clear(); S.fx.clear(); S.hbAnchors.clear(); S.aimAnchors.clear();
+    S.vis.clear(); S.fx.clear(); S.hbAnchors.clear(); S.unitFollowers.clear();
     if (S.units) S.units.length = 0;
     S.player = null; S.deadQueue.length = 0;
     if (VD.vfx && VD.vfx.clear) VD.vfx.clear();
@@ -95,7 +97,9 @@
     // Talent của hồ sơ (app.js đặt S.charExtras trước khi lặn): talents cho TalentConditionList, AddSkill → passive thêm của nhân vật.
     const ex = spec.kind === 'char' && S.charExtras ? S.charExtras : null;
     if (ex && ex.talents) spec = Object.assign({ talents: ex.talents }, spec);
-    const u = VD.Skill.makeUnit(S.A, spec);
+    // add:false — makeUnit(world) tự push + initPassives; ở đây push/initPassives một lần bên dưới (sau khi gắn skill talent),
+    // nếu không mọi AddPassiveSkillTrigger chạy hai lần (đo: bom 10002 của Mio phát 2 vòng Sitting_Ring cùng lúc).
+    const u = VD.Skill.makeUnit(S.A, Object.assign({}, spec, { add: false }));
     if (ex && ex.skills && ex.skills.length) {
       u.row = Object.assign({}, u.row, { PassiveSkillIds: (u.row.PassiveSkillIds || []).concat(ex.skills.filter(id => VD.combatDB().skill(id))) });
       VD.Skill.bindSkills(u);
@@ -117,7 +121,7 @@
       return VD.loadSpine(name);
     }).then(bundle => {
         if (u.removed) return;
-        const skins = a.skins && a.skins.length ? a.skins : [String(u.id)];
+        const skins = spec.skins || (a.skins && a.skins.length ? a.skins : [String(u.id)]);
         const vis = new VD.UnitVisual(bundle, { skins, scale: a.scale || 1, shadow: a.shadow || 0.5, id: u.id });
         VD.render.scene.add(vis.root);
         S.vis.set(u.uid, vis);
@@ -170,13 +174,16 @@
       if (!done && enabled) { const m = nearestInSight(u); if (m) done = aimAt(m.pos); }
       if (!done && Math.hypot(mvx, mvz) > 0.01) ui.aim = { x: mvx, z: mvz };
     }
-    // Sảnh: chỉ đi lại (không đánh, không skill).
-    const h = enabled && S.mode !== 'lounge' ? inp.held : (enabled ? { Run: inp.held.Run } : {});
+    // Sảnh cũng đánh / dùng skill được: CharacterIdleState.GetNextStateEvent nhận UseSkillEvent không xét IsInLounge,
+    // UnitModel.CheckSkill không có luật sảnh. Khác biệt ở sảnh là u.nonCombat (skill.js payCost, anim).
+    // PlayerInputController.OnSkill*ClickStart / OnBasicAttackStart / OnDashSkillStart gửi ReqInputSkill ngay lúc bấm (callback
+    // started), nên phím bấm-nhả trọn giữa hai bước mô phỏng (khung chậm) vẫn tính: held || pressed (pressed xoá ở input.endFrame).
+    const on = k => enabled && !!(inp.held[k] || inp.pressed[k]);
     const b = ui.buttons;
-    b.attack = !!h.SkillBasicAttack; b.dash = !!h.SkillDash;
+    b.attack = on('SkillBasicAttack'); b.dash = on('SkillDash');
     for (let i = 0; i < 5; i++) b['skill' + i] = false;
     const lo = S.loadout || {};
-    for (const key of ['SkillOne', 'SkillTwo', 'SkillThree', 'SkillFour']) if (lo[key] >= 0 && h[key]) b['skill' + lo[key]] = true;
+    for (const key of ['SkillOne', 'SkillTwo', 'SkillThree', 'SkillFour']) if (lo[key] >= 0 && on(key)) b['skill' + lo[key]] = true;
     runToggle(u, dt, enabled);
     // Đi bộ/chạy khi không thi triển skill (skill.js tắt locomotion riêng: world.skillLocomotion = false).
     u.running = false;
@@ -237,16 +244,19 @@
 
   // Quái gần nhất trong tầm nhìn của người chơi (GameObjectManager._monstersInLocalSight): nón SightAngle × SightRange
   // + vòng SightBackRange phía sau, như vùng sáng render.setSight. [SUY LUẬN: bản gốc còn chắn bởi tường theo PlaneSight]
-  function nearestInSight(u) {
+  function inSight(u, m) {
     const range = u.row.SightRange || 5, back = u.row.SightBackRange || 1, half = (u.row.SightAngle || 120) / 2 * Math.PI / 180;
     const f = u.aim || { x: 0, z: 1 };
+    const dx = m.pos.x - u.pos.x, dz = m.pos.z - u.pos.z, d = Math.hypot(dx, dz);
+    if (d > range) return false;
+    const inCone = d < 1e-6 || (dx * f.x + dz * f.z) / d >= Math.cos(half);
+    return inCone || d <= back;
+  }
+  function nearestInSight(u) {
     let best = null, bd = Infinity;
     for (const m of S.units) {
-      if (m.kind !== 'mon' || m.dead || m.removed) continue;
-      const dx = m.pos.x - u.pos.x, dz = m.pos.z - u.pos.z, d = Math.hypot(dx, dz);
-      if (d > range) continue;
-      const inCone = d < 1e-6 || (dx * f.x + dz * f.z) / d >= Math.cos(half);
-      if (!inCone && d > back) continue;
+      if (m.kind !== 'mon' || m.dead || m.removed || !inSight(u, m)) continue;
+      const d = Math.hypot(m.pos.x - u.pos.x, m.pos.z - u.pos.z);
       if (d < bd) { bd = d; best = m; }
     }
     return best;
@@ -268,7 +278,7 @@
   const IDENT = Math.PI;   // dir của VD.vfx.play để +Z Unity của prefab trùng +Z Unity thế giới
   function yawOf(d) { return d && (d.x || d.z) ? Math.atan2(d.x, d.z) : IDENT; }
   S.hbAnchors = new Map();   // hb.uid → { hb, obj, handles }
-  S.aimAnchors = new Map();  // u.uid → { u, obj }
+  S.unitFollowers = new Set();  // { u, obj, bone, off, inheritMove, updByAim, destroyOnDeath, h }
   // al: hệ số nội suy giữa bước mô phỏng trước và bước này (VD.loop.alpha), xem S.render
   function syncHb(a, al) {
     const hb = a.hb, k = a.px === undefined || al === undefined ? 1 : al;
@@ -277,19 +287,40 @@
     else a.obj.position.set(a.px + (x - a.px) * k, a.py + (y - a.py) * k, a.pz + (z - a.pz) * k);
     a.obj.quaternion.setFromAxisAngle(UP, Math.atan2(hb.dir.x, hb.dir.z));
   }
-  function syncAim(a) {
-    const u = a.u, r = u.rpos || u.pos;
-    a.obj.position.set(r.x, 0, r.z);
-    if (u.aim) a.obj.quaternion.setFromAxisAngle(UP, Math.atan2(u.aim.x, u.aim.z));
+  // Hướng đi (UnitModel.MoveDir): phím đang bấm, không bấm thì hướng đi gần nhất, chưa đi bao giờ thì hướng nhìn.
+  function moveDirOf(u) {
+    const rd = u.run && u.run.move && u.run.move.dir;   // cú lướt đang chạy (MoveToMoveDir…): hướng lướt
+    if (rd) return rd;
+    const m = u.input && u.input.move, l = m ? Math.hypot(m.x, m.z) : 0;
+    if (l > 1e-4) return { x: m.x / l, z: m.z / l };
+    return u.lastMoveDir || u.aim;
+  }
+  // unitFollower — UnitFollower.Update [ĐO 0x180716170], gắn cho mọi NtfDisplayFx có đơn vị đích (VfxEvent không
+  // IsIndependent, BuffVfx, hitVfx UseBoneAttachHitVfx…; GameVfxManager.AttachUnitFollower 0x18072e350):
+  //   boneType ≠ None: vị trí = chân unit + GetBoneOffset(bone) (tính lại MỖI KHUNG theo khung xương) + offset (trục thế giới);
+  //   boneType None: d = phẳng(InheritMoveDir ? MoveDir : Forward); d ≠ 0 → chân + LookRotation(d)·offset, d = 0 → chân + offset.
+  //   Hướng VFX giữ như lúc sinh (Direction của NtfDisplayFx); UpdateByAimDir → LookRotation(phẳng(ngắm)) mỗi khung.
+  //   Unit mất hình → Despawn; DestroyOnUnitFollowerTargetDeath + unit chết (State 4/5/10) → Despawn.
+  function syncFollower(a) {
+    const u = a.u, r = u.rpos || u.pos, o = a.off;
+    let x = r.x, y = 0, z = r.z;
+    if (a.bone && a.bone !== 'None') {
+      const v = visOf(u), bo = v ? v.boneOffset(a.bone) : null;
+      if (bo) { x += bo.x; y += bo.y; z += bo.z; }
+      x += o.x; y += o.y; z -= o.z;
+    } else {
+      const d = a.inheritMove ? moveDirOf(u) : u.aim, l = d ? Math.hypot(d.x, d.z) : 0;
+      if (l > 1e-6) {
+        const fx = d.x / l, fz = d.z / l;   // tới (three); phải = (−fz, fx) như hitbox.js right()
+        x += -fz * o.x + fx * o.z; z += fx * o.x + fz * o.z; y += o.y;
+      } else { x += o.x; y += o.y; z -= o.z; }
+    }
+    a.obj.position.set(x, y, z);
+    if (a.updByAim && u.aim) a.obj.quaternion.setFromAxisAngle(UP, Math.atan2(u.aim.x, u.aim.z));
   }
   function hbAnchor(hb) {
     let a = S.hbAnchors.get(hb.uid);
     if (!a) { a = { hb, obj: new THREE.Object3D(), handles: [] }; S.hbAnchors.set(hb.uid, a); syncHb(a); }
-    return a;
-  }
-  function aimAnchor(u) {
-    let a = S.aimAnchors.get(u.uid);
-    if (!a) { a = { u, obj: new THREE.Object3D() }; S.aimAnchors.set(u.uid, a); syncAim(a); }
     return a;
   }
   function playFx(e) {
@@ -300,7 +331,7 @@
     local.z += (+e.zOffset || 0) + (+e.forward || 0);
     const o = { local, speeds: e.speeds, duration: e.duration > 0 ? e.duration : 0, loop: !!e.loop, loopDuration: e.loopDuration,
       element: e.element || undefined, owner: ov ? ov.root : null, pos: { x: 0, y: 0, z: 0 } };
-    let anchor = null;
+    let anchor = null, follower = null;
     if (hb) {
       // HitBox.vfx: con của hitbox → theo vị trí (cả độ cao/parabol) và hướng của nó; SpawnWithIdentityRotation giữ xoay gốc
       anchor = hbAnchor(hb);
@@ -310,18 +341,24 @@
       if (hb.info.InheritOwnerScaleX && ov && ov.flip) o.scaleX = -1;
       o.hbTime = { col: hb.colTo || 0, dur: hb.dur || 0 };   // ChainSkillVfx: collisionEndTime / duration của hitbox
     } else if (src && e.follow && v) {
-      if (e.updateByAim) { o.follow = aimAnchor(src).obj; o.followRot = true; o.dir = 0; }
-      else { o.follow = v.root; o.dir = yawOf(e.dir); }
+      const off = VD.vec3(e.offset);
+      off.z += (+e.zOffset || 0) + (+e.forward || 0);
+      follower = { u: src, obj: new THREE.Object3D(), bone: e.bone, off, inheritMove: !!e.inheritMove, updByAim: !!e.updateByAim,
+        destroyOnDeath: !!e.destroyOnDeath, h: null };
+      syncFollower(follower);
+      o.follow = follower.obj; o.local = null;
+      if (e.updateByAim) { o.followRot = true; o.dir = 0; } else o.dir = yawOf(e.dir);
     } else {
       const p = e.pos || (src && src.pos);
       if (!p) return null;
       o.pos = { x: p.x, y: p.y || 0, z: p.z };
       o.dir = yawOf(e.dir);
     }
-    const bo = v && e.bone ? v.boneOffset(e.bone) : null;
+    const bo = !follower && v && e.bone ? v.boneOffset(e.bone) : null;
     if (bo) { o.pos.x += bo.x; o.pos.y += bo.y; o.pos.z += bo.z; }
     const h = VD.vfx.play(e.name, o);
     if (anchor) anchor.handles.push(h);
+    if (follower) { follower.h = h; S.unitFollowers.add(follower); }
     if (e.key) S.fx.set(e.key, h);
     return h;
   }
@@ -374,10 +411,19 @@
     switch (e.type) {
       case 'anim': {
         if (!u) break;
-        u.drive = { name: e.name, moveName: e.moveName, loop: !!e.loop, t0: S.A.time, offset: e.offset || 0, speeds: e.speeds, ts: e.timeScale || e.speed || 1 };
+        u.drive = { name: e.name, moveName: e.moveName, loop: !!e.loop, t0: S.A.time, offset: e.offset || 0, speeds: e.speeds, ts: e.timeScale || e.speed || 1,
+          multiTrack: !!e.multiTrack };
         break;
       }
-      case 'animMove': if (u && u.drive) u.drive.moving = !!e.moving; break;
+      case 'animMove': {
+        if (!u || !u.drive) break;
+        // UseMultiTrackMoveAnimation (UnitSkillState.UpdateMoveByInputAnimation 0x1806ce970): bắt đầu đi → NtfPlayAnimation
+        // {GetMoveAnimation(), MultiTrack = moveAnimationName}; dừng → NtfPlayAnimation{animationName} không offset, không
+        // animationSpeeds (clip skill chạy lại từ 0 ở tốc độ 1).
+        if (u.drive.multiTrack && !!e.moving !== !!u.drive.moving) { if (e.moving) u.drive.mt0 = S.A.time; else u.drive.mtStop = S.A.time; }
+        u.drive.moving = !!e.moving;
+        break;
+      }
       case 'skillEnd': if (u) u.drive = null; break;
       case 'vfx': playFx(e); break;
       // DestroyOnActionEnd/OnSkillEnd, hitbox huỷ, buff gỡ: như Destroy/PlayEnd của SkillVfx gốc (có clip End thì chạy nó)
@@ -432,7 +478,11 @@
     // vị trí trước bước này, cho nội suy lúc vẽ (vòng lặp mô phỏng bước cố định 60 Hz, vẽ theo tần số màn hình)
     for (const u of S.units) { if (!u.ppos) u.ppos = { x: u.pos.x, z: u.pos.z }; else { u.ppos.x = u.pos.x; u.ppos.z = u.pos.z; } }
     for (const a of S.hbAnchors.values()) { a.px = a.hb.pos.x; a.py = a.hb.pos.y || 0; a.pz = a.hb.pos.z; }
-    if (S.player && !S.player.dead) playerInput(S.player, dt);
+    if (S.player && !S.player.dead) {
+      playerInput(S.player, dt);
+      const m = S.player.input.move, l = Math.hypot(m.x, m.z);
+      if (l > 1e-4) S.player.lastMoveDir = { x: m.x / l, z: m.z / l };
+    }
     VD.Skill.step(S.A, dt);
     if (VD.AI && VD.AI.step) VD.AI.step(S.A, dt);
     if (VD.AI && VD.AI.applyLight && S.mode === 'dive') VD.AI.applyLight(S.A, dt);
@@ -474,17 +524,31 @@
       if (u.aim) { v.setFacing(Math.atan2(u.aim.z, u.aim.x)); v.setAim(u.aim.x, u.aim.z); }
       v.frozen = !!(u.buffs && u.buffs.cc && u.buffs.cc.type === 'Freeze');
       const phase = u.row.Phase > 0 ? u.row.Phase : 0;
+      if (!u.drive || u.dead) v.clearTrack1();
       if (u.dead) {
         const n = v.resolve(u.kind === 'char' ? CHAR_LOCO.death : 'death', phase);
         if (n) v.pose(n, now - (u.deadAt || now), false, dt);
       } else if (u.drive) {
         const d = u.drive, t = now - d.t0;
-        const clipT = d.speeds && d.speeds.length ? VD.Skill.animTimeAt(d.speeds, d.offset, t * d.ts) : d.offset + t * d.ts;
-        const want = d.moving && d.moveName ? d.moveName : d.name;
-        const n = v.resolve(want, phase) || v.resolve(d.name, phase);
-        if (n) v.pose(n, clipT, d.loop, dt);
+        const top = d.multiTrack && d.moving && d.moveName ? v.resolve(d.moveName, phase) : null;
+        if (top) {
+          // chân: GetMoveAnimation (đi/chạy lặp theo tốc độ đi trong skill), thân trên: moveAnimationName ở track 1 từ lúc bắt đầu đi
+          const mt = now - d.mt0, sp = VD.Stats.get(u, 'MoveSpeed');
+          const runN = sp >= VD.combatDB().c('MoveSpeedThresholdForRun', 2.4) ? v.resolve(CHAR_LOCO.run, phase) : null;
+          const legs = runN || v.resolve(CHAR_LOCO.walk, phase);
+          if (legs) v.pose(legs, mt * (runN ? 1 : Math.max(0.3, sp / (u.row.WalkAnimation1xSpeed || 1))), true, dt);
+          v.poseTrack1(top, mt, true);
+        } else {
+          v.clearTrack1();
+          const restart = d.multiTrack && d.mtStop != null;
+          const clipT = restart ? now - d.mtStop : d.speeds && d.speeds.length ? VD.Skill.animTimeAt(d.speeds, d.offset, t * d.ts) : d.offset + t * d.ts;
+          const want = !d.multiTrack && d.moving && d.moveName ? d.moveName : d.name;
+          const n = v.resolve(want, phase) || v.resolve(d.name, phase);
+          if (n) v.pose(n, clipT, d.loop, dt);
+        }
       } else {
-        const L = S.mode === 'lounge' || u.kind !== 'char' ? LOUNGE_LOCO : CHAR_LOCO;
+        // CharacterView.GetIdleAnimation / GetMoveAnimation: default/* khi UnitModel.IsNonCombat (sảnh, ngoài TrainingField).
+        const L = u.kind !== 'char' || (S.mode === 'lounge' && u.nonCombat !== false) ? LOUNGE_LOCO : CHAR_LOCO;
         // Skill vừa bị huỷ bằng phím đi trong khung này (IsCancelableByMove): playerInput chạy trước Skill.step nên
         // u.moving còn false; vẫn chọn clip đi để không chớp idle một khung rồi mới trộn sang walk.
         const mvIn = u.input && u.input.move && Math.hypot(u.input.move.x, u.input.move.z) > 0.01 && !u.buffs.stunned() && !u.buffs.has('Root');
@@ -503,7 +567,11 @@
       if (a.hb.alive) syncHb(a, al);
       else if (!a.handles.some(h => VD.vfx.isAlive(h))) S.hbAnchors.delete(k);
     }
-    for (const [k, a] of S.aimAnchors) { if (a.u.removed) S.aimAnchors.delete(k); else syncAim(a); }
+    for (const a of S.unitFollowers) {
+      if (!VD.vfx.isAlive(a.h)) { S.unitFollowers.delete(a); continue; }
+      if (a.u.removed || !S.vis.get(a.u.uid) || (a.destroyOnDeath && a.u.dead)) { VD.vfx.stop(a.h, true); S.unitFollowers.delete(a); continue; }
+      syncFollower(a);
+    }
     if (VD.vfx) VD.vfx.update(dt, cam);
   };
 

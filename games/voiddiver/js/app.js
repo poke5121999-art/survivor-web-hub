@@ -118,9 +118,9 @@
     // Talent: AddSkill → passive của nhân vật; talents → TalentConditionList trong skill (stage.js đọc charExtras lúc spawn nhân vật).
     const tal = {}; for (const k of Object.keys(p.talents || {})) if (p.talents[k]) tal[k] = true;
     VD.stage.charExtras = { talents: tal, skills: P.talentSkills() };
-    const eq = (p.equip && p.equip[charId]) || {};
-    const loadout = Object.assign({ skills: opts.loadout && opts.loadout.skills ? opts.loadout.skills : A.skillLoadout(charId), weaponId: eq.weapon || undefined,
-      equipmentIds: [].concat(eq.acc || [], eq.art || []).filter(Boolean) }, opts.loadout || {});
+    const eq = A.equipOf(charId);
+    const loadout = Object.assign({ skills: opts.loadout && opts.loadout.skills ? opts.loadout.skills : A.skillLoadout(charId), weaponId: eq.weaponId,
+      equipmentIds: eq.equipmentIds, skins: A.skinsOf(charId, eq.weaponId) }, opts.loadout || {});
     // Túi: hàng trong "pack" rời sảnh cùng nhân vật (thoát: dive.js cất tất cả vào kho; chết: mất trừ khe an toàn).
     const goods = (p.pack || []).map(g => Object.assign({}, g));
     p.pack = [];
@@ -150,6 +150,47 @@
     const lo = VD.profile.loadout(charId), n = A.skillSlotCount(), out = {};
     A.SLOT_KEYS.forEach((k, i) => { out[k] = i < n && lo[k] != null ? lo[k] : -1; });
     return out;
+  };
+
+  // Trang bị của nhân vật theo hồ sơ: vũ khí (mặc định TCharacter.DefaultWeaponId), phụ kiện + cổ vật. Dùng chung cho lặn và sảnh.
+  A.equipOf = function (charId) {
+    const p = VD.profile.get(), eq = (p.equip && p.equip[charId]) || {};
+    return { weaponId: eq.weapon || undefined, equipmentIds: [].concat(eq.acc || [], eq.art || []).filter(Boolean) };
+  };
+  // Skin vũ khí: Equipment.WeaponSkinName → skin Spine "weapon/<tên>" (bộ Cha_* có đủ weapon/1001…1022 v.v.).
+  A.skinsOf = function (charId, weaponId) {
+    const a = VD.ASSETS.units && VD.ASSETS.units[charId];
+    const w = weaponId && VD.combatDB().equipment(weaponId);
+    if (!a || !a.skins || !w || !w.WeaponSkinName) return undefined;
+    return a.skins.map(s => /^weapon\//.test(s) ? 'weapon/' + w.WeaponSkinName : s);
+  };
+  // Character.EquipmentActiveSkillId: skill Active đầu tiên trong EquipmentEffect.SkillIds của trang bị đang mặc (ô C). 0 = không có.
+  A.equipSkillId = function (charId) {
+    const db = VD.combatDB();
+    for (const id of A.equipOf(charId).equipmentIds) {
+      const e = db.equipment(id);
+      for (const eid of (e && e.EquipmentEffectIds) || []) {
+        const ef = (VD.T.EquipmentEffect || []).find(x => x.Id === eid);
+        for (const sid of (ef && ef.SkillIds) || []) { const s = db.skill(sid); if (s && s.SkillType === 'Active') return sid; }
+      }
+    }
+    return 0;
+  };
+  // Nhân vật trong sảnh luôn mang đúng bộ đồ + skill của hồ sơ. ReqChangeCharacter / ReqChangeCharacterSkills gốc gọi
+  // GamePlayer.set_Character ngay (CharacterController.OnChangeCharacterSkills) nên đổi ở bảng nào cũng hiện liền trên người.
+  // Đổi nhân vật / trang bị / talent → sinh lại unit tại chỗ (chỉ số, skin vũ khí, passive); chỉ đổi skill → thay loadout.
+  A.loungeSig = function () {
+    const p = VD.profile.get(), id = p.character;
+    return JSON.stringify([id, A.equipOf(id), Object.keys(p.talents || {}).filter(k => p.talents[k]).sort()]);
+  };
+  A.refreshLoungePlayer = function () {
+    const S = VD.stage, old = S.player;
+    if (A.scene !== 'lounge' || !old || !VD.lounge || VD.lounge.state !== 'play') return null;
+    let u = old;
+    if (VD.lounge.playerSig !== A.loungeSig()) u = VD.lounge.spawnPlayer({ x: old.pos.x, z: old.pos.z }, old.aim, old);
+    S.setPlayer(u, A.skillLoadout(u.id));
+    VD.player = u;
+    return u;
   };
 
   function closeDialog() {

@@ -6,7 +6,8 @@
  *      đi qua từng trigger theo thứ tự của Lua gốc (dịch chuyển tới hộp trigger, bấm F thật),
  *      mở rương lấy chìa, mở cửa khoá, bẫy, căng thẳng 80 + quái bóng tối, hết pin, cutscene boss, ép thoát → màn kết quả.
  *      Kiểm từng bước Lua qua VD.lua.trace ("tutorial:<tên hàm>" do SendTutorialEvent ghi).
- *   2. Campaign 101 (Normal) 1280×720: mở rương, giết quái bằng chuột trái, nhặt đồ, gọi buồng ở lối thoát, thoát.
+ *   2. Campaign 101 (Normal) 1280×720: mở rương, giết quái bằng chuột trái, xác quái có đồ nằm lại (giữ F "Kiểm tra" lục như rương,
+ *      lục hết thì biến sau 3 s), F / kéo thả trang bị trong Tab, V đổi vũ khí (Atk, da Spine, ô HUD), nhặt đồ, gọi buồng, thoát.
  *   3. 844×390: HUD, lời nhắc F, túi đồ vừa màn hình, không chồng nhau.
  *   Hỏng nếu: pageerror, console error, response ≥ 400. Ảnh ở %TEMP%/voiddiver-dive-shots/ — mở ra xem.
  */
@@ -376,6 +377,7 @@ async function normal(browser, port, errors) {
   await gameWait(page, 0.2);   // luaEvent vào hàng đợi, xả ở khung hình kế
   check('sự kiện Lua MonsterKill (201) được gửi', (await trace(page)).some(t => /^event:201:/.test(t)));
   await gameWait(page, 1.0);
+  await corpseAndGear(page);
 
   // --- nhặt đồ: đồ quái rơi nếu có, không thì vứt một món khỏi túi rồi nhặt lại
   let drop = await page.evaluate(() => { const p = VD.stage.player.pos; const d = VD.dive.ents.filter(e => e.kind === 'drop').sort((a, b) => Math.hypot(a.pos.x - p.x, a.pos.z - p.z) - Math.hypot(b.pos.x - p.x, b.pos.z - p.z))[0]; return d && Math.hypot(d.pos.x - p.x, d.pos.z - p.z) < 12 ? d.id : null; });
@@ -389,7 +391,17 @@ async function normal(browser, port, errors) {
       return d ? d.id : null;
     });
   }
-  const g0 = await page.evaluate(id => { const d = VD.dive.ents.find(e => e.id === id); VD.dive.debug.teleport(d.pos.x + 0.3, d.pos.z + 0.3); return { goods: d.goods, n: VD.inventory.count(d.goods.type, d.goods.id) }; }, drop);
+  // Đứng cách đồ rơi 0,3 m về phía xa vật tương tác khác gần nhất (xác quái có đồ nằm lại, rương): F chọn vật gần nhất.
+  const g0 = await page.evaluate(id => {
+    const d = VD.dive.ents.find(e => e.id === id);
+    const o = VD.dive.ents.filter(e => e !== d && !e.removed && (e.kind === 'corpse' || e.kind === 'box'))
+      .sort((a, b) => Math.hypot(a.pos.x - d.pos.x, a.pos.z - d.pos.z) - Math.hypot(b.pos.x - d.pos.x, b.pos.z - d.pos.z))[0];
+    let vx = 1, vz = 1;
+    if (o) { vx = d.pos.x - o.pos.x; vz = d.pos.z - o.pos.z; }
+    const l = Math.hypot(vx, vz) || 1;
+    VD.dive.debug.teleport(d.pos.x + vx / l * 0.3, d.pos.z + vz / l * 0.3);
+    return { goods: d.goods, n: VD.inventory.count(d.goods.type, d.goods.id) };
+  }, drop);
   await gameWait(page, 0.4);
   await shot(page, 'n-06-drop');
   const fdrop = await focus(page);
@@ -463,6 +475,81 @@ async function clickLoot(page) {
   }
 }
 
+// ---------------------------------------------------------------- xác quái + trang bị trong lượt lặn (docs/DIVE.md §13–14)
+// Quái có đồ chết thì đồ nằm trong xác (MonsterBody): xác không biến sau 3 s, giữ F "Kiểm tra" mở cùng bảng lục như rương,
+// lấy hết thì xác biến sau ReservedDespawn 3 s. Rồi trong bảng Tab: F lên kiếm vừa lấy (trang bị vào ô vũ khí, món cũ về túi),
+// kéo kiếm cũ vào ô vũ khí phụ, V đổi vũ khí ngoài bảng — chỉ số, da vũ khí Spine và ô vũ khí HUD đổi theo.
+async function corpseAndGear(page) {
+  const cp = await page.evaluate(() => {
+    const p = VD.stage.player, T = VD.T;
+    const sword = T.Equipment.find(e => e.GoodsType === 'Weapon' && e.WeaponType === p.row.WeaponType && e.Grade === 'Rare');
+    const u = VD.dive.debug.spawnMonster(200001, p.pos.x + 1.4, p.pos.z + 0.3, { dropGroup: 121000 });
+    const rolled = Array.isArray(u.lootItems);
+    // thứ MonsterController bốc lúc sinh — đặt cố định để có một thanh kiếm đúng loại
+    u.lootItems = [{ type: 'Item', id: 7000, count: 1 }, { type: 'Equipment', id: sword.Id, count: 1 }];
+    u.hp = 1; window.__cmon = u;
+    return { rolled, sword: sword.Id, drops: VD.dive.ents.filter(e => e.kind === 'drop').length };
+  });
+  check('quái bốc đồ vào kho xác ngay lúc sinh (MonsterController.CreateInventorySlots)', cp.rolled);
+  for (let i = 0; i < 10 && !(await page.evaluate(() => window.__cmon.dead)); i++) {
+    const s = await page.evaluate(() => { const m = window.__cmon.pos, v = new THREE.Vector3(m.x, 0.5, m.z).project(VD.render.camera), c = VD.render.renderer.domElement; return { x: (v.x + 1) / 2 * c.clientWidth, y: (1 - v.y) / 2 * c.clientHeight }; });
+    await page.mouse.move(s.x, s.y); await page.mouse.down(); await gameWait(page, 0.2); await page.mouse.up(); await gameWait(page, 0.3);
+    await page.evaluate(() => { const u = VD.stage.player; if (u.hp < u.stats.HpMax * 0.5) u.hp = u.stats.HpMax; });
+  }
+  await gameWait(page, 4);
+  const c1 = await page.evaluate(() => ({ dead: window.__cmon.dead, removed: !!window.__cmon.removed, corpse: VD.dive.ents.filter(e => e.kind === 'corpse' && e.unit === window.__cmon).length, drops: VD.dive.ents.filter(e => e.kind === 'drop').length }));
+  check('quái có đồ chết bằng chuột trái: không văng DropGoods, xác còn nằm sau 4 s', c1.dead && !c1.removed && c1.corpse === 1 && c1.drops === cp.drops, JSON.stringify(c1));
+  await tpTo(page, 'e.kind === "corpse" && e.unit === window.__cmon', 0.5, 0.4);   // quái giết ở trên cũng có thể để lại xác
+  await gameWait(page, 0.3);
+  const fc = await page.evaluate(() => { const f = VD.dive.focus; return f ? { kind: f.e.kind, verb: f.it.verb, time: f.it.time, title: document.querySelector('.vd-prompt .ttl').textContent } : null; });
+  const want = await page.evaluate(() => ({ verb: VD.TEXT.Inspect, title: VD.TEXT.DeadMonsterFormat.replace('{0}', VD.TEXT['TMonster_Name_' + window.__cmon.id]) }));
+  check('lời nhắc ở xác: "Xác {tên}" + "Kiểm tra", giữ Const.LootingInteractionTime 0,1 s', fc && fc.kind === 'corpse' && fc.verb === want.verb && fc.title === want.title && Math.abs(fc.time - 0.1) < 1e-6, JSON.stringify(fc));
+  await shot(page, 'n-06a-corpse');
+  await holdKey(page, 'KeyF', 0.3);
+  const op = await page.evaluate(() => ({ open: VD.inventory.open, src: VD.inventory.loot && VD.inventory.loot.source && VD.inventory.loot.source.kind, search: !!(VD.stage.player.drive && VD.stage.player.drive.name === 'battle/search') }));
+  check('giữ F ở xác → bảng Tab + LootingInventory của xác, không chơi battle/search', op.open && op.src === 'corpse' && !op.search, JSON.stringify(op));
+  await lootRevealed(page);
+  await shot(page, 'n-06b-corpse-loot');
+  // So chênh lệch trước/sau chứ không so số tuyệt đối: túi có thể đã có món cùng Id (đồ bốc theo D.rng, mà thứ tự rút D.rng
+  // theo nhịp khung nên seed cố định vẫn ra đồ khác nhau). src: bảng đang lục đúng là xác của __cmon, không phải xác quái trước.
+  const cnt = s => ({ src: VD.inventory.loot && VD.inventory.loot.source && VD.inventory.loot.source.unit === window.__cmon, left: VD.inventory.loot.items.length,
+    sword: VD.inventory.count('Equipment', s), ore: VD.inventory.count('Item', 7000), eq: VD.inventory.goods().filter(g => g.type === 'Equipment').map(g => g.id) });
+  const tk0 = await page.evaluate(cnt, cp.sword);
+  await clickLoot(page);
+  const tk = await page.evaluate(cnt, cp.sword);
+  check('bấm trái lấy hết đồ trong xác vào túi', tk0.src && tk.left === 0 && tk.sword === tk0.sword + 1 && tk.ore === tk0.ore + 1, JSON.stringify([tk0, tk]));
+  // --- trang bị: F lên kiếm trong túi
+  const st = () => page.evaluate(() => ({ atk: Math.round(VD.Stats.get(VD.stage.player, 'Atk')), gear: VD.inventory.gearIds(), skin: (VD.inventory.skinNames || []).find(n => /^weapon\//.test(n)),
+    hud: (document.querySelector('.vd-wslot .main img') || {}).dataset }));
+  const s0 = await st();
+  const kxy = await page.evaluate(s => { const k = VD.inventory.slots.findIndex(x => x.g && x.g.type === 'Equipment' && x.g.id === s); const el = document.querySelectorAll('.grid.inv > .vs[data-a]')[k]; const b = el.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; }, cp.sword);
+  await page.mouse.move(kxy.x, kxy.y); await sleep(120);
+  await page.keyboard.press('KeyF'); await sleep(150);
+  const s1 = await st();
+  const swordRow = await page.evaluate(s => VD.T.Equipment.find(e => e.Id === s), cp.sword);
+  check('F lên kiếm trong túi: vào ô vũ khí, kiếm cũ về đúng ô đó, Atk + da vũ khí đổi', s1.gear.weapon === cp.sword && s1.atk !== s0.atk && s1.skin === 'weapon/' + swordRow.WeaponSkinName
+    && await page.evaluate(([k, id]) => { const s = VD.inventory.slots.find(x => x.g && x.g.type === 'Equipment' && x.g.id === id); return !!s; }, [0, s0.gear.weapon]), JSON.stringify([s0, s1]));
+  // kéo kiếm cũ vào ô vũ khí phụ (phần ô phụ lộ ra bên trái ô chính)
+  const from = await page.evaluate(id => { const k = VD.inventory.slots.findIndex(x => x.g && x.g.type === 'Equipment' && x.g.id === id); const el = document.querySelectorAll('.grid.inv > .vs[data-a]')[k]; const b = el.getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; }, s0.gear.weapon);
+  const to = await page.evaluate(() => { const b = document.querySelector('.equip .subw .vs').getBoundingClientRect(); return { x: b.x + 10, y: b.y + b.height / 2 }; });
+  await page.mouse.move(from.x, from.y); await page.mouse.down();
+  await page.mouse.move(from.x + 20, from.y + 5, { steps: 3 }); await page.mouse.move(to.x, to.y, { steps: 8 });
+  const glow = await page.evaluate(() => [...document.querySelectorAll('.equip .vs.glow')].map(e => e.dataset.k).join());
+  await page.mouse.up(); await sleep(150);
+  const s2 = await st();
+  check('kéo kiếm cũ: ô vũ khí chính + phụ sáng (Highlight), thả vào ô vũ khí phụ', s2.gear.sub === s0.gear.weapon && s2.gear.weapon === cp.sword && glow === '0,6', glow + ' ' + JSON.stringify(s2.gear));
+  await shot(page, 'n-06c-gear-panel');
+  await page.keyboard.press('Tab'); await sleep(200);
+  await page.keyboard.press('KeyV'); await gameWait(page, 0.3);
+  const s3 = await st();
+  check('V ngoài bảng: đổi vũ khí đang cầm, Atk + da + ô HUD đổi', s3.gear.weapon === s0.gear.weapon && s3.gear.sub === cp.sword && s3.atk === s0.atk && s3.skin === s0.skin && s3.hud && s3.hud.src !== s2.hud.src, JSON.stringify(s3));
+  await shot(page, 'n-06d-hud-swapped');
+  await page.keyboard.press('KeyV'); await gameWait(page, 0.2);
+  await gameWait(page, 3.5);
+  const c2 = await page.evaluate(() => ({ removed: !!window.__cmon.removed, corpse: VD.dive.ents.filter(e => e.kind === 'corpse' && e.unit === window.__cmon).length }));
+  check('lục hết xác → ReservedDespawn 3 s rồi biến', c2.removed && c2.corpse === 0, JSON.stringify(c2));
+}
+
 // ================================================================ 3. màn điện thoại 844×390
 async function mobile(browser, port, errors) {
   console.log('\n== 844×390 (điện thoại ngang)');
@@ -501,9 +588,12 @@ async function mobile(browser, port, errors) {
   const errors = [];
   const only = OPT.only;
   try {
-    if (!only || only === 'tutorial') await tutorial(browser, port, errors);
-    if (!only || only === 'normal') await normal(browser, port, errors);
-    if (!only || only === 'mobile') await mobile(browser, port, errors);
+    // Đóng trang của phần trước: headless không hãm rAF trang nền — để lại thì phần sau chạy cùng hai bản game swiftshader
+    // (đo: có lần phần 844×390 gặp net::ERR_INSUFFICIENT_RESOURCES).
+    const run = async f => { const p = await f(browser, port, errors); if (p && !OPT.keep) await p.close(); };
+    if (!only || only === 'tutorial') await run(tutorial);
+    if (!only || only === 'normal') await run(normal);
+    if (!only || only === 'mobile') await run(mobile);
   } catch (e) {
     console.log('  LỖI chạy kiểm: ' + (e.stack || e));
     fail++; fails.push('exception');

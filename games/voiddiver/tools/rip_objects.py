@@ -4,7 +4,7 @@
     set PYTHONIOENCODING=utf-8
     python tools/rip_objects.py                  # moi prefab ma bang trong pham vi can + Spine + anh minimap + data/objects.js
     python tools/rip_objects.py BrownBox SteelEntrance   # chi vai prefab (van ghi lai data/objects.js tu nhung gi co tren dia)
-    python tools/rip_objects.py --spine | --minimap | --manifest
+    python tools/rip_objects.py --spine | --minimap | --manifest | --npc   # --npc: chi prefab NPC co luoi 3D (data/npcs.js)
 
 Ra:
     art/object/<Prefab>.glb   hinh (MeshRenderer + SkinnedMeshRenderer o tu the bind), gltfpack -kn giu tung node
@@ -37,9 +37,15 @@ MONO = 'be9e4d904692f945f3910b57349aeb09_monoscripts'
 # Prefab khong nam trong bang nao nhung man lan dung (ten lay tu names cua remote_prefab_assets_object).
 EXTRA = ['WaveExit', 'SafeExit', 'PhoneBooth', 'DropGoods', 'IntervalTrap', 'TriggerTrap', 'CollisionTrigger',
          'PointerArrow', 'ZoneSpointLight', 'ZoneSpawnLight', 'SphereFieldExit', 'BoxFogField', 'SphereOilField',
-         'SphereBlockedField', 'TrainingField', 'SanctuaryTree', 'Portal', 'PortalDefault',
-         # NPC sảnh dạng lưới 3D (không có Spine): sofa Shoggoth, máy Antikythera, máy hát — lounge.js dựng bằng VD.objects.
-         '700002', '700004', '700151']
+         'SphereBlockedField', 'TrainingField', 'SanctuaryTree', 'Portal', 'PortalDefault']
+
+
+def npc_mesh_prefabs():
+    """NPC co luoi 3D (data/npcs.js mesh=true, tools/rip_npc.py): sofa Shoggoth, may Antikythera, may hat, khung guong
+    Narcis, cong Gatekeeper, tu trung bay, xac trong man lan. js/npc.js dung bang VD.objects (bo Spine cua prefab)."""
+    src = open(os.path.join(GAME, 'data', 'npcs.js'), encoding='utf-8').read()
+    m = re.search(r'VD\.NPCS\s*=\s*(\{.*\})\s*;?\s*$', src, re.S)
+    return sorted(k for k, v in json.loads(m.group(1)).items() if v.get('mesh')) if m else []
 SPINES = ['World_PhoneBooth', 'NPC_Campaign']
 
 
@@ -172,8 +178,9 @@ class Glb:
         self.mat_index[key] = len(self.materials) - 1
         return self.mat_index[key]
 
-    def mesh(self, me, mats):
-        key = (me.assets_file.name, me.object_reader.path_id, tuple(mats))
+    def mesh(self, me, mats, skin=None, skin_key=None):
+        """skin(h, raw, nrm) -> (raw, nrm): dinh da skin san (toa do goc prefab) cho SkinnedMeshRenderer."""
+        key = (me.assets_file.name, me.object_reader.path_id, tuple(mats), skin_key)
         if key in self.mesh_index:
             return self.mesh_index[key]
         h = MeshHandler(me)
@@ -183,8 +190,15 @@ class Glb:
             self.mesh_index[key] = (None, 0, 0, None)
             return self.mesh_index[key]
         raw = np.array(h.m_Vertices, dtype=np.float64).reshape(n, -1)[:, :3]
+        nrm0 = np.array(h.m_Normals, dtype=np.float64).reshape(n, -1)[:, :3] if h.m_Normals else None
+        if skin is not None:
+            res = skin(h, raw, nrm0)
+            if res is None:
+                self.mesh_index[key] = (None, 0, 0, None)
+                return self.mesh_index[key]
+            raw, nrm0 = res
         pos = raw * [1, 1, -1]
-        nrm = np.array(h.m_Normals, dtype=np.float64).reshape(n, -1)[:, :3] * [1, 1, -1] if h.m_Normals else None
+        nrm = nrm0 * [1, 1, -1] if nrm0 is not None else None
         uv = None
         if h.m_UV0:
             uv = np.array(h.m_UV0, dtype=np.float32).reshape(n, -1)[:, :2].copy()
@@ -275,12 +289,54 @@ def export_prefab(env, root, cmap):
         data[k] = []
     lo, hi = np.full(3, 1e9), np.full(3, -1e9)
 
-    def walk(tr, parent_m, rel, active, is_root):
-        go = tr.m_GameObject.deref_parse_as_object()
+    def local_m(tr, parent_m, is_root):
         # Goc prefab thuong co toa do cua lan dat cuoi trong editor (vd SteelEntrance 17,0,8): bo, lay chan = goc.
         m = np.eye(4) if is_root else parent_m @ trs(tr)
         if is_root:
             q = trs(tr); m[:3, :3] = q[:3, :3]
+        return m
+
+    # Ma tran moi Transform (theo path_id) trong khong gian goc prefab: SkinnedMeshRenderer ve theo xuong, khong theo
+    # transform cua chinh no (Unity: dinh = sum w * xuong.localToWorld * bindpose * v). Dat SMR theo transform cua no
+    # sai o prefab ma SMR nam duoi xuong (sofa 700004: Sofa_tenBase nam duoi Armature/root scale 100 -> bay cao 58 m).
+    world = {}
+
+    def pre(tr, parent_m, is_root):
+        m = local_m(tr, parent_m, is_root)
+        world[tr.object_reader.path_id] = m
+        for ch in tr.m_Children:
+            pre(ch.deref_parse_as_object(), m, False)
+    pre(root, np.eye(4), True)
+
+    def skinner(r, me):
+        bones = [world.get(p.path_id) for p in r.m_Bones]
+
+        def skin(h, raw, nrm):
+            bp = list(me.m_BindPose or [])
+            if not bones or len(bp) < len(bones) or any(b is None for b in bones) or h.m_BoneIndices is None:
+                return None
+            mats = [bones[i] @ np.array([[p.e00, p.e01, p.e02, p.e03], [p.e10, p.e11, p.e12, p.e13],
+                                         [p.e20, p.e21, p.e22, p.e23], [p.e30, p.e31, p.e32, p.e33]]) for i, p in enumerate(bp[:len(bones)])]
+            n = len(raw)
+            outp, outn = np.zeros((n, 3)), (np.zeros((n, 3)) if nrm is not None else None)
+            for v in range(n):
+                idx = h.m_BoneIndices[v]
+                wts = h.m_BoneWeights[v] if h.m_BoneWeights is not None else (1.0,)
+                M = np.zeros((4, 4))
+                for k, bi in enumerate(idx):
+                    wk = wts[k] if k < len(wts) else 0.0
+                    if wk > 0:
+                        M += wk * mats[bi]
+                outp[v] = (M @ np.r_[raw[v], 1.0])[:3]
+                if outn is not None:
+                    nn = M[:3, :3] @ nrm[v]
+                    outn[v] = nn / (np.linalg.norm(nn) or 1)
+            return outp, outn
+        return skin
+
+    def walk(tr, parent_m, rel, active, is_root):
+        go = tr.m_GameObject.deref_parse_as_object()
+        m = local_m(tr, parent_m, is_root)
         on = active and bool(go.m_IsActive)
         comps = comps_of(go)
         if rel and '/' not in rel:
@@ -304,12 +360,18 @@ def export_prefab(env, root, cmap):
                 for mp in r.m_Materials:
                     mt = vd.deref(mp)
                     mats.append(g.material(mt) if mt is not None else None)
-                mi, nv, nt, raw = g.mesh(me, mats)
+                mi = None
+                if kind == 'SkinnedMeshRenderer' and len(r.m_Bones):
+                    mi, nv, nt, raw = g.mesh(me, mats, skinner(r, me), r_o.path_id)
+                m_draw = np.eye(4)      # da skin: dinh da o khong gian goc prefab
+                if mi is None:
+                    mi, nv, nt, raw = g.mesh(me, mats)
+                    m_draw = m
                 if mi is None:
                     continue
-                g.node(go.m_Name, m, mi, {'path': rel, 'group': rel.split('/')[0], 'active': on, 'skinned': kind == 'SkinnedMeshRenderer'})
+                g.node(go.m_Name, m_draw, mi, {'path': rel, 'group': rel.split('/')[0], 'active': on, 'skinned': kind == 'SkinnedMeshRenderer'})
                 data['meshes'].append({'path': rel, 'mesh': me.m_Name, 'verts': nv, 'tris': nt, 'active': on})
-                w = (np.c_[raw, np.ones(len(raw))] @ m.T)[:, :3]
+                w = (np.c_[raw, np.ones(len(raw))] @ m_draw.T)[:, :3]
                 lo[:] = np.minimum(lo, w.min(0)); hi[:] = np.maximum(hi, w.max(0))
         sc = np.linalg.norm(m[:3, :3], axis=0)
         for bc in comps.get('BoxCollider', []):
@@ -565,11 +627,13 @@ def main():
     flags = [a for a in args if a.startswith('--')]
     picks = [a for a in args if not a.startswith('--')]
     if not flags and not picks:
-        cmd_prefabs(sorted(set(names + EXTRA)))
+        cmd_prefabs(sorted(set(names + EXTRA + npc_mesh_prefabs())))
         cmd_spine(SPINES)
         cmd_minimap(T)
     if picks:
         cmd_prefabs(picks)
+    if '--npc' in flags:
+        cmd_prefabs(npc_mesh_prefabs())
     if '--spine' in flags:
         cmd_spine(SPINES)
     if '--minimap' in flags:

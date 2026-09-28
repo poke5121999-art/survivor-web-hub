@@ -112,5 +112,40 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   N.esc = esc;
 
+  // ---------------------------------------------------------------- hình NPC (sảnh và màn lặn dùng chung)
+  // Theo prefab gốc remote_prefab_assets_object/<NpcId> (data/npcs.js ← tools/rip_npc.py):
+  //  - Spine: SkeletonAnimation đang bật đầu tiên (NpcObject.Awake → GetComponentInChildren), đúng khung NW/SW của
+  //    SkeletonData đó, lật khi ma trận phản chiếu, dời theo vị trí SkeletonAnimation so với chân (Narcis +0,58 m, cú Ouldry
+  //    ngồi cao 0,4 m, Gatekeeper). NPC đứng yên như prefab: NpcObject không xoay theo người chơi.
+  //  - Lưới 3D đi kèm (khung gương Narcis, cổng Gatekeeper, sofa, máy Antikythera, máy hát, tủ trưng bày, xác trong màn lặn):
+  //    prefab xuất bằng tools/rip_objects.py, dựng bằng VD.objects (bỏ Spine của prefab vì đã dựng ở trên).
+  // target nhận .vis (UnitVisual, người gọi update mỗi khung) và .h (handle VD.objects).
+  N.visual = function (target, id, pos) {
+    const a = VD.NPCS && VD.NPCS[id];
+    if (!a) return target;
+    if (a.spine) {
+      VD.loadSpine(a.spine).then(bundle => {
+        if (target.removed) return;
+        const vis = new VD.UnitVisual(bundle, { skins: a.skins, scale: a.scale || 1, shadow: 0.4 });
+        if (a.dir && vis.meshes[a.dir] && vis.dirKey !== a.dir) {
+          vis.meshes[vis.dirKey].visible = false; vis.dirKey = a.dir; vis.meshes[a.dir].visible = true;
+        }
+        if (a.off) { vis.body.position.set(a.off[0], vis.body.position.y + a.off[1], a.off[2]); vis.shadow.position.x = a.off[0]; vis.shadow.position.z = a.off[2]; }
+        vis.root.position.set(pos.x, 0, pos.z);
+        VD.render.scene.add(vis.root);
+        const anim = (a.anim && vis.has(a.anim)) ? a.anim : (vis.resolve('idle') || vis.resolve('default/idle') || (bundle.dirs[vis.dirKey].data.animations[0] || {}).name);
+        if (anim) vis.play(anim, a.loop !== false, 1);
+        vis.flip = !!a.flip;
+        target.vis = vis;
+      }).catch(e => console.warn('[npc] ' + id + ': ' + (e.message || e)));
+    }
+    if (a.mesh && VD.objects && VD.objects.has(String(id))) {
+      target.h = VD.objects.create(String(id), { pos, noSpine: true });
+      // Mắt mở và mắt nhắm (*.close) của sofa Shoggoth đều bật trong prefab, Animator gốc bật/tắt chúng: giữ mắt mở.
+      target.h.hideGroups = [/\.close(\.\d+)?$/];
+    }
+    return target;
+  };
+
   VD.npc = N;
 })(window.VD = window.VD || {});

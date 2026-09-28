@@ -194,7 +194,8 @@
   H.update = function (dt) {
     if (!H.on || !H.root) return;
     padQuick();
-    if ((H._qbT = (H._qbT || 0) - dt) <= 0) { H._qbT = 0.5; H._qEl = H.quest; markBottom(); }
+    // Ở sảnh bảng nhiệm vụ là của lounge.js (renderQuest vào .vd-lhud-quest): H.quest rỗng thì giữ bảng đó.
+    if ((H._qbT = (H._qbT || 0) - dt) <= 0) { H._qbT = 0.5; if (H.quest.childElementCount || !H._qEl) H._qEl = H.quest; markBottom(); }
     const u = VD.stage.player;
     if (!u) return;
     const st = u.stats || {};
@@ -220,7 +221,7 @@
         const src = icon('skill', id);
         if (img.dataset.src !== src) { img.style.visibility = ''; img.onerror = () => { img.style.visibility = 'hidden'; }; img.src = src; img.dataset.src = src; }
       }
-      const cdLeft = Math.max(0, (u.cd[id] || 0) - now);
+      const cdLeft = Math.max(0, u.cd[id] || 0);   // skill.js giữ u.cd = số giây còn lại (trừ dần mỗi bước), không phải mốc thời gian
       const full = VD.Stats.cooldown ? VD.Stats.cooldown(VD.combatDB(), u, row) : row.CoolTime || 1;
       let frac = cdLeft > 0 && full > 0 ? cdLeft / full : 0;
       if (row.ChargeCost > 0) frac = 1 - Math.min(1, (u.charge || 0) / row.ChargeCost);

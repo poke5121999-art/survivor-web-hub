@@ -99,6 +99,8 @@
     I.quick = (opts.quick || [0, 0, 0, 0, 0, 0]).slice(0, 6);
     while (I.quick.length < 6) I.quick.push(0);
     I.equip = opts.equip || null;
+    I.gear = mkGear(I.equip);
+    I._skinDirty = true;
     I.cd = {}; I.gcd = 0; I.loot = null; I.page = 0; I.sel = null; I.bagOpen = null; I.hold = null;
     // opts.bags (Bag.Id) cũ: thành món Bag trong túi.
     for (const id of opts.bags || []) I.add({ type: 'Bag', id: +id, count: 1 }, { silent: true });
@@ -270,6 +272,10 @@
     const g = goodsOf(ref);
     if (!g) return;
     if (g.type === 'Bag' && (ref.a === 'inv' || ref.a === 'safe')) { I.openBag(I.bagOpen === g ? null : g); return; }
+    // OnUseButtonClick: ô trang bị → UnequipToInventorySlot; trang bị ở túi / khe an toàn → EquipInventorySlot / EquipSafeSlot.
+    if (ref.a === 'equip') { I.unequip(ref.k); refreshTip(); return; }
+    if (g.type === 'Equipment' && (ref.a === 'inv' || ref.a === 'safe')) { I.equipFrom(ref.a, ref.k); refreshTip(); return; }
+    if (g.type === 'Equipment') { toast(TX('SelectItemInInventory')); return; }
     if (g.type === 'Item' && (ref.a === 'inv' || ref.a === 'safe' || ref.a === 'quick' || ref.a === 'bag')) { I.use(g.id, 'inventory'); refreshTip(); }
   }
   I.openBag = function (g) {
@@ -277,6 +283,187 @@
     sfx(I.bagOpen ? 'PopUpOpen' : 'ButtonClick');
     renderPanel();
   };
+
+  // ================================================================ trang bị trong lượt lặn (EquipmentInventoryPanel) [ĐO — GameAssembly]
+  // Character gốc: WeaponSlots[2] + ActiveWeaponIndex, AccessorySlots[3], ArtifactSlots[2]; mỗi ô giữ một món hàng (có độ bền).
+  // Bảng (InventoryManagementPagePresenter):
+  // - Kéo món ở túi/khe an toàn/rương vào ô trang bị, hoặc F lên món đó (OnUseButtonClick → EquipInventorySlot/EquipSafeSlot):
+  //   CheckEquipable — sai loại ô → NotEquipableEquipmentType; vũ khí khác TCharacter.WeaponType → NotEquipableWeaponType;
+  //   trùng Equipment.EquipPartGroup với món đang đeo ở ô khác → DuplicateEquipPartGroup. Món cũ về đúng ô nguồn
+  //   (CharacterController.OnEquipInventorySlot). Tiếng PlayEquipSound: "Equip", ô cổ vật "Equip2".
+  // - F: không chỉ ô đích thì CharacterController.Equip chọn ô: vũ khí → ô đang cầm (ActiveWeaponIndex); phụ kiện/cổ vật → ô
+  //   trống đầu tiên, hết ô trống thì ô 0 [SUY LUẬN: nhánh FirstOrDefault thứ hai chưa đọc].
+  // - Bấm trái/phải/F lên ô trang bị = UnequipToInventorySlot: cần ô túi trống (NotEnoughInventorySlots), tiếng ItemRelease.
+  //   Vũ khí cũng tháo được (CharacterController.Unequip không chặn; khoá CannotUnequipWeapon không có chỗ gọi trong bản demo).
+  // - Kéo ô trang bị sang ô trang bị cùng loại = đổi chỗ (HandleSwapEquipmentSlots), khác loại → EquipementSlotTypeMismatch.
+  //   Kéo ô trang bị ra túi/khe an toàn/rương = tháo vào đúng ô đó.
+  // - V (SwapWeapon, ReqSwapWeapon AllowEmpty=false): đổi ActiveWeaponIndex khi ô kia có vũ khí; trong bảng thì không khi đang kéo.
+  // Đổi xong: chỉ số tính lại (Stats.base với vũ khí đang cầm + phụ kiện + cổ vật), da vũ khí Spine đổi theo
+  // Extensions.UpdateCharacterSkin ("weapon/" + Equipment.WeaponSkinName, không vũ khí = "weapon/dummy"), ô vũ khí HUD vẽ lại.
+  const GEAR_CAT = ['Weapon', 'Accessory', 'Accessory', 'Accessory', 'Artifact', 'Artifact', 'Weapon'];
+  const eqGoods = id => (id ? { type: 'Equipment', id: +id, count: 1 } : null);
+  function mkGear(eq) {
+    eq = eq || {};
+    const p = VD.stage && VD.stage.player;
+    const wid = eq.weaponId != null ? eq.weaponId : (p && p.row && p.row.DefaultWeaponId) || 0;
+    const ids = (eq.equipmentIds || []).map(eqGoods).filter(Boolean);
+    const of = t => ids.filter(g => (G.row(g) || {}).GoodsType === t);
+    const acc = of('Accessory'), art = of('Artifact');
+    const pad = (a, n) => { const o = []; for (let i = 0; i < n; i++) o.push(a[i] || null); return o; };
+    return { weapon: [eqGoods(wid), null], active: 0, acc: pad(acc, C('CharacterAccessorySlotCount', 3)), art: pad(art, C('CharacterArtifactSlotCount', 2)) };
+  }
+  // Ô trang bị k của bảng: 0 = vũ khí đang cầm, 1–3 phụ kiện, 4–5 cổ vật, 6 = vũ khí phụ (SubWeapon_).
+  function gearSlot(k) {
+    const G_ = I.gear;
+    if (!G_) return null;
+    k = +k;
+    if (k === 0) return { cat: 'Weapon', arr: G_.weapon, i: G_.active };
+    if (k === 6) return { cat: 'Weapon', arr: G_.weapon, i: 1 - G_.active };
+    if (k >= 1 && k <= 3) return { cat: 'Accessory', arr: G_.acc, i: k - 1 };
+    if (k >= 4 && k <= 5) return { cat: 'Artifact', arr: G_.art, i: k - 4 };
+    return null;
+  }
+  const catOf = g => { const r = g && g.type === 'Equipment' ? G.row(g) : null; return r ? r.GoodsType : null; };
+  function equipErr(g, gs) {
+    const r = G.row(g);
+    if (!r || catOf(g) !== gs.cat) return 'NotEquipableEquipmentType';
+    const p = VD.stage && VD.stage.player;
+    if (gs.cat === 'Weapon' && p && r.WeaponType !== p.row.WeaponType) return 'NotEquipableWeaponType';
+    if (r.EquipPartGroup > 0) {
+      const G_ = I.gear;
+      const dup = [G_.weapon, G_.acc, G_.art].some(arr => arr.some((x, i) =>
+        x && !(arr === gs.arr && i === gs.i) && (G.row(x) || {}).EquipPartGroup === r.EquipPartGroup));
+      if (dup) return 'DuplicateEquipPartGroup';
+    }
+    return '';
+  }
+  // Ô đích mặc định khi F (không kéo vào ô cụ thể).
+  function defaultGearK(cat) {
+    if (cat === 'Weapon') return 0;
+    const G_ = I.gear, arr = cat === 'Accessory' ? G_.acc : G_.art, base = cat === 'Accessory' ? 1 : 4;
+    const i = arr.findIndex(x => !x);
+    return base + (i < 0 ? 0 : i);
+  }
+  // Trang bị món ở ô (a, k) vào ô trang bị gk (bỏ trống = ô mặc định). Món đang đeo về đúng ô nguồn.
+  I.equipFrom = function (a, k, gk) {
+    const s = slotAt(a, k);
+    if (!s || !s.g || (a === 'loot' && s.rev !== 2)) return false;
+    const g = s.g, cat = catOf(g);
+    if (!cat || (cat !== 'Weapon' && cat !== 'Accessory' && cat !== 'Artifact')) { toast(TX('NotEquipableEquipmentType')); return false; }
+    const gs = gearSlot(gk != null ? gk : defaultGearK(cat));
+    if (!gs) return false;
+    const err = equipErr(g, gs);
+    if (err) { toast(TX(err)); return false; }
+    const old = gs.arr[gs.i];
+    if (old && !canHold(s, old)) { toast(TX(holdErr(s, old))); return false; }
+    if (g === I.bagOpen) I.bagOpen = null;
+    gs.arr[gs.i] = g;           // trang bị không chồng (G.stackMax = 1)
+    s.g = old || null;
+    if (a === 'loot') { s.rev = 2; if (I.loot && I.loot.onTake) I.loot.onTake(gs.arr[gs.i], 0); }
+    if (!isOwn(a)) record(g);
+    sfx(gs.cat === 'Artifact' ? 'Equip2' : 'Equip');
+    applyGear();
+    changed();
+    return true;
+  };
+  // Tháo ô trang bị gk vào ô (a, k) nếu có, không thì ô túi trống đầu tiên.
+  I.unequip = function (gk, a, k) {
+    const gs = gearSlot(gk);
+    const g = gs && gs.arr[gs.i];
+    if (!g) return false;
+    let dst = a ? slotAt(a, k) : freeSlot();
+    if (a && dst && dst.g) {
+      // Thả lên món cùng loại: đổi chỗ (trang bị món ở ô đích vào ô này).
+      if (catOf(dst.g) === gs.cat) return I.equipFrom(a, k, gk);
+      dst = null;
+    }
+    if (!dst || (a === 'loot' && !I.loot)) { toast(TX('NotEnoughInventorySlots')); return false; }
+    if (!canHold(dst, g)) { toast(TX(holdErr(dst, g))); return false; }
+    dst.g = g;
+    if (a === 'loot') dst.rev = 2;
+    gs.arr[gs.i] = null;
+    sfx('ItemRelease');
+    applyGear();
+    changed();
+    return true;
+  };
+  // Bấm ô trang bị: túi phụ đang mở thì TransferEquipmentSlotToBagSlot (ô trống đầu tiên nhận được), không thì tháo vào túi.
+  function unequipClick(gk) {
+    const bag = I.bagOpen;
+    if (bag) {
+      const gs = gearSlot(gk), g = gs && gs.arr[gs.i];
+      const k = g ? bag.inner.findIndex(s => !s.g && canHold(s, g)) : -1;
+      if (g && k < 0) { toast(TX(holdErr(bag.inner[0] || {}, g) || 'NotEnoughInventorySlots')); return false; }
+      return I.unequip(gk, 'bag', k);
+    }
+    return I.unequip(gk);
+  }
+  // Kéo ô trang bị sang ô trang bị khác (ReqSwapEquipmentSlots).
+  I.swapGear = function (k1, k2) {
+    const a = gearSlot(k1), b = gearSlot(k2);
+    if (!a || !b || (a.arr === b.arr && a.i === b.i)) return false;
+    if (a.cat !== b.cat) { toast(TX('EquipementSlotTypeMismatch')); return false; }
+    const t = a.arr[a.i]; a.arr[a.i] = b.arr[b.i]; b.arr[b.i] = t;
+    sfx(a.cat === 'Artifact' ? 'Equip2' : 'Equip');
+    applyGear();
+    changed();
+    return true;
+  };
+  // V: đổi vũ khí đang cầm (AllowEmpty = false: ô kia trống thì thôi).
+  I.swapWeapon = function () {
+    const G_ = I.gear, p = VD.stage && VD.stage.player;
+    if (!G_ || !G_.weapon[1 - G_.active] || (p && p.dead)) return false;
+    G_.active = 1 - G_.active;
+    applyGear();
+    changed();
+    if (VD.hud && VD.hud.itemEls && I._hudW) { I._hudW.classList.remove('swapped'); void I._hudW.offsetWidth; I._hudW.classList.add('swapped'); }
+    return true;
+  };
+  I.weapon = () => (I.gear ? I.gear.weapon[I.gear.active] : null);
+  I.subWeapon = () => (I.gear ? I.gear.weapon[1 - I.gear.active] : null);
+  // Loadout theo dạng hồ sơ (profile.equip[char] = { weapon, acc, art }).
+  I.gearIds = function () {
+    const G_ = I.gear || { weapon: [], acc: [], art: [] }, id = g => (g ? +g.id : 0);
+    return { weapon: id(G_.weapon[G_.active]), sub: id(G_.weapon[1 - G_.active]), acc: G_.acc.map(id), art: G_.art.map(id) };
+  };
+  function applyGear() {
+    const p = VD.stage && VD.stage.player;
+    const G_ = I.gear;
+    if (!G_) return;
+    const w = G_.weapon[G_.active];
+    const ids = G_.acc.concat(G_.art).filter(Boolean).map(g => +g.id);
+    I.equip = Object.assign({}, I.equip, { weaponId: w ? +w.id : 0, equipmentIds: ids });
+    if (!p || p.kind !== 'char') return;
+    const sb = VD.Stats.base(VD.combatDB(), 'char', p.row, { weaponId: w ? +w.id : 0, weaponBroken: !!(w && w.dur === 0), equipmentIds: ids });
+    p.base = sb.base; p.baseFlat = sb.flat;
+    VD.Stats.compute(p);
+    if (p.hp > p.stats.HpMax) p.hp = p.stats.HpMax;
+    if (p.stamina > p.stats.StaminaMax) p.stamina = p.stats.StaminaMax;
+    I._skinDirty = true;
+    weaponSkin();
+    renderHudWeapon();
+  }
+  I.applyGear = applyGear;
+  // Extensions.UpdateCharacterSkin: phần "weapon/…" của skin ghép theo vũ khí đang cầm. Hình nạp bất đồng bộ nên thử lại mỗi khung.
+  function weaponSkin() {
+    const p = VD.stage && VD.stage.player, G_ = I.gear;
+    const v = p && VD.stage.vis && VD.stage.vis.get(p.uid);
+    if (!v || !G_ || !window.spine) return;
+    I._skinDirty = false;
+    const w = G_.weapon[G_.active], r = w && G.row(w);
+    const a = VD.ASSETS && VD.ASSETS.units && VD.ASSETS.units[p.id];
+    const names = ((a && a.skins) || []).filter(n => !/^weapon\//.test(n)).concat('weapon/' + (r && r.WeaponSkinName ? r.WeaponSkinName : 'dummy'));
+    for (const key in v.meshes) {
+      const m = v.meshes[key], d = m.skeleton.data;
+      const parts = names.map(n => d.findSkin(n)).filter(Boolean);
+      if (!parts.length) continue;
+      const skin = new window.spine.Skin('unit');
+      for (const s of parts) skin.addSkin(s);
+      m.skeleton.setSkin(skin);
+      m.skeleton.setSlotsToSetupPose();
+    }
+    I.skinNames = names;
+  }
 
   // ================================================================ lục rương (LootingInventory)
   // Rương giữ kho 30 ô trên thực thể (source.lootInv) nên đóng/mở lại vẫn còn trạng thái hé lộ.
@@ -293,7 +480,7 @@
   I.openLoot = function (loot) {
     const src = loot.source;
     const inv = src ? (src.lootInv || (src.lootInv = mkLoot(loot.items))) : mkLoot(loot.items);
-    inv.title = loot.title; inv.source = src || null; inv.onTake = loot.onTake || null;
+    inv.title = loot.title; inv.source = src || null; inv.onTake = loot.onTake || null; inv.search = loot.search !== false;
     // items: hàng còn trong rương (đọc được từ bài kiểm và mã cũ).
     if (!Object.getOwnPropertyDescriptor(inv, 'items')) Object.defineProperty(inv, 'items', { get() { return inv.slots.filter(s => s.g).map(s => s.g); } });
     I.loot = inv;
@@ -492,9 +679,10 @@
   }
   // Highlight (Glow rectangle_line_glow #A45646 cộng màu + Line trắng, DOTween Fade 0,6 yoyo 1 s). Gốc (RxHighlightOn): mọi ô của túi phụ
   // đang mở sáng khi món đang kéo không phải túi và Goods.PushableBagType == Bag.Type (RxIsDragAcceptable); ô trang bị sáng khi kéo
-  // trang bị cùng loại — web chưa cho thay trang bị trong lượt lặn nên không sáng ô trang bị. [ĐO — ui_inventory_il2cpp.py]
-  function glowOn(s, a) {
+  // trang bị cùng loại (web: cả khi kéo bằng chuột lẫn tay cầm A). [ĐO — ui_inventory_il2cpp.py]
+  function glowOn(s, a, k) {
     const h = I.hold;
+    if (h && h.g && a === 'equip') return catOf(h.g) === GEAR_CAT[+k] && !(h.ref.a === 'equip' && +h.ref.k === +k);
     if (!h || !h.g || !s || a !== 'bag' || !I.bagOpen) return false;
     return h.g.type !== 'Bag' && G.bagType(h.g) === s.bag;
   }
@@ -513,7 +701,7 @@
     if (s && s.rev === 0 && g) cls.push('unrev');
     if (s && s.rev === 1 && g) cls.push('reving');
     if (isInner(s)) cls.push('bagslot');
-    if (s && glowOn(s, el.dataset.a)) cls.push('glow');
+    if (s && glowOn(s, el.dataset.a, el.dataset.k)) cls.push('glow');
     if (I.hold && s && s === slotAt(I.hold.ref.a, I.hold.ref.k)) cls.push('holding');
     if (extra) cls.push(extra);
     const key = I.hover && I.hover.el === el;
@@ -581,6 +769,10 @@
     for (let i = 0; i < pageSize(); i++) slotEl(I.ui.inv, 'inv', i);
     for (let i = 0; i < 6; i++) slotEl(I.ui.safe, 'safe', i);
     for (let i = 0; i < 6; i++) slotEl(I.ui.equip, 'equip', i);
+    // SubWeapon_ (110×110, sau ô vũ khí chính): ô vũ khí phụ 70×70 lệch (−20, −20), phím V (KeyPrompt), mũi Swap, lớp Dim.
+    I.ui.sub = $('div', 'subw', I.ui.equip, `<img class="kv" src="${UI}V_Key.webp" alt=""><i class="swap"></i>`);
+    I.ui.subSlot = slotEl(I.ui.sub, 'equip', 6);
+    $('i', 'dim', I.ui.sub);
     for (let i = 0; i < LOOT_SLOTS; i++) slotEl(I.ui.loot, 'loot', i);
     for (let i = 0; i < BAG_PANEL; i++) slotEl(I.ui.bagRow, 'bag', i);
     for (let i = 0; i < QUICK_PANEL; i++) { const el = slotEl(I.ui.quick, 'quick', i); $('img', 'kp', el).src = UI + (i + 1) + '_Key.webp'; }
@@ -621,7 +813,7 @@
   }
   function goodsOf(ref) {
     if (!ref) return null;
-    if (ref.a === 'equip') { const e = equipList()[ref.k]; return e && e.g; }
+    if (ref.a === 'equip') { const gs = gearSlot(ref.k); return gs ? gs.arr[gs.i] || null : null; }
     if (ref.a === 'quick') { const id = I.quick[ref.k]; return id ? { type: 'Item', id, count: I.count('Item', id) } : null; }
     const s = slotAt(ref.a, ref.k);
     return s && s.g && (ref.a !== 'loot' || s.rev === 2) ? s.g : null;
@@ -639,7 +831,7 @@
     if (!d || d.btn !== 0) return;
     if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < DRAG_PX) return;
     const g = goodsOf(d.ref);
-    if (!g || d.ref.a === 'equip') return;
+    if (!g) return;
     D.drag = { ref: d.ref, g, mod: d.mod };
     I.hold = { ref: d.ref, g, mouse: true };
     showGhost(g);
@@ -664,12 +856,13 @@
     const ref = d.ref;
     if (d.btn === 2) {
       if (ref.a === 'quick') { if (I.quick[ref.k]) { I.quick[ref.k] = 0; sfx('ItemRelease'); changed(); } return; }
-      if (ref.a === 'equip') return;
+      if (ref.a === 'equip') { I.unequip(ref.k); tip(null); return; }
       I.discard(ref.a, ref.k, d.mod); tip(null); return;
     }
     if (d.btn !== 0) return;
     if (ref.a === 'quick') { if (I.quick[ref.k]) { I.quick[ref.k] = 0; sfx('ItemRelease'); changed(); } return; }
-    if (ref.a === 'equip') return;
+    // OnEquipmentSlotLeftClick: túi phụ đang mở thì cất vào túi phụ, không thì UnequipToInventorySlot.
+    if (ref.a === 'equip') { unequipClick(ref.k); refreshTip(); return; }
     if (I.loot && goodsOf(ref)) { I.transfer(ref.a, ref.k, d.mod); refreshTip(); return; }
     // Không lục rương: bấm = chọn ô (Selected!).
     I.sel = goodsOf(ref) ? { a: d.el.dataset.a, k: d.el.dataset.k } : null;
@@ -691,7 +884,10 @@
     const g = goodsOf(from);
     if (!g) return;
     if (to.a === 'quick') { registerQuick(to.k, g); return; }
-    if (to.a === 'equip' || from.a === 'quick' || from.a === 'equip') return;
+    if (from.a === 'quick') return;
+    if (from.a === 'equip' && to.a === 'equip') { I.swapGear(from.k, to.k); return; }
+    if (from.a === 'equip') { I.unequip(from.k, to.a, to.k); return; }
+    if (to.a === 'equip') { I.equipFrom(from.a, from.k, to.k); return; }
     const src = slotAt(from.a, from.k), dst = slotAt(to.a, to.k);
     if (!dst || (to.a === 'loot' && dst.g && dst.rev !== 2)) return;
     const n = moveTo(src, from.a, dst, to.a, amount(src.g, mod));
@@ -729,6 +925,8 @@
       return;
     }
     if (code === 'KeyR' && !e.repeat) { e.preventDefault(); sortHere(h); return; }
+    // OnSwapWeaponButtonClick: không đổi khi đang kéo (_isDragging).
+    if (code === 'KeyV' && !e.repeat) { e.preventDefault(); if (!D.drag) I.swapWeapon(); return; }
     if (code === 'KeyN' && !e.repeat) { mark(h); return; }
     if (code === 'KeyF' && !e.repeat) { e.preventDefault(); useRef(h); }
   }
@@ -829,17 +1027,11 @@
   };
 
   // ---------------------------------------------------------------- vẽ bảng
+  // 6 ô trang bị của bảng (vũ khí đang cầm, 3 phụ kiện, 2 cổ vật); vũ khí phụ là I.subWeapon() (ô k = 6).
   function equipList() {
-    const e = I.equip || {};
-    const p = VD.stage && VD.stage.player;
+    if (!I.gear) I.gear = mkGear(I.equip);
     const out = [];
-    const wid = e.weaponId || (p && p.row && p.row.DefaultWeaponId) || 0;
-    out.push({ cat: 'Weapon', g: wid ? { type: 'Equipment', id: wid, count: 1 } : null });
-    const ids = (e.equipmentIds || []).map(id => ({ type: 'Equipment', id: +id, count: 1 }));
-    const acc = ids.filter(g => (G.row(g) || {}).GoodsType === 'Accessory');
-    const art = ids.filter(g => (G.row(g) || {}).GoodsType === 'Artifact');
-    for (let i = 0; i < C('CharacterAccessorySlotCount', 3); i++) out.push({ cat: 'Accessory', g: acc[i] || null });
-    for (let i = 0; i < C('CharacterArtifactSlotCount', 2); i++) out.push({ cat: 'Artifact', g: art[i] || null });
+    for (let k = 0; k < 6; k++) { const gs = gearSlot(k); out.push({ cat: gs.cat, g: gs.arr[gs.i] || null }); }
     return out;
   }
   I.equipList = equipList;
@@ -851,6 +1043,7 @@
     [...u.inv.children].forEach((el, i) => paintSlot(el, I.slots[I.page * per + i] || null));
     [...u.safe.children].forEach((el, i) => paintSlot(el, I.safe[i] || null));
     equipList().forEach((e, i) => { const el = u.equip.children[i]; if (!el) return; paintSlot(el, { g: e.g }); el.classList.add('cat-' + e.cat.toLowerCase()); });
+    paintSlot(u.subSlot, { g: I.subWeapon() }); u.subSlot.classList.add('cat-weapon');
     [...u.quick.querySelectorAll('.vs[data-a="quick"]')].forEach((el, i) => {
       const id = I.quick[i];
       paintSlot(el, { g: id ? { type: 'Item', id, count: I.count('Item', id) } : null });
@@ -925,7 +1118,7 @@
     } else {
       fit();
       if (!was) sfx('InventoryPopupOpen');
-      if (I.loot && p && !p.dead && (!p.drive || p.drive.loot)) p.drive = { name: 'battle/search', loop: true, t0: VD.stage.A.time, offset: 0, ts: 1, loot: true };
+      if (I.loot && I.loot.search && p && !p.dead && (!p.drive || p.drive.loot)) p.drive = { name: 'battle/search', loop: true, t0: VD.stage.A.time, offset: 0, ts: 1, loot: true };
       I.recordArchive();
       if (VD.menu) VD.menu.onOpen(I.loot ? 'Inventory' : tab || (was ? VD.menu.cur : 'Inventory'));
     }
@@ -950,7 +1143,7 @@
       if (b === B().A) {
         if (I.hold) { const h = I.hold; I.hold = null; I.ui.drag.style.display = 'none'; dropOn(h.ref, ref, el, mod); renderPanel(); return true; }
         const g = goodsOf(ref);
-        if (g && ref.a !== 'equip') { I.hold = { ref, g }; showGhost(g); ghostAt(el); renderPanel(); sfx('ButtonClick'); }
+        if (g) { I.hold = { ref, g }; showGhost(g); ghostAt(el); renderPanel(); sfx('ButtonClick'); }
         return true;
       }
       if (b === B().B) return I.escape();
@@ -990,6 +1183,7 @@
   function renderHud() {
     const els = VD.hud && VD.hud.itemEls;
     if (!els) return;
+    renderHudWeapon();
     els.forEach((el, k) => {
       const id = I.quick[k], img = el.querySelector('img'), n = el.querySelector('span');
       if (!id) { img.removeAttribute('src'); img.style.visibility = 'hidden'; n.textContent = ''; el.classList.add('empty'); return; }
@@ -1002,6 +1196,27 @@
     });
   }
   I.renderHud = renderHud;
+  // InGameQuickSlotPanel gốc: WeaponSwapSlot 90×90 (vũ khí đang cầm) bên trái 5 ô đồ, SubWeapon_ 70×70 lệch (−20, −20) phía sau
+  // với mũi Swap; đổi xong chạy SwapedFX (viền sáng). Web đặt vào hàng .vd-items của hud.js.
+  function renderHudWeapon() {
+    const items = VD.hud && VD.hud.items;
+    if (!items || !I.gear) return;
+    if (!I._hudW || I._hudW.parentNode !== items) {
+      I._hudW = $('div', 'vd-wslot');
+      I._hudW.innerHTML = `<i class="sub"><img alt=""></i><i class="swap"></i><i class="main"><img alt=""></i>`;
+      items.insertBefore(I._hudW, items.firstChild);
+    }
+    const paint = (box, g) => {
+      const img = box.querySelector('img'), src = g ? G.icon(g) : '';
+      if (img.dataset.src !== src) { if (src) img.src = src; else img.removeAttribute('src'); img.dataset.src = src; }
+      box.classList.toggle('empty', !g);
+      box.style.setProperty('--gc', g ? G.color(g) : 'transparent');
+    };
+    paint(I._hudW.querySelector('.main'), I.weapon());
+    paint(I._hudW.querySelector('.sub'), I.subWeapon());
+    I._hudW.classList.toggle('nosub', !I.subWeapon());
+  }
+  I.renderHudWeapon = renderHudWeapon;
   I.updateHud = function () {
     const els = VD.hud && VD.hud.itemEls;
     if (!els || !VD.stage || !VD.stage.A) return;
@@ -1016,11 +1231,14 @@
   // Mỗi khung: phím 1–5 (InputAction PlayerFunc/UseItem, BindingIndex 0–4) khi bảng đóng; hé lộ rương khi bảng mở.
   // Bảng đóng mà tay cầm bấm Start (InGame/Inventory = <Gamepad>/start) thì mở trang Túi đồ.
   I.step = function (dt) {
+    if (I._skinDirty) weaponSkin();
     if (I.open) { revealTick(dt || 0); return; }
     const inp = VD.input;
     if (!inp || inp.enabled === false) return;
     if (VD.menu && VD.menu.padClosed()) { I.toggle(true, 'Inventory'); return; }
     for (let k = 0; k < 5; k++) if (inp.pressed['Item' + (k + 1)]) I.useQuick(k);
+    // PlayerInputController.OnSwapWeaponPerformed (V) → ReqSwapWeapon.
+    if (inp.pressed.SwapWeapon) I.swapWeapon();
   };
   I.bindHudClicks = function () {
     const els = VD.hud && VD.hud.itemEls;

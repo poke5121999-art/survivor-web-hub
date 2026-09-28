@@ -58,7 +58,8 @@
   // Hướng camera trên mặt đất (three): camera nằm ở (+x, +z) so với mục tiêu.
   const TO_CAM = { x: Math.SQRT1_2, z: Math.SQRT1_2 }, SCREEN_RIGHT = { x: Math.SQRT1_2, z: -Math.SQRT1_2 };
 
-  // Tạo một vật thể. opts: { pos:{x,z}, fwd:{x,z} (three), scene, state }. Trả handle đồng bộ; hình nạp sau.
+  // Tạo một vật thể. opts: { pos:{x,z}, fwd:{x,z} (three), scene, state, noSpine (NPC: Spine do js/npc.js dựng) }.
+  // Trả handle đồng bộ; hình nạp sau.
   O.create = function (name, opts) {
     registerSpines();
     const h = {
@@ -83,7 +84,7 @@
         h.body = c;
         h.root.add(c);
       }
-      for (const s of json.spines || []) addSpine(h, s);
+      if (!opts.noSpine) for (const s of json.spines || []) addSpine(h, s);
       h.ready = true;
       O.apply(h);
       O.live.add(h);

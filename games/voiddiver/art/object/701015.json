@@ -1,0 +1,392 @@
+{
+ "name": "701015",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Model",
+   "active": true
+  },
+  {
+   "name": "UI",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  },
+  {
+   "name": "GroundNavigationPrefab",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "capsule",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 1.5,
+   "height": 1.0,
+   "trigger": false,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [],
+ "lights": [],
+ "particles": [],
+ "animators": [
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark",
+   "controller": "QuestHostWaitOtherClientMark",
+   "clips": [
+    "MainHostWait"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root",
+   "controller": "NpcThumbUp",
+   "clips": [
+    "NpcThumbUp"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "NpcObject",
+   "fields": {
+    "_npcId": 701015,
+    "_holdingTime": 0.1,
+    "_holdingSfx": "InteractionLooting_Toolbox",
+    "_interactionSfx": "NPC_UI_Open_ETC"
+   }
+  },
+  {
+   "path": "Model",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "UI",
+   "class": "Billboard"
+  },
+  {
+   "path": "UI/Hud/Layout*/Bubble_/BG*",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Bubble_/BG*/Tail/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Info_/BG*",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Info_/BG*/Tail/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot3",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root/ImgGlow",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root/ImgThumbUp",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/BG",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/ImgShield",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/img_back",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/img_front",
+   "class": "Image"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Model/2DBG_RewardBoxes_ElectronicsKit_F",
+   "mesh": "2DBG_RewardBoxes_ElectronicsKit_F",
+   "verts": 27,
+   "tris": 14,
+   "active": true
+  },
+  {
+   "path": "Model/25DBG_Sector01_Zone01_Prop_ElectricPot_1",
+   "mesh": "msh_25BG_Sector01_Zone01_Prop_ElectricPot_1",
+   "verts": 35,
+   "tris": 46,
+   "active": true
+  },
+  {
+   "path": "Model/25DBG_ConstructionSite_Prop_15",
+   "mesh": "25DBG_ConstructionSite_Prop_15",
+   "verts": 141,
+   "tris": 91,
+   "active": true
+  },
+  {
+   "path": "Model/25DBG_ConstructionSite_Prop_16",
+   "mesh": "25DBG_ConstructionSite_Prop_14",
+   "verts": 55,
+   "tris": 50,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.627,
+   -0.177,
+   -0.41
+  ],
+  "max": [
+   0.479,
+   0.509,
+   0.471
+  ]
+ },
+ "glb": "art/object/701015.glb",
+ "glbKB": 249
+}

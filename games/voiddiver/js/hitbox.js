@@ -393,6 +393,8 @@
     if (!row) { noteUnknown(world, 'hitbox', id); return null; }
     var info = row.HitBoxInfo || {};
     var dir = norm(opt.dir || owner.aim || { x: 0, z: 1 });
+    var corrected = info.UseAimCorrection ? correctAimDir(world, owner, dir) : null;
+    if (corrected) dir = corrected;
     var ang = num(info.angleOffset) + (opt.angle || 0);
     if (ang) dir = norm(rot(dir, ang));
     var base;
@@ -412,7 +414,7 @@
     var hb = {
       uid: _uid++, id: id, row: row, info: info, owner: owner, skillId: opt.skillId, run: opt.run || null,
       triggerTarget: opt.triggerTarget || null, t: 0, dur: num(info.duration), pos: pos, dir: dir,
-      start: { x: pos.x, y: pos.y, z: pos.z }, followOff: off, followBase: st === 'Aim' || opt.at ? null : 'owner',
+      start: { x: pos.x, y: pos.y, z: pos.z }, exec: { x: owner.pos.x, z: owner.pos.z }, followOff: off, followBase: st === 'Aim' || opt.at ? null : 'owner',
       scale: vec3(info.collisionScale), hits: {}, hitCount: 0, moved: 0, alive: true, onceUsed: {},
       delay: Math.max(num(info.SpawnDelayAfterFireVfx), opt.delay || 0), started: false,
       colFrom: num(info.collisionDelay), colTo: num(info.collisionEndTime), multi: num(info.multiHitInterval),
@@ -422,6 +424,7 @@
     var mt = info.MoveType;
     if (mt === 'LinearToAim' || mt === 'LinearToAimBySpeed' || mt === 'ParabolaToAim') {
       var ap = opt.aimPoint || aimPoint(owner);
+      if (corrected) { var ad = len(ap.x - owner.pos.x, ap.z - owner.pos.z); ap = { x: owner.pos.x + corrected.x * ad, z: owner.pos.z + corrected.z * ad }; }
       var dx = ap.x - pos.x, dz = ap.z - pos.z, d = len(dx, dz);
       var mn = num(info.MinMoveDistance), mx = num(info.MaxMoveDistance);
       var dd = d;
@@ -440,6 +443,25 @@
     if (hb.delay <= 0) startHB(world, hb);
     return hb;
   };
+  // HitBox.CorrectAimDir [ĐO 0x1805dfc30] (UseAimCorrection, gọi trong HitBox.Init): trong GetMonstersInSight của chủ,
+  // quái IsHitable có v = vị trí quái − điểm thi triển (phẳng), |v|² ≥ 0,01 và góc(v, hướng ngắm) ≤ 10° → lấy con gần nhất,
+  // hướng mới = v̂ (giữ độ dài ngắm). Không có → giữ nguyên. world.inSight(chủ, quái) do stage cấp (nón nhìn của người chơi).
+  var AIM_CORRECT_DEG = 10;   // không có trong bảng: hằng 10 trong CorrectAimDir
+  function correctAimDir(world, owner, dir) {
+    var best = null, bd = Infinity, cosMax = Math.cos(AIM_CORRECT_DEG * Math.PI / 180);
+    var units = world.units || [];
+    for (var i = 0; i < units.length; i++) {
+      var m = units[i];
+      if (m.kind !== 'mon' || m.dead || !Combat.isEnemy(owner, m)) continue;
+      if (world.inSight && !world.inSight(owner, m)) continue;
+      var vx = m.pos.x - owner.pos.x, vz = m.pos.z - owner.pos.z, d2 = vx * vx + vz * vz;
+      if (d2 < 0.01) continue;
+      var d = Math.sqrt(d2);
+      if ((vx * dir.x + vz * dir.z) / d < cosMax - 1e-9) continue;
+      if (d2 < bd) { bd = d2; best = { x: vx / d, z: vz / d }; }
+    }
+    return best;
+  }
   function aimPoint(u) {
     var ap = u.aimPoint || (u.input && u.input.aimPoint);
     if (ap) return { x: ap.x, z: ap.z };
@@ -671,10 +693,12 @@
 
   function feedback(world, hb, u, hc) {
     var info = hb.info, owner = hb.owner;
-    if (info.hitVfx && info.hitPointType && info.hitPointType !== 'None') { // tables.js bỏ field 'None'
+    // HitBox.<UpdateHitCollision>g__TryCollision [ĐO 0x1805eaf20]: điểm = Collider.ClosestPoint(đích, NearByOwner (2) ?
+    // _executionPosition (chỗ chủ đứng lúc sinh hitbox) : tâm hitbox) — hitPointType None (0) cũng lấy tâm hitbox, vẫn phát.
+    if (info.hitVfx) {
       var p;
       if (info.hitPointType === 'NearByOwner') {
-        var d = norm({ x: owner.pos.x - u.pos.x, z: owner.pos.z - u.pos.z });
+        var ex = hb.exec || owner.pos, d = norm({ x: ex.x - u.pos.x, z: ex.z - u.pos.z });
         p = { x: u.pos.x + d.x * (u.radius || 0), y: 0.5, z: u.pos.z + d.z * (u.radius || 0) };
       } else {
         var d2 = norm({ x: hb.pos.x - u.pos.x, z: hb.pos.z - u.pos.z });
@@ -698,6 +722,31 @@
     var amp = num(info.OwnerHitShakeAmplitude);
     if (amp > 0) emit(world, { type: 'shake', unit: owner, amp: amp, freq: num(info.OwnerHitShakeFrequency), dur: num(info.OwnerHitShakeDuration), localOnly: true });
     if (u.kind === 'char') emit(world, { type: 'shake', unit: u, amp: db().c('HitShakeAmplitude', 0.25), freq: db().c('HitShakeFrequency', 0.1), dur: db().c('HitShakeDuration', 0.15), localOnly: true });
+  }
+
+  // Xuyên [ĐO HitBox.UpdateHitCollision 0x1805ebc70, collisionDestroy Pierce]: mỗi mục tiêu trúng −1 _pierceRemain; về 0 thì
+  // huỷ. Còn lượt: k = pierceCount − còn − 1; có pierceChances[k] thì Random.Range(0, 100) ≥ chance → huỷ (hết xuyên);
+  // xuyên tiếp thì phát pierceSfx tại hitbox.
+  function pierceStep(world, hb) {
+    var info = hb.info, n = Math.max(1, info.pierceCount || 1);
+    if (hb.hitCount >= n) { destroy(world, hb, 'pierce'); return; }
+    var ch = info.pierceChances || [], k = hb.hitCount - 1;
+    if (k >= 0 && k < ch.length && Math.floor(rng(world) * 100) >= num(ch[k])) { destroy(world, hb, 'pierce'); return; }
+    if (info.pierceSfx) emit(world, { type: 'sfx', name: info.pierceSfx, pos: { x: hb.pos.x, z: hb.pos.z } });
+  }
+
+  // Trúng tường (collider IsHighObstacle): TryCollision vẫn gửi NtfDisplayFx của hitVfx/hitSfx tại Collider.ClosestPoint của
+  // tường, trừ khi IgnoreHitVfxWall. Nguyên tố hậu tố = nguyên tố đòn (CollisionDamageEvent đầu tiên).
+  function wallHitFx(world, hb) {
+    var info = hb.info;
+    if (info.IgnoreHitVfxWall || !(info.hitVfx || info.hitSfx)) return;
+    var el = 'None', evs = info.collisionEvents || [];
+    for (var i = 0; i < evs.length; i++) if (T(evs[i].$type) === 'CollisionDamageEvent') { el = (evs[i].DamageInfo || {}).ElementalType || 'None'; break; }
+    var p = { x: hb.pos.x, y: hb.pos.y || 0, z: hb.pos.z };
+    if (info.hitVfx) emit(world, { type: 'vfx', name: info.hitVfx, pos: p, dir: info.UseHitVfxRotate ? hb.dir : null, duration: num(info.hitVfxDuration),
+      speeds: info.hitVfxSpeeds, loop: !!info.IsLoopHitVfx, loopDuration: num(info.HitVfxLoopDuration), owner: hb.owner,
+      elemental: !!info.UseElementalHitVfx, element: info.UseElementalHitVfx ? el : undefined });
+    if (info.hitSfx) emit(world, { type: 'sfx', name: info.hitSfx, pos: { x: p.x, z: p.z }, elemental: !!info.UseElementalHitSfx, element: el });
   }
 
   function destroy(world, hb, reason) {
@@ -815,6 +864,7 @@
         var cd = hb.info.collisionDestroy;
         if (cd === 'WallOnly' || cd === 'Once' || cd === 'Pierce') {
           hb.pos.x = wall.x; hb.pos.z = wall.z;
+          wallHitFx(world, hb);
           destroy(world, hb, 'wall');
           continue;
         }
@@ -831,7 +881,7 @@
           if (!hitUnit(world, hb, u)) continue;
           var cdm = hb.info.collisionDestroy;
           if (cdm === 'Once' && hb.alive) destroy(world, hb, 'hit');
-          else if (cdm === 'Pierce' && hb.hitCount >= Math.max(1, hb.info.pierceCount || 1) && hb.alive) destroy(world, hb, 'pierce');
+          else if (cdm === 'Pierce' && hb.alive) pierceStep(world, hb);
         }
       }
       hb.t += dt;

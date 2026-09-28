@@ -132,6 +132,7 @@ Mỗi dòng Sector có các danh sách vị trí theo toạ độ Unity trong ô
   - Vũ khí đúng loại của nhân vật được +300 % trọng số (`CharacterWeaponTypeDropWeightBonusPercent`).
   - Cổ vật đi qua `DropRewardArtifactProbability`.
   - [SUY LUẬN] Đồ loại Quest chỉ rơi khi có CampaignTask cần nó.
+  - Đồ của quái bốc lúc sinh và nằm trong xác, không văng ra đất (§13).
 - **[ĐO] EXP.**
   - Quái thường 8+2, boss 250+30, rương 15, thoát 650 (`HasEscapeExpReward`).
   - Tổng nhân `Difficulty.UserExpPercent × VariantDifficulty.UserExpPercent`.
@@ -666,7 +667,7 @@ Ghi chú:
   - Web: `.vs.glow` với `mix-blend-mode: plus-lighter` và `-webkit-mask-box-image`.
 - **[ĐO] Khi nào sáng** (`RxHighlightOn`):
   - Mọi ô của túi phụ đang mở sáng khi món đang kéo không phải túi và `PushableBagType == Bag.Type` (`RxIsDragAcceptable`).
-  - Ô trang bị cùng loại sáng khi kéo trang bị. Web chưa cho thay trang bị trong lượt lặn, nên phần này không có.
+  - Ô trang bị cùng loại sáng khi kéo trang bị (§14).
 - **Tay cầm** (map UI + UiPad của InputActionAsset, `~/Downloads/vd-ref/cache/input_strings.txt`):
 
   | Nút | Hành động gốc | Web |
@@ -736,3 +737,86 @@ Ghi chú:
 - **Tạo một WebGL context mỗi lần mở thẻ Nhân vật** làm khựng cả khung. Giữ một renderer suốt phiên.
 - **Esc/X mở menu phải `stopImmediatePropagation`.** Không thì bộ nghe phím của `inventory.js` (đăng ký sau) nhận chính phím X đó và đóng bảng ngay.
 - **Tooltip của trang khác dùng lại khung `.vd-inv-tip`** bằng cách chuyển nó sang trang đang mở. `hideTip()` trả nó về trang Túi đồ.
+
+## 13. Xác quái (MonsterBody) — đồ quái nằm trong xác (đo lại 2026-09-28)
+
+Chủ dự án: "quái nếu có loot thì phải là loot xác". Bản cũ bốc `DropReward` lúc quái chết rồi văng từng món ra đất thành
+DropGoods ("F Nhặt"), xác biến sau 3 s. Bản gốc không văng gì: đồ nằm trong kho của xác, lục như rương.
+
+Đo bằng `tools/il2cpp_method.py`. Phương thức interface có dấu chấm trong tên (vd `MonsterBody.IInteractiveObject.CanInteract`)
+không tra được bằng `Kiểu.Method`: lấy tên đầy đủ bằng `--find MonsterBody` rồi gọi `disasm(i)` từ một script nhỏ theo tên đó.
+
+- **[ĐO] Bốc đồ lúc sinh, không phải lúc chết.** `MonsterController.OnNetworkSpawn` (host): nhóm = `MonsterSpawn.DropRewardGroupId`
+  nếu quái sinh từ dòng MonsterSpawn, không thì `Monster.DropRewardGroupId`; với mỗi `LootingInventory` trên prefab (một kho cho
+  mỗi người chơi) gọi `CreateInventorySlots(nhóm)` → `Extensions.PickRewards(…, campaignId, missionIds, difficulty, partyWeaponTypes)`.
+  Web: `spawnMonster` gán `u.lootItems = rollGroup(u.dropGroup)`.
+- **[ĐO] Tương tác được khi** (`MonsterBody.IInteractiveObject.CanInteract`): quái ở `EActionState.Dead` (5), `NextPhaseMonsterId ≤ 0`,
+  chưa `IsLifeTimeFinished` (quái bóng), người lục là nhân vật, và kho của người đó không `IsEmpty`. Kho rỗng thì không có lời nhắc.
+- **[ĐO] Giữ F:** `MonsterBody.get_HoldingTime` = `Const.LootingInteractionTime` (0,1 s); `get_HoldingSfx` = `_holdingSfx` của prefab,
+  rỗng thì chuỗi cứng `"DoorInteractied2"` (clip bóc bằng `tools/ui_inventory_rip.py audio DoorInteractied2`). `OnStartInteraction`
+  → `LootingInventory.StartLooting` (cùng cơ chế hé lộ từng ô như rương, §11.2); `OnEndInteraction` → `EndLooting`.
+  Hoàn tất: `get_InteractionSfx` = `_interactionSfx` của prefab; rỗng thì web phát `LootingCompleted` như rương. [SUY LUẬN]
+- **[ĐO] Hoạt ảnh người lục:** `CharacterView.GetInteractionAnimation` chỉ trả `battle/search` cho RewardBox / MimicObject /
+  InteractiveTrigger; MonsterBody ra `default/idle`. Web: lục xác không bật `battle/search` (`openLoot({ search: false })`).
+- **[ĐO] Lời nhắc** (`InGameInteractionPromptPresenter.UpdateUi`): tiêu đề `DeadMonsterFormat` "Xác {Monster.Name}", thêm
+  " (Đã kiểm tra)" (`Revealed`) khi `MonsterBody.IsAllRevealed`; chữ nút `Inspect` "Kiểm tra". Rương cũng có tiêu đề (tên RewardBox)
+  nhưng web chưa hiện; chỉ xác quái dùng dòng `.ttl` mới của `.vd-prompt`.
+- **[ĐO] Viền sáng:** `MonsterController.OnStateChanged` bật `OutlineObject` khi quái Dead và kho không rỗng, và nghe thay đổi kho
+  (`OnDead` đăng ký `<OnDead>b__55_0`) để tắt khi lục hết. Web chưa có hệ viền cho vật/quái nên không vẽ. [CHƯA LÀM]
+- **[ĐO] Xác sống bao lâu** (`MonsterDeadState.OnEnter` hẹn `Monster.DeadDuration`; `GetNextStateEvent`): hết DeadDuration mà quái
+  không phải Boss/MiniBoss (`EnumExtensions.IsBoss`: MonsterType 2 hoặc 3), và (không có kho, hoặc hết LifeTime, hoặc mọi ô mọi kho
+  rỗng và không ai đang lục) → `ReservedDespawn`: `NetworkObject.Despawn` sau 3 s (`MonsterReservedDespawn.OnEnter`: TimeNow + 3).
+  Xác Boss/MiniBoss không bao giờ biến. DeadDuration là 0 ở mọi quái thường, 2 ở vài boss.
+  Web: xác có đồ (hoặc xác Boss/MiniBoss) → thực thể `corpse` trong dive.js, gỡ unit khỏi `stage.deadQueue` để stage không xoá sau
+  3 s; lục hết và đóng bảng → hẹn 3 s rồi xoá unit và thực thể. Xác rỗng của quái thường vẫn theo `stage.deadQueue` (3 s) như cũ.
+- **[ĐO] Tan xác:** `UnitVisualEffectView.OnReservedDespawn` chạy `DOVirtual.Float(0→1, 2 s)` trễ 1 s (shader dissolve).
+  Web chưa có shader dissolve cho Spine: xác biến hẳn ở giây 3. [CHƯA LÀM]
+- **Kiểm:** `test/voiddiver-dive.js` phần 2 (`corpseAndGear`): giết bằng chuột trái, không có DropGoods, xác còn sau 4 s, lời nhắc
+  "Xác Kkamong / Kiểm tra" 0,1 s, giữ F mở bảng + LootingInventory của xác, bấm trái lấy hết, 3 s sau xác biến.
+
+## 14. Trang bị trong lượt lặn (EquipmentInventoryPanel) (đo lại 2026-09-28)
+
+Chủ dự án: "không tháo đổi weapon/equip được trong lúc đang đi ải". Bản cũ vẽ 6 ô trang bị chỉ để xem: bấm, kéo, F đều bỏ qua.
+
+- **[ĐO] Mô hình:** `Character` có `WeaponSlots[2]` + `ActiveWeaponIndex`, `AccessorySlots` (`Const.CharacterAccessorySlotCount` 3),
+  `ArtifactSlots` (`CharacterArtifactSlotCount` 2). Web: `VD.inventory.gear = { weapon: [g, g], active, acc: [3], art: [2] }`, dựng
+  từ loadout (`weaponId`, `equipmentIds`) lúc `reset`. `equipList()` vẫn trả 6 ô (vũ khí đang cầm, 3 phụ kiện, 2 cổ vật) cho trang
+  Nhân vật; `subWeapon()` là ô thứ 7 (`data-k="6"`).
+- **[ĐO] Bố cục** (prefab `EquipmentInventoryPanel`, `EquipmentInventoryPanelView`): `WeaponSlot` 80×80 tại (40, −40); `SubWeapon_`
+  110×110 tại (25, −55) đứng trước trong cây (vẽ sau lưng) gồm `WeaponSlot` 70×70 lệch (−20, −20), `KeyPrompt` V_Key 40×40 tại
+  (−43, 33), `IconSwap` Swap 32×22 #707070 (pivot 1,1) tại (51, −29), `Dim` #1B1B1B 70 % 46×46 lệch (−8, −8). HUD
+  (`InGameQuickSlotPanel`): `WeaponSwapSlot` 90×90 + `SubWeapon_` 70×70 phía sau, `SwapedFX` khi đổi. Web HUD thu theo ô đồ 40 px.
+- **[ĐO] Thao tác** (`InventoryManagementPagePresenter`):
+
+  | Thao tác | Mã gốc | Web |
+  |---|---|---|
+  | Kéo món từ túi / khe an toàn / rương vào ô trang bị | `HandleEquipSlot` → `CheckEquipable` → `ReqEquip{Inventory,Safe,Looting}Slot` | `I.equipFrom(a, k, ô)` |
+  | F lên trang bị trong túi / khe an toàn | `OnUseButtonClick` → `EquipInventorySlot` / `EquipSafeSlot` (ô đích −1) | `useRef` → `I.equipFrom(a, k)` |
+  | F, bấm trái, bấm phải lên ô trang bị | `UnequipToInventorySlot` (bấm trái khi túi phụ mở: `TransferEquipmentSlotToBagSlot`) | `I.unequip(k)` |
+  | Kéo ô trang bị ra túi / khe an toàn / rương | `ReqUnequipTo{Inventory,Safe,Looting}Slot` | `I.unequip(k, a, ô)` |
+  | Kéo ô trang bị sang ô trang bị | cùng loại `ReqSwapEquipmentSlots`; khác loại `EquipementSlotTypeMismatch` | `I.swapGear(k1, k2)` |
+  | V trong bảng / khi đang chơi | `OnSwapWeaponButtonClick` (không khi `_isDragging`) / `PlayerInputController.OnSwapWeaponPerformed` → `ReqSwapWeapon` | `I.swapWeapon()` |
+
+- **[ĐO] `CheckEquipable`:** loại ô của món (`EnumExtensions.GetSlotCategory`) khác ô đích → `NotEquipableEquipmentType`; vũ khí có
+  `Equipment.WeaponType` khác `Character.WeaponType` → `NotEquipableWeaponType`; `Equipment.EquipPartGroup` > 0 trùng một món đang
+  đeo ở ô khác (`HasDuplicateEquipPartGroup` quét cả 3 mảng, bỏ ô sắp bị thay) → `DuplicateEquipPartGroup`.
+- **[ĐO] Máy chủ** (`CharacterController`): `OnEquipInventorySlot` kéo món ra (`TryPullSlot`), `Equip`, rồi đẩy món vừa tháo vào
+  đúng ô nguồn. `Equip` với ô −1: vũ khí → `ActiveWeaponIndex`; phụ kiện/cổ vật → ô trống đầu tiên (`FirstOrDefault`); hết ô trống
+  thì web lấy ô 0 [SUY LUẬN: nhánh thứ hai chưa đọc]. `Unequip` không chặn ô vũ khí: vũ khí tháo ra được; khoá `CannotUnequipWeapon`
+  ("Vũ khí chỉ có thể hoán đổi.") không có chỗ gọi trong bản demo. `UnequipToInventorySlot` cần một ô túi trống, không thì
+  `NotEnoughInventorySlots`. `OnSwapWeapon`: `AllowEmpty = false` nên ô kia trống thì không đổi. Không có điều kiện trạng thái (đang
+  đánh, đang niệm) ở cả client lẫn host.
+- **[ĐO] Tiếng:** `PlayEquipSound` "Equip", ô cổ vật "Equip2"; tháo "ItemRelease". Bóc bằng `tools/ui_inventory_rip.py audio Equip Equip2`.
+- **[ĐO] Highlight:** `RxHighlightOn`: ô trang bị cùng loại sáng khi đang cầm trang bị (chuột kéo hoặc A tay cầm).
+- **[ĐO] Hiệu lực ngay:** chỉ số tính lại bằng `Stats.base` với vũ khí đang cầm (hỏng thì `BrokenStats`) + phụ kiện + cổ vật; máu và
+  thể lực kẹp theo giá trị tối đa mới. Da vũ khí theo `Extensions.UpdateCharacterSkin`: skin `"weapon/" + Equipment.WeaponSkinName`,
+  không vũ khí thì `"weapon/dummy"` (bộ Spine demo không có skin này nên không vẽ vũ khí). Ô vũ khí HUD vẽ lại.
+- **[CHƯA LÀM]** `Equipment.EquipmentEffectIds` → `EquipmentEffect.BuffId / SkillIds` (hiệu ứng phụ kiện/cổ vật) chưa được web áp,
+  kể cả với loadout từ sảnh; vũ khí demo không có hiệu ứng nào. Skill trang bị (`Character.EquipmentActiveSkillId`, phím C) cũng chưa.
+- **[CHƯA RÕ]** Chết thì trang bị đang đeo ra sao: chưa đọc được. Web: thoát được thì ghi `profile.equip[nhân vật] = { weapon, sub, acc, art }`;
+  chết thì hồ sơ giữ bộ cũ như trước.
+- **Kiểm:** `test/voiddiver-loot.js` (sai loại vũ khí, sai ô, trùng EquipPartGroup, đổi ô, túi đầy, F tháo, chuột phải tháo vũ khí,
+  ô phụ + V) và `test/voiddiver-dive.js` (F lên kiếm lấy từ xác, kéo kiếm cũ vào ô phụ có Highlight, V ngoài bảng: Atk, da, HUD).
+- **Bẫy:** ô vũ khí phụ nằm sau ô chính và tâm của nó bị ô chính che. Thả chuột vào phần lộ ra bên trái (bài kiểm dùng x + 10).
+- **Bẫy:** bốn bước tay cầm cuối của `voiddiver-loot.js` (RT/LT, X mở túi phụ, B, d-pad) hỏng cả khi chạy mã ở HEAD 13e8baa trên máy
+  đang chạy 4 agent: Gamepad API đọc theo rAF, máy nặng thì mất hoặc lặp nút. Không phải do phần trang bị.

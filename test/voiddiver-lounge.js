@@ -9,6 +9,8 @@
  *      ForceEscapeStage của dive.js) → sảnh → QuestComplete 1101 → Chủ nhân lên cấp → Lucas mua đồ → 82100 → máy Antikythera chế tạo
  *      → Felix kích hoạt talent → tải lại trang → Tiếp tục → trạng thái còn nguyên.
  *   2. 844×390: tiêu đề, sảnh, menu NPC, bảng Campaign/Talent/Kho đọc được, không tràn.
+ *   3. (--only=lobbyplay) HUD người chơi ở sảnh; Felix → SkillSelectPopup bằng chuột thật (ô khoá, tháo skill trùng, lưu khi đóng);
+ *      RMB/Q thật ở sảnh (không tốn thể lực/căng thẳng); phòng tập 9003: bù nhìn nhận sát thương; đổi trang bị áp ngay, ô C.
  *   Hỏng nếu: pageerror, console error, response ≥ 400. Ảnh ở %TEMP%/voiddiver-lounge-shots/ — mở ra xem.
  */
 'use strict';
@@ -457,6 +459,95 @@ async function mobile(browser, port, errors) {
   return page;
 }
 
+// ================================================================ 3. Đánh / skill / trang bị trong sảnh (1280×720, chuột + phím thật)
+// Luật gốc: docs/LOUNGE.md §6.2 (SkillSelectPopup) và §1.1 (IsNonCombat, phòng tập 9003).
+async function lobbyplay(browser, port, errors) {
+  console.log('\n== sảnh: chọn kỹ năng, đánh, trang bị');
+  const page = await newPage(browser, 1280, 720, errors);
+  const url = `${process.env.VD_BASE || ('http://127.0.0.1:' + port)}/games/voiddiver/index.html`;
+  await page.goto(url);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await waitFor(page, () => document.body.dataset.ready === 'title', null, 60000);
+  await page.evaluate(() => { const P = VD.profile; P.reset(); const p = P.get(); p.clears = { 1100: 1, 1101: 1 }; p.isTutorial = false; p.userLevel = 2;
+    for (const q of VD.T.LoungeQuest) p.loungeQuest[q.Id] = 4; p.areaUnlocked[3] = true; P.save(); });
+  await page.goto(url + '?lounge=1');
+  check('sảnh ?lounge=1', await waitFor(page, () => document.body.dataset.lounge === 'play' && VD.stage.pending === 0, null, 240000));
+  await sleep(1200);
+  const hud = await page.evaluate(() => ({ on: VD.hud.on, vis: getComputedStyle(VD.hud.root).display !== 'none', slots: [...document.querySelectorAll('.vd-skills .vd-skill')].map(e => e.classList.contains('empty') ? 0 : 1).join(''),
+    map: !!document.querySelector('.vd-minimap canvas.small') && getComputedStyle(document.querySelector('.vd-minimap')).display !== 'none', lo: VD.stage.loadout, nc: VD.stage.player.nonCombat }));
+  check('HUD người chơi hiện ở sảnh (dãy skill LMB/RMB/Space/Q có icon, E/R trống, bản đồ nhỏ)', hud.on && hud.vis && hud.slots === '111100' && hud.map, JSON.stringify(hud));
+  check('người chơi ở sảnh mang loadout của hồ sơ, ngoài phòng tập là IsNonCombat', hud.lo.SkillOne === 0 && hud.lo.SkillTwo === 1 && hud.nc === true, JSON.stringify(hud.lo));
+  await shot(page, 'p01-lobby-hud');
+  // Felix → "Chọn kỹ năng" (F thật, bấm chuột thật)
+  check('Felix: menu', await talkTo(page, 700008));
+  check('Felix → Chọn kỹ năng', await pick(page, VD_TX_SKILL));
+  check('bảng SkillSelectPopup mở', await waitFor(page, () => document.body.dataset.panel === 'charSkill', null, 5000));
+  await sleep(300);
+  const pop = await page.evaluate(() => ({ slots: document.querySelectorAll('.vd-sks .sl').length, lock: document.querySelectorAll('.vd-sks .sl.lock').length, sel: document.querySelector('.vd-sks .sl.sel').dataset.slot,
+    list: [...document.querySelectorAll('.vd-sks .list .sk-info')].map(e => +e.dataset.id), cur: document.querySelectorAll('.vd-sks .list .tag.cur').length }));
+  check('4 ô RMB/Q/E/R (E, R khoá: ActiveSlotCount 2), ô RMB chọn sẵn, danh sách xếp theo Id', pop.slots === 4 && pop.lock === 2 && pop.sel === '0' && pop.list.join() === pop.list.slice().sort((a, b) => a - b).join() && pop.cur === 1, JSON.stringify(pop));
+  await shot(page, 'p02-skill-popup');
+  const at = sel => page.evaluate(s => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + Math.min(r.height / 2, 30) }; }, sel);
+  let p0 = await at('.vd-sks .sl[data-slot="1"]'); await page.mouse.click(p0.x, p0.y); await sleep(200);
+  p0 = await at('.vd-sks .list .sk-info[data-id="10010300"]'); await page.mouse.click(p0.x, p0.y); await sleep(300);
+  const moved = await page.evaluate(() => [...document.querySelectorAll('.vd-sks .sl')].map(e => e.querySelector('.ic') ? 1 : 0).join(''));
+  check('đặt skill đang ở RMB vào Q: RMB bị tháo (không đổi chỗ), có toast', moved === '0100' && await page.evaluate(() => !!document.querySelector('.vd-toast')), moved);
+  p0 = await at('.vd-sks .sl[data-slot="0"]'); await page.mouse.click(p0.x, p0.y); await sleep(200);
+  p0 = await at('.vd-sks .list .sk-info[data-id="10010600"]'); await page.mouse.click(p0.x, p0.y); await sleep(200);
+  await shot(page, 'p03-skill-picked');
+  await page.keyboard.press('Escape'); await sleep(300);
+  await page.evaluate(() => { if (VD.npc.isOpen()) VD.npc.close(); });
+  await sleep(300);
+  const lo = await page.evaluate(() => ({ prof: VD.profile.loadout(100001), st: VD.stage.loadout }));
+  check('đóng bảng = lưu: hồ sơ và nhân vật ở sảnh đổi ngay (RMB Trảm Hồn, Q Xung Phong)', lo.prof.SkillOne === 3 && lo.prof.SkillTwo === 0 && lo.st.SkillOne === 3 && lo.st.SkillTwo === 0, JSON.stringify(lo));
+  // dùng skill bằng phím thật
+  const cv = await page.evaluate(() => { const r = VD.render.renderer.domElement.getBoundingClientRect(); return { x: r.x + r.width / 2 + 120, y: r.y + r.height / 2 - 40 }; });
+  await page.mouse.move(cv.x, cv.y);
+  // (swiftshader chậm: đo giờ game ở sảnh chỉ chạy 0,2–0,4 × giờ thật → chờ theo trạng thái, hạn chờ rộng; hồi chiêu vài giây
+  // game có thể mất ~30 s thật)
+  await page.mouse.down({ button: 'right' }); await sleep(100); await page.mouse.up({ button: 'right' });
+  await waitFor(page, () => (VD.stage.player.cd[10010600] || 0) > 0 && !VD.stage.player.run, null, 40000, 'RMB hồi chiêu');
+  await page.keyboard.press('KeyQ');
+  await waitFor(page, () => (VD.stage.player.cd[10010300] || 0) > 0, null, 40000, 'Q hồi chiêu');
+  await sleep(100);
+  const cast = await page.evaluate(() => { const u = VD.stage.player; return { cd: Object.keys(u.cd).filter(k => u.cd[k] > 0).map(Number).sort(), sta: u.stamina, max: u.stats.StaminaMax, st: u.stress,
+    cdEl: [...document.querySelectorAll('.vd-skills .vd-skill .cdt')].map(e => e.textContent).join('|') }; });
+  check('RMB (chuột phải) + Q ở sảnh: skill chạy, hồi chiêu hiện trên HUD, không tốn thể lực/căng thẳng (IsNonCombat)', cast.cd.join() === '10010300,10010600' && cast.sta === cast.max && cast.st === 0 && /\d/.test(cast.cdEl), JSON.stringify(cast));
+  await shot(page, 'p04-cast');
+  // phòng tập 9003: bù nhìn gốc, trong TrainingField thì đánh thật
+  const dm = await page.evaluate(() => { const ms = VD.stage.units.filter(u => u.kind === 'mon'); const m = ms[0]; VD.lounge.debug.teleport(m.pos.x + 1.1, m.pos.z + 1.1); return { ids: ms.map(u => u.id), hp: m.hp }; });
+  check('phòng tập: 5 bù nhìn 8200xx từ Sector 9003', dm.ids.join() === '820001,820002,820004,820006,820007', dm.ids.join());
+  await page.keyboard.down('KeyS'); await sleep(150); await page.keyboard.up('KeyS'); await sleep(1300);
+  const tgt = await page.evaluate(() => { const m = VD.stage.units.find(u => u.kind === 'mon'); const v = new THREE.Vector3(m.pos.x, 0.6, m.pos.z).project(VD.render.camera); const c = VD.render.renderer.domElement.getBoundingClientRect(); return { x: c.left + (v.x + 1) / 2 * c.width, y: c.top + (1 - v.y) / 2 * c.height }; });
+  await page.mouse.move(tgt.x, tgt.y);
+  await waitFor(page, () => (VD.stage.player.cd[10010600] || 0) <= 0 && !VD.stage.player.run, null, 60000, 'RMB hồi xong');
+  await page.mouse.down({ button: 'right' }); await sleep(100); await page.mouse.up({ button: 'right' });
+  await waitFor(page, () => { const m = VD.stage.units.find(u => u.kind === 'mon'); return m.hp < m.stats.HpMax; }, null, 40000, 'bù nhìn mất máu');
+  const tr = await page.evaluate(() => { const m = VD.stage.units.find(u => u.kind === 'mon'), u = VD.stage.player; return { nc: u.nonCombat, hp: m.hp, max: m.stats.HpMax }; });
+  check('trong TrainingField: không còn IsNonCombat, skill gây sát thương lên bù nhìn', tr.nc === false && tr.hp < tr.max, JSON.stringify(tr));
+  await shot(page, 'p05-training');
+  // đổi trang bị → áp ngay (chỉ số, skin vũ khí), ô C trong bảng chọn kỹ năng
+  const b0 = await page.evaluate(() => ({ uid: VD.stage.player.uid, atk: VD.Stats.get(VD.stage.player, 'Atk') }));
+  await page.evaluate(() => { const p = VD.profile.get(); p.equip[100001] = { weapon: 1013, acc: [26011], art: [] }; VD.profile.save(); });
+  await sleep(1200);
+  const b1 = await page.evaluate(() => { const u = VD.stage.player;
+    return { uid: u.uid, atk: VD.Stats.get(u, 'Atk'), weapon: (VD.app.skinsOf(100001, 1013) || []).find(s => /^weapon\//.test(s)), eq: VD.app.equipSkillId(100001) }; });
+  check('đổi vũ khí/phụ kiện trong hồ sơ: nhân vật sảnh sinh lại ngay với chỉ số + skin weapon/1013', b1.uid !== b0.uid && b1.atk > b0.atk && b1.weapon === 'weapon/1013', JSON.stringify([b0, b1]));
+  await page.evaluate(() => VD.uiChar.openSkill()); await sleep(400);
+  const c5 = await page.evaluate(() => document.querySelectorAll('.vd-sks .sl').length);
+  p0 = await at('.vd-sks .sl[data-slot="4"]'); await page.mouse.click(p0.x, p0.y); await sleep(200);
+  const eqv = await page.evaluate(() => ({ info: +(document.querySelector('.vd-sks .sk-disp .sk-info') || {}).dataset?.id, list: !!document.querySelector('.vd-sks .list'), guide: !!document.querySelector('.vd-sks .eqguide') }));
+  check('ô C (skill trang bị) chỉ đọc: hiện thông tin, ẩn danh sách', c5 === 5 && eqv.info === 30010000 && !eqv.list && eqv.guide, JSON.stringify(eqv));
+  await shot(page, 'p06-equip-slot');
+  await page.keyboard.press('Escape');
+  // lặn mang đúng loadout
+  const dl = await page.evaluate(() => VD.app.skillLoadout(100001));
+  check('toDive dùng cùng loadout (RMB Trảm Hồn, Q Xung Phong)', dl.SkillOne === 3 && dl.SkillTwo === 0, JSON.stringify(dl));
+  return page;
+}
+const VD_TX_SKILL = 'Chọn kỹ năng';
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const srv = await serve();
@@ -464,8 +555,11 @@ async function mobile(browser, port, errors) {
   const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const errors = [];
   try {
-    if (!OPT.only || OPT.only === 'flow') await flow(browser, port, errors);
-    if (!OPT.only || OPT.only === 'mobile') await mobile(browser, port, errors);
+    // Đóng trang của phần trước: headless không hãm rAF trang nền — để lại thì mỗi phần thêm một bản game vẽ swiftshader song song.
+    const run = async f => { const p = await f(browser, port, errors); if (p && !OPT.keep) await p.close(); };
+    if (!OPT.only || OPT.only === 'flow') await run(flow);
+    if (!OPT.only || OPT.only === 'mobile') await run(mobile);
+    if (!OPT.only || OPT.only === 'lobbyplay') await run(lobbyplay);
   } catch (e) { check('không ném lỗi', false, e.stack); }
   const uniq = [...new Set(errors)];
   check('không pageerror / console error / HTTP ≥ 400', uniq.length === 0, uniq.slice(0, 12).join('\n      '));

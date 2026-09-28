@@ -44,6 +44,83 @@
     return { x, z };
   }
 
+  // ================================================================ đánh nhau trong sảnh
+  // [ĐO] Sảnh không chặn skill (CharacterIdleState.GetNextStateEvent nhận UseSkillEvent bất kể IsInLounge). UnitModel.IsNonCombat =
+  // IsInLounge && không có buff hiệu ứng TrainingRoom (68): khi đó không mất máu (UnitController.CalculateDamage trả 0), không tốn
+  // thể lực / căng thẳng, không hồi máu, không nạp tối thượng, anim default/* (CharacterView, UnitSkillState.GetAnimationName).
+  // Buff TrainingRoom 62100003 chỉ có trong SpecialField 5001 "TrainingField" của phòng tập 9003 (Sector.SpecialFieldSpawnGroupDatas,
+  // hộp Scale x×z), nơi có bù nhìn 8200xx (Sector.MonsterSpawnGroupDatas). Sảnh chính 9001 không có bù nhìn.
+  function trainingFields() {
+    const out = [];
+    for (const sec of VD.world.sectors) {
+      const r = T().Sector.find(s => s.Id === sec.cell.id);
+      for (const g of (r && r.SpecialFieldSpawnGroupDatas) || []) for (const sd of g.SpawnDatas || []) {
+        const f = (T().SpecialField || []).find(x => x.Id === sd.SpecialFieldId);
+        if (!f || f.CharacterBuffId !== 62100003) continue;
+        const sc = String(sd.Scale || '1:1:1').split(':').map(Number), c = secPoint(sec.cell.id, sd.SpawnPosition);
+        out.push({ x: c.x, z: c.z, hx: (sc[0] || 1) / 2, hz: (sc[2] || 1) / 2 });
+      }
+    }
+    return out;
+  }
+  const inTraining = p => (L.training || []).some(f => Math.abs(p.x - f.x) <= f.hx && Math.abs(p.z - f.z) <= f.hz);
+  function spawnTrainingDummies() {
+    for (const sec of VD.world.sectors) {
+      if (sec.cell.id === 9001) continue;
+      const r = T().Sector.find(s => s.Id === sec.cell.id);
+      for (const g of (r && r.MonsterSpawnGroupDatas) || []) for (const sd of g.SpawnDatas || []) {
+        if (!(sd.MonsterId > 0)) continue;
+        const pos = secPoint(sec.cell.id, sd.SpawnPosition), at = sd.UseFixedAimPos ? secPoint(sec.cell.id, sd.FixedAimPos) : null;
+        const d = at ? Math.hypot(at.x - pos.x, at.z - pos.z) : 0;
+        const u = VD.stage.spawn({ kind: 'mon', id: sd.MonsterId, pos, aim: d > 1e-4 ? { x: (at.x - pos.x) / d, z: (at.z - pos.z) / d } : { x: 0, z: 1 } });
+        u.nonCombat = !inTraining(pos);
+      }
+    }
+  }
+  // Nhân vật của hồ sơ với đồ đang mặc (chỉ số), skin vũ khí, talent (passive AddSkill + TalentConditionList) — như toDive.
+  L.spawnPlayer = function (pos, aim, old) {
+    const S = VD.stage, P_ = P(), p = P_.get();
+    const charId = p.unlockedChars.indexOf(p.character) >= 0 ? p.character : 100001;
+    const eq = VD.app.equipOf(charId), tal = {};
+    for (const k of Object.keys(p.talents || {})) if (p.talents[k]) tal[k] = true;
+    S.charExtras = { talents: tal, skills: P_.talentSkills() };
+    let u;
+    try { u = S.spawn({ kind: 'char', id: charId, pos, aim, weaponId: eq.weaponId, equipmentIds: eq.equipmentIds, skins: VD.app.skinsOf(charId, eq.weaponId) }); }
+    finally { S.charExtras = null; }
+    if (old) { S.remove(old); u.stress = old.stress; }
+    u.nonCombat = !inTraining(u.pos);
+    L.playerSig = VD.app.loungeSig();
+    return u;
+  };
+  function combatTick() {
+    const S = VD.stage;
+    for (const u of S.units) if (u.kind === 'char') u.nonCombat = !inTraining(u.pos);
+    // Đồ / nhân vật / talent đổi ở bảng nào cũng áp ngay lên người (VD.app.refreshLoungePlayer).
+    if (S.player && VD.app.loungeSig() !== L.playerSig) VD.app.refreshLoungePlayer();
+  }
+  // HUD người chơi như lúc lặn (ảnh Steam sảnh: pin đèn, máu, căng thẳng, dãy skill, 6 ô đồ, bản đồ nhỏ, "Hướng dẫn [O]").
+  // Ô đồ: Profile.quick, số = tổng trong túi mang theo; bấm 1–5 ở sảnh không dùng (CharacterController.OnInputUseItem xét IsInLounge).
+  function paintQuick() {
+    const els = VD.hud && VD.hud.itemEls; if (!els) return;
+    const p = P().get();
+    els.forEach((el, k) => {
+      const id = (p.quick || [])[k], img = el.querySelector('img'), n = el.querySelector('span');
+      if (!id) { img.removeAttribute('src'); img.style.visibility = 'hidden'; n.textContent = ''; el.classList.add('empty'); return; }
+      const src = VD.goods.icon({ type: 'Item', id });
+      if (img.dataset.src !== src) { img.src = src; img.dataset.src = src; }
+      img.style.visibility = '';
+      let c = 0; for (const g of p.pack || []) if (g.type === 'Item' && +g.id === +id) c += g.count || 1;
+      n.textContent = c; el.classList.toggle('empty', c <= 0);
+    });
+  }
+  function combatHud(on) {
+    if (VD.hud) { VD.hud.show(on); if (on) { VD.hud.setBoss(null); VD.hud.setQuest(null); paintQuick(); } }
+    if (!VD.minimap) return;
+    if (!on) { VD.minimap.clear(); return; }
+    VD.minimap.setup(VD.world, layout(), null).then(() => { VD.minimap.revealAll(); for (const n of L.npcs.values()) VD.minimap.mark('npc' + n.id, 'npc', () => n.pos); });
+  }
+  L.combatHud = combatHud;
+
   // ================================================================ vào / rời sảnh
   L.enter = async function (opts) {
     opts = opts || {};
@@ -73,16 +150,18 @@
     const zp = (row.ZonePointDatas || [])[0];
     const start = freeNear(...Object.values(secPoint(9001, zp ? zp.Position : '13.5:0:15')), 0.3);
     L.start = start;
-    const charId = p.unlockedChars.indexOf(p.character) >= 0 ? p.character : 100001;
-    const pl = S.spawn({ kind: 'char', id: charId, pos: start, aim: { x: -Math.SQRT1_2, z: -Math.SQRT1_2 } });
-    S.setPlayer(pl, { SkillOne: -1, SkillTwo: -1, SkillThree: -1, SkillFour: -1 });
+    L.training = trainingFields();
+    const pl = L.spawnPlayer(start, { x: -Math.SQRT1_2, z: -Math.SQRT1_2 });
+    S.setPlayer(pl, VD.app.skillLoadout(pl.id));
     VD.player = pl;
+    spawnTrainingDummies();
     // ---- đồ trong sảnh
     spawnDecor();
     spawnSectorNpcs();
     spawnGuests(row);
     spawnBooth(row);
     buildHud();
+    combatHud(true);
     L.pickArea(true);
     // ---- vòng lặp
     VD.loop.update = update;
@@ -121,6 +200,7 @@
     if (L.booth && VD.objects) VD.objects.remove(L.booth);
     L.booth = null;
     if (L.hud) { L.hud.remove(); L.hud = null; }
+    combatHud(false);
     VD.stage.end();
     VD.world.unload(VD.render.scene);
     renderSettings(false);
@@ -241,23 +321,8 @@
     // Chặn đi xuyên NPC (CapsuleCollider + NavMeshObstacle của prefab).
     const r = a && a.radius ? Math.min(0.6, a.radius) : 0.35;
     n.blocker = VD.world.addBlocker(pos.x, pos.z, r * 1.6, r * 1.6, 45, false);
-    if (a && a.spine && a.spine !== 'EmptySkeleton') {
-      VD.loadSpine(a.spine).then(bundle => {
-        if (n.removed) return;
-        const vis = new VD.UnitVisual(bundle, { skins: a.skins, scale: a.scale || 1, shadow: 0.4 });
-        vis.root.position.set(n.pos.x, 0, n.pos.z);
-        VD.render.scene.add(vis.root);
-        const anim = (a.anim && vis.has(a.anim)) ? a.anim : (vis.resolve('idle') || vis.resolve('default/idle') || (bundle.dirs[vis.dirKey].data.animations[0] || {}).name);
-        if (anim) vis.play(anim, a.loop !== false, 1);
-        if (a.flip) vis.flip = true;
-        n.vis = vis;
-      }).catch(e => console.warn('[lounge] NPC ' + id + ': ' + (e.message || e)));
-    } else if (!a && VD.objects && VD.objects.has(String(id))) {
-      // NPC dạng lưới 3D (700004 sofa Shoggoth, 700002 máy Antikythera, 700151 máy hát): prefab <NpcId> xuất bằng
-      // tools/rip_objects.py. Mắt mở và mắt nhắm (*.close) đều bật trong prefab, Animator gốc bật/tắt chúng: giữ mắt mở.
-      n.obj = VD.objects.create(String(id), { pos: n.pos });
-      n.obj.hideGroups = [/\.close(\.\d+)?$/];
-    }
+    // Hình theo prefab gốc (Spine + lưới 3D đi kèm): js/npc.js VD.npc.visual.
+    VD.npc.visual(n, id, n.pos);
     n.tag = $('div', 'vd-npctag', L.hudWorld());
     n.tag.innerHTML = '<div class="mark"></div><div class="sub"></div><div class="name"></div><div class="key"><b>F</b><span></span></div>';
     n.tag.querySelector('.sub').innerHTML = VD.ui.rich(TX('TNpc_SubName_' + id));
@@ -271,7 +336,7 @@
   function removeNpc(n) {
     n.removed = true;
     if (n.vis) n.vis.dispose();
-    if (n.obj) VD.objects.remove(n.obj);
+    if (n.h) VD.objects.remove(n.h);
     if (n.tag) n.tag.remove();
     if (n.blocker) VD.world.removeBlocker(n.blocker);
   }
@@ -312,8 +377,7 @@
       <div class="vd-lhud-level"><div class="lv"></div><div class="bar"><i></i></div><div class="exp"></div><div class="up">${TX('UInGameUserLevelPanel_LevelUpTag_Text') || ''}</div></div>
       <div class="vd-lhud-quest"></div>
       <div class="vd-lhud-wallet"><div class="coin"><img src="art/ui/icon_common/Coin.webp"><span></span></div><div class="gold"><img src="art/ui/icon_common/Gold.webp"><span></span></div></div>
-      <div class="vd-lhud-menu"><button class="snd" title="Âm thanh"><img></button><button class="title" title="Màn tiêu đề">☰</button></div>
-      <div class="vd-lhud-keys"><span><b>WASD</b> Di chuyển</span><span><b>F</b> ${TX('Interact') || 'Tương tác'}</span></div>`;
+      <div class="vd-lhud-menu"><button class="snd" title="Âm thanh"><img></button><button class="title" title="Màn tiêu đề">☰</button></div>`;
     const snd = h.querySelector('.snd img');
     const paint = () => { snd.src = 'art/ui/icon_common/' + (P().get().sound !== false ? 'ImgSoundOn' : 'ImgSoundOff') + '.webp'; };
     paint();
@@ -411,6 +475,7 @@
   function update(dt) {
     if (L.state !== 'play') return;
     const S = VD.stage;
+    combatTick();
     S.update(dt);
     flushLua();
     if (VD.lua.state) VD.lua.tick();
@@ -460,7 +525,9 @@
     for (const n of L.npcs.values()) if (n.vis) { n.vis.root.position.set(n.pos.x, 0, n.pos.z); n.vis.update(dt, VD.render.camera); }
     for (const d of L.decor) d.m.update(dt);
     if (VD.objects) VD.objects.update(dt, VD.render.camera);
-    if (L.hudDirty) paintHud();
+    if (L.hudDirty) { paintHud(); paintQuick(); }
+    if (VD.hud && VD.hud.on) VD.hud.update(dt);
+    if (VD.minimap && VD.minimap.on) VD.minimap.update(dt);
     measureHud();
     // Nhãn NPC: tên + chức năng, "!" khi có hội thoại Quest, mũi dẫn đường khi SetNpcNavigationActive hoặc là đích
     // của "việc kế tiếp" (bảng nhiệm vụ). Đích đổi thì vẽ lại bảng nhiệm vụ.
@@ -473,7 +540,7 @@
       n.tag.classList.toggle('target', tg);
       const hasName = !!TX('TNpc_Name_' + n.id);
       if (!hasName && !n.nav) { n.tag.style.display = 'none'; continue; }
-      const h = (n.vis ? TAG_Y * (n.art && n.art.scale || 1) : 1.3);
+      const h = (n.vis ? TAG_Y * (n.art.scale || 1) + (n.art.off ? n.art.off[1] : 0) : 1.3);
       tagAt(n.tag, n.pos.x, h, n.pos.z);
       const quest = dlg.some(d => d.npc === n.id && VD.npc.isQuest(d));
       const m = n.tag.querySelector('.mark');
@@ -735,7 +802,7 @@
       SetCharacterForward: () => {},
       GetCharacterHp: () => (pl() ? pl().hp : 0), GetCharacterMaxHp: () => (pl() ? pl().stats.HpMax : 0),
       GetCharacterStress: () => 0, GetCharacterLightFuel: () => C('LightFuelDefault', 100),
-      SetInGameHudActive: on => { L.hudOn = !!on; if (L.hud) L.hud.style.display = on ? '' : 'none'; },
+      SetInGameHudActive: on => { L.hudOn = !!on; if (L.hud) L.hud.style.display = on ? '' : 'none'; if (VD.hud) VD.hud.show(!!on); if (VD.minimap && VD.minimap.W) VD.minimap.show(!!on); },
       GetZoneSpawnPosition: () => toLua(L.start || { x: 0, z: 0 }),
       SetTriggerable: () => {},
       // ---- hàng hoá: ở sảnh "túi" = túi mang theo (pack) + kho

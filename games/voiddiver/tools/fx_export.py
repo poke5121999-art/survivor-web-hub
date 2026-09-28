@@ -604,6 +604,10 @@ def material_out(ctx, mptr, sheet=False):
             out['c'] = {'mainCol': [rn(x) for x in colors['_MainColor']]}
     else:
         col = colors.get('_BaseColor') or colors.get('_Color') or colors.get('_TintColor')
+        # Mobile/Particles/* (shader dựng sẵn của Unity: SetTexture [_MainTex] { combine texture * primary }) không có thuộc
+        # tính màu; _TintColor còn sót trong vật liệu (0,0,0,0 ở Mtl_FX_ETC_Cigarette) không được dùng → ảnh × màu hạt.
+        if 'Mobile/Particles' in str(shader_name):
+            col = None
         if col:
             out['c'] = {'mainCol': [rn(x) for x in col]}
         if 'Mobile/Particles' in str(shader_name) or 'Alpha Blended' in str(shader_name):
@@ -687,6 +691,22 @@ def mesh_out(ctx, mptr):
         out['uv'] = uv
     if col:
         out['col'] = col
+    # Hai mesh khác nhau trùng tên (SphereDome01_uvv_uvflip): lần chạy đủ đặt tên theo thứ tự gặp, lần chạy lẻ thì mesh
+    # đầu tiên lấy tên trần → ghi đè mesh của prefab khác (bẫy đã sập 2026-09-28). Tệp trên đĩa khác nội dung → tên có băm.
+    base = name
+    while True:
+        p = os.path.join(OUT_MESH, name + '.json')
+        if not os.path.exists(p):
+            break
+        try:
+            old = json.load(io.open(p, encoding='utf-8'))
+        except Exception:
+            break
+        old['name'] = out['name']
+        if old == json.loads(json.dumps(out)) or name != base:
+            break
+        name = base + '_' + hashlib.md5(repr(key).encode()).hexdigest()[:6]
+        out['name'] = name
     with io.open(os.path.join(OUT_MESH, name + '.json'), 'w', encoding='utf-8') as f:
         json.dump(out, f, separators=(',', ':'))
     ctx.mesh_done[key] = name
@@ -1013,11 +1033,97 @@ def anim_export(ctx, animator, anim_node, nodes):
     return {'def': sm.get('m_DefaultState', 0), 'states': states, 'clips': clips}
 
 
+# ------------------------------------------------------ ParticleSetupTool --
+def _mmc_scale_max(v, k):
+    """MainModule.startSize(X/Y/Z)Multiplier *= k: nhân m_Scalar của MinMaxCurve (hằng: giá trị; hai hằng: chỉ cận trên,
+    minScalar giữ nguyên; đường cong: hệ số nhân)."""
+    if isinstance(v, (int, float)):
+        return rn(v * k)
+    if isinstance(v, list):
+        return [v[0], rn(v[1] * k)]
+    if isinstance(v, dict):
+        v = dict(v)
+        v['m'] = rn(v.get('m', 1) * k)
+        return v
+    return v
+
+
+def _mmc_add_const(v, d):
+    """startDelay: chế độ Constant / TwoConstants cộng d vào cả hai hằng; đường cong giữ nguyên."""
+    if isinstance(v, (int, float)):
+        return rn(v + d)
+    if isinstance(v, list):
+        return [rn(v[0] + d), rn(v[1] + d)]
+    return v
+
+
+def apply_particle_setup(t, nodes, systems, anims, tf_node, ps_index):
+    """ParticleSetupTool chạy lúc OnEnable (Application.isPlaying, 0x1805db340 → ApplyLogic 0x1805da000):
+    - targetTransforms: localScale *= sizeMultiplier (trục lock giữ nguyên);
+    - particles (bỏ ignoreSize): startSize(3D: X/Y/Z, trục lock giữ)Multiplier *= sizeMultiplier;
+      d = delayOffset + max additionalDelay của targetTransform là tổ tiên (hoặc chính) node hệ
+      (GetAdditionalDelayForTransform 0x1805daf30); |d| > 1e-4 → startDelay Constant/TwoConstants += d;
+    - animators: SimpleAnimatorDelay.delayTime += d (cùng cách tính d theo node Animator);
+    - useDuration + disableParticleEmissionAfterDuration: tắt phát sau durationSeconds (chưa prefab nào trong phạm vi dùng).
+    Nướng sẵn vào JSON (prefab gốc lưu giá trị trước khi áp)."""
+    size = float(t.get('sizeMultiplier', 1) or 0)
+    doff = float(t.get('delayOffset', 0) or 0)
+    targets = []
+    for e in t.get('targetTransforms') or []:
+        ni = tf_node.get((e.get('targetTransform') or {}).get('m_PathID'))
+        if ni is None:
+            continue
+        targets.append((ni, float(e.get('additionalDelay', 0) or 0)))
+        if size != 1:
+            s = list(nodes[ni].get('scl', [1, 1, 1]))
+            for k, lk in enumerate(('lockX', 'lockY', 'lockZ')):
+                if not e.get(lk):
+                    s[k] = rn(s[k] * size)
+            if s != [1, 1, 1]:
+                nodes[ni]['scl'] = s
+            else:
+                nodes[ni].pop('scl', None)
+
+    def extra_delay(ni):
+        best = 0.0
+        for tn, ad in targets:
+            a = ni
+            while a >= 0:
+                if a == tn:
+                    best = max(best, ad)
+                    break
+                a = nodes[a]['p']
+        return best
+    for e in t.get('particles') or []:
+        si = ps_index.get((e.get('particleSystem') or {}).get('m_PathID'))
+        if si is None:
+            continue
+        s = systems[si]
+        if not e.get('ignoreSize') and size != 1:
+            if 'size3' in s:
+                s['size3'] = [s['size3'][k] if e.get(lk) else _mmc_scale_max(s['size3'][k], size)
+                              for k, lk in enumerate(('lockX', 'lockY', 'lockZ'))]
+            else:
+                s['size'] = _mmc_scale_max(s.get('size', 1), size)
+        d = doff + extra_delay(s['node'])
+        if abs(d) > 1e-4:
+            s['delay'] = _mmc_add_const(s.get('delay', 0), d)
+    for e in t.get('animators') or []:
+        pid = (e.get('animator') or {}).get('m_PathID')
+        for a in anims:
+            if a.get('pid') == pid:
+                d = doff + extra_delay(a['node'])
+                if abs(d) > 1e-4:
+                    cfg = a.setdefault('delayCfg', {})
+                    cfg['delayTime'] = rn(cfg.get('delayTime', cfg.get('delay', 0)) + d)
+
+
 # --------------------------------------------------------------- prefab --
 def export_prefab(ctx, env, go_obj, out_name):
     nodes, systems, trails, lights, notes, animators = [], [], [], [], [], []
     extra = {}
     meshes, scripts, tf_node = [], [], {}
+    setup_tools = []   # typetree ParticleSetupTool (áp lúc chạy, xem apply_particle_setup)
     ps_index = {}   # PathID component ParticleSystem -> chỉ số hệ (nối SubModule.subEmitters)
 
     def walk(go, parent):
@@ -1082,7 +1188,7 @@ def export_prefab(ctx, env, go_obj, out_name):
             lights.append(li)
             ctx.bump('lights')
         for c, ptr in by.get('Animator', []):
-            animators.append((c, idx))
+            animators.append((c, idx, ptr.path_id))
             ctx.bump('animators')
         for c, ptr in by.get('MonoBehaviour', []):
             try:
@@ -1101,6 +1207,8 @@ def export_prefab(ctx, env, go_obj, out_name):
                 d = ptr.read_typetree()
                 node['animDelay'] = {k: rn(v) if isinstance(v, float) else v for k, v in d.items()
                                      if not k.startswith('m_') and isinstance(v, (int, float))}
+            elif cls == 'ParticleSetupTool':
+                setup_tools.append(ptr.read_typetree())
             elif cls == 'ChainSkillVfx':
                 d = ptr.read_typetree()
                 scripts.append({'type': cls, 'len': rn(d.get('_chainLength', 1)), 'off': rn(d.get('_chainOffset', 0)),
@@ -1137,14 +1245,19 @@ def export_prefab(ctx, env, go_obj, out_name):
 
     walk(go_obj.read(), -1)
     anims = []
-    for c, idx in animators:
+    for c, idx, apid in animators:
         a = anim_export(ctx, c, idx, nodes)
         if a:
             a['node'] = idx
+            a['pid'] = apid
             d = nodes[idx].pop('animDelay', None)
             if d:
                 a['delayCfg'] = d
             anims.append(a)
+    for st in setup_tools:
+        apply_particle_setup(st, nodes, systems, anims, tf_node, ps_index)
+    for a in anims:
+        a.pop('pid', None)
     # sub emitter: PathID -> chỉ số hệ; hệ con bị trỏ tới không tự phát (hệ cha điều khiển), đánh dấu 'isSub'
     for s in systems:
         if s.get('sub'):
@@ -1189,6 +1302,8 @@ def export_prefab(ctx, env, go_obj, out_name):
             continue
         total = max(total, mx(s.get('delay', 0)) + s['dur'] + mx(s['life']))
     doc = {'v': 1, 'name': out_name, 'nodes': nodes, 'systems': systems}
+    if setup_tools:
+        doc['setup'] = 1    # ParticleSetupTool đã nướng (tools/skill_audit.py kiểm)
     if meshes:
         doc['meshes'] = meshes
     for sc in scripts:

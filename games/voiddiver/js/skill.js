@@ -373,6 +373,9 @@
   }
 
   function payCost(world, u, row) {
+    // u.nonCombat (sảnh ngoài TrainingField, lounge.js đặt): CharacterController.OnStaminaDamageEvent / OnStressDamageEvent và
+    // UnitController.CalculateDamage đều bỏ qua khi UnitModel.IsNonCombat → thi triển không tốn thể lực, căng thẳng, máu.
+    if (u.nonCombat) { if (num(row.ChargeCost) > 0) u.charge = Math.max(0, u.charge - num(row.ChargeCost)); emit(world, { type: 'cost', unit: u, skillId: row.Id, stamina: 0 }); return; }
     var st = num(row.StaminaCost) * (1 + u.buffs.sum('SkillStaminaCostAmplifier', 'Percent') / 100);
     if (st > 0) { u.stamina = Math.max(0, u.stamina - st); u.staminaIdle = 0; }
     if (num(row.HpCost) > 0) { u.hp = Math.max(1, u.hp - num(row.HpCost)); emit(world, { type: 'hpCost', unit: u, amount: num(row.HpCost) }); }
@@ -389,7 +392,8 @@
     var u = run.unit;
     while (run.animIdx < run.anims.length && run.t >= run.animAt - EPS) {
       var an = run.anims[run.animIdx++];
-      emit(world, { type: 'anim', unit: u, name: an.animationName, moveName: an.moveAnimationName || null, loop: !!(an.isLoop || an.IsLoopAnimationData),
+      // UnitSkillState.GetAnimationName: IsNonCombat thì dùng nonCombatAnimationName nếu có (lướt ở sảnh: default/dash).
+      emit(world, { type: 'anim', unit: u, name: (u.nonCombat && an.nonCombatAnimationName) || an.animationName, moveName: an.moveAnimationName || null, multiTrack: !!an.UseMultiTrackMoveAnimation, loop: !!(an.isLoop || an.IsLoopAnimationData),
         offset: num(an.animStartOffsetTime), speeds: an.animationSpeeds || [], timeScale: run.timeScale, skillId: run.id, t: world.time });
       var d = num(an.duration);
       run.animAt = d > 0 ? run.animAt + d : Infinity;
@@ -839,9 +843,12 @@
       // không cờ nào = xoay gốc của prefab (dir null). [SUY LUẬN: tên cột]
       var me = run.unit, mvd = (run.move && run.move.dir) || (me.input && norm(me.input.move)) || me.aim;
       var dir = ev.InheritAimDir || ev.UpdateByAimDir ? me.aim : ev.InheritMoveDir ? mvd : null;
-      emit(world, { type: 'vfx', name: ev.prefab, unit: u, owner: me, bone: ev.boneType, offset: ev.offset, duration: num(ev.duration), loop: !!ev.IsLoop,
+      // UnitController.OnVfxEvent [ĐO 0x1806652b0]: BoneType/TargetPositionOffset/InheritMoveDir/UpdateByAimDir chỉ gửi khi
+      // KHÔNG IsIndependent (bám bằng UnitFollower, stage.js); độc lập = vị trí đích + offset quay theo hướng VFX, bỏ khớp.
+      emit(world, { type: 'vfx', name: ev.prefab, unit: u, owner: me, bone: ev.IsIndependent ? null : ev.boneType, offset: ev.offset, duration: num(ev.duration), loop: !!ev.IsLoop,
         loopDuration: num(ev.LoopDuration), speeds: ev.VfxSpeeds, follow: !ev.IsIndependent, inheritAim: !!ev.InheritAimDir,
-        inheritMove: !!ev.InheritMoveDir, updateByAim: !!ev.UpdateByAimDir, dir: dir, key: key, pos: run.at || null });
+        inheritMove: !!ev.InheritMoveDir, updateByAim: !!ev.UpdateByAimDir, destroyOnDeath: !!ev.DestroyOnUnitFollowerTargetDeath,
+        dir: dir, key: key, pos: run.at || null });
       if (ev.DestroyOnActionEnd) run.nodeVfx.push(key);
       if (ev.DestroyOnSkillEnd) run.skillVfx.push(key);
     },
@@ -1004,10 +1011,11 @@
       } else u.stackT[sid] = 0;
     }
     // hồi máu / stamina (StaminaRegenDelay) / năng lượng tối thượng (ChargePerSec, BlockSkillCharge)
-    if (u.stats.HpRegen > 0 && u.hp < u.stats.HpMax) u.hp = Math.min(u.stats.HpMax, u.hp + u.stats.HpRegen * dt);
+    // UnitController.UpdateRegenHp / UpdateSkillCharge dừng khi UnitModel.IsNonCombat (sảnh ngoài TrainingField).
+    if (u.stats.HpRegen > 0 && u.hp < u.stats.HpMax && !u.nonCombat) u.hp = Math.min(u.stats.HpMax, u.hp + u.stats.HpRegen * dt);
     u.staminaIdle += dt;
     if (u.staminaIdle >= db().c('StaminaRegenDelay', 0.5) && u.stamina < u.stats.StaminaMax) u.stamina = Math.min(u.stats.StaminaMax, u.stamina + u.stats.StaminaRegen * dt);
-    if (u.kind === 'char') {
+    if (u.kind === 'char' && !u.nonCombat) {
       var ult = null;
       (u.row.ActiveSkillIds || []).forEach(function (x) { var r = db().skill(x); if (r && num(r.ChargeCost) > 0) ult = r; });
       if (ult) {

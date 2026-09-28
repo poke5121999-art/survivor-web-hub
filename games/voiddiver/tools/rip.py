@@ -4,6 +4,7 @@
 
     set PYTHONIOENCODING=utf-8
     python rip.py spine            # 4 nhan vat + moi quai/npc scoped (theo unit_map)
+    python rip.py spine-names A,B  # boc lai vai bo Spine theo ten (khong ghi manifest)
     python rip.py spine-meta       # chi ghi lai defaultMix + mixes (SkeletonDataAsset) vao art/spine/*/meta.json
     python rip.py unit-view        # SymbolPositionY, scale khung xuong, _animationMode cua prefab unit -> meta.json "units"
     python rip.py sector           # 40 sector scoped
@@ -152,6 +153,11 @@ def rip_spine_names(names, out_root):
             os.makedirs(d, exist_ok=True)
             meta = {'name': name, 'skeletons': {}, 'atlas': None, 'pages': [], 'materials': []}
             ada = [x for x in adas if x[1]['m_Name'] in (name + '_Atlas', name + '_SW_Atlas', name + '_NW_Atlas')]
+            if not ada:
+                # Atlas dùng chung, không mang tên bộ (bù nhìn Target_* → Target_Training_Atlas): theo SkeletonDataAsset.atlasAssets.
+                refs = {a['m_PathID'] for _, stt in sdas if stt['m_Name'] in (name + '_SkeletonData', name + '_SW_SkeletonData', name + '_NW_SkeletonData')
+                        for a in (stt.get('atlasAssets') or []) if a.get('m_PathID')}
+                ada = [x for x in adas if x[0].path_id in refs]
             if not ada:
                 print('  KHONG THAY atlas cho', name)
                 continue
@@ -1006,6 +1012,9 @@ def main():
             ids_filter = [int(x) for x in a[6:].split(',')]
     if cmd in ('spine', 'all'):
         print('== spine =='); cmd_spine(ids_filter)
+    if cmd == 'spine-names':
+        # python rip.py spine-names Target_Zombie,Target_Mannequin — bóc lại vài bộ theo tên, không ghi manifest.
+        print('== spine-names =='); rip_spine_names([n for n in args[1].split(',') if n], os.path.join(ART, 'spine'))
     if cmd == 'spine-meta':
         print('== spine-meta =='); cmd_spine_meta()
     if cmd == 'unit-view':

@@ -55,7 +55,10 @@ SPRITE_BUNDLES = ['dependencies_assets_spriteatlas', 'dependencies_assets_sprite
 # GetRevealSfx(bậc); ItemDrop = DropInventoryGoods; ItemRelease = đăng ký ô nhanh; LootingCompleted = giữ F xong.
 SOUNDS = ['InventoryPopupOpen', 'Looting_Loop', 'Looting_low', 'Looting_middle', 'Looting_high', 'Looting_veryhigh',
           'LootingCompleted', 'ItemDrop', 'ItemRelease', 'ButtonClick', 'PopUpOpen',
-          'Fail']   # Fail: bấm thẻ Tổ đội đang khoá (MenuPopupPresenter, SquadTabLockedMessage)
+          'Fail',   # Fail: bấm thẻ Tổ đội đang khoá (MenuPopupPresenter, SquadTabLockedMessage)
+          # Equip / Equip2 = InventoryManagementPagePresenter.PlayEquipSound (Equip2 cho ô cổ vật);
+          # DoorInteractied2 = MonsterBody.get_HoldingSfx khi prefab không ghi _holdingSfx (giữ F ở xác quái)
+          'Equip', 'Equip2', 'DoorInteractied2']
 
 
 def rip_sprites():
@@ -97,7 +100,7 @@ def rip_sprites():
         print('KHÔNG THẤY', miss)
 
 
-def rip_audio():
+def rip_audio(only=None):
     ffmpeg = shutil.which('ffmpeg')
     if not ffmpeg:
         raise SystemExit('không thấy ffmpeg trong PATH')
@@ -110,7 +113,7 @@ def rip_audio():
     os.makedirs(AUDIO, exist_ok=True)
     tmp = tempfile.mkdtemp(prefix='vd_inv_au_')
     try:
-        for n in SOUNDS:
+        for n in (only or SOUNDS):
             clip = byname.get(n)
             if clip is None:
                 print('  KHÔNG THẤY', n)
@@ -135,4 +138,4 @@ if __name__ == '__main__':
     if what in ('all', 'sprite'):
         rip_sprites()
     if what in ('all', 'audio'):
-        rip_audio()
+        rip_audio(sys.argv[2:] or None)   # audio Tên1 Tên2 …: chỉ bóc các clip này

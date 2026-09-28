@@ -1,0 +1,538 @@
+{
+ "name": "700012",
+ "space": "glTF (x, y, -z cua Unity); met; goc = chan prefab",
+ "groups": [
+  {
+   "name": "Model",
+   "active": true
+  },
+  {
+   "name": "UI",
+   "active": true
+  },
+  {
+   "name": "PingCollider",
+   "active": true
+  },
+  {
+   "name": "GroundNavigationPrefab",
+   "active": true
+  }
+ ],
+ "colliders": [
+  {
+   "path": "",
+   "shape": "capsule",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 1.0,
+   "height": 1.0,
+   "trigger": false,
+   "active": true
+  },
+  {
+   "path": "PingCollider",
+   "shape": "sphere",
+   "center": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "radius": 0.5,
+   "trigger": false,
+   "active": true
+  }
+ ],
+ "spines": [
+  {
+   "path": "Model/SkeletonAnimation_NW",
+   "skeleton": "NPC_Gatekeeper_SW",
+   "anim": "idle",
+   "loop": true,
+   "active": false,
+   "pos": [
+    0.0,
+    0.0,
+    -0.0
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "path": "Model/SkeletonAnimation_SW",
+   "skeleton": "NPC_Gatekeeper_SW",
+   "anim": "idle",
+   "loop": true,
+   "active": true,
+   "pos": [
+    0.067,
+    0.141,
+    0.091
+   ],
+   "scale": [
+    1.0,
+    1.0,
+    1.0
+   ]
+  }
+ ],
+ "lights": [],
+ "particles": [
+  {
+   "path": "Model/Animation/FX/firefly",
+   "pos": [
+    0.067,
+    1.033,
+    0.037
+   ],
+   "active": true
+  },
+  {
+   "path": "Model/Animation/FX/firefly_1",
+   "pos": [
+    0.228,
+    1.033,
+    0.038
+   ],
+   "active": true
+  },
+  {
+   "path": "Model/Animation/FX/firefly_2",
+   "pos": [
+    -0.1,
+    1.033,
+    0.038
+   ],
+   "active": true
+  }
+ ],
+ "animators": [
+  {
+   "path": "Model/SkeletonAnimation_NW",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "Model/SkeletonAnimation_SW",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "Model/Animation",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper",
+   "controller": null,
+   "clips": []
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark",
+   "controller": "MainQuestIcon_Hud",
+   "clips": [
+    "MainQuestIcon_Hud"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point",
+   "controller": "NpcQuestPoint",
+   "clips": [
+    "NpcQuestPoint"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark",
+   "controller": "QuestHostWaitOtherClientMark",
+   "clips": [
+    "MainHostWait"
+   ]
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root",
+   "controller": "NpcThumbUp",
+   "clips": [
+    "NpcThumbUp"
+   ]
+  }
+ ],
+ "behaviours": [
+  {
+   "path": "",
+   "class": "NpcObject",
+   "fields": {
+    "_npcId": 700012,
+    "_holdingTime": 0.05,
+    "_holdingSfx": "NPC_CoopPlay",
+    "_interactionSfx": "NPC_UI_Open_ETC"
+   }
+  },
+  {
+   "path": "Model",
+   "class": "OutlineObject"
+  },
+  {
+   "path": "UI",
+   "class": "Billboard"
+  },
+  {
+   "path": "UI/Hud/Layout*/Bubble_/BG*",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Bubble_/BG*/Tail/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Info_/BG*",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/Info_/BG*/Tail/Image",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CampaignStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/LoungeStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/MissionStartMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image (1)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Image (2)",
+   "class": "Image",
+   "sprite": null
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/CheckBox",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Icon",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/CompleteMark/Point/GlowBox2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/Bg",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot2",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/WaitingDot3",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/QuestHostWaitOtherClientMark/GlowBox1",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root/ImgGlow",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/Layout*/NpcThumbUp/Root/ImgThumbUp",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/BG",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/ImgShield",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/img_back",
+   "class": "Image"
+  },
+  {
+   "path": "UI/Hud/HpGauge/Anchor_rotation/Gauge/img_front",
+   "class": "Image"
+  }
+ ],
+ "meshes": [
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.armF.001",
+   "mesh": "gate.armF.001",
+   "verts": 81,
+   "tris": 41,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.armF.002",
+   "mesh": "gate.armF.002",
+   "verts": 101,
+   "tris": 53,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.armF.003",
+   "mesh": "gate.armF.003",
+   "verts": 68,
+   "tris": 38,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.armF.004",
+   "mesh": "gate.armF.004",
+   "verts": 33,
+   "tris": 15,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.bot",
+   "mesh": "gate.bot",
+   "verts": 42,
+   "tris": 28,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.door",
+   "mesh": "gate.door",
+   "verts": 8,
+   "tris": 4,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.lamp",
+   "mesh": "gate.lamp",
+   "verts": 96,
+   "tris": 48,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.lamp.cylinder",
+   "mesh": "gate.lamp.cylinder",
+   "verts": 220,
+   "tris": 104,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.ten_B",
+   "mesh": "gate.ten_B",
+   "verts": 8,
+   "tris": 6,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.ten_F",
+   "mesh": "gate.ten_F",
+   "verts": 40,
+   "tris": 20,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/gate.top",
+   "mesh": "gate.top",
+   "verts": 67,
+   "tris": 40,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/lever.001",
+   "mesh": "lever.001",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  },
+  {
+   "path": "Model/Animation/25DBG_NPC_Gatekeeper/lever.002",
+   "mesh": "lever.002",
+   "verts": 4,
+   "tris": 2,
+   "active": true
+  }
+ ],
+ "bounds": {
+  "min": [
+   -0.327,
+   -0.04,
+   -0.193
+  ],
+  "max": [
+   0.501,
+   1.134,
+   0.283
+  ]
+ },
+ "glb": "art/object/700012.glb",
+ "glbKB": 211
+}
