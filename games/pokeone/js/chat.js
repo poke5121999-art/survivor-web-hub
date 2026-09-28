@@ -2,10 +2,9 @@
  * Khung chat toàn cục kiểu PRO (GameGUI/ChatBox: HUD_chat_bg, HUD_chat_topline, thẻ HUD_chat_tab_right,
  * ô HUD_chat_textimput) ở góc dưới phải, và các cửa sổ popup dùng chung cho chat/raid/chợ (P1.social).
  *
- * Kênh 'global': broadcast chat {text}, show {card}, boss_invite {room, boss, host, slots, expires};
- * presence {name, map, lvl} → số người online.
+ * Kênh 'global': broadcast chat {text}, show {card}; presence {name, map, lvl} → số người online.
+ * Mã phòng boss (6 chữ và số, P1.raid.findCodes) trong bất kỳ câu chat nào hiện thành nút "Tham gia" → P1.raid.join(mã).
  *   P1.chat.showMon(mon)   khoe Pokémon       P1.chat.openCard(card)   thẻ Pokémon kiểu ChatLinkPokeCard
- *   P1.chat.invite(inv)    raid.js gọi khi mở phòng
  *   P1.chat.mount()/unmount()  — tự gọi theo cảnh: hiện ở 'world', ẩn ở cảnh khác.
  */
 (function (P1) {
@@ -171,7 +170,7 @@
 
   /* ---------------------------------------------------------------- khung chat */
 
-  const lines = [];               // { kind:'chat'|'show'|'invite'|'sys', from, text, card, inv, t }
+  const lines = [];               // { kind:'chat'|'show'|'sys', from, text, card, t }
   let ch = null, box = null, logEl = null, inputEl = null, onlineEl = null, unreadEl = null;
   let mounted = false, minimised = false, unread = 0, lastSent = 0, lastMap = '';
 
@@ -180,10 +179,6 @@
     ch = net().channel('global');
     ch.on('chat', (p, from) => { const text = net().clip(p.text, MAX_TEXT); if (text) add({ kind: 'chat', from, text }); });
     ch.on('show', (p, from) => { const card = net().parseCard(p.card); if (card) add({ kind: 'show', from, card }); });
-    ch.on('boss_invite', (p, from) => {
-      const inv = P1.raid && P1.raid.parseInvite ? P1.raid.parseInvite(p) : null;
-      if (inv) add({ kind: 'invite', from, inv });
-    });
     ch.on('presence', updateOnline);
     net().onStatus(s => {
       if (s === 'connecting' && lines.length) sys('Mất kết nối chat, đang nối lại…', 'net');
@@ -224,18 +219,28 @@
     d.className = 'l ' + l.kind;
     const mine = l.from && l.from.id === net().me.id;
     if (l.kind === 'sys') d.textContent = l.text;
-    else if (l.kind === 'chat') d.innerHTML = who(l.from, mine) + ': ' + esc(l.text);
+    else if (l.kind === 'chat') { d.innerHTML = who(l.from, mine) + ': '; appendText(d, l.text); }
     else if (l.kind === 'show') {
       d.innerHTML = who(l.from, mine) + ' khoe <a class="mon" href="#">[' + esc(monLabel(l.card)) + ']</a>';
       d.querySelector('a').addEventListener('click', e => { e.preventDefault(); openCard(l.card, l.from && l.from.name); });
-    } else if (l.kind === 'invite') {
-      const inv = l.inv;
-      d.innerHTML = who(l.from, mine) + ' mời đánh boss <i class="boss">' + esc(inv.label) + '</i> (' + inv.slots + '/4) ';
-      const b = button('Tham gia', { cls: 'join', onClick: () => { if (P1.raid) P1.raid.join(inv.room); } });
-      if (mine || Date.now() > inv.expires) b.disabled = true;
-      d.appendChild(b);
     }
     return d;
+  }
+
+  // Chữ chat an toàn (textContent); mỗi mã phòng boss trong câu được tô và kèm nút "Tham gia".
+  function appendText(d, text) {
+    const codes = P1.raid && P1.raid.findCodes ? P1.raid.findCodes(text) : [];
+    let at = 0;
+    for (const c of codes) {
+      d.appendChild(document.createTextNode(text.slice(at, c.index)));
+      const code = document.createElement('b');
+      code.className = 'code';
+      code.textContent = c.code;
+      d.appendChild(code);
+      d.appendChild(button('Tham gia', { cls: 'join', onClick: () => P1.raid.join(c.code) }));
+      at = c.index + c.code.length;
+    }
+    d.appendChild(document.createTextNode(text.slice(at)));
   }
 
   function updateOnline() {
@@ -271,17 +276,12 @@
     return true;
   }
 
-  function invite(inv) {
-    ensureChannel().send('boss_invite', inv);
-    const parsed = P1.raid.parseInvite(inv);
-    if (parsed) add({ kind: 'invite', from: { id: net().me.id, name: net().me.name }, inv: parsed });
-  }
-
   function build() {
     box = document.createElement('div');
     box.className = 'p1-chat';
     box.innerHTML =
       '<div class="tabs"><div class="tab on">Toàn cầu</div><span class="online"></span>' +
+      '<button type="button" class="code-btn" title="Nhập mã phòng boss">Nhập mã phòng</button>' +
       '<span class="unread" hidden></span><button type="button" class="min" aria-label="Thu nhỏ"></button></div>' +
       '<div class="win"><div class="top"></div><div class="log" role="log" aria-live="polite"></div></div>' +
       '<form class="in"><input type="text" maxlength="' + MAX_TEXT + '" placeholder="Enter để chat…" autocomplete="off" spellcheck="false"></form>';
@@ -296,6 +296,9 @@
     onlineEl = box.querySelector('.online');
     unreadEl = box.querySelector('.unread');
     min.addEventListener('click', () => setMinimised(!minimised));
+    const codeBtn = box.querySelector('.code-btn');
+    sprite(codeBtn, 'Battle_attack_normal');
+    codeBtn.addEventListener('click', e => { e.stopPropagation(); if (P1.raid) P1.raid.promptCode(); });
     box.querySelector('.tabs').addEventListener('dblclick', () => setMinimised(!minimised));
     box.querySelector('form').addEventListener('submit', e => {
       e.preventDefault();
@@ -370,7 +373,7 @@
 
   P1.social = { popup, button, ask, toast, sprite, closeAll: () => popups.slice().forEach(p => p.close()), popups };
   P1.chat = {
-    mount, unmount, showMon, invite, openCard, cardHtml, monLabel, speciesName, send: sendText, sys,
+    mount, unmount, showMon, openCard, cardHtml, monLabel, speciesName, send: sendText, sys,
     get lines() { return lines; },
     get mounted() { return mounted; },
     minimise: setMinimised,

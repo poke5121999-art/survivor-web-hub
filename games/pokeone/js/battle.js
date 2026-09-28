@@ -22,12 +22,27 @@
   const COMPACT = { x: 4, y: 49, w: 790, h: 408 };          // bỏ thanh tiêu đề và viền dưới (điện thoại nằm ngang)
   const SCENE = { x: 12, y: 53, w: 570, h: 400 };
   const SCENE_C = { x: SCENE.x + SCENE.w / 2, y: SCENE.y + SCENE.h / 2 };
-  const SPRITE_SCALE = 2;                                   // pbig/back 128² hiện 256²
   // Chân sprite đứng trên bóng đổ của nền (shadow_foe (131,27), shadow_party (-151,-171) trong gamegui).
-  const HOME = { p2: { x: 497, y: 216 }, p1: { x: 215, y: 414 } };
-  const SHADOW = { p2: { url: 'art/pro/bg/shadow_foe.png', x: 497, y: 208.5 }, p1: { url: 'art/pro/bg/shadow_party.png', x: 215, y: 406.5 } };
+  // Ô sân → chân sprite (x, y) và tỉ lệ s. Trận thường 1 ô mỗi phe; trận boss chung theo số người (1–3), phe boss là
+  // đội huấn luyện viên ra sân đủ số ô.
+  // Đánh ba: ô a của phe mình ở TRÁI, của phe boss ở PHẢI (hai phe đối mặt: p1a kề p2b/p2c [đo bằng sim]).
+  const LAYOUT = {
+    1: { p1a: { x: 215, y: 414, s: 2 }, p2a: { x: 497, y: 216, s: 2 } },
+    2: { p1a: { x: 146, y: 430, s: 1.6 }, p1b: { x: 322, y: 414, s: 1.6 },
+      p2a: { x: 490, y: 222, s: 1.8 }, p2b: { x: 372, y: 200, s: 1.6 } },
+    3: { p1a: { x: 104, y: 432, s: 1.4 }, p1b: { x: 240, y: 418, s: 1.4 }, p1c: { x: 376, y: 432, s: 1.4 },
+      p2a: { x: 548, y: 176, s: 1.45 }, p2b: { x: 446, y: 194, s: 1.55 }, p2c: { x: 344, y: 170, s: 1.45 } },
+  };
+  const SHADOW = { p2: { url: 'art/pro/bg/shadow_foe.png', dy: -7.5 }, p1: { url: 'art/pro/bg/shadow_party.png', dy: -7.5 } };
   // Hộp máu: FoeStats/HpUi (-264,144) BattleLeft_bar_BG, UserStats/HpUi (125,-103) Battle_bar_BG, 157×42.
   const BOX = { p2: { x: 25, y: 71, bg: 'BattleLeft_bar_BG', fill: 4 }, p1: { x: 414, y: 318, bg: 'Battle_bar_BG', fill: 2 } };
+  // Trận boss chung: hộp phe boss xếp chồng góc trên trái, hộp đồng đội xếp chồng bên phải.
+  function boxAt(pos, n) {
+    const side = pos.slice(0, 2), i = 'abc'.indexOf(pos[2]);
+    if (n == null) return BOX[side];
+    if (side === 'p1') return Object.assign({}, BOX.p1, { y: BOX.p1.y - (n - 1 - i) * (n === 3 ? 54 : 58) });
+    return Object.assign({}, BOX.p2, { y: BOX.p2.y + i * 48 });
+  }
   const LOG = { lines: 3 };
 
   const TYPE_COLOUR = { Normal: '#d8d8c0', Fire: '#ff7a2a', Water: '#4a9dff', Electric: '#ffd83a', Grass: '#5ad05a', Ice: '#9ef0ff',
@@ -183,9 +198,9 @@
   /* ================================================================ sân: Pokémon và hiệu ứng */
 
   class Actor {
-    constructor(side) {
-      this.side = side; this.home = HOME[side]; this.mon = null; this.url = null;
-      this.phase = side === 'p1' ? 0 : 1.7;
+    constructor(pos, home) {
+      this.pos = pos; this.side = pos.slice(0, 2); this.home = home; this.base = home.s; this.mon = null; this.url = null;
+      this.phase = (this.side === 'p1' ? 0 : 1.7) + 'abc'.indexOf(pos[2]) * 1.1;
       this.reset();
     }
     reset() {
@@ -196,8 +211,8 @@
     get img() { return this.url ? P1.imgNow(this.url) : null; }
     /* Tâm thân trong toạ độ khung (nơi đặt hoạt ảnh, nơi bóng bay tới). */
     center() {
-      const img = this.img, S = SPRITE_SCALE;
-      if (!img) return { x: this.home.x, y: this.home.y - 60, h: 120 };
+      const img = this.img, S = this.base;
+      if (!img) return { x: this.home.x, y: this.home.y - 30 * S, h: 60 * S };
       const b = contentBox(img);
       const x = this.home.x - img.width * S / 2 + (b.x0 + b.x1) / 2 * S;
       const y = this.home.y - img.height * S + (b.y0 + b.y1) / 2 * S;
@@ -206,7 +221,7 @@
     draw(ctx, t) {
       const img = this.img;
       if (!img || this.hidden || this.blink || this.alpha <= 0.01 || this.scale <= 0.01) return;
-      const S = SPRITE_SCALE * this.scale, w = img.width * S, h = img.height * S;
+      const S = this.base * this.scale, w = img.width * S, h = img.height * S;
       const bob = this.bob ? Math.round(Math.sin(t * 2.6 + this.phase) * 1.5) : 0;
       const x = Math.round(this.home.x + this.dx - w / 2), y = Math.round(this.home.y + this.dy - h + bob);
       ctx.save();
@@ -379,6 +394,11 @@
 .pb-empty { position: absolute; left: 589px; top: 110px; width: 196px; text-align: center; font-size: 12px; color: #aab; }
 .pb-prompt { position: absolute; left: 590px; top: 280px; width: 196px; text-align: center; font-size: 12px; line-height: 15px;
   color: #ffd23c; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+.pb-timer { position: absolute; left: 590px; top: 311px; width: 196px; text-align: center; font-size: 12px; font-weight: 700;
+  color: #dfe9f2; text-shadow: 1px 1px 0 #000; pointer-events: none; font-variant-numeric: tabular-nums; }
+.pb-timer.low { color: #ff7a6a; }
+.pb-target .pp { color: #ffd23c; }
+.pb-target.ally .pp { color: #9fd8ff; }
 .pb-end { position: absolute; left: 147px; top: 180px; width: 300px; height: 118px; padding: 14px; text-align: center; pointer-events: auto; }
 .pb-end .t { font-size: 15px; font-weight: 700; color: #ffd23c; text-shadow: 1px 1px 0 #000; margin-bottom: 14px; }
 .pb-end .pb-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 110px; height: 34px; margin: 0 6px;
@@ -442,13 +462,16 @@
       injectCss();
       this.args = args;
       this.kind = args.kind || 'wild';
-      this.boss = this.kind === 'boss' ? args.boss : null;
+      // Trận boss chung (raid.js): P1.CoopBattle do raid.js dựng + cầu nối mạng. Không có thì là trận thường một ô.
+      this.coop = args.coop || null;
+      this.n = this.coop ? this.coop.battle.n : null;
       this.clock = makeClock();
       this.speed = +(P1.query && P1.query.get('bspeed')) || 1;
       this.prevMusic = P1.audio.musicKey();
-      this.actors = { p1: new Actor('p1'), p2: new Actor('p2') };
-      this.actors.p1.hidden = this.actors.p2.hidden = true;
-      this.box = { p1: null, p2: null };
+      const lay = LAYOUT[this.n || 1];
+      this.actors = {};
+      for (const pos of Object.keys(lay)) { this.actors[pos] = new Actor(pos, lay[pos]); this.actors[pos].hidden = true; }
+      this.box = {};
       this.fx = [];
       this.fainted = { p1: new Set(), p2: new Set() };
       this.logLines = []; this.logAll = [];
@@ -456,11 +479,11 @@
       this.mode = 'busy'; this.pick = null; this.result = null; this.catchPhase = null;
       this.expGained = 0; this.leveled = new Set();
       this.bgUrl = bgUrl(args.bg);
-      this.shownBossHp = null;
+      this.coopStatus = {}; this.statusAt = 0;
 
-      this.battle = new P1.Battle({
+      this.battle = this.coop ? this.coop.battle : new P1.Battle({
         me: { name: P1.state.player.name, party: P1.state.party },
-        foe: { kind: this.kind, name: args.name || '', party: args.foe, money: args.money, maxHp: this.boss ? this.boss.maxHp : undefined },
+        foe: { kind: this.kind, name: args.name || '', party: args.foe, money: args.money },
         ctx: args.ctx,
       });
       const music = args.music || (this.kind === 'trainer' ? (args.gym ? MUSIC.gym : MUSIC.trainer) : MUSIC[this.kind] || MUSIC.wild);
@@ -468,7 +491,8 @@
 
       this.buildDom();
       const urls = [this.bgUrl, SHADOW.p1.url, SHADOW.p2.url, P1.PRO_UI.img];
-      for (const m of P1.state.party) urls.push(monUrl(m, 'back'), iconUrl(m));
+      const mine = this.coop ? this.battle.roster.map((x) => x.mon) : P1.state.party;
+      for (const m of mine) urls.push(monUrl(m, 'back'), iconUrl(m));
       for (const m of args.foe) urls.push(monUrl(m, 'front'));
       const balls = ANIM().balls || {};
       for (const k of Object.keys(P1.state.bag || {})) if (balls[k]) urls.push(balls[k].closed, balls[k].open, balls[k].hand);
@@ -485,11 +509,7 @@
       dt *= this.speed;
       this.clock.tick(dt);
       this.fx = this.fx.filter((f) => f.update(dt));
-      if (this.boss) {
-        const target = Math.max(0, this.boss.sharedHp());
-        this.shownBossHp = this.shownBossHp == null ? target : this.shownBossHp + (target - this.shownBossHp) * Math.min(1, dt * 5);
-        if (this.pick && (target <= 0 || this.boss.ended())) this.pick({ type: 'boss-end' });
-      }
+      if (this.coop && this.clock.t - this.statusAt > 0.25) { this.statusAt = this.clock.t; this.refreshCoopStatus(); }
       this.keys();
     },
 
@@ -533,20 +553,21 @@
       ctx.beginPath(); ctx.rect(SCENE.x, SCENE.y, SCENE.w, SCENE.h); ctx.clip();
       if (bg) ctx.drawImage(bg, SCENE.x, SCENE.y, SCENE.w, SCENE.h);
       else { ctx.fillStyle = '#5a8a4a'; ctx.fillRect(SCENE.x, SCENE.y, SCENE.w, SCENE.h); }
-      for (const side of ['p2', 'p1']) {
-        const sh = SHADOW[side], img = P1.imgNow(sh.url), a = this.actors[side];
+      // Phe địch trước, phe mình sau; trong một phe con ở xa (y nhỏ) vẽ trước.
+      const order = Object.values(this.actors).sort((a, b) => (a.side === b.side ? a.home.y - b.home.y : a.side === 'p2' ? -1 : 1));
+      for (const a of order) {
+        const sh = SHADOW[a.side], img = P1.imgNow(sh.url);
         if (img && a.mon && !a.hidden && a.sink < 40) {
+          const k = a.base / 2, w = img.width * k, h = img.height * k;
           ctx.globalAlpha = Math.min(1, a.alpha * 1.2) * Math.min(1, a.scale);
-          ctx.drawImage(img, Math.round(sh.x - img.width / 2), Math.round(sh.y - img.height / 2));
+          ctx.drawImage(img, Math.round(a.home.x - w / 2), Math.round(a.home.y + sh.dy * k - h / 2), w, h);
           ctx.globalAlpha = 1;
         }
       }
-      this.actors.p2.draw(ctx, t);
-      this.actors.p1.draw(ctx, t);
+      for (const a of order) a.draw(ctx, t);
       for (const f of this.fx) f.draw(ctx);
       ctx.imageSmoothingEnabled = false;
-      if (this.boss) this.drawBoss(ctx); else this.drawBox(ctx, 'p2');
-      this.drawBox(ctx, 'p1');
+      for (const pos of Object.keys(this.actors)) this.drawBox(ctx, pos);
       // Nền log: Battle_Chatbox 9 mảnh, mờ khi không có chữ mới.
       ctx.globalAlpha = 0.78;
       atlasSprite(ctx, 'Battle_Chatbox', SCENE.x + 4, SCENE.y + SCENE.h - 62, SCENE.w - 8, 58);
@@ -559,7 +580,7 @@
     drawTitle(ctx) {
       atlasSprite(ctx, 'battle_icon_big', 10, -10);
       const a = this.args;
-      const text = this.kind === 'boss' ? 'Boss: ' + P1.mon.name(a.foe[0]) : this.kind === 'trainer' ? 'Đấu với ' + (a.name || 'Huấn luyện viên') : 'Pokémon hoang dã';
+      const text = this.kind === 'boss' ? 'Boss: ' + (a.name || '?') + (this.n > 1 ? ' — đội ' + this.n + ' người' : '') : this.kind === 'trainer' ? 'Đấu với ' + (a.name || 'Huấn luyện viên') : 'Pokémon hoang dã';
       ctx.font = 'bold 16px ' + FONT();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       shadowText(ctx, text, SCENE_C.x, 25);
@@ -567,10 +588,10 @@
     },
 
     /* Hộp máu theo UserStats/FoeStats: tên, giới tính, cấp, trạng thái, thanh HP (và EXP phe mình), dãy bóng. */
-    drawBox(ctx, side) {
-      const b = this.box[side];
+    drawBox(ctx, pos) {
+      const b = this.box[pos], side = pos.slice(0, 2);
       if (!b || b.alpha <= 0) return;
-      const L = BOX[side], x = Math.round(L.x + b.slide), y = L.y;
+      const L = boxAt(pos, this.n), x = Math.round(L.x + b.slide), y = L.y;
       ctx.save();
       ctx.globalAlpha = b.alpha;
       atlasSprite(ctx, L.bg, x, y);
@@ -595,14 +616,53 @@
         ctx.font = 'bold 10px ' + FONT(); ctx.textAlign = 'right';
         shadowText(ctx, Math.max(0, Math.round(b.shown)) + '/' + b.max, x + 150, y + 30, '#e8f1f8');
         ctx.textAlign = 'left';
-        const ew = Math.round(117 * clamp01(b.exp));
+        const ew = this.coop ? 0 : Math.round(117 * clamp01(b.exp));
         if (ew > 0) atlasSprite(ctx, 'Battle_bar_ep_fill', x + 34, y + 34, ew, 3);
+        if (this.coop) this.drawOwner(ctx, pos, x, y);
       } else if (this.kind === 'wild' && P1.state.dex.caught[b.mon.dex]) atlasSprite(ctx, 'pdex_list_pokeball', x + 141, y + 28);
-      this.drawBalls(ctx, side, x, y);
+      // Trận chung: dãy bóng của huấn luyện viên boss chỉ vẽ một lần, dưới hộp phe boss cuối cùng.
+      if (!this.coop || side === 'p1' || pos === 'p2' + 'abc'[this.n - 1]) this.drawBalls(ctx, pos, x, y);
       ctx.restore();
     },
-    drawBalls(ctx, side, x, y) {
-      if (side === 'p2' && this.kind !== 'trainer') return;
+    /* Trận chung: tên người điều khiển ô + đang chọn / đã chọn / tự động, ngay trên hộp máu. */
+    drawOwner(ctx, pos, x, y) {
+      const w = this.battle.at('p1', 'abc'.indexOf(pos[2]));
+      if (!w) return;
+      const st = this.coopStatus[w.slot], me = w.owner === this.coop.me;
+      const name = this.coop.names[w.owner] || '?';
+      const tag = !st ? '' : st.state === 'done' ? '✓ đã chọn' : st.state === 'auto' ? 'tự động' : st.id === this.coop.me ? 'lượt bạn' : 'đang chọn…';
+      ctx.font = 'bold 10px ' + FONT(); ctx.textBaseline = 'middle';
+      shadowText(ctx, me ? name + ' (bạn)' : name, x + 4, y - 7, me ? '#ffd76a' : '#9fd8ff');
+      if (tag) {
+        ctx.textAlign = 'right';
+        shadowText(ctx, tag, x + 152, y - 7, st.state === 'done' ? '#7cf0a0' : st.state === 'auto' ? '#ff9a8a' : '#ffe9a0');
+        ctx.textAlign = 'left';
+      }
+    },
+    drawBalls(ctx, pos, x, y) {
+      const side = pos.slice(0, 2);
+      if (side === 'p2' && this.kind !== 'trainer' && !this.coop) return;
+      if (this.coop && side === 'p2') {
+        this.battle.foes.forEach((m, k) => {
+          ctx.globalAlpha = this.battle.simMon('p2', k).hp <= 0 ? 0.35 : 1;
+          atlasSprite(ctx, 'Battle_ball', x + 6 + k * 22, y + 46);
+        });
+        ctx.globalAlpha = 1;
+        return;
+      }
+      if (this.coop) {
+        // Dãy bóng của người điều khiển ô: mỗi Pokémon họ mang một quả, gục thì mờ.
+        const w = this.battle.at('p1', 'abc'.indexOf(pos[2]));
+        if (!w) return;
+        this.battle.roster.forEach((r, k) => {
+          if (r.owner !== w.owner) return;
+          const i = this.battle.roster.filter((q, j) => q.owner === w.owner && j < k).length, sim = this.battle.simMon('p1', k);
+          ctx.globalAlpha = sim.hp <= 0 ? 0.35 : 1;
+          atlasSprite(ctx, 'Battle_ball', x + 6 + i * 15, y + 27, 12, 12);
+        });
+        ctx.globalAlpha = 1;
+        return;
+      }
       const party = side === 'p1' ? P1.state.party : this.args.foe;
       party.forEach((m, k) => {
         const bx = side === 'p1' ? x + 132 - k * 22 : x + 6 + k * 22;
@@ -611,29 +671,6 @@
         atlasSprite(ctx, 'Battle_ball', bx, y + 46);
       });
       ctx.globalAlpha = 1;
-    },
-    /* Boss: thanh máu to đọc args.boss.sharedHp() mỗi khung (máu chung cả phòng). */
-    drawBoss(ctx) {
-      const b = this.box.p2;
-      if (!b || b.alpha <= 0) return;
-      const x = 20 + b.slide, y = 60, w = 380, max = this.boss.maxHp || 1;
-      const hp = this.shownBossHp == null ? max : this.shownBossHp, r = clamp01(hp / max);
-      ctx.save();
-      ctx.globalAlpha = b.alpha;
-      atlasSprite(ctx, 'Battle_Chatbox', x, y, w, 54);
-      ctx.font = 'bold 12px ' + FONT(); ctx.textBaseline = 'middle';
-      shadowText(ctx, 'BOSS', x + 10, y + 14, '#ff5a4a');
-      ctx.font = 'bold 14px ' + FONT();
-      shadowText(ctx, P1.mon.name(b.mon) + '  Lv ' + b.level, x + 52, y + 14);
-      const st = STATUS_BADGE[b.status];
-      if (st) atlasSprite(ctx, st, x + w - 34, y + 8);
-      ctx.fillStyle = '#111'; ctx.fillRect(x + 10, y + 28, w - 20, 10);
-      const fill = r > 0.5 ? 'Battle_bar_hp_fill' : r > 0.2 ? 'Battle_bar_hp_fill_yellol' : 'Battle_bar_hp_low';
-      if (r > 0) atlasSprite(ctx, fill, x + 11, y + 29, Math.round((w - 22) * r), 8);
-      ctx.font = 'bold 10px ' + FONT(); ctx.textAlign = 'right';
-      shadowText(ctx, Math.ceil(hp).toLocaleString('vi-VN') + ' / ' + max.toLocaleString('vi-VN'), x + w - 10, y + 46, '#e8f1f8');
-      ctx.textAlign = 'left';
-      ctx.restore();
     },
 
     /* ------------------------------------------------ DOM */
@@ -644,6 +681,7 @@
       this.logEl = el('div', 'pb-log', root);
       this.topEl = el('div', 'pb-top', root);
       this.promptEl = el('div', 'pb-prompt', root);
+      this.timerEl = this.coop ? el('div', 'pb-timer', root) : null;
       const icons = [
         ['fight', 'battle_fight_active_icon', 'battle_fight_grey_icon', 'Chiến đấu', 638, 353.5],
         ['pokemon', 'battle_pokemon_grey_icon', 'battle_pokemon_grey_icon', 'Pokémon', 724, 354.5],
@@ -668,14 +706,15 @@
     /* Nút nào sáng theo chế độ và loại trận. */
     refreshIcons() {
       const m = this.mode, choosing = !!this.pick;
-      const req = this.req || {};
+      const req = this.req || {}, open = choosing && ['menu', 'party', 'items', 'target'].includes(m);
+      const bench = this.coop ? ((this.coopReq && this.coopReq.bench) || []).length : open ? this.battle.switchable().length : 0;
       const can = {
-        fight: choosing && ['menu', 'party', 'items'].includes(m),
-        pokemon: choosing && ['menu', 'party', 'items'].includes(m) && !req.trapped && this.battle.switchable().length > 0,
-        item: choosing && ['menu', 'party', 'items'].includes(m),
-        run: choosing && ['menu', 'party', 'items'].includes(m) && (this.kind === 'wild' || this.kind === 'boss'),
+        fight: open,
+        pokemon: open && !req.trapped && bench > 0,
+        item: open && !this.coop,
+        run: (open && (this.kind === 'wild' || !!this.coop)) || (!!this.coop && m === 'wait'),
       };
-      const sel = { fight: m === 'menu', pokemon: m === 'party' || m === 'forced', item: m === 'items' || m === 'learnTarget', run: false };
+      const sel = { fight: m === 'menu' || m === 'target', pokemon: m === 'party' || m === 'forced', item: m === 'items' || m === 'learnTarget', run: false };
       for (const [k, x] of Object.entries(this.icons)) {
         x.el.classList.toggle('off', !can[k] && !sel[k]);
         x.el.classList.toggle('sel', !!sel[k] && choosing);
@@ -683,13 +722,14 @@
       }
     },
     onIcon(key) {
-      if (!this.pick || !['menu', 'party', 'items', 'learnTarget'].includes(this.mode)) return;
       const off = this.icons[key].el.classList.contains('off');
       if (off && !this.icons[key].el.classList.contains('sel')) return;
+      if (key === 'run' && this.coop && this.mode === 'wait') { this.coop.leave(); return; }
+      if (!this.pick || !['menu', 'party', 'items', 'learnTarget', 'target'].includes(this.mode)) return;
       if (key === 'fight' && this.mode !== 'menu') this.setMode('menu');
       else if (key === 'pokemon') this.setMode(this.mode === 'party' ? 'menu' : 'party');
       else if (key === 'item') this.setMode(this.mode === 'items' ? 'menu' : 'items');
-      else if (key === 'run') this.send(this.kind === 'boss' ? { type: 'leave' } : { type: 'run' });
+      else if (key === 'run') this.send(this.coop ? { type: 'leave' } : { type: 'run' });
     },
 
     setMode(m) {
@@ -699,6 +739,8 @@
       if (m === 'menu') this.fillMoves();
       if (m === 'party' || m === 'forced' || m === 'learnTarget') this.fillParty();
       if (m === 'items') this.fillItems();
+      if (m === 'target') this.fillTargets();
+      if (this.coop) this.refreshCoopStatus();
       this.refreshIcons();
     },
     choose(mode, req) {
@@ -709,8 +751,19 @@
 
     /* AttacksBattleMenu: 4 nút Battle_attack_normal 196×46 (Attack1..4 y 155/100/45/−10 trong gamegui). */
     fillMoves() {
+      if (this.coop) {
+        const sr = this.req;
+        this.fillMoveList(sr.moves, P1.mon.name(this.battle.roster[sr.index].mon) + this.slotLabel(), (m) => this.pickMove(m));
+        return;
+      }
       const b = this.battle, act = b.active('p1');
       if (!act) return;
+      // Chiêu hai lượt / nạp lại / Outrage…: request chỉ còn chiêu đang khoá → vẽ đúng danh sách của request.
+      const r = this.req && this.req.moves;
+      if (r && (r.length !== act.mon.moves.length || r.some((m, k) => m.id !== act.mon.moves[k].id))) {
+        this.fillMoveList(r, P1.mon.name(act.mon), (m) => { if (this.mode === 'menu') this.send({ type: 'move', slot: m.slot }); });
+        return;
+      }
       const sim = b.simMon('p1', act.index);
       act.mon.moves.forEach((slot, k) => {
         const mv = P1.Dex.moves.get(slot.id), ms = sim.moveSlots[k];
@@ -740,6 +793,7 @@
 
     /* Pokemon/Poke1..6: lưới 2×3 vòng Battle_pokemon_BG (x 266/362, y 140/68/−4 trong gamegui). */
     fillParty() {
+      if (this.coop) { this.fillCoopParty(); return; }
       const b = this.battle, cur = b.active('p1');
       P1.state.party.forEach((m, i) => {
         const inSim = b.order.includes(i), sim = inSim ? b.simMon('p1', i) : null;
@@ -764,6 +818,95 @@
       });
       this.promptEl.textContent = this.partyPrompt();
     },
+    /* ------------------------------------------------ trận chung: chỉ điều khiển ô của mình */
+
+    slotLabel() {
+      const sr = this.req, many = this.coopReq && this.coopReq.slots.length > 1;
+      return many ? ' (ô ' + (this.coopReq.slots.indexOf(sr) + 1) + '/' + this.coopReq.slots.length + ')' : '';
+    },
+    /* Nút chiêu vẽ thẳng từ request của sim (trận chung, hoặc khi chiêu đang bị khoá). */
+    fillMoveList(moves, who, onPick) {
+      moves.forEach((m, k) => {
+        const mv = P1.Dex.moves.get(m.id);
+        const off = m.disabled || (m.pp === 0 && m.maxpp != null);
+        const btn = el('div', 'pb-btn pb-move' + (off ? ' off' : ''), this.topEl);
+        btn.dataset.b = 'move-' + m.slot;
+        btn.style.top = (57.5 + k * 55) + 'px';
+        P1.proui.apply(btn, 'Battle_attack_normal');
+        el('div', 'n', btn).textContent = mv.exists ? mv.name : m.name;
+        if (mv.category !== 'Status') btn.appendChild(spr(mv.category === 'Physical' ? 'physical' : 'special', { cls: 'cat' }));
+        const typ = String(mv.type || '').toLowerCase();
+        if (P1.proui.has(typ)) btn.appendChild(spr(typ, { cls: mv.category === 'Status' ? 'cat' : 'typ' }));
+        if (m.maxpp != null) el('div', 'pp', btn).textContent = 'PP ' + m.pp + '/' + m.maxpp;
+        if (!off) {
+          btn.addEventListener('pointerenter', () => P1.proui.apply(btn, 'Battle_attack_hover'));
+          btn.addEventListener('pointerleave', () => P1.proui.apply(btn, 'Battle_attack_normal'));
+          btn.addEventListener('click', () => onPick(m));
+        }
+      });
+      this.promptEl.textContent = who + ' sẽ làm gì?';
+    },
+    pickMove(m) {
+      if (this.mode !== 'menu' || !this.pick) return;
+      if (m.targets.length > 1) { this.pendingMove = m; this.setMode('target'); return; }
+      this.send({ type: 'move', slot: m.slot, tg: m.targets.length ? m.targets[0].loc : 0 });
+    },
+    /* Chiêu một mục tiêu khi có nhiều đối thủ: mỗi mục tiêu một nút; rê chuột lên nút thì con đó sáng lên. */
+    fillTargets() {
+      const m = this.pendingMove;
+      m.targets.forEach((t, k) => {
+        const w = this.battle.at(t.pos.slice(0, 2), 'abc'.indexOf(t.pos[2]));
+        const btn = el('div', 'pb-btn pb-move pb-target' + (t.ally ? ' ally' : ''), this.topEl);
+        btn.dataset.b = 'target-' + t.pos;
+        btn.style.top = (57.5 + k * 55) + 'px';
+        P1.proui.apply(btn, 'Battle_attack_normal');
+        el('div', 'n', btn).textContent = w ? P1.mon.name(w.mon) : '—';
+        el('div', 'pp', btn).textContent = t.ally ? 'đồng đội' : 'đối thủ';
+        const actor = this.actors[t.pos];
+        btn.addEventListener('pointerenter', () => { P1.proui.apply(btn, 'Battle_attack_hover'); if (actor) actor.white = 0.35; });
+        btn.addEventListener('pointerleave', () => { P1.proui.apply(btn, 'Battle_attack_normal'); if (actor) actor.white = 0; });
+        btn.addEventListener('click', () => { if (actor) actor.white = 0; if (this.mode === 'target') this.send({ type: 'move', slot: m.slot, tg: t.loc }); });
+      });
+      this.promptEl.textContent = P1.Dex.moves.get(m.id).name + ' nhắm vào ai?';
+    },
+    /* Pokémon của mình: con đang ở sân (bất kỳ ô nào) và con đã gục thì mờ; bấm con dự bị để đổi vào ô này. */
+    fillCoopParty() {
+      const b = this.battle, sr = this.req;
+      const mine = b.roster.map((x, k) => ({ k, mon: x.mon, owner: x.owner })).filter((x) => x.owner === this.coop.me);
+      mine.forEach((x, i) => {
+        const sim = b.simMon('p1', x.k), hp = sim.hp, max = sim.maxhp;
+        const isCur = sr && sr.index === x.k, off = hp <= 0 || sim.isActive;
+        const btn = el('div', 'pb-btn pb-mon' + (isCur ? ' cur' : '') + (off ? ' off' : ''), this.topEl);
+        btn.dataset.b = 'party-' + x.k;
+        btn.style.left = ((i % 2 ? 729 : 633) - 28.5) + 'px';
+        btn.style.top = (95.5 + Math.floor(i / 2) * 72 - 28.5) + 'px';
+        P1.proui.apply(btn, 'Battle_pokemon_BG');
+        const img = el('img', '', btn); img.src = iconUrl(x.mon); img.draggable = false;
+        el('div', 'lv', btn).textContent = 'Lv' + x.mon.level;
+        const bar = el('div', 'hp', btn), fill = el('i', '', bar), r = max ? hp / max : 0;
+        fill.style.width = Math.round(100 * r) + '%';
+        fill.className = r > 0.5 ? '' : r > 0.2 ? 'mid' : 'low';
+        const info = P1.mon.name(x.mon) + ' Lv' + x.mon.level + ' · HP ' + hp + '/' + max;
+        btn.addEventListener('pointerenter', () => { this.promptEl.textContent = info; });
+        btn.addEventListener('pointerleave', () => { this.promptEl.textContent = this.partyPrompt(); });
+        if (!off) btn.addEventListener('click', () => this.pickParty(x.k));
+      });
+      this.promptEl.textContent = this.partyPrompt();
+    },
+    waitText() {
+      const others = Object.values(this.coopStatus).filter((s) => s.id !== this.coop.me && s.state === 'choosing').map((s) => s.name);
+      return others.length ? 'Chờ ' + [...new Set(others)].join(', ') + ' chọn…' : 'Chờ lượt…';
+    },
+    refreshCoopStatus() {
+      this.coopStatus = this.coop.status();
+      if (this.mode === 'wait') this.promptEl.textContent = this.waitText();
+      if (!this.timerEl) return;
+      const live = ['menu', 'party', 'forced', 'target', 'wait'].includes(this.mode) && this.deadline && !this.battle.result;
+      const left = live ? Math.max(0, Math.ceil((this.deadline - Date.now()) / 1000)) : null;
+      this.timerEl.textContent = left == null ? '' : 'Còn ' + left + ' s';
+      this.timerEl.classList.toggle('low', left != null && left <= 5);
+    },
+
     partyPrompt() {
       if (this.mode === 'forced') return 'Chọn Pokémon ra sân tiếp.';
       if (this.mode === 'learnTarget') return 'Dùng ' + (this.pendingItem ? this.pendingItem.name : '') + ' cho Pokémon nào?';
@@ -853,28 +996,63 @@
     tween(d, fn) { return this.clock.tween(d, fn); },
     nameOf(ident) { const w = this.battle.who(ident); return w ? nameOf(w.mon) : '?'; },
     trainerName() { return '[ff6666]' + P1.state.player.name + '[-]'; },
-    actorOf(ident) { const w = this.battle.who(ident); return w ? this.actors[w.side] : null; },
-    other(actor) { return actor === this.actors.p1 ? this.actors.p2 : this.actors.p1; },
+    actorOf(ident) { const w = this.battle.who(ident); return w ? this.actors[w.pos] : null; },
+    other(actor) { return Object.values(this.actors).find((a) => a.side !== actor.side && a.mon && !a.hidden) || actor; },
+    /* Trận chung: "Misty: " trước lời của người điều khiển con đó. */
+    ownerSays(w) { return this.coop && w && w.owner ? '[9fd8ff]' + (this.coop.names[w.owner] || '?') + '[-]: ' : ''; },
     addFx(f) { this.fx.push(f); return f; },
 
     /* ------------------------------------------------ vòng trận */
 
     async run() {
+      if (this.coop) { await this.runCoop(); return; }
       const b = this.battle;
       await this.intro(b.begin());
-      if (this.boss) this.bossSync();
       while (!b.result) {
-        if (this.bossOver()) break;
         const req = b.request();
         if (!req) break;
         const action = req.kind === 'switch' ? await this.choose('forced') : await this.choose('menu', req);
-        if (action.type === 'boss-end') break;
         this.setMode('busy');
-        if (action.type === 'leave') { b.finish('ran'); await this.say('Bạn rời trận boss.', 0.6); break; }
         await this.play(b.act(action));
-        if (this.boss) this.bossSync();
       }
       await this.finish();
+    },
+
+    /*
+     * Trận chung: diễn từng lô sự kiện raid.js đẩy vào (mỗi lô = một mục nhật ký đã chốt), rồi chọn cho các ô của
+     * mình. Lô mới tới giữa lúc đang chọn (chủ phòng hết giờ chọn thay) thì bỏ bảng chọn và diễn tiếp.
+     */
+    async runCoop() {
+      const c = this.coop, b = this.battle;
+      await this.intro(c.intro);
+      for (;;) {
+        let ev;
+        while ((ev = c.take())) { this.setMode('busy'); await this.play(ev); }
+        if (c.over()) break;
+        const n = b.log.length, req = c.request();
+        this.deadline = c.ready(n) + c.turnMs;
+        this.coopReq = req;
+        if (req && this.submittedN !== n) {
+          const r = await this.chooseCoop(req, c.wait().then(() => ({ type: 'abort' })));
+          if (r === 'leave') { c.leave(); break; }
+          if (r === 'done') this.submittedN = n;
+        }
+        if (c.over()) break;
+        this.setMode('wait');
+        await c.wait();
+      }
+      this.coopReq = null;
+      await this.finish();
+    },
+    async chooseCoop(req, woke) {
+      for (const sr of req.slots) {
+        const a = await Promise.race([this.choose(sr.kind === 'switch' ? 'forced' : 'menu', sr), woke]);
+        if (a.type === 'abort') { this.pick = null; this.setMode('busy'); return 'abort'; }
+        if (a.type === 'leave') return 'leave';
+        this.coop.submit(sr.slot, a.type === 'switch' ? { t: 'switch', k: a.index } : { t: 'move', m: a.slot, tg: a.tg || 0 });
+      }
+      this.setMode('busy');
+      return 'done';
     },
 
     async play(events) {
@@ -885,16 +1063,6 @@
       }
     },
 
-    /* Boss: báo tổng sát thương mình gây, rồi hạ máu cục bộ xuống máu chung nếu thấp hơn. */
-    bossSync() {
-      const b = this.battle;
-      this.boss.report(b.dealt);
-      const shared = this.boss.sharedHp(), p = b.sim.p2.active[0];
-      if (p && shared < p.hp) b.setFoeHp(shared);
-      if (this.box.p2 && p) { this.box.p2.hp = p.hp; this.box.p2.shown = p.hp; }
-    },
-    bossOver() { return !!this.boss && (this.boss.sharedHp() <= 0 || this.boss.ended()); },
-
     /*
      * Mở màn: màn đen tan, đối thủ vào sân (hoang dã: trượt từ trái, còn tối rồi sáng lên; huấn luyện viên/boss: bung từ bóng),
      * hộp máu trượt vào, rồi Pokémon của mình bung ra từ bóng. Dòng switch của sim chỉ gán Pokémon, không diễn.
@@ -903,7 +1071,8 @@
       this.introPhase = true;
       await this.play(events.filter((e) => e.cmd === 'switch'));
       this.introPhase = false;
-      const foe = this.actors.p2, me = this.actors.p1;
+      if (this.coop) { await this.introCoop(events); return; }
+      const foe = this.actors.p2a, me = this.actors.p1a;
       await this.tween(0.4, (k) => { this.fade = 1 - k; });
       if (this.kind === 'wild') {
         foe.hidden = false; foe.tint = '#000000'; foe.tintA = 0.7; foe.dx = -420;
@@ -911,27 +1080,39 @@
         await this.tween(0.3, (k) => { foe.tintA = 0.7 * (1 - k); });
         if (foe.mon.shiny) { sfx('shiny'); this.sparkle(foe, '#fff6a0', 18); await this.wait(0.5); }
         P1.audio.cry(foe.mon.dex);
-        await this.slideBox('p2');
+        await this.slideBox('p2a');
         await this.say('Một ' + nameOf(foe.mon) + ' hoang dã xuất hiện!', 0.9);
-      } else if (this.kind === 'boss') {
-        await this.popOut(foe, 1.2);
-        await this.slideBox('p2');
-        await this.say('Boss ' + nameOf(foe.mon) + ' xuất hiện!', 0.9);
       } else {
         await this.say('[ff6666]' + (this.args.name || 'Huấn luyện viên') + '[-] muốn đấu!', 0.7);
         await this.say('[ff6666]' + (this.args.name || 'Huấn luyện viên') + '[-] tung ra ' + nameOf(foe.mon) + '!', 0.1);
         await this.popOut(foe);
-        await this.slideBox('p2');
+        await this.slideBox('p2a');
       }
       await this.say('Tiến lên! ' + nameOf(me.mon) + '!', 0.1);
       await this.popOut(me);
-      await this.slideBox('p1');
+      await this.slideBox('p1a');
       await this.play(events.filter((e) => e.cmd !== 'switch'));
     },
-    async slideBox(side) {
-      const b = this.box[side];
+    /* Trận chung: huấn luyện viên boss tung đủ số con ra sân, rồi từng người tung Pokémon của mình theo thứ tự ô. */
+    async introCoop(events) {
+      const who = '[ff6666]' + (this.args.name || 'Boss') + '[-]';
+      await this.tween(0.4, (k) => { this.fade = 1 - k; });
+      await this.say(who + ' muốn đấu!', 0.7);
+      const foes = Object.values(this.actors).filter((a) => a.side === 'p2' && a.mon);
+      await this.say(who + ' tung ra ' + foes.map((a) => nameOf(a.mon)).join(' và ') + '!', 0.1);
+      for (const a of foes) { await this.popOut(a); await this.slideBox(a.pos); }
+      for (const a of Object.values(this.actors).filter((x) => x.side === 'p1' && x.mon)) {
+        const w = this.battle.at('p1', 'abc'.indexOf(a.pos[2]));
+        await this.say(this.ownerSays(w) + 'Tiến lên! ' + nameOf(a.mon) + '!', 0.1);
+        await this.popOut(a);
+        await this.slideBox(a.pos);
+      }
+      await this.play(events.filter((e) => e.cmd !== 'switch'));
+    },
+    async slideBox(pos) {
+      const b = this.box[pos];
       if (!b) return;
-      const from = side === 'p2' ? -220 : 220;
+      const from = pos.startsWith('p2') ? -220 : 220;
       await this.tween(0.3, (k) => { b.slide = from * (1 - ease(k)); b.alpha = 1; });
     },
     /* Bung ra từ bóng: bóng mở lóe trắng, Pokémon lớn dần từ 0 rồi hết trắng, kêu. */
@@ -955,9 +1136,9 @@
       actor.hidden = true; actor.white = 0; actor.scale = 1;
     },
 
-    setBox(side, mon, hp, max) {
-      const prev = this.box[side];
-      this.box[side] = { mon, hp, max, shown: hp, level: mon.level, status: mon.status || '', exp: side === 'p1' ? expRatio(mon) : 0,
+    setBox(pos, mon, hp, max) {
+      const prev = this.box[pos], side = pos.slice(0, 2);
+      this.box[pos] = { mon, hp, max, shown: hp, level: mon.level, status: mon.status || '', exp: side === 'p1' ? expRatio(mon) : 0,
         slide: prev ? prev.slide : (side === 'p2' ? -220 : 220), alpha: prev ? prev.alpha : 0 };
     },
     async tweenHp(side, hp) {
@@ -1028,7 +1209,7 @@
     /* ------------------------------------------------ EXP, lên cấp, học chiêu */
 
     async awardExp(foeMon) {
-      if (this.boss) return;
+      if (this.coop) return;
       const gains = this.battle.expFor(foeMon);
       for (const g of gains) {
         const m = P1.state.party[g.index];
@@ -1047,19 +1228,19 @@
             this.battle.applyLevel(g.index);
             sfx('level');
             if (isActive) {
-              const sim = this.battle.simMon('p1', g.index), b = this.box.p1;
+              const sim = this.battle.simMon('p1', g.index), b = this.box.p1a;
               Object.assign(b, { level: e.level, hp: sim.hp, shown: sim.hp, max: sim.maxhp });
-              this.sparkle(this.actors.p1, '#fff3a0', 18);
-              this.pulse(this.actors.p1, '#ffffff', 2);
+              this.sparkle(this.actors.p1a, '#fff3a0', 18);
+              this.pulse(this.actors.p1a, '#ffffff', 2);
             }
             await this.say(nameOf(m) + ' lên cấp ' + e.level + '!', 1.1);
           } else if (e.type === 'learn') await this.learnMove(m, e.move);
         }
-        if (isActive && this.box.p1) this.box.p1.exp = expRatio(m);
+        if (isActive && this.box.p1a) this.box.p1a.exp = expRatio(m);
       }
     },
     async fillExp(m, lv0, exp0) {
-      const b = this.box.p1;
+      const b = this.box.p1a;
       let lv = lv0, e = exp0;
       while (lv < m.level) {
         const a = expRatioAt(m.dex, lv, e);
@@ -1096,17 +1277,9 @@
     /* ------------------------------------------------ kết thúc */
 
     async finish() {
+      if (this.coop) { await this.finishCoop(); return; }
       const b = this.battle;
-      let res = b.result;
-      if (this.boss) {
-        this.boss.report(b.dealt);
-        if (!res) { res = this.boss.sharedHp() <= 0 ? 'win' : 'lose'; b.finish(res); }
-        if (res === 'win') {
-          const foe = this.actors.p2;
-          if (!foe.hidden && foe.alpha > 0) await this.tween(0.6, (k) => { foe.sink = 90 * k; foe.alpha = 1 - k; });
-          await this.say('Boss ' + nameOf(foe.mon) + ' đã bị hạ!', 1);
-        }
-      }
+      const res = b.result;
       const out = { outcome: res === 'tie' ? 'lose' : res };
       if (res === 'win' && this.kind === 'trainer') {
         const top = Math.max(...this.args.foe.map((m) => m.level));
@@ -1115,7 +1288,7 @@
         out.money = money;
         await this.say('Nhận ' + money + ' ₽ tiền thưởng!', 1);
       }
-      if (res === 'win' && !this.boss) await this.say(this.trainerName() + ' đã thắng!', 0.8);
+      if (res === 'win') await this.say(this.trainerName() + ' đã thắng!', 0.8);
       if (out.outcome === 'lose') await this.say('Cả đội đã gục ngã...', 1.2);
       if (res === 'caught') {
         const m = b.caught;
@@ -1127,7 +1300,18 @@
       }
       out.exp = this.expGained;
       out.evolve = P1.state.party.map((m, i) => ({ index: i, dex: P1.mon.evolution(m) })).filter((x) => x.dex && this.leveled.has(x.index));
-      if (this.boss) out.dealt = b.dealt;
+      await this.close(out);
+    },
+    /* Trận chung kết thúc. Không EXP (thưởng chia bằng Cần/Tham/Bỏ ở raid.js). */
+    async finishCoop() {
+      const res = this.battle.result;
+      if (res === 'win') await this.say('Cả đội đã hạ [ff6666]' + (this.args.name || 'boss') + '[-]!', 1.2);
+      else if (res === 'lose') await this.say('Cả đội đã gục ngã...', 1.2);
+      else if (res === 'desync') await this.say('Trận bị lệch giữa các máy — dừng lại.', 1.2);
+      else await this.say('Bạn rời trận boss.', 0.6);
+      await this.close({ outcome: res === 'win' ? 'win' : res === 'lose' || res === 'desync' ? 'lose' : 'ran', exp: 0, evolve: [] });
+    },
+    async close(out) {
       this.setMode('end');
       await this.wait(0.5);
       if (typeof this.args.onEnd === 'function') {
@@ -1179,6 +1363,7 @@
     items: { b() { this.setMode('menu'); }, menu() { this.setMode('menu'); } },
     learnTarget: { b() { this.setMode('items'); }, menu() { this.setMode('items'); } },
     forced: {},
+    target: { b() { this.setMode('menu'); }, menu() { this.setMode('menu'); } },
   };
 
   /* ================================================================ DIRECTOR: sự kiện Showdown → trình diễn */
@@ -1187,22 +1372,22 @@
     /* Vào sân: mở màn chỉ gán; giữa trận thì con cũ về bóng rồi con mới bung ra. */
     async switch(e) {
       const w = this.battle.who(e.args[0]);
-      const actor = this.actors[w.side];
+      const actor = this.actors[w.pos];
       const hp = parseHp(e.args[2]), sim = this.battle.simMon(w.side, w.index);
       const max = sim.maxhp;
       if (w.side === 'p2') P1.seen(w.mon.dex);
       // Mở màn: lấy HP từ sim (dòng switch đầu ghi HP trước khi maxHp của boss được đặt).
-      if (this.introPhase) { actor.set(w.mon); actor.hidden = true; this.setBox(w.side, w.mon, sim.hp, max); return; }
+      if (this.introPhase) { actor.set(w.mon); actor.hidden = true; this.setBox(w.pos, w.mon, sim.hp, max); return; }
       if (actor.mon && !actor.hidden) {
-        if (w.side === 'p1') await this.say(nameOf(actor.mon) + ', quay về!', 0.2);
+        if (w.side === 'p1') await this.say(this.ownerSays(w) + nameOf(actor.mon) + ', quay về!', 0.2);
         await this.recall(actor);
       }
       await P1.img(monUrl(w.mon, w.side === 'p1' ? 'back' : 'front')).catch(() => null);
       actor.set(w.mon);
       actor.hidden = true;
-      this.setBox(w.side, w.mon, hp.hp, max);
-      this.box[w.side].alpha = 1; this.box[w.side].slide = 0;
-      if (w.side === 'p1') await this.say('Tiến lên! ' + nameOf(w.mon) + '!', 0.1);
+      this.setBox(w.pos, w.mon, hp.hp, max);
+      this.box[w.pos].alpha = 1; this.box[w.pos].slide = 0;
+      if (w.side === 'p1') await this.say(this.ownerSays(w) + 'Tiến lên! ' + nameOf(w.mon) + '!', 0.1);
       else await this.say('[ff6666]' + (this.args.name || 'Đối thủ') + '[-] tung ra ' + nameOf(w.mon) + '!', 0.1);
       await this.popOut(actor);
     },
@@ -1234,7 +1419,7 @@
     async '-damage'(e, list, i) {
       const w = this.battle.who(e.args[0]);
       if (!w) return;
-      const actor = this.actors[w.side], hp = parseHp(e.args[1]);
+      const actor = this.actors[w.pos], hp = parseHp(e.args[1]);
       const from = e.kw.from || '';
       if (!from) {
         const near = list.slice(Math.max(0, i - 3), i + 3).filter((x) => x.args[0] === e.args[0]).map((x) => x.cmd);
@@ -1248,42 +1433,43 @@
         await this.say(this.nameOf(e.args[0]) + (t || ' bị thương!'), 0.3);
         this.hit(actor);
       }
-      await this.tweenHp(w.side, hp.hp);
+      await this.tweenHp(w.pos, hp.hp);
     },
     async '-heal'(e) {
       const w = this.battle.who(e.args[0]);
       if (!w) return;
       sfx('heal', { volume: 0.7 });
-      this.sparkle(this.actors[w.side], '#8aff8a', 16);
-      await this.tweenHp(w.side, parseHp(e.args[1]).hp);
+      this.sparkle(this.actors[w.pos], '#8aff8a', 16);
+      await this.tweenHp(w.pos, parseHp(e.args[1]).hp);
       const from = (e.kw.from || '').toLowerCase();
       if (from.includes('drain')) await this.say(this.nameOf(e.kw.of || e.args[0]) + ' bị hút năng lượng!');
       else await this.say(this.nameOf(e.args[0]) + ' hồi phục HP!');
     },
-    async '-sethp'(e) { const w = this.battle.who(e.args[0]); if (w) await this.tweenHp(w.side, parseHp(e.args[1]).hp); },
+    async '-sethp'(e) { const w = this.battle.who(e.args[0]); if (w) await this.tweenHp(w.pos, parseHp(e.args[1]).hp); },
     async '-revive'(e) { const w = this.battle.who(e.args[0]); if (w) await this.say(nameOf(w.mon) + ' đã hồi sinh!'); },
 
     /* Gục: thanh máu về 0, sprite lún xuống dưới vạch chân và mờ đi. */
     async faint(e) {
       const w = this.battle.who(e.args[0]);
       if (!w) return;
-      const actor = this.actors[w.side], b = this.box[w.side];
-      if (b && b.hp > 0) await this.tweenHp(w.side, 0);
+      const actor = this.actors[w.pos], b = this.box[w.pos];
+      if (b && b.hp > 0) await this.tweenHp(w.pos, 0);
       sfx('faint');
       P1.audio.cry(w.mon.dex, { rate: 0.8 });
       await this.tween(0.55, (k) => { actor.sink = 110 * ease(k); actor.alpha = 1 - k * 0.6; });
       actor.hidden = true; actor.sink = 0; actor.alpha = 1;
       this.fainted[w.side].add(w.index);
       await this.say(this.nameOf(e.args[0]) + ' gục ngã!', 0.5);
-      if (w.side === 'p2' && b && !this.boss) await this.tween(0.25, (k) => { b.alpha = 1 - k; });
-      if (w.side === 'p2' && this.battle.active('p1')) await this.awardExp(w.mon);
+      // Hộp máu biến theo con gục. Trận thường: hộp phe mình ở lại tới khi thay con.
+      if (b && (w.side === 'p2' || this.coop)) await this.tween(0.25, (k) => { b.alpha = 1 - k; });
+      if (w.side === 'p2' && !this.coop && this.battle.active('p1')) await this.awardExp(w.mon);
     },
 
     async '-status'(e) {
       const w = this.battle.who(e.args[0]);
       if (!w) return;
-      const st = e.args[1], actor = this.actors[w.side];
-      if (this.box[w.side]) this.box[w.side].status = st;
+      const st = e.args[1], actor = this.actors[w.pos];
+      if (this.box[w.pos]) this.box[w.pos].status = st;
       const anim = ANIM().status[st === 'tox' ? 'psn' : st];
       if (anim) await this.sheet(anim, actor);
       else { this.sparkle(actor, STATUS_COLOUR[st] || '#fff', 14); this.pulse(actor, STATUS_COLOUR[st] || '#fff', 2); }
@@ -1292,7 +1478,7 @@
     async '-curestatus'(e) {
       const w = this.battle.who(e.args[0]);
       if (!w) return;
-      if (this.box[w.side]) this.box[w.side].status = '';
+      if (this.box[w.pos]) this.box[w.pos].status = '';
       await this.say(this.nameOf(e.args[0]) + (CURE_TEXT[e.args[1]] || ' hết trạng thái xấu.'));
     },
     async '-boost'(e) { await statChange.call(this, e, 1); },
@@ -1301,14 +1487,14 @@
       const reason = e.args[1] || '';
       const w = this.battle.who(e.args[0]);
       const anim = w && ANIM().status[reason];
-      if (anim) await this.sheet(anim, this.actors[w.side]);
+      if (anim) await this.sheet(anim, this.actors[w.pos]);
       await this.say(this.nameOf(e.args[0]) + (CANT_TEXT[reason] || ' không ra đòn được!'));
     },
     async '-start'(e) {
       const eff = (e.args[1] || '').replace(/^move: /, '').toLowerCase();
       const w = this.battle.who(e.args[0]);
       if (eff === 'confusion') {
-        if (w) this.sparkle(this.actors[w.side], '#ffb0ff', 12);
+        if (w) this.sparkle(this.actors[w.pos], '#ffb0ff', 12);
         await this.say(this.nameOf(e.args[0]) + ' bị rối loạn!');
       } else if (eff === 'substitute') await this.say(this.nameOf(e.args[0]) + ' tạo ra phân thân!');
       else if (eff === 'leech seed') await this.say(this.nameOf(e.args[0]) + ' bị gieo hạt!');
@@ -1322,7 +1508,7 @@
       const eff = (e.args[1] || '').replace(/^move: /, '').toLowerCase();
       const w = this.battle.who(e.args[0]);
       if (eff === 'confusion') {
-        if (w) this.sparkle(this.actors[w.side], '#ffb0ff', 12);
+        if (w) this.sparkle(this.actors[w.pos], '#ffb0ff', 12);
         await this.say(this.nameOf(e.args[0]) + ' đang rối loạn!');
       } else if (eff === 'protect') await this.say(this.nameOf(e.args[0]) + ' tự bảo vệ!');
     },
@@ -1330,7 +1516,7 @@
       const t = WEATHER_TEXT[e.args[0]];
       if (e.kw.upkeep) return;
       const anim = ANIM().weather[e.args[0]];
-      if (anim) await this.sheet(anim, this.actors.p2);
+      if (anim) await this.sheet(anim, this.actors.p2a);
       if (t) await this.say(t);
     },
     async '-message'(e) { await this.say(e.args[0]); },
@@ -1346,7 +1532,7 @@
     async 'p1-run'(e) {
       if (e.args[0] === '1') {
         sfx('run');
-        const me = this.actors.p1;
+        const me = this.actors.p1a;
         this.tween(0.5, (k) => { me.dx = -260 * ease(k); me.alpha = 1 - k; });
         await this.say('Chạy thoát an toàn!', 1);
       } else await this.say('Không chạy thoát được!');
@@ -1360,7 +1546,7 @@
     const n = +e.args[2] || 0;
     sfx(dir > 0 ? 'up' : 'down');
     if (w) {
-      const actor = this.actors[w.side], c = actor.center(), colour = dir > 0 ? '#ff7a5a' : '#5a9aff';
+      const actor = this.actors[w.pos], c = actor.center(), colour = dir > 0 ? '#ff7a5a' : '#5a9aff';
       this.addFx(new Particles(colour).rise(c.x, c.y, dir, 12));
       await this.pulse(actor, colour, 2);
     }
@@ -1380,7 +1566,7 @@
   async function throwBall(e) {
     const [key, , shakesStr, caughtStr] = e.args;
     const caught = caughtStr === '1', shakes = Math.max(1, +shakesStr);
-    const foe = this.actors.p2, name = itemName(key);
+    const foe = this.actors.p2a, name = itemName(key);
     await this.say(this.trainerName() + ' ném ' + Y(name) + '!', 0.2);
     const ball = this.addFx(new Ball(key));
     ball.inHand = true;

@@ -5,9 +5,10 @@
  *   PGLITE_PATH=<thư mục chứa node_modules/@electric-sql/pglite>  bật phần [sql] (Postgres WASM chạy
  *   db/pokeone-market.sql thật, auth.uid() giả). Không có thì phần đó bỏ qua và ghi rõ.
  *
- * [trang]  Trang thử dựng ảo trong games/pokeone/ (nạp đúng tệp thật của trò chơi + cảnh world/battle giả theo hợp đồng
- *          trong brain/plans/pokeone-2d-pro.md) — vì world.js/battle.js đang được viết lại song song.
- * [mạng]   Hai trình duyệt trên Supabase Realtime THẬT, kênh riêng ?netns=test-<ngẫu nhiên>: chat, khoe Pokémon, boss.
+ * [trang]  Trang thử dựng ảo trong games/pokeone/: tệp thật của trò chơi (kể cả battle.js) + cảnh world giả — vì bản đồ
+ *          đang được luồng khác dựng lại.
+ * [mạng]   Trình duyệt thật trên Supabase Realtime THẬT, kênh riêng ?netns=test-<ngẫu nhiên>: chat, khoe Pokémon; boss hai người
+ *          (phòng chờ Idle→Accept→Confirm, trận đôi chung, hết giờ tự chọn, chia đồ) và ba người (trận ba, chủ phòng rời).
  * [chợ]    Đường "chưa cài bảng" gọi PostgREST THẬT; cửa sổ chợ có hàng dùng dữ liệu giả (chỉ để chụp giao diện).
  * Ảnh chụp: SHOTS (mặc định %TEMP%/pokeone-social-shots).
  */
@@ -45,10 +46,14 @@ const HARNESS = `<!doctype html><html lang="vi"><head><meta charset="utf-8">
 </head><body><canvas id="view"></canvas><div id="ui"></div>
 <script src="vendor/pkmn-sim-0.10.11.min.js"></script>
 <script src="data/gamedata.js"></script>
+<script src="data/audio.js"></script>
 <script src="data/pro-ui.js"></script>
+<script src="data/pro.js"></script>
+<script src="data/pro-anim.js"></script>
 <script src="js/core.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/proui.js"></script>
+<script src="js/battle.js"></script>
 <script src="../../js/supabase-config.js"></script>
 <script src="../../js/session.js"></script>
 <script src="../../js/supabase-auth.js"></script>
@@ -59,23 +64,10 @@ const HARNESS = `<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <script>
 (function () {
   const q = new URLSearchParams(location.search);
-  // Cảnh giả theo hợp đồng: world vẽ nền; battle kind:'boss' gọi boss.report/sharedHp/ended như battle.js sẽ làm.
-  P1.scene.add('world', { enter() {}, render() { const v = P1.view(); v.ctx.fillStyle = '#3d6b3a'; v.ctx.fillRect(0, 0, v.w, v.h);
+  P1.query = q;
+  // Cảnh world giả (bản đồ đang được dựng lại ở luồng khác); trận là battle.js thật.
+  P1.scene.add('world', { enter() {}, render() { const v = P1.view(); v.ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0); v.ctx.fillStyle = '#3d6b3a'; v.ctx.fillRect(0, 0, v.w, v.h);
     v.ctx.fillStyle = '#fff'; v.ctx.font = '16px Arial'; v.ctx.fillText('world (giả) — ' + P1.net.me.name, 20, 30); } });
-  P1.scene.add('battle', {
-    enter(a) { window.__battle = { args: a, total: 0, done: false, hp: a.boss ? a.boss.maxHp : 0 }; },
-    update() {
-      const b = window.__battle;
-      if (!b || b.done || !b.args.boss) return;
-      b.hp = Math.min(b.hp, b.args.boss.sharedHp());
-      if (b.args.boss.sharedHp() <= 0) finish('win'); else if (b.args.boss.ended()) finish('lose');
-    },
-    render() { const v = P1.view(), b = window.__battle; v.ctx.fillStyle = '#20304a'; v.ctx.fillRect(0, 0, v.w, v.h);
-      v.ctx.fillStyle = '#fff'; v.ctx.font = '16px Arial'; v.ctx.fillText('battle (giả) — boss HP ' + (b ? b.hp : '?'), 20, v.h - 30); },
-  });
-  function finish(outcome) { const b = window.__battle; b.done = true; b.args.onEnd({ outcome, money: 0, exp: 0 }); }
-  window.__hit = n => { const b = window.__battle; b.total += n; b.args.boss.report(b.total); };
-  window.__faint = () => finish('lose');
   P1.view();
   P1.proui.ready().then(() => {
     P1.newGame();
@@ -103,13 +95,13 @@ function serve() {
 }
 
 async function openPage(browser, base, name, extra) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, permissions: ['clipboard-read', 'clipboard-write'] });
   if (extra && extra.session) await ctx.addInitScript(s => localStorage.setItem('hub.session.v1', JSON.stringify(s)), extra.session);
   const page = await ctx.newPage();
   page.errors = [];
   page.on('pageerror', e => page.errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error' && !/404|Failed to load resource/.test(m.text())) page.errors.push(m.text()); });
-  await page.goto(base + '/games/pokeone/__social.html?netns=' + NS + '&name=' + encodeURIComponent(name));
+  await page.goto(base + '/games/pokeone/__social.html?netns=' + NS + '&raidturn=12&bspeed=4&name=' + encodeURIComponent(name));
   await page.waitForFunction(() => window.__ready === true, null, { timeout: 20000 });
   return page;
 }
@@ -144,20 +136,43 @@ async function pureChecks(page) {
       { ok: false, noAccount: true }, { ok: false, status: 404, code: 'PGRST202' }].map(P1.market.outcome);
     out.errText = [P1.market.errText({ status: 400, message: 'p1:bid_low 1050' }), P1.market.errText({ status: 400, message: 'p1:too_many' }),
       P1.market.errText({ status: 404, code: 'PGRST205' })];
-    out.today = P1.raid.openToday(Date.parse('2026-09-28T03:00:00Z'));
-    out.todaySame = JSON.stringify(P1.raid.openToday(Date.parse('2026-09-28T10:00:00Z'))) === JSON.stringify(out.today);
-    out.todayVN = P1.raid.dayKey(Date.parse('2026-09-28T18:00:00Z'));
-    const days = []; for (let d = 0; d < 60; d++) days.push(P1.raid.openToday(Date.parse('2026-01-01T05:00:00Z') + d * 864e5));
-    out.rotation = { alwaysThree: days.every(x => new Set(x).size === 3), alwaysLv30: days.every(x => P1.raid.BOSSES[x[0]].level === 30),
-      distinct: new Set(days.map(x => x.join())).size, all: [...new Set(days.flat())].length };
-    out.maxHp = [P1.raid.maxHpFor('snorlax', 1), P1.raid.maxHpFor('snorlax', 2), P1.raid.maxHpFor('snorlax', 4)];
-    // Hội tụ: mỗi người phát tổng luỹ kế; nhận theo thứ tự lộn xộn, trùng lặp, thiếu gói giữa chừng → cùng một HP.
-    const reports = [['a', 10], ['a', 30], ['b', 5], ['a', 60], ['b', 45], ['c', 20], ['b', 45], ['a', 30], ['c', 20], ['a', 60]];
-    const fold = seq => { const d = {}; seq.forEach(([id, t]) => { d[id] = Math.max(d[id] || 0, t); }); return P1.raid.sharedHpOf(500, d, ['a', 'b', 'c']); };
-    const shuffled = reports.slice().reverse().concat(reports.slice(3));
-    out.converge = [fold(reports), fold(shuffled), fold(reports.filter((_, i) => i !== 1 && i !== 4)), P1.raid.sharedHpOf(500, { a: 60, b: 45, c: 20, z: 999 }, ['a', 'b', 'c'])];
-    out.invite = [P1.raid.parseInvite({ room: 'rabc12345', boss: 'snorlax', host: 'Ash', slots: 9, expires: Date.now() + 60000 }),
-      P1.raid.parseInvite({ room: 'bad room', boss: 'snorlax', expires: Date.now() + 1 }), P1.raid.parseInvite({ room: 'rabc12345', boss: 'pikachu', expires: Date.now() + 1 })];
+    const now = Date.parse('2026-09-28T03:00:00Z');
+    P1.state.bossWins = { giovanni: now - 5 * 864e5 };
+    out.cd = { giovanni: Math.ceil(P1.raid.cooldownLeft('giovanni', now) / 864e5), brock: P1.raid.cooldownLeft('brock', now), later: P1.raid.cooldownLeft('giovanni', now + 12 * 864e5) };
+    P1.state.bossWins = {};
+    out.codes = [P1.raid.findCodes('[Boss] Giovanni — mã phòng K7Q2M9'), P1.raid.findCodes('vào đi K7Q2M9 nhé, hoặc AB3CDE'), P1.raid.findCodes('HELLO và ABCDEF và 234567 và K7Q2M9X'),
+      P1.raid.findCodes('mã k7q2m9 viết thường')].map(x => x.map(c => c.code + '@' + c.index).join());
+    out.norm = [P1.raid.normCode(' k7q2m9 '), P1.raid.normCode('K7Q2M'), P1.raid.normCode('K0Q2M9')];
+    out.codeText = P1.raid.codeText('giovanni', 'K7Q2M9');
+    out.table = Object.keys(P1.raid.BOSSES).map(id => id + ':' + P1.raid.BOSSES[id].team.length + ':' + P1.raid.maxFor(id)).join();
+    const W = P1.raid.lootWinner;
+    out.loot = {
+      needFirst: W(7, 'mon', { a: 'greed', b: 'need', c: 'greed' }, ['a', 'b', 'c']),
+      greedOnly: W(7, 'item', { a: 'greed', b: 'pass', c: 'greed' }, ['a', 'b', 'c']),
+      allPass: W(7, 'money', { a: 'pass', b: 'pass' }, ['a', 'b']),
+      same: JSON.stringify(W(99, 'mon', { a: 'need', b: 'need', c: 'need' }, ['a', 'b', 'c'])) === JSON.stringify(W(99, 'mon', { c: 'need', b: 'need', a: 'need' }, ['c', 'b', 'a'])),
+      rolls: ['a', 'b', 'c'].map(id => P1.raid.lootRoll(99, 'mon', id)),
+      top: W(99, 'mon', { a: 'need', b: 'need', c: 'need' }, ['a', 'b', 'c']),
+    };
+    // Máy trạng thái phòng: ảnh chụp presence → Lobby.
+    const mk = (id, t, extra) => Object.assign({ id, name: id.toUpperCase(), t, state: 'idle', mons: [P1.mon.create(25, 20)], lead: null }, extra || {});
+    const lead = { boss: 'giovanni', phase: 'lobby', launch: '', seed: 0, order: [], party: [] };
+    const LB = P1.raid.reduce({ room: 'r1', boss: null, leader: null, actors: [], phase: 'lobby', order: [], party: [] },
+      { type: 'rows', me: 'b', rows: [mk('b', 2), mk('a', 1, { lead, state: 'accept' }), mk('c', 3, { state: 'accept' })] });
+    out.lobby = { phase: LB.phase, actors: LB.actors.map(a => a.id + ":" + a.kind + ":" + a.state + ":" + a.team).join(), npc: LB.actors[3].count + '/' + LB.actors[3].active };
+    const brockRoom = P1.raid.reduce({ room: 'r2', boss: null, leader: null, actors: [], phase: 'lobby', order: [], party: [] },
+      { type: 'rows', me: 'c', rows: [mk('a', 1, { lead: Object.assign({}, lead, { boss: 'brock' }) }), mk('b', 2), mk('c', 3)] });
+    out.brockFull = brockRoom.phase + ' ' + brockRoom.reason;
+    const four = P1.raid.reduce(LB, { type: 'rows', me: 'd', rows: [mk('a', 1, { lead }), mk('b', 2), mk('c', 3), mk('d', 4)] });
+    const gone = P1.raid.reduce(LB, { type: 'rows', me: 'b', rows: [mk('b', 2), mk('c', 3)] });
+    const late = P1.raid.reduce(LB, { type: 'rows', me: 'z', rows: [mk('a', 1, { lead: Object.assign({}, lead, { phase: 'countdown', order: ['a', 'b'] }) }), mk('z', 9)] });
+    const won = P1.raid.reduce(Object.assign({}, LB, { phase: 'battle' }), { type: 'result', win: true });
+    out.fsm = { four: four.phase + ' ' + four.reason, gone: gone.phase + ' ' + gone.reason, late: late.phase + ' ' + late.reason, won: won.phase,
+      closedSticky: P1.raid.reduce(gone, { type: 'rows', me: 'b', rows: [mk('a', 1, { lead })] }).phase };
+    const t1 = P1.raid.trainerTeam('giovanni', 5), t2 = P1.raid.trainerTeam('giovanni', 5);
+    out.side = { team: t1.map(m => m.dex + ':' + m.level).join(), same: JSON.stringify(t1.map(m => m.ivs)) === JSON.stringify(t2.map(m => m.ivs)), ot: t1[0].ot };
+    const bad = P1.raid.parseFighter({ dex: 25, level: 30, hp: 9999, status: 'evil', moves: [{ id: 'thunderbolt', pp: 99 }] });
+    out.fighter = { hp: bad.hp === P1.mon.stats(bad).hp, status: bad.status, pp: bad.moves[0].pp, dead: P1.raid.parseFighter({ dex: 25, level: 30, hp: 0 }) };
     return out;
   });
   check('cardOf → MonCard đủ khoá hợp đồng', r.cardKeys === 'ability,ball,dex,gender,ivs,level,moves,nature,nick,ot,shiny', r.cardKeys);
@@ -175,12 +190,25 @@ async function pureChecks(page) {
   check('outcome: ok / unknown (mất mạng, 5xx) / reject (4xx, chưa đăng nhập, chưa cài)',
     JSON.stringify(r.outcome) === '["ok","unknown","unknown","reject","reject","reject"]', r.outcome);
   check('errText đọc mã p1:… từ máy chủ', r.errText[0] === 'Giá tối thiểu hiện tại là ₽1050.' && /10 phiên/.test(r.errText[1]) && /db\/pokeone-market\.sql/.test(r.errText[2]), r.errText);
-  check('boss hôm nay: cố định trong ngày (giờ VN)', r.todaySame && r.today.length === 3, r.today);
-  check('dayKey theo UTC+7 (18:00Z = hôm sau ở VN)', r.todayVN === '2026-09-29', r.todayVN);
-  check('60 ngày: luôn 3 boss khác nhau, boss đầu Lv30, đủ 7 boss xuất hiện', r.rotation.alwaysThree && r.rotation.alwaysLv30 && r.rotation.all === 7, r.rotation);
-  check('máu boss chung theo số người (+80 %/người)', JSON.stringify(r.maxHp) === '[450,810,1530]', r.maxHp);
-  check('HP chung hội tụ: lộn thứ tự, trùng, mất gói, id lạ không tính', r.converge.every(x => x === 375), r.converge);
-  check('parseInvite: kẹp slots, từ chối mã phòng/boss sai', r.invite[0] && r.invite[0].slots === 4 && r.invite[1] === null && r.invite[2] === null, r.invite[0]);
+  check('bảng boss: 8 thủ lĩnh + Tứ Thiên Vương + Nhà vô địch; số người tối đa = min(3, số Pokémon của boss)',
+    r.table === 'brock:2:2,misty:2:2,surge:3:3,erika:3:3,koga:4:3,sabrina:4:3,blaine:4:3,giovanni:5:3,lorelei:5:3,bruno:5:3,agatha:5:3,lance:5:3,blue:6:3', r.table);
+  check('hồi 12 ngày mỗi boss, tính từ lần thắng: thắng 5 ngày trước → còn 7; boss khác không ảnh hưởng; qua 12 ngày → hết',
+    r.cd.giovanni === 7 && r.cd.brock === 0 && r.cd.later === 0, r.cd);
+  check('mã phòng trong câu chat: câu chép từ nút mời, mã đứng giữa câu, bỏ chữ in hoa không có số / mã dài / chữ thường',
+    JSON.stringify(r.codes) === JSON.stringify(['K7Q2M9@27', 'K7Q2M9@7,AB3CDE@24', '', '']), r.codes);
+  check('chuẩn hoá mã nhập tay: chữ thường + khoảng trắng được, thiếu ký tự / có số 0 thì không', JSON.stringify(r.norm) === '["K7Q2M9",null,null]', r.norm);
+  check('câu mời để chép: "[Boss] Giovanni — mã phòng K7Q2M9"', r.codeText === '[Boss] Giovanni — mã phòng K7Q2M9', r.codeText);
+  const top = ['a', 'b', 'c'].map((id, i) => ({ id, roll: r.loot.rolls[i] })).sort((x, y) => y.roll - x.roll || (x.id < y.id ? -1 : 1))[0];
+  check('chia đồ: có Cần thì chỉ xét Cần; không ai Cần thì xét Tham; tất cả Bỏ → không ai nhận',
+    r.loot.needFirst.id === 'b' && r.loot.needFirst.tier === 'need' && r.loot.greedOnly.tier === 'greed' && ['a', 'c'].includes(r.loot.greedOnly.id) && r.loot.allPass === null, r.loot);
+  check('chia đồ tất định: cùng (seed, món, phiếu) → cùng người thắng; điểm cao nhất thắng', r.loot.same && r.loot.top.id === top.id && r.loot.top.roll === top.roll, r.loot.rolls);
+  check('phòng chờ: chủ phòng đứng đầu, Đội 2 là huấn luyện viên boss (5 Pokémon, 3 con ra sân cho 3 người)', r.lobby.phase === 'lobby' &&
+    r.lobby.actors === 'a:leader:accept:1,b:user:idle:1,c:user:accept:1,boss:npc:confirm:2' && r.lobby.npc === '5/3', r.lobby);
+  check('phòng Brock (2 Pokémon): người thứ 3 bị từ chối', /^closed .*đủ 2/.test(r.brockFull), r.brockFull);
+  check('phòng chờ: người thứ 4 bị từ chối, chủ phòng rời → giải tán, vào muộn → từ chối, thắng → chia đồ, đã đóng thì đóng hẳn',
+    /^closed .*đủ 3/.test(r.fsm.four) && /^closed Chủ phòng/.test(r.fsm.gone) && /^closed .*bắt đầu/.test(r.fsm.late) && r.fsm.won === 'loot' && r.fsm.closedSticky === 'closed', r.fsm);
+  check('đội Giovanni theo FRLG, cùng seed → cùng con trên mọi máy', r.side.team === '111:45,51:42,31:44,34:45,112:50' && r.side.same && r.side.ot === 'Giovanni', r.side);
+  check('Pokémon người khác gửi vào trận: kẹp HP, bỏ trạng thái lạ, kẹp PP; hết máu thì không nhận', r.fighter.hp && r.fighter.status === '' && r.fighter.pp <= 15 && r.fighter.dead === null, r.fighter);
 }
 
 /* ---------------------------------------------------------------- [sql] Postgres WASM */
@@ -325,63 +353,258 @@ async function netChecks(browser, base) {
   const popKeys = await B.evaluate(() => ({ moved: P1.input.take('up'), menu: P1.input.take('menu'), open: !!document.querySelector('[data-pop="pokecard"]') }));
   check('popup mở: phím không tới nhân vật, Esc đóng popup', !popKeys.moved && !popKeys.menu && !popKeys.open, popKeys);
 
-  const boss = await A.evaluate(() => P1.raid.openToday()[0]);
-  await A.evaluate(id => P1.raid.openLobby(id), boss);
-  const inv = await until(() => B.evaluate(() => { const b = document.querySelector('.p1-chat .l.invite button.join'); return b && !b.disabled; }), 8000);
-  check('mở phòng boss tự đăng lời mời; B thấy nút Tham gia', !!inv);
-  await B.click('.p1-chat .l.invite button.join');
-  const both = await until(async () => {
-    const a = await A.evaluate(() => P1.raid.room && P1.raid.room.roster.length), b = await B.evaluate(() => P1.raid.room && P1.raid.room.phase);
-    return a === 2 && b === 'lobby' && [a, b];
-  }, 10000);
-  check('B vào phòng qua lời mời; hai bên thấy 2 người', !!both, both);
-  const slots = await A.evaluate(() => [...document.querySelectorAll('[data-pop="raid-lobby"] .p1s-slot:not(.empty) b')].map(e => e.textContent));
-  check('phòng chờ liệt kê tên + Pokémon dẫn đầu', slots.join() === 'Ash,Misty', slots);
-  await shot(A, '3-lobby.png');
-  await A.click('[data-pop="raid-lobby"] .p1s-btn.primary');
-  const inBattle = await until(async () => (await A.evaluate(() => P1.scene.name)) === 'battle' && (await B.evaluate(() => P1.scene.name)) === 'battle', 10000);
-  check('chủ phòng bấm Bắt đầu → cả hai vào trận boss sau đếm ngược', !!inBattle);
-  const args = await Promise.all([A, B].map(p => p.evaluate(() => { const a = window.__battle.args; return { kind: a.kind, maxHp: a.boss.maxHp, foe: a.foe[0].dex, lvl: a.foe[0].level, ivs: JSON.stringify(a.foe[0].ivs), bg: a.bg }; })));
-  const expHp = await A.evaluate(id => P1.raid.maxHpFor(id, 2), boss);
-  check('trận kind:boss, cùng maxHp theo 2 người, cùng một con boss (IV theo seed)', args[0].kind === 'boss' && args[0].maxHp === expHp && JSON.stringify(args[0]) === JSON.stringify(args[1]), args);
-  check('khung chat ẩn trong trận', await A.evaluate(() => !document.querySelector('.p1-chat')));
-  await A.evaluate(() => __hit(100));
-  await B.evaluate(() => __hit(150));
-  const conv = await until(async () => {
-    const [a, b] = await Promise.all([A.evaluate(() => P1.raid.room.sharedHp), B.evaluate(() => P1.raid.room.sharedHp)]);
-    return a === expHp - 250 && b === expHp - 250 && [a, b];
-  }, 8000);
-  check('HP chung hội tụ trên cả hai máy (maxHp − 100 − 150)', !!conv, conv || await Promise.all([A, B].map(p => p.evaluate(() => P1.raid.room))));
-  await A.evaluate(() => { window.__battle.args.boss.report(40); window.__battle.args.boss.report(100); });
-  await A.evaluate(() => __hit(100));
-  const conv2 = await until(async () => {
-    const [a, b] = await Promise.all([A.evaluate(() => P1.raid.room.sharedHp), B.evaluate(() => P1.raid.room.sharedHp)]);
-    return a === expHp - 350 && b === expHp - 350 && [a, b];
-  }, 8000);
-  check('báo lại tổng cũ vô hại; tổng mới cộng dồn (maxHp − 350)', !!conv2, conv2);
-  await sleep(400);
-  const panel = await A.evaluate(() => { const p = document.querySelector('.p1s-raidpanel'); return p && p.textContent; });
-  check('bảng đồng đội trong trận: tên + sát thương', /Ash/.test(panel || '') && /Misty/.test(panel || '') && /200/.test(panel || '') && /150/.test(panel || ''), panel);
-  await shot(A, '4-raid-panel.png');
-
-  const before = await Promise.all([A, B].map(p => p.evaluate(() => ({ money: P1.state.money, n: P1.state.party.length + P1.state.box.length }))));
-  await B.evaluate(() => __faint());
-  const waitB = await until(() => B.evaluate(() => P1.raid.room && P1.raid.room.phase === 'wait' && P1.scene.name === 'world'), 5000);
-  check('B gục → về world, chờ đội (bảng vẫn hiện)', !!waitB && await B.evaluate(() => !!document.querySelector('.p1s-raidpanel')));
-  await A.evaluate(n => __hit(n), expHp);
-  const done = await until(async () => {
-    const r = await Promise.all([A, B].map(p => p.evaluate(() => ({ room: !!P1.raid.room && P1.raid.room.phase, pop: (document.querySelector('[data-pop="raid-result"] .p1s-result') || {}).textContent || '' }))));
-    return r.every(x => x.pop) && r;
-  }, 10000);
-  check('boss gục → cả hai thấy kết quả thắng', done && done.every(x => /Thắng/.test(x.pop)), done);
-  const after = await Promise.all([A, B].map(p => p.evaluate(() => ({ money: P1.state.money, n: P1.state.party.length + P1.state.box.length, last: P1.state.party.slice(-1)[0] }))));
-  const bossDex = await A.evaluate(id => P1.raid.BOSSES[id].dex, boss);
-  check('mỗi người có gây sát thương: +tiền, +1 Pokémon boss Lv20', after.every((x, i) => x.money > before[i].money && x.n === before[i].n + 1 && x.last.dex === bossDex && x.last.level === 20),
-    after.map(x => ({ money: x.money, n: x.n, dex: x.last.dex, lv: x.last.level })));
-  check('đã lưu (P1.save) sau thưởng', await A.evaluate(() => JSON.parse(localStorage.getItem('pokeone.save.v1')).party.length === P1.state.party.length));
-  await shot(B, '5-raid-result.png');
-  check('không lỗi JS trên hai trang', A.errors.length + B.errors.length === 0, A.errors.concat(B.errors).slice(0, 3));
+  check('không lỗi JS trên hai trang (chat)', A.errors.length + B.errors.length === 0, A.errors.concat(B.errors).slice(0, 3));
   await A.context().close(); await B.context().close();
+}
+
+/* ---------------------------------------------------------------- [boss] trận chung */
+
+// Đủ mạnh để thắng Giovanni (Lv42–50) trong ít lượt, đủ lượt để thử đồng hồ và đổi chủ phòng.
+const STRONG = { Ash: [[6, 85], [25, 60]], Misty: [[9, 85], [121, 70], [1, 30]], Brock: [[3, 85], [95, 60]] };
+async function giveTeam(page, name) {
+  await page.evaluate(t => { P1.state.party = t.map(([d, l]) => P1.mon.create(d, l, { ot: P1.state.player.name })); }, STRONG[name]);
+}
+function fnv(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; }
+const roll = (seed, loot, id) => 1 + fnv(seed + '|' + loot + '|' + id) % 100;
+const room = p => p.evaluate(() => P1.raid.room);
+const idOf = p => p.evaluate(() => P1.net.me.id);
+async function shotAt(page, file, W, H) {
+  const old = page.viewportSize();
+  await page.setViewportSize({ width: W, height: H });
+  await sleep(350);
+  const f = await shot(page, file);
+  await page.setViewportSize(old);
+  return f;
+}
+
+/*
+ * Chơi trận chung trên nhiều trang: trang nào đang có bảng chọn thì chọn chiêu mạnh nhất nhắm boss (hoặc đổi con khi bị
+ * buộc). idle = các trang không chọn gì (để thử đồng hồ). Mỗi vòng lấy mẫu (độ dài nhật ký, HP mọi con) từ mọi trang.
+ */
+async function autoplay(pages, opt) {
+  opt = opt || {};
+  const samples = [], t0 = Date.now();
+  while (Date.now() - t0 < (opt.ms || 240000)) {
+    const st = await Promise.all(pages.map(p => p.evaluate(() => {
+      const r = P1.raid.room, s = P1.battleScene;
+      return { log: r ? r.log : -1, hp: r ? r.hp : '', result: r ? r.result : null, phase: r ? r.phase : null, host: r ? r.host : null,
+        mode: s && s.mode, pick: !!(s && s.pick && s.coop), scene: P1.scene.name };
+    }).catch(() => null)));
+    st.forEach((x, i) => { if (x && x.log >= 0 && x.hp) samples.push({ i, log: x.log, hp: x.hp }); });
+    if (opt.until && opt.until(st)) return { st, samples };
+    for (let i = 0; i < pages.length; i++) {
+      const x = st[i];
+      if (!x || !x.pick || (opt.idle || []).includes(i)) continue;
+      await pages[i].evaluate(() => {
+        const s = P1.battleScene;
+        if (!s.pick) return;
+        if (s.mode === 'forced') { s.send({ type: 'switch', index: s.coopReq.bench[0].index }); return; }
+        if (s.mode !== 'menu') { s.setMode('menu'); return; }
+        const m = s.req.moves.filter(x => !x.disabled && x.pp > 0).sort((a, b) => P1.Dex.moves.get(b.id).basePower - P1.Dex.moves.get(a.id).basePower)[0] || s.req.moves[0];
+        const t = m.targets.find(x => x.pos === s.bossPos && x.alive) || m.targets.find(x => !x.ally && x.alive) || m.targets[0];
+        s.send({ type: 'move', slot: m.slot, tg: t ? t.loc : 0 });
+      }).catch(() => {});
+    }
+    await sleep(250);
+  }
+  return { st: null, samples };
+}
+function hpAgreement(samples) {
+  const byLog = {};
+  samples.forEach(x => { (byLog[x.log] = byLog[x.log] || {})[x.i] = x.hp; });
+  let compared = 0, bad = 0;
+  Object.values(byLog).forEach(m => { const v = Object.values(m); if (v.length > 1) { compared++; if (new Set(v).size > 1) bad++; } });
+  return { compared, bad, logs: Object.keys(byLog).length };
+}
+
+/*
+ * Chủ phòng bấm "Lập phòng" (createRoom) → bấm "Sao chép mã mời" → dán câu đó vào chat. Thành viên bấm "Tham gia" cạnh mã
+ * trong chat; ai trong `byBox` thì gõ mã vào ô "Nhập mã phòng" thay vì bấm trong chat.
+ */
+async function gather(host, members, bossId, byBox) {
+  const all = [host].concat(members);
+  await until(async () => (await Promise.all(all.map(p => p.evaluate(() => (document.querySelector('.p1-chat .online') || {}).textContent || ''))))
+    .every(t => parseInt(t, 10) >= all.length), 15000);
+  await host.evaluate(id => P1.raid.createRoom(id), bossId);
+  await host.waitForSelector('[data-pop="raid-lobby"] .lb-copy', { timeout: 10000 });
+  await host.click('[data-pop="raid-lobby"] .lb-copy');
+  const code = (await room(host)).id;
+  const copied = await until(() => host.evaluate(() => navigator.clipboard.readText().catch(() => '')), 5000);
+  check('"Sao chép mã mời" chép đúng câu mời vào clipboard', copied === '[Boss] ' + (await host.evaluate(id => P1.raid.BOSSES[id].name, bossId)) + ' — mã phòng ' + code, copied);
+  await host.evaluate(() => document.querySelector('[data-pop="raid-lobby"]').style.display = 'none');
+  await host.click('.p1-chat .in input');
+  await host.keyboard.press('Control+V');
+  await host.keyboard.press('Enter');
+  await host.evaluate(() => document.querySelector('[data-pop="raid-lobby"]').style.display = '');
+  for (const m of members) {
+    if ((byBox || []).includes(m)) {
+      await m.click('.p1-chat .code-btn');
+      await m.fill('[data-pop="raid-code"] .rc-in', 'mã nè: ' + code.toLowerCase());
+      await m.press('[data-pop="raid-code"] .rc-in', 'Enter');
+      continue;
+    }
+    const ok = await until(() => m.evaluate(c => {
+      const line = [...document.querySelectorAll('.p1-chat .l.chat')].find(l => l.querySelector('.code') && l.querySelector('.code').textContent === c);
+      return !!(line && line.querySelector('button.join'));
+    }, code), 10000);
+    check('câu mời dán vào chat hiện mã + nút Tham gia ở máy khác', !!ok);
+    if (!ok) return false;
+    await m.evaluate(c => [...document.querySelectorAll('.p1-chat .l.chat')].find(l => l.querySelector('.code') && l.querySelector('.code').textContent === c).querySelector('button.join').click(), code);
+  }
+  const ok = await until(async () => (await room(host)).actors.filter(a => a.kind !== 'npc').length === members.length + 1, 12000);
+  if (!ok) console.log('    gather: host', JSON.stringify(await room(host)), 'members', JSON.stringify(await Promise.all(members.map(m => m.evaluate(() => P1.raid.room)))));
+  return ok;
+}
+
+async function raid2(browser, base) {
+  console.log('\n[boss hai người] phòng chờ → trận đôi chung → hết giờ tự chọn → chia đồ');
+  const A = await openPage(browser, base, 'Ash'), B = await openPage(browser, base, 'Misty');
+  await giveTeam(A, 'Ash'); await giveTeam(B, 'Misty');
+  const [idA, idB] = [await idOf(A), await idOf(B)];
+  const bossId = 'giovanni';
+  check('B vào phòng bằng mã phòng dán trong chat; A thấy 2 người', !!(await gather(A, [B], bossId)));
+  const r0 = await room(A);
+  check('phòng chờ: A là leader (Accept), B là user (Idle), Đội 2 là Giovanni (5 Pokémon, 2 ra sân)', JSON.stringify(r0.actors.map(a => a.kind + ':' + a.state)) === '["leader:accept","user:idle","npc:confirm"]' && r0.actors[2].count === 5 && r0.actors[2].active === 2, r0.actors);
+  const startOff = await A.evaluate(() => document.querySelector('[data-pop="raid-lobby"] .p1s-btn.primary').disabled);
+  check('Bắt đầu bị khoá khi còn người chưa Sẵn sàng', startOff === true);
+  await B.click('[data-pop="raid-lobby"] .p1s-btn.primary');
+  const acc = await until(async () => (await room(A)).actors[1].state === 'accept' && !(await A.evaluate(() => document.querySelector('[data-pop="raid-lobby"] .p1s-btn.primary').disabled)), 8000);
+  check('B bấm Sẵn sàng → A thấy Accept, nút Bắt đầu mở', !!acc);
+  const cards = await A.evaluate(() => [...document.querySelectorAll('[data-pop="raid-lobby"] .lb-team:not(.foe) .lb-actor:not(.empty)')].map(e => e.querySelector('.lb-name').textContent.replace('♛', '') + '/' + e.querySelectorAll('.lb-mon').length));
+  check('phòng chờ liệt kê tên + Pokémon mang vào của từng người', cards.join() === 'Ash/2,Misty/3', cards);
+  await shotAt(A, 'boss-lobby-1366x768.png', 1366, 768);
+  await shotAt(A, 'boss-lobby-844x390.png', 844, 390);
+  await A.click('[data-pop="raid-lobby"] .p1s-btn.primary');
+  const phases = new Set();
+  const inBattle = await until(async () => {
+    const [a, b] = [await room(A), await room(B)];
+    phases.add(a.phase); phases.add(b.phase);
+    return a.phase === 'battle' && b.phase === 'battle' && (await A.evaluate(() => P1.scene.name)) === 'battle' && (await B.evaluate(() => P1.scene.name)) === 'battle';
+  }, 20000, 100);
+  check('Bắt đầu → B tự Confirm → đếm ngược → cả hai vào cùng một trận', !!inBattle && phases.has('countdown'), [...phases]);
+  const f0 = await Promise.all([A, B].map(p => p.evaluate(() => { const s = P1.battleScene; return { format: s.battle.sim.format.id, order: P1.raid.room.order.join(), me: s.coop.me }; })));
+  check('trận đôi Gen 7, thứ tự ô = thứ tự vào phòng, trên cả hai máy', f0.every(x => x.format === 'gen7doublescustomgame' && x.order === idA + ',' + idB), f0);
+
+  // Lượt 1: mỗi người bấm chuột thật vào nút chiêu của ô mình, rồi chọn boss làm mục tiêu.
+  for (const [P, mine] of [[A, 0], [B, 1]]) {
+    await P.waitForFunction(() => P1.battleScene.mode === 'menu' && P1.battleScene.pick, null, { timeout: 60000 });
+    const req = await P.evaluate(() => { const s = P1.battleScene; return { slots: s.coopReq.slots.map(x => x.slot), bench: s.coopReq.bench.map(x => x.owner), move: s.req.moves.find(m => P1.Dex.moves.get(m.id).basePower > 0 && m.pp > 0).slot }; });
+    check((P === A ? 'A' : 'B') + ' chỉ điều khiển ô ' + 'ab'[mine] + ', dự bị chỉ gồm Pokémon của mình', req.slots.join() === String(mine) && req.bench.every(o => o === (P === A ? idA : idB)), req);
+    await P.click('[data-b="move-' + req.move + '"]');
+    await P.waitForFunction(() => P1.battleScene.mode === 'target', null, { timeout: 5000 });
+    if (P === A) { await shotAt(A, 'boss-2p-target-1366x768.png', 1366, 768); }
+    await P.click('[data-b="target-p2a"]');
+    if (P === A) {
+      await A.waitForFunction(() => P1.battleScene.mode === 'wait', null, { timeout: 5000 }).catch(() => {});
+      const waiting = await A.evaluate(() => P1.battleScene.promptEl.textContent);
+      check('A chọn xong → "Chờ Misty chọn…", hộp máu Misty ghi đang chọn', /Chờ Misty chọn/.test(waiting), waiting);
+      await shotAt(A, 'boss-2p-waiting-1366x768.png', 1366, 768);
+      await shotAt(A, 'boss-2p-waiting-844x390.png', 844, 390);
+    }
+  }
+  const t1 = await autoplay([A, B], { until: st => st.every(x => x && x.log >= 1) , ms: 30000 });
+  check('lượt 1 chốt khi đủ lựa chọn của cả hai', !!t1.st, t1.st);
+
+  // Lượt 2: B không chọn → chủ phòng (A) chờ đủ ?raidturn=12 s rồi tự chọn thay B.
+  await until(() => B.evaluate(() => P1.battleScene.mode === 'menu' && !!P1.battleScene.pick), 60000);
+  const n2 = (await room(B)).log, tStart = Date.now();
+  const t2 = await autoplay([A, B], { idle: [1], until: st => st.every(x => x && (x.log > n2 || x.result)), ms: 40000 });
+  const waited = Date.now() - tStart, rb = await room(B);
+  check('hết giờ: A tự chọn thay B, lượt vẫn chạy (không có lựa chọn nào của B cho lượt đó)', !!t2.st && rb.picked < n2 && waited >= 10000, { waited, picked: rb.picked, n2 });
+  const bUi = await until(() => B.evaluate(() => P1.battleScene.mode !== 'menu' || P1.raid.room.log > 0), 5000);
+  check('bảng chọn của B tự đóng khi lượt bị chốt thay', !!bUi);
+  await shotAt(B, 'boss-2p-battle-1366x768.png', 1366, 768);
+  await shotAt(B, 'boss-2p-battle-844x390.png', 844, 390);
+
+  // Kênh của chủ phòng A rớt 2,5 s (quá ngưỡng tự nhường 1,5 s, chưa tới ngưỡng bị thay 4 s): A phải nhường, B lên thay.
+  const nBlip = (await room(B)).log;
+  await A.evaluate(code => { const ch = P1.net.channel('raid:' + code); ch.joined = false; setTimeout(() => { ch.joined = true; }, 2500); }, (await room(A)).id);
+  const handed = await until(async () => { const [a, b] = [await room(A), await room(B)]; return a.host === idB && b.host === idB && [a.host, b.host]; }, 10000);
+  check('kênh chủ phòng rớt 2,5 s → A tự nhường, cả hai máy chọn B làm chủ phòng (không treo)', !!handed, handed);
+  const goOn = await autoplay([A, B], { until: st => st.every(x => x && (x.log > nBlip || x.result)), ms: 60000 });
+  check('sau khi đổi chủ phòng trận vẫn chạy, A vẫn tự chọn cho ô của mình', !!goOn.st, goOn.st && goOn.st.map(x => x.log));
+
+  const moneyBefore = await Promise.all([A, B].map(p => p.evaluate(() => ({ money: P1.state.money, n: P1.state.party.length + P1.state.box.length, bag: Object.assign({}, P1.state.bag) }))));
+  const fin = await autoplay([A, B], { until: st => st.every(x => x && (x.result || x.phase === 'loot')), ms: 300000 });
+  const agree = hpAgreement(t1.samples.concat(t2.samples, fin.samples));
+  check('HP mọi con giống hệt nhau trên hai máy ở mọi độ dài nhật ký lấy mẫu được', agree.bad === 0 && agree.compared >= 3, agree);
+  const res = await Promise.all([A, B].map(room));
+  check('trận kết thúc cùng một kết quả trên hai máy', res[0].result === res[1].result && !!res[0].result, res.map(x => x.result + '@' + x.log));
+  if (res[0].result !== 'win') { check('thắng boss để thử chia đồ', false, res[0].result); await A.context().close(); await B.context().close(); return; }
+
+  // Chia đồ: A Cần trứng, Tham tiền, Bỏ đồ; B Cần tiền, Cần trứng, Tham đồ.
+  await until(async () => (await Promise.all([A, B].map(p => p.evaluate(() => !!document.querySelector('[data-pop="raid-loot"]') && P1.raid.room && P1.raid.room.lootOpen)))).every(Boolean), 40000);
+  const seed = res[0].seed;
+  const vote = (P, loot, v) => P.click('[data-pop="raid-loot"] .lt-votes[data-loot="' + loot + '"] .lt-v[data-v="' + v + '"]');
+  await vote(A, 'egg', 'need'); await vote(A, 'money', 'greed'); await vote(A, 'item', 'pass');
+  await vote(B, 'money', 'need'); await vote(B, 'egg', 'need');
+  await shotAt(B, 'boss-loot-vote-1366x768.png', 1366, 768);
+  await shotAt(B, 'boss-loot-vote-844x390.png', 844, 390);
+  await vote(B, 'item', 'greed');
+  const loots = await Promise.all([A, B].map(p => until(() => p.evaluate(() => P1.raid.room && P1.raid.room.loot), 30000, 100)));
+  const monWinner = roll(seed, 'egg', idA) > roll(seed, 'egg', idB) || (roll(seed, 'egg', idA) === roll(seed, 'egg', idB) && idA < idB) ? idA : idB;
+  const expect = [{ id: 'money', win: idB, tier: 'need' }, { id: 'item', win: idB, tier: 'greed' }, { id: 'egg', win: monWinner, tier: 'need' }];
+  check('kết quả chia đồ giống nhau trên hai máy', JSON.stringify(loots[0]) === JSON.stringify(loots[1]), loots);
+  check('kết quả đúng luật (tiền, đồ → B; trứng → điểm FNV cao hơn giữa hai người Cần)', !!loots[0] && expect.every((e, k) => loots[0][k].id === e.id && loots[0][k].win === e.win && loots[0][k].tier === e.tier),
+    { got: loots[0], expect, rolls: [roll(seed, 'egg', idA), roll(seed, 'egg', idB)] });
+  await sleep(500);
+  await shotAt(A, 'boss-loot-result-1366x768.png', 1366, 768);
+  const after = await Promise.all([A, B].map(p => p.evaluate(() => ({ money: P1.state.money, n: P1.state.party.length + P1.state.box.length, bag: Object.assign({}, P1.state.bag), saved: JSON.parse(localStorage.getItem('pokeone.save.v1')).money }))));
+  const boss = await A.evaluate(id => P1.raid.BOSSES[id], bossId);
+  const got = (k, who) => ({ money: after[k].money - moneyBefore[k].money, mons: after[k].n - moneyBefore[k].n, item: (after[k].bag[boss.item[0]] | 0) - (moneyBefore[k].bag[boss.item[0]] | 0) });
+  const gA = got(0), gB = got(1);
+  check('mỗi máy chỉ nhận phần mình thắng (A: ' + (monWinner === idA ? 'trứng' : 'không gì') + '; B: tiền + đồ' + (monWinner === idB ? ' + trứng' : '') + ')',
+    gA.money === 0 && gA.item === 0 && gA.mons === (monWinner === idA ? 1 : 0) && gB.money === boss.money && gB.item === boss.item[1] && gB.mons === (monWinner === idB ? 1 : 0), { gA, gB });
+  check('đã lưu sau khi nhận đồ', after.every(x => x.saved === x.money));
+  const cds = await Promise.all([A, B].map(p => p.evaluate(() => P1.raid.cooldownLeft('giovanni'))));
+  check('thắng xong cả hai bị hồi 12 ngày với Giovanni', cds.every(x => x > 11.9 * 864e5), cds);
+  check('không lỗi JS trên hai trang (boss)', A.errors.length + B.errors.length === 0, A.errors.concat(B.errors).slice(0, 3));
+  await A.context().close(); await B.context().close();
+}
+
+async function raid3(browser, base) {
+  console.log('\n[boss ba người] trận ba chung → chủ phòng rời giữa trận → người kế tiếp làm chủ phòng');
+  const A = await openPage(browser, base, 'Ash'), B = await openPage(browser, base, 'Misty'), C = await openPage(browser, base, 'Brock');
+  for (const [p, n] of [[A, 'Ash'], [B, 'Misty'], [C, 'Brock']]) await giveTeam(p, n);
+  const ids = [await idOf(A), await idOf(B), await idOf(C)];
+  const bossId = 'giovanni';
+  check('B vào qua chat, C gõ mã vào ô "Nhập mã phòng"; A thấy 3 người', !!(await gather(A, [B, C], bossId, [C])));
+  for (const p of [B, C]) await p.click('[data-pop="raid-lobby"] .p1s-btn.primary');
+  await until(async () => !(await A.evaluate(() => document.querySelector('[data-pop="raid-lobby"] .p1s-btn.primary').disabled)), 8000);
+  await shotAt(A, 'boss-lobby3-1366x768.png', 1366, 768);
+  await A.click('[data-pop="raid-lobby"] .p1s-btn.primary');
+  const inBattle = await until(async () => (await Promise.all([A, B, C].map(p => p.evaluate(() => P1.scene.name === 'battle' && P1.raid.room && P1.raid.room.phase === 'battle')))).every(Boolean), 25000);
+  const fmt = await C.evaluate(() => P1.battleScene.battle.sim.format.id);
+  check('ba người vào cùng một trận ba (Gen 6 triples)', !!inBattle && fmt === 'gen6triplescustomgame', fmt);
+  const t1 = await autoplay([A, B, C], { until: st => st.every(x => x && x.log >= 1), ms: 90000 });
+  check('lượt 1 chốt khi đủ ba lựa chọn', !!t1.st);
+  await until(() => C.evaluate(() => P1.battleScene.mode === 'menu' && !!P1.battleScene.pick), 60000);
+  await shotAt(C, 'boss-3p-battle-1366x768.png', 1366, 768);
+  await shotAt(C, 'boss-3p-battle-844x390.png', 844, 390);
+  const hostBefore = (await room(B)).host;
+  const nLeave = (await room(B)).log;
+  await A.evaluate(() => P1.raid.leave());
+  const took = await until(async () => { const [b, c] = [await room(B), await room(C)]; return b.host === ids[1] && c.host === ids[1] && [b.host, c.host]; }, 15000);
+  check('chủ phòng A rời → B (kế tiếp theo thứ tự vào phòng) làm chủ phòng trên cả B và C', hostBefore === ids[0] && !!took, { hostBefore, took });
+  if (!took) console.log('    B/C sau khi A rời:', JSON.stringify(await Promise.all([B, C].map(p => p.evaluate(() => { const r = P1.raid.room; return r && { host: r.host, members: r.members, lost: r.lost, chan: r.chan, log: r.log }; })))));
+  const aOut = await until(() => A.evaluate(() => P1.scene.name === 'world' && !P1.raid.room), 20000);
+  check('A rời trận: về bản đồ, không còn phòng', !!aOut);
+  const t2 = await autoplay([B, C], { until: st => st.every(x => x && (x.log >= nLeave + 2 || x.result)), ms: 120000 });
+  check('trận chạy tiếp sau khi đổi chủ phòng (ô của A được tự chọn)', !!t2.st, t2.st);
+  const fin = await autoplay([B, C], { until: st => st.every(x => x && (x.result || x.phase === 'loot')), ms: 300000 });
+  const agree = hpAgreement(t1.samples.concat(t2.samples, fin.samples));
+  check('HP mọi con giống hệt nhau trên các máy ở mọi độ dài nhật ký lấy mẫu được (3 máy, rồi 2 máy)', agree.bad === 0 && agree.compared >= 3, agree);
+  const res = await Promise.all([B, C].map(room));
+  check('B và C cùng một kết quả', !!res[0].result && res[0].result === res[1].result, res.map(x => x.result));
+  if (res[0].result === 'win') {
+    await until(async () => (await Promise.all([B, C].map(p => p.evaluate(() => !!document.querySelector('[data-pop="raid-loot"]') && P1.raid.room && P1.raid.room.lootOpen)))).every(Boolean), 40000);
+    for (const [P, v] of [[B, 'need'], [C, 'greed']]) for (const loot of ['money', 'item', 'egg']) await P.click('[data-pop="raid-loot"] .lt-votes[data-loot="' + loot + '"] .lt-v[data-v="' + v + '"]');
+    const loots = await Promise.all([B, C].map(p => until(() => p.evaluate(() => P1.raid.room && P1.raid.room.loot), 30000, 100)));
+    check('chia đồ (A vắng = Bỏ): B Cần thắng cả ba món trên cả hai máy', JSON.stringify(loots[0]) === JSON.stringify(loots[1]) && loots[0].every(x => x.win === ids[1] && x.tier === 'need'), loots);
+    await shotAt(C, 'boss-3p-loot-result-844x390.png', 844, 390);
+  }
+  check('không lỗi JS trên ba trang', A.errors.length + B.errors.length + C.errors.length === 0, A.errors.concat(B.errors, C.errors).slice(0, 3));
+  for (const p of [A, B, C]) await p.context().close();
 }
 
 /* ---------------------------------------------------------------- [chợ] */
@@ -477,16 +700,17 @@ async function marketChecks(browser, base) {
 function P1NotInstalled(r) { return !r.ok && (r.code === 'PGRST205' || r.code === 'PGRST202'); }
 
 (async () => {
-  await sqlChecks();
+  const ONLY = (process.env.ONLY || '').split(',').filter(Boolean), want = k => !ONLY.length || ONLY.includes(k);
+  if (want('sql')) await sqlChecks();
   const srv = await serve();
   const base = 'http://127.0.0.1:' + srv.address().port;
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   try {
-    const P = await openPage(browser, base, 'Pure');
-    await pureChecks(P);
-    await P.context().close();
-    await netChecks(browser, base);
-    await marketChecks(browser, base);
+    if (want('pure')) { const P = await openPage(browser, base, 'Pure'); await pureChecks(P); await P.context().close(); }
+    if (want('net')) await netChecks(browser, base);
+    if (want('raid2')) await raid2(browser, base);
+    if (want('raid3')) await raid3(browser, base);
+    if (want('market')) await marketChecks(browser, base);
   } catch (e) { fail++; console.log('  ✘ lỗi không bắt được: ' + (e && e.stack || e)); }
   await browser.close();
   srv.close();

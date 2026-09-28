@@ -76,12 +76,15 @@ async function open(browser, base, W, H, query, errors) {
   return t;
 }
 
-/* Chiêu gây sát thương mạnh nhất còn PP. */
+/* Chiêu gây sát thương mạnh nhất còn PP, trong các nút đang hiện (chiêu hai lượt thì chỉ còn một nút). */
 async function attack(t) {
   const slot = await t.page.evaluate(() => {
-    const s = P1.battleScene, act = s.battle.active('p1'), sim = s.battle.simMon('p1', act.index);
     let best = 1, bp = -1;
-    act.mon.moves.forEach((m, k) => { const mv = P1.Dex.moves.get(m.id); if (sim.moveSlots[k].pp > 0 && mv.basePower > bp) { bp = mv.basePower; best = k + 1; } });
+    document.querySelectorAll('.pb-move:not(.off)').forEach((el) => {
+      const k = +el.dataset.b.slice(5), m = P1.battleScene.req.moves[k - 1];
+      const power = m ? P1.Dex.moves.get(m.id).basePower : 0;
+      if (power > bp) { bp = power; best = k; }
+    });
     return best;
   });
   await t.click('[data-b="move-' + slot + '"]');
@@ -107,7 +110,7 @@ async function fightToEnd(t, onTurn) {
 const waitEnd = (t) => t.page.waitForFunction(() => P1.battleScene && P1.battleScene.result, null, { timeout: 120000 });
 const introDone = (t) => t.page.waitForFunction(() => {
   const s = P1.battleScene;
-  return s && s.fade === 0 && !s.actors.p1.hidden && !s.actors.p2.hidden && s.actors.p1.scale === 1 && s.box.p1 && s.box.p1.slide === 0;
+  return s && s.fade === 0 && !s.actors.p1a.hidden && !s.actors.p2a.hidden && s.actors.p1a.scale === 1 && s.box.p1a && s.box.p1a.slide === 0;
 }, null, { timeout: 60000 });
 
 async function scenarios(browser, base, W, H) {
@@ -119,13 +122,13 @@ async function scenarios(browser, base, W, H) {
   if (want('wild')) {
     // Charmander Lv7 đánh Pidgey Lv3: thắng, thanh EXP chạy, lên cấp 8.
     const t = await open(browser, base, W, H, 'battle=16:3&party=4:7', errors);
-    await t.page.waitForFunction(() => P1.battleScene && P1.battleScene.actors && !P1.battleScene.actors.p2.hidden && P1.battleScene.actors.p2.tintA === 0, null, { timeout: 60000 });
+    await t.page.waitForFunction(() => P1.battleScene && P1.battleScene.actors && !P1.battleScene.actors.p2a.hidden && P1.battleScene.actors.p2a.tintA === 0, null, { timeout: 60000 });
     await t.shot('01-intro');
     await introDone(t);
     await t.mode('menu');
     const art = await t.page.evaluate(() => {
       const s = P1.battleScene;
-      return { bg: !!P1.imgNow(s.bgUrl), foe: !!s.actors.p2.img, me: !!s.actors.p1.img, bgUrl: s.bgUrl };
+      return { bg: !!P1.imgNow(s.bgUrl), foe: !!s.actors.p2a.img, me: !!s.actors.p1a.img, bgUrl: s.bgUrl };
     });
     check(tag + ' background and both sprites loaded', art.bg && art.foe && art.me, JSON.stringify(art));
     const moves = await t.page.locator('[data-b^="move-"]').count();
@@ -138,12 +141,12 @@ async function scenarios(browser, base, W, H) {
     const fxShot = t.page.waitForFunction(() => P1.battleScene.fx.some((f) => f.a && f.t > 0.35), null, { timeout: 20000 })
       .then(() => t.shot('03-ember-anim')).then(() => true, () => false);
     check(tag + ' Ember plays the PRO attack animation', await fxShot);
-    const hpShot = t.page.waitForFunction(() => { const b = P1.battleScene.box.p2; return b && b.shown < b.max && b.shown > b.hp; }, null, { timeout: 20000 })
+    const hpShot = t.page.waitForFunction(() => { const b = P1.battleScene.box.p2a; return b && b.shown < b.max && b.shown > b.hp; }, null, { timeout: 20000 })
       .then(() => t.shot('04-hp-tween')).then(() => true, () => false);
     check(tag + ' foe HP bar tweens down after the hit', await hpShot);
     const levelShot = t.page.waitForFunction(() => P1.battleScene.logLines.some((l) => /lên cấp 8/.test(l)), null, { timeout: 90000 })
       .then(() => t.shot('05-level-up')).then(() => true, () => false);
-    const expSeen = t.page.waitForFunction(() => { const b = P1.battleScene.box.p1; return b && b.exp > 0.02 && b.level === 8; }, null, { timeout: 90000 }).then(() => true, () => false);
+    const expSeen = t.page.waitForFunction(() => { const b = P1.battleScene.box.p1a; return b && b.exp > 0.02 && b.level === 8; }, null, { timeout: 90000 }).then(() => true, () => false);
     await fightToEnd(t);
     check(tag + ' level-up line shown in the battle log', await levelShot);
     check(tag + ' EXP bar refills after the level-up', await expSeen);
@@ -209,7 +212,7 @@ async function scenarios(browser, base, W, H) {
     const runOff = await t.page.evaluate(() => document.querySelector('[data-b="run"]').classList.contains('off'));
     let sentShot = false;
     await fightToEnd(t, async (m) => {
-      if (m === 'menu' && !sentShot && (await t.page.evaluate(() => P1.battleScene.actors.p2.mon.dex)) === 16) {
+      if (m === 'menu' && !sentShot && (await t.page.evaluate(() => P1.battleScene.actors.p2a.mon.dex)) === 16) {
         await t.shot('11-trainer-second');
         sentShot = true;
       }
@@ -227,7 +230,7 @@ async function scenarios(browser, base, W, H) {
     // Caterpie 1 HP gục → chọn con ra sân (forced) → Charmander vào và thắng.
     const t = await open(browser, base, W, H, 'battle=16:4&party=10:3,4:14', errors);
     await t.mode('menu');
-    await t.page.evaluate(() => { const s = P1.battleScene; s.battle.simMon('p1', 0).hp = 1; s.box.p1.hp = s.box.p1.shown = 1; });
+    await t.page.evaluate(() => { const s = P1.battleScene; s.battle.simMon('p1', 0).hp = 1; s.box.p1a.hp = s.box.p1a.shown = 1; });
     let forced = false;
     for (let i = 0; i < 12 && !forced; i++) {
       await t.modeIn(['menu', 'forced']);
@@ -239,7 +242,7 @@ async function scenarios(browser, base, W, H) {
     check(tag + ' fainted lead forces a switch', forced);
     await t.shot('13-forced-switch');
     await t.click('[data-b="party-1"]');
-    await t.page.waitForFunction(() => P1.battleScene.actors.p1.mon && P1.battleScene.actors.p1.mon.dex === 4 && !P1.battleScene.actors.p1.hidden, null, { timeout: 30000 });
+    await t.page.waitForFunction(() => P1.battleScene.actors.p1a.mon && P1.battleScene.actors.p1a.mon.dex === 4 && !P1.battleScene.actors.p1a.hidden, null, { timeout: 30000 });
     await t.mode('menu');
     await t.shot('14-after-switch');
     await fightToEnd(t);
@@ -269,55 +272,152 @@ async function scenarios(browser, base, W, H) {
   }
 
   if (want('boss')) {
-    // Boss giả: máu chung = maxHp − (phần mình báo) − (phần người khác), như raid.js.
+    // Trận boss chung với cầu nối giả (không mạng): mình ở ô a, đồng đội bot chọn sau 0,6 s; chủ phòng là máy này.
+    for (const n of [1, 2, 3]) {
+      const t = await open(browser, base, W, H, 'battle=16:2&party=4:12', errors);
+      await t.mode('menu');
+      await t.page.evaluate((n) => {
+        P1.state.party = [P1.mon.create(6, 45, { ot: 'Debug' }), P1.mon.create(25, 40, { ot: 'Debug' })];
+        const bots = [['misty', 'Misty', [[9, 44], [121, 40]]], ['brock', 'Brock', [[95, 42], [141, 40]]]].slice(0, n - 1);
+        const players = [{ id: 'me', name: P1.state.player.name, mons: P1.state.party.slice() }]
+          .concat(bots.map(([id, name, ms]) => ({ id, name, mons: ms.map(([d, l]) => P1.mon.create(d, l)) })));
+        const cb = new P1.CoopBattle({ players, foes: P1.raid.trainerTeam('giovanni', 77), seed: 77 });
+        const queue = [], waiters = [], picks = {}, ready = {};
+        let left = false, botAt = -1;
+        const wake = () => waiters.splice(0).forEach((f) => f());
+        const commit = () => {
+          const r = cb.apply(cb.decide(picks));
+          Object.keys(picks).forEach((k) => delete picks[k]);
+          queue.push(r.events); wake();
+        };
+        const mySlotsDone = () => { const q = cb.requestFor('me'); return !q || q.slots.every((s) => picks[s.slot]); };
+        // Bot: chọn sau 0,6 s kể từ lúc lượt mới bắt đầu (để ảnh chụp thấy "đang chọn…").
+        setInterval(() => {
+          if (cb.result || left || queue.length) return;
+          const n0 = cb.log.length;
+          if (botAt !== n0) { botAt = n0; window.__botT = Date.now(); return; }
+          if (Date.now() - window.__botT < 600 * (window.__botSlow || 1)) return;
+          cb.controllers().forEach((id, slot) => { if (id && id !== 'me' && !picks[slot]) picks[slot] = { t: 'auto' }; });
+          if (mySlotsDone()) commit();
+        }, 100);
+        window.__coop = cb; window.__picks = picks; window.__submitted = []; window.__botSlow = 50;
+        window.__out = null;
+        const driver = {
+          battle: cb, me: 'me', intro: cb.begin(), names: Object.fromEntries(players.map((p) => [p.id, p.name])), turnMs: 30000,
+          take: () => queue.shift() || null, over: () => !!cb.result || left,
+          wait: () => new Promise((res) => { if (queue.length || cb.result || left) res(); else waiters.push(res); }),
+          request: () => (queue.length ? null : cb.requestFor('me')),
+          ready: (k) => ready[k] || (ready[k] = Date.now()),
+          submit: (slot, pick) => { picks[slot] = pick; window.__submitted.push(JSON.stringify({ [slot]: pick })); },
+          status: () => {
+            const out = {};
+            cb.controllers().forEach((id, slot) => { if (id) out[slot] = { id, name: driver.names[id], state: picks[slot] ? 'done' : 'choosing' }; });
+            return out;
+          },
+          leave: () => { left = true; wake(); },
+        };
+        P1.scene.go('battle', { kind: 'boss', coop: driver, foe: cb.foes, name: 'Giovanni', bg: 'indoor', onEnd: (o) => { window.__out = o; } });
+      }, n);
+      await t.page.waitForFunction(() => P1.battleScene.coop, null, { timeout: 20000 });
+      await t.page.waitForFunction(() => {
+        const s = P1.battleScene;
+        return s.fade === 0 && Object.values(s.actors).every((a) => !a.mon || (!a.hidden && a.scale === 1)) && s.mode === 'menu' && s.pick;
+      }, null, { timeout: 60000 });
+      const s0 = await t.page.evaluate(() => {
+        const s = P1.battleScene, b = s.battle;
+        return {
+          actors: Object.keys(s.actors).filter((p) => s.actors[p].mon).sort().join(),
+          foes: Object.keys(s.actors).filter((p) => p[1] === '2').map((p) => s.actors[p].mon.dex).join(),
+          slots: s.coopReq.slots.map((x) => x.slot).join(),
+          bench: s.coopReq.bench.map((x) => x.owner).join(), run: document.querySelector('[data-b="run"]').textContent,
+          item: document.querySelector('[data-b="item"]').classList.contains('off'), timer: s.timerEl.textContent,
+          format: b.sim.format.id,
+        };
+      });
+      const want = { 1: 'p1a,p2a', 2: 'p1a,p1b,p2a,p2b', 3: 'p1a,p1b,p1c,p2a,p2b,p2c' }[n];
+      check(tag + ' ' + n + 'p boss: ' + n + ' slots per side on screen (' + s0.format + ')', s0.actors === want, s0.actors);
+      check(tag + ' ' + n + 'p boss: Giovanni leads with his first ' + n + ' Pokémon (FRLG order)', s0.foes === ['111', '51', '31'].slice(0, n).join(), s0.foes);
+      check(tag + ' ' + n + 'p boss: I control only my slot; my bench is only mine', s0.slots === '0' && s0.bench.split(',').every((o) => o === 'me'), JSON.stringify(s0));
+      check(tag + ' ' + n + 'p boss: Run reads "Rời trận", bag disabled, turn timer shown', /Rời trận/.test(s0.run) && s0.item && /^Còn \d+ s$/.test(s0.timer), s0.run + ' / ' + s0.timer);
+      await t.shot('15-boss-' + n + 'p');
+      // Chọn chiêu gây sát thương; đánh đôi/ba thì phải chọn mục tiêu (boss).
+      const slot = await t.page.evaluate(() => {
+        const sr = P1.battleScene.coopReq.slots[0];
+        return sr.moves.find((m) => P1.Dex.moves.get(m.id).basePower > 0 && m.pp > 0).slot;
+      });
+      await t.click('[data-b="move-' + slot + '"]');
+      if (n > 1) {
+        await t.mode('target');
+        const targets = await t.page.evaluate(() => [...document.querySelectorAll('.pb-target')].map((b) => b.dataset.b + ':' + b.textContent));
+        check(tag + ' ' + n + 'p boss: target picker lists the foes first, then allies', targets.filter((x) => !/đồng đội/.test(x)).length >= 2 &&
+          targets.findIndex((x) => /đồng đội/.test(x)) === targets.length - 1, targets.join(' | '));
+        await t.shot('16-boss-' + n + 'p-target');
+        await t.click('[data-b="target-' + (n === 3 ? 'p2b' : 'p2a') + '"]');
+      }
+      await t.page.waitForFunction(() => window.__submitted.length > 0, null, { timeout: 10000 });
+      if (n > 1) await t.page.waitForFunction(() => P1.battleScene.mode === 'wait', null, { timeout: 10000 });
+      const waitState = await t.page.evaluate(() => ({ prompt: P1.battleScene.promptEl.textContent, picks: window.__submitted[0] }));
+      if (n > 1) {
+        check(tag + ' ' + n + 'p boss: after my pick the panel waits for the allies ("Chờ … chọn")', /Chờ .*chọn/.test(waitState.prompt), waitState.prompt);
+        await t.shot('17-boss-' + n + 'p-waiting');
+      }
+      check(tag + ' ' + n + 'p boss: my pick carries the chosen target', new RegExp('"0":\\{"t":"move","m":' + slot + ',"tg":' + (n === 1 ? 0 : n === 3 ? 2 : 1) + '\\}').test(waitState.picks), waitState.picks);
+      await t.page.evaluate(() => { window.__botSlow = 1; });
+      await t.page.waitForFunction(() => window.__coop.log.length >= 1 && P1.battleScene.mode !== 'wait', null, { timeout: 60000 });
+      await t.shot('18-boss-' + n + 'p-turn');
+      // Đánh tới hết bằng chiêu mạnh nhất vào boss.
+      for (const t0 = Date.now(); Date.now() - t0 < 240000;) {
+        const st = await t.page.evaluate(() => ({ mode: P1.battleScene.mode, pick: !!P1.battleScene.pick, out: window.__out }));
+        if (st.out) break;
+        if (st.pick && st.mode === 'menu') {
+          await t.page.evaluate(() => {
+            const s = P1.battleScene, sr = s.req;
+            const m = sr.moves.filter((x) => !x.disabled && x.pp > 0).sort((a, b) => P1.Dex.moves.get(b.id).basePower - P1.Dex.moves.get(a.id).basePower)[0] || sr.moves[0];
+            const boss = m.targets.find((x) => !x.ally && x.alive) || m.targets[0];
+            s.send({ type: 'move', slot: m.slot, tg: boss ? boss.loc : 0 });
+          });
+        } else if (st.pick && st.mode === 'forced') {
+          await t.page.evaluate(() => { const s = P1.battleScene; s.send({ type: 'switch', index: s.coopReq.bench[0].index }); });
+        }
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      await t.page.waitForFunction(() => window.__out, null, { timeout: 120000 });
+      const o = await t.page.evaluate(() => ({ out: window.__out, result: window.__coop.result, turns: window.__coop.turn }));
+      check(tag + ' ' + n + 'p boss: shared battle reaches a result and hands it to onEnd', o.out.outcome === (o.result === 'win' ? 'win' : 'lose'), JSON.stringify(o));
+      await t.page.close();
+    }
+  }
+
+  if (want('solo-boss')) {
+    // Đánh một mình = trận huấn luyện viên thường với đội Brock; thắng → tiền FRLG, vật phẩm, trứng Onix, hồi 12 ngày.
     const t = await open(browser, base, W, H, 'battle=16:2&party=4:12', errors);
     await t.mode('menu');
-    const proSfx = fs.existsSync(path.join(ROOT, 'games/pokeone/audio/pro/battle/damagenormal.ogg'));
-    const sfxHits = [];
-    t.page.on('request', (q) => { if (/audio\/pro\/battle\//.test(q.url())) sfxHits.push(q.url()); });
-    await t.page.evaluate((proSfx) => {
-      // Khoá như tools/pro/rip_pro.py ghi vào P1.PRO.sfx ('battle.<slug>').
-      if (proSfx) P1.PRO.sfx['battle.damagenormal'] = 'audio/pro/battle/damagenormal.ogg';
-      P1.state.party = [P1.mon.create(6, 45, { ot: 'Debug' })];
-      P1.state.bag.pokeball = 3;
-      const boss = window.__boss = { maxHp: 2400, mine: 0, others: 0, reports: [], over: false,
-        sharedHp() { return Math.max(0, this.maxHp - this.mine - this.others); },
-        report(d) { this.reports.push(d); this.mine = Math.max(this.mine, d); },
-        ended() { return this.over; } };
-      window.__out = null;
-      P1.scene.go('battle', { kind: 'boss', foe: [P1.mon.create(143, 30)], boss, bg: 'forest', onEnd: (o) => { window.__out = o; } });
-    }, proSfx);
-    await t.page.waitForFunction(() => P1.battleScene.kind === 'boss', null, { timeout: 20000 });
-    await introDone(t);
-    await t.mode('menu');
-    const s0 = await t.page.evaluate(() => ({ max: P1.battleScene.battle.simMon('p2', 0).maxhp, label: document.querySelector('[data-b="run"]').textContent }));
-    check(tag + ' boss HP set from boss.maxHp', s0.max === 2400, s0.max);
-    check(tag + ' Run becomes "Rời trận" in a boss battle', /Rời trận/.test(s0.label), s0.label);
-    await t.shot('15-boss');
-    await t.click('[data-b="item"]');
-    await t.mode('items');
-    await t.click('[data-b="tab-ball"]');
-    await t.click('[data-b="item-pokeball"]');
-    const noBall = await t.page.evaluate(() => ({ mode: P1.battleScene.mode, balls: P1.state.bag.pokeball }));
-    check(tag + ' no ball can be thrown at a boss', noBall.mode === 'items' && noBall.balls === 3, JSON.stringify(noBall));
-    await t.click('[data-b="fight"]');
-    await t.mode('menu');
-    await attack(t);
-    await t.mode('menu');
-    const s1 = await t.page.evaluate(() => ({ reports: __boss.reports.slice(), dealt: P1.battleScene.battle.dealt, local: P1.battleScene.battle.simMon('p2', 0).hp, shared: __boss.sharedHp() }));
-    if (proSfx) check(tag + ' hit sound comes from P1.PRO.sfx when mapped', sfxHits.some((u) => /damagenormal\.ogg$/.test(u)), sfxHits.join(' '));
-    check(tag + ' each turn reports cumulative damage dealt', s1.reports.length >= 2 && s1.reports[s1.reports.length - 1] === s1.dealt && s1.dealt > 0, JSON.stringify(s1));
-    await t.page.evaluate(() => { __boss.others = 1500; });
-    await t.page.waitForFunction(() => Math.abs(P1.battleScene.shownBossHp - __boss.sharedHp()) < 5, null, { timeout: 10000 });
-    await t.shot('16-boss-shared-hp');
-    await attack(t);
-    await t.mode('menu');
-    const s2 = await t.page.evaluate(() => ({ local: P1.battleScene.battle.simMon('p2', 0).hp, shared: __boss.sharedHp() }));
-    check(tag + ' local boss HP lowered to the shared HP', s2.local <= s2.shared && s2.local < 2400 - 1500, JSON.stringify(s2));
-    await t.page.evaluate(() => { __boss.others = 2400; });
-    await t.page.waitForFunction(() => window.__out, null, { timeout: 30000 });
-    const o = await t.page.evaluate(() => ({ out: window.__out, dealt: P1.battleScene.battle.dealt }));
-    check(tag + ' shared HP at 0 ends the boss battle as a win', o.out.outcome === 'win' && o.out.dealt === o.dealt, JSON.stringify(o));
+    const before = await t.page.evaluate(() => {
+      P1.state.party = [P1.mon.create(9, 40, { ot: 'Debug' })];
+      P1.state.bossWins = {};
+      window.__world = false;
+      P1.scene.add('world', { enter() { window.__world = true; }, render() {} });
+      P1.scene.name = P1.scene.name;
+      return { money: P1.state.money, bag: P1.state.bag.superpotion | 0, n: P1.state.party.length };
+    });
+    await t.page.evaluate(() => { P1.scene.go('world', {}).then(() => { window.__world = false; P1.raid.soloFight('brock'); }); });
+    await t.page.waitForFunction(() => P1.battleScene.kind === 'trainer' && P1.battleScene.args.name === 'Brock', null, { timeout: 20000 });
+    const foe = await t.page.evaluate(() => P1.battleScene.args.foe.map((m) => m.dex + ':' + m.level).join());
+    check(tag + ' solo boss: Brock fields his FRLG team (Geodude 12, Onix 14)', foe === '74:12,95:14', foe);
+    await fightToEnd(t);
+    await t.page.waitForFunction(() => window.__world === true, null, { timeout: 60000 });
+    const after = await t.page.evaluate(() => ({ money: P1.state.money, bag: P1.state.bag.superpotion | 0, n: P1.state.party.length,
+      egg: P1.state.party.slice(-1)[0] && P1.state.party.slice(-1)[0].dex + ':' + P1.state.party.slice(-1)[0].level, cd: P1.raid.cooldownLeft('brock') }));
+    check(tag + ' solo boss win: ₽1400 prize, Super Potion ×5, an Onix egg hatched at Lv5, 12-day cooldown',
+      after.money - before.money === 1400 && after.bag - before.bag === 5 && after.n === before.n + 1 && after.egg === '95:5' && after.cd > 11.9 * 864e5, JSON.stringify(after));
+    const refused = await t.page.evaluate(() => {
+      const said = [], t0 = P1.social.toast;
+      P1.social.toast = (m) => said.push(m);
+      P1.raid.soloFight('brock');
+      P1.social.toast = t0;
+      return { scene: P1.scene.name, said: said.join(' | ') };
+    });
+    check(tag + ' solo boss: a second challenge during the cooldown is refused (in the world, with the days left)', refused.scene === 'world' && /Còn 12 ngày/.test(refused.said), JSON.stringify(refused));
     await t.page.close();
   }
 

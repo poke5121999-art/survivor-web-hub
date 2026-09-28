@@ -209,11 +209,45 @@
     return { cmd, args, kw };
   }
 
+  /* Đưa HP / trạng thái / PP hiện tại của Pokémon trong túi vào con tương ứng trong sim. */
+  function syncIn(p, m) {
+    p.hp = Math.min(m.hp, p.maxhp);
+    if (p.hp <= 0) { p.hp = 0; p.fainted = true; }
+    if (m.status) { p.status = m.status; p.statusState = { id: m.status, target: p, time: 2, startTime: 2 }; }
+    m.moves.forEach((s, k) => { if (p.moveSlots[k]) p.moveSlots[k].pp = s.pp; });
+  }
+
+  /* Dòng log mới của obj.sim kể từ obj.cursor → sự kiện. |split| đi kèm dòng số thật (lấy) và dòng % (bỏ). */
+  function drainLog(obj, keep) {
+    const log = obj.sim.log, out = [];
+    for (; obj.cursor < log.length; obj.cursor++) {
+      const line = log[obj.cursor];
+      if (line.startsWith('|split|')) {
+        out.push(parseLine(log[obj.cursor + 1]));
+        obj.cursor += 2;
+        continue;
+      }
+      const e = parseLine(line);
+      if (NOISE.has(e.cmd) || (keep && !keep(e))) continue;
+      if (e.cmd === 'turn') obj.turn = +e.args[0];
+      out.push(e);
+    }
+    return out;
+  }
+
+  /* Điểm của một chiêu lên một mục tiêu: uy lực × hệ × STAB × chính xác (chiêu trạng thái điểm cố định). */
+  function scoreMove(mv, user, target) {
+    if (mv.category === 'Status' || !target) return 15;
+    const types = target.getTypes();
+    if (!Dex.getImmunity(mv.type, types)) return 0;
+    return (mv.basePower || 40) * Math.pow(2, Dex.getEffectiveness(mv.type, types)) *
+      (user.hasType(mv.type) ? 1.5 : 1) * ((mv.accuracy === true ? 100 : mv.accuracy) / 100);
+  }
+
   class Battle {
     /*
      * opt.me   = { name, party: [mon…] }
-     * opt.foe  = { kind: 'wild' | 'trainer' | 'boss', name, party: [mon…], money, maxHp }
-     *            maxHp: máu tối đa của con đầu bên địch (boss đánh chung, xem raid.js), thay cho chỉ số HP thật.
+     * opt.foe  = { kind: 'wild' | 'trainer', name, party: [mon…], money }   (boss đánh chung: CoopBattle bên dưới)
      * opt.ctx  = { dark, terrain } cho tỉ lệ bóng
      */
     constructor(opt) {
@@ -221,8 +255,6 @@
       this.kind = opt.foe.kind;
       this.turn = 0; this.runs = 0; this.result = null; this.caught = null;
       this.cursor = 0; this.passNext = false;
-      this.dealt = 0;                                        // tổng máu bên địch mất từ đầu trận (sát thương mình gây)
-      this.foeHp = {};                                       // tên sim của con bên địch → HP lần cuối thấy trong log
       this.fought = new Map();                               // uid của đối thủ → Set uid bên mình đã ra sân
       this.sim = new Sim.Battle({ formatid: FORMAT, seed: opt.seed });
       const lead = this.me.party.findIndex(m => m.hp > 0);
@@ -230,62 +262,27 @@
       if (lead > 0) { this.order.splice(lead, 1); this.order.unshift(lead); }
       this.sim.setPlayer('p1', { name: 'p1', team: Sim.Teams.pack(this.order.map(i => packSet(this.me.party[i], 'M' + i))) });
       this.sim.setPlayer('p2', { name: 'p2', team: Sim.Teams.pack(this.foe.party.map((m, i) => packSet(m, 'F' + i))) });
-      for (const i of this.order) this.syncIn(this.simMon('p1', i), this.me.party[i]);
-      this.foe.party.forEach((m, i) => this.syncIn(this.simMon('p2', i), m));
-      if (opt.foe.maxHp) {
-        const p = this.simMon('p2', 0);
-        p.baseMaxhp = p.maxhp = p.hp = Math.max(1, Math.round(opt.foe.maxHp));
-      }
-      this.sim.p2.pokemon.forEach(p => { this.foeHp[p.name] = p.hp; });
+      for (const i of this.order) syncIn(this.simMon('p1', i), this.me.party[i]);
+      this.foe.party.forEach((m, i) => syncIn(this.simMon('p2', i), m));
       this.markFought();
-    }
-
-    /* Máu con đang ra sân bên địch; chỉ hạ xuống (boss: máu chung do mạng tính). Về 0 là thắng. */
-    setFoeHp(hp) {
-      const p = this.sim.p2.active[0];
-      if (!p || this.result) return p ? p.hp : 0;
-      p.hp = Math.max(0, Math.min(p.hp, Math.round(hp)));
-      this.foeHp[p.name] = p.hp;
-      if (p.hp === 0) this.finish('win');
-      return p.hp;
-    }
-
-    /*
-     * Mỗi dòng -damage/-heal/-sethp của bên địch: cộng phần máu mất vào this.dealt. Dòng switch bỏ qua:
-     * dòng switch mở màn ghi HP trước khi maxHp của boss được đặt, còn HP mọi con đã biết từ lúc dựng trận.
-     */
-    trackFoe(e) {
-      if (e.cmd !== '-damage' && e.cmd !== '-heal' && e.cmd !== '-sethp') return;
-      const w = /^p2[a-z]?: (F\d+)$/.exec(e.args[0] || '');
-      const hp = /^(\d+)/.exec(e.args[1] || '');
-      if (!w || !hp) return;
-      const now = +hp[1], before = this.foeHp[w[1]];
-      if (e.cmd === '-damage' && before != null && now < before) this.dealt += before - now;
-      this.foeHp[w[1]] = now;
     }
 
     simMon(side, index) {
       const key = (side === 'p1' ? 'M' : 'F') + index;
       return this.sim[side].pokemon.find(p => p.name === key);
     }
-    /* "p1a: M3" → { side:'p1', mon, index } */
+    /* "p1a: M3" → { side:'p1', pos:'p1a', mon, index } */
     who(ident) {
-      const m = /^(p[12])[a-z]?: ([MF])(\d+)$/.exec(ident || '');
+      const m = /^(p[12])([a-z]?): ([MF])(\d+)$/.exec(ident || '');
       if (!m) return null;
-      const index = +m[3];
-      return { side: m[1], index, mon: (m[1] === 'p1' ? this.me : this.foe).party[index] };
+      const index = +m[4];
+      return { side: m[1], pos: m[1] + (m[2] || 'a'), index, mon: (m[1] === 'p1' ? this.me : this.foe).party[index] };
     }
     active(side) {
       const p = this.sim[side].active[0];
       return p ? this.who(side + 'a: ' + p.name) : null;
     }
 
-    syncIn(p, m) {
-      p.hp = Math.min(m.hp, p.maxhp);
-      if (p.hp <= 0) { p.hp = 0; p.fainted = true; }
-      if (m.status) { p.status = m.status; p.statusState = { id: m.status, target: p, time: 2, startTime: 2 }; }
-      m.moves.forEach((s, k) => { if (p.moveSlots[k]) p.moveSlots[k].pp = s.pp; });
-    }
     syncOut() {
       for (const i of this.order) {
         const p = this.simMon('p1', i), m = this.me.party[i];
@@ -303,25 +300,11 @@
 
     /* Dòng log mới kể từ lần đọc trước → sự kiện. */
     drain() {
-      const log = this.sim.log, out = [];
-      for (; this.cursor < log.length; this.cursor++) {
-        const line = log[this.cursor];
-        if (line.startsWith('|split|')) {                    // dòng kế là số thật, dòng sau là % cho khán giả
-          const secret = parseLine(log[this.cursor + 1]);
-          this.trackFoe(secret);
-          out.push(secret);
-          this.cursor += 2;
-          continue;
-        }
-        const e = parseLine(line);
-        if (NOISE.has(e.cmd)) continue;
-        if (e.cmd === '-mustrecharge' && this.passNext) continue;
-        if (e.cmd === 'cant' && e.args[1] === 'recharge' && this.passNext) { this.passNext = false; continue; }
-        if (e.cmd === 'turn') this.turn = +e.args[0];
-        this.trackFoe(e);
-        out.push(e);
-      }
-      return out;
+      return drainLog(this, (e) => {
+        if (e.cmd === '-mustrecharge' && this.passNext) return false;
+        if (e.cmd === 'cant' && e.args[1] === 'recharge' && this.passNext) { this.passNext = false; return false; }
+        return true;
+      });
     }
 
     begin() {
@@ -375,8 +358,11 @@
     }
 
     commit(myChoice) {
-      const ok = this.sim.choose('p1', myChoice);
-      if (!ok) throw new Error('sim refused choice: ' + myChoice + ' — ' + (this.sim.p1.choice.error || ''));
+      // Sim từ chối (vd. chiêu hai lượt đang khoá, chỉ còn một lựa chọn): để Showdown tự chọn thay vì kẹt cả trận.
+      if (!this.sim.choose('p1', myChoice)) {
+        console.warn('sim refused choice: ' + myChoice + ' — ' + (this.sim.p1.choice.error || ''));
+        this.sim.choose('p1', 'default');
+      }
       const ev = this.drain();
       this.settleFoe(ev);
       this.afterTurn(ev);
@@ -525,9 +511,254 @@
     }
   }
 
+  /* ---------- trận boss chung (co-op kiểu PokéOne) ---------- */
+
+  function mulberry(seed) {
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  // 1 người đánh đơn, 2 người đánh đôi Gen 7, 3 người đánh ba (Showdown chỉ có ở Gen 6) [đo 2026-09-28].
+  const COOP_FORMAT = [null, 'gen7customgame@@@!Team Preview', 'gen7doublescustomgame@@@!Team Preview', 'gen6triplescustomgame@@@!Team Preview'];
+  const COOP_TURNS = 60;
+  const TARGETED = new Set(['normal', 'any', 'adjacentFoe', 'adjacentAlly', 'adjacentAllyOrSelf']);
+  const LETTER = 'abc';
+
+  /*
+   * Người chơi đứng chung phe p1 trên MỘT trận Showdown; phe p2 là đội của huấn luyện viên boss, n con đầu ra sân
+   * (phe ít con hơn số ô làm sim sập, nên số người ≤ số Pokémon của boss). Mỗi máy dựng cùng một trận từ (seed, đội,
+   * nhật ký lựa chọn) và áp cùng các mục nhật ký theo cùng thứ tự → cùng kết quả trên mọi máy (lockstep). Chủ phòng
+   * chỉ quyết mục kế tiếp; xem NET.md §Boss.
+   *
+   * opt.players = [{ id, name, mons:[mon] }]  theo thứ tự vào phòng, mỗi người 1–3 con, con đầu ra sân ở ô của mình
+   * opt.foes    = [mon]   đội boss, ≥ số người; opt.seed uint32
+   *
+   * Ô p1 thứ i do CHỦ của con đang đứng ở ô đó điều khiển. Khi một người hết Pokémon mà đồng đội còn dự bị, Showdown
+   * bắt phải thay vào (không cho 'pass' [đo]) → con của đồng đội ra ô ấy và đồng đội điều khiển luôn ô đó.
+   */
+  class CoopBattle {
+    constructor(opt) {
+      this.players = opt.players;
+      this.n = opt.players.length;
+      this.foes = opt.foes;
+      if (this.foes.length < this.n) throw new Error('boss team smaller than the party: ' + this.foes.length + ' < ' + this.n);
+      this.roster = [];                                     // chỉ số k (tên sim 'M<k>') → { owner, mon }
+      this.players.forEach((p) => this.roster.push({ owner: p.id, mon: p.mons[0] }));
+      this.players.forEach((p) => p.mons.slice(1).forEach((m) => this.roster.push({ owner: p.id, mon: m })));
+      this.log = []; this.cursor = 0; this.turn = 0; this.result = null;
+      const r = mulberry(opt.seed >>> 0);
+      this.sim = new Sim.Battle({ formatid: COOP_FORMAT[this.n], seed: [0, 0, 0, 0].map(() => Math.floor(r() * 65536)) });
+      this.sim.setPlayer('p1', { name: 'p1', team: Sim.Teams.pack(this.roster.map((x, k) => packSet(x.mon, 'M' + k))) });
+      this.sim.setPlayer('p2', { name: 'p2', team: Sim.Teams.pack(this.foes.map((m, i) => packSet(m, 'F' + i))) });
+      this.roster.forEach((x, k) => syncIn(this.simMon('p1', k), x.mon));
+      this.foes.forEach((m, i) => syncIn(this.simMon('p2', i), m));
+    }
+
+    simMon(side, index) {
+      const key = (side === 'p1' ? 'M' : 'F') + index;
+      return this.sim[side].pokemon.find((p) => p.name === key);
+    }
+    keyOf(p) { return +p.name.slice(1); }
+    /* "p1b: M4" → { side, pos:'p1b', slot:1, index:4, mon, owner } */
+    who(ident) {
+      const m = /^(p[12])([a-c]?): ([MF])(\d+)$/.exec(ident || '');
+      if (!m) return null;
+      const side = m[1], index = +m[4];
+      const x = side === 'p1' ? this.roster[index] : this.foes[index] && { owner: null, mon: this.foes[index] };
+      if (!x) return null;
+      let slot = m[2] ? LETTER.indexOf(m[2]) : -1;
+      if (slot < 0) slot = this.sim[side].active.findIndex((p) => p && p.name === m[3] + index);
+      return { side, pos: side + LETTER[Math.max(0, slot)], slot, index, mon: x.mon, owner: x.owner };
+    }
+    /* Con đang đứng ở ô `slot` của phe `side` (kể cả đã gục chưa thay), hoặc null. */
+    at(side, slot) {
+      const p = this.sim[side].active[slot];
+      return p ? this.who(side + LETTER[slot] + ': ' + p.name) : null;
+    }
+
+    begin() { return this.drain(); }
+    drain() { return drainLog(this); }
+
+    /* Dự bị còn đánh được (không ở sân, chưa gục); owner = chỉ của một người. */
+    bench(owner) {
+      return this.roster.map((x, k) => ({ index: k, owner: x.owner, mon: x.mon, sim: this.simMon('p1', k) }))
+        .filter((x) => (!owner || x.owner === owner) && !x.sim.isActive && !x.sim.fainted && x.sim.hp > 0);
+    }
+
+    /* Ai điều khiển từng ô p1 ở lượt chọn hiện tại (null = không ai: ô trống hoặc buộc 'pass'). */
+    controllers() {
+      const r = this.sim.p1.activeRequest, act = this.sim.p1.active, out = act.map(() => null);
+      if (!r || r.wait || this.result) return out;
+      if (!r.forceSwitch) {
+        act.forEach((p, i) => { if (p && !p.fainted) out[i] = this.roster[this.keyOf(p)].owner; });
+        return out;
+      }
+      const left = {};
+      for (const x of this.bench()) left[x.owner] = (left[x.owner] || 0) + 1;
+      r.forceSwitch.forEach((f, i) => {
+        if (!f) return;
+        const own = act[i] ? this.roster[this.keyOf(act[i])].owner : null;
+        const who = own && left[own] ? own : (this.players.find((p) => left[p.id]) || {}).id;
+        if (who) { left[who]--; out[i] = who; }
+      });
+      return out;
+    }
+
+    /* Mục tiêu hợp lệ của chiêu mv khi con ở ô i phe `side` dùng (trận 1 ô: rỗng, sim tự chọn). */
+    targetsFor(side, i, target) {
+      if (this.n < 2 || !TARGETED.has(target)) return [];
+      const src = this.sim[side].active[i], foe = side === 'p1' ? 'p2' : 'p1', out = [];
+      for (let s = 0; s < this.n; s++) {
+        for (const loc of [s + 1, -(s + 1)]) {
+          if (!this.sim.validTargetLoc(loc, src, target)) continue;
+          const onSide = loc > 0 ? foe : side, p = this.sim[onSide].active[s];
+          out.push({ loc, pos: onSide + LETTER[s], alive: !!(p && !p.fainted), ally: loc < 0 });
+        }
+      }
+      const alive = out.filter((t) => t.alive).sort((a, b) => a.ally - b.ally || Math.abs(a.loc) - Math.abs(b.loc));
+      return alive.length ? alive : out.slice(0, 1);
+    }
+
+    /*
+     * Việc người `id` phải chọn lúc này, hoặc null. n = độ dài nhật ký (lượt chọn nào). bench = dự bị CỦA MÌNH.
+     * slots[k] = { slot, kind:'move'|'switch', index, moves:[{ slot, id, name, pp, maxpp, disabled, targets }], trapped }
+     */
+    requestFor(id) {
+      const r = this.sim.p1.activeRequest;
+      if (!r || r.wait || this.result) return null;
+      const slots = [];
+      this.controllers().forEach((c, i) => {
+        if (c !== id) return;
+        const p = this.sim.p1.active[i];
+        if (r.forceSwitch) { slots.push({ slot: i, kind: 'switch', index: p ? this.keyOf(p) : -1 }); return; }
+        const a = r.active[i];
+        slots.push({
+          slot: i, kind: 'move', index: this.keyOf(p), trapped: !!(a.trapped || a.maybeTrapped),
+          moves: a.moves.map((mv, k) => ({ slot: k + 1, id: mv.id, name: mv.move, pp: mv.pp, maxpp: mv.maxpp,
+            disabled: !!mv.disabled, targets: this.targetsFor('p1', i, mv.target) })),
+        });
+      });
+      return slots.length ? { n: this.log.length, slots, bench: this.bench(id) } : null;
+    }
+
+    /* pick { t:'move', m, tg } | { t:'switch', k } của ô i → chuỗi Showdown, hoặc null nếu không hợp lệ. */
+    pickString(i, pick, owner, used) {
+      const r = this.sim.p1.activeRequest;
+      if (!pick || typeof pick !== 'object') return null;
+      if (pick.t === 'switch') {
+        if (r.active && r.active[i] && (r.active[i].trapped || r.active[i].maybeTrapped)) return null;
+        const b = this.bench(owner).find((x) => x.index === pick.k);
+        if (!b || used.has(b.index)) return null;
+        used.add(b.index);
+        return 'switch ' + (this.sim.p1.pokemon.indexOf(b.sim) + 1);
+      }
+      if (pick.t !== 'move' || r.forceSwitch) return null;
+      const mv = r.active[i] && r.active[i].moves[(pick.m | 0) - 1];
+      if (!mv || mv.disabled || (mv.pp === 0 && mv.maxpp != null)) return null;
+      const tg = this.targetsFor('p1', i, mv.target);
+      if (!tg.length) return 'move ' + (pick.m | 0);
+      const t = tg.find((x) => x.loc === (pick.tg | 0)) || tg[0];
+      return 'move ' + (pick.m | 0) + ' ' + t.loc;
+    }
+
+    /* AI một ô: chiêu gây sát thương tốt nhất lên mục tiêu tốt nhất; `wild` = tỉ lệ chọn bừa. */
+    aiMove(side, i, wild) {
+      const r = this.sim[side].activeRequest, a = r.active[i], user = this.sim[side].active[i];
+      const usable = a.moves.map((mv, k) => ({ mv, k })).filter((x) => !x.mv.disabled && (x.mv.pp > 0 || x.mv.maxpp == null));
+      if (!usable.length) return 'move 1';
+      const foe = side === 'p1' ? 'p2' : 'p1';
+      const opts = [];
+      for (const x of usable) {
+        const mv = Dex.moves.get(x.mv.id);
+        const tg = this.targetsFor(side, i, x.mv.target);
+        if (!tg.length) {
+          const t = this.sim[foe].active.find((p) => p && !p.fainted);
+          opts.push({ s: 'move ' + (x.k + 1), score: scoreMove(mv, user, t) });
+          continue;
+        }
+        for (const t of tg) {
+          if (t.ally && mv.category !== 'Status') continue;
+          const p = this.sim[t.pos.slice(0, 2)].active[LETTER.indexOf(t.pos[2])];
+          opts.push({ s: 'move ' + (x.k + 1) + ' ' + t.loc, score: t.ally ? 5 : scoreMove(mv, user, t.alive ? p : null) });
+        }
+      }
+      if (!opts.length) return 'move 1';
+      if (wild && rng() < wild) return opts[rint(opts.length)].s;
+      return opts.reduce((b, o) => (o.score > b.score ? o : b)).s;
+    }
+
+    /* Chuỗi lựa chọn phe p1 từ picks { [ô]: pick }; ô thiếu hoặc sai → tự chọn. null khi p1 không phải chọn. */
+    p1Choice(picks) {
+      const r = this.sim.p1.activeRequest;
+      if (!r || r.wait || this.result) return null;
+      const ctrl = this.controllers(), used = new Set(), parts = [];
+      this.sim.p1.active.forEach((p, i) => {
+        if (r.forceSwitch) {
+          if (!r.forceSwitch[i]) return;
+          if (!ctrl[i]) { parts.push('pass'); return; }
+          const s = this.pickString(i, picks && picks[i], ctrl[i], used);
+          if (s) { parts.push(s); return; }
+          const b = this.bench(ctrl[i]).find((x) => !used.has(x.index));
+          used.add(b.index);
+          parts.push('switch ' + (this.sim.p1.pokemon.indexOf(b.sim) + 1));
+          return;
+        }
+        if (!p || p.fainted) { parts.push('pass'); return; }
+        parts.push(this.pickString(i, picks && picks[i], ctrl[i], used) || this.aiMove('p1', i, 0));
+      });
+      return parts.join(', ');
+    }
+
+    /* AI phe boss: con gục thì tung con dự bị kế tiếp theo thứ tự đội; hết dự bị thì 'pass'. */
+    foeChoice() {
+      const r = this.sim.p2.activeRequest;
+      if (!r || r.wait || this.result) return null;
+      if (r.forceSwitch) {
+        const bench = this.sim.p2.pokemon.filter((p) => !p.isActive && !p.fainted && p.hp > 0);
+        return r.forceSwitch.filter(Boolean).map(() => {
+          const p = bench.shift();
+          return p ? 'switch ' + (this.sim.p2.pokemon.indexOf(p) + 1) : 'pass';
+        }).join(', ');
+      }
+      return this.sim.p2.active.map((p, i) => (p && !p.fainted ? this.aiMove('p2', i, 0.2) : 'pass')).join(', ');
+    }
+
+    /* Chủ phòng: quyết mục nhật ký kế tiếp từ picks của mọi người. */
+    decide(picks) { return [this.p1Choice(picks), this.foeChoice()]; }
+
+    /*
+     * Mọi máy (kể cả chủ phòng) áp một mục nhật ký [chuỗi p1, chuỗi p2]. Chuỗi sim từ chối → 'default' (sim tự chọn,
+     * tất định). Trả mục đã được nhận để chủ phòng ghi lại đúng cái sim chấp nhận, và sự kiện để diễn.
+     */
+    apply(entry) {
+      if (this.result) return { entry, events: [] };
+      const acc = [null, null];
+      ['p1', 'p2'].forEach((side, s) => {
+        const c = entry && entry[s];
+        const r = this.sim[side].activeRequest;
+        if (c == null || !r || r.wait || this.sim.ended) return;
+        if (this.sim.choose(side, c)) acc[s] = c;
+        else { this.sim.choose(side, 'default'); acc[s] = 'default'; }
+      });
+      this.log.push(acc);
+      const events = this.drain();
+      if (this.sim.ended) this.result = this.sim.winner === 'p1' ? 'win' : 'lose';
+      else if (this.turn > COOP_TURNS) this.result = 'lose';
+      return { entry: acc, events };
+    }
+
+    /* HP / trạng thái / PP cuối của con thứ k bên p1, để chủ của nó chép về túi. */
+    finalOf(k) {
+      const p = this.simMon('p1', k);
+      return { hp: p.hp, status: p.status || '', pp: p.moveSlots.map((s) => s.pp) };
+    }
+  }
+
   P1.Dex = Dex;
   P1.mon = mon;
   P1.Battle = Battle;
+  P1.CoopBattle = CoopBattle;
+  P1.mulberry = mulberry;
   P1.parseLine = parseLine;
   P1.BALLS = BALLS;
   P1.ITEM_EFFECT = ITEM_EFFECT;

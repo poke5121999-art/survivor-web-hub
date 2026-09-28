@@ -14,6 +14,10 @@
   'use strict';
 
   const HEARTBEAT_MS = 25000, BACKOFF_MS = [1000, 2000, 5000, 10000, 20000, 30000];
+  // Máy chủ đóng kênh ("Client presence rate limit exceeded") khi một client track quá ~5 lần / ~30 s [đo 2026-09-28:
+  // track thứ 6 luôn làm đóng kênh dù cách nhau 0,15–2,5 s; 5 track, nghỉ 35 s, 3 track thì qua]. Nên track cách ≥ 8 s,
+  // gộp đuôi: lần track bị hoãn chỉ gửi meta mới nhất.
+  const TRACK_GAP_MS = 8000;
   const NETID_KEY = 'pokeone.netid';
 
   const q = new URLSearchParams(location.search);
@@ -208,10 +212,20 @@
     const topic = 'realtime:pokeone:' + (ns ? ns + ':' : '') + name;
     const handlers = {};
     const ch = {
-      topic, joined: false, joinRef: null, meta: null, state: {}, synced: false, pending: [],
+      topic, joined: false, joinRef: null, meta: null, state: {}, synced: false, pending: [], lastTrack: 0, trackTimer: 0, rejoinTimer: 0, rejoins: 0,
       handle(m) {
         if (m.event === 'phx_reply' && m.ref === ch.joinRef) {
-          if (m.payload && m.payload.status === 'ok') { ch.joined = true; if (ch.meta) sendTrack(); emit('joined', {}); }
+          if (m.payload && m.payload.status === 'ok') { ch.joined = true; ch.lastTrack = 0; ch.rejoins = 0; if (ch.meta) sendTrack(); emit('joined', {}); }
+          return;
+        }
+        // Máy chủ đóng riêng kênh này (vượt giới hạn, lỗi) trong khi socket vẫn sống: trước đây im lặng chết hẳn.
+        if (m.event === 'phx_close' || m.event === 'phx_error' || (m.event === 'system' && m.payload && m.payload.status === 'error')) {
+          if (!ch.joined && m.event === 'system') return;
+          ch.joined = false; ch.state = {}; ch.synced = false;
+          ch.emitPresence();
+          emit('closed', { reason: (m.payload && m.payload.message) || m.event });
+          clearTimeout(ch.rejoinTimer);
+          ch.rejoinTimer = setTimeout(() => { if (channels[topic] === ch && status === 'on') join(ch); }, BACKOFF_MS[Math.min(ch.rejoins++, BACKOFF_MS.length - 1)]);
           return;
         }
         if (m.event === 'broadcast' && m.payload) {
@@ -241,10 +255,11 @@
       off(event, fn) { handlers[event] = (handlers[event] || []).filter(f => f !== fn); return ch; },
       send(event, payload) {
         const p = Object.assign({}, payload, { from: { id: me.id, name: me.name } });
-        return raw({ topic, event: 'broadcast', payload: { type: 'broadcast', event, payload: p } });
+        return raw({ topic, event: 'broadcast', join_ref: ch.joinRef, payload: { type: 'broadcast', event, payload: p } });
       },
       // Mỗi khoá presence là một người (key = me.id); track lại thay thế meta cũ.
       track(meta) { ch.meta = Object.assign({}, meta); if (ch.joined) sendTrack(); },
+      get closed() { return !ch.joined; },
       presence() {
         return Object.keys(ch.state).map(k => {
           const metas = ch.state[k];
@@ -252,13 +267,21 @@
         });
       },
       leave() {
-        if (ch.joined) raw({ topic, event: 'phx_leave', payload: {} });
+        clearTimeout(ch.trackTimer); clearTimeout(ch.rejoinTimer);
+        // join_ref bắt buộc: thiếu nó máy chủ trả ok nhưng KHÔNG đóng kênh, presence của mình ở lại mãi với người khác [đo].
+        if (ch.joined) raw({ topic, event: 'phx_leave', join_ref: ch.joinRef, payload: {} });
         delete channels[topic];
         ch.joined = false;
       },
     };
     function sendTrack() {
-      raw({ topic, event: 'presence', payload: { type: 'presence', event: 'track', payload: Object.assign({}, ch.meta, { name: me.name }) } });
+      const wait = ch.lastTrack + TRACK_GAP_MS - Date.now();
+      if (wait > 0) {
+        if (!ch.trackTimer) ch.trackTimer = setTimeout(() => { ch.trackTimer = 0; if (ch.joined && ch.meta) sendTrack(); }, wait);
+        return;
+      }
+      ch.lastTrack = Date.now();
+      raw({ topic, event: 'presence', join_ref: ch.joinRef, payload: { type: 'presence', event: 'track', payload: Object.assign({}, ch.meta, { name: me.name }) } });
     }
     function applyDiff(d) {
       Object.keys(d.leaves || {}).forEach(k => {
