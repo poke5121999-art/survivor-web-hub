@@ -212,7 +212,8 @@
   class Battle {
     /*
      * opt.me   = { name, party: [mon…] }
-     * opt.foe  = { kind: 'wild' | 'trainer', name, party: [mon…], money }
+     * opt.foe  = { kind: 'wild' | 'trainer' | 'boss', name, party: [mon…], money, maxHp }
+     *            maxHp: máu tối đa của con đầu bên địch (boss đánh chung, xem raid.js), thay cho chỉ số HP thật.
      * opt.ctx  = { dark, terrain } cho tỉ lệ bóng
      */
     constructor(opt) {
@@ -220,6 +221,8 @@
       this.kind = opt.foe.kind;
       this.turn = 0; this.runs = 0; this.result = null; this.caught = null;
       this.cursor = 0; this.passNext = false;
+      this.dealt = 0;                                        // tổng máu bên địch mất từ đầu trận (sát thương mình gây)
+      this.foeHp = {};                                       // tên sim của con bên địch → HP lần cuối thấy trong log
       this.fought = new Map();                               // uid của đối thủ → Set uid bên mình đã ra sân
       this.sim = new Sim.Battle({ formatid: FORMAT, seed: opt.seed });
       const lead = this.me.party.findIndex(m => m.hp > 0);
@@ -229,7 +232,36 @@
       this.sim.setPlayer('p2', { name: 'p2', team: Sim.Teams.pack(this.foe.party.map((m, i) => packSet(m, 'F' + i))) });
       for (const i of this.order) this.syncIn(this.simMon('p1', i), this.me.party[i]);
       this.foe.party.forEach((m, i) => this.syncIn(this.simMon('p2', i), m));
+      if (opt.foe.maxHp) {
+        const p = this.simMon('p2', 0);
+        p.baseMaxhp = p.maxhp = p.hp = Math.max(1, Math.round(opt.foe.maxHp));
+      }
+      this.sim.p2.pokemon.forEach(p => { this.foeHp[p.name] = p.hp; });
       this.markFought();
+    }
+
+    /* Máu con đang ra sân bên địch; chỉ hạ xuống (boss: máu chung do mạng tính). Về 0 là thắng. */
+    setFoeHp(hp) {
+      const p = this.sim.p2.active[0];
+      if (!p || this.result) return p ? p.hp : 0;
+      p.hp = Math.max(0, Math.min(p.hp, Math.round(hp)));
+      this.foeHp[p.name] = p.hp;
+      if (p.hp === 0) this.finish('win');
+      return p.hp;
+    }
+
+    /*
+     * Mỗi dòng -damage/-heal/-sethp của bên địch: cộng phần máu mất vào this.dealt. Dòng switch bỏ qua:
+     * dòng switch mở màn ghi HP trước khi maxHp của boss được đặt, còn HP mọi con đã biết từ lúc dựng trận.
+     */
+    trackFoe(e) {
+      if (e.cmd !== '-damage' && e.cmd !== '-heal' && e.cmd !== '-sethp') return;
+      const w = /^p2[a-z]?: (F\d+)$/.exec(e.args[0] || '');
+      const hp = /^(\d+)/.exec(e.args[1] || '');
+      if (!w || !hp) return;
+      const now = +hp[1], before = this.foeHp[w[1]];
+      if (e.cmd === '-damage' && before != null && now < before) this.dealt += before - now;
+      this.foeHp[w[1]] = now;
     }
 
     simMon(side, index) {
@@ -275,7 +307,9 @@
       for (; this.cursor < log.length; this.cursor++) {
         const line = log[this.cursor];
         if (line.startsWith('|split|')) {                    // dòng kế là số thật, dòng sau là % cho khán giả
-          out.push(parseLine(log[this.cursor + 1]));
+          const secret = parseLine(log[this.cursor + 1]);
+          this.trackFoe(secret);
+          out.push(secret);
           this.cursor += 2;
           continue;
         }
@@ -284,6 +318,7 @@
         if (e.cmd === '-mustrecharge' && this.passNext) continue;
         if (e.cmd === 'cant' && e.args[1] === 'recharge' && this.passNext) { this.passNext = false; continue; }
         if (e.cmd === 'turn') this.turn = +e.args[0];
+        this.trackFoe(e);
         out.push(e);
       }
       return out;

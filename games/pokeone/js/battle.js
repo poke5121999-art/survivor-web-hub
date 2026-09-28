@@ -1,45 +1,67 @@
 /*
- * Cảnh trận đấu: P1.scene.add('battle', …).
+ * Cảnh trận 2D kiểu PRO (Pokémon Revolution Online): P1.scene.add('battle', …).
  *
- *   engine (P1.Battle) ──sự kiện──▶ DIRECTOR[lệnh] (diễn: model, VFX, thanh máu, chữ, tiếng)
+ *   engine (P1.Battle) ──sự kiện──▶ DIRECTOR[lệnh] (diễn: sprite, hoạt ảnh PRO, hộp máu, log, tiếng)
  *        ▲                                   │
- *        └──── hành động ◀── MODES[chế độ] ◀─┘ (BattlePanel NGUI + phím)
+ *        └──── hành động ◀── mode ◀──────────┘ (khung phải: chiêu / Pokémon / túi / chạy)
  *
- * Sân, máy ảnh, anim chung, hiệu ứng bắt: P1.BATTLE (data/battle.js, tools/rip_battle.py).
- * Hằng số lấy từ mã gốc và phần đoán: tools/README-battle.md.
+ * Bố cục theo cây GUI của PRO (D:\pro-ref\ref\gamegui.txt, BattlePanelMain): khung battle_window_bg
+ * 798×471, sân 570×400 ở (12,53), cột nút 200 px bên phải. Toạ độ trong tệp này là toạ độ khung đó
+ * (gốc trên-trái, y xuống); gamegui (gốc giữa màn 1366×768, y lên) đổi sang bằng (x+367, 235.5−y).
+ * Canvas #view vẽ sân, sprite, hộp máu; DOM trong #ui vẽ nút và log. Cả hai dùng chung một phép co giãn.
+ *
+ * Tài sản: art/pro/bg (nền battlebgnew), art/pro/poke/{front,back,icon}, atlas UI (P1.proui),
+ * hoạt ảnh chiêu và bóng từ tools/pro/rip_battle.py (data/pro-anim.js).
  */
 (function (P1) {
   'use strict';
-  const V3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
 
-  /* ================================================================ dữ liệu gốc và bảng tra */
+  /* ================================================================ bố cục */
 
-  const DATA = () => P1.BATTLE;
-  const ANIM = { spawn: 0, spawnBall: 1, flyInRight: 3, flyInLeft: 4, faint: 5, sendOut: 6, switchOut: 7 };
+  const WIN = { x: 0, y: 0, w: 798, h: 471 };
+  const COMPACT = { x: 4, y: 49, w: 790, h: 408 };          // bỏ thanh tiêu đề và viền dưới (điện thoại nằm ngang)
+  const SCENE = { x: 12, y: 53, w: 570, h: 400 };
+  const SCENE_C = { x: SCENE.x + SCENE.w / 2, y: SCENE.y + SCENE.h / 2 };
+  const SPRITE_SCALE = 2;                                   // pbig/back 128² hiện 256²
+  // Chân sprite đứng trên bóng đổ của nền (shadow_foe (131,27), shadow_party (-151,-171) trong gamegui).
+  const HOME = { p2: { x: 497, y: 216 }, p1: { x: 215, y: 414 } };
+  const SHADOW = { p2: { url: 'art/pro/bg/shadow_foe.png', x: 497, y: 208.5 }, p1: { url: 'art/pro/bg/shadow_party.png', x: 215, y: 406.5 } };
+  // Hộp máu: FoeStats/HpUi (-264,144) BattleLeft_bar_BG, UserStats/HpUi (125,-103) Battle_bar_BG, 157×42.
+  const BOX = { p2: { x: 25, y: 71, bg: 'BattleLeft_bar_BG', fill: 4 }, p1: { x: 414, y: 318, bg: 'Battle_bar_BG', fill: 2 } };
+  const LOG = { lines: 3 };
 
-  const TYPES = ['Normal', 'Fighting', 'Flying', 'Poison', 'Ground', 'Rock', 'Bug', 'Ghost', 'Steel', 'Fire', 'Water', 'Grass',
-    'Electric', 'Psychic', 'Ice', 'Dragon', 'Dark', 'Fairy'];
-  const TYPE_COLOUR = () => (P1.UI.BattlePanel.mb.BattleHandler.TypeColours || []);
-  const STATUS_ICON = { brn: 'Icon_Status_Burn', par: 'Icon_Status_Paralyzed', slp: 'Icon_Status_Sleep', frz: 'Icon_Status_Frozen',
-    psn: 'Icon_Status_Poisoned', tox: 'Icon_Status_BadlyPoisoned', fnt: 'Icon_Status_Fainted' };
-  const SWITCH_STATUS = { brn: 'Icon_Status_Burn', par: 'paralize', slp: 'Icon_Status_Sleep', frz: 'freeze', psn: 'psn', tox: 'psn' };
-  // PlayBattleMusic: nhạc server gửi nếu có, không thì 'Battle_Wild' / 'Trainer_Battle'. Gym: server gửi (đoán battle_gym_kanto).
-  const MUSIC = { wild: 'battle_wild', trainer: 'trainer_battle', gym: 'battle_gym_kanto' };
+  const TYPE_COLOUR = { Normal: '#d8d8c0', Fire: '#ff7a2a', Water: '#4a9dff', Electric: '#ffd83a', Grass: '#5ad05a', Ice: '#9ef0ff',
+    Fighting: '#e0503a', Poison: '#c060e0', Ground: '#e0c068', Flying: '#b0a0ff', Psychic: '#ff5a9a', Bug: '#b0cc30',
+    Rock: '#c8aa48', Ghost: '#8a6ac0', Dragon: '#8a5aff', Dark: '#8a7060', Steel: '#c8c8e0', Fairy: '#ffa0e0' };
+  const STATUS_BADGE = { brn: 'BURN', frz: 'FREEZE', psn: 'POISON', tox: 'BPOISON', slp: 'SLEEP', par: 'PARALIZE' };
+  const STATUS_COLOUR = { brn: '#ff7a2a', frz: '#9ef0ff', psn: '#c060e0', tox: '#c060e0', slp: '#c8c8e0', par: '#ffd83a' };
+  const SELF_TARGET = new Set(['self', 'allySide', 'adjacentAllyOrSelf', 'allies', 'ally']);
+  const MUSIC = { wild: 'battle_wild', trainer: 'trainer_battle', gym: 'battle_gym_kanto', boss: 'battle_gym' };
   const BAG_ALIAS = { pokball: 'pokeball' };      // items.txt ghi BattleID của Poké Ball là "pokball"
-
-  // Chỉnh theo mã gốc (xem README-battle.md); giá trị đánh dấu (đoán) chưa có bằng chứng.
-  const TUNE = {
-    fxPxToM: 0.006,           // (đoán) mét / điểm ảnh atlas cho hoạt ảnh sprite 3D
-    hpSeconds: 0.5,           // ChangeHealth: TweenWidth 0.5 s rồi wait 0.5
-    oldBarDelay: 0.75,        // thanh "Healthbar Old" TweenWidth 0.5 s, delay 0.75
-    logHold: 3.5,             // Update: khung log sáng dần (2/s) trong 3.5 s sau dòng cuối rồi tắt dần (2/s)
-    logLines: 4,              // Label 616x80, dòng 20
-    textFast: 0.2,            // logText: fast 0.2 s, thường 0.8 s
-    textPause: 0.8,
-  };
-
-  /* Tên Pokémon trong log: "[ff6600]Tên[-]" cho cả hai phe, không có chữ "wild" (BattlePacketHandler). */
   const NAME_COLOUR = 'ff6600';
+  const Y = (s) => '[ffff00]' + s + '[-]';
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  const ease = (k) => k * k * (3 - 2 * k);
+
+  // Tiếng: PRO (P1.PRO.sfx['battle.<slug>'] → audio/pro/battle, tools/pro/rip_pro.py) nếu đã bóc, không thì bộ tiếng cũ P1.SFX.
+  const SND = {
+    damage: ['damagenormal', 'attack_hit_damage'], super: ['damagesupereffective', 'attack_hit_super_effective'],
+    weak: ['damagenoteffective', 'attack_hit_weak_not_very_effective'], hit: ['hit', null],
+    throw: ['pokeballthrow', null], open: ['pokeballopen', null], drop: ['pokeballdrop', 'balldrop'],
+    shake: ['pokeballshake', 'ballshake'], break: ['pokeballbreak', null], caught: ['pokemoncaught', 'recieve_pokemon'],
+    run: ['runaway', 'flee'], up: ['statincrease', 'stat_up'], down: ['statdecrease', 'stat_down'],
+    level: ['levelup', 'level_up'], shiny: ['shiny encounter', 'gen_4_shiny_edit2'], faint: [null, 'faint_no_health_left'],
+    heal: [null, 'attack_heal_refresh'], item: [null, 'item'], expFull: ['exp_bar_full', null], click: [null, 'notify'],
+  };
+  function sfx(key, opt) {
+    const [pro, old] = SND[key] || [];
+    const map = P1.PRO && P1.PRO.sfx;
+    const url = pro && map && map['battle.' + pro.replace(/[^a-z0-9]+/g, '_')];
+    // P1.audio chỉ phát theo khoá P1.SFX: gắn thêm khoá 'pro:<tên>' để đi chung đường âm lượng/AudioContext.
+    if (url && P1.SFX) { P1.SFX['pro:' + pro] = url; return P1.audio.sfx('pro:' + pro, opt); }
+    if (old) return P1.audio.sfx(old, opt);
+    return null;
+  }
 
   /* ================================================================ đồng hồ trận (mọi chờ/tween đi theo khung hình) */
 
@@ -58,668 +80,799 @@
     };
     return c;
   }
-  const ease = (k) => k * k * (3 - 2 * k);
 
-  /* ================================================================ model Pokémon */
+  /* ================================================================ vẽ: atlas UI, bóng trắng/tô màu, khung bao ảnh */
 
-  // Sao chép cây có SkinnedMesh (three r140 không kèm SkeletonUtils).
-  function cloneSkinned(src) {
-    const clone = src.clone(true);
-    const map = new Map();
-    (function pair(a, b) { map.set(a, b); for (let i = 0; i < a.children.length; i++) pair(a.children[i], b.children[i]); })(src, clone);
-    clone.traverse((n) => {
-      if (!n.isSkinnedMesh) return;
-      let orig = null;
-      map.forEach((v, k) => { if (v === n) orig = k; });
-      const sk = orig.skeleton;
-      n.bind(new THREE.Skeleton(sk.bones.map((b) => map.get(b)), sk.boneInverses), orig.bindMatrix);
-    });
-    return clone;
+  function atlasSprite(ctx, name, x, y, w, h) {
+    const A = P1.imgNow(P1.PRO_UI.img), r = P1.PRO_UI.s[name];
+    if (!A || !r) return;
+    const [sx, sy, sw, sh, bl, br, bt, bb] = r;
+    w = w == null ? sw : w; h = h == null ? sh : h;
+    if (!(bl || br || bt || bb) || (w === sw && h === sh)) { ctx.drawImage(A, sx, sy, sw, sh, x, y, w, h); return; }
+    const xs = [0, bl, sw - br, sw], ys = [0, bt, sh - bb, sh], dx = [0, bl, w - br, w], dy = [0, bt, h - bb, h];
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+      const cw = xs[i + 1] - xs[i], ch = ys[j + 1] - ys[j], dw = dx[i + 1] - dx[i], dh = dy[j + 1] - dy[j];
+      if (cw > 0 && ch > 0 && dw > 0 && dh > 0) ctx.drawImage(A, sx + xs[i], sy + ys[j], cw, ch, x + dx[i], y + dy[j], dw, dh);
+    }
   }
 
-  /*
-   * PokeLoader.Setup (0x269080): lấy mẫu clip "0" tại t=0, đặt localScale = 1, cộng Renderer.bounds của mọi lưới
-   * (SkinnedMeshRenderer có updateWhenOffscreen, nên là khung bao thật, đơn vị cm của model gốc), rồi
-   *   scale = fixedAverage / Lerp(fixedAverage, bounds.size.y, Factor),  fixedAverage = 300 (ctor 0x26ED43),
-   *   Factor = 0.7 (ctor 0x26ED4A, 3DPokemonPrefab cũng lưu 0.7).
-   * StartUp phóng model tới scale·0.01. glb của rip_poke đã nhân 0.01, nên model trong three nhân đúng `scale`.
-   * Loài nhỏ được phóng to, loài lớn thu lại: Charmander 0,59 m → 1,34 m, Pidgey 0,29 m → 0,79 m.
-   * ScaleFactor của pokemonmodels.txt chỉ dùng cho dạng "primal" (0x2693B6), không nhân ở đây.
-   */
-  function pokeLoaderScale(heightM) {
-    const H = heightM * 100, avg = 300, factor = 0.7;
-    return avg / (avg + (H - avg) * factor);
+  const tintCache = new Map();
+  function tinted(img, colour) {
+    const key = img.src + '|' + colour;
+    let c = tintCache.get(key);
+    if (!c) {
+      c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      g.globalCompositeOperation = 'source-in';
+      g.fillStyle = colour; g.fillRect(0, 0, c.width, c.height);
+      tintCache.set(key, c);
+    }
+    return c;
   }
 
-  class Slot {
-    constructor(side, stage) {
-      this.side = side; this.stage = stage;
-      const st = DATA().stage[side === 'p1' ? 'user' : 'foe'];
-      this.home = V3(st.pos);
-      this.root = new THREE.Group();
-      this.root.position.copy(this.home);
-      this.root.rotation.y = side === 'p1' ? 0 : Math.PI;       // model nhìn +Z; phe mình đứng z<0 nhìn sang địch
-      stage.scene.add(this.root);
-      this.mon = null; this.model = null; this.mixer = null; this.clips = {}; this.mats = [];
-      this.height = 1;
-      const sh = DATA().stage.shadow || {};
-      const tex = P1.texture(sh.tex || 'art/battle/Shadow.png');
-      tex.magFilter = THREE.LinearFilter;
-      this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
-        new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.7 }));
-      this.shadow.rotation.x = -Math.PI / 2;
-      this.shadow.position.y = 0.02;
-      this.shadow.visible = false;
-      this.root.add(this.shadow);
+  // Khung bao phần có màu của ảnh sprite 128² (để đặt hoạt ảnh/bóng vào giữa thân chứ không giữa ô).
+  const boxCache = new Map();
+  function contentBox(img) {
+    let b = boxCache.get(img.src);
+    if (b) return b;
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d');
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+      if (d[(y * c.width + x) * 4 + 3] > 16) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
     }
-    get anchor() { return this.root.position.clone().add(new THREE.Vector3(0, this.height * 0.55 * this.root.scale.y, 0)); }
-    /* Vị trí xương "Head" (PlayAttackEffect đặt Default Hit ở đó), không có thì giữa thân. */
-    head() {
-      let h = null;
-      if (this.model) this.model.traverse((n) => { if (!h && n.isBone && /head/i.test(n.name)) h = n; });
-      return h ? h.getWorldPosition(new THREE.Vector3()) : this.anchor;
-    }
+    b = x1 >= x0 ? { x0, y0, x1, y1 } : { x0: 0, y0: 0, x1: c.width, y1: c.height };
+    boxCache.set(img.src, b);
+    return b;
+  }
 
-    async load(mon) {
-      this.clear();
-      this.mon = mon;
-      const info = P1.POKES && P1.POKES[mon.dex];
-      const scale = info ? pokeLoaderScale(info.height) : 1;
-      if (info) {
-        const gltf = await P1.gltf(info.glb);
-        const model = cloneSkinned(gltf.scene);
-        model.scale.setScalar(scale);
-        model.traverse((n) => {
-          if (!n.isMesh) return;
-          n.frustumCulled = false;
-          n.material = n.material.clone();
-          n.material.userData.transparent = n.material.transparent;
-          n.material.userData.opacity = n.material.opacity;
-          if (mon.shiny && info.shiny && info.shiny[n.material.name]) {
-            const t = new THREE.TextureLoader().load(info.shiny[n.material.name]);
-            t.flipY = false; t.encoding = THREE.sRGBEncoding;
-            n.material.map = t;
-          }
-          this.mats.push(n.material);
-        });
-        this.model = model;
-        this.height = (info.height || 1) * scale;
-        this.mixer = new THREE.AnimationMixer(model);
-        this.clips = {};
-        for (const [role, name] of Object.entries(info.clips || {})) {
-          const clip = gltf.animations.find((a) => a.name === name);
-          if (clip) this.clips[role] = clip;
-        }
-        this.playIdle();
-      } else {
-        // Loài chưa bóc model: ảnh 2D "big" của game làm billboard.
-        const tex = P1.texture('art/sprite/poke/big/' + mon.dex + '.png');
-        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
-        mat.userData.transparent = true; mat.userData.opacity = 1;
-        const spr = new THREE.Sprite(mat);
-        spr.scale.set(1.6, 1.6, 1); spr.position.y = 0.8;
-        this.model = new THREE.Group(); this.model.add(spr);
-        this.mats.push(mat);
-        this.height = 1.6;
+  function shadowText(ctx, text, x, y, colour) {
+    ctx.fillStyle = 'rgba(0,0,0,.85)';
+    ctx.fillText(text, x + 1, y + 1);
+    ctx.fillStyle = colour || '#fff';
+    ctx.fillText(text, x, y);
+  }
+
+  /* ================================================================ đường dẫn tài sản */
+
+  function monUrl(mon, face) {
+    const miss = (P1.PRO && P1.PRO.shinyMissing) || [];
+    const s = mon.shiny && !miss.includes(mon.dex) ? 's' : '';
+    return 'art/pro/poke/' + face + '/' + mon.dex + s + '.png';
+  }
+  const iconUrl = (mon) => 'art/pro/poke/icon/' + mon.dex + '.png';
+
+  /* Họ nền PRO ('land', 'forest', 'cave 1'…) + giờ trong ngày → tệp battlebgnew. */
+  function bgUrl(family) {
+    const all = (P1.PRO && P1.PRO.bg) || {};
+    const fam = String(family || 'land').replace(/ /g, '_');
+    const list = all[fam] || all.land || [];
+    const want = { morning: 'day', day: 'day', evening: 'afternoon', night: 'night' }[P1.period ? P1.period() : 'day'] || 'day';
+    const pick = list.find((n) => n.endsWith('_' + want)) ||
+      (want === 'afternoon' && list.find((n) => n.endsWith('_evening'))) ||
+      list.find((n) => n.endsWith('_day')) || list[0] || 'land_day';
+    return 'art/pro/bg/' + pick + '.png';
+  }
+
+  /* ================================================================ hoạt ảnh chiêu (data/pro-anim.js) */
+
+  const ANIM = () => P1.PRO_ANIM || { moves: {}, status: {}, weather: {}, balls: {}, typeFallback: {} };
+  /* Biến thể theo phía hoạt ảnh diễn ra: 'foe' (bên địch), 'user' (bên mình), 'target' (đặt lên ai cũng được). */
+  function pickVariant(list, side) {
+    if (!list) return null;
+    const want = side === 'p1' ? 'user' : 'foe';
+    return list.find((a) => a.on === want) || list.find((a) => a.on === 'target') ||
+      list.find((a) => a.place === 'target') || null;
+  }
+  function moveAnim(mv, side) {
+    const A = ANIM();
+    const own = pickVariant(A.moves[mv.id], side);
+    if (own) return own;
+    if (mv.category === 'Status') return null;
+    const fb = A.typeFallback[mv.type.toLowerCase()];
+    if (mv.category === 'Special' && fb) return pickVariant(A.moves[fb], side);
+    if (mv.category === 'Physical') return pickVariant(A.moves[mv.flags && mv.flags.punch ? 'megapunch' : mv.flags && mv.flags.bite ? 'bite' : 'tackle'], side);
+    return null;
+  }
+
+  /* ================================================================ sân: Pokémon và hiệu ứng */
+
+  class Actor {
+    constructor(side) {
+      this.side = side; this.home = HOME[side]; this.mon = null; this.url = null;
+      this.phase = side === 'p1' ? 0 : 1.7;
+      this.reset();
+    }
+    reset() {
+      this.dx = 0; this.dy = 0; this.scale = 1; this.alpha = 1; this.white = 0; this.tint = null; this.tintA = 0;
+      this.sink = 0; this.hidden = false; this.blink = false; this.bob = true;
+    }
+    set(mon) { this.mon = mon; this.url = mon ? monUrl(mon, this.side === 'p1' ? 'back' : 'front') : null; this.reset(); }
+    get img() { return this.url ? P1.imgNow(this.url) : null; }
+    /* Tâm thân trong toạ độ khung (nơi đặt hoạt ảnh, nơi bóng bay tới). */
+    center() {
+      const img = this.img, S = SPRITE_SCALE;
+      if (!img) return { x: this.home.x, y: this.home.y - 60, h: 120 };
+      const b = contentBox(img);
+      const x = this.home.x - img.width * S / 2 + (b.x0 + b.x1) / 2 * S;
+      const y = this.home.y - img.height * S + (b.y0 + b.y1) / 2 * S;
+      return { x: x + this.dx, y: y + this.dy, h: (b.y1 - b.y0) * S };
+    }
+    draw(ctx, t) {
+      const img = this.img;
+      if (!img || this.hidden || this.blink || this.alpha <= 0.01 || this.scale <= 0.01) return;
+      const S = SPRITE_SCALE * this.scale, w = img.width * S, h = img.height * S;
+      const bob = this.bob ? Math.round(Math.sin(t * 2.6 + this.phase) * 1.5) : 0;
+      const x = Math.round(this.home.x + this.dx - w / 2), y = Math.round(this.home.y + this.dy - h + bob);
+      ctx.save();
+      if (this.sink > 0) { ctx.beginPath(); ctx.rect(x - 20, y - 200, w + 40, this.home.y + 4 - (y - 200)); ctx.clip(); }
+      ctx.globalAlpha = this.alpha;
+      ctx.drawImage(img, x, y + this.sink, w, h);
+      if (this.tint && this.tintA > 0) { ctx.globalAlpha = this.alpha * this.tintA; ctx.drawImage(tinted(img, this.tint), x, y + this.sink, w, h); }
+      if (this.white > 0) { ctx.globalAlpha = this.alpha * this.white; ctx.drawImage(tinted(img, '#ffffff'), x, y + this.sink, w, h); }
+      ctx.restore();
+    }
+  }
+
+  /* Hoạt ảnh dải khung của PRO: 'scene' phủ cả sân, 'target' đặt lên thân Pokémon. */
+  class SheetFx {
+    constructor(anim, at) {
+      this.a = anim; this.at = at; this.t = 0;
+      this.dur = anim.frames / (anim.fps || 12);
+    }
+    update(dt) { this.t += dt; return this.t < this.dur; }
+    draw(ctx) {
+      const a = this.a, img = P1.imgNow(a.img);
+      if (!img) return;
+      const k = Math.min(a.frames - 1, Math.floor(this.t * (a.fps || 12)));
+      const sx = (k % a.cols) * a.fw, sy = Math.floor(k / a.cols) * a.fh;
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(img, sx, sy, a.fw, a.fh, this.at.x - a.w / 2, this.at.y - a.h / 2, a.w, a.h);
+      ctx.restore();
+    }
+  }
+
+  /* Hạt màu theo hệ, cho chiêu PRO không có hoạt ảnh: cầu bay (orb), nổ (burst), lấp lánh (sparkle), mũi tên chỉ số (rise). */
+  class Particles {
+    constructor(colour) { this.colour = colour; this.ps = []; this.t = 0; this.orb = null; }
+    burst(x, y, n, speed) {
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.4, v = speed * (0.5 + Math.random() * 0.7);
+        this.ps.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, r: 3 + Math.random() * 4, life: 0.45 + Math.random() * 0.25, age: 0 });
       }
-      this.root.add(this.model);
-      const w = Math.max(0.9, this.height * 0.9);
-      this.shadow.scale.set(w, w, 1);
-      this.shadow.visible = true;
-      this.setAlpha(1);
-      this.root.scale.setScalar(1);
-      this.root.position.copy(this.home);
+      this.ps.push({ x, y, vx: 0, vy: 0, r: 8, ring: 46, life: 0.35, age: 0 });
+      return this;
     }
-    clear() {
-      if (this.model) this.root.remove(this.model);
-      this.model = null; this.mixer = null; this.mats = []; this.mon = null;
-      this.shadow.visible = false;
-    }
-    playIdle() {
-      if (!this.mixer || !this.clips.idle) return;
-      this.mixer.stopAllAction();
-      const a = this.mixer.clipAction(this.clips.idle);
-      a.setLoop(THREE.LoopRepeat, Infinity).reset().play();
-    }
-    /* Phát clip theo vai trò (README-poke.md); xong thì về idle. Trả Promise, thời lượng clip. */
-    play(role, opt) {
-      opt = opt || {};
-      const clip = this.clips[role];
-      if (!this.mixer || !clip) return { done: Promise.resolve(), duration: 0 };
-      this.mixer.stopAllAction();
-      const a = this.mixer.clipAction(clip);
-      a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.reset().play();
-      const done = new Promise((res) => {
-        const on = (e) => {
-          if (e.action !== a) return;
-          this.mixer.removeEventListener('finished', on);
-          if (!opt.hold) this.playIdle();
-          res();
-        };
-        this.mixer.addEventListener('finished', on);
-      });
-      return { done, duration: clip.duration };
-    }
-    setAlpha(v) {
-      for (const m of this.mats) {
-        m.transparent = v < 0.999 ? true : m.userData.transparent;
-        m.opacity = m.userData.opacity * v;
-        m.depthWrite = v >= 0.999;
+    sparkle(x, y, h, n) {
+      for (let i = 0; i < n; i++) {
+        this.ps.push({ x: x + (Math.random() - 0.5) * 70, y: y + (Math.random() - 0.3) * h * 0.8, vx: 0, vy: -20 - Math.random() * 30,
+          r: 2 + Math.random() * 3, life: 0.5 + Math.random() * 0.4, age: -Math.random() * 0.4, star: true });
       }
-      this.shadow.material.opacity = 0.7 * v;
+      return this;
     }
-    setTint(c) { for (const m of this.mats) if (m.color) m.color.setRGB(c[0], c[1], c[2]); }
-    update(dt) { if (this.mixer) this.mixer.update(dt); }
-  }
-
-  /* ================================================================ sân và máy ảnh */
-
-  /* Skybox 6 mặt của RenderSettings level2 (Skybox/6 Sided: màu = ảnh · tint · 2 · exposure). */
-  function skybox(S, far) {
-    const D = far * 0.5, g = new THREE.Group(), h = Math.PI / 2;
-    const tint = S.tint || [0.5, 0.5, 0.5], k = 2 * (S.exposure == null ? 1 : S.exposure);
-    const face = (key, pos, rot) => {
-      if (!S.faces || !S.faces[key]) return;
-      const tex = P1.texture(S.faces[key]);
-      tex.magFilter = THREE.LinearFilter;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(2 * D, 2 * D), new THREE.MeshBasicMaterial({
-        map: tex, fog: false, depthWrite: false, depthTest: false, color: new THREE.Color(tint[0] * k, tint[1] * k, tint[2] * k) }));
-      m.position.set(pos[0] * D, pos[1] * D, pos[2] * D);
-      m.rotation.set(rot[0], rot[1], rot[2]);
-      m.renderOrder = -1;
-      g.add(m);
-    };
-    face('front', [0, 0, 1], [0, Math.PI, 0]);
-    face('back', [0, 0, -1], [0, 0, 0]);
-    face('left', [-1, 0, 0], [0, h, 0]);
-    face('right', [1, 0, 0], [0, -h, 0]);
-    face('up', [0, 1, 0], [h, 0, Math.PI]);
-    face('down', [0, -1, 0], [-h, 0, Math.PI]);
-    return g;
-  }
-
-  class Stage {
-    constructor(bgKey) {
-      const d = DATA().stage;
-      this.scene = new THREE.Scene();
-      this.scene.background = new THREE.Color(d.camera.clearColor || '#000000');
-      this.camera = new THREE.PerspectiveCamera(d.camera.fov || 65, 16 / 9, d.camera.near || 0.3, d.camera.far || 70);
-      this.bgKey = bgKey;
-      const L = d.lights;
-      const amb = L && L.ambient;
-      this.scene.add(new THREE.HemisphereLight(
-        amb ? new THREE.Color().fromArray(amb.sky || [1, 1, 1]) : 0xffffff,
-        amb ? new THREE.Color().fromArray(amb.ground || amb.sky || [0.5, 0.5, 0.5]) : 0x8899aa,
-        0.85));
-      const sun = new THREE.DirectionalLight(L && L.pokemon ? new THREE.Color().fromArray(L.pokemon.color) : 0xffffff, 0.75);
-      const dir = L && L.pokemon && L.pokemon.dir ? V3(L.pokemon.dir) : new THREE.Vector3(-0.4, -1, 0.5);
-      sun.position.copy(dir.clone().normalize().multiplyScalar(-10));
-      this.scene.add(sun);
-      this.scene.add(sun.target);
-      this.slots = { p1: new Slot('p1', this), p2: new Slot('p2', this) };
-      this.fx = [];
-      this.cam = new CameraRig(this);
-      if (d.sky && d.sky.faces) { this.sky = skybox(d.sky, this.camera.far); this.scene.add(this.sky); }
-      this.t = 0;
-    }
-    async load() {
-      const bgs = DATA().stage.backgrounds || {};
-      const bg = bgs[this.bgKey] || bgs.grass || Object.values(bgs).find((b) => b.active) || null;
-      if (bg && bg.glb) {
-        try {
-          const g = await P1.gltf(bg.glb);
-          const m = g.scene.clone(true);
-          m.traverse((n) => { if (n.isMesh) n.frustumCulled = false; });
-          this.scene.add(m);
-          for (const l of bg.lights || []) {
-            const pl = new THREE.PointLight(new THREE.Color().fromArray(l.color || [1, 1, 1]), l.intensity || 1, l.range || 10);
-            pl.position.fromArray(l.pos); this.scene.add(pl);
-          }
-          return;
-        } catch (e) { console.warn(e.message); }
+    rise(x, y, dir, n) {
+      for (let i = 0; i < n; i++) {
+        this.ps.push({ x: x + (Math.random() - 0.5) * 80, y: y + (Math.random() - 0.5) * 60, vx: 0, vy: -dir * (70 + Math.random() * 40),
+          r: 5, life: 0.6, age: -Math.random() * 0.35, arrow: dir });
       }
-      // Không có nền: mặt đất đơn giản bằng ảnh sân gốc (art/battle/Arena.png).
-      const tex = P1.texture('art/battle/Arena.png');
-      tex.magFilter = THREE.LinearFilter;
-      const ground = new THREE.Mesh(new THREE.CircleGeometry(12, 48), new THREE.MeshLambertMaterial({ map: tex }));
-      ground.rotation.x = -Math.PI / 2;
-      this.scene.add(ground);
+      return this;
     }
-    addFx(h) { this.scene.add(h.obj); this.fx.push(h); return h; }
+    fly(from, to, dur) { this.orb = { from, to, dur, t: 0 }; return this; }
     update(dt) {
-      this.slots.p1.update(dt); this.slots.p2.update(dt);
-      for (let i = this.fx.length - 1; i >= 0; i--) {
-        if (!this.fx[i].update(dt)) { this.fx[i].dispose(); this.fx.splice(i, 1); }
-      }
-      this.cam.update(dt);
       this.t += dt;
-      // BattleCamera.Update: skybox _Rotation = -Time.time·0.5 (độ); lật x nên đổi chiều.
-      if (this.sky) { this.sky.position.copy(this.camera.position); this.sky.rotation.y = (this.t * 0.5 * Math.PI) / 180; }
+      if (this.orb) {
+        this.orb.t += dt;
+        if (this.orb.t >= this.orb.dur) { const o = this.orb; this.orb = null; this.burst(o.to.x, o.to.y, 12, 150); }
+      }
+      for (const p of this.ps) { p.age += dt; if (p.age > 0) { p.x += p.vx * dt; p.y += p.vy * dt; } }
+      this.ps = this.ps.filter((p) => p.age < p.life);
+      return !!(this.orb || this.ps.length);
     }
-    pxScale(renderer) {
-      const h = renderer.domElement.height;
-      return h / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
-    }
-    dispose() {
-      this.fx.forEach((f) => f.dispose());
-      this.scene.traverse((n) => { if (n.geometry) n.geometry.dispose(); });
+    draw(ctx) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      if (this.orb) {
+        const o = this.orb, k = ease(Math.min(1, o.t / o.dur));
+        const x = o.from.x + (o.to.x - o.from.x) * k, y = o.from.y + (o.to.y - o.from.y) * k - Math.sin(k * Math.PI) * 30;
+        glow(ctx, x, y, 14, this.colour, 1);
+      }
+      for (const p of this.ps) {
+        if (p.age < 0) continue;
+        const f = 1 - p.age / p.life;
+        if (p.ring) {
+          ctx.globalAlpha = f; ctx.strokeStyle = this.colour; ctx.lineWidth = 4 * f;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.ring * (1 - f) + 6, 0, Math.PI * 2); ctx.stroke();
+        } else if (p.arrow) {
+          ctx.globalAlpha = f; ctx.fillStyle = this.colour;
+          ctx.beginPath(); ctx.moveTo(p.x, p.y - 7 * p.arrow); ctx.lineTo(p.x - 6, p.y + 2 * p.arrow); ctx.lineTo(p.x + 6, p.y + 2 * p.arrow); ctx.fill();
+        } else glow(ctx, p.x, p.y, p.r * (p.star ? f + 0.4 : 1), this.colour, f);
+      }
+      ctx.restore();
     }
   }
+  function glow(ctx, x, y, r, colour, a) {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 2);
+    g.addColorStop(0, 'rgba(255,255,255,' + a + ')');
+    g.addColorStop(0.35, colour);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = a; ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r * 2, 0, Math.PI * 2); ctx.fill();
+  }
 
-  /*
-   * Máy ảnh theo PSXUtilities.CameraState, dịch từ BattleHandler.MoveCamera (RVA 0x2101D0):
-   * vị trí đi thẳng tới đích bằng Vector3.MoveTowards (m/s), hướng nhìn LookAt đích mỗi khung.
-   * Idle/Idle2 tới nơi rồi RotateAround tâm sân. Bảng và địa chỉ lệnh: tools/README-battle.md.
-   */
-  const MOVE = 4.0, SELECT = 6.0;             // BattleHandler..ctor 0x213F48: MovementSpeed, SelectMovementSpeed
-  const CAMERA_STATES = {
-    Idle: { pos: 'Center Field Pos', look: 'Center Field', speed: MOVE, orbit: -10 },       // Unity +10°/s, đảo chiều do lật x
-    Idle2: { pos: 'Center Field Pos (1)', look: 'Center Field', speed: MOVE, orbit: 5 },    // Unity -5°/s
-    Default: { pos: 'Select All Pos', look: 'Select All Focus', speed: 3 },
-    HitFoe: { pos: 'Select Foe', look: 'Select Foe Focus', speed: 6 },
-    HitUser: { pos: 'Select User', look: 'Select Self Focus', speed: 6 },
-    SelectFoe: { pos: 'Select Foe', look: 'Select Foe Focus', speed: SELECT },
-    SelectUser: { pos: 'Select User', look: 'Select Self Focus', speed: SELECT },
-    SelectField: { pos: 'Select All Pos', look: 'Select All Focus', speed: SELECT },
-    Still: { pos: 'DefaultStuck', look: 'Select All Focus', speed: 6 },
-  };
-  CAMERA_STATES.FocusUser = CAMERA_STATES.Default;     // không nơi nào trong mã gán 0/1
-  CAMERA_STATES.FocusPlayer = CAMERA_STATES.Default;
-
-  class CameraRig {
-    constructor(stage) {
-      this.stage = stage;
-      const c = DATA().stage.camera;
-      this.pos = V3(c.pos || [9, 4, 0]);             // transform "BattleCamera" trong scene = PositionTargets[3]
-      this.look = this.anchor('Center Field');
-      this.state = 'Idle2';
-      this.arrived = false;
-      this.follow = null;
-      this.apply();
+  /* Bóng ném (pokeballs/{closed,open,hand} của PRO); vẽ gấp 1.5 lần. */
+  class Ball {
+    constructor(key) {
+      const all = ANIM().balls || {};
+      this.art = all[key] || all.pokeball || null;
+      this.x = 0; this.y = 0; this.rot = 0; this.open = false; this.alpha = 1; this.dark = 0; this.hand = null;
     }
-    anchor(name) { const a = DATA().stage.anchors[name]; return a ? V3(a.pos) : new THREE.Vector3(); }
-    /* Battle Camera = Set: mọi Idle/Idle2/Default thành Still (DefaultStuck), không xoay (MoveCamera 0x21020A). */
-    effective(state) {
-      if (!P1.settings.battleCamera && (state === 'Idle' || state === 'Idle2' || state === 'Default')) return 'Still';
-      return state;
-    }
-    set(state) {
-      const s = this.effective(state);
-      if (s !== this.state) { this.state = s; this.arrived = false; }
-    }
-    /* SendOutPokemon (chỉ khi Rotate): bám con vừa ra, thả sau 1 s kể từ lần gán cuối rồi nhảy về đích state. */
-    focus(slot) {
-      if (!P1.settings.battleCamera) return;
-      this.follow = { slot, t: 0 };
-    }
-    release() { if (this.follow) this.follow.t = 1e-6; }
-    update(dt) {
-      const f = this.follow;
-      if (f) {
-        if (f.t > 0) f.t += dt;
-        if (f.t > 1.0) {
-          this.follow = null;
-          this.pos.copy(this.anchor(CAMERA_STATES[this.state].pos));
-          this.arrived = false;
-        } else {
-          const p = f.slot.root.position;
-          this.pos.set(p.x, p.y + 3.0, p.z - f.slot.home.z * 1.2);
-          this.look.copy(p);
-          this.apply();
-          this.stage.camera.rotateX(10 * Math.PI / 180);   // eulerAngles.x -= 10 (Unity) = ngẩng lên 10°
-          return;
+    update() { return this.alpha > 0; }
+    draw(ctx) {
+      if (!this.art) return;
+      ctx.save();
+      if (this.hand) {
+        const h = P1.imgNow(this.art.hand);
+        if (h) { ctx.globalAlpha = this.hand.a; ctx.drawImage(h, this.hand.x, this.hand.y, h.width * 1.5, h.height * 1.5); }
+      }
+      if (this.alpha > 0 && !this.inHand) {
+        const img = P1.imgNow(this.open ? this.art.open : this.art.closed);
+        if (img) {
+          const w = img.width * 1.5, h = img.height * 1.5;
+          ctx.globalAlpha = this.alpha;
+          ctx.translate(this.x, this.y); ctx.rotate(this.rot);
+          // Ảnh "open" cao hơn: nắp mở phía trên, đáy trùng đáy bóng đóng.
+          const dy = this.open ? -h + 21 : -h / 2;
+          ctx.drawImage(img, -w / 2, dy, w, h);
+          if (this.dark > 0) { ctx.globalAlpha = this.alpha * this.dark; ctx.drawImage(tinted(img, '#000000'), -w / 2, dy, w, h); }
         }
       }
-      const s = CAMERA_STATES[this.state];
-      const tp = this.anchor(s.pos);
-      this.look.copy(this.anchor(s.look));
-      if (!this.arrived || !s.orbit) {
-        const d = tp.clone().sub(this.pos), len = d.length(), step = s.speed * dt;
-        if (len <= step) { this.pos.copy(tp); this.arrived = true; } else this.pos.addScaledVector(d, step / len);
-      } else {
-        const c = this.look, a = (s.orbit * Math.PI / 180) * dt;
-        const x = this.pos.x - c.x, z = this.pos.z - c.z;
-        this.pos.x = c.x + x * Math.cos(a) + z * Math.sin(a);
-        this.pos.z = c.z - x * Math.sin(a) + z * Math.cos(a);
-      }
-      this.apply();
+      ctx.restore();
     }
-    apply() { const c = this.stage.camera; c.position.copy(this.pos); c.lookAt(this.look); }
   }
 
-  /* ================================================================ HUD (BattlePanel NGUI) */
+  /* ================================================================ DOM: khung nút và log */
 
-  const BAR = { p1: 'Battle Window/User Health Bar', p2: 'Battle Window/FoeHealth' };
-
-  class Hud {
-    constructor(host, kind) {
-      this.kit = P1.ngui.build('BattlePanel', host, {});
-      this.ui = this.kit.ui;
-      this.kind = kind;
-      this.hp = { p1: null, p2: null };
-      for (const p of ['Progress Bar - Timer', 'BattlePanel/Panel', 'Battle Window/FoeHealth (1)', 'Battle Window/FoeHealth (2)',
-        'Battle Window/User Health Bar (1)', 'Battle Window/User Health Bar (2)', 'FoeHealth/Hazard - Enemy',
-        'User Health Bar/Hazard - Player', 'Attacks/Mega Button', 'Attacks/Z Moves', 'Attacks/Button - Attack (5)',
-        'Attacks/Button - Attack (6)', 'Attacks/Button - Attack (7)', 'Attacks/Button - Attack (8)',
-        'User Health Bar/Sprite - Caught (1)', 'Button - Attack/Button - Back']) this.hide(p);
-      this.fullW = this.ui.need(BAR.p2 + '/Healthbar').w.size[0];     // 211: FoeHealth lưu thanh đầy, User Health Bar lưu mẫu 53
-      this.addExpBar();
-      this.setMenu(null);
-      this.logLines = [];
-      this.all = [];
-      this.logAlpha = 0; this.logIdle = 0;
-      this.label('Debug Log/Label', '');
-      this.setLogAlpha(0);
-      if (kind !== 'wild') this.kit.enable('Button - Run', false);
-    }
-    hide(p) { const n = this.ui.find(p); if (n) n.active = false; }
-    node(p) { return this.ui.need(p); }
-    label(p, t) { this.kit.label(p, t); }
-    refresh() { this.ui.refresh(); }
-
-    /* Thanh EXP: panel gốc không có. (đoán) Nhân bản "Healthbar Old", đổi sprite Bar_PokemonEXP của GUIAtlas. */
-    addExpBar() {
-      const n = this.kit.add(BAR.p1, BAR.p1 + '/Healthbar Old', 'EXP');
-      n.pos = [-121, 18]; n.w.sprite = 'Bar_PokemonEXP'; n.w.color = '#5ab4ffff'; n.w.size = [2, 4]; n.w.depth = 9;
-      this.expW = 242;
-      this.refresh();
-    }
-    setExp(ratio) {
-      const n = this.ui.need(BAR.p1 + '/EXP');
-      n.w.size = [Math.max(2, Math.round(this.expW * Math.max(0, Math.min(1, ratio)))), 4];
-      n.drawn = null; this.ui.draw(n);
-    }
-
-    setMon(side, mon, hp, maxhp, opt) {
-      const b = BAR[side];
-      const gender = mon.gender === 'M' ? ' [M]' : mon.gender === 'F' ? ' [F]' : '';
-      this.label(b + '/lblPokemonname', (mon.shiny ? '[*]' : '') + P1.mon.name(mon) + gender);
-      this.label(b + '/Label - Level', '[Lv]' + mon.level);
-      if (side === 'p2') {
-        const caught = this.ui.find(b + '/Sprite - Caught');
-        caught.active = opt && opt.wild ? !!P1.state.dex.caught[mon.dex] : false;
-      }
-      this.setHp(side, hp, maxhp);
-      this.setStatus(side, mon.status);
-      this.refresh();
-    }
-    setStatus(side, st) {
-      const n = this.ui.need(BAR[side] + '/Sprite - Status');
-      n.active = !!STATUS_ICON[st];
-      if (n.active) n.w.sprite = STATUS_ICON[st];
-      n.drawn = null;
-      this.refresh();
-    }
-    /* Độ rộng thanh máu theo ChangeHealth (0x215879): (int)(211·cur/max − 1), kẹp [2, 211]. */
-    widthOf(hp, max) { return Math.max(2, Math.min(this.fullW, Math.floor(this.fullW * hp / Math.max(1, max) - 1))); }
-    drawHp(side) {
-      const h = this.hp[side];
-      if (!h) return;
-      const bar = this.ui.need(BAR[side] + '/Healthbar'), old = this.ui.need(BAR[side] + '/Healthbar Old');
-      bar.w.size = [Math.round(h.w), bar.w.size[1]];
-      old.w.size = [Math.round(h.ow), old.w.size[1]];
-      // HealthBar.Update: sprite rộng ≤ 4 thì alpha 0. Không có ngưỡng màu: màu nằm sẵn trong sprite Fill_HPBar.
-      bar.active = h.w > 4; old.active = h.ow > 4 && h.ow > h.w;
-      bar.drawn = null; old.drawn = null;
-      this.ui.draw(bar); this.ui.draw(old);
-      // Phe mình "cur/max"; phe địch trống khi đấu NPC/hoang dã (chỉ PvP mới hiện %). HP 0 → "FNT".
-      const lbl = side === 'p1' ? (h.hp <= 0 && h.w <= 2 ? 'FNT' : Math.round(h.shown) + '/' + h.max) : '';
-      const ln = this.ui.need(BAR[side] + '/Label - HP');
-      if (ln.w.text !== lbl) { ln.w.text = lbl; ln.drawn = null; this.ui.draw(ln); }
-    }
-    setHp(side, hp, max) {
-      const w = this.widthOf(hp, max);
-      this.hp[side] = { hp, max, shown: hp, w, ow: 2 };
-      this.drawHp(side);
-    }
-    /* ChangeHealth: Old = rộng cũ + 1; thanh chính TweenWidth 0.5 s; Old đuổi theo 0.5 s sau 0.75 s (không chờ). */
-    async animateHp(side, hp, clock) {
-      const h = this.hp[side];
-      if (!h) return;
-      const to = Math.max(0, Math.min(h.max, hp)), from = h.shown, w0 = h.w, w1 = this.widthOf(to, h.max);
-      h.hp = to;
-      h.ow = w1 < w0 ? w0 + 1 : 2;
-      await clock.tween(TUNE.hpSeconds, (k) => { h.shown = from + (to - from) * k; h.w = w0 + (w1 - w0) * k; this.drawHp(side); });
-      if (w1 < w0) {
-        const o0 = h.ow;
-        clock.wait(TUNE.oldBarDelay).then(() => clock.tween(0.5, (k) => { h.ow = o0 + (w1 - 1 - o0) * k; this.drawHp(side); }))
-          .then(() => { h.ow = 2; this.drawHp(side); });
-      }
-      await clock.wait(TUNE.hpSeconds);
-    }
-
-    balls(side, party, show) {
-      const grid = this.ui.need(side === 'p1' ? 'User Balls/Grid' : 'Foe Pokes/Grid');
-      const kids = grid.kids.slice();
-      const order = side === 'p1' ? kids.slice().reverse() : kids;       // TeamBalls bắt đầu từ "Sprite - Ball (12)" (dưới cùng)
-      order.forEach((n, i) => {
-        const m = party[i];
-        n.active = !!(show && m);
-        if (m) { n.w.sprite = m.hp > 0 ? 'Icon_Pokemon_Alive' : 'Icon_Pokemon_Dead'; n.w.color = '#ffffffff'; n.drawn = null; }
-      });
-      this.ui.need(side === 'p1' ? 'Battle Window/User Balls' : 'Battle Window/Foe Pokes').w.color = show ? '#ffffffff' : '#ffffff00';
-      this.refresh();
-    }
-
-    /* UITextList "Debug Log": thêm dòng, giữ vài dòng cuối; khung hiện khi có chữ rồi mờ dần. */
-    log(text) {
-      this.all.push(text);
-      this.logLines.push(text);
-      while (this.logLines.length > TUNE.logLines) this.logLines.shift();
-      this.label('Debug Log/Label', this.logLines.join('\n'));
-      this.logIdle = 0;
-    }
-    setLogAlpha(a) {
-      this.logAlpha = a;
-      const n = this.ui.need('Debug Log');
-      const hex = Math.round(a * 255).toString(16).padStart(2, '0');
-      n.w.color = '#236c99' + hex;
-      n.drawn = null;
-      this.ui.draw(n);
-      n.kids.forEach((k) => { k.drawn = null; this.ui.draw(k); });
-    }
-    /* BattleHandler.Update: LogSprite sáng dần 2/s trong 3.5 s sau dòng cuối, rồi tối dần 2/s (dưới 0.1 thì 0). */
-    update(dt) {
-      if (!this.all.length) return;
-      this.logIdle += dt;
-      let a = this.logIdle < TUNE.logHold ? Math.min(1, this.logAlpha + dt * 2) : this.logAlpha - dt * 2;
-      if (this.logIdle >= TUNE.logHold && a < 0.1) a = 0;
-      if (a !== this.logAlpha) this.setLogAlpha(a);
-    }
-
-    /* Nút nào hiện theo chế độ menu. */
-    setMenu(mode) {
-      const show = MENU_LAYOUT[mode] || [];
-      for (const p of MENU_NODES) this.ui.need(p).active = show.includes(p);
-      if (mode === 'moves' || mode === 'menu') this.ui.need('Attacks').alpha = 1;
-      const wins = { party: 'Battle Screen Panel/Battle Pokemon', items: 'Battle Screen Panel/Battle Items', learnTarget: 'Battle Screen Panel/Battle Pokemon' };
-      for (const [m, p] of Object.entries(wins)) {
-        const n = this.ui.need(p);
-        if (m === mode || (mode === 'forced' && m === 'party')) { n.active = true; n.w.color = '#ffffffff'; }
-      }
-      if (!['party', 'forced', 'learnTarget'].includes(mode)) this.ui.need(wins.party).active = false;
-      if (mode !== 'items') this.ui.need(wins.items).active = false;
-      this.refresh();
-    }
-    destroy() { this.kit.destroy(); }
+  const CSS = `
+.pb-root { position: absolute; left: 0; top: 0; width: 798px; height: 471px; transform-origin: 0 0; pointer-events: none;
+  font-family: var(--p1-font, 'Segoe UI', Verdana, Arial, sans-serif); color: #fff; z-index: 5; }
+.pb-root * { box-sizing: border-box; }
+.pb-log { position: absolute; left: 18px; top: 392px; width: 558px; height: 56px; padding: 3px 10px; font-size: 13px;
+  line-height: 16.5px; text-shadow: 1px 1px 0 #000; display: flex; flex-direction: column; justify-content: flex-end;
+  overflow: hidden; pointer-events: none; transition: opacity .3s; }
+.pb-log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-btn { position: absolute; cursor: pointer; user-select: none; pointer-events: auto; }
+.pb-btn.off { cursor: default; }
+.pb-move { left: 589px; width: 196px; height: 46px; }
+.pb-move .n { position: absolute; left: 9px; top: 4px; font-size: 14px; font-weight: 700; text-shadow: 1px 1px 0 #000; white-space: nowrap; }
+.pb-move .cat { position: absolute; left: 8px; top: 27px; }
+.pb-move .typ { position: absolute; left: 40px; top: 27px; }
+.pb-move .pp { position: absolute; right: 9px; top: 25px; font-size: 12px; font-weight: 700; color: #dfe9f2; text-shadow: 1px 1px 0 #000; }
+.pb-move.off { filter: grayscale(1) brightness(.55); }
+.pb-icon { width: 86px; height: 66px; display: flex; align-items: center; justify-content: center; }
+.pb-icon > i { display: block; image-rendering: auto; }
+.pb-icon > b { position: absolute; left: 0; right: 0; bottom: 1px; text-align: center; font-size: 12px; font-weight: 700;
+  text-shadow: 1px 1px 0 #000, -1px 0 0 #000, 0 -1px 0 #000; }
+.pb-icon.off { filter: grayscale(1) brightness(.45); }
+.pb-icon.sel > i { filter: drop-shadow(0 0 4px #7fd3ff) brightness(1.25); }
+.pb-icon:not(.off):hover > i { filter: brightness(1.2); }
+.pb-mon { width: 57px; height: 57px; display: flex; align-items: center; justify-content: center; }
+.pb-mon img { width: 48px; height: 48px; image-rendering: pixelated; pointer-events: none; }
+.pb-mon .hp { position: absolute; left: 4px; bottom: -8px; width: 49px; height: 5px; background: #1a1a1a; border: 1px solid #000; }
+.pb-mon .hp > i { position: absolute; left: 0; top: 0; bottom: 0; background: #3ad13a; }
+.pb-mon .hp > i.mid { background: #ffd23c; } .pb-mon .hp > i.low { background: #ff3a2a; }
+.pb-mon .lv { position: absolute; right: -2px; top: -4px; font-size: 11px; font-weight: 700; text-shadow: 1px 1px 0 #000; }
+.pb-mon.cur { filter: drop-shadow(0 0 5px #7fd3ff); }
+.pb-mon.off { filter: grayscale(1) brightness(.5); }
+.pb-tab { top: 57px; width: 96px; height: 24px; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-shadow: 1px 1px 0 #000; }
+.pb-tab:not(.sel) { filter: brightness(.6); }
+.pb-items { position: absolute; left: 589px; top: 84px; width: 196px; height: 192px; overflow-y: auto; pointer-events: auto; }
+.pb-item { position: relative; display: block; width: 190px; height: 30px; margin-bottom: 2px; cursor: pointer; }
+.pb-item img { position: absolute; left: 4px; top: 3px; width: 24px; height: 24px; image-rendering: pixelated; }
+.pb-item .n { position: absolute; left: 32px; top: 6px; font-size: 12px; font-weight: 700; text-shadow: 1px 1px 0 #000; white-space: nowrap; }
+.pb-item .q { position: absolute; right: 8px; top: 6px; font-size: 12px; color: #ffd23c; text-shadow: 1px 1px 0 #000; }
+.pb-empty { position: absolute; left: 589px; top: 110px; width: 196px; text-align: center; font-size: 12px; color: #aab; }
+.pb-prompt { position: absolute; left: 590px; top: 280px; width: 196px; text-align: center; font-size: 12px; line-height: 15px;
+  color: #ffd23c; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+.pb-end { position: absolute; left: 147px; top: 180px; width: 300px; height: 118px; padding: 14px; text-align: center; pointer-events: auto; }
+.pb-end .t { font-size: 15px; font-weight: 700; color: #ffd23c; text-shadow: 1px 1px 0 #000; margin-bottom: 14px; }
+.pb-end .pb-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 110px; height: 34px; margin: 0 6px;
+  font-size: 13px; font-weight: 700; text-shadow: 1px 1px 0 #000; }
+`;
+  function injectCss() {
+    if (document.getElementById('pb-css')) return;
+    const s = document.createElement('style');
+    s.id = 'pb-css'; s.textContent = CSS;
+    document.head.appendChild(s);
+  }
+  function el(tag, cls, parent) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function spr(name, opt) { return P1.proui.el(name, Object.assign({ tag: 'i' }, opt || {})); }
+  const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  /* Mã màu NGUI "[rrggbb]chữ[-]" → span. */
+  function markup(s) {
+    return escapeHtml(s).replace(/\[([0-9a-fA-F]{6})\]/g, '<span style="color:#$1">').replace(/\[-\]/g, '</span>');
   }
 
-  const MENU_NODES = ['Button - Attack', 'Button - Pokemon', 'Button - Items', 'Button - Run', 'Attacks'];
-  const MENU_LAYOUT = {
-    menu: ['Button - Attack', 'Button - Pokemon', 'Button - Items', 'Button - Run'],
-    moves: ['Attacks', 'Button - Pokemon', 'Button - Items', 'Button - Run'],
-    party: ['Button - Attack', 'Button - Pokemon', 'Button - Items', 'Button - Run'],
-    items: ['Button - Attack', 'Button - Pokemon', 'Button - Items', 'Button - Run'],
-    learnTarget: ['Button - Attack', 'Button - Pokemon', 'Button - Items', 'Button - Run'],
-    forced: [],
-  };
+  /* ================================================================ chữ trong log */
 
-  /* ================================================================ VFX chiêu thức */
+  const STAT_NAME = { atk: 'Công', def: 'Thủ', spa: 'Công ĐB', spd: 'Thủ ĐB', spe: 'Tốc độ', accuracy: 'Chính xác', evasion: 'Né tránh' };
+  const STATUS_TEXT = { brn: ' bị bỏng!', psn: ' bị trúng độc!', tox: ' bị trúng độc nặng!', par: ' bị tê liệt! Có thể không ra đòn được!',
+    slp: ' ngủ thiếp đi!', frz: ' bị đóng băng!' };
+  const CURE_TEXT = { brn: ' hết bỏng.', psn: ' hết độc.', tox: ' hết độc.', par: ' hết tê liệt.', slp: ' tỉnh dậy!', frz: ' tan băng!' };
+  const CANT_TEXT = { par: ' bị tê liệt! Không ra đòn được!', slp: ' đang ngủ say!', frz: ' bị đóng băng cứng!',
+    flinch: ' chùn bước, không ra đòn được!', recharge: ' phải nghỉ lấy sức!', nopp: ' hết PP!', attract: ' đang mê mẩn!',
+    truant: ' đang lười biếng!' };
+  const DAMAGE_FROM = { brn: ' bị vết bỏng làm đau!', psn: ' bị độc làm đau!', tox: ' bị độc làm đau!', recoil: ' chịu phản lực!',
+    sandstorm: ' bị bão cát quất!', hail: ' bị mưa đá quất!', confusion: ' tự làm mình đau vì rối loạn!',
+    'leech seed': ' bị Leech Seed hút máu!', spikes: ' bị gai đâm!', 'stealth rock': ' bị đá nhọn đâm!',
+    curse: ' bị lời nguyền hành hạ!', nightmare: ' gặp ác mộng!', 'life orb': ' mất một ít HP!' };
+  const WEATHER_TEXT = { RainDance: 'Trời bắt đầu mưa!', SunnyDay: 'Nắng gắt lên!', Sandstorm: 'Bão cát nổi lên!',
+    Hail: 'Mưa đá bắt đầu rơi!', none: 'Thời tiết trở lại bình thường.' };
+  const BALL_FAIL = ['Ôi không! Pokémon thoát ra rồi!', 'Tiếc quá! Suýt nữa thì được!', 'Aaa! Gần được rồi!', 'Chỉ thiếu chút xíu nữa!'];
 
-  // Hiệu ứng theo hệ/loại chiêu. Bản gốc chọn NewBattleAnimation theo chiêu, nhưng 51 ô battleAnimations
-  // của BattleAnimator chỉ có 9 anim chung → mọi ánh xạ chiêu → atlas dưới đây là (đoán) dựa trên tên nhóm khung.
-  const MOVE_FX = {
-    byName: [
-      [/slash|scratch|cut|claw|fury swipes|razor leaf|leaf blade|night slash|x-scissor|false swipe/i, { atlas: 'fx_normal', prefix: 'slash_', fps: 14 }],
-      [/growl|sing|supersonic|roar|screech|uproar|perish song|hyper voice|round|echoed voice|bug buzz/i, { atlas: 'fx_normal', prefix: 'notes_', fps: 10 }],
-      [/gust|whirlwind|twister|air cutter|razor wind|defog|tailwind/i, { atlas: 'fx_normal', prefix: 'whirlwind_', fps: 10 }],
-      [/smokescreen|sand attack|poison gas|haze|smog|mist|sweet scent/i, { atlas: 'fx_normal', prefix: 'cloud_', fps: 16 }],
-      [/leer|glare|scary face|mean look|foresight|odor sleuth/i, { atlas: 'fx_normal', prefix: 'eyes_', fps: 4, loop: 3 }],
-      [/fire spin|flame wheel|fire blast|flamethrower|heat wave|inferno|flame charge/i, { atlas: 'fx_fire', prefix: 'firewhirl_', fps: 18 }],
-      [/surf|waterfall|muddy water|whirlpool|aqua tail|water pulse/i, { atlas: 'fx_water', prefix: 'wave_', fps: 14 }],
-      [/thunder wave|charge|magnet rise|electric terrain/i, { atlas: 'fx_electro', prefix: 'emp_', fps: 16 }],
-      [/absorb|mega drain|giga drain|leech seed|leech life|drain/i, { atlas: 'fx_plant', prefix: 'deprive_', fps: 6, loop: 3 }],
-      [/string shot|spider web|sticky web|electroweb/i, { atlas: 'fx_bug', prefix: 'chitinthread_', fps: 12 }],
-      [/karate chop|low kick|double kick|mach punch|comet punch|mega punch|dizzy punch|drain punch|rock smash|focus punch|brick break/i, { atlas: 'fx_normal', prefix: 'smallfist_', fps: 6, then: { atlas: 'fx_normal', prefix: 'tackle_', fps: 18 } }],
-      [/earthquake|magnitude|mud|dig|bulldoze|sand tomb|bone/i, { atlas: 'fx_test', prefix: 'erde_', fps: 12 }],
-      [/harden|defense curl|withdraw|iron defense|barrier|acid armor|protect|detect|reflect|light screen/i, { atlas: 'fx_test', prefix: 'shine1_', fps: 18, tint: [0.7, 0.9, 1] }],
-    ],
-    byType: {
-      Normal: { atlas: 'fx_normal', prefix: 'tackle_', fps: 18 },
-      Fighting: { atlas: 'fx_normal', prefix: 'tackle_', fps: 18, tint: [1, 0.6, 0.4] },
-      Flying: { atlas: 'fx_normal', prefix: 'whirlwind_', fps: 12 },
-      Poison: { atlas: 'fx_test', prefix: 'acid_', fps: 14 },
-      Ground: { atlas: 'fx_test', prefix: 'erde_', fps: 12 },
-      Rock: { atlas: 'fx_rock', prefix: 'rockshatter_', fps: 10 },
-      Bug: { atlas: 'fx_bug', prefix: 'chitinthread_', fps: 12 },
-      Ghost: { atlas: 'fx_test', prefix: 'willpower_', fps: 10, tint: [0.7, 0.45, 1] },
-      Steel: { atlas: 'fx_normal', prefix: 'slash_', fps: 14, tint: [0.8, 0.85, 0.95] },
-      Fire: { atlas: 'fx_fire', prefix: 'Fire_', fps: 18 },
-      Water: { atlas: 'fx_water', prefix: 'water_', fps: 16 },
-      Grass: { atlas: 'fx_plant', prefix: 'blatt_', fps: 10, loop: 2 },
-      Electric: { atlas: 'fx_electro', prefix: 'blitz_', fps: 18 },
-      Psychic: { atlas: 'fx_test', prefix: 'willpower_', fps: 10 },
-      Ice: { atlas: 'fx_test', prefix: 'stuck_', fps: 14 },
-      Dragon: { atlas: 'fx_test', prefix: 'shine1_', fps: 18, tint: [0.6, 0.45, 1] },
-      Dark: { atlas: 'fx_test', prefix: 'willpower_', fps: 10, tint: [0.45, 0.35, 0.5] },
-      Fairy: { atlas: 'fx_test', prefix: 'shine1_', fps: 18, tint: [1, 0.6, 0.85] },
-    },
+  const itemByBattleId = (key) => Object.values(P1.ITEMS || {}).find((x) => (BAG_ALIAS[x.battleId] || x.battleId) === key);
+  const itemName = (key) => { const it = itemByBattleId(key); return it ? it.name : key; };
+  const nameOf = (m) => '[' + NAME_COLOUR + ']' + P1.mon.name(m) + '[-]';
+  const expRatioAt = (dex, lv, exp) => {
+    if (lv >= 100) return 1;
+    const a = P1.mon.expAt(dex, lv), b = P1.mon.expAt(dex, lv + 1);
+    return clamp01((exp - a) / Math.max(1, b - a));
   };
-  function moveFx(mv) {
-    for (const [re, fx] of MOVE_FX.byName) if (re.test(mv.name)) return fx;
-    return MOVE_FX.byType[mv.type] || MOVE_FX.byType.Normal;
+  const expRatio = (m) => expRatioAt(m.dex, m.level, m.exp);
+
+  function parseHp(s) {
+    const m = /^(\d+)(?:\/(\d+))?/.exec(s || '');
+    return m ? { hp: +m[1], max: m[2] ? +m[2] : null } : { hp: 0, max: null };
   }
-  // Hiệu ứng trạng thái (atlas fx_statuseffects).
-  const STATUS_FX = {
-    par: { atlas: 'fx_statuseffects', prefix: 'paralyze_', fps: 16 },
-    slp: { atlas: 'fx_statuseffects', prefix: 'sleep_', fps: 8 },
-    frz: { atlas: 'fx_statuseffects', prefix: 'frozen', fps: 14 },
-    confusion: { atlas: 'fx_statuseffects', prefix: 'confused_', fps: 6, loop: 3 },
-    flinch: { atlas: 'fx_statuseffects', prefix: 'flinch_', fps: 3 },
-    brn: { atlas: 'fx_fire', prefix: 'Fire_', fps: 18 },
-    psn: { atlas: 'fx_test', prefix: 'acid_', fps: 14 },
-    tox: { atlas: 'fx_test', prefix: 'acid_', fps: 14 },
-  };
-
-  /* ================================================================ lời thoại trong log (giọng BattlePacketHandler) */
-
-  const Y = (s) => '[ffff00]' + s + '[-]';
 
   /* ================================================================ cảnh */
 
   const scene = {
     async enter(args) {
+      injectCss();
       this.args = args;
+      this.kind = args.kind || 'wild';
+      this.boss = this.kind === 'boss' ? args.boss : null;
       this.clock = makeClock();
-      BALL_CLOCK = this.clock;
-      BALL_MIXERS.length = 0;
       this.speed = +(P1.query && P1.query.get('bspeed')) || 1;
       this.prevMusic = P1.audio.musicKey();
-      const host = document.getElementById('ui');
-      this.host = document.createElement('div');
-      Object.assign(this.host.style, { position: 'absolute', inset: '0', pointerEvents: 'none' });
-      host.appendChild(this.host);
-      this.stage = new Stage(args.bg || 'grass');
-      this.hud = new Hud(this.host, args.kind);
-      // WorldMapHandler.Fade: màn đen phủ lúc dựng trận, StartUp cho mờ đi 2/s.
-      this.fade = document.createElement('div');
-      Object.assign(this.fade.style, { position: 'absolute', inset: '0', background: '#000', pointerEvents: 'none' });
-      this.host.appendChild(this.fade);
-      this.logAll = this.hud.all;
-      this.wireUi();
-      this.mode = 'busy';
-      this.pick = null;
-      this.learnQ = [];
-      this.leveled = null;
-      this.expGained = 0;
-      const me = P1.state.party;
+      this.actors = { p1: new Actor('p1'), p2: new Actor('p2') };
+      this.actors.p1.hidden = this.actors.p2.hidden = true;
+      this.box = { p1: null, p2: null };
+      this.fx = [];
+      this.fainted = { p1: new Set(), p2: new Set() };
+      this.logLines = []; this.logAll = [];
+      this.fade = 1;
+      this.mode = 'busy'; this.pick = null; this.result = null; this.catchPhase = null;
+      this.expGained = 0; this.leveled = new Set();
+      this.bgUrl = bgUrl(args.bg);
+      this.shownBossHp = null;
+
       this.battle = new P1.Battle({
-        me: { name: P1.state.player.name, party: me },
-        foe: { kind: args.kind, name: args.name || '', party: args.foe, money: args.money },
+        me: { name: P1.state.player.name, party: P1.state.party },
+        foe: { kind: this.kind, name: args.name || '', party: args.foe, money: args.money, maxHp: this.boss ? this.boss.maxHp : undefined },
         ctx: args.ctx,
       });
-      const music = args.music || (args.kind === 'trainer' ? (args.gym ? MUSIC.gym : MUSIC.trainer) : MUSIC.wild);
+      const music = args.music || (this.kind === 'trainer' ? (args.gym ? MUSIC.gym : MUSIC.trainer) : MUSIC[this.kind] || MUSIC.wild);
       P1.audio.music(music);
-      const preload = [this.stage.load()];
-      for (const m of me.concat(args.foe)) if (P1.POKES && P1.POKES[m.dex]) preload.push(P1.gltf(P1.POKES[m.dex].glb).catch(() => null));
-      await Promise.all(preload);
-      await P1.ngui.ready();
+
+      this.buildDom();
+      const urls = [this.bgUrl, SHADOW.p1.url, SHADOW.p2.url, P1.PRO_UI.img];
+      for (const m of P1.state.party) urls.push(monUrl(m, 'back'), iconUrl(m));
+      for (const m of args.foe) urls.push(monUrl(m, 'front'));
+      const balls = ANIM().balls || {};
+      for (const k of Object.keys(P1.state.bag || {})) if (balls[k]) urls.push(balls[k].closed, balls[k].open, balls[k].hand);
+      await Promise.all(urls.map((u) => P1.img(u).catch(() => null)));
       this.running = this.run().catch((e) => { console.error(e); });
     },
 
     exit() {
-      this.hud.destroy();
-      if (this.learnUi) this.learnUi.destroy();
-      if (this.endUi) this.endUi.destroy();
-      this.host.remove();
-      this.stage.dispose();
+      this.root.remove();
       if (this.prevMusic) P1.audio.music(this.prevMusic);
     },
 
     update(dt) {
       dt *= this.speed;
       this.clock.tick(dt);
-      this.stage.update(dt);
-      for (const m of BALL_MIXERS) if (m) m.update(dt);
-      this.hud.update(dt);
+      this.fx = this.fx.filter((f) => f.update(dt));
+      if (this.boss) {
+        const target = Math.max(0, this.boss.sharedHp());
+        this.shownBossHp = this.shownBossHp == null ? target : this.shownBossHp + (target - this.shownBossHp) * Math.min(1, dt * 5);
+        if (this.pick && (target <= 0 || this.boss.ended())) this.pick({ type: 'boss-end' });
+      }
       this.keys();
     },
 
-    render() {
-      const r = P1.renderer(), c = this.stage.camera, el = r.domElement;
-      const aspect = el.clientWidth / Math.max(1, el.clientHeight);
-      if (Math.abs(c.aspect - aspect) > 1e-3) { c.aspect = aspect; c.updateProjectionMatrix(); }
-      r.render(this.stage.scene, c);
+    /* ------------------------------------------------ vẽ */
+
+    layout() {
+      const v = P1.view();
+      const full = Math.min(v.w / WIN.w, v.h / WIN.h), compact = Math.min(v.w / COMPACT.w, v.h / COMPACT.h);
+      const vb = full < 1 && compact > full * 1.08 ? COMPACT : WIN;
+      const s = vb === WIN ? full : compact;
+      const ox = Math.round((v.w - vb.w * s) / 2 - vb.x * s), oy = Math.round((v.h - vb.h * s) / 2 - vb.y * s);
+      const key = s.toFixed(4) + ',' + ox + ',' + oy;
+      if (key !== this.layoutKey) {
+        this.layoutKey = key;
+        this.root.style.transform = 'translate(' + ox + 'px,' + oy + 'px) scale(' + s + ')';
+      }
+      return { v, s, ox, oy, vb };
     },
+
+    render() {
+      if (!this.root) return;
+      const { v, s, ox, oy } = this.layout();
+      const ctx = v.ctx, t = this.clock.t;
+      ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+      // Nền ngoài khung: chính ảnh nền trận, phủ kín, tối đi.
+      ctx.fillStyle = '#0b0f14'; ctx.fillRect(0, 0, v.w, v.h);
+      const bg = P1.imgNow(this.bgUrl);
+      if (bg) {
+        const k = Math.max(v.w / bg.width, v.h / bg.height);
+        ctx.globalAlpha = 0.35;
+        ctx.drawImage(bg, (v.w - bg.width * k) / 2, (v.h - bg.height * k) / 2, bg.width * k, bg.height * k);
+        ctx.globalAlpha = 1;
+      }
+      ctx.setTransform(v.dpr * s, 0, 0, v.dpr * s, v.dpr * ox, v.dpr * oy);
+      ctx.imageSmoothingEnabled = false;
+      atlasSprite(ctx, 'battle_window_bg', WIN.x, WIN.y, WIN.w, WIN.h);
+      this.drawTitle(ctx);
+
+      ctx.save();
+      ctx.beginPath(); ctx.rect(SCENE.x, SCENE.y, SCENE.w, SCENE.h); ctx.clip();
+      if (bg) ctx.drawImage(bg, SCENE.x, SCENE.y, SCENE.w, SCENE.h);
+      else { ctx.fillStyle = '#5a8a4a'; ctx.fillRect(SCENE.x, SCENE.y, SCENE.w, SCENE.h); }
+      for (const side of ['p2', 'p1']) {
+        const sh = SHADOW[side], img = P1.imgNow(sh.url), a = this.actors[side];
+        if (img && a.mon && !a.hidden && a.sink < 40) {
+          ctx.globalAlpha = Math.min(1, a.alpha * 1.2) * Math.min(1, a.scale);
+          ctx.drawImage(img, Math.round(sh.x - img.width / 2), Math.round(sh.y - img.height / 2));
+          ctx.globalAlpha = 1;
+        }
+      }
+      this.actors.p2.draw(ctx, t);
+      this.actors.p1.draw(ctx, t);
+      for (const f of this.fx) f.draw(ctx);
+      ctx.imageSmoothingEnabled = false;
+      if (this.boss) this.drawBoss(ctx); else this.drawBox(ctx, 'p2');
+      this.drawBox(ctx, 'p1');
+      // Nền log: Battle_Chatbox 9 mảnh, mờ khi không có chữ mới.
+      ctx.globalAlpha = 0.78;
+      atlasSprite(ctx, 'Battle_Chatbox', SCENE.x + 4, SCENE.y + SCENE.h - 62, SCENE.w - 8, 58);
+      ctx.globalAlpha = 1;
+      if (this.fade > 0) { ctx.fillStyle = 'rgba(0,0,0,' + this.fade + ')'; ctx.fillRect(SCENE.x, SCENE.y, SCENE.w, SCENE.h); }
+      ctx.restore();
+      ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);     // cảnh khác (title, creator) vẽ với phép biến đổi mặc định của P1.view
+    },
+
+    drawTitle(ctx) {
+      atlasSprite(ctx, 'battle_icon_big', 10, -10);
+      const a = this.args;
+      const text = this.kind === 'boss' ? 'Boss: ' + P1.mon.name(a.foe[0]) : this.kind === 'trainer' ? 'Đấu với ' + (a.name || 'Huấn luyện viên') : 'Pokémon hoang dã';
+      ctx.font = 'bold 16px ' + FONT();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      shadowText(ctx, text, SCENE_C.x, 25);
+      ctx.textAlign = 'left';
+    },
+
+    /* Hộp máu theo UserStats/FoeStats: tên, giới tính, cấp, trạng thái, thanh HP (và EXP phe mình), dãy bóng. */
+    drawBox(ctx, side) {
+      const b = this.box[side];
+      if (!b || b.alpha <= 0) return;
+      const L = BOX[side], x = Math.round(L.x + b.slide), y = L.y;
+      ctx.save();
+      ctx.globalAlpha = b.alpha;
+      atlasSprite(ctx, L.bg, x, y);
+      const r = b.max ? clamp01(b.shown / b.max) : 0, w = Math.round(150 * r);
+      const fill = r > 0.5 ? 'Battle_bar_hp_fill' : r > 0.2 ? 'Battle_bar_hp_fill_yellol' : 'Battle_bar_hp_low';
+      if (w > 0) atlasSprite(ctx, fill, side === 'p2' ? x + L.fill : x + L.fill + 150 - w, y + 21, w, 4);
+      ctx.font = 'bold 13px ' + FONT(); ctx.textBaseline = 'middle';
+      const nx = side === 'p2' ? x + 9 : x + 4, ny = y + 9;
+      const name = P1.mon.name(b.mon);
+      shadowText(ctx, name, nx, ny, b.mon.shiny ? '#ffe46a' : '#fff');
+      const gw = ctx.measureText(name).width;
+      if (b.mon.gender === 'M') atlasSprite(ctx, 'male_outline', nx + gw + 4, ny - 6);
+      if (b.mon.gender === 'F') atlasSprite(ctx, 'female_outline', nx + gw + 4, ny - 7);
+      const lv = String(b.level);
+      ctx.font = 'bold 12px ' + FONT();
+      const lw = ctx.measureText(lv).width, rx = side === 'p2' ? x + 152 : x + 147;
+      shadowText(ctx, lv, rx - lw, ny);
+      atlasSprite(ctx, 'Lv', rx - lw - 14, ny - 4);
+      const st = STATUS_BADGE[b.status];
+      if (st) atlasSprite(ctx, st, rx - lw - 42, ny - 6);
+      if (side === 'p1') {
+        ctx.font = 'bold 10px ' + FONT(); ctx.textAlign = 'right';
+        shadowText(ctx, Math.max(0, Math.round(b.shown)) + '/' + b.max, x + 150, y + 30, '#e8f1f8');
+        ctx.textAlign = 'left';
+        const ew = Math.round(117 * clamp01(b.exp));
+        if (ew > 0) atlasSprite(ctx, 'Battle_bar_ep_fill', x + 34, y + 34, ew, 3);
+      } else if (this.kind === 'wild' && P1.state.dex.caught[b.mon.dex]) atlasSprite(ctx, 'pdex_list_pokeball', x + 141, y + 28);
+      this.drawBalls(ctx, side, x, y);
+      ctx.restore();
+    },
+    drawBalls(ctx, side, x, y) {
+      if (side === 'p2' && this.kind !== 'trainer') return;
+      const party = side === 'p1' ? P1.state.party : this.args.foe;
+      party.forEach((m, k) => {
+        const bx = side === 'p1' ? x + 132 - k * 22 : x + 6 + k * 22;
+        const out = this.fainted[side].has(k) || m.hp <= 0;
+        ctx.globalAlpha = out ? 0.35 : 1;
+        atlasSprite(ctx, 'Battle_ball', bx, y + 46);
+      });
+      ctx.globalAlpha = 1;
+    },
+    /* Boss: thanh máu to đọc args.boss.sharedHp() mỗi khung (máu chung cả phòng). */
+    drawBoss(ctx) {
+      const b = this.box.p2;
+      if (!b || b.alpha <= 0) return;
+      const x = 20 + b.slide, y = 60, w = 380, max = this.boss.maxHp || 1;
+      const hp = this.shownBossHp == null ? max : this.shownBossHp, r = clamp01(hp / max);
+      ctx.save();
+      ctx.globalAlpha = b.alpha;
+      atlasSprite(ctx, 'Battle_Chatbox', x, y, w, 54);
+      ctx.font = 'bold 12px ' + FONT(); ctx.textBaseline = 'middle';
+      shadowText(ctx, 'BOSS', x + 10, y + 14, '#ff5a4a');
+      ctx.font = 'bold 14px ' + FONT();
+      shadowText(ctx, P1.mon.name(b.mon) + '  Lv ' + b.level, x + 52, y + 14);
+      const st = STATUS_BADGE[b.status];
+      if (st) atlasSprite(ctx, st, x + w - 34, y + 8);
+      ctx.fillStyle = '#111'; ctx.fillRect(x + 10, y + 28, w - 20, 10);
+      const fill = r > 0.5 ? 'Battle_bar_hp_fill' : r > 0.2 ? 'Battle_bar_hp_fill_yellol' : 'Battle_bar_hp_low';
+      if (r > 0) atlasSprite(ctx, fill, x + 11, y + 29, Math.round((w - 22) * r), 8);
+      ctx.font = 'bold 10px ' + FONT(); ctx.textAlign = 'right';
+      shadowText(ctx, Math.ceil(hp).toLocaleString('vi-VN') + ' / ' + max.toLocaleString('vi-VN'), x + w - 10, y + 46, '#e8f1f8');
+      ctx.textAlign = 'left';
+      ctx.restore();
+    },
+
+    /* ------------------------------------------------ DOM */
+
+    buildDom() {
+      const host = document.getElementById('ui');
+      const root = this.root = el('div', 'pb-root', host);
+      this.logEl = el('div', 'pb-log', root);
+      this.topEl = el('div', 'pb-top', root);
+      this.promptEl = el('div', 'pb-prompt', root);
+      const icons = [
+        ['fight', 'battle_fight_active_icon', 'battle_fight_grey_icon', 'Chiến đấu', 638, 353.5],
+        ['pokemon', 'battle_pokemon_grey_icon', 'battle_pokemon_grey_icon', 'Pokémon', 724, 354.5],
+        ['item', 'battle_items_grey_icon', 'battle_items_grey_icon', 'Túi đồ', 638, 421.5],
+        ['run', 'battle_run_active_icon', 'battle_run_grey_icon', this.kind === 'boss' ? 'Rời trận' : 'Chạy', 724, 421.5],
+      ];
+      this.icons = {};
+      for (const [key, on, off, label, cx, cy] of icons) {
+        const b = el('div', 'pb-btn pb-icon', root);
+        b.dataset.b = key;
+        b.style.left = (cx - 43) + 'px'; b.style.top = (cy - 33) + 'px';
+        const i = spr(on);
+        b.appendChild(i);
+        el('b', '', b).textContent = label;
+        b.addEventListener('click', () => this.onIcon(key));
+        this.icons[key] = { el: b, img: i, on, off };
+      }
+      this.layoutKey = null;
+      this.refreshIcons();
+    },
+
+    /* Nút nào sáng theo chế độ và loại trận. */
+    refreshIcons() {
+      const m = this.mode, choosing = !!this.pick;
+      const req = this.req || {};
+      const can = {
+        fight: choosing && ['menu', 'party', 'items'].includes(m),
+        pokemon: choosing && ['menu', 'party', 'items'].includes(m) && !req.trapped && this.battle.switchable().length > 0,
+        item: choosing && ['menu', 'party', 'items'].includes(m),
+        run: choosing && ['menu', 'party', 'items'].includes(m) && (this.kind === 'wild' || this.kind === 'boss'),
+      };
+      const sel = { fight: m === 'menu', pokemon: m === 'party' || m === 'forced', item: m === 'items' || m === 'learnTarget', run: false };
+      for (const [k, x] of Object.entries(this.icons)) {
+        x.el.classList.toggle('off', !can[k] && !sel[k]);
+        x.el.classList.toggle('sel', !!sel[k] && choosing);
+        P1.proui.apply(x.img, can[k] || sel[k] ? x.on : x.off, { natural: true });
+      }
+    },
+    onIcon(key) {
+      if (!this.pick || !['menu', 'party', 'items', 'learnTarget'].includes(this.mode)) return;
+      const off = this.icons[key].el.classList.contains('off');
+      if (off && !this.icons[key].el.classList.contains('sel')) return;
+      if (key === 'fight' && this.mode !== 'menu') this.setMode('menu');
+      else if (key === 'pokemon') this.setMode(this.mode === 'party' ? 'menu' : 'party');
+      else if (key === 'item') this.setMode(this.mode === 'items' ? 'menu' : 'items');
+      else if (key === 'run') this.send(this.kind === 'boss' ? { type: 'leave' } : { type: 'run' });
+    },
+
+    setMode(m) {
+      this.mode = m;
+      this.topEl.innerHTML = '';
+      this.promptEl.textContent = '';
+      if (m === 'menu') this.fillMoves();
+      if (m === 'party' || m === 'forced' || m === 'learnTarget') this.fillParty();
+      if (m === 'items') this.fillItems();
+      this.refreshIcons();
+    },
+    choose(mode, req) {
+      this.req = req || this.req;
+      return new Promise((res) => { this.pick = (a) => { this.pick = null; res(a); }; this.setMode(mode); });
+    },
+    send(action) { if (this.pick) { sfx('click', { volume: 0.4 }); this.pick(action); } },
+
+    /* AttacksBattleMenu: 4 nút Battle_attack_normal 196×46 (Attack1..4 y 155/100/45/−10 trong gamegui). */
+    fillMoves() {
+      const b = this.battle, act = b.active('p1');
+      if (!act) return;
+      const sim = b.simMon('p1', act.index);
+      act.mon.moves.forEach((slot, k) => {
+        const mv = P1.Dex.moves.get(slot.id), ms = sim.moveSlots[k];
+        const pp = ms ? ms.pp : slot.pp;
+        const r = this.req && this.req.moves && this.req.moves[k];
+        const off = (r && (r.disabled || r.pp === 0)) || pp === 0;
+        const btn = el('div', 'pb-btn pb-move' + (off ? ' off' : ''), this.topEl);
+        btn.dataset.b = 'move-' + (k + 1);
+        btn.style.top = (57.5 + k * 55) + 'px';
+        P1.proui.apply(btn, 'Battle_attack_normal');
+        el('div', 'n', btn).textContent = mv.name;
+        if (mv.category !== 'Status') btn.appendChild(spr(mv.category === 'Physical' ? 'physical' : 'special', { cls: 'cat' }));
+        const typ = mv.type.toLowerCase();
+        if (P1.proui.has(typ)) btn.appendChild(spr(typ, { cls: mv.category === 'Status' ? 'cat' : 'typ' }));
+        el('div', 'pp', btn).textContent = 'PP ' + pp + '/' + slot.ppMax;
+        btn.title = mv.name + ' — ' + mv.type + ', ' + (mv.basePower ? 'uy lực ' + mv.basePower : 'chiêu trạng thái') +
+          ', chính xác ' + (mv.accuracy === true ? '—' : mv.accuracy);
+        if (!off) {
+          btn.addEventListener('pointerenter', () => P1.proui.apply(btn, 'Battle_attack_hover'));
+          btn.addEventListener('pointerleave', () => P1.proui.apply(btn, 'Battle_attack_normal'));
+          btn.addEventListener('pointerdown', () => P1.proui.apply(btn, 'Battle_attack_press'));
+          btn.addEventListener('click', () => { if (this.mode === 'menu') this.send({ type: 'move', slot: k + 1 }); });
+        }
+      });
+      this.promptEl.textContent = P1.mon.name(act.mon) + ' sẽ làm gì?';
+    },
+
+    /* Pokemon/Poke1..6: lưới 2×3 vòng Battle_pokemon_BG (x 266/362, y 140/68/−4 trong gamegui). */
+    fillParty() {
+      const b = this.battle, cur = b.active('p1');
+      P1.state.party.forEach((m, i) => {
+        const inSim = b.order.includes(i), sim = inSim ? b.simMon('p1', i) : null;
+        const hp = sim ? sim.hp : m.hp, max = sim ? sim.maxhp : P1.mon.stats(m).hp;
+        const isCur = cur && cur.index === i;
+        const off = hp <= 0 || (isCur && this.mode !== 'learnTarget');
+        const btn = el('div', 'pb-btn pb-mon' + (isCur ? ' cur' : '') + (off ? ' off' : ''), this.topEl);
+        btn.dataset.b = 'party-' + i;
+        btn.style.left = ((i % 2 ? 729 : 633) - 28.5) + 'px';
+        btn.style.top = (95.5 + Math.floor(i / 2) * 72 - 28.5) + 'px';
+        P1.proui.apply(btn, 'Battle_pokemon_BG');
+        const img = el('img', '', btn); img.src = iconUrl(m); img.draggable = false;
+        el('div', 'lv', btn).textContent = 'Lv' + m.level;
+        const bar = el('div', 'hp', btn), fill = el('i', '', bar);
+        const r = max ? hp / max : 0;
+        fill.style.width = Math.round(100 * r) + '%';
+        fill.className = r > 0.5 ? '' : r > 0.2 ? 'mid' : 'low';
+        const info = P1.mon.name(m) + ' Lv' + m.level + ' · HP ' + hp + '/' + max + (m.status ? ' · ' + m.status.toUpperCase() : '');
+        btn.addEventListener('pointerenter', () => { this.promptEl.textContent = info; });
+        btn.addEventListener('pointerleave', () => { this.promptEl.textContent = this.partyPrompt(); });
+        if (!off) btn.addEventListener('click', () => this.pickParty(i));
+      });
+      this.promptEl.textContent = this.partyPrompt();
+    },
+    partyPrompt() {
+      if (this.mode === 'forced') return 'Chọn Pokémon ra sân tiếp.';
+      if (this.mode === 'learnTarget') return 'Dùng ' + (this.pendingItem ? this.pendingItem.name : '') + ' cho Pokémon nào?';
+      return 'Đổi Pokémon nào?';
+    },
+    pickParty(i) {
+      if (!this.pick) return;
+      if (this.mode === 'learnTarget') {
+        const x = this.pendingItem;
+        this.consume(x.key);
+        this.send({ type: 'item', item: x.key, index: i });
+      } else if (this.mode === 'party' || this.mode === 'forced') this.send({ type: 'switch', index: i });
+    },
+
+    bagItems() {
+      const out = [];
+      for (const [key, qty] of Object.entries(P1.state.bag || {})) {
+        if (!(qty > 0)) continue;
+        const tab = P1.BALLS[key] ? 'ball' : P1.ITEM_EFFECT[key] ? 'med' : null;
+        if (!tab) continue;
+        const it = itemByBattleId(key);
+        out.push({ key, qty, tab, name: it ? it.name : key, img: it && it.img });
+      }
+      return out;
+    },
+    fillItems() {
+      if (!this.itemTab) this.itemTab = this.kind === 'wild' ? 'ball' : 'med';
+      [['ball', 'Bóng', 589], ['med', 'Thuốc', 689]].forEach(([tab, label, x]) => {
+        const t = el('div', 'pb-btn pb-tab' + (tab === this.itemTab ? ' sel' : ''), this.topEl);
+        t.dataset.b = 'tab-' + tab;
+        t.style.left = x + 'px';
+        P1.proui.apply(t, 'Battle_attack_normal');
+        t.textContent = label;
+        t.addEventListener('click', () => { this.itemTab = tab; if (this.mode === 'items') this.setMode('items'); });
+      });
+      const list = this.bagItems().filter((x) => x.tab === this.itemTab);
+      if (!list.length) { el('div', 'pb-empty', this.topEl).textContent = 'Không có gì trong ngăn này.'; return; }
+      const box = el('div', 'pb-items', this.topEl);
+      for (const x of list) {
+        const row = el('div', 'pb-btn pb-item', box);
+        row.dataset.b = 'item-' + x.key;
+        P1.proui.apply(row, 'Battle_attack_normal');
+        if (x.img) { const im = el('img', '', row); im.src = x.img; im.draggable = false; }
+        el('div', 'n', row).textContent = x.name;
+        el('div', 'q', row).textContent = '×' + x.qty;
+        row.addEventListener('click', () => this.useItem(x));
+      }
+      this.promptEl.textContent = this.itemTab === 'ball' ? 'Ném bóng nào?' : 'Dùng thuốc nào?';
+    },
+    useItem(x) {
+      if (this.mode !== 'items' || !this.pick) return;
+      if (x.tab === 'ball') {
+        if (this.kind !== 'wild') { this.promptEl.textContent = 'Không thể bắt Pokémon này!'; return; }
+        this.consume(x.key);
+        this.send({ type: 'ball', ball: x.key });
+        return;
+      }
+      this.pendingItem = x;
+      this.setMode('learnTarget');
+    },
+    consume(key) { P1.state.bag[key] = Math.max(0, (P1.state.bag[key] || 0) - 1); },
+
+    /* Phím: 1–4 chọn chiêu, Esc/Backspace lùi về bảng chiêu. */
+    keys() {
+      const inp = P1.input, keysFor = KEYS[this.mode];
+      if (!keysFor || !this.pick) { inp.clear(); return; }
+      for (const a of ['a', 'b', 'menu', '1', '2', '3', '4']) {
+        if (!inp.take(a)) continue;
+        if (keysFor[a] && this.pick) keysFor[a].call(this);
+      }
+    },
+    keyMove(i) {
+      const n = this.topEl.querySelector('[data-b="move-' + i + '"]');
+      if (n && !n.classList.contains('off')) this.send({ type: 'move', slot: i });
+    },
+
+    /* ------------------------------------------------ log */
+
+    log(text) {
+      this.logAll.push(text);
+      this.logLines.push(text);
+      while (this.logLines.length > LOG.lines) this.logLines.shift();
+      this.logEl.innerHTML = this.logLines.map((l) => '<div>' + markup(l) + '</div>').join('');
+    },
+    async say(text, pause) { this.log(text); await this.wait(pause == null ? 0.8 : pause); },
+    wait(s) { return this.clock.wait(s); },
+    tween(d, fn) { return this.clock.tween(d, fn); },
+    nameOf(ident) { const w = this.battle.who(ident); return w ? nameOf(w.mon) : '?'; },
+    trainerName() { return '[ff6666]' + P1.state.player.name + '[-]'; },
+    actorOf(ident) { const w = this.battle.who(ident); return w ? this.actors[w.side] : null; },
+    other(actor) { return actor === this.actors.p1 ? this.actors.p2 : this.actors.p1; },
+    addFx(f) { this.fx.push(f); return f; },
 
     /* ------------------------------------------------ vòng trận */
 
-    /*
-     * BattleHandler.StartUp → Setup → SpawnPokes: màn đen mờ đi (2/s), từng con phe mình rồi phe địch
-     * TweenScale 0.5 s + cry + wait 0.5; wait 0.5; thanh máu bay vào (anim 4 Fly In Left / 3 Fly In Right).
-     * Máy ảnh: Start → Idle2, Setup → Default, hết SpawnPokes → Idle2; cuối mỗi lượt → Idle2.
-     */
     async run() {
       const b = this.battle;
-      this.hud.balls('p1', P1.state.party, true);
-      this.hud.balls('p2', this.args.foe, this.args.kind !== 'wild');
-      this.stage.cam.set('Idle2');
-      this.intro = true;
-      await this.play(b.begin());
-      this.intro = false;
-      await this.clock.tween(0.5, (k) => { this.fade.style.opacity = String(1 - k); });
-      this.fade.style.display = 'none';
-      this.stage.cam.set('Default');
-      for (const side of ['p1', 'p2']) {
-        const slot = this.stage.slots[side];
-        if (!slot.mon) continue;
-        this.clock.tween(0.5, (k) => slot.root.scale.setScalar(k));
-        if (slot.mon.shiny) { P1.audio.sfx('gen_4_shiny_edit2'); await this.wait(0.65); }
-        P1.audio.cry(slot.mon.dex);
-        await this.wait(0.5);
-      }
-      await this.wait(0.5);
-      this.playAnim(ANIM.flyInLeft, { bar: BAR.p1 });
-      this.playAnim(ANIM.flyInRight, { bar: BAR.p2 });
-      await this.wait(0.2 + 0.3);
-      this.stage.cam.set('Idle2');
+      await this.intro(b.begin());
+      if (this.boss) this.bossSync();
       while (!b.result) {
+        if (this.bossOver()) break;
         const req = b.request();
         if (!req) break;
         const action = req.kind === 'switch' ? await this.choose('forced') : await this.choose('menu', req);
+        if (action.type === 'boss-end') break;
         this.setMode('busy');
+        if (action.type === 'leave') { b.finish('ran'); await this.say('Bạn rời trận boss.', 0.6); break; }
         await this.play(b.act(action));
-        if (!b.result) this.stage.cam.set('Idle2');
+        if (this.boss) this.bossSync();
       }
       await this.finish();
     },
@@ -732,367 +885,272 @@
       }
     },
 
-    wait(s) { return this.clock.wait(s); },
-    slotOf(ident) { const w = this.battle.who(ident); return w ? this.stage.slots[w.side] : null; },
-    nameOf(ident) {
-      const w = this.battle.who(ident);
-      if (!w) return '?';
-      return '[' + NAME_COLOUR + ']' + P1.mon.name(w.mon) + '[-]';
+    /* Boss: báo tổng sát thương mình gây, rồi hạ máu cục bộ xuống máu chung nếu thấp hơn. */
+    bossSync() {
+      const b = this.battle;
+      this.boss.report(b.dealt);
+      const shared = this.boss.sharedHp(), p = b.sim.p2.active[0];
+      if (p && shared < p.hp) b.setFoeHp(shared);
+      if (this.box.p2 && p) { this.box.p2.hp = p.hp; this.box.p2.shown = p.hp; }
     },
-    trainerName() { return '[ff6666]' + P1.state.player.name + '[-]'; },     // tên người chơi: '[ff6666]User[-]'
-    async say(text, pause) { this.hud.log(text); await this.wait(pause == null ? TUNE.textPause : pause); },
-    maxHp(ident) { const w = this.battle.who(ident); return w ? this.battle.simMon(w.side, w.index).maxhp : 1; },
+    bossOver() { return !!this.boss && (this.boss.sharedHp() <= 0 || this.boss.ended()); },
 
-    /* ------------------------------------------------ NewBattleAnimation: bộ chạy bước */
-
-    async playAnim(id, ctx) {
-      const anim = (DATA().anims || [])[id];
-      const steps = anim ? anim.attack : [];
-      for (const st of steps) {
-        const run = STEP[st.type];
-        const p = run ? run.call(this, st, ctx) : null;
-        if (st.delay) await this.wait(st.delay);
-        else if (p && p.then) await p;
+    /*
+     * Mở màn: màn đen tan, đối thủ vào sân (hoang dã: trượt từ trái, còn tối rồi sáng lên; huấn luyện viên/boss: bung từ bóng),
+     * hộp máu trượt vào, rồi Pokémon của mình bung ra từ bóng. Dòng switch của sim chỉ gán Pokémon, không diễn.
+     */
+    async intro(events) {
+      this.introPhase = true;
+      await this.play(events.filter((e) => e.cmd === 'switch'));
+      this.introPhase = false;
+      const foe = this.actors.p2, me = this.actors.p1;
+      await this.tween(0.4, (k) => { this.fade = 1 - k; });
+      if (this.kind === 'wild') {
+        foe.hidden = false; foe.tint = '#000000'; foe.tintA = 0.7; foe.dx = -420;
+        await this.tween(0.8, (k) => { foe.dx = -420 * (1 - ease(k)); });
+        await this.tween(0.3, (k) => { foe.tintA = 0.7 * (1 - k); });
+        if (foe.mon.shiny) { sfx('shiny'); this.sparkle(foe, '#fff6a0', 18); await this.wait(0.5); }
+        P1.audio.cry(foe.mon.dex);
+        await this.slideBox('p2');
+        await this.say('Một ' + nameOf(foe.mon) + ' hoang dã xuất hiện!', 0.9);
+      } else if (this.kind === 'boss') {
+        await this.popOut(foe, 1.2);
+        await this.slideBox('p2');
+        await this.say('Boss ' + nameOf(foe.mon) + ' xuất hiện!', 0.9);
+      } else {
+        await this.say('[ff6666]' + (this.args.name || 'Huấn luyện viên') + '[-] muốn đấu!', 0.7);
+        await this.say('[ff6666]' + (this.args.name || 'Huấn luyện viên') + '[-] tung ra ' + nameOf(foe.mon) + '!', 0.1);
+        await this.popOut(foe);
+        await this.slideBox('p2');
       }
+      await this.say('Tiến lên! ' + nameOf(me.mon) + '!', 0.1);
+      await this.popOut(me);
+      await this.slideBox('p1');
+      await this.play(events.filter((e) => e.cmd !== 'switch'));
     },
-    targetOf(name, ctx) {
-      const map = { Target: ctx.target, Source: ctx.source, TargetBar: ctx.targetBar, SourceBar: ctx.sourceBar };
-      return map[name] || ctx.target;
+    async slideBox(side) {
+      const b = this.box[side];
+      if (!b) return;
+      const from = side === 'p2' ? -220 : 220;
+      await this.tween(0.3, (k) => { b.slide = from * (1 - ease(k)); b.alpha = 1; });
     },
-    spriteAt(slot, fx, offset) {
-      if (!fx || !fx.atlas) return Promise.resolve();
-      const h = P1.fx.sprite({ atlas: fx.atlas, prefix: fx.prefix, fps: fx.fps || 12, loop: false, reversed: fx.reversed,
-        keepLastFrame: fx.keepLastFrame, pxToM: TUNE.fxPxToM, color: fx.tint ? fx.tint.concat(1) : fx.color });
-      h.obj.position.copy(slot.anchor);
-      if (offset) h.obj.position.add(offset);
-      this.stage.addFx(h);
-      let p = h.done;
-      const times = fx.loop || 1;
-      for (let i = 1; i < times; i++) p = p.then(() => this.spriteAt(slot, Object.assign({}, fx, { loop: 1, then: null }), offset));
-      if (fx.then) p = p.then(() => this.spriteAt(slot, fx.then, offset));
-      return p;
+    /* Bung ra từ bóng: bóng mở lóe trắng, Pokémon lớn dần từ 0 rồi hết trắng, kêu. */
+    async popOut(actor, scale) {
+      const big = scale || 1, c = actor.center();
+      const ball = this.addFx(new Ball(actor.mon.ball || 'pokeball'));
+      ball.x = c.x; ball.y = c.y + 20; ball.open = true;
+      sfx('open');
+      this.addFx(new Particles('#ffffff').burst(c.x, c.y, 10, 120));
+      actor.hidden = false; actor.white = 1; actor.scale = 0;
+      await this.tween(0.3, (k) => { actor.scale = big * ease(k); ball.alpha = 1 - k; });
+      if (actor.mon.shiny) { sfx('shiny'); this.sparkle(actor, '#fff6a0', 18); }
+      P1.audio.cry(actor.mon.dex);
+      await this.tween(0.25, (k) => { actor.white = 1 - k; });
+      ball.alpha = 0;
+      await this.wait(0.25);
+    },
+    async recall(actor) {
+      actor.white = 1;
+      await this.tween(0.3, (k) => { actor.scale = 1 - ease(k); });
+      actor.hidden = true; actor.white = 0; actor.scale = 1;
     },
 
-    /* ------------------------------------------------ chọn hành động */
-
-    setMode(m) {
-      this.mode = m;
-      const menu = m === 'busy' || m === 'learn' || m === 'end' ? null : m;
-      this.hud.setMenu(menu);
-      if (m !== 'moves') this.moveTip(null);
-      if (m === 'moves') this.fillMoves();
-      if (m === 'party' || m === 'forced' || m === 'learnTarget') this.fillParty();
-      if (m === 'items') this.fillItems();
+    setBox(side, mon, hp, max) {
+      const prev = this.box[side];
+      this.box[side] = { mon, hp, max, shown: hp, level: mon.level, status: mon.status || '', exp: side === 'p1' ? expRatio(mon) : 0,
+        slide: prev ? prev.slide : (side === 'p2' ? -220 : 220), alpha: prev ? prev.alpha : 0 };
     },
-    choose(mode, req) {
-      this.req = req || this.req;
-      return new Promise((res) => { this.pick = (a) => { this.pick = null; res(a); }; this.setMode(mode); });
+    async tweenHp(side, hp) {
+      const b = this.box[side];
+      if (!b) return;
+      const from = b.shown, to = Math.max(0, Math.min(b.max, hp));
+      b.hp = to;
+      const d = 0.25 + 0.9 * Math.abs(to - from) / Math.max(1, b.max);
+      await this.tween(d, (k) => { b.shown = from + (to - from) * k; });
     },
-    send(action) { if (this.pick) { P1.audio.sfx('notify', { volume: 0.4 }); this.pick(action); } },
 
-    fillMoves() {
-      const b = this.battle, act = b.active('p1'), sim = b.simMon('p1', act.index);
-      for (let k = 0; k < 4; k++) {
-        const path = 'Attacks/Attacks/Button - Attack ' + (k + 1);
-        const slot = act.mon.moves[k], ms = sim.moveSlots[k];
-        const n = this.hud.node(path);
-        n.active = !!slot;
-        if (!slot) continue;
-        const mv = P1.Dex.moves.get(slot.id);
-        this.hud.label(path + '/Label - Attack Name', mv.name);
-        this.hud.label(path + '/Label - PP', (ms ? ms.pp : slot.pp) + '/' + slot.ppMax);
-        n.moveId = mv.id;
-        const r = this.req && this.req.moves && this.req.moves[k];
-        this.hud.kit.enable(path, !(r && (r.disabled || r.pp === 0)) && !(ms && ms.pp === 0));
+    /* ------------------------------------------------ hiệu ứng thân Pokémon */
+
+    async lunge(actor, mv) {
+      const dir = actor.side === 'p1' ? 1 : -1;
+      if (mv.category === 'Physical') {
+        await this.tween(0.12, (k) => { actor.dx = 34 * dir * ease(k); actor.dy = -20 * dir * ease(k); });
+        await this.tween(0.16, (k) => { actor.dx = 34 * dir * (1 - k); actor.dy = -20 * dir * (1 - k); });
+      } else {
+        await this.tween(0.1, (k) => { actor.dy = -8 * Math.sin(k * Math.PI); });
+        await this.tween(0.1, (k) => { actor.dy = -8 * Math.sin(k * Math.PI); });
       }
-      this.hud.refresh();
+      actor.dx = 0; actor.dy = 0;
     },
-
-    fillParty() {
-      const b = this.battle, cur = b.active('p1');
-      const grid = this.hud.node('Battle Pokemon/Content/Grid');
-      grid.kids.forEach((n, i) => {
-        const m = P1.state.party[i];
-        n.active = !!m;
-        if (!m) return;
-        const sim = b.order.includes(i) ? b.simMon('p1', i) : null;
-        const hp = sim ? sim.hp : m.hp, max = sim ? sim.maxhp : P1.mon.stats(m).hp;
-        const gender = m.gender === 'M' ? ' [M]' : m.gender === 'F' ? ' [F]' : '';
-        this.hud.label(n.path + '/Content/Label - Name', (cur && cur.index === i ? '[53ff1a]' : '') + P1.mon.name(m) + gender + (cur && cur.index === i ? '[-]' : ''));
-        this.hud.label(n.path + '/Content/Label - Level', '[Lv]' + m.level);
-        this.hud.label(n.path + '/Content/Label - Health', hp + '/' + max);
-        const bar = this.hud.node(n.path + '/Content/Sprite - Health Back/Sprite - Health');
-        if (bar.fullW === undefined) bar.fullW = bar.w.size[0];
-        const r = max ? hp / max : 0;
-        bar.w.size = [Math.max(2, Math.round(bar.fullW * r)), bar.w.size[1]];
-        bar.w.sprite = r > 0.5 ? 'Battle_bar_hp_fill' : r > 0.2 ? 'Battle_bar_hp_fill_yellol' : 'Battle_bar_hp_low';
-        bar.active = hp > 0;
-        const st = this.hud.node(n.path + '/Content/Sprite - Status');
-        const s = hp <= 0 ? 'fnt' : (sim ? sim.status : m.status);
-        st.active = !!(SWITCH_STATUS[s] || s === 'fnt');
-        if (st.active) st.w.sprite = s === 'fnt' ? 'Icon_Status_Fainted' : SWITCH_STATUS[s];
-        this.hud.kit.enable(n.path, hp > 0 && !(cur && cur.index === i && this.mode !== 'learnTarget'));
-      });
-      this.hud.refresh();
+    hit(actor) {
+      const flash = P1.settings.battleFlash !== false;
+      this.tween(0.42, (k) => {
+        actor.dx = Math.round(Math.sin(k * Math.PI * 7) * 6 * (1 - k));
+        actor.blink = flash && k < 0.9 && Math.floor(k * 10) % 2 === 1;
+      }).then(() => { actor.dx = 0; actor.blink = false; });
     },
-
-    bagItems() {
-      const bag = P1.state.bag || {};
-      const byId = {};
-      for (const it of Object.values(P1.ITEMS || {})) byId[BAG_ALIAS[it.battleId] || it.battleId] = byId[BAG_ALIAS[it.battleId] || it.battleId] || it;
-      const out = [];
-      for (const [key, qty] of Object.entries(bag)) {
-        if (!(qty > 0)) continue;
-        const it = byId[key];
-        const tab = P1.BALLS[key] ? 'Pokeball' : P1.ITEM_EFFECT[key] ? (/berry$/.test(key) ? 'Berries' : 'Medicine') : null;
-        if (!tab) continue;
-        out.push({ key, qty, tab, name: it ? it.name : key, img: it && it.img });
-      }
-      return out;
+    sparkle(actor, colour, n) {
+      const c = actor.center();
+      this.addFx(new Particles(colour).sparkle(c.x, c.y, c.h, n || 14));
     },
-    fillItems() {
-      const ui = this.hud;
-      if (!this.itemTab) this.itemTab = this.args.kind === 'wild' ? 'Pokeball' : 'Medicine';
-      const grid = ui.node('Panel - Inventory Items/Grid');
-      for (const k of grid.kids.slice()) ui.kit.remove(k);
-      const list = this.bagItems().filter((x) => x.tab === this.itemTab);
-      list.forEach((x, i) => {
-        const n = ui.kit.add('Panel - Inventory Items/Grid', 'prefab:Inventory Item', 'item_' + x.key);
-        ui.label(n.path + '/Label - Name', x.name);
-        ui.label(n.path + '/Label - QTY', 'x' + x.qty);
-        if (x.img) ui.kit.texture(n.path + '/Sprite/Texture - Icon', x.img);
-        ui.kit.on(n.path, () => this.useItem(x));
-        n.item = x;
-      });
-      for (const t of ['General', 'Pokeball', 'Medicine', 'TM', 'Berries', 'Hold']) {
-        ui.kit.color('Battle Items/Sprite - Window/Tab - ' + t, t === this.itemTab ? '#ffffffff' : '#9a9a9aff');
-      }
-      ui.refresh();
+    async pulse(actor, colour, times) {
+      actor.tint = colour;
+      await this.tween(0.25 * (times || 2), (k) => { actor.tintA = 0.55 * Math.abs(Math.sin(k * Math.PI * (times || 2))); });
+      actor.tintA = 0;
     },
-    useItem(x) {
-      if (this.mode !== 'items') return;
-      if (x.tab === 'Pokeball') {
-        if (this.args.kind !== 'wild') { this.hud.log("You can't catch another Trainer's Pokémon!"); return; }
-        this.consume(x.key);
-        this.send({ type: 'ball', ball: x.key });
+    /* Hoạt ảnh PRO (dải khung) lên phía `land`; chờ tối đa 1.6 s. */
+    async sheet(anim, land) {
+      const at = anim.place === 'scene' ? { x: SCENE_C.x, y: SCENE_C.y } : land.center();
+      await Promise.race([P1.img(anim.img).catch(() => null), this.wait(1.2)]);
+      const f = this.addFx(new SheetFx(anim, at));
+      await this.wait(Math.min(1.6, f.dur));
+    },
+    async moveFx(mv, src, land) {
+      const colour = TYPE_COLOUR[mv.type] || '#fff';
+      const anim = moveAnim(mv, land.side);
+      if (anim) {
+        const own = !!(ANIM().moves[mv.id]);
+        const p = this.sheet(anim, land);
+        if (!own && mv.type !== 'Normal') { const c = land.center(); this.addFx(new Particles(colour).burst(c.x, c.y, 10, 130)); }
+        await p;
         return;
       }
-      this.pendingItem = x;
-      this.setMode('learnTarget');
-    },
-    consume(key) { P1.state.bag[key] = Math.max(0, (P1.state.bag[key] || 0) - 1); },
-
-    wireUi() {
-      const k = this.hud.kit;
-      k.on('Button - Attack', () => { if (this.pick && this.mode === 'menu') this.setMode('moves'); });
-      k.on('Button - Pokemon', () => { if (this.pick && !['forced', 'learnTarget'].includes(this.mode)) this.setMode(this.mode === 'party' ? 'menu' : 'party'); });
-      k.on('Button - Items', () => { if (this.pick && !['forced'].includes(this.mode)) this.setMode(this.mode === 'items' ? 'menu' : 'items'); });
-      k.on('Button - Run', () => { if (this.pick && this.args.kind === 'wild') this.send({ type: 'run' }); });
-      k.on('Attacks/No Button', () => { if (this.mode === 'moves') this.setMode('menu'); });
-      for (let i = 1; i <= 4; i++) {
-        const n = k.on('Attacks/Attacks/Button - Attack ' + i, (b) => { if (this.mode === 'moves' && b.state !== 'disabled') this.send({ type: 'move', slot: i }); });
-        // AttackButton.OnHover → BattleMoveDescription ("UIWidget - Mouse Over Move"): hệ tô theo TypeColours.
-        n.el.addEventListener('pointerenter', (ev) => { if (ev.pointerType !== 'touch' && this.mode === 'moves') this.moveTip(n.moveId); });
-        n.el.addEventListener('pointerleave', () => this.moveTip(null));
+      if (mv.category === 'Status') {
+        this.sparkle(land, colour, 16);
+        await this.wait(0.6);
+        return;
       }
-      const grid = this.hud.node('Battle Pokemon/Content/Grid');
-      grid.kids.forEach((n, i) => k.on(n.path, () => this.pickParty(i)));
-      for (const t of ['General', 'Pokeball', 'Medicine', 'TM', 'Berries', 'Hold']) {
-        k.on('Battle Items/Sprite - Window/Tab - ' + t, () => { this.itemTab = t; if (this.mode === 'items') this.fillItems(); });
-      }
-    },
-    moveTip(id) {
-      const T = 'Attacks/UIWidget - Mouse Over Move';
-      const tip = this.hud.node(T);
-      if (!id) { tip.w.color = '#ffffff00'; this.hud.refresh(); return; }
-      const mv = P1.Dex.moves.get(id);
-      this.hud.label(T + '/Label - Movename', mv.name);
-      this.hud.label(T + '/Sprite - Type/lblType', mv.type);
-      this.hud.kit.color(T + '/Sprite - Type', TYPE_COLOUR()[TYPES.indexOf(mv.type)] || '#ffffffff');
-      const cat = this.hud.node(T + '/Sprite - Move Type');
-      cat.active = mv.category !== 'Status';
-      if (cat.active) cat.w.sprite = mv.category === 'Physical' ? 'physical' : 'special';
-      this.hud.label(T + '/Label - Stats', 'Base Power: ' + (mv.basePower || '-') + '\nAccuracy: ' + (mv.accuracy === true ? '-' : mv.accuracy));
-      this.hud.label(T + '/Label - Description', (P1.MOVE_DESC && P1.MOVE_DESC[mv.id]) || mv.shortDesc || '');
-      tip.w.color = '#ffffffff';
-      this.hud.refresh();
-    },
-    pickParty(i) {
-      const n = this.hud.node('Battle Pokemon/Content/Grid').kids[i];
-      if (!this.pick || n.state === 'disabled') return;
-      if (this.mode === 'learnTarget') {
-        const x = this.pendingItem;
-        this.consume(x.key);
-        this.send({ type: 'item', item: x.key, index: i });
-      } else if (this.mode === 'party' || this.mode === 'forced') this.send({ type: 'switch', index: i });
-    },
-
-    /* Phím: bảng theo chế độ. Space/Enter xác nhận, Esc/Backspace lùi, 1–4 chọn chiêu. */
-    keys() {
-      const inp = P1.input, keysFor = KEYS[this.mode];
-      if (!keysFor || (!this.pick && this.mode !== 'learn')) { inp.clear(); return; }
-      for (const a of ['a', 'b', 'menu', '1', '2', '3', '4']) {
-        if (!inp.take(a)) continue;
-        const k = KEYS[this.mode];
-        if (k && k[a] && (this.pick || this.mode === 'learn')) k[a].call(this);
-      }
+      const a = src.center(), b = land.center();
+      this.addFx(new Particles(colour).fly({ x: a.x, y: a.y }, { x: b.x, y: b.y }, 0.4));
+      await this.wait(0.55);
     },
 
     /* ------------------------------------------------ EXP, lên cấp, học chiêu */
 
     async awardExp(foeMon) {
+      if (this.boss) return;
       const gains = this.battle.expFor(foeMon);
       for (const g of gains) {
         const m = P1.state.party[g.index];
         if (!m || m.level >= 100) continue;
         const active = this.battle.active('p1');
         const isActive = active && active.index === g.index;
-        await this.say(nameOf(m, 'p1') + ' gained ' + g.exp + ' EXP!', 0.2);
+        await this.say(nameOf(m) + ' nhận ' + g.exp + ' điểm EXP!', 0.3);
         this.expGained += g.exp;
-        if (isActive) this.floatExp(g.exp);
         const lv0 = m.level, exp0 = m.exp;
         const ev = P1.mon.gainExp(m, g.exp);
         P1.mon.addEvs(m, g.evs || {});
         if (isActive) await this.fillExp(m, lv0, exp0);
         for (const e of ev) {
           if (e.type === 'level') {
+            this.leveled.add(g.index);
             this.battle.applyLevel(g.index);
-            P1.audio.sfx('level_up');
+            sfx('level');
             if (isActive) {
-              const sim = this.battle.simMon('p1', g.index);
-              this.hud.label(BAR.p1 + '/Label - Level', '[Lv]' + e.level);
-              this.hud.setHp('p1', sim.hp, sim.maxhp);
-              this.hud.drawHp('p1');
-              this.spriteAt(this.stage.slots.p1, { atlas: 'fx_test', prefix: 'shine1_', fps: 20, tint: [1, 0.95, 0.6] });
+              const sim = this.battle.simMon('p1', g.index), b = this.box.p1;
+              Object.assign(b, { level: e.level, hp: sim.hp, shown: sim.hp, max: sim.maxhp });
+              this.sparkle(this.actors.p1, '#fff3a0', 18);
+              this.pulse(this.actors.p1, '#ffffff', 2);
             }
-            await this.say(nameOf(m, 'p1') + ' grew to level ' + e.level + '!', 1.2);
+            await this.say(nameOf(m) + ' lên cấp ' + e.level + '!', 1.1);
           } else if (e.type === 'learn') await this.learnMove(m, e.move);
         }
-        if (isActive) this.hud.setExp(expRatio(m));
+        if (isActive && this.box.p1) this.box.p1.exp = expRatio(m);
       }
     },
-    floatExp(n) {
-      const ui = this.hud;
-      const node = ui.kit.add(BAR.p1, 'prefab:EXP Gain', 'EXP Gain ' + (this.clock.t | 0));
-      ui.label(node.path, '+' + n + ' EXP');
-      const spr = ui.ui.find(node.path + '/Sprite'); if (spr) spr.active = false;
-      const x0 = node.pos[0];
-      this.clock.tween(0.75, (k) => {
-        node.pos[0] = x0 - 30 * k;
-        node.w.color = '#ffffff' + Math.round((1 - k) * 255).toString(16).padStart(2, '0');
-        node.drawn = null; ui.refresh();
-      }).then(() => ui.kit.remove(node));
-    },
     async fillExp(m, lv0, exp0) {
+      const b = this.box.p1;
       let lv = lv0, e = exp0;
       while (lv < m.level) {
         const a = expRatioAt(m.dex, lv, e);
-        await this.clock.tween(0.5 * (1 - a), (k) => this.hud.setExp(a + (1 - a) * k));
+        await this.tween(0.6 * (1 - a), (k) => { b.exp = a + (1 - a) * k; });
+        sfx('expFull');
         lv++; e = P1.mon.expAt(m.dex, lv);
-        this.hud.setExp(0);
+        b.exp = 0;
       }
-      const a = expRatioAt(m.dex, lv, e), b = expRatio(m);
-      await this.clock.tween(0.5 * Math.max(0.1, b - a), (k) => this.hud.setExp(a + (b - a) * k));
+      const a = expRatioAt(m.dex, lv, e), z = expRatio(m);
+      await this.tween(0.6 * Math.max(0.15, z - a), (k) => { b.exp = a + (z - a) * k; });
     },
+    /* Đủ 4 chiêu: hỏi quên chiêu nào qua P1.ui.learnMove (menus.js); chưa có UI thì bỏ qua như "không học". */
     async learnMove(m, moveId) {
       const mv = P1.Dex.moves.get(moveId);
+      const sim = this.battle.simMon('p1', P1.state.party.indexOf(m));
       if (m.moves.length < 4) {
         P1.mon.learn(m, moveId);
-        P1.audio.sfx('tm', { volume: 0.6 });
-        await this.say(nameOf(m, 'p1') + ' learned ' + Y(mv.name) + '!', 1);
+        if (sim) syncMovesToSim(sim, m);
+        sfx('level');
+        await this.say(nameOf(m) + ' học được ' + Y(mv.name) + '!', 1);
         return;
       }
-      const choice = await this.learnPrompt(m, mv);
-      if (choice == null) { await this.say(nameOf(m, 'p1') + ' did not learn ' + Y(mv.name) + '.', 0.8); return; }
-      const old = P1.Dex.moves.get(m.moves[choice].id).name;
-      P1.mon.learn(m, moveId, choice);
-      P1.audio.sfx('tm', { volume: 0.6 });
-      await this.say(nameOf(m, 'p1') + ' forgot ' + Y(old) + ' and learned ' + Y(mv.name) + '!', 1);
-    },
-    /* "Panel - Learn Move" (LearnHandler): 4 nút quên chiêu + "Do not learn this move". */
-    learnPrompt(m, mv) {
-      if (!this.learnUi) {
-        this.learnUi = P1.ngui.build('Widget - Hidden During Battle Or Script', this.host, {});
-        this.learnUi.show('Panel - Learn Evolution', false);
-      }
-      const ui = this.learnUi;
-      const W = 'Panel - Learn Move/Sprite - Window';
-      ui.show('Panel - Learn Move', true);
-      ui.ui.need('Panel - Learn Move').alpha = 1;
-      ui.label(W + '/Label - Learning', '[FF9900]' + P1.mon.name(m) + '[-] is trying to learn [FF9900]' + mv.name + '[-], Should it forget another move to learn it?');
-      ui.label(W + '/Sprite - Info Background/Label - Title PP', '[FF9900]' + mv.name + '[-]\nPP ' + mv.pp);
-      ui.label(W + '/Sprite - Info Background/Label - Accuracy', mv.accuracy === true ? '-' : mv.accuracy + '%');
-      ui.label(W + '/Sprite - Info Background/Label - Power', mv.basePower ? String(mv.basePower) : '-');
-      ui.label(W + '/Sprite - Info Background/Label - Description', (P1.MOVE_DESC && P1.MOVE_DESC[mv.id]) || mv.shortDesc || mv.desc || '');
-      ui.sprite(W + '/Sprite - Info Background/Sprite - Type', mv.type.toLowerCase());
-      ui.sprite(W + '/Sprite - Info Background/Sprite - Damage Type', mv.category === 'Physical' ? 'physical' : 'special');
-      ui.ui.need(W + '/Sprite - Info Background/Sprite - Damage Type').active = mv.category !== 'Status';
-      ui.texture(W + '/Sprite - Platform/Texture - Pokemon', 'art/sprite/poke/big/' + m.dex + '.png');
-      ui.show(W + '/Widget - Mouse Over Description', false);
-      const btns = ['Button - Learn Move', 'Button - Learn Move (1)', 'Button - Learn Move (2)', 'Button - Learn Move (3)'];
-      btns.forEach((b, i) => ui.label(W + '/' + b + '/Label', 'Forget ' + P1.Dex.moves.get(m.moves[i].id).name));
+      if (!(P1.ui && P1.ui.learnMove)) { await this.say(nameOf(m) + ' không học ' + Y(mv.name) + '.', 0.8); return; }
+      await this.say(nameOf(m) + ' muốn học ' + Y(mv.name) + '...', 0.3);
       this.setMode('learn');
-      return new Promise((res) => {
-        const done = (v) => { this.learnDone = null; ui.show('Panel - Learn Move', false); this.setMode('busy'); res(v); };
-        this.learnDone = done;
-        if (!this.learnWired) {
-          this.learnWired = true;
-          btns.forEach((b, i) => ui.on(W + '/' + b, () => this.learnDone && this.learnDone(i)));
-          ui.on(W + '/Button - Dont Learn', () => this.learnDone && this.learnDone(null));
-        }
-      });
+      const before = m.moves.map((s) => s.id);
+      const slot = await P1.ui.learnMove(m, moveId);
+      this.setMode('busy');
+      if (slot == null) { await this.say(nameOf(m) + ' không học ' + Y(mv.name) + '.', 0.8); return; }
+      if (sim) syncMovesToSim(sim, m);
+      await this.say(nameOf(m) + ' quên ' + Y(P1.Dex.moves.get(before[slot]).name) + ' và học được ' + Y(mv.name) + '!', 1);
     },
 
     /* ------------------------------------------------ kết thúc */
 
     async finish() {
-      const b = this.battle, res = b.result;
+      const b = this.battle;
+      let res = b.result;
+      if (this.boss) {
+        this.boss.report(b.dealt);
+        if (!res) { res = this.boss.sharedHp() <= 0 ? 'win' : 'lose'; b.finish(res); }
+        if (res === 'win') {
+          const foe = this.actors.p2;
+          if (!foe.hidden && foe.alpha > 0) await this.tween(0.6, (k) => { foe.sink = 90 * k; foe.alpha = 1 - k; });
+          await this.say('Boss ' + nameOf(foe.mon) + ' đã bị hạ!', 1);
+        }
+      }
       const out = { outcome: res === 'tie' ? 'lose' : res };
-      if (res === 'win' && this.args.kind === 'trainer') {
+      if (res === 'win' && this.kind === 'trainer') {
         const top = Math.max(...this.args.foe.map((m) => m.level));
         const money = this.args.money != null ? this.args.money : top * 24;   // (đoán) chưa có công thức gốc
         P1.state.money += money;
         out.money = money;
-        P1.audio.sfx('badge', { volume: 0.5 });
-        await this.say('You got [PD]' + money + ' for winning!', 1.2);
+        await this.say('Nhận ' + money + ' ₽ tiền thưởng!', 1);
       }
-      if (res === 'win') await this.say(this.trainerName() + "'s team won the battle!", TUNE.textPause);
-      if (res === 'lose') await this.say("Enemy's team won the Battle!", 1.5);
+      if (res === 'win' && !this.boss) await this.say(this.trainerName() + ' đã thắng!', 0.8);
+      if (out.outcome === 'lose') await this.say('Cả đội đã gục ngã...', 1.2);
       if (res === 'caught') {
         const m = b.caught;
         m.ot = P1.state.player.name; m.metAt = this.args.where || ''; m.metLevel = m.level;
         P1.caught(m.dex);
         if (P1.state.party.length < 6) P1.state.party.push(m); else P1.state.box.push(m);
         out.caught = m;
-        if (P1.state.party.indexOf(m) < 0) await this.say(nameOf(m, 'p2') + ' was sent to the PC.', 1);
+        if (P1.state.party.indexOf(m) < 0) await this.say(nameOf(m) + ' được gửi về PC.', 1);
       }
       out.exp = this.expGained;
-      out.evolve = P1.state.party.map((m, i) => ({ index: i, dex: P1.mon.evolution(m) })).filter((x) => x.dex && this.leveled && this.leveled.has(x.index));
+      out.evolve = P1.state.party.map((m, i) => ({ index: i, dex: P1.mon.evolution(m) })).filter((x) => x.dex && this.leveled.has(x.index));
+      if (this.boss) out.dealt = b.dealt;
       this.setMode('end');
-      await this.wait(0.6);
+      await this.wait(0.5);
       if (typeof this.args.onEnd === 'function') {
-        P1.fx.flash(this.host, '#000', 0.6);
-        await this.wait(0.3);
+        await this.tween(0.3, (k) => { this.fade = k; });
         this.args.onEnd(out);
         return;
       }
       this.result = out;
-      this.showRestart(out);
+      this.showEnd(out);
     },
-    showRestart(out) {
-      const ui = this.endUi = P1.ngui.build('Widget - Hidden During Battle Or Script', this.host, {});
-      ui.show('Panel - Learn Move', false);
-      ui.show('Panel - Learn Evolution', true);
-      ui.ui.need('Panel - Learn Evolution').alpha = 1;
-      const W = 'Panel - Learn Evolution/Sprite - Window';
-      const text = { win: 'You won the battle!', lose: 'You lost the battle.', caught: 'You caught ' + (out.caught ? P1.mon.name(out.caught) : '') + '!', ran: 'You got away safely!' }[out.outcome] || out.outcome;
-      ui.label(W + '/Label - Evolving', '[FF9900]' + text + '[-]\nBattle again?');
-      ui.label(W + '/Sprite - Info Background/Button - Yes/Label', 'Again');
-      ui.label(W + '/Sprite - Info Background/Button - No/Label', 'Close');
-      const lead = this.stage.slots.p1.mon || P1.state.party[0];
-      ui.texture(W + '/Sprite - Platform/Texture - Pokemon', 'art/sprite/poke/big/' + lead.dex + '.png');
-      ui.on(W + '/Sprite - Info Background/Button - Yes', () => this.restart());
-      ui.on(W + '/Sprite - Info Background/Button - No', () => ui.show('Panel - Learn Evolution', false));
+    /* Chỉ khi vào thẳng trận bằng ?battle= (không có onEnd): hộp "đánh lại". */
+    showEnd(out) {
+      const box = el('div', 'pb-end', this.root);
+      P1.proui.apply(box, 'Battle_Chatbox');
+      const text = { win: 'Bạn đã thắng!', lose: 'Bạn đã thua.', ran: 'Đã rời trận.', caught: 'Bắt được ' + (out.caught ? P1.mon.name(out.caught) : '') + '!' }[out.outcome] || out.outcome;
+      el('div', 't', box).textContent = text;
+      [['again', 'Đánh lại', () => this.restart()], ['close', 'Đóng', () => box.remove()]].forEach(([k, label, fn]) => {
+        const btn = el('div', 'pb-btn', box);
+        btn.dataset.b = k;
+        P1.proui.apply(btn, 'Battle_attack_normal');
+        btn.textContent = label;
+        btn.addEventListener('click', fn);
+      });
     },
     restart() {
       for (const m of P1.state.party) P1.mon.heal(m);
@@ -1101,410 +1159,278 @@
     },
   };
 
-  const nameOf = (m) => '[' + NAME_COLOUR + ']' + P1.mon.name(m) + '[-]';
-  const expRatioAt = (dex, lv, exp) => {
-    if (lv >= 100) return 1;
-    const a = P1.mon.expAt(dex, lv), b = P1.mon.expAt(dex, lv + 1);
-    return Math.max(0, Math.min(1, (exp - a) / Math.max(1, b - a)));
-  };
-  const expRatio = (m) => expRatioAt(m.dex, m.level, m.exp);
+  let fontFamily = '';
+  const FONT = () => fontFamily || (fontFamily = (getComputedStyle(document.documentElement).getPropertyValue('--p1-font') || '').trim() ||
+    "'Segoe UI', Verdana, Arial, sans-serif");
+
+  /* Sau khi học chiêu giữa trận: đưa chiêu mới vào sim để lượt sau dùng được. */
+  function syncMovesToSim(p, m) {
+    m.moves.forEach((s, k) => {
+      const mv = P1.Dex.moves.get(s.id);
+      const slot = { move: mv.name, id: mv.id, pp: s.pp, maxpp: s.ppMax, target: mv.target, disabled: false, used: false };
+      p.moveSlots[k] = slot; p.baseMoveSlots[k] = Object.assign({}, slot);
+    });
+  }
 
   /* Phím theo chế độ. */
   const KEYS = {
-    menu: { a() { this.setMode('moves'); }, '1'() { this.setMode('moves'); } },
-    moves: {
-      b() { this.setMode('menu'); }, menu() { this.setMode('menu'); },
-      '1'() { this.keyMove(1); }, '2'() { this.keyMove(2); }, '3'() { this.keyMove(3); }, '4'() { this.keyMove(4); },
-      a() { this.keyMove(1); },
-    },
+    menu: { '1'() { this.keyMove(1); }, '2'() { this.keyMove(2); }, '3'() { this.keyMove(3); }, '4'() { this.keyMove(4); } },
     party: { b() { this.setMode('menu'); }, menu() { this.setMode('menu'); } },
     items: { b() { this.setMode('menu'); }, menu() { this.setMode('menu'); } },
     learnTarget: { b() { this.setMode('items'); }, menu() { this.setMode('items'); } },
-    learn: { b() { if (this.learnDone) this.learnDone(null); }, menu() { if (this.learnDone) this.learnDone(null); } },
     forced: {},
-  };
-  scene.keyMove = function (i) {
-    const n = this.hud.ui.find('Attacks/Attacks/Button - Attack ' + i);
-    if (n && n.active && n.state !== 'disabled') this.send({ type: 'move', slot: i });
-  };
-
-  /* ================================================================ bước của NewBattleAnimation */
-
-  const STEP = {
-    Wait() {},
-    SpriteAnimation(st, ctx) {
-      const slot = this.targetOf(st.target, ctx);
-      if (!slot || !slot.root) return null;
-      const off = st.pos ? new THREE.Vector3(-st.pos[0], st.pos[1], st.pos[2]) : null;
-      if (off && ctx.target && slot.side === 'p2' && st.reverseZonEnemies) off.z = -off.z;
-      return this.spriteAt(slot, { atlas: st.atlas, prefix: st.prefix, fps: st.fps, reversed: st.reversed, keepLastFrame: st.keepLastFrame, color: st.color }, off);
-    },
-    TweenColor(st, ctx) {
-      const slot = this.targetOf(st.target, ctx);
-      if (!slot || !slot.setAlpha) return null;
-      const a = st.color || [1, 1, 1, 0], b = st.color2 || [1, 1, 1, 1];
-      return this.clock.tween(st.duration || 0.5, (k) => {
-        slot.setAlpha(a[3] + (b[3] - a[3]) * k);
-        slot.setTint([0, 1, 2].map((j) => a[j] + (b[j] - a[j]) * k));
-      });
-    },
-    TweenPosition(st, ctx) {
-      const bar = ctx.bar;
-      if (!bar) return null;
-      const dx = st.pos ? st.pos[0] : 0;
-      return this.clock.tween(st.duration || 0.3, (k) => this.hud.kit.offset(bar, dx * ease(k), 0));
-    },
-    Shake(st, ctx) {
-      const slot = this.targetOf(st.target, ctx);
-      if (!slot || !slot.root) return null;
-      const amp = 0.12, dur = st.duration || 0.4;
-      return this.clock.tween(dur, (k) => { slot.root.position.x = slot.home.x + Math.sin(k * Math.PI * 8) * amp * (1 - k); });
-    },
-    ChangeBattleCamera(st) { this.stage.cam.set(st.camera || 'Default'); },
-    SoundEffect(st) { if (st.audio) P1.audio.sfx(String(st.audio).toLowerCase().replace(/ /g, '_')); },
   };
 
   /* ================================================================ DIRECTOR: sự kiện Showdown → trình diễn */
 
-  function parseHp(s) {
-    const m = /^(\d+)(?:\/(\d+))?/.exec(s || '');
-    return m ? { hp: +m[1], max: m[2] ? +m[2] : null } : { hp: 0, max: null };
-  }
-
   const DIRECTOR = {
-    /*
-     * Thả Pokémon giữa trận: BattleHandler.SendOutPokemon. Rút về = TweenScale 0 trong 0.5 s + wait 1.0;
-     * thả ra = (Rotate) máy ảnh bám con đó, wait 0.2, TweenScale 0.5 s, cry, clip "1", wait 0.5, camera Default.
-     * Log gốc không ghi dòng nào khi đổi Pokémon.
-     */
+    /* Vào sân: mở màn chỉ gán; giữa trận thì con cũ về bóng rồi con mới bung ra. */
     async switch(e) {
       const w = this.battle.who(e.args[0]);
-      const slot = this.stage.slots[w.side];
-      if (slot.mon) {
-        const s0 = slot.root.scale.x;
-        await this.clock.tween(0.5, (k) => slot.root.scale.setScalar(s0 * (1 - k)));
-        await this.wait(1.0);
-      }
-      await slot.load(w.mon);
-      const hp = parseHp(e.args[2]);
-      this.hud.setMon(w.side, w.mon, hp.hp, hp.max || this.maxHp(e.args[0]), { wild: this.args.kind === 'wild' });
-      if (w.side === 'p1') this.hud.setExp(expRatio(w.mon));
+      const actor = this.actors[w.side];
+      const hp = parseHp(e.args[2]), sim = this.battle.simMon(w.side, w.index);
+      const max = sim.maxhp;
       if (w.side === 'p2') P1.seen(w.mon.dex);
-      slot.root.scale.setScalar(0);
-      if (this.intro) return;     // mở màn: StartUp diễn riêng
-      this.stage.cam.focus(slot);
-      await this.wait(0.2);
-      this.clock.tween(0.5, (k) => slot.root.scale.setScalar(k));
-      if (w.mon.shiny) { P1.audio.sfx('gen_4_shiny_edit2'); await this.wait(0.65); }
-      P1.audio.cry(w.mon.dex);
-      await slot.play('roar').done;
-      await this.wait(0.5);
-      this.stage.cam.set('Default');
-      this.stage.cam.release();
+      // Mở màn: lấy HP từ sim (dòng switch đầu ghi HP trước khi maxHp của boss được đặt).
+      if (this.introPhase) { actor.set(w.mon); actor.hidden = true; this.setBox(w.side, w.mon, sim.hp, max); return; }
+      if (actor.mon && !actor.hidden) {
+        if (w.side === 'p1') await this.say(nameOf(actor.mon) + ', quay về!', 0.2);
+        await this.recall(actor);
+      }
+      await P1.img(monUrl(w.mon, w.side === 'p1' ? 'back' : 'front')).catch(() => null);
+      actor.set(w.mon);
+      actor.hidden = true;
+      this.setBox(w.side, w.mon, hp.hp, max);
+      this.box[w.side].alpha = 1; this.box[w.side].slide = 0;
+      if (w.side === 'p1') await this.say('Tiến lên! ' + nameOf(w.mon) + '!', 0.1);
+      else await this.say('[ff6666]' + (this.args.name || 'Đối thủ') + '[-] tung ra ' + nameOf(w.mon) + '!', 0.1);
+      await this.popOut(actor);
     },
     async drag(e) { return DIRECTOR.switch.call(this, e); },
     async replace(e) { return DIRECTOR.switch.call(this, e); },
 
-    /* "X used [ffff00]Move[-]!" (logText nhanh), rồi PlayAttackAnimation: clip "8" vật lý / "9" đặc biệt / "13" trạng thái, wait 1.0. */
     async move(e) {
-      const src = this.slotOf(e.args[0]), tgt = this.slotOf(e.args[2]) || (src === this.stage.slots.p1 ? this.stage.slots.p2 : this.stage.slots.p1);
+      const src = this.actorOf(e.args[0]);
+      if (!src) return;
+      const tgt = this.actorOf(e.args[2]) || this.other(src);
       const mv = P1.Dex.moves.get(e.args[1]);
-      await this.say(this.nameOf(e.args[0]) + ' used ' + Y(mv.name) + '!', TUNE.textFast);
+      await this.say(this.nameOf(e.args[0]) + ' dùng ' + Y(mv.name) + '!', 0.25);
       if (e.kw.still || e.kw.notarget) return;
-      const role = mv.category === 'Physical' ? 'attack' : mv.category === 'Special' ? 'special'
-        : (src.clips.hit2 && src.clips.hit2 !== src.clips.hit ? 'hit' : 'special2');
-      src.play(role);
-      await this.wait(1.0);
-      const selfTarget = mv.target === 'self' || mv.target === 'allySide' || mv.target === 'adjacentAllyOrSelf';
-      this.lastMove = { mv, on: selfTarget ? src : tgt };
-      // Chiêu không gây sát thương: bản gốc không diễn gì thêm. Bản web chiếu hoạt ảnh atlas lên mục tiêu (đoán).
-      if (mv.category === 'Status' && !e.kw.miss) await Promise.race([this.spriteAt(this.lastMove.on, moveFx(mv)), this.wait(0.9)]);
+      await this.lunge(src, mv);
+      if (e.kw.miss) return;
+      await this.moveFx(mv, src, SELF_TARGET.has(mv.target) ? src : tgt);
     },
 
-    async '-supereffective'() { this.eff = 'super'; await this.say("It's super effective!", TUNE.textFast); },
-    async '-resisted'() { this.eff = 'weak'; await this.say("It's not very effective.", TUNE.textFast); },
-    async '-crit'() { await this.say('A critical hit!', TUNE.textFast); },
-    async '-immune'(e) { await this.say("It doesn't affect " + this.nameOf(e.args[0]) + '!'); },
-    async '-miss'(e) { await this.say(this.nameOf(e.args[0]) + "'s attack missed!"); },
-    async '-fail'() { await this.say('But it failed!'); },
-    async '-ohko'() { await this.say("It's a one-hit KO!"); },
-    async '-hitcount'(e) { await this.say('Hit ' + e.args[1] + (e.args[1] === '1' ? ' time!' : ' times!'), TUNE.textFast); },
+    async '-supereffective'() { await this.say('Hiệu quả tuyệt vời!', 0.3); },
+    async '-resisted'() { await this.say('Không hiệu quả lắm...', 0.3); },
+    async '-crit'() { await this.say('Đòn chí mạng!', 0.3); },
+    async '-immune'(e) { await this.say('Không ảnh hưởng tới ' + this.nameOf(e.args[0]) + '...'); },
+    async '-miss'(e) { await this.say('Đòn của ' + this.nameOf(e.args[0]) + ' trượt!'); },
+    async '-fail'() { await this.say('Nhưng thất bại!'); },
+    async '-ohko'() { await this.say('Hạ gục chỉ một đòn!'); },
+    async '-hitcount'(e) { await this.say('Trúng ' + e.args[1] + ' lần!', 0.3); },
 
-    /*
-     * Trúng đòn: tiếng theo hiệu quả (Attack_Hit_Super_Effective / _Weak_Not_Very_Effective / _Damage),
-     * PlayAttackEffect = clip "14" + prefab "Default Hit" ở xương Head, chờ hết clip, rồi ChangeHealth.
-     */
+    /* Trúng đòn: tiếng theo hiệu quả (xem các dòng -supereffective/-resisted quanh đó), rung + nháy, rồi thanh máu tụt. */
     async '-damage'(e, list, i) {
       const w = this.battle.who(e.args[0]);
-      const slot = this.stage.slots[w.side];
-      const hp = parseHp(e.args[1]);
+      if (!w) return;
+      const actor = this.actors[w.side], hp = parseHp(e.args[1]);
       const from = e.kw.from || '';
       if (!from) {
         const near = list.slice(Math.max(0, i - 3), i + 3).filter((x) => x.args[0] === e.args[0]).map((x) => x.cmd);
-        const eff = near.includes('-supereffective') ? 'super' : near.includes('-resisted') ? 'weak' : this.eff;
-        P1.audio.sfx(eff === 'super' ? 'attack_hit_super_effective' : eff === 'weak' ? 'attack_hit_weak_not_very_effective' : 'attack_hit_damage');
-        this.eff = null;
-        const clip = slot.play('hit2');
-        const hit = DATA().hit;
-        if (hit && hit.particles) this.stage.addFx(P1.fx.group(hit.particles, { origin: slot.head(), scale: hit.scale || 1, pxScale: this.stage.pxScale(P1.renderer()) }));
-        if (this.lastMove && this.lastMove.on === slot) this.spriteAt(slot, moveFx(this.lastMove.mv));   // (đoán) VFX atlas theo hệ chiêu
-        if (P1.settings.battleFlash) this.blink(slot);
-        await this.wait(clip.duration || 1.0);
+        sfx(near.includes('-supereffective') ? 'super' : near.includes('-resisted') ? 'weak' : 'damage');
+        this.hit(actor);
+        await this.wait(0.2);
       } else {
         const t = DAMAGE_FROM[from.replace(/^(item|ability|move): /, '').toLowerCase()];
-        await this.say(this.nameOf(e.args[0]) + (t || ' is hurt!'), TUNE.textFast);
+        const st = STATUS_COLOUR[from];
+        if (st) this.sparkle(actor, st, 10);
+        await this.say(this.nameOf(e.args[0]) + (t || ' bị thương!'), 0.3);
+        this.hit(actor);
       }
-      await this.hud.animateHp(w.side, hp.hp, this.clock);
+      await this.tweenHp(w.side, hp.hp);
     },
     async '-heal'(e) {
       const w = this.battle.who(e.args[0]);
-      P1.audio.sfx('attack_heal_refresh', { volume: 0.7 });
-      this.spriteAt(this.stage.slots[w.side], { atlas: 'fx_test', prefix: 'shine1_', fps: 20, tint: [0.6, 1, 0.6] });
-      await this.hud.animateHp(w.side, parseHp(e.args[1]).hp, this.clock);
+      if (!w) return;
+      sfx('heal', { volume: 0.7 });
+      this.sparkle(this.actors[w.side], '#8aff8a', 16);
+      await this.tweenHp(w.side, parseHp(e.args[1]).hp);
       const from = (e.kw.from || '').toLowerCase();
-      if (from.includes('drain')) await this.say(this.nameOf(e.kw.of || e.args[0]) + ' had its energy drained!');
-      else await this.say(this.nameOf(e.args[0]) + (from.startsWith('item') ? ' restored its HP.' : ' restored its HP!'));
+      if (from.includes('drain')) await this.say(this.nameOf(e.kw.of || e.args[0]) + ' bị hút năng lượng!');
+      else await this.say(this.nameOf(e.args[0]) + ' hồi phục HP!');
     },
-    async '-sethp'(e) { const w = this.battle.who(e.args[0]); await this.hud.animateHp(w.side, parseHp(e.args[1]).hp, this.clock); },
-    async '-revive'(e) { const w = this.battle.who(e.args[0]); await this.say(nameOf(w.mon) + ' was revived!'); },
+    async '-sethp'(e) { const w = this.battle.who(e.args[0]); if (w) await this.tweenHp(w.side, parseHp(e.args[1]).hp); },
+    async '-revive'(e) { const w = this.battle.who(e.args[0]); if (w) await this.say(nameOf(w.mon) + ' đã hồi sinh!'); },
 
-    /* "X fainted!" (nhanh), ChangeHealth 0, PlayAnimation(5): clip "17" + anim 5 (Wait 0.4) + Faint_No_Health_Left + wait 0.4. Không có cry. */
+    /* Gục: thanh máu về 0, sprite lún xuống dưới vạch chân và mờ đi. */
     async faint(e) {
       const w = this.battle.who(e.args[0]);
-      const slot = this.stage.slots[w.side];
-      await this.say(this.nameOf(e.args[0]) + ' fainted!', TUNE.textFast);
-      if (this.hud.hp[w.side] && this.hud.hp[w.side].hp > 0) await this.hud.animateHp(w.side, 0, this.clock);
-      slot.play('faint', { hold: true });
-      await this.playAnim(ANIM.faint, { target: slot });
-      P1.audio.sfx('faint_no_health_left');
-      await this.wait(0.4);
-      this.hud.setStatus(w.side, 'fnt');
-      this.hud.balls(w.side, w.side === 'p1' ? P1.state.party.map((m, i) => this.battle.order.includes(i) ? Object.assign({}, m, { hp: this.battle.simMon('p1', i).hp }) : m) : this.args.foe.map((m, i) => Object.assign({}, m, { hp: this.battle.simMon('p2', i).hp })), w.side === 'p1' || this.args.kind !== 'wild');
-      if (w.side === 'p2' && this.battle.active('p1')) {
-        this.leveled = this.leveled || new Set();
-        const before = P1.state.party.map((m) => m.level);
-        await this.awardExp(w.mon);
-        P1.state.party.forEach((m, i) => { if (m.level > before[i]) this.leveled.add(i); });
-      }
+      if (!w) return;
+      const actor = this.actors[w.side], b = this.box[w.side];
+      if (b && b.hp > 0) await this.tweenHp(w.side, 0);
+      sfx('faint');
+      P1.audio.cry(w.mon.dex, { rate: 0.8 });
+      await this.tween(0.55, (k) => { actor.sink = 110 * ease(k); actor.alpha = 1 - k * 0.6; });
+      actor.hidden = true; actor.sink = 0; actor.alpha = 1;
+      this.fainted[w.side].add(w.index);
+      await this.say(this.nameOf(e.args[0]) + ' gục ngã!', 0.5);
+      if (w.side === 'p2' && b && !this.boss) await this.tween(0.25, (k) => { b.alpha = 1 - k; });
+      if (w.side === 'p2' && this.battle.active('p1')) await this.awardExp(w.mon);
     },
 
     async '-status'(e) {
       const w = this.battle.who(e.args[0]);
-      const st = e.args[1];
-      this.hud.setStatus(w.side, st);
-      const fx = STATUS_FX[st];
-      if (fx) this.spriteAt(this.stage.slots[w.side], fx);
-      await this.say(this.nameOf(e.args[0]) + (STATUS_TEXT[st] || ' is afflicted!'));
+      if (!w) return;
+      const st = e.args[1], actor = this.actors[w.side];
+      if (this.box[w.side]) this.box[w.side].status = st;
+      const anim = ANIM().status[st === 'tox' ? 'psn' : st];
+      if (anim) await this.sheet(anim, actor);
+      else { this.sparkle(actor, STATUS_COLOUR[st] || '#fff', 14); this.pulse(actor, STATUS_COLOUR[st] || '#fff', 2); }
+      await this.say(this.nameOf(e.args[0]) + (STATUS_TEXT[st] || ' bị ảnh hưởng!'));
     },
     async '-curestatus'(e) {
       const w = this.battle.who(e.args[0]);
-      this.hud.setStatus(w.side, '');
-      await this.say(this.nameOf(e.args[0]) + (CURE_TEXT[e.args[1]] || "'s status cleared!"));
+      if (!w) return;
+      if (this.box[w.side]) this.box[w.side].status = '';
+      await this.say(this.nameOf(e.args[0]) + (CURE_TEXT[e.args[1]] || ' hết trạng thái xấu.'));
     },
     async '-boost'(e) { await statChange.call(this, e, 1); },
     async '-unboost'(e) { await statChange.call(this, e, -1); },
     async cant(e) {
       const reason = e.args[1] || '';
       const w = this.battle.who(e.args[0]);
-      const fx = STATUS_FX[reason === 'flinch' ? 'flinch' : reason];
-      if (fx && w) this.spriteAt(this.stage.slots[w.side], fx);
-      await this.say(this.nameOf(e.args[0]) + (CANT_TEXT[reason] || " can't move!"));
+      const anim = w && ANIM().status[reason];
+      if (anim) await this.sheet(anim, this.actors[w.side]);
+      await this.say(this.nameOf(e.args[0]) + (CANT_TEXT[reason] || ' không ra đòn được!'));
     },
     async '-start'(e) {
       const eff = (e.args[1] || '').replace(/^move: /, '').toLowerCase();
+      const w = this.battle.who(e.args[0]);
       if (eff === 'confusion') {
-        const w = this.battle.who(e.args[0]);
-        if (w) this.spriteAt(this.stage.slots[w.side], STATUS_FX.confusion);
-        await this.say(this.nameOf(e.args[0]) + ' became confused!');
-      } else if (eff === 'substitute') await this.say(this.nameOf(e.args[0]) + ' put in a substitute!');
-      else if (eff === 'leech seed') await this.say(this.nameOf(e.args[0]) + ' was seeded!');
+        if (w) this.sparkle(this.actors[w.side], '#ffb0ff', 12);
+        await this.say(this.nameOf(e.args[0]) + ' bị rối loạn!');
+      } else if (eff === 'substitute') await this.say(this.nameOf(e.args[0]) + ' tạo ra phân thân!');
+      else if (eff === 'leech seed') await this.say(this.nameOf(e.args[0]) + ' bị gieo hạt!');
     },
     async '-end'(e) {
       const eff = (e.args[1] || '').replace(/^move: /, '').toLowerCase();
-      if (eff === 'confusion') await this.say(this.nameOf(e.args[0]) + ' snapped out of confusion!');
-      else if (eff === 'substitute') await this.say(this.nameOf(e.args[0]) + "'s substitute faded!");
+      if (eff === 'confusion') await this.say(this.nameOf(e.args[0]) + ' hết rối loạn!');
+      else if (eff === 'substitute') await this.say('Phân thân của ' + this.nameOf(e.args[0]) + ' biến mất!');
     },
     async '-activate'(e) {
       const eff = (e.args[1] || '').replace(/^move: /, '').toLowerCase();
+      const w = this.battle.who(e.args[0]);
       if (eff === 'confusion') {
-        const w = this.battle.who(e.args[0]);
-        if (w) this.spriteAt(this.stage.slots[w.side], STATUS_FX.confusion);
-        await this.say(this.nameOf(e.args[0]) + ' is confused!');
-      } else if (eff === 'protect') await this.say(this.nameOf(e.args[0]) + ' protected itself!');
+        if (w) this.sparkle(this.actors[w.side], '#ffb0ff', 12);
+        await this.say(this.nameOf(e.args[0]) + ' đang rối loạn!');
+      } else if (eff === 'protect') await this.say(this.nameOf(e.args[0]) + ' tự bảo vệ!');
     },
     async '-weather'(e) {
       const t = WEATHER_TEXT[e.args[0]];
-      if (t && !e.kw.upkeep) await this.say(t);
+      if (e.kw.upkeep) return;
+      const anim = ANIM().weather[e.args[0]];
+      if (anim) await this.sheet(anim, this.actors.p2);
+      if (t) await this.say(t);
     },
     async '-message'(e) { await this.say(e.args[0]); },
-    async turn(e) { if (e.args[0] !== '1') this.hud.log('Turn ' + e.args[0]); },     // 'Turn '+n, trừ lượt 1
+    async turn(e) { if (e.args[0] !== '1') this.log('— Lượt ' + e.args[0] + ' —'); },
 
     /* Hành động riêng của bản web (engine.js): đồ, bóng, chạy. */
     async 'p1-item'(e) {
       const w = this.battle.who(e.args[1]);
-      const it = Object.values(P1.ITEMS || {}).find((x) => (BAG_ALIAS[x.battleId] || x.battleId) === e.args[0]);
-      P1.audio.sfx('item', { volume: 0.7 });
-      await this.say(this.trainerName() + ' used ' + (it ? /^[AEIOU]/.test(it.name) ? 'an ' : 'a ' : '') + Y(it ? it.name : e.args[0]) + ' on ' + nameOf(w.mon, 'p1') + '!', 0.3);
-      const p1 = this.battle.active('p1');
-      if (p1 && p1.index !== w.index) return;
+      sfx('item', { volume: 0.7 });
+      await this.say(this.trainerName() + ' dùng ' + Y(itemName(e.args[0])) + ' cho ' + nameOf(w.mon) + '!', 0.3);
     },
     async 'p1-ball'(e) { await throwBall.call(this, e); },
     async 'p1-run'(e) {
-      if (e.args[0] === '1') { P1.audio.sfx('flee'); await this.say('You got away safely!', 1); }
-      else await this.say(Y(P1.state.player.name) + ' failed to run away!');
+      if (e.args[0] === '1') {
+        sfx('run');
+        const me = this.actors.p1;
+        this.tween(0.5, (k) => { me.dx = -260 * ease(k); me.alpha = 1 - k; });
+        await this.say('Chạy thoát an toàn!', 1);
+      } else await this.say('Không chạy thoát được!');
     },
-    async 'p1-norun'() { await this.say("There's no running from a Trainer battle!"); },
-    async 'p1-noball'() { await this.say("You can't catch another Trainer's Pokémon!"); },
+    async 'p1-norun'() { await this.say('Không thể bỏ chạy khỏi trận đấu này!'); },
+    async 'p1-noball'() { await this.say('Không thể bắt Pokémon này!'); },
   };
-
-  const STATUS_TEXT = { brn: ' was burned!', psn: ' was poisoned!', tox: ' was badly poisoned!', par: ' is paralyzed! It may be unable to move!',
-    slp: ' fell asleep!', frz: ' was frozen solid!' };
-  const CURE_TEXT = { brn: "'s burn was healed.", psn: ' was cured of its poisoning.', tox: ' was cured of its poisoning.',
-    par: ' was cured of paralysis.', slp: ' woke up!', frz: ' thawed out!' };
-  const CANT_TEXT = { par: " is paralyzed! It can't move!", slp: ' is fast asleep!', frz: ' is frozen solid!',
-    flinch: " flinched and couldn't move!", recharge: ' must recharge!', nopp: ' has no PP left!', attract: ' is immobilized by love!',
-    truant: ' is loafing around!' };
-  const DAMAGE_FROM = { brn: ' was hurt by its burn!', psn: ' was hurt by poison!', tox: ' was hurt by poison!', recoil: ' is damaged by the recoil!',
-    sandstorm: ' is buffeted by the sandstorm!', hail: ' is buffeted by the hail!', confusion: ' hurt itself in its confusion!',
-    'leech seed': "'s health is sapped by Leech Seed!", spikes: ' is hurt by the spikes!', 'stealth rock': ' was hurt by pointed stones!',
-    curse: ' is afflicted by the curse!', nightmare: ' is locked in a nightmare!', 'life orb': ' lost some of its HP!' };
-  const WEATHER_TEXT = { RainDance: 'It started to rain!', SunnyDay: 'The sunlight turned harsh!', Sandstorm: 'A sandstorm kicked up!',
-    Hail: 'It started to hail!', none: 'The effects of the weather disappeared.' };
 
   async function statChange(e, dir) {
     const w = this.battle.who(e.args[0]);
     const n = +e.args[2] || 0;
-    P1.audio.sfx(dir > 0 ? 'stat_up' : 'stat_down');
-    const slot = w && this.stage.slots[w.side];
-    if (slot && slot.root) {
-      const h = P1.fx.sprite({ atlas: 'fx_test', prefix: 'shine1_', fps: 22, pxToM: TUNE.fxPxToM * 0.8,
-        color: dir > 0 ? [1, 0.55, 0.35, 1] : [0.45, 0.6, 1, 1], reversed: dir < 0 });
-      h.obj.position.copy(slot.anchor);
-      this.stage.addFx(h);
+    sfx(dir > 0 ? 'up' : 'down');
+    if (w) {
+      const actor = this.actors[w.side], c = actor.center(), colour = dir > 0 ? '#ff7a5a' : '#5a9aff';
+      this.addFx(new Particles(colour).rise(c.x, c.y, dir, 12));
+      await this.pulse(actor, colour, 2);
     }
-    const nm = this.nameOf(e.args[0]) + "'s " + String(e.args[1]).toUpperCase();   // STAT.ToUpper(): "ATK", "SPE"…
-    if (n === 0) await this.say(nm + (dir > 0 ? " won't go any higher!" : " won't go any lower!"));
-    else if (dir > 0) await this.say(nm + ' rose' + (n >= 3 ? ' drastically' : n === 2 ? ' sharply' : '') + '!');
-    else await this.say(nm + ' fell' + (n >= 3 ? ' severely' : n === 2 ? ' harshly' : '') + '!');
+    const nm = this.nameOf(e.args[0]) + ': ' + (STAT_NAME[e.args[1]] || String(e.args[1]).toUpperCase());
+    if (n === 0) await this.say(nm + (dir > 0 ? ' không thể tăng thêm!' : ' không thể giảm thêm!'));
+    else if (dir > 0) await this.say(nm + (n >= 3 ? ' tăng vọt!' : n === 2 ? ' tăng mạnh!' : ' tăng!'));
+    else await this.say(nm + (n >= 3 ? ' giảm thê thảm!' : n === 2 ? ' giảm mạnh!' : ' giảm!'));
   }
 
-  scene.blink = function (slot) {
-    let on = true;
-    const n = 6;
-    for (let i = 0; i < n; i++) this.wait(i * 0.07).then(() => { if (slot.model) slot.model.visible = (on = !on); });
-    this.wait(n * 0.07).then(() => { if (slot.model) slot.model.visible = true; });
-  };
-
-  /* ---------------------------------------------------------------- ném bóng (CatchEffect) */
-
-  const BALL_NAME = (key) => {
-    const it = Object.values(P1.ITEMS || {}).find((x) => (BAG_ALIAS[x.battleId] || x.battleId) === key);
-    return it ? it.name : key;
-  };
+  /* ---------------------------------------------------------------- ném bóng */
 
   /*
-   * Ném bóng: CatchEffect.Catch (0x19E520). Clip của bóng: Pokeball_Open_Catch → (Pokeball_Shake × lắc)
-   * → Pokeball_Success | Pokeball_Break. Máy ảnh HitFoe suốt đoạn, xong trả state cũ.
-   * Hạt: BallEffect (Inside Ball Effect), PokemonEffectIn (In Ball), PokemonEffectOut (Out Of Ball).
+   * Tay cầm bóng (pokeballs/hand) hiện góc trái-dưới, bóng bay vòng cung tới thân đối thủ, mở ra hút Pokémon
+   * (trắng rồi thu nhỏ vào bóng), rơi xuống chân, lắc `shakes` lần; bắt được thì bóng tối đi + lấp lánh,
+   * hụt thì bóng bung ra và Pokémon hiện lại.
    */
   async function throwBall(e) {
-    const [key, ident, shakesStr, caughtStr] = e.args;
-    const caught = caughtStr === '1';
-    const shakes = Math.max(1, +shakesStr);
-    const tgt = this.slotOf(ident);
-    const name = BALL_NAME(key);
-    await this.say(this.trainerName() + ' threw ' + (/^[AEIOU]/.test(name) ? 'an ' : 'a ') + Y(name) + '!', TUNE.textFast);
-    const camBefore = this.stage.cam.state;
-    this.stage.cam.set('HitFoe');
-    const ball = await makeBall(key);
-    const fxOpt = (at) => ({ origin: at, scale: 1, posScale: ball.rootScale, pxScale: this.stage.pxScale(P1.renderer()) });
-    const open = ball.play('Pokeball_Open_Catch');
-    await this.wait(0.1);
-    ball.obj.position.copy(tgt.root.position).add(new THREE.Vector3(-1.5, 3.0, 1.0));   // Unity (1.5, 3, 1), x lật
-    this.stage.scene.add(ball.obj);
-    const trail = this.stage.addFx(P1.fx.group(ball.fx.inside, fxOpt(ball.center())));
-    await this.wait(1.0);
-    this.stage.addFx(P1.fx.group(ball.fx.in, fxOpt(tgt.anchor)));
+    const [key, , shakesStr, caughtStr] = e.args;
+    const caught = caughtStr === '1', shakes = Math.max(1, +shakesStr);
+    const foe = this.actors.p2, name = itemName(key);
+    await this.say(this.trainerName() + ' ném ' + Y(name) + '!', 0.2);
+    const ball = this.addFx(new Ball(key));
+    ball.inHand = true;
+    ball.hand = { x: SCENE.x - 40, y: SCENE.y + SCENE.h - 120, a: 1 };
+    await this.tween(0.25, (k) => { ball.hand.x = SCENE.x - 40 + 70 * ease(k); });
+    sfx('throw');
+    const c = foe.center(), from = { x: ball.hand.x + 40, y: ball.hand.y + 20 }, to = { x: c.x, y: c.y - 10 };
+    ball.inHand = false;
+    this.tween(0.25, (k) => { ball.hand.a = 1 - k; }).then(() => { ball.hand = null; });
+    await this.tween(0.6, (k) => {
+      ball.x = from.x + (to.x - from.x) * k;
+      ball.y = from.y + (to.y - from.y) * k - Math.sin(k * Math.PI) * 120;
+      ball.rot = k * Math.PI * 4;
+    });
+    ball.rot = 0; ball.open = true;
+    sfx('open');
+    this.addFx(new Particles('#ffffff').burst(to.x, to.y, 12, 140));
+    foe.white = 1;
+    await this.tween(0.35, (k) => { foe.scale = 1 - ease(k); });
+    foe.hidden = true; foe.scale = 1; foe.white = 0;
+    ball.open = false;
+    const ground = foe.home.y - 14;
+    sfx('drop');
+    await this.tween(0.35, (k) => { ball.y = to.y + (ground - to.y) * (k < 0.7 ? (k / 0.7) ** 2 : 1 - Math.sin((k - 0.7) / 0.3 * Math.PI) * 0.12); });
     await this.wait(0.3);
-    P1.audio.sfx('balldrop');
-    const s0 = tgt.root.scale.x;
-    await this.clock.tween(0.3, (k) => tgt.root.scale.setScalar(s0 * (1 - k)));
-    await this.wait(0.01);
-    tgt.root.scale.setScalar(0);
-    await open;
-    trail.stop();
     for (let i = 0; i < Math.min(3, shakes); i++) {
-      P1.audio.sfx('ballshake');
       this.catchPhase = 'shake' + i;
-      await ball.play('Pokeball_Shake');
-      await this.wait(0.2);
+      sfx('shake');
+      await this.tween(0.5, (k) => { ball.rot = Math.sin(k * Math.PI * 2) * 0.45 * (i % 2 ? -1 : 1); });
+      ball.rot = 0;
+      await this.wait(0.35);
     }
+    this.catchPhase = null;
     if (caught) {
-      await ball.play('Pokeball_Success', { hold: true });
-      await this.wait(0.8);
-      await this.say('Gotcha! ' + nameOf(tgt.mon) + ' was caught!', TUNE.textPause);
-      this.stage.cam.set(camBefore);
+      sfx('caught');
+      this.addFx(new Particles('#fff6a0').sparkle(ball.x, ball.y - 10, 30, 16));
+      await this.tween(0.4, (k) => { ball.dark = 0.45 * k; });
+      await this.say('Bắt được rồi! ' + nameOf(foe.mon) + ' đã bị bắt!', 1);
+      this.catchPhase = 'caught';
       return;
     }
-    const brk = ball.play('Pokeball_Break');
-    await this.wait(0.1);
-    this.stage.addFx(P1.fx.group(ball.fx.out, fxOpt(tgt.anchor)));
-    await this.wait(0.2);
-    await this.clock.tween(0.3, (k) => tgt.root.scale.setScalar(s0 * k));
-    await this.wait(0.31 + 0.3);
-    await brk;
-    this.stage.scene.remove(ball.obj);
-    this.stage.cam.set(camBefore);
-    await this.say(['Oh no! The Pokémon broke free!', 'Aww! It appeared to be caught!', 'Aargh! Almost had it!', 'Aargh! Almost had it!'][+shakesStr] || 'Oh no! The Pokémon broke free!', TUNE.textPause);
+    sfx('break');
+    ball.open = true;
+    foe.hidden = false; foe.white = 1; foe.scale = 0;
+    this.addFx(new Particles('#ffffff').burst(c.x, c.y, 12, 140));
+    await this.tween(0.3, (k) => { foe.scale = ease(k); ball.alpha = 1 - k; });
+    await this.tween(0.2, (k) => { foe.white = 1 - k; });
+    ball.alpha = 0;
+    await this.say(BALL_FAIL[+shakesStr] || BALL_FAIL[0], 0.8);
   }
-
-  /* Bóng của CatchEffect (art/battle/ball/*.glb, clip Pokeball_*). Không có glb thì quả cầu đỏ/trắng lắc bằng tay. */
-  async function makeBall(key) {
-    const all = (DATA().catch && DATA().catch.balls) || {};
-    const d = all[key] || all[key === 'pokeball' ? 'pokball' : key] || all.pokball || all.pokeball || null;
-    const fx = { in: (d && d.in) || [], out: (d && d.out) || [], inside: (d && d.inside) || [] };
-    const obj = new THREE.Group();
-    const scene = this && this.stage ? this.stage.scene : null;
-    let mixer = null, clips = [];
-    if (d && d.glb) {
-      try {
-        const g = await P1.gltf(d.glb);
-        const m = cloneSkinned(g.scene);
-        m.traverse((n) => { if (n.isMesh) { n.frustumCulled = false; n.material = n.material.clone(); } });
-        obj.add(m);
-        mixer = new THREE.AnimationMixer(m);
-        clips = g.animations;
-      } catch (err) { console.warn(err.message); }
-    }
-    if (!obj.children.length) {
-      const top = new THREE.MeshLambertMaterial({ color: key === 'masterball' ? 0x7a3cc8 : key === 'greatball' ? 0x3a78e0 : key === 'ultraball' ? 0x303030 : 0xe03a2c });
-      const r = 0.15;
-      obj.add(new THREE.Mesh(new THREE.SphereGeometry(r, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), top),
-        new THREE.Mesh(new THREE.SphereGeometry(r, 20, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xf2f2f2 })));
-      obj.children.forEach((c) => { c.position.y = r - 3.0; });    // (đoán) bóng nằm dưới gốc hiệu ứng 3 m, như PokeBall (0,-30,0)·0.1
-    }
-    const clock = BALL_CLOCK;
-    const ball = {
-      obj, fx, rootScale: (DATA().catch && DATA().catch.rootScale) || 0.1,
-      center() { const b = new THREE.Box3().setFromObject(obj); return b.isEmpty() ? obj.position.clone() : b.getCenter(new THREE.Vector3()); },
-      play(name, opt) {
-        const clip = clips.find((c) => c.name === name);
-        if (!mixer || !clip) {
-          if (name === 'Pokeball_Shake') return clock.tween(1, (k) => { obj.rotation.z = Math.sin(k * Math.PI * 2) * 0.4; });
-          return clock.wait(name === 'Pokeball_Open_Catch' ? 1.95 : 0.75);
-        }
-        mixer.stopAllAction();
-        const a = mixer.clipAction(clip);
-        a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; a.reset().play();
-        return clock.wait(clip.duration);
-      },
-    };
-    BALL_MIXERS.push(mixer);
-    return ball;
-  }
-  // Bóng dùng đồng hồ trận; update() của cảnh chạy mixer của bóng.
-  let BALL_CLOCK = null;
-  const BALL_MIXERS = [];
 
   P1.battleScene = scene;
   P1.scene.add('battle', scene);
