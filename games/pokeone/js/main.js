@@ -24,9 +24,9 @@
   window.addEventListener('error', e => { if (!P1.scene.name) fail(e.error || e.message); });
 
   function boot() {
-    P1.renderer();
+    P1.view();
     const bootEl = document.getElementById('boot');
-    const ready = P1.ngui && P1.ngui.ready ? P1.ngui.ready() : Promise.resolve();
+    const ready = P1.proui.ready();
     return ready.then(() => {
       if (q.get('fresh') === '1' || !P1.load()) P1.newGame();
       if (q.get('battle')) {

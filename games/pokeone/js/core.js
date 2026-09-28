@@ -16,7 +16,7 @@
   function newState() {
     return {
       v: 1,
-      player: { name: 'Trainer', gender: 'male', look: { body: '00_00', clothe: '00', hair: '00', hat: '' } },
+      player: { name: 'Trainer', gender: 'male', look: { body: '0_0', cloth: '0', hair: '1', hat: '' } },
       map: 'pallet_house_2f', x: 0, z: 0, face: 2,
       party: [], box: [],
       bag: { potion: 0, pokeball: 0 },
@@ -35,6 +35,8 @@
   P1.load = () => {
     const s = store.get(SAVE_KEY);
     P1.state = s && s.v === 1 ? Object.assign(newState(), s) : null;
+    // Bản lưu của bản 3D (PokéOne) có ngoại hình dạng '00_00' + khoá 'clothe', không có tệp PRO tương ứng.
+    if (P1.state && P1.state.player.look.clothe !== undefined) P1.state.player.look = newState().player.look;
     return P1.state;
   };
   P1.save = () => store.set(SAVE_KEY, P1.state);
@@ -154,40 +156,40 @@
   window.addEventListener('pointerdown', () => { audio.unlock(); audio.resumeMusic(); }, { capture: true });
   P1.input = input;
 
-  /* ---------- three.js: một renderer dùng chung, nạp glb có đệm ---------- */
-  let renderer = null;
-  P1.renderer = () => {
-    if (renderer) return renderer;
-    const canvas = document.getElementById('gl');
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.outputEncoding = THREE.sRGBEncoding;
-    const fit = () => renderer.setSize(window.innerWidth, window.innerHeight, false);
-    window.addEventListener('resize', fit); fit();
-    return renderer;
+  /* ---------- màn 2D dùng chung: một canvas phủ cửa sổ, vẽ pixel sắc (không làm mịn) ---------- */
+  const view = { canvas: null, ctx: null, w: 0, h: 0, dpr: 1 };
+  view.fit = () => {
+    const c = view.canvas;
+    view.dpr = Math.min(2, window.devicePixelRatio || 1);
+    view.w = window.innerWidth; view.h = window.innerHeight;
+    c.width = Math.round(view.w * view.dpr); c.height = Math.round(view.h * view.dpr);
+    view.ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    view.ctx.imageSmoothingEnabled = false;
   };
-  const gltfCache = {};
-  let loader = null;
-  P1.gltf = url => {
-    if (!loader) {
-      loader = new THREE.GLTFLoader();
-      if (window.MeshoptDecoder) loader.setMeshoptDecoder(window.MeshoptDecoder);
-    }
-    if (!gltfCache[url]) {
-      gltfCache[url] = new Promise((res, rej) => loader.load(url, res, undefined,
-        () => rej(new Error('model missing: ' + url))));
-    }
-    return gltfCache[url];
+  P1.view = () => {
+    if (view.canvas) return view;
+    view.canvas = document.getElementById('view');
+    view.ctx = view.canvas.getContext('2d');
+    window.addEventListener('resize', view.fit); view.fit();
+    return view;
   };
-  const texCache = {};
-  P1.texture = url => {
-    if (!texCache[url]) {
-      texCache[url] = new THREE.TextureLoader().load(url);
-      texCache[url].encoding = THREE.sRGBEncoding;
-      texCache[url].magFilter = THREE.NearestFilter;
+
+  /* ---------- ảnh có đệm: P1.img(url) trả Promise, P1.imgNow(url) trả ảnh đã tải hoặc null (cho vòng vẽ) ---------- */
+  const imgCache = {};
+  P1.img = url => {
+    let e = imgCache[url];
+    if (!e) {
+      e = imgCache[url] = { el: new Image(), ok: false };
+      e.p = new Promise((res, rej) => {
+        e.el.onload = () => { e.ok = true; res(e.el); };
+        e.el.onerror = () => rej(new Error('image missing: ' + url));
+      });
+      e.p.catch(() => {});
+      e.el.src = url;
     }
-    return texCache[url];
+    return e.p;
   };
+  P1.imgNow = url => { const e = imgCache[url]; if (!e) { P1.img(url); return null; } return e.ok ? e.el : null; };
 
   /* ---------- giờ trong ngày (PokéOne chia sáng/trưa/chiều/đêm; mốc giờ theo HGSS, chưa có nguồn PokéOne) ---------- */
   P1.period = (d) => {
