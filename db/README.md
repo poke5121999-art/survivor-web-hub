@@ -88,3 +88,15 @@ workflow prevents that by querying the DB twice a week.
 - RLS production best practices — <https://makerkit.dev/blog/tutorials/supabase-rls-best-practices>
 - API key & RLS pitfalls (CVE-2025-48757) — <https://vibeappscanner.com/best-practices/supabase>
 - Free project pausing — <https://supabase.com/docs/guides/platform/free-project-pausing>
+
+## Chợ trời PokéOne (`pokeone-market.sql`)
+
+Bảng và hàm cho chợ đấu giá Pokémon của `games/pokeone` (thiết kế: `games/pokeone/NET.md` §Chợ trời). Chưa chạy thì
+trong game chợ hiện "Chợ chưa mở: chủ hub cần chạy db/pokeone-market.sql"; phần còn lại của game không ảnh hưởng.
+
+1. Supabase Dashboard → **SQL Editor → New query**.
+2. Dán toàn bộ **`pokeone-market.sql`**, bấm **Run**. Mong đợi "Success. No rows returned". Chạy lại vô hại.
+3. Kiểm: **Table Editor** có `p1_listings`, `p1_bids`, cả hai **RLS enabled**; **Database → Functions** có `p1_list`,
+   `p1_bid`, `p1_cancel`, `p1_claim`.
+
+Chỉ dùng anon key có sẵn trong `js/supabase-config.js`; không cần và không dùng service key.
