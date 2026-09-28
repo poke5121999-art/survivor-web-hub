@@ -1,12 +1,10 @@
-# Bảng gặp Pokémon trong cỏ theo buổi (P1.period(): morning/day/evening/night).
-# Dòng: <buổi|all> dex:tỉ_trọng:cấp_min-cấp_max ...
-# Tỉ trọng: pokeonecommunity.com (RESEARCH.md §5). Cấp độ: KHÔNG có nguồn PokéOne nào công bố,
-# ở đây lấy theo FireRed (Route 1: 2-5) - [MAINLINE DEFAULT, not PokéOne-confirmed].
-# rate: normal | low | verylow (Settings.EncounterRate trong MapDump); xác suất mỗi bước ở js/world.js.
-
-[zone pallet_grass] rate=normal
-all 19:40:2-4 56:40:2-4 21:20:2-4
+# Sinh bởi tools/pro/gen_zones.py từ bảng spawn trên cỏ của PRO (pro_land_spawns.json, ảnh chụp 2026-07-18).
+# Không sửa tay. Dòng: <buổi> dex:tỉ_trọng:cấp_min-cấp_max. Tỉ trọng Common 10 / Uncommon 4 / Rare 1 [ĐỀ XUẤT].
+# Pallet Town và Viridian City không có spawn trên cỏ trong PRO.
 
 [zone route_1_grass] rate=normal
-morning,day,evening 16:53.3:2-5 19:26.7:2-4 161:13.3:2-4 162:6.7:5-6
-night 19:50:2-4 163:50:2-4
+morning 16:10:2-3 19:10:2-3 77:4:2-3 161:10:2-3 162:10:2-3
+day 16:10:2-3 19:10:2-3 77:4:2-3 161:10:2-3 162:10:2-3
+evening 16:10:2-3 19:10:2-3 77:4:2-3 161:10:2-3 162:10:2-3
+night 19:10:2-3 41:10:2-3 77:4:2-3 162:10:2-3 163:10:2-3
+# đồ cầm trong PRO (chưa dùng): Furret=Sitrus Berry, Rattata=Rattata Hair, Sentret=Oran Berry

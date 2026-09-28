@@ -215,6 +215,7 @@
       let a;
       if (d.kind === 'sign') a = new P1.Actor(Object.assign({ kind: 'sign', shadow: false }, opt));
       else if (d.kind === 'item') a = A().itemActor(d.sprite || 'sprite11', opt);   // sprite11 = Poké Ball trên đất
+      else if (d.kind === 'ball') a = A().ballActor(d.ball || 'pokeball', !!d.bolt, opt);
       else a = A().npcActor(d.sprite, opt);
       a.id = d.id;
       this.actors.push(a);
@@ -673,7 +674,7 @@
       const a = this.actorAt(x, y);
       if (!a) return;
       if (a.kind === 'item') { await this.pickItem(a); return; }
-      if (a.kind !== 'sign' && a.data.look !== 'fixed') a.face = OPP[p.face];
+      if (a.kind !== 'sign' && a.kind !== 'ball' && a.data.look !== 'fixed') a.face = OPP[p.face];
       if (a.data.trainer && !P1.state.flags['beat_' + a.id] && a.data.trainer.spotted) P1.audio.music(a.data.trainer.spotted);
       if (a.data.script) await this.runScript(a.data.script, a);
     },

@@ -91,6 +91,8 @@
     },
     async warp(o, ctx, w) { await w.warp(o.map, o.x, o.y, o.face, { kind: 'script' }); },
     async heal(o, ctx, w) { await w.heal(); },
+    // Chạy hết một kịch bản khác rồi quay lại (phần chung của ba quả bóng khởi đầu).
+    async call(o, ctx) { await run(o.arg, ctx); },
     lastheal(o, ctx, w) { w.setLastHeal(); },
     async shop(o, ctx, w) { await w.shop(o.items); },
     async pc(o, ctx, w) { await w.openPc(); },

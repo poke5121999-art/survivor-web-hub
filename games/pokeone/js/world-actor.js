@@ -155,6 +155,32 @@
   function itemActor(file, opt) {
     return new Actor(Object.assign({ kind: 'item', fixedRow: 2, sheet: safe(P1.img(npcUrl(file))) }, opt));
   }
+  /*
+   * Bóng đặt trên bàn/sàn (lab Oak): ảnh art/pro/ball/<ball>_closed.png thu về 18² vẽ giữa ô, ghép vào tấm 256² ở ô (cột 1, hàng 0)
+   * để dùng chung draw(). bolt=true vẽ thêm tia chớp vàng như bóng Pikachu của PRO (không có tranh riêng trong gói).
+   */
+  function ballSheet(ball, bolt) {
+    return safe(P1.img('art/pro/ball/' + ball + '_closed.png')).then(im => {
+      if (!im) return null;
+      const c = document.createElement('canvas');
+      c.width = c.height = 256;
+      const g = c.getContext('2d');
+      // Bóng trên bàn trong ảnh chụp PRO rộng ~18 px (nửa ô): thu ảnh 28² về 18².
+      const sz = 18, x = CELL + (CELL - sz) / 2, y = CELL - (T - sz) / 2 - sz;
+      g.drawImage(im, x, y, sz, sz);
+      if (bolt) {
+        g.fillStyle = '#ffd21f'; g.strokeStyle = '#6b4a00'; g.lineWidth = 1;
+        const cx = x + sz / 2, cy = y + sz / 2 - 4;
+        g.beginPath();
+        [[1, -3], [-2, 1], [0, 1], [-1, 4], [3, -1], [1, -1], [2, -3]].forEach(([dx, dy], i) => (i ? g.lineTo : g.moveTo).call(g, cx + dx, cy + dy));
+        g.closePath(); g.fill(); g.stroke();
+      }
+      return c;
+    });
+  }
+  function ballActor(ball, bolt, opt) {
+    return new Actor(Object.assign({ kind: 'ball', fixedRow: 0, shadow: false, sheet: ballSheet(ball, bolt) }, opt));
+  }
   function followUrl(dex, shiny) { return 'art/pro/poke/follow/' + dex + (shiny ? 's' : '') + '.png'; }
   function followActor(img, opt) {
     const fr = P1.PRO && P1.PRO.followRows;   // data/pro.js: { down, left, right, up } → hàng
@@ -163,5 +189,5 @@
   }
 
   P1.Actor = Actor;
-  P1.actors = { playerActor, npcActor, itemActor, followActor, followUrl, playerSheet, DIR, DIR_NAME, dirIndex, FALLBACK_PLAYER, SPEED };
+  P1.actors = { playerActor, npcActor, itemActor, ballActor, followActor, followUrl, playerSheet, DIR, DIR_NAME, dirIndex, FALLBACK_PLAYER, SPEED };
 })(window.P1 = window.P1 || {});

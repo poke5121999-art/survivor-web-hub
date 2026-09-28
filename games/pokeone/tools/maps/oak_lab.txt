@@ -1,39 +1,56 @@
-# Phòng thí nghiệm GS Oak: máy phân tích, kệ sách, bàn đặt Poké Ball khởi đầu.
-# Mở đầu theo nhiệm vụ "The Pokémon Prof." -> "First Battle" (pokeone.fandom.com/wiki/Main_Quests).
+# Phòng thí nghiệm GS Oak, dựng theo ảnh chụp PRO (D:\pro-ref\wiki\lab1.png, lab2.png; 14×13 ô): tường xanh, sàn gỗ
+# (tấm 7), dọc tường trái -> phải: kệ sách xanh, máy cam + tháp xám, bàn màn hình xanh, tủ kính có Pokédex đỏ, bóng
+# Pikachu trên sàn, máy tính lớn, hai tủ lạnh; máy hồi phục bên trái, hai ghế đỏ, bàn ba quả bóng trên thảm xanh,
+# bốn tủ kính ở hai góc dưới, thảm đỏ lối ra. Tranh: tấm 6 (bộ lab), 7 (sàn, ghế, bàn, thảm), 28 (tủ kính, máy).
+# Luật PRO (Kanto Guide, pokemon-revolution-online.fandom.com/wiki/Kanto_Guide): chọn Bulbasaur/Charmander/Squirtle trên
+# bàn; bóng Pikachu trên sàn chỉ chọn được sau khi đã từ chối cả ba; chọn xong nói lại với Oak để nhận Pokédex.
 name: Pallet Town
 song: oak
 indoors: 1
 enter: lab_enter
 
 [legend]
-. labfloor
-W wall_lab
-s labscope
-q labpc
-r labbot
-b bookshelf ground=89:11,11
-c bookshelf2 ground=89:11,11
-m starter
-e chemtable
-p plant ground=89:11,11
-O labfloor mark
-g labfloor mark
-a labfloor mark
-x mat
+. labwood
+W wall_labteal
+f labwood solid
+t labwood solid
+x labwood mark
+O labwood mark
+g labwood mark
 
 [grid]
-WWWWWWWWWWWWW
-WWWWWWWWWWWWW
-.ssqq.bbccrr.
-.............
-......O......
-.............
-........mm...
-.eee..g...bb.
-.eee.........
-..........cc.
-p........a..p
-.....xxx.....
+WWWWWWWWWWWWWW
+WWWWWWWWWWWWWW
+ffffffffff.fff
+.fff..........
+.fff...O......
+.fff....tttt..
+........tttt..
+......g.......
+..............
+ffff......ffff
+ffff......ffff
+..............
+......xx......
+
+[stamps]
+6:14,21,2x3 0,0
+6:18,30,2x2 2,1
+6:16,25,2x2 4,1
+28:19,9,3x2 6,1
+28:16,20,2x3 10,0
+28:18,17,1x3 12,0
+28:16,17,1x3 13,0
+7:12,25,4x3 8,5 foot=3 under
+7:8,1,2x2 8,5 foot=2
+7:8,1,2x2 10,5 foot=2
+28:20,14,4x5 0,3
+7:11,17,1x1 4,3 under
+7:11,17,1x1 7,3 under
+6:16,28,2x2 0,9
+6:16,28,2x2 2,9
+6:16,28,2x2 10,9
+6:16,28,2x2 12,9
 
 [links]
 door @x -> pallet_town @L at=below arrive=below face=down sfx=exit_door
@@ -41,8 +58,11 @@ door @x -> pallet_town @L at=below arrive=below face=down sfx=exit_door
 [actors]
 oak      @O sprite=sprite261 name="Prof. Oak" face=down script=oak
 gary     @g sprite=sprite46 name="Gary" face=up script=gary hideif=gary_left
-aide     @a sprite=sprite76 name="Aide" face=left look=random script=lab_aide
-machine  @m kind=sign name="Machine" script=starter_machine
+ball_b   9,5 kind=ball name="Poké Ball" script=ball_bulbasaur hideif=took_1
+ball_c   10,5 kind=ball name="Poké Ball" script=ball_charmander hideif=took_4
+ball_s   11,5 kind=ball name="Poké Ball" script=ball_squirtle hideif=took_7
+ball_p   9,2 kind=ball bolt name="Poké Ball" script=ball_pikachu hideif=took_25
+dex_case 7,2 kind=sign name="Pokédex" script=dex_case
 
 [script lab_enter]
 if met_oak > end
@@ -51,20 +71,24 @@ face oak down
 say@Prof._Oak Ah, {player}! There you are.
 say@Prof._Oak I've been waiting. Your very own Pokémon journey starts today!
 questdone the_pokemon_prof
-say@Prof._Oak On that machine are three Pokémon.\nGo on, choose one!
+say@Prof._Oak There are three Poké Balls on that table.\nGo on, choose one!
 say@Gary Hey, Gramps! What about me?
 say@Prof._Oak Be patient, {rival}. You can have one, too.
 
 [script oak]
 if starter_chosen > after
-say Go ahead, {player}. Choose one of the Pokémon on the machine!
+say Go ahead, {player}. Choose one of the Pokémon on the table!
 end
 :after
+if got_pokedex > advice
+set got_pokedex
+say {player}, take this with you. It's the Pokédex, a hi-tech encyclopedia!
+sfx item
+say {player} received the Pokédex!
+say It automatically records data on Pokémon you've seen or caught.
+:advice
 say {player}, Route 1 is north of Pallet Town.\nA young trainer named Joey is waiting there.
 say Why not challenge him and see what your Pokémon can do?
-
-[script lab_aide]
-say Prof. Oak's research is about Pokémon habitats.\nHe says Pokémon and people should live side by side.
 
 [script gary]
 if starter_chosen > after
@@ -73,54 +97,116 @@ end
 :after
 say My Pokémon looks a lot tougher than yours.
 
-[script starter_machine]
-if starter_chosen > done
-:pick
-choose Which Pokémon will you choose? | Bulbasaur > b | Charmander > c | Squirtle > s | Not yet > end
-:b
+[script dex_case]
+if got_pokedex > empty
+say A Pokédex is on display in the glass case.
+end
+:empty
+say The glass case is empty now.
+
+[script ball_bulbasaur]
+if starter_chosen > taken
 showmon 1
 cry 1
-choose So you want the Grass-type Pokémon, Bulbasaur? | Yes > take_b | No > back
-:c
-showmon 4
-cry 4
-choose So you want the Fire-type Pokémon, Charmander? | Yes > take_c | No > back
-:s
-showmon 7
-cry 7
-choose So you want the Water-type Pokémon, Squirtle? | Yes > take_s | No > back
-:back
+choose So you want the Grass-type Pokémon, Bulbasaur? | Yes > yes | No > no
+:no
 hidemon
-goto pick
-:take_b
+set declined_1
+end
+:yes
 hidemon
 givemon 1 5
 set starter_1
-goto rival
-:take_c
+hide took_1
+call starter_rival
+end
+:taken
+say It's one of Prof. Oak's Pokémon.
+
+[script ball_charmander]
+if starter_chosen > taken
+showmon 4
+cry 4
+choose So you want the Fire-type Pokémon, Charmander? | Yes > yes | No > no
+:no
+hidemon
+set declined_4
+end
+:yes
 hidemon
 givemon 4 5
 set starter_4
-goto rival
-:take_s
+hide took_4
+call starter_rival
+end
+:taken
+say It's one of Prof. Oak's Pokémon.
+
+[script ball_squirtle]
+if starter_chosen > taken
+showmon 7
+cry 7
+choose So you want the Water-type Pokémon, Squirtle? | Yes > yes | No > no
+:no
+hidemon
+set declined_7
+end
+:yes
 hidemon
 givemon 7 5
 set starter_7
-:rival
+hide took_7
+call starter_rival
+end
+:taken
+say It's one of Prof. Oak's Pokémon.
+
+[script ball_pikachu]
+if starter_chosen > plain
+ifnot declined_1 > plain
+ifnot declined_4 > plain
+ifnot declined_7 > plain
+showmon 25
+cry 25
+choose You didn't want any of those three?\nThen how about this Electric-type Pokémon, Pikachu? | Yes > yes | No > no
+:no
+hidemon
+end
+:yes
+hidemon
+givemon 25 5
+set starter_25
+hide took_25
+call starter_rival
+end
+:plain
+say It's a Poké Ball with a lightning bolt drawn on it.
+
+# Phần chung sau khi chọn: Gary lấy bóng khắc hệ (Pikachu -> Eevee như bản Yellow) rồi thách đấu, thua vẫn đi tiếp (FRLG).
+[script starter_rival]
 set starter_chosen
 say@Gary Then I'll take this one!
 quest first_battle
-face gary left
-say@Gary Wait, {player}! Let's check out our Pokémon!\nCome on, I'll take you on!
 if starter_1 > vs_b
 if starter_4 > vs_c
+if starter_25 > vs_p
+hide took_1
+say@Gary Wait, {player}! Let's check out our Pokémon!\nCome on, I'll take you on!
 battle name=Gary team=1:5 music=trainer_battle canlose win=won lose=lost
 goto won
 :vs_b
+hide took_4
+say@Gary Wait, {player}! Let's check out our Pokémon!\nCome on, I'll take you on!
 battle name=Gary team=4:5 music=trainer_battle canlose win=won lose=lost
 goto won
 :vs_c
+hide took_7
+say@Gary Wait, {player}! Let's check out our Pokémon!\nCome on, I'll take you on!
 battle name=Gary team=7:5 music=trainer_battle canlose win=won lose=lost
+goto won
+:vs_p
+say@Gary Wait, {player}! Let's check out our Pokémon!\nCome on, I'll take you on!
+battle name=Gary team=133:5 music=trainer_battle canlose win=won lose=lost
 :won
 say@Gary What? Unbelievable!\nI picked the wrong Pokémon!
 goto after_battle
@@ -132,7 +218,4 @@ questdone first_battle
 say@Gary Okay! I'll make my Pokémon fight to toughen it up!\nSmell you later, {player}!
 hide gary_left
 quest trainer_route_1
-say@Prof._Oak {player}, a trainer named Joey is waiting on Route 1.\nGo challenge him!
-end
-:done
-say It's a machine that holds Poké Balls.
+say@Prof._Oak {player}, come talk to me before you go. I have something for you.

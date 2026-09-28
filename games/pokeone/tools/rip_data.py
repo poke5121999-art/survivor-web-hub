@@ -35,6 +35,10 @@ DATA = os.path.join(GAME, 'data')
 REF = os.environ.get('POKEONE_REF_DATA', r'D:\pokeone-ref\data')
 
 DEX_MAX = 251
+# Loai ngoai 251 co trong bang gap Pokemon that cua PRO — cung danh sach voi tools/pro/rip_pro.py (DEX_EXTRA).
+sys.path.insert(0, os.path.join(HERE, 'pro'))
+from rip_pro import DEX_EXTRA  # noqa: E402
+DEX_SET = set(range(1, DEX_MAX + 1)) | set(DEX_EXTRA)
 
 TYPE_ORDER = [
     'Normal', 'Fighting', 'Flying', 'Poison', 'Ground', 'Rock', 'Bug', 'Ghost', 'Steel',
@@ -69,10 +73,10 @@ def build_species():
     pk = load_lenient('pokemon.txt')['Pokemon']
     base = {}
     for p in pk:
-        if p.get('Form', '') == '' and 1 <= p.get('ID', -1) <= DEX_MAX:
+        if p.get('Form', '') == '' and p.get('ID', -1) in DEX_SET:
             base[p['ID']] = p
 
-    missing = [d for d in range(1, DEX_MAX + 1) if d not in base]
+    missing = [d for d in sorted(DEX_SET) if d not in base]
     if missing:
         print('  !! thieu dex trong pokemon.txt:', missing)
 
@@ -104,7 +108,7 @@ def build_species():
             'abilities': abilities,
             'happiness': p.get('BaseHappiness'),
         }
-    print('species:', len(species), '/', DEX_MAX)
+    print('species:', len(species), '/', len(DEX_SET))
     return species
 
 

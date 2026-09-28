@@ -1,6 +1,7 @@
-# Viridian City: Trung tâm Pokémon, Poké Mart (Carl), nhà thi đấu (khoá - Giovanni là gym cuối),
-# trường huấn luyện (Dizzy), ông già, Cổng Boss (sảnh đánh boss theo đội). Nhiệm vụ "Viridian City" 1..4:
-# pokeone.fandom.com/wiki/Main_Quests. Nhà: tranh PRO tấm 66 (Trung tâm), 9 (Mart), 67 (Gym), 22 (trường), 13 (nhà dân).
+# Viridian City, dựng theo ảnh bản đồ PRO thật (D:\pro-ref\pokemap\Viridian_City.png, ảnh nửa cỡ -> 79×65 ô) bằng
+# tools/pro/match_ref.py --scale 0.5 + fit_ref.py rồi sửa tay: đường nhựa tự nối (tấm 17), Trung tâm (tấm 31), Mart xanh
+# (tấm 31), trường mái sọc (tấm 14), Gym (tấm 9), nhà dân (tấm 12), đài phun nước, nhà cổng xuống Route 1 (tấm 5).
+# Nhiệm vụ "Viridian City" 1..4 [CHƯA CÓ NGUỒN PRO: nhiệm vụ PokéOne]. PRO không có Pokémon hoang dã ở Viridian City.
 name: Viridian City
 song: viridian_city
 bg: land
@@ -8,73 +9,1287 @@ encounter: normal
 
 [legend]
 . grass
-, path
-T tree
-~ water
-S school
-Y gym
-M mart
-C center
-h house_teal
-k house_green
-* flowers
-O grassmark
-g grassmark
+, road
+T block
+R road solid
+~ pond
+C block mark
+M block mark
+S block mark
+Y block mark
+h block mark
+k block mark
+V block mark
+q block mark
+e block mark
+u block mark
+O roadmark
+g roadmark
 b grassmark
-B grassmark
-q signboard
-e signboard
-u signboard
 
 [grid]
-TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-TT****............................TT
-TT****............................TT
-TT..........TTTT..................TT
-TT..........TTTT..................TT
-TT..........TTTT***...............TT
-TT..........TTTT***...............TT
-TT......***...........YYYYYYYY....TT
-TT......***...........YYYYYYYY....TT
-TT....................YYYYYYYYTT..TT
-TT..SSSSSSS..............,,...TT..TT
-TT..SSSSSSS..........u...,,.......TT
-TT..SSSSSSSe.............,,.......TT
-TT..,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TT
-TT..,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TT
-TT..............,,.g..............TT
-TT...........O..,,...........~~~~~TT
-TT..............,,...........~~~~~TT
-TT....MMMMMMM...,,...........~~~~~TT
-TT....MMMMMMM...,,...........~~~~~TT
-TT......,,,,,,,,,,................TT
-TT......,,,,,,,,,,..CCCCCCCC......TT
-TT..............,,..CCCCCCCC......TT
-TT..............,,.BCCCCCCCC......TT
-TT..............,,,,,,,,,.........TT
-TT..hhhhhh..***.,,,,,,,,,.........TT
-TT..hhhhhh..***q,,..........kkkkkkTT
-TT..............,,..b.***...kkkkkkTT
-TT..............,,....***.........TT
-TTTTTTTTTTTTTTTT,,..TTTTTTTTTTTTTTTT
-TTTTTTTTTTTTTTTT,,..TTTTTTTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTT.TTTTTTTTTTTTTTTTTT.TTTTTT......TTTTTTTTTTTT.TTTTTTTTTTTTTTTTTTTTTT.T
+TTTTTTTTTTTTTTTT.TTTTTTTTTTTTTTTTTTT.....TTTTTTTTTT..TTTTTTTTTT.TTTT.TTTTTTTTTT
+TTTTTTTTTT.TTTTTTTTTTTTTT.TTT.TTTTT......TTTTT.TTTTTTTTTT.TTTTTTTTTT..TTTTTTTTT
+TTTT..TTT.TT.TT.T.TTTTTTTTTTTTTTTT.......TT..TTTTT.T.TTTTTTTTTTTTTTTTTTTTTTTTTT
+TTT...TTTTTT...TT.TTTTTT.TTTTTTTTT......TTTT.TTTTTTT.TTTTTTTTTTTTTTTTTTTTTTTTTT
+T.TTTTTTTT..T..TTTTT.TTT.TTTTT..TT........T..TTTT.TTTTTTTTTTTTTTTT.TTTTTTTTTTTT
+TTTTTTTTTT..TTTTTTTTTTTTTTTTTT..TT...TTTT....TTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTT
+TTTTTTTTTT..TTTTTTT.TT.TTT.TTT..TTT..T,,T..TTTTTTTT.TTTTTTTT.TTTTTTTTTTTTTTTTTT
+TTTTTTTTTT..TTTTTTTTTTTT.TTT.T..TTT..,,,,.TTT.TTTTTTTT.TTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTT....TTTTTTTTTTTTTTTT....TT..,,,,TTTTTTTTTTTT..T.T.T.T..TTTTTTTTTTTTTTT
+TTTTTTTTTT.....TTTTTTTTTTTTTT....TT..,,,,T.TT.TTTTTTT..T....TTTTTTTTTTTTTTTTTTT
+TTTTTTTTT...T..TT.TTT.TTTTTTT...TTT..,,,,..TTTTTTTTT.TTTTT.TTTTTTTT..TTT.TTTT.T
+TT.TTTTT.T.TTT..TTTTTTTTTTTT.T..TTTTT,,,,..TTTTTTTTTTTTTTT..TTTTTTTT.TTTTTTTTTT
+TTT..TTTT.TT.TT.TTTTTT.TTTTTTT...TTTT,,,,.TTTTTTTTTT.TTTTT.TTTTTTT.TTTTTTTTTTTT
+TTTTTTTTT...TT..TTT.TTTTTTTTTT...TTTT,,,,.TTT.TTTTTT.TTTTT..TT...TT.T.TTTTTTTTT
+TTTTTT..T...T...TTTTTTTTTTTTTT...TTTT,,,,.....TTTTTT.................TTT..TTTTT
+TTTTTT.TT...TT..TTTTTTTTTTTTTT...TTTT,,,,.....TTTTTT.................TTTTT.TTTT
+TTTTT....T..TTT.TTTT.........T...TTTT,,,,.....TThTTT....TTTTTTTTT....TTT...TTTT
+TTTTT..T...TTT..TT..TTTTTTTTTT......T,,,,......T.TT.....TTTTTTTTT....T...TT...T
+TT.TT.T..TTTTT..TT...TT.TTTTTT.......,,,,...............TTTTTTTTT....T....TT..T
+TT.T.T...TTTTT..T....T.TTTTTTT...TT..,,,,...............TTTTTTTTT....TTT.TTT.TT
+TTT..T...TT.....T...TTTTTTT.TT...TT..,,,g.TT............TTTTYTTTT....TTTTTTTTTT
+T.TTTTTTTTTT.TT.T...TTTT...TTT...TTTT,,,,....T.........TTu.T....T....TTTTTTTTTT
+T..TTTTTTTT...T.T...TTTT.T.TTT......T,,,,...TTTTTTT...TTT.......T...TTTT.T.TTTT
+TTTTTTTTTT...TTTT...TTT.TTTTTT.....TT,,,,..TTTTTTTT...TTTTT...T......TTTTTTTT.T
+T.TTT..TTTTTTTTTT.T..TTTTTTTTT.......,,,,.TTTTTTTTT...TTTT.TTT.T...TTTTT.TT.TTT
+TTTT..T..TT.TTTTT...TTTTTTTTTT.......,,,,.TTT.TTkTT....TTT.TTT...TTTTTTTTTTTT.T
+TTTT.T.T..T.T.TTT...TTTTTTTTTT....TTT,,,,T.......TT........TTT.TTTTTTTTTTTTTTTT
+TTTTTT.T.TTTT..TT...TTT.TTTTTT...TTTT,,,,..................TTT.TTTTTTTTTTTTTTTT
+TTTTTTTTT.TTT..TT...TTTTTTTTTT...TTTT,,,,......TTT.......TT....TTTTTTTTTTTTTTTT
+TTTTT.TT.TTTT..TT...TTTTT.TTTT.....TT,,,,..TT.TTTTT..TTTTT....TTTTTT..TTTTTTTTT
+T..T...T...TT.TTT...TTTTT.TTTT...TTT.,,,,TT.TTTTTTT..TTTT.TTTT.TTTTTTTTT.TTTTTT
+TT.T....TT....TTT...T.TTTT.TTT...TTT.,O,,TTTT.TTTTT..TTTTT.TTTTTTTTTTTTT.TTTTTT
+T......TTT.T.T..T.....TTT.TTTT...TTT.,,,,TTT..TTSTT..TTMTT.TTTTT.TTTT...TTTTTTT
+TT.....TTT.T.T.T.T..TTTTTTTTTT..T....,,,,TTTTTTT.TeTTTT.TTTT.TTTTTT.T..TTTTTTTT
+T.TTT..TTT..T..T.T..................T,,,,,,,,,,,,,,,,,,,,,,T....TTTTTT.TTTTTTTT
+TTTT......T.....TTTTTTTTTTTTTTTTTTTTq,,,,,,,,,,,,,,,,,,,,,,,..T.TTTTTT.TT.TTTTT
+TT..TTTTT.TT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,TTT,,,,,,,,,,,,,,TTTTTTTTTT.TTT.TTTT
+TTTTTTTTT.T.,,,,,,,,,,,,,,,,,,,,R,,,,,,,,.TTTTTT.TTTTTTTT,,,TTTTTTT.TTT.TTTTTTT
+TTTTTTTTT.TT,,,,R,,,,,,,,,,,,,,,,,,,,,,,,.TTTTTT.TTTTTTTT,,,TTTTTTTTTTTTTTTTTTT
+TTTTTTTT.T....T.T.........TTT.b.T...T,,,,.TTTTTT.TTTTTTTT,,,.T..TTTTTTTTTT.TTTT
+TTTTTTTT.T.TT.TT..........TTT..T.....,,,,.TTTTT..T.TTTT.T,,,..TTTTTTTTTTTTTTTTT
+TTTTTT.....TTTT.....TTTTTTTT.......T.,,,,T.TCT...TT.....T,,,..TTTTTTTTTTTT.TT.T
+TTTTTT...T.TTTTTT..TT.TTTTT~~~~~~~~T.,,,,T...TT..TTT..TTT,,,..TTTTTTTTTTTTTTT.T
+TTTTTTT.TT...TT.TTTTT..TTTT~~~~~~~~T.,,,,,,,,,,,,,,,,,,,,,,,.TTTTTTTTTTTTTT.T.T
+TTTTTT.TTTT..TTTTTTTTT.TTTT~~~~~~~~T.,,,,,,,,,,,,,,,,,,,,,,,.TTTTTT.TTTTTTTTTTT
+TTTTTT.TTT...TTTTTT.T..TTTT~~~~~~~~T.T,,,,,,,,,,,,,,,,,,,,,T.TTTTTT.TTTTTTTTTTT
+TTTTTTT......TTTTT.TTTTTTTTTTTTTTTTT.........................TTTT.TTTTTTTTTTTTT
+TTTTTTTTT....TTTTTT.............TT..T....TTTTTTTTTTTTTTTTTTTTTT...TTTTTT.TT.TTT
+TTTT.TTT...TTTTTTT..TT...........TT..........................TTT.....TTTTTTTTTT
+TTTTTTTTT....TTTTTT..T.......TT..TT..............................TTTTTTTTTTTT.T
+TTTTTTTTTTT..TTTTTTT...TTT....TTTTT.............................TTT.TTTTTTTTTTT
+TTTTTTTTTTTTTTTTTTTT....T....TTTTTT............................TTTTTTTT.T.TTTTT
+TTTTT.TTTTTT.TTTTTTT...TTT.T.TTTTTTT.......T..................TTTTTTTTTTTT.TTTT
+T..TT..TTT.T.TTT.TTTT..TTT.T...TT..T.TTTT.TTT.........TTT.TTTT....TTTTTTTT..TTT
+T......TTT.TTT.T.TT....TTTTTTTTTTT........TTTT......T.TTTTTTTTTT.....TTTT.....T
+TT.....TTTTTTTT.TTTTTT.T..TTTTTTT...T........TT....TT.TTT.TTTTTTT..T.T.TT..T..T
+TT.....TTTTTTTTTTTTTTT...T..TTT.....TTTT.....TT....TT..TTTTTTTTTT.TTT..TTTTTTTT
+TT.....T..TTTTTTTTTTTTT...T........TT.TTTTT..TT.....T...T.TTTTTTTTTTT.TTTTTTT.T
+TT.....T.T.TT.TTTTTTTTTTTTTTT...TTTT.TTTTTT.TT.....TT..T..TTTTTTTTTT.TTTTTTTTTT
+TT.....T.T.T.TTTTTTTTTTTTTTTTT.TTTTT.TTTTTT.TTTVVVVTTT.T..TTTTT.TTTT.TTTTTTTTTT
+TT.....TTTT..TTTTTTTTT.TTT.TTTT.TTTTTTTT.TTTTT.TT.TTTT.T..TT.TT.TT....TTTT.TTTT
+TT.....TTT......TTT.........T......TT.T..TT..TTTTTTTTT....T............TTTTTTTT
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+
+[stamps]
+1:16,0,4x5 -2,-4 foot=2
+1:16,0,4x5 0,-4 foot=2
+1:16,0,4x5 2,-4 foot=2
+1:16,0,4x5 4,-4 foot=2
+1:16,0,4x5 6,-4 foot=2
+1:20,5,4x5 8,-4 foot=2
+1:20,5,4x5 10,-4 foot=2
+2:11,0,3x4 12,-3 foot=2
+2:8,0,3x4 14,-3 foot=2
+1:20,5,4x5 16,-4 foot=2
+1:16,0,4x5 18,-4 foot=2
+1:20,5,4x5 20,-4 foot=2
+1:16,0,4x5 22,-4 foot=2
+1:16,0,4x5 24,-4 foot=2
+1:20,5,4x5 26,-4 foot=2
+1:20,5,4x5 28,-4 foot=2
+1:20,5,4x5 30,-4 foot=2
+1:20,5,4x5 32,-4 foot=2
+2:11,0,3x4 34,-3 foot=2
+2:8,0,3x4 42,-3 foot=2
+1:20,5,4x5 44,-4 foot=2
+1:16,0,4x5 46,-4 foot=2
+2:11,0,3x4 48,-3 foot=2
+1:16,0,4x5 50,-4 foot=2
+1:16,0,4x5 52,-4 foot=2
+1:16,0,4x5 54,-4 foot=2
+1:20,5,4x5 56,-4 foot=2
+1:20,5,4x5 58,-4 foot=2
+1:16,0,4x5 60,-4 foot=2
+2:11,0,3x4 62,-3 foot=2
+1:12,0,4x5 64,-4 foot=2
+1:12,0,4x5 66,-4 foot=2
+1:16,0,4x5 68,-4 foot=2
+1:16,0,4x5 70,-4 foot=2
+1:16,0,4x5 72,-4 foot=2
+1:20,5,4x5 74,-4 foot=2
+1:16,14,4x5 76,-4 foot=2
+1:8,0,4x5 78,-4 foot=2
+1:16,0,4x5 -3,-3 foot=2
+1:16,0,4x5 -1,-3 foot=2
+2:8,4,3x4 1,-2 foot=2
+2:8,0,3x4 3,-2 foot=2
+1:16,0,4x5 5,-3 foot=2
+1:16,0,4x5 7,-3 foot=2
+2:8,0,3x4 9,-2 foot=2
+2:8,4,3x4 11,-2 foot=2
+2:8,0,3x4 15,-2 foot=2
+1:16,0,4x5 17,-3 foot=2
+2:8,4,3x4 19,-2 foot=2
+2:8,0,3x4 21,-2 foot=2
+1:16,0,4x5 23,-3 foot=2
+1:16,0,4x5 25,-3 foot=2
+1:16,0,4x5 27,-3 foot=2
+1:16,0,4x5 29,-3 foot=2
+1:16,5,4x5 31,-3 foot=2
+2:8,0,3x4 33,-2 foot=2
+1:16,0,4x5 45,-3 foot=2
+1:16,5,4x5 47,-3 foot=2
+2:8,0,3x4 51,-2 foot=2
+1:16,0,4x5 53,-3 foot=2
+1:16,0,4x5 55,-3 foot=2
+2:8,4,3x4 57,-2 foot=2
+2:8,4,3x4 61,-2 foot=2
+2:8,0,3x4 63,-2 foot=2
+2:8,0,3x4 69,-2 foot=2
+1:16,0,4x5 73,-3 foot=2
+2:8,0,3x4 75,-2 foot=2
+1:8,5,4x5 -2,-2 foot=2
+2:8,4,3x4 0,-1 foot=2
+1:16,0,4x5 2,-2 foot=2
+1:16,14,4x5 4,-2 foot=2
+1:16,0,4x5 6,-2 foot=2
+1:16,0,4x5 8,-2 foot=2
+1:16,14,4x5 10,-2 foot=2
+1:16,0,4x5 12,-2 foot=2
+2:8,0,3x4 14,-1 foot=2
+1:8,0,4x5 16,-2 foot=2
+2:8,4,3x4 18,-1 foot=2
+1:16,0,4x5 20,-2 foot=2
+1:8,0,4x5 22,-2 foot=2
+2:8,4,3x4 24,-1 foot=2
+1:16,5,4x5 26,-2 foot=2
+2:8,4,3x4 30,-1 foot=2
+1:16,0,4x5 32,-2 foot=2
+1:0,0,3x3 41,-1 foot=1
+1:16,14,4x5 44,-2 foot=2
+1:20,14,4x5 46,-2 foot=2
+2:8,4,3x4 48,-1 foot=2
+1:8,0,4x5 50,-2 foot=2
+1:16,0,4x5 54,-2 foot=2
+1:8,5,4x5 56,-2 foot=2
+1:16,0,4x5 60,-2 foot=2
+1:16,14,4x5 62,-2 foot=2
+2:8,0,3x4 64,-1 foot=2
+1:8,0,4x5 68,-2 foot=2
+1:16,0,4x5 72,-2 foot=2
+1:16,14,4x5 74,-2 foot=2
+1:16,0,4x5 -3,-1 foot=2
+1:16,0,4x5 -1,-1 foot=2
+1:8,5,4x5 1,-1 foot=2
+1:16,14,4x5 3,-1 foot=2
+1:8,5,4x5 5,-1 foot=2
+1:20,14,4x5 7,-1 foot=2
+1:16,0,4x5 9,-1 foot=2
+1:16,0,4x5 11,-1 foot=2
+1:16,14,4x5 13,-1 foot=2
+1:16,14,4x5 17,-1 foot=2
+1:16,0,4x5 19,-1 foot=2
+1:16,14,4x5 21,-1 foot=2
+1:16,5,4x5 23,-1 foot=2
+1:16,0,4x5 25,-1 foot=2
+1:16,5,4x5 27,-1 foot=2
+1:16,5,4x5 29,-1 foot=2
+1:16,0,4x5 31,-1 foot=2
+2:8,4,3x4 33,0 foot=2
+1:8,0,4x5 43,-1 foot=2
+1:20,14,4x5 45,-1 foot=2
+1:20,14,4x5 47,-1 foot=2
+1:16,0,4x5 49,-1 foot=2
+1:16,5,4x5 55,-1 foot=2
+2:8,4,3x4 59,0 foot=2
+1:8,0,4x5 63,-1 foot=2
+2:8,0,3x4 65,0 foot=2
+1:12,0,4x5 69,-1 foot=2
+2:8,4,3x4 71,0 foot=2
+1:8,5,4x5 73,-1 foot=2
+2:8,4,3x4 75,0 foot=2
+1:16,5,4x5 -2,0 foot=2
+1:8,5,4x5 0,0 foot=2
+1:8,5,4x5 2,0 foot=2
+1:16,0,4x5 4,0 foot=2
+1:16,0,4x5 8,0 foot=2
+1:12,0,4x5 10,0 foot=2
+2:8,4,3x4 12,1 foot=2
+1:8,0,4x5 14,0 foot=2
+1:16,14,4x5 16,0 foot=2
+1:16,14,4x5 18,0 foot=2
+1:8,5,4x5 20,0 foot=2
+1:16,0,4x5 22,0 foot=2
+1:16,14,4x5 26,0 foot=2
+1:16,5,4x5 30,0 foot=2
+1:16,14,4x5 32,0 foot=2
+1:16,0,4x5 42,0 foot=2
+1:20,14,4x5 46,0 foot=2
+1:8,5,4x5 48,0 foot=2
+1:16,0,4x5 54,0 foot=2
+1:8,5,4x5 58,0 foot=2
+1:16,0,4x5 60,0 foot=2
+1:8,0,4x5 62,0 foot=2
+1:12,0,4x5 64,0 foot=2
+1:8,5,4x5 66,0 foot=2
+1:12,0,4x5 70,0 foot=2
+1:12,0,4x5 72,0 foot=2
+1:16,0,4x5 74,0 foot=2
+2:8,4,3x4 76,1 foot=2
+2:8,0,3x4 78,1 foot=2
+1:16,0,4x5 -3,1 foot=2
+1:16,5,4x5 -1,1 foot=2
+1:16,5,4x5 1,1 foot=2
+1:8,0,4x5 5,1 foot=2
+1:12,0,4x5 9,1 foot=2
+1:16,0,4x5 13,1 foot=2
+1:16,0,4x5 15,1 foot=2
+1:16,14,4x5 17,1 foot=2
+1:16,14,4x5 19,1 foot=2
+1:12,0,4x5 21,1 foot=2
+1:12,0,4x5 23,1 foot=2
+1:16,14,4x5 25,1 foot=2
+1:16,14,4x5 27,1 foot=2
+1:16,0,4x5 29,1 foot=2
+1:16,14,4x5 31,1 foot=2
+1:8,0,4x5 41,1 foot=2
+1:20,14,4x5 45,1 foot=2
+1:16,0,4x5 47,1 foot=2
+58:27,0,3x3 52,2 foot=1
+1:8,0,4x5 55,1 foot=2
+1:16,0,4x5 57,1 foot=2
+1:12,0,4x5 59,1 foot=2
+1:16,0,4x5 61,1 foot=2
+1:16,0,4x5 63,1 foot=2
+1:8,5,4x5 65,1 foot=2
+1:20,19,4x5 67,1 foot=2
+1:12,0,4x5 69,1 foot=2
+1:12,0,4x5 71,1 foot=2
+1:8,5,4x5 73,1 foot=2
+1:8,5,4x5 75,1 foot=2
+1:16,0,4x5 -2,2 foot=2
+1:16,5,4x5 0,2 foot=2
+1:16,0,4x5 6,2 foot=2
+1:16,19,4x5 8,2 foot=2
+2:8,4,3x4 14,3 foot=2
+1:16,14,4x5 18,2 foot=2
+1:16,0,4x5 20,2 foot=2
+1:12,0,4x5 22,2 foot=2
+1:16,5,4x5 24,2 foot=2
+1:16,14,4x5 26,2 foot=2
+1:12,0,4x5 28,2 foot=2
+1:12,0,4x5 30,2 foot=2
+1:12,0,4x5 40,2 foot=2
+1:16,0,4x5 44,2 foot=2
+1:8,5,4x5 46,2 foot=2
+1:8,5,4x5 48,2 foot=2
+1:8,0,4x5 54,2 foot=2
+1:16,5,4x5 56,2 foot=2
+1:12,0,4x5 58,2 foot=2
+1:16,0,4x5 62,2 foot=2
+1:8,5,4x5 64,2 foot=2
+1:8,5,4x5 66,2 foot=2
+1:20,19,4x5 68,2 foot=2
+1:12,0,4x5 70,2 foot=2
+1:16,0,4x5 72,2 foot=2
+1:8,5,4x5 74,2 foot=2
+1:16,0,4x5 78,2 foot=2
+1:16,0,4x5 -3,3 foot=2
+1:12,0,4x5 -1,3 foot=2
+1:12,0,4x5 1,3 foot=2
+1:8,5,4x5 5,3 foot=2
+1:8,5,4x5 7,3 foot=2
+1:16,0,4x5 15,3 foot=2
+1:16,5,4x5 17,3 foot=2
+1:8,5,4x5 21,3 foot=2
+1:16,5,4x5 25,3 foot=2
+2:11,4,3x4 27,4 foot=2
+1:8,5,4x5 45,3 foot=2
+1:8,5,4x5 49,3 foot=2
+1:16,0,4x5 53,3 foot=2
+1:8,5,4x5 55,3 foot=2
+1:16,5,4x5 57,3 foot=2
+1:16,0,4x5 59,3 foot=2
+1:16,5,4x5 61,3 foot=2
+1:20,14,4x5 63,3 foot=2
+1:20,19,4x5 67,3 foot=2
+1:16,5,4x5 69,3 foot=2
+1:16,5,4x5 71,3 foot=2
+1:8,5,4x5 73,3 foot=2
+1:16,0,4x5 75,3 foot=2
+1:12,0,4x5 -2,4 foot=2
+1:12,0,4x5 0,4 foot=2
+1:8,5,4x5 6,4 foot=2
+1:16,0,4x5 14,4 foot=2
+2:8,4,3x4 16,5 foot=2
+1:16,0,4x5 18,4 foot=2
+1:8,5,4x5 20,4 foot=2
+1:16,0,4x5 22,4 foot=2
+1:16,0,4x5 24,4 foot=2
+1:8,5,4x5 26,4 foot=2
+1:8,5,4x5 44,4 foot=2
+1:16,0,4x5 48,4 foot=2
+1:8,5,4x5 50,4 foot=2
+2:8,4,3x4 52,5 foot=2
+1:12,0,4x5 54,4 foot=2
+1:12,0,4x5 56,4 foot=2
+1:16,0,4x5 58,4 foot=2
+2:11,0,3x4 60,5 foot=2
+1:8,5,4x5 62,4 foot=2
+1:16,5,4x5 68,4 foot=2
+1:16,0,4x5 72,4 foot=2
+2:8,4,3x4 74,5 foot=2
+1:8,5,4x5 76,4 foot=2
+2:8,0,3x4 78,5 foot=2
+1:16,0,4x5 -3,5 foot=2
+1:16,0,4x5 -1,5 foot=2
+1:8,0,4x5 3,5 foot=2
+1:8,0,4x5 11,5 foot=2
+2:8,4,3x4 13,6 foot=2
+1:8,5,4x5 15,5 foot=2
+1:8,5,4x5 17,5 foot=2
+1:8,0,4x5 19,5 foot=2
+1:12,0,4x5 23,5 foot=2
+1:8,5,4x5 27,5 foot=2
+1:8,5,4x5 45,5 foot=2
+2:11,0,3x4 47,6 foot=2
+1:16,0,4x5 49,5 foot=2
+1:8,5,4x5 51,5 foot=2
+1:16,0,4x5 53,5 foot=2
+1:8,5,4x5 61,5 foot=2
+1:16,5,4x5 67,5 foot=2
+1:16,5,4x5 71,5 foot=2
+1:8,5,4x5 73,5 foot=2
+1:8,5,4x5 75,5 foot=2
+1:8,0,4x5 77,5 foot=2
+1:12,0,4x5 0,6 foot=2
+1:8,0,4x5 4,6 foot=2
+1:20,14,4x5 12,6 foot=2
+1:16,0,4x5 14,6 foot=2
+1:8,5,4x5 16,6 foot=2
+1:16,0,4x5 18,6 foot=2
+1:8,0,4x5 20,6 foot=2
+1:16,0,4x5 22,6 foot=2
+1:12,0,4x5 24,6 foot=2
+1:8,5,4x5 26,6 foot=2
+1:8,0,4x5 31,6 foot=2
+58:28,0,1x1 34,9
+58:29,0,1x1 35,9
+1:8,5,4x5 46,6 foot=2
+1:16,0,4x5 48,6 foot=2
+1:8,5,4x5 50,6 foot=2
+1:8,5,4x5 52,6 foot=2
+1:16,0,4x5 58,6 foot=2
+1:8,5,4x5 60,6 foot=2
+1:8,5,4x5 62,6 foot=2
+2:8,4,3x4 64,7 foot=2
+1:16,0,4x5 66,6 foot=2
+2:8,4,3x4 68,7 foot=2
+1:16,0,4x5 70,6 foot=2
+1:8,5,4x5 74,6 foot=2
+1:8,0,4x5 76,6 foot=2
+1:16,19,4x5 78,6 foot=2
+1:16,0,4x5 -3,7 foot=2
+1:8,5,4x5 -1,7 foot=2
+1:8,0,4x5 3,7 foot=2
+1:8,0,4x5 5,7 foot=2
+1:20,14,4x5 13,7 foot=2
+1:16,0,4x5 15,7 foot=2
+1:16,0,4x5 17,7 foot=2
+1:16,0,4x5 19,7 foot=2
+1:8,5,4x5 21,7 foot=2
+1:20,14,4x5 23,7 foot=2
+1:8,5,4x5 25,7 foot=2
+1:8,5,4x5 27,7 foot=2
+1:16,0,4x5 41,7 foot=2
+1:16,0,4x5 43,7 foot=2
+1:16,0,4x5 45,7 foot=2
+1:12,0,4x5 47,7 foot=2
+1:12,0,4x5 49,7 foot=2
+2:11,4,3x4 51,8 foot=2
+1:0,0,3x3 56,8 foot=1
+1:8,5,4x5 63,7 foot=2
+1:16,0,4x5 65,7 foot=2
+2:8,4,3x4 67,8 foot=2
+1:8,5,4x5 69,7 foot=2
+1:8,0,4x5 71,7 foot=2
+1:16,0,4x5 73,7 foot=2
+1:8,5,4x5 75,7 foot=2
+2:8,4,3x4 77,8 foot=2
+1:16,0,4x5 -2,8 foot=2
+1:12,0,4x5 0,8 foot=2
+1:8,0,4x5 2,8 foot=2
+1:8,0,4x5 4,8 foot=2
+58:27,29,2x3 8,9 foot=1
+1:16,5,4x5 14,8 foot=2
+1:16,0,4x5 16,8 foot=2
+1:16,5,4x5 18,8 foot=2
+1:8,5,4x5 20,8 foot=2
+1:20,14,4x5 22,8 foot=2
+1:20,14,4x5 24,8 foot=2
+1:16,0,4x5 26,8 foot=2
+1:20,0,4x5 42,8 foot=2
+1:12,0,4x5 46,8 foot=2
+1:12,0,4x5 48,8 foot=2
+1:12,5,4x5 50,8 foot=2
+41:20,21,1x1 57,11
+39:17,8,1x1 58,11
+39:17,8,1x1 59,11
+1:8,5,4x5 64,8 foot=2
+1:12,0,4x5 66,8 foot=2
+1:16,0,4x5 68,8 foot=2
+1:8,0,4x5 70,8 foot=2
+1:16,19,4x5 72,8 foot=2
+1:8,5,4x5 74,8 foot=2
+1:12,0,4x5 76,8 foot=2
+1:16,0,4x5 -3,9 foot=2
+1:16,14,4x5 -1,9 foot=2
+1:8,0,4x5 1,9 foot=2
+1:8,0,4x5 5,9 foot=2
+1:16,0,4x5 15,9 foot=2
+1:16,0,4x5 17,9 foot=2
+1:12,0,4x5 19,9 foot=2
+1:8,5,4x5 21,9 foot=2
+1:20,14,4x5 23,9 foot=2
+1:20,14,4x5 25,9 foot=2
+2:11,4,3x4 27,10 foot=2
+3:18,22,1x1 30,12
+2:8,4,3x4 33,10 foot=2
+1:16,5,4x5 43,9 foot=2
+1:8,5,4x5 45,9 foot=2
+1:12,0,4x5 47,9 foot=2
+1:8,5,4x5 49,9 foot=2
+3:29,30,3x2 54,11 foot=1
+6:29,6,1x1 58,12
+6:28,6,1x1 59,12
+1:12,0,4x5 65,9 foot=2
+1:16,14,4x5 69,9 foot=2
+1:8,5,4x5 75,9 foot=2
+1:16,0,4x5 -2,10 foot=2
+1:8,5,4x5 0,10 foot=2
+1:8,0,4x5 2,10 foot=2
+1:8,0,4x5 4,10 foot=2
+39:17,8,1x1 10,13
+39:17,8,1x1 14,13
+1:12,0,4x5 20,10 foot=2
+1:8,5,4x5 22,10 foot=2
+1:20,14,4x5 24,10 foot=2
+1:8,5,4x5 26,10 foot=2
+1:16,0,4x5 32,10 foot=2
+2:11,4,3x4 44,11 foot=2
+1:12,0,4x5 48,10 foot=2
+6:29,6,1x1 59,13
+1:8,0,4x5 60,10 foot=2
+1:8,0,4x5 62,10 foot=2
+1:16,0,4x5 64,10 foot=2
+1:16,0,4x5 66,10 foot=2
+1:16,14,4x5 68,10 foot=2
+1:8,5,4x5 74,10 foot=2
+1:8,0,4x5 78,10 foot=2
+1:16,5,4x5 -3,11 foot=2
+1:16,19,4x5 -1,11 foot=2
+1:16,0,4x5 1,11 foot=2
+1:8,0,4x5 5,11 foot=2
+2:8,4,3x4 7,12 foot=2
+1:6,25,2x2 10,14 foot=2
+1:6,25,2x2 13,14 foot=2
+1:16,5,4x5 23,11 foot=2
+1:8,5,4x5 25,11 foot=2
+1:8,5,4x5 33,11 foot=2
+1:16,0,4x5 43,11 foot=2
+3:12,23,1x1 59,14
+1:8,0,4x5 61,11 foot=2
+1:16,14,4x5 67,11 foot=2
+1:20,14,4x5 69,11 foot=2
+60:19,3,3x3 72,12 foot=1
+1:8,5,4x5 75,11 foot=2
+2:8,4,3x4 77,12 foot=2
+1:16,0,4x5 -2,12 foot=2
+1:8,5,4x5 0,12 foot=2
+1:16,14,4x5 2,12 foot=2
+1:12,0,4x5 4,12 foot=2
+1:8,5,4x5 6,12 foot=2
+1:6,25,2x2 12,15 foot=2
+1:8,5,4x5 22,12 foot=2
+1:16,5,4x5 24,12 foot=2
+1:20,14,4x5 26,12 foot=2
+58:24,8,1x1 32,15
+1:12,0,4x5 34,12 foot=2
+2:11,0,3x4 42,13 foot=2
+1:0,0,3x3 50,13 foot=1
+3:29,30,3x2 59,14 foot=1
+3:29,30,3x2 64,14 foot=1
+2:8,4,3x4 70,13 foot=2
+1:8,5,4x5 74,12 foot=2
+1:8,5,4x5 76,12 foot=2
+1:16,14,4x5 -3,13 foot=2
+1:12,0,4x5 -1,13 foot=2
+1:16,5,4x5 1,13 foot=2
+1:8,5,4x5 3,13 foot=2
+1:8,0,4x5 16,13 foot=2
+1:0,0,3x3 19,14 foot=1
+1:16,19,4x5 21,13 foot=2
+1:12,0,4x5 23,13 foot=2
+1:12,0,4x5 25,13 foot=2
+1:16,14,4x5 27,13 foot=2
+6:29,6,1x1 67,16
+1:8,5,4x5 69,13 foot=2
+2:8,4,3x4 73,14 foot=2
+1:8,5,4x5 75,13 foot=2
+1:8,5,4x5 77,13 foot=2
+1:12,0,4x5 -2,14 foot=2
+1:12,0,4x5 0,14 foot=2
+1:8,5,4x5 2,14 foot=2
+1:6,23,2x2 7,16 foot=1
+3:19,23,1x1 19,17
+3:19,23,1x1 20,17
+1:12,0,4x5 24,14 foot=2
+1:0,0,3x3 32,15 foot=1
+1:8,5,4x5 34,14 foot=2
+1:20,14,4x5 68,14 foot=2
+1:20,14,4x5 70,14 foot=2
+1:8,5,4x5 72,14 foot=2
+1:16,14,4x5 74,14 foot=2
+1:20,14,4x5 76,14 foot=2
+1:16,14,4x5 -3,15 foot=2
+1:12,0,4x5 -1,15 foot=2
+1:16,0,4x5 1,15 foot=2
+1:8,5,4x5 3,15 foot=2
+39:17,8,1x1 7,18
+39:18,8,1x1 8,18
+6:28,6,1x1 19,18
+2:8,4,3x4 35,16 foot=2
+6:31,8,1x1 43,18
+12:24,0,6x7 46,14 foot=3
+1:12,0,4x5 69,15 foot=2
+1:20,14,4x5 75,15 foot=2
+1:8,0,4x5 -2,16 foot=2
+1:8,5,4x5 2,16 foot=2
+6:30,5,1x1 7,19
+3:22,22,1x1 19,19
+3:19,21,1x1 20,19
+8:26,4,2x3 40,17 foot=1
+39:18,6,1x1 64,19
+1:12,0,4x5 68,16 foot=2
+1:12,0,4x5 -3,17 foot=2
+2:8,4,3x4 3,18 foot=2
+6:28,6,1x1 6,20
+1:8,0,4x5 11,17 foot=2
+1:8,0,4x5 15,17 foot=2
+2:8,0,3x4 25,18 foot=2
+2:8,0,3x4 27,18 foot=2
+3:18,22,1x1 30,20
+2:8,4,3x4 55,18 foot=2
+1:16,0,4x5 -2,18 foot=2
+2:8,0,3x4 0,19 foot=2
+1:16,0,4x5 2,18 foot=2
+1:8,0,4x5 20,18 foot=2
+1:8,0,4x5 24,18 foot=2
+2:8,4,3x4 26,19 foot=2
+58:31,0,1x1 43,21
+1:8,5,4x5 72,18 foot=2
+2:8,0,3x4 78,19 foot=2
+1:16,0,4x5 -3,19 foot=2
+1:8,0,4x5 -1,19 foot=2
+1:16,0,4x5 23,19 foot=2
+1:8,5,4x5 25,19 foot=2
+2:8,4,3x4 27,20 foot=2
+2:24,29,2x2 42,21 foot=1
+9:8,0,8x7 57,17 foot=2
+2:8,4,3x4 69,20 foot=2
+2:8,4,3x4 73,20 foot=2
+2:11,0,3x4 77,20 foot=2
+1:8,0,4x5 -2,20 foot=2
+2:8,4,3x4 8,21 foot=2
+1:6,23,2x2 13,22 foot=1
+1:20,19,4x5 26,20 foot=2
+2:8,4,3x4 28,21 foot=2
+1:8,5,4x5 32,20 foot=2
+58:25,3,1x1 35,23
+41:12,1,1x1 61,23
+1:8,5,4x5 68,20 foot=2
+1:8,5,4x5 70,20 foot=2
+1:16,0,4x5 72,20 foot=2
+1:8,5,4x5 74,20 foot=2
+1:12,0,4x5 -3,21 foot=2
+1:8,5,4x5 3,21 foot=2
+2:8,4,3x4 5,22 foot=2
+1:16,14,4x5 7,21 foot=2
+2:8,4,3x4 19,22 foot=2
+2:8,4,3x4 21,22 foot=2
+1:12,0,4x5 27,21 foot=2
+1:9,5,1x1 43,24
+6:30,5,1x1 63,24
+1:8,5,4x5 69,21 foot=2
+1:12,0,4x5 2,22 foot=2
+1:8,5,4x5 4,22 foot=2
+1:16,14,4x5 6,22 foot=2
+2:8,4,3x4 8,23 foot=2
+58:31,1,1x1 11,25
+6:31,8,1x1 18,25
+1:12,0,4x5 20,22 foot=2
+1:12,0,4x5 26,22 foot=2
+58:27,0,3x3 44,23 foot=1
+39:17,8,1x1 63,25
+1:8,5,4x5 70,22 foot=2
+1:8,0,4x5 78,22 foot=2
+1:12,0,4x5 1,23 foot=2
+2:8,4,3x4 7,24 foot=2
+1:16,0,4x5 13,23 foot=2
+6:30,5,1x1 18,26
+1:12,0,4x5 21,23 foot=2
+1:8,5,4x5 23,23 foot=2
+1:8,5,4x5 25,23 foot=2
+2:11,0,3x4 27,24 foot=2
+3:18,22,1x1 30,26
+8:24,4,1x1 36,26
+2:24,29,2x2 42,25 foot=1
+1:8,5,4x5 53,23 foot=2
+1:8,0,4x5 67,23 foot=2
+1:0,0,3x3 75,24 foot=1
+1:16,0,4x5 0,24 foot=2
+1:12,0,4x5 2,24 foot=2
+6:30,5,1x1 6,27
+1:12,0,4x5 12,24 foot=2
+1:12,0,4x5 14,24 foot=2
+6:31,6,1x1 18,27
+1:12,0,4x5 20,24 foot=2
+1:8,5,4x5 22,24 foot=2
+1:16,0,4x5 24,24 foot=2
+1:12,0,4x5 26,24 foot=2
+3:18,22,1x1 30,27
+8:24,5,1x1 36,27
+12:24,20,6x6 46,23 foot=2
+1:12,0,4x5 56,24 foot=2
+1:16,14,4x5 68,24 foot=2
+1:8,0,4x5 72,24 foot=2
+1:8,0,4x5 -3,25 foot=2
+1:16,14,4x5 -1,25 foot=2
+1:12,0,4x5 1,25 foot=2
+1:0,0,3x3 9,26 foot=1
+1:12,0,4x5 13,25 foot=2
+1:16,14,4x5 19,25 foot=2
+1:16,14,4x5 21,25 foot=2
+1:16,0,4x5 23,25 foot=2
+1:8,0,4x5 25,25 foot=2
+3:18,22,1x1 30,28
+8:26,4,2x3 40,26 foot=1
+1:12,0,4x5 59,25 foot=2
+1:8,0,4x5 65,25 foot=2
+1:8,5,4x5 67,25 foot=2
+1:8,5,4x5 69,25 foot=2
+1:8,0,4x5 71,25 foot=2
+2:11,0,3x4 73,26 foot=2
+2:8,4,3x4 75,26 foot=2
+2:8,4,3x4 -2,27 foot=2
+1:8,5,4x5 0,26 foot=2
+1:16,19,4x5 2,26 foot=2
+6:31,5,1x1 9,29
+1:12,0,4x5 14,26 foot=2
+1:8,5,4x5 20,26 foot=2
+1:20,14,4x5 24,26 foot=2
+1:16,0,4x5 26,26 foot=2
+3:18,22,1x1 30,29
+39:16,6,1x1 57,29
+1:12,0,4x5 58,26 foot=2
+2:8,4,3x4 64,27 foot=2
+1:16,0,4x5 66,26 foot=2
+1:16,0,4x5 68,26 foot=2
+1:8,5,4x5 70,26 foot=2
+1:8,0,4x5 72,26 foot=2
+1:12,0,4x5 74,26 foot=2
+1:16,0,4x5 1,27 foot=2
+2:8,4,3x4 3,28 foot=2
+58:23,28,4x4 5,27 foot=1
+39:17,8,1x1 6,30
+58:29,29,1x1 8,30
+1:20,14,4x5 23,27 foot=2
+1:20,14,4x5 25,27 foot=2
+2:11,0,3x4 27,28 foot=2
+3:18,22,1x1 30,30
+1:12,0,4x5 33,27 foot=2
+1:16,0,4x5 63,27 foot=2
+1:8,5,4x5 65,27 foot=2
+1:12,0,4x5 67,27 foot=2
+1:16,0,4x5 69,27 foot=2
+1:8,0,4x5 71,27 foot=2
+1:8,5,4x5 75,27 foot=2
+1:8,5,4x5 0,28 foot=2
+1:8,5,4x5 2,28 foot=2
+1:8,0,4x5 9,28 foot=2
+2:8,4,3x4 14,29 foot=2
+1:16,5,4x5 22,28 foot=2
+3:18,22,1x1 30,31
+1:20,14,4x5 64,28 foot=2
+1:12,0,4x5 66,28 foot=2
+1:16,0,4x5 70,28 foot=2
+1:8,0,4x5 -3,29 foot=2
+2:8,4,3x4 -1,30 foot=2
+1:16,0,4x5 13,29 foot=2
+1:16,5,4x5 23,29 foot=2
+2:8,4,3x4 25,30 foot=2
+3:18,22,1x1 30,32
+58:24,3,3x3 32,30 foot=1
+1:3,29,2x3 42,30 foot=1
+39:16,8,1x1 57,32
+2:11,4,3x4 65,30 foot=2
+1:16,0,4x5 67,29 foot=2
+1:8,5,4x5 69,29 foot=2
+1:0,0,3x3 73,30 foot=1
+1:16,0,4x5 75,29 foot=2
+2:8,0,3x4 77,30 foot=2
+1:8,5,4x5 -2,30 foot=2
+1:6,0,1x1 4,33
+58:31,1,1x1 5,33
+6:31,8,1x1 12,33
+2:8,4,3x4 14,31 foot=2
+1:8,0,4x5 19,30 foot=2
+1:16,14,4x5 22,30 foot=2
+6:31,8,1x1 32,33
+1:0,0,3x3 43,31 foot=1
+2:8,0,3x4 58,31 foot=2
+2:8,0,3x4 62,31 foot=2
+1:16,0,4x5 64,30 foot=2
+1:8,5,4x5 70,30 foot=2
+1:16,14,4x5 76,30 foot=2
+58:31,1,1x1 2,34
+1:6,0,1x1 3,34
+58:31,1,1x1 5,34
+2:8,4,3x4 15,32 foot=2
+1:8,5,4x5 23,31 foot=2
+2:11,4,3x4 25,32 foot=2
+1:8,0,4x5 27,31 foot=2
+2:11,0,3x4 33,32 foot=2
+14:8,22,6x7 46,29 foot=2
+31:16,20,6x5 52,31 foot=2
+1:8,0,4x5 59,31 foot=2
+1:8,5,4x5 61,31 foot=2
+2:8,4,3x4 65,32 foot=2
+2:8,4,3x4 73,32 foot=2
+2:8,4,3x4 75,32 foot=2
+1:16,0,4x5 6,32 foot=2
+1:12,0,4x5 14,32 foot=2
+3:22,23,1x1 19,35
+3:21,21,1x1 20,35
+3:23,21,1x1 21,35
+3:19,23,1x1 22,35
+3:20,23,1x1 29,35
+1:20,14,4x5 40,32 foot=2
+1:8,5,4x5 60,32 foot=2
+1:8,0,4x5 62,32 foot=2
+2:8,4,3x4 64,33 foot=2
+1:0,0,3x3 67,33 foot=1
+1:8,0,4x5 74,32 foot=2
+1:16,0,4x5 76,32 foot=2
+2:8,0,3x4 78,33 foot=2
+6:29,6,1x1 5,36
+1:16,0,4x5 7,33 foot=2
+39:18,8,1x1 11,36
+58:31,5,1x1 19,36
+25:31,8,1x1 32,36
+11:6,19,1x1 36,36
+1:8,0,4x5 63,33 foot=2
+2:8,4,3x4 65,34 foot=2
+1:8,0,4x5 73,33 foot=2
+1:8,0,4x5 75,33 foot=2
+1:16,14,4x5 77,33 foot=2
+2:8,4,3x4 2,35 foot=2
+39:17,8,1x1 13,37
+39:17,8,1x1 14,37
+39:18,8,1x1 15,37
+25:31,9,1x1 32,37
+1:16,19,4x5 64,34 foot=2
+2:8,4,3x4 66,35 foot=2
+1:16,0,4x5 74,34 foot=2
+1:8,0,4x5 -3,35 foot=2
+1:16,14,4x5 -1,35 foot=2
+1:8,5,4x5 63,35 foot=2
+1:8,5,4x5 65,35 foot=2
+1:8,5,4x5 67,35 foot=2
+1:8,0,4x5 70,35 foot=2
+1:8,5,4x5 75,35 foot=2
+1:8,0,4x5 -2,36 foot=2
+1:12,0,4x5 0,36 foot=2
+2:8,4,3x4 4,37 foot=2
+1:9,19,1x1 47,39
+1:16,0,4x5 64,36 foot=2
+2:8,4,3x4 68,37 foot=2
+1:8,5,4x5 74,36 foot=2
+1:8,5,4x5 76,36 foot=2
+1:16,0,4x5 -3,37 foot=2
+1:12,0,4x5 -1,37 foot=2
+1:8,5,4x5 3,37 foot=2
+1:8,5,4x5 9,37 foot=2
+6:29,6,1x1 47,40
+2:8,4,3x4 49,38 foot=2
+1:12,0,4x5 60,37 foot=2
+1:16,0,4x5 63,37 foot=2
+1:8,5,4x5 65,37 foot=2
+1:8,5,4x5 67,37 foot=2
+1:8,5,4x5 73,37 foot=2
+1:8,5,4x5 75,37 foot=2
+2:11,4,3x4 77,38 foot=2
+1:16,0,4x5 -2,38 foot=2
+1:8,0,4x5 4,38 foot=2
+58:24,8,1x1 26,41
+1:8,5,4x5 48,38 foot=2
+1:8,5,4x5 54,38 foot=2
+1:16,0,4x5 64,38 foot=2
+1:8,5,4x5 66,38 foot=2
+2:8,4,3x4 68,39 foot=2
+2:8,4,3x4 70,39 foot=2
+2:11,4,3x4 72,39 foot=2
+1:8,5,4x5 74,38 foot=2
+1:8,5,4x5 76,38 foot=2
+1:16,14,4x5 78,38 foot=2
+1:16,0,4x5 -3,39 foot=2
+1:12,0,4x5 -1,39 foot=2
+1:8,0,4x5 3,39 foot=2
+1:16,14,4x5 5,39 foot=2
+8:28,4,3x3 15,40 foot=1
+58:31,5,1x1 17,42
+39:16,6,1x1 25,42
+3:12,23,1x1 31,42
+39:18,6,1x1 35,42
+6:24,6,4x4 51,39 foot=1
+2:8,4,3x4 63,40 foot=2
+1:16,0,4x5 65,39 foot=2
+1:16,0,4x5 67,39 foot=2
+1:16,0,4x5 69,39 foot=2
+1:8,5,4x5 71,39 foot=2
+2:8,4,3x4 75,40 foot=2
+1:16,0,4x5 -2,40 foot=2
+1:8,0,4x5 2,40 foot=2
+39:16,6,1x1 24,43
+1:0,0,3x3 26,41 foot=1
+6:31,8,1x1 29,43
+6:29,6,1x1 34,43
+31:16,13,7x7 41,38 foot=2
+1:16,0,4x5 62,40 foot=2
+1:16,5,4x5 66,40 foot=2
+1:16,0,4x5 68,40 foot=2
+1:12,0,4x5 70,40 foot=2
+1:8,0,4x5 72,40 foot=2
+1:8,0,4x5 74,40 foot=2
+1:16,0,4x5 -3,41 foot=2
+1:12,0,4x5 -1,41 foot=2
+1:8,0,4x5 3,41 foot=2
+1:16,14,4x5 11,41 foot=2
+2:8,4,3x4 13,42 foot=2
+3:1,18,1x1 21,44
+1:16,0,4x5 61,41 foot=2
+1:8,0,4x5 63,41 foot=2
+1:16,0,4x5 65,41 foot=2
+1:16,5,4x5 67,41 foot=2
+1:12,0,4x5 69,41 foot=2
+1:12,0,4x5 71,41 foot=2
+1:8,0,4x5 73,41 foot=2
+1:8,0,4x5 75,41 foot=2
+1:16,0,4x5 -2,42 foot=2
+1:8,0,4x5 2,42 foot=2
+1:16,0,4x5 12,42 foot=2
+58:27,0,3x3 22,43 foot=1
+1:16,0,4x5 60,42 foot=2
+1:8,0,4x5 62,42 foot=2
+1:8,0,4x5 64,42 foot=2
+1:8,5,4x5 66,42 foot=2
+1:20,14,4x5 68,42 foot=2
+1:12,0,4x5 70,42 foot=2
+1:16,14,4x5 72,42 foot=2
+1:8,0,4x5 -3,43 foot=2
+1:12,0,4x5 -1,43 foot=2
+2:8,4,3x4 3,44 foot=2
+1:8,5,4x5 7,43 foot=2
+1:16,0,4x5 13,43 foot=2
+2:8,4,3x4 15,44 foot=2
+1:8,0,4x5 18,43 foot=2
+1:16,0,4x5 61,43 foot=2
+1:8,0,4x5 63,43 foot=2
+1:8,5,4x5 65,43 foot=2
+1:20,14,4x5 67,43 foot=2
+2:8,4,3x4 69,44 foot=2
+1:16,14,4x5 71,43 foot=2
+1:16,0,4x5 73,43 foot=2
+1:8,0,4x5 2,44 foot=2
+1:8,0,4x5 4,44 foot=2
+1:8,5,4x5 6,44 foot=2
+1:8,5,4x5 8,44 foot=2
+1:16,0,4x5 12,44 foot=2
+1:12,0,4x5 14,44 foot=2
+1:0,0,3x3 17,45 foot=1
+2:8,4,3x4 22,45 foot=2
+2:11,4,3x4 24,45 foot=2
+1:8,5,4x5 62,44 foot=2
+1:16,0,4x5 64,44 foot=2
+1:20,14,4x5 68,44 foot=2
+1:8,5,4x5 70,44 foot=2
+1:12,0,4x5 72,44 foot=2
+1:16,0,4x5 74,44 foot=2
+1:16,19,4x5 76,44 foot=2
+2:11,0,3x4 78,45 foot=2
+1:8,0,4x5 -3,45 foot=2
+1:8,5,4x5 3,45 foot=2
+1:16,0,4x5 13,45 foot=2
+2:29,24,1x1 19,48
+2:30,20,1x1 20,48
+2:30,20,1x1 21,48
+1:8,5,4x5 23,45 foot=2
+1:12,0,4x5 61,45 foot=2
+1:16,14,4x5 65,45 foot=2
+2:8,0,3x4 67,46 foot=2
+1:20,14,4x5 69,45 foot=2
+1:12,0,4x5 71,45 foot=2
+1:8,5,4x5 73,45 foot=2
+2:11,4,3x4 75,46 foot=2
+1:8,0,4x5 2,46 foot=2
+1:16,14,4x5 4,46 foot=2
+58:31,5,1x1 9,49
+1:6,0,1x1 10,49
+1:16,0,4x5 12,46 foot=2
+1:12,0,4x5 14,46 foot=2
+2:29,24,1x1 41,49
+2:30,20,1x1 42,49
+2:30,20,1x1 43,49
+2:30,20,1x1 44,49
+2:30,20,1x1 45,49
+2:30,20,1x1 46,49
+2:30,20,1x1 47,49
+2:30,20,1x1 48,49
+2:30,20,1x1 49,49
+2:30,24,1x1 50,49
+2:30,20,1x1 51,49
+2:30,24,1x1 52,49
+2:30,24,1x1 53,49
+2:30,24,1x1 54,49
+2:30,20,1x1 55,49
+2:30,24,1x1 56,49
+2:30,24,1x1 57,49
+2:30,24,1x1 58,49
+2:30,24,1x1 59,49
+1:8,5,4x5 60,46 foot=2
+1:8,0,4x5 66,46 foot=2
+1:8,5,4x5 68,46 foot=2
+1:8,5,4x5 72,46 foot=2
+1:16,0,4x5 76,46 foot=2
+2:11,0,3x4 78,47 foot=2
+1:8,0,4x5 -3,47 foot=2
+1:8,0,4x5 1,47 foot=2
+1:16,14,4x5 5,47 foot=2
+58:31,1,1x1 10,50
+1:16,0,4x5 11,47 foot=2
+1:16,0,4x5 13,47 foot=2
+1:12,0,4x5 15,47 foot=2
+1:8,5,4x5 61,47 foot=2
+2:8,4,3x4 69,48 foot=2
+1:16,14,4x5 71,47 foot=2
+1:16,14,4x5 73,47 foot=2
+1:8,5,4x5 75,47 foot=2
+1:16,14,4x5 77,47 foot=2
+1:8,0,4x5 -2,48 foot=2
+1:8,0,4x5 0,48 foot=2
+1:16,14,4x5 2,48 foot=2
+1:16,14,4x5 4,48 foot=2
+2:8,4,3x4 6,49 foot=2
+1:16,0,4x5 12,48 foot=2
+1:12,0,4x5 14,48 foot=2
+2:8,4,3x4 16,49 foot=2
+6:28,5,1x1 28,51
+6:28,5,1x1 29,51
+1:8,0,4x5 32,48 foot=2
+1:20,19,4x5 66,48 foot=2
+1:8,5,4x5 68,48 foot=2
+1:16,14,4x5 70,48 foot=2
+1:16,0,4x5 72,48 foot=2
+1:16,14,4x5 74,48 foot=2
+1:8,0,4x5 -3,49 foot=2
+1:8,5,4x5 -1,49 foot=2
+1:8,5,4x5 1,49 foot=2
+1:16,14,4x5 3,49 foot=2
+1:20,14,4x5 5,49 foot=2
+2:8,4,3x4 13,50 foot=2
+1:16,0,4x5 15,49 foot=2
+6:28,5,1x1 23,52
+58:25,3,1x1 25,52
+39:17,8,1x1 26,52
+39:17,8,1x1 27,52
+39:17,8,1x1 28,52
+39:17,8,1x1 29,52
+8:24,4,1x1 45,52
+8:25,4,1x1 46,52
+6:31,8,1x1 63,52
+1:20,19,4x5 67,49 foot=2
+1:8,0,4x5 69,49 foot=2
+1:8,5,4x5 71,49 foot=2
+1:8,5,4x5 73,49 foot=2
+1:8,5,4x5 75,49 foot=2
+1:16,0,4x5 -2,50 foot=2
+1:8,5,4x5 0,50 foot=2
+1:8,5,4x5 2,50 foot=2
+1:12,0,4x5 4,50 foot=2
+2:8,4,3x4 8,51 foot=2
+1:16,0,4x5 12,50 foot=2
+1:16,0,4x5 14,50 foot=2
+1:8,5,4x5 16,50 foot=2
+6:31,6,1x1 27,53
+2:8,0,3x4 32,51 foot=2
+58:31,5,1x1 35,53
+8:24,5,1x1 45,53
+1:16,14,4x5 66,50 foot=2
+1:8,0,4x5 68,50 foot=2
+1:8,5,4x5 74,50 foot=2
+1:8,0,4x5 78,50 foot=2
+1:16,0,4x5 -3,51 foot=2
+1:20,14,4x5 -1,51 foot=2
+1:16,0,4x5 1,51 foot=2
+1:12,0,4x5 3,51 foot=2
+2:8,4,3x4 9,52 foot=2
+1:16,0,4x5 13,51 foot=2
+1:16,0,4x5 15,51 foot=2
+1:8,5,4x5 17,51 foot=2
+6:28,6,1x1 27,54
+6:31,8,1x1 28,54
+1:12,0,4x5 29,51 foot=2
+8:26,4,2x3 51,52 foot=1
+1:8,0,4x5 63,51 foot=2
+1:16,14,4x5 67,51 foot=2
+1:8,0,4x5 69,51 foot=2
+1:16,14,4x5 71,51 foot=2
+1:16,0,4x5 75,51 foot=2
+2:8,4,3x4 77,52 foot=2
+2:11,4,3x4 -2,53 foot=2
+1:8,5,4x5 2,52 foot=2
+1:0,0,3x3 6,53 foot=1
+1:12,0,4x5 12,52 foot=2
+1:12,0,4x5 14,52 foot=2
+1:12,0,4x5 16,52 foot=2
+2:8,4,3x4 18,53 foot=2
+58:26,3,1x1 21,55
+6:28,5,1x1 37,55
+6:28,5,1x1 38,55
+6:30,5,1x1 39,55
+6:28,6,1x1 40,55
+39:18,6,1x1 45,55
+6:29,5,1x1 46,55
+6:31,8,1x1 51,55
+39:16,6,1x1 52,55
+1:20,14,4x5 66,52 foot=2
+1:12,0,4x5 68,52 foot=2
+1:16,14,4x5 70,52 foot=2
+1:12,0,4x5 76,52 foot=2
+1:20,0,4x5 -3,53 foot=2
+1:16,14,4x5 11,53 foot=2
+1:12,0,4x5 17,53 foot=2
+1:8,0,4x5 22,53 foot=2
+58:25,3,1x1 25,56
+6:31,6,1x1 36,56
+6:31,8,1x1 38,56
+6:31,8,1x1 40,56
+1:8,5,4x5 41,53 foot=2
+6:31,6,1x1 46,56
+2:8,4,3x4 59,54 foot=2
+2:11,4,3x4 71,54 foot=2
+1:12,0,4x5 -2,54 foot=2
+1:16,0,4x5 8,54 foot=2
+1:8,0,4x5 10,54 foot=2
+1:12,0,4x5 16,54 foot=2
+6:31,8,1x1 23,57
+1:0,0,3x3 26,55 foot=1
+2:11,0,3x4 30,55 foot=2
+58:24,8,1x1 35,57
+2:11,0,3x4 54,55 foot=2
+58:27,3,3x3 57,55 foot=1
+1:12,0,4x5 60,54 foot=2
+1:16,0,4x5 70,54 foot=2
+1:16,0,4x5 78,54 foot=2
+1:16,0,4x5 -3,55 foot=2
+2:11,0,3x4 -1,56 foot=2
+1:8,0,4x5 7,55 foot=2
+1:12,0,4x5 9,55 foot=2
+1:8,0,4x5 11,55 foot=2
+1:16,14,4x5 13,55 foot=2
+1:16,0,4x5 15,55 foot=2
+1:16,19,4x5 17,55 foot=2
+2:11,4,3x4 19,56 foot=2
+1:8,0,4x5 29,55 foot=2
+2:8,4,3x4 55,56 foot=2
+1:12,0,4x5 59,55 foot=2
+1:8,5,4x5 61,55 foot=2
+2:8,4,3x4 71,56 foot=2
+1:16,0,4x5 -2,56 foot=2
+1:16,0,4x5 10,56 foot=2
+1:16,0,4x5 12,56 foot=2
+1:12,0,4x5 14,56 foot=2
+1:12,0,4x5 16,56 foot=2
+1:16,19,4x5 18,56 foot=2
+2:8,4,3x4 20,57 foot=2
+1:9,5,1x1 23,59
+1:0,0,3x3 35,57 foot=1
+39:18,6,1x1 44,59
+6:28,6,1x1 46,59
+58:31,5,1x1 51,59
+58:31,5,1x1 53,59
+1:16,0,4x5 58,56 foot=2
+1:8,5,4x5 60,56 foot=2
+1:8,5,4x5 62,56 foot=2
+2:8,4,3x4 66,57 foot=2
+1:16,0,4x5 70,56 foot=2
+2:8,4,3x4 72,57 foot=2
+1:12,0,4x5 74,56 foot=2
+1:16,0,4x5 78,56 foot=2
+1:16,0,4x5 -3,57 foot=2
+2:11,0,3x4 -1,58 foot=2
+1:16,0,4x5 13,57 foot=2
+1:16,0,4x5 15,57 foot=2
+1:16,19,4x5 19,57 foot=2
+58:24,8,1x1 31,60
+1:12,0,4x5 37,57 foot=2
+6:28,6,1x1 51,60
+39:17,8,1x1 56,60
+1:8,0,4x5 57,57 foot=2
+2:8,4,3x4 59,58 foot=2
+1:8,0,4x5 63,57 foot=2
+1:12,0,4x5 69,57 foot=2
+1:16,0,4x5 71,57 foot=2
+1:16,0,4x5 73,57 foot=2
+1:8,5,4x5 75,57 foot=2
+1:16,0,4x5 -2,58 foot=2
+1:16,0,4x5 14,58 foot=2
+1:12,0,4x5 16,58 foot=2
+1:8,5,4x5 18,58 foot=2
+58:27,0,3x3 25,59 foot=1
+2:8,4,3x4 34,59 foot=2
+1:16,0,4x5 36,58 foot=2
+1:8,0,4x5 40,58 foot=2
+1:8,0,4x5 58,58 foot=2
+2:11,0,3x4 64,59 foot=2
+1:8,0,4x5 68,58 foot=2
+1:16,0,4x5 70,58 foot=2
+1:20,14,4x5 72,58 foot=2
+1:16,0,4x5 74,58 foot=2
+1:16,19,4x5 76,58 foot=2
+1:16,0,4x5 -3,59 foot=2
+58:23,28,4x4 7,59 foot=1
+58:27,29,2x3 12,60 foot=1
+1:16,5,4x5 13,59 foot=2
+1:16,0,4x5 15,59 foot=2
+1:8,0,4x5 17,59 foot=2
+2:11,0,3x4 19,60 foot=2
+1:8,5,4x5 22,59 foot=2
+2:8,4,3x4 27,60 foot=2
+6:28,6,1x1 30,62
+1:0,0,3x3 31,60 foot=1
+1:8,5,4x5 33,59 foot=2
+1:16,14,4x5 35,59 foot=2
+2:11,0,3x4 37,60 foot=2
+2:11,0,3x4 41,60 foot=2
+6:31,8,1x1 56,62
+1:8,0,4x5 57,59 foot=2
+1:0,0,3x3 61,60 foot=1
+1:12,0,4x5 63,59 foot=2
+39:17,8,1x1 67,62
+1:16,0,4x5 69,59 foot=2
+1:12,0,4x5 71,59 foot=2
+1:16,5,4x5 75,59 foot=2
+1:16,0,4x5 -2,60 foot=2
+39:17,8,1x1 12,63
+1:12,0,4x5 16,60 foot=2
+39:17,8,1x1 22,63
+39:17,8,1x1 25,63
+39:17,8,1x1 26,63
+39:17,8,1x1 30,63
+39:17,8,1x1 31,63
+39:17,8,1x1 32,63
+1:8,5,4x5 34,60 foot=2
+1:8,0,4x5 40,60 foot=2
+39:18,8,1x1 44,63
+2:8,4,3x4 52,61 foot=2
+39:16,8,1x1 61,63
+39:17,8,1x1 62,63
+39:17,8,1x1 67,63
+39:17,8,1x1 68,63
+1:16,0,4x5 70,60 foot=2
+1:16,0,4x5 72,60 foot=2
+1:16,5,4x5 74,60 foot=2
+1:20,14,4x5 76,60 foot=2
+2:8,4,3x4 7,62 foot=2
+39:17,8,1x1 12,64
+39:17,8,1x1 13,64
+39:17,8,1x1 14,64
+39:17,8,1x1 15,64
+39:17,8,1x1 20,64
+39:17,8,1x1 21,64
+39:17,8,1x1 22,64
+39:17,8,1x1 23,64
+39:17,8,1x1 24,64
+39:17,8,1x1 25,64
+39:17,8,1x1 26,64
+39:17,8,1x1 27,64
+39:17,8,1x1 28,64
+39:17,8,1x1 29,64
+39:17,8,1x1 30,64
+39:17,8,1x1 31,64
+39:17,8,1x1 32,64
+1:8,5,4x5 35,61 foot=2
+2:8,4,3x4 41,62 foot=2
+58:25,20,1x1 44,64
+39:18,8,1x1 45,64
+1:8,5,4x5 57,61 foot=2
+39:17,8,1x1 64,64
+39:17,8,1x1 65,64
+39:17,8,1x1 66,64
+39:17,8,1x1 67,64
+39:17,8,1x1 68,64
+39:17,8,1x1 69,64
+1:12,0,4x5 71,61 foot=2
+1:16,5,4x5 75,61 foot=2
+1:12,0,4x5 6,62 foot=2
+1:12,0,4x5 8,62 foot=2
+1:20,14,4x5 34,62 foot=2
+1:20,14,4x5 36,62 foot=2
+1:12,0,4x5 40,62 foot=2
+1:12,0,4x5 70,62 foot=2
+1:8,5,4x5 72,62 foot=2
+1:20,14,4x5 74,62 foot=2
+1:12,0,4x5 7,63 foot=2
+2:11,4,3x4 9,64 foot=2
+1:20,0,4x5 33,63 foot=2
+1:16,0,4x5 39,63 foot=2
+2:11,4,3x4 55,64 foot=2
+2:11,4,3x4 57,64 foot=2
+2:11,4,3x4 61,64 foot=2
+1:12,0,4x5 71,63 foot=2
+1:16,5,4x5 73,63 foot=2
+1:20,19,4x5 75,63 foot=2
+5:16,0,6x9 45,61
 
 [links]
-edge south -> route_1 offset=-6
+door @V -> route_1 @D arrive=below face=down sfx=entering_door
 door @M -> viridian_mart @x face=up sfx=automatic_door
 door @C -> viridian_center @x face=up sfx=automatic_door
 door @S -> trainer_school @x face=up
+door @Y -> viridian_gym @x face=up sfx=entering_door
 
 [actors]
 old_man    @O sprite=sprite8 name="Old Man" face=down look=random script=old_man
-youngster  @g sprite=sprite110 name="Youngster" face=right path=right4,left4 script=vir_youngster
+youngster  @g sprite=sprite110 name="Youngster" face=down path=down3,up3 script=vir_youngster
 girl       @b sprite=sprite25 name="Girl" face=up look=random script=vir_girl
-boss_gate  @B sprite=sprite179 name="Cổng Boss" face=down script=boss_gate
 sign_city  @q kind=sign name="Sign" script=sign_viridian
 sign_gym   @u kind=sign name="Sign" script=sign_gym
 sign_school @e kind=sign name="Sign" script=sign_school
-gym_door   @Y kind=sign name="Gym" script=gym_locked
 home_door  @h kind=sign script=door_locked
 home_door2 @k kind=sign script=door_locked
 
@@ -86,9 +1301,6 @@ say Viridian City Pokémon Gym\nThe Gym Leader is away.
 
 [script sign_school]
 say Trainer Tips\nLearn the basics at the Trainer School!
-
-[script gym_locked]
-say The Gym's doors are locked...
 
 [script door_locked]
 say It's locked...
@@ -109,8 +1321,3 @@ say It's great that you can carry and use Pokémon any time, anywhere!
 
 [script vir_girl]
 say The Gym Leader of Viridian is always away.\nNobody knows where he goes.
-
-[script boss_gate]
-say Boss thế giới đang lảng vảng quanh Kanto! Một mình thì khó thắng lắm.
-say Rủ tối đa bốn người cùng vào, máu boss là của chung: ai đánh cũng làm nó yếu đi.
-raid snorlax

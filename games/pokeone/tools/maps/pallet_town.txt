@@ -1,5 +1,6 @@
-# Pallet Town. Bố cục theo FireRed/HGSS (nhà người chơi trái trên, nhà Gary phải trên, lab Oak dưới phải,
-# ao phía nam), vẽ bằng bộ Pallet của PRO (tấm 60). Cỏ gặp Pokémon: pokeonecommunity.com/location/pallet-town/
+# Pallet Town, dựng theo ảnh bản đồ PRO thật (D:\pro-ref\pokemap\Pallet_Town.png, 31×31 ô). Tranh do
+# tools/pro/match_ref.py + fit_ref.py dò từ ảnh rồi sửa tay: nhà đỏ (tấm 4), nhà xanh Gary (tấm 5), lab Oak (tấm 5),
+# rừng (tấm 1, 2, 10, 60), đường cát tự nối (tấm 38), ao (tấm 6). PRO không có Pokémon hoang dã ở Pallet Town.
 name: Pallet Town
 song: pallet_town
 bg: land
@@ -8,53 +9,335 @@ encounter: normal
 [legend]
 . grass
 , path
-T tree
-~ water
-H house_red
-G house_red
-L lab_oak
-l lab_wing
-o sign_oak
-s signboard
-F fence
-* flowers
-" tallgrass grass=pallet_grass
+T block
+P path solid
+~ pond
+H block mark
+G block mark
+L block mark
+s block mark
+m block mark
+n block mark
+o block mark
 a grassmark
 b pathmark
-k grassmark
 
 [grid]
-TTTTTTTTTTTT..,,..TTTTTTTTTTTT
-TTTTTTTTTTTT..,,..TTTTTTTTTTTT
-TT****........,,............TT
-TT****........,,............TT
-TT............,,............TT
-TT...HHHHH....,,..GGGGG.....TT
-TT...HHHHH....,,..GGGGG.....TT
-TT.....,,.....,,....,,......TT
-TT..,,,,,,,,,,,,,,,,,,,,,,..TT
-TT..,,,,,,,,,,,,,,,,,,,,,,..TT
-TT...........s,,......**....TT
-TT......a.....,,......**....TT
-TT.FFFFFFF....,,............TT
-TT.F*****F....,,............TT
-TT.F*****F....,,............TT
-TT.FFFFFFF....,,LLLLlll.....TT
-TT............,,LLLLlll.....TT
-TT............,,LLLLlll.o...TT
-TT...........,,,,,,.........TT
-TT...........,,,b,,.........TT
-TT..~~~~~~..................TT
-TT..~~~~~~......k..""""""...TT
-TT..~~~~~~.........""""""...TT
-TT..~~~~~~.........""""""...TT
-TT......................TTTTTT
-TT......................TTTTTT
-TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+TTTTTTTTTTT......TTTTTTTTTTTTTT
+TTTT.TT.TTT......TTTTT.TTT.TTTT
+TT.TTTTTTTT......TTTTTTTTTTTTTT
+TTTTTTTT.TT......TTTTTTTTTT.TTT
+TTTTTTTTTT.......TTTTTTTTTTTT.T
+T..TTTT.TT.......TTTTTTTTTTTTTT
+TTTTTT..T..,,,,,.TTTTT..TTTTTTT
+TTTTTT...T.,,,,,TTTTTT....TTTTT
+TTTTTTTTTT.,,,,,TTTTTT.TT.TTT.T
+TT..TTTTTT.,,,,,.T.T.TTTTTTT.TT
+TTTTTTTTTT.,,,,,TT.T.TTTTT.TTTT
+TTTTmTTTTT.,,,,,TTTT.TTTTT.TTTT
+TTTTTTHTTTT,,,,,TTT.nTGTTT.TTTT
+TT.TT......,,,,,.T........TTTTT
+TTTT.,,,,,,,,,,,,,,....TTTT.TTT
+TTTTT,,,,,,,,,,,,,,.......TTTTT
+TTTTT,,,,,,,,,,,,,,TTTTTT.TTTTT
+TTTTT...a..,,,,,..TTTTTTTT.TTTT
+TTTTT.,,,,,,,,b...TTTTTTTT.TTTT
+TTTTT.,,,,,,,,,,.TTTTTTTTT.TTTT
+T.TTT.TTTTsT,,,,.TTTTTTTTT.T..T
+TTTTT.,,,,,,,,,,.TTTTTLTTT.TTTT
+TTTTT.,,,,,,,,,,...........TTTT
+TTTTT......,,,,,............TTT
+TTTTT....T........TTToTTT.TTTTT
+TTTTTT.TTT............T.TT.TTTT
+TTTTTTT.TT~~~~~T.....TTTTTTTT.T
+TTTTTTTT..~~~~~.TTT.TTTTTTTTTTT
+TTTTTTTTTT~~~~~.TTTTTTTTTTTTTTT
+TTTTTTTT.T~~~~~TTTTTT.TTTTTTTTT
+TTTTTTTTTT~~~~~TTTTTTTTTTTTTTTT
+
+[stamps]
+1:16,0,4x5 -2,-4 foot=2
+1:20,5,4x5 0,-4 foot=2
+1:20,5,4x5 2,-4 foot=2
+1:16,0,4x5 4,-4 foot=2
+1:20,5,4x5 6,-4 foot=2
+1:20,5,4x5 8,-4 foot=2
+1:20,5,4x5 10,-4 foot=2
+1:20,5,4x5 12,-4 foot=2
+1:16,0,4x5 16,-4 foot=2
+1:12,0,4x5 18,-4 foot=2
+1:20,5,4x5 20,-4 foot=2
+1:20,5,4x5 22,-4 foot=2
+1:20,5,4x5 24,-4 foot=2
+1:20,5,4x5 26,-4 foot=2
+1:16,0,4x5 28,-4 foot=2
+2:11,0,3x4 30,-3 foot=2
+1:16,0,4x5 -3,-3 foot=2
+2:8,0,3x4 1,-2 foot=2
+1:16,0,4x5 3,-3 foot=2
+2:11,0,3x4 5,-2 foot=2
+1:8,0,4x5 7,-3 foot=2
+2:8,0,3x4 17,-2 foot=2
+2:8,0,3x4 21,-2 foot=2
+1:16,0,4x5 23,-3 foot=2
+1:16,0,4x5 27,-3 foot=2
+2:11,0,3x4 29,-2 foot=2
+1:8,5,4x5 -2,-2 foot=2
+2:8,0,3x4 0,-1 foot=2
+1:8,0,4x5 2,-2 foot=2
+2:8,4,3x4 4,-1 foot=2
+2:8,4,3x4 18,-1 foot=2
+2:8,0,3x4 22,-1 foot=2
+2:11,4,3x4 24,-1 foot=2
+1:16,14,4x5 26,-2 foot=2
+2:11,0,3x4 28,-1 foot=2
+1:12,5,4x5 30,-2 foot=2
+1:16,0,4x5 -3,-1 foot=2
+1:16,14,4x5 -1,-1 foot=2
+2:8,4,3x4 3,0 foot=2
+1:8,5,4x5 7,-1 foot=2
+1:8,0,4x5 17,-1 foot=2
+2:8,4,3x4 19,0 foot=2
+2:8,0,3x4 21,0 foot=2
+1:8,5,4x5 23,-1 foot=2
+2:8,4,3x4 25,0 foot=2
+1:8,5,4x5 27,-1 foot=2
+1:16,0,4x5 -2,0 foot=2
+2:8,0,3x4 0,1 foot=2
+1:8,5,4x5 2,0 foot=2
+1:8,5,4x5 4,0 foot=2
+2:8,0,3x4 6,1 foot=2
+2:11,0,3x4 8,1 foot=2
+1:8,0,4x5 16,0 foot=2
+1:8,5,4x5 18,0 foot=2
+2:8,0,3x4 20,1 foot=2
+2:8,0,3x4 22,1 foot=2
+2:8,4,3x4 24,1 foot=2
+1:8,5,4x5 28,0 foot=2
+2:11,0,3x4 30,1 foot=2
+1:16,0,4x5 -3,1 foot=2
+1:16,14,4x5 -1,1 foot=2
+2:8,0,3x4 1,2 foot=2
+2:8,4,3x4 3,2 foot=2
+2:8,0,3x4 5,2 foot=2
+2:8,4,3x4 7,2 foot=2
+1:8,0,4x5 17,1 foot=2
+1:16,14,4x5 19,1 foot=2
+2:8,0,3x4 21,2 foot=2
+1:16,14,4x5 23,1 foot=2
+1:8,5,4x5 25,1 foot=2
+1:8,5,4x5 27,1 foot=2
+1:16,14,4x5 -2,2 foot=2
+2:11,0,3x4 2,3 foot=2
+1:8,0,4x5 4,2 foot=2
+2:8,4,3x4 8,3 foot=2
+2:8,4,3x4 16,3 foot=2
+1:12,0,4x5 18,2 foot=2
+1:8,5,4x5 20,2 foot=2
+1:12,0,4x5 22,2 foot=2
+1:8,5,4x5 24,2 foot=2
+2:8,0,3x4 26,3 foot=2
+1:8,5,4x5 28,2 foot=2
+2:8,0,3x4 30,3 foot=2
+1:16,0,4x5 -3,3 foot=2
+1:12,0,4x5 -1,3 foot=2
+1:8,0,4x5 3,3 foot=2
+2:8,4,3x4 7,4 foot=2
+1:8,5,4x5 17,3 foot=2
+1:12,0,4x5 19,3 foot=2
+1:12,0,4x5 23,3 foot=2
+2:8,4,3x4 27,4 foot=2
+2:8,4,3x4 29,4 foot=2
+1:8,5,4x5 -2,4 foot=2
+2:8,0,3x4 0,5 foot=2
+1:16,0,4x5 2,4 foot=2
+1:8,5,4x5 16,4 foot=2
+1:16,14,4x5 18,4 foot=2
+2:8,4,3x4 20,5 foot=2
+2:8,0,3x4 26,5 foot=2
+2:8,4,3x4 28,5 foot=2
+2:8,4,3x4 30,5 foot=2
+1:16,0,4x5 -3,5 foot=2
+1:8,5,4x5 -1,5 foot=2
+1:16,19,4x5 1,5 foot=2
+2:8,4,3x4 3,6 foot=2
+1:8,5,4x5 17,5 foot=2
+2:8,4,3x4 19,6 foot=2
+1:16,0,4x5 27,5 foot=2
+1:8,5,4x5 29,5 foot=2
+1:8,5,4x5 -2,6 foot=2
+1:8,0,4x5 26,6 foot=2
+1:8,5,4x5 28,6 foot=2
+2:8,4,3x4 30,7 foot=2
+1:16,0,4x5 -3,7 foot=2
+8:28,4,1x3 4,9 foot=3
+8:28,4,1x3 19,9 foot=3
+2:8,4,3x4 27,8 foot=2
+1:16,0,4x5 -2,8 foot=2
+2:8,4,3x4 0,9 foot=2
+11:1,24,1x2 4,11 foot=1
+6:29,6,1x1 10,12
+11:1,24,1x2 20,11 foot=1
+2:8,4,3x4 26,9 foot=2
+2:8,4,3x4 -1,10 foot=2
+1:8,0,4x5 1,9 foot=2
+1:8,0,4x5 15,9 foot=2
+2:8,4,3x4 27,10 foot=2
+2:8,0,3x4 29,10 foot=2
+1:16,0,4x5 -2,10 foot=2
+4:0,0,6x8 5,7 foot=3
+5:0,1,6x7 21,8 foot=3
+1:16,0,4x5 26,10 foot=2
+1:16,14,4x5 28,10 foot=2
+2:11,0,3x4 30,11 foot=2
+1:16,0,4x5 -3,11 foot=2
+2:11,0,3x4 -1,12 foot=2
+1:8,0,4x5 1,11 foot=2
+1:8,5,4x5 27,11 foot=2
+2:8,0,3x4 29,12 foot=2
+1:16,0,4x5 -2,12 foot=2
+1:16,14,4x5 0,12 foot=2
+2:8,0,3x4 2,13 foot=2
+1:8,5,4x5 26,12 foot=2
+2:11,0,3x4 28,13 foot=2
+1:12,5,4x5 30,12 foot=2
+1:12,5,4x5 -3,13 foot=2
+1:16,0,4x5 -1,13 foot=2
+1:16,0,4x5 1,13 foot=2
+6:31,8,1x1 8,17
+2:13,31,1x1 12,17
+2:8,0,3x4 25,14 foot=2
+2:8,0,3x4 27,14 foot=2
+1:16,0,4x5 -2,14 foot=2
+1:16,0,4x5 0,14 foot=2
+2:11,0,3x4 2,15 foot=2
+6:29,6,1x1 10,18
+2:8,0,3x4 26,15 foot=2
+2:8,4,3x4 28,15 foot=2
+2:8,4,3x4 30,15 foot=2
+1:16,0,4x5 -3,15 foot=2
+1:12,0,4x5 -1,15 foot=2
+2:8,4,3x4 3,16 foot=2
+6:31,8,1x1 6,19
+6:29,6,1x1 7,19
+1:8,0,4x5 27,15 foot=2
+1:12,0,4x5 -2,16 foot=2
+1:16,0,4x5 0,16 foot=2
+3:21,21,1x1 6,20
+3:23,21,1x1 7,20
+3:19,23,1x1 8,20
+3:22,21,1x1 9,20
+11:6,19,1x2 10,19 foot=1
+3:12,23,1x1 11,20
+1:8,0,4x5 26,16 foot=2
+1:12,0,4x5 28,16 foot=2
+2:11,0,3x4 30,17 foot=2
+1:16,0,4x5 -3,17 foot=2
+2:11,0,3x4 -1,18 foot=2
+1:8,0,4x5 1,17 foot=2
+6:29,6,1x1 6,21
+6:29,5,1x1 8,21
+6:29,5,1x1 9,21
+8:28,4,1x3 17,19 foot=3
+5:0,24,8x6 18,16 foot=1
+2:8,4,3x4 29,18 foot=2
+1:16,0,4x5 -2,18 foot=2
+1:8,0,4x5 0,18 foot=2
+3:12,21,2x2 3,21 foot=1
+6:28,5,1x1 7,22
+6:29,5,1x1 9,22
+1:8,5,4x5 26,18 foot=2
+1:8,5,4x5 28,18 foot=2
+2:11,0,3x4 30,19 foot=2
+1:16,0,4x5 -3,19 foot=2
+1:16,0,4x5 -1,19 foot=2
+2:8,4,3x4 1,20 foot=2
+2:8,0,3x4 27,20 foot=2
+1:12,0,4x5 29,19 foot=2
+1:16,0,4x5 -2,20 foot=2
+2:8,4,3x4 0,21 foot=2
+3:21,21,1x1 18,24
+3:19,23,1x1 19,24
+3:22,21,1x1 20,24
+11:7,19,1x2 21,23 foot=1
+3:21,21,1x1 22,24
+3:19,23,1x1 23,24
+3:22,21,1x1 24,24
+1:12,0,4x5 28,20 foot=2
+1:16,14,4x5 -3,21 foot=2
+1:12,0,4x5 -1,21 foot=2
+2:11,0,3x4 1,22 foot=2
+2:8,4,3x4 27,22 foot=2
+1:12,0,4x5 29,21 foot=2
+1:12,0,4x5 -2,22 foot=2
+1:12,0,4x5 0,22 foot=2
+1:8,5,4x5 2,22 foot=2
+3:12,21,2x2 24,25 foot=1
+1:16,0,4x5 26,22 foot=2
+1:12,0,4x5 28,22 foot=2
+2:11,0,3x4 30,23 foot=2
+1:16,0,4x5 -3,23 foot=2
+1:12,0,4x5 1,23 foot=2
+1:8,5,4x5 3,23 foot=2
+3:29,21,1x1 16,27
+3:30,21,1x1 17,27
+3:31,21,1x1 18,27
+1:8,0,4x5 25,23 foot=2
+2:11,0,3x4 27,24 foot=2
+1:12,0,4x5 29,23 foot=2
+1:16,19,4x5 -2,24 foot=2
+1:8,5,4x5 0,24 foot=2
+1:12,0,4x5 2,24 foot=2
+1:8,5,4x5 4,24 foot=2
+2:11,0,3x4 26,25 foot=2
+1:12,0,4x5 28,24 foot=2
+1:8,5,4x5 -3,25 foot=2
+1:8,5,4x5 -1,25 foot=2
+1:8,0,4x5 1,25 foot=2
+1:16,14,4x5 3,25 foot=2
+1:8,5,4x5 5,25 foot=2
+3:21,21,1x1 15,29
+3:19,23,1x1 16,29
+3:19,23,1x1 17,29
+3:19,23,1x1 18,29
+3:19,23,1x1 19,29
+1:8,5,4x5 20,25 foot=2
+1:8,0,4x5 25,25 foot=2
+2:8,0,3x4 27,26 foot=2
+1:8,5,4x5 29,25 foot=2
+1:16,0,4x5 -2,26 foot=2
+1:8,0,4x5 0,26 foot=2
+1:8,0,4x5 2,26 foot=2
+1:8,5,4x5 4,26 foot=2
+1:16,0,4x5 6,26 foot=2
+2:8,0,3x4 24,27 foot=2
+1:8,0,4x5 26,26 foot=2
+2:8,0,3x4 28,27 foot=2
+2:8,4,3x4 30,27 foot=2
+1:16,0,4x5 -3,27 foot=2
+1:8,0,4x5 -1,27 foot=2
+1:8,5,4x5 3,27 foot=2
+1:20,19,4x5 5,27 foot=2
+2:8,4,3x4 7,28 foot=2
+1:8,0,4x5 25,27 foot=2
+2:8,4,3x4 27,28 foot=2
+1:8,5,4x5 29,27 foot=2
+2:11,4,3x4 -2,29 foot=2
+1:8,0,4x5 0,28 foot=2
+1:20,19,4x5 4,28 foot=2
+1:16,19,4x5 6,28 foot=2
+1:16,0,4x5 22,28 foot=2
+1:20,19,4x5 24,28 foot=2
+1:12,0,4x5 28,28 foot=2
+1:16,14,4x5 30,28 foot=2
+1:16,5,4x5 -3,29 foot=2
+1:20,19,4x5 3,29 foot=2
+2:11,4,3x4 21,30 foot=2
+1:20,19,4x5 23,29 foot=2
+1:12,5,4x5 25,29 foot=2
 
 [links]
-edge north -> route_1 offset=-2
+edge north -> route_1 offset=0
 door @H -> pallet_house_1f @x face=up
 door @G -> gary_house @x face=up
 door @L -> oak_lab @x face=up
@@ -62,9 +345,10 @@ door @L -> oak_lab @x face=up
 [actors]
 sign_town   @s kind=sign name="Pallet Town" script=sign_pallet
 sign_lab    @o kind=sign name="Sign" script=sign_oaklab
+mail_home   @m kind=sign script=mail_home
+mail_gary   @n kind=sign script=mail_gary
 girl        @a sprite=sprite163 name="Girl" face=down look=random script=pallet_girl
 fatman      @b sprite=sprite34 name="Technology Guy" face=left look=random script=pallet_tech
-potion_s    @k kind=item item=potion sprite=sprite178 name="Potion"
 
 [script sign_pallet]
 say Pallet Town\nShades of your journey await!
@@ -81,3 +365,8 @@ say Oh, you got a Pokémon from Prof. Oak?\nTake good care of it!
 
 [script pallet_tech]
 say Technology is incredible!\nYou can now store and recall items and Pokémon as data via PC!
+[script mail_home]
+say {player}'s house
+
+[script mail_gary]
+say {rival}'s house

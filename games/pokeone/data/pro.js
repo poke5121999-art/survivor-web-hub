@@ -68,6 +68,16 @@ P1.PRO = {
       "winter_forest_night"
     ]
   },
+  "dexExtra": [
+    285,
+    286,
+    315,
+    403,
+    404,
+    405,
+    406,
+    407
+  ],
   "dexMax": 251,
   "followCols": 4,
   "followRows": {

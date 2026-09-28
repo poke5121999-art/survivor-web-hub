@@ -267,13 +267,13 @@ function compileMap(file, brushes) {
     regions.push({ ch, L, comp, x0, y0, x1, y1 });
   }
 
-  /* fill=S:c,r,WxH: lát mẫu W×H theo toạ độ trong vùng (tường, sàn hoa văn, rừng dày); ghi lớp nền */
+  /* fill=S:c,r,WxH: lát mẫu W×H theo toạ độ tuyệt đối của bản đồ (x mod W, y mod H) để sàn/tường liền mạch qua nhiều kí tự */
   for (const R of regions) {
     if (!R.L.fill) continue;
     const f = parseCell(R.L.fill, true);
     if (!f) { fail(where, "'" + R.ch + "' fill=" + R.L.fill + ' is not S:c,r,WxH'); continue; }
     for (const [x, y] of R.comp) {
-      const t = tileOf(f.s, f.c + (x - R.x0) % f.w, f.r + (y - R.y0) % f.h);
+      const t = tileOf(f.s, f.c + x % f.w, f.r + y % f.h);
       if (R.L.fill2) put(ground, 1, x, y, t); else ground[0][idx(x, y)] = t;
     }
   }
@@ -318,7 +318,32 @@ function compileMap(file, brushes) {
     const [ddx, ddy] = R.L.door.split(',').map(Number);
     (doors[R.ch] = doors[R.ch] || []).push([R.x0 + ddx, R.y0 + ddy]);
   }
-  stamps.sort((a, b) => a.top - b.top || a.ox - b.ox);
+  /*
+   * [stamps]: con tem đặt thẳng theo toạ độ, mỗi dòng `S:c,r,WxH x,y [foot=N] [under|over]` (tools/pro/fit_ref.py sinh
+   * từ ảnh bản đồ PRO thật). N hàng dưới cùng (mặc định 1) là chân; phần trên vào lớp 'over' chỉ khi chân có ô chặn
+   * (cây, nhà, đèn) — đồ phẳng đi lên được (luống hoa, thảm) thì nằm hết dưới nhân vật. Va chạm vẫn lấy từ [grid].
+   */
+  let order = 0;
+  for (const st of stamps) st.order = order++;
+  for (const b of block('stamps')) for (const raw of b.lines) {
+    const line = raw.replace(/#.*$/, '').trim();
+    if (!line) continue;
+    const [spec, pos, ...rest] = line.split(/\s+/);
+    const S = parseCell(spec, true), o = kv(rest);
+    const p = /^(-?\d+),(-?\d+)$/.exec(pos || '');
+    if (!S || !p) { fail(where, 'stamp line not understood: ' + line); continue; }
+    const x = +p[1], y = +p[2], foot = +(o.foot || 1);
+    if (!(foot >= 1 && foot <= S.h)) { fail(where, 'stamp ' + line + ': foot=' + o.foot + ' outside 1..' + S.h); continue; }
+    const top = y + S.h - foot;
+    let under = !!o.under;
+    if (!o.over && !o.under) {
+      under = true;
+      for (let fy = top; fy < y + S.h; fy++) for (let fx = x; fx < x + S.w; fx++)
+        if (fx >= 0 && fy >= 0 && fx < w && fy < h && colliders[idx(fx, fy)] === COLL.solid) under = false;
+    }
+    stamps.push({ S, ox: x, oy: y, top, under, order: order++ });
+  }
+  stamps.sort((a, b) => a.top - b.top || a.order - b.order);
   for (const st of stamps) {
     const { S } = st;
     for (let r = 0; r < S.h; r++) for (let c = 0; c < S.w; c++) {
@@ -368,6 +393,12 @@ function compileMap(file, brushes) {
       if (!/^sprite\d+$/.test(o.sprite)) fail(where, 'actor ' + aid + ': sprite ' + o.sprite + ' is not a PRO npc sheet (spriteN)');
       a.sprite = o.sprite;
     } else if (kind === 'npc') fail(where, 'actor ' + aid + ' has no sprite');
+    if (kind === 'ball') {
+      // Bóng đặt trên bàn/sàn (lab Oak): ảnh art/pro/ball/<ball>_closed.png, bolt = vẽ tia chớp (bóng Pikachu).
+      a.ball = o.ball || 'pokeball';
+      if (!fs.existsSync(path.join(ROOT, 'art/pro/ball', a.ball + '_closed.png'))) fail(where, 'actor ' + aid + ': ball ' + a.ball + ' has no art/pro/ball/' + a.ball + '_closed.png');
+      if (o.bolt) a.bolt = true;
+    }
     if (o.script) a.script = o.script;
     if (o.look) a.look = o.look;
     if (o.path) a.path = o.path;
@@ -420,7 +451,7 @@ const OPS = {
   battle: 'battle', heal: '', shop: 'shop', give: 'give', givemon: 'givemon', money: 'num', exp: 'num',
   quest: 'id', questdone: 'id', face: 'dir', move: 'move', sfx: 'key', music: 'key', wait: 'num', warp: 'warp',
   hide: 'flag', show: 'flag', cry: 'num', showmon: 'num', hidemon: '', emote: 'key', blackout: '', pc: '',
-  starter: 'id', rival: '', lastheal: '', turnaway: '', raid: 'id',
+  starter: 'id', rival: '', lastheal: '', turnaway: '', raid: 'id', call: 'id',
 };
 function compileScript(name, lines, where) {
   const ops = [], labels = {};
@@ -590,13 +621,14 @@ function main() {
     for (const a of M.npcs) {
       if (a.script && !b.scripts[a.script] && !built.some(o => o.scripts[a.script])) fail(b.where, 'actor ' + a.id + ': script ' + a.script + ' missing');
       const c = M.colliders[a.y * M.w + a.x];
-      if (a.kind !== 'sign' && c === 1) fail(b.where, 'actor ' + a.id + ' stands on a blocked tile ' + a.x + ',' + a.y);
+      if (a.kind !== 'sign' && a.kind !== 'ball' && c === 1) fail(b.where, 'actor ' + a.id + ' stands on a blocked tile ' + a.x + ',' + a.y);
     }
   }
   for (const b of built) if (b.map.settings.enter && !scripts[b.map.settings.enter]) fail(b.where, 'enter script ' + b.map.settings.enter + ' missing');
   for (const [k, ops] of Object.entries(scripts)) for (const o of ops) {
     if ((o.op === 'quest' || o.op === 'questdone') && !quests[o.arg]) fail('script ' + k, 'quest ' + o.arg + ' missing');
     if (o.op === 'warp' && !byId[o.map]) fail('script ' + k, 'warp map ' + o.map + ' missing');
+    if (o.op === 'call' && !scripts[o.arg]) fail('script ' + k, 'call ' + o.arg + ' missing');
   }
 
   if (errors.length) {

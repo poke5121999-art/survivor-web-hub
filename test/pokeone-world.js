@@ -463,6 +463,41 @@ async function play(browser, base, synth) {
   check('B đóng sổ nhiệm vụ', await ev(() => !P1.worldUi.quests.isOpen()));
 
   if (!synth) {
+    // Lab Oak theo luật PRO: từ chối cả ba bóng trên bàn thì bóng Pikachu trên sàn mới chọn được; chọn thì bóng biến mất.
+    await open('map=oak_lab', true);
+    const lab = await ev(async () => {
+      const w = P1.world, answers = [1, 1, 1, 0], asked = [];
+      const saved = P1.dialog;
+      P1.dialog = { say: () => Promise.resolve(), choose: t => { asked.push(t.slice(0, 40)); return Promise.resolve(answers.shift()); } };
+      P1.scene.add('battle', { enter(a) { window.__battles.push({ name: a.name, foe: a.foe.map(m => m.dex + ':' + m.level) }); setTimeout(() => a.onEnd({ outcome: 'win' }), 50); } });
+      try {
+        await P1.script.run('ball_pikachu', { world: w, actor: w.actorById('ball_p') });
+        const before = asked.length;
+        for (const [id, sc] of [['ball_b', 'ball_bulbasaur'], ['ball_c', 'ball_charmander'], ['ball_s', 'ball_squirtle']])
+          await P1.script.run(sc, { world: w, actor: w.actorById(id) });
+        await P1.script.run('ball_pikachu', { world: w, actor: w.actorById('ball_p') });
+        w.refreshActors();
+        return { pikaLockedFirst: before === 0, asked, party: P1.state.party.map(m => m.dex), chosen: !!P1.state.flags.starter_chosen,
+          hidden: ['ball_b', 'ball_c', 'ball_s', 'ball_p'].filter(id => w.actorById(id).hidden), battles: window.__battles.slice(-1) };
+      } finally { P1.dialog = saved; }
+    });
+    check('lab Oak: bóng Pikachu khoá khi chưa từ chối cả ba', lab.pikaLockedFirst, lab.asked);
+    check('lab Oak: từ chối 3 bóng rồi chọn Pikachu -> đội có 25, bóng Pikachu biến mất, Gary đấu Eevee',
+      lab.party.includes(25) && lab.chosen && lab.hidden.includes('ball_p') && JSON.stringify(lab.battles).includes('133:5'), lab);
+    await shot('play-oak-lab');
+
+    // Gym Viridian: Giovanni gọi raid giovanni.
+    await open('map=viridian_gym', true);
+    const raid = await ev(async () => {
+      let got = null;
+      P1.raid = Object.assign(P1.raid || {}, { openLobby: id => { got = id; } });
+      const saved = P1.dialog;
+      P1.dialog = { say: () => Promise.resolve(), choose: () => Promise.resolve(0) };
+      try { await P1.script.run('giovanni', { world: P1.world, actor: P1.world.actorById('giovanni') }); } finally { P1.dialog = saved; }
+      return got;
+    });
+    check('Gym Viridian: Giovanni mở sảnh raid giovanni', raid === 'giovanni', raid);
+
     // Save của bản 3D cũ: toạ độ ngoài lưới mới -> đứng ở ô trống ngay cạnh cửa vào.
     await open('map=viridian_mart&x=40&z=40');
     const fb = await ev(() => { const w = P1.world, M = w.map, p = w.player, L = M.links.find(l => l.kind === 'door');

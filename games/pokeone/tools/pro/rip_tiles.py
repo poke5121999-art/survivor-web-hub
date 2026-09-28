@@ -1,7 +1,8 @@
 """Tile và sprite NPC của PRO cho bản đồ 2D (đọc data/maps.js do tools/build_maps.js sinh ra).
 
-  python tools/pro/rip_tiles.py                 chép art/pro/tiles/<tấm>.png và art/pro/npc/sprite<N>.png mà bản đồ
-                                                dùng, xoá tấm/sprite không còn dùng, báo ô tham chiếu trống
+  python tools/pro/rip_tiles.py                 chép art/pro/tiles/<tấm>.png (chỉ các ô bản đồ dùng, còn lại trong suốt)
+                                                và art/pro/npc/sprite<N>.png mà bản đồ + bảng boss js/raid.js dùng,
+                                                xoá cái không còn dùng
   python tools/pro/rip_tiles.py --preview DIR   vẽ mỗi bản đồ ra DIR/<id>.png (nền, NPC mặt trước, lớp trên) để soát
                                                 khi viết tools/maps/*.txt, không cần mở trình duyệt; thêm --grid kẻ ô
   python tools/pro/rip_tiles.py --npc-sheet F   tờ mục lục khung mặt trước của mọi sprite NPC PRO (chọn sprite=)
@@ -65,7 +66,14 @@ def sync():
     sheets = sorted({s for M in maps.values() for s in M['sheets']})
     # Cộng tấm dự phòng của người chơi (js/world-actor.js FALLBACK_PLAYER) để không bị xoá như tấm thừa.
     fb = re.search(r"FALLBACK_PLAYER = '(sprite\d+)'", open(os.path.join(ROOT, 'js', 'world-actor.js'), encoding='utf-8').read())
-    sprites = sorted({a['sprite'] for M in maps.values() for a in M['npcs'] if a.get('sprite')} | ({fb.group(1)} if fb else set()),
+    # Cộng mặt các boss trong bảng BOSSES của js/raid.js (sảnh raid hiện art/pro/npc/sprite<N>.png), đọc thẳng từ mã.
+    raid_js = os.path.join(ROOT, 'js', 'raid.js')
+    raid = set()
+    if os.path.exists(raid_js):
+        src = open(raid_js, encoding='utf-8').read()
+        m = re.search(r'const BOSSES = \{(.*?)^  \};', src, re.S | re.M)
+        raid = {'sprite' + n for n in re.findall(r'sprite:\s*(\d+)', m.group(1) if m else '')}
+    sprites = sorted({a['sprite'] for M in maps.values() for a in M['npcs'] if a.get('sprite')} | ({fb.group(1)} if fb else set()) | raid,
                      key=lambda n: int(n[6:]))
     known = set(npc_names())
     bad = [s for s in sprites if s not in known]
@@ -75,13 +83,24 @@ def sync():
     out_n = os.path.join(ROOT, 'art', 'pro', 'npc')
     for d in (out_t, out_n):
         os.makedirs(d, exist_ok=True)
+    # Chỉ giữ các ô bản đồ thật sự dùng, phần còn lại của tấm để trong suốt: bản đồ dựng từ ảnh PRO lấy vài ô lẻ từ
+    # hàng chục tấm, chép nguyên tấm 1024² thì nặng hàng chục MB.
+    used = {}
+    for M in maps.values():
+        for layer in M['ground'] + M['over']:
+            for t in layer:
+                if t >= 0:
+                    used.setdefault(t // 1024, set()).add(t % 1024)
     imgs = {}
     for s in sheets:
-        im = Image.open(cached('tiles', str(s)))
+        im = Image.open(cached('tiles', str(s))).convert('RGBA')
         imgs[s] = im
-        dst = os.path.join(out_t, f'{s}.png')
-        if not os.path.exists(dst) or open(dst, 'rb').read() != open(cached('tiles', str(s)), 'rb').read():
-            im.save(dst, optimize=True)
+        keep = Image.new('RGBA', im.size)
+        for k in used.get(s, ()):
+            c, r = k % 32, k // 32
+            box = (c * TILE, r * TILE, c * TILE + TILE, r * TILE + TILE)
+            keep.paste(im.crop(box), box)
+        keep.save(os.path.join(out_t, f'{s}.png'), optimize=True)
     for s in sprites:
         Image.open(cached('npc', s)).save(os.path.join(out_n, s + '.png'), optimize=True)
     stale = [f for f in os.listdir(out_t) if f.endswith('.png') and int(f[:-4]) not in sheets] + \

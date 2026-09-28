@@ -36,6 +36,10 @@ AUD = os.path.join(GAME, 'audio', 'pro')
 DATA = os.path.join(GAME, 'data')
 
 DEX_MAX = 251
+# Loai ngoai dex 251 ma bang gap Pokemon that cua PRO co o vung dau Kanto (Route 1: Shinx; Viridian Forest:
+# Budew, Shroomish - D:\pro-ref\pokemap\pro_land_spawns.json), kem ca dong tien hoa.
+DEX_EXTRA = [285, 286, 315, 403, 404, 405, 406, 407]
+DEX_LIST = list(range(1, DEX_MAX + 1)) + DEX_EXTRA
 FFMPEG = os.environ.get('FFMPEG', 'ffmpeg')
 
 POKE_SRC = {
@@ -104,7 +108,7 @@ def rip_poke():
     for sub in POKE_SRC:
         reset_dir(os.path.join(ART, 'poke', sub))
     shiny_missing = []
-    for dex in range(1, DEX_MAX + 1):
+    for dex in DEX_LIST:
         for sub, (base_pre, shiny_pre) in POKE_SRC.items():
             save_img('%s/%d' % (base_pre, dex), os.path.join(ART, 'poke', sub, '%d.png' % dex))
             spath = '%s/%d' % (shiny_pre, dex)
@@ -114,7 +118,7 @@ def rip_poke():
                 shiny_missing.append('%s/%d' % (sub, dex))
     if shiny_missing:
         print('  !! thieu shiny:', shiny_missing)
-    print('poke:', DEX_MAX, 'dex x 4 loai (front/back/follow/icon), thieu shiny:', len(shiny_missing))
+    print('poke:', len(DEX_LIST), 'dex x 4 loai (front/back/follow/icon), thieu shiny:', len(shiny_missing))
     return shiny_missing
 
 
@@ -284,12 +288,24 @@ def rip_audio():
     return sfx
 
 
+def rip_cries_extra():
+    """Tieng keu cho DEX_EXTRA (bo 1-251 van dung ban cua PokeOne o audio/cry)."""
+    for dex in DEX_EXTRA:
+        wav = clip_wav_bytes(pe().obj('audio files/cry/%d' % dex).read())
+        if not wav:
+            print('  !! khong giai duoc cry', dex)
+            continue
+        clip_to_ogg(wav, os.path.join(GAME, 'audio', 'cry', '%d.ogg' % dex))
+    print('cry them:', DEX_EXTRA)
+
+
 # ------------------------------------------------------------------ DATA FILE
 def write_data(shiny_missing, player, bg, sfx):
     os.makedirs(DATA, exist_ok=True)
     path = os.path.join(DATA, 'pro.js')
     payload = {
         'dexMax': DEX_MAX,
+        'dexExtra': DEX_EXTRA,
         'shinyMissing': shiny_missing,
         'followRows': FOLLOW_ROWS,
         'followCols': FOLLOW_COLS,
@@ -364,6 +380,7 @@ def main():
 
     if 'all' in args or 'poke' in args:
         shiny_missing = rip_poke()
+        rip_cries_extra()
     if 'all' in args or 'player' in args:
         player = rip_player()
     if 'all' in args or 'bg' in args:

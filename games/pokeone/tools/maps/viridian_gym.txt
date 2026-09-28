@@ -1,0 +1,39 @@
+# Gym Viridian. Không có ảnh chụp PRO của phòng này (wiki PRO 503): bố cục FRLG thu gọn — lối giữa, hai hàng cây cảnh,
+# Giovanni đứng cuối phòng. Giovanni là boss đánh theo đội: kịch bản gọi `raid giovanni` (js/raid.js, bảng boss của
+# luồng mạng: thủ lĩnh Gym + Tứ Thiên Vương + Nhà vô địch như PRO).
+name: Viridian City
+song: viridian_city
+indoors: 1
+bg: indoor
+
+[legend]
+. gymfloor
+W wall_gym
+p plant ground=89:10,11
+G gymfloor mark
+x mat
+
+[grid]
+WWWWWWWWWWWWW
+WWWWWWWWWWWWW
+p.....G.....p
+.............
+.p.........p.
+.............
+.p.........p.
+.............
+.p.........p.
+.............
+p...........p
+......x......
+
+[links]
+door @x -> viridian_city @Y at=below arrive=below face=down sfx=exit_door
+
+[actors]
+giovanni  @G sprite=sprite47 name="Giovanni" face=down script=giovanni
+
+[script giovanni]
+say Fwahahaha! Welcome to the Viridian Gym.\nI am Giovanni, the strongest Gym Leader in Kanto!
+say Few trainers can stand against me alone.\nBring your friends if you must... I will crush you all the same!
+raid giovanni
