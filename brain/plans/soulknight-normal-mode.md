@@ -54,27 +54,32 @@ nút kỹ năng có hồi chiêu.
    thế giới ở `tools/season/README.md` (lever `build_season.py`), đồ ở `build_items.py` (108 món).
    Mã ở `js/season/` (world, inventory, ui, quests, season). Tạm dừng chỉ có một bảng, trên canvas (ui.js).
 
-6. [ ] Bóc lại từ bản đủ 8.6.0 (`D:\sk86-ref`, 2375 bundle) sau khi chủ dự án chê thiếu anim/vfx/effect/config
-   (2026-09-29). Đợt 1 song song: nền (skrip/build_sk sang 8.6), VFX (hệ hạt thật + `js/vfx.js`),
-   tiếng thật (`js/sfx.js`), giải mã cấu hình (`tools/config86`). Đợt 2 dùng kết quả đợt 1: vũ khí + đạn,
-   nhân vật + kỹ năng, trùm, mùa giải.
+6. [x] Bóc lại từ bản đủ 8.6.0 (`D:\sk86-ref`, 2375 bundle), sau khi chủ dự án chê thiếu anim/vfx/effect/config
+   (2026-09-29). Lên Pages theo từng phần, rev d → j:
+   - d: tiếng thật (`tools/audio`, 939 clip m4a). e: lever sang 8.6 (`skrip.py` có chỉ mục CAB), sửa clip quái đứng hình.
+   - f: VFX thật (`tools/vfx`, `js/vfx.js`, 2599 hiệu ứng) + sửa chỉ số đường sprite trong `skrip.clip` (22 anim).
+   - g: mùa giải bằng dữ liệu thật (tilemap gốc, 792 vật phẩm, 38 nhiệm vụ, hòm tử vong).
+   - h: kỹ năng (`data/sk-skills86.js`, 44 kỹ năng) + buff/tượng/lái buôn (`data/sk-buffs86.js`).
+   - i: trùm (`data/sk-bosses86.js`, 12 trận). j: vũ khí + đạn (`data/sk-weapons86.js`, 361 vũ khí).
+   - Số đã giải mã (Luban AES, Lua DES, config XOR) ở `D:\sk86-ref\decoded`; công cụ ở `tools/config86/` CHƯA commit vì
+     chứa khoá của ChillyRoom, repo public — chờ chủ dự án quyết.
+
+## Còn hở (sau đợt 8.6)
+
+- Kỹ năng: 24 kỹ năng còn rơi về Song Thủ (cần cưỡi thú, giữ-để-tụ, và mọi kỹ năng của hero c17–c41).
+- Vũ khí: 7 món có mã riêng chỉ chạy hoạt ảnh (Đạn Đạo Lỗ Đen, Gậy Tử Linh, Sổ Tay Chết Chóc...); nhiệt Gatling chưa mô phỏng.
+- Trùm: chọn trùm trong bể là đều nhau, ngưỡng nổi giận 50% theo wiki, độc/đóng băng của trùm chưa gây lên người.
+- Buff: logic chọn buff giữa ải ở IL2CPP, đang theo wiki; buff cần thú cưng/đá quý chưa mở.
+- VFX: 700/2599 hiệu ứng dùng tính năng runtime bỏ qua (hạt dạng mesh, noise, va chạm...). `Fire` thiếu cờ cộng sáng.
+- Tải lần đầu nặng (`sk-vfx.js` 3,7 MB, gzip ~660 KB) — nên nạp lười.
 
 ## Còn hở (mùa giải)
 
-- Chỉ có vùng Ngoại ô căn cứ; Tide Zone, Volcanic, Volcano Core, Research Lab còn khoá.
-- Khu huấn luyện và Bàn thiết kế chưa làm; nâng kho làm tạm ở Nhà kho.
-- Chỉ 3 nhiệm vụ chạy (First Foray, Learn to Heal, Warehouse Expansion).
-- Luật chết, vị trí/thời gian sơ tán và trọng số rơi đồ là [ĐOÁN]/[ƯỚC LƯỢNG], wiki không ghi.
-
-## Còn hở (chế độ thường)
-
-- Kỹ năng rơi về Song Thủ: Elf, Druid, Necromancer, Officer (cần hệ đồng minh/thú).
-- Kỹ năng 2 và 3 của mỗi nhân vật chưa có mã; chọn trong sảnh thì game vẫn dùng kỹ năng 1.
-- Nội tại phức tạp (phản đạn, độc, lửa, cầu máu...) chưa làm.
-- Buff bỏ qua: Well Begun, Piercing Crit, Bouncing Bullets, Extra Weapon.
-- Tượng Knight (cần hệ đi theo). Chưa có nhạc nền.
+- Chỉ có Căn Cứ + Vành Đai Căn Cứ; Tide Zone, Volcanic, Volcano Core, Research Lab còn khoá.
+- 16/38 nhiệm vụ chạy được; 400/822 dòng vũ khí mùa chưa có tương đương trong engine.
+- VFX của escape.ab (vòng sơ tán, ánh rương, cổng) chưa xuất, đang vẽ vòng tạm.
 
 ## Bộ kiểm
 
-`node test/soulknight-<smoke|weapons|skills|bosses|rooms|lobby|sfx|season-world|season-ui>.js`, cần `python -m http.server 8811`
+`node test/soulknight-<smoke|weapons|skills|bosses|rooms|lobby|sfx|vfx|season-world|season-ui>.js`, cần `python -m http.server 8811`
 ở gốc repo; đặt `SK_URL=<url Pages>` để chạy trên bản thật.
