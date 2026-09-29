@@ -309,7 +309,18 @@ class Rip:
         # Mot binding vi tri/co giu 3 duong float, nen dem binding (cach cu) sai khi clip co ca Transform.
         n_curves = sc['curveCount'] + clip['m_DenseClip']['m_CurveCount'] + len(clip['m_ConstantClip']['data'])
         frames = []
-        tries = (n_curves + spr_bind, len(float_binds) + spr_bind, spr_bind) if spr_bind is not None else ()
+        # Chi so do: cong don so duong theo dung thu tu genericBindings (Transform chiem 3/4/3/3, PPtr chiem 1,
+        # nam xen giua) [DO explode_big: sprite o chi so 8 du curveCount=8]. Cac cach cu chi con la duong lui.
+        seq = None
+        k = 0
+        for b in binds:
+            if b['isPPtrCurve']:
+                if seq is None and b['typeID'] == 212 and b['attribute'] == 0:
+                    seq = k
+                k += 1
+            else:
+                k += {1: 3, 2: 4, 3: 3, 4: 3}.get(b['attribute'], 1) if b['typeID'] == 4 else 1
+        tries = (seq, n_curves + spr_bind, len(float_binds) + spr_bind, spr_bind) if spr_bind is not None else ()
         for want in tries:
             i = 0
             while i + 8 <= len(raw):
