@@ -54,6 +54,11 @@ nút kỹ năng có hồi chiêu.
    thế giới ở `tools/season/README.md` (lever `build_season.py`), đồ ở `build_items.py` (108 món).
    Mã ở `js/season/` (world, inventory, ui, quests, season). Tạm dừng chỉ có một bảng, trên canvas (ui.js).
 
+6. [ ] Bóc lại từ bản đủ 8.6.0 (`D:\sk86-ref`, 2375 bundle) sau khi chủ dự án chê thiếu anim/vfx/effect/config
+   (2026-09-29). Đợt 1 song song: nền (skrip/build_sk sang 8.6), VFX (hệ hạt thật + `js/vfx.js`),
+   tiếng thật (`js/sfx.js`), giải mã cấu hình (`tools/config86`). Đợt 2 dùng kết quả đợt 1: vũ khí + đạn,
+   nhân vật + kỹ năng, trùm, mùa giải.
+
 ## Còn hở (mùa giải)
 
 - Chỉ có vùng Ngoại ô căn cứ; Tide Zone, Volcanic, Volcano Core, Research Lab còn khoá.

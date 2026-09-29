@@ -1,13 +1,27 @@
-// Tiếng tổng hợp bằng WebAudio, nghe sự kiện SK.on(...). Bản rip không có âm thanh nên tất cả tự tạo.
+// Tiếng + nhạc thật của Soul Knight 8.6: phát mẫu .m4a đã bóc (art/audio) theo bảng data/sk-audio.js (SK_AUDIO).
+// Bảng tra: vũ khí/quái/trùm/hero theo tên prefab (byWeapon/byPrefab/byHero), sự kiện chung (events), nhạc (music).
+// Chạy từ file:// thì fetch bị chặn: im lặng, không lỗi. Thiếu SK_AUDIO cũng im lặng.
 (function () {
   'use strict';
   const SK = window.SK;
   const KEY = 'sk-muted';
-  const sfx = SK.sfx = { stats: {}, muted: false, ctx: null, errors: 0 };
+  const BASE = 'art/audio/';
+  const A = window.SK_AUDIO || null;
+  const sfx = SK.sfx = {
+    stats: {},          // tên clip -> số lần AudioBufferSourceNode đã start (dùng cho kiểm thử)
+    ev: {},             // tên sự kiện -> số lần đã phát
+    muted: false, ctx: null, errors: 0, failed: {},
+    music: { want: null, cur: null },
+    mode: !A ? 'no-data' : location.protocol === 'file:' ? 'file' : 'on'
+  };
   try { sfx.muted = localStorage.getItem(KEY) === '1'; } catch (e) { /* không có localStorage */ }
 
-  let master = null, noiseBuf = null, btn = null;
-  const last = {};   // giới hạn tần suất theo tên: [thời điểm cửa sổ, số lần]
+  let master = null, musicBus = null, btn = null;
+  const bufs = {};          // clip -> AudioBuffer | null (đã thử và hỏng) ; chỉ nhạc mới bị dỡ bớt
+  const loading = {};       // clip -> Promise
+  const active = new Set(); // nguồn đang phát (để tắt tiếng thì dừng hết)
+  const perClip = {};       // clip -> số nguồn đang phát
+  const lastAt = {};        // clip -> thời điểm phát gần nhất (giây ctx)
 
   function ensure() {
     if (sfx.ctx) return sfx.ctx;
@@ -15,117 +29,203 @@
     if (!AC) return null;
     try {
       const c = sfx.ctx = new AC();
-      master = c.createGain(); master.gain.value = 0.5;
+      master = c.createGain(); master.gain.value = 0.7;
       const comp = c.createDynamicsCompressor();
       master.connect(comp); comp.connect(c.destination);
-      noiseBuf = c.createBuffer(1, c.sampleRate * 0.6, c.sampleRate);
-      const d = noiseBuf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      musicBus = c.createGain(); musicBus.gain.value = 0.32; musicBus.connect(master);
     } catch (e) { sfx.errors++; sfx.ctx = null; }
     return sfx.ctx;
+  }
+
+  function usable() { return sfx.mode === 'on' && !sfx.muted && sfx.ctx && sfx.ctx.state === 'running'; }
+
+  function load(name) {
+    if (name in bufs) return Promise.resolve(bufs[name]);
+    if (loading[name]) return loading[name];
+    const meta = A && A.clips[name];
+    if (!meta || sfx.mode !== 'on' || !sfx.ctx) return Promise.resolve(null);
+    // decodeAudioData bản có callback chạy được cả trên Safari cũ.
+    loading[name] = fetch(BASE + encodeURIComponent(meta.file))
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then(ab => new Promise((ok, no) => sfx.ctx.decodeAudioData(ab, ok, no)))
+      .then(b => { bufs[name] = b; return b; })
+      .catch(() => { bufs[name] = null; sfx.failed[name] = 1; return null; })
+      .then(b => { delete loading[name]; return b; });
+    return loading[name];
+  }
+
+  // Giới hạn đa âm: mỗi clip tối đa `poly` nguồn cùng lúc và cách nhau `gap` giây; toàn cục 28 nguồn.
+  function play(name, ev, o) {
+    if (!name || !usable()) return false;
+    const b = bufs[name];
+    if (b === undefined) { load(name); return false; }   // lần đầu: nạp lười, tiếng sau mới có
+    if (!b) return false;
+    o = o || {};
+    const c = sfx.ctx, now = c.currentTime;
+    const poly = o.poly || 3, gap = o.gap === undefined ? 0.03 : o.gap;
+    if ((perClip[name] || 0) >= poly || now - (lastAt[name] || -9) < gap || active.size >= 28) return false;
+    try {
+      const s = c.createBufferSource(), g = c.createGain();
+      s.buffer = b;
+      if (o.jit) s.playbackRate.value = 1 + (Math.random() - 0.5) * o.jit;
+      g.gain.value = o.vol === undefined ? 0.8 : o.vol;
+      s.connect(g); g.connect(o.bus || master);
+      perClip[name] = (perClip[name] || 0) + 1; lastAt[name] = now;
+      const ref = { s, g };
+      active.add(ref);
+      s.onended = () => { active.delete(ref); perClip[name]--; try { g.disconnect(); } catch (e) { /* đã ngắt */ } };
+      s.start(0);
+      sfx.stats[name] = (sfx.stats[name] || 0) + 1;
+      sfx.ev[ev] = (sfx.ev[ev] || 0) + 1;
+      return true;
+    } catch (e) { sfx.errors++; return false; }
+  }
+
+  const pick = v => Array.isArray(v) ? v[Math.floor(Math.random() * v.length)] : v;
+  const evClip = k => A && A.events[k];
+  const P = id => A && A.byPrefab[id];
+
+  // ---------------------------------------------------------------- tra tiếng
+  function fireClip(w) {
+    if (!A || !w) return null;
+    const bw = A.byWeapon[w.id];
+    if (bw && bw.fire) return bw.fire;
+    const k = w.def && w.def.kind;
+    return A.byKind[k] || A.byKind.gun;
+  }
+
+  // ---------------------------------------------------------------- sự kiện game
+  SK.on('fire', (G, p, w) => play(fireClip(w), 'fire', { poly: 2, gap: 0.045, vol: 0.55, jit: 0.06 }));
+  SK.on('enemyFire', (G, e) => { const d = e && P(e.id); play((d && d.fire) || evClip('enemyFire'), 'enemyFire', { poly: 2, gap: 0.06, vol: 0.45, jit: 0.06 }); });
+  SK.on('enemyHit', (G, e, dmg, crit) => play(evClip(crit ? 'enemyCrit' : 'enemyHit'), crit ? 'enemyCrit' : 'enemyHit', { poly: 3, gap: 0.04, vol: crit ? 0.6 : 0.5, jit: 0.1 }));
+  SK.on('enemyKill', (G, e) => {
+    const d = e && P(e.id);
+    play(pick(d && d.dead) || evClip('enemyKill'), 'enemyKill', { poly: 3, gap: 0.05, vol: 0.7, jit: 0.05 });
+  });
+  SK.on('playerHurt', (G, p) => {
+    const h = A && p && A.byHero[p.hero];
+    play((h && h.hit) || evClip('playerHurt'), 'playerHurt', { poly: 2, gap: 0.1, vol: 0.9 });
+  });
+  SK.on('pickup', (G, kind) => {
+    const k = kind === 'coin' ? 'coin' : kind === 'hp_pot' ? 'hpPot' : kind === 'energy' || kind === 'en_pot' ? 'energy' : 'pickup';
+    play(evClip(k), k, { poly: 3, gap: 0.05, vol: 0.7 });
+  });
+  SK.on('obstacleBreak', () => play(evClip('obstacleBreak'), 'obstacleBreak', { poly: 2, gap: 0.08, vol: 0.6 }));
+  SK.on('roomLock', () => play(evClip('roomLock'), 'roomLock', { poly: 1, gap: 0.3, vol: 0.85 }));
+  SK.on('roomClear', () => play(evClip('roomClear'), 'roomClear', { poly: 1, gap: 0.3, vol: 0.8 }));
+  SK.on('portalEnter', () => play(evClip('portal'), 'portal', { poly: 1, gap: 0.5, vol: 0.85 }));
+  SK.on('skill', (G, p) => {
+    const h = A && p && A.byHero[p.hero];
+    play(pick(h && h.skill) || evClip('skill'), 'skill', { poly: 1, gap: 0.15, vol: 0.85 });
+  });
+  SK.on('runEnd', (G, r) => { const k = r && r.won ? 'win' : 'lose'; play(evClip(k), k, { poly: 1, gap: 1, vol: 0.85 }); });
+  // Chế độ mùa giải (js/season/*)
+  SK.on('seasonLoot', () => play(evClip('chestOpen'), 'chestOpen', { poly: 2, gap: 0.1, vol: 0.7 }));
+  SK.on('seasonUse', () => play(evClip('hpPot'), 'hpPot', { poly: 2, gap: 0.1, vol: 0.7 }));
+  SK.on('seasonQuestDone', () => play(evClip('uiLevelUp'), 'uiLevelUp', { poly: 1, gap: 0.3, vol: 0.8 }));
+  SK.on('seasonUpgrade', () => play(evClip('uiLevelUp'), 'uiLevelUp', { poly: 1, gap: 0.3, vol: 0.8 }));
+  SK.on('seasonExtract', () => play(evClip('win'), 'win', { poly: 1, gap: 1, vol: 0.85 }));
+  SK.on('seasonDeath', () => play(evClip('lose'), 'lose', { poly: 1, gap: 1, vol: 0.85 }));
+
+  // Bấm nút trong sảnh/hộp thoại: lobby.js không có sự kiện riêng nên nghe click nổi bọt.
+  addEventListener('click', e => {
+    const b = e.target && e.target.closest && e.target.closest('button');
+    if (!b || b === btn) return;
+    const k = b.id === 'sk-start' || b.id === 'hs-start' ? 'uiStart' : 'uiClick';
+    play(evClip(k), k, { poly: 2, gap: 0.05, vol: 0.7 });
+  }, true);
+
+  // ---------------------------------------------------------------- nhạc nền
+  // Nhạc chọn theo trạng thái game (thăm dò 4 lần/giây): sảnh, ải theo theme, phòng trùm đang khoá, mùa giải.
+  function wantMusic() {
+    const G = SK.G, M = A && A.music;
+    if (!M || !G) return null;
+    if (G.state === 'season') {
+      const S = G.season;
+      if (!S || S.map === 'base') return M.season.base;
+      return S.map === 's1' ? M.season.expedition : (M.season['expedition' + String(S.map).replace(/\D/g, '')] || M.season.expedition);
+    }
+    if (G.state === 'stage' && G.stage) {
+      const r = G.room;
+      if (r && r.type === 'boss' && r.state === 'locked') return M.boss[G.stage.level] || M.boss['1'];
+      return M.theme[G.stage.theme] || M.theme.forest;
+    }
+    if (G.state === 'lobby') return M.lobby;
+    return null;   // chết / thắng: để im cho tiếng thua/thắng nổi lên
+  }
+
+  const FADE = 0.9;
+  function stopMusic(m, fade) {
+    if (!m) return;
+    const c = sfx.ctx, t = c.currentTime;
+    try {
+      m.g.gain.cancelScheduledValues(t); m.g.gain.setValueAtTime(m.g.gain.value, t);
+      m.g.gain.linearRampToValueAtTime(0, t + fade);
+      m.s.stop(t + fade + 0.05);
+    } catch (e) { /* đã dừng */ }
+    m.s.onended = () => { try { m.g.disconnect(); } catch (e) { /* đã ngắt */ } };
+  }
+
+  function killAll() {
+    for (const r of active) { try { r.s.onended = null; r.s.stop(); r.g.disconnect(); } catch (e) { /* đã dừng */ } }
+    active.clear();
+    for (const k in perClip) perClip[k] = 0;
+    const m = sfx.music.cur;
+    if (m) { try { m.s.onended = null; m.s.stop(); m.g.disconnect(); } catch (e) { /* đã dừng */ } }
+    sfx.music.cur = null;
+  }
+
+  let musicSeq = 0;
+  function tickMusic() {
+    if (!usable()) return;
+    const want = wantMusic(), M = sfx.music;
+    M.want = want;
+    // Nạp trước vũ khí đang cầm để phát phát đầu tiên đã có tiếng.
+    const G = SK.G;
+    if (G && G.player && G.player.weapons) for (const w of G.player.weapons) { const n = fireClip(w); if (n && !(n in bufs)) load(n); }
+    const h = G && G.player && A.byHero[G.player.hero];
+    if (h) for (const n of [].concat(h.skill || [], h.hit || [])) if (!(n in bufs)) load(n);
+    if (G && G.enemies) for (const e of G.enemies) { const d = P(e.id); if (!d) continue; if (d.fire && !(d.fire in bufs)) load(d.fire); const dd = pick(d.dead); if (dd && !(dd in bufs)) load(dd); }
+    if ((M.cur && M.cur.name) === want) return;
+    if (M.cur) { stopMusic(M.cur, FADE); M.cur = null; }
+    if (!want) return;
+    const seq = ++musicSeq;
+    load(want).then(b => {
+      if (!b || seq !== musicSeq || !usable()) return;
+      const c = sfx.ctx, s = c.createBufferSource(), g = c.createGain();
+      s.buffer = b; s.loop = true;
+      g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(1, c.currentTime + FADE);
+      s.connect(g); g.connect(musicBus);
+      s.start(0);
+      M.cur = { name: want, s, g };
+      sfx.stats[want] = (sfx.stats[want] || 0) + 1;
+      sfx.ev.music = (sfx.ev.music || 0) + 1;
+      // Nhạc cũ đã dừng: bỏ bộ đệm giải mã (mỗi bài ~30 MB) để khỏi ngốn RAM.
+      for (const k in bufs) if (A.clips[k] && A.clips[k].music && k !== want) delete bufs[k];
+    });
+  }
+
+  function preload() {
+    if (!A) return;
+    for (const k in A.events) load(A.events[k]);
+    for (const k in A.byKind) load(A.byKind[k]);
   }
 
   function unlock() {
     const c = ensure();
     if (c && c.state === 'suspended') c.resume().catch(() => {});
+    if (c && !unlock.done && sfx.mode === 'on') { unlock.done = true; preload(); setInterval(tickMusic, 250); tickMusic(); }
   }
   for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, unlock, { capture: true });
-
-  function env(g, t, a, dur, vol) {
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(vol, t + a);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  }
-  // tone = dao động có trượt tần số; noise = ồn trắng qua bộ lọc.
-  function tone(type, f0, f1, dur, vol, delay) {
-    const c = sfx.ctx, t = c.currentTime + (delay || 0);
-    const o = c.createOscillator(), g = c.createGain();
-    o.type = type; o.frequency.setValueAtTime(f0, t);
-    if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
-    env(g, t, 0.004, dur, vol);
-    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
-  }
-  function noise(ftype, f0, f1, dur, vol, delay, q) {
-    const c = sfx.ctx, t = c.currentTime + (delay || 0);
-    const s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
-    s.buffer = noiseBuf; f.type = ftype; f.Q.value = q || 1;
-    f.frequency.setValueAtTime(f0, t);
-    if (f1 !== f0) f.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
-    env(g, t, 0.003, dur, vol);
-    s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 0.2); s.stop(t + dur + 0.02);
-  }
-  const jit = () => 1 + (Math.random() - 0.5) * 0.12;
-
-  // tên -> [số lần tối đa, trong cửa sổ giây]
-  const LIMIT = { fire: [4, 0.05], eFire: [2, 0.06], hit: [3, 0.05], kill: [3, 0.08], hurt: [2, 0.1],
-    coin: [3, 0.06], energy: [2, 0.08], pot: [1, 0.1], brk: [2, 0.08], lock: [1, 0.3], clear: [1, 0.3],
-    stage: [1, 0.5], skill: [1, 0.15], end: [1, 1] };
-
-  function play(name, fn) {
-    if (sfx.muted) return;
-    const c = sfx.ctx;
-    if (!c || c.state !== 'running') return;
-    const now = c.currentTime, L = LIMIT[name] || [4, 0.05], s = last[name] || (last[name] = [0, 0]);
-    if (now - s[0] > L[1]) { s[0] = now; s[1] = 0; }
-    if (s[1] >= L[0]) return;
-    s[1]++;
-    try { fn(); sfx.stats[name] = (sfx.stats[name] || 0) + 1; }
-    catch (e) { sfx.errors++; }
-  }
-
-  const FIRE = {
-    gun() { tone('square', 520 * jit(), 140, 0.08, 0.22); noise('bandpass', 2400, 900, 0.05, 0.16); },
-    smg() { tone('square', 700 * jit(), 300, 0.035, 0.14); noise('highpass', 3000, 3000, 0.025, 0.1); },
-    shotgun() { noise('lowpass', 2200, 300, 0.22, 0.5); tone('sawtooth', 160, 45, 0.18, 0.3); },
-    staff() { tone('sine', 900 * jit(), 1500, 0.14, 0.2); tone('triangle', 450, 750, 0.14, 0.12); },
-    laser() { tone('sawtooth', 1800 * jit(), 250, 0.16, 0.14); },
-    bow() { tone('triangle', 330 * jit(), 180, 0.1, 0.24); noise('bandpass', 1400, 600, 0.09, 0.14, 0.02, 3); },
-    melee() { noise('bandpass', 500, 2600, 0.14, 0.32, 0, 1.5); },
-    launcher() { tone('square', 200, 60, 0.2, 0.25); noise('lowpass', 900, 200, 0.16, 0.3); }
-  };
-  function fireKind(w) {
-    const d = (w && w.def) || {}, k = d.kind;
-    if (k === 'gun') return (d.pellets || 1) > 1 ? 'shotgun' : (d.rps || 0) >= 6 ? 'smg' : 'gun';
-    return FIRE[k] ? k : 'gun';
-  }
-
-  SK.on('fire', (G, p, w) => play('fire', FIRE[fireKind(w)]));
-  SK.on('enemyFire', () => play('eFire', () => { tone('triangle', 360 * jit(), 200, 0.08, 0.1); noise('bandpass', 1200, 700, 0.05, 0.06); }));
-  SK.on('enemyHit', (G, e, dmg, crit) => play('hit', () => {
-    if (crit) { tone('square', 1100, 1700, 0.07, 0.14); noise('highpass', 4000, 4000, 0.05, 0.14); }
-    else { tone('sine', 190 * jit(), 90, 0.07, 0.24); noise('lowpass', 1200, 400, 0.05, 0.12); }
-  }));
-  SK.on('enemyKill', () => play('kill', () => { tone('square', 420 * jit(), 70, 0.2, 0.2); noise('lowpass', 1800, 250, 0.2, 0.25); }));
-  SK.on('playerHurt', (G, p) => play('hurt', () => {
-    // Còn giáp sau đòn = kim loại; hết giáp bị trừ máu = nặng hơn.
-    if (p && p.armor > 0) { tone('square', 1500, 900, 0.1, 0.16); tone('square', 2250, 1350, 0.1, 0.1); noise('highpass', 5000, 5000, 0.06, 0.12); }
-    else { tone('sawtooth', 240, 60, 0.3, 0.32); noise('lowpass', 900, 150, 0.26, 0.35); }
-  }));
-  SK.on('pickup', (G, kind) => {
-    if (kind === 'coin') play('coin', () => { const f = 1300 * jit(); tone('square', f, f, 0.05, 0.12); tone('square', f * 1.5, f * 1.5, 0.09, 0.12, 0.05); });
-    else if (kind === 'energy') play('energy', () => { tone('sine', 500, 1100, 0.14, 0.2); tone('triangle', 1000, 2200, 0.14, 0.08); });
-    else play('pot', () => { tone('sine', 520, 520, 0.09, 0.2); tone('sine', 660, 660, 0.09, 0.2, 0.08); tone('sine', 880, 880, 0.16, 0.2, 0.16); });
-  });
-  SK.on('obstacleBreak', () => play('brk', () => { noise('bandpass', 1800, 500, 0.16, 0.4, 0, 2); tone('square', 260, 90, 0.08, 0.16); noise('highpass', 3500, 3500, 0.06, 0.15, 0.05); }));
-  SK.on('roomLock', () => play('lock', () => { tone('sawtooth', 110, 45, 0.3, 0.4); noise('lowpass', 700, 120, 0.28, 0.45); tone('square', 1400, 900, 0.05, 0.12, 0.02); }));
-  SK.on('roomClear', () => play('clear', () => {
-    noise('bandpass', 300, 900, 0.3, 0.2, 0, 1);
-    [784, 988, 1319].forEach((f, i) => tone('triangle', f, f, 0.22, 0.2, 0.18 + i * 0.09));
-  }));
-  // Đi qua cổng sang ải mới phát ra stageEnter, nên whoosh này cũng là tiếng cổng.
-  SK.on('stageEnter', () => play('stage', () => { noise('bandpass', 200, 3000, 0.7, 0.3, 0, 0.8); tone('sine', 150, 500, 0.6, 0.12); }));
-  SK.on('skill', () => play('skill', () => { tone('sawtooth', 200, 900, 0.25, 0.2); tone('square', 400, 1800, 0.25, 0.08); noise('bandpass', 800, 3000, 0.25, 0.15); }));
-  SK.on('runEnd', (G, r) => play('end', () => {
-    const won = !!(r && r.won), seq = won ? [523, 659, 784, 1047, 1319] : [392, 330, 262, 196];
-    seq.forEach((f, i) => tone(won ? 'triangle' : 'sawtooth', f, f, won ? 0.3 : 0.4, won ? 0.22 : 0.18, i * (won ? 0.11 : 0.22)));
-  }));
 
   function setMuted(m) {
     sfx.muted = !!m;
     try { localStorage.setItem(KEY, sfx.muted ? '1' : '0'); } catch (e) { /* bỏ qua */ }
+    if (sfx.muted) killAll(); else tickMusic();
     if (btn) { btn.textContent = sfx.muted ? '🔇' : '🔊'; btn.title = sfx.muted ? 'Bật tiếng (M)' : 'Tắt tiếng (M)'; btn.setAttribute('aria-pressed', String(sfx.muted)); }
   }
   sfx.setMuted = setMuted;
+  sfx.bufCount = () => Object.keys(bufs).filter(k => bufs[k]).length;
 
   function mkButton() {
     btn = document.createElement('button');
