@@ -166,6 +166,7 @@ window.SK_DESIGN = {
     return d;
   }
   for (const [id, w] of Object.entries(WK.weapons)) if (id !== 'bad_pistol' && w.sprite) DS.weapons[id] = build(id, w);
+  if (window.SK_W86) return;
 
   // Rương: bậc 1 trắng, 2 lục, 3 lam, 4 tím, 5 cam; bậc 6 (đỏ) là vũ khí trùm, không ra rương.
   // [ƯỚC LƯỢNG] tỉ lệ theo tầng: 1-x bậc 1-2 (chủ yếu trắng), 2-x bậc 2-3, 3-x bậc 3-4 hiếm khi 5.
@@ -224,4 +225,90 @@ window.SK_DESIGN = {
     });
   }
   DS.heroes.knight.unlock = { kind: 'free', amount: 0, text: 'Miễn phí' };
+})();
+
+// Vũ khí thật 8.6 (data/sk-weapons86.js, sinh bởi tools/weapons86/build_w86.py) đè lên số wiki ở trên.
+// Khoá giữ nguyên slug wiki (ak_47, bad_pistol...) cho mã cũ; vũ khí không có trên wiki dùng tên prefab (weapon_109...).
+// def.w86 là bản ghi thô (rig, máy trạng thái Animator, đạn); actors.js đọc nó. Trường phẳng (dmg, cost, rps...) cho HUD/cửa hàng.
+(function () {
+  const X = window.SK_W86, DS = window.SK_DESIGN;
+  if (!X) return;
+  // [ĐO] item_level 0..5 -> màu độ hiếm trắng, lục, lam, tím, cam, đỏ (bậc 1..6 như wiki)
+  const RARITY = ['White', 'Green', 'Blue', 'Purple', 'Orange', 'Red'];
+  const idOf = { weapon_000: 'bad_pistol' };
+  for (const [slug, pf] of Object.entries(X.wiki)) if (!idOf[pf]) idOf[pf] = slug;
+  const id = pf => idOf[pf] || pf;
+  DS.weaponId = id;
+  function kindOf(e) {
+    if (e.fam === 'bow') return 'bow';
+    if (e.melee || /^(sword|spear|hammer)$/.test(e.fam)) return 'melee';
+    if (e.fam === 'laser') return 'laser';
+    if (e.fam === 'throw') return 'throw';
+    if (/^Gun01[02]|Staff/.test(e.cls) || e.fam === 'orbit') return 'staff';
+    const b = X.bullets[(e.b[0] || {}).p];
+    if (b && b.m && b.m.ExplodeEffectTrigger) return 'launcher';
+    return 'gun';
+  }
+  function spriteOf(e) {
+    const w = e.rig.find(n => n.n === 'w' && n.f) || e.rig.find(n => n.f && n.n !== 'gun_point');
+    return w ? w.f : null;
+  }
+  // Tốc bắn khi giữ nút [ĐO mô phỏng Animator ở tools/weapons86]: sự kiện Attack mỗi giây × weapon_speed.
+  function rpsOf(e) {
+    const f = e.fire || {};
+    if (f.period) return +(e.ws / f.period).toFixed(3);
+    const cyc = e.SM && e.SM.st.find(s => s.ev.length && s.len > 0);
+    return cyc ? +(e.ws * cyc.ev.length / cyc.len).toFixed(3) : 1;
+  }
+  // Súng không có bulletsInfo (đấm tay Khí Công Sư, logic trong mã): cận chiến kiểu cũ, sát thương cận chiến của hero [ƯỚC LƯỢNG]
+  // Súng tầm xa mà prefab đạn nằm trong mã (Cầu Vồng, Gậy Nữ Thần...): viên đạn chung bullet_0 với số đo bulletsInfo [ƯỚC LƯỢNG hình đạn].
+  function noBulletDef(pf, e) {
+    const wk = window.SK_WIKI && Object.values(SK_WIKI.weapons).find(w => w.name === e.n.en);
+    const base = { name: e.n.vi || e.n.en, nameEn: e.n.en, prefab: pf, grade: (e.grade | 0) + 1, rarity: RARITY[e.grade | 0] || 'White',
+      cost: e.cost || 0, rps: (wk && wk.rps) || 2.5, moveMod: e.move || 0, sprite: spriteOf(e) };
+    const bs = e.b.find(b => b.spd > 0);
+    if (bs && !e.melee) return Object.assign(base, { kind: 'gun', dmg: bs.dmg || (wk && wk.dmg) || 2, crit: bs.crit || 0, spread: e.dev || 0,
+      bulletSpeed: bs.spd, repel: bs.repel || 1, pellets: e.x.multiCount || 1, fan: e.x.angle || 0 });
+    return Object.assign(base, { kind: 'melee', dmg: (wk && wk.dmg) || 4, crit: 0, spread: 0, range: 26, arc: 150, repel: 3 });
+  }
+  function def(pf) {
+    const e = X.weapons[pf], b0 = e.b.find(b => b.p) || {};
+    if (!b0.p) return noBulletDef(pf, e);
+    // clip + máy trạng thái lưu chung ở X.clips / X.sms (nhiều súng cùng controller)
+    if (!e.SM) { e.SM = e.sm != null ? X.sms[e.sm] : null; e.CL = (e.cl || []).map(i => X.clips[i]); }
+    const charge = e.x.max_time || e.x.maxTime || e.x.maxChargeTime || 0;
+    return {
+      name: e.n.vi || e.n.en, nameEn: e.n.en, prefab: pf, w86: e, kind: kindOf(e), fam: e.fam, cls: e.cls,
+      grade: (e.grade | 0) + 1, rarity: RARITY[e.grade | 0] || 'White', type: e.type,
+      dmg: b0.dmg || Math.max(0, ...e.b.map(b => b.dmg || 0)), cost: e.cost || 0, crit: b0.crit || 0, spread: e.dev || 0, rps: rpsOf(e),
+      pellets: e.x.multiCount || 1, moveMod: e.move || 0, sprite: spriteOf(e),
+      bullet: b0.p || null, bulletSpeed: b0.spd || Math.max(0, ...e.b.map(b => b.spd || 0)), repel: b0.repel || 0,
+      charge: (e.fam === 'bow' || e.fam === 'charge') ? (charge || 1) : 0
+    };
+  }
+  const want = new Set([...Object.values(X.wiki), ...Object.values(X.heroes), ...Object.values(X.pools).flat()]);
+  for (const pf of want) if (X.weapons[pf]) DS.weapons[id(pf)] = def(pf);
+  for (const w of Object.keys(DS.weapons)) if (!DS.weapons[w].prefab && w !== '_claw') delete DS.weapons[w]; // không có trong 8.6
+  for (const [folder, pf] of Object.entries(X.heroes)) {
+    const h = DS.heroes[folder];
+    if (!h || !X.weapons[pf]) continue;
+    h.weapon = id(pf);
+    DS.weapons[h.weapon].starter = true;
+  }
+  // [ĐO luban pseudorandom_tbweapongroup] rương theo chương: WG_level1..3, trọng số từng món (8.6: đều 10).
+  const pools = {};
+  for (const [lv, list] of Object.entries(X.pools)) {
+    const wt = X.weights[lv] || {};
+    pools[lv] = [];
+    for (const pf of list) for (let i = 0; i < Math.max(1, Math.round((wt[pf] || 10) / 10)); i++) pools[lv].push(id(pf));
+  }
+  DS.weaponPools = pools;
+  // Trả danh sách ứng viên (nơi gọi SK.pick). Lái buôn không có bảng riêng trong 8.6 đã giải: dùng bể của chương [ƯỚC LƯỢNG].
+  DS.weaponPool = function (level) {
+    const lv = String(Math.max(1, Math.min(3, (level | 0) || 1)));
+    return (pools[lv] || pools['1'] || []).slice();
+  };
+  DS.chestPool = (pools['1'] || []).slice();
+  DS.weaponGrades = {};
+  for (const [k, d] of Object.entries(DS.weapons)) (DS.weaponGrades[d.grade] = DS.weaponGrades[d.grade] || []).push(k);
 })();
