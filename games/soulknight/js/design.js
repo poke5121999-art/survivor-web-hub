@@ -20,7 +20,7 @@ window.SK_DESIGN = {
   // kind quyết định hành vi (bảng WEAPON_KINDS trong actors.js); còn lại là số.
   weapons: {
     bad_pistol: { name: 'Súng Lục Cùi', kind: 'gun', dmg: 3, cost: 0, crit: 0, spread: 5, rps: 3.28,
-      bulletSpeed: 18, pellets: 1, repel: 1, sprite: 'weapons_28', bullet: 'yellow' },   // [WIKI] + tốc đạn [ƯỚC LƯỢNG]
+      bulletSpeed: 18, pellets: 1, repel: 1, sprite: 'weapons_156', bullet: 'yellow' },   // [WIKI] + tốc đạn [ƯỚC LƯỢNG]
     old_shotgun: { name: 'Súng Săn Cũ', kind: 'gun', dmg: 3, cost: 1, crit: 0, spread: 22, rps: 1.6,
       bulletSpeed: 16, pellets: 4, repel: 2, sprite: 'weapons3_31', bullet: 'yellow' },   // [ƯỚC LƯỢNG]
     smg: { name: 'Súng Tiểu Liên', kind: 'gun', dmg: 2, cost: 1, crit: 0, spread: 9, rps: 8,
@@ -69,3 +69,36 @@ window.SK_DESIGN = {
   // Chuỗi màn: tầng 1 rừng, tầng 2 lâu đài, tầng 3 núi lửa.
   run: [['forest', 1], ['castle', 2], ['volcano', 3]]
 };
+
+// Nhân vật lấy từ số wiki (data/sk-wiki.js, sinh bởi tools/build_design.py). Hình dạng thân (tay, hộp
+// trúng đòn, bóng) dùng chung của Hiệp Sĩ vì mọi nhân vật SK cùng khổ 16 px.
+(function () {
+  const WK = window.SK_WIKI, DS = window.SK_DESIGN;
+  if (!WK) return;
+  const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const VI = {
+    knight: 'Hiệp Sĩ', ranger: 'Kẻ Lãng Du', mage: 'Phù Thuỷ', assassin: 'Sát Thủ', alchemist: 'Nhà Giả Kim',
+    engineer: 'Kỹ Sư', vampire: 'Ma Cà Rồng', paladin: 'Hiệp Sĩ Thánh', elves: 'Tiên Tộc', werewolf: 'Người Sói',
+    priest: 'Nữ Tu', druid: 'Tu Sĩ Rừng', robot: 'Người Máy', viking: 'Chiến Binh Cuồng', necromancer: 'Pháp Sư Tử Linh'
+  };
+  const base = DS.heroes.knight;
+  const kindOk = { gun: 1, staff: 1, melee: 1 };
+  for (const [folder, h] of Object.entries(WK.heroes)) {
+    const sk = (h.skills || [])[0] || { name: 'Dual Wield', cd: 10 };
+    const wid = h.weapon && WK.weapons[h.weapon] ? h.weapon : 'bad_pistol';
+    if (wid !== 'bad_pistol' && !DS.weapons[wid]) {
+      const w = WK.weapons[wid];
+      DS.weapons[wid] = { name: w.name, kind: kindOk[w.kind] ? w.kind : 'gun', dmg: w.dmg, cost: w.cost, crit: w.crit,
+        spread: w.spread, rps: w.rps, bulletSpeed: 18, pellets: w.pellets || 1, repel: 1, sprite: w.sprite, bullet: 'yellow' };
+    }
+    DS.heroes[folder] = Object.assign({}, folder === 'knight' ? base : {}, {
+      name: VI[folder] || h.name, nameEn: h.name, folder,
+      hp: h.hp, armor: h.armor, energy: h.energy, crit: h.crit || 0,
+      speed: base.speed, hand: base.hand, hurt: base.hurt, body: base.body, shadow: base.shadow,
+      // dur của Song Thủ là số cũ trong bảng tay; kỹ năng khác do js/skills.js tự định.
+      skill: { id: slug(sk.name), name: sk.name, cd: sk.cd || 8, dur: folder === 'knight' ? base.skill.dur : 0 },
+      skills: h.skills, passive: h.passive, weapon: wid, unlock: h.unlock, upgrades: h.upgrades
+    });
+  }
+  DS.heroes.knight.unlock = { kind: 'free', amount: 0, text: 'Miễn phí' };
+})();

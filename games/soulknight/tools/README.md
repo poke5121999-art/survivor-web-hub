@@ -73,3 +73,28 @@ Soát bằng mắt: phục vụ repo (`python -m http.server 8811`) rồi mở
   thỉnh thoảng một khối đá.
 - `python -c "..."` trong Bash tool ở máy này hỏng khi chuỗi bắt đầu bằng xuống dòng. Dùng heredoc.
 - `/tmp` của Git Bash và `/tmp` mà Python thấy là hai thư mục khác nhau. Dùng đường dẫn Windows đầy đủ.
+
+## Mô-đun cần thêm hình: `tools/extra/<mô-đun>.json`
+
+Mỗi mô-đun (kỹ năng, trùm, phòng...) giữ MỘT tệp riêng trong `tools/extra/`, rồi chạy lại
+`build_sk.py`. Không sửa `build_sk.py` để thêm tên.
+
+```json
+{
+  "prefabs": ["tên prefab gốc trong common/levelcommon/levelobjects/level__*"],
+  "sprites": ["regex tên sprite"],
+  "clips": ["regex tên AnimationClip"],
+  "png_anims": {"khoá": {"dir": "boss/boss01", "frames": ["boss01_0", "boss01_1"], "fps": 10,
+                         "loop": true, "anchor": "bottom", "register": true}}
+}
+```
+
+Kết quả nằm ở `SK_DATA.extra`: `sprites[regex] = [khung]`, `clips[tên] = khoá anim`,
+`png[khoá] = khoá anim`. Prefab vào `SK_DATA.prefabs` như thường. `png_anims` đọc PNG trong
+`~/Downloads/sk-ref/all` (bundle không còn), nên dò điểm neo bằng `register()` như nhân vật.
+
+- Nhiều agent chạy lever cùng lúc: `build_sk.py` giữ khoá `tools/.build_lock` (mkdir) và ghi
+  atlas/`sk-data.js` qua tệp tạm rồi `os.replace`, nên lượt sau chờ lượt trước.
+- `SK_ATLAS.v` là mã băm các trang atlas; `engine.js` gắn `?v=` vào đường dẫn ảnh để máy người chơi
+  không giữ atlas cũ khi toạ độ khung đã đổi.
+- `build_design.py` chạy SAU `build_sk.py`: nó chỉ giữ vũ khí có khung trong atlas.

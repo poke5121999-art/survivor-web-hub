@@ -362,7 +362,7 @@
 
   // ---------------------------------------------------------------- máy trạng thái phòng
   // idle → locked(wave i) → cleared. Phòng không phải phòng đánh: idle → cleared khi bước vào.
-  const ROOM_ENTER = {
+  const ROOM_ENTER = W_.ROOM_ENTER = {
     battle: (G, r) => lockRoom(G, r),
     boss: (G, r) => lockRoom(G, r),
     start: (G, r) => { r.state = 'cleared'; },
@@ -374,6 +374,7 @@
   function lockRoom(G, r) {
     r.state = 'locked'; r.doorT = 0; r.wave = -1; r.waveDelay = 0.35;
     r.waves = G.buildWaves(r);
+    SK.emit('roomLock', G, r);
     // Không để ai kẹt trong ô cửa khi rào dâng.
     const p = G.player;
     p.x = SK.clamp(p.x, (r.x0 + 1) * T, r.x1 * T);
@@ -383,6 +384,7 @@
   W_.clearRoom = function (G, r) {
     r.state = 'cleared'; r.doorT = 0; r.wave = r.waves.length;
     G.onRoomCleared(r);
+    SK.emit('roomClear', G, r);
   };
 
   W_.updateRooms = function (G, dt) {
@@ -396,7 +398,7 @@
     }
     // Khoá khi đã bước hẳn một ô vào trong, để rào không dâng lên ngay trên đầu người chơi.
     const deep = W_.roomAt(map, p.x, p.y - 4, 1);
-    if (deep && deep.state === 'idle') ROOM_ENTER[deep.type](G, deep);
+    if (deep && deep.state === 'idle') { ROOM_ENTER[deep.type](G, deep); SK.emit('roomEnter', G, deep); }
     for (const r of map.rooms) {
       if (r.state !== 'locked') continue;
       const alive = G.enemies.some(e => e.room === r && e.st !== 'dead');

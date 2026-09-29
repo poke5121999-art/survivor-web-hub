@@ -31,6 +31,10 @@
 
   const warned = {};
   SK.warnOnce = (key, msg) => { if (warned[key]) return; warned[key] = 1; console.warn('[SK] ' + msg); };
+  // Kênh sự kiện để các mô-đun (tiếng, kỹ năng, trùm, sảnh) móc vào mà không sửa chỗ phát.
+  const listeners = {};
+  SK.on = (ev, fn) => { (listeners[ev] = listeners[ev] || []).push(fn); };
+  SK.emit = (ev, ...args) => { const l = listeners[ev]; if (l) for (const fn of l) fn(...args); };
 
   // ---------------------------------------------------------------- atlas
   SK.pages = []; SK.pagesWhite = []; SK.pagesElite = [];
@@ -51,7 +55,7 @@
       const im = new Image();
       im.onload = () => res(im);
       im.onerror = () => { SK.warnOnce('atlas' + src, 'atlas not loaded: ' + src); res(null); };
-      im.src = src;
+      im.src = src + (A.v ? '?v=' + A.v : '');
     }))).then(imgs => {
       SK.pages = imgs;
       SK.pagesWhite = imgs.map(im => im && tintPage(im, '#ffffff', 1));

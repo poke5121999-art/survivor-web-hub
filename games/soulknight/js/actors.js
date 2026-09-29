@@ -61,7 +61,7 @@
     const crit = SK.rand() * 100 < (p.crit + (d.crit || 0));
     const spd = (d.bulletSpeed || 16) * U;
     G.bullets.push({ side: 'p', kind, x, y, h: Math.max(2, p.y - y), vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, ang,
-      dmg: d.dmg * (crit ? R.critMult : 1), crit, repel: d.repel || 1, r: d.radius || 2, life: 1.6, color: d.bullet });
+      dmg: d.dmg * (p.dmgMul || 1) * (crit ? R.critMult : 1), crit, repel: d.repel || 1, r: d.radius || 2, life: 1.6, color: d.bullet });
   }
 
   // Hành vi theo kind; thêm kind mới = thêm một dòng ở đây, không sửa chỗ gọi.
@@ -94,7 +94,7 @@
           const da = Math.abs(Math.atan2(Math.sin(Math.atan2(ey - cy, e.x - cx) - o.ang), Math.cos(Math.atan2(ey - cy, e.x - cx) - o.ang)));
           if (da > half && dd > 8) continue;
           const crit = SK.rand() * 100 < (p.crit + (d.crit || 0));
-          SK.hurtEnemy(G, e, d.dmg * (crit ? R.critMult : 1), crit, o.ang, d.repel || 3);
+          SK.hurtEnemy(G, e, d.dmg * (p.dmgMul || 1) * (crit ? R.critMult : 1), crit, o.ang, d.repel || 3);
         }
         // Chém trúng đạn địch thì xoá đạn, như SK.
         for (const b of G.bullets) {
@@ -154,12 +154,13 @@
       return;
     }
     p.energy -= d.cost || 0;
-    w.cd = 1 / d.rps;
+    w.cd = 1 / (d.rps * (p.rateMul || 1));
     w.kick = d.kind === 'melee' ? 0 : 2;
     const [hx, hy] = handPos(p, side);
     const f = SK.frame(d.sprite);
     const tip = d.kind === 'melee' ? [hx, hy] : gunTip(hx, hy, p.aim, [f ? f[3] - f[5] : 10, 0]);
     SK.WEAPON_KINDS[d.kind].fire(G, p, w, { x: tip[0], y: tip[1], ang: p.aim, side });
+    SK.emit('fire', G, p, w);
   }
 
   SK.updatePlayer = function (G, dt) {
@@ -182,7 +183,7 @@
     p.moving = Math.abs(mv.x) + Math.abs(mv.y) > 0.05;
     const pad = W.obstacleAt(G.map, p.x, p.y - 2);
     p.speedMul = pad && pad.kind === 'pad' ? (pad.p.speed_down ? 1 - pad.p.speed_rate : 1 + pad.p.speed_rate) : 1;
-    const spd = p.h.speed * U * p.speedMul;
+    const spd = p.h.speed * U * p.speedMul * (p.moveMul || 1);
     SK.moveBox(G.map, p, mv.x * spd * dt, mv.y * spd * dt, p.h.body.r);
     if (p.moving && Math.random() < dt * 8) SK.fx(G, 'dust', p.x - p.face * 4, p.y, { dur: 0.2 });
 
@@ -202,25 +203,51 @@
       tryFire(G, p, w, 1);
       if (p.skillT > 0) tryFire(G, p, p.dual, 2);
     }
-    if (p.skillT > 0) { p.skillT -= dt; if (p.skillT <= 0) endSkill(p); }
+    if (p.skillT > 0) { p.skillT -= dt; const sd = skillDef(p); if (sd.update) sd.update(G, p, dt); if (p.skillT <= 0) SK.endSkill(G, p); }
     if (I.hit('skill') && p.skillCd <= 0 && p.skillT <= 0) startSkill(G, p);
-    if (I.hit('swap') && p.weapons[1 - p.cur]) { p.cur = 1 - p.cur; if (p.skillT > 0) endSkill(p); G.toast(p.weapons[p.cur].def.name); }
+    if (I.hit('swap') && p.weapons[1 - p.cur]) {
+      p.cur = 1 - p.cur;
+      if (p.skillT > 0 && skillDef(p).endOnSwap) SK.endSkill(G, p);
+      G.toast(p.weapons[p.cur].def.name);
+    }
     const wantInteract = I.hit('interact') || (I.touchMode && I.hit('attack') && G.interactTarget);
     if (wantInteract && G.interactTarget) G.interactTarget.use(G);
   };
 
-  function startSkill(G, p) {
-    const sk = p.h.skill;
-    p.skillT = sk.dur;
-    const w = p.weapons[p.cur];
-    p.dual = SK.makeWeapon(w.id); p.dual.cd = 0.06;
-    SK.fx(G, 'ring', p.x, p.y - 8, { dur: 0.35, color: '#7fd3ff' });
+  // Bảng kỹ năng theo p.h.skill.id. start() đặt p.skillT > 0 nếu kỹ năng kéo dài; không thì hồi chiêu ngay.
+  SK.SKILLS = {
+    dual_wield: {
+      endOnSwap: true,
+      start(G, p) {
+        p.skillT = p.h.skill.dur;
+        p.dual = SK.makeWeapon(p.weapons[p.cur].id); p.dual.cd = 0.06;
+        SK.fx(G, 'ring', p.x, p.y - 8, { dur: 0.35, color: '#7fd3ff' });
+      },
+      end(G, p) { p.dual = null; }
+    }
+  };
+  function skillDef(p) {
+    const id = p.h.skill && p.h.skill.id;
+    if (SK.SKILLS[id]) return SK.SKILLS[id];
+    SK.warnOnce('skill' + id, 'skill ' + id + ' not implemented, using dual_wield');
+    return SK.SKILLS.dual_wield;
   }
-  function endSkill(p) { p.skillT = 0; p.dual = null; p.skillCd = p.h.skill.cd; }
+  function startSkill(G, p) {
+    skillDef(p).start(G, p);
+    if (!(p.skillT > 0)) p.skillCd = p.h.skill.cd;
+    SK.emit('skill', G, p);
+  }
+  SK.endSkill = function (G, p) {
+    const sd = skillDef(p);
+    p.skillT = 0;
+    if (sd.end) sd.end(G, p);
+    p.skillCd = p.h.skill.cd;
+  };
 
   SK.hurtPlayer = function (G, dmg) {
     const p = G.player;
     if (p.st === 'dead' || p.invulT > 0 || dmg <= 0) return false;
+    if (p.onHurt) { dmg = p.onHurt(G, p, dmg); if (!(dmg > 0)) return false; }
     p.armorT = R.armorDelay; p.armorTick = R.armorTick;
     const a = Math.min(p.armor, dmg);
     p.armor -= a; dmg -= a;
@@ -229,7 +256,8 @@
     p.invulT = R.hurtInvuln; p.flash = 0.1;
     G.shake = Math.max(G.shake, 3); G.hurtT = 0.35;
     SK.num(G, p.x, p.y - 26, a + dmg, a && !dmg ? '#c9d2df' : '#ff4a4a');
-    if (p.hp <= 0) { p.hp = 0; p.st = 'dead'; p.stT = 0; p.skillT = 0; p.dual = null; G.onPlayerDead(); }
+    SK.emit('playerHurt', G, p, a + dmg);
+    if (p.hp <= 0) { p.hp = 0; p.st = 'dead'; p.stT = 0; if (p.skillT > 0) SK.endSkill(G, p); G.onPlayerDead(); }
     return true;
   };
 
@@ -283,7 +311,10 @@
     return 'EnemyAI01';
   }
 
+  // Quái không có trong SK_DATA.enemies (trùm...) đăng ký nhà máy riêng ở đây.
+  SK.CUSTOM_ENEMIES = {};
   SK.makeEnemy = function (G, id, x, y, room) {
+    if (SK.CUSTOM_ENEMIES[id]) return SK.CUSTOM_ENEMIES[id](G, x, y, room);
     const d = D.enemies[id];
     const ai = (d.ai && d.ai[0]) || { cls: 'EnemyAI01', p: {} };
     const elite = id.startsWith('ex_');
@@ -303,7 +334,7 @@
   function enemyDmg(atk) { return Math.max(1, Math.round((atk || 1) * R.enemyAtkScale)); }
   function walkSpeed(e) { return (e.d.speed || 3) * U * R.enemyMoveScale; }
   function seesPlayer(G, e, range) {
-    const p = G.player; if (p.st === 'dead') return false;
+    const p = G.player; if (p.st === 'dead' || p.hidden) return false;
     const rng = range || ((e.p.findTargetRange || 20) * U * 0.6);
     return Math.hypot(p.x - e.x, p.y - e.y) < rng && W.los(G.map, e.x, e.y - 6, p.x, p.y - 6);
   }
@@ -552,6 +583,7 @@
     }
     fn(G, e);
     e.kick = 2;
+    SK.emit('enemyFire', G, e);
   }
 
   SK.updateEnemy = function (G, e, dt) {
@@ -574,6 +606,7 @@
     e.hp -= dmg; e.flash = 0.08;
     if (!(e.p.kinematic)) { e.kx += Math.cos(ang) * repel * 30; e.ky += Math.sin(ang) * repel * 30; }
     SK.num(G, e.x, e.y - e.hb.off[1] * e.scale - e.hb.size[1] * 0.5 * e.scale - 4, dmg, crit ? '#ffd23a' : '#ffffff', crit);
+    SK.emit('enemyHit', G, e, dmg, crit);
     if (e.hp <= 0) killEnemy(G, e, ang);
     return true;
   };
@@ -583,6 +616,7 @@
     e.kx = Math.cos(ang || 0) * 60; e.ky = Math.sin(ang || 0) * 60;
     SK.moveBox(G.map, e, e.kx * 0.08, e.ky * 0.08, e.r);
     G.kills++;
+    SK.emit('enemyKill', G, e);
     if (!e.anims.dead) SK.fx(G, 'prefab', e.x, e.y - 8, { parts: SK.art.vfx('death'), state: 'smoke', dur: 0.5 });
     const rate = e.p.reward_rate != null ? e.p.reward_rate : 20, rv = e.p.reward_value || [0, 0, 1, 1];
     if (SK.rand() * 100 < rate) {
@@ -593,6 +627,7 @@
   }
 
   SK.drawEnemy = function (ctx, G, e) {
+    if (e.draw) return e.draw(ctx, G, e);
     if (e.st === 'spawn') return;
     const dead = e.st === 'dead';
     if (dead && !e.anims.dead) return;
@@ -715,6 +750,7 @@
     o.hp -= dmg; o.flash = 0.06;
     if (o.hp > 0) return;
     W.removeObstacle(G.map, o);
+    SK.emit('obstacleBreak', G, o);
     SK.fx(G, 'prefab', o.x, o.y - 8, { parts: SK.art.vfx('death'), state: 'smoke', dur: 0.5 });
     if (o.explode) {
       SK.fx(G, 'prefab', o.x, o.y - 8, { parts: SK.art.vfx('explode'), state: 'explode_small', dur: 0.66 });
@@ -776,7 +812,7 @@
         k.vx = (p.x - k.x) / d * s; k.vy = (p.y - 6 - k.y) / d * s;
       } else { const f = Math.exp(-dt * 5); k.vx *= f; k.vy *= f; }
       SK.moveBox(G.map, k, k.vx * dt, k.vy * dt, 1);
-      if (d < 8 && k.t > 0.2 && p.st !== 'dead' && def.take(G, p)) k.gone = true;
+      if (d < 8 && k.t > 0.2 && p.st !== 'dead' && def.take(G, p)) { k.gone = true; SK.emit('pickup', G, k.kind); }
     }
     G.pickups = G.pickups.filter(k => !k.gone);
   };

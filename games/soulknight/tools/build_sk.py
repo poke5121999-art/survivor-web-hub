@@ -551,6 +551,87 @@ def extract_heroes(want_skins=(0,)):
         heroes.setdefault(folder, {})['s%d' % m['skinIndex']] = entry
 
 
+# ---------------------------------------------------------------- danh sách thêm của từng mô-đun
+EXTRA_DIR = os.path.join(HERE, 'extra')
+SPRITE_BUNDLES = ('common.ab', 'sprite_atlas.ab', 'levelcommon.ab', 'levelobjects.ab', 'level__difficulty.ab')
+
+
+def extract_extras(by_name):
+    """tools/extra/*.json -> {sprites, clips, png}. Mỗi mô-đun giữ một tệp riêng, xem tools/README.md."""
+    out = {'sprites': {}, 'clips': {}, 'png': {}}
+    if not os.path.isdir(EXTRA_DIR):
+        return out
+    specs = []
+    for fn in sorted(os.listdir(EXTRA_DIR)):
+        if fn.endswith('.json'):
+            specs.append((fn, json.load(io.open(os.path.join(EXTRA_DIR, fn), encoding='utf-8'))))
+    for fn, sp in specs:
+        for nm in sp.get('prefabs', []):
+            if nm in by_name:
+                extract_prefab(by_name[nm])
+            else:
+                log.append('%s: prefab thiếu %s' % (fn, nm))
+    rx_sprites = [(r, re.compile(r)) for fn, sp in specs for r in sp.get('sprites', [])]
+    rx_clips = [re.compile(r) for fn, sp in specs for r in sp.get('clips', [])]
+    for cab in rip.files:
+        bn = rip.bundle_of[cab]
+        if not (bn in SPRITE_BUNDLES or bn in THEMES):
+            continue
+        for o in rip.files[cab].objects.values():
+            tn = o.type.name
+            if tn == 'Sprite' and rx_sprites:
+                nm = rip.tree(cab, o)['m_Name']
+                for key, rx in rx_sprites:
+                    if rx.search(nm):
+                        f = frame_of(cab, o)
+                        if f and f not in out['sprites'].setdefault(key, []):
+                            out['sprites'][key].append(f)
+            elif tn == 'AnimationClip' and rx_clips:
+                nm = rip.tree(cab, o)['m_Name']
+                if nm not in out['clips'] and any(rx.search(nm) for rx in rx_clips):
+                    k = anim_of(cab, o, 'clip/' + nm)
+                    if k:
+                        out['clips'][nm] = k
+    for key in out['sprites']:
+        out['sprites'][key].sort()
+    for fn, sp in specs:
+        for key, a in (sp.get('png_anims') or {}).items():
+            imgs = []
+            for nm in a['frames']:
+                pth = os.path.join(ALL, *a['dir'].split('/'), nm + '.png')
+                if os.path.exists(pth):
+                    imgs.append((nm, Image.open(pth).convert('RGBA')))
+                else:
+                    log.append('%s: thiếu %s/%s.png' % (fn, a['dir'], nm))
+            if not imgs:
+                continue
+            ref = imgs[0][1]
+            fr = []
+            for nm, im in imgs:
+                dx = register(ref, im) if a.get('register', True) and len(imgs) > 1 else 0
+                ax = ref.width / 2.0 - dx
+                ay = im.height if a.get('anchor', 'bottom') == 'bottom' else im.height / 2.0
+                fr.append(packer.add(nm, im, ax, ay))
+            k = 'png/' + key
+            fps = float(a.get('fps', 10))
+            anims[k] = {'f': fr, 'd': [round(1.0 / fps, 4)] * len(fr), 'loop': a.get('loop', True)}
+            out['png'][key] = k
+    return out
+
+
+def build_lock():
+    """Nhiều agent có thể chạy lever cùng lúc; khoá bằng mkdir để lượt sau chờ lượt trước ghi xong."""
+    import time
+    lock = os.path.join(HERE, '.build_lock')
+    for _ in range(900):
+        try:
+            os.mkdir(lock)
+            return lock
+        except FileExistsError:
+            time.sleep(2)
+    raise SystemExit('khoá .build_lock bị giữ quá 30 phút; xoá tay nếu không còn tiến trình nào chạy')
+
+
 # ---------------------------------------------------------------- chạy
 def main():
     for cab, bname in sorted(rip.bundle_of.items(), key=lambda kv: kv[1]):
@@ -585,24 +666,56 @@ def main():
             nm = rip.tree(cab, o)['m_Name']
             if re.match(r'^bullet_?\d+$', nm) and nm not in extras:
                 extras[nm] = frame_of(cab, o)
+    wiki_w = os.path.join(HERE, 'wiki', 'weapons.json')
+    want_w = set()
+    if os.path.exists(wiki_w):
+        for w in json.load(io.open(wiki_w, encoding='utf-8')):
+            sp = w.get('sprite') or {}
+            if sp.get('bundle') == 'sprite_atlas':
+                want_w.add(sp['name'])
+    got_w = 0
+    for cab in rip.files:
+        if rip.bundle_of[cab] != 'sprite_atlas.ab':
+            continue
+        for o in rip.files[cab].objects.values():
+            if o.type.name == 'Sprite' and rip.tree(cab, o)['m_Name'] in want_w:
+                if frame_of(cab, o):
+                    got_w += 1
+    print('weapon sprites', got_w, 'of', len(want_w), flush=True)
+    extra = extract_extras(by_name)
+    print('extra sprites', sum(len(v) for v in extra['sprites'].values()), 'clips', len(extra['clips']),
+          'png', len(extra['png']), 'frames', len(packer.frames), flush=True)
     extract_heroes()
     print('heroes', len(heroes), 'frames', len(packer.frames), flush=True)
 
     os.makedirs(ART, exist_ok=True)
     os.makedirs(DATA, exist_ok=True)
-    table, pages = packer.write(ART)
-    atlas = {'pages': ['art/sk/' + p for p in pages], 'f': table}
+    table, pages = packer.write(ART, tmp=True)
+    import hashlib
+    hv = hashlib.md5(b''.join(open(os.path.join(ART, p + '.tmp.png'), 'rb').read() for p in pages)).hexdigest()[:10]
+    atlas = {'pages': ['art/sk/' + p for p in pages], 'v': hv, 'f': table}
     data = {'ppu': PPU, 'anims': anims, 'enemies': enemies, 'bullets': bullets, 'themes': themes,
             'heroes': heroes, 'prefabs': prefabs, 'patterns': load_patterns(), 'hud': hud,
-            'sprites': {'bullets': sorted(v for v in extras.values() if v)}}
-    with io.open(os.path.join(DATA, 'sk-data.js'), 'w', encoding='utf-8', newline='\n') as f:
+            'sprites': {'bullets': sorted(v for v in extras.values() if v)}, 'extra': extra}
+    tmp = os.path.join(DATA, 'sk-data.js.tmp')
+    with io.open(tmp, 'w', encoding='utf-8', newline='\n') as f:
         f.write('// SINH TỰ ĐỘNG bởi tools/build_sk.py — không sửa tay.\n')
         f.write('window.SK_ATLAS = ' + json.dumps(atlas, ensure_ascii=False, separators=(',', ':')) + ';\n')
         f.write('window.SK_DATA = ' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';\n')
+    for fn in os.listdir(ART):
+        if fn.startswith('atlas') and fn.endswith('.png') and not fn.endswith('.tmp.png') and fn not in pages:
+            os.remove(os.path.join(ART, fn))
+    for fn in pages:
+        os.replace(os.path.join(ART, fn + '.tmp.png'), os.path.join(ART, fn))
+    os.replace(tmp, os.path.join(DATA, 'sk-data.js'))
     print('pages', pages, 'frames', len(table), 'anims', len(anims), 'bullets', len(bullets))
     for line in log:
         print('!', line)
 
 
 if __name__ == '__main__':
-    main()
+    _lock = build_lock()
+    try:
+        main()
+    finally:
+        os.rmdir(_lock)

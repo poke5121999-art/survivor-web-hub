@@ -9,7 +9,7 @@
 
   const G = SK.G = {
     state: 'lobby', phase: null, phaseT: 0, t: 0, stageIdx: 0, stage: null, map: null, room: null,
-    player: null, enemies: [], bullets: [], pickups: [], fx: [], nums: [], items: [], chests: [], portal: null,
+    player: null, enemies: [], bullets: [], pickups: [], fx: [], nums: [], items: [], chests: [], interactables: [], props: [], portal: null,
     cam: { x: 0, y: 0 }, shake: 0, hurtT: 0, kills: 0, interactTarget: null, toastMsg: '', toastT: 0, banner: null
   };
   G.toast = (msg, t) => { G.toastMsg = msg; G.toastT = t || 1.4; };
@@ -20,6 +20,7 @@
   G.buildWaves = function (r) {
     const th = G.map.th;
     const roster = th.enemies.filter(id => D.enemies[id]);
+    if (r.type === 'boss' && SK.bossWaves) return SK.bossWaves(G, r);
     if (r.type === 'boss') {
       // TODO(boss): thay bằng mô-đun trùm thật; tạm thời một đợt quái mạnh nhất theme + bản tinh anh.
       const strong = roster.slice().sort((a, b) => D.enemies[b].hp - D.enemies[a].hp);
@@ -82,6 +83,11 @@
   // ---------------------------------------------------------------- tương tác (E)
   function nearestInteract() {
     const p = G.player; let best = null, bd = 26;
+    for (const o of G.interactables) {
+      if (o.gone) continue;
+      const d = Math.hypot(o.x - p.x, o.y - p.y), reach = o.r || 26;
+      if (d < reach && d - reach < bd - 26) { bd = d - reach + 26; best = { x: o.x, y: o.y - (o.labelY || 24), label: o.label, use: () => o.use(G, o) }; }
+    }
     for (const it of G.items) {
       const d = Math.hypot(it.x - p.x, it.y - p.y);
       if (d < bd) { bd = d; best = { x: it.x, y: it.y - 14, label: 'Nhặt ' + DS.weapons[it.id].name, use: () => pickWeapon(it) }; }
@@ -102,7 +108,7 @@
       p.weapons[p.cur] = SK.makeWeapon(it.id);
       G.items.push({ id: old.id, x: p.x, y: p.y + 4, t: 0 });
     }
-    if (p.skillT > 0) { p.skillT = 0; p.dual = null; p.skillCd = p.h.skill.cd; }
+    if (p.skillT > 0 && p.dual) SK.endSkill(G, p);
     G.toast(DS.weapons[it.id].name);
   }
   function openChest(c) {
@@ -123,27 +129,34 @@
   function enterStage(i) {
     G.stageIdx = i; G.stage = STAGES[i];
     G.map = W.generate(G.stage);
-    G.enemies = []; G.bullets = []; G.pickups = []; G.fx = []; G.nums = []; G.items = []; G.chests = [];
+    G.enemies = []; G.bullets = []; G.pickups = []; G.fx = []; G.nums = []; G.items = []; G.chests = []; G.interactables = []; G.props = [];
     G.room = null; G.banner = null;
     const map = G.map, start = map.rooms[0];
     const [sx, sy] = W.roomCenter(start);
-    if (!G.player) G.player = SK.makePlayer('knight', sx, sy + 4);
+    if (!G.player) G.player = SK.makePlayer(G.heroId || 'knight', sx, sy + 4);
+    if (G.player.skillT > 0) SK.endSkill(G, G.player);
     Object.assign(G.player, { x: sx, y: sy + 4, st: 'alive', invulT: 0, skillT: 0, dual: null });
     for (const r of map.rooms) {
-      const c = W.roomCenter(r);
-      if (r.type === 'end') G.portal = { x: c[0], y: c[1] + 8, t: 0 };
-      if (r.type === 'chest') { const [x, y] = freeNear(c); G.chests.push({ kind: 'weapon', x, y, open: false, t: 0, openT: 0 }); }
-      if (r.type === 'special') {
-        // TODO(special): phòng tượng/lái buôn thật; tạm để hai bình thuốc.
-        G.pickups.push({ kind: 'hp_pot', x: c[0] - 12, y: c[1] + 8, vx: 0, vy: 0, t: 1, z: 0, vz: 0 });
-        G.pickups.push({ kind: 'en_pot', x: c[0] + 12, y: c[1] + 8, vx: 0, vy: 0, t: 1, z: 0, vz: 0 });
-      }
+      const fill = SK.ROOM_FILL[r.type];
+      if (fill) fill(G, r, W.roomCenter(r));
     }
     G.phase = 'enter'; G.phaseT = 0;
     snapCamera();
+    SK.emit('stageEnter', G, G.stage);
   }
 
-  const setOverlay = name => {
+  // Đồ đặt sẵn trong phòng theo loại phòng; mô-đun khác ghi đè một dòng để thay (lái buôn, tượng...).
+  SK.ROOM_FILL = {
+    end(G, r, c) { G.portal = { x: c[0], y: c[1] + 8, t: 0 }; },
+    chest(G, r, c) { const [x, y] = freeNear(c); G.chests.push({ kind: 'weapon', x, y, open: false, t: 0, openT: 0 }); },
+    special(G, r, c) {
+      G.pickups.push({ kind: 'hp_pot', x: c[0] - 12, y: c[1] + 8, vx: 0, vy: 0, t: 1, z: 0, vz: 0 });
+      G.pickups.push({ kind: 'en_pot', x: c[0] + 12, y: c[1] + 8, vx: 0, vy: 0, t: 1, z: 0, vz: 0 });
+    }
+  };
+  SK.freeNear = freeNear;
+
+  const setOverlay = SK.setOverlay = name => {
     for (const id of ['sk-lobby', 'sk-over', 'sk-win']) document.getElementById(id).hidden = id !== name;
   };
 
@@ -163,11 +176,14 @@
     }
   };
 
-  function startRun() {
+  function startRun(heroId) {
+    if (typeof heroId === 'string') G.heroId = heroId;
     G.player = null; G.kills = 0; G.state = 'stage';
     setOverlay(null);
     enterStage(0);
+    SK.emit('runStart', G);
   }
+  SK.startRun = startRun;
   G.onPlayerDead = function () { G.shake = 5; };
 
   // ---------------------------------------------------------------- cập nhật
@@ -187,6 +203,8 @@
     SK.updateFx(G, dt);
     for (const c of G.chests) { c.t += dt; if (c.open) c.openT += dt; }
     for (const it of G.items) it.t += dt;
+    for (const pr of G.props) if (pr.update) pr.update(G, pr, dt);
+    G.props = G.props.filter(pr => !pr.gone);
     for (const [, o] of G.map.obs) if (o.flash > 0) o.flash -= dt;
     stingTraps(dt);
     G.interactTarget = p.st === 'dead' ? null : nearestInteract();
@@ -211,6 +229,7 @@
 
   function fillEnd(id) {
     const p = G.player;
+    SK.emit('runEnd', G, { won: id === 'sk-win', stage: G.stage.label, kills: G.kills, gold: p.gold });
     document.getElementById(id).textContent = 'Màn ' + G.stage.label + ' · Hạ ' + G.kills + ' quái · ' + p.gold + ' vàng';
   }
 
@@ -250,6 +269,8 @@
     for (const k of G.pickups) list.push({ y: k.y - 0.2, fn: (c, a, b) => SK.drawPickup(c, a, b), a: G, b: k });
     for (const it of G.items) list.push({ y: it.y, fn: drawItem, a: G, b: it });
     for (const c of G.chests) list.push({ y: c.y, fn: drawChest, a: G, b: c });
+    // G.props: vật do mô-đun khác đặt (lái buôn, tượng, trụ súng...): {x, y, draw(ctx, G, pr), update?, gone?}
+    for (const pr of G.props) list.push({ y: pr.y, fn: (c, a, b) => b.draw(c, a, b), a: G, b: pr });
     if (G.portal) list.push({ y: G.portal.y - 30, fn: drawPortal, a: G, b: G.portal });
     list.push({ y: p.y, fn: (c, a) => SK.drawPlayer(c, a), a: G, b: null });
     list.sort((a, b) => a.y - b.y);
@@ -314,7 +335,7 @@
     const fit = () => SK.resize(cv, hud);
     fit(); addEventListener('resize', fit);
     SK.bindPointer(hud, (x, y) => SK.hud.hitButton(x, y));
-    document.getElementById('sk-start').onclick = startRun;
+    document.getElementById('sk-start').onclick = () => startRun();
     document.getElementById('sk-retry').onclick = () => SK.lobby.enter();
     document.getElementById('sk-win-retry').onclick = () => SK.lobby.enter();
     SK.loadArt().then(() => {

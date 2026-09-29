@@ -1,0 +1,4972 @@
+[
+ {
+  "name": "Abyssal Submariner",
+  "page": "https://soul-knight.fandom.com/wiki/Abyssal_Submariner",
+  "found_in": {
+   "raw": "Level 4-5 ([[Undersea]])",
+   "levels": [
+    "4-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "4-5"
+   ],
+   "normal_biomes": [
+    "Undersea"
+   ],
+   "normal_spans": [
+    {
+     "floor": 4,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Undersea"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "2760",
+   "parts": [
+    {
+     "value": 2760
+    }
+   ],
+   "number": 2760
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Sonar Detector",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Abyssal Submariner Skin Fragments",
+    "Ironstone",
+    "Parts",
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Undersea",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Sonar light will glow red and a sonar sound can be heard, then release a red radial blast, players that touch it will be inflicted with Weary and Abyssal Submariner mark Marking them temporarily.\n- Shoots 4 torpedoes from its blue torpedo tube under the window that homes onto the player and on contact, dealing 4 damage and can inflict Burn.\n- Radio flashes red and a loud beeping sound can be heard, and 12 naval mines will randomly drop from the sky and , dealing 6 damage and can inflict Burn. The landing area will be indicated by a red circle.\n- If marked, 6 naval mines will drop near the player's current location.\n- Fires several at high speed in random directions that leave a trail of 2 ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Open its rear door, spawning several Infected Crews and Kraken Minions.\n- Swing its eye, shoots 4 each in 4 directions that deals 3 damage. Each leaving a trail of 16 that moves at a moderate speed.\n- Aims for 1-2 seconds before charging towards the player, dealing 4 damage. The attack direction can be seen with big purple marks (>>) on the floor. \n- Shoots 6 torpedoes instead of 4 at a faster rate.\n- Summons 30+ naval mines instead of 12.\n- When marked, summons 10 naval mines instead of 6."
+   }
+  ],
+  "tactics": "Try to stay behind the boss as much as possible, as this not only mitigates the torpedo attack because the torpedoes usually take large-angle turns when homing toward you, but you also get free oxygen when the moves.\nFollowers, Pets, & Bodyguards will be useful here, as they can take the bullets from the boss (but watch out for Followers: most WILL die if they take too much damage).\nIf the arena has no bullets or attack indicators from the Abyssal Submariner, don't assume that means you can sit still for very long: that could mean it's using the naval mine attack, so try to be light on your feet.\nThe sonar ping isn't necessarily bad, since if the Abyssal Submariner follows up with the sea mines, you can easily dodge them instead of accidentally running into one if you were unmarked. You just have to deal with the Weary ailment for a while.\nWhen the boss summons its goons, prioritize killing them first, since they can be dangerous in large numbers: The Infected Crews can flood the arena with their bullets along with the boss, while Kraken Minions can drain your oxygen quickly.\nSince the Abyssal Submariner's propellers endlessly give free oxygen when killed, it's best if you spend a ...",
+  "room": null,
+  "image": {
+   "file": "Sprite Abyssal Submariner.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/a8/Sprite_Abyssal_Submariner.png/revision/latest?cb=20240816100809",
+   "width": 474,
+   "height": 327
+  },
+  "sprite": {
+   "bundle": "boss/boss_abyssal_submariner",
+   "name": "boss_abyssal_submariner_img",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 3,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Alien Aircraft Carrier",
+  "page": "https://soul-knight.fandom.com/wiki/Alien_Aircraft_Carrier",
+  "found_in": {
+   "raw": "Level 12-3 ([[The Origin]])",
+   "levels": [
+    "12-3"
+   ],
+   "modes": [
+    "The Origin"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": "500,000 (Main body) 85000 (x4 nodes)",
+  "unique_attacks": "4 (9 with turrets in their functional state)",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [],
+   "common": [
+    "General Blueprint Fragments",
+    "Jewelry Blueprint"
+   ]
+  },
+  "categories": [
+   "Interdimensional Space",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Инопланетный авианосец"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "The boss has 4 external turrets which must be destroyed for its main body to become vulnerable. As long as the turrets are active their attacks will continue to fire off. Occasionally, the ship may shield one of its turrets and it must be broken through before it becomes susceptible to damage again. Turrets carry out unique attacks, which can be eliminated upon their destruction. \nEach time a turret is destroyed, the boss spawns enemies from the Spaceship biome, starting at 3, increasing by 1 for each subsequent lost turret and capping at 5.\nAfter the boss' health gets below 50% for the first time, the player instantly gains 400 energy."
+   },
+   {
+    "name": "Side turrets",
+    "text": "The boss moves slightly leftwards or rightwards and fires a large laser beam from each of its side turrets, lasting 7 seconds and dealing 18 (19 in Badass mode) damage.\nEven after the two turrets are broken, the boss will still be able to trigger this attack during the first phase."
+   },
+   {
+    "name": "Leftmost \"body\" turret",
+    "text": "The turret has two main possible attacks, which can sometimes trigger simultaneously:\n- Continuously shoots concentric waves of bullets in all directions, lasting 12 seconds. Each bullet deals 15 (16) damage.\n- Continuously shoots bullets in a spiral pattern in all directions, lasting 12 seconds. Each bullet deals 15 (16) damage."
+   },
+   {
+    "name": "Rightmost \"body\" turret",
+    "text": "The turret has two main possible attacks:\n- Continuously fires one or two streams of square bullets in one or two directions, lasting 12 seconds. If there are two streams, they are separated by a 45° angle, so as to leave a considerable gap between them. Each bullet deals 15 (16) damage.\n- Continuously fires a cone-shaped stream of square bullets at a 120° angle that targets the player as they move, lasting 12 seconds. Each bullet deals 15 (16) damage."
+   },
+   {
+    "name": "Core attacks",
+    "text": "All the following attacks can be triggered by the boss anytime. The boss can also summon several of these attacks simultaneously.\n- Laser eye: shoots a continuous laser from its center, dealing 19 (20) damage and lasting 6 seconds. The laser homes on the player and can extend its range based on how far the player is from the boss.\n- Homing missiles: Launches 6 homing missiles, each dealing 16 (17) damage. Each missile has a chance to inflict Burn, and the boss can launch several streams of missiles in a row.\n- Expanding sphere: Generates a circular mass of lingering bullets, each dealing 14 (15) damage. If the player tries to break the bullets, they will regenerate. After 6 seconds, the ..."
+   }
+  ],
+  "tactics": null,
+  "room": "The fight takes place at the main chamber of the shrine. The room is clear and has no cover except any turret placed beforehand.",
+  "image": {
+   "file": "Sprite Alien Aircraft Carrier.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/02/Sprite_Alien_Aircraft_Carrier.png/revision/latest?cb=20220116175827",
+   "width": 557,
+   "height": 355
+  },
+  "sprite": {
+   "bundle": "levelobjects",
+   "name": "bossPRVW",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 1,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Ancestor's Legs",
+  "page": "https://soul-knight.fandom.com/wiki/Ancestor%27s_Legs",
+  "found_in": {
+   "raw": "Level 4-3 ([[Monolithic Range Ruins]])",
+   "levels": [
+    "4-3"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "4-3"
+   ],
+   "normal_biomes": [
+    "Monolithic Range Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 4,
+     "from": 3,
+     "to": 3
+    }
+   ],
+   "biomes": [
+    "Monolithic Range Ruins"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "960",
+   "parts": [
+    {
+     "value": 960
+    }
+   ],
+   "number": 960
+  },
+  "health_champion": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_special": null,
+  "unique_attacks": "2",
+  "motif_weapon": "Ancestor's Call",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Monolithic Range Ruins",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Ноги предка"
+  },
+  "attacks": [
+   {
+    "name": "Normal Mode",
+    "text": "- Slowly raises themselves in the air before stomping down on the player, creating a shockwave that deals 5 damage. The stomp area is indicated by the shadow of the legs.\n- Stomps quickly at the middle of the room for 11 times total and leave a ring of 16 bullets."
+   },
+   {
+    "name": "Enraged Mode",
+    "text": "- Attacks much more frequently.\n- Each stomp are faster and will leave a purple poison pool and a ring of 16 bullets."
+   }
+  ],
+  "tactics": "Without the Poison Buff the fight will be a bit harder for the enraged phase, as the purple poison pools will most likely cover the entire room in short time, slowing down the player and dealing constant damage.\nUnlike the Headless Knight & Baby Dragon Bros, both of the legs take the same damage, enrage together, & share the same health, meaning AoE weapons are perfect to end the fight quickly.\n__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "Upon entering the room, the screen directly focuses to the middle, which then the Ancestor's Legs fly down to the ground. Room also has no cover and is clear.",
+  "image": {
+   "file": "Sprite Ancestor's Legs.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/d0/Sprite_Ancestor%27s_Legs.png/revision/latest?cb=20230724154138",
+   "width": 448,
+   "height": 292
+  },
+  "sprite": {
+   "bundle": "sprite_atlas",
+   "name": "enemy_list_3_7",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 2,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/enemy_list_3_7"
+   ]
+  }
+ },
+ {
+  "name": "Anubis",
+  "page": "https://soul-knight.fandom.com/wiki/Anubis",
+  "found_in": {
+   "raw": "Level 3-5 (Volcano)",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "984",
+   "parts": [
+    {
+     "value": 984
+    }
+   ],
+   "number": 984
+  },
+  "health_champion": {
+   "raw": "1230",
+   "parts": [
+    {
+     "value": 1230
+    }
+   ],
+   "number": 1230
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Staff of Anubis",
+  "drops": {
+   "rare": [
+    "Finale! cassette",
+    "Torn Page Pray",
+    "Anubis Skin Fragment"
+   ],
+   "common": [
+    "Magic Fragment Orange",
+    "Timber"
+   ]
+  },
+  "categories": [
+   "Volcano",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Анубис"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Places a staff on the floor. This staff will emit a 7-tiles-long laser beam that rotates and deals 3 damage.\n- Shoots three big spheres that flies in a helix pattern, each sphere deals 3 damage, and creates a small AoE that deals 1 damage upon impact.\n- Spawns a turret that shoots bullets in 4 directions. The bullets travel in a zigzag pattern, deals 2 damage each. The turret can be destroyed by melee attacks, or disappear after 5 seconds.\n- The turret's bullets cannot be deflected with the Reflect Buff but can still be destroyed like most projectiles. \n- Knocks the staff on the ground, summons a ruined obelisk and a headstone.\n- The ruined obelisk will fall from the sky, deals 3 damage ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- The laser beam emitted from the staffs are 10 tiles long instead of 7.\n- Shoots 9 helix-pattern spheres instead of 3, each sphere deals 4 damage."
+   }
+  ],
+  "tactics": null,
+  "room": "The room contains only one layer of crates in each corner. There is a fountain at upper right and lower left corners where there are a few more crates.",
+  "image": {
+   "file": "Sprite Anubis.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/ec/Sprite_Anubis.png/revision/latest?cb=20190710163629",
+   "width": 312,
+   "height": 336
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.39 < 0.90 (character_drawing/druid/skin_12/druid_s12_effect_0_11)"
+ },
+ {
+  "name": "Baby Dragon Bros",
+  "page": "https://soul-knight.fandom.com/wiki/Baby_Dragon_Bros",
+  "found_in": {
+   "raw": "Level 3-5 ([[Volcano]])",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_champion": {
+   "raw": "1500 (750 each)",
+   "parts": [
+    {
+     "value": 1500,
+     "label": "750 each"
+    }
+   ],
+   "number": 1500
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Dragon Bros' Sniper Rifle",
+  "drops": {
+   "rare": [
+    "Nüwa's Crystal",
+    "Ruler's Seal",
+    "Dragon Fruit Tree seed"
+   ],
+   "common": [
+    "Organic Matter",
+    "Magic Fragment Red"
+   ]
+  },
+  "categories": [
+   "Volcano",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Малыши-драконы"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "As the name suggests, there are two dragons the player fights as the boss, the Grey and Black Dragons. The boss health bar consists of their cumulative HP, and they will attack independently from each other.\nThey attack at the same time throughout the fight, unless either of them got inflicted with Stun or Freeze.\nA dragon will enrage once its health drops below half. Do note that each dragon will only drop 40 Energy once when enraged."
+   },
+   {
+    "name": "Grey Dragon",
+    "text": ""
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- Fires arrowheads with a slight homing ability that deal 3 damage each. These deal a small explosion upon contact.\n- Launches a spread of 3 big long arrows that generate eggs upon hitting a surface and deal 4 damage. These eggs will explode either after a delay or upon being struck.\n- Fires a laser that sweeps the area. Deals 4 damage.\n- Charges at the player, leaving a trail of eggs that explode after a delay or being struck."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Homing attacks are far more dense and used twice in one sitting.\n- Spread attack fires 5 bullets instead of 3.\n- Laser becomes wider, deals 5 damage, and is accompanied by a barrage of lasers rapidly fired in all directions that deal 2 damage each laser beam."
+   },
+   {
+    "name": "Black Dragon",
+    "text": ""
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- Fires triangular bullets in every direction of its body, they hover in the air for a moment, before launching themselves at the player and deal 3 damage.\n- Launches a spread of 3 big long bullets that generate fire pools on impact with a surface. Deal 4 damage on hit.\n- Fires a laser that sweeps the area. Deals 4 damage.\n- Charges at the player, leaving a trail of fire pools behind."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Ring attack is far more dense and is used twice in one sitting.\n- Spread attack fires 5 bullets instead of 3.\n- Laser becomes wider and deals 5 damage instead of 4."
+   }
+  ],
+  "tactics": "Do hide behind the pillars to avoid the incoming bullets and some of the missiles while regaining back the player's armor. The Fire Buff is immensely useful in this fight to negate fire damage from the fire pools and greatly reduce damage from the exploding eggs.\nThe lasers will definitely be the player's biggest problem, so be extra cautious around them. However, if the player plays as the Rogue, dodging can make the battle much easier, as the player can dodge the lasers with ease.\nKeep the player's distance, as they cannot take their time with dealing with the boss. Focus on one dragon at a time to avoid enraging both of them at once.\nAvoid using weapons that deal continuous damage (Laser Therapy, Double Therapy, etc.).\nA long-range poke-and-run playstyle along with Statue of the Knight is recommended.\nIf the player is lucky enough to have One Punch, the player must be patient and try to strike only when both dragons are close to each other in order to maximize the damage. They do have quite significant speed, so try not to miss. However, due to their very deadly attacks, and by the fact that One Punch reduces speed for the first punch, it is very hard to do so. If that's the ...",
+  "room": "The room contains one pillar and only one layer of crates in each corner. The two dragons start at either side of the center.",
+  "image": {
+   "file": "Sprite Baby Dragon Bros.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/22/Sprite_Baby_Dragon_Bros.png/revision/latest?cb=20240509181215",
+   "width": 228,
+   "height": 198
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.43 < 0.90 (common/trapMaster_1_skill1_1)"
+ },
+ {
+  "name": "C6H8O6",
+  "page": "https://soul-knight.fandom.com/wiki/C6H8O6",
+  "found_in": {
+   "raw": "Level 2-5 ([[Dungeon]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "720",
+   "parts": [
+    {
+     "value": 720
+    }
+   ],
+   "number": 720
+  },
+  "health_champion": {
+   "raw": "900",
+   "parts": [
+    {
+     "value": 900
+    }
+   ],
+   "number": 900
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Bomber",
+  "drops": {
+   "rare": [
+    "C5H6O5 Blueprint"
+   ],
+   "common": [
+    "Battery",
+    "Parts",
+    "Ironstone"
+   ]
+  },
+  "categories": [
+   "Dungeon",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "C6H8O6",
+   "zh": "C6H8O6"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Places targeting reticules all over the room one by one, causing a delayed explosion at each in that order.\n- Sweeps a laser twice that deals 5 damage for each, first one way, then the other. \n- Charges up and fires a huge bullet. It will split into 6 large bullets when it breaks. The large bullets then break down into smaller bullets. \n- Fires bullets in a spiral pattern. This can be performed during any of its other attacks and will not interrupt any other attack. \n- Rapidly fires large oval-shaped bullets at the player."
+   }
+  ],
+  "tactics": "- Use a melee weapon or stay on the other side of the room when it uses cluster shots.\n- Use cover when it starts shooting lasers. They deal massive damage and must be dodged.\n- The boss won't move while shooting lasers or placing targeting reticles. The player can take advantage of this by quickly running behind, and then melee spamming the boss.\n- When too far away from the boss, it is not recommended to run in the same direction as the laser sweep's, since it won't be possible to outrun the laser and the player may even get hit twice by it, with the worst case scenario being that the player also runs into the other laser, dealing enough damage to kill most characters. In such circumstance, moving towards the boss in order to better outrun the laser or running towards the laser and getting out of its sweep area with only one hit taken are the preferable courses of action. However, should there be reachable indestructible cover in the sweep direction, players should go for it.\n- The L-shaped cover separates the battlefield into two parts - inner and outer area. Always try to stay in a different area to the boss (for example, when the boss goes to the outer area, the player goes ...",
+  "room": "It is easy to identify this room since it contains some boost tiles.\nThe room has only 2 sources of indestructible cover.\nThere are a total of 4 L-shaped sources of cover (consisting of 3 blocks each) near the middle of the room. The indestructible ones are found in the top left and bottom right corner of this square.\nThe other 2 are found in the other 2 corners and are made out of crates.\nThere are also a number of crates found in all corners of the room.",
+  "image": {
+   "file": "Sprite C6H8O6.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/95/Sprite_C6H8O6.png/revision/latest?cb=20181207134154",
+   "width": 178,
+   "height": 115
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_33",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.554,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Captain Hulala Morley",
+  "page": "https://soul-knight.fandom.com/wiki/Captain_Hulala_Morley",
+  "found_in": {
+   "raw": "Level 4-5 ([[Monolithic Range Ruins]])",
+   "levels": [
+    "4-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "4-5"
+   ],
+   "normal_biomes": [
+    "Monolithic Range Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 4,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Monolithic Range Ruins"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1800",
+   "parts": [
+    {
+     "value": 1800
+    }
+   ],
+   "number": 1800
+  },
+  "health_champion": {
+   "raw": "2250",
+   "parts": [
+    {
+     "value": 2250
+    }
+   ],
+   "number": 2250
+  },
+  "health_special": null,
+  "unique_attacks": "6",
+  "motif_weapon": "Moo Moo Mallet",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Morley Skin Fragment",
+    "Organic Matter",
+    "Battery",
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Monolithic Range Ruins",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- doesn't attack by himself and doesn't have an enraged phase. Instead, he hops onto one of the three mounts.\n- He wields a spear for the Golem - Horse mount, Moo Moo Mallet for the Golem - Bull mount, and Ancestor's Call for the Golem - Wagon mount."
+   },
+   {
+    "name": "Secondary bar",
+    "text": "- In addition to his Health bar, the boss has a separate orange bar below it. The bar will increase upon taking damage and will slowly decrease when he does not take damage after a short time.\n- The bar will reset upon hopping onto a new mount.\n- Once the bar is full, will fall from the mount, rendering the boss vulnerable and Weakened for 4 seconds. The boss will take double the damage during this weakened state. After 4 seconds, he will hop back on his current mount or change to a new mount according to his remaining health.\n- During the switch mount cutscene, is invincible. The players cannot do anything but allies can still target him. He can still be affected such as being pulled by ..."
+   },
+   {
+    "name": "Mounts",
+    "text": "- Each mount has different attacks. will always hop on from the top mount onto the bottom, which are Golem - Horse, Golem - Bull, and Golem - Wagon respectively. \n- Each mount will be destroyed at 1/3rd of 's maximum Health, rendering them unusable to him and dropping 12 Energy orbs. A cutscene will play where he will walk to the next mount and hop on it.\n- If has health reduced below the line when secondary bar is full (hence vulnerable), he won't change mount before returning to normal state.\n- Excess damage dealt during a phase will be subtracted from the next mount's HP. For example, if a Champion takes 1498 damage during the first phase, the next phase (the bull) will only have 2 HP. ..."
+   },
+   {
+    "name": "Golem - Horse",
+    "text": "- Hops toward the player, creating a shockwave that deals 3 damage. This move can trigger one or three times.\n- Synergy: will his spear forward after each hop, dealing 4 damage.\n- When the player gets too close to him, Golem - Horse will stop for a while and turn its back toward the player before kicking them, dealing 4 damage and knocking them back."
+   },
+   {
+    "name": "Golem - Bull",
+    "text": "- Charges for a brief moment, indicated by rearing (standing on its hind leg). Afterward, it slams down, creating a large shockwave, and then jumps forward a short distance, creating a similar shockwave when it lands. The shockwave deals 7 damage. This move can trigger one or five times.\n- Synergy: After the bull slams, will raise his mallet and fire 8 that deal 3 damage each.\n- Charges forward in a straight line. If it hits the corner of the room, it will change its direction.\n- Synergy: will fire 2 17 times when the bull is charging, with each projectile dealing 5 damage each."
+   },
+   {
+    "name": "Golem - Wagon",
+    "text": "- Goes to the middle of the room and stays there for the rest of the fight. Opens its mouth and fires a that sweeps across the area for 10 seconds that deals 6 damage upon each hit. The laser will sweep the same area 2 times for the duration of the attack. At the same time, it fires 60 that homes and deal 6 damage each for the duration of the attack.\n- When the wagon is facing left, the laser will sweep counter-clockwise. When the wagon is facing right, the laser will sweep clockwise.\n- The laser will continue to fire even when is weakened.\n- Synergy: will use Ancestor's Call to summon one of Golem - Ancestor's fists. The landing area will be indicated by a big red warning. After a brief ..."
+   }
+  ],
+  "tactics": null,
+  "room": "The room is empty, but there are a Golem - Horse, Golem - Bull and a Golem - Wagon parked from the top to bottom in either the left or right of the room depending on where the player enters, the mounts will be positioned at the left if the player enters from the right, otherwise they will always be on the right. Upon entering, Morley hops onto the Golem - Horse at the top to initiate the battle.",
+  "image": {
+   "file": "Sprite Captain Hulala Morley.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/62/Sprite_Captain_Hulala_Morley.png/revision/latest?cb=20240510044100",
+   "width": 168,
+   "height": 198
+  },
+  "sprite": {
+   "bundle": "boss/boss_warlord",
+   "name": "boss_warlord_2",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Cave Ice Bug",
+  "page": "https://soul-knight.fandom.com/wiki/Cave_Ice_Bug",
+  "found_in": {
+   "raw": "Level 2-5 ([[Cave]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "828",
+   "parts": [
+    {
+     "value": 828
+    }
+   ],
+   "number": 828
+  },
+  "health_champion": {
+   "raw": "1035",
+   "parts": [
+    {
+     "value": 1035
+    }
+   ],
+   "number": 1035
+  },
+  "health_special": null,
+  "unique_attacks": "5",
+  "motif_weapon": "Ordeal in Disguise",
+  "drops": {
+   "rare": [
+    "Buried Secret cassette",
+    "Threat cassette",
+    "Torn Page Close Air Support"
+   ],
+   "common": [
+    "Battery",
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Cave",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Пещерный_ледяной_червь"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Each time the boss launches a direct attack, a rain of will fall from the ceiling, telegraphed by red crosshairs.\n- Launches four in diagonal directions which leave behind trails of perpendicular to their movement.\n- Fires a shotgun blast of wavy streams. \n- Burrows into the ground and generates a damaging . It travels for some time before re-surfacing, trailing behind harmful that explode into .\n- Will continue to take normal damage before the burrowing animation finishes.\n- Spawns multiple in the room, which cannot be damaged and obstruct player movement.\n- These will flash red and release a blue radial blast after several seconds, sending 3 evenly spaced outwards. The projectiles ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Fires more shotgun blast of wavy streams in a sider spread. \n- Spawns more , and six are spawned from each explosion."
+   }
+  ],
+  "tactics": "The 's head is the only part of its body that can be hit while other parts do not take damage. Combined with its immunity to Freeze effects and high mobility, this makes the fight exceptionally dangerous.\nTrying to keep a distance from the Cave Ice Bug is not a very good idea as the obstacles may block the projectiles. Melee weapons are suitable and work even better if they don't consume energy - not only can they block ranged attacks, the player will have an effective form of offense against the boss at all times. Weapons capable of high burst damage, such as the Next-next-next-gen SMG, should be used during this vulnerability period.\nDo not try to attack as soon as the fight starts. The shorter the boss is, the less time it takes to burrow underground. The attacks are not too dangerous if the player stands off the ice floor. High-Energy burst weapons like Charged Railgun or Gatling Gun can easily overextend the player and leave them in a tight spot once the boss heals.\nWhile is burrowing underground, the player is given the opportunity to deal massive damage to it. They may even spam-melee attack it.\nStaying on the icy sections of the floor is dangerous due to the friction ...",
+  "room": "At first, there are two miners mining a large crystal mine, both interacting happily with Emojis. Soon, the ground will start to shake, and the boss will pop out of the mine, causing an explosion and killing the miners. Then the boss fight starts.\n- If the Boss Duo condition is active, the second boss only appears right after the cutscene and before the first banner is shown.\nThere are only 4 indestructible minecarts around the room, similarly to the Volcanic Sandworm's boss room layout.",
+  "image": {
+   "file": "Sprite Cave Ice Bug.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/b8/Sprite_Cave_Ice_Bug.png/revision/latest?cb=20201021230110",
+   "width": 170,
+   "height": 145
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (167x138, hệ số 1)"
+ },
+ {
+  "name": "Christmas Treant",
+  "page": "https://soul-knight.fandom.com/wiki/Christmas_Treant",
+  "found_in": {
+   "raw": "Level 1-5 ([[Forest]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "510",
+   "parts": [
+    {
+     "value": 510
+    }
+   ],
+   "number": 510
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Agitated Trunk",
+  "drops": {
+   "rare": [
+    "Rival cassette",
+    "Xmas Tree seed"
+   ],
+   "common": [
+    "Timber",
+    "Various seeds"
+   ]
+  },
+  "categories": [
+   "Forest",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Рождественская Энт"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "The boss is immobile in this phase.\n- Holds a giant laser ball which spews bullets in all directions.\n- Fires the giant laser ball in the direction of the player or one of the player's allies, releasing bullets in all directions as it moves.\n- The giant laser ball can explode upon impact.\n- Fires lines of shockwaves in three directions."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "The boss will move during this phase after releasing the transform attack.\n- Upon starting the phase, fires shockwaves in 7 lines.\n- Charges around in the room and rams the player like the Dire Boar.\n- Can dash straight through any boxes and crates.\n- Does not take damage while charging.\n- Area of effect is, in fact, larger than how the player sees it.\n- Damage is negated with the Trap Buff.\n- It is possible to freeze/stun the boss when it's charging. It will still play the animation of charging but will soon stop and execute the next attack.\n- Generates 5 homing bullets from the star on top of its body, which start moving after a short delay.\n- Fires big cross-shaped bullets in every ..."
+   }
+  ],
+  "tactics": "Always try to be as far away from the boss as possible, since most of the attacks can be unpredictable and are almost impossible to dodge at a close range.\nAlways be on the move; every aspect of the boss tends to be able to get the player at any point of the room. Just hiding behind a cover forever is not recommended, if there are actually any good ones. Especially in enraged phase, the player should instead run loops around the boss since some of the attacks go for single targets in a straight line. It's better if the player hugs along the walls, minimizing the massive areas of danger.\nThe help of a Follower would greatly ease the fight, since the player is not going to be the only one to absorb most of the damage coming from each attack.\nThough it doesn't cause much problems, do keep an eye on the boss's shock wave attack since it has some different patterns and a very short cool down between each wave. It is likely to catch the player off-guard and deal constant damage to the player.\nThe boss doesn't take any damage while charging, so it's best that the player should stop attacking to prevent wasting Energy while focusing more on dodging.\nBe extra cautious when the boss ...",
+  "room": "There are 2 layers of wooden crates around the boss initially. However, this cover is quickly destroyed by the kamehameha laser balls & shockwaves.\nTwo trees are in the corner, providing minimal permanent cover for the player.",
+  "image": {
+   "file": "Sprite Christmas Treant.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/43/Sprite_Christmas_Treant.png/revision/latest?cb=20230123023244",
+   "width": 336,
+   "height": 354
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.88 < 0.90 (bin_datapack/enemy_list_82)",
+  "sprite_near": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_82",
+   "score": 0.8823,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Dark Grand Knight",
+  "page": "https://soul-knight.fandom.com/wiki/Dark_Grand_Knight",
+  "found_in": {
+   "raw": "Level 2-5 ([[Knight Kingdom]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "960",
+   "parts": [
+    {
+     "value": 960
+    }
+   ],
+   "number": 960
+  },
+  "health_champion": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Deep Dark Blade",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Ironstone",
+    "Heptacolor Viola seed"
+   ]
+  },
+  "categories": [
+   "Knight Kingdom",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Великий тёмный рыцарь"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Fires 9 triangle bullets in a 180o arc. Each bullet deals 4 damage.\n- Launches a ring of bouncy bullets around him. Each bullet deals 3 damage.\n- Fires 9 triangle bullets in a 180o arc, each bullet is followed by a trail of smaller bullets. The triangle bullets deal 4 damage each, while the trailing bullets deal 2 damage each.\n- Fires 2 big bullets followed by 2 triangle of bullets. The big bullets deal 5 damage and can break into smaller bullets upon hitting an obstacle. The smaller bullets deal 3 damage each.\n- Launches 6 large orbs around it which burst into smaller bullets upon colliding with walls. The orbs deal 5 damage each, while the bullets deal 3 damage each."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Boss moves around more and attacks more frequently.\n- Projectile velocity is greatly increased."
+   }
+  ],
+  "tactics": null,
+  "room": "The room has exceptional cover, with two unbreakable stone walls in two corners of the room. The lower left wall also has a weapon box beside it.\nOn the other two corners are bundles of boxes, which may serve as temporary cover during transitions.\nThere are also two flags in the middle of the room.",
+  "image": {
+   "file": "Sprite Dark Grand Knight.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/bd/Sprite_Dark_Grand_Knight.png/revision/latest?cb=20190712031925",
+   "width": 368,
+   "height": 400
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.45 < 0.90 (skin/character/ranger/skin_22/ranger_22_17)"
+ },
+ {
+  "name": "Dendroid King",
+  "page": "https://soul-knight.fandom.com/wiki/Dendroid_King",
+  "found_in": {
+   "raw": "Difficulty 1~3, Stage 15<br>Difficulty 6, Stage 5 ([[Travelogue of Rosemary Island]])",
+   "levels": [],
+   "modes": [
+    "Travelogue of Rosemary Island"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": "",
+   "number": null
+  },
+  "health_special": "4000 (D1) 5000 (D2) 5312 (D3) 1000 (D6)",
+  "unique_attacks": "6",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [
+    "originated from Travelogue of Rosemary Island"
+   ],
+   "common": [
+    "Timber",
+    "Organic Matter"
+   ]
+  },
+  "categories": [
+   "Travelogue of Rosemary Island",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Fires a barrage of square projectiles.\n- Fires a giant projectile which moves slowly, spawning 4 projectiles at its movement trail. Upon collision, it explodes and spawns 3 rings of projectiles.\n- Shoots a flurry of quick-moving arrows from his hands.\n- Concentrates power from his hands to spawn several plants at the center of the island. After a few seconds, the plants explode, leaving a green poison puddle. During then, the boss cannot use other attacks.\n- If the player is nearby, he will smash the ground, damaging the player.\n- Smashes the ground repeatedly if the player gets near him the 3rd time.\n- Spawns a variety of mobs by throwing them into the air.\n- This skill introduces a ..."
+   }
+  ],
+  "tactics": null,
+  "room": null,
+  "image": {
+   "file": "Sprite Dendroid King.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/bf/Sprite_Dendroid_King.png/revision/latest?cb=20240612131648",
+   "width": 474,
+   "height": 486
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.47 < 0.90 (bullet/vampire_13_skill_1_effect_19)"
+ },
+ {
+  "name": "Devil's Snare",
+  "page": "https://soul-knight.fandom.com/wiki/Devil%27s_Snare",
+  "found_in": {
+   "raw": "Level 1-5 ([[Forest]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "600",
+   "parts": [
+    {
+     "value": 600
+    }
+   ],
+   "number": 600
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Cannibal Plant",
+  "drops": {
+   "rare": [
+    "Rival cassette",
+    "Devil's Snare Skin Fragment",
+    "Devil's Snare seed"
+   ],
+   "common": [
+    "Timber",
+    "Various seeds"
+   ]
+  },
+  "categories": [
+   "Forest",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Дурман",
+   "es": "Trampa demoníaca",
+   "zh": "曼陀罗魔花"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "The boss has 8 different attacks in total:"
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- Releases 18 bubble-like bullets which move very slowly outwards. These can be easily dodged on their own but they can get in the player's way when trying to dodge faster bullets.\n- These bullets can also time out (they disappear after 4 seconds) before they hit the nearby walls.\n- Slowly fires normal speed bullets from 4 points on itself in 4 opposite directions. The direction of the bullets then rotate during firing, so the whole room will eventually get hit. One can dodge these bullets by going a bit further away from the boss, and then moving between the gaps between the bullets. Another strategy is to move in the same direction as the bullets, as they are slower than the player.\n- ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- The flower in the middle unfolds and 4 tentacles spawn, indicating the next phase. These tentacles deal damage if touched.\n- The attack involving poison bullets can now be used while it's using its rotating bullets attack.\n- Fires 4 fast bullets towards the different corners of the room from its tentacles which leave trails of the bubble-looking bullets that spread out, similarly to the Prototype Railgun and the WiFi Booster's special attack when upgraded.\n- The bubble-like bullets travel further.\n- Small bullets travel faster.\n- Creates a wave that pulls the player towards itself, similar to that of Implosion and Statue of the Thief. This effect can be hampered or even neutralized by ..."
+   }
+  ],
+  "tactics": null,
+  "room": "The room has only four stone blocks at equidistant positions at all four sides of the room. There is barely any other cover to hide from attacks.\nThere are also wooden boxes stacking up in the corners of the room.",
+  "image": {
+   "file": "Sprite Devil's Snare.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/2b/Sprite_Devil%27s_Snare.png/revision/latest?cb=20181207022845",
+   "width": 220,
+   "height": 197
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_37",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.543,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Dong Zhuo",
+  "page": "https://soul-knight.fandom.com/wiki/Dong_Zhuo",
+  "found_in": {
+   "raw": "*Level 4-5 ([[Ancient Battleground]])\n*Dethrone Dong Zhuo (II) in all Difficulties, Floor 2 ([[Three Kingdoms - Gunfight]])",
+   "levels": [
+    "4-5"
+   ],
+   "modes": [
+    "Three Kingdoms - Gunfight"
+   ],
+   "normal_levels": [
+    "4-5"
+   ],
+   "normal_biomes": [
+    "Ancient Battleground"
+   ],
+   "normal_spans": [
+    {
+     "floor": 4,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Ancient Battleground"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "2160",
+   "parts": [
+    {
+     "value": 2160
+    }
+   ],
+   "number": 2160
+  },
+  "health_champion": {
+   "raw": "",
+   "number": null
+  },
+  "health_special": "Three Kingdoms - Gunfight \n2250 (D1) 3600 (D2) 4950 (D3) 6750 (D4) 9000 (D5)",
+  "unique_attacks": "9",
+  "motif_weapon": "Cursed Chalice",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Level Mode",
+    "Magic Fragments",
+    "Materials",
+    "Three Kingdoms - Gunfight",
+    "TKG Coin coins"
+   ]
+  },
+  "categories": [
+   "Ancient Battleground",
+   "Three Kingdoms - Gunfight",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [],
+  "tactics": "- For the attack, the player can dodge these bullets by going a bit further away from the boss, and then moving between the gaps between the bullets. Another strategy is to move in the same direction as the bullets, as they are slower than the player.\n__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "",
+  "image": {
+   "file": "Sprite Dong Zhuo.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/e2/Sprite_Dong_Zhuo.png/revision/latest?cb=20240510114100",
+   "width": 330,
+   "height": 342
+  },
+  "sprite": {
+   "bundle": "boss/boss_dongzhuo",
+   "name": "boss_dongzhuo_ui",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Easter Bunny",
+  "page": "https://soul-knight.fandom.com/wiki/Easter_Bunny",
+  "found_in": {
+   "raw": "Level 1-5 ([[Forest]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "480",
+   "parts": [
+    {
+     "value": 480
+    }
+   ],
+   "number": 480
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Nirvana Cross",
+  "drops": {
+   "rare": [
+    "Rival cassette",
+    "Call of the Spring cassette",
+    "Easter Bunny Skin Fragment"
+   ],
+   "common": [
+    "Organic Matter",
+    "Carrot seed"
+   ]
+  },
+  "categories": [
+   "Forest",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Пасхальный кролик"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Throws up to 5 eggs in a wide fan angle, with the eggs may be one of the followings:\n- Red egg: Creates a Fire pool upon landing, the damage can be nullified with the Fire.\n- Green egg: Creates a Poisonous Fire pool upon landing. The pool does high damage and can only be negated by having both the Fire and Poison.\n- Blue Egg: Fires 12 snowballs that cause Freeze in a 360 degree upon landing, Freeze will negate this status effect.\n- Purple Egg: Hatches into an Easter reskinned Goblin Guard upon landing. The Goblin has 10 Health. The Goblin Guard may hold a pistol, a bow, a spear or a shotgun.\n- Yellow Egg: Hatches into an Easter reskinned Dire Boar upon landing. The Dire Boar has 12 ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Boss attacks will be much more frequently.\n- The summoned purple eggs and yellow eggs will hatch into Champions version, with the Easter Goblin Guards have 16 Health and Easter Dire Boars have 24 Health.\n- The big egg spawns 3 meteors instead of 2."
+   }
+  ],
+  "tactics": "The will cover a large area of the ground with pools of status-inducing attacks. If the player has Fire, it would work great against the boss.\nSlower weapons are usually less effective since they will just overwhelm the player.\nPay attention to the 's egg bag, it will help with tracking the boss attacks.\nMelee weapons are recommended for defense if the player cannot get too close, as per other bosses.\nEven though the room is small, stay as far away as possible from the . The eggs cannot go very far, and this can help to avoid damage.\nLasers or fast weapons can help take down the Goblins and Dire Boars. The Trap can also help in negating ram damage.\nThe itself does not have any attacks that spawn conventional projectiles from its sprite. It is possible to spam the basic melee attack with little to no risk.\nWeapons capable of splash damage or can hit multiple enemies will make short work of its summoned minions.",
+  "room": "The room contains breakable crates that form a huge bunny face, with the boss being in the center.",
+  "image": {
+   "file": "Sprite Easter Bunny.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/4f/Sprite_Easter_Bunny.png/revision/latest?cb=20190420105219",
+   "width": 224,
+   "height": 344
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.34 < 0.90 (skin/character/warlock/skin_17/warlock_17_1_0_13)"
+ },
+ {
+  "name": "Floating Laser UFO",
+  "page": "https://soul-knight.fandom.com/wiki/Floating_Laser_UFO",
+  "found_in": {
+   "raw": "Level 3-5 ([[Spaceship]])",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_champion": {
+   "raw": "1500",
+   "parts": [
+    {
+     "value": 1500
+    }
+   ],
+   "number": 1500
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Dead Star Laser Gun",
+  "drops": {
+   "rare": [
+    "Floating 51 blueprint"
+   ],
+   "common": [
+    "Magic Fragment Obsidian",
+    "Parts",
+    "Battery"
+   ]
+  },
+  "categories": [
+   "Spaceship",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Парящее лазерное НЛО"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Spawns a line of 5 Aliens (Laser Gun) that are shaded in dark blue.\n- These enemies are immune to all damage and negative effects.\n- After being spawned for 1 second, the aliens will take 1 second to aim at a nearest friendly target, and then fire a burst of 2 laser beams that deal 4 damage each (it is impossible to take damage from both shots), then repeat this attack for a second time. They will disappear after then.\n- The biggest Alien in the middle is the one doing the aiming, while the other 4 just aim in the same direction.\n- Charges at the player, dealing 4 damage upon impact. Also leaves a turret that shoots a zig zag bullet stream when it stops. Each bullet deals 2 damage. The ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- The bullets that travel in zigzag pattern will deal 3 damage each.\n- Shoots 6 homing missiles and 5 big bullets simultaneously. The bullets now deal 5 damage each.\n- The bullets from the circles deal 3 damage each.\n- Each new Alien squad will fire 3 times before leaving. This does not count the squad summoned before enrage starts."
+   }
+  ],
+  "tactics": null,
+  "room": "The room has two test tubes in the upper left and lower right corner, but is otherwise clear.",
+  "image": {
+   "file": "Sprite Floating Laser UFO.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/6a/Sprite_Floating_Laser_UFO.png/revision/latest?cb=20190710163630",
+   "width": 432,
+   "height": 560
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_103",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Giant Crystal Crab",
+  "page": "https://soul-knight.fandom.com/wiki/Giant_Crystal_Crab",
+  "found_in": {
+   "raw": "Level 1-5 ([[Glacier (Level)|Glacier]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "480",
+   "parts": [
+    {
+     "value": 480
+    }
+   ],
+   "number": 480
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Crystal Crab's Katana",
+  "drops": {
+   "rare": [
+    "Crystal Crab Skin Fragment",
+    "Crystal Mushroom seed"
+   ],
+   "common": [
+    "Ironstone"
+   ]
+  },
+  "categories": [
+   "Glacier (Biome)",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Кристаллический краб-гигант"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Deals 3 contact damage when the player gets too close.\n- Fires that deal 3 damage in every direction.\n- Slams the ground, creating 2 rings of one after another around the area nearby.\n- These spikes deal 4 damage upon collision and can prevent movement.\n- Freeze reduces the damage of the spikes by 2.\n- Does not move when using this attack.\n- Fires a ring of that deal 3 damage, all in one direction, similarly to Shotgun M3.\n- Briefly stops before using this attack.\n- Enters a defensive stance. In this state, all damage taken will heal the boss by 4 Health each."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- The become much thicker and deal 3/4 damage each.\n- Fires 3 rings of , each with 120 degree spacing, instead of 1 ring."
+   }
+  ],
+  "tactics": "Always watch its movement carefully. Don't shoot if it stops moving, because that means it's in its defensive form.\nIt is suggested that the player uses sniper rifles or slower firing weapons (with greater damage) instead of weapons like SMGs to have more control of their firing. This minimizes the boss' regeneration ability, because it only heals by 4 per shot regardless of the actual damage dealt.\nStay far away as much as possible, but do keep an eye on it so the player can avoid the surprise spike attacks. Fighting this boss mostly relies on their ability to safely move back and forth, especially around the covers and corners of the arena, to avoid getting hit.\nBreak the mines either to make sure they won't cause incorrect targeting or as a backup energy source for long-battle scenarios (be careful of the explosive barrels, however).",
+  "room": "The Giant Crystal Crab's room contains:\n- 4 Crystal Mines in the 4 corners of the room.\n- They have 15 HP and only give 3 energy orbs each. But sometimes they are large and can provide 200 energy.\n- Terrain for cover on the top left right and down left of the room, each contains an explosive barrel.",
+  "image": {
+   "file": "Sprite Giant Crystal Crab.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/bd/Sprite_Giant_Crystal_Crab.png/revision/latest?cb=20181207060229",
+   "width": 220,
+   "height": 206
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_50",
+   "score": 0.9995,
+   "mask": 0.9995,
+   "factor": 4.554,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Giant Golden Crab",
+  "page": "https://soul-knight.fandom.com/wiki/Giant_Golden_Crab",
+  "found_in": {
+   "raw": "Level 1-5 ([[Glacier (Level)|Glacier]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "576",
+   "parts": [
+    {
+     "value": 576
+    }
+   ],
+   "number": 576
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Golden Crab Warhammer",
+  "drops": {
+   "rare": [
+    "Crystal Crab Skin Fragment",
+    "Golden Mushroom seed"
+   ],
+   "common": [
+    "Ironstone"
+   ]
+  },
+  "categories": [
+   "Glacier (Biome)",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Золотой краб-гигант"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Deals 3 collision damage when the player get too close.\n- Slams the ground with its claws, fires in every direction, deal 3 damage each.\n- It uses this attack once with the big claw, then twice with the smaller claw.\n- Slams the ground, creating 3 rings of one after another around the area nearby. The left ones are bigger than right spikes.\n- These spikes deal 3 damage upon collision and can prevent movement. They may also inflict Burn that can stack up to 2 times.\n- Freeze reduces the damage of the spikes by 2, while Fire reduces the damage by 1.\n- Does not move when using this attack.\n- Slams the ground, summons a line of that travel towards the player.\n- Fires a ring of in one ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- The become much thicker and deal 4 damage each.\n- Fires 3 rings of , each with 120 degree spacing, instead of 1 ring."
+   }
+  ],
+  "tactics": null,
+  "room": "The Giant Golden Crab's room contains:\n- 4 Gold Mines in the 4 corners of the room.\n- They have 40 HP and give 10 coins each, but sometimes they are larger with 60 HP and 50 gold each.\n- Terrain for cover in each corner. Some will contain crates, and possibly an explosive barrel.",
+  "image": {
+   "file": "Sprite Giant Golden Crab.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/d7/Sprite_Giant_Golden_Crab.png/revision/latest?cb=20190710163631",
+   "width": 440,
+   "height": 408
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_98",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Goblin Priest",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Priest",
+  "found_in": {
+   "raw": "Level 1-5 ([[Forest]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "480",
+   "parts": [
+    {
+     "value": 480
+    }
+   ],
+   "number": 480
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Staff of Shooting Stars",
+  "drops": {
+   "rare": [
+    "Rival cassette",
+    "Goblin Priest Skin Fragment"
+   ],
+   "common": [
+    "Magic Fragment"
+   ]
+  },
+  "categories": [
+   "Forest",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Гоблин-священник"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Summons 3 meteors which rain from the sky, similarly to those summoned by the Volcanic Turtle, which are targeted near and around the boss's current target.\n- Summons 2 orbs that circle the boss which can deal 4 damage to those who are nearby, similarly to the Magic Staff.\n- The orbs can't actually block any incoming projectiles so they may only be dangerous up-close.\n- Since version 2.0.5, the orbs can stack if it summons them again before the first set of orbs disappear.\n- Currently there is a glitch where these orbs will stay still and not rotate.\n- Fires a projectile which leaves a line of turrets that constantly fire bullets perpendicular to the direction they were shot in.\n- Fires ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- The interval between attacks will be shorter.\n- The number of meteors that will appear when used will increase by 1, for a grand total of 4 meteors."
+   }
+  ],
+  "tactics": "Remain mobile all the time and avoid dead corners. Finish the fight fast with a powerful weapon, because the longer the player drags it, the more likely the player will lose the fight.\nThe teepee and the totems can be used as effective cover against direct fire.\nWhen the boss starts to rain down the meteors, the player should keep running until the barrage is over to prevent being caught in the hail. The Paladin is effective at tanking this attack with his skill, but it should generally be saved to allow the player to escape sticky situations.\nThe Assassin could be effective as the player can use his skill, to do some damage and immediately hide behind the teepee. His skill also makes the player invincible, which gives the player a strategy to defend themselves against meteors.\nThe Rogue is also recommended as he can dodge the lined bullet as well as the meteorites, and will be much better if he had the fourth upgrade (so his Skill CD is much shorter).\nA melee weapon for projectile-cleaner is really a must, especially in Badass Mode. Because the boss might spam the lined bullets (possibly creating a prison where the player can barely move) and then use his infamous meteor blast, ...",
+  "room": "The room has very little cover, which comes in the form of a tepee with 2 wooden totems (1 on either side of it).\nTorches found at the edges of the room can be used as slight cover. However, they are not very effective.\nThe player's best chance for survival is to use the teepee at the top of the room.\nThere are six crates on the walls, which will be pretty much gone with all the bullet spams.",
+  "image": {
+   "file": "Sprite Goblin Priest.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/46/Sprite_Goblin_Priest.png/revision/latest?cb=20181207022907",
+   "width": 138,
+   "height": 156
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_36",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.508,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Goblin Priest (Haunted)",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Priest_%28Haunted%29",
+  "found_in": {
+   "raw": "Level 1-5 ([[Forest]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "480",
+   "parts": [
+    {
+     "value": 480
+    }
+   ],
+   "number": 480
+  },
+  "health_champion": {
+   "raw": "600",
+   "parts": [
+    {
+     "value": 600
+    }
+   ],
+   "number": 600
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "none",
+  "drops": {
+   "rare": [
+    "Rival cassette",
+    "Goblin Priest Skin Fragment"
+   ],
+   "common": [
+    "Magic Fragment"
+   ]
+  },
+  "categories": [
+   "Forest",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Одержимый гоблин-священник"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Summons 4 quickly revolving orbs around itself that deal 4 damage to nearby allies, similar to the Fine Magic Staff. This barrier lasts for a while and will periodically fire small homing arrowheads.\n- Consecutively summons 5 meteors that rain from the sky and may inflict Burn.\n- Fires 3 consecutive rings of 6 clustered spinning projectiles, each consisting of one square projectile surrounded by six circle projectiles.\n- Dashes towards the player, firing a slow-moving, crescent-shaped projectile followed by three homing spears which fire bullets perpendicular to their flight. Only used when enraged.\n__NOEDITSECTION__\nCategory:Strategies and Guides"
+   }
+  ],
+  "tactics": null,
+  "room": "The room is similar to the room of standard Goblin Priest, but the tepee and totems are absent.\nAt the center of room, the Goblin Priest is making some kind of ritual, with its Staff of Shooting Stars dropped beside, a jagged blade hovering in the air, and lightning striking around. Then, it hovers into the air, merges with the blade, and transforms into a more muscular entity. Then it comes to the ground and the fight starts.",
+  "image": {
+   "file": "Sprite Goblin Priest (Haunted).png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/ea/Sprite_Goblin_Priest_%28Haunted%29.png/revision/latest?cb=20210316071721",
+   "width": 180,
+   "height": 168
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_38",
+   "score": 0.9159,
+   "mask": 1.0,
+   "factor": 4,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Gold Mask",
+  "page": "https://soul-knight.fandom.com/wiki/Gold_Mask",
+  "found_in": {
+   "raw": "Level 1-5 ([[Relics]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "636",
+   "parts": [
+    {
+     "value": 636
+    }
+   ],
+   "number": 636
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": "4",
+  "motif_weapon": "Golden Cudgel",
+  "drops": {
+   "rare": [
+    "Splendid Shrine cassettes",
+    "Rival cassettes",
+    "Gold Mask Skin Fragment"
+   ],
+   "common": [
+    "Organic Matter",
+    "Magic Fragment Orange",
+    "Ironstone",
+    "Fertilizer"
+   ]
+  },
+  "categories": [
+   "Relics",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Золотая маска"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Pulls out a Splitter Cannon, shoots 3 bullets towards target. Each bullet deals 3 damage, and can split into 12 smaller bullets that deal 2 damage each.\n- Pulls out a PKP, shoots 15 bullets in a wide spread, each bullet deals 3 damage.\n- Pulls out a radio and calls a poop airstrike. After a second, 3 massive poop projectiles similar to meteors will spawn. The attack deals 2 damage upon impact, then spawn 3 purple pools that deal 1 damage per second and inflict Weary on the player.\n- Poison prevents the pools from inflicting any damage or status effects.\n- Pulls out 2 TNT, flings them towards the target. The TNTs deal 2 damage when thrown with a fuse time of 3 seconds, or until they are ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Projectiles travel much quicker.\n- The PKP deals 4 damage.\n- Throws 3 TNTs instead of 2.\n- More poop meteors spawn"
+   }
+  ],
+  "tactics": "Distance should be kept from Gold Mask, especially when it turns enraged, where the bullets travel much faster. It is recommended to keep moving as not to get easily hit by TNT, purple pools and bullets.\nKeep an eye on which weapon is in his hand, as it signals which attack he will use next.\nThe totems can be used as cover from most incoming attacks, but beware of the TNT's and purple pool's AoE. \nAvoid the meteors, they inflict damage upon the player's hero as well as cutting the player's fire rate in half. If the player is using level 6+ Alchemist this is not a concern, as the player will have the Poison Buff.\nTry taking down Gold Mask quickly, as it may cover most of the room with its puddles in short time, making it nigh impossible to dodge its attacks without getting hit. A Knight with Dual Wield and a good weapon can take out the boss before this happens. \nAssassin's Dark Blade and Invisibility, as well as all of Rogue's skills work very well against it, provided that the player uses their skill effectively, as both can escape the barrage of projectiles and avoid the TNT explosions. The Paladin is also effective against it, as he can easily defend himself from incoming ...",
+  "room": "There are three monkey statues around the middle area of the room, with many crates surrounding them. The boss starts among the statues.\n- The monkey statues may sometimes be broken. This is purely cosmetic.",
+  "image": {
+   "file": "Sprite Gold Mask.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/69/Sprite_Gold_Mask.png/revision/latest?cb=20200112110325",
+   "width": 294,
+   "height": 204
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.36 < 0.90 (common/necromancer_13_skill_2_effect_0_0)"
+ },
+ {
+  "name": "Golem - Ancestor",
+  "page": "https://soul-knight.fandom.com/wiki/Golem_-_Ancestor",
+  "found_in": {
+   "raw": "Level 4-5 ([[Monolithic Range Ruins]])",
+   "levels": [
+    "4-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "4-5"
+   ],
+   "normal_biomes": [
+    "Monolithic Range Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 4,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Monolithic Range Ruins"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1440",
+   "parts": [
+    {
+     "value": 1440
+    }
+   ],
+   "number": 1440
+  },
+  "health_champion": {
+   "raw": "1800",
+   "parts": [
+    {
+     "value": 1800
+    }
+   ],
+   "number": 1800
+  },
+  "health_special": null,
+  "unique_attacks": "4",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [
+    "Majestic Grandeur cassette",
+    "Echoes of Ruins cassette"
+   ],
+   "common": [
+    "Ancestor Skin Fragments",
+    "Ironstone",
+    "Parts",
+    "Magic Fragment Obsidian"
+   ]
+  },
+  "categories": [
+   "Monolithic Range Ruins",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Голем-предок"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Eyes will slowly converge to form one eye, to perform a laser attack that sweeps until it reaches the corners of the room.\n- When enraged, the laser now sweeps faster.\n- Smashes the ground on a certain area, this is indicated 4 times with a different location, which is indicated by a red area.\n- Creates a rolling stone maze, with each stone dealing 2 damage. An empty area can be found in this attack which will help the player dodge them.\n- The rolling stones disappear after reaching enraged phase and upon defeat.\n__NOEDITSECTION__\nCategory:Strategies and Guides"
+   }
+  ],
+  "tactics": null,
+  "room": "Upon entering the room, the High Priest will greet the player with a waving hand emoji. Slowly, the golem will rise as the Ancestor takes control of it, with its arms then attaching to itself.\nIf the entrance is located at the top, it will disappear, but other sides will remain intact upon entering the room.\nThe room is almost empty, though the player can go into the top left and top right corner of the room to avoid the boss' laser eye attack.",
+  "image": {
+   "file": "Sprite Golem - Ancestor.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/3e/Sprite_Golem_-_Ancestor.png/revision/latest?cb=20230724154208",
+   "width": 550,
+   "height": 478
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (275x239, hệ số 2)"
+ },
+ {
+  "name": "Golem - Mist Dragon",
+  "page": "https://soul-knight.fandom.com/wiki/Golem_-_Mist_Dragon",
+  "found_in": {
+   "raw": "Level 4-5 ([[Monolithic Range Ruins]])",
+   "levels": [
+    "4-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "4-5"
+   ],
+   "normal_biomes": [
+    "Monolithic Range Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 4,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Monolithic Range Ruins"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1440",
+   "parts": [
+    {
+     "value": 1440
+    }
+   ],
+   "number": 1440
+  },
+  "health_champion": {
+   "raw": "1800",
+   "parts": [
+    {
+     "value": 1800
+    }
+   ],
+   "number": 1800
+  },
+  "health_special": null,
+  "unique_attacks": "6",
+  "motif_weapon": "Staff of Incantation",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Fertilizer",
+    "Timber",
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Monolithic Range Ruins",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- The High Priest will ride the Mist Dragon at the first phase, having a 30% damage reduction from basic attacks."
+   }
+  ],
+  "tactics": null,
+  "room": "The room is empty and surrounded by a thick mist. There is a Stone Dragon Cannon in the middle, which the player can use to damage the boss. The field of view will be enlarged when using the cannon. At the second phase, the field of view will be reduced when fighting the High Priest.\nAfter the High Priest is defeated, the thick mist disappears, and the Stone Dragon Cannon is destroyed, while the player can no longer exit the room.",
+  "image": {
+   "file": "Sprite Golem - Mist Dragon.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/4f/Sprite_Golem_-_Mist_Dragon.png/revision/latest?cb=20240509181500",
+   "width": 1104,
+   "height": 636
+  },
+  "sprite": {
+   "bundle": "boss/boss_stone_dragon",
+   "name": "boss_stone_dragon_img",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Grand Knight",
+  "page": "https://soul-knight.fandom.com/wiki/Grand_Knight",
+  "found_in": {
+   "raw": "Level 2-5 ([[Knight Kingdom]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "720",
+   "parts": [
+    {
+     "value": 720
+    }
+   ],
+   "number": 720
+  },
+  "health_champion": {
+   "raw": "900",
+   "parts": [
+    {
+     "value": 900
+    }
+   ],
+   "number": 900
+  },
+  "health_special": null,
+  "unique_attacks": "4",
+  "motif_weapon": "Grand Knight's Sword",
+  "drops": {
+   "rare": [
+    "Grand Knight Skin Fragment"
+   ],
+   "common": [
+    "Ironstone",
+    "Heptacolor Viola seed"
+   ]
+  },
+  "categories": [
+   "Knight Kingdom",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Великий рыцарь"
+  },
+  "attacks": [
+   {
+    "name": "Slash Combo",
+    "text": "- Slashes twice, firing triangular projectiles in a wide arc.\n- The sword itself can't hit the player."
+   },
+   {
+    "name": "Splinter",
+    "text": "- Fires 6 large circular projectiles which bursts into multiple smaller ones upon impact.\n- When enraged, also fires cross projectiles around him."
+   },
+   {
+    "name": "Sword Stab",
+    "text": "- Thrusts his sword, sending many smaller projectiles forward in a triangular pattern."
+   },
+   {
+    "name": "Shield Bash",
+    "text": "- Thrusts his shield, firing cross projectiles around him."
+   }
+  ],
+  "tactics": "Grand Knight has an excessive amount of projectile spam, so tackling him in the open is not recommended. The room does contain sufficient cover for the player to avoid them, and the fight is entirely dependent on the player's smart use of these obstacles.\nIf he remains at range and does not close in, ranged weapons work best as the player does not need to risk taking damage. The window of damaging him is small, requiring powerful bursts or a tedious attrition to eventually wear him down. Melee weapons are out of the picture but can be used to block his projectiles, or to inflict even more damage with the melee reflect buff.\nWhen the boss is trapped within the cover walls, most of his projectiles will be blocked off. Players should exploit this period and unload everything they have at him.\nStalling is a valid option, giving the player more time to dodge his attacks before he can recover or to entirely demolish him before he can even retaliate. Even if he recovers, his attacks are not dangerous enough to entirely discourage the player from advancing.",
+  "room": "The room has good cover, with two unbreakable stone walls in two corners of the room. The lower left wall also has a weapon box beside.\nOn the other two corners are bundles of boxes, which may serve as temporary cover during transitions.\nThere are also two flags in the middle of the room. The player should be careful if they have bouncing bullets.",
+  "image": {
+   "file": "Sprite Grand Knight.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/f/fb/Sprite_Grand_Knight.png/revision/latest?cb=20190710163631",
+   "width": 352,
+   "height": 392
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_99",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Grand Slime",
+  "page": "https://soul-knight.fandom.com/wiki/Grand_Slime",
+  "found_in": {
+   "raw": "Level 2-5 ([[Knight Kingdom]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "840",
+   "parts": [
+    {
+     "value": 840
+    }
+   ],
+   "number": 840
+  },
+  "health_champion": {
+   "raw": "1050",
+   "parts": [
+    {
+     "value": 1050
+    }
+   ],
+   "number": 1050
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Magic Gloves",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Fertilizer",
+    "Organic Matter"
+   ]
+  },
+  "categories": [
+   "Knight Kingdom",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Великий слизень"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Slams the ground twice, releasing clusters of red bullets in random directions, they each travel at random speeds. The bullets deal 3 damage each.\n- Shoots 4 rings of bullets in a quick succession. These bullets will travel 10 tiles then linger, gradually forming a flower shape of bullets. These bullets deal 2 damage each.\n- Spawns a Slime on its position.\n- Slams the ground, leaving a green Poison pool (the poison damage can be nullified with Poison Buff) and multiple bullets that linger and deal 3 damage each."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- After the boss gets hit 15 times, the charge bar will fill up, and it will create an explosion on its current position. The boss will also explode once right after being enraged.\n- The explosion will still happen even when frozen.\n- The bullets of diamond shapes deal 5 damage each instead of 3.\n- After being defeated, the boss itself will shrink, explode 7 times and spawn 5 Slimes, once per explosion after the first two explosions."
+   }
+  ],
+  "tactics": null,
+  "room": null,
+  "image": {
+   "file": "Sprite Grand Slime.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/70/Sprite_Grand_Slime.png/revision/latest?cb=20190710163630",
+   "width": 360,
+   "height": 312
+  },
+  "sprite": {
+   "bundle": "boss/boss20",
+   "name": "boss20_10",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4,
+   "transform": "flipx",
+   "equal": 4,
+   "alts": [
+    "bin_datapack/enemy_list_102",
+    "skill_demo/boss20_10",
+    "weapon/boss20_10"
+   ]
+  }
+ },
+ {
+  "name": "Grand Wizard",
+  "page": "https://soul-knight.fandom.com/wiki/Grand_Wizard",
+  "found_in": {
+   "raw": "Level 2-5 ([[Knight Kingdom]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "600",
+   "parts": [
+    {
+     "value": 600
+    }
+   ],
+   "number": 600
+  },
+  "health_champion": {
+   "raw": "750",
+   "parts": [
+    {
+     "value": 750
+    }
+   ],
+   "number": 750
+  },
+  "health_special": null,
+  "unique_attacks": "4",
+  "motif_weapon": "Staff of Wizard",
+  "drops": {
+   "rare": [
+    "Grand Wizard Skin Fragment",
+    "Heroes' Avatar cassettes",
+    "Threat cassettes"
+   ],
+   "common": [
+    "Magic Fragment"
+   ]
+  },
+  "categories": [
+   "Knight Kingdom",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Великий маг"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Fires a laser that sweeps across the room (5 damage).\n- Fire numerous rotating geometric formations.\n- Fire two rings of slow, bouncing projectiles in all directions (4 damage).\n- Sprays projectiles in a loose formation. May adjust if the target moves."
+   }
+  ],
+  "tactics": "The best way to approach the boss is through distraction.\nDue to the high damage, large bullet spread, and unrelenting laser attack, the player may find it helpful to have a companion (meat shield) there to take the hits for them. For this to work, however, the player will need to keep their distance. Because of the very high damage of the attacks and the intense amount of them, it is also a good idea to bring a weapon that can freeze the boss, preferably the Glacier. The Wizard's Lightning Strike skill can stun the boss, which can be used to escape tricky situations.\nAlso, the player cannot take their time with this boss. The cover is minimal (one block a corner), and without impeccable placement, the player will be struck by the laser. Finish the fight quick, otherwise the player can easily lose if they drag it on for too long.\nDeal damage quick and never stop moving. The attacks can be anticipated and the laser can be avoided if the player moves away from its line immediately. Distance the player only to widen the spread of bullets.\nHowever, if the player plays as the Rogue, dodging can make the battle much easier, as the player can jump over the laser with ease, eliminating ...",
+  "room": "The Grand Wizard's room has little cover, with one permanent block in each corner of the room that provides small cover but will not protect the player from all attacks.\nThe room also contains a large number of scroll pots near the center of the room, as well as a desk. These can be useful for cover early in the fight.",
+  "image": {
+   "file": "Sprite Grand Wizard.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/e7/Sprite_Grand_Wizard.png/revision/latest?cb=20190710163711",
+   "width": 200,
+   "height": 296
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_31",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Grave Guard Scarab Archon",
+  "page": "https://soul-knight.fandom.com/wiki/Grave_Guard_Scarab_Archon",
+  "found_in": {
+   "raw": "Level 2-5 ([[Grave]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "720",
+   "parts": [
+    {
+     "value": 720
+    }
+   ],
+   "number": 720
+  },
+  "health_champion": {
+   "raw": "900",
+   "parts": [
+    {
+     "value": 900
+    }
+   ],
+   "number": 900
+  },
+  "health_special": null,
+  "unique_attacks": "5",
+  "motif_weapon": "Grave Guard's Hatchet",
+  "drops": {
+   "rare": [
+    "Torn Page Splash Ɛ Bash"
+   ],
+   "common": []
+  },
+  "categories": [
+   "Grave",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Архонт_скарабей-могильщик"
+  },
+  "attacks": [
+   {
+    "name": "Armor Mechanic",
+    "text": "- The boss starts off with 100 armor. It takes only 2 damage (even if the attack deals less than 2) from all sources.\n- Attacks that deal more than 100 damage will punch right through its armor. The actual amount of health damage dealt is still subtracted from the boss' current armor.\n- The current durability of the armor is visualized by a second, grey health bar beneath its normal one.\n- When the boss loses all of its armor, it drops 10 Energy orbs and enters a vulnerability state of 5.5 seconds, during which it flashes and does not use any attacks. After this period has elapsed, the boss will perform an animation and refill its armor completely.\n- Freezing, stunning, or other similar ..."
+   },
+   {
+    "name": "Regular Attacks",
+    "text": "- Strikes the ground with its battle axe, generating a homing shockwave that leaves behind rings of 5 lingering shots as it chases the player. The shockwaves deal 3 damage and the lingering bullets deal 2.\n- Screams and creates six large bullets around itself, which launch themselves outwards after a delay. Each large bullet sprays a large number of smaller projectiles behind it as it flies. The big bullets deal 3 damage and the smaller ones deal 2.\n- Leaps into the air and slams the ground, generating shockwaves in 8 directions. Only used when enraged.\n- Summons a large number of Scarab enemies."
+   }
+  ],
+  "tactics": "Combining with the large amount of projectiles, its summons and the shockwaves, a melee weapon and some dodging skills are recommended to get past the boss.\nWhile the boss' armor is active, it always takes 2 damage per hit. Therefore, faster weapons or even the basic melee spam can demolish it quickly (alternatively, excessively high damage weapons such as Serenity or Super Buddy can destroy the armor in one hit), not to mention that each hit counts, meaning with burst-firing weapons, shotguns and similar counterparts the armor collapses at lightspeed. Do not worry about energy, as the summoned Scarabs and the armor itself may drop some. However, the short distance puts the player extremely close to hazards such as the boss' other attacks, so don't draw too close, as the armor can't be healed as long as it isn't depleted.\nWith ranged weapons, one must focus all their attacks on the boss itself and ignore its minions, while swiftly avoiding various threats. The homing shockwave can be dodged by sprinting in the opposite direction. For the leap attack, try to remain far from the boss, as his axe often hits in distant locations, though the shockwaves can pose a threat here as they ...",
+  "room": "At first, there are 2 Grave Robbers killing smaller Scarabs for fun. Shortly afterwards, the boss stomps on them, killing both monkeys. The fight then starts.\nThe room has only four bone piles as breakable covers. Additionally, other than the four possible entrances, all other borders are bottomless pits.",
+  "image": {
+   "file": "Sprite Grave Guard Scarab Archon.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/52/Sprite_Grave_Guard_Scarab_Archon.png/revision/latest?cb=20210317043418",
+   "width": 297,
+   "height": 276
+  },
+  "sprite": {
+   "bundle": "boss/boss27",
+   "name": "idle_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 3,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Greedfang Warwolf",
+  "page": "https://soul-knight.fandom.com/wiki/Greedfang_Warwolf",
+  "found_in": {
+   "raw": "Difficulty 5-6, Stage 15 ([[Travelogue of Rosemary Island]], Demonity Mode)",
+   "levels": [
+    "5-6"
+   ],
+   "modes": [
+    "Travelogue of Rosemary Island"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": "",
+   "number": null
+  },
+  "health_special": "14400",
+  "unique_attacks": "5",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [
+    "Rosemary seed",
+    "Bush Lily seed"
+   ],
+   "common": [
+    "Abele seed",
+    "Ginseng seed",
+    "Black Rose seed",
+    "Lithium Flower seed",
+    "Ghost Pipe seed",
+    "Monkey Cup seed",
+    "Magic Fragments"
+   ]
+  },
+  "categories": [],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Targets a circular area around him, and shortly after, slashes the area afterward. The circular slash can only hit the outer circle of the area.\n- If the player is caught in this area, they will be marked with a bleeding effect that ignores their armor and defense, and 1 life is lost every 1 second.\n- Sends 5 circular slashes that increase in size as they travel.\n- Unleashes Slashes at the player in quick succession. A flash warning from the boss indicates this attack.\n- If the player gets hit during this attack, they will be stunned briefly."
+   }
+  ],
+  "tactics": null,
+  "room": null,
+  "image": {
+   "file": "Sprite Greedfang Warwolf.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/76/Sprite_Greedfang_Warwolf.png/revision/latest?cb=20250805021727",
+   "width": 228,
+   "height": 234
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.31 < 0.90 (skin/character/swordmaster/skin_5/sword_master_5_slash_effect_2)"
+ },
+ {
+  "name": "Headless Knight",
+  "page": "https://soul-knight.fandom.com/wiki/Headless_Knight",
+  "found_in": {
+   "raw": "level 2-5 ([[Halloween]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "540",
+   "parts": [
+    {
+     "value": 540
+    }
+   ],
+   "number": 540
+  },
+  "health_champion": {
+   "raw": "675",
+   "parts": [
+    {
+     "value": 675
+    }
+   ],
+   "number": 675
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "The Emperor's New Gun",
+  "drops": {
+   "rare": [
+    "Red Spider Lily seed",
+    "Headless Knight Skin Fragment"
+   ],
+   "common": [
+    "Fertilizer",
+    "Organic Matter"
+   ]
+  },
+  "categories": [
+   "Halloween",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Рыцарь без головы и его лошадь"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "and His Horse are one entity in this phase, with His Horse positioned at the Knight's head. They both perform their respective attacks."
+   },
+   {
+    "name": "Headless Knight",
+    "text": "- Swings its sword twice, fires 16 in a 320° spread or 9 in a 180° arc. Each projectile does 4 damage.\n- Swing its sword, fires bullets in a 180° manner, then summons a that fires 7 streams of in a 180° spread. Each bullet does 3 damage.\n- Aims at the target with his sword then fires 3 consecutively in any direction within a small cone. Each beam deals 4 damage. This is accompanied by a sharp laser charging sound.\n- The sword does not deal melee damage."
+   },
+   {
+    "name": "His Horse",
+    "text": "- Fires a large that sweeps one third of the room, deals 5 damage per tick.\n- Vomits 3 towards target which deal 2 damage upon contact, then spawn 3 green fire pools. The pools deal 1 damage per tick, for 1 tick per second, and despawn after 5 seconds.\n- Having Poison prevents the fire pools from dealing damage."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Triggered when the boss goes below half Health.\n- After a few seconds, His Horse pops out of its body and both will attack individually, with His Horse retaining Headless Knight's current health at the time of the split. For example, if splitting at exactly below half HP, each one will have 269 ( 337) HP. They will not split while attacking or when Frozen/Stunned.\n- The boss(es) becomes more aggressive and attack more frequently.\n- His Horse gains a attack, which does 4 damage. It is always used immediately after it detaches from the Headless Knight. This is accompanied by clopping sounds of horse hooves. While charging, the horse head can't take damage, but is not immune to status ..."
+   }
+  ],
+  "tactics": "A melee weapon is recommended as can block or reflect bullets and destroy the turret summoned by the body. It is crucial, as the charging and laser attacks together will be enough to take the player down.\nStay away from the green fire pools; they damage the player very fast without relevant Buffs.\nIf the horse uses the laser, try to get away from it as soon as possible, if the player cannot dodge it. The laser sweeps slower if the player is close, which means they have to run less distance, but if the player moves in the same direction as the laser as it hits the player, chances are it'll hit the player twice, and the 10 damage taken is enough to kill most characters immediately without defensive enhancements such as the . Thus, if the player knows they can't outrun the laser, it is recommended to run INTO the laser instead, as taking 5 damage is better than taking 10.\nAlways keep the two bosses when they split in the player's view. This will make dodging attacks much easier and will reduce pressure.\nRemember to stay near cover, as it's the only way to dodge the horse's laser if the player can't tank the damage with armor or avoid the laser entirely (outrunning it at close range ...",
+  "room": "The room contains some blocks and crates near the middle and bottom left corner, a tainted tree in the top corner, and a poison crate in the bottom left corner.",
+  "image": {
+   "file": "Sprite Headless_Knight.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0c/Sprite_Headless_Knight.png/revision/latest?cb=20181224043953",
+   "width": 624,
+   "height": 492
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (156x123, hệ số 4)"
+ },
+ {
+  "name": "Hua Xiong",
+  "page": "https://soul-knight.fandom.com/wiki/Hua_Xiong",
+  "found_in": {
+   "raw": "*[[Ancient Battleground]]\n*[[Three Kingdoms - Gunfight]]",
+   "levels": [],
+   "modes": [
+    "Three Kingdoms - Gunfight"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": [
+    "Ancient Battleground"
+   ]
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": "1440",
+   "parts": [
+    {
+     "value": 1440
+    }
+   ],
+   "number": 1440
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": "630 (TKG-D1) 900 (TKG-D2) 1170 (TKG-D3) 1530 (TKG-D4) 2250 (TKG-D5)",
+  "unique_attacks": "3",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [],
+   "common": [
+    "Magic Fragments"
+   ]
+  },
+  "categories": [],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "{{Tabber\nLevel Mode"
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- his weapon when the player is too close, dealing 6 damage.\n- Unleashes a whirlwind. As he spins around, he will move closer to the player and fire 8 that deals 4 damage in all directions for a total of 14 times.\n- Spinning animation is purely cosmetical, it will not deal any damage.\n- Targets a circular area of 4 tiles, indicated by a big red warning. will leap into the air and swiftly in the area after 3 seconds, creating a that deals 8 damage. The stomp also generates 18 that deals 4 damage in all directions."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Spin attack will fire 16 in all directions for a total of 17 times.\n- attack generates 18 in all directions for 3 times.\nThree Kingdoms - Gunfight\n- his weapon when the player is too close.\n- Spinning animation is purely cosmetical, it will not deal any damage.\n- Unleashes a whirlwind. As he spins around, he will move closer to the player and fire 8 in all directions for a total of 12 times.\n- Targets a circular area, indicated by a big red warning. will leap into the air and swiftly in the area after 3 seconds, creating a that deals damage. The stomp also generates 12 in all directions.\n}}"
+   }
+  ],
+  "tactics": "__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": null,
+  "image": {
+   "file": "Sprite Hua Xiong.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/42/Sprite_Hua_Xiong.png/revision/latest?cb=20240510114116",
+   "width": 210,
+   "height": 300
+  },
+  "sprite": {
+   "bundle": "boss/boss_huaxiong",
+   "name": "boss_huaxiong_ui",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Iron Pirate King Level",
+  "page": "https://soul-knight.fandom.com/wiki/Iron_Pirate_King_Level",
+  "found_in": {
+   "raw": "Level 3-5 ([[Neo Isle]])",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_champion": {
+   "raw": "1500",
+   "parts": [
+    {
+     "value": 1500
+    }
+   ],
+   "number": 1500
+  },
+  "health_special": null,
+  "unique_attacks": "4",
+  "motif_weapon": "Unfinished Shark Gun",
+  "drops": {
+   "rare": [
+    "King's Emblem",
+    "Swift Shuttle Jet blueprint"
+   ],
+   "common": [
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Neo Isle",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Железный король пиратов"
+  },
+  "attacks": [],
+  "tactics": "Whenever the boss uses the hook attack, the player should try to stand behind a detonating bomb so that the hook backfires. If the bomb being used is not lit, hit it once to make it start flashing. Timing isn't mandatory, as when a live bomb is grabbed the shield will always be paralyzed.\nIt is advised to quickly move out of the way right as the boss fixes its aim (when the aiming line disappears). Otherwise, if the bomb explodes first, the player would be vulnerable to the attack.\nThe boss itself doesn't shoot any bullets and its attacks can usually be dodged with ease, though the fire buff can aid this further. When it isn't using the hook attack, the player should focus on clearing out its goons to prevent getting overwhelmed by bullets.\nIf it spawns as the secondary boss under the twin boss condition, Iron Pirate King Level is ironically easier to defeat. It will not be backed by reinforcements, while the hook attack can be baited into other bosses through obstacles, dragging them away with massive damage as it swiftly dispatches them, which for Zulan The Colossus, also paralyzes him on the second snag. While any cover in the room might make the mortars and fire pools harder ...",
+  "room": "The room has very little cover with only 2 torches found at the entrance of the room, with a pirate boat loaded with cannonballs being parked outside. Like every single room in Neo Isle, the absence of walls allows bullets to fly toward the edges.",
+  "image": {
+   "file": "Sprite Iron Pirate King Level.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/1/16/Sprite_Iron_Pirate_King_Level.png/revision/latest?cb=20210823011401",
+   "width": 324,
+   "height": 264
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_39",
+   "score": 0.9747,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Iron Will Wavebreaker",
+  "page": "https://soul-knight.fandom.com/wiki/Iron_Will_Wavebreaker",
+  "found_in": {
+   "raw": "Level 3-5 ([[Neo Isle]])",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "2400",
+   "parts": [
+    {
+     "value": 2400
+    }
+   ],
+   "number": 2400
+  },
+  "health_champion": {
+   "raw": "3000",
+   "parts": [
+    {
+     "value": 3000
+    }
+   ],
+   "number": 3000
+  },
+  "health_special": null,
+  "unique_attacks": "3",
+  "motif_weapon": "Captain's Medal",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Neo Isle",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Непоколебимый волнолом"
+  },
+  "attacks": [],
+  "tactics": "Due to the sheer amount of enemies and lack of cover, the first thing is to decrease the number of pirates. It is important to know that the Robot of Fragile Core will explode and damage other units when killed, such that they need to be prioritized.\nAfter removing all pirates, it is safe to attack the gunboat. It is still required to dodge the attack of turrets.\nFor the cannon balls, it is essential not to let the pets trigger the explosion too early. If for any reason the player only has short range melee, deflecting cannon balls becomes the only method to attack the gunboat when it leaves.\nEnergy orbs restore 36 energy in this fight, thus energy management isn't an issue, considering the pirates can also drop energy upon dying.\n__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "Upon entering the room, the boss room is replaced with a special room and the boss opening scene starts.\nThe fight takes place at an isolated island with only two tiles of gas pipes in the middle as cover. The boss appears above or below the island in rotation.\n- Even after the fight is over, the player cannot exit the room anymore, as the Barrier disappears once entered.",
+  "image": {
+   "file": "Sprite Iron Will Wavebreaker.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/bc/Sprite_Iron_Will_Wavebreaker.png/revision/latest?cb=20220326084936",
+   "width": 777,
+   "height": 351
+  },
+  "sprite": {
+   "bundle": "boss/boss29",
+   "name": "pirateShip_Boss_full",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 3,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "multi_room_skin/skin_15/pirateShip_Boss_full_1"
+   ]
+  }
+ },
+ {
+  "name": "King",
+  "page": "https://soul-knight.fandom.com/wiki/King",
+  "found_in": {
+   "raw": "Level 2-5 ([[Chiseltown]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1440",
+   "parts": [
+    {
+     "value": 1440
+    }
+   ],
+   "number": 1440
+  },
+  "health_champion": {
+   "raw": "1800",
+   "parts": [
+    {
+     "value": 1800
+    }
+   ],
+   "number": 1800
+  },
+  "health_special": null,
+  "unique_attacks": "7",
+  "motif_weapon": "Scepter of Majesty",
+  "drops": {
+   "rare": [
+    "Torn page Helping Hand: Eligos"
+   ],
+   "common": [
+    "Battery",
+    "Ironstone",
+    "Parts",
+    "Heptacolor Viola seed"
+   ]
+  },
+  "categories": [
+   "Chiseltown",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Король"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "The boss has 7 different attacks in total:"
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- Slams his scepter to shoot 8 shockwaves in 8 directions that deal 2 damage and inflict the Electrify effect.\n- Spins his scepter which shoots 4 sets of 5 lingering bullets from front, below, back, then above, followed by 4 sets of 5 expanding bullets that deal 4 damage each.\n- Opens his lion mouth and shoots 3 big bullets that deal 4 damage, the bullets shoot 6 smaller ones continuously in each direction.\n- Aims his laser for 2 seconds before firing his laser beam dealing 2 continuous damage on contact."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Raises his scepter and summons Knight-P, Knight-B, Knight-S, and Knight-X at the same time.\n- Lets the scepter spin around him while shooting the bullet pattern similar to previous but instead, it shoots 7 bullets instead of 5 in each set.\n- Aims for 3.2 seconds before charging towards the player, the attack direction could be seen with big red mark (>>) on the floor."
+   }
+  ],
+  "tactics": "- The shockwaves can be easily avoided if you're good enough. If not, hide.\n- When the King spins his scepter, hide and don't be close to the blocks because of the expanding bullets.\n- Moving around the room constantly while the King is aiming his laser makes it impossible for him to hit you with the attack, unless you go right in the beam.\n- The big bullets can be avoided by hiding.\nEnraged phase\n- Kill 3 of the knights so the boss will not spawn more.\n- When the King is about to charge, hide behind the blocks.\n- The upgraded scepter spin can be avoided easily by hiding yet again. Do not stay close to the blocks or else the expanding bullets will damage you.\n__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "The room is nearly the same as Queen's room, except that it has two laser towers on each side that deal Stun when approached. The laser towers can be destroyed. Additionally, it does not have the exclusive 2nd phase towers.",
+  "image": {
+   "file": "King.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/1/1d/King.png/revision/latest?cb=20221228175813",
+   "width": 540,
+   "height": 540
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.01 < 0.90 (skin/weapon/weapon_253/skin_1/w253_bullet0_effect)"
+ },
+ {
+  "name": "King Snow Ape",
+  "page": "https://soul-knight.fandom.com/wiki/King_Snow_Ape",
+  "found_in": {
+   "raw": "Level 1-5 ([[Glacier (Level)|Glacier]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "540",
+   "parts": [
+    {
+     "value": 540
+    }
+   ],
+   "number": 540
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Snow Ape's Longbow",
+  "drops": {
+   "rare": [
+    "Torn Page Leap",
+    "Rival cassettes",
+    "Blizzard cassettes"
+   ],
+   "common": [
+    "Organic Matter",
+    "Snow Lotus seed"
+   ]
+  },
+  "categories": [
+   "Glacier (Biome)",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Король снежных обезьян"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Slams his fists into the ground, creating a line of shockwaves going to the player's direction.\n- Stomps the ground, creating a huge shockwave around it.\n- Also creates small snowballs in every direction as an additional attack when enraged.\n- Fires large red crossed-shaped projectiles in every direction.\n- Throws a large snowball that breaks into 10 smaller snowballs upon impact. The small snowballs can Freeze.\n- Creates 3 curving trails of ice that follow the player. Each ice trail can deal 3 damage and will Freeze affected targets.\n- Also shoots cross bullets in every direction when enraged."
+   }
+  ],
+  "tactics": "Focus on dodging and attacking, his attacks don't cover that much of the room. An easy way to kill this boss is to sneak and hide in the corners, and attack when there are close to no bullets. Be patient and use cover.\nTake advantage of the boss's high mobility, and use weapons that have lingering bullets like Cherry Blossom or Bubble Gun.\nIt is always recommended that the player has some companions by their side as that would greatly ease the fight.\nKeep the player's distance but don't just stick the player on the edge of the arena for the whole time, they can't make much progress on the boss if so.\nAlways be on the lookout for the large snowballs. Whenever the boss throws it, sprint away as fast as they can from the zone where they will hit. The player shouldn't get too near the large snowball when it is about to impact, as it will split into multiple small snowball projectiles and would be more difficult to avoid them.\nGetting hit by multiple snowballs at once can easily wear the player out, when followed by an ice trail then it could deal more damage and possibly even kill them on the spot.\nThe ice trail is the deadliest move of the boss. As it is slow and leaves behind a ...",
+  "room": "The terrain is like a train track, with a ring of tracks surrounding the room, with a few snow rocks to hide behind and a few snow-covered barrels. Judging from the room's appearance, the King Snow Ape possibly attacked a mine.",
+  "image": {
+   "file": "Sprite King Snow Ape.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/d3/Sprite_King_Snow_Ape.png/revision/latest?cb=20230123023214",
+   "width": 276,
+   "height": 228
+  },
+  "sprite": {
+   "bundle": "boss/boss09",
+   "name": "boss09_new_1",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "skill_demo/boss09_new_1"
+   ]
+  }
+ },
+ {
+  "name": "Li Jue",
+  "page": "https://soul-knight.fandom.com/wiki/Li_Jue",
+  "found_in": {
+   "raw": "*Level 4-3 ([[Ancient Battleground]])\n*Dethrone Dong Zhuo in all Difficulties, Floor 1 ({{I|Three Kingdoms - Gunfight|1}})",
+   "levels": [
+    "4-3"
+   ],
+   "modes": [
+    "Three Kingdoms - Gunfight"
+   ],
+   "normal_levels": [
+    "4-3"
+   ],
+   "normal_biomes": [
+    "Ancient Battleground"
+   ],
+   "normal_spans": [
+    {
+     "floor": 4,
+     "from": 3,
+     "to": 3
+    }
+   ],
+   "biomes": [
+    "Ancient Battleground"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1320",
+   "parts": [
+    {
+     "value": 1320
+    }
+   ],
+   "number": 1320
+  },
+  "health_champion": {
+   "raw": "",
+   "number": null
+  },
+  "health_special": "Three Kingdoms - Gunfight \n630 (D1) 900 (D2) 1170 (D3) 1530 (D4) 2250 (D5)",
+  "unique_attacks": "4",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [],
+   "common": [
+    "Level Mode",
+    "Magic Fragments",
+    "Three Kingdoms - Gunfight",
+    "A random Modifier Attachment",
+    "TKG Coin coins"
+   ]
+  },
+  "categories": [
+   "Ancient Battleground",
+   "Three Kingdoms - Gunfight",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "{{Tabber\nLevel Mode"
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- Swiftly swings the blade and unleashes three consecutive horizontal toward the player upon getting too close, dealing 6 damage each.\n- Plunges the hilt of the sword into the ground, the sword's blade can be seen turning red, then quickly his blade and launches three slashes toward the player. Each slash generates small to large that can pass through obstacles and deals 6 damage.\n- his blade 2 times that has a delay of 0.7 seconds. First swing fires 4 and second swing fires 5 that leaves a trail of that deals 5 damage. Melee attacks cannot break the .\n- can pass through obstacles but doesn't deal any damage."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- is larger.\n- First swing fires 5 and second swing fires 6 that leaves a trail of instead.\nThree Kingdoms - Gunfight\n- Swiftly swings the blade and unleashes three consecutive horizontal toward the player upon getting too close.\n- Plunges the hilt of the sword into the ground, the sword's blade can be seen turning red, then quickly his blade and launches three slashes toward the player. Each slash generates small to large that can pass through obstacles.\n- his blade 2 times that has a delay of 0.7 seconds. First swing fires 4 and second swing fires 5 that leaves a trail of . Melee attacks cannot break the .\n- Summon four netcasters, can summon elite variant in higher difficulties. They ..."
+   }
+  ],
+  "tactics": "__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "",
+  "image": {
+   "file": "Sprite Li Jue.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/20/Sprite_Li_Jue.png/revision/latest?cb=20240510114121",
+   "width": 276,
+   "height": 234
+  },
+  "sprite": {
+   "bundle": "boss/boss_lijue",
+   "name": "boss_lijue_ui",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Mutant Nian",
+  "page": "https://soul-knight.fandom.com/wiki/Mutant_Nian",
+  "found_in": {
+   "raw": "Level 2-5 (Knight Kingdom, Dungeon, Halloween)",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Dungeon",
+    "Halloween",
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon",
+    "Halloween",
+    "Knight Kingdom"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "720",
+   "parts": [
+    {
+     "value": 720
+    }
+   ],
+   "number": 720
+  },
+  "health_champion": {
+   "raw": "900",
+   "parts": [
+    {
+     "value": 900
+    }
+   ],
+   "number": 900
+  },
+  "health_special": null,
+  "unique_attacks": "5",
+  "motif_weapon": "Super Rocket Fireworks",
+  "drops": {
+   "rare": [
+    "Dragon Dance Armor blueprint",
+    "Happy New Year! cassette"
+   ],
+   "common": [
+    "Organic Matter",
+    "Firecracker seed",
+    "Holy Skin Fragment"
+   ]
+  },
+  "categories": [
+   "Special Domain",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "Its attacks are very unique, and includes the following:\n- Spits a fireball targeted at the player's current position, it deals 2 damage upon contact and leaves a fire pool that deals 1 damage.\n- Sends 3 lanterns targeted at a player's position (2 of them pick the current position, while the other may pick a position from a few seconds ago), upon arriving on the indicated location, each of them drops a firecracker that explodes, dealing 2 damage.\n- These lanterns cannot be hit or damaged by any method.\n- Spawns 6 (8 if enraged) big bullets that rotate around the boss itself (clockwise if the boss is facing left, counterclockwise if the boss is facing right; their rotation is updated in ..."
+   }
+  ],
+  "tactics": "__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "- There are four pieces of cover in the room, each being an \"L\" shape that consists of five blocks, localized 3 tiles away from the room's borders. In different biomes, the sprites of the blocks can be slightly different.\n- All three biomes have: a room where hard blocks with explosive barrels are placed in the top right and bottom left, while the top left and bottom right ones are crates.\n- Knight Kindom, in addition to the previous room, has this variation: a room where the hard blocks with explosive barrels are placed in the top left and bottom right, while the top right and bottom left ...",
+  "image": {
+   "file": "Sprite Mutant Nian.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/4d/Sprite_Mutant_Nian.png/revision/latest?cb=20240130001339",
+   "width": 448,
+   "height": 320
+  },
+  "sprite": {
+   "bundle": "sprite_atlas",
+   "name": "xi",
+   "score": 0.9406,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/xi"
+   ]
+  }
+ },
+ {
+  "name": "Nian",
+  "page": "https://soul-knight.fandom.com/wiki/Nian",
+  "found_in": {
+   "raw": "Level 2-5 (Knight Kingdom, Dungeon, Halloween)",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Dungeon",
+    "Halloween",
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon",
+    "Halloween",
+    "Knight Kingdom"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "720",
+   "parts": [
+    {
+     "value": 720
+    }
+   ],
+   "number": 720
+  },
+  "health_champion": {
+   "raw": "900",
+   "parts": [
+    {
+     "value": 900
+    }
+   ],
+   "number": 900
+  },
+  "health_special": null,
+  "unique_attacks": "5",
+  "motif_weapon": "Super Rocket Fireworks",
+  "drops": {
+   "rare": [
+    "Dragon Dance Armor blueprint",
+    "Happy New Year! cassette"
+   ],
+   "common": [
+    "Organic Matter"
+   ]
+  },
+  "categories": [
+   "Special Domain",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Нянь"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "Its attacks are very unique, and includes the following:\n- Throws fireballs that turn into fire pools upon landing, similarly to the Molotov Cocktail.\n- Summons lanterns from its body, each one will fly out to their destinated mark and explode.\n- The explosions can cause Burn.\n- These lantern cannot be hit and damaged by any method.\n- Shoots out big bullets in every direction, each one then split into smaller bullets upon contact, similarly to the Splitter Cannon.\n- Fires 3 bouncy triangular bullets in every direction that leave long-lasting beam-shaped bullets behind as they travel.\n- Fires 4 when enraged.\n- The triangular bullets cannot be destroyed.\n- Makes up to 3 pulls, drawing the ..."
+   }
+  ],
+  "tactics": "The player should always be on their feet and keep their distance, especially around the fire pools or bullets, since the player never knows when the boss will triple pull the player right in the area of danger, as the effect can reach the player from any point of the room.\nThe theme of the battle is that the arena is filled with bullets at almost any given time, so it's very risky if the player doesn't bring along some type of melee weapon, and then the player will see themselves sitting at a corner of the room for quite awhile before actually making any process. Unless the player is brave enough to dive head first into the clusters of bullets, that is.\nSince the bouncy triangular bullets have a good chance of going around cover and damaging the player, as well as covering a large area, the Melee Reflect Buff is extremely useful. Swinging melee weapons (e.g Pirate Saber) are preferable to ‘jabbing’ ones (e.g Pitchfork) as they can destroy and deflect more bullets across a larger area.\nBut never stay too long at one spot covering, that's not as reliable as the player thinks. If the boss hasn't already spilled out an ocean of fire around the player's safe zone while trying to get ...",
+  "room": "- There are four pieces of cover in the room, each being an \"L\" shape that consists of five blocks, localized 3 tiles away from the room's borders. The top right and bottom left ones are hard blocks with explosive barrels, while the top left and bottom right ones are crates.",
+  "image": {
+   "file": "Sprite Nian.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/55/Sprite_Nian.png/revision/latest?cb=20240130000903",
+   "width": 448,
+   "height": 320
+  },
+  "sprite": {
+   "bundle": "sprite_atlas",
+   "name": "bossxi_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Night Wanderer",
+  "page": "https://soul-knight.fandom.com/wiki/Night_Wanderer",
+  "found_in": {
+   "raw": "Difficulty 5-6, Stage 15 ([[Travelogue of Rosemary Island]])",
+   "levels": [
+    "5-6"
+   ],
+   "modes": [
+    "Travelogue of Rosemary Island"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": "",
+   "number": null
+  },
+  "health_special": "13500 (D5) 16800 (D6)",
+  "unique_attacks": "3",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [
+    "Daphne Odera seed",
+    "Roselle seed",
+    "Rosemary seed",
+    "Bush Lily seed"
+   ],
+   "common": [
+    "Rainbow Grass seed",
+    "Lavender seed",
+    "Abele seed",
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Travelogue of Rosemary Island",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Throws a wide spread of daggers that deal 12 damage on hit, indicated by red lines. They can go through cover.\n- Spreads a ring of spinning blades close to him. Blades do not hit players before they are fully expanded, and they will cause the player to stop moving for a while when damaged by them.\n- When enraged, they will spread out farther from him.\n- If he loses 20% of his health, he vanishes for a short amount of time, then appears shortly and attacks with a dash, damaging half the player's health while ignoring armor. This attack is done for four times in total.\n- The game will slow down and zoom into his attack, which is indicated by a red track.\n- When he becomes enraged, this ..."
+   }
+  ],
+  "tactics": "As he only appears in the last floor of Difficulty 5 and 6, this boss should be easy to deal with as the player will definitely have enough time to build their weapons and skills before reaching this stage. Circle close around him as often as possible whilst dealing damage to him as he will try throwing an overwhelming amount of daggers in the player's direction. Whenever he disappears from sight due to health loss, move only up or down because he will use his dash attack in a few seconds afterwards, but only slashes from across. When he is about to use his dash attack, be in a clear area where the player can roam freely so obstacles will not hinder escape from this attack.\nKeep in mind that once he enters his enraged phase, his attacks become more dangerous, with increased daggers and the ring of spinning blades doing 20 damage if caught. This damage could be lethal, so the player needs to keep cautious until this attack is done. This is also important with the dash to avoid significant damage.\nIt is recommended to use ranged weapons against this boss, as while he only has 3 attacks, with one of them only triggerable if damaged enough, these are often chained in quick combos and ...",
+  "room": null,
+  "image": {
+   "file": "Sprite Night Wanderer.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/79/Sprite_Night_Wanderer.png/revision/latest?cb=20230407125303",
+   "width": 168,
+   "height": 186
+  },
+  "sprite": {
+   "bundle": "aram/enemy",
+   "name": "noc_walker_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 8,
+   "alts": [
+    "aram/enemy/noc_walker_16",
+    "aram/enemy/noc_walker_atk_0",
+    "aram/enemy/noc_walker_backstab_3",
+    "aram/enemy/noc_walker_backstab_4",
+    "aram/enemy/noc_walker_backstab_9"
+   ]
+  }
+ },
+ {
+  "name": "Phantom King",
+  "page": "https://soul-knight.fandom.com/wiki/Phantom_King",
+  "found_in": {
+   "raw": "Level 2-5 ([[Halloween]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "720",
+   "parts": [
+    {
+     "value": 720
+    }
+   ],
+   "number": 720
+  },
+  "health_champion": {
+   "raw": "900",
+   "parts": [
+    {
+     "value": 900
+    }
+   ],
+   "number": 900
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Extra Crown",
+  "drops": {
+   "rare": [
+    "Phantom King Skin Fragment",
+    "Crystal Mushroom seed"
+   ],
+   "common": [
+    "Ironstone"
+   ]
+  },
+  "categories": [
+   "Halloween",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Король привидений"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Fires long bullets from his eyes. Each bullet deals 3 damage.\n- Bullets are much larger when enraged and deal 4 damage each.\n- Projects a ring of plus-shaped bullets. Each bullet deals 4 damage.\n- Pukes out a burst of bouncy 4-damage bullets.\n- Shoots two large energy balls with each ball having a V-trail of ring bullets.\n- Energy balls deal 5 damage each, have decent homing, and can explode. Has limited range.\n- Shoots 3 when enraged.\n- Stands still and slowly draws enemies/players to it while firing bullets in all directions.\n- May go invisible and summon a few normal Phantom enemies, and then reappears after 3 seconds.\n- Stealth removes some negative effects such as elemental status ..."
+   }
+  ],
+  "tactics": "Stop firing when the boss disappears in order not to waste energy.\nIt is useful to have a weapon whose projectiles lodge in enemies, so the player can be sure where he is all the time.\nHowever, any fast firing melee weapon with the Reflect Buff suffices to take the Phantom King down as too many of his attacks can be returned and he'll die soon\nWeapons that have the Freeze or Stun status effect, like the Frost Sword or all hammers, are helpful to prevent him from disappearing. In this case the Frost Spear is especially effective as it also leaves a projectile to track the boss with.\nThe spawned Phantoms can quickly flood the room with bullets, making other attacks far harder to dodge.\nIf the Phantom King pulls the character, the player should use a non-melee weapon then do the basic melee spam on it, which will destroy all the projectiles while doing decent to heavy damage depending on the character's melee value. \nTwin boss condition\nIf there is another boss in play with the Boss Duo condition, the pulling attack can be very dangerous, since it is difficult to dodge attacks from the other boss at the same time. The player should concentrate only on the other boss, as the Phantom ...",
+  "room": "The room is empty with the exception of a tombstone in the center and 4 sets of 4 breakable boxes near the corners.",
+  "image": {
+   "file": "Sprite Phantom King.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/5e/Sprite_Phantom_King.png/revision/latest?cb=20181207134831",
+   "width": 171,
+   "height": 208
+  },
+  "sprite": {
+   "bundle": "boss/boss15",
+   "name": "boss15_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 3.067,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/enemy_list_95"
+   ]
+  }
+ },
+ {
+  "name": "Prehistoric Colossus",
+  "page": "https://soul-knight.fandom.com/wiki/Prehistoric_Colossus",
+  "found_in": {
+   "raw": "Level 1-5 ([[Relics]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "552",
+   "parts": [
+    {
+     "value": 552
+    }
+   ],
+   "number": 552
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Fist Bump",
+  "drops": {
+   "rare": [
+    "Splendid Shrine cassettes",
+    "Rival cassettes",
+    "Shi Skin Fragment"
+   ],
+   "common": [
+    "Battery",
+    "Ironstone",
+    "Parts",
+    "Gear Flower seed"
+   ]
+  },
+  "categories": [
+   "Relics",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Доисторический колосс"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "The boss stays stationary at the center of the room the entire fight."
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- Slams both hands on the ground, summoning three meteors that land at random spots around the room. The black spirit will go to the crack on the body before this attack.\n- Slams their right hand on the ground, summoning a random Stone Guard (melee or turret) somewhere in the room. The black spirit will go to the crack on the right hand before this attack.\n- Slams their left hand on the ground, firing a line of shockwaves to the player's direction. Also summons a large amount of green circles all over the room. After 5 seconds, the circles gain red outlines, inflicting the Confusion status effect to the players standing in them. The black spirit will go to the crack on the left hand before ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Meteor attack now summons 4 meteors instead of 3.\n- Green circles take only 3 seconds to become active.\n- Now fires a line of shockwaves every time they summons a minion."
+   }
+  ],
+  "tactics": null,
+  "room": "The room is clear save for solid blocks in the top right and bottom left corners. In the other two corners, two invincible Stone Archers will be firing spirals of arrows for the entire fight.",
+  "image": {
+   "file": "Sprite Prehistoric Colossus.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/d7/Sprite_Prehistoric_Colossus.png/revision/latest?cb=20190927143245",
+   "width": 534,
+   "height": 660
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_105",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Pretentious Producer",
+  "page": "https://soul-knight.fandom.com/wiki/Pretentious_Producer",
+  "found_in": {
+   "raw": "Round 15 in Difficulty 6 ([[Great Commander]])",
+   "levels": [],
+   "modes": [
+    "Great Commander"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": "?",
+  "unique_attacks": null,
+  "motif_weapon": null,
+  "drops": {
+   "rare": [],
+   "common": [
+    "Rainbow Grass seed",
+    "Abele seed",
+    "Rosemary seed",
+    "Roselle seed"
+   ]
+  },
+  "categories": [
+   "Great Commander",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "This boss is immune to Stun and Freeze in his Normal Phase, but the Enraged Phase's clones aren't.\nNote: Damage value is from Difficulty 6."
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- Stomps his cane to the ground, producing a pink shield that surrounds him.\n- The shield will absorb all incoming damage. After 3.5 seconds, it release a pink radial blast that covers the entire area, dealing 1-80 damage.\n- The more damage taken when his shield is up, the lesser damage the radial blast will produce.\n- Whips out his Pretentious Producer tag and tag a Performer with Pretentious Producer mark. The performer tagged will have a red warning circle beneath them that follows them and will flash quicker with each second passed.\n- After 4 seconds, the warning circle will stop flashing and instead become solid, 5 Pretentious Producer tag will fall from the sky to the warning circle, ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "will split into 2 clones, each clone will have a different moveset and both needs to be defeated in order to win the game.\nClone 1 (Yellow Hair):\n- in a straight line for 3 seconds, dealing 30 damage.\n- Open both his hand and the cane will hover in the air. Releases 16 in all direction for 4 times that deals 20 damage each.\n- Heals himself for 300 Health.\nClone 2 (Red Hair):\n- Stomps his cane to the ground, producing an orange aura that follows him for a moment. The aura will blink rapidly. After 3 seconds, a will be produced at the aura area that deals 20 damage and inflicts Stun.\n- Raises his cane to the sky, a blue warning indicator will appear beneath a performer. After 3 seconds, the ..."
+   }
+  ],
+  "tactics": "__NOEDITSECTION__\nCategory:Strategies and Guides\nCategory:Seasonal",
+  "room": null,
+  "image": {
+   "file": "Sprite Pretentious Producer.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/5e/Sprite_Pretentious_Producer.png/revision/latest?cb=20240817173122",
+   "width": 312,
+   "height": 408
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.31 < 0.90 (common/eletric_explode_2)"
+ },
+ {
+  "name": "Queen",
+  "page": "https://soul-knight.fandom.com/wiki/Queen",
+  "found_in": {
+   "raw": "Level 2-5 ([[Chiseltown]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_champion": {
+   "raw": "1500",
+   "parts": [
+    {
+     "value": 1500
+    }
+   ],
+   "number": 1500
+  },
+  "health_special": null,
+  "unique_attacks": "?",
+  "motif_weapon": "- Queen's Touch\n- Queen's Stroke",
+  "drops": {
+   "rare": [
+    "Torn page Helping Hand: Eligos"
+   ],
+   "common": [
+    "Battery",
+    "Ironstone",
+    "Parts",
+    "Heptacolor Viola seed"
+   ]
+  },
+  "categories": [
+   "Chiseltown",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Ферзь"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "The boss has 6 different attacks in total:"
+   },
+   {
+    "name": "Normal Phase",
+    "text": "- Shoots a flurry of large homing arrows on both sides from her hands, which will spread throughout the room.\n- Sprays rotating oval-shaped bullets in every direction until her hands are rotated exactly 150° angle. She does not move and is vulnerable during the attack duration.\n- Fires 2 big bullets with a chain of smaller bullets trailing behind each in the direction of the player, one after another. Each big bullet rapidly releases 6 smaller bullets in a circular pattern.\n- Sweeps lasers from both her arms until they have spun for exactly 150°.\n- Fires 3 waves of lasers from above, starting from her position, indicating by targeting reticules appearing on the floor. The first wave will ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "When enraged, she gains 2 more hands and thus upgrading some previous attacks that use her hands. She then activates 4 towers that form a square shaped electric grid. These towers have 150 Health and can be destroyed, along with the grid connected to that tower, but explode upon doing so.\n- Each border of the grid can deal 1 damage and apply Electrify to the player.\n- The towers drop some energy when destroyed.\n- Fires 3 big bullets instead of 2\n- Her oval-shaped bullet attack can now be one of five variants, all firing more bullets than the normal phase version:\n- 2 hands on each side which rotate around her.\n- 2 hands on each side, 1 moves vertically and the other horizontally.\n- 4 hands ..."
+   }
+  ],
+  "tactics": "Queen has an excessive amount of bullet spam, but some attacks are easier to dodge by hiding behind the covers, so the player has to be smart and hide behind the cover and bullets density has been lessened. Because of that, staying near the Queen boss isn't recommended.\nWhen fighting Queen, it can be recommended to stay vertically in line with her body avoiding attacks while keeping a healthy distance with a high fire rate weapon and stick to a corner with cover. Regarding the fact she has great projectile spam but only one defensive maneuver to force the player away or keep them closer, Queen uses her Sweep lasers as a close-in barrier for the player to not escape.\n__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "The room is separated into 2 layers. The first layer consists of 2 arrow-shaped covers formed with indestructible blocks at the top right and the bottom left of the room. At the top left and the bottom right of the room are arrow-shaped covers formed with destructible blocks. Queen's attacks cannot destroy these blocks.\nThere are poison crates between the indestructible blocks and explosive crates between the destructible blocks, which also cannot be destroyed by the Queen.",
+  "image": {
+   "file": "Sprite Queen.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/e2/Sprite_Queen.png/revision/latest?cb=20221229102756",
+   "width": 564,
+   "height": 420
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.45 < 0.90 (level/difficulty/boss_void_2_dead_11)"
+ },
+ {
+  "name": "Sir Sangria",
+  "page": "https://soul-knight.fandom.com/wiki/Sir_Sangria",
+  "found_in": {
+   "raw": "Level 3-5 (Rush to Purity)",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [
+    "Rush to Purity"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": "2250",
+   "parts": [
+    {
+     "value": 2250
+    }
+   ],
+   "number": 2250
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": "5",
+  "motif_weapon": "Warhammer of Sealed Souls",
+  "drops": {
+   "rare": [
+    "Warhammer of Sealed Souls blueprint"
+   ],
+   "common": [
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Interdimensional Space",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Сэр Сангрия"
+  },
+  "attacks": [],
+  "tactics": "Sangria's durable and comes with a couple of tanky subordinates, though they're not particularly threatening at range. Most attacks from them are relatively easy to dodge as long as the player is on the move, with only the laser sweep and orb being notable exceptions. Energy isn't that much of a concern, since Sangria will drop them gradually as he takes damage, while the minions also produce some every time they're slain.\nMost of the fight revolves around dodging Sangria himself while taking down his minions if the barrier is on, and unloading damage on him otherwise. Sangria tends to stay in the top half and will rarely even come down to assist, only using lasers and his floating orb.\nAs for the minions, they're merely tankier Knight Kingdom enemies, but their limited quantity reduces their effectiveness greatly so all that's required is some attrition.\nThe floating orb and laser snipe are fairly easy to evade, the orb's movement isn't predictable so it's advisable to keep some distance with them, while the laser can easily miss if one's constantly on the move, similar to the Iron Pirate King Level's hook. \nThe laser sweep attack is essentially a much bigger problem since ...",
+  "room": null,
+  "image": {
+   "file": "Sprite Sir Sangria.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/3d/Sprite_Sir_Sangria.png/revision/latest?cb=20211012001437",
+   "width": 255,
+   "height": 300
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.78 < 0.90 (bin_datapack/enemy_list_2_56)",
+  "sprite_near": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_56",
+   "score": 0.7837,
+   "mask": 1.0,
+   "factor": 5,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Sir Verdant",
+  "page": "https://soul-knight.fandom.com/wiki/Sir_Verdant",
+  "found_in": {
+   "raw": "*Level 4-5 (Rush to Purity) (Badass only)\n*Matrix of the Lord of Evil",
+   "levels": [
+    "4-5"
+   ],
+   "modes": [
+    "Rush to Purity",
+    "Matrix of the Lord of Evil"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": "3600 (for both Normal/Badass)",
+   "parts": [
+    {
+     "value": 3600,
+     "label": "for both Normal/Badass"
+    }
+   ],
+   "number": 3600
+  },
+  "health_special": null,
+  "unique_attacks": "5",
+  "motif_weapon": "Fragmented Fel Cloak",
+  "drops": {
+   "rare": [
+    "Fragmented Fel Cloak Blueprint"
+   ],
+   "common": [
+    "seed",
+    "seed",
+    "seed",
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Interdimensional Space",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Fires 7 that homes onto the player, dealing 4 damage upon contact.\n- Upon hitting a surface, it will leave a green fire pool and splits into a smaller orb each towards the player location. PoisonFire do not reduce the damage.\n- Fires 7 that homes onto the player.\n- Upon contact, the player will be inflicted with the Confusion status effect.\n- If the projectiles hit a surface or expire instead, a red crystal will spawn at the location instead. Upon touching and consuming the crystal, the player will gain an attack and movement speed buff for 15 seconds.\n- Throws a fireball to the surface, generating a green fire pool, the fireball splits into 9 green rocks after hitting the surface dealing ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Summons 3 green fireballs that orbit around him."
+   }
+  ],
+  "tactics": "Weapons or skills with large AoEs work badly against this boss, since the fake cubes become bigger when they are hit, potentially causing a bright green bullet hell which would most likely result in death, especially in Rush to Purity.\nDon't worry about the damage you would take in Matrix of the Lord of Evil when facing this boss too much: The horseshoe crab attack is unaffected by Pressure. You would also probably have good defensive buffs & weapons when facing him at later stages of your run.\n__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "The room is clear and has no cover at all.",
+  "image": {
+   "file": "Sprite Sir Verdant.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/84/Sprite_Sir_Verdant.png/revision/latest?cb=20240501145210",
+   "width": 348,
+   "height": 342
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.45 < 0.90 (sprite_atlas/c03_show_effect01_s3_13)"
+ },
+ {
+  "name": "Sir Violet",
+  "page": "https://soul-knight.fandom.com/wiki/Sir_Violet",
+  "found_in": {
+   "raw": "Level 3-5 (Rush to Purity)\n(Badass only)",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [
+    "Rush to Purity"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": "4500",
+   "parts": [
+    {
+     "value": 4500
+    }
+   ],
+   "number": 4500
+  },
+  "health_special": null,
+  "unique_attacks": "10",
+  "motif_weapon": "- Oathbreaker\n- Oathkeeper",
+  "drops": {
+   "rare": [
+    "Oathbreaker blueprint",
+    "Oathkeeper blueprint"
+   ],
+   "common": [
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Interdimensional Space",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Сэр Вайолет"
+  },
+  "attacks": [],
+  "tactics": null,
+  "room": null,
+  "image": {
+   "file": "Sprite Sir Violet.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/9c/Sprite_Sir_Violet.png/revision/latest?cb=20211012001401",
+   "width": 553,
+   "height": 336
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_55",
+   "score": 0.9288,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Skeleton King",
+  "page": "https://soul-knight.fandom.com/wiki/Skeleton_King",
+  "found_in": {
+   "raw": "Level 2-5 ([[Dungeon]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "720",
+   "parts": [
+    {
+     "value": 720
+    }
+   ],
+   "number": 720
+  },
+  "health_champion": {
+   "raw": "900",
+   "parts": [
+    {
+     "value": 900
+    }
+   ],
+   "number": 900
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Staff of Skeleton",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Ironstone"
+   ]
+  },
+  "categories": [
+   "Dungeon",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Король скелетов"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Leaps and slams the ground, launching a whole circle of triangular bullets. \n- Slashes with his blades, creating 2 arcs of bullets in a rapid session. \n- Summons 8 homing missiles, (similar to Christmas Treant) which start moving after a short delay.\n- Due to a bug, if he was defeated when the missiles spawn, their sprite will remain but do nothing. \n- These projectiles cannot be reflected.\n- Summons a few Skeleton (Sword) units. They can trigger weapons, buffs, or skills dependent on enemy kills. They also can potentially drop energy when killed.\n- If they are killed they will despawn after a few seconds. \n- Holds one of his blades, dashes forward and fires a fast explosive shot. Can be ..."
+   }
+  ],
+  "tactics": "This boss is highly mobile. When he becomes enraged, his bullets will go much faster and the player will have to use cover more often. However, due to the high mobility of the boss and homing bullets, the statues will not protect the player from all attacks. Be sure to bring a melee weapon to destroy other projectiles. \nBe sure to keep running due to the explosions and homing bullets. The statues can be used as cover and provide time to regenerate the player's armor.\nIf the player has the correct restoration buffs, the player can kill the summoned skeletons to activate them. The Fire Buff could also be useful since the boss does use quite lots of explosive attacks.\nElf is recommended for this boss, since the boss spawns lots of other minions, every kill from them in Focus mode will regenerate the player's vines back, making them constantly be able to block damage from the boss. This can also restore a lot of energy. Stacking up with a good area-damage weapon, like the Rocket Gun M1, and the player can just basically stay stationary and the boss will be killed without the player taking a single hit to their armor bar.\nThe boss is also vulnerable to control (slowing/stopping) ...",
+  "room": "The room has four gargoyle statues around the center of the room, and some barrels.",
+  "image": {
+   "file": "Sprite Skeleton King.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0f/Sprite_Skeleton_King.png/revision/latest?cb=20190710163712",
+   "width": 360,
+   "height": 272
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_101",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Snowman King",
+  "page": "https://soul-knight.fandom.com/wiki/Snowman_King",
+  "found_in": {
+   "raw": "Level 1-5 ([[Glacier (Level)|Glacier]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "480",
+   "parts": [
+    {
+     "value": 480
+    }
+   ],
+   "number": 480
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Snowman Eagle",
+  "drops": {
+   "rare": [
+    "Torn page Helping Hand: Eligos"
+   ],
+   "common": [
+    "Timber",
+    "Carrot seed"
+   ]
+  },
+  "categories": [
+   "Glacier (Biome)",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Король снеговиков"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Shoots 2 bursts of 3 long beam-shaped bullets in a wide cone formation.\n- The bullets are much larger when enraged.\n- Continuously stomp the ground, similarly to the Baby Snow Ape, and while stomping, smaller snowmen are summoned and swarm the player.\n- These snowmen have 8 health each, and will also stomp along to try and damage the player.\n- Stands still and continuously fire small snowballs in a spiraling motion.\n- This attack can be disrupted by Freeze or Stun status effects.\n- Throws 4 large snowballs to the player continuously. The large snowballs will explode into smaller snowballs upon impact.\n- Stomps the ground once, and create 5 ice cracks that travel towards the player.\n- Ice ..."
+   }
+  ],
+  "tactics": "If the player has brought some more friends in, do let their pets and Followers get in for distraction.\nThe boss is quite predictable with its moves but the player mustn't let their guard down. The fight will only become harder as the player stretches it out, of course from the difficulty of the enraged phase and even the small snowmen.\nCamp behind the covers or get to the farthest edge from the area of the boss so the player can mostly focus on shooting instead of dodging and also for armor regeneration whenever they got hit, but don't rely too much on it. \nThe range of the big shockwaves can reach behind thin walls and once caught in the mess, the player can constantly take damage from the boss and may even some extra from the snowmen. The player will also be drastically slowed down and knocked back, which is very deadly if they're at a corner with no real escape.\nKeep an eye on the boss. When it's about to stomp the ground, be sure to keep a distance from the Snowman King for it'll create 5 (7 when enraged) ice cracks which can give the player a split second to predict where the ice cracks might hit, which will drastically help them from being frozen.\nJust keep the player's ...",
+  "room": "The room consists of some crates and blocks. There are some stone blocks in the lower left corner, and a wrecked mine cart in the upper right corner, providing some cover.",
+  "image": {
+   "file": "Sprite Snowman King.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/f/fe/Sprite_Snowman_King.png/revision/latest?cb=20181207060100",
+   "width": 188,
+   "height": 175
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_81",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.078,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "The Giant",
+  "page": "https://soul-knight.fandom.com/wiki/The_Giant",
+  "found_in": {
+   "raw": "Level 1-5 ([[Relics]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "614",
+   "parts": [
+    {
+     "value": 614
+    }
+   ],
+   "number": 614
+  },
+  "health_champion": {
+   "raw": "768",
+   "parts": [
+    {
+     "value": 768
+    }
+   ],
+   "number": 768
+  },
+  "health_special": null,
+  "unique_attacks": "4",
+  "motif_weapon": "none",
+  "drops": {
+   "rare": [],
+   "common": [
+    "Battery"
+   ]
+  },
+  "categories": [
+   "Relics",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Гигант"
+  },
+  "attacks": [],
+  "tactics": null,
+  "room": "The room has a 3x1 line of solid blocks in the middle of the arena. There are breakable crates in the top left and right of the arena. In the other two corners, two invincible Stone Archers will be firing spirals of arrows for the entire fight. \nUpon entering the boss room, the player will be teleported to the middle of the arena, behind the 3x1 solid blocks.",
+  "image": {
+   "file": "Sprite The Giant.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/8a/Sprite_The_Giant.png/revision/latest?cb=20211220060041",
+   "width": 226,
+   "height": 218
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.33 < 0.90 (skin/character/swordmaster/skin_4/swordMaster_4_2_7)"
+ },
+ {
+  "name": "The True Void",
+  "page": "https://soul-knight.fandom.com/wiki/The_True_Void",
+  "found_in": {
+   "raw": "Level 4-6 (Apocalyptic Void)",
+   "levels": [
+    "4-6"
+   ],
+   "modes": [],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": "5330",
+   "parts": [
+    {
+     "value": 5330
+    }
+   ],
+   "number": 5330
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Annihilation Avatar",
+  "drops": {
+   "rare": [
+    "The Advent of End cassette",
+    "Annihilation Avatar Blueprint"
+   ],
+   "common": [
+    "Magic Fragment",
+    "Void Crystal",
+    "Darkstar Coins"
+   ]
+  },
+  "categories": [
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Performs 4 to 6 scratch combo.\n- Summon a void meteor flying across the room.\n- Spawn 3 Magic circle which disable the skill duration and restrict the skill use while ignoring iframes.\n- Release 11 bullet in all direction.\n- Jump Forward to spawn a big red indicator and jump backward to spawn 3 bigger void rift.\n- Spawn a mouth on player location, the boss jump on the mouth location and close the mounth when the boss landed dealing 16 damage. when the mouth is closed, apply slow effect on the character greatly decreasing their movement speed.\n- Lure the character closer to the boss then release a blast, this can be indicated with red circle."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Summons more void meteor.\n- Spawn 5 magic circle instead of 3.\n- Performs 6 scratch combo instead."
+   }
+  ],
+  "tactics": null,
+  "room": "The room contains the magic stone altar and has no cover.",
+  "image": {
+   "file": "Sprite The True Void.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/a0/Sprite_The_True_Void.png/revision/latest?cb=20260717071757",
+   "width": 378,
+   "height": 324
+  },
+  "sprite": {
+   "bundle": "sprite_atlas",
+   "name": "boss_void_origin_ui",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 3,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/boss_void_origin_ui"
+   ]
+  }
+ },
+ {
+  "name": "The Void",
+  "page": "https://soul-knight.fandom.com/wiki/The_Void",
+  "found_in": {
+   "raw": "Level 3-5 ([[Void Invasion]])",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [
+    "Void Invasion"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": "1800 (Primordial Void Mode Primordial Void) 2400 (Chaotic Void Mode Chaotic Void) 3000 (Apocalyptic Void Mode Apocalyptic Void)",
+  "unique_attacks": null,
+  "motif_weapon": "- Eternal Night \n- Nether Lantern",
+  "drops": {
+   "rare": [
+    "The Void Descends cassette"
+   ],
+   "common": [
+    "Darkstar Coins",
+    "Void Crystals (level 3-5 only)"
+   ]
+  },
+  "categories": [
+   "Interdimensional Space",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {},
+  "attacks": [],
+  "tactics": null,
+  "room": "- The Void shares the same room as whatever boss it accompanies.",
+  "image": {
+   "file": "Sprite The Void.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/34/Sprite_The_Void.png/revision/latest?cb=20260516204416",
+   "width": 327,
+   "height": 363
+  },
+  "sprite": {
+   "bundle": "level/difficulty",
+   "name": "boss_void_ui",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 3,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "TV Tyrant",
+  "page": "https://soul-knight.fandom.com/wiki/TV_Tyrant",
+  "found_in": {
+   "raw": "Round 15 in Difficulty 1-5 ([[Great Commander]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [
+    "Great Commander"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": "?",
+  "unique_attacks": "4",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [
+    "Abele seed",
+    "Roselle seed",
+    "Rainbow Grass seed"
+   ],
+   "common": [
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Great Commander",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Swing its weapon mid-air, launching a nuclear missile that explode on impact and leaves poison pools that lingers.\n- Hold the weapon with its blue hand and open its red hand, summoning 1 wave of enemies.\n- Hold the weapon with its blue hand and punches its red hand forward, summoning multiple fire around it that lingers.\n- Hold the weapon with its blue hand and open its red hand, summoning falling icicles from the sky that deal damage and cause Freeze."
+   }
+  ],
+  "tactics": "__NOEDITSECTION__\nCategory:Strategies and Guides\nCategory:Seasonal",
+  "room": null,
+  "image": {
+   "file": "Sprite TV Tyrant.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/95/Sprite_TV_Tyrant.png/revision/latest?cb=20240728094912",
+   "width": 912,
+   "height": 912
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.39 < 0.90 (common/fire07_3)"
+ },
+ {
+  "name": "Ultimate Weapon- Code 01",
+  "page": "https://soul-knight.fandom.com/wiki/Ultimate_Weapon-_Code_01",
+  "found_in": {
+   "raw": "*Level 4-5 ([[Ancient Battleground]])\n*Dethrone Dong Zhuo (II) in all Difficulties, Floor 3/Tiger Cage ([[Three Kingdoms - Gunfight]])",
+   "levels": [
+    "4-5"
+   ],
+   "modes": [
+    "Three Kingdoms - Gunfight"
+   ],
+   "normal_levels": [
+    "4-5"
+   ],
+   "normal_biomes": [
+    "Ancient Battleground"
+   ],
+   "normal_spans": [
+    {
+     "floor": 4,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Ancient Battleground"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "1800",
+   "parts": [
+    {
+     "value": 1800
+    }
+   ],
+   "number": 1800
+  },
+  "health_champion": {
+   "raw": "2270 [[file:Health Icon.png|20px|link=]]<br>",
+   "parts": [
+    {
+     "text": "2270 [[file:Health Icon.png|20px|link=]]"
+    }
+   ],
+   "number": null
+  },
+  "health_special": "Three Kingdoms - Gunfight \n3500 (D1) \n5600 (D2) \n7000 (D3) \n9100 (D4) \n12600 (D5) \n? (D6) \n? (D7) \n? (D8)",
+  "unique_attacks": "9",
+  "motif_weapon": "Asura",
+  "drops": {
+   "rare": [
+    "Level Mode",
+    "Asura Blueprint",
+    "Three Kingdoms - Gunfight",
+    "Yellow Turban Rifle blueprint",
+    "Vanguard Battalion Kinetic Rifle blueprint",
+    "Qinggang Light Sword blueprint",
+    "Flying Bear Laser Cannon blueprint"
+   ],
+   "common": [
+    "Level Mode",
+    "Magic Fragments",
+    "Materials",
+    "Three Kingdoms - Gunfight",
+    "Magic Fragments",
+    "Materials",
+    "TKG Coin coins"
+   ]
+  },
+  "categories": [
+   "Ancient Battleground",
+   "Three Kingdoms - Gunfight",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [],
+  "tactics": "__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "",
+  "image": {
+   "file": "Sprite Ultimate Weapon- Code 01.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/8e/Sprite_Ultimate_Weapon-_Code_01.png/revision/latest?cb=20240712102302",
+   "width": 291,
+   "height": 375
+  },
+  "sprite": {
+   "bundle": "boss/boss_lvbu",
+   "name": "boss_lvbu_ui",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 3,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Varkolyn Leader",
+  "page": "https://soul-knight.fandom.com/wiki/Varkolyn_Leader",
+  "found_in": {
+   "raw": "Level 3-5 ([[Spaceship]])",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "960",
+   "parts": [
+    {
+     "value": 960
+    }
+   ],
+   "number": 960
+  },
+  "health_champion": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_special": null,
+  "unique_attacks": "5",
+  "motif_weapon": "Varkolyn Assault Rifle",
+  "drops": {
+   "rare": [
+    "Torn Page Vine",
+    "Mandrake seed"
+   ],
+   "common": [
+    "Organic Matter",
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Spaceship",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Варколин-лидер"
+  },
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Spawns 4 purple poison circles in a line, aimed in the direction of the target.\n- Spawn 4 Tentacles randomly around the room.\n- These will not attack in a fixed pattern.\n- Fires small bullets in every direction.\n- Emits a sharp chime, then fires a sweeping laser. (6 damage)\n- Fires a large bullet that fires spirals of smaller bullets around itself until it is destroyed.\n- Becomes invulnerable to all attacks for several seconds upon entering a purple poison pool, followed by a brief enforced vulnerability period.\n- Not immune to other sources of poison."
+   },
+   {
+    "name": "Enraged Mode",
+    "text": "- Attacks much more frequently.\n- Laser has a slightly shorter charging time and rotates faster.\nIn both modes, before all attacks, Varkolyn Leader will raise its head and then look back at its target, as if it were to try and lob something at them with its mouth. Also, the swirly mark on its leg will glow a different color during the process."
+   }
+  ],
+  "tactics": "Without the Poison Buff the fight is relatively hard, as the purple poison pools will most likely cover the entire room in short time, slowing down the player and dealing constant damage. It is recommended to reroll the floor in this case if the player is not confident enough to beat the Varkolyn Leader, but beware that the other two, Zulan and UFO, are just as tough either. The Alchemist has an edge due to his easy access to said buff.\nA good tactic is to stay close to him with a fast-hitting melee weapon (the Reflect Buff is recommended), dodging the laser is easier this way and while it is active the player can inflict damage with a weapon with high DPS, as the boss will not launch other attacks. If the laser is not activated, the bullet-based attacks can be reflected this way. It is also suggested to be very aggressive in the first few seconds of the fight before it has a chance to spawn his Tentacles.\nThese can be killed but it is sometimes better to leave them. In fact, Varkolyn Leader cannot spawn more Tentacles if there is already a good amount of them in the room. So as to avoid more of them being spawned, it is better to let them be. They don't really contribute to ...",
+  "room": "The room is clear and has no cover at all.",
+  "image": {
+   "file": "Sprite Varkolyn Leader.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/db/Sprite_Varkolyn_Leader.png/revision/latest?cb=20181207114023",
+   "width": 197,
+   "height": 178
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_34",
+   "score": 0.9994,
+   "mask": 1.0,
+   "factor": 4.521,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Volcanic Sandworm",
+  "page": "https://soul-knight.fandom.com/wiki/Volcanic_Sandworm",
+  "found_in": {
+   "raw": "Level 3-5 ([[Volcano]])",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "960",
+   "parts": [
+    {
+     "value": 960
+    }
+   ],
+   "number": 960
+  },
+  "health_champion": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_special": null,
+  "unique_attacks": null,
+  "motif_weapon": "Sandworm",
+  "drops": {
+   "rare": [
+    "Caterpillar Fungus seed",
+    "Moon's Mark"
+   ],
+   "common": [
+    "Magic Fragment Green",
+    "Battery",
+    "Parts"
+   ]
+  },
+  "categories": [
+   "Volcano",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Вулканический песчаный червь"
+  },
+  "attacks": [
+   {
+    "name": "Normal Mode",
+    "text": "- Tilts its body backwards, then fires a giant that deals 5 damage and on impact. Has a massive area of effect.\n- Tilts its body backwards, then fires a wide spread of 8 that make small red radial blast upon impact, dealing 4 damage.\n- Projectile velocity is not constant and decreases over time.\n- These projectiles can be reflected if Reflect is present. \n- Digs underground, leaving a temporary that fires a total of 13 in a cross-shaped pattern similar to Goblin Priest's attack. It can be destroyed if a melee weapon is slashed at it.\n- While underground, the boss is intangible and cannot be targeted.\n- Each bullet fired from the deals 3 damage. \n- If underground, it can resurface, creating ..."
+   },
+   {
+    "name": "Enraged Mode",
+    "text": "- Attacks faster and more aggressively.\n- fire in diagonal directions instead.\n- Fires 3 instead of 1 in a single volley.\n- Fires 12 instead of 8 in a single volley.\n- Digs and resurfaces much faster.\n- Every time it resurfaces (be it to lunge or just resurface), the boss will also fire 12 slow, lingering in every direction."
+   }
+  ],
+  "tactics": "It does not take damage while underground, but will also not attack before popping out. It is a good chance to clear the bullets before commencing attack. It is very bullet-hellish like Zulan The Colossus (whist Baby Dragon Bros are more element-based), therefore, a melee weapon is necessary.\nThe boss may attempt to surface at players while underground, making itself vulnerable for a short time before re-entering the ground. The player has to watch out for these occasions to attack since the boss, especially in Enraged Mode, can hide underground quite often and it will spawn .\nThe player can see a dirt pile where the boss is burrowed. It will move and can serve as an indicator. Stay away from it and the player will probably be safe. Don't pay too much attention to this, focus on dodging bullets instead.\nIf the player has a melee weapon, it is advised to target the that the boss generate first since they can easily be cleared up in just a swing and are the sources of incoming that might overwhelm the player if there's too many. Furthermore, if the player does not clear the , they can be stuck in the situation where they are trapped in a cage of and are vulnerable to other incoming ...",
+  "room": "The room contains one pillar and 3 layers of crates in each corner.",
+  "image": {
+   "file": "Sprite Volcanic Sandworm.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0d/Sprite_Volcanic_Sandworm.png/revision/latest?cb=20181207083459",
+   "width": 215,
+   "height": 192
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_55",
+   "score": 0.9995,
+   "mask": 1.0,
+   "factor": 4.543,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Warden",
+  "page": "https://soul-knight.fandom.com/wiki/Warden",
+  "found_in": {
+   "raw": "Robotic Frenzy",
+   "levels": [],
+   "modes": [
+    "Robotic Frenzy"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": "5",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [],
+   "common": [
+    "Season Coins",
+    "1 Trophy Chest"
+   ]
+  },
+  "categories": [
+   "Robotic Frenzy",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- The boss stays stationary at the right of the room during the entire fight. He uses four weapons mounted at his back to attack.\n- Robots that throw exploding bombs will frequently spawn from the right. A red circle indicator will appear before the bomb is thrown in that area.\n- : Fires 20 rockets from its rocket launcher (similar to Missile Battery) in a straight line, with the direction swinging from up and down and then back up again. The rockets will randomly steer during flight, making them difficult to avoid.\n- : Fires a sweeping attack from its machine gun. The rightmost end of the conveyor belt that is hit by gunfire will indicate the area that is swept. The area will linger for a ..."
+   }
+  ],
+  "tactics": null,
+  "room": "The left half of the room is full of conveyor belts constantly moving left into another pit. If the player falls into the pit, it is required to clear a few more enemies in order to resume the fighting.\nEvery few moments, 4 chests will appear on the conveyor belts. The player can shoot them to reveal green toolboxes that can boost movement speed for a while. Sometime after the chests spawn, the conveyor belts will become faster for a few seconds so that the player will likely fall off without speed boosts.",
+  "image": {
+   "file": "Sprite Warden.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/6c/Sprite_Warden.png/revision/latest?cb=20240515152513",
+   "width": 660,
+   "height": 540
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.39 < 0.90 (skin/character/taoist/skin_10/taoist_10_skill_2_effect_1_3)"
+ },
+ {
+  "name": "Witch of the Mist",
+  "page": "https://soul-knight.fandom.com/wiki/Witch_of_the_Mist",
+  "found_in": {
+   "raw": "Difficulty 4, Stage 15<br>Difficulty 6, Stage 10 ([[Travelogue of Rosemary Island]])",
+   "levels": [],
+   "modes": [
+    "Travelogue of Rosemary Island"
+   ],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "normal_mode": false,
+  "health": {
+   "raw": null,
+   "number": null
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": "12000 (D4) 2750 (D6)",
+  "unique_attacks": "3",
+  "motif_weapon": null,
+  "drops": {
+   "rare": [
+    "originated from Travelogue of Rosemary Island"
+   ],
+   "common": [
+    "Magic Fragment Blue",
+    "Magic Fragment Red"
+   ]
+  },
+  "categories": [
+   "Travelogue of Rosemary Island",
+   "Enemies",
+   "Bosses",
+   "Seasonal"
+  ],
+  "names": {},
+  "attacks": [
+   {
+    "name": "(chung)",
+    "text": "- Spawns a set of 6 plants in the center, creating a blast within 10 seconds. If the player is in range, they will be marked by a Buff Flower Curse Flower Curse status effect that deals damage equal to 15% of their health while the boss heals herself.\n- Additionally, if these plants also successfully grow, they will fire a homing projectile to the player.\n- If these plants are destroyed, she will be immobilized for a few seconds.\n- Charges up with an orb, then shoots out lasers randomly in different directions. She does not move during this attack. Each laser attack does 25 damage.\n- She can do this attack again after being immobilized from her plants getting destroyed.\n- Fires an orb ..."
+   }
+  ],
+  "tactics": null,
+  "room": null,
+  "image": {
+   "file": "Sprite Witch of the Mist.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/78/Sprite_Witch_of_the_Mist.png/revision/latest?cb=20240612130727",
+   "width": 366,
+   "height": 342
+  },
+  "sprite": {
+   "bundle": "aram/enemy",
+   "name": "witch_0",
+   "score": 0.9988,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Zulan In Ruins",
+  "page": "https://soul-knight.fandom.com/wiki/Zulan_In_Ruins",
+  "found_in": {
+   "raw": "Level 1-5 ([[Mechanical Ruins]])",
+   "levels": [
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Mechanical Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Mechanical Ruins"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "720",
+   "parts": [
+    {
+     "value": 720
+    }
+   ],
+   "number": 720
+  },
+  "health_champion": {
+   "raw": null,
+   "number": null
+  },
+  "health_special": null,
+  "unique_attacks": "9",
+  "motif_weapon": "none",
+  "drops": {
+   "rare": [
+    "Old Fella Skin Fragment",
+    "Rival cassette"
+   ],
+   "common": [
+    "Battery",
+    "Parts",
+    "Magic Fragment Blue"
+   ]
+  },
+  "categories": [
+   "Mechanical Ruins",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Зулан из руин"
+  },
+  "attacks": [],
+  "tactics": "Zulan In Ruins copies all attacks from Zulan The Colossus, albeit weakened. The player may want to use the same strategy used to defeat Zulan The Colossus, however being much easier since Zulan In Ruins doesn't use that much bullet hell.\nSince Zulan In Ruins does not use that much bullet hell, it is easier to hit it's weak spot. Zulan in Ruins does not move as much as other bosses, thus allowing the player to do more melee attacks. It also allows for more crits. Although watch out when Zulan In Ruins uses its laser attacks as that can deplete the player's health almost immediately. \n__NOEDITSECTION__\nCategory:Strategies and Guides",
+  "room": "The room has four 3x1 ruined barricades in the middle as cover. On each side of the room, there are two torches which provide minimal protection.\nThe layout is exactly the same as the one in Spaceship, but adjusted to the Mechanical Ruins biome due to a lack of hazard barriers as terrain & a different biome color palette.",
+  "image": {
+   "file": "Sprite Zulan In Ruins.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/ae/Sprite_Zulan_In_Ruins.png/revision/latest?cb=20220125104530",
+   "width": 420,
+   "height": 420
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.40 < 0.90 (ui/cd_ok_1)"
+ },
+ {
+  "name": "Zulan The Colossus",
+  "page": "https://soul-knight.fandom.com/wiki/Zulan_The_Colossus",
+  "found_in": {
+   "raw": "Level 3-5 ([[Spaceship]])",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "960",
+   "parts": [
+    {
+     "value": 960
+    }
+   ],
+   "number": 960
+  },
+  "health_champion": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_special": null,
+  "unique_attacks": "9",
+  "motif_weapon": "- Floating Laser \n- Floating Gun",
+  "drops": {
+   "rare": [
+    "WiFi Booster blueprint",
+    "Zulan Fragment"
+   ],
+   "common": [
+    "Battery",
+    "Parts",
+    "Ironstone"
+   ]
+  },
+  "categories": [
+   "Spaceship",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "Колосс Зулан"
+  },
+  "attacks": [
+   {
+    "name": "Normal Phase",
+    "text": "- Has its Floating Guns chase after the player for a bit. They will attack with either lasers (given away with a warmup sound and a warning beam) or spreads of bullets.\n- Fires a radial burst of large bullets.\n- Lines up its drones in front of itself and either has them fire spreads of bullets or linear lasers in that direction.\n- Arranges its drones in a loose formation in front of itself and has them attack in a cone in front of it with either bullet spreads or lasers.\n- Has its drones rotate around it and fire either bullet spreads or linear lasers. This is followed by it lining up its drones in front of itself and firing the attack it used before in front of itself while it tries to ..."
+   },
+   {
+    "name": "Enraged Phase",
+    "text": "- Attacks much faster.\n- Can now fire a radial burst of arrowheads that leave trails of floating bullets.\n- Can now attack by himself while his drones are chasing players."
+   }
+  ],
+  "tactics": "Since Zulan focuses on spamming bullets and can clog the screen quickly, use a character with a skill that allows for invulnerability or escape, such as the Assassin, Rogue, or Paladin. It is also useful to have the Reflect Buff to slightly speed up the fight, as many of his projectiles can be turned against him.\nIf possible, a Fine Magic Staff or Shield can help tremendously, as it allows the player to completely render all the bullet attacks useless by blocking them. However, caution is still to be applied around it, given that the lasers can get through the protective barrier provided by the weapons with devastating consequences. Both weapons also have to be periodically recasted, especially the Shield. They perform better if the Reflect Buff is active.\nA powerful, fast-acting weapon is also recommended. However, given this, a lot of Energy is needed for this boss. Therefore, by worshipping the Statue of the Priest, one can slowly regain Energy to keep up the assault, but they still need to finish the fight fast. Given the circumstances, both a melee weapon with good range and a powerful ranged weapon are crucial to win the fight.\nIf the second boss is Iron Pirate King Level, ...",
+  "room": "There are four hazard blocks that can be used for cover in the corners of the room. There are eight test tubes along the edges of the room, but they serve little to no purpose than identifying Zulan's boss room and providing very minimal cover.",
+  "image": {
+   "file": "Sprite Zulan The Colossus.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/66/Sprite_Zulan_The_Colossus.png/revision/latest?cb=20181207114011",
+   "width": 193,
+   "height": 206
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_35",
+   "score": 0.9995,
+   "mask": 0.9995,
+   "factor": 4.494,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "⊿卝⊙ϟ‡",
+  "page": "https://soul-knight.fandom.com/wiki/%E2%8A%BF%E5%8D%9D%E2%8A%99%CF%9F%E2%80%A1",
+  "found_in": {
+   "raw": "Level 2-5 ([[Swamp]])",
+   "levels": [
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "normal_mode": true,
+  "health": {
+   "raw": "960",
+   "parts": [
+    {
+     "value": 960
+    }
+   ],
+   "number": 960
+  },
+  "health_champion": {
+   "raw": "1200",
+   "parts": [
+    {
+     "value": 1200
+    }
+   ],
+   "number": 1200
+  },
+  "health_special": null,
+  "unique_attacks": "4",
+  "motif_weapon": "Dark Shadow",
+  "drops": {
+   "rare": [
+    "Hymn cassette"
+   ],
+   "common": [
+    "Magic Fragments"
+   ]
+  },
+  "categories": [
+   "Swamp",
+   "Enemies",
+   "Bosses"
+  ],
+  "names": {
+   "ru": "◿⊣⊢⨀ϟ‡"
+  },
+  "attacks": [
+   {
+    "name": "Standard Attacks",
+    "text": "- Fires solid streams of wavy projectiles in every direction. At the end of the attack, fires two slower rings of shots.\n- Fires large spinning circles of bullets in all directions.\n- Fires two sweeping streams of decelerating shots to its sides. \n- Fires a large storm of homing arrowheads that explode into aimed spreads of bullets when they get close to a player\n- Remains stationary and plants Tentacles of the Past into the ground, which will appear in random locations."
+   },
+   {
+    "name": "Special Attack",
+    "text": "- Only used when enraged, and not in Little Commander mode.\n- Tears a large rift into the ground and sticks a large tentacle into it as it charges up, firing several rings of projectiles in the process.\n- Until the attack ends, it does not take damage or move, and instead heals 1 per hit.\n- A red timer appears above the player. After 10 seconds, the boss triggers a full screen flash and launches an undodgeable attack dealing 5 (6 in Badass Mode) damage.\n- When the attack is done (whether the player dodges the attack or not), the room is clogged with water bogs for 10 seconds.\n- In random locations in the room, two to three runes and a golden silhouette will spawn. The silhouette is the same ..."
+   }
+  ],
+  "tactics": "Because the room has no cover, ◿ ⊣⊢ ⨀ ϟ ‡ can be a tough foe. It has bullet storms, dangerous AOE strikes, and annoying minions.\nThe attack patterns mean that unless with adequate protection to tank all the projectiles or if the weapon is able to disable the boss for extended periods, melee strategies are ineffective. A melee weapon is still useful for destroying the projectiles from a distance, and can function in conjunction with the Reflect Buff (but can be bad for the full-screen attack). As for ranged weapons they are less affected and can be used to the player's desire. The aim is to demolish it at speed or otherwise it can be impossible to win.\nFor the full-screen attack, although it is possible to negate or reduce its damage, it is still advised to watch the field carefully and always move to the glowing target at worst case. The resulting water bog isn't dangerous on its own and it despawns after several seconds, but can be threatening if other threats close in. The more dangerous portion of this attack are the bullet rings, as the barrier only protects the player from the full-screen attack, therefore, timing is necessary in order to dodge the rings and return to the ...",
+  "room": "At first, there are 4 Elite Goblin Guards (Axe), a Goblin Shaman and a Goblin Giant. They first communicate with some emojis. When the player enters the room, they will move into a pentagon formation with the Goblin Giant in the middle, and all of them will react with \"boss\" emoji. They are then grabbed into an enormous portal by Tentacles of the Past. ⊿卝⊙ϟ‡ emerges quickly, and the boss fight starts.\nThe room is clear and has no cover at all. The room environment varies by the boss' attacks.",
+  "image": {
+   "file": "Sprite ⊿卝⊙ϟ‡.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/92/Sprite_%E2%8A%BF%E5%8D%9D%E2%8A%99%CF%9F%E2%80%A1.png/revision/latest?cb=20221229081431",
+   "width": 498,
+   "height": 294
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_11",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ }
+]

@@ -1,0 +1,36 @@
+{
+ "heroes": {
+  "total": 42
+ },
+ "levels": {
+  "biomes": 17,
+  "floors": 4
+ },
+ "bosses": {
+  "total": 58,
+  "with_image": 58,
+  "matched": 38,
+  "matched_exact": 33,
+  "near_only": 2,
+  "rate_of_all": 0.655,
+  "rate_of_with_image": 0.655
+ },
+ "weapons": {
+  "total": 540,
+  "with_image": 540,
+  "matched": 467,
+  "matched_exact": 380,
+  "near_only": 25,
+  "rate_of_all": 0.865,
+  "rate_of_with_image": 0.865
+ },
+ "enemies": {
+  "total": 151,
+  "with_image": 115,
+  "matched": 89,
+  "matched_exact": 63,
+  "near_only": 2,
+  "rate_of_all": 0.589,
+  "rate_of_with_image": 0.774
+ }
+}

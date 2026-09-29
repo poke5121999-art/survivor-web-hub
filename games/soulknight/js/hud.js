@@ -202,6 +202,7 @@
     goldAndMap(ctx, G);
     weaponAndSkill(ctx, G);
     joystick(ctx);
+    SK.emit('hud', ctx, G);
     overlays(ctx, G);
   };
 })();

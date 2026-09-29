@@ -1,0 +1,9553 @@
+[
+ {
+  "name": "Abyss Knights",
+  "page": "https://soul-knight.fandom.com/wiki/Abyss_Knights",
+  "type": null,
+  "health": {
+   "raw": "31<br/>60 {{Champion}}",
+   "normal": 31,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "Boar: 3 ({{Champion}}4) <br/>Goblin: 4 ({{Champion}}5)",
+   "champion": null,
+   "champion_text": "Boar: 3"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-2 to 2-5 (Swamp)",
+   "levels": [
+    "2-2",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Abyss Knights.gif",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/39/Abyss_Knights.gif/revision/latest?cb=20210315152837",
+   "width": 720,
+   "height": 720
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.10 < 0.90 (window_draw/2-Xualyria)"
+ },
+ {
+  "name": "Alien (Laser Gun)",
+  "page": "https://soul-knight.fandom.com/wiki/Alien_%28Laser_Gun%29",
+  "type": null,
+  "health": {
+   "raw": "25 <br/> 48 {{Champion}}",
+   "normal": 25,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Spaceship)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- Fires 2 quick bursts of penetrating laser beams. The lasers can deal up to 8 damage.\n- In Champion form, it has 48 health and fires 3 quick bursts of laser beams, dealing 5 damage each.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "AlineLaserGun.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (AlineLaserGun.png)"
+ },
+ {
+  "name": "Alien (Laser Sword Red)",
+  "page": "https://soul-knight.fandom.com/wiki/Alien_%28Laser_Sword_Red%29",
+  "type": null,
+  "health": {
+   "raw": "30 <br/> 70 {{Champion}}",
+   "normal": 30,
+   "champion": 70
+  },
+  "damage": {
+   "raw": "5 <br/> 6 {{Champion}}",
+   "normal": 5,
+   "champion": 6
+  },
+  "weapon": "Laser Sword Red",
+  "found_in": {
+   "raw": "3-1 to 3-5 (Spaceship)",
+   "levels": [
+    "3-1",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-1",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "AlienLaserSword.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (AlienLaserSword.png)"
+ },
+ {
+  "name": "Alien (Machine Gun)",
+  "page": "https://soul-knight.fandom.com/wiki/Alien_%28Machine_Gun%29",
+  "type": null,
+  "health": {
+   "raw": "25 <br/> 48 {{Champion}}",
+   "normal": 25,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-1 to 3-5 (Spaceship)",
+   "levels": [
+    "3-1",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-1",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- They will fire 2 bursts of 3 wide-spread beam-shaped bullets at the player, similarly to the Flame Blaster.\n- In Champion form, it has 48 health and fires bullets much more rapidly.\nThere is no increase in bullets.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "AlienMachineGun.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (AlienMachineGun.png)"
+ },
+ {
+  "name": "Amphibian Pirate Type C",
+  "page": "https://soul-knight.fandom.com/wiki/Amphibian_Pirate_Type_C",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 35 {{Champion}}",
+   "normal": 20,
+   "champion": 35
+  },
+  "damage": {
+   "raw": "3 <br/> 3 {{Champion}}",
+   "normal": 3,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-1 to 3-5 (Neo Isle)",
+   "levels": [
+    "3-1",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-1",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": "- Shoot a harpoon when on land.\n- In Champion form, it has 35 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Neo Isle",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Amphibian Pirate Type C.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Amphibian Pirate Type C.png)"
+ },
+ {
+  "name": "Ancient Gear Set",
+  "page": "https://soul-knight.fandom.com/wiki/Ancient_Gear_Set",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 40 {{Champion}}",
+   "normal": 20,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "2 <br/> 2 {{Champion}}",
+   "normal": 2,
+   "champion": 2
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 1-x (Mechanical Ruins)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Mechanical Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Mechanical Ruins"
+   ]
+  },
+  "behavior": "- Fires a 5-tile-long laser beam at the player, dealing 2 damage.\n- In Champion form, it has 40 health and the laser has no length limit.\n- Ancient Gear Set is immobilized while aiming. A thin red laser appears to indicate the attack direction, similar to Elf in Focus Fire.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Mechanical Ruins",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Ancient Gear Set.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/6a/Sprite_Ancient_Gear_Set.png/revision/latest?cb=20220205194336",
+   "width": 540,
+   "height": 540,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (351x306, hệ số 1)"
+ },
+ {
+  "name": "Baby Snow Ape",
+  "page": "https://soul-knight.fandom.com/wiki/Baby_Snow_Ape",
+  "type": null,
+  "health": {
+   "raw": "9 <br/> 30 {{Champion}}",
+   "normal": 9,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Glacier)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Leaps in the air and creates a shockwave when it lands, dealing 3 damage.\n- In Champion form, it has 30 health, moves faster and creates a much larger shockwave.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Baby Snow Ape.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/a1/Sprite_Baby_Snow_Ape.png/revision/latest?cb=20181207060333",
+   "width": 145,
+   "height": 172,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_62",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.81,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Battery (Enemy)",
+  "page": "https://soul-knight.fandom.com/wiki/Battery_%28Enemy%29",
+  "type": null,
+  "health": {
+   "raw": "15 <br/> 60 {{Champion}}",
+   "normal": 15,
+   "champion": 60
+  },
+  "damage": {
+   "raw": null
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 2-4, 2-5 (Knight kingdom)<br/> Level 2-2 to 2-5(Dungeon)<br/> Level 3-1 (Spaceship)",
+   "levels": [
+    "2-2",
+    "2-4",
+    "2-5",
+    "3-1"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-5",
+    "3-1"
+   ],
+   "normal_biomes": [
+    "Dungeon",
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 5
+    },
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 1
+    }
+   ],
+   "biomes": [
+    "Dungeon",
+    "Spaceship"
+   ]
+  },
+  "behavior": "- This enemy stays stationary and will randomly perform the following actions:\n- Fires 1 big bullets that breaks into 12 smaller bullets. The big bullets deal 5 damage, while the smaller ones deal 2 damage.\n- Fires 1 single piercing beam, dealing 4 damage.\n- In Champion form, it has 60 health, fires 3 big bullets, but loses the laser attack.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "JPEG 20170822 220143.jpg",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/b5/JPEG_20170822_220143.jpg/revision/latest?cb=20180217075907",
+   "width": 292,
+   "height": 292
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (292x292, hệ số 1)"
+ },
+ {
+  "name": "Big Skeleton",
+  "page": "https://soul-knight.fandom.com/wiki/Big_Skeleton",
+  "type": null,
+  "health": {
+   "raw": "50 <br/> 140 {{Champion}}",
+   "normal": 50,
+   "champion": 140
+  },
+  "damage": {
+   "raw": null
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-3 to 2-5 (Dungeon)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- This enemy will randomly perform the following actions:\n- Rams into the player, dealing 5 damage.\n- Slams the ground with its hammer, releasing 18 round bullets in all direction, each bullet deals 3 damage.\n- Holds the shield in a defensive position, ignoring all damage.\n- In Champion form, it has 140 health and the bullets are cross-shaped.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Big Skeleton.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/8e/Sprite_Big_Skeleton.png/revision/latest?cb=20181207134121",
+   "width": 174,
+   "height": 151,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_28",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.556,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Big Soldier",
+  "page": "https://soul-knight.fandom.com/wiki/Big_Soldier",
+  "type": null,
+  "health": {
+   "raw": "60 <br/> 150 {{Champion}}",
+   "normal": 60,
+   "champion": 150
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 2-4 to 2-5 (Knight Kingdom)",
+   "levels": [
+    "2-4",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-4",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": "- Fires numerous diamond-shaped bullets with low accuracy, each bullet does 3 damage. \n- In Champion form, it has 150 health and performs the same attack with bigger oval-shape bullets.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Knight Kingdom",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Big Soldier.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/e9/Sprite_Big_Soldier.png/revision/latest?cb=20181207134138",
+   "width": 160,
+   "height": 165,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_27",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.561,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Bishop",
+  "page": "https://soul-knight.fandom.com/wiki/Bishop",
+  "type": null,
+  "health": {
+   "raw": "28 <br/> 45 {{Champion}}",
+   "normal": 28,
+   "champion": 45
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-3 to 2-5 (Chiseltown)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "behavior": "- Perform optoelectronic attack, dealing 2 damage.\n- In Champion form, it has 40 health.\n- May drop Parts when defeated.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Chiseltown",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Bishop.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c4/Sprite_Bishop.png/revision/latest?cb=20220728140519",
+   "width": 170,
+   "height": 103,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "sprite_atlas",
+   "name": "enemy_list_3_6",
+   "score": 0.9152,
+   "mask": 1.0,
+   "factor": 3.521,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/enemy_list_3_6"
+   ]
+  }
+ },
+ {
+  "name": "Boar",
+  "page": "https://soul-knight.fandom.com/wiki/Boar",
+  "type": "Melee",
+  "health": {
+   "raw": "8 <br/> 26 {{Champion}}",
+   "normal": 8,
+   "champion": 26
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 1-x (Forest)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 2 damage.\n- In Champion form, it has 26 health and the attack deal 4 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Boar.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/37/Sprite_Boar.png/revision/latest?cb=20181207022657",
+   "width": 159,
+   "height": 116,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/1/a",
+   "name": "enemy27_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.833,
+   "transform": "id",
+   "equal": 7,
+   "alts": [
+    "level/1/a/enemy27_4",
+    "bin_datapack/enemy_list_46",
+    "mount/boar/enemy27_0",
+    "mount/boar/enemy27_4",
+    "skill_demo/enemy27_0"
+   ]
+  }
+ },
+ {
+  "name": "Boomerang Cactus",
+  "page": "https://soul-knight.fandom.com/wiki/Boomerang_Cactus",
+  "type": null,
+  "health": {
+   "raw": "24",
+   "normal": 24
+  },
+  "damage": {
+   "raw": "3 / 0.5 seconds",
+   "normal": null,
+   "normal_text": "3 / 0.5 seconds"
+  },
+  "weapon": "Boomerang",
+  "found_in": {
+   "raw": "1-3 to 1-5 (Forest)",
+   "levels": [
+    "1-3",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-3",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Boomerang Cactus is a stationary enemy.\n- Throws a piercing boomerang, dealing 3 damage.\n- In Champion form, it has 60 health and the boomerang is much bigger.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Boomerang Cactus.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/69/Sprite_Boomerang_Cactus.png/revision/latest?cb=20200730075233",
+   "width": 143,
+   "height": 160
+  },
+  "sprite": {
+   "bundle": "sprite_atlas",
+   "name": "e_plottedPlant",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 5.578,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/e_plottedPlant"
+   ]
+  }
+ },
+ {
+  "name": "Burning Beetle",
+  "page": "https://soul-knight.fandom.com/wiki/Burning_Beetle",
+  "type": null,
+  "health": {
+   "raw": "24 <br/> 48 {{Champion}}",
+   "normal": 24,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "4 per tick",
+   "normal": null,
+   "normal_text": "4 per tick"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 3-3 to 3-5 (Volcano)",
+   "levels": [
+    "3-3",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-3",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 4 damage. Fires a laser beam, dealing 4 damage.\n- In Champion form, it has 48 health, the bump deals 5 damage. Upon defeated, it leaves behind a fire pool.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "BurningBeetle.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (BurningBeetle.png)"
+ },
+ {
+  "name": "Chester",
+  "page": "https://soul-knight.fandom.com/wiki/Chester",
+  "type": null,
+  "health": {
+   "raw": "50",
+   "normal": 50
+  },
+  "damage": {
+   "raw": "3/4",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Any floor except 3-6",
+   "levels": [
+    "3-6"
+   ],
+   "modes": [],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Chester.gif",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/5d/Chester.gif/revision/latest?cb=20220429141939",
+   "width": 540,
+   "height": 540
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (270x270, hệ số 2)"
+ },
+ {
+  "name": "Code Name: Dancer",
+  "page": "https://soul-knight.fandom.com/wiki/Code_Name%3A_Dancer",
+  "type": null,
+  "health": {
+   "raw": "32 <br/> 40 {{Champion}}",
+   "normal": 32,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "2 <br/> ? {{Champion}}",
+   "normal": 2,
+   "champion": null,
+   "champion_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Neo Isle)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": "- Throw a fast-moving boomerang, \n- In Champion form, it has 40 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Neo Isle",
+  "categories": [
+   "WIP",
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Code Name Dancer.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/d6/Sprite_Code_Name_Dancer.png/revision/latest?cb=20210823011408",
+   "width": 221,
+   "height": 202
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_45",
+   "score": 0.9592,
+   "mask": 1.0,
+   "factor": 6.491,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Crystal Beetle",
+  "page": "https://soul-knight.fandom.com/wiki/Crystal_Beetle",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 30 {{Champion}}",
+   "normal": 8,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-2 to 1-5 (Glacier)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 2 damage.\n- In Champion form, it has 40 health, and the attack deals 4 damage instead. Upon death, it releases 12 ice shards in all directions, dealing 2 damage with a chance to cause Freeze.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Crystal Beetle.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/bb/Sprite_Crystal_Beetle.png/revision/latest?cb=20181207060321",
+   "width": 178,
+   "height": 172,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_65",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.745,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Crystal Giant",
+  "page": "https://soul-knight.fandom.com/wiki/Crystal_Giant",
+  "type": null,
+  "health": {
+   "raw": "54 <br/> 130 {{Champion}}",
+   "normal": 54,
+   "champion": 130
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-3 to 2-5 (Cave)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Summons 5 consecutive ice spikes in the player's direction, similar to ones that is summoned by Crystal Crab's Katana, each spike does damage on contact with the player, fires 7 consecutive bullet on all directions following by piercing bullet.\n- In Champion form, it has 60 health, release 11 bullet on all direction dealing 4 damage, summons 7 spike.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Cave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Crystal Giant.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/ba/Sprite_Crystal_Giant.png/revision/latest?cb=20201117034146",
+   "width": 402,
+   "height": 339,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.39 < 0.90 (sprite_atlas/hero_c01_skin_15_bullet_4_2)"
+ },
+ {
+  "name": "Crystal Giant Jr.",
+  "page": "https://soul-knight.fandom.com/wiki/Crystal_Giant_Jr.",
+  "type": null,
+  "health": {
+   "raw": "24 <br/> 54 {{Champion}}",
+   "normal": 24,
+   "champion": 54
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "levels 2-1 to 2-3 (Cave)",
+   "levels": [
+    "2-1",
+    "2-3"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-3"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 3
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Summons 5 consecutive ice spikes in the player's direction, similar to ones that is summoned by Crystal Crab's Katana, each spike does 3 damage on contact with the player.\n- In Champion form, it has 32 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Cave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Crystal Giant Jr..PNG",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Crystal Giant Jr..PNG)"
+ },
+ {
+  "name": "Crystal Starfish",
+  "page": "https://soul-knight.fandom.com/wiki/Crystal_Starfish",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 45 {{Champion}}",
+   "normal": 12,
+   "champion": 45
+  },
+  "damage": {
+   "raw": "2 <br/> 4 {{Champion}}",
+   "normal": 2,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-3 to 1-5 (Glacier)",
+   "levels": [
+    "1-3",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-3",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Fires 10 consecutive bullets in all directions, followed by a piercing bullet. The normal bullet deals 2 damage each, while the piercing one deals 3 damage\n- In Champion form, it has 45 health, and all projectiles deal 1 extra damage in Champion form.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Crystal Starfish.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/74/Sprite_Crystal_Starfish.png/revision/latest?cb=20181207060048",
+   "width": 166,
+   "height": 192,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_63",
+   "score": 0.9955,
+   "mask": 1.0,
+   "factor": 6.854,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Dark Knight",
+  "page": "https://soul-knight.fandom.com/wiki/Dark_Knight",
+  "type": null,
+  "health": {
+   "raw": "48 <br/> 96 {{Champion}}",
+   "normal": 48,
+   "champion": 96
+  },
+  "damage": {
+   "raw": "3/4 <br/> 4/5 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-4 to 2-5 (Knight Kingdom)",
+   "levels": [
+    "2-4",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-4",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": "- Rams into the player, dealing 3 damage; or performs a melee swing, dealing 4 damage.\n- In Champion form, it has 96 health, the ramming attack deals 4 damage instead of 3.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Knight Kingdom",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Dark Knight.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/43/Sprite_Dark_Knight.png/revision/latest?cb=20210825015425",
+   "width": 222,
+   "height": 210,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_51",
+   "score": 0.9927,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Dire Boar",
+  "page": "https://soul-knight.fandom.com/wiki/Dire_Boar",
+  "type": null,
+  "health": {
+   "raw": "10 <br/> 30 {{Champion}}",
+   "normal": 10,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-2 to 1-5 (Forest)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Rams into the player, dealing 3 damage.\n- In Champion form, it has 30 health and the attack deal 4 damage.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Dire Boar.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/35/Sprite_Dire_Boar.png/revision/latest?cb=20181207022717",
+   "width": 179,
+   "height": 144,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/1/a",
+   "name": "enemy28_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.833,
+   "transform": "id",
+   "equal": 6,
+   "alts": [
+    "level/1/a/enemy28_4",
+    "bin_datapack/enemy_list_47",
+    "bin_datapack/ex_boar02_plant",
+    "mount/boar2/enemy28_0",
+    "mount/boar2/enemy28_4"
+   ]
+  }
+ },
+ {
+  "name": "Elite Goblin Archer",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Goblin_Archer",
+  "type": null,
+  "health": {
+   "raw": "15 <br/> 50 {{Champion}}",
+   "normal": 15,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "5 <br/> 6 {{Champion}}",
+   "normal": 5,
+   "champion": 6
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-4 and 1-5 (Forest)",
+   "levels": [
+    "1-4",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-4",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 4,
+     "to": 4
+    },
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Elite Goblin Archer becomes immobilized while aiming. A thin red laser appears to indicate the attack direction, similarly to Elf's Focus Fire.\n- Shoots an arrow at high velocity, knocking back and dealing 5 damage to the player.\n- In Champion form, its has 48 health and the attack deals 6 damage.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Goblin Archer.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/67/Sprite_Elite_Goblin_Archer.png/revision/latest?cb=20210825015421",
+   "width": 182,
+   "height": 203,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.86 < 0.90 (bin_datapack/enemy_list_2_49)",
+  "sprite_near": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_49",
+   "score": 0.8615,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Goblin Guard (Axe)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Goblin_Guard_%28Axe%29",
+  "type": "Goblin Guard",
+  "health": {
+   "raw": "15 <br/> 50 {{Champion}}",
+   "normal": 15,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-2 to 1-5 (Forest)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Performs a swing, dealing 3 damage.\n- In Champion form, it has 55 health.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Goblin Guard Axe.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c1/Sprite_Elite_Goblin_Guard_Axe.png/revision/latest?cb=20181207022544",
+   "width": 185,
+   "height": 199,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_44",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.712,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Goblin Guard (Blowpipe)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Goblin_Guard_%28Blowpipe%29",
+  "type": null,
+  "health": {
+   "raw": "15<br/> 50 {{Champion}}",
+   "normal": 15,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "3 + Poison",
+   "normal": null,
+   "normal_text": "3 + Poison"
+  },
+  "weapon": "Blowpipe",
+  "found_in": {
+   "raw": "1-2 to 1-5 (Forest)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Fires a long bullet, dealing 3 damage and inflicting Poison.\n- In Champion form, it has 50 health.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Goblin Guard Blowpipe.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/74/Sprite_Elite_Goblin_Guard_Blowpipe.png/revision/latest?cb=20181207022519",
+   "width": 178,
+   "height": 178,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_43",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.75,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Goblin Guard (Shotgun)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Goblin_Guard_%28Shotgun%29",
+  "type": "Ranged",
+  "health": {
+   "raw": "15 <br/> 40 {{Champion}}",
+   "normal": 15,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-2 to 1-5 (Forest)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Fires 5 bullets that spread out in a cone shape, dealing 3 damage each.\n- In Champion form, it has 40 health and fires 9 bullets in a much bigger cone.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Goblin Guard Shotgun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/2e/Sprite_Elite_Goblin_Guard_Shotgun.png/revision/latest?cb=20181207022451",
+   "width": 185,
+   "height": 178,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_42",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.81,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Grave Skeleton (Javelin)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Grave_Skeleton_%28Javelin%29",
+  "type": null,
+  "health": {
+   "raw": "16 <br/> 40 {{Champion}}",
+   "normal": 16,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": "Javelin",
+  "found_in": {
+   "raw": "2-1 to 2-5 (Grave)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "behavior": "- .\n- In Champion form, it has ?? health.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Grave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Grave Skeleton Javelin.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/64/Sprite_Elite_Grave_Skeleton_Javelin.png/revision/latest?cb=20210317044047",
+   "width": 264,
+   "height": 184,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_36",
+   "score": 0.971,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Grave Skeleton (Mace)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Grave_Skeleton_%28Mace%29",
+  "type": null,
+  "health": {
+   "raw": "20 (not confirmed)",
+   "normal": 20
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Grave)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "behavior": "- .\n- In Champion form, it has ?? health.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Grave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Grave Skeleton Mace.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/40/Sprite_Elite_Grave_Skeleton_Mace.png/revision/latest?cb=20210317044048",
+   "width": 232,
+   "height": 192,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_35",
+   "score": 0.9756,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Grave Skeleton (Sword)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Grave_Skeleton_%28Sword%29",
+  "type": null,
+  "health": {
+   "raw": "20 (unconfirmed)",
+   "normal": 20
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Grave)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "behavior": "- .\n- In Champion form, it has ?? health.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Grave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Grave Skeleton Sword.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/b1/Sprite_Elite_Grave_Skeleton_Sword.png/revision/latest?cb=20210317044048",
+   "width": 224,
+   "height": 184,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_34",
+   "score": 0.9581,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Knight (Rifle)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Knight_%28Rifle%29",
+  "type": "Knight",
+  "health": {
+   "raw": "24 <br/> 48 {{Champion}}",
+   "normal": 24,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "4/2",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Knight Kingdom)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": "- Fires 1 triangle bullet at high speed that leaves a trail or round bullets behind. The triangle bullet deals 4 damage, while the round ones deal 2 damage.\n- In Champion form, it has 40 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Knight Kingdom",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Knight Rifle.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/f/f7/Sprite_Elite_Knight_Rifle.png/revision/latest?cb=20181207134301",
+   "width": 199,
+   "height": 192,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (199x192, hệ số 1)"
+ },
+ {
+  "name": "Elite Knight (Shotgun)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Knight_%28Shotgun%29",
+  "type": null,
+  "health": {
+   "raw": "24 <br/> 48 {{Champion}}",
+   "normal": 24,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-2 to 2-5 (Knight Kingdom)",
+   "levels": [
+    "2-2",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": "- Fires 5 bullets spread out evenly in an angle. Each bullet deals 3 damage.\n- In its Champion form, it has 48 health, the enemy performs the same attack but at a higher frequency.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Knight Kingdom",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Knight Shotgun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/d4/Sprite_Elite_Knight_Shotgun.png/revision/latest?cb=20181207134347",
+   "width": 199,
+   "height": 192,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_4",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.727,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Knight (Sword)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Knight_%28Sword%29",
+  "type": null,
+  "health": {
+   "raw": "24 <br/> 70 {{Champion}}",
+   "normal": 24,
+   "champion": 70
+  },
+  "damage": {
+   "raw": "4 <br/> 6 {{Champion}}",
+   "normal": 4,
+   "champion": 6
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Knight Kingdom)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": "- Performs 1 swing that deals 4 damage.\n- In Champion form, it has 70 healt, the swing deal 5 damage instead of 4.",
+  "levels_in_floor": [
+   1,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Knight Kingdom",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Knight Sword.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/54/Sprite_Elite_Knight_Sword.png/revision/latest?cb=20181207134400",
+   "width": 178,
+   "height": 192,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_3",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.78,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Miner (Heavy)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Miner_%28Heavy%29",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 50 {{Champion}}",
+   "normal": 20,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "3 + 1 (explosion)",
+   "normal": null,
+   "normal_text": "3 + 1"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-2 to 1-5 (Glacier)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Miner Heavy.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/f/f5/Sprite_Elite_Miner_Heavy.png/revision/latest?cb=20181207060257",
+   "width": 142,
+   "height": 146,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_53",
+   "score": 0.999,
+   "mask": 0.999,
+   "factor": 4.509,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Miner (Rifle)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Miner_%28Rifle%29",
+  "type": null,
+  "health": {
+   "raw": "15 <br/> 40 {{Champion}}",
+   "normal": 15,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-2 to 1-5 (Glacier)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Fire a single bullet, dealing 4 damage.\n- In Champion form, it has 40 health.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Miner Rifle.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/43/Sprite_Elite_Miner_Rifle.png/revision/latest?cb=20181207060308",
+   "width": 192,
+   "height": 172,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_60",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.783,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Miner (Shotgun)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Miner_%28Shotgun%29",
+  "type": null,
+  "health": {
+   "raw": "15 <br/> 40 {{Champion}}",
+   "normal": 15,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-2 to 1-5 (Glacier)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Fires a cluster of 7 bubble bullets, dealing 2 damage each.\n- In Champion form, it has 35 health and fires 15 bubble bullets instead, dealing 3 damage each.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Miner Shotgun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/98/Sprite_Elite_Miner_Shotgun.png/revision/latest?cb=20181207060242",
+   "width": 185,
+   "height": 172,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_61",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.812,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Monkey (AK47)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Monkey_%28AK47%29",
+  "type": null,
+  "health": {
+   "raw": "14 <br/> 46 {{Champion}}",
+   "normal": 14,
+   "champion": 46
+  },
+  "damage": {
+   "raw": "2",
+   "normal": 2
+  },
+  "weapon": "AK-47",
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Fire 3 consecutive bullets with low accuracy, each bullet deals 2 damage.\n- In Champion form, it has 45 health, wield two rifles, and fires 6 bullets.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Monkey AK47.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/3a/Sprite_Elite_Monkey_AK47.png/revision/latest?cb=20190927143156",
+   "width": 192,
+   "height": 210,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_109",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Monkey (Rocket Fireworks)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Monkey_%28Rocket_Fireworks%29",
+  "type": null,
+  "health": {
+   "raw": "14 <br/> 46 {{Champion}}",
+   "normal": 14,
+   "champion": 46
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": "Rocket Fireworks",
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Monkey Rocket Fireworks.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/61/Sprite_Elite_Monkey_Rocket_Fireworks.png/revision/latest?cb=20190927143156",
+   "width": 174,
+   "height": 210,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_110",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Mummy (SMG)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Mummy_%28SMG%29",
+  "type": null,
+  "health": {
+   "raw": "32 <br/> 70 {{Champion}}",
+   "normal": 32,
+   "champion": 70
+  },
+  "damage": {
+   "raw": null
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Volcano)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "EliteMummySMG.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (EliteMummySMG.png)"
+ },
+ {
+  "name": "Elite Mummy (Staff)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Mummy_%28Staff%29",
+  "type": null,
+  "health": {
+   "raw": "25 <br/> 60 {{Champion}}",
+   "normal": 25,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "none",
+   "normal": null,
+   "normal_text": "none"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Volcano)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Heals 10 health for itself and nearby enemies. This enemy has no way to attack the player.\n- In Champion form, it has 60 health and heals 30 health instead.\n- May drop Torn page Pray when defeated.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "EliteMummyStaff.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (EliteMummyStaff.png)"
+ },
+ {
+  "name": "Elite Pumpkin Man (Rifle)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Pumpkin_Man_%28Rifle%29",
+  "type": null,
+  "health": {
+   "raw": "18 <br/> 42 {{Champion}}",
+   "normal": 18,
+   "champion": 42
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-3 to 2-5 (Halloween)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Fire 1 homing bullet, dealing 4 damage.\n- In Champion form, it has 42 health.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Pumpkin Man Rifle.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/e8/Sprite_Elite_Pumpkin_Man_Rifle.png/revision/latest?cb=20181207134414",
+   "width": 185,
+   "height": 199,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_89",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.76,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Pumpkin Man (Scythe)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Pumpkin_Man_%28Scythe%29",
+  "type": null,
+  "health": {
+   "raw": "22 <br/> 50 {{Champion}}",
+   "normal": 22,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": "Sickle",
+  "found_in": {
+   "raw": "2-2 to 2-5 (Halloween)",
+   "levels": [
+    "2-2",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Performs a swing attack, dealing 4 damage\n- In Champion form, it has 50 health and the attack deals 5 damage.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Pumpkin Man Scythe.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/9e/Sprite_Elite_Pumpkin_Man_Scythe.png/revision/latest?cb=20181207134450",
+   "width": 213,
+   "height": 220,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_88",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.78,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Pumpkin Man (Shotgun)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Pumpkin_Man_%28Shotgun%29",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 42 {{Champion}}",
+   "normal": 20,
+   "champion": 42
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": "Twin-barrel Rifle",
+  "found_in": {
+   "raw": "2-3 to 2-5 (Halloween)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Fires 3 diamond-shaped bullets, thrice in a row. Each bullet deals 3 damage.\n- In Champion from, it has 42 health and each shot consists of 5 bullets instead of 3.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Pumpkin Man Shotgun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/78/Sprite_Elite_Pumpkin_Man_Shotgun.png/revision/latest?cb=20181207134504",
+   "width": 178,
+   "height": 199,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_90",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.776,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Skeleton (Rifle)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Skeleton_%28Rifle%29",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 40 {{Champion}}",
+   "normal": 20,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Dungeon)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Fires 9 consecutive bullets, dealing 3 damage each.\n- In Champion form, it has 40 health, the bullets are cross-shaped and deal 4 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Skeleton Rifle.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0d/Sprite_Elite_Skeleton_Rifle.png/revision/latest?cb=20181207134523",
+   "width": 192,
+   "height": 161,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_14",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.775,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Skeleton (Shotgun)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Skeleton_%28Shotgun%29",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 40 {{Champion}}",
+   "normal": 20,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Dungeon)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Fires a cluster of 9 diamond-shaped bullets with low accuracy, each bullet deals 3 damage.\n- In Champion form, it has 40 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Skeleton Shotgun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0b/Sprite_Elite_Skeleton_Shotgun.png/revision/latest?cb=20181207134537",
+   "width": 192,
+   "height": 158,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_13",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.822,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Elite Skeleton (Sword)",
+  "page": "https://soul-knight.fandom.com/wiki/Elite_Skeleton_%28Sword%29",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 60 {{Champion}}",
+   "normal": 20,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "5 <br/> 5+4 {{Champion}}",
+   "normal": 5,
+   "champion": null,
+   "champion_text": "5+4"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Dungeon)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Performs a swing attack, dealing 5 damage.\n- In Champion form, it has 60 health and the attack releases 13 triangle bullets in an arch, dealing 4 damage each.\n- The shield has no practical function.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Elite Skeleton Sword.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/1/1d/Sprite_Elite_Skeleton_Sword.png/revision/latest?cb=20181207134607",
+   "width": 178,
+   "height": 158,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_12",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.769,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Explosive Worker",
+  "page": "https://soul-knight.fandom.com/wiki/Explosive_Worker",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 48 {{Champion}}",
+   "normal": 12,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": "TNT",
+  "found_in": {
+   "raw": "2-1 to 2-5 (Cave)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Throws a TNT at the player, which will explode after a short delay. The TNT itself deals 3 damage, while the explosion deals 2 AoE damage and can inflict burn. Explosive Worker always places 1 TNT on the ground when defeated, like the normal attack it will explode after a short delay.\n- In Champion form, it has 32 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Cave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Explosive Worker.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/50/Sprite_Explosive_Worker.png/revision/latest?cb=20201117033113",
+   "width": 397,
+   "height": 391,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.25 < 0.90 (skin/character/warlock/skin_17/warlock_17_0_3)"
+ },
+ {
+  "name": "Fire Goblin Priest",
+  "page": "https://soul-knight.fandom.com/wiki/Fire_Goblin_Priest",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 48 {{Champion}}",
+   "normal": 12,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "1 <br/> 1 {{Champion}}",
+   "normal": 1,
+   "champion": 1
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-4 and 1-5 (Forest)",
+   "levels": [
+    "1-4",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-4",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 4,
+     "to": 4
+    },
+    {
+     "floor": 1,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Launches 6 fireballs, dealing 1 damage each. Upon impact with the floor, the fireballs break, creating a 1.5-tile-radius fire pool. The player takes 1 damage per second inside said pool.\n- In Champion form, its has 48 health.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Fire Goblin Priest.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/73/Sprite_Fire_Goblin_Priest.png/revision/latest?cb=20210825015417",
+   "width": 189,
+   "height": 203,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_50",
+   "score": 0.9586,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Flame Knight (Hammer)",
+  "page": "https://soul-knight.fandom.com/wiki/Flame_Knight_%28Hammer%29",
+  "type": null,
+  "health": {
+   "raw": "36 <br/> 80 {{Champion}}",
+   "normal": 36,
+   "champion": 80
+  },
+  "damage": {
+   "raw": "4 + Burn <br/> 5 + Burn {{Champion}}",
+   "normal": null,
+   "normal_text": "4 + Burn",
+   "champion": null,
+   "champion_text": "5 + Burn"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-2 to 3-5 (Volcano)",
+   "levels": [
+    "3-2",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-2",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Performs a swing attack, dealing 4 damage and causing burn.\n- In Champion form, it has 80 health and the attack deals 5 damage instead.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "FlameKnightHammer.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (FlameKnightHammer.png)"
+ },
+ {
+  "name": "Flame Knight (Spear)",
+  "page": "https://soul-knight.fandom.com/wiki/Flame_Knight_%28Spear%29",
+  "type": null,
+  "health": {
+   "raw": "36 <br/> 80 {{Champion}}",
+   "normal": 36,
+   "champion": 80
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-2 to 3-5 (Volcano)",
+   "levels": [
+    "3-2",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-2",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Performs a thrust attack, dealing 4 damage and causing burn.\n- In Champion form, it has 80 health and the attack deals 5 damage instead.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "FlameKnightSpear.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (FlameKnightSpear.png)"
+ },
+ {
+  "name": "Flame Knight Captain",
+  "page": "https://soul-knight.fandom.com/wiki/Flame_Knight_Captain",
+  "type": null,
+  "health": {
+   "raw": "70 <br/> 160 {{Champion}}",
+   "normal": 70,
+   "champion": 160
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-4 to 3-5 (Volcano)",
+   "levels": [
+    "3-4",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-4",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Fire a single bullet, dealing 4 damage, and creating a fire pool on impact.\n- In Champion form, it has 160 health and randomly performs one of the following actions:\n- Thrusts both arms forward and fires 3 arrow-shaped bullets that creates a small explosion on impact, dealing 4 damage.\n- Swings both arms downward and fires 8 triangle bullets in all directions, each of which deals 5 damage and leaves behind numerous rounded bullets on its trajectory, dealing 2 damage each.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "FlameKnightCaptain.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (FlameKnightCaptain.png)"
+ },
+ {
+  "name": "Floating Laser Crab MPT",
+  "page": "https://soul-knight.fandom.com/wiki/Floating_Laser_Crab_MPT",
+  "type": null,
+  "health": {
+   "raw": "30 <br/> 60 {{Champion}}",
+   "normal": 30,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-1 to 3-5 (Neo Isle)",
+   "levels": [
+    "3-1",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-1",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": "- - In Champion form, it has 60 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Neo Isle",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Floating Laser Crab MPT.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Floating Laser Crab MPT.png)"
+ },
+ {
+  "name": "Frog",
+  "page": "https://soul-knight.fandom.com/wiki/Frog",
+  "type": null,
+  "health": {
+   "raw": "9 <br/> 32 {{Champion}}",
+   "normal": 9,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3/5(explosion)",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Halloween)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 3 damage.\n- Leaps toward the player, creating a shockwave when lands. The shockwave deals 3 AoE damage.\n- Explodes when defeated, dealing 5 damage, can inflict Burn.\n- In Champion form, it has 40 health and the shockwave is much larger.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Frog.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/a5/Sprite_Frog.png/revision/latest?cb=20181207134625",
+   "width": 165,
+   "height": 116,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_91",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.833,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Goblin",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 32 {{Champion}}",
+   "normal": 20,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-2 to 3-5 (Spaceship)",
+   "levels": [
+    "3-2",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-2",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- Fire a burst of small rounded bullets in an arc in front of them.\n- In Champion form, it has 32 health, quickly fires 3 bursts of small bullets all around them, one quickly after another.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Goblin.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Goblin.png)"
+ },
+ {
+  "name": "Goblin Artist",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Artist",
+  "type": null,
+  "health": {
+   "raw": "24<br/>/ {{Champion}}",
+   "normal": 24,
+   "champion": null,
+   "champion_text": "/"
+  },
+  "damage": {
+   "raw": ""
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "levels 2-2 to 2-3 (Swamp)",
+   "levels": [
+    "2-2",
+    "2-3"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-3"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 3
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- Thrust the paintbrush 4 times.\n- In Champion form, it has ?? health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Goblin Artist.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/83/Sprite_Goblin_Artist.png/revision/latest?cb=20210316061631",
+   "width": 245,
+   "height": 189,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_14",
+   "score": 0.9323,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Goblin Fly",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Fly",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 40 {{Champion}}",
+   "normal": 20,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Spaceship)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- Fires a ring of projectiles at the target, each dealing 3 damage.\n- In Champion form, it has 40 health and fires 3 rings.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "GoblinFly.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (GoblinFly.png)"
+ },
+ {
+  "name": "Goblin Giant",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Giant",
+  "type": null,
+  "health": {
+   "raw": "40 <br/> 120 {{Champion}}",
+   "normal": 40,
+   "champion": 120
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-4 to 1-5 (Forest)",
+   "levels": [
+    "1-4",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-4",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Slams its hammer on the ground, releasing 5 clumps of projectiles in a circle that spread outward. Each clump contains 7 bullets, dealing 3 damage each.\n- In Champion form, it has 120 health and the attack deals 4 damage.\n- May drop Parts when defeated.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Goblin Giant.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/da/Sprite_Goblin_Giant.png/revision/latest?cb=20181207022609",
+   "width": 165,
+   "height": 165,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_38",
+   "score": 0.9938,
+   "mask": 0.9938,
+   "factor": 4.47,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Goblin Guard (Bow)",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Guard_%28Bow%29",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 24 {{Champion}}",
+   "normal": 8,
+   "champion": 24
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Forest)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Shoots an arrow, dealing 4 damage.\n- In Champion form, it has 24 health and the attack deal 5 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Goblin Guard Bow.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/b9/Sprite_Goblin_Guard_Bow.png/revision/latest?cb=20181207022214",
+   "width": 158,
+   "height": 171,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_41",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.837,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Goblin Guard (Pistol)",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Guard_%28Pistol%29",
+  "type": "Ranged",
+  "health": {
+   "raw": "8<br/>24 {{Champion}}",
+   "normal": 8,
+   "champion": 24
+  },
+  "damage": {
+   "raw": "2<br/>3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 1-x (Forest)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Fires a single bullet, dealing 2 damage.\n- In Champion form, it has 24 health and fires 3 consecutive bullets, dealing 3 damage each.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Goblin Guard Pistol.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/9b/Sprite_Goblin_Guard_Pistol.png/revision/latest?cb=20181207021958",
+   "width": 159,
+   "height": 171,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_39",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.841,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Goblin Guard (Spear)",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Guard_%28Spear%29",
+  "type": "Melee",
+  "health": {
+   "raw": "8 <br/> 32 {{Champion}}",
+   "normal": 8,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": "Goblin Spear",
+  "found_in": {
+   "raw": "Levels 1-1 to 1-5 (Forest)",
+   "levels": [
+    "1-1",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-1",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Performs a thrust attack, dealing 3 damage.\n- In Champion form, it has 32 health and the attack has a much larger hitbox.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Goblin Guard Spear.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/f/f8/Sprite_Goblin_Guard_Spear.png/revision/latest?cb=20181207022144",
+   "width": 178,
+   "height": 171,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_40",
+   "score": 0.9985,
+   "mask": 0.9985,
+   "factor": 6.833,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Goblin Shaman",
+  "page": "https://soul-knight.fandom.com/wiki/Goblin_Shaman",
+  "type": null,
+  "health": {
+   "raw": "15 <br/> 50 {{Champion}}",
+   "normal": 15,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "3 (big bullet)/ 2 (small bullet)",
+   "normal": null,
+   "normal_text": "3 (big bullet)/ 2"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-3 to 1-5 (Forest)",
+   "levels": [
+    "1-3",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-3",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Releases 3 star-shaped bullets, each of which bursts into 3 smaller bullets.\n- The star-shaped bullets deal 3 damage, while the smaller ones deal 2 damage.\n- In Champion form, it has 45 health and fires 5 star-shaped bullets instead. The damage is unchanged.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Goblin Shaman.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/e4/Sprite_Goblin_Shaman.png/revision/latest?cb=20181207022631",
+   "width": 158,
+   "height": 199,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_45",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.771,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Golden Beetle",
+  "page": "https://soul-knight.fandom.com/wiki/Golden_Beetle",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 30 {{Champion}}",
+   "normal": 8,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-3 to 1-5 (Glacier)",
+   "levels": [
+    "1-3",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-3",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 2 damage.\n- In Champion form, it has 40 health, and the attack deals 4 damage instead. Upon death, it release 8 bullets in all directions, dealing 2 damage each.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Golden Beetle.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/05/Sprite_Golden_Beetle.png/revision/latest?cb=20181207060216",
+   "width": 171,
+   "height": 159,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_64",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.818,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Grave Robber",
+  "page": "https://soul-knight.fandom.com/wiki/Grave_Robber",
+  "type": null,
+  "health": {
+   "raw": "24",
+   "normal": 24
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": "Shovel",
+  "found_in": {
+   "raw": "2-1 (Grave)",
+   "levels": [
+    "2-1"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 1
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "behavior": "- .\n- In Champion form, it has ?? health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Grave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Grave Robber.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/bd/Sprite_Grave_Robber.png/revision/latest?cb=20210317044029",
+   "width": 231,
+   "height": 196,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_31",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Grave Skeleton (Bow)",
+  "page": "https://soul-knight.fandom.com/wiki/Grave_Skeleton_%28Bow%29",
+  "type": null,
+  "health": {
+   "raw": "15 <br/> 40 {{Champion}}",
+   "normal": 15,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": "Bow",
+  "found_in": {
+   "raw": "2-x (Grave)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "behavior": "- .\n- In Champion form, it has ?? health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Grave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Grave Skeleton Bow.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c3/Sprite_Grave_Skeleton_Bow.png/revision/latest?cb=20210317044029",
+   "width": 154,
+   "height": 196,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_33",
+   "score": 0.961,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Grave Skeleton (Staff)",
+  "page": "https://soul-knight.fandom.com/wiki/Grave_Skeleton_%28Staff%29",
+  "type": null,
+  "health": {
+   "raw": "16 <br/> 54 {{Champion}}",
+   "normal": 16,
+   "champion": 54
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": "Staff",
+  "found_in": {
+   "raw": "2-1 to 2-5 (Grave)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "behavior": "- .\n- In Champion form, it has ?? health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Grave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Grave Skeleton Staff.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/2b/Sprite_Grave_Skeleton_Staff.png/revision/latest?cb=20210317044029",
+   "width": 154,
+   "height": 182,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_32",
+   "score": 0.9563,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Guard Crab",
+  "page": "https://soul-knight.fandom.com/wiki/Guard_Crab",
+  "type": null,
+  "health": {
+   "raw": "16 <br/> 48 {{Champion}}",
+   "normal": 16,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- The Guard Crabs detach from statues with tilted heads when the player is nearby. They stay passive and is invincible until they detach.\n- The Guard Crab carries an armored helm and is only briefly unmasked when attacking. While concealed, it only takes 1 damage from all attacks, or 2 on critical hits. Otherwise, it takes regular damage. However if it is inflicted with Electrify, it can take 3 damage per hit.\n- Launches 5 trails of spikes to the target in a spread pattern, each spike does 2 damage.\n- In Champion form, it has 48 health.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Guard Crab.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/a5/Sprite_Guard_Crab.png/revision/latest?cb=20200730075607",
+   "width": 155,
+   "height": 160,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/1/c",
+   "name": "lost_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.852,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "level/1/c/lost_6"
+   ]
+  }
+ },
+ {
+  "name": "GunShark",
+  "page": "https://soul-knight.fandom.com/wiki/GunShark",
+  "type": null,
+  "health": {
+   "raw": "40 {{Champion}}",
+   "champion": 40
+  },
+  "damage": {
+   "raw": "4 {{Champion}}",
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-1 and 1-3 (Forest)",
+   "levels": [
+    "1-1",
+    "1-3"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-1",
+    "1-3"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 1
+    },
+    {
+     "floor": 1,
+     "from": 3,
+     "to": 3
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Gun Shark only spawns in Champion form.\n- Rams into the player, dealing 4 damage.\n- It may drop Organic Matter.",
+  "levels_in_floor": [
+   1,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite GunShark.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/26/Sprite_GunShark.png/revision/latest?cb=20181207022741",
+   "width": 131,
+   "height": 137,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_83",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.794,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Haunted Goblin (Axe)",
+  "page": "https://soul-knight.fandom.com/wiki/Haunted_Goblin_%28Axe%29",
+  "type": null,
+  "health": {
+   "raw": "24<br/>50 {{Champion}}",
+   "normal": 24,
+   "champion": 50
+  },
+  "damage": {
+   "raw": ""
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Swamp)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- Swing their weapon to attack players.\n- In Champion form, it has 50 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Haunted Goblin Axe.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/62/Sprite_Haunted_Goblin_Axe.png/revision/latest?cb=20210316061632",
+   "width": 192,
+   "height": 180,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_20",
+   "score": 0.9573,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Haunted Goblin (Blowpipe)",
+  "page": "https://soul-knight.fandom.com/wiki/Haunted_Goblin_%28Blowpipe%29",
+  "type": null,
+  "health": {
+   "raw": "20<br/>40 {{Champion}}",
+   "normal": 20,
+   "champion": 40
+  },
+  "damage": {
+   "raw": ""
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Swamp)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- Fire a green bullet that can Poison foes.\n- In Champion form, it has 40 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Haunted Goblin Blowpipe.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/a6/Sprite_Haunted_Goblin_Blowpipe.png/revision/latest?cb=20210316061632",
+   "width": 203,
+   "height": 182,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_19",
+   "score": 0.9483,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Haunted Goblin (Bow)",
+  "page": "https://soul-knight.fandom.com/wiki/Haunted_Goblin_%28Bow%29",
+  "type": null,
+  "health": {
+   "raw": "12<br/>41 {{Champion}}",
+   "normal": 12,
+   "champion": 41
+  },
+  "damage": {
+   "raw": ""
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Swamp)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- This enemy wields a bow, slowly firing red arrows at enemies.\n- In Champion form, it has ?? health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Haunted Goblin Bow.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/01/Sprite_Haunted_Goblin_Bow.png/revision/latest?cb=20210316061632",
+   "width": 182,
+   "height": 189,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_17",
+   "score": 0.9729,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Haunted Goblin (Goblin Spear)",
+  "page": "https://soul-knight.fandom.com/wiki/Haunted_Goblin_%28Goblin_Spear%29",
+  "type": null,
+  "health": {
+   "raw": "9 <br/> 47 {{Champion}}",
+   "normal": 9,
+   "champion": 47
+  },
+  "damage": {
+   "raw": "x <br/> x {{Champion}}",
+   "normal": null,
+   "normal_text": "x",
+   "champion": null,
+   "champion_text": "x"
+  },
+  "weapon": "Goblin Spear",
+  "found_in": {
+   "raw": "2-x (Swamp)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Haunted Goblin (Goblin Spear).png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Haunted Goblin (Goblin Spear).png)"
+ },
+ {
+  "name": "Haunted Goblin (Pioneer)",
+  "page": "https://soul-knight.fandom.com/wiki/Haunted_Goblin_%28Pioneer%29",
+  "type": null,
+  "health": {
+   "raw": "12<br/>57 {{Champion}}",
+   "normal": 12,
+   "champion": 57
+  },
+  "damage": {
+   "raw": ""
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Swamp)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Haunted Goblin Pioneer.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/32/Sprite_Haunted_Goblin_Pioneer.png/revision/latest?cb=20210316061632",
+   "width": 175,
+   "height": 175,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_15",
+   "score": 0.9808,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Haunted Goblin (Shotgun)",
+  "page": "https://soul-knight.fandom.com/wiki/Haunted_Goblin_%28Shotgun%29",
+  "type": null,
+  "health": {
+   "raw": "20<br/>40 {{Champion}}",
+   "normal": 20,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3 <br> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Swamp)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- Fires 5 bullets in a spread angle.\n- In Champion form, it has 40 health, fire 9 bullets in a much bigger cone.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Haunted Goblin Shotgun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c6/Sprite_Haunted_Goblin_Shotgun.png/revision/latest?cb=20210316061632",
+   "width": 217,
+   "height": 182,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_18",
+   "score": 0.9578,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Haunted Goblin Giant",
+  "page": "https://soul-knight.fandom.com/wiki/Haunted_Goblin_Giant",
+  "type": null,
+  "health": {
+   "raw": "50<br/>150 {{Champion}}",
+   "normal": 50,
+   "champion": 150
+  },
+  "damage": {
+   "raw": ""
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-3 to 2-5 (Swamp)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- Slams its hammer on the ground and produces many bullets that spread outward\n- In Champion form, it has 150 health.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Haunted Goblin Giant.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/59/Sprite_Haunted_Goblin_Giant.png/revision/latest?cb=20210316061632",
+   "width": 162,
+   "height": 185,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_22",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.493,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Haunted Goblin Shaman",
+  "page": "https://soul-knight.fandom.com/wiki/Haunted_Goblin_Shaman",
+  "type": null,
+  "health": {
+   "raw": "24 <br/> 50 {{Champion}}",
+   "normal": 24,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "levels 2-3 to 2-5 (Swamp)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- Shoots 3 star-shaped bullets that split into 3 small bullets each after a short period of time.\n- In Champion form, it has 50 health, shoots 3 star-shaped bullets that split into 3 small bullets each after a short period of time.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "WIP",
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Haunted Goblin Shaman.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/23/Sprite_Haunted_Goblin_Shaman.png/revision/latest?cb=20210316061632",
+   "width": 156,
+   "height": 180,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_21",
+   "score": 0.9577,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Ice Bug Larva",
+  "page": "https://soul-knight.fandom.com/wiki/Ice_Bug_Larva",
+  "type": null,
+  "health": {
+   "raw": "18 <br/> 35 {{Champion}}",
+   "normal": 18,
+   "champion": 35
+  },
+  "damage": {
+   "raw": "1 <br/> 2 {{Champion}}",
+   "normal": 1,
+   "champion": 2
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-1 to 2-5 (Cave)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Releases 4 triangle bullets in 4 direction when it resurfaces or when it leaps into the air to dive onto the ground, each bullet deals 1 damage.\n- When under the ground, the bug is immune to damage, and on it spot appear small ice spike, similar to one spawned from Snow Ape's Longbow, the spikes deal 3 damage. \n- In Champion form, it has 62 health, release 12 triangle bullet on all directions.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Cave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Ice Bug Larva.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/f/ff/Sprite_Ice_Bug_Larva.png/revision/latest?cb=20201117034047",
+   "width": 416,
+   "height": 272,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.33 < 0.90 (common/vampire_11_skill_0_effect_0_3)"
+ },
+ {
+  "name": "Infantry Pirate (Boxer Model) Type B",
+  "page": "https://soul-knight.fandom.com/wiki/Infantry_Pirate_%28Boxer_Model%29_Type_B",
+  "type": null,
+  "health": {
+   "raw": "40 <br/> 80 {{Champion}}",
+   "normal": 40,
+   "champion": 80
+  },
+  "damage": {
+   "raw": "5 <br/> 6 {{Champion}}",
+   "normal": 5,
+   "champion": 6
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-2 to  3-5 (Neo Isle)",
+   "levels": [
+    "3-2",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-2",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": "- Perform a punch combo.\n- If this enemy is killed with melee weapon, it will trigger a K.O. effect on the corpse.\n- In Champion form, it has 80 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Neo Isle",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Infantry Pirate (Boxer Model) Type B.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Infantry Pirate (Boxer Model) Type B.png)"
+ },
+ {
+  "name": "Infantry Pirate Type A (Rifle)",
+  "page": "https://soul-knight.fandom.com/wiki/Infantry_Pirate_Type_A_%28Rifle%29",
+  "type": null,
+  "health": {
+   "raw": "28 <br/> 76 {{Champion}}",
+   "normal": 28,
+   "champion": 76
+  },
+  "damage": {
+   "raw": "2 <br/> ? {{Champion}}",
+   "normal": 2,
+   "champion": null,
+   "champion_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Neo Isle)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": "- Fire 5 small bullets.\n- In Champion form, it has 76 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Neo Isle",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Infantry Pirate Type A (Rifle).png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Infantry Pirate Type A (Rifle).png)"
+ },
+ {
+  "name": "Infantry Pirate Type A (Sawed-off)",
+  "page": "https://soul-knight.fandom.com/wiki/Infantry_Pirate_Type_A_%28Sawed-off%29",
+  "type": null,
+  "health": {
+   "raw": "? <br/> 78 {{Champion}}",
+   "normal": null,
+   "normal_text": "?",
+   "champion": 78
+  },
+  "damage": {
+   "raw": "3 <br/> ? {{Champion}}",
+   "normal": 3,
+   "champion": null,
+   "champion_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Neo Isle)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Infantry Pirate Type A (Sawed-off).png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Infantry Pirate Type A (Sawed-off).png)"
+ },
+ {
+  "name": "Infantry Pirate Type A (Scimitar)",
+  "page": "https://soul-knight.fandom.com/wiki/Infantry_Pirate_Type_A_%28Scimitar%29",
+  "type": null,
+  "health": {
+   "raw": "36 <br/> 48 {{Champion}}",
+   "normal": 36,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "3 <br/> 5 {{Champion}}",
+   "normal": 3,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Neo Isle)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Infantry Pirate Type A (Scimitar).png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Infantry Pirate Type A (Scimitar).png)"
+ },
+ {
+  "name": "Knight (Pistol)",
+  "page": "https://soul-knight.fandom.com/wiki/Knight_%28Pistol%29",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 32 {{Champion}}",
+   "normal": 12,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "2",
+   "normal": 2
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Knight Kingdom)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": "- Fires 1 bullet that deals 3 damage.\n- In Champion form, it has 32 health, fires a burst of 3 bullets with low accuracy, each bullet deals 3 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Knight Kingdom",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Knight Pistol.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c5/Sprite_Knight_Pistol.png/revision/latest?cb=20181207134735",
+   "width": 152,
+   "height": 151,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_1",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.861,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Knight (SMG)",
+  "page": "https://soul-knight.fandom.com/wiki/Knight_%28SMG%29",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 30 {{Champion}}",
+   "normal": 12,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "2",
+   "normal": 2
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Knight Kingdom)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Knight SMG.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/4b/Sprite_Knight_SMG.png/revision/latest?cb=20181207134749",
+   "width": 172,
+   "height": 151,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2",
+   "score": 0.9909,
+   "mask": 0.9909,
+   "factor": 6.8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Knight (Sword)",
+  "page": "https://soul-knight.fandom.com/wiki/Knight_%28Sword%29",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 40 {{Champion}}",
+   "normal": 12,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Knight Kingdom)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": "- Performs 1 swing that deals 4 damage.\n- In Champion form, it has 40 health, the swing deals 6 damage instead of 4.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Knight Kingdom",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Knight Sword.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/f/fa/Sprite_Knight_Sword.png/revision/latest?cb=20181207134802",
+   "width": 165,
+   "height": 151,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.824,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Knight-B",
+  "page": "https://soul-knight.fandom.com/wiki/Knight-B",
+  "type": null,
+  "health": {
+   "raw": "35 <br/>60 {{Champion}}",
+   "normal": 35,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "? <br/>? {{Champion}}",
+   "normal": null,
+   "normal_text": "?",
+   "champion": null,
+   "champion_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-1 to 2-5 (Chiseltown)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "behavior": "- Perform a thrust attack, dealing 3 damage, can inflict burn.\n- In Champion form, it has 45 health and has similar behavior.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Chiseltown",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Knight-B.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Knight-B.png)"
+ },
+ {
+  "name": "Knight-P",
+  "page": "https://soul-knight.fandom.com/wiki/Knight-P",
+  "type": null,
+  "health": {
+   "raw": "35 <br/>50 {{Champion}}",
+   "normal": 35,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "5 <br/>6 {{Champion}}",
+   "normal": 5,
+   "champion": 6
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-1 to 2-5 (Chiseltown)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "behavior": "- Bumps and rams into the player, dealing 3 damage.\n- In Champion form, it has 55 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Chiseltown",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Knight-P.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Knight-P.png)"
+ },
+ {
+  "name": "Knight-S",
+  "page": "https://soul-knight.fandom.com/wiki/Knight-S",
+  "type": null,
+  "health": {
+   "raw": "40 <br/>80 {{Champion}}",
+   "normal": 40,
+   "champion": 80
+  },
+  "damage": {
+   "raw": "? <br/>? {{Champion}}",
+   "normal": null,
+   "normal_text": "?",
+   "champion": null,
+   "champion_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-1 to 2-5 (Chiseltown)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "behavior": "- Perform a swing attack, or shield bash attack. The swing deals 3 damage, while the shield bash deals 4.\n- In Champion from, it has 120 health, both attack deals 2 more damage.\n- May drop Battery or Parts when defeated.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Chiseltown",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Knight-S.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Knight-S.png)"
+ },
+ {
+  "name": "Knight-X",
+  "page": "https://soul-knight.fandom.com/wiki/Knight-X",
+  "type": null,
+  "health": {
+   "raw": "30 <br/>50 {{Champion}}",
+   "normal": 30,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "? <br/>? {{Champion}}",
+   "normal": null,
+   "normal_text": "?",
+   "champion": null,
+   "champion_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-1 to 2-5 (Chiseltown)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "behavior": "- Shoot a single piercing beam, dealing 5 damage.\n- In Champion form, it has 40 health and the beam is wider.\n- May drop Battery or Parts when defeated.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Chiseltown",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Knight-X.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Knight-X.png)"
+ },
+ {
+  "name": "Lava Beehive",
+  "page": "https://soul-knight.fandom.com/wiki/Lava_Beehive",
+  "type": null,
+  "health": {
+   "raw": "30 <br/> 60 {{Champion}}",
+   "normal": 30,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "None",
+   "normal": null,
+   "normal_text": "None"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-4 to 3-5 (Volcano)",
+   "levels": [
+    "3-4",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-4",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Lava Beehive is a stationary spawner, specializing in spawning Volcanic Bug. It will pause spawning after releasing 2 Volcanic Bugs.\n- In Champion form, it has 50 health and spawns Volcanic Bugs in Champion form.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Lava Beehive.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Lava Beehive.png)"
+ },
+ {
+  "name": "Manned Mecha Guardian (Cannon)",
+  "page": "https://soul-knight.fandom.com/wiki/Manned_Mecha_Guardian_%28Cannon%29",
+  "type": null,
+  "health": {
+   "raw": "20\n60 {{Champion}}",
+   "normal": 20,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "3 \n?{{Champion}}",
+   "normal": 3,
+   "champion": null,
+   "champion_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 2-2 to 2-5 (Cave)",
+   "levels": [
+    "2-2",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Fires 5 homing missiles, dealing 2 damage.\n- In Champion form, it has 40 health and fires 8 missiles.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Cave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Manned Mecha Guardian Cannon.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0c/Sprite_Manned_Mecha_Guardian_Cannon.png/revision/latest?cb=20201117033310",
+   "width": 374,
+   "height": 318,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.36 < 0.90 (common/npc_warliege_0)"
+ },
+ {
+  "name": "Manned Mecha Guardian (Drill)",
+  "page": "https://soul-knight.fandom.com/wiki/Manned_Mecha_Guardian_%28Drill%29",
+  "type": null,
+  "health": {
+   "raw": "?",
+   "normal": null,
+   "normal_text": "?"
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": "Electric Drill",
+  "found_in": {
+   "raw": "2-3 to 2-5 (Cave)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Moves towards the player, then attacks the player by thrusting forward with an Electric Drill, dealing 3 damage.\n- In Champion form, it has 60 health.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Cave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Manned Mecha Guardian Drill.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/48/Sprite_Manned_Mecha_Guardian_Drill.png/revision/latest?cb=20201117033407",
+   "width": 397,
+   "height": 381,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.47 < 0.90 (level/2/d/redAndroid_0)"
+ },
+ {
+  "name": "Mega Mining Extractor (Cannon)",
+  "page": "https://soul-knight.fandom.com/wiki/Mega_Mining_Extractor_%28Cannon%29",
+  "type": null,
+  "health": {
+   "raw": "12",
+   "normal": 12
+  },
+  "damage": {
+   "raw": "2",
+   "normal": 2
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 2-x (Cave)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Fires a small snowball, dealing 3 damage, can inflict freeze.\n- In Champion form, it has 32 health, fires a big bullet that split upon hitting the walls.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Cave",
+  "categories": [
+   "Enemies",
+   "WIP"
+  ],
+  "image": {
+   "file": "Sprite Mega Mining Extractor Cannon.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/76/Sprite_Mega_Mining_Extractor_Cannon.png/revision/latest?cb=20201117034455",
+   "width": 397,
+   "height": 339,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.37 < 0.90 (sprite_atlas/weapons5_20)"
+ },
+ {
+  "name": "Mega Mining Extractor (Claw)",
+  "page": "https://soul-knight.fandom.com/wiki/Mega_Mining_Extractor_%28Claw%29",
+  "type": null,
+  "health": {
+   "raw": "12",
+   "normal": 12
+  },
+  "damage": {
+   "raw": "?",
+   "normal": null,
+   "normal_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 2-1 to 2-2 (Cave)",
+   "levels": [
+    "2-1",
+    "2-2"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-2"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 2
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Creates a shockwave, dealing 2 AoE damage.\n- In Champion form, it has 32 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Cave",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Mega Mining Extractor Claw.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/9d/Sprite_Mega_Mining_Extractor_Claw.png/revision/latest?cb=20201117034527",
+   "width": 397,
+   "height": 349,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (384x271, hệ số 1)"
+ },
+ {
+  "name": "Miner (Drill)",
+  "page": "https://soul-knight.fandom.com/wiki/Miner_%28Drill%29",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 32 {{Champion}}",
+   "normal": 8,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3 <br/> 3 (big bullet) + 2 (lingering bullets) {{Champion}}",
+   "normal": 3,
+   "champion": null,
+   "champion_text": "3 (big bullet) + 2"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 1-x (Glacier)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Perform a thrust attack, dealing 3 damage.\n- In Champion form, it has 24 health and fires a bullet that continuously emits slow-moving bubble bullets on either side. The trail projectile deals 3 damage, while the bubble projectile deals 2 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Miner Drill.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/83/Sprite_Miner_Drill.png/revision/latest?cb=20181207060139",
+   "width": 185,
+   "height": 178,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_59",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.766,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Miner (Heavy)",
+  "page": "https://soul-knight.fandom.com/wiki/Miner_%28Heavy%29",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 30 {{Champion}}",
+   "normal": 12,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "3 (big bullet) + 1 (explosion) <br/> 3 (big bullet) + 2 (trails) {{Champion}}",
+   "normal": null,
+   "normal_text": "3 (big bullet) + 1",
+   "champion": null,
+   "champion_text": "3 (big bullet) + 2"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 1-x (Glacier)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Miner Heavy.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/a6/Sprite_Miner_Heavy.png/revision/latest?cb=20181207060125",
+   "width": 174,
+   "height": 146,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_52",
+   "score": 0.9992,
+   "mask": 0.9992,
+   "factor": 4.516,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Miner (Pickaxe)",
+  "page": "https://soul-knight.fandom.com/wiki/Miner_%28Pickaxe%29",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 32 {{Champion}}",
+   "normal": 8,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 1-x (Glacier)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Performs a swing attack, dealing 3 damage\n- In Champion form, it has 32 health and the attack deals 4 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Miner Pickaxe.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/1/14/Sprite_Miner_Pickaxe.png/revision/latest?cb=20181207060149",
+   "width": 178,
+   "height": 179,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_58",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.75,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Miner Lead (Beam Gun)",
+  "page": "https://soul-knight.fandom.com/wiki/Miner_Lead_%28Beam_Gun%29",
+  "type": null,
+  "health": {
+   "raw": "20",
+   "normal": 20
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 2-x (Cave)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "WIP",
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Miner Lead Beam Gun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c1/Sprite_Miner_Lead_Beam_Gun.png/revision/latest?cb=20201117034000",
+   "width": 339,
+   "height": 402,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.36 < 0.90 (common/warlock_2_skill_1_effect_6_1)"
+ },
+ {
+  "name": "Miner Lead (Pickaxe)",
+  "page": "https://soul-knight.fandom.com/wiki/Miner_Lead_%28Pickaxe%29",
+  "type": null,
+  "health": {
+   "raw": "?",
+   "normal": null,
+   "normal_text": "?"
+  },
+  "damage": {
+   "raw": "?",
+   "normal": null,
+   "normal_text": "?"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 2-2 to 2-5 (Cave)",
+   "levels": [
+    "2-2",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Cave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Cave"
+   ]
+  },
+  "behavior": "- Swing a pickaxe, release red projectile dealing 4 damage \n- In Champion form, it has 80 health, release 3 red projectile.",
+  "levels_in_floor": [],
+  "biome_page": "Cave",
+  "categories": [
+   "WIP",
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Miner Lead Pickaxe.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/53/Sprite_Miner_Lead_Pickaxe.png/revision/latest?cb=20201117033900",
+   "width": 395,
+   "height": 402,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.37 < 0.90 (sprite_atlas/hero_c13_skin_22_init_weapon_1_3)"
+ },
+ {
+  "name": "Mining Electrician",
+  "page": "https://soul-knight.fandom.com/wiki/Mining_Electrician",
+  "type": null,
+  "health": {
+   "raw": "15 <br/> 48 {{Champion}}",
+   "normal": 15,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-4 to 1-5 (Glacier)",
+   "levels": [
+    "1-4",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-4",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Charges the rod with electricity, deals 2 damage, and inflicts Electrify on contact.\n- In Champion form, it has 48 health and deals 2 more damage.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Mining Electrician.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/b8/Sprite_Mining_Electrician.png/revision/latest?cb=20210825015414",
+   "width": 264,
+   "height": 208,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_53",
+   "score": 0.9775,
+   "mask": 1.0,
+   "factor": 8,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Monkey (Club)",
+  "page": "https://soul-knight.fandom.com/wiki/Monkey_%28Club%29",
+  "type": null,
+  "health": {
+   "raw": "14 <br/> 46 {{Champion}}",
+   "normal": 14,
+   "champion": 46
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Performs a swing, dealing 3 damage.\n- In Champion form, it has 46 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Monkey Club.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/6b/Sprite_Monkey_Club.png/revision/latest?cb=20190927143158",
+   "width": 180,
+   "height": 162,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.84 < 0.90 (bin_datapack/enemy_list_114)",
+  "sprite_near": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_114",
+   "score": 0.8358,
+   "mask": 0.9667,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Monkey (Poo)",
+  "page": "https://soul-knight.fandom.com/wiki/Monkey_%28Poo%29",
+  "type": null,
+  "health": {
+   "raw": "9 <br/> 28 {{Champion}}",
+   "normal": 9,
+   "champion": 28
+  },
+  "damage": {
+   "raw": "2",
+   "normal": 2
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Throws a poop at the player, dealing 2 damage and inflicting Weary.\n- In Champion form, it has 30 health and deals 3 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Monkey Poo.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/64/Sprite_Monkey_Poo.png/revision/latest?cb=20190927143159",
+   "width": 150,
+   "height": 162,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_115",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Monkey (Vine)",
+  "page": "https://soul-knight.fandom.com/wiki/Monkey_%28Vine%29",
+  "type": null,
+  "health": {
+   "raw": "14 <br/> 46 {{Champion}}",
+   "normal": 14,
+   "champion": 46
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": "Vine",
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Performs a swing that, dealing 3 damage and inflicting Poison.\n- In Champion form, it has 46 health and deals 4 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Monkey Vine.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/89/Sprite_Monkey_Vine.png/revision/latest?cb=20190927143245",
+   "width": 216,
+   "height": 162,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.40 < 0.90 (skin/character/assassin/skin_30/assassin_30_2_7)"
+ },
+ {
+  "name": "Mummy (Bomb)",
+  "page": "https://soul-knight.fandom.com/wiki/Mummy_%28Bomb%29",
+  "type": null,
+  "health": {
+   "raw": "10 <br/> 30 {{Champion}}",
+   "normal": 10,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "Explosion",
+   "normal": null,
+   "normal_text": "Explosion"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 3-x (Volcano)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Rushes toward the player and detonates its bomb, which will explode after 2 seconds, dealing 5 damage. Afterward, it becomes unarmed and cannot attack the player.\n- If the enemy is defeated before it can approach the player, the bomb also explodes after 2 seconds.\n- In Champion form, it has 30 health, carries an extra bomb, and each bomb deals 6 damage instead.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "MummyBomb.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (MummyBomb.png)"
+ },
+ {
+  "name": "Mummy (pistol)",
+  "page": "https://soul-knight.fandom.com/wiki/Mummy_%28pistol%29",
+  "type": null,
+  "health": {
+   "raw": "16 <br/> 40 {{Champion}}",
+   "normal": 16,
+   "champion": 40
+  },
+  "damage": {
+   "raw": null
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Volcano)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Fires 6 rounded bullets in a helix trajectory, dealing 3 damage each.\n- In Champion form, it has 40 health and fires 8 bullets instead.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "MummyHandgun.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (MummyHandgun.png)"
+ },
+ {
+  "name": "Mummy (Rifle)",
+  "page": "https://soul-knight.fandom.com/wiki/Mummy_%28Rifle%29",
+  "type": null,
+  "health": {
+   "raw": "26 <br/> 48 {{Champion}}",
+   "normal": 26,
+   "champion": 48
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Volcano)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Fires a single bouncing bullet, dealing 4 damage. The bullet will break after a short time.\n- In Champion form, it has 48 health, and the bullet lasts longer.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "MummyRifle.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (MummyRifle.png)"
+ },
+ {
+  "name": "Mushroom Baby",
+  "page": "https://soul-knight.fandom.com/wiki/Mushroom_Baby",
+  "type": null,
+  "health": {
+   "raw": "9 <br/>x {{Champion}}",
+   "normal": 9,
+   "champion": null,
+   "champion_text": "x"
+  },
+  "damage": {
+   "raw": "2 <br/>x {{Champion}}",
+   "normal": 2,
+   "champion": null,
+   "champion_text": "x"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Swamp)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- The Mushroom Baby spawns colored mist near itself which does damage to the player on contact. The mists dissipate after some time, damage from the Red, Blue and Green mists can be negated with the Fire, Freeze and Poison buffs respectively.\n- When defeated, one of the few following things may happen:\n- Spawns a poison/fire pool. The poison pool deals 2 damage, while the fire pool deals 1.\n- Spawns icicles in 8 directions. Each spike deals 1 damage.\n- In Champion form, it has 50 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Mushroom Baby.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/56/Sprite_Mushroom_Baby.png/revision/latest?cb=20210316061632",
+   "width": 110,
+   "height": 110,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/2/e",
+   "name": "lil_mashroom_man_4",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 5,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/enemy_list_2_12"
+   ]
+  }
+ },
+ {
+  "name": "Mushroom Man",
+  "page": "https://soul-knight.fandom.com/wiki/Mushroom_Man",
+  "type": null,
+  "health": {
+   "raw": "17 <br/>60 {{Champion}}",
+   "normal": 17,
+   "champion": 60
+  },
+  "damage": {
+   "raw": ""
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Swamp)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- When alive, they will try to bump into targets, once killed, they may leave a fire pool, poison pool or a ring of ice spikes, depending on the color of fogs they spread.\n- In Champion form, it has 60 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Mushroom Man.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/4a/Sprite_Mushroom_Man.png/revision/latest?cb=20210316061632",
+   "width": 120,
+   "height": 125,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/2/e",
+   "name": "mashroom_man_4",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 5,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/enemy_list_2_13"
+   ]
+  }
+ },
+ {
+  "name": "Pawn",
+  "page": "https://soul-knight.fandom.com/wiki/Pawn",
+  "type": null,
+  "health": {
+   "raw": "25 <br/> 40 {{Champion}}",
+   "normal": 25,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "1 <br/> 3 {{Champion}}",
+   "normal": 1,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-3 to 2-5 (Chiseltown)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "behavior": "- Attaches to the player, dealing 1 damage.\n- In Champion form, it has 35 health.\n- May drop Battery or Parts when defeated.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Chiseltown",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Pawn.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/b0/Sprite_Pawn.png/revision/latest?cb=20220728140519",
+   "width": 170,
+   "height": 176,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/2/g",
+   "name": "robot_pawn_2",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 5.855,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "level/2/g/robot_pawn_2__1"
+   ]
+  }
+ },
+ {
+  "name": "Phantom",
+  "page": "https://soul-knight.fandom.com/wiki/Phantom",
+  "type": null,
+  "health": {
+   "raw": "9 <br/> 32 {{Champion}}",
+   "normal": 9,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Halloween)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Becomes invisible for a short duration, immunes to damage, but still takes damage from status effects such as Burn or Poison.\n- Releases 17 round bullets in all direction, each bullet deals 3 damage.\n- In Champion form, it has 32 health, all bullets are cross-shaped, and deal 4 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Phantom.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/69/Sprite_Phantom.png/revision/latest?cb=20181207134817",
+   "width": 199,
+   "height": 159,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/2/c",
+   "name": "ghost_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.75,
+   "transform": "id",
+   "equal": 5,
+   "alts": [
+    "level/2/c/ghost_3",
+    "boss/boss15/ghost_0",
+    "boss/boss15/ghost_3",
+    "bin_datapack/enemy_list_92"
+   ]
+  }
+ },
+ {
+  "name": "Poison Spider",
+  "page": "https://soul-knight.fandom.com/wiki/Poison_Spider",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 40 {{Champion}}",
+   "normal": 12,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 2-x (Dungeon)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 3 damage. Leaves a green poison pool when defeated, dealing 1 damage every 0.5 seconds, can inflict Poison to the player.\n- In Champion form, it has 40 health, the collision damage is 6, and the poison pool is purple.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Poison Spider.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/7/70/Sprite_Poison_Spider.png/revision/latest?cb=20181207134845",
+   "width": 138,
+   "height": 110,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_16",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.844,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Portal (Enemy)",
+  "page": "https://soul-knight.fandom.com/wiki/Portal_%28Enemy%29",
+  "type": null,
+  "health": {
+   "raw": "6 <br/> 10 {{Champion}}",
+   "normal": 6,
+   "champion": 10
+  },
+  "damage": {
+   "raw": "None",
+   "normal": null,
+   "normal_text": "None"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-4 to 1-5 (Mechanical Ruins)",
+   "levels": [
+    "1-4",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-4",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Mechanical Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Mechanical Ruins"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Portal.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/6/6f/Sprite_Portal.png/revision/latest?cb=20220205194419",
+   "width": 540,
+   "height": 540,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (373x308, hệ số 1)"
+ },
+ {
+  "name": "Pumpkin Coach",
+  "page": "https://soul-knight.fandom.com/wiki/Pumpkin_Coach",
+  "type": null,
+  "health": {
+   "raw": "30 <br/> 60 {{Champion}}",
+   "normal": 30,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "None",
+   "normal": null,
+   "normal_text": "None"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-3 to 2-5 (Halloween)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Pumpkin Coard is a stationary spawner.\n- Can spawn all variant of Pumpkin Man and Elite Pumpkin Man.\n- The Pumpkin Coach will pause the spawning when there are three active enemies spawned from it.\n- In Champion form, it has 35 health and spawns the respective Champion form of said enemies.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Pumpkin Coach.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/4f/Sprite_Pumpkin_Coach.png/revision/latest?cb=20200730081951",
+   "width": 183,
+   "height": 160,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.20 < 0.90 (level/4/b/tree_1)"
+ },
+ {
+  "name": "Pumpkin Man (Handgun)",
+  "page": "https://soul-knight.fandom.com/wiki/Pumpkin_Man_%28Handgun%29",
+  "type": null,
+  "health": {
+   "raw": "9 <br/> 32 {{Champion}}",
+   "normal": 9,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Halloween)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Pumpkin Man Handgun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c3/Sprite_Pumpkin_Man_Handgun.png/revision/latest?cb=20181207134910",
+   "width": 152,
+   "height": 199,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_85",
+   "score": 0.9953,
+   "mask": 0.9953,
+   "factor": 6.778,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Pumpkin Man (Pitchfork)",
+  "page": "https://soul-knight.fandom.com/wiki/Pumpkin_Man_%28Pitchfork%29",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 32 {{Champion}}",
+   "normal": 12,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": "Pitchfork",
+  "found_in": {
+   "raw": "2-x (Halloween)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Throws a pitchfork, dealing 3 damage.\n- In Champion form, it has 32 health and deals 4 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Pumpkin Man Pitchfork.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/8e/Sprite_Pumpkin_Man_Pitchfork.png/revision/latest?cb=20181207134857",
+   "width": 199,
+   "height": 199,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_86",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.774,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Pumpkin Man (Scythe)",
+  "page": "https://soul-knight.fandom.com/wiki/Pumpkin_Man_%28Scythe%29",
+  "type": null,
+  "health": {
+   "raw": "9 <br/> 32 {{Champion}}",
+   "normal": 9,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": "Sickle",
+  "found_in": {
+   "raw": "2-x (Halloween)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Performs a swing attack, dealing 3 damage.\n- In Champion form, it has 36 health and deals 4 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Pumpkin Man Scythe.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/25/Sprite_Pumpkin_Man_Scythe.png/revision/latest?cb=20181207134924",
+   "width": 213,
+   "height": 220,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_87",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.78,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Robot of Fragile Core",
+  "page": "https://soul-knight.fandom.com/wiki/Robot_of_Fragile_Core",
+  "type": null,
+  "health": {
+   "raw": "20<br/> ≤60 {{Champion}}",
+   "normal": 20,
+   "champion": null,
+   "champion_text": "≤60"
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-5 (Neo Isle)",
+   "levels": [
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 5,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": "- Self-detonate by adding a countdown above its head. The countdown starts at 3, and the Robot of Fragile Core dies after it reaches 1.\n- It explodes immediately after death. This explosion deals 50 damage to enemies and ? damage to friendly ally. May apply Burn to targets.\n- In Champion form, it has 60 health.",
+  "levels_in_floor": [],
+  "biome_page": "Neo Isle",
+  "categories": [
+   "WIP",
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Robot of Fragile Core.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/82/Sprite_Robot_of_Fragile_Core.png/revision/latest?cb=20220326092449",
+   "width": 154,
+   "height": 189,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/3/c",
+   "name": "island_bomber_man_0",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Rock Crab",
+  "page": "https://soul-knight.fandom.com/wiki/Rock_Crab",
+  "type": null,
+  "health": {
+   "raw": "22 <br/> 65 {{Champion}}",
+   "normal": 22,
+   "champion": 65
+  },
+  "damage": {
+   "raw": "2",
+   "normal": 2
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Rock Crab itself deals 2 damage to the player on contact.\n- Creates a trail of spikes toward player, dealing 2 damage.\n- In Champion form, it has 66 health and creates bigger spike. Both the spike and itself deals 3 damage.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Rock Crab.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/2/29/Sprite_Rock_Crab.png/revision/latest?cb=20190927143246",
+   "width": 168,
+   "height": 120,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_112",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Rook",
+  "page": "https://soul-knight.fandom.com/wiki/Rook",
+  "type": null,
+  "health": {
+   "raw": "40 <br/> 80 {{Champion}}",
+   "normal": 40,
+   "champion": 80
+  },
+  "damage": {
+   "raw": "4 (Bullet) <br/> 2 (Lingering bullets) <br/> 4 (Melee attack)",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-2 to 2-5 (Chiseltown)",
+   "levels": [
+    "2-2",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Chiseltown"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Chiseltown"
+   ]
+  },
+  "behavior": "- Fires 1 triangle bullet at high speed that leaves a trail of round bullets behind. The triangle bullet deals 4 damage, while the round ones deal 2 damage.\n- If the player is near, it will dash toward the player, dealing 4 damage.\n- In Champion form, it has 45 health and the dash deals 6 damage.\n- May drop Battery or Parts when defeated.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Chiseltown",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Rook.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/a8/Sprite_Rook.png/revision/latest?cb=20220728140518",
+   "width": 170,
+   "height": 138,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "sprite_atlas",
+   "name": "enemy_list_3_5",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.559,
+   "transform": "id",
+   "equal": 2,
+   "alts": [
+    "bin_datapack/enemy_list_3_5"
+   ]
+  }
+ },
+ {
+  "name": "Ruins Guard",
+  "page": "https://soul-knight.fandom.com/wiki/Ruins_Guard",
+  "type": null,
+  "health": {
+   "raw": "25 <br/> 32 {{Champion}}",
+   "normal": 25,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "5 (Charge) <br/> 3 (Bullet) <br/> 5 (Charge) {{Champion}} <br/> 3 (Bullet) {{Champion}}",
+   "normal": 5,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-3 to 1-5 (Mechanical Ruins)",
+   "levels": [
+    "1-3",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-3",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Mechanical Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Mechanical Ruins"
+   ]
+  },
+  "behavior": "- Randomly executes one of the following actions:\n- Rams into the player, dealing 5 damage. Does not take damage while ramping.\n- Releases 18 rounded bullets in all directions, each bullet dealing 3 damage.\n- Holds the shield in a defensive position, ignoring all damage.\n- In Champion form, it has 32 health and releases cross-shaped bullets instead of round bullets.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Mechanical Ruins",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Ruins Guard.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/1/1b/Sprite_Ruins_Guard.png/revision/latest?cb=20220205194441",
+   "width": 540,
+   "height": 540,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (391x416, hệ số 1)"
+ },
+ {
+  "name": "Ruins Searcher",
+  "page": "https://soul-knight.fandom.com/wiki/Ruins_Searcher",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 50 {{Champion}}",
+   "normal": 12,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Mechanical Ruins)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Mechanical Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Mechanical Ruins"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 4 damage.\n- In Champion form, it has 50 health and deals 5 damage.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Mechanical Ruins",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Ruins Searcher.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/3e/Sprite_Ruins_Searcher.png/revision/latest?cb=20220205194553",
+   "width": 540,
+   "height": 540,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (107x88, hệ số 3.053)"
+ },
+ {
+  "name": "Ruins Sentry (Bow)",
+  "page": "https://soul-knight.fandom.com/wiki/Ruins_Sentry_%28Bow%29",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 24 {{Champion}}",
+   "normal": 8,
+   "champion": 24
+  },
+  "damage": {
+   "raw": "4 <br/> 5 {{Champion}}",
+   "normal": 4,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Mechanical Ruins)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Mechanical Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Mechanical Ruins"
+   ]
+  },
+  "behavior": "- Shoots an arrow that deals 4 damage.\n- In Champion form, it has 24 health and deals 5 damage",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Mechanical Ruins",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Ruins Sentry Bow.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/40/Sprite_Ruins_Sentry_Bow.png/revision/latest?cb=20220205194605",
+   "width": 540,
+   "height": 540,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (363x364, hệ số 1)"
+ },
+ {
+  "name": "Ruins Sentry (Spear)",
+  "page": "https://soul-knight.fandom.com/wiki/Ruins_Sentry_%28Spear%29",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 32 {{Champion}}",
+   "normal": 8,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3 <br/> 3 {{Champion}}",
+   "normal": 3,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Mechanical Ruins)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Mechanical Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Mechanical Ruins"
+   ]
+  },
+  "behavior": "- Performs a thrust attack that deals 3 damage.\n- In Champion form, it has 32 health and the attack has a bigger hit box.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Mechanical Ruins",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Ruins Sentry Spear.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0e/Sprite_Ruins_Sentry_Spear.png/revision/latest?cb=20220205194618",
+   "width": 540,
+   "height": 540,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (337x401, hệ số 1)"
+ },
+ {
+  "name": "Ruins Turret",
+  "page": "https://soul-knight.fandom.com/wiki/Ruins_Turret",
+  "type": null,
+  "health": {
+   "raw": "10 <br/> 30 {{Champion}}",
+   "normal": 10,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "3 <br/> 5 {{Champion}}",
+   "normal": 3,
+   "champion": 5
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-2 to 1-5 (Mechanical Ruins)",
+   "levels": [
+    "1-2",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-2",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Mechanical Ruins"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Mechanical Ruins"
+   ]
+  },
+  "behavior": "- Ruins Turret is a stationary enemy.\n- Fire laser beams in a vertical or horizontal line, dealing 3 damage\n- In Champion form, it has 30 health and deals 5 damage.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Mechanical Ruins",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Ruins Turret.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/ee/Ruins_Turret_Icon.png/revision/latest?cb=20260704082751",
+   "width": 198,
+   "height": 198
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_57",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Scarabs",
+  "page": "https://soul-knight.fandom.com/wiki/Scarabs",
+  "type": null,
+  "health": {
+   "raw": "15",
+   "normal": 15
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-1 to 2-5 (Grave)",
+   "levels": [
+    "2-1",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-1",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "WIP",
+   "Enemies"
+  ],
+  "image": {
+   "file": "Scarabs.gif",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/1/1a/Scarabs.gif/revision/latest?cb=20210315152838",
+   "width": 720,
+   "height": 720
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.10 < 0.90 (window_draw/2-Xualyria)"
+ },
+ {
+  "name": "Sentry Owl Pilot Type",
+  "page": "https://soul-knight.fandom.com/wiki/Sentry_Owl_Pilot_Type",
+  "type": null,
+  "health": {
+   "raw": "28 <br/> 40 {{Champion}}",
+   "normal": 28,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3 <br/> 3 {{Champion}}",
+   "normal": 3,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-3 to 3-5 (Neo Isle)",
+   "levels": [
+    "3-3",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-3",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": "- - In Champion form, it has 40 health.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Neo Isle",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Sentry Owl Pilot Type.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Sprite Sentry Owl Pilot Type.png)"
+ },
+ {
+  "name": "Skeleton (Bow)",
+  "page": "https://soul-knight.fandom.com/wiki/Skeleton_%28Bow%29",
+  "type": null,
+  "health": {
+   "raw": "10 <br/> 26 {{Champion}}",
+   "normal": 10,
+   "champion": 26
+  },
+  "damage": {
+   "raw": "5 <br/> 6 {{Champion}}",
+   "normal": 5,
+   "champion": 6
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 2-x (Dungeon)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Shoots an arrow, dealing 5 damage.\n- In Champion form, it has 26 health and shoots 3 arrows.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Skeleton Bow.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/81/Sprite_Skeleton_Bow.png/revision/latest?cb=20181207134938",
+   "width": 158,
+   "height": 144,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_11",
+   "score": 0.9979,
+   "mask": 0.9979,
+   "factor": 6.757,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Skeleton (Shotgun)",
+  "page": "https://soul-knight.fandom.com/wiki/Skeleton_%28Shotgun%29",
+  "type": null,
+  "health": {
+   "raw": "10 <br/> 32 {{Champion}}",
+   "normal": 10,
+   "champion": 32
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 2-x (Dungeon)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Fires 1 cross-shaped bullet, dealing 3 damage.\n- In Champion form, it has 30 health and fires 3 bouncing bullets, dealing 3 damage each.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Skeleton Shotgun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c0/Sprite_Skeleton_Shotgun.png/revision/latest?cb=20181207135016",
+   "width": 179,
+   "height": 124,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_10",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.789,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Skeleton (Sword)",
+  "page": "https://soul-knight.fandom.com/wiki/Skeleton_%28Sword%29",
+  "type": null,
+  "health": {
+   "raw": "10 <br/> 40 {{Champion}}",
+   "normal": 10,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 2-x (Dungeon)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Performs a swing attack, dealing 4 damage.\n- In Champion form, it has 38 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Skeleton Sword.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/41/Sprite_Skeleton_Sword.png/revision/latest?cb=20181207135028",
+   "width": 151,
+   "height": 124,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_9",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.806,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Skeleton Doggy",
+  "page": "https://soul-knight.fandom.com/wiki/Skeleton_Doggy",
+  "type": null,
+  "health": {
+   "raw": "10 <br/> 38 {{Champion}}",
+   "normal": 10,
+   "champion": 38
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-4 to 2-5 (Dungeon)",
+   "levels": [
+    "2-4",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-4",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Bites the player, dealing 3 damage.\n- In Champion form, it has 38 health and deals 4 damage.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "WIP",
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Skeleton Doggy.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/c/c1/Sprite_Skeleton_Doggy.png/revision/latest?cb=20210825015411",
+   "width": 273,
+   "height": 182,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_54",
+   "score": 0.9731,
+   "mask": 1.0,
+   "factor": 13,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Skeleton Shaman",
+  "page": "https://soul-knight.fandom.com/wiki/Skeleton_Shaman",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 40 {{Champion}}",
+   "normal": 20,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-2 to 2-5 (Dungeon)",
+   "levels": [
+    "2-2",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-2",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 2,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Releases 25 square bullets all around, each deals 3 damage.\n- In Champion form, it has 40 health, the bullets are cross-shaped, and deal 4 damage.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Skeleton Shaman.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/9/9f/Sprite_Skeleton_Shaman.png/revision/latest?cb=20181207135003",
+   "width": 185,
+   "height": 185,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_17",
+   "score": 0.9986,
+   "mask": 0.9986,
+   "factor": 6.75,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Slime",
+  "page": "https://soul-knight.fandom.com/wiki/Slime",
+  "type": "Melee",
+  "health": {
+   "raw": "12 <br/> 50 {{Champion}}",
+   "normal": 12,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-x (Knight Kingdom)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 3 damage. Releases 8 round bullets in all direction when defeated, each bullet deals 2 damage.\n- In its Champion form, it has 50 health , the enemy is faster, dealing 4 damage each bump and releasing 24 bullets when defeated.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Knight Kingdom",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Slime.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/40/Sprite_Slime.png/revision/latest?cb=20181207135040",
+   "width": 110,
+   "height": 82,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "level/2/a",
+   "name": "enemy01_4",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.818,
+   "transform": "id",
+   "equal": 4,
+   "alts": [
+    "bin_datapack/enemy_list_8",
+    "skill_demo/enemy01_4",
+    "weapon/enemy01_4"
+   ]
+  }
+ },
+ {
+  "name": "Snow Ape",
+  "page": "https://soul-knight.fandom.com/wiki/Snow_Ape",
+  "type": null,
+  "health": {
+   "raw": "28 <br/> 80 {{Champion}}",
+   "normal": 28,
+   "champion": 80
+  },
+  "damage": {
+   "raw": "3 (stomp) + 2 (snowballs)",
+   "normal": null,
+   "normal_text": "3 (stomp) + 2"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 1-4 to 1-5 (Glacier)",
+   "levels": [
+    "1-4",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-4",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Smashes the ground, creating a shockwave and releasing 12 snowballs in all directions. The shockwave deals 3 damage, while the snowballs deal 2 damage with a chance to cause Freeze.\n- In Champion form, it has 80 health can creates a much larger shockwave. The damage remains unchanged.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Snow Ape.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/de/Sprite_Snow_Ape.png/revision/latest?cb=20181207060112",
+   "width": 110,
+   "height": 141,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_51",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.531,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Snow Ape Pitcher",
+  "page": "https://soul-knight.fandom.com/wiki/Snow_Ape_Pitcher",
+  "type": null,
+  "health": {
+   "raw": "18 <br/> 60 {{Champion}}",
+   "normal": 18,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-4 to 1-5 (Glacier)",
+   "levels": [
+    "1-4",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-4",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Glacier (Biome)"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Glacier (Biome)"
+   ]
+  },
+  "behavior": "- Throws a snowball, dealing 4 damage with a chance to cause Freeze.\n- In Champion form, it has 60 health and the snowball deals 5 damage.\n- The Snow Ape Pitcher stays still for a brief moment before and after throwing.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Glacier (Biome)",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Snow Ape Pitcher.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0c/Sprite_Snow_Ape_Pitcher.png/revision/latest?cb=20210825015408",
+   "width": 150,
+   "height": 198,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_52",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "SOF Infantry Pirate Type E",
+  "page": "https://soul-knight.fandom.com/wiki/SOF_Infantry_Pirate_Type_E",
+  "type": null,
+  "health": {
+   "raw": "60 <br/> 120 {{Champion}}",
+   "normal": 60,
+   "champion": 120
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-4 to 3-5 (Neo Isle)",
+   "levels": [
+    "3-4",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-4",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Neo Isle"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Neo Isle"
+   ]
+  },
+  "behavior": "- Charge up and fire a laser beam. A red line indicates the attack.\n- In Champion form, it has 120 health, fires two laser beams consecutively.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Neo Isle",
+  "categories": [
+   "WIP",
+   "Enemies"
+  ],
+  "image": {
+   "file": "SOF Infantry Pirate Type E.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (SOF Infantry Pirate Type E.png)"
+ },
+ {
+  "name": "Spider",
+  "page": "https://soul-knight.fandom.com/wiki/Spider",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 40 {{Champion}}",
+   "normal": 12,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3 (4)",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 2-x (Dungeon)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Dungeon"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Dungeon"
+   ]
+  },
+  "behavior": "- Bumps into the player, dealing 3 damage. Explodes when defeated, dealing 5 damage, can inflict Burn to the player.\n- In Champion form, it has 40 health and the collision damage is 6.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Dungeon",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "IMG 2206.jpg",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/d/d9/IMG_2206.jpg/revision/latest?cb=20180217083138",
+   "width": 292,
+   "height": 292
+  },
+  "sprite": null,
+  "sprite_note": "không sprite nào cùng kích thước sau khi cắt viền (292x292, hệ số 1)"
+ },
+ {
+  "name": "Stone Archer",
+  "page": "https://soul-knight.fandom.com/wiki/Stone_Archer",
+  "type": null,
+  "health": {
+   "raw": "36 <br/> 130 {{Champion}}",
+   "normal": 36,
+   "champion": 130
+  },
+  "damage": {
+   "raw": "2 <br/> 2 + Poison {{Champion}}",
+   "normal": 2,
+   "champion": null,
+   "champion_text": "2 + Poison"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Stone Archer is a stationary enemy.\n- The arrow rotates counterclockwise and shoots a copy of itself every 0.5 seconds. Each arrow deals 2 damage.\n- In Champion form, it has 130 health, shoots bigger arrows and can inflict Poison.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Stone Archer.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/4/43/Sprite_Stone_Archer.png/revision/latest?cb=20190927143246",
+   "width": 162,
+   "height": 192,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_106",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Stone Guard",
+  "page": "https://soul-knight.fandom.com/wiki/Stone_Guard",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 25 {{Champion}}",
+   "normal": 8,
+   "champion": 25
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Stomps on the ground, creating a small shockwave, dealing 3 AoE damage.\n- In Champion form, it has 25 health and the stomp creates a much bigger quake.\n- Stone Guard is immune to all damage during and after the stomp attack. Indicated by its red outline.\n- Death Note can still finish them off, however.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Stone Guard.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/5/5f/Sprite_Stone_Guard.png/revision/latest?cb=20190927143247",
+   "width": 120,
+   "height": 246,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_108",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Stone Laser",
+  "page": "https://soul-knight.fandom.com/wiki/Stone_Laser",
+  "type": null,
+  "health": {
+   "raw": "13 <br/> 43 {{Champion}}",
+   "normal": 13,
+   "champion": 43
+  },
+  "damage": {
+   "raw": "2 <br/> 3 {{Champion}}",
+   "normal": 2,
+   "champion": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Fires 2 bullets out of its eyes twice, dealing 2 damage each.\n- In Champion form, it has 45 health and the bullets are much bigger.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Stone Laser.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/03/Sprite_Stone_Laser.png/revision/latest?cb=20190927143247",
+   "width": 144,
+   "height": 216,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_107",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Tentacle",
+  "page": "https://soul-knight.fandom.com/wiki/Tentacle",
+  "type": null,
+  "health": {
+   "raw": "40 <br/> 80 {{Champion}}",
+   "normal": 40,
+   "champion": 80
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-4 to 3-5 (Spaceship)",
+   "levels": [
+    "3-4",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-4",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- It is an immobile enemy, rround bullets spreading in all directions.\n- Leaves a purple poison pool when defeated.\n- In Champion form, it has 80 health, Fire red bouncy bullets that can bounce off walls 3 times.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Tentacle.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/1/18/Sprite_Tentacle.png/revision/latest?cb=20260624120554",
+   "width": 204,
+   "height": 600,
+   "fallback": true
+  },
+  "sprite": null,
+  "sprite_note": "điểm tốt nhất 0.40 < 0.90 (skin/character/assassin/skin_26/assassin_26_2_1_19)"
+ },
+ {
+  "name": "Tentacle of the Past",
+  "page": "https://soul-knight.fandom.com/wiki/Tentacle_of_the_Past",
+  "type": null,
+  "health": {
+   "raw": "31 <br/>60 {{Champion}}",
+   "normal": 31,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "<br/> {{Champion}}",
+   "champion": null
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-3 to 2-5 (Swamp)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Swamp"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Swamp"
+   ]
+  },
+  "behavior": "- Thrashes left and right, causing damage at melee range.\n- Leaves a purple poison pool when slain.\n- In Champion form, it has 60 health.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Swamp",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Tentacle of the Past.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/3/3a/Sprite_Tentacle_of_the_Past.png/revision/latest?cb=20210316061633",
+   "width": 65,
+   "height": 265,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_30",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 5,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Top Gun",
+  "page": "https://soul-knight.fandom.com/wiki/Top_Gun",
+  "type": null,
+  "health": {
+   "raw": "30 <br/> 45 {{Champion}}",
+   "normal": 30,
+   "champion": 45
+  },
+  "damage": {
+   "raw": "5 (Gun)/3 (Drill) <br/> 3 (Gun) {{Champion}}",
+   "normal": null,
+   "normal_text": "5 (Gun)/3",
+   "champion": 3
+  },
+  "weapon": "Gatling Gun or Electric Drill",
+  "found_in": {
+   "raw": "2-3 to 2-5 (Grave)",
+   "levels": [
+    "2-3",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-3",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Grave"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Grave"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Top Gun.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/b/bc/Sprite_Top_Gun.png/revision/latest?cb=20210317044029",
+   "width": 315,
+   "height": 259,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_2_37",
+   "score": 0.9958,
+   "mask": 1.0,
+   "factor": 7,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Toxic Worm",
+  "page": "https://soul-knight.fandom.com/wiki/Toxic_Worm",
+  "type": null,
+  "health": {
+   "raw": "10 <br/> 30 {{Champion}}",
+   "normal": 10,
+   "champion": 30
+  },
+  "damage": {
+   "raw": "2 + Poison",
+   "normal": null,
+   "normal_text": "2 + Poison"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "1-x (Relics)",
+   "levels": [
+    "1-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-x"
+   ],
+   "normal_biomes": [
+    "Relics"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Relics"
+   ]
+  },
+  "behavior": "- Toxic Worm itself deals 2 damage to the player on contact.\n- Fires a cluster of 5 bullets, dealing 2 damage and can inflict Poison.\n- In Champion form, it has 30 health and fires 7 green bullets instead of 5.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Relics",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Toxic Worm.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/8/85/Sprite_Toxic_Worm.png/revision/latest?cb=20190927143248",
+   "width": 120,
+   "height": 60,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_111",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Transition Device",
+  "page": "https://soul-knight.fandom.com/wiki/Transition_Device",
+  "type": null,
+  "health": {
+   "raw": "30 <br/> 60 {{Champion}}",
+   "normal": 30,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "None",
+   "normal": null,
+   "normal_text": "None"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-4 to 3-5 (Spaceship)",
+   "levels": [
+    "3-4",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-4",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- This enemy is immobile. Deploy any of the three Alien enemies with an interval of 5 seconds. A maximum of 3 aliens can be active per Transition Device.\n- In Champion form, it has 60 health, summon Champion versions of enemies instead.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Transition Device.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Transition Device.png)"
+ },
+ {
+  "name": "Trumpet Flower",
+  "page": "https://soul-knight.fandom.com/wiki/Trumpet_Flower",
+  "type": null,
+  "health": {
+   "raw": "8 <br/> 40 {{Champion}}",
+   "normal": 8,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Levels 1-4 to 1-5 (Forest)",
+   "levels": [
+    "1-4",
+    "1-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "1-4",
+    "1-5"
+   ],
+   "normal_biomes": [
+    "Forest"
+   ],
+   "normal_spans": [
+    {
+     "floor": 1,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Forest"
+   ]
+  },
+  "behavior": "- Trumpet Flower is a stationary enemy.\n- Releases 9 bubble bullets around itself, dealing 3 damage each.\n- In Champion form, it has 44 health, releases 13 bubble bullets and leaves a green poison pool upon death.\n- May drop Trumpet Flower seed when defeated.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Forest",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Trumpet Flower.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/e3/Sprite_Trumpet_Flower.png/revision/latest?cb=20181207022804",
+   "width": 145,
+   "height": 158,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "monster_rise",
+   "name": "M_SpitPlant_3",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.816,
+   "transform": "id",
+   "equal": 5,
+   "alts": [
+    "monster_rise/M_SpitPlant_4",
+    "level/1/a/enemy20_3",
+    "level/1/a/enemy20_4",
+    "bin_datapack/enemy_list_48"
+   ]
+  }
+ },
+ {
+  "name": "UFO",
+  "page": "https://soul-knight.fandom.com/wiki/UFO",
+  "type": null,
+  "health": {
+   "raw": "24 <br/> 40 {{Champion}}",
+   "normal": 24,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-1 to 3-5 (Spaceship)",
+   "levels": [
+    "3-1",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-1",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- Fire a straight burst of fast-moving beam-shaped bullets at the player consecutively.\n- In Champion form, it has 40 health, will rapidly fire bursts of 3 bigger bullet instead.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "UFO.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (UFO.png)"
+ },
+ {
+  "name": "Varkolyn",
+  "page": "https://soul-knight.fandom.com/wiki/Varkolyn",
+  "type": null,
+  "health": {
+   "raw": "12 <br/> 50 {{Champion}}",
+   "normal": 12,
+   "champion": 50
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Spaceship)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- Deals 4 contact damage. Leaves a purple poison pool when defeated.\n- In Champion form, it has 50 health.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Varkolyn.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (Varkolyn.png)"
+ },
+ {
+  "name": "Varkolyn Guard (Axe)",
+  "page": "https://soul-knight.fandom.com/wiki/Varkolyn_Guard_%28Axe%29",
+  "type": null,
+  "health": {
+   "raw": "28 <br/> 80 {{Champion}}",
+   "normal": 28,
+   "champion": 80
+  },
+  "damage": {
+   "raw": "3",
+   "normal": 3
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Spaceship)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- Perform a swing attack with their axe and release a fan of triangle bullets.\n- In Champion form, it has 80 health.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "VarkolynGuardAxe.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (VarkolynGuardAxe.png)"
+ },
+ {
+  "name": "Varkolyn Guard (Machine Gun)",
+  "page": "https://soul-knight.fandom.com/wiki/Varkolyn_Guard_%28Machine_Gun%29",
+  "type": null,
+  "health": {
+   "raw": "28 <br/> 60 {{Champion}}",
+   "normal": 28,
+   "champion": 60
+  },
+  "damage": {
+   "raw": "4",
+   "normal": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-3 to 3-5 (Spaceship)",
+   "levels": [
+    "3-3",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-3",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Spaceship"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Spaceship"
+   ]
+  },
+  "behavior": "- Fire a burst of 3 large bouncy fast-moving bullets, the bullets can bounce 2 times against other objects\n- In Champion form, it has 60 health.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Spaceship",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "VarkolynGuardMachineGun.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (VarkolynGuardMachineGun.png)"
+ },
+ {
+  "name": "Volcanic Bug",
+  "page": "https://soul-knight.fandom.com/wiki/Volcanic_Bug",
+  "type": null,
+  "health": {
+   "raw": "18 <br/> 40 {{Champion}}",
+   "normal": 18,
+   "champion": 40
+  },
+  "damage": {
+   "raw": null
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-x (Volcano)",
+   "levels": [
+    "3-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-x"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Volcanic Bug is extremely agile, but it cannot move and attack at the same time.\n- Fires 15 consecutive rounded bullets in random directions, dealing 3 damage each.\n- In Champion form, it has 40 health; the bullets are oval and bigger.",
+  "levels_in_floor": [
+   1,
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "VocanicBug.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (VocanicBug.png)"
+ },
+ {
+  "name": "Volcanic Turtle",
+  "page": "https://soul-knight.fandom.com/wiki/Volcanic_Turtle",
+  "type": null,
+  "health": {
+   "raw": "30 <br/> 60 {{Champion}}",
+   "normal": 30,
+   "champion": 60
+  },
+  "damage": {
+   "raw": null
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "3-3 to 3-5 (Volcano)",
+   "levels": [
+    "3-3",
+    "3-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "3-3",
+    "3-5"
+   ],
+   "normal_biomes": [
+    "Volcano"
+   ],
+   "normal_spans": [
+    {
+     "floor": 3,
+     "from": 3,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Volcano"
+   ]
+  },
+  "behavior": "- Briefly stops moving and summons a single meteor that explodes on impact with the ground, dealing 5 damage and causing burn.\n- In Champion form, it has 60 health and summons meteors more frequently. Upon defeated, its corpse explodes, dealing 5 damage.",
+  "levels_in_floor": [
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Volcano",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "VocanicTurtle.png",
+   "url": null
+  },
+  "sprite": null,
+  "sprite_note": "tệp ảnh không còn trên wiki (VocanicTurtle.png)"
+ },
+ {
+  "name": "Witch (Enemy)",
+  "page": "https://soul-knight.fandom.com/wiki/Witch_%28Enemy%29",
+  "type": null,
+  "health": {
+   "raw": "18 <br/> 52 {{Champion}}",
+   "normal": 18,
+   "champion": 52
+  },
+  "damage": {
+   "raw": "3+3",
+   "normal": null,
+   "normal_text": "3+3"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-2 to 2-5",
+   "levels": [
+    "2-2",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [],
+   "normal_biomes": [],
+   "normal_spans": [],
+   "biomes": []
+  },
+  "behavior": "- Rams into the player, releasing 2 trail of bubble bullets to either side in the process. Both the ram attack and the bullet deal 3 damage.\n- In Champion form, it has 52 health and releases 4 trail of bubble bullets.",
+  "levels_in_floor": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Witch.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/e/ec/Sprite_Witch.png/revision/latest?cb=20181207135106",
+   "width": 202,
+   "height": 169,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_93",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.543,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Wizard (Enemy)",
+  "page": "https://soul-knight.fandom.com/wiki/Wizard_%28Enemy%29",
+  "type": null,
+  "health": {
+   "raw": "20 <br/> 40 {{Champion}}",
+   "normal": 20,
+   "champion": 40
+  },
+  "damage": {
+   "raw": "3 <br/> 4 {{Champion}}",
+   "normal": 3,
+   "champion": 4
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "Level 2-x (Knight Kingdom)",
+   "levels": [
+    "2-x"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-x"
+   ],
+   "normal_biomes": [
+    "Knight Kingdom"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 1,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Knight Kingdom"
+   ]
+  },
+  "behavior": null,
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Wizard.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/0/0c/Sprite_Wizard.png/revision/latest?cb=20181207135118",
+   "width": 131,
+   "height": 144,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_6",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 6.794,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ },
+ {
+  "name": "Zombie",
+  "page": "https://soul-knight.fandom.com/wiki/Zombie",
+  "type": null,
+  "health": {
+   "raw": "50 <br/> 130 {{Champion}}",
+   "normal": 50,
+   "champion": 130
+  },
+  "damage": {
+   "raw": "4+1",
+   "normal": null,
+   "normal_text": "4+1"
+  },
+  "weapon": null,
+  "found_in": {
+   "raw": "2-4 to 2-5 (Halloween)",
+   "levels": [
+    "2-4",
+    "2-5"
+   ],
+   "modes": [],
+   "normal_levels": [
+    "2-4",
+    "2-5"
+   ],
+   "normal_biomes": [
+    "Halloween"
+   ],
+   "normal_spans": [
+    {
+     "floor": 2,
+     "from": 4,
+     "to": 5
+    }
+   ],
+   "biomes": [
+    "Halloween"
+   ]
+  },
+  "behavior": "- Releases 2 energy bullets, which can create an energy blast when collided with the player or obstacles. The bullet deals 2 damage while the blast deals 1 damage.\n- Releases 6 energy bullets in 2 consecutive shots. Each shot consists of 3 bullets. Each bullet deals 4 damage while the blast deals 1 damage.\n- In Champion form, it has 140 health.",
+  "levels_in_floor": [
+   4,
+   5
+  ],
+  "biome_page": "Halloween",
+  "categories": [
+   "Enemies"
+  ],
+  "image": {
+   "file": "Sprite Zombie.png",
+   "url": "https://static.wikia.nocookie.net/soul-knight/images/a/aa/Sprite_Zombie.png/revision/latest?cb=20181207135131",
+   "width": 132,
+   "height": 160,
+   "fallback": true
+  },
+  "sprite": {
+   "bundle": "bin_datapack",
+   "name": "enemy_list_94",
+   "score": 1.0,
+   "mask": 1.0,
+   "factor": 4.564,
+   "transform": "id",
+   "equal": 1,
+   "alts": []
+  }
+ }
+]

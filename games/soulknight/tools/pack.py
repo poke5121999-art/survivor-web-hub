@@ -28,7 +28,7 @@ class Packer:
         self._by_hash[h] = nm
         return nm
 
-    def write(self, out_dir, prefix='atlas'):
+    def write(self, out_dir, prefix='atlas', tmp=False):
         """Xep theo ke (shelf) tu cao xuong thap. -> {ten: [trang, x, y, w, h, ax, ay]}, [ten trang]"""
         items = sorted(self.frames.items(), key=lambda kv: (-kv[1][0].height, -kv[1][0].width, kv[0]))
         pages = []
@@ -55,6 +55,6 @@ class Packer:
             hh = min(PAGE, bbox[3] + PAD)
             p = p.crop((0, 0, PAGE, hh))
             fn = '%s%d.png' % (prefix, i)
-            p.save(os.path.join(out_dir, fn), optimize=True)
+            p.save(os.path.join(out_dir, fn + ('.tmp.png' if tmp else '')), format='PNG', optimize=True)
             names.append(fn)
         return table, names
