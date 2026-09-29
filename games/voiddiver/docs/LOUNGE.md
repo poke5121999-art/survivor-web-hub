@@ -274,6 +274,8 @@ Mã: `js/ui/character.js`, kiểu ở `css/lounge.css`. Cây prefab đo bằng `
 - [ĐO] `InventoryManagementPagePresenter.OnDropGoods` rẽ theo `SlotCategory`: túi → `DropInventoryGoods`, khe an toàn → `DropSafeGoods`, rương → `CannotDropInLootInventory`, kho → `CannotDropWarehouseItem`.
 - Ở sảnh bản web chặn vứt đồ từ túi (chỉ phát `Fail`), vì sảnh chưa có hàng rơi dưới sàn nên vứt là mất. [CHƯA RÕ bản gốc có rơi xuống sàn sảnh không]
 - Dùng đồ trong túi ở sảnh báo `CannotUseInLounge` ("Vật phẩm này không thể sử dụng trong sảnh."). Chữ này có trong bảng gốc. [SUY LUẬN là chỗ dùng]
+- Hàng còn trong túi (chưa cất kho) theo người chơi vào ải. `app.toDive` gửi `inventory: { pack, slots }` và `dive.js` nạp bằng `reset({ pack })`, nên trong ải túi y như lúc ở sảnh: đủ từng chồng, cùng số ô (có Talent `InventorySlotCount`). Thoát ra thì cả túi vào kho, chết thì mất (trừ khe an toàn).
+- Vũ khí phụ (`equip[nhân vật].sub`) vào ải qua `loadout.subWeaponId`. Trước 2026-09-29 nó không được truyền vào, nên lặn xong hồ sơ ghi `sub: 0` và mất vũ khí phụ.
 - Tay cầm (Start) ở sảnh chưa mở túi: `inventory.step` chỉ chạy trong lượt lặn.
 - Kiểm: `node test/voiddiver-lounge.js --only=lobbybag` (Tab thật, bấm ô kho thật, đếm tổng món trước và sau).
 

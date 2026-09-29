@@ -11,7 +11,8 @@
  *   2. 844×390: tiêu đề, sảnh, menu NPC, bảng Campaign/Talent/Kho đọc được, không tràn.
  *   3. (--only=lobbyplay) HUD người chơi ở sảnh; Felix → SkillSelectPopup bằng chuột thật (ô khoá, tháo skill trùng, lưu khi đóng);
  *      RMB/Q thật ở sảnh (không tốn thể lực/căng thẳng); phòng tập 9003: bù nhìn nhận sát thương; đổi trang bị áp ngay, ô C.
- *   4. (--only=lobbybag) Tab thật ở sảnh mở trang Túi đồ + cột Kho; bấm ô kho sang túi; Tab/Esc đóng, hồ sơ ghi lại đủ món.
+ *   4. (--only=lobbybag) Tab thật ở sảnh mở trang Túi đồ + cột Kho; bấm ô kho sang túi; Tab/Esc đóng, hồ sơ ghi lại đủ món;
+ *      vào ải 1101: túi y như ở sảnh (từng chồng) + vũ khí phụ; thoát ra hồ sơ còn vũ khí phụ.
  *   Hỏng nếu: pageerror, console error, response ≥ 400. Ảnh ở %TEMP%/voiddiver-lounge-shots/ — mở ra xem.
  */
 'use strict';
@@ -607,6 +608,30 @@ async function lobbybag(browser, port, errors) {
   await page.keyboard.press('Escape');
   await sleep(300);
   check('Esc đóng túi ở sảnh', await page.evaluate(() => !VD.inventory.open));
+  // Hàng còn trong túi (chưa cất kho) theo người chơi vào ải, đủ từng chồng; vũ khí phụ cũng theo.
+  const carry = await page.evaluate(() => {
+    const p = VD.profile.get(), id = p.character, main = (VD.T.Character.find(r => r.Id === id) || {}).DefaultWeaponId;
+    const sub = VD.T.Equipment.find(r => r.GoodsType === 'Weapon' && r.Id !== main).Id;
+    p.equip[id] = Object.assign({}, p.equip[id], { sub }); VD.profile.save();
+    const sig = gs => gs.map(g => g.type + ':' + g.id + 'x' + (g.count || 1)).sort().join(',');
+    const want = sig(p.pack);
+    VD.app.toDive({ campaignId: 1101, characterId: id });
+    return { want, sub };
+  });
+  check('vào ải 1101', await waitFor(page, () => VD.app.scene === 'dive' && (VD.dive.state === 'intro' || VD.dive.state === 'play'), null, 300000, 'lặn 1101'));
+  const inDive = await page.evaluate(() => ({
+    got: VD.inventory.slots.filter(s => s.g).map(s => s.g.type + ':' + s.g.id + 'x' + (s.g.count || 1)).sort().join(','),
+    sub: VD.inventory.gearIds().sub }));
+  check('túi trong ải đúng từng món của túi ở sảnh', inDive.got === carry.want, carry.want + ' → ' + inDive.got);
+  check('vũ khí phụ theo vào ải', inDive.sub === carry.sub, carry.sub + ' → ' + inDive.sub);
+  await page.evaluate(() => { VD.dive.debug.skipIntro && VD.dive.debug.skipIntro(); });
+  await sleep(500);
+  await page.evaluate(() => VD.lua.api.ForceEscapeStage());
+  await waitFor(page, () => document.querySelector('.vd-result'), null, 60000, 'màn kết quả');
+  await page.evaluate(() => VD.dive.debug.dismissResult());
+  check('thoát ải về sảnh', await waitFor(page, () => VD.app.scene === 'lounge' && document.body.dataset.lounge === 'play', null, 240000, 'về sảnh'));
+  const back = await page.evaluate(() => { const p = VD.profile.get(); return (p.equip[p.character] || {}).sub; });
+  check('thoát ra hồ sơ vẫn giữ vũ khí phụ', back === carry.sub, carry.sub + ' → ' + back);
   return page;
 }
 

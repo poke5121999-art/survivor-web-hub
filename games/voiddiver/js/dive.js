@@ -1631,7 +1631,7 @@
     D.boundRow = rowOf('SpecialField', camp.BoundarySpecialFieldId);
     // ---- túi
     const inv = opts.inventory || {};
-    VD.inventory.reset({ goods: inv.goods || [], quick: inv.quick || VD.profile.get().quick, safe: inv.safe || VD.profile.get().safe, bags: inv.bags || [], equip: opts.loadout || null });
+    VD.inventory.reset({ goods: inv.goods || [], pack: inv.pack, slots: inv.slots, quick: inv.quick || VD.profile.get().quick, safe: inv.safe || VD.profile.get().safe, bags: inv.bags || [], equip: opts.loadout || null });
     VD.inventory.bindHudClicks && VD.inventory.bindHudClicks();
     // ---- nội dung
     setupTasks();

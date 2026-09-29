@@ -120,16 +120,17 @@
     VD.stage.charExtras = { talents: tal, skills: P.talentSkills() };
     const eq = A.equipOf(charId);
     const loadout = Object.assign({ skills: opts.loadout && opts.loadout.skills ? opts.loadout.skills : A.skillLoadout(charId), weaponId: eq.weaponId,
-      equipmentIds: eq.equipmentIds, skins: A.skinsOf(charId, eq.weaponId) }, opts.loadout || {});
+      equipmentIds: eq.equipmentIds, subWeaponId: ((p.equip || {})[charId] || {}).sub || 0, skins: A.skinsOf(charId, eq.weaponId) }, opts.loadout || {});
     // Túi: hàng trong "pack" rời sảnh cùng nhân vật (thoát: dive.js cất tất cả vào kho; chết: mất trừ khe an toàn).
-    const goods = (p.pack || []).map(g => Object.assign({}, g));
+    // Nạp nguyên từng món vào từng ô (inventory.reset pack) như túi ở sảnh; qua inventory.add thì chồng vượt InventoryCountMax bị cắt.
+    const goods = (p.pack || []).map(g => JSON.parse(JSON.stringify(g)));
     p.pack = [];
     P.save();
     const start = diveStartFn();
     let res = null;
     try {
       res = await start.call(VD.dive, { campaignId: +opts.campaignId, characterId: charId, difficulty: diff, seed: opts.seed, loadout,
-        inventory: { goods, quick: p.quick, safe: p.safe } });
+        inventory: { pack: goods, slots: VD.combatDB().c('CharacterInventorySlotCount', 23) + P.talentSum('InventorySlotCount'), quick: p.quick, safe: p.safe } });
       if (res) res.fromDive = true;
     } catch (e) {
       console.error(e);
